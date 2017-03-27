@@ -45,6 +45,7 @@
 #include "ldim_drv.h"
 #include "ldim_func.h"
 #include "ldim_reg.h"
+#include <linux/amlogic/vout/aml_bl.h>
 
 #ifndef MIN
 #define MIN(a, b)   ((a < b) ? a:b)
@@ -166,6 +167,146 @@ static int LD_LUT_VHo_neg[] = {
 	-25, -25, -25, -25, -25, -25, -25, -25, -25, -25,
 	-25, -25, -25, -25, -25, -25, -25, -25, -25, -25, -25
 };
+
+static int reg_LD_LUT_Hdg_TXLX[8][32] = {
+	{508, 508, 508, 510, 512, 512, 510, 505,
+		499, 493, 490, 487, 486, 484, 483, 481,
+		479, 478, 479, 480, 482, 485, 488, 493,
+		497, 499, 496, 486, 475, 465, 460, 459},
+	{254, 248, 239, 226, 211, 194, 176, 156,
+		137, 119, 101, 85, 70, 57, 45, 36,
+		28, 21, 16, 12, 9, 6, 4, 3,
+		2, 1, 1, 1, 0, 0, 0, 0},
+	{511, 511, 509, 508, 505, 502, 498, 493,
+		487, 482, 479, 476, 474, 473, 473, 474,
+		476, 478, 478, 476, 473, 471, 470, 471,
+		472, 472, 467, 459, 449, 440, 436, 435},
+	{511, 511, 511, 511, 511, 510, 506, 501,
+		494, 487, 483, 481, 479, 478, 477, 476,
+		475, 474, 474, 474, 475, 475, 476, 477,
+		478, 477, 471, 460, 447, 436, 430, 429},
+	{511, 511, 510, 510, 509, 508, 504, 499,
+		492, 487, 485, 484, 485, 486, 487, 487,
+		487, 487, 487, 487, 487, 488, 488, 490,
+		491, 490, 484, 472, 459, 447, 442, 441},
+	{512, 511, 511, 512, 512, 511, 508, 502,
+		496, 490, 487, 485, 485, 484, 483, 483,
+		482, 482, 482, 482, 482, 482, 482, 483,
+		483, 481, 478, 470, 462, 455, 452, 451},
+	{510, 510, 510, 511, 512, 511, 508, 502,
+		495, 489, 486, 484, 484, 485, 484, 483,
+		483, 483, 483, 486, 488, 491, 493, 496,
+		498, 498, 495, 487, 477, 469, 464, 464},
+	{496, 496, 496, 497, 498, 497, 494, 488,
+		482, 476, 474, 474, 476, 478, 479, 480,
+		480, 481, 483, 485, 488, 492, 496, 502,
+		509, 512, 510, 501, 490, 481, 476, 476},
+};
+static int reg_LD_LUT_Vdg_TXLX[8][32] = {
+	{493, 493, 491, 486, 476, 463, 448, 430,
+		410, 390, 370, 351, 333, 313, 292, 272,
+		251, 232, 213, 196, 181, 167, 153, 141,
+		129, 118, 108, 99, 91, 84, 79, 74},
+	{489, 489, 489, 486, 481, 475, 467, 455,
+		442, 427, 410, 393, 375, 357, 340, 321,
+		300, 280, 259, 239, 220, 202, 186, 170,
+		156, 142, 129, 117, 106, 96, 87, 80},
+	{483, 480, 477, 471, 463, 453, 440, 426,
+		410, 393, 376, 359, 342, 323, 304, 284,
+		264, 244, 225, 208, 192, 178, 164, 151,
+		138, 127, 117, 107, 99, 91, 85, 79},
+	{488, 485, 481, 475, 467, 456, 442, 427,
+		411, 393, 376, 358,	341, 321, 301, 280,
+		260, 239, 220, 203, 187, 172, 158, 144,
+		132, 120, 110, 100, 92, 85, 79, 74},
+	{488, 486, 482, 477, 469, 459, 446, 431,
+		415, 398, 380, 362, 345, 325, 305, 284,
+		263, 243, 223, 205, 189, 174, 159, 146,
+		133, 121, 111, 101, 92, 84, 78, 72},
+	{491, 489, 485, 480, 472, 462, 449, 434,
+		418, 401, 384, 366, 349, 330, 309, 289,
+		268, 247, 228, 209, 193, 177, 162, 148,
+		134, 121, 110, 99, 89, 81, 73, 67},
+	{489, 486, 482, 475, 467, 456, 443, 427,
+		410, 392, 373, 355, 337, 318, 298, 277,
+		256, 236, 216, 198, 182, 167, 153, 140,
+		128, 117, 107, 98, 89, 82, 76, 71},
+	{477, 474, 467, 457, 443, 427, 410, 391,
+		371, 352, 334, 315, 296, 275, 255, 235,
+		216, 198, 182, 167, 153, 139, 127, 116,
+		105, 96, 87, 80, 74, 69, 65, 62},
+};
+static int reg_LD_LUT_VHk_TXLX[8][32] = {
+	{388, 356, 312, 298, 284, 272, 272, 267,
+		267, 256, 261, 261, 251, 256, 246, 242,
+		251, 246, 251, 242, 246, 251, 246, 237,
+		242, 233, 237, 233, 242, 246, 242, 242},
+	{413, 388, 346, 320, 291, 291, 284, 272,
+		267, 256, 261, 261, 267, 246, 256, 251,
+		251, 251, 246, 237, 242, 229, 233, 233,
+		237, 233, 229, 225, 217, 217, 213, 233},
+	{376, 346, 320, 298, 272, 261, 256, 251,
+		246, 242, 237, 233, 233, 229, 229, 225,
+		225, 221, 221, 217, 213, 213, 210, 210,
+		210, 210, 206, 206, 206, 203, 203, 203},
+	{376, 346, 320, 291, 267, 256, 251, 246,
+		242, 237, 237, 233, 229, 225, 225, 221,
+		221, 217, 217, 213, 213, 213, 210, 210,
+		210, 210, 206, 206, 203, 200, 200, 200},
+	{376, 346, 320, 298, 272, 261, 256, 251,
+		251, 246, 242, 237, 237, 233, 233, 229,
+		229, 229, 225, 225, 221, 221, 217, 217,
+		213, 213, 213, 210, 210, 206, 206, 206},
+	{376, 356, 328, 298, 272, 261, 256, 251,
+		246, 246, 242, 242, 237, 237, 233, 233,
+		229, 229, 225, 225, 221, 217, 217, 217,
+		213, 210, 210, 210, 210, 210, 210, 210},
+	{376, 346, 320, 305, 278, 272, 267, 261,
+		256, 256, 246, 237, 233, 237, 246, 246,
+		233, 229, 229, 229, 217, 229, 229, 229,
+		217, 225, 229, 225, 225, 213, 210, 213},
+	{388, 356, 328, 298, 284, 256, 272, 267,
+		267, 256, 261, 256, 251, 251, 251, 251,
+		242, 251, 246, 237, 237, 242, 242, 242,
+		233, 237, 233, 237, 237, 233, 237, 229},
+};
+static int reg_LD_LUT_VHo_pos_TXLX[32] = {104, 80, 56, 32, 8,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int reg_LD_LUT_VHo_neg_TXLX[32] = {104, 80, 56, 32, 8,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int reg_LD_LUT_Hdg_LEXT_TXLX[8] = {
+	508, 509, 511, 511, 511, 513, 510, 496};
+static int reg_LD_LUT_Vdg_LEXT_TXLX[8] = {
+	493, 489, 486, 491, 490, 493, 492, 480};
+static int reg_LD_LUT_VHk_LEXT_TXLX[8] = {
+	420, 438, 406, 406, 406, 396, 406, 420};
+static int reg_LD_LUT_Id[16 * 24] = {
+	0, 1, 2, 3, 4, 5, 6, 7, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 /*	public function	*/
 int ldim_round(int ix, int ib)
@@ -679,9 +820,6 @@ void LD_LUTInit(struct LDReg *Reg)
 #endif
 
 
-
-
-
 #if 1
 
 static int Remap_lut[][32] = {
@@ -816,68 +954,56 @@ static int Remap_lut[][32] = {
 	  2678, 2836, 2993, 3135, 3215, 3295, 3375, 3455,
 	  3535, 3615, 3695, 3775, 3855, 3935, 4015, 4095, },
 };*/
-
-#if 0
-void LD_LUTInit(struct LDReg *Reg)
-{
-	int k = 0;
-	int t = 0;
-	int tmp = 0;
-
-	/* Emulate the FW to set the LUTs */
-	for (k = 0; k < 16; k++) {
-		/*set the LUT to be inverse of the Lit_value,*/
-		/* lit_idx distribute equal space, set by FW */
-		Reg->X_idx[0][k] = 4095 - 256*k;
-		Reg->X_nrm[0][k] = 8;
-		for (t = 0; t < 32; t++) {
-			/* May be different from Matlab when (16-k)
-			is an odd integer */
-			tmp = Round(64*(t + 1)*32, (16 - k));
-			if (tmp > 4095)
-				tmp = 4095;
-
-			Reg->X_lut[0][k][t] = tmp;
-			Reg->X_lut[1][k][t] = tmp;
-			Reg->X_lut[2][k][t] = tmp;
-		}
-	}
-}
-#else
+static int Remap_lut2[16][16] = {};
 
 void LD_LUTInit(struct LDReg *Reg)
 {
-	int k = 0;
-	int t = 0;
+	int i, j, k, t;
+	enum bl_chip_type_e ldim_chip_type = aml_bl_check_chip();
 
-
-	/* Emulate the FW to set the LUTs */
-	for (k = 0; k < 16; k++) {
-		/*set the LUT to be inverse of the Lit_value,*/
-		/* lit_idx distribute equal space, set by FW */
-		Reg->X_idx[0][k] = 4095 - 256*k;
-		Reg->X_nrm[0][k] = 8;
-		for (t = 0; t < 32; t++) {
-
-			Reg->X_lut[0][k][t] = Remap_lut[k][t];
-			Reg->X_lut[1][k][t] = Remap_lut[k][t];
-			Reg->X_lut[2][k][t] = Remap_lut[k][t];
-
+	switch (ldim_chip_type) {
+	case BL_CHIP_TXLX:
+		for (i = 0; i < 16; i++) {
+			for (j = 0; j < 16; j++)
+				Remap_lut2[i][j] = Remap_lut[i][j*2] |
+					(Remap_lut[i][j*2+1] << 16);
 		}
+		/* Emulate the FW to set the LUTs */
+		for (k = 0; k < 16; k++) {
+			/*set the LUT to be inverse of the Lit_value,*/
+			/* lit_idx distribute equal space, set by FW */
+			Reg->X_idx[0][k] = 4095 - 256*k;
+			Reg->X_nrm[0][k] = 8;
+			for (t = 0; t < 16; t++) {
+				Reg->X_lut2[0][k][t] = Remap_lut2[k][t];
+				Reg->X_lut2[1][k][t] = Remap_lut2[k][t];
+				Reg->X_lut2[2][k][t] = Remap_lut2[k][t];
+				}
+			}
+		break;
+	case BL_CHIP_GXTVBB:
+			/* Emulate the FW to set the LUTs */
+		for (k = 0; k < 16; k++) {
+			/*set the LUT to be inverse of the Lit_value,*/
+			/* lit_idx distribute equal space, set by FW */
+			Reg->X_idx[0][k] = 4095 - 256*k;
+			Reg->X_nrm[0][k] = 8;
+			for (t = 0; t < 32; t++) {
+				Reg->X_lut[0][k][t] = Remap_lut[k][t];
+				Reg->X_lut[1][k][t] = Remap_lut[k][t];
+				Reg->X_lut[2][k][t] = Remap_lut[k][t];
+				}
+			}
+		break;
+	default:
+		break;
 	}
 }
 #endif
 
-#endif
 
 
-
-
-
-
-
-#if 1
-void LD_ConLDReg(struct LDReg *Reg)
+static void ConLDReg_GXTVBB(struct LDReg *Reg)
 {
 	unsigned int T = 0;
 	unsigned int Vnum = 0;
@@ -1096,6 +1222,258 @@ void LD_ConLDReg(struct LDReg *Reg)
 	Reg->fw_LD_BLEst_ACmode = 0;
 	/* u2: 0: est on BLmatrix; 1: est on (BL-DC);
 		2: est on (BL-MIN); 3: est on (BL-MAX) */
+}
+
+
+static void ConLDReg_TXLX(struct LDReg *Reg)
+{
+	int i, j;
+	unsigned int T = 0;
+	unsigned int Vnum = 0;
+	unsigned int Hnum = 0;
+	unsigned int BSIZE = 0;
+
+	/* General registers; */
+	Reg->reg_LD_pic_RowMax = 2160;/* setting default */
+	Reg->reg_LD_pic_ColMax = 3840;
+	LD_IntialData(Reg->reg_LD_pic_YUVsum, 3, 0);
+	/* only output u16*3, (internal ACC will be u32x3)*/
+	LD_IntialData(Reg->reg_LD_pic_RGBsum, 3, 0);
+
+	/* set same region division for statistics */
+	Reg->reg_LD_STA_Vnum  = 8;
+	Reg->reg_LD_STA_Hnum  = 8;
+
+	/*Image Statistic options */
+	Reg->reg_LD_BLK_Vnum = 1;/*u5: Maximum to BLKVMAX */
+	Reg->reg_LD_BLK_Hnum  = 8;/*u5: Maximum to BLKHMAX */
+
+	Reg->reg_LD_STA1max_LPF = 1;
+	/*u1: STA1max statistics on [1 2 1]/4 filtered results */
+	Reg->reg_LD_STA2max_LPF = 1;
+	/*u1: STA2max statistics on [1 2 1]/4 filtered results*/
+	Reg->reg_LD_STAhist_LPF  = 1;
+	/*u1: STAhist statistics on [1 2 1]/4 filtered results*/
+	Reg->reg_LD_STA1max_Hdlt = 0;
+	/*u2: (2^x) extra pixels into Max calculation*/
+	Reg->reg_LD_STA1max_Vdlt = 0;
+	/*u4: extra pixels into Max calculation vertically*/
+	Reg->reg_LD_STA2max_Hdlt = 0;
+	/*u2: (2^x) extra pixels into Max calculation*/
+	Reg->reg_LD_STA2max_Vdlt = 0;
+	/*u4: extra pixels into Max calculation vertically*/
+	Reg->reg_LD_STAhist_mode = 3;
+	/*u3: histogram statistics on XX separately 20bits*16bins:
+	0:R-only,1:G-only 2:B-only 3:Y-only; 4:MAX(R,G,B),5/6/7:R&G&B*/
+
+	/******	FBC3 fw_hw_alg_frm	*******/
+	Reg->reg_ldfw_blest_acmode = 0;
+	/* u3: 0: est on BLmatrix; 1: est on (BL-DC);
+	2: est on (BL-MIN); 3: est on (BL-MAX) 4: 2048; 5:1024  */
+
+	Reg->reg_ldfw_blk_norm = 128;
+	/*u8: normalization gain for blk number,
+	1/blk_num= norm>>(rs+8), norm = (1<<(rs+8))/blk_num*/
+
+	Reg->reg_ldfw_blk_norm_rs = 2;
+	/*u3: 0~7,  1/blk_num= norm>>(rs+8)*/
+
+	Reg->reg_ldfw_BLmax = 4095;       /*maximum BL value*/
+
+	Reg->reg_ldfw_boost_enable = 1;
+	/* u1: enable signal for Boost filter on the tbl_matrix */
+
+	Reg->reg_ldfw_boost_gain = 64;
+	/* u8: boost gain for the region that is
+	larger than the average, norm to 16 as "1" */
+
+	Reg->reg_ldfw_enable = 1;
+
+	Reg->reg_ldfw_hist_valid_ofst = 63;/* u8, hist valid bin upward offset*/
+
+	Reg->reg_ldfw_hist_valid_rate = 64;
+	/* u8, norm to 512 as "1", if hist_matrix[i]>(rate*histavg)>>9 */
+
+	Reg->reg_ldfw_sedglit_RL = 1;/*u1: single edge lit right/bottom mode*/
+
+	Reg->reg_ldfw_sf_enable = 1;
+	/* u1: enable signal for spatial filter on the tbl_matrix */
+
+	Reg->reg_ldfw_sf_thrd = 1600;
+	/*u12: threshold of difference to enable the sf;*/
+
+	Reg->reg_ldfw_sta_hdg_vflt = 1;
+
+	for (T = 0; T < 8; T++)
+		Reg->reg_ldfw_sta_hdg_weight[T] = 64;
+
+	Reg->reg_ldfw_sta_max_hist_mode = 0;
+	/* u2: mode of reference max/hist mode:
+	0: MIN(max, hist), 1: MAX(max, hist) 2: (max+hist)/2,
+	3: (max(a,b)*3 + min(a,b))/4  */
+
+	Reg->reg_ldfw_sta_max_mode = 3;
+	/* u2: maximum selection for components:
+	0: r_max, 1: g_max, 2: b_max; 3: max(r,g,b)*/
+
+	Reg->reg_ldfw_sta_norm         = 128;
+	Reg->reg_ldfw_sta_norm_rs      = 5;
+
+	Reg->reg_ldfw_tf_alpha_ofst = 32;
+	/* u8: ofset to alpha SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_tf_alpha_rate = 16;
+	/*u8: rate to SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_tf_disable_th = 255;
+	/* u8: 4x is the threshod to disable tf to the alpha
+	(SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_tf_enable = 1;
+
+	Vnum = Reg->reg_LD_BLK_Vnum;
+	Hnum = Reg->reg_LD_BLK_Hnum;
+	BSIZE = Vnum*Hnum;
+	/*Initialization */
+	LD_IntialData(Reg->BL_matrix, BSIZE, 4095);
+
+	/* BackLight Modeling control register setting*/
+	Reg->reg_LD_BackLit_Xtlk = 1;
+	/* u1: 0 no block to block Xtalk model needed;	 1: Xtalk model needed*/
+	Reg->reg_LD_BackLit_mode = 1;
+	/*u2: 0- LEFT/RIGHT Edge Lit; 1- Top/Bot Edge Lit; 2 - DirectLit modeled
+		H/V independant; 3- DirectLit modeled HV Circle distribution */
+	Reg->reg_LD_Reflect_Hnum = 3;
+	/*u3: numbers of band reflection considered in Horizontal
+			direction; 0~4*/
+	Reg->reg_LD_Reflect_Vnum = 0;
+	/*u3: numbers of band reflection considered in Horizontal
+			direction; 0~4*/
+	Reg->reg_LD_BkLit_curmod = 0;
+	/*u1: 0: H/V separately, 1 Circle distribution*/
+	Reg->reg_LD_BkLUT_Intmod = 1;
+	/*u1: 0: linear interpolation, 1 cubical interpolation*/
+	Reg->reg_LD_BkLit_Intmod = 1;
+	/*u1: 0: linear interpolation, 1 cubical interpolation*/
+	Reg->reg_LD_BkLit_LPFmod = 7;
+	/*u3: 0: no LPF, 1:[1 14 1]/16;2:[1 6 1]/8; 3: [1 2 1]/4;
+			4:[9 14 9]/32  5/6/7: [5 6 5]/16;*/
+	Reg->reg_LD_BkLit_Celnum = 121;
+	/*u8:0:1920~61####((Reg->reg_LD_pic_ColMax+1)/32)+1;*/
+	Reg->reg_BL_matrix_AVG = 0;
+	/*u12: DC of whole picture BL to be substract from BL_matrix
+		during modeling (Set by FW daynamically)*/
+	Reg->reg_BL_matrix_Compensate = 0;
+	/*u12: DC of whole picture BL to be compensated back to
+		Litfull after the model (Set by FW dynamically);*/
+	LD_IntialData(Reg->reg_LD_Reflect_Hdgr, 20, 32);
+	/*20*u6: cells 1~20 for H Gains of different dist of Left/Right;*/
+	LD_IntialData(Reg->reg_LD_Reflect_Vdgr, 20, 32);
+	/*20*u6: cells 1~20 for V Gains of different dist of Top/Bot; */
+	LD_IntialData(Reg->reg_LD_Reflect_Xdgr, 4, 32);/*  4*u6: */
+
+	Reg->reg_LD_Vgain	= 256;/* u12 */
+	Reg->reg_LD_Hgain	= 242;/* u12 */
+	Reg->reg_LD_Litgain = 256;/* u12 */
+	Reg->reg_LD_Litshft = 3;
+	/* u3	right shif of bits for the all Lit's sum */
+	LD_IntialData(Reg->reg_LD_BkLit_valid, 32, 1);
+	/*u1x32: valid bits for the 32 cell Bklit to contribut to current
+		position (refer to the backlit padding pattern)
+	 region division index  1  2	3	4 5(0) 6(1) 7(2) 8(3) 9(4)
+		10(5)11(6)12(7)13(8) 14(9)15(10) 16   17   18	19 */
+	for (T = 0; T < LD_BLK_LEN_H; T++)
+		Reg->reg_LD_BLK_Hidx[T] = LD_BLK_Hidx[T];/* S14* BLK_LEN_H */
+	for (T = 0; T < LD_BLK_LEN_V; T++)
+		Reg->reg_LD_BLK_Vidx[T] = LD_BLK_Vidx[T];/* S14x BLK_LEN_V */
+
+	for (j = 0; j < 8; j++) {
+		for (i = 0; i < 32; i++) {
+			Reg->reg_LD_LUT_Hdg_TXLX[j][i] =
+				reg_LD_LUT_Hdg_TXLX[j][i];
+		}
+	}
+
+	for (j = 0; j < 8; j++) {
+		for (i = 0; i < 32; i++) {
+			Reg->reg_LD_LUT_Vdg_TXLX[j][i] =
+				reg_LD_LUT_Vdg_TXLX[j][i];
+		}
+	}
+
+	for (j = 0; j < 8; j++) {
+		for (i = 0; i < 32; i++) {
+			Reg->reg_LD_LUT_VHk_TXLX[j][i] =
+				reg_LD_LUT_VHk_TXLX[j][i];
+		}
+	}
+
+	for (i = 0; i < 16*24; i++)
+		Reg->reg_LD_LUT_Id[i]  = reg_LD_LUT_Id[i];
+	/* set the VHk_pos and VHk_neg value ,normalized to
+		128 as "1" 20150428 */
+	for (T = 0; T < 32; T++) {
+		Reg->reg_LD_LUT_VHk_pos[T] = 128;/* vdist>=0 */
+		Reg->reg_LD_LUT_VHk_neg[T] = 128;/* vdist<0 */
+		Reg->reg_LD_LUT_HHk[T] = 128;/* hdist gain */
+		Reg->reg_LD_LUT_VHo_pos[T] = reg_LD_LUT_VHo_pos_TXLX[T];
+		Reg->reg_LD_LUT_VHo_neg[T] = reg_LD_LUT_VHo_neg_TXLX[T];
+	}
+	Reg->reg_LD_LUT_VHo_LS = 0;
+
+	for (i = 0; i < 8; i++) {
+		Reg->reg_LD_LUT_Hdg_LEXT_TXLX[i] = reg_LD_LUT_Hdg_LEXT_TXLX[i];
+		Reg->reg_LD_LUT_Vdg_LEXT_TXLX[i] = reg_LD_LUT_Vdg_LEXT_TXLX[i];
+		Reg->reg_LD_LUT_VHk_LEXT_TXLX[i] = reg_LD_LUT_VHk_LEXT_TXLX[i];
+	}
+
+	/* set the demo window */
+	Reg->reg_LD_xlut_demo_roi_xstart = (Reg->reg_LD_pic_ColMax/4);
+	     /* u14 start col index of the region of interest */
+	Reg->reg_LD_xlut_demo_roi_xend = (Reg->reg_LD_pic_ColMax*3/4);
+	  /* u14 end col index of the region of interest */
+	Reg->reg_LD_xlut_demo_roi_ystart = (Reg->reg_LD_pic_RowMax/4);
+	     /* u14 start row index of the region of interest */
+	Reg->reg_LD_xlut_demo_roi_yend = (Reg->reg_LD_pic_RowMax*3/4);
+	   /*  u14 end row index of the region of interest */
+	Reg->reg_LD_xlut_iroi_enable = 1;
+	     /*  u1: enable rgb LUT remapping inside regon of interest:
+	      0: no rgb remapping; 1: enable rgb remapping */
+	Reg->reg_LD_xlut_oroi_enable = 1;
+	    /* u1: enable rgb LUT remapping outside regon of interest:
+	      0: no rgb remapping; 1: enable rgb remapping */
+
+	/*  Registers used in LD_RGB_LUT for RGB remaping */
+	Reg->reg_LD_RGBmapping_demo = 1;
+	/* u2: 0 no demo mode 1: display BL_fulpel on RGB */
+	Reg->reg_LD_X_LUT_interp_mode[0] = 0;
+	 /* U1 0: using linear interpolation between to neighbour LUT;
+	  1: use the nearest LUT results */
+	Reg->reg_LD_X_LUT_interp_mode[1] = 0;
+	 /*  U1 0: using linear interpolation between to neighbour LUT;
+	  1: use the nearest LUT results */
+	Reg->reg_LD_X_LUT_interp_mode[2] = 0;
+	 /* U1 0: using linear interpolation between to neighbour LUT;
+	  1: use the nearest LUT results */
+	LD_LUTInit(Reg);
+}
+
+
+#if 1
+void LD_ConLDReg(struct LDReg *Reg)
+{
+	enum bl_chip_type_e ldim_chip_type = aml_bl_check_chip();
+
+	switch (ldim_chip_type) {
+	case BL_CHIP_TXLX:
+		ConLDReg_TXLX(Reg);
+		break;
+	case BL_CHIP_GXTVBB:
+		ConLDReg_GXTVBB(Reg);
+		break;
+	default:
+		break;
+	}
 }
 
 void ld_fw_cfg_once(struct LDReg *nPRM)

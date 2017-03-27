@@ -110,6 +110,8 @@ const char *bl_chip_table[] = {
 	"G9TV",
 	"G9BB",
 	"GXTVBB",
+	"TXL",
+	"TXLX",
 	"invalid",
 };
 
@@ -160,7 +162,7 @@ static unsigned int pwm_reg[6] = {
 	PWM_PWM_F,
 };
 
-static enum bl_chip_type_e aml_bl_check_chip(void)
+enum bl_chip_type_e aml_bl_check_chip(void)
 {
 	unsigned int cpu_type;
 	enum bl_chip_type_e bl_chip = BL_CHIP_MAX;
@@ -181,6 +183,12 @@ static enum bl_chip_type_e aml_bl_check_chip(void)
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 		bl_chip = BL_CHIP_GXTVBB;
+		break;
+	case MESON_CPU_MAJOR_ID_TXL:
+		bl_chip = BL_CHIP_TXL;
+		break;
+	case MESON_CPU_MAJOR_ID_TXLX:
+		bl_chip = BL_CHIP_TXLX;
 		break;
 	default:
 		bl_chip = BL_CHIP_MAX;

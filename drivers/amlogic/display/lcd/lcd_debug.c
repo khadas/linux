@@ -69,6 +69,7 @@ static const char *lcd_debug_usage_str = {
 "    echo info > debug ; show lcd infomation\n"
 "    echo reg > debug ; show lcd registers\n"
 "    echo dump > debug ; show lcd infomation & registers\n"
+"	 echo dith <dither_en> <rounding_en> <dither_md>  > debug ; set vpu_vencl_dith_ctrl\n"
 "    echo key > debug ; show lcd_key_valid config, and lcd unifykey raw data\n"
 "\n"
 "    echo reset > debug; reset lcd driver\n"
@@ -464,6 +465,16 @@ static void lcd_phy_analog_reg_print(void)
 		reg, lcd_hiu_read(reg));
 }
 
+static void lcd_dither_dubug(int dither_en, int round_en, int dither_md)
+{
+	int data;
+
+	data = lcd_vcbus_read(0x27e0) & 0xfffffff8;
+	data = (dither_en & 0x1) | ((round_en & 0x1) << 1) |
+		((dither_md & 0x1) << 2) | data;
+	lcd_vcbus_write(0x27e0, data);
+}
+
 static void lcd_reg_print(void)
 {
 	int i;
@@ -690,6 +701,7 @@ static ssize_t lcd_debug_store(struct class *class,
 {
 	int ret = 0;
 	unsigned int temp, val[6];
+	unsigned int dither_md, round_en, dither_en;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
 
@@ -797,7 +809,7 @@ static ssize_t lcd_debug_store(struct class *class,
 			lcd_reg_print();
 		} else if (buf[2] == 's') { /* reset */
 			lcd_drv->module_reset();
-		} else if (buf[2] == 'a') { /* range */
+		} else if (buf[2] == 'n') { /* range */
 			ret = sscanf(buf, "range %d %d %d %d %d %d",
 				&val[0], &val[1], &val[2], &val[3],
 				&val[4], &val[5]);
@@ -823,13 +835,27 @@ static ssize_t lcd_debug_store(struct class *class,
 			}
 		}
 		break;
-	case 'd': /* dump */
-		LCDPR("driver version: %s\n", lcd_drv->version);
-		lcd_info_print();
-		pr_info("\n");
-		lcd_reg_print();
-		pr_info("\n");
-		lcd_hdr_info_print();
+	case 'd':
+		if (buf[1] == 'i') { /* dith */
+			ret = sscanf(buf, "dith %d %d %d",
+				&val[0], &val[1], &val[2]);
+			if (ret == 3) {
+				dither_en = val[0];
+				round_en =  val[1];
+				dither_md = val[2];
+				pr_info("set dither_en=%d, round_en=%d, dither_md=%d\n",
+					val[0], val[1], val[2]);
+				lcd_dither_dubug(dither_en,
+					round_en, dither_md);
+				}
+		} else if (buf[1] == 'u') {/* dump */
+			LCDPR("driver version: %s\n", lcd_drv->version);
+			lcd_info_print();
+			pr_info("\n");
+			lcd_reg_print();
+			pr_info("\n");
+			lcd_hdr_info_print();
+		}
 		break;
 	case 'k': /* key */
 		LCDPR("key_valid: %d, config_load: %d\n",
