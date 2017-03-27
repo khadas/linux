@@ -886,8 +886,7 @@ void amvecm_video_latch(void)
 
 void amvecm_on_vs(struct vframe_s *vf)
 {
-	if ((probe_ok == 0) ||
-	(is_meson_gxm_cpu() && is_dolby_vision_on()))
+	if ((probe_ok == 0) || is_dolby_vision_on())
 		return;
 
 	if (vf != NULL) {
@@ -924,7 +923,7 @@ EXPORT_SYMBOL(amvecm_on_vs);
 void refresh_on_vs(struct vframe_s *vf)
 {
 	if ((probe_ok == 0) ||
-		(is_meson_gxm_cpu() && is_dolby_vision_on()))
+	is_dolby_vision_on())
 		return;
 	if (vf != NULL) {
 		vpp_get_vframe_hist_info(vf);
@@ -941,6 +940,56 @@ static int amvecm_open(struct inode *inode, struct file *file)
 	devp = container_of(inode->i_cdev, struct amvecm_dev_s, cdev);
 	file->private_data = devp;
 	return 0;
+}
+
+static char *pq_config_buf;
+static uint32_t pq_config_level;
+static ssize_t amvecm_write(
+	struct file *file,
+	const char *buf,
+	size_t len,
+	loff_t *off)
+{
+	int i;
+
+	if (pq_config_buf == NULL) {
+		pq_config_buf = vmalloc(108*1024);
+		pq_config_level = 0;
+		if (pq_config_buf == NULL)
+			return -ENOSPC;
+	}
+	for (i = 0; i < len; i++) {
+		pq_config_buf[pq_config_level] = buf[i];
+		pq_config_level++;
+		if (pq_config_level == 109727) {
+			dolby_vision_update_pq_config(pq_config_buf);
+			pq_config_level = 0;
+			break;
+		}
+	}
+	return len;
+}
+
+static ssize_t amvecm_read(
+	struct file *file, char __user *buf,
+	size_t count, loff_t *ppos)
+{
+	char *out;
+	u32 data_size = 0, res, retVal = 0;
+	if (!is_dolby_vision_enable())
+		return retVal;
+	out = tv_dolby_vision_get_crc(&data_size);
+	if (out && data_size > 0) {
+		res = copy_to_user((void *)buf,
+			(void *)out,
+			data_size);
+		retVal = data_size - res;
+		pr_info(
+			"amvecm_read crc size %d, res: %d, ret: %d\n",
+			data_size, res, retVal);
+		tv_dolby_vision_crc_clear(0);
+	}
+	return retVal;
 }
 
 static int amvecm_release(struct inode *inode, struct file *file)
@@ -3014,8 +3063,14 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		bitdepth = val;
 		vpp_datapath_config(bitdepth);
 	} else if (!strcmp(parm[0], "dolby_config")) {
-		tv_dolby_vision_config();
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		tv_dolby_vision_config(val);
 		pr_info("tv_dolby_vision_config done!\n");
+	} else if (!strcmp(parm[0], "dolby_crc")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		tv_dolby_vision_crc_clear(val);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -3053,7 +3108,7 @@ static ssize_t amvecm_dv_mode_show(struct class *cla,
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_HDR10		3\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR10		4\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR8		5\n");
-	if (is_meson_gxm_cpu() && is_dolby_vision_enable())
+	if (is_dolby_vision_enable())
 		pr_info("current dv_mode = %s\n",
 			dv_mode_str[get_dolby_vision_mode()]);
 	else
@@ -3068,17 +3123,16 @@ static ssize_t amvecm_dv_mode_store(struct class *cla,
 	size_t r;
 	int val;
 
-	if (is_meson_gxm_cpu()) {
-		r = sscanf(buf, "0x%x", &val);
-		if ((r != 1))
-			return -EINVAL;
-		if ((val >= 0) && (val < 6))
-			set_dolby_vision_mode(dv_mode_table[val]);
-		else if (val & 0x200)
-			dolby_vision_dump_struct();
-		else if (val & 0x70)
-			dolby_vision_dump_setting(val);
-	}
+	r = sscanf(buf, "%x", &val);
+	if ((r != 1))
+		return -EINVAL;
+
+	if ((val >= 0) && (val < 6))
+		set_dolby_vision_mode(dv_mode_table[val]);
+	else if (val & 0x200)
+		dolby_vision_dump_struct();
+	else if (val & 0x70)
+		dolby_vision_dump_setting(val);
 	return count;
 }
 
@@ -3346,6 +3400,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 static const struct file_operations amvecm_fops = {
 	.owner   = THIS_MODULE,
 	.open    = amvecm_open,
+	.write   = amvecm_write,
+	.read = amvecm_read,
 	.release = amvecm_release,
 	.unlocked_ioctl   = amvecm_ioctl,
 #ifdef CONFIG_COMPAT
@@ -3477,8 +3533,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 	}
 	aml_vecm_dt_parse(pdev);
-	if (is_meson_gxm_cpu())
-		dolby_vision_init_receiver();
+	dolby_vision_init_receiver(pdev);
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);
 	return 0;
@@ -3508,6 +3563,10 @@ fail_alloc_region:
 static int __exit aml_vecm_remove(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
+	if (pq_config_buf) {
+		vfree(pq_config_buf);
+		pq_config_buf = NULL;
+	}
 	device_destroy(devp->clsp, devp->devno);
 	cdev_del(&devp->cdev);
 	class_destroy(devp->clsp);

@@ -60,6 +60,9 @@
 #define ENCT_INFO_READ 0x271e
 #define ENCL_INFO_READ 0x271f
 #define VPU_VIU2VDIN_HDN_CTRL 0x2780
+/*follow two reg new add from txlx*/
+#define VPU_422TO444_CTRL0 0x274b
+#define VPU_422TO444_RST 0x274a
 #if 0 /* def CONFIG_GAMMA_AUTO_TUNE */
 
 static bool gamma_tune_en;
@@ -105,6 +108,10 @@ MODULE_PARM_DESC(v_cut_offset, "the cut window vertical offset for viuin");
 static unsigned short open_cnt;
 module_param(open_cnt, ushort, 0664);
 MODULE_PARM_DESC(open_cnt, "open_cnt for vdin0/1");
+
+static unsigned short scramble_mode;
+module_param(scramble_mode, ushort, 0664);
+MODULE_PARM_DESC(scramble_mode, "scramble_mode for viu_422to444 vencp");
 
 struct viuin_s {
 	unsigned int flag;
@@ -647,6 +654,12 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 				wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x40f00);
 			}
 	}
+	/*viu_422to444 vencp*/
+	if (is_meson_txlx_cpu() && (viu_mux == 2)) {
+		wr_bits_viu(VPU_422TO444_CTRL0, 1, 28, 1);
+		wr_bits_viu(VPU_422TO444_CTRL0, scramble_mode, 26, 1);
+	}
+
 	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
 	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
 	devp->flag = 0;

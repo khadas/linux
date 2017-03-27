@@ -252,8 +252,43 @@ static void dump_other_mem(char *path,
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 }
+static void vdin_dv_debug(struct vdin_dev_s *devp)
+{
+	struct vframe_s *dv_vf;
+	struct vf_entry *vfe;
+	struct provider_aux_req_s req;
+	vfe = devp->curr_wr_vfe;
+	if (!vfe) {
+		pr_info("current wr vfe is null\n");
+		return;
+	} else
+		dv_vf = &vfe->vf;
+	req.vf = dv_vf;
+	req.bot_flag = 0;
+	req.aux_buf = NULL;
+	req.aux_size = 0;
+	req.dv_enhance_exist = 0;
+	vf_notify_provider_by_name("vdin0",
+		VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+		(void *)&req);
+}
+static void vdin_dump_state_dv(struct vdin_dev_s *devp)
+{
+	unsigned int i;
+	pr_info("dolby_mem_start = %d, dolby_mem_size = %d\n",
+		(devp->mem_start + devp->mem_size -
+		dolby_size_byte*devp->canvas_max_num), dolby_size_byte);
+	pr_info("dv_flag:%d;dv_config:%d\n", devp->dv_flag, devp->dv_config);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		pr_info("dv_mem(%d):0x%x\n",
+			devp->vfp->dv_buf_size[i],
+			devp->vfp->dv_buf_mem[i]);
+	}
+}
+
 static void vdin_dump_state(struct vdin_dev_s *devp)
 {
+	unsigned int i;
 	struct vframe_s *vf = &devp->curr_wr_vfe->vf;
 	struct tvin_parm_s *curparm = &devp->parm;
 	pr_info("h_active = %d, v_active = %d\n",
@@ -319,7 +354,15 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->canvas_max_num, devp->msr_clk_val);
 	pr_info("canvas buffer size %u.\n", devp->canvas_max_size);
 	pr_info("range(%d),csc_cfg:0x%x\n",
-		devp->prop.color_fmt_range, devp->csc_cfg);
+		devp->prop.color_fmt_range,
+		devp->csc_cfg);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		pr_info("dv_mem(%d):0x%x\n",
+			devp->vfp->dv_buf_size[i],
+			devp->vfp->dv_buf_mem[i]);
+	}
+	pr_info("dv_flag:%d;dv_config:%d\n",
+		devp->dv_flag, devp->dv_config);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 
@@ -482,12 +525,25 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 static void dump_dolby_metadata(struct vdin_dev_s *devp)
 {
 	unsigned *addr;
-	unsigned int i;
+	unsigned int i, j;
 	addr = phys_to_virt(devp->mem_start + devp->mem_size -
 		dolby_size_byte*devp->canvas_max_num);
 	pr_info("*****dolby_metadata(%d byte):*****\n", dolby_size_byte);
-	for (i = 0; i < dolby_size_byte/4; i++)
-		pr_info("\t0x%x", *(addr + i));
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		pr_info("*****dolby_metadata(%d)[0x%x](%d byte):*****\n",
+			i, devp->vfp->dv_buf_mem[i], dolby_size_byte);
+		for (j = 0; j < dolby_size_byte; j++) {
+			if ((j % 16) == 0)
+				pr_info("\n");
+			pr_info("0x%02x\t", *(devp->vfp->dv_buf_ori[i] + j));
+		}
+	}
+}
+static void dump_dolby_buf_clean(struct vdin_dev_s *devp)
+{
+	unsigned int i;
+	for (i = 0; i < devp->canvas_max_num; i++)
+		memset(devp->vfp->dv_buf_ori[i], 0, dolby_size_byte);
 }
 #ifdef CONFIG_AML_LOCAL_DIMMING
 
@@ -810,6 +866,8 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "state")) {
 		vdin_dump_state(devp);
+	} else if (!strcmp(parm[0], "dv_state")) {
+		vdin_dump_state_dv(devp);
 	} else if (!strcmp(parm[0], "histgram")) {
 		vdin_dump_histgram(devp);
 	}
@@ -1018,6 +1076,13 @@ start_chk:
 	} else if (!strcmp(parm[0], "metadata")) {
 		dump_dolby_metadata(devp);
 		pr_info("dolby_config done\n");
+	} else if (!strcmp(parm[0], "clean_dv")) {
+		dump_dolby_buf_clean(devp);
+		pr_info("clean dolby vision mem done\n");
+	} else if (!strcmp(parm[0], "dv_state")) {
+		vdin_dump_state_dv(devp);
+	} else if (!strcmp(parm[0], "dv_debug")) {
+		vdin_dv_debug(devp);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

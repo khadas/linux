@@ -229,7 +229,7 @@ void vpp_set_12bit_datapath1(void)
 	vpp_extend_mode_core1(EXTMODE_LOW);
 	vpp_extend_mode_vd2(EXTMODE_LOW);
 	vpp_bypas_core1(1);
-	vpp_enable_vd2(0);
+	/* vpp_enable_vd2(0); */
 
 	/*don't skip pps & super scaler*/
 	vpp_skip_pps(0);
@@ -263,7 +263,7 @@ void vpp_set_12bit_datapath2(void)
 	vpp_extend_mode_core1(EXTMODE_LOW);
 	vpp_extend_mode_vd2(EXTMODE_LOW);
 	vpp_bypas_core1(1);
-	vpp_enable_vd2(0);
+	/* vpp_enable_vd2(0); */
 
 	/*don't skip pps & super scaler*/
 	vpp_skip_pps(0);
@@ -296,7 +296,7 @@ void vpp_set_10bit_datapath1(void)
 	vpp_extend_mode_core1(EXTMODE_LOW);
 	vpp_extend_mode_vd2(EXTMODE_LOW);
 	vpp_bypas_core1(1);
-	vpp_enable_vd2(0);
+	/* vpp_enable_vd2(0); */
 
 	/*don't skip pps & super scaler*/
 	vpp_skip_pps(0);

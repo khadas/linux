@@ -408,6 +408,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 							prop->dvi_info & 0xf;
 						devp->parm.info.fps =
 							prop->dvi_info >> 4;
+						devp->dv_flag =
+							prop->dolby_vision;
 					}
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;
@@ -612,6 +614,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 						prop->dvi_info & 0xf;
 					devp->parm.info.fps =
 						prop->dvi_info >> 4;
+					devp->dv_flag = prop->dolby_vision;
 					info->fmt = stable_fmt;
 					atv_stable_fmt_check_enable = 0;
 					if (sm_debug_enable)
