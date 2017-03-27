@@ -41,38 +41,65 @@ extern unsigned int ldim_debug_print;
 
 extern void set_bri_for_channels(unsigned short bri[16]);
 
+/*** GXTVBB & TXLX common use register*/
 /* each base has 16 address space */
-#define REG_LD_CFG_BASE          0x00
-#define REG_LD_RGB_IDX_BASE      0x10
-#define REG_LD_G_IDX_BASE        0x20
-#define REG_LD_B_IDX_BASE        0x30
-#define REG_LD_RGB_NRMW_BASE     0x40
-#define REG_LD_LUT_HDG_BASE      0x50
-#define REG_LD_LUT_VHK_BASE      0x60
-#define REG_LD_LUT_VDG_BASE      0x70
-#define REG_LD_BLK_HIDX_BASE     0x80
-#define REG_LD_BLK_VIDX_BASE     0xa0
-#define REG_LD_LUT_VHK_NEGPOS_BASE  0xc0
-#define REG_LD_LUT_VHO_NEGPOS_BASE  0xd0
-#define REG_LD_LUT_HHK_BASE         0xe0
-#define REG_LD_REFLECT_DGR_BASE  0xf0
-#define REG_LD_RGB_LUT_BASE      0x2000
-#define REG_LD_MATRIX_BASE       0x3000
-#define REG_LD_FRM_SIZE         0x0
-#define REG_LD_RGB_MOD          0x1
-#define REG_LD_BLK_HVNUM        0x2
-#define REG_LD_HVGAIN           0x3
-#define REG_LD_BKLIT_VLD        0x4
-#define REG_LD_BKLIT_PARAM      0x5
-#define REG_LD_LUT_XDG_LEXT     0x6
-#define REG_LD_LIT_GAIN_COMP    0x7
-#define REG_LD_FRM_RST_POS      0x8
-#define REG_LD_FRM_BL_START_POS 0x9
-#define REG_LD_MISC_CTRL0       0xa
+#define REG_LD_CFG_BASE           0x00
+#define REG_LD_RGB_IDX_BASE       0x10
+#define REG_LD_RGB_LUT_BASE       0x2000
+#define REG_LD_MATRIX_BASE        0x3000
+/* LD_CFG_BASE */
+#define REG_LD_FRM_SIZE           0x0
+#define REG_LD_RGB_MOD            0x1
+#define REG_LD_BLK_HVNUM          0x2
+#define REG_LD_HVGAIN             0x3
+#define REG_LD_BKLIT_VLD          0x4
+#define REG_LD_BKLIT_PARAM        0x5
+#define REG_LD_LIT_GAIN_COMP      0x7
+#define REG_LD_FRM_RST_POS        0x8
+#define REG_LD_FRM_BL_START_POS   0x9
+#define REG_LD_MISC_CTRL0         0xa
 #define REG_LD_FRM_HBLAN_VHOLS    0xb
 #define REG_LD_XLUT_DEMO_ROI_XPOS 0xc
 #define REG_LD_XLUT_DEMO_ROI_YPOS 0xd
 #define REG_LD_XLUT_DEMO_ROI_CTRL 0xe
+
+
+/* each base has 16 address space */
+/******  GXTVBB ******/
+#define REG_LD_G_IDX_BASE          0x20
+#define REG_LD_B_IDX_BASE          0x30
+#define REG_LD_RGB_NRMW_BASE       0x40
+#define REG_LD_LUT_HDG_BASE        0x50
+#define REG_LD_LUT_VHK_BASE        0x60
+#define REG_LD_LUT_VDG_BASE        0x70
+#define REG_LD_BLK_HIDX_BASE       0x80
+#define REG_LD_BLK_VIDX_BASE       0xa0
+#define REG_LD_LUT_VHK_NEGPOS_BASE 0xc0
+#define REG_LD_LUT_VHO_NEGPOS_BASE 0xd0
+#define REG_LD_LUT_HHK_BASE        0xe0
+#define REG_LD_REFLECT_DGR_BASE    0xf0
+/* LD_CFG_BASE */
+#define REG_LD_LUT_XDG_LEXT        0x6
+
+
+
+/* each base has 16 address space */
+/******  TXLX  ******/
+#define REG_LD_RGB_NRMW_BASE_TXLX       0x20
+#define REG_LD_BLK_HIDX_BASE_TXLX       0x30
+#define REG_LD_BLK_VIDX_BASE_TXLX       0x50
+#define REG_LD_LUT_VHK_NEGPOS_BASE_TXLX 0x60
+#define REG_LD_LUT_VHO_NEGPOS_BASE_TXLX 0x70
+#define REG_LD_LUT_HHK_BASE_TXLX        0x80
+#define REG_LD_REFLECT_DGR_BASE_TXLX    0x90
+#define REG_LD_LUT_LEXT_BASE_TXLX       0xa0
+#define REG_LD_LUT_HDG_BASE_TXLX        0x100
+#define REG_LD_LUT_VDG_BASE_TXLX        0x180
+#define REG_LD_LUT_VHK_BASE_TXLX        0x200
+#define REG_LD_LUT_ID_BASE_TXLX         0x300
+/* LD_CFG_BASE */
+#define REG_LD_BLMAT_RAM_MISC           0xf
+
 
 /*========================================*/
 #define LD_STA_BIN_NUM 16
@@ -179,6 +206,18 @@ struct LDReg {
 		3: est on (BL-MAX) 4: 2048; 5:1024 */
 	int reg_ldfw_sf_enable;/*u1: enable signal for spatial filter
 		on the tbl_matrix*/
+	int reg_ldfw_enable;
+	int reg_ldfw_sta_hdg_vflt;
+	int reg_ldfw_sta_norm;
+	int reg_ldfw_sta_norm_rs;
+	int reg_ldfw_tf_enable;
+	int reg_LD_LUT_Hdg_TXLX[8][32];
+	int reg_LD_LUT_Vdg_TXLX[8][32];
+	int reg_LD_LUT_VHk_TXLX[8][32];
+	int reg_LD_LUT_Id[16 * 24];
+	int reg_LD_LUT_Hdg_LEXT_TXLX[8];
+	int reg_LD_LUT_Vdg_LEXT_TXLX[8];
+	int reg_LD_LUT_VHk_LEXT_TXLX[8];
 	int reg_ldfw_boost_enable; /*u1: enable signal for Boost
 		filter on the tbl_matrix*/
 	int ro_ldfw_bl_matrix_avg;/*u12: read-only register for bl_matrix*/
@@ -280,6 +319,7 @@ struct LDReg {
 	int X_lut[3][16][32];
 	/* Changed to 16 Lits define 32 Bin LUT to save cost*/
 	/* only do the Lit modleing on the AC part*/
+	int X_lut2[3][16][16];
 	int fw_LD_BLEst_ACmode;
 	/*u2: 0: est on BLmatrix; 1: est on (BL-DC);
 		2: est on (BL-MIN); 3: est on (BL-MAX)*/
