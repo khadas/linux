@@ -3557,10 +3557,22 @@ static void bypass_hdr_process(
 			CSC_OFF);
 
 		/* xvycc matrix full2limit or bypass */
-		if (range_control)
-			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				YUV709f_to_YUV709l_coeff,
-				CSC_ON);
+		if (vinfo->viu_color_fmt != TVIN_RGB444) {
+			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
+				set_vpp_matrix(VPP_MATRIX_XVYCC,
+					bypass_coeff,
+					CSC_OFF);
+			else {
+				if (range_control)
+					set_vpp_matrix(VPP_MATRIX_XVYCC,
+						YUV709f_to_YUV709l_coeff,
+						CSC_ON);
+				else
+					set_vpp_matrix(VPP_MATRIX_XVYCC,
+						bypass_coeff,
+						CSC_OFF);
+			}
+		}
 	} else {
 		/* OSD */
 		/* keep RGB */
