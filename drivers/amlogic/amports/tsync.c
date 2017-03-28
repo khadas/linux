@@ -125,7 +125,9 @@ static const struct {
 		AVEVENT_FLAG_PARAM
 	}, {
 		"AUDIO_PRE_START", 15, AUDIO_PRE_START, 0
-	},
+	}, {
+	    "AUDIO_WAIT", 10, AUDIO_WAIT, 0
+       }
 };
 
 static const char * const tsync_mode_str[] = {
@@ -794,6 +796,9 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		timestamp_apts_start(0);
 		break;
 
+	case AUDIO_WAIT:
+		timestamp_pcrscr_set(timestamp_vpts_get());
+		break;
 	case AUDIO_START:
 		/* reset discontinue var */
 		tsync_set_sync_adiscont(0);
