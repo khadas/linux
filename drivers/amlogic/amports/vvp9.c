@@ -181,6 +181,8 @@ static u32 work_buf_size = 32 * 1024 * 1024;
 
 #define DRIVER_NAME "amvdec_vp9"
 #define MODULE_NAME "amvdec_vp9"
+#define DRIVER_HEADER_NAME "amvdec_vp9_header"
+
 
 #define PUT_INTERVAL        (HZ/100)
 #define ERROR_SYSTEM_RESET_COUNT   200
@@ -558,11 +560,14 @@ TODO(hkuang): Add ondemand frame buffers instead of hardcoding the number
 TODO(jkoleszar): These 3 extra references could probably come from the
 normal reference pool.*/
 #define FRAME_BUFFERS (REF_FRAMES + 7)
+#define HEADER_FRAME_BUFFERS (FRAME_BUFFERS)
 
 #define FRAME_CONTEXTS_LOG2 2
 #define FRAME_CONTEXTS (1 << FRAME_CONTEXTS_LOG2)
-#define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + 1 + 1) /* workspace */
+/*buffer + header buffer + workspace*/
+#define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + HEADER_FRAME_BUFFERS + 1)
 #define VF_BUFFER_IDX(n) (1 + n)
+#define HEADER_BUFFER_IDX(n) (FRAME_BUFFERS + n)
 #define WORK_SPACE_BUF_ID (FRAME_BUFFERS)
 
 struct RefCntBuffer_s {
@@ -3530,8 +3535,7 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 }
 #endif
 static int config_pic(struct VP9Decoder_s *pbi,
-				struct PIC_BUFFER_CONFIG_s *pic_config,
-				unsigned long last_disp_addr)
+				struct PIC_BUFFER_CONFIG_s *pic_config)
 {
 	int ret = -1;
 	int i;
@@ -3601,16 +3605,12 @@ static int config_pic(struct VP9Decoder_s *pbi,
 		return -1;
 	}
 
+	/*
 	pic_config->header_adr = pbi->work_space_buf->cm_header.buf_start
 		+ (pic_config->index * MMU_COMPRESS_HEADER_SIZE);
-	if (last_disp_addr && pic_config->header_adr == last_disp_addr) {
-		/*if same as disp add used last one.*/
-		pr_info("same as disp %d: %ld\n",
-			pic_config->index, pic_config->header_adr);
-		pic_config->header_adr =
-			pbi->work_space_buf->cm_header.buf_start +
-			(FRAME_BUFFERS * MMU_COMPRESS_HEADER_SIZE);
-	}
+	*/
+	pic_config->header_adr = decoder_bmmu_box_get_phy_addr(
+			pbi->bmmu_box, HEADER_BUFFER_IDX(pic_config->index));
 	if (debug & VP9_DEBUG_BUFMGR) {
 		pr_info("MMU header_adr %d: %ld\n",
 			pic_config->index, pic_config->header_adr);
@@ -3731,26 +3731,28 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 	int i;
 	struct VP9_Common_s *cm = &pbi->common;
 	struct PIC_BUFFER_CONFIG_s *pic_config;
-	struct vframe_s vf;
-	unsigned long disp_addr = 0;
-	if (!get_video0_frame_info(&vf)) {
-		if (vf.type & VIDTYPE_SCATTER) {
-			/*sc only used header.*/
-			disp_addr = vf.compHeadAddr;
-		} else if (vf.type & VIDTYPE_COMPRESS) {
-			/*sc checked body.*/
-			disp_addr = vf.compBodyAddr;
-		} else {
-			struct canvas_s cur_canvas;
-			canvas_read(vf.canvas0Addr & 0xff, &cur_canvas);
-			disp_addr = cur_canvas.addr;
+
+	/*alloc VP9 compress header first*/
+	for (i = 0; i < HEADER_FRAME_BUFFERS; i++) {
+		unsigned long buf_addr;
+		if (decoder_bmmu_box_alloc_buf_phy
+				(pbi->bmmu_box,
+				HEADER_BUFFER_IDX(i), MMU_COMPRESS_HEADER_SIZE,
+				DRIVER_HEADER_NAME,
+				&buf_addr) < 0){
+			pr_info("%s malloc compress header failed %d\n",
+				DRIVER_HEADER_NAME, i);
+			pbi->fatal_error |= DECODER_FATAL_ERROR_NO_MEM;
+			return;
 		}
 	}
+	pr_info("allocate vp9 compress header ok\n");
+
 	for (i = 0; i < FRAME_BUFFERS; i++) {
 		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
 		pic_config->index = i;
 		pic_config->BUF_index = -1;
-		if (config_pic(pbi, pic_config, disp_addr) < 0) {
+		if (config_pic(pbi, pic_config) < 0) {
 			if (debug)
 				pr_info("Config_pic %d fail\n",
 					pic_config->index);
@@ -5318,10 +5320,16 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			vf->mem_handle = decoder_mmu_box_get_mem_handle(
 				pbi->mmu_box,
 				pic_config->index);
+			vf->mem_head_handle = decoder_bmmu_box_get_mem_handle(
+				pbi->bmmu_box,
+				HEADER_BUFFER_IDX(pic_config->index));
 		} else {
 			vf->mem_handle = decoder_bmmu_box_get_mem_handle(
 				pbi->bmmu_box,
 				VF_BUFFER_IDX(pic_config->index));
+			vf->mem_head_handle = decoder_bmmu_box_get_mem_handle(
+				pbi->bmmu_box,
+				HEADER_BUFFER_IDX(pic_config->index));
 		}
 		inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
