@@ -2748,20 +2748,21 @@ static void amvecm_gamma_init(bool en)
 	unsigned short data[256];
 
 	if (en) {
+		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+				0, GAMMA_EN, 1);
+
 		for (i = 0; i < 256; i++)
 			data[i] = i << 2;
-		vpp_set_lcd_gamma_table(
+		init_write_gamma_table(
 					data,
 					H_SEL_R);
-		vpp_set_lcd_gamma_table(
+		init_write_gamma_table(
 					data,
 					H_SEL_G);
-		vpp_set_lcd_gamma_table(
+		init_write_gamma_table(
 					data,
 					H_SEL_B);
 	}
-	WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-			en, GAMMA_EN, 1);
 }
 static void amvecm_wb_init(bool en)
 {

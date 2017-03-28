@@ -159,6 +159,7 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 }
 
 extern signed int vd1_brightness, vd1_contrast;
+extern bool gamma_en;
 
 extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
