@@ -49,6 +49,7 @@
 #define IDLE_MUX            bits_desc(SARADC_DETECT_IDLE_SW, 7, 3)
 #define DETECT_MUX          bits_desc(SARADC_DETECT_IDLE_SW, 23, 3)
 #define BANDGAP_EN          bits_desc(SARADC_REG11, 13, 1)
+#define REF_VOL_SEL         bits_desc(SARADC_REG11, 0, 1)
 /* saradc clock register */
 #define REGC_CLK_DIV        bits_desc(0, 0, 8)
 #define REGC_CLK_EN         bits_desc(0, 8, 1)

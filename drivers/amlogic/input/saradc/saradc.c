@@ -137,6 +137,10 @@ static void saradc_reset(struct saradc *adc)
 	writel(0x8c000c, mem_base+SARADC_CH10_SW);
 	writel(0xc000c, mem_base+SARADC_DETECT_IDLE_SW);
 
+	/*select VDDA as ref voltage, otherwise select calibration voltage*/
+	if (is_meson_txlx_cpu())
+		setb(mem_base, REF_VOL_SEL, 1);
+
 	clk_prepare_enable(adc->clk);
 	clk_div = clk_get_rate(adc->clk) / 1200000;
 	setb(mem_base, CLK_DIV, clk_div);
@@ -150,28 +154,9 @@ static void saradc_reset(struct saradc *adc)
 
 static int  saradc_internal_cal(struct saradc *adc)
 {
-	int val[5], nominal[5] = {0, 256, 512, 768, 1023};
-	int i;
-
-	saradc_info("calibration start:\n");
-	adc->coef = 0;
-	for (i = 0; i < 5; i++) {
-		setb(adc->mem_base, CAL_CNTL, i);
-		udelay(10);
-		val[i] = get_adc_sample(0, CHAN_7);
-		saradc_info("nominal=%d, value=%d\n", nominal[i], val[i]);
-		if (val[i] < 0)
-			goto cal_end;
-	}
-	adc->ref_val = val[2];
-	adc->ref_nominal = nominal[2];
-	if (val[3] > val[1]) {
-		adc->coef = (nominal[3] - nominal[1]) << 12;
-		adc->coef /= val[3] - val[1];
-	}
-cal_end:
-	saradc_info("calibration end: coef=%d\n", adc->coef);
-	setb(adc->mem_base, CAL_CNTL, 7);
+	/*reference voltage has been calibrated by firmware, there is
+	 *nothing to do
+	 */
 	return 0;
 }
 
