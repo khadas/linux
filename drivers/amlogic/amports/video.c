@@ -2536,12 +2536,12 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			{
 				VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
 					(is_dolby_vision_enable() ?
-					HFORMATTER_REPEAT :
+					HFORMATTER_REPEAT |
+					(0xc << VFORMATTER_INIPHASE_BIT)  :
 					HFORMATTER_RRT_PIXEL0) |
 					HFORMATTER_YC_RATIO_2_1 |
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
-					(0xc << VFORMATTER_INIPHASE_BIT) |
 					(0x8 << VFORMATTER_PHASE_BIT) |
 					VFORMATTER_EN);
 			}
