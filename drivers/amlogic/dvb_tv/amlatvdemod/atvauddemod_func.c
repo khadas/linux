@@ -8,6 +8,8 @@
 #include "atvauddemod_func.h"
 #include "aud_demod_settings.c"
 
+#define AUDIO_MOD_DET_INTERNEL
+
 int ademod_debug_en = 0;
 module_param(ademod_debug_en, int, 0644);
 MODULE_PARM_DESC(ademod_debug_en, "\n ademod_debug_en for audio demod debug\n");
@@ -31,7 +33,7 @@ int deem_75u_50[7]   = {10, 6, 0, -971, 0, -16, 69};
 int deem_75u[7]      = {10, 6, 0, -971, 0, 12, 41};
 int deem_50u[7]      = {10, 6, 0, -945, 0, 18, 60};
 
-int deem_j17[7] = {10, 6, 0, -1012, 0, 123, -114};
+int deem_j17[7] = {10, 6, 0, -1012, 0, 124, -112};
 
 int lmr15k_0[7] = {10, 6, 778, -1739, 310, -557, 310};
 int lmr15k_3[7] = {10, 6, 864, -1783, 430, -756, 430};
@@ -272,7 +274,6 @@ void set_general(void)
 	adec_wr_reg(ADDR_BB_MUTE_THRESHOLD2, 0x0000000f);
 
 #if 0
-	write_reg32(ADDR_BB_NOISE_THRESHOLD0, 0x00000a3d);
 	write_reg32(ADDR_BB_NOISE_THRESHOLD1, 0x00000a3d);
 	write_reg32(ADDR_BB_NOISE_THRESHOLD2, 0x00000a3d);
 #else
@@ -280,6 +281,8 @@ void set_general(void)
 	adec_wr_reg(ADDR_BB_NOISE_THRESHOLD1, 0x000013dc);
 	adec_wr_reg(ADDR_BB_NOISE_THRESHOLD2, 0x000013dc);
 #endif
+
+	adec_wr_reg(SAP_DET_THD, 0x200);
 }
 
 void set_btsc(void)
@@ -635,6 +638,9 @@ void set_nicam_dk(void)
 	set_deem(2);
 
 	adec_wr_reg(0x103, 0x7f);
+
+	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
+	adec_wr_reg(0x110, aa);
 }
 
 void set_nicam_i(void)
@@ -651,6 +657,9 @@ void set_nicam_i(void)
 
 	set_deem(2);
 	adec_wr_reg(0x103, 0x7f);
+
+	aa = (int)((FCLK-6.552e6)/FCLK*1024.0*1024.0*16.0);
+	adec_wr_reg(0x110, aa);
 }
 
 void set_nicam_bg(void)
@@ -667,6 +676,9 @@ void set_nicam_bg(void)
 
 	set_deem(2);
 	adec_wr_reg(0x103, 0x7f);
+
+	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
+	adec_wr_reg(0x110, aa);
 }
 
 void set_nicam_l(void)
@@ -683,8 +695,11 @@ void set_nicam_l(void)
 
 	set_deem(2);
 	adec_wr_reg(0x103, 0x7f);
+
+	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
+	adec_wr_reg(0x110, aa);
 }
-void set_standard(uint32_t standard)
+static void set_standard(uint32_t standard)
 {
 	pr_info("\n<<<<<<<<<<<<<<< start configure register\n");
 	switch (standard) {
@@ -781,10 +796,10 @@ void update_btsc_mode(int *stereo_flag, int *sap_flag)
 	else
 		*stereo_flag = 0;
 
-	reg_value = adec_rd_reg(POWER_REPORT);
+	reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
 	sap_level = (reg_value>>16)&0xffff;
 
-	if (sap_level > 0x1000)
+	if (sap_level > 0x200)
 		*sap_flag = 1;
 	else
 		*sap_flag = 0;
@@ -872,23 +887,90 @@ void set_a2_eiaj_outputmode(uint32_t outmode)
 
 void set_nicam_outputmode(uint32_t outmode)
 {
+	uint32_t reg_value = 0;
+	uint32_t tmp_value = 0;
+	int stereo_flag, dual_flag;
+	int nicam_lock;
+	int cic;
+
+	reg_value = adec_rd_reg(0x1a3);
+	nicam_lock = (reg_value>>28)&1;
+	reg_value = adec_rd_reg(0x1a4);
+	cic = (reg_value>>17)&3;
+
+	stereo_flag = (cic == 0);
+	dual_flag = (cic == 2);
+
+	reg_value = adec_rd_reg(ADDR_ADEC_CTRL);
+	pr_info("%s nicam_lock:%d, cic:%d, regval:0x%x\n",
+			__func__, nicam_lock, cic, reg_value);
 	switch (outmode) {
 	case AUDIO_OUTMODE_MONO:
-
+		if (nicam_lock) {
+			tmp_value = (reg_value&0xf)|(0<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		} else {
+			tmp_value = (reg_value&0xf)|(3<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		}
 		break;
 
 	case AUDIO_OUTMODE_STEREO:
-
+		if (nicam_lock && stereo_flag) {
+			tmp_value = (reg_value&0xf)|(1<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		} else if (nicam_lock && !stereo_flag) {
+			tmp_value = (reg_value&0xf)|(0<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		} else {
+			tmp_value = (reg_value&0xf)|(3<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		}
 		break;
 
 	case AUDIO_OUTMODE_SAP_DUAL:
-
+		if (nicam_lock && dual_flag) {
+			tmp_value = (reg_value&0xf)|(2<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		} else if (nicam_lock && !dual_flag) {
+			tmp_value = (reg_value&0xf)|(0<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		} else {
+			tmp_value = (reg_value&0xf)|(3<<4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+		}
 		break;
 	}
+	pr_info("%s tmp_value :0x%x\n", __func__, reg_value);
 }
 
 void set_outputmode(uint32_t standard, uint32_t outmode)
 {
+	uint32_t tmp_value = 0;
+	uint32_t reg_value = 0;
+
+#ifdef AUDIO_MOD_DET_INTERNEL
+	reg_value = adec_rd_reg(ADDR_ADEC_CTRL);
+	tmp_value = (reg_value&0xf)|(outmode<<4)|(1<<6);
+	adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+
+	pr_info("set_outputmode:std:%d, outmod:%d\n", standard, outmode);
+	if (standard == AUDIO_STANDARD_BTSC &&
+			outmode == AUDIO_OUTMODE_SAP_DUAL) {
+		reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
+		tmp_value = (reg_value & 0xffff)|(1 << 16);
+		adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value);
+	}
+
+	if (standard == AUDIO_STANDARD_NICAM_DK ||
+			standard == AUDIO_STANDARD_NICAM_I ||
+			standard == AUDIO_STANDARD_NICAM_BG ||
+			standard == AUDIO_STANDARD_NICAM_L) {
+		pr_info("set_outputmode NICAM...\n");
+		set_nicam_outputmode(outmode);
+	}
+
+#else
 	switch (standard) {
 	case AUDIO_STANDARD_BTSC:
 		set_btsc_outputmode(outmode);
@@ -908,6 +990,7 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 		set_nicam_outputmode(outmode);
 		break;
 	}
+#endif
 }
 
 void aud_demod_clk_gate(int on)
