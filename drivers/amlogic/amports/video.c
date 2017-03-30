@@ -760,6 +760,8 @@ static u32 vsync_slow_factor = 1;
 static u32 last_frame_count;
 static u32 frame_count;
 static u32 new_frame_count;
+static u32 first_frame_toggled;
+static u32 toggle_count;
 static u32 last_frame_time;
 static u32 timer_count;
 static u32 vsync_count;
@@ -1934,6 +1936,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	if (vf == NULL)
 		return;
 	frame_count++;
+	toggle_count++;
 	if (is_dolby_vision_enable())
 		vf_with_el = has_enhanced_layer(vf);
 	ori_start_x_lines = 0;
@@ -2469,6 +2472,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	cur_dispbuf = vf;
 	if (first_picture) {
 		frame_par_ready_to_set = 1;
+		first_frame_toggled = 1;
 
 #ifdef VIDEO_PTS_CHASE
 		av_sync_flag = 0;
@@ -3372,6 +3376,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	}
 	/* check video PTS discontinuity */
 	else if ((enable_video_discontinue_report) &&
+		 (first_frame_toggled) &&
 		 (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
 		 ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
 		/**
@@ -5036,6 +5041,7 @@ static void video_vf_unreg_provider(void)
 	ulong flags;
 
 	new_frame_count = 0;
+	first_frame_toggled = 0;
 
 	atomic_set(&video_unreg_flag, 1);
 	spin_lock_irqsave(&lock, flags);
@@ -8310,6 +8316,9 @@ module_param(cur_dev_idx, uint, 0664);
 MODULE_PARM_DESC(new_frame_count, "\n new_frame_count\n");
 module_param(new_frame_count, uint, 0664);
 
+MODULE_PARM_DESC(first_frame_toggled, "\n first_frame_toggled\n");
+module_param(first_frame_toggled, uint, 0664);
+
 MODULE_PARM_DESC(omx_pts, "\n omx_pts\n");
 module_param(omx_pts, uint, 0664);
 
@@ -8345,6 +8354,10 @@ module_param(framepacking_blank, uint, 0664);
 module_param(reverse, bool, 0644);
 MODULE_PARM_DESC(reverse, "reverse /disable reverse");
 #endif
+
+MODULE_PARM_DESC(toggle_count, "\n toggle count\n");
+module_param(toggle_count, uint, 0664);
+
 MODULE_DESCRIPTION("AMLOGIC video output driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");
