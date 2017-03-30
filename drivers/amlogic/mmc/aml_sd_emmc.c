@@ -208,6 +208,8 @@ static int  aml_sd_emmc_auto_calibration(struct mmc_host *mmc,
 		return -ENOMEM;
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
 		delay_step = 125;
+	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+		delay_step = 250;
 	else
 		delay_step = 200;
 
