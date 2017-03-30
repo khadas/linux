@@ -28,6 +28,18 @@ static int broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC;
 module_param(broad_std, int, 0644);
 MODULE_PARM_DESC(broad_std, "\n broad_std\n");
 
+int aud_std = AUDIO_STANDARD_NICAM_DK;
+module_param(aud_std, int, 0644);
+MODULE_PARM_DESC(aud_std, "\n audio std\n");
+
+int aud_mode = AUDIO_OUTMODE_STEREO;
+module_param(aud_mode, int, 0644);
+MODULE_PARM_DESC(aud_mode, "\n audio demod output mode val\n");
+
+int aud_auto = 0;
+module_param(aud_auto, int, 0644);
+MODULE_PARM_DESC(aud_auto, "\n audio demod auto detec\n");
+
 static unsigned long over_threshold = 0xffff;
 module_param(over_threshold, ulong, 0644);
 MODULE_PARM_DESC(over_threshold, "\n over_threshold\n");
@@ -1541,30 +1553,79 @@ int atvdemod_clk_init(void)
 
 int amlfmt_aud_standard(int broad_std)
 {
-	int aud_std = 0;
+	int std = 0;
+	int nicam_lock = 0;
+	uint32_t reg_value = 0;
+
 	switch (broad_std) {
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
-		aud_std = AUDIO_STANDARD_BTSC;
+		std = AUDIO_STANDARD_BTSC;
+		configure_adec(std);
+		adec_soft_reset();
+		mdelay(2);
+
+		/* maybe need wait */
+		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
+		if (((reg_value>>16)&0xffff) > 0x500)
+			std = AUDIO_STANDARD_A2_K;
+		else
+			std = AUDIO_STANDARD_BTSC;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_J:
+		std = AUDIO_STANDARD_EIAJ;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
-		aud_std = AUDIO_STANDARD_NICAM_BG;
+		std = AUDIO_STANDARD_NICAM_BG;
+		configure_adec(std);
+		adec_soft_reset();
+		mdelay(2);
+		/* need wait */
+		reg_value = adec_rd_reg(0x1a3);
+		nicam_lock = (reg_value>>28)&1;
+
+		if (nicam_lock)
+			std = AUDIO_STANDARD_NICAM_BG;
+		else
+			std = AUDIO_STANDARD_A2_BG;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
-		aud_std = AUDIO_STANDARD_NICAM_DK;
+		std = AUDIO_STANDARD_NICAM_DK;
+		configure_adec(aud_std);
+		adec_soft_reset();
+		mdelay(2);
+		/* need wait */
+		reg_value = adec_rd_reg(0x1a3);
+		nicam_lock = (reg_value>>28)&1;
+		if (nicam_lock)
+			std = AUDIO_STANDARD_NICAM_DK;
+		else
+			std = AUDIO_STANDARD_A2_DK2;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
-		aud_std = AUDIO_STANDARD_NICAM_I;
+		std = AUDIO_STANDARD_NICAM_I;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
-		aud_std = AUDIO_STANDARD_NICAM_L;
+		std = AUDIO_STANDARD_NICAM_L;
 		break;
 	}
-	return aud_std;
+	pr_err("%s detect aud std:%d\n", __func__, std);
+	return std;
+}
+
+int atvauddemod_init(void)
+{
+	if (is_meson_txlx_cpu()) {
+		if (aud_auto)
+			aud_std = amlfmt_aud_standard(broad_std);
+		configure_adec(aud_std);
+		adec_soft_reset();
+		set_outputmode(aud_std, aud_mode);
+	}
+	return 0;
 }
 
 int atvdemod_init(void)
 {
-	int aud_std = AUDIO_STANDARD_NICAM_DK;
 	/* unsigned long data32; */
 	if (atvdemod_timer_en == 1) {
 		if (timer_init_flag == 1) {
@@ -1573,11 +1634,13 @@ int atvdemod_init(void)
 		}
 	}
 
-	if (is_meson_txlx_cpu())
-		sound_format = 1;
 	/* 1.set system clock when atv enter*/
 
+	pr_err("%s do configure_receiver ...\n", __func__);
+	if (is_meson_txlx_cpu())
+		sound_format = 1;
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
+	pr_err("%s do atv_dmd_misc ...\n", __func__);
 	atv_dmd_misc();
 
 	/*4.software reset*/
@@ -1607,11 +1670,6 @@ int atvdemod_init(void)
 		timer_init_flag = 1;
 	}
 	#endif
-	if (is_meson_txlx_cpu()) {
-		aud_std = amlfmt_aud_standard(broad_std);
-		configure_adec(aud_std);
-		adec_soft_reset();
-	}
 	pr_info("%s done\n", __func__);
 	return 0;
 }

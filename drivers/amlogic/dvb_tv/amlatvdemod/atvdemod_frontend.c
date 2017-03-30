@@ -65,6 +65,12 @@ int is_atvdemod_scan_mode(void)
 }
 EXPORT_SYMBOL(is_atvdemod_scan_mode);
 
+void set_atvdemod_scan_mode(int val)
+{
+	atvdemod_scan_mode = val;
+}
+EXPORT_SYMBOL(set_atvdemod_scan_mode);
+
 static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode);
 /*static void sound_store(const char *buff, v4l2_std_id *std);*/
 static ssize_t aml_atvdemod_store(struct class *cls,
@@ -272,9 +278,12 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 	adc_set_pll_cntl(1, 0x1);
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
-	if (is_meson_txlx_cpu())
-		aud_demod_clk_gate(1);
 	err_code = atvdemod_init();
+
+	if (is_meson_txlx_cpu()) {
+		aud_demod_clk_gate(1);
+		atvauddemod_init();
+	}
 	if (err_code) {
 		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
 		return err_code;
@@ -552,6 +561,9 @@ void aml_atvdemod_set_params(struct dvb_frontend *fe,
 			atv_dmd_set_std();
 			last_frq = c->frequency;
 			last_std = c->analog.std;
+			if (!is_atvdemod_scan_mode()) {
+				atvauddemod_init();
+			}
 			pr_info("[amlatvdemod..]%s set std color %s, audio type %s.\n",
 				__func__,
 			v4l2_std_to_str(0xff000000&amlatvdemod_devp->parm.std),
@@ -664,6 +676,7 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 {
 	if (atvaudiodem_reg_base)
 		*val = readl(atvaudiodem_reg_base + reg);
+
 	return 0;
 }
 
@@ -671,6 +684,7 @@ int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 {
 	if (atvaudiodem_reg_base)
 		writel(val, (atvaudiodem_reg_base + reg));
+
 	return 0;
 }
 
