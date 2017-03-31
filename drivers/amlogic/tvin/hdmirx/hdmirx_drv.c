@@ -117,15 +117,9 @@ int suspend_pddq = 1;
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
-/* int en_4k_2_2k; */
-struct reg_map {
-	unsigned int phy_addr;
-	unsigned int size;
-	void __iomem *p;
-	int flag;
-};
 
-static struct reg_map reg_maps[] = {
+struct reg_map reg_maps[][MAP_ADDR_MODULE_NUM] = {
+{	/*gxtvbb*/
 	{ /* CBUS */
 		.phy_addr = 0xc0800000,
 		.size = 0xa00000,
@@ -154,35 +148,116 @@ static struct reg_map reg_maps[] = {
 		.phy_addr = 0xda846000,
 		.size = 0x57ba000,
 	},
+},
+{	/*txl*/
+	{ /* CBUS */
+		.phy_addr = 0xc0800000,
+		.size = 0xa00000,
+	},
+	{ /* HIU */
+		.phy_addr = 0xC883C000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX CAPB3 */
+		.phy_addr = 0xd0076000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX SEC AHB */
+		.phy_addr = 0xc883e000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX SEC AHB */
+		.phy_addr = 0xda83e000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX SEC APB4 */
+		.phy_addr = 0xc8834400,
+		.size = 0x2000,
+	},
+	{
+		.phy_addr = 0xda846000,
+		.size = 0x57ba000,
+	},
+},
+{	/*txlx*/
+	{ /* CBUS */
+		.phy_addr = 0xffd26000,
+		.size = 0xa00000,
+	},
+	{ /* HIU */
+		.phy_addr = 0xff63C000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX CAPB3 */
+		.phy_addr = 0xffe0d000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX SEC AHB */
+		.phy_addr = 0xff63e000,
+		.size = 0x2000,
+	},
+	{ /* HDMIRX SEC AHB */
+		.phy_addr = 0,
+		.size = 0,
+	},
+	{ /* HDMIRX SEC APB4 */
+		.phy_addr = 0xff634400,
+		.size = 0x2000,
+	},
+	{
+		.phy_addr = 0xff646000,
+		.size = 0x2000,
+	},
+},
 };
 
-static int in_reg_maps_idx(unsigned int addr)
+static enum chip_id_e get_chip_id(void)
+{
+	if (is_meson_txlx_cpu())
+		return CHIP_ID_TXLX;
+	else if (is_meson_txl_cpu())
+		return CHIP_ID_TXL;
+	else if (is_meson_gxtvbb_cpu())
+		return CHIP_ID_GXTVBB;
+	else
+		return CHIP_ID_TXLX;
+}
+
+/*static int in_reg_maps_idx(unsigned int addr)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
-		if ((addr >= reg_maps[i].phy_addr) &&
-			(addr < (reg_maps[i].phy_addr + reg_maps[i].size))) {
+	for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
+		if ((addr >= reg_maps[rx.chip_id][i].phy_addr) &&
+			((addr - reg_maps[rx.chip_id][i].phy_addr)
+			< reg_maps[rx.chip_id][i].size)) {
 			return i;
 		}
 	}
 
 	return -1;
-}
+}*/
 
 void rx_init_reg_map(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
-		reg_maps[i].p = ioremap(reg_maps[i].phy_addr, reg_maps[i].size);
-		if (!reg_maps[i].p) {
-			rx_pr("hdmirx: failed Mapped PHY: 0x%x\n",
-				reg_maps[i].phy_addr);
+	for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
+		if ((reg_maps[rx.chip_id][i].phy_addr == 0) ||
+			(reg_maps[rx.chip_id][i].size == 0))
+			continue;
+		reg_maps[rx.chip_id][i].p = ioremap(
+			reg_maps[rx.chip_id][i].phy_addr,
+			reg_maps[rx.chip_id][i].size);
+		if (!reg_maps[rx.chip_id][i].p) {
+			rx_pr("hdmirx: failed Mapped PHY: 0x%x , maped:%p\n",
+			reg_maps[rx.chip_id][i].phy_addr,
+			reg_maps[rx.chip_id][i].p);
 		} else {
-			reg_maps[i].flag = 1;
-			rx_pr("hdmirx: Mapped PHY: 0x%x\n",
-				reg_maps[i].phy_addr);
+			reg_maps[rx.chip_id][i].flag = 1;
+			rx_pr("hdmirx: Mapped PHY: 0x%x , maped:%p\n",
+			reg_maps[rx.chip_id][i].phy_addr,
+			reg_maps[rx.chip_id][i].p);
 		}
 	}
 }
@@ -198,26 +273,41 @@ bool hdmirx_repeat_support(void)
 	return repeat_function && downstream_repeat_support;
 }
 
-unsigned int rd_reg(unsigned int addr)
+unsigned int rd_reg_hhi(unsigned int offset)
 {
-	int idx = in_reg_maps_idx(addr);
+	unsigned int addr = offset +
+		reg_maps[rx.chip_id][MAP_ADDR_MODULE_HIU].phy_addr;
+
+	return rd_reg(MAP_ADDR_MODULE_HIU, addr);
+}
+
+void wr_reg_hhi(unsigned int offset, unsigned int val)
+{
+	unsigned int addr = offset +
+		reg_maps[rx.chip_id][MAP_ADDR_MODULE_HIU].phy_addr;
+	wr_reg(MAP_ADDR_MODULE_HIU, addr, val);
+}
+
+unsigned int rd_reg(enum map_addr_module_e module, unsigned int reg_addr)
+{
 	unsigned int val = 0;
 
-	if ((idx != -1) && check_regmap_flag(addr))
-		val = readl(reg_maps[idx].p + (addr - reg_maps[idx].phy_addr));
+	if ((module < MAP_ADDR_MODULE_NUM) && check_regmap_flag(reg_addr))
+		val = readl(reg_maps[rx.chip_id][module].p +
+		(reg_addr - reg_maps[rx.chip_id][module].phy_addr));
 	else
-		rx_pr("rd reg %x error\n");
+		rx_pr("rd reg %x error\n", reg_addr);
 	return val;
 }
 
-void wr_reg(unsigned int addr, unsigned int val)
+void wr_reg(enum map_addr_module_e module,
+		unsigned int reg_addr, unsigned int val)
 {
-	int idx = in_reg_maps_idx(addr);
-
-	if ((idx != -1) && check_regmap_flag(addr))
-		writel(val, reg_maps[idx].p + (addr - reg_maps[idx].phy_addr));
+	if ((module < MAP_ADDR_MODULE_NUM) && check_regmap_flag(reg_addr))
+		writel(val, reg_maps[rx.chip_id][module].p +
+		(reg_addr - reg_maps[rx.chip_id][module].phy_addr));
 	else
-		rx_pr("wr reg %x err\n", addr);
+		rx_pr("wr reg %x err\n", reg_addr);
 }
 
 
@@ -477,6 +567,10 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		prop->color_format = TVIN_RGB444;
 
 	sig_fmt = hdmirx_hw_get_fmt();
+	if (rx.dolby_vision_sts == DOLBY_VERSION_START)
+		prop->dolby_vision = TRUE;
+	else
+		prop->dolby_vision = FALSE;
 
 	prop->trans_fmt = TVIN_TFMT_2D;
 	if (hdmirx_hw_get_3d_structure(&_3d_structure,
@@ -1073,6 +1167,68 @@ static void hdmirx_delete_device(int minor)
 	device_destroy(hdmirx_clsp, devno);
 }
 
+static void hdmirx_get_base_addr(struct device_node *node)
+{
+	int ret;
+	struct device_node *node_sub = NULL;
+	int reg_arry[2];
+
+	/*get base addr from dts*/
+	if (node)
+		node_sub = of_get_child_by_name(node, "hdmirx_port");
+	rx_pr("node_p = %p\n", node_sub);
+	if (node_sub) {
+		ret = of_property_read_u32_array(node_sub,
+				"reg", reg_arry, 2);
+		rx_pr("hdmirx_port:%#x,%#x\n", reg_arry[0], reg_arry[1]);
+		if (!ret && reg_arry[0]) {
+			hdmirx_addr_port = reg_arry[0];
+			reg_maps[rx.chip_id][MAP_ADDR_MODULE_TOP].phy_addr =
+				reg_arry[0];
+			reg_maps[rx.chip_id][MAP_ADDR_MODULE_TOP].size =
+				reg_arry[1];
+		}
+	}
+	if (node)
+		node_sub = of_get_child_by_name(node, "hiu_io");
+	rx_pr("node_p = %p\n", node_sub);
+	if (node_sub) {
+		ret = of_property_read_u32_array(node_sub,
+				"reg", reg_arry, 2);
+		rx_pr("hiu addr:%#x,%#x\n", reg_arry[0], reg_arry[1]);
+		if (!ret && reg_arry[0]) {
+			reg_maps[rx.chip_id][MAP_ADDR_MODULE_HIU].phy_addr =
+				reg_arry[0];
+			reg_maps[rx.chip_id][MAP_ADDR_MODULE_HIU].size =
+				reg_arry[1];
+		}
+	}
+	rx_pr("hiu_base_addr:%#x\n",
+			reg_maps[rx.chip_id][MAP_ADDR_MODULE_HIU].phy_addr);
+	if (node) {
+		if (hdmirx_addr_port == 0) {
+			ret = of_property_read_u32(node,
+				"hdmirx_addr_port", &hdmirx_addr_port);
+			if (ret)
+				pr_err("get hdmirx_addr_port fail.\n");
+
+			ret = of_property_read_u32(node,
+					"hdmirx_data_port", &hdmirx_data_port);
+			if (ret)
+				pr_err("get hdmirx_data_port fail.\n");
+			ret = of_property_read_u32(node,
+					"hdmirx_ctrl_port", &hdmirx_ctrl_port);
+			if (ret)
+				pr_err("get hdmirx_ctrl_port fail.\n");
+		} else {
+			hdmirx_data_port = hdmirx_addr_port + 4;
+			hdmirx_ctrl_port = hdmirx_data_port + 8;
+		}
+		rx_pr("port addr:%#x ,data:%#x, ctrl:%#x\n",
+			hdmirx_addr_port, hdmirx_data_port, hdmirx_ctrl_port);
+	}
+	reg_maps[rx.chip_id][MAP_ADDR_MODULE_TOP].phy_addr = hdmirx_addr_port;
+}
 unsigned char *pEdid_buffer;
 static int hdmirx_probe(struct platform_device *pdev)
 {
@@ -1084,8 +1240,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	struct clk *xtal_clk;
 	struct clk *fclk_div5_clk;
+	struct clk *tmds_clk_fs;
 	int clk_rate;
 
+	rx.chip_id = get_chip_id();
 	log_init(DEF_LOG_BUF_SIZE);
 	pEdid_buffer = (unsigned char *) pdev->dev.platform_data;
 	hdmirx_dev = &pdev->dev;
@@ -1098,6 +1256,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	memset(hdevp, 0, sizeof(struct hdmirx_dev_s));
 
+	hdmirx_get_base_addr(pdev->dev.of_node);
 	rx_init_reg_map();
 	/*@to get from bsp*/
 	#if 0
@@ -1153,10 +1312,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create reg attribute file\n");
 		goto fail_create_reg_file;
 	}
-	ret = device_create_file(hdevp->dev, &dev_attr_cec);
-	if (ret < 0) {
-		rx_pr("hdmirx: fail to create cec attribute file\n");
-		goto fail_create_cec_file;
+	if (!is_meson_txlx_cpu()) {
+		ret = device_create_file(hdevp->dev, &dev_attr_cec);
+		if (ret < 0) {
+			rx_pr("hdmirx: fail to create cec attribute file\n");
+			goto fail_create_cec_file;
+		}
 	}
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -1218,26 +1379,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 			real_port_map = 0x3120;
 		}
 	}
-	if (pdev->dev.of_node) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"hdmirx_addr_port", &hdmirx_addr_port);
-		if (ret)
-			pr_err("get hdmirx_addr_port fail.\n");
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"hdmirx_data_port", &hdmirx_data_port);
-		if (ret)
-			pr_err("get hdmirx_data_port fail.\n");
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"hdmirx_ctrl_port", &hdmirx_ctrl_port);
-		if (ret)
-			pr_err("get hdmirx_ctrl_port fail.\n");
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"repeat", &repeat_function);
-		if (ret) {
-			pr_err("get repeat_function fail.\n");
-			repeat_function = 0;
-		}
-	}
+
 	dev_set_drvdata(hdevp->dev, hdevp);
 
 	xtal_clk = clk_get(&pdev->dev, "xtal");
@@ -1277,6 +1419,21 @@ static int hdmirx_probe(struct platform_device *pdev)
 		pr_info("%s: cfg_clk is %d MHZ\n", __func__,
 				clk_rate/1000000);
 	}
+
+	if (is_meson_txlx_cpu()) {
+		tmds_clk_fs = clk_get(&pdev->dev, "hdmirx_aud_pll2fs");
+		if (IS_ERR(tmds_clk_fs))
+			rx_pr("get tmds_clk_fs err\n");
+		hdevp->aud_out_clk = clk_get(&pdev->dev, "clk_aud_out");
+		if (IS_ERR(hdevp->aud_out_clk) || IS_ERR(tmds_clk_fs))
+			rx_pr("get aud_out_clk/tmds_clk_fs err\n");
+		else {
+			clk_set_parent(hdevp->aud_out_clk, tmds_clk_fs);
+			clk_rate = clk_get_rate(hdevp->aud_out_clk);
+			pr_info("%s: aud_out_clk is set ok\n", __func__);
+		}
+	}
+
 
 	/*
 	hdevp->acr_ref_clk = clk_get(&pdev->dev, "hdmirx_acr_ref_clk");
@@ -1329,7 +1486,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	return 0;
 fail_create_cec_file:
-	device_remove_file(hdevp->dev, &dev_attr_cec);
+		if (!is_meson_txlx_cpu())
+			device_remove_file(hdevp->dev, &dev_attr_cec);
 fail_create_reg_file:
 	device_remove_file(hdevp->dev, &dev_attr_reg);
 fail_create_log_file:
@@ -1369,7 +1527,8 @@ static int hdmirx_remove(struct platform_device *pdev)
 	device_remove_file(hdevp->dev, &dev_attr_key);
 	device_remove_file(hdevp->dev, &dev_attr_log);
 	device_remove_file(hdevp->dev, &dev_attr_reg);
-	device_remove_file(hdevp->dev, &dev_attr_cec);
+	if (!is_meson_txlx_cpu())
+		device_remove_file(hdevp->dev, &dev_attr_cec);
 	tvin_unreg_frontend(&hdevp->frontend);
 	hdmirx_delete_device(hdevp->index);
 	cdev_del(&hdevp->cdev);

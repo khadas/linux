@@ -27,31 +27,30 @@
 #define _BIT(n)			MSK(1, (n))
 
 
-#define HHI_GCLK_MPEG0			(0xC883C000 + 0x140) /* 0x1050 */
-#define HHI_HDMIRX_CLK_CNTL		(0xC883C000 + 0x200) /* 0x1080 */
-#define HHI_HDMIRX_AUD_CLK_CNTL		(0xC883C000 + 0x204) /* 0x1081 */
-#define HHI_AUD_PLL_CNTL		(0xC883C000 + 0xf8 * 4) /* 0x10f8 */
-#define HHI_AUD_PLL_CNTL2		(0xC883C000 + 0xf9 * 4) /* 0x10f9 */
-#define HHI_AUD_PLL_CNTL3		(0xC883C000 + 0xfa * 4) /* 0x10fa */
-#define HHI_AUD_PLL_CNTL4		(0xC883C000 + 0xfb * 4) /* 0x10fb */
-#define HHI_AUD_PLL_CNTL5		(0xC883C000 + 0xfc * 4) /* 0x10fc */
-#define HHI_AUD_PLL_CNTL6		(0xC883C000 + 0xfd * 4) /* 0x10fd */
-#define HHI_ADC_PLL_CNTL4		(0xC883C000 + 0xad * 4) /* 0x10ad */
-#define HHI_HDCP22_CLK_CNTL		(0xc883c000 + 0x7c * 4)
-#define HHI_GCLK_MPEG2			(0xc883c000 + 0x52 * 4) /* 0x1052 */
+#define HHI_GCLK_MPEG0			(0x50 << 2) /* (0xC883C000 + 0x140) */
+#define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
+#define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
+#define HHI_AUD_PLL_CNTL		(0xf8 * 4)
+#define HHI_AUD_PLL_CNTL2		(0xf9 * 4)
+#define HHI_AUD_PLL_CNTL3		(0xfa * 4)
+#define HHI_AUD_PLL_CNTL4		(0xfb * 4)
+#define HHI_AUD_PLL_CNTL5		(0xfc * 4)
+#define HHI_AUD_PLL_CNTL6		(0xfd * 4)
+#define HHI_ADC_PLL_CNTL4		(0xad * 4)
+#define HHI_HDCP22_CLK_CNTL		(0x7c * 4)
+#define HHI_GCLK_MPEG2			(0x52 * 4)
 
+/* TXLX */
+/* unified_register.h by wujun */
+#define HHI_AUDPLL_CLK_OUT_CNTL (0x8c << 2)
 
-#define PREG_PAD_GPIO0_EN_N		(0xc8834400 + 0x0c * 4)
-#define PREG_PAD_GPIO0_O		(0xc8834400 + 0x0d * 4)
-#define PREG_PAD_GPIO0_I		(0xc8834400 + 0x0e * 4)
-
-
-
-#define PERIPHS_PIN_MUX_6		(0xc8834400 + 0x32 * 4)
-#define PERIPHS_PIN_MUX_10		(0xc8834400 + 0x36 * 4)
-#define PERIPHS_PIN_MUX_11		(0xc8834400 + 0x37 * 4)
-
-#define PAD_PULL_UP_REG2		(0xc8834400 + 0x3c * 4)
+#define PREG_PAD_GPIO0_EN_N		(0x0c * 4)
+#define PREG_PAD_GPIO0_O		(0x0d * 4)
+#define PREG_PAD_GPIO0_I		(0x0e * 4)
+#define PERIPHS_PIN_MUX_6		(0x32 * 4)
+#define PERIPHS_PIN_MUX_10		(0x36 * 4)
+#define PERIPHS_PIN_MUX_11		(0x37 * 4)
+#define PAD_PULL_UP_REG2		(0x3c * 4)
 
 #define AUD_RESAMPLE_CTRL0		0x28bf
 
@@ -210,14 +209,7 @@
 #define	TOP_SEC_SCRATCH					 0x06f
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
-#define TOP_PDEC_DRM_HB				     0x4c0
-#define TOP_PDEC_DRM_PAYLOAD0			 0x4c4
-#define TOP_PDEC_DRM_PAYLOAD1			 0x4c8
-#define TOP_PDEC_DRM_PAYLOAD2			 0x4cc
-#define TOP_PDEC_DRM_PAYLOAD3			 0x4d0
-#define TOP_PDEC_DRM_PAYLOAD4			 0x4d4
-#define TOP_PDEC_DRM_PAYLOAD5			 0x4d8
-#define TOP_PDEC_DRM_PAYLOAD6			 0x4dc
+
 
 /* hdmi2.0 new end */
 #define TOP_EDID_OFFSET                  0x200
@@ -356,6 +348,15 @@
 #define DWC_SCDC_WRDATA7                0x087C
 #define DWC_HDMI20_STATUS               0x08E0
 #define DWC_HDCP22_STATUS               0x08FC
+
+#define DWC_PDEC_DRM_HB				     0x4c0
+#define DWC_PDEC_DRM_PAYLOAD0			 0x4c4
+#define DWC_PDEC_DRM_PAYLOAD1			 0x4c8
+#define DWC_PDEC_DRM_PAYLOAD2			 0x4cc
+#define DWC_PDEC_DRM_PAYLOAD3			 0x4d0
+#define DWC_PDEC_DRM_PAYLOAD4			 0x4d4
+#define DWC_PDEC_DRM_PAYLOAD5			 0x4d8
+#define DWC_PDEC_DRM_PAYLOAD6			 0x4dc
 
 /*
  * hdcp register
@@ -545,7 +546,8 @@
 /** Register address: packet decoder and FIFO byte data */
 #define DWC_PDEC_FIFO_DATA       (0x30CUL)
 /** Register address: packet decoder and FIFO debug control */
-#define DWC_PDEC_DBG_CTRL        (0x310UL)
+#define DWC_PDEC_DBG_CTRL        (0x310UL)/*968 966 txl define*/
+#define DWC_PDEC_AUDDET_CTRL     (0x310UL)/*txlx define*/
 /** Register address: packet decoder and FIFO measured timing gap */
 #define DWC_PDEC_DBG_TMAX        (0x314UL)
 /** Register address: CTS loop */
@@ -665,9 +667,17 @@
 #define H3D_STRUCTURE       MSK(4, 16)
 #define H3D_EXT_DATA        MSK(4, 20)
 #define HDMI_VIDEO_FORMAT   MSK(3, 5)
+#define VSI_LENGTH	    MSK(5, 0)
 
 #define DWC_PDEC_VSI_PLAYLOAD0 (0x368UL)
 #define DWC_PDEC_VSI_PLAYLOAD1 (0x36CUL)
+#define DWC_PDEC_VSI_PLAYLOAD2 (0x370UL)
+#define DWC_PDEC_VSI_PLAYLOAD3 (0x374UL)
+#define DWC_PDEC_VSI_PLAYLOAD4 (0x378UL)
+#define DWC_PDEC_VSI_PLAYLOAD5 (0x37CUL)
+
+
+
 
 
 /*
@@ -690,6 +700,9 @@
 #define DWC_PDEC_ICLR		(0xF88UL)
 /** Register address: packet decoder interrupt set status */
 #define DWC_PDEC_ISET		(0xF8CUL)
+/** Drm set entry txlx*/
+#define		DRM_CKS_CHG_TXLX			_BIT(31)
+#define		DRM_RCV_EN_TXLX				_BIT(30)
 /** DVI detection status */
 #define		DVIDET					_BIT(28)
 /** AIF checksum changed */
