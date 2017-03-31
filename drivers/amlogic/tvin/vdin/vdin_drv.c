@@ -1746,6 +1746,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		devp->last_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(devp->last_wr_vfe, devp->vfp);
+		#if 0
 		/* prepare for next input data */
 		if (provider_vf_peek(devp->vfp) != NULL) {
 			curr_wr_vfe = provider_vf_get(devp->vfp);
@@ -1760,6 +1761,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 					(curr_wr_vfe->vf.canvas0Addr>>8)&0xff);
 			devp->curr_wr_vfe = curr_wr_vfe;
 		}
+		#endif
 		devp->last_wr_vfe = NULL;
 		vf_notify_receiver(devp->name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -1879,7 +1881,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
 	/*if vdin-nr,di must get
 	 * vdin current field type which di pre will read*/
-	if (vdin2nr)
+	if (vdin2nr || (devp->flags & VDIN_FLAG_RDMA_ENABLE))
 		curr_wr_vf->type = devp->curr_field_type;
 	else
 		curr_wr_vf->type = last_field_type;
@@ -1939,20 +1941,21 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(curr_wr_vfe, devp->vfp);
-		/* prepare for next input data */
-		next_wr_vfe = provider_vf_get(devp->vfp);
-		vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
-			(next_wr_vfe->vf.canvas0Addr&0xff));
-		/* prepare for chroma canvas*/
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-			vdin_set_chma_canvas_id(devp,
-				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
-		devp->curr_wr_vfe = next_wr_vfe;
-		vf_notify_receiver(devp->name,
-				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	}
+	/* prepare for next input data */
+	next_wr_vfe = provider_vf_get(devp->vfp);
+	vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
+		(next_wr_vfe->vf.canvas0Addr&0xff));
+	/* prepare for chroma canvas*/
+	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+		(devp->prop.dest_cfmt == TVIN_NV21))
+		vdin_set_chma_canvas_id(devp,
+			(devp->flags&VDIN_FLAG_RDMA_ENABLE),
+			(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+	devp->curr_wr_vfe = next_wr_vfe;
+	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE))
+		vf_notify_receiver(devp->name,
+			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
