@@ -232,9 +232,19 @@ int get_adc_sample_early(int dev_id, int ch, char if_10bit)
 
 	adc = gp_saradc;
 	mem_base = adc->mem_base;
-	if (!adc || getb(mem_base, FLAG_BUSY_BL30)
-		|| (adc->state != SARADC_STATE_IDLE))
+
+	if (!adc)
 		return -1;
+
+	count = 0;
+	while (getb(mem_base, FLAG_BUSY_BL30) ||
+			(adc->state != SARADC_STATE_IDLE)) {
+		if (++count > 200) {
+			saradc_err("get adc res timeout!\n");
+			return -1;
+		}
+		udelay(1);
+	}
 
 	spin_lock_irqsave(&adc->lock, flags);
 	adc->state = SARADC_STATE_BUSY;
