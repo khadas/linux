@@ -3441,9 +3441,11 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 		+ losless_comp_body_size;
 	int mc_buffer_size_h = (mc_buffer_size + 0xffff)>>16;
 	if (double_write_mode) {
-		int pic_width_dw = (double_write_mode == 2) ?
+		int pic_width_dw = ((double_write_mode == 2) ||
+			(double_write_mode == 3)) ?
 			pic_width / 2 : pic_width;
-		int pic_height_dw = (double_write_mode == 2) ?
+		int pic_height_dw = ((double_write_mode == 2) ||
+			(double_write_mode == 3)) ?
 			pic_height / 2 : pic_height;
 		int lcu_size = 64; /*fixed 64*/
 		int pic_width_64 = (pic_width_dw + 63) & (~0x3f);
@@ -3568,9 +3570,11 @@ static int config_pic(struct VP9Decoder_s *pbi,
 	int mc_buffer_size_u_v = 0;
 	int mc_buffer_size_u_v_h = 0;
 	if (double_write_mode) {
-		int pic_width_dw = (double_write_mode == 2) ?
+		int pic_width_dw = ((double_write_mode == 2) ||
+			(double_write_mode == 3)) ?
 			pic_width / 2 : pic_width;
-		int pic_height_dw = (double_write_mode == 2) ?
+		int pic_height_dw = ((double_write_mode == 2) ||
+			(double_write_mode == 3)) ?
 			pic_height / 2 : pic_height;
 		int pic_width_64_dw = (pic_width_dw + 63) & (~0x3f);
 		int pic_height_32_dw = (pic_height_dw + 31) & (~0x1f);
@@ -4954,7 +4958,8 @@ static void set_canvas(struct PIC_BUFFER_CONFIG_s *pic_config)
 	if	(double_write_mode) {
 		canvas_w = pic_config->y_crop_width;
 		canvas_h = pic_config->y_crop_height;
-		if (double_write_mode == 2) {
+		if ((double_write_mode == 2) ||
+			(double_write_mode == 3)) {
 			canvas_w >>= 2;
 			canvas_h >>= 2;
 		}
@@ -5222,8 +5227,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		}
 
 		vf->index = 0xff00 | pic_config->index;
-#if 1
-/*SUPPORT_10BIT*/
+
 		if (double_write_mode & 0x10) {
 			/* double write only */
 			vf->compBodyAddr = 0;
@@ -5243,6 +5247,12 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			vf->type = VIDTYPE_PROGRESSIVE |
 				VIDTYPE_VIU_FIELD;
 			vf->type |= VIDTYPE_VIU_NV21;
+			if (double_write_mode == 3) {
+				vf->type |= VIDTYPE_COMPRESS;
+#ifdef VP9_10B_MMU
+				vf->type |= VIDTYPE_SCATTER;
+#endif
+			}
 #ifdef MULTI_INSTANCE_SUPPORT
 			if (pbi->m_ins_flag) {
 					vf->canvas0Addr = vf->canvas1Addr = -1;
@@ -5267,36 +5277,37 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 #ifdef VP9_10B_MMU
 			vf->type |= VIDTYPE_SCATTER;
 #endif
-			switch (pic_config->bit_depth) {
-			case VPX_BITS_8:
-				vf->bitdepth = BITDEPTH_Y8 |
-					BITDEPTH_U8 | BITDEPTH_V8;
-				break;
-			case VPX_BITS_10:
-			case VPX_BITS_12:
-				vf->bitdepth = BITDEPTH_Y10 |
-					BITDEPTH_U10 | BITDEPTH_V10;
-				break;
-			default:
-				vf->bitdepth = BITDEPTH_Y10 |
-					BITDEPTH_U10 | BITDEPTH_V10;
-				break;
-			}
-			if (pic_config->bit_depth == VPX_BITS_8)
-				vf->bitdepth |= BITDEPTH_SAVING_MODE;
-	}
-#else
-		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-		vf->type |= VIDTYPE_VIU_NV21;
-		vf->canvas0Addr = vf->canvas1Addr = spec2canvas(pic_config);
-#endif
+		}
+
+		switch (pic_config->bit_depth) {
+		case VPX_BITS_8:
+			vf->bitdepth = BITDEPTH_Y8 |
+				BITDEPTH_U8 | BITDEPTH_V8;
+			break;
+		case VPX_BITS_10:
+		case VPX_BITS_12:
+			vf->bitdepth = BITDEPTH_Y10 |
+				BITDEPTH_U10 | BITDEPTH_V10;
+			break;
+		default:
+			vf->bitdepth = BITDEPTH_Y10 |
+				BITDEPTH_U10 | BITDEPTH_V10;
+			break;
+		}
+		if ((vf->type & VIDTYPE_COMPRESS) == 0)
+			vf->bitdepth =
+				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		if (pic_config->bit_depth == VPX_BITS_8)
+			vf->bitdepth |= BITDEPTH_SAVING_MODE;
+
 		set_frame_info(pbi, vf);
 		/* if((vf->width!=pic_config->width)|
 			(vf->height!=pic_config->height)) */
 		/* pr_info("aaa: %d/%d, %d/%d\n",
 		   vf->width,vf->height, pic_config->width,
 			pic_config->height); */
-		if (double_write_mode == 2) {
+		if ((double_write_mode == 2) ||
+			(double_write_mode == 3)) {
 			vf->width = pic_config->y_crop_width/4;
 			vf->height = pic_config->y_crop_height/4;
 		} else {
