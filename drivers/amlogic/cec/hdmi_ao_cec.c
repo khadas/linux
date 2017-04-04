@@ -92,6 +92,7 @@ struct ao_cec_dev {
 	unsigned int hal_flag;
 	unsigned int phy_addr;
 	unsigned int port_seq;
+	unsigned int cpu_type;
 	unsigned long irq_cec;
 	void __iomem *exit_reg;
 	void __iomem *cec_reg;
@@ -150,18 +151,18 @@ bool cec_msg_dbg_en = 0;
 
 static unsigned char msg_log_buf[128] = { 0 };
 
-#define waiting_aocec_free() \
+#define waiting_aocec_free(r) \
 	do {\
 		unsigned long cnt = 0;\
-		while (readl(cec_dev->cec_reg + AO_CEC_RW_REG) & (1<<23)) {\
+		while (readl(cec_dev->cec_reg + r) & (1<<23)) {\
 			if (3500 == cnt++) { \
-				pr_info("waiting aocec free time out.\n");\
+				pr_info("waiting aocec %x free time out\n", r);\
 				break;\
 			} \
 		} \
 	} while (0)
 
-void cec_set_reg_bits(unsigned int addr, unsigned int value,
+static void cec_set_reg_bits(unsigned int addr, unsigned int value,
 	unsigned int offset, unsigned int len)
 {
 	unsigned int data32 = 0;
@@ -175,34 +176,62 @@ void cec_set_reg_bits(unsigned int addr, unsigned int value,
 unsigned int aocec_rd_reg(unsigned long addr)
 {
 	unsigned int data32;
-	unsigned long flags;
-	waiting_aocec_free();
-	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
+	waiting_aocec_free(AO_CEC_RW_REG);
+	spin_lock(&cec_dev->cec_reg_lock);
 	data32 = 0;
 	data32 |= 0 << 16; /* [16]	 cec_reg_wr */
 	data32 |= 0 << 8; /* [15:8]   cec_reg_wrdata */
 	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
 	writel(data32, cec_dev->cec_reg + AO_CEC_RW_REG);
 
-	waiting_aocec_free();
+	waiting_aocec_free(AO_CEC_RW_REG);
 	data32 = ((readl(cec_dev->cec_reg + AO_CEC_RW_REG)) >> 24) & 0xff;
-	spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+	spin_unlock(&cec_dev->cec_reg_lock);
 	return data32;
 } /* aocec_rd_reg */
 
 void aocec_wr_reg(unsigned long addr, unsigned long data)
 {
 	unsigned long data32;
-	unsigned long flags;
-	waiting_aocec_free();
-	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
+	waiting_aocec_free(AO_CEC_RW_REG);
+	spin_lock(&cec_dev->cec_reg_lock);
 	data32 = 0;
 	data32 |= 1 << 16; /* [16]	 cec_reg_wr */
 	data32 |= data << 8; /* [15:8]   cec_reg_wrdata */
 	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
 	writel(data32, cec_dev->cec_reg + AO_CEC_RW_REG);
-	spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+	spin_unlock(&cec_dev->cec_reg_lock);
 } /* aocec_wr_only_reg */
+
+/*------------for AO_CECB------------------*/
+static unsigned int aocecb_rd_reg(unsigned long addr)
+{
+	unsigned int data32;
+
+	spin_lock(&cec_dev->cec_reg_lock);
+	data32 = 0;
+	data32 |= 0 << 16; /* [16]	 cec_reg_wr */
+	data32 |= 0 << 8; /* [15:8]   cec_reg_wrdata */
+	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
+	writel(data32, cec_dev->cec_reg + AO_CECB_RW_REG);
+
+	data32 = ((readl(cec_dev->cec_reg + AO_CECB_RW_REG)) >> 24) & 0xff;
+	spin_unlock(&cec_dev->cec_reg_lock);
+	return data32;
+} /* aocecb_rd_reg */
+
+static void aocecb_wr_reg(unsigned long addr, unsigned long data)
+{
+	unsigned long data32;
+
+	spin_lock(&cec_dev->cec_reg_lock);
+	data32 = 0;
+	data32 |= 1 << 16; /* [16]	 cec_reg_wr */
+	data32 |= data << 8; /* [15:8]   cec_reg_wrdata */
+	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
+	writel(data32, cec_dev->cec_reg + AO_CECB_RW_REG);
+	spin_unlock(&cec_dev->cec_reg_lock);
+} /* aocecb_wr_only_reg */
 
 /*----------------- low level for EE cec rx/tx support ----------------*/
 static inline void hdmirx_set_bits_top(uint32_t reg, uint32_t bits,
@@ -215,20 +244,45 @@ static inline void hdmirx_set_bits_top(uint32_t reg, uint32_t bits,
 	hdmirx_wr_top(reg, tmp);
 }
 
+static unsigned int hdmirx_cec_read(unsigned int reg)
+{
+	/*
+	 * TXLX has moved ee cec to ao domain
+	 */
+	if (reg >= DWC_CEC_CTRL && cec_dev->cpu_type >= MESON_CPU_MAJOR_ID_TXLX)
+		return aocecb_rd_reg((reg - DWC_CEC_CTRL) / 4);
+	else
+		return hdmirx_rd_dwc(reg);
+}
+
+static void hdmirx_cec_write(unsigned int reg, unsigned int value)
+{
+	/*
+	 * TXLX has moved ee cec to ao domain
+	 */
+	if (reg >= DWC_CEC_CTRL && cec_dev->cpu_type >= MESON_CPU_MAJOR_ID_TXLX)
+		aocecb_wr_reg((reg - DWC_CEC_CTRL) / 4, value);
+	else
+		hdmirx_wr_dwc(reg, value);
+}
+
 static inline void hdmirx_set_bits_dwc(uint32_t reg, uint32_t bits,
 				       uint32_t start, uint32_t len)
 {
 	unsigned int tmp;
-	tmp = hdmirx_rd_dwc(reg);
+	tmp = hdmirx_cec_read(reg);
 	tmp &= ~(((1 << len) - 1) << start);
 	tmp |=  (bits << start);
-	hdmirx_wr_dwc(reg, tmp);
+	hdmirx_cec_write(reg, tmp);
 }
 
 void cecrx_hw_reset(void)
 {
 	/* cec disable */
-	hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 0, 5, 1);
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX)
+		hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 0, 5, 1);
+	else
+		cec_set_reg_bits(AO_CECB_GEN_CNTL, 0, 0, 1);
 	udelay(500);
 }
 
@@ -236,11 +290,15 @@ static void cecrx_check_irq_enable(void)
 {
 	unsigned int reg32;
 
-	reg32 = hdmirx_rd_dwc(DWC_AUD_CLK_IEN);
+	/* irq on chip txlx has sperate from EE cec, no need check */
+	if (cec_dev->cpu_type >= MESON_CPU_MAJOR_ID_TXLX)
+		return;
+
+	reg32 = hdmirx_cec_read(DWC_AUD_CEC_IEN);
 	if ((reg32 & EE_CEC_IRQ_EN_MASK) != EE_CEC_IRQ_EN_MASK) {
 		CEC_INFO("irq_en is wrong:%x, checker:%pf\n",
 			 reg32, (void *)_RET_IP_);
-		hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, EE_CEC_IRQ_EN_MASK);
+		hdmirx_cec_write(DWC_AUD_CEC_IEN_SET, EE_CEC_IRQ_EN_MASK);
 	}
 }
 
@@ -252,13 +310,13 @@ static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
 	cecrx_check_irq_enable();
 	while (1) {
 		/* send is in process */
-		lock = hdmirx_rd_dwc(DWC_CEC_LOCK);
+		lock = hdmirx_cec_read(DWC_CEC_LOCK);
 		if (lock) {
 			CEC_ERR("recevie msg in tx\n");
 			cecrx_irq_handle();
 			return -1;
 		}
-		if (hdmirx_rd_dwc(DWC_CEC_CTRL) & 0x01)
+		if (hdmirx_cec_read(DWC_CEC_CTRL) & 0x01)
 			i++;
 		else
 			break;
@@ -272,14 +330,14 @@ static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
 
 	size += sprintf(msg_log_buf + size, "CEC tx msg len %d:", len);
 	for (i = 0; i < len; i++) {
-		hdmirx_wr_dwc(DWC_CEC_TX_DATA0 + i * 4, msg[i]);
+		hdmirx_cec_write(DWC_CEC_TX_DATA0 + i * 4, msg[i]);
 		size += sprintf(msg_log_buf + size, " %02x", msg[i]);
 	}
 	msg_log_buf[size] = '\0';
 	CEC_INFO("%s\n", msg_log_buf);
 
 	/* start send */
-	hdmirx_wr_dwc(DWC_CEC_TX_CNT, len);
+	hdmirx_cec_write(DWC_CEC_TX_CNT, len);
 	hdmirx_set_bits_dwc(DWC_CEC_CTRL, 3, 0, 3);
 	return 0;
 }
@@ -287,13 +345,23 @@ static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
 int cec_has_irq(void)
 {
 	unsigned int intr_cec;
-	intr_cec = hdmirx_rd_dwc(DWC_AUD_CLK_ISTS) &
-		   EE_CEC_IRQ_EN_MASK;
 
-	if (intr_cec)
-		return 1;
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) {
+		intr_cec = hdmirx_cec_read(DWC_AUD_CEC_ISTS);
+		intr_cec &= EE_CEC_IRQ_EN_MASK;
+	} else {
+		intr_cec = readl(cec_dev->cec_reg + AO_CECB_INTR_STAT);
+		intr_cec &= CECB_IRQ_EN_MASK;
+	}
+	return intr_cec;
+}
 
-	return 0;
+static inline void cecrx_clear_irq(unsigned int flags)
+{
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX)
+		hdmirx_cec_write(DWC_AUD_CEC_ICLR, flags);
+	else
+		writel(flags, cec_dev->cec_reg + AO_CECB_INTR_CLR);
 }
 
 static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
@@ -304,16 +372,16 @@ static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
 
 	dwork = &cec_dev->cec_work;
 
-	len = hdmirx_rd_dwc(DWC_CEC_RX_CNT);
+	len = hdmirx_cec_read(DWC_CEC_RX_CNT);
 	size = sprintf(msg_log_buf, "CEC RX len %d:", len);
 	for (i = 0; i < len; i++) {
-		msg[i] = hdmirx_rd_dwc(DWC_CEC_RX_DATA0 + i * 4);
+		msg[i] = hdmirx_cec_read(DWC_CEC_RX_DATA0 + i * 4);
 		size += sprintf(msg_log_buf + size, " %02x", msg[i]);
 	}
 	size += sprintf(msg_log_buf + size, "\n");
 	msg_log_buf[size] = '\0';
 	/* clr CEC lock bit */
-	hdmirx_wr_dwc(DWC_CEC_LOCK, 0);
+	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	CEC_INFO("%s", msg_log_buf);
 	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
@@ -329,22 +397,25 @@ void cecrx_irq_handle(void)
 {
 	uint32_t intr_cec;
 	uint32_t lock;
+	int shift = 0;
 
-	intr_cec = (hdmirx_rd_dwc(DWC_AUD_CLK_ISTS) & EE_CEC_IRQ_EN_MASK);
+	intr_cec = cec_has_irq();
 
 	/* clear irq */
 	if (intr_cec != 0)
-		hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, intr_cec);
+		cecrx_clear_irq(intr_cec);
 
 	if (!ee_cec)
 		return;
 
+	if (cec_dev->cpu_type >= MESON_CPU_MAJOR_ID_TXLX)
+		shift = 16;
 	/* TX DONE irq, increase tx buffer pointer */
 	if (intr_cec & CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
 		complete(&cec_dev->tx_ok);
 	}
-	lock = hdmirx_rd_dwc(DWC_CEC_LOCK);
+	lock = hdmirx_cec_read(DWC_CEC_LOCK);
 	/* EOM irq, message is comming */
 	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cec_pick_msg(rx_msg, &rx_len);
@@ -362,7 +433,7 @@ void cecrx_irq_handle(void)
 		else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
-			hdmirx_wr_dwc(DWC_CEC_TX_CNT, 0);
+			hdmirx_cec_write(DWC_CEC_TX_CNT, 0);
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
 		}
 		else
@@ -378,7 +449,7 @@ void cecrx_irq_handle(void)
 
 	if (intr_cec & CEC_IRQ_RX_WAKEUP) {
 		CEC_INFO("rx wake up\n");
-		hdmirx_wr_dwc(DWC_CEC_WKUPCTRL, 0);
+		hdmirx_cec_write(DWC_CEC_WKUPCTRL, 0);
 		/* TODO: wake up system if needed */
 	}
 }
@@ -389,6 +460,59 @@ static irqreturn_t cecrx_isr(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+static void ao_cecb_init(void)
+{
+	unsigned long data32;
+	unsigned int reg;
+
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX)
+		return;
+
+	reg =   (0 << 31) |
+		(0 << 30) |
+		(1 << 28) |		/* clk_div0/clk_div1 in turn */
+		((732-1) << 12) |	/* Div_tcnt1 */
+		((733-1) << 0);		/* Div_tcnt0 */
+	writel(reg, cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG0);
+	reg =   (0 << 13) |
+		((11-1)  << 12) |
+		((8-1)  <<  0);
+	writel(reg, cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG1);
+
+	reg = readl(cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG0);
+	reg |= (1 << 31);
+	writel(reg, cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG0);
+
+	udelay(200);
+	reg |= (1 << 30);
+	writel(reg, cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG0);
+
+	reg = readl(cec_dev->cec_reg + AO_RTI_PWR_CNTL_REG0);
+	reg |=  (0x01 << 6);	/* xtal gate */
+	writel(reg, cec_dev->cec_reg + AO_RTI_PWR_CNTL_REG0);
+
+	data32  = 0;
+	data32 |= (7 << 12);	/* filter_del */
+	data32 |= (1 <<  8);	/* filter_tick: 1us */
+	data32 |= (1 <<  3);	/* enable system clock */
+	data32 |= 0 << 1;	/* [2:1]	cntl_clk: */
+				/* 0=Disable clk (Power-off mode); */
+				/* 1=Enable gated clock (Normal mode); */
+				/* 2=Enable free-run clk (Debug mode). */
+	data32 |= 1 << 0;	/* [0]	  sw_reset: 1=Reset */
+	writel(data32, cec_dev->cec_reg + AO_CECB_GEN_CNTL);
+	/* Enable gated clock (Normal mode). */
+	cec_set_reg_bits(AO_CECB_GEN_CNTL, 1, 1, 1);
+	/* Release SW reset */
+	cec_set_reg_bits(AO_CECB_GEN_CNTL, 0, 0, 1);
+
+	/* Enable all AO_CECB interrupt sources */
+	writel(CECB_IRQ_EN_MASK, cec_dev->cec_reg + AO_CECB_INTR_MASKN);
+	CEC_INFO("enable:int mask:0x%x\n",
+		 readl(cec_dev->cec_reg + AO_CECB_INTR_MASKN));
+	hdmirx_cec_write(DWC_CEC_WKUPCTRL, 0);
+}
+
 int cecrx_hw_init(void)
 {
 	unsigned int data32;
@@ -396,28 +520,34 @@ int cecrx_hw_init(void)
 	if (!ee_cec)
 		return -1;
 	cecrx_hw_reset();
-	/* set cec clk 32768k */
-	data32  = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
-	data32  = 0;
-	/* [17:16] clk_sel: 0=oscin; 1=slow_oscin; 2=fclk_div3; 3=fclk_div5. */
-	data32 |= 0         << 16;
-	/* [   15] clk_en */
-	data32 |= 1         << 15;
-	/* [13: 0] clk_div */
-	data32 |= (732-1)   << 0;
-	writel(data32, cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
-	hdmirx_wr_top(TOP_EDID_ADDR_CEC, EDID_CEC_ID_ADDR);
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) {
+		/* set cec clk 32768k */
+		data32  = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
+		data32  = 0;
+		/*
+		 * [17:16] clk_sel: 0=oscin; 1=slow_oscin;
+		 * 2=fclk_div3; 3=fclk_div5.
+		 */
+		data32 |= 0         << 16;
+		/* [   15] clk_en */
+		data32 |= 1         << 15;
+		/* [13: 0] clk_div */
+		data32 |= (732-1)   << 0;
+		writel(data32, cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
+		hdmirx_wr_top(TOP_EDID_ADDR_CEC, EDID_CEC_ID_ADDR);
 
-	/* hdmirx_cecclk_en */
-	hdmirx_set_bits_top(TOP_CLK_CNTL, 1, 2, 1);
-	hdmirx_set_bits_top(TOP_EDID_GEN_CNTL, EDID_AUTO_CEC_EN, 11, 1);
+		/* hdmirx_cecclk_en */
+		hdmirx_set_bits_top(TOP_CLK_CNTL, 1, 2, 1);
+		hdmirx_set_bits_top(TOP_EDID_GEN_CNTL, EDID_AUTO_CEC_EN, 11, 1);
 
-	/* enable all cec irq */
-	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, EE_CEC_IRQ_EN_MASK);
-	/* clear all wake up source */
-	hdmirx_wr_dwc(DWC_CEC_WKUPCTRL, 0);
-	/* cec enable */
-	hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 1, 5, 1);
+		/* enable all cec irq */
+		hdmirx_cec_write(DWC_AUD_CEC_IEN_SET, EE_CEC_IRQ_EN_MASK);
+		/* clear all wake up source */
+		hdmirx_cec_write(DWC_CEC_WKUPCTRL, 0);
+		/* cec enable */
+		hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 1, 5, 1);
+	} else
+		ao_cecb_init();
 
 	cec_logicaddr_set(cec_dev->cec_info.log_addr);
 	return 0;
@@ -429,41 +559,56 @@ static int dump_cecrx_reg(char *b)
 	unsigned char reg;
 	unsigned int reg32;
 
-	reg32 = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
-	s += sprintf(b + s, "HHI_32K_CLK_CNTL:           0x%08x\n", reg32);
-	reg32 = hdmirx_rd_top(TOP_EDID_ADDR_CEC);
-	s += sprintf(b + s, "TOP_EDID_ADDR_CEC:   0x%08x\n", reg32);
-	reg32 = hdmirx_rd_top(TOP_EDID_GEN_CNTL);
-	s += sprintf(b + s, "TOP_EDID_GEN_CNTL:   0x%08x\n", reg32);
-	reg32 = hdmirx_rd_dwc(DWC_AUD_CLK_IEN);
-	s += sprintf(b + s, "DWC_AUD_CLK_IEN:     0x%08x\n", reg32);
-	reg32 = hdmirx_rd_dwc(DWC_AUD_CLK_ISTS);
-	s += sprintf(b + s, "DWC_AUD_CLK_ISTS:    0x%08x\n", reg32);
-	reg32 = hdmirx_rd_dwc(DWC_DMI_DISABLE_IF);
-	s += sprintf(b + s, "DWC_DMI_DISABLE_IF:  0x%08x\n", reg32);
-	reg32 = hdmirx_rd_top(TOP_CLK_CNTL);
-	s += sprintf(b + s, "TOP_CLK_CNTL:        0x%08x\n", reg32);
+	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) {
+		reg32 = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
+		s += sprintf(b + s, "HHI_32K_CLK_CNTL:    0x%08x\n", reg32);
+		reg32 = hdmirx_rd_top(TOP_EDID_ADDR_CEC);
+		s += sprintf(b + s, "TOP_EDID_ADDR_CEC:   0x%08x\n", reg32);
+		reg32 = hdmirx_rd_top(TOP_EDID_GEN_CNTL);
+		s += sprintf(b + s, "TOP_EDID_GEN_CNTL:   0x%08x\n", reg32);
+		reg32 = hdmirx_cec_read(DWC_AUD_CEC_IEN);
+		s += sprintf(b + s, "DWC_AUD_CEC_IEN:     0x%08x\n", reg32);
+		reg32 = hdmirx_cec_read(DWC_AUD_CEC_ISTS);
+		s += sprintf(b + s, "DWC_AUD_CEC_ISTS:    0x%08x\n", reg32);
+		reg32 = hdmirx_cec_read(DWC_DMI_DISABLE_IF);
+		s += sprintf(b + s, "DWC_DMI_DISABLE_IF:  0x%08x\n", reg32);
+		reg32 = hdmirx_rd_top(TOP_CLK_CNTL);
+		s += sprintf(b + s, "TOP_CLK_CNTL:        0x%08x\n", reg32);
+	} else {
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG0);
+		s += sprintf(b + s, "AO_CECB_CLK_CNTL_REG0:  0x%08x\n", reg32);
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_CLK_CNTL_REG1);
+		s += sprintf(b + s, "AO_CECB_CLK_CNTL_REG1:  0x%08x\n", reg32);
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_GEN_CNTL);
+		s += sprintf(b + s, "AO_CECB_GEN_CNTL:       0x%08x\n", reg32);
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_RW_REG);
+		s += sprintf(b + s, "AO_CECB_RW_REG:         0x%08x\n", reg32);
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_INTR_MASKN);
+		s += sprintf(b + s, "AO_CECB_INTR_MASKN:     0x%08x\n", reg32);
+		reg32 = readl(cec_dev->cec_reg + AO_CECB_INTR_STAT);
+		s += sprintf(b + s, "AO_CECB_INTR_STAT:      0x%08x\n", reg32);
+	}
 
 	s += sprintf(b + s, "CEC MODULE REGS:\n");
-	s += sprintf(b + s, "CEC_CTRL     = 0x%02x\n", hdmirx_rd_dwc(0x1f00));
-	s += sprintf(b + s, "CEC_MASK     = 0x%02x\n", hdmirx_rd_dwc(0x1f08));
-	s += sprintf(b + s, "CEC_ADDR_L   = 0x%02x\n", hdmirx_rd_dwc(0x1f14));
-	s += sprintf(b + s, "CEC_ADDR_H   = 0x%02x\n", hdmirx_rd_dwc(0x1f18));
-	s += sprintf(b + s, "CEC_TX_CNT   = 0x%02x\n", hdmirx_rd_dwc(0x1f1c));
-	s += sprintf(b + s, "CEC_RX_CNT   = 0x%02x\n", hdmirx_rd_dwc(0x1f20));
-	s += sprintf(b + s, "CEC_LOCK     = 0x%02x\n", hdmirx_rd_dwc(0x1fc0));
-	s += sprintf(b + s, "CEC_WKUPCTRL = 0x%02x\n", hdmirx_rd_dwc(0x1fc4));
+	s += sprintf(b + s, "CEC_CTRL     = 0x%02x\n", hdmirx_cec_read(0x1f00));
+	s += sprintf(b + s, "CEC_MASK     = 0x%02x\n", hdmirx_cec_read(0x1f08));
+	s += sprintf(b + s, "CEC_ADDR_L   = 0x%02x\n", hdmirx_cec_read(0x1f14));
+	s += sprintf(b + s, "CEC_ADDR_H   = 0x%02x\n", hdmirx_cec_read(0x1f18));
+	s += sprintf(b + s, "CEC_TX_CNT   = 0x%02x\n", hdmirx_cec_read(0x1f1c));
+	s += sprintf(b + s, "CEC_RX_CNT   = 0x%02x\n", hdmirx_cec_read(0x1f20));
+	s += sprintf(b + s, "CEC_LOCK     = 0x%02x\n", hdmirx_cec_read(0x1fc0));
+	s += sprintf(b + s, "CEC_WKUPCTRL = 0x%02x\n", hdmirx_cec_read(0x1fc4));
 
 	s += sprintf(b + s, "%s", "RX buffer:");
 	for (i = 0; i < 16; i++) {
-		reg = (hdmirx_rd_dwc(0x1f80 + i * 4) & 0xff);
+		reg = (hdmirx_cec_read(0x1f80 + i * 4) & 0xff);
 		s += sprintf(b + s, " %02x", reg);
 	}
 	s += sprintf(b + s, "\n");
 
 	s += sprintf(b + s, "%s", "TX buffer:");
 	for (i = 0; i < 16; i++) {
-		reg = (hdmirx_rd_dwc(0x1f40 + i * 4) & 0xff);
+		reg = (hdmirx_cec_read(0x1f40 + i * 4) & 0xff);
 		s += sprintf(b + s, " %02x", reg);
 	}
 	s += sprintf(b + s, "\n");
@@ -500,9 +645,9 @@ void cec_logicaddr_set(int l_add)
 	if (ee_cec) {
 		/* set ee_cec logical addr */
 		if (l_add < 8)
-			hdmirx_wr_dwc(DWC_CEC_ADDR_L, 1 << l_add);
+			hdmirx_cec_write(DWC_CEC_ADDR_L, 1 << l_add);
 		else
-			hdmirx_wr_dwc(DWC_CEC_ADDR_H, 1 << (l_add - 8) | 0x80);
+			hdmirx_cec_write(DWC_CEC_ADDR_H, 1 << (l_add - 8)|0x80);
 		return;
 	}
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, 0);
@@ -725,11 +870,10 @@ void tx_irq_handle(void)
 
 static int get_line(void)
 {
-	int reg, cpu_type, ret = -EINVAL;
+	int reg, ret = -EINVAL;
 
 	reg = readl(cec_dev->cec_reg + AO_GPIO_I);
-	cpu_type = get_cpu_type();
-	switch (cpu_type) {
+	switch (cec_dev->cpu_type) {
 	case MESON_CPU_MAJOR_ID_M8:
 	case MESON_CPU_MAJOR_ID_M8B:
 	case MESON_CPU_MAJOR_ID_MG9TV:
@@ -745,10 +889,11 @@ static int get_line(void)
 		ret = (reg & (1 <<  9));
 		break;
 	case MESON_CPU_MAJOR_ID_TXL:
+	case MESON_CPU_MAJOR_ID_TXLX:
 		ret = (reg & (1 <<  7));
 		break;
 	default:
-		CEC_ERR("unknow cpu type:%d\n", cpu_type);
+		CEC_ERR("unknow cpu type:%d\n", cec_dev->cpu_type);
 		break;
 	}
 	return ret;
@@ -1024,7 +1169,10 @@ unsigned int cec_phyaddr_config(unsigned int value, bool wr_flag)
 
 void cec_keep_reset(void)
 {
-	writel(0x1, cec_dev->cec_reg + AO_CEC_GEN_CNTL);
+	if (ee_cec)
+		cecrx_hw_reset();
+	else
+		writel(0x1, cec_dev->cec_reg + AO_CEC_GEN_CNTL);
 }
 /*
  * cec hw module init befor allocate logical address
@@ -1032,6 +1180,11 @@ void cec_keep_reset(void)
 static void cec_pre_init(void)
 {
 	unsigned int reg = readl(cec_dev->cec_reg + AO_RTI_STATUS_REG1);
+
+	reg &= 0xfffff;
+	if ((reg & 0xffff) == 0xffff)
+		wake_ok = 0;
+	pr_info("cec: wake up flag:%x\n", reg);
 
 	if (ee_cec) {
 		cecrx_hw_init();
@@ -1042,10 +1195,6 @@ static void cec_pre_init(void)
 	cec_arbit_bit_time_set(3, 0x118, 0);
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
-	reg &= 0xfffff;
-	if ((reg & 0xffff) == 0xffff)
-		wake_ok = 0;
-	pr_info("cec: wake up flag:%x\n", reg);
 }
 
 static int cec_late_check_rx_buffer(void)
@@ -1649,6 +1798,10 @@ static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
 	if (cnt < 0 || val > 0xff)
 		return -EINVAL;
 	cec_config(val, 1);
+	if (val == 0)
+		cec_keep_reset();
+	else
+		cec_pre_init();
 	return count;
 }
 
@@ -2272,6 +2425,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 #endif
 	hrtimer_init(&start_bit_check, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	start_bit_check.function = cec_line_check;
+	cec_dev->cpu_type = get_cpu_type();
 	/* for init */
 	cec_pre_init();
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
