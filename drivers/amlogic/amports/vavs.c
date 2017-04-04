@@ -139,7 +139,7 @@ static u32 canvas_base = 128;
 #else
 	int	canvas_num = 3;
 #endif
-static u32 work_buf_size;
+
 
 static struct vframe_s vfpool[VF_POOL_SIZE];
 /*static struct vframe_s vfpool2[VF_POOL_SIZE];*/
@@ -150,7 +150,8 @@ static u32 saved_resolution;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_size, buf_offset;
+static u32 buf_size = 32 * 1024 * 1024;
+static u32 buf_offset;
 static u32 avi_flag;
 static u32 vavs_ratio;
 static u32 pic_type;
@@ -1388,7 +1389,6 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 		canvas_num = 2; /*NV21*/
 	}
 
-	buf_size = pdata->alloc_mem_size;
 
 	if (pdata->sys_info)
 		vavs_amstream_dec_info = *pdata->sys_info;
@@ -1575,8 +1575,6 @@ MODULE_PARM_DESC(vf_buf_num_used, "\nvf_buf_num_used\n");
 module_param(canvas_base, uint, 0664);
 MODULE_PARM_DESC(canvas_base, "\ncanvas_base\n");
 
-module_param(work_buf_size, uint, 0664);
-MODULE_PARM_DESC(work_buf_size, "\nwork_buf_size\n");
 
 module_param(firmware_sel, uint, 0664);
 MODULE_PARM_DESC(firmware_sel, "\firmware_sel\n");

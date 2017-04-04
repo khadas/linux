@@ -566,9 +566,9 @@ normal reference pool.*/
 #define FRAME_CONTEXTS (1 << FRAME_CONTEXTS_LOG2)
 /*buffer + header buffer + workspace*/
 #define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + HEADER_FRAME_BUFFERS + 1)
-#define VF_BUFFER_IDX(n) (1 + n)
+#define VF_BUFFER_IDX(n) (n)
 #define HEADER_BUFFER_IDX(n) (FRAME_BUFFERS + n)
-#define WORK_SPACE_BUF_ID (FRAME_BUFFERS)
+#define WORK_SPACE_BUF_ID (FRAME_BUFFERS + HEADER_FRAME_BUFFERS)
 
 struct RefCntBuffer_s {
 	int ref_count;
@@ -5344,11 +5344,11 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		}
 		inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
-
+#ifndef CONFIG_MULTI_DEC
 		/*count info*/
 		gvs->frame_dur = pbi->frame_dur;
 		vdec_count_info(gvs, 0, stream_offset);
-
+#endif
 		vf_notify_receiver(pbi->provider_name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	}
@@ -5962,8 +5962,9 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 		vstatus->frame_rate = -1;
 	vstatus->error_count = 0;
 	vstatus->status = vp9->stat | vp9->fatal_error;
-	vstatus->bit_rate = gvs->bit_rate;
 	vstatus->frame_dur = vp9->frame_dur;
+#ifndef CONFIG_MULTI_DEC
+	vstatus->bit_rate = gvs->bit_rate;
 	vstatus->frame_data = gvs->frame_data;
 	vstatus->total_data = gvs->total_data;
 	vstatus->frame_count = gvs->frame_count;
@@ -5974,7 +5975,7 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	vstatus->offset = gvs->offset;
 	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
 		"%s", DRIVER_NAME);
-
+#endif
 	return 0;
 }
 
@@ -6351,14 +6352,15 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 		pr_err("vp9 alloc bmmu box failed!!\n");
 		return -1;
 	}
-	/* alloc_mem_size is work space size */
-	pbi->buf_size = pdata->alloc_mem_size;
-	ret = decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box, 0,
-			pbi->buf_size, DRIVER_NAME, &pdata->mem_start);
+
+	ret = decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box, WORK_SPACE_BUF_ID,
+			work_buf_size, DRIVER_NAME, &pdata->mem_start);
 	if (ret < 0) {
+		uninit_mmu_buffers(pbi);
 		mutex_unlock(&vvp9_mutex);
 		return ret;
 	}
+	pbi->buf_size = work_buf_size;
 
 #ifdef MULTI_INSTANCE_SUPPORT
 	pbi->buf_start = pdata->mem_start;
@@ -6393,6 +6395,7 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);
+		uninit_mmu_buffers(pbi);
 		mutex_unlock(&vvp9_mutex);
 		return -ENODEV;
 	}
@@ -6856,7 +6859,6 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	}
 
 	pbi->cma_dev = pdata->cma_dev;
-
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);

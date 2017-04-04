@@ -2696,12 +2696,12 @@ static void check_timer_func(unsigned long arg)
 static int dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)vdec->private;
-	vstatus->width = hw->frame_width;
-	vstatus->height = hw->frame_height;
+	vstatus->frame_width = hw->frame_width;
+	vstatus->frame_height = hw->frame_height;
 	if (hw->frame_dur != 0)
-		vstatus->fps = 96000 / hw->frame_dur;
+		vstatus->frame_rate = 96000 / hw->frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = READ_VREG(AV_SCRATCH_D);
 	vstatus->status = hw->stat;
 	/* if (fatal_error_reset)

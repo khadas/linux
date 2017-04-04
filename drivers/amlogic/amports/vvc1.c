@@ -120,7 +120,8 @@ static int cur_pool_idx;
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_size, buf_offset;
+static u32 buf_size = 32 * 1024 * 1024;
+static u32 buf_offset;
 static u32 avi_flag;
 static u32 vvc1_ratio;
 static u32 vvc1_format;
@@ -1086,8 +1087,6 @@ static int amvdec_vc1_probe(struct platform_device *pdev)
 		pr_info("amvdec_vc1 memory resource undefined.\n");
 		return -EFAULT;
 	}
-
-	buf_size = pdata->alloc_mem_size;
 
 	if (pdata->sys_info)
 		vvc1_amstream_dec_info = *pdata->sys_info;

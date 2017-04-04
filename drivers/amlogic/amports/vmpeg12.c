@@ -160,8 +160,8 @@ static u32 frame_width, frame_height, frame_dur, frame_prog;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
-
-static u32 buf_size, ccbuf_phyAddress;
+static u32 buf_size = 32 * 1024 * 1024;
+static u32 ccbuf_phyAddress;
 static void *ccbuf_phyAddress_virt;
 static int ccbuf_phyAddress_is_remaped_nocache;
 
@@ -1084,8 +1084,6 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 
 	if (pdata->sys_info)
 		vmpeg12_amstream_dec_info = *pdata->sys_info;
-
-	buf_size = pdata->alloc_mem_size;
 
 	pdata->dec_status = vmpeg12_dec_status;
 

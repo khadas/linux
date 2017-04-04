@@ -121,7 +121,7 @@ static u32 frame_width, frame_height, frame_dur;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_size;
+static u32 buf_size = 32 * 1024 * 1024;
 static DEFINE_SPINLOCK(lock);
 
 static inline u32 index2canvas0(u32 index)
@@ -787,8 +787,6 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 
 		return -EFAULT;
 	}
-
-	buf_size = pdata->alloc_mem_size;
 
 	if (pdata->sys_info)
 		vmjpeg_amstream_dec_info = *pdata->sys_info;
