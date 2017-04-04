@@ -147,7 +147,8 @@ static u32 frame_width, frame_height, frame_dur, frame_prog;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_size, buf_offset;
+static u32 buf_size = 32 * 1024 * 1024;
+static u32 buf_offset;
 static u32 vmpeg4_ratio;
 static u64 vmpeg4_ratio64;
 static u32 rate_detect;
@@ -1069,8 +1070,6 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 			"amvdec_mpeg4 memory resource undefined.\n");
 		return -EFAULT;
 	}
-
-	buf_size = pdata->alloc_mem_size;
 
 	if (pdata->sys_info)
 		vmpeg4_amstream_dec_info = *pdata->sys_info;

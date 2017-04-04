@@ -147,7 +147,8 @@ struct vdec_s {
 	/* config (temp) */
 	unsigned long mem_start;
 	unsigned long mem_end;
-	unsigned int alloc_mem_size;
+
+	void *mm_blk_handle;
 
 	struct device *cma_dev;
 	struct platform_device *dev;

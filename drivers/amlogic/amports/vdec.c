@@ -105,9 +105,6 @@ struct vdec_core_s {
 	struct vdec_s *active_vdec;
 	struct platform_device *vdec_core_platform_device;
 	struct device *cma_dev;
-	unsigned long mem_start;
-	unsigned long mem_end;
-
 	struct semaphore sem;
 	struct task_struct *thread;
 
@@ -273,28 +270,6 @@ static const char * const vdec_device_name[] = {
 	"amvdec_vp9",        "ammvdec_vp9"
 };
 
-static int vdec_default_buf_size[] = {
-	32, 32, /*"amvdec_mpeg12",*/
-	32, 0,  /*"amvdec_mpeg4",*/
-	48, 0,  /*"amvdec_h264",*/
-	32, 32, /*"amvdec_mjpeg",*/
-	32, 32, /*"amvdec_real",*/
-	32, 32, /*"amjpegdec",*/
-	32, 32, /*"amvdec_vc1",*/
-	32, 32, /*"amvdec_avs",*/
-	32, 32, /*"amvdec_yuv",*/
-	64, 64, /*"amvdec_h264mvc",*/
-	64, 64, /*"amvdec_h264_4k2k", else alloc on decoder*/
-	48, 48, /*"amvdec_h265", else alloc on decoder*/
-	0, 0,   /* avs encoder */
-	0, 0,   /* jpg encoder */
-#ifdef VP9_10B_MMU
-	24, 24, /*"amvdec_vp9", else alloc on decoder*/
-#else
-	32, 32,
-#endif
-	0
-};
 
 #else
 
@@ -316,27 +291,6 @@ static const char * const vdec_device_name[] = {
 	"amvdec_vp9"
 };
 
-static int vdec_default_buf_size[] = {
-	32, /*"amvdec_mpeg12",*/
-	32, /*"amvdec_mpeg4",*/
-	48, /*"amvdec_h264",*/
-	32, /*"amvdec_mjpeg",*/
-	32, /*"amvdec_real",*/
-	32, /*"amjpegdec",*/
-	32, /*"amvdec_vc1",*/
-	32, /*"amvdec_avs",*/
-	32, /*"amvdec_yuv",*/
-	64, /*"amvdec_h264mvc",*/
-	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
-	48, /*"amvdec_h265", else alloc on decoder*/
-	0,  /* avs encoder */
-	0,  /* jpg encoder */
-#ifdef VP9_10B_MMU
-	24, /*"amvdec_vp9", else alloc on decoder*/
-#else
-	32,
-#endif
-};
 #endif
 
 int vdec_set_decinfo(struct vdec_s *vdec, struct dec_sysinfo *p)
@@ -1182,24 +1136,9 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 {
 	int r = 0;
 	struct vdec_s *p = vdec;
-	int more_buffers = 0;
 	const char *dev_name;
-	int tvp_flags;
-	tvp_flags = codec_mm_video_tvp_enabled() ?
-		CODEC_MM_FLAGS_TVP : 0;
-	/*TODO.changed to vdec-tvp flags*/
-
-	if (is_4k && vdec->format < VFORMAT_H264) {
-		/*old decoder don't support 4k
-			but size is bigger;
-			clear 4k flag, and used more buffers;
-		*/
-		more_buffers = 1;
-		is_4k = 0;
-	}
 
 	dev_name = get_dev_name(vdec_single(vdec), vdec->format);
-
 	if (dev_name == NULL)
 		return -ENODEV;
 
@@ -1219,35 +1158,6 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		}
 	}
 
-	if (vdec_single(vdec) &&
-		((vdec->format == VFORMAT_H264_4K2K) ||
-		(vdec->format == VFORMAT_HEVC && is_4k))) {
-		try_free_keep_video(0);
-	}
-
-	/*when blackout_policy was set, vdec would not free cma buffer, if
-		current vformat require larger buffer size than current
-		buf size, reallocated it
-	*/
-	if (vdec_single(vdec) &&
-		((vdec_core->mem_start != vdec_core->mem_end &&
-			vdec_core->mem_end - vdec_core->mem_start + 1 <
-			vdec_default_buf_size[vdec->format] * SZ_1M))) {
-#ifdef CONFIG_MULTI_DEC
-		pr_info("current vdec size %ld, vformat %d need size %d\n",
-			vdec_core->mem_end - vdec_core->mem_start,
-			vdec->format,
-			vdec_default_buf_size[vdec->format * 2] * SZ_1M);
-#else
-		pr_info("current vdec size %ld, vformat %d need size %d\n",
-			vdec_core->mem_end - vdec_core->mem_start,
-			vdec->format,
-			vdec_default_buf_size[vdec->format] * SZ_1M);
-#endif
-		try_free_keep_video(0);
-		vdec_free_cmabuf();
-	}
-
 	mutex_lock(&vdec_mutex);
 	inited_vcodec_num++;
 	mutex_unlock(&vdec_mutex);
@@ -1263,99 +1173,6 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	/* todo */
 	if (!vdec_dual(vdec))
 		p->use_vfm_path = vdec_stream_based(vdec);
-
-	if (vdec_single(vdec)) {
-		pr_info("vdec_dev_reg.mem[0x%lx -- 0x%lx]\n",
-			vdec_core->mem_start,
-			vdec_core->mem_end);
-		p->mem_start = vdec_core->mem_start;
-		p->mem_end = vdec_core->mem_end;
-	}
-
-	/* allocate base memory for decoder instance */
-	while ((p->mem_start == p->mem_end) && (vdec_single(vdec))) {
-		int alloc_size;
-
-#ifdef CONFIG_MULTI_DEC
-		alloc_size =
-			vdec_default_buf_size[vdec->format * 2]
-			* SZ_1M;
-#else
-		alloc_size = vdec_default_buf_size[vdec->format] * SZ_1M;
-#endif
-		if (alloc_size == 0)
-			break;/*alloc end*/
-		if (is_4k) {
-			/*used 264 4k's setting for 265.*/
-#ifdef CONFIG_MULTI_DEC
-			int m4k_size =
-				vdec_default_buf_size[VFORMAT_H264_4K2K * 2] *
-				SZ_1M;
-#else
-			int m4k_size =
-				vdec_default_buf_size[VFORMAT_H264_4K2K] *
-				SZ_1M;
-#endif
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
-				m4k_size = 32 * SZ_1M;
-			if ((m4k_size > 0) && (m4k_size < 200 * SZ_1M))
-				alloc_size = m4k_size;
-
-#ifdef VP9_10B_MMU
-			if ((vdec->format == VFORMAT_VP9) &&
-				(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
-#ifdef CONFIG_MULTI_DEC
-				if (p->use_vfm_path)
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9 * 2]
-					* SZ_1M;
-				else
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9
-						* 2 + 1] * SZ_1M;
-
-#else
-				alloc_size =
-				vdec_default_buf_size[VFORMAT_VP9] * SZ_1M;
-#endif
-			}
-#endif
-		} else if (more_buffers) {
-			alloc_size = alloc_size + 16 * SZ_1M;
-		}
-
-		if ((vdec->format == VFORMAT_HEVC)
-			&& get_mmu_mode()
-			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
-#ifdef CONFIG_MULTI_DEC
-				if (p->use_vfm_path)
-					alloc_size = 33 * SZ_1M;
-				else
-					alloc_size = 33 * SZ_1M;
-#else
-				alloc_size = 33 * SZ_1M;
-#endif
-		}
-
-		if ((vdec->format == VFORMAT_H264)
-			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
-			&& codec_mm_get_total_size() <= 80 * SZ_1M) {
-#ifdef CONFIG_MULTI_DEC
-			if (p->use_vfm_path)
-				alloc_size = 32 * SZ_1M;
-			else
-				alloc_size = 32 * SZ_1M;
-#else
-			alloc_size = 32 * SZ_1M;
-#endif
-		}
-
-		p->alloc_mem_size = alloc_size;
-		break;/*alloc end*/
-	}
-
-
-/*alloc end:*/
 	/* vdec_dev_reg.flag = 0; */
 
 	p->dev = platform_device_register_data(
@@ -1538,15 +1355,6 @@ void vdec_release(struct vdec_s *vdec)
 	}
 
 	platform_device_unregister(vdec->dev);
-
-	if (!vdec->use_vfm_path) {
-		if (vdec->mem_start) {
-			codec_mm_free_for_dma(MEM_NAME, vdec->mem_start);
-			vdec->mem_start = 0;
-			vdec->mem_end = 0;
-		}
-	}
-
 	vdec_destroy(vdec);
 
 	mutex_lock(&vdec_mutex);
@@ -2969,19 +2777,6 @@ static int vdec_probe(struct platform_device *pdev)
 		/* set vdec dmc request to urgent */
 		WRITE_DMCREG(DMC_AM5_CHAN_CTRL, 0x3f203cf);
 	}
-	if (codec_mm_get_reserved_size() >= 48 * SZ_1M
-		&& codec_mm_get_reserved_size() <=  96 * SZ_1M) {
-#ifdef CONFIG_MULTI_DEC
-		vdec_default_buf_size[VFORMAT_H264_4K2K * 2] =
-			codec_mm_get_reserved_size() / SZ_1M;
-#else
-		vdec_default_buf_size[VFORMAT_H264_4K2K] =
-			codec_mm_get_reserved_size() / SZ_1M;
-#endif
-
-		/*all reserved size for prealloc*/
-	}
-
 	INIT_LIST_HEAD(&vdec_core->connected_vdec_list);
 	spin_lock_init(&vdec_core->lock);
 
@@ -3047,13 +2842,6 @@ static void __exit vdec_module_exit(void)
 
 static int vdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	unsigned long start, end;
-	start = rmem->base;
-	end = rmem->base + rmem->size - 1;
-	pr_info("init vdec memsource %lx->%lx\n", start, end);
-
-	vdec_core->mem_start = start;
-	vdec_core->mem_end = end;
 	vdec_core->cma_dev = dev;
 
 	return 0;
