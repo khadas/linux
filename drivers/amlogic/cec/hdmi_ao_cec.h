@@ -21,11 +21,26 @@
 #define AO_RTC_ALT_CLK_CNTL0		((0x25 << 2))
 #define AO_RTC_ALT_CLK_CNTL1		((0x26 << 2))
 
+/* for TXLX, same as AO_RTC_ALT_CLK_CNTLx */
+#define AO_CEC_CLK_CNTL_REG0		((0x1d << 2))
+#define AO_CEC_CLK_CNTL_REG1		((0x1e << 2))
+
 #define AO_RTI_STATUS_REG1		((0x01 << 2))
 #define AO_DEBUG_REG0			((0x28 << 2))
 #define AO_DEBUG_REG1			((0x29 << 2))
 #define AO_DEBUG_REG2			((0x2a << 2))
 #define AO_DEBUG_REG3			((0x2b << 2))
+
+/*
+ * AOCEC_B
+ */
+#define AO_CECB_CLK_CNTL_REG0		((0xa0 << 2))
+#define AO_CECB_CLK_CNTL_REG1		((0xa1 << 2))
+#define AO_CECB_GEN_CNTL		((0xa2 << 2))
+#define AO_CECB_RW_REG			((0xa3 << 2))
+#define AO_CECB_INTR_MASKN		((0xa4 << 2))
+#define AO_CECB_INTR_CLR		((0xa5 << 2))
+#define AO_CECB_INTR_STAT		((0xa6 << 2))
 
 /* read/write */
 #define CEC_TX_MSG_0_HEADER        0x00
@@ -195,17 +210,17 @@ void cecrx_irq_handle(void);
 #define TOP_EDID_ADDR_CEC		0x005
 
 /** Register address: audio clock interrupt clear enable */
-#define DWC_AUD_CLK_IEN_CLR		(0xF90UL)
+#define DWC_AUD_CEC_IEN_CLR		(0xF90UL)
 /** Register address: audio clock interrupt set enable */
-#define DWC_AUD_CLK_IEN_SET		(0xF94UL)
+#define DWC_AUD_CEC_IEN_SET		(0xF94UL)
 /** Register address: audio clock interrupt status */
-#define DWC_AUD_CLK_ISTS		(0xF98UL)
+#define DWC_AUD_CEC_ISTS		(0xF98UL)
 /** Register address: audio clock interrupt enable */
-#define DWC_AUD_CLK_IEN			(0xF9CUL)
+#define DWC_AUD_CEC_IEN			(0xF9CUL)
 /** Register address: audio clock interrupt clear status */
-#define DWC_AUD_CLK_ICLR		(0xFA0UL)
+#define DWC_AUD_CEC_ICLR		(0xFA0UL)
 /** Register address: audio clock interrupt set status */
-#define DWC_AUD_CLK_ISET		(0xFA4UL)
+#define DWC_AUD_CEC_ISET		(0xFA4UL)
 /** Register address: DMI disable interface */
 #define DWC_DMI_DISABLE_IF		(0xFF4UL)
 
@@ -254,15 +269,76 @@ void cecrx_irq_handle(void);
 #define DWC_CEC_LOCK                     0x1FC0
 #define DWC_CEC_WKUPCTRL                 0x1FC4
 
+/* FOR AO_CECB */
+#define AO_CECB_CTRL_ADDR                0x00
+#define AO_CECB_INTR_MASK_ADDR           0x02
+#define AO_CECB_LADD_LOW_ADDR            0x05
+#define AO_CECB_LADD_HIGH_ADDR           0x06
+#define AO_CECB_TX_CNT_ADDR              0x07
+#define AO_CECB_RX_CNT_ADDR              0x08
+#define AO_CECB_TX_DATA00_ADDR           0x10
+#define AO_CECB_TX_DATA01_ADDR           0x11
+#define AO_CECB_TX_DATA02_ADDR           0x12
+#define AO_CECB_TX_DATA03_ADDR           0x13
+#define AO_CECB_TX_DATA04_ADDR           0x14
+#define AO_CECB_TX_DATA05_ADDR           0x15
+#define AO_CECB_TX_DATA06_ADDR           0x16
+#define AO_CECB_TX_DATA07_ADDR           0x17
+#define AO_CECB_TX_DATA08_ADDR           0x18
+#define AO_CECB_TX_DATA09_ADDR           0x19
+#define AO_CECB_TX_DATA10_ADDR           0x1A
+#define AO_CECB_TX_DATA11_ADDR           0x1B
+#define AO_CECB_TX_DATA12_ADDR           0x1C
+#define AO_CECB_TX_DATA13_ADDR           0x1D
+#define AO_CECB_TX_DATA14_ADDR           0x1E
+#define AO_CECB_TX_DATA15_ADDR           0x1F
+#define AO_CECB_RX_DATA00_ADDR           0x20
+#define AO_CECB_RX_DATA01_ADDR           0x21
+#define AO_CECB_RX_DATA02_ADDR           0x22
+#define AO_CECB_RX_DATA03_ADDR           0x23
+#define AO_CECB_RX_DATA04_ADDR           0x24
+#define AO_CECB_RX_DATA05_ADDR           0x25
+#define AO_CECB_RX_DATA06_ADDR           0x26
+#define AO_CECB_RX_DATA07_ADDR           0x27
+#define AO_CECB_RX_DATA08_ADDR           0x28
+#define AO_CECB_RX_DATA09_ADDR           0x29
+#define AO_CECB_RX_DATA10_ADDR           0x2A
+#define AO_CECB_RX_DATA11_ADDR           0x2B
+#define AO_CECB_RX_DATA12_ADDR           0x2C
+#define AO_CECB_RX_DATA13_ADDR           0x2D
+#define AO_CECB_RX_DATA14_ADDR           0x2E
+#define AO_CECB_RX_DATA15_ADDR           0x2F
+#define AO_CECB_LOCK_BUF_ADDR            0x30
+#define AO_CECB_WAKEUPCTRL_ADDR          0x31
+
 /* cec ip irq flags bit discription */
-#define CEC_IRQ_TX_DONE			(1 << 16)
-#define CEC_IRQ_RX_EOM			(1 << 17)
-#define CEC_IRQ_TX_NACK			(1 << 18)
-#define CEC_IRQ_TX_ARB_LOST		(1 << 19)
-#define CEC_IRQ_TX_ERR_INITIATOR	(1 << 20)
-#define CEC_IRQ_RX_ERR_FOLLOWER		(1 << 21)
-#define CEC_IRQ_RX_WAKEUP		(1 << 22)
+#define EECEC_IRQ_TX_DONE		(1 << 16)
+#define EECEC_IRQ_RX_EOM		(1 << 17)
+#define EECEC_IRQ_TX_NACK		(1 << 18)
+#define EECEC_IRQ_TX_ARB_LOST		(1 << 19)
+#define EECEC_IRQ_TX_ERR_INITIATOR	(1 << 20)
+#define EECEC_IRQ_RX_ERR_FOLLOWER	(1 << 21)
+#define EECEC_IRQ_RX_WAKEUP		(1 << 22)
 #define EE_CEC_IRQ_EN_MASK		(0xf << 16)
+
+/* cec irq bit flags for AO_CEC_B */
+#define CECB_IRQ_TX_DONE		(1 << 0)
+#define CECB_IRQ_RX_EOM			(1 << 1)
+#define CECB_IRQ_TX_NACK		(1 << 2)
+#define CECB_IRQ_TX_ARB_LOST		(1 << 3)
+#define CECB_IRQ_TX_ERR_INITIATOR	(1 << 4)
+#define CECB_IRQ_RX_ERR_FOLLOWER	(1 << 5)
+#define CECB_IRQ_RX_WAKEUP		(1 << 6)
+#define CECB_IRQ_EN_MASK		(0xf << 0)
+
+/* common mask */
+#define CEC_IRQ_TX_DONE			(1 << (16 - shift))
+#define CEC_IRQ_RX_EOM			(1 << (17 - shift))
+#define CEC_IRQ_TX_NACK			(1 << (18 - shift))
+#define CEC_IRQ_TX_ARB_LOST		(1 << (19 - shift))
+#define CEC_IRQ_TX_ERR_INITIATOR	(1 << (20 - shift))
+#define CEC_IRQ_RX_ERR_FOLLOWER		(1 << (21 - shift))
+#define CEC_IRQ_RX_WAKEUP		(1 << (22 - shift))
 
 #define EDID_CEC_ID_ADDR		0x00a100a0
 #define EDID_AUTO_CEC_EN		0
