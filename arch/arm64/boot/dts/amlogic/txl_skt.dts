@@ -25,6 +25,7 @@
 
 #include "mesontxl.dtsi"
 #include "mesontxl_skt-panel.dtsi"
+#include "partition_tv.dtsi"
 
 / {
 	model = "Amlogic";

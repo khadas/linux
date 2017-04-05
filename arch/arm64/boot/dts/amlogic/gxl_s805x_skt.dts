@@ -25,6 +25,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include "mesongxl.dtsi"
+#include "partition_mbox.dtsi"
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
