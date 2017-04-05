@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxbb.h>
 #include "mesongxbb.dtsi"
+#include "partition_mbox.dtsi"
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";

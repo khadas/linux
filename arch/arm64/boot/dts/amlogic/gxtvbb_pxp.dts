@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxtvbb.h>
 #include "mesongxtvbb.dtsi"
+#include "partition_tv.dtsi"
 
 / {
 	model = "Amlogic";
