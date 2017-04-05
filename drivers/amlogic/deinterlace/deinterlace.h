@@ -126,6 +126,7 @@ enum pulldown_mode_e {
 	PULL_DOWN_BUF1	  = 3,/* do wave with dup[0] */
 	PULL_DOWN_EI	  = 4,/* ei only */
 	PULL_DOWN_NORMAL  = 5,/* normal di */
+	PULL_DOWN_NORMAL_2  = 6,/* di */
 };
 
 enum canvas_idx_e {

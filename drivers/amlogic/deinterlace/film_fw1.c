@@ -7,6 +7,8 @@
 #include <linux/module.h>
 #include "film_vof_soft.h"
 
+static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01);
+
 /* Software parameters (registers) */
 UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 {
@@ -43,9 +45,13 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->flm22_en = 1;
 	pPar->flm32_en = 1;
 	pPar->flm22_flag = 1;
+	pPar->flm2224_flag = 1;
 	pPar->flm22_comlev = 20;
 	pPar->flm22_comlev1 = 10;
 	pPar->flm22_comnum = 100;
+	pPar->dif01rate = 20;
+	pPar->flag_di01th = 0;
+	pPar->numthd = 60;
 	pPar->sF32Dif02M0 = 4096;/* mpeg-4096, cvbs-8192 */
 	pPar->sF32Dif02M1 = 4096;
 	field_count = 0;
@@ -213,12 +219,13 @@ unsigned int frame_diff_avg = 0;
 int comsum = 0;
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
-		 unsigned short *rPstCYWnd1, unsigned short *rPstCYWnd2,
-		 unsigned short *rPstCYWnd3, unsigned short *rPstCYWnd4,
-		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
-		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
-		 UINT32 glb_frame_mot_num, UINT32 glb_field_mot_num, int *tTCNm,
-		 struct sFlmSftPar *pPar, int nROW, int nCOL, bool reverse)
+		unsigned short *rPstCYWnd1, unsigned short *rPstCYWnd2,
+		unsigned short *rPstCYWnd3, unsigned short *rPstCYWnd4,
+		UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
+		UINT8 *dif01flag, UINT32 *rROFldDif01, UINT32 *rROFrmDif02,
+		UINT32 *rROCmbInf, UINT32 glb_frame_mot_num,
+		UINT32 glb_field_mot_num, int *tTCNm,
+		struct sFlmSftPar *pPar, int nROW, int nCOL, bool reverse)
 {
 	static UINT32 DIF01[HISDIFNUM]; /* Last one is global */
 	static UINT32 DIF02[HISDIFNUM]; /* Last one is global */
@@ -246,6 +253,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm22 = pPar->flm22_en;
 	int flm32 = pPar->flm32_en;
 	int flm22_flag = pPar->flm22_flag;
+	int flm2224_flag = pPar->flm2224_flag;
 
 	int nT0 = 0;
 	int nT1 = 0;
@@ -486,18 +494,22 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 	nT1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	if ((*rFlmPstMod == 0) && (nT1 > flmxx_maybe_num)
-		&& (nS0 != 6) && (pRDat.pMod22[HISDETNUM - 1 - mDly] != 2)) {
+		&& (nS0 != 6) &&
+		(pRDat.pMod22[HISDETNUM - 1 - mDly] != 2 || flm2224_flag)) {
 		*rFlmSltPre = pRDat.pFlgXx[HISDETNUM - 1 - mDly];
 		*rFlmPstMod = 4 + pRDat.pModXx[HISDETNUM - 1 - mDly];
 		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
+	*dif01flag = 2;
+	if (*rFlmPstMod == 0)
+		*dif01flag = DIweavedetec(pPar, rROFldDif01[0]);
 	if (num32 > 0 && *rFlmPstMod != 2)
 		num32 = num32-1;
 	if (pRDat.pFlg32[HISDETNUM - 1 - mDly] == 3) {
 		if (DIF01[HISDIFNUM - 2] > DIF01[HISDIFNUM - 1])
 			num32 = num32 + 1;
 		else if (num32 > 0)
-			num32 = num32-1;
+			num32 = num32 - 1;
 	}
 	if (modpre != *rFlmPstMod && modpre != 0 && *rFlmPstMod != 0 &&
 		num32 == 0) {
@@ -1535,4 +1547,39 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	}
 
 	return nFlm22Lvl;
+}
+static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01)
+{
+	int dif01th = 0;
+	int dif01rate = pPar->dif01rate;
+	int flag_di01th = pPar->flag_di01th;
+	int numthd = pPar->numthd;
+	static int numdif;
+	static int predifflag;
+	static int predif01;
+	static int difflag;
+
+	dif01th	= (predif01+nDif01)/dif01rate;
+	if (abs(predif01 - nDif01) < dif01th && flag_di01th)
+		difflag = 2;
+	else {
+		if (predif01 < nDif01)
+			difflag = 1;
+		else
+			difflag = 0;
+		if (difflag^predifflag) {
+			if (numdif > 255)
+				numdif = numdif;
+			else
+				numdif = numdif + 1;
+			predifflag = difflag;
+		} else if (numdif > numthd) {
+			numdif = 0;
+			difflag = difflag^1;
+			predifflag = difflag;
+		} else
+			difflag = 2;
+	}
+	predif01 = nDif01;
+	return difflag;
 }

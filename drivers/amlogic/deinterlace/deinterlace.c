@@ -144,6 +144,13 @@ MODULE_PARM_DESC(dnr_en, "enable/disable dnr in pre");
 #endif
 static unsigned int di_pre_rdma_enable;
 
+static int difflag = 2;
+
+
+static int flag_di_weave = 1;
+module_param(flag_di_weave, int, 0664);
+MODULE_PARM_DESC(flag_di_weave, "flag_di_weave");
+
 static bool full_422_pack;
 static bool tff_bff_enable;
 /* destory unnecessary frames befor display */
@@ -1115,12 +1122,20 @@ static struct pd_param_s pd_params[] = {
 	     &(pd_param.flm32_en)   },
 	{ "flm22_flag",
 	  &(pd_param.flm22_flag)    },
+	{ "flm2224_flag",
+	&(pd_param.flm2224_flag)    },
 	{ "flm22_comlev",
 	  &(pd_param.flm22_comlev)  },
 	{ "flm22_comlev1",
 	  &(pd_param.flm22_comlev1) },
 	{ "flm22_comnum",
 	  &(pd_param.flm22_comnum)  },
+	{ "dif01rate",
+	  &(pd_param.dif01rate)     },
+	{ "flag_di01th",
+	  &(pd_param.flag_di01th)   },
+	{ "numthd",
+	  &(pd_param.numthd)        },
 	{ "sF32Dif02M0",
 	  &(pd_param.sF32Dif02M0)   },/* mpeg-4096, cvbs-8192 */
 	{ "sF32Dif02M1",
@@ -1185,6 +1200,7 @@ static ssize_t pd_param_show(struct device *dev,
 	len += sprintf(buff + len, "rFlmPstGCm=%u.\n", dectres.rFlmPstGCm);
 	len += sprintf(buff + len, "rFlmSltPre=%u.\n", dectres.rFlmSltPre);
 	len += sprintf(buff + len, "rFlmPstMod=%d.\n", dectres.rFlmPstMod);
+	len += sprintf(buff + len, "rFlmPstMod=%d.\n", dectres.dif01flag);
 	len += sprintf(buff + len, "rF22Flag=%d.\n", dectres.rF22Flag);
 	return len;
 }
@@ -4714,7 +4730,7 @@ static void pre_de_done_buf_config(void)
 	bool dynamic_flag = false;
 	int hHeight = di_pre_stru.di_nrwr_mif.end_y;
 	int wWidth  = di_pre_stru.di_nrwr_mif.end_x;
-
+	struct di_buf_s *post_wr_buf = NULL;
 	bool flm32 = false;
 	bool flm22 = false;
 	bool flmxx = false;
@@ -4744,6 +4760,7 @@ static void pre_de_done_buf_config(void)
 #endif
 		if (!di_pre_rdma_enable)
 			di_pre_stru.di_post_wr_buf = di_pre_stru.di_wr_buf;
+		post_wr_buf = di_pre_stru.di_post_wr_buf;
 
 		if (di_pre_stru.cur_source_type == VFRAME_SOURCE_TYPE_OTHERS &&
 				tff_bff_enable) {
@@ -4754,8 +4771,8 @@ static void pre_de_done_buf_config(void)
 		}
 		if (di_pre_stru.di_post_wr_buf) {
 			dynamic_flag = read_pulldown_info(
-				&(di_pre_stru.di_post_wr_buf->field_pd_info),
-				&(di_pre_stru.di_post_wr_buf->win_pd_info[0]));
+				&(post_wr_buf->field_pd_info),
+				&(post_wr_buf->win_pd_info[0]));
 			di_pre_stru.static_frame_count =
 				dynamic_flag ? 0 : (di_pre_stru.
 						    static_frame_count + 1);
@@ -4763,14 +4780,14 @@ static void pre_de_done_buf_config(void)
 			    static_pic_threshold) {
 				di_pre_stru.static_frame_count =
 					static_pic_threshold;
-				di_pre_stru.di_post_wr_buf->pulldown_mode =
+				post_wr_buf->pulldown_mode =
 					PULL_DOWN_BLEND_0;
 			} else {
-				di_pre_stru.di_post_wr_buf->pulldown_mode =
+				post_wr_buf->pulldown_mode =
 					PULL_DOWN_NORMAL;
 			}
 			adaptive_combing_fixing(
-				&(di_pre_stru.di_post_wr_buf->field_pd_info),
+				&(post_wr_buf->field_pd_info),
 				di_pre_stru.cur_inp_type,
 				wWidth + 1);
 		}
@@ -4795,6 +4812,7 @@ static void pre_de_done_buf_config(void)
 					&(dectres.rFlmPstGCm),
 					&(dectres.rFlmSltPre),
 					&(dectres.rFlmPstMod),
+					&(dectres.dif01flag),
 					flmreg.rROFldDif01,
 					flmreg.rROFrmDif02,
 					flmreg.rROCmbInf,
@@ -4805,6 +4823,10 @@ static void pre_de_done_buf_config(void)
 					hHeight + 1,
 					wWidth + 1,
 					overturn);
+
+				difflag = dectres.dif01flag;
+				if (dectres.rFlmPstMod == 1)
+					difflag = dectres.rFlmSltPre;
 
 				if (hHeight >= 289) /*full hd */
 					tTCNm = tTCNm << 1;
@@ -4838,24 +4860,34 @@ static void pre_de_done_buf_config(void)
 			}
 
 			if (pulldown_enable && di_pre_stru.di_post_wr_buf) {
+				post_wr_buf = di_pre_stru.di_post_wr_buf;
+				if (difflag == 1 && flag_di_weave) {
+					post_wr_buf->pulldown_mode
+						= PULL_DOWN_NORMAL;
+				} else if (difflag == 0 &&
+							(flag_di_weave == 1)) {
+					post_wr_buf->pulldown_mode
+						= PULL_DOWN_NORMAL_2;
+				} else {
+					post_wr_buf->pulldown_mode
+						= PULL_DOWN_NORMAL;
+				}
 				/* refresh, default setting */
-				di_pre_stru.di_post_wr_buf->pulldown_mode =
-					PULL_DOWN_NORMAL;
-				di_pre_stru.di_post_wr_buf->reg0_s = 0;
-				di_pre_stru.di_post_wr_buf->reg0_e = 0;
-				di_pre_stru.di_post_wr_buf->reg0_bmode = 0;
+				post_wr_buf->reg0_s = 0;
+				post_wr_buf->reg0_e = 0;
+				post_wr_buf->reg0_bmode = 0;
 
-				di_pre_stru.di_post_wr_buf->reg1_s = 0;
-				di_pre_stru.di_post_wr_buf->reg1_e = 0;
-				di_pre_stru.di_post_wr_buf->reg1_bmode = 0;
+				post_wr_buf->reg1_s = 0;
+				post_wr_buf->reg1_e = 0;
+				post_wr_buf->reg1_bmode = 0;
 
-				di_pre_stru.di_post_wr_buf->reg2_s = 0;
-				di_pre_stru.di_post_wr_buf->reg2_e = 0;
-				di_pre_stru.di_post_wr_buf->reg2_bmode = 0;
+				post_wr_buf->reg2_s = 0;
+				post_wr_buf->reg2_e = 0;
+				post_wr_buf->reg2_bmode = 0;
 
-				di_pre_stru.di_post_wr_buf->reg3_s = 0;
-				di_pre_stru.di_post_wr_buf->reg3_e = 0;
-				di_pre_stru.di_post_wr_buf->reg3_bmode = 0;
+				post_wr_buf->reg3_s = 0;
+				post_wr_buf->reg3_e = 0;
+				post_wr_buf->reg3_bmode = 0;
 			}
 			if (dectres.rFlmPstMod == 1)
 				like_pulldown22_flag = dectres.rF22Flag;
@@ -4927,57 +4959,65 @@ static void pre_de_done_buf_config(void)
 				if ((pldn_mod == 0) &&
 					(flm32 || flm22 || flmxx)) {
 					if (dectres.rFlmSltPre == 1)
-						di_pre_stru.di_post_wr_buf
+						post_wr_buf
 						->pulldown_mode =
 							PULL_DOWN_BLEND_0;
 					else {
-						di_pre_stru.di_post_wr_buf
+						post_wr_buf
 						->pulldown_mode =
 							PULL_DOWN_BLEND_2;
 						}
 				} else if (pldn_mod == 1) {
 					if (dectres.rFlmSltPre == 1)
-						di_pre_stru.di_post_wr_buf
+						post_wr_buf
 						->pulldown_mode =
 							PULL_DOWN_BLEND_0;
 					else
-						di_pre_stru.di_post_wr_buf
+						post_wr_buf
 						->pulldown_mode =
 							PULL_DOWN_BLEND_2;
 				} else {
-					di_pre_stru.di_post_wr_buf->
-					pulldown_mode =
-						PULL_DOWN_NORMAL;
+					if (difflag == 1 && flag_di_weave) {
+						post_wr_buf->pulldown_mode
+							= PULL_DOWN_NORMAL;
+					} else if (difflag == 0 &&
+						flag_di_weave) {
+						post_wr_buf->pulldown_mode
+							= PULL_DOWN_NORMAL_2;
+					} else {
+						post_wr_buf->pulldown_mode
+							= PULL_DOWN_NORMAL;
+					}
 				}
 
 				if (flm32 && (pldn_cmb0 == 1)) {
-					di_pre_stru.di_post_wr_buf->reg0_s =
+					post_wr_buf->reg0_s =
 						dectres.rPstCYWnd0[0];
-					di_pre_stru.di_post_wr_buf->reg0_e =
+					post_wr_buf->reg0_e =
 						dectres.rPstCYWnd0[1];
 
-					di_pre_stru.di_post_wr_buf->reg1_s =
+					post_wr_buf->reg1_s =
 						dectres.rPstCYWnd1[0];
-					di_pre_stru.di_post_wr_buf->reg1_e =
+					post_wr_buf->reg1_e =
 						dectres.rPstCYWnd1[1];
 
-					di_pre_stru.di_post_wr_buf->reg2_s =
+					post_wr_buf->reg2_s =
 						dectres.rPstCYWnd2[0];
-					di_pre_stru.di_post_wr_buf->reg2_e =
+					post_wr_buf->reg2_e =
 						dectres.rPstCYWnd2[1];
 
-					di_pre_stru.di_post_wr_buf->reg3_s =
+					post_wr_buf->reg3_s =
 						dectres.rPstCYWnd3[0];
-					di_pre_stru.di_post_wr_buf->reg3_e =
+					post_wr_buf->reg3_e =
 						dectres.rPstCYWnd3[1];
 
-					di_pre_stru.di_post_wr_buf->reg0_bmode =
+					post_wr_buf->reg0_bmode =
 						dectres.rPstCYWnd0[2];
-					di_pre_stru.di_post_wr_buf->reg1_bmode =
+					post_wr_buf->reg1_bmode =
 						dectres.rPstCYWnd1[2];
-					di_pre_stru.di_post_wr_buf->reg2_bmode =
+					post_wr_buf->reg2_bmode =
 						dectres.rPstCYWnd2[2];
-					di_pre_stru.di_post_wr_buf->reg3_bmode =
+					post_wr_buf->reg3_bmode =
 						dectres.rPstCYWnd3[2];
 				} else if (dectres.rF22Flag > 1 &&
 					dectres.rFlmPstMod == 1 &&
@@ -4992,24 +5032,24 @@ static void pre_de_done_buf_config(void)
 				} else if (dectres.rFlmPstGCm == 0
 					&& pldn_cmb0 > 1
 					&& pldn_cmb0 <= 5) {
-					di_pre_stru.di_post_wr_buf->reg0_s =
+					post_wr_buf->reg0_s =
 						dectres.rPstCYWnd0[0];
-					di_pre_stru.di_post_wr_buf->reg0_e =
+					post_wr_buf->reg0_e =
 						dectres.rPstCYWnd0[1];
 
-					di_pre_stru.di_post_wr_buf->reg1_s =
+					post_wr_buf->reg1_s =
 						dectres.rPstCYWnd1[0];
-					di_pre_stru.di_post_wr_buf->reg1_e =
+					post_wr_buf->reg1_e =
 						dectres.rPstCYWnd1[1];
 
-					di_pre_stru.di_post_wr_buf->reg2_s =
+					post_wr_buf->reg2_s =
 						dectres.rPstCYWnd2[0];
-					di_pre_stru.di_post_wr_buf->reg2_e =
+					post_wr_buf->reg2_e =
 						dectres.rPstCYWnd2[1];
 
-					di_pre_stru.di_post_wr_buf->reg3_s =
+					post_wr_buf->reg3_s =
 						dectres.rPstCYWnd3[0];
-					di_pre_stru.di_post_wr_buf->reg3_e =
+					post_wr_buf->reg3_e =
 						dectres.rPstCYWnd3[1];
 
 					/* 1-->only film-mode
@@ -5017,108 +5057,94 @@ static void pre_de_done_buf_config(void)
 					 * 3-->windows-->detected
 					 * 4-->windows-->di */
 					if (pldn_cmb0 == 2) { /* 1-->normal */
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg0_bmode =
 							dectres.rPstCYWnd0[2];
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg1_bmode =
 							dectres.rPstCYWnd1[2];
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg2_bmode =
 							dectres.rPstCYWnd2[2];
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg3_bmode =
 							dectres.rPstCYWnd3[2];
 					} else if (pldn_cmb0 == 3) {
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg0_bmode = 3;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg1_bmode = 3;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg2_bmode = 3;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg3_bmode = 3;
 					} else if (pldn_cmb0 == 4) {
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg0_bmode = 2;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg1_bmode = 2;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg2_bmode = 2;
-						di_pre_stru.di_post_wr_buf->
+						post_wr_buf->
 							reg3_bmode = 2;
 					} else if (pldn_cmb0 == 5) {
-						di_pre_stru.
-						di_post_wr_buf->reg3_s = 0;
-						di_pre_stru.
-						di_post_wr_buf->reg3_e = 60;
-						di_pre_stru.
-						di_post_wr_buf->reg3_bmode = 0;
+						post_wr_buf->reg3_s = 0;
+						post_wr_buf->reg3_e = 60;
+						post_wr_buf->reg3_bmode = 0;
 					}
 				}
 				/* else pldn_cmb0==0 (Nothing) */
 				if ((1 == dectres.rFlmPstGCm) && (pldn_cmb1 > 0)
 				    && (pldn_cmb1 <= 5)) {
-					di_pre_stru.di_post_wr_buf->reg0_s =
+					post_wr_buf->reg0_s =
 						dectres.rPstCYWnd0[0];
-					di_pre_stru.di_post_wr_buf->reg0_e =
+					post_wr_buf->reg0_e =
 						dectres.rPstCYWnd0[1];
 
-					di_pre_stru.di_post_wr_buf->reg1_s =
+					post_wr_buf->reg1_s =
 						dectres.rPstCYWnd1[0];
-					di_pre_stru.di_post_wr_buf->reg1_e =
+					post_wr_buf->reg1_e =
 						dectres.rPstCYWnd1[1];
 
-					di_pre_stru.di_post_wr_buf->reg2_s =
+					post_wr_buf->reg2_s =
 						dectres.rPstCYWnd2[0];
-					di_pre_stru.di_post_wr_buf->reg2_e =
+					post_wr_buf->reg2_e =
 						dectres.rPstCYWnd2[1];
 
-					di_pre_stru.di_post_wr_buf->reg3_s =
+					post_wr_buf->reg3_s =
 						dectres.rPstCYWnd3[0];
-					di_pre_stru.di_post_wr_buf->reg3_e =
+					post_wr_buf->reg3_e =
 						dectres.rPstCYWnd3[1];
 
 					if (pldn_cmb1 == 1) { /* 1-->normal */
-					di_pre_stru.di_post_wr_buf->reg0_bmode =
+					post_wr_buf->reg0_bmode =
 							dectres.rPstCYWnd0[2];
-					di_pre_stru.di_post_wr_buf->reg1_bmode =
+					post_wr_buf->reg1_bmode =
 							dectres.rPstCYWnd1[2];
-					di_pre_stru.di_post_wr_buf->reg2_bmode =
+					post_wr_buf->reg2_bmode =
 							dectres.rPstCYWnd2[2];
-					di_pre_stru.di_post_wr_buf->reg3_bmode =
+					post_wr_buf->reg3_bmode =
 							dectres.rPstCYWnd3[2];
 					} else if (pldn_cmb1 == 2) {
-						di_pre_stru.
-						di_post_wr_buf->reg0_bmode = 3;
-						di_pre_stru.
-						di_post_wr_buf->reg1_bmode = 3;
-						di_pre_stru.
-						di_post_wr_buf->reg2_bmode = 3;
-						di_pre_stru.
-						di_post_wr_buf->reg3_bmode = 3;
+						post_wr_buf->reg0_bmode = 3;
+						post_wr_buf->reg1_bmode = 3;
+						post_wr_buf->reg2_bmode = 3;
+						post_wr_buf->reg3_bmode = 3;
 					} else if (pldn_cmb1 == 3) {
-						di_pre_stru.
-						di_post_wr_buf->reg0_bmode = 2;
-						di_pre_stru.
-						di_post_wr_buf->reg1_bmode = 2;
-						di_pre_stru.
-						di_post_wr_buf->reg2_bmode = 2;
-						di_pre_stru.
-						di_post_wr_buf->reg3_bmode = 2;
+						post_wr_buf->reg0_bmode = 2;
+						post_wr_buf->reg1_bmode = 2;
+						post_wr_buf->reg2_bmode = 2;
+						post_wr_buf->reg3_bmode = 2;
 					} else if (pldn_cmb1 == 4) {
-						di_pre_stru.
-						di_post_wr_buf->reg2_s = 202;
-						di_pre_stru.
-						di_post_wr_buf->reg2_e = 222;
-						di_pre_stru.
-						di_post_wr_buf->reg2_bmode = 0;
+						post_wr_buf->reg2_s = 202;
+						post_wr_buf->reg2_e = 222;
+						post_wr_buf->reg2_bmode = 0;
 					}
 				}
 			} else if ((pldn_cmb0 == 6) && (pldn_cmb1 == 6)) {
-				di_pre_stru.di_post_wr_buf->reg1_s = 60;
-				di_pre_stru.di_post_wr_buf->reg1_e = 180;
-				di_pre_stru.di_post_wr_buf->reg1_bmode = 0;
+				post_wr_buf->reg1_s = 60;
+				post_wr_buf->reg1_e = 180;
+				post_wr_buf->reg1_bmode = 0;
 			}
 		}
 		field_count++;
@@ -6918,6 +6944,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 			di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		break;
 	case PULL_DOWN_BLEND_2:
+	case PULL_DOWN_NORMAL_2:
 		config_canvas_idx(
 			di_buf->di_buf_dup_p[0],
 			di_post_idx[di_post_stru.canvas_id][3], -1);
@@ -7014,6 +7041,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		post_blend_en = 1;
 		break;
 	case PULL_DOWN_BLEND_2:
+	case PULL_DOWN_NORMAL_2:
 		post_field_num =
 			(di_buf->di_buf_dup_p[1]->vframe->type &
 			 VIDTYPE_TYPEMASK)
@@ -7041,8 +7069,11 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		if ((post_wr_en && post_wr_surpport))
 			di_post_stru.di_diwr_mif.canvas_num =
 				di_post_idx[di_post_stru.canvas_id][4];
+		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL_2)
+			post_blend_mode = 3;
+		else
+			post_blend_mode = 1;
 
-		post_blend_mode = 1;
 		blend_mtn_en = 1;
 		post_ei = ei_en = 1;
 		post_blend_en = 1;

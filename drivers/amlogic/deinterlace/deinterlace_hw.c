@@ -313,12 +313,17 @@ void enable_di_pre_aml(
 		/*work around for yuv422-10bit-fullpack
 		*todo:delete it if after TXL fix the issue*/
 		if (((di_nrwr_mif->end_x % 2) == 0) &&
-			(di_nrwr_mif->bit_mode == 3))
-			RDMA_WR(DI_NRWR_X, (di_nrwr_mif->start_x << 16)|
-				(di_nrwr_mif->end_x + 1));
-		else
-			RDMA_WR(DI_NRWR_X, (di_nrwr_mif->start_x << 16)|
-				(di_nrwr_mif->end_x));
+			(di_nrwr_mif->bit_mode == 3)) {
+			RDMA_WR_BITS(DI_NRWR_X,
+				(di_nrwr_mif->end_x + 1), 0, 14);
+			RDMA_WR_BITS(DI_NRWR_X,
+				di_nrwr_mif->start_x, 16, 14);
+		} else {
+			RDMA_WR_BITS(DI_NRWR_X,
+				di_nrwr_mif->end_x, 0, 14);
+			RDMA_WR_BITS(DI_NRWR_X,
+				di_nrwr_mif->start_x, 16, 14);
+		}
 		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->start_y, 16, 13);
 		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->end_y, 0, 13);
 		RDMA_WR_BITS(DI_NRWR_Y, 3, 30, 2);
@@ -550,7 +555,7 @@ void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	if (is_meson_txl_cpu()) {
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 10, 1);
-		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 11, 3);
+		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 11, 1);
 	} else
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 9, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcdebug_mode, 2, 3);
