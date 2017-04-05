@@ -320,6 +320,7 @@ static void set_hpll_clk_out_gxl(unsigned int clk)
 {
 	int ret;
 
+	pr_info("set_hpll_clk_out for cpu eq-after gxl\n");
 	/* config hpll to vco = 2970MHz */
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4000027b);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x800cb300);
@@ -452,6 +453,7 @@ static void set_hpll_clk_out(unsigned clk)
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
 	case MESON_CPU_MAJOR_ID_TXL:
+	case MESON_CPU_MAJOR_ID_TXLX:
 		set_hpll_clk_out_gxl(clk);
 		break;
 	default:
