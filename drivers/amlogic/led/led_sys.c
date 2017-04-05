@@ -78,6 +78,8 @@ static int aml_sysled_dt_parse(struct platform_device *pdev)
 	struct aml_sysled_dev *ldev;
 	struct gpio_desc *desc;
 	enum of_gpio_flags flags;
+	int init_level;
+	int ret;
 
 	ldev = platform_get_drvdata(pdev);
 	node = pdev->dev.of_node;
@@ -89,10 +91,17 @@ static int aml_sysled_dt_parse(struct platform_device *pdev)
 	desc = of_get_named_gpiod_flags(node, "led_gpio", 0, &flags);
 	ldev->d.pin = desc_to_gpio(desc);
 	ldev->d.active_low = flags & OF_GPIO_ACTIVE_LOW;
+	ret = of_property_read_u32(node, "init_level", &ldev->d.init_level);
+	if (ret < 0)
+		init_level = 1;
+	else
+		init_level = ldev->d.init_level;
+
+	pr_info("init level = %u\n", ldev->d.init_level);
 	pr_info("led_gpio = %u\n", ldev->d.pin);
 	pr_info("active_low = %u\n", ldev->d.active_low);
 	gpio_request(ldev->d.pin, AML_DEV_NAME);
-	gpio_direction_output(ldev->d.pin, 1);
+	gpio_direction_output(ldev->d.pin, init_level);
 
 	return 0;
 }
@@ -138,7 +147,7 @@ static int aml_sysled_probe(struct platform_device *pdev)
 	}
 
 	/* set led default on */
-	aml_sysled_output_setup(ldev, 1);
+	/*aml_sysled_output_setup(ldev, 1);*/
 
 	pr_info("module probed ok\n");
 	return 0;

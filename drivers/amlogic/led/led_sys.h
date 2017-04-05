@@ -33,6 +33,7 @@ struct aml_led_gpio {
 	unsigned int pin;
 	unsigned int active_low;
 	unsigned int state;
+	unsigned int init_level;
 };
 
 
