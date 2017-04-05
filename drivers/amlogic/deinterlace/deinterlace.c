@@ -2655,12 +2655,12 @@ static void config_canvas(struct di_buf_s *di_buf)
 
 #endif
 #ifdef CONFIG_CMA
-void di_cma_alloc(void)
+unsigned int di_cma_alloc(void)
 {
 	unsigned int i, start_time, end_time, delta_time;
 	if (bypass_4K == 1) {
 		pr_dbg("%s:di don't need alloc mem for 4k input\n", __func__);
-		return;
+		return 0;
 	}
 	start_time = jiffies_to_msecs(jiffies);
 	for (i = 0; (i < local_buf_num); i++) {
@@ -2689,7 +2689,9 @@ void di_cma_alloc(void)
 				pr_dbg("DI CMA  allocate addr:0x%x[%d] ok.\n",
 					(unsigned int)de_devp->mem_start, i);
 			} else {
-				pr_dbg("DI CMA  allocate %d fail.\n", i);
+				de_devp->cma_alloc[i] = 0;
+				pr_info("DI CMA  allocate %d fail.\n", i);
+				return 0;
 			}
 			if (di_pre_stru.buf_alloc_mode) {
 				di_buf->nr_adr = de_devp->mem_start;
@@ -2721,6 +2723,7 @@ void di_cma_alloc(void)
 	delta_time = end_time - start_time;
 	pr_dbg("%s:alloc use %d ms(%d~%d)\n", __func__, delta_time,
 		start_time, end_time);
+	return 1;
 }
 void di_cma_release(void)
 {
@@ -8687,10 +8690,9 @@ static int di_task_handle(void *data)
 			}
 			#ifdef CONFIG_CMA
 			if (di_pre_stru.cma_alloc_req) {
-				di_cma_alloc();
+				mem_flag = di_cma_alloc();
 				di_pre_stru.cma_alloc_req = 0;
 				di_pre_stru.cma_alloc_done = 1;
-				mem_flag = 1;
 			}
 			if (di_pre_stru.cma_release_req) {
 				di_cma_release();
