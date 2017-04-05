@@ -31,15 +31,13 @@ struct reg_map_s {
 	int flag;
 };
 
-#define TV_OUT_MAP_CBUS      0
-#define TV_OUT_MAP_VCBUS     1
-#define TV_OUT_MAP_HIUBUS    2
-static struct reg_map_s tv_out_reg_maps[] = {
-	{ /* CBUS */
-		.base_addr = 0xc1100000,
-		.size = 0x8000,
-		.flag = 0,
-	},
+static struct reg_map_s *tvout_map;
+static int tvout_map_num;
+
+#define TV_OUT_MAP_VCBUS     0
+#define TV_OUT_MAP_HIUBUS    1
+#define TV_OUT_MAP_CBUS      2
+static struct reg_map_s tv_out_reg_maps_gxb[] = {
 	{ /* VCBUS */
 		.base_addr = 0xd0100000,
 		.size = 0x10000,
@@ -50,6 +48,24 @@ static struct reg_map_s tv_out_reg_maps[] = {
 		.size = 0x400,
 		.flag = 0,
 	},
+	{ /* CBUS */
+		.base_addr = 0xc1100000,
+		.size = 0x8000,
+		.flag = 0,
+	},
+};
+
+static struct reg_map_s tv_out_reg_maps_txlx[] = {
+	{ /* VCBUS */
+		.base_addr = 0xff900000,
+		.size = 0x10000,
+		.flag = 0,
+	},
+	{ /* HIU */
+		.base_addr = 0xff63c000,
+		.size = 0x400,
+		.flag = 0,
+	},
 };
 
 int tv_out_ioremap(void)
@@ -57,18 +73,29 @@ int tv_out_ioremap(void)
 	int i;
 	int ret = 0;
 
-	for (i = 0; i < 3; i++) {
-		tv_out_reg_maps[i].p = ioremap(tv_out_reg_maps[i].base_addr,
-					tv_out_reg_maps[i].size);
-		if (tv_out_reg_maps[i].p == NULL) {
-			tv_out_reg_maps[i].flag = 0;
+	tvout_map = NULL;
+	tvout_map_num = 0;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		tvout_map = tv_out_reg_maps_txlx;
+		tvout_map_num = ARRAY_SIZE(tv_out_reg_maps_txlx);
+	} else {
+		tvout_map = tv_out_reg_maps_gxb;
+		tvout_map_num = ARRAY_SIZE(tv_out_reg_maps_gxb);
+	}
+
+	for (i = 0; i < tvout_map_num; i++) {
+		tvout_map[i].p = ioremap(tvout_map[i].base_addr,
+					tvout_map[i].size);
+		if (tvout_map[i].p == NULL) {
+			tvout_map[i].flag = 0;
 			pr_info("tv_out reg map failed: 0x%x\n",
-				tv_out_reg_maps[i].base_addr);
+				tvout_map[i].base_addr);
 			ret = -1;
 		} else {
-			tv_out_reg_maps[i].flag = 1;
+			tvout_map[i].flag = 1;
 			/* pr_info("tv_out reg mapped: 0x%x -> %p\n",
-			tv_out_reg_maps[i].base_addr, tv_out_reg_maps[i].p); */
+			tvout_map[i].base_addr, tvout_map[i].p); */
 		}
 	}
 	return ret;
@@ -76,9 +103,14 @@ int tv_out_ioremap(void)
 
 static int check_tv_out_ioremap(int n)
 {
-	if (tv_out_reg_maps[n].flag == 0) {
+	if (tvout_map == NULL)
+		return -1;
+	if (n >= tvout_map_num)
+		return -1;
+
+	if (tvout_map[n].flag == 0) {
 		pr_info("tv_out reg 0x%x mapped error\n",
-			tv_out_reg_maps[n].base_addr);
+			tvout_map[n].base_addr);
 		return -1;
 	}
 	return 0;
@@ -101,9 +133,9 @@ static inline void __iomem *check_tv_out_reg(unsigned int _reg)
 		return NULL;
 
 	if (reg_bus == TV_OUT_MAP_CBUS)
-		p = tv_out_reg_maps[reg_bus].p + TV_OUT_REG_OFFSET_CBUS(_reg);
+		p = tvout_map[reg_bus].p + TV_OUT_REG_OFFSET_CBUS(_reg);
 	else
-		p = tv_out_reg_maps[reg_bus].p + TV_OUT_REG_OFFSET_VCBUS(_reg);
+		p = tvout_map[reg_bus].p + TV_OUT_REG_OFFSET_VCBUS(_reg);
 	return p;
 }
 
@@ -166,9 +198,9 @@ static inline void __iomem *check_tv_out_hiu_reg(unsigned int _reg)
 
 	if (reg_bus == TV_OUT_MAP_HIUBUS) {
 		_reg = TV_OUT_HIU_REG_GX(_reg);
-		p = tv_out_reg_maps[reg_bus].p + TV_OUT_REG_OFFSET_HIU(_reg);
+		p = tvout_map[reg_bus].p + TV_OUT_REG_OFFSET_HIU(_reg);
 	} else {
-		p = tv_out_reg_maps[reg_bus].p + TV_OUT_REG_OFFSET_CBUS(_reg);
+		p = tvout_map[reg_bus].p + TV_OUT_REG_OFFSET_CBUS(_reg);
 	}
 	return p;
 }
@@ -225,7 +257,7 @@ static inline void __iomem *check_tv_out_cbus_reg(unsigned int _reg)
 	if (check_tv_out_ioremap(TV_OUT_MAP_CBUS))
 		return NULL;
 
-	p = tv_out_reg_maps[TV_OUT_MAP_CBUS].p + TV_OUT_REG_OFFSET_CBUS(_reg);
+	p = tvout_map[TV_OUT_MAP_CBUS].p + TV_OUT_REG_OFFSET_CBUS(_reg);
 	return p;
 }
 
