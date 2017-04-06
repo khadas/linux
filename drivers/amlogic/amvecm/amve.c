@@ -51,7 +51,7 @@ unsigned long flags;
 #define NEW_DNLP_IN_SHARPNESS 2
 #define NEW_DNLP_IN_VPP 1
 
-unsigned int dnlp_sel = NEW_DNLP_IN_VPP;
+unsigned int dnlp_sel = NEW_DNLP_IN_SHARPNESS;
 module_param(dnlp_sel, int, 0664);
 MODULE_PARM_DESC(dnlp_sel, "dnlp_sel");
 /* #endif */
@@ -3532,10 +3532,7 @@ static void ve_dnlp_calculate_reg(void)
 
 static void ve_dnlp_load_reg(void)
 {
-/* #ifdef NEW_DNLP_IN_SHARPNESS */
-	/* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
-	if (is_meson_gxtvbb_cpu() &&
-		(dnlp_sel == NEW_DNLP_IN_SHARPNESS)) {
+	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		WRITE_VPP_REG(SRSHARP0_DNLP_00, ve_dnlp_reg[0]);
 		WRITE_VPP_REG(SRSHARP0_DNLP_01, ve_dnlp_reg[1]);
 		WRITE_VPP_REG(SRSHARP0_DNLP_02, ve_dnlp_reg[2]);
@@ -3553,7 +3550,6 @@ static void ve_dnlp_load_reg(void)
 		WRITE_VPP_REG(SRSHARP0_DNLP_14, ve_dnlp_reg[14]);
 		WRITE_VPP_REG(SRSHARP0_DNLP_15, ve_dnlp_reg[15]);
 	} else {
-		/* #endif */
 		WRITE_VPP_REG(VPP_DNLP_CTRL_00, ve_dnlp_reg[0]);
 		WRITE_VPP_REG(VPP_DNLP_CTRL_01, ve_dnlp_reg[1]);
 		WRITE_VPP_REG(VPP_DNLP_CTRL_02, ve_dnlp_reg[2]);
@@ -3871,8 +3867,7 @@ void ve_enable_dnlp(void)
 	ve_en = 1;
 /* #ifdef NEW_DNLP_IN_SHARPNESS */
 /* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
-	if (is_meson_gxtvbb_cpu() &&
-		(dnlp_sel == NEW_DNLP_IN_SHARPNESS))
+	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
 		WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
 	else
 		/* #endif */
@@ -3885,8 +3880,7 @@ void ve_disable_dnlp(void)
 	ve_en = 0;
 /* #ifdef NEW_DNLP_IN_SHARPNESS */
 /* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
-	if (is_meson_gxtvbb_cpu() &&
-		(dnlp_sel == NEW_DNLP_IN_SHARPNESS))
+	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
 		WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
 	else
 /* #endif */
