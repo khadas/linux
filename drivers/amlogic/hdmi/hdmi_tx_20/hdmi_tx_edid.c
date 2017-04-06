@@ -2122,6 +2122,11 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	unsigned int calc_tmds_clk = 0;
 	int i = 0;
 	int svd_flag = 0;
+	/* Default max color depth is 24 bit */
+	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
+	enum hdmi_color_depth rx_y422_max_dc = COLORDEPTH_24B;
+	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
+	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
 
 	if (!hdev || !para)
 		return 0;
@@ -2200,7 +2205,51 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (calc_tmds_clk < rx_max_tmds_clk)
 		valid = 1;
 	else
-		valid = 0;
+		return 0;
+
+	if (para->cs == COLORSPACE_YUV444) {
+		/* Rx may not support Y444 */
+		if (!(pRXCap->native_Mode & (1 << 5)))
+			return 0;
+		if (pRXCap->dc_y444 && pRXCap->dc_30bit)
+			rx_y444_max_dc = COLORDEPTH_30B;
+		if (para->cd <= rx_y444_max_dc)
+			valid = 1;
+		else
+			valid = 0;
+		return valid;
+	}
+	if (para->cs == COLORSPACE_YUV422) {
+		/* Rx may not support Y422 */
+		if (!(pRXCap->native_Mode & (1 << 4)))
+			return 0;
+		if (pRXCap->dc_y444 && pRXCap->dc_30bit)
+			rx_y422_max_dc = COLORDEPTH_30B;
+		if (para->cd <= rx_y422_max_dc)
+			valid = 1;
+		else
+			valid = 0;
+		return valid;
+	}
+	if (para->cs == COLORSPACE_RGB444) {
+		/* Always assume RX supports RGB444 */
+		if (pRXCap->dc_30bit)
+			rx_rgb_max_dc = COLORDEPTH_30B;
+		if (para->cd <= rx_rgb_max_dc)
+			valid = 1;
+		else
+			valid = 0;
+		return valid;
+	}
+	if (para->cs == COLORSPACE_YUV420) {
+		if (pRXCap->dc_30bit_420)
+			rx_y420_max_dc = COLORDEPTH_30B;
+		if (para->cd <= rx_y420_max_dc)
+			valid = 1;
+		else
+			valid = 0;
+		return valid;
+	}
 
 	return valid;
 }
