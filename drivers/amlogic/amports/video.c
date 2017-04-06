@@ -6568,7 +6568,16 @@ static u32 eight2ten(u32 yuv)
 	int y = (yuv >> 16) & 0xff;
 	int cb = (yuv >> 8) & 0xff;
 	int cr = yuv & 0xff;
-	return  (y << 20) | (cb << 10) | cr;
+
+	/* txlx need check vd1 path bit width by s2u registers */
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
+		if ((READ_VCBUS_REG(0x1d94) == 0x00002000) ||
+			(READ_VCBUS_REG(0x1d94) == 0x00000800))
+			return  ((y << 20)<<2) | ((cb << 10)<<2) | (cr<<2);
+		else
+			return  (y << 20) | (cb << 10) | cr;
+	} else
+		return  (y << 20) | (cb << 10) | cr;
 }
 
 static u32 rgb2yuv(u32 rgb)
@@ -6619,7 +6628,9 @@ static ssize_t video_test_screen_store(struct class *cla,
 	   data &= (~VPP_VD2_POSTBLEND);
 	 */
 	/* show test screen  YUV blend*/
-	if (is_meson_gxm_cpu()) /* bit width change to 10bit in gxm */
+	if (is_meson_gxm_cpu() ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX))
+		/* bit width change to 10bit in gxm, 10/12 in txlx*/
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 			eight2ten(test_screen & 0x00ffffff));
 	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
