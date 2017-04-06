@@ -118,9 +118,9 @@ static inline void get_wrpage_offset(u8 type, u32 *page, u32 *page_offset)
 		do {
 			local_irq_save(flags);
 
-			page1 = READ_MPEG_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
-			offset = READ_MPEG_REG(PARSER_VIDEO_WP);
-			page2 = READ_MPEG_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
+			page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
+			offset = READ_PARSER_REG(PARSER_VIDEO_WP);
+			page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
 
 			local_irq_restore(flags);
 		} while (page1 != page2);
@@ -131,9 +131,9 @@ static inline void get_wrpage_offset(u8 type, u32 *page, u32 *page_offset)
 		do {
 			local_irq_save(flags);
 
-			page1 = READ_MPEG_REG(PARSER_AV_WRAP_COUNT) >> 16;
-			offset = READ_MPEG_REG(PARSER_AUDIO_WP);
-			page2 = READ_MPEG_REG(PARSER_AV_WRAP_COUNT) >> 16;
+			page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) >> 16;
+			offset = READ_PARSER_REG(PARSER_AUDIO_WP);
+			page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) >> 16;
 
 			local_irq_restore(flags);
 		} while (page1 != page2);
@@ -166,11 +166,11 @@ static inline void get_rdpage_offset(u8 type, u32 *page, u32 *page_offset)
 			local_irq_save(flags);
 
 			page1 =
-				READ_MPEG_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
+				READ_AIU_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
 				0xffff;
-			offset = READ_MPEG_REG(AIU_MEM_AIFIFO_MAN_RP);
+			offset = READ_AIU_REG(AIU_MEM_AIFIFO_MAN_RP);
 			page2 =
-				READ_MPEG_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
+				READ_AIU_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
 				0xffff;
 
 			local_irq_restore(flags);
@@ -494,9 +494,9 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 				pr_info("init apts[%d] at 0x%x\n", type, val);
 
 			if (type == PTS_TYPE_VIDEO)
-				WRITE_MPEG_REG(VIDEO_PTS, val);
+				WRITE_PARSER_REG(VIDEO_PTS, val);
 			else if (type == PTS_TYPE_AUDIO)
-				WRITE_MPEG_REG(AUDIO_PTS, val);
+				WRITE_PARSER_REG(AUDIO_PTS, val);
 
 			pTable->status = PTS_RUNNING;
 		}
@@ -1180,7 +1180,7 @@ int pts_start(u8 type)
 			pTable->buf_start = READ_VREG(HEVC_STREAM_START_ADDR);
 			pTable->buf_size = READ_VREG(HEVC_STREAM_END_ADDR)
 							   - pTable->buf_start;
-			WRITE_MPEG_REG(VIDEO_PTS, 0);
+			WRITE_PARSER_REG(VIDEO_PTS, 0);
 			timestamp_pcrscr_set(0);	/* video always need
 							   the pcrscr,Clear
 							   it to use later */
@@ -1206,7 +1206,7 @@ int pts_start(u8 type)
 				 */
 				/* BUG_ON(pTable->buf_size <= 0x10000); */
 
-				WRITE_MPEG_REG(VIDEO_PTS, 0);
+				WRITE_PARSER_REG(VIDEO_PTS, 0);
 				timestamp_pcrscr_set(0);	/* video always
 								   need the
 								   pcrscr,
@@ -1219,14 +1219,14 @@ int pts_start(u8 type)
 				pTable->first_lookup_is_fail = 0;
 			} else if (type == PTS_TYPE_AUDIO) {
 				pTable->buf_start =
-					READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR);
-				pTable->buf_size = READ_MPEG_REG(
+					READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR);
+				pTable->buf_size = READ_AIU_REG(
 						AIU_MEM_AIFIFO_END_PTR)
 					- pTable->buf_start + 8;
 
 				/* BUG_ON(pTable->buf_size <= 0x10000); */
 
-				WRITE_MPEG_REG(AUDIO_PTS, 0);
+				WRITE_PARSER_REG(AUDIO_PTS, 0);
 				timestamp_firstapts_set(0);
 				pTable->first_checkin_pts = -1;
 				pTable->first_lookup_ok = 0;

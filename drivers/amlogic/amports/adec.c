@@ -30,6 +30,7 @@
 #include "streambuf.h"
 #include <linux/module.h>
 #include "amports_priv.h"
+#include <linux/of.h>
 
 #define INFO_VALID ((astream_dev) && (astream_dev->format))
 
@@ -39,6 +40,7 @@ struct astream_device_s {
 	s32 channum;
 	s32 samplerate;
 	s32 datawidth;
+	int offset;
 
 	struct device dev;
 };
@@ -125,12 +127,22 @@ static ssize_t pts_show(struct class *class, struct class_attribute *attr,
 		return sprintf(buf, "%s\n", na_string);
 }
 
+static ssize_t addr_offset_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	if (INFO_VALID)
+		return sprintf(buf, "%d\n", astream_dev->offset);
+	else
+		return sprintf(buf, "%s\n", na_string);
+}
+
 static struct class_attribute astream_class_attrs[] = {
 	__ATTR_RO(format),
 	__ATTR_RO(samplerate),
 	__ATTR_RO(channum),
 	__ATTR_RO(datawidth),
 	__ATTR_RO(pts),
+	__ATTR_RO(addr_offset),
 	__ATTR_NULL
 };
 
@@ -142,7 +154,7 @@ static struct class astream_class = {
 #if 1
 #define IO_CBUS_PHY_BASE 0xc1100000
 #define CBUS_REG_OFFSET(reg) ((reg) << 2)
-#define IO_SECBUS_PHY_BASE		0xda000000
+#define IO_SECBUS_PHY_BASE 0xda000000
 
 static struct uio_info astream_uio_info = {
 	.name = "astream_uio",
@@ -231,6 +243,8 @@ s32 adec_release(enum aformat_e vf)
 s32 astream_dev_register(void)
 {
 	s32 r;
+	struct device_node *node;
+	unsigned int cbus_base = 0xffd00000;
 
 	r = class_register(&astream_class);
 	if (r) {
@@ -257,6 +271,27 @@ s32 astream_dev_register(void)
 	if (r) {
 		pr_info("astream device register fail.\n");
 		goto err_2;
+	}
+
+	if (MESON_CPU_MAJOR_ID_TXL < get_cpu_type()) {
+		node = of_find_node_by_path("/codec_io/io_cbus_base");
+		if (!node) {
+			pr_info("No io_cbus_base node found.");
+			goto err_1;
+		}
+
+		r = of_property_read_u32_index(node, "reg", 1, &cbus_base);
+		if (r) {
+			pr_info("No find node.\n");
+			goto err_1;
+		}
+
+		/*need to offset -0x100 in txlx.*/
+		astream_dev->offset = -0x100;
+
+		astream_uio_info.mem[0].addr =
+			(cbus_base + CBUS_REG_OFFSET(AIU_AIFIFO_CTRL +
+			astream_dev->offset)) & (PAGE_MASK);
 	}
 
 #if 1

@@ -226,35 +226,35 @@ static irqreturn_t tsdemux_isr(int irq, void *dev_id)
 	int id = (long)dev_id;
 
 	if (!enable_demux_driver()) {
-		int_status = READ_MPEG_REG(STB_INT_STATUS);
+		int_status = READ_DEMUX_REG(STB_INT_STATUS);
 	} else {
 		if (id == 0)
-			int_status = READ_MPEG_REG(STB_INT_STATUS);
+			int_status = READ_DEMUX_REG(STB_INT_STATUS);
 		else if (id == 1)
-			int_status = READ_MPEG_REG(STB_INT_STATUS_2);
+			int_status = READ_DEMUX_REG(STB_INT_STATUS_2);
 		else if (id == 2)
-			int_status = READ_MPEG_REG(STB_INT_STATUS_3);
+			int_status = READ_DEMUX_REG(STB_INT_STATUS_3);
 	}
 
 	if (int_status & (1 << NEW_PDTS_READY)) {
 		if (!enable_demux_driver()) {
-			u32 pdts_status = READ_MPEG_REG(STB_PTS_DTS_STATUS);
+			u32 pdts_status = READ_DEMUX_REG(STB_PTS_DTS_STATUS);
 
 			if (pdts_status & (1 << VIDEO_PTS_READY))
 				pts_checkin_wrptr(PTS_TYPE_VIDEO,
-					READ_MPEG_REG(VIDEO_PDTS_WR_PTR),
-					READ_MPEG_REG(VIDEO_PTS_DEMUX));
+					READ_DEMUX_REG(VIDEO_PDTS_WR_PTR),
+					READ_DEMUX_REG(VIDEO_PTS_DEMUX));
 
 			if (pdts_status & (1 << AUDIO_PTS_READY))
 				pts_checkin_wrptr(PTS_TYPE_AUDIO,
-					READ_MPEG_REG(AUDIO_PDTS_WR_PTR),
-					READ_MPEG_REG(AUDIO_PTS_DEMUX));
+					READ_DEMUX_REG(AUDIO_PDTS_WR_PTR),
+					READ_DEMUX_REG(AUDIO_PTS_DEMUX));
 
-			WRITE_MPEG_REG(STB_PTS_DTS_STATUS, pdts_status);
+			WRITE_DEMUX_REG(STB_PTS_DTS_STATUS, pdts_status);
 		} else {
 #define DMX_READ_REG(i, r)\
-	((i) ? ((i == 1) ? READ_MPEG_REG(r##_2) : \
-		READ_MPEG_REG(r##_3)) : READ_MPEG_REG(r))
+	((i) ? ((i == 1) ? READ_DEMUX_REG(r##_2) : \
+		READ_DEMUX_REG(r##_3)) : READ_DEMUX_REG(r))
 
 			u32 pdts_status = DMX_READ_REG(id, STB_PTS_DTS_STATUS);
 
@@ -269,13 +269,13 @@ static irqreturn_t tsdemux_isr(int irq, void *dev_id)
 					DMX_READ_REG(id, AUDIO_PTS_DEMUX));
 
 			if (id == 1)
-				WRITE_MPEG_REG(STB_PTS_DTS_STATUS_2,
+				WRITE_DEMUX_REG(STB_PTS_DTS_STATUS_2,
 							pdts_status);
 			else if (id == 2)
-				WRITE_MPEG_REG(STB_PTS_DTS_STATUS_3,
+				WRITE_DEMUX_REG(STB_PTS_DTS_STATUS_3,
 							pdts_status);
 			else
-				WRITE_MPEG_REG(STB_PTS_DTS_STATUS,
+				WRITE_DEMUX_REG(STB_PTS_DTS_STATUS,
 							pdts_status);
 		}
 	}
@@ -290,16 +290,16 @@ static irqreturn_t tsdemux_isr(int irq, void *dev_id)
 	}
 
 	if (!enable_demux_driver())
-		WRITE_MPEG_REG(STB_INT_STATUS, int_status);
+		WRITE_DEMUX_REG(STB_INT_STATUS, int_status);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t parser_isr(int irq, void *dev_id)
 {
-	u32 int_status = READ_MPEG_REG(PARSER_INT_STATUS);
+	u32 int_status = READ_PARSER_REG(PARSER_INT_STATUS);
 
-	WRITE_MPEG_REG(PARSER_INT_STATUS, int_status);
+	WRITE_PARSER_REG(PARSER_INT_STATUS, int_status);
 
 	if (int_status & PARSER_INTSTAT_FETCH_CMD) {
 		fetch_done = 1;
@@ -344,21 +344,21 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 
 		if (isphybuf) {
 			u32 buf_32 = (unsigned long)buf & 0xffffffff;
-			WRITE_MPEG_REG(PARSER_FETCH_ADDR, buf_32);
+			WRITE_PARSER_REG(PARSER_FETCH_ADDR, buf_32);
 		} else {
-			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
+			WRITE_PARSER_REG(PARSER_FETCH_ADDR, dma_addr);
 			dma_unmap_single(amports_get_dma_device(), dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
 		}
 
-		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
+		WRITE_PARSER_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
 
 
 		ret =
 			wait_event_interruptible_timeout(wq, fetch_done != 0,
 					HZ / 2);
 		if (ret == 0) {
-			WRITE_MPEG_REG(PARSER_FETCH_CMD, 0);
+			WRITE_PARSER_REG(PARSER_FETCH_CMD, 0);
 			pr_info("write timeout, retry\n");
 			return -EAGAIN;
 		} else if (ret < 0)
@@ -406,19 +406,19 @@ static int reset_pcr_regs(void)
 		pr_info("[%s:%d] clk_81 = %x clk_unit =%x\n", __func__,
 				__LINE__, clk_81, clk_unit);
 
-		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80) {
-			WRITE_MPEG_REG(PCR90K_CTL_2, (12 << 1) | clk_unit);
-			WRITE_MPEG_REG(ASSIGN_PID_NUMBER_2, pcr_num);
+		if (READ_DEMUX_REG(TS_HIU_CTL_2) & 0x80) {
+			WRITE_DEMUX_REG(PCR90K_CTL_2, (12 << 1) | clk_unit);
+			WRITE_DEMUX_REG(ASSIGN_PID_NUMBER_2, pcr_num);
 			pr_info("[tsdemux_init] To use device 2,pcr_num=%d\n",
 					pcr_num);
-		} else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80) {
-			WRITE_MPEG_REG(PCR90K_CTL_3, (12 << 1) | clk_unit);
-			WRITE_MPEG_REG(ASSIGN_PID_NUMBER_3, pcr_num);
+		} else if (READ_DEMUX_REG(TS_HIU_CTL_3) & 0x80) {
+			WRITE_DEMUX_REG(PCR90K_CTL_3, (12 << 1) | clk_unit);
+			WRITE_DEMUX_REG(ASSIGN_PID_NUMBER_3, pcr_num);
 			pr_info("[tsdemux_init] To use device 3,pcr_num=%d\n",
 					pcr_num);
 		} else {
-			WRITE_MPEG_REG(PCR90K_CTL, (12 << 1) | clk_unit);
-			WRITE_MPEG_REG(ASSIGN_PID_NUMBER, pcr_num);
+			WRITE_DEMUX_REG(PCR90K_CTL, (12 << 1) | clk_unit);
+			WRITE_DEMUX_REG(ASSIGN_PID_NUMBER, pcr_num);
 			pr_info("[tsdemux_init] To use device 1,pcr_num=%d\n",
 					pcr_num);
 		}
@@ -446,9 +446,9 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 
 	amports_switch_gate("demux", 1);
 
-	parser_sub_start_ptr = READ_MPEG_REG(PARSER_SUB_START_PTR);
-	parser_sub_end_ptr = READ_MPEG_REG(PARSER_SUB_END_PTR);
-	parser_sub_rp = READ_MPEG_REG(PARSER_SUB_RP);
+	parser_sub_start_ptr = READ_PARSER_REG(PARSER_SUB_START_PTR);
+	parser_sub_end_ptr = READ_PARSER_REG(PARSER_SUB_END_PTR);
+	parser_sub_rp = READ_PARSER_REG(PARSER_SUB_RP);
 
 	WRITE_MPEG_REG(RESET1_REGISTER, RESET_PARSER);
 
@@ -457,8 +457,8 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 	} else {
 		WRITE_MPEG_REG(RESET1_REGISTER, RESET_PARSER | RESET_DEMUXSTB);
 
-		WRITE_MPEG_REG(STB_TOP_CONFIG, 0);
-		WRITE_MPEG_REG(DEMUX_CONTROL, 0);
+		WRITE_DEMUX_REG(STB_TOP_CONFIG, 0);
+		WRITE_DEMUX_REG(DEMUX_CONTROL, 0);
 	}
 
 	/* set PID filter */
@@ -470,48 +470,48 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 		 sid, pcrid);
 
 	if (!enable_demux_driver()) {
-		WRITE_MPEG_REG(FM_WR_DATA,
+		WRITE_DEMUX_REG(FM_WR_DATA,
 				(((vid < 0x1fff)
 					? (vid & 0x1fff) | (VIDEO_PACKET << 13)
 					: 0xffff) << 16)
 				| ((aid < 0x1fff)
 					? (aid & 0x1fff) | (AUDIO_PACKET << 13)
 					: 0xffff));
-		WRITE_MPEG_REG(FM_WR_ADDR, 0x8000);
-		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
+		WRITE_DEMUX_REG(FM_WR_ADDR, 0x8000);
+		while (READ_DEMUX_REG(FM_WR_ADDR) & 0x8000)
 			;
 
-		WRITE_MPEG_REG(FM_WR_DATA,
+		WRITE_DEMUX_REG(FM_WR_DATA,
 				(((sid < 0x1fff)
 					? (sid & 0x1fff) | (SUB_PACKET << 13)
 					: 0xffff) << 16)
 				| 0xffff);
-		WRITE_MPEG_REG(FM_WR_ADDR, 0x8001);
-		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
+		WRITE_DEMUX_REG(FM_WR_ADDR, 0x8001);
+		while (READ_DEMUX_REG(FM_WR_ADDR) & 0x8000)
 			;
 
-		WRITE_MPEG_REG(MAX_FM_COMP_ADDR, 1);
+		WRITE_DEMUX_REG(MAX_FM_COMP_ADDR, 1);
 
-		WRITE_MPEG_REG(STB_INT_MASK, 0);
-		WRITE_MPEG_REG(STB_INT_STATUS, 0xffff);
+		WRITE_DEMUX_REG(STB_INT_MASK, 0);
+		WRITE_DEMUX_REG(STB_INT_STATUS, 0xffff);
 
 		/* TS data path */
-		WRITE_MPEG_REG(FEC_INPUT_CONTROL, 0x7000);
-		WRITE_MPEG_REG(DEMUX_MEM_REQ_EN,
+		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0x7000);
+		WRITE_DEMUX_REG(DEMUX_MEM_REQ_EN,
 				(1 << VIDEO_PACKET) |
 				(1 << AUDIO_PACKET) | (1 << SUB_PACKET));
-		WRITE_MPEG_REG(DEMUX_ENDIAN,
+		WRITE_DEMUX_REG(DEMUX_ENDIAN,
 				(7 << OTHER_ENDIAN) |
 				(7 << BYPASS_ENDIAN) | (0 << SECTION_ENDIAN));
-		WRITE_MPEG_REG(TS_HIU_CTL, 1 << USE_HI_BSF_INTERFACE);
-		WRITE_MPEG_REG(TS_FILE_CONFIG,
+		WRITE_DEMUX_REG(TS_HIU_CTL, 1 << USE_HI_BSF_INTERFACE);
+		WRITE_DEMUX_REG(TS_FILE_CONFIG,
 				(demux_skipbyte << 16) |
 				(6 << DES_OUT_DLY) |
 				(3 << TRANSPORT_SCRAMBLING_CONTROL_ODD) |
 				(1 << TS_HIU_ENABLE) | (4 << FEC_FILE_CLK_DIV));
 
 		/* enable TS demux */
-		WRITE_MPEG_REG(DEMUX_CONTROL,
+		WRITE_DEMUX_REG(DEMUX_CONTROL,
 				(1 << STB_DEMUX_ENABLE) |
 				(1 << KEEP_DUPLICATE_PACKAGE));
 	}
@@ -523,12 +523,12 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 
 	/* hook stream buffer with PARSER */
 	if (has_hevc_vdec() && is_hevc) {
-		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
-		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
+		WRITE_PARSER_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+		WRITE_PARSER_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
 			vdec->input.size - 8);
 
 		if (vdec_single(vdec)) {
-			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
+			CLEAR_PARSER_REG_MASK(PARSER_ES_CONTROL,
 					ES_VID_MAN_RD_PTR);
 			/* set vififo_vbuf_rp_sel=>hevc */
 			WRITE_VREG(DOS_GEN_CTRL0, 3 << 1);
@@ -542,17 +542,18 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 			SET_VREG_MASK(HEVC_STREAM_FIFO_CTL,
 				  (1 << 29));
 		} else {
-			SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
-			WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
-			WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
+			SET_PARSER_REG_MASK(PARSER_ES_CONTROL,
+					ES_VID_MAN_RD_PTR);
+			WRITE_PARSER_REG(PARSER_VIDEO_WP, vdec->input.start);
+			WRITE_PARSER_REG(PARSER_VIDEO_RP, vdec->input.start);
 		}
 	} else {
-		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
-		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
+		WRITE_PARSER_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+		WRITE_PARSER_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
 			vdec->input.size - 8);
 
 		if (vdec_single(vdec)) {
-			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
+			CLEAR_PARSER_REG_MASK(PARSER_ES_CONTROL,
 					ES_VID_MAN_RD_PTR);
 
 			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
@@ -563,30 +564,31 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 			if (has_hevc_vdec())
 				WRITE_VREG(DOS_GEN_CTRL0, 0);
 		} else {
-			SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
-			WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
-			WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
+			SET_PARSER_REG_MASK(PARSER_ES_CONTROL,
+					ES_VID_MAN_RD_PTR);
+			WRITE_PARSER_REG(PARSER_VIDEO_WP, vdec->input.start);
+			WRITE_PARSER_REG(PARSER_VIDEO_RP, vdec->input.start);
 		}
 	}
 
-	WRITE_MPEG_REG(PARSER_AUDIO_START_PTR,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR));
-	WRITE_MPEG_REG(PARSER_AUDIO_END_PTR,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_END_PTR));
-	CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_AUD_MAN_RD_PTR);
+	WRITE_PARSER_REG(PARSER_AUDIO_START_PTR,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR));
+	WRITE_PARSER_REG(PARSER_AUDIO_END_PTR,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_END_PTR));
+	CLEAR_PARSER_REG_MASK(PARSER_ES_CONTROL, ES_AUD_MAN_RD_PTR);
 
-	WRITE_MPEG_REG(PARSER_CONFIG,
+	WRITE_PARSER_REG(PARSER_CONFIG,
 				   (10 << PS_CFG_PFIFO_EMPTY_CNT_BIT) |
 				   (1 << PS_CFG_MAX_ES_WR_CYCLE_BIT) |
 				   (16 << PS_CFG_MAX_FETCH_CYCLE_BIT));
 
-	WRITE_MPEG_REG(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
-	CLEAR_MPEG_REG_MASK(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	WRITE_AIU_REG(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	CLEAR_AIU_REG_MASK(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
 
-	WRITE_MPEG_REG(PARSER_SUB_START_PTR, parser_sub_start_ptr);
-	WRITE_MPEG_REG(PARSER_SUB_END_PTR, parser_sub_end_ptr);
-	WRITE_MPEG_REG(PARSER_SUB_RP, parser_sub_rp);
-	SET_MPEG_REG_MASK(PARSER_ES_CONTROL,
+	WRITE_PARSER_REG(PARSER_SUB_START_PTR, parser_sub_start_ptr);
+	WRITE_PARSER_REG(PARSER_SUB_END_PTR, parser_sub_end_ptr);
+	WRITE_PARSER_REG(PARSER_SUB_RP, parser_sub_rp);
+	SET_PARSER_REG_MASK(PARSER_ES_CONTROL,
 			(7 << ES_SUB_WR_ENDIAN_BIT) | ES_SUB_MAN_RD_PTR);
 
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
@@ -613,12 +615,12 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 	if (r)
 		goto err3;
 
-	WRITE_MPEG_REG(PARSER_INT_STATUS, 0xffff);
-	WRITE_MPEG_REG(PARSER_INT_ENABLE,
+	WRITE_PARSER_REG(PARSER_INT_STATUS, 0xffff);
+	WRITE_PARSER_REG(PARSER_INT_ENABLE,
 			PARSER_INTSTAT_FETCH_CMD << PARSER_INT_HOST_EN_BIT);
 
-	WRITE_MPEG_REG(PARSER_VIDEO_HOLE, 0x400);
-	WRITE_MPEG_REG(PARSER_AUDIO_HOLE, 0x400);
+	WRITE_PARSER_REG(PARSER_VIDEO_HOLE, 0x400);
+	WRITE_PARSER_REG(PARSER_AUDIO_HOLE, 0x400);
 
 	discontinued_counter = 0;
 
@@ -628,7 +630,7 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 		r = vdec_request_irq(DEMUX_IRQ, tsdemux_isr,
 				"tsdemux-irq", (void *)tsdemux_irq_id);
 
-		WRITE_MPEG_REG(STB_INT_MASK, (1 << SUB_PES_READY)
+		WRITE_DEMUX_REG(STB_INT_MASK, (1 << SUB_PES_READY)
 					   | (1 << NEW_PDTS_READY)
 					   | (1 << DIS_CONTINUITY_PACKET));
 		if (r)
@@ -685,14 +687,14 @@ void tsdemux_release(void)
 	pcrscr_valid = 0;
 	first_pcr = 0;
 
-	WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
-	WRITE_MPEG_REG(PARSER_VIDEO_HOLE, 0);
-	WRITE_MPEG_REG(PARSER_AUDIO_HOLE, 0);
+	WRITE_PARSER_REG(PARSER_INT_ENABLE, 0);
+	WRITE_PARSER_REG(PARSER_VIDEO_HOLE, 0);
+	WRITE_PARSER_REG(PARSER_AUDIO_HOLE, 0);
 
 #ifdef CONFIG_MULTI_DEC
-	SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
-	WRITE_MPEG_REG(PARSER_VIDEO_WP, 0);
-	WRITE_MPEG_REG(PARSER_VIDEO_RP, 0);
+	SET_PARSER_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+	WRITE_PARSER_REG(PARSER_VIDEO_WP, 0);
+	WRITE_PARSER_REG(PARSER_VIDEO_RP, 0);
 #endif
 
 	/*TODO irq */
@@ -700,7 +702,7 @@ void tsdemux_release(void)
 	vdec_free_irq(PARSER_IRQ, (void *)tsdemux_fetch_id);
 
 	if (!enable_demux_driver()) {
-		WRITE_MPEG_REG(STB_INT_MASK, 0);
+		WRITE_DEMUX_REG(STB_INT_MASK, 0);
 		/*TODO irq */
 
 		vdec_free_irq(DEMUX_IRQ, (void *)tsdemux_irq_id);
@@ -973,11 +975,11 @@ void tsdemux_class_unregister(void)
 void tsdemux_change_avid(unsigned int vid, unsigned int aid)
 {
 	if (!enable_demux_driver()) {
-		WRITE_MPEG_REG(FM_WR_DATA,
+		WRITE_DEMUX_REG(FM_WR_DATA,
 				(((vid & 0x1fff) | (VIDEO_PACKET << 13)) << 16)
 				| ((aid & 0x1fff) | (AUDIO_PACKET << 13)));
-		WRITE_MPEG_REG(FM_WR_ADDR, 0x8000);
-		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
+		WRITE_DEMUX_REG(FM_WR_ADDR, 0x8000);
+		while (READ_DEMUX_REG(FM_WR_ADDR) & 0x8000)
 			;
 	} else {
 		curr_vid_id = vid;
@@ -995,11 +997,11 @@ void tsdemux_change_avid(unsigned int vid, unsigned int aid)
 void tsdemux_change_sid(unsigned int sid)
 {
 	if (!enable_demux_driver()) {
-		WRITE_MPEG_REG(FM_WR_DATA,
+		WRITE_DEMUX_REG(FM_WR_DATA,
 				(((sid & 0x1fff) | (SUB_PACKET << 13)) << 16)
 				| 0xffff);
-		WRITE_MPEG_REG(FM_WR_ADDR, 0x8001);
-		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
+		WRITE_DEMUX_REG(FM_WR_ADDR, 0x8001);
+		while (READ_DEMUX_REG(FM_WR_ADDR) & 0x8000)
 			;
 	} else {
 		curr_sub_id = sid;
@@ -1019,19 +1021,19 @@ void tsdemux_audio_reset(void)
 
 	spin_lock_irqsave(&lock, flags);
 
-	WRITE_MPEG_REG(PARSER_AUDIO_WP,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR));
-	WRITE_MPEG_REG(PARSER_AUDIO_RP,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR));
+	WRITE_PARSER_REG(PARSER_AUDIO_WP,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR));
+	WRITE_PARSER_REG(PARSER_AUDIO_RP,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR));
 
-	WRITE_MPEG_REG(PARSER_AUDIO_START_PTR,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR));
-	WRITE_MPEG_REG(PARSER_AUDIO_END_PTR,
-				   READ_MPEG_REG(AIU_MEM_AIFIFO_END_PTR));
-	CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_AUD_MAN_RD_PTR);
+	WRITE_PARSER_REG(PARSER_AUDIO_START_PTR,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR));
+	WRITE_PARSER_REG(PARSER_AUDIO_END_PTR,
+				   READ_AIU_REG(AIU_MEM_AIFIFO_END_PTR));
+	CLEAR_PARSER_REG_MASK(PARSER_ES_CONTROL, ES_AUD_MAN_RD_PTR);
 
-	WRITE_MPEG_REG(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
-	CLEAR_MPEG_REG_MASK(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	WRITE_AIU_REG(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	CLEAR_AIU_REG_MASK(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
 
 	spin_unlock_irqrestore(&lock, flags);
 
@@ -1047,14 +1049,14 @@ void tsdemux_sub_reset(void)
 
 	spin_lock_irqsave(&lock, flags);
 
-	parser_sub_start_ptr = READ_MPEG_REG(PARSER_SUB_START_PTR);
-	parser_sub_end_ptr = READ_MPEG_REG(PARSER_SUB_END_PTR);
+	parser_sub_start_ptr = READ_PARSER_REG(PARSER_SUB_START_PTR);
+	parser_sub_end_ptr = READ_PARSER_REG(PARSER_SUB_END_PTR);
 
-	WRITE_MPEG_REG(PARSER_SUB_START_PTR, parser_sub_start_ptr);
-	WRITE_MPEG_REG(PARSER_SUB_END_PTR, parser_sub_end_ptr);
-	WRITE_MPEG_REG(PARSER_SUB_RP, parser_sub_start_ptr);
-	WRITE_MPEG_REG(PARSER_SUB_WP, parser_sub_start_ptr);
-	SET_MPEG_REG_MASK(PARSER_ES_CONTROL,
+	WRITE_PARSER_REG(PARSER_SUB_START_PTR, parser_sub_start_ptr);
+	WRITE_PARSER_REG(PARSER_SUB_END_PTR, parser_sub_end_ptr);
+	WRITE_PARSER_REG(PARSER_SUB_RP, parser_sub_start_ptr);
+	WRITE_PARSER_REG(PARSER_SUB_WP, parser_sub_start_ptr);
+	SET_PARSER_REG_MASK(PARSER_ES_CONTROL,
 			(7 << ES_SUB_WR_ENDIAN_BIT) | ES_SUB_MAN_RD_PTR);
 
 	spin_unlock_irqrestore(&lock, flags);
@@ -1092,12 +1094,12 @@ u32 tsdemux_pcrscr_get(void)
 	if (pcrscr_valid == 0)
 		return 0;
 
-	if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80)
-		pcr = READ_MPEG_REG(PCR_DEMUX_2);
-	else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80)
-		pcr = READ_MPEG_REG(PCR_DEMUX_3);
+	if (READ_DEMUX_REG(TS_HIU_CTL_2) & 0x80)
+		pcr = READ_DEMUX_REG(PCR_DEMUX_2);
+	else if (READ_DEMUX_REG(TS_HIU_CTL_3) & 0x80)
+		pcr = READ_DEMUX_REG(PCR_DEMUX_3);
 	else
-		pcr = READ_MPEG_REG(PCR_DEMUX);
+		pcr = READ_DEMUX_REG(PCR_DEMUX);
 	if (first_pcr == 0)
 		first_pcr = pcr;
 	return pcr;
@@ -1110,12 +1112,12 @@ u32 tsdemux_first_pcrscr_get(void)
 
 	if (first_pcr == 0) {
 		u32 pcr;
-		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80)
-			pcr = READ_MPEG_REG(PCR_DEMUX_2);
-		else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80)
-			pcr = READ_MPEG_REG(PCR_DEMUX_3);
+		if (READ_DEMUX_REG(TS_HIU_CTL_2) & 0x80)
+			pcr = READ_DEMUX_REG(PCR_DEMUX_2);
+		else if (READ_DEMUX_REG(TS_HIU_CTL_3) & 0x80)
+			pcr = READ_DEMUX_REG(PCR_DEMUX_3);
 		else
-			pcr = READ_MPEG_REG(PCR_DEMUX);
+			pcr = READ_DEMUX_REG(PCR_DEMUX);
 		first_pcr = pcr;
 		/* pr_info("set first_pcr = 0x%x\n", pcr); */
 	}

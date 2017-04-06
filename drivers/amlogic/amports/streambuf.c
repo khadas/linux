@@ -209,12 +209,12 @@ static void _stbuf_timer_func(unsigned long arg)
 u32 stbuf_level(struct stream_buf_s *buf)
 {
 	if ((buf->type == BUF_TYPE_HEVC) || (buf->type == BUF_TYPE_VIDEO)) {
-		if (READ_MPEG_REG(PARSER_ES_CONTROL) & 1) {
-			int level = READ_MPEG_REG(PARSER_VIDEO_WP) -
-				READ_MPEG_REG(PARSER_VIDEO_RP);
+		if (READ_PARSER_REG(PARSER_ES_CONTROL) & 1) {
+			int level = READ_PARSER_REG(PARSER_VIDEO_WP) -
+				READ_PARSER_REG(PARSER_VIDEO_RP);
 			if (level < 0)
-				level += READ_MPEG_REG(PARSER_VIDEO_END_PTR) -
-				READ_MPEG_REG(PARSER_VIDEO_START_PTR) + 8;
+				level += READ_PARSER_REG(PARSER_VIDEO_END_PTR) -
+				READ_PARSER_REG(PARSER_VIDEO_START_PTR) + 8;
 			return (u32)level;
 		} else
 			return (buf->type == BUF_TYPE_HEVC) ?
@@ -228,8 +228,8 @@ u32 stbuf_level(struct stream_buf_s *buf)
 u32 stbuf_rp(struct stream_buf_s *buf)
 {
 	if ((buf->type == BUF_TYPE_HEVC) || (buf->type == BUF_TYPE_VIDEO)) {
-		if (READ_MPEG_REG(PARSER_ES_CONTROL) & 1)
-			return READ_MPEG_REG(PARSER_VIDEO_RP);
+		if (READ_PARSER_REG(PARSER_ES_CONTROL) & 1)
+			return READ_PARSER_REG(PARSER_VIDEO_RP);
 		else
 			return (buf->type == BUF_TYPE_HEVC) ?
 				READ_VREG(HEVC_STREAM_RD_PTR) :
@@ -254,7 +254,7 @@ u32 stbuf_space(struct stream_buf_s *buf)
 
 	if ((buf->type == BUF_TYPE_VIDEO)
 		|| (has_hevc_vdec() && buf->type == BUF_TYPE_HEVC))
-		size -= READ_MPEG_REG(PARSER_VIDEO_HOLE);
+		size -= READ_PARSER_REG(PARSER_VIDEO_HOLE);
 
 	return size > 0 ? size : 0;
 }
@@ -323,13 +323,13 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	} else if (buf->type == BUF_TYPE_AUDIO) {
 		_WRITE_ST_REG(CONTROL, 0);
 
-		WRITE_MPEG_REG(AIU_AIFIFO_GBIT, 0x80);
+		WRITE_AIU_REG(AIU_AIFIFO_GBIT, 0x80);
 	}
 
 	if (buf->type == BUF_TYPE_SUBTITLE) {
-		WRITE_MPEG_REG(PARSER_SUB_RP, addr32);
-		WRITE_MPEG_REG(PARSER_SUB_START_PTR, addr32);
-		WRITE_MPEG_REG(PARSER_SUB_END_PTR,
+		WRITE_PARSER_REG(PARSER_SUB_RP, addr32);
+		WRITE_PARSER_REG(PARSER_SUB_START_PTR, addr32);
+		WRITE_PARSER_REG(PARSER_SUB_END_PTR,
 					   addr32 + buf->buf_size - 8);
 
 		return 0;
@@ -414,21 +414,21 @@ void stbuf_release(struct stream_buf_s *buf)
 
 u32 stbuf_sub_rp_get(void)
 {
-	return READ_MPEG_REG(PARSER_SUB_RP);
+	return READ_PARSER_REG(PARSER_SUB_RP);
 }
 
 void stbuf_sub_rp_set(unsigned int sub_rp)
 {
-	WRITE_MPEG_REG(PARSER_SUB_RP, sub_rp);
+	WRITE_PARSER_REG(PARSER_SUB_RP, sub_rp);
 	return;
 }
 
 u32 stbuf_sub_wp_get(void)
 {
-	return READ_MPEG_REG(PARSER_SUB_WP);
+	return READ_PARSER_REG(PARSER_SUB_WP);
 }
 
 u32 stbuf_sub_start_get(void)
 {
-	return READ_MPEG_REG(PARSER_SUB_START_PTR);
+	return READ_PARSER_REG(PARSER_SUB_START_PTR);
 }
