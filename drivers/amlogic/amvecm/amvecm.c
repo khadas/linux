@@ -2719,15 +2719,15 @@ static void amvecm_vpp_mtx_debug(int mtx_sel, int coef_sel)
 {
 	if (mtx_sel & (1 << VPP_MATRIX_1)) {
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 5, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 8, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 8, 3);
 		mtx_sel_dbg &= ~(1 << VPP_MATRIX_1);
 	} else if (mtx_sel & (1 << VPP_MATRIX_2)) {
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 0, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 3);
 		mtx_sel_dbg &= ~(1 << VPP_MATRIX_2);
 	} else if (mtx_sel & (1 << VPP_MATRIX_3)) {
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
 		mtx_sel_dbg &= ~(1 << VPP_MATRIX_3);
 	}
 	/*coef_sel 1: 10bit yuvl2rgb   2:rgb2yuvl*/

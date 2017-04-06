@@ -240,6 +240,9 @@ void amcm_disable(void)
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp & 0xfffffffd);
 	}
+	/* output 10bit when cm disable */
+	/*if (is_meson_txlx_cpu())
+		vpp_set_pre_s2u(U10_TO_U12);*/
 }
 
 void amcm_enable(void)
@@ -255,6 +258,9 @@ void amcm_enable(void)
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
 		}
 	}
+	/* output U10bit when cm enable */
+	/*if (is_meson_txlx_cpu())
+		vpp_set_pre_s2u(S12_TO_U12);*/
 }
 
 
