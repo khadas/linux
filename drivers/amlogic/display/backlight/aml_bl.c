@@ -2382,6 +2382,8 @@ static const char *bl_debug_usage_str = {
 "    echo freq <index> <pwm_freq> > pwm ; set pwm frequency(unit in Hz for pwm, vfreq multiple for pwm_vs)\n"
 "    echo duty <index> <pwm_duty> > pwm ; set pwm duty cycle(unit: %)\n"
 "    echo pol <index> <pwm_pol> > pwm ; set pwm polarity(unit: %)\n"
+"	 echo max <index> <duty_max> > pwm ; set pwm duty_max(unit: %)\n"
+"	 echo min <index> <duty_min> > pwm ; set pwm duty_min(unit: %)\n"
 "    cat pwm ; dump pwm state\n"
 "	 echo free <0|1> > pwm ; set bl_pwm_duty_free enable or disable\n"
 "\n"
@@ -2670,6 +2672,8 @@ static ssize_t bl_debug_pwm_show(struct class *class,
 #define BL_DEBUG_PWM_FREQ    0
 #define BL_DEBUG_PWM_DUTY    1
 #define BL_DEBUG_PWM_POL     2
+#define BL_DEBUG_PWM_DUTY_MAX 3
+#define BL_DEBUG_PWM_DUTY_MIN 4
 static void bl_debug_pwm_set(unsigned int index, unsigned int value, int state)
 {
 	struct bl_config_s *bconf = bl_drv->bconf;
@@ -2721,6 +2725,22 @@ static void bl_debug_pwm_set(unsigned int index, unsigned int value, int state)
 				index, bl_pwm->pwm_port, bl_pwm->pwm_method);
 			}
 			break;
+		case BL_DEBUG_PWM_DUTY_MAX:
+			bl_pwm->pwm_duty_max = value;
+			bl_set_duty_pwm(bl_pwm);
+			if (bl_debug_print_flag) {
+				BLPR("set index(%d) pwm_port(%d) duty: %d%%\n",
+				index, bl_pwm->pwm_port, bl_pwm->pwm_duty_max);
+			}
+			break;
+		case BL_DEBUG_PWM_DUTY_MIN:
+			bl_pwm->pwm_duty_min = value;
+			bl_set_duty_pwm(bl_pwm);
+			if (bl_debug_print_flag) {
+				BLPR("set index(%d) pwm_port(%d) duty: %d%%\n",
+				index, bl_pwm->pwm_port, bl_pwm->pwm_duty_min);
+			}
+			break;
 		default:
 			break;
 		}
@@ -2756,6 +2776,15 @@ static ssize_t bl_debug_pwm_store(struct class *class,
 		ret = sscanf(buf, "bypass %d", &val);
 		bl_pwm_bypass = (unsigned char)val;
 		BLPR("set bl_pwm_bypass: %d\n", bl_pwm_bypass);
+		break;
+	case 'm':
+		if (buf[1] == 'a') { /* max */
+			ret = sscanf(buf, "max %d %d", &index, &val);
+			bl_debug_pwm_set(index, val, BL_DEBUG_PWM_DUTY_MAX);
+		} else if (buf[1] == 'i') { /* min */
+			ret = sscanf(buf, "min %d %d", &index, &val);
+			bl_debug_pwm_set(index, val, BL_DEBUG_PWM_DUTY_MIN);
+		}
 		break;
 	default:
 		BLERR("wrong command\n");
