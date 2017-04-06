@@ -1007,6 +1007,38 @@ static ssize_t show_sink_type(struct device *dev, struct device_attribute *attr,
 	return pos;
 }
 
+/*
+ * hdcp_repeater attr
+ * For hdcp 22, hdcp_tx22 will write to store_hdcp_repeater
+ * For hdcp 14, directly get bcaps bit
+ */
+static ssize_t show_hdcp_repeater(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (hdev->hdcp_mode == 1)
+		hdev->hdcp_bcaps_repeater = hdev->HWOp.CntlDDC(hdev,
+			DDC_HDCP14_GET_BCAPS_RP, 0);
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n", hdev->hdcp_bcaps_repeater);
+
+	return pos;
+}
+
+static ssize_t store_hdcp_repeater(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	pr_info("HDMI STORE REPEATER: %d, %c\n", hdev->hdcp_mode, buf[0]);
+
+	if (hdev->hdcp_mode == 2)
+		hdev->hdcp_bcaps_repeater = (buf[0] == '1');
+
+	return count;
+}
+
 void hdmitx_audio_mute_op(unsigned int flag)
 {
 	hdmitx_device.tx_aud_cfg = flag;
@@ -2233,6 +2265,8 @@ static DEVICE_ATTR(hdcp_mode, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_mode,
 	store_hdcp_mode);
 static DEVICE_ATTR(hdcp_lstore, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_lstore,
 	store_hdcp_lstore);
+static DEVICE_ATTR(hdcp_repeater, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_hdcp_repeater, store_hdcp_repeater);
 static DEVICE_ATTR(div40, S_IWUSR | S_IRUGO | S_IWGRP, show_div40, store_div40);
 static DEVICE_ATTR(hdcp_ctrl, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_ctrl,
 	store_hdcp_ctrl);
@@ -2589,6 +2623,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT)))
 		return;
 	hdev->hdcp_mode = 0;
+	hdev->hdcp_bcaps_repeater = 0;
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_OFF);
 	mutex_lock(&setclk_mutex);
@@ -3042,6 +3077,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
 	ret = device_create_file(dev, &dev_attr_hdcp_mode);
+	ret = device_create_file(dev, &dev_attr_hdcp_repeater);
 	ret = device_create_file(dev, &dev_attr_hdcp_lstore);
 	ret = device_create_file(dev, &dev_attr_div40);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctrl);
@@ -3229,6 +3265,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdcp_pwr);
 	device_remove_file(dev, &dev_attr_aud_output_chs);
 	device_remove_file(dev, &dev_attr_div40);
+	device_remove_file(dev, &dev_attr_hdcp_repeater);
 
 	cdev_del(&hdmitx_device.cdev);
 
