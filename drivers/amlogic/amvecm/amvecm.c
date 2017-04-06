@@ -1544,6 +1544,50 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	return count;
 }
 
+static ssize_t amvecm_cm_reg_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	pr_info("Usage: echo addr value > /sys/class/amvecm/cm_reg");
+	return 0;
+}
+
+static ssize_t amvecm_cm_reg_store(struct class *cls,
+		 struct class_attribute *attr,
+		 const char *buffer, size_t count)
+{
+	int parsed[2], data[5] = {0};
+	int addr, value;
+	int i, node, reg_node;
+	unsigned int addr_port = VPP_CHROMA_ADDR_PORT;/* 0x1d70; */
+	unsigned int data_port = VPP_CHROMA_DATA_PORT;/* 0x1d71; */
+
+	if (likely(parse_para_pq(buffer, 2, parsed) != 2))
+		return -EINVAL;
+
+	addr = parsed[0];
+	value = parsed[1];
+	node = (addr - 0x100) / 8;
+	reg_node = (addr - 0x100) % 8;
+
+	for (i = 0; i < 5; i++) {
+		if (i == reg_node) {
+			data[i] = value;
+			continue;
+		}
+		addr = node * 8 + 0x100 + i;
+		WRITE_VPP_REG(addr_port, addr);
+		data[i] = READ_VPP_REG(data_port);
+	}
+
+	for (i = 0; i < 5; i++) {
+		addr = node * 8 + 0x100 + i;
+		WRITE_VPP_REG(addr_port, addr);
+		WRITE_VPP_REG(data_port, data[i]);
+	}
+
+	return count;
+}
+
 static ssize_t amvecm_gamma_show(struct class *cls,
 			struct class_attribute *attr,
 			char *buf)
@@ -3162,6 +3206,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(cm2, S_IRUGO | S_IWUSR,
 		amvecm_cm2_show,
 		amvecm_cm2_store),
+	__ATTR(cm_reg, S_IRUGO | S_IWUSR,
+		amvecm_cm_reg_show,
+		amvecm_cm_reg_store),
 	__ATTR(gamma, S_IRUGO | S_IWUSR,
 		amvecm_gamma_show,
 		amvecm_gamma_store),
