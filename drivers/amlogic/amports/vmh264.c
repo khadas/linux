@@ -3391,8 +3391,8 @@ static void run(struct vdec_s *vdec,
 			READ_VREG(VLD_MEM_VIFIFO_LEVEL),
 			READ_VREG(VLD_MEM_VIFIFO_WP),
 			READ_VREG(VLD_MEM_VIFIFO_RP),
-			READ_MPEG_REG(PARSER_VIDEO_RP),
-			READ_MPEG_REG(PARSER_VIDEO_WP),
+			READ_PARSER_REG(PARSER_VIDEO_RP),
+			READ_PARSER_REG(PARSER_VIDEO_WP),
 			size);
 
 	hw->start_process_time = jiffies;

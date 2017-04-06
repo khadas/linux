@@ -108,11 +108,44 @@
 #define SET_MPEG_REG_MASK(r, mask)\
 	WRITE_MPEG_REG(r, READ_MPEG_REG(r) | (mask))
 
+#define WRITE_PARSER_REG(r, val) codec_parsbus_write(r, val)
+#define READ_PARSER_REG(r) codec_parsbus_read(r)
+#define WRITE_PARSER_REG_BITS(r, val, start, len) \
+	WRITE_PARSER_REG(r, (READ_PARSER_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
+		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
+
+#define CLEAR_PARSER_REG_MASK(r, mask)\
+	WRITE_PARSER_REG(r, READ_PARSER_REG(r) & ~(mask))
+#define SET_PARSER_REG_MASK(r, mask)\
+	WRITE_PARSER_REG(r, READ_PARSER_REG(r) | (mask))
+
 #define WRITE_HHI_REG(r, val)      codec_hhibus_write(r, val)
 #define READ_HHI_REG(r) codec_hhibus_read(r)
 #define WRITE_HHI_REG_BITS(r, val, start, len) \
 	WRITE_HHI_REG(r, (READ_HHI_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
 		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
+
+#define WRITE_AIU_REG(r, val) codec_aiubus_write(r, val)
+#define READ_AIU_REG(r) codec_aiubus_read(r)
+#define WRITE_AIU_REG_BITS(r, val, start, len) \
+	WRITE_AIU_REG(r, (READ_AIU_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
+		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
+
+#define CLEAR_AIU_REG_MASK(r, mask)\
+	WRITE_AIU_REG(r, READ_AIU_REG(r) & ~(mask))
+#define SET_AIU_REG_MASK(r, mask)\
+	WRITE_AIU_REG(r, READ_AIU_REG(r) | (mask))
+
+#define WRITE_DEMUX_REG(r, val) codec_demuxbus_write(r, val)
+#define READ_DEMUX_REG(r) codec_demuxbus_read(r)
+#define WRITE_DEMUX_REG_BITS(r, val, start, len) \
+	WRITE_DEMUX_REG(r, (READ_DEMUX_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
+		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
+
+#define CLEAR_DEMUX_REG_MASK(r, mask)\
+	WRITE_DEMUX_REG(r, READ_DEMUX_REG(r) & ~(mask))
+#define SET_DEMUX_REG_MASK(r, mask)\
+	WRITE_DEMUX_REG(r, READ_DEMUX_REG(r) | (mask))
 
 #define ASSIST_MBOX1_CLR_REG VDEC_ASSIST_MBOX1_CLR_REG
 #define ASSIST_MBOX1_MASK VDEC_ASSIST_MBOX1_MASK

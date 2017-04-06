@@ -431,13 +431,13 @@ static void vdec_sync_input_read(struct vdec_s *vdec)
 				other =
 				vdec_get_associate(vdec)->input.swap_rp;
 				if (me > other) {
-					WRITE_MPEG_REG(PARSER_VIDEO_RP,
+					WRITE_PARSER_REG(PARSER_VIDEO_RP,
 						vdec_get_associate(vdec)->
 						input.swap_rp);
 					return;
 				}
 			}
-			WRITE_MPEG_REG(PARSER_VIDEO_RP,
+			WRITE_PARSER_REG(PARSER_VIDEO_RP,
 				READ_VREG(VLD_MEM_VIFIFO_RP));
 		} else if (vdec->input.target == VDEC_INPUT_TARGET_HEVC) {
 			me = READ_VREG(HEVC_SHIFT_BYTE_COUNT);
@@ -446,20 +446,20 @@ static void vdec_sync_input_read(struct vdec_s *vdec)
 				me += 1ULL << 32;
 			other = vdec_get_associate(vdec)->input.streaming_rp;
 			if (me > other) {
-				WRITE_MPEG_REG(PARSER_VIDEO_RP,
+				WRITE_PARSER_REG(PARSER_VIDEO_RP,
 					vdec_get_associate(vdec)->
 					input.swap_rp);
 				return;
 			}
 
-			WRITE_MPEG_REG(PARSER_VIDEO_RP,
+			WRITE_PARSER_REG(PARSER_VIDEO_RP,
 				READ_VREG(HEVC_STREAM_RD_PTR));
 		}
 	} else if (vdec->input.target == VDEC_INPUT_TARGET_VLD) {
-		WRITE_MPEG_REG(PARSER_VIDEO_RP,
+		WRITE_PARSER_REG(PARSER_VIDEO_RP,
 			READ_VREG(VLD_MEM_VIFIFO_RP));
 	} else if (vdec->input.target == VDEC_INPUT_TARGET_HEVC) {
-		WRITE_MPEG_REG(PARSER_VIDEO_RP,
+		WRITE_PARSER_REG(PARSER_VIDEO_RP,
 			READ_VREG(HEVC_STREAM_RD_PTR));
 	}
 }
@@ -471,10 +471,10 @@ static void vdec_sync_input_write(struct vdec_s *vdec)
 
 	if (vdec->input.target == VDEC_INPUT_TARGET_VLD) {
 		WRITE_VREG(VLD_MEM_VIFIFO_WP,
-			READ_MPEG_REG(PARSER_VIDEO_WP));
+			READ_PARSER_REG(PARSER_VIDEO_WP));
 	} else if (vdec->input.target == VDEC_INPUT_TARGET_HEVC) {
 		WRITE_VREG(HEVC_STREAM_WR_PTR,
-			READ_MPEG_REG(PARSER_VIDEO_WP));
+			READ_PARSER_REG(PARSER_VIDEO_WP));
 	}
 }
 
@@ -696,7 +696,7 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 				WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, 2);
 				WRITE_VREG(VLD_MEM_VIFIFO_RP, input->start);
 				WRITE_VREG(VLD_MEM_VIFIFO_WP,
-					READ_MPEG_REG(PARSER_VIDEO_WP));
+					READ_PARSER_REG(PARSER_VIDEO_WP));
 
 				rp = READ_VREG(VLD_MEM_VIFIFO_RP);
 
@@ -714,7 +714,7 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 				WRITE_VREG(HEVC_STREAM_RD_PTR,
 					input->start);
 				WRITE_VREG(HEVC_STREAM_WR_PTR,
-					READ_MPEG_REG(PARSER_VIDEO_WP));
+					READ_PARSER_REG(PARSER_VIDEO_WP));
 
 				rp = READ_VREG(HEVC_STREAM_RD_PTR);
 				wp = READ_VREG(HEVC_STREAM_WR_PTR);
@@ -789,10 +789,10 @@ bool vdec_has_more_input(struct vdec_s *vdec)
 	else {
 		if (input->target == VDEC_INPUT_TARGET_VLD)
 			return READ_VREG(VLD_MEM_VIFIFO_WP) !=
-				READ_MPEG_REG(PARSER_VIDEO_WP);
+				READ_PARSER_REG(PARSER_VIDEO_WP);
 		else {
 			return (READ_VREG(HEVC_STREAM_WR_PTR) & ~0x3) !=
-				(READ_MPEG_REG(PARSER_VIDEO_WP) & ~0x3);
+				(READ_PARSER_REG(PARSER_VIDEO_WP) & ~0x3);
 		}
 	}
 }
@@ -1559,8 +1559,8 @@ static inline bool vdec_ready_to_run(struct vdec_s *vdec)
 	if (input && input_stream_based(input) && !input->eos) {
 		u32 rp, wp, level;
 
-		rp = READ_MPEG_REG(PARSER_VIDEO_RP);
-		wp = READ_MPEG_REG(PARSER_VIDEO_WP);
+		rp = READ_PARSER_REG(PARSER_VIDEO_RP);
+		wp = READ_PARSER_REG(PARSER_VIDEO_WP);
 		if (wp < rp)
 			level = input->size + wp - rp;
 		else

@@ -87,12 +87,12 @@
 	if (buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) \
 		codec_dosbus_write((buf->reg_base+(r)), (val)); \
 	else \
-		codec_cbus_write((buf->reg_base+(r)), (val)); \
+		codec_aiubus_write((buf->reg_base+(r)), (val)); \
 	} while (0)
 #define _READ_ST_REG(r) \
 	((buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) ? \
 	 codec_dosbus_read(buf->reg_base+(r)) : \
-	 codec_cbus_read(buf->reg_base+(r)))
+	 codec_aiubus_read(buf->reg_base+(r)))
 
 #define _SET_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r) | (val))
 #define _CLR_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r)&~(val))

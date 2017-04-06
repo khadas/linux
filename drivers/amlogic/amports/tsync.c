@@ -216,9 +216,9 @@ static void tsync_pcr_recover_with_audio(void)
 #if 0				/* MESON_CPU_TYPE < MESON_CPU_TYPE_MESON6 */
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M6) {
-		u32 ab_level = READ_MPEG_REG(AIU_MEM_AIFIFO_LEVEL);
-		u32 ab_size = READ_MPEG_REG(AIU_MEM_AIFIFO_END_PTR)
-			- READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR) + 8;
+		u32 ab_level = READ_AIU_REG(AIU_MEM_AIFIFO_LEVEL);
+		u32 ab_size = READ_AIU_REG(AIU_MEM_AIFIFO_END_PTR)
+			- READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR) + 8;
 		u32 vb_level = READ_VREG(VLD_MEM_VIFIFO_LEVEL);
 		u32 vb_size = READ_VREG(VLD_MEM_VIFIFO_END_PTR)
 			- READ_VREG(VLD_MEM_VIFIFO_START_PTR) + 8;
@@ -227,7 +227,7 @@ static void tsync_pcr_recover_with_audio(void)
 		bool higher_than_high = false;
 		bool lower_than_high = false;
 		bool higher_than_low = false;
-		if ((READ_MPEG_REG(AIU_MEM_I2S_CONTROL) &
+		if ((READ_AIU_REG(AIU_MEM_I2S_CONTROL) &
 			 (MEM_CTRL_EMPTY_EN | MEM_CTRL_EMPTY_EN)) == 0)
 			return;
 		/* pr_info("ab_size:%d ab_level:%d vb_size:%d vb_level:%d\n",
@@ -463,7 +463,7 @@ static bool tsync_pcr_recover_use_video(void)
 	 * mixer so audio playback has no direct relationship with
 	 * applications. TODO.
 	 */
-	return ((READ_MPEG_REG(AIU_MEM_I2S_CONTROL) &
+	return ((READ_AIU_REG(AIU_MEM_I2S_CONTROL) &
 			 (MEM_CTRL_EMPTY_EN | MEM_CTRL_EMPTY_EN)) == 0) ?
 		true : false;
 }
