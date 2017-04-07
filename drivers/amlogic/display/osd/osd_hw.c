@@ -1901,14 +1901,14 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 
 	width_dst = osd_hw.free_dst_data_backup[index].x_end -
-		osd_hw.free_dst_data_backup[index].x_start;
+		osd_hw.free_dst_data_backup[index].x_start + 1;
 	width_src = osd_hw.free_src_data_backup[index].x_end -
-		osd_hw.free_src_data_backup[index].x_start;
+		osd_hw.free_src_data_backup[index].x_start + 1;
 
 	height_dst = osd_hw.free_dst_data_backup[index].y_end -
-		osd_hw.free_dst_data_backup[index].y_start;
+		osd_hw.free_dst_data_backup[index].y_start + 1;
 	height_src = osd_hw.free_src_data_backup[index].y_end -
-		osd_hw.free_src_data_backup[index].y_start;
+		osd_hw.free_src_data_backup[index].y_start + 1;
 
 	if (osd_hw.free_scale_enable[index] ||
 		(width_src != width_dst) ||
