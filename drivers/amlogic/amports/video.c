@@ -486,6 +486,16 @@ static int pause_one_3d_fl_frame;
 MODULE_PARM_DESC(pause_one_3d_fl_frame, "\n pause_one_3d_fl_frame\n");
 module_param(pause_one_3d_fl_frame, uint, 0664);
 
+/*debug info control for skip & repeate vframe case*/
+static unsigned int video_dbg_vf;
+MODULE_PARM_DESC(video_dbg_vf, "\n video_dbg_vf\n");
+module_param(video_dbg_vf, uint, 0664);
+
+static unsigned int video_get_vf_cnt;
+static unsigned int video_drop_vf_cnt;
+MODULE_PARM_DESC(video_drop_vf_cnt, "\n video_drop_vf_cnt\n");
+module_param(video_drop_vf_cnt, uint, 0664);
+
 enum toggle_out_fl_frame_e {
 	OUT_FA_A_FRAME,
 	OUT_FA_BANK_FRAME,
@@ -981,6 +991,37 @@ int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
 	*vf = cur_dispbuf;
 	return 0;
 }
+static void dump_vframe_status(const char *name)
+{
+	int ret = 0;
+	struct vframe_states states;
+	struct vframe_provider_s *vfp;
+
+	vfp = vf_get_provider_by_name(name);
+	if (vfp && vfp->ops && vfp->ops->vf_states)
+		ret = vfp->ops->vf_states(&states, vfp->op_arg);
+
+	if (ret == 0) {
+		ret += pr_info("%s_pool_size=%d\n",
+			name, states.vf_pool_size);
+		ret += pr_info("%s buf_free_num=%d\n",
+			name, states.buf_free_num);
+		ret += pr_info("%s buf_avail_num=%d\n",
+			name, states.buf_avail_num);
+	} else {
+		ret += pr_info("%s vframe no states\n", name);
+	}
+}
+
+static void dump_vdin_reg(void)
+{
+	unsigned int reg001, reg002;
+	reg001 = READ_VCBUS_REG(0x1204);
+	reg002 = READ_VCBUS_REG(0x1205);
+	pr_info("VDIN_LCNT_STATUS:0x%x,VDIN_COM_STATUS0:0x%x\n",
+		reg001, reg002);
+}
+
 #ifdef CONFIG_AM_VIDEOCAPTURE
 
 int ext_put_video_frame(struct vframe_s *vf)
@@ -4376,8 +4417,21 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	if ((!vf) && cur_dispbuf && (video_property_changed))
 		vsync_toggle_frame(cur_dispbuf);
 
-	if (!vf)
+	/*debug info for skip & repeate vframe case*/
+	if (!vf) {
 		underflow++;
+		if (video_dbg_vf&(1<<0))
+			dump_vframe_status("vdin0");
+		if (video_dbg_vf&(1<<1))
+			dump_vframe_status("deinterlace");
+		if (video_dbg_vf&(1<<2))
+			dump_vframe_status("amlvideo2");
+		if (video_dbg_vf&(1<<3))
+			dump_vframe_status("ppmgr");
+		if (video_dbg_vf&(1<<4))
+			dump_vdin_reg();
+	}
+	video_get_vf_cnt = 0;
 	if (platform_type == 1) {
 		/* toggle_3d_fa_frame
 		* determine the out frame is L or R or blank */
@@ -4470,6 +4524,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				break;
 			if (debug_flag & DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC)
 				break;
+			video_get_vf_cnt++;
+			if (video_get_vf_cnt >= 2)
+				video_drop_vf_cnt++;
 		} else {
 			/* check if current frame's duration has expired,
 			*in this example

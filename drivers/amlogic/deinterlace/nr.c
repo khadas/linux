@@ -262,9 +262,14 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	/* dm for sd, hd will slower */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/*disable */
-		if (width > 1280)
+		if (width > 1280) {
 			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
-		DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+			/* disable dm for 1080 which will cause pre timeout*/
+			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+		} else {
+			DI_Wr_reg_bits(DNR_DM_CTRL, 1, 8, 1);
+			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+		}
 	} else {
 		if (width >= 1920)
 			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);

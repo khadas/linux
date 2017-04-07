@@ -189,7 +189,6 @@ static int bypass_3d = 1;
 static int invert_top_bot;
 static int skip_top_bot;/*1or2: may affect atv when bypass di*/
 static int bypass_get_buf_threshold = 4;
-static int bypass_hdmi_get_buf_threshold = 3;
 
 static int post_hold_line = 17;/* for m8 1080i/50 output */
 static int force_update_post_reg = 0x10;
@@ -447,6 +446,7 @@ static unsigned int di_printk_flag;
 static unsigned int di_stop_reg_flag;
 static unsigned int num_di_stop_reg_addr = 4;
 static unsigned int di_stop_reg_addr[4] = {0};
+static unsigned int di_dbg_mask;
 
 unsigned int is_need_stop_reg(unsigned int addr)
 {
@@ -5435,16 +5435,11 @@ static unsigned char pre_de_buf_config(void)
 		/* some provider has problem if receiver
 		 * get all buffers of provider */
 		int in_buf_num = 0;
-		int bypass_buf_threshold = bypass_get_buf_threshold;
-		if ((di_pre_stru.cur_inp_type & VIDTYPE_VIU_444) &&
-			(di_pre_stru.cur_source_type ==
-			VFRAME_SOURCE_TYPE_HDMI))
-			bypass_buf_threshold = bypass_hdmi_get_buf_threshold;
 		cur_lev = 0;
 		for (i = 0; i < MAX_IN_BUF_NUM; i++)
 			if (vframe_in[i] != NULL)
 				in_buf_num++;
-		if (in_buf_num > bypass_buf_threshold
+		if (in_buf_num > bypass_get_buf_threshold
 #ifdef DET3D
 		    && (di_pre_stru.vframe_interleave_flag == 0)
 #endif
@@ -6058,12 +6053,13 @@ static int check_recycle_buf(void)
 					vf_notify_provider(VFM_NAME,
 						VFRAME_EVENT_RECEIVER_PUT,
 						NULL);
-#ifdef DI_BUFFER_DEBUG
 					di_print(
-						"%s: vf_put(%d) %x\n", __func__,
+						"%s: vf_put(%d) %x, %u ms\n",
+						__func__,
 						di_pre_stru.recycle_seq,
-						vframe_in[di_buf->index]);
-#endif
+						vframe_in[di_buf->index],
+						jiffies_to_msecs(jiffies_64 -
+				vframe_in[di_buf->index]->ready_jiffies64));
 					vframe_in[di_buf->index] = NULL;
 				}
 				di_buf->invert_top_bot_flag = 0;
@@ -8416,9 +8412,11 @@ static void di_reg_process_irq(void)
 
 	if (vframe) {
 		if (need_bypass(vframe) || ((di_debug_flag>>20) & 0x1)) {
+			if (!di_pre_stru.bypass_flag) {
+				pr_info("DI bypass all %ux%u-0x%x.",
+				vframe->width, vframe->height, vframe->type);
+			}
 			di_pre_stru.bypass_flag = true;
-			pr_info("DI bypass all %ux%u-0x%x.", vframe->width,
-				vframe->height, vframe->type);
 			return;
 		} else {
 			di_pre_stru.bypass_flag = false;
@@ -8691,7 +8689,8 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 				pre_stru_p->pre_de_busy = 0;
 			} /* else if (timeout_miss_policy == 2) {
 			   * }*/
-			if (pre_stru_p->field_count_for_cont < 10) {
+			if ((pre_stru_p->field_count_for_cont < 10) ||
+				(di_dbg_mask&0x2)) {
 				pr_info("DI*****wait %d timeout*****\n",
 					pre_stru_p->field_count_for_cont);
 			}
@@ -9098,12 +9097,8 @@ static void fast_process(void)
 {
 	int i;
 	ulong flags = 0, irq_flag2 = 0;
-	unsigned int bypass_buf_threshold = bypass_get_buf_threshold;
 
-	if ((di_pre_stru.cur_inp_type & VIDTYPE_VIU_444) &&
-		(di_pre_stru.cur_source_type == VFRAME_SOURCE_TYPE_HDMI))
-		bypass_buf_threshold = bypass_hdmi_get_buf_threshold;
-	if (active_flag && is_bypass(NULL) && (bypass_buf_threshold <= 1) &&
+	if (active_flag && is_bypass(NULL) && (bypass_get_buf_threshold <= 1) &&
 		init_flag && (recovery_flag == 0) &&
 		(dump_state_flag == 0)) {
 		if (vf_peek(VFM_NAME) == NULL)
@@ -9403,6 +9398,11 @@ static int di_vf_states(struct vframe_states *states, void *arg)
 	states->buf_free_num = list_count(QUEUE_LOCAL_FREE);
 	states->buf_avail_num = list_count(QUEUE_POST_READY);
 	states->buf_recycle_num = list_count(QUEUE_RECYCLE);
+	if (di_dbg_mask&0x1) {
+		di_pr_info("di-pre-ready-num:%d\n",
+			list_count(QUEUE_PRE_READY));
+		di_pr_info("di-display-num:%d\n", list_count(QUEUE_DISPLAY));
+	}
 	return 0;
 }
 
@@ -9933,6 +9933,7 @@ static int di_probe(struct platform_device *pdev)
 	di_pre_hrtimer.function = di_pre_hrtimer_func;
 	hrtimer_start(&di_pre_hrtimer, ms_to_ktime(10), HRTIMER_MODE_REL);
 	tasklet_enable(&di_pre_tasklet);
+	di_pr_info("%s:Di use HRTIMER\n", __func__);
 #else
 	/* timer */
 	INIT_WORK(&di_pre_work, di_per_work_func);
@@ -9948,6 +9949,7 @@ static int di_probe(struct platform_device *pdev)
 	ret = request_irq(di_devp->timerc_irq, &timer_irq,
 		IRQF_SHARED, "timerC",
 		(void *)"timerC");
+	di_pr_info("%s:Di use timerC\n", __func__);
 #endif
 	di_devp->task = kthread_run(di_task_handle, di_devp, "kthread_di");
 	if (IS_ERR(di_devp->task))
@@ -10196,9 +10198,6 @@ module_param(force_height, int, 0664);
 MODULE_PARM_DESC(bypass_get_buf_threshold, "\n bypass_get_buf_threshold\n");
 module_param(bypass_get_buf_threshold, uint, 0664);
 
-MODULE_PARM_DESC(bypass_hdmi_get_buf_threshold, "\n bypass_hdmi_get_buf_threshold\n");
-module_param(bypass_hdmi_get_buf_threshold, uint, 0664);
-
 MODULE_PARM_DESC(pulldown_detect, "\n pulldown_detect\n");
 module_param(pulldown_detect, int, 0664);
 
@@ -10365,6 +10364,9 @@ MODULE_PARM_DESC(nr10bit_surpport, "\n nr10bit surpport flag\n");
 
 module_param(di_stop_reg_flag, uint, 0664);
 MODULE_PARM_DESC(di_stop_reg_flag, "\n di_stop_reg_flag\n");
+
+module_param(di_dbg_mask, uint, 0664);
+MODULE_PARM_DESC(di_dbg_mask, "\n di_dbg_mask\n");
 
 module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
 	0664);
