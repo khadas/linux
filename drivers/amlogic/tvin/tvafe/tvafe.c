@@ -48,6 +48,7 @@
 #include "tvafe_cvd.h"
 #include "tvafe_general.h"
 #include "tvafe.h"
+#include "tvafe_avin_detect.h"
 #include "../vdin/vdin_sm.h"
 
 
@@ -865,6 +866,13 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 						frontend);
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 
+	if (port == TVIN_PORT_CVBS1) {
+		/*channel1*/
+		tvafe_cha1_SYNCTIP_close_config();
+	} else if (port == TVIN_PORT_CVBS2) {
+		/*channel2*/
+		tvafe_cha2_SYNCTIP_close_config();
+	}
 	mutex_lock(&devp->afe_mutex);
 	if (devp->flags & TVAFE_FLAG_DEV_OPENED) {
 
@@ -917,6 +925,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	pr_info("[tvafe..] %s open port:0x%x ok.\n", __func__, port);
 
 	mutex_unlock(&devp->afe_mutex);
+
 	return 0;
 }
 
