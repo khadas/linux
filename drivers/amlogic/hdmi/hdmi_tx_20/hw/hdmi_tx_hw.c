@@ -3893,6 +3893,41 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	return ret;
 }
 
+static int hdmitx_tmds_rxsense(void)
+{
+	unsigned int curr0, curr3;
+	int ret = 0;
+
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+		curr0 = hd_read_reg(P_HHI_HDMI_PHY_CNTL0);
+		curr3 = hd_read_reg(P_HHI_HDMI_PHY_CNTL3);
+		if (curr0 == 0)
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632122);
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x9a, 16, 8);
+		ret = hd_read_reg(P_HHI_HDMI_PHY_CNTL2) & 0x1;
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, curr3);
+		if (curr0 == 0)
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0);
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
+	default:
+		curr0 = hd_read_reg(P_HHI_HDMI_PHY_CNTL0);
+		curr3 = hd_read_reg(P_HHI_HDMI_PHY_CNTL3);
+		if (curr0 == 0)
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33604142);
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x1, 4, 1);
+		ret = hd_read_reg(P_HHI_HDMI_PHY_CNTL2) & 0x1;
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, curr3);
+		if (curr0 == 0)
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0);
+		break;
+	}
+
+	return ret;
+}
+
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned argv)
 {
@@ -3927,6 +3962,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		if (argv == TMDS_PHY_DISABLE)
 			hdmi_phy_suspend();
 		break;
+	case MISC_TMDS_RXSENSE:
+		return hdmitx_tmds_rxsense();
 	case MISC_ESM_RESET:
 		if (hdev->hdcp_hpd_stick == 1) {
 			pr_info("hdcp: stick mode\n");
