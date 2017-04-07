@@ -130,10 +130,7 @@ static ssize_t pts_show(struct class *class, struct class_attribute *attr,
 static ssize_t addr_offset_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
-	if (INFO_VALID)
-		return sprintf(buf, "%d\n", astream_dev->offset);
-	else
-		return sprintf(buf, "%s\n", na_string);
+	return sprintf(buf, "%d\n", astream_dev->offset);
 }
 
 static struct class_attribute astream_class_attrs[] = {
@@ -262,7 +259,7 @@ s32 astream_dev_register(void)
 
 	astream_dev->dev.class = &astream_class;
 	astream_dev->dev.release = astream_release;
-
+	astream_dev->offset = 0;
 	dev_set_name(&astream_dev->dev, "astream-dev");
 
 	dev_set_drvdata(&astream_dev->dev, astream_dev);
@@ -292,6 +289,10 @@ s32 astream_dev_register(void)
 		astream_uio_info.mem[0].addr =
 			(cbus_base + CBUS_REG_OFFSET(AIU_AIFIFO_CTRL +
 			astream_dev->offset)) & (PAGE_MASK);
+
+		astream_uio_info.mem[3].addr =
+			(cbus_base + CBUS_REG_OFFSET(ASSIST_HW_REV +
+			0x100)) & (PAGE_MASK);
 	}
 
 #if 1

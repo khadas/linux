@@ -1468,5 +1468,5 @@
 };
 
 &audio_data{
-	status = "disabled";
+	status = "okay";
 };
