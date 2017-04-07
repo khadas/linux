@@ -2174,6 +2174,7 @@ void di_post_gate_control(bool gate)
 	}
 
 }
+static bool pre_mif_gate;
 void enable_di_pre_mif(bool en)
 {
 	if (en) {
@@ -2192,6 +2193,8 @@ void enable_di_pre_mif(bool en)
 		/* enable di nr/mtn/mv mif */
 		/* RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f); */
 	} else {
+		if (pre_mif_gate)
+			return;
 		/* nrwr no clk gate en=1 */
 		RDMA_WR_BITS(DI_NRWR_CTRL, 1, 24, 1);
 		/* nr wr req en =0 */
@@ -2281,3 +2284,6 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 			pr_info("[%u][0x%x] = [0x%x]\n", i, addr, value);
 	}
 }
+#ifdef DEBUG_SUPPORT
+module_param_named(pre_mif_gate, pre_mif_gate, bool, 0644);
+#endif

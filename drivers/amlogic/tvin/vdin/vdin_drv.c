@@ -1843,7 +1843,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->trans_fmt = devp->parm.info.trans_fmt;
 		vdin_set_view(devp, curr_wr_vf);
 	}
-#if 0
+#if 1
 	vdin_calculate_duration(devp);
 #else
 	curr_wr_vf->duration = devp->duration;
