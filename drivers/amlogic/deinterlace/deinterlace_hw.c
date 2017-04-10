@@ -312,20 +312,8 @@ void enable_di_pre_aml(
 
 	/* set nr wr mif interface. */
 	if (nr_en) {
-		/*work around for yuv422-10bit-fullpack
-		*todo:delete it if after TXL fix the issue*/
-		if (((di_nrwr_mif->end_x % 2) == 0) &&
-			(di_nrwr_mif->bit_mode == 3)) {
-			RDMA_WR_BITS(DI_NRWR_X,
-				(di_nrwr_mif->end_x + 1), 0, 14);
-			RDMA_WR_BITS(DI_NRWR_X,
-				di_nrwr_mif->start_x, 16, 14);
-		} else {
-			RDMA_WR_BITS(DI_NRWR_X,
-				di_nrwr_mif->end_x, 0, 14);
-			RDMA_WR_BITS(DI_NRWR_X,
-				di_nrwr_mif->start_x, 16, 14);
-		}
+		RDMA_WR_BITS(DI_NRWR_X, di_nrwr_mif->end_x, 0, 14);
+		RDMA_WR_BITS(DI_NRWR_X,	di_nrwr_mif->start_x, 16, 14);
 		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->start_y, 16, 13);
 		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->end_y, 0, 13);
 		RDMA_WR_BITS(DI_NRWR_Y, 3, 30, 2);
