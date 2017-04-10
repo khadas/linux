@@ -29,6 +29,16 @@
 #define PWM_PWM_E                       0x21b0
 #define PWM_PWM_F                       0x21b1
 #define PWM_MISC_REG_EF                 0x21b2
+/* normal pwm reg: cbus, txlx */
+#define PWM_PWM_A_TXLX                  0x6c00
+#define PWM_PWM_B_TXLX                  0x6c01
+#define PWM_MISC_REG_AB_TXLX            0x6c02
+#define PWM_PWM_C_TXLX                  0x6800
+#define PWM_PWM_D_TXLX                  0x6801
+#define PWM_MISC_REG_CD_TXLX            0x6802
+#define PWM_PWM_E_TXLX                  0x6400
+#define PWM_PWM_F_TXLX                  0x6401
+#define PWM_MISC_REG_EF_TXLX            0x6402
 
 /* pwm_vs reg: vcbus */
 #define VPU_VPU_PWM_V0                  0x2730
