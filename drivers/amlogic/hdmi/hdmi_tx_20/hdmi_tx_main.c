@@ -3031,7 +3031,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.hdtx_dev = &pdev->dev;
 	/* init para for NULL protection */
 	hdmitx_device.para = hdmi_get_fmt_name("invalid", fmt_attr);
-	hdmi_print(IMP, SYS "amhdmitx_probe\n");
+	pr_info("hdmitx: amhdmitx_probe\n");
 
 	r = alloc_chrdev_region(&hdmitx_id, 0, HDMI_TX_COUNT,
 		DEVICE_NAME);
@@ -3485,7 +3485,6 @@ static int  __init amhdmitx_init(void)
 	if (init_flag&INIT_FLAG_NOT_LOAD)
 		return 0;
 
-	hdmi_print(IMP, SYS "amhdmitx_init\n");
 	hdmi_print(IMP, SYS "Ver: %s\n", HDMITX_VER);
 
 	amhdmitx_device_init(&hdmitx_device);

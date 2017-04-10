@@ -770,7 +770,6 @@ void set_vmode_enc_hw(enum hdmi_vic vic)
 	hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);
 
 	if (s) {
-		pr_info("hdmitx: set enc for VIC: %d\n", vic);
 		while (MREG_END_MARKER != s->reg)
 			setreg(s++);
 	} else
