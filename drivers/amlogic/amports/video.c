@@ -2492,7 +2492,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 {
 	u32 r;
-	u32 vphase, vini_phase;
+	u32 vphase, vini_phase, vformatter;
 	u32 pat, loop;
 	static const u32 vpat[] = { 0, 0x8, 0x9, 0xa, 0xb, 0xc };
 	u32 u, v;
@@ -2704,6 +2704,12 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		vphase =
 		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
 		    VFORMATTER_PHASE_BIT;
+
+		/*vlsi suggest only for yuv420 vformatter shold be 1*/
+		if (type & VIDTYPE_VIU_NV21)
+			vformatter = VFORMATTER_EN;
+		else
+			vformatter = 0;
 		if (is_meson_txlx_package_962X()
 		&& !is_dolby_vision_stb_mode()
 		&& is_dolby_vision_on()) {
@@ -2741,9 +2747,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				(is_dolby_vision_on() ?
 				HFORMATTER_REPEAT : 0) |
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
-				VFORMATTER_RPTLINE0_EN |
-				vini_phase | vphase |
-				VFORMATTER_EN);
+				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
+				vformatter);
 				if (!vf_with_el)
 					VSYNC_WR_MPEG_REG(
 					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -2751,7 +2756,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
 					vini_phase | vphase |
-					VFORMATTER_EN);
+					vformatter);
 			}
 		} else {
 			VSYNC_WR_MPEG_REG(
@@ -2761,7 +2766,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				vini_phase | vphase |
-				VFORMATTER_EN);
+				vformatter);
 			if (!vf_with_el)
 				VSYNC_WR_MPEG_REG(
 					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -2769,7 +2774,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
 					vini_phase | vphase |
-					VFORMATTER_EN);
+					vformatter);
 		}
 	} else if (type & VIDTYPE_MVC) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,

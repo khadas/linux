@@ -3187,3 +3187,13 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 	return 0;
 }
 
+/*work around for hdmi-in 4k 10bit input,must called before vf init!!*/
+void vdin_hdmiin_patch(struct vdin_dev_s *devp)
+{
+	if ((devp->prop.colordepth >= 10) &&
+		(devp->v_active >= 2160) &&
+		(devp->parm.port >= TVIN_PORT_HDMI0) &&
+		(devp->parm.port <= TVIN_PORT_HDMI7))
+		devp->v_active -= 1;
+}
+

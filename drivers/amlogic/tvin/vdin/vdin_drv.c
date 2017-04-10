@@ -1021,6 +1021,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 
 	devp->vfp->size = devp->canvas_max_num;
 	vf_pool_init(devp->vfp, devp->vfp->size);
+	vdin_hdmiin_patch(devp);/*must place before vf init*/
 	vdin_vf_init(devp);
 	/* config dolby mem base */
 	if (devp->dv_flag || dolby_input)
