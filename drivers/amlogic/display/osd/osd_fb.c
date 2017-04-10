@@ -55,6 +55,7 @@
 #include "osd_log.h"
 #include "osd_sync.h"
 
+
 static __u32 var_screeninfo[5];
 
 struct osd_info_s osd_info = {
@@ -1002,6 +1003,9 @@ static int osd_open(struct fb_info *info, int arg)
 	const struct vinfo_s *vinfo;
 
 	fbdev = (struct osd_fb_dev_s *)info->par;
+	fbdev->open_count++;
+	osd_log_info("osd_open index=%d,open_count=%d\n",
+		fbdev->fb_index, fbdev->open_count);
 	if (info->screen_base != NULL)
 		return 0;
 	pdev = fbdev->dev;
@@ -1197,6 +1201,28 @@ static int osd_open(struct fb_info *info, int arg)
 	return 0;
 }
 
+
+static int osd_release(struct fb_info *info, int arg)
+{
+	struct osd_fb_dev_s *fbdev;
+	int err = 0;
+
+	fbdev = (struct osd_fb_dev_s *)info->par;
+
+	if (!fbdev->open_count) {
+		err = -EINVAL;
+		osd_log_info("osd already released. index=%d\n",
+			fbdev->fb_index);
+		goto done;
+	}
+	osd_log_info("osd_release now.index=%d,open_count=%d\n",
+		fbdev->fb_index, fbdev->open_count);
+
+	fbdev->open_count--;
+done:
+	return err;
+}
+
 static ssize_t osd_clear(struct device *device, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -1273,6 +1299,7 @@ static struct fb_ops osd_ops = {
 	.fb_blank       = osd_blank,
 	.fb_pan_display = osd_pan_display,
 	.fb_sync        = osd_sync,
+	.fb_release		= osd_release,
 };
 
 static void set_default_display_axis(struct fb_var_screeninfo *var,

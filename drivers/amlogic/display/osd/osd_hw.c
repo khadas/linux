@@ -290,6 +290,7 @@ static inline  int  find_buf_num(u32 yres, u32 yoffset)
 	return i;
 }
 
+
 /* next we will process two osd layer in toggle buffer. */
 static void osd_toggle_buffer(struct kthread_work *work)
 {
@@ -304,8 +305,6 @@ static void osd_toggle_buffer(struct kthread_work *work)
 		osd_pan_display_fence(data);
 		if (data->in_fence)
 			sync_fence_put(data->in_fence);
-		if (data->in_fd > 0)
-			__close_fd(data->files, data->in_fd);
 		list_del(&data->list);
 		kfree(data);
 	}
@@ -378,13 +377,12 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 	fence_map->yres = yres;
 	fence_map->in_fd = in_fence_fd;
 	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
-	fence_map->files = current->files;
 	fence_map->out_fd =
 		out_fence_create(&out_fence_fd, &fence_map->val, buf_num);
 	list_add_tail(&fence_map->list, &post_fence_list);
 	mutex_unlock(&post_fence_list_lock);
 	queue_kthread_work(&buffer_toggle_worker, &buffer_toggle_work);
-
+	__close_fd(current->files, in_fence_fd);
 	return  out_fence_fd;
 }
 
@@ -431,13 +429,13 @@ int osd_sync_request_render(u32 index, u32 yres,
 	fence_map->compose_type = request->type;
 	fence_map->op = request->op;
 	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
-	fence_map->files = current->files;
 	fence_map->out_fd =
 		out_fence_create(&out_fence_fd, &fence_map->val, buf_num);
 	list_add_tail(&fence_map->list, &post_fence_list);
 	mutex_unlock(&post_fence_list_lock);
 	queue_kthread_work(&buffer_toggle_worker, &buffer_toggle_work);
 	request->out_fen_fd = out_fence_fd;
+	__close_fd(current->files, in_fence_fd);
 	return  out_fence_fd;
 }
 
