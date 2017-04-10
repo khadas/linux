@@ -246,7 +246,6 @@ struct osd_fence_map_s {
 	int pxiel_stride;
 	u32 reserve;
 	struct sync_fence *in_fence;
-	struct files_struct *files;
 };
 
 struct afbcd_data_s {
