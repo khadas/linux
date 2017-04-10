@@ -1852,6 +1852,7 @@ struct di_pre_stru_s {
 	unsigned int det_tp;
 	unsigned int det_la;
 	unsigned int det_null;
+	unsigned int width_bk;
 #ifdef DET3D
 	int	vframe_interleave_flag;
 #endif
@@ -1906,6 +1907,8 @@ static void dump_di_pre_stru(void)
 		di_pre_stru.reg_req_flag_irq);
 	pr_info("cur_width			   = %d\n",
 		di_pre_stru.cur_width);
+	pr_info("width_bk			   = %u\n",
+		di_pre_stru.width_bk);
 	pr_info("cur_height			   = %d\n",
 		di_pre_stru.cur_height);
 	pr_info("cur_inp_type		   = 0x%x\n",
@@ -5447,7 +5450,8 @@ static unsigned char pre_de_buf_config(void)
 	vframe_t *vframe;
 	int i, di_linked_buf_idx = -1;
 	unsigned char change_type = 0;
-
+	bool bit10_pack_patch = false;
+	unsigned int width_roundup = 2;
 	if (di_blocking)
 		return 0;
 	if ((list_count(QUEUE_IN_FREE) < 2 && (!di_pre_stru.di_inp_buf_next)) ||
@@ -5546,15 +5550,14 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			force_height = 1080;
 		else
 			force_height = 0;
-		if ((vframe->source_type == VFRAME_SOURCE_TYPE_OTHERS) &&
-			(vframe->width % 2 == 1)) {
-			force_width = vframe->width - 1;
-			if (force_width != (vframe->width - 1))
-				pr_info("DI: force source width %u to even num %d.\n",
-					vframe->width, force_width);
-		} else {
+		bit10_pack_patch =  (is_meson_gxtvbb_cpu() ||
+							is_meson_gxl_cpu() ||
+							is_meson_gxm_cpu());
+		width_roundup = bit10_pack_patch ? 16 : width_roundup;
+		if (di_force_bit_mode == 10)
+			force_width = roundup(vframe->width, width_roundup);
+		else
 			force_width = 0;
-		}
 		di_pre_stru.source_trans_fmt = vframe->trans_fmt;
 		di_pre_stru.left_right = di_pre_stru.left_right ? 0 : 1;
 
@@ -5575,7 +5578,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 				vframe->type |= VIDTYPE_INTERLACE_TOP;
 			}
 		}
-
+		di_pre_stru.width_bk = vframe->width;
 		if (force_width)
 			vframe->width = force_width;
 
@@ -7818,6 +7821,7 @@ static int process_post_vframe(void)
 					VIDTYPE_VIU_SINGLE_PLANE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
+				di_buf->vframe->width = di_pre_stru.width_bk;
 				if (
 					di_buf->di_buf_dup_p[1]->
 					new_format_flag) {
@@ -7958,6 +7962,7 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 				memcpy(di_buf->vframe,
 					di_buf_i->vframe,
 					sizeof(vframe_t));
+				di_buf->vframe->width = di_pre_stru.width_bk;
 				di_buf->vframe->private_data = di_buf;
 
 				if (ready_di_buf->new_format_flag &&
@@ -8129,6 +8134,7 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
 				di_buf->vframe->height >>= 1;
+				di_buf->vframe->width = di_pre_stru.width_bk;
 				if (
 					(di_buf->di_buf_dup_p[0]->
 					 new_format_flag) ||
@@ -8157,7 +8163,6 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 						->nr_canvas_idx;
 				}
 			}
-
 			di_buf->di_buf[0] = di_buf->di_buf_dup_p[0];
 			queue_out(di_buf->di_buf[0]);
 			/*check if the field is error,then drop*/
