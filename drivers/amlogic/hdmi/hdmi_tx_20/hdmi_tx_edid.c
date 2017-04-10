@@ -2029,8 +2029,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		info->hdr_info.lumi_max = pRXCap->hdr_lum_max;
 		info->hdr_info.lumi_avg = pRXCap->hdr_lum_avg;
 		info->hdr_info.lumi_min = pRXCap->hdr_lum_min;
-		pr_info("hdmitx: update RX hdr info %x\n",
-			info->hdr_info.hdr_support);
 	}
 	return 0;
 
@@ -2317,7 +2315,6 @@ static void hdmitx_edid_blk_print(unsigned char *blk, unsigned int blk_idx)
 	}
 
 	memset(tmp_buf, 0, sizeof(TMP_EDID_BUF_SIZE));
-	hdmi_print(INF, EDID "blk%d raw data\n", blk_idx);
 	for (i = 0, pos = 0; i < 128; i++) {
 		pos += sprintf(tmp_buf + pos, "%02x", blk[i]);
 		if (((i+1) & 0x1f) == 0)    /* print 32bytes a line */
@@ -2341,9 +2338,7 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
 			tmp_chksum += buf[i + j*128];
 		if (tmp_chksum != 0) {
 			valid_blk_no++;
-			if ((tmp_chksum & 0xff) == 0)
-				hdmi_print(INF, EDID "check sum valid\n");
-			else
+			if (!((tmp_chksum & 0xff) == 0))
 				hdmi_print(INF, EDID "check sum invalid\n");
 		}
 		tmp_chksum = 0;

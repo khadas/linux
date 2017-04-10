@@ -1696,8 +1696,7 @@ static void hdmitx_config_tvenc_reg(int vic, unsigned reg, unsigned val)
 
 static void hdmitx_set_pll(struct hdmitx_dev *hdev)
 {
-	hdmi_print(IMP, SYS "set pll\n");
-	hdmi_print(IMP, SYS "param->VIC:%d\n", hdev->cur_video_param->VIC);
+	hdmi_print(IMP, SYS "set pll VIC:%d\n", hdev->cur_video_param->VIC);
 
 	cur_vout_index = get_cur_vout_index();
 	set_vmode_clk(hdev);
@@ -1817,7 +1816,6 @@ do { \
 			set_phy_by_mode(4);
 		break;
 	}
-	hdmi_print(IMP, SYS "PHY Setting Done\n");
 }
 
 static void set_tmds_clk_div40(unsigned int div40)
@@ -1845,10 +1843,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		if (!hdmitx_edid_VIC_support(hdev->cur_video_param->VIC))
 			return -1;
 	hdev->cur_VIC = hdev->cur_video_param->VIC;
-	if (hdev->RXCap.scdc_present)
-		pr_info("hdmitx: rx has SCDC present indicator\n");
-	else
-		pr_info("hdmitx: rx no SCDC present indicator\n");
 
 	scdc_rd_sink(SINK_VER, &rx_ver);
 	if (rx_ver != 1)
@@ -2295,7 +2289,7 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 	struct hdmitx_audpara *audio_param)
 {
 	int i;
-	pr_info("hdmitx set channel status\n");
+
 	for (i = 0; i < 9; i++)
 		/* First, set all status to 0 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS0+i, 0x00);
@@ -4955,7 +4949,6 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 		return;
 	}
 
-	pr_info("%s[%d] set VIC = %d\n", __func__, __LINE__, para->vic);
 	config_hdmi20_tx(vic, hdev,
 			hdev->para->cd,
 			TX_INPUT_COLOR_FORMAT,

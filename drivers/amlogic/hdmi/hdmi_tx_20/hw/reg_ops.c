@@ -115,11 +115,8 @@ void init_reg_map(void)
 		if (!reg_maps[i].p) {
 			pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
 				reg_maps[i].phy_addr);
-		} else {
+		} else
 			reg_maps[i].flag = 1;
-			pr_info("hdmitx20: Mapped PHY: 0x%x\n",
-				reg_maps[i].phy_addr);
-		}
 	}
 }
 

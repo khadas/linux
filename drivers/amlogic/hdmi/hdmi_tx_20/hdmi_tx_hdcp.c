@@ -108,7 +108,7 @@ static int __init hdmitx_hdcp_init(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	hdmi_print(IMP, SYS "hdmitx_hdcp_init\n");
+	pr_info("hdmitx_hdcp_init\n");
 	if (hdev->hdtx_dev == NULL) {
 		hdmi_print(IMP, SYS "exit for null device of hdmitx!\n");
 		return -ENODEV;
