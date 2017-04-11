@@ -6739,7 +6739,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 {
 	struct di_buf_s *di_buf = (struct di_buf_s *)arg;
 	struct di_buf_s *di_pldn_buf = di_buf->di_buf_dup_p[pldn_dly];
-	unsigned int di_width, di_height, di_start_x, di_end_x;
+	unsigned int di_width, di_height, di_start_x, di_end_x, mv_offset;
 	unsigned int di_start_y, di_end_y, hold_line = post_hold_line;
 	unsigned int post_blend_en = 0, post_blend_mode = 0,
 		     blend_mtn_en = 0, ei_en = 0, post_field_num = 0;
@@ -6894,8 +6894,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		di_post_stru.di_mtnprd_mif.end_y = di_end_y >> 1;
 		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.start_x = di_start_x / 5;
+			mv_offset = (di_start_x % 5) ? (5 - di_start_x % 5) : 0;
 			di_post_stru.di_mcvecrd_mif.vecrd_offset =
-				((di_start_x % 5) ? (5 - di_start_x % 5) : 0);
+				overturn ? (di_end_x + 1) % 5 : mv_offset;
 			di_post_stru.di_mcvecrd_mif.start_y =
 				(di_start_y >> 1);
 			di_post_stru.di_mcvecrd_mif.size_x =
