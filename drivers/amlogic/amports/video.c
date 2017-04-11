@@ -5333,9 +5333,15 @@ int _video_set_disable(u32 val)
 
 static void _set_video_crop(int *p)
 {
+	int last_l, last_r, last_t, last_b;
+	int new_l, new_r, new_t, new_b;
+	vpp_get_video_source_crop(&last_t, &last_l, &last_b, &last_r);
 	vpp_set_video_source_crop(p[0], p[1], p[2], p[3]);
-
-	video_property_changed = true;
+	vpp_get_video_source_crop(&new_t, &new_l, &new_b, &new_r);
+	if ((new_t != last_t) || (new_l != last_l)
+	|| (new_b != last_b) || (new_r != last_r)) {
+		video_property_changed = true;
+	}
 }
 
 static void _set_video_window(int *p)
