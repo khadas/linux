@@ -586,7 +586,7 @@ vpp_process_speed_check(s32 width_in,
 		struct vpp_frame_par_s *next_frame_par,
 		const struct vinfo_s *vinfo, struct vframe_s *vf)
 {
-	u32 cur_ratio;
+	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
 		return SPEED_CHECK_VSKIP;
@@ -609,13 +609,19 @@ vpp_process_speed_check(s32 width_in,
 			|| (height_screen <= 0))
 			return SPEED_CHECK_DONE;
 
-		if (height_in > height_out) {
+		if ((next_frame_par->vscale_skip_count > 0)
+			&& (vf->type & VIDTYPE_VIU_444))
+			bpp = 2;
+		if (height_in * bpp > height_out) {
 			if (get_cpu_type() >=
 				MESON_CPU_MAJOR_ID_GXBB) {
 				cur_ratio = div_u64((u64)height_in *
 						(u64)vinfo->height *
 						1000,
 						height_out * 2160);
+				if ((next_frame_par->vscale_skip_count > 0)
+					&& (vf->type & VIDTYPE_VIU_444))
+					cur_ratio = cur_ratio * 2;
 				if ((cur_ratio > min_ratio_1000) &&
 				(vf->source_type != VFRAME_SOURCE_TYPE_TUNER) &&
 				(vf->source_type != VFRAME_SOURCE_TYPE_CVBS))
