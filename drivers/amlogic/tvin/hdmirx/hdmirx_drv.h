@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2016/11/25"
+#define RX_VER0 "Ref.2017/04/11"
 /*------------------------------*/
 #define RX_VER1 "Ref.2017/03/15"
 /*------------------------------*/
@@ -187,11 +187,11 @@ enum fsm_states_e {
 	FSM_INIT,
 	FSM_HPD_LOW,
 	FSM_HPD_HIGH,
+	FSM_WAIT_CLK_STABLE,
 	FSM_EQ_INIT,
 	FSM_EQ_CALIBRATION,
 	FSM_EQ_END,
 	FSM_PHY_RST,
-	FSM_WAIT_CLK_STABLE,
 	FSM_WAIT_HDCP_SWITCH,
 	FSM_SIG_UNSTABLE,
 	FSM_DWC_RST_WAIT,
@@ -652,6 +652,7 @@ struct st_eq_data {
 	uint16_t acc;
 	/* Aquisition register */
 	uint16_t acq;
+	uint16_t acq_n[15];
 	uint16_t lastacq;
 };
 
@@ -824,4 +825,5 @@ extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
 extern void vdac_enable(bool on, unsigned int module_sel);
 extern void hdmirx_phy_bist_test(int lvl);
 extern int hdmirx_dev_init(void);
+extern void dump_eq_data(void);
 #endif  /* _TVHDMI_H */

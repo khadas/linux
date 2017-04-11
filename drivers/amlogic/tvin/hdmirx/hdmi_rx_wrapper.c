@@ -2586,15 +2586,6 @@ void hdmirx_hw_monitor(void)
 	case FSM_EQ_INIT:
 		/*check mhl 3.4gb*/
 		rx_pr("EQ-init\n");
-
-		if (hdmirx_tmds_6g()) {
-			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
-		} else {
-			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
-		}
-
 		if ((eq_dbg_ch0 != 0) ||
 			(eq_dbg_ch1 != 0) ||
 			(eq_dbg_ch2 != 0)) {
@@ -2641,10 +2632,12 @@ void hdmirx_hw_monitor(void)
 		phy_conf_eq_setting(eq_ch0.bestsetting,
 				eq_ch1.bestsetting,
 				eq_ch2.bestsetting);
+		/*
 		hdmirx_phy_conf_eq_setting(rx.port,
 				eq_ch0.bestsetting,
 				eq_ch1.bestsetting,
 				eq_ch2.bestsetting);
+		*/
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_end\n");
 		rx.state = FSM_SIG_UNSTABLE;
@@ -2666,6 +2659,7 @@ void hdmirx_hw_monitor(void)
 				rx.scdc_tmds_cfg = 0;
 				if (use_dwc_reset) {
 					rx_dwc_reset();
+					hdmirx_irq_open();
 					/*use_dwc_reset = false;*/
 				}
 				#ifdef HDCP22_ENABLE
@@ -4114,6 +4108,8 @@ int hdmirx_debug(const char *buf, int size)
 		sm_pause = value;
 	} else if (strncmp(tmpbuf, "reg", 3) == 0) {
 		dump_reg();
+	} else if (strncmp(tmpbuf, "eq", 2) == 0) {
+		dump_eq_data();
 	}  else if (strncmp(tmpbuf, "duk", 3) == 0) {
 		rx_pr("hdcp22=%d\n", rx_sec_set_duk());
 	} else if (strncmp(tmpbuf, "edid", 4) == 0) {

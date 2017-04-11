@@ -980,7 +980,7 @@ int hdmirx_audio_init(void)
 	hdmirx_wr_dwc(DWC_AUD_PLL_CTRL, data32);
 
 	data32  = 0;
-	data32 |= 80	<< 18;
+	data32 |= 80 << 18;
 	data32 |= 8	<< 9;
 	data32 |= 8	<< 0;
 	hdmirx_wr_dwc(DWC_AUD_FIFO_TH, data32);
@@ -1190,7 +1190,7 @@ void hdmirx_hw_config(void)
 	packet_init();
 	hdmirx_20_init();
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
-	hdmirx_irq_open();
+	/* hdmirx_irq_open(); */
 
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
 	DWC_init();
