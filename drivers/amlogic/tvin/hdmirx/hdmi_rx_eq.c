@@ -44,8 +44,6 @@ int fat_bit_status = 0;
 static int min_max_diff = 4;
 static int long_cable_best_setting = 6;
 
-
-
 static int tmds_valid_cnt_max = 2;
 MODULE_PARM_DESC(tmds_valid_cnt_max, "\n tmds_valid_cnt_max\n");
 module_param(tmds_valid_cnt_max, int, 0664);
@@ -54,7 +52,7 @@ static int force_clk_rate;
 MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
 module_param(force_clk_rate, int, 0664);
 
-static int delay_ms_cnt = 5;
+static int delay_ms_cnt = 10; /* 5 */
 MODULE_PARM_DESC(delay_ms_cnt, "\n delay_ms_cnt\n");
 module_param(delay_ms_cnt, int, 0664);
 
@@ -106,6 +104,7 @@ void initvars(struct st_eq_data *ch_data)
 	ch_data->bestsetting = shortcableSetting;
 	/* TMDS VALID not valid */
 	ch_data->tmdsvalid = 0;
+	memset(ch_data->acq_n, 0, sizeof(uint16_t)*15);
 }
 
 
@@ -197,6 +196,8 @@ void phy_conf_eq_setting(int ch0_lockVector,
 		hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x4024 | (avgAcq << 11));
 		hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x4026 | (avgAcq << 11));
 	}
+	hdmirx_phy_pddq(1);
+	hdmirx_phy_pddq(0);
 }
 
 uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
@@ -279,16 +280,29 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 uint8_t aquireEarlyCnt(uint16_t setting)
 {
 	uint16_t lockVector = 0x0001;
+	int timeout_cnt = 20;
 	lockVector = lockVector << setting;
 	hdmi_rx_phy_ConfEqualSetting(lockVector);
 	hdmi_rx_phy_ConfEqualAutoCalib();
-	mdelay(delay_ms_cnt);
-	eq_ch0.tmdsvalid =  (hdmi_rx_phy_CoreStatusCh0() & 0x0080) > 0 ? 1 : 0;
-	eq_ch1.tmdsvalid =  (hdmi_rx_phy_CoreStatusCh1() & 0x0080) > 0 ? 1 : 0;
-	eq_ch2.tmdsvalid =  (hdmi_rx_phy_CoreStatusCh2() & 0x0080) > 0 ? 1 : 0;
+	/* mdelay(delay_ms_cnt); */
+	while (timeout_cnt--) {
+		mdelay(delay_ms_cnt);
+		eq_ch0.tmdsvalid =
+			(hdmi_rx_phy_CoreStatusCh0() & 0x0080) > 0 ? 1 : 0;
+		eq_ch1.tmdsvalid =
+			(hdmi_rx_phy_CoreStatusCh1() & 0x0080) > 0 ? 1 : 0;
+		eq_ch2.tmdsvalid =
+			(hdmi_rx_phy_CoreStatusCh2() & 0x0080) > 0 ? 1 : 0;
+		if ((eq_ch0.tmdsvalid |
+			eq_ch1.tmdsvalid |
+			eq_ch2.tmdsvalid) != 0)
+			break;
+	}
 	if ((eq_ch0.tmdsvalid |
 		eq_ch1.tmdsvalid |
 		eq_ch2.tmdsvalid) == 0) {
+		if (log_level & EQ_LOG)
+			rx_pr("invalid-earlycnt\n");
 		return 0;
 	}
 
@@ -303,8 +317,17 @@ uint8_t aquireEarlyCnt(uint16_t setting)
 		/* TMDS VALID BY channel basis (Option #1) */
 		/* Get early counters */
 		eq_ch0.acq = rx_phy_rd_earlycnt_ch0() >> avgAcq;
+		eq_ch0.acq_n[setting] = eq_ch0.acq;
+		if (log_level & ERR_LOG)
+			rx_pr("eq_ch0_acq #%d = %d\n", setting, eq_ch0.acq);
 		eq_ch1.acq = rx_phy_rd_earlycnt_ch1() >> avgAcq;
+		eq_ch1.acq_n[setting] = eq_ch1.acq;
+		if (log_level & ERR_LOG)
+			rx_pr("eq_ch1_acq #%d = %d\n", setting, eq_ch1.acq);
 		eq_ch2.acq = rx_phy_rd_earlycnt_ch2() >> avgAcq;
+		eq_ch2.acq_n[setting] = eq_ch2.acq;
+		if (log_level & ERR_LOG)
+			rx_pr("eq_ch2_acq #%d = %d\n", setting, eq_ch2.acq);
 	} else {
 		uint16_t cnt;
 		uint16_t upperBound_acqCH0;
@@ -550,10 +573,7 @@ bool rx_need_eq_workaround(void)
 		if (pre_eq_freq == E_EQ_LOW_FREQ)
 			return false;
 		else {
-			hdmirx_phy_conf_eq_setting(rx.port,
-				0,
-				0,
-				0);
+			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
 			pre_eq_freq = E_EQ_LOW_FREQ;
 		}
 		if (log_level & EQ_LOG)
@@ -573,19 +593,22 @@ bool rx_need_eq_workaround(void)
 
 	hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
 	hdmi_rx_phy_ConfEqualSingle();
-	#if 0
-	hdmirx_wr_phy(PHY_EQCTRL1_CH0, 0x0211);
-	hdmirx_wr_phy(PHY_EQCTRL1_CH1, 0x0211);
-	hdmirx_wr_phy(PHY_EQCTRL1_CH2, 0x0211);
-
-	hdmirx_wr_phy(PHY_EQCTRL2_CH0, 0x0024 | (avgAcq << 11));
-	hdmirx_wr_phy(PHY_EQCTRL2_CH1, 0x0024 | (avgAcq << 11));
-	hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x0024 | (avgAcq << 11));
-	#endif
-	/* hdmi_rx_phy_ConfLockVecFirst(dev, 0); */
 	hdmirx_wr_phy(PHY_EQCTRL6_CH0, fat_bit_status);
 	hdmirx_wr_phy(PHY_EQCTRL6_CH1, fat_bit_status);
 	hdmirx_wr_phy(PHY_EQCTRL6_CH2, fat_bit_status);
 
 	return true;
 }
+
+void dump_eq_data(void)
+{
+	int i = 0;
+	rx_pr("/n*****************\n");
+	for (i = 0; i < 15; i++)
+		rx_pr("CH0-acq #%d: %d\n", i, eq_ch0.acq_n[i]);
+	for (i = 0; i < 15; i++)
+		rx_pr("CH1-acq #%d: %d\n", i, eq_ch1.acq_n[i]);
+	for (i = 0; i < 15; i++)
+		rx_pr("CH2-acq #%d: %d\n", i, eq_ch2.acq_n[i]);
+}
+
