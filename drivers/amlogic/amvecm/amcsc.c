@@ -1193,6 +1193,9 @@ static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
 };
 
 /* following array generated from model, do not edit */
+static int video_lut_swtich;
+module_param(video_lut_swtich, int, 0664);
+MODULE_PARM_DESC(video_lut_swtich, "\n video_lut_swtich\n");
 
 /* gamma=2.200000 lumin=500 boost=0.075000 */
 static unsigned int display_scale_factor =
@@ -3150,6 +3153,97 @@ static void hdr_process_pq_enable(int enable)
 	/*cm_en = enable;*/
 }
 
+static void vpp_lut_curve_set(enum vpp_lut_sel_e lut_sel)
+{
+	if (lut_sel == VPP_LUT_EOTF) {
+		/* eotf lut 2048 */
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+			if (video_lut_swtich == 1)
+				/*350nit alpha_low = 0.12; */
+				set_vpp_lut(VPP_LUT_EOTF,
+					eotf_33_2084_mapping_level1_box, /* R */
+					eotf_33_2084_mapping_level1_box, /* G */
+					eotf_33_2084_mapping_level1_box, /* B */
+					CSC_ON);
+			else if (video_lut_swtich == 2)
+				/*800nit alpha_low = 0.12; */
+				set_vpp_lut(VPP_LUT_EOTF,
+					eotf_33_2084_mapping_level2_box, /* R */
+					eotf_33_2084_mapping_level2_box, /* G */
+					eotf_33_2084_mapping_level2_box, /* B */
+					CSC_ON);
+			else if (video_lut_swtich == 3)
+				/*400nit alpha_low = 0.20; */
+				set_vpp_lut(VPP_LUT_EOTF,
+					eotf_33_2084_mapping_level3_box, /* R */
+					eotf_33_2084_mapping_level3_box, /* G */
+					eotf_33_2084_mapping_level3_box, /* B */
+					CSC_ON);
+			else if (video_lut_swtich == 4)
+				/*450nit alpha_low = 0.12; */
+				set_vpp_lut(VPP_LUT_EOTF,
+					eotf_33_2084_mapping_level4_box, /* R */
+					eotf_33_2084_mapping_level4_box, /* G */
+					eotf_33_2084_mapping_level4_box, /* B */
+					CSC_ON);
+			else
+				/* eotf lut 2048 */
+				/*600nit  alpha_low = 0.12;*/
+				set_vpp_lut(VPP_LUT_EOTF,
+					eotf_33_2084_mapping_box, /* R */
+					eotf_33_2084_mapping_box, /* G */
+					eotf_33_2084_mapping_box, /* B */
+					CSC_ON);
+		} else
+			set_vpp_lut(VPP_LUT_EOTF,
+				eotf_33_2084_mapping, /* R */
+				eotf_33_2084_mapping, /* G */
+				eotf_33_2084_mapping, /* B */
+				CSC_ON);
+	} else if (lut_sel == VPP_LUT_OETF) {
+		/* oetf lut bypass */
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+			if (video_lut_swtich == 1)
+				set_vpp_lut(VPP_LUT_OETF,
+					oetf_289_gamma22_mapping_level1_box,
+					oetf_289_gamma22_mapping_level1_box,
+					oetf_289_gamma22_mapping_level1_box,
+					CSC_ON);
+			else if (video_lut_swtich == 2)
+				set_vpp_lut(VPP_LUT_OETF,
+					oetf_289_gamma22_mapping_level2_box,
+					oetf_289_gamma22_mapping_level2_box,
+					oetf_289_gamma22_mapping_level2_box,
+					CSC_ON);
+			else if (video_lut_swtich == 3)
+				set_vpp_lut(VPP_LUT_OETF,
+					oetf_289_gamma22_mapping_level3_box,
+					oetf_289_gamma22_mapping_level3_box,
+					oetf_289_gamma22_mapping_level3_box,
+					CSC_ON);
+			else if (video_lut_swtich == 4)
+				set_vpp_lut(VPP_LUT_OETF,
+					oetf_289_gamma22_mapping_level4_box,
+					oetf_289_gamma22_mapping_level4_box,
+					oetf_289_gamma22_mapping_level4_box,
+					CSC_ON);
+			else
+				/* oetf lut bypass */
+				set_vpp_lut(VPP_LUT_OETF,
+					oetf_289_gamma22_mapping_box,
+					oetf_289_gamma22_mapping_box,
+					oetf_289_gamma22_mapping_box,
+					CSC_ON);
+		} else
+			set_vpp_lut(VPP_LUT_OETF,
+				oetf_289_gamma22_mapping,
+				oetf_289_gamma22_mapping,
+				oetf_289_gamma22_mapping,
+				CSC_ON);
+	}
+}
 static int hdr_process(
 	enum vpp_matrix_csc_e csc_type,
 	struct vinfo_s *vinfo,
@@ -3284,11 +3378,7 @@ static int hdr_process(
 			CSC_ON);
 
 		/* eotf lut 2048 */
-		set_vpp_lut(VPP_LUT_EOTF,
-			eotf_33_2084_mapping, /* R */
-			eotf_33_2084_mapping, /* G */
-			eotf_33_2084_mapping, /* B */
-			CSC_ON);
+		vpp_lut_curve_set(VPP_LUT_EOTF);
 
 		need_adjust_contrast_saturation = 0;
 		saturation_offset =	0;
@@ -3321,12 +3411,7 @@ static int hdr_process(
 			mtx,
 			CSC_ON);
 
-		/* oetf lut bypass */
-		set_vpp_lut(VPP_LUT_OETF,
-			oetf_289_gamma22_mapping,
-			oetf_289_gamma22_mapping,
-			oetf_289_gamma22_mapping,
-			CSC_ON);
+		vpp_lut_curve_set(VPP_LUT_OETF);
 
 		/* xvyccc matrix3: bypass */
 		if (vinfo->viu_color_fmt != TVIN_RGB444)
