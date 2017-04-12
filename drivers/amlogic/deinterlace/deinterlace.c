@@ -6003,6 +6003,9 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 					       VIDTYPE_VIU_422 |
 					       VIDTYPE_VIU_SINGLE_PLANE |
 					       VIDTYPE_VIU_FIELD;
+		/*add for vpp skip line ref*/
+		if (bypass_state == 0)
+			di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
 	}
 
 /* */
@@ -7814,7 +7817,8 @@ static int process_post_vframe(void)
 					VIDTYPE_PROGRESSIVE |
 					VIDTYPE_VIU_422 |
 					VIDTYPE_VIU_SINGLE_PLANE |
-					VIDTYPE_VIU_FIELD;
+					VIDTYPE_VIU_FIELD |
+					VIDTYPE_PRE_INTERLACE;
 				if (
 					di_buf->di_buf_dup_p[1]->
 					new_format_flag) {
@@ -7835,8 +7839,9 @@ static int process_post_vframe(void)
 					di_buf->vframe->type
 						= VIDTYPE_PROGRESSIVE |
 						  VIDTYPE_VIU_422 |
-						  VIDTYPE_VIU_SINGLE_PLANE
-						  | VIDTYPE_VIU_FIELD;
+						  VIDTYPE_VIU_SINGLE_PLANE |
+							VIDTYPE_VIU_FIELD |
+							VIDTYPE_PRE_INTERLACE;
 					di_buf->vframe->height >>= 1;
 					di_buf->vframe->canvas0Addr =
 						di_buf->di_buf_dup_p[0]
@@ -8069,7 +8074,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					VIDTYPE_PROGRESSIVE |
 					VIDTYPE_VIU_422 |
 					VIDTYPE_VIU_SINGLE_PLANE |
-					VIDTYPE_VIU_FIELD;
+					VIDTYPE_VIU_FIELD |
+					VIDTYPE_PRE_INTERLACE;
 				if (
 					di_buf->di_buf_dup_p[0]->
 					new_format_flag)
@@ -8121,7 +8127,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					VIDTYPE_PROGRESSIVE |
 					VIDTYPE_VIU_422 |
 					VIDTYPE_VIU_SINGLE_PLANE |
-					VIDTYPE_VIU_FIELD;
+					VIDTYPE_VIU_FIELD |
+					VIDTYPE_PRE_INTERLACE;
 				di_buf->vframe->height >>= 1;
 				if (
 					(di_buf->di_buf_dup_p[0]->
