@@ -172,6 +172,8 @@ static void mc_di_param_init(void)
 	DI_Wr(MCDI_LMV_GAINTHD, 0x6014d409);
 	DI_Wr(MCDI_REL_DET_LPF_MSK_22_30, 0x0a010001);
 	DI_Wr(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+		DI_Wr_reg_bits(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
 static void init_field_mode(void)
@@ -1932,6 +1934,7 @@ void di_post_read_reverse(bool reverse)
 	}
 #endif
 }
+
 static bool if2_disable;
 module_param_named(if2_disable, if2_disable, bool, 0644);
 
