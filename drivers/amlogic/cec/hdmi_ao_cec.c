@@ -114,6 +114,14 @@ struct ao_cec_dev {
 	struct cec_global_info_t cec_info;
 };
 
+struct cec_msg_last {
+	unsigned char msg[MAX_MSG];
+	int len;
+	int last_result;
+	unsigned long last_jiffies;
+};
+static struct cec_msg_last *last_cec_msg;
+
 static int phy_addr_test;
 
 /* from android cec hal */
@@ -771,6 +779,7 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 		msg_log_buf[pos] = '\0';
 		CEC_INFO("%s", msg_log_buf);
 	}
+	last_cec_msg->len = 0;	/* invalid back up msg when rx */
 	writel((1 << 2), cec_dev->cec_reg + AO_CEC_INTR_CLR);
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_ACK_CURRENT);
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_NO_OP);
@@ -968,6 +977,22 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	if (is_poll_message(msg[0]))
 		cec_clear_logical_addr();
 
+	/*
+	 * for CEC CTS 9.3. Android will try 3 poll message if got NACK
+	 * but AOCEC will retry 4 tx for each poll message. Framework
+	 * repeat this poll message so quick makes 12 sequential poll
+	 * waveform seen on CEC bus. And did not pass CTS
+	 * specification of 9.3
+	 */
+	if (!ee_cec && len == last_cec_msg->len &&
+	    last_cec_msg->last_result == CEC_FAIL_NACK &&
+	    jiffies - last_cec_msg->last_jiffies < t) {
+		if (!memcmp(msg, last_cec_msg->msg, len)) {
+			CEC_ERR("NACK repeat message:%x\n", len);
+			return CEC_FAIL_NACK;
+		}
+	}
+
 	mutex_lock(&cec_dev->cec_mutex);
 	/* make sure we got valid physical address */
 	if (len >= 2 && msg[1] == CEC_OC_REPORT_PHYSICAL_ADDRESS)
@@ -1023,6 +1048,14 @@ try_again:
 	}
 	mutex_unlock(&cec_dev->cec_mutex);
 
+	if (!ee_cec) {
+		last_cec_msg->last_result = ret;
+		if (ret == CEC_FAIL_NACK) {
+			memcpy(last_cec_msg->msg, msg, len);
+			last_cec_msg->len = len;
+			last_cec_msg->last_jiffies = jiffies;
+		}
+	}
 	return ret;
 }
 
@@ -2429,6 +2462,15 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 #endif
 
+	if (!ee_cec) {
+		last_cec_msg = kzalloc(sizeof(*last_cec_msg), GFP_KERNEL);
+		if (!last_cec_msg) {
+			CEC_ERR("allocate last_cec_msg failed\n");
+			return -ENOMEM;
+		}
+	}
+
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	aocec_suspend_handler.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 20;
 	aocec_suspend_handler.suspend = aocec_early_suspend;
@@ -2449,6 +2491,7 @@ static int aml_cec_remove(struct platform_device *pdev)
 {
 	CEC_INFO("cec uninit!\n");
 	free_irq(cec_dev->irq_cec, (void *)cec_dev);
+	kfree(last_cec_msg);
 
 	if (cec_dev->cec_thread) {
 		cancel_delayed_work_sync(&cec_dev->cec_work);
