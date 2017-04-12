@@ -577,6 +577,12 @@ calculate_non_linear_ratio(unsigned middle_ratio,
  * (1.25 * 3840 / 1920) for 1080p mode.
  */
 #define MIN_RATIO_1000	1250
+unsigned int cur_skip_ratio;
+MODULE_PARM_DESC(cur_skip_ratio, "cur_skip_ratio");
+module_param(cur_skip_ratio, uint, 0444);
+unsigned int cur_vf_type;
+MODULE_PARM_DESC(cur_vf_type, "cur_vf_type");
+module_param(cur_vf_type, uint, 0444);
 
 static int
 vpp_process_speed_check(s32 width_in,
@@ -588,6 +594,8 @@ vpp_process_speed_check(s32 width_in,
 {
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
+	if (vf)
+		cur_vf_type = vf->type;
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
 		return SPEED_CHECK_VSKIP;
 
@@ -619,9 +627,13 @@ vpp_process_speed_check(s32 width_in,
 						(u64)vinfo->height *
 						1000,
 						height_out * 2160);
+				/* di process first, need more a bit of ratio */
+				if (vf->type & VIDTYPE_PRE_INTERLACE)
+					cur_ratio = (cur_ratio * 105) / 100;
 				if ((next_frame_par->vscale_skip_count > 0)
 					&& (vf->type & VIDTYPE_VIU_444))
 					cur_ratio = cur_ratio * 2;
+				cur_skip_ratio = cur_ratio;
 				if ((cur_ratio > min_ratio_1000) &&
 				(vf->source_type != VFRAME_SOURCE_TYPE_TUNER) &&
 				(vf->source_type != VFRAME_SOURCE_TYPE_CVBS))
