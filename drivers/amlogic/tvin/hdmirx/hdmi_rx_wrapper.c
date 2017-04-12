@@ -77,7 +77,7 @@
 #define KSV_LIST_WAIT_DELAY		500/*according to the timer,5s*/
 
 /* aud sample rate stable range */
-#define AUD_SR_RANGE 1000
+#define AUD_SR_RANGE 2000
 #define AUD_SR_STB_MAX 20
 /* PHY config */
 #define CFG_CLK 24000
@@ -453,9 +453,9 @@ bool esm_error_flag;
 MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
 module_param(esm_error_flag, bool, 0664);
 
-int esm_data_base_addr;
-MODULE_PARM_DESC(esm_data_base_addr, "\n esm_data_base_addr\n");
-module_param(esm_data_base_addr, int, 0664);
+unsigned int esm_data_base_addr;
+/* MODULE_PARM_DESC(esm_data_base_addr,"\n esm_data_base_addr\n"); */
+/* module_param(esm_data_base_addr, unsigned, 0664); */
 #endif
 
 int scdc_tmds_try_max = 3;
@@ -1351,12 +1351,12 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 
 
 struct sample_rate_info_s {
-	unsigned int sample_rate;
+	unsigned int sr;
 	unsigned char aud_info_sf;
 	unsigned char channel_status_id;
 };
 
-struct sample_rate_info_s sample_rate_info[] = {
+struct sample_rate_info_s sr_info[] = {
 	{32000, 0x1, 0x3},
 	{44100, 0x2, 0x0},
 	{48000, 0x3, 0x2},
@@ -1368,31 +1368,19 @@ struct sample_rate_info_s sample_rate_info[] = {
 	{0, 0, 0}
 };
 
-static int get_real_sample_rate(void)
+static unsigned int get_real_sample_rate(void)
 {
 	int i;
-	int ret_sample_rate = rx.aud_info.arc;
-	for (i = 0; sample_rate_info[i].sample_rate; i++) {
-		if (rx.aud_info.arc >
-		    sample_rate_info[i].sample_rate) {
-			if ((rx.aud_info.arc -
-			     sample_rate_info[i].sample_rate) <
+	unsigned int ret_sr = rx.aud_info.arc;
+	for (i = 0; sr_info[i].sr; i++) {
+		if (abs(rx.aud_info.arc - sr_info[i].sr) <
 			    AUD_SR_RANGE) {
-				ret_sample_rate =
-				    sample_rate_info[i].sample_rate;
+				ret_sr = sr_info[i].sr;
 				break;
-			}
-		} else {
-			if ((sample_rate_info[i].sample_rate -
-			     rx.aud_info.arc) <
-			    AUD_SR_RANGE) {
-				ret_sample_rate =
-				    sample_rate_info[i].sample_rate;
-				break;
-			}
-		}
+		} else
+			ret_sr = 0;
 	}
-	return ret_sample_rate;
+	return ret_sr;
 }
 
 static unsigned char is_sample_rate_stable(int sample_rate_pre,
@@ -2126,6 +2114,17 @@ static void Signal_status_init(void)
 	rx.pre_state = 0;
 }
 
+void packet_update(void)
+{
+	auds_rcv_sts = rx.aud_info.aud_packet_received;
+	rgb_quant_range = rx.cur.rgb_quant_range;
+	yuv_quant_range = rx.cur.yuv_quant_range;
+	it_content = rx.cur.it_content;
+	audio_sample_rate = rx.aud_info.real_sample_rate;
+	audio_coding_type = rx.aud_info.coding_type;
+	audio_channel_count = rx.aud_info.channel_count;
+}
+
 /* ---------------------------------------------------------- */
 /* func:         port A,B,C,D  hdmitx-5v monitor & HPD control */
 /* note:         G9TV portD no used */
@@ -2152,7 +2151,7 @@ void rx_5v_det(void)
 	check_cnt = 0;
 	pwr_sts = tmp_5v;
 	update_hpd_sts(pwr_sts);
-	rx_pr("hotplg-%x", pwr_sts);
+	rx_pr("hotplg-%x\n", pwr_sts);
 	hdmirx_wait_query();
 }
 
@@ -2835,7 +2834,7 @@ void hdmirx_hw_monitor(void)
 	    } else {
 			if (sig_unready_cnt != 0) {
 				if (log_level & VIDEO_LOG)
-					rx_pr("sig_unready_cnt=%d",
+					rx_pr("sig_unready_cnt=%d\n",
 						sig_unready_cnt);
 				sig_unready_cnt = 0;
 			}
@@ -2863,21 +2862,11 @@ void hdmirx_hw_monitor(void)
 			rx.aud_info.real_sample_rate =
 				force_audio_sample_rate;
 
-		if ((rx.aud_info.real_sample_rate <= 31000)
-			&& (rx.aud_info.real_sample_rate >= 193000)
-			&&
-			(abs((signed int)rx.aud_info.real_sample_rate -
-				(signed int)pre_sample_rate) >
-					 AUD_SR_RANGE)) {
-			if (log_level & AUDIO_LOG)
-				dump_audio_info(1);
-		}
-
 		if (!is_sample_rate_stable
 			(pre_sample_rate, rx.aud_info.real_sample_rate)) {
 			if (log_level & AUDIO_LOG)
 				dump_audio_info(1);
-			rx.aud_sr_stable_cnt = 0;
+			/* rx.aud_sr_stable_cnt = 0; */
 			break;
 		}
 		if (rx.aud_sr_stable_cnt <
@@ -2889,14 +2878,6 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(1);
 				hdmirx_audio_enable(1);
 				hdmirx_audio_fifo_rst();
-
-				audio_sample_rate =
-					rx.aud_info.real_sample_rate;
-				audio_coding_type =
-					rx.aud_info.coding_type;
-				audio_channel_count =
-					rx.aud_info.channel_count;
-
 				if (hdmirx_get_audio_clock() < 100000) {
 					rx_pr("update audio\n");
 					tmp = hdmirx_rd_top(TOP_ACR_CNTL_STAT);
@@ -2904,14 +2885,8 @@ void hdmirx_hw_monitor(void)
 							tmp | (1<<11));
 				}
 			}
-		} else {
-
 		}
-		auds_rcv_sts =
-			rx.aud_info.aud_packet_received;
-		rgb_quant_range = rx.cur.rgb_quant_range;
-		yuv_quant_range = rx.cur.yuv_quant_range;
-		it_content = rx.cur.it_content;
+		packet_update();
 		break;
 	default:
 		break;

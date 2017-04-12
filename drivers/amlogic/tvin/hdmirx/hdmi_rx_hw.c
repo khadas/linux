@@ -64,7 +64,7 @@ static DEFINE_SPINLOCK(reg_rw_lock);
 #define HYST_DVI_TO_HDMI_DE 3
 #define HYST_DVI_TO_HDMI_IN 1
 #define GCP_GLOBAVMUTE_EN 1 /* ag506 must clear this bit */
-#define EDOD_CLK_DIV 9 /* sys clk/(9+1) = 20M */
+#define EDID_CLK_DIV 9 /* sys clk/(9+1) = 20M */
 static int auto_aclk_mute = 2;
 MODULE_PARM_DESC(auto_aclk_mute, "\n auto_aclk_mute\n");
 module_param(auto_aclk_mute, int, 0664);
@@ -498,7 +498,7 @@ static int TOP_init(void)
 	data32 |= 0	<< 10;
 	data32 |= 0	<< 9;
 	data32 |= 0 << 8;
-	data32 |= EDOD_CLK_DIV << 0;
+	data32 |= EDID_CLK_DIV << 0;
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
 
 	if (is_meson_gxtvbb_cpu()) {
