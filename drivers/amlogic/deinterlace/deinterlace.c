@@ -7029,13 +7029,11 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	case PULL_DOWN_NORMAL:
 		config_fftffb_mode(di_buf, &post_field_num,
 			(di_buf->di_buf_dup_p[tbbtff_dly]->privated&0x3));
-		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL) {
+		mc_pre_flag = is_meson_txl_cpu()?2:(overturn?0:1);
+		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL)
 			post_blend_mode = 3;
-			mc_pre_flag = is_meson_txl_cpu()?1:(overturn?0:1);
-		} else {
+		else
 			post_blend_mode = 1;
-			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?0:1);
-		}
 		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
