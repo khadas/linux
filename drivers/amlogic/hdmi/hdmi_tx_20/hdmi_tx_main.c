@@ -3079,6 +3079,48 @@ static int get_dt_vend_init_data(struct device_node *np,
 	return 0;
 }
 
+static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev, char *attr)
+{
+	memset(attr, 0, sizeof(fmt_attr));
+	if ((hdev->para->cd == COLORDEPTH_RESERVED) &&
+	    (hdev->para->cs == COLORSPACE_RESERVED)) {
+		strcpy(fmt_attr, "default");
+	} else {
+		switch (hdev->para->cs) {
+		case COLORSPACE_RGB444:
+			memcpy(fmt_attr, "rgb,", 4);
+			break;
+		case COLORSPACE_YUV422:
+			memcpy(fmt_attr, "422,", 4);
+			break;
+		case COLORSPACE_YUV444:
+			memcpy(fmt_attr, "444,", 4);
+			break;
+		case COLORSPACE_YUV420:
+			memcpy(fmt_attr, "420,", 4);
+			break;
+		default:
+			break;
+		}
+		switch (hdev->para->cd) {
+		case COLORDEPTH_24B:
+			strcat(fmt_attr, "8bit");
+			break;
+		case COLORDEPTH_30B:
+			strcat(fmt_attr, "10bit");
+			break;
+		case COLORDEPTH_36B:
+			strcat(fmt_attr, "12bit");
+			break;
+		case COLORDEPTH_48B:
+			strcat(fmt_attr, "16bit");
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -3300,6 +3342,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
 	HDMITX_Meson_Init(&hdmitx_device);
+	hdmitx_init_fmt_attr(&hdmitx_device, fmt_attr);
+	pr_info("hdmitx: attr %s\n", fmt_attr);
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
 
