@@ -477,8 +477,63 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	/* assign phy_clk_en = control[1]; */
 /* Bring HDMITX MEM output of power down */
 	hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
-	if (hdmitx_uboot_already_display())
+	if (hdmitx_uboot_already_display()) {
+		/* Get uboot output color space from AVI */
+		switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3) {
+		case 0:
+			hdev->para->cs = COLORSPACE_RGB444;
+			break;
+		case 1:
+			hdev->para->cs = COLORSPACE_YUV422;
+			break;
+		case 2:
+			hdev->para->cs = COLORSPACE_YUV444;
+			break;
+		case 3:
+			hdev->para->cs = COLORSPACE_YUV420;
+			break;
+		default:
+			break;
+		}
+		/* If color space is not 422, then get depth from VP_PR_CD */
+		if (hdev->para->cs != COLORSPACE_YUV422) {
+			switch ((hdmitx_rd_reg(HDMITX_DWC_VP_PR_CD) >> 4) &
+				0xf) {
+			case 5:
+				hdev->para->cd = COLORDEPTH_30B;
+				break;
+			case 6:
+				hdev->para->cd = COLORDEPTH_36B;
+				break;
+			case 7:
+				hdev->para->cd = COLORDEPTH_48B;
+				break;
+			case 0:
+			case 4:
+			default:
+				hdev->para->cd = COLORDEPTH_24B;
+				break;
+			}
+		} else {
+			/* If colorspace is 422, then get depth from VP_REMAP */
+			switch (hdmitx_rd_reg(HDMITX_DWC_VP_REMAP) & 0x3) {
+			case 1:
+				hdev->para->cd = COLORDEPTH_30B;
+				break;
+			case 2:
+				hdev->para->cd = COLORDEPTH_36B;
+				break;
+			case 0:
+			default:
+				hdev->para->cd = COLORDEPTH_24B;
+				break;
+			}
+		}
 		return;
+	} else {
+		hdev->para->cd = COLORDEPTH_RESERVED;
+		hdev->para->cs = COLORSPACE_RESERVED;
+	}
 	/* reset HDMITX APB & TX & PHY */
 	hd_set_reg_bits(P_RESET0_REGISTER, 1, 19, 1);
 	hd_set_reg_bits(P_RESET2_REGISTER, 1, 15, 1);
