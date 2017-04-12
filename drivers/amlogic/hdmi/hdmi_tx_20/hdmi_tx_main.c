@@ -1342,6 +1342,33 @@ static ssize_t store_config(struct device *dev,
 	return 16;
 }
 
+static atomic_t kref_audio_mute;
+static ssize_t show_aud_mute(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n", kref_audio_mute.counter);
+	return pos;
+}
+
+static ssize_t store_aud_mute(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] == '1') {
+		atomic_inc(&kref_audio_mute);
+		hdmitx_audio_mute_op(0);
+	}
+	if (buf[0] == '0') {
+		if (!(atomic_sub_and_test(0, &kref_audio_mute))) {
+			atomic_dec(&kref_audio_mute);
+			if (atomic_sub_and_test(0, &kref_audio_mute))
+				hdmitx_audio_mute_op(1);
+		}
+	}
+
+	return count;
+}
 
 static ssize_t store_debug(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -2231,6 +2258,8 @@ static DEVICE_ATTR(disp_mode, S_IWUSR | S_IRUGO | S_IWGRP,
 static DEVICE_ATTR(attr, S_IWUSR | S_IRUGO | S_IWGRP, show_attr, store_attr);
 static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
+static DEVICE_ATTR(aud_mute, S_IWUSR | S_IRUGO, show_aud_mute,
+	store_aud_mute);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
 static DEVICE_ATTR(rawedid, S_IRUGO, show_rawedid, NULL);
 static DEVICE_ATTR(sink_type, S_IRUGO, show_sink_type, NULL);
@@ -3053,6 +3082,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_attr);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
+	ret = device_create_file(dev, &dev_attr_aud_mute);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
 	ret = device_create_file(dev, &dev_attr_sink_type);
@@ -3242,6 +3272,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_aud_mode);
+	device_remove_file(dev, &dev_attr_aud_mute);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);
 	device_remove_file(dev, &dev_attr_sink_type);
