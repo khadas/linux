@@ -20,11 +20,10 @@
 #include <linux/of_irq.h>
 #include "spicc.h"
 
-#define CONFIG_SPICC_LOG
+/* #define CONFIG_SPICC_LOG */
 #ifdef CONFIG_SPICC_LOG
 struct my_log {
 	struct timeval tv;
-	unsigned int irq_data;
 	unsigned int reg_val[13];
 	unsigned int param[8];
 	unsigned int param_count;
@@ -52,7 +51,6 @@ struct spicc {
 	struct class cls;
 
 	int device_id;
-	struct reset_control *rst;
 	struct clk *clk;
 	void __iomem *regs;
 	struct pinctrl *pinctrl;
@@ -141,17 +139,12 @@ static void spicc_log(
 	int comment_id)
 {
 	struct my_log *log;
-	struct irq_desc *desc;
 	int i;
 
 	if (IS_ERR_OR_NULL(spicc->log))
 		return;
 	log = &spicc->log[spicc->log_count];
 	log->tv = ktime_to_timeval(ktime_get());
-	if (spicc->irq) {
-		desc = irq_to_desc(spicc->irq);
-		log->irq_data = desc->irq_data.state_use_accessors;
-	}
 	for (i = 0; i < ARRAY_SIZE(log->reg_val); i++)
 		log->reg_val[i] = readl(spicc->regs + ((i+2)<<2));
 
@@ -183,7 +176,6 @@ static void spicc_log_print(struct spicc *spicc)
 				(unsigned int)log->tv.tv_sec,
 				(unsigned int)log->tv.tv_usec,
 				i, log->comment);
-		pr_info("irq_data=0x%x\n", log->irq_data);
 		p = log->reg_val;
 		for (j = 0; j < ARRAY_SIZE(log->reg_val); j++)
 			if (*p)
@@ -268,10 +260,6 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 	unsigned sys_clk_rate;
 	unsigned div, mid_speed;
 
-	if (!speed)
-		reset_control_assert(spicc->rst);
-	else
-		reset_control_deassert(spicc->rst);
 	if (!speed || (speed == spicc->speed))
 		return;
 
@@ -909,6 +897,7 @@ static int of_spicc_get_data(
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
+	struct reset_control *rst;
 	int err;
 	unsigned int value;
 
@@ -942,9 +931,10 @@ static int of_spicc_get_data(
 	spicc->cs_delay = err ? 0 : value;
 	err = of_property_read_u32(np, "ssctl", &value);
 	spicc_set_flag(spicc, FLAG_SSCTL, err ? 0 : (!!value));
+#ifdef CONFIG_SPICC_LOG
 	err = of_property_read_u32(np, "log_size", &value);
 	spicc->log_size = err ? 0 : value;
-
+#endif
 	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR_OR_NULL(spicc->pinctrl)) {
 		dev_err(&pdev->dev, "get pinctrl fail\n");
@@ -965,9 +955,11 @@ static int of_spicc_get_data(
 		return PTR_ERR(spicc->regs);
 	}
 
-	spicc->rst = devm_reset_control_get(&pdev->dev, "spicc_clk");
-	if (IS_ERR_OR_NULL(spicc->rst))
+	rst = devm_reset_control_get(&pdev->dev, "spicc_clk");
+	if (IS_ERR_OR_NULL(rst))
 		dev_err(&pdev->dev, "open spicc clk gate failed\n");
+	else
+		reset_control_deassert(rst);
 
 	spicc->clk = devm_clk_get(&pdev->dev, "clk81");
 	if (IS_ERR_OR_NULL(spicc->clk)) {
