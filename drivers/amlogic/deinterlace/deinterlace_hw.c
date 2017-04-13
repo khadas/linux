@@ -1932,8 +1932,13 @@ void di_post_read_reverse(bool reverse)
 	}
 #endif
 }
+static bool if2_disable;
+module_param_named(if2_disable, if2_disable, bool, 0644);
+
 void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 {
+
+	mc_pre_flag = if2_disable?1:mc_pre_flag;
 	if (reverse) {
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
 		DI_VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
@@ -1945,10 +1950,18 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			/* motion vector read reverse*/
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
-			if (is_meson_txl_cpu())
+			if (is_meson_txl_cpu()) {
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 				mc_pre_flag, 8, 2);
-			else
+				/* disable if2 for wave if1 case,
+				 *disable mc for pq issue */
+				if (if2_disable) {
+					DI_VSYNC_WR_MPEG_REG_BITS(
+					DI_IF2_GEN_REG, 0, 0, 1);
+					DI_VSYNC_WR_MPEG_REG_BITS(
+					MCDI_MC_CRTL, 0, 11, 1);
+				}
+			} else
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 				mc_pre_flag, 8, 1);
 		}
@@ -1962,10 +1975,17 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 		if (mcpre_en) {
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
-			if (is_meson_txl_cpu())
+			if (is_meson_txl_cpu()) {
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 2);
-			else
+				/* disable if2 for wave if1 case */
+				if (if2_disable) {
+					DI_VSYNC_WR_MPEG_REG_BITS(
+						DI_IF2_GEN_REG, 0, 0, 1);
+					DI_VSYNC_WR_MPEG_REG_BITS(
+					MCDI_MC_CRTL, 0, 11, 1);
+				}
+			}	else
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 1);
 		}
