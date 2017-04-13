@@ -30,7 +30,7 @@
 
 #define RX_VER0 "Ref.2017/04/11"
 /*------------------------------*/
-#define RX_VER1 "Ref.2017/03/15"
+#define RX_VER1 "Ref.2017/04/13"
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/2/25"
 /*------------------------------*/
@@ -47,6 +47,7 @@
 #define EQ_LOG		0x20
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
+#define VSI_LOG		0x800
 
 #define TRUE 1
 #define FALSE 0

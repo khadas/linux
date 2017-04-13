@@ -1520,7 +1520,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 		VSI_3D_FORMAT_INDEX) = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
 	vs->vd_fmt = vsi_info.vid_format;
 	vsi_info.length = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, VSI_LENGTH);
-	if (log_level & VIDEO_LOG)
+	if (log_level & VSI_LOG)
 		rx_pr("vsi_info.vid_format:%d,vsi_info.length:%d\n",
 		vsi_info.vid_format, vsi_info.length);
 	if (vsi_info.length == DOLBY_VERSION_START_LENGTH) {
@@ -1533,7 +1533,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD3) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD4) &&
 			!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5) & 0xFFFFFF)) {
-			if (log_level & VIDEO_LOG)
+			if (log_level & VSI_LOG)
 				if (vs->dolby_vision_sts == DOLBY_VERSION_STOP)
 					rx_pr("dolby vision start\n");
 			vs->dolby_vision_sts = DOLBY_VERSION_START;
@@ -1541,7 +1541,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 		/*PB4 PB5 = 0x00 exit dolby version*/
 		if (((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF) == 0) &&
 		((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF00) == 0)) {
-			if (log_level & VIDEO_LOG) {
+			if (log_level & VSI_LOG) {
 				if (vs->dolby_vision_sts == DOLBY_VERSION_START)
 					rx_pr("dolby vision stop\n");
 			}
@@ -1551,7 +1551,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 		(vsi_info.vid_format != VSI_FORMAT_3D_FORMAT)) {
 		/*dolby version exit VSI*/
 		vs->dolby_vision = TRUE;
-		if (log_level & VIDEO_LOG) {
+		if (log_level & VSI_LOG) {
 			if (vs->dolby_vision_sts == DOLBY_VERSION_START)
 				rx_pr("dolby vision stop\n");
 		}
@@ -1566,7 +1566,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 			vs->_3d_structure = 0;
 			vs->_3d_ext_data = 0;
 		}
-		if (log_level & VIDEO_LOG)
+		if (log_level & VSI_LOG)
 			rx_pr("struct_3d:%d, struct_3d_ext:%d\n",
 			vsi_info.detail.data_3d.struct_3d,
 			 vsi_info.struct_3d_ext);

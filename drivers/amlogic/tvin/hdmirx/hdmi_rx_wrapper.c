@@ -3513,6 +3513,16 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	hdmirx_wr_top(TOP_EDID_RAM_OVR0_DATA,
 		checksum[0]|checksum[1]<<8|checksum[2]<<16|checksum[3]<<24);
 
+	hdmirx_wr_top(TOP_EDID_RAM_OVR4,
+		phy_addr_offset | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR4_DATA,
+		phy_addr[0]|phy_addr[1]<<8|phy_addr[2]<<16);
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR3,
+		0xff | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR3_DATA,
+			checksum[0]|checksum[1]<<8|checksum[2]<<16);
+
 }
 
 
@@ -3632,6 +3642,23 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 	hdmirx_wr_top(TOP_EDID_RAM_OVR0_DATA,
 			checksum[E_PORT0]|(checksum[E_PORT1]<<8)|
 			(checksum[E_PORT2]<<16) | (checksum[E_PORT3] << 24));
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR5,
+		(phy_addr_offset + 1) | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR5_DATA,
+		((phy_addr[0] >> 8) & 0xFF) | (((phy_addr[1] >> 8) & 0xFF)<<8)
+			| (((phy_addr[2] >> 8) & 0xFF)<<16));
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR4,
+		phy_addr_offset | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR4_DATA,
+		(phy_addr[0] & 0xFF) | ((phy_addr[1] & 0xFF)<<8) |
+			((phy_addr[2] & 0xFF)<<16));
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR3,
+		0xff | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR3_DATA,
+			checksum[0]|checksum[1]<<8|checksum[2]<<16);
 
 }
 

@@ -1229,15 +1229,32 @@ static void hdmirx_get_base_addr(struct device_node *node)
 	}
 	reg_maps[rx.chip_id][MAP_ADDR_MODULE_TOP].phy_addr = hdmirx_addr_port;
 }
+
+static int hdmirx_switch_pinmux(struct device  dev)
+{
+	struct pinctrl *pin;
+	const char *pin_name;
+	int ret = 0;
+
+	/* pinmux set */
+	if (dev.of_node) {
+		ret = of_property_read_string_index(dev.of_node,
+					    "pinctrl-names",
+					    0, &pin_name);
+		if (!ret) {
+			pin = devm_pinctrl_get_select(&dev, pin_name);
+			rx_pr("hdmirx: pinmux:%p, name:%s\n", pin, pin_name);
+		}
+	}
+	return ret;
+}
+
 unsigned char *pEdid_buffer;
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct hdmirx_dev_s *hdevp;
 	struct resource *res;
-	struct pinctrl *pin;
-	const char *pin_name;
-
 	struct clk *xtal_clk;
 	struct clk *fclk_div5_clk;
 	struct clk *tmds_clk_fs;
@@ -1361,16 +1378,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
 		rx_pr("hdmirx: driver probe error!!!\n");
 
-	/* pinmux set */
-	if (pdev->dev.of_node) {
-		ret = of_property_read_string_index(pdev->dev.of_node,
-					    "pinctrl-names",
-					    0, &pin_name);
-		if (!ret) {
-			pin = devm_pinctrl_get_select(&pdev->dev, pin_name);
-			rx_pr("hdmirx: pinmux:%p, name:%s\n", pin, pin_name);
-		}
-	}
+
 	if (pdev->dev.of_node) {
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"rx_port_maps", &real_port_map);
@@ -1474,6 +1482,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 
 	hdmirx_hw_probe();
+	hdmirx_switch_pinmux(pdev->dev);
 
 	init_timer(&hdevp->timer);
 	hdevp->timer.data = (ulong)hdevp;
