@@ -954,6 +954,11 @@ void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 		return;
 	}
 
+	/*fix vg877 machine ntsc443 flash*/
+	if ((fmt == TVIN_SIG_FMT_CVBS_NTSC_443) &&
+		((port == TVIN_PORT_CVBS1) || (port == TVIN_PORT_CVBS2)))
+		W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0x9);
+
 	tvafe->parm.info.fmt = fmt;
 	tvafe->parm.info.status = TVIN_SIG_STATUS_STABLE;
 
