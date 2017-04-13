@@ -38,11 +38,14 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/sound/aout_notify.h>
+
 #include "aml_i2s_dai.h"
 #include "aml_pcm.h"
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
-#include <linux/amlogic/sound/aout_notify.h>
 #include "aml_spdif_dai.h"
 
 struct aml_dai_info dai_info[3] = { {0} };
@@ -148,6 +151,7 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
 	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	audio_util_set_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		s->i2s_mode = dai_info[dai->id].i2s_mode;
@@ -170,7 +174,6 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
 		audio_out_i2s_enable(0);
-		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 		aml_hw_i2s_init(runtime);
 		/* i2s/958 share the same audio hw buffer when PCM mode */
 		if (IEC958_mode_codec == 0) {
@@ -344,7 +347,14 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
 		audio_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
 		if (IS_ERR(audio_reset)) {
-			dev_err(&pdev->dev, "Can't get aml audio gate\n");
+			dev_err(&pdev->dev, "Can't get aml audio gate:%s\n",
+				gate_names[i]);
+
+			if (1 == i && is_meson_txlx_cpu()) {
+				pr_info("ignore aud_buf gate for txlx\n");
+				continue;
+			}
+
 			return PTR_ERR(audio_reset);
 		}
 		reset_control_deassert(audio_reset);
@@ -382,6 +392,7 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't set aml_i2s :%d\n", ret);
 		goto err;
 	}
+	audio_util_set_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 
 	ret = clk_prepare_enable(i2s->clk_mclk);
 	if (ret) {

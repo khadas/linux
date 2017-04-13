@@ -139,7 +139,7 @@ void audio_i2s_unmute(void);
 void audio_i2s_mute(void);
 void aml_audio_i2s_unmute(void);
 void aml_audio_i2s_mute(void);
-void audio_util_set_dac_i2s_format(unsigned format);
+void audio_util_set_i2s_format(unsigned format);
 void audio_util_set_dac_958_format(unsigned format);
 void audio_set_958_mode(unsigned mode, struct _aiu_958_raw_setting_t *set);
 unsigned int read_i2s_mute_swap_reg(void);

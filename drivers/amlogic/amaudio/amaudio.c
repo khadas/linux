@@ -42,6 +42,8 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
+
 #include "amaudio.h"
 
 #define AMAUDIO_DEVICE_COUNT    ARRAY_SIZE(amaudio_ports)
@@ -285,8 +287,8 @@ static ssize_t output_enable_show(struct class *class,
 * this cause the player has no chance to  trigger the exit condition
 */
 	unsigned iec958_size =
-	    aml_read_cbus(AIU_MEM_IEC958_END_PTR) -
-	    aml_read_cbus(AIU_MEM_IEC958_START_PTR);
+	    aml_aiu_read(AIU_MEM_IEC958_END_PTR) -
+	    aml_aiu_read(AIU_MEM_IEC958_START_PTR);
 	/* normal spdif buffer MUST NOT less than 512 bytes */
 	return sprintf(buf, "%d\n", (if_audio_out_enable() ||
 			(if_958_audio_out_enable() && iec958_size > 512)));
@@ -338,13 +340,13 @@ static ssize_t store_debug(struct class *class, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
 	if (strncmp(buf, "chstatus_set", 12) == 0) {
-		aml_write_cbus(AIU_958_VALID_CTRL, 0);
-		aml_write_cbus(AIU_958_CHSTAT_L0, 0x1900);
-		aml_write_cbus(AIU_958_CHSTAT_R0, 0x1900);
+		aml_aiu_write(AIU_958_VALID_CTRL, 0);
+		aml_aiu_write(AIU_958_CHSTAT_L0, 0x1900);
+		aml_aiu_write(AIU_958_CHSTAT_R0, 0x1900);
 	} else if (strncmp(buf, "chstatus_off", 12) == 0) {
-		aml_write_cbus(AIU_958_VALID_CTRL, 3);
-		aml_write_cbus(AIU_958_CHSTAT_L0, 0x1902);
-		aml_write_cbus(AIU_958_CHSTAT_R0, 0x1902);
+		aml_aiu_write(AIU_958_VALID_CTRL, 3);
+		aml_aiu_write(AIU_958_CHSTAT_L0, 0x1902);
+		aml_aiu_write(AIU_958_CHSTAT_R0, 0x1902);
 	} else if (strncmp(buf, "dtsm6_stream_type_set", 21) == 0) {
 		if (kstrtoint(buf + 21, 10, &dtsm6_stream_type))
 			return -EINVAL;

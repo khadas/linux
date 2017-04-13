@@ -925,6 +925,30 @@
 						"usb1_to_ddr";
 	};
 
+	/* Sound iomap */
+	aml_snd_iomap {
+		compatible = "amlogic, snd_iomap";
+		status = "okay";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		io_audin_base {
+			reg = <0x0 0xffd03000 0x0 0x100000>;
+		};
+		io_aiu_base {
+			reg = <0x0 0xFFCFFC00 0x0 0x100000>;
+		};
+		io_eqdrc_base {
+			reg = <0x0 0xFFCFF000 0x0 0x100000>;
+		};
+		io_hiu_reset_base {
+			reg = <0x0 0xFFCFCC00 0x0 0x100000>;
+		};
+		io_isa_base {
+			reg = <0x0 0xFFD05800 0x0 0x100000>;
+		};
+	};
+
 	/* AUDIO MESON8 DEVICES */
 	i2s_dai: I2S {
 		#sound-dai-cells = <0>;

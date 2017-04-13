@@ -33,6 +33,7 @@
 #include <linux/amlogic/amports/dsp_register.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 
 #include "dsp_mailbox.h"
 #include <linux/delay.h>
@@ -62,16 +63,15 @@ static void enable_dsp(int flag)
 		/* enable */
 		SET_MPEG_REG_MASK(MEDIA_CPU_CTL, 3);
 	}
-#else				/*  */
-	if (!flag)
-		aml_cbus_update_bits(MEDIA_CPU_CTL, 1, 0);
+#else if (!flag)
+	aml_isa_update_bits(MEDIA_CPU_CTL, 1, 0);
 
-	aml_cbus_update_bits(RESET2_REGISTER, RESET_AUD_ARC, 0);
+	aml_hiu_reset_update_bits(RESET2_REGISTER, RESET_AUD_ARC, 0);
 	if (flag) {
-		aml_cbus_update_bits(MEDIA_CPU_CTL, 1, 1);
-		aml_cbus_update_bits(MEDIA_CPU_CTL, 1, 0);
+		aml_isa_update_bits(MEDIA_CPU_CTL, 1, 1);
+		aml_isa_update_bits(MEDIA_CPU_CTL, 1, 0);
 	}
-#endif				/*  */
+#endif
 }
 
 void halt_dsp(struct audiodsp_priv *priv)
@@ -91,7 +91,7 @@ void halt_dsp(struct audiodsp_priv *priv)
 			DSP_PRNT
 				("dsp isn't sleeping when call dsp_stop\n");
 
-#else				/*  */
+#else
 		for (i = 0; i < 10; i++) {
 			dsp_mailbox_send(priv, 1, M2B_IRQ0_DSP_HALT, 0, 0, 0);
 			udelay(1000);	/*waiting arc2 self-halt */
@@ -101,14 +101,14 @@ void halt_dsp(struct audiodsp_priv *priv)
 		if (i == 10)
 			DSP_PRNT("warning,dsp self-halt time out\n");
 
-#endif				/*  */
+#endif
 	}
 #ifdef AUDIODSP_RESET
 	if (DSP_RD(DSP_STATUS) != DSP_STATUS_RUNING) {
 		DSP_WD(DSP_STATUS, DSP_STATUS_HALT);
 		return;
 	}
-#endif				/*  */
+#endif
 	if (!priv->dsp_is_started) {
 		enable_dsp(0);	/*hardware halt the cpu */
 		DSP_WD(DSP_STATUS, DSP_STATUS_HALT);
@@ -128,14 +128,13 @@ void reset_dsp(struct audiodsp_priv *priv)
 			   ((AUDIO_DSP_START_PHY_ADDR) >> 20) << 20);
 	SET_MPEG_REG_MASK(MEDIA_CPU_CTL, 1 << 16);
 
-#else				/*  */
-	aml_cbus_update_bits(MEDIA_CPU_CTL, (0xfff << 4), 0);
-	aml_cbus_update_bits(MEDIA_CPU_CTL,
+#else
+	aml_isa_update_bits(MEDIA_CPU_CTL, (0xfff << 4), 0);
+	aml_isa_update_bits(MEDIA_CPU_CTL,
 			      ((AUDIO_DSP_START_PHY_ADDR) >> 20) << 4,
 			      ((AUDIO_DSP_START_PHY_ADDR) >> 20) << 4);
 
-#endif				/*  */
-	/* decode option */
+#endif	/* decode option */
 	if (audioin_mode & 2)
 		decopt &= ~(1 << 6);
 
@@ -356,7 +355,7 @@ int dsp_stop(struct audiodsp_priv *priv)
 #ifdef AUDIODSP_RESET
 	priv->dsp_is_started = 0;
 
-#endif				/*  */
+#endif
 	halt_dsp(priv);
 	priv->dsp_end_time = jiffies;
 
@@ -374,7 +373,7 @@ int dsp_stop(struct audiodsp_priv *priv)
 		kfree(priv->stream_buffer_mem);
 		priv->stream_buffer_mem = NULL;
 	}
-#endif				/*  */
+#endif
 	mutex_unlock(&priv->dsp_mutex);
 	return 0;
 }
@@ -387,7 +386,7 @@ int dsp_check_status(struct audiodsp_priv *priv)
 	int pcmlevel = 0;
 	if (DSP_RD(DSP_STATUS) != DSP_STATUS_RUNING)
 		return 1;
-	ablevel = aml_read_cbus(AIU_MEM_AIFIFO_LEVEL);
+	ablevel = aml_aiu_read(AIU_MEM_AIFIFO_LEVEL);
 	pcmlevel = dsp_codec_get_bufer_data_len(priv);
 	if ((ablevel == priv->last_ablevel && ablevel > 50 * 1024) &&
 		(pcmlevel == priv->last_pcmlevel && pcmlevel < 512)) {

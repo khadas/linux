@@ -45,6 +45,7 @@
 #include <linux/io.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
@@ -126,20 +127,20 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
-		if (is_meson_txl_cpu()) {
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			/* select internal codec ADC in TXL as I2S source */
-			aml_write_cbus(AUDIN_SOURCE_SEL, 3);
+			aml_audin_write(AUDIN_SOURCE_SEL, 3);
 		} else
 			/* select external codec ADC as I2S source */
-			aml_write_cbus(AUDIN_SOURCE_SEL, 0);
+			aml_audin_write(AUDIN_SOURCE_SEL, 0);
 		audio_in_source = 0;
-		if (is_meson_txl_cpu())
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
-		aml_write_cbus(AUDIN_SOURCE_SEL, 1);
+		aml_audin_write(AUDIN_SOURCE_SEL, 1);
 		audio_in_source = 1;
-		if (is_meson_txl_cpu())
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
 		/* select HDMI-rx as Audio In source */
@@ -150,10 +151,10 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/* 1=Select HDMIRX SPDIF output as AUDIN source */
 		/* [1:0] i2sin_src_sel: */
 		/*2=Select HDMIRX I2S output as AUDIN source */
-		aml_write_cbus(AUDIN_SOURCE_SEL, (0 << 12) |
+		aml_audin_write(AUDIN_SOURCE_SEL, (0 << 12) |
 				   (0xf << 8) | (1 << 4) | (2 << 0));
 		audio_in_source = 2;
-		if (is_meson_txl_cpu())
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
 	}
 
@@ -175,8 +176,8 @@ static int aml_i2s_audio_type_get_enum(
 {
 	int ch_status = 0;
 
-	if ((aml_read_cbus(AUDIN_DECODE_CONTROL_STATUS) >> 24) & 0x1) {
-		ch_status = aml_read_cbus(AUDIN_DECODE_CHANNEL_STATUS_A_0);
+	if ((aml_audin_read(AUDIN_DECODE_CONTROL_STATUS) >> 24) & 0x1) {
+		ch_status = aml_audin_read(AUDIN_DECODE_CHANNEL_STATUS_A_0);
 		if (ch_status & 2)
 			ucontrol->value.enumerated.item[0] = 1;
 		else
@@ -225,7 +226,7 @@ static int aml_spdif_audio_type_get_enum(
 	int audio_type = 0;
 	int i;
 	int total_num = sizeof(type_texts)/sizeof(struct sppdif_audio_info);
-	int pc = aml_read_cbus(AUDIN_SPDIF_NPCM_PCPD)>>16;
+	int pc = aml_audin_read(AUDIN_SPDIF_NPCM_PCPD)>>16;
 	pc = pc&0xff;
 	for (i = 0; i < total_num; i++) {
 		if (pc == type_texts[i].pc) {
@@ -237,19 +238,19 @@ static int aml_spdif_audio_type_get_enum(
 	if (last_audio_type != audio_type) {
 		if (audio_type == 0) {
 			/*In LPCM, use old spdif mode*/
-			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
+			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
 				(0x7 << AUDIN_FIFO1_DIN_SEL),
 				(SPDIF_IN << AUDIN_FIFO1_DIN_SEL));
 			/*spdif-in data fromat:(27:4)*/
-			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
+			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x88);
 			hardware_resample_locked_flag = 0;
 		} else {
 			/*In RAW data, use PAO mode*/
-			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
+			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
 				(0x7 << AUDIN_FIFO1_DIN_SEL),
 				(PAO_IN << AUDIN_FIFO1_DIN_SEL));
 			/*spdif-in data fromat:(23:0)*/
-			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x8);
+			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x8);
 			hardware_resample_locked_flag = 1;
 		}
 		last_audio_type = audio_type;
@@ -287,9 +288,9 @@ static int hardware_resample_enable(int input_sr)
 	pr_info("clk_rate = %u, input_sr = %d, Avg_cnt_init = %u\n",
 		clk_rate, input_sr, Avg_cnt_init);
 
-	aml_write_cbus(AUD_RESAMPLE_CTRL0, (1 << 31));
-	aml_write_cbus(AUD_RESAMPLE_CTRL0, 0);
-	aml_write_cbus(AUD_RESAMPLE_CTRL0,
+	aml_audin_write(AUD_RESAMPLE_CTRL0, (1 << 31));
+	aml_audin_write(AUD_RESAMPLE_CTRL0, 0);
+	aml_audin_write(AUD_RESAMPLE_CTRL0,
 				(1 << 29)
 				| (1 << 28)
 				| (0 << 26)
@@ -301,7 +302,7 @@ static int hardware_resample_enable(int input_sr)
 
 static int hardware_resample_disable(void)
 {
-	aml_write_cbus(AUD_RESAMPLE_CTRL0, 0);
+	aml_audin_write(AUD_RESAMPLE_CTRL0, 0);
 	return 0;
 }
 
@@ -398,26 +399,26 @@ static int aml_set_audio_in_switch(struct snd_kcontrol *kcontrol,
 
 static int init_EQ_DRC_module(void)
 {
-	aml_write_cbus(AED_TOP_CTL, (1 << 31)); /* fifo init */
-	aml_write_cbus(AED_ED_CTL, 1); /* soft reset*/
+	aml_eqdrc_write(AED_TOP_CTL, (1 << 31)); /* fifo init */
+	aml_eqdrc_write(AED_ED_CTL, 1); /* soft reset*/
 	msleep(20);
-	aml_write_cbus(AED_ED_CTL, 0); /* soft reset*/
-	aml_write_cbus(AED_TOP_CTL, (0 << 1) /*i2s in sel*/
+	aml_eqdrc_write(AED_ED_CTL, 0); /* soft reset*/
+	aml_eqdrc_write(AED_TOP_CTL, (0 << 1) /*i2s in sel*/
 						| (1 << 0)); /*module enable*/
-	aml_write_cbus(AED_NG_CTL, (3 << 30)); /* disable noise gate*/
+	aml_eqdrc_write(AED_NG_CTL, (3 << 30)); /* disable noise gate*/
 	return 0;
 }
 
 static int set_internal_EQ_volume(unsigned master_volume,
 			unsigned channel_1_volume, unsigned channel_2_volume)
 {
-	aml_write_cbus(AED_EQ_VOLUME, (2 << 30) /* volume step: 0.5dB*/
+	aml_eqdrc_write(AED_EQ_VOLUME, (2 << 30) /* volume step: 0.5dB*/
 			| (master_volume << 16) /* master volume: 0dB*/
 			| (channel_1_volume << 8) /* channel 1 volume: 0dB*/
 			| (channel_2_volume << 0) /* channel 2 volume: 0dB*/
 			);
-	aml_write_cbus(AED_EQ_VOLUME_SLEW_CNT, 0x40);
-	aml_write_cbus(AED_MUTE, 0);
+	aml_eqdrc_write(AED_EQ_VOLUME_SLEW_CNT, 0x40);
+	aml_eqdrc_write(AED_MUTE, 0);
 	return 0;
 }
 
@@ -480,14 +481,14 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 
 static int set_HW_resample_pause_thd(unsigned int thd)
 {
-	aml_write_cbus(AUD_RESAMPLE_CTRL2,
+	aml_audin_write(AUD_RESAMPLE_CTRL2,
 			(1 << 24) /* enable HW_resample_pause*/
 			| (thd << 11) /* set HW resample pause thd (sample)*/
 			);
 	return 0;
 }
 
-static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
+static int aml_get_eqdrc_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol) {
 
 	struct soc_mixer_control *mc =
@@ -497,7 +498,7 @@ static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
 	unsigned int max = mc->max;
 	unsigned int invert = mc->invert;
 	unsigned int value =
-			(((unsigned)aml_read_cbus(reg)) >> shift) & max;
+			(((unsigned)aml_eqdrc_read(reg)) >> shift) & max;
 
 	if (invert)
 		value = (~value) & max;
@@ -506,7 +507,7 @@ static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aml_set_cbus_reg(struct snd_kcontrol *kcontrol,
+static int aml_set_eqdrc_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol) {
 
 	struct soc_mixer_control *mc =
@@ -516,14 +517,55 @@ static int aml_set_cbus_reg(struct snd_kcontrol *kcontrol,
 	unsigned int max = mc->max;
 	unsigned int invert = mc->invert;
 	unsigned int value = ucontrol->value.integer.value[0];
-	unsigned int reg_value = (unsigned int)aml_read_cbus(reg);
+	unsigned int reg_value = (unsigned int)aml_eqdrc_read(reg);
 
 	if (invert)
 		value = (~value) & max;
 	max = ~(max << shift);
 	reg_value &= max;
 	reg_value |= (value << shift);
-	aml_write_cbus(reg, reg_value);
+	aml_eqdrc_write(reg, reg_value);
+
+	return 0;
+}
+
+static int aml_get_audin_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int value =
+			(((unsigned)aml_audin_read(reg)) >> shift) & max;
+
+	if (invert)
+		value = (~value) & max;
+	ucontrol->value.integer.value[0] = value;
+
+	return 0;
+}
+
+static int aml_set_audin_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int value = ucontrol->value.integer.value[0];
+	unsigned int reg_value = (unsigned int)aml_audin_read(reg);
+
+	if (invert)
+		value = (~value) & max;
+	max = ~(max << shift);
+	reg_value &= max;
+	reg_value |= (value << shift);
+	aml_audin_write(reg, reg_value);
 
 	return 0;
 }
@@ -534,62 +576,62 @@ static const DECLARE_TLV_DB_SCALE(chvol_tlv, -12750, 50, 1);
 static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 	SOC_SINGLE_EXT_TLV("EQ master volume",
 			 AED_EQ_VOLUME, 16, 0x3FF, 1,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 mvol_tlv),
 
 	SOC_SINGLE_EXT_TLV("EQ ch1 volume",
 			 AED_EQ_VOLUME, 8, 0xFF, 1,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 chvol_tlv),
 
 	SOC_SINGLE_EXT_TLV("EQ ch2 volume",
 			 AED_EQ_VOLUME, 0, 0xFF, 1,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 chvol_tlv),
 
 	SOC_SINGLE_EXT_TLV("EQ master volume mute",
 			 AED_MUTE, 31, 0x1, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("EQ enable",
 			 AED_EQ_EN, 0, 0x1, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("DRC enable",
 			 AED_DRC_EN, 0, 0x1, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("NG enable",
 			 AED_NG_CTL, 0, 0x1, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("NG noise thd",
 			 AED_NG_THD0, 8, 0x7FFF, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("NG signal thd",
 			 AED_NG_THD1, 8, 0x7FFF, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("NG counter thd",
 			 AED_NG_CNT_THD, 0, 0xFFFF, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("Hw resample pause enable",
 			 AUD_RESAMPLE_CTRL2, 24, 0x1, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_audin_reg, aml_set_audin_reg,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("Hw resample pause thd",
 			 AUD_RESAMPLE_CTRL2, 11, 0x1FFF, 0,
-			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 aml_get_audin_reg, aml_set_audin_reg,
 			 NULL),
 };
 
@@ -822,7 +864,7 @@ static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* set cpu DAI configuration */
-	if (is_meson_txl_cpu())
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 		ret = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				  | SND_SOC_DAIFMT_CBM_CFM);
@@ -1647,7 +1689,8 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txl_cpu()
+		|| is_meson_txlx_cpu()) {
 		set_internal_EQ_volume(0xc0, 0x30, 0x30);
 		init_EQ_DRC_module();
 		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,

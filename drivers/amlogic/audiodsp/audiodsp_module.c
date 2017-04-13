@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/reset.h>
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 
 /* #include <asm/dsp/audiodsp_control.h> */
 /* #include "audiodsp_control.h" */
@@ -849,12 +850,12 @@ static ssize_t audio_samesource_show(struct class *cla,
 {
 	char *pbuf = buf;
 	int samesource = 0;
-	int i2s_enable = !!(aml_read_cbus(AIU_MEM_I2S_CONTROL) & (3 << 1));
+	int i2s_enable = !!(aml_aiu_read(AIU_MEM_I2S_CONTROL) & (3 << 1));
 	int iec958_enable =
-	    !!(aml_read_cbus(AIU_MEM_IEC958_CONTROL) & (3 << 1));
+	    !!(aml_aiu_read(AIU_MEM_IEC958_CONTROL) & (3 << 1));
 	samesource =
-	    (aml_read_cbus(AIU_MEM_IEC958_START_PTR) ==
-	     aml_read_cbus(AIU_MEM_I2S_START_PTR));
+	    (aml_aiu_read(AIU_MEM_IEC958_START_PTR) ==
+	     aml_aiu_read(AIU_MEM_I2S_START_PTR));
 
 	/* make sure i2s/958 same source.and both enabled */
 	if (samesource == 0) {
