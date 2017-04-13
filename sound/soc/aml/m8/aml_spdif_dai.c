@@ -41,13 +41,15 @@
 #include <sound/pcm_params.h>
 
 #include <linux/amlogic/iomap.h>
-#include "aml_audio_hw.h"
-#include "aml_spdif_dai.h"
-#include "aml_i2s.h"
 #include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 #include <linux/amlogic/cpu_version.h>
+
+#include "aml_audio_hw.h"
+#include "aml_spdif_dai.h"
+#include "aml_i2s.h"
 
 /*
  0 --  other formats except(DD,DD+,DTS)
@@ -92,7 +94,12 @@ static void set_IEC958_clock_div(uint div)
 
 static inline bool is_meson_tv_chipset(void)
 {
-	return is_meson_gxtvbb_cpu() || is_meson_txl_cpu();
+	int ret = false;
+
+	ret = is_meson_gxtvbb_cpu()
+			|| is_meson_txl_cpu()
+			|| is_meson_txlx_cpu();
+	return ret;
 }
 
 void aml_spdif_play(int samesrc)
@@ -405,10 +412,10 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 	} else if (IEC958_mode_codec == 5) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD, substream);
 	} else if (IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		aml_write_cbus(AIU_958_CHSTAT_L0, 0x1902);
-		aml_write_cbus(AIU_958_CHSTAT_L1, 0x900);
-		aml_write_cbus(AIU_958_CHSTAT_R0, 0x1902);
-		aml_write_cbus(AIU_958_CHSTAT_R1, 0x900);
+		aml_aiu_write(AIU_958_CHSTAT_L0, 0x1902);
+		aml_aiu_write(AIU_958_CHSTAT_L1, 0x900);
+		aml_aiu_write(AIU_958_CHSTAT_R0, 0x1902);
+		aml_aiu_write(AIU_958_CHSTAT_R1, 0x900);
 		if (IEC958_mode_codec == 8)
 			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
 			substream);

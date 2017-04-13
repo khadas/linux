@@ -43,6 +43,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 #include "amaudio2.h"
 
 #define BASE_IRQ                        (32)
@@ -243,7 +244,7 @@ static int amaudio_open(struct inode *inode, struct file *file)
 			goto error;
 		}
 
-		aml_cbus_update_bits(AIU_MEM_I2S_MASKS, 0xffff << 16,
+		aml_aiu_update_bits(AIU_MEM_I2S_MASKS, 0xffff << 16,
 				int_num << 16);
 
 		/*pr_info("channel: %d, int_num = %d,"
@@ -311,14 +312,14 @@ static int amaudio_mmap(struct file *file, struct vm_area_struct *vma)
 
 static unsigned get_i2s_out_size(void)
 {
-	return aml_read_cbus(AIU_MEM_I2S_END_PTR)
-	       - aml_read_cbus(AIU_MEM_I2S_START_PTR) + i2s_num;
+	return aml_aiu_read(AIU_MEM_I2S_END_PTR)
+	       - aml_aiu_read(AIU_MEM_I2S_START_PTR) + i2s_num;
 }
 
 static unsigned get_i2s_out_ptr(void)
 {
-	return aml_read_cbus(AIU_MEM_I2S_RD_PTR)
-	       - aml_read_cbus(AIU_MEM_I2S_START_PTR);
+	return aml_aiu_read(AIU_MEM_I2S_RD_PTR)
+	       - aml_aiu_read(AIU_MEM_I2S_START_PTR);
 }
 
 void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,

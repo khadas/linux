@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/amports/dsp_register.h>
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 #include <linux/amlogic/iomap.h>
 
 #include "spdif_module.h"
@@ -40,24 +41,24 @@ static unsigned iec958_wr_offset;
 
 static inline int if_audio_output_iec958_enable(void)
 {
-	return aml_read_cbus(AIU_MEM_IEC958_CONTROL) && (0x3 << 1);
+	return aml_aiu_read(AIU_MEM_IEC958_CONTROL) && (0x3 << 1);
 }
 
 static inline int if_audio_output_i2s_enable(void)
 {
-	return aml_read_cbus(AIU_MEM_I2S_CONTROL) && (0x3 << 1);
+	return aml_aiu_read(AIU_MEM_I2S_CONTROL) && (0x3 << 1);
 }
 
 static inline void audio_output_iec958_enable(unsigned flag)
 {
 	if (flag) {
-		aml_write_cbus(AIU_958_FORCE_LEFT, 0);
-		aml_cbus_update_bits(AIU_958_DCU_FF_CTRL, 1, 1);
-		aml_cbus_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1,
+		aml_aiu_write(AIU_958_FORCE_LEFT, 0);
+		aml_aiu_update_bits(AIU_958_DCU_FF_CTRL, 1, 1);
+		aml_aiu_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1,
 				0x3 << 1);
 	} else {
-		aml_write_cbus(AIU_958_DCU_FF_CTRL, 0);
-		aml_cbus_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1, 0);
+		aml_aiu_write(AIU_958_DCU_FF_CTRL, 0);
+		aml_aiu_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1, 0);
 	}
 }
 
@@ -92,18 +93,18 @@ static long audio_spdif_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case AUDIO_SPDIF_GET_958_BUF_RD_OFFSET:
 		tmp =
-		aml_read_cbus(AIU_MEM_IEC958_RD_PTR) -
-		aml_read_cbus(AIU_MEM_IEC958_START_PTR);
+		aml_aiu_read(AIU_MEM_IEC958_RD_PTR) -
+		aml_aiu_read(AIU_MEM_IEC958_START_PTR);
 		put_user(tmp, (__s32 __user *) args);
 		break;
 	case AUDIO_SPDIF_GET_958_BUF_SIZE:
 		/* iec958_info.iec958_buffer_size; */
-		tmp = aml_read_cbus(AIU_MEM_IEC958_END_PTR) -
-			aml_read_cbus(AIU_MEM_IEC958_START_PTR) + 64;
+		tmp = aml_aiu_read(AIU_MEM_IEC958_END_PTR) -
+			aml_aiu_read(AIU_MEM_IEC958_START_PTR) + 64;
 		if (tmp == 64)
 			tmp = 0;
-		if (aml_read_cbus(AIU_MEM_IEC958_START_PTR) ==
-		aml_read_cbus(AIU_MEM_I2S_START_PTR)) {
+		if (aml_aiu_read(AIU_MEM_IEC958_START_PTR) ==
+		aml_aiu_read(AIU_MEM_I2S_START_PTR)) {
 			tmp = tmp * 4;
 		}
 		put_user(tmp, (__s32 __user *) args);
@@ -145,7 +146,7 @@ static ssize_t audio_spdif_write(struct file *file,
 	char *wr_ptr;
 	unsigned long wr_addr;
 	dma_addr_t buf_map;
-	wr_addr = aml_read_cbus(AIU_MEM_IEC958_START_PTR) + iec958_wr_offset;
+	wr_addr = aml_aiu_read(AIU_MEM_IEC958_START_PTR) + iec958_wr_offset;
 	wr_ptr = (char *)phys_to_virt(wr_addr);
 	if (copy_from_user((void *)wr_ptr, (void *)userbuf, len) != 0) {
 		pr_info("audio spdif: copy from user failed\n");
@@ -172,7 +173,7 @@ static int audio_spdif_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EAGAIN;
 	}
 	/* mapping the 958 dma buffer to user space to write */
-	off = aml_read_cbus(AIU_MEM_IEC958_START_PTR);
+	off = aml_aiu_read(AIU_MEM_IEC958_START_PTR);
 
 	/*|VM_MAYWRITE|VM_MAYSHARE */
 	vma->vm_flags |=
@@ -186,8 +187,8 @@ static int audio_spdif_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 	pr_info("audio spdif: mmap finished\n");
 	pr_info("audio spdif: 958 dma buf:py addr 0x%x,vir addr 0x%x\n",
-	aml_read_cbus(AIU_MEM_IEC958_START_PTR), (unsigned int)
-		phys_to_virt(aml_read_cbus(AIU_MEM_IEC958_START_PTR)));
+	aml_aiu_read(AIU_MEM_IEC958_START_PTR), (unsigned int)
+		phys_to_virt(aml_aiu_read(AIU_MEM_IEC958_START_PTR)));
 	return 0;
 }
 
@@ -198,8 +199,8 @@ static ssize_t audio_spdif_ptr_show(struct class *class,
 	ret = sprintf(buf, "iec958 buf runtime info:\n"
 		"  iec958 rd ptr :\t%x\n"
 		"  iec958 wr ptr :\t%x\n",
-		aml_read_cbus(AIU_MEM_IEC958_RD_PTR),
-		(aml_read_cbus(AIU_MEM_IEC958_START_PTR) +
+		aml_aiu_read(AIU_MEM_IEC958_RD_PTR),
+		(aml_aiu_read(AIU_MEM_IEC958_START_PTR) +
 			iec958_wr_offset));
 	return ret;
 }
@@ -209,7 +210,7 @@ static ssize_t audio_spdif_buf_show(struct class *class,
 {
 	ssize_t ret = 0;
 	unsigned *ptr =
-		(unsigned *)phys_to_virt(aml_read_cbus(AIU_MEM_IEC958_RD_PTR) +
+		(unsigned *)phys_to_virt(aml_aiu_read(AIU_MEM_IEC958_RD_PTR) +
 				iec958_wr_offset);
 	ret =
 		sprintf(buf,

@@ -586,3 +586,6 @@ config SND_SOC_AMLT9015
 
 config SND_SOC_AMLT9015S
 	tristate
+
+config SND_SOC_AMLTXLX_ACODEC
+	tristate

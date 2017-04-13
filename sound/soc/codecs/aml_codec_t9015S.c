@@ -19,6 +19,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 
 #include "aml_codec_t9015S.h"
 
@@ -385,7 +386,7 @@ static int aml_T9015S_prepare(struct snd_pcm_substream *substream,
 
 static int aml_T9015S_audio_reset(struct snd_soc_codec *codec)
 {
-	aml_cbus_update_bits(RESET1_REGISTER, (1 << ACODEC_RESET),
+	aml_hiu_reset_update_bits(RESET1_REGISTER, (1 << ACODEC_RESET),
 					(1 << ACODEC_RESET));
 	udelay(1000);
 	return 0;
@@ -432,14 +433,14 @@ static int aml_T9015S_audio_probe(struct snd_soc_codec *codec)
 	aml_T9015S_audio_start_up(codec);
 	aml_T9015S_audio_reg_init(codec);
 
-	aml_write_cbus(AIU_ACODEC_CTRL, (1 << 4)
+	aml_aiu_write(AIU_ACODEC_CTRL, (1 << 4)
 			   |(1 << 6)
 			   |(1 << 11)
 			   |(1 << 15)
 			   |(2 << 2)
 	);
 
-	aml_write_cbus(AUDIN_SOURCE_SEL, 3);
+	aml_audin_write(AUDIN_SOURCE_SEL, 3);
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	T9015S_audio->codec = codec;
 

@@ -43,6 +43,7 @@
 #include "aml_spdif_dai.h"
 #include "aml_audio_hw.h"
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/aml_snd_iomap.h>
 
 #define USE_HW_TIMER
 #ifdef USE_HW_TIMER
@@ -332,11 +333,11 @@ static int snd_request_hw_timer(void *data)
 {
 	int ret = 0;
 	if (hw_timer_init == 0) {
-		aml_write_cbus(ISA_TIMERD, TIMER_COUNT);
-		aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 6,
+		aml_isa_write(ISA_TIMERD, TIMER_COUNT);
+		aml_isa_update_bits(ISA_TIMER_MUX, 3 << 6,
 					TIMERD_RESOLUTION << 6);
-		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 15, TIMERD_MODE << 15);
-		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 19, 1 << 19);
+		aml_isa_update_bits(ISA_TIMER_MUX, 1 << 15, TIMERD_MODE << 15);
+		aml_isa_update_bits(ISA_TIMER_MUX, 1 << 19, 1 << 19);
 		hw_timer_init = 1;
 	}
 	ret = request_irq(INT_TIMER_D, audio_isr_handler,
@@ -1187,8 +1188,8 @@ static unsigned long isa_timerd_saved;
 static unsigned long isa_timerd_mux_saved;
 static int aml_i2s_freeze(struct device *dev)
 {
-	isa_timerd_saved = aml_read_cbus(ISA_TIMERD);
-	isa_timerd_mux_saved = aml_read_cbus(ISA_TIMER_MUX);
+	isa_timerd_saved = aml_isa_read(ISA_TIMERD);
+	isa_timerd_mux_saved = aml_isa_read(ISA_TIMER_MUX);
 	return 0;
 }
 
@@ -1199,8 +1200,8 @@ static int aml_i2s_thaw(struct device *dev)
 
 static int aml_i2s_restore(struct device *dev)
 {
-	aml_write_cbus(ISA_TIMERD, isa_timerd_saved);
-	aml_write_cbus(ISA_TIMER_MUX, isa_timerd_mux_saved);
+	aml_isa_write(ISA_TIMERD, isa_timerd_saved);
+	aml_isa_write(ISA_TIMER_MUX, isa_timerd_mux_saved);
 	return 0;
 }
 

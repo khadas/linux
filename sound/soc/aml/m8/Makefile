@@ -22,6 +22,10 @@ obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-dmic.o
 snd-soc-aml-spdif-codec-objs := aml_spdif_codec.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-spdif-codec.o
 
+# AML SND IOMAP Support
+snd-soc-aml-snd-iomap-objs := aml_snd_iomap.o
+obj-$(CONFIG_SND_AML_M8) += snd-soc-aml-snd-iomap.o
+
 #AML M8 Machine support
 snd-soc-aml-m8-objs := aml_m8.o
 obj-$(CONFIG_SND_AML_M8) += snd-soc-aml-m8.o

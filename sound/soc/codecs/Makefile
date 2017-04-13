@@ -129,6 +129,7 @@ snd-soc-pcm2bt-objs  := pcm2bt.o
 snd-soc-amlpmu4-objs := aml_pmu4_codec.o
 snd-soc-aml_t9015-objs := aml_codec_t9015.o
 snd-soc-aml_t9015S-objs := aml_codec_t9015S.o
+snd-soc-aml_txlx_acodec-objs := aml_codec_txlx_acodec.o
 
 # Amp
 snd-soc-max9877-objs := max9877.o
@@ -267,6 +268,7 @@ obj-$(CONFIG_SND_SOC_PCM2BT)	+= snd-soc-pcm2bt.o
 obj-$(CONFIG_SND_SOC_AMLPMU4)	+= snd-soc-amlpmu4.o
 obj-$(CONFIG_SND_SOC_AMLT9015)	+= snd-soc-aml_t9015.o
 obj-$(CONFIG_SND_SOC_AMLT9015S)	+= snd-soc-aml_t9015S.o
+obj-$(CONFIG_SND_SOC_AMLTXLX_ACODEC) += snd-soc-aml_txlx_acodec.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
