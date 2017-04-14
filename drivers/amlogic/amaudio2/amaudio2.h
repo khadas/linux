@@ -36,7 +36,11 @@ struct BUF {
 	unsigned wr;
 	unsigned rd;
 	unsigned level;
+#ifdef AMAUDIO2_USE_IRQ
 	spinlock_t lock;
+#else
+	struct mutex lock;
+#endif
 };
 
 struct amaudio_t {
