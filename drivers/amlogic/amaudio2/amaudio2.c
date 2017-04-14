@@ -37,13 +37,16 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
-
 /* Amlogic headers */
 #include <linux/amlogic/major.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
 #include <linux/amlogic/sound/aml_snd_iomap.h>
+
+/*#define AMAUDIO2_DEBUG*/
+/*#define AMAUDIO2_USE_IRQ*/
+
 #include "amaudio2.h"
 
 #define BASE_IRQ                        (32)
@@ -251,14 +254,28 @@ static int amaudio_open(struct inode *inode, struct file *file)
 		amaudio->hw.size = get_i2s_out_size();
 		amaudio->hw.rd = get_i2s_out_ptr();
 
+#ifdef AMAUDIO2_USE_IRQ
 		spin_lock_init(&amaudio->sw.lock);
 		spin_lock_init(&amaudio->hw.lock);
 
 		if (request_irq(IRQ_OUT, i2s_out_callback, IRQF_SHARED,
 				"i2s_out", amaudio)) {
 			res = -EINVAL;
+			pr_err("amaudio2 request irq error!\n");
 			goto error;
 		}
+#else
+		mutex_init(&amaudio->sw.lock);
+		mutex_init(&amaudio->hw.lock);
+
+		if (request_threaded_irq(IRQ_OUT, NULL, i2s_out_callback,
+				IRQF_SHARED | IRQF_ONESHOT,
+				"i2s_out", (void *)amaudio)) {
+			res = -EINVAL;
+			pr_err("amaudio2 request irq error!\n");
+			goto error;
+		}
+#endif
 
 		aml_aiu_update_bits(AIU_MEM_I2S_MASKS, 0xffff << 16,
 				int_num << 16);
@@ -893,13 +910,17 @@ static void i2s_copy(struct amaudio_t *amaudio)
 {
 	struct BUF *hw = &amaudio->hw;
 	struct BUF *sw = &amaudio->sw;
-	unsigned long swirqflags, hwirqflags;
 	unsigned i2s_out_ptr = get_i2s_out_ptr();
 	unsigned alsa_delay =
 		(aml_i2s_alsa_write_addr + hw->size - i2s_out_ptr) % hw->size;
 	unsigned amaudio_delay = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
 
+#ifdef AMAUDIO2_USE_IRQ
+	unsigned long swirqflags, hwirqflags;
 	spin_lock_irqsave(&hw->lock, hwirqflags);
+#else
+	mutex_lock(&hw->lock);
+#endif
 
 	hw->rd = i2s_out_ptr;
 	hw->level = amaudio_delay;
@@ -949,20 +970,74 @@ static void i2s_copy(struct amaudio_t *amaudio)
 	hw->wr = (hw->wr + int_block) % hw->size;
 	hw->level = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
 
+#ifdef AMAUDIO2_USE_IRQ
+	spin_unlock_irqrestore(&hw->lock, hwirqflags);
 	spin_lock_irqsave(&sw->lock, swirqflags);
+#else
+	mutex_unlock(&hw->lock);
+	mutex_lock(&sw->lock);
+#endif
+
 	sw->rd = (sw->rd + int_block) % sw->size;
 	sw->level = (sw->size + sw->wr - sw->rd) % sw->size;
-	spin_unlock_irqrestore(&sw->lock, swirqflags);
 
-EXIT:  spin_unlock_irqrestore(&hw->lock, hwirqflags);
+#ifdef AMAUDIO2_USE_IRQ
+	spin_unlock_irqrestore(&sw->lock, swirqflags);
+#else
+	mutex_unlock(&sw->lock);
+#endif
+	return;
+
+EXIT:
+
+#ifdef AMAUDIO2_USE_IRQ
+	spin_unlock_irqrestore(&hw->lock, hwirqflags);
+#else
+	mutex_unlock(&hw->lock);
+#endif
 	return;
 }
+
+#ifdef AMAUDIO2_DEBUG
+#define period_reset	(1000*1000)
+#define CCCNT_WARN		2000
+static unsigned long start_time;
+static unsigned long isr_time;
+static unsigned long total_time;
+static unsigned long total_cnt;
+#endif
 
 static irqreturn_t i2s_out_callback(int irq, void *data)
 {
 	struct amaudio_t *amaudio = (struct amaudio_t *)data;
 
+#ifdef AMAUDIO2_DEBUG
+	unsigned long clk1, clk2;
+	unsigned int ratio = 0;
+	clk1 = sched_clock()/1000;
+#endif
+
 	i2s_copy(amaudio);
+
+#ifdef AMAUDIO2_DEBUG
+	clk2 = sched_clock()/1000;
+	isr_time += (clk2-clk1);
+	total_time = (clk2-start_time);
+	total_cnt++;
+
+	if (total_time >= period_reset) {
+		ratio = isr_time * 100 / total_time;
+		if ((ratio >= 20) || (total_cnt > CCCNT_WARN)) {
+			pr_err("Warning:isrtime:%ld totalTime:%ld ratio:%d, cnt:%d\n",
+				isr_time, total_time, ratio, (int)total_cnt);
+		}
+		start_time	= sched_clock()/1000;
+		isr_time	= 0;
+		total_time = 0;
+		total_cnt = 0;
+	}
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -986,7 +1061,9 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 {
 	struct amaudio_t *amaudio = (struct amaudio_t *)file->private_data;
 	s32 r = 0;
+#ifdef AMAUDIO2_USE_IRQ
 	unsigned long swirqflags, hwirqflags;
+#endif
 
 	switch (cmd) {
 	case AMAUDIO_IOC_GET_SIZE:
@@ -995,20 +1072,41 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case AMAUDIO_IOC_GET_PTR:
 		/* the read pointer of internal buffer */
+#ifdef AMAUDIO2_USE_IRQ
 		spin_lock_irqsave(&amaudio->sw.lock, swirqflags);
+#else
+		mutex_lock(&amaudio->sw.lock);
+#endif
+
 		r = amaudio->sw.rd;
+
+#ifdef AMAUDIO2_USE_IRQ
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
+#else
+		mutex_unlock(&amaudio->sw.lock);
+#endif
 		break;
 	case AMAUDIO_IOC_UPDATE_APP_PTR:
 		/*
 		 * the user space write pointer
 		 * of the internal buffer
 		 */
+#ifdef AMAUDIO2_USE_IRQ
 		spin_lock_irqsave(&amaudio->sw.lock, swirqflags);
+#else
+		mutex_lock(&amaudio->sw.lock);
+#endif
+
 		amaudio->sw.wr = arg;
 		amaudio->sw.level = (amaudio->sw.size + amaudio->sw.wr
 					 - amaudio->sw.rd) % amaudio->sw.size;
+
+#ifdef AMAUDIO2_USE_IRQ
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
+#else
+		mutex_unlock(&amaudio->sw.lock);
+#endif
+
 		if (amaudio->sw.wr % i2s_num)
 			pr_err("wr:%x, not %d Bytes align\n",
 						amaudio->sw.wr, i2s_num);
@@ -1019,20 +1117,37 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		 * pointer to get a given latency
 		 * this api should be called before fill datas
 		 */
+#ifdef AMAUDIO2_USE_IRQ
 		spin_lock_irqsave(&amaudio->hw.lock, hwirqflags);
+#else
+		mutex_lock(&amaudio->hw.lock);
+#endif
+
 		amaudio->hw.rd = get_i2s_out_ptr();
 		amaudio->hw.wr = (amaudio->hw.rd + latency) % amaudio->hw.size;
 		amaudio->hw.wr /= int_block;
 		amaudio->hw.wr *= int_block;
 		amaudio->hw.level = latency;
+
+#ifdef AMAUDIO2_USE_IRQ
 		spin_unlock_irqrestore(&amaudio->hw.lock, hwirqflags);
 		/* empty the buffer */
 		spin_lock_irqsave(&amaudio->sw.lock, swirqflags);
+#else
+		mutex_unlock(&amaudio->hw.lock);
+		mutex_lock(&amaudio->sw.lock);
+#endif
+
 		amaudio->sw.wr = 0;
 		amaudio->sw.rd = 0;
 		amaudio->sw.level = 0;
+
+#ifdef AMAUDIO2_USE_IRQ
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
-		/*pr_debug("Reset amaudio2: latency=%d bytes\n", latency);*/
+#else
+		mutex_unlock(&amaudio->sw.lock);
+#endif
+		/*pr_info("Reset amaudio2: latency=%d bytes\n", latency);*/
 		break;
 	case AMAUDIO_IOC_AUDIO_OUT_MODE:
 		/*
