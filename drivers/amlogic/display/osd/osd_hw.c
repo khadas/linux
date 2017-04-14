@@ -2748,8 +2748,7 @@ static void osd2_update_color_mode(void)
 
 static void osd1_update_enable(void)
 {
-	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) &&
+	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
 		(osd_hw.enable[OSD1] == ENABLE)) {
 		if ((VSYNCOSD_RD_MPEG_REG(VPU_RDARB_MODE_L1C2) &
 			(1 << 16)) == 0) {
