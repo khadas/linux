@@ -2834,7 +2834,18 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
 		devp->source_bitdepth is controled by colordepth
 		change default to 10bit for 8in8out detail maybe lost */
-		if (devp->color_depth_support & VDIN_WR_COLOR_DEPTH_10BIT) {
+		if (((devp->prop.color_format == TVIN_RGB444) ||
+			(devp->prop.color_format == TVIN_YUV444) ||
+			(devp->prop.color_format == TVIN_BGGR) ||
+			(devp->prop.color_format == TVIN_RGGB) ||
+			(devp->prop.color_format == TVIN_GBRG) ||
+			(devp->prop.color_format == TVIN_GRBG)) &&
+			(devp->prop.colordepth <= 8)) {
+			devp->source_bitdepth = 8;
+			wr_bits(offset, VDIN_WR_CTRL2, 0,
+				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		} else if (devp->color_depth_support &
+			VDIN_WR_COLOR_DEPTH_10BIT) {
 			devp->source_bitdepth = 10;
 			wr_bits(offset, VDIN_WR_CTRL2, 1,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
