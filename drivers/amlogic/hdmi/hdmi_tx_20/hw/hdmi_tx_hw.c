@@ -641,7 +641,8 @@ next:
 			hdmitx_rd_reg(HDMITX_DWC_HDCP22REG_STAT));
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 	}
-	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, data32 | 0x6);
+	/* ack INTERNAL_INTR or else we stuck with no interrupts at all */
+	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, data32 | 0x7);
 	return IRQ_HANDLED;
 }
 
