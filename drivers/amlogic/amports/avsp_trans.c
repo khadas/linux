@@ -784,14 +784,14 @@ unsigned int des_start;
 #ifdef AVSP_LONG_CABAC
 
 unsigned char *es_buf;
-int es_buf_ptr;
-int es_write_addr;
+unsigned int es_buf_ptr;
+unsigned int es_write_addr;
 #else
 FILE *f_es;
 #endif
-int es_ptr;
+unsigned int es_ptr;
 unsigned int es_res;
-int es_res_ptr;
+unsigned int es_res_ptr;
 unsigned int previous_es;
 
 void init_es(void)
@@ -1271,8 +1271,8 @@ struct macroblock {
 
 	struct macroblock *mb_available_up;
 	struct macroblock *mb_available_left;
-	int mbaddr_a, mbaddr_b, mbaddr_c, mbaddr_d;
-	int mbavail_a, mbavail_b, mbavail_c, mbavail_d;
+	unsigned int mbaddr_a, mbaddr_b, mbaddr_c, mbaddr_d;
+	unsigned int mbavail_a, mbavail_b, mbavail_c, mbavail_d;
 
 };
 
@@ -2875,6 +2875,7 @@ struct bitstream_s *alloc_bitstream(void)
 	if (bitstream == NULL) {
 		io_printf(
 			"AllocBitstream: Memory allocation for Bitstream failed");
+		return NULL;
 	}
 	bitstream->stream_buffer = (unsigned char *)local_alloc(
 			MAX_CODED_FRAME_SIZE,
@@ -2882,6 +2883,7 @@ struct bitstream_s *alloc_bitstream(void)
 	if (bitstream->stream_buffer == NULL) {
 		io_printf(
 				"AllocBitstream: Memory allocation for streamBuffer failed");
+		return NULL;
 	}
 
 	return bitstream;
@@ -3008,6 +3010,7 @@ struct datapartition *alloc_partition(int n)
 	if (part_arr == NULL) {
 		no_mem_exit(
 				"alloc_partition: Memory allocation for Data Partition failed");
+		return NULL;
 	}
 
 #if LIWR_FIX
@@ -3020,27 +3023,34 @@ struct datapartition *alloc_partition(int n)
 		if (datapart->bitstream == NULL) {
 			no_mem_exit(
 					"alloc_partition: Memory allocation for Bitstream failed");
+			return NULL;
 		}
 	}
 #endif
 	return part_arr;
 }
 
-void malloc_slice(struct img_par *img)
+int malloc_slice(struct img_par *img)
 {
 	struct slice_s *currslice;
 
 	img->current_slice =
 	(struct slice_s *)local_alloc(1, sizeof(struct slice_s));
 	currslice = img->current_slice;
-	if (currslice == NULL)
+	if (currslice == NULL) {
 		no_mem_exit(
 			"Memory allocation for struct slice_s datastruct Failed"
 			);
+		return 0;
+	}
 	if (1) {
-
 		currslice->mot_ctx = create_contexts_motioninfo();
+		if (currslice->mot_ctx == NULL)
+			return 0;
+
 		currslice->tex_ctx = create_contexts_textureinfo();
+		if (currslice->tex_ctx == NULL)
+			return 0;
 	}
 #if LIWR_FIX
 	currslice->max_part_nr = 1;
@@ -3048,6 +3058,9 @@ void malloc_slice(struct img_par *img)
 	currslice->max_part_nr = 3;
 #endif
 	currslice->part_arr = alloc_partition(currslice->max_part_nr);
+	if (currslice->part_arr == NULL)
+		return 0;
+	return 1;
 }
 
 void init(struct img_par *img)
@@ -3073,11 +3086,15 @@ int get_mem2Dint(int ***array2D, int rows, int columns)
 	int i;
 
 	*array2D = (int **)local_alloc(rows, sizeof(int *));
-	if (*array2D == NULL)
+	if (*array2D == NULL) {
 		no_mem_exit("get_mem2Dint: array2D");
+		return -1;
+	}
 	(*array2D)[0] = (int *)local_alloc(rows * columns, sizeof(int));
-	if ((*array2D)[0] == NULL)
+	if ((*array2D)[0] == NULL) {
 		no_mem_exit("get_mem2Dint: array2D");
+		return -1;
+	}
 
 	for (i = 1; i < rows; i++)
 		(*array2D)[i] = (*array2D)[i - 1] + columns;
@@ -3085,28 +3102,45 @@ int get_mem2Dint(int ***array2D, int rows, int columns)
 	return rows * columns * sizeof(int);
 }
 
-void initial_decode(void)
+int initial_decode(void)
 {
 	int i, j;
+	int ret;
 	int img_height = (vertical_size + img->auto_crop_bottom);
 	int memory_size = 0;
 
-	malloc_slice(img);
+	ret = malloc_slice(img);
+	if (ret == 0)
+		return 0;
+
 	mb_data = (struct macroblock *)local_alloc(
 			(img->width / MB_BLOCK_SIZE)
 			* (img_height /*vertical_size*/
 			/ MB_BLOCK_SIZE), sizeof(struct macroblock));
-	if (mb_data == NULL)
+	if (mb_data == NULL) {
 		no_mem_exit("init_global_buffers: mb_data");
+		return 0;
+	}
 
-	if (progressive_sequence)
-		memory_size += get_mem2Dint(&(img->ipredmode),
+	if (progressive_sequence) {
+		int size;
+		size = get_mem2Dint(&(img->ipredmode),
 				img->width / B8_SIZE * 2 + 4,
 				vertical_size / B8_SIZE * 2 + 4);
-	else
-		memory_size += get_mem2Dint(&(img->ipredmode),
+		if (size == -1)
+			return 0;
+
+		memory_size += size;
+	} else {
+		int size;
+		size = get_mem2Dint(&(img->ipredmode),
 				img->width / B8_SIZE * 2 + 4,
 				(vertical_size + 32) / (2 * B8_SIZE) * 4 + 4);
+		if (size == -1)
+			return 0;
+
+		memory_size += size;
+	}
 
 	for (i = 0; i < img->width / (B8_SIZE) * 2 + 4; i++) {
 		for (j = 0; j < img->height / (B8_SIZE) * 2 + 4; j++)
@@ -3122,6 +3156,7 @@ void initial_decode(void)
 	img->new_seq_header_flag = 1;
 	img->new_sequence_flag = 1;
 
+	return 1;
 }
 
 void aec_new_slice(void)
@@ -4756,6 +4791,7 @@ void main(void)
 	int current_header;
 	int i;
 	int tmp;
+	int ret;
 
 	int byte_startposition;
 	int aec_mb_stuffing_bit;
@@ -4764,20 +4800,34 @@ void main(void)
 	pr_info("enter %s\r\n", __func__);
 #endif
 	transcoding_error_flag = 0;
+	ret = 0;
 	es_buf = es_write_addr_virt;
 
-	if (local_heap_init(MAX_CODED_FRAME_SIZE * 4) < 0)
-		return -1;
+	if (local_heap_init(MAX_CODED_FRAME_SIZE * 4) < 0) {
+		ret = -1;
+		goto End;
+	}
 
 	img = (struct img_par *)local_alloc(1, sizeof(struct img_par));
-	if (img	== NULL)
+	if (img	== NULL) {
 		no_mem_exit("main: img");
+		ret = -1;
+		goto End;
+	}
 	stat_bits_ptr = (struct stat_bits *)local_alloc(1,
 			sizeof(struct stat_bits));
-	if (stat_bits_ptr == NULL)
+	if (stat_bits_ptr == NULL) {
 		no_mem_exit("main: stat_bits");
+		ret = -1;
+		goto End;
+	}
 
 	curr_stream = alloc_bitstream();
+	if (curr_stream == NULL) {
+		io_printf("alloc bitstream failed\n");
+		ret = -1;
+		goto End;
+	}
 
 	chroma_format = 1;
 	demulate_enable = 0;
@@ -4797,6 +4847,12 @@ void main(void)
 	data32 = READ_VREG(LONG_CABAC_PIC_SIZE);
 	horizontal_size = (data32 >> 0) & 0xffff;
 	vertical_size = (data32 >> 16) & 0xffff;
+	if (horizontal_size * vertical_size > 1920 * 1080) {
+		io_printf("pic size check failed: width = %d, height = %d\n",
+			horizontal_size, vertical_size);
+		ret = -1;
+		goto End;
+	}
 
 	vld_mem_start_addr = READ_VREG(VLD_MEM_VIFIFO_START_PTR);
 	vld_mem_end_addr = READ_VREG(VLD_MEM_VIFIFO_END_PTR);
@@ -4868,7 +4924,12 @@ void main(void)
 
 	open_irabs(p_irabs);
 
-	initial_decode();
+
+	if (initial_decode() == 0) {
+		io_printf("initial_decode failed\n");
+		ret = -1;
+		goto End;
+	}
 
 	init_es();
 
@@ -4924,17 +4985,21 @@ void main(void)
 			es_ptr, DMA_TO_DEVICE);
 
 		wmb(); /**/
+
 #endif
-		WRITE_VREG(LONG_CABAC_REQ, 0);
 	}
 #else
 	fclose(f_es);
 #endif
 
+End:
+#ifdef AVSP_LONG_CABAC
+	WRITE_VREG(LONG_CABAC_REQ, 0);
+#endif
 	local_heap_uninit();
 #ifdef PERFORMANCE_DEBUG
 	pr_info("exit %s\r\n", __func__);
 #endif
-	return (transcoding_error_flag == 0) ? 0 : -1;
+	return ret;
 }
 #endif

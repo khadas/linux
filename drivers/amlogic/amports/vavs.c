@@ -92,7 +92,12 @@
 
 static int debug_flag;
 
-static int firmware_sel; /* 0, normal; 1, old ucode */
+/********************************
+firmware_sel
+    0: use avsp_trans long cabac ucode;
+    1: not use avsp_trans long cabac ucode
+********************************/
+static int firmware_sel;
 
 int avs_get_debug_flag(void)
 {
@@ -125,11 +130,12 @@ static struct vframe_provider_s vavs_vf_prov;
 #ifdef AVSP_LONG_CABAC
 #define MAX_BMMU_BUFFER_NUM	(VF_BUF_NUM_MAX + 2)
 #define WORKSPACE_SIZE_A		(MAX_CODED_FRAME_SIZE + LOCAL_HEAP_SIZE)
-#define RV_AI_BUFF_START_ADDR	 0x00000000
 #else
 #define MAX_BMMU_BUFFER_NUM	(VF_BUF_NUM_MAX + 1)
-#define RV_AI_BUFF_START_ADDR	 0x01a00000
 #endif
+
+#define RV_AI_BUFF_START_ADDR	 0x01a00000
+#define LONG_CABAC_RV_AI_BUFF_START_ADDR	 0x00000000
 
 static u32 vf_buf_num = 4;
 static u32 vf_buf_num_used;
@@ -713,7 +719,12 @@ static int vavs_canvas_init(void)
 		if (ret < 0)
 			return ret;
 		if (i == (need_alloc_buf_num - 1)) {
-			buf_offset = buf_start - RV_AI_BUFF_START_ADDR;
+			if (firmware_sel == 1)
+				buf_offset = buf_start -
+					RV_AI_BUFF_START_ADDR;
+			else
+				buf_offset = buf_start -
+					LONG_CABAC_RV_AI_BUFF_START_ADDR;
 			continue;
 		}
 #ifdef AVSP_LONG_CABAC
