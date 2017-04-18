@@ -154,6 +154,7 @@ extern u32 VSYNC_RD_MPEG_REG(u32 adr);
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
+extern int video_rgb_ogo_xvy_mtx;
 
 #define VLOCK_STATE_NULL 0
 #define VLOCK_STATE_ENABLE_STEP1_DONE 1
