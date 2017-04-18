@@ -284,6 +284,7 @@ struct DI_SIM_MIF_s {
 struct DI_MC_MIF_s {
 	unsigned short start_x;
 	unsigned short start_y;
+	unsigned short end_y;
 	unsigned short size_x;
 	unsigned short size_y;
 	unsigned short canvas_num;

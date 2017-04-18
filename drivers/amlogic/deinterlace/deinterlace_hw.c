@@ -515,19 +515,22 @@ void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 	int urgent, bool reverse)
 {
+	di_mcvecrd_mif->size_y =
+			(di_mcvecrd_mif->end_y - di_mcvecrd_mif->start_y + 1);
 	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_X, (reverse?1:0)<<30 |
-			di_mcvecrd_mif->start_x<<16 |
+			di_mcvecrd_mif->start_x << 16 |
 			(di_mcvecrd_mif->size_x+di_mcvecrd_mif->start_x));
 	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_Y, (reverse?1:0)<<30 |
-						di_mcvecrd_mif->start_y<<16 |
-			(di_mcvecrd_mif->size_y+di_mcvecrd_mif->start_y));
+			di_mcvecrd_mif->start_y << 16 |
+			di_mcvecrd_mif->end_y);
 	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CANVAS_SIZE,
-			(di_mcvecrd_mif->size_x<<16)+di_mcvecrd_mif->size_y);
+			(di_mcvecrd_mif->size_x << 16) |
+			di_mcvecrd_mif->size_y);
 	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL, di_mcvecrd_mif->canvas_num |
-						(urgent<<8)|/* urgent */
-						(1<<9)|/* canvas enable */
+						(urgent << 8)|/* urgent */
+						(1 << 9)|/* canvas enable */
 						(0 << 10) |
-						(0x31<<16));
+						(0x31 << 16));
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, di_mcvecrd_mif->vecrd_offset,
 		12, 3);
 	if (di_mcvecrd_mif->blend_en)
