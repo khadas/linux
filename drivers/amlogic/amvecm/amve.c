@@ -207,7 +207,7 @@ module_param(video_rgb_ogo_mode_sw, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
 		"enable/disable video_rgb_ogo_mode_sw");
 
-static int video_rgb_ogo_xvy_mtx = 1;
+int video_rgb_ogo_xvy_mtx = 1;
 module_param(video_rgb_ogo_xvy_mtx, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
 		"enable/disable video_rgb_ogo_xvy_mtx");
@@ -3802,7 +3802,7 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 		}
 
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, p->en, 6, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
 
 		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
 			((m[0] & 0xfff) << 16)

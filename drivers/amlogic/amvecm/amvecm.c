@@ -132,6 +132,17 @@ static int mtx_sel_dbg;/* for mtx debug */
 module_param(mtx_sel_dbg, uint, 0664);
 MODULE_PARM_DESC(mtx_sel_dbg, "\n mtx_sel_dbg\n");
 
+static int wb_init_bypass_coef[24] = {
+	0, 0, 0, /* pre offset */
+	1024,	0,	0,
+	0,	1024,	0,
+	0,	0,	1024,
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	0, 0, 0, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
 /* vpp brightness/contrast/saturation/hue */
 static int __init amvecm_load_pq_val(char *str)
 {
@@ -2518,12 +2529,19 @@ static void amvecm_wb_enable(int enable)
 {
 	if (enable) {
 		wb_en = 1;
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
 	} else {
 		wb_en = 0;
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
 	}
 }
+
 
 static void amvecm_sharpness_debug(int enable)
 {
@@ -3187,14 +3205,62 @@ static void amvecm_gamma_init(bool en)
 static void amvecm_wb_init(bool en)
 {
 	if (en) {
-		WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
-			(1024 << 16) | 1024);
-		WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
-			(1024 << 16));
+		if (video_rgb_ogo_xvy_mtx) {
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
+
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+				((wb_init_bypass_coef[0] & 0xfff) << 16)
+				| (wb_init_bypass_coef[1] & 0xfff));
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+				wb_init_bypass_coef[2] & 0xfff);
+			WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
+				((wb_init_bypass_coef[3] & 0x1fff) << 16)
+				| (wb_init_bypass_coef[4] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
+				((wb_init_bypass_coef[5]  & 0x1fff) << 16)
+				| (wb_init_bypass_coef[6] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
+				((wb_init_bypass_coef[7] & 0x1fff) << 16)
+				| (wb_init_bypass_coef[8] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
+				((wb_init_bypass_coef[9] & 0x1fff) << 16)
+				| (wb_init_bypass_coef[10] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF22,
+				wb_init_bypass_coef[11] & 0x1fff);
+			if (wb_init_bypass_coef[21]) {
+				WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
+				((wb_init_bypass_coef[12] & 0x1fff) << 16)
+					| (wb_init_bypass_coef[13] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
+				((wb_init_bypass_coef[14] & 0x1fff) << 16)
+					| (wb_init_bypass_coef[17] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
+				((wb_init_bypass_coef[15] & 0x1fff) << 16)
+					| (wb_init_bypass_coef[16] & 0x1fff));
+			}
+			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
+				((wb_init_bypass_coef[18] & 0xfff) << 16)
+				| (wb_init_bypass_coef[19] & 0xfff));
+			WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
+				wb_init_bypass_coef[20] & 0xfff);
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+				wb_init_bypass_coef[21], 3, 2);
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+				wb_init_bypass_coef[22], 5, 3);
+		} else {
+			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
+				(1024 << 16) | 1024);
+			WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
+				(1024 << 16));
+		}
 	}
 
-	WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, en, 31, 1);
+	if (video_rgb_ogo_xvy_mtx)
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, en, 6, 1);
+	else
+		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, en, 31, 1);
 }
+
 
 static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(debug, S_IRUGO | S_IWUSR,
