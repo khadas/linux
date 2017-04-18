@@ -274,6 +274,15 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode,
 				   | (0 << I2SIN_LRCLK_SEL)
 				   | (0 << I2SIN_CLK_SEL)
 				   | (0 << I2SIN_DIR));
+		if (is_meson_txlx_cpu()) {
+			/* adec */
+			aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 3);
+			/* fifo source adec */
+			aml_audin_update_bits(AUDIN_FIFO0_CTRL, 0x38,
+				(0x5 << AUDIN_FIFO0_DIN_SEL));
+			aml_audin_update_bits(AUDIN_FIFO0_CTRL1, 0x3,
+							(0x1 << 0));
+		}
 	} else if (audio_in_source == 2) {
 		aml_audin_write(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
 				   | (3 << I2SIN_SIZE)
