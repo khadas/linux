@@ -549,6 +549,25 @@ void cec_rx_buf_clear(void)
 	aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x0);
 }
 
+static inline bool is_poll_message(unsigned char header)
+{
+	unsigned char initiator, follower;
+
+	initiator = (header >> 4) & 0xf;
+	follower  = (header) & 0xf;
+	return initiator == follower;
+}
+
+static void cec_clear_logical_addr(void)
+{
+	if (ee_cec) {
+		hdmirx_wr_dwc(DWC_CEC_ADDR_L, 0);
+		hdmirx_wr_dwc(DWC_CEC_ADDR_H, 0x80);
+	} else
+		aocec_wr_reg(CEC_LOGICAL_ADDR0, 0);
+	udelay(100);
+}
+
 int cec_rx_buf_check(void)
 {
 	unsigned int rx_num_msg;
@@ -794,6 +813,9 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 
 	if (len == 0)
 		return CEC_FAIL_NONE;
+
+	if (is_poll_message(msg[0]))
+		cec_clear_logical_addr();
 
 	mutex_lock(&cec_dev->cec_mutex);
 	/* make sure we got valid physical address */
@@ -1967,7 +1989,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_CLR_LOGICAL_ADDR:
-		/* TODO: clear global info */
+		cec_clear_logical_addr();
 		break;
 
 	case CEC_IOC_SET_DEV_TYPE:
