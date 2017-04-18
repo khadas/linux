@@ -4190,7 +4190,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			timestamp_pcrscr_enable(1);
 			/*pr_info("system_time=%d, omx_pts=%d, diff=%d\n",
 			system_time, omx_pts, diff);*/
-			timestamp_pcrscr_set(omx_pts);
+			/*add 1/2 vsync time for 23.976fps 59.94fps 29.97fps
+			pts is not evenly*/
+			timestamp_pcrscr_set(omx_pts + vsync_pts_inc/2);
 		}
 	} else
 		omx_pts = 0;
