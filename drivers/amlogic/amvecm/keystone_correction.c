@@ -23,7 +23,7 @@ unsigned int vks_output_height = 1080;
 *case2:theta_angle=30, alph0_angle=15, alph1_angle=20
 *case3:theta_angle=-45, alph0_angle=30, alph1_angle=20
 */
-signed int vks_theta_angle;
+signed int vks_theta_angle = 45;
 module_param(vks_theta_angle, int, 0664);
 MODULE_PARM_DESC(vks_theta_angle, "\n vks_theta_angle\n");
 
@@ -31,7 +31,7 @@ signed int vks_alph0_angle = 30;
 module_param(vks_alph0_angle, int, 0664);
 MODULE_PARM_DESC(vks_alph0_angle, "\n vks_alph0_angle\n");
 
-signed int vks_alph1_angle = 30;
+signed int vks_alph1_angle = 20;
 module_param(vks_alph1_angle, int, 0664);
 MODULE_PARM_DESC(vks_alph1_angle, "\n vks_alph1_angle\n");
 
@@ -41,6 +41,8 @@ unsigned int vks_delta_bot;
 /*control parameters start*/
 unsigned int keystone_scaler_mode;
 unsigned int reg_vks_en = 0;
+/*if scl_mode=0;4kinput,4k-outpu will underflow,
+so vlsi suggest scl_mode=1 as default*/
 unsigned int reg_vks_scl_mode0 = 1;
 unsigned int reg_vks_scl_mode1 = 1;
 unsigned int reg_vks_fill_mode = 1;
@@ -161,14 +163,19 @@ void exchange(unsigned int *a, unsigned int *b)
 	*a = *b;
 	*b = tmp;
 }
+
 void keystone_correction_process(void)
 {
-	unsigned int offset_bot, ratio_tb, index1, index2, delta_top, i;
+	unsigned int offset_bot, ratio_tb, delta_top, i;
 	unsigned int step_top, step_bot, offset_top, temp_val;
 	unsigned int reg_offset[17], reg_step[17], reg_vks_row_scl;
 	unsigned int flag_top_large = 0;
+	unsigned long index1, index2;
 
 	/*config input h&w*/
+	/*txlx new add,same addr,diferrent usage*/
+	WRITE_VPP_REG_BITS(VPP_OUT_H_V_SIZE, vks_input_width, 16, 13);
+	WRITE_VPP_REG_BITS(VPP_OUT_H_V_SIZE, vks_input_height, 0, 13);
 	/*H-start&H-end*/
 	WRITE_VPP_REG_BITS(VKS_IWIN_HSIZE, (vks_input_width - 1), 0, 14);
 	WRITE_VPP_REG_BITS(VKS_IWIN_HSIZE, 0, 16, 14);
@@ -184,7 +191,7 @@ void keystone_correction_process(void)
 	index1 = abs(vks_alph0_angle + vks_theta_angle);
 	index2 = abs(vks_alph1_angle - vks_theta_angle);
 	if ((index1 >= ANGLE_RAGNE) || (index2 >= ANGLE_RAGNE)) {
-		pr_info("out of angle range(%d,%d)\n", index1, index2);
+		pr_info("out of angle range(%ld,%ld)\n", index1, index2);
 		index1 = 0;
 		index2 = 0;
 	}
@@ -231,17 +238,39 @@ void keystone_correction_process(void)
 	reg_offset[0] = offset_top;
 	reg_step[0] = step_top;
 	reg_step[16] = step_bot;
+	pr_info("step_top:0x%x,step_bot:0x%x,offset_top:0x%x,offset_bot:0x%x,ratio_tb:0x%x\n",
+		step_top, step_bot, offset_top, offset_bot, ratio_tb);
 	if (reg_vks_scl_mode1 == 0) {
-		for (i = 1; i < 17; i++) {
-			temp_val = ((1 << 20) / step_top) +
-				(i - 1) * (((1 << 20) / step_bot) -
-				((1 << 20) / step_top)) / 16;
-			index1 = (1 << 20) / temp_val;
+		for (i = 0; i < 17; i++) {
+			#if 0
+			index1 = (1 << 26) / step_top;
+			index2 = (1 << 26) / step_bot;
+			if (index2 < index1)
+				temp_val = index1 -
+				(i - 0) * (index1 - index2) / 16;
+			else
+				temp_val = index1 +
+				(i - 0) * (index2 - index1) / 16;
+			index1 = (1 << 26) / temp_val;
+			index2 = (1 << 30) - 1;
+			#else
+			index1 = (ulong)16 * step_top * step_bot;
+			index2 = (ulong)16 * step_bot +
+				i * (step_top - step_bot);
+			temp_val = index1/index2;
+			index1 = temp_val;
 			index2 = (1 << 24) - 1;
+			#endif
 			reg_step[i] =  min(index1, index2);
-			temp_val = (offset_top +
-				((i - 1) * (offset_bot - offset_top)) / 16);
-			index1 = (temp_val * reg_step[i] / ((1 << 20)));
+			index1 = offset_top;
+			index2 = offset_bot;
+			if (index2 < index1)
+				temp_val = index1 -
+				(i - 0) * (index1 - index2) / 16;
+			else
+				temp_val = index1 +
+				(i - 0) * (index2 - index1) / 16;
+			index1 = (ulong)temp_val * reg_step[i] / (1<<20);
 			index2 = 1 << 22;
 			reg_offset[i] = min(index1, index2);
 		}

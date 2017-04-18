@@ -131,6 +131,8 @@ struct vpp_frame_par_s {
 	u32 spsc0_h_in;
 	u32 spsc1_w_in;
 	u32 spsc1_h_in;
+	u32 vpp_postblend_out_width;
+	u32 vpp_postblend_out_height;
 
 	bool nocomp;
 
@@ -287,6 +289,8 @@ extern int vpp_set_super_scaler_regs(int scaler_path_sel,
 		int reg_srscl1_hsize,
 		int reg_srscl1_vsize,
 		int reg_srscl1_hori_ratio,
-		int reg_srscl1_vert_ratio);
+		int reg_srscl1_vert_ratio,
+		int vpp_postblend_out_width,
+		int vpp_postblend_out_height);
 
 #endif				/* VPP_H */

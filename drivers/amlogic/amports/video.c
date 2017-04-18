@@ -4795,7 +4795,9 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				cur_frame_par->spsc1_w_in,
 				cur_frame_par->spsc1_h_in,
 				cur_frame_par->supsc1_hori_ratio,
-				cur_frame_par->supsc1_vert_ratio);
+				cur_frame_par->supsc1_vert_ratio,
+				cur_frame_par->vpp_postblend_out_width,
+				cur_frame_par->vpp_postblend_out_height);
 
 		/* vpp filters */
 		/* SET_MPEG_REG_MASK(VPP_SC_MISC + cur_dev->vpp_off, */

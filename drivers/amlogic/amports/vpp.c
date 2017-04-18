@@ -785,6 +785,10 @@ vpp_set_filters2(u32 process_3d_type, u32 width_in,
 		}
 	}
 
+	if (is_meson_txlx_cpu()) {
+		next_frame_par->vpp_postblend_out_width = vinfo->width;
+		next_frame_par->vpp_postblend_out_height = vinfo->height;
+	}
 #ifndef TV_3D_FUNCTION_OPEN
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
@@ -1535,7 +1539,9 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 		int reg_srscl1_hsize,
 		int reg_srscl1_vsize,
 		int reg_srscl1_hori_ratio,
-		int reg_srscl1_vert_ratio)
+		int reg_srscl1_vert_ratio,
+		int vpp_postblend_out_width,
+		int vpp_postblend_out_height)
 {
 
 	int tmp_data = 0;
@@ -1628,19 +1634,26 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 	if (tmp_data != tmp_data2)
 		VSYNC_WR_MPEG_REG(VPP_VE_H_V_SIZE, tmp_data);
 	/*chroma blue stretch size setting*/
-	if (scaler_path_sel == sup0_pp_sp1_scpath) {
-		tmp_data = (((reg_srscl1_hsize & 0x1fff) <<
-			reg_srscl1_hori_ratio) << 16) |
-			((reg_srscl1_vsize & 0x1fff) << reg_srscl1_vert_ratio);
-		tmp_data2 = READ_VCBUS_REG(VPP_PSR_H_V_SIZE);
-		if (tmp_data != tmp_data2)
-			VSYNC_WR_MPEG_REG(VPP_PSR_H_V_SIZE, tmp_data);
-	} else if (scaler_path_sel == sup0_pp_post_blender) {
-		tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
-				   (reg_srscl1_vsize & 0x1fff);
-		tmp_data2 = READ_VCBUS_REG(VPP_PSR_H_V_SIZE);
-		if (tmp_data != tmp_data2)
-			VSYNC_WR_MPEG_REG(VPP_PSR_H_V_SIZE, tmp_data);
+	if (is_meson_txlx_cpu()) {
+		tmp_data = (((vpp_postblend_out_width & 0x1fff) << 16) |
+			(vpp_postblend_out_height & 0x1fff));
+		VSYNC_WR_MPEG_REG(VPP_OUT_H_V_SIZE, tmp_data);
+	} else {
+		if (scaler_path_sel == sup0_pp_sp1_scpath) {
+			tmp_data = (((reg_srscl1_hsize & 0x1fff) <<
+				reg_srscl1_hori_ratio) << 16) |
+				((reg_srscl1_vsize & 0x1fff) <<
+				reg_srscl1_vert_ratio);
+			tmp_data2 = READ_VCBUS_REG(VPP_PSR_H_V_SIZE);
+			if (tmp_data != tmp_data2)
+				VSYNC_WR_MPEG_REG(VPP_PSR_H_V_SIZE, tmp_data);
+		} else if (scaler_path_sel == sup0_pp_post_blender) {
+			tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
+					   (reg_srscl1_vsize & 0x1fff);
+			tmp_data2 = READ_VCBUS_REG(VPP_PSR_H_V_SIZE);
+			if (tmp_data != tmp_data2)
+				VSYNC_WR_MPEG_REG(VPP_PSR_H_V_SIZE, tmp_data);
+		}
 	}
 
 	/* path config */
