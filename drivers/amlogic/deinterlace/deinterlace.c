@@ -6904,8 +6904,8 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 				(di_start_y >> 1);
 			di_post_stru.di_mcvecrd_mif.size_x =
 				(di_end_x + 1 + 4) / 5 - 1 - di_start_x / 5;
-			di_post_stru.di_mcvecrd_mif.size_y =
-				(di_height >> 1);
+			di_post_stru.di_mcvecrd_mif.end_y =
+				(di_end_y >> 1);
 		}
 		di_post_stru.update_post_reg_flag = update_post_reg_count;
 		/* if height decrease, mtn will not enough */
