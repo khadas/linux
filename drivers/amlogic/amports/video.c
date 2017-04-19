@@ -127,6 +127,10 @@ static int output_fps;
 static u32 omx_pts;
 static int omx_pts_interval_upper = 11000;
 static int omx_pts_interval_lower = -5500;
+static int drop_frame_count;
+static int receive_frame_count;
+static int display_frame_count;
+
 static bool bypass_pps;
 /*For 3D usage ----0:  mbx   1: tv */
 bool platform_type = 1;
@@ -920,7 +924,7 @@ static inline struct vframe_s *video_vf_get(void)
 			vf->right_eye.width = vf->width;
 			vf->right_eye.height = vf->height/2;
 		}
-
+		receive_frame_count++;
 #endif
 	}
 	return vf;
@@ -3769,6 +3773,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	struct vframe_s *toggle_vf = NULL;
 	int video1_off_req = 0;
+	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -4214,6 +4219,10 @@ SET_FILTER:
 			mode_3d_changed = 0;
 			frame_par_force_to_set = 1;
 		}
+	}
+	if (cur_dispbuf_back != cur_dispbuf) {
+		display_frame_count++;
+		drop_frame_count = receive_frame_count - display_frame_count;
 	}
 	if (cur_dispbuf) {
 		struct f2v_vphase_s *vphase;
@@ -5180,12 +5189,18 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 #ifdef CONFIG_AM_VIDEO2
 		set_clone_frame_rate(android_clone_rate, 200);
 #endif
+		drop_frame_count = 0;
+		receive_frame_count = 0;
+		display_frame_count = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider();
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
 		video_vf_light_unreg_provider();
 	else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		enable_video_discontinue_report = 1;
+		drop_frame_count = 0;
+		receive_frame_count = 0;
+		display_frame_count = 0;
 #ifdef CONFIG_AM_VIDEO2
 		provider_name = (char *)data;
 		if (strncmp(provider_name, "decoder", 7) == 0
@@ -8341,6 +8356,15 @@ module_param(omx_pts_interval_upper, int, 0664);
 
 MODULE_PARM_DESC(omx_pts_interval_lower, "\n omx_pts_interval\n");
 module_param(omx_pts_interval_lower, int, 0664);
+
+MODULE_PARM_DESC(drop_frame_count, "\n drop_frame_count\n");
+module_param(drop_frame_count, int, 0664);
+
+MODULE_PARM_DESC(receive_frame_count, "\n receive_frame_count\n");
+module_param(receive_frame_count, int, 0664);
+
+MODULE_PARM_DESC(display_frame_count, "\n display_frame_count\n");
+module_param(display_frame_count, int, 0664);
 
 MODULE_PARM_DESC(bypass_pps, "\n pps_bypass\n");
 module_param(bypass_pps, bool, 0664);
