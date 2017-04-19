@@ -27,7 +27,7 @@
 #include "clk.h"
 
 #undef pr_fmt
-#define pr_fmt(fmt) "gxbb_mpll_clk: " fmt
+#define pr_fmt(fmt) "meson_mpll_clk: " fmt
 
 #define sdm_mask(d)		((1 << (d->sdm_in_width)) - 1)
 #define n_mask(d)			((1 << (d->n_in_width)) - 1)

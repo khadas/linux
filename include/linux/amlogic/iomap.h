@@ -23,7 +23,7 @@ enum{
 	IO_CBUS_BASE = 0,
 	IO_APB_BUS_BASE,
 	IO_AOBUS_BASE,
-	IO_HIUBUS_BASE,
+	IO_VAPB_BUS_BASE,
 	IO_BUS_MAX,
 };
 extern int aml_reg_read(u32 bus_type, unsigned int reg, unsigned int *val);

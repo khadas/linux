@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
+#include <linux/amlogic/cpu_version.h>
 #include "clk.h"
 #include "clk-pll.h"
 #define	HHI_GP0_PLL_CNTL			(0x10 << 2)
@@ -150,7 +151,10 @@ static int	gpll_clk_set(struct clk_hw *hw, unsigned long drate,
 	writel(0xb75020be, hiu_base + HHI_GP0_PLL_CNTL2);
 	writel(0x0a59a288, hiu_base + HHI_GP0_PLL_CNTL3);
 	writel(0xc000004d, hiu_base + HHI_GP0_PLL_CNTL4);
-	writel(0x00078000, hiu_base + HHI_GP0_PLL_CNTL5);
+	if (is_meson_txlx_cpu())
+		writel(0x00058000, hiu_base + HHI_GP0_PLL_CNTL5);
+	else
+		writel(0x00078000, hiu_base + HHI_GP0_PLL_CNTL5);
 
 	gp0_update_bits(HHI_GP0_PLL_CNTL, m_mask, m<<m_sft);
 	gp0_update_bits(HHI_GP0_PLL_CNTL, n_mask, n<<n_sft);

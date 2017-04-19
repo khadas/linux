@@ -1,0 +1,214 @@
+/*
+ * arch/arm64/boot/dts/amlogic/mesontxlx_skt-panel.dtsi
+ *
+ * Copyright (C) 2016 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+/ {
+	lcd {
+		compatible = "amlogic, lcd";
+		dev_name = "lcd";
+		mode = "tv";
+		status = "okay";
+		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		key_valid = <0>;
+		resets = <&clock GCLK_IDX_VCLK2_ENCL &clock GCLK_IDX_VCLK2_VENCL>;
+		reset-names = "encl","vencl";
+		interrupts = <0 78 1 0 3 1>;
+		interrupt-names = "vbyone","vbyone_vsync";
+		pinctrl-names = "vbyone";
+		pinctrl-0 = <&lcd_vbyone_pins>;
+
+		/* power type:(0=cpu_gpio, 1=pmu_gpio, 2=signal, 3=extern, 0xff=ending) */
+		/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+		lcd_cpu-gpios = <&gpio GPIOZ_13 1 &gpio GPIOZ_8 1
+				&gpio GPIOZ_9 1 &gpio GPIOZ_10 1
+				&gpio GPIOH_4 1 &gpio GPIOH_5 1>;
+		lcd_cpu_gpio_names = "GPIOZ_13","GPIOZ_8","GPIOZ_9","GPIOZ_10","GPIOH_4","GPIOH_5";
+
+		lvds_0{
+			model_name = "1080p-vfreq";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <2060 2650 1100 1480 120000000 160000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
+			power_on_step = <2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+		lvds_1{
+			model_name = "1080p-hfreq";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
+			power_on_step = <2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+		vbyone_0{
+			model_name = "public_2region";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+		vbyone_1{
+			model_name = "public_1region";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2790 552000000 632000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+		vbyone_2{
+			model_name = "public_2region_hdmi";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+		vbyone_3{
+			model_name = "public_ldim";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0>;
+		};
+		vbyone_4{
+			model_name = "public_ldim";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <1>;
+		};
+	}; /* end of lcd */
+
+	backlight{
+		compatible = "amlogic, backlight";
+		dev_name = "backlight";
+		status = "okay";
+		key_valid = <0>;
+		pinctrl-names = "pwm_on","pwm_vs_on";
+		pinctrl-0 = <&bl_pwm_on_pins>;
+		pinctrl-1 = <&bl_pwm_vs_on_pins>;
+		interrupts = <0 3 1>;
+		interrupt-names = "ldim_vsync";
+
+		/* power index:(point gpios_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+		bl-gpios = <&gpio GPIOZ_4 1>;
+		bl_gpio_names = "GPIOZ_4";
+
+		backlight_0{
+			index = <0>;
+			bl_name = "backlight_0";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <3>; /* 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0xff 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+
+			bl_ldim_region_row_col = <1 8>;
+			bl_ldim_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
+			bl_ldim_mapping = <0 1 2 3 4 5 6 7>;
+			/*ldim_dev_index = <0>;*/
+		};
+		backlight_1{
+			index = <1>;
+			bl_name = "backlight_1";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <3>; /* 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0xff 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+
+			bl_ldim_region_row_col = <1 1>;
+			bl_ldim_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
+			/*ldim_dev_index = <2>;*/
+		};
+	};
+
+	local_diming_device {
+		compatible = "amlogic, ldim_dev";
+		dev_name = "ldim_dev";
+		status = "okay";
+		pinctrl-names = "ldim_pwm0","ldim_pwm1";
+		pinctrl-0 = <&ldim_pwm0_pins>;
+		pinctrl-1 = <&ldim_pwm1_pins>;
+
+		bl-gpios = <&gpio GPIOZ_12 1>;
+		bl_gpio_names = "GPIOZ_12";
+
+	};
+
+
+};

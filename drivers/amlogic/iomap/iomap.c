@@ -27,7 +27,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
-#include <asm/compiler.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/compiler.h>
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
 #else
@@ -204,7 +205,12 @@ EXPORT_SYMBOL(aml_aobus_update_bits);
 int aml_read_vcbus(unsigned int reg)
 {
 	int ret, val;
+
+if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+	ret = aml_reg_read(IO_VAPB_BUS_BASE, (reg<<2), &val);
+else
 	ret = aml_reg_read(IO_APB_BUS_BASE, (0x100000+(reg<<2)), &val);
+
 	if (ret) {
 		pr_err("read vcbus reg %x error %d\n", reg, ret);
 		return -1;
@@ -217,7 +223,12 @@ EXPORT_SYMBOL(aml_read_vcbus);
 void aml_write_vcbus(unsigned int reg, unsigned int val)
 {
 	int ret;
-	ret = aml_reg_write(IO_APB_BUS_BASE, (0x100000+(reg<<2)), val);
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+		ret = aml_reg_write(IO_VAPB_BUS_BASE, (reg<<2), val);
+	else
+		ret = aml_reg_write(IO_APB_BUS_BASE, (0x100000+(reg<<2)), val);
+
 	if (ret) {
 		pr_err("write vcbus reg %x error %d\n", reg, ret);
 		return;
@@ -230,8 +241,14 @@ void aml_vcbus_update_bits(unsigned int reg,
 		unsigned int mask, unsigned int val)
 {
 	int ret;
-	ret = aml_regmap_update_bits(IO_APB_BUS_BASE,
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+		ret = aml_regmap_update_bits(IO_VAPB_BUS_BASE,
+						(reg<<2), mask, val);
+	else
+		ret = aml_regmap_update_bits(IO_APB_BUS_BASE,
 						(0x100000+(reg<<2)), mask, val);
+
 	if (ret) {
 		pr_err("write vcbus reg %x error %d\n", reg, ret);
 		return;
