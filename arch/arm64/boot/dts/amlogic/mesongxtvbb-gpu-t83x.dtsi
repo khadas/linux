@@ -8,7 +8,7 @@
  */
 
 / {
-	t83x_gpu:t83x@d00c0000{
+	t83x_gpu:t83x{
         compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
 		#cooling-cells = <2>; /* min followed by max */
 		reg = <0 0xd00c0000 0 0x100000>,

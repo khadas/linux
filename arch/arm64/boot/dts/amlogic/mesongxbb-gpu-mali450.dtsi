@@ -8,12 +8,12 @@
  */
 
 / {
-	gpu:mali@d00c0000{
+	gpu:mali{
 		#cooling-cells = <2>; /* min followed by max */
 		compatible = "arm,mali-450";
 		interrupt-parent = <&gic>;
 		reg = <0 0xd00c0000 0 0x40000>, /*mali APB bus base address*/
-		      <0 0xc883c000 0 0x01000>, /*hiubus base address for gpu clk cntl*/
+		      <0 0xc1104440 0 0x01000>, /*reset register*/
 		      <0 0xc8100000 0 0x01000>, /*aobus  base address for gpu pmu domain*/
 		      <0 0xc883c000 0 0x01000>, /*hiubus base address for gpu clk cntl*/
 		      <0 0xc1104440 0 0x01000>;
