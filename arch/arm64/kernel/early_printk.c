@@ -162,6 +162,7 @@ static int __init setup_early_printk(char *buf)
 	if (paddr) {
 		set_fixmap_io(FIX_EARLYCON_MEM_BASE, paddr);
 		early_base = (void __iomem *)fix_to_virt(FIX_EARLYCON_MEM_BASE);
+		early_base += (paddr&(0xfff));
 	}
 
 	printch = match->printch;

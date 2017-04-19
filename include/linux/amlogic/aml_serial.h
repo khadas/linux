@@ -21,8 +21,8 @@
 #include <linux/bitops.h>
 
 /* Based on AO_RTI_STATUS0 , 0xC8100000 */
-#define MESON_AO_UART0_WFIFO			(0x4C0)
-#define MESON_AO_UART0_STATUS			(0x4CC)
+#define MESON_AO_UART0_WFIFO			(0x0)
+#define MESON_AO_UART0_STATUS			(0xC)
 
 
 #define MESON_UART_TX_FULL			BIT(21)
