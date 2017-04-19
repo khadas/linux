@@ -68,57 +68,6 @@ struct amlogic_clk_pll {
 	struct amlogic_pll_rate_table *rate_table;
 };
 
-#define HHI_GCLK_MPEG0    0x1050
-#define HHI_GCLK_MPEG1    0x1051
-#define HHI_GCLK_MPEG2    0x1052
-#define HHI_GCLK_OTHER    0x1054
-#define HHI_GCLK_AO       0x1055
-
-#define HHI_VID_CLK_DIV   0x1059
-#define HHI_MPEG_CLK_CNTL 0x105d
-
-#define HHI_VID_CLK_CNTL  0x105f
-
-#define HHI_HDMI_CLK_CNTL 0x1073
-
-
-/*fixed pll registers*/
-#define HHI_MPLL_CNTL  0x10a0
-#define HHI_MPLL_CNTL2 0x10a1
-#define HHI_MPLL_CNTL3 0x10a2
-#define HHI_MPLL_CNTL4 0x10a3
-#define HHI_MPLL_CNTL5 0x10a4
-
-#define HHI_MPLL_CNTL10 0x10a9
-
-
-/*vid pll registers*/
-#define HHI_VID_PLL_CNTL 0x10c8
-#define HHI_VID_PLL_CNTL2 0x10c9
-#define HHI_VID_PLL_CNTL3 0x10ca
-#define HHI_VID_PLL_CNTL4 0x10cb
-#define HHI_VID_PLL_CNTL5 0x10cc
-#define HHI_VID_PLL_CNTL6 0x10cd
-
-#define HHI_VID2_PLL_CNTL2 0x10e1
-
-/*gpll registers*/
-#define HHI_GP_PLL_CNTL 0x1010
-#define HHI_GP_PLL_CNTL2 0x1011
-#define HHI_GP_PLL_CNTL3 0x1012
-#define HHI_GP_PLL_CNTL4 0x1013
-#define HHI_GP_PLL_CNTL5 0x1014
-
-/* mali clk control*/
-#define HHI_MALI_CLK_CNTL   0x106c
-
-/*hdmi pll registers*/
-#define HHI_HDMI_PLL_CNTL 0x107c
-#define HHI_HDMI_PLL_CNTL1 0x107d
-#define HHI_HDMI_PLL_CNTL2 0x107e
-#define HHI_VID_DIVIDER_CNTL 0x1066
-
-
 /*FIXED PLL/Multi-phase PLL */
 #define M8_MPLL_CNTL     (0xc00009a9)
 #define M8_MPLL_CNTL_2 (0xadc80000)

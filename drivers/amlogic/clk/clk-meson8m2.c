@@ -38,6 +38,17 @@
 void __iomem *reg_base_cbus, *reg_base_aobus, *reg_base_hiubase;
 #define MESON8_RSTC_N_REGS	6
 #define MESON8_AO_OFF		((MESON8_RSTC_N_REGS - 1) * BITS_PER_LONG + 3)
+
+#define HHI_GP_PLL_CNTL		0x1010
+#define HHI_MPEG_CLK_CNTL 0x105d
+#define HHI_MALI_CLK_CNTL	0x106c
+#define HHI_HDMI_CLK_CNTL 0x1073
+#define HHI_HDMI_PLL_CNTL 0x107c
+#define HHI_MPLL_CNTL  0x10a0
+#define HHI_VID_PLL_CNTL2 0x10c9
+#define HHI_VID_PLL_CNTL3 0x10ca
+#define HHI_VID_PLL_CNTL4 0x10cb
+
 /* list of PLLs */
 enum meson8m2_plls {
 	fixed_pll, sys_pll, vid_pll, g_pll, hdmi_pll,
