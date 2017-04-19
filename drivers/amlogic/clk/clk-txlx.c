@@ -48,6 +48,8 @@ static void __iomem *reg_base_aobus;
 #define	HHI_MPLL_CNTL7			OFFSET(0xa6)
 #define	HHI_MPLL_CNTL8			OFFSET(0xa7)
 #define	HHI_MPLL_CNTL9			OFFSET(0xa8)
+#define HHI_MPLL3_CNTL0			OFFSET(0xb8)
+#define HHI_PLL_TOP_MISC		OFFSET(0xba)
 #define	HHI_AUD_CLK_CNTL3		OFFSET(0x69)
 #define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
@@ -282,13 +284,14 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 					HHI_VPU_CLKB_CNTL, 8, 0),
 };
 static struct mpll_clk_tab mpll_tab[] __initdata = {
-	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
-			CLK_MPLL0, CLK_SET_RATE_NO_REPARENT),
-	MPLL("mpll_clk_out1", mpll, HHI_MPLL_CNTL8, HHI_MPLL_CNTL,
-			CLK_MPLL1, CLK_SET_RATE_NO_REPARENT),
-	MPLL("mpll_clk_out2", mpll, HHI_MPLL_CNTL9, HHI_MPLL_CNTL,
-			CLK_MPLL2, CLK_SET_RATE_NO_REPARENT),
-
+	MPLL_MISC("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
+		HHI_PLL_TOP_MISC, CLK_MPLL0, CLK_SET_RATE_NO_REPARENT, 0),
+	MPLL_MISC("mpll_clk_out1", mpll, HHI_MPLL_CNTL8, HHI_MPLL_CNTL,
+		HHI_PLL_TOP_MISC, CLK_MPLL1, CLK_SET_RATE_NO_REPARENT, 1),
+	MPLL_MISC("mpll_clk_out2", mpll, HHI_MPLL_CNTL9, HHI_MPLL_CNTL,
+		HHI_PLL_TOP_MISC, CLK_MPLL2, CLK_SET_RATE_NO_REPARENT, 2),
+	MPLL_MISC("mpll_clk_out3", mpll, HHI_MPLL3_CNTL0, HHI_MPLL_CNTL,
+		HHI_PLL_TOP_MISC, CLK_MPLL3, CLK_SET_RATE_NO_REPARENT, 3),
 };
 
 static struct amlogic_gate_clock clk_gates[] __initdata = {

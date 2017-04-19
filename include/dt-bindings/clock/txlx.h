@@ -72,6 +72,7 @@
 #define CLK_AUD_PLL2FS			55
 #define CLK_AUD_PLL4FS			56
 #define CLK_AUD_OUT			57
+#define CLK_MPLL3		58
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100

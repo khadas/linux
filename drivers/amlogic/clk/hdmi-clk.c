@@ -36,6 +36,18 @@ static void __iomem *reg_base_cbus;
 #define AO_RTI_GEN_CTNL_REG0 0xc8100040
 #define OFFSET_AO(x) (((x) - CLK_GATE_AO_BASE)*4)
 
+#define HHI_VID_CLK_DIV   0x1059
+#define HHI_VID_CLK_CNTL  0x105f
+#define HHI_VID_DIVIDER_CNTL 0x1066
+#define HHI_HDMI_CLK_CNTL 0x1073
+#define HHI_HDMI_PLL_CNTL 0x107c
+#define HHI_MPLL_CNTL3 0x10a2
+#define HHI_VID_PLL_CNTL 0x10c8
+#define HHI_VID_PLL_CNTL2 0x10c9
+#define HHI_VID_PLL_CNTL3 0x10ca
+#define HHI_VID_PLL_CNTL4 0x10cb
+#define HHI_VID_PLL_CNTL5 0x10cc
+#define HHI_VID2_PLL_CNTL2 0x10e1
 
 #define HPLL_FVCO_RATE(_rate, _m, _n, _od) \
 {							\
