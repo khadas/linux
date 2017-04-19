@@ -24,7 +24,7 @@
 #define AML_MMC_VERSION \
 	((AML_MMC_MAJOR_VERSION << 8) | AML_MMC_MINOR_VERSION)
 #define AML_MMC_VER_MESSAGE \
-	"2015-01-21: fix a bug in tuning which caused eMMC data CRC error"
+	"2017: new eMMC/tSD Host controller"
 
 extern unsigned sdhc_debug;
 extern unsigned sdio_debug;
