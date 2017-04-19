@@ -997,16 +997,17 @@ static void sync_dump(void)
 	int i;
 
 	sync_debugfs_show(&s, NULL);
+	pr_info("sync dbg dump skip\n");
 
 	for (i = 0; i < s.count; i += DUMP_CHUNK) {
 		if ((s.count - i) > DUMP_CHUNK) {
 			char c = s.buf[i + DUMP_CHUNK];
 			s.buf[i + DUMP_CHUNK] = 0;
-			pr_cont("%s", s.buf + i);
+			pr_debug("%s", s.buf + i);
 			s.buf[i + DUMP_CHUNK] = c;
 		} else {
 			s.buf[s.count] = 0;
-			pr_cont("%s", s.buf + i);
+			pr_debug("%s", s.buf + i);
 		}
 	}
 }
