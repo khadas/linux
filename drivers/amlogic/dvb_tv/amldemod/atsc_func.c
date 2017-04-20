@@ -18,7 +18,7 @@ static int debug_atsc = 1;
 module_param(debug_atsc, int, 0644);
 
 MODULE_PARM_DESC(atsc_thread_enable, "\n\t\t Enable frontend debug information");
-static int atsc_thread_enable;
+static int atsc_thread_enable = 1;
 module_param(atsc_thread_enable, int, 0644);
 
 static int dagc_switch;
@@ -313,7 +313,8 @@ void atsc_write_reg(int reg_addr, int reg_data)
 {
 	if (!get_dtvpll_init_flag())
 		return;
-	apb_write_reg(ATSC_BASE, (reg_addr & 0xffff) << 8 | (reg_data & 0xff));
+	apb_write_reg(TXLX_ATSC_BASE, (reg_addr & 0xffff) << 8 |
+			(reg_data & 0xff));
 }
 
 unsigned long atsc_read_reg(int reg_addr)
@@ -322,8 +323,8 @@ unsigned long atsc_read_reg(int reg_addr)
 
 	if (!get_dtvpll_init_flag())
 		return 0;
-	apb_write_reg(ATSC_BASE + 4, (reg_addr & 0xffff) << 8);
-	tmp = apb_read_reg(ATSC_BASE);
+	apb_write_reg(TXLX_ATSC_BASE + 4, (reg_addr & 0xffff) << 8);
+	tmp = apb_read_reg(TXLX_ATSC_BASE);
 
 	return tmp & 0xff;
 }
@@ -332,7 +333,7 @@ unsigned long atsc_read_iqr_reg(void)
 {
 	unsigned long tmp;
 
-	tmp = apb_read_reg(ATSC_BASE + 8);
+	tmp = apb_read_reg(TXLX_ATSC_BASE + 8);
 	pr_dbg("[atsc irq] is %lx\n", tmp);
 	return tmp & 0xffffffff;
 }
@@ -551,6 +552,7 @@ int atsc_set_ch(struct aml_demod_sta *demod_sta,
 	demod_sta->dvb_mode = demod_mode;
 	demod_sta->ch_bw = (8 - bw) * 1000;
 	/*atsc_initial(demod_sta);*/
+	atsc_reset();
 	set_cr_ck_rate();
 	dagc_switch = Dagc_Open;
 	pr_dbg("ATSC mode\n");
