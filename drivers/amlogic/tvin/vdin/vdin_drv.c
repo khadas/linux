@@ -2037,6 +2037,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		vdin_reset_flag1 = 0;
 		return IRQ_HANDLED;
 	}
+	if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+		return IRQ_HANDLED;
 	isr_log(devp->vfp);
 	irq_cnt++;
 	spin_lock_irqsave(&devp->isr_lock, flags);
