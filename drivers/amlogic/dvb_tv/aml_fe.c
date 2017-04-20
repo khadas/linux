@@ -1318,6 +1318,8 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 
 	fe = dev->demodulator_priv;
 	/*type = FE_ATSC;*/
+	if ((type == FE_DTMB) && is_meson_txlx_cpu())
+		return -1;
 	switch (type) {
 	case FE_QPSK:
 		mode = AM_FE_QPSK;

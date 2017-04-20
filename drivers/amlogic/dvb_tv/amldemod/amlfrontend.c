@@ -150,6 +150,9 @@ static ssize_t atsc_para_show(struct class *cls,
 	int snr, lock_status, ser;
 	struct dvb_frontend *dvbfe;
 	int strength = 0;
+	if (atsc_mode != VSB_8) {
+		return 0;
+	}
 	if (atsc_mode_para == ATSC_READ_STRENGTH) {
 		dvbfe = get_si2177_tuner();
 		if (dvbfe != NULL)
@@ -157,6 +160,7 @@ static ssize_t atsc_para_show(struct class *cls,
 				strength =
 				dvbfe->ops.tuner_ops.get_strength(dvbfe);
 			}
+			strength -= 100;
 		return sprintf(buf, "strength is %d\n", strength);
 	} else if (atsc_mode_para == ATSC_READ_SNR) {
 		snr = atsc_read_snr();
@@ -187,6 +191,8 @@ static ssize_t atsc_para_store(struct class *cls,
 		atsc_mode_para = ATSC_READ_LOCK;
 	else if (buf[0] == '3')
 		atsc_mode_para = ATSC_READ_SER;
+	else if (buf[0] == '4')
+		atsc_mode_para = ATSC_READ_FREQ;
 
 	return count;
 }
@@ -373,9 +379,11 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 			atsc_fsm = atsc_read_reg(0x0980);
 			pr_dbg("atsc status [%x]\n", atsc_fsm);
 			return atsc_read_reg(0x0980) == 0x79;
+		} else {
+			atsc_fsm = atsc_read_reg(0x0980);
+			pr_dbg("atsc status [%x]\n", atsc_fsm);
+			return atsc_read_reg(0x0980) == 0x79;
 		}
-		else
-			return (atsc_read_iqr_reg() >> 16) == 0x1f;
 	} else if (mode == 4) {
 		/*DTMB*/
 	/*	pr_dbg("DTMB lock status is %u\n",
@@ -818,7 +826,7 @@ static int gxtv_demod_atsc_read_status
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 		return 0;
 	}
-	if (c->modulation <= QAM_AUTO) {
+	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		s = amdemod_dvbc_stat_islock(dev);
 		dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
 	} else {
@@ -909,7 +917,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	atsc_mode = c->modulation;
 	/* param.mode = amdemod_qam(p->u.vsb.modulation);*/
 	aml_fe_analog_set_frontend(fe);
-	if (c->modulation <= QAM_AUTO) {
+	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		demod_set_mode_ts(Gxtv_Dvbc);
 		param_j83b.ch_freq = c->frequency / 1000;
 		param_j83b.mode = amdemod_qam(c->modulation);
@@ -1131,6 +1139,10 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 {
 	struct dvb_frontend_ops *fe_ops = (struct dvb_frontend_ops *)ops;
 
+	if (is_meson_txlx_cpu() && (mode == AM_FE_DTMB))
+		return -1;
+	if (!is_meson_txlx_cpu() && (mode == AM_FE_ATSC))
+		return -1;
 	if (mode == AM_FE_OFDM) {
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 858000000;
@@ -1242,12 +1254,14 @@ static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 	int memstart_dtmb;
 	pr_inf("gxtv_demod_fe_resume\n");
 /*	demod_power_switch(PWR_ON);*/
-	Gxtv_Demod_Dtmb_Init(dev);
-	memstart_dtmb = dev->fe->dtv_demod->mem_start;
-	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
-	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
-	pr_dbg("[dtmb]mem_buf is 0x%x\n",
-	dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+	if (!is_meson_txlx_cpu()) {
+		Gxtv_Demod_Dtmb_Init(dev);
+		memstart_dtmb = dev->fe->dtv_demod->mem_start;
+		pr_dbg("[im]memstart is %x\n", memstart_dtmb);
+		dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
+		pr_dbg("[dtmb]mem_buf is 0x%x\n",
+		dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+	}
 	return 0;
 }
 

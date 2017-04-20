@@ -30,31 +30,28 @@
 
 /* void __iomem *meson_reg_demod_map[1024]; */
 
-#define TXLX
-#ifdef TXLX
-#define IO_AOBUS_BASE           (0xff800000)
-#define IO_HIU_BASE             (0xff63c000)
-#define IO_CBUS_PHY_BASE        (0xc0800000)
-#define RESET0_LEVEL			(0xffd01080)
-#define HHI_DEMOD_MEM_PD_REG	(0xff63c000 + (0x43 << 2))
+#define TXLX_IO_AOBUS_BASE           (0xff800000)
+#define TXLX_IO_HIU_BASE             (0xff63c000)
+#define TXLX_IO_CBUS_PHY_BASE        (0xc0800000)
+#define TXLX_RESET0_LEVEL			(0xffd01080)
+#define TXLX_HHI_DEMOD_MEM_PD_REG	(0xff63c000 + (0x43 << 2))
 
-#define DEMOD_BASE 0xff644000
-#define IO_DEMOD_BASE 0xff644000
-#define DTMB_BASE  (DEMOD_BASE+0x000)
-#define DVBT_BASE  (DEMOD_BASE+0x400)
-#define ISDBT_BASE (DEMOD_BASE+0x400)
-#define ATSC_BASE  (DEMOD_BASE+0x800)
-#define QAM_BASE   (DEMOD_BASE+0xC00)
-#define DEMOD_CFG_BASE  (DEMOD_BASE+0xF00)
-#define DEMOD_REG_OFFSET(reg)           (reg & 0xfffff)
-#define DEMOD_REG_ADDR(reg)             (IO_DEMOD_BASE + DEMOD_REG_OFFSET(reg))
-#define DEMOD_REG1               (DEMOD_BASE + 0xF00)
-#define DEMOD_REG2               (DEMOD_BASE + 0xF04)
-#define DEMOD_REG3               (DEMOD_BASE + 0xF08)
-#define DEMOD_REG4               (DEMOD_BASE + 0xF0c)
+#define TXLX_DEMOD_BASE 0xff644000
+#define TXLX_IO_DEMOD_BASE 0xff644000
+#define TXLX_DTMB_BASE  (TXLX_DEMOD_BASE+0x000)
+#define TXLX_DVBT_BASE  (TXLX_DEMOD_BASE+0x400)
+#define TXLX_ISDBT_BASE (TXLX_DEMOD_BASE+0x400)
+#define TXLX_ATSC_BASE  (TXLX_DEMOD_BASE+0x800)
+#define TXLX_QAM_BASE   (TXLX_DEMOD_BASE+0xC00)
+#define TXLX_DEMOD_CFG_BASE  (TXLX_DEMOD_BASE+0xF00)
+#define TXLX_DEMOD_REG_OFFSET(reg)           (reg & 0xfffff)
+#define TXLX_DEMOD_REG_ADDR(reg)	(TXLX_IO_DEMOD_BASE +\
+					TXLX_DEMOD_REG_OFFSET(reg))
+#define TXLX_DEMOD_REG1               (TXLX_DEMOD_BASE + 0xF00)
+#define TXLX_DEMOD_REG2               (TXLX_DEMOD_BASE + 0xF04)
+#define TXLX_DEMOD_REG3               (TXLX_DEMOD_BASE + 0xF08)
+#define TXLX_DEMOD_REG4               (TXLX_DEMOD_BASE + 0xF0c)
 
-
-#else
 #ifdef safe_addr
 #define IO_DEMOD_BASE           (0xc8844000)
 #define IO_AOBUS_BASE           (0xc8100000)
@@ -93,7 +90,7 @@
 #define DTMB_BASE  (DEMOD_BASE + 0x000)
 #define DVBT_BASE  (DEMOD_BASE + 0x000)
 #define ISDBT_BASE (DEMOD_BASE + 0x000)
-#define QAM_BASE   (DEMOD_BASE + 0x400)
+#define QAM_BASE   (TXLX_DEMOD_BASE + 0xC00)
 #define ATSC_BASE  (DEMOD_BASE + 0x800)
 #define DEMOD_CFG_BASE  (DEMOD_BASE + 0xC00)
 
@@ -102,24 +99,23 @@
 #define DEMOD_REG3               (DEMOD_BASE + 0xc08)
 #define DEMOD_REG4               (DEMOD_BASE + 0xc0c)
 
-#endif
-
 /* #ifdef TXL_TV */
-#define TXLTV_ADC_RESET_VALUE          0xca6a2110	/* 0xce7a2110 */
-#define TXLTV_ADC_REG1_VALUE           0x5d414260
-#define TXLTV_ADC_REG2_VALUE           0x5ba00384	/* 0x34e0bf81 */
-#define TXLTV_ADC_REG2_VALUE_CRY       0x5ba00385
-#define TXLTV_ADC_REG3_VALUE           0x4a6a2110	/* 0x4e7a2110 */
-#define TXLTV_ADC_REG4_VALUE           0x02913004
-#define TXLTV_ADC_REG4_CRY_VALUE 0x301
-#define TXLTV_ADC_REG7_VALUE           0x00102038
-#define TXLTV_ADC_REG8_VALUE           0x00000406
-#define TXLTV_ADC_REG9_VALUE           0x00082183
-#define TXLTV_ADC_REGA_VALUE           0x80480240
-#define TXLTV_ADC_REGB_VALUE           0x22000442
-#define TXLTV_ADC_REGC_VALUE           0x00034a00
-#define TXLTV_ADC_REGD_VALUE           0x00005000
-#define TXLTV_ADC_REGE_VALUE           0x00000200
+/*txl and txlx is the same*/
+#define TXLX_ADC_RESET_VALUE          0xca6a2110	/* 0xce7a2110 */
+#define TXLX_ADC_REG1_VALUE           0x5d414260
+#define TXLX_ADC_REG2_VALUE           0x5ba00384	/* 0x34e0bf81 */
+#define TXLX_ADC_REG2_VALUE_CRY       0x5ba00385
+#define TXLX_ADC_REG3_VALUE           0x4a6a2110	/* 0x4e7a2110 */
+#define TXLX_ADC_REG4_VALUE           0x02913004
+#define TXLX_ADC_REG4_CRY_VALUE 0x301
+#define TXLX_ADC_REG7_VALUE           0x00102038
+#define TXLX_ADC_REG8_VALUE           0x00000406
+#define TXLX_ADC_REG9_VALUE           0x00082183
+#define TXLX_ADC_REGA_VALUE           0x80480240
+#define TXLX_ADC_REGB_VALUE           0x22000442
+#define TXLX_ADC_REGC_VALUE           0x00034a00
+#define TXLX_ADC_REGD_VALUE           0x00005000
+#define TXLX_ADC_REGE_VALUE           0x00000200
 
 
 /* DADC DPLL */
@@ -153,6 +149,38 @@ HHI_ADC_PLL_CNTL6*/
 #define ADC_REGE         (IO_HIU_BASE + (0xbd << 2))
 
 /* #endif  */
+
+
+/* DADC DPLL */
+/*HHI_ADC_PLL_CNTL	 HHI_ADC_PLL_CNTL2
+HHI_ADC_PLL_CNTL3 HHI_ADC_PLL_CNTL4*/
+#define TXLX_ADC_REG1		 (TXLX_IO_HIU_BASE + (0xaa << 2))
+#define TXLX_ADC_REG2		 (TXLX_IO_HIU_BASE + (0xab << 2))
+#define TXLX_ADC_REG3		 (TXLX_IO_HIU_BASE + (0xac << 2))
+#define TXLX_ADC_REG4		 (TXLX_IO_HIU_BASE + (0xad << 2))
+
+/*HHI_HDMI_CLK_CNTL   HHI_DEMOD_CLK_CNTL */
+#define TXLX_ADC_REG5		 (TXLX_IO_HIU_BASE + (0x73 << 2))
+#define TXLX_ADC_REG6		 (TXLX_IO_HIU_BASE + (0x74 << 2))
+
+/*HHI_ADC_PLL_CNTL1   HHI_ADC_PLL_CNTL5
+HHI_ADC_PLL_CNTL6*/
+#define TXLX_ADC_REGB		 (TXLX_IO_HIU_BASE + (0xaf << 2))
+#define TXLX_ADC_REGC		 (TXLX_IO_HIU_BASE + (0x9e << 2))
+#define TXLX_ADC_REGD		 (TXLX_IO_HIU_BASE + (0x9f << 2))
+
+/* DADC REG */
+/*HHI_DADC_CNTL*/
+#define TXLX_ADC_REG7		 (TXLX_IO_HIU_BASE + (0x27 << 2))
+/*HHI_DADC_CNTL2*/
+#define TXLX_ADC_REG8		 (TXLX_IO_HIU_BASE + (0x28 << 2))
+/*HHI_DADC_CNTL3*/
+#define TXLX_ADC_REG9		 (TXLX_IO_HIU_BASE + (0x2a << 2))
+/*HHI_DADC_CNTL4*/
+#define TXLX_ADC_REGA		 (TXLX_IO_HIU_BASE + (0x2b << 2))
+/*HHI_VDAC_CNTL0*/
+#define TXLX_ADC_REGE		 (TXLX_IO_HIU_BASE + (0xbd << 2))
+
 
 
 /* #ifdef GX_TV */

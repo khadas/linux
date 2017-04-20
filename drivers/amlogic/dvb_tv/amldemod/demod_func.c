@@ -233,12 +233,51 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 
 		/* *p_demod_dig_clk = dig_clk_cfg.d32; */
 	}
-	if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu())) {
-		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
+	if (is_meson_txlx_cpu()) {
+		demod_set_demod_reg(TXLX_ADC_RESET_VALUE, TXLX_ADC_REG3);
+		demod_set_demod_reg(adc_pll_cntl.d32, TXLX_ADC_REG1);
+		demod_set_demod_reg(dig_clk_cfg.d32, TXLX_ADC_REG6);
+		demod_set_demod_reg(0x502, TXLX_ADC_REG6);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, TXLX_ADC_REG3);
+		/* debug */
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG1,
+				demod_read_demod_reg(TXLX_ADC_REG1));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG2,
+				demod_read_demod_reg(TXLX_ADC_REG2));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG3,
+				demod_read_demod_reg(TXLX_ADC_REG3));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG4,
+				demod_read_demod_reg(TXLX_ADC_REG4));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG5,
+				demod_read_demod_reg(TXLX_ADC_REG5));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG6,
+				demod_read_demod_reg(TXLX_ADC_REG6));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG7,
+				demod_read_demod_reg(TXLX_ADC_REG7));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG8,
+				demod_read_demod_reg(TXLX_ADC_REG8));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REG9,
+				demod_read_demod_reg(TXLX_ADC_REG9));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REGB,
+				demod_read_demod_reg(TXLX_ADC_REGB));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REGC,
+				demod_read_demod_reg(TXLX_ADC_REGC));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REGD,
+				demod_read_demod_reg(TXLX_ADC_REGD));
+		pr_dbg("[adc][%x]%x\n", TXLX_ADC_REGE,
+				demod_read_demod_reg(TXLX_ADC_REGE));
+		pr_dbg("[demod][%x]%x\n", TXLX_DEMOD_REG1,
+				demod_read_demod_reg(TXLX_DEMOD_REG1));
+		pr_dbg("[demod][%x]%x\n", TXLX_DEMOD_REG2,
+				demod_read_demod_reg(TXLX_DEMOD_REG2));
+		pr_dbg("[demod][%x]%x\n", TXLX_DEMOD_REG3,
+				demod_read_demod_reg(TXLX_DEMOD_REG3));
+	} else if (is_meson_txl_cpu()) {
+		demod_set_demod_reg(TXLX_ADC_RESET_VALUE, ADC_REG3);
 		demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
 		demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
 		demod_set_demod_reg(0x502, ADC_REG6);
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, ADC_REG3);
 		/* debug */
 		pr_dbg("[adc][%x]%x\n", ADC_REG1,
 				demod_read_demod_reg(ADC_REG1));
@@ -331,7 +370,13 @@ void demod_set_ao_reg(unsigned data, unsigned addr)
 	void __iomem *vaddr;
 
 /* pr_dbg("[ao][write]%x,data is %x\n",(IO_AOBUS_BASE+addr),data); */
-	vaddr = ioremap((IO_AOBUS_BASE + addr), 0x4);
+	if (is_meson_txlx_cpu()) {
+		vaddr = ioremap((TXLX_IO_AOBUS_BASE +
+		addr), 0x4);
+	} else {
+		vaddr = ioremap((IO_AOBUS_BASE +
+			addr), 0x4);
+	}
 	writel(data, vaddr);
 	iounmap(vaddr);
 }
@@ -342,7 +387,13 @@ unsigned demod_read_ao_reg(unsigned addr)
 	void __iomem *vaddr;
 
 /* pr_dbg("[ao][read]%x\n",(IO_AOBUS_BASE+addr)); */
-	vaddr = ioremap((IO_AOBUS_BASE + addr), 0x4);
+	if (is_meson_txlx_cpu()) {
+		vaddr = ioremap((TXLX_IO_AOBUS_BASE +
+		addr), 0x4);
+	} else {
+		vaddr = ioremap((IO_AOBUS_BASE +
+			addr), 0x4);
+	}
 	tmp = readl(vaddr);
 /* pr_dbg("[ao][read]%x,data is %x\n",(IO_AOBUS_BASE+addr),tmp); */
 	iounmap(vaddr);
@@ -377,6 +428,55 @@ void demod_power_switch(int pwr_cntl)
 {
 	int reg_data;
 #if 1
+if (is_meson_txlx_cpu()) {
+	if (pwr_cntl == PWR_ON) {
+		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
+		       AO_RTI_GEN_PWR_SLEEP0, AO_RTI_GEN_PWR_ISO0);
+		/* Powerup demod_comb */
+		reg_data = demod_read_ao_reg(AO_RTI_GEN_PWR_SLEEP0);
+		demod_set_ao_reg((reg_data & (~(0x1 << 10))),
+				 AO_RTI_GEN_PWR_SLEEP0);
+		/* [10] power on */
+		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
+		       TXLX_HHI_DEMOD_MEM_PD_REG, TXLX_RESET0_LEVEL);
+		/* Power up memory */
+		demod_set_demod_reg(
+		(demod_read_demod_reg(TXLX_HHI_DEMOD_MEM_PD_REG)
+				     & (~0x2fff)), TXLX_HHI_DEMOD_MEM_PD_REG);
+		/* reset */
+		demod_set_demod_reg(
+		(demod_read_demod_reg(TXLX_RESET0_LEVEL) &
+				     (~(0x1 << 8))), TXLX_RESET0_LEVEL);
+	/*	msleep(20);*/
+
+		/* remove isolation */
+			demod_set_ao_reg(
+				(demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
+				  (~(0x3 << 14))), AO_RTI_GEN_PWR_ISO0);
+		/* pull up reset */
+		demod_set_demod_reg(
+		(demod_read_demod_reg(TXLX_RESET0_LEVEL) |
+				     (0x1 << 8)), TXLX_RESET0_LEVEL);
+/* *P_RESET0_LEVEL |= (0x1<<8); */
+	} else {
+		pr_dbg("[PWR]: Power off demod_comp\n");
+		/* add isolation */
+
+			demod_set_ao_reg(
+				(demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
+				  (0x3 << 14)), AO_RTI_GEN_PWR_ISO0);
+
+		/* power down memory */
+		demod_set_demod_reg(
+		(demod_read_demod_reg(TXLX_HHI_DEMOD_MEM_PD_REG)
+			 | 0x2fff), TXLX_HHI_DEMOD_MEM_PD_REG);
+		/* power down demod_comb */
+		reg_data = demod_read_ao_reg(AO_RTI_GEN_PWR_SLEEP0);
+		demod_set_ao_reg((reg_data | (0x1 << 10)),
+				 AO_RTI_GEN_PWR_SLEEP0);
+		/* [10] power on */
+	}
+} else {
 	if (pwr_cntl == PWR_ON) {
 		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
 		       AO_RTI_GEN_PWR_SLEEP0, AO_RTI_GEN_PWR_ISO0);
@@ -388,19 +488,21 @@ void demod_power_switch(int pwr_cntl)
 		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
 		       HHI_DEMOD_MEM_PD_REG, RESET0_LEVEL);
 		/* Power up memory */
-		demod_set_demod_reg((demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
+		demod_set_demod_reg(
+		(demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
 				     & (~0x2fff)), HHI_DEMOD_MEM_PD_REG);
 		/* reset */
-		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) &
+		demod_set_demod_reg(
+		(demod_read_demod_reg(RESET0_LEVEL) &
 				     (~(0x1 << 8))), RESET0_LEVEL);
 	/*	msleep(20);*/
-
 		/* remove isolation */
 			demod_set_ao_reg(
 				(demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
 				  (~(0x3 << 14))), AO_RTI_GEN_PWR_ISO0);
 		/* pull up reset */
-		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) |
+		demod_set_demod_reg(
+		(demod_read_demod_reg(RESET0_LEVEL) |
 				     (0x1 << 8)), RESET0_LEVEL);
 /* *P_RESET0_LEVEL |= (0x1<<8); */
 	} else {
@@ -412,7 +514,8 @@ void demod_power_switch(int pwr_cntl)
 				  (0x3 << 14)), AO_RTI_GEN_PWR_ISO0);
 
 		/* power down memory */
-		demod_set_demod_reg((demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
+		demod_set_demod_reg(
+		(demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
 			 | 0x2fff), HHI_DEMOD_MEM_PD_REG);
 		/* power down demod_comb */
 		reg_data = demod_read_ao_reg(AO_RTI_GEN_PWR_SLEEP0);
@@ -420,6 +523,7 @@ void demod_power_switch(int pwr_cntl)
 				 AO_RTI_GEN_PWR_SLEEP0);
 		/* [10] power on */
 	}
+}
 #endif
 }
 /* // 0 -DVBC J.83B, 1-DVBT, ISDBT, 2-ATSC,3-DTMB */
@@ -446,8 +550,10 @@ void demod_set_mode_ts(unsigned char dvb_mode)
 		cfg0.b.adc_format = 0;
 		cfg0.b.adc_regout = 0;
 	}
-	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
-
+	if (is_meson_txlx_cpu())
+		demod_set_demod_reg(cfg0.d32, TXLX_DEMOD_REG1);
+	else
+		demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
 }
 
 static void clocks_set_sys_defaults(unsigned char dvb_mode)
@@ -457,22 +563,26 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	demod_power_switch(PWR_ON);
 	if (is_meson_txlx_cpu()) {
 		pr_dbg("TXLX_TV config\n");
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG1_VALUE, ADC_REG1);
-		demod_set_demod_reg(TXLTV_ADC_REGB_VALUE, ADC_REGB);
-		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE_CRY, ADC_REG2);
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG4_VALUE, ADC_REG4);
-		demod_set_demod_reg(TXLTV_ADC_REGC_VALUE, ADC_REGC);
-		demod_set_demod_reg(TXLTV_ADC_REGD_VALUE, ADC_REGD);
-		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, TXLX_ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG1_VALUE, TXLX_ADC_REG1);
+		demod_set_demod_reg(TXLX_ADC_REGB_VALUE, TXLX_ADC_REGB);
+		demod_set_demod_reg(TXLX_ADC_REG2_VALUE_CRY, TXLX_ADC_REG2);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, TXLX_ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG4_VALUE, TXLX_ADC_REG4);
+		demod_set_demod_reg(TXLX_ADC_REGC_VALUE, TXLX_ADC_REGC);
+		demod_set_demod_reg(TXLX_ADC_REGD_VALUE, TXLX_ADC_REGD);
+		demod_set_demod_reg(TXLX_ADC_RESET_VALUE, TXLX_ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, TXLX_ADC_REG3);
 
 		/* dadc */
-		demod_set_demod_reg(TXLTV_ADC_REG7_VALUE, ADC_REG7);
-		demod_set_demod_reg(TXLTV_ADC_REG8_VALUE, ADC_REG8);
-		demod_set_demod_reg(TXLTV_ADC_REG9_VALUE, ADC_REG9);
-		demod_set_demod_reg(TXLTV_ADC_REGE_VALUE, ADC_REGE);
+		demod_set_demod_reg(TXLX_ADC_REG7_VALUE, TXLX_ADC_REG7);
+		demod_set_demod_reg(TXLX_ADC_REG8_VALUE, TXLX_ADC_REG8);
+		demod_set_demod_reg(TXLX_ADC_REG9_VALUE, TXLX_ADC_REG9);
+		demod_set_demod_reg(TXLX_ADC_REGE_VALUE, TXLX_ADC_REGE);
+
+		demod_set_demod_reg(DEMOD_REG1_VALUE, TXLX_DEMOD_REG1);
+		demod_set_demod_reg(DEMOD_REG2_VALUE, TXLX_DEMOD_REG2);
+		demod_set_demod_reg(DEMOD_REG3_VALUE, TXLX_DEMOD_REG3);
 	} else if (is_meson_gxtvbb_cpu()) {
 		pr_dbg("GX_TV config\n");
 		demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);
@@ -485,35 +595,47 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 		demod_set_demod_reg(ADC_REG8_VALUE, ADC_REG8);
 		demod_set_demod_reg(ADC_REG9_VALUE, ADC_REG9);
 		demod_set_demod_reg(ADC_REGA_VALUE, ADC_REGA);
+
+		demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
+		demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
+		demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
 	} else if (is_meson_txl_cpu()) {
 		pr_dbg("TXL_TV config\n");
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG1_VALUE, ADC_REG1);
-		demod_set_demod_reg(TXLTV_ADC_REGB_VALUE, ADC_REGB);
-		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE, ADC_REG2);
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG4_VALUE, ADC_REG4);
-		demod_set_demod_reg(TXLTV_ADC_REGC_VALUE, ADC_REGC);
-		demod_set_demod_reg(TXLTV_ADC_REGD_VALUE, ADC_REGD);
-		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
-		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG1_VALUE, ADC_REG1);
+		demod_set_demod_reg(TXLX_ADC_REGB_VALUE, ADC_REGB);
+		demod_set_demod_reg(TXLX_ADC_REG2_VALUE, ADC_REG2);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG4_VALUE, ADC_REG4);
+		demod_set_demod_reg(TXLX_ADC_REGC_VALUE, ADC_REGC);
+		demod_set_demod_reg(TXLX_ADC_REGD_VALUE, ADC_REGD);
+		demod_set_demod_reg(TXLX_ADC_RESET_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLX_ADC_REG3_VALUE, ADC_REG3);
 
 		/* dadc */
-		demod_set_demod_reg(TXLTV_ADC_REG7_VALUE, ADC_REG7);
-		demod_set_demod_reg(TXLTV_ADC_REG8_VALUE, ADC_REG8);
-		demod_set_demod_reg(TXLTV_ADC_REG9_VALUE, ADC_REG9);
-		demod_set_demod_reg(TXLTV_ADC_REGE_VALUE, ADC_REGE);
-	}
+		demod_set_demod_reg(TXLX_ADC_REG7_VALUE, ADC_REG7);
+		demod_set_demod_reg(TXLX_ADC_REG8_VALUE, ADC_REG8);
+		demod_set_demod_reg(TXLX_ADC_REG9_VALUE, ADC_REG9);
+		demod_set_demod_reg(TXLX_ADC_REGE_VALUE, ADC_REGE);
 
-	demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
-	demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
-	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
+		demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
+		demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
+		demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
+	}
 	demod_set_mode_ts(dvb_mode);
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
-	demod_set_demod_reg(cfg2.d32, DEMOD_REG3);
-	pr_dbg("demod cfg[%x] is %x,dvb_mode is %d\n",
-	       DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1), dvb_mode);
+	if (is_meson_txlx_cpu()) {
+		demod_set_demod_reg(cfg2.d32, TXLX_DEMOD_REG3);
+		pr_dbg("demod cfg[%x] is %x,dvb_mode is %d\n",
+			   TXLX_DEMOD_REG1,
+			   demod_read_demod_reg(TXLX_DEMOD_REG1), dvb_mode);
+	} else {
+		demod_set_demod_reg(cfg2.d32, DEMOD_REG3);
+		pr_dbg("demod cfg[%x] is %x,dvb_mode is %d\n",
+			   DEMOD_REG1,
+			   demod_read_demod_reg(DEMOD_REG1), dvb_mode);
+	}
 }
 
 void dtmb_write_reg(int reg_addr, int reg_data)
@@ -1105,9 +1227,9 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	/* set adc clk */
 	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
 	/* init for dtmb */
-	if (dvb_mode == Gxtv_Dtmb) {
+	if ((dvb_mode == Gxtv_Dtmb) && !is_meson_txlx_cpu()) {
 		/* open arbit */
-	/*	demod_set_demod_reg(0x8, DEMOD_REG4);*/
+		demod_set_demod_reg(0x8, DEMOD_REG4);
 	}
 	demod_sta->adc_freq = clk_adc;
 	demod_sta->clk_freq = clk_dem;
