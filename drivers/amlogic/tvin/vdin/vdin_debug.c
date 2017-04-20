@@ -291,6 +291,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	unsigned int i;
 	struct vframe_s *vf = &devp->curr_wr_vfe->vf;
 	struct tvin_parm_s *curparm = &devp->parm;
+	struct vf_pool *vfp = devp->vfp;
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d, canvas_alin_w = %d\n",
@@ -344,6 +345,13 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		pr_info("\t left_start_y %u, right_start_y %u, height_y %u\n",
 			vf->left_eye.start_y, vf->right_eye.start_y,
 			vf->left_eye.height);
+	}
+	if (vfp) {
+		pr_info("disp_index:%d,disp_index_cur:%d,disp_index_last:%d,disp_index_last2:%d\n",
+			vfp->disp_index, vfp->disp_index_cur,
+			vfp->disp_index_last, vfp->disp_index_last2);
+		for (i = 0; i < VFRAME_DISP_MAX_NUM; i++)
+			pr_info("disp_mode[%d]:%d\n", i, vfp->disp_mode[i]);
 	}
 	pr_info("current parameters:\n");
 	pr_info("\t frontend of vdin index :  %d, 3d flag : 0x%x\n",

@@ -1762,6 +1762,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		devp->last_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(devp->last_wr_vfe, devp->vfp);
+		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
+			(devp->parm.port <= TVIN_PORT_HDMI7))
+			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
 		#if 0
 		/* prepare for next input data */
 		if (provider_vf_peek(devp->vfp) != NULL) {
@@ -1861,6 +1864,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
+		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
+			(devp->parm.port <= TVIN_PORT_HDMI7))
+			vdin_vf_disp_mode_skip(devp->vfp);
 		vdin_irq_flag = 8;
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -1958,16 +1964,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(curr_wr_vfe, devp->vfp);
 
-		/* prepare for next input data */
-		next_wr_vfe = provider_vf_get(devp->vfp);
-		vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
-			(next_wr_vfe->vf.canvas0Addr&0xff));
-		/* prepare for chroma canvas*/
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-			vdin_set_chma_canvas_id(devp,
-				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
 		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK
 			&& devp->dv_config) {
 			/* prepare for dolby vision metadata addr */
@@ -1980,9 +1976,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
 		}
 
-		devp->curr_wr_vfe = next_wr_vfe;
-		vf_notify_receiver(devp->name,
-				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
+			(devp->parm.port <= TVIN_PORT_HDMI7))
+			vdin_vf_disp_mode_update(curr_wr_vfe, devp->vfp);
 	}
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
