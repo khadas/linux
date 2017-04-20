@@ -277,7 +277,7 @@ static void __init gxl_clk_init(struct device_node *np)
 		vapb = clk_get_sys("clk_vapb_0", "clk_vapb_0");
 		if ((!IS_ERR(vapb)) && (!IS_ERR(fixdiv5))) {
 			clk_set_parent(vapb, fixdiv5);
-			clk_set_rate(vapb, 400000000);
+			clk_set_rate(vapb, 100000000);
 			clk_prepare_enable(vapb);
 		}
 		if (!IS_ERR(fixdiv5))
