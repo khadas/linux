@@ -100,6 +100,7 @@ struct isr_log_s {
 
 #define VF_FLAG_NORMAL_FRAME		 0x00000001
 #define VF_FLAG_FREEZED_FRAME		 0x00000002
+#define VFRAME_DISP_MAX_NUM 10
 
 
 struct vf_entry {
@@ -143,6 +144,11 @@ struct vf_pool {
 	unsigned int	dv_buf_size[VDIN_DV_MAX_NUM];
 	char	*dv_buf[VDIN_DV_MAX_NUM];
 	char	*dv_buf_ori[VDIN_DV_MAX_NUM];
+	unsigned int disp_index_cur;
+	unsigned int disp_index_last2;
+	unsigned int disp_index_last;
+	unsigned int disp_index;
+	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
 };
 extern unsigned int dolby_size_byte;
 extern unsigned int dv_dbg_mask;
@@ -183,5 +189,7 @@ extern void vdin_vf_unfreeze(struct vf_pool *p);
 
 extern void vdin_dump_vf_state(struct vf_pool *p);
 
+extern void vdin_vf_disp_mode_update(struct vf_entry *vfe, struct vf_pool *p);
+extern void vdin_vf_disp_mode_skip(struct vf_pool *p);
 #endif /* __VDIN_VF_H */
 

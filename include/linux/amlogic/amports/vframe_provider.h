@@ -38,6 +38,7 @@ struct vframe_states {
 #define VFRAME_EVENT_RECEIVER_RESET				0x20
 #define VFRAME_EVENT_RECEIVER_FORCE_UNREG			0x40
 #define VFRAME_EVENT_RECEIVER_GET_AUX_DATA			0x80
+#define VFRAME_EVENT_RECEIVER_DISP_MODE				0x100
 
 	/* for VFRAME_EVENT_RECEIVER_GET_AUX_DATA*/
 struct provider_aux_req_s {
@@ -48,6 +49,13 @@ struct provider_aux_req_s {
 	char *aux_buf;
 	int aux_size;
 	int dv_enhance_exist;
+};
+struct provider_disp_mode_req_s {
+	/*input*/
+	struct vframe_s *vf;
+	unsigned int req_mode;/*0:peak;1:get*/
+	/*output*/
+	enum vframe_disp_mode_e disp_mode;
 };
 
 struct vframe_operations_s {

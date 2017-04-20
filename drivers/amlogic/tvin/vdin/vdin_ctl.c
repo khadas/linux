@@ -141,13 +141,13 @@ static unsigned int dv_dbg_log = ((1<<3) | (1<<4));
 module_param(dv_dbg_log, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_log, "enable/disable dv_dbg_log");
 
-static bool vdin_ctl_en;
-module_param(vdin_ctl_en, bool, 0664);
-MODULE_PARM_DESC(vdin_ctl_en, "enable/disable vdin ctl information");
-
 unsigned int dv_dbg_mask = (DV_BUF_START_RESET);
 module_param(dv_dbg_mask, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_mask, "enable/disable dv_dbg_mask");
+
+static int vdin_ctl_dbg;
+module_param(vdin_ctl_dbg, int, 0664);
+MODULE_PARM_DESC(vdin_ctl_dbg, "vdin_ctl_dbg");
 
 unsigned int vpu_reg_27af = 0x3;
 
@@ -192,6 +192,11 @@ unsigned int vpu_reg_27af = 0x3;
 #define VDIN_MEAS_HSCNT_DIFF    0x50
 /* the diff value between normal/bad data */
 #define VDIN_MEAS_VSCNT_DIFF    0x50
+
+#if 0/*ndef VDIN_DEBUG*/
+#undef pr_info
+#define pr_info(fmt, ...)
+#endif
 
 static void vdin0_wr_mif_reset(void)
 {
@@ -759,7 +764,7 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 
 	if (devp->prop.decimation_ratio & HDMI_DE_REPEAT_DONE_FLAG) {
 		decimation_in_frontend = true;
-		if (vdin_ctl_en)
+		if (vdin_ctl_dbg)
 			pr_info("decimation_in_frontend\n");
 	}
 	devp->prop.decimation_ratio = devp->prop.decimation_ratio &
@@ -767,7 +772,7 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 
 	new_clk = devp->fmt_info_p->pixel_clk /
 			(devp->prop.decimation_ratio + 1);
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("%s decimation_ratio=%u,new_clk=%u.\n",
 			__func__, devp->prop.decimation_ratio, new_clk);
 
@@ -833,7 +838,7 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 				(ve << INPUT_WIN_V_END_BIT));
 		wr_bits(offset, VDIN_COM_CTRL0, 1,
 				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-		if (vdin_ctl_en)
+		if (vdin_ctl_dbg)
 			pr_info("%s enable cutwin hs=%d, he=%d,  vs=%d, ve=%d\n",
 				__func__,
 			devp->prop.hs, devp->prop.he,
@@ -842,14 +847,12 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 		wr(offset, VDIN_WIN_H_START_END, 0);
 		wr(offset, VDIN_WIN_V_START_END, 0);
 		wr_bits(offset, VDIN_COM_CTRL0, 0,
-			INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-		if (vdin_ctl_en)
+				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+		if (vdin_ctl_dbg)
 			pr_info("%s disable cutwin!!! hs=%d, he=%d,  vs=%d, ve=%d\n",
 				__func__,
-				devp->prop.hs,
-				devp->prop.he,
-				devp->prop.vs,
-				devp->prop.ve);
+			devp->prop.hs, devp->prop.he,
+			devp->prop.vs, devp->prop.ve);
 	}
 
 }
@@ -1713,7 +1716,7 @@ void vdin_set_ldim_max_init(unsigned int offset,
 	/* check ic type */
 	if (!is_meson_gxtvbb_cpu())
 		return;
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("\n****************vdin_set_ldim_max_init:hidx start********\n");
 	for (k = 1; k < 11; k++) {
 		ldimmax.ld_stamax_hidx[k] =
@@ -1722,13 +1725,13 @@ void vdin_set_ldim_max_init(unsigned int offset,
 			ldimmax.ld_stamax_hidx[k] = 4095; /* clip U12 */
 		if (ldimmax.ld_stamax_hidx[k] == ldim_pic_colmax)
 			ldimmax.ld_stamax_hidx[k] = ldim_pic_colmax - 1;
-		if (vdin_ctl_en)
+		if (vdin_ctl_dbg)
 			pr_info("%d\t", ldimmax.ld_stamax_hidx[k]);
 	}
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("\n****************vdin_set_ldim_max_init:hidx end*********\n");
 	ldimmax.ld_stamax_vidx[0] = 0;
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("\n***********vdin_set_ldim_max_init:vidx start************\n");
 	for (k = 1; k < 11; k++) {
 
@@ -1738,10 +1741,10 @@ void vdin_set_ldim_max_init(unsigned int offset,
 			ldimmax.ld_stamax_vidx[k] = 4095;  /* clip to U12 */
 		if (ldimmax.ld_stamax_vidx[k] == ldim_pic_rowmax)
 			ldimmax.ld_stamax_vidx[k] = ldim_pic_rowmax - 1;
-		if (vdin_ctl_en)
+		if (vdin_ctl_dbg)
 			pr_info("%d\t", ldimmax.ld_stamax_vidx[k]);
 	}
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("\n*******vdin_set_ldim_max_init:vidx end*******\n");
 	wr(offset, VDIN_LDIM_STTS_HIST_REGION_IDX,
 			(1 << LOCAL_DIM_STATISTIC_EN_BIT)  |
@@ -2455,7 +2458,7 @@ int vdin_vsync_reset_mif(int index)
 					break;
 				}
 			}
-			if ((i >= vdin_det_idle_wait) && vdin_ctl_en)
+			if ((i >= vdin_det_idle_wait) && vdin_ctl_dbg)
 				pr_info("============== !!! idle wait timeout\n");
 		}
 
@@ -2646,7 +2649,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 	cycle_phase = devp->msr_clk_val/96000;
 	if (cycle_phase == 0) {
 		cycle_phase = 250;
-		if (vdin_ctl_en)
+		if (vdin_ctl_dbg)
 			pr_info("%s:cycle_phase is 0!!!!", __func__);
 	}
 #ifdef VDIN_DYNAMIC_DURATION
@@ -2832,15 +2835,15 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 		vdin_set_hscale(offset, devp->h_active, max_hactive);
 		devp->h_active = max_hactive;
 	}
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info("[vdin.%d] dst hactive:%u,",
-		devp->index, devp->h_active);
+			devp->index, devp->h_active);
 	if ((devp->prop.scaling4h < devp->v_active) &&
 		(devp->prop.scaling4h > 0)) {
 		vdin_set_vscale(offset, devp->v_active, devp->prop.scaling4h);
 		devp->v_active = devp->prop.scaling4h;
 	}
-	if (vdin_ctl_en)
+	if (vdin_ctl_dbg)
 		pr_info(" dst vactive:%u.\n", devp->v_active);
 }
 
@@ -3147,12 +3150,12 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 	unsigned long flags;
 	struct vf_pool *p;
 	if (!op_arg) {
-		if (dv_dbg_log&(1<<3))
+		if (vdin_ctl_dbg&(1<<3))
 			pr_info("%s:op_arg is NULL!\n", __func__);
 		return -1;
 	}
 	if (!data) {
-		if (dv_dbg_log&(1<<4))
+		if (vdin_ctl_dbg&(1<<4))
 			pr_info("%s:data is NULL!\n", __func__);
 		return -1;
 	}
@@ -3183,6 +3186,28 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		if (dv_dbg_log&(1<<5))
 			pr_info("%s(type 0x%x vf index 0x%x)=>size 0x%x\n",
 			__func__, type, index, req->aux_size);
+	} else if (type & VFRAME_EVENT_RECEIVER_DISP_MODE) {
+		struct provider_disp_mode_req_s *req =
+			(struct provider_disp_mode_req_s *)data;
+		unsigned int index_disp;
+		if (!req->vf) {
+			pr_info("%s:req->vf is NULL!\n", __func__);
+			return -1;
+		}
+		index_disp = req->vf->index_disp & 0xff;
+		if (index_disp >= VFRAME_DISP_MAX_NUM) {
+			if (vdin_ctl_dbg)
+				pr_info("%s:req->vf->index_disp(%d) is overflow!\n",
+					__func__, index_disp);
+			return -1;
+		}
+		req->disp_mode = p->disp_mode[index_disp];
+		if (req->req_mode == 1)
+			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
+		if (vdin_ctl_dbg)
+			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d\n",
+				__func__, type, index_disp, req->disp_mode,
+				req->req_mode);
 	}
 	return 0;
 }

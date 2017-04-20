@@ -200,6 +200,8 @@ static DEFINE_SPINLOCK(video_onoff_lock);
 static int video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 static DEFINE_SPINLOCK(video2_onoff_lock);
 static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+static u32 hdmiin_frame_check = 1;
+static u32 hdmiin_frame_check_cnt;
 
 #ifdef FIQ_VSYNC
 #define BRIDGE_IRQ INT_TIMER_C
@@ -3764,7 +3766,32 @@ void vsync_rdma_process(void)
 static enum vmode_e old_vmode = VMODE_MAX;
 /* #endif */
 static enum vmode_e new_vmode = VMODE_MAX;
+static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
+{
+	struct provider_disp_mode_req_s req;
 
+	req.vf = vf;
+	req.disp_mode = 0;
+	req.req_mode = 1;
+	vf_notify_provider_by_name("vdin0", VFRAME_EVENT_RECEIVER_DISP_MODE,
+		(void *)&req);
+	if (req.disp_mode == VFRAME_DISP_MODE_OK)
+		return false;
+	/*whether need to check pts??*/
+	video_vf_put(vf);
+	return true;
+}
+static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
+{
+	struct provider_disp_mode_req_s req;
+
+	req.vf = vf;
+	req.disp_mode = 0;
+	req.req_mode = 0;
+	vf_notify_provider_by_name("vdin0", VFRAME_EVENT_RECEIVER_DISP_MODE,
+		(void *)&req);
+	return req.disp_mode;
+}
 static inline bool video_vf_dirty_put(struct vframe_s *vf)
 {
 	if (!vf->frame_dirty)
@@ -4200,7 +4227,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 	/* buffer switch management */
 	vf = video_vf_peek();
-
 	/* setting video display property in underflow mode */
 	if ((!vf) && cur_dispbuf && (video_property_changed))
 		vsync_toggle_frame(cur_dispbuf);
@@ -4231,10 +4257,27 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			if (is_dolby_vision_enable()
 			&& dolby_vision_need_wait())
 				break;
+			/*two special case:
+			case1:4k display case,input buffer not enough &
+				quickly for display
+			case2:input buffer all not OK*/
+			if (vf && hdmiin_frame_check &&
+				(vf->source_type == VFRAME_SOURCE_TYPE_HDMI) &&
+				(video_vf_disp_mode_get(vf) !=
+				VFRAME_DISP_MODE_OK) &&
+				(hdmiin_frame_check_cnt++ < 10))
+				break;
+			else
+				hdmiin_frame_check_cnt = 0;
+
 			vf = video_vf_get();
 			if (!vf)
 				break;
 			if (video_vf_dirty_put(vf))
+				break;
+			if (vf && hdmiin_frame_check && (vf->source_type ==
+				VFRAME_SOURCE_TYPE_HDMI) &&
+				video_vf_disp_mode_check(vf))
 				break;
 			force_blackout = 0;
 			if ((platform_type == 1) ||
@@ -8496,6 +8539,9 @@ MODULE_PARM_DESC(underflow, "\n Underflow count\n");
 
 module_param(next_peek_underflow, uint, 0664);
 MODULE_PARM_DESC(skip, "\n Underflow count\n");
+
+module_param(hdmiin_frame_check, uint, 0664);
+MODULE_PARM_DESC(hdmiin_frame_check, "\n hdmiin_frame_check\n");
 
 /*arch_initcall(video_early_init);
 */
