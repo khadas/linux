@@ -57,8 +57,12 @@ static unsigned int sync_level;
 module_param(sync_level, int, 0664);
 MODULE_PARM_DESC(sync_level, "sync_level");
 
+static unsigned int avplay_sync_level = 4;
+module_param(avplay_sync_level, int, 0664);
+MODULE_PARM_DESC(avplay_sync_level, "avplay_sync_level");
+
 /*0:50mv; 1:100mv; 2:150mv; 3:200mv*/
-static unsigned int sync_hys_adj;
+static unsigned int sync_hys_adj = 1;
 module_param(sync_hys_adj, int, 0664);
 MODULE_PARM_DESC(sync_hys_adj, "sync_hys_adj");
 
