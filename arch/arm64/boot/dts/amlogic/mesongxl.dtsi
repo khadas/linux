@@ -283,8 +283,9 @@
 			amlogic,pins="GPIODV_24", "GPIODV_25";
 		};
 		c_uart_pins:c_uart{
-			amlogic,setmask=<5 0x3000>;
-			amlogic,pins="GPIOX_8", "GPIOX_9";
+			amlogic,setmask=<5 0x3c00>;
+            amlogic,clrmask=<5 0xf0003f>;
+			amlogic,pins="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 		};
 		wifi_32k_pins:wifi_32k_pins{
 			amlogic,setmask=<5 0x8000>;
