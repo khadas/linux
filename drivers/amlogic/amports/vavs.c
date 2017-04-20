@@ -1059,6 +1059,30 @@ static void vavs_local_reset(void)
 	mutex_unlock(&vavs_mutex);
 }
 
+static struct work_struct fatal_error_wd_work;
+static atomic_t error_handler_run = ATOMIC_INIT(0);
+static void vavs_fatal_error_handler(struct work_struct *work)
+{
+	if (debug_flag & AVS_DEBUG_OLD_ERROR_HANDLE) {
+		mutex_lock(&vavs_mutex);
+		pr_info("vavs fatal error reset !\n");
+		amvdec_stop();
+#ifdef CONFIG_POST_PROCESS_MANAGER
+		vavs_ppmgr_reset();
+#else
+		vf_light_unreg_provider(&vavs_vf_prov);
+		vavs_local_init();
+		vf_reg_provider(&vavs_vf_prov);
+#endif
+		vavs_recover();
+		amvdec_start();
+		mutex_unlock(&vavs_mutex);
+	} else {
+		vavs_local_reset();
+	}
+	atomic_set(&error_handler_run, 0);
+}
+
 static void vavs_put_timer_func(unsigned long arg)
 {
 	struct timer_list *timer = (struct timer_list *)arg;
@@ -1069,6 +1093,7 @@ static void vavs_put_timer_func(unsigned long arg)
 
 	if (READ_VREG(AVS_SOS_COUNT)) {
 		if (!error_recovery_mode) {
+#if 0
 			if (debug_flag & AVS_DEBUG_OLD_ERROR_HANDLE) {
 				mutex_lock(&vavs_mutex);
 				pr_info("vavs fatal error reset !\n");
@@ -1086,6 +1111,12 @@ static void vavs_put_timer_func(unsigned long arg)
 			} else {
 				vavs_local_reset();
 			}
+#else
+			if (!atomic_read(&error_handler_run)) {
+				atomic_set(&error_handler_run, 1);
+				schedule_work(&fatal_error_wd_work);
+			}
+#endif
 		}
 	}
 #if 0
@@ -1418,12 +1449,17 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 
 		return -ENODEV;
 	}
+	INIT_WORK(&fatal_error_wd_work, vavs_fatal_error_handler);
+	atomic_set(&error_handler_run, 0);
 
 	return 0;
 }
 
 static int amvdec_avs_remove(struct platform_device *pdev)
 {
+	cancel_work_sync(&fatal_error_wd_work);
+	atomic_set(&error_handler_run, 0);
+
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
 		stat &= ~STAT_VDEC_RUN;
