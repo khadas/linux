@@ -706,8 +706,8 @@ static inline bool is_poll_message(unsigned char header)
 static void cec_clear_logical_addr(void)
 {
 	if (ee_cec) {
-		hdmirx_wr_dwc(DWC_CEC_ADDR_L, 0);
-		hdmirx_wr_dwc(DWC_CEC_ADDR_H, 0x80);
+		hdmirx_cec_write(DWC_CEC_ADDR_L, 0);
+		hdmirx_cec_write(DWC_CEC_ADDR_H, 0x80);
 	} else
 		aocec_wr_reg(CEC_LOGICAL_ADDR0, 0);
 	udelay(100);
