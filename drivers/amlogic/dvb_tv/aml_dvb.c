@@ -97,6 +97,29 @@ static struct tsdemux_ops aml_tsdemux_ops = {
 	.set_demux = aml_tsdemux_set_demux
 };
 
+long aml_stb_get_base(int id)
+{
+	int newbase = (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX) ? 1 : 0;
+
+	switch (id) {
+	case ID_STB_CBUS_BASE:
+		return (newbase) ? 0x1800 : 0x1600;
+	case ID_SMARTCARD_REG_BASE:
+		return (newbase) ? 0x9400 : 0x2110;
+	case ID_ASYNC_FIFO_REG_BASE:
+		return (newbase) ? 0x2800 : 0x2310;
+	case ID_ASYNC_FIFO2_REG_BASE:
+		return (newbase) ? 0x2400 : 0x2314;
+	case ID_RESET_BASE:
+		return (newbase) ? 0x0400 : 0x1100;
+	case ID_PARSER_SUB_START_PTR_BASE:
+		return (newbase) ? 0x3800 : 0x2900;
+	default:
+		return 0;
+	}
+	return 0;
+}
+
 static int control_ts_on_csi_port(int tsin, int enable)
 {
 /*#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8*/
