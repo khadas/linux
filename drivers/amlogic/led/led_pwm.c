@@ -43,6 +43,7 @@
 #define DEFAULT_PWM_PERIOD	100000;
 #define LED_ON  1
 #define LED_OFF 0
+#define PWM_NUM 10
 
 static unsigned int ledmode;
 static struct timer_list timer;
@@ -101,24 +102,23 @@ static void aml_pwmled_brightness_set(struct led_classdev *cdev,
 */
 static int clear_pwm_ao_a(struct platform_device *pdev)
 {
-
+/*fot tcl txl t962
 	struct pwm_device *pwm_ch1 = NULL;
 	struct aml_pwm_chip *aml_chip = NULL;
 	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
 
-	/*get pwm device*/
+
 	pwm_ch1 = ldev->pwmd;
 	aml_chip = to_aml_pwm_chip(pwm_ch1->chip);
-	/*clear duty A1 A2*/
-	pwm_write_reg(aml_chip->ao_base + REG_PWM_AO_A, 0);
-	pwm_write_reg(aml_chip->ao_base + REG_PWM_AO_A2, 0);
-	/*clear clock ,blink, times,output enable and so on*/
-	pwm_clear_reg_bits(aml_chip->ao_base + REG_MISC_AO_AB,
-	(0x1<<0)|(0x3<<4)|(0xff<<8)|(1<<25)|(1<<26));
-	pwm_clear_reg_bits(aml_chip->ao_base + REG_TIME_AO_AB, (0xffff<<16));
-	pwm_clear_reg_bits(aml_chip->ao_blink_base + REG_BLINK_AO_AB,
-	(0xff)|(1<<8));
 
+	pwm_write_reg(aml_chip->baseaddr.aoab_base, 0x0);
+	pwm_write_reg(aml_chip->baseaddr.aoab_base + 0x14, 0);
+	pwm_clear_reg_bits(aml_chip->baseaddr.aoab_base + 0x8,
+	(0x1<<0)|(0x3<<4)|(0xff<<8)|(1<<25)|(1<<26));
+	pwm_clear_reg_bits(aml_chip->baseaddr.aoab_base + 0x10, (0xffff<<16));
+	pwm_clear_reg_bits(aml_chip->ao_blink_base + 0x0,
+	(0xff)|(1<<8));
+*/
 	return 0;
 }
 static int aml_pwmled_dt_parse(struct platform_device *pdev)
@@ -155,7 +155,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 	}
 
 	/*request ao a2*/
-	ldev->pwmd2 = pwm_request(ldev->pwmd->hwpwm + 8, NULL);
+	ldev->pwmd2 = pwm_request(ldev->pwmd->hwpwm + PWM_NUM, NULL);
 	if (IS_ERR(ldev->pwmd2)) {
 		pr_err("request pwm A2 failed\n");
 		ret = PTR_ERR(ldev->pwmd);
@@ -167,7 +167,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 	/* Get the period from PWM core when n*/
 	ldev->period = pwm_get_period(ldev->pwmd);
 
-	ldev->pwmd2->hwpwm = ldev->pwmd->hwpwm + 8;
+	ldev->pwmd2->hwpwm = ldev->pwmd->hwpwm + PWM_NUM;
 	ret = of_property_read_u32(node, "polarity", &ldev->polarity);
 	if (ret < 0) {
 		pr_err("failed to get polarity\n");

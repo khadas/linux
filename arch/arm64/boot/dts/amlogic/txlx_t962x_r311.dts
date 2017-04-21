@@ -174,35 +174,6 @@
 		};
 	};
 
-	pwm {
-		compatible = "amlogic, meson-pwm";
-		status = "disabled";
-		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
-			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
-		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
-				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
-			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
-			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
-		reg = <0x0 0xc1108550 0x0 0x30>,
-		      <0x0 0xc8100550  0x0 0x10>;
-		clocks = <&clock CLK_XTAL>,
-			 <&clock CLK_VID_PLL>,
-			 <&clock CLK_FPLL_DIV4>,
-			 <&clock CLK_FPLL_DIV3>;
-		clock-names = "xtal",
-			      "vid_pll_clk",
-			      "fclk_div4",
-			      "fclk_div3";
-		clock-select = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
-			       	   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
-		clock-select-new = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
-		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
-		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
-		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
-		                   /*all channels use the default clock source XTAL_CLK*/
-		                   /*and you can shoose it in file dt-bindings/pwm/meson.h*/
-	};
-
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
@@ -210,6 +181,19 @@
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
 
+	pwmled {
+		compatible = "amlogic, pwmled";
+		dev_name = "pwmled";
+		status = "okay";
+		pwms = <&pwm PWM_AO_A 5555555>;/*180HZ */
+		polarity = <0>; /* 0-normal 1-inversed */
+		max_brightness = <255>;
+		pinctrl-names = "pwm_ao_a_pins";
+		pinctrl-0 = <&pwm_ao_a_pins>;
+		/* led timer data */
+		expires = <400>; /* ms */
+		expires_count = <8>;
+	};
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";
@@ -1368,6 +1352,11 @@
 };
 
 &pinmux {
+	pwm_ao_a_pins:pwm_ao_a_pins {
+		amlogic,setmask=<AO 0x400000>;
+		amlogic,clrmask=<AO 0x280>;
+		amlogic,pins="GPIOAO_3";
+	};
 	audio_pins:audio_pin{
 		amlogic,setmask=<0 0x0000F000>;
 		amlogic,clrmask=<10 0x00000017
