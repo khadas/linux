@@ -11,37 +11,21 @@
 #include <linux/amlogic/iomap.h>
 #define CBUS_REG_ADDR(_r) aml_read_cbus(_r)
 
-#define TXFX
-#ifdef TXFX
-/*full base addr is not set */
-#define STB_CBUS_BASE		(0x1800)
-#define SMARTCARD_REG_BASE	(0x9400)
-#define ASYNC_FIFO_REG_BASE	(0x2800)
-#define ASYNC_FIFO2_REG_BASE	(0x2400)
-#define RESET_BASE			0x0400
-#define PARSER_SUB_START_PTR_BASE	0x3800
-#define DEMUX_1_OFFSET         0x00
-#define DEMUX_2_OFFSET         0x50
-#define DEMUX_3_OFFSET         0xa0
 
-#else
+#define STB_CBUS_BASE		aml_stb_get_base(ID_STB_CBUS_BASE)
+#define SMARTCARD_REG_BASE	aml_stb_get_base(ID_SMARTCARD_REG_BASE)
+#define ASYNC_FIFO_REG_BASE	aml_stb_get_base(ID_ASYNC_FIFO_REG_BASE)
+#define ASYNC_FIFO2_REG_BASE	aml_stb_get_base(ID_ASYNC_FIFO2_REG_BASE)
+#define RESET_BASE		aml_stb_get_base(ID_RESET_BASE)
+#define PARSER_SUB_START_PTR_BASE \
+	aml_stb_get_base(ID_PARSER_SUB_START_PTR_BASE)
 
-#define STB_CBUS_BASE	(0x1600)
-#define SMARTCARD_REG_BASE (0x2110)
-#define ASYNC_FIFO_REG_BASE		(0x2310)
-#define ASYNC_FIFO2_REG_BASE	(0x2314)
-#define RESET_BASE  0x1100
-#define PARSER_SUB_START_PTR_BASE  0x2900
-
-#define MESON_M8_CPU
 #define HHI_CSI_PHY_CNTL_BASE 0x1000
 
 #define DEMUX_1_OFFSET         0x00
 #define DEMUX_2_OFFSET         0x50
 #define DEMUX_3_OFFSET         0xa0
 
-#endif
-/*no set*/
 
 #define STB_TOP_CONFIG  (STB_CBUS_BASE + 0xf0)
 #define P_STB_TOP_CONFIG                CBUS_REG_ADDR(STB_TOP_CONFIG)
