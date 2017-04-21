@@ -30,6 +30,8 @@
 #include <linux/of.h>
 #include <linux/poll.h>
 #include <linux/io.h>
+#include <linux/suspend.h>
+#include <linux/delay.h>
 
 /* Amlogic headers */
 #include <linux/amlogic/amports/vframe_provider.h>
@@ -58,7 +60,8 @@
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 #define TIMER_STATE_CHECK		(1*HZ/HDMI_STATE_CHECK_FREQ)
 
-
+static int aml_hdcp22_pm_notify(struct notifier_block *nb,
+	unsigned long event, void *dummy);
 static unsigned char init_flag;
 static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
@@ -209,6 +212,10 @@ struct reg_map reg_maps[][MAP_ADDR_MODULE_NUM] = {
 		.size = 0x2000,
 	},
 },
+};
+
+static struct notifier_block aml_hdcp22_pm_notifier = {
+	.notifier_call = aml_hdcp22_pm_notify,
 };
 
 static enum chip_id_e get_chip_id(void)
@@ -1484,6 +1491,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdmirx_hw_probe();
 	hdmirx_switch_pinmux(pdev->dev);
 
+	register_pm_notifier(&aml_hdcp22_pm_notifier);
+
 	init_timer(&hdevp->timer);
 	hdevp->timer.data = (ulong)hdevp;
 	hdevp->timer.function = hdmirx_timer_handler;
@@ -1544,6 +1553,28 @@ static int hdmirx_remove(struct platform_device *pdev)
 	kfree(hdevp);
 	rx_pr("hdmirx: driver removed ok.\n");
 	return 0;
+}
+
+
+static int aml_hdcp22_pm_notify(struct notifier_block *nb, unsigned long event,
+		void *dummy)
+{
+	int delay = 0;
+
+	if (event == PM_SUSPEND_PREPARE) {
+		hdcp22_kill_esm = 1;
+		/*wait time out ESM_KILL_WAIT_TIMES*20 ms*/
+		while (delay++ < ESM_KILL_WAIT_TIMES) {
+			if (!hdcp22_kill_esm)
+				break;
+			msleep(20);
+		}
+		if (delay < ESM_KILL_WAIT_TIMES)
+			rx_pr("hdcp22 kill ok!\n");
+		else
+			rx_pr("hdcp22 kill timeout!\n");
+	}
+	return NOTIFY_OK;
 }
 
 #ifdef CONFIG_PM
