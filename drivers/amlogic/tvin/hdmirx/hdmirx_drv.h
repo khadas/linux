@@ -30,7 +30,7 @@
 
 #define RX_VER0 "Ref.2017/04/11"
 /*------------------------------*/
-#define RX_VER1 "Ref.2017/03/15"
+#define RX_VER1 "Ref.2017/04/27"
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/2/25"
 /*------------------------------*/
@@ -61,6 +61,7 @@
 #define HHI_REG_ADDR_TXL 0xc883c000
 #define DOLBY_VERSION_START_LENGTH 0x18
 #define VSI_3D_FORMAT_INDEX	7
+#define ESM_KILL_WAIT_TIMES 250
 
 struct hdmirx_dev_s {
 	int                         index;
