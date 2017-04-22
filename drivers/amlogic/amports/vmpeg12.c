@@ -85,12 +85,12 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 
 #define SEQINFO_EXT_AVAILABLE   0x80000000
 #define SEQINFO_PROG            0x00010000
+#define CCBUF_SIZE      (5*1024)
 
 #define VF_POOL_SIZE        32
 #define DECODE_BUFFER_NUM_MAX 8
 #define PUT_INTERVAL        (HZ/100)
-/*(1 * SZ_1M + CCBUF_SIZE)*/
-#define WORKSPACE_SIZE		(SZ_64K + CCBUF_SIZE)
+#define WORKSPACE_SIZE		(2*SZ_64K)
 #define MAX_BMMU_BUFFER_NUM (DECODE_BUFFER_NUM_MAX + 1)
 
 
@@ -109,7 +109,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 #if 1/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NV21
 #endif
-#define CCBUF_SIZE      (5*1024)
+
 
 enum {
 	FRAME_REPEAT_TOP,
@@ -824,10 +824,10 @@ static int vmpeg12_canvas_init(void)
 
 		if (i == (MAX_BMMU_BUFFER_NUM - 1)) {
 
-			WRITE_VREG(MREG_CO_MV_START, buf_start);
+			WRITE_VREG(MREG_CO_MV_START, (buf_start + CCBUF_SIZE));
 			if (!ccbuf_phyAddress) {
 				ccbuf_phyAddress
-				= (u32)(buf_start + SZ_64K + CCBUF_SIZE);
+				= (u32)buf_start;
 
 				ccbuf_phyAddress_virt
 				= codec_mm_phys_to_virt(ccbuf_phyAddress);
