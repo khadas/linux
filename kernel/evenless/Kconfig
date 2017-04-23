@@ -1,0 +1,300 @@
+
+menu "Core features"
+
+config EVENLESS_SCHED_QUOTA
+	bool "Thread groups with runtime quota"
+	default n
+	help
+	This option enables the SCHED_QUOTA scheduling policy in the
+	Evenless kernel.
+
+	This policy enforces a limitation on the CPU consumption of
+	threads over a globally defined period, known as the quota
+	interval. This is done by pooling threads with common
+	requirements in groups, and giving each group a share of the
+	global period (see CONFIG_EVENLESS_SCHED_QUOTA_PERIOD).
+
+	When threads have entirely consumed the quota allotted to the
+	group they belong to, the latter is suspended as a whole,
+	until the next quota interval starts. At this point, a new
+	runtime budget is given to each group, in accordance with its
+	share.
+
+	If in doubt, say N.
+
+config EVENLESS_SCHED_QUOTA_PERIOD
+	int "Quota interval (us)"
+	default 10000
+	range 100 1000000000
+	depends on EVENLESS_SCHED_QUOTA
+	help
+	The global period thread groups can get a share of.
+
+config EVENLESS_SCHED_QUOTA_NR_GROUPS
+	int "Number of thread groups"
+	default 32
+	range 1 1024
+	depends on EVENLESS_SCHED_QUOTA
+	help
+	The overall number of thread groups which may be defined
+	across all CPUs.
+
+config EVENLESS_STATS
+	bool "Runtime statistics"
+	default y
+	help
+	This option causes the Evenless kernel to collect various
+	per-thread runtime statistics, which are accessible through
+	the /proc/evenless/sched/stat interface.
+
+endmenu
+
+menu "Sizes and static limits"
+
+config EVENLESS_SYS_HEAPSZ
+	int "Size of system heap (Kb)"
+	default 512
+	help
+	The system heap is used for various internal allocations by
+	the Evenless kernel. The size is expressed in Kilobytes.
+
+config EVENLESS_SHARED_HEAPSZ
+	int "Size of shared heap (Kb)"
+	default 64
+	help
+	The Evenless core implements fast IPC mechanisms between
+	processes which require a shared kernel memory heap to be
+	mapped in the address space of all Evenless application
+	processes. This option can be used to set the size of this
+	system-wide heap.
+
+	64k is considered a large enough size for common use cases.
+
+config EVENLESS_NR_THREADS
+	int "Maximum number of threads"
+	range 1 4096
+	default 128
+	help
+
+	The maximum number of user-space threads attached to the
+	Evenless core which can run concurrently in the system.
+
+config EVENLESS_NR_MONITORS
+	int "Maximum number of monitors"
+	range 1 16384
+	default 512
+	help
+
+	The monitor is the fundamental synchronization element
+	implemented by the Evenless core, which can underpin any other
+	synchronization mechanism. This value gives the maximum number
+	of monitors which can be alive concurrently in the system.
+
+config EVENLESS_NR_CLOCKS
+	int "Maximum number of clocks"
+	range 1 16384
+	default 8
+	help
+
+	This value gives the maximum number of semaphores which can be
+	alive concurrently in the system for user-space applications.
+
+config EVENLESS_NR_SEMAPHORES
+	int "Maximum number of semaphores"
+	range 1 16384
+	default 512
+	help
+
+	This value gives the maximum number of semaphores which can be
+	alive concurrently in the system for user-space applications.
+
+config EVENLESS_NR_TIMERFDS
+	int "Maximum number of timerfds"
+	range 1 16384
+	default 512
+	help
+
+	This value gives the maximum number of timerfds which can be
+	alive concurrently in the system for user-space applications.
+
+config EVENLESS_NR_POLLERS
+	int "Maximum number of pollers"
+	range 1 16384
+	default 64
+	help
+
+	This value gives the maximum number of pollers which can be
+	alive concurrently in the system for user-space applications.
+
+config EVENLESS_NR_XBUFS
+	int "Maximum number of x-buffers"
+	range 1 16384
+	default 16
+	help
+
+	This value gives the maximum number of x-buffers which can be
+	alive concurrently in the system for user-space applications.
+
+config EVENLESS_NR_LOGGERS
+	int "Maximum number of loggers"
+	range 1 16384
+	default 64
+	help
+
+	This value gives the maximum number of loggers which can be
+	alive concurrently in the system for user-space applications.
+
+endmenu
+
+menu "Latency settings"
+
+config EVENLESS_TIMING_SCHEDLAT
+	int "User scheduling latency (ns)"
+	default 0
+	help
+	The user scheduling latency is the time between the
+	termination of an interrupt handler and the execution of the
+	first instruction of the real-time application thread this
+	handler resumes. A default value of 0 (recommended) will cause
+	a pre-calibrated value to be used.
+
+	If the auto-tuner is enabled, this value will be used as the
+	factory default when running "autotune --reset".
+
+config EVENLESS_TIMING_KSCHEDLAT
+	int "Intra-kernel scheduling latency (ns)"
+	default 0
+	help
+	The intra-kernel scheduling latency is the time between the
+	termination of an interrupt handler and the execution of the
+	first instruction of the Evenless kernel thread this handler
+	resumes. A default value of 0 (recommended) will cause a
+	pre-calibrated value to be used.
+
+	Intra-kernel latency is usually significantly lower than user
+	scheduling latency on MMU-enabled platforms, due to CPU cache
+	latency.
+
+	If the auto-tuner is enabled, this value will be used as the
+	factory default when running "autotune --reset".
+
+config EVENLESS_TIMING_IRQLAT
+	int "Interrupt latency (ns)"
+	default 0
+	help
+	The interrupt latency is the time between the occurrence of an
+	IRQ and the first instruction of the interrupt handler which
+	will service it. A default value of 0 (recommended) will cause
+	a pre-calibrated value to be used.
+
+	If the auto-tuner is enabled, this value will be used as the
+	factory default when running "autotune --reset".
+
+endmenu
+
+menuconfig EVENLESS_DEBUG
+	bool "Debug support"
+	help
+	  When enabled, various debugging features can be switched
+	  on. They can help to find problems in applications, drivers,
+	  and the Evenless kernel. EVENLESS_DEBUG by itself does not have
+	  any impact on the generated code.
+
+if EVENLESS_DEBUG
+
+config EVENLESS_DEBUG_CORE
+	bool "Core runtime assertions"
+	help
+	  This option activates various assertions inside the Evenless
+	  core. This option has limited overhead.
+
+config EVENLESS_DEBUG_CONTEXT
+       bool "Check for calling context"
+       help
+         This option enables checks for the calling context in the
+         Evenless kernel, aimed at detecting when regular Linux routines
+         are entered from a real-time context, and conversely.
+
+config EVENLESS_DEBUG_MEMORY
+	bool "Memory checks"
+	help
+	  This option enables memory debug checks inside the Evenless
+	  kernel. This option may induce significant overhead with large
+	  heaps.
+
+config EVENLESS_DEBUG_LOCKING
+	bool "Spinlock debugging support"
+	default n
+	help
+	  This option activates runtime assertions, and measurements
+	  of spinlocks spinning time and duration in the Evenless
+	  kernel. It helps finding latency spots due to interrupt
+	  masked sections. Statistics about the longest masked section
+	  can be found in /proc/evenless/debug/lock.
+
+	  This option may induce a measurable overhead on low end
+	  machines.
+
+config EVENLESS_DEBUG_USER
+	bool "User consistency checks"
+	help
+	  This option enables a set of consistency checks for
+	  detecting wrong runtime behavior in user applications.
+	  Some of these runtime checks may induce overhead, enable
+	  them for debugging purposes only.
+
+if EVENLESS_DEBUG_USER
+
+config EVENLESS_DEBUG_MONITOR_INBAND
+       bool "Detect in-band monitor owner"
+       default y
+       help
+         A thread which attempts to enter a monitor currently owned by
+         another thread running in-band will suffer unwanted latencies,
+         due to a priority inversion.  This switch enables debug
+         notifications sending a SIGDEBUG signal to the monitor owner.
+
+	 This option may add overhead to out-of-band execution over
+	 contented monitors.
+
+config EVENLESS_DEBUG_MONITOR_SLEEP
+       bool "Detect sleeping while holding a monitor"
+       default y
+       help
+         A thread which goes sleeping while holding a monitor is prone
+         to cause unwanted latencies to other threads serialized by
+         the same lock. If debug notifications are enabled for such
+         thread, it receives a SIGDEBUG signal right before entering
+	 sleep.
+
+	 This option has noticeable overhead in real-time mode as it
+	 disables the normal fast locking operations from user-space,
+	 causing a system call for each monitor enter/exit operation.
+
+endif # EVENLESS_DEBUG_USER
+
+config EVENLESS_WATCHDOG
+	bool "Watchdog support"
+	default y
+	help
+	  This option activates a watchdog aimed at detecting runaway
+	  Evenless threads. If enabled, the watchdog triggers after a
+	  given period of uninterrupted real-time activity has elapsed
+	  without Linux interaction in the meantime.
+
+	  In such an event, the current thread is moved out the
+	  real-time domain, receiving a SIGDEBUG signal from the Linux
+	  kernel immediately after.
+
+	  The timeout value of the watchdog can be set using the
+	  EVENLESS_WATCHDOG_TIMEOUT parameter.
+
+config EVENLESS_WATCHDOG_TIMEOUT
+	depends on EVENLESS_WATCHDOG
+	int "Watchdog timeout"
+	default 4
+	range 1 60
+	help
+	  Watchdog timeout value (in seconds).
+
+endif # EVENLESS_DEBUG

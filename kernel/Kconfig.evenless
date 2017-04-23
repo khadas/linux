@@ -1,0 +1,29 @@
+
+# Evenless real-time co-kernel
+config HAVE_ARCH_EVENLESS
+	bool
+
+menuconfig EVENLESS
+	bool "Enable the Evenless core"
+	depends on HAVE_ARCH_EVENLESS
+	select DOVETAIL
+	help
+
+	  The Evenless core is a real-time component of the Linux
+	  kernel, which exhibits very short interrupt and scheduling
+	  latency, without affecting the regular kernel services.
+
+if EVENLESS
+
+source "kernel/evenless/Kconfig"
+
+if WARN_CPUFREQ_GOVERNOR
+comment "WARNING! CPU_FREQ governors other than 'performance'"
+comment "or 'powersave' may significantly increase latency"
+comment "on this platform during the frequency transitions."
+endif
+
+endif
+
+config WARN_CPUFREQ_GOVERNOR
+       def_bool n

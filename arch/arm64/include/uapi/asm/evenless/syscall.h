@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+#ifndef _EVENLESS_ARM64_ASM_UAPI_SYSCALL_H
+#define _EVENLESS_ARM64_ASM_UAPI_SYSCALL_H
+
+#define __EVENLESS_SYSCALL_BIT	0x10000000
+
+#endif /* !_EVENLESS_ARM64_ASM_UAPI_SYSCALL_H */
