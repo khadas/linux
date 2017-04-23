@@ -1,0 +1,13 @@
+menu "Evenless OOB devices"
+
+config EVENLESS_LATMUS
+	bool "Latency calibration and measurement"
+	depends on EVENLESS
+	default y
+
+config EVENLESS_HECTIC
+	bool "OOB context switching validator"
+	depends on EVENLESS
+	default y
+
+endmenu
