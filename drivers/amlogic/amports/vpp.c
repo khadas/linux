@@ -677,8 +677,6 @@ vpp_process_speed_check(s32 width_in,
 					 (get_cpu_type() !=
 						MESON_CPU_MAJOR_ID_GXTVBB) &&
 					 (get_cpu_type() !=
-						MESON_CPU_MAJOR_ID_TXLX) &&
-					 (get_cpu_type() !=
 						MESON_CPU_MAJOR_ID_GXM))
 					return SPEED_CHECK_VSKIP;
 				else
