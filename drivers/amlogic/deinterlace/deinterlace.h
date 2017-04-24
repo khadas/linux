@@ -362,7 +362,8 @@ void enable_di_post_2(
 	struct DI_SIM_MIF_s	*di_mtnprd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
-	int post_field_num, int hold_line , int urgent
+	int post_field_num, int hold_line , int urgent,
+	int invert_mv
 	#ifndef NEW_DI_V1
 	, unsigned long *reg_mtn_info
 	#endif
@@ -380,7 +381,8 @@ void di_post_switch_buffer(
 	struct DI_MC_MIF_s		*di_mcvecrd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
-	int post_field_num, int hold_line, int urgent
+	int post_field_num, int hold_line, int urgent,
+	int invert_mv
 	#ifndef NEW_DI_V1
 	, unsigned long *reg_mtn_info
 	#endif

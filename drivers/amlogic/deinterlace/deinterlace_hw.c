@@ -1552,7 +1552,8 @@ void di_post_switch_buffer(
 	struct DI_MC_MIF_s	   *di_mcvecrd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
-	int post_field_num, int hold_line, int urgent
+	int post_field_num, int hold_line, int urgent,
+	int invert_mv
 )
 {
 	int ei_only, buf1_en;
@@ -1635,6 +1636,7 @@ void di_post_switch_buffer(
 		(0 << 10) |		/* post drop first. */
 		(0 << 11) |
 		(di_vpp_en << 12) | /* post viu link */
+		(invert_mv << 14) | /* invert mv */
 		(hold_line << 16) | /* post hold line number */
 		(post_field_num << 29) |	/* post field number. */
 		(0x3 << 30)	/* post soft rst  post frame rst. */
@@ -1649,7 +1651,7 @@ void enable_di_post_2(
 	struct DI_SIM_MIF_s    *di_mtnprd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en, int post_field_num,
-	int hold_line, int urgent
+	int hold_line, int urgent, int invert_mv
 )
 {
 	int ei_only;
@@ -1716,6 +1718,7 @@ blend_mtn_en,blend_mode); */
 (0 << 10) |	/* post drop first. */
 (0 << 11) |
 (di_vpp_en << 12) |	/* post viu link */
+(invert_mv << 14) | /* invert mv */
 (hold_line << 16) |	/* post hold line number */
 (post_field_num << 29) |	/* post field number. */
 (0x3 << 30)
@@ -1955,7 +1958,6 @@ static unsigned short pre_flag = 2;
 module_param_named(pre_flag, pre_flag, ushort, 0644);
 void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 {
-
 	mc_pre_flag = if2_disable?1:mc_pre_flag;
 	if (reverse) {
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
@@ -1972,8 +1974,6 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					pre_flag, 8, 2);
-					DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL,
-					1, 14, 1);
 				} else {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 2);
@@ -2004,8 +2004,6 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					pre_flag, 8, 2);
-					DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL,
-					0, 14, 1);
 				} else {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 2);
