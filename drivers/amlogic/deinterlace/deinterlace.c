@@ -2298,7 +2298,7 @@ store_config(struct device *dev,
 
 	if (strncmp(buf, "disable", 7) == 0) {
 		di_print("%s: disable\n", __func__);
-		if (init_flag && mem_flag) {
+		if (init_flag) {
 			di_pre_stru.disable_req_flag = 1;
 			provider_vframe_level = 0;
 			bypass_dynamic_flag = 0;
@@ -2460,6 +2460,8 @@ static unsigned char is_bypass(vframe_t *vf_in)
 			return 1;
 	}
 
+	if (mem_flag == 0)
+		return 1;
 	return 0;
 }
 
@@ -3279,7 +3281,8 @@ static void dump_state(void)
 		recovery_flag, recovery_log_reason, di_blocking);
 	pr_info("recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
 		recovery_log_queue_idx, recovery_log_di_buf);
-	pr_info("buffer_size=%d,mem_flag=%d\n", de_devp->buffer_size, mem_flag);
+	pr_info("buffer_size=%d,mem_flag=%d,cma_flag=%d\n",
+		de_devp->buffer_size, mem_flag, de_devp->flag_cma);
 	pr_info("new_keep_last_frame_enable %d,", new_keep_last_frame_enable);
 	pr_info("used_post_buf_index %d(0x%p),", used_post_buf_index,
 		(used_post_buf_index ==
@@ -6391,7 +6394,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		di_pre_stru.pre_de_busy = 0;
 
 end:
-		if (init_flag && mem_flag)
+		if (init_flag)
 			/* pr_dbg("%s:up di sema\n", __func__); */
 			trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
 	}
@@ -6790,7 +6793,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	zoom_start_y_lines = zoom_start_y_lines & 0xffff;
 	zoom_end_y_lines = zoom_end_y_lines & 0xffff;
 
-	if (((init_flag == 0) || (mem_flag == 0)) &&
+	if ((init_flag == 0) &&
 		(new_keep_last_frame_enable == 0))
 		return 0;
 
@@ -8534,7 +8537,7 @@ static void di_process(void)
 
 	di_process_cnt++;
 
-	if (init_flag && mem_flag && (recovery_flag == 0) &&
+	if (init_flag && (recovery_flag == 0) &&
 		(dump_state_flag == 0)) {
 		if (bypass_dynamic != 0)
 			dynamic_bypass_process();
@@ -8664,7 +8667,7 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 	if (force_recovery) {
 		if (recovery_flag || (force_recovery & 0x2)) {
 			force_recovery_count++;
-			if (init_flag && mem_flag) {
+			if (init_flag) {
 				pr_dbg("====== DI force recovery =========\n");
 				force_recovery &= (~0x2);
 				dis2_di();
@@ -9044,7 +9047,7 @@ static void fast_process(void)
 		(di_pre_stru.cur_source_type == VFRAME_SOURCE_TYPE_HDMI))
 		bypass_buf_threshold = bypass_hdmi_get_buf_threshold;
 	if (active_flag && is_bypass(NULL) && (bypass_buf_threshold <= 1) &&
-		init_flag && mem_flag && (recovery_flag == 0) &&
+		init_flag && (recovery_flag == 0) &&
 		(dump_state_flag == 0)) {
 		if (vf_peek(VFM_NAME) == NULL)
 			return;
@@ -9100,7 +9103,7 @@ static vframe_t *di_vf_peek(void *arg)
 	struct di_buf_s *di_buf = NULL;
 
 	video_peek_cnt++;
-	if ((init_flag == 0) || (mem_flag == 0) || recovery_flag ||
+	if ((init_flag == 0) || recovery_flag ||
 		di_blocking || di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
 	if ((run_flag == DI_RUN_FLAG_PAUSE) ||
@@ -9177,7 +9180,7 @@ static vframe_t *di_vf_get(void *arg)
 	struct di_buf_s *di_buf = NULL;
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 
-	if ((init_flag == 0) || (mem_flag == 0) || recovery_flag ||
+	if ((init_flag == 0) || recovery_flag ||
 		di_blocking || di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
 
@@ -9253,7 +9256,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 
 /* struct di_buf_s *p = NULL; */
 /* int itmp = 0; */
-	if ((init_flag == 0) || (mem_flag == 0) || recovery_flag) {
+	if ((init_flag == 0) || recovery_flag) {
 		di_print("%s: 0x%p\n", __func__, vf);
 		return;
 	}
@@ -9370,7 +9373,7 @@ show_frame_format(struct device *dev,
 {
 	int ret = 0;
 
-	if (init_flag && mem_flag)
+	if (init_flag)
 		ret += sprintf(buf + ret, "%s\n",
 			di_pre_stru.cur_prog_flag
 			? "progressive" : "interlace");
@@ -9863,7 +9866,7 @@ static int di_resume(struct platform_device *pdev)
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
 	mem_flag = save_mem_flag;
-	if (init_flag && mem_flag) {
+	if (init_flag) {
 		di_set_power_control(0, 1);
 		di_set_power_control(1, 1);
 	}
