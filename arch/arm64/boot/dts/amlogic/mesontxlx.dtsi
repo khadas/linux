@@ -544,6 +544,16 @@
 			amlogic,pins = "GPIOY_24","GPIOY_25","GPIOY_26","GPIOY_27";
 			amlogic,enable-output=<1>;
 		};
+		spicc_a_pins: spicc_a_pins{
+			amlogic,setmask=<4 0xF0000000>;
+			amlogic,clrmask=<4 0x3F00000 3 0x21E000>;
+			amlogic,pins="GPIOZ_0","GPIOZ_1","GPIOZ_2", "GPIOZ_3";
+		};
+		spicc_b_pins: spicc_b_pins{
+			amlogic,setmask=<9 0x74000000>;
+			amlogic,clrmask=<9 0x80000000 2 0xc0238000>;
+			amlogic,pins="GPIODV_3","GPIODV_4","GPIODV_5", "GPIODV_7";
+		};
 	}; /* end of pinmux */
 
 	cpu_version {
@@ -870,15 +880,44 @@
 		status = "disabled";
 	};
 
-	spicc:spicc {
+	spicc_a:spicc_a {
 		compatible = "amlogic, spicc";
 		status = "disabled";
-		reg = <0x0 0xffd13000 0x0 0x28>;
+		reg = <0x0 0xffd13000 0x0 0x38>;
 		resets = <&clock GCLK_IDX_SPICC_0>;
+		reset-names = "spicc_clk";
 		clocks = <&clock CLK_81>;
-		clock-names = "spicc_clk";
+		clock-names = "clk81";
 		interrupts = <0 81 1>;
 		device_id = <0>;
+		enhance = <1>;
+		pinctrl-names= "default";
+		pinctrl-0=<&spicc_a_pins>;
+		dma_tx_threshold = <3>;
+		dma_rx_threshold = <3>;
+		dma_num_per_read_burst = <3>;
+		dma_num_per_write_burst = <3>;
+		ssctl = <0>;
+	};
+
+	spicc_b:spicc_b {
+		compatible = "amlogic, spicc";
+		status = "disabled";
+		reg = <0x0 0xffd15000 0x0 0x38>;
+		resets = <&clock GCLK_IDX_SPICC_1>;
+		reset-names = "spicc_clk";
+		clocks = <&clock CLK_81>;
+		clock-names = "clk81";
+		interrupts = <0 90 1>;
+		device_id = <1>;
+		enhance = <1>;
+		pinctrl-names= "default";
+		pinctrl-0=<&spicc_b_pins>;
+		dma_tx_threshold = <3>;
+		dma_rx_threshold = <3>;
+		dma_num_per_read_burst = <3>;
+		dma_num_per_write_burst = <3>;
+		ssctl = <0>;
 	};
 
 	aml_aes {

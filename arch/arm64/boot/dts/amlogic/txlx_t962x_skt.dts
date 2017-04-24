@@ -1314,3 +1314,19 @@
 &audio_data{
 	status = "okay";
 };
+
+&spicc_a{
+	status = "disabled";
+	num_chipselect = <1>;
+	dma_en = <0>;
+	delay_control = <0x15>;
+	cs_delay = <10>;
+};
+
+&spicc_b{
+	status = "disabled";
+	num_chipselect = <1>;
+	dma_en = <0>;
+	delay_control = <0x15>;
+	cs_delay = <10>;
+};
