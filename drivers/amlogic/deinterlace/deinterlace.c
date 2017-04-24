@@ -6748,6 +6748,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		     blend_mtn_en = 0, ei_en = 0, post_field_num = 0;
 	int di_vpp_en, di_ddr_en;
 	unsigned char mc_pre_flag = 0;
+	bool invert_mv = false;
 
 	if ((di_get_power_control(1) == 0) || di_post_stru.vscale_skip_flag)
 		return 0;
@@ -7067,7 +7068,9 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
 			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?1:0);
-			if (!overturn)
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+				invert_mv = true;
+			else if (!overturn)
 				di_post_stru.di_buf2_mif.canvas0_addr0 =
 			di_buf->di_buf_dup_p[2]->nr_canvas_idx;
 		}
@@ -7171,7 +7174,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 	if (mcpre_en)
 		di_post_stru.di_mcvecrd_mif.blend_en = post_blend_en;
-
+	invert_mv = overturn ? (!invert_mv) : invert_mv;
 	if ((di_post_stru.update_post_reg_flag) &&
 	    ((force_update_post_reg & 0x80) == 0)) {
 		enable_di_post_2(
@@ -7189,7 +7192,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_ddr_en,		/* di_ddr_en. */
 			post_field_num,         /* 1 bottom generate top */
 			hold_line,
-			post_urgent
+			post_urgent,
+			(invert_mv?1:0)
 			);
 		if (mcpre_en)
 			enable_mc_di_post(
@@ -7213,7 +7217,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_ddr_en,	/* di_ddr_en. */
 			post_field_num,         /* 1 bottom generate top */
 			hold_line,
-			post_urgent
+			post_urgent,
+			(invert_mv?1:0)
 			);
 	}
 
