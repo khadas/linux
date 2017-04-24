@@ -267,7 +267,12 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 	sys_clk_rate = clk_get_rate(spicc->clk);
 
 	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {
-		div = (sys_clk_rate/speed)-1;
+		div = sys_clk_rate/speed;
+		if (div < 2)
+			div = 2;
+		div = (div >> 1) - 1;
+		if (div > 0xff)
+			div = 0xff;
 		setb(spicc->regs, ENHANCE_CLK_DIV, div);
 		setb(spicc->regs, ENHANCE_CLK_DIV_SELECT, 1);
 	} else {
