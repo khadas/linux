@@ -5231,8 +5231,9 @@ alternative mode,passing two buffer in one frame */
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if ((data != NULL) && (video_seek_flag == 0)) {
-			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-			|| get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) {
+			if (is_meson_gxtvbb_cpu()||
+				is_meson_txl_cpu() ||
+				is_meson_txlx_cpu()) {
 				set_vframe_rate_hint((unsigned long)data);
 			} else {
 				sprintf(framerate, "FRAME_RATE_HINT=%lu",
@@ -5249,8 +5250,9 @@ alternative mode,passing two buffer in one frame */
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if (video_seek_flag == 0) {
-			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-			|| get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) {
+			if (is_meson_gxtvbb_cpu() ||
+				is_meson_txl_cpu() ||
+				is_meson_txlx_cpu()) {
 				set_vframe_rate_end_hint();
 			} else {
 				configured[0] = "FRAME_RATE_END_HINT";
