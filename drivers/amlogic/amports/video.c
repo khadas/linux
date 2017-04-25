@@ -107,6 +107,11 @@ static u32 osd_vpp_misc;
 static u32 osd_vpp_misc_mask;
 static bool update_osd_vpp_misc;
 
+/*
+ global video manage cmd.
+*/
+static int video_global_output = 1;
+
 #ifdef CONFIG_GE2D_KEEP_FRAME
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* #include <mach/mod_gate.h> */
@@ -5029,6 +5034,14 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		spin_unlock_irqrestore(&video_onoff_lock, flags);
 	}
 
+	if (video_global_output == 0) {
+		video_enabled = 0;
+		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
+				VPP_VD2_PREBLEND |
+				VPP_VD2_POSTBLEND |
+				VPP_VD1_POSTBLEND);
+	}
+
 	if (likely(video2_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
 		/* state change for video layer2 enable/disable */
 
@@ -5972,6 +5985,17 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		vsync_slow_factor = arg;
 		break;
 
+	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
+		if (arg != 0)
+			video_global_output = 1;
+		else
+			video_global_output = 0;
+		break;
+
+	case AMSTREAM_IOC_GLOBAL_GET_VIDEO_OUTPUT:
+		put_user(video_global_output, (u32 __user *)argp);
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -6008,6 +6032,7 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_3D_TYPE:
 	case AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE:
 	case AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR:
+	case AMSTREAM_IOC_GLOBAL_GET_VIDEO_OUTPUT:
 		arg = (unsigned long) compat_ptr(arg);
 	case AMSTREAM_IOC_TRICKMODE:
 	case AMSTREAM_IOC_VPAUSE:
@@ -6027,6 +6052,7 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_SET_3D_TYPE:
 	case AMSTREAM_IOC_SET_VSYNC_UPINT:
 	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
+	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
 		return amvideo_ioctl(file, cmd, arg);
 	default:
 		return -EINVAL;
