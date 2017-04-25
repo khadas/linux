@@ -304,6 +304,10 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 			return ret;
 		}
 		videoc_omx_compute_pts(dev, vf);
+		if (vf->flag & VFRAME_FLAG_ERROR_RECOVERY)
+			buf->vb.v4l2_buf.timecode.frames |= 1;
+		if (vf->flag & VFRAME_FLAG_SYNCFRAME)
+			buf->vb.v4l2_buf.timecode.frames |= 2;
 		vf_put(vf, dev->vf_receiver_name);
 		buf->vb.v4l2_buf.timestamp.tv_sec = dev->pts >> 32;
 		buf->vb.v4l2_buf.timestamp.tv_usec = dev->pts & 0xFFFFFFFF;

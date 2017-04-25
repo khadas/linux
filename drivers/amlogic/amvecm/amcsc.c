@@ -4164,6 +4164,7 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 }
 
 static struct vframe_s *last_vf;
+static int last_vf_signal_type;
 static int null_vf_cnt;
 
 static unsigned int fg_vf_sw_dbg;
@@ -4216,6 +4217,7 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	if (vf != NULL) {
 		vpp_matrix_update(vf, vinfo);
 		last_vf = vf;
+		last_vf_signal_type = vf->signal_type;
 		null_vf_cnt = 0;
 		fg_vf_sw_dbg = 1;
 
@@ -4224,7 +4226,7 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	} else {
 		/* check last signal type */
 		if ((last_vf != NULL) &&
-			((((last_vf->signal_type >> 16) & 0xff) == 9)
+			((((last_vf_signal_type >> 16) & 0xff) == 9)
 			|| customer_master_display_en))
 			null_vf_cnt++;
 

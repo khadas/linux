@@ -119,9 +119,10 @@ extern u32 stbuf_rp(struct stream_buf_s *buf);
 extern u32 stbuf_space(struct stream_buf_s *buf);
 extern u32 stbuf_size(struct stream_buf_s *buf);
 extern u32 stbuf_canusesize(struct stream_buf_s *buf);
-extern s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec);
+extern s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec,
+		bool is_multi);
 extern s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count);
-extern void stbuf_release(struct stream_buf_s *buf);
+extern void stbuf_release(struct stream_buf_s *buf, bool is_multi);
 extern int stbuf_change_size(struct stream_buf_s *buf, int size,
 				bool is_secure);
 extern int stbuf_fetch_init(void);

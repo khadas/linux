@@ -1261,6 +1261,9 @@ static void dpb_split_field(struct h264_dpb_stru *p_H264_Dpb,
 
 		fs_top->colocated_buf_index = frame->colocated_buf_index;
 		fs_btm->colocated_buf_index = frame->colocated_buf_index;
+
+		fs_top->data_flag = frame->data_flag;
+		fs_btm->data_flag = frame->data_flag;
 #endif
 		fs_top->poc = frame->top_poc;
 		fs_btm->poc = frame->bottom_poc;
@@ -1338,6 +1341,9 @@ static void dpb_combine_field(struct h264_dpb_stru *p_H264_Dpb,
 /* rain */
 	fs->frame->buf_spec_num = fs->top_field->buf_spec_num;
 	fs->frame->colocated_buf_index = fs->top_field->colocated_buf_index;
+	fs->frame->data_flag = fs->top_field->data_flag;
+	if (fs->bottom_field)
+		fs->frame->data_flag |= (fs->bottom_field->data_flag & 0xf0);
 #endif
 
 
@@ -1431,6 +1437,8 @@ static void insert_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 #if 1
 /* rain */
 /* p->buf_spec_num = fs->index; */
+	p->data_flag = data_flag;
+	fs->data_flag = data_flag;
 	fs->buf_spec_num = p->buf_spec_num;
 	fs->colocated_buf_index = p->colocated_buf_index;
 #endif
@@ -1518,7 +1526,6 @@ static void insert_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 
 	fs->is_output = p->is_output;
 	fs->pre_output = p->pre_output;
-	fs->data_flag = data_flag;
 
 	if (fs->is_used == 3) {
 		calculate_frame_no(p_Vid, p);
@@ -2976,7 +2983,6 @@ void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 
 	p_Vid->last_has_mmco_5 = 0;
 	p_Vid->last_pic_bottom_field = (p->structure == BOTTOM_FIELD);
-
 	if (p->idr_flag) {
 		idr_memory_management(p_H264_Dpb, p);
 #if 0

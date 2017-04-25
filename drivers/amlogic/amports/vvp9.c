@@ -1134,6 +1134,8 @@ struct VP9Decoder_s {
 	unsigned long cma_alloc_addr;
 	uint8_t eos;
 	unsigned long int start_process_time;
+	unsigned last_lcu_idx;
+	int decode_timeout_count;
 	unsigned timeout_num;
 
 	int double_write_mode;
@@ -1299,6 +1301,8 @@ static void reset_process_time(struct VP9Decoder_s *pbi)
 static void start_process_time(struct VP9Decoder_s *pbi)
 {
 	pbi->start_process_time = jiffies;
+	pbi->decode_timeout_count = 0;
+	pbi->last_lcu_idx = 0;
 }
 
 static void timeout_process(struct VP9Decoder_s *pbi)
@@ -5722,7 +5726,8 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	pbi->dec_status = dec_status;
 	pbi->process_busy = 1;
 	if (debug & VP9_DEBUG_BUFMGR)
-		pr_info("vp9 isr dec status  = %d\n", dec_status);
+		pr_info("vp9 isr dec status  = %d, lcu 0x%x\n",
+			dec_status, READ_VREG(HEVC_PARSER_LCU_START));
 
 	if (debug & VP9_DEBUG_UCODE) {
 		if (READ_HREG(DEBUG_REG1) & 0x10000) {
@@ -5914,9 +5919,20 @@ static void vvp9_put_timer_func(unsigned long arg)
 			(pbi->start_process_time > 0) &&
 			((1000 * (jiffies - pbi->start_process_time) / HZ)
 				> decode_timeout_val)
-		)
-			timeout_process(pbi);
-
+		) {
+			int current_lcu_idx =
+				READ_VREG(HEVC_PARSER_LCU_START)
+				& 0xffffff;
+			if (pbi->last_lcu_idx == current_lcu_idx) {
+				if (pbi->decode_timeout_count > 0)
+					pbi->decode_timeout_count--;
+				if (pbi->decode_timeout_count == 0)
+					timeout_process(pbi);
+			} else {
+				start_process_time(pbi);
+				pbi->last_lcu_idx = current_lcu_idx;
+			}
+		}
 	}
 #endif
 
@@ -6289,7 +6305,10 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 	}
 
 	if (pbi->stat & STAT_ISR_REG) {
-		WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (!pbi->m_ins_flag)
+#endif
+			WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
 		vdec_free_irq(VDEC_IRQ_1, (void *)pbi);
 		pbi->stat &= ~STAT_ISR_REG;
 	}
@@ -6647,7 +6666,10 @@ static void vp9_work(struct work_struct *work)
 		}
 
 		if (pbi->stat & STAT_ISR_REG) {
-			WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
+#ifdef MULTI_INSTANCE_SUPPORT
+			if (!pbi->m_ins_flag)
+#endif
+				WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
 			vdec_free_irq(VDEC_IRQ_1, (void *)pbi);
 			pbi->stat &= ~STAT_ISR_REG;
 		}

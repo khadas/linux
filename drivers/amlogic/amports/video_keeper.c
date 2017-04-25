@@ -662,10 +662,11 @@ static int alloc_keep_buffer(void)
 			goto err1;
 		}
 	}
-	pr_info("alloced keep buffer yaddr=%p,u_addr=%p,v_addr=%p\n",
+	pr_info("alloced keep buffer yaddr=%p,u_addr=%p,v_addr=%p,tvp=%d\n",
 		(void *)keep_y_addr,
 		(void *)keep_u_addr,
-		(void *)keep_v_addr);
+		(void *)keep_v_addr,
+		codec_mm_video_tvp_enabled());
 	return 0;
 
  err1:
@@ -758,6 +759,13 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 	u32 cur_index;
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
+
+#ifdef CONFIG_MULTI_DEC
+	if (codec_mm_video_tvp_enabled()) {
+		pr_info("keep exit is TVP\n");
+		return 0;
+	}
+#endif
 
 	if (!cur_dispbuf) {
 		pr_info("keep exit without cur_dispbuf\n");
