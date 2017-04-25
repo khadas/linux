@@ -269,7 +269,7 @@ u32 stbuf_canusesize(struct stream_buf_s *buf)
 	return buf->canusebuf_size;
 }
 
-s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
+s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec, bool is_multi)
 {
 	s32 r;
 	u32 dummy;
@@ -284,6 +284,10 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	addr32 = buf->buf_start & 0xffffffff;
 	init_waitqueue_head(&buf->wq);
 
+	/*
+	 * For multidec, do not touch HW stream buffers during port
+	 * init and release.
+	 */
 	if ((buf->type == BUF_TYPE_VIDEO) || (buf->type == BUF_TYPE_HEVC)) {
 		if (vdec) {
 			if (vdec_stream_based(vdec))
@@ -296,6 +300,10 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	}
 
 	buf->write_thread = 0;
+
+	if ((vdec && !vdec_single(vdec)) || (is_multi))
+		return 0;
+
 	if (has_hevc_vdec() && buf->type == BUF_TYPE_HEVC) {
 		CLEAR_VREG_MASK(HEVC_STREAM_CONTROL, 1);
 		WRITE_VREG(HEVC_STREAM_START_ADDR, addr32);
@@ -397,11 +405,11 @@ s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count)
 	return 0;
 }
 
-void stbuf_release(struct stream_buf_s *buf)
+void stbuf_release(struct stream_buf_s *buf, bool is_multi)
 {
 	buf->first_tstamp = INVALID_PTS;
 
-	stbuf_init(buf, NULL);	/* reinit buffer */
+	stbuf_init(buf, NULL, is_multi);/* reinit buffer */
 
 	if (buf->flag & BUF_FLAG_ALLOC && buf->buf_start) {
 		codec_mm_free_for_dma(MEM_NAME, buf->buf_start);

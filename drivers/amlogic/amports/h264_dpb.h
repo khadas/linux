@@ -623,6 +623,7 @@ struct StorablePicture {
 
 	u32         pts;
 	u64         pts64;
+	unsigned char data_flag;
 };
 
 struct FrameStore {
@@ -656,9 +657,10 @@ struct FrameStore {
 	int         pre_output;
 	/* index in gFrameStore */
 	int       index;
-#define OTHER_DATA		0
-#define I_DATA			1
-#define NO_DATA		0xff
+#define OTHER_DATA		0x00
+#define I_DATA			0x01
+#define ERROR_FLAG		0x10
+#define NULL_FLAG		0x80
 	unsigned char data_flag;
 #endif
 	int       poc;

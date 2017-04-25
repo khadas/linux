@@ -334,13 +334,12 @@ static int last_read_wi;
 static DEFINE_MUTEX(userdata_mutex);
 
 static struct stream_port_s ports[] = {
-#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_vbuf",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO |
-			PORT_TYPE_DECODER_SCHED,
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO,
 		.fops = &vbuf_fops,
 	},
+#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_vbuf_sched",
 		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO |
@@ -353,38 +352,24 @@ static struct stream_port_s ports[] = {
 			PORT_TYPE_FRAME | PORT_TYPE_DECODER_SCHED,
 		.fops = &vframe_fops,
 	},
-#else
-	{
-		.name = "amstream_vbuf",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO,
-		.fops = &vbuf_fops,
-	},
 #endif
 	{
 		.name = "amstream_abuf",
 		.type = PORT_TYPE_ES | PORT_TYPE_AUDIO,
 		.fops = &abuf_fops,
 	},
-#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_mpts",
 		.type = PORT_TYPE_MPTS | PORT_TYPE_VIDEO |
-			PORT_TYPE_AUDIO | PORT_TYPE_SUB |
-			PORT_TYPE_DECODER_SCHED,
+			PORT_TYPE_AUDIO | PORT_TYPE_SUB,
 		.fops = &mpts_fops,
 	},
+#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_mpts_sched",
 		.type = PORT_TYPE_MPTS | PORT_TYPE_VIDEO |
 			PORT_TYPE_AUDIO | PORT_TYPE_SUB |
 			PORT_TYPE_DECODER_SCHED,
-		.fops = &mpts_fops,
-	},
-#else
-	{
-		.name = "amstream_mpts",
-		.type = PORT_TYPE_MPTS | PORT_TYPE_VIDEO |
-			PORT_TYPE_AUDIO | PORT_TYPE_SUB,
 		.fops = &mpts_fops,
 	},
 #endif
@@ -414,14 +399,13 @@ static struct stream_port_s ports[] = {
 		.type = PORT_TYPE_USERDATA,
 		.fops = &userdata_fops,
 	},
-#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_hevc",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC |
-			PORT_TYPE_DECODER_SCHED,
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC,
 		.fops = &vbuf_fops,
 		.vformat = VFORMAT_HEVC,
 	},
+#ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_hevc_frame",
 		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC |
@@ -435,9 +419,8 @@ static struct stream_port_s ports[] = {
 			PORT_TYPE_DECODER_SCHED,
 		.fops = &vbuf_fops,
 		.vformat = VFORMAT_HEVC,
-	}
+	},
 #ifdef CONFIG_AM_VDEC_DV
-	,
 	{
 		.name = "amstream_dves_avc",
 		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO |
@@ -450,15 +433,8 @@ static struct stream_port_s ports[] = {
 			PORT_TYPE_DECODER_SCHED | PORT_TYPE_DUALDEC,
 		.fops = &vbuf_fops,
 		.vformat = VFORMAT_HEVC,
-	}
+	},
 #endif
-#else
-	{
-		.name = "amstream_hevc",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC,
-		.fops = &vbuf_fops,
-		.vformat = VFORMAT_HEVC,
-	}
 #endif
 };
 
@@ -603,6 +579,7 @@ static void video_port_release(struct port_priv_s *priv,
 {
 	struct stream_port_s *port = priv->port;
 	struct vdec_s *vdec = priv->vdec;
+	bool is_multidec = !vdec_single(vdec);
 
 	switch (release_num) {
 	default:
@@ -621,7 +598,7 @@ static void video_port_release(struct port_priv_s *priv,
 	/*fallthrough*/
 	case 2:
 		if ((port->type & PORT_TYPE_FRAME) == 0)
-			stbuf_release(pbuf);
+			stbuf_release(pbuf, is_multidec);
 	/*fallthrough*/
 	case 1:
 		;
@@ -674,7 +651,7 @@ static int video_port_init(struct port_priv_s *priv,
 		}
 	}
 
-	r = stbuf_init(pbuf, vdec);
+	r = stbuf_init(pbuf, vdec, false);
 	if (r < 0) {
 		pr_err("video_port_init %d, stbuf_init failed\n", __LINE__);
 		return r;
@@ -734,7 +711,7 @@ static void audio_port_release(struct stream_port_s *port,
 		adec_release(port->vformat);
 	/*fallthrough*/
 	case 2:
-		stbuf_release(pbuf);
+		stbuf_release(pbuf, false);
 	/*fallthrough*/
 	case 1:
 		;
@@ -754,9 +731,9 @@ static int audio_port_reset(struct stream_port_s *port,
 
 	pts_stop(PTS_TYPE_AUDIO);
 
-	stbuf_release(pbuf);
+	stbuf_release(pbuf, false);
 
-	r = stbuf_init(pbuf, NULL);
+	r = stbuf_init(pbuf, NULL, false);
 	if (r < 0)
 		return r;
 
@@ -794,9 +771,9 @@ static int sub_port_reset(struct stream_port_s *port,
 
 	port->flag &= (~PORT_FLAG_INITED);
 
-	stbuf_release(pbuf);
+	stbuf_release(pbuf, false);
 
-	r = stbuf_init(pbuf, NULL);
+	r = stbuf_init(pbuf, NULL, false);
 	if (r < 0)
 		return r;
 
@@ -828,7 +805,7 @@ static int audio_port_init(struct stream_port_s *port,
 		return 0;
 	}
 
-	r = stbuf_init(pbuf, NULL);
+	r = stbuf_init(pbuf, NULL, false);
 	if (r < 0)
 		return r;
 	r = adec_init(port);
@@ -855,7 +832,7 @@ static void sub_port_release(struct stream_port_s *port,
 		/* this is es sub */
 		esparser_release(pbuf);
 	}
-	stbuf_release(pbuf);
+	stbuf_release(pbuf, false);
 	sub_port_inited = 0;
 	return;
 }
@@ -868,7 +845,7 @@ static int sub_port_init(struct stream_port_s *port, struct stream_buf_s *pbuf)
 		return 0;
 	}
 
-	r = stbuf_init(pbuf, NULL);
+	r = stbuf_init(pbuf, NULL, false);
 	if (r < 0)
 		return r;
 
