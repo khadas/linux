@@ -2671,6 +2671,8 @@ int aml_fe_resume(struct platform_device *dev)
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		struct aml_fe *fe = &fe_man.fe[i];
 
+		fe->mode = AM_FE_UNKNOWN;
+
 		if (fe->tuner && fe->tuner->drv && fe->tuner->drv->resume)
 			fe->tuner->drv->resume(fe->tuner);
 		if (fe->atv_demod && fe->atv_demod->drv

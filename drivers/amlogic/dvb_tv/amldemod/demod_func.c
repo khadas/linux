@@ -60,7 +60,6 @@ static int fpga_version = 1;
 static int fpga_version = -1;
 #endif
 
-
 void dtvpll_lock_init(void)
 {
 	mutex_init(&dtvpll_init_lock);
@@ -538,6 +537,8 @@ void demod_set_mode_ts(unsigned char dvb_mode)
 	} else if (dvb_mode == Gxtv_Dvbt_Isdbt) {
 		cfg0.b.ts_sel = 1<<1;
 		cfg0.b.mode = 1<<1;
+		cfg0.b.adc_format = 0;
+		cfg0.b.adc_regout = 0;
 	} else if (dvb_mode == Gxtv_Atsc) {
 		cfg0.b.ts_sel = 1<<2;
 		cfg0.b.mode = 1<<2;
@@ -1166,7 +1167,7 @@ int dvbt_set_ch(struct aml_demod_sta *demod_sta,
 /* bw=0; */
 	demod_mode = 1;
 	/* for si2176 IF:5M   sr 28.57 */
-	sr = 5;
+	sr = 4;
 	ifreq = 4;
 	if (bw == BANDWIDTH_AUTO)
 		demod_mode = 2;
@@ -1246,7 +1247,7 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 	} else {
 		switch (demod_reg->mode) {
 		case AMLOGIC_DVBC_J83B:
-			demod_reg->addr = demod_reg->addr + QAM_BASE;
+			demod_reg->addr = demod_reg->addr>>4;
 			break;
 		case AMLOGIC_DVBT_ISDBT:
 			demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
@@ -1276,8 +1277,8 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 			atsc_write_reg(demod_reg->addr, demod_reg->val);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
 			demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
-		else if (demod_reg->mode == AMLOGIC_DEMOD_FPGA)
-			;
+		else if (demod_reg->mode == AMLOGIC_DVBC_J83B)
+			qam_write_reg(demod_reg->addr, demod_reg->val);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
 			apb_write_reg_collect(demod_reg->addr, demod_reg->val);
 		else
@@ -1295,7 +1296,7 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 		#endif
 	} else {
 		if (demod_reg->mode == AMLOGIC_DVBC_J83B)
-			demod_reg->addr = demod_reg->addr + QAM_BASE;
+			demod_reg->addr = demod_reg->addr>>4;
 		else if (demod_reg->mode == AMLOGIC_DTMB)
 			demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DVBT_ISDBT)
@@ -1315,8 +1316,8 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 
 		if (demod_reg->mode == AMLOGIC_ATSC)
 			demod_reg->val = atsc_read_reg(demod_reg->addr);
-		else if (demod_reg->mode == AMLOGIC_DEMOD_FPGA)
-			;
+		else if (demod_reg->mode == AMLOGIC_DVBC_J83B)
+			qam_read_reg(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
 			demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
@@ -1549,7 +1550,7 @@ void ofdm_initial(int bandwidth,
 	int tmp;
 	int ch_if;
 	int adc_freq;
-	int memstart;
+	/*int memstart;*/
 	pr_dbg
 	    ("[ofdm_initial]bandwidth is %d,samplerate is %d",
 	     bandwidth, samplerate);
@@ -1653,9 +1654,9 @@ void ofdm_initial(int bandwidth,
 			break;	/* 28.571 */
 		}
 	}
-	memstart = 0x35400000;
+	/*memstart = 0x35400000;
 	pr_dbg("memstart is %x\n", memstart);
-	apb_write_reg(DVBT_BASE + (0x10 << 2), memstart);
+	apb_write_reg(DVBT_BASE + (0x10 << 2), memstart);*/
 	/* 0x8f300000 */
 
 	apb_write_reg(DVBT_BASE + (0x14 << 2), 0xe81c4ff6);

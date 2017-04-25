@@ -8,6 +8,7 @@ enum atsc_state_machine {
 	Idle = 0x20,
 	CR_Lock = 0x50,
 	CR_Peak_Lock = 0x62,
+	Atsc_sync_lock = 0x70,
 	Atsc_Lock = 0x79
 };
 

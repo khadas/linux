@@ -496,6 +496,14 @@ void set_cr_ck_rate(void)
 	atsc_write_reg(0x739,  0x00);
 	atsc_write_reg(0x735,  0x83);
 	atsc_write_reg(0x918,  0x0);
+
+	/*filed test bug in sfo*/
+	atsc_write_reg(0xf55,  0x00);
+	atsc_write_reg(0xf56,  0x00);
+	atsc_write_reg(0xf57,  0x00);
+	atsc_write_reg(0x53b,  0x0b);
+	atsc_write_reg(0x545,  0x0);
+	atsc_write_reg(0x546,  0x80);
 }
 
 
@@ -858,7 +866,7 @@ void atsc_thread(void)
 	time[4] = jiffies_to_msecs(jiffies);
 	fsm_status = read_atsc_fsm();
 	if (atsc_thread_enable) {
-		if (fsm_status < Atsc_Lock) {
+		if (fsm_status < Atsc_sync_lock) {
 			/*step1:open dagc*/
 			/*if (dagc_switch == Dagc_Close) {
 				atsc_write_reg(0x716, 0x0);
@@ -877,7 +885,7 @@ void atsc_thread(void)
 		fsm_status = read_atsc_fsm();
 		pr_dbg("fsm[%x][atsc_time]cci finish,need to run cfo,cost %d ms\n",
 			fsm_status, time_table[0]);
-		if (fsm_status == Atsc_Lock) {
+		if (fsm_status >= Atsc_sync_lock) {
 			return;
 		} else if (fsm_status < CR_Lock) {
 			/*step3:run cfo*/
@@ -896,7 +904,7 @@ void atsc_thread(void)
 		/*AR_run();*/
 		for (i = 0; i < 50; i++) {
 			fsm_status = read_atsc_fsm();
-			if (fsm_status == Atsc_Lock) {
+			if (fsm_status >= Atsc_sync_lock) {
 				time[3] = jiffies_to_msecs(jiffies);
 				pr_dbg("----------------------\n");
 				time_table[2] = (time[3] - time[2]);
@@ -926,10 +934,11 @@ void atsc_thread(void)
 			atsc_write_reg(0x716, 0x2);
 			dagc_switch = Dagc_Close;
 		}*/
-		if (check_snr_ser(ser_thresholds) != 0) {
+		/*if (check_snr_ser(ser_thresholds) != 0) {
 			fsm_status = Idle;
 			time[5] = jiffies_to_msecs(jiffies);
-		}
+		}*/
+		time[5] = jiffies_to_msecs(jiffies);
 		}
 	}
 }

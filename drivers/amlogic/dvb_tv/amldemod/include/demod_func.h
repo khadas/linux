@@ -40,6 +40,7 @@
 #define TXLX_IO_DEMOD_BASE 0xff644000
 #define TXLX_DTMB_BASE  (TXLX_DEMOD_BASE+0x000)
 #define TXLX_DVBT_BASE  (TXLX_DEMOD_BASE+0x400)
+#define DVBT_BASE  (TXLX_DEMOD_BASE+0x400)
 #define TXLX_ISDBT_BASE (TXLX_DEMOD_BASE+0x400)
 #define TXLX_ATSC_BASE  (TXLX_DEMOD_BASE+0x800)
 #define TXLX_QAM_BASE   (TXLX_DEMOD_BASE+0xC00)
@@ -88,9 +89,9 @@
 
 /* #define DEMOD_BASE 0xc8020000 */
 #define DTMB_BASE  (DEMOD_BASE + 0x000)
-#define DVBT_BASE  (DEMOD_BASE + 0x000)
+/*#define DVBT_BASE  (DEMOD_BASE + 0x000)*/
 #define ISDBT_BASE (DEMOD_BASE + 0x000)
-#define QAM_BASE   (TXLX_DEMOD_BASE + 0xC00)
+#define QAM_BASE   (DEMOD_BASE + 0x400)
 #define ATSC_BASE  (DEMOD_BASE + 0x800)
 #define DEMOD_CFG_BASE  (DEMOD_BASE + 0xC00)
 
@@ -676,5 +677,9 @@ void ofdm_read_all_regs(void);
 extern int aml_fe_analog_set_frontend(struct dvb_frontend *fe);
 int get_dtvpll_init_flag(void);
 void demod_set_mode_ts(unsigned char dvb_mode);
+void qam_write_reg(int reg_addr, int reg_data);
+unsigned long qam_read_reg(int reg_addr);
+
+
 
 #endif
