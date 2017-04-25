@@ -626,6 +626,8 @@ void esparser_audio_reset_s(struct stream_buf_s *buf)
 
 	audio_data_parsed = 0;
 	audio_real_wp = READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR);
+	audio_buf_start = READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR);
+	audio_buf_end = READ_AIU_REG(AIU_MEM_AIFIFO_END_PTR);
 	spin_unlock_irqrestore(&lock, flags);
 
 	return;
