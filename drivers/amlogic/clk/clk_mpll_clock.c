@@ -138,8 +138,11 @@ static int mpll_set_rate(struct clk_hw *hw, unsigned long drate,
 		writel(((1<<mpll->misc_offset) | readl(mpll->con_reg3)),
 			mpll->con_reg3);
 		udelay(1);
-		writel((~(1<<mpll->misc_offset) & readl(mpll->con_reg3)),
-			mpll->con_reg3);
+		/* keep HHI_PLL_TOP_MISC bit to 1 to avoid suspend/resume
+		 * mpll setting issue
+		 * writel((~(1<<mpll->misc_offset) & readl(mpll->con_reg3)),
+		 * mpll->con_reg3);
+		 */
 	}
 	pr_debug("readl con_reg=%x\n", readl(mpll->con_reg));
 
