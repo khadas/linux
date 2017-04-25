@@ -179,14 +179,17 @@ static void mc_di_param_init(void)
 		DI_Wr_reg_bits(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
-static void init_field_mode(void)
+void init_field_mode(unsigned short height)
 {
 	DI_Wr(DIPD_COMB_CTRL0, 0x02400210);
 	DI_Wr(DIPD_COMB_CTRL1, 0x88080808);
 	DI_Wr(DIPD_COMB_CTRL2, 0x41041008);
 	DI_Wr(DIPD_COMB_CTRL3, 0x00008053);
 	DI_Wr(DIPD_COMB_CTRL4, 0x20070002);
-	DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
+	if (height > 288)
+		DI_Wr(DIPD_COMB_CTRL5, 0x04041020);
+	else
+		DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
 }
 
 void di_hw_init(void)
@@ -243,7 +246,7 @@ void di_hw_init(void)
 	ei_hw_init();
 	nr_hw_init();
 	if (pulldown_enable)
-		init_field_mode();
+		init_field_mode(288);
 
 	if (mcpre_en)
 		mc_di_param_init();

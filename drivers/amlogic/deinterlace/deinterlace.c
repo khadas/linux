@@ -76,7 +76,6 @@
 #include "nr.h"
 
 #define RUN_DI_PROCESS_IN_IRQ
-
 #ifdef ENABLE_SPIN_LOCK_ALWAYS
 static DEFINE_SPINLOCK(di_lock2);
 #define di_lock_irqfiq_save(irq_flag, fiq_flag) \
@@ -1077,8 +1076,10 @@ struct pd_param_s {
 	char *name;
 	int *addr;
 };
-struct FlmDectRes dectres;
-struct sFlmSftPar pd_param;
+
+static struct FlmDectRes dectres;
+static struct sFlmSftPar pd_param;
+
 static struct pd_param_s pd_params[] = {
 	{ "sFrmDifAvgRat",
 	  &(pd_param.sFrmDifAvgRat)},
@@ -2503,6 +2504,9 @@ static unsigned char is_input2pre(void)
 #ifdef DI_USE_FIXED_CANVAS_IDX
 static int di_post_idx[2][6];
 static int di_pre_idx[2][10];
+#ifdef CONFIG_MULTI_DEC
+static unsigned int di_inp_idx[3];
+#endif
 static int di_get_canvas(void)
 {
 	int pre_num = 7, post_num = 6, i = 0;
@@ -2544,6 +2548,15 @@ static int di_get_canvas(void)
 #else
 	for (i = 0; i < post_num; i++)
 		di_post_idx[1][i] = di_post_idx[0][i];
+#endif
+#ifdef CONFIG_MULTI_DEC
+	if (canvas_pool_alloc_canvas_table("di_inp", &di_inp_idx[0], 3,
+			CANVAS_MAP_TYPE_1)) {
+		pr_dbg("%s allocat di inp canvas error.\n", __func__);
+		return 1;
+	}
+	pr_info("DI: support multi decoding %u~%u~%u.\n",
+		di_inp_idx[0], di_inp_idx[1], di_inp_idx[2]);
 #endif
 	return 0;
 }
@@ -5453,6 +5466,26 @@ static struct di_buf_s *get_free_linked_buf(int idx)
 	return di_buf;
 }
 
+#ifdef CONFIG_MULTI_DEC
+static void pre_inp_canvas_config(struct vframe_s *vf)
+{
+	if (vf->canvas0Addr == (u32)-1) {
+		canvas_config_config(di_inp_idx[0],
+			&vf->canvas0_config[0]);
+		canvas_config_config(di_inp_idx[1],
+			&vf->canvas0_config[1]);
+		vf->canvas0Addr = (di_inp_idx[1]<<8)|(di_inp_idx[0]);
+		if (vf->plane_num == 2) {
+			vf->canvas0Addr |= (di_inp_idx[1]<<16);
+		} else if (vf->plane_num == 3) {
+			canvas_config_config(di_inp_idx[2],
+			&vf->canvas0_config[2]);
+			vf->canvas0Addr |= (di_inp_idx[2]<<16);
+		}
+		vf->canvas1Addr = vf->canvas0Addr;
+	}
+}
+#endif
 static unsigned char pre_de_buf_config(void)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -5536,6 +5569,9 @@ static unsigned char pre_de_buf_config(void)
 		if (vframe == NULL)
 			return 0;
 		else {
+			#ifdef CONFIG_MULTI_DEC
+			pre_inp_canvas_config(vframe);
+			#endif
 			di_print("DI: get vframe[0x%p] from frontend %u ms.\n",
 			vframe,
 jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
@@ -8273,7 +8309,7 @@ static void di_unreg_process_irq(void)
 /* stop rdma */
 	rdma_clear(de_devp->rdma_handle);
 #endif
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+	if (is_meson_gxtvbb_cpu())
 		if (dejaggy_enable) {
 			dejaggy_flag = -1;
 			DI_Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC, 0, 3, 1);
@@ -8491,11 +8527,13 @@ static void di_reg_process_irq(void)
 			flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
 		}
 		combing_threshold_config(vframe->width);
-		if (is_meson_txl_cpu()) {
+		init_field_mode(nr_height);
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			combing_pd22_window_config(vframe->width,
 				nr_height);
-			tbff_init();
-		}
+			/* replaced by ppmgr tbdetction
+				tbff_init();
+			*/
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 		last_lev = -1;

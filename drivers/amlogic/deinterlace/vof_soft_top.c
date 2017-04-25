@@ -79,7 +79,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	int mDly = pPar->mPstDlyPre;
 	int flm22_flag = pPar->flm22_flag;
 	int cmb22_nocmb_num = pPar->cmb22_nocmb_num;
-
+	int cmb32_blw_wnd_rel = cmb32_blw_wnd;
 	/* UINT8 *PREWV = pRDat.pFlg32; or pRDat.pFlg22 */
 	/* static int TCNm[HISCMBNUM]; history: the number of combing-rows */
 	int *TCNm = pRDat->TCNm;
@@ -112,7 +112,9 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	pFlgXx = (((pFlgXx >> 1) << 2) |
 			(pRDat->pFlgXx[HISDETNUM - 2] << 1) |
 			(pRDat->pFlgXx[HISDETNUM - 1]));
-
+	/* for 1080i */
+	if (nROW > 288)
+		cmb32_blw_wnd_rel = 70;
 	/* Initialization */
 	if (BGN == 0) {
 		for (nT0 = 0; nT0 < HISCMBNUM; nT0++) {
@@ -212,7 +214,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		nWCmb = 0;
 		nBCmb = 0;
 		for (nT0 = 0; nT0 < nT1; nT0++) {
-			if (VOFWnd[2*nT0] > (cmb32_blw_wnd * nROW >> 8)) {
+			if (VOFWnd[2*nT0] > (cmb32_blw_wnd_rel * nROW >> 8)) {
 				CWND[HISDETNUM-1][2*nT0] =
 					VOFWnd[2*nT0] - cmb32_wnd_ext;
 				CWND[HISDETNUM-1][2*nT0+1] =
@@ -572,10 +574,10 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 int VOFDetSub1(int *VOFWnd, int *nCNum, int nMod, UINT32 *nRCmb, int nROW,
 	       struct sFlmSftPar *pPar)
 {
-	int rCmbRwMinCt0 = pPar->rCmbRwMinCt0;	/* 8; //for film 3-2 */
-	int rCmbRwMinCt1 = pPar->rCmbRwMinCt1;	/* =7; //for film 2-2 */
+	int rCmbRwMinCt0 = 0; /* 8; //for film 3-2 */
+	int rCmbRwMinCt1 = 0; /* =7; //for film 2-2 */
 	/* int rCmbRwMaxStp=1; //fill in the hole */
-	int rCmbRwMinCt = rCmbRwMinCt1;
+	int rCmbRwMinCt = 0;
 	int nCSUM = 0;	/* Combing sum (nCSUM>rCmbRwMinCt0) */
 	int nMIN = 0;
 	int nT0 = 0;
@@ -588,8 +590,16 @@ int VOFDetSub1(int *VOFWnd, int *nCNum, int nMod, UINT32 *nRCmb, int nROW,
 	int pIDx[VOFWNDNUM + 1][2];	/* Maximum-5windows */
 	int nIDx = 0;
 
+	rCmbRwMinCt = rCmbRwMinCt1;
 	if (nMod == 3)
 		rCmbRwMinCt = rCmbRwMinCt0;
+	if (IS_ERR(pPar)) {
+		pr_err("%s:%d pPar = 0x%p.\n",
+			__func__, __LINE__, pPar);
+		return -1;
+	}
+	rCmbRwMinCt0 = pPar->rCmbRwMinCt0;	/* 8; //for film 3-2 */
+	rCmbRwMinCt1 = pPar->rCmbRwMinCt1;	/* =7; //for film 2-2 */
 
 	for (nT0 = 0; (nT0 < nROW) && (nIDx <= VOFWNDNUM); nT0++) {
 		fEND = 0;
@@ -660,6 +670,7 @@ UINT8 Get1RCmb(UINT32 *iHSCMB, UINT32 iRow)
 	UINT8 nR1 = 0;
 	UINT8 nBt = 0;
 	nR1 = ((iRow >> 5) & 0xf);/* iRow/32; 0--8 */
+	iHSCMB[nR1] = nR1 > 8 ? 0 : iHSCMB[nR1];
 	nBt = (iRow & 0x1f);/* iRow%32 */
 	return (iHSCMB[nR1] >> nBt) & 0x1;
 }
