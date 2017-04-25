@@ -353,7 +353,7 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 	if (mode == 0) {
 		/*DVBC*/
 		/*dvbc_status(state->sta, state->i2c, &demod_sts);*/
-		demod_sts.ch_sts = apb_read_reg(QAM_BASE + 0x18);
+		demod_sts.ch_sts = qam_read_reg(0x6);
 		return demod_sts.ch_sts & 0x1;
 	} else if (mode == 1) {
 		/*DVBT*/
@@ -378,11 +378,11 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 		else if (atsc_mode == VSB_8) {
 			atsc_fsm = atsc_read_reg(0x0980);
 			pr_dbg("atsc status [%x]\n", atsc_fsm);
-			return atsc_read_reg(0x0980) == 0x79;
+			return atsc_read_reg(0x0980) >= 0x70;
 		} else {
 			atsc_fsm = atsc_read_reg(0x0980);
 			pr_dbg("atsc status [%x]\n", atsc_fsm);
-			return atsc_read_reg(0x0980) == 0x79;
+			return atsc_read_reg(0x0980) >= 0x70;
 		}
 	} else if (mode == 4) {
 		/*DTMB*/
@@ -431,7 +431,7 @@ static int gxtv_demod_dvbc_read_status
 /*      struct aml_demod_i2c demod_i2c;*/
 	int ilock;
 
-	demod_sts.ch_sts = apb_read_reg(QAM_BASE + 0x18);
+	demod_sts.ch_sts = qam_read_reg(0x6);
 /*      dvbc_status(&demod_sta, &demod_i2c, &demod_sts);*/
 	if (demod_sts.ch_sts & 0x1) {
 		ilock = 1;
@@ -533,6 +533,9 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	       param.symb_rate, param.mode);
 	aml_fe_analog_set_frontend(fe);
 	dvbc_set_ch(&demod_status, &demod_i2c, &param);
+	/*0xf33 dvbc mode, 0x10f33 j.83b mode*/
+	if (is_meson_txlx_cpu())
+		qam_write_reg(0x7, 0xf33);
 	if (autoflags == 1) {
 		pr_dbg("QAM_PLAYING mode,start auto sym\n");
 		dvbc_set_auto_symtrack();
@@ -558,7 +561,7 @@ static int gxtv_demod_dvbc_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int qam_mode;
 
-	qam_mode = apb_read_reg(QAM_BASE + 0x008);
+	qam_mode = qam_read_reg(0x2);
 	afe->params.modulation = (qam_mode & 7) + 1;
 	pr_dbg("[mode] is %d\n", afe->params.modulation);
 
@@ -683,15 +686,12 @@ static int gxtv_demod_dvbt_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	/*struct aml_demod_sts demod_sts;*/
 	struct aml_demod_i2c demod_i2c;
-	int error, times;
 	struct aml_demod_dvbt param;
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
 
 	demod_i2c.tuner = dev->drv->id;
 	demod_i2c.addr = dev->i2c_addr;
-
-	times = 2;
 
 	/*////////////////////////////////////*/
 	/* bw == 0 : 8M*/
@@ -710,41 +710,8 @@ static int gxtv_demod_dvbt_set_frontend(struct dvb_frontend *fe)
 	param.dat0 = 1;
 	last_lock = -1;
 
-retry:
-	aml_dmx_before_retune(AM_TS_SRC_TS2, fe);
 	aml_fe_analog_set_frontend(fe);
 	dvbt_set_ch(&demod_status, &demod_i2c, &param);
-
-	/*      for(count=0;count<10;count++){
-	 * if(amdemod_dvbt_stat_islock(dev)){
-	 * pr_dbg("first lock success\n");
-	 * break;
-	 * }
-	 *
-	 * msleep(200);
-	 * }    */
-/*rsj_debug*/
-
-/**/
-
-	times--;
-	if (amdemod_dvbt_stat_islock(dev) && times) {
-		int lock;
-
-		aml_dmx_start_error_check(AM_TS_SRC_TS2, fe);
-		msleep(20);
-		error = aml_dmx_stop_error_check(AM_TS_SRC_TS2, fe);
-		lock = amdemod_dvbt_stat_islock(dev);
-		if ((error > 200) || !lock) {
-			pr_error
-				("amlfe too many error,\t"
-				"error count:%d lock statuc:%d, retry\n",
-				error, lock);
-			goto retry;
-		}
-	}
-
-	aml_dmx_after_retune(AM_TS_SRC_TS2, fe);
 
 	afe->params = *c;
 
@@ -829,7 +796,7 @@ static int gxtv_demod_atsc_read_status
 	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		s = amdemod_dvbc_stat_islock(dev);
 		dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
-	} else {
+	} else if (c->modulation > QAM_AUTO) {
 		atsc_thread();
 		s = amdemod_atsc_stat_islock(dev);
 	}
@@ -868,21 +835,24 @@ static int gxtv_demod_atsc_read_signal_strength
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
-
 	*strength = tuner_get_ch_power(dev);
+	*strength -= 100;
+	if (*strength < 0)
+		*strength = 0 - *strength;
 	return 0;
 }
 
 static int gxtv_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-/*      struct aml_fe *afe = fe->demodulator_priv;*/
-/*      struct aml_fe_dev *dev = afe->dtv_demod;*/
-
-/*      struct aml_demod_sts demod_sts;*/
-/*      struct aml_demod_i2c demod_i2c;*/
-/*      struct aml_demod_sta demod_sta;*/
-
-/*      * snr=check_atsc_fsm_status();*/
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct aml_demod_sts demod_sts;
+	struct aml_demod_i2c demod_i2c;
+	struct aml_demod_sta demod_sta;
+	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
+		dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
+		*snr = demod_sts.ch_snr / 100;
+	} else if (c->modulation > QAM_AUTO)
+		*snr = atsc_read_snr();
 	return 0;
 }
 
@@ -921,8 +891,14 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		demod_set_mode_ts(Gxtv_Dvbc);
 		param_j83b.ch_freq = c->frequency / 1000;
 		param_j83b.mode = amdemod_qam(c->modulation);
+		if (c->modulation == QAM_64)
+			param_j83b.symb_rate = 5057;
+		else if (c->modulation == QAM_256)
+			param_j83b.symb_rate = 5361;
+		else
+			param_j83b.symb_rate = 5361;
 		dvbc_set_ch(&demod_status, &demod_i2c, &param_j83b);
-	} else {
+	} else if (c->modulation > QAM_AUTO) {
 		demod_set_mode_ts(Gxtv_Atsc);
 		param_atsc.ch_freq = c->frequency / 1000;
 		param_atsc.mode = c->modulation;
@@ -1335,6 +1311,20 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 		demod_set_demod_reg(0x8, DEMOD_REG4);
 	} else if (mode == AM_FE_QAM) {
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
+	} else if (mode == AM_FE_ATSC) {
+		Gxtv_Demod_Atsc_Init(dev);
+	} else if (mode == AM_FE_OFDM) {
+		Gxtv_Demod_Dvbt_Init(dev);
+	if (fe->dtv_demod->cma_flag == 1) {
+		pr_dbg("CMA MODE, cma flag is %d,mem size is %d",
+			fe->dtv_demod->cma_flag, fe->dtv_demod->cma_mem_size);
+		dtmb_cma_alloc(dev);
+		memstart_dtmb = dev->mem_start;
+	} else {
+		memstart_dtmb = fe->dtv_demod->mem_start;
+	}
+		pr_dbg("[im]memstart is %x\n", memstart_dtmb);
+		apb_write_reg(DVBT_BASE + (0x10 << 2), memstart_dtmb);
 	}
 
 	return 0;
