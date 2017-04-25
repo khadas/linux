@@ -71,7 +71,7 @@
 
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			reg = <0x0 0x7e000000 0x0 0x1a00000>;
+			reg = <0x0 0x7e600000 0x0 0x1a00000>;
 			no-map;
 		};
 		/*di reserved mem*/
