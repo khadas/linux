@@ -374,6 +374,8 @@ void vpp_datapath_config(unsigned int bitdepth)
 		vpp_set_10bit_datapath1();
 	else if (bitdepth == 12)
 		vpp_set_12bit_datapath1();
+	else if (bitdepth == 122)
+		vpp_set_12bit_datapath2();
 	else
 		vpp_set_datapath();
 }

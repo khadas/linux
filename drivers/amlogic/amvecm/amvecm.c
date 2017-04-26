@@ -2846,6 +2846,56 @@ static void amvecm_vpp_mtx_debug(int mtx_sel, int coef_sel)
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	}
 }
+static void vpp_clip_config(unsigned int mode_sel, unsigned int color,
+	unsigned int color_mode)
+{
+	unsigned int addr_cliptop, addr_clipbot, value_cliptop, value_clipbot;
+	if (mode_sel == 0) {/*vd1*/
+		addr_cliptop = VPP_VD1_CLIP_MISC0;
+		addr_clipbot = VPP_VD1_CLIP_MISC1;
+	} else if (mode_sel == 1) {/*vd2*/
+		addr_cliptop = VPP_VD2_CLIP_MISC0;
+		addr_clipbot = VPP_VD2_CLIP_MISC1;
+	} else if (mode_sel == 2) {/*xvycc*/
+		addr_cliptop = VPP_XVYCC_MISC0;
+		addr_clipbot = VPP_XVYCC_MISC1;
+	} else if (mode_sel == 3) {/*final clip*/
+		addr_cliptop = VPP_CLIP_MISC0;
+		addr_clipbot = VPP_CLIP_MISC1;
+	} else{
+		addr_cliptop = mode_sel;
+		addr_clipbot = mode_sel + 1;
+	}
+	if (color == 0) {/*default*/
+		value_cliptop = 0x3fffffff;
+		value_clipbot = 0x0;
+	} else if (color == 1) {/*Blue*/
+		if (color_mode == 0) {/*yuv*/
+			value_cliptop = (0x29 << 22) | (0xf0 << 12) |
+				(0x6e << 2);
+			value_clipbot = (0x29 << 22) | (0xf0 << 12) |
+				(0x6e << 2);
+		} else {/*RGB*/
+			value_cliptop = 0xFF << 2;
+			value_clipbot = 0xFF << 2;
+		}
+	} else if (color == 2) {/*Black*/
+		if (color_mode == 0) {/*yuv*/
+			value_cliptop = (0x10 << 22) | (0x80 << 12) |
+				(0x80 << 2);
+			value_clipbot = (0x10 << 22) | (0x80 << 12) |
+				(0x80 << 2);
+		} else {
+			value_cliptop = 0;
+			value_clipbot = 0;
+		}
+	} else {
+		value_cliptop = color;
+		value_clipbot = color;
+	}
+	WRITE_VPP_REG(addr_cliptop, value_cliptop);
+	WRITE_VPP_REG(addr_clipbot, value_clipbot);
+}
 
 static const char *amvecm_debug_usage_str = {
 	"Usage:\n"
@@ -2867,6 +2917,7 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtx vd1_12 rgb2yuv > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo vpp_mtx vd1_12 yuv2rgb > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
+	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -3071,6 +3122,31 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		tv_dolby_vision_crc_clear(val);
+	} else if (!strcmp(parm[0], "clip_config")) {
+		unsigned int mode_sel, color, color_mode;
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 16, &val) < 0)
+				return -EINVAL;
+			else
+				mode_sel = val;
+		} else
+			mode_sel = 0;
+		if (parm[2]) {
+			if (kstrtoul(parm[2], 16, &val) < 0)
+				return -EINVAL;
+			else
+				color = val;
+		} else
+			color = 0;
+		if (parm[3]) {
+			if (kstrtoul(parm[3], 16, &val) < 0)
+				return -EINVAL;
+			else
+				color_mode = val;
+		} else
+			color_mode = 0;
+		vpp_clip_config(mode_sel, color, color_mode);
+		pr_info("vpp_clip_config done!\n");
 	} else {
 		pr_info("unsupport cmd\n");
 	}

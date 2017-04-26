@@ -1312,7 +1312,7 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 	VSYNC_WR_MPEG_REG(VPP_VSC_REGION4_ENDP + cur_dev->vpp_off, r);
 
 	VSYNC_WR_MPEG_REG(VPP_VSC_START_PHASE_STEP + cur_dev->vpp_off,
-			vpp_filter->vpp_vsc_start_phase_step);
+		vpp_filter->vpp_vsc_start_phase_step);
 }
 
 
@@ -1510,7 +1510,9 @@ static void zoom_get_vert_pos(struct vframe_s *vf, u32 vpp_3d_mode, u32 *ls,
 static void zoom_display_horz(int hscale)
 {
 	u32 ls, le, rs, re;
+#ifdef TV_REVERSE
 	int content_w, content_l, content_r;
+#endif
 #ifdef TV_3D_FUNCTION_OPEN
 	if (process_3d_type & MODE_3D_ENABLE) {
 		zoom_get_horz_pos(cur_dispbuf, cur_frame_par->vpp_3d_mode, &ls,
@@ -1615,8 +1617,9 @@ static void zoom_display_horz(int hscale)
 static void vd2_zoom_display_horz(int hscale)
 {
 	u32 ls, le, rs, re;
+#ifdef TV_REVERSE
 	int content_w, content_l, content_r;
-
+#endif
 	ls = rs = zoom2_start_x_lines;
 	le = re = zoom2_end_x_lines;
 
@@ -8298,6 +8301,9 @@ static int __init video_early_init(void)
 		vpp_dummy_data will be left shift 2bit auto on gxm!!! */
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1, 0x1020080);
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x42020);
+	} else if (is_meson_txlx_cpu()) {
+		/*black 10bit*/
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x4080200);
 	}
 	/* temp: enable VPU arb mem */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)

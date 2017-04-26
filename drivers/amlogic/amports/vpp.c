@@ -967,9 +967,9 @@ RESTART:
 
 		ratio_y = (height_after_ratio << 18) / screen_height;
 		if (super_debug)
-			pr_info("height_after_ratio=%d,%d,%d,%d\n",
+			pr_info("height_after_ratio=%d,%d,%d,%d,%d\n",
 				   height_after_ratio, ratio_x, ratio_y,
-				   aspect_factor);
+				   aspect_factor, wide_mode);
 
 		if (wide_mode == VIDEO_WIDEOPTION_NORMAL) {
 			ratio_x = ratio_y = max(ratio_x, ratio_y);
@@ -1156,7 +1156,8 @@ RESTART:
 		(vpp_zoom_center_x << 10)) /
 		ratio_x;
 	end = (w_in << 18) / ratio_x + start - 1;
-	pr_info("left:start =%d,%d,%d,%d  %d,%d,%d\n",
+	if (super_debug)
+		pr_info("left:start =%d,%d,%d,%d  %d,%d,%d\n",
 			start, end, video_left,
 			video_width, w_in, ratio_x, vpp_zoom_center_x);
 #endif
