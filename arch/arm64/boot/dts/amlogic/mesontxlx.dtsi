@@ -449,6 +449,14 @@
 			amlogic,clrmask=<2  0x500000>;
 			amlogic,pins="GPIODV_2";
 		};
+		hdmitx_hpd: hdmitx_hpd {
+			amlogic,setmask=<0 0x08000000>;
+			amlogic,pins="GPIOH_1";
+		};
+		hdmitx_ddc: hdmitx_ddc {
+			amlogic,setmask=<0 0x06000000>;
+			amlogic,pins="GPIOH_2","GPIOH_3";
+		};
 		dtvdemod_agc: dtvdemod_agc {
 			amlogic,setmask=<2  0x400000>;
 			amlogic,clrmask=<2  0x980000>;
