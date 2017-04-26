@@ -8114,7 +8114,7 @@ static int __init video_early_init(void)
 
 	if (get_logo_vmode() >= VMODE_MAX) {
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-		if (is_meson_gxtvbb_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 			WRITE_VCBUS_REG_BITS(VPP_OFIFO_SIZE, 0xfff,
 				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
 		else
@@ -8126,7 +8126,7 @@ static int __init video_early_init(void)
 #endif
 #endif			/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 	} else {
-		if (is_meson_gxtvbb_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 			WRITE_VCBUS_REG_BITS(VPP_OFIFO_SIZE, 0xfff,
 				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
 	}
