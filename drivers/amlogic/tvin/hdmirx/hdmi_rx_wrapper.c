@@ -494,7 +494,6 @@ static bool reset_sw = true;
 static int sm_pause;
 static int irq_video_mute_flag;
 static bool edid_addr_intr_flag;
-static bool use_audioresample_reset;
 static int fsm_enhancement;
 static int port_select_ovr_en;
 static int phy_cmu_config_force_val;
@@ -2230,36 +2229,11 @@ void rx_aud_pll_ctl(bool en)
 		wr_reg_hhi(HHI_ADC_PLL_CNTL4, 0x805);
 		tmp = hdmirx_rd_top(TOP_ACR_CNTL_STAT) | (1<<11);
 		hdmirx_wr_top(TOP_ACR_CNTL_STAT, tmp);
-		#if 0
-		if (use_audioresample_reset) {
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0)
-					| (1 << 31));
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0) &
-					0x7fffffff);
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0)
-				| (1 << 29)
-				| (1 << 28));
-		}
-		#endif
+		External_Mute(0);
 	} else{
 		/* disable pll, into reset mode */
+		External_Mute(1);
 		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
-		if (use_audioresample_reset) {
-			/* reset resample module */
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0)
-					| (1 << 31));
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0) &
-					0x7fffffff);
-			aml_write_cbus(AUD_RESAMPLE_CTRL0,
-				aml_read_cbus(AUD_RESAMPLE_CTRL0)
-				| (1 << 29)
-				| (1 << 28));
-		}
 	}
 }
 

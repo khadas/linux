@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/04/11"
+#define RX_VER0 "Ref.2017/04/26"
 /*------------------------------*/
 #define RX_VER1 "Ref.2017/04/13"
 /*------------------------------*/
@@ -871,8 +871,13 @@ extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
  * module index: atv demod:0x01; dtv demod:0x02;
  * tvafe:0x4; dac:0x8, audio pll:0x10
 */
-extern void vdac_enable(bool on, unsigned int module_sel);
+
 extern void hdmirx_phy_bist_test(int lvl);
 extern int hdmirx_dev_init(void);
 extern void dump_eq_data(void);
+
+/* for other modules */
+extern int External_Mute(int mute_flag);
+extern void vdac_enable(bool on, unsigned int module_sel);
+
 #endif  /* _TVHDMI_H */
