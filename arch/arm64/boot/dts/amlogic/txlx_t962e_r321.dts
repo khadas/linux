@@ -493,7 +493,7 @@
 	tvafe_avin_detect {
 		compatible = "amlogic, tvafe_avin_detect";
 		dev_name = "tvafe_avin_detect";
-		status = "disabled";
+		status = "okay";
 		device_mask = <1>;/*bit0:ch1;bit1:ch2*/
 		interrupts = <0 12 1>,
 						<0 13 1>;
@@ -973,6 +973,29 @@
 						"usb1_to_ddr";
 	};
 
+	/* Sound iomap */
+	aml_snd_iomap {
+		compatible = "amlogic, snd_iomap";
+		status = "okay";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		io_audin_base {
+			reg = <0x0 0xffd03000 0x0 0x100000>;
+		};
+		io_aiu_base {
+			reg = <0x0 0xFFCFFC00 0x0 0x100000>;
+		};
+		io_eqdrc_base {
+			reg = <0x0 0xFFCFF000 0x0 0x100000>;
+		};
+		io_hiu_reset_base {
+			reg = <0x0 0xFFCFCC00 0x0 0x100000>;
+		};
+		io_isa_base {
+			reg = <0x0 0xFFD05800 0x0 0x100000>;
+		};
+	};
 	/* AUDIO MESON8 DEVICES */
 	i2s_dai: I2S {
 		#sound-dai-cells = <0>;
@@ -1073,9 +1096,9 @@
 		pinctrl-names = "aml_snd_g9tv";
 		pinctrl-0 = <&audio_pins>;
 		/*avout mute gpio*/
-		mute_gpio-gpios = <&gpio GPIODV_5 GPIO_ACTIVE_HIGH>;
+		mute_gpio-gpios = <&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
 		/*analog amp mute*/
-		amp_mute_gpio-gpios = <&gpio GPIOZ_18 GPIO_ACTIVE_LOW>;
+		/*amp_mute_gpio-gpios = <&gpio GPIOZ_18 GPIO_ACTIVE_LOW>;*/
 		aux_dev = "tas5707";
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
@@ -1103,9 +1126,9 @@
 			codec_name = "tas5707";
 			status = "okay";
 			i2c_addr = <0x1B>;
-			i2c_bus = "i2c_bus_c";
+			i2c_bus = "i2c_bus_a";
 			master_vol = <150>;
-			reset_pin = <&gpio GPIODV_4 GPIO_ACTIVE_LOW>;
+			reset_pin = <&gpio GPIOZ_13 GPIO_ACTIVE_LOW>;
 			input_mux_reg_buf = /bits/ 8 <0x00 0x01 0x77 0x72>;/*AD mode*/
 			eq_enable = <0>;
 			drc_enable = <0>;
@@ -1372,16 +1395,17 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<0 0x0000F000>;
-		amlogic,clrmask=<10 0x00000017
-				 0 0x010001F8>;
-		amlogic,pins = "GPIOH_6", "GPIOH_7", "GPIOH_8", "GPIOH_9";
+		amlogic,setmask=<4 0x00000780>;
+		amlogic,clrmask=<3 0x001c0000
+				 4 0x00000001>;
+		amlogic,pins = "GPIOZ_10", "GPIOZ_11", "GPIOZ_12", "GPIOZ_14";
 	};
 	audio_spdif_pins:audio_pin1{
-		amlogic,setmask=<9 0x00004000>; /*spdif_out*/
+		amlogic,setmask=<3 0x40000000
+						10 0x00800000>; /*spdif_out*/
 		amlogic,clrmask=<9 0x09100000
 						2 0x80000000>;
-		amlogic,pins = "GPIODV_6"; /*spdif_out*/
+		amlogic,pins = "GPIOZ_17", "GPIOZ_18"; /*spdif_out*/
 	};
 	audio_btpcm_pins:audio_btpcm_pins{
 		/* BT PCM PINMUX SETTING*/
@@ -1422,5 +1446,5 @@
 };
 
 &audio_data{
-	status = "disabled";
+	status = "okay";
 };
