@@ -87,6 +87,10 @@
 			size = <0x0 0x2800000>;
 			//no-map;
 		};
+		chunk_reserved:linux,chunk-reserve {
+			compatible = "amlogic, chunk-reserve";
+			size = <0x0 0x4000000>;
+		};
 		/*di CMA pool */
 		//di_cma_reserved:linux,di_cma {
 			//compatible = "shared-dma-pool";
@@ -180,7 +184,11 @@
 		status = "disable";
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
-
+	chunk-reserve {
+		compatible = "amlogic, chunk-reserve";
+		memory-region = <&chunk_reserved>;
+		status = "okay";
+	};
 	pwmled {
 		compatible = "amlogic, pwmled";
 		dev_name = "pwmled";
