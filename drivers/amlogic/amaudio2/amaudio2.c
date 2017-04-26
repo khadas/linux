@@ -77,6 +77,9 @@ int amaudio2_enable = 0;
 int output_device = 0;
 int input_device = 1;
 
+static int external_mute_flag;
+static int external_mute_enable = 1;
+
 static int int_num = INT_NUM;
 static int i2s_num = I2S_BLOCK;
 static int int_block = INT_BLOCK;
@@ -191,6 +194,19 @@ static inline int32_t clip32(long x)
 
 	return (int32_t)x;
 }
+
+int External_Mute(int mute_flag)
+{
+	if (mute_flag == 1) {
+		external_mute_flag = 1;
+		pr_info("amaudio2_out external mute!\n");
+	} else {
+		external_mute_flag = 0;
+		pr_info("amaudio2_out external unmute!\n");
+	}
+	return 0;
+}
+EXPORT_SYMBOL(External_Mute);
 
 static int amaudio_open(struct inode *inode, struct file *file)
 {
@@ -916,12 +932,19 @@ static void i2s_copy(struct amaudio_t *amaudio)
 				(sw->rd + int_block > sw->size));
 	BUG_ON((hw->wr < 0) || (sw->rd < 0));
 
-	if (audio_out_mode == 0)
-		(*aml_cover_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
-	else if (audio_out_mode == 1)
-		(*aml_inter_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
-	else if (audio_out_mode == 2)
-		(*aml_direct_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
+	if (external_mute_enable == 1 && external_mute_flag == 1) {
+		memset((hw->addr + hw->wr), 0, int_block);
+	} else {
+		if (audio_out_mode == 0)
+			(*aml_cover_memcpy)
+					(hw, hw->wr, sw, sw->rd, int_block);
+		else if (audio_out_mode == 1)
+			(*aml_inter_mix_memcpy)
+					(hw, hw->wr, sw, sw->rd, int_block);
+		else if (audio_out_mode == 2)
+			(*aml_direct_mix_memcpy)
+					(hw, hw->wr, sw, sw->rd, int_block);
+	}
 
 	hw->wr = (hw->wr + int_block) % hw->size;
 	hw->level = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
@@ -1228,6 +1251,27 @@ static ssize_t store_aml_output_driver(struct class *class,
 	return count;
 }
 
+static ssize_t show_aml_external_mute_enable(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", external_mute_enable);
+}
+
+static ssize_t store__aml_external_mute_enable(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (buf[0] == '0') {
+		pr_info("amaudio2_out external mute enable!\n");
+		external_mute_enable = 0;
+	} else if (buf[0] == '1') {
+		pr_info("amaudio2_out external mute disable!\n");
+		external_mute_enable = 1;
+	}
+
+	return count;
+}
+
 static struct class_attribute amaudio_attrs[] = {
 	__ATTR(aml_audio_out_mode,
 	       S_IRUGO | S_IWUSR,
@@ -1257,6 +1301,10 @@ static struct class_attribute amaudio_attrs[] = {
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       show_aml_output_driver,
 	       store_aml_output_driver),
+	__ATTR(aml_external_mute_enable,
+	       S_IRUGO | S_IWUSR | S_IWGRP,
+	       show_aml_external_mute_enable,
+	       store__aml_external_mute_enable),
 	__ATTR_NULL
 };
 
