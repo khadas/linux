@@ -3521,7 +3521,7 @@ static void osd1_update_fifo(void)
 	/* burst_len_sel: 3=64 */
 	data32 |= 3  << 10;
 	/* fifo_depth_val: 32*8=256 */
-	data32 |= 32 << 12;
+	data32 |= osd_hw.osd_fifo[OSD1] << 12;
 	/* if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) */
 	/*
 	 * bit 23:22, fifo_ctrl
@@ -3545,7 +3545,7 @@ static void osd2_update_fifo(void)
 	/* burst_len_sel: 3=64 */
 	data32 |= 3  << 10;
 	/* fifo_depth_val: 32*8=256 */
-	data32 |= 32 << 12;
+	data32 |= osd_hw.osd_fifo[OSD2] << 12;
 	/* if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) */
 	/*
 	 * bit 23:22, fifo_ctrl
@@ -3583,7 +3583,7 @@ void osd_init_scan_mode(void)
 
 void osd_init_hw(u32 logo_loaded)
 {
-	u32 group, idx, data32;
+	u32 group, idx, data32, data2;
 	osd_vpu_power_on();
 
 	if (get_cpu_type() ==
@@ -3607,6 +3607,12 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.updated[OSD2] = 0;
 	osd_hw.urgent[OSD1] = 1;
 	osd_hw.urgent[OSD2] = 1;
+	osd_hw.osd_fifo[OSD1] = 32;
+	osd_hw.osd_fifo[OSD2] = 32;
+
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
+		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))
+		osd_hw.osd_fifo[OSD1] = 64;
 
 	osd_hdr_on = false;
 	osd_hw.hw_reset_flag = HW_RESET_NONE;
@@ -3640,8 +3646,6 @@ void osd_init_hw(u32 logo_loaded)
 		}
 		/* burst_len_sel: 3=64 */
 		data32 |= 3  << 10;
-		/* fifo_depth_val: 32*8=256 */
-		data32 |= 32 << 12;
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 			/*
 			 * bit 23:22, fifo_ctrl
@@ -3654,8 +3658,13 @@ void osd_init_hw(u32 logo_loaded)
 			/* bit 28:24, fifo_lim */
 			data32 |= 2 << 24;
 		}
+
+		data2 = data32;
+		/* fifo_depth_val: 32*8=256 */
+		data32 |= osd_hw.osd_fifo[OSD1] << 12;
+		data2 |= osd_hw.osd_fifo[OSD2] << 12;
 		osd_reg_write(VIU_OSD1_FIFO_CTRL_STAT, data32);
-		osd_reg_write(VIU_OSD2_FIFO_CTRL_STAT, data32);
+		osd_reg_write(VIU_OSD2_FIFO_CTRL_STAT, data2);
 		osd_reg_set_mask(VPP_MISC, VPP_POSTBLEND_EN);
 		osd_reg_clr_mask(VPP_MISC, VPP_PREBLEND_EN);
 		osd_vpp_misc =

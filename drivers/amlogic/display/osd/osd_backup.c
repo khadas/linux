@@ -21,6 +21,9 @@
 #include <linux/types.h>
 #include <linux/module.h>
 
+/* Amlogic Headers */
+#include <linux/amlogic/cpu_version.h>
+
 /* Local Headers */
 #include "osd_io.h"
 #include "osd_backup.h"
@@ -246,7 +249,7 @@ static struct reg_item misc_recovery_table[] = {
 
 void recovery_regs_init(void)
 {
-	int i = 0;
+	int i = 0, j;
 	if (recovery_enable)
 		return;
 	memset(gRecovery, 0, sizeof(gRecovery));
@@ -256,6 +259,16 @@ void recovery_regs_init(void)
 	gRecovery[i].table =
 		(struct reg_item *)&osd1_recovery_table[0];
 
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
+		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
+		for (j = 0; j < gRecovery[i].size; j++) {
+			if (gRecovery[i].table[j].addr ==
+				VIU_OSD1_FIFO_CTRL_STAT) {
+				gRecovery[i].table[j].mask = 0xffc7ffff;
+				break;
+			}
+		}
+	}
 	i++;
 	gRecovery[i].base_addr = OSD1_AFBCD_ENABLE;
 	gRecovery[i].size = sizeof(osd_afbcd_recovery_table)
