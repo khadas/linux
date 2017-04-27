@@ -313,6 +313,7 @@ struct hw_para_s {
 	u32 hw_reset_flag;
 	struct afbcd_data_s osd_afbcd[HW_OSD_COUNT];
 	u32 urgent[HW_OSD_COUNT];
+	u32 osd_fifo[HW_OSD_COUNT];
 	u32 osd_deband_enable;
 };
 
