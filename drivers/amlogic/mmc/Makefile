@@ -9,6 +9,7 @@ endif
 obj-$(CONFIG_MMC_AML)	+= aml_sdio.o amlsd.o \
                            amlsd_of.o emmc_partitions.o aml_sd_emmc.o \
                            amlmmc_dtb.o emmc_key.o \
+						   aml_sd_emmc_v3.o \
                            mmc_notify.o
 
 

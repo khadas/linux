@@ -24,8 +24,7 @@
 #define AML_MMC_VERSION \
 	((AML_MMC_MAJOR_VERSION << 8) | AML_MMC_MINOR_VERSION)
 #define AML_MMC_VER_MESSAGE \
-	"2017: new eMMC/tSD Host controller"
-
+		"2017-4-26: Support new emmc host controller for version 3"
 extern unsigned sdhc_debug;
 extern unsigned sdio_debug;
 extern unsigned sd_emmc_debug;

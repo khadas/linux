@@ -260,8 +260,6 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 				pdata->tx_delay = 3;
 			SD_PARSE_U32_PROP_DEC(child, "tx_phase",
 						prop, pdata->tx_phase);
-			SD_PARSE_U32_PROP_DEC(child, "tx_delay",
-						prop, pdata->tx_delay);
 		}
 		if (aml_card_type_non_sdio(pdata)) {
 			/*card in default value*/
