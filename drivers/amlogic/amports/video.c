@@ -803,6 +803,12 @@ char file_name[512];
 #define FREERUN_DUR     2	/* freerun with duration */
 static u32 freerun_mode;
 static u32 slowsync_repeat_enable;
+static bool dmc_adjust = true;
+module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
+static unsigned int *axi_hold_ctrl, *axi2_hold_ctrl;
+static u32 dmc_config_state;
+static u32 last_toggle_count;
+static u32 toggle_same_count;
 
 void set_freerun_mode(int mode)
 {
@@ -3876,6 +3882,30 @@ static int dolby_vision_need_wait(void)
 		return 1;
 	return 0;
 }
+/* patch for 4k2k bandwith issue, skiw mali mif */
+static void dmc_adjust_for_mali(unsigned int width, unsigned int height)
+{
+	if (toggle_count == last_toggle_count)
+		toggle_same_count++;
+	else {
+		last_toggle_count = toggle_count;
+		toggle_same_count = 0;
+	}
+	/*avoid 3840x2160 crop*/
+	if ((width >= 3830) && (height >= 2150) &&
+		(dmc_config_state != 1) && (toggle_same_count < 30)) {
+		*axi_hold_ctrl = 0x10080804;
+		*axi2_hold_ctrl = 0x10080804;
+		dmc_config_state = 1;
+	} else if (((toggle_same_count >= 30) ||
+		((width < 3830) && (height < 2150))) &&
+		(dmc_config_state != 2)) {
+		*axi_hold_ctrl = 0x18101810;
+		*axi2_hold_ctrl = 0x18101810;
+		toggle_same_count = 30;
+		dmc_config_state = 2;
+	}
+}
 
 #ifdef FIQ_VSYNC
 void vsync_fisr(void)
@@ -3972,6 +4002,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
+
+	if (is_meson_txlx_cpu() && dmc_adjust && vf)
+		dmc_adjust_for_mali(vf->width, vf->height);
 
 #ifdef CONFIG_VSYNC_RDMA
 	vsync_rdma_config_pre();
@@ -8193,6 +8226,11 @@ static int __init video_early_init(void)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		switch_vpu_mem_pd_vmod(VPU_VPU_ARB, VPU_MEM_POWER_ON);
 
+	/* patch for bandwidth@20170428 */
+	if (is_meson_txlx_cpu()) {
+		axi_hold_ctrl = ioremap(DMC_AXI1_HOLD_CTRL_PHY, 2);
+		axi2_hold_ctrl = ioremap(DMC_AXI2_HOLD_CTRL_PHY, 2);
+	}
 	return 0;
 }
 

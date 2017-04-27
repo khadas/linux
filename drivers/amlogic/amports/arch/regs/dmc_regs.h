@@ -208,6 +208,9 @@
 #define DMC_AXI7_QOS_CTRL0 0xfe
 #define DMC_AXI7_QOS_CTRL1 0xff
 
+#define DMC_AXI1_HOLD_CTRL_PHY	((0x00bb  << 2) + 0xff638000)
+#define DMC_AXI2_HOLD_CTRL_PHY	((0x00c5  << 2) + 0xff638000)
+
 #endif
 
 
