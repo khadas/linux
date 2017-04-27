@@ -178,7 +178,7 @@ static unsigned int vdin_reset_flag1;
 module_param(vdin_reset_flag1, uint, 0664);
 MODULE_PARM_DESC(vdin_reset_flag1, "vdin_reset_flag1");
 
-static unsigned int dv_work_delby = 5;
+static unsigned int dv_work_delby;
 module_param(dv_work_delby, uint, 0664);
 MODULE_PARM_DESC(dv_work_delby, "dv_work_delby");
 
@@ -1023,12 +1023,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vf_pool_init(devp->vfp, devp->vfp->size);
 	vdin_hdmiin_patch(devp);/*must place before vf init*/
 	vdin_vf_init(devp);
-	/* config dolby mem base */
-	if (devp->dv_flag || dolby_input)
+	if (devp->dv_flag || (dolby_input & (1 << devp->index))) {
+		/* config dolby mem base */
 		vdin_dolby_addr_alloc(devp, devp->vfp->size);
-	/* config dolby vision */
-	if (devp->dv_flag || dolby_input)
+		/* config dolby vision */
 		vdin_dolby_config(devp);
+	}
 
 	devp->abnormal_cnt = 0;
 	devp->last_wr_vfe = NULL;
@@ -1068,7 +1068,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 
 	/* register provider, so the receiver can get the valid vframe */
 	udelay(start_provider_delay);
-	vf_reg_provider(&devp->vprov);
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+		vf_reg_provider(&devp->vprov_dv);
+	else
+#endif
+		vf_reg_provider(&devp->vprov);
 	if (vf_get_receiver_name(devp->name)) {
 		if (strcmp(vf_get_receiver_name(devp->name), "deinterlace")
 				== 0)
@@ -1076,8 +1081,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		else
 			devp->send2di = false;
 	}
-
-	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_START, NULL);
+	if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+		vf_notify_receiver("dv_vdin",
+			VFRAME_EVENT_PROVIDER_START, NULL);
+	else
+		vf_notify_receiver(devp->name,
+			VFRAME_EVENT_PROVIDER_START, NULL);
 	if ((devp->parm.port != TVIN_PORT_VIU) ||
 		(viu_hw_irq != 0)) {
 		/*enable irq */
@@ -1138,7 +1147,12 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
-	vf_unreg_provider(&devp->vprov);
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+		vf_unreg_provider(&devp->vprov_dv);
+	else
+#endif
+		vf_unreg_provider(&devp->vprov);
 	devp->dv_config = 0;
 #ifdef CONFIG_CMA
 	vdin_cma_release(devp);
@@ -1765,24 +1779,25 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
 			(devp->parm.port <= TVIN_PORT_HDMI7))
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
-		#if 0
-		/* prepare for next input data */
-		if (provider_vf_peek(devp->vfp) != NULL) {
-			curr_wr_vfe = provider_vf_get(devp->vfp);
-			vdin_set_canvas_id(devp,
-				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-				(curr_wr_vfe->vf.canvas0Addr&0xff));
-			/* prepare for chroma canvas*/
-			if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-				(devp->prop.dest_cfmt == TVIN_NV21))
-				vdin_set_chma_canvas_id(devp,
-					(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-					(curr_wr_vfe->vf.canvas0Addr>>8)&0xff);
-			devp->curr_wr_vfe = curr_wr_vfe;
+		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK
+			&& devp->dv_config) {
+			/* prepare for dolby vision metadata addr */
+			devp->dv_cur_index = devp->last_wr_vfe->vf.index;
+			devp->dv_next_index = devp->curr_wr_vfe->vf.index;
+			schedule_delayed_work(&devp->dv_dwork, dv_work_delby);
+		} else if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK) == 0)
+			&& devp->dv_config) {
+			vdin_dolby_buffer_update(devp,
+				devp->last_wr_vfe->vf.index);
+			vdin_dolby_addr_update(devp,
+				devp->curr_wr_vfe->vf.index);
 		}
-		#endif
 		devp->last_wr_vfe = NULL;
-		vf_notify_receiver(devp->name,
+		if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+			vf_notify_receiver("dv_vdin",
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		else
+			vf_notify_receiver(devp->name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	}
 	/*check vs is valid base on the time during continuous vs*/
@@ -1899,7 +1914,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_drop_cnt++;
 		goto irq_handled;
 	}
-	vdin2nr = vf_notify_receiver(devp->name,
+	if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+		vdin2nr = vf_notify_receiver("dv_vdin",
+			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
+	else
+		vdin2nr = vf_notify_receiver(devp->name,
 			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
 	/*if vdin-nr,di must get
 	 * vdin current field type which di pre will read*/
@@ -1963,7 +1982,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(curr_wr_vfe, devp->vfp);
-
 		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK
 			&& devp->dv_config) {
 			/* prepare for dolby vision metadata addr */
@@ -1975,7 +1993,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_dolby_buffer_update(devp, curr_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
 		}
-
 		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
 			(devp->parm.port <= TVIN_PORT_HDMI7))
 			vdin_vf_disp_mode_update(curr_wr_vfe, devp->vfp);
@@ -1990,10 +2007,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_set_chma_canvas_id(devp,
 			(devp->flags&VDIN_FLAG_RDMA_ENABLE),
 			(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+
 	devp->curr_wr_vfe = next_wr_vfe;
-	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE))
-		vf_notify_receiver(devp->name,
-			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
+		if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+			vf_notify_receiver("dv_vdin",
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		else
+			vf_notify_receiver(devp->name,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+	}
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
@@ -2980,6 +3003,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* @todo provider name */
 	sprintf(vdevp->name, "%s%d", PROVIDER_NAME, vdevp->index);
 	vf_provider_init(&vdevp->vprov, vdevp->name, &vdin_vf_ops, vdevp->vfp);
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	vf_provider_init(&vdevp->vprov_dv, "dv_vdin", &vdin_vf_ops, vdevp->vfp);
+#endif
 	/* @todo canvas_config_mode */
 	if (canvas_config_mode == 0 || canvas_config_mode == 1)
 		vdin_canvas_init(vdevp);

@@ -41,6 +41,7 @@
 /* #define VDIN_MEAS_51M_1MS 50000 */
 
 #define TVIN_MAX_PIXCLK 20000
+#define META_RETRY_MAX 10
 
 static short max_hactive = 4096;
 module_param(max_hactive, short, 0664);
@@ -133,11 +134,12 @@ int try_count_max = 3;
 module_param(try_count_max, int, 0664);
 MODULE_PARM_DESC(try_count_max, "try_count_max");
 
+/*bit0 for vdin0;bit1 for vdin1*/
 bool dolby_input;
 module_param(dolby_input, bool, 0664);
 MODULE_PARM_DESC(dolby_input, "dolby_input");
 
-static unsigned int dv_dbg_log = ((1<<3) | (1<<4));
+static unsigned int dv_dbg_log;
 module_param(dv_dbg_log, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_log, "enable/disable dv_dbg_log");
 
@@ -511,7 +513,7 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		break;
 		}
 	}
-	if (dolby_input || devp->dv_flag)
+	if ((dolby_input & (1 << devp->index)) || devp->dv_flag)
 		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 	devp->format_convert = format_convert;
 }
@@ -1239,7 +1241,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.color_fmt_range,
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
-		if (devp->dv_flag || dolby_input)
+		if (devp->dv_flag || (dolby_input & (1 << devp->index)))
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	} else {
@@ -2877,7 +2879,8 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		} else if ((devp->color_depth_support &
 			VDIN_WR_COLOR_DEPTH_10BIT) &&
-			((devp->dv_flag == false) && (dolby_input == false))) {
+			((devp->dv_flag == false) &&
+			((dolby_input & (1 << devp->index)) == false))) {
 			devp->source_bitdepth = 10;
 			wr_bits(offset, VDIN_WR_CTRL2, 1,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
@@ -2996,17 +2999,15 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 	for (index = 0; index < size; index++) {
 		devp->vfp->dv_buf_mem[index] = devp->dv_dma_paddr +
 			dolby_size_byte * index;
-		#if 0
-		devp->vfp->dv_buf_ori[index] =
-			phys_to_virt(devp->vfp->dv_buf_mem[index]);
-		#else
+		devp->vfp->dv_buf_vmem[index] = devp->dv_dma_vaddr +
+			dolby_size_byte * index;
 		devp->vfp->dv_buf_ori[index] =
 			phys_to_virt(devp->mem_start + devp->mem_size -
 			dolby_size_byte * (devp->canvas_max_num - index));
-		#endif
-		pr_info("%s:dv_buf_ori[%d]=0x%p(0x%x)\n", __func__, index,
+		pr_info("%s:dv_buf[%d]=0x%p(0x%x,0x%p)\n", __func__, index,
 			devp->vfp->dv_buf_ori[index],
-			devp->vfp->dv_buf_mem[index]);
+			devp->vfp->dv_buf_mem[index],
+			devp->vfp->dv_buf_vmem[index]);
 	}
 	pr_info("%s:dv_dma_vaddr=0x%p,dv_dma_paddr=0x%lx\n", __func__,
 		devp->dv_dma_vaddr, (ulong)devp->dv_dma_paddr);
@@ -3033,25 +3034,70 @@ void vdin_dolby_metadata_swap(char *buf)
 		}
 	}
 }
-#if 0
-void vdin_dolby_metadata_swap2(char *buf)
-{
-	char ext;
-	unsigned int i, j;
-	for (i = 0; (i < dolby_size_byte; i++) {
-		for (j = 0; j < 4; j++) {
-			ext = buf[i*4+j];
-			buf[i*4+j] = buf[i*4+3-j];
-			buf[i*4+3-j] = ext;
-		}
-	}
-}
-#endif
+
 #define swap32(num) \
 	(((num>>24)&0xff) | \
 	((num<<8)&0xff0000) | \
 	((num>>8)&0xff00) | \
 	((num<<24)&0xff000000))
+
+static uint32_t crc32_lut[256] = {
+	0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
+	0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
+	0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
+	0x4593e01e, 0x4152fda9, 0x5f15adac, 0x5bd4b01b, 0x569796c2, 0x52568b75,
+	0x6a1936c8, 0x6ed82b7f, 0x639b0da6, 0x675a1011, 0x791d4014, 0x7ddc5da3,
+	0x709f7b7a, 0x745e66cd, 0x9823b6e0, 0x9ce2ab57, 0x91a18d8e, 0x95609039,
+	0x8b27c03c, 0x8fe6dd8b, 0x82a5fb52, 0x8664e6e5, 0xbe2b5b58, 0xbaea46ef,
+	0xb7a96036, 0xb3687d81, 0xad2f2d84, 0xa9ee3033, 0xa4ad16ea, 0xa06c0b5d,
+	0xd4326d90, 0xd0f37027, 0xddb056fe, 0xd9714b49, 0xc7361b4c, 0xc3f706fb,
+	0xceb42022, 0xca753d95, 0xf23a8028, 0xf6fb9d9f, 0xfbb8bb46, 0xff79a6f1,
+	0xe13ef6f4, 0xe5ffeb43, 0xe8bccd9a, 0xec7dd02d, 0x34867077, 0x30476dc0,
+	0x3d044b19, 0x39c556ae, 0x278206ab, 0x23431b1c, 0x2e003dc5, 0x2ac12072,
+	0x128e9dcf, 0x164f8078, 0x1b0ca6a1, 0x1fcdbb16, 0x018aeb13, 0x054bf6a4,
+	0x0808d07d, 0x0cc9cdca, 0x7897ab07, 0x7c56b6b0, 0x71159069, 0x75d48dde,
+	0x6b93dddb, 0x6f52c06c, 0x6211e6b5, 0x66d0fb02, 0x5e9f46bf, 0x5a5e5b08,
+	0x571d7dd1, 0x53dc6066, 0x4d9b3063, 0x495a2dd4, 0x44190b0d, 0x40d816ba,
+	0xaca5c697, 0xa864db20, 0xa527fdf9, 0xa1e6e04e, 0xbfa1b04b, 0xbb60adfc,
+	0xb6238b25, 0xb2e29692, 0x8aad2b2f, 0x8e6c3698, 0x832f1041, 0x87ee0df6,
+	0x99a95df3, 0x9d684044, 0x902b669d, 0x94ea7b2a, 0xe0b41de7, 0xe4750050,
+	0xe9362689, 0xedf73b3e, 0xf3b06b3b, 0xf771768c, 0xfa325055, 0xfef34de2,
+	0xc6bcf05f, 0xc27dede8, 0xcf3ecb31, 0xcbffd686, 0xd5b88683, 0xd1799b34,
+	0xdc3abded, 0xd8fba05a, 0x690ce0ee, 0x6dcdfd59, 0x608edb80, 0x644fc637,
+	0x7a089632, 0x7ec98b85, 0x738aad5c, 0x774bb0eb, 0x4f040d56, 0x4bc510e1,
+	0x46863638, 0x42472b8f, 0x5c007b8a, 0x58c1663d, 0x558240e4, 0x51435d53,
+	0x251d3b9e, 0x21dc2629, 0x2c9f00f0, 0x285e1d47, 0x36194d42, 0x32d850f5,
+	0x3f9b762c, 0x3b5a6b9b, 0x0315d626, 0x07d4cb91, 0x0a97ed48, 0x0e56f0ff,
+	0x1011a0fa, 0x14d0bd4d, 0x19939b94, 0x1d528623, 0xf12f560e, 0xf5ee4bb9,
+	0xf8ad6d60, 0xfc6c70d7, 0xe22b20d2, 0xe6ea3d65, 0xeba91bbc, 0xef68060b,
+	0xd727bbb6, 0xd3e6a601, 0xdea580d8, 0xda649d6f, 0xc423cd6a, 0xc0e2d0dd,
+	0xcda1f604, 0xc960ebb3, 0xbd3e8d7e, 0xb9ff90c9, 0xb4bcb610, 0xb07daba7,
+	0xae3afba2, 0xaafbe615, 0xa7b8c0cc, 0xa379dd7b, 0x9b3660c6, 0x9ff77d71,
+	0x92b45ba8, 0x9675461f, 0x8832161a, 0x8cf30bad, 0x81b02d74, 0x857130c3,
+	0x5d8a9099, 0x594b8d2e, 0x5408abf7, 0x50c9b640, 0x4e8ee645, 0x4a4ffbf2,
+	0x470cdd2b, 0x43cdc09c, 0x7b827d21, 0x7f436096, 0x7200464f, 0x76c15bf8,
+	0x68860bfd, 0x6c47164a, 0x61043093, 0x65c52d24, 0x119b4be9, 0x155a565e,
+	0x18197087, 0x1cd86d30, 0x029f3d35, 0x065e2082, 0x0b1d065b, 0x0fdc1bec,
+	0x3793a651, 0x3352bbe6, 0x3e119d3f, 0x3ad08088, 0x2497d08d, 0x2056cd3a,
+	0x2d15ebe3, 0x29d4f654, 0xc5a92679, 0xc1683bce, 0xcc2b1d17, 0xc8ea00a0,
+	0xd6ad50a5, 0xd26c4d12, 0xdf2f6bcb, 0xdbee767c, 0xe3a1cbc1, 0xe760d676,
+	0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
+	0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662,
+	0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
+	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
+};
+
+uint32_t crc32(uint32_t crc, const void *buf, size_t size)
+{
+	const uint8_t *p = (const uint8_t *)buf;
+	crc = ~crc;
+	while (size) {
+		crc = (crc << 8) ^ crc32_lut[((crc >> 24) ^ *p) & 0xff];
+		p++;
+		size--;
+	}
+	return crc;
+}
 
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 {
@@ -3059,92 +3105,120 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	char *c;
 	uint32_t meta32, meta_size;
 	int i;
+	int count;
 	unsigned int offset = devp->addr_offset;
+	uint32_t crc_result, crc;
 
 	if (index >= devp->canvas_max_num)
 		return;
-	wr(offset, VDIN_DOLBY_DSC_CTRL3, 0);
-	wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xd180c0d5);
-	p = (uint32_t *)devp->vfp->dv_buf_ori[index];
+
 	c = devp->vfp->dv_buf_ori[index];
-	meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
-	p[0] = swap32(meta32);
-	meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
-	p[1] = swap32(meta32);
-	meta_size = (c[3] << 8) | c[4];
-	if (meta_size + 5 > dolby_size_byte)
-		meta_size = dolby_size_byte - 5;
-	for (i = 2; i < (meta_size + 5 + 3) / 4; i++) {
-		meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
-		p[i] = swap32(meta32);
+	p = (uint32_t *)c;
+	for (count = 0; count < META_RETRY_MAX; count++) {
+		if (dv_dbg_mask & DV_READ_MODE_AXI) {
+			memcpy(p, devp->vfp->dv_buf_vmem[index], 128);
+			vdin_dolby_metadata_swap(c);
+		} else {
+			wr(offset, VDIN_DOLBY_DSC_CTRL3, 0);
+			wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xd180c0d5);
+			for (i = 0; i < 32; i++) {
+				meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
+				p[i] = swap32(meta32);
+			}
+		}
+		meta_size = (c[3] << 8) | c[4];
+		if (meta_size + 5 > 128)
+			meta_size = 128 - 5;
+		crc = p[31];
+		crc_result = crc32(0, p, 124);
+		crc_result = swap32(crc_result);
+		if (crc == crc_result)
+			break;
 	}
-	if (dv_dbg_mask & DV_SWAP_EN)
-		vdin_dolby_metadata_swap(devp->vfp->dv_buf_ori[index]);
-	#if 0
-	devp->vfp->dv_buf[index] = devp->vfp->dv_buf_ori[index] + 5;
-	devp->vfp->dv_buf_size[index] = *(devp->vfp->dv_buf_ori[index] + 3);
-	devp->vfp->dv_buf_size[index] = (devp->vfp->dv_buf_size[index] << 8) |
-		*(devp->vfp->dv_buf_ori[index] + 4);
-	#else
-	devp->vfp->dv_buf[index] = &c[5];
-	devp->vfp->dv_buf_size[index] = meta_size;
-	#endif
-	if (dv_dbg_log&(1<<0))
-		pr_info("%s:index:%d,size:%d,data:%08x %08x %08x...%08x\n",
-			__func__, index, devp->vfp->dv_buf_size[index],
-			p[1], p[2], p[3], p[(meta_size + 5 + 3) / 4 - 1]);
-	if (devp->vfp->dv_buf_size[index] > dolby_size_byte) {
-		if (dv_dbg_log&(1<<1))
-			pr_info("%s:index:%d,size:%d[0x%x]\n", __func__, index,
-				devp->vfp->dv_buf_size[index],
-				devp->vfp->dv_buf_size[index]);
-		devp->vfp->dv_buf_size[index] = 0;
+	if (crc != crc_result) {
+		/* set small size to make control path return -1
+		   to use previous setting */
+		devp->vfp->dv_buf[index] = &c[5];
+		devp->vfp->dv_buf_size[index] = 4;
+		pr_err("%s:hdmi dovi meta crc error:%08x!=%08x\n",
+			__func__, crc, crc_result);
+		pr_info("%s:index:%d dma:%x vaddr:%p size:%d\n",
+			__func__, index,
+			devp->vfp->dv_buf_mem[index],
+			devp->vfp->dv_buf_vmem[index],
+			meta_size);
+		for (i = 0; i < 32; i += 4)
+			pr_info("\t%08x %08x %08x %08x\n",
+				p[i], p[i+1], p[i+2], p[i+3]);
+	} else {
+		devp->vfp->dv_buf[index] = &c[5];
+		devp->vfp->dv_buf_size[index] = meta_size;
+		if (dv_dbg_log&(1<<0))
+			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x\n",
+				__func__, index,
+				devp->vfp->dv_buf_mem[index],
+				devp->vfp->dv_buf_vmem[index],
+				meta_size, crc);
+		if (dv_dbg_log&(1<<2))
+			for (i = 0; i < 32; i += 4)
+				pr_info("\t%08x %08x %08x %08x\n",
+					p[i], p[i+1], p[i+2], p[i+3]);
 	}
 }
+
 void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index)
 {
 	unsigned int offset = devp->addr_offset;
+	uint32_t *p;
+
 	if (index >= devp->canvas_max_num)
 		return;
+	devp->vfp->dv_buf[index] = NULL;
+	devp->vfp->dv_buf_size[index] = 0;
+	p = (uint32_t *)devp->vfp->dv_buf_vmem[index];
+	p[0] = p[1] = 0;
+	if (dv_dbg_mask & DV_READ_MODE_AXI) {
+		wr(offset, VDIN_DOLBY_AXI_CTRL1,
+			devp->vfp->dv_buf_mem[index]);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 4, 1);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+		if (dv_dbg_log&(1<<0))
+			pr_info("%s:index:%d dma:%x\n", __func__,
+				index, devp->vfp->dv_buf_mem[index]);
+	} else {
+		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
+		wr(offset, VDIN_DOLBY_DSC_CTRL3, 0);
+		if (dv_dbg_log&(1<<0))
+			pr_info("%s:index:%d\n", __func__,	index);
+	}
+
 	if (dv_dbg_log&(1<<2))
 		pr_info("%s:index:%d,paddr:0x%x\n", __func__, index,
 			devp->vfp->dv_buf_mem[index]);
-	/*mem*/
-	wr(offset, VDIN_DOLBY_AXI_CTRL1, devp->vfp->dv_buf_mem[index]);
-	if (dv_dbg_mask & DV_BUF_START_RESET) {
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  4, 1);
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  4, 1);
-	}
-	if (dv_dbg_mask & DV_FRAME_BUF_START_RESET) {
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  5, 1);
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  5, 1);
-	}
-	if ((dv_dbg_mask & DV_READ_MODE_AXI) == 0) {
-		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
-		wr(offset, VDIN_DOLBY_DSC_CTRL3, 0x0);
-	}
 }
+
 void vdin_dolby_config(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	devp->dv_config = 1;
-	/*mem*/
-	wr(offset, VDIN_DOLBY_AXI_CTRL1,
-		devp->dv_dma_paddr);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 30, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 26, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 0, 26, 1);
-	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  4, 1);
-	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  5, 1);
-	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  5, 1);
-	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  4, 1);
-	if (dv_dbg_mask & DV_READ_MODE_AXI)/*axi read mode?*/
-		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x1180c0d5);
-	else {/*reg read mode*/
+	if (dv_dbg_mask & DV_READ_MODE_AXI) {
+		wr(offset, VDIN_DOLBY_AXI_CTRL1,
+			devp->vfp->dv_buf_mem[0]);
+		/* hold line = 0 */
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 8, 8);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 4, 1);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 5, 1);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 5, 1);
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+	} else {
 		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
 		wr(offset, VDIN_DOLBY_DSC_CTRL3, 0x0);
 	}
 }
+
 int vdin_event_cb(int type, void *data, void *op_arg)
 {
 	unsigned long flags;
@@ -3183,7 +3257,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		}
 		spin_unlock_irqrestore(&p->dv_lock, flags);
 
-		if (dv_dbg_log&(1<<5))
+		if (dv_dbg_log&(1<<1))
 			pr_info("%s(type 0x%x vf index 0x%x)=>size 0x%x\n",
 			__func__, type, index, req->aux_size);
 	} else if (type & VFRAME_EVENT_RECEIVER_DISP_MODE) {

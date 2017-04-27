@@ -201,9 +201,10 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 			(vdin_hdr_flag != pre_vdin_hdr_flag) ||
 			(vdin_fmt_range != pre_vdin_fmt_range)
 			) {
-			pr_info("[smr.%d] color fmt(%d->%d),csc_cfg:0x%x\n",
+			pr_info("[smr.%d] color fmt(%d->%d), hdr_flag(%d->%d)csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
+					pre_vdin_hdr_flag, vdin_hdr_flag,
 					devp->csc_cfg);
 			vdin_get_format_convert(devp);
 			devp->csc_cfg = 1;
@@ -260,6 +261,19 @@ void tvin_smr_init_counter(int index)
 	sm_dev[index].exit_prestable_cnt = 0;
 }
 
+static void hdmirx_dv_check(struct vdin_dev_s *devp,
+	struct tvin_sig_property_s *prop)
+{
+	/*check hdmiin dolby input*/
+	if (prop->dolby_vision)
+		devp->dv_flag_cnt = 0;
+	else if (devp->dv_flag_cnt <= 60)
+		devp->dv_flag_cnt++;
+	if ((prop->dolby_vision != devp->dv_flag) &&
+		(prop->dolby_vision || (devp->dv_flag_cnt >= 60)))
+		devp->dv_flag = prop->dolby_vision;
+}
+
 /*
  * tvin state machine routine
  *
@@ -290,6 +304,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 	port = devp->parm.port;
 	prop = &devp->prop;
 	pre_prop = &devp->pre_prop;
+
+	hdmirx_dv_check(devp, prop);
 
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
@@ -408,8 +424,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 							prop->dvi_info & 0xf;
 						devp->parm.info.fps =
 							prop->dvi_info >> 4;
-						devp->dv_flag =
-							prop->dolby_vision;
 					}
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;
@@ -614,7 +628,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						prop->dvi_info & 0xf;
 					devp->parm.info.fps =
 						prop->dvi_info >> 4;
-					devp->dv_flag = prop->dolby_vision;
 					info->fmt = stable_fmt;
 					atv_stable_fmt_check_enable = 0;
 					if (sm_debug_enable)

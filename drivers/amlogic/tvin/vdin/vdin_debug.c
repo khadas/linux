@@ -369,8 +369,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			devp->vfp->dv_buf_size[i],
 			devp->vfp->dv_buf_mem[i]);
 	}
-	pr_info("dv_flag:%d;dv_config:%d\n",
-		devp->dv_flag, devp->dv_config);
+	pr_info("dv_flag:%d;dv_config:%d,dolby_vision:%d\n",
+		devp->dv_flag, devp->dv_config, devp->prop.dolby_vision);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 

@@ -347,7 +347,10 @@ static void vfm_init(void)
 	char def_dvel_id[] = "dvelpath";
 	char def_dvel_chain[] = "dveldec dvel";
 #endif
-
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	char def_dvhdmiin_id[] = "dvhdmiin";
+	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
+#endif
 	int i;
 	for (i = 0; i < VFM_MAP_COUNT; i++)
 		vfm_map[i] = NULL;
@@ -372,6 +375,9 @@ static void vfm_init(void)
 #ifdef CONFIG_AM_VDEC_DV
 	vfm_map_add(def_dvbl_id, def_dvbl_chain);
 	vfm_map_add(def_dvel_id, def_dvel_chain);
+#endif
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	vfm_map_add(def_dvhdmiin_id, def_dvhdmiin_chain);
 #endif
 }
 

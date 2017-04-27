@@ -1527,7 +1527,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 		/*dolby version start VSI*/
 		vs->dolby_vision = TRUE;
 		/*length = 0x18,PB6-PB23 = 0x00*/
-		if (!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFFFF0000) &&
+		/*if (!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFFFF0000) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD1) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD2) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD3) &&
@@ -1537,24 +1537,24 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 				if (vs->dolby_vision_sts == DOLBY_VERSION_STOP)
 					rx_pr("dolby vision start\n");
 			vs->dolby_vision_sts = DOLBY_VERSION_START;
-		}
+		}yanglei@20170504 suggest mark*/
 		/*PB4 PB5 = 0x00 exit dolby version*/
 		if (((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF) == 0) &&
 		((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF00) == 0)) {
-			if (log_level & VSI_LOG) {
-				if (vs->dolby_vision_sts == DOLBY_VERSION_START)
-					rx_pr("dolby vision stop\n");
-			}
+			if (log_level & VSI_LOG)
+				rx_pr("dolby vision stop\n");
 			vs->dolby_vision_sts = DOLBY_VERSION_STOP;
+		} else {
+			if (log_level & VSI_LOG)
+				rx_pr("dolby vision start\n");
+			vs->dolby_vision_sts = DOLBY_VERSION_START;
 		}
 	} else if (((vsi_info.length == 0x04) || (vsi_info.length == 0x05)) &&
 		(vsi_info.vid_format != VSI_FORMAT_3D_FORMAT)) {
 		/*dolby version exit VSI*/
 		vs->dolby_vision = TRUE;
-		if (log_level & VSI_LOG) {
-			if (vs->dolby_vision_sts == DOLBY_VERSION_START)
-				rx_pr("dolby vision stop\n");
-		}
+		if (log_level & VSI_LOG)
+			rx_pr("dolby vision stop\n");
 		vs->dolby_vision_sts = DOLBY_VERSION_STOP;
 	} else {
 	/*3d VSI*/
@@ -1571,6 +1571,8 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 			vsi_info.detail.data_3d.struct_3d,
 			 vsi_info.struct_3d_ext);
 	}
+	if (log_level & VSI_LOG)
+		rx_pr("dolby vision:%d\n", vs->dolby_vision);
 	#else
 	vs->identifier = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST0, IEEE_REG_ID);
 	vs->vd_fmt = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, HDMI_VIDEO_FORMAT);
