@@ -141,6 +141,7 @@ struct vf_pool {
 #endif
 	atomic_t buffer_cnt;
 	unsigned int	dv_buf_mem[VDIN_DV_MAX_NUM];
+	void	*dv_buf_vmem[VDIN_DV_MAX_NUM];
 	unsigned int	dv_buf_size[VDIN_DV_MAX_NUM];
 	char	*dv_buf[VDIN_DV_MAX_NUM];
 	char	*dv_buf_ori[VDIN_DV_MAX_NUM];

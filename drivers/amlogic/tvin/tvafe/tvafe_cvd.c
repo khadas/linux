@@ -369,7 +369,7 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 	W_APB_BIT(ACD_REG_2A ,
 		cvd_mem_4f_length[fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
 		REG_4F_MOTION_LENGTH_BIT, REG_4F_MOTION_LENGTH_WID);
-
+#if 1
 	/* vbi memory setting */
 	W_APB_REG(ACD_REG_2F, (cvd2_addr + vbi_offset));
 	W_APB_BIT(ACD_REG_21, vbi_size,
@@ -378,7 +378,7 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 		AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
 	/*open front lpf for av ring*/
 	W_APB_BIT(ACD_REG_26, 1, 8, 1);
-
+#endif
 	return;
 }
 /*

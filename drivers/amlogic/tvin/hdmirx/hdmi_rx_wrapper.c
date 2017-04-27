@@ -952,6 +952,10 @@ static int vsi_handler(struct hdmi_rx_ctrl *ctx)
 	hdmirx_read_vendor_specific_info_frame(&vs_info);
 	if (vs_info.dolby_vision == TRUE)
 		rx.dolby_vision_sts = vs_info.dolby_vision_sts;
+	if (log_level & VSI_LOG)
+		rx_pr("dolby vision:%d,dolby_vision_sts(%d,%d)\n",
+		vs_info.dolby_vision, rx.dolby_vision_sts,
+		vs_info.dolby_vision_sts);
 	return TRUE;
 }
 
@@ -1495,6 +1499,8 @@ int hdmirx_hw_get_3d_structure(unsigned char *_3d_structure,
 			       unsigned char *_3d_ext_data)
 {
 	hdmirx_read_vendor_specific_info_frame(&rx.vendor_specific_info);
+	if (rx.vendor_specific_info.dolby_vision == TRUE)
+		rx.dolby_vision_sts = rx.vendor_specific_info.dolby_vision_sts;
 	if ((rx.vendor_specific_info.identifier == 0x000c03) &&
 	    (rx.vendor_specific_info.vd_fmt == VSI_FORMAT_3D_FORMAT)) {
 		*_3d_structure = rx.vendor_specific_info._3d_structure;

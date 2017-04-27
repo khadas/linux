@@ -574,10 +574,6 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		prop->color_format = TVIN_RGB444;
 
 	sig_fmt = hdmirx_hw_get_fmt();
-	if (rx.dolby_vision_sts == DOLBY_VERSION_START)
-		prop->dolby_vision = TRUE;
-	else
-		prop->dolby_vision = FALSE;
 
 	prop->trans_fmt = TVIN_TFMT_2D;
 	if (hdmirx_hw_get_3d_structure(&_3d_structure,
@@ -623,6 +619,12 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			}
 		}
 	}
+
+	if (rx.dolby_vision_sts == DOLBY_VERSION_START)
+		prop->dolby_vision = TRUE;
+	else if (rx.dolby_vision_sts == DOLBY_VERSION_STOP)
+		prop->dolby_vision = FALSE;
+
 	if (is_frame_packing())
 		prop->trans_fmt = TVIN_TFMT_3D_FP;
 	else if (is_alternative())

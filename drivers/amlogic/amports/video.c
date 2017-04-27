@@ -3778,8 +3778,12 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 1;
-	vf_notify_provider_by_name("vdin0", VFRAME_EVENT_RECEIVER_DISP_MODE,
-		(void *)&req);
+	if (is_dolby_vision_enable())
+		vf_notify_provider_by_name("dv_vdin",
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
+	else
+		vf_notify_provider_by_name("vdin0",
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	if (req.disp_mode == VFRAME_DISP_MODE_OK)
 		return false;
 	/*whether need to check pts??*/
@@ -3793,8 +3797,12 @@ static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 0;
-	vf_notify_provider_by_name("vdin0", VFRAME_EVENT_RECEIVER_DISP_MODE,
-		(void *)&req);
+	if (is_dolby_vision_enable())
+		vf_notify_provider_by_name("dv_vdin",
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
+	else
+		vf_notify_provider_by_name("vdin0",
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	return req.disp_mode;
 }
 static inline bool video_vf_dirty_put(struct vframe_s *vf)

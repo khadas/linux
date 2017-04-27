@@ -205,6 +205,9 @@ struct vdin_dev_s {
 	struct tvin_sig_property_s	pre_prop;
 	struct tvin_sig_property_s	prop;
 	struct vframe_provider_s	vprov;
+#if 1/*def CONFIG_AM_HDMIIN_DV*/
+	struct vframe_provider_s	vprov_dv;
+#endif
 	 /* 0:from gpio A,1:from csi2 , 2:gpio B*/
 	enum bt_path_e              bt_path;
 
@@ -286,7 +289,7 @@ struct vdin_dev_s {
 	unsigned int			dv_last_index;
 	dma_addr_t dv_dma_paddr;
 	void *dv_dma_vaddr;
-	bool	dv_index_update;
+	unsigned int	dv_flag_cnt;/*cnt for no dv input*/
 	bool	dv_flag;
 	bool	dv_config;
 };
