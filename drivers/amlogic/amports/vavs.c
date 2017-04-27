@@ -44,6 +44,8 @@
 #define DRIVER_NAME "amvdec_avs"
 #define MODULE_NAME "amvdec_avs"
 
+#define ENABLE_USER_DATA
+
 #if 1/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NV21
 #endif
@@ -184,6 +186,10 @@ void *avsp_heap_adr;
 static uint long_cabac_busy;
 #endif
 
+#ifdef ENABLE_USER_DATA
+static void *user_data_buffer;
+static dma_addr_t user_data_buffer_phys;
+#endif
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
@@ -287,6 +293,105 @@ static void set_frame_info(struct vframe_s *vf, unsigned *duration)
 	vf->flag = 0;
 }
 
+#ifdef ENABLE_USER_DATA
+
+static struct work_struct userdata_push_work;
+/*
+#define DUMP_LAST_REPORTED_USER_DATA
+*/
+static void userdata_push_do_work(struct work_struct *work)
+{
+	unsigned int user_data_flags;
+	unsigned int user_data_wp;
+	unsigned int user_data_length;
+	struct userdata_poc_info_t user_data_poc;
+#ifdef DUMP_LAST_REPORTED_USER_DATA
+	int user_data_len;
+	int wp_start;
+	unsigned char *pdata;
+	int nLeft;
+#endif
+
+	user_data_flags = READ_VREG(AV_SCRATCH_N);
+	user_data_wp = (user_data_flags >> 16) & 0xffff;
+	user_data_length = user_data_flags & 0x7fff;
+
+#ifdef DUMP_LAST_REPORTED_USER_DATA
+	dma_sync_single_for_cpu(amports_get_dma_device(),
+			user_data_buffer_phys, USER_DATA_SIZE,
+			DMA_FROM_DEVICE);
+
+	if (user_data_length & 0x07)
+		user_data_len = (user_data_length + 8) & 0xFFFFFFF8;
+	else
+		user_data_len = user_data_length;
+
+	if (user_data_wp >= user_data_len) {
+		wp_start = user_data_wp - user_data_len;
+
+		pdata = (unsigned char *)user_data_buffer;
+		pdata += wp_start;
+		nLeft = user_data_len;
+		while (nLeft >= 8) {
+			pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+				pdata[0], pdata[1], pdata[2], pdata[3],
+				pdata[4], pdata[5], pdata[6], pdata[7]);
+			nLeft -= 8;
+			pdata += 8;
+		}
+	} else {
+		wp_start = user_data_wp +
+			USER_DATA_SIZE - user_data_len;
+
+		pdata = (unsigned char *)user_data_buffer;
+		pdata += wp_start;
+		nLeft = USER_DATA_SIZE - wp_start;
+
+		while (nLeft >= 8) {
+			pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+				pdata[0], pdata[1], pdata[2], pdata[3],
+				pdata[4], pdata[5], pdata[6], pdata[7]);
+			nLeft -= 8;
+			pdata += 8;
+		}
+
+		pdata = (unsigned char *)user_data_buffer;
+		nLeft = user_data_wp;
+		while (nLeft >= 8) {
+			pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+				pdata[0], pdata[1], pdata[2], pdata[3],
+				pdata[4], pdata[5], pdata[6], pdata[7]);
+			nLeft -= 8;
+			pdata += 8;
+		}
+	}
+#endif
+
+/*
+	pr_info("pocinfo 0x%x, poc %d, wp 0x%x, len %d\n",
+		   READ_VREG(AV_SCRATCH_L), READ_VREG(AV_SCRATCH_M),
+		   user_data_wp, user_data_length);
+*/
+	user_data_poc.poc_info = READ_VREG(AV_SCRATCH_L);
+	user_data_poc.poc_number = READ_VREG(AV_SCRATCH_M);
+
+	WRITE_VREG(AV_SCRATCH_N, 0);
+	wakeup_userdata_poll(user_data_poc, user_data_wp,
+				(unsigned long)user_data_buffer,
+				USER_DATA_SIZE, user_data_length);
+}
+
+static void UserDataHandler(void)
+{
+	unsigned int user_data_flags;
+
+	user_data_flags = READ_VREG(AV_SCRATCH_N);
+	if (user_data_flags & (1 << 15)) {	/* data ready */
+		schedule_work(&userdata_push_work);
+	}
+}
+#endif
+
 #ifdef HANDLE_AVS_IRQ
 static irqreturn_t vavs_isr(int irq, void *dev_id)
 #else
@@ -315,6 +420,10 @@ static void vavs_isr(void)
 #endif
 		schedule_work(&long_cabac_wd_work);
 	}
+#endif
+
+#ifdef ENABLE_USER_DATA
+	UserDataHandler();
 #endif
 	reg = READ_VREG(AVS_BUFFEROUT);
 
@@ -959,6 +1068,12 @@ static int vavs_prot_init(void)
 		WRITE_VREG(LONG_CABAC_SRC_ADDR, 0);
 	}
 #endif
+
+#ifdef ENABLE_USER_DATA
+	WRITE_VREG(AV_SCRATCH_N, (u32)(user_data_buffer_phys - buf_offset));
+	pr_info("AV_SCRATCH_N = 0x%x\n", READ_VREG(AV_SCRATCH_N));
+#endif
+
 	return r;
 }
 
@@ -1056,6 +1171,11 @@ static void vavs_local_reset(void)
 		READ_VREG(VLD_MEM_VIFIFO_RP),
 		READ_VREG(VLD_MEM_VIFIFO_LEVEL));
 #endif
+
+#ifdef ENABLE_USER_DATA
+	reset_userdata_fifo(1);
+#endif
+
 	mutex_unlock(&vavs_mutex);
 }
 
@@ -1442,6 +1562,21 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 
 	vavs_vdec_info_init();
 
+#ifdef ENABLE_USER_DATA
+	if (NULL == user_data_buffer) {
+		user_data_buffer =
+			dma_alloc_coherent(amports_get_dma_device(),
+				USER_DATA_SIZE,
+				&user_data_buffer_phys, GFP_KERNEL);
+		if (!user_data_buffer) {
+			pr_info("%s: Can not allocate user_data_buffer\n",
+				   __func__);
+			return -ENOMEM;
+		}
+		pr_info("user_data_buffer = 0x%p, user_data_buffer_phys = 0x%x\n",
+			user_data_buffer, (u32)user_data_buffer_phys);
+	}
+#endif
 	if (vavs_init() < 0) {
 		pr_info("amvdec_avs init failed.\n");
 		kfree(gvs);
@@ -1451,7 +1586,9 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&fatal_error_wd_work, vavs_fatal_error_handler);
 	atomic_set(&error_handler_run, 0);
-
+#ifdef ENABLE_USER_DATA
+	INIT_WORK(&userdata_push_work, userdata_push_do_work);
+#endif
 	return 0;
 }
 
@@ -1459,7 +1596,9 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 {
 	cancel_work_sync(&fatal_error_wd_work);
 	atomic_set(&error_handler_run, 0);
-
+#ifdef ENABLE_USER_DATA
+	cancel_work_sync(&userdata_push_work);
+#endif
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
 		stat &= ~STAT_VDEC_RUN;
@@ -1518,6 +1657,17 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 		stat &= ~STAT_VF_HOOK;
 	}
 
+#ifdef ENABLE_USER_DATA
+	if (user_data_buffer != NULL) {
+		dma_free_coherent(
+			amports_get_dma_device(),
+			USER_DATA_SIZE,
+			user_data_buffer,
+			user_data_buffer_phys);
+		user_data_buffer = NULL;
+		user_data_buffer_phys = 0;
+	}
+#endif
 	amvdec_disable();
 
 	pic_type = 0;

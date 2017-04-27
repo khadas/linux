@@ -118,6 +118,7 @@
 #define AMSTREAM_IOC_SET_BLACKOUT_POLICY   _IOW((_A_M), 0x53, int)
 #define AMSTREAM_IOC_UD_LENGTH _IOR((_A_M), 0x54, int)
 #define AMSTREAM_IOC_UD_POC _IOR((_A_M), 0x55, int)
+#define AMSTREAM_IOC_UD_FLUSH_USERDATA _IOR((_A_M), 0x56, int)
 #define AMSTREAM_IOC_GET_SCREEN_MODE _IOR((_A_M), 0x58, int)
 #define AMSTREAM_IOC_SET_SCREEN_MODE _IOW((_A_M), 0x59, int)
 #define AMSTREAM_IOC_GET_VIDEO_DISCONTINUE_REPORT _IOR((_A_M), 0x5a, int)
@@ -577,10 +578,11 @@ int tsdemux_set_reset_flag(void);
 
 void set_adec_func(int (*adec_func)(struct adec_status *));
 void wakeup_sub_poll(void);
-void set_userdata_poc(struct userdata_poc_info_t poc);
 void init_userdata_fifo(void);
-int wakeup_userdata_poll(int wp, unsigned long start_phyaddr, int buf_size,
-						 int data_length);
+void reset_userdata_fifo(int bInit);
+int wakeup_userdata_poll(struct userdata_poc_info_t poc,
+			int wp, unsigned long start_phyaddr,
+			int buf_size, int data_length);
 int get_sub_type(void);
 
 #endif				/*
