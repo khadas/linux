@@ -79,30 +79,30 @@
 			no-map;
 		};
 		/*di reserved mem*/
-		di_reserved:linux,di {
-			compatible = "amlogic, di-mem";
+		//di_reserved:linux,di {
+			//compatible = "amlogic, di-mem";
 			/* buffer_size = 3621952(yuv422 8bit) | 4736064(yuv422 10bit) | 4179008(yuv422 10bit full pack mode) */
 			/** 10x3621952=34.6M(0x23) support 8bit **/
 			/** 10x4736064=45.2M(0x2e) support 12bit **/
 			/** 10x4179008=40M(0x28) support 10bit **/
-			size = <0x0 0x2800000>;
+			//size = <0x0 0x2800000>;
 			//no-map;
-		};
+		//};
 		chunk_reserved:linux,chunk-reserve {
 			compatible = "amlogic, chunk-reserve";
 			size = <0x0 0x4000000>;
 		};
 		/*di CMA pool */
-		//di_cma_reserved:linux,di_cma {
-			//compatible = "shared-dma-pool";
-			//reusable;
+		di_cma_reserved:linux,di_cma {
+			compatible = "shared-dma-pool";
+			reusable;
 			/* buffer_size = 3621952(yuv422 8bit) | 4736064(yuv422 10bit) | 4179008(yuv422 10bit full pack mode) */
 			/** 10x3621952=34.6M(0x23) support 8bit **/
 			/** 10x4736064=45.2M(0x2e) support 12bit **/
 			/** 10x4179008=40M(0x28) support 10bit **/
-			//size = <0x0 0x02800000>;
-			//alignment = <0x0 0x400000>;
-		//};
+			size = <0x0 0x02800000>;
+			alignment = <0x0 0x400000>;
+		};
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
 			size = <0x0 0x600000>; //20m
@@ -348,9 +348,8 @@
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";
-		flag_cma = <0>;/*0:use reserved;1:use cma*/
-		memory-region = <&di_reserved>;
-		//memory-region = <&di_cma_reserved>;
+		flag_cma = <1>;/*0:use reserved;1:use cma*/
+		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
 				0 6 1>;
 		interrupt-names = "de_irq",
