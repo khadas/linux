@@ -326,7 +326,11 @@ static int userdata_length;
 static wait_queue_head_t amstream_userdata_wait;
 #define USERDATA_FIFO_NUM    1024
 static struct userdata_poc_info_t userdata_poc_info[USERDATA_FIFO_NUM];
-static int userdata_poc_ri = 0, userdata_poc_wi;
+static int userdata_poc_ri, userdata_poc_wi;
+static int last_read_wi;
+
+
+static DEFINE_MUTEX(userdata_mutex);
 
 static struct stream_port_s ports[] = {
 #ifdef CONFIG_MULTI_DEC
@@ -1331,10 +1335,8 @@ static unsigned int amstream_sub_poll(struct file *file,
 	return 0;
 }
 
-void set_userdata_poc(struct userdata_poc_info_t poc)
+static void set_userdata_poc(struct userdata_poc_info_t poc)
 {
-	/* pr_err("id %d, slicetype %d\n",
-	* userdata_slicetype_wi, slicetype); */
 	userdata_poc_info[userdata_poc_wi] = poc;
 	userdata_poc_wi++;
 	if (userdata_poc_wi == USERDATA_FIFO_NUM)
@@ -1347,17 +1349,60 @@ void init_userdata_fifo(void)
 {
 	userdata_poc_ri = 0;
 	userdata_poc_wi = 0;
+	userdata_length = 0;
 }
 
-int wakeup_userdata_poll(int wp, unsigned long start_phyaddr, int buf_size,
+void reset_userdata_fifo(int bInit)
+{
+	struct stream_buf_s *userdata_buf;
+	int wi, ri;
+	u32 rp, wp;
+
+	mutex_lock(&userdata_mutex);
+
+	wi = userdata_poc_wi;
+	ri = userdata_poc_ri;
+
+	userdata_buf = &bufs[BUF_TYPE_USERDATA];
+	rp = userdata_buf->buf_rp;
+	wp = userdata_buf->buf_wp;
+	if (bInit) {
+		/* decoder reset */
+		userdata_buf->buf_rp = 0;
+		userdata_buf->buf_wp = 0;
+		userdata_poc_ri = 0;
+		userdata_poc_wi = 0;
+	} else {
+		/* just clean fifo buffer */
+		userdata_buf->buf_rp = userdata_buf->buf_wp;
+		userdata_poc_ri = userdata_poc_wi;
+	}
+	userdata_length = 0;
+	last_read_wi = userdata_poc_wi;
+
+	mutex_unlock(&userdata_mutex);
+	pr_info("reset_userdata_fifo, bInit=%d, wi=%d, ri=%d, rp=%d, wp=%d\n",
+		bInit, wi, ri, rp, wp);
+}
+int wakeup_userdata_poll(struct userdata_poc_info_t poc,
+						int wp,
+						unsigned long start_phyaddr,
+						int buf_size,
 						 int data_length)
 {
 	struct stream_buf_s *userdata_buf = &bufs[BUF_TYPE_USERDATA];
+	mutex_lock(&userdata_mutex);
+
+	if (data_length & 0x7)
+		data_length = (((data_length + 8) >> 3) << 3);
+	set_userdata_poc(poc);
 	userdata_buf->buf_start = start_phyaddr;
 	userdata_buf->buf_wp = wp;
 	userdata_buf->buf_size = buf_size;
 	atomic_set(&userdata_ready, 1);
 	userdata_length += data_length;
+	mutex_unlock(&userdata_mutex);
+
 	wake_up_interruptible(&amstream_userdata_wait);
 	return userdata_buf->buf_rp;
 }
@@ -1376,51 +1421,117 @@ static unsigned int amstream_userdata_poll(struct file *file,
 static ssize_t amstream_userdata_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	u32 data_size, res, retVal = 0, buf_wp;
+	u32 data_size, res, retVal = 0;
+	u32 buf_wp, buf_rp, buf_size;
+	unsigned long buf_start;
 	struct stream_buf_s *userdata_buf = &bufs[BUF_TYPE_USERDATA];
-	buf_wp = userdata_buf->buf_wp;
-	if (userdata_buf->buf_start == 0 || userdata_buf->buf_size == 0)
-		return 0;
-	if (buf_wp == userdata_buf->buf_rp)
-		return 0;
-	if (buf_wp > userdata_buf->buf_rp)
-		data_size = buf_wp - userdata_buf->buf_rp;
-	else {
-		data_size =
-			userdata_buf->buf_size - userdata_buf->buf_rp + buf_wp;
+#ifdef DEBUG_USER_DATA
+	int old_wi;
+#endif
+
+	mutex_lock(&userdata_mutex);
+
+	if (userdata_poc_ri != last_read_wi) {
+		/***********************************************
+		app picks up poc counter wrong from last read user data
+		for H264. So, we need to recalculate userdata_poc_ri
+		to the userdata_poc_wi from the last read.
+		***********************************************/
+#if 0
+		pr_info("app pick up poc error: ri = %d, last_wi = %d\n",
+			userdata_poc_ri, last_read_wi);
+#endif
+		userdata_poc_ri = last_read_wi;
 	}
+
+	buf_wp = userdata_buf->buf_wp;
+	buf_rp = userdata_buf->buf_rp;
+	buf_size = userdata_buf->buf_size;
+	buf_start = userdata_buf->buf_start;
+#ifdef DEBUG_USER_DATA
+	old_wi = last_read_wi;
+#endif
+	last_read_wi = userdata_poc_wi;
+	mutex_unlock(&userdata_mutex);
+
+	if (buf_start == 0 || buf_size == 0)
+		return 0;
+	if (buf_wp == buf_rp)
+		return 0;
+	if (buf_wp > buf_rp)
+		data_size = buf_wp - buf_rp;
+	else
+		data_size = buf_size - buf_rp + buf_wp;
+
 	if (data_size > count)
 		data_size = count;
-	if (buf_wp < userdata_buf->buf_rp) {
-		int first_num = userdata_buf->buf_size - userdata_buf->buf_rp;
+#ifdef DEBUG_USER_DATA
+	pr_info("wi:%d ri:%d wp:%d rp:%d size:%d, last_read_wi=%d\n",
+		userdata_poc_wi, userdata_poc_ri,
+		buf_wp, buf_rp, data_size, old_wi);
+#endif
+	if (buf_wp < buf_rp) {
+		int first_num = buf_size - buf_rp;
 		if (data_size <= first_num) {
 			res = copy_to_user((void *)buf,
-				(void *)((userdata_buf->buf_rp +
-				userdata_buf->buf_start)), data_size);
+				(void *)((buf_rp +
+				buf_start)), data_size);
+			if (res)
+				pr_info("p1 read not end res=%d, request=%d\n",
+					res, data_size);
+
+			mutex_lock(&userdata_mutex);
 			userdata_buf->buf_rp += data_size - res;
+			mutex_unlock(&userdata_mutex);
 			retVal = data_size - res;
 		} else {
 			if (first_num > 0) {
 				res = copy_to_user((void *)buf,
-				(void *)((userdata_buf->buf_rp +
-				userdata_buf->buf_start)), first_num);
-				userdata_buf->buf_rp += first_num - res;
-				retVal = first_num - res;
-			} else {
-				res = copy_to_user((void *)buf,
-				(void *)((userdata_buf->buf_start)),
+				(void *)((buf_rp +
+				buf_start)), first_num);
+				if (res)
+					pr_info("p2 read not end res=%d, request=%d\n",
+						res, first_num);
+
+				res = copy_to_user((void *)buf+first_num,
+				(void *)(buf_start),
 				data_size - first_num);
+
+				if (res)
+					pr_info("p3 read not end res=%d, request=%d\n",
+						res, data_size - first_num);
+
+				mutex_lock(&userdata_mutex);
+				userdata_buf->buf_rp += data_size;
+				if (userdata_buf->buf_rp >= buf_size)
+					userdata_buf->buf_rp =
+						userdata_buf->buf_rp - buf_size;
+				mutex_unlock(&userdata_mutex);
+
+				retVal = data_size;
+			} else {
+				/* first_num == 0*/
+				res = copy_to_user((void *)buf,
+				(void *)((buf_start)),
+				data_size - first_num);
+				mutex_lock(&userdata_mutex);
 				userdata_buf->buf_rp =
 					data_size - first_num - res;
+				mutex_unlock(&userdata_mutex);
 				retVal = data_size - first_num - res;
 			}
 		}
 	} else {
 		res = copy_to_user((void *)buf,
-			(void *)((userdata_buf->buf_rp +
-			userdata_buf->buf_start)),
+			(void *)((buf_rp + buf_start)),
 			data_size);
+		if (res)
+			pr_info("p4 read not end res=%d, request=%d\n",
+				res, data_size);
+
+		mutex_lock(&userdata_mutex);
 		userdata_buf->buf_rp += data_size - res;
+		mutex_unlock(&userdata_mutex);
 		retVal = data_size - res;
 	}
 	return retVal;
@@ -2784,20 +2895,52 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 	case AMSTREAM_IOC_UD_POC:
 		if (this->type & PORT_TYPE_USERDATA) {
 			/* *((u32 *)arg) = userdata_length; */
-			int res;
-			struct userdata_poc_info_t userdata_poc =
-					userdata_poc_info[userdata_poc_ri];
-			/* put_user(userdata_poc.poc_number,
-			 * (unsigned long __user *)arg); */
-			res =
+			int ri;
+#ifdef DEBUG_USER_DATA
+			int wi;
+#endif
+			int bDataAvail = 0;
+
+			mutex_lock(&userdata_mutex);
+			if (userdata_poc_wi != userdata_poc_ri) {
+				bDataAvail = 1;
+				ri = userdata_poc_ri;
+#ifdef DEBUG_USER_DATA
+				wi = userdata_poc_wi;
+#endif
+				userdata_poc_ri++;
+				if (userdata_poc_ri >= USERDATA_FIFO_NUM)
+					userdata_poc_ri = 0;
+			}
+			mutex_unlock(&userdata_mutex);
+			if (bDataAvail) {
+				int res;
+				struct userdata_poc_info_t userdata_poc =
+					userdata_poc_info[ri];
+#ifdef DEBUG_USER_DATA
+				pr_info("read poc: ri=%d, wi=%d, poc=%d, last_wi=%d\n",
+					ri, wi,
+					userdata_poc.poc_number,
+					last_read_wi);
+#endif
+				res =
 				copy_to_user((unsigned long __user *)arg,
 					&userdata_poc,
 					sizeof(struct userdata_poc_info_t));
-			if (res < 0)
+				if (res < 0)
+					r = -EFAULT;
+			} else {
 				r = -EFAULT;
-			userdata_poc_ri++;
-			if (USERDATA_FIFO_NUM == userdata_poc_ri)
-				userdata_poc_ri = 0;
+			}
+		} else {
+			r = -EINVAL;
+		}
+		break;
+
+	case AMSTREAM_IOC_UD_FLUSH_USERDATA:
+		if (this->type & PORT_TYPE_USERDATA) {
+			reset_userdata_fifo(0);
+			pr_info("reset_userdata_fifo\n");
 		} else
 			r = -EINVAL;
 		break;

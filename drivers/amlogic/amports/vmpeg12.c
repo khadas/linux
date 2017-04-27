@@ -178,6 +178,8 @@ static s32 error_frame_skip_level;
 static s32 wait_buffer_counter;
 static u32 first_i_frame_ready;
 
+static struct work_struct userdata_push_work;
+
 static inline int pool_index(struct vframe_s *vf)
 {
 	if ((vf >= &vfpool[0]) && (vf <= &vfpool[VF_POOL_SIZE - 1]))
@@ -275,6 +277,31 @@ static bool error_skip(u32 info, struct vframe_s *vf)
 	return false;
 }
 
+static void userdata_push_do_work(struct work_struct *work)
+{
+	u32 reg;
+
+	struct userdata_poc_info_t user_data_poc;
+
+	user_data_poc.poc_info = 0;
+	user_data_poc.poc_number = 0;
+	reg = READ_VREG(MREG_BUFFEROUT);
+
+	if (!ccbuf_phyAddress_is_remaped_nocache &&
+		ccbuf_phyAddress &&
+		ccbuf_phyAddress_virt) {
+		codec_mm_dma_flush(
+			ccbuf_phyAddress_virt,
+			CCBUF_SIZE,
+			DMA_FROM_DEVICE);
+	}
+	wakeup_userdata_poll(user_data_poc,
+		reg & 0xffff,
+		(unsigned long)ccbuf_phyAddress_virt,
+		CCBUF_SIZE, 0);
+	WRITE_VREG(MREG_BUFFEROUT, 0);
+}
+
 static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 {
 	u32 reg, info, seqinfo, offset, pts, pts_valid = 0;
@@ -286,19 +313,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 	reg = READ_VREG(MREG_BUFFEROUT);
 
 	if ((reg >> 16) == 0xfe) {
-		if (!ccbuf_phyAddress_is_remaped_nocache &&
-			ccbuf_phyAddress &&
-			ccbuf_phyAddress_virt) {
-			codec_mm_dma_flush(
-				ccbuf_phyAddress_virt,
-				CCBUF_SIZE,
-				DMA_FROM_DEVICE);
-		}
-		wakeup_userdata_poll(
-			reg & 0xffff,
-			(unsigned long)ccbuf_phyAddress_virt,
-			CCBUF_SIZE, 0);
-		WRITE_VREG(MREG_BUFFEROUT, 0);
+		schedule_work(&userdata_push_work);
 	} else if (reg) {
 		info = READ_VREG(MREG_PIC_INFO);
 		offset = READ_VREG(MREG_FRAME_OFFSET);
@@ -1096,6 +1111,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 
 		return -ENODEV;
 	}
+	INIT_WORK(&userdata_push_work, userdata_push_do_work);
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe end.\n");
 
@@ -1104,6 +1120,8 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 
 static int amvdec_mpeg12_remove(struct platform_device *pdev)
 {
+	cancel_work_sync(&userdata_push_work);
+
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
 		stat &= ~STAT_VDEC_RUN;

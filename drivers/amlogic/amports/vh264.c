@@ -188,7 +188,7 @@ static struct buffer_spec_s fense_buffer_spec[2];
 #define VF_BUFFER_IDX(n) (WORKSPACE_BUF_NUM  + n)
 #define FENSE_BUFFER_IDX(n) (WORKSPACE_BUF_NUM + VF_BUF_NUM + n)
 
-
+#define USER_DATA_RUND_SIZE		(USER_DATA_SIZE + 4096)
 static struct vframe_s fense_vf[2];
 
 static struct timer_list recycle_timer;
@@ -272,6 +272,10 @@ static int vh264_reset;
 static struct work_struct error_wd_work;
 static struct work_struct stream_switching_work;
 static struct work_struct set_parameter_work;
+
+static struct work_struct userdata_push_work;
+
+
 
 static struct dec_sysinfo vh264_amstream_dec_info;
 static dma_addr_t mc_dma_handle;
@@ -532,6 +536,227 @@ static tvin_trans_fmt_t convert_3d_format(u32 type)
 	return (type <= 4) ? conv_tab[type] : 0;
 }
 #endif
+
+
+#ifdef DEBUG_CC_USER_DATA
+static int vbi_to_ascii(int c)
+{
+	if (c < 0)
+		return '?';
+
+	c &= 0x7F;
+
+	if (c < 0x20 || c >= 0x7F)
+		return '.';
+
+	return c;
+}
+
+static void dump_cc_ascii(const uint8_t *buf, int poc)
+{
+	int cc_flag;
+	int cc_count;
+	int i;
+	int szAscii[32];
+	int index = 0;
+
+	cc_flag = buf[1] & 0x40;
+	if (!cc_flag) {
+		pr_info("### cc_flag is invalid\n");
+		return;
+	}
+	cc_count = buf[1] & 0x1f;
+
+	for (i = 0; i < cc_count; ++i) {
+		unsigned int b0;
+		unsigned int cc_valid;
+		unsigned int cc_type;
+		unsigned char cc_data1;
+		unsigned char cc_data2;
+
+		b0 = buf[3 + i * 3];
+		cc_valid = b0 & 4;
+		cc_type = b0 & 3;
+		cc_data1 = buf[4 + i * 3];
+		cc_data2 = buf[5 + i * 3];
+
+
+		if (cc_type == 0) {
+			/* NTSC pair, Line 21 */
+			szAscii[index++] = vbi_to_ascii(cc_data1);
+			szAscii[index++] = vbi_to_ascii(cc_data2);
+			if ((!cc_valid) || (i >= 3))
+				break;
+		}
+	}
+	switch (index) {
+	case 8:
+		pr_info("push poc:%d : %c %c %c %c %c %c %c %c\n",
+			poc,
+			szAscii[0], szAscii[1], szAscii[2], szAscii[3],
+			szAscii[4], szAscii[5], szAscii[6], szAscii[7]);
+		break;
+	case 7:
+		pr_info("push poc:%d : %c %c %c %c %c %c %c\n",
+			poc,
+			szAscii[0], szAscii[1], szAscii[2], szAscii[3],
+			szAscii[4], szAscii[5], szAscii[6]);
+		break;
+	case 6:
+		pr_info("push poc:%d : %c %c %c %c %c %c\n", poc,
+			szAscii[0], szAscii[1], szAscii[2], szAscii[3],
+			szAscii[4], szAscii[5]);
+		break;
+	case 5:
+		pr_info("push poc:%d : %c %c %c %c %c\n", poc,
+			szAscii[0], szAscii[1], szAscii[2], szAscii[3],
+			szAscii[4]);
+		break;
+	case 4:
+		pr_info("push poc:%d : %c %c %c %c\n", poc,
+			szAscii[0], szAscii[1], szAscii[2], szAscii[3]);
+		break;
+	case 3:
+		pr_info("push poc:%d : %c %c %c\n", poc,
+			szAscii[0], szAscii[1], szAscii[2]);
+		break;
+	case 2:
+		pr_info("push poc:%d : %c %c\n", poc,
+			szAscii[0], szAscii[1]);
+		break;
+	case 1:
+		pr_info("push poc:%d : %c\n", poc, szAscii[0]);
+		break;
+	default:
+		pr_info("push poc:%d and no CC data: index = %d\n",
+			poc, index);
+		break;
+	}
+}
+
+/*
+#define DUMP_USER_DATA_HEX
+*/
+
+#ifdef DUMP_USER_DATA_HEX
+static void print_data(unsigned char *pdata, int len)
+{
+	int nLeft;
+
+	nLeft = len;
+
+	while (nLeft >= 8) {
+		pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+			pdata[0], pdata[1], pdata[2], pdata[3],
+			pdata[4], pdata[5], pdata[6], pdata[7]);
+		nLeft -= 8;
+		pdata += 8;
+	}
+}
+#endif
+
+static void aml_swap_data(uint8_t *user_data, int ud_size)
+{
+	int swap_blocks, i, j, k, m;
+	unsigned char c_temp;
+
+	/* swap byte order */
+	swap_blocks = ud_size / 8;
+	for (i = 0; i < swap_blocks; i++) {
+		j = i * 8;
+		k = j + 7;
+		for (m = 0; m < 4; m++) {
+			c_temp = user_data[j];
+			user_data[j++] = user_data[k];
+			user_data[k--] = c_temp;
+		}
+	}
+}
+
+static void dump_data(unsigned int user_data_wp,
+						unsigned int user_data_length,
+						int poc)
+{
+	unsigned char *pdata;
+	int user_data_len;
+	int wp_start;
+	int nLeft;
+	unsigned char szBuf[256];
+	int nOffset;
+
+	dma_sync_single_for_cpu(amports_get_dma_device(),
+			sei_data_buffer_phys, USER_DATA_SIZE,
+			DMA_FROM_DEVICE);
+
+	if (user_data_length & 0x07)
+		user_data_len = (user_data_length + 8) & 0xFFFFFFF8;
+	else
+		user_data_len = user_data_length;
+
+	if (user_data_wp >= user_data_len) {
+		wp_start = user_data_wp - user_data_len;
+
+		pdata = (unsigned char *)sei_data_buffer;
+		pdata += wp_start;
+		nLeft = user_data_len;
+
+		memset(szBuf, 0, 256);
+		memcpy(szBuf, pdata, user_data_len);
+	} else {
+		wp_start = user_data_wp +
+			USER_DATA_SIZE - user_data_len;
+
+		pdata = (unsigned char *)sei_data_buffer;
+		pdata += wp_start;
+		nLeft = USER_DATA_SIZE - wp_start;
+
+		memset(szBuf, 0, 256);
+		memcpy(szBuf, pdata, nLeft);
+		nOffset = nLeft;
+
+		pdata = (unsigned char *)sei_data_buffer;
+		nLeft = user_data_wp;
+		memcpy(szBuf+nOffset, pdata, nLeft);
+	}
+
+	aml_swap_data(szBuf, user_data_len);
+#ifdef DUMP_USER_DATA_HEX
+	print_data(szBuf, user_data_len);
+#endif
+	dump_cc_ascii(szBuf+7, poc);
+}
+#endif
+
+
+static void userdata_push_do_work(struct work_struct *work)
+{
+	unsigned int sei_itu35_flags;
+	unsigned int sei_itu35_wp;
+	unsigned int sei_itu35_data_length;
+	struct userdata_poc_info_t user_data_poc;
+
+	sei_itu35_flags = READ_VREG(AV_SCRATCH_J);
+	sei_itu35_wp = (sei_itu35_flags >> 16) & 0xffff;
+	sei_itu35_data_length = sei_itu35_flags & 0x7fff;
+
+#if 0
+	pr_info("pocinfo 0x%x, top poc %d, wp 0x%x, length %d\n",
+				   READ_VREG(AV_SCRATCH_L),
+				   READ_VREG(AV_SCRATCH_M),
+				   sei_itu35_wp, sei_itu35_data_length);
+#endif
+	user_data_poc.poc_info = READ_VREG(AV_SCRATCH_L);
+	user_data_poc.poc_number = READ_VREG(AV_SCRATCH_M);
+#ifdef DEBUG_CC_USER_DATA
+	dump_data(sei_itu35_wp, sei_itu35_data_length,
+		user_data_poc.poc_number);
+#endif
+	WRITE_VREG(AV_SCRATCH_J, 0);
+	wakeup_userdata_poll(user_data_poc, sei_itu35_wp,
+					(unsigned long)sei_data_buffer,
+					USER_DATA_SIZE, sei_itu35_data_length);
+}
+
 
 static void set_frame_info(struct vframe_s *vf)
 {
@@ -1814,44 +2039,7 @@ static void vh264_isr(void)
 
 	sei_itu35_flags = READ_VREG(AV_SCRATCH_J);
 	if (sei_itu35_flags & (1 << 15)) {	/* data ready */
-		/* int ltemp; */
-		/* unsigned char *daddr; */
-		unsigned int sei_itu35_wp = (sei_itu35_flags >> 16) & 0xffff;
-		unsigned int sei_itu35_data_length = sei_itu35_flags & 0x7fff;
-		struct userdata_poc_info_t user_data_poc;
-
-#if 0
-		/* dump lmem for debug */
-		WRITE_VREG(0x301, 0x8000);
-		WRITE_VREG(0x31d, 0x2);
-		for (ltemp = 0; ltemp < 64; ltemp++) {
-			laddr = 0x20 + ltemp;
-			WRITE_VREG(0x31b, laddr);
-			pr_info("mem 0x%x data 0x%x\n", laddr,
-				   READ_VREG(0x31c) & 0xffff);
-		}
-#endif
-#if 0
-		for (ltemp = 0; ltemp < sei_itu35_wp; ltemp++) {
-			daddr =
-				(unsigned char *)phys_to_virt(
-						sei_data_buffer_phys +
-						ltemp);
-			/* daddr = (unsigned char *)(sei_data_buffer +
-			   ltemp); */
-			pr_info("0x%x\n", *daddr);
-		}
-#endif
-	/*	pr_info("pocinfo 0x%x, top poc %d, wp 0x%x, length %d\n",
-			   READ_VREG(AV_SCRATCH_L), READ_VREG(AV_SCRATCH_M),
-			   sei_itu35_wp, sei_itu35_data_length);*/
-		user_data_poc.poc_info = READ_VREG(AV_SCRATCH_L);
-		user_data_poc.poc_number = READ_VREG(AV_SCRATCH_M);
-		set_userdata_poc(user_data_poc);
-		WRITE_VREG(AV_SCRATCH_J, 0);
-		wakeup_userdata_poll(sei_itu35_wp,
-				(unsigned long)sei_data_buffer,
-				USER_DATA_SIZE, sei_itu35_data_length);
+		schedule_work(&userdata_push_work);
 	}
 #ifdef HANDLE_H264_IRQ
 	return IRQ_HANDLED;
@@ -2259,6 +2447,9 @@ static int vh264_local_init(void)
 #endif
 	pts_discontinue = false;
 	no_idr_error_count = 0;
+
+	reset_userdata_fifo(1);
+
 	return 0;
 }
 
@@ -2572,7 +2763,7 @@ static int vh264_stop(int mode)
 	if (sei_data_buffer != NULL) {
 		dma_free_coherent(
 			amports_get_dma_device(),
-			USER_DATA_SIZE,
+			USER_DATA_RUND_SIZE,
 			sei_data_buffer,
 			sei_data_buffer_phys);
 		sei_data_buffer = NULL;
@@ -2793,7 +2984,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	if (NULL == sei_data_buffer) {
 		sei_data_buffer =
 			dma_alloc_coherent(amports_get_dma_device(),
-				USER_DATA_SIZE,
+				USER_DATA_RUND_SIZE,
 				&sei_data_buffer_phys, GFP_KERNEL);
 		if (!sei_data_buffer) {
 			pr_info("%s: Can not allocate sei_data_buffer\n",
@@ -2820,6 +3011,10 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	INIT_WORK(&stream_switching_work, stream_switching_do);
 	INIT_WORK(&set_parameter_work, vh264_set_params);
 
+	INIT_WORK(&userdata_push_work, userdata_push_do_work);
+
+
+
 	atomic_set(&vh264_active, 1);
 
 	mutex_unlock(&vh264_mutex);
@@ -2833,6 +3028,9 @@ static int amvdec_h264_remove(struct platform_device *pdev)
 	cancel_work_sync(&set_parameter_work);
 	cancel_work_sync(&error_wd_work);
 	cancel_work_sync(&stream_switching_work);
+
+	cancel_work_sync(&userdata_push_work);
+
 	mutex_lock(&vh264_mutex);
 	vh264_stop(MODE_FULL);
 	vdec_source_changed(VFORMAT_H264, 0, 0, 0);
