@@ -82,6 +82,7 @@ static bool vsync_hit;
 static bool osd_update_window_axis;
 static int osd_afbc_dec_enable;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
+static void osd_set_dummy_data(u32 alpha);
 
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 /* sync fence relative varible. */
@@ -1429,16 +1430,8 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.cursor_dispdata[index].y_start = temp_y0;
 	osd_hw.cursor_dispdata[index].y_end = temp_y1;
 #endif
-	if (osd_hw.free_dst_data[index].y_end >= 2159) {
-		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-			|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX))
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x002020ff);
-		else if (get_cpu_type() ==
-			MESON_CPU_MAJOR_ID_GXTVBB)
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
-		else
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x008080ff);
-	}
+	if (osd_hw.free_dst_data[index].y_end >= 2159)
+		osd_set_dummy_data(0xff);
 	osd_update_window_axis = true;
 	mutex_unlock(&osd_mutex);
 }
@@ -2001,6 +1994,11 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 					sizeof(struct pandata_s));
 				freescale_update = true;
 
+			if ((height_dst != height_src) ||
+				(width_dst != width_src))
+				osd_set_dummy_data(0);
+			else
+				osd_set_dummy_data(0xff);
 			osd_log_dbg("direct pandata x=%d,x_end=%d,y=%d,y_end=%d\n",
 				osd_hw.pandata[index].x_start,
 				osd_hw.pandata[index].x_end,
@@ -2145,6 +2143,9 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 				memcpy(&osd_hw.free_dst_data[index],
 					&osd_hw.free_dst_data_backup[index],
 					sizeof(struct pandata_s));
+
+				osd_set_dummy_data(0xff);
+
 				osd_log_dbg("switch back dispdata_backup x=%d,x_end=%d,y=%d,y_end=%d\n",
 					osd_hw.dispdata_backup[index].x_start,
 					osd_hw.dispdata_backup[index].x_end,
@@ -2269,6 +2270,19 @@ void osd_pan_display_hw(u32 index, unsigned int xoffset, unsigned int yoffset)
 		    osd_hw.pandata[index].y_end);
 }
 
+static void osd_set_dummy_data(u32 alpha)
+{
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+		VSYNCOSD_WR_MPEG_REG(VPP_OSD_SC_DUMMY_DATA,
+			0x00202000 | alpha);
+	else if (get_cpu_type() ==
+		MESON_CPU_MAJOR_ID_GXTVBB)
+		VSYNCOSD_WR_MPEG_REG(VPP_OSD_SC_DUMMY_DATA,
+			alpha);
+	else
+		VSYNCOSD_WR_MPEG_REG(VPP_OSD_SC_DUMMY_DATA,
+			0x00808000 | alpha);
+}
 static  void  osd1_update_disp_scale_enable(void)
 {
 	if (osd_hw.scale[OSD1].h_enable)
@@ -3739,8 +3753,7 @@ void osd_init_hw(u32 logo_loaded)
 
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 1;
-		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-			|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX))
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x002020ff);
 		else if (get_cpu_type() ==
 			MESON_CPU_MAJOR_ID_GXTVBB)
