@@ -117,12 +117,13 @@ static unsigned int dma_size = 30032;
 static dma_addr_t dma_paddr;
 static void *dma_vaddr;
 static unsigned int dma_start_line = 0x400;
+static s32 frame_delay;
 
 #define CRC_BUFF_SIZE (256 * 1024)
-#define CRC_DELAY_FRAME 5
 static char *crc_output_buf;
 static u32 crc_outpuf_buff_off;
 static u32 crc_count;
+static u32 setting_update_count;
 static s32 crc_read_delay;
 
 module_param(vtotal_add, uint, 0664);
@@ -147,6 +148,266 @@ static unsigned int dolby_vision_graphic_min = 50; /* 0.0001 */
 static unsigned int dolby_vision_graphic_max = 100; /* 1 */
 module_param(dolby_vision_graphic_min, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphic_min, "\n dolby_vision_graphic_min\n");
+
+uint16_t L2PQ_100_500[] = {
+	2081, /* 100 */
+	2157, /* 120 */
+	2221, /* 140 */
+	2277, /* 160 */
+	2327, /* 180 */
+	2372, /* 200 */
+	2413, /* 220 */
+	2450, /* 240 */
+	2485, /* 260 */
+	2517, /* 280 */
+	2547, /* 300 */
+	2575, /* 320 */
+	2602, /* 340 */
+	2627, /* 360 */
+	2651, /* 380 */
+	2673, /* 400 */
+	2694, /* 420 */
+	2715, /* 440 */
+	2734, /* 460 */
+	2753, /* 480 */
+	2771, /* 500 */
+};
+
+uint16_t L2PQ_500_4000[] = {
+	2771, /* 500 */
+	2852, /* 600 */
+	2920, /* 700 */
+	2980, /* 800 */
+	3032, /* 900 */
+	3079, /* 1000 */
+	3122, /* 1100 */
+	3161, /* 1200 */
+	3197, /* 1300 */
+	3230, /* 1400 */
+	3261, /* 1500 */
+	3289, /* 1600 */
+	3317, /* 1700 */
+	3342, /* 1800 */
+	3366, /* 1900 */
+	3389, /* 2000 */
+	3411, /* 2100 */
+	3432, /* 2200 */
+	3451, /* 2300 */
+	3470, /* 2400 */
+	3489, /* 2500 */
+	3506, /* 2600 */
+	3523, /* 2700 */
+	3539, /* 2800 */
+	3554, /* 2900 */
+	3570, /* 3000 */
+	3584, /* 3100 */
+	3598, /* 3200 */
+	3612, /* 3300 */
+	3625, /* 3400 */
+	3638, /* 3500 */
+	3651, /* 3600 */
+	3662, /* 3700 */
+	3674, /* 3800 */
+	3686, /* 3900 */
+	3697, /* 4000 */
+};
+
+static uint32_t tv_max_lin = 200;
+static uint16_t tv_max_pq = 2372;
+
+static unsigned int panel_max_lumin;
+module_param(panel_max_lumin, uint, 0664);
+MODULE_PARM_DESC(panel_max_lumin, "\n panel_max_lumin\n");
+
+struct TargetDisplayConfig def_tgt_display_cfg = {
+	2048, /* gain */
+	4095, /* offset */
+	39322, /* gamma */
+	0, /* eotf */
+	12, /* bitDepth */
+	0, /* rangeSpec */
+	42, /* diagSize */
+	2372, /* maxPq */
+	62, /* minPq */
+	2048, /* mSWeight */
+	16380, /* mSEdgeWeight */
+	0, /* minPQBias */
+	0, /* midPQBias */
+	0, /* maxPQBias */
+	0, /* trimSlopeBias */
+	0, /* trimOffsetBias */
+	0, /* trimPowerBias */
+	0, /* msWeightBias */
+	0, /* brightness */
+	0, /* contrast */
+	0, /* chromaWeightBias */
+	0, /* saturationGainBias */
+	2048, /* chromaWeight */
+	2048, /* saturationGain */
+	655, /* crossTalk */
+	0, /* tuningMode */
+	0, /* reserved0 */
+	0, /* dbgExecParamsPrintPeriod */
+	0, /* dbgDmMdPrintPeriod */
+	0, /* dbgDmCfgPrintPeriod */
+	2372, /* maxPq_dupli */
+	62, /* minPq_dupli */
+	12288, /* keyWeight */
+	24576, /* intensityVectorWeight */
+	24576, /* chromaVectorWeight */
+	0, /* chip_fpga_lowcomplex */
+	{
+		-245,
+		-207,
+		-169,
+		-131,
+		-94,
+		-56,
+		-18,
+		19,
+		57,
+		95,
+		132,
+		170,
+		208,
+		246,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	},
+	{
+		0, /* gdEnable */
+		262, /* gdWMin */
+		131072000, /* gdWMax */
+		26214400, /* gdWMm */
+		82897211, /* gdWDynRngSqrt */
+		4096, /* gdWeightMean */
+		4096, /* gdWeightStd */
+		0, /* gdDelayMilliSec_hdmi */
+		1, /* gdRgb2YuvExt */
+		{
+			{5960, 20047, 2023},
+			{-3286, -11052, 14336},
+			{14336, -13022, -1316}
+		}, /* gdM33Rgb2Yuv[3][3] */
+		15, /* gdM33Rgb2YuvScale2P */
+		1, /* gdRgb2YuvOffExt */
+		{2048, 16384, 16384},/* gdV3Rgb2YuvOff[3] */
+		414486, /* gdUpBound */
+		82897, /* gdLowBound */
+		0, /* lastMaxPq */
+		26, /*gdWMinPq */
+		2771, /*gdWMaxPq */
+		2081, /*gdWMmPq */
+		0, /*gdTriggerPeriod */
+		0, /* gdTriggerLinThresh */
+		0, /* gdDelayMilliSec_ott */
+		{0, 0, 0, 0, 0, 0, 0, 0, 0} /* reserved[9] */
+	},
+	1311, /* min_lin */
+	200 << 18, /* max_lin 131072000 */
+	4096, /* backlight_scaler */
+	1311, /* min_lin_dupli */
+	200 << 18, /* max_lin_dupli 131072000 */
+	{
+		/* lms2RgbMat[3][3] */
+		{
+			{17507, -14019, 608},
+			{-3765, 8450, -589},
+			{285, -640, 4451}
+		},
+		12, /* lms2RgbMatScale */
+		{128, 128, 128}, /* whitePoint */
+		7, /* whitePointScale */
+		{0, 0, 0} /* reserved[3] */
+	},
+	0, /* reserved00 */
+	0, /* brightnessPreservation */
+	81920, /* iintensityVectorWeight */
+	24576, /* ichromaVectorWeight */
+	0, /* isaturationGainBias */
+	0, /* chip_12b_ocsc */
+	0, /* chip_512_tonecurve */
+	0, /* chip_nolvl5 */
+	{0, 0, 0, 0, 0, 0, 0, 0} /* padding[8] */
+};
 
 static unsigned int debug_dolby;
 module_param(debug_dolby, uint, 0664);
@@ -181,6 +442,7 @@ static struct dovi_setting_s dovi_setting;
 static struct dovi_setting_s new_dovi_setting;
 
 static struct pq_config_s pq_config;
+static bool pq_config_set_flag;
 struct ui_menu_params_s menu_param;
 static struct tv_dovi_setting_s tv_dovi_setting;
 static bool tv_dovi_setting_update_flag;
@@ -223,12 +485,13 @@ static void dump_tv_setting(
 void dolby_vision_update_pq_config(char *pq_config_buf)
 {
 	memcpy(&pq_config, pq_config_buf, sizeof(struct pq_config_s));
-	pr_dolby_dbg("update_pq_config[%ld] %x %x %x %x\n",
+	pr_info("update_pq_config[%ld] %x %x %x %x\n",
 		sizeof(struct pq_config_s),
 		pq_config_buf[1],
 		pq_config_buf[2],
 		pq_config_buf[3],
 		pq_config_buf[4]);
+	pq_config_set_flag = true;
 }
 EXPORT_SYMBOL(dolby_vision_update_pq_config);
 
@@ -387,9 +650,6 @@ static int tv_dolby_core1_set(
 	WRITE_VPP_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 20, 1);
 	/* bypass dither */
 	WRITE_VPP_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 25, 1);
-
-	if (dolby_vision_flags & FLAG_CERTIFICAION)
-		crc_count++;
 	return 0;
 }
 
@@ -419,6 +679,7 @@ int dolby_vision_update_setting(void)
 			pr_info("%016llx, %016llx\n", p[i], p[i+1]);
 	}
 	tv_dovi_setting_update_flag = false;
+	setting_update_count++;
 	return -1;
 }
 EXPORT_SYMBOL(dolby_vision_update_setting);
@@ -819,6 +1080,11 @@ void enable_dolby_vision(int enable)
 					DOLBY_CORE2A_CLKGATE_CTRL, 0);
 				WRITE_VPP_REG(
 					DOLBY_CORE3_CLKGATE_CTRL, 0);
+				frame_delay =
+					(dolby_vision_flags >>
+					FLAG_FRAME_DELAY_SHIFT)
+					& FLAG_FRAME_DELAY_MASK;
+				setting_update_count = 0;
 			}
 			if (is_meson_txlx_package_962X() && !force_stb_mode) {
 				VSYNC_WR_MPEG_REG_BITS(
@@ -857,10 +1123,6 @@ void enable_dolby_vision(int enable)
 					VSYNC_WR_MPEG_REG(
 						VPP_DAT_CONV_PARA1, 0x20002000);
 				}
-				crc_read_delay =
-					(dolby_vision_flags >>
-					FLAG_FRAME_DELAY_SHIFT)
-					& FLAG_FRAME_DELAY_MASK;
 				/* osd rgb to yuv, vpp out yuv to rgb */
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 0x81);
 				pr_dolby_dbg("Dolby Vision TV core turn on\n");
@@ -1513,20 +1775,15 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 		else
 			dolby_vision_flags |= FLAG_SINGLE_STEP;
 	}
-	if (crc_read_delay > 0) {
-		crc_read_delay--;
+	if (frame_delay > 0) {
+		frame_delay--;
 		return 1;
 	}
-	crc_read_delay =
+	frame_delay =
 		(dolby_vision_flags >>
 		FLAG_FRAME_DELAY_SHIFT)
 		& FLAG_FRAME_DELAY_MASK;
 
-	if (dolby_vision_flags & FLAG_CERTIFICAION
-		&& crc_count > 0) {
-		u32 crc = READ_VPP_REG(0x33ef);
-		tv_dolby_vision_insert_crc(crc);
-	}
 	req.vf = vf;
 	req.bot_flag = 0;
 	req.aux_buf = NULL;
@@ -1713,6 +1970,8 @@ static int parse_sei_and_meta(
 		if (type == 0x01000000) {
 			/* source is VS10 */
 			*src_format = FORMAT_DOVI;
+			if (size > (sizeof(meta_buf) - 3))
+				size = (sizeof(meta_buf) - 3);
 			meta_buf[0] = meta_buf[1] = meta_buf[2] = 0;
 			memcpy(&meta_buf[3], p+1, size-1);
 			if ((debug_dolby & 4) && dump_enable) {
@@ -2187,6 +2446,46 @@ static int is_video_output_off(struct vframe_s *vf)
 	return 0;
 }
 
+static void calculate_panel_max_pq(
+	const struct vinfo_s *vinfo,
+	struct TargetDisplayConfig *config)
+{
+	uint32_t max_lin = tv_max_lin;
+	uint16_t max_pq = tv_max_pq;
+
+	if (dolby_vision_flags & FLAG_CERTIFICAION)
+		return;
+	if (panel_max_lumin)
+		max_lin = panel_max_lumin;
+	else if (vinfo->hdr_info.sink_flag)
+		max_lin = vinfo->hdr_info.lumi_max;
+	if (max_lin < 100)
+		max_lin = 100;
+	else if (max_lin > 4000)
+		max_lin = 4000;
+	if (max_lin != tv_max_lin) {
+		if (max_lin < 500) {
+			max_lin = max_lin - 100 + 10;
+			max_lin = (max_lin / 20) * 20 + 100;
+			max_pq = L2PQ_100_500[(max_lin - 100) / 20];
+		} else {
+			max_lin = max_lin - 500 + 50;
+			max_lin = (max_lin / 100) * 100 + 500;
+			max_pq = L2PQ_100_500[(max_lin - 500) / 100];
+		}
+		pr_info("panel max lumin changed from %d(%d) to %d(%d)\n",
+			tv_max_lin, tv_max_pq, max_lin, max_pq);
+		tv_max_lin = max_lin;
+		tv_max_pq = max_pq;
+		config->max_lin =
+		config->max_lin_dupli =
+			tv_max_lin << 18;
+		config->maxPq =
+		config->maxPq_dupli =
+			tv_max_pq;
+	}
+}
+
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
 static int dolby_vision_parse_metadata(struct vframe_s *vf)
@@ -2376,8 +2675,24 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 
 	/* TV core */
 	if (is_meson_txlx_package_962X() && !force_stb_mode) {
+		if (!pq_config_set_flag) {
+			memcpy(&pq_config.target_display_config,
+				&def_tgt_display_cfg,
+				sizeof(def_tgt_display_cfg));
+			pq_config_set_flag = true;
+		}
+		calculate_panel_max_pq(
+			vinfo,
+			&pq_config.target_display_config);
 		tv_dovi_setting.video_width = w << 16;
 		tv_dovi_setting.video_height = h << 16;
+		if (dolby_vision_flags & FLAG_DISABLE_COMPOSER) {
+			pq_config.target_display_config.tuningMode |=
+				TUNINGMODE_EL_FORCEDDISABLE;
+			el_halfsize_flag = 0;
+		} else
+			pq_config.target_display_config.tuningMode &=
+				(~TUNINGMODE_EL_FORCEDDISABLE);
 		flag = p_funcs->tv_control_path(
 			src_format, input_mode,
 			comp_buf, total_comp_size,
@@ -2589,6 +2904,26 @@ int dolby_vision_process(struct vframe_s *vf)
 
 	if (!is_meson_gxm_cpu() && !is_meson_txlx_cpu())
 		return -1;
+
+	if ((dolby_vision_flags & FLAG_CERTIFICAION)
+		&& (setting_update_count > crc_count)
+		&& is_dolby_vision_on()) {
+		s32 delay_count =
+			(dolby_vision_flags >>
+			FLAG_FRAME_DELAY_SHIFT)
+			& FLAG_FRAME_DELAY_MASK;
+		if (delay_count > 0)
+			delay_count--;
+		else
+			delay_count = 0;
+		crc_read_delay++;
+		if (crc_read_delay > delay_count) {
+			u32 crc = READ_VPP_REG(0x33ef);
+			tv_dolby_vision_insert_crc(crc);
+			crc_count++;
+			crc_read_delay = 0;
+		}
+	}
 
 	if (is_dolby_vision_on()
 		&& is_video_output_off(vf)
@@ -6634,6 +6969,7 @@ void tv_dolby_vision_crc_clear(int flag)
 {
 	crc_outpuf_buff_off = 0;
 	crc_count = 0;
+	setting_update_count = 0;
 	if (!crc_output_buf)
 		crc_output_buf = vmalloc(CRC_BUFF_SIZE);
 	pr_info(
@@ -6661,7 +6997,7 @@ void tv_dolby_vision_insert_crc(u32 crc)
 	if (!crc_output_buf)
 		return;
 	memset(str, 0, sizeof(str));
-	snprintf(str, 64, "crc(%d) = 0x%08x", crc_count - 1, crc);
+	snprintf(str, 64, "crc(%d) = 0x%08x", crc_count, crc);
 	len = strlen(str);
 	str[len] = 0xa;
 	len++;
