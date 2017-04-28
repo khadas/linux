@@ -60,7 +60,7 @@ static int eq_sts_stable_max = 2;
 MODULE_PARM_DESC(eq_sts_stable_max, "\n eq_sts_stable_max\n");
 module_param(eq_sts_stable_max, int, 0664);
 
-static int eq_max_setting = 14;
+static int eq_max_setting = 7;
 MODULE_PARM_DESC(eq_max_setting, "\n eq_max_setting\n");
 module_param(eq_max_setting, int, 0664);
 
