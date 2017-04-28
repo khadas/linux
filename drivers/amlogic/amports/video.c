@@ -3892,13 +3892,13 @@ static void dmc_adjust_for_mali(unsigned int width, unsigned int height)
 		toggle_same_count = 0;
 	}
 	/*avoid 3840x2160 crop*/
-	if ((width >= 3830) && (height >= 2150) &&
+	if ((width >= 2000) && (height >= 1400) &&
 		(dmc_config_state != 1) && (toggle_same_count < 30)) {
 		*axi_hold_ctrl = 0x10080804;
 		*axi2_hold_ctrl = 0x10080804;
 		dmc_config_state = 1;
 	} else if (((toggle_same_count >= 30) ||
-		((width < 3830) && (height < 2150))) &&
+		((width < 2000) && (height < 1400))) &&
 		(dmc_config_state != 2)) {
 		*axi_hold_ctrl = 0x18101810;
 		*axi2_hold_ctrl = 0x18101810;
