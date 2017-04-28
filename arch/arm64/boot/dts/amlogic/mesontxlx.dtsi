@@ -223,7 +223,7 @@
 
 	amlogic-jtag {
 		compatible = "amlogic, jtag";
-		status = "okay";
+		status = "disable";
 	};
 
 	clock: meson_clock {
