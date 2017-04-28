@@ -224,9 +224,6 @@
 	amlogic-jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
-		pinctrl-names = "jtag_apao_pins", "jtag_apee_pins";
-		pinctrl-0 = <&jtag_apao_pins>;
-		pinctrl-1 = <&jtag_apee_pins>;
 	};
 
 	clock: meson_clock {
@@ -285,14 +282,6 @@
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-		};
-		jtag_apao_pins:jtag_apao_pin{
-			amlogic,clrmask = <AO 0x01C2E2E6>;
-			amlogic,pins = "GPIOAO_3","GPIOAO_4","GPIOAO_5","GPIOAO_7";
-		};
-		jtag_apee_pins:jtag_apee_pin{
-			amlogic,clrmask = <6 0x003CF03C>;
-			amlogic,pins = "GPIOC_0","GPIOC_1","GPIOC_2","GPIOC_3";
 		};
 		hdmitx_aocec: hdmitx_aocec {
 			amlogic,setmask=<AO  0x00008000>;
