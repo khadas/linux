@@ -283,6 +283,30 @@ void codecio_write_demuxbus(unsigned int reg, unsigned int val)
 	return;
 }
 
+int codecio_read_resetbus(unsigned int reg)
+{
+	int ret, val;
+
+	ret = codecio_reg_read(CODECIO_CBUS_BASE, reg << 2, &val);
+	if (ret) {
+		pr_err("read reset reg %x error %d\n", reg, ret);
+		return -1;
+	}
+
+	return val;
+}
+
+void codecio_write_resetbus(unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	ret = codecio_reg_write(CODECIO_CBUS_BASE, reg << 2, val);
+	if (ret)
+		pr_err("write reset reg %x error %d\n", reg, ret);
+
+	return;
+}
+
 static int codec_io_probe(struct platform_device *pdev)
 {
 	int i = 0;

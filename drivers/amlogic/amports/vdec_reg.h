@@ -147,6 +147,17 @@
 #define SET_DEMUX_REG_MASK(r, mask)\
 	WRITE_DEMUX_REG(r, READ_DEMUX_REG(r) | (mask))
 
+#define WRITE_RESET_REG(r, val) codec_resetbus_write(r, val)
+#define READ_RESET_REG(r) codec_resetbus_read(r)
+#define WRITE_RESET_REG_BITS(r, val, start, len) \
+	WRITE_RESET_REG(r, (READ_RESET_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
+		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
+
+#define CLEAR_RESET_REG_MASK(r, mask)\
+	WRITE_RESET_REG(r, READ_RESET_REG(r) & ~(mask))
+#define SET_RESET_REG_MASK(r, mask)\
+	WRITE_RESET_REG(r, READ_RESET_REG(r) | (mask))
+
 #define ASSIST_MBOX1_CLR_REG VDEC_ASSIST_MBOX1_CLR_REG
 #define ASSIST_MBOX1_MASK VDEC_ASSIST_MBOX1_MASK
 #define ASSIST_AMR1_INT0 VDEC_ASSIST_AMR1_INT0

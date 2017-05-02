@@ -67,7 +67,7 @@ s32 rmparser_init(struct vdec_s *vdec)
 		return -ENOMEM;
 	}
 
-	WRITE_MPEG_REG(RESET1_REGISTER, RESET_PARSER);
+	WRITE_RESET_REG(RESET1_REGISTER, RESET_PARSER);
 
 	/* TS data path */
 #ifndef CONFIG_AM_DVB

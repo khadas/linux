@@ -920,7 +920,7 @@ static int vmpeg12_prot_init(void)
 		WRITE_VREG(POWER_CTL_VLD, save_reg);
 
 	} else
-		WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
+		WRITE_RESET_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 
 	ret = vmpeg12_canvas_init();
 
