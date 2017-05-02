@@ -53,6 +53,7 @@
 #endif
 
 #define RDMA_TABLE_INTERNAL_COUNT 512
+#define RDMA_TEMP_TBL_SIZE (8 * RDMA_TABLE_INTERNAL_COUNT)
 
 static DEFINE_SPINLOCK(rdma_lock);
 static struct rdma_table_item *rdma_table;
@@ -77,6 +78,7 @@ static unsigned int second_rdma_irq;
 #endif
 
 static int osd_rdma_handle = -1;
+static struct rdma_table_item *rdma_temp_tbl;
 
 static int osd_rdma_init(void);
 
@@ -101,7 +103,6 @@ static inline void osd_rdma_mem_cpy(struct rdma_table_item *dst,
 
 static inline void reset_rdma_table(void)
 {
-	struct rdma_table_item *temp_tbl = NULL;
 	struct rdma_table_item request_item;
 	unsigned long flags;
 	u32 old_count;
@@ -122,10 +123,17 @@ static inline void reset_rdma_table(void)
 	if (!OSD_RDMA_STATUS_IS_REJECT) {
 		u32 val, mask;
 		int iret;
-		if (item_count > 2)
-			temp_tbl = kzalloc(
-				sizeof(struct rdma_table_item)
-				* item_count, GFP_ATOMIC);
+		if ((sizeof(struct rdma_table_item) * item_count) >
+			RDMA_TEMP_TBL_SIZE) {
+				pr_info("more memory: allocate(%lx), expect(%lx)\n",
+					(long unsigned int) RDMA_TEMP_TBL_SIZE,
+					sizeof(struct rdma_table_item) *
+					item_count);
+				BUG();
+		}
+		memset(rdma_temp_tbl, 0,
+			(sizeof(struct rdma_table_item) * item_count));
+
 		end_addr = osd_reg_read(END_ADDR) + 1;
 		if (end_addr > table_paddr)
 			old_count = (end_addr - table_paddr) >> 3;
@@ -135,7 +143,7 @@ static inline void reset_rdma_table(void)
 
 		for (i = (int)(item_count - 1);
 			i >= 0; i--) {
-			if (!temp_tbl)
+			if (!rdma_temp_tbl)
 				break;
 			if (rdma_table[i].addr ==
 				OSD_RDMA_FLAG_REG)
@@ -151,7 +159,7 @@ static inline void reset_rdma_table(void)
 					rdma_table[i].addr;
 				request_item.val = val;
 				osd_rdma_mem_cpy(
-					&temp_tbl[j], &request_item, 8);
+					&rdma_temp_tbl[j], &request_item, 8);
 				j++;
 				pr_debug(
 					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
@@ -164,7 +172,7 @@ static inline void reset_rdma_table(void)
 				request_item.val =
 					rdma_table[i].val;
 				osd_rdma_mem_cpy(
-					&temp_tbl[j], &request_item, 8);
+					&rdma_temp_tbl[j], &request_item, 8);
 				j++;
 				pr_debug(
 					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
@@ -180,10 +188,10 @@ static inline void reset_rdma_table(void)
 		for (i = 0; i < j; i++) {
 			osd_rdma_mem_cpy(
 				&rdma_table[1 + i],
-				&temp_tbl[j - i - 1], 8);
+				&rdma_temp_tbl[j - i - 1], 8);
 			update_recovery_item(
-				temp_tbl[j - i - 1].addr,
-				temp_tbl[j - i - 1].val);
+				rdma_temp_tbl[j - i - 1].addr,
+				rdma_temp_tbl[j - i - 1].val);
 		}
 		item_count = j + 2;
 		osd_rdma_mem_cpy(rdma_table, &reset_item[0], 8);
@@ -191,7 +199,6 @@ static inline void reset_rdma_table(void)
 			&reset_item[1], 8);
 		osd_reg_write(END_ADDR,
 			(table_paddr + item_count * 8 - 1));
-		kfree(temp_tbl);
 	}
 	spin_unlock_irqrestore(&rdma_lock, flags);
 }
@@ -933,7 +940,9 @@ static void osd_rdma_release(struct device *dev)
 	}
 #endif
 	kfree(dev);
+	kfree(rdma_temp_tbl);
 	osd_rdma_dev = NULL;
+	rdma_temp_tbl = NULL;
 }
 
 #ifdef OSD_RDMA_ISR
@@ -980,6 +989,11 @@ static int osd_rdma_init(void)
 	if (!osd_rdma_dev) {
 		osd_log_err("osd rdma init error!\n");
 		return -1;
+	}
+	rdma_temp_tbl = kmalloc(RDMA_TEMP_TBL_SIZE , GFP_KERNEL);
+	if (!rdma_temp_tbl) {
+		osd_log_err("osd rdma alloc temp_tbl error!\n");
+		goto error2;
 	}
 	osd_rdma_dev->release = osd_rdma_release;
 	dev_set_name(osd_rdma_dev, "osd-rdma-dev");
@@ -1051,7 +1065,9 @@ static int osd_rdma_init(void)
 
 error2:
 	kfree(osd_rdma_dev);
+	kfree(rdma_temp_tbl);
 	osd_rdma_dev = NULL;
+	rdma_temp_tbl = NULL;
 	return -1;
 }
 
