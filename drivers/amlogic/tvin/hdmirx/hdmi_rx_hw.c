@@ -602,6 +602,9 @@ static int TOP_init(void)
 	data32 |= 0x0a	<< 0;
 	hdmirx_wr_top(TOP_VID_CNTL2,  data32);
 
+	data32 = 0;
+	data32 |= aud_n_cts_update_del << 0;
+	hdmirx_wr_top(TOP_ACR_CNTL2, data32);
 	return err;
 }
 
