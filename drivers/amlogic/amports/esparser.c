@@ -774,15 +774,10 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 	while (len > 0) {
 		if (stbuf->type != BUF_TYPE_SUBTITLE
 			&& stbuf_space(stbuf) < count) {
-			len = min(stbuf_canusesize(stbuf) / 8, len);
-			if (stbuf_space(stbuf) < len) {
-				r = stbuf_wait_space(stbuf, len);
-				/* write part data , not allow return ; */
-				if ((r < leftcount) && (leftcount > 0))
-					continue;
-				else if ((r < 0) && (leftcount == 0))/*full; */
-					return -EAGAIN;
-			}
+			/*should not write partial data in drm mode*/
+			stbuf_wait_space(stbuf, count);
+			if (stbuf_space(stbuf) < count)
+				return -EAGAIN;
 		}
 		len = min_t(u32, len, count);
 
