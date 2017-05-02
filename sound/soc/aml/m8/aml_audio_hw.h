@@ -157,6 +157,7 @@ unsigned audio_spdifout_pg_enable(unsigned char enable);
 unsigned audio_aiu_pg_enable(unsigned char enable);
 void audio_mute_left_right(unsigned flag);
 void audio_i2s_958_same_source(unsigned int same);
+void set_hdmi_tx_clk_source(int source);
 
 extern unsigned int IEC958_mode_codec;
 extern unsigned int clk81;
