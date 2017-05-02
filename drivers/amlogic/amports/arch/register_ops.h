@@ -41,6 +41,7 @@ amports_bus_type_e {
 	IO_HEVC_BUS,
 	IO_VPP_BUS,
 	IO_DMC_BUS,
+	IO_RESET_BUS,
 	BUS_MAX
 };
 
@@ -110,5 +111,6 @@ DEF_BUS_OPS(IO_DMC_BUS, dmc);
 DEF_BUS_OPS(IO_PARSER_BUS, pars);
 DEF_BUS_OPS(IO_AIU_BUS, aiu);
 DEF_BUS_OPS(IO_DEMUX_BUS, demux);
+DEF_BUS_OPS(IO_RESET_BUS, reset);
 
 #endif

@@ -315,10 +315,10 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 		WRITE_VREG(DOS_SW_RESET0, (1 << 4));
 		WRITE_VREG(DOS_SW_RESET0, 0);
 #else
-		WRITE_MPEG_REG(RESET0_REGISTER, RESET_VLD);
+		WRITE_RESET_REG(RESET0_REGISTER, RESET_VLD);
 #endif
 
-		dummy = READ_MPEG_REG(RESET0_REGISTER);
+		dummy = READ_RESET_REG(RESET0_REGISTER);
 		WRITE_VREG(POWER_CTL_VLD, 1 << 4);
 	} else if (buf->type == BUF_TYPE_AUDIO) {
 		_WRITE_ST_REG(CONTROL, 0);

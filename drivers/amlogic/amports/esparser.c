@@ -426,7 +426,7 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 		}
 
 		/* reset PARSER with first esparser_init() call */
-		WRITE_MPEG_REG(RESET1_REGISTER, RESET_PARSER);
+		WRITE_RESET_REG(RESET1_REGISTER, RESET_PARSER);
 
 		/* TS data path */
 #ifndef CONFIG_AM_DVB

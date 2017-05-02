@@ -500,7 +500,7 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 		WRITE_VREG(DOS_SW_RESET0, (1<<5) | (1<<4) | (1<<3));
 		WRITE_VREG(DOS_SW_RESET0, 0);
 
-		dummy = READ_MPEG_REG(RESET0_REGISTER);
+		dummy = READ_RESET_REG(RESET0_REGISTER);
 		WRITE_VREG(POWER_CTL_VLD, 1 << 4);
 	} else if (input->target == VDEC_INPUT_TARGET_HEVC) {
 #if 0

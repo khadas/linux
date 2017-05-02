@@ -628,7 +628,7 @@ static int vreal_prot_init(void)
 	WRITE_VREG(DOS_SW_RESET0, (1 << 7) | (1 << 6));
 	WRITE_VREG(DOS_SW_RESET0, 0);
 #else
-	WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
+	WRITE_RESET_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 #endif
 
 
@@ -655,7 +655,7 @@ static int vreal_prot_init(void)
 	WRITE_VREG(DOS_SW_RESET0, (1 << 9) | (1 << 8));
 	WRITE_VREG(DOS_SW_RESET0, 0);
 #else
-	WRITE_MPEG_REG(RESET2_REGISTER, RESET_PIC_DC | RESET_DBLK);
+	WRITE_RESET_REG(RESET2_REGISTER, RESET_PIC_DC | RESET_DBLK);
 #endif
 
 	/* disable PSCALE for hardware sharing */

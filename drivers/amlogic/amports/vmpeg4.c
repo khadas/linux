@@ -839,7 +839,7 @@ static int vmpeg4_prot_init(void)
 	WRITE_VREG(DOS_SW_RESET0, (1 << 7) | (1 << 6));
 	WRITE_VREG(DOS_SW_RESET0, 0);
 #else
-	WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
+	WRITE_RESET_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 #endif
 
 	r = vmpeg4_canvas_init();

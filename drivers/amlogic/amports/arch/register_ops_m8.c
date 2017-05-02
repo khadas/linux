@@ -60,6 +60,7 @@ static struct chip_register_ops m8_ops[] __initdata = {
 	{IO_PARSER_BUS, 0, codecio_read_parsbus, codecio_write_parsbus},
 	{IO_AIU_BUS, 0, codecio_read_aiubus, codecio_write_aiubus},
 	{IO_DEMUX_BUS, 0, codecio_read_demuxbus, codecio_write_demuxbus},
+	{IO_RESET_BUS, 0, codecio_read_resetbus, codecio_write_resetbus},
 };
 
 static struct chip_register_ops ex_gx_ops[] __initdata = {
@@ -82,8 +83,11 @@ static int __init vdec_reg_ops_init(void)
 
 	/*
 	 * because of register range of the parser ,demux
-	 * and aiu has be changed in the txlx platform,
+	 * reset and aiu has be changed in the txlx platform,
 	 * so we have must be offset the old range of regs.
+	 *
+	 * the new 0x3860 of the reg base minus the old 0x2900
+	 * equal to the 0xf00 of the delta value
 	 * #define PARSER_CONTROL 0x3860
 	 * 0xf00 == (0x3800 - 0x2900)
 	 *
@@ -92,6 +96,9 @@ static int __init vdec_reg_ops_init(void)
 	 *
 	 * #define FEC_INPUT_CONTROL 0x1802
 	 * 0x200 == (0x1802 - 0x1602)
+	 *
+	 * #define RESET0_REGISTER 0x0401
+	 * -0xd00 == (0x0401 - 0x1101)
 	 */
 	if (MESON_CPU_MAJOR_ID_TXL < get_cpu_type()) {
 		for (i = 0; i < ARRAY_SIZE(m8_ops); i++) {
@@ -106,6 +113,10 @@ static int __init vdec_reg_ops_init(void)
 
 			case IO_DEMUX_BUS:
 				m8_ops[i].ext_offset = 0x200;
+				break;
+
+			case IO_RESET_BUS:
+				m8_ops[i].ext_offset = -0xd00;
 				break;
 			}
 		}
