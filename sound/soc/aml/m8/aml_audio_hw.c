@@ -974,6 +974,14 @@ void set_hw_resample_source(int source)
 	aml_eqdrc_update_bits(AUD_RESAMPLE_CTRL0, 1 << 29, source << 29);
 }
 EXPORT_SYMBOL(set_hw_resample_source);
+
+/*1: select pcm data/clk; 2: select AIU i2s data/clk*/
+void set_hdmi_tx_clk_source(int source)
+{
+	aml_aiu_update_bits(AIU_HDMI_CLK_DATA_CTRL, 0x3, source);
+	aml_aiu_update_bits(AIU_HDMI_CLK_DATA_CTRL, 0x3 << 4, source << 4);
+}
+
 #if 0
 unsigned int audio_hdmi_init_ready(void)
 {

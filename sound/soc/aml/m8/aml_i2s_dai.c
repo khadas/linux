@@ -140,6 +140,7 @@ static int aml_i2s_set_amclk(struct aml_i2s *i2s, unsigned long rate)
 		return ret;
 
 	audio_set_i2s_clk_div();
+	set_hdmi_tx_clk_source(2);
 
 	return 0;
 }

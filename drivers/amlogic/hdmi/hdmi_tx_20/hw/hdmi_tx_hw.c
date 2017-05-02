@@ -69,7 +69,6 @@ static void hdmi_phy_suspend(void);
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev);
 static void hdmitx_set_phy(struct hdmitx_dev *hdev);
 static void hdmitx_set_hw(struct hdmitx_dev *hdev);
-static void set_hdmi_audio_source(unsigned int src);
 static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
@@ -2202,29 +2201,6 @@ static void hdmitx_setaudioinfoframe(unsigned char *AUD_DB,
 	}
 }
 
-
-/* set_hdmi_audio_source(unsigned int src) */
-/* Description: */
-/* Select HDMI audio clock source, and I2S input data source. */
-/* Parameters: */
-/* src -- 0=no audio clock to HDMI; 1=pcmout to HDMI; 2=Aiu I2S out to HDMI. */
-static void set_hdmi_audio_source(unsigned int src)
-{
-	unsigned long data32;
-
-	/* Disable HDMI audio clock input and its I2S input */
-	data32 = 0;
-	data32 |= (0 << 4);
-	data32 |= (0 << 0);
-	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-
-	/* Enable HDMI I2S input from the selected source */
-	data32 = 0;
-	data32 |= (src  << 4);
-	data32 |= (src  << 0);
-	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-} /* set_hdmi_audio_source */
-
 #if 0
 static Cts_conf_tab cts_table_192k[] = {
 	{24576,  27000,  27000},
@@ -2597,9 +2573,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		tx_aud_src = 1;
 
 	pr_info("hdmitx tx_aud_src = %d\n", tx_aud_src);
-
-	/* set_hdmi_audio_source(tx_aud_src ? 1 : 2); */
-	set_hdmi_audio_source(2);
 
 /* config IP */
 /* Configure audio */
