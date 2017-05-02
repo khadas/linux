@@ -2122,6 +2122,7 @@ static void audio_status_init(void)
 	audio_coding_type = 0;
 	audio_channel_count = 0;
 	auds_rcv_sts = 0;
+	rx.aud_sr_stable_cnt = 0;
 }
 
 static void Signal_status_init(void)
@@ -2224,10 +2225,12 @@ void rx_aud_pll_ctl(bool en)
 		tmp = hdmirx_rd_top(TOP_ACR_CNTL_STAT) | (1<<11);
 		hdmirx_wr_top(TOP_ACR_CNTL_STAT, tmp);
 		tmp = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
+
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
 		/* audio pll div depends on input freq */
-		/* wr_reg_hhi(HHI_AUD_PLL_CNTL6, (tmp >> 9 & 3) << 28); */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL6, (tmp >> 9 & 3) << 28);
 		/* audio pll div fixed to N/CTS as below*/
-		wr_reg_hhi(HHI_AUD_PLL_CNTL6, 0x40000000);
+		/* wr_reg_hhi(HHI_AUD_PLL_CNTL6, 0x40000000); */
 		wr_reg_hhi(HHI_AUD_PLL_CNTL5, 0x0000002e);
 		wr_reg_hhi(HHI_AUD_PLL_CNTL4, 0x30000000);
 		wr_reg_hhi(HHI_AUD_PLL_CNTL3, 0x00000000);

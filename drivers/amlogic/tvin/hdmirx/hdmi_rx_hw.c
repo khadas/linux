@@ -91,6 +91,11 @@ int hdmi_ists_en = AKSV_RCV;
 MODULE_PARM_DESC(hdmi_ists_en, "\n hdmi_ists_en\n");
 module_param(hdmi_ists_en, int, 0664);
 
+/* delay cycles before n/cts update pulse */
+static int aud_n_cts_update_del = 7;
+module_param(aud_n_cts_update_del, int, 0664);
+MODULE_PARM_DESC(aud_n_cts_update_del, "aud_n_cts_update_del");
+
 #ifdef HDCP22_ENABLE
 int hdcp22_on;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
@@ -591,6 +596,9 @@ static int TOP_init(void)
 	data32 |= 0x0a	<< 0;
 	hdmirx_wr_top(TOP_VID_CNTL2,  data32);
 
+	data32 = 0;
+	data32 |= aud_n_cts_update_del << 0;
+	hdmirx_wr_top(TOP_ACR_CNTL2, data32);
 	return err;
 }
 
