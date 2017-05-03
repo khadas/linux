@@ -33,98 +33,254 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
 #include "irblaster.h"
-/* #define DEBUG */
-#ifdef DEBUG
-#define irblaster_dbg(fmt, args...) pr_info("ir_blaster: " fmt, ##args)
-#else
-#define irblaster_dbg(fmt, args...)
-#endif
+#include <linux/amlogic/gpio-amlogic.h>
+#include <linux/kthread.h>
+#include <linux/kfifo.h>
+
+#include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+
 
 #define DEVICE_NAME "meson-irblaster"
 #define DEIVE_COUNT 32
+
+#define PS_SIZE 10
+
 static dev_t amirblaster_id;
 static struct class *irblaster_class;
 static struct device *irblaster_dev;
 static struct cdev amirblaster_device;
-static struct aml_blaster *irblaster;
+static struct blaster_window *irblaster;
 static DEFINE_MUTEX(irblaster_file_mutex);
-static void aml_consumerir_transmit(struct aml_blaster *aml_transmit)
+static int debug_enable = 0x00;
+
+struct irtx_dev {
+	struct device *dev;
+	struct task_struct	*thread;
+#ifdef CONFIG_IRBLASTER_ENABLE_PIN
+	int enable_pin;
+#endif
+};
+
+
+#define IR_TX_EVENT_SIZE 4
+#define IR_TX_BUFFER_SIZE 1024
+
+struct tx_event {
+	struct list_head list;
+	int size;
+	int buffer[IR_TX_BUFFER_SIZE];
+};
+
+DECLARE_KFIFO(fifo, struct tx_event *, IR_TX_EVENT_SIZE);
+static struct irtx_dev *tx_dev;
+
+#define irblaster_dbg(format, arg...)     \
+do {                                        \
+	if (debug_enable)        \
+		pr_info(format, ##arg);         \
+} while (0)
+
+static struct tx_event *event_get(void)
+{
+	struct tx_event *ev = NULL;
+
+	ev = kzalloc(sizeof(struct tx_event), GFP_KERNEL);
+	irblaster_dbg("event_get ev=0x%p\n", ev);
+	return ev;
+}
+
+static void event_put(struct tx_event *ev)
+{
+	irblaster_dbg("event_put ev=0x%p\n", ev);
+	kfree(ev);
+}
+
+static int send_bit(unsigned int hightime, unsigned int lowtime,
+	unsigned int cycle)
+{
+	unsigned int count_delay;
+	uint32_t val;
+	int n = 0;
+	int tb[3] = {
+		1, 10, 100
+	};
+	/*
+	MODULATOR_TB:
+		00:	system clock clk
+		01:	mpeg_xtal3_tick
+		10:	mpeg_1uS_tick
+		11:	mpeg_10uS_tick
+	lowtime<1024,n=0,timebase=1us
+	1024<=lowtime<10240,n=1,timebase=10us
+	*/
+	/*
+	AO_IR_BLASTER_ADDR2
+	bit12: output level(or modulation enable/disable:1=enable)
+	bit[11:10]: Timebase :
+				00=1us
+				01=10us
+				10=100us
+				11=Modulator clock
+	bit[9:0]: Count of timebase units to delay
+	*/
+	count_delay = (((hightime + cycle/2) / cycle) - 1) & 0x3ff;
+	val = (0x10000 | (1 << 12)) | (3 << 10) | (count_delay << 0);
+	aml_write_aobus(AO_IR_BLASTER_ADDR2, val);
+
+	/*
+	lowtime<1024,n=0,timebase=1us
+	1024<=lowtime<10240,n=1,timebase=10us
+	10240<=lowtime,n=2,timebase=100us
+	*/
+	n = lowtime >> 10;
+	if (n > 0 && n < 10)
+		n = 1;
+	else if (n >= 10)
+		n = 2;
+	lowtime = (lowtime + (tb[n] >> 1))/tb[n];
+	count_delay = (lowtime-1) & 0x3ff;
+	val = (0x10000 | (0 << 12)) |
+		(n << 10) | (count_delay << 0);
+	aml_write_aobus(AO_IR_BLASTER_ADDR2, val);
+	return 0;
+}
+
+static void send_all_frame(struct blaster_window *cw)
 {
 	int i, k;
-	unsigned int consumerir_freqs =
-		1000 / (irblaster->consumerir_freqs / 1000);
-	unsigned int high_level_modulation_enable = 1 << 12;
-	unsigned int high_level_modulation_disable = ~(1 << 12);
-	if (irblaster->fisrt_pulse_width == fisrt_low) {
-		high_level_modulation_enable = 1 << 12;
-		high_level_modulation_disable = ~(1 << 12);
-	}
-	if (irblaster->fisrt_pulse_width == fisrt_high) {
-		high_level_modulation_disable = 1 << 12;
-		high_level_modulation_enable = ~(1 << 12);
-	}
-	/*set init_high valid and enable the ir_blaster*/
-	if (!is_meson_m8_cpu()) {
-		/* code */
-		aml_write_aobus(AO_IR_BLASTER_ADDR0,
-		aml_read_aobus(AO_IR_BLASTER_ADDR0) & (~(1 << 0)));
-		udelay(1);
-		aml_write_aobus(AO_IR_BLASTER_ADDR2, 0x10000);
-	}
-	irblaster_dbg("Enable blaster & create format!! consumerir_freqs %d\n",
-		      consumerir_freqs);
-	aml_write_aobus(AO_IR_BLASTER_ADDR0,
-			aml_read_aobus(AO_IR_BLASTER_ADDR0) |
-		(2 << 12));   /*set the modulator_tb = 2'10; 1us*/
-	aml_write_aobus(AO_IR_BLASTER_ADDR1,
-			aml_read_aobus(AO_IR_BLASTER_ADDR1) |
-		(((consumerir_freqs / 2) - 1) << 16));
-		/*set mod_high_count = 13;*/
-	aml_write_aobus(AO_IR_BLASTER_ADDR1,
-	aml_read_aobus(AO_IR_BLASTER_ADDR1) |
-		(((consumerir_freqs / 2) - 1) << 0));
-		/*set mod_low_count = 13;*/
-	aml_write_aobus(AO_IR_BLASTER_ADDR0,
-			aml_read_aobus(AO_IR_BLASTER_ADDR0) |
-			(1 << 2) | (1 << 0));
-	udelay(1);
-	aml_write_aobus(AO_IR_BLASTER_ADDR0,
-			aml_read_aobus(AO_IR_BLASTER_ADDR0) |
-			(1 << 2) | (1 << 0));
-	k = aml_transmit->pattern_len;
-	if (aml_transmit->pattern_len) {
-		for (i = 0; i < k / 2; i++) {
-			aml_write_aobus(AO_IR_BLASTER_ADDR2,
-			(0x10000 &  high_level_modulation_disable)
-		/*timeleve = 0;*/
-			| (3 << 10)
-		/*[11:10] = 2'b01,then set the timebase 10us.*/
-			| ((((aml_transmit->pattern[2 * i]) - 1) /
-				consumerir_freqs) << 0)
-		/*[9:0] = 10'd,the timecount = N+1;*/
-			);
-			udelay((aml_transmit->pattern[2 * i]));
-			aml_write_aobus(AO_IR_BLASTER_ADDR2, (0x10000 |
-				high_level_modulation_enable)
-		/*timeleve = 1;[11:10] = 2'b11,
-			then set the timebase 26.5us. */
-			| (1 << 10)
-			| ((((aml_transmit->pattern[2 * i + 1] / 10) - 1))
-				<< 0)
-			/*[9:0] = 10'd,the timecount = N+1;*/
-				       );
-			udelay((aml_transmit->pattern[2 * i + 1]));
-	/*irblaster_dbg("aml_transmit->pattern[%d]:%d
-	aml_transmit->pattern[%d]:%d\n",
-	2*i,aml_transmit->pattern[2*i],(2*i)+1,
-	aml_transmit->pattern[2*i+1]/10);*/
-		}
-	}
-	/*for (j=0; j<72-k; j++)
-		aml_write_aobus( AO_IR_BLASTER_ADDR2,0x10000);
-	*/
-	irblaster_dbg("The all frame finished !!\n");
+	int exp = 0x00;
+	unsigned int *pData;
+	unsigned int consumerir_cycle;
+	unsigned int high_ct, low_ct;
+	unsigned int cnt;
 
+	irblaster_dbg("cw->winNum = %d\n", cw->winNum);
+	irblaster_dbg("cw->winArray = ");
+	for (i = 0; i < cw->winNum; i++) {
+		irblaster_dbg("%d,", cw->winArray[i]);
+		if (i % 10 == 9)
+			irblaster_dbg("\n");
+	}
+	irblaster_dbg("\n");
+	consumerir_cycle = 1000 / (irblaster->consumerir_freqs / 1000);
+
+	/*reset*/
+	aml_write_aobus(AO_RTI_GEN_CTNL_REG0 ,
+		aml_read_aobus(AO_RTI_GEN_CTNL_REG0) | (1 << 23));
+	udelay(2);
+	aml_write_aobus(AO_RTI_GEN_CTNL_REG0 ,
+		aml_read_aobus(AO_RTI_GEN_CTNL_REG0) & ~(1 << 23));
+
+	/*
+	1. disable ir blaster
+	2. set the modulator_tb = 2'10; mpeg_1uS_tick 1us
+
+	*/
+	aml_write_aobus(AO_IR_BLASTER_ADDR0, (1 << 2) | (2 << 12) | (1<<2));
+	/*
+	1. set mod_high_count = 13
+	2. set mod_low_count = 13
+	3. 60khz 8, 38k-13us, 12
+	*/
+	high_ct = consumerir_cycle * irblaster->consumerir_dutycycle/100;
+	low_ct = consumerir_cycle - high_ct;
+	aml_write_aobus(AO_IR_BLASTER_ADDR1,
+		((high_ct - 1) << 16) | ((low_ct - 1) << 0));
+
+	/* Setting this bit to 1 initializes the output to be high.*/
+	aml_write_aobus(AO_IR_BLASTER_ADDR0,
+		aml_read_aobus(AO_IR_BLASTER_ADDR0) & ~(1 << 2));
+
+	/*enable irblaster*/
+	aml_write_aobus(AO_IR_BLASTER_ADDR0,
+		aml_read_aobus(AO_IR_BLASTER_ADDR0) | (1 << 0));
+	k = cw->winNum;
+#define SEND_BIT_NUM 64
+	exp = cw->winNum / SEND_BIT_NUM;
+	pData = cw->winArray;
+
+	while (exp) {
+		for (i = 0; i < SEND_BIT_NUM/2; i++) {
+			send_bit(*pData, *(pData+1), consumerir_cycle);
+			pData += 2;
+		}
+		cnt = 0;
+		while (!(aml_read_aobus(AO_IR_BLASTER_ADDR0) & (1<<24)) &&
+			cnt < 0x10000)
+			cnt++;
+		cnt = 0;
+		while ((aml_read_aobus(AO_IR_BLASTER_ADDR0) & (1<<26)) &&
+			cnt < 0x10000)
+			cnt++;
+		/*reset*/
+		aml_write_aobus(AO_RTI_GEN_CTNL_REG0 ,
+			aml_read_aobus(AO_RTI_GEN_CTNL_REG0) | (1 << 23));
+		udelay(2);
+		/*reset*/
+		aml_write_aobus(AO_RTI_GEN_CTNL_REG0 ,
+			aml_read_aobus(AO_RTI_GEN_CTNL_REG0) & ~(1 << 23));
+		exp--;
+	}
+	exp = (cw->winNum % SEND_BIT_NUM) & (~(1));
+	for (i = 0; i < exp; ) {
+		send_bit(*pData, *(pData+1), consumerir_cycle);
+		pData += 2;
+		i += 2;
+	}
+
+	irblaster_dbg("The all frame finished !!\n");
+}
+
+static int ir_tx_thread(void *data)
+{
+#ifdef CONFIG_IRBLASTER_ENABLE_PIN
+	struct irtx_dev *dev = (struct irtx_dev *)data;
+#endif
+	struct tx_event *ev = NULL;
+	int retval;
+	int i;
+	unsigned int cnt = 0;
+
+	while (!kthread_should_stop()) {
+		irblaster_dbg("wakeup ir_tx_thread\n");
+		retval = kfifo_len(&fifo);
+		if (retval <= 0) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			if (kthread_should_stop())
+				set_current_state(TASK_RUNNING);
+			schedule();
+			continue;
+		}
+		retval = kfifo_get(&fifo, &ev);
+		irblaster_dbg("retval=%d,ev=%p\n", retval, ev);
+		if (retval) {
+			irblaster->winNum = ev->size;
+			for (i = 0; i < irblaster->winNum; i++)
+				irblaster->winArray[i] = ev->buffer[i];
+			irblaster_dbg("send_all_frame.size=%d\n", ev->size);
+#ifdef CONFIG_IRBLASTER_ENABLE_PIN
+			gpio_direction_output(dev->enable_pin, 1);
+#endif
+			send_all_frame(irblaster);
+			event_put(ev);
+			cnt = 0;
+			while (!(aml_read_aobus(AO_IR_BLASTER_ADDR0) &
+				(1<<24)) && cnt < 0x10000)
+				cnt++;
+			cnt = 0;
+			while ((aml_read_aobus(AO_IR_BLASTER_ADDR0) &
+				(1<<26)) && cnt < 0x10000)
+				cnt++;
+#ifdef CONFIG_IRBLASTER_ENABLE_PIN
+			gpio_direction_output(dev->enable_pin, 0);
+#endif
+		} else
+			pr_err("kfifo_get fail\n");
+	}
+
+	return 0;
 }
 
 /**
@@ -136,28 +292,11 @@ static void aml_consumerir_transmit(struct aml_blaster *aml_transmit)
   * \return Reuturns 0 on success else return the error value.
  */
 
-int set_consumerir_freqs(struct aml_blaster *irblaster, int consumerir_freqs)
+int set_consumerir_freqs(struct blaster_window *irblaster, int consumerir_freqs)
 {
 	return	((irblaster->consumerir_freqs = consumerir_freqs) >= 32000
 		 && (irblaster->consumerir_freqs <= 56000)) ? 0 : -1;
 }
-
-/**
-  * Function to set the irblaster High or low modulation.
-  *
-  * @param[in] pointer to irblaster structure.
-  * @param[in] level 0  mod low level 1 mod high.
-  * \return Reutrn set value.
- */
-
-
-int set_consumerir_mod_level(struct aml_blaster *irblaster,
-			     int modulation_level)
-{
-	irblaster->fisrt_pulse_width = modulation_level;
-	return 0;
-}
-
 
 /**
   * Function to get the irblaster cur Carrier Frequency.
@@ -166,17 +305,66 @@ int set_consumerir_mod_level(struct aml_blaster *irblaster,
   * \return Reuturns freqs.
  */
 
-static int  get_consumerir_freqs(struct aml_blaster *irblaster)
+static int  get_consumerir_freqs(struct blaster_window *irblaster)
 {
 	return irblaster->consumerir_freqs;
 }
 
+static int  set_duty_cycle(int duty_cycle)
+{
+	if (duty_cycle > 100 || duty_cycle < 0)
+		return -1;
+	else
+		irblaster->consumerir_dutycycle = duty_cycle;
+
+	return 0;
+}
 
 static int aml_irblaster_open(struct inode *inode, struct file *file)
 {
 	irblaster_dbg("aml_irblaster_open()\n");
-	aml_write_aobus(AO_RTI_PIN_MUX_REG ,
-		aml_read_aobus(AO_RTI_PIN_MUX_REG) | (1 << 31));
+	return 0;
+}
+
+int send(const char *buf, int len)
+{
+	/*alloc memory*/
+	struct tx_event *ev;
+	int i = 0, j = 0, m = 0, ret = 0;
+	int val;
+	char tone[PS_SIZE];
+	struct irtx_dev *irdev = tx_dev;
+
+	ev = event_get();
+	if (!ev) {
+		pr_info("please wait for send\n");
+		return -ENOMEM;
+	}
+	for (i = 0; i < len; i++) {
+		if (buf[i] == 's') {
+			tone[j] = '\0';
+			ret = kstrtoint(tone, 10, &val);
+			pr_info("val is %d", val);
+			ev->buffer[m] = val * 10;
+			j = 0;
+			m++;
+			if (m >= IR_TX_BUFFER_SIZE)
+				break;
+			continue;
+		}
+		tone[j] = buf[i];
+		j++;
+
+		if (j >= PS_SIZE) {
+			pr_err("send timing value is out of range\n");
+			return -ENOMEM;
+		}
+	}
+	ev->size = m;
+	/*to send cycle to,*/
+	kfifo_put(&fifo, (const struct tx_event *)ev);
+	/*to wake up ir_tx_thread*/
+	wake_up_process(irdev->thread);
 	return 0;
 }
 
@@ -184,44 +372,36 @@ static long aml_irblaster_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long args)
 {
 
-	int consumerir_freqs = 0;
-	int modulation_level = 0;
+	int consumerir_freqs = 0, duty_cycle = 0;
 	s32 r = 0;
-	unsigned long flags;
-	static struct aml_blaster consumerir_transmit;
+	char sendcode[MAX_PLUSE];
 	void __user *argp = (void __user *)args;
 	irblaster_dbg("aml_irblaster_ioctl()  0x%4x\n ", cmd);
 	switch (cmd) {
 	case CONSUMERIR_TRANSMIT:
-		if (copy_from_user(&consumerir_transmit, argp,
-					sizeof(struct aml_blaster)))
+		if (copy_from_user(sendcode, (char *)argp,
+					strlen((char *)argp)))
 			return -EFAULT;
-
-		/*	for(i=0; i<consumerir_transmit.pattern_len; i++)
-				irblaster_dbg("idx[%d]:[%d]\n", i,
-				consumerir_transmit.pattern[i]);*/
-		irblaster_dbg("Transmit [%d]\n",
-			consumerir_transmit.pattern_len);
-		local_irq_save(flags);
-		aml_consumerir_transmit(&consumerir_transmit);
-		local_irq_restore(flags);
+		pr_info("send code is %s\n", sendcode);
+		r = send(sendcode, strlen(argp));
 		break;
-
 	case GET_CARRIER:
+		pr_info("in get freq\n");
 		consumerir_freqs = get_consumerir_freqs(irblaster);
-		if (copy_to_user(argp, &consumerir_freqs, sizeof(int)))
-			return -EFAULT;
-
-		break;
+		put_user(consumerir_freqs, (int *)argp);
+		return consumerir_freqs;
 	case SET_CARRIER:
-		if (copy_from_user(&consumerir_freqs, argp, sizeof(int)))
+		pr_info("in set freq\n");
+		get_user(consumerir_freqs, (int *)argp);
+		r = set_consumerir_freqs(irblaster, consumerir_freqs);
+		break;
+	case SET_DUTYCYCLE:
+		pr_info("in set duty_cycle\n");
+		if (copy_from_user(&duty_cycle, argp, sizeof(int)))
 			return -EFAULT;
-		return set_consumerir_freqs(irblaster, consumerir_freqs);
-
-	case SET_MODLEVEL:  /*Modulation level*/
-		if (copy_from_user(&consumerir_freqs, argp, sizeof(int)))
-			return -EFAULT;
-		return set_consumerir_mod_level(irblaster, modulation_level);
+		get_user(duty_cycle, (int *)argp);
+		r = set_duty_cycle(duty_cycle);
+		break;
 
 	default:
 		r = -ENOIOCTLCMD;
@@ -232,16 +412,132 @@ static long aml_irblaster_ioctl(struct file *filp, unsigned int cmd,
 }
 static int aml_irblaster_release(struct inode *inode, struct file *file)
 {
-	irblaster_dbg("aml_ir_irblaster_release()\n");
-	file->private_data = NULL;
-	aml_write_aobus(AO_RTI_PIN_MUX_REG ,
-		aml_read_aobus(AO_RTI_PIN_MUX_REG) & ~(1 << 31));
 	return 0;
-
 }
+
+static ssize_t show_debug(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	if (debug_enable)
+		sprintf(buf, "debug=enable\n");
+	else
+		sprintf(buf, "debug=disable\n");
+	return strlen(buf);
+}
+
+static ssize_t store_debug(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (!strncmp(buf, "enable", 1)) {
+		debug_enable = 1;
+		pr_info("enable debug\n");
+	} else if (!strncmp(buf, "disable", 1)) {
+		debug_enable = 0;
+		pr_info("disable debug\n");
+	}
+	return strlen(buf);
+}
+
+static ssize_t store_carrier_freq(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+
+	mutex_lock(&irblaster->lock);
+	ret = kstrtoint(buf, 10, &irblaster->consumerir_freqs);
+	if (ret) {
+		pr_err("IR_OUT: Invalid input for carrier_freq\n");
+		return ret;
+	}
+	irblaster_dbg("carrier_freq is %d\n", irblaster->consumerir_freqs);
+	mutex_unlock(&irblaster->lock);
+	return strlen(buf);
+}
+
+static ssize_t store_duty_cycle(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+
+	mutex_lock(&irblaster->lock);
+	ret = kstrtoint(buf, 10, &irblaster->consumerir_dutycycle);
+	if (ret) {
+		pr_err("IR_OUT: Invalid input for carrier_freq\n");
+		return ret;
+	}
+	irblaster_dbg("duty_cycle is %d\n", irblaster->consumerir_dutycycle);
+	mutex_unlock(&irblaster->lock);
+	return strlen(buf);
+}
+
+static ssize_t show_log(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	memset(buf, 0, PAGE_SIZE);
+	return strlen(buf);
+}
+
+static ssize_t show_send_value(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	memset(buf, 0, PAGE_SIZE);
+	return strlen(buf);
+}
+
+static ssize_t store_send(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	/*alloc memory*/
+	struct tx_event *ev;
+	int i = 0, j = 0, m = 0, ret = 0;
+	int val;
+	char tone[PS_SIZE];
+	struct irtx_dev *irdev = dev_get_drvdata(dev);
+
+	ev = event_get();
+	if (!ev) {
+		pr_err("please wait for send\n");
+		return -ENOMEM;
+	}
+	while (buf[i] != '\0') {
+		if (buf[i] == 's') {
+			tone[j] = '\0';
+			ret = kstrtoint(tone, 10, &val);
+			ev->buffer[m] = val * 10;
+			j = 0;
+			i++;
+			m++;
+			if (m >= IR_TX_BUFFER_SIZE)
+				break;
+			continue;
+		}
+		tone[j] = buf[i];
+		i++;
+		j++;
+		if (j >= PS_SIZE) {
+			pr_err("send timing value is out of range\n");
+			return -ENOMEM;
+		}
+	}
+	ev->size = m;
+	/*to send cycle to,*/
+	kfifo_put(&fifo, (const struct tx_event *)ev);
+	/*to wake up ir_tx_thread*/
+	wake_up_process(irdev->thread);
+	return count;
+}
+
+static DEVICE_ATTR(debug, S_IWUSR | S_IRUGO, show_debug, store_debug);
+static DEVICE_ATTR(log, S_IRUGO, show_log, NULL);
+static DEVICE_ATTR(sendvalue, S_IRUGO, show_send_value, NULL);
+static DEVICE_ATTR(send, S_IWUSR, NULL, store_send);
+static DEVICE_ATTR(carrier_freq, S_IWUSR, NULL, store_carrier_freq);
+static DEVICE_ATTR(duty_cycle, S_IWUSR, NULL, store_duty_cycle);
+
 static const struct file_operations aml_irblaster_fops = {
 	.owner		= THIS_MODULE,
 	.open		= aml_irblaster_open,
+	.compat_ioctl = aml_irblaster_ioctl,
 	.unlocked_ioctl = aml_irblaster_ioctl,
 	.release	= aml_irblaster_release,
 };
@@ -249,16 +545,34 @@ static const struct file_operations aml_irblaster_fops = {
 static int  aml_irblaster_probe(struct platform_device *pdev)
 {
 	int r;
+	struct irtx_dev *dev;
+	struct pinctrl *p;
+
 	pr_info("irblaster probe\n");
-	irblaster = kmalloc(sizeof(struct aml_blaster), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct irtx_dev), GFP_KERNEL);
+	if (!dev) {
+		pr_info("");
+		return -ENOMEM;
+	}
+
+	irblaster = kzalloc(sizeof(struct blaster_window), GFP_KERNEL);
 	if (irblaster == NULL)
 		return -1;
-	memset(irblaster, 0, sizeof(struct aml_blaster));
+
+	irblaster->consumerir_freqs = 38000;
+	irblaster->consumerir_dutycycle = 50;
 
 	if (!pdev->dev.of_node) {
 		pr_info("aml_irblaster: pdev->dev.of_node == NULL!\n");
 		return -1;
 	}
+
+	p = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(p)) {
+		dev_err(&pdev->dev, "pinctrl error, %ld\n", PTR_ERR(p));
+		return -1;
+	}
+
 	r = alloc_chrdev_region(&amirblaster_id, 0, DEIVE_COUNT, DEVICE_NAME);
 	if (r < 0) {
 		pr_err("Can't register major for ir irblaster device\n");
@@ -274,19 +588,43 @@ static int  aml_irblaster_probe(struct platform_device *pdev)
 		return -1;
 	}
 	irblaster_dev = device_create(irblaster_class, NULL,
-					amirblaster_id, NULL,
+					amirblaster_id, dev,
 				      "irblaster%d", 1);
 	if (irblaster_dev == NULL) {
 		pr_err("irblaster_dev create error\n");
 		class_destroy(irblaster_class);
 		return -EEXIST;
 	}
+
+	mutex_init(&irblaster->lock);
+	device_create_file(irblaster_dev, &dev_attr_debug);
+	device_create_file(irblaster_dev, &dev_attr_log);
+	device_create_file(irblaster_dev, &dev_attr_sendvalue);
+	device_create_file(irblaster_dev, &dev_attr_send);
+	device_create_file(irblaster_dev, &dev_attr_duty_cycle);
+	device_create_file(irblaster_dev, &dev_attr_carrier_freq);
+	INIT_KFIFO(fifo);
+	dev->thread = kthread_run(ir_tx_thread, dev,
+		 "ir-blaster-thread");
+
+#ifdef CONFIG_IRBLASTER_ENABLE_PIN
+	dev->enable_pin = of_get_named_gpio(pdev->dev.of_node, "enable_pin", 0);
+	gpio_request(dev->enable_pin, "ir enable pin");
+	gpio_direction_output(dev->enable_pin, 0);
+#endif
+	tx_dev = dev;
 	return 0;
 }
 
 static int aml_irblaster_remove(struct platform_device *pdev)
 {
 	pr_info("remove IRBLASTER\n");
+	device_remove_file(irblaster_dev, &dev_attr_debug);
+	device_remove_file(irblaster_dev, &dev_attr_log);
+	device_remove_file(irblaster_dev, &dev_attr_sendvalue);
+	device_remove_file(irblaster_dev, &dev_attr_send);
+	device_remove_file(irblaster_dev, &dev_attr_carrier_freq);
+	device_remove_file(irblaster_dev, &dev_attr_duty_cycle);
 	kfree(irblaster);
 	cdev_del(&amirblaster_device);
 	device_destroy(irblaster_class, amirblaster_id);
@@ -312,8 +650,6 @@ static struct platform_driver aml_irblaster_driver = {
 	},
 };
 
-
-
 static int __init aml_irblaster_init(void)
 {
 	pr_info("BLASTER Driver Init\n");
@@ -321,7 +657,6 @@ static int __init aml_irblaster_init(void)
 		irblaster_dbg("failed to register aml_ir_irblaster_driver module\n");
 		return -ENODEV;
 	}
-
 	return 0;
 }
 
