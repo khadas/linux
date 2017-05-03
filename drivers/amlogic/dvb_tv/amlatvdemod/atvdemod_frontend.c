@@ -71,6 +71,7 @@ void set_atvdemod_scan_mode(int val)
 }
 EXPORT_SYMBOL(set_atvdemod_scan_mode);
 
+
 static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode);
 /*static void sound_store(const char *buff, v4l2_std_id *std);*/
 static ssize_t aml_atvdemod_store(struct class *cls,
@@ -655,7 +656,14 @@ void __iomem *amlatvdemod_hiu_reg_base;
 void __iomem *amlatvdemod_periphs_reg_base;
 int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 {
-	if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
+	int ret = 0;
+	if (is_meson_txlx_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1<<29) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
+	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
 		pr_info("%s atv demod pll not init\n", __func__);
 		return 0;
 	}
@@ -665,7 +673,14 @@ int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 
 int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 {
-	if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
+	int ret = 0;
+	if (is_meson_txlx_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1<<29) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
+	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
 		pr_info("%s atv demod pll not init\n", __func__);
 		return 0;
 	}
@@ -674,6 +689,14 @@ int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 }
 int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 {
+	int ret = 0;
+	if (is_meson_txlx_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1<<31) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
+	}
 	if (atvaudiodem_reg_base)
 		*val = readl(atvaudiodem_reg_base + reg);
 
@@ -682,6 +705,15 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 
 int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 {
+	int ret = 0;
+	if (is_meson_txlx_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1<<31) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
+	}
+
 	if (atvaudiodem_reg_base)
 		writel(val, (atvaudiodem_reg_base + reg));
 
