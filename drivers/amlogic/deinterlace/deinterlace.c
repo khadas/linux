@@ -1833,6 +1833,9 @@ struct di_pre_stru_s {
 /* valid only when prog_proc_type is 0, for
  * progressive source: top field 1, bot field 0 */
 	int	source_change_flag;
+/* input size change flag, 1: need reconfig pre/nr/dnr size */
+/* 0: not need config pre/nr/dnr size*/
+	bool input_size_change_flag;
 
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
@@ -3620,18 +3623,21 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 	}
 }
 
+static void di_pre_size_change(unsigned short width, unsigned short height);
+
 static void pre_de_process(void)
 {
+	unsigned short pre_width = 0, pre_height = 0;
 	int chan2_field_num = 1;
 	int canvases_idex = di_pre_stru.field_count_for_cont % 2;
 
 #ifdef NEW_DI_V1
 	int cont_rd = 1;
 #endif
-	unsigned int blkhsize = 0;
 	di_print("%s: start\n", __func__);
 	di_pre_stru.pre_de_busy = 1;
 	di_pre_stru.pre_de_busy_timer_count = 0;
+
 
 	config_di_mif(&di_pre_stru.di_inp_mif, di_pre_stru.di_inp_buf);
 	/* pr_dbg("set_separate_en=%d vframe->type %d\n",
@@ -3695,18 +3701,11 @@ static void pre_de_process(void)
 	    ((di_pre_stru.di_chan2_buf_dup_p->vframe->type & VIDTYPE_TYPEMASK)
 	     == VIDTYPE_INTERLACE_TOP))
 		chan2_field_num = 0;
-
-	RDMA_WR(DI_PRE_SIZE, di_pre_stru.di_nrwr_mif.end_x |
-		(di_pre_stru.di_nrwr_mif.end_y << 16));
-	if (mcpre_en) {
-		blkhsize = (di_pre_stru.di_nrwr_mif.end_x + 4) / 5;
-		RDMA_WR(MCDI_HV_SIZEIN, (di_pre_stru.di_nrwr_mif.end_y + 1)
-			| ((di_pre_stru.di_nrwr_mif.end_x + 1) << 16));
-		RDMA_WR(MCDI_HV_BLKSIZEIN, (overturn ? 3 : 0) << 30
-			| blkhsize << 16
-			| (di_pre_stru.di_nrwr_mif.end_y + 1));
-		RDMA_WR(MCDI_BLKTOTAL,
-			blkhsize * (di_pre_stru.di_nrwr_mif.end_y + 1));
+	pre_width = di_pre_stru.di_nrwr_mif.end_x + 1;
+	pre_height = di_pre_stru.di_nrwr_mif.end_y + 1;
+	if (di_pre_stru.input_size_change_flag) {
+		di_pre_size_change(pre_width, pre_height);
+		di_pre_stru.input_size_change_flag = false;
 	}
 	/* set interrupt mask for pre module. */
 	/* we need to only leave one mask open
@@ -4169,6 +4168,7 @@ static int still_field_count;
 static int dejaggy_4p = true;
 module_param_named(dejaggy_4p, dejaggy_4p, int, 0664);
 UINT32 field_count = 0;
+
 
 static int cmb_adpset_cnt;
 module_param(cmb_adpset_cnt, int, 0664);
@@ -5729,6 +5729,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			di_pre_stru.cur_sig_fmt = di_buf->vframe->sig_fmt;
 			di_pre_stru.orientation = di_buf->vframe->video_angle;
 			di_pre_stru.source_change_flag = 1;
+			di_pre_stru.input_size_change_flag = true;
 			di_pre_stru.same_field_source_flag = 0;
 #if defined(NEW_DI_TV)
 			di_set_para_by_tvinfo(vframe);
@@ -8405,6 +8406,31 @@ static struct rdma_op_s di_rdma_op = {
 };
 #endif
 
+static void di_pre_size_change(unsigned short width, unsigned short height)
+{
+	unsigned int blkhsize = 0;
+
+	nr_all_config(width, height);
+	/* pulldown init */
+	field_count = 0;
+	flm22_sure_num = (height * 100)/480;
+	flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
+	combing_threshold_config(width);
+	init_field_mode(height);
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu())
+		combing_pd22_window_config(width, height);
+	RDMA_WR(DI_PRE_SIZE, (width - 1) |
+		((height - 1) << 16));
+	if (mcpre_en) {
+		blkhsize = (width + 3) / 5;
+		RDMA_WR(MCDI_HV_SIZEIN, height
+			| (width << 16));
+		RDMA_WR(MCDI_HV_BLKSIZEIN, (overturn ? 3 : 0) << 30
+			| blkhsize << 16 | height);
+		RDMA_WR(MCDI_BLKTOTAL, blkhsize * height);
+	}
+}
+
 static void di_reg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
@@ -8472,7 +8498,7 @@ static void di_reg_process_irq(void)
 			/* nr/blend0/ei0/mtn0 clock gate */
 		}
 #endif
-		/* add for di Reg re-init */
+
 #ifdef NEW_DI_TV
 		di_set_para_by_tvinfo(vframe);
 #endif
@@ -8519,21 +8545,8 @@ static void di_reg_process_irq(void)
 			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
 		}
-		nr_all_config(vframe->width, nr_height);
 		reset_pulldown_state();
-		if (pulldown_enable) {
-			field_count = 0;
-			flm22_sure_num = (vframe->height * 100)/480;
-			flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
-		}
-		combing_threshold_config(vframe->width);
-		init_field_mode(nr_height);
-		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
-			combing_pd22_window_config(vframe->width,
-				nr_height);
-			/* replaced by ppmgr tbdetction
-				tbff_init();
-			*/
+		di_pre_size_change(vframe->width, nr_height);
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 		last_lev = -1;
