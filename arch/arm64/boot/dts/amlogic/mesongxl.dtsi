@@ -261,8 +261,16 @@
 			amlogic,clrmask = <6 0x3c>;
 			amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3";
 		};
+
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1>;
+			amlogic,clrmask = <AO 0x200000>;
+			amlogic,pins = "GPIOAO_7";
+		};
+
+		irblaster_pins:irblaster_pin{
+			amlogic,setmask = <AO 0x200000>;
+			amlogic,clrmask = <AO 0x1>;
 			amlogic,pins = "GPIOAO_7";
 		};
 		ao_uart_pins:ao_uart{
@@ -692,7 +700,13 @@
 		map = <&custom_maps>;
 		max_frame_time = <200>; /*set software decoder max frame time*/
 	};
-
+	meson-irblaster {
+		compatible = "amlogic, am_irblaster";
+		dev_name = "meson-irblaster";
+		status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&irblaster_pins>;
+	};
 	custom_maps:custom_maps {
 		mapnum = <3>;
 		map0 = <&map_0>;
@@ -836,7 +850,7 @@
 				REMOTE_KEY(0x9a,120)
 				REMOTE_KEY(0xcd,121)>;
 		};
- 	};
+	};
 
 	rng {
 		compatible = "amlogic,meson-rng";
@@ -906,9 +920,9 @@
 		status = "okay";
 		#pwm-cells = <2>;
 		pwm-outputs = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
-				  	<PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
-				  	<PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
-				  	<PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
+					<PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+					<PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+					<PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
 		reg = <0x0 0xc1108550  0x0 0x1c>,
 		      <0x0 0xc1108640  0x0 0x1c>,
 		      <0x0 0xc11086c0  0x0 0x1c>,
