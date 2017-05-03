@@ -1974,6 +1974,10 @@ static void vh264_isr(void)
 		fatal_error_flag = DECODER_FATAL_ERROR_UNKNOW;
 		/* this is fatal error, need restart */
 		pr_info("fatal error happend\n");
+		vh264_stream_switching_state = SWITCHING_STATE_ON_CMD3;
+		amvdec_stop();
+		pr_info("fatal error  switching mode cmd3.\n");
+			schedule_work(&stream_switching_work);
 		if (!fatal_error_reset)
 			schedule_work(&error_wd_work);
 	} else if ((cpu_cmd & 0xff) == 7) {
@@ -2094,31 +2098,14 @@ static void vh264_put_timer_func(unsigned long arg)
 				pr_info("$$$$decoder is waiting for buffer\n");
 				if (++wait_buffer_counter > 4) {
 					amvdec_stop();
-
-#ifdef CONFIG_POST_PROCESS_MANAGER
-					vh264_ppmgr_reset();
-#else
-					vf_light_unreg_provider(&vh264_vf_prov);
-					vh264_local_init();
-					vf_reg_provider(&vh264_vf_prov);
-#endif
-					vh264_prot_init();
-					amvdec_start();
+					schedule_work(&error_wd_work);
 				}
 			} else
 				wait_buffer_counter = 0;
 		} else if (wait_i_pass_frames > 1000) {
 			pr_info("i passed frames > 1000\n");
 			amvdec_stop();
-#ifdef CONFIG_POST_PROCESS_MANAGER
-			vh264_ppmgr_reset();
-#else
-			vf_light_unreg_provider(&vh264_vf_prov);
-			vh264_local_init();
-			vf_reg_provider(&vh264_vf_prov);
-#endif
-			vh264_prot_init();
-			amvdec_start();
+			schedule_work(&error_wd_work);
 		}
 	}
 
@@ -2360,10 +2347,11 @@ static int vh264_local_init(void)
 				& 0x04) >> 2;
 	max_refer_buf = !(((unsigned long) vh264_amstream_dec_info.param
 				& 0x10) >> 4);
-	if (mm_blk_handle) {
-		decoder_bmmu_box_free(mm_blk_handle);
-		mm_blk_handle = NULL;
-	}
+	if (!vh264_reset) {
+		if (mm_blk_handle) {
+			decoder_bmmu_box_free(mm_blk_handle);
+			mm_blk_handle = NULL;
+		}
 
 		mm_blk_handle = decoder_bmmu_box_alloc_box(
 			DRIVER_NAME,
@@ -2373,7 +2361,7 @@ static int vh264_local_init(void)
 			CODEC_MM_FLAGS_CMA_CLEAR |
 			CODEC_MM_FLAGS_FOR_VDECODER |
 			tvp_flag);
-
+	}
 	pr_info
 	("H264 sysinfo: %dx%d duration=%d, pts_outside=%d, ",
 	 frame_width, frame_height, frame_dur, pts_outside);
@@ -2450,6 +2438,25 @@ static int vh264_local_init(void)
 
 	reset_userdata_fifo(1);
 
+	if (enable_switch_fense) {
+		for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
+			struct buffer_spec_s *s = &fense_buffer_spec[i];
+			s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
+			ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle,
+				FENSE_BUFFER_IDX(i),
+				3 * SZ_1M, DRIVER_NAME, &s->phy_addr);
+
+			if (ret < 0) {
+				fatal_error_flag =
+				DECODER_FATAL_ERROR_NO_MEM;
+				vh264_running = 0;
+				return ret;
+			}
+			s->y_canvas_index = 2 * i;
+			s->u_canvas_index = 2 * i + 1;
+			s->v_canvas_index = 2 * i + 1;
+		}
+	}
 	return 0;
 }
 
@@ -2458,7 +2465,6 @@ static s32 vh264_init(void)
 	int ret = 0;
 	int trickmode_fffb = 0;
 	int firmwareloaded = 0;
-	int i;
 
 	/* pr_info("\nvh264_init\n"); */
 	init_timer(&recycle_timer);
@@ -2646,25 +2652,7 @@ static s32 vh264_init(void)
 	}
 
 	stat |= STAT_MC_LOAD;
-	if (enable_switch_fense) {
-		for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
-			struct buffer_spec_s *s = &fense_buffer_spec[i];
-			s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
-			ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle,
-				FENSE_BUFFER_IDX(i),
-				3 * SZ_1M, DRIVER_NAME, &s->phy_addr);
 
-			if (ret < 0) {
-				fatal_error_flag =
-				DECODER_FATAL_ERROR_NO_MEM;
-				vh264_running = 0;
-				return ret;
-			}
-			s->y_canvas_index = 2 * i;
-			s->u_canvas_index = 2 * i + 1;
-			s->v_canvas_index = 2 * i + 1;
-		}
-	}
 	/* enable AMRISC side protocol */
 	vh264_prot_init();
 
@@ -2770,6 +2758,7 @@ static int vh264_stop(int mode)
 		sei_data_buffer_phys = 0;
 	}
 	amvdec_disable();
+
 	if (mm_blk_handle) {
 		decoder_bmmu_box_free(mm_blk_handle);
 		mm_blk_handle = NULL;
@@ -2790,8 +2779,12 @@ static void error_do_work(struct work_struct *work)
 	 * free_irq/deltimer/..and some other.
 	 */
 	if (atomic_read(&vh264_active)) {
-		amvdec_stop();
+
+		do {
+			msleep(20);
+		} while (vh264_stream_switching_state != SWITCHING_STATE_OFF);
 		vh264_reset  = 1;
+
 #ifdef CONFIG_POST_PROCESS_MANAGER
 		vh264_ppmgr_reset();
 #else
@@ -2802,7 +2795,6 @@ static void error_do_work(struct work_struct *work)
 		vf_reg_provider(&vh264_vf_prov);
 #endif
 		msleep(30);
-		vh264_local_init();
 		vh264_prot_init();
 
 		amvdec_start();
@@ -2837,6 +2829,7 @@ static void stream_switching_done(void)
 
 	pr_info("Leaving switching mode.\n");
 }
+
 
 /* construt a new frame as a copy of last frame so frame receiver can
  * release all buffer resources to decoder.
@@ -2887,12 +2880,15 @@ static void stream_switching_do(struct work_struct *work)
 		buffer_index = vf->index & 0xff;
 
 		/* construct a clone of the frame from last frame */
+
 #if 0
+
 		pr_info("src yaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
 			buffer_spec[buffer_index].y_addr,
 			buffer_spec[buffer_index].y_canvas_index,
 			buffer_spec[buffer_index].y_canvas_width,
 			buffer_spec[buffer_index].y_canvas_height);
+
 
 		pr_info("src uaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
 			buffer_spec[buffer_index].u_addr,
