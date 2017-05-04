@@ -497,8 +497,25 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 		else if (info->mode == VMODE_INIT_NULL)
 			ret = -EFAULT;
-		else if (copy_to_user(argp, info, sizeof(struct vinfo_s)))
-			ret = -EFAULT;
+		else {
+			struct vinfo_base_s  baseinfo;
+			baseinfo.mode = info->mode;
+			baseinfo.width = info->width;
+			baseinfo.height = info->height;
+			baseinfo.field_height = info->field_height;
+			baseinfo.aspect_ratio_num = info->aspect_ratio_num;
+			baseinfo.aspect_ratio_den = info->aspect_ratio_den;
+			baseinfo.sync_duration_num = info->sync_duration_num;
+			baseinfo.sync_duration_den = info->sync_duration_den;
+			baseinfo.screen_real_width = info->screen_real_width;
+			baseinfo.screen_real_height = info->screen_real_height;
+			baseinfo.video_clk = info->video_clk;
+			baseinfo.viu_color_fmt = info->viu_color_fmt;
+			baseinfo.hdr_info = info->hdr_info;
+			if (copy_to_user(argp, &baseinfo,
+						sizeof(struct vinfo_base_s)))
+				ret = -EFAULT;
+		}
 		break;
 	default:
 		ret = -EINVAL;

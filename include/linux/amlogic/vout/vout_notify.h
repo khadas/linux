@@ -98,9 +98,9 @@ extern int get_power_level(void);
 #define VOUT_IOC_NR_SET_VINFO    0x1
 
 #define VOUT_IOC_CMD_GET_VINFO   \
-		_IOR(VOUT_IO_TYPE, VOUT_IOC_NR_GET_VINFO, struct vinfo_s)
+		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_VINFO, struct vinfo_base_s)
 #define VOUT_IOC_CMD_SET_VINFO   \
-		_IOW(VOUT_IO_TYPE, VOUT_IOC_NR_SET_VINFO, struct vinfo_s)
+		_IOW(VOUT_IOC_TYPE, VOUT_IOC_NR_SET_VINFO, struct vinfo_base_s)
 
 /* vout2 */
 extern int vout2_register_client(struct notifier_block *);

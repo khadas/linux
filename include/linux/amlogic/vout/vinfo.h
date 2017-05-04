@@ -223,6 +223,22 @@ struct dv_info {
 	} vers;
 };
 
+struct vinfo_base_s {
+	enum vmode_e mode;
+	u32 width;
+	u32 height;
+	u32 field_height;
+	u32 aspect_ratio_num;
+	u32 aspect_ratio_den;
+	u32 sync_duration_num;
+	u32 sync_duration_den;
+	u32 screen_real_width;
+	u32 screen_real_height;
+	u32 video_clk;
+	enum tvin_color_fmt_e viu_color_fmt;
+	struct hdr_info hdr_info;
+};
+
 struct vinfo_s {
 	char *name;
 	enum vmode_e mode;
