@@ -35,7 +35,7 @@
 #include "arch/register.h"
 #include "amports_priv.h"
 #include "decoder/decoder_bmmu_box.h"
-
+#include <linux/amlogic/codec_mm/configs.h>
 
 
 #ifdef CONFIG_AM_VDEC_MJPEG_LOG
@@ -871,6 +871,10 @@ static struct codec_profile_t amvdec_mjpeg_profile = {
 	.name = "mjpeg",
 	.profile = ""
 };
+static struct mconfig mjpeg_configs[] = {
+	MC_PU32("stat", &stat),
+};
+static struct mconfig_node mjpeg_node;
 
 static int __init amvdec_mjpeg_driver_init_module(void)
 {
@@ -882,6 +886,8 @@ static int __init amvdec_mjpeg_driver_init_module(void)
 		return -ENODEV;
 	}
 	vcodec_profile_register(&amvdec_mjpeg_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &mjpeg_node,
+		"mjpeg", mjpeg_configs, CONFIG_FOR_RW);
 	return 0;
 }
 

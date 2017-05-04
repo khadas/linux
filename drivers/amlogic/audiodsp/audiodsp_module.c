@@ -35,6 +35,7 @@
 #include <linux/reset.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/aml_snd_iomap.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 /* #include <asm/dsp/audiodsp_control.h> */
 /* #include "audiodsp_control.h" */
@@ -1185,6 +1186,86 @@ static struct class audiodsp_class = {
 	.resume = NULL,
 #endif
 };
+int audiodsp_store_fun(const char *name, int id, const char *buf, int size)
+{
+	int ret = size;
+	switch (id) {
+	case 0:
+		ret = digital_raw_store(NULL, NULL , buf, size);
+		break;
+	case 1:
+		ret = ac3_drc_control_store(NULL, NULL , buf, size);
+		break;
+	case 2:
+		ret =  audio_samesource_store(NULL, NULL , buf, size);
+		break;
+	case 3:
+		ret = codec_fatal_err_store(NULL, NULL , buf, size);
+		break;
+	case 4:
+		ret = digital_codec_store(NULL, NULL , buf, size);
+		break;
+	case 5:
+		ret = dts_dec_control_store(NULL, NULL , buf, size);
+		break;
+	default:
+		ret = -1;
+	}
+	return size;
+
+}
+int audiodsp_show_fun(const char *trigger, int id, char *sbuf, int size)
+{
+	int ret = -1;
+	void *buf, *getbuf = NULL;
+	if (size < PAGE_SIZE) {
+		getbuf = (void *)__get_free_page(GFP_KERNEL);
+		if (!getbuf)
+			return -ENOMEM;
+		buf = getbuf;
+	} else {
+		buf = sbuf;
+	}
+	switch (id) {
+	case 0:
+		ret = digital_raw_show(NULL, NULL , buf);
+		break;
+	case 1:
+		ret = ac3_drc_control_show(NULL, NULL , buf);
+		break;
+	case 2:
+		ret =  audio_samesource_show(NULL, NULL , buf);
+		break;
+	case 3:
+		ret = codec_fatal_err_show(NULL, NULL , buf);
+		break;
+	case 4:
+		ret = digital_codec_show(NULL, NULL , buf);
+		break;
+	case 5:
+		ret = dts_dec_control_show(NULL, NULL , buf);
+		break;
+	default:
+		pr_err("unknow trigger:[%s]\n", trigger);
+		ret = -1;
+	}
+	if (ret > 0 && getbuf != NULL) {
+		ret = min_t(int, ret, size);
+		strncpy(sbuf, buf, ret);
+	}
+	if (getbuf != NULL)
+		free_page((unsigned long)getbuf);
+	return ret;
+}
+static struct mconfig audiodsp_config[] = {
+	MC_FUN_ID("digital_raw", audiodsp_show_fun, audiodsp_store_fun, 0),
+	MC_FUN_ID("ac3_drc_control", audiodsp_show_fun, audiodsp_store_fun, 1),
+	MC_FUN_ID("audio_samesource", audiodsp_show_fun, audiodsp_store_fun, 2),
+	MC_FUN_ID("codec_fatal_err", audiodsp_show_fun, audiodsp_store_fun, 3),
+	MC_FUN_ID("digital_codec", audiodsp_show_fun, audiodsp_store_fun, 4),
+	MC_FUN_ID("dts_dec_control", audiodsp_show_fun, audiodsp_store_fun, 5),
+};
+static struct mconfig_node audiodsp_node;
 
 int audiodsp_probe(void)
 {
@@ -1257,7 +1338,8 @@ int audiodsp_probe(void)
 #if 0
 	dsp_get_debug_interface(0);
 #endif
-
+	INIT_REG_NODE_CONFIGS("media.audio", &audiodsp_node,
+		"audiodsp", audiodsp_config, CONFIG_FOR_RW);
 	return res;
 
 	device_destroy(priv->class, MKDEV(AUDIODSP_MAJOR, 0));

@@ -22,6 +22,8 @@
 #include <linux/amlogic/amports/timestamp.h>
 #include <linux/amlogic/amports/tsync.h>
 #include <linux/amlogic/amports/ptsserv.h>
+#include <linux/amlogic/codec_mm/configs.h>
+
 #ifdef ARC_700
 /* #include <asm/arch/am_regs.h> */
 #else
@@ -1833,6 +1835,157 @@ static struct class tsync_class = {
 		.class_attrs = tsync_class_attrs,
 	};
 
+
+int tsync_store_fun(const char *trigger, int id, const char *buf, int size)
+{
+	int ret = size;
+	switch (id) {
+	case 0:	return store_vpts(NULL, NULL , buf, size);
+	case 1:	return store_apts(NULL, NULL , buf, size);
+	case 2:	return dobly_store_sync(NULL, NULL , buf, size);
+	case 3:	return store_pcrscr(NULL, NULL , buf, size);
+	case 4:	return store_event(NULL, NULL , buf, size);
+	case 5:	return store_mode(NULL, NULL , buf, size);
+	case 6:	return store_enable(NULL, NULL , buf, size);
+	case 7:	return store_pcr_recover(NULL, NULL , buf, size);
+	case 8:	return store_discontinue(NULL, NULL , buf, size);
+	case 9:	return store_debug_pts_checkin(NULL, NULL , buf, size);
+	case 10:return store_debug_pts_checkout(NULL, NULL , buf, size);
+	case 11:return store_debug_vpts(NULL, NULL , buf, size);
+	case 12:return store_debug_apts(NULL, NULL , buf, size);
+	case 13:return store_av_threshold_min(NULL, NULL , buf, size);
+	case 14:return store_av_threshold_max(NULL, NULL , buf, size);
+	/*case 15:return -1;
+	case 16:return -1;*/
+	case 17:return store_vpause_flag(NULL, NULL , buf, size);
+	case 18:return store_slowsync_enable(NULL, NULL , buf, size);
+	case 19:return store_startsync_mode(NULL, NULL , buf, size);
+	case 20:return store_firstapts(NULL, NULL , buf, size);
+	case 21:return -1;
+	default:
+		ret = -1;
+	}
+	return size;
+}
+int tsync_show_fun(const char *trigger, int id, char *sbuf, int size)
+{
+	int ret = -1;
+	void *buf, *getbuf = NULL;
+	if (size < PAGE_SIZE) {
+		getbuf = (void *)__get_free_page(GFP_KERNEL);
+		if (!getbuf)
+			return -ENOMEM;
+		buf = getbuf;
+	} else {
+		buf = sbuf;
+	}
+
+	switch (id) {
+	case 0:
+		ret = show_vpts(NULL, NULL , buf);
+		break;
+	case 1:
+		ret = show_apts(NULL, NULL , buf);
+		break;
+	case 2:
+		ret =  dobly_show_sync(NULL, NULL , buf);
+		break;
+	case 3:
+		ret = show_pcrscr(NULL, NULL , buf);
+		break;
+	case 4:
+		ret = -1;
+		break;
+	case 5:
+		ret = show_mode(NULL, NULL , buf);
+		break;
+	case 6:
+		ret = show_enable(NULL, NULL , buf);
+		break;
+	case 7:
+		ret = show_pcr_recover(NULL, NULL , buf);
+		break;
+	case 8:
+		ret = show_discontinue(NULL, NULL , buf);
+		break;
+	case 9:
+		ret = show_debug_pts_checkin(NULL, NULL , buf);
+		break;
+	case 10:
+		ret = show_debug_pts_checkout(NULL, NULL , buf);
+		break;
+	case 11:
+		ret = show_debug_vpts(NULL, NULL , buf);
+		break;
+	case 12:
+		ret = show_debug_apts(NULL, NULL , buf);
+		break;
+	case 13:
+		ret = show_av_threshold_min(NULL, NULL , buf);
+		break;
+	case 14:
+		ret = show_av_threshold_max(NULL, NULL , buf);
+		break;
+	case 15:
+		ret = show_last_checkin_apts(NULL, NULL , buf);
+		break;
+	case 16:
+		ret = show_firstvpts(NULL, NULL , buf);
+		break;
+	case 17:
+		ret = show_vpause_flag(NULL, NULL , buf);
+		break;
+	case 18:
+		ret = show_slowsync_enable(NULL, NULL , buf);
+		break;
+	case 19:
+		ret = show_startsync_mode(NULL, NULL , buf);
+		break;
+	case 20:
+		ret = show_firstapts(NULL, NULL , buf);
+		break;
+	case 21:
+		ret = show_checkin_firstvpts(NULL, NULL , buf);
+		break;
+	default:
+		ret = -1;
+	}
+	if (ret > 0 && getbuf != NULL) {
+		ret = min_t(int, ret, size);
+		strncpy(sbuf, buf, ret);
+	}
+	if (getbuf != NULL)
+		free_page((unsigned long)getbuf);
+	return ret;
+}
+
+
+static struct mconfig tsync_configs[] = {
+	MC_FUN_ID("pts_video", tsync_show_fun, tsync_store_fun, 0),
+	MC_FUN_ID("pts_audio", tsync_show_fun, tsync_store_fun, 1),
+	MC_FUN_ID("dobly_av_sync", tsync_show_fun, tsync_store_fun, 2),
+	MC_FUN_ID("pts_pcrscr", tsync_show_fun, tsync_store_fun, 3),
+	MC_FUN_ID("event", tsync_show_fun, tsync_store_fun, 4),
+	MC_FUN_ID("mode", tsync_show_fun, tsync_store_fun, 5),
+	MC_FUN_ID("enable", tsync_show_fun, tsync_store_fun, 6),
+	MC_FUN_ID("pcr_recover", tsync_show_fun, tsync_store_fun, 7),
+	MC_FUN_ID("discontinue", tsync_show_fun, tsync_store_fun, 8),
+	MC_FUN_ID("debug_pts_checkin", tsync_show_fun, tsync_store_fun, 9),
+	MC_FUN_ID("debug_pts_checkout", tsync_show_fun, tsync_store_fun, 10),
+	MC_FUN_ID("debug_video_pts", tsync_show_fun, tsync_store_fun, 11),
+	MC_FUN_ID("debug_audio_pts", tsync_show_fun, tsync_store_fun, 12),
+	MC_FUN_ID("av_threshold_min", tsync_show_fun, tsync_store_fun, 13),
+	MC_FUN_ID("av_threshold_max", tsync_show_fun, tsync_store_fun, 14),
+	MC_FUN_ID("last_checkin_apts", tsync_show_fun, NULL, 15),
+	MC_FUN_ID("firstvpts", tsync_show_fun, NULL, 16),
+	MC_FUN_ID("vpause_flag", tsync_show_fun, tsync_store_fun, 17),
+	MC_FUN_ID("slowsync_enable", tsync_show_fun, tsync_store_fun, 18),
+	MC_FUN_ID("startsync_mode", tsync_show_fun, tsync_store_fun, 19),
+	MC_FUN_ID("firstapts", tsync_show_fun, tsync_store_fun, 20),
+	MC_FUN_ID("checkin_firstvpts", tsync_show_fun, NULL, 21),
+};
+
+
 static int __init tsync_init(void)
 {
 	int r;
@@ -1863,6 +2016,7 @@ static int __init tsync_init(void)
 	tsync_state_switch_timer.expires = jiffies + 1;
 
 	add_timer(&tsync_state_switch_timer);
+	REG_PATH_CONFIGS("media.tsync", tsync_configs);
 	return 0;
 }
 

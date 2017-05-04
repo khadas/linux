@@ -1196,10 +1196,6 @@ static void __exit amvdec_vc1_driver_remove_module(void)
 }
 
 /****************************************/
-
-module_param(stat, uint, 0664);
-MODULE_PARM_DESC(stat, "\n amvdec_vc1 stat\n");
-
 module_init(amvdec_vc1_driver_init_module);
 module_exit(amvdec_vc1_driver_remove_module);
 

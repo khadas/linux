@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include "amports_priv.h"
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
 #include "decoder/decoder_mmu_box.h"
 #include "decoder/decoder_bmmu_box.h"
 #include "config_parser.h"
@@ -2010,11 +2011,6 @@ bit 1, 1: only decode I picture;
 */
 static u32 i_only_flag;
 
-/*
-use_cma: 1, use both reserver memory and cma for buffers
-2, only use cma for buffers
-*/
-static u32 use_cma = 2;
 
 static u32 max_decoding_time;
 /*
@@ -6975,6 +6971,43 @@ static struct platform_driver ammvdec_vp9_driver = {
 	}
 };
 #endif
+static struct mconfig vp9_configs[] = {
+	MC_PU32("bit_depth_luma", &bit_depth_luma),
+	MC_PU32("bit_depth_chroma", &bit_depth_chroma),
+	MC_PU32("frame_width", &frame_width),
+	MC_PU32("frame_height", &frame_height),
+	MC_PU32("debug", &debug),
+	MC_PU32("radr", &radr),
+	MC_PU32("rval", &rval),
+	MC_PU32("pop_shorts", &pop_shorts),
+	MC_PU32("dbg_cmd", &dbg_cmd),
+	MC_PU32("dbg_skip_decode_index", &dbg_skip_decode_index),
+	MC_PU32("endian", &endian),
+	MC_PU32("step", &step),
+	MC_PU32("decode_stop_pos", &decode_stop_pos),
+	MC_PU32("decode_pic_begin", &decode_pic_begin),
+	MC_PU32("slice_parse_begin", &slice_parse_begin),
+	MC_PU32("i_only_flag", &i_only_flag),
+	MC_PU32("error_handle_policy", &error_handle_policy),
+	MC_PU32("buf_alloc_width", &buf_alloc_width),
+	MC_PU32("buf_alloc_height", &buf_alloc_height),
+	MC_PU32("buf_alloc_depth", &buf_alloc_depth),
+	MC_PU32("buf_alloc_size", &buf_alloc_size),
+	MC_PU32("buffer_mode", &buffer_mode),
+	MC_PU32("buffer_mode_dbg", &buffer_mode_dbg),
+	MC_PU32("max_buf_num", &max_buf_num),
+	MC_PU32("dynamic_buf_num_margin", &dynamic_buf_num_margin),
+	MC_PU32("mem_map_mode", &mem_map_mode),
+	MC_PU32("double_write_mode", &double_write_mode),
+	MC_PU32("enable_mem_saving", &enable_mem_saving),
+	MC_PU32("force_w_h", &force_w_h),
+	MC_PU32("force_fps", &force_fps),
+	MC_PU32("max_decoding_time", &max_decoding_time),
+	MC_PU32("on_no_keyframe_skiped", &on_no_keyframe_skiped),
+	MC_PU32("start_decode_buf_level", &start_decode_buf_level),
+	MC_PU32("decode_timeout_val", &decode_timeout_val),
+};
+static struct mconfig_node vp9_node;
 
 static int __init amvdec_vp9_driver_init_module(void)
 {
@@ -7009,6 +7042,8 @@ static int __init amvdec_vp9_driver_init_module(void)
 	}
 
 	vcodec_profile_register(&amvdec_vp9_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &vp9_node,
+		"vp9", vp9_configs, CONFIG_FOR_RW);
 
 	return 0;
 }
@@ -7023,12 +7058,6 @@ static void __exit amvdec_vp9_driver_remove_module(void)
 }
 
 /****************************************/
-/*
-module_param(stat, uint, 0664);
-MODULE_PARM_DESC(stat, "\n amvdec_vp9 stat\n");
-*/
-module_param(use_cma, uint, 0664);
-MODULE_PARM_DESC(use_cma, "\n amvdec_vp9 use_cma\n");
 
 module_param(bit_depth_luma, uint, 0664);
 MODULE_PARM_DESC(bit_depth_luma, "\n amvdec_vp9 bit_depth_luma\n");

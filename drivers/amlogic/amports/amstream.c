@@ -78,6 +78,7 @@
 #include <linux/compat.h>
 #endif
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 
 #define DEVICE_NAME "amstream-dev"
@@ -3626,6 +3627,43 @@ error1:
 	return err;
 }
 
+int videobufused_show_fun(const char *trigger, int id, char *sbuf, int size)
+{
+	int ret = -1;
+	void *buf, *getbuf = NULL;
+	if (size < PAGE_SIZE) {
+		getbuf = (void *)__get_free_page(GFP_KERNEL);
+		if (!getbuf)
+			return -ENOMEM;
+		buf = getbuf;
+	} else {
+		buf = sbuf;
+	}
+
+	switch (id) {
+	case 0:
+		ret = videobufused_show(NULL, NULL , buf);
+		break;
+	default:
+		ret = -1;
+	}
+	if (ret > 0 && getbuf != NULL) {
+		ret = min_t(int, ret, size);
+		strncpy(sbuf, buf, ret);
+	}
+	if (getbuf != NULL)
+		free_page((unsigned long)getbuf);
+	return ret;
+}
+
+static struct mconfig amports_configs[] = {
+	MC_PI32("debugflags", &debugflags),
+	MC_PI32("def_4k_vstreambuf_sizeM", &def_4k_vstreambuf_sizeM),
+	MC_PI32("def_vstreambuf_sizeM", &def_vstreambuf_sizeM),
+	MC_PI32("slow_input", &slow_input),
+	MC_FUN_ID("videobufused", videobufused_show_fun, NULL, 0),
+};
+
 /*static struct resource memobj;*/
 static int amstream_probe(struct platform_device *pdev)
 {
@@ -3685,6 +3723,7 @@ static int amstream_probe(struct platform_device *pdev)
 
 	/*prealloc fetch buf to avoid no continue buffer later...*/
 	stbuf_fetch_init();
+	REG_PATH_CONFIGS("media.amports", amports_configs);
 	return 0;
 
 	/*

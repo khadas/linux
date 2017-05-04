@@ -598,11 +598,23 @@ static long amsubtitle_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long amsub_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+	ret = amsubtitle_ioctl(file, cmd, (ulong)compat_ptr(arg));
+	return ret;
+}
+#endif
+
 static const struct file_operations amsubtitle_fops = {
 	.owner = THIS_MODULE,
 	.open = amsubtitle_open,
 	.release = amsubtitle_release,
 	.unlocked_ioctl = amsubtitle_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amsub_compat_ioctl,
+#endif
 };
 
 static struct device *amsubtitle_dev;

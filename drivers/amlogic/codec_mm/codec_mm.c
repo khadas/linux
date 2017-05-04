@@ -36,6 +36,7 @@
 
 #include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/amlogic/codec_mm/codec_mm_scatter.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
@@ -43,6 +44,9 @@
 
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
+
+#define CONFIG_PATH "media.codec_mm"
+#define CONFIG_PREFIX "media"
 
 
 
@@ -93,14 +97,16 @@ u32 codec_mm_get_keep_debug_mode(void)
 	return debug_keep_mode;
 }
 
+static int default_tvp_size;
+static int default_tvp_4k_size;
+static int default_cma_res_size;
+
 
 #define TVP_MAX_SLOT 8
 struct extpool_mgt_s {
 	struct gen_pool *gen_pool[TVP_MAX_SLOT];
 	struct codec_mm_s *mm[TVP_MAX_SLOT];
 	int slot_num;
-	int default_size;
-	int default_4k_size;
 	int alloced_size;
 	int total_size;
 	spinlock_t lock;
@@ -1153,17 +1159,16 @@ int codec_mm_mgt_init(struct device *dev)
 	mgt->total_cma_size = dma_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
 	/*2M for audio not protect.*/
-	mgt->tvp_pool.default_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
-	if (mgt->tvp_pool.default_4k_size > DEFAULT_TVP_SIZE_FOR_4K)
-		mgt->tvp_pool.default_4k_size = DEFAULT_TVP_SIZE_FOR_4K;
+	default_tvp_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
+	if (default_tvp_4k_size > DEFAULT_TVP_SIZE_FOR_4K)
+		default_tvp_4k_size = DEFAULT_TVP_SIZE_FOR_4K;
 	/*97MB -> 160MB, may not enough for h265*/
-	mgt->tvp_pool.default_size = (mgt->total_codec_mem_size - (SZ_1M * 2)) >
+	default_tvp_size = (mgt->total_codec_mem_size - (SZ_1M * 2)) >
 			DEFAULT_TVP_SIZE_FOR_NO4K ?
 				DEFAULT_TVP_SIZE_FOR_NO4K :
-				mgt->tvp_pool.default_4k_size;
+				default_tvp_4k_size;
 
-	mgt->cma_res_pool.default_size = mgt->total_cma_size;
-	mgt->cma_res_pool.default_4k_size = mgt->total_cma_size;
+	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
 	spin_lock_init(&mgt->lock);
 	return 0;
@@ -1291,14 +1296,14 @@ static ssize_t tvp_enable_store(struct class *class,
 	case 1:
 		codec_mm_extpool_pool_alloc(
 			&mgt->tvp_pool,
-			mgt->tvp_pool.default_size, 0, 1);
+			default_tvp_size, 0, 1);
 		mgt->tvp_enable = 1;
 		pr_info("enable tvp for 1080p\n");
 		break;
 	case 2:
 		codec_mm_extpool_pool_alloc(
 			&mgt->tvp_pool,
-			mgt->tvp_pool.default_4k_size, 0, 1);
+			default_tvp_4k_size, 0, 1);
 		mgt->tvp_enable = 2;
 		pr_info("enable tvp for 4k\n");
 		break;
@@ -1341,7 +1346,7 @@ static ssize_t fastplay_enable_store(struct class *class,
 	case 1:
 		codec_mm_extpool_pool_alloc(
 			&mgt->cma_res_pool,
-			mgt->cma_res_pool.default_4k_size, 0, 0);
+			default_cma_res_size, 0, 0);
 		mgt->fastplay_enable = 1;
 		pr_err("enable fastplay\n");
 		break;
@@ -1352,25 +1357,12 @@ static ssize_t fastplay_enable_store(struct class *class,
 }
 
 
-
-
-
-
-
 static ssize_t codec_mm_config_show(struct class *class,
 	struct class_attribute *attr, char *buf)
 {
-	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	size_t ret;
-	ret = sprintf(buf,
-		"default_tvp_size:0x%x(%d MB)\n",
-		mgt->tvp_pool.default_size,
-		mgt->tvp_pool.default_size / SZ_1M);
-	ret += sprintf(buf + ret,
-		"default_tvp_4k_size:0x%x(%d MB)\n",
-		mgt->tvp_pool.default_4k_size,
-		mgt->tvp_pool.default_4k_size / SZ_1M);
-	ret += codec_mm_scatter_mgt_get_config(buf + ret);
+	ssize_t ret;
+	ret = configs_list_path_nodes(CONFIG_PATH, buf, PAGE_SIZE,
+		LIST_MODE_NODE_CMDVAL_ALL);
 	return ret;
 }
 
@@ -1378,20 +1370,11 @@ static ssize_t codec_mm_config_store(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t size)
 {
-	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	unsigned int val;
-	ssize_t ret;
-	ret = sscanf(buf, "default_tvp_size:0x%x", &val);
-	if (ret == 1) {
-		mgt->tvp_pool.default_size = val;
-		return size;
-	}
-	ret = sscanf(buf, "default_tvp_4k_size:0x%x", &val);
-	if (ret == 1) {
-		mgt->tvp_pool.default_4k_size = val;
-		return size;
-	}
-	return codec_mm_scatter_mgt_set_config(buf, size);
+	int ret;
+	ret = configs_set_prefix_path_valonpath(CONFIG_PREFIX, buf);
+	if (ret < 0)
+		pr_err("set config failed %s\n", buf);
+	return size;
 }
 
 static ssize_t tvp_region_show(struct class *class,
@@ -1546,7 +1529,6 @@ static ssize_t codec_mm_debug_store(struct class *class,
 
 }
 
-
 static struct class_attribute codec_mm_class_attrs[] = {
 	__ATTR_RO(codec_mm_dump),
 	__ATTR_RO(codec_mm_scatter_dump),
@@ -1567,6 +1549,72 @@ static struct class codec_mm_class = {
 		.name = "codec_mm",
 		.class_attrs = codec_mm_class_attrs,
 	};
+
+static struct mconfig codec_mm_configs[] = {
+	MC_PI32("default_tvp_size", &default_tvp_size),
+	MC_PI32("default_tvp_4k_size", &default_tvp_4k_size),
+	MC_PI32("default_cma_res_size", &default_cma_res_size),
+};
+static struct mconfig_node codec_mm_trigger_node;
+int codec_mm_trigger_fun(const char *trigger, int id, const char *buf, int size)
+{
+	int ret = size;
+	switch (trigger[0]) {
+	case 't':
+		tvp_enable_store(NULL, NULL , buf, size);
+		break;
+	case 'f':
+		fastplay_enable_store(NULL, NULL , buf, size);
+		break;
+	case 'd':
+		codec_mm_debug_store(NULL, NULL , buf, size);
+		break;
+	default:
+		ret = -1;
+	}
+	return size;
+}
+int codec_mm_trigger_help_fun(const char *trigger, int id, char *sbuf, int size)
+{
+	int ret = -1;
+	void *buf, *getbuf = NULL;
+	if (size < PAGE_SIZE) {
+		void *getbuf = (void *)__get_free_page(GFP_KERNEL);
+		if (!getbuf)
+			return -ENOMEM;
+		buf = getbuf;
+	} else {
+		buf = sbuf;
+	}
+	switch (trigger[0]) {
+	case 't':
+		ret = tvp_enable_help_show(NULL, NULL , buf);
+		break;
+	case 'f':
+		ret = fastplay_enable_help_show(NULL, NULL , buf);
+		break;
+	case 'd':
+		ret = codec_mm_debug_show(NULL, NULL , buf);
+		break;
+	default:
+		pr_err("unknow trigger:[%s]\n", trigger);
+		ret = -1;
+	}
+	if (ret > 0 && getbuf != NULL) {
+		int ret = min_t(int, ret, size);
+		strncpy(sbuf, buf, ret);
+	}
+	if (getbuf != NULL)
+		free_page((unsigned long)getbuf);
+	return ret;
+}
+
+static struct mconfig codec_mm_trigger[] = {
+	MC_FUN("tvp_enable", codec_mm_trigger_help_fun, codec_mm_trigger_fun),
+	MC_FUN("fastplay", codec_mm_trigger_help_fun, codec_mm_trigger_fun),
+	MC_FUN("debug", codec_mm_trigger_help_fun, codec_mm_trigger_fun),
+};
+
 
 static int codec_mm_probe(struct platform_device *pdev)
 {
@@ -1593,6 +1641,9 @@ static int codec_mm_probe(struct platform_device *pdev)
 	codec_mm_keeper_mgr_init();
 	amstream_test_init();
 	codec_mm_scatter_mgt_test();
+	REG_PATH_CONFIGS(CONFIG_PATH, codec_mm_configs);
+	INIT_REG_NODE_CONFIGS(CONFIG_PATH, &codec_mm_trigger_node,
+		"trigger", codec_mm_trigger, CONFIG_FOR_RW | CONFIG_FOR_T);
 	return 0;
 }
 
@@ -1613,6 +1664,7 @@ static struct platform_driver codec_mm_driver = {
 
 	}
 };
+
 
 static int __init codec_mm_module_init(void)
 {
