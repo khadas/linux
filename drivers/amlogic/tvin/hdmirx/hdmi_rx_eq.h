@@ -62,13 +62,6 @@ as "very long" and therefore */
 
 #define block_delay_ms(x) msleep_interruptible((x))
 
-#define FSM_LOG_ENABLE		0x01
-#define VIDEO_LOG_ENABLE	0x02
-#define AUDIO_LOG_ENABLE	0x04
-#define PACKET_LOG_ENABLE   0x08
-#define CEC_LOG_ENABLE		0x10
-#define REG_LOG_ENABLE		0x20
-
 /*macro define end*/
 
 /*--------------------------enum define---------------------*/
@@ -91,6 +84,12 @@ enum phy_eq_cmd_e {
 	EQ_STOP,
 };
 
+enum run_eq_state {
+	E_EQ_PASS,
+	E_EQ_START,
+	E_EQ_FAIL
+};
+
 /*struct define end*/
 extern struct st_eq_data eq_ch0;
 extern struct st_eq_data eq_ch1;
@@ -99,7 +98,7 @@ extern struct st_eq_data eq_ch2;
 /*--------------------------function declare------------------*/
 bool hdmirx_phy_clk_rate_monitor(void);
 /* void hdmirx_phy_init(int rx_port_sel, int dcm); */
-bool rx_need_eq_workaround(void);
+bool rx_need_eq_algorithm(void);
 int hdmirx_phy_probe(void);
 void hdmirx_phy_exit(void);
 int hdmirx_phy_start_eq(void);
