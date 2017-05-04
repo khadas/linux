@@ -2768,6 +2768,7 @@ void hdmirx_hw_monitor(void)
 				memset(&rx.aud_info, 0,
 					sizeof(struct aud_info_s));
 				hdmirx_config_video();
+				hdmirx_audio_fifo_rst();
 				rx_pr("STABLE->DDC_CORRECT\n");
 				if (log_level & VIDEO_LOG)
 					dump_state(0x1);
