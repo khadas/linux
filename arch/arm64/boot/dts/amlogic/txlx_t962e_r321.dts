@@ -552,6 +552,7 @@
 		interrupt_pin = <&gpio_ao       GPIOAO_4       GPIO_ACTIVE_HIGH>;
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_HIGH";
+		dhd_static_buf;
 		power_on_pin = <&gpio_ao       GPIOAO_5       GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "wifi_32k_pins";/*done*/
 		pinctrl-0 = <&wifi_32k_pins>;
@@ -800,7 +801,7 @@
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xffd24000 0x0 0x18>;
 		interrupts = <0 26 1>;
-		status = "disabled";
+		status = "okay";
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 		fifosize = < 128 >;
