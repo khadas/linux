@@ -522,8 +522,8 @@
 		compatible = "amlogic, aml_atv_demod";
 		dev_name = "aml_atv_demod";
 		status = "okay";
-		pinctrl-names="atvdemod_agc";
-		pinctrl-0=<&atvdemod_agc>;
+		//pinctrl-names="atvdemod_agc";
+		//pinctrl-0=<&atvdemod_agc>;
 		reg = <0x0 0xff640000 0x0 0x2000
 			   0x0 0xff648000 0x0 0x2000>;
 		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
@@ -1146,7 +1146,7 @@
 		memory-region = <&demod_reserved>;
 		tuner0 = "si2151_tuner";
 		tuner0_i2c_adap_id = <2>;
-		tuner0_i2c_addr = <0xc0>;
+		tuner0_i2c_addr = <0x60>;
 		//tuner0_reset_value = <0>;
 		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
 		fe0_tuner = <0>;
