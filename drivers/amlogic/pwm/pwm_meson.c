@@ -446,6 +446,7 @@ static int pwm_meson_config_ext(struct aml_pwm_chip *aml_chip,
 		clk_mask = (0x7f << 16)|(1 << 23);
 		clk_val = (our_chan->pwm_pre_div << 16)|(1 << 23);
 		duty_reg = &aml_reg->db2r;
+		break;
 	default:
 		dev_err(aml_chip->chip.dev,
 				"config_ext,index is not legal\n");
