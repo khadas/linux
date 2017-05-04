@@ -49,6 +49,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/switch.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 
 
@@ -5798,9 +5799,13 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		put_user(disable_video, (u32 __user *)argp);
 		break;
 
-	case AMSTREAM_IOC_SET_VIDEO_DISABLE:
-		ret = _video_set_disable(arg);
-		break;
+	case AMSTREAM_IOC_SET_VIDEO_DISABLE:{
+		u32 val;
+		if (copy_from_user(&val, argp, sizeof(u32)) == 0)
+			ret = _video_set_disable(val);
+		else
+			ret = -EFAULT;
+	}
 
 	case AMSTREAM_IOC_GET_VIDEO_DISCONTINUE_REPORT:
 		put_user(enable_video_discontinue_report, (u32 __user *)argp);
@@ -8317,6 +8322,51 @@ static int __init video_early_init(void)
 	return 0;
 }
 
+static struct mconfig video_configs[] = {
+	MC_PI32("pause_one_3d_fl_frame", &pause_one_3d_fl_frame),
+	MC_PI32("debug_flag", &debug_flag),
+	MC_PU32("force_3d_scaler", &force_3d_scaler),
+	MC_PU32("video_3d_format", &video_3d_format),
+	MC_PI32("vsync_enter_line_max", &vsync_enter_line_max),
+	MC_PI32("vsync_exit_line_max", &vsync_exit_line_max),
+#ifdef CONFIG_VSYNC_RDMA
+	MC_PI32("vsync_rdma_line_max", &vsync_rdma_line_max),
+#endif
+	MC_PU32("underflow", &underflow),
+	MC_PU32("next_peek_underflow", &next_peek_underflow),
+	MC_PU32("smooth_sync_enable", &smooth_sync_enable),
+	MC_PU32("hdmi_in_onvideo", &hdmi_in_onvideo),
+#ifdef CONFIG_AM_VIDEO2
+	MC_PI32("video_play_clone_rate", &video_play_clone_rate),
+	MC_PI32("android_clone_rate", &android_clone_rate),
+	MC_PI32("video_play_clone_rate", &video_play_clone_rate),
+	MC_PI32("android_clone_rate", &android_clone_rate),
+	MC_PI32("noneseamless_play_clone_rate", &noneseamless_play_clone_rate),
+#endif
+	MC_PU32("smooth_sync_enable", &smooth_sync_enable),
+	MC_PU32("hdmi_in_onvideo", &hdmi_in_onvideo),
+	MC_PI32("cur_dev_idx", &cur_dev_idx),
+	MC_PU32("new_frame_count", &new_frame_count),
+	MC_PU32("omx_pts", &omx_pts),
+	MC_PI32("omx_pts_interval_upper", &omx_pts_interval_upper),
+	MC_PI32("omx_pts_interval_lower", &omx_pts_interval_lower),
+	MC_PBOOL("bypass_pps", &bypass_pps),
+	MC_PBOOL("platform_type", &platform_type),
+	MC_PU32("process_3d_type", &process_3d_type),
+	MC_PU32("omx_pts", &omx_pts),
+	MC_PU32("framepacking_support", &framepacking_support),
+	MC_PU32("framepacking_width", &framepacking_width),
+	MC_PU32("framepacking_height", &framepacking_height),
+	MC_PU32("framepacking_blank", &framepacking_blank),
+	MC_PU32("video_seek_flag", &video_seek_flag),
+	MC_PU32("slowsync_repeat_enable", &slowsync_repeat_enable),
+	MC_PBOOL("show_first_frame_nosync", &show_first_frame_nosync),
+#ifdef TV_REVERSE
+	MC_PBOOL("reverse", &reverse),
+#endif
+};
+
+
 static int __init video_init(void)
 {
 	int r = 0;
@@ -8498,7 +8548,7 @@ static int __init video_init(void)
 #ifdef CONFIG_AM_VIDEO2
 	set_clone_frame_rate(android_clone_rate, 0);
 #endif
-
+	REG_PATH_CONFIGS("media.video", video_configs);
 	return 0;
  err5:
 	device_destroy(&amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));

@@ -41,6 +41,7 @@
 #include "decoder/decoder_mmu_box.h"
 #include "decoder/decoder_bmmu_box.h"
 #include "config_parser.h"
+#include <linux/amlogic/codec_mm/configs.h>
 
 /*#define HEVC_PIC_STRUCT_SUPPORT*/
 #define MULTI_INSTANCE_SUPPORT
@@ -9277,6 +9278,62 @@ static struct codec_profile_t amvdec_h265_profile = {
 	.name = "hevc",
 	.profile = ""
 };
+static struct mconfig h265_configs[] = {
+	MC_PU32("use_cma", &use_cma),
+	MC_PU32("bit_depth_luma", &bit_depth_luma),
+	MC_PU32("bit_depth_chroma", &bit_depth_chroma),
+	MC_PU32("video_signal_type", &video_signal_type),
+#ifdef ERROR_HANDLE_DEBUG
+	MC_PU32("dbg_nal_skip_flag", &dbg_nal_skip_flag),
+	MC_PU32("dbg_nal_skip_count", &dbg_nal_skip_count),
+#endif
+	MC_PU32("radr", &radr),
+	MC_PU32("rval", &rval),
+	MC_PU32("dbg_cmd", &dbg_cmd),
+	MC_PU32("dbg_skip_decode_index", &dbg_skip_decode_index),
+	MC_PU32("endian", &endian),
+	MC_PU32("step", &step),
+	MC_PU32("decode_stop_pos", &decode_stop_pos),
+	MC_PU32("decode_pic_begin", &decode_pic_begin),
+	MC_PU32("slice_parse_begin", &slice_parse_begin),
+	MC_PU32("nal_skip_policy", &nal_skip_policy),
+	MC_PU32("i_only_flag", &i_only_flag),
+	MC_PU32("error_handle_policy", &error_handle_policy),
+	MC_PU32("error_handle_threshold", &error_handle_threshold),
+	MC_PU32("error_handle_nal_skip_threshold",
+		&error_handle_nal_skip_threshold),
+	MC_PU32("error_handle_system_threshold",
+		&error_handle_system_threshold),
+	MC_PU32("error_skip_nal_count", &error_skip_nal_count),
+	MC_PU32("debug", &debug),
+	MC_PU32("debug_mask", &debug_mask),
+	MC_PU32("buffer_mode", &buffer_mode),
+	MC_PU32("double_write_mode", &double_write_mode),
+	MC_PU32("buf_alloc_width", &buf_alloc_width),
+	MC_PU32("buf_alloc_height", &buf_alloc_height),
+	MC_PU32("dynamic_buf_num_margin", &dynamic_buf_num_margin),
+	MC_PU32("max_buf_num", &max_buf_num),
+	MC_PU32("buf_alloc_size", &buf_alloc_size),
+	MC_PU32("buffer_mode_dbg", &buffer_mode_dbg),
+	MC_PU32("mem_map_mode", &mem_map_mode),
+	MC_PU32("enable_mem_saving", &enable_mem_saving),
+	MC_PU32("force_w_h", &force_w_h),
+	MC_PU32("force_fps", &force_fps),
+	MC_PU32("max_decoding_time", &max_decoding_time),
+	MC_PU32("prefix_aux_buf_size", &prefix_aux_buf_size),
+	MC_PU32("suffix_aux_buf_size", &suffix_aux_buf_size),
+	MC_PU32("interlace_enable", &interlace_enable),
+	MC_PU32("pts_unstable", &pts_unstable),
+	MC_PU32("parser_sei_enable", &parser_sei_enable),
+	MC_PU32("start_decode_buf_level", &start_decode_buf_level),
+	MC_PU32("decode_timeout_val", &decode_timeout_val),
+#ifdef CONFIG_AM_VDEC_DV
+	MC_PU32("parser_dolby_vision_enable", &parser_dolby_vision_enable),
+	MC_PU32("dv_toggle_prov_name", &dv_toggle_prov_name),
+	MC_PU32("dv_debug", &dv_debug),
+#endif
+};
+static struct mconfig_node decoder_265_node;
 
 static int __init amvdec_h265_driver_init_module(void)
 {
@@ -9322,7 +9379,8 @@ static int __init amvdec_h265_driver_init_module(void)
 	}
 
 	vcodec_profile_register(&amvdec_h265_profile);
-
+	INIT_REG_NODE_CONFIGS("media.decoder", &decoder_265_node,
+		"h265", h265_configs, CONFIG_FOR_RW);
 	return 0;
 }
 

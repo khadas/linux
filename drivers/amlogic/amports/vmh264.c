@@ -3711,6 +3711,34 @@ static struct codec_profile_t ammvdec_h264_profile = {
 	.profile = ""
 };
 
+static struct mconfig hm264_configs[] = {
+	MC_PU32("h264_debug_flag", &h264_debug_flag),
+	MC_PI32("start_decode_buf_level", &start_decode_buf_level),
+	MC_PU32("fixed_frame_rate_mode", &fixed_frame_rate_mode),
+	MC_PU32("decode_timeout_val", &decode_timeout_val),
+	MC_PU32("reorder_dpb_size_margin", &reorder_dpb_size_margin),
+	MC_PU32("reference_buf_margin", &reference_buf_margin),
+	MC_PU32("radr", &radr),
+	MC_PU32("rval", &rval),
+	MC_PU32("h264_debug_mask", &h264_debug_mask),
+	MC_PU32("h264_debug_cmd", &h264_debug_cmd),
+	MC_PI32("force_rate_streambase", &force_rate_streambase),
+	MC_PI32("dec_control", &dec_control),
+	MC_PI32("force_rate_framebase", &force_rate_framebase),
+	MC_PI32("force_disp_bufspec_num", &force_disp_bufspec_num),
+	MC_PU32("prefix_aux_buf_size", &prefix_aux_buf_size),
+	MC_PU32("suffix_aux_buf_size", &suffix_aux_buf_size),
+#ifdef CONFIG_AM_VDEC_DV
+	MC_PU32("reorder_dpb_size_margin_dv", &reorder_dpb_size_margin_dv),
+	MC_PU32("dv_toggle_prov_name", &dv_toggle_prov_name),
+	MC_PU32("dolby_meta_with_el", &dolby_meta_with_el),
+#endif
+	MC_PU32("i_only_flag", &i_only_flag),
+	MC_PU32("force_rate_streambase", &force_rate_streambase),
+};
+static struct mconfig_node hm264_node;
+
+
 static int __init ammvdec_h264_driver_init_module(void)
 {
 	pr_info("ammvdec_h264 module init\n");

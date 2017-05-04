@@ -37,6 +37,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
@@ -116,6 +117,16 @@ ONE_PAGE_SID: MAX_SID
 					((c) << 8) | d)
 #define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')
 
+
+static u32 keep_size_PAGE;
+static u32 reserved_block_mm_M;
+static u32 try_alloc_in_cma_page_cnt;
+static u32 try_alloc_in_sys_page_cnt_max;
+static u32 try_alloc_in_sys_page_cnt_min;
+static u32 enable_slot_from_sys;
+static u32 no_cache_size_M;
+static u32 support_from_slot_sys;
+
 struct codec_mm_scatter_mgt {
 	unsigned int tag;/*=*/
 	struct codec_mm_slot *slot_list_map[MAX_SID];
@@ -124,19 +135,19 @@ struct codec_mm_scatter_mgt {
 	int total_page_num;
 	int alloced_page_num;
 	int max_alloced;
-	int try_alloc_in_cma_page_cnt;
-	int try_alloc_in_sys_page_cnt;
-	int try_alloc_in_sys_page_cnt_max;
-	int try_alloc_in_sys_page_cnt_min;
+	u32 try_alloc_in_cma_page_cnt;
+	u32 try_alloc_in_sys_page_cnt;
+	u32 try_alloc_in_sys_page_cnt_max;
+	u32 try_alloc_in_sys_page_cnt_min;
 	int alloc_from_cma_first;
-	int enable_slot_from_sys;
-	int no_cache_size_M;
-	int support_from_slot_sys;
+	u32 enable_slot_from_sys;
+	u32 no_cache_size_M;
+	u32 support_from_slot_sys;
 	int one_page_cnt;
 	int scatters_cnt;
 	int slot_cnt;
-	int reserved_block_mm_M;
-	int keep_size_PAGE;
+	u32 reserved_block_mm_M;
+	u32 keep_size_PAGE;
 	int mem_flags;
 
 	int alloc_from_sys_sc_cnt;
@@ -1965,129 +1976,18 @@ int codec_mm_dump_all_scatters(void)
 }
 
 
-struct sc_configs {
-	int id;
-	const char *name;
-};
 
-enum config_id {
-	ID0_KEEP_SIZE,
-	ID1_RES_BLK_SIZEM,
-	ID2_ONCE_CMA_SIZEM,
-	ID3_MAX_SYS_PAGES,
-	ID4_MIN_SYS_PAGES,
-	ID5_SLOT_FROM_SYS,
-	ID6_NO_CACHE_SIZE,
-	IDX_MAX,
-};
-struct sc_configs sc_global_config[] = {
-	{ID0_KEEP_SIZE, "keep_size"},
-	{ID1_RES_BLK_SIZEM, "res_blk_size"},
-	{ID2_ONCE_CMA_SIZEM, "once_cma_size"},
-	{ID3_MAX_SYS_PAGES, "max_sys_pages"},
-	{ID4_MIN_SYS_PAGES, "min_sys_pages"},
-	{ID5_SLOT_FROM_SYS, "enable_slot_from_sys"},
-	{ID6_NO_CACHE_SIZE, "no_cache_size_M"},
-};
-
-static int codec_mm_scatter_mgt_get_config_in(int tvp, int id)
+int codec_mm_scatter_update_config(struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(tvp);
-
-	switch (id) {
-	case ID0_KEEP_SIZE:
-		return (smgt->keep_size_PAGE << PAGE_SHIFT) / SZ_1M;
-	case ID1_RES_BLK_SIZEM:
-		return smgt->reserved_block_mm_M;
-	case ID2_ONCE_CMA_SIZEM:
-		return smgt->try_alloc_in_cma_page_cnt;
-	case ID3_MAX_SYS_PAGES:
-		return smgt->try_alloc_in_sys_page_cnt_max;
-	case ID4_MIN_SYS_PAGES:
-		return smgt->try_alloc_in_sys_page_cnt_min;
-	case ID5_SLOT_FROM_SYS:
-		return smgt->enable_slot_from_sys;
-	case ID6_NO_CACHE_SIZE:
-		return smgt->no_cache_size_M;
-	default:
-		return 0;
-	}
-	return -1;
-}
-static int codec_mm_scatter_mgt_set_config_in(int tvp, int id, int newset)
-{
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(tvp);
-	int val;
-	switch (id) {
-	case ID0_KEEP_SIZE:
-		val = newset * (SZ_1M >> PAGE_SHIFT);
-		smgt->keep_size_PAGE = val;
-		break;
-	case ID1_RES_BLK_SIZEM:
-		smgt->reserved_block_mm_M = newset;
-		break;
-	case ID2_ONCE_CMA_SIZEM:
-		smgt->try_alloc_in_cma_page_cnt = newset;
-		break;
-	case ID3_MAX_SYS_PAGES:
-		smgt->try_alloc_in_sys_page_cnt_max = newset;
-		break;
-	case ID4_MIN_SYS_PAGES:
-		smgt->try_alloc_in_sys_page_cnt_min = newset;
-		break;
-	case ID5_SLOT_FROM_SYS:
-		smgt->enable_slot_from_sys = newset;
-		smgt->support_from_slot_sys = newset;
-		break;
-	case ID6_NO_CACHE_SIZE:
-		smgt->no_cache_size_M = newset;
-		break;
-	default:
-		return -1;
-	}
+	smgt->keep_size_PAGE = keep_size_PAGE;
+	smgt->reserved_block_mm_M = reserved_block_mm_M;
+	smgt->try_alloc_in_cma_page_cnt = try_alloc_in_cma_page_cnt;
+	smgt->try_alloc_in_sys_page_cnt_max = try_alloc_in_sys_page_cnt_max;
+	smgt->try_alloc_in_sys_page_cnt_min = try_alloc_in_sys_page_cnt_min;
+	smgt->enable_slot_from_sys = enable_slot_from_sys;
+	smgt->support_from_slot_sys = support_from_slot_sys;
+	smgt->no_cache_size_M = no_cache_size_M;
 	return 0;
-}
-int codec_mm_scatter_mgt_get_config(char *buf)
-{
-	size_t ret = 0;
-	int i;
-	for (i = 0; i < IDX_MAX; i++) {
-		ret += sprintf(buf + ret,
-			"scatter:%s:%d\n",
-			sc_global_config[i].name,
-			codec_mm_scatter_mgt_get_config_in(0, i));
-	}
-	for (i = 0; i < IDX_MAX; i++) {
-		ret += sprintf(buf + ret,
-			"scatter_tvp:%s:%d\n",
-			sc_global_config[i].name,
-			codec_mm_scatter_mgt_get_config_in(1, i));
-	}
-	return ret;
-}
-int codec_mm_scatter_mgt_set_config(const char *buf, size_t size)
-{
-	size_t ret = 0;
-	char *str;
-	int i;
-	int val;
-	int is_tvp = strstr(buf, "scatter_tvp:") != NULL;
-	for (i = 0; i < IDX_MAX; i++) {
-		str = strstr(buf, sc_global_config[i].name);
-		if (!str)
-			continue;/*to next.*/
-		str += strlen(sc_global_config[i].name);
-		if (str[0] != ':' || str[1] == '\0')
-			continue;/*to next.*/
-		ret = sscanf(str, ":%d", &val);
-		if (ret == 1) {
-			codec_mm_scatter_mgt_set_config_in(is_tvp,
-				i, val);
-			return size;
-		}
-	}
-	pr_info("unknow cmd %s\n", buf);
-	return -1;
 }
 
 int codec_mm_scatter_mgt_delay_free_swith(
@@ -2404,6 +2304,7 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 					struct codec_mm_scatter_mgt,
 					dealy_work.work);
 	int needretry = 0;
+	codec_mm_scatter_update_config(smgt);
 	mutex_lock(&smgt->monitor_lock);
 	smgt->scatter_task_run_num++;
 
@@ -2459,12 +2360,43 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	return 0;
 }
 
+static struct mconfig codec_mm_sc_configs[] = {
+	MC_PU32("keep_size_PAGE", &keep_size_PAGE),
+	MC_PU32("reserved_block_mm_M", &reserved_block_mm_M),
+	MC_PU32("try_alloc_in_cma_page_cnt",
+		&try_alloc_in_cma_page_cnt),
+	MC_PU32("try_alloc_in_sys_page_cnt_max",
+		&try_alloc_in_sys_page_cnt_max),
+	MC_PU32("try_alloc_in_sys_page_cnt_min",
+		&try_alloc_in_sys_page_cnt_min),
+	MC_PU32("enable_slot_from_sys",
+		&enable_slot_from_sys),
+	MC_PU32("no_cache_size_M", &no_cache_size_M),
+};
+
+static struct mconfig_node codec_mm_sc;
+
 int codec_mm_scatter_mgt_init(void)
 {
+	struct codec_mm_scatter_mgt *smgt;
 	codec_mm_scatter_mgt_alloc_in(&scatter_mgt);
 	codec_mm_scatter_mgt_alloc_in(&scatter_tvp_mgt);
 	scatter_tvp_mgt->tvp_mode = 1;
 	scatter_tvp_mgt->mem_flags |= CODEC_MM_FLAGS_TVP;
+	smgt = scatter_mgt;
+	keep_size_PAGE = smgt->keep_size_PAGE;
+	reserved_block_mm_M = smgt->reserved_block_mm_M;
+	try_alloc_in_cma_page_cnt = smgt->try_alloc_in_cma_page_cnt;
+	try_alloc_in_sys_page_cnt_max = smgt->try_alloc_in_sys_page_cnt_max;
+	try_alloc_in_sys_page_cnt_min = smgt->try_alloc_in_sys_page_cnt_min;
+	enable_slot_from_sys = smgt->enable_slot_from_sys;
+	support_from_slot_sys = smgt->support_from_slot_sys;
+	no_cache_size_M = smgt->no_cache_size_M;
+
+	INIT_REG_NODE_CONFIGS("media.codec_mm",
+		&codec_mm_sc, "scatter",
+		codec_mm_sc_configs,
+		CONFIG_FOR_RW);
 	return 0;
 }
 

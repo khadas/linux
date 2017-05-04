@@ -35,6 +35,7 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/amports/ionvideo_ext.h>
 #include <linux/amlogic/amports/vfm_ext.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "vdec_reg.h"
 #include "vdec.h"
@@ -2876,6 +2877,15 @@ static const struct of_device_id amlogic_vdec_dt_match[] = {
 	{},
 };
 
+static struct mconfig vdec_configs[] = {
+	MC_PU32("debug_trace_num", &debug_trace_num),
+	MC_PI32("hevc_max_reset_count", &hevc_max_reset_count),
+	MC_PU32("clk_config", &clk_config),
+	MC_PI32("step_mode", &step_mode),
+	MC_PI32("poweron_clock_level", &poweron_clock_level),
+};
+static struct mconfig_node vdec_node;
+
 static struct platform_driver vdec_driver = {
 	.probe = vdec_probe,
 	.remove = vdec_remove,
@@ -2891,7 +2901,8 @@ static int __init vdec_module_init(void)
 		pr_info("failed to register vdec module\n");
 		return -ENODEV;
 	}
-
+	INIT_REG_NODE_CONFIGS("media.decoder", &vdec_node,
+		"vdec", vdec_configs, CONFIG_FOR_RW);
 	return 0;
 }
 

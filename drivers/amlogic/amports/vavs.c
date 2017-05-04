@@ -35,6 +35,8 @@
 #include "amports_priv.h"
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
+
 #include <linux/slab.h>
 
 #include "avs.h"
@@ -1702,6 +1704,20 @@ static struct codec_profile_t amvdec_avs_profile = {
 	.profile = ""
 };
 
+static struct mconfig avs_configs[] = {
+	MC_PU32("stat", &stat),
+	MC_PU32("debug_flag", &debug_flag),
+	MC_PU32("error_recovery_mode", &error_recovery_mode),
+	MC_PU32("pic_type", &pic_type),
+	MC_PU32("radr", &radr),
+	MC_PU32("vf_buf_num", &vf_buf_num),
+	MC_PU32("vf_buf_num_used", &vf_buf_num_used),
+	MC_PU32("canvas_base", &canvas_base),
+	MC_PU32("firmware_sel", &firmware_sel),
+};
+static struct mconfig_node avs_node;
+
+
 static int __init amvdec_avs_driver_init_module(void)
 {
 	pr_debug("amvdec_avs module init\n");
@@ -1715,7 +1731,8 @@ static int __init amvdec_avs_driver_init_module(void)
 		amvdec_avs_profile.profile = "avs+";
 
 	vcodec_profile_register(&amvdec_avs_profile);
-
+	INIT_REG_NODE_CONFIGS("media.decoder", &avs_node,
+		"avs", avs_configs, CONFIG_FOR_RW);
 	return 0;
 }
 

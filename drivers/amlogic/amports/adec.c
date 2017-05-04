@@ -24,6 +24,7 @@
 
 #include <linux/amlogic/amports/aformat.h>
 #include <linux/amlogic/amports/ptsserv.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "arch/register.h"
 
@@ -237,6 +238,56 @@ s32 adec_release(enum aformat_e vf)
 	return 0;
 }
 
+int amstream_adec_show_fun(const char *trigger, int id, char *sbuf, int size)
+{
+	int ret = -1;
+	void *buf, *getbuf = NULL;
+	if (size < PAGE_SIZE) {
+		void *getbuf = (void *)__get_free_page(GFP_KERNEL);
+		if (!getbuf)
+			return -ENOMEM;
+		buf = getbuf;
+	} else {
+		buf = sbuf;
+	}
+	switch (trigger[0]) {
+	case 'f':
+		ret =  format_show(NULL, NULL, buf);
+		break;
+	case 's':
+		ret =  samplerate_show(NULL, NULL, buf);
+		break;
+	case 'c':
+		ret =  channum_show(NULL, NULL, buf);
+		break;
+	case 'd':
+		ret =  datawidth_show(NULL, NULL, buf);
+		break;
+	case 'p':
+		ret =  pts_show(NULL, NULL, buf);
+		break;
+	default:
+		ret = -1;
+	}
+	if (ret > 0 && getbuf != NULL) {
+		int ret = min_t(int, ret, size);
+		strncpy(sbuf, buf, ret);
+	}
+	if (getbuf != NULL)
+		free_page((unsigned long)getbuf);
+	return ret;
+}
+
+static struct mconfig adec_configs[] = {
+	MC_FUN("format", &amstream_adec_show_fun, NULL),
+	MC_FUN("samplerate", &amstream_adec_show_fun, NULL),
+	MC_FUN("channum", &amstream_adec_show_fun, NULL),
+	MC_FUN("datawidth", &amstream_adec_show_fun, NULL),
+	MC_FUN("pts", &amstream_adec_show_fun, NULL),
+};
+static struct mconfig_node adec_node;
+
+
 s32 astream_dev_register(void)
 {
 	s32 r;
@@ -302,7 +353,8 @@ s32 astream_dev_register(void)
 		goto err_1;
 	}
 #endif
-
+	INIT_REG_NODE_CONFIGS("media", &adec_node,
+		"adec", adec_configs, CONFIG_FOR_R);
 	return 0;
 
 err_1:

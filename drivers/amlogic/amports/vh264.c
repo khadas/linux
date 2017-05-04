@@ -38,6 +38,7 @@
 #include "amports_priv.h"
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "vdec.h"
 #include "vdec_reg.h"
@@ -3063,6 +3064,26 @@ static struct codec_profile_t amvdec_h264_profile = {
 	.profile = ""
 };
 
+
+static struct mconfig h264_configs[] = {
+	MC_PU32("stat", &stat),
+	MC_PU32("error_recovery_mode", &error_recovery_mode),
+	MC_PU32("sync_outside", &sync_outside),
+	MC_PU32("dec_control", &dec_control),
+	MC_PU32("fatal_error_reset", &fatal_error_reset),
+	MC_PU32("max_refer_buf", &max_refer_buf),
+	MC_PU32("ucode_type", &ucode_type),
+	MC_PU32("debugfirmware", &debugfirmware),
+	MC_PU32("fixed_frame_rate_flag", &fixed_frame_rate_flag),
+	MC_PU32("decoder_debug_flag", &decoder_debug_flag),
+	MC_PU32("dpb_size_adj", &dpb_size_adj),
+	MC_PU32("decoder_force_reset", &decoder_force_reset),
+	MC_PU32("no_idr_error_max", &no_idr_error_max),
+	MC_PU32("enable_switch_fense", &enable_switch_fense),
+};
+static struct mconfig_node h264_node;
+
+
 static int __init amvdec_h264_driver_init_module(void)
 {
 	pr_debug("amvdec_h264 module init\n");
@@ -3078,6 +3099,8 @@ static int __init amvdec_h264_driver_init_module(void)
 		amvdec_h264_profile.profile = "4k";
 	}
 	vcodec_profile_register(&amvdec_h264_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &h264_node,
+		"h264", h264_configs, CONFIG_FOR_RW);
 	return 0;
 }
 

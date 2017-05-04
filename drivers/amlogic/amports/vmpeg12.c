@@ -31,6 +31,8 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
@@ -1184,6 +1186,15 @@ static struct codec_profile_t amvdec_mpeg12_profile = {
 	.profile = ""
 };
 
+
+static struct mconfig mpeg12_configs[] = {
+	MC_PU32("stat", &stat),
+	MC_PU32("dec_control", &dec_control),
+	MC_PU32("error_frame_skip_level", &error_frame_skip_level),
+};
+static struct mconfig_node mpeg12_node;
+
+
 static int __init amvdec_mpeg12_driver_init_module(void)
 {
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 module init\n");
@@ -1194,6 +1205,8 @@ static int __init amvdec_mpeg12_driver_init_module(void)
 		return -ENODEV;
 	}
 	vcodec_profile_register(&amvdec_mpeg12_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &mpeg12_node,
+		"mpeg12", mpeg12_configs, CONFIG_FOR_RW);
 	return 0;
 }
 
@@ -1205,9 +1218,6 @@ static void __exit amvdec_mpeg12_driver_remove_module(void)
 }
 
 /****************************************/
-
-module_param(stat, uint, 0664);
-MODULE_PARM_DESC(stat, "\n amvdec_mpeg12 stat\n");
 module_param(dec_control, uint, 0664);
 MODULE_PARM_DESC(dec_control, "\n amvmpeg12 decoder control\n");
 module_param(error_frame_skip_level, uint, 0664);

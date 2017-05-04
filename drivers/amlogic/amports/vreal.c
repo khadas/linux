@@ -50,6 +50,7 @@
 #include "rmparser.h"
 #include "vreal.h"
 #include "arch/register.h"
+#include <linux/amlogic/codec_mm/configs.h>
 
 #include "decoder/decoder_bmmu_box.h"
 
@@ -956,6 +957,10 @@ static struct codec_profile_t amvdec_real_profile = {
 	.name = "real",
 	.profile = "rmvb,1080p+"
 };
+static struct mconfig real_configs[] = {
+	MC_PU32("stat", &stat),
+};
+static struct mconfig_node real_node;
 
 static int __init amvdec_real_driver_init_module(void)
 {
@@ -966,6 +971,8 @@ static int __init amvdec_real_driver_init_module(void)
 		return -ENODEV;
 	}
 	vcodec_profile_register(&amvdec_real_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &real_node,
+		"real", real_configs, CONFIG_FOR_R);
 	return 0;
 }
 
@@ -977,9 +984,6 @@ static void __exit amvdec_real_driver_remove_module(void)
 }
 
 /****************************************/
-
-module_param(stat, uint, 0664);
-MODULE_PARM_DESC(stat, "\n amvdec_real stat\n");
 
 module_init(amvdec_real_driver_init_module);
 module_exit(amvdec_real_driver_remove_module);

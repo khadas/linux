@@ -58,6 +58,8 @@
 #include <linux/of.h>
 #include <linux/sizes.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-contiguous.h>
@@ -2712,6 +2714,15 @@ static struct platform_driver picdec_drv = {
 	}
 };
 
+static struct mconfig jpeg_configs[] = {
+	MC_PU32("debug_flag", &debug_flag),
+	MC_PU32("dump_file_flag", &dump_file_flag),
+	MC_PU32("p2p_mode", &p2p_mode),
+	MC_PU32("output_format_mode", &output_format_mode),
+};
+static struct mconfig_node jpeg_node;
+
+
 static int __init picdec_init_module(void)
 {
 	int err;
@@ -2727,7 +2738,8 @@ static int __init picdec_init_module(void)
 		return err;
 
 	}
-
+	INIT_REG_NODE_CONFIGS("media.decoder", &jpeg_node,
+		"jpeg", jpeg_configs, CONFIG_FOR_RW);
 	return err;
 }
 

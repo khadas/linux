@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/configs.h>
 
 
 #define MEM_NAME "codec_264_4k"
@@ -1741,6 +1742,11 @@ static struct codec_profile_t amvdec_h264_4k2k_profile = {
 	.name = "h264_4k2k",
 	.profile = ""
 };
+static struct mconfig h264_4k2k_configs[] = {
+	MC_PU32("stat", &stat),
+	MC_PU32("error_recovery_mode", &error_recovery_mode),
+};
+static struct mconfig_node h264_4k2k_node;
 
 static int __init amvdec_h264_4k2k_driver_init_module(void)
 {
@@ -1752,7 +1758,8 @@ static int __init amvdec_h264_4k2k_driver_init_module(void)
 	}
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
 		vcodec_profile_register(&amvdec_h264_4k2k_profile);
-
+	INIT_REG_NODE_CONFIGS("media.decoder", &h264_4k2k_node,
+		"h264_4k2k", h264_4k2k_configs, CONFIG_FOR_RW);
 	return 0;
 }
 
