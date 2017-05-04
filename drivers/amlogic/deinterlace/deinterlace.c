@@ -8333,12 +8333,12 @@ static void di_unreg_process_irq(void)
 #endif
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
+		di_hw_disable();
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false);
 		} else {
-			di_hw_disable();
 			DI_Wr(DI_CLKG_CTRL, 0x80000000);
 		}
 		if (!is_meson_gxl_cpu() && !is_meson_gxm_cpu() &&

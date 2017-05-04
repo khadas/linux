@@ -1793,12 +1793,6 @@ void di_hw_disable(void)
 		/* DI inp(current data) switch to memory */
 		DI_Wr_reg_bits(VIUB_MISC_CTRL0, 0, 16, 1);
 	}
-
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-		di_pre_gate_control(false);
-		di_post_gate_control(false);
-		di_top_gate_control(false);
-	}
 }
 
 void enable_film_mode_check(unsigned int width, unsigned int height,
