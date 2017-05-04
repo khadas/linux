@@ -216,7 +216,7 @@ static int amaudio_open(struct inode *inode, struct file *file)
 	int res = 0;
 
 	if (iminor(inode) == 0) {
-		pr_info("amaudio2_out open!\n");
+		pr_debug("amaudio2_out open!\n");
 		if (!this->dev->dma_mask)
 			this->dev->dma_mask = &amaudio_pcm_dmamask;
 		if (!this->dev->coherent_dma_mask)
@@ -269,7 +269,7 @@ static int amaudio_open(struct inode *inode, struct file *file)
 		int_block, amaudio->hw.size);*/
 
 	} else if (iminor(inode) == 1) {
-		pr_info("amaudio2_in opened\n");
+		pr_debug("amaudio2_in opened\n");
 		if (!this->dev->dma_mask)
 			this->dev->dma_mask = &amaudio_pcm_dmamask;
 		if (!this->dev->coherent_dma_mask)
@@ -318,7 +318,7 @@ static int amaudio_mmap(struct file *file, struct vm_area_struct *vma)
 						  amaudio->sw.size);
 		return mmap_flag;
 	} else if (amaudio->type == 1) {
-		pr_info("audio in mmap!\n");
+		pr_debug("audio in mmap!\n");
 	} else {
 		return -ENODEV;
 	}
@@ -914,7 +914,7 @@ static void i2s_copy(struct amaudio_t *amaudio)
 	}
 
 	if (sw->level > soft_buffer_threshold) {
-		/*pr_info(
+		/*pr_debug(
 		"Reset sw: hw->wr = %x,hw->rd = %x, hw->level = %x,"
 		"alsa_delay:%x,sw->wr = %x, sw->rd = %x,sw->level = %x\n",
 		hw->wr, hw->rd, hw->level, alsa_delay,
@@ -1010,7 +1010,7 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 					 - amaudio->sw.rd) % amaudio->sw.size;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
 		if (amaudio->sw.wr % i2s_num)
-			pr_info("wr:%x, not %d Bytes align\n",
+			pr_err("wr:%x, not %d Bytes align\n",
 						amaudio->sw.wr, i2s_num);
 		break;
 	case AMAUDIO_IOC_RESET:
@@ -1032,7 +1032,7 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		amaudio->sw.rd = 0;
 		amaudio->sw.level = 0;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
-		/*pr_info("Reset amaudio2: latency=%d bytes\n", latency);*/
+		/*pr_debug("Reset amaudio2: latency=%d bytes\n", latency);*/
 		break;
 	case AMAUDIO_IOC_AUDIO_OUT_MODE:
 		/*
@@ -1123,7 +1123,7 @@ static ssize_t store_direct_left_gain(struct class *class,
 		val = 256;
 
 	direct_left_gain = val;
-	pr_info("direct_left_gain set to %d\n", direct_left_gain);
+	pr_debug("direct_left_gain set to %d\n", direct_left_gain);
 	return count;
 }
 
@@ -1148,7 +1148,7 @@ static ssize_t store_direct_right_gain(struct class *class,
 		val = 256;
 
 	direct_right_gain = val;
-	pr_info("direct_right_gain set to %d\n", direct_right_gain);
+	pr_debug("direct_right_gain set to %d\n", direct_right_gain);
 	return count;
 }
 
@@ -1173,7 +1173,7 @@ static ssize_t store_music_gain(struct class *class,
 		val = 256;
 
 	music_gain = val;
-	pr_info("music_gain set to %d\n", music_gain);
+	pr_debug("music_gain set to %d\n", music_gain);
 	return count;
 }
 

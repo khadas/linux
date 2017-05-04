@@ -377,14 +377,14 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 void audio_in_i2s_set_buf(u32 addr, u32 size,
 	u32 i2s_mode, u32 i2s_sync, u32 din_sel, u32 ch)
 {
-	pr_info("i2sin_fifo0_set_buf din_sel:%d ch:%d\n", din_sel, ch);
+	pr_debug("i2sin_fifo0_set_buf din_sel:%d ch:%d\n", din_sel, ch);
 	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync, din_sel, ch);
 	audio_in_buf_ready = 1;
 }
 
 void audio_in_spdif_set_buf(u32 addr, u32 size, u32 src)
 {
-	pr_info("spdifin_fifo1_set_buf, src = %d\n", src);
+	pr_debug("spdifin_fifo1_set_buf, src = %d\n", src);
 	spdifin_fifo1_set_buf(addr, size, src);
 }
 

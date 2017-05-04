@@ -439,7 +439,7 @@ static int txlx_acodec_dai_prepare(struct snd_pcm_substream *substream,
 	/*struct snd_soc_codec *codec = dai->codec;*/
 	txlx_acodec_reg_init(dai->codec);
 
-	pr_info("%s!\n", __func__);
+	pr_debug("%s!\n", __func__);
 
 	return 0;
 
@@ -469,7 +469,7 @@ static int txlx_acodec_dai_mute_stream(struct snd_soc_dai *dai, int mute,
 		snd_soc_codec_get_drvdata(dai->codec);
 	u32 reg;
 
-	pr_info("%s, mute:%d\n", __func__, mute);
+	pr_debug("%s, mute:%d\n", __func__, mute);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* DAC 1 */
