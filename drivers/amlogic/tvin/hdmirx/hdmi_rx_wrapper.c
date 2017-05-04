@@ -2418,6 +2418,14 @@ void hdmirx_esm_hw_fault_detect(void)
 }
 #endif
 
+void rx_force_hdcp14(bool en)
+{
+	if (en)
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
+	else
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+}
+
 void esm_set_stable(bool stable)
 {
 	if (log_level & VIDEO_LOG)
@@ -2453,6 +2461,12 @@ bool hdcp_14_auth_success(void)
 			hdmirx_rd_dwc(DWC_HDCP_DBG));
 		return FALSE;
 	}
+}
+
+void rx_set_eq_run_state(enum run_eq_state state)
+{
+	run_eq_flag = state;
+	rx_pr("run_eq_flag: %d\n", run_eq_flag);
 }
 
 void hdmirx_hw_monitor(void)
@@ -2499,6 +2513,7 @@ void hdmirx_hw_monitor(void)
 			rx_pr("5v_lost->FSM_INIT\n");
 			pre_port = E_5V_LOST;
 			use_dwc_reset = true;
+			rx_set_eq_run_state(E_EQ_START);
 			set_scdc_cfg(1, 0);
 			hdmirx_audio_enable(0);
 			hdmirx_set_hpd(rx.port, 0);
@@ -2609,28 +2624,14 @@ void hdmirx_hw_monitor(void)
 			eq_ch2.bestsetting = eq_dbg_ch2;
 			rx.state = FSM_EQ_END;
 			break;
-		} else if (!rx_need_eq_workaround()) {
-			/*for some DVD, 480i/576i eq0-0-0 no signal*/
-			if (use_eq_workaround) {
-				if (pre_eq_freq == E_EQ_LOW_FREQ) {
-					if (rx.pre_state == FSM_EQ_INIT) {
-						rx_pr("use a default EQ\n");
-						hdmirx_phy_conf_eq_setting(
-						rx.port,
-						4,
-						4,
-						4);
-						rx.pre_state = FSM_SIG_UNSTABLE;
-					} else
-						rx.pre_state = FSM_EQ_INIT;
-				}
-			}
-			rx.state = FSM_SIG_UNSTABLE;
+		} else if (!rx_need_eq_algorithm()) {
+			rx.state = FSM_EQ_END;
 			break;
 		} else {
 			if (hdcp22_on)
 				esm_set_stable(0);
 			rx.state = FSM_EQ_CALIBRATION;
+			rx_set_eq_run_state(E_EQ_PASS);
 			queue_delayed_work(eq_wq,
 				&eq_dwork, msecs_to_jiffies(1));
 			break;
@@ -2705,6 +2706,7 @@ void hdmirx_hw_monitor(void)
 					break;
 				}
 				rx.state = FSM_WAIT_CLK_STABLE;
+				rx_set_eq_run_state(E_EQ_FAIL);
 				rx_pr("UNSTABLE->HPD_READY 3g:%d\n",
 						rx.scdc_tmds_cfg);
 				sig_pll_unlock_cnt = 0;
@@ -2786,6 +2788,7 @@ void hdmirx_hw_monitor(void)
 			sig_stable_cnt = 0;
 			if (sig_unstable_cnt++ > sig_unstable_max) {
 				rx.state = FSM_WAIT_CLK_STABLE;
+				rx_set_eq_run_state(E_EQ_FAIL);
 				sig_stable_cnt = 0;
 				sig_unstable_cnt = 0;
 				hdmirx_error_count_config();
@@ -4431,6 +4434,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		} else
 			hdmirx_set_hpd(rx.port, 0);
 		hdmirx_hw_config();
+		rx_set_eq_run_state(E_EQ_START);
 	} else {
 		if (0 == get_cur_hpd_sts())
 			rx.state = FSM_HPD_HIGH;

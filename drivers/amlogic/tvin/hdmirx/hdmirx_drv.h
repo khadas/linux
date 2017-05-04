@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/05/04"
+#define RX_VER0 "Ref.2017/05/27"
 /*------------------------------*/
 #define RX_VER1 "Ref.2017/05/27"
 /*------------------------------*/
@@ -233,10 +233,10 @@ enum hdcp_type {
 	E_HDCP22
 };
 
-enum eq_sts {
+enum e_eq_freq {
 	E_EQ_NONE,
-	E_EQ_LOW_FREQ,
-	E_EQ_HD_FREQ,
+	E_EQ_SD,
+	E_EQ_HD,
 	E_EQ_3G,
 	E_EQ_6G
 };
@@ -694,6 +694,7 @@ struct st_eq_data {
 	uint16_t acq;
 	uint16_t acq_n[15];
 	uint16_t lastacq;
+	uint8_t eq_ref[3];
 };
 
 struct reg_map {
@@ -710,6 +711,7 @@ extern struct delayed_work		esm_dwork;
 extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
 extern struct workqueue_struct	*repeater_wq;
+extern unsigned char run_eq_flag;
 extern unsigned int pwr_sts;
 extern unsigned char *pEdid_buffer;
 extern bool multi_port_edid_enable;
