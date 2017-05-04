@@ -435,13 +435,12 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 		if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 			(vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL) ||
-			(vpu_chip_type == VPU_CHIP_TXLX)) {
-			vpu_vcbus_setb(VPU_CLK_GATE, val, 8, 1); /* clkb_gen */
-			vpu_vcbus_setb(VPU_CLK_GATE, val, 9, 1); /* clkb_gen */
+			(vpu_chip_type == VPU_CHIP_TXL)) {
 			/* clkb_gen_en */
 			vpu_vcbus_setb(VPU_CLK_GATE, val, 17, 1);
 		}
+		if (vpu_chip_type == VPU_CHIP_TXLX)
+			vpu_hiu_setb(HHI_VPU_CLKB_CNTL, val, 9, 1);
 		if ((vpu_chip_type == VPU_CHIP_GXBB) ||
 			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
 			(vpu_chip_type == VPU_CHIP_GXL) ||
