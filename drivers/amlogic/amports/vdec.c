@@ -1389,7 +1389,7 @@ void vdec_release(struct vdec_s *vdec)
 		 * instance reserved for legacy path.
 		 */
 		if (vdec->frame_base_video_path == FRAME_BASE_PATH_IONVIDEO
-				&& !vdec_dual(vdec)) {
+				&& vdec_frame_based(vdec)) {
 			ionvideo_release_map(vdec->vf_receiver_inst);
 		}
 	}
