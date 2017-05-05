@@ -25,13 +25,6 @@
 #include "tvafe_cvd.h"
 #include "../vdin/vdin_regs.h"
 /***************************Local defines**********************************/
-/* cvd2 memory size defines */
-#define DECODER_MOTION_BUFFER_ADDR_OFFSET   0x70000
-#define DECODER_MOTION_BUFFER_4F_LENGTH     0x15a60
-#define DECODER_VBI_ADDR_OFFSET             0x86000
-#define DECODER_VBI_VBI_SIZE                0x1000
-#define DECODER_VBI_START_ADDR              0x0
-
 /* cvd2 mode detection defines */
 #define TVAFE_CVD2_CORDIC_IN_MAX            224
 /* CVD cordic range of right fmt */

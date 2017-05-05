@@ -13,7 +13,8 @@
 /* cvd2 memory size defines */
 #define DECODER_MOTION_BUFFER_ADDR_OFFSET   0x70000
 #define DECODER_MOTION_BUFFER_4F_LENGTH     0x15a60
-#define DECODER_VBI_ADDR_OFFSET             0x86000
+/*motion is not use,only 3d-com need mem:1135x625x10bit/8 * 4 = 0x361ef8*/
+#define DECODER_VBI_ADDR_OFFSET             0x400000/*0x86000*/
 #define DECODER_VBI_VBI_SIZE                0x1000
 #define DECODER_VBI_START_ADDR              0x0
 
