@@ -1836,7 +1836,8 @@ struct di_pre_stru_s {
 /* input size change flag, 1: need reconfig pre/nr/dnr size */
 /* 0: not need config pre/nr/dnr size*/
 	bool input_size_change_flag;
-
+/* true: bypass di all logic, false: not bypass */
+	bool bypass_flag;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer*/
@@ -1925,6 +1926,10 @@ static void dump_di_pre_stru(void)
 		di_pre_stru.cur_prog_flag);
 	pr_info("source_change_flag	   = %d\n",
 		di_pre_stru.source_change_flag);
+	pr_info("input_size_change_flag = %s\n",
+		di_pre_stru.input_size_change_flag?"true":"false");
+	pr_info("bypass_flag = %s\n",
+		di_pre_stru.bypass_flag?"true":"false");
 	pr_info("prog_proc_type		   = %d\n",
 		di_pre_stru.prog_proc_type);
 	pr_info("enable_mtnwr		   = %d\n",
@@ -8431,6 +8436,30 @@ static void di_pre_size_change(unsigned short width, unsigned short height)
 	}
 }
 
+static bool need_bypass(struct vframe_s *vf)
+{
+	if (vf->source_type & VIDTYPE_MVC)
+		return true;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR)
+		return true;
+
+	if (vf->source_type & VIDTYPE_VIU_444)
+		return true;
+
+	if (vf->type & VIDTYPE_PIC)
+		return true;
+
+	if (vf->type & VIDTYPE_COMPRESS)
+		return true;
+
+	if ((vf->width > default_width) ||
+			(vf->height > (default_height + 8)))
+		return true;
+
+	return false;
+}
+
 static void di_reg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
@@ -8456,6 +8485,12 @@ static void di_reg_process_irq(void)
 		else
 			bypass_4K = 0;
 		#endif
+		if (need_bypass(vframe) || ((di_debug_flag>>18) & 0x1)) {
+			di_pre_stru.bypass_flag = true;
+			return;
+		} else {
+			di_pre_stru.bypass_flag = false;
+		}
 		/* patch for vdin progressive input */
 		if ((is_from_vdin(vframe) &&
 		    is_progressive(vframe))
@@ -8793,7 +8828,8 @@ static void pre_tasklet(unsigned long arg)
 
 static enum hrtimer_restart di_pre_hrtimer_func(struct hrtimer *timer)
 {
-	di_pre_trigger_work(&di_pre_stru);
+  	if (!di_pre_stru.bypass_flag)
+		di_pre_trigger_work(&di_pre_stru);
 	hrtimer_forward_now(&di_pre_hrtimer, ms_to_ktime(10));
 	return HRTIMER_RESTART;
 }
@@ -8810,7 +8846,8 @@ static void di_pre_timer_cb(unsigned long arg)
 
 static void di_per_work_func(struct work_struct *work)
 {
-	di_pre_trigger_work(&di_pre_stru);
+	if (!di_pre_stru.bypass_flag)
+		di_pre_trigger_work(&di_pre_stru);
 }
 
 static irqreturn_t timer_irq(int irq, void *dev_instance)
@@ -9154,6 +9191,8 @@ static vframe_t *di_vf_peek(void *arg)
 	struct di_buf_s *di_buf = NULL;
 
 	video_peek_cnt++;
+	if (di_pre_stru.bypass_flag)
+		return vf_peek(VFM_NAME);
 	if ((init_flag == 0) || recovery_flag ||
 		di_blocking || di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
@@ -9231,6 +9270,9 @@ static vframe_t *di_vf_get(void *arg)
 	struct di_buf_s *di_buf = NULL;
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 
+	if (di_pre_stru.bypass_flag)
+		return vf_get(VFM_NAME);
+
 	if ((init_flag == 0) || recovery_flag ||
 		di_blocking || di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
@@ -9305,6 +9347,12 @@ static void di_vf_put(vframe_t *vf, void *arg)
 	struct di_buf_s *di_buf = (struct di_buf_s *)vf->private_data;
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 
+	if (di_pre_stru.bypass_flag) {
+		vf_put(vf, VFM_NAME);
+		if (used_post_buf_index != -1)
+			recycle_keep_buffer();
+		return;
+	}
 /* struct di_buf_s *p = NULL; */
 /* int itmp = 0; */
 	if ((init_flag == 0) || recovery_flag) {
