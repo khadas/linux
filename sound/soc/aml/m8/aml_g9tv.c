@@ -107,7 +107,8 @@ static int DRC0_enable(int enable)
 	return 0;
 }
 
-static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI"};
+static const char *const audio_in_source_texts[] = {
+	"LINEIN", "ATV", "HDMI", "SPDIFIN" };
 
 static const struct soc_enum audio_in_source_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_in_source_texts),
@@ -156,6 +157,8 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		audio_in_source = 2;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
+	}  else if (ucontrol->value.enumerated.item[0] == 3) {
+		audio_in_source = 3;
 	}
 
 	set_i2s_source(audio_in_source);
@@ -479,15 +482,6 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_Speaker_Channel_Mask_set_enum),
 };
 
-static int set_HW_resample_pause_thd(unsigned int thd)
-{
-	aml_audin_write(AUD_RESAMPLE_CTRL2,
-			(1 << 24) /* enable HW_resample_pause*/
-			| (thd << 11) /* set HW resample pause thd (sample)*/
-			);
-	return 0;
-}
-
 static int aml_get_eqdrc_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol) {
 
@@ -526,6 +520,16 @@ static int aml_set_eqdrc_reg(struct snd_kcontrol *kcontrol,
 	reg_value |= (value << shift);
 	aml_eqdrc_write(reg, reg_value);
 
+	return 0;
+}
+
+#if 0
+static int set_HW_resample_pause_thd(unsigned int thd)
+{
+	aml_audin_write(AUD_RESAMPLE_CTRL2,
+			(1 << 24) /* enable HW_resample_pause*/
+			| (thd << 11) /* set HW resample pause thd (sample)*/
+			);
 	return 0;
 }
 
@@ -569,6 +573,7 @@ static int aml_set_audin_reg(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+#endif
 
 static int set_aml_EQ_param(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -666,7 +671,7 @@ static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 			 AED_NG_CNT_THD, 0, 0xFFFF, 0,
 			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
 			 NULL),
-
+	/*
 	SOC_SINGLE_EXT_TLV("Hw resample pause enable",
 			 AUD_RESAMPLE_CTRL2, 24, 0x1, 0,
 			 aml_get_audin_reg, aml_set_audin_reg,
@@ -676,6 +681,7 @@ static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 			 AUD_RESAMPLE_CTRL2, 11, 0x1FFF, 0,
 			 aml_get_audin_reg, aml_set_audin_reg,
 			 NULL),
+	*/
 };
 
 static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
@@ -1429,7 +1435,7 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		init_EQ_DRC_module();
 		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
 					ARRAY_SIZE(aml_EQ_DRC_controls));
-		set_HW_resample_pause_thd(128);
+		/*set_HW_resample_pause_thd(128);*/
 	}
 
 	p_aml_audio->data = (void *)card;

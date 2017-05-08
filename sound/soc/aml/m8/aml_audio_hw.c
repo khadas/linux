@@ -230,29 +230,19 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode,
 	aml_audin_write(AUDIN_FIFO0_START, addr & 0xffffffc0);
 	aml_audin_write(AUDIN_FIFO0_PTR, (addr & 0xffffffc0));
 	aml_audin_write(AUDIN_FIFO0_END,
-		       (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
+			   (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
 
 	aml_audin_write(AUDIN_FIFO0_CTRL, (1 << AUDIN_FIFO0_EN)	/* FIFO0_EN */
-		       |(1 << AUDIN_FIFO0_LOAD)	/* load start address */
-		       |(din_sel << AUDIN_FIFO0_DIN_SEL)
-
-		       /* DIN from i2sin */
-		       /* |(1<<6)    // 32 bits data in. */
-		       /* |(0<<7)    // put the 24bits data to  low 24 bits */
-		       | (4 << AUDIN_FIFO0_ENDIAN) /* AUDIN_FIFO0_ENDIAN */
-		       |((ch == 2?2:1) << AUDIN_FIFO0_CHAN) /* ch mode ctl */
-		       |(0 << 16)	/* to DDR */
-		       |(1 << AUDIN_FIFO0_UG)	/* Urgent request. */
-		       |(0 << 17)	/* Overflow Interrupt mask */
-		       |(0 << 18)
-		       /* Audio in INT */
-		       /* |(1<<19)    // hold 0 enable */
-		       | (0 << AUDIN_FIFO0_UG)	/* hold0 to aififo */
-	    );
+			   | (1 << AUDIN_FIFO0_LOAD) /* load start address */
+			   | (din_sel << AUDIN_FIFO0_DIN_SEL) /*DIN from i2sin*/
+			   | (4 << AUDIN_FIFO0_ENDIAN) /*AUDIN_FIFO0_ENDIAN*/
+			   | ((ch == 2?2:1) << AUDIN_FIFO0_CHAN) /*ch mode ctl*/
+			   | (1 << AUDIN_FIFO0_UG) /* Urgent request. */
+	);
 
 	aml_audin_write(AUDIN_FIFO0_CTRL1, 0 << 4	/* fifo0_dest_sel */
-		       | 2 << 2	/* fifo0_din_byte_num */
-		       | din_pos << 0);	/* fifo0_din_pos */
+			   | 2 << 2	/* 0: 8bit; 1:16bit; 2:32bit */
+			   | din_pos << 0);	/* fifo0_din_pos */
 
 	if (audio_in_source == 0) {
 		aml_audin_write(AUDIN_I2SIN_CTRL,
@@ -276,10 +266,11 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode,
 				   | (0 << I2SIN_DIR));
 		if (is_meson_txlx_cpu()) {
 			/* adec */
-			aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 3);
+			aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 7);
 			/* fifo source adec */
-			aml_audin_update_bits(AUDIN_FIFO0_CTRL, 0x38,
-				(0x5 << AUDIN_FIFO0_DIN_SEL));
+			aml_audin_update_bits(AUDIN_FIFO0_CTRL,
+				   (0x7 << AUDIN_FIFO0_DIN_SEL),
+				   (ATV_ADEC << AUDIN_FIFO0_DIN_SEL));
 			aml_audin_update_bits(AUDIN_FIFO0_CTRL1, 0x3,
 							(0x1 << 0));
 		}
@@ -328,8 +319,6 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 {
 	aml_audin_write(AUDIN_SPDIF_MODE,
 			   aml_audin_read(AUDIN_SPDIF_MODE) & 0x7fffffff);
-	/*set channel invert from old spdif in mode*/
-	aml_audin_update_bits(AUDIN_SPDIF_MODE, (1 << 19), (1 << 19));
 	aml_audin_write(AUDIN_FIFO1_START, addr & 0xffffffc0);
 	aml_audin_write(AUDIN_FIFO1_PTR, (addr & 0xffffffc0));
 	aml_audin_write(AUDIN_FIFO1_END,
@@ -337,20 +326,10 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 	aml_audin_write(AUDIN_FIFO1_CTRL, (1 << AUDIN_FIFO1_EN)	/* FIFO0_EN */
 		       |(1 << AUDIN_FIFO1_LOAD)	/* load start address. */
 		       |(src << AUDIN_FIFO1_DIN_SEL)
-
-		       /* DIN from i2sin. */
-		       /* |(1<<6)   // 32 bits data in. */
-		       /* |(0<<7)   // put the 24bits data to  low 24 bits */
-		       | (4 << AUDIN_FIFO1_ENDIAN) /* AUDIN_FIFO0_ENDIAN */
+		       |(4 << AUDIN_FIFO1_ENDIAN) /* AUDIN_FIFO0_ENDIAN */
 		       |(2 << AUDIN_FIFO1_CHAN)	/* 2 channel */
-		       |(0 << 16)	/* to DDR */
 		       |(1 << AUDIN_FIFO1_UG)	/* Urgent request. */
-		       |(0 << 17)	/* Overflow Interrupt mask */
-		       |(0 << 18)
-		       /* Audio in INT */
-		       /* |(1<<19)   //hold 0 enable */
-		       | (0 << AUDIN_FIFO1_UG)	/* hold0 to aififo */
-	    );
+	);
 
 	/*
 	 *  according clk81 to set reg spdif_mode(0x2800)

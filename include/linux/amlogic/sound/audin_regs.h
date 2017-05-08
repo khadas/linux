@@ -165,7 +165,8 @@ enum data_source {
 	I2S_IN,
 	PCM_IN,
 	HDMI_IN,
-	PAO_IN
+	PAO_IN,
+	ATV_ADEC
 };
 #define AUDIN_FIFO0_DIN_SEL	3
  /* MBOX platform*/
