@@ -1032,7 +1032,16 @@ static void dvbc_reg_initial_old(struct aml_demod_sta *demod_sta)
 	/*		dvbc_set_auto_symtrack(); */
 }
 
+void qam_auto_scan(int auto_qam_enable)
+{
+	if (auto_qam_enable) {
+		qam_write_reg(0xc, 0x235cf45d);
+		qam_write_reg(0xe, 0x2d82d);
+		qam_write_reg(0x4e, 0x12010012);
+	} else
+		qam_write_reg(0x4e, 0x12000012);
 
+}
 
 
 static void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
@@ -1276,6 +1285,7 @@ static void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	/*for phase noise case 64qam*/
 	qam_write_reg(0x54, 0x606050d);
 	qam_write_reg(0x52, 0x346dc);
+	qam_auto_scan(1);
 /*auto track*/
 	/*      dvbc_set_auto_symtrack(); */
 }

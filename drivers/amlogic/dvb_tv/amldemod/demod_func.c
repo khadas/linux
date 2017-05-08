@@ -1247,7 +1247,7 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 	} else {
 		switch (demod_reg->mode) {
 		case AMLOGIC_DVBC_J83B:
-			demod_reg->addr = demod_reg->addr>>4;
+			demod_reg->addr = (demod_reg->addr)>>2;
 			break;
 		case AMLOGIC_DVBT_ISDBT:
 			demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
@@ -1296,7 +1296,7 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 		#endif
 	} else {
 		if (demod_reg->mode == AMLOGIC_DVBC_J83B)
-			demod_reg->addr = demod_reg->addr>>4;
+			demod_reg->addr = (demod_reg->addr)>>2;
 		else if (demod_reg->mode == AMLOGIC_DTMB)
 			demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DVBT_ISDBT)
@@ -1317,7 +1317,7 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 		if (demod_reg->mode == AMLOGIC_ATSC)
 			demod_reg->val = atsc_read_reg(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DVBC_J83B)
-			qam_read_reg(demod_reg->addr);
+			demod_reg->val = qam_read_reg(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
 			demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
 		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
