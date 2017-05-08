@@ -1052,9 +1052,10 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 						frontend);
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 
+	pr_info("[tvafe..] %s begin to close afe.\n", __func__);
 	mutex_lock(&devp->afe_mutex);
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		pr_err("[tvafe..] tvafe_dec_close(%d) decode havn't opened\n",
 				devp->index);
 		mutex_unlock(&devp->afe_mutex);
@@ -1125,7 +1126,8 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	enum tvin_port_e port = tvafe->parm.port;
 	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
 
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		pr_err("[tvafe..] tvafe havn't opened, isr error!!!\n");
 		return true;
 	}
@@ -1339,6 +1341,12 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	enum tvin_port_e port = tvafe->parm.port;
 	unsigned int hs_adj_lev = cutwindow_val_h_level1;
 
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		pr_err("[tvafe..] %s tvafe not opened OR suspend:flags:0x%x!\n",
+			__func__, devp->flags);
+		return;
+	}
 	prop->trans_fmt = TVIN_TFMT_2D;
 	if ((port >= TVIN_PORT_VGA0) &&
 			(port <= TVIN_PORT_VGA7)) {
@@ -1594,6 +1602,7 @@ static long tvafe_ioctl(struct file *file,
 	/* pr_info("[tvafe..] %s command: %u\n", __func__, cmd); */
 	if (disableapi)
 		return -ENOSYS;
+
 	mutex_lock(&devp->afe_mutex);
 
 	/* EDID command !!! */
@@ -2548,31 +2557,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 
 static void tvafe_drv_shutdown(struct platform_device *pdev)
 {
-	struct tvafe_dev_s *tdevp;
-	struct tvafe_info_s *tvafe;
-	tdevp = platform_get_drvdata(pdev);
-	tvafe = &tdevp->tvafe;
-
-	/* close afe port first */
-	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
-
-		pr_info("tvafe: shutdown module, close afe port first\n");
-		/*close afe port,disable tvafe_is_nosig check*/
-		/*tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);*/
-		/*del_timer_sync(&tdevp->timer);*/
-
-		/**set cvd2 reset to high**/
-		tvafe_cvd2_hold_rst(&tdevp->tvafe.cvd2);
-		/**disable av out**/
-		tvafe_enable_avout(tvafe->parm.port, false);
-	}
-
-	/*disable and reset tvafe clock*/
-	/*this cause crash when cmd reboot..*/
-	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
-	tvafe_enable_module(false);
-	adc_set_pll_reset();
-	pr_info("tvafe: shutdown module\n");
+	pr_info("tvafe: tvafe_drv_shutdown ok.\n");
 	return;
 }
 
