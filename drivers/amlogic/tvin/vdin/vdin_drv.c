@@ -2341,7 +2341,7 @@ static int vdin_release(struct inode *inode, struct file *file)
 
 	/* reset the hardware limit to vertical [0-1079]  */
 	/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
-	if (vdin_dbg_en)
+	/*if (vdin_dbg_en)*/
 		pr_info("close device %s ok\n", dev_name(devp->dev));
 	return 0;
 }

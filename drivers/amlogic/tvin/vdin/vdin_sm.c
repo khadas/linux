@@ -292,13 +292,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 	struct tvin_frontend_s *fe;
 	struct tvin_sig_property_s *prop, *pre_prop;
 
-	if ((devp->flags & VDIN_FLAG_SM_DISABLE) ||
-		(devp->flags & VDIN_FLAG_SUSPEND))
-		return;
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;
 	}
+
+	if ((devp->flags & VDIN_FLAG_SM_DISABLE) ||
+		(devp->flags & VDIN_FLAG_SUSPEND))
+		return;
 
 	sm_p = &sm_dev[devp->index];
 	fe = devp->frontend;
