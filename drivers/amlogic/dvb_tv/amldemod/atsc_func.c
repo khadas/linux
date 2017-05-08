@@ -498,9 +498,6 @@ void set_cr_ck_rate(void)
 	atsc_write_reg(0x918,  0x0);
 
 	/*filed test bug in sfo*/
-	atsc_write_reg(0xf55,  0x00);
-	atsc_write_reg(0xf56,  0x00);
-	atsc_write_reg(0xf57,  0x00);
 	atsc_write_reg(0x53b,  0x0b);
 	atsc_write_reg(0x545,  0x0);
 	atsc_write_reg(0x546,  0x80);
@@ -852,6 +849,55 @@ int AR_run(void)
 	return 0;
 }
 
+int atsc_check_fsm_status_oneshot(void)
+{
+	unsigned int SNR;
+	unsigned int atsc_snr = 0;
+	unsigned int SNR_dB;
+	int tmp[3];
+	int cr;
+	int ck;
+	int SM;
+	int ber;
+	int ser;
+	int cnt;
+	cnt = 0;
+	ber = 0;
+	ser = 0;
+	tmp[0] = atsc_read_reg(0x0511);
+	tmp[1] = atsc_read_reg(0x0512);
+	SNR = (tmp[0] << 8) + tmp[1];
+	SNR_dB = SNR_dB_table[atsc_find(SNR, SNR_table, 56)];
+	tmp[2] = atsc_read_reg(0x0782);
+	tmp[1] = atsc_read_reg(0x0781);
+	tmp[0] = atsc_read_reg(0x0780);
+	cr = tmp[0] + (tmp[1] << 8) + (tmp[2] << 16);
+	tmp[0] = atsc_read_reg(0x0786);
+	tmp[1] = atsc_read_reg(0x0787);
+	tmp[2] = atsc_read_reg(0x0788);
+	ck = (tmp[0] << 16) + (tmp[1] << 8) + tmp[2];
+	SM = atsc_read_reg(0x0980);
+/* ber per */
+	/*Enable SER/BER*/
+	atsc_write_reg(0x0601, 0x8);
+	ber = atsc_read_reg(0x0683) + (atsc_read_reg(0x0682) << 8)+
+		(atsc_read_reg(0x0681) << 16) + (atsc_read_reg(0x0680) << 24);
+	ser = atsc_read_reg(0x0687) + (atsc_read_reg(0x0686) << 8)+
+		(atsc_read_reg(0x0685) << 16) + (atsc_read_reg(0x0684) << 24);
+	pr_dbg
+	    ("SNR %4x SNRdB %2d.%2d FSM %x cr %6x ck %6x",
+	     SNR, (SNR_dB / 10)
+	     , (SNR_dB - (SNR_dB / 10) * 10)
+	     , SM, cr, ck);
+	pr_dbg
+		(" ber is %8x, ser is %8x\n",
+		ber, ser);
+
+	atsc_snr = (SNR_dB / 10);
+	return atsc_snr;
+}
+
+
 
 void atsc_thread(void)
 {
@@ -925,10 +971,10 @@ void atsc_thread(void)
 		}
 		} else {
 		time[4] = jiffies_to_msecs(jiffies);
-		/*atsc_check_fsm_status_oneshot();*/
+		atsc_check_fsm_status_oneshot();
 		fsm_status = read_atsc_fsm();
 		pr_dbg("lock\n");
-		msleep(1000);
+		msleep(300);
 		/*step5:close dagc*/
 		/*if (dagc_switch == Dagc_Open) {
 			atsc_write_reg(0x716, 0x2);
