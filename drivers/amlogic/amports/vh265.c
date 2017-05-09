@@ -6645,6 +6645,7 @@ static int hevc_recover(struct hevc_state_s *hevc)
 		return ret;
 	}
 	amhevc_stop();
+	msleep(20);
 	ret = 0;
 	/* reset */
 	WRITE_PARSER_REG(PARSER_VIDEO_RP, READ_VREG(HEVC_STREAM_RD_PTR));
