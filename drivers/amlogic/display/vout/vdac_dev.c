@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
@@ -445,6 +446,11 @@ void vdac_enable(bool on, unsigned int module_sel)
 	case VDAC_MODULE_TVAFE: /* av in demod */
 		if (on) {
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_TVAFE);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 1, 13, 1);
+				udelay(5);
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 13, 1);
+			}
 			pri_flag &= ~VDAC_MODULE_ATV_DEMOD;
 			pri_flag |= VDAC_MODULE_TVAFE;
 			if (pri_flag & VDAC_MODULE_CVBS_OUT)
