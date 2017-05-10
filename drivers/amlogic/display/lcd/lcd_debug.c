@@ -903,6 +903,15 @@ static ssize_t lcd_debug_store(struct class *class,
 	return count;
 }
 
+static ssize_t lcd_debug_enable_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "lcd_status: %d\n",
+		lcd_drv->lcd_status);
+}
+
 static ssize_t lcd_debug_enable_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
@@ -1334,7 +1343,8 @@ static ssize_t lcd_debug_print_store(struct class *class,
 static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(help,        S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
 	__ATTR(debug,       S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
-	__ATTR(enable,      S_IRUGO | S_IWUSR, NULL, lcd_debug_enable_store),
+	__ATTR(enable,      S_IRUGO | S_IWUSR, lcd_debug_enable_show,
+		lcd_debug_enable_store),
 	__ATTR(power,       S_IRUGO | S_IWUSR,
 		lcd_debug_power_show, lcd_debug_power_store),
 	__ATTR(frame_rate,  S_IRUGO | S_IWUSR,
