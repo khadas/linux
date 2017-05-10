@@ -61,7 +61,7 @@ int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd)
 		break;
 	case DDC_UNMUX_DDC:
 		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 3, 22, 2);
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_6, 0, 21, 2);
+		hd_set_reg_bits(P_PERIPHS_PIN_MUX_0, 0, 21, 2);
 		break;
 	default:
 		pr_info("error ddc cmd %d\n", cmd);

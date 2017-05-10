@@ -150,6 +150,14 @@ void init_reg_map(unsigned int type)
 	}
 }
 
+unsigned int get_hdcp22_base(void)
+{
+	if (map)
+		return map[ELP_ESM_REG_IDX].phy_addr;
+	else
+		return reg_maps_def[ELP_ESM_REG_IDX].phy_addr;
+}
+
 #define TO_PHY_ADDR(addr) \
 	(map[(addr) >> BASE_REG_OFFSET].phy_addr + \
 	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
