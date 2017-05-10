@@ -454,6 +454,9 @@ static void set_output_mode_info(void)
 	if (info) {
 		if ((strncmp(info->name, "480cvbs", 7) == 0) ||
 		    (strncmp(info->name, "576cvbs", 7) == 0) ||
+			(strncmp(info->name, "ntsc_m", 6) == 0) ||
+			(strncmp(info->name, "pal_m", 5) == 0) ||
+			(strncmp(info->name, "pal_n", 5) == 0) ||
 		    (strncmp(info->name, "480i", 4) == 0) ||
 		    (strncmp(info->name, "576i", 4) == 0) ||
 		    (strncmp(info->name, "1080i", 5) == 0))

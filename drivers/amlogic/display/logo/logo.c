@@ -258,6 +258,12 @@ static int __init get_cvbs_mode(char *str)
 		cvbsmode = VMODE_480CVBS;
 	else if (strncmp("576", str, 3) == 0)
 		cvbsmode = VMODE_576CVBS;
+	else if (strncmp("ntsc_m", str, 6) == 0)
+		cvbsmode = VMODE_NTSC_M;
+	else if (strncmp("pal_m", str, 5) == 0)
+		cvbsmode = VMODE_PAL_M;
+	else if (strncmp("pal_n", str, 5) == 0)
+		cvbsmode = VMODE_PAL_N;
 	else if (strncmp("nocvbs", str, 6) == 0)
 		cvbsmode = hdmimode;
 	pr_info("get cvbsmode: %s\n", str);

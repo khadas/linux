@@ -4646,8 +4646,11 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 	switch (mode) {
 	case VMODE_480I:
 	case VMODE_480CVBS:
+	case VMODE_NTSC_M:
 	case VMODE_576I:
 	case VMODE_576CVBS:
+	case VMODE_PAL_M:
+	case VMODE_PAL_N:
 	case VMODE_1080I:
 	case VMODE_1080I_50HZ:
 		scan_mode = TVIN_SCAN_MODE_INTERLACED;

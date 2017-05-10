@@ -813,6 +813,8 @@ int osd_set_scan_mode(u32 index)
 		switch (vinfo->mode) {
 		case VMODE_480I:
 		case VMODE_480CVBS:
+		case VMODE_NTSC_M:
+		case VMODE_PAL_M:
 			if (osd_hw.free_scale_mode[index]) {
 				osd_hw.field_out_en = 1;
 				switch (osd_hw.free_src_data[index].y_end) {
@@ -835,6 +837,7 @@ int osd_set_scan_mode(u32 index)
 			break;
 		case VMODE_576I:
 		case VMODE_576CVBS:
+		case VMODE_PAL_N:
 			if (osd_hw.free_scale_mode[index]) {
 				osd_hw.field_out_en = 1;
 				switch (osd_hw.free_src_data[index].y_end) {
@@ -1366,8 +1369,11 @@ void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 		switch (vinfo->mode) {
 		case VMODE_480I:
 		case VMODE_480CVBS:
+		case VMODE_NTSC_M:
 		case VMODE_576I:
 		case VMODE_576CVBS:
+		case VMODE_PAL_M:
+		case VMODE_PAL_N:
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
 			height = osd_hw.free_dst_data_backup[index].y_end -
@@ -1399,8 +1405,11 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 		switch (vinfo->mode) {
 		case VMODE_480I:
 		case VMODE_480CVBS:
+		case VMODE_NTSC_M:
 		case VMODE_576I:
 		case VMODE_576CVBS:
+		case VMODE_PAL_M:
+		case VMODE_PAL_N:
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
 			temp_y0 = y0 / 2;

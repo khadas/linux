@@ -422,6 +422,9 @@ static int set_disp_mode_auto(void)
 	 */
 	if ((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
+		(strncmp(info->name, "ntsc_m", 6) == 0) ||
+		(strncmp(info->name, "pal_m", 5) == 0) ||
+		(strncmp(info->name, "pal_n", 5) == 0) ||
 		(strncmp(info->name, "panel", 5) == 0) ||
 		(strncmp(info->name, "null", 4) == 0)) {
 		hdmi_print(ERR, VID "%s not valid hdmi mode\n", info->name);

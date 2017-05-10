@@ -147,7 +147,9 @@ static void set_tvmode_misc(enum tvmode_e mode)
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) ||
 	    (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
-		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS) ||
+			(mode == TVMODE_NTSC_M) || (mode == TVMODE_PAL_M) ||
+			(mode == TVMODE_PAL_N))
 			set_vmode_clk(mode);
 	} else
 		set_vmode_clk(mode);
@@ -228,7 +230,8 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 	unsigned int type = 0;
 	const struct reg_s *s = NULL;
 
-	if (TVMODE_576CVBS != mode)
+	if ((TVMODE_576CVBS != mode) &&
+		(TVMODE_PAL_N != mode))
 		return;
 	if (0xff == index)
 		return;
@@ -450,9 +453,12 @@ static void tv_out_set_enc_viu_mux(enum tvmode_e mode)
 	case TVMODE_480I:
 	case TVMODE_480I_RPT:
 	case TVMODE_480CVBS:
+	case TVMODE_NTSC_M:
+	case TVMODE_PAL_M:
 	case TVMODE_576I:
 	case TVMODE_576I_RPT:
 	case TVMODE_576CVBS:
+	case TVMODE_PAL_N:
 		/* reg0x271a, select ENCI to VIU1 */
 		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 1, 0, 2);
 		/* reg0x271a, Select encI clock to VDIN */
@@ -511,7 +517,9 @@ static void tv_out_late_open_vdac(enum tvmode_e mode)
 				tv_out_reg_write(VENC_VDAC_SETTING, 0x7);
 		}
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS)) {
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS) ||
+			(mode == TVMODE_NTSC_M) || (mode == TVMODE_PAL_M) ||
+			(mode == TVMODE_PAL_N)) {
 			msleep(1000);
 			cvbs_cntl_output(1);
 		}
@@ -840,7 +848,10 @@ static int tv_out_enci_is_required(enum vmode_e mode)
 		(mode == VMODE_480I) ||
 		(mode == VMODE_480I_RPT) ||
 		(mode == VMODE_576CVBS) ||
-		(mode == VMODE_480CVBS))
+		(mode == VMODE_PAL_M) ||
+		(mode == VMODE_PAL_N) ||
+		(mode == VMODE_480CVBS) ||
+		(mode == VMODE_NTSC_M))
 		return 1;
 	return 0;
 }
@@ -1392,9 +1403,12 @@ static void bist_test_store(char *para)
 		case TVMODE_480I:
 		case TVMODE_480I_RPT:
 		case TVMODE_480CVBS:
+		case TVMODE_NTSC_M:
 		case TVMODE_576I:
 		case TVMODE_576I_RPT:
 		case TVMODE_576CVBS:
+		case TVMODE_PAL_M:
+		case TVMODE_PAL_N:
 			tv_out_reg_write(ENCI_TST_EN, 0);
 			break;
 		default:
@@ -1409,9 +1423,12 @@ static void bist_test_store(char *para)
 		case TVMODE_480I:
 		case TVMODE_480I_RPT:
 		case TVMODE_480CVBS:
+		case TVMODE_NTSC_M:
 		case TVMODE_576I:
 		case TVMODE_576I_RPT:
 		case TVMODE_576CVBS:
+		case TVMODE_PAL_M:
+		case TVMODE_PAL_N:
 			tv_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
 			tv_out_reg_write(ENCI_TST_CLRBAR_WIDTH, 0xb4);
 			tv_out_reg_write(ENCI_TST_MDSEL, (unsigned int)num);
