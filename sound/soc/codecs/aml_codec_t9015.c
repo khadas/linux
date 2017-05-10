@@ -28,7 +28,7 @@ struct aml_T9015_audio_priv {
 };
 
 static const struct reg_default t9015_init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B00F},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000300F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
 	{LINE_OUT_CONFIG, 0x00001111},
@@ -174,8 +174,8 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
 			 DACR_EN, 0),
 
 	/*DRV output */
-	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", SND_SOC_NOPM,
-			     0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
+			     VMID_GEN_EN, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("LOLN_OUT_EN", SND_SOC_NOPM,
 			     0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("LORP_OUT_EN", SND_SOC_NOPM,
