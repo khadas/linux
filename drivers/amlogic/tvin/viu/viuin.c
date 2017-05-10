@@ -61,7 +61,21 @@
 #define ENCL_INFO_READ 0x271f
 #define VPU_VIU2VDIN_HDN_CTRL 0x2780
 /*follow two reg new add from txlx*/
+/*VPU_422TO444_CTRL0/VPU_422TO444_CTRL1:
+[31] : bypass_mode
+[30] : cbcr_sel
+[29] : clip 10 mode
+[28] : clip 8 mode
+[27] : value data in the little endian
+[26] : tunnel mode
+[25] : go field enable
+[24] : go line enable
+[23] : soft reset enable
+[22] : de mode
+[17:0] : tunnel channel select
+*/
 #define VPU_422TO444_CTRL0 0x274b
+#define VPU_422TO444_CTRL1 0x274c
 #define VPU_422TO444_RST 0x274a
 #if 0 /* def CONFIG_GAMMA_AUTO_TUNE */
 
@@ -112,6 +126,15 @@ MODULE_PARM_DESC(open_cnt, "open_cnt for vdin0/1");
 static unsigned short scramble_mode;
 module_param(scramble_mode, ushort, 0664);
 MODULE_PARM_DESC(scramble_mode, "scramble_mode for viu_422to444 vencp");
+
+static unsigned int vpu_422to444_en;
+module_param(vpu_422to444_en, uint, 0664);
+MODULE_PARM_DESC(vpu_422to444_en, "viu_422to444 en/dis");
+
+/*0x2442b310 is for video only data to viu default setting*/
+static unsigned int vpu_422to444_val = 0x2442b310;
+module_param(vpu_422to444_val, uint, 0664);
+MODULE_PARM_DESC(vpu_422to444_val, "viu_422to444 val");
 
 struct viuin_s {
 	unsigned int flag;
@@ -612,7 +635,7 @@ void viuin_check_venc_line(struct viuin_s *devp_local)
 static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
-	unsigned int viu_mux = 0;
+	unsigned int temp_val, viu_mux = 0;
 
 	if (!memcpy(&devp->parm, fe->private_data,
 			sizeof(struct vdin_parm_s))) {
@@ -654,10 +677,23 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 				wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x40f00);
 			}
 	}
-	/*viu_422to444 vencp*/
-	if (is_meson_txlx_cpu() && (viu_mux == 2)) {
-		wr_bits_viu(VPU_422TO444_CTRL0, 1, 28, 1);
-		wr_bits_viu(VPU_422TO444_CTRL0, scramble_mode, 26, 1);
+	/*txlx new add 422to444 module config*/
+	if (is_meson_txlx_cpu()) {
+		/*viu_422to444 vencp*/
+		if ((viu_mux == 2) && (port == TVIN_PORT_VIU))
+			temp_val = VPU_422TO444_CTRL0;
+		else if (port == TVIN_PORT_VIDEO)/*viu_422to444 vd1*/
+			temp_val = VPU_422TO444_CTRL1;
+		else
+			temp_val = 0;
+		if ((vpu_422to444_en == 0) && (temp_val != 0)) {
+			wr_bits_viu(temp_val, 1, 22, 1);
+			wr_bits_viu(temp_val, 1, 31, 1);
+			wr_bits_viu(temp_val, 1, 25, 1);
+		} else if ((vpu_422to444_en == 1) && (temp_val != 0))
+			wr_viu(temp_val, vpu_422to444_val);
+		/*1:select vd1 high 10 bits data 0:select vd1 low 10bits data*/
+		/*wr_bits_viu(VPU_422TO444_RST, 0, 3, 1);*/
 	}
 
 	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
@@ -681,6 +717,12 @@ static void viuin_close(struct tvin_frontend_s *fe)
 	}
 	if (rd_viu(VPU_VIU2VDIN_HDN_CTRL) != 0)
 		wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x0);
+	/*txlx new add 422to444 module config*/
+	if (is_meson_txlx_cpu()) {
+		wr_viu(VPU_422TO444_CTRL0, 0);
+		wr_viu(VPU_422TO444_CTRL1, 0);
+		wr_viu(VPU_422TO444_RST, 0);
+	}
 }
 
 static void viuin_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)

@@ -2919,6 +2919,8 @@ static const char *amvecm_debug_usage_str = {
 	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
 	"echo dolby_config 0/1/2.. > /sys/class/amvecm/debug; dolby dma table config\n"
 	"echo dolby_crc 0/1 > /sys/class/amvecm/debug; dolby_crc insert or clr\n"
+	"echo datapath_config param1(D) param2(D) > /sys/class/amvecm/debug; config data path\n"
+	"echo datapath_status > /sys/class/amvecm/debug; data path status\n"
 	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
@@ -3102,6 +3104,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	} else if (!strcmp(parm[0], "keystone_config")) {
 		enum vks_param_e vks_param;
 		unsigned int vks_param_val;
+		if (!parm[2]) {
+			pr_info("misss param\n");
+			return -EINVAL;
+		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		vks_param = val;
@@ -3111,10 +3117,48 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		keystone_correction_config(vks_param, vks_param_val);
 	} else if (!strcmp(parm[0], "bitdepth")) {
 		unsigned int bitdepth;
-		if (kstrtoul(parm[1], 10, &val) < 0)
+		if (!parm[1]) {
+			pr_info("misss param1\n");
 			return -EINVAL;
-		bitdepth = val;
-		vpp_datapath_config(bitdepth);
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				return -EINVAL;
+			else
+				bitdepth = val;
+		}
+		vpp_bitdepth_config(bitdepth);
+	} else if (!strcmp(parm[0], "datapath_config")) {
+		unsigned int node, param1, param2;
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			return -EINVAL;
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				return -EINVAL;
+			else
+				node = val;
+		}
+		if (!parm[2]) {
+			pr_info("misss param2\n");
+			return -EINVAL;
+		} else {
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				return -EINVAL;
+			else
+				param1 = val;
+		}
+		if (!parm[3]) {
+			pr_info("misss param3,default is 0\n");
+			param2 = 0;
+		} else {
+			if (kstrtoul(parm[3], 10, &val) < 0)
+				return -EINVAL;
+			else
+				param2 = val;
+		}
+		vpp_datapath_config(node, param1, param2);
+	} else if (!strcmp(parm[0], "datapath_status")) {
+		vpp_datapath_status();
 	} else if (!strcmp(parm[0], "dolby_config")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;

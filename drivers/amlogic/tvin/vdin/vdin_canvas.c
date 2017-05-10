@@ -138,6 +138,8 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 		else
 			devp->canvas_w = max_buf_width * 2;
 	}
+	/*backup before roundup*/
+	devp->canvas_active_w = devp->canvas_w;
 	/*canvas_w must ensure divided exact by 256bit(32byte)*/
 	devp->canvas_w = roundup(devp->canvas_w, 32);
 	devp->canvas_h = devp->v_active;
@@ -233,6 +235,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		else
 			devp->canvas_w = devp->h_active * 2;
 	}
+	/*backup before roundup*/
+	devp->canvas_active_w = devp->canvas_w;
 	/*canvas_w must ensure divided exact by 256bit(32byte)*/
 	devp->canvas_w = roundup(devp->canvas_w, 32);
 	devp->canvas_h = devp->v_active;

@@ -164,6 +164,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
+	unsigned int i;
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -184,7 +185,12 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		else
 			buf = phys_to_virt(devp->mem_start +
 				devp->canvas_max_size*buf_num);
-		vfs_write(filp, buf, devp->canvas_max_size, &pos);
+		/*only write active data*/
+		for (i = 0; i < devp->canvas_h; i++) {
+			vfs_write(filp, buf, devp->canvas_active_w, &pos);
+			buf += devp->canvas_w;
+		}
+		/*vfs_write(filp, buf, devp->canvas_max_size, &pos);*/
 		pr_info("write buffer %2d of %2u  to %s.\n",
 				buf_num, devp->canvas_max_num, path);
 	}
@@ -275,7 +281,7 @@ static void vdin_dv_debug(struct vdin_dev_s *devp)
 static void vdin_dump_state_dv(struct vdin_dev_s *devp)
 {
 	unsigned int i;
-	pr_info("dolby_mem_start = %d, dolby_mem_size = %d\n",
+	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",
 		(devp->mem_start + devp->mem_size -
 		dolby_size_byte*devp->canvas_max_num), dolby_size_byte);
 	pr_info("dv_flag:%d;dv_config:%d\n", devp->dv_flag, devp->dv_config);
@@ -284,6 +290,31 @@ static void vdin_dump_state_dv(struct vdin_dev_s *devp)
 			devp->vfp->dv_buf_size[i],
 			devp->vfp->dv_buf_mem[i]);
 	}
+}
+/*config vidn output channel order*/
+static void vdin_channel_order_config(unsigned int offset,
+	unsigned int vdin_data_bus_0, unsigned int vdin_data_bus_1,
+	unsigned int vdin_data_bus_2)
+{
+	wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_0,
+			COMP0_OUT_SWT_BIT, COMP0_OUT_SWT_WID);
+	wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_1,
+			COMP1_OUT_SWT_BIT, COMP1_OUT_SWT_WID);
+	wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_2,
+			COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
+}
+static void vdin_channel_order_status(unsigned int offset)
+{
+	unsigned int c0, c1, c2;
+
+	c0 = rd_bits(offset, VDIN_COM_CTRL0,
+			COMP0_OUT_SWT_BIT, COMP0_OUT_SWT_WID);
+	c1 = rd_bits(offset, VDIN_COM_CTRL0,
+			COMP1_OUT_SWT_BIT, COMP1_OUT_SWT_WID);
+	c2 = rd_bits(offset, VDIN_COM_CTRL0,
+			COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
+	pr_info("vdin(%x) current channel order is: %d %d %d\n",
+		offset, c0, c1, c2);
 }
 
 static void vdin_dump_state(struct vdin_dev_s *devp)
@@ -296,9 +327,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d, canvas_alin_w = %d\n",
 		devp->canvas_w, devp->canvas_h, devp->canvas_alin_w);
-	pr_info("mem_start = %d, mem_size = %d\n",
+	pr_info("mem_start = %ld, mem_size = %d\n",
 		devp->mem_start, devp->mem_size);
-	pr_info("dolby_mem_start = %d, dolby_mem_size = %d\n",
+	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",
 		(devp->mem_start + devp->mem_size -
 		dolby_size_byte*devp->canvas_max_num), dolby_size_byte);
 	pr_info("signal format	= %s(0x%x)\n",
@@ -752,6 +783,7 @@ start_chk:
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
 	} else if (!strcmp(parm[0], "v4l2stop")) {
 		stop_tvin_service(devp->index);
+		devp->flags &= (~VDIN_FLAG_V4L2_DEBUG);
 	} else if (!strcmp(parm[0], "v4l2start")) {
 		struct vdin_parm_s param;
 		if (!parm[4]) {
@@ -794,7 +826,7 @@ start_chk:
 				param.v_active,
 				param.frame_rate);
 		if (!parm[5])
-			param.cfmt = TVIN_YUV422;
+			param.cfmt = TVIN_YUV444;
 		else {
 			/* param.cfmt = simple_strtol(parm[5], NULL, 10); */
 			if (kstrtol(parm[5], 10, &val) < 0)
@@ -823,6 +855,7 @@ start_chk:
 		pr_info(" scan_mode:%d\n", param.scan_mode);
 
 		param.fmt = TVIN_SIG_FMT_MAX;
+		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
 		/* param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE; */
 		/*start the vdin hardware*/
 		start_tvin_service(devp->index, &param);
@@ -874,8 +907,6 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "state")) {
 		vdin_dump_state(devp);
-	} else if (!strcmp(parm[0], "dv_state")) {
-		vdin_dump_state_dv(devp);
 	} else if (!strcmp(parm[0], "histgram")) {
 		vdin_dump_histgram(devp);
 	}
@@ -1091,11 +1122,54 @@ start_chk:
 		vdin_dump_state_dv(devp);
 	} else if (!strcmp(parm[0], "dv_debug")) {
 		vdin_dv_debug(devp);
+	} else if (!strcmp(parm[0], "channel_order_config")) {
+		unsigned int c0, c1, c2;
+		if (!parm[3]) {
+			pr_info("miss parameters\n");
+			return -EINVAL;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		else
+			c0 = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			return -EINVAL;
+		else
+			c1 = val;
+		if (kstrtoul(parm[3], 10, &val) < 0)
+			return -EINVAL;
+		else
+			c2 = val;
+		vdin_channel_order_config(devp->addr_offset, c0, c1, c2);
+	} else if (!strcmp(parm[0], "channel_order_status"))
+		vdin_channel_order_status(devp->addr_offset);
+	else if (!strcmp(parm[0], "open_port")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		devp->parm.index = 0;
+		devp->parm.port  = val;
+		devp->unstable_flag = false;
+		ret = vdin_open_fe(devp->parm.port, devp->parm.index, devp);
+		if (ret) {
+			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
+					devp->parm.index, devp->parm.port);
+			return -EINVAL;
+		}
+		devp->flags |= VDIN_FLAG_DEC_OPENED;
+		pr_info("TVIN_IOC_OPEN(%d) port %s opened ok\n\n",
+			devp->parm.index,	tvin_port_str(devp->parm.port));
+	} else if (!strcmp(parm[0], "close_port")) {
+		enum tvin_port_e port = devp->parm.port;
+		if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
+			pr_err("TVIN_IOC_CLOSE(%d) you have not opened port\n",
+					devp->index);
+			return -EINVAL;
+		}
+		vdin_close_fe(devp);
+		devp->flags &= (~VDIN_FLAG_DEC_OPENED);
+		pr_info("TVIN_IOC_CLOSE(%d) port %s closed ok\n\n",
+			devp->parm.index, tvin_port_str(port));
 	} else {
-		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
-		/* parm[0],parm[1],parm[2],parm[3]); */
-		/* pr_info("parm[4]:%s [5]:%s [6]:%s [7]:%s\n", */
-		/* parm[4],parm[5],parm[6],parm[7]); */
 		pr_info("unknow command\n");
 	}
 
