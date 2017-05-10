@@ -13,5 +13,12 @@ void set_outputmode(uint32_t standard, uint32_t outmode);
 void aud_demod_clk_gate(int on);
 void configure_adec(int Audio_mode);
 void adec_soft_reset(void);
+void set_nicam_outputmode(uint32_t outmode);
+void set_a2_eiaj_outputmode(uint32_t outmode);
+void set_btsc_outputmode(uint32_t outmode);
+void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
+		int *nicam_stereo_flag, int *nicam_dual_flag);
+void update_btsc_mode(int auto_en, int *stereo_flag, int *sap_flag);
+void update_a2_eiaj_mode(int auto_en, int *stereo_flag, int *dual_flag);
 
 #endif /* __ATVAUDDEMOD_H_ */

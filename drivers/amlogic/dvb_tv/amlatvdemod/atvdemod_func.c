@@ -36,7 +36,7 @@ int aud_mode = AUDIO_OUTMODE_STEREO;
 module_param(aud_mode, int, 0644);
 MODULE_PARM_DESC(aud_mode, "\n audio demod output mode val\n");
 
-int aud_auto = 0;
+int aud_auto = 1;
 module_param(aud_auto, int, 0644);
 MODULE_PARM_DESC(aud_auto, "\n audio demod auto detec\n");
 
