@@ -3365,6 +3365,9 @@ static int detect_vout_type(void)
 		case VMODE_480CVBS:
 		case VMODE_576I:
 		case VMODE_576CVBS:
+		case VMODE_NTSC_M:
+		case VMODE_PAL_M:
+		case VMODE_PAL_N:
 			vout_type = (READ_VCBUS_REG(ENCI_INFO_READ) &
 				(1 << 29)) ?
 				VOUT_TYPE_BOT_FIELD : VOUT_TYPE_TOP_FIELD;

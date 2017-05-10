@@ -25,11 +25,17 @@
 static struct enc_clk_val_s setting_enc_clk_val_gxl[] = {
 	{VMODE_480CVBS,    2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
 	{VMODE_576CVBS,    2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_NTSC_M,     2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_PAL_M,      2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_PAL_N,      2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
 };
 
 static struct enc_clk_val_s setting_enc_clk_val_gxbb[] = {
 	{VMODE_480CVBS,    2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
 	{VMODE_576CVBS,    2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_NTSC_M,     2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_PAL_M,      2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
+	{VMODE_PAL_N,      2970, 1, 2, VIU_ENCI,  1, 56, 2, -1,  1, 1,},
 };
 
 static struct enc_clk_val_s setting_enc_clk_val_m8m2[] = {
