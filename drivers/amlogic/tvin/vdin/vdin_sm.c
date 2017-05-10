@@ -148,6 +148,10 @@ static int nosig2_unstable_cnt = EXIT_NOSIG_MAX_CNT;
 module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
 
+static int signal_status = TVIN_SM_STATUS_NULL;
+module_param(signal_status, int, 0664);
+MODULE_PARM_DESC(signal_status, "signal_status");
+
 /*
    void tvin_smr_init_counter(void)
    {
@@ -648,6 +652,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 		sm_p->state = TVIN_SM_STATUS_NOSIG;
 		break;
 	}
+	signal_status = sm_p->state;
 }
 
 /*

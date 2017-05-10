@@ -3781,14 +3781,17 @@ static enum vmode_e new_vmode = VMODE_MAX;
 static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
-
+	int ret = -1;
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 1;
-	if (is_dolby_vision_enable())
-		vf_notify_provider_by_name("dv_vdin",
+	if (is_dolby_vision_enable()) {
+		ret = vf_notify_provider_by_name("dv_vdin",
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
-	else
+		if (ret == -1)
+			vf_notify_provider_by_name("vdin0",
+				VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
+	} else
 		vf_notify_provider_by_name("vdin0",
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	if (req.disp_mode == VFRAME_DISP_MODE_OK)
@@ -3800,14 +3803,17 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
-
+	int ret = -1;
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 0;
-	if (is_dolby_vision_enable())
-		vf_notify_provider_by_name("dv_vdin",
+	if (is_dolby_vision_enable()) {
+		ret = vf_notify_provider_by_name("dv_vdin",
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
-	else
+		if (ret == -1)
+			vf_notify_provider_by_name("vdin0",
+				VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
+	} else
 		vf_notify_provider_by_name("vdin0",
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	return req.disp_mode;

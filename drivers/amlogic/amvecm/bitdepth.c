@@ -148,6 +148,27 @@ void vpp_set_post_s2u(enum data_conv_mode_e conv_mode)
 	else
 		WRITE_VPP_REG_BITS(VPP_DAT_CONV_PARA1, 0, 0, 14);
 }
+static void vpp_blackext_en(bool flag)
+{
+	WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, flag, 3, 1);
+}
+static void vpp_chroma_coring_en(bool flag)
+{
+	WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, flag, 4, 1);
+}
+static void vpp_bluestretch_en(bool flag)
+{
+	WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, flag, 0, 1);
+}
+static void vpp_vadj1_en(bool flag)
+{
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, flag, 0, 1);
+}
+static void vpp_vadj2_en(bool flag)
+{
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, flag, 2, 1);
+}
+
 /*skip:1-->skip;0-->un skip*/
 void vpp_skip_pps(bool skip)
 {
@@ -180,7 +201,7 @@ void vpp_enable_osd2(bool enable)
 	WRITE_VPP_REG_BITS(VIU_MISC_CTRL1, enable, 19, 1);
 }
 /*
-extend mode:
+extend mode,only work when dolby_core1 bypass:
 0:extend 2bit 0 in low bits
 1:extend 2bit 0 in high bits
 */
@@ -288,13 +309,12 @@ void vpp_set_12bit_datapath2(void)
 
 void vpp_set_10bit_datapath1(void)
 {
-	/*after this step output data is U10*/
+	/*after this step vd1 output data is U10*/
 	vpp_vd1_if_bits_mode(BIT_MODE_10BIT_422);
-	vpp_vd2_if_bits_mode(BIT_MODE_10BIT_422);
 
-	/*after this step output data is U12*/
+	/*after this step vd1 output data is U12,
+	only work when dolby_core1 bypass,high 10bit is valid*/
 	vpp_extend_mode_core1(EXTMODE_LOW);
-	vpp_extend_mode_vd2(EXTMODE_LOW);
 	vpp_bypas_core1(1);
 	/* vpp_enable_vd2(0); */
 
@@ -368,7 +388,7 @@ void  vpp_set_datapath(void)
 	WRITE_VPP_REG_BITS(VPP_CLIP_MISC1, 0x0, 0, 32);
 }
 
-void vpp_datapath_config(unsigned int bitdepth)
+void vpp_bitdepth_config(unsigned int bitdepth)
 {
 	if (bitdepth == 10)
 		vpp_set_10bit_datapath1();
@@ -378,5 +398,137 @@ void vpp_datapath_config(unsigned int bitdepth)
 		vpp_set_12bit_datapath2();
 	else
 		vpp_set_datapath();
+}
+void vpp_datapath_config(unsigned int node, unsigned int param1,
+	unsigned int param2)
+{
+	switch (node) {
+	case VD1_IF:
+		vpp_vd1_if_bits_mode(param1);
+		break;
+	case VD2_IF:
+		vpp_vd2_if_bits_mode(param1);
+		break;
+	case CORE1_EXTMODE:
+		/*after this step vd1 output data is U12,
+		only work when dolby_core1 bypass,high 10bit is valid*/
+		vpp_extend_mode_core1(param1);
+		vpp_bypas_core1(param2);
+		break;
+	case PRE_BLEDN_SWITCH:
+		vpp_skip_pps(param1);
+		break;
+	case DITHER:
+		/*enable vpp dither after preblend,
+		after this step output data is U10*/
+		vpp_dither_bits_comp_mode(param1);
+		vpp_enable_dither(param2);
+		break;
+	case PRE_U2S:
+		vpp_set_pre_u2s(param1);
+		break;
+	case PRE_S2U:
+		vpp_set_pre_s2u(param1);
+		break;
+	case POST_BLEDN_SWITCH:
+		break;
+	case WATER_MARK_SWITCH:
+		vpp_skip_vadj2_matrix3(param1);
+		break;
+	case GAIN_OFFSET_SWITCH:
+		vpp_skip_eotf_matrix3(param1);
+		break;
+	case POST_U2S:
+		vpp_set_post_u2s(param1);
+		break;
+	case POST_S2U:
+		vpp_set_post_s2u(param1);
+		break;
+	case CHROMA_CORING:
+		vpp_chroma_coring_en(param1);
+		break;
+	case BLACK_EXT:
+		vpp_blackext_en(param1);
+		break;
+	case BLUESTRETCH:
+		vpp_bluestretch_en(param1);
+		break;
+	case VADJ1:
+		vpp_vadj1_en(param1);
+		break;
+	case VADJ2:
+		vpp_vadj2_en(param1);
+		break;
+	default:
+		pr_info("%s: unsupport cmd!\n", __func__);
+		break;
+	}
+	pr_info("%s: node=%d,param1=%d,param2=%d\n", __func__,
+		node, param1, param2);
+}
+
+void vpp_datapath_status(void)
+{
+	enum vd_if_bits_mode_e vd1_out_format, vd2_out_format;
+	unsigned int core1_ext_mode, core1_bypass, pre_blend_switch;
+	unsigned int dither_mode, dither_enable;
+	unsigned int pre_u2s, pre_s2u, post_u2s, post_s2u;
+	unsigned int watermark_switch, gainoff_switch;
+	unsigned int chroma_coring_en, black_ext_en, bluestretch_en;
+	unsigned int vadj1_en, vadj2_en;
+	vd1_out_format = READ_VPP_REG_BITS(VD1_IF0_GEN_REG3, 8, 2);
+	vd2_out_format = READ_VPP_REG_BITS(VD2_IF0_GEN_REG3, 8, 2);
+	core1_ext_mode = READ_VPP_REG_BITS(VIU_MISC_CTRL1, 20, 1);
+	core1_bypass = READ_VPP_REG_BITS(VIU_MISC_CTRL1, 16, 1);
+	pre_blend_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 0, 1);
+	dither_mode = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 14, 1);
+	dither_enable = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 12, 1);
+	pre_u2s = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA0, 16, 14);
+	pre_s2u = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA0, 0, 14);
+	post_u2s = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA1, 16, 14);
+	post_s2u = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA1, 0, 14);
+	watermark_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 2, 1);
+	gainoff_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 1, 1);
+	black_ext_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 3, 1);
+	chroma_coring_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 4, 1);
+	bluestretch_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1);
+	vadj1_en = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1);
+	vadj2_en = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 2, 1);
+	pr_info("vd1_out_format(%d):%d(0:8bit;1:10bit_yuv422;2:10bit_yuv444,3:10bit_yuv422_fullpack)\n",
+		VD1_IF, vd1_out_format);
+	pr_info("vd2_out_format(%d):%d(0:8bit;1:10bit_yuv422;2:10bit_yuv444,3:10bit_yuv422_fullpack)\n",
+		VD2_IF, vd2_out_format);
+	pr_info("core1_ext_mode(%d):%d(0:extend 2bit 0 in low bits;1:extend 2bit 0 in high bits)\n",
+		CORE1_EXTMODE, core1_ext_mode);
+	pr_info("core1_bypass(%d):%d(0:no bypass;1:bypass)\n",
+		CORE1_EXTMODE, core1_bypass);
+	pr_info("pre_blend_switch(%d):%d(0:pre_blend to dither;1:pre_blend to pre u2s)\n",
+		PRE_BLEDN_SWITCH, pre_blend_switch);
+	pr_info("dither_mode(%d):%d(0:cut high 2 bits;1:cut low 2 bits)\n",
+		DITHER, dither_mode);
+	pr_info("dither_enable(%d):%d(0:disable;1:enable)\n",
+		DITHER, dither_enable);
+	pr_info("watermark_switch(%d):%d(0:water_mark to post u2s;1:water_mark to Vkeystone)\n",
+		WATER_MARK_SWITCH, watermark_switch);
+	pr_info("gainoff_switch(%d):%d(0:gainoff to EOTF;1:gainoff to post s2u)\n",
+		GAIN_OFFSET_SWITCH, gainoff_switch);
+	pr_info("pre_u2s(%d):0x%x(0:NULL;0x2000:U12_TO_U10;0x800:U12_TO_S12)\n",
+		PRE_U2S, pre_u2s);
+	pr_info("post_u2s(%d):0x%x(0:NULL;0x2000:U12_TO_U10;0x800:U12_TO_S12)\n",
+		POST_U2S, post_u2s);
+	pr_info("pre_s2u(%d):0x%x(0:NULL;0x2000:U10_TO_U12;0x800:S12_TO_U12)\n",
+		PRE_S2U, pre_s2u);
+	pr_info("post_s2u(%d):0x%x(0:NULL;0x2000:U10_TO_U12;0x800:S12_TO_U12)\n",
+		POST_S2U, post_s2u);
+	pr_info("chroma_coring(%d):%d(0:disable;1:enable)\n",
+		CHROMA_CORING, chroma_coring_en);
+	pr_info("black_ext_en(%d):%d(0:disable;1:enable)\n",
+		BLACK_EXT, black_ext_en);
+	pr_info("bluestretch_en(%d):%d(0:disable;1:enable)\n",
+		BLUESTRETCH, bluestretch_en);
+	pr_info("vadj1_en(%d):%d(0:disable;1:enable)\n",
+		VADJ1, vadj1_en);
+	pr_info("vadj2_en(%d):%d(0:disable;1:enable)\n",
+		VADJ2, vadj2_en);
 }
 

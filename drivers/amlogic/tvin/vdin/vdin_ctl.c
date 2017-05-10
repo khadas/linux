@@ -135,8 +135,8 @@ module_param(try_count_max, int, 0664);
 MODULE_PARM_DESC(try_count_max, "try_count_max");
 
 /*bit0 for vdin0;bit1 for vdin1*/
-bool dolby_input;
-module_param(dolby_input, bool, 0664);
+unsigned int dolby_input;
+module_param(dolby_input, uint, 0664);
 MODULE_PARM_DESC(dolby_input, "dolby_input");
 
 static unsigned int dv_dbg_log;
@@ -513,7 +513,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		break;
 		}
 	}
-	if ((dolby_input & (1 << devp->index)) || devp->dv_flag)
+	if ((dolby_input & (1 << devp->index)) ||
+		(devp->dv_flag && is_dolby_vision_enable()))
 		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 	devp->format_convert = format_convert;
 }
@@ -1241,7 +1242,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.color_fmt_range,
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
-		if (devp->dv_flag || (dolby_input & (1 << devp->index)))
+		if ((dolby_input & (1 << devp->index)) ||
+		(devp->dv_flag && is_dolby_vision_enable()))
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	} else {
@@ -2879,8 +2881,9 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		} else if ((devp->color_depth_support &
 			VDIN_WR_COLOR_DEPTH_10BIT) &&
-			((devp->dv_flag == false) &&
-			((dolby_input & (1 << devp->index)) == false))) {
+			(devp->dv_flag == false) &&
+			((dolby_input & (1 << devp->index)) == false) &&
+			(is_dolby_vision_enable() == false)) {
 			devp->source_bitdepth = 10;
 			wr_bits(offset, VDIN_WR_CTRL2, 1,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
@@ -3140,17 +3143,21 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		   to use previous setting */
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = 4;
-		pr_err("%s:hdmi dovi meta crc error:%08x!=%08x\n",
-			__func__, crc, crc_result);
-		pr_info("%s:index:%d dma:%x vaddr:%p size:%d\n",
-			__func__, index,
-			devp->vfp->dv_buf_mem[index],
-			devp->vfp->dv_buf_vmem[index],
-			meta_size);
-		for (i = 0; i < 32; i += 4)
-			pr_info("\t%08x %08x %08x %08x\n",
-				p[i], p[i+1], p[i+2], p[i+3]);
+		if (dv_dbg_log&(1<<3)) {
+			pr_err("%s:hdmi dovi meta crc error:%08x!=%08x\n",
+				__func__, crc, crc_result);
+			pr_info("%s:index:%d dma:%x vaddr:%p size:%d\n",
+				__func__, index,
+				devp->vfp->dv_buf_mem[index],
+				devp->vfp->dv_buf_vmem[index],
+				meta_size);
+			for (i = 0; i < 32; i += 4)
+				pr_info("\t%08x %08x %08x %08x\n",
+					p[i], p[i+1], p[i+2], p[i+3]);
+		}
+		devp->dv_crc_check = false;
 	} else {
+		devp->dv_crc_check = true;
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = meta_size;
 		if (dv_dbg_log&(1<<0))
