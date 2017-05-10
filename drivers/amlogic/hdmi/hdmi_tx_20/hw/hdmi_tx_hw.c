@@ -3472,24 +3472,25 @@ static void hdcptx_events_handle(unsigned long arg)
 				hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0 + i);
 		hdcp_ksv_store(ksv, 5);
 		get_hdcp_bstatus();
-		rx_set_receive_hdcp(rptx_ksv_buf, (rptx_ksv_no + 1) / 5,
-			(bcaps_6_rp ? get_hdcp_depth() : 0) + 1,
-			bcaps_6_rp ? get_hdcp_max_cascade() : 0,
-			bcaps_6_rp ? get_hdcp_max_devs() : 0);
-		pr_info("%s[%d]  ksvs Num = %d  device_count = %d\n",
-			__func__, __LINE__,
-			(rptx_ksv_no + 1) / 5,
-			bcaps_6_rp ? get_hdcp_device_count() : 0);
-		memset(rptx_ksv_prbuf, 0, sizeof(rptx_ksv_prbuf));
-			for (pos = 0, i = 0; i < rptx_ksv_no; i++)
-				pos += sprintf(rptx_ksv_prbuf + pos, "%02x",
-					rptx_ksv_buf[i]);
-			rptx_ksv_prbuf[pos + 1] = '\0';
-		if (1)
-			hdcp_ksv_print();
+		if (hdev->repeater_tx) {
+			rx_set_receive_hdcp(rptx_ksv_buf, (rptx_ksv_no + 1) / 5,
+				(bcaps_6_rp ? get_hdcp_depth() : 0) + 1,
+				bcaps_6_rp ? get_hdcp_max_cascade() : 0,
+				bcaps_6_rp ? get_hdcp_max_devs() : 0);
+			pr_info("%s[%d]  ksvs Num = %d  device_count = %d\n",
+				__func__, __LINE__,
+				(rptx_ksv_no + 1) / 5,
+				bcaps_6_rp ? get_hdcp_device_count() : 0);
+			memset(rptx_ksv_prbuf, 0, sizeof(rptx_ksv_prbuf));
+				for (pos = 0, i = 0; i < rptx_ksv_no; i++)
+					pos += sprintf(rptx_ksv_prbuf + pos,
+						"%02x", rptx_ksv_buf[i]);
+				rptx_ksv_prbuf[pos + 1] = '\0';
+			if (1)
+				hdcp_ksv_print();
+		}
 	}
 	if (st_flag & (1 << 1)) {
-		rptx_ksvlist_retry++;
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
 		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
@@ -3500,17 +3501,19 @@ static void hdcptx_events_handle(unsigned long arg)
 			return;
 		}
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
-		if (rptx_ksvlist_retry % 4 == 0) {
-			for (i = 0; i < 5; i++)
-				ksv[i] = (unsigned char)
-					hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0
-						+ i);
-			hdcp_ksv_store(ksv, 5);
-			rx_set_receive_hdcp(&ksv[0], 1, 127, 1, 1);
+		if (hdev->repeater_tx) {
+			rptx_ksvlist_retry++;
+			if (rptx_ksvlist_retry % 4 == 0) {
+				for (i = 0; i < 5; i++)
+					ksv[i] = (unsigned char) hdmitx_rd_reg(
+						HDMITX_DWC_HDCPREG_BKSV0 + i);
+				hdcp_ksv_store(ksv, 5);
+				rx_set_receive_hdcp(&ksv[0], 1, 127, 1, 1);
+			}
 		}
-
 	}
-	if ((bcaps_6_rp) && (get_hdcp_max_devs() || get_hdcp_max_cascade())) {
+	if (hdev->repeater_tx && bcaps_6_rp && (get_hdcp_max_devs() ||
+		get_hdcp_max_cascade())) {
 		for (i = 0; i < 5; i++)
 			ksv[i] = (unsigned char)
 				hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0 + i);
