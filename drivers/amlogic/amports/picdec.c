@@ -119,7 +119,7 @@ static int task_running;
 
 #define MAX_VF_POOL_SIZE 2
 
-#define PIC_DEC_CANVAS_START 0
+#define PIC_DEC_CANVAS_START 3
 #define PIC_DEC_CANVAS_Y_FRONT (PIC_DEC_CANVAS_START + 1)
 #define PIC_DEC_CANVAS_UV_FRONT (PIC_DEC_CANVAS_Y_FRONT + 1)
 
