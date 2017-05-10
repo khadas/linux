@@ -741,12 +741,17 @@ static unsigned long tsync_pcr_check(void)
 				tsync_pcr_discontinue_waited = TIME_UNIT90K * 5;
 
 			pr_info
-			("[tsync_pcr_check] refpcr_discontinue. ");
+			("[tsync_pcr_check] refpcr_discontinue.\n");
 			pr_info
-			("tsdemux_pcr_diff=%x, last refpcr=%x, ",
+			("tsdemux_pcr_diff=%x, last refpcr=%x,\n",
 			 tsdemux_pcr_diff, tsync_pcr_last_tsdemuxpcr);
 			pr_info("repcr=%x,waited=%x\n",
 			 tsdemux_pcr, tsync_pcr_discontinue_waited);
+			pr_info("last checkin vpts:%d\n",
+			 (u32)get_last_checkin_pts(PTS_TYPE_VIDEO));
+			pr_info("last checkin apts:%d\n",
+			 (u32)get_last_checkin_pts(PTS_TYPE_AUDIO));
+
 			tsync_pcr_discontinue_local_point =
 				timestamp_pcrscr_get();
 			tsync_pcr_discontinue_point =
@@ -763,6 +768,12 @@ static unsigned long tsync_pcr_check(void)
 				pr_info
 				(" discontinue didn't happen, waited=%x\n",
 				 tsync_pcr_discontinue_waited);
+				pr_info
+				(" timestamp_pcrscr_get() =%x\n",
+				 timestamp_pcrscr_get());
+				pr_info
+				(" tsync_pcr_discontinue_local_point =%x\n",
+				 tsync_pcr_discontinue_local_point);
 				/* the v-discontinue did'n happen */
 				tsync_pcr_tsdemuxpcr_discontinue = 0;
 				tsync_pcr_discontinue_point = 0;
@@ -840,17 +851,18 @@ static unsigned long tsync_pcr_check(void)
 	cur_vpts = timestamp_vpts_get();
 
 	/*set pcr after discontinue according to apts and vpts*/
-	if (tsync_pcr_tsdemuxpcr_discontinue &
+	if ((tsync_pcr_tsdemuxpcr_discontinue &
+		(AUDIO_DISCONTINUE | VIDEO_DISCONTINUE)) ==
 		(AUDIO_DISCONTINUE | VIDEO_DISCONTINUE)) {
 		if (cur_apts < cur_vpts && cur_vpts - cur_apts < 3 * 90000
 			&& last_checkin_minpts - cur_apts > 54000)
 			timestamp_pcrscr_set(cur_apts + 6300);
 		else
 			timestamp_pcrscr_set(cur_apts);
-/*
+
 		pr_info("after discontinue, pcr = 0x%x,apts=0x%x,vpts=0x%x\n",
 			timestamp_pcrscr_get(), cur_apts, cur_vpts);
-*/
+
 	}
 
 	if (tsync_pcr_reset_flag == 0) {
