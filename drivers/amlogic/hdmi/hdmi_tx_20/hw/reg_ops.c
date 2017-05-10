@@ -110,7 +110,7 @@ static struct reg_map reg_maps_txlx[] = {
 		.size = 0x100,
 	},
 	[HDMITX_SEC_REG_IDX] = { /* HDMITX SECURE */
-		.phy_addr = 0xda83a000,
+		.phy_addr = 0xff63a000,
 		.size = 0x2000,
 	},
 	[HDMITX_REG_IDX] = { /* HDMITX NON-SECURE*/
@@ -150,14 +150,19 @@ void init_reg_map(unsigned int type)
 	}
 }
 
+#define TO_PHY_ADDR(addr) \
+	(map[(addr) >> BASE_REG_OFFSET].phy_addr + \
+	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
+#define TO_PMAP_ADDR(addr) \
+	(map[(addr) >> BASE_REG_OFFSET].p + \
+	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
+
 unsigned int hd_read_reg(unsigned int addr)
 {
-	int idx = (addr >> BASE_REG_OFFSET);
-	int offset = addr & ((1 << BASE_REG_OFFSET) - 1);
 	unsigned int val = 0;
-	unsigned int paddr = map[idx].phy_addr + offset;
+	unsigned int paddr = TO_PHY_ADDR(addr);
 
-	val = readl(map[idx].p + offset);
+	val = readl(TO_PMAP_ADDR(addr));
 
 	if (dbg_en)
 		pr_info("Rd[0x%x] 0x%x\n", paddr, val);
@@ -167,11 +172,9 @@ unsigned int hd_read_reg(unsigned int addr)
 
 void hd_write_reg(unsigned int addr, unsigned int val)
 {
-	int idx = (addr >> BASE_REG_OFFSET);
-	int offset = addr & ((1 << BASE_REG_OFFSET) - 1);
-	unsigned int paddr = map[idx].phy_addr + offset;
+	unsigned int paddr = TO_PHY_ADDR(addr);
 
-	writel(val, map[idx].p + offset);
+	writel(val, TO_PMAP_ADDR(addr));
 
 	if (dbg_en)
 		pr_info("Wr[0x%x] 0x%x\n", paddr, val);
@@ -197,11 +200,11 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 	if (addr & SEC_OFFSET) {
 		addr = addr & 0xffff;
 		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+			TO_PHY_ADDR(P_HDMITX_ADDR_PORT_SEC + offset), addr);
 		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+			TO_PHY_ADDR(P_HDMITX_ADDR_PORT_SEC + offset), addr);
 		data = sec_reg_read((unsigned *)(unsigned long)
-			(P_HDMITX_DATA_PORT_SEC + offset));
+			TO_PHY_ADDR(P_HDMITX_DATA_PORT_SEC + offset));
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
@@ -234,11 +237,11 @@ void hdmitx_wr_reg(unsigned int addr, unsigned int data)
 	if (addr & SEC_OFFSET) {
 		addr = addr & 0xffff;
 		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+			TO_PHY_ADDR(P_HDMITX_ADDR_PORT_SEC + offset), addr);
 		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+			TO_PHY_ADDR(P_HDMITX_ADDR_PORT_SEC + offset), addr);
 		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_DATA_PORT_SEC + offset), data);
+			TO_PHY_ADDR(P_HDMITX_DATA_PORT_SEC + offset), data);
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
@@ -297,13 +300,13 @@ void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 void hdcp22_wr_reg(uint32_t addr, uint32_t data)
 {
 	sec_reg_write((unsigned *)(unsigned long)
-		(P_ELP_ESM_HPI_REG_BASE + addr), data);
+		TO_PHY_ADDR(P_ELP_ESM_HPI_REG_BASE + addr), data);
 }
 
 uint32_t hdcp22_rd_reg(uint32_t addr)
 {
 	return (uint32_t)sec_reg_read((unsigned *)(unsigned long)
-		(P_ELP_ESM_HPI_REG_BASE + addr));
+		TO_PHY_ADDR(P_ELP_ESM_HPI_REG_BASE + addr));
 }
 
 MODULE_PARM_DESC(dbg_en, "\n debug_level\n");
