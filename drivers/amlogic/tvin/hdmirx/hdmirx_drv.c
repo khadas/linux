@@ -1387,16 +1387,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
 		rx_pr("hdmirx: driver probe error!!!\n");
 
-
-	if (pdev->dev.of_node) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"rx_port_maps", &real_port_map);
-		if (ret) {
-			pr_err("get port_map fail.\n");
-			real_port_map = 0x3120;
-		}
-	}
-
 	dev_set_drvdata(hdevp->dev, hdevp);
 
 	xtal_clk = clk_get(&pdev->dev, "xtal");

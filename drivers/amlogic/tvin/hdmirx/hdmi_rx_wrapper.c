@@ -177,13 +177,6 @@ static int port_map = 0x3210;
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);
 
-int real_port_map = 0x3120;
-MODULE_PARM_DESC(real_port_map, "\n real_port_map\n");
-module_param(real_port_map, int, 0664);
-
-
-
-
 static int edid_mode;
 MODULE_PARM_DESC(edid_mode, "\n edid_mode\n");
 module_param(edid_mode, int, 0664);
@@ -3469,19 +3462,19 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	}
 
 	for (i = 0; i < E_PORT_NUM; i++) {
-		if (((port >> i*4) & 0xf) == 0) {
+		if (((port >> i*4) & 0xf) == 1) {
 			phy_addr[0] = ((i + 1) << 4);
 			checksum[0] = (0x100 - (check_sum +
 				(phy_addr[0] - 0x10))) & 0xff;
-		} else if (((port >> i*4) & 0xf) == 1) {
+		} else if (((port >> i*4) & 0xf) == 2) {
 			phy_addr[1] = ((i + 1) << 4);
 			checksum[1] = (0x100 - (check_sum +
 				(phy_addr[1] - 0x10))) & 0xff;
-		} else if (((port >> i*4) & 0xf) == 2) {
+		} else if (((port >> i*4) & 0xf) == 3) {
 			phy_addr[2] = ((i + 1) << 4);
 			checksum[2] = (0x100 - (check_sum +
 				(phy_addr[2] - 0x10))) & 0xff;
-		} else if (((port >> i*4) & 0xf) == 3) {
+		} else if (((port >> i*4) & 0xf) == 4) {
 			phy_addr[3] = ((i + 1) << 4);
 			checksum[3] = (0x100 - (check_sum +
 				(phy_addr[3] - 0x10))) & 0xff;
@@ -3561,7 +3554,7 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 	rx_pr("port map:%#x\n", port);
 	for (i = 0; i < E_PORT_NUM; i++) {
 		/*port 0 , write the phy addr compute from i*/
-		if (((port >> i*4) & 0xf) == 0) {
+		if (((port >> i*4) & 0xf) == 1) {
 			if (root_offset == 0)
 				phy_addr[0] = 0xFFFF;
 			else
@@ -3572,7 +3565,7 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 				((phy_addr[0] >> 8) & 0xFF)) & 0xff;
 			rx_pr("port 0 phy:%d\n", phy_addr[0]);
 		/*port 1 , write the phy addr compute from i*/
-		} else if (((port >> i*4) & 0xf) == 1) {
+		} else if (((port >> i*4) & 0xf) == 2) {
 			if (root_offset == 0)
 				phy_addr[1] = 0xFFFF;
 			else
@@ -3583,7 +3576,7 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 				((phy_addr[1] >> 8) & 0xFF));
 			rx_pr("port 1 phy:%d\n", phy_addr[1]);
 		/*port 2 , write the phy addr compute from i*/
-		} else if (((port >> i*4) & 0xf) == 2) {
+		} else if (((port >> i*4) & 0xf) == 3) {
 			if (root_offset == 0)
 				phy_addr[2] = 0xFFFF;
 			else
@@ -3593,7 +3586,7 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 			checksum[2] = (0x100 + value - (phy_addr[2] & 0xFF) -
 				((phy_addr[2] >> 8) & 0xFF));
 			rx_pr("port 2 phy:%d\n", phy_addr[2]);
-		} else if (((port >> i*4) & 0xf) == 3) {
+		} else if (((port >> i*4) & 0xf) == 4) {
 			if (root_offset == 0)
 				phy_addr[3] = 0xFFFF;
 			else
@@ -3662,9 +3655,9 @@ int hdmi_rx_ctrl_edid_update(void)
 							receive_edid);
 		rx_modify_edid(edid_temp, rx_get_edid_size(edid_index),
 							hdr_edid);
-		hdmi_rx_load_edid_data_repeater(edid_temp, real_port_map);
+		hdmi_rx_load_edid_data_repeater(edid_temp, port_map);
 	} else
-		hdmi_rx_load_edid_data(edid_temp, real_port_map);
+		hdmi_rx_load_edid_data(edid_temp, port_map);
 
 	rx_pr("edid update\n");
 	return true;
@@ -4380,7 +4373,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		rx.hdcp.repeat = repeat_plug;
 	else
 		rx.hdcp.repeat = 0;
-	rx.port = (port_map >> ((port - TVIN_PORT_HDMI0) << 2)) & 0xf;
+	rx.port = (port - TVIN_PORT_HDMI0) & 0xf;
 	/* if (pre_port == 0xff)
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f & (~(1<<rx.port)));
 	*/
