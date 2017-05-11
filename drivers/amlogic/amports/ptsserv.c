@@ -425,13 +425,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 	pTable = &pts_table[type];
 
 	spin_lock_irqsave(&lock, flags);
-	if (pTable->last_checkin_pts != 0 &&
-		pTable->last_checkin_pts == val) {
-		spin_unlock_irqrestore(&lock, flags);
-		pr_info("ignore same pts 0x%x, offset:%x,%x\n", val,
-				pTable->last_checkin_offset, offset);
-		return 0;
-	}
+
 	if (likely((pTable->status == PTS_RUNNING) ||
 			   (pTable->status == PTS_LOADING))) {
 		struct pts_rec_s *rec;
