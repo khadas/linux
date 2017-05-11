@@ -40,7 +40,7 @@
 #include "amports_priv.h"
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
-
+#include <linux/amlogic/codec_mm/configs.h>
 #include "decoder/decoder_bmmu_box.h"
 
 #include "vdec_input.h"
@@ -3747,6 +3747,8 @@ static int __init ammvdec_h264_driver_init_module(void)
 		return -ENODEV;
 	}
 	vcodec_profile_register(&ammvdec_h264_profile);
+	INIT_REG_NODE_CONFIGS("media.decoder", &hm264_node,
+	"mh264", hm264_configs, CONFIG_FOR_RW);
 	return 0;
 }
 
