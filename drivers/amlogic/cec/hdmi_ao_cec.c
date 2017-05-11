@@ -1676,6 +1676,20 @@ static ssize_t osd_name_show(struct class *cla,
 	return sprintf(buf, "%s\n", cec_dev->cec_info.osd_name);
 }
 
+static ssize_t port_seq_store(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	unsigned int seq;
+
+	if (sscanf(buf, "%x", &seq) != 1)
+		return -EINVAL;
+
+	CEC_ERR("port_seq:%x\n", seq);
+	cec_dev->port_seq = seq;
+	return count;
+}
+
 static ssize_t port_seq_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
@@ -1828,7 +1842,6 @@ static ssize_t cec_version_show(struct class *cla,
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_WO(cmd),
 	__ATTR_RO(port_num),
-	__ATTR_RO(port_seq),
 	__ATTR_RO(osd_name),
 	__ATTR_RO(dump_reg),
 	__ATTR_RO(port_status),
@@ -1836,6 +1849,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR_RO(cec_version),
 	__ATTR_RO(arc_port),
 	__ATTR_RO(wake_up),
+	__ATTR(port_seq, 0664, port_seq_show, port_seq_store),
 	__ATTR(physical_addr, 0664, physical_addr_show, physical_addr_store),
 	__ATTR(vendor_id, 0664, vendor_id_show, vendor_id_store),
 	__ATTR(menu_language, 0664, menu_language_show, menu_language_store),
@@ -1948,7 +1962,11 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 		/* set port physical address according port sequence */
 		if (cec_dev->port_seq) {
 			c = (cec_dev->port_seq >> (4 * a)) & 0xf;
-			port[a].physical_address = (c + 1) * phy_app + phy_addr;
+			if (c == 0xf) {	/* not used */
+				port[a].physical_address = 0xffff;
+				continue;
+			}
+			port[a].physical_address = (c) * phy_app + phy_addr;
 		} else {
 			/* asending order if port_seq is not set */
 			port[a].physical_address = (a + 1) * phy_app + phy_addr;
@@ -2409,17 +2427,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->cec_info.cec_version = CEC_VERSION_20;
 	}
 
-	/* get port sequence */
-	node = of_find_node_by_path("/hdmirx");
-	if (node == NULL) {
-		CEC_ERR("can't find hdmirx\n");
-		cec_dev->port_seq = 0;
-	} else {
-		r = of_property_read_u32(node, "rx_port_maps",
-					 &(cec_dev->port_seq));
-		if (r)
-			CEC_INFO("not find rx_port_maps\n");
-	}
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
