@@ -70,8 +70,11 @@ struct hdmirx_dev_s *devp_hdmirx_suspend;
 struct device *hdmirx_dev;
 struct delayed_work     eq_dwork;
 struct workqueue_struct *eq_wq;
-struct delayed_work		esm_dwork;
+struct delayed_work	esm_dwork;
 struct workqueue_struct	*esm_wq;
+struct delayed_work	repeater_dwork;
+struct workqueue_struct	*repeater_wq;
+
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 unsigned int pwr_sts;
 
@@ -1472,6 +1475,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
 	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
+
+	repeater_wq = create_singlethread_workqueue(hdevp->frontend.name);
+	INIT_DELAYED_WORK(&repeater_dwork, repeater_dwork_handle);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				"en_4k_2_2k", &en_4k_2_2k);

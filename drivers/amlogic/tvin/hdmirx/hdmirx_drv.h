@@ -30,7 +30,7 @@
 
 #define RX_VER0 "Ref.2017/05/04"
 /*------------------------------*/
-#define RX_VER1 "Ref.2017/05/11b"
+#define RX_VER1 "Ref.2017/05/11"
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/2/25"
 /*------------------------------*/
@@ -708,6 +708,8 @@ extern struct delayed_work     eq_dwork;
 extern struct workqueue_struct *eq_wq;
 extern struct delayed_work		esm_dwork;
 extern struct workqueue_struct	*esm_wq;
+extern struct delayed_work	repeater_dwork;
+extern struct workqueue_struct	*repeater_wq;
 extern unsigned int pwr_sts;
 extern unsigned char *pEdid_buffer;
 extern bool multi_port_edid_enable;
@@ -876,7 +878,7 @@ extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
 extern void hdmirx_phy_bist_test(int lvl);
 extern int hdmirx_dev_init(void);
 extern void dump_eq_data(void);
-
+extern void repeater_dwork_handle(struct work_struct *work);
 /* for other modules */
 extern int External_Mute(int mute_flag);
 extern void vdac_enable(bool on, unsigned int module_sel);

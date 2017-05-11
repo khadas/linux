@@ -845,15 +845,6 @@ void eq_algorithm(struct work_struct *work)
 	unsigned int i;
 
 	cancel_delayed_work(&eq_dwork);
-	if (hdmirx_repeat_support()) {
-		if (rx.hdcp.hdcp_version && hdmirx_is_key_write()
-			&& rx.open_fg) {
-			switch_set_state(&rx.hdcp.switch_hdcp_auth, 0);
-			switch_set_state(&rx.hdcp.switch_hdcp_auth,
-					rx.hdcp.hdcp_version);
-			rx.hdcp.hdcp_version = HDCP_VERSION_NONE;
-		}
-	}
 	rx_pr("eq run\n");
 	for (i = 0; i < 3; i++) {
 		if (SettingFinder() == 1) {
@@ -890,6 +881,20 @@ bool is_hdcp14_on(void)
 {
 	return (rx.hdcp.bksv[1] == 0) ? false : true;
 }
+
+void repeater_dwork_handle(struct work_struct *work)
+{
+	if (hdmirx_repeat_support()) {
+		if (rx.hdcp.hdcp_version && hdmirx_is_key_write()
+			&& rx.open_fg) {
+			switch_set_state(&rx.hdcp.switch_hdcp_auth, 0);
+			switch_set_state(&rx.hdcp.switch_hdcp_auth,
+					rx.hdcp.hdcp_version);
+			rx.hdcp.hdcp_version = HDCP_VERSION_NONE;
+		}
+	}
+}
+
 void rx_hpd_to_esm_handle(struct work_struct *work)
 {
 	cancel_delayed_work(&esm_dwork);
@@ -1143,7 +1148,7 @@ if (!is_meson_txlx_cpu()) {
 			is_hdcp_source = true;
 			rx.hdcp.hdcp_version = HDCP_VERSION_14;
 			if (hdmirx_repeat_support()) {
-				queue_delayed_work(eq_wq, &eq_dwork,
+				queue_delayed_work(repeater_wq, &repeater_dwork,
 						msecs_to_jiffies(5));
 				rx_start_repeater_auth();
 			}
@@ -3106,10 +3111,11 @@ void rx_start_repeater_auth(void)
 {
 	rx.hdcp.state = REPEATER_STATE_START;
 	rx.hdcp.delay = 0;
-	/*hdcp_len = 0;*/
-	/*hdcp_repeat_depth = 0;*/
+	hdcp_len = 0;
+	hdcp_repeat_depth = 0;
 	rx.hdcp.dev_exceed = 0;
 	rx.hdcp.cascade_exceed = 0;
+	memset(&receive_hdcp, 0 , sizeof(receive_hdcp));
 }
 
 void rx_check_repeat(void)
