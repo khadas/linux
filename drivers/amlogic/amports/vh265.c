@@ -1168,7 +1168,7 @@ struct PIC_s {
 	unsigned int mc_y_adr;
 	unsigned int mc_u_v_adr;
 #ifdef SUPPORT_10BIT
-	unsigned int comp_body_size;
+	/*unsigned int comp_body_size;*/
 	unsigned int dw_y_adr;
 	unsigned int dw_u_v_adr;
 #endif
@@ -1182,6 +1182,11 @@ struct PIC_s {
 	int uv_canvas_index;
 #ifdef MULTI_INSTANCE_SUPPORT
 	struct canvas_config_s canvas_config[2];
+#endif
+#ifdef SUPPORT_10BIT
+	int mem_saving_mode;
+	u32 bit_depth_luma;
+	u32 bit_depth_chroma;
 #endif
 #ifdef LOSLESS_COMPRESS_MODE
 	unsigned int losless_comp_body_size;
@@ -1687,6 +1692,9 @@ static void backup_decode_state(struct hevc_state_s *hevc)
 
 static void restore_decode_state(struct hevc_state_s *hevc)
 {
+	struct vdec_s *vdec = hw_to_vdec(hevc);
+	if (!vdec_has_more_input(vdec))
+		return;
 	hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
 		"%s: discard pic index 0x%x\n",
 		__func__, hevc->cur_pic ?
@@ -1772,8 +1780,6 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 	hevc->last_lookup_pts = 0;
 	hevc->last_pts_us64 = 0;
 	hevc->last_lookup_pts_us64 = 0;
-	hevc->shift_byte_count_lo = 0;
-	hevc->shift_byte_count_hi = 0;
 	hevc->pts_mode_switching_count = 0;
 	hevc->pts_mode_recovery_count = 0;
 
@@ -1968,8 +1974,9 @@ static void init_buf_list(struct hevc_state_s *hevc)
 /*SUPPORT_10BIT*/
 	int losless_comp_header_size = compute_losless_comp_header_size
 			(pic_width, pic_height);
+			/*always alloc buf for 10bit*/
 	int losless_comp_body_size = compute_losless_comp_body_size
-			(hevc, pic_width, pic_height, hevc->mem_saving_mode);
+			(hevc, pic_width, pic_height, 0);
 	int mc_buffer_size = losless_comp_header_size
 		+ losless_comp_body_size;
 	int mc_buffer_size_h = (mc_buffer_size + 0xffff)>>16;
@@ -2141,8 +2148,9 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 	int losless_comp_header_size =
 		compute_losless_comp_header_size(pic_width ,
 				 pic_height);
+		/*always alloc buf for 10bit*/
 	int losless_comp_body_size = compute_losless_comp_body_size(hevc,
-			pic_width, pic_height, hevc->mem_saving_mode);
+			pic_width, pic_height, 0);
 	int mc_buffer_size = losless_comp_header_size + losless_comp_body_size;
 	int mc_buffer_size_h = (mc_buffer_size + 0xffff)>>16;
 	int mc_buffer_size_u_v = 0;
@@ -2236,7 +2244,7 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 			pic->BUF_index = i;
 #ifdef LOSLESS_COMPRESS_MODE
 /*SUPPORT_10BIT*/
-			pic->comp_body_size = losless_comp_body_size;
+			/*pic->comp_body_size = losless_comp_body_size;*/
 			pic->buf_size = buf_size;
 
 			if ((!hevc->mmu_enable) &&
@@ -2284,7 +2292,7 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 #ifdef LOSLESS_COMPRESS_MODE
 				hevc_print_cont(hevc, 0,
 				"comp_body_size %x comp_buf_size %x ",
-				 pic->comp_body_size, pic->buf_size);
+				 losless_comp_body_size, pic->buf_size);
 				hevc_print_cont(hevc, 0,
 				"mpred_mv_wr_start_adr %x\n",
 				 pic->mpred_mv_wr_start_addr);
@@ -4173,6 +4181,12 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 		new_pic->pic_struct = hevc->curr_pic_struct;
 		if (new_pic->aux_data_buf)
 			release_aux_data(hevc, new_pic);
+		new_pic->mem_saving_mode =
+			hevc->mem_saving_mode;
+		new_pic->bit_depth_luma =
+			hevc->bit_depth_luma;
+		new_pic->bit_depth_chroma =
+			hevc->bit_depth_chroma;
 	}
 
 	if (hevc->mmu_enable) {
@@ -6276,7 +6290,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		vf->compWidth = pic->width;
 		vf->compHeight = pic->height;
 		update_vf_memhandle(hevc, vf, pic->index);
-		switch (hevc->bit_depth_luma) {
+		switch (pic->bit_depth_luma) {
 		case 9:
 			vf->bitdepth = BITDEPTH_Y9;
 			break;
@@ -6287,7 +6301,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 			vf->bitdepth = BITDEPTH_Y8;
 			break;
 		}
-		switch (hevc->bit_depth_chroma) {
+		switch (pic->bit_depth_chroma) {
 		case 9:
 			vf->bitdepth |= (BITDEPTH_U9 | BITDEPTH_V9);
 			break;
@@ -6301,7 +6315,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		if ((vf->type & VIDTYPE_COMPRESS) == 0)
 			vf->bitdepth =
 				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
-		if (hevc->mem_saving_mode == 1)
+		if (pic->mem_saving_mode == 1)
 			vf->bitdepth |= BITDEPTH_SAVING_MODE;
 #else
 		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
@@ -7311,6 +7325,7 @@ pic_done:
 		} else if (hevc->wait_buf == 0) {
 			u32 vui_time_scale;
 			u32 vui_num_units_in_tick;
+			unsigned char reconfig_flag = 0;
 
 			if (get_dbg_flag(hevc) & H265_DEBUG_SEND_PARAM_WITH_REG)
 				get_rpm_param(&hevc->param);
@@ -7375,11 +7390,13 @@ pic_done:
 				p.vui_num_units_in_tick_lo;
 			if (hevc->bit_depth_luma !=
 				((hevc->param.p.bit_depth & 0xf) + 8)) {
+				reconfig_flag = 1;
 				hevc_print(hevc, 0, "Bit depth luma = %d\n",
 					(hevc->param.p.bit_depth & 0xf) + 8);
 			}
 			if (hevc->bit_depth_chroma !=
 				(((hevc->param.p.bit_depth >> 4) & 0xf) + 8)) {
+				reconfig_flag = 1;
 				hevc_print(hevc, 0, "Bit depth chroma = %d\n",
 					((hevc->param.p.bit_depth >> 4) &
 					0xf) + 8);
@@ -7398,6 +7415,10 @@ pic_done:
 			else
 				hevc->mem_saving_mode = 0;
 #endif
+			if (reconfig_flag &&
+				(get_double_write_mode(hevc) & 0x10) == 0)
+				init_decode_head_hw(hevc);
+
 			if ((vui_time_scale != 0)
 				&& (vui_num_units_in_tick != 0)) {
 				hevc->frame_dur =
@@ -8704,14 +8725,16 @@ static void vh265_work(struct work_struct *work)
 			struct hevc_state_s *hevc_el =
 			(struct hevc_state_s *)
 				vdec->slave->private;
-			hevc_el->shift_byte_count_lo =
+			if (hevc_el)
+				hevc_el->shift_byte_count_lo =
 				hevc->shift_byte_count_lo;
 		} else if (vdec->master) {
 			/*cur is enhance, found base*/
 			struct hevc_state_s *hevc_ba =
 			(struct hevc_state_s *)
 				vdec->master->private;
-			hevc_ba->shift_byte_count_lo =
+			if (hevc_ba)
+				hevc_ba->shift_byte_count_lo =
 				hevc->shift_byte_count_lo;
 		}
 #endif
@@ -8729,9 +8752,6 @@ static void vh265_work(struct work_struct *work)
 
 	} else if (hevc->dec_result == DEC_RESULT_EOS) {
 		struct PIC_s *pic;
-		hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
-			"%s: end of stream\n",
-			__func__);
 		hevc->eos = 1;
 #ifdef CONFIG_AM_VDEC_DV
 		if ((vdec->master || vdec->slave) &&
@@ -8741,6 +8761,9 @@ static void vh265_work(struct work_struct *work)
 		check_pic_decoded_lcu_count(hevc,
 			hevc->pic_decoded_lcu_idx);
 		pic = get_pic_by_POC(hevc, hevc->curr_POC);
+		hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
+			"%s: end of stream, last dec poc %d => 0x%pf\n",
+			__func__, hevc->curr_POC, pic);
 		flush_output(hevc, pic);
 #ifdef CONFIG_AM_VDEC_DV
 		hevc->shift_byte_count_lo
@@ -8750,14 +8773,16 @@ static void vh265_work(struct work_struct *work)
 			struct hevc_state_s *hevc_el =
 			(struct hevc_state_s *)
 				vdec->slave->private;
-			hevc_el->shift_byte_count_lo =
+			if (hevc_el)
+				hevc_el->shift_byte_count_lo =
 				hevc->shift_byte_count_lo;
 		} else if (vdec->master) {
 			/*cur is enhance, found base*/
 			struct hevc_state_s *hevc_ba =
 			(struct hevc_state_s *)
 				vdec->master->private;
-			hevc_ba->shift_byte_count_lo =
+			if (hevc_ba)
+				hevc_ba->shift_byte_count_lo =
 				hevc->shift_byte_count_lo;
 		}
 #endif
@@ -9180,6 +9205,8 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 			VFM_DEC_PROVIDER_NAME);
 #ifdef CONFIG_AM_VDEC_DV
 	else if (vdec_dual(pdata)) {
+		struct hevc_state_s *hevc_pair = NULL;
+
 		if (dv_toggle_prov_name) /*debug purpose*/
 			snprintf(pdata->vf_provider_name,
 			VDEC_PROVIDER_NAME_SIZE,
@@ -9191,6 +9218,15 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 				(pdata->master) ? VFM_DEC_DVEL_PROVIDER_NAME :
 				VFM_DEC_DVBL_PROVIDER_NAME);
 		hevc->dolby_enhance_flag = pdata->master ? 1 : 0;
+		if (pdata->master)
+			hevc_pair = (struct hevc_state_s *)
+				pdata->master->private;
+		else if (pdata->slave)
+			hevc_pair = (struct hevc_state_s *)
+				pdata->slave->private;
+		if (hevc_pair)
+			hevc->shift_byte_count_lo =
+			hevc_pair->shift_byte_count_lo;
 	}
 #endif
 	else
