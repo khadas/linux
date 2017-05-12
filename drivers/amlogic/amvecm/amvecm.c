@@ -3220,6 +3220,7 @@ static const char *amvecm_reg_usage_str = {
 	"echo wv addr(H) value(H) > /sys/class/amvecm/reg; write vpu reg\n"
 	"echo wc addr(H) value(H) > /sys/class/amvecm/re; write cbus reg\n"
 	"echo wh addr(H) value(H) > /sys/class/amvecm/re; write hiu reg\n"
+	"echo dv|c|h addr(H) num > /sys/class/amvecm/reg; dump reg from addr\n"
 };
 static ssize_t amvecm_reg_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -3233,7 +3234,7 @@ static ssize_t amvecm_reg_store(struct class *cla,
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
-	unsigned int reg_addr, reg_val;
+	unsigned int reg_addr, reg_val, i;
 	if (!buf)
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
@@ -3280,9 +3281,24 @@ static ssize_t amvecm_reg_store(struct class *cla,
 			return -EINVAL;
 		reg_val = val;
 		amvecm_hiu_reg_write(reg_addr, reg_val);
-	} else {
+	} else if (parm[0][0] == 'd') {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		reg_addr = val;
+		if (kstrtoul(parm[2], 16, &val) < 0)
+			return -EINVAL;
+		for (i = 0; i < val; i++) {
+			if (parm[0][1] == 'v')
+				reg_val = READ_VPP_REG(reg_addr+i);
+			else if (parm[0][1] == 'c')
+				reg_val = aml_read_cbus(reg_addr+i);
+			else if (parm[0][1] == 'h')
+				amvecm_hiu_reg_read((reg_addr+i),
+					&reg_val);
+			pr_info("REG[0x%04x]=0x%08x\n", (reg_addr+i), reg_val);
+		}
+	} else
 		pr_info("unsupprt cmd!\n");
-	}
 
 	return count;
 }

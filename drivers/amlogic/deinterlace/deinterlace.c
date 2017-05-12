@@ -63,6 +63,7 @@
 #include "deinterlace.h"
 #include "deinterlace_hw.h"
 #include "deinterlace_pd.h"
+#include "deinterlace_dbg.h"
 #include "../amports/video.h"
 #ifdef CONFIG_VSYNC_RDMA
 #include "../amports/rdma.h"
@@ -627,72 +628,7 @@ store_dbg(struct device *dev,
 	} else if (strncmp(buf, "pstep", 5) == 0) {
 		pre_run_flag = DI_RUN_FLAG_STEP;
 	} else if (strncmp(buf, "dumpreg", 7) == 0) {
-		unsigned int i = 0;
-		pr_info("----dump di reg----\n");
-		for (i = 0; i < 255; i++) {
-			if (i == 0x45)
-				pr_info("----nr reg----");
-			if (i == 0x80)
-				pr_info("----3d reg----");
-			if (i == 0x9e)
-				pr_info("---nr reg done---");
-			if (i == 0x9c)
-				pr_info("---3d reg done---");
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x1700 + i) << 2),
-				0x1700 + i, Rd(0x1700 + i));
-		}
-		pr_info("----dump mcdi reg----\n");
-		for (i = 0; i < 201; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x2f00 + i) << 2),
-				0x2f00 + i, Rd(0x2f00 + i));
-		pr_info("----dump pulldown reg----\n");
-		for (i = 0; i < 26; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x2fd0 + i) << 2),
-				0x2fd0 + i, Rd(0x2fd0 + i));
-		pr_info("----dump bit mode reg----\n");
-		for (i = 0; i < 4; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x20a7 + i) << 2),
-				0x20a7 + i, Rd(0x20a7 + i));
-		pr_info("[0x%x][0x%x]=0x%x\n",
-			0xd0100000 + (0x2022 << 2),
-			0x2022, Rd(0x2022));
-		pr_info("[0x%x][0x%x]=0x%x\n",
-			0xd0100000 + (0x17c1 << 2),
-			0x17c1, Rd(0x17c1));
-		pr_info("[0x%x][0x%x]=0x%x\n",
-			0xd0100000 + (0x17c2 << 2),
-			0x17c2, Rd(0x17c2));
-		pr_info("[0x%x][0x%x]=0x%x\n",
-			0xd0100000 + (0x1aa7 << 2),
-			0x1aa7, Rd(0x1aa7));
-		pr_info("----dump dnr reg----\n");
-		for (i = 0; i < 29; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x2d00 + i) << 2),
-				0x2d00 + i, Rd(0x2d00 + i));
-		pr_info("----dump if0 reg----\n");
-		for (i = 0; i < 26; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x1a60 + i) << 2),
-				0x1a50 + i, Rd(0x1a50 + i));
-		pr_info("----dump gate reg----\n");
-		for (i = 0; i < 5; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x2006 + i) << 2),
-				0x2006 + i, Rd(0x2006 + i));
-		pr_info("[0x%x][0x%x]=0x%x\n",
-			0xd0100000 + ((0x2dff) << 2),
-			0x2dff, Rd(0x2dff));
-		pr_info("----dump if2 reg----\n");
-		for (i = 0; i < 29; i++)
-			pr_info("[0x%x][0x%x]=0x%x\n",
-				0xd0100000 + ((0x2010 + i) << 2),
-				0x2010 + i, Rd(0x2010 + i));
-		pr_info("----dump reg done----\n");
+		dump_di_reg();
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
 	} else if (strncmp(buf, "recycle_buf", 11) == 0) {
@@ -3837,10 +3773,8 @@ static void pre_de_process(void)
 				(0xffffcfff & RDMA_RD(DI_MTN_CTRL1)));
 			/* disable me(mc di) */
 		}
-#ifdef NEW_DI_V4
-		RDMA_WR(DNR_CTRL, 0);
-#endif
 	}
+
 	di_pre_stru.field_count_for_cont++;
 
 	RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
