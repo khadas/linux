@@ -143,6 +143,7 @@ struct mmc_host_ops {
 			unsigned int max_dtr, int host_drv, int card_drv);
 	void (*hw_reset)(struct mmc_host *host);
 	void (*card_event)(struct mmc_host *host);
+	int (*post_hs400_timming)(struct mmc_host *host);
 };
 
 struct mmc_card;

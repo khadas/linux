@@ -135,7 +135,7 @@ static void find_base(struct amlsd_platform *pdata, u8 *is_base_index,
 	}
 }
 
-static int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
+int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
 			u8 opcode, u8 *blk_test, u32 blksz)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
@@ -653,7 +653,7 @@ _cali_retry:
 
 #define MAX_TUNING_RETRY 4
 #define TUNING_NUM_PER_POINT 10
-static u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
+u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 	u32 opcode, const u8 *blk_pattern, u8 *blk_test, u32 blksz)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
@@ -3180,6 +3180,7 @@ static const struct mmc_host_ops aml_sd_emmc_ops_v3 = {
 	.card_busy = aml_sd_emmc_card_busy,
 	.execute_tuning = aml_sd_emmc_execute_tuning_v3,
 	.hw_reset = aml_emmc_hw_reset,
+	.post_hs400_timming = aml_post_hs400_timming,
 };
 
 static struct amlsd_host *aml_sd_emmc_init_host(struct amlsd_host *host)
@@ -3470,7 +3471,7 @@ static ssize_t emmc_read_debug(struct class *class,
 	return count;
 }
 static struct class_attribute emmc_debug_class_attrs[] = {
-	__ATTR(debug,  S_IRUGO | S_IWUSR, emmc_debug_help, emmc_debug),
+	__ATTR(debug, S_IRUGO | S_IWUSR, emmc_debug_help, emmc_debug),
 	__ATTR(help,  S_IRUGO | S_IWUSR, emmc_debug_common_help, NULL),
 	__ATTR(read,  S_IRUGO | S_IWUSR, emmc_read_help, emmc_read_debug),
 };
@@ -3604,7 +3605,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	int size;
 
 	/* enable debug */
-	/* sd_emmc_debug = 0xffff; */
+	/*sd_emmc_debug = 0x2000;*/
 	pr_info("%s: line %d\n", __func__, __LINE__);
 	aml_mmc_ver_msg_show();
 
@@ -3688,6 +3689,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	pdata->need_retuning = false;
 	pdata->signal_voltage = 0xff; /* init as an invalid value */
 	host->is_tunning = 0;
+	host->is_timming = 0;
 	mmc->index = 0;
 	if (host->ctrl_ver >= 3)
 		mmc->ops = &aml_sd_emmc_ops_v3;
@@ -3730,8 +3732,10 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		writel(boot_poll_down, host->base + BOOT_POLL_UP_DOWN);
 		writel(boot_poll_en, host->base + BOOT_POLL_UP_DOWN_EN);
 		host_emmc = host;
-		creat_emmc_class();
-		creat_emmc_attr();
+	    if (host->ctrl_ver < 3) {
+			creat_emmc_class();
+			creat_emmc_attr();
+		}
 	}
 	if (pdata->port_init)
 		pdata->port_init(pdata);
@@ -3781,6 +3785,16 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 
 	print_tmp("%s() success!\n", __func__);
 	platform_set_drvdata(pdev, host);
+	if (host->ctrl_ver >= 3) {
+		ret = device_create_file(&pdev->dev, &dev_attr_emmc_eyetest);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc),
+					"Unable to creat sysfs attributes\n");
+		ret = device_create_file(&pdev->dev, &dev_attr_emmc_clktest);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc),
+					"Unable to creat sysfs attributes\n");
+	}
 	return 0;
 
 fail_cd_irq_in:

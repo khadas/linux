@@ -151,6 +151,12 @@ struct amlsd_platform {
 	unsigned char caling;
 	unsigned char calout[20][20];
 #endif
+	u64 align[10];
+	int base_line;
+	unsigned int count;
+	unsigned int delay_cell;
+	int order;
+	unsigned int rx_err;
 	/* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD),
 	3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card,
 	5:NON sdio device(means sd/mmc card), other:reserved */
@@ -237,6 +243,7 @@ struct amlsd_host {
 	dma_addr_t		dma_gping; /* 0x400 */
 	dma_addr_t		dma_gpong; /* 0x800 */
 	char is_tunning;
+	char is_timming;
 	char tuning_mode;
 	unsigned int irq;
 	unsigned int irq_in;
@@ -1309,10 +1316,12 @@ struct sd_emmc_desc_info {
 	u32 data_addr;
 	u32 resp_addr;
 };
+#define P_HHI_NAND_CLK_CNTL			(0xff63c000 + (0x97 << 2))
 #define SD_EMMC_MAX_DESC_MUN					512
 #define SD_EMMC_REQ_DESC_MUN					4
 #define SD_EMMC_CLOCK_SRC_OSC				 0 /* 24MHz */
 #define SD_EMMC_CLOCK_SRC_FCLK_DIV2		   1 /* 1GHz */
+#define SD_EMMC_CLOCK_SRC_400MHZ			4
 #define SD_EMMC_CLOCK_SRC_MPLL				2 /* MPLL */
 #define SD_EMMC_CLOCK_SRC_DIFF_PLL			3
 #define SD_EMMC_IRQ_ALL					0x3fff

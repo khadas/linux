@@ -1207,6 +1207,24 @@ static int mmc_hs200_tuning(struct mmc_card *card)
 	return err;
 }
 
+static int mmc_hs400_timming(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err = 0;
+	if ((card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400)
+			&&  (host->ops->post_hs400_timming)) {
+		mmc_host_clk_hold(host);
+		err = host->ops->post_hs400_timming(host);
+		mmc_host_clk_release(host);
+
+		if (err)
+			pr_warn("%s: refix HS400 timming failed\n",
+				mmc_hostname(host));
+	}
+
+	return err;
+}
+
 /*
  * Handle the detection and initialisation of a card.
  *
@@ -1443,6 +1461,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_select_hs400(card);
 		if (err)
 			goto err;
+		err = mmc_hs400_timming(card);
+		if (err)
+			goto err;
 	} else if (mmc_card_hs(card)) {
 		/* Select the desired bus width optionally */
 		err = mmc_select_bus_width(card);
@@ -1476,7 +1497,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		} else
 			card->ext_csd.hpi_en = 1;
 	}
-
 	/*
 	 * If cache size is higher than 0, this indicates
 	 * the existence of cache and it can be turned on.
