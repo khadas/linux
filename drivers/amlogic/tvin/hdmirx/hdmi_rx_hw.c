@@ -1257,12 +1257,20 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 }
 
+void hdmirx_edid_reset(void)
+{
+	hdmirx_wr_top(TOP_SW_RESET, hdmirx_rd_top(TOP_SW_RESET) & 0xFFFFFFFD);
+	hdmirx_wr_top(TOP_SW_RESET, hdmirx_rd_top(TOP_SW_RESET) | 0x02);
+	hdmirx_wr_top(TOP_SW_RESET, hdmirx_rd_top(TOP_SW_RESET) & 0xFFFFFFFD);
+}
+
 
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	control_reset();
+	hdmirx_edid_reset();
 	hdmirx_irq_close();
 	hdmi_rx_ctrl_edid_update();
 	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2); */
