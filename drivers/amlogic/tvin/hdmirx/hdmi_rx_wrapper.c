@@ -622,7 +622,7 @@ static unsigned char v2_edid[] = {
 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xfd,
 0x00, 0x3b, 0x46, 0x1f, 0x8c, 0x3c, 0x00, 0x0a,
 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x01, 0x1e,
-0x02, 0x03, 0x45, 0xf0, 0x5b, 0x5f, 0x10, 0x1f,
+0x02, 0x03, 0x54, 0xf0, 0x5b, 0x5f, 0x10, 0x1f,
 0x14, 0x05, 0x13, 0x04, 0x20, 0x22, 0x3c, 0x3e,
 0x12, 0x16, 0x03, 0x07, 0x11, 0x15, 0x02, 0x06,
 0x01, 0x61, 0x5d, 0x64, 0x65, 0x66, 0x62, 0x60,
@@ -630,14 +630,15 @@ static unsigned char v2_edid[] = {
 0x6a, 0x03, 0x0c, 0x00, 0x20, 0x00, 0x88, 0x3c,
 0x20, 0x80, 0x00, 0x67, 0xd8, 0x5d, 0xc4, 0x01,
 0x78, 0x88, 0x01, 0xe5, 0x0f, 0x00, 0x00, 0x90,
-0x05, 0xe3, 0x06, 0x05, 0x01, 0x02, 0x3a, 0x80,
-0xd0, 0x72, 0x38, 0x2d, 0x40, 0x10, 0x2c, 0x45,
-0x80, 0x30, 0xeb, 0x52, 0x00, 0x00, 0x1f, 0x01,
-0x1d, 0x00, 0xbc, 0x52, 0xd0, 0x1e, 0x20, 0xb8,
-0x28, 0x55, 0x40, 0x30, 0xeb, 0x52, 0x00, 0x00,
-0x1f, 0x8c, 0x0a, 0xd0, 0x8a, 0x20, 0xe0, 0x2d,
-0x10, 0x10, 0x3e, 0x96, 0x00, 0x13, 0x8e, 0x21,
-0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00, 0xfa,
+0x05, 0xe3, 0x06, 0x05, 0x01, 0xee, 0x01, 0x46,
+0xd0, 0x00, 0x26, 0x0f, 0x8b, 0x00, 0xa8, 0x53,
+0x4b, 0x9d, 0x27, 0x0b, 0x02, 0x3a, 0x80, 0xd0,
+0x72, 0x38, 0x2d, 0x40, 0x10, 0x2c, 0x45, 0x80,
+0x30, 0xeb, 0x52, 0x00, 0x00, 0x1f, 0x01, 0x1d,
+0x00, 0xbc, 0x52, 0xd0, 0x1e, 0x20, 0xb8, 0x28,
+0x55, 0x40, 0x30, 0xeb, 0x52, 0x00, 0x00, 0x1f,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe,
+
 };
 
 
@@ -905,6 +906,26 @@ void rx_hpd_to_esm_handle(struct work_struct *work)
 	rx_pr("esm_hpd-1\n");
 	return;
 }
+
+void hdmirx_dv_packet_stop(void)
+{
+	if (rx.vendor_specific_info.dolby_vision_sts == DOLBY_VERSION_START) {
+		if (((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF) != 0)
+		|| ((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF00) != 0))
+			return;
+		if (rx.vendor_specific_info.dolby_vision) {
+			rx.vendor_specific_info.dolby_vision = FALSE;
+			rx.vendor_specific_info.packet_stop = 0;
+		} else
+			rx.vendor_specific_info.packet_stop++;
+		if (rx.vendor_specific_info.packet_stop > DV_STOP_PACKET_MAX) {
+			rx.vendor_specific_info.dolby_vision_sts =
+							DOLBY_VERSION_STOP;
+				rx_pr("no dv packet receive stop\n");
+			}
+	}
+}
+
 /**
  * Clock event handler
  * @param[in,out] ctx context information
@@ -945,15 +966,12 @@ static int clock_handler(struct hdmi_rx_ctrl *ctx)
 
 static int vsi_handler(struct hdmi_rx_ctrl *ctx)
 {
-	struct vendor_specific_info_s vs_info;
+	struct vendor_specific_info_s *vs_info = &rx.vendor_specific_info;
 
-	hdmirx_read_vendor_specific_info_frame(&vs_info);
-	if (vs_info.dolby_vision == TRUE)
-		rx.dolby_vision_sts = vs_info.dolby_vision_sts;
+	hdmirx_read_vendor_specific_info_frame(vs_info);
 	if (log_level & VSI_LOG)
-		rx_pr("dolby vision:%d,dolby_vision_sts(%d,%d)\n",
-		vs_info.dolby_vision, rx.dolby_vision_sts,
-		vs_info.dolby_vision_sts);
+		rx_pr("dolby vision:%d,dolby_vision_sts %d)\n",
+		vs_info->dolby_vision, vs_info->dolby_vision_sts);
 	return TRUE;
 }
 
@@ -1213,7 +1231,7 @@ if (!is_meson_txlx_cpu()) {
 				rx_pr("[irq] AVI_CKS_CHG\n");
 			video_handle_flag = true;
 		}
-		if (get(intr_pedc, VSI_CKS_CHG) != 0) {
+		if (get(intr_pedc, VSI_CKS_CHG | VSI_RCV) != 0) {
 			if (log_level & 0x400)
 				rx_pr("[irq] VSI_CKS_CHG\n");
 			vsi_handle_flag = true;
@@ -1496,16 +1514,12 @@ int hdmirx_hw_get_dvi_info(void)
 int hdmirx_hw_get_3d_structure(unsigned char *_3d_structure,
 			       unsigned char *_3d_ext_data)
 {
-	hdmirx_read_vendor_specific_info_frame(&rx.vendor_specific_info);
-	if (rx.vendor_specific_info.dolby_vision == TRUE)
-		rx.dolby_vision_sts = rx.vendor_specific_info.dolby_vision_sts;
-	if ((rx.vendor_specific_info.identifier == 0x000c03) &&
-	    (rx.vendor_specific_info.vd_fmt == VSI_FORMAT_3D_FORMAT)) {
+	if (_3d_structure != 0 && _3d_ext_data != 0) {
 		*_3d_structure = rx.vendor_specific_info._3d_structure;
 		*_3d_ext_data = rx.vendor_specific_info._3d_ext_data;
 		return 0;
-	}
-	return -1;
+	} else
+		return -1;
 }
 
 int hdmirx_hw_get_pixel_repeat(void)
@@ -2857,6 +2871,8 @@ void hdmirx_hw_monitor(void)
 
 		if (rx.no_signal == true)
 			rx.no_signal = false;
+
+		hdmirx_dv_packet_stop();
 
 		if (rx.change > 0) {
 			rx.change--;
@@ -4392,7 +4408,8 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		sizeof(init_hdcp_data.bksv));
 	memcpy(rx.hdcp.keys, init_hdcp_data.keys,
 		sizeof(init_hdcp_data.keys));
-
+	memset(&rx.hdr_info, 0,
+			sizeof(struct tvin_hdr_info_s));
 	memset(&rx.vendor_specific_info, 0,
 			sizeof(struct vendor_specific_info_s));
 	rx.no_signal = false;

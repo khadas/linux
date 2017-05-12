@@ -432,7 +432,7 @@ int hdmirx_irq_open(void)
 		data32 |= 0 << 18; /* AVI_RCV */
 		data32 |= 0 << 17; /* ACR_RCV */
 		data32 |= 0 << 16; /* GCP_RCV */
-		data32 |= 0 << 15; /* VSI_RCV */
+		data32 |= 1 << 15; /* VSI_RCV */
 		data32 |= 0 << 14; /* AMP_RCV */
 		data32 |= 0 << 13; /* AMP_CHG */
 		data32 |= 0 << 8; /* PD_FIFO_NEW_ENTRY */
@@ -1549,19 +1549,19 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 		/*dolby version start VSI*/
 		vs->dolby_vision = TRUE;
 		/*length = 0x18,PB6-PB23 = 0x00*/
-		/*if (!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFFFF0000) &&
+		if (!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFFFF0000) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD1) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD2) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD3) &&
 			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD4) &&
 			!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5) & 0xFFFFFF)) {
 			if (log_level & VSI_LOG)
-				if (vs->dolby_vision_sts == DOLBY_VERSION_STOP)
+				if (vs->dolby_vision_sts != DOLBY_VERSION_START)
 					rx_pr("dolby vision start\n");
 			vs->dolby_vision_sts = DOLBY_VERSION_START;
-		}yanglei@20170504 suggest mark*/
+		}
 		/*PB4 PB5 = 0x00 exit dolby version*/
-		if (((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF) == 0) &&
+		/*if (((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF) == 0) &&
 		((hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFF00) == 0)) {
 			if (log_level & VSI_LOG)
 				rx_pr("dolby vision stop\n");
@@ -1570,7 +1570,7 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 			if (log_level & VSI_LOG)
 				rx_pr("dolby vision start\n");
 			vs->dolby_vision_sts = DOLBY_VERSION_START;
-		}
+		}*/
 	} else if (((vsi_info.length == 0x04) || (vsi_info.length == 0x05)) &&
 		(vsi_info.vid_format != VSI_FORMAT_3D_FORMAT)) {
 		/*dolby version exit VSI*/
