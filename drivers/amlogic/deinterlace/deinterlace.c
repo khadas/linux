@@ -9365,6 +9365,11 @@ static void di_vf_put(vframe_t *vf, void *arg)
 	if (used_post_buf_index != -1) {
 			recycle_keep_buffer();
 	}
+	if (IS_ERR_OR_NULL(di_buf)) {
+		pr_info("%s: get vframe %p without di buf\n",
+			__func__, vf);
+		return;
+	}
 	if (di_buf->type == VFRAME_TYPE_POST) {
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 
@@ -9372,10 +9377,10 @@ static void di_vf_put(vframe_t *vf, void *arg)
 			if (!atomic_dec_and_test(&di_buf->di_cnt))
 				di_print("%s,di_cnt > 0\n", __func__);
 			recycle_vframe_type_post(di_buf);
-	} else {
+		} else {
 			di_print("%s: %s[%d] not in display list\n", __func__,
 			vframe_type_name[di_buf->type], di_buf->index);
-	}
+		}
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 #ifdef DI_BUFFER_DEBUG
 		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
