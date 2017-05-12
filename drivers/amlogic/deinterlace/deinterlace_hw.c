@@ -2110,6 +2110,8 @@ void di_pre_gate_control(bool gate)
 			DI_Wr_reg_bits(VIUB_GCLK_CTRL1,
 					0, 26, 2);
 		}
+		/* cowork with auto gate to config reg */
+		DI_Wr_reg_bits(DI_PRE_CTRL, 3, 2, 2);
 	} else {
 		/* disable ma pre clk */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 8, 1);
