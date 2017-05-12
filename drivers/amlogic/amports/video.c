@@ -813,7 +813,6 @@ static u32 freerun_mode;
 static u32 slowsync_repeat_enable;
 static bool dmc_adjust = true;
 module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
-static unsigned int *axi_hold_ctrl, *axi2_hold_ctrl;
 static u32 dmc_config_state;
 static u32 last_toggle_count;
 static u32 toggle_same_count;
@@ -2479,6 +2478,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			else if (cur_dispbuf2 &&
 			!(cur_dispbuf2->type & VIDTYPE_COMPRESS))
 				VD2_MEM_POWER_ON();
+			else if (vf_with_el)
+				EnableVideoLayer2();
 		}
 	}
 	if (cur_dispbuf && (cur_dispbuf->type != vf->type)) {
@@ -2489,6 +2490,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			if (cur_dispbuf2 &&
 			!(cur_dispbuf2->type & VIDTYPE_COMPRESS))
 				VD2_MEM_POWER_ON();
+			else if (vf_with_el)
+				EnableVideoLayer2();
 			else
 				DisableVideoLayer2();
 		}
@@ -3926,8 +3929,8 @@ static int dolby_vision_need_wait(void)
 		return 1;
 	return 0;
 }
-/* patch for 4k2k bandwith issue, skiw mali mif */
-static void dmc_adjust_for_mali(unsigned int width, unsigned int height)
+/* patch for 4k2k bandwith issue, skiw mali and vpu mif */
+static void dmc_adjust_for_mali_vpu(unsigned int width, unsigned int height)
 {
 	if (toggle_count == last_toggle_count)
 		toggle_same_count++;
@@ -3938,14 +3941,68 @@ static void dmc_adjust_for_mali(unsigned int width, unsigned int height)
 	/*avoid 3840x2160 crop*/
 	if ((width >= 2000) && (height >= 1400) &&
 		(dmc_config_state != 1) && (toggle_same_count < 30)) {
-		*axi_hold_ctrl = 0x10080804;
-		*axi2_hold_ctrl = 0x10080804;
+		if (is_dolby_vision_enable()) {
+			/* vpu dmc */
+			WRITE_DMCREG(
+				DMC_AM0_CHAN_CTRL,
+				0x85f403f4);
+			WRITE_DMCREG(
+				DMC_AM1_CHAN_CTRL,
+				0x85f403f4);
+			WRITE_DMCREG(
+				DMC_AM2_CHAN_CTRL,
+				0x85f403f4);
+
+			/* mali dmc */
+			WRITE_DMCREG(
+				DMC_AXI1_CHAN_CTRL,
+				0xff10ff4);
+			WRITE_DMCREG(
+				DMC_AXI2_CHAN_CTRL,
+				0xff10ff4);
+			WRITE_DMCREG(
+				DMC_AXI1_HOLD_CTRL,
+				0x08040804);
+			WRITE_DMCREG(
+				DMC_AXI2_HOLD_CTRL,
+				0x08040804);
+		} else {
+			/* mali dmc */
+			WRITE_DMCREG(
+				DMC_AXI1_HOLD_CTRL,
+				0x10080804);
+			WRITE_DMCREG(
+				DMC_AXI2_HOLD_CTRL,
+				0x10080804);
+		}
 		dmc_config_state = 1;
 	} else if (((toggle_same_count >= 30) ||
 		((width < 2000) && (height < 1400))) &&
 		(dmc_config_state != 2)) {
-		*axi_hold_ctrl = 0x18101810;
-		*axi2_hold_ctrl = 0x18101810;
+		/* vpu dmc */
+		WRITE_DMCREG(
+			DMC_AM0_CHAN_CTRL,
+			0x8FF003C4);
+		WRITE_DMCREG(
+			DMC_AM1_CHAN_CTRL,
+			0x8FF003C4);
+		WRITE_DMCREG(
+			DMC_AM2_CHAN_CTRL,
+			0x8FF003C4);
+
+		/* mali dmc */
+		WRITE_DMCREG(
+			DMC_AXI1_CHAN_CTRL,
+			0x8FF00FF4);
+		WRITE_DMCREG(
+			DMC_AXI2_CHAN_CTRL,
+			0x8FF00FF4);
+		WRITE_DMCREG(
+			DMC_AXI1_HOLD_CTRL,
+			0x18101810);
+		WRITE_DMCREG(
+			DMC_AXI2_HOLD_CTRL,
+			0x18101810);
 		toggle_same_count = 30;
 		dmc_config_state = 2;
 	}
@@ -4047,9 +4104,18 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
 
-	if (is_meson_txlx_cpu() && dmc_adjust && vf)
-		dmc_adjust_for_mali(vf->width, vf->height);
-
+	if (is_meson_txlx_cpu() && dmc_adjust) {
+		if (vf)
+			dmc_adjust_for_mali_vpu(
+				vf->width, vf->height);
+		else if (cur_dispbuf)
+			dmc_adjust_for_mali_vpu(
+				cur_dispbuf->width,
+				cur_dispbuf->height);
+		else
+			dmc_adjust_for_mali_vpu(
+				0, 0);
+	}
 #ifdef CONFIG_VSYNC_RDMA
 	vsync_rdma_config_pre();
 
@@ -4434,7 +4500,8 @@ SET_FILTER:
 	if (is_dolby_vision_enable()) {
 		dolby_vision_process(toggle_vf);
 		if (toggle_vf)
-			vpu_delay_work_flag |= VPU_UPDATE_DOLBY_VISION;
+			dolby_vision_update_setting();
+		/* vpu_delay_work_flag |= VPU_UPDATE_DOLBY_VISION; */
 	}
 
 	/* filter setting management */
@@ -5306,6 +5373,8 @@ static void video_vf_unreg_provider(void)
 		cur_dispbuf = &vf_local;
 		cur_dispbuf->video_angle = 0;
 	}
+	if (is_dolby_vision_enable())
+		cur_dispbuf2 = NULL;
 
 	if (trickmode_fffb) {
 		atomic_set(&trickmode_framedone, 0);
@@ -8318,11 +8387,6 @@ static int __init video_early_init(void)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		switch_vpu_mem_pd_vmod(VPU_VPU_ARB, VPU_MEM_POWER_ON);
 
-	/* patch for bandwidth@20170428 */
-	if (is_meson_txlx_cpu()) {
-		axi_hold_ctrl = ioremap(DMC_AXI1_HOLD_CTRL_PHY, 2);
-		axi2_hold_ctrl = ioremap(DMC_AXI2_HOLD_CTRL_PHY, 2);
-	}
 	return 0;
 }
 
