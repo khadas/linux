@@ -63,6 +63,7 @@
 #define DOLBY_VERSION_START_LENGTH 0x18
 #define VSI_3D_FORMAT_INDEX	7
 #define ESM_KILL_WAIT_TIMES 250
+#define DV_STOP_PACKET_MAX 50
 
 struct hdmirx_dev_s {
 	int                         index;
@@ -526,6 +527,7 @@ struct vendor_specific_info_s {
 	unsigned char _3d_ext_data;
 	bool dolby_vision;
 	enum dolby_vision_sts_e dolby_vision_sts;
+	unsigned char packet_stop;/*dv packet stop count*/
 };
 
 struct rx_s {
@@ -886,5 +888,6 @@ extern void repeater_dwork_handle(struct work_struct *work);
 /* for other modules */
 extern int External_Mute(int mute_flag);
 extern void vdac_enable(bool on, unsigned int module_sel);
+extern void hdmirx_dv_packet_stop(void);
 
 #endif  /* _TVHDMI_H */

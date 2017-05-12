@@ -705,6 +705,9 @@
 #define		DRM_RCV_EN_TXLX				_BIT(30)
 /** DVI detection status */
 #define		DVIDET					_BIT(28)
+/** Vendor Specific Info frame changed */
+#define		VSI_CKS_CHG				_BIT(27)
+
 /** AIF checksum changed */
 #define		AIF_CKS_CHG				_BIT(25)
 /** AVI checksum changed */
@@ -713,8 +716,8 @@
 #define		GCP_AV_MUTE_CHG			_BIT(21)
 
 #define		GCP_RCV					_BIT(16)
-/** Vendor Specific Info frame changed */
-#define		VSI_CKS_CHG				_BIT(15)
+/** Vendor Specific Info frame rcv*/
+#define		VSI_RCV				_BIT(15)
 /** Drm set entry */
 #define		DRM_CKS_CHG				_BIT(10)
 #define	DRM_RCV_EN				_BIT(9)

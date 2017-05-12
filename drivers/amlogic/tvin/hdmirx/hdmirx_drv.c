@@ -627,10 +627,14 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		}
 	}
 
-	if (rx.dolby_vision_sts == DOLBY_VERSION_START)
+	if (rx.vendor_specific_info.dolby_vision_sts ==
+		DOLBY_VERSION_START)
 		prop->dolby_vision = TRUE;
-	else if (rx.dolby_vision_sts == DOLBY_VERSION_STOP)
+	else if (rx.vendor_specific_info.dolby_vision_sts ==
+		DOLBY_VERSION_STOP)
 		prop->dolby_vision = FALSE;
+	if (log_level & VSI_LOG)
+		rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
 
 	if (is_frame_packing())
 		prop->trans_fmt = TVIN_TFMT_3D_FP;
