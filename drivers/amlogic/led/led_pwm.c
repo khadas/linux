@@ -43,7 +43,7 @@
 #define DEFAULT_PWM_PERIOD	100000;
 #define LED_ON  1
 #define LED_OFF 0
-#define PWM_NUM 10
+#define PWM_NUM 8
 
 static unsigned int ledmode;
 static struct timer_list timer;
