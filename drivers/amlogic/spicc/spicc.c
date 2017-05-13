@@ -514,7 +514,7 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
 	void __iomem *mem_base = spicc->regs;
 	int bytes_per_word;
-	int ret;
+	int ret = 0;
 
 	setb(mem_base, RX_FIFO_RESET, 1);
 	setb(mem_base, TX_FIFO_RESET, 1);

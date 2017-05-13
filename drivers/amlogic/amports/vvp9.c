@@ -1355,13 +1355,16 @@ static int get_free_fb(struct VP9Decoder_s *pbi)
 	int i;
 
 	lock_buffer_pool(cm->buffer_pool);
-	for (i = 0; i < pbi->used_buf_num; ++i) {
-		if (debug & VP9_DEBUG_BUFMGR_MORE)
+	if (debug & VP9_DEBUG_BUFMGR_MORE) {
+		for (i = 0; i < pbi->used_buf_num; ++i) {
 			pr_info("%s:%d, ref_count %d vf_ref %d used_by_d %d index %d\r\n",
 			__func__, i, frame_bufs[i].ref_count,
 			frame_bufs[i].buf.vf_ref,
 			frame_bufs[i].buf.used_by_display,
 			frame_bufs[i].buf.index);
+		}
+	}
+	for (i = 0; i < pbi->used_buf_num; ++i) {
 		if ((frame_bufs[i].ref_count == 0) &&
 			(frame_bufs[i].buf.vf_ref == 0) &&
 			(frame_bufs[i].buf.used_by_display == 0) &&
@@ -1383,23 +1386,20 @@ static int get_free_fb(struct VP9Decoder_s *pbi)
 	return i;
 }
 
-static unsigned char is_buffer_empty(struct VP9Decoder_s *pbi)
+static int get_free_buf_count(struct VP9Decoder_s *pbi)
 {
 	struct VP9_Common_s *const cm = &pbi->common;
 	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
 	int i;
-
+	int free_buf_count = 0;
 	for (i = 0; i < pbi->used_buf_num; ++i)
 		if ((frame_bufs[i].ref_count == 0) &&
 			(frame_bufs[i].buf.vf_ref == 0) &&
 			(frame_bufs[i].buf.used_by_display == 0) &&
 			(frame_bufs[i].buf.index != -1)
 			)
-			break;
-	if (i != pbi->used_buf_num)
-		return 0;
-
-	return 1;
+			free_buf_count++;
+	return free_buf_count;
 }
 
 static void decrease_ref_count(int idx, struct RefCntBuffer_s *const frame_bufs,
@@ -2042,6 +2042,7 @@ static u32 error_handle_policy;
 
 static u32 max_buf_num = 12;
 
+static u32 run_ready_min_buf_num = 2;
 
 static DEFINE_MUTEX(vvp9_mutex);
 #ifndef MULTI_INSTANCE_SUPPORT
@@ -5771,7 +5772,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 
-		if (is_buffer_empty(pbi)) {
+		if (get_free_buf_count(pbi) <= 0) {
 			/*
 			if (pbi->wait_buf == 0)
 				pr_info("set wait_buf to 1\r\n");
@@ -6582,7 +6583,8 @@ static void vp9_work(struct work_struct *work)
 			vdec_clean_input(vdec);
 		}
 
-		if (!is_buffer_empty(pbi)) {
+		if (get_free_buf_count(pbi) >=
+			run_ready_min_buf_num) {
 			int r;
 			r = vdec_prepare_input(vdec, &pbi->chunk);
 			if (r < 0) {
@@ -6693,13 +6695,16 @@ static bool run_ready(struct vdec_s *vdec)
 {
 	struct VP9Decoder_s *pbi =
 		(struct VP9Decoder_s *)vdec->private;
-
+	bool ret = 0;
 	vp9_print(pbi,
 		PRINT_FLAG_VDEC_DETAIL, "%s\r\n", __func__);
 	if (pbi->eos)
-		return 0;
+		return ret;
 
-	return !is_buffer_empty(pbi);
+	if (get_free_buf_count(pbi) >=
+		run_ready_min_buf_num)
+		ret = 1;
+	return ret;
 }
 
 static void reset_dec_hw(struct vdec_s *vdec)
@@ -7155,6 +7160,10 @@ MODULE_PARM_DESC(max_buf_num, "\n max_buf_num\n");
 
 module_param(dynamic_buf_num_margin, uint, 0664);
 MODULE_PARM_DESC(dynamic_buf_num_margin, "\n dynamic_buf_num_margin\n");
+
+module_param(run_ready_min_buf_num, uint, 0664);
+MODULE_PARM_DESC(run_ready_min_buf_num, "\n run_ready_min_buf_num\n");
+
 /**/
 
 module_param(mem_map_mode, uint, 0664);

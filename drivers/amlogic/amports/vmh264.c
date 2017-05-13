@@ -125,7 +125,29 @@ static unsigned int max_alloc_buf_count;
 static unsigned int decode_timeout_val = 50;
 static unsigned int radr;
 static unsigned int rval;
-static unsigned int decode_stop_pos;
+
+/*
+	udebug_flag:
+	bit 0, enable ucode print
+	bit 1, enable ucode detail print
+	bit [31:16] not 0, pos to dump lmem
+		bit 2, pop bits to lmem
+		bit [11:8], pre-pop bits for alignment (when bit 2 is 1)
+*/
+static u32 udebug_flag;
+/*
+	when udebug_flag[1:0] is not 0
+	udebug_pause_pos not 0,
+		pause position
+*/
+static u32 udebug_pause_pos;
+/*
+	when udebug_flag[1:0] is not 0
+	and udebug_pause_pos is not 0,
+		pause only when DEBUG_REG2 is equal to this val
+*/
+static u32 udebug_pause_val;
+
 static unsigned int max_decode_instance_num = H264_DEV_NUM;
 static unsigned int decode_frame_count[H264_DEV_NUM];
 static unsigned int max_process_time[H264_DEV_NUM];
@@ -513,6 +535,8 @@ struct vdec_h264_hw_s {
 #endif
 	u8 eos;
 	u8 data_flag;
+
+	u32 ucode_pause_pos;
 };
 
 
@@ -2335,6 +2359,7 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)(vdec->private);
 	struct h264_dpb_stru *p_H264_Dpb = &hw->dpb;
 	int i;
+	u32 debug_tag;
 
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
@@ -2429,18 +2454,21 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 			}
 		}
 #endif
-		/*is_idr =
-			(p_H264_Dpb->dpb_param.dpb.NAL_info_mmco & 0x1f)
-			== 5 ? 1 : 0;*/
 		is_i_slice =
 			(p_H264_Dpb->dpb_param.l.data[SLICE_TYPE] == I_Slice)
 			? 1 : 0;
+
+		if (h264_debug_flag & START_FROM_IDR)
+			is_i_slice =
+			(p_H264_Dpb->dpb_param.dpb.NAL_info_mmco & 0x1f)
+			== 5 ? 1 : 0;
+
 		if (!is_i_slice) {
 			if (hw->has_i_frame == 0) {
 				hw->dec_result = DEC_RESULT_DONE;
 				schedule_work(&hw->work);
 				dpb_print(DECODE_ID(hw), PRINT_FLAG_UCODE_EVT,
-					"has_i_frame is 0, discard none IDR frame\n");
+					"has_i_frame is 0, discard none I(DR) frame\n");
 				return IRQ_HANDLED;
 			}
 		} else
@@ -2686,8 +2714,8 @@ send_again:
 	}
 
 	/* ucode debug */
-	if (READ_VREG(DEBUG_REG1) & 0x10000) {
-		int i;
+	debug_tag = READ_VREG(DEBUG_REG1);
+	if (debug_tag & 0x10000) {
 		unsigned short *p = (unsigned short *)hw->lmem_addr;
 
 		dma_sync_single_for_cpu(
@@ -2696,21 +2724,42 @@ send_again:
 			PAGE_SIZE,
 			DMA_FROM_DEVICE);
 
-		pr_info("LMEM<tag %x>:\n", READ_VREG(DEBUG_REG1));
+		dpb_print(DECODE_ID(hw), 0,
+			"LMEM<tag %x>:\n", debug_tag);
 		for (i = 0; i < 0x400; i += 4) {
 			int ii;
 			if ((i & 0xf) == 0)
-				pr_info("%03x: ", i);
+				dpb_print_cont(DECODE_ID(hw), 0,
+					"%03x: ", i);
 			for (ii = 0; ii < 4; ii++)
-				pr_info("%04x ", p[i+3-ii]);
+				dpb_print_cont(DECODE_ID(hw), 0,
+					"%04x ", p[i+3-ii]);
 			if (((i+ii) & 0xf) == 0)
-				pr_info("\n");
+				dpb_print_cont(DECODE_ID(hw), 0,
+					"\n");
 		}
-		WRITE_VREG(DEBUG_REG1, 0);
-	} else if (READ_VREG(DEBUG_REG1) != 0) {
-		pr_info("dbg%x: %x\n", READ_VREG(DEBUG_REG1),
+		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_val == 0 ||
+			udebug_pause_val == READ_VREG(DEBUG_REG2)))
+			hw->ucode_pause_pos = udebug_pause_pos;
+		else if (debug_tag & 0x20000)
+			hw->ucode_pause_pos = 0xffffffff;
+		if (hw->ucode_pause_pos)
+			reset_process_time(hw);
+		else
+			WRITE_VREG(DEBUG_REG1, 0);
+	} else if (debug_tag != 0) {
+		dpb_print(DECODE_ID(hw), 0,
+			"dbg%x: %x\n", debug_tag,
 			READ_VREG(DEBUG_REG2));
-		WRITE_VREG(DEBUG_REG1, 0);
+		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_val == 0 ||
+			udebug_pause_val == READ_VREG(DEBUG_REG2)))
+			hw->ucode_pause_pos = udebug_pause_pos;
+		if (hw->ucode_pause_pos)
+			reset_process_time(hw);
+		else
+			WRITE_VREG(DEBUG_REG1, 0);
 	}
 	/**/
 
@@ -2792,6 +2841,13 @@ static void check_timer_func(unsigned long arg)
 		hw->last_ucode_watchdog_reg_val =
 			READ_VREG(UCODE_WATCHDOG_REG);
 		hw->last_mby_mbx = mby_mbx;
+	}
+
+	if ((hw->ucode_pause_pos != 0) &&
+		(hw->ucode_pause_pos != 0xffffffff) &&
+		udebug_pause_pos != hw->ucode_pause_pos) {
+		hw->ucode_pause_pos = 0;
+		WRITE_VREG(DEBUG_REG1, 0);
 	}
 
 	hw->check_timer.expires = jiffies + CHECK_INTERVAL;
@@ -3530,8 +3586,8 @@ static void run(struct vdec_s *vdec,
 		config_aux_buf(hw);
 		config_decode_mode(hw);
 		vdec_enable_input(vdec);
-		if (decode_stop_pos)
-			WRITE_VREG(AV_SCRATCH_K, decode_stop_pos);
+		if (udebug_flag)
+			WRITE_VREG(AV_SCRATCH_K, udebug_flag);
 		add_timer(&hw->check_timer);
 
 		amvdec_start();
@@ -3921,8 +3977,14 @@ MODULE_PARM_DESC(error_proc_policy, "\n amvdec_h264 error_proc_policy\n");
 module_param(i_only_flag, uint, 0664);
 MODULE_PARM_DESC(i_only_flag, "\n amvdec_h264 i_only_flag\n");
 
-module_param(decode_stop_pos, uint, 0664);
-MODULE_PARM_DESC(decode_stop_pos, "\n amvdec_h264 decode_stop_pos\n");
+module_param(udebug_flag, uint, 0664);
+MODULE_PARM_DESC(udebug_flag, "\n amvdec_h265 udebug_flag\n");
+
+module_param(udebug_pause_pos, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
+
+module_param(udebug_pause_val, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");
 
 module_param(max_alloc_buf_count, uint, 0664);
 MODULE_PARM_DESC(max_alloc_buf_count, "\n amvdec_h264 max_alloc_buf_count\n");
