@@ -366,6 +366,11 @@ void slice_prepare(struct h264_dpb_stru *p_H264_Dpb,
 		p_Vid->pre_frame_num, pSlice->frame_num);
 
 		p_Vid->pre_frame_num = pSlice->frame_num;
+	} else if (p_H264_Dpb->mDPB.init_done == 0) {
+		/* by rain
+		 handle the case when first slice is I instead of IDR
+		*/
+		p_Vid->pre_frame_num = pSlice->frame_num;
 	}
 	/* pSlice->adaptive_ref_pic_buffering_flag; */
 	sps->log2_max_frame_num_minus4 =
