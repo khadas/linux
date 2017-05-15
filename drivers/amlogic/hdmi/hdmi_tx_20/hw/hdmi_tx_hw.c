@@ -3876,20 +3876,21 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	case CONF_AUDIO_MUTE_OP:
 		audio_mute_op(argv == AUDIO_MUTE ? 0 : 1);
 		break;
-	case CONF_VIDEO_BLANK_OP:
-		return 1;   /* TODO */
-		if (argv == VIDEO_BLANK) {
-			/* set blank CrYCb as 0x200 0x0 0x200 */
-			hd_write_reg(P_VPU_HDMI_DATA_OVR,
-				(0x200 << 20) | (0x0 << 10) | (0x200 << 0));
-			/* Output data map: CrYCb */
-			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 5, 3);
-			/* Enable HDMI data override */
-			hd_set_reg_bits(P_VPU_HDMI_DATA_OVR, 1, 31, 1);
+	case CONF_VIDEO_MUTE_OP:
+		if (argv == VIDEO_MUTE) {
+			hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			/* _Y/CB/CR, 10bits Unsigned/Singed/Singed */
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x200);
 		}
-		if (argv == VIDEO_UNBLANK)
-			/* Disable HDMI data override */
-			hd_write_reg(P_VPU_HDMI_DATA_OVR, 0);
+		if (argv == VIDEO_UNMUTE) {
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 1, 3, 1);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 0);
+		}
 		break;
 	case CONF_CLR_AVI_PACKET:
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
@@ -3925,7 +3926,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, argv, 2, 2);
 		break;
 	default:
-		hdmi_print(ERR, "config: ""hdmitx: unknown cmd: 0x%x\n", cmd);
+		break;
 	}
 
 	return ret;

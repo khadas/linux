@@ -88,6 +88,9 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode);
 static int check_fbc_special(unsigned char *edid_dat);
 static int hdcp_tst_sig;
 
+static atomic_t kref_audio_mute;
+static atomic_t kref_video_mute;
+
 /* add attr for hdmi output colorspace and colordepth */
 static char fmt_attr[16];
 
@@ -303,6 +306,15 @@ static void set_test_mode(void)
 #endif
 }
 
+static void restore_mute(void)
+{
+	if (!(atomic_sub_and_test(0, &kref_video_mute)))
+		hdmitx_video_mute_op(0);
+
+	if (!(atomic_sub_and_test(0, &kref_audio_mute)))
+		hdmitx_audio_mute_op(0);
+}
+
 int get_cur_vout_index(void)
 /*
 return value: 1, vout; 2, vout2;
@@ -392,6 +404,7 @@ static  int  set_disp_mode(const char *mode)
 		hdmitx_device.auth_process_timer = AUTH_PROCESS_TIME;
 		hdmitx_device.internal_mode_change = 0;
 		set_test_mode();
+		restore_mute();
 	}
 
 	if (hdmitx_device.cur_VIC == HDMI_Unkown) {
@@ -644,6 +657,7 @@ static int set_disp_mode_auto(void)
 		hdev->auth_process_timer = AUTH_PROCESS_TIME;
 		hdev->internal_mode_change = 0;
 		set_test_mode();
+		restore_mute();
 	}
 	if (hdev->cur_VIC == HDMI_Unkown) {
 		if (hpdmode == 2) {
@@ -1080,6 +1094,17 @@ void hdmitx_audio_mute_op(unsigned int flag)
 }
 EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
+void hdmitx_video_mute_op(unsigned int flag)
+{
+	if (flag == 0)
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+			CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+	else
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+			CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+}
+EXPORT_SYMBOL(hdmitx_video_mute_op);
+
 static void hdr_work_func(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev =
@@ -1371,13 +1396,13 @@ static ssize_t store_config(struct device *dev,
 	return 16;
 }
 
-static atomic_t kref_audio_mute;
 static ssize_t show_aud_mute(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 
-	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n", kref_audio_mute.counter);
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n",
+		atomic_read(&kref_audio_mute));
 	return pos;
 }
 
@@ -1386,13 +1411,43 @@ static ssize_t store_aud_mute(struct device *dev,
 {
 	if (buf[0] == '1') {
 		atomic_inc(&kref_audio_mute);
-		hdmitx_audio_mute_op(0);
+		if (atomic_read(&kref_audio_mute) == 1)
+			hdmitx_audio_mute_op(0);
 	}
 	if (buf[0] == '0') {
 		if (!(atomic_sub_and_test(0, &kref_audio_mute))) {
 			atomic_dec(&kref_audio_mute);
 			if (atomic_sub_and_test(0, &kref_audio_mute))
 				hdmitx_audio_mute_op(1);
+		}
+	}
+
+	return count;
+}
+
+static ssize_t show_vid_mute(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n",
+		atomic_read(&kref_video_mute));
+	return pos;
+}
+
+static ssize_t store_vid_mute(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] == '1') {
+		atomic_inc(&kref_video_mute);
+		if (atomic_read(&kref_video_mute) == 1)
+			hdmitx_video_mute_op(0);
+	}
+	if (buf[0] == '0') {
+		if (!(atomic_sub_and_test(0, &kref_video_mute))) {
+			atomic_dec(&kref_video_mute);
+			if (atomic_sub_and_test(0, &kref_video_mute))
+				hdmitx_video_mute_op(1);
 		}
 	}
 
@@ -2323,6 +2378,8 @@ static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(aud_mute, S_IWUSR | S_IRUGO, show_aud_mute,
 	store_aud_mute);
+static DEVICE_ATTR(vid_mute, S_IWUSR | S_IRUGO, show_vid_mute,
+	store_vid_mute);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
 static DEVICE_ATTR(rawedid, S_IRUGO, show_rawedid, NULL);
 static DEVICE_ATTR(sink_type, S_IRUGO, show_sink_type, NULL);
@@ -3234,6 +3291,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_attr);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_aud_mute);
+	ret = device_create_file(dev, &dev_attr_vid_mute);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
 	ret = device_create_file(dev, &dev_attr_sink_type);
@@ -3403,6 +3461,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_aud_mute);
+	device_remove_file(dev, &dev_attr_vid_mute);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);
 	device_remove_file(dev, &dev_attr_sink_type);
