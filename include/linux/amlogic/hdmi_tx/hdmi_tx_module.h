@@ -360,6 +360,9 @@ struct hdmitx_dev {
 	#define YCC_RANGE_LIM		0
 	#define YCC_RANGE_FUL		1
 	#define YCC_RANGE_RSVD		2
+#define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
+#define VIDEO_MUTE          0x1
+#define VIDEO_UNMUTE        0x2
 
 /***********************************************************************
  *             MISC control, hpd, hpll //CntlMisc
@@ -535,6 +538,7 @@ extern unsigned char hdmi_audio_off_flag;
  *       2: for EDID auto mode
  */
 extern void hdmitx_audio_mute_op(unsigned int flag);
+extern void hdmitx_video_mute_op(unsigned int flag);
 
 #define HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH       0x3
 #define HDMITX_HWCMD_TURNOFF_HDMIHW           0x4
