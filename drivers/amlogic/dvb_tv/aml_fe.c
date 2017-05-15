@@ -1353,12 +1353,11 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 		pr_error("illegal fe type %d\n", type);
 		return -1;
 	}
-/*
+
 	if (fe->mode == mode) {
 		pr_dbg("[%s]:the mode is not change!!!!\n", __func__);
 		return 0;
 	}
-*/
 
 	if (fe->mode != AM_FE_UNKNOWN) {
 		pr_dbg("leave mode %d\n", fe->mode);

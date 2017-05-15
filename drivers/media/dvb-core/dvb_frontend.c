@@ -587,7 +587,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	fe_status_t s;
 	int retval;
 	int time;
-	int dtmb_status, i, has_singal;
+	int dtmb_status, i, has_singal, atsc_status;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 #if (((defined CONFIG_AM_SI2176) || (defined CONFIG_AM_SI2177)\
@@ -854,6 +854,30 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 				fepriv->status = s;
 				return;
 			}
+		} else if (fe->dtv_property_cache.modulation > QAM_AUTO) {
+			if (is_meson_txlx_cpu()) {
+				LOCK_TIMEOUT = 4000;
+				if (fe->ops.read_status)
+					fe->ops.read_status(fe, &s);
+				if (s != 0x1f) {
+					/*msleep(200);*/
+					fe->ops.read_ber(fe, &atsc_status);
+				dprintk
+				("[rsj]atsc_status is %x,modulation is %d\n",
+					atsc_status,
+				fe->dtv_property_cache.modulation);
+					if (atsc_status < 0x60) {
+						s = FE_TIMEDOUT;
+						dprintk(
+						"event s=%d,fepriv->status is %d\n",
+						s, fepriv->status);
+						dvb_frontend_add_event(fe, s);
+						fepriv->status = s;
+						return;
+					}
+				}
+			}
+
 		}
 
 #endif
