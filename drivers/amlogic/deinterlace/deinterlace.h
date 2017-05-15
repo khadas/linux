@@ -32,7 +32,7 @@
 
 /* canvas defination */
 #define DI_USE_FIXED_CANVAS_IDX
-
+#define USE_HRTIMER
 #undef USE_LIST
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NEW_KEEP_LAST_FRAME
