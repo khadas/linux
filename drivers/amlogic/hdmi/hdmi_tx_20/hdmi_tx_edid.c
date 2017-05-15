@@ -1370,16 +1370,18 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 		switch (tag) {
 		case HDMI_EDID_BLOCK_TYPE_AUDIO:
 			aud_flag = 1;
-			pRXCap->AUD_count += count/3;
+			tmp = count / 3;
+			idx = pRXCap->AUD_count;
+			pRXCap->AUD_count += tmp;
 			offset++;
-			for (i = 0 ; i < pRXCap->AUD_count ; i++) {
-				pRXCap->RxAudioCap[i].audio_format_code =
+			for (i = 0 ; i < tmp; i++) {
+				pRXCap->RxAudioCap[idx + i].audio_format_code =
 					(BlockBuf[offset + i * 3]>>3)&0xf;
-				pRXCap->RxAudioCap[i].channel_num_max =
+				pRXCap->RxAudioCap[idx + i].channel_num_max =
 					BlockBuf[offset + i * 3]&0x7;
-				pRXCap->RxAudioCap[i].freq_cc =
+				pRXCap->RxAudioCap[idx + i].freq_cc =
 					BlockBuf[offset + i * 3 + 1]&0x7f;
-				pRXCap->RxAudioCap[i].cc3 =
+				pRXCap->RxAudioCap[idx + i].cc3 =
 					BlockBuf[offset + i * 3 + 2]&0x7;
 			}
 			offset += count;
