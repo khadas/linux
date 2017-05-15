@@ -820,13 +820,9 @@ static int gxtv_demod_atsc_read_status
 
 static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-/*      struct aml_fe *afe = fe->demodulator_priv;*/
-/*      struct aml_fe_dev *dev = afe->dtv_demod;*/
-/*      struct aml_demod_sts demod_sts;*/
-/*      struct aml_demod_i2c demod_i2c;*/
-/*      struct aml_demod_sta demod_sta;*/
-
-/* check_atsc_fsm_status();*/
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	if (c->modulation > QAM_AUTO)
+		*ber = atsc_read_reg(0x980)&0xffff;
 	return 0;
 }
 
@@ -882,7 +878,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	if (!demod_thread)
 		return 0;
 	freq_p = c->frequency / 1000;
-	pr_dbg("c->modulation is %d\n", c->modulation);
+	pr_dbg("c->modulation is %d,freq_p is %d\n", c->modulation, freq_p);
 	last_lock = -1;
 	atsc_mode = c->modulation;
 	/* param.mode = amdemod_qam(p->u.vsb.modulation);*/

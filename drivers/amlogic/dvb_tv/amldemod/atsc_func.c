@@ -742,7 +742,7 @@ int cci_run(void)
 
 int cfo_run(void)
 {
-#define max_count 11
+#define max_count 5
 	int crRate0, crRate1, crRate2, crRate;
 	int Fcent, Fs;
 	int cfo_sta, cr_peak_sta;
@@ -750,8 +750,7 @@ int cfo_run(void)
 	int sys_state;
 	int table_count;
 	int freq_table[max_count] = {0, -50, 50,
-		-100, 100, -150, 150,
-		-200, 200, -250, 250};
+		-100, 100};
 	int scan_range;
 	int Offset;
 	Fcent = Si2176_5M_If*1000;/*if*/
@@ -974,7 +973,7 @@ void atsc_thread(void)
 		atsc_check_fsm_status_oneshot();
 		fsm_status = read_atsc_fsm();
 		pr_dbg("lock\n");
-		msleep(300);
+		msleep(100);
 		/*step5:close dagc*/
 		/*if (dagc_switch == Dagc_Open) {
 			atsc_write_reg(0x716, 0x2);

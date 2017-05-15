@@ -9,6 +9,7 @@
 #define u16_t u16
 #define u32_t u32
 #define u64_t u64
+#include <linux/amlogic/cpu_version.h>
 
 struct aml_demod_i2c {
 	u8_t tuner;		/*type */
