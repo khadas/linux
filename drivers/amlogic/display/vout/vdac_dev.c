@@ -416,6 +416,12 @@ void vdac_enable(bool on, unsigned int module_sel)
 	case VDAC_MODULE_ATV_DEMOD: /* atv demod */
 		if (on) {
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_ATV_DEMOD);
+			/*after txlx need reset bandgap after bit9 enabled*/
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 1, 13, 1);
+				udelay(5);
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 13, 1);
+			}
 			pri_flag &= ~VDAC_MODULE_TVAFE;
 			pri_flag |= VDAC_MODULE_ATV_DEMOD;
 			if (pri_flag & VDAC_MODULE_CVBS_OUT)
@@ -438,14 +444,21 @@ void vdac_enable(bool on, unsigned int module_sel)
 		}
 		break;
 	case VDAC_MODULE_DTV_DEMOD: /* dtv demod */
-		if (on)
+		if (on) {
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_DTV_DEMOD);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 1, 13, 1);
+				udelay(5);
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 13, 1);
+			}
+		}
 		else
 			ana_ref_cntl0_bit9(0, VDAC_MODULE_DTV_DEMOD);
 		break;
 	case VDAC_MODULE_TVAFE: /* av in demod */
 		if (on) {
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_TVAFE);
+			/*after txlx need reset bandgap after bit9 enabled*/
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 1, 13, 1);
 				udelay(5);
@@ -473,6 +486,11 @@ void vdac_enable(bool on, unsigned int module_sel)
 			vdac_out_cntl1_bit3(1, VDAC_MODULE_CVBS_OUT);
 			vdac_out_cntl0_bit0(1, VDAC_MODULE_CVBS_OUT);
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_CVBS_OUT);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 1, 13, 1);
+				udelay(5);
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 13, 1);
+			}
 			vdac_out_cntl0_bit10(0, VDAC_MODULE_CVBS_OUT);
 			pri_flag |= VDAC_MODULE_CVBS_OUT;
 		} else {
@@ -493,8 +511,16 @@ void vdac_enable(bool on, unsigned int module_sel)
 		break;
 	case VDAC_MODULE_AUDIO_OUT: /* audio demod */
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			if (on)
+			if (on) {
 				ana_ref_cntl0_bit9(1, VDAC_MODULE_AUDIO_OUT);
+				/*if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+					vdac_hiu_reg_setb(HHI_VDAC_CNTL0,
+						1, 13, 1);
+					udelay(5);
+					vdac_hiu_reg_setb(HHI_VDAC_CNTL0,
+						0, 13, 1);
+				}*/
+			}
 			else
 				ana_ref_cntl0_bit9(0, VDAC_MODULE_AUDIO_OUT);
 		}

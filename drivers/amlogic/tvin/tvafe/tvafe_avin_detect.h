@@ -95,6 +95,10 @@ struct tvafe_avin_det_s {
 	unsigned int device_num;
 };
 
+void tvafe_cha1_SYNCTIP_close_config(void);
+void tvafe_cha2_SYNCTIP_close_config(void);
+void tvafe_cha1_detect_restart_config(void);
+void tvafe_cha2_detect_restart_config(void);
 
 #endif /* TVAFE_AVIN_DETECT_H_ */
 

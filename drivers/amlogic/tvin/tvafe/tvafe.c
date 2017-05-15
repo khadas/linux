@@ -880,6 +880,17 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		mutex_unlock(&devp->afe_mutex);
 		return 1;
 	}
+	/*synctip set to 0 when tvafe working*/
+	if (port == TVIN_PORT_CVBS1) {
+		/*channel1*/
+		tvafe_cha1_SYNCTIP_close_config();
+	} else if (port == TVIN_PORT_CVBS2) {
+		/*channel2*/
+		tvafe_cha2_SYNCTIP_close_config();
+	} else {
+		tvafe_cha1_SYNCTIP_close_config();
+		tvafe_cha2_SYNCTIP_close_config();
+	}
 #ifdef CONFIG_CMA
 	tvafe_cma_alloc(devp);
 #endif
@@ -1082,6 +1093,17 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 #ifdef CONFIG_CMA
 	tvafe_cma_release(devp);
 #endif
+	/*avsync tip set 1 to resume av detect*/
+	if (tvafe->parm.port == TVIN_PORT_CVBS1) {
+		/*channel1*/
+		tvafe_cha1_detect_restart_config();
+	} else if (tvafe->parm.port == TVIN_PORT_CVBS2) {
+		/*channel2*/
+		tvafe_cha2_detect_restart_config();
+	} else {
+		tvafe_cha1_detect_restart_config();
+		tvafe_cha2_detect_restart_config();
+	}
 	/* init variable */
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
 
