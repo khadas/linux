@@ -1043,6 +1043,31 @@ static ssize_t store_hdcp_repeater(struct device *dev,
 	return count;
 }
 
+/*
+ * hdcp22_type attr
+ */
+static bool hdcp22_type;
+static ssize_t show_hdcp22_type(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n", hdcp22_type);
+
+	return pos;
+}
+
+static ssize_t store_hdcp22_type(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] == '0')
+		hdcp22_type = 0;
+	if (buf[0] == '1')
+		hdcp22_type = 1;
+
+	return count;
+}
+
 void hdmitx_audio_mute_op(unsigned int flag)
 {
 	hdmitx_device.tx_aud_cfg = flag;
@@ -2336,6 +2361,8 @@ static DEVICE_ATTR(hdcp_lstore, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_lstore,
 	store_hdcp_lstore);
 static DEVICE_ATTR(hdcp_repeater, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_hdcp_repeater, store_hdcp_repeater);
+static DEVICE_ATTR(hdcp22_type, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_hdcp22_type, store_hdcp22_type);
 static DEVICE_ATTR(div40, S_IWUSR | S_IRUGO | S_IWGRP, show_div40, store_div40);
 static DEVICE_ATTR(hdcp_ctrl, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_ctrl,
 	store_hdcp_ctrl);
@@ -3233,6 +3260,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
 	ret = device_create_file(dev, &dev_attr_hdcp_mode);
 	ret = device_create_file(dev, &dev_attr_hdcp_repeater);
+	ret = device_create_file(dev, &dev_attr_hdcp22_type);
 	ret = device_create_file(dev, &dev_attr_hdcp_lstore);
 	ret = device_create_file(dev, &dev_attr_div40);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctrl);
@@ -3400,6 +3428,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_aud_output_chs);
 	device_remove_file(dev, &dev_attr_div40);
 	device_remove_file(dev, &dev_attr_hdcp_repeater);
+	device_remove_file(dev, &dev_attr_hdcp22_type);
 
 	cdev_del(&hdmitx_device.cdev);
 
