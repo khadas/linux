@@ -2187,7 +2187,7 @@ void enable_di_pre_mif(bool en)
 			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 9, 1);
 		}
 		/* enable di nr/mtn/mv mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
+		/* RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f); */
 	} else {
 		/* nrwr no clk gate en=1 */
 		RDMA_WR_BITS(DI_NRWR_CTRL, 1, 24, 1);
@@ -2210,7 +2210,7 @@ void enable_di_pre_mif(bool en)
 			RDMA_WR_BITS(MCDI_MCINFORD_CTRL, 0, 9, 1);
 		}
 		/* disable nr cont mtn mv minfo mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
+		/* RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b); */
 		/* disable cont rd */
 		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 		/* disable input mif*/
