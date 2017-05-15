@@ -1618,18 +1618,18 @@ static ssize_t show_aud_cap(struct device *dev,
 			aud_coding_type[pRXCap->RxAudioCap[i].
 				audio_format_code],
 			pRXCap->RxAudioCap[i].channel_num_max + 1);
-	for (j = 0; j < 7; j++) {
-		if (pRXCap->RxAudioCap[i].freq_cc & (1 << j))
-			pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
-				aud_sampling_frequency[j+1]);
-	}
-	pos += snprintf(buf + pos - 1, PAGE_SIZE, " kHz, ");
-	for (j = 0; j < 3; j++) {
-		if (pRXCap->RxAudioCap[i].cc3 & (1 << j))
-			pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
-				aud_sample_size[j+1]);
-	}
-	pos += snprintf(buf + pos - 1, PAGE_SIZE, " bit\n");
+		for (j = 0; j < 7; j++) {
+			if (pRXCap->RxAudioCap[i].freq_cc & (1 << j))
+				pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
+					aud_sampling_frequency[j+1]);
+		}
+		pos += snprintf(buf + pos - 1, PAGE_SIZE, " kHz, ");
+		for (j = 0; j < 3; j++) {
+			if (pRXCap->RxAudioCap[i].cc3 & (1 << j))
+				pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
+					aud_sample_size[j+1]);
+		}
+		pos += snprintf(buf + pos - 1, PAGE_SIZE, " bit\n");
 	}
 
 	return pos;
