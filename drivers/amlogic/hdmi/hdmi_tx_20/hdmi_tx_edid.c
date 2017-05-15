@@ -86,6 +86,7 @@
 static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void Edid_DTD_parsing(struct rx_cap *pRXCap, unsigned char *data);
+static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
 
 static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
 {
@@ -415,13 +416,17 @@ int Edid_Parse_check_HDMI_VSDB(struct hdmitx_dev *hdev,
 void Edid_MonitorCapable861(struct hdmitx_info *info,
 	unsigned char edid_flag)
 {
-	 if (edid_flag & 0x80)
+	if (edid_flag & 0x80)
 		info->support_underscan_flag = 1;
-	 if (edid_flag & 0x40)
+	if (edid_flag & 0x40) {
+		struct hdmitx_dev *hdev =
+			container_of(info, struct hdmitx_dev, hdmi_info);
 		info->support_basic_audio_flag = 1;
-	 if (edid_flag & 0x20)
+		hdmitx_edid_set_default_aud(hdev);
+	}
+	if (edid_flag & 0x20)
 		info->support_ycbcr444_flag = 1;
-	 if (edid_flag & 0x10)
+	if (edid_flag & 0x10)
 		info->support_ycbcr422_flag = 1;
 }
 
@@ -1347,6 +1352,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	int i, tmp, idx;
 	unsigned char *vfpdb_offset = NULL;
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
+	unsigned int aud_flag = 0;
 
 	if (BlockBuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
@@ -1355,6 +1361,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	pRXCap->number_of_dtd += BlockBuf[3] & 0xf;
 
 	pRXCap->native_VIC = 0xff;
+	pRXCap->AUD_count = 0;
 
 	Edid_Y420CMDB_Reset(&(hdmitx_device->hdmi_info));
 	for (offset = 4 ; offset < End ; ) {
@@ -1362,6 +1369,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 		count = BlockBuf[offset] & 0x1f;
 		switch (tag) {
 		case HDMI_EDID_BLOCK_TYPE_AUDIO:
+			aud_flag = 1;
 			pRXCap->AUD_count += count/3;
 			offset++;
 			for (i = 0 ; i < pRXCap->AUD_count ; i++) {
@@ -1514,6 +1522,9 @@ case_next:
 		}
 	}
 
+	if (aud_flag == 0)
+		hdmitx_edid_set_default_aud(hdmitx_device);
+
 	Edid_Y420CMDB_PostProcess(hdmitx_device);
 	hdmitx_device->vic_count = pRXCap->VIC_count;
 
@@ -1524,6 +1535,21 @@ case_next:
 		Edid_ParsingVFPDB(pRXCap, vfpdb_offset);
 
 	return 0;
+}
+
+static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
+{
+	struct rx_cap *pRXCap = &(hdev->RXCap);
+
+	/* if AUD_count not equal to 0, no need default value */
+	if (pRXCap->AUD_count)
+		return;
+
+	pRXCap->AUD_count = 1;
+	pRXCap->RxAudioCap[0].audio_format_code = 1; /* PCM */
+	pRXCap->RxAudioCap[0].channel_num_max = 1; /* 2ch */
+	pRXCap->RxAudioCap[0].freq_cc = 7; /* 32/44.1/48 kHz */
+	pRXCap->RxAudioCap[0].cc3 = 7; /* 16/20/24 bit */
 }
 
 /* add default VICs for DVI case */
@@ -2008,6 +2034,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (edid_zero_data(EDID_buf))
 		pRXCap->IEEEOUI = 0x0c03;
 
+	if ((!pRXCap->AUD_count) && (!pRXCap->IEEEOUI))
+		hdmitx_edid_set_default_aud(hdmitx_device);
+
 	edid_save_checkvalue(EDID_buf, BlockCount+1);
 
 #if 1
@@ -2346,6 +2375,7 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 	memset(&hdmitx_device->EDID_hash[0], 0,
 		sizeof(hdmitx_device->EDID_hash));
 	hdmitx_device->edid_parsing = 0;
+	hdmitx_edid_set_default_aud(hdmitx_device);
 }
 
 /*
