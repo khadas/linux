@@ -76,29 +76,32 @@
 #include "detect3d.h"
 #endif
 #include "nr.h"
-
+#ifndef USE_HRTIMER
 #define RUN_DI_PROCESS_IN_IRQ
+#else
+#define ENABLE_SPIN_LOCK_ALWAYS
+#endif
+
 #ifdef ENABLE_SPIN_LOCK_ALWAYS
 static DEFINE_SPINLOCK(di_lock2);
-#define di_lock_irqfiq_save(irq_flag, fiq_flag) \
-	do { fiq_flag = fiq_flag; flags = flags; \
-	     spin_lock_irqsave(&di_lock2, irq_flag); \
-	} while (0)
 
-#define di_unlock_irqfiq_restore(irq_flag, fiq_flag) \
+#define di_lock_irqfiq_save(irq_flag) \
+	spin_lock_irqsave(&di_lock2, irq_flag);
+
+
+#define di_unlock_irqfiq_restore(irq_flag) \
 	spin_unlock_irqrestore(&di_lock2, irq_flag);
 
 #else
-#define di_lock_irqfiq_save(irq_flag, fiq_flag) \
-	do { flags = flags; \
-		 irq_flag = irq_flag; \
-	     fiq_flag = fiq_flag; \
-	} while (0)
-#define di_unlock_irqfiq_restore(irq_flag, fiq_flag) \
-	do { flags = flags; \
-		 irq_flag = irq_flag; \
-	     fiq_flag = fiq_flag; \
-	} while (0)
+
+#define di_lock_irqfiq_save(irq_flag)
+do {
+	irq_flag = irq_flag;
+} while (0);
+#define di_unlock_irqfiq_restore(irq_flag)
+do {
+	irq_flag = irq_flag;
+} while (0);
 #endif
 
 int mpeg2vdin_flag = 0;
@@ -259,7 +262,6 @@ static int use_2_interlace_buff;
 static int input2pre_buf_miss_count;
 static int input2pre_proc_miss_count;
 static int input2pre_throw_count;
-static int static_pic_threshold = 10;
 #ifdef NEW_DI_V1
 static int input2pre_miss_policy;
 /* 0, do not force pre_de_busy to 0, use di_wr_buf after de_irq happen;
@@ -282,6 +284,7 @@ static int use_2_interlace_buff = 1;
 static int use_2_interlace_buff;
 #endif
 #endif
+static int static_pic_threshold = 10;
 /* prog_proc_config,
  * bit[2:1]: when two field buffers are used,
  * 0 use vpp for blending ,
@@ -427,18 +430,16 @@ void trigger_pre_di_process(char idx)
 		log_buffer_state((idx == 'i') ? "irq" : ((idx == 'p') ?
 			"put" : ((idx == 'r') ? "rdy" : "oth")));
 
-#if (defined RUN_DI_PROCESS_IN_IRQ)
-#ifdef USE_HRTIMER
+#ifdef RUN_DI_PROCESS_IN_IRQ
+	aml_write_cbus(ISA_TIMERC, 1);
+#elif (defined USE_HRTIMER)
 	/* tasklet_hi_schedule(&di_pre_tasklet); */
 	tasklet_schedule(&di_pre_tasklet);
 	de_devp->jiffy = jiffies_64;
-#else
-	aml_write_cbus(ISA_TIMERC, 1);
 #endif
 	/* trigger di_reg_process and di_unreg_process */
 	if ((idx != 'p') && (idx != 'i'))
 		up(&di_sema);
-#endif
 }
 
 static unsigned int di_printk_flag;
@@ -2142,16 +2143,16 @@ static void di_apply_reg_cfg(unsigned char pre_post_type)
 
 static void dis2_di(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong flags = 0, irq_flag2 = 0;
 
 	init_flag = 0;
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 /* vf_unreg_provider(&di_vf_prov); */
 	vf_light_unreg_provider(&di_vf_prov);
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 	reg_flag = 0;
 	spin_lock_irqsave(&plist_lock, flags);
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 	if (di_pre_stru.di_inp_buf) {
 		if (vframe_in[di_pre_stru.di_inp_buf->index]) {
 			vf_put(
@@ -2186,7 +2187,7 @@ static void dis2_di(void)
 		#endif
 	}
 
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 	spin_unlock_irqrestore(&plist_lock, flags);
 }
 
@@ -3024,8 +3025,8 @@ static void log_buffer_state(unsigned char *tag)
 		int recycle = 0;
 		int di_inp = 0;
 		int di_wr = 0;
-		ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		ulong irq_flag2 = 0;
+		di_lock_irqfiq_save(irq_flag2);
 		in_free = list_count(QUEUE_IN_FREE);
 		local_free = list_count(QUEUE_LOCAL_FREE);
 		pre_ready = list_count(QUEUE_PRE_READY);
@@ -3075,7 +3076,7 @@ static void log_buffer_state(unsigned char *tag)
 				di_inp, di_wr
 				);
 		}
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 	}
 }
 
@@ -4660,7 +4661,7 @@ MODULE_PARM_DESC(cmb_3point_rrat, "cmb_3point_rrat/n");
 
 static void pre_de_done_buf_config(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 	bool dynamic_flag = false;
 	int hHeight = di_pre_stru.di_nrwr_mif.end_y;
 	int wWidth  = di_pre_stru.di_nrwr_mif.end_x;
@@ -5255,10 +5256,10 @@ static void pre_de_done_buf_config(void)
 			vframe_type_name[di_pre_stru.di_post_inp_buf->type],
 			di_pre_stru.di_post_inp_buf->index);
 #endif
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		di_lock_irqfiq_save(irq_flag2);
 		queue_in(di_pre_stru.di_post_inp_buf, QUEUE_RECYCLE);
 		di_pre_stru.di_post_inp_buf = NULL;
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 	}
 	if (di_pre_stru.di_inp_buf) {
 		if (!di_pre_rdma_enable) {
@@ -5267,10 +5268,10 @@ static void pre_de_done_buf_config(void)
 			vframe_type_name[di_pre_stru.di_inp_buf->type],
 			di_pre_stru.di_inp_buf->index);
 #endif
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			queue_in(di_pre_stru.di_inp_buf, QUEUE_RECYCLE);
 			di_pre_stru.di_inp_buf = NULL;
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 		} else {
 			di_pre_stru.di_post_inp_buf = di_pre_stru.di_inp_buf;
 			di_pre_stru.di_inp_buf = NULL;
@@ -5312,13 +5313,13 @@ static void di_set_para_by_tvinfo(vframe_t *vframe)
 #endif
 static void recycle_vframe_type_pre(struct di_buf_s *di_buf)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 
 	queue_in(di_buf, QUEUE_RECYCLE);
 
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 }
 /*
  * it depend on local buffer queue type is 2
@@ -7279,16 +7280,16 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 static void post_de_done_buf_config(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 	struct di_buf_s *di_buf = NULL;
 	if (di_post_stru.cur_post_buf == NULL)
 		return;
 
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 	queue_out(di_post_stru.cur_post_buf);
 	di_buf = di_post_stru.cur_post_buf;
 	queue_in(di_post_stru.cur_post_buf, QUEUE_POST_READY);
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	di_post_stru.cur_post_buf = NULL;
 
@@ -7612,9 +7613,9 @@ int set_pulldown_mode(int buffer_keep_count, struct di_buf_s *di_buf)
 
 void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 	int i = 0, drop_flag = 0;
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 	if ((frame_count == 0) && check_drop)
 		di_post_stru.start_pts = di_buf->vframe->pts;
 	if ((check_drop && (frame_count < start_frame_drop_count))
@@ -7656,7 +7657,7 @@ void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 		frame_count, vframe_type_name[di_buf->type], di_buf->index,
 		jiffies_to_msecs(jiffies_64 - di_buf->vframe->ready_jiffies64));
 	}
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 }
 
 static int process_post_vframe(void)
@@ -7668,7 +7669,7 @@ static int process_post_vframe(void)
  * 2) get buf from pre_ready_list, attach it to buf from post_free_list
  * (it will be send to recycle_list in di_vf_put() )
  */
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 	int i = 0;
 	int pulldown_mode_hise = 0;
 	int ret = 0;
@@ -7714,13 +7715,13 @@ static int process_post_vframe(void)
 	}
 	if (ready_di_buf->post_proc_flag > 0) {
 		if (ready_count >= buffer_keep_count) {
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			di_buf = get_di_buf_head(QUEUE_POST_FREE);
 			if (check_di_buf(di_buf, 17))
 				return 0;
 
 			queue_out(di_buf);
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 
 			i = 0;
 			queue_for_each_entry(
@@ -7749,11 +7750,11 @@ static int process_post_vframe(void)
 				di_buf->di_buf[0] = di_buf->di_buf_dup_p[0];
 				di_buf->di_buf[1] = NULL;
 				queue_out(di_buf->di_buf[0]);
-				di_lock_irqfiq_save(irq_flag2, fiq_flag);
+				di_lock_irqfiq_save(irq_flag2);
 				queue_in(di_buf, QUEUE_TMP);
 				recycle_vframe_type_post(di_buf);
 
-				di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+				di_unlock_irqfiq_restore(irq_flag2);
 #ifdef DI_BUFFER_DEBUG
 				di_print("%s <dummy>: ", __func__);
 #endif
@@ -7865,13 +7866,13 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 			if (ready_count >= vframe_process_count) {
 				struct di_buf_s *di_buf_i;
-				di_lock_irqfiq_save(irq_flag2, fiq_flag);
+				di_lock_irqfiq_save(irq_flag2);
 				di_buf = get_di_buf_head(QUEUE_POST_FREE);
 				if (check_di_buf(di_buf, 19))
 					return 0;
 
 				queue_out(di_buf);
-				di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+				di_unlock_irqfiq_restore(irq_flag2);
 
 				i = 0;
 				queue_for_each_entry(
@@ -7991,14 +7992,14 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			 * 2:bypass post as frame*/
 			unsigned char prog_tb_field_proc_type =
 				(prog_proc_config >> 1) & 0x3;
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			di_buf = get_di_buf_head(QUEUE_POST_FREE);
 
 			if (check_di_buf(di_buf, 20))
 				return 0;
 
 			queue_out(di_buf);
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 
 			i = 0;
 			queue_for_each_entry(
@@ -8126,8 +8127,7 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 				VIDTYPE_INTERLACE_BOTTOM) {
 				di_buf->di_buf[1] =
 					di_buf->di_buf_dup_p[1] = NULL;
-				di_lock_irqfiq_save(irq_flag2,
-					fiq_flag);
+				di_lock_irqfiq_save(irq_flag2);
 				queue_in(di_buf, QUEUE_TMP);
 				recycle_vframe_type_post(di_buf);
 				pr_dbg("%s drop field %d.\n", __func__,
@@ -8207,11 +8207,12 @@ static void di_unreg_process(void)
 
 static void di_unreg_process_irq(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
+	ulong flags = 0;
 	spin_lock_irqsave(&plist_lock, flags);
 #endif
-	di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2);
 	di_print("%s: di_uninit_buf\n", __func__);
 	di_uninit_buf();
 	init_flag = 0;
@@ -8262,7 +8263,7 @@ static void di_unreg_process_irq(void)
 		enable_rdma(1);
 		#endif
 	}
-	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	di_unlock_irqfiq_restore(irq_flag2);
 
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 	spin_unlock_irqrestore(&plist_lock, flags);
@@ -8374,7 +8375,10 @@ static bool need_bypass(struct vframe_s *vf)
 
 static void di_reg_process_irq(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
+	#ifndef	RUN_DI_PROCESS_IN_IRQ
+	ulong flags = 0;
+	#endif
 	vframe_t *vframe;
 	unsigned short nr_height = 0;
 
@@ -8459,7 +8463,7 @@ static void di_reg_process_irq(void)
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			 /*
 			 * 10 bit mode need 1.5 times buffer size of
 			 * 8 bit mode, init the buffer size as 10 bit
@@ -8468,7 +8472,7 @@ static void di_reg_process_irq(void)
 			 */
 			di_init_buf(default_width, default_height, 1);
 
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
@@ -8478,7 +8482,7 @@ static void di_reg_process_irq(void)
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			/*
 			 * 10 bit mode need 1.5 times buffer size of
 			 * 8 bit mode, init the buffer size as 10 bit
@@ -8487,7 +8491,7 @@ static void di_reg_process_irq(void)
 			 */
 			di_init_buf(default_width, default_height, 0);
 
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
@@ -8544,7 +8548,10 @@ static void dynamic_bypass_process(void)
 
 static void di_process(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
+	#ifndef	RUN_DI_PROCESS_IN_IRQ
+	ulong flags = 0;
+	#endif
 
 	di_process_cnt++;
 
@@ -8590,16 +8597,16 @@ static void di_process(void)
 #endif
 			} else if (di_pre_stru.pre_de_clear_flag == 1) {
 				di_lock_irqfiq_save(
-					irq_flag2, fiq_flag);
+					irq_flag2);
 				pre_de_done_buf_clear();
 				di_unlock_irqfiq_restore(
-					irq_flag2, fiq_flag);
+					irq_flag2);
 				di_pre_stru.pre_de_process_done = 0;
 				di_pre_stru.pre_de_clear_flag = 0;
 			}
 		}
 
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		di_lock_irqfiq_save(irq_flag2);
 		di_post_stru.check_recycle_buf_cnt = 0;
 		while (check_recycle_buf() & 1) {
 			if (di_post_stru.check_recycle_buf_cnt++ >
@@ -8609,7 +8616,7 @@ static void di_process(void)
 				break;
 			}
 		}
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 		if ((di_pre_stru.pre_de_busy == 0) &&
 		    (di_pre_stru.pre_de_process_done == 0)) {
 			if ((pre_run_flag == DI_RUN_FLAG_RUN) ||
@@ -9065,7 +9072,7 @@ light_unreg:
 static void fast_process(void)
 {
 	int i;
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong flags = 0, irq_flag2 = 0;
 	unsigned int bypass_buf_threshold = bypass_get_buf_threshold;
 
 	if ((di_pre_stru.cur_inp_type & VIDTYPE_VIU_444) &&
@@ -9084,7 +9091,7 @@ static void fast_process(void)
 				di_pre_stru.pre_de_process_done = 0;
 			}
 
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			di_post_stru.check_recycle_buf_cnt = 0;
 			while (check_recycle_buf() & 1) {
 				if (di_post_stru.check_recycle_buf_cnt++ >
@@ -9094,7 +9101,7 @@ static void fast_process(void)
 					break;
 				}
 			}
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 
 			if ((di_pre_stru.pre_de_busy == 0) &&
 			    (di_pre_stru.pre_de_process_done == 0)) {
@@ -9172,14 +9179,14 @@ static vframe_t *di_vf_peek(void *arg)
 /*recycle the buffer for keeping buffer*/
 void recycle_keep_buffer(void)
 {
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 	int i = 0;
 
 	if ((used_post_buf_index != -1) && (new_keep_last_frame_enable)) {
 		if (di_buf_post[used_post_buf_index].type == VFRAME_TYPE_POST) {
 			pr_dbg("%s recycle keep cur di_buf %d (",
 				__func__, used_post_buf_index);
-			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2);
 			for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
 				if (
 					di_buf_post[used_post_buf_index].
@@ -9195,7 +9202,7 @@ void recycle_keep_buffer(void)
 			}
 			queue_in(&di_buf_post[used_post_buf_index],
 				QUEUE_POST_FREE);
-			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_unlock_irqfiq_restore(irq_flag2);
 			pr_dbg(")\n");
 		}
 		used_post_buf_index = -1;
@@ -9205,7 +9212,7 @@ static vframe_t *di_vf_get(void *arg)
 {
 	vframe_t *vframe_ret = NULL;
 	struct di_buf_s *di_buf = NULL;
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 
 	if (di_pre_stru.bypass_flag)
 		return vf_get(VFM_NAME);
@@ -9230,13 +9237,13 @@ static vframe_t *di_vf_get(void *arg)
 get_vframe:
 #endif
 		log_buffer_state("ge_");
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		di_lock_irqfiq_save(irq_flag2);
 
 		di_buf = get_di_buf_head(QUEUE_POST_READY);
 		queue_out(di_buf);
 		queue_in(di_buf, QUEUE_DISPLAY); /* add it into display_list */
 
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 
 		if (di_buf) {
 			vframe_ret = di_buf->vframe;
@@ -9282,7 +9289,7 @@ get_vframe:
 static void di_vf_put(vframe_t *vf, void *arg)
 {
 	struct di_buf_s *di_buf = (struct di_buf_s *)vf->private_data;
-	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	ulong irq_flag2 = 0;
 
 	if (di_pre_stru.bypass_flag) {
 		vf_put(vf, VFM_NAME);
@@ -9308,7 +9315,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 		return;
 	}
 	if (di_buf->type == VFRAME_TYPE_POST) {
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		di_lock_irqfiq_save(irq_flag2);
 
 		if (is_in_queue(di_buf, QUEUE_DISPLAY)) {
 			if (!atomic_dec_and_test(&di_buf->di_cnt))
@@ -9318,14 +9325,14 @@ static void di_vf_put(vframe_t *vf, void *arg)
 			di_print("%s: %s[%d] not in display list\n", __func__,
 			vframe_type_name[di_buf->type], di_buf->index);
 		}
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 #ifdef DI_BUFFER_DEBUG
 		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
 #endif
 	} else {
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+		di_lock_irqfiq_save(irq_flag2);
 		queue_in(di_buf, QUEUE_RECYCLE);
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		di_unlock_irqfiq_restore(irq_flag2);
 
 		di_print("%s: %s[%d] =>recycle_list\n", __func__,
 			vframe_type_name[di_buf->type], di_buf->index);
