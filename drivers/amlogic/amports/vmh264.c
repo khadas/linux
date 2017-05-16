@@ -475,7 +475,6 @@ struct vdec_h264_hw_s {
 	u32 pts_unstable;	u32 duration_on_correcting;
 	u32 last_checkout_pts;
 	u32 fatal_error_flag;
-	u32 fatal_error_reset;
 	u32 max_refer_buf;
 
 	s32 vh264_stream_switching_state;
@@ -514,8 +513,6 @@ struct vdec_h264_hw_s {
 	atomic_t vh264_active;
 
 	struct dec_sysinfo vh264_amstream_dec_info;
-
-	struct work_struct error_wd_work;
 
 	int dec_result;
 	struct work_struct work;
@@ -2966,10 +2963,11 @@ static int dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 		vstatus->frame_rate = 96000 / hw->frame_dur;
 	else
 		vstatus->frame_rate = -1;
-	vstatus->error_count = READ_VREG(AV_SCRATCH_D);
+	vstatus->error_count = 0;
 	vstatus->status = hw->stat;
-	/* if (fatal_error_reset)
-		vstatus->status |= hw->fatal_error_flag; */
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s-%02d", DRIVER_NAME, hw->id);
+
 	return 0;
 }
 
@@ -3412,11 +3410,8 @@ static void vh264_work(struct work_struct *work)
 	mutex_unlock(&vmh264_mutex);
 
 	if (hw->dec_result == DEC_RESULT_CONFIG_PARAM) {
-		if (vh264_set_params(hw) < 0) {
+		if (vh264_set_params(hw) < 0)
 			hw->fatal_error_flag = DECODER_FATAL_ERROR_UNKNOW;
-			if (!hw->fatal_error_reset)
-				schedule_work(&hw->error_wd_work);
-		}
 		start_process_time(hw);
 		return;
 	} else
@@ -3847,7 +3842,6 @@ static int ammvdec_h264_probe(struct platform_device *pdev)
 	pdata->reset = reset;
 	pdata->irq_handler = vh264_isr;
 
-	pdata->id = pdev->id;
 
 	if (pdata->use_vfm_path)
 		snprintf(pdata->vf_provider_name, VDEC_PROVIDER_NAME_SIZE,

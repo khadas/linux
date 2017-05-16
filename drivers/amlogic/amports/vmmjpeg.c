@@ -626,7 +626,6 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 	pdata->run_ready = run_ready;
 	pdata->irq_handler = vmjpeg_isr;
 
-	pdata->id = pdev->id;
 
 	if (pdata->use_vfm_path)
 		snprintf(pdata->vf_provider_name, VDEC_PROVIDER_NAME_SIZE,

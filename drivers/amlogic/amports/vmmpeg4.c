@@ -1188,7 +1188,6 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 	pdata->reset = reset;
 	pdata->irq_handler = vmpeg4_isr;
 
-	pdata->id = pdev->id;
 
 	if (pdata->use_vfm_path)
 		snprintf(pdata->vf_provider_name, VDEC_PROVIDER_NAME_SIZE,

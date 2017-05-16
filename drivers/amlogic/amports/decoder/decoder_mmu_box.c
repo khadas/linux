@@ -238,12 +238,13 @@ static int decoder_mmu_box_dump(struct decoder_mmu_box *box,
 	int tsize = 0;
 	int s;
 	int i;
-	if (!pbuf)
+	if (!buf) {
 		pbuf = sbuf;
-
+		size = 100000;
+	}
 	#define BUFPRINT(args...) \
 	do {\
-		s = sprintf(pbuf, args);\
+		s = snprintf(pbuf, size - tsize, args);\
 		tsize += s;\
 		pbuf += s; \
 	} while (0)
@@ -272,12 +273,14 @@ static int decoder_mmu_box_dump_all(void *buf, int size)
 	int s;
 	int i;
 	struct list_head *head, *list;
-	if (!pbuf)
+	if (!pbuf) {
 		pbuf = sbuf;
+		size = 100000;
+	}
 
 	#define BUFPRINT(args...) \
 	do {\
-		s = sprintf(pbuf, args);\
+		s = snprintf(pbuf, size - tsize, args);\
 		tsize += s;\
 		pbuf += s; \
 	} while (0)
@@ -297,9 +300,11 @@ static int decoder_mmu_box_dump_all(void *buf, int size)
 			box->channel_id,
 			box->max_sc_num);
 		if (buf) {
-			tsize += decoder_mmu_box_dump(box, pbuf, size - tsize);
-			if (tsize > 0)
-				pbuf += tsize;
+			s += decoder_mmu_box_dump(box, pbuf, size - tsize);
+			if (s > 0) {
+				tsize += s;
+				pbuf += s;
+			}
 		} else {
 			pr_info("%s", sbuf);
 			pbuf = sbuf;
