@@ -1110,10 +1110,24 @@ static ssize_t amstream_vframe_write(struct file *file, const char *buf,
 					   size_t count, loff_t *ppos)
 {
 	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
+	ssize_t ret;
+	int wait_max_cnt = 5;
 #ifdef DATA_DEBUG
 	debug_file_write(buf, count);
 #endif
-	return vdec_write_vframe(priv->vdec, buf, count);
+	do {
+		ret = vdec_write_vframe(priv->vdec, buf, count);
+		if (file->f_flags & O_NONBLOCK) {
+			break;/*alway return for no block mode.*/
+		} else if (ret == -EAGAIN) {
+			int level;
+			level = vdec_input_level(&priv->vdec->input);
+			if (wait_max_cnt-- < 0)
+				break;
+			msleep(20);
+		}
+	} while (ret == -EAGAIN);
+	return ret;
 }
 
 static ssize_t amstream_abuf_write(struct file *file, const char *buf,

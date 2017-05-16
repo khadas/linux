@@ -6,6 +6,7 @@ struct vdec_input_s;
 
 struct vframe_block_list_s {
 	u32 magic;
+	int id;
 	struct list_head list;
 	ulong start;
 	void *start_virt;
@@ -14,6 +15,7 @@ struct vframe_block_list_s {
 	u32 size;
 	u32 wp;
 	u32 rp;
+	int data_size;
 	int chunk_count;
 	struct vdec_input_s *input;
 };
@@ -27,6 +29,7 @@ struct vframe_chunk_s {
 	u32 offset;
 	u32 size;
 	u32 pts;
+	u32 pading_size;
 	u64 pts64;
 	bool pts_valid;
 	u64 sequence;
@@ -39,7 +42,13 @@ struct vframe_chunk_s {
 struct vdec_input_s {
 	struct list_head vframe_block_list;
 	struct list_head vframe_chunk_list;
+	struct list_head vframe_block_free_list;
 	struct vframe_block_list_s *wr_block;
+	int have_free_blocks;
+	int no_mem_err_cnt;/*when alloc no mem cnt++*/
+	int block_nums;
+	int block_id_seq;
+	int id;
 	spinlock_t lock;
 	int type;
 	int target;
@@ -58,6 +67,8 @@ struct vdec_input_s {
 	u64 sequence;
 	unsigned start;
 	unsigned size;
+	int default_block_size;
+	int data_size;
 	int prepare_level;
 	int stream_cookie; /* wrap count for vld_mem and
 			      HEVC_SHIFT_BYTE_COUNT for hevc */
@@ -117,6 +128,11 @@ extern void vdec_input_unlock(struct vdec_input_s *input, unsigned long lock);
 
 /* release all resource for decoder's input */
 extern void vdec_input_release(struct vdec_input_s *input);
+int vdec_input_dump_chunks(struct vdec_input_s *input,
+	char *bufs, int size);
+int vdec_input_dump_blocks(struct vdec_input_s *input,
+	char *bufs, int size);
+
 
 #endif /* VDEC_INPUT_H */
 

@@ -9248,7 +9248,6 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 	pdata->irq_handler = vh265_irq_cb;
 	pdata->threaded_irq_handler = vh265_threaded_irq_cb;
 
-	pdata->id = pdev->id;
 	hevc->index = pdev->id;
 
 	if (pdata->use_vfm_path)

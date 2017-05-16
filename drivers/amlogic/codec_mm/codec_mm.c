@@ -268,6 +268,7 @@ static int codec_mm_alloc_in(
 	int try_cma_first = mem->flags & CODEC_MM_FLAGS_CMA_FIRST;
 	int max_retry = ALLOC_MAX_RETRY;
 	int have_space;
+	int alloc_trace_mask = 0;
 
 	int can_from_res = ((mgt->res_pool != NULL) && /*have res*/
 		!(mem->flags & CODEC_MM_FLAGS_CMA)) || /*must not CMA*/
@@ -308,11 +309,11 @@ static int codec_mm_alloc_in(
 			return -10002;
 		}
 	}
-
 	do {
 		if ((mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
 			mem->page_count <= mgt->alloc_from_sys_pages_max &&
 			align_2n <= PAGE_SHIFT) {
+			alloc_trace_mask |= 1 << 0;
 			mem->mem_handle = (void *)__get_free_pages(GFP_KERNEL,
 				get_order(mem->buffer_size));
 			mem->from_flags =
@@ -329,6 +330,7 @@ static int codec_mm_alloc_in(
 			/*
 				normal cma.
 			*/
+			alloc_trace_mask |= 1 << 1;
 			mem->mem_handle = dma_alloc_from_contiguous(mgt->dev,
 					mem->page_count,
 					align_2n - PAGE_SHIFT);
@@ -352,6 +354,7 @@ static int codec_mm_alloc_in(
 			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
 					(1 << RESERVE_MM_ALIGNED_2N));
+			alloc_trace_mask |= 1 << 2;
 			mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool,
 							aligned_buffer_size);
 			mem->from_flags =
@@ -377,6 +380,7 @@ static int codec_mm_alloc_in(
 				int aligned_buffer_size =
 					ALIGN(mem->buffer_size,
 						(1 << RESERVE_MM_ALIGNED_2N));
+				alloc_trace_mask |= 1 << 3;
 				mem->mem_handle =
 					(void *)codec_mm_extpool_alloc(
 						&mgt->cma_res_pool,
@@ -399,6 +403,7 @@ static int codec_mm_alloc_in(
 			/*
 				normal cma.
 			*/
+			alloc_trace_mask |= 1 << 4;
 			mem->mem_handle = dma_alloc_from_contiguous(mgt->dev,
 					mem->page_count,
 					align_2n - PAGE_SHIFT);
@@ -422,6 +427,7 @@ static int codec_mm_alloc_in(
 			/* 64k,aligend */
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
 					(1 << RESERVE_MM_ALIGNED_2N));
+			alloc_trace_mask |= 1 << 5;
 			mem->mem_handle = (void *)codec_mm_extpool_alloc(
 					&mgt->tvp_pool,
 					&mem->from_ext,
@@ -440,6 +446,7 @@ static int codec_mm_alloc_in(
 		if ((mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
 			mgt->enable_kmalloc_on_nomem &&
 			!try_alloced_from_sys) {
+			alloc_trace_mask |= 1 << 6;
 			mem->mem_handle = (void *)__get_free_pages(GFP_KERNEL,
 				get_order(mem->buffer_size));
 			mem->from_flags =
@@ -454,8 +461,26 @@ static int codec_mm_alloc_in(
 	} while (--max_retry > 0);
 	if (mem->mem_handle)
 		return 0;
-	else
+	else {
+		if (debug_mode & 0x10) {
+			pr_info("codec mm have space:%x\n",
+				have_space);
+			pr_info("canfrom: %d,%d,%d,%d\n",
+				can_from_tvp,
+				can_from_sys,
+				can_from_res,
+				can_from_cma);
+			pr_info("alloc flags:%d,align=%d,%d,pages:%d,s:%d\n",
+				mem->flags,
+				mem->align2n,
+				align_2n,
+				mem->page_count,
+				mem->buffer_size);
+			pr_info("try alloc mask:%x\n",
+				alloc_trace_mask);
+		}
 		return -10003;
+	}
 }
 
 static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
@@ -549,6 +574,10 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	if (ret < 0) {
 		pr_err("not enough mem for %s size %d, ret=%d\n",
 				owner, size, ret);
+		pr_err("mem flags %d %d, %d\n",
+				memflags,
+				mem->flags,
+				align2n);
 		kfree(mem);
 		if (debug_mode & 0x10)
 			dump_mem_infos(NULL, 0);
@@ -590,10 +619,12 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		mgt->alloced_for_sc_cnt++;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
+	mem->alloced_jiffies = get_jiffies_64();
 	if (debug_mode & 0x20)
-		pr_err("%s alloc mem size %d at %lx from %d\n",
+		pr_err("%s alloc mem size %d at %lx from %d,flags:%d\n",
 			owner, size, mem->phy_addr,
-			mem->from_flags);
+			mem->from_flags,
+			memflags);
 	return mem;
 }
 
@@ -711,6 +742,30 @@ unsigned long codec_mm_alloc_for_dma(const char *owner, int page_cnt,
 		return 0;
 	return mem->phy_addr;
 }
+
+unsigned long codec_mm_alloc_for_dma_ex(
+		const char *owner,
+		int page_cnt,
+		int align2n,
+		int memflags,
+		int ins_id,
+		int buffer_id)
+{
+	struct codec_mm_s *mem;
+	mem = codec_mm_alloc(owner, page_cnt << PAGE_SHIFT, align2n, memflags);
+	if (!mem)
+		return 0;
+	mem->ins_id = ins_id;
+	mem->ins_buffer_id = buffer_id;
+	if (debug_mode & 0x20) {
+		pr_err("%s, for ins %d, buffer id:%d\n",
+			mem->owner[0] ? mem->owner[0] : "no" ,
+			mem->ins_id,
+			buffer_id);
+	}
+	return mem->phy_addr;
+}
+
 
 int codec_mm_free_for_dma(const char *owner, unsigned long phy_addr)
 {
@@ -958,20 +1013,25 @@ static int dump_mem_infos(void *buf, int size)
 	int tsize = 0;
 	int s;
 
-	if (!pbuf)
+	if (!pbuf) {
 		pbuf = sbuf;
-	s = sprintf(pbuf, "codec mem info:\n\ttotal codec mem size:%d MB\n",
+		size = 512;
+	}
+	s = snprintf(pbuf, size - tsize,
+		"codec mem info:\n\ttotal codec mem size:%d MB\n",
 		mgt->total_codec_mem_size / SZ_1M);
 	tsize += s;
 	pbuf += s;
 
-	s = sprintf(pbuf, "\talloced size= %d MB\n\tmax alloced: %d MB\n",
+	s = snprintf(pbuf, size - tsize,
+		"\talloced size= %d MB\n\tmax alloced: %d MB\n",
 		mgt->total_alloced_size / SZ_1M,
 		mgt->max_used_mem_size / SZ_1M);
 	tsize += s;
 	pbuf += s;
 
-	s = sprintf(pbuf, "\tCMA:%d,RES:%d,TVP:%d,SYS:%d MB\n",
+	s = snprintf(pbuf, size - tsize,
+		"\tCMA:%d,RES:%d,TVP:%d,SYS:%d MB\n",
 		mgt->alloced_cma_size / SZ_1M,
 		mgt->alloced_res_size / SZ_1M,
 		mgt->tvp_pool.alloced_size / SZ_1M,
@@ -980,7 +1040,7 @@ static int dump_mem_infos(void *buf, int size)
 	pbuf += s;
 
 	if (mgt->res_pool) {
-		s = sprintf(pbuf,
+		s = snprintf(pbuf, size - tsize,
 			"\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED,
 				(int)(gen_pool_size(mgt->res_pool) / SZ_1M),
@@ -990,7 +1050,8 @@ static int dump_mem_infos(void *buf, int size)
 		pbuf += s;
 	}
 
-	s = sprintf(pbuf, "\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
+	s = snprintf(pbuf, size - tsize,
+			"\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
 			AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA,
 			(int)(dma_get_cma_size_int_byte(mgt->dev) / SZ_1M),
 			(int)(mgt->alloced_cma_size / SZ_1M),
@@ -1000,7 +1061,7 @@ static int dump_mem_infos(void *buf, int size)
 	pbuf += s;
 
 	if (mgt->tvp_pool.slot_num > 0) {
-		s = sprintf(pbuf,
+		s = snprintf(pbuf, size - tsize,
 			"\t[%d]TVP size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP,
 				(int)(mgt->tvp_pool.total_size / SZ_1M),
@@ -1011,7 +1072,7 @@ static int dump_mem_infos(void *buf, int size)
 		pbuf += s;
 	}
 	if (mgt->cma_res_pool.slot_num > 0) {
-		s = sprintf(pbuf,
+		s = snprintf(pbuf, size - tsize,
 			"\t[%d]CMA_RES size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES,
 				(int)(mgt->cma_res_pool.total_size / SZ_1M),
@@ -1034,23 +1095,35 @@ static int dump_mem_infos(void *buf, int size)
 		return tsize;
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
-		s = sprintf(pbuf,
-		"\towner:[%d] %s:%s,addr=%p,s=%d,from=%d,cnt=%d\n",
-		mem->mem_id,
-		mem->owner[0] ? mem->owner[0] : "no",
-		mem->owner[1] ? mem->owner[1] : "no",
-		(void *)mem->phy_addr,
-		mem->buffer_size, mem->from_flags,
-		atomic_read(&mem->use_cnt));
+		s = snprintf(pbuf, size - tsize,
+			"\t[%d].%d:%s.%d,addr=%p,size=%d,from=%d,cnt=%d,",
+			mem->mem_id,
+			mem->ins_id,
+			mem->owner[0] ? mem->owner[0] : "no",
+			mem->ins_buffer_id,
+			(void *)mem->phy_addr,
+			mem->buffer_size,
+			mem->from_flags,
+			atomic_read(&mem->use_cnt)
+			);
+		s += snprintf(pbuf + s, size - tsize,
+			"flags=%d,used:%lld ms\n",
+			mem->flags,
+			(get_jiffies_64() - mem->alloced_jiffies) * 100/HZ);
 
+		tsize += s;
 		if (buf) {
 			pbuf += s;
-			if (tsize + s > size - 128)
+			if (tsize > size - 256) {
+				s += snprintf(pbuf + s, size - tsize ,
+					"\n\t\t**NOT END**\n");
+				tsize += s;
 				break;/*no memory for dump now.*/
+			}
 		} else {
 			pr_info("%s", sbuf);
+			tsize = 0;
 		}
-		tsize += s;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
@@ -1504,6 +1577,9 @@ static ssize_t codec_mm_debug_store(struct class *class,
 		break;
 	case 10:
 		codec_mm_keeper_free_all_keep(1);
+		break;
+	case 11:
+		dump_mem_infos(NULL, 0);
 		break;
 	case 20: {
 		int cmd, len;

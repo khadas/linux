@@ -71,6 +71,8 @@ don't not set on others.
 struct codec_mm_s {
 	/*can be shared by many user */
 	const char *owner[8];
+	int ins_id;/*used by with channle?*/
+	int ins_buffer_id;/*canbe for buffer id*/
 	/*virtual buffer of this memory */
 	char *vbuffer;
 	void *mem_handle;	/*used for top level.alloc/free */
@@ -101,6 +103,7 @@ struct codec_mm_s {
 	char *pagemap;
 	int pagemap_size;
 	int alloced_page_num;
+	u64 alloced_jiffies;
 	int mem_id;
 	int next_bit;
 	struct list_head list;
@@ -108,6 +111,14 @@ struct codec_mm_s {
 
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		int align2n, int memflags);
+unsigned long codec_mm_alloc_for_dma_ex(
+		const char *owner,
+		int page_cnt,
+		int align2n,
+		int memflags,
+		int ins_id,
+		int buffer_id);
+
 void codec_mm_release(struct codec_mm_s *mem, const char *owner);
 int codec_mm_request_shared_mem(struct codec_mm_s *mem, const char *owner);
 /*call if not make sure valid data.*/

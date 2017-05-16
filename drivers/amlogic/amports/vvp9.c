@@ -6939,7 +6939,6 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	pdata->irq_handler = vp9_irq_cb;
 	pdata->threaded_irq_handler = vp9_threaded_irq_cb;
 
-	pdata->id = pdev->id;
 
 
 	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);

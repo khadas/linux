@@ -154,49 +154,85 @@ int vfm_map_add(char *id, char *name_chain)
 	int ret = -1;
 	char *ptr, *token;
 	struct vfm_map_s *p;
+	int old_num = vfm_map_num;
+	unsigned long flags;
+	int add_ok = 0;
+
 	p = kmalloc(sizeof(struct vfm_map_s), GFP_KERNEL);
-	if (p) {
-		memset(p, 0, sizeof(struct vfm_map_s));
-		memcpy(p->id, id, strlen(id));
-		p->valid = 1;
-		ptr = name_chain;
-		while (1) {
-			token = strsep(&ptr, "\n ");
-			if (token == NULL)
-				break;
-			if (*token == '\0')
-				continue;
-			memcpy(p->name[p->vfm_map_size], token, strlen(token));
-			p->vfm_map_size++;
-		}
-		for (i = 0; i < vfm_map_num; i++) {
-			if (vfm_map[i] && (vfm_map[i]->vfm_map_size ==
-				p->vfm_map_size) &&
-				(!strcmp(vfm_map[i]->id, p->id))) {
-				for (j = 0; j < p->vfm_map_size; j++) {
-					if (strcmp(vfm_map[i]->name[j],
-						p->name[j])){
-						break;
-					}
-				}
-				if (j == p->vfm_map_size) {
-					vfm_map[i]->valid = 1;
-					kfree(p);
+	if (!p) {
+		pr_err("%s: Error, map no mem!!\n", __func__);
+		return -ENOMEM;
+	}
+	memset(p, 0, sizeof(struct vfm_map_s));
+	memcpy(p->id, id, strlen(id));
+	p->valid = 1;
+	ptr = name_chain;
+	while (1) {
+		token = strsep(&ptr, "\n ");
+		if (token == NULL)
+			break;
+		if (*token == '\0')
+			continue;
+		memcpy(p->name[p->vfm_map_size], token, strlen(token));
+		p->vfm_map_size++;
+	}
+retry:
+	for (i = 0; i < vfm_map_num; i++) {
+		struct vfm_map_s *pi = vfm_map[i];
+		if (!pi || (strcmp(pi->id, p->id))) {
+			/*not same id to next one*/
+			continue;
+		} else if (pi->valid) {
+			for (j = 0; j < p->vfm_map_size; j++) {
+				if (strcmp(pi->name[j],
+					p->name[j])){
 					break;
 				}
 			}
+			if (j == p->vfm_map_size) {
+				pi->valid = 1;
+				kfree(p);
+				add_ok = 1;
+				break;
+			}
+		} else if (!pi->valid) {
+			/*over write old setting.
+			  don't free old one,
+			  because it may on used.
+			*/
+			for (j = 0; j < p->vfm_map_size; j++) {
+				/*over write node.*/
+				strcpy(pi->name[j], p->name[j]);
+			}
+			pi->vfm_map_size = p->vfm_map_size;
+			pi->valid = 1;
+			kfree(p);
+			add_ok = 1;
+			break;
+		}
+	}
+	if (!add_ok) {
+		spin_lock_irqsave(&lock, flags);
+		if (i == old_num && old_num != vfm_map_num) {
+			spin_unlock_irqrestore(&lock, flags);
+			pr_err("%s: vfm_map changed on add, need retry!\n",
+				__func__);
+			goto retry;
 		}
 		if (i == vfm_map_num) {
 			if (i < VFM_MAP_COUNT) {
 				vfm_map[i] = p;
 				vfm_map_num++;
+				add_ok = 1;
 			} else{
 				pr_err("%s: Error, map full\n", __func__);
 				ret = -1;
 			}
 		}
-		ret = 0;
+		spin_unlock_irqrestore(&lock, flags);
 	}
+	if (add_ok)
+		ret = 0;
 	return ret;
 }
 static char *vf_get_provider_name_inmap(int i, const char *receiver_name)
@@ -395,7 +431,9 @@ static ssize_t vfm_map_show(struct class *class,
 	int len = 0;
 	for (i = 0; i < vfm_map_num; i++) {
 		if (vfm_map[i] && vfm_map[i]->valid) {
-			len += sprintf(buf + len, "%s { ", vfm_map[i]->id);
+			len += sprintf(buf + len, "[%02d]  %s { ",
+				i,/*in slot num.*/
+				vfm_map[i]->id);
 			for (j = 0; j < vfm_map[i]->vfm_map_size; j++) {
 				if (j < (vfm_map[i]->vfm_map_size - 1)) {
 					len += sprintf(buf + len, "%s(%d) ",
@@ -687,10 +725,15 @@ static long vfm_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 		break;
 	case VFM_IOCTL_CMD_GET:{
+		/*
+		overflow bug, need fixed.
 		vfm_map_show(NULL, NULL, argp.val);
 		ret = copy_to_user(user_argp->val, argp.val, sizeof(argp.val));
-			if (ret != 0)
-				return -EIO;
+		if (ret != 0)
+			return -EIO;
+		}
+		*/
+		return -EIO;
 		}
 		break;
 	case VFM_IOCTL_CMD_ADD:{
