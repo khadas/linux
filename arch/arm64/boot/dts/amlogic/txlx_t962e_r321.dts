@@ -733,7 +733,7 @@
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		interrupts = <0 57 1>;
 		interrupt-names = "hdmitx_hpd";
-		gpio_i2c_en = <0x1>;
+		gpio_i2c_en = <0>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
