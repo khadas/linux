@@ -183,6 +183,7 @@ static u32 first_i_frame_ready;
 
 static struct work_struct userdata_push_work;
 static struct work_struct notify_work;
+static struct work_struct reset_work;
 
 static inline int pool_index(struct vframe_s *vf)
 {
@@ -708,6 +709,21 @@ static void vmpeg12_ppmgr_reset(void)
 }
 #endif
 
+static void reset_do_work(struct work_struct *work)
+{
+	amvdec_stop();
+
+#ifdef CONFIG_POST_PROCESS_MANAGER
+	vmpeg12_ppmgr_reset();
+#else
+	vf_light_unreg_provider(&vmpeg_vf_prov);
+	vmpeg12_local_init();
+	vf_reg_provider(&vmpeg_vf_prov);
+#endif
+	vmpeg12_prot_init();
+	amvdec_start();
+}
+
 static void vmpeg_put_timer_func(unsigned long arg)
 {
 	struct timer_list *timer = (struct timer_list *)arg;
@@ -740,18 +756,7 @@ static void vmpeg_put_timer_func(unsigned long arg)
 
 	if (fatal_reset && (kfifo_is_empty(&display_q))) {
 		pr_info("$$$$decoder is waiting for buffer or fatal reset.\n");
-
-		amvdec_stop();
-
-#ifdef CONFIG_POST_PROCESS_MANAGER
-		vmpeg12_ppmgr_reset();
-#else
-		vf_light_unreg_provider(&vmpeg_vf_prov);
-		vmpeg12_local_init();
-		vf_reg_provider(&vmpeg_vf_prov);
-#endif
-		vmpeg12_prot_init();
-		amvdec_start();
+		schedule_work(&reset_work);
 	}
 
 	while (!kfifo_is_empty(&recycle_q) && (READ_VREG(MREG_BUFFERIN) == 0)) {
@@ -1130,6 +1135,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&userdata_push_work, userdata_push_do_work);
 	INIT_WORK(&notify_work, vmpeg12_notify__work);
+	INIT_WORK(&reset_work, reset_do_work);
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe end.\n");
 
@@ -1140,6 +1146,7 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 {
 	cancel_work_sync(&userdata_push_work);
 	cancel_work_sync(&notify_work);
+	cancel_work_sync(&reset_work);
 
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
