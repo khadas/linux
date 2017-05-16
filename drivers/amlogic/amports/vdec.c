@@ -1359,6 +1359,13 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		vf_notify_receiver(p->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_START,
 			vdec);
+
+		if (vdec_stream_based(p) ||
+			(p->frame_base_video_path ==
+			FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
+			vf_notify_receiver(p->vf_provider_name,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)((unsigned long)p->sys_info->rate));
 	}
 
 	pr_info("vdec_init, vf_provider_name = %s\n", p->vf_provider_name);
@@ -1380,8 +1387,17 @@ void vdec_release(struct vdec_s *vdec)
 
 	vdec_disconnect(vdec);
 
-	if (vdec->vframe_provider.name)
+	if (vdec->vframe_provider.name) {
+		if (!vdec_single(vdec)) {
+			if (vdec_stream_based(vdec) ||
+				(vdec->frame_base_video_path ==
+				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
+				vf_notify_receiver(vdec->vf_provider_name,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
+		}
 		vf_unreg_provider(&vdec->vframe_provider);
+	}
 
 	if (vdec_core->vfm_vdec == vdec)
 		vdec_core->vfm_vdec = NULL;
