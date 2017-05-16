@@ -2614,6 +2614,23 @@ static void config_canvas(struct di_buf_s *di_buf)
 
 #endif
 #ifdef CONFIG_CMA
+unsigned int di_cma_alloc_total(void)
+{
+	de_devp->pages[0] =
+		dma_alloc_from_contiguous(&(de_devp->pdev->dev),
+		de_devp->mem_size >> PAGE_SHIFT, 0);
+	if (de_devp->pages[0]) {
+		de_devp->mem_start =
+			page_to_phys(de_devp->pages[0]);
+		pr_dbg("%s:DI CMA allocate addr:0x%x ok.\n",
+			__func__, (unsigned int)de_devp->mem_start);
+		return 1;
+	} else {
+		pr_info("%s:DI CMA allocate fail.\n", __func__);
+		return 0;
+	}
+
+}
 unsigned int di_cma_alloc(void)
 {
 	unsigned int i, start_time, end_time, delta_time;
@@ -9648,13 +9665,16 @@ static int di_probe(struct platform_device *pdev)
 		pr_err("DI-%s: get flag_cma error.\n", __func__);
 	else
 		pr_info("DI-%s: flag_cma: %d\n", __func__, di_devp->flag_cma);
-	if (di_devp->flag_cma == 1) {
+	if (di_devp->flag_cma >= 1) {
 #ifdef CONFIG_CMA
 		di_devp->pdev = pdev;
 		di_devp->mem_size = dma_get_cma_size_int_byte(&pdev->dev);
 		pr_info("DI: CMA size 0x%x.\n", di_devp->mem_size);
+		if (di_devp->flag_cma == 2)
+			mem_flag = di_cma_alloc_total();
+		else
 #endif
-		mem_flag = 0;
+			mem_flag = 0;
 	} else {
 		mem_flag = 1;
 	}

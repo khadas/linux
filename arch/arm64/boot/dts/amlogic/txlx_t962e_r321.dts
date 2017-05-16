@@ -354,7 +354,7 @@
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";
-		flag_cma = <1>;/*0:use reserved;1:use cma*/
+		flag_cma = <1>;/*0:use reserved;1:use cma;2:use cma as reserved*/
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
