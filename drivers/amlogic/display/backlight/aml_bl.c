@@ -61,6 +61,10 @@ static unsigned int bl_off_policy;
 module_param(bl_off_policy, uint, 0664);
 MODULE_PARM_DESC(bl_off_policy, "bl_off_policy");
 
+static unsigned int bl_level;
+module_param(bl_level, uint, 0664);
+MODULE_PARM_DESC(bl_level, "bl_level");
+
 static unsigned int bl_level_uboot;
 static unsigned int brightness_bypass;
 module_param(brightness_bypass, uint, 0664);
@@ -1604,16 +1608,22 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 	}
 	strcpy(bconf->name, str);
 
-	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel",
-		&bl_para[0], 2);
-	if (ret) {
-		BLERR("failed to get bl_level_default_uboot_kernel\n");
-		bl_level_uboot = BL_LEVEL_DEFAULT;
-		bconf->level_default = BL_LEVEL_DEFAULT;
+	if (bl_level) {
+		bl_level_uboot = bl_level;
+		bconf->level_default = bl_level;
 	} else {
-		bl_level_uboot = bl_para[0];
-		bconf->level_default = bl_para[1];
+		ret = of_property_read_u32_array(child,
+			"bl_level_default_uboot_kernel", &bl_para[0], 2);
+		if (ret) {
+			BLERR("failed to get bl_level_default_uboot_kernel\n");
+			bl_level_uboot = BL_LEVEL_DEFAULT;
+			bconf->level_default = BL_LEVEL_DEFAULT;
+		} else {
+			bl_level_uboot = bl_para[0];
+			bconf->level_default = bl_para[1];
+			}
 	}
+
 	ret = of_property_read_u32_array(child, "bl_level_attr",
 		&bl_para[0], 4);
 	if (ret) {
@@ -1944,7 +1954,10 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	p += LCD_UKEY_BL_NAME;
 
 	/* level: 6byte */
-	bl_level_uboot = (*p | ((*(p + 1)) << 8));
+	if (bl_level)
+		bl_level_uboot = bl_level;
+	else
+		bl_level_uboot = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_UBOOT;
 	bconf->level_default = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_KERNEL;  /* dummy pointer */
@@ -3281,6 +3294,20 @@ static int __init aml_bl_boot_para_setup(char *s)
 	return 0;
 }
 __setup("bl_off=", aml_bl_boot_para_setup);
+
+static int __init aml_bl_level_setup(char *str)
+{
+	int ret = 0;
+
+	if (str != NULL)
+		ret = kstrtouint(str, 10, &bl_level);
+
+	BLPR("bl_level: %d\n", bl_level);
+
+	return ret;
+}
+__setup("bl_level=", aml_bl_level_setup);
+
 
 MODULE_DESCRIPTION("AML Backlight Driver");
 MODULE_LICENSE("GPL");
