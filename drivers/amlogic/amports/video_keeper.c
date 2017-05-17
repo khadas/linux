@@ -760,13 +760,6 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
 
-#ifdef CONFIG_MULTI_DEC
-	if (codec_mm_video_tvp_enabled()) {
-		pr_info("keep exit is TVP\n");
-		return 0;
-	}
-#endif
-
 	if (!cur_dispbuf) {
 		pr_info("keep exit without cur_dispbuf\n");
 		return 0;
@@ -827,6 +820,14 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 			}
 		}
 	}
+
+#ifdef CONFIG_MULTI_DEC
+	if (codec_mm_video_tvp_enabled()) {
+		pr_info("keep exit is TVP\n");
+		return 0;
+	}
+#endif
+
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(cur_dispbuf->type & VIDTYPE_COMPRESS)) {
 		/* todo: duplicate compressed video frame */
