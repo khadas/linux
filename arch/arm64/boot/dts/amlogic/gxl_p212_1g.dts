@@ -514,6 +514,7 @@
 				"MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
 				f_min = <400000>;
 				f_max = <200000000>;
+				vol_switch_delay = <10>;
 				max_req_size = <0x20000>;          /**128KB*/
 				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
 		};
