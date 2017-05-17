@@ -219,15 +219,18 @@ static void usb_power_control(int is_power, int shift)
 {
 	mutex_lock(&wifi_bt_mutex);
 	if (is_power) {
-		if (!usb_power)
+		if (!usb_power) {
 			set_wifi_power(is_power);
+			WIFI_INFO("Set %s power on !\n", (shift ? "WiFi":"BT"));
+			sdio_reinit();
+		}
 		usb_power |= (1 << shift);
-		WIFI_INFO("Set %s power on !\n", (shift ? "WiFi":"BT"));
 	} else {
 		usb_power &= ~(1 << shift);
-		if (!usb_power)
+		if (!usb_power) {
 			set_wifi_power(is_power);
-		WIFI_INFO("Set %s power down !\n", (shift ? "WiFi":"BT"));
+			WIFI_INFO("Set %s power down\n", (shift ? "WiFi":"BT"));
+		}
 	}
 	mutex_unlock(&wifi_bt_mutex);
 }
@@ -264,21 +267,22 @@ static long wifi_power_ioctl(struct file *filp,
 		set_usb_wifi_power(0);
 		mdelay(200);
 		set_usb_wifi_power(1);
+		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power up!\n");
 		break;
 	case USB_POWER_DOWN:
 		set_usb_wifi_power(0);
-		WIFI_INFO(KERN_INFO "Set usb_sdio wifi power down!\n");
+		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power down!\n");
 		break;
 	case SDIO_POWER_UP:
 		set_usb_wifi_power(0);
 		mdelay(200);
 		set_usb_wifi_power(1);
 		mdelay(200);
-		sdio_reinit();
-		WIFI_INFO("Set sdio wifi power up!\n");
+		WIFI_INFO("ioctl Set sdio wifi power up!\n");
 		break;
 	case SDIO_POWER_DOWN:
 		set_usb_wifi_power(0);
+		WIFI_INFO("ioctl Set sdio wifi power down!\n");
 		break;
 	case SDIO_GET_DEV_TYPE:
 		memcpy(dev_type, get_wifi_inf(), strlen(get_wifi_inf()));
@@ -860,7 +864,6 @@ void extern_wifi_set_enable(int is_on)
 	} else {
 		set_wifi_power(0);
 		WIFI_INFO("WIFI  Disable! %d\n", wifi_info.power_on_pin);
-
 	}
 }
 EXPORT_SYMBOL(extern_wifi_set_enable);
