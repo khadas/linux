@@ -186,6 +186,7 @@
 		dev_name = "pwmled";
 		status = "okay";
 		pwms = <&pwm PWM_AO_A 5555555>;/*180HZ */
+		pwm-double-ch = <PWM_AO_A2>;
 		polarity = <0>; /* 0-normal 1-inversed */
 		max_brightness = <255>;
 		pinctrl-names = "pwm_ao_a_pins";

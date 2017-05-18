@@ -43,7 +43,6 @@
 #define DEFAULT_PWM_PERIOD	100000;
 #define LED_ON  1
 #define LED_OFF 0
-#define PWM_NUM 8
 
 static unsigned int ledmode;
 static struct timer_list timer;
@@ -127,6 +126,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 	struct aml_pwmled_dev *ldev;
 	struct pinctrl *p;
 	int ret;
+	int pwm_ch;
 
 	ldev = platform_get_drvdata(pdev);
 	node = pdev->dev.of_node;
@@ -154,8 +154,15 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = of_property_read_u32(node, "pwm-double-ch", &pwm_ch);
+	if (ret < 0) {
+		pr_err("pwm-double-ch\n");
+		return -1;
+	}
+	pr_info("get pwm-double-ch %u\n", pwm_ch);
+
 	/*request ao a2*/
-	ldev->pwmd2 = pwm_request(ldev->pwmd->hwpwm + PWM_NUM, NULL);
+	ldev->pwmd2 = pwm_request(pwm_ch, NULL);
 	if (IS_ERR(ldev->pwmd2)) {
 		pr_err("request pwm A2 failed\n");
 		ret = PTR_ERR(ldev->pwmd);
@@ -167,7 +174,6 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 	/* Get the period from PWM core when n*/
 	ldev->period = pwm_get_period(ldev->pwmd);
 
-	ldev->pwmd2->hwpwm = ldev->pwmd->hwpwm + PWM_NUM;
 	ret = of_property_read_u32(node, "polarity", &ldev->polarity);
 	if (ret < 0) {
 		pr_err("failed to get polarity\n");
@@ -356,8 +362,7 @@ static int pwmled_blink_times(struct platform_device *pdev, int times)
 
 	/*get 2 channel num*/
 	ch1_num = ldev->pwmd->hwpwm;
-	ch2_num = ch1_num + 8;
-	ldev->pwmd2->hwpwm = ch1_num + 8;
+	ch2_num = ldev->pwmd2->hwpwm;
 	/*get period and duty*/
 	period = ldev->period;
 	/*duty setting is related to polarity and active level,

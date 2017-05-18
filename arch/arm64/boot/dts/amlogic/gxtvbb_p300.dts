@@ -854,7 +854,8 @@
 		compatible = "amlogic, pwmled";
 		dev_name = "pwmled";
 		status = "disable";
-		pwm = <6>; /* pwm_ao_a */
+		pwms = <&pwm PWM_AO_A 5555555>;/*180HZ */
+		pwm-double-ch = <PWM_AO_A2>;
 		polarity = <1>; /* 0-normal 1-inversed */
 		max_brightness = <255>;
 		pinctrl-names = "pwm_ao_a_pins";
