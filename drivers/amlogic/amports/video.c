@@ -4070,6 +4070,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 #endif
 
+	/* check video frame before VECM process */
+	if (is_dolby_vision_enable() && vf)
+		dolby_vision_check_hdr10(vf);
+
 #if defined(CONFIG_AM_VECM)
 	amvecm_on_vs(vf);
 #endif
