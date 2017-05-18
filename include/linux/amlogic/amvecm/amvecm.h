@@ -203,6 +203,7 @@ extern bool is_dolby_vision_stb_mode(void);
 extern void tv_dolby_vision_crc_clear(int flag);
 extern char *tv_dolby_vision_get_crc(u32 *len);
 extern void tv_dolby_vision_insert_crc(u32 crc);
+int dolby_vision_check_hdr10(struct vframe_s *vf);
 
 #endif /* AMVECM_H */
 
