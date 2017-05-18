@@ -1296,6 +1296,8 @@ void hdmirx_hw_probe(void)
 	clk_init();
 	if (is_meson_gxtvbb_cpu())
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
+	else
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
 	hdmi_rx_ctrl_edid_update();
 	if (phy_init_in_probe)
 		hdmirx_phy_init(0, 0);

@@ -173,7 +173,7 @@ module_param(diff_line_th, int, 0664);
 MODULE_PARM_DESC(diff_frame_th, "\n diff_frame_th\n");
 module_param(diff_frame_th, int, 0664);
 
-static int port_map = 0x3210;
+static int port_map = 0x4231;
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);
 
@@ -2181,7 +2181,7 @@ void rx_5v_det(void)
 	}
 	check_cnt = 0;
 	pwr_sts = tmp_5v;
-	update_hpd_sts(pwr_sts);
+	/*update_hpd_sts(pwr_sts);*/
 	rx_pr("hotplg-%x\n", pwr_sts);
 	hdmirx_wait_query();
 }
@@ -3674,7 +3674,7 @@ int hdmi_rx_ctrl_edid_update(void)
 	} else
 		hdmi_rx_load_edid_data(edid_temp, port_map);
 
-	rx_pr("edid update\n");
+	rx_pr("edid update port map:%#x\n", port_map);
 	return true;
 }
 
