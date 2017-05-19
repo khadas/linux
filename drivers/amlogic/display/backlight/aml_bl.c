@@ -1654,20 +1654,15 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 	}
 	strcpy(bconf->name, str);
 
-	if (bl_level) {
-		bl_level_uboot = bl_level;
-		bconf->level_default = bl_level;
+	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel",
+		&bl_para[0], 2);
+	if (ret) {
+		BLERR("failed to get bl_level_default_uboot_kernel\n");
+		bl_level_uboot = BL_LEVEL_DEFAULT;
+		bconf->level_default = BL_LEVEL_DEFAULT;
 	} else {
-		ret = of_property_read_u32_array(child,
-			"bl_level_default_uboot_kernel", &bl_para[0], 2);
-		if (ret) {
-			BLERR("failed to get bl_level_default_uboot_kernel\n");
-			bl_level_uboot = BL_LEVEL_DEFAULT;
-			bconf->level_default = BL_LEVEL_DEFAULT;
-		} else {
-			bl_level_uboot = bl_para[0];
-			bconf->level_default = bl_para[1];
-			}
+		bl_level_uboot = bl_para[0];
+		bconf->level_default = bl_para[1];
 	}
 
 	ret = of_property_read_u32_array(child, "bl_level_attr",
@@ -2031,10 +2026,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	p += LCD_UKEY_BL_NAME;
 
 	/* level: 6byte */
-	if (bl_level)
-		bl_level_uboot = bl_level;
-	else
-		bl_level_uboot = (*p | ((*(p + 1)) << 8));
+	bl_level_uboot = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_UBOOT;
 	bconf->level_default = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_KERNEL;
@@ -2319,6 +2311,10 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 		bl_config_load = 0;
 		ret = aml_bl_config_load_from_dts(bconf, pdev);
 #endif
+	}
+	if (bl_level) {
+		bl_level_uboot = bl_level;
+		bconf->level_default = bl_level;
 	}
 	aml_bl_config_print(bconf);
 
