@@ -1114,7 +1114,6 @@ static void lcd_vmode_init(struct lcd_config_s *pconf)
 		vmode = VMODE_LCD;
 	}
 	lcd_vmode_vinfo_update(vmode & VMODE_MODE_BIT_MASK);
-	lcd_tv_config_update(pconf);
 }
 
 static void lcd_config_init(struct lcd_config_s *pconf)
@@ -1132,6 +1131,7 @@ static void lcd_config_init(struct lcd_config_s *pconf)
 
 	lcd_vmode_init(pconf);
 
+	lcd_tv_config_update(pconf);
 	lcd_clk_generate_parameter(pconf);
 	ss_level = pconf->lcd_timing.ss_level;
 	cconf->ss_level = (ss_level >= cconf->ss_level_max) ? 0 : ss_level;
