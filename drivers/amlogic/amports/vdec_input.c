@@ -338,8 +338,8 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 			 */
 			if (vdec_input_level(input) >
 				VFRAME_BLOCK_MAX_LEVEL) {
-				pr_info("vdec_input %p reaching max size\n",
-					input);
+				/*pr_info("vdec_input %p reaching max size\n",
+					input);*/
 				return -EAGAIN;
 			}
 		}
