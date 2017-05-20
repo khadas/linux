@@ -1979,6 +1979,7 @@ static int parse_sei_and_meta(
 	int parser_ready = 0;
 	int ret = 2;
 	unsigned long flags;
+	bool parser_overflow = false;
 
 	if ((req->aux_buf == NULL)
 	|| (req->aux_size == 0))
@@ -2058,11 +2059,24 @@ static int parse_sei_and_meta(
 					size, vf->pts_us64);
 				ret = 2;
 			} else {
-				*total_comp_size += comp_size;
-				*total_md_size += md_size;
+				if (*total_comp_size + comp_size
+					< sizeof(comp_buf))
+					*total_comp_size += comp_size;
+				else
+					parser_overflow = true;
+
+				if (*total_md_size + md_size
+					< sizeof(md_buf))
+					*total_md_size += md_size;
+				else
+					parser_overflow = true;
 				ret = 0;
 			}
 			spin_unlock_irqrestore(&dovi_lock, flags);
+			if (parser_overflow) {
+				ret = 2;
+				break;
+			}
 		}
 		p += size;
 	}
@@ -2958,7 +2972,9 @@ int dolby_vision_process(struct vframe_s *vf)
 
 	if ((dolby_vision_flags & FLAG_CERTIFICAION)
 		&& (setting_update_count > crc_count)
-		&& is_dolby_vision_on()) {
+		&& is_dolby_vision_on()
+		&& (tv_dovi_setting.input_mode !=
+		INPUT_MODE_HDMI)) {
 		s32 delay_count =
 			(dolby_vision_flags >>
 			FLAG_FRAME_DELAY_SHIFT)
@@ -2969,9 +2985,7 @@ int dolby_vision_process(struct vframe_s *vf)
 			delay_count = 0;
 		crc_read_delay++;
 		if (crc_read_delay > delay_count) {
-			u32 crc = READ_VPP_REG(0x33ef);
-			tv_dolby_vision_insert_crc(crc);
-			crc_count++;
+			tv_dolby_vision_insert_crc(false);
 			crc_read_delay = 0;
 		}
 	}
@@ -7042,10 +7056,11 @@ char *tv_dolby_vision_get_crc(u32 *len)
 	return crc_output_buf;
 }
 
-void tv_dolby_vision_insert_crc(u32 crc)
+void tv_dolby_vision_insert_crc(bool print)
 {
 	char str[64];
 	int len;
+	u32 crc = READ_VPP_REG(0x33ef);
 	if (!crc_output_buf)
 		return;
 	memset(str, 0, sizeof(str));
@@ -7057,6 +7072,9 @@ void tv_dolby_vision_insert_crc(u32 crc)
 		&crc_output_buf[crc_outpuf_buff_off],
 		&str[0], len);
 	crc_outpuf_buff_off += len;
+	if (print)
+		pr_info("%s\n", str);
+	crc_count++;
 	return;
 }
 

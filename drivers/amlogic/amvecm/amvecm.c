@@ -2917,6 +2917,8 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtx vd1_12 rgb2yuv > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo vpp_mtx vd1_12 yuv2rgb > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
+	"echo dolby_config 0/1/2.. > /sys/class/amvecm/debug; dolby dma table config\n"
+	"echo dolby_crc 0/1 > /sys/class/amvecm/debug; dolby_crc insert or clr\n"
 	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
@@ -3121,7 +3123,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	} else if (!strcmp(parm[0], "dolby_crc")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		tv_dolby_vision_crc_clear(val);
+		if (val == 1)
+			tv_dolby_vision_crc_clear(val);
+		else
+			tv_dolby_vision_insert_crc(true);
 	} else if (!strcmp(parm[0], "clip_config")) {
 		unsigned int mode_sel, color, color_mode;
 		if (parm[1]) {
