@@ -96,6 +96,11 @@ static int aud_n_cts_update_del = 7;
 module_param(aud_n_cts_update_del, int, 0664);
 MODULE_PARM_DESC(aud_n_cts_update_del, "aud_n_cts_update_del");
 
+/* Controls equalizer reference voltage. */
+static int sup_rx_lvl = 0x1ea;
+module_param(sup_rx_lvl, int, 0664);
+MODULE_PARM_DESC(sup_rx_lvl, "sup_rx_lvl");
+
 #ifdef HDCP22_ENABLE
 int hdcp22_on;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
@@ -1238,6 +1243,8 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		rx.phy.phy_cmu_config_force_val :
 		((rx.phy.lock_thres << 10) | (1 << 9) |
 			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
+
+	hdmirx_wr_phy(PHY_VOLTAGE_LEVEL, sup_rx_lvl);
 
 	#if 0
 	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, eq_setting[EQ_CH0]);
