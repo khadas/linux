@@ -145,8 +145,8 @@ static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
 
 static const u32 frame_rate_tab[16] = {
-	96000 / 30, 96000 / 24, 96000 / 24, 96000 / 25,
-	96000 / 30, 96000 / 30, 96000 / 50, 96000 / 60,
+	96000 / 30, 96000000 / 23976, 96000 / 24, 96000 / 25,
+	9600000 / 2997, 96000 / 30, 96000 / 50, 9600000 / 5994,
 	96000 / 60,
 	/* > 8 reserved, use 24 */
 	96000 / 24, 96000 / 24, 96000 / 24, 96000 / 24,
@@ -182,6 +182,7 @@ static s32 wait_buffer_counter;
 static u32 first_i_frame_ready;
 
 static struct work_struct userdata_push_work;
+static struct work_struct notify_work;
 
 static inline int pool_index(struct vframe_s *vf)
 {
@@ -233,8 +234,9 @@ static void set_frame_info(struct vframe_s *vf)
 	if (frame_dur > 0)
 		vf->duration = frame_dur;
 	else {
-		vf->duration = frame_dur =
-			frame_rate_tab[(READ_VREG(MREG_SEQ_INFO) >> 4) & 0xf];
+		int index = (READ_VREG(MREG_SEQ_INFO) >> 4) & 0xf;
+		vf->duration = frame_dur = frame_rate_tab[index];
+		schedule_work(&notify_work);
 	}
 
 	gvs->frame_dur = vf->duration;
@@ -305,6 +307,14 @@ static void userdata_push_do_work(struct work_struct *work)
 	WRITE_VREG(MREG_BUFFEROUT, 0);
 }
 
+static void vmpeg12_notify__work(struct work_struct *work)
+{
+	pr_info("frame duration changed %d\n", frame_dur);
+	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
+		(void *)((unsigned long)frame_dur));
+
+	return;
+}
 static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 {
 	u32 reg, info, seqinfo, offset, pts, pts_valid = 0;
@@ -1071,10 +1081,10 @@ static s32 vmpeg12_init(void)
 					 NULL);
 	vf_reg_provider(&vmpeg_vf_prov);
 #endif
-
+	/*
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
 		(void *)((unsigned long)vmpeg12_amstream_dec_info.rate));
-
+	*/
 	stat |= STAT_VF_HOOK;
 
 	recycle_timer.data = (ulong)&recycle_timer;
@@ -1119,6 +1129,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	INIT_WORK(&userdata_push_work, userdata_push_do_work);
+	INIT_WORK(&notify_work, vmpeg12_notify__work);
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe end.\n");
 
@@ -1128,6 +1139,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 static int amvdec_mpeg12_remove(struct platform_device *pdev)
 {
 	cancel_work_sync(&userdata_push_work);
+	cancel_work_sync(&notify_work);
 
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
