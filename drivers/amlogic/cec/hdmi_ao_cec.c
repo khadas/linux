@@ -988,7 +988,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	    last_cec_msg->last_result == CEC_FAIL_NACK &&
 	    jiffies - last_cec_msg->last_jiffies < t) {
 		if (!memcmp(msg, last_cec_msg->msg, len)) {
-			CEC_ERR("NACK repeat message:%x\n", len);
+			CEC_INFO("NACK repeat message:%x\n", len);
 			return CEC_FAIL_NACK;
 		}
 	}
