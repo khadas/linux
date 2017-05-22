@@ -6478,12 +6478,12 @@ static void process_vscale_skip(struct di_buf_s *di_buf, vframe_t *disp_vf)
 		     (di_vscale_skip_enable & 0x5))
 		    || (di_vscale_skip_enable >> 16) ||
 		    (bypass_dynamic_flag & 0x2)) {
-			if ((di_vscale_skip_enable & 0x4) && !vpp_3d_mode) {
+			if ((di_vscale_skip_enable & 0x8) || vpp_3d_mode) {
+				vscale_skip_disable_post(di_buf, disp_vf);
+			} else {
 				if (di_buf->di_buf_dup_p[1] &&
 				    di_buf->pulldown_mode != PULL_DOWN_BUF1)
 					di_buf->pulldown_mode = PULL_DOWN_EI;
-			} else {
-				vscale_skip_disable_post(di_buf, disp_vf);
 			}
 		}
 	}
@@ -8652,7 +8652,7 @@ static void di_process(void)
 #endif
 	}
 }
-static unsigned int nr_done_check_cnt = 5;
+static unsigned int nr_done_check_cnt = 10;
 module_param_named(nr_done_check_cnt, nr_done_check_cnt, uint, 0644);
 static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 {
@@ -9538,7 +9538,9 @@ static void set_di_flag(void)
 		pulldown_mode = 1;
 		pulldown_enable = 1;
 		di_pre_rdma_enable = false;
-		di_vscale_skip_enable = 4;
+		/* txlx atsc 1080i ei only will cause flicker
+		when full to small win in home screen */
+		di_vscale_skip_enable = is_meson_txlx_cpu()?12:4;
 		use_2_interlace_buff = 1;
 		pre_hold_line = 12;
 		if (nr10bit_surpport)
