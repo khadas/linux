@@ -336,6 +336,10 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 	 *  the last 14 bit and reg Spdif_fs_clk_rltn(0x2801)
 	 */
 	spdifin_reg_set();
+
+	if (audio_in_source == 3)
+		src = SPDIF_IN;
+
 	/*3 byte mode, (23:0)*/
 	if (src == PAO_IN) {
 		aml_audin_write(AUDIN_FIFO1_CTRL1, 0x08);
