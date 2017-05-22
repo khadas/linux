@@ -1329,10 +1329,9 @@
 	};
 	audio_spdif_pins:audio_pin1{
 		amlogic,setmask=<3 0x40000000
-						10 0x00800000>; /*spdif_out*/
-		amlogic,clrmask=<9 0x09100000
-						2 0x80000000>;
-		amlogic,pins = "GPIOZ_17", "GPIOZ_18"; /*spdif_out*/
+						10 0x00800000>;
+		amlogic,clrmask=<3 0x20a00004>;
+		amlogic,pins = "GPIOZ_17", "GPIOZ_18"; /*spdif_out,spdif_in*/
 	};
 	audio_btpcm_pins:audio_btpcm_pins{
 		/* BT PCM PINMUX SETTING*/

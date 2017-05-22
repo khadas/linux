@@ -130,16 +130,16 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.enumerated.item[0] == 0) {
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			/* select internal codec ADC in TXL as I2S source */
-			aml_audin_write(AUDIN_SOURCE_SEL, 3);
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 3);
 		} else
 			/* select external codec ADC as I2S source */
-			aml_audin_write(AUDIN_SOURCE_SEL, 0);
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 0);
 		audio_in_source = 0;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
-		aml_audin_write(AUDIN_SOURCE_SEL, 1);
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 1);
 		audio_in_source = 1;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
@@ -159,6 +159,9 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 			DRC0_enable(0);
 	}  else if (ucontrol->value.enumerated.item[0] == 3) {
 		audio_in_source = 3;
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 4, 0);
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
+			DRC0_enable(0);
 	}
 
 	set_i2s_source(audio_in_source);
