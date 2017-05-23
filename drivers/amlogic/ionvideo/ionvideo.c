@@ -17,11 +17,14 @@
 
 #include <linux/amlogic/vout/vout_notify.h>
 #include "ionvideo.h"
+#include <linux/amlogic/major.h>
+#include <linux/platform_device.h>
 
 #define IONVIDEO_MODULE_NAME "ionvideo"
 
 #define IONVIDEO_VERSION "1.0"
 #define RECEIVER_NAME "ionvideo"
+#define IONVIDEO_DEVICE_NAME   "ionvideo"
 
 #define V4L2_CID_USER_AMLOGIC_IONVIDEO_BASE  (V4L2_CID_USER_BASE + 0x1100)
 
@@ -1003,7 +1006,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 /* ------------------------------------------------------------------
  File operations for the device
  ------------------------------------------------------------------*/
-static const struct v4l2_file_operations ionvideo_fops = {
+static const struct v4l2_file_operations ionvideo_v4l2_fops = {
 	.owner = THIS_MODULE, .open = vidioc_open, .release = vidioc_release,
 	.read = vb2_fop_read, .poll = vb2_fop_poll, .unlocked_ioctl =
 		video_ioctl2, /* V4L2 ioctl handler */
@@ -1033,14 +1036,14 @@ static const struct v4l2_ioctl_ops ionvideo_ioctl_ops = {
 	.vidioc_s_ctrl = vidioc_s_ctrl,};
 
 static const struct video_device ionvideo_template = {
-	.name = "ionvideo", .fops = &ionvideo_fops, .ioctl_ops =
+	.name = "ionvideo", .fops = &ionvideo_v4l2_fops, .ioctl_ops =
 		&ionvideo_ioctl_ops, .release = video_device_release_empty, };
 
 /* -----------------------------------------------------------------
  Initialization and module stuff
  ------------------------------------------------------------------*/
 /* struct vb2_dc_conf * ionvideo_dma_ctx = NULL; */
-static int ionvideo_release(void)
+static int ionvideo_v4l2_release(void)
 {
 	struct ionvideo_dev *dev;
 	struct list_head *list;
@@ -1228,9 +1231,7 @@ int ionvideo_assign_map(char **receiver_name, int *inst)
 	list_for_each(p, &ionvideo_devlist) {
 		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
 
-		if ((dev->inst == *inst) && (!dev->mapped)) {
-			dev->mapped = true;
-			*inst = dev->inst;
+		if (dev->inst == *inst) {
 			*receiver_name = dev->vf_receiver_name;
 			ionvideo_devlist_unlock(flags);
 			return 0;
@@ -1242,7 +1243,7 @@ int ionvideo_assign_map(char **receiver_name, int *inst)
 	return -ENODEV;
 }
 
-int ionvideo_alloc_map(char **receiver_name, int *inst)
+int ionvideo_alloc_map(int *inst)
 {
 	unsigned long flags;
 	struct ionvideo_dev *dev = NULL;
@@ -1256,7 +1257,6 @@ int ionvideo_alloc_map(char **receiver_name, int *inst)
 		if ((dev->inst >= 0) && (!dev->mapped)) {
 			dev->mapped = true;
 			*inst = dev->inst;
-			*receiver_name = dev->vf_receiver_name;
 			ionvideo_devlist_unlock(flags);
 			return 0;
 		}
@@ -1367,6 +1367,70 @@ __ATTR_NULL };
 static struct class ionvideo_class = {.name = "ionvideo", .class_attrs =
 ion_video_class_attrs, };
 
+static int ionvideo_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int ionvideo_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static long ionvideo_ioctl(struct file *file,
+			    unsigned int cmd,
+			    ulong arg)
+{
+	long ret = 0;
+	void __user *argp = (void __user *)arg;
+	switch (cmd) {
+	case IONVIDEO_IOCTL_ALLOC_ID:{
+			u32 ionvideo_id = 0;
+			ret = ionvideo_alloc_map(&ionvideo_id);
+			if (ret != 0)
+				break;
+			put_user(ionvideo_id, (u32 __user *)argp);
+		}
+		break;
+	case IONVIDEO_IOCTL_FREE_ID:{
+			u32 ionvideo_id;
+			get_user(ionvideo_id, (u32 __user *)argp);
+			ionvideo_release_map(ionvideo_id);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long ionvideo_compat_ioctl(struct file *file,
+				unsigned int cmd,
+				ulong arg)
+{
+	long ret = 0;
+	ret = ionvideo_ioctl(file, cmd, (ulong)compat_ptr(arg));
+	return ret;
+}
+#endif
+static const struct file_operations ionvideo_fops = {
+	.owner = THIS_MODULE,
+	.open = ionvideo_open,
+	.release = ionvideo_release,
+	.unlocked_ioctl = ionvideo_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ionvideo_compat_ioctl,
+#endif
+	.poll = NULL,
+};
+
+static const struct of_device_id amlogic_ionvideo_dt_match[] = {
+	{	.compatible = "amlogic, ionvideo",
+	},
+	{},
+};
+
 /* This routine allocates from 1 to n_devs virtual drivers.
 
  The real maximum number of virtual drivers will depend on how many drivers
@@ -1375,10 +1439,28 @@ ion_video_class_attrs, };
  */
 static int __init ionvideo_init(void)
 {
-	int ret = 0, i;
+	int ret = -1, i;
+	struct device *devp;
 	ret = class_register(&ionvideo_class);
 	if (ret < 0)
 		return ret;
+	ret = register_chrdev(IONVIDEO_MAJOR, "ionvideo", &ionvideo_fops);
+	if (ret < 0) {
+		pr_err("Can't allocate major for ionvideo device\n");
+		goto error1;
+	}
+
+	devp = device_create(&ionvideo_class,
+				NULL,
+				MKDEV(IONVIDEO_MAJOR, 0),
+				NULL,
+				IONVIDEO_DEVICE_NAME);
+	if (IS_ERR(devp)) {
+		pr_err("failed to create ionvideo device node\n");
+		ret = PTR_ERR(devp);
+		return ret;
+	}
+
 	if (n_devs <= 0)
 		n_devs = 1;
 
@@ -1405,13 +1487,19 @@ static int __init ionvideo_init(void)
 
 	/* n_devs will reflect the actual number of allocated devices */
 	n_devs = i;
+	return ret;
 
+error1:
+	unregister_chrdev(IONVIDEO_MAJOR, "ionvideo");
+	class_unregister(&ionvideo_class);
 	return ret;
 }
 
 static void __exit ionvideo_exit(void)
 {
-	ionvideo_release();
+	ionvideo_v4l2_release();
+	device_destroy(&ionvideo_class, MKDEV(IONVIDEO_MAJOR, 0));
+	unregister_chrdev(IONVIDEO_MAJOR, IONVIDEO_DEVICE_NAME);
 	class_unregister(&ionvideo_class);
 }
 

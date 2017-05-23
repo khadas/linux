@@ -243,6 +243,9 @@ extern int vdec_set_pts64(struct vdec_s *vdec, u64 pts64);
 /* set vfm map when use frame base decoder */
 extern int vdec_set_video_path(struct vdec_s *vdec, int video_path);
 
+/* set receive id when receive is ionvideo or amlvideo */
+extern int vdec_set_receive_id(struct vdec_s *vdec, int receive_id);
+
 /* add frame data to input chain */
 extern int vdec_write_vframe(struct vdec_s *vdec, const char *buf,
 				size_t count);

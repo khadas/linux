@@ -446,6 +446,8 @@ struct userdata_poc_info_t {
 #define AMSTREAM_SET_VSYNC_SLOW_FACTOR 0x173
 #define AMSTREAM_SET_FRAME_BASE_PATH 0x174
 #define AMSTREAM_SET_EOS 0x175
+#define AMSTREAM_SET_RECEIVE_ID 0x176
+
 /*  video set ex cmd */
 #define AMSTREAM_SET_EX_VIDEO_AXIS 0x260
 #define AMSTREAM_SET_EX_VIDEO_CROP 0x261

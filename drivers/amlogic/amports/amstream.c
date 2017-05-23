@@ -2176,6 +2176,13 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 		if (priv->vdec)
 			vdec_set_eos(priv->vdec, parm.data_32);
 		break;
+	case AMSTREAM_SET_RECEIVE_ID:
+		if (is_mult_inc(this->type))
+			vdec_set_receive_id(priv->vdec, parm.data_32);
+		else
+			r = -EINVAL;
+		break;
+
 	default:
 		r = -ENOIOCTLCMD;
 		break;
