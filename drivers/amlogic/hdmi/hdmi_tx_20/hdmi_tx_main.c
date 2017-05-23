@@ -550,14 +550,18 @@ static int set_disp_mode_auto(void)
 	info->fresh_tx_hdr_pkt = hdmitx_set_drm_pkt;
 	info->fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt;
 	info->dv_info = &hdev->RXCap.dv_info;
-	info->hdr_info.hdr_support = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
-			| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
-			| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
-	info->hdr_info.lumi_max = hdev->RXCap.hdr_lum_max;
-	info->hdr_info.lumi_avg = hdev->RXCap.hdr_lum_avg;
-	info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;
-	pr_info("hdmitx: update rx hdr info %x\n",
-		info->hdr_info.hdr_support);
+	if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
+		(strncmp(info->name, "576cvbs", 7) == 0) ||
+		(strncmp(info->name, "null", 4) == 0))) {
+		info->hdr_info.hdr_support = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
+				| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
+				| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
+		info->hdr_info.lumi_max = hdev->RXCap.hdr_lum_max;
+		info->hdr_info.lumi_avg = hdev->RXCap.hdr_lum_avg;
+		info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;
+		pr_info("hdmitx: update rx hdr info %x\n",
+			info->hdr_info.hdr_support);
+	}
 	hdmi_physcial_size_update(info, hdev);
 
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
