@@ -76,6 +76,7 @@ static int debug_flag;
 static int dump_file_flag;
 static int p2p_mode = 2;
 static int output_format_mode = 1;
+static int txlx_output_format_mode;
 /* #define MM_ALLOC_SIZE 48*SZ_1M */
 #define NO_TASK_MODE
 
@@ -1953,7 +1954,6 @@ int picdec_buffer_init(void)
 	unsigned int buf_size;
 	unsigned offset = 0;
 	picdec_buffer_status = 0;
-	picdec_device.output_format_mode = output_format_mode;
 
 	picdec_cma_buf_init();
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
@@ -1973,6 +1973,12 @@ int picdec_buffer_init(void)
 	picdec_device.disp_width = picdec_device.vinfo->width;
 
 	picdec_device.disp_height = picdec_device.vinfo->height;
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) &&
+	((picdec_device.disp_width * picdec_device.disp_height) >=
+	1920 * 1080))
+		picdec_device.output_format_mode = txlx_output_format_mode;
+	else
+		picdec_device.output_format_mode = output_format_mode;
 
 	canvas_width = (picdec_device.disp_width + 0x1f) & ~0x1f;
 
@@ -2643,6 +2649,7 @@ static int picdec_driver_probe(struct platform_device *pdev)
 	init_picdec_device();
 	picdec_device.p2p_mode = 0;
 	picdec_device.output_format_mode = 0;
+	txlx_output_format_mode = 0;
 	return r;
 
 	/* char *buf_start; */
@@ -2767,6 +2774,9 @@ MODULE_PARM_DESC(p2p_mode, "\n picdec zoom mode\n");
 
 module_param(output_format_mode, uint, 0664);
 MODULE_PARM_DESC(output_format_mode, "\n picdec output fomat mode\n");
+
+module_param(txlx_output_format_mode, uint, 0664);
+MODULE_PARM_DESC(txlx_output_format_mode, "\n txlx picdec output fomat mode\n");
 
 MODULE_DESCRIPTION("Amlogic picture decoder driver");
 MODULE_LICENSE("GPL");
