@@ -1951,7 +1951,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 static void init_cec_port_info(struct hdmi_port_info *port,
 			       struct ao_cec_dev *cec_dev)
 {
-	unsigned int a, b, c, d;
+	unsigned int a, b, c, d, e = 0;
 	unsigned int phy_head = 0xf000, phy_app = 0x1000, phy_addr;
 	struct hdmitx_dev *tx_dev;
 
@@ -1982,37 +1982,40 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 		b = cec_dev->port_num;
 
 	/* init for port info */
-	for (a = 0; a < b; a++) {
-		port[a].type = HDMI_INPUT;
-		port[a].port_id = a + 1;
-		port[a].cec_supported = 1;
-		/* set ARC feature according mask */
-		if (cec_dev->arc_port & (1 << a))
-			port[a].arc_supported = 1;
-		else
-			port[a].arc_supported = 0;
-
+	for (a = 0; a < sizeof(cec_dev->port_seq) * 2; a++) {
 		/* set port physical address according port sequence */
 		if (cec_dev->port_seq) {
 			c = (cec_dev->port_seq >> (4 * a)) & 0xf;
 			if (c == 0xf) {	/* not used */
-				port[a].physical_address = 0xffff;
+				CEC_INFO("port %d is not used\n", a);
 				continue;
-			}
-			port[a].physical_address = (c) * phy_app + phy_addr;
+			} else if (!c)
+				break;
+			port[e].physical_address = (c) * phy_app + phy_addr;
 		} else {
 			/* asending order if port_seq is not set */
-			port[a].physical_address = (a + 1) * phy_app + phy_addr;
+			port[e].physical_address = (e + 1) * phy_app + phy_addr;
 		}
+		port[e].type = HDMI_INPUT;
+		port[e].port_id = e + 1;
+		port[e].cec_supported = 1;
+		/* set ARC feature according mask */
+		if (cec_dev->arc_port & (1 << a))
+			port[e].arc_supported = 1;
+		else
+			port[e].arc_supported = 0;
+		e++;
+		if (e >= b)
+			break;
 	}
 
 	if (cec_dev->dev_type == DEV_TYPE_TUNER) {
 		/* last port is for tx in mixed tx/rx */
-		port[a].type = HDMI_OUTPUT;
-		port[a].port_id = a + 1;
-		port[a].cec_supported = 1;
-		port[a].arc_supported = 0;
-		port[a].physical_address = phy_addr;
+		port[e].type = HDMI_OUTPUT;
+		port[e].port_id = e + 1;
+		port[e].cec_supported = 1;
+		port[e].arc_supported = 0;
+		port[e].physical_address = phy_addr;
 	}
 }
 
