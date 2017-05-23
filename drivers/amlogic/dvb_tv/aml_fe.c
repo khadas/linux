@@ -1938,6 +1938,7 @@ static void aml_fe_man_run(struct aml_dvb *dvb, struct aml_fe *fe)
 	int tuner_cap = 0xFFFFFFFF;
 	int demod_cap = 0;
 
+	fe->mode = AM_FE_UNKNOWN;
 	if (fe->init)
 		return;
 
