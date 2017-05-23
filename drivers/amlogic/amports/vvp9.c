@@ -323,7 +323,6 @@ typedef unsigned short u16;
 
 #define VP9_DEBUG_BUFMGR                   0x01
 #define VP9_DEBUG_BUFMGR_MORE              0x02
-#define VP9_DEBUG_UCODE                    0x04
 #define VP9_DEBUG_OUT_PTS                  0x10
 #define VP9_DEBUG_SEND_PARAM_WITH_REG      0x100
 #define VP9_DEBUG_MERGE                    0x200
@@ -345,6 +344,29 @@ typedef unsigned short u16;
 #endif
 
 static u32 debug;
+
+/*for debug*/
+/*
+	udebug_flag:
+	bit 0, enable ucode print
+	bit 1, enable ucode detail print
+	bit [31:16] not 0, pos to dump lmem
+		bit 2, pop bits to lmem
+		bit [11:8], pre-pop bits for alignment (when bit 2 is 1)
+*/
+static u32 udebug_flag;
+/*
+	when udebug_flag[1:0] is not 0
+	udebug_pause_pos not 0,
+		pause position
+*/
+static u32 udebug_pause_pos;
+/*
+	when udebug_flag[1:0] is not 0
+	and udebug_pause_pos is not 0,
+		pause only when DEBUG_REG2 is equal to this val
+*/
+static u32 udebug_pause_val;
 
 #define DEBUG_REG
 #ifdef DEBUG_REG
@@ -1155,6 +1177,9 @@ struct VP9Decoder_s {
 	int fatal_error;
 	uint8_t init_flag;
 	uint8_t process_busy;
+	uint8_t send_again_flag;
+	u32 ucode_pause_pos;
+
 	int show_frame_num;
 	struct buff_s mc_buf_spec;
 	struct dec_sysinfo vvp9_amstream_dec_info;
@@ -1966,8 +1991,6 @@ static u32 dbg_nal_skip_flag;
 static u32 dbg_nal_skip_count;
 #endif
 /*for debug*/
-static u32 decode_stop_pos;
-static u32 decode_stop_pos_pre;
 static u32 decode_pic_begin;
 static uint slice_parse_begin;
 static u32 step;
@@ -2392,18 +2415,12 @@ static void init_buff_spec(struct VP9Decoder_s *pbi,
 		buf_spec->rpm.buf_start =
 			buf_spec->mpred_mv.buf_start +
 			buf_spec->mpred_mv.buf_size;
-		if (debug & VP9_DEBUG_UCODE) {
-			buf_spec->lmem.buf_start =
-				buf_spec->rpm.buf_start +
-				buf_spec->rpm.buf_size;
-			buf_spec->end_adr =
-				buf_spec->lmem.buf_start +
-				buf_spec->lmem.buf_size;
-		} else {
-			buf_spec->end_adr =
-				buf_spec->rpm.buf_start +
-				buf_spec->rpm.buf_size;
-		}
+		buf_spec->lmem.buf_start =
+			buf_spec->rpm.buf_start +
+			buf_spec->rpm.buf_size;
+		buf_spec->end_adr =
+			buf_spec->lmem.buf_start +
+			buf_spec->lmem.buf_size;
 	}
 	mem_start_virt = codec_mm_phys_to_virt(buf_spec->dblk_para.buf_start);
 	if (mem_start_virt) {
@@ -3497,23 +3514,13 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 	}
 
 	for (i = 0; i < pbi->used_buf_num; i++) {
-		if (((i + 1) * buf_size) > pbi->mc_buf->buf_size) {
-			if (use_cma)
-				pbi->use_cma_flag = 1;
-			else {
-				if (debug) {
-					pr_info("%s maximum buf size is used\n",
-						   __func__);
-				}
-				break;
-			}
-		}
+		if (((i + 1) * buf_size) > pbi->mc_buf->buf_size)
+			pbi->use_cma_flag = 1;
 #ifndef VP9_10B_MMU
 		pbi->m_BUF[i].alloc_flag = 0;
 		pbi->m_BUF[i].index = i;
 
-		if (use_cma == 2)
-			pbi->use_cma_flag = 1;
+		pbi->use_cma_flag = 1;
 		if (pbi->use_cma_flag) {
 			pbi->m_BUF[i].cma_page_count =
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
@@ -4254,8 +4261,7 @@ static void vp9_config_work_space_hw(struct VP9Decoder_s *pbi)
 
 	WRITE_VREG(VP9_SEG_MAP_BUFFER, buf_spec->seg_map.buf_start);
 
-	if (debug & VP9_DEBUG_UCODE)
-		WRITE_VREG(LMEM_DUMP_ADR, (u32)pbi->lmem_phy_addr);
+	WRITE_VREG(LMEM_DUMP_ADR, (u32)pbi->lmem_phy_addr);
 
 	 /**/
 	WRITE_VREG(VP9_PROB_SWAP_BUFFER, pbi->prob_buffer_phy_addr);
@@ -4888,27 +4894,26 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 		pbi->rpm_ptr = pbi->rpm_addr;
 	}
 
-	if (debug & VP9_DEBUG_UCODE) {
-		pbi->lmem_addr = dma_alloc_coherent(amports_get_dma_device(),
-				LMEM_BUF_SIZE,
-				&pbi->lmem_phy_addr, GFP_KERNEL);
-		if (pbi->lmem_addr == NULL) {
-			pr_err("%s: failed to alloc lmem buffer\n", __func__);
-			return -1;
-		}
-/*
-		pbi->lmem_phy_addr = dma_map_single(amports_get_dma_device(),
-			pbi->lmem_addr, LMEM_BUF_SIZE, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(amports_get_dma_device(),
-			pbi->lmem_phy_addr)) {
-			pr_err("%s: failed to map lmem buffer\n", __func__);
-			kfree(pbi->lmem_addr);
-			pbi->lmem_addr = NULL;
-			return -1;
-		}
-*/
-		pbi->lmem_ptr = pbi->lmem_addr;
+	pbi->lmem_addr = dma_alloc_coherent(amports_get_dma_device(),
+			LMEM_BUF_SIZE,
+			&pbi->lmem_phy_addr, GFP_KERNEL);
+	if (pbi->lmem_addr == NULL) {
+		pr_err("%s: failed to alloc lmem buffer\n", __func__);
+		return -1;
 	}
+/*
+	pbi->lmem_phy_addr = dma_map_single(amports_get_dma_device(),
+		pbi->lmem_addr, LMEM_BUF_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(amports_get_dma_device(),
+		pbi->lmem_phy_addr)) {
+		pr_err("%s: failed to map lmem buffer\n", __func__);
+		kfree(pbi->lmem_addr);
+		pbi->lmem_addr = NULL;
+		return -1;
+	}
+*/
+	pbi->lmem_ptr = pbi->lmem_addr;
+
 	pbi->prob_buffer_addr = dma_alloc_coherent(amports_get_dma_device(),
 				PROB_BUF_SIZE,
 				&pbi->prob_buffer_phy_addr, GFP_KERNEL);
@@ -5577,12 +5582,14 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		reset_process_time(pbi);
 #endif
 
+	if (!pbi->send_again_flag) {
 #ifdef VP9_10B_MMU
-	vp9_recycle_mmu_buf_tail(pbi);
+		vp9_recycle_mmu_buf_tail(pbi);
 #endif
 
-	if (pbi->frame_count > 0)
-		vp9_bufmgr_postproc(pbi);
+		if (pbi->frame_count > 0)
+			vp9_bufmgr_postproc(pbi);
+	}
 
 	if (debug & VP9_DEBUG_SEND_PARAM_WITH_REG) {
 		get_rpm_param(&vp9_param);
@@ -5605,8 +5612,31 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	bit_depth_luma = vp9_param.p.bit_depth;
 	bit_depth_chroma = vp9_param.p.bit_depth;
 
-	ret = vp9_bufmgr_process(pbi, &vp9_param);
-	pbi->slice_idx++;
+	if (!pbi->send_again_flag) {
+		ret = vp9_bufmgr_process(pbi, &vp9_param);
+		if (!pbi->m_ins_flag)
+			pbi->slice_idx++;
+	} else {
+		union param_u *params = &vp9_param;
+#ifdef VP9_10B_MMU
+		ret = vp9_alloc_mmu(pbi,
+			cm->new_fb_idx,
+			params->p.width,
+			params->p.height,
+			params->p.bit_depth,
+			pbi->frame_mmu_map_addr);
+		if (ret >= 0)
+			cm->cur_fb_idx_mmu = cm->new_fb_idx;
+		else
+			pr_err("can't alloc need mmu1,idx %d ret =%d\n",
+				cm->new_fb_idx,
+				ret);
+#else
+		ret = 0;
+#endif
+		WRITE_VREG(HEVC_PARSER_PICTURE_SIZE,
+		(params->p.height << 16) | params->p.width);
+	}
 	if (ret < 0) {
 		pr_info("vp9_bufmgr_process=> %d, VP9_10B_DISCARD_NAL\r\n",
 		 ret);
@@ -5625,18 +5655,24 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 #endif
 		return IRQ_HANDLED;
 	} else if (ret == 0) {
-		pbi->frame_count++;
-		decode_frame_count[pbi->index] = pbi->frame_count;
+		if (!pbi->send_again_flag) {
+			if (!pbi->m_ins_flag) {
+				pbi->frame_count++;
+				decode_frame_count[pbi->index]
+					= pbi->frame_count;
+			}
+#ifdef MULTI_INSTANCE_SUPPORT
+			if (pbi->chunk) {
+				struct PIC_BUFFER_CONFIG_s *cur_pic_config =
+					&cm->cur_frame->buf;
+				cur_pic_config->pts = pbi->chunk->pts;
+				cur_pic_config->pts64 = pbi->chunk->pts64;
+			}
+#endif
+		}
 		/*pr_info("Decode Frame Data %d\n", pbi->frame_count);*/
 		config_pic_size(pbi, vp9_param.p.bit_depth);
-#ifdef MULTI_INSTANCE_SUPPORT
-		if (pbi->chunk) {
-			struct PIC_BUFFER_CONFIG_s *cur_pic_config =
-				&cm->cur_frame->buf;
-			cur_pic_config->pts = pbi->chunk->pts;
-			cur_pic_config->pts64 = pbi->chunk->pts64;
-		}
-#endif
+
 		if ((pbi->common.frame_type != KEY_FRAME)
 			&& (!pbi->common.intra_only)) {
 			config_mc_buffer(pbi, vp9_param.p.bit_depth);
@@ -5686,6 +5722,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DECODE_SLICE);
 	}
 	pbi->process_busy = 0;
+	pbi->send_again_flag = 0;
 #ifdef VP9_10B_MMU
 	if (pbi->last_put_idx >= 0 && pbi->last_put_idx < pbi->used_buf_num) {
 		struct RefCntBuffer_s *frame_bufs = cm->buffer_pool->frame_bufs;
@@ -5715,6 +5752,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	struct VP9Decoder_s *pbi = (struct VP9Decoder_s *)data;
 	unsigned int adapt_prob_status;
 	struct VP9_Common_s *const cm = &pbi->common;
+	uint debug_tag;
 
 	WRITE_VREG(HEVC_ASSIST_MBOX1_CLR_REG, 1);
 
@@ -5727,39 +5765,57 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	pbi->dec_status = dec_status;
 	pbi->process_busy = 1;
 	if (debug & VP9_DEBUG_BUFMGR)
-		pr_info("vp9 isr dec status  = %d, lcu 0x%x\n",
+		pr_info("vp9 isr dec status  = 0x%x, lcu 0x%x\n",
 			dec_status, READ_VREG(HEVC_PARSER_LCU_START));
 
-	if (debug & VP9_DEBUG_UCODE) {
-		if (READ_HREG(DEBUG_REG1) & 0x10000) {
-			dma_sync_single_for_cpu(
-				amports_get_dma_device(),
-				pbi->lmem_phy_addr,
-				LMEM_BUF_SIZE,
-				DMA_FROM_DEVICE);
+	debug_tag = READ_HREG(DEBUG_REG1);
+	if (debug_tag & 0x10000) {
+		dma_sync_single_for_cpu(
+			amports_get_dma_device(),
+			pbi->lmem_phy_addr,
+			LMEM_BUF_SIZE,
+			DMA_FROM_DEVICE);
 
-			pr_info("LMEM<tag %x>:\n", READ_HREG(DEBUG_REG1));
-			for (i = 0; i < 0x400; i += 4) {
-				int ii;
-				if ((i & 0xf) == 0)
-					pr_info("%03x: ", i);
-				for (ii = 0; ii < 4; ii++) {
-					pr_info("%04x ",
-						   pbi->lmem_ptr[i + 3 - ii]);
-				}
-				if (((i + ii) & 0xf) == 0)
-					pr_info("\n");
+		pr_info("LMEM<tag %x>:\n", READ_HREG(DEBUG_REG1));
+		for (i = 0; i < 0x400; i += 4) {
+			int ii;
+			if ((i & 0xf) == 0)
+				pr_info("%03x: ", i);
+			for (ii = 0; ii < 4; ii++) {
+				pr_info("%04x ",
+					   pbi->lmem_ptr[i + 3 - ii]);
 			}
-			WRITE_HREG(DEBUG_REG1, 0);
-		} else if (READ_HREG(DEBUG_REG1) != 0) {
-			pr_info("dbg%x: %x\n", READ_HREG(DEBUG_REG1),
-				   READ_HREG(DEBUG_REG2));
-			WRITE_HREG(DEBUG_REG1, 0);
-			pbi->process_busy = 0;
-			return IRQ_HANDLED;
+			if (((i + ii) & 0xf) == 0)
+				pr_info("\n");
 		}
 
+		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_val == 0 ||
+			udebug_pause_val == READ_HREG(DEBUG_REG2)))
+			pbi->ucode_pause_pos = udebug_pause_pos;
+		else if (debug_tag & 0x20000)
+			pbi->ucode_pause_pos = 0xffffffff;
+		if (pbi->ucode_pause_pos)
+			reset_process_time(pbi);
+		else
+			WRITE_HREG(DEBUG_REG1, 0);
+	} else if (debug_tag != 0) {
+		pr_info(
+			"dbg%x: %x lcu %x\n", READ_HREG(DEBUG_REG1),
+			   READ_HREG(DEBUG_REG2),
+			   READ_VREG(HEVC_PARSER_LCU_START));
+		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_val == 0 ||
+			udebug_pause_val == READ_HREG(DEBUG_REG2)))
+			pbi->ucode_pause_pos = udebug_pause_pos;
+		if (pbi->ucode_pause_pos)
+			reset_process_time(pbi);
+		else
+			WRITE_HREG(DEBUG_REG1, 0);
+		pbi->process_busy = 0;
+		return IRQ_HANDLED;
 	}
+
 #ifdef MULTI_INSTANCE_SUPPORT
 	if (!pbi->m_ins_flag) {
 #endif
@@ -5825,6 +5881,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 				vp9_recycle_mmu_buf(pbi);
 #endif
 				pbi->dec_result = DEC_RESULT_AGAIN;
+				pbi->send_again_flag = 1;
 				amhevc_stop();
 			} else
 				pbi->dec_result = DEC_RESULT_GET_DATA;
@@ -5937,9 +5994,11 @@ static void vvp9_put_timer_func(unsigned long arg)
 	}
 #endif
 
-	if (decode_stop_pos != decode_stop_pos_pre) {
-		WRITE_VREG(DECODE_STOP_POS, decode_stop_pos);
-		decode_stop_pos_pre = decode_stop_pos;
+	if ((pbi->ucode_pause_pos != 0) &&
+		(pbi->ucode_pause_pos != 0xffffffff) &&
+		udebug_pause_pos != pbi->ucode_pause_pos) {
+		pbi->ucode_pause_pos = 0;
+		WRITE_HREG(DEBUG_REG1, 0);
 	}
 
 	if (debug & VP9_DEBUG_DUMP_PIC_LIST) {
@@ -5952,10 +6011,6 @@ static void vvp9_put_timer_func(unsigned long arg)
 	}
 	/*if (debug & VP9_DEBUG_HW_RESET) {
 	}*/
-	if (debug & VP9_DEBUG_ERROR_TRIG) {
-		WRITE_VREG(DECODE_STOP_POS, 1);
-		debug &= ~VP9_DEBUG_ERROR_TRIG;
-	}
 
 	if (radr != 0) {
 		if (rval != 0) {
@@ -6143,14 +6198,11 @@ static void vvp9_prot_init(struct VP9Decoder_s *pbi)
 	/* disable PSCALE for hardware sharing */
 	WRITE_VREG(HEVC_PSCALE_CTRL, 0);
 
-	if (debug & VP9_DEBUG_UCODE)
-		WRITE_VREG(DEBUG_REG1, 0x1);
-	else
-		WRITE_VREG(DEBUG_REG1, 0x0);
+	WRITE_VREG(DEBUG_REG1, 0x0);
 	/*check vps/sps/pps/i-slice in ucode*/
 	WRITE_VREG(NAL_SEARCH_CTL, 0x8);
 
-	WRITE_VREG(DECODE_STOP_POS, decode_stop_pos);
+	WRITE_VREG(DECODE_STOP_POS, udebug_flag);
 
 }
 
@@ -6628,6 +6680,10 @@ static void vp9_work(struct work_struct *work)
 	} else if (pbi->dec_result == DEC_RESULT_DONE) {
 		/* if (!pbi->ctx_valid)
 			pbi->ctx_valid = 1; */
+		pbi->slice_idx++;
+		pbi->frame_count++;
+		decode_frame_count[pbi->index] = pbi->frame_count;
+
 #ifdef VP9_10B_MMU
 		pbi->used_4k_num =
 			(READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
@@ -6650,7 +6706,6 @@ static void vp9_work(struct work_struct *work)
 			schedule_work(&pbi->work);
 			return;
 		}
-
 	} else if (pbi->dec_result == DEC_RESULT_EOS) {
 		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
 			"%s: end of stream\n",
@@ -7011,7 +7066,7 @@ static struct mconfig vp9_configs[] = {
 	MC_PU32("dbg_skip_decode_index", &dbg_skip_decode_index),
 	MC_PU32("endian", &endian),
 	MC_PU32("step", &step),
-	MC_PU32("decode_stop_pos", &decode_stop_pos),
+	MC_PU32("udebug_flag", &udebug_flag),
 	MC_PU32("decode_pic_begin", &decode_pic_begin),
 	MC_PU32("slice_parse_begin", &slice_parse_begin),
 	MC_PU32("i_only_flag", &i_only_flag),
@@ -7045,8 +7100,7 @@ static int __init amvdec_vp9_driver_init_module(void)
 	dbg_nal_skip_flag = 0;
 	dbg_nal_skip_count = 0;
 #endif
-	decode_stop_pos = 0;
-	decode_stop_pos_pre = 0;
+	udebug_flag = 0;
 	decode_pic_begin = 0;
 	slice_parse_begin = 0;
 	step = 0;
@@ -7121,9 +7175,6 @@ MODULE_PARM_DESC(endian, "\nrval\n");
 
 module_param(step, uint, 0664);
 MODULE_PARM_DESC(step, "\n amvdec_vp9 step\n");
-
-module_param(decode_stop_pos, uint, 0664);
-MODULE_PARM_DESC(decode_stop_pos, "\n amvdec_vp9 decode_stop_pos\n");
 
 module_param(decode_pic_begin, uint, 0664);
 MODULE_PARM_DESC(decode_pic_begin, "\n amvdec_vp9 decode_pic_begin\n");
@@ -7204,6 +7255,15 @@ module_param_array(decode_frame_count, uint,
 module_param_array(max_process_time, uint,
 	&max_decode_instance_num, 0664);
 #endif
+
+module_param(udebug_flag, uint, 0664);
+MODULE_PARM_DESC(udebug_flag, "\n amvdec_h265 udebug_flag\n");
+
+module_param(udebug_pause_pos, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
+
+module_param(udebug_pause_val, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");
 
 module_init(amvdec_vp9_driver_init_module);
 module_exit(amvdec_vp9_driver_remove_module);
