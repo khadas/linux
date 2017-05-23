@@ -315,6 +315,11 @@ struct hw_para_s {
 	u32 urgent[HW_OSD_COUNT];
 	u32 osd_fifo[HW_OSD_COUNT];
 	u32 osd_deband_enable;
+	u32 osd_display_debug;
+	char __iomem *screen_base[HW_OSD_COUNT];
+	u32 screen_size[HW_OSD_COUNT];
+	char __iomem *screen_base_backup[HW_OSD_COUNT];
+	u32 screen_size_backup[HW_OSD_COUNT];
 };
 
 #endif /* _OSD_H_ */

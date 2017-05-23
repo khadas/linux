@@ -1838,6 +1838,16 @@ void osd_set_deband(u32 osd_deband_enable)
 		}
 	}
 }
+void osd_get_display_debug(u32 *osd_display_debug_enable)
+{
+	*osd_display_debug_enable = osd_hw.osd_display_debug;
+}
+
+void osd_set_display_debug(u32 osd_display_debug_enable)
+{
+	osd_hw.osd_display_debug = osd_display_debug_enable;
+}
+
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 enum {
 	HAL_PIXEL_FORMAT_RGBA_8888 = 1,
@@ -1925,8 +1935,10 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	u32 ext_addr = fence_map->ext_addr;
 	u32 width_src, width_dst, height_src, height_dst;
 	bool freescale_update = false;
+	void *vaddr = NULL;
 
 	ext_addr = ext_addr + fence_map->byte_stride * fence_map->yoffset;
+	vaddr = phys_to_virt(ext_addr);
 
 	canvas_config(osd_hw.fb_gem[index].canvas_idx,
 		ext_addr,
@@ -1944,6 +1956,9 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	height_src = osd_hw.free_src_data_backup[index].y_end -
 		osd_hw.free_src_data_backup[index].y_start + 1;
 
+	osd_hw.screen_base[index] = vaddr;
+	osd_hw.screen_size[index] =
+		fence_map->byte_stride * fence_map->height;
 	if (osd_hw.free_scale_enable[index] ||
 		(width_src != width_dst) ||
 		(height_src != height_dst) ||
@@ -1999,14 +2014,16 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 				osd_set_dummy_data(0);
 			else
 				osd_set_dummy_data(0xff);
-			osd_log_dbg("direct pandata x=%d,x_end=%d,y=%d,y_end=%d\n",
+			osd_log_dbg("direct pandata x=%d,x_end=%d,y=%d,y_end=%d,width=%d,height=%d\n",
 				osd_hw.pandata[index].x_start,
 				osd_hw.pandata[index].x_end,
 				osd_hw.pandata[index].y_start,
-				osd_hw.pandata[index].y_end);
-			osd_log_dbg("fence_map:width=%d,height=%d,dst_w=%d,dst_h=%d,byte_stride=%d\n",
+				osd_hw.pandata[index].y_end,
 				fence_map->width,
-				fence_map->height,
+				fence_map->height);
+			osd_log_dbg("fence_map:dst_x=%d,dst_y=%d,dst_w=%d,dst_h=%d,byte_stride=%d\n",
+				fence_map->dst_x,
+				fence_map->dst_y,
 				fence_map->dst_w,
 				fence_map->dst_h,
 				fence_map->byte_stride);
@@ -2091,15 +2108,18 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			if ((osd_hw.free_scale_enable[index]
 					&& osd_update_window_axis)
 					|| freescale_update) {
-				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
-					.update_func();
+				if (!osd_hw.osd_display_debug)
+					osd_hw.reg[index][DISP_FREESCALE_ENABLE]
+						.update_func();
 				osd_update_window_axis = false;
 			}
 			if ((osd_hw.osd_afbcd[index].enable == DISABLE)
 				&& (osd_enable != osd_hw.enable[index])
 				&& skip == false) {
 				osd_hw.enable[index] = osd_enable;
-				osd_hw.reg[index][OSD_ENABLE].update_func();
+				if (!osd_hw.osd_display_debug)
+					osd_hw.reg[index][OSD_ENABLE]
+					.update_func();
 			}
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
@@ -2117,6 +2137,10 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 				osd_hw.pandata[index].y_start = yoffset;
 				osd_hw.pandata[index].y_end   = yoffset +
 					osd_hw.fb_gem[index].yres - 1;
+				osd_hw.screen_base[index] =
+					osd_hw.screen_base_backup[index];
+				osd_hw.screen_size[index] =
+					osd_hw.screen_size_backup[index];
 
 				osd_hw.dispdata[index].x_start =
 					osd_hw.dispdata_backup[index].x_start;
@@ -2195,15 +2219,18 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 					&& osd_update_window_axis)
 					|| (osd_hw.free_scale_enable[index]
 					&& freescale_update)) {
-				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
-					.update_func();
+				if (!osd_hw.osd_display_debug)
+					osd_hw.reg[index][DISP_FREESCALE_ENABLE]
+						.update_func();
 				osd_update_window_axis = false;
 			}
 			if ((osd_hw.osd_afbcd[index].enable == DISABLE)
 				&& (osd_enable != osd_hw.enable[index])
 				&& skip == false) {
 				osd_hw.enable[index] = osd_enable;
-				osd_hw.reg[index][OSD_ENABLE].update_func();
+				if (!osd_hw.osd_display_debug)
+					osd_hw.reg[index][OSD_ENABLE]
+					.update_func();
 			}
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
@@ -2212,7 +2239,9 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			spin_lock_irqsave(&osd_lock, lock_flags);
 			if (osd_hw.osd_afbcd[index].enable == DISABLE) {
 				osd_hw.enable[index] = osd_enable;
-				osd_hw.reg[index][OSD_ENABLE].update_func();
+				if (!osd_hw.osd_display_debug)
+					osd_hw.reg[index][OSD_ENABLE]
+					.update_func();
 			}
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
@@ -4007,4 +4036,22 @@ void osd_get_hw_para(struct hw_para_s **para)
 {
 	*para = &osd_hw;
 	return;
+}
+void osd_backup_screen_info(
+	u32 index,
+	char __iomem *screen_base,
+	u32 screen_size)
+{
+	osd_hw.screen_base_backup[index] = screen_base;
+	osd_hw.screen_size_backup[index] = screen_size;
+}
+
+void osd_restore_screen_info(
+	u32 index,
+	char __iomem **screen_base,
+	unsigned long *screen_size)
+{
+	*screen_base = osd_hw.screen_base[index];
+	*screen_size = (unsigned long)osd_hw.screen_size[index];
+
 }
