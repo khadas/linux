@@ -399,6 +399,12 @@ int vdec_set_video_path(struct vdec_s *vdec, int video_path)
 	return 0;
 }
 
+int vdec_set_receive_id(struct vdec_s *vdec, int receive_id)
+{
+	vdec->vf_receiver_inst = receive_id;
+	return 0;
+}
+
 /* add frame data to input chain */
 int vdec_write_vframe(struct vdec_s *vdec, const char *buf, size_t count)
 {
@@ -1266,7 +1272,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		}
 		if (p->frame_base_video_path == FRAME_BASE_PATH_IONVIDEO) {
 #if 1
-			r = ionvideo_alloc_map(&vdec->vf_receiver_name,
+			r = ionvideo_assign_map(&vdec->vf_receiver_name,
 					&vdec->vf_receiver_inst);
 #else
 			/*

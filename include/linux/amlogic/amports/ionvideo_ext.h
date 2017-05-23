@@ -3,7 +3,7 @@
 
 extern int ionvideo_assign_map(char **receiver_name, int *inst);
 
-extern int ionvideo_alloc_map(char **receiver_name, int *inst);
+extern int ionvideo_alloc_map(int *inst);
 
 extern void ionvideo_release_map(int inst);
 

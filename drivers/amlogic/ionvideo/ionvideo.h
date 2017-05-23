@@ -196,4 +196,8 @@ void ppmgr2_set_mirror(struct ppmgr2_device *ppd, int mirror);
 void ppmgr2_set_paint_mode(struct ppmgr2_device *ppd, int paint_mode);
 int v4l_to_ge2d_format(int v4l2_format);
 
+#define IONVIDEO_IOC_MAGIC  'I'
+#define IONVIDEO_IOCTL_ALLOC_ID   _IOW(IONVIDEO_IOC_MAGIC, 0x00, int)
+#define IONVIDEO_IOCTL_FREE_ID    _IOW(IONVIDEO_IOC_MAGIC, 0x01, int)
+
 #endif
