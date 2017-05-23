@@ -2056,12 +2056,19 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* update RX HDR information */
 	info = get_current_vinfo();
 	if (info) {
-		info->hdr_info.hdr_support = (pRXCap->hdr_sup_eotf_sdr << 0)
-			| (pRXCap->hdr_sup_eotf_hdr << 1)
-			| (pRXCap->hdr_sup_eotf_smpte_st_2084 << 2);
-		info->hdr_info.lumi_max = pRXCap->hdr_lum_max;
-		info->hdr_info.lumi_avg = pRXCap->hdr_lum_avg;
-		info->hdr_info.lumi_min = pRXCap->hdr_lum_min;
+		if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
+		(strncmp(info->name, "576cvbs", 7) == 0) ||
+		(strncmp(info->name, "null", 4) == 0))) {
+			info->hdr_info.hdr_support =
+				(pRXCap->hdr_sup_eotf_sdr << 0) |
+				(pRXCap->hdr_sup_eotf_hdr << 1) |
+				(pRXCap->hdr_sup_eotf_smpte_st_2084 << 2);
+			info->hdr_info.lumi_max = pRXCap->hdr_lum_max;
+			info->hdr_info.lumi_avg = pRXCap->hdr_lum_avg;
+			info->hdr_info.lumi_min = pRXCap->hdr_lum_min;
+			pr_info("hdmitx: update rx hdr info %x at edid parsing\n",
+				info->hdr_info.hdr_support);
+		}
 	}
 	return 0;
 

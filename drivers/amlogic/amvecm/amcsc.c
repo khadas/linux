@@ -125,6 +125,10 @@ static bool debug_csc;
 module_param(debug_csc, bool, 0664);
 MODULE_PARM_DESC(debug_csc, "\n debug_csc\n");
 
+static bool print_lut_mtx;
+module_param(print_lut_mtx, bool, 0664);
+MODULE_PARM_DESC(print_lut_mtx, "\n print_lut_mtx\n");
+
 static bool skip_csc_en;
 module_param(skip_csc_en, bool, 0664);
 MODULE_PARM_DESC(skip_csc_en, "\n skip_csc_en\n");
@@ -1613,7 +1617,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	int *m = NULL;
 	int size = 0;
 	int i;
-	if (debug_csc)
+	if (debug_csc && print_lut_mtx)
 		print_vpp_matrix(m_select, s, on);
 	if (m_select == VPP_MATRIX_OSD) {
 		m = osd_matrix_coeff;
@@ -2429,7 +2433,7 @@ void set_vpp_lut(
 		} else
 			WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
 	}
-	if (debug_csc)
+	if (debug_csc && print_lut_mtx)
 		print_vpp_lut(lut_sel, on);
 }
 
@@ -2903,12 +2907,14 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 enum vpp_matrix_csc_e get_csc_type(void)
 {
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
-	if (signal_color_primaries == 1) {
+	if ((signal_color_primaries == 1) &&
+		(signal_transfer_characteristic < 14)) {
 		if (signal_range == 0)
 			csc_type = VPP_MATRIX_YUV709_RGB;
 		else
 			csc_type = VPP_MATRIX_YUV709F_RGB;
-	} else if (signal_color_primaries == 3) {
+	} else if ((signal_color_primaries == 3) &&
+			(signal_transfer_characteristic < 14)) {
 		if (signal_range == 0)
 			csc_type = VPP_MATRIX_YUV601_RGB;
 		else
@@ -4671,7 +4677,8 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 		csc_type = get_csc_type();
 
 	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
-		(vinfo->hdr_info.hdr_support & 0x4)) {
+		((vinfo->hdr_info.hdr_support & 0x4) ||
+		(signal_change_flag & SIG_HDR_SUPPORT))) {
 		if (sdr_process_mode &&
 			(csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB)) {
 			/* sdr source convert to hdr */
@@ -4717,7 +4724,8 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 
 	if ((cur_csc_type != csc_type)
 	|| (signal_change_flag
-	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE))) {
+	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE |
+		SIG_HDR_SUPPORT))) {
 		/* decided by edid or panel info or user setting */
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			hdr_process_mode) {
@@ -4725,7 +4733,8 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 			if ((signal_change_flag &
 					(SIG_PRI_INFO |
 					SIG_KNEE_FACTOR |
-					SIG_HDR_MODE)
+					SIG_HDR_MODE |
+					SIG_HDR_SUPPORT)
 				) ||
 				(cur_csc_type <
 					VPP_MATRIX_BT2020YUV_BT2020RGB)) {
@@ -4858,7 +4867,8 @@ void amvecm_matrix_process(struct vframe_s *vf)
 		/* check last signal type */
 		if ((last_vf != NULL) &&
 			((((last_vf_signal_type >> 16) & 0xff) == 9)
-			|| customer_master_display_en))
+			|| customer_master_display_en
+			|| (((last_vf_signal_type >> 8) & 0xff) >= 14)))
 			null_vf_cnt++;
 
 		if ((((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
