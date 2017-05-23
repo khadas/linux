@@ -148,4 +148,14 @@ extern void osd_get_urgent(u32 index, u32 *urgent);
 extern void osd_set_urgent(u32 index, u32 urgent);
 void osd_get_deband(u32 *osd_deband_enable);
 void osd_set_deband(u32 osd_deband_enable);
+void osd_get_display_debug(u32 *osd_display_debug_enable);
+void osd_set_display_debug(u32 osd_display_debug_enable);
+void osd_backup_screen_info(
+	u32 index,
+	char __iomem *screen_base,
+	u32 screen_size);
+void osd_restore_screen_info(
+	u32 index,
+	char __iomem **screen_base,
+	unsigned long *screen_size);
 #endif

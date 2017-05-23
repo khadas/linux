@@ -881,6 +881,8 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 				osd_sync_request_render(info->node,
 				info->var.yres,
 				&sync_request_render, phys_addr);
+			osd_restore_screen_info(info->node,
+				&info->screen_base, &info->screen_size);
 			ret = copy_to_user(argp,
 				&sync_request_render,
 				sizeof(struct fb_sync_request_render_s));
@@ -1161,6 +1163,7 @@ static int osd_open(struct fb_info *info, int arg)
 	fix->smem_len = fbdev->fb_len;
 	info->screen_base = (char __iomem *)fbdev->fb_mem_vaddr;
 	info->screen_size = fix->smem_len;
+	osd_backup_screen_info(fb_index, info->screen_base, info->screen_size);
 	logo_index = osd_get_logo_index();
 	if (osd_check_fbsize(var, info))
 		return -ENOMEM;
@@ -2148,6 +2151,30 @@ static ssize_t store_osd_deband(struct device *device,
 	return count;
 }
 
+static ssize_t show_osd_display_debug(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	u32 osd_display_debug_enable;
+	osd_get_display_debug(&osd_display_debug_enable);
+	return snprintf(buf, 40, "%d\n",
+		osd_display_debug_enable);
+}
+
+static ssize_t store_osd_display_debug(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret < 0)
+		return -EINVAL;
+	osd_set_display_debug(res);
+
+	return count;
+}
 
 
 static inline  int str2lower(char *str)
@@ -2330,6 +2357,8 @@ static struct device_attribute osd_attrs[] = {
 			NULL, free_scale_switch),
 	__ATTR(osd_deband, S_IRUGO | S_IWUSR,
 			show_osd_deband, store_osd_deband),
+	__ATTR(osd_display_debug, S_IRUGO | S_IWUSR,
+			show_osd_display_debug, store_osd_display_debug),
 };
 
 #ifdef CONFIG_PM
