@@ -39,10 +39,17 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 
+/*------------------------variable define------------------------------*/
+
 int eq_setting_back = 0;
 int fat_bit_status = 0;
 static int min_max_diff = 4;
 static int long_cable_best_setting = 6;
+struct st_eq_data eq_ch0;
+struct st_eq_data eq_ch1;
+struct st_eq_data eq_ch2;
+char pre_eq_freq = E_EQ_NONE;
+unsigned char run_eq_flag = E_EQ_START;
 
 static int tmds_valid_cnt_max = 2;
 MODULE_PARM_DESC(tmds_valid_cnt_max, "\n tmds_valid_cnt_max\n");
@@ -77,12 +84,7 @@ static int eq_cfg_6g = 6;
 MODULE_PARM_DESC(eq_cfg_6g, "\n eq_cfg_6g\n");
 module_param(eq_cfg_6g, int, 0664);
 
-struct st_eq_data eq_ch0;
-struct st_eq_data eq_ch1;
-struct st_eq_data eq_ch2;
-char pre_eq_freq = E_EQ_NONE;
-unsigned char run_eq_flag = E_EQ_START;
-
+/*------------------------variable define end------------------------------*/
 
 bool eq_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting)
 {

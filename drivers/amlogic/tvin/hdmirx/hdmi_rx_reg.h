@@ -55,7 +55,7 @@
 #define AUD_RESAMPLE_CTRL0		0x28bf
 
 /** PHY Gen3 Clock measurement lock threshold - default 8*/
-#define LOCK_THRES                       0x63	/* 0x08 */
+#define LOCK_THRES                       0x3f	/* 0x08 */
 /** register address: PHY Gen3 clock measurement unit configuration */
 #define PHY_CMU_CONFIG			(0x02UL)
 /** register address: PHY Gen3 system configuration */

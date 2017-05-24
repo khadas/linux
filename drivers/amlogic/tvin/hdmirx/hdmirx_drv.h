@@ -30,12 +30,20 @@
 
 #define RX_VER0 "Ref.2017/05/27"
 /*------------------------------*/
-#define RX_VER1 "Ref.2017/05/27"
+
+#define RX_VER1 "Ref.2017/06/06"
 /*------------------------------*/
+
 #define RX_VER2 "Ref.2017/06/01"
 /*------------------------------*/
+
 #define RX_VER3 "Ref.2017/06/01"
 /*------------------------------*/
+
+#define RX_VER4 "Ref.2017/06/01"
+/*------------------------------*/
+
+
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
@@ -64,6 +72,9 @@
 #define VSI_3D_FORMAT_INDEX	7
 #define ESM_KILL_WAIT_TIMES 250
 #define DV_STOP_PACKET_MAX 50
+#define str_cmp(buff, str) ((strlen((str)) == strlen((buff))) &&	\
+		(strncmp((buff), (str), strlen((str))) == 0))
+#define pr_var(str) rx_pr("%-40s = %#x\n", #str, (str))
 
 struct hdmirx_dev_s {
 	int                         index;
@@ -199,16 +210,12 @@ enum fsm_states_e {
 	FSM_EQ_INIT,
 	FSM_EQ_CALIBRATION,
 	FSM_EQ_END,
-	FSM_PHY_RST,
-	FSM_WAIT_HDCP_SWITCH,
 	FSM_SIG_UNSTABLE,
 	FSM_DWC_RST_WAIT,
 	FSM_SIG_STABLE,
 	FSM_CHECK_DDC_CORRECT,
 	FSM_SIG_READY,
 	FSM_WAIT_AUDIO_STABLE,
-	FSM_PHY_RESET,
-	FSM_DWC_RESET,
 };
 
 enum colorspace_e {
@@ -847,6 +854,8 @@ extern void hdmirx_fill_edid_buf(const char *buf, int size);
 extern int hdmirx_read_edid_buf(char *buf, int max_size);
 extern void hdmirx_fill_key_buf(const char *buf, int size);
 extern int hdmirx_read_key_buf(char *buf, int max_size);
+extern void rx_set_global_varaible(const char *buf, int size);
+extern void rx_get_global_varaible(const char *buf);
 extern int hdmirx_debug(const char *buf, int size);
 extern int hdmirx_hw_get_color_fmt(void);
 extern int hdmirx_hw_get_3d_structure(unsigned char*, unsigned char*);
