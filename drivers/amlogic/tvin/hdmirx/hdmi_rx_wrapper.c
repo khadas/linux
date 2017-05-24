@@ -1893,14 +1893,20 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_3840_2160p:
 	case HDMI_2160p_50hz_420:
 	case HDMI_2160p_60hz_420:
-		fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+		if (en_4k_timing)
+			fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+		else
+			fmt = TVIN_SIG_FMT_NULL;
 		break;
 	case HDMI_4096_2160p:
 	case HDMI_4096p_50hz_420:
 	case HDMI_4096p_60hz_420:
-		fmt = TVIN_SIG_FMT_HDMI_4096_2160_00HZ;
-		break;
+		if (en_4k_timing)
+			fmt = TVIN_SIG_FMT_HDMI_4096_2160_00HZ;
+		else
+			fmt = TVIN_SIG_FMT_NULL;
 
+		break;
 	case HDMI_2560_1440:
 		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
 		break;

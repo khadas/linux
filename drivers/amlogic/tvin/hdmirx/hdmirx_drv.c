@@ -118,6 +118,10 @@ static int en_4k_2_2k;
 MODULE_PARM_DESC(en_4k_2_2k, "\n en_4k_2_2k\n");
 module_param(en_4k_2_2k, int, 0664);
 
+int en_4k_timing = 1;
+MODULE_PARM_DESC(en_4k_timing, "\n en_4k_timing\n");
+module_param(en_4k_timing, int, 0664);
+
 int suspend_pddq = 1;
 
 unsigned int hdmirx_addr_port;
@@ -1486,6 +1490,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 			en_4k_2_2k = 0;
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"en_4k_timing", &en_4k_timing);
+	if (ret) {
+			pr_err("%s:don't find  en_4k_timing.\n", __func__);
+			en_4k_timing = 1;
+	}
 	hdmirx_hw_probe();
 	hdmirx_switch_pinmux(pdev->dev);
 
