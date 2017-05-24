@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
 
@@ -183,6 +183,19 @@ struct aml_nand_flash_dev aml_nand_flash_ids[] = {
 		INTEL_20NM,
 		(NAND_TIMING_MODE5 | NAND_ECC_BCH16_MODE)},
 
+	{"SamSung NAND K9F4G08U0F 4Gb",
+		{NAND_MFR_SAMSUNG, 0xdc, 0x10, 0x95, 0x56},
+		2048,
+		512,
+		0x20000,
+		64,
+		1,
+		20,
+		15,
+		0,
+		0,
+		(NAND_TIMING_MODE5 | NAND_ECC_BCH8_MODE)},
+
 	{"A revision NAND 1GiB sF1G-A",
 		{NAND_MFR_AMD, 0xf1, 0x80, 0x1d, 0x01, 0xf1},
 		2048,
@@ -291,6 +304,19 @@ struct aml_nand_flash_dev aml_nand_flash_ids[] = {
 		{NAND_MFR_HYNIX, 0xf1, 0x80, 0x1d, 0xad, 0xf1},
 		2048,
 		128,
+		0x20000,
+		64,
+		1,
+		16,
+		15,
+		0,
+		0,
+		(NAND_TIMING_MODE5 | NAND_ECC_BCH8_MODE)},
+
+	{"Slc NAND 4Gib MX30LF4G18AC ",
+		{NAND_MFR_MACRONIX, 0xdc, 0x90, 0x95, 0x56},
+		2048,
+		512,
 		0x20000,
 		64,
 		1,
@@ -1196,7 +1222,7 @@ static int aml_nand_scan_ident(struct mtd_info *mtd, int maxchips)
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 	struct aml_nand_flash_dev *aml_type;
 	u8 dev_id[MAX_ID_LEN], onfi_features[4];
-	unsigned temp_chip_shift;
+	unsigned int temp_chip_shift;
 
 	/* Get buswidth to select the correct functions */
 	busw = chip->options & NAND_BUSWIDTH_16;
@@ -1222,9 +1248,9 @@ static int aml_nand_scan_ident(struct mtd_info *mtd, int maxchips)
 		aml_chip->dtbsize = aml_type->erasesize;
 	} else {
 		/*
-		*fix size key/dtb!!!
-		*max key/dtb size is 256KB
-		**/
+		 *fix size key/dtb!!!
+		 *max key/dtb size is 256KB
+		 **/
 		aml_chip->keysize = 0x40000;
 		aml_chip->dtbsize = 0x40000;
 	}
@@ -1263,13 +1289,13 @@ static int aml_nand_scan_ident(struct mtd_info *mtd, int maxchips)
 	if (i > 1) {
 		pr_info("%d NAND chips detected\n", valid_chip_num);
 		/*
-		*if ((aml_chip->valid_chip[1] == 0)
-		*	&& (aml_chip->valid_chip[2] == 1)) {
-		*	pr_info("ce1 and ce2 connected\n");
-		*	aml_chip->chip_enable[2] =
-		*	(aml_chip->chip_enable[1] & aml_chip->chip_enable[2]);
-		*}
-		**/
+		 *if ((aml_chip->valid_chip[1] == 0)
+		 *	&& (aml_chip->valid_chip[2] == 1)) {
+		 *	pr_info("ce1 and ce2 connected\n");
+		 *	aml_chip->chip_enable[2] =
+		 *	(aml_chip->chip_enable[1] & aml_chip->chip_enable[2]);
+		 *}
+		 **/
 	}
 	if (aml_chip->onfi_mode) {
 		aml_nand_set_onfi_features(aml_chip,
@@ -1288,10 +1314,10 @@ static int aml_nand_scan_ident(struct mtd_info *mtd, int maxchips)
 	chip->numchips = 1;
 	if ((chip->chipsize >> 32) & 0xffffffff)
 		chip->chip_shift =
-		fls((unsigned)(chip->chipsize >> 32)) * valid_chip_num + 32 - 1;
+		fls((u32)(chip->chipsize >> 32)) * valid_chip_num + 32 - 1;
 	else
 		chip->chip_shift =
-		fls((unsigned)chip->chipsize) * valid_chip_num - 1;
+		fls((u32)chip->chipsize) * valid_chip_num - 1;
 
 	chip->pagemask =
 		((chip->chipsize * valid_chip_num) >> chip->page_shift) - 1;
@@ -1300,8 +1326,8 @@ static int aml_nand_scan_ident(struct mtd_info *mtd, int maxchips)
 	aml_chip->internal_page_nums = (chip->chipsize >> chip->page_shift);
 	aml_chip->internal_page_nums /= aml_chip->internal_chipnr;
 	aml_chip->internal_chip_shift =
-		fls((unsigned)aml_chip->internal_page_nums) - 1;
-	temp_chip_shift = ffs((unsigned)aml_chip->internal_page_nums) - 1;
+		fls((unsigned int)aml_chip->internal_page_nums) - 1;
+	temp_chip_shift = ffs((unsigned int)aml_chip->internal_page_nums) - 1;
 	if (aml_chip->internal_chip_shift != temp_chip_shift) {
 		aml_chip->internal_chip_shift += 1;
 		chip->chip_shift += 1;

@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #ifndef __AML_HWCTRL_H__
 #define __AML_HWCTRL_H__
@@ -262,30 +262,6 @@ static inline void amlnf_clr_reg32_mask(uint32_t *_reg,
 	smp_wmb();
 #endif /* AML_NAND_UBOOT */
 }
-
-/*
- *#define nfc_readl(host, reg) \
- *	__raw_readl((host)->reg_base + P_##reg)
- *#define nfc_writel(host, reg, value) \
- *	__raw_writel((value), (host)->reg_base + P_##reg)
- *#define nfc_readw(host, reg) \
- *	__raw_readw((host)->reg_base + P_##reg)
- *#define nfc_writew(host, reg, value) \
- *	__raw_writew((value), (host)->reg_base + P_##reg)
- *#define nfc_readb(host, reg) \
- *	__raw_readb((host)->reg_base + P_##reg)
- *#define nfc_writeb(host, reg, value) \
- *	__raw_writeb((value), (host)->reg_base + P_##reg)
- *
- *#define nfc_set_bits(host, reg) \
- *	{\
- *		u32 value;\
- *		value = __raw_readl((host)->reg_base + P_##reg);\
- *		value &= ~((( 1L << (_len) )-1) << (_start)); \
- *		value |= ((u32)((_value)&((1L<<(_len))-1)) << (_start));\
- *		__raw_writel(value, (host)->reg_base + P_##reg);\
- *	}
- */
 
 #define	AMLNF_WRITE_REG(reg, val) (amlnf_write_reg32(reg, (val)))
 #define AMLNF_READ_REG(reg) (amlnf_read_reg32(reg))
