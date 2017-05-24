@@ -2213,9 +2213,11 @@ bool hdmirx_audio_pll_lock(void)
 bool is_clk_stable(void)
 {
 	int clk;
+	int tmds_clk = hdmirx_get_tmds_clock();
+
 	clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 	clk = (clk >> 8) & 1;
-	if (1 == clk)
+	if ((1 == clk) && (tmds_clk > 20000000))
 		return true;
 	else
 		return false;
@@ -2510,7 +2512,6 @@ void hdmirx_hw_monitor(void)
 				esm_set_stable(0);
 			#endif
 		}
-
 		return;
 	} else {
 		if (rx.state != FSM_SIG_READY) {
@@ -2523,6 +2524,7 @@ void hdmirx_hw_monitor(void)
 			}
 		}
 	}
+
 	switch (rx.state) {
 	case FSM_INIT:
 		if (reset_sw)
@@ -2563,6 +2565,8 @@ void hdmirx_hw_monitor(void)
 	case FSM_WAIT_CLK_STABLE:
 		if (is_clk_stable()) {
 			if (is_clk_stable_cnt++ > is_clk_stable_max) {
+				/* when clock in then do phy init*/
+				hdmirx_phy_init(rx.port, 0);
 				rx_pr("EQ_INIT\n");
 				rx.state = FSM_EQ_INIT;
 				wait_clk_stable_cnt = 0;
@@ -2570,6 +2574,7 @@ void hdmirx_hw_monitor(void)
 			}
 			break;
 		}
+
 		is_clk_stable_cnt = 0;
 		wait_clk_stable_cnt++;
 		if (wait_clk_stable_cnt == wait_clk_stable_max) {
