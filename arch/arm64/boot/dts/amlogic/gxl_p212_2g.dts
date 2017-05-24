@@ -24,6 +24,8 @@
 #include <dt-bindings/reset/aml_gxl.h>
 #include "mesongxl.dtsi"
 #include "partition_mbox.dtsi"
+#include "meson_drm.dtsi"
+
 / {
 	model = "Amlogic";
 	amlogic-dt-id = "gxl_p212_2g";
