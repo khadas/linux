@@ -31,24 +31,17 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
-/* #include <linux/amports/canvas.h> */
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-/* #include <mach/clock.h> */
-/* #include <mach/register.h> */
-/* #include <mach/power_gate.h> */
-
-/* if (is_meson_g9tv_cpu() || is_meson_m8_cpu() || */
-/* is_meson_m8m2_cpu() || is_meson_gxbb_cpu() || */
-/* is_meson_m8b_cpu()) */
 #include <linux/of_gpio.h>
-
 #include <linux/amlogic/tvin/tvin.h>
+
 /* Local include */
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
 
+/*------------------------marco define------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define HW_MONITOR_TIME_UNIT    (1000/HDMI_STATE_CHECK_FREQ)
 
@@ -60,7 +53,7 @@
 #define MAX_REPEAT_DEPTH	7
 #define MAX_KSV_LIST_SIZE	(MAX_KSV_SIZE*MAX_REPEAT_COUNT)
 /*size of one format in edid*/
-#define FORMAT_SIZE			sizeof(struct edid_audio_block_t)
+#define FORMAT_SIZE		sizeof(struct edid_audio_block_t)
 #define is_audio_support(x) (((x) == AUDIO_FORMAT_LPCM) || \
 		((x) == AUDIO_FORMAT_DTS) || ((x) == AUDIO_FORMAT_DDP))
 #define EDID_SIZE			256
@@ -84,6 +77,40 @@
 #define PHY_LOCK_THRES 0x3F
 #define DVI_FIXED_TO_RGB  1
 
+/** TMDS clock delta [kHz] */
+#define TMDS_CLK_DELTA			(125)
+/** Pixel clock minimum [kHz] */
+#define PIXEL_CLK_MIN			TMDS_CLK_MIN
+/** Pixel clock maximum [kHz] */
+#define PIXEL_CLK_MAX			TMDS_CLK_MAX
+/** Horizontal resolution minimum */
+#define HRESOLUTION_MIN			(320)
+/** Horizontal resolution maximum */
+#define HRESOLUTION_MAX			(4096)
+/** Vertical resolution minimum */
+#define VRESOLUTION_MIN			(240)
+/** Vertical resolution maximum */
+#define VRESOLUTION_MAX			(4455)
+/** Refresh rate minimum [Hz] */
+#define REFRESH_RATE_MIN		(100)
+/** Refresh rate maximum [Hz] */
+#define REFRESH_RATE_MAX		(25000)
+
+#define TMDS_TOLERANCE  (4000)
+#define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
+#define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
+
+/*------------------------marco define end------------------------------*/
+
+/*------------------------type define------------------------------*/
+struct sample_rate_info_s {
+	unsigned int sr;
+	unsigned char aud_info_sf;
+	unsigned char channel_status_id;
+};
+/*------------------------type define end------------------------------*/
+
+/*------------------------variable define------------------------------*/
 static int sig_pll_unlock_cnt;
 static int sig_pll_unlock_max = 150;
 MODULE_PARM_DESC(sig_pll_unlock_max, "\n sig_pll_unlock_max\n");
@@ -271,15 +298,15 @@ static bool auto_switch_off;	/* only for hardware test */
 MODULE_PARM_DESC(auto_switch_off, "\n auto_switch_off\n");
 module_param(auto_switch_off, bool, 0664);
 
-int wait_clk_stable_cnt;
-static int wait_clk_stable_max = 400;
-MODULE_PARM_DESC(wait_clk_stable_max, "\n wait_clk_stable_max\n");
-module_param(wait_clk_stable_max, int, 0664);
+int clk_unstable_cnt;
+static int clk_unstable_max = 600;
+MODULE_PARM_DESC(clk_unstable_max, "\n clk_unstable_max\n");
+module_param(clk_unstable_max, int, 0664);
 
-int is_clk_stable_cnt;
-static int is_clk_stable_max = 3;
-MODULE_PARM_DESC(is_clk_stable_max, "\n is_clk_stable_max\n");
-module_param(is_clk_stable_max, int, 0664);
+int clk_stable_cnt;
+static int clk_stable_max = 3;
+MODULE_PARM_DESC(clk_stable_max, "\n clk_stable_max\n");
+module_param(clk_stable_max, int, 0664);
 
 int force_wait_cnt;
 static int force_wait_max = 30;
@@ -475,17 +502,12 @@ static bool use_eq_workaround;
 module_param(use_eq_workaround, bool, 0664);
 MODULE_PARM_DESC(use_eq_workaround, "use_eq_workaround");
 
-/****************************/
-/*  func enhancements  */
-/****************************/
-
 bool hdcp22_reauth_enable = 1;
 static int audio_enable = 1;
 static int hdcp22_lost_cnt;
 static int last_color_fmt;
 static bool reset_sw = true;
 static int sm_pause;
-static int irq_video_mute_flag;
 static bool edid_addr_intr_flag;
 static int fsm_enhancement;
 static int port_select_ovr_en;
@@ -496,36 +518,7 @@ int pre_port = 0xff;
 int skip_frame_num = 3;
 int skip_frame_max = 15;
 
-/***********************
-  TVIN driver interface
-************************/
-
 struct rx_s rx;
-
-/* static unsigned long tmds_clock_old = 0; */
-
-/** TMDS clock delta [kHz] */
-#define TMDS_CLK_DELTA			(125)
-/** Pixel clock minimum [kHz] */
-#define PIXEL_CLK_MIN			TMDS_CLK_MIN
-/** Pixel clock maximum [kHz] */
-#define PIXEL_CLK_MAX			TMDS_CLK_MAX
-/** Horizontal resolution minimum */
-#define HRESOLUTION_MIN			(320)
-/** Horizontal resolution maximum */
-#define HRESOLUTION_MAX			(4096)
-/** Vertical resolution minimum */
-#define VRESOLUTION_MIN			(240)
-/** Vertical resolution maximum */
-#define VRESOLUTION_MAX			(4455)
-/** Refresh rate minimum [Hz] */
-#define REFRESH_RATE_MIN		(100)
-/** Refresh rate maximum [Hz] */
-#define REFRESH_RATE_MAX		(25000)
-
-#define TMDS_TOLERANCE  (4000)
-#define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
-#define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
 
 struct hdmi_rx_ctrl_hdcp init_hdcp_data;
 static char key_buf[MAX_KEY_BUF_SIZE];
@@ -821,8 +814,6 @@ static unsigned char edid_aud_truehd[] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6D
 };
 
-
-
 unsigned char *edid_list[] = {
 	edid_buf,
 	aml_edid,
@@ -835,12 +826,167 @@ unsigned char *edid_list[] = {
 	edid_aud_truehd,
 };
 
+struct sample_rate_info_s sr_info[] = {
+	{32000, 0x1, 0x3},
+	{44100, 0x2, 0x0},
+	{48000, 0x3, 0x2},
+	{88200, 0x4, 0x8},
+	{96000, 0x5, 0xa},
+	{176400, 0x6, 0xc},
+	{192000, 0x7, 0xe},
+	/* {768000, 0, 0x9}, */
+	{0, 0, 0}
+};
+
+struct freq_ref_s freq_ref[] = {
+/* basic format*/
+	{HDMI_640x480p60, 0, 25000, 640, 480, 480, 480, 0, 3000},
+	{HDMI_480p60, 0, 27000, 720, 480, 1005, 480, 0, 3000},
+	{HDMI_480p60_16x9, 0, 27000, 720, 480, 1005, 480, 0, 3000},
+	{HDMI_480i60, 1, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_480i60_16x9, 1, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_576p50, 0, 27000, 720, 576, 1201, 576, 0, 2500},
+	{HDMI_576p50_16x9, 0, 27000, 720, 576, 1201, 576, 0, 2500},
+	{HDMI_576i50, 1, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_576i50_16x9, 1, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_576i50_16x9, 1, 27000, 1440, 145, 145, 145, 2, 2500},
+	{HDMI_720p60, 0, 74250, 1280, 720, 1470, 720, 0, 3000},
+	{HDMI_720p50, 0, 74250, 1280, 720, 1470, 720, 0, 2500},
+	{HDMI_1080i60, 1, 74250, 1920, 540, 2228, 1103, 0, 3000},
+	{HDMI_1080i50, 1, 74250, 1920, 540, 2228, 1103, 0, 2500},
+	{HDMI_1080p60, 0, 148500, 1920, 1080, 1080, 2160, 0, 3000},
+	{HDMI_1080p24, 0, 74250, 1920, 1080, 2205, 2160, 0, 1200},
+	{HDMI_1080p25, 0, 74250, 1920, 1080, 2205, 2160, 0, 1250},
+	{HDMI_1080p30, 0, 74250, 1920, 1080, 2205, 2160, 0, 1500},
+	{HDMI_1080p50, 0, 148500, 1920, 1080, 1080, 2160, 0, 2500},
+	/* extend format */
+	{HDMI_1440x240p60, 0, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_1440x240p60_16x9, 0, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_2880x480i60, 1, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_2880x480i60_16x9, 1, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_2880x240p60, 0, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_2880x240p60_16x9, 0, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_1440x480p60, 0, 54000, 1440, 480, 480, 480, 9, 3000},
+	{HDMI_1440x480p60_16x9, 0, 54000, 1440, 480, 480, 480, 9, 3000},
+
+	{HDMI_1440x288p50, 0, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_1440x288p50_16x9, 0, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_2880x576i50, 1, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_2880x576i50_16x9, 1, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_2880x288p50, 0, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_2880x288p50_16x9, 0, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_1440x576p50, 0, 54000, 1440, 576, 576, 576, 9, 2500},
+	{HDMI_1440x576p50_16x9, 0, 54000, 1440, 576, 576, 576, 9, 2500},
+
+	{HDMI_2880x480p60, 0, 108000, 2880, 480, 480, 480, 9, 3000},
+	{HDMI_2880x480p60_16x9, 0, 108000, 2880, 480, 480, 480, 9, 3000},
+	{HDMI_2880x576p50, 0, 108000, 2880, 576, 576, 576, 9, 2500},
+	{HDMI_2880x576p50_16x9, 0, 108000, 2880, 576, 576, 576, 9, 2500},
+	{HDMI_1080i50_1250, 1, 72000, 1920, 540, 540, 540, 0, 2500},
+	{HDMI_720p24, 0, 74250, 1280, 720, 1470, 720, 0, 1200},
+	{HDMI_720p25, 0, 74250, 1280, 720, 1470, 720, 0, 1250},
+	{HDMI_720p30, 0, 74250, 1280, 720, 1470, 720, 0, 1500},
+
+/*extend format 100hz,120hz,200hz,240hz*/
+	{HDMI_480p60, 0, 54000, 720, 480, 1005, 480, 0, 6000},
+	{HDMI_480p60_16x9, 0, 54000, 720, 480, 1005, 480, 0, 6000},
+	{HDMI_480i60, 1, 54000, 1440, 240, 240, 240, 1, 6000},
+	{HDMI_480i60_16x9, 1, 54000, 1440, 240, 240, 240, 1, 6000},
+	{HDMI_480p60, 0, 108000, 720, 480, 1005, 480, 0, 12000},
+	{HDMI_480p60_16x9, 0, 108000, 720, 480, 1005, 480, 0, 12000},
+	{HDMI_480i60, 1, 108000, 1440, 240, 240, 240, 1, 12000},
+	{HDMI_480i60_16x9, 1, 108000, 1440, 240, 240, 240, 1, 12000},
+
+	{HDMI_576p50, 0, 54000, 720, 576, 1201, 576, 0, 5000},
+	{HDMI_576p50_16x9, 0, 54000, 720, 576, 1201, 576, 0, 5000},
+	{HDMI_576i50, 1, 54000, 1440, 288, 288, 288, 1, 5000},
+	{HDMI_576i50_16x9, 1, 54000, 1440, 288, 288, 288, 1, 5000},
+	{HDMI_576i50_16x9, 1, 54000, 1440, 145, 145, 145, 2, 5000},
+	{HDMI_576p50, 0, 108000, 720, 576, 1201, 576, 0, 10000},
+	{HDMI_576p50_16x9, 0, 108000, 720, 576, 1201, 576, 0, 10000},
+	{HDMI_576i50, 1, 108000, 1440, 288, 288, 288, 1, 10000},
+	{HDMI_576i50_16x9, 1, 108000, 1440, 288, 288, 288, 1, 10000},
+	{HDMI_576i50_16x9, 1, 108000, 1440, 145, 145, 145, 2, 10000},
+
+	{HDMI_720p60, 0, 148500, 1280, 720, 1470, 720, 0, 6000},
+	{HDMI_720p60, 0, 297000, 1280, 720, 1470, 720, 0, 12000},
+	{HDMI_720p50, 0, 148500, 1280, 720, 1470, 720, 0, 5000},
+	{HDMI_720p50, 0, 297000, 1280, 720, 1470, 720, 0, 10000},
+
+	{HDMI_1080i60, 1, 148500, 1920, 540, 2228, 1103, 0, 6000},
+	{HDMI_1080i60, 1, 297000, 1920, 540, 2228, 1103, 0, 12000},
+	{HDMI_1080i50, 1, 148500, 1920, 540, 2228, 1103, 0, 5000},
+	{HDMI_1080i50, 1, 297000, 1920, 540, 2228, 1103, 0, 10000},
+
+	{HDMI_1080p60, 0, 297000, 1920, 1080, 1080, 2160, 0, 6000},
+	{HDMI_1080p50, 0, 297000, 1920, 1080, 1080, 2160, 0, 5000},
+
+/* vesa format*/
+	{HDMI_800_600, 0, 0, 800, 600, 600, 600, 0, 0},
+	{HDMI_1024_768, 0, 0, 1024, 768, 768, 768, 0, 0},
+	{HDMI_720_400, 0, 0, 720, 400, 400, 400, 0, 0},
+	{HDMI_1280_768, 0, 0, 1280, 768, 768, 768, 0, 0},
+	{HDMI_1280_800, 0, 0, 1280, 800, 800, 800, 0, 0},
+	{HDMI_1280_960, 0, 0, 1280, 960, 960, 960, 0, 0},
+	{HDMI_1280_1024, 0, 0, 1280, 1024, 1024, 1024, 0, 0},
+	{HDMI_1360_768, 0, 0, 1360, 768, 768, 768, 0, 0},
+	{HDMI_1366_768, 0, 0, 1366, 768, 768, 768, 0, 0},
+	{HDMI_1600_1200, 0, 0, 1600, 1200, 1200, 1200, 0, 0},
+	{HDMI_1600_900, 0, 0, 1600, 900, 900, 900, 0, 0},
+	{HDMI_1920_1200, 0, 0, 1920, 1200, 1200, 1200, 0, 0},
+	{HDMI_1440_900, 0, 0, 1440, 900, 900, 900, 0, 0},
+	{HDMI_1400_1050, 0, 0, 1400, 1050, 1050, 1050, 0, 0},
+	{HDMI_1680_1050, 0, 0, 1680, 1050, 1050, 1050, 0, 0},
+
+	/* 4k2k mode */
+	{HDMI_3840_2160p, 0, 0, 3840, 2160, 2160, 2160, 0, 0},
+	{HDMI_4096_2160p, 0, 0, 4096, 2160, 2160, 2160, 0, 0},
+
+	{HDMI_640x480p72, 0, 30000, 640, 480, 480, 480, 0, 3600},
+	{HDMI_640x480p75, 0, 31250, 640, 480, 480, 480, 0, 3750},
+
+	/* 4k2k 420mode hactive = hactive/2 */
+	{HDMI_2160p_50hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
+	{HDMI_2160p_60hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
+	{HDMI_4096p_50hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
+	{HDMI_4096p_60hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
+	{HDMI_1080p60, 0, 74250, 960, 1080, 1080, 1080, 0, 3000},
+	{HDMI_2560_1440, 0, 312951, 2560, 1440, 3488, 2986, 0, 0},
+
+	/* for AG-506 */
+	{HDMI_480p60, 0, 27000, 720, 483, 483, 483, 0, 3000},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+static unsigned int unread_register[] = {
+0x0c, 0x3c, 0x60, 0x64, 0x68, 0x6c, 0x70, 0x74, 0x78, 0x7c, 0x8c, 0xa0,
+0xac, 0xc8, 0xd8, 0xdc, 0x184, 0x188, 0x18c, 0x190, 0x194, 0x198, 0x19c,
+0x1a0, 0x1a4, 0x1a8, 0x1ac, 0x1b0, 0x1b4, 0x1b8, 0x1bc, 0x1c0, 0x1c4,
+0x1c8, 0x1cc, 0x1d0, 0x1d4, 0x1d8, 0x1dc, 0x1e0, 0x1e4, 0x1e8, 0x1ec,
+0x1f0, 0x1f4, 0x1f8, 0x1fc, 0x204, 0x20c, 0x210, 0x214, 0x218, 0x21c,
+0x220, 0x224, 0x228, 0x22c, 0x230, 0x234, 0x238, 0x268, 0x26c, 0x270,
+0x274, 0x278, 0x290, 0x294, 0x298, 0x29c, 0x2a8, 0x2ac, 0x2b0, 0x2b4,
+0x2b8, 0x2bc, 0x2d4, 0x2dc, 0x2e8, 0x2ec, 0x2f0, 0x2f4, 0x2f8, 0x2fc,
+0x314, 0x318, 0x328, 0x32c, 0x348, 0x34c, 0x350, 0x354, 0x358, 0x35c,
+0x384, 0x388, 0x38c, 0x398, 0x39c, 0x3d8, 0x3dc, 0x400, 0x404, 0x408,
+0x40c, 0x410, 0x414, 0x418, 0x810, 0x814, 0x818, 0x830, 0x834, 0x838,
+0x83c, 0x854, 0x858, 0x85c, 0xf60, 0xf64, 0xf70, 0xf74, 0xf78, 0xf7c,
+0xf88, 0xf8c, 0xf90, 0xf94, 0xfa0, 0xfa4, 0xfa8, 0xfac, 0xfb8, 0xfbc,
+0xfc0, 0xfc4, 0xfd0, 0xfd4, 0xfd8, 0xfdc, 0xfe8, 0xfec, 0xff0, 0x1f04,
+0x1f0c, 0x1f10, 0x1f24, 0x1f28, 0x1f2c, 0x1f30, 0x1f34, 0x1f38, 0x1f3c
+};
+
+/*------------------------variable define end------------------------------*/
+
+/*------------------------external function------------------------------*/
 static void dump_state(unsigned char enable);
 static void dump_audio_info(unsigned char enable);
 static void rx_modify_edid(unsigned char *buffer,
 				int len, unsigned char *addition);
 static void rx_start_repeater_auth(void);
 static void dump_hdcp_data(void);
+/*------------------------external function end------------------------------*/
+
 void eq_algorithm(struct work_struct *work)
 {
 	unsigned int i;
@@ -931,23 +1077,6 @@ void hdmirx_dv_packet_stop(void)
  * @param[in,out] ctx context information
  * @return error code
  */
-#if 0
-static long hdmi_rx_ctrl_get_tmds_clk(struct hdmi_rx_ctrl *ctx)
-{
-	return ctx->tmds_clk;
-}
-#endif
-#if 0
-static unsigned char is_3d_sig(void)
-{
-	if ((rx.vendor_specific_info.identifier == 0x000c03) &&
-	    (rx.vendor_specific_info.vd_fmt == 0x2)) {
-		return 1;
-	}
-	return 0;
-}
-#endif
-
 static int clock_handler(struct hdmi_rx_ctrl *ctx)
 {
 	int error = 0;
@@ -1057,29 +1186,11 @@ static int drm_handler(struct hdmi_rx_ctrl *ctx)
 	if (ctx == 0)
 		return -EINVAL;
 
-	if (irq_video_mute_flag == false) {
-		irq_video_mute_flag = true;
-		hdmirx_set_video_mute(1);
-
 		if (log_level&0x400)
 			rx_pr("\nmd_mute\n");
 	}
 	return error;
 }*/
-
-#if 0
-static int video_handler(struct hdmi_rx_ctrl *ctx)
-{}
-#endif
-/**
- * Audio event handler
- * @param[in,out] ctx context information
- * @return error code
- */
-#if 0
-static int audio_handler(struct hdmi_rx_ctrl *ctx)
-{}
-#endif
 
 static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 {
@@ -1390,25 +1501,6 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	return IRQ_HANDLED;
 }
 
-
-struct sample_rate_info_s {
-	unsigned int sr;
-	unsigned char aud_info_sf;
-	unsigned char channel_status_id;
-};
-
-struct sample_rate_info_s sr_info[] = {
-	{32000, 0x1, 0x3},
-	{44100, 0x2, 0x0},
-	{48000, 0x3, 0x2},
-	{88200, 0x4, 0x8},
-	{96000, 0x5, 0xa},
-	{176400, 0x6, 0xc},
-	{192000, 0x7, 0xe},
-	/* {768000, 0, 0x9}, */
-	{0, 0, 0}
-};
-
 static unsigned int get_real_sample_rate(void)
 {
 	int i;
@@ -1546,128 +1638,6 @@ unsigned char is_alternative(void)
 {
 	return rx.pre.sw_alternative;
 }
-
-
-
-struct freq_ref_s freq_ref[] = {
-/* basic format*/
-	{HDMI_640x480p60, 0, 25000, 640, 480, 480, 480, 0, 3000},
-	{HDMI_480p60, 0, 27000, 720, 480, 1005, 480, 0, 3000},
-	{HDMI_480p60_16x9, 0, 27000, 720, 480, 1005, 480, 0, 3000},
-	{HDMI_480i60, 1, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_480i60_16x9, 1, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_576p50, 0, 27000, 720, 576, 1201, 576, 0, 2500},
-	{HDMI_576p50_16x9, 0, 27000, 720, 576, 1201, 576, 0, 2500},
-	{HDMI_576i50, 1, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_576i50_16x9, 1, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_576i50_16x9, 1, 27000, 1440, 145, 145, 145, 2, 2500},
-	{HDMI_720p60, 0, 74250, 1280, 720, 1470, 720, 0, 3000},
-	{HDMI_720p50, 0, 74250, 1280, 720, 1470, 720, 0, 2500},
-	{HDMI_1080i60, 1, 74250, 1920, 540, 2228, 1103, 0, 3000},
-	{HDMI_1080i50, 1, 74250, 1920, 540, 2228, 1103, 0, 2500},
-	{HDMI_1080p60, 0, 148500, 1920, 1080, 1080, 2160, 0, 3000},
-	{HDMI_1080p24, 0, 74250, 1920, 1080, 2205, 2160, 0, 1200},
-	{HDMI_1080p25, 0, 74250, 1920, 1080, 2205, 2160, 0, 1250},
-	{HDMI_1080p30, 0, 74250, 1920, 1080, 2205, 2160, 0, 1500},
-	{HDMI_1080p50, 0, 148500, 1920, 1080, 1080, 2160, 0, 2500},
-	/* extend format */
-	{HDMI_1440x240p60, 0, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_1440x240p60_16x9, 0, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_2880x480i60, 1, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_2880x480i60_16x9, 1, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_2880x240p60, 0, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_2880x240p60_16x9, 0, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_1440x480p60, 0, 54000, 1440, 480, 480, 480, 9, 3000},
-	{HDMI_1440x480p60_16x9, 0, 54000, 1440, 480, 480, 480, 9, 3000},
-
-	{HDMI_1440x288p50, 0, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_1440x288p50_16x9, 0, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_2880x576i50, 1, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_2880x576i50_16x9, 1, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_2880x288p50, 0, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_2880x288p50_16x9, 0, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_1440x576p50, 0, 54000, 1440, 576, 576, 576, 9, 2500},
-	{HDMI_1440x576p50_16x9, 0, 54000, 1440, 576, 576, 576, 9, 2500},
-
-	{HDMI_2880x480p60, 0, 108000, 2880, 480, 480, 480, 9, 3000},
-	{HDMI_2880x480p60_16x9, 0, 108000, 2880, 480, 480, 480, 9, 3000},
-	{HDMI_2880x576p50, 0, 108000, 2880, 576, 576, 576, 9, 2500},
-	{HDMI_2880x576p50_16x9, 0, 108000, 2880, 576, 576, 576, 9, 2500},
-	{HDMI_1080i50_1250, 1, 72000, 1920, 540, 540, 540, 0, 2500},
-	{HDMI_720p24, 0, 74250, 1280, 720, 1470, 720, 0, 1200},
-	{HDMI_720p25, 0, 74250, 1280, 720, 1470, 720, 0, 1250},
-	{HDMI_720p30, 0, 74250, 1280, 720, 1470, 720, 0, 1500},
-
-/*extend format 100hz,120hz,200hz,240hz*/
-	{HDMI_480p60, 0, 54000, 720, 480, 1005, 480, 0, 6000},
-	{HDMI_480p60_16x9, 0, 54000, 720, 480, 1005, 480, 0, 6000},
-	{HDMI_480i60, 1, 54000, 1440, 240, 240, 240, 1, 6000},
-	{HDMI_480i60_16x9, 1, 54000, 1440, 240, 240, 240, 1, 6000},
-	{HDMI_480p60, 0, 108000, 720, 480, 1005, 480, 0, 12000},
-	{HDMI_480p60_16x9, 0, 108000, 720, 480, 1005, 480, 0, 12000},
-	{HDMI_480i60, 1, 108000, 1440, 240, 240, 240, 1, 12000},
-	{HDMI_480i60_16x9, 1, 108000, 1440, 240, 240, 240, 1, 12000},
-
-	{HDMI_576p50, 0, 54000, 720, 576, 1201, 576, 0, 5000},
-	{HDMI_576p50_16x9, 0, 54000, 720, 576, 1201, 576, 0, 5000},
-	{HDMI_576i50, 1, 54000, 1440, 288, 288, 288, 1, 5000},
-	{HDMI_576i50_16x9, 1, 54000, 1440, 288, 288, 288, 1, 5000},
-	{HDMI_576i50_16x9, 1, 54000, 1440, 145, 145, 145, 2, 5000},
-	{HDMI_576p50, 0, 108000, 720, 576, 1201, 576, 0, 10000},
-	{HDMI_576p50_16x9, 0, 108000, 720, 576, 1201, 576, 0, 10000},
-	{HDMI_576i50, 1, 108000, 1440, 288, 288, 288, 1, 10000},
-	{HDMI_576i50_16x9, 1, 108000, 1440, 288, 288, 288, 1, 10000},
-	{HDMI_576i50_16x9, 1, 108000, 1440, 145, 145, 145, 2, 10000},
-
-	{HDMI_720p60, 0, 148500, 1280, 720, 1470, 720, 0, 6000},
-	{HDMI_720p60, 0, 297000, 1280, 720, 1470, 720, 0, 12000},
-	{HDMI_720p50, 0, 148500, 1280, 720, 1470, 720, 0, 5000},
-	{HDMI_720p50, 0, 297000, 1280, 720, 1470, 720, 0, 10000},
-
-	{HDMI_1080i60, 1, 148500, 1920, 540, 2228, 1103, 0, 6000},
-	{HDMI_1080i60, 1, 297000, 1920, 540, 2228, 1103, 0, 12000},
-	{HDMI_1080i50, 1, 148500, 1920, 540, 2228, 1103, 0, 5000},
-	{HDMI_1080i50, 1, 297000, 1920, 540, 2228, 1103, 0, 10000},
-
-	{HDMI_1080p60, 0, 297000, 1920, 1080, 1080, 2160, 0, 6000},
-	{HDMI_1080p50, 0, 297000, 1920, 1080, 1080, 2160, 0, 5000},
-
-/* vesa format*/
-	{HDMI_800_600, 0, 0, 800, 600, 600, 600, 0, 0},
-	{HDMI_1024_768, 0, 0, 1024, 768, 768, 768, 0, 0},
-	{HDMI_720_400, 0, 0, 720, 400, 400, 400, 0, 0},
-	{HDMI_1280_768, 0, 0, 1280, 768, 768, 768, 0, 0},
-	{HDMI_1280_800, 0, 0, 1280, 800, 800, 800, 0, 0},
-	{HDMI_1280_960, 0, 0, 1280, 960, 960, 960, 0, 0},
-	{HDMI_1280_1024, 0, 0, 1280, 1024, 1024, 1024, 0, 0},
-	{HDMI_1360_768, 0, 0, 1360, 768, 768, 768, 0, 0},
-	{HDMI_1366_768, 0, 0, 1366, 768, 768, 768, 0, 0},
-	{HDMI_1600_1200, 0, 0, 1600, 1200, 1200, 1200, 0, 0},
-	{HDMI_1600_900, 0, 0, 1600, 900, 900, 900, 0, 0},
-	{HDMI_1920_1200, 0, 0, 1920, 1200, 1200, 1200, 0, 0},
-	{HDMI_1440_900, 0, 0, 1440, 900, 900, 900, 0, 0},
-	{HDMI_1400_1050, 0, 0, 1400, 1050, 1050, 1050, 0, 0},
-	{HDMI_1680_1050, 0, 0, 1680, 1050, 1050, 1050, 0, 0},
-
-	/* 4k2k mode */
-	{HDMI_3840_2160p, 0, 0, 3840, 2160, 2160, 2160, 0, 0},
-	{HDMI_4096_2160p, 0, 0, 4096, 2160, 2160, 2160, 0, 0},
-
-	{HDMI_640x480p72, 0, 30000, 640, 480, 480, 480, 0, 3600},
-	{HDMI_640x480p75, 0, 31250, 640, 480, 480, 480, 0, 3750},
-
-	/* 4k2k 420mode hactive = hactive/2 */
-	{HDMI_2160p_50hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
-	{HDMI_2160p_60hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
-	{HDMI_4096p_50hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
-	{HDMI_4096p_60hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
-	{HDMI_1080p60, 0, 74250, 960, 1080, 1080, 1080, 0, 3000},
-	{HDMI_2560_1440, 0, 312951, 2560, 1440, 3488, 2986, 0, 0},
-
-	/* for AG-506 */
-	{HDMI_480p60, 0, 27000, 720, 483, 483, 483, 0, 3000},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0}
-};
 
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 {
@@ -2227,11 +2197,10 @@ bool hdmirx_audio_pll_lock(void)
 bool is_clk_stable(void)
 {
 	int clk;
-	int tmds_clk = hdmirx_get_tmds_clock();
 
 	clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 	clk = (clk >> 8) & 1;
-	if ((1 == clk) && (tmds_clk > 20000000))
+	if (1 == clk)
 		return true;
 	else
 		return false;
@@ -2491,13 +2460,6 @@ void hdmirx_hw_monitor(void)
 	if (clk_debug)
 		monitor_cable_clk_sts();
 
-	if (mute_kill_en) {
-		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), 1);
-		mute_kill_en = 0;
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
-		if (log_level & VIDEO_LOG)
-			rx_pr("****esm kill mute****\n");
-	}
 	if (rx.state > FSM_WAIT_CLK_STABLE) {
 		if (hdmirx_phy_clk_rate_monitor()) {
 			rx.state = FSM_WAIT_CLK_STABLE;
@@ -2508,14 +2470,6 @@ void hdmirx_hw_monitor(void)
 	if (sm_pause)
 		return;
 	#ifdef HDCP22_ENABLE
-	if (esm_error_flag && hdcp22_on && hdcp22_firmware_ok_flag) {
-		esm_error_flag = 0;
-		queue_delayed_work(esm_wq,
-				&esm_dwork, msecs_to_jiffies(1));
-		hdmirx_set_hpd(rx.port, 0);
-		rx.state = FSM_HPD_LOW;
-		rx_pr("esm err->FSM_HDMI5V_HIGH\n");
-	}
 	if ((hdcp22_on) && (rx.state > FSM_SIG_UNSTABLE)) {
 		monitor_capable_sts();
 		esm_rst_monitor();
@@ -2526,7 +2480,6 @@ void hdmirx_hw_monitor(void)
 		if (rx.state != FSM_INIT) {
 			rx_pr("5v_lost->FSM_INIT\n");
 			pre_port = E_5V_LOST;
-			use_dwc_reset = true;
 			rx_set_eq_run_state(E_EQ_START);
 			set_scdc_cfg(1, 0);
 			hdmirx_audio_enable(0);
@@ -2566,7 +2519,6 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_HPD_LOW:
 		/* set_scdc_cfg(1, 1); */
-		use_dwc_reset = true;
 		hdmirx_set_hpd(rx.port, 0);
 		set_scdc_cfg(1, 0);
 		audio_status_init();
@@ -2595,38 +2547,23 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (is_clk_stable()) {
-			if (is_clk_stable_cnt++ > is_clk_stable_max) {
-				/* when clock in then do phy init*/
-				/*hdmirx_phy_init(rx.port, 0);*/
-				rx_pr("EQ_INIT\n");
+			clk_unstable_cnt = 0;
+			if (clk_stable_cnt++ > clk_stable_max) {
 				rx.state = FSM_EQ_INIT;
-				wait_clk_stable_cnt = 0;
-				is_clk_stable_cnt = 0;
+				clk_stable_cnt = 0;
+				rx_pr("WAIT_CLK_STABLE\n");
 			}
-			break;
-		}
-
-		is_clk_stable_cnt = 0;
-		wait_clk_stable_cnt++;
-		if (wait_clk_stable_cnt == wait_clk_stable_max) {
-			hdmirx_phy_init(rx.port, 0);
-			if (log_level & VIDEO_LOG)
-				rx_pr("FSM_WAIT_CLK_STABLE phy init\n");
-			break;
-		}
-		if (wait_clk_stable_cnt >= wait_clk_stable_max*2) {
-			rx.state = FSM_HPD_LOW;
-			/*hdmirx_set_hpd(rx.port, 0);*/
-			pre_port = E_HPD_RESET;
-			wait_clk_stable_cnt = 0;
-			if (log_level & VIDEO_LOG)
-				rx_pr("FSM_WAIT_CLK_STABLE send hpd\n");
-			break;
+		} else {
+			clk_stable_cnt = 0;
+			if (clk_unstable_cnt++ >= clk_unstable_max) {
+				rx.state = FSM_HPD_LOW;
+				pre_port = E_HPD_RESET;
+				clk_unstable_cnt = 0;
+			}
 		}
 		break;
 	case FSM_EQ_INIT:
-		/*check mhl 3.4gb*/
-		rx_pr("EQ-init\n");
+		rx_pr("EQ_INIT\n");
 		if ((eq_dbg_ch0 != 0) ||
 			(eq_dbg_ch1 != 0) ||
 			(eq_dbg_ch2 != 0)) {
@@ -2656,89 +2593,48 @@ void hdmirx_hw_monitor(void)
 	case FSM_EQ_CALIBRATION:
 		break;
 	case FSM_EQ_END:
+		rx_pr("EQ_END\n");
 		phy_conf_eq_setting(eq_ch0.bestsetting,
 				eq_ch1.bestsetting,
 				eq_ch2.bestsetting);
-		/*
-		hdmirx_phy_conf_eq_setting(rx.port,
-				eq_ch0.bestsetting,
-				eq_ch1.bestsetting,
-				eq_ch2.bestsetting);
-		*/
-		if (log_level & EQ_LOG)
-			rx_pr("EQ_end\n");
 		rx.state = FSM_SIG_UNSTABLE;
-		rx_pr("->UNSTABLE\n");
-		break;
-	case FSM_WAIT_HDCP_SWITCH:
-		force_wait_cnt++;
-		if (force_wait_cnt > force_wait_max) {
-			rx.state = rx.pre_state;
-			force_wait_cnt = 0;
-			break;
-		}
 		break;
 	case FSM_SIG_UNSTABLE:
+		if (log_level & VIDEO_LOG)
+			rx_pr("lock_cnt:%d,unlock_cnt:%d\n",
+					sig_pll_lock_cnt, sig_pll_unlock_cnt);
 		if (hdmirx_tmds_pll_lock()) {
-			sig_pll_lock_cnt++;
-			if (sig_pll_lock_cnt > sig_pll_lock_max) {
+			sig_pll_unlock_cnt = 0;
+			if (sig_pll_lock_cnt++ > sig_pll_lock_max) {
 				rx.state = FSM_DWC_RST_WAIT;
-				rx.scdc_tmds_cfg = 0;
 				if (use_dwc_reset) {
 					rx_dwc_reset();
 					hdmirx_irq_open();
-					/*use_dwc_reset = false;*/
 				}
+				rx_pr("UNSTABLE\n");
 				#ifdef HDCP22_ENABLE
 				if (hdcp22_on)
 					esm_set_stable(1);
 				#endif
-				sig_pll_unlock_cnt = 0;
 				sig_pll_lock_cnt = 0;
-				rx.no_signal = false;
-				rx_pr("UNSTABLE->DWC_RST pll:%d\n",
-					    rx.scdc_tmds_cfg);
-			} else {
-			    if (log_level & VIDEO_LOG)
-					rx_pr("SIG_UNSTABLE lock_cnt :%d\n",
-							sig_pll_lock_cnt);
 			}
 		} else {
-			if ((sig_pll_lock_cnt) && (log_level & VIDEO_LOG))
-				rx_pr("pll_lock_cnt=%d\n", sig_pll_lock_cnt);
-
-			/*for some device sending scdc slow,recheck*/
-			/*hdmirx_phy_clk_rate_monitor();*/
 			sig_pll_lock_cnt = 0;
-			sig_pll_unlock_cnt++;
-			if (sig_pll_unlock_cnt >= sig_pll_unlock_max) {
+			if (sig_pll_unlock_cnt++ >= sig_pll_unlock_max) {
 				hdmirx_error_count_config();
-				rx.scdc_tmds_cfg++;
-				if (hdmirx_tmds_34g_max()) {
-					rx.scdc_tmds_cfg = 0;
-					hdmirx_set_hpd(rx.port, 0);
-					rx.state = FSM_HPD_LOW;
-					sig_pll_unlock_cnt = 0;
-					break;
-				}
-				rx.state = FSM_WAIT_CLK_STABLE;
+				rx.state = FSM_HPD_LOW;
+				sig_pll_unlock_cnt = 0;
 				rx_set_eq_run_state(E_EQ_FAIL);
 				rx_pr("UNSTABLE->HPD_READY 3g:%d\n",
 						rx.scdc_tmds_cfg);
 				sig_pll_unlock_cnt = 0;
-
 			}
 		}
 		break;
 	case FSM_DWC_RST_WAIT:
 		dwc_rst_wait_cnt++;
-		if ((do_hpd_reset_flag) &&
-			(dwc_rst_wait_cnt < wait_hpd_reset_max))
+		if (dwc_rst_wait_cnt < dwc_rst_wait_cnt_max)
 			break;
-		if ((!do_hpd_reset_flag) &&
-			(dwc_rst_wait_cnt < dwc_rst_wait_cnt_max))
-			break;
-		do_hpd_reset_flag = 0;
 		dwc_rst_wait_cnt = 0;
 		rx.state = FSM_SIG_STABLE;
 		rx_pr("DWC_RST->FSM_SIG_STABLE\n");
@@ -2791,7 +2687,6 @@ void hdmirx_hw_monitor(void)
 				rx.change = 0;
 				rx.state = FSM_CHECK_DDC_CORRECT;
 				rx.no_signal = false;
-				irq_video_mute_flag = false;
 				memset(&rx.aud_info, 0,
 					sizeof(struct aud_info_s));
 				hdmirx_config_video();
@@ -3932,24 +3827,6 @@ static void dump_audio_info(unsigned char enable)
 	}
 }
 
-static unsigned int unread_register[] = {
-0x0c, 0x3c, 0x60, 0x64, 0x68, 0x6c, 0x70, 0x74, 0x78, 0x7c, 0x8c, 0xa0,
-0xac, 0xc8, 0xd8, 0xdc, 0x184, 0x188, 0x18c, 0x190, 0x194, 0x198, 0x19c,
-0x1a0, 0x1a4, 0x1a8, 0x1ac, 0x1b0, 0x1b4, 0x1b8, 0x1bc, 0x1c0, 0x1c4,
-0x1c8, 0x1cc, 0x1d0, 0x1d4, 0x1d8, 0x1dc, 0x1e0, 0x1e4, 0x1e8, 0x1ec,
-0x1f0, 0x1f4, 0x1f8, 0x1fc, 0x204, 0x20c, 0x210, 0x214, 0x218, 0x21c,
-0x220, 0x224, 0x228, 0x22c, 0x230, 0x234, 0x238, 0x268, 0x26c, 0x270,
-0x274, 0x278, 0x290, 0x294, 0x298, 0x29c, 0x2a8, 0x2ac, 0x2b0, 0x2b4,
-0x2b8, 0x2bc, 0x2d4, 0x2dc, 0x2e8, 0x2ec, 0x2f0, 0x2f4, 0x2f8, 0x2fc,
-0x314, 0x318, 0x328, 0x32c, 0x348, 0x34c, 0x350, 0x354, 0x358, 0x35c,
-0x384, 0x388, 0x38c, 0x398, 0x39c, 0x3d8, 0x3dc, 0x400, 0x404, 0x408,
-0x40c, 0x410, 0x414, 0x418, 0x810, 0x814, 0x818, 0x830, 0x834, 0x838,
-0x83c, 0x854, 0x858, 0x85c, 0xf60, 0xf64, 0xf70, 0xf74, 0xf78, 0xf7c,
-0xf88, 0xf8c, 0xf90, 0xf94, 0xfa0, 0xfa4, 0xfa8, 0xfac, 0xfb8, 0xfbc,
-0xfc0, 0xfc4, 0xfd0, 0xfd4, 0xfd8, 0xfdc, 0xfe8, 0xfec, 0xff0, 0x1f04,
-0x1f0c, 0x1f10, 0x1f24, 0x1f28, 0x1f2c, 0x1f30, 0x1f34, 0x1f38, 0x1f3c
-};
-
 bool is_reg_can_read(uint32_t addr)
 {
 	int i;
@@ -3961,6 +3838,140 @@ bool is_reg_can_read(uint32_t addr)
 	}
 
 	return true;
+}
+
+void rx_set_global_varaible(const char *buf, int size)
+{
+	char tmpbuf[60];
+	int i = 0;
+	long value = 0;
+	int ret = 0;
+
+	rx_pr("buf: %s size: %#x\n", buf, size);
+
+	if ((buf == 0) || (size == 0) || (size > 60))
+		return;
+
+	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ') && (i < size)) {
+		tmpbuf[i] = buf[i];
+		i++;
+	}
+	tmpbuf[i] = 0;
+	/*skip the space*/
+	while (++i < size) {
+		if ((buf[i] != ' ') && (buf[i] != ','))
+			break;
+	}
+	if ((buf[i] == '0') && ((buf[i + 1] == 'x') || (buf[i + 1] == 'X')))
+		ret = kstrtol(buf + i + 2, 16, &value);
+	else
+		ret = kstrtol(buf + i, 10, &value);
+	rx_pr("tmpbuf: %s value: %#x\n", tmpbuf, value);
+
+	if (ret != 0) {
+		rx_pr("strtol error:%d\n", ret);
+		return;
+	}
+
+	if (str_cmp(tmpbuf, "sig_pll_unlock_cnt"))
+		sig_pll_unlock_cnt = value;
+	else if (str_cmp(tmpbuf, "sig_pll_unlock_max"))
+		sig_pll_unlock_max = value;
+	else if (str_cmp(tmpbuf, "sig_pll_lock_max"))
+		sig_pll_lock_max = value;
+	else if (str_cmp(tmpbuf, "dwc_rst_wait_cnt_max"))
+		dwc_rst_wait_cnt_max = value;
+	else if (str_cmp(tmpbuf, "force_hdmi_5v_high"))
+		force_hdmi_5v_high = value;
+	else if (str_cmp(tmpbuf, "sig_lost_lock_max"))
+		sig_lost_lock_max = value;
+	else if (str_cmp(tmpbuf, "sig_stable_max"))
+		sig_stable_max = value;
+	else if (str_cmp(tmpbuf, "clk_debug"))
+		clk_debug = value;
+	else if (str_cmp(tmpbuf, "hpd_wait_max"))
+		hpd_wait_max = value;
+	else if (str_cmp(tmpbuf, "sig_unstable_max"))
+		sig_unstable_max = value;
+	else if (str_cmp(tmpbuf, "sig_unready_max"))
+		sig_unready_max = value;
+	else if (str_cmp(tmpbuf, "hdcp22_lost_max"))
+		hdcp22_lost_max = value;
+	else if (str_cmp(tmpbuf, "enable_hpd_reset"))
+		enable_hpd_reset = value;
+	else if (str_cmp(tmpbuf, "pow5v_max_cnt"))
+		pow5v_max_cnt = value;
+	else if (str_cmp(tmpbuf, "sig_unstable_reset_hpd_max"))
+		sig_unstable_reset_hpd_max = value;
+	else if (str_cmp(tmpbuf, "rgb_quant_range"))
+		rgb_quant_range = value;
+	else if (str_cmp(tmpbuf, "yuv_quant_range"))
+		yuv_quant_range = value;
+	else if (str_cmp(tmpbuf, "it_content"))
+		it_content = value;
+	else if (str_cmp(tmpbuf, "diff_pixel_th"))
+		diff_pixel_th = value;
+	else if (str_cmp(tmpbuf, "diff_line_th"))
+		diff_line_th = value;
+	else if (str_cmp(tmpbuf, "diff_frame_th"))
+		diff_frame_th = value;
+	else if (str_cmp(tmpbuf, "port_map"))
+		port_map = value;
+	else if (str_cmp(tmpbuf, "edid_mode"))
+		edid_mode = value;
+	else if (str_cmp(tmpbuf, "force_vic"))
+		force_vic = value;
+	else if (str_cmp(tmpbuf, "force_ready"))
+		force_ready = value;
+	else if (str_cmp(tmpbuf, "hdcp22_kill_esm"))
+		hdcp22_kill_esm = value;
+	else if (str_cmp(tmpbuf, "repeat_check"))
+		repeat_check = value;
+	else if (str_cmp(tmpbuf, "force_state"))
+		force_state = value;
+	else if (str_cmp(tmpbuf, "force_audio_sample_rate"))
+		force_audio_sample_rate = value;
+	else if (str_cmp(tmpbuf, "run_eq_flag"))
+		run_eq_flag = value;
+	else if (str_cmp(tmpbuf, "pre_eq_freq"))
+		pre_eq_freq = value;
+
+
+}
+
+void rx_get_global_varaible(const char *buf)
+{
+	pr_var(sig_pll_unlock_cnt);
+	pr_var(sig_pll_unlock_max);
+	pr_var(sig_pll_lock_max);
+	pr_var(dwc_rst_wait_cnt_max);
+	pr_var(force_hdmi_5v_high);
+	pr_var(sig_lost_lock_max);
+	pr_var(sig_stable_max);
+	pr_var(clk_debug);
+	pr_var(hpd_wait_max);
+	pr_var(sig_unstable_max);
+	pr_var(sig_unready_max);
+	pr_var(hdcp22_lost_max);
+	pr_var(enable_hpd_reset);
+	pr_var(pow5v_max_cnt);
+	pr_var(sig_unstable_reset_hpd_max);
+	pr_var(rgb_quant_range);
+	pr_var(yuv_quant_range);
+	pr_var(it_content);
+	pr_var(diff_pixel_th);
+	pr_var(diff_line_th);
+	pr_var(diff_frame_th);
+	pr_var(port_map);
+	pr_var(edid_mode);
+	pr_var(force_vic);
+	pr_var(force_ready);
+	pr_var(hdcp22_kill_esm);
+	pr_var(repeat_check);
+	pr_var(force_state);
+	pr_var(force_audio_sample_rate);
+	pr_var(run_eq_flag);
+	pr_var(pre_eq_freq);
 }
 
 void print_reg(uint start_addr, uint end_addr)
@@ -4028,7 +4039,8 @@ void dump_reg(void)
 	print_reg(0x8e0, 0x8e0);
 	print_reg(0x8fc, 0x8fc);
 	print_reg(0xf60, 0xffc);
-	print_reg(0x1f00, 0x1fc4);
+	if (!is_meson_txlx_cpu())
+		print_reg(0x1f00, 0x1fc4);
 	/* print_reg(0x2000, 0x21fc); */
 	/* print_reg(0x2700, 0x2714); */
 	/* print_reg(0x2f00, 0x2f14); */
@@ -4425,7 +4437,6 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.acr_mode = acr_mode;
 	wait_no_sig_cnt = 0;
-	use_dwc_reset = true;
 	is_hdcp_source = true;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
@@ -4457,37 +4468,17 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	} else {
 		if (0 == get_cur_hpd_sts())
 			rx.state = FSM_HPD_HIGH;
-		else
+		else if (rx.state >= FSM_SIG_STABLE)
 			rx.state = FSM_SIG_STABLE;
+		else
+			rx.state = FSM_HPD_HIGH;
 	}
-	rx_pr("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
-
+	rx_pr("%s:%d\n", __func__, rx.port);
 }
 
 void hdmirx_hw_uninit(void)
 {
 	if (sm_pause)
 		return;
-
-	/* hdcp_close(); */
-
-	/* set all hpd low  */
-	/* aml_write_cbus(PREG_PAD_GPIO5_O, */
-	/* READ_CBUS_REG(PREG_PAD_GPIO5_O) | */
-	/* ((1<<1)|(1<<5)|(1<<9)|(1<<13))); */
-
-	/*hdmirx_set_hpd(rx.port, 0);*/
-
-	/* hdmirx_wr_top(TOP_INTR_MASKN, 0); */
-	/*hdmirx_irq_close();*/
-	/* audio_status_init(); */
-
-	/* rx.ctrl.status = 0; */
-	/* rx.ctrl.tmds_clk = 0; */
-	/* ctx->bsp_reset(true); */
-
-	/* hdmirx_phy_reset(true); */
-	/* hdmirx_phy_pddq(1); */
 }
-
 

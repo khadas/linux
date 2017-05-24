@@ -32,18 +32,14 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
-/* #include <linux/amports/canvas.h> */
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-/* #include <mach/clock.h> */
-/* #include <mach/register.h> */
-/* #include <mach/power_gate.h> */
-
+#include <linux/io.h>
 #include <linux/amlogic/tvin/tvin.h>
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
-#include <linux/io.h>
 
+/*------------------------marco define------------------------------*/
 
 #define EDID_AUTO_CEC_ENABLE	0
 #define ACR_MODE	0
@@ -56,8 +52,6 @@
 #define I2S_32BIT_256FS_OUTPUT	1
 #define AUDIO_OUTPUT_SELECT I2S_32BIT_256FS_OUTPUT
 
-static DEFINE_SPINLOCK(reg_rw_lock);
-
 #define SCRAMBLE_SEL 1
 #define HDMI_MODE_HYST 5
 #define HYST_HDMI_TO_DVI 5
@@ -65,6 +59,20 @@ static DEFINE_SPINLOCK(reg_rw_lock);
 #define HYST_DVI_TO_HDMI_IN 1
 #define GCP_GLOBAVMUTE_EN 1 /* ag506 must clear this bit */
 #define EDID_CLK_DIV 9 /* sys clk/(9+1) = 20M */
+#define HDCP_KEY_WR_TRIES		(5)
+#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
+
+/*------------------------marco define------------------------------*/
+
+/*------------------------variable define------------------------------*/
+/* for ARC */
+static bool phy_init_in_probe = true;
+static bool fast_switching = true;
+int top_intr_maskn_value = 0x1e0001;
+bool hdcp_enable = 1;
+
+static DEFINE_SPINLOCK(reg_rw_lock);
+
 static int auto_aclk_mute = 2;
 MODULE_PARM_DESC(auto_aclk_mute, "\n auto_aclk_mute\n");
 module_param(auto_aclk_mute, int, 0664);
@@ -107,8 +115,6 @@ MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
 /* static int hdcp_22_nonce_hw_en = 1; */
 
-#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
-
 static int is_duk_key_set;
 MODULE_PARM_DESC(is_duk_key_set, "\n is_duk_key_set\n");
 module_param(is_duk_key_set, int, 0664);
@@ -118,12 +124,7 @@ MODULE_PARM_DESC(force_hdcp14_en, "\n force_hdcp14_en\n");
 module_param(force_hdcp14_en, int, 0664);
 #endif
 
-/* for ARC */
-static bool phy_init_in_probe = true;
-static bool fast_switching = true;
-int top_intr_maskn_value = 0x1e0001;
-bool hdcp_enable = 1;
-
+/*------------------------variable define end------------------------------*/
 
 /**
  * Read data from HDMI RX CTRL
@@ -697,7 +698,6 @@ bool hdmirx_is_key_write(void)
 		return 0;
 }
 
-#define HDCP_KEY_WR_TRIES		(5)
 void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 {
 	int error = 0;

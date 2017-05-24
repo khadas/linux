@@ -37,31 +37,38 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/tvin/tvin.h>
-/* #include <linux/amlogic/amports/canvas.h> */
-/* #include <mach/am_regs.h> */
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/of_gpio.h>
 
 /* Local include */
-
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
 
-#define TVHDMI_NAME				"hdmirx"
+/*------------------------extern function------------------------------*/
+static int aml_hdcp22_pm_notify(struct notifier_block *nb,
+	unsigned long event, void *dummy);
+/*------------------------extern function end------------------------------*/
+
+/*------------------------macro define------------------------------*/
+#define TVHDMI_NAME			"hdmirx"
 #define TVHDMI_DRIVER_NAME		"hdmirx"
 #define TVHDMI_MODULE_NAME		"hdmirx"
 #define TVHDMI_DEVICE_NAME		"hdmirx"
 #define TVHDMI_CLASS_NAME		"hdmirx"
-#define INIT_FLAG_NOT_LOAD			0x80
+#define INIT_FLAG_NOT_LOAD		0x80
 
 #define HDMI_DE_REPEAT_DONE_FLAG	0xF0
+#define FORCE_YUV			1
+#define FORCE_RGB			2
+#define DEF_LOG_BUF_SIZE		(1024*128)
+#define PRINT_TEMP_BUF_SIZE		128
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 #define TIMER_STATE_CHECK		(1*HZ/HDMI_STATE_CHECK_FREQ)
+/*------------------------macro define end------------------------------*/
 
-static int aml_hdcp22_pm_notify(struct notifier_block *nb,
-	unsigned long event, void *dummy);
+/*------------------------variable define------------------------------*/
 static unsigned char init_flag;
 static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
@@ -74,9 +81,20 @@ struct delayed_work	esm_dwork;
 struct workqueue_struct	*esm_wq;
 struct delayed_work	repeater_dwork;
 struct workqueue_struct	*repeater_wq;
-
-DECLARE_WAIT_QUEUE_HEAD(query_wait);
+int suspend_pddq = 1;
+unsigned int hdmirx_addr_port;
+unsigned int hdmirx_data_port;
+unsigned int hdmirx_ctrl_port;
+/* attr */
+static unsigned char *hdmirx_log_buf;
+static unsigned int  hdmirx_log_wr_pos;
+static unsigned int  hdmirx_log_rd_pos;
+static unsigned int  hdmirx_log_buf_size;
 unsigned int pwr_sts;
+unsigned char *pEdid_buffer;
+
+static DEFINE_SPINLOCK(rx_pr_lock);
+DECLARE_WAIT_QUEUE_HEAD(query_wait);
 
 int resume_flag = 0;
 MODULE_PARM_DESC(resume_flag, "\n resume_flag\n");
@@ -121,8 +139,6 @@ module_param(en_4k_2_2k, int, 0664);
 int en_4k_timing = 1;
 MODULE_PARM_DESC(en_4k_timing, "\n en_4k_timing\n");
 module_param(en_4k_timing, int, 0664);
-
-int suspend_pddq = 1;
 
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
@@ -224,6 +240,16 @@ struct reg_map reg_maps[][MAP_ADDR_MODULE_NUM] = {
 static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
+
+static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible     = "amlogic, hdmirx",
+	},
+	{},
+};
+
+/*------------------------variable define end------------------------------*/
+
 
 static enum chip_id_e get_chip_id(void)
 {
@@ -477,6 +503,7 @@ static int hdmi_dec_callmaster(enum tvin_port_e port,
 	return status;
 
 }
+
 static struct tvin_decoder_ops_s hdmirx_dec_ops = {
 	.support    = hdmirx_dec_support,
 	.open       = hdmirx_dec_open,
@@ -534,8 +561,6 @@ enum tvin_sig_fmt_e hdmirx_get_fmt(struct tvin_frontend_s *fe)
 	fmt = hdmirx_hw_get_fmt();
 	return fmt;
 }
-#define FORCE_YUV	1
-#define FORCE_RGB	2
 
 void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	struct tvin_sig_property_s *prop)
@@ -914,17 +939,7 @@ static const struct file_operations hdmirx_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = hdmirx_compat_ioctl,
 #endif
-
 };
-
-/* attr */
-static unsigned char *hdmirx_log_buf;
-static unsigned int  hdmirx_log_wr_pos;
-static unsigned int  hdmirx_log_rd_pos;
-static unsigned int  hdmirx_log_buf_size;
-static DEFINE_SPINLOCK(rx_pr_lock);
-#define DEF_LOG_BUF_SIZE (1024*128)
-#define PRINT_TEMP_BUF_SIZE 128
 
 void hdmirx_powerdown(const char *buf, int size)
 {
@@ -1158,12 +1173,30 @@ static ssize_t cec_set_state(struct device *dev,
 	return count;
 }
 
+static ssize_t param_get_value(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
+{
+	rx_get_global_varaible(buf);
+	return 0;
+}
+
+static ssize_t param_set_value(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	rx_set_global_varaible(buf, count);
+	return count;
+}
+
 static DEVICE_ATTR(debug, 0666, hdmirx_debug_show, hdmirx_debug_store);
 static DEVICE_ATTR(edid, 0666, hdmirx_edid_show, hdmirx_edid_store);
 static DEVICE_ATTR(key, 0666, hdmirx_key_show, hdmirx_key_store);
 static DEVICE_ATTR(log, 0666, show_log, store_log);
 static DEVICE_ATTR(reg, 0666, show_reg, store_log);
 static DEVICE_ATTR(cec, 0666, cec_get_state, cec_set_state);
+static DEVICE_ATTR(param, 0666, param_get_value, param_set_value);
 
 static int hdmirx_add_cdev(struct cdev *cdevp,
 		const struct file_operations *fops,
@@ -1276,7 +1309,7 @@ static int hdmirx_switch_pinmux(struct device  dev)
 	return ret;
 }
 
-unsigned char *pEdid_buffer;
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1355,6 +1388,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		rx_pr("hdmirx: fail to create reg attribute file\n");
 		goto fail_create_reg_file;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_param);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create param attribute file\n");
+		goto fail_create_param_file;
 	}
 	if (!is_meson_txlx_cpu()) {
 		ret = device_create_file(hdevp->dev, &dev_attr_cec);
@@ -1535,6 +1573,8 @@ fail_create_edid_file:
 	device_remove_file(hdevp->dev, &dev_attr_edid);
 fail_create_debug_file:
 	device_remove_file(hdevp->dev, &dev_attr_debug);
+fail_create_param_file:
+	device_remove_file(hdevp->dev, &dev_attr_param);
 
 /* fail_get_resource_irq: */
 	/* hdmirx_delete_device(hdevp->index); */
@@ -1659,14 +1699,8 @@ const struct dev_pm_ops hdmirx_pm = {
 	.suspend	= hdmirx_pm_suspend,
 	.resume		= hdmirx_pm_resume,
 };
-#endif
 
-static const struct of_device_id hdmirx_dt_match[] = {
-	{
-		.compatible     = "amlogic, hdmirx",
-	},
-	{},
-};
+#endif
 
 static struct platform_driver hdmirx_driver = {
 	.probe      = hdmirx_probe,
@@ -1676,11 +1710,11 @@ static struct platform_driver hdmirx_driver = {
 	.resume     = hdmirx_resume,
 #endif
 	.driver     = {
-		.name   = TVHDMI_DRIVER_NAME,
-		.owner	= THIS_MODULE,
-		.of_match_table = hdmirx_dt_match,
+	.name   = TVHDMI_DRIVER_NAME,
+	.owner	= THIS_MODULE,
+	.of_match_table = hdmirx_dt_match,
 #ifdef CONFIG_HIBERNATION
-		.pm     = &hdmirx_pm,
+	.pm     = &hdmirx_pm,
 #endif
 	}
 };
