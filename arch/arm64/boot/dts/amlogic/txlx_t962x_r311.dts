@@ -179,6 +179,18 @@
 		};
 	};
 
+	/*for external keypad*/
+	adc_keypad{
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "power","up", "down","enter","left","right","home";
+		key_num = <7>;
+		key_code = <116 103 108 28 105 106 102>;
+		key_chan = <2 2 2 2 2 3 3>;
+		key_val = <0 143 266 389 512 143 266>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40 40 40>;
+	};
+
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
