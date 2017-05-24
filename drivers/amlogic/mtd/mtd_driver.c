@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
 
@@ -169,10 +169,10 @@ static int prase_get_dtb_nand_parameter(struct aml_nand_device *aml_nand_dev,
 				goto err;
 			}
 			/*
-			*ret = of_property_read_u32(np_config,
-			*		"part_num",
-			*	&plat->platform_nand_data.chip.nr_partitions);
-			**/
+			 *ret = of_property_read_u32(np_config,
+			 *		"part_num",
+			 *	&plat->platform_nand_data.chip.nr_partitions);
+			 **/
 			ret = of_property_read_u32(np_config,
 				"partition", &val);
 			if (ret == 0) {
@@ -265,35 +265,9 @@ static int mtd_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-
 static void mtd_nand_shutdown(struct platform_device *pdev)
 {
-	struct aml_nand_device *aml_nand_dev = aml_get_driver_data(pdev);
-	struct aml_nand_platform *plat = NULL;
-	struct aml_nand_chip *aml_chip = NULL;
-	struct mtd_info *mtd = NULL;
-	struct nand_chip *chip = NULL;
-	int i;
-
-	for (i = 1; i < aml_nand_dev->dev_num; i++) {
-		plat = &aml_nand_dev->aml_nand_platform[i];
-		aml_chip = plat->aml_chip;
-		if (aml_chip) {
-			mtd = &aml_chip->mtd;
-			if (mtd) {
-				chip = mtd->priv;
-				if (chip) {
-					/* nand_get_device(mtd, FL_SHUTDOWN); */
-					chip->options |= NAND_ROM;
-					pr_info("%s %d chip->options:%x\n",
-						__func__,
-						__LINE__,
-						chip->options);
-					/* nand_release_device(mtd); */
-				}
-			}
-		}
-	}
+	/*NULL*/
 }
 
 /* driver device registration */

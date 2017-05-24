@@ -13,12 +13,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
+
 #ifndef AML_NAND_UBOOT
 #include <linux/amlogic/key_manage.h>
 #endif
+
 
 static struct aml_nand_chip *aml_chip_key;
 

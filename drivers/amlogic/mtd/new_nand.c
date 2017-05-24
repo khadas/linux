@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
 
@@ -196,7 +196,7 @@ int8_t aml_nand_get_1ynm_OTP_value(struct aml_nand_chip *aml_chip,
 					def_value[chipnr][k] = buf[m];
 				else
 					offset_value[chipnr][j-1][k] = buf[m];
-					retry_value_sta[j * 4 + k] = 1;
+				retry_value_sta[j * 4 + k] = 1;
 			}
 				}
 
@@ -356,10 +356,10 @@ void aml_nand_set_readretry_default_value_hynix(struct mtd_info *mtd)
 		&aml_chip->new_nand_info.read_rety_info.reg_addr[0],
 		i, aml_chip->new_nand_info.read_rety_info.reg_cnt);
 			/*
-			*aml_nand_hynix_get_parameters(aml_chip,
-				&hynix_reg_read_value_tmp[0],
-				&aml_chip->hynix_reg_read_addr[0], i, 4);
-			*/
+			 *aml_nand_hynix_get_parameters(aml_chip,
+			 *	&hynix_reg_read_value_tmp[0],
+			 *	&aml_chip->hynix_reg_read_addr[0], i, 4);
+			 */
 		}
 	}
 }
@@ -433,12 +433,12 @@ int aml_nand_slcprog_1ynm_hynix(struct mtd_info *mtd,
 	unsigned op_page_add, temp_value;
 	unsigned priv_slc_page, next_msb_page;
 
-	temp_value = pagelist_1ynm_hynix256_mtd[offset_in_blk];
+	temp_value = pagelist_1ynm_hynix256[offset_in_blk];
 	op_page_add = (page_addr / pages_per_blk) * pages_per_blk + temp_value;
 	data_buf = kzalloc(mtd->writesize, GFP_KERNEL);
 	if (data_buf == NULL)
 		return -ENOMEM;
-	temp_value = pagelist_1ynm_hynix256_mtd[offset_in_blk - 1];
+	temp_value = pagelist_1ynm_hynix256[offset_in_blk - 1];
 	if (offset_in_blk > 1)
 		priv_slc_page =
 		(page_addr / pages_per_blk) * pages_per_blk + temp_value;
@@ -473,7 +473,7 @@ int aml_nand_slcprog_1ynm_hynix(struct mtd_info *mtd,
 		pr_info("blk check good but write failed: %llx, %d\n",
 			(uint64_t)page_addr, error);
 		goto err;
-	 }
+	}
 err:
 	kfree(data_buf);
 	return error;
@@ -803,14 +803,6 @@ void aml_nand_save_read_default_value_hynix(struct mtd_info *mtd)
 		&aml_chip->new_nand_info.read_rety_info.reg_default_value[0][0],
 		MAX_CHIP_NUM * READ_RETRY_REG_NUM);
 
-/*
-*memcpy((unsigned char *)(aml_oob_ops.datbuf + MAX_CHIP_NUM*READ_RETRY_REG_NUM),
-	&aml_chip->new_nand_info.read_rety_info.reg_offset_value[0][0][0],
-	MAX_CHIP_NUM*READ_RETRY_CNT*READ_RETRY_REG_NUM);
-memcpy((unsigned char *)aml_oob_ops.datbuf,
-	&aml_chip->new_nand_info.slc_program_info.reg_default_value[0][0],
-	MAX_CHIP_NUM*ENHANCE_SLC_REG_NUM);
-*/
 		for (i = 0; i < controller->chip_num; i++) {
 			if (aml_chip->valid_chip[i]) {
 				for (j = 0; j < HYNIX_RETRY_CNT; j++)
@@ -1356,7 +1348,7 @@ void aml_nand_read_retry_handleA19_sandisk(struct mtd_info *mtd, int chipnr)
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 	struct nand_chip *chip = &aml_chip->chip;
 	int cur_cnt;
-	unsigned	page = aml_chip->page_addr;
+	unsigned int page = aml_chip->page_addr;
 	int pages_per_blk;
 	int page_info = 1;
 	struct new_tech_nand_t *new_nand_info;

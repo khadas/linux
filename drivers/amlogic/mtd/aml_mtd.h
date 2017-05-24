@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #ifndef AMLMTD_H_INCLUDED
 #define AMLMTD_H_INCLUDED
@@ -56,21 +56,24 @@
 /*#include "partition_table.h"*/
 
 #define CONFIG_MTD_PARTITIONS 1
+
+#define NAND_MAX_DEVICE	4
+extern struct mtd_info nand_info[NAND_MAX_DEVICE];
 #define CONFIG_ENV_SIZE  (64*1024U)
 
 /*
  ** Max page list cnt for usrdef mode
-  */
+ */
 #define NAND_PAGELIST_CNT 16
 #define AML_CFG_CONHERENT_BUFFER	(0)
 
 /*
-** nand read retry info, max equals to Zero, that means no need retry.
+ ** nand read retry info, max equals to Zero, that means no need retry.
  */
 struct nand_retry_t {
-	unsigned id;
-	unsigned max;
-	unsigned no_rb;
+	unsigned int id;
+	unsigned int max;
+	unsigned int no_rb;
 };
 
 struct _nand_cmd {
@@ -79,19 +82,19 @@ struct _nand_cmd {
 };
 
 /*
-** must same with asm/arch/nand.h
-*
-*ext bits:
-*	bit 26: pagelist enable flag,
-*	bit 24: a2 cmd enable flag,
-*	bit 23: no_rb,
-*	bit 22: large.  large for what?
-*	bit 19: randomizer mode.
-*	bit 14-16: ecc mode
-*	bit 13: short mode
-*	bit 6-12:short page size
-*	bit 0-5: ecc pages.
-*/
+ ** must same with asm/arch/nand.h
+ *
+ *ext bits:
+ *	bit 26: pagelist enable flag,
+ *	bit 24: a2 cmd enable flag,
+ *	bit 23: no_rb,
+ *	bit 22: large.  large for what?
+ *	bit 19: randomizer mode.
+ *	bit 14-16: ecc mode
+ *	bit 13: short mode
+ *	bit 6-12:short page size
+ *	bit 0-5: ecc pages.
+ */
 struct nand_setup {
 	union {
 		uint32_t d32;
@@ -117,9 +120,11 @@ struct _ext_info {
 	uint32_t page_per_blk;
 	uint32_t xlc;
 	uint32_t ce_mask;
-	uint32_t boot_num;
-	uint32_t each_boot_pages;
-	uint32_t rsv[2];
+	uint8_t boot_num;
+	uint16_t each_boot_pages;
+	uint8_t bbt_occupy_pages;
+	uint32_t bbt_start_block;
+	uint32_t rsv[1];
 	/* add new below, */
 };
 
@@ -250,16 +255,16 @@ struct nand_menson_key {
 struct aml_nand_flash_dev {
 	char *name;
 	u8 id[MAX_ID_LEN];
-	unsigned pagesize;
-	unsigned chipsize;
-	unsigned erasesize;
-	unsigned oobsize;
-	unsigned internal_chipnr;
-	unsigned T_REA;
-	unsigned T_RHOH;
+	unsigned int pagesize;
+	unsigned int chipsize;
+	unsigned int erasesize;
+	unsigned int oobsize;
+	unsigned int internal_chipnr;
+	unsigned int T_REA;
+	unsigned int T_RHOH;
 	u8 onfi_mode;
 	unsigned char new_type;
-	unsigned options;
+	unsigned int options;
 };
 
 struct aml_nand_part_info {
@@ -312,10 +317,10 @@ struct oobinfo_t {
 
 struct aml_nand_bch_desc {
 	char *name;
-	unsigned bch_mode;
-	unsigned bch_unit_size;
-	unsigned bch_bytes;
-	unsigned user_byte_mode;
+	unsigned int bch_mode;
+	unsigned int bch_unit_size;
+	unsigned int bch_bytes;
+	unsigned int user_byte_mode;
 };
 
 #define RETRY_NAND_MAGIC	"refv"
@@ -457,32 +462,32 @@ struct aml_nand_chip {
 
 	/* mtd info */
 	u8 mfr_type;
-	unsigned onfi_mode;
-	unsigned T_REA;
-	unsigned T_RHOH;
-	unsigned options;
-	unsigned page_size;
-	unsigned block_size;
-	unsigned oob_size;
-	unsigned virtual_page_size;
-	unsigned virtual_block_size;
+	unsigned int onfi_mode;
+	unsigned int T_REA;
+	unsigned int T_RHOH;
+	unsigned int options;
+	unsigned int page_size;
+	unsigned int block_size;
+	unsigned int oob_size;
+	unsigned int virtual_page_size;
+	unsigned int virtual_block_size;
 	u8 plane_num;
 	u8 internal_chipnr;
-	unsigned internal_page_nums;
+	unsigned int internal_page_nums;
 
-	unsigned internal_chip_shift;
+	unsigned int internal_chip_shift;
 	unsigned int ran_mode;
 	unsigned int rbpin_mode;
 	unsigned int rbpin_detect;
 	unsigned int short_pgsz;
 
-	unsigned bch_mode;
+	unsigned int bch_mode;
 	u8 user_byte_mode;
 	u8 ops_mode;
 	u8 cached_prog_status;
 	u8 max_bch_mode;
-	unsigned valid_chip[MAX_CHIP_NUM];
-	unsigned page_addr;
+	unsigned int valid_chip[MAX_CHIP_NUM];
+	unsigned int page_addr;
 	unsigned char *aml_nand_data_buf;
 	unsigned int *user_info_buf;
 	int8_t *block_status;
@@ -490,12 +495,13 @@ struct aml_nand_chip {
 	u8 ecc_cnt_limit;
 	u8 ecc_cnt_cur;
 	u8 ecc_max;
-	unsigned zero_cnt;
-	unsigned oob_fill_cnt;
-	unsigned boot_oob_fill_cnt;
+	unsigned int zero_cnt;
+	unsigned int oob_fill_cnt;
+	unsigned int boot_oob_fill_cnt;
 	/*add property field for key private data*/
 	int dtbsize;
 	int keysize;
+	int boot_copy_num; /*tell how many bootloader copies*/
 
 	u8 key_protect;
 	unsigned char *rsv_data_buf;
@@ -522,10 +528,10 @@ struct aml_nand_chip {
 	/* device info */
 	struct device *device;
 
-	unsigned max_ecc;
+	unsigned int max_ecc;
 	struct ecc_desc_s *ecc;
 	/* unsigned onfi_mode;*/
-	unsigned err_sts;
+	unsigned int err_sts;
 	/* plateform operation function*/
 	void (*aml_nand_hw_init)(struct aml_nand_chip *aml_chip);
 	void (*aml_nand_adjust_timing)(struct aml_nand_chip *aml_chip);
@@ -541,23 +547,23 @@ struct aml_nand_chip {
 	void (*aml_nand_set_user_byte)(struct aml_nand_chip *aml_chip,
 		unsigned char *oob_buf, int byte_num);
 	void (*aml_nand_command)(struct aml_nand_chip *aml_chip,
-		unsigned command, int column, int page_addr, int chipnr);
+		unsigned int command, int column, int page_addr, int chipnr);
 	int (*aml_nand_wait_devready)(struct aml_nand_chip *aml_chip,
 		int chipnr);
 	int (*aml_nand_dma_read)(struct aml_nand_chip *aml_chip,
-		unsigned char *buf, int len, unsigned bch_mode);
+		unsigned char *buf, int len, unsigned int bch_mode);
 	int (*aml_nand_dma_write)(struct aml_nand_chip *aml_chip,
-		unsigned char *buf, int len, unsigned bch_mode);
+		unsigned char *buf, int len, unsigned int bch_mode);
 	int (*aml_nand_hwecc_correct)(struct aml_nand_chip *aml_chip,
-		unsigned char *buf, unsigned size, unsigned char *oob_buf);
+		unsigned char *buf, unsigned int size, unsigned char *oob_buf);
 	int (*aml_nand_block_bad_scrub)(struct mtd_info *mtd);
 };
 
 struct aml_nand_platform {
 	struct aml_nand_flash_dev *nand_flash_dev;
 	char *name;
-	unsigned chip_enable_pad;
-	unsigned ready_busy_pad;
+	unsigned int chip_enable_pad;
+	unsigned int ready_busy_pad;
 
 	/* DMA RD/WR delay loop  timing */
 	unsigned int T_REA;	/* for dma  waiting delay */
@@ -739,7 +745,7 @@ void aml_platform_set_user_byte(struct aml_nand_chip *aml_chip,
 	unsigned char *oob_buf, int byte_num);
 
 void aml_nand_base_command(struct aml_nand_chip *aml_chip,
-	unsigned command, int column, int page_addr, int chipnr);
+	unsigned int command, int column, int page_addr, int chipnr);
 
 int aml_nand_block_bad_scrub_update_bbt(struct mtd_info *mtd);
 
@@ -791,22 +797,24 @@ int aml_nand_write_page(struct mtd_info *mtd,
 	int oob_required, int page, int cached, int raw);
 
 void aml_nand_base_command(struct aml_nand_chip *aml_chip,
-	unsigned command, int column, int page_addr, int chipnr);
+	unsigned int command, int column, int page_addr, int chipnr);
 
 void aml_nand_command(struct mtd_info *mtd,
-	unsigned command, int column, int page_addr);
+	unsigned int command, int column, int page_addr);
 
 int aml_nand_wait(struct mtd_info *mtd, struct nand_chip *chip);
 
 void aml_nand_erase_cmd(struct mtd_info *mtd, int page);
 
-int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *, int);
+int add_mtd_partitions(struct mtd_info *mtd,
+	const struct mtd_partition *part, int num);
 
 #ifdef AML_NAND_UBOOT
 extern int get_partition_from_dts(unsigned char *buffer);
 #endif
 
-extern unsigned char pagelist_1ynm_hynix256_mtd[128];
+extern unsigned char pagelist_hynix256[128];
+extern unsigned char pagelist_1ynm_hynix256[128];
 extern struct hw_controller *controller;
 extern struct aml_nand_device aml_nand_mid_device;
 extern struct nand_hw_control upper_controller;
@@ -817,6 +825,18 @@ extern struct aml_nand_flash_dev aml_nand_flash_ids[];
 
 void aml_nand_new_nand_param_init(struct mtd_info *mtd,
 	struct aml_nand_flash_dev *type);
+
+int m3_nand_boot_read_page_hwecc(struct mtd_info *mtd,
+	struct nand_chip *chip, uint8_t *buf, int oob_required, int page);
+
+int m3_nand_boot_write_page_hwecc(struct mtd_info *mtd,
+	struct nand_chip *chip, const uint8_t *buf, int oob_required);
+
+int m3_nand_boot_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+	uint32_t offset, int data_len, const uint8_t *buf,
+	int oob_required, int page, int cached, int raw);
+
+void m3_nand_boot_erase_cmd(struct mtd_info *mtd, int page);
 
 #endif
 

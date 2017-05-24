@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
 
@@ -21,7 +21,7 @@
 #include<linux/cdev.h>
 #include <linux/device.h>
 
-#define DTB_NAME	"dtb"
+#define DTB_NAME "dtb"
 static dev_t amlnf_dtb_no;
 struct cdev amlnf_dtb;
 struct device *dtb_dev_nand;
@@ -57,8 +57,8 @@ int amlnf_dtb_save(u8 *buf, int len)
 	}
 	memset(dtb_buf, 0, aml_chip_dtb->dtbsize);
 	memcpy(dtb_buf, buf, len);
-
 	aml_nand_save_dtb(mtd, dtb_buf);
+
 exit_err:
 	if (dtb_buf) {
 		/* kfree(dtb_buf); */
@@ -76,7 +76,6 @@ int amlnf_dtb_erase(void)
 		pr_info("%s amlnf not ready yet!\n", __func__);
 		return -1;
 	}
-
 	return ret;
 }
 
@@ -107,7 +106,6 @@ int amlnf_dtb_read(u8 *buf, int len)
 		goto exit_err;
 	}
 	memset(dtb_buf, 0, aml_chip_dtb->dtbsize);
-
 	aml_nand_read_dtb(mtd, offset, (u8 *)dtb_buf);
 	memcpy(buf, dtb_buf, len);
 exit_err:
@@ -393,29 +391,26 @@ exit_err:
 
 /*****************************************************************************
  * Prototype    : amlnf_detect_dtb_partitions
- * Description  : if 'dtb, write the bad block, we can't erase this block.
+ *Description  : if 'dtb, write the bad block, we can't erase this block.
  *		So we have to find the 'dtb' address in flash and flag it.
  *Input        : struct amlnand_chip *aml_chip
  *Output       : NULL
  *Return Value :	ret
  *Called By    : amlnand_get_partition_table
- *
+
  *History        :
- *Date         : 2015/10/15
- *Author       : Fly Mo
- *Modification : Created function
-*****************************************************************************/
+ *1.Date         : 2015/10/15
+ *	Author       : Fly Mo
+ *	Modification : Created function
+ *****************************************************************************/
 int amlnf_detect_dtb_partitions(struct aml_nand_chip *aml_chip)
 {
-
 	return 0;
-
 }
 
 /* for blank positions... */
 int aml_nand_update_dtb(struct aml_nand_chip *aml_chip, char *dtb_ptr)
 {
-
 	return 0;
 }
 #endif

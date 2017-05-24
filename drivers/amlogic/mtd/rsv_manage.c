@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 #include "aml_mtd.h"
 
@@ -60,6 +60,7 @@ static void release_free_node(struct mtd_info *mtd,
 {
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 	unsigned int index_save = free_node->index;
+
 	pr_info("%s %d: bitmap=%llx\n", __func__, __LINE__,
 		aml_chip->freeNodeBitmask);
 
@@ -81,36 +82,42 @@ static void release_free_node(struct mtd_info *mtd,
 int aml_nand_rsv_erase_protect(struct mtd_info *mtd, unsigned int block_addr)
 {
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
+	unsigned int bbt_start, bbt_end, key_start, key_end;
 
 	if (!_aml_rsv_isprotect())
 		return 0;
 
+	bbt_start = aml_chip->aml_nandbbt_info->start_block;
+	bbt_end = aml_chip->aml_nandbbt_info->end_block;
+	key_start = aml_chip->aml_nandkey_info->start_block;
+	key_end = aml_chip->aml_nandkey_info->end_block;
+
 #ifdef AML_NAND_UBOOT
-	if ((aml_chip->aml_nandkey_info != NULL)
-	&& (aml_chip->aml_nandkey_info->valid)) {
-		if ((!(info_disprotect & DISPROTECT_KEY))
-		&& ((block_addr >= aml_chip->aml_nandkey_info->start_block)
-		&& (block_addr < aml_chip->aml_nandkey_info->end_block)))
+	if (aml_chip->aml_nandkey_info != NULL) {
+		if (aml_chip->aml_nandkey_info->valid)
+			if ((!(info_disprotect & DISPROTECT_KEY))
+			&& ((block_addr >= key_start)
+			&& (block_addr < key_end)))
 				return -1; /*need skip key blocks*/
 	}
-	if ((aml_chip->aml_nandbbt_info != NULL)
-	&& (aml_chip->aml_nandbbt_info->valid)) {
-		if ((block_addr >= aml_chip->aml_nandbbt_info->start_block)
-		&& (block_addr < aml_chip->aml_nandbbt_info->end_block))
-			return -1; /*need skip bbt blocks*/
+	if (aml_chip->aml_nandbbt_info != NULL) {
+		if (aml_chip->aml_nandbbt_info->valid)
+			if ((block_addr >= bbt_start)
+			&& (block_addr < bbt_end))
+				return -1; /*need skip bbt blocks*/
 	}
 #else
-	if ((aml_chip->aml_nandkey_info != NULL)
-	&& (aml_chip->aml_nandkey_info->valid)) {
-		if ((block_addr >= aml_chip->aml_nandkey_info->start_block)
-		&& (block_addr < aml_chip->aml_nandkey_info->end_block))
-			return -1; /*need skip key blocks*/
+	if (aml_chip->aml_nandkey_info != NULL) {
+		if (aml_chip->aml_nandkey_info->valid)
+			if ((block_addr >= key_start)
+			&& (block_addr < key_end))
+				return -1; /*need skip key blocks*/
 	}
-	if ((aml_chip->aml_nandbbt_info != NULL)
-	&& (aml_chip->aml_nandbbt_info->valid)) {
-		if ((block_addr >= aml_chip->aml_nandbbt_info->start_block)
-		&& (block_addr < aml_chip->aml_nandbbt_info->end_block))
-			return -1; /*need skip bbt blocks*/
+	if (aml_chip->aml_nandbbt_info != NULL) {
+		if (aml_chip->aml_nandbbt_info->valid)
+			if ((block_addr >= bbt_start)
+			&& (block_addr < bbt_end))
+				return -1; /*need skip bbt blocks*/
 	}
 #endif
 	return 0;
@@ -247,18 +254,18 @@ int aml_nand_scan_shipped_bbt(struct mtd_info *mtd)
 			} else
 				col0_data = chip->read_byte(mtd);
 
-				/* pr_info("col0_data =%x\n",col0_data); */
+			/* pr_info("col0_data =%x\n",col0_data); */
 
-				if (aml_chip->mfr_type  != NAND_MFR_SANDISK)
-					aml_chip->aml_nand_command(aml_chip,
-						NAND_CMD_RNDOUT,
-						aml_chip->page_size, -1, i);
-				udelay(2);
+			if (aml_chip->mfr_type  != NAND_MFR_SANDISK)
+				aml_chip->aml_nand_command(aml_chip,
+					NAND_CMD_RNDOUT,
+					aml_chip->page_size, -1, i);
+			udelay(2);
 
-				if (aml_chip->mfr_type  == NAND_MFR_SANDISK)
-					col0_oob = 0x0;
-				else
-					col0_oob = chip->read_byte(mtd);
+			if (aml_chip->mfr_type  == NAND_MFR_SANDISK)
+				col0_oob = 0x0;
+			else
+				col0_oob = chip->read_byte(mtd);
 				/* pr_info("col0_oob =%x\n",col0_oob); */
 			}
 
@@ -604,9 +611,9 @@ int aml_nand_save_rsv_info(struct mtd_info *mtd,
 RE_SEARCH:
 	if (nandrsv_info->valid) {
 		/*pr_info("%s:%d,phy_page_addr=%d,pages=%d\n",
-		*		__func__, __LINE__,
-		*		nandrsv_info->valid_node->phy_page_addr, i);
-		**/
+		 *		__func__, __LINE__,
+		 *		nandrsv_info->valid_node->phy_page_addr, i);
+		 **/
 		nandrsv_info->valid_node->phy_page_addr += i;
 if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 	if ((nandrsv_info->valid_node->phy_page_addr - i) == pages_per_blk) {
@@ -669,12 +676,12 @@ if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 		error = mtd->_block_isbad(mtd, addr);
 		if (error != 0) {
 			/*
-			*bad block here, need fix it
-			*because of info_blk list may be include bad block,
-			*so we need check it and done here. if don't,
-			*some bad blocks may be erase here
-			*and env will lost or too much ecc error
-			**/
+			 *bad block here, need fix it
+			 *because of info_blk list may be include bad block,
+			 *so we need check it and done here. if don't,
+			 *some bad blocks may be erase here
+			 *and env will lost or too much ecc error
+			 **/
 			pr_info("have bad block in info_blk list!!!!\n");
 			nandrsv_info->valid_node->phy_page_addr =
 				pages_per_blk - i;
@@ -779,7 +786,7 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 {
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 	struct nand_chip *chip = mtd->priv;
-	unsigned pages_per_blk_shift, bbt_start_block;
+	unsigned int pages_per_blk_shift, bbt_start_block;
 	int phys_erase_shift, i;
 
 	phys_erase_shift = fls(mtd->erasesize) - 1;
@@ -918,11 +925,11 @@ int aml_nand_scan_rsv_info(struct mtd_info *mtd,
 
 	data_buf = aml_chip->rsv_data_buf;
 	/*
-	*good_addr = kzalloc(256, GFP_KERNEL);
-	*if (good_addr == NULL)
-	*	return -ENOMEM;
-	*memset(good_addr, 0 , 256);
-	**/
+	 *good_addr = kzalloc(256, GFP_KERNEL);
+	 *if (good_addr == NULL)
+	 *	return -ENOMEM;
+	 *memset(good_addr, 0 , 256);
+	 **/
 
 	oobinfo = (struct oobinfo_t *)oob_buf;
 
@@ -949,19 +956,19 @@ RE_RSV_INFO:
 	memset((unsigned char *)aml_oob_ops.oobbuf,
 		0x0, aml_oob_ops.ooblen);
 	/*
-	*fixit, need or not;
-	*when list bad block, it will be check in save rsv info.
-	*when not,it is not list.
-	**/
+	 *fixit, need or not;
+	 *when list bad block, it will be check in save rsv info.
+	 *when not,it is not list.
+	 **/
 	/*
-	*error = mtd->_block_isbad(mtd, offset);
-	*if (error == FACTORY_BAD_BLOCK_ERROR) {
-	*	pr_info("%s:%d factory bad addr =%llx\n",
-	*		__func__,__LINE__,
-	*		(uint64_t)(offset >> phys_erase_shift));
-	*	goto SCAN_LOOP;
-	*}
-	**/
+	 *error = mtd->_block_isbad(mtd, offset);
+	 *if (error == FACTORY_BAD_BLOCK_ERROR) {
+	 *	pr_info("%s:%d factory bad addr =%llx\n",
+	 *		__func__,__LINE__,
+	 *		(uint64_t)(offset >> phys_erase_shift));
+	 *	goto SCAN_LOOP;
+	 *}
+	 **/
 	error = mtd->_read_oob(mtd, offset, &aml_oob_ops);
 	if ((error != 0) && (error != -EUCLEAN)) {
 		pr_info("blk check good but read failed: %llx, %d\n",
@@ -982,9 +989,9 @@ RE_RSV_INFO:
 		nandrsv_info->valid = 1;
 		if (nandrsv_info->valid_node->phy_blk_addr >= 0) {
 			/*
-			*free_node =
-			*kzalloc(sizeof(struct free_node_t), GFP_KERNEL);
-			**/
+			 *free_node =
+			 *kzalloc(sizeof(struct free_node_t), GFP_KERNEL);
+			 **/
 			free_node = get_free_node(mtd);
 			if (free_node == NULL)
 				return -ENOMEM;
@@ -1024,9 +1031,9 @@ RE_RSV_INFO:
 		}
 	} else {
 		/*
-		*free_node =
-		*	kzalloc(sizeof(struct free_node_t), GFP_KERNEL);
-		**/
+		 *free_node =
+		 *	kzalloc(sizeof(struct free_node_t), GFP_KERNEL);
+		 **/
 		free_node = get_free_node(mtd);
 		if (free_node == NULL)
 			return -ENOMEM;
@@ -1193,6 +1200,7 @@ int aml_nand_dtb_check(struct mtd_info *mtd)
 int aml_nand_bbt_check(struct mtd_info *mtd)
 {
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
+	struct aml_nand_chip *aml_chip_boot = mtd_to_nand_chip(&nand_info[0]);
 	int phys_erase_shift;
 	int ret = 0;
 	int8_t *buf = NULL;
@@ -1213,7 +1221,6 @@ int aml_nand_bbt_check(struct mtd_info *mtd)
 		aml_nand_read_rsv_info(mtd,
 			aml_chip->aml_nandbbt_info, 0, (u_char *)buf);
 		ret = 0;
-		goto exit_error;
 	} else {
 		pr_info("%s %d bbt is invalid, scanning.\n",
 			__func__, __LINE__);
@@ -1230,6 +1237,10 @@ int aml_nand_bbt_check(struct mtd_info *mtd)
 		aml_nand_save_bbt(mtd, (u_char *)buf);
 		kfree(aml_chip->nand_bbt_info);
 	}
+
+	/*let uboot bbt perspective the same with normal bbt*/
+	aml_chip_boot->block_status = aml_chip->block_status;
+
 exit_error:
 	return ret;
 }
