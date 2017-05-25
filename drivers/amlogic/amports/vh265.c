@@ -5516,10 +5516,10 @@ static int parse_sei(struct hevc_state_s *hevc, char *sei_buf, uint32_t size)
 		if (p+payload_size <= sei_buf+size) {
 			switch (payload_type) {
 			case SEI_MasteringDisplayColorVolume:
-				hevc_print(hevc, 0,
+				/*hevc_print(hevc, 0,
 					"sei type: primary display color volume %d, size %d\n",
 					payload_type,
-					payload_size);
+					payload_size);*/
 				/* master_display_colour */
 				p_sei = p;
 				for (i = 0; i < 3; i++) {
@@ -5546,7 +5546,7 @@ static int parse_sei(struct hevc_state_s *hevc, char *sei_buf, uint32_t size)
 				}
 				hevc->sei_present_flag |=
 					SEI_MASTER_DISPLAY_COLOR_MASK;
-				for (i = 0; i < 3; i++)
+				/*for (i = 0; i < 3; i++)
 					for (j = 0; j < 2; j++)
 						hevc_print(hevc, 0,
 						"\tprimaries[%1d][%1d] = %04x\n",
@@ -5559,7 +5559,7 @@ static int parse_sei(struct hevc_state_s *hevc, char *sei_buf, uint32_t size)
 				hevc_print(hevc, 0,
 					"\tmax,min luminance = %08x, %08x\n",
 					hevc->luminance[0],
-					hevc->luminance[1]);
+					hevc->luminance[1]);*/
 				break;
 			case SEI_ContentLightLevel:
 				hevc_print(hevc, 0,
