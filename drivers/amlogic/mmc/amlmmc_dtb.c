@@ -32,7 +32,7 @@
  * |<------DTB1------->|<------DTB2------>|
  */
 
-#define	DTB_GLB_OFFSET		(40*SZ_1M)
+#define DTB_RESERVE_OFFSET (4 * SZ_1M)
 #define	DTB_BLK_SIZE		(0x200)
 #define	DTB_BLK_CNT			(512)
 #define	DTB_SIZE			(DTB_BLK_CNT * DTB_BLK_SIZE)
@@ -155,6 +155,7 @@ static int _dtb_init(struct mmc_card *mmc)
 	int bit = mmc->csd.read_blkbits;
 	int blk;
 
+
 	/* malloc a buffer. */
 	dtb = vmalloc(CONFIG_DTB_SIZE);
 	if (dtb == NULL) {
@@ -164,7 +165,9 @@ static int _dtb_init(struct mmc_card *mmc)
 
 	/* read dtb2 1st, for compatibility without checksum. */
 	while (cpy >= 0) {
-		blk = (DTB_GLB_OFFSET >> bit) + cpy * DTB_BLK_CNT;
+		blk = ((get_reserve_partition_off_from_tbl()
+					+ DTB_RESERVE_OFFSET) >> bit)
+			+ cpy * DTB_BLK_CNT;
 		if (_dtb_read(mmc, blk, (unsigned char *)dtb)) {
 			pr_err("%s: block # %#x ERROR!\n",
 					__func__, blk);
@@ -225,7 +228,9 @@ int amlmmc_dtb_write(struct mmc_card *mmc,
 		dtb->version, (char *)&dtb->magic);
 	/* write down... */
 	for (cpy = 0; cpy < DTB_COPIES; cpy++) {
-		blk = (DTB_GLB_OFFSET >> bit) + cpy * DTB_BLK_CNT;
+		blk = ((get_reserve_partition_off_from_tbl()
+					+ DTB_RESERVE_OFFSET) >> bit)
+			+ cpy * DTB_BLK_CNT;
 		ret |= _dtb_write(mmc, blk, buf);
 	}
 
@@ -244,7 +249,8 @@ int amlmmc_dtb_read(struct mmc_card *mmc,
 		return -EFAULT;
 	}
 
-	blk = DTB_GLB_OFFSET >> bit;
+	blk = (get_reserve_partition_off_from_tbl()
+			+ DTB_RESERVE_OFFSET) >> bit;
 	if (blk < 0) {
 		ret = -EINVAL;
 		return ret;
