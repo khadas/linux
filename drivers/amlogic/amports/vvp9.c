@@ -1177,7 +1177,10 @@ struct VP9Decoder_s {
 	int fatal_error;
 	uint8_t init_flag;
 	uint8_t process_busy;
-	uint8_t send_again_flag;
+#define PROC_STATE_INIT			0
+#define PROC_STATE_DECODESLICE	1
+#define PROC_STATE_SENDAGAIN	2
+	uint8_t process_state;
 	u32 ucode_pause_pos;
 
 	int show_frame_num;
@@ -4189,7 +4192,7 @@ static void vp9_config_work_space_hw(struct VP9Decoder_s *pbi)
 #ifdef VP9_10B_MMU
 	unsigned int data32;
 #endif
-	if (debug)
+	if (debug && pbi->init_flag == 0)
 		pr_info("%s %x %x %x %x %x %x %x %x %x %x %x %x\n",
 			__func__,
 			buf_spec->ipp.buf_start,
@@ -4547,7 +4550,7 @@ static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 	unsigned int data32;
 	int i;
 
-	if (debug & VP9_DEBUG_BUFMGR)
+	if (debug & VP9_DEBUG_BUFMGR_MORE)
 		pr_info("%s\n", __func__);
 		data32 = READ_VREG(HEVC_PARSER_INT_CONTROL);
 #if 1
@@ -4621,8 +4624,6 @@ static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 	WRITE_VREG(HEVC_DECODE_PIC_NUM_REG, 0x7fffffff); /*to remove*/
 #endif
 	/*Send parser_cmd*/
-	if (debug)
-		pr_info("[test.c] SEND Parser Command ...\n");
 	WRITE_VREG(HEVC_PARSER_CMD_WRITE, (1 << 16) | (0 << 0));
 	for (i = 0; i < PARSER_CMD_NUMBER; i++)
 		WRITE_VREG(HEVC_PARSER_CMD_WRITE, parser_cmd[i]);
@@ -4644,8 +4645,6 @@ static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 	(1<<31)
 	);
 	*/
-	if (debug)
-		pr_info("[test.c] Reset IPP\n");
 	WRITE_VREG(HEVCD_IPP_TOP_CNTL,
 		(0 << 1) | /*enable ipp*/
 		(1 << 0)   /*software reset ipp and mpp*/
@@ -5582,7 +5581,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		reset_process_time(pbi);
 #endif
 
-	if (!pbi->send_again_flag) {
+	if (pbi->process_state != PROC_STATE_SENDAGAIN) {
 #ifdef VP9_10B_MMU
 		vp9_recycle_mmu_buf_tail(pbi);
 #endif
@@ -5612,7 +5611,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	bit_depth_luma = vp9_param.p.bit_depth;
 	bit_depth_chroma = vp9_param.p.bit_depth;
 
-	if (!pbi->send_again_flag) {
+	if (pbi->process_state != PROC_STATE_SENDAGAIN) {
 		ret = vp9_bufmgr_process(pbi, &vp9_param);
 		if (!pbi->m_ins_flag)
 			pbi->slice_idx++;
@@ -5655,7 +5654,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 #endif
 		return IRQ_HANDLED;
 	} else if (ret == 0) {
-		if (!pbi->send_again_flag) {
+		if (pbi->process_state != PROC_STATE_SENDAGAIN) {
 			if (!pbi->m_ins_flag) {
 				pbi->frame_count++;
 				decode_frame_count[pbi->index]
@@ -5722,7 +5721,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DECODE_SLICE);
 	}
 	pbi->process_busy = 0;
-	pbi->send_again_flag = 0;
+	pbi->process_state = PROC_STATE_DECODESLICE;
 #ifdef VP9_10B_MMU
 	if (pbi->last_put_idx >= 0 && pbi->last_put_idx < pbi->used_buf_num) {
 		struct RefCntBuffer_s *frame_bufs = cm->buffer_pool->frame_bufs;
@@ -5881,7 +5880,10 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 				vp9_recycle_mmu_buf(pbi);
 #endif
 				pbi->dec_result = DEC_RESULT_AGAIN;
-				pbi->send_again_flag = 1;
+				if (pbi->process_state ==
+					PROC_STATE_DECODESLICE)
+					pbi->process_state =
+					PROC_STATE_SENDAGAIN;
 				amhevc_stop();
 			} else
 				pbi->dec_result = DEC_RESULT_GET_DATA;
@@ -6148,7 +6150,7 @@ static void vvp9_prot_init(struct VP9Decoder_s *pbi)
 #endif
 
 #if 1
-	if (debug & VP9_DEBUG_BUFMGR)
+	if (debug & VP9_DEBUG_BUFMGR_MORE)
 		pr_info("%s\n", __func__);
 	data32 = READ_VREG(HEVC_STREAM_CONTROL);
 	data32 = data32 |
@@ -6682,6 +6684,7 @@ static void vp9_work(struct work_struct *work)
 			pbi->ctx_valid = 1; */
 		pbi->slice_idx++;
 		pbi->frame_count++;
+		pbi->process_state = PROC_STATE_INIT;
 		decode_frame_count[pbi->index] = pbi->frame_count;
 
 #ifdef VP9_10B_MMU
@@ -6689,12 +6692,14 @@ static void vp9_work(struct work_struct *work)
 			(READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
 #endif
 		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-			"%s dec_result %d %x %x %x\n",
+			"%s (===> %d) dec_result %d %x %x %x\n",
 			__func__,
+			pbi->frame_count,
 			pbi->dec_result,
 			READ_VREG(HEVC_STREAM_LEVEL),
 			READ_VREG(HEVC_STREAM_WR_PTR),
-			READ_VREG(HEVC_STREAM_RD_PTR));
+			READ_VREG(HEVC_STREAM_RD_PTR)
+			);
 		vdec_vframe_dirty(hw_to_vdec(pbi), pbi->chunk);
 	} else if (pbi->dec_result == DEC_RESULT_AGAIN) {
 		/*
@@ -6813,8 +6818,10 @@ static void run(struct vdec_s *vdec,
 	pbi->dec_result = DEC_RESULT_NONE;
 
 	vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-		"%s: size 0x%x sum 0x%x (%x %x %x)\n",
-		__func__, r,
+		"%s (%d): size 0x%x sum 0x%x (%x %x %x)\n",
+		__func__,
+		pbi->frame_count,
+		r,
 		(vdec_frame_based(vdec) &&
 		(debug & PRINT_FLAG_VDEC_STATUS)) ?
 		get_data_check_sum(pbi, r) : 0,
