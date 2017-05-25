@@ -570,7 +570,7 @@ enum NalUnitType {
 #define HEVC_DECODE_BUFEMPTY        0x20
 #define HEVC_DECODE_TIMEOUT         0x21
 #define HEVC_SEARCH_BUFEMPTY        0x22
-
+#define HEVC_DECODE_OVER_SIZE       0x23
 #define HEVC_FIND_NEXT_PIC_NAL				0x50
 #define HEVC_FIND_NEXT_DVEL_NAL				0x51
 
@@ -7581,6 +7581,16 @@ pic_done:
 		WRITE_VREG(HEVC_MCPU_INTR_REQ, AMRISC_MAIN_REQ);
 	}
 
+	} else if (dec_status == HEVC_DECODE_OVER_SIZE) {
+		hevc_print(hevc, 0 , "hevc  decode oversize !!\n");
+		debug |= (H265_DEBUG_DIS_LOC_ERROR_PROC |
+			H265_DEBUG_DIS_SYS_ERROR_PROC);
+		hevc->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (hevc->m_ins_flag)
+		reset_process_time(hevc);
+#endif
+		return IRQ_HANDLED;
 	}
 
 	if (hevc->mmu_enable) {

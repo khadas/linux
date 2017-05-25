@@ -80,6 +80,7 @@
 #define HEVC_DECODE_BUFEMPTY        0x20
 #define HEVC_DECODE_TIMEOUT         0x21
 #define HEVC_SEARCH_BUFEMPTY        0x22
+#define HEVC_DECODE_OVER_SIZE       0x23
 #define VP9_HEAD_PARSER_DONE            0xf0
 #define VP9_HEAD_SEARCH_DONE          0xf1
 #define VP9_EOS                        0xf2
@@ -5567,6 +5568,16 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 			amhevc_stop();
 			schedule_work(&pbi->work);
 		}
+#endif
+		return IRQ_HANDLED;
+	} else if (dec_status == HEVC_DECODE_OVER_SIZE) {
+		pr_info("vp9  decode oversize !!\n");
+		debug |= (VP9_DEBUG_DIS_LOC_ERROR_PROC |
+			VP9_DEBUG_DIS_SYS_ERROR_PROC);
+		pbi->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (pbi->m_ins_flag)
+		reset_process_time(pbi);
 #endif
 		return IRQ_HANDLED;
 	}

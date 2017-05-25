@@ -2806,7 +2806,14 @@ send_again:
 			schedule_work(&hw->work);
 		} else
 			goto empty_proc;
-	}
+	} else if (dec_dpb_status == H264_DECODE_OVER_SIZE) {
+			dpb_print(DECODE_ID(hw), 0,
+				"vmh264 decode oversize !!\n");
+			hw->data_flag |= ERROR_FLAG;
+			hw->stat |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+			reset_process_time(hw);
+			return IRQ_HANDLED;
+		}
 
 	/* ucode debug */
 	debug_tag = READ_VREG(DEBUG_REG1);
