@@ -6640,6 +6640,7 @@ static void vp9_work(struct work_struct *work)
 		if (get_free_buf_count(pbi) >=
 			run_ready_min_buf_num) {
 			int r;
+			int decode_size;
 			r = vdec_prepare_input(vdec, &pbi->chunk);
 			if (r < 0) {
 				pbi->dec_result = DEC_RESULT_GET_DATA_RETRY;
@@ -6661,8 +6662,11 @@ static void vp9_work(struct work_struct *work)
 			if (debug & PRINT_FLAG_VDEC_DATA)
 				dump_data(pbi, pbi->chunk->size);
 
+			decode_size = pbi->chunk->size +
+				(pbi->chunk->offset & (VDEC_FIFO_ALIGN - 1));
+
 			WRITE_VREG(HEVC_DECODE_SIZE,
-				READ_VREG(HEVC_DECODE_SIZE) + r);
+				READ_VREG(HEVC_DECODE_SIZE) + decode_size);
 
 			vdec_enable_input(vdec);
 
@@ -6850,6 +6854,8 @@ static void run(struct vdec_s *vdec,
 			dump_data(pbi, pbi->chunk->size);
 
 		WRITE_VREG(HEVC_SHIFT_BYTE_COUNT, 0);
+		r = pbi->chunk->size +
+			(pbi->chunk->offset & (VDEC_FIFO_ALIGN - 1));
 	}
 	WRITE_VREG(HEVC_DECODE_SIZE, r);
 	WRITE_VREG(HEVC_DECODE_COUNT, pbi->slice_idx);

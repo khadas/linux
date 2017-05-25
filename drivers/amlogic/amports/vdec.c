@@ -491,7 +491,6 @@ static void vdec_sync_input_write(struct vdec_s *vdec)
  */
 #define VLD_PADDING_SIZE 1024
 #define HEVC_PADDING_SIZE (1024*16)
-#define FIFO_ALIGN 8
 int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 {
 	struct vdec_input_s *input = &vdec->input;
@@ -556,7 +555,7 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 					block->size - 8);
 			WRITE_VREG(VLD_MEM_VIFIFO_CURR_PTR,
 					round_down(block->start + chunk->offset,
-						FIFO_ALIGN));
+						VDEC_FIFO_ALIGN));
 
 			WRITE_VREG(VLD_MEM_VIFIFO_CONTROL, 1);
 			WRITE_VREG(VLD_MEM_VIFIFO_CONTROL, 0);
@@ -565,13 +564,14 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, 2);
 			WRITE_VREG(VLD_MEM_VIFIFO_RP,
 					round_down(block->start + chunk->offset,
-						FIFO_ALIGN));
+						VDEC_FIFO_ALIGN));
 			dummy = chunk->offset + chunk->size +
 				VLD_PADDING_SIZE;
 			if (dummy >= block->size)
 				dummy -= block->size;
 			WRITE_VREG(VLD_MEM_VIFIFO_WP,
-				round_down(block->start + dummy, FIFO_ALIGN));
+				round_down(block->start + dummy,
+					VDEC_FIFO_ALIGN));
 
 			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, 3);
 			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, 2);
@@ -590,7 +590,8 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 			if (dummy >= block->size)
 				dummy -= block->size;
 			WRITE_VREG(HEVC_STREAM_WR_PTR,
-				round_down(block->start + dummy, FIFO_ALIGN));
+				round_down(block->start + dummy,
+					VDEC_FIFO_ALIGN));
 
 			/* set endian */
 			SET_VREG_MASK(HEVC_STREAM_CONTROL, 7 << 4);
