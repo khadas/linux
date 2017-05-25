@@ -43,6 +43,8 @@ int hevc_source_changed(int format, int width, int height, int fps);
 
 #define DEC_FLAG_HEVC_WORKAROUND 0x01
 
+#define VDEC_FIFO_ALIGN 8
+
 enum vdec_type_e {
 	VDEC_1 = 0,
 	VDEC_HCODEC,

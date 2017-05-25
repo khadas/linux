@@ -8637,6 +8637,7 @@ static void vh265_work(struct work_struct *work)
 		/*if (is_new_pic_available(hevc)) {*/
 		if (run_ready(vdec)) {
 			int r;
+			int decode_size;
 			r = vdec_prepare_input(vdec, &hevc->chunk);
 			if (r < 0) {
 				hevc->dec_result = DEC_RESULT_GET_DATA_RETRY;
@@ -8676,8 +8677,10 @@ static void vh265_work(struct work_struct *work)
 				}
 			}
 
+			decode_size = hevc->chunk->size +
+				(hevc->chunk->offset & (VDEC_FIFO_ALIGN - 1));
 			WRITE_VREG(HEVC_DECODE_SIZE,
-				READ_VREG(HEVC_DECODE_SIZE) + r);
+				READ_VREG(HEVC_DECODE_SIZE) + decode_size);
 
 			vdec_enable_input(vdec);
 
@@ -9006,8 +9009,11 @@ static void run(struct vdec_s *vdec,
 
 	WRITE_VREG(HEVC_DEC_STATUS_REG, HEVC_ACTION_DONE);
 
-	if (vdec_frame_based(vdec))
+	if (vdec_frame_based(vdec)) {
 		WRITE_VREG(HEVC_SHIFT_BYTE_COUNT, 0);
+		r = hevc->chunk->size +
+			(hevc->chunk->offset & (VDEC_FIFO_ALIGN - 1));
+	}
 #ifdef CONFIG_AM_VDEC_DV
 	else {
 		if (vdec->master || vdec->slave)

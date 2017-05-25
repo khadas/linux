@@ -188,7 +188,7 @@ static unsigned int i_only_flag;
 	bit[2] force release buf if in deadlock
 	bit[3] force sliding window ref_frames_in_buffer > num_ref_frames
 */
-static unsigned int error_proc_policy = 0x8;
+static unsigned int error_proc_policy = 0xc;
 
 static unsigned int force_sliding_margin;
 /*
@@ -2376,6 +2376,19 @@ static bool is_buffer_available(struct vdec_s *vdec)
 		);
 		buffer_available = 0;
 		if ((error_proc_policy & 0x4) &&
+			(error_proc_policy & 0x8)) {
+			if ((kfifo_len(&hw->display_q) <= 0) &&
+			(p_H264_Dpb->mDPB.used_size ==
+				p_H264_Dpb->mDPB.size) &&
+				(p_Dpb->ref_frames_in_buffer >
+				(imax(
+				1, p_Dpb->num_ref_frames)
+				- p_Dpb->ltref_frames_in_buffer +
+				force_sliding_margin)))
+				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 2);
+			else
+				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 1);
+		} else if ((error_proc_policy & 0x4) &&
 			(kfifo_len(&hw->display_q) <= 0) &&
 			(p_H264_Dpb->mDPB.used_size ==
 				p_H264_Dpb->mDPB.size))
@@ -2416,13 +2429,14 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 	dec_dpb_status = READ_VREG(DPB_STATUS_REG);
 
 	dpb_print(DECODE_ID(hw), PRINT_FLAG_UCODE_EVT,
-			"%s DPB_STATUS_REG: %x, sb (%x %x %x) bitcnt %x\n",
+			"%s DPB_STATUS_REG: %x, sb (%x %x %x) bitcnt %x mbx_mby %x\n",
 			__func__,
 			dec_dpb_status,
 			READ_VREG(VLD_MEM_VIFIFO_LEVEL),
 			READ_VREG(VLD_MEM_VIFIFO_WP),
 			READ_VREG(VLD_MEM_VIFIFO_RP),
-			READ_VREG(VIFF_BIT_CNT));
+			READ_VREG(VIFF_BIT_CNT),
+			READ_VREG(MBY_MBX));
 
 	if (dec_dpb_status == H264_CONFIG_REQUEST) {
 		WRITE_VREG(DPB_STATUS_REG, H264_ACTION_CONFIG_DONE);
@@ -3422,6 +3436,7 @@ static void vh264_work(struct work_struct *work)
 
 		if (is_buffer_available(vdec)) {
 			int r;
+			int decode_size;
 			r = vdec_prepare_input(vdec, &hw->chunk);
 			if (r < 0) {
 				hw->dec_result = DEC_RESULT_GET_DATA_RETRY;
@@ -3462,8 +3477,10 @@ static void vh264_work(struct work_struct *work)
 				READ_VREG(POWER_CTL_VLD) |
 					(0 << 10) | (1 << 9) | (1 << 6));
 			WRITE_VREG(H264_DECODE_INFO, (1<<13));
-			WRITE_VREG(H264_DECODE_SIZE, hw->chunk->size);
-			WRITE_VREG(VIFF_BIT_CNT, (hw->chunk->size * 8));
+			decode_size = hw->chunk->size +
+				(hw->chunk->offset & (VDEC_FIFO_ALIGN - 1));
+			WRITE_VREG(H264_DECODE_SIZE, decode_size);
+			WRITE_VREG(VIFF_BIT_CNT, decode_size * 8);
 			vdec_enable_input(vdec);
 
 			WRITE_VREG(DPB_STATUS_REG, H264_ACTION_SEARCH_HEAD);
@@ -3554,6 +3571,18 @@ static bool run_ready(struct vdec_s *vdec)
 	}
 }
 
+static unsigned char get_data_check_sum
+	(struct vdec_h264_hw_s *hw, int size)
+{
+	int jj;
+	int sum = 0;
+	u8 *data = ((u8 *)hw->chunk->block->start_virt) +
+		hw->chunk->offset;
+	for (jj = 0; jj < size; jj++)
+		sum += data[jj];
+	return sum;
+}
+
 static void run(struct vdec_s *vdec,
 	void (*callback)(struct vdec_s *, void *), void *arg)
 {
@@ -3596,15 +3625,17 @@ static void run(struct vdec_s *vdec,
 	if (input_frame_based(vdec)) {
 		u8 *data = ((u8 *)hw->chunk->block->start_virt) +
 			hw->chunk->offset;
-
-		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
-			"%s: size 0x%x %02x %02x %02x %02x %02x %02x .. %02x %02x %02x %02x\n",
-			__func__, size,
+		if (dpb_is_debug(DECODE_ID(hw),
+			PRINT_FLAG_VDEC_STATUS)
+			) {
+			dpb_print(DECODE_ID(hw), 0,
+			"%s: size 0x%x sum 0x%x %02x %02x %02x %02x %02x %02x .. %02x %02x %02x %02x\n",
+			__func__, size, get_data_check_sum(hw, size),
 			data[0], data[1], data[2], data[3],
 			data[4], data[5], data[size - 4],
 			data[size - 3],	data[size - 2],
 			data[size - 1]);
-
+		}
 		if (dpb_is_debug(DECODE_ID(hw),
 			PRINT_FRAMEBASE_DATA)
 			) {
@@ -3655,9 +3686,11 @@ static void run(struct vdec_s *vdec,
 			return;
 		}
 		if (input_frame_based(vdec)) {
+			int decode_size = hw->chunk->size +
+				(hw->chunk->offset & (VDEC_FIFO_ALIGN - 1));
 			WRITE_VREG(H264_DECODE_INFO, (1<<13));
-			WRITE_VREG(H264_DECODE_SIZE, hw->chunk->size);
-			WRITE_VREG(VIFF_BIT_CNT, (hw->chunk->size * 8));
+			WRITE_VREG(H264_DECODE_SIZE, decode_size);
+			WRITE_VREG(VIFF_BIT_CNT, decode_size * 8);
 		} else {
 			if (size <= 0)
 				size = 0x7fffffff; /*error happen*/
