@@ -3476,6 +3476,10 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	}
 
 	for (i = 0; i < E_PORT_NUM; i++) {
+		phy_addr[i] = ((port >> i*4) & 0xf) << 4;
+		checksum[i] = (0x100 - (check_sum +
+			(phy_addr[i] - 0x10))) & 0xff;
+		/*
 		if (((port >> i*4) & 0xf) == 1) {
 			phy_addr[0] = ((i + 1) << 4);
 			checksum[0] = (0x100 - (check_sum +
@@ -3492,7 +3496,7 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 			phy_addr[3] = ((i + 1) << 4);
 			checksum[3] = (0x100 - (check_sum +
 				(phy_addr[3] - 0x10))) & 0xff;
-		}
+		}*/
 	}
 	hdmirx_wr_top(TOP_EDID_RAM_OVR1,
 		phy_addr_offset | (0x0f<<16));
@@ -3568,6 +3572,17 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 	/*i is equal to the UI hdmi number*/
 	rx_pr("port map:%#x\n", port);
 	for (i = 0; i < E_PORT_NUM; i++) {
+		if (root_offset == 0)
+			phy_addr[i] = 0xFFFF;
+		else
+			phy_addr[i] = (up_phy_addr |
+			((((port >> i*4) & 0xf) << 12) >>
+			(root_offset - 1)*4));
+		phy_addr[i] = rx_exchange_bits(phy_addr[i]);
+		checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
+			((phy_addr[i] >> 8) & 0xFF)) & 0xff;
+		rx_pr("port %d phy:%d\n", i, phy_addr[i]);
+		#if 0
 		/*port 0 , write the phy addr compute from i*/
 		if (((port >> i*4) & 0xf) == 1) {
 			if (root_offset == 0)
@@ -3612,6 +3627,7 @@ void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
 				((phy_addr[3] >> 8) & 0xFF));
 			rx_pr("port 3 phy:%d\n", phy_addr[3]);
 		}
+		#endif
 	}
 
 	hdmirx_wr_top(TOP_EDID_RAM_OVR2,
