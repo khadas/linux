@@ -80,7 +80,7 @@
 #ifdef ENABLE_SPIN_LOCK_ALWAYS
 static DEFINE_SPINLOCK(di_lock2);
 #define di_lock_irqfiq_save(irq_flag, fiq_flag) \
-	do { fiq_flag = 0; flags = flags; \
+	do { fiq_flag = fiq_flag; flags = flags; \
 	     spin_lock_irqsave(&di_lock2, irq_flag); \
 	} while (0)
 
@@ -89,12 +89,14 @@ static DEFINE_SPINLOCK(di_lock2);
 
 #else
 #define di_lock_irqfiq_save(irq_flag, fiq_flag) \
-	do { flags = irq_flag; \
-	     irq_flag = fiq_flag; \
+	do { flags = flags; \
+		 irq_flag = irq_flag; \
+	     fiq_flag = fiq_flag; \
 	} while (0)
 #define di_unlock_irqfiq_restore(irq_flag, fiq_flag) \
-	do { flags = irq_flag; \
-	     irq_flag = fiq_flag; \
+	do { flags = flags; \
+		 irq_flag = irq_flag; \
+	     fiq_flag = fiq_flag; \
 	} while (0)
 #endif
 
@@ -2213,7 +2215,7 @@ static void dis2_di(void)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
-			di_top_gate_control(false);
+			di_top_gate_control(false, false);
 		}
 	}
 
@@ -5509,8 +5511,8 @@ static unsigned char pre_de_buf_config(void)
 			#ifdef CONFIG_MULTI_DEC
 			pre_inp_canvas_config(vframe);
 			#endif
-			di_print("DI: get vframe[0x%p] from frontend %u ms.\n",
-			vframe,
+			di_print("DI: get %dth vf[0x%p] from frontend %u ms.\n",
+			di_pre_stru.in_seq, vframe,
 jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		}
 		vframe->prog_proc_config = (prog_proc_config&0x20) >> 5;
@@ -7678,11 +7680,9 @@ void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 			queue_in(di_buf, QUEUE_POST_DOING);
 		else
 			queue_in(di_buf, QUEUE_POST_READY);
-		di_print("DI:%s[%d] => post ready %u ms.\n",
-		vframe_type_name[di_buf->type], di_buf->index,
+		di_print("DI:%dth %s[%d] => post ready %u ms.\n",
+		frame_count, vframe_type_name[di_buf->type], di_buf->index,
 		jiffies_to_msecs(jiffies_64 - di_buf->vframe->ready_jiffies64));
-
-
 	}
 	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 }
@@ -8274,7 +8274,7 @@ static void di_unreg_process_irq(void)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
-			di_top_gate_control(false);
+			di_top_gate_control(false, false);
 		} else {
 			DI_Wr(DI_CLKG_CTRL, 0x80000000);
 		}
@@ -8451,14 +8451,19 @@ static void di_reg_process_irq(void)
 		/* di enable nr clock gate */
 #else
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-			di_top_gate_control(true);
-			enable_di_pre_mif(true);
-			di_pre_gate_control(true);
 			if (!use_2_interlace_buff) {
+				/* nr only clkb upto 500M*/
+				clk_set_rate(de_devp->vpu_clkb, 250000000);
+				di_top_gate_control(true, true);
 				di_post_gate_control(true);
 				/* freerun for reg configuration */
 				enable_di_post_mif(GATE_AUTO);
+			} else {
+				clk_set_rate(de_devp->vpu_clkb, 500000000);
+				di_top_gate_control(true, false);
 			}
+			enable_di_pre_mif(true);
+			di_pre_gate_control(true);
 		} else {
 			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
 			DI_Wr(DI_CLKG_CTRL, 0xfef60001);
@@ -8670,8 +8675,10 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 				pre_stru_p->pre_de_busy = 0;
 			} /* else if (timeout_miss_policy == 2) {
 			   * }*/
-			pr_info("***** DI ****** wait %d pre_de_irq timeout\n",
-				pre_stru_p->field_count_for_cont);
+			if (pre_stru_p->field_count_for_cont < 10) {
+				pr_info("DI*****wait %d timeout*****\n",
+					pre_stru_p->field_count_for_cont);
+			}
 		}
 	} else {
 		pre_stru_p->pre_de_busy_timer_count = 0;
@@ -8686,7 +8693,7 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 		if (recovery_flag || (force_recovery & 0x2)) {
 			force_recovery_count++;
 			if (init_flag) {
-				pr_dbg("====== DI force recovery =========\n");
+				pr_error("======DI force recovery=========\n");
 				force_recovery &= (~0x2);
 				dis2_di();
 				recovery_flag = 0;
@@ -9664,10 +9671,13 @@ static int di_probe(struct platform_device *pdev)
 	di_pr_info("%s allocate rdma channel %d.\n", __func__,
 		di_devp->rdma_handle);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-		struct clk *clk_div4, *vpu_clkb_tmp;
+		struct clk *clk_div4, *vpu_clkb_tmp, *vpu_clk;
 		clk_div4 = clk_get(&pdev->dev, "fclk_div4");
 		if (IS_ERR(clk_div4))
 			pr_err("%s: get clk div4 error.\n", __func__);
+		vpu_clk = clk_get(&pdev->dev, "cts_vpu_clk");
+		if (IS_ERR(vpu_clk))
+			pr_err("%s: get clk vpu error.\n", __func__);
 		vpu_clkb_tmp = clk_get(&pdev->dev, "cts_vpu_clkb_tmp");
 		if (IS_ERR(vpu_clkb_tmp))
 			pr_err("%s: get vpu clkb tmp error.\n", __func__);

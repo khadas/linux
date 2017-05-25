@@ -203,7 +203,7 @@ void di_hw_init(void)
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 	/* enable old DI mode for m6tv */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		di_top_gate_control(true);
+		di_top_gate_control(true, true);
 	else if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()
 			|| is_meson_gxm_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
@@ -253,7 +253,7 @@ void di_hw_init(void)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		di_pre_gate_control(false);
 		di_post_gate_control(false);
-		di_top_gate_control(false);
+		di_top_gate_control(false, false);
 	} else if (is_meson_txl_cpu()) {
 		DI_Wr(DI_CLKG_CTRL, 0x80000000); /* di clock div enable for pq load */
 	} else {
@@ -2059,20 +2059,20 @@ unsigned char di_get_power_control(unsigned char type)
 	}
 
 }
-void di_top_gate_control(bool enable)
+void di_top_gate_control(bool top_en, bool mc_en)
 {
-	if (enable) {
+	if (top_en) {
 		/* enable clkb input */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 0, 1);
 		/* enable slow clk */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 10, 1);
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, mc_en?1:0, 10, 1);
 		/* enable di arb */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 0, 2);
 	} else {
 		/* disable clkb input */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 0, 1);
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 0, 1);
 		/* disable slow clk */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 10, 1);
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 10, 1);
 		/* disable di arb */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 0, 2);
 	}

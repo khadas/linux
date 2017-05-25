@@ -261,10 +261,10 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
 	/* dm for sd, hd will slower */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-		if (width > 1920)
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
-		else
-			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+		/*disable */
+		if (width > 1280)
+			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
+		DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 	} else {
 		if (width >= 1920)
 			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
