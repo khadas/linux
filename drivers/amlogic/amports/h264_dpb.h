@@ -39,6 +39,7 @@
 #define H264_DECODE_BUFEMPTY        0x20
 #define H264_DECODE_TIMEOUT         0x21
 #define H264_SEARCH_BUFEMPTY        0x22
+#define H264_DECODE_OVER_SIZE       0x23
 
 #define H264_FIND_NEXT_PIC_NAL              0x50
 #define H264_FIND_NEXT_DVEL_NAL             0x51
