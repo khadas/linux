@@ -557,11 +557,11 @@
 		       0x0 0xffd1800c 0x0 0x4>;
 	};
 
-	i2c_ao: i2c@ff800500{ /*I2C-AO*/
+	i2c_ao: i2c@ff805000{ /*I2C-AO*/
 		compatible = "amlogic, meson-i2c";
 		dev_name = "i2c-AO";
 		status = "disabled";
-		reg = <0x0 0xff800500 0x0 0x1d>;
+		reg = <0x0 0xff805000 0x0 0x1d>;
 		device_id = <0>;
 		pinctrl-names="default";
 		pinctrl-0=<&ao_i2c_master>;
