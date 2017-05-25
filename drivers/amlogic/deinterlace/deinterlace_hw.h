@@ -5,7 +5,7 @@ enum gate_mode_e {
 	GATE_ON,
 	GATE_OFF,
 };
-void di_top_gate_control(bool enable);
+void di_top_gate_control(bool top_en, bool mc_en);
 void di_pre_gate_control(bool enable);
 void di_post_gate_control(bool enable);
 void enable_di_pre_mif(bool enable);
