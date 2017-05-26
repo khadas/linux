@@ -2921,6 +2921,7 @@ static const char *amvecm_debug_usage_str = {
 	"echo dolby_crc 0/1 > /sys/class/amvecm/debug; dolby_crc insert or clr\n"
 	"echo datapath_config param1(D) param2(D) > /sys/class/amvecm/debug; config data path\n"
 	"echo datapath_status > /sys/class/amvecm/debug; data path status\n"
+	"echo dolby_dma index(D) value(H) > /sys/class/amvecm/debug; dolby dma table modify\n"
 	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
@@ -3171,6 +3172,14 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			tv_dolby_vision_crc_clear(val);
 		else
 			tv_dolby_vision_insert_crc(true);
+	} else if (!strcmp(parm[0], "dolby_dma")) {
+		long tbl_id;
+		long value;
+		if (kstrtoul(parm[1], 10, &tbl_id) < 0)
+			return -EINVAL;
+		if (kstrtoul(parm[2], 16, &value) < 0)
+			return -EINVAL;
+		tv_dolby_vision_dma_table_modify((u32)tbl_id, (uint64_t)value);
 	} else if (!strcmp(parm[0], "clip_config")) {
 		unsigned int mode_sel, color, color_mode;
 		if (parm[1]) {

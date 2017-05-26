@@ -2738,12 +2738,16 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_REPEAT |
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN |
-				VFORMATTER_ALWAYS_RPT |
+				((type & VIDTYPE_VIU_422) ?
+				VFORMATTER_RPTLINE0_EN :
+				VFORMATTER_ALWAYS_RPT) |
 				(0 << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) |
-				VFORMATTER_EN);
-			pr_info("\tvd2 set fmt(dovi tv)\n");
+				((type & VIDTYPE_VIU_422) ?
+				0 :
+				VFORMATTER_EN));
+			pr_info("\tvd1 set fmt(dovi tv)\n");
 		} else if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 			is_meson_txlx_cpu()) {
 			if ((vf->width >= 3840) &&
