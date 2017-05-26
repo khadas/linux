@@ -515,10 +515,10 @@
 
 	rtc{
 		compatible = "amlogic, aml_vrtc";
-		alarm_reg_addr = <0xc81000a8>;
-		timer_e_addr = <0xc1109988>;
+		alarm_reg_addr = <0xff8000a8>;
+		timer_e_addr = <0xffd0f188>;
 		init_date = "2015/01/01";
-		status = "disabled";
+		status = "okay";
 	};
 
 	wifi {
