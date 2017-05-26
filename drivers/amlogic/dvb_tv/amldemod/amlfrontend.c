@@ -823,6 +823,9 @@ static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	if (c->modulation > QAM_AUTO)
 		*ber = atsc_read_reg(0x980)&0xffff;
+	else if ((c->modulation == QAM_256)
+		|| (c->modulation == QAM_64))
+		*ber = qam_read_reg(0x6)&0xff;
 	return 0;
 }
 

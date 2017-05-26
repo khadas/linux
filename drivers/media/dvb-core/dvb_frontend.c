@@ -582,6 +582,42 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 *#endif
 */
 
+static int j83b_speedup_func(fe_status_t s, struct dvb_frontend *fe)
+{
+	int j83b_status, i;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	if (fe->ops.read_status)
+		fe->ops.read_status(fe, &s);
+	if (s != 0x1f) {
+		/*msleep(200);*/
+		dprintk("[j.83b] 1\n");
+		for (i = 0; i < 40; i++) {
+			msleep(25);
+			fe->ops.read_ber
+			(fe, &j83b_status);
+			/*J.83 status >=0x38,has signal*/
+			if (j83b_status >= 0x38)
+				break;
+		}
+		dprintk
+		("[rsj]j.83b_status is %x,modulation is %d\n",
+		j83b_status,
+		fe->dtv_property_cache.modulation);
+	}
+	if (j83b_status < 0x38) {
+		s = FE_TIMEDOUT;
+		dprintk(
+		"event s=%d,fepriv->status is %d\n",
+		s, fepriv->status);
+		dvb_frontend_add_event(fe, s);
+		fepriv->status = s;
+		return 1;
+	}
+	return 0;
+
+
+}
+
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
 	fe_status_t s;
@@ -878,6 +914,13 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 				}
 			}
 
+		} else if (fe->dtv_property_cache.modulation <= QAM_AUTO
+		&& fe->dtv_property_cache.modulation != QPSK) {
+			if (is_meson_txlx_cpu()) {
+				LOCK_TIMEOUT = 4000;
+				if (j83b_speedup_func(s, fe))
+					return;
+			}
 		}
 
 #endif
