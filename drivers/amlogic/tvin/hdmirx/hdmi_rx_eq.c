@@ -63,6 +63,7 @@ module_param(eq_sts_stable_max, int, 0664);
 static int eq_max_setting = 7;
 MODULE_PARM_DESC(eq_max_setting, "\n eq_max_setting\n");
 module_param(eq_max_setting, int, 0664);
+unsigned int last_clk_rate;
 
 static int eq_cfg_hd = 4;
 MODULE_PARM_DESC(eq_cfg_hd, "\n eq_cfg_hd\n");
@@ -516,7 +517,6 @@ bool hdmirx_phy_clk_rate_monitor(void)
 	bool changed = false;
 	int i;
 	int error = 0;
-	static unsigned int last_clk_rate;
 
 	if (force_clk_rate & 0x10)
 		clk_rate = force_clk_rate & 1;
