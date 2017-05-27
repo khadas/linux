@@ -431,6 +431,7 @@ static unsigned int horz_scaler_filter = 0xff;
 module_param(horz_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 
+/*need check this value,*/
 static unsigned int bypass_ratio = 205;
 module_param(bypass_ratio, uint, 0664);
 MODULE_PARM_DESC(bypass_ratio, "bypass_ratio");
@@ -584,6 +585,24 @@ unsigned int cur_vf_type;
 MODULE_PARM_DESC(cur_vf_type, "cur_vf_type");
 module_param(cur_vf_type, uint, 0444);
 
+/*
+test on txlx:
+Time_out = (V_out/V_screen_total)/FPS_out;
+if di bypas:
+Time_in = (H_in * V_in)/Clk_vpu;
+if di work; for di clk is less than vpu usually;
+Time_in = (H_in * V_in)/Clk_di;
+if Time_in < Time_out,need do vskip;
+but in effect,test result may have some error.
+ratio1:V_out test result may larger than calc result;
+--after test is large ratio is 1.09;
+--so wo should choose the largest ratio_v_out = 110/100;
+ratio2:use clk_di or clk_vpu;
+--txlx di clk is 250M or 500M;
+--befor txlx di clk is 333M;
+So need adjust bypass_ratio;
+*/
+
 static int
 vpp_process_speed_check(s32 width_in,
 		s32 height_in,
@@ -594,11 +613,23 @@ vpp_process_speed_check(s32 width_in,
 {
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
+	u32 vtotal, clk_in_pps = 0;
+
 	if (vf)
 		cur_vf_type = vf->type;
+	if (force_vskip_cnt == 0xff)/*for debug*/
+		return SPEED_CHECK_DONE;
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
 		return SPEED_CHECK_VSKIP;
 
+	if (vf->type & VIDTYPE_PRE_INTERLACE) {
+		if (is_meson_txlx_cpu())
+			clk_in_pps = 250000000;
+		else
+			clk_in_pps = 333000000;
+	} else {
+		clk_in_pps = get_vpu_clk();
+	}
 	if (vf->type & VIDTYPE_COMPRESS) {
 		if (vf->width > 720)
 			min_ratio_1000 = (MIN_RATIO_1000 * 1400)/1000;
@@ -610,7 +641,10 @@ vpp_process_speed_check(s32 width_in,
 		else
 			min_ratio_1000 = 1750;
 	}
-
+	if (vinfo->field_height < vinfo->height)
+		vtotal = vinfo->vtotal/2;
+	else
+		vtotal = vinfo->vtotal;
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
 		if ((width_in <= 0) || (height_in <= 0) || (height_out <= 0)
@@ -621,6 +655,13 @@ vpp_process_speed_check(s32 width_in,
 			&& (vf->type & VIDTYPE_VIU_444))
 			bpp = 2;
 		if (height_in * bpp > height_out) {
+			/*don't need do skip for under 5% scaler down
+			*reason:for 1080p input,4k output, if di clk is 250M,
+			*the clac height is 1119;which is bigger than 1080!
+			*/
+			if (height_in > height_out &&
+				((height_in - height_out) < height_in/20))
+				return SPEED_CHECK_DONE;
 			if (get_cpu_type() >=
 				MESON_CPU_MAJOR_ID_GXBB) {
 				cur_ratio = div_u64((u64)height_in *
@@ -646,10 +687,10 @@ vpp_process_speed_check(s32 width_in,
 						(u64)width_in *
 						(u64)height_in *
 						(u64)vinfo->sync_duration_num *
-						(u64)height_screen,
+						(u64)vtotal,
 						height_out *
 						vinfo->sync_duration_den *
-						bypass_ratio) > get_vpu_clk())
+						bypass_ratio) > clk_in_pps)
 					return SPEED_CHECK_VSKIP;
 				else
 					return SPEED_CHECK_DONE;
@@ -660,10 +701,10 @@ vpp_process_speed_check(s32 width_in,
 					(u64)width_in *
 					(u64)height_in *
 					(u64)vinfo->sync_duration_num *
-					(u64)height_screen,
+					(u64)vtotal,
 					height_out *
 					vinfo->sync_duration_den * 256)
-					> get_vpu_clk())
+					> clk_in_pps)
 					return SPEED_CHECK_VSKIP;
 				/* 4K down scaling to non 4K > 30hz,
 				   skip lines for memory bandwidth */
@@ -1266,8 +1307,8 @@ RESTART:
 			(next_frame_par->VPP_vd_end_lines_ -
 			next_frame_par->VPP_vd_start_lines_ + 1) /
 			(next_frame_par->vscale_skip_count + 1),
-			next_frame_par->VPP_vsc_endp -
-			next_frame_par->VPP_vsc_startp,
+			(next_frame_par->VPP_vsc_endp -
+			next_frame_par->VPP_vsc_startp + 1),
 			vinfo->height >>
 			((vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0),
 			next_frame_par,
@@ -2466,6 +2507,8 @@ void vpp_bypass_ratio_config(void)
 	if (is_meson_gxbb_cpu() || is_meson_gxl_cpu() ||
 		is_meson_gxm_cpu())
 		bypass_ratio = 125;
+	else if (is_meson_txlx_cpu() || is_meson_txl_cpu())
+		bypass_ratio = 247;/*0x110 * (100/110)=0xf7*/
 	else
 		bypass_ratio = 205;
 }
