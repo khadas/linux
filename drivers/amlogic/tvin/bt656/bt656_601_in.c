@@ -487,6 +487,8 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 	unsigned char vsync_enable = devp->para.vsync_phase;
 	unsigned short hs_bp       = devp->para.hs_bp;
 	unsigned short vs_bp       = devp->para.vs_bp;
+	unsigned int h_active      = devp->para.h_active;
+	unsigned int v_active      = devp->para.v_active;
 
 	if (is_meson_m8b_cpu()) {
 		/* top reset for bt656 */
@@ -512,14 +514,14 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 			(0 << BT_IDQ_PHASE)   |
 			 /* FID came from HS VS. */
 			(0 << BT_FID_HSVS)    |
+			(1 << BT_ACTIVE_HMODE) |
 			(vsync_enable << BT_VSYNC_PHASE) |
 			(hsync_enable << BT_HSYNC_PHASE) |
 			(0 << BT_D8B)         |
-			(4 << BT_FID_DELAY)   |
+			(4 << BT_FID_DELAY)   | /* 4 */
 			(0 << BT_VSYNC_DELAY)  |
-			(2 << BT_HSYNC_DELAY)
+			(2 << BT_HSYNC_DELAY)); /* 2 */
 
-		      );
 	/* WRITE_CBUS_REG(BT_PORT_CTRL,0x421001); */
 	/* FID field check done point. */
 	bt656_wr(offset, BT_601_CTRL2, (10 << 16));
@@ -530,9 +532,10 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 			(7 << 8) |        /* POS_Cr0_IN */
 			(6 << 12));       /* POS_Y1_IN */
 
+	/* horizontal active data start offset, *2 for 422 sampling */
 	bt656_wr(offset, BT_LINECTRL, (1 << 31) |
-			((devp->para.h_active << 1) << 16) |
-			hs_bp);/* horizontal active data start offset */
+			(((h_active + hs_bp) << 1) << 16) |
+			(hs_bp << 1));/* horizontal active data start offset */
 
 	/* ANCI is the field blanking data, like close caption.
 	 * If it connected to digital camara interface,
@@ -577,8 +580,12 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 	/* Line number of the last video line in field 1.
 	 *  added video end for avoid overflow. */
 	/* Line number of the last video line in field 0 */
-	bt656_wr(offset, BT_VIDEOEND, (devp->para.v_active + vs_bp) |
-		((devp->para.v_active + vs_bp) << 16));
+	bt656_wr(offset, BT_VIDEOEND,
+		((v_active + vs_bp - 1) |
+		((v_active + vs_bp - 1) << 16)));
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB))
+		bt656_wr(offset, BT_DELAY_CTRL_GX, 0x22222222);
 
 	/* enable BTR656 interface */
 #if 0 /* (defined CONFIG_ARCH_MESON6) */
@@ -640,13 +647,14 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 				|(1 << BT_EN_BIT)
 				/* timing reference is from bit stream. */
 				|(0 << BT_REF_MODE_BIT)
-				|(1 << BT_FMT_MODE_BIT)     /* NTSC */
-				|(1 << BT_SLICE_MODE_BIT)
+				|(0 << BT_FMT_MODE_BIT)     /* NTSC */
+				|(0 << BT_SLICE_MODE_BIT)
 				/* use external fid pin. */
 				|(0 << BT_FID_EN_BIT)
 				/* enable bt656 clock input */
 				|(1 << 7)
-				|(4 << 18)              /* eol_delay */
+				|(0 << 18)              /* eol_delay //4 */
+				|(1 << 16) /* update status for debug */
 				/* enable sys clock input */
 				|(1 << BT_XCLK27_EN_BIT)
 				|(0x60000000);   /* out of reset for BT_CTRL. */
@@ -1328,6 +1336,7 @@ static int __init amvdec_656in_init_module(void)
 
 	if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
 		is_meson_m8m2_cpu() || is_meson_m8b_cpu() ||
+		is_meson_gxtvbb_cpu() ||
 		is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
 		hw_cnt = 1;
 	} else if (is_meson_gxbb_cpu()) {
