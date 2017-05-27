@@ -818,9 +818,9 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rx.pre_state = FSM_HPD_LOW;
 		break;
 	case HDMI_IOC_EDID_UPDATE:
-		do_hpd_reset_flag = 1;
 		hdmi_rx_ctrl_edid_update();
 		if (rx.open_fg) {
+			do_hpd_reset_flag = 1;
 			rx.state = FSM_HPD_LOW;
 			rx.pre_state = FSM_HPD_LOW;
 		} else {
