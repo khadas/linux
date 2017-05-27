@@ -34,7 +34,7 @@
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/5/25"
 /*------------------------------*/
-#define RX_VER3 "Ref.2017/05/26"
+#define RX_VER3 "Ref.2017/05/24"
 /*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -757,6 +757,7 @@ extern bool hdcp22_kill_esm;
 extern bool mute_kill_en;
 extern char pre_eq_freq;
 extern int en_4k_timing;
+extern unsigned int last_clk_rate;
 
 void wr_reg_hhi(unsigned int offset, unsigned int val);
 unsigned int rd_reg_hhi(unsigned int offset);

@@ -2533,6 +2533,7 @@ void hdmirx_hw_monitor(void)
 			hdmirx_set_hpd(rx.port, 0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
+			last_clk_rate = 0;
 			is_hdcp_source = true;
 			rx.no_signal = true;
 			rx.state = FSM_INIT;
