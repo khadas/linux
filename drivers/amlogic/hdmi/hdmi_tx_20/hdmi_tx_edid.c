@@ -125,7 +125,7 @@ static int Edid_DecodeHeader(struct hdmitx_info *info, unsigned char *buff)
 	return ret;
 }
 
-static void Edid_ReceiverBrandNameParse(struct rx_cap *pRxCap,
+static void Edid_ParsingIDManufacturerName(struct rx_cap *pRxCap,
 		unsigned char *data)
 {
 	int i;
@@ -141,13 +141,36 @@ static void Edid_ReceiverBrandNameParse(struct rx_cap *pRxCap,
 	brand[2] = data[1] & 0x1f;
 
 	for (i = 0; i < 3; i++)
-		pRxCap->ReceiverBrandName[i] = uppercase[brand[i] - 1];
+		pRxCap->IDManufacturerName[i] = uppercase[brand[i] - 1];
+}
+
+static void Edid_ParsingIDProductCode(struct rx_cap *pRXCap,
+		unsigned char *data)
+{
+	if (data == NULL)
+		return;
+	pRXCap->IDProductCode[0] = data[1];
+	pRXCap->IDProductCode[1] = data[0];
+	return;
+}
+
+static void Edid_ParsingIDSerialNumber(struct rx_cap *pRXCap,
+		unsigned char *data)
+{
+	int i;
+
+	if (data == NULL)
+		return;
+	for (i = 0; i < 4; i++)
+		pRXCap->IDSerialNumber[i] = data[3-i];
+	return;
 }
 
 static int Edid_find_name_block(unsigned char *data)
 {
 	int ret = 0;
 	int i;
+
 	for (i = 0; i < 3; i++) {
 		if (data[i])
 			return ret;
@@ -1892,8 +1915,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		/* return -1 ; */
 	}
 
-	Edid_ReceiverBrandNameParse(&hdmitx_device->RXCap, &EDID_buf[8]);
-
+	Edid_ParsingIDManufacturerName(&hdmitx_device->RXCap, &EDID_buf[8]);
+	Edid_ParsingIDProductCode(&hdmitx_device->RXCap, &EDID_buf[0x0A]);
+	Edid_ParsingIDSerialNumber(&hdmitx_device->RXCap, &EDID_buf[0x0C]);
 	idx[0] = EDID_DETAILED_TIMING_DES_BLOCK0_POS;
 	idx[1] = EDID_DETAILED_TIMING_DES_BLOCK1_POS;
 	idx[2] = EDID_DETAILED_TIMING_DES_BLOCK2_POS;
@@ -2485,7 +2509,17 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Rx Brand Name: %s\n", pRXCap->ReceiverBrandName);
+		"Rx Manufacturer Name: %s\n", pRXCap->IDManufacturerName);
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Rx Product Code: %02x%02x\n",
+		pRXCap->IDProductCode[0],
+		pRXCap->IDProductCode[1]);
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Rx Serial Number: %02x%02x%02x%02x\n",
+		pRXCap->IDSerialNumber[0],
+		pRXCap->IDSerialNumber[1],
+		pRXCap->IDSerialNumber[2],
+		pRXCap->IDSerialNumber[3]);
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Rx Product Name: %s\n", pRXCap->ReceiverProductName);
 
@@ -2538,8 +2572,9 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	}
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Speaker Allocation: %x\n", pRXCap->RxSpeakerAllocation);
-	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
-		pRXCap->IEEEOUI);
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Vendor: 0x%x ( %s device)\n",
+		pRXCap->IEEEOUI, (pRXCap->IEEEOUI)?"HDMI":"DVI");
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"MaxTMDSClock1 %d MHz\n", pRXCap->Max_TMDS_Clock1 * 5);
@@ -2577,7 +2612,6 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 			edid_checkvalue[1],
 			edid_checkvalue[2],
 			edid_checkvalue[3]);
-
 	return pos;
 }
 
