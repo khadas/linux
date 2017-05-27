@@ -557,6 +557,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1716,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_480I_RPT */
@@ -572,6 +574,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1716,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_480CVBS*/
@@ -587,6 +591,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1716,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_NTSC_M*/
@@ -615,6 +621,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 858,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_480P_RPT */
@@ -630,6 +638,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 858,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_576I */
@@ -645,6 +655,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1728,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_576I_RPT */
@@ -660,6 +672,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1728,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_576CVBS */
@@ -675,6 +689,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 1728,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_PAL_M */
@@ -716,6 +732,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 864,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_576P_RPT */
@@ -731,6 +749,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 27000000,
+		.htotal            = 864,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_720P */
@@ -746,6 +766,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 1650,
+		.vtotal            = 750,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080I */
@@ -761,6 +783,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080P */
@@ -776,6 +800,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_720P_50hz */
@@ -791,6 +817,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 1980,
+		.vtotal            = 750,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080I_50HZ */
@@ -806,6 +834,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 2640,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080P_30HZ */
@@ -821,6 +851,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080P_50HZ */
@@ -836,6 +868,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2640,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080P_25HZ */
@@ -851,6 +885,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 2640,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080P_24HZ */
@@ -866,6 +902,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 74250000,
+		.htotal            = 2750,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_30HZ */
@@ -881,6 +919,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 297000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_25HZ */
@@ -896,6 +936,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 297000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_24HZ */
@@ -911,6 +953,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 297000000,
+		.htotal            = 5500,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE */
@@ -926,6 +970,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 256,
 		.screen_real_height = 135,
 		.video_clk         = 297000000,
+		.htotal            = 5500,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_25HZ */
@@ -941,6 +987,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 256,
 		.screen_real_height = 135,
 		.video_clk         = 297000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_30HZ */
@@ -956,6 +1004,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 256,
 		.screen_real_height = 135,
 		.video_clk         = 297000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_50HZ */
@@ -971,6 +1021,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 256,
 		.screen_real_height = 135,
 		.video_clk         = 297000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_60HZ */
@@ -986,6 +1038,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 256,
 		.screen_real_height = 135,
 		.video_clk         = 297000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_FAKE_5G */
@@ -1001,6 +1055,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 495000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_60HZ_Y420 */
@@ -1016,6 +1072,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_60HZ_Y420 */
@@ -1031,6 +1089,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_60HZ */
@@ -1046,6 +1106,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K1K_100HZ_Y420 */
@@ -1061,6 +1123,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 32,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 0,
+		.vtotal            = 0,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K1K_100HZ */
@@ -1076,6 +1140,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 32,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K1K_120HZ_Y420 */
@@ -1091,6 +1157,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 32,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K1K_120HZ */
@@ -1106,14 +1174,16 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 32,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K05K_200HZ_Y420 */
 		.name              = "4k05k200hz420",
 		.mode              = VMODE_4K05K_200HZ_Y420,
 		.width             = 3840,
-		.height            = 1080,
-		.field_height      = 1080,
+		.height            = 540,
+		.field_height      = 540,
 		.aspect_ratio_num  = 64,
 		.aspect_ratio_den  = 9,
 		.sync_duration_num = 200,
@@ -1121,6 +1191,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 64,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 562,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K05K_200HZ */
@@ -1136,6 +1208,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 64,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 562,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K05K_240HZ_Y420 */
@@ -1151,6 +1225,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 64,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 562,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K05K_240HZ */
@@ -1166,6 +1242,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 64,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 4400,
+		.vtotal            = 562,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_50HZ_Y420 */
@@ -1181,6 +1259,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_SMPTE_50HZ_Y420 */
@@ -1196,6 +1276,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_4K2K_50HZ */
@@ -1211,6 +1293,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 594000000,
+		.htotal            = 5280,
+		.vtotal            = 2250,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_vga */
@@ -1226,6 +1310,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 25175000,
+		.htotal            = 800,
+		.vtotal            = 525,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_SVGA */
@@ -1241,6 +1327,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 40000000,
+		.htotal            = 1024,
+		.vtotal            = 625,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_XGA */
@@ -1256,6 +1344,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 4,
 		.screen_real_height = 3,
 		.video_clk         = 65000000,
+		.htotal            = 1624,
+		.vtotal            = 817,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_sxga */
@@ -1271,6 +1361,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 5,
 		.screen_real_height = 4,
 		.video_clk         = 108000000,
+		.htotal            = 1688,
+		.vtotal            = 1066,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_wsxga */
@@ -1286,6 +1378,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 8,
 		.screen_real_height = 5,
 		.video_clk         = 88750000,
+		.htotal            = 1600,
+		.vtotal            = 926,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_fhdvga */
@@ -1301,6 +1395,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 /* VMODE for 3D Frame Packing */
@@ -1317,6 +1413,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 297000000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080FP50HZ */
@@ -1332,6 +1430,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 297000000,
+		.htotal            = 2640,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080FP30HZ */
@@ -1347,6 +1447,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080FP25HZ */
@@ -1362,6 +1464,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2640,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_1080FP24HZ */
@@ -1377,6 +1481,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 2750,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_720FP60HZ */
@@ -1392,6 +1498,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 1650,
+		.vtotal            = 750,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 	{ /* VMODE_720FP50HZ */
@@ -1407,6 +1515,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 148500000,
+		.htotal            = 1980,
+		.vtotal            = 750,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 /* VMODE for 3D Frame Packing END */
@@ -1423,6 +1533,8 @@ static struct vinfo_s tv_info[] = {
 		.screen_real_width = 16,
 		.screen_real_height = 9,
 		.video_clk         = 1485000000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
 };

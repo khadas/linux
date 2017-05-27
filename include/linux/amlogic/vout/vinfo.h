@@ -258,6 +258,8 @@ struct vinfo_s {
 	u32 screen_real_width;
 	u32 screen_real_height;
 	u32 video_clk;
+	u32 htotal;
+	u32 vtotal;
 	enum tvin_color_fmt_e viu_color_fmt;
 	struct hdr_info hdr_info;
 	struct master_display_info_s

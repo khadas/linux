@@ -1132,6 +1132,8 @@ void lcd_tv_config_update(struct lcd_config_s *pconf)
 	/* update clk & timing config */
 	lcd_vmode_change(pconf);
 	info->video_clk = pconf->lcd_timing.lcd_clk;
+	info->htotal = pconf->lcd_basic.h_period;
+	info->vtotal = pconf->lcd_basic.v_period;
 	/* update interface timing */
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_VBYONE:
