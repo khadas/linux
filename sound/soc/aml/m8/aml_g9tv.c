@@ -137,12 +137,14 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		audio_in_source = 0;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
+		External_Mute(0);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 1);
 		audio_in_source = 1;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
+		External_Mute(0);
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
 		/* select HDMI-rx as Audio In source */
 		/* [14:12]cntl_hdmirx_chsts_sel: */
@@ -162,6 +164,7 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 4, 0);
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
+		External_Mute(0);
 	}
 
 	set_i2s_source(audio_in_source);

@@ -478,8 +478,6 @@ void audio_set_i2s_mode(u32 mode, unsigned int channel)
 {
 	aml_aiu_write(AIU_I2S_SOURCE_DESC, 0x800);
 
-	aml_aiu_update_bits(AIU_CLK_CTRL_MORE, 0x1f, 0);
-
 	if (8 == channel) {
 		aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 0, 1);
 
@@ -491,24 +489,17 @@ void audio_set_i2s_mode(u32 mode, unsigned int channel)
 			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 7 << 6,
 						7 << 6);
 		} else if (mode == AIU_I2S_MODE_PCM24) {
-			/* todo: to verify it */
 			aml_aiu_update_bits(AIU_MEM_I2S_CONTROL, 1 << 6, 0);
 
 			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 9,
 						1 << 9);
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 7 << 6,
-						7 << 6);
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 5,
-						1 << 5);
-
 		} else if (mode == AIU_I2S_MODE_PCM16) {
+			/* todo: this mode still has problem*/
 			aml_aiu_update_bits(AIU_MEM_I2S_CONTROL, 1 << 6,
 						1 << 6);
 
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 2 << 3,
+			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 3 << 3,
 						2 << 3);
-
-			aml_aiu_update_bits(AIU_CLK_CTRL_MORE, 0x1f, 0x5);
 		}
 	} else if (2 == channel) {
 		aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 0, 0);
@@ -517,15 +508,13 @@ void audio_set_i2s_mode(u32 mode, unsigned int channel)
 			aml_aiu_update_bits(AIU_MEM_I2S_CONTROL, 1 << 6,
 						1 << 6);
 
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 2 << 3,
+			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 3 << 3,
 						2 << 3);
 		} else if (mode == AIU_I2S_MODE_PCM24) {
 			aml_aiu_update_bits(AIU_MEM_I2S_CONTROL, 1 << 6, 0);
 
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 5,
-						1 << 5);
-			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 2 << 3,
-						2 << 3);
+			aml_aiu_update_bits(AIU_I2S_SOURCE_DESC, 1 << 9,
+						1 << 9);
 		} else if (mode == AIU_I2S_MODE_PCM32) {
 			aml_aiu_update_bits(AIU_MEM_I2S_CONTROL, 1 << 6, 0);
 

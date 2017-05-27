@@ -81,5 +81,6 @@ static int aml_get_eqdrc_reg(struct snd_kcontrol *kcontrol,
 static int aml_set_eqdrc_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol);
 
+extern int External_Mute(int mute_flag);
 
 #endif
