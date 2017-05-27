@@ -2568,6 +2568,7 @@ void hdmirx_hw_monitor(void)
 		/* set_scdc_cfg(1, 1); */
 		use_dwc_reset = true;
 		hdmirx_set_hpd(rx.port, 0);
+		set_scdc_cfg(1, 0);
 		audio_status_init();
 		Signal_status_init();
 		hdmirx_phy_init(rx.port, 0);
@@ -2596,7 +2597,7 @@ void hdmirx_hw_monitor(void)
 		if (is_clk_stable()) {
 			if (is_clk_stable_cnt++ > is_clk_stable_max) {
 				/* when clock in then do phy init*/
-				hdmirx_phy_init(rx.port, 0);
+				/*hdmirx_phy_init(rx.port, 0);*/
 				rx_pr("EQ_INIT\n");
 				rx.state = FSM_EQ_INIT;
 				wait_clk_stable_cnt = 0;
