@@ -87,7 +87,9 @@ struct rx_cap {
 	unsigned char hdr_lum_max;
 	unsigned char hdr_lum_avg;
 	unsigned char hdr_lum_min;
-	unsigned char ReceiverBrandName[4];
+	unsigned char IDManufacturerName[4];
+	unsigned char IDProductCode[2];
+	unsigned char IDSerialNumber[4];
 	unsigned char ReceiverProductName[16];
 	unsigned char manufacture_week;
 	unsigned char manufacture_year;
