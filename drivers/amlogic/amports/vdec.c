@@ -903,7 +903,18 @@ void vdec_vframe_dirty(struct vdec_s *vdec, struct vframe_chunk_s *chunk)
 		 */
 		vdec_sync_input_read(vdec);
 		vdec_sync_input_write(vdec);
+
+		vdec->need_more_data |= VDEC_NEED_MORE_DATA_DIRTY;
+		vdec->need_more_data &= ~VDEC_NEED_MORE_DATA;
 	}
+}
+
+bool vdec_need_more_data(struct vdec_s *vdec)
+{
+	if (vdec_stream_based(vdec))
+		return vdec->need_more_data & VDEC_NEED_MORE_DATA;
+
+	return false;
 }
 
 void vdec_save_input_context(struct vdec_s *vdec)
@@ -1623,6 +1634,8 @@ static inline bool vdec_ready_to_run(struct vdec_s *vdec)
  * to a default policy and even a non_secure type will still be
  * changed to secure type automatically when secure source is
  * detected inside TEE.
+ * Perform need_more_data checking and set flag is decoder
+ * is not consuming data.
  */
 static inline void vdec_prepare_run(struct vdec_s *vdec)
 {
@@ -1634,6 +1647,15 @@ static inline void vdec_prepare_run(struct vdec_s *vdec)
 		tee_config_device_secure(DMC_DEV_ID_VDEC, type);
 	else if (input->target == VDEC_INPUT_TARGET_HEVC)
 		tee_config_device_secure(DMC_DEV_ID_HEVC, type);
+
+	if (vdec_stream_based(vdec) &&
+		((vdec->need_more_data & VDEC_NEED_MORE_DATA_RUN) &&
+		(vdec->need_more_data & VDEC_NEED_MORE_DATA_DIRTY) == 0)) {
+		vdec->need_more_data |= VDEC_NEED_MORE_DATA;
+	}
+
+	vdec->need_more_data |= VDEC_NEED_MORE_DATA_RUN;
+	vdec->need_more_data &= ~VDEC_NEED_MORE_DATA_DIRTY;
 }
 
 /* struct vdec_core_shread manages all decoder instance in active list. When

@@ -134,6 +134,10 @@ enum vformat_t;
 #define VDEC_FLAG_OTHER_INPUT_CONTEXT 0x0
 #define VDEC_FLAG_SELF_INPUT_CONTEXT 0x01
 
+#define VDEC_NEED_MORE_DATA_RUN   0x01
+#define VDEC_NEED_MORE_DATA_DIRTY 0x02
+#define VDEC_NEED_MORE_DATA       0x04
+
 struct vdec_s {
 	u32 magic;
 	struct list_head list;
@@ -152,6 +156,7 @@ struct vdec_s {
 	bool pts_valid;
 	int flag;
 	int sched;
+	int need_more_data;
 
 	struct completion inactive_done;
 
@@ -324,5 +329,7 @@ extern const char *vdec_device_name_str(struct vdec_s *vdec);
 
 extern void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 	unsigned int offset);
+
+extern bool vdec_need_more_data(struct vdec_s *vdec);
 
 #endif				/* VDEC_H */
