@@ -1889,6 +1889,9 @@ static long amstream_ioctl_get(struct port_priv_s *priv, ulong arg)
 	case AMSTREAM_GET_ION_ID:
 		parm.data_32 = priv->vdec->vf_receiver_inst;
 		break;
+	case AMSTREAM_GET_NEED_MORE_DATA:
+		parm.data_32 = vdec_need_more_data(priv->vdec);
+		break;
 	default:
 		r = -ENOIOCTLCMD;
 		break;
