@@ -1226,8 +1226,8 @@ void enable_dolby_vision(int enable)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL1,
 					/* 23-20 ext mode */
 					(0 << 4) |
-					/* 19 osd bypass */
-					(0 << 3) |
+					/* 19 osd2 enable */
+					(1 << 3) |
 					/* 18 core2 bypass */
 					(0 << 2) |
 					/* 17 core1 el bypass */
