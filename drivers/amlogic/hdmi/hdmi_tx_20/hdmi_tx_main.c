@@ -1723,23 +1723,45 @@ nextrgb:
 
 static bool valid_mode;
 static char cvalid_mode[32];
+
+static bool pre_process_str(char *name)
+{
+	int i;
+	unsigned int flag = 0;
+	char *color_format[4] = {"444", "422", "420", "rgb"};
+
+	for (i = 0 ; i < 4 ; i++) {
+		if (strstr(name, color_format[i]) != NULL)
+			flag++;
+	}
+	if (flag >= 2)
+		return 0;
+	else
+		return 1;
+}
+
 static ssize_t show_valid_mode(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct hdmi_format_para *para = NULL;
 
-	if (cvalid_mode[0])
+	if (cvalid_mode[0]) {
+		valid_mode = pre_process_str(cvalid_mode);
+		if (valid_mode == 0) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
+				valid_mode);
+			return pos;
+		}
 		para = hdmi_get_fmt_name(cvalid_mode, cvalid_mode);
+	}
 	if (para) {
 		pr_info("sname = %s\n", para->sname);
 		pr_info("char_clk = %d\n", para->tmds_clk);
 		pr_info("cd = %d\n", para->cd);
 		pr_info("cs = %d\n", para->cs);
 	}
-
 	valid_mode = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
-
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r", valid_mode);
 
 	return pos;
