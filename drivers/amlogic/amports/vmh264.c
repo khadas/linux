@@ -227,7 +227,9 @@ static inline bool close_to(int a, int b, int m)
 #define DEFAULT_MEM_SIZE        (32*1024*1024)
 #define AVIL_DPB_BUFF_SIZE      0x01ec2000
 
-#define DEF_BUF_START_ADDR            0x1000000
+#define DEF_BUF_START_ADDR			0x01000000
+#define mem_sps_base				0x011c3c00
+#define mem_pps_base				0x011cbc00
 /*#define V_BUF_ADDR_OFFSET             (0x13e000)*/
 u32 V_BUF_ADDR_OFFSET = 0x200000;
 #define DCAC_READ_MARGIN	(64 * 1024)
@@ -3813,6 +3815,7 @@ static int ammvdec_h264_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct vdec_h264_hw_s *hw = NULL;
+	char *tmpbuf;
 
 	if (pdata == NULL) {
 		pr_info("\nammvdec_h264 memory resource undefined.\n");
@@ -3880,7 +3883,23 @@ static int ammvdec_h264_probe(struct platform_device *pdev)
 
 	hw->buf_offset = hw->cma_alloc_addr - DEF_BUF_START_ADDR +
 			DCAC_READ_MARGIN;
-
+#if 1
+	/*init internal buf*/
+	tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr);
+	memset(tmpbuf, 0, V_BUF_ADDR_OFFSET);
+	dma_sync_single_for_device(amports_get_dma_device(),
+		hw->cma_alloc_addr,
+		V_BUF_ADDR_OFFSET, DMA_TO_DEVICE);
+#else
+	/*init sps/pps internal buf 64k*/
+	tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr
+		+ (mem_sps_base - DEF_BUF_START_ADDR));
+	memset(tmpbuf, 0, 0x10000);
+	dma_sync_single_for_device(amports_get_dma_device(),
+		hw->cma_alloc_addr + (mem_sps_base - DEF_BUF_START_ADDR),
+		0x10000, DMA_TO_DEVICE);
+#endif
+	/**/
 
 	if (pdata->sys_info)
 		hw->vh264_amstream_dec_info = *pdata->sys_info;
