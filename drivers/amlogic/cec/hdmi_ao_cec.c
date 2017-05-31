@@ -864,11 +864,8 @@ void tx_irq_handle(void)
 	case TX_ERROR:
 		if (cec_msg_dbg_en  == 1)
 			CEC_ERR("TX ERROR!!!\n");
-		if (RX_ERROR == aocec_rd_reg(CEC_RX_MSG_STATUS)) {
-			cec_hw_reset();
-		} else {
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-		}
+		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+		cec_hw_reset();
 		cec_tx_result = CEC_FAIL_NACK;
 		break;
 
@@ -968,7 +965,7 @@ static bool check_physical_addr_valid(int timeout)
 int cec_ll_tx(const unsigned char *msg, unsigned char len)
 {
 	int ret = -1;
-	int t = msecs_to_jiffies(2000);
+	int t = msecs_to_jiffies(ee_cec ? 2000 : 5000);
 	int retry = 2;
 
 	if (len == 0)
