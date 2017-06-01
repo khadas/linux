@@ -1118,26 +1118,6 @@ int vdec_connect(struct vdec_s *vdec)
 	}
 
 	vdec_core_unlock(vdec_core, flags);
-	if (!vdec_single(vdec)) {
-		vf_reg_provider(&vdec->vframe_provider);
-		vf_notify_receiver(vdec->vf_provider_name,
-			VFRAME_EVENT_PROVIDER_START,
-			vdec);
-
-		if (vdec->slave) {
-			vf_reg_provider(&vdec->slave->vframe_provider);
-			vf_notify_receiver(vdec->slave->vf_provider_name,
-				VFRAME_EVENT_PROVIDER_START, vdec->slave);
-		}
-		if (vdec_stream_based(vdec) ||
-				(vdec->frame_base_video_path ==
-				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO)) {
-			vf_notify_receiver(vdec->vf_provider_name,
-				VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)((unsigned long)vdec->sys_info->rate));
-		}
-		pr_info("provider reg: %s\n", vdec->vf_provider_name);
-	}
 
 	up(&vdec_core->sem);
 
@@ -1151,24 +1131,12 @@ int vdec_disconnect(struct vdec_s *vdec)
 	vdec_profile(vdec, VDEC_PROFILE_EVENT_DISCONNECT);
 #endif
 	trace_vdec_disconnect(vdec);
-	if (!vdec_single(vdec)) {
-		if (vdec_stream_based(vdec) ||
-			(vdec->frame_base_video_path ==
-			FRAME_BASE_PATH_AMLVIDEO_AMVIDEO)) {
-			vf_notify_receiver(vdec->vf_provider_name,
-				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
-		}
-	}
+
 	if ((vdec->status != VDEC_STATUS_CONNECTED) &&
 		(vdec->status != VDEC_STATUS_ACTIVE)) {
 		return 0;
 	}
-	if (vdec->vframe_provider.name)
-		vf_unreg_provider(&vdec->vframe_provider);
-	if (vdec->slave) {
-		if (vdec->slave->vframe_provider.name)
-			vf_unreg_provider(&vdec->slave->vframe_provider);
-	}
+
 	/* when a vdec is under the management of scheduler
 	 * the status change will only be from vdec_core_thread
 	 */
@@ -1400,6 +1368,24 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		 *       op_arg
 		 */
 	}
+
+	if (!vdec_single(vdec)) {
+		vf_reg_provider(&p->vframe_provider);
+
+		vf_notify_receiver(p->vf_provider_name,
+			VFRAME_EVENT_PROVIDER_START,
+			vdec);
+
+		if (vdec_stream_based(p) ||
+			(p->frame_base_video_path ==
+			FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
+			vf_notify_receiver(p->vf_provider_name,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)((unsigned long)p->sys_info->rate));
+	}
+
+	pr_info("vdec_init, vf_provider_name = %s\n", p->vf_provider_name);
+
 	/* vdec is now ready to be active */
 	vdec_set_status(vdec, VDEC_STATUS_DISCONNECTED);
 
@@ -1417,14 +1403,27 @@ void vdec_release(struct vdec_s *vdec)
 
 	vdec_disconnect(vdec);
 
+	if (vdec->vframe_provider.name) {
+		if (!vdec_single(vdec)) {
+			if (vdec_stream_based(vdec) ||
+				(vdec->frame_base_video_path ==
+				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
+				vf_notify_receiver(vdec->vf_provider_name,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
+		}
+		vf_unreg_provider(&vdec->vframe_provider);
+	}
+
 	if (vdec_core->vfm_vdec == vdec)
 		vdec_core->vfm_vdec = NULL;
 
-	if (vdec->vfm_map_id[0]) {
-		vfm_map_remove(vdec->vfm_map_id);
-		vdec->vfm_map_id[0] = 0;
-	}
 	if (vdec->vf_receiver_inst >= 0) {
+		if (vdec->vfm_map_id[0]) {
+			vfm_map_remove(vdec->vfm_map_id);
+			vdec->vfm_map_id[0] = 0;
+		}
+
 		/* vf_receiver_inst should be > 0 since 0 is
 		 * for either un-initialized vdec or a ionvideo
 		 * instance reserved for legacy path.
@@ -1451,7 +1450,14 @@ void vdec_release(struct vdec_s *vdec)
 int vdec_reset(struct vdec_s *vdec)
 {
 	trace_vdec_reset(vdec);
+
 	vdec_disconnect(vdec);
+
+	if (vdec->vframe_provider.name)
+		vf_unreg_provider(&vdec->vframe_provider);
+
+	if ((vdec->slave) && (vdec->slave->vframe_provider.name))
+		vf_unreg_provider(&vdec->slave->vframe_provider);
 
 	if (vdec->reset) {
 		vdec->reset(vdec);
@@ -1460,6 +1466,16 @@ int vdec_reset(struct vdec_s *vdec)
 	}
 
 	vdec_input_release(&vdec->input);
+
+	vf_reg_provider(&vdec->vframe_provider);
+	vf_notify_receiver(vdec->vf_provider_name,
+			VFRAME_EVENT_PROVIDER_START, vdec);
+
+	if (vdec->slave) {
+		vf_reg_provider(&vdec->slave->vframe_provider);
+		vf_notify_receiver(vdec->slave->vf_provider_name,
+			VFRAME_EVENT_PROVIDER_START, vdec->slave);
+	}
 
 	vdec_connect(vdec);
 

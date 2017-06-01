@@ -970,12 +970,7 @@ show_vframe_status(struct device *dev,
 {
 	int ret = 0;
 	struct vframe_states states;
-	struct vframe_provider_s *vfp;
-
-	vfp = vf_get_provider(VFM_NAME);
-	if (vfp && vfp->ops && vfp->ops->vf_states)
-		ret = vfp->ops->vf_states(&states, vfp->op_arg);
-
+	ret = vf_get_states_by_name(VFM_NAME, &states);
 	if (ret == 0) {
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
 			states.vf_pool_size);

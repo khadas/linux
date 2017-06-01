@@ -945,15 +945,12 @@ static inline struct vframe_s *video_vf_get(void)
 
 }
 
-static int vf_get_states(struct vframe_states *states)
+static int video_vf_get_states(struct vframe_states *states)
 {
 	int ret = -1;
 	unsigned long flags;
-	struct vframe_provider_s *vfp;
-	vfp = vf_get_provider(RECEIVER_NAME);
 	spin_lock_irqsave(&lock, flags);
-	if (vfp && vfp->ops && vfp->ops->vf_states)
-		ret = vfp->ops->vf_states(states, vfp->op_arg);
+	ret = vf_get_states_by_name(RECEIVER_NAME, states);
 	spin_unlock_irqrestore(&lock, flags);
 	return ret;
 }
@@ -3578,7 +3575,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		u32 delayed_ms, t1, t2;
 		delayed_ms =
 		    calculation_stream_delayed_ms(PTS_TYPE_VIDEO, &t1, &t2);
-		if (vf_get_states(&frame_states) == 0) {
+		if (video_vf_get_states(&frame_states) == 0) {
 			u32 pcr = timestamp_pcrscr_get();
 			u32 vpts = timestamp_vpts_get();
 			u32 diff = pcr - vpts;
@@ -5873,7 +5870,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_VF_STATUS:{
 			struct vframe_states vfsta;
 			struct vframe_states states;
-			vf_get_states(&vfsta);
+			video_vf_get_states(&vfsta);
 			states.vf_pool_size = vfsta.vf_pool_size;
 			states.buf_avail_num = vfsta.buf_avail_num;
 			states.buf_free_num = vfsta.buf_free_num;
@@ -7377,7 +7374,7 @@ static ssize_t vframe_states_show(struct class *cla,
 	unsigned long flags;
 	struct vframe_s *vf;
 
-	if (vf_get_states(&states) == 0) {
+	if (video_vf_get_states(&states) == 0) {
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
 			states.vf_pool_size);
 		ret += sprintf(buf + ret, "vframe buf_free_num=%d\n",

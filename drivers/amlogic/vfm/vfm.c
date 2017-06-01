@@ -452,18 +452,17 @@ static ssize_t vfm_map_show(struct class *class,
 	return len;
 }
 
-static int vf_get_states(struct vframe_provider_s *vfp,
+static int vfm_vf_get_states(struct vframe_provider_s *vfp,
 	struct vframe_states *states)
 {
 	int ret = -1;
 	unsigned long flags;
 	spin_lock_irqsave(&lock, flags);
-	if (vfp && vfp->ops && vfp->ops->vf_states)
-		ret = vfp->ops->vf_states(states, vfp->op_arg);
+	ret = vf_get_states(vfp, states);
 	spin_unlock_irqrestore(&lock, flags);
 	return ret;
 }
-static inline struct vframe_s *vmf_vf_peek(
+static inline struct vframe_s *vfm_vf_peek(
 	struct vframe_provider_s *vfp)
 {
 	if (!(vfp && vfp->ops && vfp->ops->peek))
@@ -479,7 +478,7 @@ static void vfm_dump_provider(const char *name)
 
 	if (!prov)
 		return;
-	if (!vf_get_states(prov, &states)) {
+	if (!vfm_vf_get_states(prov, &states)) {
 		pr_info("vframe_pool_size=%d\n",
 			states.vf_pool_size);
 		pr_info("vframe buf_free_num=%d\n",
@@ -491,7 +490,7 @@ static void vfm_dump_provider(const char *name)
 
 		spin_lock_irqsave(&lock, flags);
 
-		vf = vmf_vf_peek(prov);
+		vf = vfm_vf_peek(prov);
 		if (vf) {
 			pr_info("vframe ready frame delayed =%dms\n",
 				(int)(jiffies_64 -

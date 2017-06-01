@@ -10,7 +10,7 @@
 #include "vdec_input.h"
 
 #define VFRAME_BLOCK_SIZE (512 * SZ_1K)
-#define VFRAME_BLOCK_SIZE_MAX (8 * SZ_1M)
+#define VFRAME_BLOCK_SIZE_MAX (4 * SZ_1M)
 
 
 #define VFRAME_BLOCK_PAGEALIGN 4
@@ -311,10 +311,11 @@ int vdec_input_dump_chunks(struct vdec_input_s *input,
 	if (!bufs)
 		lbuf = sbuf;
 	s += sprintf(lbuf + s,
-		"start dump vdec:%d bufsize=%d,datasize=%d\n",
+		"start dump vdec:%d bufsize=%d,datasize=%d,max_frame=%d\n",
 		input->id,
 		input->size,
-		input->data_size);
+		input->data_size,
+		input->frame_max_size);
 	if (bufs)
 		lbuf += s;
 	if (!bufs) {
@@ -524,11 +525,11 @@ static int	vdec_input_get_free_block(
 		int def_size = input->default_block_size;
 		do {
 			def_size *= 2;
-		} while ((def_size <=
-			2 * size) &&
+		} while ((def_size <= 2 * size) &&
 			(def_size <= VFRAME_BLOCK_SIZE_MAX));
 		if (def_size < size)
-			def_size = PAGE_ALIGN(size + 1024);
+			def_size = ALIGN(size + 64, (1 << 17));
+		/*128k aligned,same as codec_mm*/
 		input->default_block_size = def_size;
 	}
 	block = vdec_input_alloc_new_block(input);
@@ -661,7 +662,8 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 	list_add_tail(&chunk->list, &input->vframe_chunk_list);
 	input->data_size += chunk->size;
 	vdec_input_unlock(input, flags);
-
+	if (chunk->size > input->frame_max_size)
+		input->frame_max_size = chunk->size;
 	input->total_wr_count += count;
 
 #if 0

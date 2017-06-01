@@ -69,6 +69,7 @@ struct vdec_input_s {
 	unsigned size;
 	int default_block_size;
 	int data_size;
+	int frame_max_size;
 	int prepare_level;
 	int stream_cookie; /* wrap count for vld_mem and
 			      HEVC_SHIFT_BYTE_COUNT for hevc */
