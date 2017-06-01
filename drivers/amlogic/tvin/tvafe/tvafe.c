@@ -95,6 +95,10 @@ MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 0: off snow function*/
 bool tvafe_snow_function_flag;
 
+/*1: tvafe decoder started;
+0: tvafe decoder stopped*/
+bool tvafe_dec_status;
+
 static unsigned int tvafe_ratio_cnt = 50;
 module_param(tvafe_ratio_cnt, uint, 0644);
 MODULE_PARM_DESC(tvafe_ratio_cnt, "tvafe aspect ratio valid cnt");
@@ -914,6 +918,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 	/* set the flag to enabble ioctl access */
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
+	tvafe_dec_status = true;
 #ifdef CONFIG_AM_DVB
 	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
@@ -1104,6 +1109,7 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
 
 	devp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+	tvafe_dec_status = false;
 
 	pr_info("[tvafe..] %s close afe ok.\n", __func__);
 

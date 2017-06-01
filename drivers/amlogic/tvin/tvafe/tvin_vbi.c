@@ -730,6 +730,11 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 	ssize_t avail;
 	ssize_t ret = 0;
 
+	if (tvafe_dec_status == false) {
+		pr_info("[vbi..] %s: tvafe is closed.return 0\n", __func__);
+		return 0;
+	}
+
 	if (!src->data) {
 		pr_info("[vbi..] %s: data null\n", __func__);
 		return 0;
@@ -751,7 +756,14 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		}
 
 		ret = wait_event_interruptible(src->queue,
-			!vbi_ringbuffer_empty(src) || (src->error != 0));
+			!vbi_ringbuffer_empty(src) || (src->error != 0) ||
+			tvafe_dec_status == false);
+
+		if (tvafe_dec_status == false) {
+			ret = -EWOULDBLOCK;
+			pr_info("[vbi..] %s: tvafe is closed.\n", __func__);
+			break;
+		}
 		if (vbi_dbg_en)
 			pr_info("[vbi...]%s:src->pread = %d;src->pwrite = %d\n",
 			__func__,
@@ -781,6 +793,13 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		}
 		buf += ret;
 	}
+
+	if (tvafe_dec_status == false) {
+		pr_info("[vbi..] %s: tvafe closed already.return 0\n",
+			__func__);
+		return 0;
+	}
+
 	if ((count - todo) <= 0)
 		pr_info("[vbi..] %s: read error!! counter: %Zx or %Zx\n",
 			__func__, (count - todo) , ret);
@@ -822,6 +841,7 @@ static int vbi_open(struct inode *inode, struct file *file)
 			__func__);
 		return -ERESTARTSYS;
 	}
+	tasklet_enable(&vbi_dev->tsklt_slicer);
 	mutex_init(&vbi_dev->slicer->mutex);
 	vbi_ringbuffer_init(&vbi_dev->slicer->buffer, NULL,
 		VBI_DEFAULT_BUFFER_PACKEGE_NUM);
@@ -849,14 +869,17 @@ static int vbi_release(struct inode *inode, struct file *file)
 	struct vbi_slicer_s *vbi_slicer = vbi_dev->slicer;
 	int ret = 0;
 
-	ret = vbi_slicer_free(vbi_dev, vbi_slicer);
 	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;  /*disable data capture function*/
+	tasklet_disable_nosync(&vbi_dev->tsklt_slicer);
+	ret = vbi_slicer_free(vbi_dev, vbi_slicer);
 	/* free irq */
 	free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
-	/* vbi reset release, vbi agent enable */
-	W_APB_REG(ACD_REG_22, 0x06080000);
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+	if (tvafe_dec_status) {
+		/* vbi reset release, vbi agent enable */
+		W_APB_REG(ACD_REG_22, 0x06080000);
+		W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+	}
 	pr_info("[vbi..]%s: device release OK.\n", __func__);
 	return ret;
 }
@@ -910,10 +933,12 @@ static long vbi_ioctl(struct file *file,
 		vbi_dev->vbi_start = false;
 		/* manuel reset vbi */
 		/*W_APB_REG(ACD_REG_22, 0x82080000);*/
-		/* vbi reset release, vbi agent enable*/
-		W_APB_REG(ACD_REG_22, 0x06080000);
-		/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
-		W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+		if (tvafe_dec_status) {
+			/* vbi reset release, vbi agent enable*/
+			W_APB_REG(ACD_REG_22, 0x06080000);
+			/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
+			W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+		}
 		pr_info("[vbi..] %s: disable vbi function\n", __func__);
 		mutex_unlock(&vbi_slicer->mutex);
 		pr_info("[vbi..] %s: stop slicer state:%d\n",
@@ -1343,6 +1368,7 @@ static int vbi_probe(struct platform_device *pdev)
 	tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
 				(unsigned long)vbi_dev);
 
+	tasklet_disable_nosync(&vbi_dev->tsklt_slicer);
 	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;
 	vbi_dev->vs_delay = 40;

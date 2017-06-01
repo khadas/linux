@@ -343,7 +343,10 @@ static u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		type |= VIDTYPE_PROGRESSIVE;
 	} else {
 		field_status = vdin_get_field_type(devp->addr_offset);
-		if (invert_top_bot)
+		/*tvafe FIELD POLARITY 0 TOP,vdin must invert for correct*/
+		if (invert_top_bot ||
+			(devp->parm.port >= TVIN_PORT_CVBS0 &&
+			devp->parm.port <= TVIN_PORT_CVBS7))
 			type |=	field_status ?
 			VIDTYPE_INTERLACE_TOP :	VIDTYPE_INTERLACE_BOTTOM;
 		else
