@@ -327,10 +327,10 @@ struct vframe_s *vf_get(const char *receiver)
 	if (use_provider(vfp)) {
 		if (vfp->ops && vfp->ops->get)
 			vf = vfp->ops->get(vfp->op_arg);
+		if (vf)
+			vftrace_info_in(vfp->traceget, vf);
 		unuse_provider(vfp);
 	}
-	if (vf)
-		vftrace_info_in(vfp->traceget, vf);
 	return vf;
 }
 EXPORT_SYMBOL(vf_get);
@@ -339,11 +339,11 @@ void vf_put(struct vframe_s *vf, const char *receiver)
 {
 	struct vframe_provider_s *vfp;
 	vfp = vf_get_provider(receiver);
-	if (vf)
-		vftrace_info_in(vfp->traceput, vf);
 	if (use_provider(vfp)) {
 		if (vfp->ops && vfp->ops->put)
 			vfp->ops->put(vf, vfp->op_arg);
+		if (vf)
+			vftrace_info_in(vfp->traceput, vf);
 		unuse_provider(vfp);
 	}
 }
