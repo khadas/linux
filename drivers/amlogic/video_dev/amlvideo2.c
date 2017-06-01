@@ -4850,8 +4850,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 		}
 		/*debug provider vf state*/
 		if (amlvideo2_dbg_en) {
-			if (vfp && vfp->ops && vfp->ops->vf_states)
-				ret = vfp->ops->vf_states(&states, vfp->op_arg);
+			ret = vf_get_states(vfp, &states);
 			if (ret == 0) {
 				pr_info("vf_pool_size = %d, buf_free_num = %d .\n",
 				states.vf_pool_size, states.buf_free_num);
@@ -5600,14 +5599,11 @@ static struct video_device amlvideo2_template = {
 /* .current_norm = V4L2_STD_NTSC_M, */
 };
 
-static int vf_get_states(struct vframe_states *states, int node_index)
+static int amlvideo2_vf_get_states(struct vframe_states *states, int node_index)
 {
 	int ret = -1;
-	struct vframe_provider_s *vfp;
 	const char *name = (node_index == 0) ? DEVICE_NAME0 : DEVICE_NAME1;
-	vfp = vf_get_provider(name);
-	if (vfp && vfp->ops && vfp->ops->vf_states)
-		ret = vfp->ops->vf_states(states, vfp->op_arg);
+	ret = vf_get_states_by_name(name, states);
 	return ret;
 }
 
@@ -5689,7 +5685,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		node->amlvideo2_pool_ready = NULL;
 		node->amlvideo2_pool_size = 0;
 		node->video_blocking = false;
-		if (vf_get_states(&frame_states, node->vid) == 0)
+		if (amlvideo2_vf_get_states(&frame_states, node->vid) == 0)
 			node->amlvideo2_pool_size = frame_states.vf_pool_size;
 		else
 			node->amlvideo2_pool_size = 4;

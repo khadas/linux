@@ -29,6 +29,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -131,6 +132,10 @@ struct ppmgr2_device {
 
 #define ION_VF_RECEIVER_NAME_SIZE 32
 
+#define ION_ACTIVE 0
+#define ION_INACTIVE_REQ 1
+#define ION_INACTIVE 2
+
 struct ionvideo_dev {
 	struct list_head ionvideo_devlist;
 	struct v4l2_device v4l2_dev;
@@ -179,6 +184,9 @@ struct ionvideo_dev {
 	bool mapped;
 	bool thread_stoped;
 	int vf_wait_cnt;
+
+	int active_state;
+	struct completion inactive_done;
 };
 
 unsigned get_ionvideo_debug(void);

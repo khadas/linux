@@ -164,12 +164,8 @@ static int ionvideo_vf_get_states(struct vframe_states *states)
 {
 	int ret = -1;
 	unsigned long flags;
-	struct vframe_provider_s *vfp;
-	vfp = vf_get_provider(RECEIVER_NAME);
 	spin_lock_irqsave(&ion_states_lock, flags);
-	if (vfp && vfp->ops && vfp->ops->vf_states)
-		ret = vfp->ops->vf_states(states, vfp->op_arg);
-
+	ret = vf_get_states_by_name(RECEIVER_NAME, states);
 	spin_unlock_irqrestore(&ion_states_lock, flags);
 	return ret;
 }
@@ -346,6 +342,14 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	/* video seekTo clear list */
 
 	if (!dev)
+		return;
+
+	if (dev->active_state == ION_INACTIVE_REQ) {
+		dev->active_state = ION_INACTIVE;
+		complete(&dev->inactive_done);
+	}
+
+	if (dev->active_state == ION_INACTIVE)
 		return;
 
 	vf = vf_peek(dev->vf_receiver_name);
@@ -1082,12 +1086,17 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		dev->receiver_register = 0;
 		dev->is_omx_video_started = 0;
+		dev->active_state = ION_INACTIVE_REQ;
+		wait_for_completion(&dev->inactive_done);
+
 		/*tsync_avevent(VIDEO_STOP, 0);*/
 		IONVID_INFO("unreg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		dev->receiver_register = 1;
 		dev->is_omx_video_started = 1;
 		dev->ppmgr2_dev.interlaced_num = 0;
+		dev->active_state = ION_ACTIVE;
+		init_completion(&dev->inactive_done);
 		IONVID_INFO("reg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		if (dev->vf_wait_cnt > 1)
