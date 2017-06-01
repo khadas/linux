@@ -1568,8 +1568,10 @@ static int amstream_open(struct inode *inode, struct file *file)
 	}
 
 	priv = kzalloc(sizeof(struct port_priv_s), GFP_KERNEL);
-	if (priv == NULL)
+	if (priv == NULL) {
+		mutex_unlock(&amstream_mutex);
 		return -ENOMEM;
+	}
 
 	priv->port = port;
 

@@ -83,18 +83,37 @@ struct vframe_provider_s *vf_get_provider(const char *receiver_name)
 	return p;
 }
 EXPORT_SYMBOL(vf_get_provider);
-
-#define CLOSED_CNT 100000
-
+/*#define NO_CHEKC_PROVIDER_USE*/
+#ifdef NO_CHEKC_PROVIDER_USE
 static inline int use_provider(struct vframe_provider_s *prov)
 {
-	return prov && atomic_inc_unless_negative(&prov->use_cnt);
+	return prov != NULL;
+}
+static inline void unuse_provider(struct vframe_provider_s *prov)
+{
+	return;
+}
+static int vf_provider_close(struct vframe_provider_s *prov)
+{
+	return 1;
+}
+#else
+static inline int use_provider(struct vframe_provider_s *prov)
+{
+	int ret = 0;
+	if (prov) {
+		ret = atomic_inc_return(&prov->use_cnt);
+		if (ret <= 0)
+			atomic_dec_return(&prov->use_cnt);
+	}
+	return ret > 0;
 }
 static inline void unuse_provider(struct vframe_provider_s *prov)
 {
 	if (prov)
 		atomic_dec_return(&prov->use_cnt);
 }
+#define CLOSED_CNT -100000
 static int vf_provider_close(struct vframe_provider_s *prov)
 {
 	int ret;
@@ -102,18 +121,17 @@ static int vf_provider_close(struct vframe_provider_s *prov)
 	if (!prov)
 		return -1;
 	ret = atomic_add_return(CLOSED_CNT, &prov->use_cnt);
-	while (ret != CLOSED_CNT) {
-		wait_max--;
+	while (ret > CLOSED_CNT && wait_max-- > 0) {
 		schedule();/*shecule and  wait for complete.*/
 		ret = atomic_read(&prov->use_cnt);
 	};
-	if (ret != CLOSED_CNT) {
-		pr_err("ERROR, provider %s not finised,!!!\n",
-			prov->name);
+	if (ret > CLOSED_CNT) {
+		pr_err("**ERR***,release, provider %s not finised,%d, wait=%d\n",
+			prov->name, ret, wait_max);
 	}
 	return 0;
 }
-
+#endif
 int vf_notify_provider(const char *receiver_name, int event_type, void *data)
 {
 	int ret = -1;
@@ -164,7 +182,7 @@ void vf_provider_init(struct vframe_provider_s *prov,
 	prov->name = name;
 	prov->ops = ops;
 	prov->op_arg = op_arg;
-	atomic_set(&prov->use_cnt, -1);/*set it for can't use*/
+	atomic_set(&prov->use_cnt, 0);
 	INIT_LIST_HEAD(&prov->list);
 }
 EXPORT_SYMBOL(vf_provider_init);
@@ -233,7 +251,7 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 				vftrace_free_trace(p->traceput);
 				p->traceput = NULL;
 			}
-			vf_provider_close(p);
+			vf_provider_close(prov);
 			provider_table[i] = NULL;
 			if (vfm_debug_flag & 1)
 				pr_err("%s:%s\n", __func__, prov->name);
