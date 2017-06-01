@@ -297,4 +297,8 @@ struct vbi_dev_s {
 	bool			tasklet_enable;
 };
 
+/*1: tvafe decoder started;
+0: tvafe decoder stopped*/
+extern bool tvafe_dec_status;
+
 #endif /* TVIN_VBI_H_ */
