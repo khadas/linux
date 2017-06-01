@@ -440,6 +440,8 @@ static int ionvideo_thread(void *data)
 			break;
 	}
 	dev->thread_stoped = 1;
+	dev->active_state = ION_INACTIVE;
+	complete(&dev->inactive_done);
 	wake_up_interruptible(&dev->wq);
 	dprintk(dev, 2, "thread: exit\n");
 	return 0;
@@ -1086,8 +1088,14 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		dev->receiver_register = 0;
 		dev->is_omx_video_started = 0;
-		dev->active_state = ION_INACTIVE_REQ;
-		wait_for_completion(&dev->inactive_done);
+		if (dev->active_state == ION_ACTIVE) {
+			/*if player killed
+				thread may have exit.
+			*/
+			dev->active_state = ION_INACTIVE_REQ;
+			wait_for_completion_timeout(&dev->inactive_done,
+				msecs_to_jiffies(100));
+		}
 
 		/*tsync_avevent(VIDEO_STOP, 0);*/
 		IONVID_INFO("unreg:ionvideo\n");
