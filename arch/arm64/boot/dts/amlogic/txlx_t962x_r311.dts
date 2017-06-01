@@ -530,7 +530,6 @@
 		dev_name = "bt-dev";
 		status = "okay";
 		gpio_reset = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
-		gpio_en = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	rtc{
@@ -549,6 +548,7 @@
 		//interrupts = <	0 68 4>;
 		//irq_trigger_type = "GPIO_IRQ_HIGH";
 		power_on_pin = <&gpio_ao       GPIOAO_5       GPIO_ACTIVE_HIGH>;
+		dhd_static_buf;
 		pwm_config = <&wifi_pwm_conf>;
 	};
 
