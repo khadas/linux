@@ -214,6 +214,9 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi);
 static void vvp9_prot_init(struct VP9Decoder_s *pbi);
 static int vvp9_local_init(struct VP9Decoder_s *pbi);
 static void vvp9_put_timer_func(unsigned long arg);
+static void dump_data(struct VP9Decoder_s *pbi, int size);
+static unsigned char get_data_check_sum
+	(struct VP9Decoder_s *pbi, int size);
 #ifdef VP9_10B_MMU
 static int vp9_alloc_mmu(
 		struct VP9Decoder_s *pbi,
@@ -335,7 +338,8 @@ typedef unsigned short u16;
 #define VP9_DEBUG_TRIG_SLICE_SEGMENT_PROC 0x80000
 #define VP9_DEBUG_HW_RESET               0x100000
 #define VP9_DEBUG_LOAD_UCODE_FROM_FILE   0x200000
-#define VP9_DEBUG_ERROR_TRIG             0x400000
+#define VP9_DEBUG_FORCE_SEND_AGAIN       0x400000
+#define VP9_DEBUG_DUMP_DATA              0x800000
 #define IGNORE_PARAM_FROM_CONFIG		0x8000000
 #ifdef MULTI_INSTANCE_SUPPORT
 #define PRINT_FLAG_ERROR				0
@@ -4551,8 +4555,8 @@ static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 	unsigned int data32;
 	int i;
 
-	if (debug & VP9_DEBUG_BUFMGR_MORE)
-		pr_info("%s\n", __func__);
+	/*if (debug & VP9_DEBUG_BUFMGR_MORE)
+		pr_info("%s\n", __func__);*/
 		data32 = READ_VREG(HEVC_PARSER_INT_CONTROL);
 #if 1
 		/* set bit 31~29 to 3 if HEVC_STREAM_FIFO_CTL[29] is 1 */
@@ -5775,8 +5779,15 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	pbi->dec_status = dec_status;
 	pbi->process_busy = 1;
 	if (debug & VP9_DEBUG_BUFMGR)
-		pr_info("vp9 isr dec status  = 0x%x, lcu 0x%x\n",
-			dec_status, READ_VREG(HEVC_PARSER_LCU_START));
+		pr_info("vp9 isr dec status  = 0x%x, lcu 0x%x shiftbyte 0x%x (%x %x lev %x, wr %x, rd %x)\n",
+			dec_status, READ_VREG(HEVC_PARSER_LCU_START),
+			READ_VREG(HEVC_SHIFT_BYTE_COUNT),
+			READ_VREG(HEVC_STREAM_START_ADDR),
+			READ_VREG(HEVC_STREAM_END_ADDR),
+			READ_VREG(HEVC_STREAM_LEVEL),
+			READ_VREG(HEVC_STREAM_WR_PTR),
+			READ_VREG(HEVC_STREAM_RD_PTR)
+		);
 
 	debug_tag = READ_HREG(DEBUG_REG1);
 	if (debug_tag & 0x10000) {
@@ -6013,7 +6024,38 @@ static void vvp9_put_timer_func(unsigned long arg)
 		pbi->ucode_pause_pos = 0;
 		WRITE_HREG(DEBUG_REG1, 0);
 	}
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (debug & VP9_DEBUG_FORCE_SEND_AGAIN) {
+		pr_info(
+		"Force Send Again\r\n");
+		debug &= ~VP9_DEBUG_FORCE_SEND_AGAIN;
+		reset_process_time(pbi);
+		pbi->dec_result = DEC_RESULT_AGAIN;
+		if (pbi->process_state ==
+			PROC_STATE_DECODESLICE) {
+#ifdef VP9_10B_MMU
+			vp9_recycle_mmu_buf(pbi);
+#endif
+			pbi->process_state =
+			PROC_STATE_SENDAGAIN;
+		}
+		amhevc_stop();
 
+		schedule_work(&pbi->work);
+	}
+
+	if (debug & VP9_DEBUG_DUMP_DATA) {
+		debug &= ~VP9_DEBUG_DUMP_DATA;
+		vp9_print(pbi, 0,
+			"%s: chunk size 0x%x off 0x%x sum 0x%x\n",
+			__func__,
+			pbi->chunk->size,
+			pbi->chunk->offset,
+			get_data_check_sum(pbi, pbi->chunk->size)
+			);
+		dump_data(pbi, pbi->chunk->size);
+	}
+#endif
 	if (debug & VP9_DEBUG_DUMP_PIC_LIST) {
 		dump_pic_list(pbi);
 		debug &= ~VP9_DEBUG_DUMP_PIC_LIST;
@@ -6593,6 +6635,16 @@ static void dump_data(struct VP9Decoder_s *pbi, int size)
 	int jj;
 	u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
 		pbi->chunk->offset;
+	int padding_size = pbi->chunk->offset &
+		(VDEC_FIFO_ALIGN - 1);
+	vp9_print(pbi, 0, "padding: ");
+	for (jj = padding_size; jj > 0; jj--)
+		vp9_print_cont(pbi,
+			0,
+			"%02x ", *(data - jj));
+	vp9_print_cont(pbi, 0, "data adr %p\n",
+		data);
+
 	for (jj = 0; jj < size; jj++) {
 		if ((jj & 0xf) == 0)
 			vp9_print(pbi,
@@ -6832,18 +6884,33 @@ static void run(struct vdec_s *vdec,
 	}
 	pbi->dec_result = DEC_RESULT_NONE;
 
-	vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-		"%s (%d): size 0x%x sum 0x%x (%x %x %x)\n",
-		__func__,
-		pbi->frame_count,
-		r,
-		(vdec_frame_based(vdec) &&
-		(debug & PRINT_FLAG_VDEC_STATUS)) ?
-		get_data_check_sum(pbi, r) : 0,
-	READ_VREG(HEVC_STREAM_LEVEL),
-	READ_VREG(HEVC_STREAM_WR_PTR),
-	READ_VREG(HEVC_STREAM_RD_PTR));
-
+	if (debug & PRINT_FLAG_VDEC_STATUS) {
+		int ii;
+		u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
+			pbi->chunk->offset;
+		vp9_print(pbi, 0,
+			"%s (%d): size 0x%x (0x%x 0x%x) sum 0x%x (%x %x %x %x %x) ",
+			__func__,
+			pbi->frame_count, r,
+			pbi->chunk->size,
+			pbi->chunk->offset,
+			(vdec_frame_based(vdec) &&
+			(debug & PRINT_FLAG_VDEC_STATUS)) ?
+			get_data_check_sum(pbi, r) : 0,
+		READ_VREG(HEVC_STREAM_START_ADDR),
+		READ_VREG(HEVC_STREAM_END_ADDR),
+		READ_VREG(HEVC_STREAM_LEVEL),
+		READ_VREG(HEVC_STREAM_WR_PTR),
+		READ_VREG(HEVC_STREAM_RD_PTR));
+		if (vdec_frame_based(vdec)) {
+			vp9_print_cont(pbi, 0, "data adr %p:",
+				data);
+			for (ii = 0; ii < 8; ii++)
+				vp9_print_cont(pbi, 0, "%02x ",
+					data[ii]);
+		}
+		vp9_print_cont(pbi, 0, "\r\n");
+	}
 	if (amhevc_loadmc_ex(VFORMAT_VP9, "vvp9_mc", NULL) < 0) {
 		amhevc_disable();
 		vp9_print(pbi, 0,
@@ -6872,7 +6939,7 @@ static void run(struct vdec_s *vdec,
 	WRITE_VREG(HEVC_DECODE_COUNT, pbi->slice_idx);
 	pbi->init_flag = 1;
 
-	vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
+	vp9_print(pbi, PRINT_FLAG_VDEC_DETAIL,
 		"%s: start hevc (%x %x %x)\n",
 		__func__,
 		READ_VREG(HEVC_DEC_STATUS_REG),
