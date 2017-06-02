@@ -3883,22 +3883,25 @@ static int ammvdec_h264_probe(struct platform_device *pdev)
 
 	hw->buf_offset = hw->cma_alloc_addr - DEF_BUF_START_ADDR +
 			DCAC_READ_MARGIN;
+	if (!vdec_secure(pdata)) {
 #if 1
-	/*init internal buf*/
-	tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr);
-	memset(tmpbuf, 0, V_BUF_ADDR_OFFSET);
-	dma_sync_single_for_device(amports_get_dma_device(),
-		hw->cma_alloc_addr,
-		V_BUF_ADDR_OFFSET, DMA_TO_DEVICE);
+		/*init internal buf*/
+		tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr);
+		memset(tmpbuf, 0, V_BUF_ADDR_OFFSET);
+		dma_sync_single_for_device(amports_get_dma_device(),
+			hw->cma_alloc_addr,
+			V_BUF_ADDR_OFFSET, DMA_TO_DEVICE);
 #else
-	/*init sps/pps internal buf 64k*/
-	tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr
-		+ (mem_sps_base - DEF_BUF_START_ADDR));
-	memset(tmpbuf, 0, 0x10000);
-	dma_sync_single_for_device(amports_get_dma_device(),
-		hw->cma_alloc_addr + (mem_sps_base - DEF_BUF_START_ADDR),
-		0x10000, DMA_TO_DEVICE);
+		/*init sps/pps internal buf 64k*/
+		tmpbuf = (char *)codec_mm_phys_to_virt(hw->cma_alloc_addr
+			+ (mem_sps_base - DEF_BUF_START_ADDR));
+		memset(tmpbuf, 0, 0x10000);
+		dma_sync_single_for_device(amports_get_dma_device(),
+			hw->cma_alloc_addr +
+			(mem_sps_base - DEF_BUF_START_ADDR),
+			0x10000, DMA_TO_DEVICE);
 #endif
+	}
 	/**/
 
 	if (pdata->sys_info)
