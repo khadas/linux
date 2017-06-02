@@ -387,7 +387,6 @@ void WRITE_VREG_DBG2(unsigned adr, unsigned val)
 #define WRITE_VREG WRITE_VREG_DBG2
 #endif
 
-static struct vdec_info *gvs;
 
 /**************************************************
 
@@ -1141,6 +1140,9 @@ struct BuffInfo_s {
 
 static void vp9_work(struct work_struct *work);
 #endif
+struct loop_filter_info_n;
+struct loopfilter;
+struct segmentation;
 
 struct VP9Decoder_s {
 #ifdef MULTI_INSTANCE_SUPPORT
@@ -1272,6 +1274,14 @@ struct VP9Decoder_s {
 	int PB_skip_mode;
 	int PB_skip_count_after_decoding;
 	/*hw*/
+
+	/*lf*/
+	int default_filt_lvl;
+	struct loop_filter_info_n *lfi;
+	struct loopfilter *lf;
+	struct segmentation *seg_4lf;
+	/**/
+	struct vdec_info *gvs;
 
 	u32 pre_stream_offset;
 
@@ -4402,25 +4412,14 @@ static void vp9_update_sharpness(struct loop_filter_info_n *lfi,
 	}
 }
 
-int default_filt_lvl;
-struct loop_filter_info_n *lfi;
-struct loopfilter *lf;
-struct segmentation *seg_4lf;
-
 /*instantiate this function once when decode is started*/
-void vp9_loop_filter_init(void)
+void vp9_loop_filter_init(struct VP9Decoder_s *pbi)
 {
+	struct loop_filter_info_n *lfi = pbi->lfi;
+	struct loopfilter *lf = pbi->lf;
+	struct segmentation *seg_4lf = pbi->seg_4lf;
 	int i;
-	if (!lfi)
-		lfi = kmalloc(sizeof(struct loop_filter_info_n), GFP_KERNEL);
-	if (!lf)
-		lf = kmalloc(sizeof(struct loopfilter), GFP_KERNEL);
-	if (!seg_4lf)
-		seg_4lf = kmalloc(sizeof(struct segmentation), GFP_KERNEL);
-	if (lfi == NULL || lf == NULL || seg_4lf == NULL) {
-		pr_err("[test.c] vp9_loop_filter init malloc error!!!\n");
-		return;
-	}
+
 	memset(lfi, 0, sizeof(struct loop_filter_info_n));
 	memset(lf, 0, sizeof(struct loopfilter));
 	memset(seg_4lf, 0, sizeof(struct segmentation));
@@ -4444,6 +4443,7 @@ void vp9_loop_filter_init(void)
 
 	/*video format is VP9*/
 	WRITE_VREG(HEVC_DBLK_CFGB, 0x40400001);
+
 }
 	/* perform this function per frame*/
 void vp9_loop_filter_frame_init(struct segmentation *seg,
@@ -4758,6 +4758,32 @@ static void  config_mcrcc_axi_hw(struct VP9Decoder_s *pbi)
 
 static struct VP9Decoder_s gHevc;
 
+static void free_lf_buf(struct VP9Decoder_s *pbi)
+{
+	if (pbi->lfi)
+		vfree(pbi->lfi);
+	if (pbi->lf)
+		vfree(pbi->lf);
+	if (pbi->seg_4lf)
+		vfree(pbi->seg_4lf);
+	pbi->lfi = NULL;
+	pbi->lf = NULL;
+	pbi->seg_4lf = NULL;
+}
+
+static int alloc_lf_buf(struct VP9Decoder_s *pbi)
+{
+	pbi->lfi = vmalloc(sizeof(struct loop_filter_info_n));
+	pbi->lf = vmalloc(sizeof(struct loopfilter));
+	pbi->seg_4lf = vmalloc(sizeof(struct segmentation));
+	if (pbi->lfi == NULL || pbi->lf == NULL || pbi->seg_4lf == NULL) {
+		free_lf_buf(pbi);
+		pr_err("[test.c] vp9_loop_filter init malloc error!!!\n");
+		return -1;
+	}
+	return 0;
+}
+
 static void vp9_local_uninit(struct VP9Decoder_s *pbi)
 {
 	pbi->rpm_ptr = NULL;
@@ -4801,15 +4827,11 @@ static void vp9_local_uninit(struct VP9Decoder_s *pbi)
 #endif
 
 #ifdef VP9_LPF_LVL_UPDATE
-	kfree(lfi);
-	lfi = NULL;
-	kfree(lf);
-	lf = NULL;
-	kfree(seg_4lf);
-	seg_4lf = NULL;
+	free_lf_buf(pbi);
 #endif
-	kfree(gvs);
-	gvs = NULL;
+	if (pbi->gvs)
+		vfree(pbi->gvs);
+	pbi->gvs = NULL;
 }
 
 static int vp9_local_init(struct VP9Decoder_s *pbi)
@@ -5552,6 +5574,42 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	if (pbi->eos)
 		return IRQ_HANDLED;
 	pbi->wait_buf = 0;
+#ifdef MULTI_INSTANCE_SUPPORT
+	if ((dec_status == HEVC_NAL_DECODE_DONE) ||
+			(dec_status == HEVC_SEARCH_BUFEMPTY) ||
+			(dec_status == HEVC_DECODE_BUFEMPTY)
+		) {
+		if (pbi->m_ins_flag) {
+			reset_process_time(pbi);
+			if (!vdec_frame_based(hw_to_vdec(pbi))) {
+				pbi->dec_result = DEC_RESULT_AGAIN;
+				if (pbi->process_state ==
+					PROC_STATE_DECODESLICE) {
+#ifdef VP9_10B_MMU
+					vp9_recycle_mmu_buf(pbi);
+#endif
+					pbi->process_state =
+					PROC_STATE_SENDAGAIN;
+				}
+				amhevc_stop();
+			} else
+				pbi->dec_result = DEC_RESULT_GET_DATA;
+			schedule_work(&pbi->work);
+		}
+		pbi->process_busy = 0;
+		return IRQ_HANDLED;
+	} else if (dec_status == HEVC_DECPIC_DATA_DONE) {
+		if (pbi->m_ins_flag) {
+			reset_process_time(pbi);
+			pbi->dec_result = DEC_RESULT_DONE;
+			amhevc_stop();
+			schedule_work(&pbi->work);
+		}
+
+		pbi->process_busy = 0;
+		return IRQ_HANDLED;
+	}
+#endif
 
 	if (dec_status == VP9_EOS) {
 #ifdef MULTI_INSTANCE_SUPPORT
@@ -5703,20 +5761,20 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
     /*
      * Get loop filter related picture level parameters from Parser
      */
-	lf->mode_ref_delta_enabled = vp9_param.p.mode_ref_delta_enabled;
-	lf->sharpness_level = vp9_param.p.sharpness_level;
+	pbi->lf->mode_ref_delta_enabled = vp9_param.p.mode_ref_delta_enabled;
+	pbi->lf->sharpness_level = vp9_param.p.sharpness_level;
 	for (i = 0; i < 4; i++)
-		lf->ref_deltas[i] = vp9_param.p.ref_deltas[i];
+		pbi->lf->ref_deltas[i] = vp9_param.p.ref_deltas[i];
 	for (i = 0; i < 2; i++)
-		lf->mode_deltas[i] = vp9_param.p.mode_deltas[i];
-	default_filt_lvl = vp9_param.p.filter_level;
-	seg_4lf->enabled = vp9_param.p.seg_enabled;
-	seg_4lf->abs_delta = vp9_param.p.seg_abs_delta;
+		pbi->lf->mode_deltas[i] = vp9_param.p.mode_deltas[i];
+	pbi->default_filt_lvl = vp9_param.p.filter_level;
+	pbi->seg_4lf->enabled = vp9_param.p.seg_enabled;
+	pbi->seg_4lf->abs_delta = vp9_param.p.seg_abs_delta;
 	for (i = 0; i < MAX_SEGMENTS; i++)
-		seg_4lf->feature_mask[i] = (vp9_param.p.seg_lf_info[i] &
+		pbi->seg_4lf->feature_mask[i] = (vp9_param.p.seg_lf_info[i] &
 		0x8000) ? (1 << SEG_LVL_ALT_LF) : 0;
 		for (i = 0; i < MAX_SEGMENTS; i++)
-			seg_4lf->feature_data[i][SEG_LVL_ALT_LF]
+			pbi->seg_4lf->feature_data[i][SEG_LVL_ALT_LF]
 			= (vp9_param.p.seg_lf_info[i]
 			& 0x100) ? -(vp9_param.p.seg_lf_info[i]
 			& 0x3f) : (vp9_param.p.seg_lf_info[i] & 0x3f);
@@ -5725,7 +5783,8 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	*/
 	/*pr_info
 	("vp9_loop_filter (run before every frame decoding start)\n");*/
-	vp9_loop_filter_frame_init(seg_4lf, lfi, lf, default_filt_lvl);
+	vp9_loop_filter_frame_init(pbi->seg_4lf,
+		pbi->lfi, pbi->lf, pbi->default_filt_lvl);
 #endif
 	/*pr_info("HEVC_DEC_STATUS_REG <= VP9_10B_DECODE_SLICE\n");*/
 	WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DECODE_SLICE);
@@ -5890,42 +5949,6 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 
 		/*return IRQ_HANDLED;*/
 	}
-#ifdef MULTI_INSTANCE_SUPPORT
-	if ((dec_status == HEVC_NAL_DECODE_DONE) ||
-			(dec_status == HEVC_SEARCH_BUFEMPTY) ||
-			(dec_status == HEVC_DECODE_BUFEMPTY)
-		) {
-		if (pbi->m_ins_flag) {
-			reset_process_time(pbi);
-			if (!vdec_frame_based(hw_to_vdec(pbi))) {
-#ifdef VP9_10B_MMU
-				vp9_recycle_mmu_buf(pbi);
-#endif
-				pbi->dec_result = DEC_RESULT_AGAIN;
-				if (pbi->process_state ==
-					PROC_STATE_DECODESLICE)
-					pbi->process_state =
-					PROC_STATE_SENDAGAIN;
-				amhevc_stop();
-			} else
-				pbi->dec_result = DEC_RESULT_GET_DATA;
-			schedule_work(&pbi->work);
-		}
-		pbi->process_busy = 0;
-		return IRQ_HANDLED;
-	} else if (dec_status == HEVC_DECPIC_DATA_DONE) {
-		if (pbi->m_ins_flag) {
-			reset_process_time(pbi);
-			pbi->dec_result = DEC_RESULT_DONE;
-			amhevc_stop();
-			schedule_work(&pbi->work);
-		}
-
-		pbi->process_busy = 0;
-		return IRQ_HANDLED;
-	}
-#endif
-
 	return IRQ_WAKE_THREAD;
 }
 
@@ -6158,16 +6181,6 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	return 0;
 }
 
-static int vvp9_vdec_info_init(void)
-{
-	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
-	if (NULL == gvs) {
-		pr_info("the struct of vdec status malloc failed.\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
 #if 0
 static void VP9_DECODE_INIT(void)
 {
@@ -6199,7 +6212,7 @@ static void vvp9_prot_init(struct VP9Decoder_s *pbi)
 	vp9_init_decoder_hw(pbi);
 
 #ifdef VP9_LPF_LVL_UPDATE
-	vp9_loop_filter_init();
+	vp9_loop_filter_init(pbi);
 #endif
 
 #if 1
@@ -6266,6 +6279,14 @@ static int vvp9_local_init(struct VP9Decoder_s *pbi)
 	int i;
 	int ret;
 	int width, height;
+	if (alloc_lf_buf(pbi) < 0)
+		return -1;
+
+	pbi->gvs = vzalloc(sizeof(struct vdec_info));
+	if (NULL == pbi->gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -1;
+	}
 #ifdef DEBUG_PTS
 	pbi->pts_missed = 0;
 	pbi->pts_hit = 0;
@@ -6445,9 +6466,6 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 #endif
 	uninit_mmu_buffers(pbi);
 
-	kfree(gvs);
-	gvs = NULL;
-
 	return 0;
 }
 
@@ -6481,6 +6499,7 @@ static int amvdec_vp9_mmu_init(struct VP9Decoder_s *pbi)
 	}
 	return 0;
 }
+
 static int amvdec_vp9_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
@@ -6498,6 +6517,7 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 
 	pbi->init_flag = 0;
+
 #ifdef MULTI_INSTANCE_SUPPORT
 	pbi->eos = 0;
 	pbi->start_process_time = 0;
@@ -6557,8 +6577,6 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	cma_dev = pdata->cma_dev;
 #endif
 	pdata->dec_status = vvp9_dec_status;
-
-	vvp9_vdec_info_init();
 
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
@@ -6886,14 +6904,12 @@ static void run(struct vdec_s *vdec,
 
 	if (debug & PRINT_FLAG_VDEC_STATUS) {
 		int ii;
-		u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
-			pbi->chunk->offset;
 		vp9_print(pbi, 0,
 			"%s (%d): size 0x%x (0x%x 0x%x) sum 0x%x (%x %x %x %x %x) ",
 			__func__,
 			pbi->frame_count, r,
-			pbi->chunk->size,
-			pbi->chunk->offset,
+			pbi->chunk ? pbi->chunk->size : 0,
+			pbi->chunk ? pbi->chunk->offset : 0,
 			(vdec_frame_based(vdec) &&
 			(debug & PRINT_FLAG_VDEC_STATUS)) ?
 			get_data_check_sum(pbi, r) : 0,
@@ -6903,6 +6919,8 @@ static void run(struct vdec_s *vdec,
 		READ_VREG(HEVC_STREAM_WR_PTR),
 		READ_VREG(HEVC_STREAM_RD_PTR));
 		if (vdec_frame_based(vdec)) {
+			u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
+				pbi->chunk->offset;
 			vp9_print_cont(pbi, 0, "data adr %p:",
 				data);
 			for (ii = 0; ii < 8; ii++)
