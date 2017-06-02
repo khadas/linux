@@ -1608,8 +1608,10 @@ static inline bool vdec_ready_to_run(struct vdec_s *vdec)
 
 		if ((level < input->prepare_level) &&
 			(pts_get_rec_num(PTS_TYPE_VIDEO,
-				vdec->input.total_rd_count) < 2))
+				vdec->input.total_rd_count) < 2)) {
+			vdec->need_more_data |= VDEC_NEED_MORE_DATA;
 			return false;
+		}
 	}
 
 	if (step_mode) {
