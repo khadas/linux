@@ -415,11 +415,13 @@ void slice_prepare(struct h264_dpb_stru *p_H264_Dpb,
 	pSlice->picture_structure_mmco =
 		p_H264_Dpb->dpb_param.dpb.picture_structure_mmco;
 	dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_DPB_DETAIL,
-		  "%s slice_type is %d, num_ref_idx_active[0]=%d, num_ref_idx_active[1]=%d nal_reference_idc %d\n",
+	"%s slice_type is %d, num_ref_idx_active[0,1]=%d,%d nal_reference_idc %d pic struct 0x%x(mmco stru 0x%x)\n",
 		  __func__, pSlice->slice_type,
 		  pSlice->num_ref_idx_active[LIST_0],
 		  pSlice->num_ref_idx_active[LIST_1],
-		  pSlice->nal_reference_idc);
+		  pSlice->nal_reference_idc,
+		  pSlice->structure,
+		  pSlice->picture_structure_mmco);
 #ifdef ERROR_CHECK
 	if (pSlice->num_ref_idx_active[LIST_0] >= MAX_LIST_SIZE)
 		pSlice->num_ref_idx_active[LIST_0] = MAX_LIST_SIZE - 1;
