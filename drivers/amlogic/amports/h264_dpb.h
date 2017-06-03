@@ -806,4 +806,8 @@ void bufmgr_h264_remove_unused_frame(struct h264_dpb_stru *p_H264_Dpb,
 	u8 force_flag);
 
 void flush_dpb(struct h264_dpb_stru *p_H264_Dpb);
+
+void print_pic_info(int decindex, const char *info,
+			struct StorablePicture *pic,
+			int slice_type);
 #endif

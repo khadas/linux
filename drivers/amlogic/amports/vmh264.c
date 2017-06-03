@@ -303,6 +303,7 @@ struct buffer_spec_s {
 	unsigned char dv_enhance_exist;
 #endif
 	int canvas_pos;
+	int vf_ref;
 };
 
 #define AUX_DATA_SIZE(pic) (hw->buffer_spec[pic->buf_spec_num].aux_data_size)
@@ -833,6 +834,9 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 {
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)vdec->private;
 	struct vframe_s *vf = NULL;
+	int buffer_index = frame->buf_spec_num;
+	int vf_count = 1;
+	int i;
 	if (force_disp_bufspec_num & 0x100) {
 		/*recycle directly*/
 		if (hw->buffer_spec[frame->buf_spec_num].used != 3)
@@ -851,19 +855,35 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 		set_frame_output_flag(&hw->dpb, frame->index);
 		return -1;
 	}
-	if (kfifo_get(&hw->newframe_q, &vf) == 0) {
-		dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
-			"%s fatal error, no available buffer slot.\n",
-			__func__);
-		return -1;
-	}
 
-	if (vf) {
-		int buffer_index = frame->buf_spec_num;
-		dpb_print(DECODE_ID(hw), PRINT_FLAG_DPB_DETAIL,
+	if (dpb_is_debug(DECODE_ID(hw),
+	 PRINT_FLAG_DPB_DETAIL)) {
+		dpb_print(DECODE_ID(hw), 0,
 			"%s, fs[%d] poc %d, buf_spec_num %d\n",
 			__func__, frame->index, frame->poc,
 			frame->buf_spec_num);
+		print_pic_info(DECODE_ID(hw), "predis_frm",
+			frame->frame, -1);
+		print_pic_info(DECODE_ID(hw), "predis_top",
+			frame->top_field, -1);
+		print_pic_info(DECODE_ID(hw), "predis_bot",
+			frame->bottom_field, -1);
+	}
+
+	if (frame->frame->coded_frame)
+		vf_count = 1;
+	else
+		vf_count = 2;
+	hw->buffer_spec[buffer_index].vf_ref = 0;
+	for (i = 0; i < vf_count; i++) {
+		if (kfifo_get(&hw->newframe_q, &vf) == 0 ||
+			vf == NULL) {
+			dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
+				"%s fatal error, no available buffer slot.\n",
+				__func__);
+			return -1;
+		}
+
 		vf->index = VF_INDEX(frame->index, buffer_index);
 		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
 				VIDTYPE_VIU_NV21;
@@ -881,6 +901,24 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 		vf->mem_handle = decoder_bmmu_box_get_mem_handle(
 			hw->bmmu_box, buffer_index);
 		hw->buffer_spec[buffer_index].used = 2;
+		hw->buffer_spec[buffer_index].vf_ref++;
+
+		if (!frame->frame->coded_frame) {
+			vf->type =
+				VIDTYPE_INTERLACE_FIRST |
+				VIDTYPE_VIU_NV21;
+			if (frame->top_field->poc <=
+				frame->bottom_field->poc) /*top first*/
+				vf->type |= (i == 0 ?
+					VIDTYPE_INTERLACE_TOP :
+					VIDTYPE_INTERLACE_BOTTOM);
+			else
+				vf->type |= (i == 0 ?
+					VIDTYPE_INTERLACE_BOTTOM :
+					VIDTYPE_INTERLACE_TOP);
+			vf->duration = vf->duration/2;
+			vf->height = vf->height/2;
+		}
 		kfifo_put(&hw->display_q, (const struct vframe_s *)vf);
 
 		vf_notify_receiver(vdec->vf_provider_name,
@@ -1769,22 +1807,28 @@ static void vh264_vf_put(struct vframe_s *vf, void *op_arg)
 	if (hw->buffer_spec[buf_spec_num].used == 2) {
 		struct h264_dpb_stru *p_H264_Dpb = &hw->dpb;
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
-		"%s to fs[%d], poc %d buf_spec_num %d used %d\n",
+		"%s to fs[%d], poc %d buf_spec_num %d used %d vf_ref %d\n",
 		__func__, frame_index,
 		p_H264_Dpb->mFrameStore[frame_index].poc,
 		buf_spec_num,
-		hw->buffer_spec[buf_spec_num].used);
-
-		set_frame_output_flag(&hw->dpb, frame_index);
+		hw->buffer_spec[buf_spec_num].used,
+		hw->buffer_spec[buf_spec_num].vf_ref);
+		hw->buffer_spec[buf_spec_num].vf_ref--;
+		if (hw->buffer_spec[buf_spec_num].vf_ref <= 0)
+			set_frame_output_flag(&hw->dpb, frame_index);
 	} else {
 		unsigned long flags;
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
-		"%s isolated vf, buf_spec_num %d used %d\n",
+		"%s isolated vf, buf_spec_num %d used %d vf_ref %d\n",
 		__func__, buf_spec_num,
-		hw->buffer_spec[buf_spec_num].used);
+		hw->buffer_spec[buf_spec_num].used,
+		hw->buffer_spec[buf_spec_num].vf_ref);
 		spin_lock_irqsave(&hw->bufspec_lock, flags);
-		if (hw->buffer_spec[buf_spec_num].used == 3)
-			hw->buffer_spec[buf_spec_num].used = 4;
+		hw->buffer_spec[buf_spec_num].vf_ref--;
+		if (hw->buffer_spec[buf_spec_num].vf_ref <= 0) {
+			if (hw->buffer_spec[buf_spec_num].used == 3)
+				hw->buffer_spec[buf_spec_num].used = 4;
+		}
 		spin_unlock_irqrestore(&hw->bufspec_lock, flags);
 	}
 
