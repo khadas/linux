@@ -2143,6 +2143,27 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
+static int check_primaries(struct vframe_master_display_colour_s *p_mdc)
+{
+	if (!p_mdc->present_flag)
+		return 0;
+	if ((p_mdc->primaries[0][1] > p_mdc->primaries[1][1])
+	&& (p_mdc->primaries[0][1] > p_mdc->primaries[2][1])
+	&& (p_mdc->primaries[2][0] > p_mdc->primaries[0][0])
+	&& (p_mdc->primaries[2][0] > p_mdc->primaries[1][0])) {
+		/* reasonable g,b,r */
+		return 2;
+	} else if ((p_mdc->primaries[0][0] > p_mdc->primaries[1][0])
+	&& (p_mdc->primaries[0][0] > p_mdc->primaries[2][0])
+	&& (p_mdc->primaries[1][1] > p_mdc->primaries[0][1])
+	&& (p_mdc->primaries[1][1] > p_mdc->primaries[2][1])) {
+		/* reasonable r,g,b */
+		return 1;
+	}
+	/* source not usable, use standard bt2020 */
+	return 0;
+}
+
 void prepare_hdr10_param(
 	struct vframe_master_display_colour_s *p_mdc,
 	struct hdr10_param_s *p_hdr10_param)
@@ -2152,6 +2173,7 @@ void prepare_hdr10_param(
 	uint8_t flag = 0;
 	uint32_t max_lum = 1000 * 10000;
 	uint32_t min_lum = 50;
+	int primaries_type = 0;
 
 	if (dolby_vision_flags & FLAG_CERTIFICAION) {
 		p_hdr10_param->
@@ -2181,7 +2203,8 @@ void prepare_hdr10_param(
 		return;
 	}
 
-	if (p_mdc->present_flag) {
+	primaries_type = check_primaries(p_mdc);
+	if (primaries_type == 2) {
 		if ((p_hdr10_param->
 		max_display_mastering_luminance
 			!= p_mdc->luminance[0])
@@ -2203,9 +2226,8 @@ void prepare_hdr10_param(
 		|| (p_hdr10_param->Wx
 			!= p_mdc->white_point[0])
 		|| (p_hdr10_param->Wy
-			!= p_mdc->white_point[1]))
+			!= p_mdc->white_point[1])) {
 			flag |= 1;
-		if (flag & 1) {
 			p_hdr10_param->
 			max_display_mastering_luminance
 				= p_mdc->luminance[0];
@@ -2224,6 +2246,53 @@ void prepare_hdr10_param(
 				= p_mdc->primaries[1][0];
 			p_hdr10_param->By
 				= p_mdc->primaries[1][1];
+			p_hdr10_param->Wx
+				= p_mdc->white_point[0];
+			p_hdr10_param->Wy
+				= p_mdc->white_point[1];
+		}
+	} else if (primaries_type == 1) {
+		if ((p_hdr10_param->
+		max_display_mastering_luminance
+			!= p_mdc->luminance[0])
+		|| (p_hdr10_param->
+		min_display_mastering_luminance
+			!= p_mdc->luminance[1])
+		|| (p_hdr10_param->Rx
+			!= p_mdc->primaries[0][0])
+		|| (p_hdr10_param->Ry
+			!= p_mdc->primaries[0][1])
+		|| (p_hdr10_param->Gx
+			!= p_mdc->primaries[1][0])
+		|| (p_hdr10_param->Gy
+			!= p_mdc->primaries[1][1])
+		|| (p_hdr10_param->Bx
+			!= p_mdc->primaries[2][0])
+		|| (p_hdr10_param->By
+			!= p_mdc->primaries[2][1])
+		|| (p_hdr10_param->Wx
+			!= p_mdc->white_point[0])
+		|| (p_hdr10_param->Wy
+			!= p_mdc->white_point[1])) {
+			flag |= 1;
+			p_hdr10_param->
+			max_display_mastering_luminance
+				= p_mdc->luminance[0];
+			p_hdr10_param->
+			min_display_mastering_luminance
+				= p_mdc->luminance[1];
+			p_hdr10_param->Rx
+				= p_mdc->primaries[0][0];
+			p_hdr10_param->Ry
+				= p_mdc->primaries[0][1];
+			p_hdr10_param->Gx
+				= p_mdc->primaries[1][0];
+			p_hdr10_param->Gy
+				= p_mdc->primaries[1][1];
+			p_hdr10_param->Bx
+				= p_mdc->primaries[2][0];
+			p_hdr10_param->By
+				= p_mdc->primaries[2][1];
 			p_hdr10_param->Wx
 				= p_mdc->white_point[0];
 			p_hdr10_param->Wy
@@ -2251,9 +2320,8 @@ void prepare_hdr10_param(
 		|| (p_hdr10_param->Wx
 			!= bt2020_white_point[0])
 		|| (p_hdr10_param->Wy
-			!= bt2020_white_point[1]))
+			!= bt2020_white_point[1])) {
 			flag |= 2;
-		if (flag & 2) {
 			p_hdr10_param->
 			min_display_mastering_luminance
 				= min_lum;
