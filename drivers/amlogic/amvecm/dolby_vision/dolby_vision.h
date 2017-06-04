@@ -291,6 +291,7 @@ extern int metadata_parser_process(
 extern void metadata_parser_release(void);
 
 struct dolby_vision_func_s {
+	const char *verisn_info;
 	void * (*metadata_parser_init)(int flag);
 	int (*metadata_parser_reset)(int flag);
 	int (*metadata_parser_process)(
