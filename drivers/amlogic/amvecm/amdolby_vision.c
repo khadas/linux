@@ -3250,7 +3250,9 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 {
 	int ret = -1;
 	if (!p_funcs && func) {
-		pr_info("*** register_dv_functions\n ***");
+		pr_info(
+			"*** register_dv_functions. version %s ***\n",
+			func->verisn_info);
 		p_funcs = func;
 		ret = 0;
 	}
@@ -3262,7 +3264,7 @@ int unregister_dv_functions(void)
 {
 	int ret = -1;
 	if (p_funcs) {
-		pr_info("*** unregister_dv_functions\n ***");
+		pr_info("*** unregister_dv_functions ***\n");
 		p_funcs = NULL;
 		ret = 0;
 	}
