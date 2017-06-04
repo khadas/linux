@@ -1517,6 +1517,28 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 	wr_bits(offset, VDIN_WR_CTRL, 1, WR_REQ_URGENT_BIT, WR_REQ_URGENT_WID);
 	/* req_en */
 	wr_bits(offset, VDIN_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+	/* urgent ctr config */
+	/*if vdin fifo over up_th,will trigger increase
+	urgent responds to vdin write,
+	if vdin fifo lower dn_th,will trigger decrease
+	urgent responds to vdin write*/
+	if ((h >= 1920) && (v >= 1080)) {
+		wr_bits(offset, VDIN_LFIFO_URG_CTRL, 1,
+			VDIN_LFIFO_URG_CTRL_EN_BIT, VDIN_LFIFO_URG_CTRL_EN_WID);
+		wr_bits(offset, VDIN_LFIFO_URG_CTRL, 1,
+			VDIN_LFIFO_URG_WR_EN_BIT, VDIN_LFIFO_URG_WR_EN_WID);
+		wr_bits(offset, VDIN_LFIFO_URG_CTRL, 20,
+			VDIN_LFIFO_URG_UP_TH_BIT, VDIN_LFIFO_URG_UP_TH_WID);
+		wr_bits(offset, VDIN_LFIFO_URG_CTRL, 8,
+			VDIN_LFIFO_URG_DN_TH_BIT, VDIN_LFIFO_URG_DN_TH_WID);
+		/*vlsi guys suggest setting:*/
+		W_VCBUS_BIT(VPU_ARB_URG_CTRL, 1, 8, 1);
+		W_VCBUS_BIT(VPU_ARB_URG_CTRL, 1, 6, 1);
+	} else {
+		wr(offset, VDIN_LFIFO_URG_CTRL, 0);
+		aml_write_vcbus(VPU_ARB_URG_CTRL, 0);
+	}
+	aml_write_vcbus(VPU_WRARB_MODE_L2C1, 0x10000);
 	/* dis ctrl reg wpulse */
 	/*if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
 		is_meson_m8m2_cpu() || is_meson_gxbb_cpu() ||
@@ -2364,6 +2386,10 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [28:16] input_win.vs               = 0 */
 	/* [12: 0] input_win.ve               = 0 */
 	wr(offset, VDIN_WIN_V_START_END, 0x00000000);
+	/* urgent ctr config */
+	wr(offset, VDIN_LFIFO_URG_CTRL, 0);
+	aml_write_vcbus(VPU_ARB_URG_CTRL, 0);
+	aml_write_vcbus(VPU_WRARB_MODE_L2C1, 0x10000);
 
 }
 

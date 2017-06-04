@@ -25,6 +25,8 @@
 #define VPU_VDIN_ASYNC_HOLD_CTRL 0x2743
 #define VPU_VDISP_ASYNC_HOLD_CTRL 0x2744
 #define VPU_VPUARB2_ASYNC_HOLD_CTRL 0x2745
+#define VPU_ARB_URG_CTRL 0x2747
+#define VPU_WRARB_MODE_L2C1 0x27a2
 #define VPU_ARB_DBG_STAT_L1C2	0x27b6
 #define VDIN_DET_IDLE_BIT 8
 #define VDIN_DET_IDLE_WIDTH 4
@@ -970,6 +972,26 @@
 /* before the cut window function, after the de decimation function */
 #define VDIN_INTF_WIDTHM1_BIT           0
 #define VDIN_INTF_WIDTHM1_WID           13
+
+/* #define VDIN_LFIFO_URG_CTRL                       0x121e */
+/*Bit 15          default== 0, urgent_ctrl_en
+*Bit 14          default== 0, urgent_wr, if true for write buffer
+*Bit 13          default== 0, out_inv_en
+*Bit 12          default == 0, urgent_ini_value
+*Bit 11:6        default == 0, up_th  up threshold
+*Bit 5:0         default == 0, dn_th  dn threshold*/
+#define VDIN_LFIFO_URG_CTRL_EN_BIT      15
+#define VDIN_LFIFO_URG_CTRL_EN_WID      1
+#define VDIN_LFIFO_URG_WR_EN_BIT        14
+#define VDIN_LFIFO_URG_WR_EN_WID        1
+#define VDIN_LFIFO_OUT_INV_EN_BIT       13
+#define VDIN_LFIFO_OUT_INV_EN_WID       1
+#define VDIN_LFIFO_URG_INI_BIT          12
+#define VDIN_LFIFO_URG_INI_WID          1
+#define VDIN_LFIFO_URG_UP_TH_BIT        6
+#define VDIN_LFIFO_URG_UP_TH_WID        6
+#define VDIN_LFIFO_URG_DN_TH_BIT        0
+#define VDIN_LFIFO_URG_DN_TH_WID        6
 
 
 /* #define VDIN_WR_CTRL2                           0x121f */
