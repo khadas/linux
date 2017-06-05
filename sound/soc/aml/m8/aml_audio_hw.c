@@ -126,9 +126,14 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 #endif
 	}
 	/* Hold I2S */
-	aml_aiu_write(AIU_I2S_MISC, 0x0004);
-	/* Release hold and force audio data to left or right */
-	aml_aiu_write(AIU_I2S_MISC, 0x0010);
+	aml_aiu_update_bits(AIU_I2S_MISC, 0x1 << 2,
+				1 << 2);
+	/* force audio data to left or right */
+	aml_aiu_update_bits(AIU_I2S_MISC, 0x1 << 4,
+				1 << 4);
+	/* Release hold */
+	aml_aiu_update_bits(AIU_I2S_MISC, 0x1 << 2,
+				0 << 2);
 
 	if (channel == 8) {
 		pr_info("%s channel == 8\n", __func__);

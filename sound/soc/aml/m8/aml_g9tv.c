@@ -56,6 +56,11 @@
 static int aml_audio_Hardware_resample;
 static int hardware_resample_locked_flag;
 unsigned int clk_rate = 0;
+static int Speaker_Channel_Mask = 1;
+static int EQ_DRC_Channel_Mask;
+static int DAC0_Channel_Mask;
+static int DAC1_Channel_Mask;
+static int Spdif_samesource_Channel_Mask;
 
 static unsigned aml_EQ_param_length = 100;
 static unsigned aml_EQ_param[100] = {
@@ -431,29 +436,6 @@ static int set_internal_EQ_volume(unsigned master_volume,
 	return 0;
 }
 
-static int Speaker_Channel_Mask;
-static const char *const Speaker_Channel_Mask_texts[] = {
-	"Channel0/1", "Channel2/3", "Channe4/5", "Channe6/7" };
-
-static const struct soc_enum Speaker_Channel_Mask_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(Speaker_Channel_Mask_texts),
-			Speaker_Channel_Mask_texts);
-
-static int aml_Speaker_Channel_Mask_get_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.enumerated.item[0] = Speaker_Channel_Mask;
-	return 0;
-}
-
-static int aml_Speaker_Channel_Mask_set_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	Speaker_Channel_Mask = ucontrol->value.enumerated.item[0];
-	return 0;
-}
-
 static const struct snd_kcontrol_new av_controls[] = {
 	SOC_ENUM_EXT("AudioIn Switch",
 			 audio_in_switch_enum,
@@ -482,10 +464,6 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_hardware_resample_get_enum,
 		     aml_hardware_resample_set_enum),
 
-	SOC_ENUM_EXT("Speaker Channel Mask",
-		     Speaker_Channel_Mask_enum,
-		     aml_Speaker_Channel_Mask_get_enum,
-		     aml_Speaker_Channel_Mask_set_enum),
 };
 
 static int aml_get_eqdrc_reg(struct snd_kcontrol *kcontrol,
@@ -1056,6 +1034,96 @@ static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 	return;
 }
 
+static int check_channel_mask(const char *str)
+{
+	int ret = -1;
+	if (!strncmp(str, "i2s_0/1", 7))
+		ret = 0;
+	else if (!strncmp(str, "i2s_2/3", 7))
+		ret = 1;
+	else if (!strncmp(str, "i2s_4/5", 7))
+		ret = 2;
+	else if (!strncmp(str, "i2s_6/7", 7))
+		ret = 3;
+	return ret;
+}
+
+static void channel_mask_parse(struct snd_soc_card *card)
+{
+	struct device_node *audio_codec_node = card->dev->of_node;
+	struct device_node *child;
+	const char *str;
+	int ret;
+	child = of_get_child_by_name(audio_codec_node, "Channel_Mask");
+	if (child == NULL) {
+		pr_info("error: failed to find channel mask node %s\n",
+				"Channel_Mask");
+		return;
+	}
+
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+		/*Speaker need Audio Effcet from user space by i2s2/3,
+		mux i2s2/3 to layout pin*/
+		of_property_read_string(child, "Speaker_Channel_Mask", &str);
+		ret = check_channel_mask(str);
+		if (ret >= 0) {
+			Speaker_Channel_Mask = ret;
+			aml_aiu_update_bits(AIU_I2S_OUT_CFG,
+					0x3 << (Speaker_Channel_Mask * 2),
+					1 << (Speaker_Channel_Mask * 2));
+			if (Speaker_Channel_Mask == 0) {
+				aml_aiu_update_bits(AIU_I2S_OUT_CFG,
+					0x3 << 2, 0 << 2);
+			}
+		}
+	}
+
+	if (is_meson_txlx_cpu()) {
+		/*Acodec DAC0 selects i2s source*/
+		of_property_read_string(child, "DAC0_Channel_Mask", &str);
+		ret = check_channel_mask(str);
+		if (ret >= 0) {
+			DAC0_Channel_Mask = ret;
+			aml_aiu_update_bits(AIU_ACODEC_CTRL, 0x3,
+					DAC0_Channel_Mask);
+		}
+		/*Acodec DAC1 selects i2s source*/
+		of_property_read_string(child, "DAC1_Channel_Mask", &str);
+		ret = check_channel_mask(str);
+		if (ret >= 0) {
+			DAC1_Channel_Mask = ret;
+			aml_aiu_update_bits(AIU_ACODEC_CTRL, 0x3 << 8,
+					DAC1_Channel_Mask << 8);
+		}
+
+		/*Hardware EQ and DRC can be muxed to i2s 2 channels*/
+		of_property_read_string(child, "EQ_DRC_Channel_Mask", &str);
+		ret = check_channel_mask(str);
+		if (ret >= 0) {
+			EQ_DRC_Channel_Mask = ret;
+			 /*i2s in sel*/
+			aml_eqdrc_update_bits(AED_TOP_CTL, (0x7 << 1),
+				(EQ_DRC_Channel_Mask << 1));
+			aml_eqdrc_write(AED_ED_CTL, 1);
+			/* disable noise gate*/
+			aml_eqdrc_write(AED_NG_CTL, (3 << 30));
+			aml_eqdrc_update_bits(AED_TOP_CTL, 1, 1);
+		}
+
+		/*If spdif is same source to i2s,
+		it can be muxed to i2s 2 channels*/
+		of_property_read_string(child,
+				"Spdif_samesource_Channel_Mask", &str);
+		ret = check_channel_mask(str);
+		if (ret >= 0) {
+			Spdif_samesource_Channel_Mask = ret;
+			aml_aiu_update_bits(AIU_I2S_MISC, 0x7 << 5,
+					Spdif_samesource_Channel_Mask << 5);
+		}
+	}
+	return;
+}
+
 static int aml_card_dai_parse_of(struct device *dev,
 				 struct snd_soc_dai_link *dai_link,
 				 int (*init)(
@@ -1278,7 +1346,6 @@ static int aml_aux_dev_parse_of(struct snd_soc_card *card)
 		}
 		codec_get_of_pdata(pdata, child);
 		client->dev.platform_data = pdata;
-		Speaker_Channel_Mask = 1;
 	}
 	return 0;
 }
@@ -1380,6 +1447,17 @@ static void aml_pinmux_work_func(struct work_struct *pinmux_work)
 				  struct aml_audio_private_data, pinmux_work);
 	card = (struct snd_soc_card *)p_aml_audio->data;
 
+	if (is_meson_txl_cpu()) {
+		set_internal_EQ_volume(0xc0, 0x30, 0x30);
+		init_EQ_DRC_module();
+		/*set_HW_resample_pause_thd(128);*/
+	}
+
+	channel_mask_parse(card);
+
+	snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
+					ARRAY_SIZE(aml_EQ_DRC_controls));
+
 	aml_g9tv_pinmux_init(card);
 	return;
 }
@@ -1433,15 +1511,6 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "register aml sound card error %d\n", ret);
 		goto err;
-	}
-
-	if (is_meson_txl_cpu()
-		|| is_meson_txlx_cpu()) {
-		set_internal_EQ_volume(0xc0, 0x30, 0x30);
-		init_EQ_DRC_module();
-		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
-					ARRAY_SIZE(aml_EQ_DRC_controls));
-		/*set_HW_resample_pause_thd(128);*/
 	}
 
 	p_aml_audio->data = (void *)card;
