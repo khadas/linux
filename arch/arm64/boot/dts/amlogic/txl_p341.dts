@@ -942,6 +942,10 @@
 		codec2: codec2 {
 			sound-dai = <&pcm_codec>;
 		};
+		Channel_Mask {
+			/*i2s has 4 pins, 8channel, mux output*/
+			Speaker_Channel_Mask = "i2s_0/1";
+		};
  	};
 	amaudio2 {
 		compatible = "amlogic, aml_amaudio2";

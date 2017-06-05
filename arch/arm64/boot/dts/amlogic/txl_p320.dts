@@ -996,6 +996,10 @@
 			i2c_bus = "i2c_bus_a";
 			reset_pin = <&gpio GPIOZ_13 GPIO_ACTIVE_LOW>;
 		};
+		Channel_Mask {
+			/*i2s has 4 pins, 8channel, mux output*/
+			Speaker_Channel_Mask = "i2s_2/3";
+		};
  	};
 	amaudio2 {
 		compatible = "amlogic, aml_amaudio2";
