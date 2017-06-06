@@ -69,6 +69,20 @@
 #define VPP_DEMO_CM_DIS             (1 << 1)
 #define VPP_DEMO_CM_EN              (1 << 0)
 
+/*PQ USER LATCH*/
+#define PQ_USER_SR1_DERING_DIS		(1 << 11)
+#define PQ_USER_SR1_DERING_EN		(1 << 10)
+#define PQ_USER_SR0_DERING_DIS		(1 << 9)
+#define PQ_USER_SR0_DERING_EN		(1 << 8)
+#define PQ_USER_SR1_PK_DIS			(1 << 7)
+#define PQ_USER_SR1_PK_EN			(1 << 6)
+#define PQ_USER_SR0_PK_DIS			(1 << 5)
+#define PQ_USER_SR0_PK_EN			(1 << 4)
+#define PQ_USER_BLK_SLOPE			(1 << 3)
+#define PQ_USER_BLK_START			(1 << 2)
+#define PQ_USER_BLK_DIS			(1 << 1)
+#define PQ_USER_BLK_EN				(1 << 0)
+
 /*white balance latch*/
 #define MTX_BYPASS_RGB_OGO			(1 << 0)
 #define MTX_RGB2YUVL_RGB_OGO		(1 << 1)
@@ -164,6 +178,7 @@ extern bool gamma_en;
 extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
+extern void pq_user_latch_process(void);
 
 /* master_display_info for display device */
 struct hdr_metadata_info_s {
