@@ -171,6 +171,8 @@ static unsigned int max_decode_instance_num
 				= MAX_DECODE_INSTANCE_NUM;
 static unsigned int decode_frame_count[MAX_DECODE_INSTANCE_NUM];
 static unsigned int max_process_time[MAX_DECODE_INSTANCE_NUM];
+static unsigned int run_count[MAX_DECODE_INSTANCE_NUM];
+static unsigned int input_empty[MAX_DECODE_INSTANCE_NUM];
 
 static u32 decode_timeout_val = 100;
 static int start_decode_buf_level = 0x8000;
@@ -5561,6 +5563,22 @@ static void vp9_recycle_mmu_buf(struct VP9Decoder_s *pbi)
 #endif
 #endif
 
+static void dec_again_process(struct VP9Decoder_s *pbi)
+{
+	amhevc_stop();
+	pbi->dec_result = DEC_RESULT_AGAIN;
+	if (pbi->process_state ==
+		PROC_STATE_DECODESLICE) {
+		pbi->process_state =
+		PROC_STATE_SENDAGAIN;
+#ifdef VP9_10B_MMU
+		vp9_recycle_mmu_buf(pbi);
+#endif
+	}
+	reset_process_time(pbi);
+	schedule_work(&pbi->work);
+}
+
 static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 {
 	struct VP9Decoder_s *pbi = (struct VP9Decoder_s *)data;
@@ -5581,20 +5599,12 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		) {
 		if (pbi->m_ins_flag) {
 			reset_process_time(pbi);
-			if (!vdec_frame_based(hw_to_vdec(pbi))) {
-				pbi->dec_result = DEC_RESULT_AGAIN;
-				if (pbi->process_state ==
-					PROC_STATE_DECODESLICE) {
-#ifdef VP9_10B_MMU
-					vp9_recycle_mmu_buf(pbi);
-#endif
-					pbi->process_state =
-					PROC_STATE_SENDAGAIN;
-				}
-				amhevc_stop();
-			} else
+			if (!vdec_frame_based(hw_to_vdec(pbi)))
+				dec_again_process(pbi);
+			else {
 				pbi->dec_result = DEC_RESULT_GET_DATA;
-			schedule_work(&pbi->work);
+				schedule_work(&pbi->work);
+			}
 		}
 		pbi->process_busy = 0;
 		return IRQ_HANDLED;
@@ -6018,8 +6028,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 	}
 #ifdef MULTI_INSTANCE_SUPPORT
 	else {
-		if ((input_frame_based(hw_to_vdec(pbi)) ||
-			(READ_VREG(HEVC_STREAM_LEVEL) > 0x200)) &&
+		if (
 			(decode_timeout_val > 0) &&
 			(pbi->start_process_time > 0) &&
 			((1000 * (jiffies - pbi->start_process_time) / HZ)
@@ -6031,8 +6040,17 @@ static void vvp9_put_timer_func(unsigned long arg)
 			if (pbi->last_lcu_idx == current_lcu_idx) {
 				if (pbi->decode_timeout_count > 0)
 					pbi->decode_timeout_count--;
-				if (pbi->decode_timeout_count == 0)
-					timeout_process(pbi);
+				if (pbi->decode_timeout_count == 0) {
+					if (input_frame_based(
+						hw_to_vdec(pbi)) ||
+					(READ_VREG(HEVC_STREAM_LEVEL) > 0x200))
+						timeout_process(pbi);
+					else {
+						vp9_print(pbi, 0,
+							"timeout & empty, again\n");
+						dec_again_process(pbi);
+					}
+				}
 			} else {
 				start_process_time(pbi);
 				pbi->last_lcu_idx = current_lcu_idx;
@@ -6849,33 +6867,11 @@ static bool run_ready(struct vdec_s *vdec)
 	if (get_free_buf_count(pbi) >=
 		run_ready_min_buf_num)
 		ret = 1;
+	if (ret)
+		input_empty[pbi->index] = 0;
+	else
+		input_empty[pbi->index]++;
 	return ret;
-}
-
-static void reset_dec_hw(struct vdec_s *vdec)
-{
-	if (input_frame_based(vdec))
-		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
-
-		/*
-	 * 2: assist
-	 * 3: parser
-	 * 4: parser_state
-	 * 8: dblk
-	 * 11:mcpu
-	 * 12:ccpu
-	 * 13:ddr
-	 * 14:iqit
-	 * 15:ipp
-	 * 17:qdct
-	 * 18:mpred
-	 * 19:sao
-	 * 24:hevc_afifo
-	 */
-	WRITE_VREG(DOS_SW_RESET3,
-		(1<<3)|(1<<4)|(1<<8)|(1<<11)|(1<<12)|(1<<14)|(1<<15)|
-		(1<<17)|(1<<18)|(1<<19));
-	WRITE_VREG(DOS_SW_RESET3, 0);
 }
 
 static void run(struct vdec_s *vdec,
@@ -6885,10 +6881,11 @@ static void run(struct vdec_s *vdec,
 		(struct VP9Decoder_s *)vdec->private;
 	int r;
 
+	run_count[pbi->index]++;
 	pbi->vdec_cb_arg = arg;
 	pbi->vdec_cb = callback;
 	/* pbi->chunk = vdec_prepare_input(vdec); */
-	reset_dec_hw(vdec);
+	hevc_reset_core(vdec);
 
 	r = vdec_prepare_input(vdec, &pbi->chunk);
 	if (r < 0) {
@@ -7361,6 +7358,12 @@ module_param_array(decode_frame_count, uint,
 	&max_decode_instance_num, 0664);
 
 module_param_array(max_process_time, uint,
+	&max_decode_instance_num, 0664);
+
+module_param_array(run_count, uint,
+	&max_decode_instance_num, 0664);
+
+module_param_array(input_empty, uint,
 	&max_decode_instance_num, 0664);
 #endif
 

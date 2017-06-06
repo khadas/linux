@@ -2260,6 +2260,52 @@ int vdec_source_changed(int format, int width, int height, int fps)
 
 }
 
+void hevc_reset_core(struct vdec_s *vdec)
+{
+	unsigned long flags;
+	WRITE_VREG(HEVC_STREAM_CONTROL, 0);
+	spin_lock_irqsave(&vdec_spin_lock, flags);
+	codec_dmcbus_write(DMC_REQ_CTRL,
+		codec_dmcbus_read(DMC_REQ_CTRL) & (~(1 << 4)));
+	spin_unlock_irqrestore(&vdec_spin_lock, flags);
+
+	while (!(codec_dmcbus_read(DMC_CHAN_STS)
+		& (1 << 4)))
+		;
+
+	if (input_frame_based(vdec))
+		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
+
+		/*
+	 * 2: assist
+	 * 3: parser
+	 * 4: parser_state
+	 * 8: dblk
+	 * 11:mcpu
+	 * 12:ccpu
+	 * 13:ddr
+	 * 14:iqit
+	 * 15:ipp
+	 * 17:qdct
+	 * 18:mpred
+	 * 19:sao
+	 * 24:hevc_afifo
+	 */
+	WRITE_VREG(DOS_SW_RESET3,
+		(1<<3)|(1<<4)|(1<<8)|(1<<11)|
+		(1<<12)|(1<<13)|(1<<14)|(1<<15)|
+		(1<<17)|(1<<18)|(1<<19)|(1<<24));
+
+	WRITE_VREG(DOS_SW_RESET3, 0);
+
+
+	spin_lock_irqsave(&vdec_spin_lock, flags);
+	codec_dmcbus_write(DMC_REQ_CTRL,
+		codec_dmcbus_read(DMC_REQ_CTRL) | (1 << 4));
+	spin_unlock_irqrestore(&vdec_spin_lock, flags);
+
+}
+
 int vdec2_source_changed(int format, int width, int height, int fps)
 {
 	int ret = -1;
