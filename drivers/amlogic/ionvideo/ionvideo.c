@@ -440,8 +440,6 @@ static int ionvideo_thread(void *data)
 			break;
 	}
 	dev->thread_stoped = 1;
-	dev->active_state = ION_INACTIVE;
-	complete(&dev->inactive_done);
 	wake_up_interruptible(&dev->wq);
 	dprintk(dev, 2, "thread: exit\n");
 	return 0;
