@@ -312,6 +312,11 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		vf_dp->present_flag = false;
 		vf->signal_type &= ~(1 << 29);
 		vf->signal_type &= ~(1 << 25);
+		/*todo;default is bt709,if change need sync*/
+		vf->signal_type = ((1 << 16) |
+			(vf->signal_type & (~0xFF0000)));
+		vf->signal_type = ((1 << 8) |
+			(vf->signal_type & (~0xFF00)));
 	}
 }
 
