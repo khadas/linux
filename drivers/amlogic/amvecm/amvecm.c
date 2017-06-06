@@ -132,6 +132,12 @@ static int mtx_sel_dbg;/* for mtx debug */
 module_param(mtx_sel_dbg, uint, 0664);
 MODULE_PARM_DESC(mtx_sel_dbg, "\n mtx_sel_dbg\n");
 
+unsigned int pq_user_latch_flag;
+module_param(pq_user_latch_flag, uint, 0664);
+MODULE_PARM_DESC(pq_user_latch_flag, "\n pq_user_latch_flag\n");
+
+unsigned int pq_user_value;
+
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
 	1024,	0,	0,
@@ -882,6 +888,8 @@ void amvecm_video_latch(void)
 		amvecm_3d_black_process();
 	}
 /* #endif */
+	pq_user_latch_process();
+
 }
 
 void amvecm_on_vs(struct vframe_s *vf)
@@ -2432,6 +2440,179 @@ void pc_mode_process(void)
 	}
 }
 
+void amvecm_black_ext_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 3, 1);
+	else
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 3, 1);
+}
+
+void amvecm_black_ext_start_adj(unsigned int value)
+{
+	if ((value > 255) || (value < 0))
+		return;
+	WRITE_VPP_REG_BITS(VPP_BLACKEXT_CTRL, value, 24, 8);
+}
+
+void amvecm_black_ext_slope_adj(unsigned int value)
+{
+	if ((value > 255) || (value < 0))
+		return;
+	WRITE_VPP_REG_BITS(VPP_BLACKEXT_CTRL, value, 16, 8);
+}
+
+void amvecm_sr0_pk_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE,
+			1, 1, 1);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE,
+			0, 1, 1);
+}
+
+void amvecm_sr1_pk_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP1_SHARP_PK_NR_ENABLE,
+			1, 1, 1);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP1_SHARP_PK_NR_ENABLE,
+			0, 1, 1);
+}
+
+void amvecm_sr0_dering_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL,
+			1, 28, 3);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL,
+			0, 28, 3);
+}
+
+void amvecm_sr1_dering_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL,
+			1, 28, 3);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL,
+			0, 28, 3);
+}
+
+void pq_user_latch_process(void)
+{
+	if (pq_user_latch_flag & PQ_USER_BLK_EN) {
+		pq_user_latch_flag &= ~PQ_USER_BLK_EN;
+		amvecm_black_ext_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_BLK_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_BLK_DIS;
+		amvecm_black_ext_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_BLK_START) {
+		pq_user_latch_flag &= ~PQ_USER_BLK_START;
+		amvecm_black_ext_start_adj(pq_user_value);
+	} else if (pq_user_latch_flag & PQ_USER_BLK_SLOPE) {
+		pq_user_latch_flag &= ~PQ_USER_BLK_SLOPE;
+		amvecm_black_ext_slope_adj(pq_user_value);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_PK_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_PK_EN;
+		amvecm_sr0_pk_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_PK_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_PK_DIS;
+		amvecm_sr0_pk_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_PK_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_PK_EN;
+		amvecm_sr1_pk_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_PK_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_PK_DIS;
+		amvecm_sr1_pk_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DERING_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DERING_EN;
+		amvecm_sr0_dering_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DERING_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DERING_DIS;
+		amvecm_sr0_dering_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DERING_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DERING_EN;
+		amvecm_sr1_dering_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DERING_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DERING_DIS;
+		amvecm_sr1_dering_enable(false);
+	}
+}
+
+static const char *amvecm_pq_user_usage_str = {
+	"Usage:\n"
+	"echo blk_ext_en > /sys/class/amvecm/pq_user_set: blk ext en\n"
+	"echo blk_ext_dis > /sys/class/amvecm/pq_user_set: blk ext dis\n"
+	"echo blk_start val > /sys/class/amvecm/pq_user_set: start adj\n"
+	"echo blk_slope val > /sys/class/amvecm/pq_user_set: slope adj\n"
+	"echo sr0_pk_en > /sys/class/amvecm/pq_user_set: sr0 pk en\n"
+	"echo sr0_pk_dis > /sys/class/amvecm/pq_user_set: sr0 pk dis\n"
+	"echo sr1_pk_en > /sys/class/amvecm/pq_user_set: sr0 pk en\n"
+	"echo sr1_pk_dis > /sys/class/amvecm/pq_user_set: sr0 pk dis\n"
+	"echo sr0_dering_en > /sys/class/amvecm/pq_user_set: sr0 dr en\n"
+	"echo sr0_dering_dis > /sys/class/amvecm/pq_user_set: sr0 dr dis\n"
+	"echo sr1_dering_en > /sys/class/amvecm/pq_user_set: sr1 dr en\n"
+	"echo sr1_dering_dis > /sys/class/amvecm/pq_user_set: sr1 dr dis\n"
+};
+
+static ssize_t amvecm_pq_user_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", amvecm_pq_user_usage_str);
+}
+
+static ssize_t amvecm_pq_user_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long val = 0;
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (!strncmp(parm[0], "blk_ext_en", 10))
+		pq_user_latch_flag |= PQ_USER_BLK_EN;
+	else if (!strncmp(parm[0], "blk_ext_dis", 11))
+		pq_user_latch_flag |= PQ_USER_BLK_DIS;
+	else if (!strncmp(parm[0], "blk_start", 9)) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		pq_user_value = val;
+		pq_user_latch_flag |= PQ_USER_BLK_START;
+	} else if (!strncmp(parm[0], "blk_slope", 9)) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		pq_user_value = val;
+		pq_user_latch_flag |= PQ_USER_BLK_SLOPE;
+	} else if (!strncmp(parm[0], "sr0_pk_en", 9)) {
+		pq_user_latch_flag |= PQ_USER_SR0_PK_EN;
+	} else if (!strncmp(parm[0], "sr0_pk_dis", 10)) {
+		pq_user_latch_flag |= PQ_USER_SR0_PK_DIS;
+	} else if (!strncmp(parm[0], "sr1_pk_en", 9)) {
+		pq_user_latch_flag |= PQ_USER_SR1_PK_EN;
+	} else if (!strncmp(parm[0], "sr1_pk_dis", 10)) {
+		pq_user_latch_flag |= PQ_USER_SR1_PK_DIS;
+	} else if (!strncmp(parm[0], "sr0_dering_en", 13)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DERING_EN;
+	} else if (!strncmp(parm[0], "sr0_dering_dis", 14)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DERING_DIS;
+	} else if (!strncmp(parm[0], "sr1_dering_en", 13)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DERING_EN;
+	} else if (!strncmp(parm[0], "sr1_dering_dis", 14)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DERING_DIS;
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
+
 static ssize_t amvecm_vpp_demo_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -3544,6 +3725,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dv_mode_show, amvecm_dv_mode_store),
 	__ATTR(reg, S_IRUGO | S_IWUSR,
 		amvecm_reg_show, amvecm_reg_store),
+	__ATTR(pq_user_set, S_IRUGO | S_IWUSR,
+		amvecm_pq_user_show, amvecm_pq_user_store),
 	__ATTR_NULL
 };
 
