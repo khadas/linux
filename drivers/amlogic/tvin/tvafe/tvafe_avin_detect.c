@@ -37,7 +37,7 @@
 #define TVAFE_AVIN_CH2_MASK  (2 << 0)
 #define TVAFE_AVIN_MASK  (TVAFE_AVIN_CH1_MASK | TVAFE_AVIN_CH2_MASK)
 #define TVAFE_MAX_AVIN_DEVICE_NUM  2
-#define TVAFE_AVIN_NAME  "tvafe_avin_detect"
+#define TVAFE_AVIN_NAME  "avin_detect"
 #define TVAFE_AVIN_NAME_CH1  "tvafe_avin_detect_ch1"
 #define TVAFE_AVIN_NAME_CH2  "tvafe_avin_detect_ch2"
 
@@ -48,12 +48,12 @@ module_param(detect_mode, int, 0664);
 MODULE_PARM_DESC(detect_mode, "detect_mode");
 
 /*0:460mv; 1:0.225mv*/
-static unsigned int vdc_level;
+static unsigned int vdc_level = 1;
 module_param(vdc_level, int, 0664);
 MODULE_PARM_DESC(vdc_level, "vdc_level");
 
 /*0:50mv; 1:100mv; 2:150mv; 3:200mv; 4:250mv; 6:300mv; 7:310mv*/
-static unsigned int sync_level;
+static unsigned int sync_level = 1;
 module_param(sync_level, int, 0664);
 MODULE_PARM_DESC(sync_level, "sync_level");
 
@@ -86,94 +86,24 @@ static unsigned int irq_pol;
 module_param(irq_pol, int, 0664);
 MODULE_PARM_DESC(irq_pol, "irq_pol");
 
-static char *tvafe_avin_name_ch[2] = {TVAFE_AVIN_NAME_CH1, TVAFE_AVIN_NAME_CH2};
+static unsigned int avin_count_times = 3;
+module_param(avin_count_times, int, 0664);
+MODULE_PARM_DESC(avin_count_times, "avin_count_times");
+
+static unsigned int avin_timer_time = 10;/*40ms*/
+module_param(avin_timer_time, int, 0664);
+MODULE_PARM_DESC(avin_timer_time, "avin_timer_time");
+
+#define TVAFE_AVIN_INTERVAL (HZ/100)/*10ms*/
+static struct timer_list avin_detect_timer;
+static unsigned int s_irq_counter0;
+static unsigned int s_irq_counter1;
+static unsigned int s_irq_counter0_time;
+static unsigned int s_irq_counter1_time;
+static unsigned int s_counter0_last_state;
+static unsigned int s_counter1_last_state;
 
 static DECLARE_WAIT_QUEUE_HEAD(tvafe_avin_waitq);
-
-static irqreturn_t tvafe_avin_detect_handler(int irq, void *data)
-{
-	struct tvafe_avin_det_s *avdev = (struct tvafe_avin_det_s *)data;
-
-	if (avdev->dts_param.device_mask == TVAFE_AVIN_CH1_MASK)
-		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
-	else if (avdev->dts_param.device_mask == TVAFE_AVIN_CH2_MASK)
-		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ1_COUNTER);
-	else if (avdev->dts_param.device_mask == TVAFE_AVIN_MASK) {
-		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
-		avdev->irq_counter[1] = aml_read_cbus(CVBS_IRQ1_COUNTER);
-	}
-	return IRQ_HANDLED;
-}
-
-static void kp_work_channel1(struct tvafe_avin_det_s *avdev)
-{
-	unsigned int state_changed, irq_counter_threshold;
-	mutex_lock(&avdev->lock);
-
-	switch (irq_mode) {
-	case 0:
-		irq_counter_threshold = 1;
-		break;
-	case 1:
-		irq_counter_threshold = 1 << 1;
-		break;
-	case 2:
-		irq_counter_threshold = 1 << 3;
-		break;
-	case 3:
-		irq_counter_threshold = 1 << 5;
-		break;
-	case 4:
-		irq_counter_threshold = 1 << 7;
-		break;
-	case 5:
-		irq_counter_threshold = 1 << 10;
-		break;
-	case 6:
-		irq_counter_threshold = 1 << 12;
-		break;
-	case 7:
-		irq_counter_threshold = 1 << 15;
-		break;
-	default:
-		irq_counter_threshold = 1;
-		break;
-
-	}
-	if ((avdev->device_num >= 1) &&
-		(avdev->irq_counter[0] >= irq_counter_threshold)) {
-		if (avdev->report_data_s[0].status != TVAFE_AVIN_STATUS_IN) {
-			avdev->report_data_s[0].status = TVAFE_AVIN_STATUS_IN;
-			state_changed = 1;
-		} else if (avdev->report_data_s[0].status !=
-			TVAFE_AVIN_STATUS_OUT){
-			avdev->report_data_s[0].status = TVAFE_AVIN_STATUS_OUT;
-			state_changed = 1;
-		}
-	}
-	if ((avdev->device_num == 2) &&
-		(avdev->irq_counter[1] >= irq_counter_threshold)) {
-		if (avdev->report_data_s[1].status != TVAFE_AVIN_STATUS_IN) {
-			avdev->report_data_s[1].status = TVAFE_AVIN_STATUS_IN;
-			state_changed = 1;
-		} else if (avdev->report_data_s[1].status !=
-			TVAFE_AVIN_STATUS_OUT){
-			avdev->report_data_s[1].status = TVAFE_AVIN_STATUS_OUT;
-			state_changed = 1;
-		}
-	}
-	if (state_changed)
-		wake_up_interruptible(&tvafe_avin_waitq);
-	state_changed = 0;
-	mutex_unlock(&avdev->lock);
-}
-
-static void tvafe_update_work_update_status(struct work_struct *work)
-{
-	struct tvafe_avin_det_s *avin_data =
-	container_of(work, struct tvafe_avin_det_s, work_struct_update);
-	kp_work_channel1(avin_data);
-}
 
 static int tvafe_avin_dts_parse(struct platform_device *pdev)
 {
@@ -250,40 +180,35 @@ void tvafe_avin_detect_ch2_anlog_enable(bool enable)
 			AFE_CH2_EN_DETECT_BIT, AFE_CH2_EN_DETECT_WIDTH);
 }
 
-static void tvafe_avin_enable(struct tvafe_avin_det_s *avin_data)
+static void tvafe_avin_detect_enable(struct tvafe_avin_det_s *avin_data)
 {
-	int i;
-	/*enable irq */
+	/*enable anlog config*/
+	pr_info("tvafe_avin_detect_enable.\n");
 	if (avin_data->dts_param.device_mask & TVAFE_AVIN_CH1_MASK)
 		tvafe_avin_detect_ch1_anlog_enable(1);
 	if (avin_data->dts_param.device_mask & TVAFE_AVIN_CH2_MASK)
 		tvafe_avin_detect_ch2_anlog_enable(1);
-	for (i = 0; i < avin_data->device_num; i++)
-		enable_irq(avin_data->dts_param.irq[i]);
-
 }
 
-static void tvafe_avin_disable(struct tvafe_avin_det_s *avin_data)
+static void tvafe_avin_detect_disable(struct tvafe_avin_det_s *avin_data)
 {
-	int i;
-	/*enable irq */
+	/*disable anlog config*/
+	pr_info("tvafe_avin_detect_disable.\n");
 	if (avin_data->dts_param.device_mask & TVAFE_AVIN_CH1_MASK)
 		tvafe_avin_detect_ch1_anlog_enable(0);
 	if (avin_data->dts_param.device_mask & TVAFE_AVIN_CH2_MASK)
 		tvafe_avin_detect_ch2_anlog_enable(0);
-	for (i = 0; i < avin_data->device_num; i++)
-		free_irq(avin_data->dts_param.irq[i], (void *)avin_data);
-
 }
 
 static int tvafe_avin_open(struct inode *inode, struct file *file)
 {
 	struct tvafe_avin_det_s *avin_data;
+	pr_info("tvafe_avin_open.\n");
 	avin_data = container_of(inode->i_cdev,
 		struct tvafe_avin_det_s, avin_cdev);
 	file->private_data = avin_data;
 	/*enable irq */
-	tvafe_avin_enable(avin_data);
+	tvafe_avin_detect_enable(avin_data);
 	return 0;
 }
 
@@ -306,7 +231,7 @@ static int tvafe_avin_release(struct inode *inode, struct file *file)
 {
 	struct tvafe_avin_det_s *avin_data =
 		(struct tvafe_avin_det_s *)file->private_data;
-	tvafe_avin_disable(avin_data);
+	tvafe_avin_detect_disable(avin_data);
 	file->private_data = NULL;
 	return 0;
 }
@@ -363,23 +288,63 @@ static int tvafe_register_avin_dev(struct tvafe_avin_det_s *avin_data)
 	return ret;
 }
 
-static int tvafe_avin_init_resource(struct tvafe_avin_det_s *avdev)
+/*after adc and afe is enable,this TIP bit must be set to "0"*/
+void tvafe_cha1_SYNCTIP_close_config(void)
 {
-	int irq_ret, i;
-	INIT_WORK(&(avdev->work_struct_update),
-		tvafe_update_work_update_status);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH1_EN_SYNC_TIP_BIT,
+		AFE_CH1_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+		AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
+}
 
-	/* request irq num*/
-	for (i = 0; i < avdev->device_num; i++) {
-		irq_ret = request_irq(avdev->dts_param.irq[i],
-			tvafe_avin_detect_handler, IRQF_DISABLED,
-			tvafe_avin_name_ch[i], (void *)avdev);
-		if (irq_ret)
-			return -EINVAL;
-		/*disable irq untill avin is opened completely*/
-		disable_irq_nosync(avdev->dts_param.irq[i]);
-	}
-	return 0;
+void tvafe_cha2_SYNCTIP_close_config(void)
+{
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH2_EN_SYNC_TIP_BIT,
+		AFE_CH2_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
+}
+
+void tvafe_cha1_2_SYNCTIP_close_config(void)
+{
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_SYNC_TIP_BIT,
+		AFE_CH1_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+		AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_SYNC_TIP_BIT,
+		AFE_CH2_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
+}
+
+/*After the CVBS is unplug,the EN_SYNC_TIP need be set to "1"*/
+/*to sense the plug in operation*/
+void tvafe_cha1_detect_restart_config(void)
+{
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_SYNC_TIP_BIT,
+		AFE_CH1_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
+}
+
+void tvafe_cha2_detect_restart_config(void)
+{
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_SYNC_TIP_BIT,
+		AFE_CH2_EN_SYNC_TIP_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
+	W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
 }
 
 void tvafe_avin_detect_anlog_config(void)
@@ -534,6 +499,7 @@ static ssize_t tvafe_avin_detect_store(struct device *dev,
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	tvafe_avin_detect_parse_param(buf_orig, (char **)&parm);
 
+	pr_info("[%s]:param0:%s.\n", __func__, parm[0]);
 	if (!strcmp(parm[0], "detect_mode")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
@@ -585,9 +551,9 @@ static ssize_t tvafe_avin_detect_store(struct device *dev,
 		else
 			tvafe_avin_detect_ch2_anlog_enable(0);
 	} else if (!strcmp(parm[0], "enable")) {
-		tvafe_avin_enable(avdev);
+		tvafe_avin_detect_enable(avdev);
 	} else if (!strcmp(parm[0], "disable")) {
-		tvafe_avin_disable(avdev);
+		tvafe_avin_detect_disable(avdev);
 	} else if (!strcmp(parm[0], "status")) {
 		tvafe_avin_detect_state(avdev);
 	} else
@@ -595,12 +561,122 @@ static ssize_t tvafe_avin_detect_store(struct device *dev,
 	return count;
 }
 
+static void tvafe_avin_detect_timer_handler(unsigned long arg)
+{
+	unsigned int state_changed;
+	struct tvafe_avin_det_s *avdev = (struct tvafe_avin_det_s *)arg;
+
+	mutex_lock(&avdev->lock);
+	if (avdev->dts_param.device_mask == TVAFE_AVIN_CH1_MASK)
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
+	else if (avdev->dts_param.device_mask == TVAFE_AVIN_CH2_MASK)
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ1_COUNTER);
+	else if (avdev->dts_param.device_mask == TVAFE_AVIN_MASK) {
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
+		avdev->irq_counter[1] = aml_read_cbus(CVBS_IRQ1_COUNTER);
+		if (avdev->irq_counter[1] != s_irq_counter1) {
+			if (s_counter1_last_state != 1)
+				s_irq_counter1_time = 0;
+			s_irq_counter1_time++;
+			if (s_irq_counter1_time >= avin_count_times) {
+				if (avdev->report_data_s[1].status !=
+							TVAFE_AVIN_STATUS_IN) {
+					avdev->report_data_s[1].status =
+							TVAFE_AVIN_STATUS_IN;
+					state_changed = 1;
+					pr_info("avin[1].status IN.\n");
+				}
+				s_irq_counter1_time = 0;
+			}
+			s_counter1_last_state = 1;
+		} else {
+			if (s_counter1_last_state != 0)
+				s_irq_counter1_time = 0;
+			s_irq_counter1_time++;
+			if (s_irq_counter1_time >= avin_count_times) {
+				if (avdev->report_data_s[1].status !=
+						TVAFE_AVIN_STATUS_OUT) {
+					avdev->report_data_s[1].status =
+						TVAFE_AVIN_STATUS_OUT;
+					state_changed = 1;
+					pr_info("avin[1].status OUT.\n");
+
+					tvafe_cha2_detect_restart_config();
+				}
+				s_irq_counter1_time = 0;
+			}
+			s_counter1_last_state = 0;
+		}
+		s_irq_counter1 = avdev->irq_counter[1];
+	}
+		/*pr_info("irq_counter[0]:%u, last_count:%u\n"
+			avdev->irq_counter[0], s_irq_counter0);*/
+	if (avdev->irq_counter[0] != s_irq_counter0) {
+		if (s_counter0_last_state != 1)
+			s_irq_counter0_time = 0;
+		s_irq_counter0_time++;
+		if (s_irq_counter0_time >= avin_count_times) {
+			if (avdev->report_data_s[0].status !=
+					TVAFE_AVIN_STATUS_IN) {
+				avdev->report_data_s[0].status =
+					TVAFE_AVIN_STATUS_IN;
+				state_changed = 1;
+				pr_info("avin[0].status IN.\n");
+			}
+			s_irq_counter0_time = 0;
+		}
+		s_counter0_last_state = 1;
+	} else {
+		if (s_counter0_last_state != 0)
+			s_irq_counter0_time = 0;
+		s_irq_counter0_time++;
+		if (s_irq_counter0_time >= avin_count_times) {
+			if (avdev->report_data_s[0].status !=
+						TVAFE_AVIN_STATUS_OUT) {
+				avdev->report_data_s[0].status =
+						TVAFE_AVIN_STATUS_OUT;
+				state_changed = 1;
+				pr_info("avin[0].status OUT.\n");
+
+			/*After the CVBS is unplug,*/
+			/*the EN_SYNC_TIP need be set to "1"*/
+			/*to sense the plug in operation*/
+				tvafe_cha1_detect_restart_config();
+			}
+			s_irq_counter0_time = 0;
+		}
+		s_counter0_last_state = 0;
+	}
+	s_irq_counter0 = avdev->irq_counter[0];
+	mutex_unlock(&avdev->lock);
+
+	if (state_changed)
+		wake_up_interruptible(&tvafe_avin_waitq);
+	state_changed = 0;
+
+	avin_detect_timer.expires = jiffies +
+				(TVAFE_AVIN_INTERVAL * avin_timer_time);
+	add_timer(&avin_detect_timer);
+}
+
+static int tvafe_avin_init_resource(struct tvafe_avin_det_s *avdev)
+{
+	/* add timer for avin detect*/
+	init_timer(&avin_detect_timer);
+	avin_detect_timer.data = (unsigned long)avdev;
+	avin_detect_timer.function = tvafe_avin_detect_timer_handler;
+	avin_detect_timer.expires = jiffies +
+				(TVAFE_AVIN_INTERVAL * avin_timer_time);
+	add_timer(&avin_detect_timer);
+
+	return 0;
+}
+
 static DEVICE_ATTR(debug, 0644, tvafe_avin_detect_show,
 	tvafe_avin_detect_store);
 
 int tvafe_avin_detect_probe(struct platform_device *pdev)
 {
-	int i;
 	int ret;
 	int state = 0;
 	struct tvafe_avin_det_s *avdev = NULL;
@@ -619,28 +695,7 @@ int tvafe_avin_detect_probe(struct platform_device *pdev)
 		goto get_dts_dat_fail;
 	}
 
-	INIT_WORK(&(avdev->work_struct_update),
-		tvafe_update_work_update_status);
-	/* request irq num*/
-	for (i = 0; i < avdev->device_num; i++) {
-		ret = request_irq(avdev->dts_param.irq[i],
-			tvafe_avin_detect_handler, IRQF_DISABLED,
-			tvafe_avin_name_ch[i], (void *)avdev);
-		if (ret) {
-			pr_info("Unable to init irq resource.\n");
-			state = -EINVAL;
-			goto irq_request_fail;
-		}
-		/*disable irq untill avin is opened completely*/
-		disable_irq_nosync(avdev->dts_param.irq[i]);
-	}
-	/*config analog part setting*/
-	tvafe_avin_detect_anlog_config();
-	/*config digital part setting*/
-	tvafe_avin_detect_digital_config();
-
 	mutex_init(&avdev->lock);
-
 	/* register char device */
 	ret = tvafe_register_avin_dev(avdev);
 	/* create class attr file */
@@ -649,10 +704,25 @@ int tvafe_avin_detect_probe(struct platform_device *pdev)
 		pr_err("tvafe_av_detect: fail to create dbg attribute file\n");
 		goto fail_create_dbg_file;
 	}
+	dev_set_drvdata(avdev->config_dev, avdev);
+
+	/*config analog part setting*/
+	tvafe_avin_detect_anlog_config();
+	/*config digital part setting*/
+	tvafe_avin_detect_digital_config();
+
+	/* add timer for avin detect*/
+	init_timer(&avin_detect_timer);
+	avin_detect_timer.data = (unsigned long)avdev;
+	avin_detect_timer.function = tvafe_avin_detect_timer_handler;
+	avin_detect_timer.expires = jiffies +
+				(TVAFE_AVIN_INTERVAL * avin_timer_time);
+	add_timer(&avin_detect_timer);
+	pr_info("tvafe_avin_detect_probe ok.\n");
+
 	return 0;
 
 fail_create_dbg_file:
-irq_request_fail:
 get_dts_dat_fail:
 	kfree(avdev);
 get_param_mem_fail:
@@ -663,8 +733,8 @@ static int tvafe_avin_detect_suspend(struct platform_device *pdev ,
 	pm_message_t state)
 {
 	struct tvafe_avin_det_s *avdev = platform_get_drvdata(pdev);
-	cancel_work_sync(&avdev->work_struct_update);
-	tvafe_avin_disable(avdev);
+	del_timer_sync(&avin_detect_timer);
+	tvafe_avin_detect_disable(avdev);
 	pr_info("tvafe_avin_detect_suspend ok.\n");
 	return 0;
 }
@@ -673,6 +743,7 @@ static int tvafe_avin_detect_resume(struct platform_device *pdev)
 {
 	struct tvafe_avin_det_s *avdev = platform_get_drvdata(pdev);
 	tvafe_avin_init_resource(avdev);
+	tvafe_avin_detect_enable(avdev);
 	pr_info("tvafe_avin_detect_resume ok.\n");
 	return 0;
 }
@@ -681,8 +752,8 @@ int tvafe_avin_detect_remove(struct platform_device *pdev)
 {
 	struct tvafe_avin_det_s *avdev = platform_get_drvdata(pdev);
 	cdev_del(&avdev->avin_cdev);
-	cancel_work_sync(&avdev->work_struct_update);
-	tvafe_avin_disable(avdev);
+	del_timer_sync(&avin_detect_timer);
+	tvafe_avin_detect_disable(avdev);
 	device_remove_file(avdev->config_dev, &dev_attr_debug);
 	kfree(avdev);
 
@@ -691,7 +762,7 @@ int tvafe_avin_detect_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id tvafe_avin_dt_match[] = {
-	{	.compatible = "amlogic, avin_detect",
+	{	.compatible = "amlogic, tvafe_avin_detect",
 	},
 	{},
 };

@@ -97,6 +97,7 @@ struct tvafe_avin_det_s {
 
 void tvafe_cha1_SYNCTIP_close_config(void);
 void tvafe_cha2_SYNCTIP_close_config(void);
+void tvafe_cha1_2_SYNCTIP_close_config(void);
 void tvafe_cha1_detect_restart_config(void);
 void tvafe_cha2_detect_restart_config(void);
 

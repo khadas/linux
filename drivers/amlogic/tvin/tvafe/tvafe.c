@@ -887,8 +887,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		/*channel2*/
 		tvafe_cha2_SYNCTIP_close_config();
 	} else {
-		tvafe_cha1_SYNCTIP_close_config();
-		tvafe_cha2_SYNCTIP_close_config();
+		tvafe_cha1_2_SYNCTIP_close_config();
 	}
 #ifdef CONFIG_CMA
 	tvafe_cma_alloc(devp);
