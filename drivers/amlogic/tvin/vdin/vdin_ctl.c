@@ -579,11 +579,15 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 	case 0x01: /* mpeg */
 		meas_mux = MEAS_MUX_NULL;
 		break;
-	case 0x02: /* 656 */
-	    if (is_meson_gxbb_cpu() && (bt_path == BT_PATH_GPIO_B))
-		meas_mux = MEAS_MUX_656_B;
-		else
+	case 0x02: /* bt656 , txl and txlx do not suppport bt656 */
+		if ((is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) &&
+			(bt_path == BT_PATH_GPIO_B))
+			meas_mux = MEAS_MUX_656_B;
+		else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu()) &&
+			(bt_path == BT_PATH_GPIO))
 			meas_mux = MEAS_MUX_656;
+		else
+			pr_info("cpu not define or do not support  bt656");
 		break;
 	case 0x04: /* VGA */
 		meas_mux = MEAS_MUX_TVFE;
@@ -655,16 +659,19 @@ static inline void vdin_set_top(unsigned int offset,
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe0,
 				VDI1_ASFIFO_CTRL_BIT, VDI1_ASFIFO_CTRL_WID);
 		break;
-	case 0x02: /* bt656 */
-	    if (is_meson_gxbb_cpu() && (bt_path == BT_PATH_GPIO_B)) {
-		vdin_mux = VDIN_MUX_656_B;
-		wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
+	case 0x02: /* bt656 ,txl and txlx do not support bt656 */
+	    if ((is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) &&
+			(bt_path == BT_PATH_GPIO_B)) {
+			vdin_mux = VDIN_MUX_656_B;
+			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 				VDI9_ASFIFO_CTRL_BIT, VDI9_ASFIFO_CTRL_WID);
-		} else {
-		vdin_mux = VDIN_MUX_656;
-		wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe4,
+		} else if ((is_meson_gxm_cpu() || is_meson_gxl_cpu()) &&
+			(bt_path == BT_PATH_GPIO)) {
+			vdin_mux = VDIN_MUX_656;
+			wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe4,
 				VDI1_ASFIFO_CTRL_BIT, VDI1_ASFIFO_CTRL_WID);
-	    }
+	    } else
+	    pr_info("cpu not define or do not support  bt656");
 		break;
 	case 0x04: /* VGA */
 		vdin_mux = VDIN_MUX_TVFE;
