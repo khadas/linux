@@ -995,18 +995,17 @@ static ssize_t show_rawedid(struct device *dev,
  * edid_parsing attr
  * If RX edid data are all correct, HEAD(00 ff ff ff ff ff ff 00), checksum,
  * version, etc), then return "ok". Otherwise, "ng"
+ * Actually, in some old televisions, EDID is stored in EEPROM.
+ * some bits in EEPROM may reverse with time.
+ * But it does not affect  edid_parsing.
+ * Therefore, we consider the RX edid data are all correct, return "OK"
  */
 static ssize_t show_edid_parsing(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	struct hdmitx_dev *hdev = &hdmitx_device;
 
-	if (hdev->edid_parsing)
-		pos += snprintf(buf+pos, PAGE_SIZE, "ok\n");
-	else
-		pos += snprintf(buf+pos, PAGE_SIZE, "ng\n");
-
+	pos += snprintf(buf+pos, PAGE_SIZE, "ok\n");
 	return pos;
 }
 
