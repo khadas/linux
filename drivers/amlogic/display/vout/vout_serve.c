@@ -392,7 +392,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->video_clk, info->viu_color_fmt);
-	len += sprintf(buf+len, "hdr_info:\n"
+	len += sprintf(buf+len, "master_display_info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
 		"    primaries             0x%x, 0x%x\n"
@@ -412,6 +412,17 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		info->master_display_info.white_point[1],
 		info->master_display_info.luminance[0],
 		info->master_display_info.luminance[1]);
+	len += sprintf(buf+len, "hdr_info:\n"
+		"    hdr_support           %d\n"
+		"    lumi_max              %d\n"
+		"    lumi_avg              %d\n"
+		"    lumi_min              %d\n"
+		"    sink_flag             %d\n",
+		info->hdr_info.hdr_support,
+		info->hdr_info.lumi_max,
+		info->hdr_info.lumi_avg,
+		info->hdr_info.lumi_min,
+		info->hdr_info.sink_flag);
 	return len;
 }
 

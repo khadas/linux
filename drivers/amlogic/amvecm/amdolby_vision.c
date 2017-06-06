@@ -2709,6 +2709,8 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 			if (src_format == FORMAT_HDR10) {
 				prepare_hdr10_param(
 					p_mdc, &hdr10_param);
+				hdr10_param.max_display_mastering_luminance *=
+					10000;
 				/* core1 in hdmi mode must be 12 bit input */
 				src_bdp = 12;
 			}
