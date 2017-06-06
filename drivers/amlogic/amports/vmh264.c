@@ -153,6 +153,8 @@ static unsigned int max_decode_instance_num = H264_DEV_NUM;
 static unsigned int decode_frame_count[H264_DEV_NUM];
 static unsigned int max_process_time[H264_DEV_NUM];
 static unsigned int max_get_frame_interval[H264_DEV_NUM];
+static unsigned int run_count[H264_DEV_NUM];
+static unsigned int input_empty[H264_DEV_NUM];
 		/* bit[3:0]:
 		0, run ; 1, pause; 3, step
 		bit[4]:
@@ -870,7 +872,10 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 			frame->bottom_field, -1);
 	}
 
-	if (frame->frame->coded_frame)
+	if (frame->frame == NULL ||
+		frame->top_field == NULL ||
+		frame->bottom_field == NULL ||
+		frame->frame->coded_frame)
 		vf_count = 1;
 	else
 		vf_count = 2;
@@ -903,7 +908,10 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 		hw->buffer_spec[buffer_index].used = 2;
 		hw->buffer_spec[buffer_index].vf_ref++;
 
-		if (!frame->frame->coded_frame) {
+		if (frame->frame &&
+			frame->top_field &&
+			frame->bottom_field &&
+			(!frame->frame->coded_frame)) {
 			vf->type =
 				VIDTYPE_INTERLACE_FIRST |
 				VIDTYPE_VIU_NV21;
@@ -949,7 +957,8 @@ void print_pic_info(int decindex, const char *info,
 			struct StorablePicture *pic,
 			int slice_type)
 {
-	dpb_print(decindex, PRINT_FLAG_DEC_DETAIL,
+	if (pic)
+		dpb_print(decindex, PRINT_FLAG_DEC_DETAIL,
 		"%s: %s (original %s), %s, mb_aff_frame_flag %d  poc %d, pic_num %d, buf_spec_num %d\n",
 		info,
 		picture_structure_name[pic->structure],
@@ -3601,6 +3610,7 @@ static void vh264_work(struct work_struct *work)
 
 static bool run_ready(struct vdec_s *vdec)
 {
+	bool ret = 0;
 	struct vdec_h264_hw_s *hw =
 		(struct vdec_h264_hw_s *)vdec->private;
 #ifndef CONFIG_AM_VDEC_DV
@@ -3612,10 +3622,15 @@ static bool run_ready(struct vdec_s *vdec)
 
 	if (h264_debug_flag & 0x20000000) {
 		/* pr_info("%s, a\n", __func__); */
-		return 1;
-	} else {
-		return is_buffer_available(vdec);
-	}
+		ret = 1;
+	} else
+		ret = is_buffer_available(vdec);
+
+	if (ret)
+		input_empty[DECODE_ID(hw)] = 0;
+	else
+		input_empty[DECODE_ID(hw)]++;
+	return ret;
 }
 
 static unsigned char get_data_check_sum
@@ -3636,6 +3651,7 @@ static void run(struct vdec_s *vdec,
 	struct vdec_h264_hw_s *hw =
 		(struct vdec_h264_hw_s *)vdec->private;
 	int size;
+	run_count[DECODE_ID(hw)]++;
 
 	hw->vdec_cb_arg = arg;
 	hw->vdec_cb = callback;
@@ -4183,6 +4199,12 @@ MODULE_PARM_DESC(trigger_task, "\n amvdec_h264 trigger_task\n");
 module_param_array(decode_frame_count, uint, &max_decode_instance_num, 0664);
 
 module_param_array(max_process_time, uint, &max_decode_instance_num, 0664);
+
+module_param_array(run_count, uint,
+	&max_decode_instance_num, 0664);
+
+module_param_array(input_empty, uint,
+	&max_decode_instance_num, 0664);
 
 module_param_array(max_get_frame_interval, uint,
 	&max_decode_instance_num, 0664);

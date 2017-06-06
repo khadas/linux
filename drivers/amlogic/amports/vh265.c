@@ -157,7 +157,7 @@ static unsigned int decode_timeout_val = 100;
 /*data_resend_policy:
 	bit 0, stream base resend data when decoding buf empty
 */
-static u32 data_resend_policy;
+static u32 data_resend_policy = 1;
 
 #define VIDEO_SIGNAL_TYPE_AVAILABLE_MASK	0x20000000
 
@@ -401,6 +401,8 @@ static unsigned int max_decode_instance_num
 static unsigned int decode_frame_count[MAX_DECODE_INSTANCE_NUM];
 static unsigned int max_process_time[MAX_DECODE_INSTANCE_NUM];
 static unsigned int max_get_frame_interval[MAX_DECODE_INSTANCE_NUM];
+static unsigned int run_count[MAX_DECODE_INSTANCE_NUM];
+static unsigned int input_empty[MAX_DECODE_INSTANCE_NUM];
 
 #ifdef CONFIG_MULTI_DEC
 static unsigned char get_idx(struct hevc_state_s *hevc);
@@ -8912,33 +8914,11 @@ static bool run_ready(struct vdec_s *vdec)
 		PRINT_FLAG_VDEC_DETAIL, "%s=>%d\r\n",
 		__func__, ret);
 	}
+	if (ret)
+		input_empty[hevc->index] = 0;
+	else
+		input_empty[hevc->index]++;
 	return ret;
-}
-
-static void reset_dec_hw(struct vdec_s *vdec)
-{
-	if (input_frame_based(vdec))
-		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
-
-		/*
-	 * 2: assist
-	 * 3: parser
-	 * 4: parser_state
-	 * 8: dblk
-	 * 11:mcpu
-	 * 12:ccpu
-	 * 13:ddr
-	 * 14:iqit
-	 * 15:ipp
-	 * 17:qdct
-	 * 18:mpred
-	 * 19:sao
-	 * 24:hevc_afifo
-	 */
-	WRITE_VREG(DOS_SW_RESET3,
-		(1<<3)|(1<<4)|(1<<8)|(1<<11)|(1<<12)|(1<<14)|(1<<15)|
-		(1<<17)|(1<<18)|(1<<19));
-	WRITE_VREG(DOS_SW_RESET3, 0);
 }
 
 static void run(struct vdec_s *vdec,
@@ -8948,11 +8928,11 @@ static void run(struct vdec_s *vdec,
 		(struct hevc_state_s *)vdec->private;
 	int r;
 	unsigned char check_sum = 0;
-
+	run_count[hevc->index]++;
 	hevc->vdec_cb_arg = arg;
 	hevc->vdec_cb = callback;
 
-	reset_dec_hw(vdec);
+	hevc_reset_core(vdec);
 
 	r = vdec_prepare_input(vdec, &hevc->chunk);
 	if (r < 0) {
@@ -9747,6 +9727,11 @@ module_param_array(max_process_time, uint,
 module_param_array(max_get_frame_interval,
 	uint, &max_decode_instance_num, 0664);
 
+module_param_array(run_count, uint,
+	&max_decode_instance_num, 0664);
+
+module_param_array(input_empty, uint,
+	&max_decode_instance_num, 0664);
 #endif
 #ifdef CONFIG_AM_VDEC_DV
 module_param(dv_toggle_prov_name, uint, 0664);

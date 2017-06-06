@@ -332,4 +332,6 @@ extern void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 
 extern bool vdec_need_more_data(struct vdec_s *vdec);
 
+extern void hevc_reset_core(struct vdec_s *vdec);
+
 #endif				/* VDEC_H */
