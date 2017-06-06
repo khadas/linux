@@ -1326,7 +1326,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO) {
 			snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
 				"%s %s", vdec->vf_provider_name,
-				"amlvideo amvideo");
+				"amlvideo deinterlace amvideo");
 			snprintf(vdec->vfm_map_id, VDEC_MAP_NAME_SIZE,
 				"vdec-map-%d", vdec->id);
 		} else if (p->frame_base_video_path ==
