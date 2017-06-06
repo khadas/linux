@@ -917,7 +917,6 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 					VIDTYPE_INTERLACE_BOTTOM :
 					VIDTYPE_INTERLACE_TOP);
 			vf->duration = vf->duration/2;
-			vf->height = vf->height/2;
 		}
 		kfifo_put(&hw->display_q, (const struct vframe_s *)vf);
 
