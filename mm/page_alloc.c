@@ -1038,6 +1038,25 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
 	return NULL;
 }
 
+#ifdef CONFIG_CMA
+struct page *get_cma_page(struct zone *zone, unsigned int order)
+{
+	struct page *page;
+	unsigned long flags;
+
+	spin_lock_irqsave(&zone->lock, flags);
+	page = __rmqueue_smallest(zone, order, MIGRATE_CMA, __GFP_MOVABLE);
+	spin_unlock_irqrestore(&zone->lock, flags);
+	if (page) {
+		__mod_zone_freepage_state(zone, -(1 << order),
+					  get_freepage_migratetype(page));
+		if (prep_new_page(page, order, __GFP_MOVABLE))
+			return NULL;
+	}
+	return page;
+}
+#endif
+
 /*
  * Move the free pages in a range to the free lists of the requested type.
  * Note that start_page and end_pages are not aligned on a pageblock

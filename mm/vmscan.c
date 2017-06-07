@@ -3195,6 +3195,30 @@ static bool kswapd_shrink_zone(struct zone *zone,
 	return sc->nr_scanned >= sc->nr_to_reclaim;
 }
 
+#ifdef CONFIG_CMA
+#define COMPACT_TO_CMA_RATIO		60
+static int should_compact_to_cma(struct zone *zone)
+{
+	unsigned long free_pages;
+	unsigned long free_cma;
+
+	free_pages = zone_page_state(zone, NR_FREE_PAGES);
+	free_cma   = zone_page_state(zone, NR_FREE_CMA_PAGES);
+	/*
+	 * Most free pages are made up by CMA pages, this will cause
+	 * kernel/driver hard to alloc pages(Not movable), so we should
+	 * try to migrate anon pages not in CMA to CMA
+	 */
+	if ((free_pages * COMPACT_TO_CMA_RATIO < free_cma * 100) &&
+	    (free_pages > (mem_management_thresh * 3 / 2))) {
+		pr_debug("%s, free_pages:%ld, free_cma:%ld\n",
+			__func__, free_pages, free_cma);
+		return 1;
+	}
+	return 0;
+}
+#endif
+
 /*
  * For kswapd, balance_pgdat() will work across all this node's zones until
  * they are all at high_wmark_pages(zone).
@@ -3355,6 +3379,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 			if (kswapd_shrink_zone(zone, end_zone, &sc,
 					lru_pages, &nr_attempted))
 				raise_priority = false;
+		#ifdef CONFIG_CMA
+			if (should_compact_to_cma(zone))
+				compact_to_free_cma(zone);
+		#endif
 		}
 
 		/*

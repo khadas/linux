@@ -160,6 +160,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 
 #endif
 
+#ifdef CONFIG_CMA
+extern struct page *get_cma_page(struct zone *zone, unsigned int order);
+extern unsigned long compact_to_free_cma(struct zone *zone);
+#endif
+
 /*
  * This function returns the order of a free page in the buddy system. In
  * general, page_zone(page)->lock must be held by the caller to prevent the

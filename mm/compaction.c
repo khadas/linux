@@ -33,6 +33,21 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
 #define count_compact_events(item, delta) do { } while (0)
 #endif
 
+#ifdef CONFIG_CMA
+static inline bool is_compact_to_cma(struct compact_control *cc)
+{
+	if (cc->page_type == COMPACT_TO_CMA)
+		return true;
+	else
+		return false;
+}
+#else
+static inline bool is_compact_to_cma(struct compact_control *cc)
+{
+	return false;
+}
+#endif
+
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
 
 #define CREATE_TRACE_POINTS
@@ -209,7 +224,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 		}
 
 		/* async aborts if taking too long or contended */
-		if (cc->mode == MIGRATE_ASYNC) {
+		if (cc->mode == MIGRATE_ASYNC && !is_compact_to_cma(cc)) {
 			cc->contended = true;
 			return false;
 		}
@@ -568,6 +583,20 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			int mt;
 
 			last_pageblock_nr = pageblock_nr;
+		#ifdef CONFIG_CMA
+			/*
+			 * if this page is cma, then no need to check this
+			 * page block, else this page block should be checked
+			 * regardless of skip_hint flag of this page block or
+			 * unsuitable pagesblock for async.
+			 */
+			if (is_compact_to_cma(cc)) {
+				if (cma_page(page))
+					goto next_pageblock;
+				else
+					goto to_cma_ahead;
+			}
+		#endif
 			if (!isolation_suitable(cc, page))
 				goto next_pageblock;
 
@@ -583,6 +612,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 				goto next_pageblock;
 			}
 		}
+#ifdef CONFIG_CMA
+to_cma_ahead:
+#endif
 
 		/*
 		 * Skip if free. page_order cannot be used without zone->lock
@@ -631,6 +663,15 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		if (!page_mapping(page) &&
 		    page_count(page) > page_mapcount(page))
 			continue;
+
+	#ifdef CONFIG_CMA
+		/*
+		 * of course only anon page should be consider
+		 * to reverse migrate to cma
+		 */
+		if (!PageAnon(page) && is_compact_to_cma(cc))
+			continue;
+	#endif
 
 		/* Check if it is ok to still hold the lock */
 		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
@@ -856,6 +897,19 @@ static struct page *compaction_alloc(struct page *migratepage,
 	return freepage;
 }
 
+#ifdef CONFIG_CMA
+static struct page *compaction_cma_alloc(struct page *migratepage,
+					 unsigned long data,
+					 int **result)
+{
+	struct compact_control *cc = (struct compact_control *)data;
+	struct page *page;
+
+	page = get_cma_page(cc->zone, 0);
+	return page;
+}
+#endif
+
 /*
  * This is a migrate-callback that "frees" freepages back to the isolated
  * freelist.  All pages on the freelist are from the same zone, so there is no
@@ -1021,8 +1075,17 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
 	const bool sync = cc->mode != MIGRATE_ASYNC;
+#ifdef CONFIG_CMA
+	unsigned long total_migrate_pages = 0;
+#endif
+	new_page_t get_compact_page;
 
 	ret = compaction_suitable(zone, cc->order);
+#ifdef CONFIG_CMA
+	/* force compact continue if kswap started cma compact */
+	if (is_compact_to_cma(cc))
+		ret = COMPACT_CONTINUE;
+#endif
 	switch (ret) {
 	case COMPACT_PARTIAL:
 	case COMPACT_SKIPPED:
@@ -1062,6 +1125,12 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 	migrate_prep_local();
 
+	get_compact_page = compaction_alloc;
+#ifdef CONFIG_CMA
+	/* force compact continue if kswap started cma compact */
+	if (is_compact_to_cma(cc))
+		get_compact_page = compaction_cma_alloc;
+#endif
 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
 		int err;
 
@@ -1080,10 +1149,22 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		if (!cc->nr_migratepages)
 			continue;
 
-		err = migrate_pages(&cc->migratepages, compaction_alloc,
+		err = migrate_pages(&cc->migratepages, get_compact_page,
 				compaction_free, (unsigned long)cc, cc->mode,
 				MR_COMPACTION);
 
+	#ifdef CONFIG_CMA
+		if (is_compact_to_cma(cc)) {
+			if (!err)
+				total_migrate_pages += cc->nr_migratepages;
+			else
+				pr_debug("%s, nr_migratepages:%ld, ret:%d\n",
+					 __func__, cc->nr_migratepages, err);
+			/* not migrate too much a time */
+			if (total_migrate_pages > COMPACT_CLUSTER_MAX * 8)
+				cc->contended = 1;
+		}
+	#endif
 		trace_mm_compaction_migratepages(cc->nr_migratepages, err,
 							&cc->migratepages);
 
@@ -1104,6 +1185,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 out:
 	/* Release free pages and check accounting */
+#ifdef CONFIG_CMA
+	if (is_compact_to_cma(cc))
+		pr_debug("%s, %ld pages migrate to CMA\n",
+			__func__, total_migrate_pages);
+#endif
 	cc->nr_freepages -= release_freepages(&cc->freepages);
 	VM_BUG_ON(cc->nr_freepages != 0);
 
@@ -1111,6 +1197,31 @@ out:
 
 	return ret;
 }
+
+#ifdef CONFIG_CMA
+unsigned long compact_to_free_cma(struct zone *zone)
+{
+	struct compact_control cc = {
+		.nr_migratepages = 0,
+		.order = -1,
+		.zone = zone,
+		.mode = MIGRATE_ASYNC,
+		.page_type = COMPACT_TO_CMA,
+		.ignore_skip_hint = 1,
+	};
+	unsigned long ret;
+
+	INIT_LIST_HEAD(&cc.freepages);
+	INIT_LIST_HEAD(&cc.migratepages);
+
+	ret = compact_zone(zone, &cc);
+
+	VM_BUG_ON(!list_empty(&cc.freepages));
+	VM_BUG_ON(!list_empty(&cc.migratepages));
+
+	return ret;
+}
+#endif
 
 static unsigned long compact_zone_order(struct zone *zone, int order,
 		gfp_t gfp_mask, enum migrate_mode mode, bool *contended)
