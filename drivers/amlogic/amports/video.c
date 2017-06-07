@@ -1936,6 +1936,8 @@ bool has_enhanced_layer(struct vframe_s *vf)
 		return 0;
 	if (vf->source_type != VFRAME_SOURCE_TYPE_OTHERS)
 		return 0;
+	if (!is_dolby_vision_on())
+		return 0;
 	req.vf = vf;
 	req.bot_flag = 0;
 	req.aux_buf = NULL;

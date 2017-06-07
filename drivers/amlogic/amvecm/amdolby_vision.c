@@ -1941,7 +1941,7 @@ struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf)
 {
 	int i;
 
-	if (dolby_vision_flags) {
+	if (dolby_vision_flags && p_funcs) {
 		for (i = 0; i < 16; i++) {
 			if (dv_vf[i][0] == vf) {
 				if (dv_vf[i][1]
@@ -2735,9 +2735,6 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 			prepare_hdr10_param(p_mdc, &hdr10_param);
 			src_bdp = 10;
 		}
-		pr_dolby_dbg("frame %d pts %lld, src bdp: %d format: %s:\n",
-			frame_count, vf->pts_us64, src_bdp,
-			(src_format == FORMAT_HDR10) ? "HDR10" : "DOVI");
 
 		req.vf = vf;
 		req.bot_flag = 0;
@@ -2757,6 +2754,12 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 				vf, &req,
 				&total_comp_size, &total_md_size,
 				&src_format);
+		pr_dolby_dbg(
+			"frame %d pts %lld, src bdp: %d format: %s, aux_size:%d, enhance: %d\n",
+			frame_count, vf->pts_us64, src_bdp,
+			(src_format == FORMAT_HDR10) ? "HDR10" :
+			((src_format == FORMAT_DOVI) ? "DOVI" : "SDR"),
+			req.aux_size, req.dv_enhance_exist);
 		if (req.dv_enhance_exist) {
 			el_vf = dvel_vf_get();
 			if (el_vf &&
@@ -3110,7 +3113,8 @@ int dolby_vision_process(struct vframe_s *vf)
 
 	if (is_dolby_vision_on()
 		&& is_video_output_off(vf)
-		&& !video_off_handled) {
+		&& !video_off_handled
+		&& !(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		dolby_vision_set_toggle_flag(1);
 		pr_dolby_dbg("video off\n");
 		if (debug_dolby)
@@ -3144,6 +3148,15 @@ int dolby_vision_process(struct vframe_s *vf)
 
 	if (dolby_vision_flags & FLAG_RESET_EACH_FRAME)
 		dolby_vision_set_toggle_flag(1);
+
+	if (!p_funcs) {
+		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
+		tv_dovi_setting.video_width = 0;
+		tv_dovi_setting.video_height = 0;
+		new_dovi_setting.video_width = 0;
+		new_dovi_setting.video_height = 0;
+		return 0;
+	}
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (is_meson_txlx_package_962X() && !force_stb_mode) {
