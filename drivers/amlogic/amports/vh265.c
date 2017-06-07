@@ -9082,6 +9082,7 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	struct hevc_state_s *hevc = &gHevc;
 	int ret;
 
+	memset(hevc, 0, sizeof(struct hevc_state_s));
 	if (get_dbg_flag(hevc))
 		hevc_print(hevc, 0, "%s\r\n", __func__);
 	mutex_lock(&vh265_mutex);
