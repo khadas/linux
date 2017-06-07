@@ -36,11 +36,6 @@
 unsigned IEC958_MODE = AIU_958_MODE_PCM16;
 unsigned I2S_MODE = AIU_I2S_MODE_PCM16;
 unsigned audio_in_source = 0;
-void set_i2s_source(unsigned source)
-{
-	audio_in_source = source;
-	return;
-}
 
 int audio_in_buf_ready = 0;
 int audio_out_buf_ready = 0;
