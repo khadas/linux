@@ -3094,7 +3094,7 @@ static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw)
 	/* pr_info("vh264 meson8 prot init\n"); */
 	WRITE_VREG(MDEC_PIC_DC_THRESH, 0x404038aa);
 #endif
-	if (hw->decode_pic_count > 0) {
+	if (hw->dpb.mDPB.size > 0) {
 		WRITE_VREG(AV_SCRATCH_7, (hw->max_reference_size << 24) |
 			(hw->dpb.mDPB.size << 16) |
 			(hw->dpb.mDPB.size << 8));

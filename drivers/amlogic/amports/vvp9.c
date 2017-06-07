@@ -174,7 +174,7 @@ static unsigned int max_process_time[MAX_DECODE_INSTANCE_NUM];
 static unsigned int run_count[MAX_DECODE_INSTANCE_NUM];
 static unsigned int input_empty[MAX_DECODE_INSTANCE_NUM];
 
-static u32 decode_timeout_val = 100;
+static u32 decode_timeout_val = 200;
 static int start_decode_buf_level = 0x8000;
 #ifdef VP9_10B_MMU
 static u32 work_buf_size = 24 * 1024 * 1024;
