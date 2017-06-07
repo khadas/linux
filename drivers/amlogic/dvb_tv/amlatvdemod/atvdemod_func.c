@@ -1486,6 +1486,8 @@ void atvdemod_timer_hander(unsigned long arg)
 {
 	if (atvdemod_timer_en == 0)
 		return;
+	if (vdac_enable_check_dtv())
+		return;
 	atvdemod_timer.expires = jiffies + ATVDEMOD_INTERVAL*10;/*100ms timer*/
 	add_timer(&atvdemod_timer);
 	if (atvdemod_afc_en)

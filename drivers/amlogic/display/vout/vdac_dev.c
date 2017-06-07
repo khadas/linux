@@ -451,9 +451,11 @@ void vdac_enable(bool on, unsigned int module_sel)
 				udelay(5);
 				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 13, 1);
 			}
-		}
-		else
+			pri_flag |= VDAC_MODULE_DTV_DEMOD;
+		} else {
 			ana_ref_cntl0_bit9(0, VDAC_MODULE_DTV_DEMOD);
+			pri_flag &= ~VDAC_MODULE_DTV_DEMOD;
+		}
 		break;
 	case VDAC_MODULE_TVAFE: /* av in demod */
 		if (on) {
@@ -536,6 +538,11 @@ void vdac_enable(bool on, unsigned int module_sel)
 #endif
 }
 EXPORT_SYMBOL(vdac_enable);
+
+int vdac_enable_check_dtv(void)
+{
+	return (pri_flag & VDAC_MODULE_DTV_DEMOD) ? 1:0;
+}
 
 static int amvdac_open(struct inode *inode, struct file *file)
 {
