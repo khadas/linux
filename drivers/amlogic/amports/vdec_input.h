@@ -71,6 +71,14 @@ struct vdec_input_s {
 	int data_size;
 	int frame_max_size;
 	int prepare_level;
+/*for check frame delay.*/
+	u64 last_inpts_u64;
+	u64 last_comsumed_pts_u64;
+	int last_in_nopts_cnt;
+	int last_comsumed_no_pts_cnt;
+	int last_duration;
+/*for check frame delay.*/
+	int have_frame_num;
 	int stream_cookie; /* wrap count for vld_mem and
 			      HEVC_SHIFT_BYTE_COUNT for hevc */
 };
@@ -91,6 +99,8 @@ struct vdec_input_status_s {
 
 /* Initialize vdec_input structure */
 extern void vdec_input_init(struct vdec_input_s *input, struct vdec_s *vdec);
+extern int vdec_input_prepare_bufs(struct vdec_input_s *input,
+	int frame_width, int frame_height);
 
 /* Get available input data size */
 extern int vdec_input_level(struct vdec_input_s *input);

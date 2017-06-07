@@ -373,8 +373,8 @@ int vdec_set_format(struct vdec_s *vdec, int format)
 int vdec_set_pts(struct vdec_s *vdec, u32 pts)
 {
 	vdec->pts = pts;
+	vdec->pts64 = div64_u64((u64)pts * 100, 9);
 	vdec->pts_valid = true;
-
 	trace_vdec_set_pts(vdec, (u64)pts);
 	return 0;
 }
@@ -1385,7 +1385,10 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	}
 
 	pr_info("vdec_init, vf_provider_name = %s\n", p->vf_provider_name);
-
+	vdec_input_prepare_bufs(/*prepared buffer for fast playing.*/
+		&vdec->input,
+		vdec->sys_info->width,
+		vdec->sys_info->height);
 	/* vdec is now ready to be active */
 	vdec_set_status(vdec, VDEC_STATUS_DISCONNECTED);
 

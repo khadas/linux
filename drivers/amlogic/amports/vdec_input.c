@@ -9,13 +9,20 @@
 #include "vdec.h"
 #include "vdec_input.h"
 
-#define VFRAME_BLOCK_SIZE (512 * SZ_1K)
+#define VFRAME_BLOCK_SIZE (512 * SZ_1K)/*512 for 1080p default init.*/
+#define VFRAME_BLOCK_SIZE_4K (2 * SZ_1M) /*2M for 4K default.*/
 #define VFRAME_BLOCK_SIZE_MAX (4 * SZ_1M)
 
-
 #define VFRAME_BLOCK_PAGEALIGN 4
+#define VFRAME_BLOCK_MIN_LEVEL (2 * SZ_1M)
 #define VFRAME_BLOCK_MAX_LEVEL (8 * SZ_1M)
-#define VFRAME_BLOCK_MAX_TOTAL_SIZE (32 * SZ_1M)
+#define VFRAME_BLOCK_MAX_TOTAL_SIZE (16 * SZ_1M)
+
+/*
+2s for OMX
+*/
+#define MAX_FRAME_DURATION_S 2
+
 
 #define VFRAME_BLOCK_HOLE (SZ_64K)
 
@@ -23,6 +30,9 @@
 
 
 #define MEM_NAME "VFRAME_INPUT"
+static int vdec_input_get_duration_u64(struct vdec_input_s *input);
+static struct vframe_block_list_s *
+	vdec_input_alloc_new_block(struct vdec_input_s *input);
 
 static int vframe_chunk_fill(struct vdec_input_s *input,
 			struct vframe_chunk_s *chunk, const char *buf,
@@ -169,8 +179,36 @@ void vdec_input_init(struct vdec_input_s *input, struct vdec_s *vdec)
 	input->block_nums = 0;
 	input->vdec = vdec;
 	input->block_id_seq = 0;
+	input->size = 0;
 	input->default_block_size = VFRAME_BLOCK_SIZE;
 }
+int vdec_input_prepare_bufs(struct vdec_input_s *input,
+	int frame_width, int frame_height)
+{
+	struct vframe_block_list_s *block;
+	int i;
+	unsigned long flags;
+
+	if (input->size > 0)
+		return 0;
+	if (frame_width * frame_height >= 1920 * 1088) {
+		/*have add data before. ignore prepare buffers.*/
+		input->default_block_size = VFRAME_BLOCK_SIZE_4K;
+	}
+	/*prepared 3 buffers for smooth start.*/
+	for (i = 0; i < 3; i++) {
+		block = vdec_input_alloc_new_block(input);
+		if (!block)
+			break;
+		flags = vdec_input_lock(input);
+		list_move_tail(&block->list,
+				&input->vframe_block_free_list);
+		input->wr_block = NULL;
+		vdec_input_unlock(input, flags);
+	}
+	return 0;
+}
+
 static int vdec_input_dump_block_locked(
 	struct vframe_block_list_s *block,
 	char *buf, int size)
@@ -220,17 +258,19 @@ int vdec_input_dump_blocks(struct vdec_input_s *input,
 	struct list_head *p, *tmp;
 	unsigned long flags;
 	char *lbuf = bufs;
-	char sbuf[64];
+	char sbuf[256];
 	int s = 0;
 
 	if (!bufs)
 		lbuf = sbuf;
 	s += sprintf(lbuf + s,
-		"start dump input:%d blocks:%d,size=%d,datasize=%d\n",
+		"blocks:vdec-%d id:%d,bufsize=%d,dsize=%d,frames:%d,dur:%dms\n",
 		input->id,
 		input->block_nums,
 		input->size,
-		input->data_size);
+		input->data_size,
+		input->have_frame_num,
+		vdec_input_get_duration_u64(input)/1000);
 	if (bufs)
 		lbuf += s;
 	else {
@@ -278,7 +318,7 @@ static int vdec_input_dump_chunk_locked(
 	} while (0)
 
 	BUFPRINT(
-		"\t[%lld:%p]-off=%d,size:%d,p:%d,pts64=%lld,addr=%p\n",
+		"\t[%lld:%p]-off=%d,size:%d,p:%d,\tpts64=%lld,addr=%p\n",
 		chunk->sequence,
 		chunk->block,
 		chunk->offset,
@@ -305,16 +345,18 @@ int vdec_input_dump_chunks(struct vdec_input_s *input,
 	struct list_head *p, *tmp;
 	unsigned long flags;
 	char *lbuf = bufs;
-	char sbuf[64];
+	char sbuf[256];
 	int s = 0;
 
 	if (!bufs)
 		lbuf = sbuf;
 	s += sprintf(lbuf + s,
-		"start dump vdec:%d bufsize=%d,datasize=%d,max_frame=%d\n",
+		"blocks:vdec-%d id:%d,bufsize=%d,dsize=%d,frames:%d,maxframe:%d\n",
 		input->id,
+		input->block_nums,
 		input->size,
 		input->data_size,
+		input->have_frame_num,
 		input->frame_max_size);
 	if (bufs)
 		lbuf += s;
@@ -458,7 +500,7 @@ static struct vframe_block_list_s *
 		block->id,
 		input->block_nums,
 		block->size);
-	if (input->size > VFRAME_BLOCK_MAX_LEVEL * 2) {
+	if (0 && input->size > VFRAME_BLOCK_MAX_LEVEL * 2) {
 		/*
 		used
 		*/
@@ -475,7 +517,47 @@ static struct vframe_block_list_s *
 	}
 	return block;
 }
+static int vdec_input_get_duration_u64(struct vdec_input_s *input)
+{
+	int duration = (input->last_inpts_u64 - input->last_comsumed_pts_u64);
+	if (input->last_in_nopts_cnt > 0 &&
+		input->last_comsumed_pts_u64 > 0 &&
+		input->last_duration > 0) {
+		duration += (input->last_in_nopts_cnt -
+			input->last_comsumed_no_pts_cnt) *
+			input->last_duration;
+	}
+	if (duration > 1000 * 1000000)/*> 1000S,I think jumped.*/
+		duration = 0;
+	if (duration <= 0 && input->last_duration > 0) {
+		/*..*/
+		duration = input->last_duration * input->have_frame_num;
+	}
+	if (duration < 0)
+		duration = 0;
+	return duration;
+}
+/*
+	ret >= 13: have enough buffer, blocked add more buffers
+*/
+static int vdec_input_have_blocks_enough(struct vdec_input_s *input)
+{
+	int ret = 0;
+	if (vdec_input_level(input) > VFRAME_BLOCK_MIN_LEVEL)
+		ret += 1;
+	if (vdec_input_level(input) >= VFRAME_BLOCK_MAX_LEVEL)
+		ret += 2;
+	if (vdec_input_get_duration_u64(input) > MAX_FRAME_DURATION_S)
+		ret += 4;
+	if (input->have_frame_num > 30)
+		ret += 8;
+	else
+		ret -= 8;/*not enough frames.*/
+	if (input->size >= VFRAME_BLOCK_MAX_TOTAL_SIZE)
+		ret += 100;/*always bloced add more buffers.*/
 
+	return ret;
+}
 static int	vdec_input_get_free_block(
 	struct vdec_input_s *input,
 	int size,/*frame size + pading*/
@@ -509,9 +591,7 @@ static int	vdec_input_get_free_block(
 		return 0;
 	}
 
-	if (input->size > VFRAME_BLOCK_MAX_TOTAL_SIZE ||
-		vdec_input_level(input) >
-		VFRAME_BLOCK_MAX_LEVEL) {
+	if (vdec_input_have_blocks_enough(input) > 13) {
 		/*buf fulled */
 		return -EAGAIN;
 	}
@@ -612,7 +692,8 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 		/*have block but not enough space.
 		recycle the no enough blocks.*/
 		flags = vdec_input_lock(input);
-		if (block->chunk_count == 0) {
+		if (input->wr_block == block &&
+			block->chunk_count == 0) {
 			block->rp = 0;
 			block->wp = 0;
 			/*block no data move to freelist*/
@@ -642,6 +723,17 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 		chunk->pts = vdec->pts;
 		chunk->pts64 = vdec->pts64;
 	}
+	if (vdec->pts_valid &&
+		input->last_inpts_u64 > 0 &&
+		input->last_in_nopts_cnt == 0) {
+		int d = (int)(chunk->pts64 - input->last_inpts_u64);
+		if (d > 0 && (d < input->last_duration))
+			input->last_duration = d;
+		/*	alwasy: used the smallest duration;
+			if 60fps->30 fps.
+			maybe have warning value.
+		*/
+	}
 	chunk->pts_valid = vdec->pts_valid;
 	vdec->pts_valid = false;
 	chunk->offset = block->wp;
@@ -661,11 +753,18 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 
 	list_add_tail(&chunk->list, &input->vframe_chunk_list);
 	input->data_size += chunk->size;
+	input->have_frame_num++;
+	if (chunk->pts_valid) {
+		input->last_inpts_u64 = chunk->pts64;
+		input->last_in_nopts_cnt = 0;
+	} else {
+		/*nopts*/
+		input->last_in_nopts_cnt++;
+	}
 	vdec_input_unlock(input, flags);
 	if (chunk->size > input->frame_max_size)
 		input->frame_max_size = chunk->size;
 	input->total_wr_count += count;
-
 #if 0
 	if (add_count == 2)
 		input->total_wr_count += 38;
@@ -716,7 +815,12 @@ void vdec_input_release_chunk(struct vdec_input_s *input,
 	flags = vdec_input_lock(input);
 
 	list_del(&chunk->list);
-
+	input->have_frame_num--;
+	if (chunk->pts_valid) {
+		input->last_comsumed_no_pts_cnt = 0;
+		input->last_comsumed_pts_u64 = chunk->pts64;
+	} else
+		input->last_comsumed_no_pts_cnt++;
 	block->rp += chunk->size;
 	if (block->rp >= block->size)
 		block->rp -= block->size;
