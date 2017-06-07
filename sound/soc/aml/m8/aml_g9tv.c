@@ -55,12 +55,12 @@
 
 static int aml_audio_Hardware_resample;
 static int hardware_resample_locked_flag;
-unsigned int clk_rate = 0;
 static int Speaker_Channel_Mask = 1;
 static int EQ_DRC_Channel_Mask;
 static int DAC0_Channel_Mask;
 static int DAC1_Channel_Mask;
 static int Spdif_samesource_Channel_Mask;
+
 
 static unsigned aml_EQ_param_length = 100;
 static unsigned aml_EQ_param[100] = {
@@ -139,14 +139,12 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		} else
 			/* select external codec ADC as I2S source */
 			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 0);
-		audio_in_source = 0;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 		External_Mute(0);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 1);
-		audio_in_source = 1;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 		External_Mute(0);
@@ -161,18 +159,16 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/*2=Select HDMIRX I2S output as AUDIN source */
 		aml_audin_write(AUDIN_SOURCE_SEL, (0 << 12) |
 				   (0xf << 8) | (1 << 4) | (2 << 0));
-		audio_in_source = 2;
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
 	}  else if (ucontrol->value.enumerated.item[0] == 3) {
-		audio_in_source = 3;
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 4, 0);
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
 		External_Mute(0);
 	}
 
-	set_i2s_source(audio_in_source);
+	audio_in_source = ucontrol->value.enumerated.item[0];
 	return 0;
 }
 
@@ -250,14 +246,13 @@ static int aml_spdif_audio_type_get_enum(
 	}
 	ucontrol->value.enumerated.item[0] = audio_type;
 	if (last_audio_type != audio_type) {
-		if (audio_type == 0) {
+		if (audio_type == 0 || audio_in_source == 3) {
 			/*In LPCM, use old spdif mode*/
 			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
 				(0x7 << AUDIN_FIFO1_DIN_SEL),
 				(SPDIF_IN << AUDIN_FIFO1_DIN_SEL));
 			/*spdif-in data fromat:(27:4)*/
 			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x88);
-			hardware_resample_locked_flag = 0;
 		} else {
 			/*In RAW data, use PAO mode*/
 			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
@@ -265,7 +260,6 @@ static int aml_spdif_audio_type_get_enum(
 				(PAO_IN << AUDIN_FIFO1_DIN_SEL));
 			/*spdif-in data fromat:(23:0)*/
 			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x8);
-			hardware_resample_locked_flag = 1;
 		}
 		last_audio_type = audio_type;
 	}

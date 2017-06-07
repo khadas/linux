@@ -115,7 +115,6 @@ extern unsigned IEC958_MODE;
 extern unsigned I2S_MODE;
 extern unsigned audio_in_source;
 
-void set_i2s_source(unsigned source);
 void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel);
 void audio_set_958outbuf(u32 addr, u32 size, int flag);
 void audio_in_i2s_set_buf(u32 addr, u32 size,
