@@ -603,6 +603,11 @@ int aml_nand_save_rsv_info(struct mtd_info *mtd,
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 
 	pages_per_blk = mtd->erasesize / mtd->writesize;
+	/*solve these abnormals caused by power off and ecc error*/
+	if ((nandrsv_info->valid_node->status & POWER_ABNORMAL_FLAG)
+		|| (nandrsv_info->valid_node->status & ECC_ABNORMAL_FLAG))
+		nandrsv_info->valid_node->phy_page_addr = pages_per_blk;
+
 	if ((mtd->writesize < nandrsv_info->size)
 		&& (aml_chip->aml_nandenv_info->valid == 1))
 		i = (nandrsv_info->size + mtd->writesize - 1) / mtd->writesize;
@@ -617,7 +622,6 @@ RE_SEARCH:
 		nandrsv_info->valid_node->phy_page_addr += i;
 if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 	if ((nandrsv_info->valid_node->phy_page_addr - i) == pages_per_blk) {
-		nandrsv_info->valid_node->status = 0;
 				addr = nandrsv_info->valid_node->phy_blk_addr;
 				addr *= mtd->erasesize;
 				memset(&erase_info,
@@ -628,7 +632,6 @@ if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 				_aml_rsv_disprotect();
 				error = mtd->_erase(mtd, &erase_info);
 				_aml_rsv_protect();
-				nandrsv_info->valid_node->status = 1;
 				nandrsv_info->valid_node->ec++;
 				pr_info("---erase bad env block:%llx\n", addr);
 			}
@@ -692,7 +695,6 @@ if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 		erase_info.mtd = mtd;
 		erase_info.addr = addr;
 		erase_info.len = mtd->erasesize;
-		nandrsv_info->valid_node->status = 0;
 		_aml_rsv_disprotect();
 		error = mtd->_erase(mtd, &erase_info);
 		_aml_rsv_protect();
@@ -702,7 +704,6 @@ if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 			return error;
 		}
 		nandrsv_info->valid_node->ec++;
-		nandrsv_info->valid_node->status = 1;
 	}
 
 	if (aml_nand_write_rsv(mtd, nandrsv_info, addr, (u_char *) buf)) {
@@ -710,6 +711,8 @@ if ((nandrsv_info->valid_node->phy_page_addr+i) > pages_per_blk) {
 		return 1;
 	}
 
+	/* clear status when write successfully*/
+	nandrsv_info->valid_node->status = 0;
 	return error;
 }
 
@@ -820,7 +823,6 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	aml_chip->aml_nandbbt_info->valid_node->phy_blk_addr = -1;
-	aml_chip->aml_nandbbt_info->valid_node->status = 1;
 	aml_chip->aml_nandbbt_info->start_block = bbt_start_block;
 	aml_chip->aml_nandbbt_info->end_block =
 		aml_chip->aml_nandbbt_info->start_block + 4;
@@ -849,7 +851,6 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	aml_chip->aml_nandenv_info->valid_node->phy_blk_addr = -1;
-	aml_chip->aml_nandenv_info->valid_node->status = 1;
 	aml_chip->aml_nandenv_info->start_block =
 		aml_chip->aml_nandbbt_info->end_block;
 	aml_chip->aml_nandenv_info->end_block =
@@ -870,7 +871,6 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	aml_chip->aml_nandkey_info->valid_node->phy_blk_addr = -1;
-	aml_chip->aml_nandkey_info->valid_node->status = 1;
 	aml_chip->aml_nandkey_info->start_block =
 		aml_chip->aml_nandenv_info->end_block;
 	aml_chip->aml_nandkey_info->end_block =
@@ -891,7 +891,6 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	aml_chip->aml_nanddtb_info->valid_node->phy_blk_addr = -1;
-	aml_chip->aml_nanddtb_info->valid_node->status = 1;
 	aml_chip->aml_nanddtb_info->start_block =
 		aml_chip->aml_nandkey_info->end_block;
 	aml_chip->aml_nanddtb_info->end_block =
@@ -984,6 +983,7 @@ RE_RSV_INFO:
 
 	/* pr_info("%s %d\n", __func__, __LINE__); */
 	nandrsv_info->init = 1;
+	nandrsv_info->valid_node->status = 0;
 	if (!memcmp(oobinfo->name, nandrsv_info->name, 4)) {
 		/* pr_info("%s %d\n", __func__, __LINE__); */
 		nandrsv_info->valid = 1;
