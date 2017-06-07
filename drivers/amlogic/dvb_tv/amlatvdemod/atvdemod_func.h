@@ -321,4 +321,6 @@ extern int aml_atvdemod_get_snr_ex(void);
 extern void set_atvdemod_scan_mode(int val);
 extern int atvauddemod_init(void);
 
+/*from amldemod/amlfrontend.c*/
+extern int vdac_enable_check_dtv(void);
 #endif /* __ATVDEMOD_FUN_H */
