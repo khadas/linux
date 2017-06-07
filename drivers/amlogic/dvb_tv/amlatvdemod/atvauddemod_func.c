@@ -14,6 +14,11 @@ int ademod_debug_en = 0;
 module_param(ademod_debug_en, int, 0644);
 MODULE_PARM_DESC(ademod_debug_en, "\n ademod_debug_en for audio demod debug\n");
 
+static int btsc_detect_delay = 10;
+module_param(btsc_detect_delay, int, 0644);
+MODULE_PARM_DESC(btsc_detect_delay, "\n btsc_detect_delay for btsc detect delay\n");
+
+
 #undef pr_info
 #define pr_info(args...)\
 	do {\
@@ -794,6 +799,7 @@ void update_btsc_mode(int auto_en, int *stereo_flag, int *sap_flag)
 	uint32_t reg_value;
 	uint32_t stereo_level, sap_level;
 
+	msleep(btsc_detect_delay);
 	if (auto_en) {
 		reg_value = adec_rd_reg(AUDIO_MODE_REPORT);
 		*stereo_flag = reg_value&0x1;
@@ -855,26 +861,35 @@ void set_btsc_outputmode(uint32_t outmode)
 		if (stereo_flag) {
 			tmp_value = (reg_value & 0xf) | (1 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+
+			reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
+			tmp_value1 = (reg_value & 0xffff);
+			adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
 		} else {
 			tmp_value = (reg_value & 0xf) | (0 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
 		}
-		reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
-		tmp_value1 = (reg_value & 0xffff);
-		adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
 		break;
 
 	case AUDIO_OUTMODE_BTSC_SAP:
 		if (sap_flag) {
 			tmp_value = (reg_value & 0xf) | (2 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+
+			reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
+			tmp_value1 = (reg_value & 0xffff)|(1 << 16);
+			adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
+		} else if (stereo_flag) {
+			tmp_value = (reg_value & 0xf) | (1 << 4);
+			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
+
+			reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
+			tmp_value1 = (reg_value & 0xffff);
+			adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
 		} else {
 			tmp_value = (reg_value & 0xf) | (0 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
 		}
-		reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
-		tmp_value1 = (reg_value & 0xffff)|(1 << 16);
-		adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
 		break;
 	}
 }

@@ -156,6 +156,10 @@ static unsigned int audio_gain_val = 512;
 module_param(audio_gain_val, uint, 0644);
 MODULE_PARM_DESC(audio_gain_val, "\n audio_gain_val\n");
 
+static unsigned int audio_a2_threshold = 0x800;
+module_param(audio_a2_threshold, uint, 0644);
+MODULE_PARM_DESC(audio_a2_threshold, "\n audio_a2_threshold\n");
+
 enum AUDIO_SCAN_ID {
 	ID_PAL_I = 0,
 	ID_PAL_M,
@@ -1583,7 +1587,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		/* maybe need wait */
 		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
-		if (((reg_value>>16)&0xffff) > 0x500)
+		if (((reg_value>>16)&0xffff) > audio_a2_threshold)
 			std = AUDIO_STANDARD_A2_K;
 		else
 			std = AUDIO_STANDARD_BTSC;
