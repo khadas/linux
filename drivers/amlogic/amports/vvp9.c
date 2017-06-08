@@ -1784,9 +1784,11 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 	get_frame_new_buffer(cm)->color_space = cm->color_space;
 	get_frame_new_buffer(cm)->slice_type = cm->frame_type;
 
-	if (pbi->need_resync)
+	if (pbi->need_resync) {
 		pr_err
 		("Error: Keyframe/intra-only frame required to reset\r\n");
+		return -1;
+	}
 	generate_next_ref_frames(pbi);
 	pbi->hold_ref_buf = 1;
 
@@ -3952,7 +3954,8 @@ static int config_mc_buffer(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 			(0 << 8) | (0 << 1) | 1);
 	for (i = 0; i < REFS_PER_FRAME; ++i) {
 		struct PIC_BUFFER_CONFIG_s *pic_config = cm->frame_refs[i].buf;
-
+		if (!pic_config)
+			continue;
 		WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR,
 		(pic_config->mc_canvas_u_v << 16)
 		| (pic_config->mc_canvas_u_v << 8)
@@ -3966,7 +3969,8 @@ static int config_mc_buffer(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 			(16 << 8) | (0 << 1) | 1);
 	for (i = 0; i < REFS_PER_FRAME; ++i) {
 		struct PIC_BUFFER_CONFIG_s *pic_config = cm->frame_refs[i].buf;
-
+		if (!pic_config)
+			continue;
 		WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR,
 			(pic_config->mc_canvas_u_v << 16)
 			| (pic_config->mc_canvas_u_v << 8)
@@ -3979,7 +3983,8 @@ static int config_mc_buffer(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 	for (i = 0; i < REFS_PER_FRAME; i++) {
 		int ref_pic_body_size;
 		struct PIC_BUFFER_CONFIG_s *pic_config = cm->frame_refs[i].buf;
-
+		if (!pic_config)
+			continue;
 		WRITE_VREG(VP9D_MPP_REFINFO_DATA, pic_config->y_crop_width);
 		WRITE_VREG(VP9D_MPP_REFINFO_DATA, pic_config->y_crop_height);
 
