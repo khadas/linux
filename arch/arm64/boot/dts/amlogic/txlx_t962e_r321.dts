@@ -638,7 +638,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <14>;
+		unifykey-num = <16>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -653,6 +653,8 @@
 		unifykey-index-11 = <&keysn_11>;
 		unifykey-index-12 = <&keysn_12>;
 		unifykey-index-13 = <&keysn_13>;
+		unifykey-index-14 = <&keysn_14>;
+		unifykey-index-15 = <&keysn_15>;
 
                 keysn_0: key_0{
 			key-name = "usid";
@@ -729,6 +731,16 @@
 			key-type  = "sha1";
 			key-permit = "read","write","del";
 		};
+                keysn_14:key_14{
+                        key-name = "prpubkeybox";// PlayReady
+                        key-device = "secure";
+                        key-permit = "read","write","del";
+                };
+                keysn_15:key_15{
+                        key-name = "prprivkeybox";// PlayReady
+                        key-device = "secure";
+                        key-permit = "read","write","del";
+                };
         };//End unifykey
 
 	tvout {
