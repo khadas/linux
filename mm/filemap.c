@@ -38,6 +38,8 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/filemap.h>
 
+#include <trace/events/readahead.h>
+
 /*
  * FIXME: remove all knowledge of the buffer layer from the core VM
  */
@@ -1906,6 +1908,8 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	pgoff_t size;
 	int ret = 0;
 	bool has_cma = false;
+
+	trace_do_file_map(inode, offset << PAGE_SHIFT, PAGE_SIZE);
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (offset >= size)
