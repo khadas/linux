@@ -36,6 +36,7 @@
 #define HHI_AUD_PLL_CNTL4		(0xfb * 4)
 #define HHI_AUD_PLL_CNTL5		(0xfc * 4)
 #define HHI_AUD_PLL_CNTL6		(0xfd * 4)
+#define HHI_AUD_PLL_CNTL_I		(0xfe * 4) /* audio pll lock bit31 */
 #define HHI_ADC_PLL_CNTL4		(0xad * 4)
 #define HHI_HDCP22_CLK_CNTL		(0x7c * 4)
 #define HHI_GCLK_MPEG2			(0x52 * 4)
@@ -65,6 +66,7 @@
 #define PHY_MAINFSM_STATUS1	   (0x09UL)
 
 #define PHY_RESISTOR_CALIBRATION_1 (0x10UL)
+#define PHY_MAIN_FSM_OVERRIDE1	(0x07UL)
 #define PHY_MAIN_FSM_OVERRIDE2	(0x08UL)
 
 #define PHY_MAIN_BIST_CONTROL	(0x0BUL)
@@ -425,9 +427,9 @@
 /** Register address: audio PLL control */
 #define DWC_AUD_PLL_CTRL         (0x208UL)
 /** Register address: audio PLL lock */
-#define DWC_AUD_PLL_LOCK         (0x20CUL)
+/* #define DWC_AUD_PLL_LOCK         (0x20CUL) */
 /** Register address: DDS audio clock control */
-#define DWC_AUD_PLL_RESET        (0x210UL)
+/* #define DWC_AUD_PLL_RESET        (0x210UL) */
 /** Register address: audio clock control */
 #define DWC_AUD_CLK_CTRL         (0x214UL)
 /** Register address: ASP sync intervals */
@@ -525,9 +527,24 @@
 /** Register address: packet decoder and FIFO control */
 #define DWC_PDEC_CTRL            (0x300UL)
 /** Packet FIFO store filter enable */
-#define		PFIFO_STORE_FILTER_EN	_BIT(31)
+#define PFIFO_STORE_FILTER_EN	_BIT(31)
+
 /** Packet FIFO store packet */
-#define		PFIFO_STORE_PACKET		_BIT(16)
+#define PFIFO_DRM_EN		_BIT(29)/*type:0x87*/
+#define PFIFO_AMP_EN		_BIT(28)/*type:0x0D*/
+#define PFIFO_NTSCVBI_EN	_BIT(27)/*type:0x86*/
+#define PFIFO_MPEGS_EN		_BIT(26)/*type:0x85*/
+#define PFIFO_AUD_EN		_BIT(25)/*type:0x84*/
+#define PFIFO_SPD_EN		_BIT(24)/*type:0x83*/
+#define PFIFO_AVI_EN		_BIT(23)/*type:0x82*/
+#define PFIFO_VS_EN			_BIT(22)/*type:0x81*/
+#define PFIFO_GMT_EN		_BIT(21)/*type:0x0A*/
+#define PFIFO_ISRC2_EN		_BIT(20)/*type:0x06*/
+#define PFIFO_ISRC1_EN		_BIT(19)/*type:0x05*/
+#define PFIFO_ACP_EN		_BIT(18)/*type:0x04*/
+#define PFIFO_GCP_EN		_BIT(17)/*type:0x03*/
+#define PFIFO_ACR_EN		_BIT(16)/*type:0x01*/
+
 #define		GCP_GLOBAVMUTE			_BIT(15)
 /** Packet FIFO clear min/max information */
 #define		PD_FIFO_FILL_INFO_CLR	_BIT(8)
@@ -556,6 +573,8 @@
 #define DWC_PDEC_DBG_ACP         (0x31CUL)
 /** Register address: signal errors in data island packet */
 #define DWC_PDEC_DBG_ERDWC_CORR   (0x320UL)
+/** Register address: packet decoder and FIFO status */
+#define DWC_PDEC_FIFO_STS1        (0x324UL)
 /** Register address: CTS reset measurement control */
 #define DWC_PDEC_ACRM_CTRL       (0x330UL)
 /** Register address: maximum CTS div N value */
@@ -572,6 +591,8 @@
 /** Register address: audio sub packet errors */
 #define DWC_PDEC_ASP_ERR         (0x344UL)
 /** Register address: packet decoder status, see packet interrupts */
+#define PD_NEW_ENTRY	MSK(1, 8)
+#define PD_TH_START		MSK(1, 2)
 #define DWC_PDEC_STS             (0x360UL)
 /** Register address: Packet Decoder Audio Status*/
 #define DWC_PDEC_AUD_STS         (0x364UL)
@@ -591,6 +612,8 @@
 #define DWC_PDEC_AVI_HB		(0x3A0UL)
 /** PR3-0, pixel repetition factor */
 #define		PIX_REP_FACTOR			MSK(4, 24)
+/** Q1-0, YUV quantization range */
+#define		YUV_QUANT_RANGE			MSK(2, 30)
 /** Register address: auxiliary video information info frame */
 #define DWC_PDEC_AVI_PB		(0x3A4UL)
 /** VIC6-0, video mode identification code */
@@ -676,9 +699,23 @@
 #define DWC_PDEC_VSI_PLAYLOAD4 (0x378UL)
 #define DWC_PDEC_VSI_PLAYLOAD5 (0x37CUL)
 
+#define DWC_PDEC_AMP_HB			(0x480UL)
+#define	DWC_PDEC_AMP_PB0		(0x484UL)
+#define	DWC_PDEC_AMP_PB1		(0x488UL)
+#define	DWC_PDEC_AMP_PB2		(0x48cUL)
+#define	DWC_PDEC_AMP_PB3		(0x490UL)
+#define	DWC_PDEC_AMP_PB4		(0x494UL)
+#define	DWC_PDEC_AMP_PB5		(0x498UL)
+#define	DWC_PDEC_AMP_PB6		(0x49cUL)
 
-
-
+#define DWC_PDEC_NTSCVBI_HB		(0x4a0UL)
+#define	DWC_PDEC_NTSCVBI_PB0	(0x4a4UL)
+#define	DWC_PDEC_NTSCVBI_PB1	(0x4a8UL)
+#define	DWC_PDEC_NTSCVBI_PB2	(0x4acUL)
+#define	DWC_PDEC_NTSCVBI_PB3	(0x4b0UL)
+#define	DWC_PDEC_NTSCVBI_PB4	(0x4b4UL)
+#define	DWC_PDEC_NTSCVBI_PB5	(0x4b8UL)
+#define	DWC_PDEC_NTSCVBI_PB6	(0x4bcUL)
 
 /*
  * DTL Interface registers
@@ -727,6 +764,7 @@
 #define		PD_FIFO_OVERFL			_BIT(4)
 /** Packet FIFO underflow */
 #define		PD_FIFO_UNDERFL			_BIT(3)
+#define		PD_FIFO_START_PASS		_BIT(2)
 /*
  * Audio Clock Interrupt registers
  */
@@ -795,6 +833,7 @@
 #define DWC_HDMI_ISET		(0xFECUL)
 /** AKSV receive interrupt */
 #define		AKSV_RCV				_BIT(25)
+#define	SCDC_TMDS_CFG_CHG		_BIT(19)
 /** Deep color mode change interrupt */
 #define		DCM_CURRENT_MODE_CHG	_BIT(16)
 #define		CTL3			_BIT(13)

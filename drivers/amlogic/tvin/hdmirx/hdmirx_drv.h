@@ -17,6 +17,8 @@
 #include <linux/switch.h>
 #include <linux/workqueue.h>
 
+
+
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/tvin/tvin.h>
 #include <linux/amlogic/iomap.h>
@@ -28,7 +30,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/06/29"
+#define RX_VER0 "Ref.2017/07/03"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/06/06"
@@ -40,11 +42,13 @@
 #define RX_VER3 "Ref.2017/06/01"
 /*------------------------------*/
 
-#define RX_VER4 "Ref.2017/06/14"
+#define RX_VER4 "Ref.2017/06/28"
 /*------------------------------*/
 
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
+#define HW_MONITOR_TIME_UNIT    (1000/HDMI_STATE_CHECK_FREQ)
+
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
 #define	LOG_EN		0x01
@@ -56,6 +60,20 @@
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
 #define VSI_LOG		0x800
+
+/* stable_check_lvl */
+#define HACTIVE_EN		0x01
+#define VACTIVE_EN		0x02
+#define HTOTAL_EN		0x04
+#define VTOTAL_EN		0x08
+#define COLSPACE_EN		0x10
+#define REFRESH_RATE_EN 0x20
+#define REPEAT_EN		0x40
+#define DVI_EN			0x80
+#define INTERLACED_EN	0x100
+#define HDCP_ENC_EN		0x200
+#define COLOR_DEP_EN	0x400
+
 
 #define TRUE 1
 #define FALSE 0
@@ -74,8 +92,57 @@
 #define DV_STOP_PACKET_MAX 50
 #define str_cmp(buff, str) ((strlen((str)) == strlen((buff))) &&	\
 		(strncmp((buff), (str), strlen((str))) == 0))
-#define pr_var(str) rx_pr("%-40s = %#x\n", #str, (str))
+#define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
+#define set_pr_var(buff, str, val, index) do {			\
+			char index_c[5] = {'\0'};		\
+			sprintf(index_c, "%d", (index));	\
+			if (str_cmp((buff), (#str)) ||		\
+				str_cmp((buff), (index_c))) {	\
+				(str) = (val);			\
+				pr_var(str, (index));		\
+				return;				\
+				}				\
+			(index)++;				\
+			} while (0)
 
+#define EDID_SIZE			256
+#define EDID_HDR_SIZE			7
+#define HDR_IGNOR_TIME			500 /*5s*/
+#define MAX_EDID_BUF_SIZE 1024
+#define MAX_KEY_BUF_SIZE 512
+
+
+/* aud sample rate stable range */
+#define AUD_SR_RANGE 2000
+#define AUD_SR_STB_MAX 20
+/* PHY config */
+#define PHY_LOCK_THRES 0x3F
+#define DVI_FIXED_TO_RGB  1
+
+/** TMDS clock delta [kHz] */
+#define TMDS_CLK_DELTA			(125)
+/** Pixel clock minimum [kHz] */
+#define PIXEL_CLK_MIN			TMDS_CLK_MIN
+/** Pixel clock maximum [kHz] */
+#define PIXEL_CLK_MAX			TMDS_CLK_MAX
+/** Horizontal resolution minimum */
+#define HRESOLUTION_MIN			(320)
+/** Horizontal resolution maximum */
+#define HRESOLUTION_MAX			(4096)
+/** Vertical resolution minimum */
+#define VRESOLUTION_MIN			(240)
+/** Vertical resolution maximum */
+#define VRESOLUTION_MAX			(4455)
+/** Refresh rate minimum [Hz] */
+#define FRAME_RATE_MIN		(100)
+/** Refresh rate maximum [Hz] */
+#define FRAME_MAX		(25000)
+
+#define TMDS_TOLERANCE  (4000)
+#define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
+#define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
+
+#define PFIFO_SIZE 160
 struct hdmirx_dev_s {
 	int                         index;
 	dev_t                       devt;
@@ -86,6 +153,8 @@ struct hdmirx_dev_s {
 	struct tvin_frontend_s		frontend;
 	unsigned int			irq;
 	char					irq_name[12];
+	struct mutex			rx_lock;
+	struct mutex			pd_fifo_lock;
 	struct clk *modet_clk;
 	struct clk *cfg_clk;
 	struct clk *acr_ref_clk;
@@ -102,8 +171,18 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_HDCP22_AUTO	_IO(HDMI_IOC_MAGIC, 0x06)
 #define HDMI_IOC_HDCP22_FORCE14 _IO(HDMI_IOC_MAGIC, 0x07)
 #define HDMI_IOC_HDMI_20_SET	_IO(HDMI_IOC_MAGIC, 0x08)
-
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
+#define HDMI_IOC_PD_FIFO_PKTTYPE_EN _IOW(HDMI_IOC_MAGIC, 0x0a,\
+	uint32_t)
+#define HDMI_IOC_PD_FIFO_PKTTYPE_DIS _IOW(HDMI_IOC_MAGIC, 0x0b,\
+		uint32_t)
+#define HDMI_IOC_GET_PD_FIFO_PARAM _IOR(HDMI_IOC_MAGIC, 0x0c,\
+	struct pd_infoframe_s)
+
+#define IOC_SPD_INFO  _BIT(0)
+#define IOC_AUD_INFO  _BIT(1)
+#define IOC_MPEGS_INFO _BIT(2)
+#define IOC_AVI_INFO _BIT(3)
 
 #define HDCP22_ENABLE
 #define HDMI20_ENABLE 1
@@ -203,19 +282,21 @@ enum HDMI_Video_Type {
 };
 
 enum fsm_states_e {
-	FSM_INIT,
 	FSM_HPD_LOW,
+	FSM_INIT,
 	FSM_HPD_HIGH,
 	FSM_WAIT_CLK_STABLE,
-	FSM_EQ_INIT,
-	FSM_EQ_CALIBRATION,
-	FSM_EQ_END,
+	FSM_PHY_INIT,
+	FSM_WAIT_EQ_DONE,
 	FSM_SIG_UNSTABLE,
-	FSM_DWC_RST_WAIT,
+	FSM_SIG_WAIT_STABLE,
 	FSM_SIG_STABLE,
-	FSM_CHECK_DDC_CORRECT,
 	FSM_SIG_READY,
-	FSM_WAIT_AUDIO_STABLE,
+};
+
+enum irq_flag_e {
+	IRQ_AUD_FLAG = 0x01,
+	IRQ_PACKET_FLAG = 0x02,
 };
 
 enum colorspace_e {
@@ -223,6 +304,25 @@ enum colorspace_e {
 	E_COLOR_YUV422,
 	E_COLOR_YUV444,
 	E_COLOR_YUV420,
+};
+
+enum colorfmt_e {
+	E_COLORFMT_RGB,
+	E_COLORFMT_YUV422,
+	E_COLORFMT_YUV444,
+	E_COLORFMT_YUV420,
+};
+
+enum colordepth_e {
+	E_COLORDEPTH_8,
+	E_COLORDEPTH_10,
+	E_COLORDEPTH_12,
+	E_COLORDEPTH_16,
+};
+
+enum hdmi_mode_e {
+	E_HDMI,
+	E_DVI,
 };
 
 enum port_sts {
@@ -247,13 +347,6 @@ enum e_eq_freq {
 	E_EQ_HD,
 	E_EQ_3G,
 	E_EQ_6G
-};
-
-enum repeater_state_e {
-	REPEATER_STATE_WAIT_KSV,
-	REPEATER_STATE_WAIT_ACK,
-	REPEATER_STATE_IDLE,
-	REPEATER_STATE_START,
 };
 
 enum hdcp_version_e {
@@ -305,35 +398,15 @@ enum chip_id_e {
 #define TMDS_CLK_MAX			(340000UL)/* (600000UL) */
 #define CLK_RATE_THRESHOLD		(74000000)/*check clock rate*/
 struct freq_ref_s {
-	unsigned int vic;
 	bool interlace;
+	uint8_t cd420;
+	bool type_3d;
 	unsigned int ref_freq;	/* 8 bit tmds clock */
 	unsigned hactive;
-	unsigned vactive_lines;
-	unsigned vactive_fp;
-	unsigned vactive_alt;
+	unsigned vactive;
 	unsigned repeat;
 	unsigned frame_rate;
-};
-
-struct hdmi_rx_phy {
-	/** (@b user) Context status: closed (0), */
-	/** opened (<0) and configured (>0) */
-	int status;
-	/** (@b user) Configuration clock frequency [kHz], */
-	/** valid range 10MHz to 160MHz */
-	unsigned long cfg_clk;
-	/** Peaking configuration */
-	uint16_t peaking;
-	/** PLL configuration */
-	uint32_t pll_cfg;
-	/**/
-	int lock_thres;
-	int fast_switching;
-	int fsm_enhancement;
-	int port_select_ovr_en;
-	int phy_cmu_config_force_val;
-	int phy_system_config_force_val;
+	unsigned int vic;
 };
 
 /**
@@ -341,73 +414,49 @@ struct hdmi_rx_phy {
  *
  * For Auxiliary Video InfoFrame (AVI) details see HDMI 1.4a section 8.2.2
  */
-struct hdmi_rx_ctrl_video {
+struct rx_video_info {
 	/** DVI detection status: DVI (true) or HDMI (false) */
 	bool hw_dvi;
-	unsigned hdcp_type;
-	unsigned hdcp_enc_state;
-	/** Deep color mode: 24, 30, 36 or 48 [bits per pixel] */
-	unsigned colordepth;
+
+	uint8_t hdcp_type;
+	uint8_t hdcp14_state;
+	uint8_t hdcp22_state;
+	/** Deep color mode: 8, 10, 12 or 16 [bits per pixel] */
+	uint8_t colordepth;
 	/** Pixel clock frequency [kHz] */
-	unsigned long pixel_clk;
+	uint32_t pixel_clk;
 	/** Refresh rate [0.01Hz] */
-	unsigned refresh_rate;
+	uint32_t frame_rate;
 	/** Interlaced */
 	bool interlaced;
 	/** Vertical offset */
-	unsigned voffset;
+	uint32_t voffset;
 	/** Vertical active */
-	unsigned vactive;
+	uint32_t vactive;
 	/** Vertical total */
-	unsigned vtotal;
+	uint32_t vtotal;
 	/** Horizontal offset */
-	unsigned hoffset;
+	uint32_t hoffset;
 	/** Horizontal active */
-	unsigned hactive;
+	uint32_t hactive;
 	/** Horizontal total */
-	unsigned htotal;
+	uint32_t htotal;
 	/** AVI Y1-0, video format */
-	unsigned colorspace;
-	/** AVI A0, active format information present */
-	unsigned active_valid;
-	/** AVI B1-0, bar valid information */
-	unsigned bar_valid;
-	/** AVI S1-0, scan information */
-	unsigned scan_info;
-	/** AVI C1-0, colorimetry information */
-	unsigned colorimetry;
-	/** AVI M1-0, picture aspect ratio */
-	unsigned picture_ratio;
-	/** AVI R3-0, active format aspect ratio */
-	unsigned active_ratio;
-	/** AVI ITC, IT content */
+	uint8_t colorspace;
+	/** AVI VIC6-0, video identification code */
+	uint8_t hw_vic;
+	/** AVI PR3-0, pixel repetition factor */
+	uint8_t repeat;
+	/* for sw info */
+	uint8_t sw_vic;
+	uint8_t sw_dvi;
 	unsigned it_content;
-	/** AVI EC2-0, extended colorimetry */
-	unsigned ext_colorimetry;
 	/** AVI Q1-0, RGB quantization range */
 	unsigned rgb_quant_range;
 	/** AVI Q1-0, YUV quantization range */
 	unsigned yuv_quant_range;
-	/** AVI SC1-0, non-uniform scaling information */
-	unsigned n_uniform_scale;
-	/** AVI VIC6-0, video mode identification code */
-	unsigned hw_vic;
-	/** AVI PR3-0, pixel repetition factor */
-	unsigned repeat;
-	/** AVI, line number of end of top bar */
-	unsigned bar_end_top;
-	/** AVI, line number of start of bottom bar */
-	unsigned bar_start_bottom;
-	/** AVI, pixel number of end of left bar */
-	unsigned bar_end_left;
-	/** AVI, pixel number of start of right bar */
-	unsigned bar_start_right;
-
-	/* for sw info */
-	unsigned int sw_vic;
-	unsigned int sw_dvi;
-	bool           sw_fp;
-	bool           sw_alternative;
+	bool sw_fp;
+	bool sw_alternative;
 };
 
 /**
@@ -446,6 +495,8 @@ struct hdmi_rx_ctrl {
 	unsigned debug_irq_video_mode;
 	/** Debug status, IRQ HDMI count */
 	unsigned debug_irq_hdmi;
+
+	uint32_t irq_flag;
 };
 
 /** Receiver key selection size - 40 bits */
@@ -488,39 +539,6 @@ struct hdmi_rx_ctrl_hdcp {
 	uint32_t hdcp_auth_time;/*the time to clear auth count*/
 };
 
-#define CHANNEL_STATUS_SIZE   24
-
-struct aud_info_s {
-    /* info frame*/
-    /*
-    unsigned char cc;
-    unsigned char ct;
-    unsigned char ss;
-    unsigned char sf;
-    */
-	int coding_type;
-	int channel_count;
-	int sample_frequency;
-	int sample_size;
-	int coding_extension;
-	int channel_allocation;
-	int down_mix_inhibit;
-	int level_shift_value;
-	int aud_packet_received;
-
-	/* channel status */
-	unsigned char channel_status[CHANNEL_STATUS_SIZE];
-	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];
-    /**/
-	unsigned int cts;
-	unsigned int n;
-	unsigned int arc;
-	/**/
-	int real_channel_num;
-	int real_sample_size;
-	int real_sample_rate;
-};
-
 enum dolby_vision_sts_e {
 	DOLBY_VERSION_IDLE,
 	DOLBY_VERSION_START,
@@ -537,18 +555,55 @@ struct vendor_specific_info_s {
 	unsigned char packet_stop;/*dv packet stop count*/
 };
 
+#if 0
+enum packet_type_e {
+	ACR_PACKET = 0x01,
+	ASP_PACKET = 0x02,
+	GCP_PACKET = 0x03,
+	ACP_PACKET = 0x04,
+	ISRC1_PACKET = 0x05,
+	ISRC2_PACKET = 0x06,
+	OBASP_PACKET = 0x07,
+	DSTAP_PACKET = 0x08,
+	HBR_PACKET = 0x09,
+	GMP_PACKET = 0x0a,
+	ASP3D_PACKET = 0x0b,
+	OB3DASP_PACKET = 0x0c,
+	AMP_PACKET = 0x0d,
+	MSASP_PACKET = 0x0e,
+	OBMSASP_PACKET = 0x0f,
+	VS_PACKET = 0x81,
+	AVI_PACKET = 0x82,
+	SPD_PACKET = 0x83,
+	AUD_PACKET = 0x84,
+	MPEGS_PACKET = 0x85,
+	NTSCVBI_PACKET = 0x86,
+	DRM_PACKET = 0x87
+};
+
+struct pd_infoframe_s {
+	uint32_t HB;
+	uint32_t PB0;
+	uint32_t PB1;
+	uint32_t PB2;
+	uint32_t PB3;
+	uint32_t PB4;
+	uint32_t PB5;
+	uint32_t PB6;
+};
+#endif
+
 struct rx_s {
 	enum chip_id_e chip_id;
 	/** HDMI RX received signal changed */
-	uint change;
+	uint8_t skip;
 	/*avmute*/
 	uint32_t avmute_skip;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
-	unsigned port;
+	uint8_t port;
 	/*first boot flag*/
 	bool boot_flag;
-	/** HDMI RX PHY context */
-	struct hdmi_rx_phy phy;
+	bool open_fg;
 	/** HDMI RX controller context */
 	struct hdmi_rx_ctrl ctrl;
 	/** HDMI RX controller HDCP configuration */
@@ -563,20 +618,49 @@ struct rx_s {
 	unsigned char pre_5v_sts;
 	unsigned char cur_5v_sts;
 	bool no_signal;
-	int audio_wait_time;
+	uint16_t wait_no_sig_cnt;
 	int aud_sr_stable_cnt;
 	int aud_sr_unstable_cnt;
-	int video_wait_time;
 	/* info */
+	struct rx_video_info pre;
+	struct rx_video_info cur;
 	struct aud_info_s aud_info;
-	struct hdmi_rx_ctrl_video pre;
-	struct hdmi_rx_ctrl_video cur;
 	struct vendor_specific_info_s vendor_specific_info;
 	struct tvin_hdr_info_s hdr_info;
 	enum dolby_vision_sts_e dolby_vision_sts;
-	bool open_fg;
-	unsigned char scdc_tmds_cfg;
 	unsigned int pwr_sts;
+	/* packet type 0x81 vendor-specific */
+	struct pd_infoframe_s vs_info;
+	/* packet type 0x82 AVI */
+	struct pd_infoframe_s avi_info;
+	/* packet type 0x83 source product description */
+	struct pd_infoframe_s spd_info;
+	/* packet type 0x84 Audio */
+	struct pd_infoframe_s aud_pktinfo;
+	/* packet type 0x85 Mpeg source */
+	struct pd_infoframe_s mpegs_info;
+	/* packet type 0x86 NTSCVBI */
+	struct pd_infoframe_s ntscvbi_info;
+	/* packet type 0x87 DRM */
+	struct pd_infoframe_s drm_info;
+
+	/* packet type 0x01 info */
+	struct pd_infoframe_s acr_info;
+	/* packet type 0x03 info */
+	struct pd_infoframe_s gcp_info;
+	/* packet type 0x04 info */
+	struct pd_infoframe_s acp_info;
+	/* packet type 0x05 info */
+	struct pd_infoframe_s isrc1_info;
+	/* packet type 0x06 info */
+	struct pd_infoframe_s isrc2_info;
+	/* packet type 0x0a info */
+	struct pd_infoframe_s gameta_info;
+	/* packet type 0x0d audio metadata data */
+	struct pd_infoframe_s amp_info;
+
+	/* for debug */
+	/*struct pd_infoframe_s dbg_info;*/
 };
 
 struct _hdcp_ksv {
@@ -647,14 +731,11 @@ struct edid_hdr_block_t {
 
 enum edid_list_e {
 	EDID_LIST_BUFF,
-	EDID_LIST_AML,
-	EDID_LIST_AML_DD,
-	EDID_LIST_SKYWORTH,
-	EDID_LIST_4K,
-	EDID_LIST_DOMY,
-	EDID_LIST_V2,
-	EDID_LIST_ATMOS,
-	EDID_LIST_TRUEHD,
+	EDID_LIST_14,
+	EDID_LIST_14_AUD,
+	EDID_LIST_14_420C,
+	EDID_LIST_14_420VD,
+	EDID_LIST_20,
 	EDID_LIST_NUM
 };
 
@@ -686,28 +767,6 @@ struct vsi_infoframe_t {
 	unsigned char struct_3d_ext:4;
 };
 
-struct st_eq_data {
-	/* Best long cable setting */
-	uint16_t bestLongSetting;
-	/* long cable setting detected and valid */
-	uint8_t validLongSetting;
-	/* best short cable setting */
-	uint16_t bestShortSetting;
-	/* best short cable setting detected and valid */
-	uint8_t validShortSetting;
-	/* TMDS Valid for channel */
-	uint8_t tmdsvalid;
-	/* best setting to be programed */
-	uint16_t bestsetting;
-	/* Accumulator register */
-	uint16_t acc;
-	/* Aquisition register */
-	uint16_t acq;
-	uint16_t acq_n[15];
-	uint16_t lastacq;
-	uint8_t eq_ref[3];
-};
-
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -724,8 +783,7 @@ extern struct delayed_work	repeater_dwork;
 extern struct workqueue_struct	*repeater_wq;
 extern unsigned char run_eq_flag;
 extern unsigned int pwr_sts;
-extern unsigned char *pEdid_buffer;
-extern bool multi_port_edid_enable;
+extern uint32_t modet_clk;
 extern int md_ists_en;
 extern int hdmi_ists_en;
 extern int real_port_map;
@@ -737,6 +795,11 @@ extern struct rx_s rx;
 extern int log_level;
 extern bool downstream_repeat_support;
 extern unsigned int esm_data_base_addr;
+extern uint32_t packet_fifo_cfg;
+extern uint32_t *pd_fifo_buf;
+extern int packet_init(void);
+extern void rx_tasklet_handler(unsigned long arg);
+extern struct tasklet_struct rx_tasklet;
 
 extern int suspend_pddq;
 extern unsigned int hdmirx_addr_port;
@@ -775,6 +838,7 @@ void wr_reg(enum map_addr_module_e module,
 		unsigned int reg_addr, unsigned int val);
 void hdmirx_wr_top(unsigned long addr, unsigned long data);
 void hdmirx_wr_ctl_port(unsigned int offset, unsigned long data);
+bool hdmirx_phy_clk_rate_monitor(void);
 
 unsigned long hdmirx_rd_top(unsigned long addr);
 void hdmirx_wr_dwc(uint16_t addr, uint32_t data);
@@ -812,16 +876,15 @@ void rx_edid_physical_addr(int a, int b, int c, int d);
 void rx_check_repeat(void);
 int hdmirx_control_clk_range(unsigned long min, unsigned long max);
 int hdmirx_packet_fifo_rst(void);
-void hdmirx_audio_enable(bool en);
 int hdmirx_audio_fifo_rst(void);
-void hdmirx_phy_init(int rx_port_sel, int dcm);
-
+void hdmirx_phy_init(void);
+void rx_port_switch(void);
 void hdmirx_hw_config(void);
-void hdmirx_hw_reset(void);
 void hdmirx_hw_probe(void);
+void rx_hdcp_init(void);
 void hdmi_rx_load_edid_data(unsigned char *buffer, int port);
 int hdmi_rx_ctrl_edid_update(void);
-void hdmirx_set_hpd(int port, unsigned char val);
+void rx_set_hpd(uint8_t val);
 bool hdmirx_repeat_support(void);
 
 int hdmirx_irq_close(void);
@@ -837,8 +900,6 @@ unsigned int hdmirx_get_audio_clock(void);
 unsigned int hdmirx_get_audio_pll_clock(void);
 unsigned int hdmirx_get_esm_clock(void);
 
-void hdmirx_read_audio_info(struct aud_info_s *audio_info);
-void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs);
 unsigned int hdmirx_get_clock(int index);
 irqreturn_t irq_handler(int irq, void *params);
 
@@ -848,8 +909,9 @@ irqreturn_t irq_handler(int irq, void *params);
 extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 extern void edid_update(void);
 extern void hdmirx_hw_monitor(void);
-extern bool hdmirx_hw_is_nosig(void);
-extern bool hdmirx_hw_pll_lock(void);
+extern void rx_nosig_monitor(void);
+extern bool rx_is_nosig(void);
+extern bool rx_sig_is_ready(void);
 extern void hdmirx_hw_init(enum tvin_port_e port);
 extern void hdmirx_hw_uninit(void);
 extern void hdmirx_fill_edid_buf(const char *buf, int size);
@@ -869,13 +931,14 @@ extern bool hdmirx_hw_check_frame_skip(void);
 extern int rx_pr(const char *fmt, ...);
 extern int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 extern bool hdmirx_audio_pll_lock(void);
+extern bool is_clk_stable(void);
 extern bool hdmirx_tmds_pll_lock(void);
 extern void hdmirx_check_new_edid(void);
 extern void eq_algorithm(struct work_struct *work);
-extern void hdmirx_wait_query(void);
+extern void hotplug_wait_query(void);
 extern bool hdmirx_tmds_6g(void);
 extern void rx_hpd_to_esm_handle(struct work_struct *work);
-
+extern void fsm_restart(void);
 extern void cecrx_hw_init(void);
 extern void cecrx_irq_handle(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
@@ -892,8 +955,7 @@ extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
  * module index: atv demod:0x01; dtv demod:0x02;
  * tvafe:0x4; dac:0x8, audio pll:0x10
 */
-
-extern void hdmirx_phy_bist_test(int lvl);
+extern int pd_fifo_start_cnt;
 extern int hdmirx_dev_init(void);
 extern void dump_eq_data(void);
 extern void repeater_dwork_handle(struct work_struct *work);
@@ -901,5 +963,7 @@ extern void repeater_dwork_handle(struct work_struct *work);
 extern int External_Mute(int mute_flag);
 extern void vdac_enable(bool on, unsigned int module_sel);
 extern void hdmirx_dv_packet_stop(void);
+extern void rx_aud_pll_ctl(bool en);
+extern void rx_send_hpd_pulse(void);
 
 #endif  /* _TVHDMI_H */

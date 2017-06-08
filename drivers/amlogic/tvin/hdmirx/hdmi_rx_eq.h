@@ -65,11 +65,10 @@ as "very long" and therefore */
 /*macro define end*/
 
 /*--------------------------enum define---------------------*/
-enum phy_eq_states_e {
-	EQ_IDLE,
-	EQ_INIT,
-	EQ_MAINLOOP,
-	EQ_END,
+enum eq_states_e {
+	EQ_ENABLE,
+	EQ_USE_DEF,
+	EQ_USE_PRE,
 };
 
 enum phy_eq_channel_e {
@@ -90,17 +89,39 @@ enum run_eq_state {
 	E_EQ_FAIL
 };
 
+struct st_eq_data {
+	/* Best long cable setting */
+	uint16_t bestLongSetting;
+	/* long cable setting detected and valid */
+	uint8_t validLongSetting;
+	/* best short cable setting */
+	uint16_t bestShortSetting;
+	/* best short cable setting detected and valid */
+	uint8_t validShortSetting;
+	/* TMDS Valid for channel */
+	uint8_t tmdsvalid;
+	/* best setting to be programed */
+	uint16_t bestsetting;
+	/* Accumulator register */
+	uint16_t acc;
+	/* Aquisition register */
+	uint16_t acq;
+	uint16_t acq_n[15];
+	uint16_t lastacq;
+	uint8_t eq_ref[3];
+};
+
 /*struct define end*/
 extern struct st_eq_data eq_ch0;
 extern struct st_eq_data eq_ch1;
 extern struct st_eq_data eq_ch2;
+extern int eq_dbg_ch0;
+extern int eq_dbg_ch1;
+extern int eq_dbg_ch2;
+
 
 /*--------------------------function declare------------------*/
-bool hdmirx_phy_clk_rate_monitor(void);
-/* void hdmirx_phy_init(int rx_port_sel, int dcm); */
-bool rx_need_eq_algorithm(void);
-int hdmirx_phy_probe(void);
-void hdmirx_phy_exit(void);
+enum eq_states_e rx_need_eq_algorithm(void);
 int hdmirx_phy_start_eq(void);
 uint8_t SettingFinder(void);
 bool eq_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting);
@@ -109,8 +130,8 @@ bool eq_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting);
 bool hdmirx_phy_check_tmds_valid(void);
 void hdmirx_phy_conf_eq_setting(int rx_port_sel,
 	int ch0Setting,	int ch1Setting, int ch2Setting);
-void phy_conf_eq_setting(int ch0_lockVector,
-				int ch1_lockVector, int ch2_lockVector);
+void eq_cfg(void);
+void eq_run(void);
 
 
 /*function declare end*/

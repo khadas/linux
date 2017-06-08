@@ -36,7 +36,10 @@
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/delay.h>
+/*local includ*/
 #include "hdmi_rx_reg.h"
+#include "hdmirx_repeater.h"
+#include "hdmi_rx_pktinfo.h"
 #include "hdmirx_drv.h"
 
 #include "host_lib_driver_linux_if.h"
