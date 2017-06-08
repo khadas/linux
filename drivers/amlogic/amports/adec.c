@@ -70,7 +70,15 @@ static char *astream_format[] = {
 	"amadec_ape",
 	"amadec_eac3",
 	"amadec_pcm_widi",
-	"amadec_wmavoi"
+	"amadec_dra",
+	"amadec_sipr",
+	"amadec_truehd",
+	"amadec_mpeg1",
+	"amadec_mpeg2",
+	"amadec_wmavoi",
+	"amadec_wmalossless",
+	"amadec_pcm_s24le",
+	"adec_max"
 };
 
 static const char *na_string = "NA";
