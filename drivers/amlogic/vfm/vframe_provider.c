@@ -182,6 +182,8 @@ void vf_provider_init(struct vframe_provider_s *prov,
 	prov->name = name;
 	prov->ops = ops;
 	prov->op_arg = op_arg;
+	prov->traceget = NULL;
+	prov->traceput = NULL;
 	atomic_set(&prov->use_cnt, 0);
 	INIT_LIST_HEAD(&prov->list);
 }
@@ -194,6 +196,8 @@ int vf_reg_provider(struct vframe_provider_s *prov)
 	int i;
 	if (!prov || !prov->name)
 		return -1;
+	prov->traceget = NULL;
+	prov->traceput = NULL;
 	for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 		p = provider_table[i];
 		if (p) {
@@ -223,11 +227,9 @@ int vf_reg_provider(struct vframe_provider_s *prov)
 		pr_err("%s: Error, provider_table full\n", __func__);
 	}
 	atomic_set(&prov->use_cnt, 0);/*set it ready for use.*/
-	prov->traceget = NULL;
 	if (vfm_trace_enable & 1)
 		prov->traceget = vftrace_alloc_trace(prov->name, 1,
 				vfm_trace_num);
-	prov->traceput = NULL;
 	if (vfm_trace_enable & 2)
 		prov->traceput = vftrace_alloc_trace(prov->name, 0,
 				vfm_trace_num);
