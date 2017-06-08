@@ -65,6 +65,7 @@
 #include "internal.h"
 
 #include <trace/events/sched.h>
+#include <trace/events/readahead.h>
 
 int suid_dumpable = 0;
 
@@ -752,6 +753,7 @@ EXPORT_SYMBOL(setup_arg_pages);
 static struct file *do_open_exec(struct filename *name)
 {
 	struct file *file;
+	struct inode *inode;
 	int err;
 	static const struct open_flags open_exec_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
@@ -776,6 +778,10 @@ static struct file *do_open_exec(struct filename *name)
 	err = deny_write_access(file);
 	if (err)
 		goto exit;
+
+	inode = file->f_path.dentry->d_inode;
+	if (inode && inode->i_ino && MAJOR(inode->i_sb->s_dev))
+		trace_do_open_exec(inode);
 
 out:
 	return file;

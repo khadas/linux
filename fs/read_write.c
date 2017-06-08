@@ -22,6 +22,8 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
+#include <trace/events/readahead.h>
+
 typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
 typedef ssize_t (*iov_fn_t)(struct kiocb *, const struct iovec *,
 		unsigned long, loff_t);
@@ -400,6 +402,12 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		return -EINVAL;
 	if (unlikely(!access_ok(VERIFY_WRITE, buf, count)))
 		return -EFAULT;
+
+	if (S_ISREG(file->f_dentry->d_inode->i_mode)
+		&& MAJOR(file->f_dentry->d_inode->i_sb->s_dev)) {
+		unsigned long ulpos = (unsigned long) *pos;
+		trace_do_fs_read(file->f_dentry->d_inode, ulpos, count);
+	}
 
 	ret = rw_verify_area(READ, file, pos, count);
 	if (ret >= 0) {
