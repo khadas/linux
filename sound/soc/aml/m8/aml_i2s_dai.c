@@ -118,7 +118,7 @@ static void aml_dai_i2s_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	if (IEC958_mode_codec == 0)
-		aml_spdif_play(1);
+		aml_spdif_play(0);
 	return;
 }
 
