@@ -717,7 +717,7 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 	/*In PAO mode, audio data from hdmi-rx has no channel order,
 	set default mode from spdif-in*/
 	spdif_priv->src = SPDIF_IN;
-	aml_spdif_play(1);
+	aml_spdif_play(0);
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_spdif_dai,
 					  ARRAY_SIZE(aml_spdif_dai));
