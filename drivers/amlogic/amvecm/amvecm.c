@@ -510,17 +510,13 @@ static ssize_t amvecm_vlock_show(struct class *cla,
 	len += sprintf(buf+len,
 		"echo vlock_dis_cnt_limit val(D) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
-		"echo vlock_delta_limit_frac val(D) > /sys/class/amvecm/vlock\n");
-	len += sprintf(buf+len,
-		"echo vlock_delta_limit_m val(D) > /sys/class/amvecm/vlock\n");
+		"echo vlock_delta_limit val(D) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo vlock_debug val(0x111) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo vlock_dynamic_adjust val(0/1) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
-		"echo vlock_dis_cnt_step1_limit val(D) > /sys/class/amvecm/vlock\n");
-	len += sprintf(buf+len,
-		"echo vlock_cnt_step1_limit val(D) > /sys/class/amvecm/vlock\n");
+		"echo vlock_dis_cnt_no_vf_limit val(D) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo enable > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
@@ -529,6 +525,12 @@ static ssize_t amvecm_vlock_show(struct class *cla,
 		"echo status > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo dump_reg > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo log_start > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo log_stop > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo log_print > /sys/class/amvecm/vlock\n");
 	return len;
 }
 
@@ -572,16 +574,11 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DIS_CNT_LIMIT;
-	} else if (!strncmp(parm[0], "vlock_delta_limit_frac", 22)) {
+	} else if (!strncmp(parm[0], "vlock_delta_limit", 17)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		temp_val = val;
-		sel = VLOCK_DELTA_LIMIT_FRAC;
-	} else if (!strncmp(parm[0], "vlock_delta_limit_m", 19)) {
-		if (kstrtol(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		temp_val = val;
-		sel = VLOCK_DELTA_LIMIT_M;
+		sel = VLOCK_DELTA_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_debug", 11)) {
 		if (kstrtol(parm[1], 16, &val) < 0)
 			return -EINVAL;
@@ -592,16 +589,11 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DYNAMIC_ADJUST;
-	} else if (!strncmp(parm[0], "vlock_dis_cnt_step1_limit", 25)) {
+	} else if (!strncmp(parm[0], "vlock_dis_cnt_no_vf_limit", 25)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		temp_val = val;
-		sel = VLOCK_DIS_CNT_STEP1_LIMIT;
-	} else if (!strncmp(parm[0], "vlock_cnt_step1_limit", 21)) {
-		if (kstrtol(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		temp_val = val;
-		sel = VLOCK_EN_CNT_STEP1_LIMIT;
+		sel = VLOCK_DIS_CNT_NO_VF_LIMIT;
 	} else if (!strncmp(parm[0], "enable", 6)) {
 		vecm_latch_flag |= FLAG_VLOCK_EN;
 	} else if (!strncmp(parm[0], "disable", 7)) {
@@ -610,6 +602,12 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		vlock_status();
 	} else if (!strncmp(parm[0], "dump_reg", 8)) {
 		vlock_reg_dump();
+	} else if (!strncmp(parm[0], "log_start", 9)) {
+		vlock_log_start();
+	} else if (!strncmp(parm[0], "log_stop", 8)) {
+		vlock_log_stop();
+	} else if (!strncmp(parm[0], "log_print", 9)) {
+		vlock_log_print();
 	} else {
 		pr_info("unsupport cmd!!\n");
 	}
@@ -3870,6 +3868,18 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		sdr_mode = 0;
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 	}
+	/*config vlock mode*/
+	/*todo:txlx & g9tv support auto pll,
+	but support not good,need vlsi support optimize*/
+	if (is_meson_txlx_cpu() || is_meson_g9tv_cpu())
+		vlock_mode = VLOCK_MODE_MANUAL_PLL;
+	else
+		vlock_mode = VLOCK_MODE_MANUAL_PLL;
+	if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu() ||
+		is_meson_txl_cpu() || is_meson_txlx_cpu())
+		vlock_en = 1;
+	else
+		vlock_en = 0;
 	aml_vecm_dt_parse(pdev);
 	dolby_vision_init_receiver(pdev);
 	probe_ok = 1;

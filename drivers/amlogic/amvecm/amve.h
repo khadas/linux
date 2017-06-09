@@ -57,14 +57,12 @@ enum vlock_param_e {
 	VLOCK_ADAPT,
 	VLOCK_MODE,
 	VLOCK_DIS_CNT_LIMIT,
-	VLOCK_DELTA_LIMIT_FRAC,
-	VLOCK_DELTA_LIMIT_M,
+	VLOCK_DELTA_LIMIT,
 	VLOCK_DEBUG,
 	VLOCK_DYNAMIC_ADJUST,
 	VLOCK_STATE,
 	VLOCK_SYNC_LIMIT_FLAG,
-	VLOCK_DIS_CNT_STEP1_LIMIT,
-	VLOCK_EN_CNT_STEP1_LIMIT,
+	VLOCK_DIS_CNT_NO_VF_LIMIT,
 	VLOCK_PARAM_MAX,
 };
 
@@ -130,6 +128,9 @@ extern void amve_vlock_resume(void);
 extern void vlock_param_set(unsigned int val, enum vlock_param_e sel);
 extern void vlock_status(void);
 extern void vlock_reg_dump(void);
+extern void vlock_log_start(void);
+extern void vlock_log_stop(void);
+extern void vlock_log_print(void);
 
 int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val);
 int amvecm_hiu_reg_write(unsigned int reg, unsigned int val);
@@ -162,8 +163,16 @@ extern int video_rgb_ogo_xvy_mtx;
 #define VLOCK_STATE_DISABLE_STEP1_DONE 3
 #define VLOCK_STATE_DISABLE_STEP2_DONE 4
 #define VLOCK_STATE_ENABLE_FORCE_RESET 5
-#define VLOCK_STATE_ENABLE_STEP1 6
-#define VLOCK_STATE_DISABLE_STEP1 7
+
+/* video lock */
+#define VLOCK_MODE_ENC          0
+#define VLOCK_MODE_AUTO_PLL		1
+#define VLOCK_MODE_MANUAL_PLL	2
+#define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
+
+/* 0:enc;1:pll;2:manual pll */
+extern unsigned int vlock_mode;
+extern unsigned int vlock_en;
 
 #endif
 
