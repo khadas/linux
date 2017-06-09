@@ -3,6 +3,7 @@
 #include <linux/cdev.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/video.h>
+#include <linux/amlogic/amvecm/amvecm.h>
 #include <linux/atomic.h>
 #include <linux/clk.h>
 
@@ -274,6 +275,7 @@ struct DI_MIF_s {
 	unsigned		canvas0_addr1:8;
 	unsigned		canvas0_addr2:8;
 };
+
 struct DI_SIM_MIF_s {
 	unsigned short	start_x;
 	unsigned short	end_x;
@@ -282,6 +284,7 @@ struct DI_SIM_MIF_s {
 	unsigned short	canvas_num;
 	unsigned short	bit_mode;
 };
+
 struct DI_MC_MIF_s {
 	unsigned short start_x;
 	unsigned short start_y;
@@ -292,6 +295,13 @@ struct DI_MC_MIF_s {
 	unsigned short blend_en;
 	unsigned short vecrd_offset;
 };
+
+struct di_pq_parm_s {
+	struct am_pq_parm_s pq_parm;
+	struct am_reg_s *regs;
+	struct list_head list;
+};
+
 void disable_deinterlace(void);
 
 void disable_pre_deinterlace(void);
@@ -469,6 +479,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 
 #define DI_COUNT   1
 #define DI_MAP_FLAG	0x1
+#define DI_LOAD_REG_FLAG 0x2
 struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
@@ -476,6 +487,8 @@ struct di_dev_s {
 	struct platform_device	*pdev;
 	struct task_struct *task;
 	struct clk	*vpu_clkb;
+	struct list_head   pq_table_list;
+	struct mutex       pq_lock;
 	unsigned char	   di_event;
 	unsigned int	   di_irq;
 	unsigned int	   flags;

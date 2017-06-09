@@ -410,10 +410,13 @@ static void nr_level_normal(void)
 static void nr2_config(unsigned short width,
 		unsigned short height, unsigned short level)
 {
-	if (level == 1)
-		nr_level_strong();
-	else
-		nr_level_normal();
+	if (is_meson_gxbb_cpu() || is_meson_gxl_cpu() ||
+		is_meson_gxm_cpu()) {
+		if (level == 1)
+			nr_level_strong();
+		else
+			nr_level_normal();
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
 	else {

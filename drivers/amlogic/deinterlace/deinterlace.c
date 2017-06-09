@@ -56,6 +56,7 @@
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vpu.h>
+#include <linux/amlogic/amvecm/amvecm.h>
 #ifdef CONFIG_AML_RDMA
 #include <linux/amlogic/rdma/rdma_mgr.h>
 #endif
@@ -161,7 +162,6 @@ static DEFINE_SPINLOCK(plist_lock);
 static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
-
 #define INIT_FLAG_NOT_LOAD 0x80
 static const char version_s[] = "2016-12-18a";
 static unsigned char boot_init_flag;
@@ -330,6 +330,8 @@ bool det3d_en = false;
 static unsigned int det3d_mode;
 static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf);
 #endif
+static void di_pq_parm_destory(struct di_pq_parm_s *pq_ptr);
+static struct di_pq_parm_s *di_pq_parm_create(struct am_pq_parm_s *);
 
 static int force_duration_0;
 
@@ -3725,7 +3727,9 @@ static void pre_de_process(void)
 	di_pre_stru.field_count_for_cont++;
 
 	RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
-	di_apply_reg_cfg(0);
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		di_apply_reg_cfg(0);
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag) {
 		struct vdin_arg_s vdin_arg;
@@ -5618,7 +5622,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			di_pre_stru.input_size_change_flag = true;
 			di_pre_stru.same_field_source_flag = 0;
 #if defined(NEW_DI_TV)
-			di_set_para_by_tvinfo(vframe);
+			if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+				di_set_para_by_tvinfo(vframe);
 #endif
 #ifdef SUPPORT_MPEG_TO_VDIN
 			if ((!is_from_vdin(vframe)) &&
@@ -7150,7 +7155,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 #ifdef NEW_DI_V1
 	if (di_post_stru.update_post_reg_flag && (!combing_fix_en)) {
-		di_apply_reg_cfg(1);
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			di_apply_reg_cfg(1);
 		last_lev = -1;
 	}
 
@@ -8267,7 +8273,6 @@ static void di_reg_process(void)
 /*get vout information first time*/
 	if (reg_flag == 1)
 		return;
-	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	vf_reg_provider(&di_vf_prov);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 	reg_flag = 1;
@@ -8419,9 +8424,10 @@ static void di_reg_process_irq(void)
 			/* nr/blend0/ei0/mtn0 clock gate */
 		}
 #endif
-
-#ifdef NEW_DI_TV
-		di_set_para_by_tvinfo(vframe);
+#if defined(NEW_DI_TV)
+		/* from txlx nr/di will load by pq db*/
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			di_set_para_by_tvinfo(vframe);
 #endif
 		if (di_printk_flag & 2)
 			di_printk_flag = 1;
@@ -8468,6 +8474,18 @@ static void di_reg_process_irq(void)
 		}
 		reset_pulldown_state();
 		di_pre_size_change(vframe->width, nr_height);
+		if (de_devp->flags & DI_LOAD_REG_FLAG) {
+			struct di_pq_parm_s *pos = NULL, *tmp = NULL;
+			mutex_lock(&de_devp->pq_lock);
+			list_for_each_entry_safe(pos, tmp,
+					&de_devp->pq_table_list, list) {
+				di_load_regs(pos);
+				list_del(&pos->list);
+				di_pq_parm_destory(pos);
+			}
+			de_devp->flags &= ~DI_LOAD_REG_FLAG;
+			mutex_unlock(&de_devp->pq_lock);
+		}
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 		last_lev = -1;
@@ -9354,15 +9372,116 @@ static int di_release(struct inode *node, struct file *file)
 /* Reset file pointer */
 
 /* Release some other fields */
-/* ... */
+	file->private_data = NULL;
 	return 0;
 }
+
+static struct di_pq_parm_s *di_pq_parm_create(struct am_pq_parm_s *pq_parm_p)
+{
+	struct di_pq_parm_s *pq_ptr = NULL;
+	struct am_reg_s *am_reg_p = NULL;
+	size_t mem_size = 0;
+	pq_ptr = kmalloc(sizeof(struct di_pq_parm_s), GFP_KERNEL);
+	if (!pq_ptr) {
+		pr_err("[DI] alloc pq parm memory errors\n");
+		return NULL;
+	}
+	mem_size = sizeof(struct am_pq_parm_s);
+	memcpy(&pq_ptr->pq_parm, pq_parm_p, mem_size);
+	mem_size = sizeof(struct am_reg_s)*pq_parm_p->table_len;
+	am_reg_p = kmalloc(mem_size, GFP_KERNEL);
+	if (!am_reg_p) {
+		kfree(pq_ptr);
+		pr_err("[DI] alloc pq table memory errors\n");
+		return NULL;
+	}
+	pq_ptr->regs = am_reg_p;
+
+	return pq_ptr;
+}
+
+static void di_pq_parm_destory(struct di_pq_parm_s *pq_ptr)
+{
+	if (!pq_ptr) {
+		pr_err("[DI] %s pq parm pointer null.\n", __func__);
+		return;
+	}
+	kfree(pq_ptr->regs);
+	kfree(pq_ptr);
+}
+
+static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret = 0, tab_flag = 0;
+	di_dev_t *di_devp;
+	void __user *argp = (void __user *)arg;
+	size_t mm_size = 0;
+	struct am_pq_parm_s tmp_pq_s = {0};
+	struct di_pq_parm_s *di_pq_ptr = NULL;
+
+	if (_IOC_TYPE(cmd) != _DI_) {
+		pr_err("%s invalid command: %u\n", __func__, cmd);
+		return -ENOSYS;
+	}
+	di_devp = file->private_data;
+	switch (cmd) {
+	case AMDI_IOC_SET_PQ_PARM:
+		mm_size = sizeof(struct am_pq_parm_s);
+		if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
+			pr_err("[DI] set pq parm errors\n");
+			return -EFAULT;
+		}
+		tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
+			TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
+		if (tmp_pq_s.table_name & tab_flag) {
+			pr_info("[DI] load 0x%x pq table.\n",
+				tmp_pq_s.table_name);
+		} else {
+			pr_err("[DI] load 0x%x wrong pq table.\n",
+				tmp_pq_s.table_name);
+			return -EFAULT;
+		}
+		di_pq_ptr = di_pq_parm_create(&tmp_pq_s);
+		if (!di_pq_ptr) {
+			pr_err("[DI] allocat pq parm struct error.\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)tmp_pq_s.table_ptr;
+		mm_size = tmp_pq_s.table_len * sizeof(struct am_reg_s);
+		if (copy_from_user(di_pq_ptr->regs, argp, mm_size)) {
+			pr_err("[DI] user copy pq table errors\n");
+			return -EFAULT;
+		}
+		mutex_lock(&di_devp->pq_lock);
+		list_add_tail(&di_pq_ptr->list, &di_devp->pq_table_list);
+		di_devp->flags |= DI_LOAD_REG_FLAG;
+		mutex_unlock(&di_devp->pq_lock);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long di_compat_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	unsigned long ret;
+	arg = (unsigned long)compat_ptr(arg);
+	ret = di_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
 
 static const struct file_operations di_fops = {
 	.owner		= THIS_MODULE,
 	.open		= di_open,
 	.release	= di_release,
-/* .ioctl	 = di_ioctl, */
+	.unlocked_ioctl  = di_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = di_compat_ioctl,
+#endif
 };
 
 static ssize_t
@@ -9617,6 +9736,8 @@ static int di_probe(struct platform_device *pdev)
 	} else {
 			atomic_set(&di_devp->mem_flag, 1);
 	}
+	INIT_LIST_HEAD(&di_devp->pq_table_list);
+	mutex_init(&di_devp->pq_lock);
 	di_devp->di_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	di_devp->timerc_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 	pr_info("di_irq:%d,timerc_irq:%d\n",
@@ -9724,6 +9845,7 @@ static int di_probe(struct platform_device *pdev)
 
 	vf_receiver_init(&di_vf_recv, VFM_NAME, &di_vf_receiver, NULL);
 	vf_reg_receiver(&di_vf_recv);
+	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	active_flag = 1;
 /* data32 = (*P_A9_0_IRQ_IN1_INTR_STAT_CLR); */
 	ret = request_irq(di_devp->di_irq, &de_irq, IRQF_SHARED,
@@ -9786,6 +9908,7 @@ static int di_remove(struct platform_device *pdev)
 		clk_disable_unprepare(di_devp->vpu_clkb);
 	di_hw_uninit();
 	di_devp->di_event = 0xff;
+	mutex_destroy(&di_devp->pq_lock);
 	kthread_stop(di_devp->task);
 #ifdef USE_HRTIMER
 	hrtimer_cancel(&di_pre_hrtimer);
