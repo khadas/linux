@@ -3544,31 +3544,6 @@ int dvb_frontend_resume(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dvb_frontend_resume);
 
-
-static ssize_t dvbc_lock_show(struct class *cls,
-				struct class_attribute *attr,
-				char *buf)
-{
-	return sprintf(buf, "dvbc_autoflags: %s\n", LOCK_TIMEOUT?"on":"off");
-}
-static ssize_t dvbc_lock_store(struct class *cls,
-				struct class_attribute *attr,
-				const char *buf,
-				size_t count)
-{
-	/*int mode = simple_strtol(buf, 0, 16);*/
-	int mode = 0;
-	count = kstrtol(buf, 0, (long *)&mode);
-	LOCK_TIMEOUT = mode;
-	return count;
-
-}
-
-static CLASS_ATTR(lock_time, 0644, dvbc_lock_show, dvbc_lock_store);
-
-struct class *tongfang_clsp;
-#define LOCK_DEVICE_NAME  "tongfang"
-
 int dvb_register_frontend(struct dvb_adapter* dvb,
 			  struct dvb_frontend* fe)
 {
@@ -3581,7 +3556,6 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 		.kernel_ioctl = dvb_frontend_ioctl
 	};
 
-	int ret;
 	dev_dbg(dvb->device, "%s:\n", __func__);
 
 	if (mutex_lock_interruptible(&frontend_mutex))
@@ -3620,19 +3594,6 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,
 			     fe, DVB_DEVICE_FRONTEND);
-	dev_dbg(fe->dvb->device, "For tongfang\n");
-	ret = 0;
-	tongfang_clsp = class_create(THIS_MODULE, LOCK_DEVICE_NAME);
-	if (!tongfang_clsp) {
-		dev_dbg(fe->dvb->device,
-		"[tongfang]%s:create class error.\n", __func__);
-		return PTR_ERR(tongfang_clsp);
-	}
-	ret = class_create_file(tongfang_clsp, &class_attr_lock_time);
-	if (ret) {
-		/* printk("[tongfang]%s create
-		class file error.\n", __func__); */
-	}
 	/*
 	 * Initialize the cache to the proper values according with the
 	 * first supported delivery system (ops->delsys[0])
@@ -3661,8 +3622,6 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
-	class_remove_file(tongfang_clsp, &class_attr_lock_time);
-	class_destroy(tongfang_clsp);
 
 	/* fe is invalid now */
 	kfree(fepriv);
