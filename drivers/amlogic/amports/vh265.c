@@ -103,6 +103,8 @@
 #define DUR2PTS(x) ((x)*90/96)
 #define HEVC_SIZE (4096*2304)
 
+static struct semaphore h265_sema;
+
 struct hevc_state_s;
 static int hevc_print(struct hevc_state_s *hevc,
 	int debug_flag, const char *fmt, ...);
@@ -1455,7 +1457,6 @@ struct hevc_state_s {
 	u32 start_decoding_time;
 
 	int show_frame_num;
-	struct semaphore h265_sema;
 #ifdef USE_UNINIT_SEMA
 	struct semaphore h265_uninit_done_sema;
 #endif
@@ -7523,7 +7524,7 @@ pic_done:
 				schedule_work(&hevc->work);
 			} else
 #endif
-				up(&hevc->h265_sema);
+				up(&h265_sema);
 			hevc_print(hevc, 0, "set pic_list_init_flag 1\n");
 		}
 		return IRQ_HANDLED;
@@ -7970,7 +7971,7 @@ static int h265_task_handle(void *data)
 			hevc_print(hevc, 0,
 			"ERROR: use_cma can not be changed dynamically\n");
 		}
-		ret = down_interruptible(&hevc->h265_sema);
+		ret = down_interruptible(&h265_sema);
 		if ((hevc->init_flag != 0) && (hevc->pic_list_init_flag == 1)) {
 			init_pic_list(hevc);
 			init_pic_list_hw(hevc);
@@ -8319,7 +8320,7 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 
 	if (use_cma) {
 		if (h265_task == NULL) {
-			sema_init(&hevc->h265_sema, 1);
+			sema_init(&h265_sema, 1);
 #ifdef USE_UNINIT_SEMA
 			sema_init(
 			&hevc->h265_uninit_done_sema, 0);
@@ -8431,7 +8432,7 @@ static int vh265_stop(struct hevc_state_s *hevc)
 		int ret;
 #endif
 		hevc->uninit_list = 1;
-		up(&hevc->h265_sema);
+		up(&h265_sema);
 #ifdef USE_UNINIT_SEMA
 		ret = down_interruptible(
 			&hevc->h265_uninit_done_sema);
