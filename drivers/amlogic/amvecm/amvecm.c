@@ -892,7 +892,7 @@ void amvecm_video_latch(void)
 
 void amvecm_on_vs(struct vframe_s *vf)
 {
-	if ((probe_ok == 0) || is_dolby_vision_on())
+	if ((probe_ok == 0) || for_dolby_vision_certification())
 		return;
 
 	if (vf != NULL) {
@@ -928,12 +928,12 @@ EXPORT_SYMBOL(amvecm_on_vs);
 
 void refresh_on_vs(struct vframe_s *vf)
 {
-	if ((probe_ok == 0) ||
-	is_dolby_vision_on())
+	if (probe_ok == 0)
 		return;
 	if (vf != NULL) {
 		vpp_get_vframe_hist_info(vf);
-		ve_on_vs(vf);
+		if (!for_dolby_vision_certification())
+			ve_on_vs(vf);
 		vpp_backup_histgram(vf);
 	}
 }

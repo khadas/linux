@@ -3953,7 +3953,7 @@ static void dmc_adjust_for_mali_vpu(unsigned int width, unsigned int height)
 	/*avoid 3840x2160 crop*/
 	if ((width >= 2000) && (height >= 1400) &&
 		(dmc_config_state != 1) && (toggle_same_count < 30)) {
-		if (is_dolby_vision_enable()) {
+		if (0) {/* if (is_dolby_vision_enable()) { */
 			/* vpu dmc */
 			WRITE_DMCREG(
 				DMC_AM0_CHAN_CTRL,

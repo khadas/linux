@@ -60,6 +60,10 @@ static unsigned int dolby_vision_policy;
 module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 
+static unsigned int dolby_vision_hdr10_policy;
+module_param(dolby_vision_hdr10_policy, uint, 0664);
+MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
+
 static bool dolby_vision_enable;
 module_param(dolby_vision_enable, bool, 0664);
 MODULE_PARM_DESC(dolby_vision_enable, "\n dolby_vision_enable\n");
@@ -75,6 +79,11 @@ MODULE_PARM_DESC(force_stb_mode, "\n force_stb_mode\n");
 static uint dolby_vision_status;
 module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
+
+#define HDR10_FRAME_DELAY 6
+static bool dolby_vision_hdr10_status;
+module_param(dolby_vision_hdr10_status, bool, 0664);
+MODULE_PARM_DESC(dolby_vision_hdr10_status, "\n dolby_vision_hdr10_status\n");
 
 #define FLAG_RESET_EACH_FRAME		0x01
 #define FLAG_META_FROM_BL			0x02
@@ -450,10 +459,8 @@ static struct tv_dovi_setting_s tv_dovi_setting;
 static bool tv_dovi_setting_update_flag;
 static struct platform_device *dovi_pdev;
 
-/* (256*4+256*2)*4/8 64bit */
-#define STB_DMA_TBL_SIZE \
-	((sizeof(dovi_setting.dm_lut1) + \
-	sizeof(dovi_setting.dm_lut1.G2L)) / 8)
+/* 256+(256*4+256*2)*4/8 64bit */
+#define STB_DMA_TBL_SIZE (256+(256*4+256*2)*4/8)
 static uint64_t stb_core1_lut[STB_DMA_TBL_SIZE];
 
 static void dump_tv_setting(
@@ -497,22 +504,62 @@ void dolby_vision_update_pq_config(char *pq_config_buf)
 }
 EXPORT_SYMBOL(dolby_vision_update_pq_config);
 
-static void prepare_stb_dolby_core1_lut(uint32_t *p_core1_lut)
+static int prepare_stb_dolby_core1_reg(
+	uint32_t run_mode,
+	uint32_t *p_core1_dm_regs,
+	uint32_t *p_core1_comp_regs)
+{
+	int index = 0;
+	int i;
+
+	/* 4 */
+	stb_core1_lut[index++] = ((uint64_t)4 << 32) | 4;
+	stb_core1_lut[index++] = ((uint64_t)4 << 32) | 4;
+	stb_core1_lut[index++] = ((uint64_t)3 << 32) | 1;
+	stb_core1_lut[index++] = ((uint64_t)2 << 32) | 1;
+
+	/* 1 + 14 + 10 + 1 */
+	stb_core1_lut[index++] = ((uint64_t)1 << 32) | run_mode;
+	for (i = 0; i < 14; i++)
+		stb_core1_lut[index++] =
+			((uint64_t)(6 + i) << 32)
+			| p_core1_dm_regs[i];
+	for (i = 17; i < 27; i++)
+		stb_core1_lut[index++] =
+			((uint64_t)(6 + i) << 32)
+			| p_core1_dm_regs[i-3];
+	stb_core1_lut[index++] = ((uint64_t)(6 + 27) << 32) | 0;
+
+	/* 173 + 1 */
+	for (i = 0; i < 173; i++)
+		stb_core1_lut[index++] =
+			((uint64_t)(6 + 44 + i) << 32)
+			| p_core1_comp_regs[i];
+	stb_core1_lut[index++] = ((uint64_t)3 << 32) | 1;
+
+	if (index & 1) {
+		pr_dolby_error("stb core1 reg tbl odd size\n");
+		stb_core1_lut[index++] = ((uint64_t)3 << 32) | 1;
+	}
+	return index;
+}
+
+static void prepare_stb_dolby_core1_lut(uint32_t base, uint32_t *p_core1_lut)
 {
 	uint32_t *p_lut;
 	int i;
 
 	p_lut = &p_core1_lut[256*4]; /* g2l */
 	for (i = 0; i < 128; i++) {
-		stb_core1_lut[i] =
-		stb_core1_lut[i+128] =
+		stb_core1_lut[base+i] =
+		stb_core1_lut[base+i+128] =
 			((uint64_t)p_lut[1] << 32) |
 			((uint64_t)p_lut[0] & 0xffffffff);
 		p_lut += 2;
 	}
 	p_lut = &p_core1_lut[0]; /* 4 lut */
 	for (i = 256; i < 768; i++) {
-		stb_core1_lut[i] =
+		stb_core1_lut[base+i] =
 			((uint64_t)p_lut[1] << 32) |
 			((uint64_t)p_lut[0] & 0xffffffff);
 		p_lut += 2;
@@ -535,10 +582,10 @@ static int stb_dolby_core1_set(
 	bool dovi_src,
 	int lut_endian)
 {
-	uint32_t count;
 	uint32_t bypass_flag = 0;
 	int composer_enable = el_enable;
-	int i;
+	uint32_t run_mode;
+	int reg_size;
 
 	if (dolby_vision_on
 		&& (dolby_vision_flags &
@@ -551,69 +598,57 @@ static int stb_dolby_core1_set(
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL2,
 		(hsize << 16) | vsize);
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL1,
-		((hsize + 0x40) << 16) | (vsize + 0x20));
+		((hsize + 0x80) << 16) | (vsize + 0x40));
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL3,
 		(hwidth << 16) | vwidth);
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL4,
 		(hpotch << 16) | vpotch);
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL5, 0x6);
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL6, 0xba000000);
-
-	/* axi dma for lut table */
-	prepare_stb_dolby_core1_lut(p_core1_lut);
-	/* dma1:11-0 tv_oo+g2l size, dma2:23-12 3d lut size */
-	WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL1, 0x00000080);
-	WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL2, (u32)dma_paddr);
-	/* dma3:23-12 cvm size */
-	WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL3,
-		0x80100000 | dma_start_line);
-	WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL0, 0x01000062);
-	WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL0, 0x80400042);
-
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 4, 4);
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 2, 1);
-
-	/* bypass composer to get 12bit when SDR and HDR source */
-	if (!dovi_src)
-		bypass_flag |= 1 << 0;
-	if (scramble_en) {
-		if (dolby_vision_flags & FLAG_BYPASS_CVM)
-			bypass_flag |= 1 << 13;
-	}
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 1,
-		(0x7 << 6) | (el_41_mode << 3) | bypass_flag);
-	/* for delay */
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 1,
-		(0x7 << 6) | (el_41_mode << 3) | bypass_flag);
-	if ((dolby_vision_flags & FLAG_RESET_EACH_FRAME) && (dm_count == 0))
-		count = 27;
-	else
-		count = dm_count;
-	for (i = 0; i < 14; i++)
-		VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 6 + i,
-			p_core1_dm_regs[i]);
-	for (i = 17; i < count; i++)
-		VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 6 + i,
-			p_core1_dm_regs[i-3]);
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 6 + 27, 0);
-
-	if ((dolby_vision_flags & FLAG_RESET_EACH_FRAME) && (comp_count == 0))
-		count = 173;
-	else
-		count = comp_count;
-	for (i = 0; i < count; i++)
-		VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 6 + 44 + i,
-			p_core1_comp_regs[i]);
-
-	/* metadata program done */
-	VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 3, 1);
-
-	/* bypass dither */
-	WRITE_VPP_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 25, 1);
-
 	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL0,
 		(el_41_mode ? 3 : 0x10) << 4 |
 		bl_enable << 0 | composer_enable << 1 | el_41_mode << 2);
+	if (el_enable)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to core1 */
+			0, 17, 1);
+	else
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to vpp */
+			1, 17, 1);
+	WRITE_VPP_REG(
+		DOLBY_TV_CLKGATE_CTRL, 0x2800);
+
+	/* bypass composer to get 12bit when SDR and HDR source */
+	if (!dovi_src)
+		bypass_flag |= 1 << 14;
+	if (scramble_en) {
+		if (dolby_vision_flags & FLAG_BYPASS_CSC)
+			bypass_flag |= 1 << 12;
+		if (dolby_vision_flags & FLAG_BYPASS_CVM)
+			bypass_flag |= 1 << 13;
+	}
+	run_mode = (0x7 << 6) | (el_41_mode << 3) | bypass_flag;
+
+	/* axi dma for reg table */
+	reg_size = prepare_stb_dolby_core1_reg(
+		run_mode, p_core1_dm_regs, p_core1_comp_regs);
+	/* axi dma for lut table */
+	prepare_stb_dolby_core1_lut(reg_size, p_core1_lut);
+
+	if (!dolby_vision_on) {
+		/* dma1:11-0 tv_oo+g2l size, dma2:23-12 3d lut size */
+		WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL1,
+			0x00000080 | (reg_size << 23));
+		WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL2, (u32)dma_paddr);
+		/* dma3:23-12 cvm size */
+		WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL3,
+			0x80100000 | dma_start_line);
+		WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL0, 0x01000062);
+		WRITE_VPP_REG(DOLBY_TV_AXI2DMA_CTRL0, 0x80400042);
+	}
 
 	tv_dovi_setting_update_flag = true;
 	return 0;
@@ -634,11 +669,21 @@ static int tv_dolby_core1_set(
 		&& (dolby_vision_flags &
 		FLAG_DISABE_CORE_SETTING))
 		return 0;
+	if (el_enable)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to core1 */
+			0, 17, 1);
+	else
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to vpp */
+			1, 17, 1);
 	WRITE_VPP_REG(DOLBY_TV_SWAP_CTRL0,
 		(el_41_mode ? 3 : 0x10) << 4 |
 		bl_enable << 0 | el_enable << 1 | el_41_mode << 2);
 	WRITE_VPP_REG(DOLBY_TV_SWAP_CTRL1,
-		((hsize + 0x100) << 16 | (vsize + 0x40)));
+		((hsize + 0x80) << 16 | (vsize + 0x40)));
 	WRITE_VPP_REG(DOLBY_TV_SWAP_CTRL3, (hwidth << 16) | vwidth);
 	WRITE_VPP_REG(DOLBY_TV_SWAP_CTRL4, (hpotch << 16) | vpotch);
 	WRITE_VPP_REG(DOLBY_TV_SWAP_CTRL2, (hsize << 16) | vsize);
@@ -691,15 +736,16 @@ int dolby_vision_update_setting(void)
 	}
 	if (is_meson_txlx_package_962X() && !force_stb_mode) {
 		dma_data = tv_dovi_setting.core1_reg_lut;
-		size = sizeof(uint64_t) * TV_DMA_TBL_SIZE;
+		size = 8 * TV_DMA_TBL_SIZE;
 		memcpy(dma_vaddr, dma_data, size);
 	} else if (is_meson_txlx_package_962E() || force_stb_mode) {
 		dma_data = stb_core1_lut;
-		size = sizeof(uint64_t) * STB_DMA_TBL_SIZE;
+		size = 8 * STB_DMA_TBL_SIZE;
 		memcpy(dma_vaddr, dma_data, size);
 	}
 	if (size && (debug_dolby & 0x8)) {
 		p = (uint64_t *)dma_vaddr;
+		pr_info("dma size = %d\n", STB_DMA_TBL_SIZE);
 		for (i = 0; i < size / 8; i += 2)
 			pr_info("%016llx, %016llx\n", p[i], p[i+1]);
 	}
@@ -743,6 +789,17 @@ static int dolby_core1_set(
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, (1 << 10)|(1 << 9));
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, 0);
 	}
+
+	if (el_enable)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to core1 */
+			0, 17, 1);
+	else
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* vd2 to vpp */
+			1, 17, 1);
 
 	VSYNC_WR_MPEG_REG(DOLBY_CORE1_SWAP_CTRL0, 0);
 	VSYNC_WR_MPEG_REG(DOLBY_CORE1_SWAP_CTRL1,
@@ -842,6 +899,10 @@ static int dolby_core2_set(
 		FLAG_DISABE_CORE_SETTING))
 		return 0;
 
+	if (is_meson_txlx_package_962E() || force_stb_mode) {
+		VSYNC_WR_MPEG_REG(VIU_SW_RESET, (1 << 10));
+		VSYNC_WR_MPEG_REG(VIU_SW_RESET, 0);
+	}
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_CLKGATE_CTRL, 0);
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL0, 0);
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
@@ -899,7 +960,7 @@ static int dolby_core2_set(
 			for (i = 0; i < count; i++)
 				VSYNC_WR_MPEG_REG(DOLBY_CORE2A_DMA_PORT,
 					p_core2_lut[i]);
-		/* core1 lookup table program done */
+		/* core2 lookup table program done */
 		if (dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT)
 			VSYNC_WR_MPEG_REG_BITS(
 				DOLBY_CORE2A_CLKGATE_CTRL, 0, 2, 2);
@@ -1144,7 +1205,11 @@ void enable_dolby_vision(int enable)
 					WRITE_VPP_REG(0x33e7, 0xb);
 				} else {
 					/* bypass all video effect */
-					video_effect_bypass(1);
+					if ((tv_dovi_setting.src_format
+						== FORMAT_HDR10)
+					|| (tv_dovi_setting.src_format
+						== FORMAT_DOVI))
+						video_effect_bypass(1);
 					/* 12->10 before vadj1
 					   10->12 before post blend */
 					VSYNC_WR_MPEG_REG(
@@ -1187,7 +1252,11 @@ void enable_dolby_vision(int enable)
 						VPP_DAT_CONV_PARA1, 0x20002000);
 				} else {
 					/* bypass all video effect */
-					video_effect_bypass(1);
+					if ((dovi_setting.src_format
+						== FORMAT_HDR10)
+					|| (dovi_setting.src_format
+						== FORMAT_DOVI))
+						video_effect_bypass(1);
 					/* 12->10 before vadj1
 					   10->12 before post blend */
 					VSYNC_WR_MPEG_REG(
@@ -1235,7 +1304,11 @@ void enable_dolby_vision(int enable)
 					/* 16 core1 bl bypass */
 					(0 << 0),
 					16, 8);
-				video_effect_bypass(1);
+				/* bypass all video effect */
+				if ((dolby_vision_flags & FLAG_CERTIFICAION)
+				|| (dovi_setting.src_format == FORMAT_HDR10)
+				|| (dovi_setting.src_format == FORMAT_DOVI))
+					video_effect_bypass(1);
 				VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL, 0);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 0);
 				VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1, 0x20000000);
@@ -1299,6 +1372,7 @@ void enable_dolby_vision(int enable)
 			VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1,
 				vpp_dummy1_backup);
 		}
+		frame_count = 0;
 		dolby_vision_on = false;
 		dolby_vision_wait_on = false;
 		dolby_vision_status = BYPASS_PROCESS;
@@ -1690,6 +1764,15 @@ static int dolby_vision_policy_process(
 					*mode = DOLBY_VISION_OUTPUT_MODE_SDR8;
 					mode_change = 1;
 				}
+			} else if (src_format == FORMAT_HDR10
+			&& dolby_vision_hdr10_policy) {
+				if (dolby_vision_mode !=
+				DOLBY_VISION_OUTPUT_MODE_SDR8) {
+					/* HDR10 to SDR */
+					pr_dolby_dbg("dovi output -> DOLBY_VISION_OUTPUT_MODE_SDR8\n");
+					*mode = DOLBY_VISION_OUTPUT_MODE_SDR8;
+					mode_change = 1;
+				}
 			} else if (dolby_vision_mode !=
 			DOLBY_VISION_OUTPUT_MODE_BYPASS) {
 				/* HDR/SDR bypass */
@@ -1718,6 +1801,15 @@ static int dolby_vision_policy_process(
 					*mode = DOLBY_VISION_OUTPUT_MODE_SDR8;
 					mode_change = 1;
 				}
+			}
+		} else if (src_format == FORMAT_HDR10
+		&& dolby_vision_hdr10_policy) {
+			if (dolby_vision_mode !=
+			DOLBY_VISION_OUTPUT_MODE_SDR8) {
+				/* HDR10 to SDR */
+				pr_dolby_dbg("dovi output -> DOLBY_VISION_OUTPUT_MODE_SDR8\n");
+				*mode = DOLBY_VISION_OUTPUT_MODE_SDR8;
+				mode_change = 1;
 			}
 		} else if (dolby_vision_mode !=
 		DOLBY_VISION_OUTPUT_MODE_BYPASS) {
@@ -1784,6 +1876,16 @@ static bool is_dovi_frame(struct vframe_s *vf)
 	return false;
 }
 
+#define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
+#define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
+static bool is_hdr10_frame(struct vframe_s *vf)
+{
+	if ((signal_color_primaries == 9)
+	&& (signal_transfer_characteristic == 16))
+		return true;
+	return false;
+}
+
 /* 0: no el; >0: with el */
 /* 1: need wait el vf    */
 /* 2: no match el found  */
@@ -1794,6 +1896,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 	struct vframe_s *el_vf;
 	int ret = 0;
 	unsigned int mode;
+	bool need_hdr10_process = false;
 
 	if (debug_dolby & 0x80) {
 		if (dolby_vision_flags & FLAG_SINGLE_STEP)
@@ -1865,6 +1968,29 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 		}
 	}
 
+	/* check if new frame is HDR10 */
+	if (is_hdr10_frame(vf) && (dolby_vision_status != HDR_PROCESS)) {
+		if (is_meson_txlx_package_962X() && !force_stb_mode) {
+			if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SOURCE)
+				need_hdr10_process = true;
+		} else if (dolby_vision_hdr10_policy)
+			need_hdr10_process = true;
+		if (need_hdr10_process) {
+			if (dolby_vision_hdr10_status == 0) {
+				dolby_vision_hdr10_status = HDR10_FRAME_DELAY;
+				/* wait one frame for source type change */
+				pr_dolby_dbg("=== hdr wait(%p-%lld) ===\n",
+					vf, vf->pts_us64);
+				ret = 1;
+			} else if (dolby_vision_hdr10_status > 1) {
+				dolby_vision_hdr10_status--;
+				ret = 1;
+			}
+		}
+	} else
+		dolby_vision_hdr10_status = 0;
+
+	/* check if new frame is DOVI */
 	if (is_dovi_frame(vf) && !dolby_vision_on) {
 		/* dovi source, but dovi not enabled */
 		mode = dolby_vision_mode;
@@ -1874,26 +2000,9 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS))
 				dolby_vision_wait_on = true;
-#if 0
-			dolby_vision_set_toggle_flag(1);
-			pr_dolby_dbg("[dolby_vision_wait_metadata] output change from %d to %d\n",
-				dolby_vision_mode, mode);
-			dolby_vision_mode = mode;
-			ret = 1;
-#endif
 		}
 	}
 	return ret;
-}
-
-#define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
-#define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
-static bool is_hdr10_frame(struct vframe_s *vf)
-{
-	if ((signal_color_primaries == 9)
-	&& (signal_transfer_characteristic == 16))
-		return true;
-	return false;
 }
 
 int dolby_vision_check_hdr10(struct vframe_s *vf)
@@ -2303,10 +2412,10 @@ void prepare_hdr10_param(
 	} else {
 		if ((p_hdr10_param->
 		min_display_mastering_luminance
-			!= max_lum)
+			!= min_lum)
 		|| (p_hdr10_param->
 		max_display_mastering_luminance
-			!= min_lum)
+			!= max_lum)
 		|| (p_hdr10_param->Rx
 			!= bt2020_primaries[2][0])
 		|| (p_hdr10_param->Ry
@@ -2686,7 +2795,7 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 			vf->compHeight : vf->height;
 	}
 
-	if (is_meson_txlx_package_962X()  && !force_stb_mode && vf
+	if (is_meson_txlx_package_962X() && !force_stb_mode && vf
 	&& (vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
 		req.vf = vf;
 		req.bot_flag = 0;
@@ -2706,15 +2815,13 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 			if (vf->type & VIDTYPE_VIU_422)
 				src_chroma_format = 1;
 			p_mdc =	&vf->prop.master_display_colour;
-			if (is_hdr10_frame(vf))
+			if (is_hdr10_frame(vf)) {
 				src_format = FORMAT_HDR10;
-			if (src_format == FORMAT_HDR10) {
+				/* prepare parameter from hdmi for hdr10 */
 				prepare_hdr10_param(
 					p_mdc, &hdr10_param);
 				hdr10_param.max_display_mastering_luminance *=
 					10000;
-				/* core1 in hdmi mode must be 12 bit input */
-				src_bdp = 12;
 			}
 			meta_flag_el = 0;
 		}
@@ -2728,41 +2835,43 @@ static int dolby_vision_parse_metadata(struct vframe_s *vf)
 		dolby_vision_vf_add(vf, NULL);
 	} else if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)) {
 		/* check source format */
-		p_mdc =	&vf->prop.master_display_colour;
-		if (is_hdr10_frame(vf))
+		input_mode = INPUT_MODE_OTT;
+		if (is_hdr10_frame(vf)) {
 			src_format = FORMAT_HDR10;
-
-		/* prepare parameter from SEI for hdr10 */
-		if (src_format == FORMAT_HDR10) {
+			/* prepare parameter from SEI for hdr10 */
+			p_mdc =	&vf->prop.master_display_colour;
 			prepare_hdr10_param(p_mdc, &hdr10_param);
-			src_bdp = 10;
+			if (is_meson_txlx_package_962E() || force_stb_mode)
+				src_bdp = 10;
+			memset(&req, 0, sizeof(req));
+		} else {
+			req.vf = vf;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0;
+			req.dv_enhance_exist = 0;
+			vf_notify_provider_by_name("dvbldec",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+			if (req.aux_buf && req.aux_size)
+				pr_dolby_dbg("dvbldec get aux data %p %x\n",
+					req.aux_buf, req.aux_size);
+			/* parse meta in base layer */
+			if (dolby_vision_flags & FLAG_META_FROM_BL)
+				meta_flag_bl = parse_sei_and_meta(
+					vf, &req,
+					&total_comp_size, &total_md_size,
+					&src_format);
 		}
 
-		req.vf = vf;
-		req.bot_flag = 0;
-		req.aux_buf = NULL;
-		req.aux_size = 0;
-		req.dv_enhance_exist = 0;
-		vf_notify_provider_by_name("dvbldec",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
-		input_mode = INPUT_MODE_OTT;
-		if (req.aux_buf && req.aux_size)
-			pr_dolby_dbg("dvbldec get aux data %p %x\n",
-				req.aux_buf, req.aux_size);
-		/* parse meta in base layer */
-		if (dolby_vision_flags & FLAG_META_FROM_BL)
-			meta_flag_bl = parse_sei_and_meta(
-				vf, &req,
-				&total_comp_size, &total_md_size,
-				&src_format);
 		pr_dolby_dbg(
 			"frame %d pts %lld, src bdp: %d format: %s, aux_size:%d, enhance: %d\n",
 			frame_count, vf->pts_us64, src_bdp,
 			(src_format == FORMAT_HDR10) ? "HDR10" :
 			((src_format == FORMAT_DOVI) ? "DOVI" : "SDR"),
 			req.aux_size, req.dv_enhance_exist);
-		if (req.dv_enhance_exist) {
+
+		if (src_format == FORMAT_DOVI && req.dv_enhance_exist) {
 			el_vf = dvel_vf_get();
 			if (el_vf &&
 			((el_vf->pts_us64 == vf->pts_us64)
@@ -3118,6 +3227,7 @@ int dolby_vision_process(struct vframe_s *vf)
 		&& !video_off_handled
 		&& !(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		dolby_vision_set_toggle_flag(1);
+		frame_count = 0;
 		pr_dolby_dbg("video off\n");
 		if (debug_dolby)
 			video_off_handled = 1;
@@ -3145,7 +3255,7 @@ int dolby_vision_process(struct vframe_s *vf)
 		return 0;
 	}
 
-	if (is_dolby_vision_on())
+	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		video_effect_bypass(1);
 
 	if (dolby_vision_flags & FLAG_RESET_EACH_FRAME)
@@ -3168,8 +3278,6 @@ int dolby_vision_process(struct vframe_s *vf)
 					src_chroma_format = 2;
 				else if (vf)
 					src_chroma_format = 1;
-				/* no vf to keep the setting */
-
 				tv_dolby_core1_set(
 					tv_dovi_setting.core1_reg_lut,
 					tv_dovi_setting.video_width,
@@ -3261,8 +3369,6 @@ int dolby_vision_process(struct vframe_s *vf)
 				dovi_setting.src_format);
 			dolby_vision_status = SDR_PROCESS;
 		}
-		/* send HDMI packet according to dst_format */
-		send_hdmi_pkt(dovi_setting.dst_format, vinfo);
 		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
 	}
 	return 0;
@@ -3335,9 +3441,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 {
 	int ret = -1;
 	if (!p_funcs && func) {
-		pr_info(
-			"*** register_dv_functions. version %s ***\n",
-			func->verisn_info);
+		pr_info("*** register_dv_functions. version %s ***\n",
+			func->version_info);
 		p_funcs = func;
 		ret = 0;
 	}
