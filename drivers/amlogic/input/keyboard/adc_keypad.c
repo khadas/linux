@@ -33,6 +33,7 @@
 #include <linux/amlogic/input/adc_keypad.h>
 #include <linux/amlogic/scpi_protocol.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #define POLL_PERIOD_WHEN_KEY_DOWN 20 /* unit msec */
 #define POLL_PERIOD_WHEN_KEY_UP   50
@@ -588,6 +589,8 @@ static int kp_resume(struct platform_device *pdev)
 		input_sync(kp->input);
 		input_report_key(kp->input ,  KEY_POWER ,  0);
 		input_sync(kp->input);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 	return 0;
 }

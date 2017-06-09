@@ -38,7 +38,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
-
+#include <linux/amlogic/scpi_protocol.h>
 
 #include "remote_meson.h"
 
@@ -681,7 +681,6 @@ static int remote_resume(struct platform_device *pdev)
 	unsigned int val;
 	unsigned long flags;
 	unsigned char cnt;
-
 	dev_info(chip->dev, "remote resume\n");
 	/*resume register config*/
 	spin_lock_irqsave(&chip->slock, flags);
@@ -692,7 +691,6 @@ static int remote_resume(struct platform_device *pdev)
 		remote_reg_read(chip, cnt, REG_FRAME, &val);
 	}
 	spin_unlock_irqrestore(&chip->slock, flags);
-
 	if (get_resume_method() == REMOTE_WAKEUP) {
 		input_event(chip->r_dev->input_device,
 		    EV_KEY, KEY_POWER, 1);
@@ -700,6 +698,8 @@ static int remote_resume(struct platform_device *pdev)
 		input_event(chip->r_dev->input_device,
 		    EV_KEY, KEY_POWER, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 
 	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
@@ -707,6 +707,8 @@ static int remote_resume(struct platform_device *pdev)
 		input_sync(chip->r_dev->input_device);
 		input_event(chip->r_dev->input_device, EV_KEY, 133, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 
 	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
@@ -744,6 +746,8 @@ static struct platform_driver remote_driver = {
 static int __init remote_init(void)
 {
 	pr_info("%s: Driver init\n", DRIVER_NAME);
+	if (scpi_clr_wakeup_reason())
+		pr_debug("clr wakeup reason fail.\n");
 	return platform_driver_register(&remote_driver);
 }
 

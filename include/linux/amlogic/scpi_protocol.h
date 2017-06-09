@@ -67,6 +67,7 @@ enum scpi_std_cmd {
 	SCPI_CMD_SET_USR_DATA = 0x20,
 	SCPI_CMD_GET_USR_DATA = 0x21,
 	SCPI_CMD_WAKEUP_REASON_GET = 0x30,
+	SCPI_CMD_WAKEUP_REASON_CLR = 0X31,
 
 	SCPI_CMD_COUNT
 };
@@ -95,5 +96,5 @@ int scpi_get_usr_data(u32 client_id, u32 *val, u32 size);
 int scpi_get_vrtc(u32 *p_vrtc);
 int scpi_set_vrtc(u32 vrtc_val);
 int scpi_get_wakeup_reason(u32 *wakeup_reason);
-
+int scpi_clr_wakeup_reason(void);
 #endif /*_SCPI_PROTOCOL_H_*/

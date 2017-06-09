@@ -49,6 +49,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #include <linux/switch.h>
 #define OFFSET  24
@@ -461,6 +462,8 @@ static int gpio_key_resume(struct platform_device *dev)
 		input_sync(gp_kp->input);
 		input_report_key(gp_kp->input ,  KEY_POWER ,  0);
 		input_sync(gp_kp->input);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 	return 0;
 }
