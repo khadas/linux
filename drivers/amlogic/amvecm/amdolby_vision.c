@@ -1856,9 +1856,11 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			}
 		}
 		/* need wait el */
-		if ((el_vf == NULL) && (debug_dolby & 2)) {
-			pr_dolby_dbg("=== bl wait el(%p-%lld) ===\n",
-				vf, vf->pts_us64);
+		if (el_vf == NULL) {
+			if (debug_dolby & 2)
+				pr_dolby_dbg(
+					"=== bl wait el(%p-%lld) ===\n",
+					vf, vf->pts_us64);
 			ret = 1;
 		}
 	}
