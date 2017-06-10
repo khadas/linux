@@ -207,7 +207,7 @@ module_param(video_rgb_ogo_mode_sw, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
 		"enable/disable video_rgb_ogo_mode_sw");
 
-int video_rgb_ogo_xvy_mtx = 1;
+int video_rgb_ogo_xvy_mtx;
 module_param(video_rgb_ogo_xvy_mtx, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
 		"enable/disable video_rgb_ogo_xvy_mtx");

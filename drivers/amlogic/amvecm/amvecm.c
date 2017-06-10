@@ -3764,8 +3764,13 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_info("Can't find  cm_en.\n");
 		else
 			cm_en = val;
+		ret = of_property_read_u32(node, "wb_sel", &val);
+		if (ret)
+			pr_info("Can't find  wb_sel.\n");
+		else
+			video_rgb_ogo_xvy_mtx = val;
 	}
-	/* init module status */
+
 	amvecm_wb_init(wb_en);
 	amvecm_gamma_init(gamma_en);
 	if (!is_dolby_vision_enable())

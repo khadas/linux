@@ -528,6 +528,7 @@
 		gamma_en = <1>;/*1:enabel ;0:disable*/
 		wb_en = <1>;/*1:enabel ;0:disable*/
 		cm_en = <1>;/*1:enabel ;0:disable*/
+		wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	};
 
 	amvenc_avc {
