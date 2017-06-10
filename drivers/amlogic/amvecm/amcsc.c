@@ -1616,7 +1616,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 {
 	int *m = NULL;
 	int size = 0;
-	int i;
+	int i, reg_value;
 	if (debug_csc && print_lut_mtx)
 		print_vpp_matrix(m_select, s, on);
 	if (m_select == VPP_MATRIX_OSD) {
@@ -1699,8 +1699,15 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			m = osd_matrix_coeff;
 
 			if (on) {
-				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL,
-					4, 8, 3);
+				/*VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL,
+					4, 8, 3);*/
+				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+				reg_value = (((reg_value & (~(7 << 8)))
+							| (4 << 8))
+							& (~(1 << 7)))
+							| (on << 7);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+					reg_value);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
 					((m[0] & 0xfff) << 16)
 					| (m[1] & 0xfff));
@@ -1741,7 +1748,13 @@ void set_vpp_matrix(int m_select, int *s, int on)
 				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP,
 					m[22], 5, 3);
 			}
-			VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL, on, 7, 1);
+			/*VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL, on, 7, 1);*/
+			if (!on) {
+				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+					(reg_value & (~(1 << 7))) | (on << 7));
+			}
+
 		}
 	} else if (m_select == VPP_MATRIX_EOTF) {
 		/* eotf matrix, VPP_MATRIX_EOTF */
@@ -1817,10 +1830,15 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 14, 1);
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
 			if (on) {
-				if (rdma_flag & (1 << m_select))
-					VSYNC_WR_MPEG_REG_BITS(
-						VPP_MATRIX_CTRL, 0, 8, 3);
-				else
+				if (rdma_flag & (1 << m_select)) {
+					/*VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 0, 8, 3);*/
+					reg_value =
+						READ_VPP_REG(VPP_MATRIX_CTRL);
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+						(reg_value & (~(7 << 8)))
+						| (0 << 8));
+				} else
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, 0, 8, 3);
 			}
@@ -1831,46 +1849,73 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 9, 1);
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
 			if (on) {
-				if (rdma_flag & (1 << m_select))
-					VSYNC_WR_MPEG_REG_BITS(
-						VPP_MATRIX_CTRL, 1, 8, 3);
-				else
+				if (rdma_flag & (1 << m_select)) {
+					/*VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 1, 8, 3);*/
+					reg_value =
+						READ_VPP_REG(VPP_MATRIX_CTRL);
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+						(reg_value & (~(7 << 8)))
+						| (1 << 8));
+				} else
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, 1, 8, 3);
 			}
 		} else if (m_select == VPP_MATRIX_VD2) {
 			/* vd2 matrix, not latched */
 			m = vd2_matrix_coeff;
-			if (rdma_flag & (1 << m_select))
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_MATRIX_CTRL, on, 4, 1);
-			else
+			if (rdma_flag & (1 << m_select)) {
+				/*VSYNC_WR_MPEG_REG_BITS(
+					VPP_MATRIX_CTRL, on, 4, 1);*/
+				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+					(reg_value & (~(1 << 4))) | (on << 4));
+			} else
 				WRITE_VPP_REG_BITS(
 					VPP_MATRIX_CTRL, on, 4, 1);
 			if (on) {
-				if (rdma_flag & (1 << m_select))
-					VSYNC_WR_MPEG_REG_BITS(
-						VPP_MATRIX_CTRL, 2, 8, 3);
-				else
+				if (rdma_flag & (1 << m_select)) {
+					/*VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 2, 8, 3);*/
+					reg_value =
+						READ_VPP_REG(VPP_MATRIX_CTRL);
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+						(reg_value & (~(7 << 8)))
+						| (2 << 8));
+				} else
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, 2, 8, 3);
 			}
 		} else if (m_select == VPP_MATRIX_XVYCC) {
 			/* xvycc matrix, not latched */
 			m = xvycc_matrix_coeff;
-			if (rdma_flag & (1 << m_select))
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_MATRIX_CTRL, on, 6, 1);
-			else
-				WRITE_VPP_REG_BITS(
-					VPP_MATRIX_CTRL, on, 6, 1);
+
 			if (on) {
-				if (rdma_flag & (1 << m_select))
-					VSYNC_WR_MPEG_REG_BITS(
-						VPP_MATRIX_CTRL, 3, 8, 3);
-				else
+				if (rdma_flag & (1 << m_select)) {
+					reg_value =
+						READ_VPP_REG(VPP_MATRIX_CTRL);
+					reg_value = (((reg_value & (~(1 << 6)))
+							| (on << 6))
+							& (~(7 << 8)))
+							| (3 << 8);
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+						reg_value);
+				} else {
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, on, 6, 1);
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, 3, 8, 3);
+				}
+			} else {
+				if (rdma_flag & (1 << m_select)) {
+					reg_value =
+						READ_VPP_REG(VPP_MATRIX_CTRL);
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+						(reg_value & (~(1 << 6)))
+						| (on << 6));
+				} else
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, on, 6, 1);
 			}
 		}
 		if (on) {
