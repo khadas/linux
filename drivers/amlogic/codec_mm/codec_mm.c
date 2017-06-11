@@ -109,7 +109,7 @@ struct extpool_mgt_s {
 	int slot_num;
 	int alloced_size;
 	int total_size;
-	spinlock_t lock;
+	struct mutex pool_lock;
 };
 
 struct codec_mm_mgt_s {
@@ -806,11 +806,12 @@ int codec_mm_extpool_pool_alloc(
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem;
-	int alloced_size = tvp_pool->alloced_size;
+	int alloced_size = tvp_pool->total_size;
 	int try_alloced_size = size;
 	int ret;
 
 /*alloced from reserved*/
+	mutex_lock(&tvp_pool->pool_lock);
 	try_alloced_size = mgt->total_reserved_size - mgt->alloced_res_size;
 	if (try_alloced_size > 0 && for_tvp) {
 		try_alloced_size = min_t(int,
@@ -866,11 +867,10 @@ int codec_mm_extpool_pool_alloc(
 	}
 
 alloced_finished:
-	if (alloced_size > 0) {
+	if (alloced_size > 0)
 		tvp_pool->total_size = alloced_size;
-		return alloced_size;
-	}
-	return -1;
+	mutex_unlock(&tvp_pool->pool_lock);
+	return alloced_size;
 }
 
 /*
@@ -885,7 +885,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	int i;
 	int ignored = 0;
-
+	mutex_lock(&tvp_pool->pool_lock);
 	for (i = 0; i < tvp_pool->slot_num; i++) {
 		struct gen_pool *gpool = tvp_pool->gen_pool[i];
 		int slot_mem_size = 0;
@@ -926,6 +926,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 
 	}
 	tvp_pool->slot_num = ignored;
+	mutex_unlock(&tvp_pool->pool_lock);
 	return ignored;
 }
 
@@ -1243,6 +1244,8 @@ int codec_mm_mgt_init(struct device *dev)
 
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
+	mutex_init(&mgt->tvp_pool.pool_lock);
+	mutex_init(&mgt->cma_res_pool.pool_lock);
 	spin_lock_init(&mgt->lock);
 	return 0;
 }
