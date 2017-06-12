@@ -755,10 +755,6 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 			break;
 		}
 
-		ret = wait_event_interruptible(src->queue,
-			!vbi_ringbuffer_empty(src) || (src->error != 0) ||
-			tvafe_dec_status == false);
-
 		if (tvafe_dec_status == false) {
 			ret = -EWOULDBLOCK;
 			pr_info("[vbi..] %s: tvafe is closed.\n", __func__);
