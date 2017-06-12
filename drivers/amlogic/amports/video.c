@@ -8444,6 +8444,7 @@ static struct mconfig video_configs[] = {
 	MC_PU32("framepacking_blank", &framepacking_blank),
 	MC_PU32("video_seek_flag", &video_seek_flag),
 	MC_PU32("slowsync_repeat_enable", &slowsync_repeat_enable),
+	MC_PU32("toggle_count", &toggle_count),
 	MC_PBOOL("show_first_frame_nosync", &show_first_frame_nosync),
 #ifdef TV_REVERSE
 	MC_PBOOL("reverse", &reverse),
