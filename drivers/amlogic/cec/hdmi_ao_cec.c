@@ -2035,7 +2035,7 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 			port[e].physical_address = (e + 1) * phy_app + phy_addr;
 		}
 		port[e].type = HDMI_INPUT;
-		port[e].port_id = e + 1;
+		port[e].port_id = a + 1;
 		port[e].cec_supported = 1;
 		/* set ARC feature according mask */
 		if (cec_dev->arc_port & (1 << a))
@@ -2050,7 +2050,7 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 	if (cec_dev->dev_type == DEV_TYPE_TUNER) {
 		/* last port is for tx in mixed tx/rx */
 		port[e].type = HDMI_OUTPUT;
-		port[e].port_id = e + 1;
+		port[e].port_id = 0;		/* 0 for tx port id */
 		port[e].cec_supported = 1;
 		port[e].arc_supported = 0;
 		port[e].physical_address = phy_addr;
@@ -2138,7 +2138,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0)
 				tmp = 0xffff;
 			port->type = HDMI_OUTPUT;
-			port->port_id = 1;
+			port->port_id = 0;
 			port->cec_supported = 1;
 			/* not support arc for tx */
 			port->arc_supported = 0;
@@ -2207,8 +2207,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		else {
 			if (copy_from_user(&a, argp, _IOC_SIZE(cmd)))
 				return -EINVAL;
-			if (cec_dev->port_num == a &&
-			    cec_dev->dev_type == DEV_TYPE_TUNER)
+			if (!a && cec_dev->dev_type == DEV_TYPE_TUNER)
 				tmp = tx_hpd;
 			else {	/* mixed for rx */
 				tmp = (hdmirx_rd_top(TOP_HPD_PWR5V) >> 20);
