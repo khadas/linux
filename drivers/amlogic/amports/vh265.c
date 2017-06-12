@@ -5647,11 +5647,11 @@ static unsigned calc_ar(unsigned idc, unsigned sar_w, unsigned sar_h,
 	return ar;
 }
 
-static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
+static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf,
+			struct PIC_s *pic)
 {
 	unsigned int ar;
 	int i, j;
-	unsigned char index;
 	char *p;
 	unsigned size = 0;
 	unsigned type = 0;
@@ -5660,11 +5660,11 @@ static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 
 	if ((get_double_write_mode(hevc) == 2) ||
 		(get_double_write_mode(hevc) == 3)) {
-		vf->width = hevc->frame_width/4;
-		vf->height = hevc->frame_height/4;
+		vf->width = pic->width/4;
+		vf->height = pic->height/4;
 	} else {
-		vf->width = hevc->frame_width;
-		vf->height = hevc->frame_height;
+		vf->width = pic->width;
+		vf->height = pic->height;
 	}
 	vf->duration = hevc->frame_dur;
 	vf->duration_pulldown = 0;
@@ -5679,42 +5679,40 @@ static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 	else
 		vf->signal_type = 0;
 
-	index = vf->index & 0xff;
-	if (index != 0xff && index >= 0
-		&& index < MAX_REF_PIC_NUM
-		&& hevc->m_PIC[index]) {
-		if (hevc->m_PIC[index]->sar_width &&
-			hevc->m_PIC[index]->sar_height) {
-			ar = min_t(u32,
-				calc_ar(hevc->m_PIC[index]->aspect_ratio_idc,
-				hevc->m_PIC[index]->sar_width,
-				hevc->m_PIC[index]->sar_height,
-				hevc->frame_width,
-				hevc->frame_height),
-				DISP_RATIO_ASPECT_RATIO_MAX);
-			vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
-		}
-		if (hevc->m_PIC[index]->aux_data_buf
-			&& hevc->m_PIC[index]->aux_data_size) {
-			/* parser sei */
-			p = hevc->m_PIC[index]->aux_data_buf;
-			while (p < hevc->m_PIC[index]->aux_data_buf
-				+ hevc->m_PIC[index]->aux_data_size - 8) {
-				size = *p++;
-				size = (size << 8) | *p++;
-				size = (size << 8) | *p++;
-				size = (size << 8) | *p++;
-				type = *p++;
-				type = (type << 8) | *p++;
-				type = (type << 8) | *p++;
-				type = (type << 8) | *p++;
-				if (type == 0x02000000) {
-					/* hevc_print(hevc, 0,
-					"sei(%d)\n", size); */
-					parse_sei(hevc, p, size);
-				}
-				p += size;
+	if (((pic->aspect_ratio_idc == 255) &&
+		pic->sar_width &&
+		pic->sar_height) ||
+		((pic->aspect_ratio_idc != 255) &&
+		(pic->width))) {
+		ar = min_t(u32,
+			calc_ar(pic->aspect_ratio_idc,
+			pic->sar_width,
+			pic->sar_height,
+			pic->width,
+			pic->height),
+			DISP_RATIO_ASPECT_RATIO_MAX);
+		vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
+	}
+	if (pic->aux_data_buf
+		&& pic->aux_data_size) {
+		/* parser sei */
+		p = pic->aux_data_buf;
+		while (p < pic->aux_data_buf
+			+ pic->aux_data_size - 8) {
+			size = *p++;
+			size = (size << 8) | *p++;
+			size = (size << 8) | *p++;
+			size = (size << 8) | *p++;
+			type = *p++;
+			type = (type << 8) | *p++;
+			type = (type << 8) | *p++;
+			type = (type << 8) | *p++;
+			if (type == 0x02000000) {
+				/* hevc_print(hevc, 0,
+				"sei(%d)\n", size); */
+				parse_sei(hevc, p, size);
 			}
+			p += size;
 		}
 	}
 
@@ -5803,6 +5801,7 @@ static struct vframe_s *vh265_vf_get(void *op_arg)
 	else if (step == 1)
 		step = 2;
 
+#if 0
 	if (force_disp_pic_index & 0x100) {
 		int buffer_index = force_disp_pic_index & 0xff;
 		struct PIC_s *pic = NULL;
@@ -5876,6 +5875,7 @@ static struct vframe_s *vh265_vf_get(void *op_arg)
 		force_disp_pic_index |= 0x200;
 		return vf;
 	}
+#endif
 
 	if (kfifo_get(&hevc->display_q, &vf)) {
 		if (get_dbg_flag(hevc) & H265_DEBUG_PIC_STRUCT)
@@ -6337,7 +6337,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		vf->type |= VIDTYPE_VIU_NV21;
 		vf->canvas0Addr = vf->canvas1Addr = spec2canvas(pic);
 #endif
-		set_frame_info(hevc, vf);
+		set_frame_info(hevc, vf, pic);
 		/* if((vf->width!=pic->width)||(vf->height!=pic->height)) */
 		/* hevc_print(hevc, 0,
 			"aaa: %d/%d, %d/%d\n",
@@ -7187,8 +7187,10 @@ pic_done:
 			hevc_print(hevc, 0, "get NAL_UNIT_EOS, flush output\n");
 #ifdef CONFIG_AM_VDEC_DV
 			if ((vdec->master || vdec->slave) &&
-				READ_VREG(HEVC_AUX_DATA_SIZE) != 0)
-				dolby_get_meta(hevc);
+				READ_VREG(HEVC_AUX_DATA_SIZE) != 0) {
+				if (hevc->decoding_pic)
+					dolby_get_meta(hevc);
+			}
 #endif
 			check_pic_decoded_lcu_count(hevc,
 				hevc->pic_decoded_lcu_idx);
