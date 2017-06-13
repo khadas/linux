@@ -211,6 +211,7 @@ struct di_buf_s {
 	1: after get
 	0: after put*/
 	atomic_t di_cnt;
+	struct page	*pages;
 };
 extern uint di_mtn_1_ctrl1;
 #ifdef DET3D
@@ -491,9 +492,8 @@ struct di_dev_s {
 	/* is DI surpport post wr to mem for OMX */
 	unsigned int       post_wr_surpport;
 	unsigned int	   flag_cma;
-	unsigned int	   cma_alloc[10];
-	unsigned int	   buffer_addr[10];
-	struct page	*pages[10];
+	struct page			*total_pages;
+	atomic_t			mem_flag;
 };
 #define di_dev_t struct di_dev_s
 
