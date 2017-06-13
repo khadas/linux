@@ -140,9 +140,10 @@ static struct remote_reg_map regs_default_toshiba[] = {
 	{ REG_REG0       ,  7 << 28 | (0xFA0 << 12) | 0x13},
 	{ REG_STATUS     ,  (134 << 20) | (90 << 10)},
 	{ REG_REG1       ,  0x9f00},
-	{ REG_REG2       ,  0x05},
+	{ REG_REG2       ,  0x05 | (1 << 24)},
 	{ REG_DURATN2    ,  0x00},
-	{ REG_DURATN3    ,  0x00}
+	{ REG_DURATN3    ,  0x00,},
+	{ REG_REPEAT_DET , (1 << 31) | (0xFA0 << 16) | (10 << 0)},
 };
 
 void set_hardcode(struct remote_chip *chip, int code)

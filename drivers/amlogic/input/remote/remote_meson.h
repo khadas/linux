@@ -21,6 +21,7 @@
 #include <uapi/linux/rc_common.h>
 #include "remote_core.h"
 
+
 #define DRIVER_NAME "meson-remote"
 
 #define IR_DATA_IS_VALID(data) (data & 0x8)
@@ -183,7 +184,12 @@ enum remote_reg {
 	REG_STATUS2    = 0x0d<<2,
 	REG_REG3       = 0x0e<<2,
 	REG_FRAME_RSV0 = 0x0f<<2,
-	REG_FRAME_RSV1 = 0x10<<2
+	REG_FRAME_RSV1 = 0x10<<2,
+	REG_FILTE      = 0x11<<2,
+	REG_IRQ_CTL    = 0x12<<2,
+	REG_FIFO_CTL   = 0x13<<2,
+	REG_WIDTH_NEW  = 0x14<<2,
+	REG_REPEAT_DET = 0x15<<2
 };
 
 int ir_register_default_config(struct remote_chip *chip, int type);
