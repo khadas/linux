@@ -2939,6 +2939,29 @@ static ssize_t dump_vdec_chunks_show(struct class *class,
 	return pbuf - buf;
 }
 
+static ssize_t dump_decoder_state_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	char *pbuf = buf;
+	struct vdec_s *vdec;
+	struct vdec_core_s *core = vdec_core;
+	unsigned long flags = vdec_core_lock(vdec_core);
+
+	if (list_empty(&core->connected_vdec_list)) {
+		pbuf += sprintf(pbuf, "No vdec.\n");
+	} else {
+		list_for_each_entry(vdec,
+			&core->connected_vdec_list, list) {
+			if ((vdec->status == VDEC_STATUS_CONNECTED
+				|| vdec->status == VDEC_STATUS_ACTIVE)
+				&& vdec->dump_state)
+					vdec->dump_state(vdec);
+		}
+	}
+	vdec_core_unlock(vdec_core, flags);
+
+	return pbuf - buf;
+}
 
 static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(amrisc_regs),
@@ -2954,6 +2977,7 @@ static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(vdec_status),
 	__ATTR_RO(dump_vdec_blocks),
 	__ATTR_RO(dump_vdec_chunks),
+	__ATTR_RO(dump_decoder_state),
 	__ATTR_NULL
 };
 

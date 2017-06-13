@@ -311,8 +311,10 @@ int decoder_bmmu_box_alloc_buf_phy(
 			decoder_bmmu_box_get_phy_addr(
 			handle,
 			idx);
+		/*
 		pr_info("%s malloc buf_idx = %d addr = %ld size = %d\n",
 			driver_name, idx, *buf_phy_addr, size);
+		*/
 		} else {
 		pr_info("%s malloc failed  %d\n", driver_name, idx);
 			return -ENOMEM;

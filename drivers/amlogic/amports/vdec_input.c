@@ -133,7 +133,9 @@ static void vframe_block_free_block(struct vframe_block_list_s *block)
 	if (block->addr) {
 		codec_mm_free_for_dma(MEM_NAME,	block->addr);
 	}
+	/*
 	pr_err("free block %d, size=%d\n", block->id, block->size);
+	*/
 	kfree(block);
 }
 
@@ -495,11 +497,13 @@ static struct vframe_block_list_s *
 
 	vdec_input_add_block(input, block);
 
+	/*
 	pr_info("vdec-%d:new block id=%d, total_blocks:%d, size=%d\n",
 		input->id,
 		block->id,
 		input->block_nums,
 		block->size);
+	*/
 	if (0 && input->size > VFRAME_BLOCK_MAX_LEVEL * 2) {
 		/*
 		used

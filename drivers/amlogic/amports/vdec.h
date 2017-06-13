@@ -207,6 +207,7 @@ struct vdec_s {
 	void (*run)(struct vdec_s *vdec,
 			void (*callback)(struct vdec_s *, void *), void *);
 	void (*reset)(struct vdec_s *vdec);
+	void (*dump_state)(struct vdec_s *vdec);
 	irqreturn_t (*irq_handler)(struct vdec_s *);
 	irqreturn_t (*threaded_irq_handler)(struct vdec_s *);
 
