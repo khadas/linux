@@ -69,7 +69,6 @@ static struct FrameStore dummy_fs;
 static struct StorablePicture *get_new_pic(
 	struct h264_dpb_stru *p_H264_Dpb,
 	enum PictureStructure structure, unsigned char is_output);
-static void dump_dpb(struct DecodedPictureBuffer *p_Dpb);
 
 static void init_dummy_fs(void)
 {
@@ -820,7 +819,7 @@ void fill_frame_num_gap(struct VideoParameters *p_Vid, struct Slice *currSlice)
 				"%s Error: get_new_pic return NULL\r\n",
 				__func__);
 			/*h264_debug_flag |= PRINT_FLAG_DUMP_DPB;*/
-			dump_dpb(p_Dpb);
+			dump_dpb(p_Dpb, 0);
 			return;
 		}
 
@@ -1055,6 +1054,9 @@ static struct StorablePicture *get_new_pic(struct h264_dpb_stru *p_H264_Dpb,
 static void free_picture(struct h264_dpb_stru *p_H264_Dpb,
 			 struct StorablePicture *pic)
 {
+	if (pic == NULL || pic->index < 0 ||
+		pic->index >= MAX_PIC_BUF_NUM)
+		return;
 	dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_DPB_DETAIL,
 			"%s %p %d\n", __func__, pic, pic->index);
 	/* assert(pic->index<MAX_PIC_BUF_NUM); */
@@ -1642,6 +1644,11 @@ static void update_pic_num(struct Slice *currSlice)
 
 	if (currSlice->structure == FRAME) {
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL ||
+				p_Dpb->fs_ref[i]->frame == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_used == 3) {
 				if ((p_Dpb->fs_ref[i]->frame->
 					used_for_reference) &&
@@ -1665,6 +1672,11 @@ static void update_pic_num(struct Slice *currSlice)
 		}
 		/* update long_term_pic_num */
 		for (i = 0; i < p_Dpb->ltref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ltref[i] == NULL ||
+				p_Dpb->fs_ltref[i]->frame == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ltref[i]->is_used == 3) {
 				if (p_Dpb->fs_ltref[i]->frame->is_long_term) {
 					p_Dpb->fs_ltref[i]->frame->
@@ -1684,6 +1696,10 @@ static void update_pic_num(struct Slice *currSlice)
 		}
 
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_reference) {
 				if (p_Dpb->fs_ref[i]->frame_num > currSlice->
 					frame_num) {
@@ -1695,11 +1711,20 @@ static void update_pic_num(struct Slice *currSlice)
 					p_Dpb->fs_ref[i]->frame_num;
 				}
 				if (p_Dpb->fs_ref[i]->is_reference & 1) {
+#ifdef ERROR_CHECK
+					if (p_Dpb->fs_ref[i]->top_field == NULL)
+						continue;
+#endif
 					p_Dpb->fs_ref[i]->top_field->
 					pic_num = (2 * p_Dpb->fs_ref[i]->
 						frame_num_wrap) + add_top;
 				}
 				if (p_Dpb->fs_ref[i]->is_reference & 2) {
+#ifdef ERROR_CHECK
+					if (p_Dpb->fs_ref[i]->bottom_field
+						== NULL)
+						continue;
+#endif
 					p_Dpb->fs_ref[i]->bottom_field->
 					pic_num = (2 * p_Dpb->fs_ref[i]->
 						frame_num_wrap) + add_bottom;
@@ -1708,13 +1733,25 @@ static void update_pic_num(struct Slice *currSlice)
 		}
 		/* update long_term_pic_num */
 		for (i = 0; i < p_Dpb->ltref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ltref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ltref[i]->is_long_term & 1) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ltref[i]->top_field == NULL)
+					continue;
+#endif
 				p_Dpb->fs_ltref[i]->top_field->
 					long_term_pic_num = 2 *
 					p_Dpb->fs_ltref[i]->top_field->
 					long_term_frame_idx + add_top;
 			}
 			if (p_Dpb->fs_ltref[i]->is_long_term & 2) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ltref[i]->bottom_field == NULL)
+					continue;
+#endif
 				p_Dpb->fs_ltref[i]->bottom_field->
 					long_term_pic_num = 2 *
 					p_Dpb->fs_ltref[i]->bottom_field->
@@ -1891,14 +1928,14 @@ void bufmgr_h264_remove_unused_frame(struct h264_dpb_stru *p_H264_Dpb,
 	if (removed_flag) {
 		dpb_print(p_H264_Dpb->decoder_index,
 			PRINT_FLAG_DPB_DETAIL, "%s\r\n", __func__);
-		dump_dpb(p_Dpb);
+		dump_dpb(p_Dpb, 0);
 	} else if (force_flag == 2) {
 		if (unmark_one_out_frame(p_H264_Dpb)) {
 			dpb_print(p_H264_Dpb->decoder_index,
 				0, "%s, Warnning, force unmark one frame\r\n",
 				__func__);
 			remove_unused_frame_from_dpb(p_H264_Dpb);
-			dump_dpb(p_Dpb);
+			dump_dpb(p_Dpb, 0);
 		}
 	} else if (force_flag == 1) {
 		if (unmark_one_error_out_frame(p_H264_Dpb)) {
@@ -1906,7 +1943,7 @@ void bufmgr_h264_remove_unused_frame(struct h264_dpb_stru *p_H264_Dpb,
 				0, "%s, unmark error frame\r\n",
 				__func__);
 			remove_unused_frame_from_dpb(p_H264_Dpb);
-			dump_dpb(p_Dpb);
+			dump_dpb(p_Dpb, 0);
 		}
 	}
 }
@@ -1965,13 +2002,22 @@ int output_frames(struct h264_dpb_stru *p_H264_Dpb, unsigned char flush_flag)
 	struct DecodedPictureBuffer *p_Dpb = &p_H264_Dpb->mDPB;
 	int i;
 	int none_displayed_num = 0;
+	unsigned char fast_output_flag = 0;
 	if (!flush_flag) {
 		for (i = 0; i < p_Dpb->used_size; i++) {
 			if ((!p_Dpb->fs[i]->is_output) &&
-				(!p_Dpb->fs[i]->pre_output))
+				(!p_Dpb->fs[i]->pre_output)) {
 				none_displayed_num++;
+				if ((p_Dpb->fs[i]->poc - p_Dpb->last_output_poc)
+					== 1)
+					fast_output_flag = 1;
+			}
 		}
-		if (none_displayed_num < p_H264_Dpb->reorder_pic_num)
+		if (((h264_debug_flag & DISABLE_FAST_OUTPUT) == 0)
+			&& fast_output_flag)
+			;
+		else if (none_displayed_num <
+			p_H264_Dpb->reorder_pic_num)
 			return 0;
 	}
 
@@ -2289,12 +2335,13 @@ static void check_num_ref(struct DecodedPictureBuffer *p_Dpb)
 	}
 }
 
-static void dump_dpb(struct DecodedPictureBuffer *p_Dpb)
+void dump_dpb(struct DecodedPictureBuffer *p_Dpb, u8 force)
 {
 	unsigned i;
 	struct h264_dpb_stru *p_H264_Dpb =
 		container_of(p_Dpb, struct h264_dpb_stru, mDPB);
-	if ((h264_debug_flag & PRINT_FLAG_DUMP_DPB) == 0)
+	if ((h264_debug_flag & PRINT_FLAG_DUMP_DPB) == 0 &&
+		force == 0)
 		return;
 	for (i = 0; i < p_Dpb->used_size; i++) {
 		dpb_print(p_H264_Dpb->decoder_index,
@@ -2346,16 +2393,16 @@ static void dump_dpb(struct DecodedPictureBuffer *p_Dpb)
 		if (p_Dpb->fs[i]->is_output)
 			dpb_print_cont(p_H264_Dpb->decoder_index,
 			0,
-			"out  ");
+			"out(displayed)  ");
 		if (p_Dpb->fs[i]->pre_output)
 			dpb_print_cont(p_H264_Dpb->decoder_index,
 			0,
-			"for_out  ");
+			"pre_output(in dispq or displaying)  ");
 		if (p_Dpb->fs[i]->is_used == 3) {
 			if (p_Dpb->fs[i]->frame->non_existing)
 				dpb_print_cont(p_H264_Dpb->decoder_index,
 				0,
-				"ne  ");
+				"non_existing  ");
 		}
 #if (MVC_EXTENSION_ENABLE)
 		if (p_Dpb->fs[i]->is_reference)
@@ -2371,7 +2418,8 @@ static void dump_dpb(struct DecodedPictureBuffer *p_Dpb)
 		}
 		dpb_print_cont(p_H264_Dpb->decoder_index,
 			0,
-			"\n");
+			" bufspec %d\n",
+			p_Dpb->fs[i]->buf_spec_num);
 	}
 }
 
@@ -2414,9 +2462,17 @@ static void mm_unmark_short_term_for_reference(struct DecodedPictureBuffer
 	picNumX = get_pic_num_x(p, difference_of_pic_nums_minus1);
 
 	for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+		if (p_Dpb->fs_ref[i] == NULL)
+			continue;
+#endif
 		if (p->structure == FRAME) {
 			if ((p_Dpb->fs_ref[i]->is_reference == 3) &&
 			    (p_Dpb->fs_ref[i]->is_long_term == 0)) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->frame == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->frame->pic_num ==
 					picNumX) {
 					unmark_for_reference(p_Dpb,
@@ -2427,12 +2483,20 @@ static void mm_unmark_short_term_for_reference(struct DecodedPictureBuffer
 		} else {
 			if ((p_Dpb->fs_ref[i]->is_reference & 1) &&
 			    (!(p_Dpb->fs_ref[i]->is_long_term & 1))) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->top_field == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->top_field->pic_num ==
 					picNumX) {
 					p_Dpb->fs_ref[i]->
 					top_field->used_for_reference = 0;
 					p_Dpb->fs_ref[i]->is_reference &= 2;
-					if (p_Dpb->fs_ref[i]->is_used == 3) {
+					if ((p_Dpb->fs_ref[i]->is_used == 3)
+#ifdef ERROR_CHECK
+						&& p_Dpb->fs_ref[i]->frame
+#endif
+					) {
 						p_Dpb->fs_ref[i]->frame->
 							used_for_reference = 0;
 					}
@@ -2441,12 +2505,20 @@ static void mm_unmark_short_term_for_reference(struct DecodedPictureBuffer
 			}
 			if ((p_Dpb->fs_ref[i]->is_reference & 2) &&
 			    (!(p_Dpb->fs_ref[i]->is_long_term & 2))) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->bottom_field == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->bottom_field->pic_num ==
 					picNumX) {
 					p_Dpb->fs_ref[i]->bottom_field->
 					used_for_reference = 0;
 					p_Dpb->fs_ref[i]->is_reference &= 1;
-					if (p_Dpb->fs_ref[i]->is_used == 3) {
+					if ((p_Dpb->fs_ref[i]->is_used == 3)
+#ifdef ERROR_CHECK
+						&& p_Dpb->fs_ref[i]->frame
+#endif
+						) {
 						p_Dpb->fs_ref[i]->frame->
 						used_for_reference = 0;
 					}
@@ -2665,7 +2737,15 @@ static void mark_pic_long_term(struct DecodedPictureBuffer *p_Dpb,
 
 	if (p->structure == FRAME) {
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_reference == 3) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->frame == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->frame->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->frame->pic_num ==
@@ -2721,7 +2801,15 @@ static void mark_pic_long_term(struct DecodedPictureBuffer *p_Dpb,
 			add_bottom = 1;
 		}
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_reference & 1) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->top_field == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->top_field->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->top_field->pic_num ==
@@ -2749,8 +2837,12 @@ static void mark_pic_long_term(struct DecodedPictureBuffer *p_Dpb,
 					p_Dpb->fs_ref[i]->top_field->
 						is_long_term = 1;
 					p_Dpb->fs_ref[i]->is_long_term |= 1;
-					if (p_Dpb->fs_ref[i]->is_long_term ==
-						3) {
+					if ((p_Dpb->fs_ref[i]->is_long_term
+						== 3)
+#ifdef ERROR_CHECK
+						&& p_Dpb->fs_ref[i]->frame
+#endif
+						) {
 						p_Dpb->fs_ref[i]->frame->
 							is_long_term = 1;
 						p_Dpb->fs_ref[i]->frame->
@@ -2764,6 +2856,10 @@ static void mark_pic_long_term(struct DecodedPictureBuffer *p_Dpb,
 				}
 			}
 			if (p_Dpb->fs_ref[i]->is_reference & 2) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->bottom_field == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->bottom_field->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->bottom_field->pic_num
@@ -2791,8 +2887,12 @@ static void mark_pic_long_term(struct DecodedPictureBuffer *p_Dpb,
 					p_Dpb->fs_ref[i]->bottom_field->
 						is_long_term = 1;
 					p_Dpb->fs_ref[i]->is_long_term |= 2;
-					if (p_Dpb->fs_ref[i]->
-						is_long_term == 3) {
+					if ((p_Dpb->fs_ref[i]->
+						is_long_term == 3)
+#ifdef ERROR_CHECK
+						&& p_Dpb->fs_ref[i]->frame
+#endif
+						) {
 						p_Dpb->fs_ref[i]->frame->
 							is_long_term = 1;
 						p_Dpb->fs_ref[i]->frame->
@@ -2835,7 +2935,15 @@ static void mm_assign_long_term_frame_idx(struct DecodedPictureBuffer *p_Dpb,
 		enum PictureStructure structure = FRAME;
 
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_reference & 1) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->top_field == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->top_field->
 					pic_num == picNumX) {
 					structure = TOP_FIELD;
@@ -2843,6 +2951,10 @@ static void mm_assign_long_term_frame_idx(struct DecodedPictureBuffer *p_Dpb,
 				}
 			}
 			if (p_Dpb->fs_ref[i]->is_reference & 2) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->bottom_field == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->bottom_field->
 					pic_num == picNumX) {
 					structure = BOTTOM_FIELD;
@@ -3106,7 +3218,7 @@ void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 							p, data_flag);
 						update_ref_list(p_Dpb);
 						update_ltref_list(p_Dpb);
-						dump_dpb(p_Dpb);
+						dump_dpb(p_Dpb, 0);
 						p_Dpb->last_picture = NULL;
 						return;
 					}
@@ -3139,6 +3251,10 @@ void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 	/* check for duplicate frame number in short term reference buffer */
 	if ((p->used_for_reference) && (!p->is_long_term)) {
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->frame_num == p->frame_num) {
 				dpb_print(p_H264_Dpb->decoder_index,
 					  PRINT_FLAG_DPB_DETAIL,
@@ -3157,7 +3273,7 @@ void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 			"%s Error: used_sizd %d is large than dpb size\r\n",
 			__func__, p_Dpb->used_size);
 		/*h264_debug_flag |= PRINT_FLAG_DUMP_DPB;*/
-		dump_dpb(p_Dpb);
+		dump_dpb(p_Dpb, 0);
 		return;
 	}
 
@@ -3184,7 +3300,7 @@ void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 
 	check_num_ref(p_Dpb);
 
-	dump_dpb(p_Dpb);
+	dump_dpb(p_Dpb, 0);
 	p_Dpb->first_pic_done = 1; /*by rain*/
 }
 
@@ -3783,6 +3899,11 @@ static void init_lists_p_slice(struct Slice *currSlice)
 
 	if (currSlice->structure == FRAME) {
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL ||
+				p_Dpb->fs_ref[i]->frame == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_used == 3) {
 				if ((p_Dpb->fs_ref[i]->frame->
 					used_for_reference) &&
@@ -3840,6 +3961,10 @@ static void init_lists_p_slice(struct Slice *currSlice)
 		fs_listlt = &(p_Dpb->fs_listlt[0]);
 #endif
 		for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
 			if (p_Dpb->fs_ref[i]->is_reference)
 				fs_list0[list0idx++] = p_Dpb->fs_ref[i];
 		}
@@ -4038,6 +4163,11 @@ static void init_lists_b_slice(struct Slice *currSlice)
 		/* B-Slice */
 		if (currSlice->structure == FRAME) {
 			for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i] == NULL ||
+					p_Dpb->fs_ref[i]->frame == NULL)
+					continue;
+#endif
 				if ((p_Dpb->fs_ref[i]->is_used == 3) &&
 					((p_Dpb->fs_ref[i]->frame->
 					used_for_reference) &&
@@ -4059,6 +4189,11 @@ static void init_lists_b_slice(struct Slice *currSlice)
 			   (POC>current POC) in list0; */
 			list0idx_1 = list0idx;
 			for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i] == NULL ||
+					p_Dpb->fs_ref[i]->frame == NULL)
+					continue;
+#endif
 				if ((p_Dpb->fs_ref[i]->is_used == 3) &&
 					((p_Dpb->fs_ref[i]->frame->
 					used_for_reference) &&
@@ -4187,6 +4322,10 @@ static void init_lists_b_slice(struct Slice *currSlice)
 			currSlice->listXsize[1] = 1;
 
 			for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i] == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->is_used) {
 					if (currSlice->ThisPOC >=
 						p_Dpb->fs_ref[i]->poc) {
@@ -4200,6 +4339,10 @@ static void init_lists_b_slice(struct Slice *currSlice)
 				compare_fs_by_poc_desc);
 			list0idx_1 = list0idx;
 			for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i] == NULL)
+					continue;
+#endif
 				if (p_Dpb->fs_ref[i]->is_used) {
 					if (currSlice->ThisPOC <
 						p_Dpb->fs_ref[i]->poc) {
@@ -4397,25 +4540,48 @@ static struct StorablePicture *get_short_term_pic(struct Slice *currSlice,
 
 	for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
 		if (currSlice->structure == FRAME) {
-			if (p_Dpb->fs_ref[i]->is_reference == 3)
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
+			if (p_Dpb->fs_ref[i]->is_reference == 3) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->frame == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->frame->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->frame->
 					pic_num == picNum))
 					return p_Dpb->fs_ref[i]->frame;
+			}
 		} else {
-			if (p_Dpb->fs_ref[i]->is_reference & 1)
+#ifdef ERROR_CHECK
+			if (p_Dpb->fs_ref[i] == NULL)
+				continue;
+#endif
+			if (p_Dpb->fs_ref[i]->is_reference & 1) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->top_field == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->top_field->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->top_field->
 					pic_num == picNum))
 					return p_Dpb->fs_ref[i]->top_field;
-			if (p_Dpb->fs_ref[i]->is_reference & 2)
+			}
+			if (p_Dpb->fs_ref[i]->is_reference & 2) {
+#ifdef ERROR_CHECK
+				if (p_Dpb->fs_ref[i]->bottom_field == NULL)
+					continue;
+#endif
 				if ((!p_Dpb->fs_ref[i]->bottom_field->
 					is_long_term) &&
 				    (p_Dpb->fs_ref[i]->bottom_field->
 					pic_num == picNum))
 					return p_Dpb->fs_ref[i]->bottom_field;
+			}
 		}
 	}
 
@@ -4860,7 +5026,7 @@ void set_frame_output_flag(struct h264_dpb_stru *p_H264_Dpb, int index)
 	struct DecodedPictureBuffer *p_Dpb = &p_H264_Dpb->mDPB;
 	p_H264_Dpb->mFrameStore[index].is_output = 1;
 	p_H264_Dpb->mFrameStore[index].pre_output = 0;
-	dump_dpb(p_Dpb);
+	dump_dpb(p_Dpb, 0);
 }
 
 #if 0

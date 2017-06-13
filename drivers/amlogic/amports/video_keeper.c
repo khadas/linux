@@ -598,8 +598,9 @@ static int canvas_dup(ulong dst, ulong src_paddr, ulong size)
 #ifdef RESERVE_CLR_FRAME
 static int free_alloced_keep_buffer(void)
 {
-	pr_info("free_alloced_keep_buffer %p.%p.%p\n",
+	/*pr_info("free_alloced_keep_buffer %p.%p.%p\n",
 		(void *)keep_y_addr, (void *)keep_u_addr, (void *)keep_v_addr);
+		*/
 	if (keep_y_addr) {
 		codec_mm_free_for_dma(MEM_NAME, keep_y_addr);
 		keep_y_addr = 0;
@@ -685,7 +686,8 @@ void try_free_keep_video(int flags)
 {
 	int free_scatter_keeper = flags & 0x1;
 	if (keep_video_on || free_scatter_keeper) {
-		pr_info("disbled keep video before free keep buffer.\n");
+		/*pr_info("disbled keep video before free keep buffer.\n");
+		*/
 		keep_video_on = 0;
 		update_cur_dispbuf(NULL);
 		if (!get_video_enabled()) {
@@ -697,12 +699,12 @@ void try_free_keep_video(int flags)
 		}
 	}
 	if (free_scatter_keeper && keep_id > 0) {
-		pr_info("try_free_keep_video keepid\n");
+		/*pr_info("try_free_keep_video keepid\n");*/
 		codec_mm_keeper_unmask_keeper(keep_id, 0);
 		keep_id = -1;
 	}
 	if (free_scatter_keeper && keep_head_id > 0) {
-		pr_info("try_free_keep_video keep_head_id\n");
+		/*pr_info("try_free_keep_video keep_head_id\n");*/
 		codec_mm_keeper_unmask_keeper(keep_head_id, 0);
 		keep_head_id = -1;
 	}

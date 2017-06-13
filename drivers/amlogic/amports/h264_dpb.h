@@ -16,7 +16,9 @@
 #define PRINT_FLAG_DEBUG_POC          0x0200
 #define RRINT_FLAG_RPM                0x0400
 #define DISABLE_ERROR_HANDLE          0x10000
+#define DISABLE_FAST_OUTPUT           0x20000
 #define ONLY_RESET_AT_START           0x40000
+#define DEBUG_DUMP_STAT               0x80000
 
 
 #define MVC_EXTENSION_ENABLE 0
@@ -810,4 +812,6 @@ void flush_dpb(struct h264_dpb_stru *p_H264_Dpb);
 void print_pic_info(int decindex, const char *info,
 			struct StorablePicture *pic,
 			int slice_type);
+void dump_dpb(struct DecodedPictureBuffer *p_Dpb, u8 force);
+
 #endif
