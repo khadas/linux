@@ -244,7 +244,9 @@ static struct reg_item misc_recovery_table[] = {
 	{VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 0},
 	{VIU_OSD2_BLK3_CFG_W4, 0x0, 0xffffffff, 0},
 	{VPU_RDARB_MODE_L1C2, 0x0, 0x00010000, 1},
-	{VIU_MISC_CTRL1, 0x0, 0x0000ff00, 1}
+	{VIU_MISC_CTRL1, 0x0, 0x0000ff00, 1},
+	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1}
 };
 
 void recovery_regs_init(void)
@@ -377,12 +379,23 @@ int update_recovery_item(u32 addr, u32 value)
 	default:
 		break;
 	}
+
+	if (((addr == DOLBY_CORE2A_SWAP_CTRL1)
+		|| (addr == DOLBY_CORE2A_SWAP_CTRL2))
+		&& !is_meson_txlx_cpu()
+		&& !is_meson_gxm_cpu())
+		return ret;
+
 	if ((addr == VIU_OSD2_BLK0_CFG_W4) ||
 		(addr == VIU_OSD2_BLK1_CFG_W4) ||
 		(addr == VIU_OSD2_BLK2_CFG_W4) ||
 		(addr == VIU_OSD2_BLK3_CFG_W4) ||
 		(addr == VPU_RDARB_MODE_L1C2) ||
-		(addr == VIU_MISC_CTRL1)) {
+		(addr == VIU_MISC_CTRL1) ||
+		(addr ==
+		DOLBY_CORE2A_SWAP_CTRL1) ||
+		(addr ==
+		DOLBY_CORE2A_SWAP_CTRL2)) {
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
@@ -468,12 +481,23 @@ s32 get_recovery_item(u32 addr, u32 *value, u32 *mask)
 		break;
 	}
 
+	if (((addr == DOLBY_CORE2A_SWAP_CTRL1)
+		|| (addr == DOLBY_CORE2A_SWAP_CTRL2))
+		&& !is_meson_txlx_cpu()
+		&& !is_meson_gxm_cpu())
+		return ret;
+
 	if ((addr == VIU_OSD2_BLK0_CFG_W4) ||
 		(addr == VIU_OSD2_BLK1_CFG_W4) ||
 		(addr == VIU_OSD2_BLK2_CFG_W4) ||
 		(addr == VIU_OSD2_BLK3_CFG_W4) ||
 		(addr == VPU_RDARB_MODE_L1C2) ||
-		(addr == VIU_MISC_CTRL1)) {
+		(addr == VIU_MISC_CTRL1) ||
+		(addr ==
+		DOLBY_CORE2A_SWAP_CTRL1) ||
+		(addr ==
+		DOLBY_CORE2A_SWAP_CTRL2)) {
+		table = gRecovery[4].table;
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {

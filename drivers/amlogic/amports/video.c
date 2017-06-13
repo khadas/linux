@@ -153,7 +153,7 @@ bool omx_secret_mode = false;
 #define RECEIVER_NAME "amvideo"
 
 static s32 amvideo_poll_major;
-static s8 dolby_first_delay = 1; /* for bug 145902 */
+static s8 dolby_first_delay; /* for bug 145902 */
 
 static int video_receiver_event_fun(int type, void *data, void *);
 
@@ -2017,6 +2017,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			}
 		} else {
 			new_frame_count++;
+			if (new_frame_count == 1)
+				first_picture = 1;
 #ifdef CONFIG_VSYNC_RDMA
 			if (is_vsync_rdma_enable()) {
 #ifdef RDMA_RECYCLE_ORDERED_VFRAMES
@@ -2556,20 +2558,9 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			/* TODO: afbc setting only cover 420 for now */
 #ifdef TV_REVERSE
 			if (reverse) {
-				VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
-					/*HFORMATTER_RRT_PIXEL0 |*/
-					HFORMATTER_YC_RATIO_2_1 |
-					HFORMATTER_EN |
-					VFORMATTER_RPTLINE0_EN |
-					/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
-					(0x8 << VFORMATTER_PHASE_BIT) |
-					VFORMATTER_EN);
-			} else
-#endif
-			{
 				if (is_meson_txlx_package_962X()
 				&& !is_dolby_vision_stb_mode()
-				&& is_dolby_vision_on()) {
+				&& is_dolby_vision_on())
 					VSYNC_WR_MPEG_REG(
 						AFBC_VD_CFMT_CTRL,
 						HFORMATTER_REPEAT |
@@ -2579,17 +2570,43 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 						(0 << VFORMATTER_INIPHASE_BIT) |
 						(0x8 << VFORMATTER_PHASE_BIT) |
 						VFORMATTER_EN);
-				} else
+				else
 					VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
 					(is_dolby_vision_on() ?
 					HFORMATTER_REPEAT |
 					(0xc << VFORMATTER_INIPHASE_BIT)  :
-					HFORMATTER_RRT_PIXEL0) |
-					HFORMATTER_YC_RATIO_2_1 |
-					HFORMATTER_EN |
-					VFORMATTER_RPTLINE0_EN |
-					(0x8 << VFORMATTER_PHASE_BIT) |
-					VFORMATTER_EN);
+						HFORMATTER_RRT_PIXEL0) |
+						HFORMATTER_YC_RATIO_2_1 |
+						HFORMATTER_EN |
+						VFORMATTER_RPTLINE0_EN |
+						(0x8 << VFORMATTER_PHASE_BIT) |
+						VFORMATTER_EN);
+			} else
+#endif
+			{
+				if (is_meson_txlx_package_962X()
+				&& !is_dolby_vision_stb_mode()
+				&& is_dolby_vision_on())
+					VSYNC_WR_MPEG_REG(
+						AFBC_VD_CFMT_CTRL,
+						HFORMATTER_REPEAT |
+						HFORMATTER_YC_RATIO_2_1 |
+						HFORMATTER_EN |
+						VFORMATTER_ALWAYS_RPT |
+						(0 << VFORMATTER_INIPHASE_BIT) |
+						(0x8 << VFORMATTER_PHASE_BIT) |
+						VFORMATTER_EN);
+				else
+					VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
+					(is_dolby_vision_on() ?
+					HFORMATTER_REPEAT |
+					(0xc << VFORMATTER_INIPHASE_BIT)  :
+						HFORMATTER_RRT_PIXEL0) |
+						HFORMATTER_YC_RATIO_2_1 |
+						HFORMATTER_EN |
+						VFORMATTER_RPTLINE0_EN |
+						(0x8 << VFORMATTER_PHASE_BIT) |
+						VFORMATTER_EN);
 			}
 			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
@@ -3043,7 +3060,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 type = vf->type, bit_mode = 0;
 	u32 skip_count = 0;
 
-	pr_info("set dcu for vd2, type:0x%x\n", type);
+	pr_info("set dcu for vd2 %p, type:0x%x\n", vf, type);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		if (type & VIDTYPE_COMPRESS) {
 			r = (3 << 24) |
@@ -3077,16 +3094,30 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			/* TODO: afbc setting only cover 420 for now */
 #ifdef TV_REVERSE
 			if (reverse) {
-				VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_CTRL,
+				if (is_meson_txlx_package_962X()
+				&& !is_dolby_vision_stb_mode()
+				&& is_dolby_vision_on()) {
+					VSYNC_WR_MPEG_REG(
+						VD2_AFBC_VD_CFMT_CTRL,
+						HFORMATTER_REPEAT |
+						HFORMATTER_YC_RATIO_2_1 |
+						HFORMATTER_EN |
+						VFORMATTER_ALWAYS_RPT |
+						(0 << VFORMATTER_INIPHASE_BIT) |
+						(0x8 << VFORMATTER_PHASE_BIT) |
+						VFORMATTER_EN);
+				} else
+					VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_CTRL,
 					(is_dolby_vision_on() ?
-					HFORMATTER_REPEAT :
-					HFORMATTER_RRT_PIXEL0) |
-					HFORMATTER_YC_RATIO_2_1 |
-					HFORMATTER_EN |
-					VFORMATTER_RPTLINE0_EN |
-					(0xc << VFORMATTER_INIPHASE_BIT) |
-					(0x8 << VFORMATTER_PHASE_BIT) |
-					VFORMATTER_EN);
+						HFORMATTER_REPEAT :
+						HFORMATTER_RRT_PIXEL0) |
+						HFORMATTER_YC_RATIO_2_1 |
+						HFORMATTER_EN |
+						VFORMATTER_RPTLINE0_EN |
+					(is_dolby_vision_on() ?
+					(0xc << VFORMATTER_INIPHASE_BIT) : 0) |
+						(0x8 << VFORMATTER_PHASE_BIT) |
+						VFORMATTER_EN);
 			} else {
 #endif
 				if (is_meson_txlx_package_962X()
@@ -3109,7 +3140,8 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_YC_RATIO_2_1 |
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
-					(0xc << VFORMATTER_INIPHASE_BIT) |
+					(is_dolby_vision_on() ?
+					(0xc << VFORMATTER_INIPHASE_BIT) : 0) |
 					(0x8 << VFORMATTER_PHASE_BIT) |
 					VFORMATTER_EN);
 #ifdef TV_REVERSE
@@ -4517,9 +4549,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 SET_FILTER:
 	if (is_dolby_vision_enable()) {
 		dolby_vision_process(toggle_vf);
-		if (toggle_vf)
-			dolby_vision_update_setting();
-		/* vpu_delay_work_flag |= VPU_UPDATE_DOLBY_VISION; */
+		dolby_vision_update_setting();
 	}
 
 	/* filter setting management */
@@ -4547,12 +4577,12 @@ SET_FILTER:
 				need_afbc &&
 				(!(READ_VCBUS_REG(AFBC_ENABLE) & 0x100));
 			/*video on && afbc is off && is compress frame.*/
-			if (frame_par_ready_to_set || afbc_need_reset)
+			if (frame_par_ready_to_set || afbc_need_reset) {
 				viu_set_dcu(cur_frame_par, cur_dispbuf);
-			if ((cur_dispbuf2)
-			&& (frame_par_ready_to_set || afbc_need_reset))
+				if (cur_dispbuf2)
 					vd2_set_dcu(cur_frame_par,
 						cur_dispbuf2);
+			}
 		}
 		{
 #if 0

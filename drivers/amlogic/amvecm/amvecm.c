@@ -3341,11 +3341,6 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		vpp_datapath_config(node, param1, param2);
 	} else if (!strcmp(parm[0], "datapath_status")) {
 		vpp_datapath_status();
-	} else if (!strcmp(parm[0], "dolby_config")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		tv_dolby_vision_config(val);
-		pr_info("tv_dolby_vision_config done!\n");
 	} else if (!strcmp(parm[0], "dolby_crc")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
