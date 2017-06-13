@@ -327,6 +327,8 @@ static void vh264_vf_put(struct vframe_s *, void *);
 static int vh264_vf_states(struct vframe_states *states, void *);
 static int vh264_event_cb(int type, void *data, void *private_data);
 static void vh264_work(struct work_struct *work);
+static void vh264_notify_work(struct work_struct *work);
+
 
 static const char vh264_dec_id[] = "vh264-dev";
 
@@ -521,6 +523,7 @@ struct vdec_h264_hw_s {
 
 	int dec_result;
 	struct work_struct work;
+	struct work_struct notify_work;
 
 	void (*vdec_cb)(struct vdec_s *, void *);
 	void *vdec_cb_arg;
@@ -2252,6 +2255,7 @@ static void vui_config(struct vdec_h264_hw_s *hw)
 						FIX_FRAME_RATE_OFF;
 					hw->pts_duration = 0;
 					hw->frame_dur = frame_dur_es;
+					schedule_work(&hw->notify_work);
 					dpb_print(DECODE_ID(hw),
 						PRINT_FLAG_DEC_DETAIL,
 						"frame_dur %d from timing_info\n",
@@ -3220,6 +3224,7 @@ static void vh264_local_init(struct vdec_h264_hw_s *hw)
 	hw->vh264_stream_switching_state = SWITCHING_STATE_OFF;
 
 	INIT_WORK(&hw->work, vh264_work);
+	INIT_WORK(&hw->notify_work, vh264_notify_work);
 
 	return;
 }
@@ -3254,7 +3259,6 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 	hw->saved_resolution = 0;
 
 	vh264_local_init(hw);
-
 	if (!amvdec_enable_flag) {
 		amvdec_enable_flag = true;
 		amvdec_enable();
@@ -3403,6 +3407,7 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 static int vh264_stop(struct vdec_h264_hw_s *hw)
 {
 	cancel_work_sync(&hw->work);
+	cancel_work_sync(&hw->notify_work);
 
 	if (hw->stat & STAT_MC_LOAD) {
 		if (hw->mc_cpu_addr != NULL) {
@@ -3440,6 +3445,21 @@ static int vh264_stop(struct vdec_h264_hw_s *hw)
 		"%s\n",
 		__func__);
 	return 0;
+}
+
+static void vh264_notify_work(struct work_struct *work)
+{
+	struct vdec_h264_hw_s *hw = container_of(work,
+					struct vdec_h264_hw_s, notify_work);
+	struct vdec_s *vdec = hw_to_vdec(hw);
+	if (vdec->fr_hint_state == VDEC_NEED_HINT) {
+		vf_notify_receiver(vdec->vf_provider_name,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)((unsigned long)hw->frame_dur));
+		vdec->fr_hint_state = VDEC_HINTED;
+	}
+
+	return;
 }
 
 static void vh264_work(struct work_struct *work)

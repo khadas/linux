@@ -1018,6 +1018,7 @@ static int hdmitx_is_vmode_supported_process(char *mode_name)
 		return 0;
 }
 
+#ifndef UEVENT_FRAMERATE_AUTOMATION_MODE
 static enum fine_tune_mode_e get_fine_tune_mode(
 	enum vmode_e mode, int fr_vsource)
 {
@@ -1134,6 +1135,7 @@ static enum vmode_e get_target_vmode(int fr_vsource)
 	fps_target_mode = mode_target;
 	return mode_target;
 }
+#endif
 
 static struct vinfo_s *update_tv_info_duration(
 	enum vmode_e target_vmode, enum fine_tune_mode_e fine_tune_mode)
@@ -1200,6 +1202,7 @@ static struct vinfo_s *update_tv_info_duration(
 	return vinfo;
 }
 
+#ifndef UEVENT_FRAMERATE_AUTOMATION_MODE
 static int framerate_automation_set_mode(
 	enum vmode_e mode_target, enum hint_mode_e hint_mode)
 {
@@ -1272,6 +1275,7 @@ static int framerate_automation_process(int duration)
 	framerate_automation_set_mode(mode_target, START_HINT);
 	return 0;
 }
+#endif
 
 enum fine_tune_mode_e get_hpll_tune_mode(void)
 {
@@ -1284,6 +1288,19 @@ EXPORT_SYMBOL(get_hpll_tune_mode);
 static int tv_set_vframe_rate_hint(int duration)
 {
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+#ifdef UEVENT_FRAMERATE_AUTOMATION_MODE
+	char *configured[2];
+	char framerate[20] = {0};
+	vout_log_info("vout [%s] duration = %d, policy = %d!\n",
+		__func__, duration, fr_auto_policy);
+	sprintf(framerate, "FRAME_RATE_HINT=%lu",
+	(unsigned long)duration);
+	configured[0] = framerate;
+	configured[1] = NULL;
+	kobject_uevent_env(&(info->dev->kobj),
+		KOBJ_CHANGE, configured);
+	vout_log_info("%s: sent uevent %s\n", __func__, configured[0]);
+#else
 	const struct vinfo_s *pvinfo;
 	vout_log_info("vout [%s] duration = %d, policy = %d!\n",
 		      __func__, duration, fr_auto_policy);
@@ -1300,12 +1317,23 @@ static int tv_set_vframe_rate_hint(int duration)
 
 	framerate_automation_process(duration);
 #endif
+#endif
 	return 0;
 }
 
 static int tv_set_vframe_rate_end_hint(void)
 {
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+#ifdef UEVENT_FRAMERATE_AUTOMATION_MODE
+	char *configured[2];
+	configured[0] = "FRAME_RATE_END_HINT";
+	configured[1] = NULL;
+	vout_log_info("vout [%s] return mode = %d, policy = %d!\n", __func__,
+			mode_by_user, fr_auto_policy);
+	kobject_uevent_env(&(info->dev->kobj),
+		KOBJ_CHANGE, configured);
+	vout_log_info("%s: sent uevent %s\n", __func__, configured[0]);
+#else
 	vout_log_info("vout [%s] return mode = %d, policy = %d!\n", __func__,
 		      mode_by_user, fr_auto_policy);
 	if (fr_auto_policy != 0) {
@@ -1317,6 +1345,7 @@ static int tv_set_vframe_rate_end_hint(void)
 		fps_target_mode = VMODE_INIT_NULL;
 		mode_by_user = VMODE_INIT_NULL;
 	}
+#endif
 #endif
 	return 0;
 }

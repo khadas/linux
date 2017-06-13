@@ -1079,8 +1079,6 @@ static int ionvideo_v4l2_release(void)
 
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
-	char *configured[2];
-	char framerate[20] = {0};
 	struct ionvideo_dev *dev = (struct ionvideo_dev *)private_data;
 
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
@@ -1111,26 +1109,13 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 		if ((data != NULL) && (ionvideo_seek_flag == 0)) {
 #ifdef CONFIG_AM_VOUT
-			/*set_vframe_rate_hint((unsigned long)(data));*/
-			sprintf(framerate, "FRAME_RATE_HINT=%lu",
-			(unsigned long)data);
-			configured[0] = framerate;
-			configured[1] = NULL;
-			kobject_uevent_env(&(dev->vdev.dev.kobj),
-				KOBJ_CHANGE, configured);
-			pr_info("%s: sent uevent %s\n",
-					__func__, configured[0]);
+			set_vframe_rate_hint((unsigned long)(data));
 		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if (ionvideo_seek_flag == 0) {
-			configured[0] = "FRAME_RATE_END_HINT";
-			configured[1] = NULL;
-			kobject_uevent_env(&(dev->vdev.dev.kobj),
-					KOBJ_CHANGE, configured);
-			pr_info("%s: sent uevent %s\n",
-				__func__, configured[0]);
+			set_vframe_rate_end_hint();
 		}
 #endif
 	}

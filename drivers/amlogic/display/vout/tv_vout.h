@@ -152,7 +152,9 @@ static struct vmode_tvmode_tab_s mode_tab[] = {
 	{TVMODE_4K05K_240HZ_Y420, VMODE_4K05K_240HZ_Y420},
 };
 
+#define UEVENT_FRAMERATE_AUTOMATION_MODE
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+#ifndef UEVENT_FRAMERATE_AUTOMATION_MODE
 
 struct fps_mode_conv {
 	enum vmode_e cur_mode;
@@ -541,6 +543,7 @@ static struct fps_mode_conv fps_mode_map_60[] = {
 	},
 };
 
+#endif
 #endif
 
 static struct vinfo_s tv_info[] = {

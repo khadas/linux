@@ -5505,8 +5505,6 @@ static int  get_display_info(void *data)
 
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
-	char *configured[2];
-	char framerate[20] = {0};
 #ifdef CONFIG_AM_VIDEO2
 	char *provider_name;
 #endif
@@ -5557,37 +5555,13 @@ alternative mode,passing two buffer in one frame */
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if ((data != NULL) && (video_seek_flag == 0)) {
-			if (is_meson_gxtvbb_cpu()||
-				is_meson_txl_cpu() ||
-				is_meson_txlx_cpu()) {
-				set_vframe_rate_hint((unsigned long)data);
-			} else {
-				sprintf(framerate, "FRAME_RATE_HINT=%lu",
-					(unsigned long)data);
-				configured[0] = framerate;
-				configured[1] = NULL;
-				kobject_uevent_env(&(amvideo_dev->kobj),
-					KOBJ_CHANGE, configured);
-				pr_info("%s: sent uevent %s\n",
-					__func__, configured[0]);
-			}
+			set_vframe_rate_hint((unsigned long)data);
 		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if (video_seek_flag == 0) {
-			if (is_meson_gxtvbb_cpu() ||
-				is_meson_txl_cpu() ||
-				is_meson_txlx_cpu()) {
-				set_vframe_rate_end_hint();
-			} else {
-				configured[0] = "FRAME_RATE_END_HINT";
-				configured[1] = NULL;
-				kobject_uevent_env(&(amvideo_dev->kobj),
-					KOBJ_CHANGE, configured);
-				pr_info("%s: sent uevent %s\n",
-					__func__, configured[0]);
-			}
+			set_vframe_rate_end_hint();
 		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO) {

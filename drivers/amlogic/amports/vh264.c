@@ -213,6 +213,7 @@ static u32 time_scale;
 static u32 h264_ar;
 static u32 decoder_debug_flag;
 static u32 dpb_size_adj = 6;
+static u32 fr_hint_status;
 
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 static u32 last_interlaced;
@@ -273,6 +274,7 @@ static int vh264_reset;
 static struct work_struct error_wd_work;
 static struct work_struct stream_switching_work;
 static struct work_struct set_parameter_work;
+static struct work_struct notify_work;
 
 static struct work_struct userdata_push_work;
 
@@ -415,6 +417,15 @@ void spec_set_canvas(struct buffer_spec_s *spec,
 				  spec->u_addr,
 				  width, height / 2,
 				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+	return;
+}
+
+static void vh264_notify_work(struct work_struct *work)
+{
+	pr_info("frame duration changed %d\n", frame_dur);
+	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
+		(void *)((unsigned long)frame_dur));
+
 	return;
 }
 
@@ -1149,8 +1160,13 @@ static void vh264_set_params(struct work_struct *work)
 				/* sometimes the encoder is given a wrong
 				   frame rate but the system side infomation
 				   is more reliable */
-				if ((frame_dur * 2) != frame_dur_es)
+				if ((frame_dur * 2) != frame_dur_es) {
 					frame_dur = frame_dur_es;
+					if (fr_hint_status == VDEC_NEED_HINT) {
+						schedule_work(&notify_work);
+						fr_hint_status = VDEC_HINTED;
+					}
+				}
 			}
 		}
 	} else
@@ -2482,6 +2498,7 @@ static s32 vh264_init(void)
 	first_offset = 0;
 	first_pts_cached = false;
 	fixed_frame_rate_check_count = 0;
+	fr_hint_status = VDEC_NO_NEED_HINT;
 	saved_resolution = 0;
 	iponly_early_mode = 0;
 
@@ -2683,8 +2700,13 @@ static s32 vh264_init(void)
 	vf_reg_provider(&vh264_vf_prov);
 #endif
 
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-					   (void *)((unsigned long)frame_dur));
+	if (frame_dur != 0) {
+		vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)((unsigned long)frame_dur));
+		fr_hint_status = VDEC_HINTED;
+	} else
+		fr_hint_status = VDEC_NEED_HINT;
 
 	stat |= STAT_VF_HOOK;
 
@@ -2734,9 +2756,11 @@ static int vh264_stop(int mode)
 
 	if (stat & STAT_VF_HOOK) {
 		if (mode == MODE_FULL) {
-			vf_notify_receiver(PROVIDER_NAME,
+			if (fr_hint_status == VDEC_HINTED)
+				vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_FR_END_HINT,
 					NULL);
+				fr_hint_status = VDEC_NO_NEED_HINT;
 		}
 
 		vf_unreg_provider(&vh264_vf_prov);
@@ -3009,6 +3033,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	INIT_WORK(&error_wd_work, error_do_work);
 	INIT_WORK(&stream_switching_work, stream_switching_do);
 	INIT_WORK(&set_parameter_work, vh264_set_params);
+	INIT_WORK(&notify_work, vh264_notify_work);
 
 	INIT_WORK(&userdata_push_work, userdata_push_do_work);
 
@@ -3027,7 +3052,7 @@ static int amvdec_h264_remove(struct platform_device *pdev)
 	cancel_work_sync(&set_parameter_work);
 	cancel_work_sync(&error_wd_work);
 	cancel_work_sync(&stream_switching_work);
-
+	cancel_work_sync(&notify_work);
 	cancel_work_sync(&userdata_push_work);
 
 	mutex_lock(&vh264_mutex);

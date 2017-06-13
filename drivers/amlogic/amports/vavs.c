@@ -176,6 +176,8 @@ static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 static u32 radr, rval;
 static struct dec_sysinfo vavs_amstream_dec_info;
 static struct vdec_info *gvs;
+static u32 fr_hint_status;
+static struct work_struct notify_work;
 
 #ifdef AVSP_LONG_CABAC
 static struct work_struct long_cabac_wd_work;
@@ -218,13 +220,13 @@ static inline u32 index2canvas(u32 index)
 
 static const u32 frame_rate_tab[16] = {
 	96000 / 30,		/* forbidden */
-	96000 / 24,		/* 24000/1001 (23.967) */
+	96000000 / 23976,	/* 24000/1001 (23.967) */
 	96000 / 24,
 	96000 / 25,
-	96000 / 30,		/* 30000/1001 (29.97) */
+	9600000 / 2997,		/* 30000/1001 (29.97) */
 	96000 / 30,
 	96000 / 50,
-	96000 / 60,		/* 60000/1001 (59.94) */
+	9600000 / 5994,		/* 60000/1001 (59.94) */
 	96000 / 60,
 	/* > 8 reserved, use 24 */
 	96000 / 24, 96000 / 24, 96000 / 24, 96000 / 24,
@@ -260,6 +262,7 @@ static void set_frame_info(struct vframe_s *vf, unsigned *duration)
 		*duration = frame_rate_tab[READ_VREG(AVS_FRAME_RATE) & 0xf];
 		/* pr_info("%s: duration = %d\n", __func__, *duration); */
 		frame_dur = *duration;
+		schedule_work(&notify_work);
 	}
 
 	if (vavs_ratio == 0) {
@@ -1182,6 +1185,7 @@ static void vavs_local_reset(void)
 }
 
 static struct work_struct fatal_error_wd_work;
+static struct work_struct notify_work;
 static atomic_t error_handler_run = ATOMIC_INIT(0);
 static void vavs_fatal_error_handler(struct work_struct *work)
 {
@@ -1203,6 +1207,18 @@ static void vavs_fatal_error_handler(struct work_struct *work)
 		vavs_local_reset();
 	}
 	atomic_set(&error_handler_run, 0);
+}
+
+static void vavs_notify_work(struct work_struct *work)
+{
+	pr_info("frame duration changed %d\n", frame_dur);
+	if (fr_hint_status == VDEC_NEED_HINT) {
+		vf_notify_receiver(PROVIDER_NAME ,
+			VFRAME_EVENT_PROVIDER_FR_HINT ,
+			(void *)((unsigned long)frame_dur));
+		fr_hint_status = VDEC_HINTED;
+	}
+	return;
 }
 
 static void vavs_put_timer_func(unsigned long arg)
@@ -1506,9 +1522,14 @@ static s32 vavs_init(void)
 	vf_reg_provider(&vavs_vf_prov);
 #endif
 
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
+	if (vavs_amstream_dec_info.rate != 0) {
+		vf_notify_receiver(PROVIDER_NAME,
+						VFRAME_EVENT_PROVIDER_FR_HINT,
 					   (void *)((unsigned long)
 					   vavs_amstream_dec_info.rate));
+		fr_hint_status = VDEC_HINTED;
+	} else
+		fr_hint_status = VDEC_NEED_HINT;
 
 	stat |= STAT_VF_HOOK;
 
@@ -1591,6 +1612,7 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 #ifdef ENABLE_USER_DATA
 	INIT_WORK(&userdata_push_work, userdata_push_do_work);
 #endif
+	INIT_WORK(&notify_work, vavs_notify_work);
 	return 0;
 }
 
@@ -1601,6 +1623,7 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 #ifdef ENABLE_USER_DATA
 	cancel_work_sync(&userdata_push_work);
 #endif
+	cancel_work_sync(&notify_work);
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
 		stat &= ~STAT_VDEC_RUN;
@@ -1652,9 +1675,10 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 	}
 #endif
 	if (stat & STAT_VF_HOOK) {
-		vf_notify_receiver(PROVIDER_NAME,
+		if (fr_hint_status == VDEC_HINTED)
+			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
-
+		fr_hint_status = VDEC_NO_NEED_HINT;
 		vf_unreg_provider(&vavs_vf_prov);
 		stat &= ~STAT_VF_HOOK;
 	}
