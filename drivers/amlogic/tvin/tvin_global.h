@@ -29,14 +29,20 @@
 #ifdef TVBUS_REG_ADDR
 #define R_APB_REG(reg) aml_read_reg32(TVBUS_REG_ADDR(reg))
 #define W_APB_REG(reg, val) aml_write_reg32(TVBUS_REG_ADDR(reg), val)
+#define R_VBI_APB_REG(reg) aml_read_reg32(TVBUS_REG_ADDR(reg))
+#define W_VBI_APB_REG(reg, val) aml_write_reg32(TVBUS_REG_ADDR(reg), val)
 #define R_APB_BIT(reg, start, len) \
 	aml_get_reg32_bits(TVBUS_REG_ADDR(reg), start, len)
 #define W_APB_BIT(reg, val, start, len) \
+	aml_set_reg32_bits(TVBUS_REG_ADDR(reg), val, start, len)
+#define W_VBI_APB_BIT(reg, val, start, len) \
 	aml_set_reg32_bits(TVBUS_REG_ADDR(reg), val, start, len)
 #else
 #if 1
 extern int tvafe_reg_read(unsigned int reg, unsigned int *val);
 extern int tvafe_reg_write(unsigned int reg, unsigned int val);
+extern int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val);
+extern int tvafe_vbi_reg_write(unsigned int reg, unsigned int val);
 extern int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val);
 extern int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 #else
@@ -65,6 +71,29 @@ static inline void W_APB_REG(uint32_t reg,
 				 const uint32_t val)
 {
 	tvafe_reg_write(reg, val);
+}
+
+static inline uint32_t R_VBI_APB_REG(uint32_t reg)
+{
+	unsigned int val = 0;
+	tvafe_vbi_reg_read(reg, &val);
+	return val;
+}
+
+static inline void W_VBI_APB_REG(uint32_t reg,
+				 const uint32_t val)
+{
+	tvafe_vbi_reg_write(reg, val);
+}
+
+static inline void W_VBI_APB_BIT(uint32_t reg,
+				    const uint32_t value,
+				    const uint32_t start,
+				    const uint32_t len)
+{
+	W_VBI_APB_REG(reg, ((R_VBI_APB_REG(reg) &
+			     ~(((1L << (len)) - 1) << (start))) |
+			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
 
 static inline void W_APB_BIT(uint32_t reg,

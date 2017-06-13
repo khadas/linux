@@ -1069,6 +1069,7 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
+	tvafe_dec_status = false;
 	/*del_timer_sync(&devp->timer);*/
 #ifdef CONFIG_AM_DVB
 	g_tvafe_info = NULL;
@@ -1109,7 +1110,6 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
 
 	devp->flags &= (~TVAFE_FLAG_DEV_OPENED);
-	tvafe_dec_status = false;
 
 	pr_info("[tvafe..] %s close afe ok.\n", __func__);
 
@@ -2252,6 +2252,26 @@ int tvafe_reg_write(unsigned int reg, unsigned int val)
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_reg_write);
+
+int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val)
+{
+	if (tvafe_dec_status)
+		*val = readl(tvafe_reg_base+reg);
+	else
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL(tvafe_vbi_reg_read);
+
+int tvafe_vbi_reg_write(unsigned int reg, unsigned int val)
+{
+	if (tvafe_dec_status)
+		writel(val, (tvafe_reg_base+reg));
+	else
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL(tvafe_vbi_reg_write);
 
 int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val)
 {
