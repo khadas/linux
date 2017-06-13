@@ -83,6 +83,9 @@ module_param(det3d_cfg, uint, 0664);
 MODULE_PARM_DESC(det3d_cfg, "det3d_cfg");
 #endif
 
+static unsigned int pq_load_dbg;
+module_param_named(pq_load_dbg, pq_load_dbg, uint, 0644);
+
 static int vdin_en;
 
 static void set_di_inp_fmt_more(
@@ -2244,4 +2247,37 @@ void combing_pd22_window_config(unsigned int width, unsigned int height)
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_X, 0, 0, 13);/* pd x0 */
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_X , (width-1), 16, 13);/* pd x1 */
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_Y, (y1+1), 0, 13);/* pd y0 */
+}
+
+void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
+{
+	unsigned int i = 0, addr = 0, value = 0, mask = 0, len;
+	struct am_reg_s *regs_p;
+	if (pq_load_dbg == 1)
+		return;
+	if (pq_load_dbg == 2)
+		pr_info("[DI]%s load 0x%x pq table.\n",
+			__func__, di_pq_ptr->pq_parm.table_name);
+	if (PTR_RET(di_pq_ptr->regs)) {
+		pr_err("[DI] table ptr error.\n");
+		return;
+	}
+	regs_p = (struct am_reg_s *)di_pq_ptr->regs;
+	len = di_pq_ptr->pq_parm.table_len;
+	for (i = 0; i < len; i++) {
+		addr = regs_p->addr;
+		value = regs_p->val;
+		mask = regs_p->mask;
+		if (pq_load_dbg == 2)
+			pr_info("[%u][0x%x] = [0x%x]&[0x%x]\n",
+				i, addr, value, mask);
+		if (regs_p->mask != 0xffffffff) {
+			value = ((Rd(addr) & (~(mask))) |
+				(value & mask));
+		}
+		regs_p++;
+		DI_Wr(addr, value);
+		if (pq_load_dbg == 2)
+			pr_info("[%u][0x%x] = [0x%x]\n", i, addr, value);
+	}
 }

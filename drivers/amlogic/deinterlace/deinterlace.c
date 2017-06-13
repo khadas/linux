@@ -56,6 +56,7 @@
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vpu.h>
+#include <linux/amlogic/amvecm/amvecm.h>
 #ifdef CONFIG_AML_RDMA
 #include <linux/amlogic/rdma/rdma_mgr.h>
 #endif
@@ -161,7 +162,6 @@ static DEFINE_SPINLOCK(plist_lock);
 static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
-
 #define INIT_FLAG_NOT_LOAD 0x80
 static const char version_s[] = "2016-12-18a";
 static unsigned char boot_init_flag;
@@ -171,8 +171,6 @@ static unsigned char new_keep_last_frame_enable;
 static int bypass_state = 1;
 static int bypass_prog;
 static int bypass_hd_prog;
-static int bypass_4K;
-static int bypass_interlace_output;
 #ifdef CONFIG_AM_DEINTERLACE_SD_ONLY
 static int bypass_hd = 1;
 #else
@@ -189,7 +187,6 @@ static int bypass_1080p;
 static int bypass_3d = 1;
 static int invert_top_bot;
 static int skip_top_bot;/*1or2: may affect atv when bypass di*/
-static char interlace_output_flag;
 static int bypass_get_buf_threshold = 4;
 static int bypass_hdmi_get_buf_threshold = 3;
 
@@ -333,13 +330,14 @@ bool det3d_en = false;
 static unsigned int det3d_mode;
 static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf);
 #endif
+static void di_pq_parm_destory(struct di_pq_parm_s *pq_ptr);
+static struct di_pq_parm_s *di_pq_parm_create(struct am_pq_parm_s *);
 
 static int force_duration_0;
 
 static int use_reg_cfg = 1;
 
 static uint init_flag;/*flag for di buferr*/
-static uint mem_flag;/*flag for mem alloc*/
 static unsigned int reg_flag;/*flag for vframe reg/unreg*/
 static unsigned int unreg_cnt;/*cnt for vframe unreg*/
 static unsigned int reg_cnt;/*cnt for vframe reg*/
@@ -445,44 +443,6 @@ void trigger_pre_di_process(char idx)
 
 static unsigned int di_printk_flag;
 #define DI_PRE_INTERVAL         (HZ / 100)
-
-
-static void set_output_mode_info(void)
-{
-	const struct vinfo_s *info;
-
-	info = get_current_vinfo();
-
-	if (info) {
-		if ((strncmp(info->name, "480cvbs", 7) == 0) ||
-		    (strncmp(info->name, "576cvbs", 7) == 0) ||
-			(strncmp(info->name, "ntsc_m", 6) == 0) ||
-			(strncmp(info->name, "pal_m", 5) == 0) ||
-			(strncmp(info->name, "pal_n", 5) == 0) ||
-		    (strncmp(info->name, "480i", 4) == 0) ||
-		    (strncmp(info->name, "576i", 4) == 0) ||
-		    (strncmp(info->name, "1080i", 5) == 0))
-			interlace_output_flag = 1;
-		else
-			interlace_output_flag = 0;
-	}
-}
-
-static int
-display_notify_callback_v(struct notifier_block *block,
-			  unsigned long cmd, void *para)
-{
-	if (cmd != VOUT_EVENT_MODE_CHANGE)
-		return 0;
-
-	set_output_mode_info();
-	return 0;
-}
-
-static struct
-notifier_block display_mode_notifier_nb_v = {
-	.notifier_call	= display_notify_callback_v,
-};
 
 /************For Write register**********************/
 static unsigned int di_stop_reg_flag;
@@ -662,7 +622,7 @@ static int __init di_read_canvas_reverse(char *str)
 }
 __setup("video_reverse=", di_read_canvas_reverse);
 #endif
-unsigned int di_debug_flag = 0x10;/* enable rdma even di bypassed */
+unsigned int di_debug_flag = 0;/* enable rdma even di bypassed */
 static unsigned char *di_log_buf;
 static unsigned int di_log_wr_pos;
 static unsigned int di_log_rd_pos;
@@ -2321,9 +2281,6 @@ static unsigned char is_bypass(vframe_t *vf_in)
 	if (di_debug_flag & 0x10000) /* for debugging */
 		return (di_debug_flag >> 17) & 0x1;
 
-	if (bypass_interlace_output && interlace_output_flag)
-		return 1;
-
 	if (bypass_all)
 		return 1;
 	if (di_pre_stru.cur_prog_flag &&
@@ -2405,8 +2362,6 @@ static unsigned char is_bypass(vframe_t *vf_in)
 			return 1;
 	}
 
-	if (mem_flag == 0)
-		return 1;
 	return 0;
 }
 
@@ -2614,133 +2569,131 @@ static void config_canvas(struct di_buf_s *di_buf)
 
 #endif
 #ifdef CONFIG_CMA
-unsigned int di_cma_alloc_total(void)
+unsigned int di_cma_alloc_total(struct di_dev_s *de_devp)
 {
-	de_devp->pages[0] =
+	de_devp->total_pages =
 		dma_alloc_from_contiguous(&(de_devp->pdev->dev),
 		de_devp->mem_size >> PAGE_SHIFT, 0);
-	if (de_devp->pages[0]) {
+	if (de_devp->total_pages) {
 		de_devp->mem_start =
-			page_to_phys(de_devp->pages[0]);
-		pr_dbg("%s:DI CMA allocate addr:0x%x ok.\n",
-			__func__, (unsigned int)de_devp->mem_start);
+			page_to_phys(de_devp->total_pages);
+		pr_dbg("%s:DI CMA allocate addr:0x%lx ok.\n",
+			__func__, de_devp->mem_start);
 		return 1;
 	} else {
-		pr_info("%s:DI CMA allocate fail.\n", __func__);
+		pr_info("%s:xxxxxx DI CMA allocate fail.\n", __func__);
 		return 0;
 	}
 
 }
+
+static bool cma_print;
 unsigned int di_cma_alloc(void)
 {
-	unsigned int i, start_time, end_time, delta_time;
-	if (bypass_4K == 1) {
-		pr_dbg("%s:di don't need alloc mem for 4k input\n", __func__);
-		return 0;
-	}
+	unsigned int start_time, end_time, delta_time;
+	struct di_buf_s *buf_p = NULL;
+	int itmp, alloc_cnt = 0;
+
 	start_time = jiffies_to_msecs(jiffies);
-	for (i = 0; (i < local_buf_num); i++) {
-		struct di_buf_s *di_buf = &(di_buf_local[i]);
-		int ii = USED_LOCAL_BUF_MAX;
-		if ((used_post_buf_index != -1) &&
-		    (new_keep_last_frame_enable)) {
-			for (ii = 0; ii < USED_LOCAL_BUF_MAX; ii++) {
-				if (i == used_local_buf_index[ii]) {
-					pr_dbg("%s skip %d,cma_alloc=%d\n",
-						__func__, i,
-						de_devp->cma_alloc[i]);
-					break;
-				}
-			}
-		}
-		if ((ii >= USED_LOCAL_BUF_MAX) &&
-			(de_devp->cma_alloc[i] == 0)) {
-			de_devp->pages[i] =
-				dma_alloc_from_contiguous(&(de_devp->pdev->dev),
+	queue_for_each_entry(buf_p, ptmp, QUEUE_LOCAL_FREE, list) {
+
+		if (buf_p->pages == NULL) {
+			buf_p->pages =
+			dma_alloc_from_contiguous(&(de_devp->pdev->dev),
 				de_devp->buffer_size >> PAGE_SHIFT, 0);
-			if (de_devp->pages[i]) {
-				de_devp->mem_start =
-					page_to_phys(de_devp->pages[i]);
-				de_devp->cma_alloc[i] = 1;
-				pr_dbg("DI CMA  allocate addr:0x%x[%d] ok.\n",
-					(unsigned int)de_devp->mem_start, i);
-			} else {
-				de_devp->cma_alloc[i] = 0;
-				pr_info("DI CMA  allocate %d fail.\n", i);
+			if (IS_ERR_OR_NULL(buf_p->pages)) {
+				buf_p->pages = NULL;
+				pr_err("xxxxxxxxx DI CMA  allocate %d fail.\n",
+					buf_p->index);
 				return 0;
-			}
-			if (di_pre_stru.buf_alloc_mode) {
-				di_buf->nr_adr = de_devp->mem_start;
 			} else {
-				di_buf->nr_adr = de_devp->mem_start;
-				di_buf->mtn_adr = de_devp->mem_start +
-					di_pre_stru.nr_size;
+				alloc_cnt++;
+				if (cma_print)
+					pr_info("DI CMA  allocate buf[%d]page:0x%p\n",
+						buf_p->index, buf_p->pages);
+			}
+		} else {
+			pr_err("DI buf[%d] page:0x%p cma alloced skip\n",
+					buf_p->index, buf_p->pages);
+		}
+		buf_p->nr_adr = page_to_phys(buf_p->pages);
+		if (cma_print)
+			pr_info(" addr 0x%lx ok.\n", buf_p->nr_adr);
+		if (di_pre_stru.buf_alloc_mode == 0) {
+			buf_p->mtn_adr = buf_p->nr_adr +
+				di_pre_stru.nr_size;
 #ifdef NEW_DI_V1
-				di_buf->cnt_adr = de_devp->mem_start +
-					di_pre_stru.nr_size +
-					di_pre_stru.mtn_size;
+			buf_p->cnt_adr = buf_p->nr_adr +
+				di_pre_stru.nr_size +
+				di_pre_stru.mtn_size;
 #endif
-				if (mcpre_en) {
-					di_buf->mcvec_adr = de_devp->mem_start +
-						di_pre_stru.nr_size +
-						di_pre_stru.mtn_size +
-						di_pre_stru.count_size;
-					di_buf->mcinfo_adr =
-						de_devp->mem_start +
-						di_pre_stru.nr_size +
-						di_pre_stru.mtn_size +
-						di_pre_stru.count_size +
-						di_pre_stru.mv_size;
-				}
+			if (mcpre_en) {
+				buf_p->mcvec_adr = buf_p->nr_adr +
+					di_pre_stru.nr_size +
+					di_pre_stru.mtn_size +
+					di_pre_stru.count_size;
+				buf_p->mcinfo_adr =
+					buf_p->nr_adr +
+					di_pre_stru.nr_size +
+					di_pre_stru.mtn_size +
+					di_pre_stru.count_size +
+					di_pre_stru.mv_size;
 			}
 		}
 	}
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
-	pr_dbg("%s:alloc use %d ms(%d~%d)\n", __func__, delta_time,
-		start_time, end_time);
+	pr_info("%s:alloc %d buffer use %d ms(%d~%d)\n",
+			__func__, alloc_cnt, delta_time, start_time, end_time);
 	return 1;
 }
 void di_cma_release(void)
 {
-	unsigned int i, start_time, end_time, delta_time;
+	unsigned int i, ii, rels_cnt = 0, start_time, end_time, delta_time;
+	struct di_buf_s *buf_p;
+
 	start_time = jiffies_to_msecs(jiffies);
 	for (i = 0; (i < local_buf_num); i++) {
-		int ii = USED_LOCAL_BUF_MAX;
-		if ((used_post_buf_index != -1) &&
-		    (new_keep_last_frame_enable)) {
+		buf_p = &(di_buf_local[i]);
+		ii = USED_LOCAL_BUF_MAX;
+		if (used_post_buf_index != -1) {
 			for (ii = 0; ii < USED_LOCAL_BUF_MAX; ii++) {
 				if (i == used_local_buf_index[ii]) {
-					pr_dbg("%s skip %d,cma_alloc=%d\n",
-						__func__, i,
-						de_devp->cma_alloc[i]);
+					pr_dbg("%s skip buf[%d].\n\n",
+						__func__, i);
 					break;
 				}
 			}
 		}
 		if ((ii >= USED_LOCAL_BUF_MAX) &&
-			(de_devp->cma_alloc[i] == 1)) {
+			(buf_p->pages != NULL)) {
 			if (dma_release_from_contiguous(&(de_devp->pdev->dev),
-				de_devp->pages[i],
+				buf_p->pages,
 				de_devp->buffer_size >> PAGE_SHIFT)) {
-				de_devp->cma_alloc[i] = 0;
-				pr_dbg("DI CMA  release %d ok.\n", i);
+				buf_p->pages = NULL;
+				rels_cnt++;
+				if (cma_print)
+					pr_info(
+				"DI CMA  release buf[%d] ok.\n", i);
 			} else {
-				pr_dbg("DI CMA  release %d fail.\n", i);
+				pr_err("DI CMA  release buf[%d] fail.\n", i);
 			}
+		} else {
+			pr_err("DI buf[%d] page:0x%p no release.\n",
+					buf_p->index, buf_p->pages);
 		}
 	}
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
-	pr_dbg("%s:release use %d ms(%d~%d)\n", __func__, delta_time,
-		start_time, end_time);
+	pr_info("%s:release %u buffer use %d ms(%d~%d)\n",
+			__func__, rels_cnt, delta_time, start_time, end_time);
 }
 #endif
 static int di_init_buf(int width, int height, unsigned char prog_flag)
 {
 	int i;
 	int canvas_height = height + 8;
-
+	struct page *tmp_page = NULL;
 	unsigned int di_buf_size = 0, di_post_buf_size = 0, mtn_size = 0;
 	unsigned int nr_size = 0, count_size = 0, mv_size = 0, mc_size = 0;
 	unsigned int nr_width = width, mtn_width = width, mv_width = width;
@@ -2855,7 +2808,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 		}
 
 		if (ii >= USED_LOCAL_BUF_MAX) {
+			/* backup cma pages */
+			tmp_page = di_buf->pages;
 			memset(di_buf, 0, sizeof(struct di_buf_s));
+			di_buf->pages = tmp_page;
 			di_buf->type = VFRAME_TYPE_LOCAL;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
@@ -3043,14 +2999,6 @@ static void di_uninit_buf(void)
 			vframe_in[i] = NULL;
 		}
 	}
-#ifdef CONFIG_CMA
-	if (de_devp->flag_cma == 1) {
-		pr_dbg("%s:cma release req time: %d ms\n",
-			__func__, jiffies_to_msecs(jiffies));
-		di_pre_stru.cma_release_req = 1;
-		up(&di_sema);
-	}
-#endif
 	di_pre_stru.pre_de_process_done = 0;
 	di_pre_stru.pre_de_busy = 0;
 	if (post_wr_en && post_wr_surpport) {
@@ -3208,13 +3156,15 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 		return;
 	if (format == 1) {
 		pr_info(
-		"\t+index %d, 0x%p, type %d, vframetype 0x%x, trans_fmt %u,bitdepath %d\n",
+		"\t+index %d, 0x%p, type %d, vframetype 0x%x\n",
 			di_buf->index,
 			di_buf,
 			di_buf->type,
-			di_buf->vframe->type,
+			di_buf->vframe->type);
+		pr_info("\t+trans_fmt %u,bitdepath %d pages %p\n",
 			di_buf->vframe->trans_fmt,
-			di_buf->vframe->bitdepth);
+			di_buf->vframe->bitdepth,
+			di_buf->pages);
 		if (di_buf->di_wr_linked_buf) {
 			pr_info("\tlinked  +index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
@@ -3222,9 +3172,9 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 				di_buf->di_wr_linked_buf->type);
 		}
 	} else if (format == 2) {
-		pr_info("index %d, 0x%p(vframe 0x%p), type %d\n",
+		pr_info("index %d, 0x%p(vframe 0x%p), type %d pages %p\n",
 			di_buf->index, di_buf,
-			di_buf->vframe, di_buf->type);
+			di_buf->vframe, di_buf->type, di_buf->pages);
 		pr_info("vframetype 0x%x, trans_fmt %u,duration %d pts %d,bitdepth %d\n",
 			di_buf->vframe->type,
 			di_buf->vframe->trans_fmt,
@@ -3255,8 +3205,9 @@ static void dump_state(void)
 		recovery_flag, recovery_log_reason, di_blocking);
 	pr_info("recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
 		recovery_log_queue_idx, recovery_log_di_buf);
-	pr_info("buffer_size=%d,mem_flag=%d,cma_flag=%d\n",
-		de_devp->buffer_size, mem_flag, de_devp->flag_cma);
+	pr_info("buffer_size=%d, mem_flag=%d, cma_flag=%d\n",
+		de_devp->buffer_size, atomic_read(&de_devp->mem_flag),
+		de_devp->flag_cma);
 	pr_info("new_keep_last_frame_enable %d,", new_keep_last_frame_enable);
 	pr_info("used_post_buf_index %d(0x%p),", used_post_buf_index,
 		(used_post_buf_index ==
@@ -3795,7 +3746,9 @@ static void pre_de_process(void)
 	di_pre_stru.field_count_for_cont++;
 
 	RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
-	di_apply_reg_cfg(0);
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		di_apply_reg_cfg(0);
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag) {
 		struct vdin_arg_s vdin_arg;
@@ -5450,7 +5403,7 @@ static unsigned char pre_de_buf_config(void)
 	unsigned char change_type = 0;
 	bool bit10_pack_patch = false;
 	unsigned int width_roundup = 2;
-	if (di_blocking)
+	if (di_blocking || !atomic_read(&de_devp->mem_flag))
 		return 0;
 	if ((list_count(QUEUE_IN_FREE) < 2 && (!di_pre_stru.di_inp_buf_next)) ||
 	    (queue_empty(QUEUE_LOCAL_FREE)))
@@ -5688,7 +5641,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			di_pre_stru.input_size_change_flag = true;
 			di_pre_stru.same_field_source_flag = 0;
 #if defined(NEW_DI_TV)
-			di_set_para_by_tvinfo(vframe);
+			if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+				di_set_para_by_tvinfo(vframe);
 #endif
 #ifdef SUPPORT_MPEG_TO_VDIN
 			if ((!is_from_vdin(vframe)) &&
@@ -7220,7 +7174,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 #ifdef NEW_DI_V1
 	if (di_post_stru.update_post_reg_flag && (!combing_fix_en)) {
-		di_apply_reg_cfg(1);
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			di_apply_reg_cfg(1);
 		last_lev = -1;
 	}
 
@@ -8233,13 +8188,13 @@ static void di_unreg_process(void)
 		vf_unreg_provider(&di_vf_prov);
 		pr_dbg("%s vf unreg cost %u ms.\n", __func__,
 			jiffies_to_msecs(jiffies_64 - start_jiffes));
-		reg_flag = 0;
 		unreg_cnt++;
 		if (unreg_cnt > 0x3fffffff)
 			unreg_cnt = 0;
 		pr_dbg("%s unreg stop %d.\n", __func__, reg_flag);
 		di_pre_stru.pre_de_busy = 0;
 		di_pre_stru.unreg_req_flag_irq = 1;
+		reg_flag = 0;
 		trigger_pre_di_process(TRIGGER_PRE_BY_UNREG);
 	} else {
 		di_pre_stru.force_unreg_req_flag = 0;
@@ -8279,9 +8234,10 @@ static void di_unreg_process_irq(void)
 	di_hw_uninit();
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		di_pre_gate_control(false);
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
-	else
+		DI_Wr(DI_PRE_CTRL, 0);
+	} else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);
 /* nr/blend0/ei0/mtn0 clock gate */
 #endif
@@ -8320,6 +8276,15 @@ static void di_unreg_process_irq(void)
 #endif
 	di_pre_stru.unreg_req_flag = 0;
 	di_pre_stru.unreg_req_flag_irq = 0;
+#ifdef CONFIG_CMA
+	if (de_devp->flag_cma == 1) {
+		pr_dbg("%s:cma release req time: %d ms\n",
+			__func__, jiffies_to_msecs(jiffies));
+		di_pre_stru.cma_release_req = 1;
+		up(&di_sema);
+	}
+#endif
+
 }
 
 static void di_reg_process(void)
@@ -8327,8 +8292,6 @@ static void di_reg_process(void)
 /*get vout information first time*/
 	if (reg_flag == 1)
 		return;
-	set_output_mode_info();
-	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	vf_reg_provider(&di_vf_prov);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 	reg_flag = 1;
@@ -8427,15 +8390,10 @@ static void di_reg_process_irq(void)
 	vframe = vf_peek(VFM_NAME);
 
 	if (vframe) {
-		#ifdef CONFIG_CMA
-		if ((vframe->width > default_width) ||
-			(vframe->height > (default_height + 8)))
-			bypass_4K = 1;
-		else
-			bypass_4K = 0;
-		#endif
-		if (need_bypass(vframe) || ((di_debug_flag>>18) & 0x1)) {
+		if (need_bypass(vframe) || ((di_debug_flag>>20) & 0x1)) {
 			di_pre_stru.bypass_flag = true;
+			pr_info("DI bypass all %ux%u-0x%x.", vframe->width,
+				vframe->height, vframe->type);
 			return;
 		} else {
 			di_pre_stru.bypass_flag = false;
@@ -8487,9 +8445,10 @@ static void di_reg_process_irq(void)
 			/* nr/blend0/ei0/mtn0 clock gate */
 		}
 #endif
-
-#ifdef NEW_DI_TV
-		di_set_para_by_tvinfo(vframe);
+#if defined(NEW_DI_TV)
+		/* from txlx nr/di will load by pq db*/
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			di_set_para_by_tvinfo(vframe);
 #endif
 		if (di_printk_flag & 2)
 			di_printk_flag = 1;
@@ -8536,6 +8495,18 @@ static void di_reg_process_irq(void)
 		}
 		reset_pulldown_state();
 		di_pre_size_change(vframe->width, nr_height);
+		if (de_devp->flags & DI_LOAD_REG_FLAG) {
+			struct di_pq_parm_s *pos = NULL, *tmp = NULL;
+			mutex_lock(&de_devp->pq_lock);
+			list_for_each_entry_safe(pos, tmp,
+					&de_devp->pq_table_list, list) {
+				di_load_regs(pos);
+				list_del(&pos->list);
+				di_pq_parm_destory(pos);
+			}
+			de_devp->flags &= ~DI_LOAD_REG_FLAG;
+			mutex_unlock(&de_devp->pq_lock);
+		}
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 		last_lev = -1;
@@ -8721,8 +8692,11 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 
 static int di_task_handle(void *data)
 {
+	struct di_dev_s *devp;
 	int ret = 0;
-
+	devp = (struct di_dev_s *)data;
+	if (!devp)
+		return -1;
 	while (1) {
 		ret = down_interruptible(&di_sema);
 		if (active_flag) {
@@ -8739,17 +8713,22 @@ static int di_task_handle(void *data)
 				di_pre_stru.reg_req_flag_irq = 0;
 			}
 			#ifdef CONFIG_CMA
-			if (di_pre_stru.cma_alloc_req) {
-				mem_flag = di_cma_alloc();
-				di_pre_stru.cma_alloc_req = 0;
-				di_pre_stru.cma_alloc_done = 1;
-			}
+			mutex_lock(&de_devp->cma_mutex);
 			if (di_pre_stru.cma_release_req) {
+				atomic_set(&devp->mem_flag, 0);
 				di_cma_release();
 				di_pre_stru.cma_release_req = 0;
 				di_pre_stru.cma_alloc_done = 0;
-				mem_flag = 0;
 			}
+			if (di_pre_stru.cma_alloc_req) {
+				if (di_cma_alloc())
+					atomic_set(&devp->mem_flag, 1);
+				else
+					atomic_set(&devp->mem_flag, 0);
+				di_pre_stru.cma_alloc_req = 0;
+				di_pre_stru.cma_alloc_done = 1;
+			}
+			mutex_unlock(&de_devp->cma_mutex);
 			#endif
 		}
 	}
@@ -8777,8 +8756,10 @@ static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 static struct hrtimer di_pre_hrtimer;
 static void pre_tasklet(unsigned long arg)
 {
-	if (jiffies_to_msecs(jiffies_64 - de_devp->jiffy) > 10)
-		pr_err("DI: tasklet schedule over 10ms.\n");
+	unsigned int hrtimer_time = 0;
+	hrtimer_time = jiffies_to_msecs(jiffies_64 - de_devp->jiffy);
+	if (hrtimer_time > 10)
+		pr_dbg("DI: tasklet schedule cost %ums.\n", hrtimer_time);
 	di_pre_process_irq((struct di_pre_stru_s *)arg);
 }
 
@@ -9416,15 +9397,116 @@ static int di_release(struct inode *node, struct file *file)
 /* Reset file pointer */
 
 /* Release some other fields */
-/* ... */
+	file->private_data = NULL;
 	return 0;
 }
+
+static struct di_pq_parm_s *di_pq_parm_create(struct am_pq_parm_s *pq_parm_p)
+{
+	struct di_pq_parm_s *pq_ptr = NULL;
+	struct am_reg_s *am_reg_p = NULL;
+	size_t mem_size = 0;
+	pq_ptr = kmalloc(sizeof(struct di_pq_parm_s), GFP_KERNEL);
+	if (!pq_ptr) {
+		pr_err("[DI] alloc pq parm memory errors\n");
+		return NULL;
+	}
+	mem_size = sizeof(struct am_pq_parm_s);
+	memcpy(&pq_ptr->pq_parm, pq_parm_p, mem_size);
+	mem_size = sizeof(struct am_reg_s)*pq_parm_p->table_len;
+	am_reg_p = kmalloc(mem_size, GFP_KERNEL);
+	if (!am_reg_p) {
+		kfree(pq_ptr);
+		pr_err("[DI] alloc pq table memory errors\n");
+		return NULL;
+	}
+	pq_ptr->regs = am_reg_p;
+
+	return pq_ptr;
+}
+
+static void di_pq_parm_destory(struct di_pq_parm_s *pq_ptr)
+{
+	if (!pq_ptr) {
+		pr_err("[DI] %s pq parm pointer null.\n", __func__);
+		return;
+	}
+	kfree(pq_ptr->regs);
+	kfree(pq_ptr);
+}
+
+static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret = 0, tab_flag = 0;
+	di_dev_t *di_devp;
+	void __user *argp = (void __user *)arg;
+	size_t mm_size = 0;
+	struct am_pq_parm_s tmp_pq_s = {0};
+	struct di_pq_parm_s *di_pq_ptr = NULL;
+
+	if (_IOC_TYPE(cmd) != _DI_) {
+		pr_err("%s invalid command: %u\n", __func__, cmd);
+		return -ENOSYS;
+	}
+	di_devp = file->private_data;
+	switch (cmd) {
+	case AMDI_IOC_SET_PQ_PARM:
+		mm_size = sizeof(struct am_pq_parm_s);
+		if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
+			pr_err("[DI] set pq parm errors\n");
+			return -EFAULT;
+		}
+		tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
+			TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
+		if (tmp_pq_s.table_name & tab_flag) {
+			pr_info("[DI] load 0x%x pq table.\n",
+				tmp_pq_s.table_name);
+		} else {
+			pr_err("[DI] load 0x%x wrong pq table.\n",
+				tmp_pq_s.table_name);
+			return -EFAULT;
+		}
+		di_pq_ptr = di_pq_parm_create(&tmp_pq_s);
+		if (!di_pq_ptr) {
+			pr_err("[DI] allocat pq parm struct error.\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)tmp_pq_s.table_ptr;
+		mm_size = tmp_pq_s.table_len * sizeof(struct am_reg_s);
+		if (copy_from_user(di_pq_ptr->regs, argp, mm_size)) {
+			pr_err("[DI] user copy pq table errors\n");
+			return -EFAULT;
+		}
+		mutex_lock(&di_devp->pq_lock);
+		list_add_tail(&di_pq_ptr->list, &di_devp->pq_table_list);
+		di_devp->flags |= DI_LOAD_REG_FLAG;
+		mutex_unlock(&di_devp->pq_lock);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long di_compat_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	unsigned long ret;
+	arg = (unsigned long)compat_ptr(arg);
+	ret = di_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
 
 static const struct file_operations di_fops = {
 	.owner		= THIS_MODULE,
 	.open		= di_open,
 	.release	= di_release,
-/* .ioctl	 = di_ioctl, */
+	.unlocked_ioctl  = di_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = di_compat_ioctl,
+#endif
 };
 
 static ssize_t
@@ -9670,14 +9752,18 @@ static int di_probe(struct platform_device *pdev)
 		di_devp->pdev = pdev;
 		di_devp->mem_size = dma_get_cma_size_int_byte(&pdev->dev);
 		pr_info("DI: CMA size 0x%x.\n", di_devp->mem_size);
-		if (di_devp->flag_cma == 2)
-			mem_flag = di_cma_alloc_total();
-		else
+		if (di_devp->flag_cma == 2) {
+			if (di_cma_alloc_total(di_devp))
+				atomic_set(&di_devp->mem_flag, 1);
+		} else
 #endif
-			mem_flag = 0;
+			atomic_set(&di_devp->mem_flag, 0);
 	} else {
-		mem_flag = 1;
+			atomic_set(&di_devp->mem_flag, 1);
 	}
+	mutex_init(&di_devp->cma_mutex);
+	INIT_LIST_HEAD(&di_devp->pq_table_list);
+	mutex_init(&di_devp->pq_lock);
 	di_devp->di_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	di_devp->timerc_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 	pr_info("di_irq:%d,timerc_irq:%d\n",
@@ -9720,8 +9806,6 @@ static int di_probe(struct platform_device *pdev)
 	if (ret)
 		pr_err("DI-%s: get hw version error.\n", __func__);
 	di_pr_info("DI hw version %u.\n", di_devp->hw_version);
-
-	vout_register_client(&display_mode_notifier_nb_v);
 
 	/* set flag to indicate that post_wr is surpportted */
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -9787,6 +9871,7 @@ static int di_probe(struct platform_device *pdev)
 
 	vf_receiver_init(&di_vf_recv, VFM_NAME, &di_vf_receiver, NULL);
 	vf_reg_receiver(&di_vf_recv);
+	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	active_flag = 1;
 /* data32 = (*P_A9_0_IRQ_IN1_INTR_STAT_CLR); */
 	ret = request_irq(di_devp->di_irq, &de_irq, IRQF_SHARED,
@@ -9849,6 +9934,7 @@ static int di_remove(struct platform_device *pdev)
 		clk_disable_unprepare(di_devp->vpu_clkb);
 	di_hw_uninit();
 	di_devp->di_event = 0xff;
+	mutex_destroy(&di_devp->pq_lock);
 	kthread_stop(di_devp->task);
 #ifdef USE_HRTIMER
 	hrtimer_cancel(&di_pre_hrtimer);
@@ -9879,8 +9965,20 @@ static int di_remove(struct platform_device *pdev)
 	nr_drv_uninit(di_devp->dev);
 	cdev_del(&di_devp->cdev);
 
+	if (di_devp->flag_cma == 2) {
+		if (dma_release_from_contiguous(&(pdev->dev),
+			di_devp->total_pages,
+			di_devp->mem_size >> PAGE_SHIFT)) {
+			di_devp->total_pages = NULL;
+			di_devp->mem_start = 0;
+			pr_dbg("DI CMA total release ok.\n");
+		} else {
+			pr_dbg("DI CMA total release fail.\n");
+		}
+	}
 	device_destroy(di_clsp, di_devno);
 	kfree(di_devp);
+
 /* free drvdata */
 	dev_set_drvdata(&pdev->dev, NULL);
 	platform_set_drvdata(pdev, NULL);
@@ -9890,7 +9988,6 @@ static int di_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 static int save_init_flag;
-static int save_mem_flag;
 static int di_suspend(struct platform_device *pdev, pm_message_t state)
 {
 
@@ -9902,9 +9999,7 @@ static int di_suspend(struct platform_device *pdev, pm_message_t state)
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 /* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
-	save_mem_flag = mem_flag;
 	init_flag = 0;
-	mem_flag = 0;
 	field_count = 0;
 	if (di_pre_stru.di_inp_buf) {
 		if (vframe_in[di_pre_stru.di_inp_buf->index]) {
@@ -9933,7 +10028,6 @@ static int di_resume(struct platform_device *pdev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
-	mem_flag = save_mem_flag;
 	if (init_flag) {
 		di_set_power_control(0, 1);
 		di_set_power_control(1, 1);
@@ -10023,9 +10117,6 @@ module_param(bypass_hd, int, 0664);
 
 MODULE_PARM_DESC(bypass_hd_prog, "\n bypass_hd_prog\n");
 module_param(bypass_hd_prog, int, 0664);
-
-MODULE_PARM_DESC(bypass_interlace_output, "\n bypass_interlace_output\n");
-module_param(bypass_interlace_output, int, 0664);
 
 MODULE_PARM_DESC(bypass_prog, "\n bypass_prog\n");
 module_param(bypass_prog, int, 0664);
@@ -10319,22 +10410,12 @@ static int __init di_boot_para_setup(char *s)
 
 __setup("di=", di_boot_para_setup);
 
-
-vframe_t *get_di_inp_vframe(void)
-{
-	vframe_t *vframe = NULL;
-
-	if (di_pre_stru.di_inp_buf)
-		vframe = di_pre_stru.di_inp_buf->vframe;
-	return vframe;
-}
-
 module_param_named(full_422_pack, full_422_pack, bool, 0644);
 #ifdef DEBUG_SUPPORT
 module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
 module_param_named(pldn_dly, pldn_dly, uint, 0644);
 module_param_named(tbbtff_dly, tbbtff_dly, uint, 0644);
-
+module_param_named(cma_print, cma_print, bool, 0644);
 module_param(pldn_dly1, uint, 0644);
 MODULE_PARM_DESC(pldn_dly1, "/n pulldonw field delay result./n");
 
