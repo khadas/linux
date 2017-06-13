@@ -82,6 +82,12 @@ enum vdec_irq_num {
 	VDEC_IRQ_2,
 	VDEC_IRQ_MAX,
 };
+
+enum vdec_fr_hint_state {
+	VDEC_NO_NEED_HINT = 0,
+	VDEC_NEED_HINT,
+	VDEC_HINTED,
+};
 extern s32 vdec_request_threaded_irq(enum vdec_irq_num num,
 			irq_handler_t handler,
 			irq_handler_t thread_fn,
@@ -186,6 +192,7 @@ struct vdec_s {
 	char vfm_map_chain[VDEC_MAP_NAME_SIZE];
 	int vf_receiver_inst;
 	enum FRAME_BASE_VIDEO_PATH frame_base_video_path;
+	enum vdec_fr_hint_state fr_hint_state;
 	bool use_vfm_path;
 	char config[PAGE_SIZE];
 	int config_len;

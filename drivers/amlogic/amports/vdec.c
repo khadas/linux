@@ -108,6 +108,7 @@ struct vdec_core_s {
 	atomic_t vdec_nr;
 	struct vdec_s *vfm_vdec;
 	struct vdec_s *active_vdec;
+	struct vdec_s *hint_fr_vdec;
 	struct platform_device *vdec_core_platform_device;
 	struct device *cma_dev;
 	struct semaphore sem;
@@ -1376,12 +1377,20 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 			VFRAME_EVENT_PROVIDER_START,
 			vdec);
 
-		if (vdec_stream_based(p) ||
-			(p->frame_base_video_path ==
-			FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
-			vf_notify_receiver(p->vf_provider_name,
-				VFRAME_EVENT_PROVIDER_FR_HINT,
-				(void *)((unsigned long)p->sys_info->rate));
+		if (vdec_core->hint_fr_vdec == NULL)
+			vdec_core->hint_fr_vdec = vdec;
+
+		if (vdec_core->hint_fr_vdec == vdec) {
+			if (p->sys_info->rate != 0) {
+				vf_notify_receiver(p->vf_provider_name,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)
+					((unsigned long)p->sys_info->rate));
+				vdec->fr_hint_state = VDEC_HINTED;
+			} else {
+				vdec->fr_hint_state = VDEC_NEED_HINT;
+			}
+		}
 	}
 
 	pr_info("vdec_init, vf_provider_name = %s\n", p->vf_provider_name);
@@ -1408,18 +1417,22 @@ void vdec_release(struct vdec_s *vdec)
 
 	if (vdec->vframe_provider.name) {
 		if (!vdec_single(vdec)) {
-			if (vdec_stream_based(vdec) ||
-				(vdec->frame_base_video_path ==
-				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO))
-				vf_notify_receiver(vdec->vf_provider_name,
+			if (vdec_core->hint_fr_vdec == vdec
+			&& vdec->fr_hint_state == VDEC_HINTED)
+				vf_notify_receiver(
+					vdec->vf_provider_name,
 					VFRAME_EVENT_PROVIDER_FR_END_HINT,
 					NULL);
+			vdec->fr_hint_state = VDEC_NO_NEED_HINT;
 		}
 		vf_unreg_provider(&vdec->vframe_provider);
 	}
 
 	if (vdec_core->vfm_vdec == vdec)
 		vdec_core->vfm_vdec = NULL;
+
+	if (vdec_core->hint_fr_vdec == vdec)
+		vdec_core->hint_fr_vdec = NULL;
 
 	if (vdec->vf_receiver_inst >= 0) {
 		if (vdec->vfm_map_id[0]) {

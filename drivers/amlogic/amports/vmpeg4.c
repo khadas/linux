@@ -154,6 +154,7 @@ static u32 vmpeg4_ratio;
 static u64 vmpeg4_ratio64;
 static u32 rate_detect;
 static u32 vmpeg4_rotation;
+static u32 fr_hint_status;
 
 static u32 total_frame;
 static u32 last_vop_time_inc, last_duration;
@@ -167,6 +168,8 @@ u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 #endif
 
 static struct work_struct reset_work;
+static struct work_struct notify_work;
+
 
 static DEFINE_SPINLOCK(lock);
 
@@ -325,6 +328,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 					(rate >> 16) * DURATION_UNIT /
 					(rate & 0xffff);
 				duration = vmpeg4_amstream_dec_info.rate;
+				if (fr_hint_status == VDEC_NEED_HINT) {
+					schedule_work(&notify_work);
+					fr_hint_status = VDEC_HINTED;
+				}
 			} else if (rate_detect < RATE_DETECT_COUNT) {
 				if (vop_time_inc < last_vop_time_inc) {
 					duration =
@@ -650,6 +657,17 @@ static int vmpeg_vf_states(struct vframe_states *states, void *op_arg)
 	spin_unlock_irqrestore(&lock, flags);
 
 	return 0;
+}
+
+static void vmpeg4_notify_work(struct work_struct *work)
+{
+	pr_info("frame duration changed %d\n", vmpeg4_amstream_dec_info.rate);
+	vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)
+					((unsigned long)
+					vmpeg4_amstream_dec_info.rate));
+	return;
 }
 
 static void reset_do_work(struct work_struct *work)
@@ -1040,6 +1058,7 @@ static s32 vmpeg4_init(void)
 	}
 
 	stat |= STAT_ISR_REG;
+	fr_hint_status = VDEC_NO_NEED_HINT;
 #ifdef CONFIG_POST_PROCESS_MANAGER
 	vf_provider_init(&vmpeg_vf_prov, PROVIDER_NAME, &vmpeg_vf_provider,
 					 NULL);
@@ -1050,8 +1069,15 @@ static s32 vmpeg4_init(void)
 					 NULL);
 	vf_reg_provider(&vmpeg_vf_prov);
 #endif
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)((unsigned long)vmpeg4_amstream_dec_info.rate));
+	if (vmpeg4_amstream_dec_info.rate != 0) {
+		vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)
+					((unsigned long)
+					vmpeg4_amstream_dec_info.rate));
+		fr_hint_status = VDEC_HINTED;
+	} else
+		fr_hint_status = VDEC_NEED_HINT;
 
 	stat |= STAT_VF_HOOK;
 
@@ -1086,6 +1112,7 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 	pdata->dec_status = vmpeg4_dec_status;
 
 	INIT_WORK(&reset_work, reset_do_work);
+	INIT_WORK(&notify_work, vmpeg4_notify_work);
 
 	vmpeg4_vdec_info_init();
 
@@ -1117,14 +1144,17 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_VF_HOOK) {
-		vf_notify_receiver(PROVIDER_NAME,
-			VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		if (fr_hint_status == VDEC_HINTED)
+			vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		fr_hint_status = VDEC_NO_NEED_HINT;
 
 		vf_unreg_provider(&vmpeg_vf_prov);
 		stat &= ~STAT_VF_HOOK;
 	}
 
 	cancel_work_sync(&reset_work);
+	cancel_work_sync(&notify_work);
 
 	amvdec_disable();
 

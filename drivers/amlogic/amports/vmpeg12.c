@@ -167,6 +167,8 @@ static u32 ccbuf_phyAddress;
 static void *ccbuf_phyAddress_virt;
 static int ccbuf_phyAddress_is_remaped_nocache;
 static u32 lastpts;
+static u32 fr_hint_status;
+
 
 static DEFINE_SPINLOCK(lock);
 
@@ -308,12 +310,15 @@ static void userdata_push_do_work(struct work_struct *work)
 	WRITE_VREG(MREG_BUFFEROUT, 0);
 }
 
-static void vmpeg12_notify__work(struct work_struct *work)
+static void vmpeg12_notify_work(struct work_struct *work)
 {
 	pr_info("frame duration changed %d\n", frame_dur);
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)((unsigned long)frame_dur));
-
+	if (fr_hint_status == VDEC_NEED_HINT) {
+		vf_notify_receiver(PROVIDER_NAME,
+			VFRAME_EVENT_PROVIDER_FR_HINT,
+			(void *)((unsigned long)frame_dur));
+		fr_hint_status = VDEC_HINTED;
+	}
 	return;
 }
 static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
@@ -1086,10 +1091,16 @@ static s32 vmpeg12_init(void)
 					 NULL);
 	vf_reg_provider(&vmpeg_vf_prov);
 #endif
-	/*
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)((unsigned long)vmpeg12_amstream_dec_info.rate));
-	*/
+	if (vmpeg12_amstream_dec_info.rate != 0) {
+		vf_notify_receiver(PROVIDER_NAME,
+			VFRAME_EVENT_PROVIDER_FR_HINT,
+			(void *)
+			((unsigned long)
+			vmpeg12_amstream_dec_info.rate));
+		fr_hint_status = VDEC_HINTED;
+	} else
+		fr_hint_status = VDEC_NEED_HINT;
+
 	stat |= STAT_VF_HOOK;
 
 	recycle_timer.data = (ulong)&recycle_timer;
@@ -1134,7 +1145,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	INIT_WORK(&userdata_push_work, userdata_push_do_work);
-	INIT_WORK(&notify_work, vmpeg12_notify__work);
+	INIT_WORK(&notify_work, vmpeg12_notify_work);
 	INIT_WORK(&reset_work, reset_do_work);
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe end.\n");
@@ -1164,8 +1175,10 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_VF_HOOK) {
-		vf_notify_receiver(PROVIDER_NAME,
-			VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		if (fr_hint_status == VDEC_HINTED)
+			vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		fr_hint_status = VDEC_NO_NEED_HINT;
 
 		vf_unreg_provider(&vmpeg_vf_prov);
 		stat &= ~STAT_VF_HOOK;
