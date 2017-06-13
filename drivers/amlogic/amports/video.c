@@ -294,6 +294,7 @@ static u32 hdmiin_frame_check_cnt;
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		video_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
 		video_enabled = 1;\
+		video_status_saved = 1;\
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
 	} while (0)
 
@@ -303,6 +304,7 @@ static u32 hdmiin_frame_check_cnt;
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		video_onoff_state = VIDEO_ENABLE_STATE_OFF_REQ; \
 		video_enabled = 0;\
+		video_status_saved = 0;\
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
 	} while (0)
 
@@ -718,6 +720,7 @@ static u32 force_blackout;
 /* disable video */
 static u32 disable_video = VIDEO_DISABLE_NONE;
 static u32 video_enabled __nosavedata;
+static u32 video_status_saved __nosavedata;
 u32 get_video_enabled(void)
 {
 	return video_enabled;
@@ -4261,7 +4264,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 	if (atomic_read(&video_unreg_flag))
 		goto exit;
-	if (atomic_read(&video_pause_flag))
+	if (atomic_read(&video_pause_flag)
+		&& (!((video_global_output == 1)
+		&& (video_enabled != video_status_saved))))
 		goto exit;
 #ifdef CONFIG_VSYNC_RDMA
 	if (is_vsync_rdma_enable())
@@ -5183,6 +5188,8 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				VPP_VD2_PREBLEND |
 				VPP_VD2_POSTBLEND |
 				VPP_VD1_POSTBLEND);
+	} else {
+		video_enabled = video_status_saved;
 	}
 
 	if (likely(video2_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
