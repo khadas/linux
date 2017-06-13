@@ -35,6 +35,7 @@
 #include <linux/switch.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <linux/workqueue.h>
 #include <linux/err.h>
 /* #include <mach/am_regs.h> */
 
@@ -134,9 +135,34 @@ static struct switch_dev hdmi_rxsense = {
 	.name = "hdmi_rxsense",
 };
 
+static struct switch_dev hdmi_delay = {
+	.name = "hdmi_delay",
+};
+static struct delayed_work hdmi_delay_event_work;
+static int hdmi_delay_uevent_delay = 2000;
+
 static int edid_read_flag __nosavedata;
 
 static int hdmi_init;
+
+static void hdmi_delay_event_post(struct work_struct *work)
+{
+	if (hdmi_delay.state)
+		switch_set_state(&hdmi_delay, 0);
+
+	switch_set_state(&hdmi_delay, 1);
+}
+
+static void hdmi_delay_post(int state)
+{
+	cancel_delayed_work_sync(&hdmi_delay_event_work);
+
+	if (state == 0)
+		switch_set_state(&hdmi_delay, 0);
+	else
+		schedule_delayed_work(&hdmi_delay_event_work,
+			hdmi_delay_uevent_delay * HZ / 1000);
+}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -2808,6 +2834,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	}
 	set_disp_mode_auto();
+	hdmi_delay_post(1);
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->hpd_state = 1;
 	switch_set_state(&sdev, 1);
@@ -2869,6 +2896,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hpd_state = 0;
 	switch_set_state(&sdev, 0);
 	switch_set_state(&hdmi_audio, 0);
+	hdmi_delay_post(0);
 	mutex_unlock(&setclk_mutex);
 }
 
@@ -3466,6 +3494,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	switch_dev_register(&hdmi_hdr);
 	switch_dev_register(&hdmi_rxsense);
 
+	switch_dev_register(&hdmi_delay);
+
+	INIT_DELAYED_WORK(&hdmi_delay_event_work, hdmi_delay_event_post);
+
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
 	HDMITX_Meson_Init(&hdmitx_device);
 	hdmitx_init_fmt_attr(&hdmitx_device, fmt_attr);
@@ -3487,11 +3519,15 @@ static int amhdmitx_probe(struct platform_device *pdev)
 static int amhdmitx_remove(struct platform_device *pdev)
 {
 	struct device *dev = hdmitx_device.hdtx_dev;
+
+	cancel_delayed_work_sync(&hdmi_delay_event_work);
+
 	switch_dev_unregister(&sdev);
 	switch_dev_unregister(&hdmi_audio);
 	switch_dev_unregister(&hdmi_power);
 	switch_dev_unregister(&hdmi_hdr);
 	switch_dev_unregister(&hdmi_rxsense);
+	switch_dev_unregister(&hdmi_delay);
 	cancel_work_sync(&hdmitx_device.work_hdr);
 
 	if (hdmitx_device.HWOp.UnInit)
@@ -3862,3 +3898,6 @@ module_param(hdmi_prbs_mode, int, 0664);
 
 MODULE_PARM_DESC(debug_level, "\n debug_level\n");
 module_param(debug_level, int, 0664);
+
+MODULE_PARM_DESC(hdmi_delay_uevent_delay, "\n hdmi_delay_uevent_delay(ms)\n");
+module_param(hdmi_delay_uevent_delay, int, 0664);
