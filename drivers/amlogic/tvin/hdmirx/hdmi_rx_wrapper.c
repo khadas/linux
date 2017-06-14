@@ -2594,7 +2594,13 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_EQ_END:
 		rx_pr("EQ_END\n");
-		phy_conf_eq_setting(eq_ch0.bestsetting,
+		if (run_eq_flag == E_EQ_START)
+			hdmirx_phy_conf_eq_setting(rx.port,
+				eq_ch0.bestsetting,
+				eq_ch1.bestsetting,
+				eq_ch2.bestsetting);
+		else
+			phy_conf_eq_setting(eq_ch0.bestsetting,
 				eq_ch1.bestsetting,
 				eq_ch2.bestsetting);
 		rx.state = FSM_SIG_UNSTABLE;
