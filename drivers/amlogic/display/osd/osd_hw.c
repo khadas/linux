@@ -1944,6 +1944,7 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	u32 ext_addr = fence_map->ext_addr;
 	u32 width_src, width_dst, height_src, height_dst;
 	bool freescale_update = false;
+	struct pandata_s freescale_dst[HW_OSD_COUNT];
 	void *vaddr = NULL;
 
 	ext_addr = ext_addr + fence_map->byte_stride * fence_map->yoffset;
@@ -1986,21 +1987,21 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 		osd_hw.pandata[index].y_end =
 			fence_map->height - 1;
 
-		osd_hw.dispdata[index].x_start =
-			osd_hw.dispdata_backup[index].x_start +
+		freescale_dst[index].x_start =
+			osd_hw.free_dst_data_backup[index].x_start +
 			(fence_map->dst_x * width_dst) /
 			width_src;
-		osd_hw.dispdata[index].x_end =
-			osd_hw.dispdata_backup[index].x_start +
+		freescale_dst[index].x_end =
+			osd_hw.free_dst_data_backup[index].x_start +
 			((fence_map->dst_x + fence_map->dst_w) *
 			width_dst) / width_src - 1;
 
-		osd_hw.dispdata[index].y_start =
-			osd_hw.dispdata_backup[index].y_start +
+		freescale_dst[index].y_start =
+			osd_hw.free_dst_data_backup[index].y_start +
 			(fence_map->dst_y * height_dst) /
 			height_src;
-		osd_hw.dispdata[index].y_end =
-			osd_hw.dispdata_backup[index].y_start +
+		freescale_dst[index].y_end =
+			osd_hw.free_dst_data_backup[index].y_start +
 			((fence_map->dst_y + fence_map->dst_h) *
 			height_dst) / height_src - 1;
 
@@ -2008,13 +2009,13 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			&osd_hw.pandata[index],
 			sizeof(struct pandata_s)) != 0 ||
 			memcmp(&(osd_hw.free_dst_data[index]),
-			&osd_hw.dispdata[index],
+			&freescale_dst[index],
 			sizeof(struct pandata_s)) != 0) {
 				memcpy(&(osd_hw.free_src_data[index]),
 					&osd_hw.pandata[index],
 					sizeof(struct pandata_s));
 				memcpy(&(osd_hw.free_dst_data[index]),
-					&osd_hw.dispdata[index],
+					&freescale_dst[index],
 					sizeof(struct pandata_s));
 				freescale_update = true;
 
