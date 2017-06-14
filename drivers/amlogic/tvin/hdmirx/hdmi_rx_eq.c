@@ -211,7 +211,6 @@ void phy_conf_eq_setting(int ch0_lockVector,
 		hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x4024 | (avgAcq << 11));
 		hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x4026 | (avgAcq << 11));
 	}
-	hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 	hdmirx_phy_pddq(1);
 	hdmirx_phy_pddq(0);
 }
