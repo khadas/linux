@@ -48,7 +48,7 @@ MODULE_PARM_DESC(vf_log_fe, "enable/disable vframe manager log frontend");
 module_param(vf_log_be, bool, 0664);
 MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backen");
 
-static unsigned int vf_skip_cnt = 1;
+unsigned int vf_skip_cnt = 1;
 module_param(vf_skip_cnt, uint, 0664);
 MODULE_PARM_DESC(vf_skip_cnt, "skip frame cnt for hdmi");
 

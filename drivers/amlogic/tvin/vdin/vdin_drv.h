@@ -296,6 +296,8 @@ struct vdin_dev_s {
 	bool	dv_flag;
 	bool	dv_config;
 	bool	dv_crc_check;/*0:fail;1:ok*/
+	unsigned int		rdma_enable;
+	unsigned int		canvas_config_mode;
 };
 
 
@@ -309,9 +311,6 @@ enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
 extern unsigned int dolby_input;
 extern bool enable_reset;
-extern unsigned int max_buf_num;
-extern unsigned int max_buf_width;
-extern unsigned int max_buf_height;
 extern unsigned int dolby_size_byte;
 extern unsigned int   vdin_ldim_max_global[100];
 extern unsigned int dv_dbg_mask;

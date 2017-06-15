@@ -449,10 +449,11 @@
 		flag_cma = <1>;/*1:share with codec_mm;2:cma alone*/
 		/*MByte, if 10bit disable: 64M(YUV422), if 10bit enable: 64*1.5 = 96M(YUV422)
 		*if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
+		*if support 4K2K-YUV444-10bit-WR:3840*2160*4*6 ~= 190M
 		*if support 4K2K-YUV422-10bit-wr:3840*2160*3*4 ~= 96M
 		*if support 4K2K-YUV422-8BIT-WR:3840*2160*2*4 ~= 64M
 		*if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M*/
-		cma_size = <96>;
+		cma_size = <188>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
 		clocks = <&clock CLK_FPLL_DIV5>,

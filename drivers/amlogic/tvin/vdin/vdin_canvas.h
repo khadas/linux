@@ -32,11 +32,16 @@
 
 #define VDIN_CANVAS_MAX_CNT		        9
 
+extern unsigned int vf_skip_cnt;
+
 extern const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT];
 extern void vdin_canvas_init(struct vdin_dev_s *devp);
 extern void vdin_canvas_start_config(struct vdin_dev_s *devp);
 
 extern void vdin_canvas_auto_config(struct vdin_dev_s *devp);
+
+extern unsigned int vdin_cma_alloc(struct vdin_dev_s *devp);
+extern void vdin_cma_release(struct vdin_dev_s *devp);
 
 #endif /* __VDIN_CANVAS_H */
 
