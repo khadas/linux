@@ -124,6 +124,7 @@ struct vdin_hist_cfg_s {
 #define DV_UPDATE_DATA_MODE_DELBY_WORK	(1 << 4)
 #define DV_CLEAN_UP_MEM	(1 << 5)
 #define DV_READ_MODE_AXI	(1 << 6)
+#define DV_CRC_CHECK	(1 << 7)
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */

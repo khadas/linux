@@ -143,7 +143,7 @@ static unsigned int dv_dbg_log;
 module_param(dv_dbg_log, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_log, "enable/disable dv_dbg_log");
 
-unsigned int dv_dbg_mask = (DV_BUF_START_RESET);
+unsigned int dv_dbg_mask = (DV_BUF_START_RESET | DV_CRC_CHECK);
 module_param(dv_dbg_mask, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_mask, "enable/disable dv_dbg_mask");
 

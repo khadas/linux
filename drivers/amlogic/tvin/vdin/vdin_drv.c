@@ -1022,8 +1022,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
 #if 1/*def CONFIG_AM_HDMIIN_DV*/
-	if ((dolby_input & (1 << devp->index)) ||
-		(devp->dv_flag && is_dolby_vision_enable()))
+	if (((dolby_input & (1 << devp->index)) ||
+		(devp->dv_flag && is_dolby_vision_enable())) &&
+		(devp->dv_config == true))
 		vf_unreg_provider(&devp->vprov_dv);
 	else
 #endif
@@ -1664,7 +1665,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				devp->curr_wr_vfe->vf.index);
 		} else
 			devp->dv_crc_check = true;
-		if (devp->dv_crc_check == true)
+		if ((devp->dv_crc_check == true) ||
+			(!(dv_dbg_mask & DV_CRC_CHECK)))
 			provider_vf_put(devp->last_wr_vfe, devp->vfp);
 		else {
 			vdin_irq_flag = 15;
@@ -1677,8 +1679,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
 
 		devp->last_wr_vfe = NULL;
-		if ((dolby_input & (1 << devp->index)) ||
-		(devp->dv_flag && is_dolby_vision_enable()))
+		if (((dolby_input & (1 << devp->index)) ||
+			(devp->dv_flag && is_dolby_vision_enable())) &&
+			(devp->dv_config == true))
 			vf_notify_receiver("dv_vdin",
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		else
@@ -1799,8 +1802,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_drop_cnt++;
 		goto irq_handled;
 	}
-	if ((dolby_input & (1 << devp->index)) ||
-		(devp->dv_flag && is_dolby_vision_enable()))
+	if (((dolby_input & (1 << devp->index)) ||
+		(devp->dv_flag && is_dolby_vision_enable())) &&
+		(devp->dv_config == true))
 		vdin2nr = vf_notify_receiver("dv_vdin",
 			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
 	else
@@ -1881,7 +1885,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
 		} else
 			devp->dv_crc_check = true;
-		if (devp->dv_crc_check == true)
+		if ((devp->dv_crc_check == true) ||
+			(!(dv_dbg_mask & DV_CRC_CHECK)))
 			provider_vf_put(curr_wr_vfe, devp->vfp);
 		else {
 			vdin_irq_flag = 15;
@@ -1906,8 +1911,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	devp->curr_wr_vfe = next_wr_vfe;
 	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
-		if ((dolby_input & (1 << devp->index)) ||
-		(devp->dv_flag && is_dolby_vision_enable()))
+		if (((dolby_input & (1 << devp->index)) ||
+			(devp->dv_flag && is_dolby_vision_enable())) &&
+			(devp->dv_config == true))
 			vf_notify_receiver("dv_vdin",
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		else
