@@ -248,7 +248,7 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-		pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+		pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 		logo_addr = "0x7f851000";
 	};
 
@@ -638,7 +638,7 @@
 	   			//"MMC_CAP_UHS_SDR50",
 	   			"MMC_CAP_UHS_SDR104";
 	   		f_min = <400000>;
-	   		f_max = <100000000>;
+	   		f_max = <200000000>;
 			base =  <0xff634400>;
 	   		max_req_size = <0x20000>; /**128KB*/
 	   		card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
