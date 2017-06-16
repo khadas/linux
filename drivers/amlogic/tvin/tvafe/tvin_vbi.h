@@ -297,8 +297,9 @@ struct vbi_dev_s {
 	bool			tasklet_enable;
 };
 
-/*1: tvafe decoder started;
-0: tvafe decoder stopped*/
-extern bool tvafe_dec_status;
+/*1: tvafe clk enable;
+0: tvafe clk disable
+read write cvd acd reg will crash when clk disabled*/
+extern bool tvafe_clk_status;
 
 #endif /* TVIN_VBI_H_ */
