@@ -7380,8 +7380,10 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		pr_info("\nammvdec_vp9 memory resource undefined.\n");
 		return -EFAULT;
 	}
-	pbi = (struct VP9Decoder_s *)devm_kzalloc(&pdev->dev,
-		sizeof(struct VP9Decoder_s), GFP_KERNEL);
+	/*pbi = (struct VP9Decoder_s *)devm_kzalloc(&pdev->dev,
+		sizeof(struct VP9Decoder_s), GFP_KERNEL);*/
+	pbi = vmalloc(sizeof(struct VP9Decoder_s));
+	memset(pbi, 0, sizeof(struct VP9Decoder_s));
 	if (pbi == NULL) {
 		pr_info("\nammvdec_vp9 device data allocation failed\n");
 		return -ENOMEM;
@@ -7444,7 +7446,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 #else
 	if (amvdec_vp9_mmu_init(pbi) < 0) {
 		pr_err("vp9 alloc bmmu box failed!!\n");
-		devm_kfree(&pdev->dev, (void *)pbi);
+		/* devm_kfree(&pdev->dev, (void *)pbi); */
+		vfree((void *)pbi);
 		return -1;
 	}
 	pbi->cma_alloc_count = PAGE_ALIGN(work_buf_size) / PAGE_SIZE;
@@ -7453,7 +7456,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 			&pbi->cma_alloc_addr);
 	if (ret < 0) {
 		uninit_mmu_buffers(pbi);
-		devm_kfree(&pdev->dev, (void *)pbi);
+		/* devm_kfree(&pdev->dev, (void *)pbi); */
+		vfree((void *)pbi);
 		return ret;
 	}
 	pbi->buf_start = pbi->cma_alloc_addr;
@@ -7467,7 +7471,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	if (pdata == NULL) {
 		pr_info("\namvdec_vp9 memory resource undefined.\n");
 		uninit_mmu_buffers(pbi);
-		devm_kfree(&pdev->dev, (void *)pbi);
+		/* devm_kfree(&pdev->dev, (void *)pbi); */
+		vfree((void *)pbi);
 		return -EFAULT;
 	}
 
@@ -7490,7 +7495,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);
 		uninit_mmu_buffers(pbi);
-		devm_kfree(&pdev->dev, (void *)pbi);
+		/* devm_kfree(&pdev->dev, (void *)pbi); */
+		vfree((void *)pbi);
 		return -ENODEV;
 	}
 
@@ -7517,7 +7523,8 @@ static int ammvdec_vp9_remove(struct platform_device *pdev)
 	pr_info("pts missed %ld, pts hit %ld, duration %d\n",
 		   pbi->pts_missed, pbi->pts_hit, pbi->frame_dur);
 #endif
-	devm_kfree(&pdev->dev, (void *)pbi);
+	/* devm_kfree(&pdev->dev, (void *)pbi); */
+	vfree((void *)pbi);
 	return 0;
 }
 

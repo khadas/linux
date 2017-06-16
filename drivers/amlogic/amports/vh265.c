@@ -9641,8 +9641,10 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	hevc = (struct hevc_state_s *)devm_kzalloc(&pdev->dev,
-		sizeof(struct hevc_state_s), GFP_KERNEL);
+	/* hevc = (struct hevc_state_s *)devm_kzalloc(&pdev->dev,
+		sizeof(struct hevc_state_s), GFP_KERNEL); */
+	hevc = vmalloc(sizeof(struct hevc_state_s));
+	memset(hevc, 0, sizeof(struct hevc_state_s));
 	if (hevc == NULL) {
 		pr_info("\nammvdec_h265 device data allocation failed\n");
 		return -ENOMEM;
@@ -9739,7 +9741,8 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 		hevc_print(hevc, 0,
 			"\n 265 mmu init failed!\n");
 		mutex_unlock(&vh265_mutex);
-		devm_kfree(&pdev->dev, (void *)hevc);
+		/* devm_kfree(&pdev->dev, (void *)hevc);*/
+		vfree((void *)hevc);
 		return -EFAULT;
 	}
 #if 0
@@ -9752,7 +9755,8 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 			DRIVER_NAME, &hevc->buf_start);
 	if (ret < 0) {
 		uninit_mmu_buffers(hevc);
-		devm_kfree(&pdev->dev, (void *)hevc);
+		/* devm_kfree(&pdev->dev, (void *)hevc); */
+		vfree((void *)hevc);
 		mutex_unlock(&vh265_mutex);
 		return ret;
 	}
@@ -9770,7 +9774,8 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 		hevc_print(hevc, 0,
 			"\namvdec_h265 memory resource undefined.\n");
 		uninit_mmu_buffers(hevc);
-		devm_kfree(&pdev->dev, (void *)hevc);
+		/* devm_kfree(&pdev->dev, (void *)hevc); */
+		vfree((void *)hevc);
 		return -EFAULT;
 	}
 	/*
@@ -9798,7 +9803,8 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 			"\namvdec_h265 init failed.\n");
 		hevc_local_uninit(hevc);
 		uninit_mmu_buffers(hevc);
-		devm_kfree(&pdev->dev, (void *)hevc);
+		/* devm_kfree(&pdev->dev, (void *)hevc); */
+		vfree((void *)hevc);
 		return -ENODEV;
 	}
 
@@ -9826,6 +9832,7 @@ static int ammvdec_h265_remove(struct platform_device *pdev)
 
 	vdec_set_status(hw_to_vdec(hevc), VDEC_STATUS_DISCONNECTED);
 
+	vfree((void *)hevc);
 	return 0;
 }
 
