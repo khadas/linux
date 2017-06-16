@@ -191,8 +191,6 @@ static int pwm_gxtvbb_enable(struct aml_pwm_chip *aml_chip,
 		dev_err(aml_chip->chip.dev,
 				"enable,index is not legal\n");
 		return -EINVAL;
-
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->miscr, val, val);
 
@@ -239,7 +237,6 @@ static int pwm_meson_enable(struct aml_pwm_chip *aml_chip,
 		dev_err(aml_chip->chip.dev,
 				"enable,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->miscr, val, val);
 
@@ -298,7 +295,7 @@ static void pwm_aml_disable(struct pwm_chip *chip,
 	case PWM_AO_A2:
 	case PWM_AO_C2:
 		val = 0 << 25;
-		mask = 25 << 1;
+		mask = 1 << 25;
 		break;
 	case PWM_B2:
 	case PWM_D2:
@@ -306,7 +303,7 @@ static void pwm_aml_disable(struct pwm_chip *chip,
 	case PWM_AO_B2:
 	case PWM_AO_D2:
 		val = 0 << 24;
-		mask = 24 << 1;
+		mask = 1 << 24;
 		break;
 	default:
 		val = 0 << 0;
@@ -451,7 +448,6 @@ static int pwm_meson_config_ext(struct aml_pwm_chip *aml_chip,
 		dev_err(aml_chip->chip.dev,
 				"config_ext,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->miscr, clk_source_mask, clk_source_val);
 	pwm_set_reg_bits(&aml_reg->miscr, clk_mask, clk_val);

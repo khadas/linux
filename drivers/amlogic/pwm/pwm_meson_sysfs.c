@@ -73,7 +73,6 @@ int pwm_constant_enable(struct aml_pwm_chip *chip, int index)
 		dev_err(aml_chip->chip.dev,
 				"enable,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->miscr, val, val);
 
@@ -124,7 +123,6 @@ int pwm_constant_disable(struct aml_pwm_chip *chip , int index)
 		dev_err(aml_chip->chip.dev,
 				"constant disable,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->miscr, mask, val);
 
@@ -210,6 +208,7 @@ int pwm_set_times(struct aml_pwm_chip *chip,
 	case PWM_AO_C:
 		clear_val = 0xff << 24;
 		val = value << 24;
+		break;
 	case PWM_B:
 	case PWM_D:
 	case PWM_F:
@@ -225,6 +224,7 @@ int pwm_set_times(struct aml_pwm_chip *chip,
 	case PWM_AO_C2:
 		clear_val = 0xff << 16;
 		val = value << 16;
+		break;
 	case PWM_B2:
 	case PWM_D2:
 	case PWM_F2:
@@ -232,12 +232,11 @@ int pwm_set_times(struct aml_pwm_chip *chip,
 	case PWM_AO_D2:
 		clear_val = 0xff;
 		val = value;
-			break;
+		break;
 	default:
 		dev_err(aml_chip->chip.dev,
 				"times,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_clear_reg_bits(&aml_reg->tr, clear_val);
 	pwm_write_reg1(&aml_reg->tr, val);
@@ -308,17 +307,18 @@ int pwm_blink_enable(struct aml_pwm_chip *chip, int index)
 	case PWM_AO_A:
 	case PWM_AO_C:
 		val = 1 << 8;
+		break;
 	case PWM_B:
 	case PWM_D:
 	case PWM_F:
 	case PWM_AO_B:
 	case PWM_AO_D:
 		val = 1 << 9;
+		break;
 	default:
 		dev_err(aml_chip->chip.dev,
 				"blink enable,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->br, val, val);
 
@@ -352,6 +352,7 @@ int pwm_blink_disable(struct aml_pwm_chip *chip , int index)
 	case PWM_AO_C:
 		mask = 1 << 8;
 		val = 0 << 8;
+		break;
 	case PWM_B:
 	case PWM_D:
 	case PWM_F:
@@ -359,11 +360,11 @@ int pwm_blink_disable(struct aml_pwm_chip *chip , int index)
 	case PWM_AO_D:
 		mask = 1 << 9;
 		val = 0 << 9;
+		break;
 	default:
 		dev_err(aml_chip->chip.dev,
 				"blink enable,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
 	pwm_set_reg_bits(&aml_reg->br, mask, val);
 
@@ -446,6 +447,7 @@ int pwm_set_blink_times(struct aml_pwm_chip *chip,
 	case PWM_AO_C:
 		clear_val = 0xf;
 		val = value;
+		break;
 	case PWM_B:
 	case PWM_D:
 	case PWM_F:
@@ -458,10 +460,9 @@ int pwm_set_blink_times(struct aml_pwm_chip *chip,
 		dev_err(aml_chip->chip.dev,
 				"times,index is not legal\n");
 		return -EINVAL;
-	break;
 	}
-	pwm_clear_reg_bits(&aml_reg->tr, clear_val);
-	pwm_write_reg1(&aml_reg->tr, val);
+	pwm_clear_reg_bits(&aml_reg->br, clear_val);
+	pwm_write_reg1(&aml_reg->br, val);
 
 	return 0;
 }
