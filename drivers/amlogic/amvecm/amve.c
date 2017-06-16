@@ -5023,7 +5023,8 @@ void amve_vlock_process(struct vframe_s *vf)
 	if (vlock_en == 1) {
 		if (((input_hz != output_hz) && (vlock_adapt == 0)) ||
 			(input_hz == 0) || (output_hz == 0)) {
-			if (vlock_state != VLOCK_STATE_DISABLE_STEP2_DONE)
+			if ((vlock_state != VLOCK_STATE_DISABLE_STEP2_DONE) &&
+				(vlock_state != VLOCK_STATE_NULL))
 				vlock_disable_step1();
 			if (vlock_debug & 0x1)
 				pr_info("[%s]auto disable vlock module for no support case!!!\n",
@@ -5070,7 +5071,8 @@ void amve_vlock_process(struct vframe_s *vf)
 void amve_vlock_resume(void)
 {
 	if ((vlock_en == 0) || (vlock_state ==
-		VLOCK_STATE_DISABLE_STEP2_DONE))
+		VLOCK_STATE_DISABLE_STEP2_DONE) ||
+		(vlock_state == VLOCK_STATE_NULL))
 		return;
 	if (vlock_state == VLOCK_STATE_DISABLE_STEP1_DONE) {
 		vlock_disable_step2();
