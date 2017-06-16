@@ -912,13 +912,14 @@ void amvecm_on_vs(struct vframe_s *vf)
 		vpp_demo_config(vf);
 	} else
 		amvecm_matrix_process(NULL);
-	/* vlock processs */
-	if ((is_meson_g9tv_cpu() || (get_cpu_type() >=
-		MESON_CPU_MAJOR_ID_GXBB)) && (vf != NULL))
-		amve_vlock_process(vf);
-	else if ((is_meson_g9tv_cpu() || (get_cpu_type() >=
-		MESON_CPU_MAJOR_ID_GXBB)) && (vf == NULL))
-		amve_vlock_resume();
+	/* todo:vlock processs only for tv chip */
+	if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu() ||
+		is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+		if (vf != NULL)
+			amve_vlock_process(vf);
+		else
+			amve_vlock_resume();
+	}
 
 	/* pq latch process */
 	amvecm_video_latch();
