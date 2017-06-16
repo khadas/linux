@@ -95,9 +95,10 @@ MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 0: off snow function*/
 bool tvafe_snow_function_flag;
 
-/*1: tvafe decoder started;
-0: tvafe decoder stopped*/
-bool tvafe_dec_status;
+/*1: tvafe clk enabled;
+0: tvafe clk disabled
+read write cvd acd reg will crash when clk disabled*/
+bool tvafe_clk_status;
 
 static unsigned int tvafe_ratio_cnt = 50;
 module_param(tvafe_ratio_cnt, uint, 0644);
@@ -917,7 +918,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 	/* set the flag to enabble ioctl access */
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
-	tvafe_dec_status = true;
+	tvafe_clk_status = true;
 #ifdef CONFIG_AM_DVB
 	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
@@ -1068,7 +1069,7 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-	tvafe_dec_status = false;
+	tvafe_clk_status = false;
 	/*del_timer_sync(&devp->timer);*/
 #ifdef CONFIG_AM_DVB
 	g_tvafe_info = NULL;
@@ -2254,7 +2255,7 @@ EXPORT_SYMBOL(tvafe_reg_write);
 
 int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val)
 {
-	if (tvafe_dec_status)
+	if (tvafe_clk_status)
 		*val = readl(tvafe_reg_base+reg);
 	else
 		return -1;
@@ -2264,7 +2265,7 @@ EXPORT_SYMBOL(tvafe_vbi_reg_read);
 
 int tvafe_vbi_reg_write(unsigned int reg, unsigned int val)
 {
-	if (tvafe_dec_status)
+	if (tvafe_clk_status)
 		writel(val, (tvafe_reg_base+reg));
 	else
 		return -1;
@@ -2567,6 +2568,7 @@ static int tvafe_drv_suspend(struct platform_device *pdev,
 	}
 	/*disable and reset tvafe clock*/
 	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
+	tvafe_clk_status = false;
 	tvafe_enable_module(false);
 	adc_set_pll_reset();
 
@@ -2584,6 +2586,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 	adc_set_pll_reset();
 	tvafe_enable_module(true);
 	tdevp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
+	tvafe_clk_status = true;
 	pr_info("tvafe: resume module\n");
 	return 0;
 }

@@ -750,7 +750,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 			break;
 		}
 
-		if (tvafe_dec_status == false) {
+		if (tvafe_clk_status == false) {
 			ret = -EWOULDBLOCK;
 			pr_info("[vbi..] %s: tvafe is closed.\n", __func__);
 			break;
@@ -785,7 +785,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		buf += ret;
 	}
 
-	if (tvafe_dec_status == false) {
+	if (tvafe_clk_status == false) {
 		pr_info("[vbi..] %s: tvafe closed already.return 0\n",
 			__func__);
 		return 0;
@@ -894,7 +894,7 @@ static long vbi_ioctl(struct file *file,
 			pr_info("[vbi..] %s: slicer mutex error\n", __func__);
 			return -ERESTARTSYS;
 		}
-		if (tvafe_dec_status)
+		if (tvafe_clk_status)
 			vbi_hw_init(vbi_dev);
 		else {
 			ret = -EINVAL;
@@ -948,7 +948,7 @@ static long vbi_ioctl(struct file *file,
 			ret = -EFAULT;
 			break;
 		}
-		if (tvafe_dec_status)
+		if (tvafe_clk_status)
 			ret = vbi_slicer_set(vbi_dev, vbi_slicer);
 		else
 			ret = -EFAULT;
