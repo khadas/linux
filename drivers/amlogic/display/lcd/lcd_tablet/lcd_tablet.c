@@ -295,15 +295,35 @@ static int lcd_suspend(void)
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
+
 static int lcd_resume(void)
 {
-	mutex_lock(&lcd_power_mutex);
-	if (lcd_resume_flag == 0) {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_resume_flag)
+		return 0;
+
+	if (lcd_drv->lcd_resume_flag) {
+		if (lcd_drv->workqueue) {
+			queue_delayed_work(lcd_drv->workqueue,
+				&lcd_drv->lcd_resume_delayed_work, 0);
+		} else {
+			LCDPR("Warning: no lcd workqueue\n");
+			mutex_lock(&lcd_power_mutex);
+			lcd_resume_flag = 1;
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+			LCDPR("%s finished\n", __func__);
+			mutex_unlock(&lcd_power_mutex);
+		}
+	} else {
+		LCDPR("directly lcd late resume\n");
+		mutex_lock(&lcd_power_mutex);
 		lcd_resume_flag = 1;
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 		LCDPR("%s finished\n", __func__);
+		mutex_unlock(&lcd_power_mutex);
 	}
-	mutex_unlock(&lcd_power_mutex);
+
 	return 0;
 }
 #endif

@@ -405,6 +405,7 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_config_load;
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
 	unsigned char lcd_test_flag;
+	unsigned char lcd_resume_flag; /* 0=directly, 1=workqueue */
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -442,7 +443,8 @@ struct aml_lcd_drv_s {
 	struct workqueue_struct *workqueue;
 	struct delayed_work     lcd_probe_delayed_work;
 	struct delayed_work     lcd_vx1_delayed_work;
-	struct work_struct      lcd_resume_work;
+	struct delayed_work     lcd_resume_delayed_work;
+	/*struct work_struct      lcd_resume_work;*/
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);

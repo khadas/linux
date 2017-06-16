@@ -447,21 +447,31 @@ static void lcd_module_tiny_reset(void)
 	mutex_unlock(&lcd_vout_mutex);
 }
 
+static void lcd_resume_work(struct work_struct *p_work)
+{
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+	LCDPR("%s finished\n", __func__);
+	mutex_unlock(&lcd_power_mutex);
+}
+
 /* ****************************************
  * lcd notify
  * **************************************** */
 static int lcd_power_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	if (lcd_debug_print_flag)
-		LCDPR("%s: 0x%lx\n", __func__, event);
-
-	if (event & LCD_EVENT_LCD_ON)
+	if (event & LCD_EVENT_LCD_ON) {
+		if (lcd_debug_print_flag)
+			LCDPR("%s: 0x%lx\n", __func__, event);
 		lcd_module_enable();
-	else if (event & LCD_EVENT_LCD_OFF)
+	} else if (event & LCD_EVENT_LCD_OFF) {
+		if (lcd_debug_print_flag)
+			LCDPR("%s: 0x%lx\n", __func__, event);
 		lcd_module_disable();
-	else
+	} else {
 		return NOTIFY_DONE;
+	}
 
 	return NOTIFY_OK;
 }
@@ -474,15 +484,17 @@ static struct notifier_block lcd_power_nb = {
 static int lcd_interface_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	if (lcd_debug_print_flag)
-		LCDPR("%s: 0x%lx\n", __func__, event);
-
-	if (event & LCD_EVENT_IF_ON)
+	if (event & LCD_EVENT_IF_ON) {
+		if (lcd_debug_print_flag)
+			LCDPR("%s: 0x%lx\n", __func__, event);
 		lcd_driver->power_tiny_ctrl(1);
-	else if (event & LCD_EVENT_IF_OFF)
+	} else if (event & LCD_EVENT_IF_OFF) {
+		if (lcd_debug_print_flag)
+			LCDPR("%s: 0x%lx\n", __func__, event);
 		lcd_driver->power_tiny_ctrl(0);
-	else
+	} else {
 		return NOTIFY_DONE;
+	}
 
 	return NOTIFY_OK;
 }
@@ -497,9 +509,9 @@ static int lcd_bl_select_notifier(struct notifier_block *nb,
 {
 	unsigned int *index;
 
-	/* LCDPR("%s: 0x%lx\n", __func__, event); */
 	if ((event & LCD_EVENT_BACKLIGHT_SEL) == 0)
 		return NOTIFY_DONE;
+	/* LCDPR("%s: 0x%lx\n", __func__, event); */
 
 	index = (unsigned int *)data;
 	*index = lcd_driver->lcd_config->backlight_index;
@@ -855,6 +867,7 @@ static int lcd_config_probe(void)
 	lcd_driver->lcd_config->pinmux_flag = 0;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->lcd_test_flag = 0;
+	lcd_driver->lcd_resume_flag = 1; /* default workqueue */
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
 	lcd_driver->power_tiny_ctrl = lcd_power_tiny_ctrl;
@@ -868,7 +881,7 @@ static int lcd_config_probe(void)
 				&lcd_driver->lcd_probe_delayed_work,
 				msecs_to_jiffies(2000));
 		} else {
-			LCDPR("Warning: no lcd_probe_delayed workqueue\n");
+			LCDPR("Warning: no lcd workqueue\n");
 			ret = lcd_mode_probe(lcd_driver->dev);
 			if (ret) {
 				kfree(lcd_driver);
@@ -886,15 +899,6 @@ static int lcd_config_probe(void)
 	}
 
 	return 0;
-}
-
-static void lcd_resume_work(struct work_struct *p_work)
-{
-	mutex_lock(&lcd_power_mutex);
-	lcd_resume_flag = 1;
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
-	LCDPR("%s finished\n", __func__);
-	mutex_unlock(&lcd_power_mutex);
 }
 
 static int lcd_probe(struct platform_device *pdev)
@@ -924,7 +928,8 @@ static int lcd_probe(struct platform_device *pdev)
 	if (lcd_driver->workqueue == NULL)
 		LCDERR("can't create lcd workqueue\n");
 
-	INIT_WORK(&(lcd_driver->lcd_resume_work), lcd_resume_work);
+	INIT_DELAYED_WORK(&lcd_driver->lcd_resume_delayed_work,
+		lcd_resume_work);
 
 	lcd_chip_detect();
 	lcd_ioremap();
@@ -940,6 +945,7 @@ static int lcd_remove(struct platform_device *pdev)
 	int ret;
 
 	ret = cancel_delayed_work(&lcd_driver->lcd_probe_delayed_work);
+	ret = cancel_delayed_work(&lcd_driver->lcd_resume_delayed_work);
 	if (lcd_driver->workqueue)
 		destroy_workqueue(lcd_driver->workqueue);
 
@@ -959,9 +965,32 @@ static int lcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#define LCD_RESUME_DELAY_CNT      500 /* ms */
 static int lcd_resume(struct platform_device *pdev)
 {
-	queue_work(lcd_driver->workqueue, &(lcd_driver->lcd_resume_work));
+	/*queue_work(lcd_driver->workqueue, &(lcd_driver->lcd_resume_work));*/
+	if (lcd_driver->lcd_resume_flag) {
+		lcd_resume_flag = 1;
+		if (lcd_driver->workqueue) {
+			queue_delayed_work(lcd_driver->workqueue,
+				&lcd_driver->lcd_resume_delayed_work,
+				msecs_to_jiffies(LCD_RESUME_DELAY_CNT));
+		} else {
+			LCDPR("Warning: no lcd workqueue\n");
+			mutex_lock(&lcd_power_mutex);
+			msleep(LCD_RESUME_DELAY_CNT);
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+			LCDPR("%s finished\n", __func__);
+			mutex_unlock(&lcd_power_mutex);
+		}
+	} else {
+		LCDPR("directly lcd resume\n");
+		mutex_lock(&lcd_power_mutex);
+		lcd_resume_flag = 1;
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+		LCDPR("%s finished\n", __func__);
+		mutex_unlock(&lcd_power_mutex);
+	}
 
 	return 0;
 }

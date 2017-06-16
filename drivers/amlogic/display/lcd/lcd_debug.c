@@ -876,7 +876,7 @@ static ssize_t lcd_debug_store(struct class *class,
 					LCD_EVENT_IF_POWER_ON, NULL);
 			} else {
 				aml_lcd_notifier_call_chain(
-					LCD_EVENT_POWER_OFF, NULL);
+					LCD_EVENT_IF_POWER_OFF, NULL);
 			}
 			mutex_unlock(&lcd_power_mutex);
 		} else {
@@ -929,6 +929,35 @@ static ssize_t lcd_debug_enable_store(struct class *class,
 			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 			mutex_unlock(&lcd_power_mutex);
 		}
+	} else {
+		LCDERR("invalid data\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t lcd_debug_resume_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "lcd resume flag: %d(%s)\n",
+		lcd_drv->lcd_resume_flag,
+		lcd_drv->lcd_resume_flag ? "workqueue" : "directly");
+}
+
+static ssize_t lcd_debug_resume_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int ret = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	unsigned int temp = 1;
+
+	ret = sscanf(buf, "%d", &temp);
+	if (ret == 1) {
+		lcd_drv->lcd_resume_flag = (unsigned char)temp;
+		LCDPR("set lcd resume flag: %d\n", lcd_drv->lcd_resume_flag);
 	} else {
 		LCDERR("invalid data\n");
 		return -EINVAL;
@@ -1345,6 +1374,8 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(debug,       S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
 	__ATTR(enable,      S_IRUGO | S_IWUSR, lcd_debug_enable_show,
 		lcd_debug_enable_store),
+	__ATTR(resume,      S_IRUGO | S_IWUSR, lcd_debug_resume_show,
+		lcd_debug_resume_store),
 	__ATTR(power,       S_IRUGO | S_IWUSR,
 		lcd_debug_power_show, lcd_debug_power_store),
 	__ATTR(frame_rate,  S_IRUGO | S_IWUSR,

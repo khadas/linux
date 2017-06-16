@@ -45,6 +45,8 @@
 
 #include "aml_bl_reg.h"
 
+#define BL_POEWR_ON_WORKQUEUE    0 /* default disable */
+
 /* #define AML_BACKLIGHT_DEBUG */
 static unsigned int bl_debug_print_flag;
 
@@ -72,7 +74,9 @@ MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
 
 static unsigned char bl_pwm_bypass; /* debug flag */
 static unsigned char bl_pwm_duty_free; /* debug flag */
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 static unsigned char bl_on_request; /* for lcd power sequence */
+#endif
 static unsigned char bl_step_on_flag;
 static unsigned int bl_on_level;
 
@@ -169,11 +173,11 @@ static unsigned int pwm_reg[6] = {
 static unsigned int pwm_misc_txlx[6][5] = {
 	/* pwm_reg,              div bit, clk_sel bit, clk_en bit, pwm_en bit*/
 	{PWM_MISC_REG_AB_TXLX,   8,       4,           15,         0,},
-	{PWM_MISC_REG_AB_TXLX,   16,      6,           23,         0,},
+	{PWM_MISC_REG_AB_TXLX,   16,      6,           23,         1,},
 	{PWM_MISC_REG_CD_TXLX,   8,       4,           15,         0,},
-	{PWM_MISC_REG_CD_TXLX,   16,      6,           23,         0,},
+	{PWM_MISC_REG_CD_TXLX,   16,      6,           23,         1,},
 	{PWM_MISC_REG_EF_TXLX,   8,       4,           15,         0,},
-	{PWM_MISC_REG_EF_TXLX,   16,      6,           23,         0,},
+	{PWM_MISC_REG_EF_TXLX,   16,      6,           23,         1,},
 };
 
 static unsigned int pwm_reg_txlx[6] = {
@@ -746,8 +750,8 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 				bl_cbus_setb(pwm_misc_txlx[port][0], 1,
 					pwm_misc_txlx[port][3], 1);
 				/* pwm enable */
-				bl_cbus_setb(pwm_misc_txlx[port][0], 0x3,
-					pwm_misc_txlx[port][4], 2);
+				bl_cbus_setb(pwm_misc_txlx[port][0], 1,
+					pwm_misc_txlx[port][4], 1);
 			} else {
 				/* pwm clk_div */
 				bl_cbus_setb(pwm_misc[port][0], pre_div,
@@ -779,6 +783,9 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 				/* pwm clk_disable */
 				bl_cbus_setb(pwm_misc_txlx[port][0], 0,
 					pwm_misc[port][3], 1);
+				/* pwm disable */
+				bl_cbus_setb(pwm_misc_txlx[port][0], 0,
+					pwm_misc_txlx[port][4], 1);
 			} else {
 				/* pwm clk_disable */
 				bl_cbus_setb(pwm_misc[port][0], 0,
@@ -2360,6 +2367,7 @@ static void aml_bl_on_function(void)
 	}
 }
 
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 static void aml_bl_delayd_on(struct work_struct *work)
 {
 	if (aml_bl_check_driver())
@@ -2370,6 +2378,7 @@ static void aml_bl_delayd_on(struct work_struct *work)
 
 	aml_bl_on_function();
 }
+#endif
 
 static int aml_bl_on_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
@@ -2385,9 +2394,12 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bconf = bl_drv->bconf;
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	bl_on_request = 1;
+#endif
 	/* lcd power on sequence control */
 	if (bconf->method < BL_CTRL_MAX) {
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 		if (bl_drv->workqueue) {
 			queue_delayed_work(bl_drv->workqueue,
 				&bl_drv->bl_delayed_work,
@@ -2398,8 +2410,14 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 				msleep(bconf->power_on_delay);
 			aml_bl_on_function();
 		}
+#else
+		BLPR("normal power on flow\n");
+		if (bconf->power_on_delay)
+			msleep(bconf->power_on_delay);
+		aml_bl_on_function();
+#endif
 	} else {
-		BLERR("wrong backlight control method\n");
+		BLERR("invalid backlight control method\n");
 	}
 
 	return NOTIFY_OK;
@@ -2416,7 +2434,9 @@ static int aml_bl_off_notifier(struct notifier_block *nb,
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
 
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	bl_on_request = 0;
+#endif
 	bl_drv->state &= ~(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	if (brightness_bypass) {
 		if (bl_drv->state & BL_STATE_BL_ON)
@@ -2501,8 +2521,8 @@ static struct notifier_block aml_bl_lcd_update_nb = {
 static int aml_bl_lcd_test_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	int *flag;
 #ifdef CONFIG_AML_LOCAL_DIMMING
+	int *flag;
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
 
@@ -2515,12 +2535,16 @@ static int aml_bl_lcd_test_notifier(struct notifier_block *nb,
 	if (bl_debug_print_flag)
 		BLPR("bl_lcd_test_notifier for lcd test_pattern\n");
 
-	flag = (int *)data;
 	switch (bl_drv->bconf->method) {
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
-		if (ldim_drv->test_ctrl)
-			ldim_drv->test_ctrl(*flag);
+		flag = (int *)data;
+		if (flag) {
+			if (ldim_drv->test_ctrl)
+				ldim_drv->test_ctrl(*flag);
+		} else {
+			BLERR("%s: data is NULL\n", __func__);
+		}
 		break;
 #endif
 	default:
@@ -3253,11 +3277,13 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bl_drv->bldev = bldev;
 	/* platform_set_drvdata(pdev, bl_drv); */
 
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	/* init workqueue */
 	INIT_DELAYED_WORK(&bl_drv->bl_delayed_work, aml_bl_delayd_on);
 	bl_drv->workqueue = create_workqueue("bl_power_on_queue");
 	if (bl_drv->workqueue == NULL)
 		BLERR("can't create bl work queue\n");
+#endif
 
 #ifdef CONFIG_AML_LCD
 	ret = aml_lcd_notifier_register(&aml_bl_on_nb);
@@ -3278,7 +3304,9 @@ static int aml_bl_probe(struct platform_device *pdev)
 	/* update bl status */
 	bl_drv->state = (BL_STATE_LCD_ON |
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	bl_on_request = 1;
+#endif
 
 	if (brightness_bypass) {
 		aml_bl_set_level(bl_level_uboot);
@@ -3298,14 +3326,17 @@ err:
 
 static int __exit aml_bl_remove(struct platform_device *pdev)
 {
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	int ret;
+#endif
 	/*struct aml_bl *bl_drv = platform_get_drvdata(pdev);*/
 
 	aml_bl_remove_class();
-
+#if (BL_POEWR_ON_WORKQUEUE == 1)
 	ret = cancel_delayed_work(&bl_drv->bl_delayed_work);
 	if (bl_drv->workqueue)
 		destroy_workqueue(bl_drv->workqueue);
+#endif
 
 	backlight_device_unregister(bl_drv->bldev);
 #ifdef CONFIG_AML_LCD
