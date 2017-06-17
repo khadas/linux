@@ -2554,7 +2554,7 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 		WRITE_VREG(DPB_STATUS_REG, H264_ACTION_CONFIG_DONE);
 		reset_process_time(hw);
 		hw->dec_result = DEC_RESULT_CONFIG_PARAM;
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 	} else if (dec_dpb_status == H264_SLICE_HEAD_DONE) {
 		int slice_header_process_status = 0;
 		/*unsigned char is_idr;*/
@@ -2633,7 +2633,7 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 			if (!is_i_slice) {
 				if (hw->has_i_frame == 0) {
 					hw->dec_result = DEC_RESULT_DONE;
-					schedule_work(&hw->work);
+					vdec_schedule_work(&hw->work);
 					dpb_print(DECODE_ID(hw),
 						PRINT_FLAG_UCODE_EVT,
 						"has_i_frame is 0, discard none I(DR) frame\n");
@@ -2712,7 +2712,7 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 					p_H264_Dpb->mVideo.dec_picture = NULL;
 					/*hw->data_flag |= ERROR_FLAG;*/
 					hw->dec_result = DEC_RESULT_DONE;
-					schedule_work(&hw->work);
+					vdec_schedule_work(&hw->work);
 					return IRQ_HANDLED;
 				} else
 					hw->data_flag |= ERROR_FLAG;
@@ -2821,7 +2821,7 @@ pic_done_proc:
 			hw->got_valid_nal = 1;
 		}
 #endif
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 #ifdef CONFIG_AM_VDEC_DV
 	} else if (
 			(dec_dpb_status == H264_FIND_NEXT_PIC_NAL) ||
@@ -2870,7 +2870,7 @@ pic_done_proc:
 		hw->got_valid_nal = 1;
 #endif
 		hw->dec_result = DEC_RESULT_DONE;
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 	} else if (/*(dec_dpb_status == H264_DATA_REQUEST) ||*/
 			(dec_dpb_status == H264_SEARCH_BUFEMPTY) ||
 			(dec_dpb_status == H264_DECODE_BUFEMPTY) ||
@@ -2913,14 +2913,14 @@ empty_proc:
 
 			hw->data_flag |= ERROR_FLAG;
 
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 		} else {
 			/* WRITE_VREG(DPB_STATUS_REG, H264_ACTION_INIT); */
 			dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 				"%s DEC_RESULT_AGAIN\n", __func__);
 send_again:
 			hw->dec_result = DEC_RESULT_AGAIN;
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 		}
 	} else if (dec_dpb_status == H264_DATA_REQUEST) {
 		reset_process_time(hw);
@@ -2929,7 +2929,7 @@ send_again:
 			PRINT_FLAG_VDEC_STATUS,
 			"%s H264_DATA_REQUEST\n", __func__);
 			hw->dec_result = DEC_RESULT_GET_DATA;
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 		} else
 			goto empty_proc;
 	} else if (dec_dpb_status == H264_DECODE_OVER_SIZE) {
@@ -3040,7 +3040,7 @@ static void timeout_process(struct vdec_h264_hw_s *hw)
 	hw->dec_result = DEC_RESULT_DONE;
 	hw->data_flag |= ERROR_FLAG;
 	reset_process_time(hw);
-	schedule_work(&hw->work);
+	vdec_schedule_work(&hw->work);
 }
 
 static void vmh264_dump_state(struct vdec_s *vdec)
@@ -3191,7 +3191,7 @@ static void check_timer_func(unsigned long arg)
 	if ((h264_debug_cmd & 0x100) != 0 &&
 		DECODE_ID(hw) == (h264_debug_cmd & 0xff)) {
 		hw->dec_result = DEC_RESULT_DONE;
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 		pr_info("vdec %d is forced to be disconnected\n",
 			h264_debug_cmd & 0xff);
 		h264_debug_cmd = 0;
@@ -3200,7 +3200,7 @@ static void check_timer_func(unsigned long arg)
 
 	if (vdec->next_status == VDEC_STATUS_DISCONNECTED) {
 		hw->dec_result = DEC_RESULT_FORCE_EXIT;
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 		pr_info("vdec requested to be disconnected\n");
 		return;
 	}
@@ -3806,7 +3806,7 @@ static void vh264_work(struct work_struct *work)
 		VDEC_STATUS_DISCONNECTED)) {
 		if (!vdec_has_more_input(vdec)) {
 			hw->dec_result = DEC_RESULT_EOS;
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 			return;
 		}
 
@@ -3832,7 +3832,7 @@ static void vh264_work(struct work_struct *work)
 					PRINT_FLAG_VDEC_DETAIL,
 					"vdec_prepare_input: Insufficient data\n");
 
-				schedule_work(&hw->work);
+				vdec_schedule_work(&hw->work);
 				return;
 			}
 			hw->dec_result = DEC_RESULT_NONE;
@@ -3874,7 +3874,7 @@ static void vh264_work(struct work_struct *work)
 			start_process_time(hw);
 		} else{
 			hw->dec_result = DEC_RESULT_GET_DATA_RETRY;
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 		}
 		return;
 	} else if (hw->dec_result == DEC_RESULT_DONE) {
@@ -3896,7 +3896,7 @@ static void vh264_work(struct work_struct *work)
 		*/
 		if (!vdec_has_more_input(vdec)) {
 			hw->dec_result = DEC_RESULT_EOS;
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 			return;
 		}
 
@@ -4007,7 +4007,7 @@ static void run(struct vdec_s *vdec,
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_DETAIL,
 			"vdec_prepare_input: Insufficient data\n");
 
-		schedule_work(&hw->work);
+		vdec_schedule_work(&hw->work);
 		return;
 	}
 	input_empty[DECODE_ID(hw)] = 0;
@@ -4080,7 +4080,7 @@ static void run(struct vdec_s *vdec,
 		}
 
 		if (vh264_hw_ctx_restore(hw) < 0) {
-			schedule_work(&hw->work);
+			vdec_schedule_work(&hw->work);
 			return;
 		}
 		if (input_frame_based(vdec)) {

@@ -326,6 +326,8 @@ extern const char *vdec_type_str(struct vdec_s *vdec);
 
 extern const char *vdec_device_name_str(struct vdec_s *vdec);
 
+extern void vdec_schedule_work(struct work_struct *work);
+
 extern void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 	unsigned int offset);
 

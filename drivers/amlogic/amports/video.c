@@ -137,6 +137,8 @@ static int drop_frame_count;
 static int receive_frame_count;
 static int display_frame_count;
 
+#define DURATION_GCD 750
+
 static bool bypass_pps;
 /*For 3D usage ----0:  mbx   1: tv */
 bool platform_type = 1;
@@ -4203,9 +4205,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			timestamp_pcrscr_enable(1);
 			/*pr_info("system_time=%d, omx_pts=%d, diff=%d\n",
 			system_time, omx_pts, diff);*/
-			/*add 1/2 vsync time for 23.976fps 59.94fps 29.97fps
-			pts is not evenly*/
-			timestamp_pcrscr_set(omx_pts + vsync_pts_inc/2);
+			/*add  greatest common divisor of duration
+			1500(60fps) 3000(30fps) 3750(24fps) for some video
+			that pts is not evenly*/
+			timestamp_pcrscr_set(omx_pts + DURATION_GCD);
 		}
 	} else
 		omx_pts = 0;

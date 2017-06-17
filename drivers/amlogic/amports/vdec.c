@@ -113,6 +113,7 @@ struct vdec_core_s {
 	struct device *cma_dev;
 	struct semaphore sem;
 	struct task_struct *thread;
+	struct workqueue_struct *vdec_core_wq;
 
 	struct vdec_isr_context_s isr_context[VDEC_IRQ_MAX];
 	int power_ref_count[VDEC_MAX];
@@ -419,6 +420,16 @@ int vdec_write_vframe(struct vdec_s *vdec, const char *buf, size_t count)
 {
 	return vdec_input_add_frame(&vdec->input, buf, count);
 }
+
+/* add a work queue thread for vdec*/
+void vdec_schedule_work(struct work_struct *work)
+{
+	if (vdec_core->vdec_core_wq)
+		queue_work(vdec_core->vdec_core_wq, work);
+	else
+		schedule_work(work);
+}
+
 
 static struct vdec_s *vdec_get_associate(struct vdec_s *vdec)
 {
@@ -3025,6 +3036,8 @@ static int vdec_probe(struct platform_device *pdev)
 	vdec_core->thread = kthread_run(vdec_core_thread, vdec_core,
 					"vdec-core");
 
+	vdec_core->vdec_core_wq = create_singlethread_workqueue("threadvdec");
+
 	return 0;
 }
 
@@ -3045,6 +3058,7 @@ static int vdec_remove(struct platform_device *pdev)
 
 	kthread_stop(vdec_core->thread);
 
+	destroy_workqueue(vdec_core->vdec_core_wq);
 	class_unregister(&vdec_class);
 
 	return 0;
