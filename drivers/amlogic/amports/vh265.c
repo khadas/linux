@@ -7269,7 +7269,7 @@ static irqreturn_t vh265_isr_thread_fn(int irq, void *data)
 					hevc->dec_result = DEC_RESULT_GET_DATA;
 			}
 			reset_process_time(hevc);
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 		}
 		return IRQ_HANDLED;
 	} else if ((dec_status == HEVC_SEARCH_BUFEMPTY) ||
@@ -7287,7 +7287,7 @@ static irqreturn_t vh265_isr_thread_fn(int irq, void *data)
 			}
 
 			reset_process_time(hevc);
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 		}
 
 		return IRQ_HANDLED;
@@ -7302,7 +7302,7 @@ pic_done:
 			amhevc_stop();
 
 			reset_process_time(hevc);
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 		}
 
 		return IRQ_HANDLED;
@@ -7345,7 +7345,7 @@ pic_done:
 			if (READ_VREG(HEVC_AUX_DATA_SIZE) != 0)
 				dolby_get_meta(hevc);
 
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 		}
 
 		return IRQ_HANDLED;
@@ -7408,7 +7408,7 @@ pic_done:
 				hevc->dec_result = DEC_RESULT_DONE;
 				amhevc_stop();
 
-				schedule_work(&hevc->work);
+				vdec_schedule_work(&hevc->work);
 			}
 #endif
 			return IRQ_HANDLED;
@@ -7735,7 +7735,7 @@ pic_done:
 			hevc->pic_list_init_flag = 1;
 #ifdef MULTI_INSTANCE_SUPPORT
 			if (hevc->m_ins_flag) {
-				schedule_work(&hevc->work);
+				vdec_schedule_work(&hevc->work);
 			} else
 #endif
 				up(&h265_sema);
@@ -7756,7 +7756,7 @@ pic_done:
 			amhevc_stop();
 			restore_decode_state(hevc);
 			reset_process_time(hevc);
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 			return IRQ_HANDLED;
 		}
 #else
@@ -7800,7 +7800,7 @@ pic_done:
 		hevc->dec_result = DEC_RESULT_DONE;
 		amhevc_stop();
 		reset_process_time(hevc);
-		schedule_work(&hevc->work);
+		vdec_schedule_work(&hevc->work);
 #endif
 	} else {
 		/* skip, search next start code */
@@ -7934,7 +7934,7 @@ static void vh265_check_timer_func(unsigned long arg)
 		hw_to_vdec(hevc)->next_status ==
 		VDEC_STATUS_DISCONNECTED) {
 		hevc->dec_result = DEC_RESULT_FORCE_EXIT;
-		schedule_work(&hevc->work);
+		vdec_schedule_work(&hevc->work);
 		hevc_print(hevc,
 			0, "vdec requested to be disconnected\n");
 		return;
@@ -8692,7 +8692,7 @@ static void timeout_process(struct hevc_state_s *hevc)
 	hevc->decoding_pic = NULL;
 	hevc->dec_result = DEC_RESULT_DONE;
 	reset_process_time(hevc);
-	schedule_work(&hevc->work);
+	vdec_schedule_work(&hevc->work);
 }
 
 static unsigned char is_new_pic_available(struct hevc_state_s *hevc)
@@ -8749,7 +8749,7 @@ static int vmh265_stop(struct hevc_state_s *hevc)
 #endif
 		hevc->uninit_list = 1;
 		reset_process_time(hevc);
-		schedule_work(&hevc->work);
+		vdec_schedule_work(&hevc->work);
 #ifdef USE_UNINIT_SEMA
 		ret = down_interruptible(
 			&hevc->h265_uninit_done_sema);
@@ -8856,7 +8856,7 @@ static void vh265_work(struct work_struct *work)
 		VDEC_STATUS_DISCONNECTED)) {
 		if (!vdec_has_more_input(vdec)) {
 			hevc->dec_result = DEC_RESULT_EOS;
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 			return;
 		}
 		if (!input_frame_based(vdec)) {
@@ -8883,7 +8883,7 @@ static void vh265_work(struct work_struct *work)
 						HEVC_ACTION_DEC_CONT);
 			} else {
 				hevc->dec_result = DEC_RESULT_GET_DATA_RETRY;
-				schedule_work(&hevc->work);
+				vdec_schedule_work(&hevc->work);
 			}
 			return;
 		}
@@ -8913,7 +8913,7 @@ static void vh265_work(struct work_struct *work)
 					PRINT_FLAG_VDEC_DETAIL,
 					"amvdec_vh265: Insufficient data\n");
 
-				schedule_work(&hevc->work);
+				vdec_schedule_work(&hevc->work);
 				return;
 			}
 			hevc->dec_result = DEC_RESULT_NONE;
@@ -8964,7 +8964,7 @@ static void vh265_work(struct work_struct *work)
 				"amvdec_vh265: Insufficient data\n");
 			*/
 
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 		}
 		return;
 	} else if (hevc->dec_result == DEC_RESULT_DONE) {
@@ -9073,7 +9073,7 @@ static void vh265_work(struct work_struct *work)
 		*/
 		if (!vdec_has_more_input(vdec)) {
 			hevc->dec_result = DEC_RESULT_EOS;
-			schedule_work(&hevc->work);
+			vdec_schedule_work(&hevc->work);
 			return;
 		}
 
@@ -9203,7 +9203,7 @@ static void run(struct vdec_s *vdec,
 		hevc_print(hevc, PRINT_FLAG_VDEC_DETAIL,
 			"ammvdec_vh265: Insufficient data\n");
 
-		schedule_work(&hevc->work);
+		vdec_schedule_work(&hevc->work);
 		return;
 	}
 	input_empty[hevc->index] = 0;
@@ -9269,7 +9269,7 @@ static void run(struct vdec_s *vdec,
 		}
 	}
 	if (vh265_hw_ctx_restore(hevc) < 0) {
-		schedule_work(&hevc->work);
+		vdec_schedule_work(&hevc->work);
 		return;
 	}
 

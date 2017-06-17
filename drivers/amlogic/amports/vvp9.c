@@ -1379,7 +1379,7 @@ static void timeout_process(struct VP9Decoder_s *pbi)
 
 	pbi->dec_result = DEC_RESULT_DONE;
 	reset_process_time(pbi);
-	schedule_work(&pbi->work);
+	vdec_schedule_work(&pbi->work);
 }
 
 static int get_double_write_mode(struct VP9Decoder_s *pbi)
@@ -5814,7 +5814,7 @@ static void dec_again_process(struct VP9Decoder_s *pbi)
 #endif
 	}
 	reset_process_time(pbi);
-	schedule_work(&pbi->work);
+	vdec_schedule_work(&pbi->work);
 }
 
 static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
@@ -5841,7 +5841,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 				dec_again_process(pbi);
 			else {
 				pbi->dec_result = DEC_RESULT_GET_DATA;
-				schedule_work(&pbi->work);
+				vdec_schedule_work(&pbi->work);
 			}
 		}
 		pbi->process_busy = 0;
@@ -5851,7 +5851,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 			reset_process_time(pbi);
 			pbi->dec_result = DEC_RESULT_DONE;
 			amhevc_stop();
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 		}
 
 		pbi->process_busy = 0;
@@ -5876,7 +5876,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		if (pbi->m_ins_flag) {
 			pbi->dec_result = DEC_RESULT_DONE;
 			amhevc_stop();
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 		}
 #endif
 		return IRQ_HANDLED;
@@ -5970,7 +5970,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		if (pbi->m_ins_flag) {
 			pbi->dec_result = DEC_RESULT_DONE;
 			amhevc_stop();
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 		}
 #endif
 		return IRQ_HANDLED;
@@ -6211,7 +6211,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 		if (hw_to_vdec(pbi)->next_status
 			== VDEC_STATUS_DISCONNECTED) {
 			pbi->dec_result = DEC_RESULT_FORCE_EXIT;
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 			pr_info(
 			"vdec requested to be disconnected\n");
 			return;
@@ -6319,7 +6319,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 		}
 		amhevc_stop();
 
-		schedule_work(&pbi->work);
+		vdec_schedule_work(&pbi->work);
 	}
 
 	if (debug & VP9_DEBUG_DUMP_DATA) {
@@ -6960,7 +6960,7 @@ static void vp9_work(struct work_struct *work)
 		VDEC_STATUS_DISCONNECTED)) {
 		if (!vdec_has_more_input(vdec)) {
 			pbi->dec_result = DEC_RESULT_EOS;
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 			return;
 		}
 
@@ -6987,7 +6987,7 @@ static void vp9_work(struct work_struct *work)
 					PRINT_FLAG_VDEC_DETAIL,
 					"amvdec_vh265: Insufficient data\n");
 
-				schedule_work(&pbi->work);
+				vdec_schedule_work(&pbi->work);
 				return;
 			}
 			pbi->dec_result = DEC_RESULT_NONE;
@@ -7018,7 +7018,7 @@ static void vp9_work(struct work_struct *work)
 			vp9_print(pbi, PRINT_FLAG_VDEC_DETAIL,
 				"amvdec_vh265: Insufficient data\n");
 
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 		}
 		return;
 	} else if (pbi->dec_result == DEC_RESULT_DONE) {
@@ -7050,7 +7050,7 @@ static void vp9_work(struct work_struct *work)
 		*/
 		if (!vdec_has_more_input(vdec)) {
 			pbi->dec_result = DEC_RESULT_EOS;
-			schedule_work(&pbi->work);
+			vdec_schedule_work(&pbi->work);
 			return;
 		}
 	} else if (pbi->dec_result == DEC_RESULT_EOS) {
@@ -7135,7 +7135,7 @@ static void run(struct vdec_s *vdec,
 		vp9_print(pbi, PRINT_FLAG_VDEC_DETAIL,
 			"ammvdec_vh265: Insufficient data\n");
 
-		schedule_work(&pbi->work);
+		vdec_schedule_work(&pbi->work);
 		return;
 	}
 	input_empty[pbi->index] = 0;
@@ -7176,7 +7176,7 @@ static void run(struct vdec_s *vdec,
 	}
 
 	if (vp9_hw_ctx_restore(pbi) < 0) {
-		schedule_work(&pbi->work);
+		vdec_schedule_work(&pbi->work);
 		return;
 	}
 
