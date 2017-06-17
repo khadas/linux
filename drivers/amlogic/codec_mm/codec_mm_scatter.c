@@ -1325,8 +1325,15 @@ static int codec_mm_scatter_inc_user_in(struct codec_mm_scatter *mms,
 	if (!mms)
 		return -1;
 	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
-	if (smgt->tag != SMGT_IDENTIFY_TAG)
+	if ((smgt->tag != SMGT_IDENTIFY_TAG) ||
+		((smgt != codec_mm_get_scatter_mgt(0)) &&
+		 (smgt != codec_mm_get_scatter_mgt(1)))) {
+		/*the mms may have freeed &
+		  mms maybe not valid,
+		  so manager pointer may overwrited.
+		*/
 		return -2;/*not valid tag*/
+	}
 	codec_mm_list_lock(smgt);
 	if (!codec_mm_scatter_valid_locked(smgt, mms)) {
 		codec_mm_list_unlock(smgt);
