@@ -14055,3 +14055,8 @@ F:	arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts
 AMLOGIC ADD P241 buildroot V2 DTS
 M: Wenbiao <wenbiao.zhang@amlogic.com>
 F: arch/arm64/boot/dts/amlogic/gxl_p241_v2_1g_buildroot.dts
+
+AMLOGIC multimedia
+M:  Nanxin Qin <nanxin.qin@amlogic.com>
+F: drivers/amlogic/media/common/codec_mm/configs/*
+
