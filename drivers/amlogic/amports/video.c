@@ -151,6 +151,7 @@ bool omx_secret_mode = false;
 #define RECEIVER_NAME "amvideo"
 
 static s32 amvideo_poll_major;
+static s8 dolby_first_delay = 1; /* for bug 145902 */
 
 static int video_receiver_event_fun(int type, void *data, void *);
 
@@ -5043,10 +5044,14 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 	}
 	if ((video_enabled == 1) && ((vpp_misc_save & VPP_VD1_POSTBLEND) == 0)
 	&& (video_onoff_state == VIDEO_ENABLE_STATE_IDLE)) {
-		SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
-				VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
-				   | VPP_POSTBLEND_EN);
-		pr_info("VPP_VD1_POSTBLEND register rdma write fail!");
+		/* SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
+			VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
+			| VPP_POSTBLEND_EN);
+		pr_info("VPP_VD1_POSTBLEND register rdma write fail!"); */
+		vpp_misc_set |=
+			VPP_VD1_PREBLEND |
+			VPP_VD1_POSTBLEND |
+			VPP_POSTBLEND_EN;
 	}
 	if ((video_enabled == 1) && cur_frame_par
 	&& (cur_dispbuf != &vf_local) && (first_set == 0)
@@ -5202,8 +5207,16 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		spin_unlock_irqrestore(&video2_onoff_lock, flags);
 	}
 
+	if (is_dolby_vision_on()
+		&& (dolby_first_delay > 0)
+		&& (vpp_misc_set & VPP_VD1_POSTBLEND)) {
+		vpp_misc_set &=
+			~(VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND);
+		dolby_first_delay--;
+	}
 	if (vpp_misc_save != vpp_misc_set) {
-		VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+		VSYNC_WR_MPEG_REG(
+			VPP_MISC + cur_dev->vpp_off,
 			vpp_misc_set);
 	}
 	/*vpp_misc_set maybe have same,but need off.*/
