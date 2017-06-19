@@ -67,6 +67,8 @@
 
 #define CHECK_INTERVAL        (HZ/100)
 
+#define SEI_ITU_DATA_SIZE		(4*1024)
+
 #define RATE_MEASURE_NUM 8
 #define RATE_CORRECTION_THRESHOLD 5
 #define RATE_2397_FPS  4004   /* 23.97 */
@@ -332,7 +334,7 @@ static int vh264_vf_states(struct vframe_states *states, void *);
 static int vh264_event_cb(int type, void *data, void *private_data);
 static void vh264_work(struct work_struct *work);
 static void vh264_notify_work(struct work_struct *work);
-
+static void user_data_push_work(struct work_struct *work);
 
 static const char vh264_dec_id[] = "vh264-dev";
 
@@ -423,6 +425,15 @@ struct vdec_h264_hw_s {
 	u32 suffix_aux_size;
 	void *aux_addr;
 	dma_addr_t aux_phy_addr;
+	/* buffer for storing one itu35 recored */
+	void *sei_itu_data_buf;
+	u32 sei_itu_data_len;
+
+	/* recycle buffer for user data storing all itu35 records */
+	void *sei_user_data_buffer;
+	u32 sei_user_data_wp;
+	int sei_poc;
+	struct work_struct user_data_work;
 	struct StorablePicture *last_dec_picture;
 
 	ulong lmem_addr;
@@ -2666,6 +2677,11 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 
 		if (p_H264_Dpb->mVideo.dec_picture) {
 			int cfg_ret = 0;
+			if (hw->sei_itu_data_len) {
+				hw->sei_poc =
+					p_H264_Dpb->mVideo.dec_picture->poc;
+				schedule_work(&hw->user_data_work);
+			}
 			if (slice_header_process_status == 1) {
 				hw->data_flag =
 					(p_H264_Dpb->
@@ -2924,6 +2940,42 @@ send_again:
 			reset_process_time(hw);
 			return IRQ_HANDLED;
 		}
+
+	if (READ_VREG(AV_SCRATCH_G)) {
+		hw->sei_itu_data_len =
+			(READ_VREG(H264_AUX_DATA_SIZE) >> 16) << 4;
+		if (hw->sei_itu_data_len != 0) {
+			u8 *trans_data_buf;
+			u8 *sei_data_buf;
+			u32 temp;
+			u32 *pswap_data;
+
+			dma_sync_single_for_cpu(
+			amports_get_dma_device(),
+			hw->aux_phy_addr,
+			hw->prefix_aux_size + hw->suffix_aux_size,
+			DMA_FROM_DEVICE);
+#if 0
+			dump_aux_buf(hw);
+#endif
+
+			trans_data_buf = (u8 *)hw->aux_addr;
+			sei_data_buf = (u8 *)hw->sei_itu_data_buf;
+			for (i = 0; i < hw->sei_itu_data_len/2; i++)
+				sei_data_buf[i] = trans_data_buf[i*2];
+			hw->sei_itu_data_len = hw->sei_itu_data_len / 2;
+
+			pswap_data = (u32 *)hw->sei_itu_data_buf;
+			for (i = 0; i < hw->sei_itu_data_len/4; i = i+2) {
+				temp = pswap_data[i];
+				pswap_data[i] = pswap_data[i+1];
+				pswap_data[i+1] = temp;
+			}
+		}
+		WRITE_VREG(AV_SCRATCH_G, 0);
+		return IRQ_HANDLED;
+	}
+
 
 	/* ucode debug */
 	debug_tag = READ_VREG(DEBUG_REG1);
@@ -3420,6 +3472,7 @@ static void vh264_local_init(struct vdec_h264_hw_s *hw)
 
 	INIT_WORK(&hw->work, vh264_work);
 	INIT_WORK(&hw->notify_work, vh264_notify_work);
+	INIT_WORK(&hw->user_data_work, user_data_push_work);
 
 	return;
 }
@@ -3591,6 +3644,23 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 			hw->aux_addr = NULL;
 			return -1;
 		}
+		hw->sei_itu_data_buf = kmalloc(SEI_ITU_DATA_SIZE, GFP_KERNEL);
+		if (hw->sei_itu_data_buf == NULL) {
+			pr_err("%s: failed to alloc sei itu data buffer\n",
+				__func__);
+			return -1;
+		}
+
+		if (NULL == hw->sei_user_data_buffer) {
+			hw->sei_user_data_buffer = kmalloc(USER_DATA_SIZE,
+								GFP_KERNEL);
+			if (!hw->sei_user_data_buffer) {
+				pr_info("%s: Can not allocate sei_data_buffer\n",
+					   __func__);
+				return -1;
+			}
+			hw->sei_user_data_wp = 0;
+		}
 	}
 /* BUFFER_MGR_IN_C */
 #endif
@@ -3606,6 +3676,7 @@ static int vh264_stop(struct vdec_h264_hw_s *hw)
 {
 	cancel_work_sync(&hw->work);
 	cancel_work_sync(&hw->notify_work);
+	cancel_work_sync(&hw->user_data_work);
 
 	if (hw->stat & STAT_MC_LOAD) {
 		if (hw->mc_cpu_addr != NULL) {
@@ -3637,6 +3708,14 @@ static int vh264_stop(struct vdec_h264_hw_s *hw)
 		kfree(hw->aux_addr);
 		hw->aux_addr = NULL;
 	}
+	if (hw->sei_itu_data_buf != NULL) {
+		kfree(hw->sei_itu_data_buf);
+		hw->sei_itu_data_buf = NULL;
+	}
+	if (hw->sei_user_data_buffer != NULL) {
+		kfree(hw->sei_user_data_buffer);
+		hw->sei_user_data_buffer = NULL;
+	}
 	/* amvdec_disable(); */
 
 	dpb_print(DECODE_ID(hw), 0,
@@ -3658,6 +3737,40 @@ static void vh264_notify_work(struct work_struct *work)
 	}
 
 	return;
+}
+
+static void user_data_push_work(struct work_struct *work)
+{
+	struct vdec_h264_hw_s *hw = container_of(work,
+		struct vdec_h264_hw_s, user_data_work);
+
+	struct userdata_poc_info_t user_data_poc;
+	unsigned char *pdata;
+	u8 *pmax_sei_data_buffer;
+	u8 *sei_data_buf;
+	int i;
+
+	pdata = (u8 *)hw->sei_user_data_buffer + hw->sei_user_data_wp;
+	pmax_sei_data_buffer = (u8 *)hw->sei_user_data_buffer + USER_DATA_SIZE;
+	sei_data_buf = (u8 *)hw->sei_itu_data_buf;
+	for (i = 0; i < hw->sei_itu_data_len; i++) {
+		*pdata++ = sei_data_buf[i];
+		if (pdata >= pmax_sei_data_buffer)
+			pdata = (u8 *)hw->sei_user_data_buffer;
+	}
+
+	hw->sei_user_data_wp = (hw->sei_user_data_wp
+		+ hw->sei_itu_data_len) % USER_DATA_SIZE;
+	user_data_poc.poc_number = hw->sei_poc;
+
+	wakeup_userdata_poll(user_data_poc, hw->sei_user_data_wp,
+					(unsigned long)hw->sei_user_data_buffer,
+					USER_DATA_SIZE, hw->sei_itu_data_len);
+	hw->sei_itu_data_len = 0;
+/*
+	pr_info("sei_itu35_wp = %d, poc = %d\n",
+		hw->sei_user_data_wp, hw->sei_poc);
+*/
 }
 
 static void vh264_work(struct work_struct *work)
