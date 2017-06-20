@@ -10003,14 +10003,15 @@ static int di_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 static int save_init_flag;
-static int di_suspend(struct platform_device *pdev, pm_message_t state)
+/* must called after lcd */
+static int di_suspend(struct device *dev)
 {
 
 	struct di_dev_s *di_devp = NULL;
 #ifndef USE_HRTIMER
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 #endif
-	di_devp = platform_get_drvdata(pdev);
+	di_devp = dev_get_drvdata(dev);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 /* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
@@ -10031,15 +10032,15 @@ static int di_suspend(struct platform_device *pdev, pm_message_t state)
 	di_set_power_control(1, 0);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_disable_unprepare(di_devp->vpu_clkb);
-	di_pr_info("di: di_suspend\n");
+	pr_info("di: di_suspend\n");
 	return 0;
 }
-
-static int di_resume(struct platform_device *pdev)
+/* must called before lcd */
+static int di_resume(struct device *dev)
 {
 	struct di_dev_s *di_devp = NULL;
 
-	di_devp = platform_get_drvdata(pdev);
+	di_devp = dev_get_drvdata(dev);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
@@ -10053,9 +10054,14 @@ static int di_resume(struct platform_device *pdev)
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 1 << 18);
 	aml_write_cbus(ISA_TIMERC, 1);
 #endif
-	di_pr_info("di_hdmirx: resume module\n");
+	pr_info("di: resume module\n");
 	return 0;
 }
+
+static const struct dev_pm_ops di_pm_ops = {
+	.suspend_late = di_suspend,
+	.resume_early = di_resume,
+};
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -10070,16 +10076,16 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 static struct platform_driver di_driver = {
 	.probe			= di_probe,
 	.remove			= di_remove,
-#ifdef CONFIG_PM
-	.suspend		= di_suspend,
-	.resume			= di_resume,
-#endif
 	.driver			= {
 		.name		= DEVICE_NAME,
 		.owner		= THIS_MODULE,
 		.of_match_table = amlogic_deinterlace_dt_match,
+#ifdef CONFIG_PM
+		.pm			= &di_pm_ops,
+#endif
 	}
 };
+
 
 static int __init di_module_init(void)
 {
