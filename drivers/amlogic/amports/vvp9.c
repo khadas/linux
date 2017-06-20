@@ -224,6 +224,7 @@ static void vvp9_put_timer_func(unsigned long arg);
 static void dump_data(struct VP9Decoder_s *pbi, int size);
 static unsigned char get_data_check_sum
 	(struct VP9Decoder_s *pbi, int size);
+static void dump_pic_list(struct VP9Decoder_s *pbi);
 #ifdef VP9_10B_MMU
 static int vp9_alloc_mmu(
 		struct VP9Decoder_s *pbi,
@@ -339,6 +340,7 @@ typedef unsigned short u16;
 
 #define VP9_DEBUG_BUFMGR                   0x01
 #define VP9_DEBUG_BUFMGR_MORE              0x02
+#define VP9_DEBUG_BUFMGR_DETAIL            0x04
 #define VP9_DEBUG_OUT_PTS                  0x10
 #define VP9_DEBUG_SEND_PARAM_WITH_REG      0x100
 #define VP9_DEBUG_MERGE                    0x200
@@ -1529,7 +1531,7 @@ static void put_mv_buf(struct VP9Decoder_s *pbi,
 				struct PIC_BUFFER_CONFIG_s *pic)
 {
 	int i = pic->mv_buf_index;
-	if (i < 0 || i >= FRAME_BUFFERS) {
+	if (i >= FRAME_BUFFERS) {
 		if (debug & VP9_DEBUG_BUFMGR_MORE)
 			pr_info(
 			"%s: index %d beyond range\n",
@@ -1542,6 +1544,7 @@ static void put_mv_buf(struct VP9Decoder_s *pbi,
 		__func__, i,
 		pbi->m_mv_BUF[i].used_flag);
 
+	pic->mv_buf_index = -1;
 	if (pbi->m_mv_BUF[i].start_adr &&
 		pbi->m_mv_BUF[i].used_flag)
 		pbi->m_mv_BUF[i].used_flag = 0;
@@ -1554,7 +1557,8 @@ static void	put_un_used_mv_bufs(struct VP9Decoder_s *pbi)
 	int i;
 	for (i = 0; i < pbi->used_buf_num; ++i) {
 		if ((frame_bufs[i].ref_count == 0) &&
-			(frame_bufs[i].buf.index != -1)
+			(frame_bufs[i].buf.index != -1) &&
+			(frame_bufs[i].buf.mv_buf_index >= 0)
 			)
 			put_mv_buf(pbi, &frame_bufs[i].buf);
 	}
@@ -1745,6 +1749,8 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		cm->prev_fb_idx, cm->new_fb_idx);*/
 #ifndef MV_USE_FIXED_BUF
 	put_un_used_mv_bufs(pbi);
+	if (debug & VP9_DEBUG_BUFMGR_DETAIL)
+		dump_pic_list(pbi);
 #endif
 	cm->new_fb_idx = get_free_fb(pbi);
 	if (cm->new_fb_idx == INVALID_IDX) {
@@ -1756,6 +1762,8 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		pr_info("get_mv_buf fail\r\n");
 		return -1;
 	}
+	if (debug & VP9_DEBUG_BUFMGR_DETAIL)
+		dump_pic_list(pbi);
 #endif
 	cm->cur_frame = &pool->frame_bufs[cm->new_fb_idx];
 	/*if (debug & VP9_DEBUG_BUFMGR)
@@ -4003,6 +4011,7 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
 		pic_config->index = i;
 		pic_config->BUF_index = -1;
+		pic_config->mv_buf_index = -1;
 		if (config_pic(pbi, pic_config) < 0) {
 			if (debug)
 				pr_info("Config_pic %d fail\n",
@@ -4018,6 +4027,7 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
 		pic_config->index = -1;
 		pic_config->BUF_index = -1;
+		pic_config->mv_buf_index = -1;
 	}
 	pr_info("%s ok, used_buf_num = %d\n",
 		__func__, pbi->used_buf_num);
