@@ -1150,8 +1150,9 @@
 //		amlogic,clrmask=<5 0x3c33>;
 //		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 //	};
-
-
+&gpu{
+/*max gp pll for gpu is 750M, temporarily disabled*/
+    tbl = <&clk125_cfg &clk285_cfg &clk666_cfg &clk666_cfg>;}
 };
 &efuse {
 	status = "okay";
