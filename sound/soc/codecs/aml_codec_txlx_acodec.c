@@ -546,6 +546,8 @@ static int txlx_acodec_probe(struct snd_soc_codec *codec)
 
 static int txlx_acodec_remove(struct snd_soc_codec *codec)
 {
+	pr_info("%s!\n", __func__);
+
 	txlx_acodec_dai_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
@@ -669,6 +671,18 @@ static int aml_txlx_acodec_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void aml_txlx_acodec_shutdown(struct platform_device *pdev)
+{
+	struct txlx_acodec_priv *aml_acodec;
+	struct snd_soc_codec *codec;
+
+	aml_acodec = platform_get_drvdata(pdev);
+	codec = aml_acodec->codec;
+	txlx_acodec_remove(codec);
+
+	return;
+}
+
 static const struct of_device_id aml_txlx_acodec_dt_match[] = {
 	{.compatible = "amlogic, txlx_acodec",},
 	{},
@@ -682,6 +696,7 @@ static struct platform_driver aml_txlx_acodec_platform_driver = {
 		   },
 	.probe = aml_txlx_acodec_probe,
 	.remove = aml_txlx_acodec_remove,
+	.shutdown = aml_txlx_acodec_shutdown,
 };
 
 static int __init aml_txlx_acodec_modinit(void)
