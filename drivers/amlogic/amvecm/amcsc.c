@@ -2281,7 +2281,7 @@ void set_vpp_lut(
 				hdr_osd_reg.viu_osd1_oetf_ctl |= 7 << 29;
 		} else {
 			/* latch enable */
-			WRITE_VPP_REG_BITS(VIU_OSD1_EOTF_CTL, 1, 28, 1);
+			WRITE_VPP_REG_BITS(VIU_OSD1_OETF_CTL, 1, 28, 1);
 			if (on) {
 				/* change to 12bit from txlx */
 				for (i = 0; i < OSD_OETF_LUT_SIZE; i++) {
@@ -2387,6 +2387,10 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
+		/*txlx add eotf latch ctl bit 26*/
+		if (is_meson_txlx_cpu())
+			WRITE_VPP_REG_BITS(ctrl_port, 1, 26, 1);
+
 		if (on) {
 			for (i = 0; i < 16; i++) {
 				VSYNC_WR_MPEG_REG(addr_port, i);
