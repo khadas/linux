@@ -516,7 +516,10 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 #ifdef NV21
 			vf->type |= VIDTYPE_VIU_NV21;
 #endif
-			vf->duration >>= 1;
+			if (info & PICINFO_RPT_FIRST)
+				vf->duration /= 3;
+			else
+				vf->duration >>= 1;
 			vf->duration_pulldown = (info & PICINFO_RPT_FIRST) ?
 						vf->duration >> 1 : 0;
 			vf->duration += vf->duration_pulldown;
@@ -562,7 +565,10 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 #ifdef NV21
 			vf->type |= VIDTYPE_VIU_NV21;
 #endif
-			vf->duration >>= 1;
+			if (info & PICINFO_RPT_FIRST)
+				vf->duration /= 3;
+			else
+				vf->duration >>= 1;
 			vf->duration_pulldown = (info & PICINFO_RPT_FIRST) ?
 					vf->duration >> 1 : 0;
 			vf->duration += vf->duration_pulldown;
@@ -611,7 +617,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 #ifdef NV21
 				vf->type |= VIDTYPE_VIU_NV21;
 #endif
-				vf->duration >>= 1;
+				vf->duration /= 3;
 				vf->duration_pulldown =
 					(info & PICINFO_RPT_FIRST) ?
 						vf->duration >> 1 : 0;
