@@ -365,7 +365,7 @@ static int aml_T9015S_audio_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-
+		snd_soc_write(codec, AUDIO_CONFIG_BLOCK_ENABLE, 0);
 		break;
 
 	default:
@@ -450,6 +450,7 @@ static int aml_T9015S_audio_probe(struct snd_soc_codec *codec)
 
 static int aml_T9015S_audio_remove(struct snd_soc_codec *codec)
 {
+	pr_info("aml_T9015S_audio_remove!\n");
 	aml_T9015S_audio_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -458,7 +459,6 @@ static int aml_T9015S_audio_suspend(struct snd_soc_codec *codec)
 {
 	pr_info("aml_T9015S_audio_suspend!\n");
 	aml_T9015S_audio_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	snd_soc_write(codec, AUDIO_CONFIG_BLOCK_ENABLE, 0);
 	return 0;
 }
 
@@ -570,6 +570,18 @@ static int aml_T9015S_audio_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void aml_T9015S_audio_codec_shutdown(struct platform_device *pdev)
+{
+	struct aml_T9015S_audio_priv *aml_acodec;
+	struct snd_soc_codec *codec;
+
+	aml_acodec = platform_get_drvdata(pdev);
+	codec = aml_acodec->codec;
+	aml_T9015S_audio_remove(codec);
+
+	return;
+}
+
 static const struct of_device_id aml_T9015S_codec_dt_match[] = {
 	{.compatible = "amlogic, aml_codec_T9015S",},
 	{},
@@ -583,6 +595,7 @@ static struct platform_driver aml_T9015S_codec_platform_driver = {
 		   },
 	.probe = aml_T9015S_audio_codec_probe,
 	.remove = aml_T9015S_audio_codec_remove,
+	.shutdown = aml_T9015S_audio_codec_shutdown,
 };
 
 static int __init aml_T9015S_audio_modinit(void)
