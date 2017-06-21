@@ -16,8 +16,6 @@
 #define PRINT_FLAG_DEBUG_POC          0x0200
 #define RRINT_FLAG_RPM                0x0400
 #define DISABLE_ERROR_HANDLE          0x10000
-#define DISABLE_FAST_OUTPUT           0x20000
-#define ONLY_RESET_AT_START           0x40000
 #define DEBUG_DUMP_STAT               0x80000
 
 
@@ -660,8 +658,8 @@ struct FrameStore {
 	int         pre_output;
 	/* index in gFrameStore */
 	int       index;
-#define OTHER_DATA		0x00
-#define I_DATA			0x01
+#define I_FLAG			0x01
+#define IDR_FLAG		0x02
 #define ERROR_FLAG		0x10
 #define NULL_FLAG		0x20
 #define NODISP_FLAG		0x80
@@ -737,6 +735,11 @@ struct h264_dpb_stru {
 	int buf_num;
 	int curr_POC;
 	int reorder_pic_num;
+	u8 fast_output_enable;
+		/*poc_even_flag:
+		 0, init; 1, odd; 2, even*/
+	u8 poc_even_odd_flag;
+	u32 decode_pic_count;
 	/**/
 	unsigned int max_reference_size;
 

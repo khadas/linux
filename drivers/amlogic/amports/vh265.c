@@ -299,6 +299,8 @@ static u32 udebug_pause_pos;
 */
 static u32 udebug_pause_val;
 
+static u32 udebug_pause_decode_idx;
+
 static u32 decode_pic_begin;
 static uint slice_parse_begin;
 static u32 step;
@@ -1510,6 +1512,7 @@ struct hevc_state_s {
 	u32 i_only;
 	struct list_head log_list;
 	u32 ucode_pause_pos;
+	u32 start_shift_bytes;
 
 	u32 vf_pre_count;
 	u32 vf_get_count;
@@ -7879,6 +7882,8 @@ static irqreturn_t vh265_isr(int irq, void *data)
 		}
 
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx == hevc->decode_idx) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_HREG(DEBUG_REG2)))
 			hevc->ucode_pause_pos = udebug_pause_pos;
@@ -7894,6 +7899,8 @@ static irqreturn_t vh265_isr(int irq, void *data)
 			   READ_HREG(DEBUG_REG2),
 			   READ_VREG(HEVC_PARSER_LCU_START));
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx == hevc->decode_idx) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_HREG(DEBUG_REG2)))
 			hevc->ucode_pause_pos = udebug_pause_pos;
@@ -8997,23 +9004,29 @@ static void vh265_work(struct work_struct *work)
 
 		if (is_log_enable(hevc))
 			add_log(hevc,
-				"%s dec_result %d lcu %d used_mmu %d shiftbyte 0x%x",
+				"%s dec_result %d lcu %d used_mmu %d shiftbyte 0x%x decbytes 0x%x",
 				__func__,
 				hevc->dec_result,
 				hevc->pic_decoded_lcu_idx,
 				hevc->used_4k_num,
-				READ_VREG(HEVC_SHIFT_BYTE_COUNT)
+				READ_VREG(HEVC_SHIFT_BYTE_COUNT),
+				READ_VREG(HEVC_SHIFT_BYTE_COUNT) -
+				hevc->start_shift_bytes
 				);
 
 		hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
-			"%s dec_result %d (%x %x %x) lcu %d used_mmu %d\n",
+			"%s dec_result %d (%x %x %x) lcu %d used_mmu %d shiftbyte 0x%x decbytes 0x%x\n",
 			__func__,
 			hevc->dec_result,
 			READ_VREG(HEVC_STREAM_LEVEL),
 			READ_VREG(HEVC_STREAM_WR_PTR),
 			READ_VREG(HEVC_STREAM_RD_PTR),
 			hevc->pic_decoded_lcu_idx,
-			hevc->used_4k_num);
+			hevc->used_4k_num,
+			READ_VREG(HEVC_SHIFT_BYTE_COUNT),
+			READ_VREG(HEVC_SHIFT_BYTE_COUNT) -
+			hevc->start_shift_bytes
+			);
 
 		hevc->used_4k_num = -1;
 
@@ -9221,7 +9234,7 @@ static void run(struct vdec_s *vdec,
 			check_sum,
 			READ_VREG(HEVC_SHIFT_BYTE_COUNT)
 			);
-
+	hevc->start_shift_bytes = READ_VREG(HEVC_SHIFT_BYTE_COUNT);
 	hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
 		"%s: size 0x%x sum 0x%x (%x %x %x %x %x) byte count %x\n",
 		__func__, r,
@@ -9231,8 +9244,9 @@ static void run(struct vdec_s *vdec,
 		READ_VREG(HEVC_STREAM_RD_PTR),
 		READ_PARSER_REG(PARSER_VIDEO_RP),
 		READ_PARSER_REG(PARSER_VIDEO_WP),
-		READ_VREG(HEVC_SHIFT_BYTE_COUNT)
+		hevc->start_shift_bytes
 		);
+
 	if ((get_dbg_flag(hevc) & PRINT_FRAMEBASE_DATA) &&
 		input_frame_based(vdec)) {
 		int jj;
@@ -10191,6 +10205,9 @@ MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
 
 module_param(udebug_pause_val, uint, 0664);
 MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");
+
+module_param(udebug_pause_decode_idx, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_decode_idx, "\n udebug_pause_decode_idx\n");
 
 module_init(amvdec_h265_driver_init_module);
 module_exit(amvdec_h265_driver_remove_module);

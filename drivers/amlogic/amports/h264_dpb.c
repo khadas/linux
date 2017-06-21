@@ -847,7 +847,7 @@ void fill_frame_num_gap(struct VideoParameters *p_Vid, struct Slice *currSlice)
 		picture->frame_poc  = currSlice->framepoc;
 		picture->poc        = currSlice->framepoc;
 
-		store_picture_in_dpb(p_H264_Dpb, picture, OTHER_DATA);
+		store_picture_in_dpb(p_H264_Dpb, picture, 0);
 
 		picture = NULL;
 		p_Vid->pre_frame_num = UnusedShortTermFrameNum;
@@ -889,6 +889,7 @@ void dpb_init_global(struct h264_dpb_stru *p_H264_Dpb,
     (in DECODE_STATE_IDLE or DECODE_STATE_READY state) */
 	p_H264_Dpb->mDPB.size = actual_dpb_size;
 	p_H264_Dpb->max_reference_size = max_reference_size;
+	p_H264_Dpb->poc_even_odd_flag = 0;
 }
 
 static void init_picture(struct h264_dpb_stru *p_H264_Dpb,
@@ -2008,13 +2009,31 @@ int output_frames(struct h264_dpb_stru *p_H264_Dpb, unsigned char flush_flag)
 			if ((!p_Dpb->fs[i]->is_output) &&
 				(!p_Dpb->fs[i]->pre_output)) {
 				none_displayed_num++;
-				if ((p_Dpb->fs[i]->poc - p_Dpb->last_output_poc)
-					== 1)
+				/*check poc even/odd*/
+				if (p_H264_Dpb->poc_even_odd_flag == 0 &&
+					p_H264_Dpb->decode_pic_count >= 3)
+					p_H264_Dpb->poc_even_odd_flag = 2;
+				if (p_Dpb->fs[i]->poc & 0x1)
+					p_H264_Dpb->poc_even_odd_flag = 1;
+				/**/
+
+				if ((p_H264_Dpb->fast_output_enable & 0x1) &&
+					(p_Dpb->fs[i]->data_flag & IDR_FLAG))
+					fast_output_flag = 1;
+				if ((p_H264_Dpb->fast_output_enable & 0x2) &&
+					((p_Dpb->fs[i]->poc -
+						p_Dpb->last_output_poc)
+					== 1))
+					fast_output_flag = 1;
+				if ((p_H264_Dpb->fast_output_enable & 0x4) &&
+					(p_H264_Dpb->poc_even_odd_flag == 2) &&
+					((p_Dpb->fs[i]->poc -
+						p_Dpb->last_output_poc)
+					== 2))
 					fast_output_flag = 1;
 			}
 		}
-		if (((h264_debug_flag & DISABLE_FAST_OUTPUT) == 0)
-			&& fast_output_flag)
+		if (fast_output_flag)
 			;
 		else if (none_displayed_num <
 			p_H264_Dpb->reorder_pic_num)
@@ -2029,14 +2048,16 @@ int output_frames(struct h264_dpb_stru *p_H264_Dpb, unsigned char flush_flag)
 	if (is_used_for_reference(p_Dpb->fs[pos]))
 		return 0;
 #endif
-	p_Dpb->last_output_poc = poc;
-
 	if (prepare_display_buf(p_H264_Dpb->vdec, p_Dpb->fs[pos]) >= 0)
 		p_Dpb->fs[pos]->pre_output = 1;
 
 	dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_DPB_DETAIL,
-		"%s[%d] poc %d\n", __func__, pos, poc);
+		"%s[%d] poc %d last_output_poc %d poc_even_odd_flag %d\n",
+		__func__, pos, poc,
+		p_Dpb->last_output_poc,
+		p_H264_Dpb->poc_even_odd_flag);
 
+	p_Dpb->last_output_poc = poc;
 	return 1;
 
 }
