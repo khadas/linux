@@ -387,6 +387,8 @@ static u32 udebug_pause_pos;
 */
 static u32 udebug_pause_val;
 
+static u32 udebug_pause_decode_idx;
+
 #define DEBUG_REG
 #ifdef DEBUG_REG
 void WRITE_VREG_DBG2(unsigned adr, unsigned val)
@@ -1171,6 +1173,7 @@ struct VP9Decoder_s {
 	struct vframe_chunk_s *chunk;
 	int dec_result;
 	struct work_struct work;
+	u32 start_shift_bytes;
 
 	struct BuffInfo_s work_space_buf_store;
 	unsigned long buf_start;
@@ -6117,6 +6120,8 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 		}
 
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx == pbi->slice_idx) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_HREG(DEBUG_REG2)))
 			pbi->ucode_pause_pos = udebug_pause_pos;
@@ -6132,6 +6137,8 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 			   READ_HREG(DEBUG_REG2),
 			   READ_VREG(HEVC_PARSER_LCU_START));
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx == pbi->slice_idx) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_HREG(DEBUG_REG2)))
 			pbi->ucode_pause_pos = udebug_pause_pos;
@@ -7034,13 +7041,16 @@ static void vp9_work(struct work_struct *work)
 			(READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
 #endif
 		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-			"%s (===> %d) dec_result %d %x %x %x\n",
+			"%s (===> %d) dec_result %d %x %x %x shiftbytes 0x%x decbytes 0x%x\n",
 			__func__,
 			pbi->frame_count,
 			pbi->dec_result,
 			READ_VREG(HEVC_STREAM_LEVEL),
 			READ_VREG(HEVC_STREAM_WR_PTR),
-			READ_VREG(HEVC_STREAM_RD_PTR)
+			READ_VREG(HEVC_STREAM_RD_PTR),
+			READ_VREG(HEVC_SHIFT_BYTE_COUNT),
+			READ_VREG(HEVC_SHIFT_BYTE_COUNT) -
+			pbi->start_shift_bytes
 			);
 		vdec_vframe_dirty(hw_to_vdec(pbi), pbi->chunk);
 	} else if (pbi->dec_result == DEC_RESULT_AGAIN) {
@@ -7140,11 +7150,12 @@ static void run(struct vdec_s *vdec,
 	}
 	input_empty[pbi->index] = 0;
 	pbi->dec_result = DEC_RESULT_NONE;
+	pbi->start_shift_bytes = READ_VREG(HEVC_SHIFT_BYTE_COUNT);
 
 	if (debug & PRINT_FLAG_VDEC_STATUS) {
 		int ii;
 		vp9_print(pbi, 0,
-			"%s (%d): size 0x%x (0x%x 0x%x) sum 0x%x (%x %x %x %x %x) ",
+			"%s (%d): size 0x%x (0x%x 0x%x) sum 0x%x (%x %x %x %x %x) bytes 0x%x",
 			__func__,
 			pbi->frame_count, r,
 			pbi->chunk ? pbi->chunk->size : 0,
@@ -7156,7 +7167,8 @@ static void run(struct vdec_s *vdec,
 		READ_VREG(HEVC_STREAM_END_ADDR),
 		READ_VREG(HEVC_STREAM_LEVEL),
 		READ_VREG(HEVC_STREAM_WR_PTR),
-		READ_VREG(HEVC_STREAM_RD_PTR));
+		READ_VREG(HEVC_STREAM_RD_PTR),
+		pbi->start_shift_bytes);
 		if (vdec_frame_based(vdec)) {
 			u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
 				pbi->chunk->offset;
@@ -7192,6 +7204,7 @@ static void run(struct vdec_s *vdec,
 		r = pbi->chunk->size +
 			(pbi->chunk->offset & (VDEC_FIFO_ALIGN - 1));
 	}
+
 	WRITE_VREG(HEVC_DECODE_SIZE, r);
 	WRITE_VREG(HEVC_DECODE_COUNT, pbi->slice_idx);
 	pbi->init_flag = 1;
@@ -7782,6 +7795,9 @@ MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
 
 module_param(udebug_pause_val, uint, 0664);
 MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");
+
+module_param(udebug_pause_decode_idx, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_decode_idx, "\n udebug_pause_decode_idx\n");
 
 module_init(amvdec_vp9_driver_init_module);
 module_exit(amvdec_vp9_driver_remove_module);

@@ -125,6 +125,9 @@ static unsigned int reference_buf_margin = 4;
 
 static unsigned int max_alloc_buf_count;
 static unsigned int decode_timeout_val = 100;
+static unsigned int get_data_timeout_val = 2000;
+static unsigned int frame_max_data_packet = 8;
+
 static unsigned int radr;
 static unsigned int rval;
 
@@ -150,6 +153,8 @@ static u32 udebug_pause_pos;
 		pause only when DEBUG_REG2 is equal to this val
 */
 static u32 udebug_pause_val;
+
+static u32 udebug_pause_decode_idx;
 
 static unsigned int max_decode_instance_num = H264_DEV_NUM;
 static unsigned int decode_frame_count[H264_DEV_NUM];
@@ -194,8 +199,21 @@ static unsigned int i_only_flag;
 	bit[2] force release buf if in deadlock
 	bit[3] force sliding window ref_frames_in_buffer > num_ref_frames
 	bit[4] check inactive of receiver
+	bit[5] reset buffmgr if in deadlock
+
+	bit[8] check total mbx/mby of decoded frame
+	bit[9] check ERROR_STATUS_REG
+
+	bit[12] i_only when error happen
 */
-static unsigned int error_proc_policy = 0x14; /*0xc;*/
+static unsigned int error_proc_policy = 0x1214; /*0xc;*/
+
+/*
+	error_skip_count:
+	bit[11:0] error skip frame count
+	bit[15:12] error skip i picture count
+*/
+static unsigned int error_skip_count = (0x2 << 12) | 0x40;
 
 static unsigned int force_sliding_margin;
 /*
@@ -208,6 +226,17 @@ static unsigned int force_sliding_margin;
 	3, start playing from IDR
 */
 static unsigned int first_i_policy = (15 << 8) | 2;
+
+/*
+	fast_output_enable:
+	bit [0], output frame if there is IDR in list
+	bit [1], output frame if the current poc is 1 big than the previous poc
+	bit [2], if even poc only, output frame ifthe cuurent poc
+			is 2 big than the previous poc
+*/
+static unsigned int fast_output_enable = 3;
+
+static unsigned int enable_itu_t35;
 
 #define is_in_parsing_state(status) \
 		((status == H264_ACTION_SEARCH_HEAD) || \
@@ -284,6 +313,8 @@ struct buffer_spec_s {
 	3, in disp queue, isolated,
 		do not use for dpb when vf_put;
 	4, to release
+	5, in disp queue, isolated (but not to release)
+		do not use for dpb when vf_put;
 	*/
 	int used;
 	unsigned int info0;
@@ -403,6 +434,11 @@ static const char *dec_result_str[] = {
 
 #define H264_DECODE_INFO          M4_CONTROL_REG /* 0xc29 */
 #define DPB_STATUS_REG       AV_SCRATCH_J
+#define ERROR_STATUS_REG	AV_SCRATCH_9
+	/*
+	NAL_SEARCH_CTL: bit 0, enable itu_t35
+	*/
+#define NAL_SEARCH_CTL		AV_SCRATCH_9
 #define MBY_MBX                 MB_MOTION_MODE /*0xc07*/
 
 #define DECODE_MODE_SINGLE					0x0
@@ -561,6 +597,8 @@ struct vdec_h264_hw_s {
 	unsigned decode_dataempty_num;
 	unsigned buffer_empty_recover_num;
 
+	unsigned get_data_count;
+	unsigned get_data_start_time;
 	/**/
 
 	/*log*/
@@ -578,16 +616,21 @@ struct vdec_h264_hw_s {
 #endif
 	u8 eos;
 	u8 data_flag;
+	u32 no_error_count;
+	u32 no_error_i_count;
 	/*
 	NODISP_FLAG
 	*/
 	u8 dec_flag;
 
 	u32 ucode_pause_pos;
+
+	u8 reset_bufmgr_flag;
 };
 
 
 static void h264_reconfig(struct vdec_h264_hw_s *hw);
+static void h264_reset_bufmgr(struct vdec_h264_hw_s *hw);
 static void vh264_local_init(struct vdec_h264_hw_s *hw);
 static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw);
 static int vh264_stop(struct vdec_h264_hw_s *hw);
@@ -613,7 +656,8 @@ static unsigned char is_buf_spec_in_use(struct vdec_h264_hw_s *hw,
 	unsigned char ret = 0;
 	if (hw->buffer_spec[buf_spec_num].used == 1 ||
 		hw->buffer_spec[buf_spec_num].used == 2 ||
-		hw->buffer_spec[buf_spec_num].used == 3)
+		hw->buffer_spec[buf_spec_num].used == 3 ||
+		hw->buffer_spec[buf_spec_num].used == 5)
 		ret = 1;
 	return ret;
 }
@@ -623,7 +667,8 @@ static unsigned char is_buf_spec_in_disp_q(struct vdec_h264_hw_s *hw,
 {
 	unsigned char ret = 0;
 	if (hw->buffer_spec[buf_spec_num].used == 2 ||
-		hw->buffer_spec[buf_spec_num].used == 3)
+		hw->buffer_spec[buf_spec_num].used == 3 ||
+		hw->buffer_spec[buf_spec_num].used == 5)
 		ret = 1;
 	return ret;
 }
@@ -869,18 +914,28 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 	}
 	if (force_disp_bufspec_num & 0x100) {
 		/*recycle directly*/
-		if (hw->buffer_spec[frame->buf_spec_num].used != 3)
+		if (hw->buffer_spec[frame->buf_spec_num].used != 3 &&
+			hw->buffer_spec[frame->buf_spec_num].used != 5)
 			set_frame_output_flag(&hw->dpb, frame->index);
 
 		/*make pre_output not set*/
 		return -1;
+	}
+	if (error_proc_policy & 0x1000) {
+		int error_skip_i_count = (error_skip_count >> 12) & 0xf;
+		int error_skip_frame_count = error_skip_count & 0xfff;
+		if (((hw->no_error_count < error_skip_frame_count)
+			&& (error_skip_i_count == 0 ||
+			hw->no_error_i_count < error_skip_i_count))
+			&& (!(frame->data_flag & I_FLAG)))
+			frame->data_flag |= ERROR_FLAG;
 	}
 	if ((frame->data_flag & NODISP_FLAG) ||
 		(frame->data_flag & NULL_FLAG) ||
 		((!hw->send_error_frame_flag) &&
 			(frame->data_flag & ERROR_FLAG)) ||
 		((hw->i_only & 0x1) &&
-		((frame->data_flag & I_DATA) != I_DATA))
+		(!(frame->data_flag & I_FLAG)))
 			) {
 		set_frame_output_flag(&hw->dpb, frame->index);
 		return -1;
@@ -928,7 +983,7 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 			spec2canvas(&hw->buffer_spec[buffer_index]);
 		set_frame_info(hw, vf, buffer_index);
 		vf->flag = 0;
-		if (frame->data_flag & I_DATA)
+		if (frame->data_flag & I_FLAG)
 			vf->flag |= VFRAME_FLAG_SYNCFRAME;
 		if (frame->data_flag & ERROR_FLAG)
 			vf->flag |= VFRAME_FLAG_ERROR_RECOVERY;
@@ -987,7 +1042,7 @@ void print_pic_info(int decindex, const char *info,
 {
 	if (pic)
 		dpb_print(decindex, PRINT_FLAG_DEC_DETAIL,
-		"%s: %s (original %s), %s, mb_aff_frame_flag %d  poc %d, pic_num %d, buf_spec_num %d\n",
+		"%s: %s (original %s), %s, mb_aff_frame_flag %d  poc %d, pic_num %d, buf_spec_num %d data_flag 0x%x\n",
 		info,
 		picture_structure_name[pic->structure],
 		pic->coded_frame ? "Frame" : "Field",
@@ -995,7 +1050,8 @@ void print_pic_info(int decindex, const char *info,
 		pic->mb_aff_frame_flag,
 		pic->poc,
 		pic->pic_num,
-		pic->buf_spec_num);
+		pic->buf_spec_num,
+		pic->data_flag);
 }
 
 static void reset_process_time(struct vdec_h264_hw_s *hw)
@@ -1865,6 +1921,8 @@ static void vh264_vf_put(struct vframe_s *vf, void *op_arg)
 		if (hw->buffer_spec[buf_spec_num].vf_ref <= 0) {
 			if (hw->buffer_spec[buf_spec_num].used == 3)
 				hw->buffer_spec[buf_spec_num].used = 4;
+			else if (hw->buffer_spec[buf_spec_num].used == 5)
+				hw->buffer_spec[buf_spec_num].used = 0;
 		}
 		spin_unlock_irqrestore(&hw->bufspec_lock, flags);
 	}
@@ -2088,7 +2146,7 @@ static int vh264_set_params(struct vdec_h264_hw_s *hw)
 		dpb_init_global(&hw->dpb,
 			DECODE_ID(hw), 0, 0);
 
-
+		p_H264_Dpb->fast_output_enable = fast_output_enable;
 		/*mb_mv_byte = (seq_info2 & 0x80000000) ? 24 : 96;*/
 
 #if 1
@@ -2451,6 +2509,14 @@ static void vui_config(struct vdec_h264_hw_s *hw)
 	/*video_signal_from_vui: to do .. */
 }
 
+static void bufmgr_recover(struct vdec_h264_hw_s *hw)
+{
+	struct h264_dpb_stru *p_H264_Dpb = &hw->dpb;
+	bufmgr_h264_remove_unused_frame(p_H264_Dpb, 2);
+	if (error_proc_policy & 0x20)
+		hw->reset_bufmgr_flag = 1;
+}
+
 static bool is_buffer_available(struct vdec_s *vdec)
 {
 	bool buffer_available = 1;
@@ -2482,7 +2548,7 @@ static bool is_buffer_available(struct vdec_s *vdec)
 				1, p_Dpb->num_ref_frames)
 				- p_Dpb->ltref_frames_in_buffer +
 				force_sliding_margin)))
-				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 2);
+				bufmgr_recover(hw);
 			else
 				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 1);
 		} else if ((error_proc_policy & 0x4) &&
@@ -2502,7 +2568,7 @@ static bool is_buffer_available(struct vdec_s *vdec)
 					state = RECEIVER_INACTIVE;
 			}
 			if (state == RECEIVER_INACTIVE)
-				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 2);
+				bufmgr_recover(hw);
 			else
 				bufmgr_h264_remove_unused_frame(p_H264_Dpb, 1);
 		} else if ((error_proc_policy & 0x8) &&
@@ -2511,12 +2577,41 @@ static bool is_buffer_available(struct vdec_s *vdec)
 			1, p_Dpb->num_ref_frames)
 			- p_Dpb->ltref_frames_in_buffer +
 			force_sliding_margin)))
-			bufmgr_h264_remove_unused_frame(p_H264_Dpb, 2);
+			bufmgr_recover(hw);
 		else
 			bufmgr_h264_remove_unused_frame(p_H264_Dpb, 1);
 	}
 
 	return buffer_available;
+}
+
+static void check_decoded_pic_error(struct vdec_h264_hw_s *hw)
+{
+	unsigned mby_mbx = READ_VREG(MBY_MBX);
+	unsigned mb_total = (hw->seq_info2 >> 8) & 0xffff;
+	unsigned decode_mb_count =
+		(((mby_mbx & 0xff) + 1) *
+		(((mby_mbx >> 8) & 0xff) + 1));
+	if ((error_proc_policy & 0x100) &&
+		decode_mb_count != mb_total)
+		hw->data_flag |= ERROR_FLAG;
+
+	if ((error_proc_policy & 0x200) &&
+		READ_VREG(ERROR_STATUS_REG) != 0)
+		hw->data_flag |= ERROR_FLAG;
+
+	if (hw->data_flag & ERROR_FLAG) {
+		dpb_print(DECODE_ID(hw), 0,
+			"%s: decode error, seq_info2 0x%x, mby_mbx 0x%x, mb_total %d decoded mb_count %d ERROR_STATUS_REG 0x%x\n",
+			__func__,
+			hw->seq_info2,
+			mby_mbx,
+			mb_total,
+			decode_mb_count,
+			READ_VREG(ERROR_STATUS_REG)
+			);
+
+	}
 }
 
 static irqreturn_t vh264_isr(struct vdec_s *vdec)
@@ -2541,9 +2636,10 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 	dec_dpb_status = READ_VREG(DPB_STATUS_REG);
 
 	dpb_print(DECODE_ID(hw), PRINT_FLAG_UCODE_EVT,
-			"%s DPB_STATUS_REG: %x, sb (%x %x %x) bitcnt %x mbx_mby %x\n",
+			"%s DPB_STATUS_REG: 0x%x, ERROR_STATUS_REG 0x%x, sb (0x%x 0x%x 0x%x) bitcnt 0x%x mby_mbx 0x%x\n",
 			__func__,
 			dec_dpb_status,
+			READ_VREG(ERROR_STATUS_REG),
 			READ_VREG(VLD_MEM_VIFIFO_LEVEL),
 			READ_VREG(VLD_MEM_VIFIFO_WP),
 			READ_VREG(VLD_MEM_VIFIFO_RP),
@@ -2670,6 +2766,11 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 			val(p_H264_Dpb->dpb_param.dpb.top_field_pic_order_cnt),
 			val(p_H264_Dpb->dpb_param.dpb.top_field_pic_order_cnt));
 
+		if (hw->reset_bufmgr_flag) {
+			h264_reset_bufmgr(hw);
+			hw->reset_bufmgr_flag = 0;
+		}
+
 		slice_header_process_status =
 			h264_slice_header_process(p_H264_Dpb);
 
@@ -2687,13 +2788,16 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 					(p_H264_Dpb->
 						dpb_param.l.data[SLICE_TYPE]
 						== I_Slice)
-					? I_DATA : OTHER_DATA;
+					? I_FLAG : 0;
 				if ((hw->i_only & 0x2) &&
-					(hw->data_flag != I_DATA)) {
+					(!(hw->data_flag & I_FLAG))) {
 					hw->data_flag =	NULL_FLAG;
 					goto pic_done_proc;
 				}
-
+				if ((p_H264_Dpb->
+					dpb_param.dpb.NAL_info_mmco & 0x1f)
+					== 5)
+					hw->data_flag |= IDR_FLAG;
 				dpb_print(DECODE_ID(hw),
 				PRINT_FLAG_VDEC_STATUS,
 				"==================> frame count %d to skip %d\n",
@@ -2768,16 +2872,26 @@ pic_done_proc:
 					pic->pts64 = 0;
 				}
 			}
+			check_decoded_pic_error(hw);
+
 			store_picture_in_dpb(p_H264_Dpb,
 				p_H264_Dpb->mVideo.dec_picture,
 				hw->data_flag | hw->dec_flag);
-
+			if (hw->data_flag & ERROR_FLAG) {
+				hw->no_error_count = 0;
+				hw->no_error_i_count = 0;
+			} else {
+				hw->no_error_count++;
+				if (hw->data_flag & I_FLAG)
+					hw->no_error_i_count++;
+			}
 			bufmgr_post(p_H264_Dpb);
 			hw->last_dec_picture = p_H264_Dpb->mVideo.dec_picture;
 			p_H264_Dpb->mVideo.dec_picture = NULL;
 			/* dump_dpb(&p_H264_Dpb->mDPB); */
 			hw->has_i_frame = 1;
 			hw->decode_pic_count++;
+			p_H264_Dpb->decode_pic_count = hw->decode_pic_count;
 			if (hw->skip_frame_count > 0) {
 				/*skip n frame after first I */
 				hw->skip_frame_count--;
@@ -2791,8 +2905,7 @@ pic_done_proc:
 			}
 		}
 
-		if ((h264_debug_flag&ONLY_RESET_AT_START) == 0)
-			amvdec_stop();
+		amvdec_stop();
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 			"%s %s decode slice count %d\n",
 			__func__,
@@ -2894,14 +3007,16 @@ empty_proc:
 					READ_VREG(VLD_MEM_VIFIFO_LEVEL));
 				goto send_again;
 			}
-			if ((h264_debug_flag & ONLY_RESET_AT_START) == 0)
-				amvdec_stop();
+			amvdec_stop();
 			dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 				"%s %s\n", __func__,
 				(dec_dpb_status == H264_SEARCH_BUFEMPTY) ?
 				"H264_SEARCH_BUFEMPTY" :
 				(dec_dpb_status == H264_DECODE_BUFEMPTY) ?
-				"H264_DECODE_BUFEMPTY" : "H264_DECODE_TIMEOUT");
+				"H264_DECODE_BUFEMPTY" :
+				(dec_dpb_status == H264_DECODE_TIMEOUT) ?
+				"H264_DECODE_TIMEOUT" :
+				"OTHER");
 			hw->dec_result = DEC_RESULT_DONE;
 
 			if (dec_dpb_status == H264_SEARCH_BUFEMPTY)
@@ -2927,8 +3042,13 @@ send_again:
 		if (input_frame_based(vdec)) {
 			dpb_print(DECODE_ID(hw),
 			PRINT_FLAG_VDEC_STATUS,
-			"%s H264_DATA_REQUEST\n", __func__);
+			"%s H264_DATA_REQUEST (%d)\n",
+			__func__, hw->get_data_count);
 			hw->dec_result = DEC_RESULT_GET_DATA;
+			hw->get_data_start_time = jiffies;
+			hw->get_data_count++;
+			if (hw->get_data_count >= frame_max_data_packet)
+				goto empty_proc;
 			vdec_schedule_work(&hw->work);
 		} else
 			goto empty_proc;
@@ -2941,7 +3061,7 @@ send_again:
 			return IRQ_HANDLED;
 		}
 
-	if (READ_VREG(AV_SCRATCH_G)) {
+	if (READ_VREG(AV_SCRATCH_G) == 1) {
 		hw->sei_itu_data_len =
 			(READ_VREG(H264_AUX_DATA_SIZE) >> 16) << 4;
 		if (hw->sei_itu_data_len != 0) {
@@ -3003,6 +3123,9 @@ send_again:
 					"\n");
 		}
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx ==
+			hw->decode_pic_count) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_VREG(DEBUG_REG2)))
 			hw->ucode_pause_pos = udebug_pause_pos;
@@ -3017,6 +3140,9 @@ send_again:
 			"dbg%x: %x\n", debug_tag,
 			READ_VREG(DEBUG_REG2));
 		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+			(udebug_pause_decode_idx == 0 ||
+			udebug_pause_decode_idx ==
+			hw->decode_pic_count) &&
 			(udebug_pause_val == 0 ||
 			udebug_pause_val == READ_VREG(DEBUG_REG2)))
 			hw->ucode_pause_pos = udebug_pause_pos;
@@ -3033,8 +3159,7 @@ send_again:
 static void timeout_process(struct vdec_h264_hw_s *hw)
 {
 	hw->timeout_num++;
-	if ((h264_debug_flag & ONLY_RESET_AT_START) == 0)
-		amvdec_stop();
+	amvdec_stop();
 	dpb_print(DECODE_ID(hw),
 		PRINT_FLAG_ERROR, "%s decoder timeout\n", __func__);
 	hw->dec_result = DEC_RESULT_DONE;
@@ -3820,7 +3945,14 @@ static void vh264_work(struct work_struct *work)
 			vdec_vframe_dirty(vdec, hw->chunk);
 			vdec_clean_input(vdec);
 		}
-
+		if ((hw->dec_result == DEC_RESULT_GET_DATA_RETRY) &&
+			((1000 * (jiffies - hw->get_data_start_time) / HZ)
+			> get_data_timeout_val)) {
+			dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
+				"%s DEC_RESULT_GET_DATA_RETRY timeout\n",
+				__func__);
+			goto result_done;
+		}
 		if (is_buffer_available(vdec)) {
 			int r;
 			int decode_size;
@@ -3880,6 +4012,7 @@ static void vh264_work(struct work_struct *work)
 	} else if (hw->dec_result == DEC_RESULT_DONE) {
 		/* if (!hw->ctx_valid)
 			hw->ctx_valid = 1; */
+result_done:
 		decode_frame_count[DECODE_ID(hw)]++;
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 			"%s dec_result %d %x %x %x\n",
@@ -4013,6 +4146,7 @@ static void run(struct vdec_s *vdec,
 	input_empty[DECODE_ID(hw)] = 0;
 
 	hw->dec_result = DEC_RESULT_NONE;
+	hw->get_data_count = 0;
 #if 0
 	pr_info("VLD_MEM_VIFIFO_LEVEL = 0x%x, rp = 0x%x, wp = 0x%x\n",
 		READ_VREG(VLD_MEM_VIFIFO_LEVEL),
@@ -4069,69 +4203,53 @@ static void run(struct vdec_s *vdec,
 
 	start_process_time(hw);
 
-	if (((h264_debug_flag & ONLY_RESET_AT_START) == 0) ||
-		(hw->init_flag == 0)) {
-		if (amvdec_vdec_loadmc_ex(vdec, "vmh264_mc") < 0) {
-			amvdec_enable_flag = false;
-			amvdec_disable();
-			pr_info("%s: Error amvdec_vdec_loadmc fail\n",
-				__func__);
-			return;
-		}
-
-		if (vh264_hw_ctx_restore(hw) < 0) {
-			vdec_schedule_work(&hw->work);
-			return;
-		}
-		if (input_frame_based(vdec)) {
-			int decode_size = hw->chunk->size +
-				(hw->chunk->offset & (VDEC_FIFO_ALIGN - 1));
-			WRITE_VREG(H264_DECODE_INFO, (1<<13));
-			WRITE_VREG(H264_DECODE_SIZE, decode_size);
-			WRITE_VREG(VIFF_BIT_CNT, decode_size * 8);
-		} else {
-			if (size <= 0)
-				size = 0x7fffffff; /*error happen*/
-			WRITE_VREG(H264_DECODE_INFO, (1<<13));
-			WRITE_VREG(H264_DECODE_SIZE, size);
-			WRITE_VREG(VIFF_BIT_CNT, size * 8);
-		}
-		config_aux_buf(hw);
-		config_decode_mode(hw);
-		vdec_enable_input(vdec);
-		if (udebug_flag)
-			WRITE_VREG(AV_SCRATCH_K, udebug_flag);
-		add_timer(&hw->check_timer);
-
-		amvdec_start();
-
-		/* if (hw->init_flag) { */
-			WRITE_VREG(DPB_STATUS_REG, H264_ACTION_SEARCH_HEAD);
-		/* } */
-
-		hw->init_flag = 1;
-	} else {
-		WRITE_VREG(H264_DECODE_INFO, (1 << 13));
-		vdec_enable_input(vdec);
-
-		WRITE_VREG(DPB_STATUS_REG, H264_ACTION_SEARCH_HEAD);
+	if (amvdec_vdec_loadmc_ex(vdec, "vmh264_mc") < 0) {
+		amvdec_enable_flag = false;
+		amvdec_disable();
+		pr_info("%s: Error amvdec_vdec_loadmc fail\n",
+			__func__);
+		return;
 	}
+
+	if (vh264_hw_ctx_restore(hw) < 0) {
+		vdec_schedule_work(&hw->work);
+		return;
+	}
+	if (input_frame_based(vdec)) {
+		int decode_size = hw->chunk->size +
+			(hw->chunk->offset & (VDEC_FIFO_ALIGN - 1));
+		WRITE_VREG(H264_DECODE_INFO, (1<<13));
+		WRITE_VREG(H264_DECODE_SIZE, decode_size);
+		WRITE_VREG(VIFF_BIT_CNT, decode_size * 8);
+	} else {
+		if (size <= 0)
+			size = 0x7fffffff; /*error happen*/
+		WRITE_VREG(H264_DECODE_INFO, (1<<13));
+		WRITE_VREG(H264_DECODE_SIZE, size);
+		WRITE_VREG(VIFF_BIT_CNT, size * 8);
+	}
+	config_aux_buf(hw);
+	config_decode_mode(hw);
+	vdec_enable_input(vdec);
+	WRITE_VREG(NAL_SEARCH_CTL, 0);
+	if (enable_itu_t35)
+		WRITE_VREG(NAL_SEARCH_CTL, READ_VREG(NAL_SEARCH_CTL) | 0x1);
+	if (udebug_flag)
+		WRITE_VREG(AV_SCRATCH_K, udebug_flag);
+	add_timer(&hw->check_timer);
+
+	amvdec_start();
+
+	/* if (hw->init_flag) { */
+		WRITE_VREG(DPB_STATUS_REG, H264_ACTION_SEARCH_HEAD);
+	/* } */
+
+	hw->init_flag = 1;
 }
 
 static void reset(struct vdec_s *vdec)
 {
 	pr_info("ammvdec_h264: reset.\n");
-
-#if 0
-	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)vdec->private;
-
-	hw->init_flag = 0;
-	hw->config_bufmgr_done = 0;
-
-	vh264_local_init(hw);
-
-	dpb_init_global(&hw->dpb);
-#endif
 }
 
 static void h264_reconfig(struct vdec_h264_hw_s *hw)
@@ -4172,6 +4290,52 @@ static void h264_reconfig(struct vdec_h264_hw_s *hw)
 	hw->has_i_frame = 0;
 	hw->config_bufmgr_done = 0;
 
+}
+
+static void h264_reset_bufmgr(struct vdec_h264_hw_s *hw)
+{
+	int i;
+	struct h264_dpb_stru *p_H264_Dpb = &hw->dpb;
+	int actual_dpb_size, max_reference_size;
+	int reorder_pic_num;
+	unsigned int colocated_buf_size;
+	unsigned int colocated_mv_addr_start;
+	unsigned int colocated_mv_addr_end;
+	dpb_print(DECODE_ID(hw), 0,
+	"%s\n", __func__);
+	/* after calling flush_dpb() and bufmgr_h264_remove_unused_frame(),
+		all buffers are in display queue (used == 2),
+			or free (used == 0)
+	*/
+	flush_dpb(p_H264_Dpb);
+	bufmgr_h264_remove_unused_frame(p_H264_Dpb, 0);
+
+	for (i = 0; i < BUFSPEC_POOL_SIZE; i++) {
+		/*make sure buffers not put back to bufmgr when
+			vf_put is called*/
+		if (hw->buffer_spec[i].used == 2)
+			hw->buffer_spec[i].used = 5;
+	}
+
+	actual_dpb_size = p_H264_Dpb->mDPB.size;
+	max_reference_size = p_H264_Dpb->max_reference_size;
+	reorder_pic_num = p_H264_Dpb->reorder_pic_num;
+
+	colocated_buf_size = p_H264_Dpb->colocated_buf_size;
+	colocated_mv_addr_start = p_H264_Dpb->colocated_mv_addr_start;
+	colocated_mv_addr_end  = p_H264_Dpb->colocated_mv_addr_end;
+
+	dpb_init_global(&hw->dpb,
+		DECODE_ID(hw), 0, 0);
+	p_H264_Dpb->mDPB.size = actual_dpb_size;
+	p_H264_Dpb->max_reference_size = max_reference_size;
+	p_H264_Dpb->reorder_pic_num = reorder_pic_num;
+
+	p_H264_Dpb->colocated_buf_size = colocated_buf_size;
+	p_H264_Dpb->colocated_mv_addr_start = colocated_mv_addr_start;
+	p_H264_Dpb->colocated_mv_addr_end  = colocated_mv_addr_end;
+
+	p_H264_Dpb->fast_output_enable = fast_output_enable;
 }
 
 int ammvdec_h264_mmu_init(struct vdec_h264_hw_s *hw)
@@ -4450,6 +4614,12 @@ MODULE_PARM_DESC(fixed_frame_rate_mode, "\namvdec_h264 fixed_frame_rate_mode\n")
 module_param(decode_timeout_val, uint, 0664);
 MODULE_PARM_DESC(decode_timeout_val, "\n amvdec_h264 decode_timeout_val\n");
 
+module_param(get_data_timeout_val, uint, 0664);
+MODULE_PARM_DESC(get_data_timeout_val, "\n amvdec_h264 get_data_timeout_val\n");
+
+module_param(frame_max_data_packet, uint, 0664);
+MODULE_PARM_DESC(frame_max_data_packet, "\n amvdec_h264 frame_max_data_packet\n");
+
 module_param(reorder_dpb_size_margin, uint, 0664);
 MODULE_PARM_DESC(reorder_dpb_size_margin, "\n ammvdec_h264 reorder_dpb_size_margin\n");
 
@@ -4504,8 +4674,14 @@ MODULE_PARM_DESC(dolby_meta_with_el, "\n dolby_meta_with_el\n");
 
 #endif
 
+module_param(fast_output_enable, uint, 0664);
+MODULE_PARM_DESC(fast_output_enable, "\n amvdec_h264 fast_output_enable\n");
+
 module_param(error_proc_policy, uint, 0664);
 MODULE_PARM_DESC(error_proc_policy, "\n amvdec_h264 error_proc_policy\n");
+
+module_param(error_skip_count, uint, 0664);
+MODULE_PARM_DESC(error_skip_count, "\n amvdec_h264 error_skip_count\n");
 
 module_param(force_sliding_margin, uint, 0664);
 MODULE_PARM_DESC(force_sliding_margin, "\n amvdec_h264 force_sliding_margin\n");
@@ -4525,8 +4701,14 @@ MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
 module_param(udebug_pause_val, uint, 0664);
 MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");
 
+module_param(udebug_pause_decode_idx, uint, 0664);
+MODULE_PARM_DESC(udebug_pause_decode_idx, "\n udebug_pause_decode_idx\n");
+
 module_param(max_alloc_buf_count, uint, 0664);
 MODULE_PARM_DESC(max_alloc_buf_count, "\n amvdec_h264 max_alloc_buf_count\n");
+
+module_param(enable_itu_t35, uint, 0664);
+MODULE_PARM_DESC(enable_itu_t35, "\n amvdec_h264 enable_itu_t35\n");
 
 /*
 module_param(trigger_task, uint, 0664);
