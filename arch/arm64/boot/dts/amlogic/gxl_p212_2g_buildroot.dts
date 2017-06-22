@@ -24,10 +24,12 @@
 #include <dt-bindings/reset/aml_gxl.h>
 #include "mesongxl.dtsi"
 #include "partition_mbox.dtsi"
+#include "meson_drm.dtsi"
+
 / {
 	model = "Amlogic";
+	amlogic-dt-id = "gxl_p212_2g";
 	compatible = "amlogic, Gxbb";
-	amlogic-dt-id = "gxl_p212_1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -39,9 +41,10 @@
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
 	};
+
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x100000 0x0 0x3ff00000>;
+		linux,usable-memory = <0x0 0x100000 0x0 0x7ff00000>;
 	};
 
 	reserved-memory {
@@ -67,7 +70,7 @@
 		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			reg = <0x0 0x3e000000 0x0 0x2000000>;
+			reg = <0x0 0x7e000000 0x0 0x2000000>;
 			no-map;
 		};
 
@@ -78,9 +81,14 @@
 			//no-map;
 		};
 
+		chunk_reserved:linux,chunk-reserve {
+			compatible = "amlogic, chunk-reserve";
+			size = <0x0 0x4000000>;
+		};
+
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x3000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -109,7 +117,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xc000000>;
+			size = <0x0 0x15000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -142,6 +150,12 @@
 		led_active_low = <1>;
 	};
 
+	chunk-reserve {
+		compatible = "amlogic, chunk-reserve";
+		memory-region = <&chunk_reserved>;
+		status = "okay";
+	};
+
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";
@@ -159,7 +173,7 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-		logo_addr = "0x3f851000";
+		logo_addr = "0x7f851000";
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
@@ -204,25 +218,25 @@
 			dev_name = "codec_mm";
 			status = "okay";
 	};
-			ethmac: ethernet@0xc9410000 {
-						compatible = "amlogic, gxbb-rmii-dwmac";
-						reg = <0x0 0xc9410000 0x0 0x10000
-						0x0 0xc8834540 0x0 0x8
-						0x0 0xc8834558 0x0 0xc>;
+  ethmac: ethernet@0xc9410000 {
+			compatible = "amlogic, gxbb-rmii-dwmac";
+			reg = <0x0 0xc9410000 0x0 0x10000
+			0x0 0xc8834540 0x0 0x8
+			0x0 0xc8834558 0x0 0xc>;
 			interrupts = <0 8 1
 						  0 9 1>;
-						phy-mode= "rmii";
-						pinctrl-names = "internal_eth_pins";
-						pinctrl-0 = <&internal_eth_pins>;
-						mc_val = <0x1800>;
-						resets = <&clock GCLK_IDX_ETHERNET>;
-						reset-names = "ethpower";
+			phy-mode= "rmii";
+			pinctrl-names = "internal_eth_pins";
+			pinctrl-0 = <&internal_eth_pins>;
+			mc_val = <0x1800>;
+			resets = <&clock GCLK_IDX_ETHERNET>;
+			reset-names = "ethpower";
 			interrupt-names = "macirq",
 							  "phyirq";
-						clocks = <&clock CLK_81>;
-						clock-names = "ethclk81";
-						internal_phy=<1>;
-						wol=<0>;
+			clocks = <&clock CLK_81>;
+			clock-names = "ethclk81";
+			internal_phy=<1>;
+			wol=<0>;
     };
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
@@ -536,6 +550,70 @@
 		normal: normal{
 			enable_pad ="ce0","ce1","ce2","ce3";
 			busy_pad = "rb0";
+		};
+	};
+	mtd_nand{
+		compatible = "amlogic, aml_mtd_nand";
+		dev_name = "mtdnand";
+		status = "disabled";
+		reg = <0x0 0xd0074800 0x0 0x200>;
+		interrupts = <	0 34 1 >;
+		pinctrl-names = "nand_rb_mod","nand_norb_mod", "nand_cs_pins_only";
+		pinctrl-0 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
+		pinctrl-1 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
+		pinctrl-2 = <&nand_cs_pins>;
+		device_id = <0>;
+		plat-names = "bootloader","nandnormal";
+		plat-num = <2>;
+		plat-part-0 = <&bootloader>;
+		plat-part-1 = <&nandnormal>;
+		bootloader: bootloader{
+			enable_pad ="ce0";
+			busy_pad = "rb0";
+			timming_mode = "mode5";
+			bch_mode = "bch60_1k";
+			t_rea = <20>;
+			t_rhoh = <15>;
+			chip_num = <1>;
+			part_num = <0>;
+			rb_detect = <1>;
+		};
+		nandnormal: nandnormal{
+			enable_pad ="ce0","ce1";
+			busy_pad = "rb0","rb1";
+			timming_mode = "mode5";
+			bch_mode = "bch60_1k";
+			plane_mode = "twoplane";
+			t_rea = <20>;
+			t_rhoh = <15>;
+			chip_num = <2>;
+			part_num = <5>;
+			partition = <&nand_partitions>;
+			rb_detect = <1>;
+		};
+		nand_partitions:nand_partition{
+			logo{
+				offset=<0x0 0x300000>;
+				size=<0x0 0x800000>;
+			};
+			/*
+			recovery{
+				offset=<0x0 0xB00000>;
+				size=<0x0 0xA00000>;
+			};
+			*/
+			boot{
+				offset=<0x0 0xB00000>;
+				size=<0x0 0x1C00000>;
+			};
+			upgrade{
+				offset=<0x0 0x2700000>;
+				size=<0x0 0x8C00000>;
+			};
+			data{
+				offset=<0xffffffff 0xffffffff>;
+				size=<0x0 0x0>;
+			};
 		};
 	};
 	aml_nftl{
@@ -1114,4 +1192,8 @@
 };
 &defendkey {
 	status = "okay";
+};
+
+&chunk_reserved {
+	status = "disable";
 };

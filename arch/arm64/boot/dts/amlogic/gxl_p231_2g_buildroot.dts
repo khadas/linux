@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/gxl_p212.dts
+ * arch/arm64/boot/dts/amlogic/gxl_p231_2g.dts
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -24,11 +24,11 @@
 #include <dt-bindings/reset/aml_gxl.h>
 #include "mesongxl.dtsi"
 #include "partition_mbox.dtsi"
-
+#include "meson_drm.dtsi"
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "gxl_p212_2g";
 	compatible = "amlogic, Gxbb";
+	amlogic-dt-id = "gxl_p231_2g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -40,7 +40,6 @@
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
 	};
-
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x100000 0x0 0x7ff00000>;
@@ -87,7 +86,7 @@
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x3000000>;
+			size = <0x0 0x2000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -116,7 +115,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x15000000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -235,7 +234,7 @@
 			clocks = <&clock CLK_81>;
 			clock-names = "ethclk81";
 			internal_phy=<1>;
-			wol=<0>;
+						wol=<0>;
     };
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
@@ -527,7 +526,6 @@
 				"MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
 				f_min = <400000>;
 				f_max = <200000000>;
-				vol_switch_delay = <10>;
 				max_req_size = <0x20000>;          /**128KB*/
 				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
 		};
@@ -549,70 +547,6 @@
 		normal: normal{
 			enable_pad ="ce0","ce1","ce2","ce3";
 			busy_pad = "rb0";
-		};
-	};
-	mtd_nand{
-		compatible = "amlogic, aml_mtd_nand";
-		dev_name = "mtdnand";
-		status = "disabled";
-		reg = <0x0 0xd0074800 0x0 0x200>;
-		interrupts = <	0 34 1 >;
-		pinctrl-names = "nand_rb_mod","nand_norb_mod", "nand_cs_pins_only";
-		pinctrl-0 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
-		pinctrl-1 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
-		pinctrl-2 = <&nand_cs_pins>;
-		device_id = <0>;
-		plat-names = "bootloader","nandnormal";
-		plat-num = <2>;
-		plat-part-0 = <&bootloader>;
-		plat-part-1 = <&nandnormal>;
-		bootloader: bootloader{
-			enable_pad ="ce0";
-			busy_pad = "rb0";
-			timming_mode = "mode5";
-			bch_mode = "bch60_1k";
-			t_rea = <20>;
-			t_rhoh = <15>;
-			chip_num = <1>;
-			part_num = <0>;
-			rb_detect = <1>;
-		};
-		nandnormal: nandnormal{
-			enable_pad ="ce0","ce1";
-			busy_pad = "rb0","rb1";
-			timming_mode = "mode5";
-			bch_mode = "bch60_1k";
-			plane_mode = "twoplane";
-			t_rea = <20>;
-			t_rhoh = <15>;
-			chip_num = <2>;
-			part_num = <5>;
-			partition = <&nand_partitions>;
-			rb_detect = <1>;
-		};
-		nand_partitions:nand_partition{
-			logo{
-				offset=<0x0 0x300000>;
-				size=<0x0 0x800000>;
-			};
-			/*
-			recovery{
-				offset=<0x0 0xB00000>;
-				size=<0x0 0xA00000>;
-			};
-			*/
-			boot{
-				offset=<0x0 0xB00000>;
-				size=<0x0 0x1C00000>;
-			};
-			upgrade{
-				offset=<0x0 0x2700000>;
-				size=<0x0 0x8C00000>;
-			};
-			data{
-				offset=<0xffffffff 0xffffffff>;
-				size=<0x0 0x0>;
-			};
 		};
 	};
 	aml_nftl{
@@ -910,7 +844,7 @@
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		usb-fifo = <728>;
 		cpu-type = "gxl";
-		controller-type = <1>; /** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+		controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
 		phy-reg = <0xd0078000>;
 		phy-reg-size = <0xa0>;
 		resets = <&clock GCLK_IDX_USB_GENERAL
@@ -1025,8 +959,8 @@
 
 		mute_gpio-gpios = <&gpio GPIOH_5 0>;
 		mute_inv;
-		sleep_time = <300>;
 		hp_disable;
+		sleep_time = <100>;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
 		pinctrl-0 = <&audio_pins>;

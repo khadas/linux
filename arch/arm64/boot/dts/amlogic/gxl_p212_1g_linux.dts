@@ -1,6 +1,0 @@
-#include "gxl_p212_1g.dtsi"
-#include "meson_drm.dtsi"
-
-&chunk_reserved {
-	status = "disable";
-};
