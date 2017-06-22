@@ -2887,7 +2887,7 @@ static void amvecm_pq_enable(int enable)
 			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL, 1, 23, 1);
 		}
 
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+		amvecm_wb_enable(true);
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
 
@@ -2933,7 +2933,7 @@ static void amvecm_pq_enable(int enable)
 			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL, 0, 23, 1);
 		}
 
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+		amvecm_wb_enable(false);
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
 
@@ -3546,15 +3546,17 @@ static ssize_t amvecm_reg_store(struct class *cla,
 
 
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-void init_sharpness(void)
+void init_pq_setting(void)
 {
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
-	/*WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 1,0,1);*/
-	WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE, 0, 1, 1);
-
 	WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
-
+	/*default dnlp off*/
+	WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE, 0, 1, 1);
+	WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE, 0, 1, 1);
+	WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+				0, DNLP_EN_BIT, DNLP_EN_WID);
+	/*end*/
 	if (is_meson_txl_cpu()) {
 		WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP, 2, 16, 2);
 
@@ -3849,8 +3851,9 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		pr_info("register aml_lcd_gamma_notifier failed\n");
 #endif
 	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
-		init_sharpness();
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()
+		|| is_meson_txlx_cpu())
+		init_pq_setting();
 	/* #endif */
 	vpp_get_hist_en();
 

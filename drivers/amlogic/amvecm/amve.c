@@ -3594,22 +3594,41 @@ static void ve_dnlp_load_reg(void)
 
 static void ve_dnlp_load_def_reg(void)
 {
-	WRITE_VPP_REG(VPP_DNLP_CTRL_00, ve_dnlp_reg_def[0]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_01, ve_dnlp_reg_def[1]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_02, ve_dnlp_reg_def[2]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_03, ve_dnlp_reg_def[3]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_04, ve_dnlp_reg_def[4]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_05, ve_dnlp_reg_def[5]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_06, ve_dnlp_reg_def[6]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_07, ve_dnlp_reg_def[7]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_08, ve_dnlp_reg_def[8]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_09, ve_dnlp_reg_def[9]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_10, ve_dnlp_reg_def[10]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_11, ve_dnlp_reg_def[11]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_12, ve_dnlp_reg_def[12]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_13, ve_dnlp_reg_def[13]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_14, ve_dnlp_reg_def[14]);
-	WRITE_VPP_REG(VPP_DNLP_CTRL_15, ve_dnlp_reg_def[15]);
+	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
+		WRITE_VPP_REG(SRSHARP0_DNLP_00, ve_dnlp_reg[0]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_01, ve_dnlp_reg[1]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_02, ve_dnlp_reg[2]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_03, ve_dnlp_reg[3]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_04, ve_dnlp_reg[4]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_05, ve_dnlp_reg[5]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_06, ve_dnlp_reg[6]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_07, ve_dnlp_reg[7]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_08, ve_dnlp_reg[8]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_09, ve_dnlp_reg[9]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_10, ve_dnlp_reg[10]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_11, ve_dnlp_reg[11]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_12, ve_dnlp_reg[12]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_13, ve_dnlp_reg[13]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_14, ve_dnlp_reg[14]);
+		WRITE_VPP_REG(SRSHARP0_DNLP_15, ve_dnlp_reg[15]);
+	} else {
+		WRITE_VPP_REG(VPP_DNLP_CTRL_00, ve_dnlp_reg_def[0]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_01, ve_dnlp_reg_def[1]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_02, ve_dnlp_reg_def[2]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_03, ve_dnlp_reg_def[3]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_04, ve_dnlp_reg_def[4]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_05, ve_dnlp_reg_def[5]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_06, ve_dnlp_reg_def[6]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_07, ve_dnlp_reg_def[7]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_08, ve_dnlp_reg_def[8]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_09, ve_dnlp_reg_def[9]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_10, ve_dnlp_reg_def[10]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_11, ve_dnlp_reg_def[11]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_12, ve_dnlp_reg_def[12]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_13, ve_dnlp_reg_def[13]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_14, ve_dnlp_reg_def[14]);
+		WRITE_VPP_REG(VPP_DNLP_CTRL_15, ve_dnlp_reg_def[15]);
+	}
 }
 
 void ve_on_vs(struct vframe_s *vf)
