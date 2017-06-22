@@ -317,6 +317,7 @@ struct vf_pool *vf_pool_alloc(int size)
 	spin_lock_init(&p->wt_lock);
 	spin_lock_init(&p->fz_lock);
 	spin_lock_init(&p->tmp_lock);
+	spin_lock_init(&p->log_lock);
 	spin_lock_init(&p->dv_lock);
 	/* initialize list head */
 	INIT_LIST_HEAD(&p->wr_list);
@@ -414,8 +415,10 @@ int vf_pool_init(struct vf_pool *p, int size)
 	p->disp_index_last = 0;
 	p->disp_index_cur = 0;
 #ifdef VF_LOG_EN
+	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log_init(p);
 	vf_log(p, VF_OPERATION_INIT, log_state);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 #endif
 	return 0;
 }
@@ -424,8 +427,11 @@ int vf_pool_init(struct vf_pool *p, int size)
 /* free the vframe pool of the vfp */
 void vf_pool_free(struct vf_pool *p)
 {
+	unsigned long flags;
 	if (p) {
+		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_FREE, true);
+		spin_unlock_irqrestore(&p->log_lock, flags);
 		/* if (p->master) */
 		kfree(p->master);
 		/* if (p->slave) */
@@ -509,10 +515,12 @@ struct vf_entry *provider_vf_peek(struct vf_pool *p)
 	spin_lock_irqsave(&p->wr_lock, flags);
 	vfe = vf_pool_peek(&p->wr_list);
 	spin_unlock_irqrestore(&p->wr_lock, flags);
+	spin_lock_irqsave(&p->log_lock, flags);
 	if (!vfe)
 		vf_log(p, VF_OPERATION_FPEEK, false);
 	else
 		vf_log(p, VF_OPERATION_FPEEK, true);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 	return vfe;
 }
 
@@ -526,12 +534,16 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 	vfe = vf_pool_get(&p->wr_list);
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 	if (!vfe) {
+		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_FGET, false);
+		spin_unlock_irqrestore(&p->log_lock, flags);
 		return NULL;
 	}
+	spin_lock_irqsave(&p->log_lock, flags);
 	p->wr_list_size--;
 	vfe->status = VF_STATUS_WM;
 	vf_log(p, VF_OPERATION_FGET, true);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 	return vfe;
 }
 
@@ -544,7 +556,9 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 	vf_pool_put(vfe, &p->rd_list);
 	p->rd_list_size++;
 	spin_unlock_irqrestore(&p->rd_lock, flags);
+	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_FPUT, true);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 }
 
 /* receiver peek to read */
@@ -563,10 +577,12 @@ struct vf_entry *receiver_vf_peek(struct vf_pool *p)
 	spin_lock_irqsave(&p->rd_lock, flags);
 	vfe = vf_pool_peek(&p->rd_list);
 	spin_unlock_irqrestore(&p->rd_lock, flags);
+	spin_lock_irqsave(&p->log_lock, flags);
 	if (!vfe)
 		vf_log(p, VF_OPERATION_BPEEK, false);
 	else
 		vf_log(p, VF_OPERATION_BPEEK, true);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 	if (!vfe)
 		return NULL;
 	return vfe;
@@ -592,7 +608,9 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	spin_lock_irqsave(&p->rd_lock, flags);
 	if (list_empty(&p->rd_list)) {
 		spin_unlock_irqrestore(&p->rd_lock, flags);
+		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_BGET, false);
+		spin_unlock_irqrestore(&p->log_lock, flags);
 		return NULL;
 	}
 
@@ -600,8 +618,9 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	p->rd_list_size--;
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 	vfe->status = VF_STATUS_RM;
-
+	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_BGET, true);
+	spin_unlock_irqrestore(&p->log_lock, flags);
 	return vfe;
 }
 /*check vf point,0:nornal;1:bad*/
@@ -630,7 +649,9 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		return;
 	master = vf_get_master(p, vf->index);
 	if (master == NULL) {
+		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_BPUT, false);
+		spin_unlock_irqrestore(&p->log_lock, flags);
 		return;
 	}
 	/*keep the frozen frame in rd list&recycle the
@@ -654,7 +675,9 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
 		spin_unlock_irqrestore(&p->wr_lock, flags);
+		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_BPUT, true);
+		spin_unlock_irqrestore(&p->log_lock, flags);
 	} else {
 		spin_lock_irqsave(&p->wt_lock, flags);
 		list_for_each_entry_safe(pos, tmp, &p->wt_list, list) {
@@ -675,7 +698,9 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		slave = vf_get_slave(p, vf->index);
 		if (slave == NULL) {
 			spin_unlock_irqrestore(&p->wt_lock, flags);
+			spin_lock_irqsave(&p->log_lock, flags);
 			vf_log(p, VF_OPERATION_BPUT, false);
+			spin_unlock_irqrestore(&p->log_lock, flags);
 			return;
 		}
 		/* if found associated entry in wait list */
@@ -691,7 +716,9 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 			p->wr_list_size++;
 			spin_unlock_irqrestore(&p->wr_lock, flags);
 			slave->status = VF_STATUS_SL;
+			spin_lock_irqsave(&p->log_lock, flags);
 			vf_log(p, VF_OPERATION_BPUT, true);
+			spin_unlock_irqrestore(&p->log_lock, flags);
 		} else {
 		/* if not found associated entry in wait list */
 
@@ -711,7 +738,9 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 				list_add(&master->list, &p->wt_list);
 			}
 			spin_unlock_irqrestore(&p->wt_lock, flags);
+			spin_lock_irqsave(&p->log_lock, flags);
 			vf_log(p, VF_OPERATION_BPUT, true);
+			spin_unlock_irqrestore(&p->log_lock, flags);
 		}
 	}
 	atomic_dec(&p->buffer_cnt);

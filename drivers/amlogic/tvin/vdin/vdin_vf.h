@@ -131,7 +131,7 @@ struct vf_pool {
 	unsigned int	 tmp_list_size;
 	struct list_head tmp_list;
 	spinlock_t tmp_lock;
-	spinlock_t lock;
+	spinlock_t log_lock;
 	spinlock_t dv_lock;/*dolby vision lock*/
 #ifdef VF_LOG_EN
 	struct vf_log_s log;
