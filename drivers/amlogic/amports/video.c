@@ -6915,11 +6915,13 @@ static u32 eight2ten(u32 yuv)
 	int y = (yuv >> 16) & 0xff;
 	int cb = (yuv >> 8) & 0xff;
 	int cr = yuv & 0xff;
+	u32 data32;
 
 	/* txlx need check vd1 path bit width by s2u registers */
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
-		if ((READ_VCBUS_REG(0x1d94) == 0x00002000) ||
-			(READ_VCBUS_REG(0x1d94) == 0x00000800))
+		data32 = READ_VCBUS_REG(0x1d94) & 0xffff;
+		if ((data32 == 0x2000) ||
+			(data32 == 0x800))
 			return  ((y << 20)<<2) | ((cb << 10)<<2) | (cr<<2);
 		else
 			return  (y << 20) | (cb << 10) | cr;
