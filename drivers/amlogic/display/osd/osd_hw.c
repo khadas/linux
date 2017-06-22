@@ -3335,7 +3335,7 @@ static void osd1_2x_scale_update_geometry(void)
 static void osd1_basic_update_disp_geometry(void)
 {
 	u32 data32;
-
+	u32 buffer_w, buffer_h;
 	data32 = (osd_hw.dispdata[OSD1].x_start & 0xfff)
 		| (osd_hw.dispdata[OSD1].x_end & 0xfff) << 16;
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W3 , data32);
@@ -3359,6 +3359,10 @@ static void osd1_basic_update_disp_geometry(void)
 	/* enable osd 2x scale */
 	if (osd_hw.scale[OSD1].h_enable || osd_hw.scale[OSD1].v_enable) {
 		osd1_2x_scale_update_geometry();
+		data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD1_BLK0_CFG_W1);
+		buffer_w = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
+		data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD1_BLK0_CFG_W2);
+		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	} else if (osd_hw.free_scale_enable[OSD1]
 		   && (osd_hw.free_src_data[OSD1].x_end > 0)
 		   && (osd_hw.free_src_data[OSD1].y_end > 0)) {
@@ -3366,6 +3370,7 @@ static void osd1_basic_update_disp_geometry(void)
 		data32 = (osd_hw.free_src_data[OSD1].x_start & 0x1fff) |
 			 (osd_hw.free_src_data[OSD1].x_end & 0x1fff) << 16;
 		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W1, data32);
+		buffer_w = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 		if (osd_hw.osd_afbcd[OSD1].enable) {
 			data32 =
 				(osd_hw.free_src_data[OSD1].x_end & 0x1fff) |
@@ -3392,11 +3397,13 @@ static void osd1_basic_update_disp_geometry(void)
 			| ((osd_hw.free_src_data[OSD1].y_end
 			+ osd_hw.pandata[OSD1].y_start) & 0x1fff) << 16;
 		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W2, data32);
+		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	} else {
 		/* normal mode */
 		data32 = (osd_hw.pandata[OSD1].x_start & 0x1fff)
 			| (osd_hw.pandata[OSD1].x_end & 0x1fff) << 16;
 		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W1, data32);
+		buffer_w = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 		if (osd_hw.osd_afbcd[OSD1].enable) {
 			u32 virtual_y_start, virtual_y_end;
 			data32 = (osd_hw.pandata[OSD1].x_end & 0x1fff)
@@ -3422,8 +3429,17 @@ static void osd1_basic_update_disp_geometry(void)
 		data32 = (osd_hw.pandata[OSD1].y_start & 0x1fff)
 			| (osd_hw.pandata[OSD1].y_end & 0x1fff) << 16;
 		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W2, data32);
+		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	}
-
+	if (is_meson_txlx_cpu()) {
+		VSYNCOSD_WR_MPEG_REG(
+			DOLBY_CORE2A_SWAP_CTRL1,
+			((buffer_w + 0x40) << 16)
+			| (buffer_h + 0x80 + 0));
+		VSYNCOSD_WR_MPEG_REG(
+			DOLBY_CORE2A_SWAP_CTRL2,
+			(buffer_w << 16) | (buffer_h + 0));
+	}
 	if (osd_hw.osd_afbcd[OSD1].enable &&
 		!osd_afbc_dec_enable &&
 		osd_hw.osd_afbcd[OSD1].phy_addr != 0) {
