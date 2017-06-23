@@ -717,6 +717,26 @@ static inline bool is_poll_message(unsigned char header)
 	return initiator == follower;
 }
 
+static inline bool is_feature_abort_msg(const unsigned char *msg, int len)
+{
+	if (!msg || len < 2)
+		return false;
+	if (msg[1] == CEC_OC_FEATURE_ABORT)
+		return true;
+	return false;
+}
+
+static bool need_nack_repeat_msg(const unsigned char *msg, int len, int t)
+{
+	if (len == last_cec_msg->len &&
+	    (is_poll_message(msg[0]) || is_feature_abort_msg(msg, len)) &&
+	    last_cec_msg->last_result == CEC_FAIL_NACK &&
+	    jiffies - last_cec_msg->last_jiffies < t) {
+		return true;
+	}
+	return false;
+}
+
 static void cec_clear_logical_addr(void)
 {
 	if (ee_cec) {
@@ -981,9 +1001,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	 * waveform seen on CEC bus. And did not pass CTS
 	 * specification of 9.3
 	 */
-	if (!ee_cec && len == last_cec_msg->len &&
-	    last_cec_msg->last_result == CEC_FAIL_NACK &&
-	    jiffies - last_cec_msg->last_jiffies < t) {
+	if (!ee_cec && need_nack_repeat_msg(msg, len, t)) {
 		if (!memcmp(msg, last_cec_msg->msg, len)) {
 			CEC_INFO("NACK repeat message:%x\n", len);
 			return CEC_FAIL_NACK;
