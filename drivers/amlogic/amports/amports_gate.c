@@ -85,7 +85,9 @@ int amports_clock_gate_init(struct device *dev)
 
 static int amports_gate_reset(struct gate_swtch_node *gate_node, int enable)
 {
-	spin_lock_irqsave(&gate_node->lock, gate_node->flags);
+	unsigned long flags;
+
+	spin_lock_irqsave(&gate_node->lock, flags);
 	if (enable) {
 		if (DEBUG_REF)
 			pr_info("amports_gate_reset,count: %d\n",
@@ -104,7 +106,7 @@ static int amports_gate_reset(struct gate_swtch_node *gate_node, int enable)
 			reset_control_assert(
 				gate_node->reset_ctl);
 	}
-	spin_unlock_irqrestore(&gate_node->lock, gate_node->flags);
+	spin_unlock_irqrestore(&gate_node->lock, flags);
 	return 0;
 }
 
