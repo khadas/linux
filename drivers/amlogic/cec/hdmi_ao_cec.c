@@ -1869,6 +1869,28 @@ static ssize_t cec_version_show(struct class *cla,
 	return sprintf(buf, "%d\n", cec_dev->cec_info.cec_version);
 }
 
+static ssize_t log_addr_store(struct class *cla, struct class_attribute *attr,
+	const char *bu, size_t count)
+{
+	int cnt, val;
+
+	cnt = kstrtoint(bu, 16, &val);
+	if (cnt < 0 || val > 0xf)
+		return -EINVAL;
+	cec_logicaddr_set(val);
+	/* add by hal, to init some data structure */
+	cec_dev->cec_info.log_addr = val;
+	cec_dev->cec_info.power_status = POWER_ON;
+
+	return count;
+}
+
+static ssize_t log_addr_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", cec_dev->cec_info.log_addr);
+}
+
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_WO(cmd),
 	__ATTR_RO(port_num),
@@ -1885,6 +1907,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR(menu_language, 0664, menu_language_show, menu_language_store),
 	__ATTR(device_type, 0664, device_type_show, device_type_store),
 	__ATTR(dbg_en, 0664, dbg_en_show, dbg_en_store),
+	__ATTR(log_addr, 0664, log_addr_show, log_addr_store),
 	__ATTR(fun_cfg, 0664, fun_cfg_show, fun_cfg_store),
 	__ATTR_NULL
 };
