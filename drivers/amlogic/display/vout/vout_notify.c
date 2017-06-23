@@ -348,6 +348,23 @@ enum vmode_e validate_vmode(char *name)
 EXPORT_SYMBOL(validate_vmode);
 
 /*
+*interface export to client who want to shutdown.
+*/
+int vout_shutdown(void)
+{
+	int ret = -1;
+	struct vout_server_s *p_server;
+
+	list_for_each_entry(p_server, &vout_module.vout_server_list, list) {
+		if (p_server->op.vout_shutdown)
+			ret = p_server->op.vout_shutdown();
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(vout_shutdown);
+
+/*
 *here we offer two functions to get and register vout module server
 *vout module server will set and store tvmode attributes for vout encoder
 *we can ensure TVMOD SET MODULE independent with these two function.
