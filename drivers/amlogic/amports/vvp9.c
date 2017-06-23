@@ -676,14 +676,11 @@ vpx_release_frame_buffer_cb_fn_t release_fb_cb;*/
 
 } BufferPool;
 
-static void lock_buffer_pool(struct BufferPool_s *pool)
-{
-	spin_lock_irqsave(&pool->lock, pool->flags);
-}
-static void unlock_buffer_pool(struct BufferPool_s *pool)
-{
-	spin_unlock_irqrestore(&pool->lock, pool->flags);
-}
+#define lock_buffer_pool(pool, flags) \
+		spin_lock_irqsave(&pool->lock, flags)
+
+#define unlock_buffer_pool(pool, flags) \
+		spin_unlock_irqrestore(&pool->lock, flags)
 
 struct VP9_Common_s {
 	enum vpx_color_space_t color_space;
@@ -1570,8 +1567,9 @@ static int get_free_fb(struct VP9Decoder_s *pbi)
 	struct VP9_Common_s *const cm = &pbi->common;
 	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
 	int i;
+	unsigned long flags;
 
-	lock_buffer_pool(cm->buffer_pool);
+	lock_buffer_pool(cm->buffer_pool, flags);
 	if (debug & VP9_DEBUG_BUFMGR_MORE) {
 		for (i = 0; i < pbi->used_buf_num; ++i) {
 			pr_info("%s:%d, ref_count %d vf_ref %d index %d\r\n",
@@ -1597,7 +1595,7 @@ static int get_free_fb(struct VP9Decoder_s *pbi)
 		i = INVALID_IDX;
 	}
 
-	unlock_buffer_pool(cm->buffer_pool);
+	unlock_buffer_pool(cm->buffer_pool, flags);
 	return i;
 }
 
@@ -1642,9 +1640,10 @@ static void generate_next_ref_frames(struct VP9Decoder_s *pbi)
 	struct RefCntBuffer_s *frame_bufs = cm->buffer_pool->frame_bufs;
 	struct BufferPool_s *const pool = cm->buffer_pool;
 	int mask, ref_index = 0;
+	unsigned long flags;
 
 	/* Generate next_ref_frame_map.*/
-	lock_buffer_pool(pool);
+	lock_buffer_pool(pool, flags);
 	for (mask = pbi->refresh_frame_flags; mask; mask >>= 1) {
 		if (mask & 1) {
 			cm->next_ref_frame_map[ref_index] = cm->new_fb_idx;
@@ -1676,7 +1675,7 @@ static void generate_next_ref_frames(struct VP9Decoder_s *pbi)
 			frame_bufs[cm->ref_frame_map[ref_index]].ref_count);*/
 		}
 	}
-	unlock_buffer_pool(pool);
+	unlock_buffer_pool(pool, flags);
 	return;
 }
 
@@ -1687,8 +1686,9 @@ static void refresh_ref_frames(struct VP9Decoder_s *pbi)
 	struct BufferPool_s *pool = cm->buffer_pool;
 	struct RefCntBuffer_s *frame_bufs = cm->buffer_pool->frame_bufs;
 	int mask, ref_index = 0;
+	unsigned long flags;
 
-	lock_buffer_pool(pool);
+	lock_buffer_pool(pool, flags);
 	for (mask = pbi->refresh_frame_flags; mask; mask >>= 1) {
 		const int old_idx = cm->ref_frame_map[ref_index];
 		/*Current thread releases the holding of reference frame.*/
@@ -1710,7 +1710,7 @@ static void refresh_ref_frames(struct VP9Decoder_s *pbi)
 		cm->ref_frame_map[ref_index] =
 			cm->next_ref_frame_map[ref_index];
 	}
-	unlock_buffer_pool(pool);
+	unlock_buffer_pool(pool, flags);
 	return;
 }
 int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
@@ -1790,6 +1790,7 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		/* Show an existing frame directly.*/
 		int frame_to_show_idx = params->p.frame_to_show_idx;
 		int frame_to_show;
+		unsigned long flags;
 		if (frame_to_show_idx >= REF_FRAMES) {
 			pr_info("frame_to_show_idx %d exceed max index\r\n",
 					frame_to_show_idx);
@@ -1798,10 +1799,10 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 
 		frame_to_show = cm->ref_frame_map[frame_to_show_idx];
 		/*pr_info("frame_to_show %d\r\n", frame_to_show);*/
-		lock_buffer_pool(pool);
+		lock_buffer_pool(pool, flags);
 		if (frame_to_show < 0 ||
 			frame_bufs[frame_to_show].ref_count < 1) {
-			unlock_buffer_pool(pool);
+			unlock_buffer_pool(pool, flags);
 			pr_err
 			("Error:Buffer %d does not contain a decoded frame",
 			frame_to_show);
@@ -1809,7 +1810,7 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		}
 
 		ref_cnt_fb(frame_bufs, &cm->new_fb_idx, frame_to_show);
-		unlock_buffer_pool(pool);
+		unlock_buffer_pool(pool, flags);
 		pbi->refresh_frame_flags = 0;
 		/*cm->lf.filter_level = 0;*/
 		cm->show_frame = 1;
@@ -2016,16 +2017,18 @@ void swap_frame_buffers(struct VP9Decoder_s *pbi)
 	struct VP9_Common_s *const cm = &pbi->common;
 	struct BufferPool_s *const pool = cm->buffer_pool;
 	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
+	unsigned long flags;
+
 	refresh_ref_frames(pbi);
 	pbi->hold_ref_buf = 0;
 	cm->frame_to_show = get_frame_new_buffer(cm);
 
 	/*if (!pbi->frame_parallel_decode || !cm->show_frame) {*/
-	lock_buffer_pool(pool);
+	lock_buffer_pool(pool, flags);
 	--frame_bufs[cm->new_fb_idx].ref_count;
 	/*pr_info("[MMU DEBUG 8] dec ref_count[%d] : %d\r\n", cm->new_fb_idx,
 		frame_bufs[cm->new_fb_idx].ref_count);*/
-	unlock_buffer_pool(pool);
+	unlock_buffer_pool(pool, flags);
 	/*}*/
 
 	/*Invalidate these references until the next frame starts.*/
@@ -5398,7 +5401,9 @@ static void vvp9_vf_put(struct vframe_s *vf, void *op_arg)
 		&& index < pbi->used_buf_num) {
 		struct VP9_Common_s *cm = &pbi->common;
 		struct BufferPool_s *pool = cm->buffer_pool;
-		lock_buffer_pool(pool);
+		unsigned long flags;
+
+		lock_buffer_pool(pool, flags);
 		if (pool->frame_bufs[index].buf.vf_ref > 0)
 			pool->frame_bufs[index].buf.vf_ref--;
 
@@ -5407,7 +5412,7 @@ static void vvp9_vf_put(struct vframe_s *vf, void *op_arg)
 						0x1);
 		pbi->last_put_idx = index;
 		pbi->new_frame_displayed++;
-		unlock_buffer_pool(pool);
+		unlock_buffer_pool(pool, flags);
 	}
 
 }
