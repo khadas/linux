@@ -281,6 +281,11 @@ void get_sys_clk_rate_mtd(struct hw_controller *controller, int *rate)
 		if (clk_freq == 24) {
 			/* 24Mhz/1 = 24Mhz */
 			amlnf_write_reg32(controller->nand_clk_reg, 0x81000201);
+		} else if (clk_freq == 112) {
+			/* 1000Mhz/9 = 112Mhz */
+			amlnf_write_reg32(controller->nand_clk_reg, 0x81000249);
+			pr_info("%s() %d, clock setting 200!\n",
+				__func__, __LINE__);
 		} else if (clk_freq == 200) {
 			/* 1000Mhz/5 = 200Mhz */
 			amlnf_write_reg32(controller->nand_clk_reg, 0x81000245);
@@ -331,7 +336,9 @@ static void m3_nand_adjust_timing(struct aml_nand_chip *aml_chip)
 	if (!aml_chip->T_RHOH)
 		aml_chip->T_RHOH = 15;
 
-	if (aml_chip->T_REA > 16)
+	if (aml_chip->T_REA > 30)
+		sys_clk_rate = 112;
+	else if (aml_chip->T_REA > 16)
 		sys_clk_rate = 200;
 	else
 		sys_clk_rate = 250;
