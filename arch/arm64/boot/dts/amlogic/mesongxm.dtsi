@@ -777,10 +777,11 @@
 	};
 
 	custom_maps:custom_maps {
-		mapnum = <3>;
+		mapnum = <4>;
 		map0 = <&map_0>;
 		map1 = <&map_1>;
 		map2 = <&map_2>;
+		map3 = <&map_3>;
 		map_0: map_0{
 			mapname = "amlogic-remote-1";
 			customcode = <0xfb04>;
@@ -912,6 +913,30 @@
 				REMOTE_KEY(0x9c,130)
 				REMOTE_KEY(0x9a,120)
 				REMOTE_KEY(0xcd,121)>;
+		};
+		map_3: map_3{
+			mapname = "khadas-ir";
+			customcode = <0xff00>;
+			release_delay = <80>;
+			fn_key_scancode = <0x5c>;
+			cursor_left_scancode = <0x0e>;
+			cursor_right_scancode = <0x1a>;
+			cursor_up_scancode = <0x03>;
+			cursor_down_scancode = <0x02>;
+			cursor_ok_scancode = <0x07>;
+			size  = <12>;
+			keymap = <REMOTE_KEY(0x14,116)
+				REMOTE_KEY(0x13,139)
+				REMOTE_KEY(0x03,103)
+				REMOTE_KEY(0x02,108)
+				REMOTE_KEY(0x0e,105)
+				REMOTE_KEY(0x1a,106)
+				REMOTE_KEY(0x07,232)
+				REMOTE_KEY(0x58,114)
+				REMOTE_KEY(0x5c,63)
+				REMOTE_KEY(0x0b,115)
+				REMOTE_KEY(0x01,158)
+				REMOTE_KEY(0x48,102)>;
 		};
  	};
 
