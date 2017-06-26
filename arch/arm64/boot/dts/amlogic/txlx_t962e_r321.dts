@@ -74,7 +74,7 @@
 
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			reg = <0x0 0x7e000000 0x0 0x2000000>;
+			reg = <0x0 0x7ee00000 0x0 0x1100000>;
 			no-map;
 		};
 		/*di reserved mem*/
@@ -102,16 +102,17 @@
 			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
 		};
+		/*
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
 			size = <0x0 0x600000>; //20m
 			multi-use;
 			//no-map;
 		};
-
+                */
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x1000>;
 		};
 
 		/*  POST PROCESS MANAGER */
@@ -124,7 +125,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xbc00000>;
+			size = <0x0 0x10400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -140,9 +141,16 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x4100000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
  			//no-map;
+		};
+		demod_cma_reserved:linux,demod_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 5M */
+			size = <0x0 0x0800000>;
+			alignment = <0x0 0x400000>;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -244,12 +252,12 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01851000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x1000000 0x100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
-		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+		display_size_default = <1920 1080 1920 2160 32>; //1920*1080*4*2 = 0xFD2000
 		pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
-		logo_addr = "0x7f851000";
+		logo_addr = "0x7f800000";
 	};
 
 	ge2d {
@@ -453,7 +461,7 @@
 		*if support 4K2K-YUV422-10bit-wr:3840*2160*3*4 ~= 96M
 		*if support 4K2K-YUV422-8BIT-WR:3840*2160*2*4 ~= 64M
 		*if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M*/
-		cma_size = <188>;
+		cma_size = <190>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
 		clocks = <&clock CLK_FPLL_DIV5>,
@@ -1189,7 +1197,9 @@
 		fe0_dev = <0>;
 		dtv_demod0_mem = <0>;
 		dtv_demod0_spectrum = <1>;
-		memory-region = <&demod_reserved>;
+		dtv_demod0_cma_flag = <1>;
+		dtv_demod0_cma_mem_size = <8>;
+		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 		tuner0 = "si2151_tuner";
 		tuner0_i2c_adap_id = <2>;
 		tuner0_i2c_addr = <0x60>;

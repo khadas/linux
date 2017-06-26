@@ -75,7 +75,7 @@
 
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			reg = <0x0 0x3e600000 0x0 0x1a00000>;
+			reg = <0x0 0x7e600000 0x0 0x1a00000>;
 			no-map;
 		};
 		/*di reserved mem*/
@@ -256,7 +256,7 @@
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
 		pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
-		logo_addr = "0x3f851000";
+		logo_addr = "0x7f851000";
 	};
 
 	ge2d {
