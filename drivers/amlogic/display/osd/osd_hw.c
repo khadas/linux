@@ -3865,6 +3865,10 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
 	} else
 		memcpy(&disp_tmp, &osd_hw.dispdata[OSD1],
 				sizeof(struct pandata_s));
+	if (osd_hw.scale[OSD1].h_enable)
+		osd_hw.scaledata[OSD2].x_end *= 2;
+	if (osd_hw.scale[OSD1].v_enable)
+		osd_hw.scaledata[OSD2].y_end *= 2;
 	if (osd_hw.scale[OSD2].h_enable && (osd_hw.scaledata[OSD2].x_start > 0)
 	    && (osd_hw.scaledata[OSD2].x_end > 0)) {
 		x = x * osd_hw.scaledata[OSD2].x_end /
