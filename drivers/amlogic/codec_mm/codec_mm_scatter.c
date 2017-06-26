@@ -1041,7 +1041,7 @@ static int codec_mm_pages_free_to_scatter(
 	if (src_mms->page_used >= src_mms->page_cnt)
 		return -1;/*no need free.*/
 	dst_mms = smgt->cache_sc;
-	if (!dst_mms || src_mms  == src_mms)
+	if (!dst_mms || src_mms  == dst_mms)
 		return 0;
 	codec_mm_scatter_lock(dst_mms);
 	moved = min(src_mms->page_cnt - src_mms->page_used,
