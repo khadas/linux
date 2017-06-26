@@ -44,6 +44,7 @@
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "tvafe_regs.h"
+#include "tvafe_avin_detect.h"
 #include "tvafe_adc.h"
 #include "tvafe_cvd.h"
 #include "tvafe_general.h"
