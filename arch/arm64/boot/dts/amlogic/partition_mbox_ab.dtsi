@@ -11,9 +11,9 @@
         parts = <10>;
 		part-0 = <&logo>;
 		part-1 = <&boot_a>;
-		part-2 = <&rsv>;
+		part-2 = <&cri_data>;
 		part-3 = <&tee>;
-		part-4 = <&crypt>;
+		part-4 = <&param>;
 		part-5 = <&misc>;
 		part-6 = <&boot_b>;
 		part-7 = <&system_a>;
@@ -30,8 +30,8 @@
 			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
-		rsv:rsv{
-			pname = "rsv";
+		cri_data:cri_data{
+			pname = "cri_data";
 			size = <0x0 0x800000>;
 			mask = <1>;
 		};
@@ -40,8 +40,8 @@
 			size = <0x0 0x800000>;
 			mask = <1>;
 		};
-		crypt:crypt{
-			pname = "crypt";
+		param:param{
+			pname = "param";
 			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
