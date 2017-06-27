@@ -47,8 +47,10 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->flm22_flag = 1;
 	pPar->flm2224_flag = 1;
 	pPar->flm22_comlev = 20;
-	pPar->flm22_comlev1 = 10;
-	pPar->flm22_comnum = 100;
+	pPar->flm22_comlev1 = 8;
+	pPar->flm22_comnum = 120;
+	pPar->flm22_comth = 15;
+	pPar->flm22_dif01_avgth = 50;
 	pPar->dif01rate = 20;
 	pPar->flag_di01th = 0;
 	pPar->numthd = 60;
@@ -239,6 +241,8 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	static int num;
 	static int num32;
 	static int flag_pre;
+	static int comsumpre;
+	static int nS1pre;
 	int dif01th = 0;
 
 	int nDIF01[HISDIFNUM];
@@ -254,6 +258,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm32 = pPar->flm32_en;
 	int flm22_flag = pPar->flm22_flag;
 	int flm2224_flag = pPar->flm2224_flag;
+	int flm22_comth = pPar->flm22_comth;
+	int comdif = 0;
+	int dif01avg = 0;
 
 	int nT0 = 0;
 	int nT1 = 0;
@@ -452,6 +459,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			/*ntmp = DIF01[HISDIFNUM-1] / (glb_field_mot_num + 1);*/
 			/* min / max */
 			ntmp = DIF01[HISDIFNUM-1] / (pre_fld_motnum + 1);
+			dif01avg = ntmp;
 
 			if (pr_pd)
 				pr_info("diff01-avg=%4d\n", ntmp);
@@ -467,7 +475,23 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 				else
 					pRDat.mNum22[HISDETNUM - 1] = 0;
 			}
-		}
+			comdif = (comsumpre < comsum) ?  (comsum - comsumpre)
+				: (comsumpre - comsum);
+			if (pr_pd)
+				pr_info("comsum=%d, comsumpre=%d, flev=%d\n",
+					comsum, comsumpre, nS1);
+			if ((comsum < 200) && (comsum > pPar->flm22_comnum)
+				&& (comdif < flm22_comth))
+				nS1 = nS1 - pPar->flm22_comlev;
+			else if (dif01avg > pPar->flm22_dif01_avgth)
+				nS1 = nS1 - pPar->flm22_comlev;
+			if (pr_pd)
+				pr_info("flev=%d\n", nS1);
+			comsumpre = comsum;
+		} else if (nS1pre < 100)
+			nS1 = nS1 - pPar->flm22_comlev;
+		nS1pre = nS1;
+
 		/* param: at least 60 field+4 */
 		if (pRDat.mNum22[HISDETNUM - 1] < flm22_mim_numb ||
 				flm22 == 0) {

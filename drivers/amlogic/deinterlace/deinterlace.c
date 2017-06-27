@@ -1029,6 +1029,10 @@ static struct pd_param_s pd_params[] = {
 	  &(pd_param.flm22_comlev1) },
 	{ "flm22_comnum",
 	  &(pd_param.flm22_comnum)  },
+	{ "flm22_comth",
+	  &(pd_param.flm22_comth)  },
+	{ "flm22_dif01_avgth",
+	  &(pd_param.flm22_dif01_avgth)  },
 	{ "dif01rate",
 	  &(pd_param.dif01rate)     },
 	{ "flag_di01th",
@@ -4612,7 +4616,7 @@ MODULE_PARM_DESC(flmxx_sure_num, "ture film-xx/n");
 */
 
 static unsigned int flm22_sure_smnum = 70;
-static unsigned int flm22_ratio = 100;
+static unsigned int flm22_ratio = 200;
 /* 79 for iptv test pd22 ts */
 module_param_named(flm22_ratio, flm22_ratio, uint, 0644);
 /* static unsigned int flmxx_sure_num[7]
