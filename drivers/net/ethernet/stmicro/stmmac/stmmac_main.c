@@ -3390,6 +3390,15 @@ static void moniter_tx_handler(struct work_struct *work)
 		priv = netdev_priv(c_phy_dev->attached_dev);
 		if (priv) {
 			if (c_phy_dev->link) {
+				if (priv->dev->stats.tx_packets > 100) {
+					if (priv->dev->stats.rx_packets == 0) {
+						pr_info("rx stop, recover eth\n");
+						stmmac_release(priv->dev);
+						stmmac_open(priv->dev);
+					}
+				}
+				priv->dev->stats.tx_packets++;
+				priv->dev->stats.tx_packets++;
 				if (priv->dirty_tx != priv->cur_tx &&
 						check_tx == 0) {
 					pr_info("tx queueing\n");
