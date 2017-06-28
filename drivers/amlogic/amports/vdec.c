@@ -1450,15 +1450,6 @@ void vdec_release(struct vdec_s *vdec)
 			vfm_map_remove(vdec->vfm_map_id);
 			vdec->vfm_map_id[0] = 0;
 		}
-
-		/* vf_receiver_inst should be > 0 since 0 is
-		 * for either un-initialized vdec or a ionvideo
-		 * instance reserved for legacy path.
-		 */
-		if (vdec->frame_base_video_path == FRAME_BASE_PATH_IONVIDEO
-				&& vdec_frame_based(vdec)) {
-			ionvideo_release_map(vdec->vf_receiver_inst);
-		}
 	}
 
 	platform_device_unregister(vdec->dev);
