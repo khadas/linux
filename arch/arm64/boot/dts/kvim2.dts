@@ -1186,3 +1186,10 @@
 &t82x_gpu {
         tbl = <&dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg &dvfs666_cfg>;
 };
+&i2c_b {
+	status = "okay";
+	khadas-hym8563{
+		compatible = "khadas-hym8563";
+		reg = <0x51>;
+	};
+};
