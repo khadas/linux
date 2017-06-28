@@ -664,7 +664,8 @@ void dtmb_all_reset(void)
 		dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
 		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1a027719);
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x101a7);
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131a31);
+		/*21bit set ddr access urgent*/
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x331a31);
 		/*detect 64qam 420 595 problems*/
 		dtmb_write_reg(DTMB_FRONT_19_CONFIG, 0x300);
 		dtmb_write_reg(DTMB_FRONT_4d_CONFIG, 0x12ffbe0);
@@ -864,13 +865,13 @@ int dtmb_constell_check(void)
 	int constell;
 	constell = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)>>16 & 0x3;
 	if (constell == 0)/*4qam*/
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x133221);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x333221);
 	else if (constell == 1)/*16qam*/
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x132821);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x332821);
 	else if (constell == 2)/*32qam*/
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131e21);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x331e21);
 	else if (constell == 3)/*64qam*/
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131a31);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x331a31);
 
 	return 0;
 }
