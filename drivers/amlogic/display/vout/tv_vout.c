@@ -84,7 +84,7 @@ static void cvbs_debug_store(char *para);
 SET_TV_CLASS_ATTR(debug, cvbs_debug_store)
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-#define DEFAULT_POLICY_FR_AUTO	1
+#define DEFAULT_POLICY_FR_AUTO	0
 static enum vmode_e mode_by_user = VMODE_INIT_NULL;
 static int fr_auto_policy = DEFAULT_POLICY_FR_AUTO;
 static int fr_auto_policy_hold = DEFAULT_POLICY_FR_AUTO;
