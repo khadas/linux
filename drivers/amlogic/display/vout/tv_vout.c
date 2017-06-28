@@ -585,7 +585,7 @@ int tv_out_setmode(enum tvmode_e mode)
 	tv_out_set_clk(mode);
 	ret = tv_out_set_venc(mode);
 	if (ret) {
-		mutex_lock(&setmode_mutex);
+		mutex_unlock(&setmode_mutex);
 		return -1;
 	}
 	tv_out_set_enc_viu_mux(mode);
