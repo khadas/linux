@@ -425,8 +425,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sizeof(struct tvin_sig_property_s));
 						devp->parm.info.trans_fmt =
 							prop->trans_fmt;
-						devp->parm.info.reserved =
-							prop->dvi_info & 0xf;
+						devp->parm.info.is_dvi =
+							prop->dvi_info & 0x1;
 						devp->parm.info.fps =
 							prop->dvi_info >> 4;
 					}
@@ -629,8 +629,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sizeof(struct tvin_sig_property_s));
 					devp->parm.info.trans_fmt =
 						prop->trans_fmt;
-					devp->parm.info.reserved =
-						prop->dvi_info & 0xf;
+					devp->parm.info.is_dvi =
+						prop->dvi_info & 0x1;
 					devp->parm.info.fps =
 						prop->dvi_info >> 4;
 					info->fmt = stable_fmt;

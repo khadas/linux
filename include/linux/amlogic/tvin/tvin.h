@@ -458,7 +458,7 @@ struct tvin_info_s {
 	enum tvin_sig_status_e status;
 	enum tvin_color_fmt_e cfmt;
 	unsigned int fps;
-	unsigned int reserved;
+	unsigned int is_dvi;
 };
 
 struct tvin_buf_info_s {

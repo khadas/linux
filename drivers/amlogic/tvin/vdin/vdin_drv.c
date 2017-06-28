@@ -191,6 +191,13 @@ static unsigned int rdma_enable = 1;
 module_param(rdma_enable, uint, 0664);
 MODULE_PARM_DESC(rdma_enable, "rdma_enable");
 
+static bool game_mode;
+module_param(game_mode, bool, 0664);
+MODULE_PARM_DESC(game_mode, "game_mode");
+
+static unsigned int vf_skip_cnt = 1;
+module_param(vf_skip_cnt, uint, 0664);
+MODULE_PARM_DESC(vf_skip_cnt, "skip frame cnt for hdmi");
 
 static int irq_max_count;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
@@ -844,6 +851,11 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_get_format_convert(devp);
 	devp->curr_wr_vfe = NULL;
 	devp->rdma_enable = rdma_enable;
+	devp->game_mode = game_mode;
+	if (game_mode)
+		devp->vfp->skip_vf_num = 1;
+	else
+		devp->vfp->skip_vf_num = vf_skip_cnt;
 	devp->canvas_config_mode = canvas_config_mode;
 	/* h_active/v_active will be recalculated by bellow calling */
 	vdin_set_decimation(devp);
@@ -1651,7 +1663,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_drop_cnt++;
 		goto irq_handled;
 	}
-	if (devp->last_wr_vfe && (devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
+	if (devp->last_wr_vfe && (devp->flags&VDIN_FLAG_RDMA_ENABLE) &&
+		(devp->game_mode == false)) {
 		/* debug for video latency */
 		devp->last_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		/*dolby vision metadata process*/
@@ -1868,9 +1881,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->auto_ratio_en && (devp->parm.port >= TVIN_PORT_CVBS0) &&
 		(devp->parm.port <= TVIN_PORT_CVBS7))
 		vdin_set_display_ratio(devp, curr_wr_vf);
-	if (devp->flags&VDIN_FLAG_RDMA_ENABLE)
+	if (devp->flags&VDIN_FLAG_RDMA_ENABLE && (devp->game_mode == false)) {
 		devp->last_wr_vfe = curr_wr_vfe;
-	else {
+	} else {
 		/* debug for video latency */
 		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		/*dolby vision metadata process*/
@@ -1911,7 +1924,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
 
 	devp->curr_wr_vfe = next_wr_vfe;
-	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
+	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE) || (devp->game_mode == true)) {
 		if (((dolby_input & (1 << devp->index)) ||
 			(devp->dv_flag && is_dolby_vision_enable())) &&
 			(devp->dv_config == true))
@@ -2989,6 +3002,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->auto_ratio_en = 1;
 	}
 	vdevp->rdma_enable = rdma_enable;
+	vdevp->game_mode = game_mode;
 	vdevp->canvas_config_mode = canvas_config_mode;
 	vdevp->sig_wq = create_singlethread_workqueue(vdevp->name);
 	INIT_DELAYED_WORK(&vdevp->sig_dwork, vdin_sig_dwork);

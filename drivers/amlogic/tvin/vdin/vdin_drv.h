@@ -298,6 +298,7 @@ struct vdin_dev_s {
 	bool	dv_flag;
 	bool	dv_config;
 	bool	dv_crc_check;/*0:fail;1:ok*/
+	bool	game_mode;/*1:game mode for hdmi*/
 	unsigned int		rdma_enable;
 	unsigned int		canvas_config_mode;
 	bool	prehsc_en;

@@ -39,6 +39,10 @@ static unsigned int max_buf_num = 6;
 module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 
+static unsigned int min_buf_num = 4;
+module_param(min_buf_num, uint, 0664);
+MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
+
 static unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
 module_param(max_buf_width, uint, 0664);
 MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
@@ -280,11 +284,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int mem_size, h_size, v_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
-	unsigned int max_buffer_num = 4;
-	if (devp->rdma_enable)
+	unsigned int max_buffer_num = min_buf_num;
+	if (devp->rdma_enable && (devp->game_mode == 0))
 		max_buffer_num++;
 	/*todo: need update if vf_skip_cnt used by other port*/
-	if (vf_skip_cnt &&
+	if (devp->vfp->skip_vf_num &&
 		((devp->parm.port >= TVIN_PORT_HDMI0) &&
 			(devp->parm.port <= TVIN_PORT_HDMI7)))
 		max_buffer_num++;
@@ -346,7 +350,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 	}
 	mem_size = h_size * v_size;
-	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) ||
+	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) &&
 		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
 		mem_size = (mem_size * 3)/2;
 	mem_size = PAGE_ALIGN(mem_size) * max_buffer_num +
