@@ -2380,7 +2380,8 @@ enum hdmi_vic hdmitx_edid_vic_tab_map_vic(const char *disp_mode)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (strcmp(disp_mode, dispmode_vic_tab[i].disp_mode) == 0) {
+		if (strncmp(disp_mode, dispmode_vic_tab[i].disp_mode,
+			strlen(dispmode_vic_tab[i].disp_mode)) == 0) {
 			vic = dispmode_vic_tab[i].VIC;
 			break;
 		}
