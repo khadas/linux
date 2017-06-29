@@ -1982,7 +1982,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			first_picture = 1;
 		}
 	} else {
-		if (VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) {
+		if (DI_POST_REG_RD(DI_IF1_GEN_REG) & 0x1) {
 			/* disable post di */
 			VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
 			VSYNC_WR_MPEG_REG(DI_POST_SIZE,
@@ -2082,7 +2082,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->compBodyAddr>>4);
 	}
 	if ((vf->canvas0Addr != 0) &&
-	(VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
+	(DI_POST_REG_RD(DI_IF1_GEN_REG) & 0x1) == 0) {
 #ifdef CONFIG_VSYNC_RDMA
 		if (vf->canvas0Addr != (u32)-1) {
 			canvas_copy(vf->canvas0Addr & 0xff,
@@ -2608,7 +2608,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 						(0x8 << VFORMATTER_PHASE_BIT) |
 						VFORMATTER_EN);
 			}
-			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
+			if ((DI_POST_REG_RD(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
 
@@ -2632,12 +2632,12 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			}
 			VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
-			VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+			DI_POST_WR_REG_BITS(DI_IF1_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
 			if (is_meson_txl_cpu() || is_meson_txlx_cpu())
-				VSYNC_WR_MPEG_REG_BITS(DI_IF2_GEN_REG3,
+				DI_POST_WR_REG_BITS(DI_IF2_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
-			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
+			if ((DI_POST_REG_RD(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
 
@@ -4336,7 +4336,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			   && (video_property_changed)) {
 			if (!(blackout | force_blackout)) {
 				if (cur_dispbuf &&
-					(READ_VCBUS_REG(DI_IF1_GEN_REG) &
+					(DI_POST_REG_RD(DI_IF1_GEN_REG) &
 					0x1) == 0) {
 					/* setting video display
 					property in unregister mode */
@@ -4438,7 +4438,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
 #ifdef CONFIG_VSYNC_RDMA
-				if ((VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1)
+				if ((DI_POST_REG_RD(DI_IF1_GEN_REG) & 0x1)
 					== 0)
 					to_notify_trick_wait = true;
 				else {

@@ -257,8 +257,8 @@ extern void prot_get_parameter(u32 wide_mode, struct vframe_s *vf,
 			       const struct vinfo_s *vinfo);
 u32 get_blackout_policy(void);
 int get_video0_frame_info(struct vframe_s *vf);
-
-
+extern unsigned int DI_POST_REG_RD(unsigned int addr);
+extern int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 #endif				/* VIDEO_H */
 
 
