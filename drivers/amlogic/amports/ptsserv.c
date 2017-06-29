@@ -1177,9 +1177,16 @@ int pts_start(u8 type)
 			return -ENOMEM;
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (has_hevc_vdec() && (type == PTS_TYPE_HEVC)) {
+#ifdef CONFIG_MULTI_DEC
+			pTable->buf_start = READ_PARSER_REG(
+					PARSER_VIDEO_START_PTR);
+			pTable->buf_size = READ_PARSER_REG(PARSER_VIDEO_END_PTR)
+							- pTable->buf_start + 8;
+#else
 			pTable->buf_start = READ_VREG(HEVC_STREAM_START_ADDR);
 			pTable->buf_size = READ_VREG(HEVC_STREAM_END_ADDR)
-							   - pTable->buf_start;
+							- pTable->buf_start;
+#endif
 			WRITE_PARSER_REG(VIDEO_PTS, 0);
 			timestamp_pcrscr_set(0);	/* video always need
 							   the pcrscr,Clear
@@ -1191,12 +1198,19 @@ int pts_start(u8 type)
 		} else
 			/* #endif */
 			if (type == PTS_TYPE_VIDEO) {
+#ifdef CONFIG_MULTI_DEC
+				pTable->buf_start = READ_PARSER_REG(
+						PARSER_VIDEO_START_PTR);
+				pTable->buf_size = READ_PARSER_REG(
+						PARSER_VIDEO_END_PTR)
+					- pTable->buf_start + 8;
+#else
 				pTable->buf_start = READ_VREG(
 						VLD_MEM_VIFIFO_START_PTR);
 				pTable->buf_size = READ_VREG(
 						VLD_MEM_VIFIFO_END_PTR)
 					- pTable->buf_start + 8;
-
+#endif
 				/* since the HW buffer wrap counter only have
 				 * 16 bits, a too small buf_size will make pts i
 				 * lookup fail with streaming offset wrapped
