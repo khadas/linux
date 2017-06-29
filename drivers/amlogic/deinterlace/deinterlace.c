@@ -66,9 +66,7 @@
 #include "deinterlace_pd.h"
 #include "deinterlace_dbg.h"
 #include "../amports/video.h"
-#ifdef CONFIG_VSYNC_RDMA
-#include "../amports/rdma.h"
-#endif
+
 #if defined(NEW_DI_TV)
 #define ENABLE_SPIN_LOCK_ALWAYS
 #endif
@@ -504,6 +502,25 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 	return;
 }
 
+unsigned int DI_POST_REG_RD(unsigned int addr)
+{
+	if (de_devp->flags & DI_SUSPEND_FLAG) {
+		pr_err("[DI] REG 0x%x access prohibited.\n", addr);
+		return 0;
+	}
+	return VSYNC_RD_MPEG_REG(addr);
+}
+EXPORT_SYMBOL(DI_POST_REG_RD);
+
+int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	if (de_devp->flags & DI_SUSPEND_FLAG) {
+		pr_err("[DI] REG 0x%x access prohibited.\n", adr);
+		return -1;
+	}
+	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+}
+EXPORT_SYMBOL(DI_POST_WR_REG_BITS);
 /**********************************/
 
 /*****************************
@@ -6272,7 +6289,6 @@ static void set_post_mcinfo(struct mcinfo_pre_s *curr_field_mcinfo)
 		DI_VSYNC_WR_MPEG_REG(0x2f78 + i, value);
 	}
 }
-
 static irqreturn_t de_irq(int irq, void *dev_instance)
 {
 #ifndef CHECK_DI_DONE
@@ -8257,6 +8273,7 @@ static void di_unreg_process_irq(void)
 			!is_meson_gxbb_cpu())
 			switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
 				VPU_CLK_GATE_OFF);
+			pr_info("%s disable di mirror image.\n", __func__);
 	}
 	if ((post_wr_en && post_wr_surpport)) {
 		diwr_set_power_control(0);
@@ -9015,6 +9032,10 @@ light_unreg:
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		char *receiver_name = NULL;
+		if (de_devp->flags & DI_SUSPEND_FLAG) {
+			pr_err("[DI] reg event device hasn't resumed\n");
+			return -1;
+		}
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
 		pr_dbg("%s: vframe provider reg\n", __func__);
@@ -9571,6 +9592,7 @@ static void rmem_di_device_release(struct reserved_mem *rmem,
 unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 			  unsigned int len)
 {
+
 	if (de_devp->rdma_handle)
 		return rdma_read_reg(de_devp->rdma_handle, adr) &
 		       (((1 << len) - 1) << start);
@@ -9597,6 +9619,7 @@ unsigned int RDMA_WR(unsigned int adr, unsigned int val)
 
 unsigned int RDMA_RD(unsigned int adr)
 {
+
 	if (de_devp->rdma_handle > 0 && di_pre_rdma_enable)
 		return rdma_read_reg(de_devp->rdma_handle, adr);
 	else
@@ -10012,6 +10035,7 @@ static int di_suspend(struct device *dev)
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 #endif
 	di_devp = dev_get_drvdata(dev);
+	di_devp->flags |= DI_SUSPEND_FLAG;
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 /* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
@@ -10030,6 +10054,8 @@ static int di_suspend(struct device *dev)
 
 	di_set_power_control(0, 0);
 	di_set_power_control(1, 0);
+	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+		VPU_CLK_GATE_OFF);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_disable_unprepare(di_devp->vpu_clkb);
 	pr_info("di: di_suspend\n");
@@ -10044,16 +10070,13 @@ static int di_resume(struct device *dev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
-	if (init_flag) {
-		di_set_power_control(0, 1);
-		di_set_power_control(1, 1);
-	}
 #ifndef USE_HRTIMER
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 1 << 18);
 	aml_write_cbus(ISA_TIMERC, 1);
 #endif
+	di_devp->flags &= ~DI_SUSPEND_FLAG;
 	pr_info("di: resume module\n");
 	return 0;
 }

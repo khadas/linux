@@ -476,10 +476,16 @@ void DI_Wr_reg_bits(unsigned int adr, unsigned int val,
 void DI_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
 void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 	unsigned int start, unsigned int len);
-
+#ifdef CONFIG_VSYNC_RDMA
+extern void enable_rdma(int enable_flag);
+extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+extern u32 VSYNC_RD_MPEG_REG(u32 adr);
+extern bool is_vsync_rdma_enable(void);
+#endif
 #define DI_COUNT   1
 #define DI_MAP_FLAG	0x1
-#define DI_LOAD_REG_FLAG 0x2
+#define DI_SUSPEND_FLAG 0x2
+#define DI_LOAD_REG_FLAG 0x4
 struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
