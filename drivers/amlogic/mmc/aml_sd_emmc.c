@@ -2008,8 +2008,8 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 #endif
 	} else {
 		des_cmd_cur->data_io = 0;
-		/* Current 10uS based. 2^10 = 10mS for only cmd timeout */
-		des_cmd_cur->timeout = 0xa;
+		/* 2^11 = 2s for only cmd timeout */
+		des_cmd_cur->timeout = 0xb;
 	}
 
 	if (mrq->cmd->opcode == MMC_SEND_STATUS)
