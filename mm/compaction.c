@@ -541,7 +541,12 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 	for (; low_pfn < end_pfn; low_pfn++) {
 		/* give a chance to irqs before checking need_resched() */
 		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
-			if (should_release_lock(&zone->lru_lock)) {
+			/*
+			 * if pfn go through large range, try to release lock
+			 * every 2 pageblocks
+			 */
+			if (should_release_lock(&zone->lru_lock) ||
+			   !(low_pfn & ((pageblock_nr_pages * 2) - 1))) {
 				spin_unlock_irqrestore(&zone->lru_lock, flags);
 				locked = false;
 			}
