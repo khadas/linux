@@ -3,7 +3,7 @@
  *
  * Driver for Realtek PHYs
  *
- * Author: Johnson Leung <r58129@freescale.com>
+ * Author: Terry <terry@szwesion.com>
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  *
@@ -30,11 +30,127 @@
 #define RTL821x_LCR		    0x10
 
 #define	RTL8211E_INER_LINK_STATUS	0x400
+#define RTL8211F_MAC_ADDR_CTRL0 0x10
+#define RTL8211F_MAC_ADDR_CTRL1 0x11
+#define RTL8211F_MAC_ADDR_CTRL2 0x12
+#define RTL8211F_WOL_CTRL 0x10
+#define RTL8211F_WOL_RST 0x11
+#define RTL8211F_MAX_PACKET_CTRL 0x11
+
 
 MODULE_DESCRIPTION("Realtek PHY driver");
-MODULE_AUTHOR("Johnson Leung");
+MODULE_AUTHOR("Terry");
 MODULE_LICENSE("GPL");
+static void rtl8211f_config_mac_addr(struct phy_device *phydev);
+static void rtl8211f_config_pin_as_pmeb(struct phy_device *phydev);
+static void rtl8211f_config_wakeup_frame_mask(struct phy_device *phydev);
+static void rtl8211f_config_max_packet(struct phy_device *phydev);
+static void rtl8211f_config_pad_isolation(struct phy_device *phydev, int enable);
+static void rtl8211f_config_wol(struct phy_device *phydev, int enable);
 
+int wol_enable = 1;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+struct phy_device *g_phydev;
+
+int get_wol_state(void){
+	return wol_enable;
+}
+
+static void rtl8211f_early_suspend(struct early_suspend *h)
+{
+	if (wol_enable) {
+		rtl8211f_config_pin_as_pmeb(g_phydev);
+		rtl8211f_config_mac_addr(g_phydev);
+		rtl8211f_config_max_packet(g_phydev);
+		rtl8211f_config_wol(g_phydev, 1);
+		rtl8211f_config_wakeup_frame_mask(g_phydev);
+		rtl8211f_config_pad_isolation(g_phydev, 1);
+	}
+
+}
+
+static void rtl8211f_late_resume(struct early_suspend *h)
+{
+	if (wol_enable) {
+		rtl8211f_config_wol(g_phydev, 0);
+		rtl8211f_config_pad_isolation(g_phydev, 0);
+	}
+}
+
+static struct early_suspend rtl8211f_early_suspend_handler = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 15,
+	.suspend = rtl8211f_early_suspend,
+	.resume = rtl8211f_late_resume,
+};
+
+static void rtl8211f_config_mac_addr(struct phy_device *phydev)
+{
+	phy_write(phydev, RTL821x_EPAGSR, 0xd8c); /*set page 0xd8c*/
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, 0x1201);
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, 0x5634);
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, 0x9a78);
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_pin_as_pmeb(struct phy_device *phydev)
+{
+	int val;
+	phy_write(phydev, RTL821x_EPAGSR, 0xd40); /*set page 0xd40*/
+	val = phy_read(phydev, 0x16);
+	val = val | 0x20;
+	phy_write(phydev, 0x16, val);
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_wakeup_frame_mask(struct phy_device *phydev)
+{
+	phy_write(phydev, RTL821x_EPAGSR, 0xd80); /*set page 0xd80*/
+	phy_write(phydev, 0x10, 0x3000);
+	phy_write(phydev, 0x11, 0x0020);
+	phy_write(phydev, 0x12, 0x03c0);
+	phy_write(phydev, 0x13, 0x0000);
+	phy_write(phydev, 0x14, 0x0000);
+	phy_write(phydev, 0x15, 0x0000);
+	phy_write(phydev, 0x16, 0x0000);
+	phy_write(phydev, 0x17, 0x0000);
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_max_packet(struct phy_device *phydev)
+{
+	phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+	phy_write(phydev, RTL8211F_MAX_PACKET_CTRL, 0x9fff);
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_pad_isolation(struct phy_device *phydev, int enable)
+{
+	int val;
+	phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+	val = phy_read(phydev, 0x13);
+	if (enable)
+		val = val | 0x1000;
+	else
+		val = val & 0x7fff;
+	phy_write(phydev, 0x13, val);
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_wol(struct phy_device *phydev, int enable)
+{
+	int val;
+	phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+	if (enable)
+		phy_write(phydev, RTL8211F_WOL_CTRL, 0x1000);
+	else {
+		phy_write(phydev, RTL8211F_WOL_CTRL, 0);
+		val =  phy_read(phydev,  RTL8211F_WOL_RST);
+		phy_write(phydev, RTL8211F_WOL_RST, val & 0x7fff);
+	}
+	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+#endif
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	int val;
@@ -78,6 +194,13 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	 * phy_write(phydev, 0x15,val| 1<<21);
 	 */
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	g_phydev = kzalloc(sizeof(struct phy_device), GFP_KERNEL);
+	if (g_phydev == NULL)
+		return -ENOMEM;
+	g_phydev = phydev;
+	register_early_suspend(&rtl8211f_early_suspend_handler);
+#endif
 	return 0;
 }
 
@@ -203,7 +326,7 @@ module_exit(realtek_exit);
 static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc912, 0x001fffff },
 	{ 0x001cc915, 0x001fffff },
-	{ }
+	{ 0x001cc916, 0x001fffff },
 };
 
 MODULE_DEVICE_TABLE(mdio, realtek_tbl);

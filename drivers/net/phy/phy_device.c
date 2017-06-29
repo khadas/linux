@@ -40,6 +40,8 @@ MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
 
+extern int get_wol_state(void);
+
 void phy_device_free(struct phy_device *phydev)
 {
 	put_device(&phydev->dev);
@@ -1379,6 +1381,8 @@ int genphy_suspend(struct phy_device *phydev)
 	int value;
 	/*don't power off if wol is needed*/
 
+	if (get_wol_state())
+		return 0;
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
