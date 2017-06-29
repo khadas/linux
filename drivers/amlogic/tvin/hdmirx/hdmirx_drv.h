@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/05/27"
+#define RX_VER0 "Ref.2017/06/29"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/06/06"
@@ -541,6 +541,8 @@ struct rx_s {
 	enum chip_id_e chip_id;
 	/** HDMI RX received signal changed */
 	uint change;
+	/*avmute*/
+	uint32_t avmute_skip;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
 	unsigned port;
 	/*first boot flag*/

@@ -467,9 +467,22 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
+	uint32_t avmuteflag;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
+
+	/*prevent spurious pops or noise when pw down*/
+	if (rx.state == FSM_SIG_READY) {
+		avmuteflag =
+			hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE) & 0x03;
+		if (avmuteflag == 0x02) {
+			rx.avmute_skip += 1;
+			return TVIN_BUF_SKIP;
+		} else
+			rx.avmute_skip = 0;
+	}
+
 	/* if there is any error or overflow, do some reset, then rerurn -1;*/
 	if ((parm->info.status != TVIN_SIG_STATUS_STABLE) ||
 	    (parm->info.fmt == TVIN_SIG_FMT_NULL))

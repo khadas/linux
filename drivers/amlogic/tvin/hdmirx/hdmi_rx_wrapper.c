@@ -3813,6 +3813,7 @@ static void dump_state(unsigned char enable)
 	rx_pr("edid downstream come: %d hpd:%d hdr lume:%d\n",
 		new_edid, repeat_plug, new_hdr_lum);
 
+	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
 }
 
 static void dump_audio_info(unsigned char enable)
