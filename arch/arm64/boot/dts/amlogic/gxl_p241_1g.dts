@@ -1152,7 +1152,7 @@
 //	};
 };
 &gpu{
-/*max gp pll for gpu is 650M, temporarily disabled*/
+/*max gpu is 650M*/
     tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk666_cfg>;
 };
 &efuse {
