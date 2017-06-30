@@ -551,7 +551,71 @@
 					 AO2 0x00000001>;
 			amlogic,pins="GPIOAO_8";
 		};
+		lcd_ttl_rgb_6bit_pins_on:lcd_ttl_rgb_6bit_on{
+			amlogic,setmask=<3 0x000002a0>;
+			amlogic,clrmask=<1 0xfa030000 2 0xf9fe0409 3 0x00000001>;
+			amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R2~R7 */
+					"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G2~G7 */
+					"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B2~B7 */
+		};
 
+		lcd_ttl_rgb_6bit_pins_off:lcd_ttl_rgb_6bit_off{
+			amlogic,clrmask=<1 0xfa030000 2 0xf9fe0409 3 0x000002a1>;
+			amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R2~R7 */
+					"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G2~G7 */
+					"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B2~B7 */
+			amlogic,enable-output=<1>;
+		};
+		lcd_ttl_rgb_8bit_pins_on:lcd_ttl_rgb_8bit_on{
+			amlogic,setmask=<3 0x000007e0>;
+			amlogic,clrmask=<1 0xff830100 2 0xfffe071f 3 0x00000007>;
+			amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R0~R7 */
+					"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G0~G7 */
+					"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B0~B7 */
+		};
+
+		lcd_ttl_rgb_8bit_pins_off:lcd_ttl_rgb_8bit_off{
+			amlogic,clrmask=<1 0xff830100 2 0xfffe071f 3 0x000007e7>;
+			amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R0~R7 */
+					"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G0~G7 */
+					"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B0~B7 */
+			amlogic,enable-output=<1>;
+		};
+		lcd_ttl_de_on_pins:lcd_ttl_de_on_pin{ /* DE + clk */
+			amlogic,setmask=<1 0x00140000>;
+			amlogic,clrmask=<1 0x00083000 2 0x00006000>;
+			amlogic,pins = "GPIODV_26","GPIODV_27";
+		};
+
+		lcd_ttl_de_off_pins:lcd_ttl_de_off_pin{ /* DE + clk */
+			amlogic,clrmask=<1 0x00083000 2 0x00146000>;
+			amlogic,pins = "GPIODV_26","GPIODV_27";
+			amlogic,enable-output=<1>;
+		};
+
+		lcd_ttl_hvsync_on_pins:lcd_ttl_hvsync_on_pin{ /* hvsync + clk */
+			amlogic,setmask=<1 0x00700000>;
+			amlogic,clrmask=<1 0x0000e000 2 0x0001c0c0 3 0x00000018>;
+			amlogic,pins = "GPIODV_24","GPIODV_25","GPIODV_26";
+		};
+
+		lcd_ttl_hvsync_off_pins:lcd_ttl_hvsync_off_pin{ /* hvsync + clk */
+			amlogic,clrmask=<1 0x0070e000 2 0x0001c0c0 3 0x00000018>;
+			amlogic,pins = "GPIODV_24","GPIODV_25","GPIODV_26";
+			amlogic,enable-output=<1>;
+		};
+
+		lcd_ttl_de_hvsync_on_pins:lcd_ttl_de_hvsync_on_pin{ /* DE + hvsync + clk */
+			amlogic,setmask=<1 0x00740000>;
+			amlogic,clrmask=<1 0x0008f000 2 0x0001e0c0 3 0x00000018>;
+			amlogic,pins = "GPIODV_24","GPIODV_25","GPIODV_26","GPIODV_27";
+		};
+
+		lcd_ttl_de_hvsync_off_pins:lcd_ttl_de_hvsync_off_pin{ /* DE + hvsync + clk */
+			amlogic,clrmask=<1 0x007cf000 2 0x0001e0c0 3 0x00000018>;
+			amlogic,pins = "GPIODV_24","GPIODV_25","GPIODV_26","GPIODV_27";
+			amlogic,enable-output=<1>;
+		};
 		ao_i2c_master:ao_i2c{
 			amlogic,setmask=<AO 0x60>;
 			amlogic,clrmask=<AO 0x1800006>;

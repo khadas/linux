@@ -56,13 +56,30 @@
 			backlight_index = <0>;
 		};
 		lvds_1{
-			model_name = "1080p-hfreq";
+			model_name = "1080p-hfreq_hdmi";
 			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <1 3 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
+			power_on_step = <0 0 1 20 /* panel power on */
+					2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0 0 0 100 /* panel power off */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0>;
+		};
+		lvds_2{
+			model_name = "768p-vfreq";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1366 768 1560 806 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <1460 2000 784 1015 50000000 85000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <56 64 0 3 28 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 3 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 0 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -110,12 +127,12 @@
 			backlight_index = <3>;
 		};
 		vbyone_2{
-			model_name = "public_2region";
+			model_name = "public_2region_hdmi";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <1 1 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
 			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
