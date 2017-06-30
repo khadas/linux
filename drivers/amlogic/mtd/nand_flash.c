@@ -1,7 +1,7 @@
 /*
  * drivers/amlogic/mtd/nand_flash.c
  *
- * Copyright (C) 2016 Amlogic, Inc. All rights reserved.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- */
+*/
 
 #include "aml_mtd.h"
 
@@ -247,6 +247,20 @@ struct aml_nand_flash_dev aml_nand_flash_ids[] = {
 		0,
 		0,
 		(NAND_TIMING_MODE5 | NAND_ECC_BCH8_MODE)},
+
+	{"A revision NAND 1Gib W29N01HV ",
+		{NAND_ID_WINBOND, 0xf1, 0x00, 0x95, 0x00, 0x00},
+		2048,
+		128,
+		0x20000,
+		64,
+		1,
+		16,
+		15,
+		0,
+		0,
+		(NAND_TIMING_MODE5 | NAND_ECC_BCH8_MODE)},
+
 	{"A revision NAND 1Gib W29N01GV ",
 		{NAND_ID_WINBOND, 0xf1, 0x80, 0x95, 0x00, 0x00},
 		2048,
@@ -1371,6 +1385,3 @@ int aml_nand_scan(struct mtd_info *mtd, int maxchips)
 		ret = nand_scan_tail(mtd);
 	return ret;
 }
-
-
-
