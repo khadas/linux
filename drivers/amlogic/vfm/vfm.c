@@ -282,7 +282,6 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 		}
 		if ((!strncmp(vfm_map[i]->name[j], provider_name, namelen)) &&
 			((j + 1) < vfm_map[i]->vfm_map_size)) {
-			receiver_name = vfm_map[i]->name[j + 1];
 
 			if (namelen == provide_namelen) {
 				/* exact match */
