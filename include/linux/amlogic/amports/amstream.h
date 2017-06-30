@@ -587,7 +587,7 @@ int wakeup_userdata_poll(struct userdata_poc_info_t poc,
 			int wp, unsigned long start_phyaddr,
 			int buf_size, int data_length);
 int get_sub_type(void);
-
+u32 get_audio_reset(void);
 #endif				/*
  */
 struct tcon_gamma_table_s {

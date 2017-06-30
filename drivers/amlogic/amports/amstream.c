@@ -89,6 +89,8 @@
 u32 amstream_port_num;
 u32 amstream_buf_num;
 
+u32 amstream_audio_reset = 0;
+
 #if 0
 #if  MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV
 #define NO_VDEC2_INIT 1
@@ -716,6 +718,7 @@ static void audio_port_release(struct stream_port_s *port,
 	case 1:
 		;
 	}
+	amstream_audio_reset = 0;
 	return;
 }
 
@@ -758,7 +761,7 @@ static int audio_port_reset(struct stream_port_s *port,
 #endif
 
 	pbuf->flag |= BUF_FLAG_IN_USE;
-
+	amstream_audio_reset = 1;
 	pts_start(PTS_TYPE_AUDIO);
 
 	return 0;
@@ -3787,6 +3790,11 @@ void wakeup_sub_poll(void)
 int get_sub_type(void)
 {
 	return sub_type;
+}
+
+u32 get_audio_reset(void)
+{
+	return amstream_audio_reset;
 }
 
 /*get pes buffers */

@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/timestamp.h>
 #include <linux/amlogic/amports/ptsserv.h>
+#include <linux/amlogic/amports/amstream.h>
 
 #include "tsync_pcr.h"
 #include "amvdec.h"
@@ -633,7 +634,10 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		else
 			cur_pcr = cur_apts - 6300;
 
-		timestamp_pcrscr_set(cur_pcr);
+		if (get_audio_reset() == 0)
+			timestamp_pcrscr_set(cur_pcr);
+		else
+			pr_info("audio reset\n");
 
 		pr_info("after audio:cur_pcr =0x%x,cur_apts=0x%x,cur_vpts=0x%x\n",
 			timestamp_pcrscr_get(), cur_apts, cur_vpts);
