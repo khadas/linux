@@ -1629,7 +1629,10 @@ static inline bool vdec_ready_to_run(struct vdec_s *vdec)
 	if ((vdec->slave || vdec->master) &&
 		(vdec->sched == 0))
 		return false;
-
+	/* check frame based input underrun */
+	if (input && input_frame_based(input) &&
+		(!vdec_input_next_chunk(input)))
+		return false;
 	/* check streaming prepare level threshold if not EOS */
 	if (input && input_stream_based(input) && !input->eos) {
 		u32 rp, wp, level;
