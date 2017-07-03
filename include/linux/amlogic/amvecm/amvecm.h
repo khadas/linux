@@ -70,6 +70,14 @@
 #define VPP_DEMO_CM_EN              (1 << 0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_SR1_DERECTION_DIS	(1 << 19)
+#define PQ_USER_SR1_DERECTION_EN	(1 << 18)
+#define PQ_USER_SR0_DERECTION_DIS	(1 << 17)
+#define PQ_USER_SR0_DERECTION_EN	(1 << 16)
+#define PQ_USER_SR1_DEJAGGY_DIS		(1 << 15)
+#define PQ_USER_SR1_DEJAGGY_EN		(1 << 14)
+#define PQ_USER_SR0_DEJAGGY_DIS		(1 << 13)
+#define PQ_USER_SR0_DEJAGGY_EN		(1 << 12)
 #define PQ_USER_SR1_DERING_DIS		(1 << 11)
 #define PQ_USER_SR1_DERING_EN		(1 << 10)
 #define PQ_USER_SR0_DERING_DIS		(1 << 9)

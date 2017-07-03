@@ -2150,34 +2150,53 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 {
 	unsigned int addr;
 	unsigned int value;
+	unsigned int base_reg;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		base_reg = 0xff900000;
+	else
+		base_reg = 0xd0100000;
 
 	pr_info("----dump sharpness0 reg----\n");
 	for (addr = 0x3200;
 		addr <= 0x3264; addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		for (addr = 0x3265;
 			addr <= 0x3272; addr++)
 			pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-					(0xd0100000+(addr<<2)), addr,
+					(base_reg + (addr<<2)), addr,
+					READ_VPP_REG(addr));
+	}
+	if (is_meson_txlx_cpu()) {
+		for (addr = 0x3273;
+			addr <= 0x327f; addr++)
+			pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
+					(base_reg + (addr<<2)), addr,
 					READ_VPP_REG(addr));
 	}
 	pr_info("----dump sharpness1 reg----\n");
 	for (addr = (0x3200+0x80);
 		addr <= (0x3264+0x80); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		for (addr = (0x3265+0x80);
 			addr <= (0x3272+0x80); addr++)
 			pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-					(0xd0100000+(addr<<2)), addr,
+					(base_reg + (addr<<2)), addr,
 					READ_VPP_REG(addr));
 	}
-
+	if (is_meson_txlx_cpu()) {
+		for (addr = (0x3273+0x80);
+			addr <= (0x327f+0x80); addr++)
+			pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
+					(base_reg + (addr<<2)), addr,
+					READ_VPP_REG(addr));
+	}
 	pr_info("----dump cm reg----\n");
 	for (addr = 0x200; addr <= 0x21e; addr++) {
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, addr);
@@ -2198,57 +2217,57 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 	for (addr = (0x1a50);
 		addr <= (0x1a69); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump vpp1 part1 reg----\n");
 	for (addr = (0x1d00);
 		addr <= (0x1d6e); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 
 	pr_info("----dump vpp1 part2 reg----\n");
 	for (addr = (0x1d72);
 		addr <= (0x1de4); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 
 	pr_info("----dump ndr reg----\n");
 	for (addr = (0x2d00);
 		addr <= (0x2d78); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump nr3 reg----\n");
 	for (addr = (0x2ff0);
 		addr <= (0x2ff6); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump vlock reg----\n");
 	for (addr = (0x3000);
 		addr <= (0x3020); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump super scaler0 reg----\n");
 	for (addr = (0x3100);
 		addr <= (0x3115); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump super scaler1 reg----\n");
 	for (addr = (0x3118);
 		addr <= (0x312e); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump xvycc reg----\n");
 	for (addr = (0x3158);
 		addr <= (0x3179); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
-				(0xd0100000+(addr<<2)), addr,
+				(base_reg + (addr<<2)), addr,
 				READ_VPP_REG(addr));
 	pr_info("----dump reg done----\n");
 	return 0;
@@ -2501,6 +2520,38 @@ void amvecm_sr1_dering_enable(unsigned int enable)
 			0, 28, 3);
 }
 
+void amvecm_sr0_dejaggy_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL, 1, 0, 1);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL, 0, 0, 1);
+}
+
+void amvecm_sr1_dejaggy_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL, 1, 0, 1);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL, 0, 0, 1);
+}
+
+void amvecm_sr0_derection_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 7, 0, 3);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 0, 0, 3);
+}
+
+void amvecm_sr1_derection_enable(unsigned int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN, 7, 0, 3);
+	else
+		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN, 0, 0, 3);
+}
+
 void pq_user_latch_process(void)
 {
 	if (pq_user_latch_flag & PQ_USER_BLK_EN) {
@@ -2539,6 +2590,30 @@ void pq_user_latch_process(void)
 	} else if (pq_user_latch_flag & PQ_USER_SR1_DERING_DIS) {
 		pq_user_latch_flag &= ~PQ_USER_SR1_DERING_DIS;
 		amvecm_sr1_dering_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DEJAGGY_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DEJAGGY_EN;
+		amvecm_sr0_dejaggy_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DEJAGGY_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DEJAGGY_DIS;
+		amvecm_sr0_dejaggy_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DEJAGGY_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DEJAGGY_EN;
+		amvecm_sr1_dejaggy_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DEJAGGY_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DEJAGGY_DIS;
+		amvecm_sr1_dejaggy_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DERECTION_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DERECTION_EN;
+		amvecm_sr0_derection_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR0_DERECTION_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR0_DERECTION_DIS;
+		amvecm_sr0_derection_enable(false);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DERECTION_EN) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DERECTION_EN;
+		amvecm_sr1_derection_enable(true);
+	} else if (pq_user_latch_flag & PQ_USER_SR1_DERECTION_DIS) {
+		pq_user_latch_flag &= ~PQ_USER_SR1_DERECTION_DIS;
+		amvecm_sr1_derection_enable(false);
 	}
 }
 
@@ -2556,6 +2631,15 @@ static const char *amvecm_pq_user_usage_str = {
 	"echo sr0_dering_dis > /sys/class/amvecm/pq_user_set: sr0 dr dis\n"
 	"echo sr1_dering_en > /sys/class/amvecm/pq_user_set: sr1 dr en\n"
 	"echo sr1_dering_dis > /sys/class/amvecm/pq_user_set: sr1 dr dis\n"
+	"echo sr0_dejaggy_en > /sys/class/amvecm/pq_user_set: sr0 dj en\n"
+	"echo sr0_dejaggy_dis > /sys/class/amvecm/pq_user_set: sr0 dj dis\n"
+	"echo sr1_dejaggy_en > /sys/class/amvecm/pq_user_set: sr1 dj en\n"
+	"echo sr1_dejaggy_dis > /sys/class/amvecm/pq_user_set: sr1 dj dis\n"
+	"echo sr0_derec_en > /sys/class/amvecm/pq_user_set: sr0 drec en\n"
+	"echo sr0_derec_dis > /sys/class/amvecm/pq_user_set: sr0 drec dis\n"
+	"echo sr1_derec_en > /sys/class/amvecm/pq_user_set: sr1 drec en\n"
+	"echo sr1_derec_dis > /sys/class/amvecm/pq_user_set: sr1 drec dis\n"
+
 };
 
 static ssize_t amvecm_pq_user_show(struct class *cla,
@@ -2605,6 +2689,22 @@ static ssize_t amvecm_pq_user_store(struct class *cla,
 		pq_user_latch_flag |= PQ_USER_SR1_DERING_EN;
 	} else if (!strncmp(parm[0], "sr1_dering_dis", 14)) {
 		pq_user_latch_flag |= PQ_USER_SR1_DERING_DIS;
+	} else if (!strncmp(parm[0], "sr0_dejaggy_en", 14)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DEJAGGY_EN;
+	} else if (!strncmp(parm[0], "sr0_dejaggy_dis", 15)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DEJAGGY_DIS;
+	} else if (!strncmp(parm[0], "sr1_dejaggy_en", 14)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DEJAGGY_EN;
+	} else if (!strncmp(parm[0], "sr1_dejaggy_dis", 15)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DEJAGGY_DIS;
+	} else if (!strncmp(parm[0], "sr0_derec_en", 12)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DERECTION_EN;
+	} else if (!strncmp(parm[0], "sr0_derec_dis", 13)) {
+		pq_user_latch_flag |= PQ_USER_SR0_DERECTION_DIS;
+	} else if (!strncmp(parm[0], "sr1_derec_en", 12)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DERECTION_EN;
+	} else if (!strncmp(parm[0], "sr1_derec_dis", 13)) {
+		pq_user_latch_flag |= PQ_USER_SR1_DERECTION_DIS;
 	}
 
 	kfree(buf_orig);
@@ -2725,33 +2825,6 @@ static void dump_vpp_size_info(void)
 		ve_hsize, ve_vsize,
 		psr_hsize, psr_vsize,
 		cm_hsize, cm_vsize);
-}
-
-static void vpp_sr3_enhance_enable(unsigned int enable)
-{
-	/*
-	0x00: core 0 disable
-	0x01: core 0 enable
-	0x10: core 1 diable
-	0x11: core 1 enable
-	*/
-	if (enable == 0x00) {
-		WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL, 0, 0, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 0, 0, 3);
-		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL, 0, 28, 3);
-	} else if (enable == 0x01) {
-		WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL, 1, 0, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 7, 0, 3);
-		WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL, 1, 28, 3);
-	} else if (enable == 0x10) {
-		WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL, 0, 0, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN, 0, 0, 3);
-		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL, 0, 28, 3);
-	} else if (enable == 0x11) {
-		WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL, 1, 0, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN, 7, 0, 3);
-		WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL, 1, 28, 3);
-	}
 }
 
 static void amvecm_wb_enable(int enable)
@@ -3080,6 +3153,30 @@ static void vpp_clip_config(unsigned int mode_sel, unsigned int color,
 static const char *amvecm_debug_usage_str = {
 	"Usage:\n"
 	"echo vpp_size > /sys/class/amvecm/debug; get vpp size config\n"
+	"echo wb enable > /sys/class/amvecm/debug\n"
+	"echo wb disable > /sys/class/amvecm/debug\n"
+	"echo gama enable > /sys/class/amvecm/debug\n"
+	"echo gama disable > /sys/class/amvecm/debug\n"
+	"echo sr peaking_en > /sys/class/amvecm/debug\n"
+	"echo sr peaking_dis > /sys/class/amvecm/debug\n"
+	"echo sr lcti_en > /sys/class/amvecm/debug\n"
+	"echo sr lcti_dis > /sys/class/amvecm/debug\n"
+	"echo sr dejaggy_en > /sys/class/amvecm/debug\n"
+	"echo sr dejaggy_dis > /sys/class/amvecm/debug\n"
+	"echo sr dering_en > /sys/class/amvecm/debug\n"
+	"echo sr dering_dis > /sys/class/amvecm/debug\n"
+	"echo sr derec_en > /sys/class/amvecm/debug\n"
+	"echo sr derec_dis > /sys/class/amvecm/debug\n"
+	"echo sr theta_en > /sys/class/amvecm/debug\n"
+	"echo sr theta_dis > /sys/class/amvecm/debug\n"
+	"echo sr deband_en > /sys/class/amvecm/debug\n"
+	"echo sr deband_dis > /sys/class/amvecm/debug\n"
+	"echo cm enable > /sys/class/amvecm/debug\n"
+	"echo cm disable > /sys/class/amvecm/debug\n"
+	"echo dnlp enable > /sys/class/amvecm/debug\n"
+	"echo dnlp disable > /sys/class/amvecm/debug\n"
+	"echo vpp_pq enable > /sys/class/amvecm/debug\n"
+	"echo vpp_pq disable > /sys/class/amvecm/debug\n"
 	"echo keystone_process > /sys/class/amvecm/debug; keystone init config\n"
 	"echo keystone_status > /sys/class/amvecm/debug; keystone paramter status\n"
 	"echo keystone_regs > /sys/class/amvecm/debug; keystone regs value\n"
@@ -3122,25 +3219,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	parse_param_amvecm(buf_orig, (char **)&parm);
 	if (!strncmp(parm[0], "vpp_size", 8))
 		dump_vpp_size_info();
-	else if (!strncmp(parm[0], "4k_enhance", 10)) {
-		if (!strncmp(parm[1], "core0", 5)) {
-			if (!strncmp(parm[2], "00", 2)) {
-				vpp_sr3_enhance_enable(0x0);
-				pr_info("disable core0 sr3 dering/dejaggy/direction\n");
-			} else if (!strncmp(parm[2], "01", 2)) {
-				vpp_sr3_enhance_enable(0x1);
-				pr_info("enable core0 sr3 dering/dejaggy/direction\n");
-			}
-		} else if (!strncmp(parm[1], "core1", 2)) {
-			if (!strncmp(parm[2], "10", 2)) {
-				vpp_sr3_enhance_enable(0x10);
-				pr_info("disable core1 sr3 dering/dejaggy/direction\n");
-			} else if (!strncmp(parm[2], "11", 2)) {
-				vpp_sr3_enhance_enable(0x11);
-				pr_info("enable core1 sr3 dering/dejaggy/direction\n");
-			}
-		}
-	} else if (!strncmp(parm[0], "wb", 2)) {
+	else if (!strncmp(parm[0], "wb", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
 			amvecm_wb_enable(1);
 			pr_info("enable wb\n");
@@ -3181,6 +3260,30 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		} else if (!strncmp(parm[1], "deband_dis", 10)) {
 			amvecm_sharpness_debug(7);
 			pr_info("SR4 disable debanding\n");
+		} else if (!strncmp(parm[1], "dejaggy_en", 10)) {
+			amvecm_sr0_dejaggy_enable(true);
+			amvecm_sr1_dejaggy_enable(true);
+			pr_info("SR3 enable dejaggy\n");
+		} else if (!strncmp(parm[1], "dejaggy_dis", 11)) {
+			amvecm_sr0_dejaggy_enable(false);
+			amvecm_sr1_dejaggy_enable(false);
+			pr_info("SR3 disable dejaggy\n");
+		} else if (!strncmp(parm[1], "dering_en", 9)) {
+			amvecm_sr0_dering_enable(true);
+			amvecm_sr1_dering_enable(true);
+			pr_info("SR3 enable dering\n");
+		} else if (!strncmp(parm[1], "dering_dis", 10)) {
+			amvecm_sr0_dering_enable(false);
+			amvecm_sr1_dering_enable(false);
+			pr_info("SR3 disable dering\n");
+		} else if (!strncmp(parm[1], "derec_en", 8)) {
+			amvecm_sr0_derection_enable(true);
+			amvecm_sr1_derection_enable(true);
+			pr_info("SR3 enable derection\n");
+		} else if (!strncmp(parm[1], "derec_dis", 9)) {
+			amvecm_sr0_derection_enable(false);
+			amvecm_sr1_derection_enable(false);
+			pr_info("SR3 disable derection\n");
 		}
 	} else if (!strncmp(parm[0], "cm", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
