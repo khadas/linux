@@ -62,6 +62,10 @@ static bool data_print_en;
 MODULE_PARM_DESC(data_print_en, "\n data_print_en\n");
 module_param(data_print_en, bool, 0664);
 
+static bool vbi_nonblock_en;
+MODULE_PARM_DESC(vbi_nonblock_en, "\n vbi_nonblock_en\n");
+module_param(vbi_nonblock_en, bool, 0664);
+
 static unsigned int vcnt = 1;
 
 static void vbi_hw_reset(struct vbi_dev_s *devp)
@@ -691,9 +695,10 @@ ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
 {
 	ssize_t avail;
 
-	avail = rbuf->pwrite - rbuf->pread;
-	if (avail < 0)
-		avail += rbuf->size;
+	avail = (rbuf->pwrite >= rbuf->pread) ?
+		(rbuf->pwrite - rbuf->pread) :
+		(rbuf->size - (rbuf->pread - rbuf->pwrite));
+
 	return avail;
 }
 
@@ -726,9 +731,9 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		      int non_blocking, char __user *buf,
 		      size_t count, loff_t *ppos)
 {
-	size_t todo;
 	ssize_t avail;
 	ssize_t ret = 0;
+	ssize_t timeout = 0;
 
 	if (!src->data) {
 		pr_info("[vbi..] %s: data null\n", __func__);
@@ -742,60 +747,46 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		return ret;
 	}
 
-	for (todo = count; todo > 0; todo -= ret) {
-		if (non_blocking && vbi_ringbuffer_empty(src)) {
-			ret = -EWOULDBLOCK;
-			pr_info("[vbi..] %s: buffer empty, non_blocking: 0x%x, empty?: %d\n",
-			__func__, non_blocking, vbi_ringbuffer_empty(src));
-			break;
-		}
-
-		if (tvafe_clk_status == false) {
-			ret = -EWOULDBLOCK;
-			pr_info("[vbi..] %s: tvafe is closed.\n", __func__);
-			break;
-		}
-		if (vbi_dbg_en)
-			pr_info("[vbi...]%s:src->pread = %d;src->pwrite = %d\n",
-			__func__,
-					src->pread, src->pwrite);
-		if (ret < 0) {
-			pr_info("[vbi..] %s: read wait_event_interruptible error\n",
-				__func__);
-			break;
-		}
-
-		if (src->error) {
-			ret = src->error;
-			vbi_ringbuffer_flush(src);
-			pr_info("[vbi..] %s: read buffer error\n", __func__);
-			break;
-		}
-
-		avail = vbi_ringbuffer_avail(src);
-		if (avail > todo)
-			avail = todo;
-
-		ret = vbi_ringbuffer_read_user(src, buf, avail);
-		if (ret < 0) {
-			pr_info("[vbi..] %s: vbi_ringbuffer_read_user error\n",
-				__func__);
-			break;
-		}
-		buf += ret;
+	while (vbi_ringbuffer_empty(src)) {
+		if ((non_blocking || vbi_nonblock_en) ||
+			(tvafe_clk_status == false) ||
+			(timeout++ > 50)) {
+				ret = -EWOULDBLOCK;
+				pr_info("[vbi..] %s:nonblock|closed|timeout return.\n",
+					__func__);
+				return ret;
+			}
+		msleep(20);
 	}
 
 	if (tvafe_clk_status == false) {
-		pr_info("[vbi..] %s: tvafe closed already.return 0\n",
-			__func__);
-		return 0;
+		ret = -EWOULDBLOCK;
+		pr_info("[vbi..] %s: tvafe is closed.\n", __func__);
+		return ret;
 	}
+	if (src->error) {
+		ret = src->error;
+		vbi_ringbuffer_flush(src);
+		pr_info("[vbi..] %s: read buffer error\n", __func__);
+		return ret;
+	}
+	if (vbi_dbg_en)
+		pr_info("[vbi...]%s:src->pread = %d;src->pwrite = %d\n",
+		__func__, src->pread, src->pwrite);
 
-	if ((count - todo) <= 0)
-		pr_info("[vbi..] %s: read error!! counter: %Zx or %Zx\n",
-			__func__, (count - todo) , ret);
+	avail = vbi_ringbuffer_avail(src);
+	if (avail > count)
+		avail = count;
 
-	return (count - todo) ? (count - todo) : ret;
+	ret = vbi_ringbuffer_read_user(src, buf, avail);
+	if (ret < 0) {
+		pr_info("[vbi..] %s: vbi_ringbuffer_read_user error\n",
+			__func__);
+	}
+	if (vbi_dbg_en)
+		pr_info("[vbi...]%s: counter:%Zx, return:%Zx\n",
+		__func__, count, ret);
+	return ret;
 }
 
 static ssize_t vbi_read(struct file *file, char __user *buf, size_t count,
