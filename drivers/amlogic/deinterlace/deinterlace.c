@@ -2608,11 +2608,13 @@ unsigned int di_cma_alloc_total(struct di_dev_s *de_devp)
 	}
 
 }
+
+static bool cma_print;
 unsigned int di_cma_alloc(void)
 {
 	unsigned int start_time, end_time, delta_time;
 	struct di_buf_s *buf_p = NULL;
-	int itmp;
+	int itmp, alloc_cnt = 0;
 
 	start_time = jiffies_to_msecs(jiffies);
 	queue_for_each_entry(buf_p, ptmp, QUEUE_LOCAL_FREE, list) {
@@ -2621,47 +2623,55 @@ unsigned int di_cma_alloc(void)
 			buf_p->pages =
 			dma_alloc_from_contiguous(&(de_devp->pdev->dev),
 				de_devp->buffer_size >> PAGE_SHIFT, 0);
-			if (buf_p->pages) {
-				buf_p->nr_adr = page_to_phys(buf_p->pages);
-				pr_dbg("DI CMA  allocate addr:0x%lx[%d] ok.\n",
-					buf_p->nr_adr, buf_p->index);
-			} else {
-				pr_info("xxxxxxxxx DI CMA  allocate %d fail.\n",
+			if (IS_ERR_OR_NULL(buf_p->pages)) {
+				buf_p->pages = NULL;
+				pr_err("xxxxxxxxx DI CMA  allocate %d fail.\n",
 					buf_p->index);
 				return 0;
+			} else {
+				alloc_cnt++;
+				if (cma_print)
+					pr_info("DI CMA  allocate buf[%d]page:0x%p\n",
+						buf_p->index, buf_p->pages);
 			}
-			if (di_pre_stru.buf_alloc_mode == 0) {
-				buf_p->mtn_adr = buf_p->nr_adr +
-					di_pre_stru.nr_size;
+		} else {
+			pr_err("DI buf[%d] page:0x%p cma alloced skip\n",
+					buf_p->index, buf_p->pages);
+		}
+		buf_p->nr_adr = page_to_phys(buf_p->pages);
+		if (cma_print)
+			pr_info(" addr 0x%lx ok.\n", buf_p->nr_adr);
+		if (di_pre_stru.buf_alloc_mode == 0) {
+			buf_p->mtn_adr = buf_p->nr_adr +
+				di_pre_stru.nr_size;
 #ifdef NEW_DI_V1
-				buf_p->cnt_adr = buf_p->nr_adr +
-					di_pre_stru.nr_size +
-					di_pre_stru.mtn_size;
+			buf_p->cnt_adr = buf_p->nr_adr +
+				di_pre_stru.nr_size +
+				di_pre_stru.mtn_size;
 #endif
-				if (mcpre_en) {
-					buf_p->mcvec_adr = buf_p->nr_adr +
-						di_pre_stru.nr_size +
-						di_pre_stru.mtn_size +
-						di_pre_stru.count_size;
-					buf_p->mcinfo_adr =
-						buf_p->nr_adr +
-						di_pre_stru.nr_size +
-						di_pre_stru.mtn_size +
-						di_pre_stru.count_size +
-						di_pre_stru.mv_size;
-				}
+			if (mcpre_en) {
+				buf_p->mcvec_adr = buf_p->nr_adr +
+					di_pre_stru.nr_size +
+					di_pre_stru.mtn_size +
+					di_pre_stru.count_size;
+				buf_p->mcinfo_adr =
+					buf_p->nr_adr +
+					di_pre_stru.nr_size +
+					di_pre_stru.mtn_size +
+					di_pre_stru.count_size +
+					di_pre_stru.mv_size;
 			}
 		}
 	}
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
-	pr_dbg("%s:alloc use %d ms(%d~%d)\n", __func__, delta_time,
-		start_time, end_time);
+	pr_info("%s:alloc %d buffer use %d ms(%d~%d)\n",
+			__func__, alloc_cnt, delta_time, start_time, end_time);
 	return 1;
 }
 void di_cma_release(void)
 {
-	unsigned int i, ii, start_time, end_time, delta_time;
+	unsigned int i, ii, rels_cnt = 0, start_time, end_time, delta_time;
 	struct di_buf_s *buf_p;
 
 	start_time = jiffies_to_msecs(jiffies);
@@ -2671,7 +2681,7 @@ void di_cma_release(void)
 		if (used_post_buf_index != -1) {
 			for (ii = 0; ii < USED_LOCAL_BUF_MAX; ii++) {
 				if (i == used_local_buf_index[ii]) {
-					pr_dbg("%s skip buffer %d\n",
+					pr_dbg("%s skip buf[%d].\n\n",
 						__func__, i);
 					break;
 				}
@@ -2683,23 +2693,29 @@ void di_cma_release(void)
 				buf_p->pages,
 				de_devp->buffer_size >> PAGE_SHIFT)) {
 				buf_p->pages = NULL;
-				pr_dbg("DI CMA  release %d ok.\n", i);
+				rels_cnt++;
+				if (cma_print)
+					pr_info(
+				"DI CMA  release buf[%d] ok.\n", i);
 			} else {
-				pr_err("DI CMA  release %d fail.\n", i);
+				pr_err("DI CMA  release buf[%d] fail.\n", i);
 			}
+		} else {
+			pr_err("DI buf[%d] page:0x%p no release.\n",
+					buf_p->index, buf_p->pages);
 		}
 	}
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
-	pr_dbg("%s:release use %d ms(%d~%d)\n", __func__, delta_time,
-		start_time, end_time);
+	pr_info("%s:release %u buffer use %d ms(%d~%d)\n",
+			__func__, rels_cnt, delta_time, start_time, end_time);
 }
 #endif
 static int di_init_buf(int width, int height, unsigned char prog_flag)
 {
 	int i;
 	int canvas_height = height + 8;
-
+	struct page *tmp_page = NULL;
 	unsigned int di_buf_size = 0, di_post_buf_size = 0, mtn_size = 0;
 	unsigned int nr_size = 0, count_size = 0, mv_size = 0, mc_size = 0;
 	unsigned int nr_width = width, mtn_width = width, mv_width = width;
@@ -2814,7 +2830,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 		}
 
 		if (ii >= USED_LOCAL_BUF_MAX) {
+			/* backup cma pages */
+			tmp_page = di_buf->pages;
 			memset(di_buf, 0, sizeof(struct di_buf_s));
+			di_buf->pages = tmp_page;
 			di_buf->type = VFRAME_TYPE_LOCAL;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
@@ -8189,13 +8208,13 @@ static void di_unreg_process(void)
 		vf_unreg_provider(&di_vf_prov);
 		pr_dbg("%s vf unreg cost %u ms.\n", __func__,
 			jiffies_to_msecs(jiffies_64 - start_jiffes));
-		reg_flag = 0;
 		unreg_cnt++;
 		if (unreg_cnt > 0x3fffffff)
 			unreg_cnt = 0;
 		pr_dbg("%s unreg stop %d.\n", __func__, reg_flag);
 		di_pre_stru.pre_de_busy = 0;
 		di_pre_stru.unreg_req_flag_irq = 1;
+		reg_flag = 0;
 		trigger_pre_di_process(TRIGGER_PRE_BY_UNREG);
 	} else {
 		di_pre_stru.force_unreg_req_flag = 0;
@@ -8398,6 +8417,8 @@ static void di_reg_process_irq(void)
 	if (vframe) {
 		if (need_bypass(vframe) || ((di_debug_flag>>20) & 0x1)) {
 			di_pre_stru.bypass_flag = true;
+			pr_info("DI bypass all %ux%u-0x%x.", vframe->width,
+				vframe->height, vframe->type);
 			return;
 		} else {
 			di_pre_stru.bypass_flag = false;
@@ -8720,6 +8741,13 @@ static int di_task_handle(void *data)
 				di_pre_stru.reg_req_flag_irq = 0;
 			}
 			#ifdef CONFIG_CMA
+			mutex_lock(&de_devp->cma_mutex);
+			if (di_pre_stru.cma_release_req) {
+				atomic_set(&devp->mem_flag, 0);
+				di_cma_release();
+				di_pre_stru.cma_release_req = 0;
+				di_pre_stru.cma_alloc_done = 0;
+			}
 			if (di_pre_stru.cma_alloc_req) {
 				if (di_cma_alloc())
 					atomic_set(&devp->mem_flag, 1);
@@ -8728,12 +8756,7 @@ static int di_task_handle(void *data)
 				di_pre_stru.cma_alloc_req = 0;
 				di_pre_stru.cma_alloc_done = 1;
 			}
-			if (di_pre_stru.cma_release_req) {
-				atomic_set(&devp->mem_flag, 0);
-				di_cma_release();
-				di_pre_stru.cma_release_req = 0;
-				di_pre_stru.cma_alloc_done = 0;
-			}
+			mutex_unlock(&de_devp->cma_mutex);
 			#endif
 		}
 	}
@@ -8761,8 +8784,10 @@ static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 static struct hrtimer di_pre_hrtimer;
 static void pre_tasklet(unsigned long arg)
 {
-	if (jiffies_to_msecs(jiffies_64 - de_devp->jiffy) > 10)
-		pr_err("DI: tasklet schedule over 10ms.\n");
+	unsigned int hrtimer_time = 0;
+	hrtimer_time = jiffies_to_msecs(jiffies_64 - de_devp->jiffy);
+	if (hrtimer_time > 10)
+		pr_dbg("DI: tasklet schedule cost %ums.\n", hrtimer_time);
 	di_pre_process_irq((struct di_pre_stru_s *)arg);
 }
 
@@ -9770,6 +9795,7 @@ static int di_probe(struct platform_device *pdev)
 	} else {
 			atomic_set(&di_devp->mem_flag, 1);
 	}
+	mutex_init(&di_devp->cma_mutex);
 	INIT_LIST_HEAD(&di_devp->pq_table_list);
 	mutex_init(&di_devp->pq_lock);
 	di_devp->di_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
@@ -10429,7 +10455,7 @@ module_param_named(full_422_pack, full_422_pack, bool, 0644);
 module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
 module_param_named(pldn_dly, pldn_dly, uint, 0644);
 module_param_named(tbbtff_dly, tbbtff_dly, uint, 0644);
-
+module_param_named(cma_print, cma_print, bool, 0644);
 module_param(pldn_dly1, uint, 0644);
 MODULE_PARM_DESC(pldn_dly1, "/n pulldonw field delay result./n");
 

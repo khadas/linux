@@ -510,6 +510,8 @@ struct di_dev_s {
 	unsigned int	   nr10bit_surpport;
 	/* is DI surpport post wr to mem for OMX */
 	unsigned int       post_wr_surpport;
+	/* cma alloc operation */
+	struct	mutex      cma_mutex;
 	unsigned int	   flag_cma;
 	struct page			*total_pages;
 	atomic_t			mem_flag;
