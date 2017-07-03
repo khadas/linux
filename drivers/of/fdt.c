@@ -796,6 +796,19 @@ u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
 	return of_read_number(p, s);
 }
 
+static int get_ddr_size(void)
+{
+	int ddr_size = 0;
+	if (strstr(boot_command_line, "ddr_size=2"))
+		ddr_size = 2;
+	else if (strstr(boot_command_line, "ddr_size=3"))
+		ddr_size = 3;
+	else
+		ddr_size = 0;
+
+	return ddr_size;
+}
+
 /**
  * early_init_dt_scan_memory - Look for an parse memory nodes
  */
@@ -804,7 +817,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 {
 	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	const __be32 *reg, *endp;
-	int l;
+	int l, ddr_size;
 
 	/* We are scanning "memory" nodes only */
 	if (type == NULL) {
@@ -817,7 +830,14 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	ddr_size = get_ddr_size();
+	if (ddr_size == 2)
+		reg = of_get_flat_dt_prop(node, "linux,usable-memory-2g", &l);
+	else if (ddr_size == 3)
+		reg = of_get_flat_dt_prop(node, "linux,usable-memory-3g", &l);
+	else
+		reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+
 	if (reg == NULL)
 		reg = of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
