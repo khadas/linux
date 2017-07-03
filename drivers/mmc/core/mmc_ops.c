@@ -426,6 +426,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	unsigned long timeout;
 	u32 status = 0;
 	bool use_r1b_resp = use_busy_signal;
+	u32 status_cnt = 0, retry = 0;
 	if ((timeout_ms > 0) && (timeout_ms < 100))
 		timeout_ms = 100;
 	else if (timeout_ms >= 100)
@@ -482,8 +483,10 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	/* Must check status to be sure of no errors. */
 	timeout = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
+_retry:
 		if (send_status) {
 			err = __mmc_send_status(card, &status, ignore_crc);
+			status_cnt++;
 			if (err)
 				return err;
 		}
@@ -504,12 +507,29 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 
 		/* Timeout if the device never leaves the program state. */
 		if (time_after(jiffies, timeout)) {
-			pr_err("%s: Card stuck in programming state! %s\n",
-				mmc_hostname(host), __func__);
+			if (!retry) {
+				retry = 1;
+				pr_err("%s() idx %d, val %d, tout %d, stats 0x%x, cnt %d\n",
+					__func__, index, value,
+					timeout_ms, status, status_cnt);
+				goto _retry;
+			}
+			if (send_status)
+				__mmc_send_status(card, &status, ignore_crc);
+			if (R1_CURRENT_STATE(status) != R1_STATE_PRG) {
+				pr_err("%s()>idx %d, val %d, tout %d, stats 0x%x, cnt %d\n",
+					__func__, index, value,
+					timeout_ms, status, status_cnt);
+				goto _out;
+			} else
+				pr_err("%s: stuck in programming state! %s, %d, status 0x%x\n",
+					mmc_hostname(host), __func__,
+					status_cnt, status);
 			return -ETIMEDOUT;
 		}
 	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG);
 
+_out:
 	if (mmc_host_is_spi(host)) {
 		if (status & R1_SPI_ILLEGAL_COMMAND)
 			return -EBADMSG;
