@@ -4067,9 +4067,8 @@ static void bypass_hdr_process(
 			0, 7, 1);
 		*/
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			(((vinfo->hdr_info.hdr_support & 0x4) &&
-			(vinfo->viu_color_fmt != TVIN_RGB444)) ||
-			(vinfo->viu_color_fmt == TVIN_RGB444))) {
+			((vinfo->hdr_info.hdr_support & 0x4) &&
+			(vinfo->viu_color_fmt != TVIN_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -4327,9 +4326,8 @@ static void bypass_hlg_process(
 			0, 7, 1);
 		*/
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			(((vinfo->hdr_info.hdr_support & 0x4) &&
-			(vinfo->viu_color_fmt != TVIN_RGB444)) ||
-			(vinfo->viu_color_fmt == TVIN_RGB444))) {
+			((vinfo->hdr_info.hdr_support & 0x4) &&
+			(vinfo->viu_color_fmt != TVIN_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
