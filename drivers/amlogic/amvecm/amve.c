@@ -4795,7 +4795,7 @@ static void vlock_disable_step1(void)
 	amvecm_hiu_reg_read(hiu_reg_addr, &tmp_value);
 	m_reg_value = tmp_value & 0xfff;
 	if ((m_reg_value != pre_hiu_reg_frac) &&
-		(pre_hiu_reg_frac != 0)) {
+		(pre_hiu_reg_m != 0)) {
 		tmp_value = (tmp_value & 0xfffff000) |
 			(pre_hiu_reg_frac & 0xfff);
 		amvecm_hiu_reg_write(hiu_reg_addr, tmp_value);
@@ -4809,6 +4809,7 @@ static void vlock_disable_step1(void)
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, tmp_value);
 	}
 	vlock_dis_cnt = vlock_dis_cnt_limit;
+	memset(pre_vout_mode, 0, sizeof(pre_vout_mode));
 	pre_vmode = VMODE_INIT_NULL;
 	pre_source_type = VFRAME_SOURCE_TYPE_OTHERS;
 	pre_source_mode = VFRAME_SOURCE_MODE_OTHERS;
