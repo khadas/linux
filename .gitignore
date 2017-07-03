@@ -52,6 +52,11 @@ modules.builtin
 /debian/
 
 #
+# Tools gator daemon directory
+#
+/tools/gator/daemon/
+
+#
 # git files that we don't want to ignore even it they are dot-files
 #
 !.gitignore
