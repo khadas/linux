@@ -5421,6 +5421,7 @@ static int amlvideo2_open(struct file *file)
 			pr_err("alloc amlvideo2.0 cma buffer failed.\n");
 		else
 			pr_err("alloc amlvideo2.1 cma buffer failed.\n");
+		node->users--;
 		mutex_unlock(&node->mutex);
 		return -ENOMEM;
 	}
@@ -5429,6 +5430,7 @@ static int amlvideo2_open(struct file *file)
 	if (NULL == fh) {
 		node->users--;
 		/* node->provider  = NULL; */
+		amlvideo2_cma_buf_uninit(node->vid_dev, node->vid);
 		mutex_unlock(&node->mutex);
 		return -ENOMEM;
 	}
@@ -5437,6 +5439,8 @@ static int amlvideo2_open(struct file *file)
 		reserve = &node->vid_dev->memobj;
 		if (!reserve) {
 			pr_err("alloc reserve buffer failed !\n");
+			node->users--;
+			amlvideo2_cma_buf_uninit(node->vid_dev, node->vid);
 			mutex_unlock(&node->mutex);
 			return -ENOMEM;
 		} else {
