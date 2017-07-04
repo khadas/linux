@@ -1237,9 +1237,13 @@ static int dolby_core3_set(
 	return 0;
 }
 
-static void apply_stb_core_settings(int enable, unsigned int mask, bool reset)
+static void apply_stb_core_settings(
+	int enable, unsigned int mask,
+	bool reset, u32 skip_mode)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	u32 h_skip = (skip_mode >> 16) + 1;
+	u32 v_skip = (skip_mode & 0xffff) + 1;
 
 	if (mask & 1) {
 		if (is_meson_txlx_package_962E()
@@ -1249,8 +1253,8 @@ static void apply_stb_core_settings(int enable, unsigned int mask, bool reset)
 				(uint32_t *)&dovi_setting.dm_reg1,
 				(uint32_t *)&dovi_setting.comp_reg,
 				(uint32_t *)&dovi_setting.dm_lut1,
-				dovi_setting.video_width,
-				dovi_setting.video_height,
+				dovi_setting.video_width / h_skip,
+				dovi_setting.video_height / v_skip,
 				enable, /* BL enable */
 				enable && dovi_setting.el_flag, /* EL enable */
 				dovi_setting.el_halfsize_flag,
@@ -1265,8 +1269,8 @@ static void apply_stb_core_settings(int enable, unsigned int mask, bool reset)
 				(uint32_t *)&dovi_setting.dm_reg1,
 				(uint32_t *)&dovi_setting.comp_reg,
 				(uint32_t *)&dovi_setting.dm_lut1,
-				dovi_setting.video_width,
-				dovi_setting.video_height,
+				dovi_setting.video_width / h_skip,
+				dovi_setting.video_height / v_skip,
 				enable, /* BL enable */
 				enable && dovi_setting.el_flag, /* EL enable */
 				dovi_setting.el_halfsize_flag,
@@ -3585,9 +3589,11 @@ static void update_dolby_vision_status(enum signal_format_e src_format)
 }
 
 static unsigned int last_dolby_vision_policy;
-int dolby_vision_process(struct vframe_s *vf)
+int dolby_vision_process(struct vframe_s *vf, u32 skip_mode)
 {
 	int src_chroma_format = 0;
+	u32 h_skip = (skip_mode >> 16) + 1;
+	u32 v_skip = (skip_mode & 0xffff) + 1;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (!is_meson_gxm_cpu() && !is_meson_txlx_cpu())
@@ -3665,8 +3671,8 @@ int dolby_vision_process(struct vframe_s *vf)
 					src_chroma_format = 1;
 				tv_dolby_core1_set(
 					tv_dovi_setting.core1_reg_lut,
-					tv_dovi_setting.video_width,
-					tv_dovi_setting.video_height,
+					tv_dovi_setting.video_width / h_skip,
+					tv_dovi_setting.video_height / v_skip,
 					dovi_setting_video_flag, /* BL enable */
 					dovi_setting_video_flag
 					&& tv_dovi_setting.el_flag, /* EL en */
@@ -3699,7 +3705,8 @@ int dolby_vision_process(struct vframe_s *vf)
 					(dolby_vision_wait_init
 					&& (!dolby_vision_wait_count)
 					&& (dolby_vision_reset & 1))
-					|| (dolby_vision_reset & 4));
+					|| (dolby_vision_reset & 4),
+					skip_mode);
 				enable_dolby_vision(1);
 				/* send HDMI packet according to dst_format */
 				if (!force_stb_mode)
@@ -3725,7 +3732,8 @@ int dolby_vision_process(struct vframe_s *vf)
 				apply_stb_core_settings(
 					dovi_setting_video_flag,
 					0x1, /* core 1 only */
-					reset_flag);
+					reset_flag,
+					0);
 				pr_dolby_dbg("fake frame %d reset %d\n",
 					dolby_vision_on_count,
 					reset_flag);

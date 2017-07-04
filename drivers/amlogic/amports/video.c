@@ -1553,6 +1553,7 @@ static void zoom_display_horz(int hscale)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		int l_aligned;
 		int r_aligned;
+		int h_skip = cur_frame_par->hscale_skip_count + 1;
 		if ((zoom_start_x_lines > 0) ||
 		(zoom_end_x_lines < ori_end_x_lines)) {
 			l_aligned = round_down(ori_start_x_lines, 32);
@@ -1562,8 +1563,8 @@ static void zoom_display_horz(int hscale)
 			r_aligned = round_up(zoom_end_x_lines + 1, 32);
 		}
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_W,
-			  ((r_aligned - l_aligned) << 16) |
-			  (r_aligned / 2 - l_aligned / 2));
+			  (((r_aligned - l_aligned) / h_skip) << 16) |
+			  ((r_aligned / 2 - l_aligned / 2) / h_skip));
 
 		VSYNC_WR_MPEG_REG(AFBC_MIF_HOR_SCOPE,
 			  ((l_aligned / 32) << 16) |
@@ -1572,7 +1573,7 @@ static void zoom_display_horz(int hscale)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
 				(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) & 0xffff) |
-				((r_aligned - l_aligned) << 16));
+				(((r_aligned - l_aligned) / h_skip) << 16));
 		}
 #ifdef TV_REVERSE
 		if (reverse) {
@@ -1790,13 +1791,14 @@ static void zoom_display_vert(void)
 		int b_aligned;
 		int ori_t_aligned;
 		int ori_b_aligned;
+		int v_skip = cur_frame_par->vscale_skip_count + 1;
 		t_aligned = round_down(zoom_start_y_lines, 4);
 		b_aligned = round_up(zoom_end_y_lines + 1, 4);
 
 		ori_t_aligned = round_down(ori_start_y_lines, 4);
 		ori_b_aligned = round_up(ori_end_y_lines + 1, 4);
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
-		    (b_aligned - t_aligned) / 2);
+		    (b_aligned - t_aligned) / 2 / v_skip);
 
 		VSYNC_WR_MPEG_REG(AFBC_MIF_VER_SCOPE,
 		    ((t_aligned / 4) << 16) |
@@ -1805,20 +1807,21 @@ static void zoom_display_vert(void)
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_VER_SCOPE,
 		    ((zoom_start_y_lines - t_aligned) << 16) |
 		    (zoom_end_y_lines - t_aligned));
-	/* afbc pixel vertical output region must be
-	 * [0, zoom_end_y_lines - zoom_start_y_lines]
-	 */
+		/* afbc pixel vertical output region must be
+		* [0, zoom_end_y_lines - zoom_start_y_lines]
+		*/
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_VER_SCOPE,
 		(zoom_end_y_lines - zoom_start_y_lines));
 
-
-	VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
-		(VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
-		(ori_b_aligned - ori_t_aligned));
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
+		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
+			(VSYNC_RD_MPEG_REG(AFBC_SIZE_IN)
+			& 0xffff0000) |
+			(ori_b_aligned - ori_t_aligned));
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
 				(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) &
-				0xffff0000) | (b_aligned - t_aligned));
+				0xffff0000) |
+				((b_aligned - t_aligned) / v_skip));
 		}
 	}
 }
@@ -4553,7 +4556,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 SET_FILTER:
 	if (is_dolby_vision_enable()) {
-		dolby_vision_process(toggle_vf);
+		u32 skip_mode =
+			(cur_frame_par->hscale_skip_count << 16)
+			| cur_frame_par->vscale_skip_count;
+		dolby_vision_process(toggle_vf, skip_mode);
 		dolby_vision_update_setting();
 	}
 
