@@ -2641,6 +2641,7 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			W_APB_BIT(ACD_REG_28, acd_128, 16, 5);
 			cvd2->info.hs_adj_en = 0;
 			cvd2->info.hs_adj_level = 0;
+			acd_h = acd_h_back;
 		}
 	}
 }
