@@ -67,11 +67,6 @@
 			reg = <0x0 0x07300000 0x0 0x100000>;
 			no-map;
 		};
-		fb_reserved:linux,meson-fb {
-			compatible = "amlogic, fb-memory";
-			reg = <0x0 0x7e000000 0x0 0x2000000>;
-			no-map;
-		};
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
@@ -87,7 +82,7 @@
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x3000000>;
+			reg = <0x0 0x7b000000 0x0 0x5000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -162,7 +157,6 @@
 	};
 	meson-fb {
 		compatible = "amlogic, meson-fb";
-		memory-region = <&fb_reserved>;
 		dev_name = "meson-fb";
 		status = "okay";
 		interrupts = <0 3 1
