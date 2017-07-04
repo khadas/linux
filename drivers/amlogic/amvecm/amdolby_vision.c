@@ -2365,6 +2365,8 @@ static int parse_sei_and_meta(
 
 		if (type == 0x01000000) {
 			/* source is VS10 */
+			*total_comp_size = 0;
+			*total_md_size = 0;
 			*src_format = FORMAT_DOVI;
 			if (size > (sizeof(meta_buf) - 3))
 				size = (sizeof(meta_buf) - 3);
@@ -3708,7 +3710,8 @@ int dolby_vision_process(struct vframe_s *vf)
 			}
 		}
 		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
-	} else if (dolby_vision_core1_on) {
+	} else if (dolby_vision_core1_on &&
+		!(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		bool reset_flag =
 			(dolby_vision_reset & 2)
 			&& (dolby_vision_on_count
@@ -3729,7 +3732,7 @@ int dolby_vision_process(struct vframe_s *vf)
 			}
 		} else if (is_meson_txlx_package_962X()) {
 			if (dolby_vision_on_count
-			<= dolby_vision_run_mode_delay)
+			<= dolby_vision_run_mode_delay) {
 				tv_dolby_core1_set(
 					tv_dovi_setting.core1_reg_lut,
 					tv_dovi_setting.video_width,
@@ -3747,8 +3750,12 @@ int dolby_vision_process(struct vframe_s *vf)
 				pr_dolby_dbg("fake frame %d reset %d\n",
 					dolby_vision_on_count,
 					reset_flag);
+			}
 		}
 	}
+	if (dolby_vision_flags & FLAG_CERTIFICAION)
+		dolby_vision_on_count = 1 +
+			dolby_vision_run_mode_delay;
 	if (dolby_vision_core1_on) {
 		if (dolby_vision_on_count <=
 			dolby_vision_run_mode_delay)
