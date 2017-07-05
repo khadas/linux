@@ -82,6 +82,8 @@
 #define VDIN_FLAG_SUSPEND               0x00010000
 /*flag for vdin-v4l2 debug*/
 #define VDIN_FLAG_V4L2_DEBUG            0x00020000
+/*flag for isr req&free*/
+#define VDIN_FLAG_ISR_REQ               0x00040000
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002

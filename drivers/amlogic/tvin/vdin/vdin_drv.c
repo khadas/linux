@@ -1093,6 +1093,7 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 		(viu_hw_irq != 0)) {
 		ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
+		devp->flags |= VDIN_FLAG_ISR_REQ;
 		/*disable vsync irq until vdin configured completely*/
 		disable_irq_nosync(devp->irq);
 	}
@@ -1205,8 +1206,10 @@ int stop_tvin_service(int no)
 	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 	if ((devp->parm.port != TVIN_PORT_VIU) ||
-		(viu_hw_irq != 0))
+		(viu_hw_irq != 0)) {
 		free_irq(devp->irq, (void *)devp);
+		devp->flags &= (~VDIN_FLAG_ISR_REQ);
+	}
 	end_time = jiffies_to_msecs(jiffies);
 	if (time_en)
 		pr_info("[vdin]:vdin start time:%ums,stop time:%ums,run time:%u.\n",
@@ -2172,6 +2175,7 @@ static int vdin_open(struct inode *inode, struct file *file)
 		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
 	}
+	devp->flags |= VDIN_FLAG_ISR_REQ;
 	/*disable irq untill vdin is configured completely*/
 	disable_irq_nosync(devp->irq);
 
@@ -2209,7 +2213,9 @@ static int vdin_release(struct inode *inode, struct file *file)
 	devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 
 	/* free irq */
-	free_irq(devp->irq, (void *)devp);
+	if (devp->flags & VDIN_FLAG_ISR_REQ)
+		free_irq(devp->irq, (void *)devp);
+	devp->flags &= (~VDIN_FLAG_ISR_REQ);
 
 	file->private_data = NULL;
 
