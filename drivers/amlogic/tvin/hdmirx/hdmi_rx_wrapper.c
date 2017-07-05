@@ -357,7 +357,6 @@ bool hdcp22_reauth_enable = 1;
 static int audio_enable = 1;
 static int hdcp22_lost_cnt;
 static int last_color_fmt;
-static bool reset_sw = true;
 static int sm_pause;
 static bool edid_addr_intr_flag;
 int pre_port = 0xff;
@@ -2116,7 +2115,7 @@ void rx_nosig_monitor(void)
 
 void monitor_cable_clk_sts(void)
 {
-	static bool pre_sts = 0xff;
+	static int pre_sts = 0xff;
 	bool sts = is_clk_stable();
 	if (pre_sts != sts) {
 		if (log_level & VIDEO_LOG)
@@ -2343,7 +2342,7 @@ void hdmirx_hw_monitor(void)
 					sizeof(struct aud_info_s));
 				hdmirx_config_video();
 				hdmirx_audio_fifo_rst();
-				rx_pr("STABLE->DDC_CORRECT\n");
+				rx_pr("STABLE->READY\n");
 				if (log_level & VIDEO_LOG)
 					dump_state(0x1);
 			}
@@ -3870,12 +3869,6 @@ int hdmirx_debug(const char *buf, int size)
 			#ifdef HDCP22_ENABLE
 			hdmirx_hdcp22_esm_rst();
 			#endif
-		} else if (strncmp(tmpbuf + 5, "_on", 3) == 0) {
-			reset_sw = 1;
-			rx_pr("reset on!\n");
-		} else if (strncmp(tmpbuf + 5, "_off", 4) == 0) {
-			reset_sw = 0;
-			rx_pr(" reset off!\n");
 		}
 	} else if (strncmp(tmpbuf, "fifo", 4) == 0) {
 		if (tmpbuf[4] == '1')
@@ -3995,6 +3988,7 @@ int hdmirx_debug(const char *buf, int size)
 		rx_pr("Hdmirx version: %s\n", RX_VER1);
 		rx_pr("Hdmirx version: %s\n", RX_VER2);
 		rx_pr("Hdmirx version: %s\n", RX_VER3);
+		rx_pr("Hdmirx version: %s\n", RX_VER4);
 		rx_pr("------------------\n");
 	}
 	return 0;

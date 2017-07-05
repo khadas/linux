@@ -73,7 +73,14 @@
 static bool phy_fast_switching = true;
 static bool phy_fsm_enhancement = true;
 unsigned int last_clk_rate;
-static uint8_t phy_lock_thres = 0x3f;
+
+/* SNPS suggest to use the previous setting 0x3f when handle eq issues to
+make clk_stable bit more stable(=1),but 0x3f may misjudge 46.25~92.5
+TMDSCLK as 25~46.25M TMDSCLK,pll_rate&REQUESTCLK will become
+not correct.
+so revert the setting to the default value 0x6 according to the PHY spec */
+static uint8_t phy_lock_thres = 0x6;
+
 static uint32_t phy_cfg_clk = 24000;
 uint32_t modet_clk = 24000;
 int top_intr_maskn_value = 0x1e0001;

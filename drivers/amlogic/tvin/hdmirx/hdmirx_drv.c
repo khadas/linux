@@ -1750,11 +1750,12 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	hdevp = platform_get_drvdata(pdev);
 
-	cancel_delayed_work(&eq_dwork);
+	cancel_delayed_work_sync(&eq_dwork);
 	destroy_workqueue(eq_wq);
 
-	cancel_delayed_work(&esm_dwork);
+	cancel_delayed_work_sync(&esm_dwork);
 	destroy_workqueue(esm_wq);
+
 	mutex_destroy(&hdevp->rx_lock);
 	device_remove_file(hdevp->dev, &dev_attr_debug);
 	device_remove_file(hdevp->dev, &dev_attr_edid);
