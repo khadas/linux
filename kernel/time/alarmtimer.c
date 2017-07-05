@@ -278,6 +278,19 @@ static int alarmtimer_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_RTC_CLASS
+void alarmtimer_shutdown(struct platform_device *pdev)
+{
+	struct device *alarm_dev = &pdev->dev;
+	alarmtimer_suspend(alarm_dev);
+}
+#else
+void alarmtimer_shutdown(struct platform_device *pdev)
+{
+	return;
+}
+#endif
+
 static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
 {
 	ktime_t delta;
@@ -809,7 +822,8 @@ static struct platform_driver alarmtimer_driver = {
 	.driver = {
 		.name = "alarmtimer",
 		.pm = &alarmtimer_pm_ops,
-	}
+	},
+	.shutdown = alarmtimer_shutdown,
 };
 
 /**

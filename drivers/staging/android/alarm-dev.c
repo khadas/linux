@@ -90,6 +90,7 @@ static int devalarm_try_to_cancel(struct devalarm *alrm)
 	return hrtimer_try_to_cancel(&alrm->u.hrt);
 }
 
+#if !defined(CONFIG_AML_MESON64_VERSION)
 static void devalarm_cancel(struct devalarm *alrm)
 {
 	if (is_wakeup(alrm->type))
@@ -97,6 +98,7 @@ static void devalarm_cancel(struct devalarm *alrm)
 	else
 		hrtimer_cancel(&alrm->u.hrt);
 }
+#endif
 
 static void alarm_clear(enum android_alarm_type alarm_type)
 {
@@ -323,6 +325,7 @@ static int alarm_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#if !defined(CONFIG_AML_MESON64_VERSION)
 static int alarm_release(struct inode *inode, struct file *file)
 {
 	int i;
@@ -357,6 +360,7 @@ static int alarm_release(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&alarm_slock, flags);
 	return 0;
 }
+#endif
 
 static void devalarm_triggered(struct devalarm *alarm)
 {
@@ -400,7 +404,9 @@ static const struct file_operations alarm_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = alarm_ioctl,
 	.open = alarm_open,
+#if !defined(CONFIG_AML_MESON64_VERSION)
 	.release = alarm_release,
+#endif
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = alarm_compat_ioctl,
 #endif
