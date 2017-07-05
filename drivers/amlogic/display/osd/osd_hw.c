@@ -1943,6 +1943,7 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	u32 index = fence_map->fb_index;
 	u32 ext_addr = fence_map->ext_addr;
 	u32 width_src, width_dst, height_src, height_dst;
+	u32 x_start, x_end, y_start, y_end;
 	bool freescale_update = false;
 	struct pandata_s freescale_dst[HW_OSD_COUNT];
 	void *vaddr = NULL;
@@ -1969,6 +1970,7 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	osd_hw.screen_base[index] = vaddr;
 	osd_hw.screen_size[index] =
 		fence_map->byte_stride * fence_map->height;
+
 	if (osd_hw.free_scale_enable[index] ||
 		(width_src != width_dst) ||
 		(height_src != height_dst) ||
@@ -2004,7 +2006,35 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			osd_hw.free_dst_data_backup[index].y_start +
 			((fence_map->dst_y + fence_map->dst_h) *
 			height_dst) / height_src - 1;
+		if (osd_hw.osd_reverse[OSD1] == REVERSE_TRUE) {
+			x_start = width_dst
+				- freescale_dst[index].x_end - 1;
+			y_start = height_dst
+				- freescale_dst[index].y_end - 1;
+			x_end = width_dst
+				- freescale_dst[index].x_start - 1;
+			y_end = height_dst
+				- freescale_dst[index].y_start - 1;
+			freescale_dst[index].x_start = x_start;
+			freescale_dst[index].y_start = y_start;
+			freescale_dst[index].x_end = x_end;
+			freescale_dst[index].y_end = y_end;
+		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_X) {
+			x_start = width_dst
+				- freescale_dst[index].x_end - 1;
+			x_end = width_dst
+				- freescale_dst[index].x_start - 1;
+			freescale_dst[index].x_start = x_start;
+			freescale_dst[index].x_end = x_end;
 
+		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_Y) {
+			y_start = height_dst
+				- freescale_dst[index].y_end - 1;
+			y_end = height_dst
+				- freescale_dst[index].y_start - 1;
+			freescale_dst[index].y_start = y_start;
+			freescale_dst[index].y_end = y_end;
+		}
 		if (memcmp(&(osd_hw.free_src_data[index]),
 			&osd_hw.pandata[index],
 			sizeof(struct pandata_s)) != 0 ||
@@ -2031,6 +2061,9 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 				osd_hw.pandata[index].y_end,
 				fence_map->width,
 				fence_map->height);
+			osd_log_dbg("fence_map:xoffset=%d,yoffset=%d\n",
+				fence_map->xoffset,
+				fence_map->yoffset);
 			osd_log_dbg("fence_map:dst_x=%d,dst_y=%d,dst_w=%d,dst_h=%d,byte_stride=%d\n",
 				fence_map->dst_x,
 				fence_map->dst_y,
@@ -2054,6 +2087,35 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			fence_map->dst_y;
 		osd_hw.dispdata[index].y_end =
 			fence_map->dst_y + fence_map->dst_h - 1;
+		if (osd_hw.osd_reverse[OSD1] == REVERSE_TRUE) {
+			x_start = width_dst
+				- osd_hw.dispdata[index].x_end - 1;
+			y_start = height_dst
+				- osd_hw.dispdata[index].y_end - 1;
+			x_end = width_dst
+				- osd_hw.dispdata[index].x_start - 1;
+			y_end = height_dst
+				- osd_hw.dispdata[index].y_start - 1;
+			osd_hw.dispdata[index].x_start = x_start;
+			osd_hw.dispdata[index].y_start = y_start;
+			osd_hw.dispdata[index].x_end = x_end;
+			osd_hw.dispdata[index].y_end = y_end;
+		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_X) {
+			x_start = width_dst
+				- osd_hw.dispdata[index].x_end - 1;
+			x_end = width_dst
+				- osd_hw.dispdata[index].x_start - 1;
+			osd_hw.dispdata[index].x_start = x_start;
+			osd_hw.dispdata[index].x_end = x_end;
+
+		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_Y) {
+			y_start = height_dst
+				- osd_hw.dispdata[index].y_end - 1;
+			y_end = height_dst
+				- osd_hw.dispdata[index].y_start - 1;
+			osd_hw.dispdata[index].y_start = y_start;
+			osd_hw.dispdata[index].y_end = y_end;
+		}
 	}
 	fence_map->ext_addr = ext_addr;
 	return freescale_update;
