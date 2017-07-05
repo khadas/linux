@@ -8,6 +8,7 @@
 #define PRINT_FLAG_ERROR              0x0
 #define PRINT_FLAG_VDEC_STATUS        0X0001
 #define PRINT_FLAG_UCODE_EVT          0x0002
+#define PRINT_FLAG_MMU_DETAIL		0x0004
 #define PRINT_FLAG_DPB_DETAIL         0x0010
 #define PRINT_FLAG_DEC_DETAIL         0x0020
 #define PRINT_FLAG_VDEC_DETAIL        0x0040
@@ -35,6 +36,8 @@
 
 #define H264_CONFIG_REQUEST         0x11
 #define H264_DATA_REQUEST           0x12
+#define H264_WRRSP_REQUEST          0x13
+#define H264_WRRSP_DONE             0x14
 
 #define H264_DECODE_BUFEMPTY        0x20
 #define H264_DECODE_TIMEOUT         0x21
@@ -778,6 +781,8 @@ struct h264_dpb_stru {
 	unsigned int aspect_ratio_idc;
 	unsigned int aspect_ratio_sar_width;
 	unsigned int aspect_ratio_sar_height;
+
+	unsigned int dec_dpb_status;
 };
 
 

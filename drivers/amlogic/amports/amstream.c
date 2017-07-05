@@ -624,6 +624,9 @@ static int video_port_init(struct port_priv_s *priv,
 		(priv->vdec->sys_info->height *
 			priv->vdec->sys_info->width) > 1920*1088) {
 		pbuf->for_4k = 1;
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX
+				&& port->vformat == VFORMAT_H264)
+			vdec_poweron(VDEC_HEVC);
 	} else {
 		pbuf->for_4k = 0;
 	}
@@ -1674,6 +1677,7 @@ static int amstream_release(struct inode *inode, struct file *file)
 	struct vdec_s *slave = NULL;
 #ifdef CONFIG_MULTI_DEC
 	u32 port_flag = 0;
+	u32 is_4k = 0;
 #endif
 
 	if (iminor(inode) >= amstream_port_num)
@@ -1688,7 +1692,9 @@ static int amstream_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_MULTI_DEC
 		port_flag = priv->vdec->port_flag;
 #endif
-
+		if ((priv->vdec->sys_info->height *
+			priv->vdec->sys_info->width) > 1920*1088)
+			is_4k = 1;
 		if (priv->vdec->slave)
 			slave = priv->vdec->slave;
 		vdec_release(priv->vdec);
@@ -1730,11 +1736,12 @@ static int amstream_release(struct inode *inode, struct file *file)
 
 				vdec_poweroff(VDEC_1);
 #else
-				if ((port->type & PORT_TYPE_MPTS) &&
-				((port_flag & PORT_FLAG_VFORMAT) == 0)) {
-					vdec_poweroff(VDEC_1);
-					vdec_poweroff(VDEC_HEVC);
-				} else if ((port->vformat == VFORMAT_HEVC
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX
+				&& port->vformat == VFORMAT_H264
+				&& is_4k)
+				vdec_poweroff(VDEC_HEVC);
+
+			 if ((port->vformat == VFORMAT_HEVC
 					|| port->vformat == VFORMAT_VP9)) {
 					vdec_poweroff(VDEC_HEVC);
 				} else {
