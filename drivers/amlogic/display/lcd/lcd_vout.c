@@ -57,7 +57,7 @@ struct mutex lcd_power_mutex;
 struct mutex lcd_vout_mutex;
 int lcd_vout_serve_bypass;
 
-static char lcd_propname[20] = "lvds_0";
+static char lcd_propname[20] = "null";
 
 struct lcd_cdev_s {
 	dev_t           devno;
@@ -105,14 +105,19 @@ static unsigned char dsi_init_on_table[DSI_INIT_ON_MAX] = {0xff, 0xff};
 static unsigned char dsi_init_off_table[DSI_INIT_OFF_MAX] = {0xff, 0xff};
 static struct dsi_config_s lcd_mipi_config = {
 	.lane_num = 4,
-	.bit_rate_min = 0,
-	.bit_rate_max = 0,
-	.factor_numerator = 0,
-	.factor_denominator = 10,
-	.transfer_ctrl = 0,
-	.dsi_init_on = &dsi_init_on_table[0],
+	.bit_rate_max = 550, /* MHz */
+	.factor_numerator   = 0,
+	.factor_denominator = 100,
+	.operation_mode_init = 1,    /* 0=video mode, 1=command mode */
+	.operation_mode_display = 0, /* 0=video mode, 1=command mode */
+	.video_mode_type = 2, /* 0=sync_pulse, 1=sync_event, 2=burst */
+	.clk_lp_continuous = 1, /* 0=stop, 1=continue */
+	.phy_stop_wait = 0,   /* 0=auto, 1=standard, 2=slow */
+
+	.dsi_init_on  = &dsi_init_on_table[0],
 	.dsi_init_off = &dsi_init_off_table[0],
-	.extern_init = 0,
+	.extern_init = 0xff, /* ext_index if needed, match ext_config index;
+				0xff for invalid */
 };
 
 static struct edp_config_s lcd_edp_config = {
@@ -201,6 +206,8 @@ static struct lcd_config_s lcd_config_dft = {
 		.edp_config = &lcd_edp_config,
 	},
 	.lcd_power = &lcd_power_config,
+	.pinmux_flag = 0,
+	.change_flag = 0,
 };
 
 static struct vinfo_s lcd_vinfo = {
@@ -404,6 +411,7 @@ static void lcd_module_enable(void)
 	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
+	lcd_driver->lcd_config->change_flag = 0;
 
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -430,6 +438,7 @@ static void lcd_module_reset(void)
 	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
+	lcd_driver->lcd_config->change_flag = 0;
 
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -443,6 +452,7 @@ static void lcd_module_tiny_reset(void)
 	mdelay(500);
 	lcd_power_tiny_ctrl(1);
 	lcd_driver->lcd_status = 1;
+	lcd_driver->lcd_config->change_flag = 0;
 
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -655,7 +665,7 @@ static int lcd_fops_create(void)
 
 	ret = alloc_chrdev_region(&lcd_cdev->devno, 0, 1, LCD_CDEV_NAME);
 	if (ret < 0) {
-		LCDERR("%s: faild to alloc devno\n", __func__);
+		LCDERR("%s: failed to alloc devno\n", __func__);
 		kfree(lcd_cdev);
 		lcd_cdev = NULL;
 		return -1;
@@ -864,7 +874,6 @@ static int lcd_config_probe(void)
 
 	lcd_driver->lcd_info = &lcd_vinfo;
 	lcd_driver->lcd_config = &lcd_config_dft;
-	lcd_driver->lcd_config->pinmux_flag = 0;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->lcd_test_flag = 0;
 	lcd_driver->lcd_resume_flag = 1; /* default workqueue */

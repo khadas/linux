@@ -19,7 +19,7 @@
 #ifndef __AML_LCD_TABLET_H__
 #define __AML_LCD_TABLET_H__
 
-#define LCD_DRV_VERSION    "20161130"
+#define LCD_DRV_VERSION    "20170705"
 
 extern void lcd_tablet_config_update(struct lcd_config_s *pconf);
 extern void lcd_tablet_driver_init_pre(void);

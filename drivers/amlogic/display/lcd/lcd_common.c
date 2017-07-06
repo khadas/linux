@@ -787,7 +787,7 @@ int lcd_vmode_change(struct lcd_config_s *pconf)
 	char str[100];
 	int len = 0;
 
-	pconf->lcd_timing.clk_change = 0; /* clear clk flga */
+	pconf->lcd_timing.clk_change = 0; /* clear clk flag */
 	switch (type) {
 	case 0: /* pixel clk adjust */
 		pclk = (h_period * v_period) / duration_den * duration_num;

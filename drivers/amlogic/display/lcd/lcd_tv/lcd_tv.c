@@ -946,6 +946,9 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		return -1;
 	}
 
+	/* panel_type update */
+	sprintf(pconf->lcd_propname, "%s", "unifykey");
+
 	/* basic: 36byte */
 	p = para + LCD_UKEY_HEAD_SIZE;
 	*(p + LCD_UKEY_MODEL_NAME - 1) = '\0'; /* ensure string ending */

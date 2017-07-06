@@ -31,7 +31,7 @@
 
 extern unsigned char lcd_debug_print_flag;
 #define LCDPR(fmt, args...)     pr_info("lcd: "fmt"", ## args)
-#define LCDERR(fmt, args...)    pr_info("lcd: error: "fmt"", ## args)
+#define LCDERR(fmt, args...)    pr_err("lcd: error: "fmt"", ## args)
 
 /* **********************************
  * clk parameter bit define
@@ -144,7 +144,6 @@ struct lcd_timing_s {
 
 	unsigned char fr_adjust_type; /* 0=clock, 1=htotal, 2=vtotal */
 	unsigned char ss_level;
-	/* unsigned int pol_ctrl; */
 
 	unsigned int sync_duration_num;
 	unsigned int sync_duration_den;
@@ -257,34 +256,36 @@ struct vbyone_config_s {
 };
 
 /* mipi-dsi config */
-/* byte[1] */
-#define DSI_CMD_INDEX             1
+/* Operation mode parameters */
+#define OPERATION_VIDEO_MODE     0
+#define OPERATION_COMMAND_MODE   1
 
-#define DSI_INIT_ON_MAX           100
-#define DSI_INIT_OFF_MAX          30
+#define SYNC_PULSE               0x0
+#define SYNC_EVENT               0x1
+#define BURST_MODE               0x2
 
-#define BIT_OP_MODE_INIT          0
-#define BIT_OP_MODE_DISP          4
-#define BIT_TRANS_CTRL_CLK        0
-/* [5:4] */
-#define BIT_TRANS_CTRL_SWITCH     4
+/* command config */
+#define DSI_CMD_INDEX            1  /* byte[1] */
+
+#define DSI_INIT_ON_MAX          100
+#define DSI_INIT_OFF_MAX         30
+
 struct dsi_config_s {
 	unsigned char lane_num;
 	unsigned int bit_rate_max; /* MHz */
 	unsigned int bit_rate_min; /* MHz*/
 	unsigned int bit_rate; /* Hz */
-	unsigned int factor_denominator;
 	unsigned int factor_numerator;
+	unsigned int factor_denominator; /* 100 */
+	unsigned char operation_mode_init; /* 0=video mode, 1=command mode */
+	unsigned char operation_mode_display; /* 0=video mode, 1=command mode */
+	unsigned char video_mode_type; /* 0=sync_pulse, 1=sync_event, 2=burst */
+	unsigned char clk_lp_continuous; /* 0=stop, 1=continue */
+	unsigned char phy_stop_wait; /* 0=auto, 1=standard, 2=slow */
 
 	unsigned int venc_data_width;
 	unsigned int dpi_data_format;
 	unsigned int venc_fmt;
-	/* mipi-dsi operation mode: video, command. [4]display , [0]init */
-	unsigned int operation_mode;
-	/* [0]LP mode auto stop clk lane, [5:4]phy switch between LP and HS */
-	unsigned int transfer_ctrl;
-	/* burst, non-burst(sync pulse, sync event) */
-	unsigned char video_mode_type;
 
 	unsigned char *dsi_init_on;
 	unsigned char *dsi_init_off;
@@ -388,6 +389,7 @@ struct lcd_config_s {
 	struct lcd_power_ctrl_s *lcd_power;
 	struct pinctrl *pin;
 	unsigned char pinmux_flag;
+	unsigned char change_flag;
 	struct lcd_clk_gate_ctrl_s rstc;
 };
 
@@ -406,6 +408,7 @@ struct aml_lcd_drv_s {
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
 	unsigned char lcd_test_flag;
 	unsigned char lcd_resume_flag; /* 0=directly, 1=workqueue */
+	unsigned char lcd_mute;
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -424,7 +427,7 @@ struct aml_lcd_drv_s {
 	void (*driver_tiny_enable)(void);
 	void (*driver_tiny_disable)(void);
 	void (*module_tiny_reset)(void);
-	void (*lcd_test_check)(void);
+	void (*lcd_test_pattern_restore)(void);
 	/*void (*module_enable)(void);
 	void (*module_disable)(void);
 	void (*set_gamma_table)(unsigned int gamma_en);
@@ -433,11 +436,6 @@ struct aml_lcd_drv_s {
 	void (*edp_apb_clk_prepare)(void);
 	void (*edp_edid_load)(void);
 
-	/* power_level: internal control.
-	0=only power(for edp_edid_probe),
-	1=only signal
-	3=power+signal for normal */
-	unsigned char power_level;
 	void (*power_ctrl)(int status);
 
 	struct workqueue_struct *workqueue;

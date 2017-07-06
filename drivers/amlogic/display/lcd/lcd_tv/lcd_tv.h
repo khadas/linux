@@ -21,7 +21,7 @@
 #include <linux/amlogic/vout/lcd_vout.h>
 
 /* 20170220: add txlx support */
-#define LCD_DRV_VERSION    "20170220"
+#define LCD_DRV_VERSION    "20170705"
 
 extern void lcd_tv_config_update(struct lcd_config_s *pconf);
 extern void lcd_tv_driver_init_pre(void);

@@ -1140,6 +1140,8 @@
 #define VPU_CLK_GATE                               0x2723
 #define VPU_MISC_CTRL                              0x2740
 
+#define VPU_VENCL_DITH_CTRL                        0x27e0
+
 #define VPU_VLOCK_CTRL                             0x3000
 #define VPU_VLOCK_ADJ_EN_SYNC_CTRL                 0x301d
 #define VPU_VLOCK_GCLK_EN                          0x301e
