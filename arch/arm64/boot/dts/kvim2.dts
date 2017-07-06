@@ -1031,6 +1031,16 @@
 		irq_keyup = <6>;
 		irq_keydown = <7>;
 	};
+	adc_keypad{
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		key_code = <102>;
+		key_chan = <0>;
+		key_val = <10>;
+		key_tolerance = <40>;
+	};
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
 		device_name = "thermal";
