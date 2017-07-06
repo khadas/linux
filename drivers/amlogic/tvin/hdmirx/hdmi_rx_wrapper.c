@@ -179,9 +179,6 @@ module_param(audio_channel_count, int, 0664);
 static int frame_rate;
 MODULE_PARM_DESC(frame_rate, "\n frame_rate\n");
 module_param(frame_rate, int, 0664);
-static int hdcp22_sts = 0xff;
-MODULE_PARM_DESC(hdcp22_sts, "\n hdcp22_sts\n");
-module_param(hdcp22_sts, int, 0664);
 
 static int hdcp22_capable_sts = 0xff;
 MODULE_PARM_DESC(hdcp22_capable_sts, "\n hdcp22_capable_sts\n");
@@ -198,10 +195,6 @@ module_param(esm_auth_fail_en, bool, 0664);
 static int hdcp22_auth_sts = 0xff;
 MODULE_PARM_DESC(hdcp22_auth_sts, "\n hdcp22_auth_sts\n");
 module_param(hdcp22_auth_sts, int, 0664);
-
-static bool do_link_lost_reset;
-MODULE_PARM_DESC(do_link_lost_reset, "\n do_link_lost_reset\n");
-module_param(do_link_lost_reset, bool, 0664);
 
 /* 0x100--irq print; */
 /* 0x200-other print */
@@ -353,9 +346,9 @@ module_param(stable_check_lvl, int, 0664);
 MODULE_PARM_DESC(stable_check_lvl, "stable_check_lvl");
 
 
-bool hdcp22_reauth_enable = 1;
+bool hdcp22_reauth_enable;
 static int audio_enable = 1;
-static int hdcp22_lost_cnt;
+/* static int hdcp22_lost_cnt; */
 static int last_color_fmt;
 static int sm_pause;
 static bool edid_addr_intr_flag;
@@ -739,6 +732,14 @@ bool is_hdcp14_on(void)
 	return (rx.hdcp.bksv[1] == 0) ? false : true;
 }
 
+void hdmirx_hdcp_version_set(enum hdcp_version_e version)
+{
+	if (version <= HDCP_VERSION_22) {
+		rx.hdcp.hdcp_version = version;
+		rx_pr("set hdcp version:%d\n", rx.hdcp.hdcp_version);
+	}
+}
+
 void repeater_dwork_handle(struct work_struct *work)
 {
 	if (hdmirx_repeat_support()) {
@@ -747,7 +748,6 @@ void repeater_dwork_handle(struct work_struct *work)
 			switch_set_state(&rx.hdcp.switch_hdcp_auth, 0);
 			switch_set_state(&rx.hdcp.switch_hdcp_auth,
 					rx.hdcp.hdcp_version);
-			rx.hdcp.hdcp_version = HDCP_VERSION_NONE;
 		}
 	}
 }
@@ -946,7 +946,7 @@ if (is_meson_gxtvbb_cpu() ||
 				rx_pr("[**receive aksv**\n");
 			/*clk_handle_flag = true;*/
 			is_hdcp_source = true;
-			rx.hdcp.hdcp_version = HDCP_VERSION_14;
+			hdmirx_hdcp_version_set(HDCP_VERSION_14);
 			if (hdmirx_repeat_support()) {
 				queue_delayed_work(repeater_wq, &repeater_dwork,
 						msecs_to_jiffies(5));
@@ -988,23 +988,23 @@ if (is_meson_gxtvbb_cpu() ||
 
 	if (intr_hdcp22 != 0) {
 		rx.skip = skip_frame_num;
-		if (get(intr_hdcp22, _BIT(0)) != 0)
-			hdcp22_capable_sts = HDCP22_AUTH_STATE_CAPBLE;
 		if (get(intr_hdcp22, _BIT(1)) != 0)
 			hdcp22_capable_sts = HDCP22_AUTH_STATE_NOT_CAPBLE;
+		if (get(intr_hdcp22, _BIT(0)) != 0)
+			hdcp22_capable_sts = HDCP22_AUTH_STATE_CAPBLE;
 		if (get(intr_hdcp22, _BIT(2)) != 0)
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_LOST;
 		if (get(intr_hdcp22, _BIT(3)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_SUCCESS;
 			if ((intr_hdcp22 & 0x01) == 0) {
-				rx.hdcp.hdcp_version = HDCP_VERSION_22;
+				hdmirx_hdcp_version_set(HDCP_VERSION_22);
 				rx.hdcp.pass = 1;
 			}
 		}
 		if (get(intr_hdcp22, _BIT(4)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_FAILED;
 			if (hdcp22_capable_sts == HDCP22_AUTH_STATE_CAPBLE)
-				esm_set_stable(0);
+				esm_recovery();
 		}
 		/* if (get(intr_hdcp22, _BIT(5)) != 0) {
 			rx.skip = skip_frame_num;
@@ -1836,6 +1836,7 @@ static void Signal_status_init(void)
 	#ifdef HDCP22_ENABLE
 	if (hdcp22_on)
 		esm_set_stable(0);
+	hdmirx_hdcp_version_set(HDCP_VERSION_NONE);
 	#endif
 	rx.skip = 0;
 }
@@ -1925,31 +1926,21 @@ void hdmirx_sw_reset(int level)
 
 void hdmirx_hdcp22_reauth(void)
 {
-	if (hdcp22_reauth_enable)
+	if (hdcp22_reauth_enable) {
 		esm_auth_fail_en = 1;
-	else {
-		rx_set_hpd(0);
-		rx.state = FSM_HPD_LOW;
+		hdcp22_auth_sts = 0xff;
 	}
 }
 
-void monitor_capable_sts(void)
+void monitor_hdcp22_sts(void)
 {
 	/*if the auth lost after the success of authentication*/
 	if ((HDCP22_AUTH_STATE_CAPBLE == hdcp22_capable_sts) &&
-		(HDCP22_AUTH_STATE_LOST == hdcp22_auth_sts)) {
-		hdcp22_lost_cnt++;
-		if ((hdcp22_lost_cnt > hdcp22_lost_max) &&
-			(do_link_lost_reset)) {
-			hdcp22_lost_cnt = 0;
-			hdcp22_auth_sts = HDCP22_AUTH_STATE_LOST_RST;
+		((HDCP22_AUTH_STATE_LOST == hdcp22_auth_sts) ||
+		(HDCP22_AUTH_STATE_FAILED == hdcp22_auth_sts))) {
 			hdmirx_hdcp22_reauth();
 			rx_pr("\n auth lost force hpd rst\n");
 		}
-	} else {
-		if (hdcp22_lost_cnt > 0)
-			hdcp22_lost_cnt--;
-	}
 }
 
 void rx_dwc_reset(void)
@@ -2066,6 +2057,12 @@ void esm_set_stable(bool stable)
 	video_stable_to_esm = stable;
 }
 
+void esm_recovery(void)
+{
+	if (!hdcp22_reauth_enable)
+		esm_set_stable(0);
+}
+
 void esm_rst_monitor(void)
 {
 	static int esm_rst_cnt;
@@ -2147,7 +2144,7 @@ void hdmirx_hw_monitor(void)
 
 	#ifdef HDCP22_ENABLE
 	if ((hdcp22_on) && (rx.state > FSM_SIG_UNSTABLE)) {
-		monitor_capable_sts();
+		monitor_hdcp22_sts();
 		esm_rst_monitor();
 	}
 	#endif
@@ -2156,7 +2153,7 @@ void hdmirx_hw_monitor(void)
 	case FSM_HPD_LOW:
 		/* set_scdc_cfg(1, 1); */
 		rx_set_hpd(0);
-		hdmirx_irq_close();
+		hdmirx_irq_enable(FALSE);
 		rx.state = FSM_INIT;
 		set_scdc_cfg(1, 0);
 		rx_pr("HPD_LOW\n");
@@ -2228,7 +2225,7 @@ void hdmirx_hw_monitor(void)
 		case EQ_ENABLE:
 		default:
 			if (hdcp22_on)
-				esm_set_stable(0);
+				esm_recovery();
 			run_eq_flag = E_EQ_START;
 			rx.state = FSM_WAIT_EQ_DONE;
 			rx_pr("EQ_INIT-->FSM_WAIT_EQ_DONE\n");
@@ -2252,10 +2249,14 @@ void hdmirx_hw_monitor(void)
 			if (pll_lock_cnt++ > pll_lock_max) {
 				rx.state = FSM_SIG_WAIT_STABLE;
 				rx_dwc_reset();
-				hdmirx_irq_open();
+				hdmirx_irq_enable(TRUE);
 				#ifdef HDCP22_ENABLE
-				if (hdcp22_on)
+				if (hdcp22_on) {
 					esm_set_stable(1);
+					if (rx.hdcp.hdcp_version !=
+						HDCP_VERSION_NONE)
+						hdmirx_hdcp22_reauth();
+				}
 				#endif
 				pll_lock_cnt = 0;
 				rx_pr("UNSTABLE->WAIT_STABLE\n");
@@ -2396,7 +2397,7 @@ void hdmirx_hw_monitor(void)
 				rx.aud_sr_stable_cnt = 0;
 				#ifdef HDCP22_ENABLE
 				if (hdcp22_on)
-					esm_set_stable(0);
+					esm_recovery();
 				#endif
 				memset(&rx.pre, 0,
 					sizeof(struct rx_video_info));
@@ -3305,12 +3306,10 @@ void rx_set_global_varaible(const char *buf, int size)
 	set_pr_var(tmpbuf, audio_coding_type, value, index);
 	set_pr_var(tmpbuf, audio_channel_count, value, index);
 	set_pr_var(tmpbuf, frame_rate, value, index);
-	set_pr_var(tmpbuf, hdcp22_sts, value, index);
 	set_pr_var(tmpbuf, hdcp22_capable_sts, value, index);
 	set_pr_var(tmpbuf, need_rst_esm, value, index);
 	set_pr_var(tmpbuf, esm_auth_fail_en, value, index);
 	set_pr_var(tmpbuf, hdcp22_auth_sts, value, index);
-	set_pr_var(tmpbuf, do_link_lost_reset, value, index);
 	set_pr_var(tmpbuf, log_level, value, index);
 	/* set_pr_var(tmpbuf, frame_skip_en, value, index); */
 	set_pr_var(tmpbuf, use_frame_rate_check, value, index);
@@ -3362,6 +3361,7 @@ void rx_set_global_varaible(const char *buf, int size)
 	set_pr_var(tmpbuf, wait_hpd_reset_max, value, index);
 	set_pr_var(tmpbuf, is_hdcp_source, value, index);
 	set_pr_var(tmpbuf, stable_check_lvl, value, index);
+	set_pr_var(tmpbuf, hdcp22_reauth_enable, value, index);
 }
 
 void rx_get_global_varaible(const char *buf)
@@ -3404,12 +3404,10 @@ void rx_get_global_varaible(const char *buf)
 	pr_var(audio_coding_type, i++);
 	pr_var(audio_channel_count, i++);
 	pr_var(frame_rate, i++);
-	pr_var(hdcp22_sts, i++);
 	pr_var(hdcp22_capable_sts, i++);
 	pr_var(need_rst_esm, i++);
 	pr_var(esm_auth_fail_en, i++);
 	pr_var(hdcp22_auth_sts, i++);
-	pr_var(do_link_lost_reset, i++);
 	pr_var(log_level, i++);
 	/* pr_var( frame_skip_en , i++); */
 	pr_var(use_frame_rate_check, i++);
@@ -3461,6 +3459,7 @@ void rx_get_global_varaible(const char *buf)
 	pr_var(wait_hpd_reset_max, i++);
 	pr_var(is_hdcp_source, i++);
 	pr_var(stable_check_lvl, i++);
+	pr_var(hdcp22_reauth_enable, i++);
 }
 
 void print_reg(uint start_addr, uint end_addr)
@@ -3865,7 +3864,7 @@ int hdmirx_debug(const char *buf, int size)
 			hdmirx_phy_init();
 		} else if (tmpbuf[5] == '3') {
 			rx_pr(" irq open\n");
-			hdmirx_irq_open();
+			hdmirx_irq_enable(TRUE);
 		} else if (tmpbuf[5] == '4') {
 			rx_pr(" edid update\n");
 			hdmi_rx_ctrl_edid_update();
@@ -4025,6 +4024,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 			sizeof(init_hdcp_data.keys));
 		memset(&rx.vendor_specific_info, 0,
 			sizeof(struct vendor_specific_info_s));
+		hdmirx_hdcp_version_set(HDCP_VERSION_NONE);
 		#ifdef HDCP22_ENABLE
 		if (hdcp22_on) {
 			esm_set_stable(0);

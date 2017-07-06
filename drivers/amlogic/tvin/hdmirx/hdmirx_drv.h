@@ -33,7 +33,7 @@
 #define RX_VER0 "Ref.2017/07/14"
 /*------------------------------*/
 
-#define RX_VER1 "Ref.2017/07/13"
+#define RX_VER1 "Ref.2017/07/17"
 /*------------------------------*/
 
 #define RX_VER2 "Ref.2017/06/01"
@@ -367,7 +367,7 @@ enum hdcp22_auth_state_e {
 	HDCP22_AUTH_STATE_LOST,
 	HDCP22_AUTH_STATE_SUCCESS,
 	HDCP22_AUTH_STATE_FAILED,
-	HDCP22_AUTH_STATE_LOST_RST
+	HDCP22_AUTH_STATE_LOST_RST = 0xff
 };
 
 enum map_addr_module_e {
@@ -885,10 +885,8 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port);
 int hdmi_rx_ctrl_edid_update(void);
 void rx_set_hpd(uint8_t val);
 bool hdmirx_repeat_support(void);
-
-int hdmirx_irq_close(void);
-int hdmirx_irq_open(void);
-
+void hdmirx_irq_hdcp22_enable(bool);
+void hdmirx_irq_enable(bool);
 void hdmirx_phy_pddq(int enable);
 void hdmirx_get_video_info(void);
 void hdmirx_set_video_mute(bool mute);
@@ -942,6 +940,7 @@ extern void cecrx_hw_init(void);
 extern void cecrx_irq_handle(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
 extern void esm_set_stable(bool stable);
+extern void esm_recovery(void);
 extern void hdcp22_suspend(void);
 extern void hdcp22_resume(void);
 extern void rx_5v_det(void);

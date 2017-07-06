@@ -419,101 +419,104 @@ void hdmirx_wr_ctl_port(unsigned int offset, unsigned long data)
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
-int hdmirx_irq_close(void)
+void hdmirx_irq_enable(bool enable)
 {
-	int error = 0;
+	int data32 = 0;
 
-	/* clear enable */
-	hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CEC_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
-	/* clear status */
-	hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
-
-	return error;
+	if (enable) {
+		if (is_meson_txlx_cpu()) {
+			data32 |= 1 << 31; /* DRC_CKS_CHG */
+			data32 |= 1 << 30; /* DRC_RCV */
+			data32 |= 0 << 29; /* AUD_TYPE_CHG */
+			data32 |= 0 << 28; /* DVI_DET */
+			data32 |= 1 << 27; /* VSI_CKS_CHG */
+			data32 |= 0 << 26; /* GMD_CKS_CHG */
+			data32 |= 0 << 25; /* AIF_CKS_CHG */
+			data32 |= 1 << 24; /* AVI_CKS_CHG */
+			data32 |= 0 << 23; /* ACR_N_CHG */
+			data32 |= 0 << 22; /* ACR_CTS_CHG */
+			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 20; /* GMD_RCV */
+			data32 |= 0 << 19; /* AIF_RCV */
+			data32 |= 0 << 18; /* AVI_RCV */
+			data32 |= 0 << 17; /* ACR_RCV */
+			data32 |= 0 << 16; /* GCP_RCV */
+			data32 |= 0 << 15; /* VSI_RCV */
+			data32 |= 0 << 14; /* AMP_RCV */
+			data32 |= 0 << 13; /* AMP_CHG */
+			data32 |= 0 << 8; /* PD_FIFO_NEW_ENTRY */
+			data32 |= 0 << 4; /* PD_FIFO_OVERFL */
+			data32 |= 0 << 3; /* PD_FIFO_UNDERFL */
+			data32 |= 0 << 2; /* PD_FIFO_TH_START_PASS */
+			data32 |= 0 << 1; /* PD_FIFO_TH_MAX_PASS */
+			data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
+			data32 |= pdec_ists_en;
+		} else { /* TXL and previous Chip */
+			data32 = 0;
+			data32 |= 0 << 29; /* AUD_TYPE_CHG */
+			data32 |= 0 << 28; /* DVI_DET */
+			data32 |= 1 << 27; /* VSI_CKS_CHG */
+			data32 |= 0 << 26; /* GMD_CKS_CHG */
+			data32 |= 0 << 25; /* AIF_CKS_CHG */
+			data32 |= 1 << 24; /* AVI_CKS_CHG */
+			data32 |= 0 << 23; /* ACR_N_CHG */
+			data32 |= 0 << 22; /* ACR_CTS_CHG */
+			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 20; /* GMD_RCV */
+			data32 |= 0 << 19; /* AIF_RCV */
+			data32 |= 0 << 18; /* AVI_RCV */
+			data32 |= 0 << 17; /* ACR_RCV */
+			data32 |= 0 << 16; /* GCP_RCV */
+			data32 |= 0 << 15; /* VSI_RCV */
+			data32 |= 0 << 14; /* AMP_RCV */
+			data32 |= 0 << 13; /* AMP_CHG */
+			/* diff */
+			data32 |= 1 << 10; /* DRC_CKS_CHG */
+			data32 |= 1 << 9; /* DRC_RCV */
+			/* diff */
+			data32 |= 0 << 8; /* PD_FIFO_NEW_ENTRY */
+			data32 |= 0 << 4; /* PD_FIFO_OVERFL */
+			data32 |= 0 << 3; /* PD_FIFO_UNDERFL */
+			data32 |= 0 << 2; /* PD_FIFO_TH_START_PASS */
+			data32 |= 0 << 1; /* PD_FIFO_TH_MAX_PASS */
+			data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
+			data32 |= pdec_ists_en;
+		}
+		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, data32);
+		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
+		/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
+		data32 = 0;
+		data32 |= AKSV_RCV;
+		data32 |= SCDC_TMDS_CFG_CHG;
+		data32 |= _BIT(6);
+		data32 |= _BIT(5);
+		hdmirx_wr_dwc(DWC_HDMI_IEN_SET, data32);
+	} else {
+		/* clear enable */
+		hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_CEC_IEN_CLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
+		hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
+		/* clear status */
+		hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
+	}
 }
 
-int hdmirx_irq_open(void)
+void hdmirx_irq_hdcp22_enable(bool enable)
 {
-	int error = 0;
-	int data32 = 0;
-	if (is_meson_txlx_cpu()) {
-		data32 |= 1 << 31; /* DRC_CKS_CHG */
-		data32 |= 1 << 30; /* DRC_RCV */
-		data32 |= 0 << 29; /* AUD_TYPE_CHG */
-		data32 |= 0 << 28; /* DVI_DET */
-		data32 |= 1 << 27; /* VSI_CKS_CHG */
-		data32 |= 0 << 26; /* GMD_CKS_CHG */
-		data32 |= 0 << 25; /* AIF_CKS_CHG */
-		data32 |= 1 << 24; /* AVI_CKS_CHG */
-		data32 |= 0 << 23; /* ACR_N_CHG */
-		data32 |= 0 << 22; /* ACR_CTS_CHG */
-		data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
-		data32 |= 0 << 20; /* GMD_RCV */
-		data32 |= 0 << 19; /* AIF_RCV */
-		data32 |= 0 << 18; /* AVI_RCV */
-		data32 |= 0 << 17; /* ACR_RCV */
-		data32 |= 0 << 16; /* GCP_RCV */
-		data32 |= 0 << 15; /* VSI_RCV */
-		data32 |= 0 << 14; /* AMP_RCV */
-		data32 |= 0 << 13; /* AMP_CHG */
-		data32 |= 0 << 8; /* PD_FIFO_NEW_ENTRY */
-		data32 |= 0 << 4; /* PD_FIFO_OVERFL */
-		data32 |= 0 << 3; /* PD_FIFO_UNDERFL */
-		data32 |= 0 << 2; /* PD_FIFO_TH_START_PASS */
-		data32 |= 0 << 1; /* PD_FIFO_TH_MAX_PASS */
-		data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
-		data32 |= pdec_ists_en;
-	} else { /* TXL and previous Chip */
-		data32 = 0;
-		data32 |= 0 << 29; /* AUD_TYPE_CHG */
-		data32 |= 0 << 28; /* DVI_DET */
-		data32 |= 1 << 27; /* VSI_CKS_CHG */
-		data32 |= 0 << 26; /* GMD_CKS_CHG */
-		data32 |= 0 << 25; /* AIF_CKS_CHG */
-		data32 |= 1 << 24; /* AVI_CKS_CHG */
-		data32 |= 0 << 23; /* ACR_N_CHG */
-		data32 |= 0 << 22; /* ACR_CTS_CHG */
-		data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
-		data32 |= 0 << 20; /* GMD_RCV */
-		data32 |= 0 << 19; /* AIF_RCV */
-		data32 |= 0 << 18; /* AVI_RCV */
-		data32 |= 0 << 17; /* ACR_RCV */
-		data32 |= 0 << 16; /* GCP_RCV */
-		data32 |= 0 << 15; /* VSI_RCV */
-		data32 |= 0 << 14; /* AMP_RCV */
-		data32 |= 0 << 13; /* AMP_CHG */
-		/* diff */
-		data32 |= 1 << 10; /* DRC_CKS_CHG */
-		data32 |= 1 << 9; /* DRC_RCV */
-		/* diff */
-		data32 |= 0 << 8; /* PD_FIFO_NEW_ENTRY */
-		data32 |= 0 << 4; /* PD_FIFO_OVERFL */
-		data32 |= 0 << 3; /* PD_FIFO_UNDERFL */
-		data32 |= 0 << 2; /* PD_FIFO_TH_START_PASS */
-		data32 |= 0 << 1; /* PD_FIFO_TH_MAX_PASS */
-		data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
-		data32 |= pdec_ists_en;
+	if (!hdcp22_on)
+		return;
+	if (enable) {
+			hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x3f);
+	} else {
+			/* clear enable */
+			hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
+			/* clear status */
+			hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
 	}
-	hdmirx_wr_dwc(DWC_PDEC_IEN_SET, data32);
-	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
-	if (hdcp22_on)
-		hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x3f);
-	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
-
-	data32 = 0;
-	data32 |= AKSV_RCV;
-	data32 |= SCDC_TMDS_CFG_CHG;
-	data32 |= _BIT(6);
-	data32 |= _BIT(5);
-	hdmirx_wr_dwc(DWC_HDMI_IEN_SET, data32);
-	return error;
 }
 
 bool hdmirx_tmds_pll_lock(void)
@@ -1402,7 +1405,8 @@ void hdmirx_hw_config(void)
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	control_reset();
 	hdmirx_edid_reset();
-	hdmirx_irq_close();
+	hdmirx_irq_enable(FALSE);
+	hdmirx_irq_hdcp22_enable(FALSE);
 	hdmi_rx_ctrl_edid_update();
 	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2); */
 	rx_hdcp_init();
@@ -1410,10 +1414,11 @@ void hdmirx_hw_config(void)
 	packet_init();
 	hdmirx_20_init();
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
-	/* hdmirx_irq_open(); */
+
 	hdmirx_phy_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
 	DWC_init();
+	hdmirx_irq_hdcp22_enable(TRUE);
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 }
 
@@ -1437,7 +1442,8 @@ void hdmirx_hw_probe(void)
 	control_reset();
 	DWC_init();
 	hdmirx_phy_init();
-	hdmirx_irq_close();
+	hdmirx_irq_enable(FALSE);
+	hdmirx_irq_hdcp22_enable(FALSE);
 	hdmirx_hdcp22_init();
 	hdmirx_audio_init();
 	packet_init();

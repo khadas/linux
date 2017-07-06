@@ -515,7 +515,7 @@ void rx_pkt_enable(uint32_t type_regbit)
 	/*add for enable pd fifo start int for debug*/
 	if ((pdec_ists_en & PD_FIFO_START_PASS) == 0) {
 		pdec_ists_en |= PD_FIFO_START_PASS;
-		hdmirx_irq_open();
+		hdmirx_irq_enable(TRUE);
 	}
 }
 
