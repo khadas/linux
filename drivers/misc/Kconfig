@@ -519,6 +519,11 @@ config SRAM
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
 
+config KHADAS_FAN
+	tristate "Khadas fan driver"
+	help
+	  This driver allow GPIO to control fan
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
