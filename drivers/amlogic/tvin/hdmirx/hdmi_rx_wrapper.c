@@ -782,6 +782,39 @@ void hdmirx_dv_packet_stop(void)
 	}
 }
 
+void rx_getaudinfo(struct aud_info_s *audio_info)
+{
+	/*get AudioInfo */
+	audio_info->coding_type =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CODING_TYPE);
+	audio_info->channel_count =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
+
+	audio_info->sample_frequency =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_FREQ);
+	audio_info->sample_size =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_SIZE);
+	audio_info->coding_extension =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
+	audio_info->channel_allocation =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
+	/*
+	audio_info->down_mix_inhibit =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, DWNMIX_INHIBIT);
+	audio_info->level_shift_value =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, LEVEL_SHIFT_VAL);
+	*/
+	audio_info->aud_packet_received =
+			hdmirx_rd_bits_dwc(DWC_PDEC_AUD_STS, AUDS_RCV);
+	audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
+	audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
+	if (audio_info->cts != 0) {
+		audio_info->arc = (hdmirx_get_tmds_clock()/audio_info->cts)*
+			audio_info->n/128;
+	} else
+		audio_info->arc = 0;
+}
+
 /**
  * Clock event handler
  * @param[in,out] ctx context information
@@ -1024,7 +1057,7 @@ if (is_meson_gxtvbb_cpu() ||
 				rx_pr("[irq] AVI_CKS_CHG\n");
 			video_handle_flag = true;
 		}
-		if (get(intr_pedc, VSI_CKS_CHG) != 0) {
+		if (get(intr_pedc, VSI_CKS_CHG|VSI_RCV) != 0) {
 			if (log_level & 0x400)
 				rx_pr("[irq] VSI_CKS_CHG\n");
 			vsi_handle_flag = true;
@@ -1843,29 +1876,17 @@ static void Signal_status_init(void)
 
 void packet_update(void)
 {
-	auds_rcv_sts = rx.aud_info.aud_packet_received;
+	/*rx_getaudinfo(&rx.aud_info);*/
+
 	rgb_quant_range = rx.cur.rgb_quant_range;
 	yuv_quant_range = rx.cur.yuv_quant_range;
 	it_content = rx.cur.it_content;
+
+	auds_rcv_sts = rx.aud_info.aud_packet_received;
 	audio_sample_rate = rx.aud_info.real_sample_rate;
 	audio_coding_type = rx.aud_info.coding_type;
 	audio_channel_count = rx.aud_info.channel_count;
-	rx.ntscvbi_info.HB = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_HB);
-	rx.ntscvbi_info.PB0 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB0);
-	rx.ntscvbi_info.PB1 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB1);
-	rx.ntscvbi_info.PB2 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB2);
-	rx.ntscvbi_info.PB3 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB3);
-	rx.ntscvbi_info.PB4 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB4);
-	rx.ntscvbi_info.PB5 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB5);
-	rx.ntscvbi_info.PB6 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB6);
-	rx.amp_info.HB = hdmirx_rd_dwc(DWC_PDEC_AMP_HB);
-	rx.amp_info.PB0 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB0);
-	rx.amp_info.PB1 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB1);
-	rx.amp_info.PB2 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB2);
-	rx.amp_info.PB3 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB3);
-	rx.amp_info.PB4 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB4);
-	rx.amp_info.PB5 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB5);
-	rx.amp_info.PB6 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB6);
+
 	hdmirx_dv_packet_stop();
 }
 
@@ -2430,7 +2451,7 @@ void hdmirx_hw_monitor(void)
 			break;
 
 		pre_sample_rate = rx.aud_info.real_sample_rate;
-		rx_pkt_getaudinfo(&rx.aud_info);
+		rx_getaudinfo(&rx.aud_info);
 		if (force_audio_sample_rate == 0)
 			rx.aud_info.real_sample_rate =
 				get_real_sample_rate();
@@ -3152,7 +3173,7 @@ static void dump_state(unsigned char enable)
 		rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
 	}
 	if (enable & 2) {
-		rx_pkt_getaudinfo(&a);
+		rx_getaudinfo(&a);
 		rx_pr("AudioInfo:");
 		rx_pr(" CT=%u CC=%u",
 				a.coding_type,
@@ -3162,7 +3183,6 @@ static void dump_state(unsigned char enable)
 				a.sample_size);
 		rx_pr(" CA=%u",
 			a.channel_allocation);
-
 		rx_pr(" CTS=%d, N=%d,",
 				a.cts, a.n);
 		rx_pr("recovery clock is %d\n",
@@ -3208,7 +3228,7 @@ static void dump_audio_info(unsigned char enable)
 	static struct aud_info_s a;
 
 	if (enable) {
-		rx_pkt_getaudinfo(&a);
+		rx_getaudinfo(&a);
 		/*
 		rx_pr("AudioInfo: CT=%u",
 				a.coding_type);
@@ -3325,7 +3345,7 @@ void rx_set_global_varaible(const char *buf, int size)
 	set_pr_var(tmpbuf, eq_dbg_ch1, value, index);
 	set_pr_var(tmpbuf, eq_dbg_ch2, value, index);
 	set_pr_var(tmpbuf, wait_no_sig_max, value, index);
-	set_pr_var(tmpbuf, hdr_enable, value, index);
+	/*set_pr_var(tmpbuf, hdr_enable, value, index);*/
 	set_pr_var(tmpbuf, receive_edid_len, value, index);
 	set_pr_var(tmpbuf, new_edid, value, index);
 	set_pr_var(tmpbuf, hdr_lum_len, value, index);
@@ -3423,7 +3443,7 @@ void rx_get_global_varaible(const char *buf)
 	pr_var(eq_dbg_ch1, i++);
 	pr_var(eq_dbg_ch2, i++);
 	pr_var(wait_no_sig_max, i++);
-	pr_var(hdr_enable, i++);
+	/*pr_var(hdr_enable, i++);*/
 	pr_var(receive_edid_len, i++);
 	pr_var(new_edid, i++);
 	pr_var(hdr_lum_len, i++);
@@ -3801,6 +3821,144 @@ void rx_debug_loadkey(void)
 	pre_port = 0xfe;
 }
 
+void rx_debug_pktinfo(char input[][20])
+{
+	uint32_t sts = 0;
+	uint32_t enable = 0;
+	long res = 0;
+
+	if (strncmp(input[1], "debugfifo", 9) == 0) {
+		/*open all pkt interrupt source for debug*/
+		rx_pkt_debug();
+		enable |= (PD_FIFO_START_PASS | PD_FIFO_OVERFL);
+		pdec_ists_en |= enable;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		hdmirx_irq_enable(1);
+	} else if (strncmp(input[1], "debugext", 8) == 0) {
+		if (is_meson_txlx_cpu())
+			enable |= _BIT(30);/* DRC_RCV*/
+		else
+			enable |= _BIT(9);/* DRC_RCV*/
+		enable |= _BIT(20);/* GMD_RCV */
+		enable |= _BIT(19);/* AIF_RCV */
+		enable |= _BIT(18);/* AVI_RCV */
+		enable |= _BIT(17);/* ACR_RCV */
+		enable |= _BIT(16);/* GCP_RCV */
+		enable |= _BIT(15);/* VSI_RCV CHG*/
+		enable |= _BIT(14);/* AMP_RCV*/
+		pdec_ists_en |= enable;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		hdmirx_irq_enable(1);
+	} else if (strncmp(input[1], "status", 6) == 0)
+		rx_pkt_status();
+	else if (strncmp(input[1], "dump", 7) == 0) {
+		/*check input type*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			rx_pr("error input:fmt is 0xValue\n");
+		rx_pkt_dump(res);
+	} else if (strncmp(input[1], "irqdisable", 10) == 0) {
+		if (strncmp(input[2], "fifo", 4) == 0)
+			sts = (PD_FIFO_START_PASS|PD_FIFO_OVERFL);
+		else if (strncmp(input[2], "drm", 3) == 0) {
+			if (is_meson_txlx_cpu())
+				sts = _BIT(30);
+			else
+				sts = _BIT(9);
+		} else if (strncmp(input[2], "gmd", 3) == 0)
+			sts = _BIT(20);
+		else if (strncmp(input[2], "aif", 3) == 0)
+			sts = _BIT(19);
+		else if (strncmp(input[2], "avi", 3) == 0)
+			sts = _BIT(18);
+		else if (strncmp(input[2], "acr", 3) == 0)
+			sts = _BIT(17);
+		else if (strncmp(input[2], "gcp", 3) == 0)
+			sts = GCP_RCV;
+		else if (strncmp(input[2], "vsi", 3) == 0)
+			sts = VSI_RCV;
+		else if (strncmp(input[2], "amp", 3) == 0)
+			sts = _BIT(14);
+
+		pdec_ists_en &= ~sts;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		/*disable irq*/
+		hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, sts);
+	} else if (strncmp(input[1], "irqenable", 9) == 0) {
+		sts = hdmirx_rd_dwc(DWC_PDEC_IEN);
+		if (strncmp(input[2], "fifo", 4) == 0)
+			enable |= (PD_FIFO_START_PASS|PD_FIFO_OVERFL);
+		else if (strncmp(input[2], "drm", 3) == 0) {
+			if (is_meson_txlx_cpu())
+				enable |= _BIT(30);
+			else
+				enable |= _BIT(9);
+		} else if (strncmp(input[2], "gmd", 3) == 0)
+			enable |= _BIT(20);
+		else if (strncmp(input[2], "aif", 3) == 0)
+			enable |= _BIT(19);
+		else if (strncmp(input[2], "avi", 3) == 0)
+			enable |= _BIT(18);
+		else if (strncmp(input[2], "acr", 3) == 0)
+			enable |= _BIT(17);
+		else if (strncmp(input[2], "gcp", 3) == 0)
+			enable |= GCP_RCV;
+		else if (strncmp(input[2], "vsi", 3) == 0)
+			enable |= VSI_RCV;
+		else if (strncmp(input[2], "amp", 3) == 0)
+			enable |= _BIT(14);
+		pdec_ists_en = enable|sts;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		/*open irq*/
+		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, pdec_ists_en);
+		/*hdmirx_irq_open()*/
+	} else if (strncmp(input[1], "fifopkten", 9) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			return;
+		rx_pr("pkt ctl disable:0x%x", res);
+		/*check pkt enable ctl bit*/
+		sts = rx_pkt_type_mapping((uint32_t)res);
+		if (sts == 0)
+			return;
+
+		packet_fifo_cfg |= sts;
+		/* not work immediately ?? meybe int is not open*/
+		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		enable |= sts;
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
+	} else if (strncmp(input[1], "fifopktdis", 10) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			return;
+		rx_pr("pkt ctl disable:0x%x", res);
+		/*check pkt enable ctl bit*/
+		sts = rx_pkt_type_mapping((uint32_t)res);
+		if (sts == 0)
+			return;
+
+		packet_fifo_cfg &= (~sts);
+		/* not work immediately ?? meybe int is not open*/
+		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		enable &= (~sts);
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
+	} else if (strncmp(input[1], "contentchk", 10) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0) {
+			rx_pr("error input:fmt is 0xXX\n");
+			return;
+		}
+		rx_pkt_content_chk_en(res);
+	} else if (strncmp(input[1], "pdfifopri", 9) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0) {
+			rx_pr("error input:fmt is 0xXX\n");
+			return;
+		}
+		rx_pkt_set_fifo_pri(res);
+	}
+
+}
+
 int hdmirx_debug(const char *buf, int size)
 {
 	char tmpbuf[128];
@@ -3947,40 +4105,7 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "suspend_pddq", 12) == 0) {
 		suspend_pddq = (tmpbuf[12] == '0' ? 0 : 1);
 	} else if (strncmp(input[0], "pktinfo", 7) == 0) {
-		if (strncmp(input[1], "debug", 5) == 0)
-			rx_pkt_debug();
-		else if (strncmp(input[1], "status", 6) == 0)
-			rx_pkt_status();
-		else if (strncmp(input[1], "dumpvsi", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_VSI);
-		else if (strncmp(input[1], "dumpavi", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_AVI);
-		else if (strncmp(input[1], "dumpspd", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_SPD);
-		else if (strncmp(input[1], "dumpaud", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_AUD);
-		else if (strncmp(input[1], "dumpdrm", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_DRM);
-		else if (strncmp(input[1], "dumpmpeg", 8) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_MPEGSRC);
-		else if (strncmp(input[1], "dumpnvbi", 8) == 0)
-			rx_pkt_dump(PKT_TYPE_INFOFRAME_NVBI);
-		else if (strncmp(input[1], "dumpacr", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_ACR);
-		else if (strncmp(input[1], "dumpgcp", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_GCP);
-		else if (strncmp(input[1], "dumpacp", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_ACP);
-		else if (strncmp(input[1], "dumpisrc1", 8) == 0)
-			rx_pkt_dump(PKT_TYPE_ISRC1);
-		else if (strncmp(input[1], "dumpisrc2", 8) == 0)
-			rx_pkt_dump(PKT_TYPE_ISRC2);
-		else if (strncmp(input[1], "dumpgamta", 9) == 0)
-			rx_pkt_dump(PKT_TYPE_GAMUT_META);
-		else if (strncmp(input[1], "dumpamp", 7) == 0)
-			rx_pkt_dump(PKT_TYPE_AUD_META);
-		else
-			rx_pkt_dump(PKT_TYPE_UNKNOWN);
+		rx_debug_pktinfo(input);
 	} else if (tmpbuf[0] == 'w') {
 		rx_debug_wr_reg(buf, tmpbuf, i);
 	} else if (tmpbuf[0] == 'r') {
@@ -4048,6 +4173,10 @@ void hdmirx_hw_init(enum tvin_port_e port)
 			rx.state = FSM_HPD_HIGH;
 	}
 	do_hpd_reset_flag = 0;
+
+	/*initial packet moudle resource*/
+	rx_pkt_initial();
+
 	rx_pr("%s:%d\n", __func__, rx.port);
 }
 

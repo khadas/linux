@@ -30,6 +30,7 @@
 #include "../tvin_frontend.h"
 
 
+
 #define RX_VER0 "Ref.2017/07/14"
 /*------------------------------*/
 
@@ -42,7 +43,7 @@
 #define RX_VER3 "Ref.2017/07/26"
 /*------------------------------*/
 
-#define RX_VER4 "Ref.2017/06/28"
+#define RX_VER4 "Ref.2017/07/28"
 /*------------------------------*/
 
 
@@ -142,6 +143,8 @@
 #define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
 
 #define PFIFO_SIZE 160
+#define K_PKT_FIFO_START		0x80
+
 struct hdmirx_dev_s {
 	int                         index;
 	dev_t                       devt;
@@ -153,7 +156,7 @@ struct hdmirx_dev_s {
 	unsigned int			irq;
 	char					irq_name[12];
 	struct mutex			rx_lock;
-	struct mutex			pd_fifo_lock;
+	/*struct mutex			pd_fifo_lock;*/
 	struct clk *modet_clk;
 	struct clk *cfg_clk;
 	struct clk *acr_ref_clk;
@@ -175,7 +178,7 @@ struct hdmirx_dev_s {
 	uint32_t)
 #define HDMI_IOC_PD_FIFO_PKTTYPE_DIS _IOW(HDMI_IOC_MAGIC, 0x0b,\
 		uint32_t)
-#define HDMI_IOC_GET_PD_FIFO_PARAM _IOR(HDMI_IOC_MAGIC, 0x0c,\
+#define HDMI_IOC_GET_PD_FIFO_PARAM _IOWR(HDMI_IOC_MAGIC, 0x0c,\
 	struct pd_infoframe_s)
 
 #define IOC_SPD_INFO  _BIT(0)
@@ -554,6 +557,44 @@ struct vendor_specific_info_s {
 	unsigned char packet_stop;/*dv packet stop count*/
 };
 
+
+#define CHANNEL_STATUS_SIZE   24
+
+struct aud_info_s {
+    /* info frame*/
+    /*
+    unsigned char cc;
+    unsigned char ct;
+    unsigned char ss;
+    unsigned char sf;
+    */
+
+	int coding_type;
+	int channel_count;
+	int sample_frequency;
+	int sample_size;
+	int coding_extension;
+	int channel_allocation;
+	/*
+	int down_mix_inhibit;
+	int level_shift_value;
+	*/
+
+	int aud_packet_received;
+
+	/* channel status */
+	unsigned char channel_status[CHANNEL_STATUS_SIZE];
+	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];
+    /**/
+	unsigned int cts;
+	unsigned int n;
+	unsigned int arc;
+	/**/
+	int real_channel_num;
+	int real_sample_size;
+	int real_sample_rate;
+};
+
 #if 0
 enum packet_type_e {
 	ACR_PACKET = 0x01,
@@ -829,6 +870,8 @@ extern bool mute_kill_en;
 extern char pre_eq_freq;
 extern int en_4k_timing;
 extern unsigned int last_clk_rate;
+extern int pdec_ists_en;
+
 
 void wr_reg_hhi(unsigned int offset, unsigned int val);
 unsigned int rd_reg_hhi(unsigned int offset);

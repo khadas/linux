@@ -383,6 +383,7 @@ void hdmirx_timer_handler(unsigned long arg)
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		hdmirx_hw_monitor();
+		rx_pkt_check_content();
 	}
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
@@ -818,14 +819,16 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* unsigned int delay_cnt = 0; */
 	struct hdmirx_dev_s *devp = NULL;
 	void __user *argp = (void __user *)arg;
-	uint32_t param = 0, temp_val;
+	uint32_t param = 0, temp_val, temp;
 	int size = sizeof(struct pd_infoframe_s);
+	struct pd_infoframe_s pkt_info;
 	void *srcbuff;
 
 	if (_IOC_TYPE(cmd) != HDMI_IOC_MAGIC) {
 		pr_err("%s invalid command: %u\n", __func__, cmd);
 		return -ENOSYS;
 	}
+	srcbuff = &pkt_info;
 	devp = file->private_data;
 	switch (cmd) {
 	case HDMI_IOC_HDCP_GET_KSV:{
@@ -895,75 +898,111 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rx_pr("force hdcp1.4\n");
 		break;
 	case HDMI_IOC_PD_FIFO_PKTTYPE_EN:
-		mutex_lock(&devp->pd_fifo_lock);
-		rx_pr("IOC_PD_FIFO_PKTTYPE_EN\n");
+		/*rx_pr("IOC_PD_FIFO_PKTTYPE_EN\n");*/
 		/*get input param*/
 		if (copy_from_user(&param, argp, sizeof(uint32_t))) {
 			pr_err("get pd fifo param err\n");
 			ret = -EFAULT;
-			mutex_unlock(&devp->pd_fifo_lock);
 			break;
 		}
+		rx_pr("en cmd:0x%x\n", param);
 		/*pd_fifo_start_cnt = 16;*/
-		temp_val = rx_pkt_typemapping(param);
-		packet_fifo_cfg |= temp_val;
-		rx_pkt_enable(temp_val);
-		mutex_unlock(&devp->pd_fifo_lock);
+		rx_pkt_buffclear(param);
+		temp = rx_pkt_type_mapping(param);
+		packet_fifo_cfg |= temp;
+		/*enable pkt pd fifo*/
+		temp_val = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		temp_val |= temp;
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, temp_val);
+		/*enable int*/
+		pdec_ists_en |= PD_FIFO_START_PASS|PD_FIFO_OVERFL;
+		/*open pd fifo interrupt source if signal stable*/
+		temp_val = hdmirx_rd_dwc(DWC_PDEC_IEN);
+		if (((temp_val&PD_FIFO_START_PASS) == 0) &&
+			(rx.state >= FSM_SIG_UNSTABLE)) {
+			temp_val |= pdec_ists_en;
+			hdmirx_wr_dwc(DWC_PDEC_IEN_SET, temp_val);
+			rx_pr("open pd fifo int:0x%x\n", pdec_ists_en);
+		}
 		break;
 	case HDMI_IOC_PD_FIFO_PKTTYPE_DIS:
-		mutex_lock(&devp->pd_fifo_lock);
-		rx_pr("IOC_PD_FIFO_PKTTYPE_DIS\n");
+		/*rx_pr("IOC_PD_FIFO_PKTTYPE_DIS\n");*/
 		/*get input param*/
 		if (copy_from_user(&param, argp, sizeof(uint32_t))) {
 			pr_err("get pd fifo param err\n");
 			ret = -EFAULT;
-			mutex_unlock(&devp->pd_fifo_lock);
 			break;
 		}
-		temp_val = rx_pkt_typemapping(param);
-		packet_fifo_cfg &= ~temp_val;
-		rx_pkt_disable(temp_val);
-		mutex_unlock(&devp->pd_fifo_lock);
+		rx_pr("dis cmd:0x%x\n", param);
+		temp = rx_pkt_type_mapping(param);
+		packet_fifo_cfg &= ~temp;
+		/*disable pkt pd fifo*/
+		temp_val = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		temp_val &= ~temp;
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, temp_val);
 		break;
 
 	case HDMI_IOC_GET_PD_FIFO_PARAM:
-		mutex_lock(&devp->pd_fifo_lock);
-		rx_pr("IOC_GET_PD_FIFO_PARAM\n");
+		/*mutex_lock(&pktbuff_lock);*/
+		/*rx_pr("IOC_GET_PD_FIFO_PARAM\n");*/
 		/*get input param*/
 		if (copy_from_user(&param, argp, sizeof(uint32_t))) {
 			pr_err("get pd fifo param err\n");
 			ret = -EFAULT;
-			mutex_unlock(&devp->pd_fifo_lock);
+			/*mutex_unlock(&pktbuff_lock);*/
 			break;
 		}
+		memset(&pkt_info, 0, sizeof(pkt_info));
+		srcbuff = &pkt_info;
 		size = sizeof(struct pd_infoframe_s);
 		switch (param) {
 		case PKT_TYPE_INFOFRAME_VSI:
-			srcbuff = &rx.vs_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.vs_info;
+			else
+				rx_pkt_getvsi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_AVI:
-			srcbuff = &rx.avi_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.avi_info;
+			else
+				rx_pkt_getavi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_SPD:
 			srcbuff = &rx.spd_info;
 			break;
 		case PKT_TYPE_INFOFRAME_AUD:
-			srcbuff = &rx.aud_pktinfo;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.aud_pktinfo;
+			else
+				rx_pkt_getaudif_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_MPEGSRC:
 			srcbuff = &rx.mpegs_info;
 			break;
 		case PKT_TYPE_INFOFRAME_NVBI:
-			srcbuff = &rx.ntscvbi_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.ntscvbi_info;
+			else
+				rx_pkt_getntscvbi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_DRM:
-			srcbuff = &rx.drm_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.drm_info;
+			else
+				rx_pkt_getdrm_ex(&pkt_info);
 			break;
 		case PKT_TYPE_ACR:
-			srcbuff = &rx.acr_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.acr_info;
+			else
+				rx_pkt_getacr_ex(&pkt_info);
 			break;
 		case PKT_TYPE_GCP:
-			srcbuff = &rx.gcp_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.gcp_info;
+			else
+				rx_pkt_getgcp_ex(&pkt_info);
 			break;
 		case PKT_TYPE_ACP:
 			srcbuff = &rx.acp_info;
@@ -975,10 +1014,16 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			srcbuff = &rx.isrc2_info;
 			break;
 		case PKT_TYPE_GAMUT_META:
-			srcbuff = &rx.gameta_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.gameta_info;
+			else
+				rx_pkt_getgmd_ex(&pkt_info);
 			break;
 		case PKT_TYPE_AUD_META:
-			srcbuff = &rx.amp_info;
+			if (rx_pkt_get_fifo_pri())
+				srcbuff = &rx.amp_info;
+			else
+				rx_pkt_getamp_ex(&pkt_info);
 			break;
 		default:
 			size = PFIFO_SIZE * sizeof(uint32_t);
@@ -997,7 +1042,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				ret = -EFAULT;
 			}
 		}
-		mutex_unlock(&devp->pd_fifo_lock);
+		/*mutex_unlock(&pktbuff_lock);*/
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1697,6 +1742,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 			pr_err("%s:don't find  en_4k_timing.\n", __func__);
 			en_4k_timing = 1;
 	}
+
 	hdmirx_hw_probe();
 	hdmirx_switch_pinmux(pdev->dev);
 

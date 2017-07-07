@@ -12,22 +12,15 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/delay.h>
-#include <linux/of_gpio.h>
-#include <linux/amlogic/tvin/tvin.h>
 
 /* Local include */
 #include "hdmirx_repeater.h"
@@ -35,12 +28,18 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 
+
 /*this parameter moved from wrapper.c */
+/*
 bool hdr_enable = true;
 MODULE_PARM_DESC(hdr_enable, "\n hdr_enable\n");
 module_param(hdr_enable, bool, 0664);
-
+*/
 static struct rxpkt_st rxpktsts;
+
+uint32_t gpkt_fifo_pri = 0;
+/*struct mutex pktbuff_lock;*/
+
 
 static struct pkt_typeregmap_st pktmaping[] = {
 	/*infoframe pkt*/
@@ -63,20 +62,20 @@ static struct pkt_typeregmap_st pktmaping[] = {
 	{K_FLAG_TAB_END,			K_FLAG_TAB_END},
 };
 
-
 /*
 uint32_t timerbuff[50];
 uint32_t timerbuff_idx = 0;
 */
 
-/*struct mutex pktbuff_lock;*/
+struct st_pkt_test_buff *pkt_testbuff = NULL;
+
 
 void rx_pkt_status(void)
 {
 	/*uint32_t i;*/
 
 	rx_pr("packet_fifo_cfg=0x%x\n", packet_fifo_cfg);
-	rx_pr("pdec_ists_en=0x%x\n\n", pdec_ists_en);
+	/*rx_pr("pdec_ists_en=0x%x\n\n", pdec_ists_en);*/
 
 	rx_pr("fifo_Int_cnt=%d\n", rxpktsts.fifo_Int_cnt);
 	rx_pr("fifo_pkt_num=%d\n", rxpktsts.fifo_pkt_num);
@@ -97,18 +96,28 @@ void rx_pkt_status(void)
 	rx_pr("pkt_cnt_gameta=%d\n", rxpktsts.pkt_cnt_gameta);
 	rx_pr("pkt_cnt_amp=%d\n", rxpktsts.pkt_cnt_amp);
 
+	rx_pr("pkt_cnt_vsi_ex=%d\n", rxpktsts.pkt_cnt_vsi_ex);
+	rx_pr("pkt_cnt_drm_ex=%d\n", rxpktsts.pkt_cnt_drm_ex);
+	rx_pr("pkt_cnt_gmd_ex=%d\n", rxpktsts.pkt_cnt_gmd_ex);
+	rx_pr("pkt_cnt_aif_ex=%d\n", rxpktsts.pkt_cnt_aif_ex);
+	rx_pr("pkt_cnt_avi_ex=%d\n", rxpktsts.pkt_cnt_avi_ex);
+	rx_pr("pkt_cnt_acr_ex=%d\n", rxpktsts.pkt_cnt_acr_ex);
+	rx_pr("pkt_cnt_gcp_ex=%d\n", rxpktsts.pkt_cnt_gcp_ex);
+	rx_pr("pkt_cnt_amp_ex=%d\n", rxpktsts.pkt_cnt_amp_ex);
+	rx_pr("pkt_cnt_nvbi_ex=%d\n", rxpktsts.pkt_cnt_nvbi_ex);
+
+	rx_pr("pkt_chk_flg=%d\n", rxpktsts.pkt_chk_flg);
+
 	rx_pr("FIFO_STS=0x%x(b31-b16/b15-b0)\n",
 			hdmirx_rd_dwc(DWC_PDEC_FIFO_STS));
 	rx_pr("FIFO_STS1=0x%x(b15-b0)\n",
 			hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1));
-	/*
-	for (i = 0; i < 50; i++)
-		rx_pr("t%d:%d\n", i, timerbuff[i]);
-	*/
 }
 
 void rx_pkt_debug(void)
 {
+	uint32_t data32;
+
 	rx_pr("\npktinfo size=%d\n", sizeof(union pktinfo));
 	rx_pr("infoframe_st size=%d\n", sizeof(union infoframe_u));
 	rx_pr("fifo_rawdata_st size=%d\n", sizeof(struct fifo_rawdata_st));
@@ -148,31 +157,38 @@ void rx_pkt_debug(void)
 
 	memset(&rxpktsts, 0, sizeof(struct rxpkt_st));
 
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_VSI));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_AVI));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_SPD));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_AUD));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_MPEGSRC));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_NVBI));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_INFOFRAME_DRM));
+	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_VSI));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_AVI));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_SPD));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_AUD));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_VSI));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_MPEGSRC));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_NVBI));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_DRM));
 
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_ACR));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_GCP));
-	/*
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_ACP));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_ISRC1));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_ISRC2));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_GAMUT_META));
-	rx_pkt_enable(rx_pkt_typemapping(PKT_TYPE_AUD_META));
-	*/
-	rx_pr("pdec_ists_en=0x%x\n\n", pdec_ists_en);
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ACR));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GCP));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ACP));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC1));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC2));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GAMUT_META));
+	data32 |= (rx_pkt_type_mapping(PKT_TYPE_AUD_META));
+	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
+
+
+	data32 = 0;
+	data32 |= pd_fifo_start_cnt << 20;/* PD_start */
+	data32 |= 640 << 10;			/* PD_max */
+	data32 |= 8 << 0;				/* PD_min */
+	hdmirx_wr_dwc(DWC_PDEC_FIFO_CFG, data32);
 }
 
 static void rx_pktdump_raw(void *pdata)
 {
 	uint8_t i;
 	union infoframe_u *pktdata = pdata;
-	rx_pr(">---raw data detail---------------->\n");
+	rx_pr(">---raw data detail------>\n");
 	rx_pr("HB0:0x%x\n", pktdata->raw_infoframe.pkttype);
 	rx_pr("HB1:0x%x\n", pktdata->raw_infoframe.version);
 	rx_pr("HB2:0x%x\n", pktdata->raw_infoframe.length);
@@ -186,7 +202,6 @@ static void rx_pktdump_raw(void *pdata)
 static void rx_pktdump_vsi(void *pdata)
 {
 	struct vsi_infoframe_st *pktdata = pdata;
-	uint32_t val;
 	uint32_t i;
 
 	rx_pr(">---vsi infoframe detail -------->\n");
@@ -195,19 +210,12 @@ static void rx_pktdump_vsi(void *pdata)
 	rx_pr("chgbit: %d\n", pktdata->ver_st.chgbit);
 	rx_pr("length: %d\n", pktdata->length);
 
-	val = (pktdata->ieee_h << 16) |
-			(pktdata->ieee_m << 8) |
-			pktdata->ieee_l;
-	rx_pr("ieee: 0x%x\n", val);
+	rx_pr("ieee: 0x%x\n", pktdata->ieee);
 	rx_pr("3d vdfmt: 0x%x\n", pktdata->sbpkt.vsi_3d.vdfmt);
 
 	if (pktdata->length == K_DOLBY_VS_V0_PKT_LENGTH) {
 		/*dobly version v0 pkt*/
-		rx_pr("BP6 : 0x%x\n",
-			pktdata->sbpkt.vsi_3d.pb6.pb6_data);
-		for (i = 0; i < 21; i++)
-			rx_pr("BP%d : 0x%x\n", i+7,
-				pktdata->sbpkt.vsi_3d.resd[i]);
+
 	} else {
 		if (pktdata->sbpkt.vsi_3d.vdfmt == 0) {
 			rx_pr("no additional vd fmt\n");
@@ -225,6 +233,10 @@ static void rx_pktdump_vsi(void *pdata)
 			rx_pr("unknown vd fmt\n");
 		}
 	}
+
+	for (i = 0; i < 6; i++)
+		rx_pr("payload %d : 0x%x\n", i,
+			pktdata->sbpkt.vsi.payload[i]);
 	rx_pr(">------------------>end\n");
 }
 
@@ -289,7 +301,40 @@ static void rx_pktdump_avi(void *pdata)
 
 static void rx_pktdump_spd(void *pdata)
 {
+	struct spd_infoframe_st *pktdata = pdata;
+	char *spd_source_info[] = {
+		/*0x00 */"unknown",
+		/*0x01 */"Digital STB",
+		/*0x02 */"DVD player",
+		/*0x03 */"D-VHS",
+		/*0x04*/ "HDD Videorecorder",
+		/*0x05 */"DVC",
+		/*0x06 */"DSC",
+		/*0x07 */"Video CD",
+		/*0x08 */"Game",
+		/*0x09 */"PC general",
+		/*0x0A */"Blu-Ray Disc (BD)",
+		/*0x0B */"Super Audio CD",
+		/*0x0C */"HD DVD",
+		/*0x0D */"PMP",
+	};
 
+	rx_pr(">---spd infoframe detail ---->\n");
+
+	rx_pr("type: 0x%x\n", pktdata->pkttype);
+	rx_pr("ver: %d\n", pktdata->version);
+	rx_pr("length: %d\n", pktdata->length);
+
+	rx_pr("vendor name: %s\n", pktdata->vendor_name);
+	rx_pr("product des: %s\n", pktdata->product_des);
+	rx_pr("source info: 0x%x\n", pktdata->source_info);
+	if (pktdata->source_info <= 0x0d)
+		rx_pr("source info: %s\n",
+			spd_source_info[pktdata->source_info]);
+	else
+		rx_pr("unknown\n");
+
+	rx_pr(">------------------>end\n");
 }
 
 static void rx_pktdump_aud(void *pdata)
@@ -308,35 +353,26 @@ static void rx_pktdump_aud(void *pdata)
 	rx_pr("sample_frq(SF):0x%x\n", pktdata->sample_frq);
 
 	rx_pr("fromat(PB3):0x%x\n", pktdata->fromat);
-	rx_pr("mul_ch(CA):0x%x\n", pktdata->mul_ch);
+	rx_pr("mul_ch(CA):0x%x\n", pktdata->ca);
 	rx_pr("lfep(BL):0x%x\n", pktdata->lfep);
 	rx_pr("level_shift_value(LSV):0x%x\n", pktdata->level_shift_value);
 	rx_pr("down_mix(DM_INH):0x%x\n", pktdata->down_mix);
 	rx_pr(">------------------>end\n");
 }
 
-static void rx_pktdump_mpeg(void *pdata)
-{
-
-}
-
-static void rx_pktdump_ntscvbi(void *pdata)
-{
-	rx_pr(">---ntscvbi infoframe detail ---->\n");
-
-}
-
 static void rx_pktdump_drm(void *pdata)
 {
 	struct drm_infoframe_st *pktdata = pdata;
+	union infoframe_u pktraw;
+	memset(&pktraw, 0, sizeof(union infoframe_u));
 
 	rx_pr(">---drm infoframe detail -------->\n");
 	rx_pr("type: 0x%x\n", pktdata->pkttype);
 	rx_pr("ver: %d\n", pktdata->version);
 	rx_pr("length: %d\n", pktdata->length);
 
-	rx_pr("b1 eotf: 0x%x\n", pktdata->eotf);
-	rx_pr("b2 meta des id: 0x%x\n", pktdata->meta_des_id);
+	rx_pr("b1 eotf: 0x%x\n", pktdata->des_u.tp1.eotf);
+	rx_pr("b2 meta des id: 0x%x\n", pktdata->des_u.tp1.meta_des_id);
 
 	rx_pr("dis_pri_x0: %d\n", pktdata->des_u.tp1.dis_pri_x0);
 	rx_pr("dis_pri_y0: %d\n", pktdata->des_u.tp1.dis_pri_y0);
@@ -375,7 +411,7 @@ static void rx_pktdump_acr(void *pdata)
 	rx_pr("sbpkt1 CTS: %d\n", CTS);
 	rx_pr("sbpkt1 N : %d\n", N);
 
-
+	#if 0
 	CTS = (pktdata->sbpkt2.SB1_CTS_H << 16) |
 			(pktdata->sbpkt2.SB2_CTS_M << 8) |
 			pktdata->sbpkt2.SB3_CTS_L;
@@ -407,22 +443,17 @@ static void rx_pktdump_acr(void *pdata)
 			pktdata->sbpkt4.SB6_N_L;
 	rx_pr("sbpkt4 CTS: %d\n", CTS);
 	rx_pr("sbpkt4 N : %d\n", N);
+	#endif
 	rx_pr(">------------------>end\n");
 }
 
-void rx_pkt_dump(uint8_t typeID)
+void rx_pkt_dump(enum pkt_type_e typeID)
 {
 	struct rx_s *prx = &rx;
+	union infoframe_u pktdata;
 
-	rx_pr("the following is dump cmd ---cur:0x%x\n", typeID);
-	rx_pr("dumpvsi-> 0x81:Vendor-Specific infoframe\n");
-	rx_pr("dumpavi-> 0x82:Auxiliary video infoframe\n");
-	rx_pr("dumpspd-> 0x83:Source Product Description infoframe\n");
-	rx_pr("dumpaud-> 0x84:Audio infoframe\n");
-	rx_pr("dumpmpeg->0x85:MPEG infoframe\n");
-	rx_pr("dumpnvbi-> 0x86:NTSC VBI infoframe\n");
-	rx_pr("dumpdrm-> 0x87:DRM infoframe\n");
-	rx_pr("dumpacr-> 0x01:audio clk regeneration\n");
+	rx_pr("dump cmd:0x%x\n", typeID);
+
 	/*mutex_lock(&pktbuff_lock);*/
 
 	switch (typeID) {
@@ -430,10 +461,16 @@ void rx_pkt_dump(uint8_t typeID)
 	case PKT_TYPE_INFOFRAME_VSI:
 		rx_pktdump_raw(&prx->vs_info);
 		rx_pktdump_vsi(&prx->vs_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getvsi_ex(&pktdata);
+		rx_pktdump_vsi(&pktdata);
 		break;
 	case PKT_TYPE_INFOFRAME_AVI:
 		rx_pktdump_raw(&prx->avi_info);
 		rx_pktdump_avi(&prx->avi_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getavi_ex(&pktdata);
+		rx_pktdump_avi(&pktdata);
 		break;
 	case PKT_TYPE_INFOFRAME_SPD:
 		rx_pktdump_raw(&prx->spd_info);
@@ -442,25 +479,40 @@ void rx_pkt_dump(uint8_t typeID)
 	case PKT_TYPE_INFOFRAME_AUD:
 		rx_pktdump_raw(&prx->aud_pktinfo);
 		rx_pktdump_aud(&prx->aud_pktinfo);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getaudif_ex(&prx->aud_pktinfo);
+		rx_pktdump_raw(&prx->aud_pktinfo);
 		break;
 	case PKT_TYPE_INFOFRAME_MPEGSRC:
 		rx_pktdump_raw(&prx->mpegs_info);
-		rx_pktdump_mpeg(&prx->mpegs_info);
+		/*rx_pktdump_mpeg(&prx->mpegs_info);*/
 		break;
 	case PKT_TYPE_INFOFRAME_NVBI:
 		rx_pktdump_raw(&prx->ntscvbi_info);
-		rx_pktdump_ntscvbi(&prx->ntscvbi_info);
+		/*rx_pktdump_ntscvbi(&prx->ntscvbi_info);*/
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getntscvbi_ex(&prx->ntscvbi_info);
+		rx_pktdump_raw(&prx->ntscvbi_info);
 		break;
 	case PKT_TYPE_INFOFRAME_DRM:
 		rx_pktdump_raw(&prx->drm_info);
 		rx_pktdump_drm(&prx->drm_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getdrm_ex(&pktdata);
+		rx_pktdump_drm(&pktdata);
 		break;
 	/*other pkt*/
 	case PKT_TYPE_ACR:
 		rx_pktdump_raw(&prx->acr_info);
 		rx_pktdump_acr(&prx->acr_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getacr_ex(&prx->acr_info);
+		rx_pktdump_acr(&prx->acr_info);
 		break;
 	case PKT_TYPE_GCP:
+		rx_pktdump_raw(&prx->gcp_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getgcp_ex(&prx->gcp_info);
 		rx_pktdump_raw(&prx->gcp_info);
 		break;
 	case PKT_TYPE_ACP:
@@ -474,13 +526,33 @@ void rx_pkt_dump(uint8_t typeID)
 		break;
 	case PKT_TYPE_GAMUT_META:
 		rx_pktdump_raw(&prx->gameta_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getgmd_ex(&prx->gameta_info);
+		rx_pktdump_raw(&prx->gameta_info);
 		break;
 	case PKT_TYPE_AUD_META:
+		rx_pktdump_raw(&prx->amp_info);
+		rx_pr("-------->ex register set >>\n");
+		rx_pkt_getamp_ex(&prx->amp_info);
 		rx_pktdump_raw(&prx->amp_info);
 		break;
 
 	default:
 		rx_pr("warning: not support\n");
+		rx_pr("vsi->0x81:Vendor-Specific infoframe\n");
+		rx_pr("avi->0x82:Auxiliary video infoframe\n");
+		rx_pr("spd->0x83:Source Product Description infoframe\n");
+		rx_pr("aud->0x84:Audio infoframe\n");
+		rx_pr("mpeg->0x85:MPEG infoframe\n");
+		rx_pr("nvbi->0x86:NTSC VBI infoframe\n");
+		rx_pr("drm->0x87:DRM infoframe\n");
+		rx_pr("acr->0x01:audio clk regeneration\n");
+		rx_pr("gcp->0x03\n");
+		rx_pr("acp->0x04\n");
+		rx_pr("isrc1->0x05\n");
+		rx_pr("isrc2->0x06\n");
+		rx_pr("gmd->0x0a\n");
+		rx_pr("amp->0x0d\n");
 		/*rx_pktdump_raw(&prx->dbg_info);*/
 		break;
 	}
@@ -488,7 +560,7 @@ void rx_pkt_dump(uint8_t typeID)
 	/*mutex_unlock(&pktbuff_lock);*/
 }
 
-uint32_t rx_pkt_typemapping(uint32_t pkt_type)
+uint32_t rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 {
 	struct pkt_typeregmap_st *ptab = pktmaping;
 	uint32_t i = 0;
@@ -497,14 +569,13 @@ uint32_t rx_pkt_typemapping(uint32_t pkt_type)
 	while (ptab[i].pkt_type != K_FLAG_TAB_END) {
 		if (ptab[i].pkt_type == pkt_type)
 			rt = ptab[i].reg_bit;
-
-		if (i++ > 20)
-			break;
 	}
 	return rt;
 }
 
-void rx_pkt_enable(uint32_t type_regbit)
+#if 0
+/*this function for debug*/
+static void rx_pkt_enable(uint32_t type_regbit)
 {
 	uint32_t data32;
 
@@ -519,7 +590,8 @@ void rx_pkt_enable(uint32_t type_regbit)
 	}
 }
 
-void rx_pkt_disable(uint32_t type_regbit)
+/*this function for debug*/
+static void rx_pkt_disable(uint32_t type_regbit)
 {
 	uint32_t data32;
 
@@ -527,70 +599,381 @@ void rx_pkt_disable(uint32_t type_regbit)
 	data32 &= ~type_regbit;
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
 }
-
+#endif
 
 void rx_pkt_initial(void)
 {
-	/*mutex_init(&pktbuff_lock);*/
 	memset(&rxpktsts, 0, sizeof(struct rxpkt_st));
 }
 
-
-void rx_pkt_getaudinfo(struct aud_info_s *audio_info)
+/*please ignore checksum byte*/
+void rx_pkt_getaudif_ex(void *pktinfo)
 {
+	struct aud_infoframe_st *pkt = pktinfo;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct aud_infoframe_st));
+
+	pkt->pkttype = PKT_TYPE_INFOFRAME_AUD;
+	pkt->version =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, MSK(8, 0));
+	pkt->length =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, MSK(5, 8));
+	pkt->checksum =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, MSK(8, 16));
+	pkt->rsd = 0;
+
 	/*get AudioInfo */
-	audio_info->coding_type =
+	pkt->coding_type =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CODING_TYPE);
-	audio_info->channel_count =
+	pkt->ch_count =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
-	audio_info->sample_frequency =
+	pkt->sample_frq =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_FREQ);
-	audio_info->sample_size =
+	pkt->sample_size =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_SIZE);
-	audio_info->coding_extension =
+	pkt->fromat =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
-	audio_info->channel_allocation =
+	pkt->ca =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
-	audio_info->down_mix_inhibit =
+	pkt->down_mix =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, DWNMIX_INHIBIT);
-	audio_info->level_shift_value =
+	pkt->level_shift_value =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, LEVEL_SHIFT_VAL);
-	audio_info->aud_packet_received =
-			hdmirx_rd_bits_dwc(DWC_PDEC_AUD_STS, AUDS_RCV);
-
-	audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
-	audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
-	if (audio_info->cts != 0) {
-		audio_info->arc = (hdmirx_get_tmds_clock()/audio_info->cts)*
-			audio_info->n/128;
-	} else
-		audio_info->arc = 0;
-
+	pkt->lfep =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, MSK(2, 8));
 }
+
+void rx_pkt_getacr_ex(void *pktinfo)
+{
+	struct acr_ptk_st *pkt = pktinfo;
+	uint32_t N, CTS;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct acr_ptk_st));
+
+	pkt->pkttype = PKT_TYPE_ACR;
+	pkt->zero0 = 0x0;
+	pkt->zero1 = 0x0;
+
+	CTS = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
+	N = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
+
+	pkt->sbpkt1.SB1_CTS_H = ((CTS >> 16) & 0xf);
+	pkt->sbpkt1.SB2_CTS_M = ((CTS >> 8) & 0xff);
+	pkt->sbpkt1.SB3_CTS_L = (CTS & 0xff);
+	pkt->sbpkt1.SB4_N_H = ((N >> 16) & 0xf);
+	pkt->sbpkt1.SB5_N_M = ((N >> 8) & 0xff);
+	pkt->sbpkt1.SB6_N_L = (N & 0xff);
+	/*
+	pkt->sbpkt2.SB1_CTS_H = ((CTS >> 16) & 0xf);
+	pkt->sbpkt2.SB2_CTS_M = ((CTS >> 8) & 0xff);
+	pkt->sbpkt2.SB3_CTS_L = (CTS & 0xff);
+	pkt->sbpkt2.SB4_N_H = ((N >> 16) & 0xf);
+	pkt->sbpkt2.SB5_N_M = ((N >> 8) & 0xff);
+	pkt->sbpkt2.SB6_N_L = (N & 0xff);
+
+	pkt->sbpkt3.SB1_CTS_H = ((CTS >> 16) & 0xf);
+	pkt->sbpkt3.SB2_CTS_M = ((CTS >> 8) & 0xff);
+	pkt->sbpkt3.SB3_CTS_L = (CTS & 0xff);
+	pkt->sbpkt3.SB4_N_H = ((N >> 16) & 0xf);
+	pkt->sbpkt3.SB5_N_M = ((N >> 8) & 0xff);
+	pkt->sbpkt3.SB6_N_L = (N & 0xff);
+
+	pkt->sbpkt4.SB1_CTS_H = ((CTS >> 16) & 0xf);
+	pkt->sbpkt4.SB2_CTS_M = ((CTS >> 8) & 0xff);
+	pkt->sbpkt4.SB3_CTS_L = (CTS & 0xff);
+	pkt->sbpkt4.SB4_N_H = ((N >> 16) & 0xf);
+	pkt->sbpkt4.SB5_N_M = ((N >> 8) & 0xff);
+	pkt->sbpkt4.SB6_N_L = (N & 0xff);
+	*/
+}
+
+/*please ignore checksum byte*/
+void rx_pkt_getavi_ex(void *pktinfo)
+{
+	struct avi_infoframe_st *pkt = pktinfo;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct avi_infoframe_st));
+
+	pkt->pkttype = PKT_TYPE_INFOFRAME_AVI;
+	pkt->version =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(8, 0));
+	pkt->length =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(5, 8));
+
+	pkt->checksum =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(8, 16));
+	/* AVI parameters */
+	pkt->cont.v2v3.vic =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VID_IDENT_CODE);
+	pkt->cont.v2v3.pix_repeat =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, PIX_REP_FACTOR);
+	pkt->cont.v2v3.colorindicator =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VIDEO_FORMAT);
+	pkt->cont.v2v3.it_content =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
+	pkt->cont.v2v3.pic_scaling =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, RGB_QUANT_RANGE);
+	pkt->cont.v2v3.content_type =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(2, 28));
+	pkt->cont.v2v3.qt_range =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, YUV_QUANT_RANGE);
+	pkt->cont.v2v3.activeinfo =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_INFO_PRESENT);
+	pkt->cont.v2v3.barinfo =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, BAR_INFO_VALID);
+	pkt->cont.v2v3.scaninfo =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, SCAN_INFO);
+	pkt->cont.v2v3.colorimetry =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, COLORIMETRY);
+	pkt->cont.v2v3.pic_ration =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, PIC_ASPECT_RATIO);
+	pkt->cont.v2v3.fmt_ration =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_ASPECT_RATIO);
+	pkt->cont.v2v3.it_content =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
+	pkt->cont.v2v3.ext_color =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, EXT_COLORIMETRY);
+	pkt->cont.v2v3.pic_scaling =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, NON_UNIF_SCALE);
+
+	pkt->line_num_end_topbar =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_TBB, LIN_END_TOP_BAR);
+	pkt->line_num_start_btmbar =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_TBB, LIN_ST_BOT_BAR);
+	pkt->pix_num_left_bar =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_LRB, PIX_END_LEF_BAR);
+	pkt->pix_num_right_bar =
+		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_LRB, PIX_ST_RIG_BAR);
+}
+
+void rx_pkt_getvsi_ex(void *pktinfo)
+{
+	struct vsi_infoframe_st *pkt = pktinfo;
+	uint32_t st0;
+	uint32_t st1;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct vsi_infoframe_st));
+
+	/*length = 0x18,PB6-PB24 = 0x00*/
+	st0 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST0);
+	st1 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST1);
+
+	pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
+	pkt->length = st1 & 0x1f;
+
+	pkt->checksum = (st0 >> 24) & 0xff;
+	pkt->ieee = st0 & 0xffffff;
+
+	pkt->ver_st.version = 0;
+	pkt->ver_st.chgbit = 0;
+
+	pkt->sbpkt.vsi.payload[0] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
+	pkt->sbpkt.vsi.payload[1] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD1);
+	pkt->sbpkt.vsi.payload[2] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD2);
+	pkt->sbpkt.vsi.payload[3] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD3);
+	pkt->sbpkt.vsi.payload[4] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD4);
+	pkt->sbpkt.vsi.payload[5] = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5);
+}
+
+/*return 32 byte data , data struct see register spec*/
+void rx_pkt_getamp_ex(void *pktinfo)
+{
+	struct pd_infoframe_s *pkt = pktinfo;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct pd_infoframe_s));
+
+	pkt->HB = hdmirx_rd_dwc(DWC_PDEC_AMP_HB);
+	pkt->PB0 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB0);
+	pkt->PB1 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB1);
+	pkt->PB2 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB2);
+	pkt->PB3 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB3);
+	pkt->PB4 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB4);
+	pkt->PB5 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB5);
+	pkt->PB6 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB6);
+}
+
+void rx_pkt_getgmd_ex(void *pktinfo)
+{
+	struct gamutmeta_pkt_st *pkt = pktinfo;
+	uint32_t HB, PB;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct gamutmeta_pkt_st));
+
+	pkt->pkttype = PKT_TYPE_GAMUT_META;
+
+	HB = hdmirx_rd_dwc(DWC_PDEC_GMD_HB);
+	PB = hdmirx_rd_dwc(DWC_PDEC_GMD_PB);
+
+	/*3:0*/
+	pkt->affect_seq_num = (HB & 0xf);
+	/*6:4*/
+	pkt->gbd_profile = ((HB >> 4) & 0x7);
+	/*7*/
+	pkt->next_feild = ((HB >> 7) & 0x1);
+	/*11:8*/
+	pkt->cur_seq_num = ((HB >> 8) & 0xf);
+	/*13:12*/
+	pkt->pkt_seq = ((HB >> 12) & 0x3);
+	/*15*/
+	pkt->no_cmt_gbd = ((HB >> 15) & 0x1);
+
+	pkt->sbpkt.p1_profile.gbd_length_l = (PB & 0xff);
+	pkt->sbpkt.p1_profile.gbd_length_h = ((PB >> 8) & 0xff);
+	pkt->sbpkt.p1_profile.checksum = ((PB >> 16) & 0xff);
+}
+
+void rx_pkt_getgcp_ex(void *pktinfo)
+{
+	struct gcp_pkt_st *pkt = pktinfo;
+	uint32_t gcpAVMUTE;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	memset(pkt, 0, sizeof(struct gcp_pkt_st));
+
+	gcpAVMUTE = hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE);
+
+	pkt->pkttype = PKT_TYPE_GCP;
+	pkt->sbpkt.clr_avmute = (gcpAVMUTE & 0x01);
+	pkt->sbpkt.set_avmute = ((gcpAVMUTE >> 1) & 0x01);
+	pkt->sbpkt.colordepth = ((gcpAVMUTE >> 4) & 0xf);
+	pkt->sbpkt.pixelpkgphase = ((gcpAVMUTE >> 8) & 0xf);
+	pkt->sbpkt.def_phase = ((gcpAVMUTE >> 12) & 0x01);
+}
+
+void rx_pkt_getdrm_ex(void *pktinfo)
+{
+	struct drm_infoframe_st *drmpkt = pktinfo;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+
+	drmpkt->pkttype = PKT_TYPE_INFOFRAME_DRM;
+	drmpkt->length = (hdmirx_rd_dwc(DWC_PDEC_DRM_HB) >> 8);
+	drmpkt->version = hdmirx_rd_dwc(DWC_PDEC_DRM_HB);
+
+	drmpkt->des_u.payload[0] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD0);
+	drmpkt->des_u.payload[1] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD1);
+	drmpkt->des_u.payload[2] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD2);
+	drmpkt->des_u.payload[3] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD3);
+	drmpkt->des_u.payload[4] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD4);
+	drmpkt->des_u.payload[5] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD5);
+	drmpkt->des_u.payload[6] =
+		hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD6);
+}
+
+/*return 32 byte data , data struct see register spec*/
+void rx_pkt_getntscvbi_ex(void *pktinfo)
+{
+	struct pd_infoframe_s *pkt = pktinfo;
+
+	if (pktinfo == NULL) {
+		rx_pr("pkinfo null\n");
+		return;
+	}
+	/*byte 0 , 1*/
+	pkt->HB = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_HB);
+	pkt->PB0 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB0);
+	pkt->PB1 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB1);
+	pkt->PB2 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB2);
+	pkt->PB3 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB3);
+	pkt->PB4 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB4);
+	pkt->PB5 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB5);
+	pkt->PB6 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB6);
+}
+
+#if 0
+static int vsi_handler(struct hdmi_rx_ctrl *ctx)
+{
+	struct vendor_specific_info_s *vs_info = &rx.vendor_specific_info;
+
+	rx_pkt_getvsinfo(vs_info);
+	if (log_level & VSI_LOG)
+		rx_pr("dolby vision:%d,dolby_vision_sts %d)\n",
+		vs_info->dolby_vision, vs_info->dolby_vision_sts);
+	return TRUE;
+}
+#endif
 
 static void rx_pkt_getvsinfo(struct vendor_specific_info_s *vs)
 {
-	#ifdef HDMI20_ENABLE
+	struct vsi_infoframe_st pkt;
+#ifdef HDMI20_ENABLE
 	struct vsi_infoframe_t vsi_info;
+#endif
+	rx_pkt_getvsi_ex(&pkt);
+
+	#ifdef HDMI20_ENABLE
 	memset(&vsi_info, 0, sizeof(struct vsi_infoframe_t));
+	/*
 	vs->identifier = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST0, IEEE_REG_ID);
 	*(unsigned int *)((unsigned char *)&vsi_info +
 		VSI_3D_FORMAT_INDEX) = hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
-	vs->vd_fmt = vsi_info.vid_format;
+
 	vsi_info.length = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, VSI_LENGTH);
+	*/
+	vs->identifier = pkt.ieee;
+	vsi_info.length = pkt.length;
+	vsi_info.ieee_id = pkt.ieee;
+	vsi_info.vid_format = pkt.sbpkt.vsi_3d.vdfmt;
+	vsi_info.detail.data_3d.struct_3d =
+		pkt.sbpkt.vsi_3d.pb5.pb5_st.threeD_st;
+	vsi_info.struct_3d_ext = pkt.sbpkt.vsi_3d.pb6.pb6_st.threeD_ex;
+
 	if (log_level & VSI_LOG)
 		rx_pr("vsi_info.vid_format:%d,vsi_info.length:%d\n",
 		vsi_info.vid_format, vsi_info.length);
 	if (vsi_info.length == DOLBY_VERSION_START_LENGTH) {
 		/*dolby version start VSI*/
 		vs->dolby_vision = TRUE;
-		/*length = 0x18,PB6-PB23 = 0x00*/
-		if (!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0) & 0xFFFF0000) &&
-			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD1) &&
-			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD2) &&
-			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD3) &&
-			!hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD4) &&
-			!(hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5) & 0xFFFFFF)) {
+		/*length = 0x18,PB6-PB24 = 0x00*/
+		if (!(pkt.sbpkt.vsi.payload[0] & 0xFFFF0000) &&
+			!pkt.sbpkt.vsi.payload[1] &&
+			!pkt.sbpkt.vsi.payload[2] &&
+			!pkt.sbpkt.vsi.payload[3] &&
+			!pkt.sbpkt.vsi.payload[4] &&
+			!(pkt.sbpkt.vsi.payload[5] & 0xFFFFFF)) {
 			if (log_level & VSI_LOG)
 				if (vs->dolby_vision_sts != DOLBY_VERSION_START)
 					rx_pr("dolby vision start\n");
@@ -632,39 +1015,30 @@ static void rx_pkt_getvsinfo(struct vendor_specific_info_s *vs)
 	if (log_level & VSI_LOG)
 		rx_pr("dolby vision:%d\n", vs->dolby_vision);
 	#else
+	/*
 	vs->identifier = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST0, IEEE_REG_ID);
 	vs->vd_fmt = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, HDMI_VIDEO_FORMAT);
 	vs->_3d_structure = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, H3D_STRUCTURE);
 	vs->_3d_ext_data = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, H3D_EXT_DATA);
+	*/
+	vs->identifier = pkt.ieee;
+	vs->vd_fmt = pkt.sbpkt.vsi_3d.vdfmt;
+	vs->_3d_structure = pkt.sbpkt.vsi_3d.pb5.pb5_st.threeD_st;
+	vs->_3d_ext_data = pkt.sbpkt.vsi_3d.pb6.pb6_st.threeD_ex;
 	#endif
 }
-
-#if 0
-static int vsi_handler(struct hdmi_rx_ctrl *ctx)
-{
-	struct vendor_specific_info_s *vs_info = &rx.vendor_specific_info;
-
-	rx_pkt_getvsinfo(vs_info);
-	if (log_level & VSI_LOG)
-		rx_pr("dolby vision:%d,dolby_vision_sts %d)\n",
-		vs_info->dolby_vision, vs_info->dolby_vision_sts);
-	return TRUE;
-}
-#endif
 
 static int rx_pkt_getdrminfo(struct hdmi_rx_ctrl *ctx)
 {
 	int error = 0;
+	struct drm_infoframe_st drmpkt;
 
 	if (rx.state != FSM_SIG_READY)
 		return 0;
-
+	/*
 	if (hdr_enable == false)
 		return 0;
-#if 0/*Qy temp mark for compile */
-	if (sm_pause)
-		return 0;
-#endif
+	*/
 	if (ctx == 0)
 		return -EINVAL;
 
@@ -672,57 +1046,416 @@ static int rx_pkt_getdrminfo(struct hdmi_rx_ctrl *ctx)
 	if (rx.hdr_info.hdr_state != HDR_STATE_NULL)
 		return -EBUSY;
 
-	rx.hdr_info.hdr_state = HDR_STATE_GET;
-	rx.hdr_info.hdr_data.eotf =
-		(hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD0) >> 8) & 0xFF;
-	rx.hdr_info.hdr_data.metadata_id =
-		(hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD0) >> 16) & 0xFF;
-	rx.hdr_info.hdr_data.lenght =
-		(unsigned char)(hdmirx_rd_dwc(DWC_PDEC_DRM_HB) >> 8);
+	rx_pkt_getdrm_ex(&drmpkt);
 
-	rx.hdr_info.hdr_data.primaries[0].x =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD0) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD1) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.primaries[0].y =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF00);
-	rx.hdr_info.hdr_data.primaries[1].x =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD1) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD2) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.primaries[1].y =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF00);
-	rx.hdr_info.hdr_data.primaries[2].x =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD2) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD3) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.primaries[2].y =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF00);
-	rx.hdr_info.hdr_data.white_points.x =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD3) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD4) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.white_points.y =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF00);
-	rx.hdr_info.hdr_data.master_lum.x =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD4) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD5) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.master_lum.y =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF00);
-	rx.hdr_info.hdr_data.mcll =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD5) >> 24) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD6) << 8) & 0xFF00);
-	rx.hdr_info.hdr_data.mfall =
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF) +
-		((hdmirx_rd_dwc(DWC_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF00);
+	rx.hdr_info.hdr_state = HDR_STATE_GET;
+	rx.hdr_info.hdr_data.lenght = drmpkt.length;
+	rx.hdr_info.hdr_data.eotf = drmpkt.des_u.tp1.eotf;
+	rx.hdr_info.hdr_data.metadata_id = drmpkt.des_u.tp1.meta_des_id;
+	rx.hdr_info.hdr_data.primaries[0].x = drmpkt.des_u.tp1.dis_pri_x0;
+	rx.hdr_info.hdr_data.primaries[0].y = drmpkt.des_u.tp1.dis_pri_y0;
+	rx.hdr_info.hdr_data.primaries[1].x = drmpkt.des_u.tp1.dis_pri_x1;
+	rx.hdr_info.hdr_data.primaries[1].y = drmpkt.des_u.tp1.dis_pri_y1;
+	rx.hdr_info.hdr_data.primaries[2].x = drmpkt.des_u.tp1.dis_pri_x2;
+	rx.hdr_info.hdr_data.primaries[2].y = drmpkt.des_u.tp1.dis_pri_y2;
+	rx.hdr_info.hdr_data.white_points.x = drmpkt.des_u.tp1.white_points_x;
+	rx.hdr_info.hdr_data.white_points.y = drmpkt.des_u.tp1.white_points_y;
+	rx.hdr_info.hdr_data.master_lum.x = drmpkt.des_u.tp1.max_dislum;
+	rx.hdr_info.hdr_data.master_lum.y = drmpkt.des_u.tp1.min_dislum;
+	rx.hdr_info.hdr_data.mcll = drmpkt.des_u.tp1.max_light_lvl;
+	rx.hdr_info.hdr_data.mfall = drmpkt.des_u.tp1.max_fa_light_lvl;
 
 	rx.hdr_info.hdr_state = HDR_STATE_SET;
 
 	return error;
 }
 
-int rx_pkt_decode(struct rx_s *prx,
+void rx_pkt_buffclear(enum pkt_type_e pkt_type)
+{
+	struct rx_s *prx = &rx;
+	void *pktinfo;
+
+	if (pkt_type == PKT_TYPE_INFOFRAME_VSI)
+		pktinfo = &prx->vs_info;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_AVI)
+		pktinfo = &prx->avi_info;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_SPD)
+		pktinfo = &prx->spd_info;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_AUD)
+		pktinfo = &prx->aud_pktinfo;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_MPEGSRC)
+		pktinfo = &prx->mpegs_info;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_NVBI)
+		pktinfo = &prx->ntscvbi_info;
+	else if (pkt_type == PKT_TYPE_INFOFRAME_DRM)
+		pktinfo = &prx->drm_info;
+	else if (pkt_type == PKT_TYPE_ACR)
+		pktinfo = &prx->acr_info;
+	else if (pkt_type == PKT_TYPE_GCP)
+		pktinfo = &prx->gcp_info;
+	else if (pkt_type == PKT_TYPE_ACP)
+		pktinfo = &prx->acp_info;
+	else if (pkt_type == PKT_TYPE_ISRC1)
+		pktinfo = &prx->isrc1_info;
+	else if (pkt_type == PKT_TYPE_ISRC2)
+		pktinfo = &prx->isrc2_info;
+	else if (pkt_type == PKT_TYPE_GAMUT_META)
+		pktinfo = &prx->gameta_info;
+	else if (pkt_type == PKT_TYPE_AUD_META)
+		pktinfo = &prx->amp_info;
+	else {
+		rx_pr("err type:0x%x\n", pkt_type);
+		return;
+	}
+	memset(pktinfo, 0, sizeof(struct pd_infoframe_s));
+}
+
+void rx_pkt_content_chk_en(uint32_t enable)
+{
+	rx_pr("content chk:%d\n", enable);
+	if (enable) {
+		if (pkt_testbuff == NULL)
+			pkt_testbuff = kmalloc(sizeof(struct st_pkt_test_buff),
+						GFP_KERNEL);
+		if (pkt_testbuff) {
+			memset(pkt_testbuff, 0,
+				sizeof(struct st_pkt_test_buff));
+			rxpktsts.pkt_chk_flg = true;
+		} else
+			rx_pr("kmalloc fail for pkt chk\n");
+	} else {
+		if (rxpktsts.pkt_chk_flg)
+			kfree(pkt_testbuff);
+		rxpktsts.pkt_chk_flg = false;
+		pkt_testbuff = NULL;
+	}
+}
+
+/*
+	read pkt data from pkt fifo or external register set
+*/
+void rx_pkt_set_fifo_pri(uint32_t pri)
+{
+	gpkt_fifo_pri = pri;
+	rx_pr("gpkt_fifo_pri=%d\n", pri);
+}
+
+uint32_t rx_pkt_get_fifo_pri(void)
+{
+	return gpkt_fifo_pri;
+}
+
+void rx_pkt_check_content(void)
+{
+	struct rx_s *cur_pkt = &rx;
+	struct st_pkt_test_buff *pre_pkt;
+	struct rxpkt_st *pktsts;
+	static uint32_t acr_pkt_cnt;
+	static uint32_t ex_acr_pkt_cnt;
+	struct pd_infoframe_s pktdata;
+
+	pre_pkt = pkt_testbuff;
+	pktsts = &rxpktsts;
+
+	if (pre_pkt == NULL)
+		return;
+
+	if (rxpktsts.pkt_chk_flg) {
+		/*compare vsi*/
+		if (pktsts->pkt_cnt_vsi) {
+			if (memcmp((char *)&pre_pkt->vs_info,
+				(char *)&cur_pkt->vs_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" vsi chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->vs_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->vs_info));
+				/*save current*/
+				memcpy(&(pre_pkt->vs_info), &(cur_pkt->vs_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+
+		/*compare avi*/
+		if (pktsts->pkt_cnt_avi) {
+			if (memcmp((char *)&pre_pkt->avi_info,
+				(char *)&cur_pkt->avi_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" avi chg\n");
+				rx_pktdump_raw(&(pre_pkt->avi_info));
+				rx_pktdump_raw(&(cur_pkt->avi_info));
+				memcpy(&(pre_pkt->avi_info),
+						&(cur_pkt->avi_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+
+		/*compare spd*/
+		if (pktsts->pkt_cnt_spd) {
+			if (memcmp((char *)&pre_pkt->spd_info,
+				(char *)&cur_pkt->spd_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" spd chg\n");
+				rx_pktdump_raw(&(pre_pkt->spd_info));
+				rx_pktdump_raw(&(cur_pkt->spd_info));
+				memcpy(&(pre_pkt->spd_info),
+						&(cur_pkt->spd_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare aud_pktinfo*/
+		if (pktsts->pkt_cnt_audif) {
+			if (memcmp((char *)&pre_pkt->aud_pktinfo,
+				(char *)&cur_pkt->aud_pktinfo,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" audif chg\n");
+				rx_pktdump_raw(&(pre_pkt->aud_pktinfo));
+				rx_pktdump_raw(&(cur_pkt->aud_pktinfo));
+				memcpy(&(pre_pkt->aud_pktinfo),
+						&(cur_pkt->aud_pktinfo),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare mpegs_info*/
+		if (pktsts->pkt_cnt_mpeg) {
+			if (memcmp((char *)&pre_pkt->mpegs_info,
+				(char *)&cur_pkt->mpegs_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pktdump_raw(&(pre_pkt->mpegs_info));
+				rx_pktdump_raw(&(cur_pkt->mpegs_info));
+				memcpy(&(pre_pkt->mpegs_info),
+						&(cur_pkt->mpegs_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare ntscvbi_info*/
+		if (pktsts->pkt_cnt_nvbi) {
+			if (memcmp((char *)&pre_pkt->ntscvbi_info,
+				(char *)&cur_pkt->ntscvbi_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" nvbi chg\n");
+				rx_pktdump_raw(&(pre_pkt->ntscvbi_info));
+				rx_pktdump_raw(&(cur_pkt->ntscvbi_info));
+				memcpy(&(pre_pkt->ntscvbi_info),
+						&(cur_pkt->ntscvbi_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare drm_info*/
+		if (pktsts->pkt_cnt_drm) {
+			if (memcmp((char *)&pre_pkt->drm_info,
+				(char *)&cur_pkt->drm_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" drm chg\n");
+				rx_pktdump_raw(&(pre_pkt->drm_info));
+				rx_pktdump_raw(&(cur_pkt->drm_info));
+				memcpy(&(pre_pkt->drm_info),
+						&(cur_pkt->drm_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare acr_info*/
+		if (pktsts->pkt_cnt_acr) {
+			if (memcmp((char *)&pre_pkt->acr_info,
+				(char *)&cur_pkt->acr_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				if (acr_pkt_cnt++ > 100) {
+					acr_pkt_cnt = 0;
+					rx_pr(" acr chg\n");
+					rx_pktdump_acr(&(cur_pkt->acr_info));
+				}
+				/*save current*/
+				memcpy(&(pre_pkt->acr_info),
+						&(cur_pkt->acr_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare gcp_info*/
+		if (pktsts->pkt_cnt_gcp) {
+			if (memcmp((char *)&pre_pkt->gcp_info,
+				(char *)&cur_pkt->gcp_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" gcp chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->gcp_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->gcp_info));
+				/*save current*/
+				memcpy(&(pre_pkt->gcp_info),
+						&(cur_pkt->gcp_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare acp_info*/
+		if (pktsts->pkt_cnt_acp) {
+			if (memcmp((char *)&pre_pkt->acp_info,
+				(char *)&cur_pkt->acp_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" acp chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->acp_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->acp_info));
+				/*save current*/
+				memcpy(&(pre_pkt->acp_info),
+						&(cur_pkt->acp_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare isrc1_info*/
+		if (pktsts->pkt_cnt_isrc1) {
+			if (memcmp((char *)&pre_pkt->isrc1_info,
+				(char *)&cur_pkt->isrc1_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" isrc2 chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->isrc1_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->isrc1_info));
+				/*save current*/
+				memcpy(&(pre_pkt->isrc1_info),
+						&(cur_pkt->isrc1_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare isrc2_info*/
+		if (pktsts->pkt_cnt_isrc2) {
+			if (memcmp((char *)&pre_pkt->isrc2_info,
+				(char *)&cur_pkt->isrc2_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" isrc1 chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->isrc2_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->isrc2_info));
+				/*save current*/
+				memcpy(&(pre_pkt->isrc2_info),
+						&(cur_pkt->isrc2_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare gameta_info*/
+		if (pktsts->pkt_cnt_gameta) {
+			if (memcmp((char *)&pre_pkt->gameta_info,
+				(char *)&cur_pkt->gameta_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" gmd chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->gameta_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->gameta_info));
+				/*save current*/
+				memcpy(&(pre_pkt->gameta_info),
+						&(cur_pkt->gameta_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+		/*compare amp_info*/
+		if (pktsts->pkt_cnt_amp) {
+			if (memcmp((char *)&pre_pkt->amp_info,
+				(char *)&cur_pkt->amp_info,
+				sizeof(struct pd_infoframe_s)) != 0) {
+				rx_pr(" amp chg\n");
+				/*dump pre data*/
+				rx_pktdump_raw(&(pre_pkt->amp_info));
+				/*dump current data*/
+				rx_pktdump_raw(&(cur_pkt->amp_info));
+				/*save current*/
+				memcpy(&(pre_pkt->amp_info),
+						&(cur_pkt->amp_info),
+						sizeof(struct pd_infoframe_s));
+			}
+		}
+
+		rx_pkt_getaudif_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_audif,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_audif chg\n");
+			memcpy(&(pre_pkt->ex_audif), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getacr_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_acr,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			if (ex_acr_pkt_cnt++ > 100) {
+				ex_acr_pkt_cnt = 0;
+				rx_pr(" ex_acr chg\n");
+			}
+			memcpy(&(pre_pkt->ex_acr), &pktdata,
+				sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getavi_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_avi,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_avi chg\n");
+			memcpy(&(pre_pkt->ex_avi), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getvsi_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_vsi,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_vsi chg\n");
+			memcpy(&(pre_pkt->ex_vsi), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getamp_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_amp,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_amp chg\n");
+			memcpy(&(pre_pkt->ex_amp), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getgmd_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_gmd,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_gmd chg\n");
+			memcpy(&(pre_pkt->ex_gmd), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getgcp_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_gcp,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_gcp chg\n");
+			memcpy(&(pre_pkt->ex_gcp), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getdrm_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_drm,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_drm chg\n");
+			memcpy(&(pre_pkt->ex_drm), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+
+		rx_pkt_getntscvbi_ex(&pktdata);
+		if (memcmp((char *)&pre_pkt->ex_nvbi,
+			(char *)&pktdata,
+			sizeof(struct pd_infoframe_s)) != 0) {
+			rx_pr(" ex_nvbi chg\n");
+			memcpy(&(pre_pkt->ex_nvbi), &pktdata,
+					sizeof(struct pd_infoframe_s));
+		}
+	}
+}
+
+
+int rx_pkt_fifodecode(struct rx_s *prx,
 				union infoframe_u *pktdata,
 				struct rxpkt_st *pktsts)
 {
@@ -751,11 +1484,13 @@ int rx_pkt_decode(struct rx_s *prx,
 		break;
 	case PKT_TYPE_INFOFRAME_MPEGSRC:
 		pktsts->pkt_cnt_mpeg++;
+		memset(&prx->mpegs_info, 0, sizeof(struct pd_infoframe_s));
 		memcpy(&prx->mpegs_info, pktdata,
 					sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_INFOFRAME_NVBI:
 		pktsts->pkt_cnt_nvbi++;
+		memset(&prx->ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
 		memcpy(&prx->ntscvbi_info, pktdata,
 					sizeof(struct pd_infoframe_s));
 		break;
@@ -814,7 +1549,8 @@ int rx_pkt_decode(struct rx_s *prx,
 	return 0;
 }
 
-int rx_pkt_handler(uint32_t pkt_int_src)
+
+int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 {
 	uint32_t i = 0;
 	uint32_t j = 0;
@@ -856,7 +1592,7 @@ readpkt:
 				pktdata = (union infoframe_u *)&pd_fifo_buf[i];
 				/*mutex_lock(&pktbuff_lock);*/
 				/*pkt decode*/
-					rx_pkt_decode(prx, pktdata, &rxpktsts);
+				rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
 				/*mutex_unlock(&pktbuff_lock);*/
 				i += 8;
 				if (i > (PFIFO_SIZE - 8))
@@ -869,8 +1605,31 @@ readpkt:
 		}
 	} else if (pkt_int_src == PKT_BUFF_SET_VSI) {
 		rx_pkt_getvsinfo(&prx->vendor_specific_info);
+		rxpktsts.pkt_cnt_vsi_ex++;
 	} else if (pkt_int_src == PKT_BUFF_SET_DRM) {
 		rx_pkt_getdrminfo(&prx->ctrl);
+		rxpktsts.pkt_cnt_drm_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_GMD) {
+		rx_pkt_getgmd_ex(&prx->gameta_info);
+		rxpktsts.pkt_cnt_gmd_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_AIF) {
+		rx_pkt_getaudif_ex(&prx->aud_pktinfo);
+		rxpktsts.pkt_cnt_aif_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_AVI) {
+		rx_pkt_getavi_ex(&prx->avi_info);
+		rxpktsts.pkt_cnt_avi_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_ACR) {
+		rx_pkt_getacr_ex(&prx->acr_info);
+		rxpktsts.pkt_cnt_acr_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_GCP) {
+		rx_pkt_getgcp_ex(&prx->gcp_info);
+		rxpktsts.pkt_cnt_gcp_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_AMP) {
+		rx_pkt_getamp_ex(&prx->amp_info);
+		rxpktsts.pkt_cnt_amp_ex++;
+	} else if (pkt_int_src == PKT_BUFF_SET_NVBI) {
+		rx_pkt_getntscvbi_ex(&prx->ntscvbi_info);
+		rxpktsts.pkt_cnt_nvbi_ex++;
 	}
 
 	/*t2 = sched_clock();*/

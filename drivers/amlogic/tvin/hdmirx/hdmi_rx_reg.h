@@ -617,7 +617,7 @@
 /** Register address: auxiliary video information info frame */
 #define DWC_PDEC_AVI_PB		(0x3A4UL)
 /** VIC6-0, video mode identification code */
-#define		VID_IDENT_CODE			MSK(7, 24)
+#define		VID_IDENT_CODE			MSK(8, 24)
 /** ITC, IT content */
 #define		IT_CONTENT				_BIT(23)
 /** EC2-0, extended colorimetry */
@@ -698,6 +698,13 @@
 #define DWC_PDEC_VSI_PLAYLOAD3 (0x374UL)
 #define DWC_PDEC_VSI_PLAYLOAD4 (0x378UL)
 #define DWC_PDEC_VSI_PLAYLOAD5 (0x37CUL)
+
+#define DWC_PDEC_VSI_PB0 (0x3e8UL)
+#define DWC_PDEC_VSI_PB1 (0x3ecUL)
+#define DWC_PDEC_VSI_PB2 (0x3f0UL)
+#define DWC_PDEC_VSI_PB3 (0x3f4UL)
+#define DWC_PDEC_VSI_PB4 (0x3f8UL)
+#define DWC_PDEC_VSI_PB5 (0x3fcUL)
 
 #define DWC_PDEC_AMP_HB			(0x480UL)
 #define	DWC_PDEC_AMP_PB0		(0x484UL)

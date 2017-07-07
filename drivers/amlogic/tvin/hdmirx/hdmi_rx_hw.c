@@ -585,9 +585,6 @@ int packet_init(void)
 	int error = 0;
 	int data32 = 0;
 
-	/*initial packet moudle resource*/
-	rx_pkt_initial();
-
 	data32 |= 1 << 9; /* amp_err_filter */
 	data32 |= 1 << 8; /* isrc_err_filter */
 	data32 |= 1 << 7; /* gmd_err_filter */

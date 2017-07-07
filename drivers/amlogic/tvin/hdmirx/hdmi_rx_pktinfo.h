@@ -3,54 +3,51 @@
 
 #include <linux/switch.h>
 #include <linux/workqueue.h>
-#include <linux/compiler.h>
 
 #include <linux/amlogic/cpu_version.h>
-#include <linux/amlogic/tvin/tvin.h>
-#include <linux/amlogic/iomap.h>
-#include <linux/cdev.h>
 
-extern int pdec_ists_en;
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2
-#define K_PKT_FIFO_START		0x80
 
 #define K_FLAG_TAB_END			0xa0a05f5f
 
 #define K_DOLBY_VS_V0_PKT_LENGTH 0x18
 
 
-
-
-enum pkt_buff_set {
+enum pkt_decode_type {
 	PKT_BUFF_SET_FIFO = 0x01,
-	PKT_BUFF_SET_VSI = 0x02,
-	PKT_BUFF_SET_AVI   = 0x04,
-	PKT_BUFF_SET_DRM  = 0x08,
+	PKT_BUFF_SET_GMD = 0x02,
+	PKT_BUFF_SET_AIF = 0x04,
+	PKT_BUFF_SET_AVI = 0x08,
+	PKT_BUFF_SET_ACR = 0x10,
+	PKT_BUFF_SET_GCP = 0x20,
+	PKT_BUFF_SET_VSI = 0x40,
+	PKT_BUFF_SET_AMP = 0x80,
+	PKT_BUFF_SET_DRM   = 0x100,
+	PKT_BUFF_SET_NVBI = 0x200,
 
 	PKT_BUFF_SET_UNKNOWN = 0xffff,
 };
-
 
 /* data island packet type define */
 enum pkt_type_e {
 	PKT_TYPE_NULL = 0x0,
 	PKT_TYPE_ACR = 0x1,
-	PKT_TYPE_AUD_SAMPLE = 0x2,
+	/*PKT_TYPE_AUD_SAMPLE = 0x2,*/
 	PKT_TYPE_GCP = 0x3,
 	PKT_TYPE_ACP = 0x4,
 	PKT_TYPE_ISRC1 = 0x5,
 	PKT_TYPE_ISRC2 = 0x6,
-	PKT_TYPE_1BIT_AUD = 0x7,
-	PKT_TYPE_DST_AUD = 0x8,
-	PKT_TYPE_HBIT_AUD = 0x9,
+	/*PKT_TYPE_1BIT_AUD = 0x7,*/
+	/*PKT_TYPE_DST_AUD = 0x8,*/
+	/*PKT_TYPE_HBIT_AUD = 0x9,*/
 	PKT_TYPE_GAMUT_META = 0xa,
-	PKT_TYPE_3DAUD = 0xb,
-	PKT_TYPE_1BIT3D_AUD = 0xc,
+	/*PKT_TYPE_3DAUD = 0xb,*/
+	/*PKT_TYPE_1BIT3D_AUD = 0xc,*/
 	PKT_TYPE_AUD_META = 0xd,
-	PKT_TYPE_MUL_AUD = 0xe,
-	PKT_TYPE_1BITMUL_AUD = 0xf,
+	/*PKT_TYPE_MUL_AUD = 0xe,*/
+	/*PKT_TYPE_1BITMUL_AUD = 0xf,*/
 
 	PKT_TYPE_INFOFRAME_VSI = 0x81,
 	PKT_TYPE_INFOFRAME_AVI = 0x82,
@@ -310,7 +307,7 @@ struct gamutmeta_pkt_st {
 			uint8_t gbd_length_l;
 			uint8_t checksum;
 			uint8_t gbd_byte_l[25];
-		} p1_profiel;
+		} p1_profile;
 		uint8_t p1_gbd_byte_h[28];
 	} sbpkt;
 };
@@ -494,22 +491,21 @@ struct vsi_infoframe_st {
 	} __packed ver_st;
 	uint8_t length;
 	uint8_t rsd;
+
 	/*PB0*/
-	uint8_t checksum;
+	uint32_t checksum:8;
 	/*PB1-3*/
-	uint8_t ieee_l;/* first two hex digits*/
-	uint8_t ieee_m;/*second two hex digits*/
-	uint8_t ieee_h;/*third two hex digits*/
+	uint32_t ieee:24;/* first two hex digits*/
+
 	union vsi_sbpkt_u {
 		struct vsi_st {
-			uint8_t playload[24];
+			uint32_t payload[6];
 		} __packed vsi;
 
 		struct vsi_3d_st {
 			/*pb4*/
 			uint8_t rsvd0:5;
 			uint8_t vdfmt:3;
-
 			/*pb5*/
 			union pb5_u {
 				struct pb5_st {
@@ -528,7 +524,15 @@ struct vsi_infoframe_st {
 				uint8_t pb6_data;
 			} __packed pb6;
 
-			uint8_t resd[21];
+			/*pb7*/
+			union pb7_u {
+				struct pb7_st {
+					uint8_t h3d_meta_pres:1;
+					uint8_t rsvd3:7;
+				} __packed pb7_st;
+				uint8_t pb7_data;
+			} __packed pb7;
+			uint8_t resd[20];
 		} __packed vsi_3d;
 	} __packed sbpkt;
 } __packed;
@@ -605,6 +609,8 @@ struct spd_infoframe_st {
 	uint8_t vendor_name[8];
 	/*Product Description Character*/
 	uint8_t product_des[16];
+	/*byte 25*/
+	uint8_t source_info;
 } __packed;
 
 /* audio infoFrame packet - 0x84 */
@@ -625,7 +631,7 @@ struct aud_infoframe_st {
 	/*byte 3*/
 	uint8_t fromat;		/*fmt according to CT3-CT0*/
 	/*byte 4*/
-	uint8_t mul_ch;		/*CA7-CA0*/
+	uint8_t ca;		/*CA7-CA0*/
 	/*byte 5*/
 	uint8_t lfep:2; /*BL1-BL0*/
 	uint8_t rev2:1;
@@ -677,19 +683,21 @@ struct drm_infoframe_st {
 	uint8_t version;
 	uint8_t length;
 	uint8_t rsd;
-	uint8_t checksum;
-
-	/*electrico-optinal transfer function*/
-	uint8_t eotf:3;
-	uint8_t rev0:5;
-
-	/*static metadata descriptor id*/
-	uint8_t meta_des_id:3;
-	uint8_t rev1:5;
 
 	/*static metadata descriptor*/
 	union meta_des_u {
 		struct des_type1_st {
+			/*PB0*/
+			uint8_t checksum;
+			/*PB1*/
+			/*electrico-optinal transfer function*/
+			uint8_t eotf:3;
+			uint8_t rev0:5;
+			/*PB2*/
+			/*static metadata descriptor id*/
+			uint8_t meta_des_id:3;
+			uint8_t rev1:5;
+
 			/*little endian use*/
 			/*display primaries*/
 			uint16_t dis_pri_x0;
@@ -709,43 +717,10 @@ struct drm_infoframe_st {
 			/*maximum frame-average light level*/
 			uint16_t max_fa_light_lvl;
 		} __packed tp1;
-		uint8_t metadata_des[25];
+		uint32_t payload[7];
 	} __packed des_u;
 } __packed;
 
-
-#define CHANNEL_STATUS_SIZE   24
-
-struct aud_info_s {
-    /* info frame*/
-    /*
-    unsigned char cc;
-    unsigned char ct;
-    unsigned char ss;
-    unsigned char sf;
-    */
-	int coding_type;
-	int channel_count;
-	int sample_frequency;
-	int sample_size;
-	int coding_extension;
-	int channel_allocation;
-	int down_mix_inhibit;
-	int level_shift_value;
-	int aud_packet_received;
-
-	/* channel status */
-	unsigned char channel_status[CHANNEL_STATUS_SIZE];
-	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];
-    /**/
-	unsigned int cts;
-	unsigned int n;
-	unsigned int arc;
-	/**/
-	int real_channel_num;
-	int real_sample_size;
-	int real_sample_rate;
-};
 
 struct pd_infoframe_s {
 	uint32_t HB;
@@ -778,6 +753,7 @@ union pktinfo {
 
 union infoframe_u {
 	/*info frame 0x81 - 0x87*/
+	struct pd_infoframe_s word_md_infoframe;
 	struct fifo_rawdata_st raw_infoframe;
 	struct vsi_infoframe_st vsi_infoframe;
 	struct avi_infoframe_st avi_infoframe;
@@ -806,24 +782,93 @@ struct rxpkt_st {
 	uint32_t pkt_cnt_gameta;
 	uint32_t pkt_cnt_amp;
 
+	uint32_t pkt_cnt_vsi_ex;
+	uint32_t pkt_cnt_drm_ex;
+	uint32_t pkt_cnt_gmd_ex;
+	uint32_t pkt_cnt_aif_ex;
+	uint32_t pkt_cnt_avi_ex;
+	uint32_t pkt_cnt_acr_ex;
+	uint32_t pkt_cnt_gcp_ex;
+	uint32_t pkt_cnt_amp_ex;
+	uint32_t pkt_cnt_nvbi_ex;
+
 	uint32_t fifo_Int_cnt;
 	uint32_t fifo_pkt_num;
+
+	uint32_t pkt_chk_flg;
+};
+
+struct st_pkt_test_buff {
+	/* packet type 0x81 vendor-specific */
+	struct pd_infoframe_s vs_info;
+	/* packet type 0x82 AVI */
+	struct pd_infoframe_s avi_info;
+	/* packet type 0x83 source product description */
+	struct pd_infoframe_s spd_info;
+	/* packet type 0x84 Audio */
+	struct pd_infoframe_s aud_pktinfo;
+	/* packet type 0x85 Mpeg source */
+	struct pd_infoframe_s mpegs_info;
+	/* packet type 0x86 NTSCVBI */
+	struct pd_infoframe_s ntscvbi_info;
+	/* packet type 0x87 DRM */
+	struct pd_infoframe_s drm_info;
+
+	/* packet type 0x01 info */
+	struct pd_infoframe_s acr_info;
+	/* packet type 0x03 info */
+	struct pd_infoframe_s gcp_info;
+	/* packet type 0x04 info */
+	struct pd_infoframe_s acp_info;
+	/* packet type 0x05 info */
+	struct pd_infoframe_s isrc1_info;
+	/* packet type 0x06 info */
+	struct pd_infoframe_s isrc2_info;
+	/* packet type 0x0a info */
+	struct pd_infoframe_s gameta_info;
+	/* packet type 0x0d audio metadata data */
+	struct pd_infoframe_s amp_info;
+
+	/*externl set*/
+	struct pd_infoframe_s ex_vsi;
+	struct pd_infoframe_s ex_avi;
+	struct pd_infoframe_s ex_audif;
+	struct pd_infoframe_s ex_drm;
+	struct pd_infoframe_s ex_nvbi;
+	struct pd_infoframe_s ex_acr;
+	struct pd_infoframe_s ex_gcp;
+	struct pd_infoframe_s ex_gmd;
+	struct pd_infoframe_s ex_amp;
 };
 
 
-extern bool hdr_enable;
 
-extern void rx_pkt_getaudinfo(struct aud_info_s *audio_info);
+
+/*extern bool hdr_enable;*/
 
 extern void rx_pkt_status(void);
 extern void rx_pkt_debug(void);
-extern void rx_pkt_dump(uint8_t id);
+extern void rx_pkt_dump(enum pkt_type_e typeID);
 extern void rx_pkt_initial(void);
-extern int rx_pkt_handler(uint32_t pkt_int_src);
-extern uint32_t rx_pkt_typemapping(uint32_t pkt_type);
-extern void rx_pkt_enable(uint32_t type_regbit);
-extern void rx_pkt_disable(uint32_t type_regbit);
+extern int rx_pkt_handler(enum pkt_decode_type pkt_int_src);
+extern uint32_t rx_pkt_type_mapping(enum pkt_type_e pkt_type);
+extern void rx_pkt_buffclear(enum pkt_type_e pkt_type);
+extern void rx_pkt_content_chk_en(uint32_t enable);
+extern void rx_pkt_check_content(void);
+extern void rx_pkt_set_fifo_pri(uint32_t pri);
+extern uint32_t rx_pkt_get_fifo_pri(void);
 
+/*please ignore checksum byte*/
+extern void rx_pkt_getaudif_ex(void *pktinfo);
+/*please ignore checksum byte*/
+extern void rx_pkt_getavi_ex(void *pktinfo);
+extern void rx_pkt_getdrm_ex(void *pktinfo);
+extern void rx_pkt_getacr_ex(void *pktinfo);
+extern void rx_pkt_getgmd_ex(void *pktinfo);
+extern void rx_pkt_getntscvbi_ex(void *pktinfo);
+extern void rx_pkt_getamp_ex(void *pktinfo);
+extern void rx_pkt_getvsi_ex(void *pktinfo);
+extern void rx_pkt_getgcp_ex(void *pktinfo);
 #endif
 
 
