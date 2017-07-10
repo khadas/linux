@@ -781,10 +781,10 @@ __SYSCALL(__NR_process_vm_writev, compat_sys_process_vm_writev)
 __SYSCALL(__NR_kcmp, sys_kcmp)
 #define __NR_finit_module 379
 __SYSCALL(__NR_finit_module, sys_finit_module)
-/* #define __NR_sched_setattr 380 */
-__SYSCALL(380, sys_ni_syscall)
-/* #define __NR_sched_getattr 381 */
-__SYSCALL(381, sys_ni_syscall)
+#define __NR_sched_setattr 380
+__SYSCALL(380, sys_sched_setattr)
+#define __NR_sched_getattr 381
+__SYSCALL(381, sys_sched_getattr)
 /* #define __NR_renameat2 382 */
 __SYSCALL(382, sys_ni_syscall)
 #define __NR_seccomp 383
