@@ -57,6 +57,18 @@ int get_wol_state(void){
 	return wol_enable;
 }
 
+void rtl8211f_shutdown(void) {
+
+	if (wol_enable) {
+		rtl8211f_config_pin_as_pmeb(g_phydev);
+		rtl8211f_config_mac_addr(g_phydev);
+		rtl8211f_config_max_packet(g_phydev);
+		rtl8211f_config_wol(g_phydev, 1);
+		rtl8211f_config_wakeup_frame_mask(g_phydev);
+		rtl8211f_config_pad_isolation(g_phydev, 1);
+	}
+}
+
 static void rtl8211f_early_suspend(struct early_suspend *h)
 {
 	if (wol_enable) {
