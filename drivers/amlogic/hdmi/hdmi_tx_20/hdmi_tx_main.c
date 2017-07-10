@@ -1242,6 +1242,10 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 		return;
 	}
 
+	if (hdev->RXCap.dv_info.ieeeoui != 0x00d046) {
+		return;
+	}
+
 	if ((vic == HDMI_3840x2160p30_16x9) ||
 	    (vic == HDMI_3840x2160p25_16x9) ||
 	    (vic == HDMI_3840x2160p24_16x9) ||
