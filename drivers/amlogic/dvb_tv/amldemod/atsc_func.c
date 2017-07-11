@@ -21,7 +21,13 @@ MODULE_PARM_DESC(atsc_thread_enable, "\n\t\t Enable frontend debug information")
 static int atsc_thread_enable = 1;
 module_param(atsc_thread_enable, int, 0644);
 
+MODULE_PARM_DESC(ar_enable, "\n\t\t Enable ar");
+static int ar_enable;
+module_param(ar_enable, int, 0644);
+
+
 static int dagc_switch;
+static int ar_flag;
 
 /* 8vsb */
 static struct atsc_cfg list_8vsb[22] = {
@@ -502,6 +508,7 @@ void set_cr_ck_rate(void)
 	atsc_write_reg(0x53b,  0x0b);
 	atsc_write_reg(0x545,  0x0);
 	atsc_write_reg(0x546,  0x80);
+	ar_flag = 0;
 }
 
 
@@ -839,12 +846,18 @@ int AR_run(void)
 	msleep(100);
 	snr_buffer = read_snr_atsc_tune();
 	snr_buffer = snr_buffer / 10;
-	if (snr_buffer > 15)
+	pr_dbg("[AR]AR_run, snr_buffer is %d,ar_flag is %d\n",
+		snr_buffer, ar_flag);
+	if ((snr_buffer > 15) && ar_flag) {
 		atsc_write_reg(0xf2b, 0x4);
-	else if (snr_buffer < 12) {
+		ar_flag = 0;
+		pr_dbg("[AR]close AR\n");
+	} else if ((snr_buffer < 12) && !ar_flag) {
 		atsc_write_reg(0xf28, 0x8c);
 		atsc_write_reg(0xf28, 0xc);
 		atsc_write_reg(0xf2b, 0x14);
+		ar_flag = 1;
+		pr_dbg("[AR]open AR\n");
 	}
 	return 0;
 }
@@ -924,6 +937,9 @@ void atsc_thread(void)
 		/*step2:run cci*/
 		set_cr_ck_rate();
 		atsc_reset();
+		/*step:check AR*/
+		if (ar_enable)
+			AR_run();
 		ret = cci_run();
 		atsc_reset();
 		time[1] = jiffies_to_msecs(jiffies);
@@ -946,8 +962,6 @@ void atsc_thread(void)
 			read_atsc_fsm(), time_table[1]);
 		if (ret == Cfo_Fail)
 			return;
-		/*step4:check AR*/
-		/*AR_run();*/
 		for (i = 0; i < 50; i++) {
 			fsm_status = read_atsc_fsm();
 			if (fsm_status >= Atsc_sync_lock) {
@@ -972,6 +986,8 @@ void atsc_thread(void)
 		} else {
 		time[4] = jiffies_to_msecs(jiffies);
 		atsc_check_fsm_status_oneshot();
+		if (ar_enable)
+			AR_run();
 		fsm_status = read_atsc_fsm();
 		pr_dbg("lock\n");
 		msleep(100);

@@ -591,7 +591,7 @@ static int j83b_speedup_func(fe_status_t s, struct dvb_frontend *fe)
 	if (s != 0x1f) {
 		/*msleep(200);*/
 		dprintk("[j.83b] 1\n");
-		for (i = 0; i < 40; i++) {
+		for (i = 0; i < 80; i++) {
 			msleep(25);
 			if (fe->ops.read_ber)
 				fe->ops.read_ber
