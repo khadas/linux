@@ -4136,6 +4136,8 @@ void osd_backup_screen_info(
 {
 	osd_hw.screen_base_backup[index] = screen_base;
 	osd_hw.screen_size_backup[index] = screen_size;
+	osd_hw.screen_base[index] = screen_base;
+	osd_hw.screen_size[index] = screen_size;
 }
 
 void osd_restore_screen_info(
