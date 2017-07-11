@@ -6,6 +6,14 @@ config FRAME_POINTER
 	bool
 	default y
 
+config AML_USER_FAULT
+	bool "Amlogic user fault helper"
+	help
+		show more informations when catch user fault. Including:
+		memory around all registers
+		maps with pc/lr
+		pfn for all virtual address of regirsters
+
 config EARLY_PRINTK
 	bool "Early printk support"
 	default y
