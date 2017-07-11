@@ -240,7 +240,7 @@ static unsigned int first_i_policy = (15 << 8) | 2;
 */
 static unsigned int fast_output_enable = 3;
 
-static unsigned int enable_itu_t35;
+static unsigned int enable_itu_t35 = 1;
 
 #define is_in_parsing_state(status) \
 		((status == H264_ACTION_SEARCH_HEAD) || \
@@ -3696,6 +3696,13 @@ send_again:
 	if (READ_VREG(AV_SCRATCH_G) == 1) {
 		hw->sei_itu_data_len =
 			(READ_VREG(H264_AUX_DATA_SIZE) >> 16) << 4;
+		if (hw->sei_itu_data_len > SEI_ITU_DATA_SIZE * 2) {
+				dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
+					"itu data size more than 4K: %d, discarded it\n",
+					hw->sei_itu_data_len);
+				hw->sei_itu_data_len = 0;
+		}
+
 		if (hw->sei_itu_data_len != 0) {
 			u8 *trans_data_buf;
 			u8 *sei_data_buf;

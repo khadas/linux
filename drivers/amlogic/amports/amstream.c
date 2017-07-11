@@ -869,19 +869,30 @@ static int sub_port_init(struct stream_port_s *port, struct stream_buf_s *pbuf)
 	return 0;
 }
 
+static void amstream_user_buffer_init(void)
+{
+	struct stream_buf_s *pubuf = &bufs[BUF_TYPE_USERDATA];
+
+	pubuf->buf_size = 0;
+	pubuf->buf_start = 0;
+	pubuf->buf_wp = 0;
+	pubuf->buf_rp = 0;
+}
+
 static int amstream_port_init(struct port_priv_s *priv)
 {
 	int r;
 	struct stream_buf_s *pvbuf = &bufs[BUF_TYPE_VIDEO];
 	struct stream_buf_s *pabuf = &bufs[BUF_TYPE_AUDIO];
 	struct stream_buf_s *psbuf = &bufs[BUF_TYPE_SUBTITLE];
-	struct stream_buf_s *pubuf = &bufs[BUF_TYPE_USERDATA];
 	struct stream_port_s *port = priv->port;
 	struct vdec_s *vdec = priv->vdec;
 
 	mutex_lock(&amstream_mutex);
 
 	stbuf_fetch_init();
+
+	amstream_user_buffer_init();
 
 	if (port_get_inited(priv)) {
 		mutex_unlock(&amstream_mutex);
@@ -899,10 +910,6 @@ static int amstream_port_init(struct port_priv_s *priv)
 
 	if ((port->type & PORT_TYPE_VIDEO) &&
 		(vdec->port_flag & PORT_FLAG_VFORMAT)) {
-		pubuf->buf_size = 0;
-		pubuf->buf_start = 0;
-		pubuf->buf_wp = 0;
-		pubuf->buf_rp = 0;
 		pvbuf->for_4k = 0;
 		if (has_hevc_vdec()) {
 			if (port->vformat == VFORMAT_HEVC ||
