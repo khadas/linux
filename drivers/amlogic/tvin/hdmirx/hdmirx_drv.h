@@ -30,7 +30,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/07/03"
+#define RX_VER0 "Ref.2017/07/11"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/06/06"
@@ -116,7 +116,6 @@
 #define AUD_SR_RANGE 2000
 #define AUD_SR_STB_MAX 20
 /* PHY config */
-#define PHY_LOCK_THRES 0x3F
 #define DVI_FIXED_TO_RGB  1
 
 /** TMDS clock delta [kHz] */
@@ -314,10 +313,10 @@ enum colorfmt_e {
 };
 
 enum colordepth_e {
-	E_COLORDEPTH_8,
-	E_COLORDEPTH_10,
-	E_COLORDEPTH_12,
-	E_COLORDEPTH_16,
+	E_COLORDEPTH_8 = 8,
+	E_COLORDEPTH_10 = 10,
+	E_COLORDEPTH_12 = 12,
+	E_COLORDEPTH_16 = 16,
 };
 
 enum hdmi_mode_e {

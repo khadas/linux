@@ -87,7 +87,7 @@ MODULE_PARM_DESC(sig_unstable_max, "\n sig_unstable_max\n");
 module_param(sig_unstable_max, int, 0664);
 
 static int sig_unready_cnt;
-static int sig_unready_max = 8;/* 10; */
+static int sig_unready_max = 5;/* 10; */
 MODULE_PARM_DESC(sig_unready_max, "\n sig_unready_max\n");
 module_param(sig_unready_max, int, 0664);
 
@@ -1750,6 +1750,7 @@ static int get_timing_fmt(void)
 			if (force_vic == freq_ref[i].vic)
 				break;
 		}
+		rx.pre.sw_vic = freq_ref[i].vic;
 		return i;
 	}
 	for (i = 0; i < size; i++) {
@@ -2302,8 +2303,11 @@ void hdmirx_hw_monitor(void)
 					if (sig_stable_cnt < (sig_stable_max*5))
 						break;
 					sig_stable_cnt = 0;
-					rx_pr(
-					"unsupport->wait_clk_stable\n");
+					if (log_level & VIDEO_LOG)
+						rx_pr("unsupport->wait_clk\n");
+					if (log_level & VIDEO_LOG)
+						dump_state(1);
+					rx_set_eq_run_state(E_EQ_FAIL);
 					rx.state = FSM_WAIT_CLK_STABLE;
 					break;
 				}
@@ -4034,13 +4038,15 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		pre_port = rx.port;
 		if (rx.boot_flag) {
 			rx.boot_flag = FALSE;
-			rx_hdcp_init();
+			/* rx_hdcp_init(); */
 			/* rx_port_switch(); */
-			hdmirx_phy_init();
+			hdmirx_hw_config();
+			/* hdmirx_phy_init(); */
 			rx_set_hpd(1);
 		} else {
 			rx_set_hpd(0);
-			rx_port_switch();
+			hdmirx_hw_config();
+			/* rx_port_switch(); */
 		}
 		rx_set_eq_run_state(E_EQ_START);
 	} else {
