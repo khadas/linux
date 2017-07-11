@@ -535,7 +535,7 @@ static int txlx_acodec_probe(struct snd_soc_codec *codec)
 			   |(2 << 2)
 	);
 
-	aml_audin_write(AUDIN_SOURCE_SEL, 3 << 0);
+	aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 3);
 
 	aml_acodec->codec = codec;
 

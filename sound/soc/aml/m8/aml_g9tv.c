@@ -157,8 +157,13 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/* 1=Select HDMIRX SPDIF output as AUDIN source */
 		/* [1:0] i2sin_src_sel: */
 		/*2=Select HDMIRX I2S output as AUDIN source */
-		aml_audin_write(AUDIN_SOURCE_SEL, (0 << 12) |
-				   (0xf << 8) | (1 << 4) | (2 << 0));
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 2);
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 4,
+						1 << 4);
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0xf << 8,
+						0xf << 8);
+		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x7 << 12,
+						0);
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(0);
 	}  else if (ucontrol->value.enumerated.item[0] == 3) {

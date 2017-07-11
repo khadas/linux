@@ -440,7 +440,8 @@ static int aml_T9015S_audio_probe(struct snd_soc_codec *codec)
 			   |(2 << 2)
 	);
 
-	aml_audin_write(AUDIN_SOURCE_SEL, 3);
+	aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 3);
+
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	T9015S_audio->codec = codec;
 
