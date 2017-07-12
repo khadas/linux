@@ -292,7 +292,7 @@ struct hw_para_s {
 	struct fb_geometry_s fb_gem[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_info[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_backup[HW_OSD_COUNT];
-	u32 scan_mode;
+	u32 scan_mode[HW_OSD_COUNT];
 	u32 order;
 	struct osd_3d_mode_s mode_3d[HW_OSD_COUNT];
 	u32 updated[HW_OSD_COUNT];
