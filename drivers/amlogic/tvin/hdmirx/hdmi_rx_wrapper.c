@@ -2180,7 +2180,7 @@ void hdmirx_hw_monitor(void)
 			if (hpd_wait_cnt <= hpd_wait_max*10)
 				break;
 			do_hpd_reset_flag = 0;
-			rx.boot_flag = FALSE;
+			/*rx.boot_flag = FALSE;*/
 		}
 		hpd_wait_cnt = 0;
 		pre_port = rx.port;
@@ -4036,18 +4036,8 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		#endif
 		rx.state = FSM_HPD_LOW;
 		pre_port = rx.port;
-		if (rx.boot_flag) {
-			rx.boot_flag = FALSE;
-			/* rx_hdcp_init(); */
-			/* rx_port_switch(); */
-			hdmirx_hw_config();
-			/* hdmirx_phy_init(); */
-			rx_set_hpd(1);
-		} else {
-			rx_set_hpd(0);
-			hdmirx_hw_config();
-			/* rx_port_switch(); */
-		}
+		rx_set_hpd(0);
+		hdmirx_hw_config();
 		rx_set_eq_run_state(E_EQ_START);
 	} else {
 		if (0 == get_cur_hpd_sts())

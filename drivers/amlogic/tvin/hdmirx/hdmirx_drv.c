@@ -1708,7 +1708,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdevp->timer.function = hdmirx_timer_handler;
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&hdevp->timer);
-	rx.boot_flag = TRUE;
+	/*rx.boot_flag = TRUE;*/
 
 	rx_pr("hdmirx: driver probe ok\n");
 
@@ -1813,7 +1813,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	if (hdcp22_on)
 		hdcp22_suspend();
 	/*clk_off();*/
-	rx.boot_flag = 1;
+	/*rx.boot_flag = 1;*/
 	rx_pr("[hdmirx]: suspend success\n");
 	return 0;
 }

@@ -33,7 +33,7 @@
 #define RX_VER0 "Ref.2017/07/11"
 /*------------------------------*/
 
-#define RX_VER1 "Ref.2017/06/06"
+#define RX_VER1 "Ref.2017/07/13"
 /*------------------------------*/
 
 #define RX_VER2 "Ref.2017/06/01"
@@ -601,7 +601,7 @@ struct rx_s {
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
 	uint8_t port;
 	/*first boot flag*/
-	bool boot_flag;
+	/*bool boot_flag;*/
 	bool open_fg;
 	/** HDMI RX controller context */
 	struct hdmi_rx_ctrl ctrl;
