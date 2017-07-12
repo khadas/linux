@@ -2311,14 +2311,14 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"smpte24hz", HDMI_4k2k_smpte_24},
 	{"smpte25hz", HDMI_4096x2160p25_256x135},
 	{"smpte30hz", HDMI_4096x2160p30_256x135},
-	{"smpte50hz", HDMI_4096x2160p50_256x135},
 	{"smpte50hz420", HDMI_4096x2160p50_256x135_Y420},
-	{"smpte60hz", HDMI_4096x2160p60_256x135},
 	{"smpte60hz420", HDMI_4096x2160p60_256x135_Y420},
-	{"2160p60hz", HDMI_4k2k_60},
-	{"2160p50hz", HDMI_4k2k_50},
 	{"2160p60hz420", HDMI_3840x2160p60_16x9_Y420},
 	{"2160p50hz420", HDMI_3840x2160p50_16x9_Y420},
+	{"smpte50hz", HDMI_4096x2160p50_256x135},
+	{"smpte60hz", HDMI_4096x2160p60_256x135},
+	{"2160p60hz", HDMI_4k2k_60},
+	{"2160p50hz", HDMI_4k2k_50},
 	{"640x480p60hz", HDMIV_640x480p60hz},
 	{"800x480p60hz", HDMIV_800x480p60hz},
 	{"800x600p60hz", HDMIV_800x600p60hz},
@@ -2598,7 +2598,8 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 				vic = HDMI_Unkown;
 		}
 	}
-	vic = hdmitx_edid_recheck_format(hdev, vic);
+	if (force_flag == 0)
+		vic = hdmitx_edid_recheck_format(hdev, vic);
 	return vic;
 }
 

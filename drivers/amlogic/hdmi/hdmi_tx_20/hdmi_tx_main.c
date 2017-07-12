@@ -631,20 +631,6 @@ static int set_disp_mode_auto(void)
 	hdev->para = para;
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
-	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
-		vic = HDMI_4k2k_30;
-	} else if (strncmp(info->name, "2160p25hz",
-		strlen("2160p25hz")) == 0) {
-		vic = HDMI_4k2k_25;
-	} else if (strncmp(info->name, "2160p24hz",
-		strlen("2160p24hz")) == 0) {
-		vic = HDMI_4k2k_24;
-	} else if (strncmp(info->name, "smpte24hz",
-		strlen("smpte24hz")) == 0)
-		vic = HDMI_4k2k_smpte_24;
-	else {
-	/* nothing */
-	}
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
 	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
