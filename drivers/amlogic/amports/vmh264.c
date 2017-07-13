@@ -4945,7 +4945,7 @@ static void run(struct vdec_s *vdec,
 	WRITE_VREG(NAL_SEARCH_CTL, 0);
 	if (enable_itu_t35)
 		WRITE_VREG(NAL_SEARCH_CTL, READ_VREG(NAL_SEARCH_CTL) | 0x1);
-	else if (mmu_enable)
+	if (mmu_enable)
 		WRITE_VREG(NAL_SEARCH_CTL, READ_VREG(NAL_SEARCH_CTL) | 0x2);
 	if (udebug_flag)
 		WRITE_VREG(AV_SCRATCH_K, udebug_flag);
