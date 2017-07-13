@@ -47,13 +47,12 @@ struct ion_cma_buffer_info {
 static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
 			       void *cpu_addr, dma_addr_t handle, size_t size)
 {
-	struct page *page = virt_to_page(cpu_addr);
 	int ret;
-
+	struct page *page;
 	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
 	if (unlikely(ret))
 		return ret;
-
+	page = pfn_to_page(PFN_DOWN(handle));
 	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
 	return 0;
 }
@@ -66,7 +65,6 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info;
-
 	dev_dbg(dev, "Request buffer allocation len %ld\n", len);
 
 	if (buffer->flags & ION_FLAG_CACHED)
@@ -81,9 +79,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return ION_CMA_ALLOCATE_FAILED;
 	}
 
+	len = PAGE_ALIGN(len);
 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
-						GFP_HIGHUSER | __GFP_ZERO);
-
+						__GFP_ZERO);
 	if (!info->cpu_addr) {
 		dev_err(dev, "Fail to allocate buffer\n");
 		goto err;
@@ -120,6 +118,7 @@ static void ion_cma_free(struct ion_buffer *buffer)
 
 	dev_dbg(dev, "Release buffer %p\n", buffer);
 	/* release memory */
+	buffer->size = PAGE_ALIGN(buffer->size);
 	dma_free_coherent(dev, buffer->size, info->cpu_addr, info->handle);
 	/* release sg table */
 	sg_free_table(info->table);
@@ -134,10 +133,8 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
-
 	dev_dbg(dev, "Return buffer %p physical address 0x%pa\n", buffer,
 		&info->handle);
-
 	*addr = info->handle;
 	*len = buffer->size;
 

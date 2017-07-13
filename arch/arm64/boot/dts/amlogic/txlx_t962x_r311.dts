@@ -88,8 +88,14 @@
 			//size = <0x0 0x2800000>;
 			//no-map;
 		//};
-		chunk_reserved:linux,chunk-reserve {
-			compatible = "amlogic, chunk-reserve";
+		carveout_reserved:linux,carveout-reserve {
+			compatible = "amlogic, idev-mem";
+			size = <0x0 0x1000>;
+		};
+		cma_reserved:linux,cma-reserve {
+			compatible = "shared-dma-pool";
+			reusable;
+			alignment = <0x0 0x400000>;
 			size = <0x0 0x4000000>;
 		};
 		/*di CMA pool */
@@ -111,10 +117,6 @@
 			//no-map;
 		};
                 */
-		ion_reserved:linux,ion-dev {
-			compatible = "amlogic, idev-mem";
-			size = <0x0 0x1000>;
-		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
@@ -205,11 +207,7 @@
 		status = "disable";
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
-	chunk-reserve {
-		compatible = "amlogic, chunk-reserve";
-		memory-region = <&chunk_reserved>;
-		status = "okay";
-	};
+
 	pwmled {
 		compatible = "amlogic, pwmled";
 		dev_name = "pwmled";
@@ -327,7 +325,10 @@
 			"demux",
 			"vdec";
 	};
-
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&cma_reserved>;
+	};
 	amvideocap {
 		compatible = "amlogic, amvideocap";
 		dev_name = "amvideocap.0";
