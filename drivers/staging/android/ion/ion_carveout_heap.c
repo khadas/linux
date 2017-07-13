@@ -180,7 +180,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	carveout_heap->heap.ops = &carveout_heap_ops;
 	carveout_heap->heap.type = ION_HEAP_TYPE_CARVEOUT;
 	carveout_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
-
+	pr_info("%s: base %lu size %zu align %ld\n", __func__,
+			carveout_heap->base, heap_data->size, heap_data->align);
 	return &carveout_heap->heap;
 }
 
