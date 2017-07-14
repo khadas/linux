@@ -228,7 +228,7 @@ MODULE_PARM_DESC(clk_unstable_max, "\n clk_unstable_max\n");
 module_param(clk_unstable_max, int, 0664);
 
 int clk_stable_cnt;
-static int clk_stable_max = 5;
+static int clk_stable_max = 8;
 MODULE_PARM_DESC(clk_stable_max, "\n clk_stable_max\n");
 module_param(clk_stable_max, int, 0664);
 
@@ -2264,7 +2264,7 @@ void hdmirx_hw_monitor(void)
 			pll_lock_cnt = 0;
 			if (pll_unlock_cnt++ >= pll_unlock_max) {
 				hdmirx_error_count_config();
-				rx.state = FSM_HPD_LOW;
+				rx.state = FSM_WAIT_CLK_STABLE;
 				pll_unlock_cnt = 0;
 				rx_set_eq_run_state(E_EQ_FAIL);
 				rx_pr("UNSTABLE->HPD_LOW\n");

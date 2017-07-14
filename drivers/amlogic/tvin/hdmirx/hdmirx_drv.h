@@ -30,7 +30,7 @@
 #include "../tvin_frontend.h"
 
 
-#define RX_VER0 "Ref.2017/07/11"
+#define RX_VER0 "Ref.2017/07/14"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/07/13"

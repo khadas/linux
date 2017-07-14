@@ -588,6 +588,9 @@ enum eq_states_e rx_need_eq_algorithm(void)
 {
 	enum eq_states_e ret = EQ_ENABLE;
 	int mfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
+	eq_ch0.bestsetting = eq_cfg_hd;
+	eq_ch1.bestsetting = eq_cfg_hd;
+	eq_ch2.bestsetting = eq_cfg_hd;
 	/* debug mode */
 	if ((eq_dbg_ch0 != 0) ||
 		(eq_dbg_ch1 != 0) ||
@@ -644,20 +647,21 @@ enum eq_states_e rx_need_eq_algorithm(void)
 	} else if ((mfsm_status & 0x400) == 0x400) {
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
-		if (pre_eq_freq == E_EQ_SD) {
+		if ((pre_eq_freq == E_EQ_SD) && (run_eq_flag == E_EQ_PASS)) {
 			ret = EQ_USE_PRE;
 			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
 		} else if (E_EQ_FAIL == run_eq_flag) {
 			eq_ch0.bestsetting = eq_cfg_hd;
 			eq_ch1.bestsetting = eq_cfg_hd;
 			eq_ch2.bestsetting = eq_cfg_hd;
+			ret = EQ_USE_DEF;
 		} else {
 			eq_ch0.bestsetting = 0;
 			eq_ch1.bestsetting = 0;
 			eq_ch2.bestsetting = 0;
+			ret = EQ_USE_DEF;
 		}
 		pre_eq_freq = E_EQ_SD;
-		ret = EQ_USE_DEF;
 	} else {
 		/* 94.5 ~ 148.5 */
 		fat_bit_status = EQ_FATBIT_MASK;
