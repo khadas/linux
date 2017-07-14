@@ -569,8 +569,9 @@ static struct codec_mm_slot *codec_mm_slot_alloc(
 			break;/*ignore codec_mm*/
 		if ((try_alloc_size <= 0 ||
 			try_alloc_size > 64 * 1024) &&	/*must > 512K. */
-			codec_mm_get_free_size() >
-			smgt->reserved_block_mm_M * SZ_1M) {
+			(smgt->tvp_mode ||
+				(codec_mm_get_free_size() >
+				smgt->reserved_block_mm_M * SZ_1M))) {
 			/*try from codec_mm */
 			if (try_alloc_size <= 0) {
 				try_alloc_size =
@@ -849,7 +850,8 @@ static int codec_mm_page_alloc_from_slot(
 	int n;
 
 	codec_mm_list_lock(smgt);
-	if (list_empty(&smgt->free_list) &&
+	if (!smgt->tvp_mode &&
+		list_empty(&smgt->free_list) &&
 		(codec_mm_get_free_size() </*no codec mm*/
 		smgt->reserved_block_mm_M * SZ_1M) &&
 		!smgt->support_from_slot_sys) {/*no sys*/

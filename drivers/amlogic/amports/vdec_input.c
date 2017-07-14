@@ -263,9 +263,11 @@ int vdec_input_dump_blocks(struct vdec_input_s *input,
 	char sbuf[256];
 	int s = 0;
 
+	if (size <= 0)
+		return 0;
 	if (!bufs)
 		lbuf = sbuf;
-	s += sprintf(lbuf + s,
+	s += snprintf(lbuf + s, size - s,
 		"blocks:vdec-%d id:%d,bufsize=%d,dsize=%d,frames:%d,dur:%dms\n",
 		input->id,
 		input->block_nums,
@@ -285,15 +287,21 @@ int vdec_input_dump_blocks(struct vdec_input_s *input,
 	list_for_each_safe(p, tmp, &input->vframe_block_list) {
 		struct vframe_block_list_s *block = list_entry(
 			p, struct vframe_block_list_s, list);
-		if (bufs != NULL)
+		if (bufs != NULL) {
 			lbuf = bufs + s;
+			if (size - s < 128)
+				break;
+		}
 		s += vdec_input_dump_block_locked(block, lbuf, size - s);
 	}
 	list_for_each_safe(p, tmp, &input->vframe_block_free_list) {
 		struct vframe_block_list_s *block = list_entry(
 			p, struct vframe_block_list_s, list);
-		if (bufs != NULL)
+		if (bufs != NULL) {
 			lbuf = bufs + s;
+			if (size - s < 128)
+				break;
+		}
 		s += vdec_input_dump_block_locked(block, lbuf, size - s);
 	}
 	vdec_input_unlock(input, flags);
@@ -349,10 +357,11 @@ int vdec_input_dump_chunks(struct vdec_input_s *input,
 	char *lbuf = bufs;
 	char sbuf[256];
 	int s = 0;
-
+	if (size <= 0)
+		return 0;
 	if (!bufs)
 		lbuf = sbuf;
-	s += sprintf(lbuf + s,
+	snprintf(lbuf + s, size - s,
 		"blocks:vdec-%d id:%d,bufsize=%d,dsize=%d,frames:%d,maxframe:%d\n",
 		input->id,
 		input->block_nums,
