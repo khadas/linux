@@ -355,6 +355,13 @@ static void lcd_tablet_vinfo_update(void)
 
 	vinfo = lcd_drv->lcd_info;
 	pconf = lcd_drv->lcd_config;
+
+	/* store standard duration */
+	lcd_drv->std_duration.duration_num =
+		pconf->lcd_timing.sync_duration_num;
+	lcd_drv->std_duration.duration_den =
+		pconf->lcd_timing.sync_duration_den;
+
 	if (vinfo) {
 		vinfo->name = PANEL_NAME;
 		vinfo->mode = VMODE_LCD;
