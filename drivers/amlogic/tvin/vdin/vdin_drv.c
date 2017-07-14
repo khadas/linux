@@ -1564,7 +1564,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	unsigned int stamp = 0;
 	struct tvin_state_machine_ops_s *sm_ops;
 	int vdin2nr = 0;
-	unsigned int offset;
+	unsigned int offset, vf_drop_cnt;
 	enum tvin_trans_fmt trans_fmt;
 	struct tvin_sig_property_s *prop, *pre_prop;
 	/* unsigned long long total_time; */
@@ -1586,6 +1586,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_reset_flag = 0;
 		return IRQ_HANDLED;
 	}
+	vf_drop_cnt = vdin_drop_cnt;
 
 	/* avoid null pointer oops */
 	if (!devp || !devp->frontend) {
@@ -1770,9 +1771,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
-		if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
-			(devp->parm.port <= TVIN_PORT_HDMI7))
-			vdin_vf_disp_mode_skip(devp->vfp);
 		vdin_irq_flag = 8;
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -1925,6 +1923,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 irq_handled:
+	/*hdmi skip policy should adapt to all drop vframe case*/
+	if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
+		(devp->parm.port <= TVIN_PORT_HDMI7) &&
+		(vf_drop_cnt < vdin_drop_cnt))
+		vdin_vf_disp_mode_skip(devp->vfp);
+
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
 #ifdef CONFIG_AML_RDMA
 	if (devp->flags & VDIN_FLAG_RDMA_ENABLE)
