@@ -308,7 +308,7 @@ static int lcd_extern_get_config_dts(struct device_node *of_node,
 				extconf->name);
 			extconf->i2c_addr2 = 0xff;
 		} else {
-			extconf->i2c_addr = (unsigned char)val;
+			extconf->i2c_addr2 = (unsigned char)val;
 		}
 		if (lcd_debug_print_flag) {
 			EXTPR("%s i2c_second_address=0x%02x\n",
