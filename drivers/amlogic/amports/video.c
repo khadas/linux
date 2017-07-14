@@ -4458,8 +4458,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			case2:input buffer all not OK*/
 			if (vf && hdmiin_frame_check &&
 				(vf->source_type == VFRAME_SOURCE_TYPE_HDMI) &&
-				(video_vf_disp_mode_get(vf) !=
-				VFRAME_DISP_MODE_OK) &&
+				(video_vf_disp_mode_get(vf) ==
+				VFRAME_DISP_MODE_UNKNOWN) &&
 				(hdmiin_frame_check_cnt++ < 10))
 				break;
 			else

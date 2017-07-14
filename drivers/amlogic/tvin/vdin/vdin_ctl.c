@@ -2698,11 +2698,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		curr_wr_vf->duration =
 			(devp->cycle + cycle_phase/2) / cycle_phase;
 	} else {
-		if (!fmt_info->duration)
-			curr_wr_vf->duration =
-				(devp->cycle + cycle_phase/2) / cycle_phase;
-		else
-			curr_wr_vf->duration = fmt_info->duration;
+		curr_wr_vf->duration = devp->duration;
 	}
 #endif
 	/* for 2D->3D mode & interlaced format, double top field
