@@ -1,6 +1,8 @@
 #ifndef _DV_H_
 #define _DV_H_
 
+#define V1_5
+
 #include <linux/types.h>
 #include "target_display_config.h"
 
@@ -19,9 +21,11 @@ struct ui_menu_params_s {
 };
 
 enum signal_format_e {
-	FORMAT_DOVI  = 0,
+	FORMAT_INVALID = -1,
+	FORMAT_DOVI = 0,
 	FORMAT_HDR10 = 1,
-	FORMAT_SDR   = 2
+	FORMAT_SDR = 2,
+	FORMAT_DOVI_LL = 3
 };
 
 enum priority_mode_e {
@@ -33,6 +37,14 @@ enum cp_signal_range_e {
 	SIG_RANGE_SMPTE = 0,  /* head range */
 	SIG_RANGE_FULL  = 1,  /* full range */
 	SIG_RANGE_SDI   = 2           /* PQ */
+};
+
+struct run_mode_s {
+	uint16_t width;
+	uint16_t height;
+	uint16_t el_width;
+	uint16_t el_height;
+	uint16_t hdmi_mode;
 };
 
 struct composer_register_ipcore_s {

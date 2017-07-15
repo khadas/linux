@@ -505,16 +505,19 @@ static void vdin_dump_histgram(struct vdin_dev_s *devp)
 	}
 }
 
-static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
+static void vdin_write_mem(
+	struct vdin_dev_s *devp, char *type,
+	char *path, char *md_path)
 {
 	unsigned int size = 0, vtype = 0;
-	struct file *filp = NULL;
+	struct file *filp = NULL,  *md_flip = NULL;
 	loff_t pos = 0;
 	mm_segment_t old_fs;
 	void *dts = NULL;
 	long val;
+	int index;
 	unsigned long addr;
-
+	struct vf_pool *p = devp->vfp;
 	/* vtype = simple_strtol(type, NULL, 10); */
 
 	if (kstrtol(type, 10, &val) < 0)
@@ -547,20 +550,55 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 	} else {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_PROGRESSIVE;
 	}
+	if (vtype == 6) {
+		devp->curr_wr_vfe->vf.bitdepth = BITDEPTH_Y10;
+		devp->curr_wr_vfe->vf.bitdepth |= FULL_PACK_422_MODE;
+		devp->curr_wr_vfe->vf.signal_type = 0x91000;
+		devp->curr_wr_vfe->vf.source_type = VFRAME_SOURCE_TYPE_HDMI;
+	}
+	if ((vtype == 7) || (vtype == 8)) {
+		devp->curr_wr_vfe->vf.type = 0x7000;
+		devp->curr_wr_vfe->vf.bitdepth = 0;
+		devp->curr_wr_vfe->vf.signal_type = 0x10100;
+		devp->curr_wr_vfe->vf.source_type = VFRAME_SOURCE_TYPE_HDMI;
+	}
 	addr = canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr);
 	/* dts = ioremap(canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr), */
 	/* real_size); */
 	dts = phys_to_virt(addr);
 	size = vfs_read(filp, dts, devp->canvas_max_size, &pos);
-	if (size < devp->canvas_max_size) {
-		pr_info("%s read %u < %u error.\n",
-				__func__, size, devp->canvas_max_size);
-		return;
-	}
+	pr_info("warning: %s read %u < %u\n",
+			__func__, size, devp->canvas_max_size);
+
 	vfs_fsync(filp, 0);
 	iounmap(dts);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
+	if (vtype == 8) {
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		pr_info("md file path = %s\n", md_path);
+		md_flip = filp_open(md_path, O_RDONLY, 0);
+		if (IS_ERR(md_flip)) {
+			pr_info(KERN_ERR"read %s error.\n", md_path);
+			return;
+		}
+		index = devp->curr_wr_vfe->vf.index & 0xff;
+		if (index != 0xff && index >= 0
+			&& index < p->size) {
+			u8 *c = devp->vfp->dv_buf_ori[index];
+			pos = 0;
+			size = vfs_read(md_flip,
+				devp->vfp->dv_buf_ori[index],
+				4096, &pos);
+			p->dv_buf_size[index] = size;
+			devp->vfp->dv_buf[index] = &c[0];
+		}
+		vfs_fsync(md_flip, 0);
+		filp_close(md_flip, NULL);
+		set_fs(old_fs);
+	}
+
 	provider_vf_put(devp->curr_wr_vfe, devp->vfp);
 	devp->curr_wr_vfe = NULL;
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
@@ -985,7 +1023,7 @@ start_chk:
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic")) {
 		if (parm[1] && parm[2])
-			vdin_write_mem(devp, parm[1], parm[2]);
+			vdin_write_mem(devp, parm[1], parm[2], parm[3]);
 		else {
 			pr_err("miss parameters .\n");
 			pr_err("usage: echo read_pic parm1 parm2 /sys/class/vdin/vdinx/attr.\n ");
