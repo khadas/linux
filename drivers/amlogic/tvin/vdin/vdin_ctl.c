@@ -3337,6 +3337,8 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		req->aux_buf = NULL;
 		req->aux_size = 0;
 		req->dv_enhance_exist = 0;
+		/* TODO: need change the low latency flag when LL mode */
+		req->low_latency = 0;
 		if (req->bot_flag)
 			index = (req->vf->index >> 8) & 0xff;
 		if (index != 0xff && index >= 0

@@ -16,6 +16,8 @@
 #ifndef TARGET_DISPLAY_CONFIG_H_
 #define TARGET_DISPLAY_CONFIG_H_
 
+#include "dolby_vision.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -72,7 +74,11 @@ struct TgtGDCfg {
 	uint16_t  gdTriggerPeriod;      /**<@brief  Global Dimming will be triggered only if time elapses more than gdTriggerPeriod frames */
 	uint32_t  gdTriggerLinThresh;   /**<@brief  Global Dimming will be triggered only if tmax changes more than gdTriggerLinThresh nits */
 	uint32_t  gdDelayMilliSec_ott;  /**<@brief  Back light delay for OTT case */
+#ifdef V1_5
+	uint32_t  reserved[6];
+#else
 	uint32_t  reserved[9];
+#endif
 };
 #pragma pack(pop)
 
@@ -127,13 +133,21 @@ struct TargetDisplayConfig {
 	int16_t  offsetBiasLut[TUNING_LUT_ENTRIES];          /**<@brief  Offset Bias Lut */
 	int16_t  backlightBiasLut[TUNING_LUT_ENTRIES];       /**<@brief  Backlight Bias Lut */
 	struct TgtGDCfg gdConfig;       /**<@brief  Global Dimming configuration */
+#ifdef V1_5
+	uint8_t  vsvdb[7];
+	uint8_t  reserved1[5];
+#endif
 	int32_t  min_lin;          /**<@brief  Inverse Chroma vector weight */
 	int32_t  max_lin;          /**<@brief  Target min luminnace in linear scale */
 	int16_t  backlight_scaler; /**<@brief  Backlight Scaler */
 	int32_t  min_lin_dupli;    /**<@brief  Duplicate of min_lin, only needed for 2.8.6 */
 	int32_t  max_lin_dupli;    /**<@brief  Duplicate of max_lin, only needed for 2.8.6 */
 	struct TgtOutCscCfg ocscConfig; /**<@brief  Output CSC configuration */
+#ifdef V1_5
+	int16_t  reserved2;
+#else
 	int16_t  reserved00;
+#endif
 	int16_t  brightnessPreservation; /**<@brief  Brightness preservation */
 	int32_t  iintensityVectorWeight; /**<@brief  Inverse intensity vector weight */
 	int32_t  ichromaVectorWeight;    /**<@brief  Inverse Chroma vector weight */

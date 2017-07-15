@@ -46,6 +46,8 @@
 #include "keystone_correction.h"
 #include "bitdepth.h"
 
+#include "dolby_vision/dolby_vision.h"
+
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
 		if (debug_amvecm)\
@@ -968,7 +970,7 @@ static ssize_t amvecm_write(
 	for (i = 0; i < len; i++) {
 		pq_config_buf[pq_config_level] = buf[i];
 		pq_config_level++;
-		if (pq_config_level == 109727) {
+		if (pq_config_level == sizeof(struct pq_config_s)) {
 			dolby_vision_update_pq_config(pq_config_buf);
 			pq_config_level = 0;
 			break;
