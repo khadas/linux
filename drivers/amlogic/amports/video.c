@@ -2619,10 +2619,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 						VFORMATTER_EN);
 				else
 					VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
-					(is_dolby_vision_on() ?
-					HFORMATTER_REPEAT |
-					(0xc << VFORMATTER_INIPHASE_BIT)  :
-						HFORMATTER_RRT_PIXEL0) |
+						HFORMATTER_REPEAT |
+					(0xc << VFORMATTER_INIPHASE_BIT) |
 						HFORMATTER_YC_RATIO_2_1 |
 						HFORMATTER_EN |
 						VFORMATTER_RPTLINE0_EN |
@@ -2645,10 +2643,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 						VFORMATTER_EN);
 				else
 					VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
-					(is_dolby_vision_on() ?
-					HFORMATTER_REPEAT |
-					(0xc << VFORMATTER_INIPHASE_BIT)  :
-						HFORMATTER_RRT_PIXEL0) |
+						HFORMATTER_REPEAT |
+					(0xc << VFORMATTER_INIPHASE_BIT) |
 						HFORMATTER_YC_RATIO_2_1 |
 						HFORMATTER_EN |
 						VFORMATTER_RPTLINE0_EN |
