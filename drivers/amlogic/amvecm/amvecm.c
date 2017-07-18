@@ -1017,14 +1017,14 @@ static long amvecm_ioctl(struct file *file,
 
 	if (probe_ok == 0)
 		return ret;
+
+	if (pq_load_en == 0) {
+		pr_amvecm_dbg("[amvecm..] pq ioctl function disabled !!\n");
+		return ret;
+	}
+
 	switch (cmd) {
 	case AMVECM_IOC_LOAD_REG:
-		if (pq_load_en == 0) {
-			ret = -EBUSY;
-			pr_amvecm_dbg("[amvecm..] pq ioctl function disabled !!\n");
-			return ret;
-		}
-
 		if ((vecm_latch_flag & FLAG_REG_MAP0) &&
 			(vecm_latch_flag & FLAG_REG_MAP1) &&
 			(vecm_latch_flag & FLAG_REG_MAP2) &&
