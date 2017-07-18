@@ -581,7 +581,7 @@ static void aml_sd_emmc_set_timing_v3(struct amlsd_platform *pdata,
 		clkc->core_phase = 3;
 		sd_emmc_regs->gclock = vclkc;
 		pdata->clkc = vclkc;
-	} else if ((timing == MMC_TIMING_SD_HS) ||
+	} else if ((timing == MMC_TIMING_SD_HS) &&
 			(aml_card_type_non_sdio(pdata))) {
 		clkc->core_phase = 2;
 		sd_emmc_regs->gclock = vclkc;
