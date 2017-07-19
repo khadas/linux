@@ -290,6 +290,7 @@ struct hdmitx_dev {
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
 	unsigned int hdr_src_feature;
+	unsigned int dv_src_feature;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
 	unsigned int flag_3dss:1;
