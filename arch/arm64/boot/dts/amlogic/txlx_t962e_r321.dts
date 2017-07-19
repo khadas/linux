@@ -535,8 +535,8 @@
 		dev_name = "aml_vecm";
 		status = "okay";
 		gamma_en = <0>;/*1:enabel ;0:disable*/
-		wb_en = <1>;/*1:enabel ;0:disable*/
-		cm_en = <1>;/*1:enabel ;0:disable*/
+		wb_en = <0>;/*1:enabel ;0:disable*/
+		cm_en = <0>;/*1:enabel ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	};
 
