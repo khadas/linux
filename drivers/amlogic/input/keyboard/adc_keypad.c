@@ -580,15 +580,6 @@ static int kp_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int kp_resume(struct platform_device *pdev)
 {
-	struct kp *kp = platform_get_drvdata(pdev);
-
-	if (get_resume_method() == POWER_KEY_WAKEUP) {
-		dev_info(&pdev->dev, "adc keypad wakeup\n");
-		input_report_key(kp->input ,  KEY_POWER ,  1);
-		input_sync(kp->input);
-		input_report_key(kp->input ,  KEY_POWER ,  0);
-		input_sync(kp->input);
-	}
 	return 0;
 }
 
