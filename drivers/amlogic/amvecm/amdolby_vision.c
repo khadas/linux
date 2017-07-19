@@ -1370,7 +1370,6 @@ static void video_effect_bypass(int bypass)
 
 static uint32_t dolby_ctrl_backup;
 static uint32_t viu_misc_ctrl_backup;
-static uint32_t vpu_hdmi_fmt_backup;
 static uint32_t vpp_matrix_backup;
 static uint32_t vpp_dummy1_backup;
 static uint32_t vpp_data_conv_para0_backup;
@@ -1385,8 +1384,6 @@ void enable_dolby_vision(int enable)
 				VSYNC_RD_MPEG_REG(VPP_DOLBY_CTRL);
 			viu_misc_ctrl_backup =
 				VSYNC_RD_MPEG_REG(VIU_MISC_CTRL1);
-			vpu_hdmi_fmt_backup =
-				VSYNC_RD_MPEG_REG(VPU_HDMI_FMT_CTRL);
 			vpp_matrix_backup =
 				VSYNC_RD_MPEG_REG(VPP_MATRIX_CTRL);
 			vpp_dummy1_backup =
@@ -1521,7 +1518,6 @@ void enable_dolby_vision(int enable)
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 1);
 				else
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 0);
-				VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL, 0);
 				pr_dolby_dbg("Dolby Vision STB cores turn on\n");
 			} else {
 				VSYNC_WR_MPEG_REG(VPP_DOLBY_CTRL,
@@ -1574,7 +1570,6 @@ void enable_dolby_vision(int enable)
 				if ((dolby_vision_flags & FLAG_BYPASS_VPP)
 				|| (dolby_vision_flags & FLAG_CERTIFICAION))
 					video_effect_bypass(1);
-				VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL, 0);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 0);
 				VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1, 0x20000000);
 				enable_osd_path(0);
@@ -1669,8 +1664,6 @@ void enable_dolby_vision(int enable)
 			VSYNC_WR_MPEG_REG(VIU_MISC_CTRL1,
 				viu_misc_ctrl_backup
 				| (1 << 17)); /* always vd2 to vpp */
-			VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL,
-				vpu_hdmi_fmt_backup);
 			VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 				vpp_matrix_backup);
 			VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1,
