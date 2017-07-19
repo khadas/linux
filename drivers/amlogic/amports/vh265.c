@@ -101,7 +101,8 @@
 #define PTS_MODE_SWITCHING_RECOVERY_THREASHOLD 3
 
 #define DUR2PTS(x) ((x)*90/96)
-#define HEVC_SIZE (4096*2304)
+#define MAX_SIZE (4096 + 2304)
+#define OVER_SIZE(w, h)		(MAX_SIZE < (w + h))
 
 static struct semaphore h265_sema;
 
@@ -4866,7 +4867,7 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 #endif
 		}
 
-		if (HEVC_SIZE < hevc->pic_w * hevc->pic_h) {
+		if (OVER_SIZE(hevc->pic_w, hevc->pic_h)) {
 			pr_info("over size : %u x %u.\n",
 				hevc->pic_w, hevc->pic_h);
 			if (!hevc->m_ins_flag)
@@ -8372,7 +8373,7 @@ static int vh265_local_init(struct hevc_state_s *hevc)
 	hevc->get_frame_dur = false;
 	hevc->frame_width = hevc->vh265_amstream_dec_info.width;
 	hevc->frame_height = hevc->vh265_amstream_dec_info.height;
-	if (HEVC_SIZE < hevc->frame_width * hevc->frame_height) {
+	if (OVER_SIZE(hevc->frame_width, hevc->frame_height)) {
 		pr_info("over size : %u x %u.\n",
 			hevc->frame_width, hevc->frame_height);
 		hevc->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
