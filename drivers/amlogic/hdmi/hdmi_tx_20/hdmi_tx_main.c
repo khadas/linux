@@ -1222,13 +1222,23 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 	unsigned char len = 0;
 	unsigned int vic = hdev->cur_VIC;
 	unsigned int hdmi_vic_4k_flag = 0;
+	static enum eotf_type ltype = EOTF_T_NULL;
+	static uint8_t ltmode = -1;
 
-	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL) {
-		pr_info("hdmitx: not support DolbyVision\n");
+	if ((hdev->ready == 0) || (hdev->RXCap.dv_info.ieeeoui != 0x00d046)) {
+		ltype = EOTF_T_NULL;
+		ltmode = -1;
 		return;
 	}
 
-	if (hdev->RXCap.dv_info.ieeeoui != 0x00d046) {
+	if ((ltype != type) || (ltmode != tunnel_mode)) {
+		ltype = type;
+		ltmode = tunnel_mode;
+	} else
+		return;
+
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL) {
+		pr_info("hdmitx: not support DolbyVision\n");
 		return;
 	}
 
@@ -1241,16 +1251,20 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 	switch (type) {
 	case EOTF_T_DOLBYVISION:
 		len = 0x18;
+		hdev->dv_src_feature = 1;
 		break;
 	case EOTF_T_HDR10:
 		len = 0x05;
+		hdev->dv_src_feature = 0;
 		break;
 	case EOTF_T_SDR:
 		len = 0x05;
+		hdev->dv_src_feature = 0;
 		break;
 	case EOTF_T_NULL:
 	default:
 		len = 0x05;
+		hdev->dv_src_feature = 0;
 		break;
 	}
 
@@ -1273,7 +1287,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 		else
 			VEN_DB[4] = 0x0;
 	}
-
 	if (type == EOTF_T_DOLBYVISION) {
 		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 		if (tunnel_mode == 1) {
@@ -1288,8 +1301,9 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 				YCC_RANGE_FUL);
 		}
 	} else {
-		if (hdmi_vic_4k_flag)
+	if (hdmi_vic_4k_flag) {
 			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+		}
 		else
 			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, NULL);
 		hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
@@ -2854,6 +2868,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 			(unsigned long int)bksv_buf);
 		rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	}
+
 	set_disp_mode_auto();
 	hdmi_delay_post(1);
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
@@ -2914,6 +2929,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	clear_hdr_info(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
+	hdev->cur_VIC = 0;
 	hdev->hpd_state = 0;
 	switch_set_state(&sdev, 0);
 	switch_set_state(&hdmi_audio, 0);
