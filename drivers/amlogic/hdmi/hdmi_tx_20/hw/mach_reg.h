@@ -24,8 +24,6 @@ unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 	unsigned int len);
-void sec_reg_write(unsigned *addr, unsigned value);
-unsigned sec_reg_read(unsigned *addr);
 void init_reg_map(unsigned int type);
 
 #define CBUS_REG_IDX		0
