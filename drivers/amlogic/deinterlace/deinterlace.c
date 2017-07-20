@@ -2883,6 +2883,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	if (de_devp->flag_cma == 1) {
 		pr_dbg("%s:cma alloc req time: %d ms\n",
 			__func__, jiffies_to_msecs(jiffies));
+		atomic_set(&de_devp->mem_flag, 0);
 		di_pre_stru.cma_alloc_req = 1;
 		up(&di_sema);
 	}
@@ -8927,6 +8928,9 @@ light_unreg:
 		spin_unlock_irqrestore(&plist_lock, flags);
 	} else if (type == VFRAME_EVENT_PROVIDER_VFRAME_READY) {
 		provider_vframe_level++;
+		if (di_pre_stru.bypass_flag)
+			vf_notify_receiver(VFM_NAME,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		trigger_pre_di_process(TRIGGER_PRE_BY_VFRAME_READY);
 
 #ifdef RUN_DI_PROCESS_IN_IRQ
@@ -9277,6 +9281,7 @@ get_vframe:
 				vframe_ret->early_process_fun = NULL;
 				vframe_ret->process_fun = NULL;
 			}
+			atomic_set(&di_buf->di_cnt, 1);
 		}
 		disp_frame_count++;
 		if (run_flag == DI_RUN_FLAG_STEP)
@@ -9302,7 +9307,6 @@ get_vframe:
 	}
 	/*if (vframe_ret)
 		recycle_keep_buffer();*/
-	atomic_set(&di_buf->di_cnt, 1);
 	return vframe_ret;
 }
 
