@@ -4552,7 +4552,6 @@ static int vh264_stop(struct vdec_h264_hw_s *hw)
 		hw->sei_user_data_buffer = NULL;
 	}
 	/* amvdec_disable(); */
-
 	dpb_print(DECODE_ID(hw), 0,
 		"%s\n",
 		__func__);
@@ -4757,6 +4756,8 @@ result_done:
 			"%s: force exit\n",
 			__func__);
 		amvdec_stop();
+		if (mmu_enable)
+			amhevc_stop();
 		if (hw->stat & STAT_ISR_REG) {
 			vdec_free_irq(VDEC_IRQ_1, (void *)hw);
 			hw->stat &= ~STAT_ISR_REG;
