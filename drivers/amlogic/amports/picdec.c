@@ -1955,6 +1955,18 @@ int picdec_buffer_init(void)
 	unsigned offset = 0;
 	picdec_buffer_status = 0;
 
+	picdec_device.vinfo = get_current_vinfo();
+
+	picdec_device.disp_width = picdec_device.vinfo->width;
+
+	picdec_device.disp_height = picdec_device.vinfo->height;
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) &&
+	((picdec_device.disp_width * picdec_device.disp_height) >=
+	1920 * 1080))
+		picdec_device.output_format_mode = txlx_output_format_mode;
+	else
+		picdec_device.output_format_mode = output_format_mode;
+
 	picdec_cma_buf_init();
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
@@ -1967,18 +1979,6 @@ int picdec_buffer_init(void)
 		ret = -1;
 		goto exit;
 	}
-
-	picdec_device.vinfo = get_current_vinfo();
-
-	picdec_device.disp_width = picdec_device.vinfo->width;
-
-	picdec_device.disp_height = picdec_device.vinfo->height;
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) &&
-	((picdec_device.disp_width * picdec_device.disp_height) >=
-	1920 * 1080))
-		picdec_device.output_format_mode = txlx_output_format_mode;
-	else
-		picdec_device.output_format_mode = output_format_mode;
 
 	canvas_width = (picdec_device.disp_width + 0x1f) & ~0x1f;
 
