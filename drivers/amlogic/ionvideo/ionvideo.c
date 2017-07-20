@@ -27,7 +27,7 @@
 #define IONVIDEO_DEVICE_NAME   "ionvideo"
 
 #define V4L2_CID_USER_AMLOGIC_IONVIDEO_BASE  (V4L2_CID_USER_BASE + 0x1100)
-
+#define SCALE_4K_TO_1080P 1
 static struct mutex ppmgr2_ge2d_canvas_mutex;
 
 static unsigned video_nr_base = 13;
@@ -285,7 +285,19 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 			dev->ppmgr2_dev.dst_width = vf->width;
 		if (vf->height <= dev->height)
 			dev->ppmgr2_dev.dst_height = vf->height;
-
+#if SCALE_4K_TO_1080P
+		if (vf->width > dev->width || vf->height > dev->height) {
+			if (vf->width*dev->height >= dev->width*vf->height) {
+				dev->ppmgr2_dev.dst_width = dev->width;
+				dev->ppmgr2_dev.dst_height = vf->height
+					* dev->width / vf->width;
+		} else {
+				dev->ppmgr2_dev.dst_width = vf->width
+					* dev->height / vf->height;
+				dev->ppmgr2_dev.dst_height = dev->height;
+			}
+		}
+#endif
 		if ((dev->ppmgr2_dev.dst_width >= 1920) && (dev->ppmgr2_dev
 			.dst_height
 			>= 1080)
