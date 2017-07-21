@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2017/07/14"
+#define VDIN_VER "Ref.2017/07/28"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -300,6 +300,8 @@ struct vdin_dev_s {
 	bool	dv_crc_check;/*0:fail;1:ok*/
 	unsigned int		rdma_enable;
 	unsigned int		canvas_config_mode;
+	bool	prehsc_en;
+	bool	vshrk_en;
 };
 
 

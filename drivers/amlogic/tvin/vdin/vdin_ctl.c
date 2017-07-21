@@ -40,6 +40,7 @@
 /* #define VDIN_MEAS_24M_1MS 24000 */
 /* #define VDIN_MEAS_51M_1MS 50000 */
 
+#define VDIN_VSHRINK_HLIMIT 1280
 #define TVIN_MAX_PIXCLK 20000
 #define META_RETRY_MAX 10
 
@@ -2295,7 +2296,10 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* Bit 15:0 vscaler ini_phase */
 	wr(offset, VDIN_VSC_INI_CTRL, 0x000000);
 	/* Bit 12:0, scaler input height minus 1 */
-	wr(offset, VDIN_SCIN_HEIGHTM1, 0x00000);
+	/*wr(offset, VDIN_SCIN_HEIGHTM1,0x000000);*/
+	wr_bits(offset, VDIN_SCIN_HEIGHTM1, 0, SCALER_INPUT_HEIGHT_BIT,
+		SCALER_INPUT_HEIGHT_WID);
+
 	/* Bit 23:16, dummy component 0 */
 	/* Bit 15:8, dummy component 1 */
 	/* Bit 7:0, dummy component 2 */
@@ -2773,8 +2777,7 @@ void vdin_set_hscale(unsigned int offset, unsigned int src_w,
 		pr_err("[vdin..]%s parameter dst_w error.\n", __func__);
 		return;
 	}
-	/* disable hscale&pre hscale */
-	wr_bits(offset, VDIN_SC_MISC_CTRL, 0, PRE_HSCL_EN_BIT, PRE_HSCL_EN_WID);
+	/* disable hscale */
 	wr_bits(offset, VDIN_SC_MISC_CTRL, 0, HSCL_EN_BIT, HSCL_EN_WID);
 	/* write horz filter coefs */
 	wr(offset, VDIN_SCALE_COEF_IDX, 0x0100);
@@ -2801,8 +2804,8 @@ void vdin_set_hscale(unsigned int offset, unsigned int src_w,
 		      );
 
 	wr(offset, VDIN_SC_MISC_CTRL,
+			rd(offset, VDIN_SC_MISC_CTRL) |
 			(0 << INIT_PIX_IN_PTR_BIT) |
-			(0 << PRE_HSCL_EN_BIT) |/* pre_hscale_en */
 			(1 << HSCL_EN_BIT) |/* hsc_en */
 			(1 << SHORT_LN_OUT_EN_BIT) |/* short_lineo_en */
 			(1 << HSCL_NEAREST_EN_BIT) |/* nearest_en */
@@ -2851,20 +2854,54 @@ void vdin_set_vscale(unsigned int offset, unsigned int src_h,
 	wr_bits(offset, VDIN_VSC_INI_CTRL, 0,
 			INI_SKIP_LINE_NUM_BIT, INI_SKIP_LINE_NUM_WID);
 
-	wr(offset, VDIN_SCIN_HEIGHTM1, src_h - 1);
+	wr_bits(offset, VDIN_SCIN_HEIGHTM1, src_h - 1,
+		SCALER_INPUT_HEIGHT_BIT, SCALER_INPUT_HEIGHT_WID);
 	wr(offset, VDIN_DUMMY_DATA, 0x008080);
 	/* enable vscale */
 	wr_bits(offset, VDIN_VSC_INI_CTRL, 1, VSC_EN_BIT, VSC_EN_WID);
 
 }
 
+void vdin_set_prehscale(unsigned int offset)
+{
+	wr_bits(offset, VDIN_SC_MISC_CTRL, 0, PRE_HSCL_MODE_BIT,
+		PRE_HSCL_MODE_WID);
+	wr_bits(offset, VDIN_SC_MISC_CTRL, 1, PRE_HSCL_EN_BIT, PRE_HSCL_EN_WID);
+	pr_info("set_prehsc done!\n");
+}
+/*do vscaler down,only vdin1 have this module!!!
+vshrk_mode:0-->1:2; 1-->1:4; 2-->1:8*/
+void vdin_set_vshrink(unsigned int offset, unsigned int src_h,
+	unsigned int vshrk_mode)
+{
+	wr_bits(offset, VDIN_SCIN_HEIGHTM1, src_h - 1,
+		VSHRK_INPUT_HEIGHT_BIT, VSHRK_INPUT_HEIGHT_WID);
+	wr_bits(offset, VDIN_VSHRK_CTRL, 1,
+		VDIN_VSHRK_LPF_MODE_BIT, VDIN_VSHRK_LPF_MODE_WID);
+	wr_bits(offset, VDIN_VSHRK_CTRL, vshrk_mode,
+		VDIN_VSHRK_MODE_BIT, VDIN_VSHRK_MODE_WID);
+	wr_bits(offset, VDIN_VSHRK_CTRL, 1,
+		VDIN_VSHRK_EN_BIT, VDIN_VSHRK_EN_WID);
+	pr_info("set_vshrink done!\n");
+}
+/*vdin scaler path:
+vdin0:prehsc-->hscaler-->vscaler;
+vdin1:prehsc-->hscaler-->vshrink-->vscaler*/
+
 void vdin_set_hvscale(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
-
+	unsigned int vshrk_mode = 0;
 	if ((devp->prop.scaling4w < devp->h_active) &&
 		(devp->prop.scaling4w > 0)) {
-		vdin_set_hscale(offset, devp->h_active, devp->prop.scaling4w);
+		if (devp->prehsc_en && (devp->prop.scaling4w <=
+			(devp->h_active >> 1))) {
+			vdin_set_prehscale(offset);
+			devp->h_active = devp->h_active >> 1;
+		}
+		if (devp->prop.scaling4w < devp->h_active)
+			vdin_set_hscale(offset, devp->h_active,
+				devp->prop.scaling4w);
 		devp->h_active = devp->prop.scaling4w;
 	} else if (devp->h_active > max_hactive) {
 		vdin_set_hscale(offset, devp->h_active, max_hactive);
@@ -2875,7 +2912,22 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 			devp->index, devp->h_active);
 	if ((devp->prop.scaling4h < devp->v_active) &&
 		(devp->prop.scaling4h > 0)) {
-		vdin_set_vscale(offset, devp->v_active, devp->prop.scaling4h);
+		if (devp->vshrk_en && (devp->h_active <= VDIN_VSHRINK_HLIMIT) &&
+			(devp->index == 1) && (devp->prop.scaling4h <=
+			(devp->v_active >> 1))) {
+			vshrk_mode = devp->v_active/devp->prop.scaling4h;
+			if (vshrk_mode >= 8)
+				vshrk_mode = 2;
+			else if (vshrk_mode >= 4)
+				vshrk_mode = 1;
+			else if (vshrk_mode >= 2)
+				vshrk_mode = 0;
+			vdin_set_vshrink(offset, devp->v_active, vshrk_mode);
+			devp->v_active = devp->v_active >> (vshrk_mode + 1);
+		}
+		if (devp->prop.scaling4h < devp->v_active)
+			vdin_set_vscale(offset, devp->v_active,
+				devp->prop.scaling4h);
 		devp->v_active = devp->prop.scaling4h;
 	}
 	if (vdin_ctl_dbg)
