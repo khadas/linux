@@ -217,7 +217,7 @@
 			type = <0>; /* 0=i2c, 1=spi, 2=mipi */
 			i2c_address = <0x1c>; /* 7bit i2c address */
 			i2c_second_address = <0xff>; /* 7bit i2c address, 0xff for none */
-			i2c_bus = "i2c_bus_d";
+			i2c_bus = "i2c_bus_c";
 			cmd_size = <9>;
 			/* init on/off: (type, value..., delay), must match cmd_size for every group */
 			/* type: 0x00=cmd(bit[3:0]=1 for second_addr), 0x10=gpio, 0xff=ending*/
@@ -240,7 +240,7 @@
 			status = "disabled";
 			type = <0>; /* 0=i2c, 1=spi, 2=mipi */
 			i2c_address = <0x1c>; /* 7bit i2c address */
-			i2c_bus = "i2c_bus_d";
+			i2c_bus = "i2c_bus_c";
 		};
 	};
 
