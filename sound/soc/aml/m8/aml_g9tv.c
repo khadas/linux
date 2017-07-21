@@ -54,7 +54,6 @@
 #define DRV_NAME "aml_snd_card_g9tv"
 
 static int aml_audio_Hardware_resample;
-static int hardware_resample_locked_flag;
 static int Speaker_Channel_Mask = 1;
 static int EQ_DRC_Channel_Mask;
 static int DAC0_Channel_Mask;
@@ -287,11 +286,6 @@ static int hardware_resample_enable(int input_sr)
 	u16 Avg_cnt_init = 0;
 	unsigned int clk_rate = clk81;
 
-	if (hardware_resample_locked_flag == 1) {
-		pr_info("HW resample is locked in RAW data.\n");
-		return 0;
-	}
-
 	if (input_sr < 8000 || input_sr > 48000) {
 		pr_err("Error input sample rate,input_sr = %d!\n", input_sr);
 		return -1;
@@ -324,8 +318,6 @@ static const char *const hardware_resample_texts[] = {
 	"Enable:48K",
 	"Enable:44K",
 	"Enable:32K",
-	"Lock Resample",
-	"Unlock Resample"
 };
 
 static const struct soc_enum hardware_resample_enum =
@@ -346,25 +338,14 @@ static int aml_hardware_resample_set_enum(
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
 		hardware_resample_disable();
-		aml_audio_Hardware_resample = 0;
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		hardware_resample_enable(48000);
-		aml_audio_Hardware_resample = 1;
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
 		hardware_resample_enable(44100);
-		aml_audio_Hardware_resample = 2;
 	} else if (ucontrol->value.enumerated.item[0] == 3) {
 		hardware_resample_enable(32000);
-		aml_audio_Hardware_resample = 3;
-	} else if (ucontrol->value.enumerated.item[0] == 4) {
-		hardware_resample_disable();
-		aml_audio_Hardware_resample = 4;
-		hardware_resample_locked_flag = 1;
-	} else if (ucontrol->value.enumerated.item[0] == 5) {
-		hardware_resample_locked_flag = 0;
-		hardware_resample_enable(48000);
-		aml_audio_Hardware_resample = 5;
 	}
+	aml_audio_Hardware_resample = ucontrol->value.enumerated.item[0];
 	return 0;
 }
 
