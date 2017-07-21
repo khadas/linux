@@ -7130,8 +7130,8 @@ static void read_decode_info(struct hevc_state_s *hevc)
 {
 	uint32_t decode_info =
 		READ_HREG(HEVC_DECODE_INFO);
-	hevc->start_decoding_flag =
-		decode_info & 0xff;
+	hevc->start_decoding_flag |=
+		(decode_info & 0xff);
 	hevc->rps_set_id = (decode_info >> 8) & 0xff;
 }
 

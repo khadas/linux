@@ -4291,7 +4291,8 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 	hw->config_bufmgr_done = 0;
 	hw->start_process_time = 0;
 	hw->has_i_frame = 0;
-
+	hw->no_error_count = 0xfff;
+	hw->no_error_i_count = 0xf;
 	/* pr_info("\nvh264_init\n"); */
 	/* init_timer(&hw->recycle_timer); */
 
