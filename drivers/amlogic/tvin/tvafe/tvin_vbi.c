@@ -66,7 +66,13 @@ static bool vbi_nonblock_en;
 MODULE_PARM_DESC(vbi_nonblock_en, "\n vbi_nonblock_en\n");
 module_param(vbi_nonblock_en, bool, 0664);
 
+/*cc will be delayed when interval larger than 2*/
+static unsigned int vbi_wakeup_interval = 2;
+MODULE_PARM_DESC(vbi_wakeup_interval, "\n vbi_wakeup_interval\n");
+module_param(vbi_wakeup_interval, uint, 0664);
+
 static unsigned int vcnt = 1;
+static unsigned int wakeup_cnt;
 
 static void vbi_hw_reset(struct vbi_dev_s *devp)
 {
@@ -519,7 +525,8 @@ static void vbi_slicer_task(unsigned long arg)
 		}
 	}
 	devp->pac_addr = rptr;
-	if (devp->slicer->buffer.pread != devp->slicer->buffer.pwrite)
+	if ((devp->slicer->buffer.pread != devp->slicer->buffer.pwrite) &&
+		(wakeup_cnt++ % vbi_wakeup_interval == 0))
 		wake_up(&devp->slicer->buffer.queue);
 err_exit:
 	return;
