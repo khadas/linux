@@ -781,6 +781,8 @@
 
 /* #define VDIN_SC_MISC_CTRL                       0x120b */
 /* signed value for short line output */
+#define PRE_HSCL_MODE_BIT               17
+#define PRE_HSCL_MODE_WID               4
 #define INIT_PIX_IN_PTR_BIT             8
 #define INIT_PIX_IN_PTR_WID             7
 #define INIT_PIX_IN_PTR_MSK             0x0000007f
@@ -1067,8 +1069,6 @@
 #define WR_CANVAS_BIT                   0
 #define WR_CANVAS_WID                   8
 
-
-
 /* #define VDIN_WR_H_START_END                        0x1221 */
 
 #define HORIZONTAL_REVERSE_BIT          29/* if true horizontal reverse */
@@ -1106,7 +1106,11 @@
 /* #define VDIN_SCIN_HEIGHTM1                          0x1225 */
 /* Bit 12:0, scaler input height minus 1 */
 #define SCALER_INPUT_HEIGHT_BIT            0
-#define SCALER_INPUT_HEIGHT_WID           12
+#define SCALER_INPUT_HEIGHT_WID           13
+
+/* Bit 28:16, vshrk input height minus 1 */
+#define VSHRK_INPUT_HEIGHT_BIT           16
+#define VSHRK_INPUT_HEIGHT_WID           13
 
 /* #define `define VDIN_DUMMY_DATA                0x1226 */
 #define DUMMY_COMPONENT0_BIT                16
@@ -1663,6 +1667,13 @@
 #define VDI7_ASFIFO_CTRL_WID            8
 #define VDI6_ASFIFO_CTRL_BIT            0
 #define VDI6_ASFIFO_CTRL_WID            8
+
+#define VDIN_VSHRK_EN_BIT	27
+#define VDIN_VSHRK_EN_WID	1
+#define VDIN_VSHRK_LPF_MODE_BIT	24
+#define VDIN_VSHRK_LPF_MODE_WID	1
+#define VDIN_VSHRK_MODE_BIT	25
+#define VDIN_VSHRK_MODE_WID	2
 
 /* Bit 3:2 vshrk_clk2_ctrl */
 /* Bit 1:0 vshrk_clk1_ctrl */
