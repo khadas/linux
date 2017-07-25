@@ -23,8 +23,6 @@
 #include <linux/cdev.h>
 
 /* Local include */
-#include "hdmirx_repeater.h"
-#include "hdmi_rx_pktinfo.h"
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 

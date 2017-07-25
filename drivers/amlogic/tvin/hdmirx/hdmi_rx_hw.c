@@ -38,8 +38,6 @@
 #include <linux/amlogic/tvin/tvin.h>
 
 /* Local include */
-#include "hdmi_rx_pktinfo.h"
-#include "hdmirx_repeater.h"
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 

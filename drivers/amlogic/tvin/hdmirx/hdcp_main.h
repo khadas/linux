@@ -28,8 +28,8 @@
 //
 //-----------------------------------------------------------------------*/
 
-#ifndef _HOST_LIB_DRIVER_LINUX_IF_H_
-#define _HOST_LIB_DRIVER_LINUX_IF_H_
+#ifndef _HDCP_MAIN_H_
+#define _HDCP_MAIN_H_
 
 #ifdef __KERNEL__
 #include <linux/ioctl.h>
@@ -37,52 +37,60 @@
 #include <sys/ioctl.h>
 #endif
 
-#include "ESMHostTypes.h"
-#include "ESMHostLibDriverErrors.h"
+
+#define ESM_STATE int32_t
+
+#define ESM_STATE_SUCCESS                0
+#define ESM_STATE_FAILED               (-1)
+#define ESM_STATE_NO_MEMORY            (-2)
+#define ESM_STATE_NO_ACCESS            (-3)
+#define ESM_STATE_PARAM_ERR			(-4)
+#define ESM_STATE_NO_DEVICE			(-5)
+#define ESM_STATE_ERR_USER_DEFINE	(-6)
 
 /* ESM_HLD_IOCTL_LOAD_CODE */
 struct esm_hld_ioctl_load_code {
 	uint8_t *code;
 	uint32_t code_size;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 struct compact_esm_hld_ioctl_load_code {
 	u32 code;
 	uint32_t code_size;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_GET_CODE_PHYS_ADDR */
 struct esm_hld_ioctl_get_code_phys_addr {
 	uint32_t returned_phys_addr;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_GET_DATA_PHYS_ADDR */
 struct esm_hld_ioctl_get_data_phys_addr {
 	uint32_t returned_phys_addr;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_GET_DATA_SIZE */
 struct esm_hld_ioctl_get_data_size {
 	uint32_t returned_data_size;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_HPI_READ */
 struct esm_hld_ioctl_hpi_read {
 	uint32_t offset;
 	uint32_t returned_data;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_HPI_WRITE */
 struct esm_hld_ioctl_hpi_write {
 	uint32_t offset;
 	uint32_t data;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_DATA_READ */
@@ -90,14 +98,14 @@ struct esm_hld_ioctl_data_read {
 	uint32_t offset;
 	uint32_t nbytes;
 	uint8_t *dest_buf;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 struct compact_esm_hld_ioctl_data_read {
 	uint32_t offset;
 	uint32_t nbytes;
 	u32 dest_buf;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_DATA_WRITE */
@@ -105,14 +113,14 @@ struct esm_hld_ioctl_data_write {
 	uint32_t offset;
 	uint32_t nbytes;
 	uint8_t *src_buf;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 struct compact_esm_hld_ioctl_data_write {
 	uint32_t offset;
 	uint32_t nbytes;
 	u32 src_buf;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_DATA_SET */
@@ -120,7 +128,7 @@ struct esm_hld_ioctl_data_set {
 	uint32_t offset;
 	uint32_t nbytes;
 	uint8_t data;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* ESM_HLD_IOCTL_ESM_OPEN */
@@ -130,7 +138,7 @@ struct esm_hld_ioctl_esm_open {
 	uint32_t code_size;
 	uint32_t data_base;
 	uint32_t data_size;
-	ESM_STATUS returned_status;
+	ESM_STATE returned_status;
 };
 
 /* IOCTL commands */
@@ -162,4 +170,4 @@ struct esm_hld_ioctl_esm_open {
 #define ESM_HLD_IOCTL_DATA_WRITE32 \
 	_IOWR(ESM_HLD_IOC_MAGIC, 1007, struct compact_esm_hld_ioctl_data_write)
 
-#endif /* _HOST_LIB_DRIVER_LINUX_IF_H_ */
+#endif /* _HDCP_MAIN_H_ */

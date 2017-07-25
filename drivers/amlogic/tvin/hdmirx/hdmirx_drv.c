@@ -41,8 +41,6 @@
 #include <linux/of_gpio.h>
 
 /* Local include */
-#include "hdmi_rx_pktinfo.h"
-#include "hdmirx_repeater.h"
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"

@@ -28,13 +28,15 @@
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
+#include "hdmirx_repeater.h"
+#include "hdmi_rx_pktinfo.h"
 
 
 
 #define RX_VER0 "Ref.2017/07/14"
 /*------------------------------*/
 
-#define RX_VER1 "Ref.2017/07/17"
+#define RX_VER1 "Ref.2017/07/26"
 /*------------------------------*/
 
 #define RX_VER2 "Ref.2017/06/01"

@@ -38,9 +38,7 @@
 
 #include <linux/uaccess.h>
 
-#include "host_lib_driver_linux_if.h"
-#include "hdmirx_repeater.h"
-#include "hdmi_rx_pktinfo.h"
+#include "hdcp_main.h"
 #include "hdmirx_drv.h"
 
 

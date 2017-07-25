@@ -25,7 +25,7 @@
 // Description:
 //
 // ESM Host Library Driver - Linux driver (kernel module)
-// host_lib_driver_linux_kernel
+// hdcp_main
 //
 //-----------------------------------------------------------------------*/
 
@@ -38,11 +38,9 @@
 #include <linux/delay.h>
 /*local includ*/
 #include "hdmi_rx_reg.h"
-#include "hdmirx_repeater.h"
-#include "hdmi_rx_pktinfo.h"
 #include "hdmirx_drv.h"
 
-#include "host_lib_driver_linux_if.h"
+#include "hdcp_main.h"
 
 /* #include "../hw/mach_reg.h" */
 #ifdef HDCP22_ENABLE
@@ -116,12 +114,12 @@ static long cmd_load_code(struct esm_device *esm,
 
 	if (esm->code_loaded == 1) {
 		pr_info("%scmd_load_code: Code already loaded.\n", MY_TAG);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 	} else {
 	if (krequest.code_size > esm->code_size) {
 		pr_info("%sCode larger than memory (0x%x > 0x%lx).\n",
 			MY_TAG, krequest.code_size, esm->code_size);
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 	} else {
 		kernel_code = kmalloc(krequest.code_size, GFP_KERNEL);
 
@@ -149,7 +147,7 @@ static long cmd_load_code(struct esm_device *esm,
 	*/
 
 	kfree(kernel_code);
-	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+	krequest.returned_status = ESM_STATE_SUCCESS;
 
 		if (verbose)
 			pr_info("%scopying firmware to code memory region.\n",
@@ -157,7 +155,7 @@ static long cmd_load_code(struct esm_device *esm,
 		} else {
 			pr_info("%sFailed to allocate (code_size=0x%x)\n",
 				MY_TAG, krequest.code_size);
-			krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+			krequest.returned_status = ESM_STATE_NO_MEMORY;
 		}
 	}
 	}
@@ -172,7 +170,7 @@ static long cmd_load_code(struct esm_device *esm,
 	else
 	#endif
 		esm->code_loaded = (krequest.returned_status ==
-		ESM_HL_DRIVER_SUCCESS);
+		ESM_STATE_SUCCESS);
 	return 0;
 }
 
@@ -197,12 +195,12 @@ static long cmd_load_code32(struct esm_device *esm,
 
 	if (esm->code_loaded == 1) {
 		pr_info("%scmd_load_code: Code already loaded.\n", MY_TAG);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 	} else {
 	if (krequest.code_size > esm->code_size) {
 		pr_info("%sCode size larger than code memory (0x%x > 0x%lx).\n",
 		MY_TAG, krequest.code_size, esm->code_size);
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 	} else {
 		kernel_code = kmalloc(krequest.code_size, GFP_KERNEL);
 
@@ -230,7 +228,7 @@ static long cmd_load_code32(struct esm_device *esm,
 	*/
 
 		kfree(kernel_code);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 
 		if (verbose)
 			pr_info("%scopying firmware to code memory region.\n",
@@ -238,7 +236,7 @@ static long cmd_load_code32(struct esm_device *esm,
 		} else {
 			pr_info("%sFailed to allocat memory (code_size=0x%x)\n",
 				MY_TAG, krequest.code_size);
-			krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+			krequest.returned_status = ESM_STATE_NO_MEMORY;
 		}
 	}
 	}
@@ -254,7 +252,7 @@ static long cmd_load_code32(struct esm_device *esm,
 		else
 	#endif
 		esm->code_loaded = (krequest.returned_status ==
-		ESM_HL_DRIVER_SUCCESS);
+		ESM_STATE_SUCCESS);
 
 	return 0;
 }
@@ -266,7 +264,7 @@ static long cmd_get_code_phys_addr(struct esm_device *esm,
 	struct esm_hld_ioctl_get_code_phys_addr krequest;
 
 	krequest.returned_phys_addr = esm->code_base;
-	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+	krequest.returned_status = ESM_STATE_SUCCESS;
 
 	if (verbose) {
 		pr_info("%scmd_get_code_phys_addr: returning code_base=0x%x\n",
@@ -288,7 +286,7 @@ static long cmd_get_data_phys_addr(struct esm_device *esm,
 	struct esm_hld_ioctl_get_data_phys_addr krequest;
 
 	krequest.returned_phys_addr = esm->data_base;
-	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+	krequest.returned_status = ESM_STATE_SUCCESS;
 
 	esm_data_base_addr = krequest.returned_phys_addr;
 	rx_pr("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
@@ -309,7 +307,7 @@ static long cmd_get_data_size(struct esm_device *esm,
 	struct esm_hld_ioctl_get_data_size krequest;
 
 	krequest.returned_data_size = esm->data_size;
-	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+	krequest.returned_status = ESM_STATE_SUCCESS;
 
 	rx_pr("%scmd_get_data_size: returning data_size=0x%x\n",
 		MY_TAG, krequest.returned_data_size);
@@ -339,7 +337,7 @@ static long cmd_hpi_read(struct esm_device *esm,
 
 	if (esm->hpi) {
 		krequest.returned_data = rx_hdcp22_rd(krequest.offset);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 
 		if (verbose) {
 			pr_info("%scmd_hpi_read: Returning data=0x%x\n",
@@ -347,7 +345,7 @@ static long cmd_hpi_read(struct esm_device *esm,
 		}
 	} else {
 		krequest.returned_data = 0;
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_hpi_read: No memory.\n", MY_TAG);
 	}
 
@@ -377,14 +375,14 @@ static long cmd_hpi_write(struct esm_device *esm,
 
 	if (esm->hpi) {
 		rx_hdcp22_wr_reg(krequest.offset, (uint32_t)krequest.data);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 
 		if (verbose) {
 			pr_info("%sWrote 0x%X to register at offset 0x%X\n",
 				MY_TAG, krequest.data, krequest.offset);
 		}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_hpi_write: No memory.\n", MY_TAG);
 	}
 
@@ -413,7 +411,7 @@ static long cmd_data_read(struct esm_device *esm,
 
 	if (esm->data) {
 		if (krequest.offset + krequest.nbytes > esm->data_size) {
-			krequest.returned_status = ESM_HL_DRIVER_INVALID_PARAM;
+			krequest.returned_status = ESM_STATE_PARAM_ERR;
 			pr_info("%scmd_data_read: Invalid offset and size.\n",
 				MY_TAG);
 		} else {
@@ -421,7 +419,7 @@ static long cmd_data_read(struct esm_device *esm,
 				esm->data + krequest.offset, krequest.nbytes);
 			if (ret)
 				pr_info("copy left %ld Bytes\n", ret);
-			krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+			krequest.returned_status = ESM_STATE_SUCCESS;
 
 			if (verbose) {
 				pr_info("%sreading %u at offset 0x%x\n",
@@ -430,7 +428,7 @@ static long cmd_data_read(struct esm_device *esm,
 			}
 		}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_data_read: No memory.\n", MY_TAG);
 	}
 
@@ -459,7 +457,7 @@ static long cmd_data_read32(struct esm_device *esm,
 
 	if (esm->data) {
 		if (krequest.offset + krequest.nbytes > esm->data_size) {
-			krequest.returned_status = ESM_HL_DRIVER_INVALID_PARAM;
+			krequest.returned_status = ESM_STATE_PARAM_ERR;
 			pr_info("%scmd_data_read: Invalid offset and size.\n",
 				MY_TAG);
 		} else {
@@ -467,7 +465,7 @@ static long cmd_data_read32(struct esm_device *esm,
 				esm->data + krequest.offset, krequest.nbytes);
 		if (ret)
 			pr_info("copy left %ld Bytes\n", ret);
-		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+		krequest.returned_status = ESM_STATE_SUCCESS;
 
 		if (verbose) {
 			pr_info("%sreading %u bytes at offset 0x%x\n",
@@ -475,7 +473,7 @@ static long cmd_data_read32(struct esm_device *esm,
 		}
 	}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_data_read: No memory.\n", MY_TAG);
 	}
 
@@ -504,7 +502,7 @@ static long cmd_data_write(struct esm_device *esm,
 
 	if (esm->data) {
 		if (krequest.offset + krequest.nbytes > esm->data_size) {
-			krequest.returned_status = ESM_HL_DRIVER_INVALID_PARAM;
+			krequest.returned_status = ESM_STATE_PARAM_ERR;
 			pr_info("%scmd_data_write: Invalid offset and size.\n",
 				MY_TAG);
 		} else {
@@ -512,7 +510,7 @@ static long cmd_data_write(struct esm_device *esm,
 				krequest.src_buf, krequest.nbytes);
 			if (ret)
 				pr_info("copy left %ld Bytes\n", ret);
-			krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+			krequest.returned_status = ESM_STATE_SUCCESS;
 
 			if (verbose) {
 				pr_info("%swriting %u to 0x%x\n",
@@ -521,7 +519,7 @@ static long cmd_data_write(struct esm_device *esm,
 			}
 		}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_data_write: No memory.\n", MY_TAG);
 	}
 
@@ -550,7 +548,7 @@ static long cmd_data_write32(struct esm_device *esm,
 
 	if (esm->data) {
 		if (krequest.offset + krequest.nbytes > esm->data_size) {
-			krequest.returned_status = ESM_HL_DRIVER_INVALID_PARAM;
+			krequest.returned_status = ESM_STATE_PARAM_ERR;
 			pr_info("%scmd_data_write: Invalid offset and size.\n",
 				MY_TAG);
 		} else {
@@ -558,7 +556,7 @@ static long cmd_data_write32(struct esm_device *esm,
 			compat_ptr(krequest.src_buf), krequest.nbytes);
 			if (ret)
 				pr_info("copy %ld Bytes\n", ret);
-			krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+			krequest.returned_status = ESM_STATE_SUCCESS;
 
 			if (verbose) {
 				pr_info("%swriting %u at offset 0x%x\n",
@@ -567,7 +565,7 @@ static long cmd_data_write32(struct esm_device *esm,
 			}
 		}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_data_write: No memory.\n", MY_TAG);
 	}
 
@@ -597,13 +595,13 @@ static long cmd_data_set(struct esm_device *esm,
 
 	if (esm->data) {
 		if (krequest.offset + krequest.nbytes > esm->data_size) {
-			krequest.returned_status = ESM_HL_DRIVER_INVALID_PARAM;
+			krequest.returned_status = ESM_STATE_PARAM_ERR;
 			pr_info("%scmd_data_set: Invalid offset and size.\n",
 				MY_TAG);
 		} else {
 			memset(esm->data + krequest.offset, krequest.data,
 				krequest.nbytes);
-			krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
+			krequest.returned_status = ESM_STATE_SUCCESS;
 
 			if (verbose) {
 				pr_info("%ssetting %u data=0x%x offset 0x%x\n",
@@ -612,7 +610,7 @@ static long cmd_data_set(struct esm_device *esm,
 			}
 		}
 	} else {
-		krequest.returned_status = ESM_HL_DRIVER_NO_MEMORY;
+		krequest.returned_status = ESM_STATE_NO_MEMORY;
 		pr_info("%scmd_data_set: No memory.\n", MY_TAG);
 	}
 
@@ -630,7 +628,7 @@ static long cmd_esm_open(struct file *f,
 	unsigned long r = 0;
 	int i;
 	struct esm_device *esm = esm_devices;
-	int ret = ESM_HL_DRIVER_SUCCESS;
+	int ret = ESM_STATE_SUCCESS;
 	struct esm_hld_ioctl_esm_open krequest;
 
 	r = copy_from_user(&krequest, request,
@@ -692,7 +690,7 @@ static long cmd_esm_open(struct file *f,
 					pr_info("%sFailed alloca (%ld bytes)\n",
 						MY_TAG, esm->code_size);
 					esm->code_alloc_err = TRUE;
-					ret = ESM_HL_DRIVER_NO_MEMORY;
+					ret = ESM_STATE_NO_MEMORY;
 					break;
 				}
 			esm->code_alloc_err = FALSE;
@@ -715,7 +713,7 @@ static long cmd_esm_open(struct file *f,
 				pr_info("%sFailed to allocate (%ld bytes)\n",
 					MY_TAG, esm->data_size);
 				esm->data_alloc_err = TRUE;
-				ret = ESM_HL_DRIVER_NO_MEMORY;
+				ret = ESM_STATE_NO_MEMORY;
 				break;
 			}
 			esm->data_alloc_err = FALSE;
@@ -739,7 +737,7 @@ static long cmd_esm_open(struct file *f,
 
 	if (!f->private_data) {
 		pr_info("%scmd_esm_open: Too many ESM devices.\n", MY_TAG);
-		ret = ESM_HL_DRIVER_TOO_MANY_ESM_DEVICES;
+		ret = ESM_STATE_NO_DEVICE;
 	}
 
 
