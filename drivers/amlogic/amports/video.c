@@ -2675,6 +2675,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			}
 			VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
+			if ((vf->type & VIDTYPE_MVC) && (!vf_with_el))
+				VSYNC_WR_MPEG_REG_BITS(
+					VD2_IF0_GEN_REG3,
+					(bit_mode & 0x3), 8, 2);
 			DI_POST_WR_REG_BITS(DI_IF1_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
 			if (is_meson_txl_cpu() || is_meson_txlx_cpu())
