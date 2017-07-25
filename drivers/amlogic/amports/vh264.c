@@ -55,6 +55,12 @@
 #define MODULE_NAME "amvdec_h264"
 #define MEM_NAME "codec_264"
 #define HANDLE_H264_IRQ
+
+#if 0
+/* currently, only iptv supports this function*/
+#define SUPPORT_BAD_MACRO_BLOCK_REDUNDANCY
+#endif
+
 /* #define DEBUG_PTS */
 #if 0 /* MESON_CPU_TYPE <= MESON_CPU_TYPE_MESON6TV */
 #define DROP_B_FRAME_FOR_1080P_50_60FPS
@@ -231,6 +237,11 @@ static u32 max_refer_buf = 1;
 static u32 decoder_force_reset;
 static unsigned int no_idr_error_count;
 static unsigned int no_idr_error_max = 60;
+#ifdef SUPPORT_BAD_MACRO_BLOCK_REDUNDANCY
+/* 0~128*/
+static u32 bad_block_scale;
+#endif
+
 static unsigned int enable_switch_fense = 1;
 #define EN_SWITCH_FENCE() (enable_switch_fense && !is_4k)
 #if 0
@@ -2320,6 +2331,12 @@ static void vh264_prot_init(void)
 	WRITE_VREG(AV_SCRATCH_9, 0);
 	WRITE_VREG(AV_SCRATCH_N, 0);
 
+#ifdef SUPPORT_BAD_MACRO_BLOCK_REDUNDANCY
+	if (bad_block_scale > 128)
+		bad_block_scale = 128;
+	WRITE_VREG(AV_SCRATCH_A, bad_block_scale);
+#endif
+
 	error_recovery_mode_use =
 		(error_recovery_mode !=
 		 0) ? error_recovery_mode : error_recovery_mode_in;
@@ -3193,6 +3210,11 @@ module_param(enable_switch_fense, uint, 0664);
 MODULE_PARM_DESC(enable_switch_fense,
 		"\n enable switch fense\n");
 
+#ifdef SUPPORT_BAD_MACRO_BLOCK_REDUNDANCY
+module_param(bad_block_scale, uint, 0664);
+MODULE_PARM_DESC(bad_block_scale,
+				"\n print bad_block_scale\n");
+#endif
 
 module_init(amvdec_h264_driver_init_module);
 module_exit(amvdec_h264_driver_remove_module);
