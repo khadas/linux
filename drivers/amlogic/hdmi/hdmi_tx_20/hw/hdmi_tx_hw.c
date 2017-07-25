@@ -4854,21 +4854,20 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 				1, 7, 1);
 		}
 	}
-	/* If RX not support DV, then disable DV send out */
-	if (hdev->RXCap.dv_info.ieeeoui != 0x00d046) {
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN,
-			0, 4, 1);
-	 } else {
-		/* If RX support DV, and feature is DV,
-		then enable DV send out*/
-		if (hdev->dv_src_feature) {
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN,
-				1, 4, 1);
-		}
-	 }
 
+	/* If RX support DV and feature is DV, then disable DV send out */
+	if ((hdev->RXCap.dv_info.ieeeoui == 0x00d046) && hdev->dv_src_feature) {
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+	 }
+	/* If RX  support 3D, then enable 3D send out */
+	else if (hdev->flag_3dfp || hdev->flag_3dtb || hdev->flag_3dss) {
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+	 } else {
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 4, 1);
+	}
 
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB0,  0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB1,  0);
