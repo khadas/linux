@@ -1315,12 +1315,13 @@ struct VP9Decoder_s {
 	int new_frame_displayed;
 	void *mmu_box;
 	void *bmmu_box;
+	struct vframe_master_display_colour_s vf_dp;
 } VP9Decoder;
 
 static int vp9_print(struct VP9Decoder_s *pbi,
 	int flag, const char *fmt, ...)
 {
-#define HEVC_PRINT_BUF		128
+#define HEVC_PRINT_BUF		256
 	unsigned char buf[HEVC_PRINT_BUF];
 	int len = 0;
 	if (pbi == NULL ||
@@ -5135,9 +5136,6 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 	pts_unstable = ((unsigned long)(pbi->vvp9_amstream_dec_info.param)
 			& 0x40) >> 6;
 
-	pbi->video_signal_type = 0;
-	video_signal_type = pbi->video_signal_type;
-
 	if ((debug & VP9_DEBUG_SEND_PARAM_WITH_REG) == 0) {
 		pbi->rpm_addr = kmalloc(RPM_BUF_SIZE, GFP_KERNEL);
 		if (pbi->rpm_addr == NULL) {
@@ -5335,6 +5333,8 @@ static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf)
 	vf->duration = pbi->frame_dur;
 	vf->duration_pulldown = 0;
 	vf->flag = 0;
+	vf->prop.master_display_colour = pbi->vf_dp;
+	vf->signal_type = pbi->video_signal_type;
 
 	ar = min_t(u32, pbi->frame_ar, DISP_RATIO_ASPECT_RATIO_MAX);
 	vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
@@ -7385,6 +7385,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	int ret;
 	int config_val;
+	struct vframe_content_light_level_s content_light_level;
+	struct vframe_master_display_colour_s vf_dp;
 
 	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = NULL;
@@ -7395,6 +7397,7 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	}
 	/*pbi = (struct VP9Decoder_s *)devm_kzalloc(&pdev->dev,
 		sizeof(struct VP9Decoder_s), GFP_KERNEL);*/
+	memset(&vf_dp, 0, sizeof(struct vframe_master_display_colour_s));
 	pbi = vmalloc(sizeof(struct VP9Decoder_s));
 	memset(pbi, 0, sizeof(struct VP9Decoder_s));
 	if (pbi == NULL) {
@@ -7433,6 +7436,7 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 
 	pbi->platform_dev = pdev;
+	pbi->video_signal_type = 0;
 #if 1
 	if ((debug & IGNORE_PARAM_FROM_CONFIG) == 0 &&
 			pdata->config && pdata->config_len) {
@@ -7445,6 +7449,44 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		else
 			pbi->double_write_mode = double_write_mode;
 #endif
+		if (get_config_int(pdata->config, "HDRStaticInfo",
+				&vf_dp.present_flag) == 0
+				&& vf_dp.present_flag == 1) {
+			get_config_int(pdata->config, "mG.x",
+					&vf_dp.primaries[0][0]);
+			get_config_int(pdata->config, "mG.y",
+					&vf_dp.primaries[0][1]);
+			get_config_int(pdata->config, "mB.x",
+					&vf_dp.primaries[1][0]);
+			get_config_int(pdata->config, "mB.y",
+					&vf_dp.primaries[1][1]);
+			get_config_int(pdata->config, "mR.x",
+					&vf_dp.primaries[2][0]);
+			get_config_int(pdata->config, "mR.y",
+					&vf_dp.primaries[2][1]);
+			get_config_int(pdata->config, "mW.x",
+					&vf_dp.white_point[0]);
+			get_config_int(pdata->config, "mW.y",
+					&vf_dp.white_point[1]);
+			get_config_int(pdata->config, "mMaxDL",
+					&vf_dp.luminance[0]);
+			get_config_int(pdata->config, "mMinDL",
+					&vf_dp.luminance[1]);
+			vf_dp.content_light_level.present_flag = 1;
+			get_config_int(pdata->config, "mMaxCLL",
+					&content_light_level.max_content);
+			get_config_int(pdata->config, "mMaxFALL",
+					&content_light_level.max_pic_average);
+			vf_dp.content_light_level = content_light_level;
+			pbi->video_signal_type = (1 << 29)
+					| (5 << 26)	/* unspecified */
+					| (0 << 25)	/* limit */
+					| (1 << 24)	/* color available */
+					| (9 << 16)	/* 2020 */
+					| (16 << 8)	/* 2084 */
+					| (9 << 0);	/* 2020 */
+		}
+		pbi->vf_dp = vf_dp;
 	} else
 #endif
 	{
@@ -7453,6 +7495,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		pbi->vvp9_amstream_dec_info.rate = 30;*/
 		pbi->double_write_mode = double_write_mode;
 	}
+	video_signal_type = pbi->video_signal_type;
+
 #if 0
 	pbi->buf_start = pdata->mem_start;
 	pbi->buf_size = pdata->mem_end - pdata->mem_start + 1;
