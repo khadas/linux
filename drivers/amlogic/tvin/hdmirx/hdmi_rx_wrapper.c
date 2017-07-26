@@ -54,7 +54,7 @@ MODULE_PARM_DESC(pll_lock_max, "\n pll_lock_max\n");
 module_param(pll_lock_max, int, 0664);
 
 static int dwc_rst_wait_cnt;
-static int dwc_rst_wait_cnt_max = 40;
+static int dwc_rst_wait_cnt_max = 1;
 MODULE_PARM_DESC(dwc_rst_wait_cnt_max, "\n dwc_rst_wait_cnt_max\n");
 module_param(dwc_rst_wait_cnt_max, int, 0664);
 
@@ -68,7 +68,7 @@ MODULE_PARM_DESC(sig_lost_lock_max, "\n sig_lost_lock_max\n");
 module_param(sig_lost_lock_max, int, 0664);
 
 static int sig_stable_cnt;
-static int sig_stable_max = 40;
+static int sig_stable_max = 10;
 MODULE_PARM_DESC(sig_stable_max, "\n sig_stable_max\n");
 module_param(sig_stable_max, int, 0664);
 
