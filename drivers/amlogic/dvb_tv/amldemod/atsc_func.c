@@ -332,7 +332,8 @@ unsigned long atsc_read_reg(int reg_addr)
 unsigned long atsc_read_iqr_reg(void)
 {
 	unsigned long tmp;
-
+	if (!get_dtvpll_init_flag())
+			return 0;
 	tmp = apb_read_reg(TXLX_ATSC_BASE + 8);
 	pr_dbg("[atsc irq] is %lx\n", tmp);
 	return tmp & 0xffffffff;

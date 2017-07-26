@@ -593,7 +593,8 @@ static int j83b_speedup_func(fe_status_t s, struct dvb_frontend *fe)
 		dprintk("[j.83b] 1\n");
 		for (i = 0; i < 40; i++) {
 			msleep(25);
-			fe->ops.read_ber
+			if (fe->ops.read_ber)
+				fe->ops.read_ber
 			(fe, &j83b_status);
 			/*J.83 status >=0x38,has signal*/
 			if (j83b_status >= 0x38)
@@ -897,6 +898,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 					fe->ops.read_status(fe, &s);
 				if (s != 0x1f) {
 					/*msleep(200);*/
+				if (fe->ops.read_ber)
 					fe->ops.read_ber(fe, &atsc_status);
 				dprintk
 				("[rsj]atsc_status is %x,modulation is %d\n",

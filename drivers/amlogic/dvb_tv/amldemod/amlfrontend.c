@@ -793,6 +793,8 @@ static int gxtv_demod_atsc_read_status
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 		return 0;
 	}
+	if (!get_dtvpll_init_flag())
+		return 0;
 	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		s = amdemod_dvbc_stat_islock(dev);
 		dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
@@ -821,6 +823,8 @@ static int gxtv_demod_atsc_read_status
 static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	if (!get_dtvpll_init_flag())
+		return 0;
 	if (c->modulation > QAM_AUTO)
 		*ber = atsc_read_reg(0x980)&0xffff;
 	else if ((c->modulation == QAM_256)
@@ -1347,6 +1351,7 @@ static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 
 	/* should disable the adc ref signal for demod */
 	vdac_enable(0, 0x2);
+	msleep(200);
 
 	return 0;
 }
