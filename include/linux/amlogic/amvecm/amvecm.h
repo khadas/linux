@@ -214,7 +214,13 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
 
-extern void amvecm_on_vs(struct vframe_s *vf);
+#define CSC_FLAG_TOGGLE_FRAME	1
+#define CSC_FLAG_CHECK_OUTPUT	2
+
+extern int amvecm_on_vs(
+	struct vframe_s *display_vf,
+	struct vframe_s *toggle_vf,
+	int flags);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);

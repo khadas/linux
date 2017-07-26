@@ -892,28 +892,40 @@ void amvecm_video_latch(void)
 
 }
 
-void amvecm_on_vs(struct vframe_s *vf)
+int amvecm_on_vs(
+	struct vframe_s *vf,
+	struct vframe_s *toggle_vf,
+	int flags)
 {
+	int result = 0;
 	if ((probe_ok == 0) || for_dolby_vision_certification())
-		return;
+		return 0;
+	if (flags & CSC_FLAG_CHECK_OUTPUT) {
+		/* to test if output will change */
+		return amvecm_matrix_process(
+			toggle_vf, vf, flags);
+	}
+	if ((toggle_vf != NULL) || (vf != NULL)) {
+		/* matrix adjust */
+		result = amvecm_matrix_process(toggle_vf, vf, flags);
+		if (toggle_vf)
+			ioctrl_get_hdr_metadata(toggle_vf);
+	} else
+		result = amvecm_matrix_process(NULL, NULL, flags);
 
-	if (vf != NULL) {
-		/* matrix ajust */
-		amvecm_matrix_process(vf);
-
+	/* add some flag to trigger */
+	if (vf) {
 		amvecm_bricon_process(
 			vd1_brightness,
 			vd1_contrast + vd1_contrast_offset, vf);
 
-		ioctrl_get_hdr_metadata(vf);
 		amvecm_color_process(
 			saturation_pre + saturation_offset
 			+ satu_shift_by_con,
 			hue_pre, vf);
 
 		vpp_demo_config(vf);
-	} else
-		amvecm_matrix_process(NULL);
+	}
 	/* todo:vlock processs only for tv chip */
 	if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu() ||
 		is_meson_txl_cpu() || is_meson_txlx_cpu()) {
@@ -925,6 +937,7 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 	/* pq latch process */
 	amvecm_video_latch();
+	return result;
 }
 EXPORT_SYMBOL(amvecm_on_vs);
 

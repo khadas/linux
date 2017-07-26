@@ -4231,6 +4231,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int toggle_cnt;
 #endif
 	struct vframe_s *toggle_vf = NULL;
+	struct vframe_s *toggle_frame = NULL;
 	int video1_off_req = 0;
 	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
 
@@ -4340,9 +4341,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (is_dolby_vision_enable() && vf)
 		dolby_vision_check_hdr10(vf);
 
-#if defined(CONFIG_AM_VECM)
-	amvecm_on_vs(vf);
-#endif
 #ifdef CONFIG_TVIN_VDIN
 	/* patch for m8 4k2k wifidisplay bandwith bottleneck */
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
@@ -4555,6 +4553,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 #if defined(CONFIG_AM_VECM)
 			refresh_on_vs(vf);
+			if (amvecm_on_vs(
+				(cur_dispbuf != &vf_local)
+				? cur_dispbuf : NULL,
+				vf, CSC_FLAG_CHECK_OUTPUT) == 1)
+				break;
 #endif
 
 			if (is_dolby_vision_enable()
@@ -4596,6 +4599,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				}
 			}
 			vsync_toggle_frame(vf);
+			toggle_frame = vf;
 			if (is_dolby_vision_enable())
 				toggle_vf = dolby_vision_toggle_frame(vf);
 			else
@@ -4657,10 +4661,19 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					if (is_dolby_vision_enable()
 					&& dolby_vision_need_wait())
 						break;
+#if defined(CONFIG_AM_VECM)
+					refresh_on_vs(vf);
+					if (amvecm_on_vs(
+						(cur_dispbuf != &vf_local)
+						? cur_dispbuf : NULL,
+						vf, CSC_FLAG_CHECK_OUTPUT) == 1)
+						break;
+#endif
 					vf = video_vf_get();
 					if (!vf)
 						break;
 					vsync_toggle_frame(vf);
+					toggle_frame = vf;
 					if (is_dolby_vision_enable())
 						toggle_vf =
 						dolby_vision_toggle_frame(vf);
@@ -4716,6 +4729,23 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 SET_FILTER:
+	if (is_dolby_vision_enable()) {
+		u32 skip_mode = 0;
+		if (cur_frame_par)
+			skip_mode =
+			(cur_frame_par->hscale_skip_count << 16)
+			| cur_frame_par->vscale_skip_count;
+		dolby_vision_process(toggle_vf, skip_mode);
+		dolby_vision_update_setting();
+	}
+
+#if defined(CONFIG_AM_VECM)
+	amvecm_on_vs(
+		(cur_dispbuf != &vf_local) ? cur_dispbuf : NULL,
+		toggle_frame,
+		toggle_frame ? CSC_FLAG_TOGGLE_FRAME : 0);
+#endif
+
 	/* filter setting management */
 	if ((frame_par_ready_to_set) || (frame_par_force_to_set)) {
 		cur_frame_par = next_frame_par;
