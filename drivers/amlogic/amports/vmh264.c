@@ -242,6 +242,8 @@ static unsigned int fast_output_enable = 3;
 
 static unsigned int enable_itu_t35 = 1;
 
+static unsigned int frmbase_cont_bitlevel = 0x40;
+
 #define is_in_parsing_state(status) \
 		((status == H264_ACTION_SEARCH_HEAD) || \
 			((status & 0xf0) == 0x80))
@@ -3581,7 +3583,23 @@ pic_done_proc:
 					hw->dec_flag &= (~NODISP_FLAG);
 			}
 		}
-
+		if (input_frame_based(vdec) &&
+			frmbase_cont_bitlevel != 0 &&
+			READ_VREG(VIFF_BIT_CNT) >
+			frmbase_cont_bitlevel) {
+			/*handle the case: multi pictures in one packet*/
+			dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
+			"%s H264_PIC_DATA_DONE decode slice count %d, continue (bitcnt 0x%x)\n",
+			__func__,
+			hw->decode_pic_count,
+			READ_VREG(VIFF_BIT_CNT));
+			/*do not DEC_RESULT_GET_DATA*/
+			hw->get_data_count = 0x7fffffff;
+			WRITE_VREG(DPB_STATUS_REG, H264_ACTION_SEARCH_HEAD);
+			decode_frame_count[DECODE_ID(hw)]++;
+			start_process_time(hw);
+			return IRQ_HANDLED;
+		}
 		amvdec_stop();
 		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 			"%s %s decode slice count %d\n",
@@ -5484,6 +5502,10 @@ MODULE_PARM_DESC(i_only_flag, "\n amvdec_h264 i_only_flag\n");
 
 module_param(first_i_policy, uint, 0664);
 MODULE_PARM_DESC(first_i_policy, "\n amvdec_h264 first_i_policy\n");
+
+module_param(frmbase_cont_bitlevel, uint, 0664);
+MODULE_PARM_DESC(frmbase_cont_bitlevel,
+	"\n amvdec_h264 frmbase_cont_bitlevel\n");
 
 module_param(udebug_flag, uint, 0664);
 MODULE_PARM_DESC(udebug_flag, "\n amvdec_h265 udebug_flag\n");
