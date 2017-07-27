@@ -6332,6 +6332,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 #ifdef NEW_DI_V4
 		nr_process_in_irq();
 #endif
+		di_print("DI:buf[%d] irq end.\n", di_pre_stru.di_inp_buf->seq);
 		/* disable mif */
 		enable_di_pre_mif(false);
 		di_pre_stru.pre_de_process_done = 1;
@@ -6343,7 +6344,6 @@ end:
 			trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
 	}
 
-	di_print("DI:buf[%d] irq end.\n", di_pre_stru.di_inp_buf->seq);
 
 	return IRQ_HANDLED;
 }
@@ -6696,14 +6696,11 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	int di_vpp_en, di_ddr_en;
 	unsigned char mc_pre_flag = 0;
 	bool invert_mv = false;
+	static int post_index = -1;
 
 	if ((di_get_power_control(1) == 0) || di_post_stru.vscale_skip_flag)
 		return 0;
-	if (is_in_queue(di_buf, QUEUE_POST_FREE)) {
-		pr_info("%s post_buf[%d] is in post free list.\n",
-				__func__, di_buf->index);
-		return 0;
-	}
+
 	get_vscale_skip_count(zoom_start_x_lines);
 
 	if ((!di_post_stru.toggle_flag) &&
@@ -6712,6 +6709,14 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 
 	if ((di_buf == NULL) || (di_buf->di_buf_dup_p[0] == NULL))
 		return 0;
+
+	if (is_in_queue(di_buf, QUEUE_POST_FREE) &&
+			post_index != di_buf->index) {
+		post_index = di_buf->index;
+		pr_info("%s post_buf[%d] is in post free list.\n",
+				__func__, di_buf->index);
+		return 0;
+	}
 
 	if (di_post_stru.toggle_flag && di_buf->di_buf_dup_p[1])
 		top_bot_config(di_buf->di_buf_dup_p[1]);
@@ -9757,6 +9762,7 @@ static int di_probe(struct platform_device *pdev)
 	if (di_devp->flag_cma >= 1) {
 #ifdef CONFIG_CMA
 		di_devp->pdev = pdev;
+		di_devp->flags |= DI_MAP_FLAG;
 		di_devp->mem_size = dma_get_cma_size_int_byte(&pdev->dev);
 		pr_info("DI: CMA size 0x%x.\n", di_devp->mem_size);
 		if (di_devp->flag_cma == 2) {
