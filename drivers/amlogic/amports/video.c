@@ -2657,6 +2657,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 1, 20, 1);
+			VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG +
+					 cur_dev->viu_off, 0);
 			return;
 
 		} else {
@@ -3196,6 +3198,8 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 #endif
 			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL1 +
 					cur_dev->viu_off, 1, 1, 1);
+			VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG +
+					 cur_dev->viu_off, 0);
 			return;
 		} else {
 			if ((vf->bitdepth & BITDEPTH_Y10) &&
@@ -5338,6 +5342,9 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		if (debug_flag & DEBUG_FLAG_BLACKOUT)
 			pr_info("AFBC off now.\n");
 		VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0);
+		VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0);
+		VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG, 0);
+		VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG, 0);
 	}
 
 #ifdef CONFIG_VSYNC_RDMA
