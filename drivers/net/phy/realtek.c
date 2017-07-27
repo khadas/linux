@@ -16,6 +16,7 @@
 #include <linux/phy.h>
 #include <linux/module.h>
 
+
 #define RTL821x_PHYSR		0x11
 #define RTL821x_PHYSR_DUPLEX	0x2000
 #define RTL821x_PHYSR_SPEED	0xc000
@@ -49,12 +50,25 @@ static void rtl8211f_config_pad_isolation(struct phy_device *phydev, int enable)
 static void rtl8211f_config_wol(struct phy_device *phydev, int enable);
 
 static int wol_enable = 0;
+static u8 mac_addr[] = {0, 0, 0, 0, 0, 0};
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 struct phy_device *g_phydev;
 
 int get_wol_state(void){
 	return wol_enable;
+}
+
+static unsigned char chartonum(char c)
+{
+    if (c >= '0' && c <= '9')
+         return c - '0';
+    if (c >= 'A' && c <= 'F')
+         return (c - 'A') + 10;
+    if (c >= 'a' && c <= 'f')
+         return (c - 'a') + 10;
+    return 0;
 }
 
 static int __init init_wol_state(char *str)
@@ -64,6 +78,24 @@ static int __init init_wol_state(char *str)
 	return 1;
 }
 __setup("wol_enable=", init_wol_state);
+
+
+static int __init init_mac_addr(char *line)
+{
+	unsigned char mac[6];
+	int i = 0;
+	for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
+		mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
+		line += 3;
+	}
+	memcpy(mac_addr, mac, 6);
+	printk("realtek init mac-addr: %x:%x:%x:%x:%x:%x\n",
+		mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4],
+		mac_addr[5]);
+
+	return 1;
+}
+__setup("androidboot.mac=",init_mac_addr);
 
 void rtl8211f_shutdown(void) {
 
@@ -107,9 +139,9 @@ static struct early_suspend rtl8211f_early_suspend_handler = {
 static void rtl8211f_config_mac_addr(struct phy_device *phydev)
 {
 	phy_write(phydev, RTL821x_EPAGSR, 0xd8c); /*set page 0xd8c*/
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, 0x1201);
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, 0x5634);
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, 0x9a78);
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, mac_addr[1] << 8 | mac_addr[0]);
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, mac_addr[3] << 8 | mac_addr[2]);
+	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, mac_addr[5] << 8 | mac_addr[4]);
 	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
 }
 
