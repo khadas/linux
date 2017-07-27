@@ -1320,6 +1320,7 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 	/*type = FE_ATSC;*/
 	if ((type == FE_DTMB) && is_meson_txlx_cpu())
 		return -1;
+
 	switch (type) {
 	case FE_QPSK:
 		mode = AM_FE_QPSK;
@@ -1350,8 +1351,9 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 		mode = AM_FE_ANALOG;
 		break;
 	default:
-		pr_error("illegal fe type %d\n", type);
-		return -1;
+		pr_dbg("set mode -> UNKNOWN\n");
+		mode = AM_FE_UNKNOWN;
+		break;
 	}
 
 	if (fe->mode == mode) {
@@ -1376,6 +1378,11 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 			aml_dmx_register_frontend(fe->ts, NULL);
 
 		fe->mode = AM_FE_UNKNOWN;
+	}
+
+	if (mode == AM_FE_UNKNOWN) {
+		pr_dbg("set mode %d\n", mode);
+		goto exit;
 	}
 
 	if (!(mode & fe->capability)) {
@@ -1489,8 +1496,9 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 	pr_dbg("register demux frontend\n");
 	if (mode & AM_FE_DTV_MASK)
 		aml_dmx_register_frontend(fe->ts, fe->fe);
-	strcpy(fe->fe->ops.info.name, "amlogic dvb frontend");
 
+exit:
+	strcpy(fe->fe->ops.info.name, "amlogic dvb frontend");
 	fe->fe->ops.info.type = type;
 	fe->mode = mode;
 
