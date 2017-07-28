@@ -848,6 +848,7 @@ struct st_pkt_test_buff {
 
 extern void rx_pkt_status(void);
 extern void rx_pkt_debug(void);
+extern void rx_debug_pktinfo(char input[][20]);
 extern void rx_pkt_dump(enum pkt_type_e typeID);
 extern void rx_pkt_initial(void);
 extern int rx_pkt_handler(enum pkt_decode_type pkt_int_src);

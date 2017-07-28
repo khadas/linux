@@ -173,13 +173,153 @@ void rx_pkt_debug(void)
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GAMUT_META));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_AUD_META));
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
+	rx_pr("enable fifo\n");
 
-
+	#if 0
 	data32 = 0;
 	data32 |= pd_fifo_start_cnt << 20;/* PD_start */
 	data32 |= 640 << 10;			/* PD_max */
 	data32 |= 8 << 0;				/* PD_min */
 	hdmirx_wr_dwc(DWC_PDEC_FIFO_CFG, data32);
+	#endif
+}
+
+void rx_debug_pktinfo(char input[][20])
+{
+	uint32_t sts = 0;
+	uint32_t enable = 0;
+	long res = 0;
+
+	if (strncmp(input[1], "debugfifo", 9) == 0) {
+		/*open all pkt interrupt source for debug*/
+		rx_pkt_debug();
+		enable |= (PD_FIFO_START_PASS | PD_FIFO_OVERFL);
+		pdec_ists_en |= enable;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		hdmirx_irq_enable(1);
+	} else if (strncmp(input[1], "debugext", 8) == 0) {
+		if (is_meson_txlx_cpu())
+			enable |= _BIT(30);/* DRC_RCV*/
+		else
+			enable |= _BIT(9);/* DRC_RCV*/
+		enable |= _BIT(20);/* GMD_RCV */
+		enable |= _BIT(19);/* AIF_RCV */
+		enable |= _BIT(18);/* AVI_RCV */
+		enable |= _BIT(17);/* ACR_RCV */
+		enable |= _BIT(16);/* GCP_RCV */
+		enable |= _BIT(15);/* VSI_RCV CHG*/
+		enable |= _BIT(14);/* AMP_RCV*/
+		pdec_ists_en |= enable;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		hdmirx_irq_enable(1);
+	} else if (strncmp(input[1], "status", 6) == 0)
+		rx_pkt_status();
+	else if (strncmp(input[1], "dump", 7) == 0) {
+		/*check input type*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			rx_pr("error input:fmt is 0xValue\n");
+		rx_pkt_dump(res);
+	} else if (strncmp(input[1], "irqdisable", 10) == 0) {
+		if (strncmp(input[2], "fifo", 4) == 0)
+			sts = (PD_FIFO_START_PASS|PD_FIFO_OVERFL);
+		else if (strncmp(input[2], "drm", 3) == 0) {
+			if (is_meson_txlx_cpu())
+				sts = _BIT(30);
+			else
+				sts = _BIT(9);
+		} else if (strncmp(input[2], "gmd", 3) == 0)
+			sts = _BIT(20);
+		else if (strncmp(input[2], "aif", 3) == 0)
+			sts = _BIT(19);
+		else if (strncmp(input[2], "avi", 3) == 0)
+			sts = _BIT(18);
+		else if (strncmp(input[2], "acr", 3) == 0)
+			sts = _BIT(17);
+		else if (strncmp(input[2], "gcp", 3) == 0)
+			sts = GCP_RCV;
+		else if (strncmp(input[2], "vsi", 3) == 0)
+			sts = VSI_RCV;
+		else if (strncmp(input[2], "amp", 3) == 0)
+			sts = _BIT(14);
+
+		pdec_ists_en &= ~sts;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		/*disable irq*/
+		hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, sts);
+	} else if (strncmp(input[1], "irqenable", 9) == 0) {
+		sts = hdmirx_rd_dwc(DWC_PDEC_IEN);
+		if (strncmp(input[2], "fifo", 4) == 0)
+			enable |= (PD_FIFO_START_PASS|PD_FIFO_OVERFL);
+		else if (strncmp(input[2], "drm", 3) == 0) {
+			if (is_meson_txlx_cpu())
+				enable |= _BIT(30);
+			else
+				enable |= _BIT(9);
+		} else if (strncmp(input[2], "gmd", 3) == 0)
+			enable |= _BIT(20);
+		else if (strncmp(input[2], "aif", 3) == 0)
+			enable |= _BIT(19);
+		else if (strncmp(input[2], "avi", 3) == 0)
+			enable |= _BIT(18);
+		else if (strncmp(input[2], "acr", 3) == 0)
+			enable |= _BIT(17);
+		else if (strncmp(input[2], "gcp", 3) == 0)
+			enable |= GCP_RCV;
+		else if (strncmp(input[2], "vsi", 3) == 0)
+			enable |= VSI_RCV;
+		else if (strncmp(input[2], "amp", 3) == 0)
+			enable |= _BIT(14);
+		pdec_ists_en = enable|sts;
+		rx_pr("pdec_ists_en=0x%x\n", pdec_ists_en);
+		/*open irq*/
+		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, pdec_ists_en);
+		/*hdmirx_irq_open()*/
+	} else if (strncmp(input[1], "fifopkten", 9) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			return;
+		rx_pr("pkt ctl disable:0x%x", res);
+		/*check pkt enable ctl bit*/
+		sts = rx_pkt_type_mapping((uint32_t)res);
+		if (sts == 0)
+			return;
+
+		packet_fifo_cfg |= sts;
+		/* not work immediately ?? meybe int is not open*/
+		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		enable |= sts;
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
+	} else if (strncmp(input[1], "fifopktdis", 10) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0)
+			return;
+		rx_pr("pkt ctl disable:0x%x", res);
+		/*check pkt enable ctl bit*/
+		sts = rx_pkt_type_mapping((uint32_t)res);
+		if (sts == 0)
+			return;
+
+		packet_fifo_cfg &= (~sts);
+		/* not work immediately ?? meybe int is not open*/
+		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
+		enable &= (~sts);
+		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
+	} else if (strncmp(input[1], "contentchk", 10) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0) {
+			rx_pr("error input:fmt is 0xXX\n");
+			return;
+		}
+		rx_pkt_content_chk_en(res);
+	} else if (strncmp(input[1], "pdfifopri", 9) == 0) {
+		/*check input*/
+		if (kstrtol(input[2], 16, &res) < 0) {
+			rx_pr("error input:fmt is 0xXX\n");
+			return;
+		}
+		rx_pkt_set_fifo_pri(res);
+	}
+
 }
 
 static void rx_pktdump_raw(void *pdata)
@@ -453,7 +593,7 @@ void rx_pkt_dump(enum pkt_type_e typeID)
 	rx_pr("dump cmd:0x%x\n", typeID);
 
 	/*mutex_lock(&pktbuff_lock);*/
-
+	memset(&pktdata, 0, sizeof(pktdata));
 	switch (typeID) {
 	/*infoframe pkt*/
 	case PKT_TYPE_INFOFRAME_VSI:
@@ -478,8 +618,8 @@ void rx_pkt_dump(enum pkt_type_e typeID)
 		rx_pktdump_raw(&prx->aud_pktinfo);
 		rx_pktdump_aud(&prx->aud_pktinfo);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getaudif_ex(&prx->aud_pktinfo);
-		rx_pktdump_raw(&prx->aud_pktinfo);
+		rx_pkt_getaudif_ex(&pktdata);
+		rx_pktdump_raw(&pktdata);
 		break;
 	case PKT_TYPE_INFOFRAME_MPEGSRC:
 		rx_pktdump_raw(&prx->mpegs_info);
@@ -489,8 +629,8 @@ void rx_pkt_dump(enum pkt_type_e typeID)
 		rx_pktdump_raw(&prx->ntscvbi_info);
 		/*rx_pktdump_ntscvbi(&prx->ntscvbi_info);*/
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getntscvbi_ex(&prx->ntscvbi_info);
-		rx_pktdump_raw(&prx->ntscvbi_info);
+		rx_pkt_getntscvbi_ex(&pktdata);
+		rx_pktdump_raw(&pktdata);
 		break;
 	case PKT_TYPE_INFOFRAME_DRM:
 		rx_pktdump_raw(&prx->drm_info);
@@ -504,14 +644,14 @@ void rx_pkt_dump(enum pkt_type_e typeID)
 		rx_pktdump_raw(&prx->acr_info);
 		rx_pktdump_acr(&prx->acr_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getacr_ex(&prx->acr_info);
-		rx_pktdump_acr(&prx->acr_info);
+		rx_pkt_getacr_ex(&pktdata);
+		rx_pktdump_acr(&pktdata);
 		break;
 	case PKT_TYPE_GCP:
 		rx_pktdump_raw(&prx->gcp_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getgcp_ex(&prx->gcp_info);
-		rx_pktdump_raw(&prx->gcp_info);
+		rx_pkt_getgcp_ex(&pktdata);
+		rx_pktdump_raw(&pktdata);
 		break;
 	case PKT_TYPE_ACP:
 		rx_pktdump_raw(&prx->acp_info);
@@ -525,14 +665,14 @@ void rx_pkt_dump(enum pkt_type_e typeID)
 	case PKT_TYPE_GAMUT_META:
 		rx_pktdump_raw(&prx->gameta_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getgmd_ex(&prx->gameta_info);
-		rx_pktdump_raw(&prx->gameta_info);
+		rx_pkt_getgmd_ex(&pktdata);
+		rx_pktdump_raw(&pktdata);
 		break;
 	case PKT_TYPE_AUD_META:
 		rx_pktdump_raw(&prx->amp_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_getamp_ex(&prx->amp_info);
-		rx_pktdump_raw(&prx->amp_info);
+		rx_pkt_getamp_ex(&pktdata);
+		rx_pktdump_raw(&pktdata);
 		break;
 
 	default:
@@ -567,6 +707,7 @@ uint32_t rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 	while (ptab[i].pkt_type != K_FLAG_TAB_END) {
 		if (ptab[i].pkt_type == pkt_type)
 			rt = ptab[i].reg_bit;
+		i++;
 	}
 	return rt;
 }
