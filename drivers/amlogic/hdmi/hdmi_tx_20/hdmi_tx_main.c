@@ -3576,6 +3576,9 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 #endif
+	if (hdmitx_device.HWOp.Cntl)
+		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+				MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	return 0;
 }
 
