@@ -1391,7 +1391,7 @@ static int get_double_write_mode(struct VP9Decoder_s *pbi)
 		pbi->double_write_mode : double_write_mode;
 }
 #endif
-
+#define	MAX_4K_NUM		0x1200
 #ifdef VP9_10B_MMU
 int vp9_alloc_mmu(
 	struct VP9Decoder_s *pbi,
@@ -1408,6 +1408,11 @@ int vp9_alloc_mmu(
 	picture_size = compute_losless_comp_body_size(pic_width, pic_height,
 				   bit_depth_10);
 	cur_mmu_4k_number = ((picture_size + (1 << 12) - 1) >> 12);
+	if (cur_mmu_4k_number > MAX_4K_NUM) {
+		pr_err("over max !! cur_mmu_4k_number 0x%x width %d height %d\n",
+			cur_mmu_4k_number, pic_width, pic_height);
+		return -1;
+	}
 	return decoder_mmu_box_alloc_idx(
 		pbi->mmu_box,
 		cur_buf_idx,
