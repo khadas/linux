@@ -103,7 +103,6 @@ void rtl8211f_shutdown(void) {
 
 	if (wol_enable) {
 		rtl8211f_config_speed(g_phydev, 0);
-		rtl8211f_config_pin_as_pmeb(g_phydev);
 		rtl8211f_config_mac_addr(g_phydev);
 		rtl8211f_config_max_packet(g_phydev);
 		rtl8211f_config_wol(g_phydev, 1);
@@ -115,7 +114,6 @@ void rtl8211f_shutdown(void) {
 static void rtl8211f_early_suspend(struct early_suspend *h)
 {
 	if (wol_enable) {
-		rtl8211f_config_pin_as_pmeb(g_phydev);
 		rtl8211f_config_mac_addr(g_phydev);
 		rtl8211f_config_max_packet(g_phydev);
 		rtl8211f_config_wol(g_phydev, 1);
@@ -253,6 +251,7 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
 	phy_write(phydev, RTL821x_EPAGSR, 0x0);
 
+	rtl8211f_config_pin_as_pmeb(phydev);
 	rtl8211f_config_speed(phydev, 1);
 	/* rx reg 21 bit 3 tx reg 17 bit 8*/
 	/* phy_write(phydev, 0x1f, 0xd08);
