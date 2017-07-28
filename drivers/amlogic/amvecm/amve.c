@@ -5041,8 +5041,13 @@ void amve_vlock_process(struct vframe_s *vf)
 		return;
 	}
 	if (vlock_en == 1) {
+		/*@20170728 new add work aound method:
+		**disable vlock for interlace input && hdmitx output*/
 		if (((input_hz != output_hz) && (vlock_adapt == 0)) ||
-			(input_hz == 0) || (output_hz == 0)) {
+			(input_hz == 0) || (output_hz == 0) ||
+			(((vf->type_original & VIDTYPE_TYPEMASK)
+				!= VIDTYPE_PROGRESSIVE) &&
+				is_meson_txlx_package_962E())) {
 			if ((vlock_state != VLOCK_STATE_DISABLE_STEP2_DONE) &&
 				(vlock_state != VLOCK_STATE_NULL))
 				vlock_disable_step1();
