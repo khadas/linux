@@ -543,6 +543,17 @@ dev->target_width , dev->target_height);
 			VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
 			VIDTYPE_VIU_NV21 | VIDTYPE_PIC;
 
+	/* indicate the vframe is a full range frame */
+	new_vf->signal_type =
+		/* HD default 709 limit */
+		  (1 << 29) /* video available */
+		| (5 << 26) /* unspecified */
+		| (1 << 25) /* full */
+		| (1 << 24) /* color available */
+		| (1 << 16) /* bt709 */
+		| (1 << 8)	/* bt709 */
+		| (1 << 0); /* bt709 */
+
 	new_vf->duration_pulldown = 0;
 
 	new_vf->index = index;
