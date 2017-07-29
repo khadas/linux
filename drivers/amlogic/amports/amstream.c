@@ -2208,7 +2208,10 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 		else
 			r = -EINVAL;
 		break;
-
+	case AMSTREAM_SET_IS_RESET:
+		if (priv->vdec)
+			vdec_set_isreset(priv->vdec, parm.data_32);
+		break;
 	default:
 		r = -ENOIOCTLCMD;
 		break;

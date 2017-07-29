@@ -123,6 +123,7 @@ static struct timer_list recycle_timer;
 static u32 stat;
 static u32 buf_size = 32 * 1024 * 1024;
 static DEFINE_SPINLOCK(lock);
+static bool is_reset;
 
 static inline u32 index2canvas0(u32 index)
 {
@@ -428,6 +429,12 @@ int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
 		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+int vmjpeg_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
 	return 0;
 }
 
@@ -752,8 +759,11 @@ static s32 vmjpeg_init(void)
 	vf_reg_provider(&vmjpeg_vf_prov);
 #endif
 
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)((unsigned long)vmjpeg_amstream_dec_info.rate));
+	if (!is_reset)
+		vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)
+				((unsigned long)vmjpeg_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 
@@ -792,7 +802,8 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 		vmjpeg_amstream_dec_info = *pdata->sys_info;
 
 	pdata->dec_status = vmjpeg_dec_status;
-
+	pdata->set_isreset = vmjpeg_set_isreset;
+	is_reset = 0;
 	vmjpeg_vdec_info_init();
 
 	if (vmjpeg_init() < 0) {
@@ -830,8 +841,10 @@ static int amvdec_mjpeg_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_VF_HOOK) {
-		vf_notify_receiver(PROVIDER_NAME,
-				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		if (!is_reset)
+			vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
 
 		vf_unreg_provider(&vmjpeg_vf_prov);
 		stat &= ~STAT_VF_HOOK;
