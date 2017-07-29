@@ -133,6 +133,7 @@ static u32 pts_by_offset = 1;
 static u32 total_frame;
 static u32 next_pts;
 static u64 next_pts_us64;
+static bool is_reset;
 
 #ifdef DEBUG_PTS
 static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
@@ -734,6 +735,12 @@ int vvc1_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	return 0;
 }
 
+int vvc1_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
+	return 0;
+}
+
 static int vvc1_vdec_info_init(void)
 {
 	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
@@ -1059,8 +1066,11 @@ static s32 vvc1_init(void)
 	vf_reg_provider(&vvc1_vf_prov);
 #endif
 
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)((unsigned long)vvc1_amstream_dec_info.rate));
+	if (!is_reset)
+		vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_FR_HINT,
+				(void *)
+				((unsigned long)vvc1_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 
@@ -1092,6 +1102,8 @@ static int amvdec_vc1_probe(struct platform_device *pdev)
 		vvc1_amstream_dec_info = *pdata->sys_info;
 
 	pdata->dec_status = vvc1_dec_status;
+	pdata->set_isreset = vvc1_set_isreset;
+	is_reset = 0;
 
 	vvc1_vdec_info_init();
 
@@ -1123,8 +1135,10 @@ static int amvdec_vc1_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_VF_HOOK) {
-		vf_notify_receiver(PROVIDER_NAME,
-				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		if (!is_reset)
+			vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
 
 		vf_unreg_provider(&vvc1_vf_prov);
 		stat &= ~STAT_VF_HOOK;

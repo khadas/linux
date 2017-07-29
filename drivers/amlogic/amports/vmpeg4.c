@@ -169,7 +169,7 @@ u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 
 static struct work_struct reset_work;
 static struct work_struct notify_work;
-
+static bool is_reset;
 
 static DEFINE_SPINLOCK(lock);
 
@@ -749,6 +749,12 @@ int vmpeg4_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	return 0;
 }
 
+int vmpeg4_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
+	return 0;
+}
+
 static int vmpeg4_vdec_info_init(void)
 {
 	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
@@ -1070,11 +1076,12 @@ static s32 vmpeg4_init(void)
 	vf_reg_provider(&vmpeg_vf_prov);
 #endif
 	if (vmpeg4_amstream_dec_info.rate != 0) {
-		vf_notify_receiver(PROVIDER_NAME,
-					VFRAME_EVENT_PROVIDER_FR_HINT,
-					(void *)
-					((unsigned long)
-					vmpeg4_amstream_dec_info.rate));
+		if (!is_reset)
+			vf_notify_receiver(PROVIDER_NAME,
+						VFRAME_EVENT_PROVIDER_FR_HINT,
+						(void *)
+						((unsigned long)
+						vmpeg4_amstream_dec_info.rate));
 		fr_hint_status = VDEC_HINTED;
 	} else
 		fr_hint_status = VDEC_NEED_HINT;
@@ -1110,6 +1117,8 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 		vmpeg4_amstream_dec_info = *pdata->sys_info;
 
 	pdata->dec_status = vmpeg4_dec_status;
+	pdata->set_isreset = vmpeg4_set_isreset;
+	is_reset = 0;
 
 	INIT_WORK(&reset_work, reset_do_work);
 	INIT_WORK(&notify_work, vmpeg4_notify_work);
@@ -1144,7 +1153,7 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_VF_HOOK) {
-		if (fr_hint_status == VDEC_HINTED)
+		if (fr_hint_status == VDEC_HINTED && !is_reset)
 			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
 		fr_hint_status = VDEC_NO_NEED_HINT;

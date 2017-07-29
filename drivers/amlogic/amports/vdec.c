@@ -200,6 +200,15 @@ int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 	return -1;
 }
 
+int vdec_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	vdec->is_reset = isreset;
+	pr_info("is_reset=%d\n", isreset);
+	if (vdec->set_isreset)
+		return vdec->set_isreset(vdec, isreset);
+	return 0;
+}
+
 void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 	unsigned int offset)
 {
@@ -1393,10 +1402,12 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 
 		if (vdec_core->hint_fr_vdec == vdec) {
 			if (p->sys_info->rate != 0) {
-				vf_notify_receiver(p->vf_provider_name,
-					VFRAME_EVENT_PROVIDER_FR_HINT,
-					(void *)
-					((unsigned long)p->sys_info->rate));
+				if (!vdec->is_reset)
+					vf_notify_receiver(p->vf_provider_name,
+						VFRAME_EVENT_PROVIDER_FR_HINT,
+						(void *)
+						((unsigned long)
+						p->sys_info->rate));
 				vdec->fr_hint_state = VDEC_HINTED;
 			} else {
 				vdec->fr_hint_state = VDEC_NEED_HINT;
@@ -1429,7 +1440,8 @@ void vdec_release(struct vdec_s *vdec)
 	if (vdec->vframe_provider.name) {
 		if (!vdec_single(vdec)) {
 			if (vdec_core->hint_fr_vdec == vdec
-			&& vdec->fr_hint_state == VDEC_HINTED)
+			&& vdec->fr_hint_state == VDEC_HINTED
+			&& !vdec->is_reset)
 				vf_notify_receiver(
 					vdec->vf_provider_name,
 					VFRAME_EVENT_PROVIDER_FR_END_HINT,

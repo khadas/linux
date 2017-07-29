@@ -178,6 +178,7 @@ static struct dec_sysinfo vavs_amstream_dec_info;
 static struct vdec_info *gvs;
 static u32 fr_hint_status;
 static struct work_struct notify_work;
+static bool is_reset;
 
 #ifdef AVSP_LONG_CABAC
 static struct work_struct long_cabac_wd_work;
@@ -777,6 +778,12 @@ int vavs_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
 		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+int vavs_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
 	return 0;
 }
 
@@ -1523,10 +1530,11 @@ static s32 vavs_init(void)
 #endif
 
 	if (vavs_amstream_dec_info.rate != 0) {
-		vf_notify_receiver(PROVIDER_NAME,
-						VFRAME_EVENT_PROVIDER_FR_HINT,
-					   (void *)((unsigned long)
-					   vavs_amstream_dec_info.rate));
+		if (!is_reset)
+			vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)((unsigned long)
+					vavs_amstream_dec_info.rate));
 		fr_hint_status = VDEC_HINTED;
 	} else
 		fr_hint_status = VDEC_NEED_HINT;
@@ -1582,6 +1590,8 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 		   vavs_amstream_dec_info.height, vavs_amstream_dec_info.rate);
 
 	pdata->dec_status = vavs_dec_status;
+	pdata->set_isreset = vavs_set_isreset;
+	is_reset = 0;
 
 	vavs_vdec_info_init();
 
@@ -1675,7 +1685,7 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 	}
 #endif
 	if (stat & STAT_VF_HOOK) {
-		if (fr_hint_status == VDEC_HINTED)
+		if (fr_hint_status == VDEC_HINTED && !is_reset)
 			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
 		fr_hint_status = VDEC_NO_NEED_HINT;

@@ -187,12 +187,14 @@ struct vdec_s {
 	bool use_vfm_path;
 	char config[PAGE_SIZE];
 	int config_len;
+	bool is_reset;
 
 	/* canvas */
 	int (*get_canvas)(unsigned int index, unsigned int base);
 
 	int (*dec_status)(struct vdec_s *vdec, struct vdec_info *vstatus);
 	int (*set_trickmode)(struct vdec_s *vdec, unsigned long trickmode);
+	int (*set_isreset)(struct vdec_s *vdec, int isreset);
 
 	bool (*run_ready)(struct vdec_s *vdec);
 	void (*run)(struct vdec_s *vdec,
@@ -313,6 +315,8 @@ extern void vdec_release(struct vdec_s *vdec);
 extern int vdec_status(struct vdec_s *vdec, struct vdec_info *vstatus);
 
 extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
+
+extern int vdec_set_isreset(struct vdec_s *vdec, int isreset);
 
 extern void vdec_set_flag(struct vdec_s *vdec, u32 flag);
 

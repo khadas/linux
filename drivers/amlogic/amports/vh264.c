@@ -243,6 +243,7 @@ static struct vframe_s *p_last_vf;
 static s32 iponly_early_mode;
 static void *mm_blk_handle;
 static int tvp_flag;
+static bool is_reset;
 
 /*TODO irq*/
 #if 1
@@ -2262,6 +2263,12 @@ int vh264_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 	return 0;
 }
 
+int vh264_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
+	return 0;
+}
+
 static void vh264_prot_init(void)
 {
 
@@ -2701,9 +2708,10 @@ static s32 vh264_init(void)
 #endif
 
 	if (frame_dur != 0) {
-		vf_notify_receiver(PROVIDER_NAME,
-				VFRAME_EVENT_PROVIDER_FR_HINT,
-				(void *)((unsigned long)frame_dur));
+		if (!is_reset)
+			vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)((unsigned long)frame_dur));
 		fr_hint_status = VDEC_HINTED;
 	} else
 		fr_hint_status = VDEC_NEED_HINT;
@@ -2756,7 +2764,7 @@ static int vh264_stop(int mode)
 
 	if (stat & STAT_VF_HOOK) {
 		if (mode == MODE_FULL) {
-			if (fr_hint_status == VDEC_HINTED)
+			if (fr_hint_status == VDEC_HINTED && !is_reset)
 				vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_FR_END_HINT,
 					NULL);
@@ -3021,6 +3029,8 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	}
 	pdata->dec_status = vh264_dec_status;
 	pdata->set_trickmode = vh264_set_trickmode;
+	pdata->set_isreset = vh264_set_isreset;
+	is_reset = 0;
 
 	if (vh264_init() < 0) {
 		pr_info("\namvdec_h264 init failed.\n");

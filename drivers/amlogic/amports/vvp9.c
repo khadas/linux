@@ -363,7 +363,7 @@ typedef unsigned short u16;
 #endif
 
 static u32 debug;
-
+static bool is_reset;
 /*for debug*/
 /*
 	udebug_flag:
@@ -6448,6 +6448,12 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	return 0;
 }
 
+int vvp9_set_isreset(struct vdec_s *vdec, int isreset)
+{
+	is_reset = isreset;
+	return 0;
+}
+
 #if 0
 static void VP9_DECODE_INIT(void)
 {
@@ -6662,9 +6668,9 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 					 pbi);
 	vf_reg_provider(&vvp9_vf_prov);
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
-
-	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-	(void *)((unsigned long)pbi->frame_dur));
+	if (!is_reset)
+		vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
+		(void *)((unsigned long)pbi->frame_dur));
 
 	pbi->stat |= STAT_VF_HOOK;
 
@@ -6715,8 +6721,10 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 	}
 
 	if (pbi->stat & STAT_VF_HOOK) {
-		vf_notify_receiver(pbi->provider_name,
-				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+		if (!is_reset)
+			vf_notify_receiver(pbi->provider_name,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
 
 		vf_unreg_provider(&vvp9_vf_prov);
 		pbi->stat &= ~STAT_VF_HOOK;
@@ -6846,6 +6854,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	cma_dev = pdata->cma_dev;
 #endif
 	pdata->dec_status = vvp9_dec_status;
+	pdata->set_isreset = vvp9_set_isreset;
+	is_reset = 0;
 
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
