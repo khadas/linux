@@ -1521,10 +1521,16 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				pRXCap->IEEEOUI = 0x000c03;
 			else
 				goto case_hf;
-			pRXCap->ColorDeepSupport =
-				(unsigned long)BlockBuf[offset+5];
-			pRXCap->Max_TMDS_Clock1 =
-				(unsigned long)BlockBuf[offset+6];
+			if (count > 5)
+				pRXCap->ColorDeepSupport =
+					(unsigned long)BlockBuf[offset+5];
+			else
+				pRXCap->ColorDeepSupport = 0;
+			if (count > 6)
+				pRXCap->Max_TMDS_Clock1 =
+					(unsigned long)BlockBuf[offset+6];
+			else
+				pRXCap->Max_TMDS_Clock1 = 0;
 			if (count > 7) {
 				tmp = BlockBuf[offset+7];
 				idx = offset + 8;
