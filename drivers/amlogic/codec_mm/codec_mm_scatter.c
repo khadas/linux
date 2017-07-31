@@ -1397,17 +1397,12 @@ static int codec_mm_scatter_inc_user_in(struct codec_mm_scatter *mms,
 }
 
 /*mask scatter's to free.*/
-static int codec_mm_scatter_dec_user_in(
+static int codec_mm_scatter_dec_user_in1(
+		struct codec_mm_scatter_mgt *smgt,
 		struct codec_mm_scatter *mms,
 		int delay_free_ms, int cnt)
 {
-	struct codec_mm_scatter_mgt *smgt;
 	int after_users = 1;
-	if (!mms)
-		return -1;
-	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
-	if (smgt->tag != SMGT_IDENTIFY_TAG)
-		return -2;/*not valid tag*/
 	codec_mm_list_lock(smgt);
 	if (!codec_mm_scatter_valid_locked(smgt, mms)) {
 		codec_mm_list_unlock(smgt);
@@ -1430,6 +1425,29 @@ static int codec_mm_scatter_dec_user_in(
 	if (after_users == 0)
 		codec_mm_schedule_delay_work(smgt, 0, 1);
 	return 0;
+}
+/*mask scatter's to free.*/
+static int codec_mm_scatter_dec_user_in(
+		struct codec_mm_scatter *mms,
+		int delay_free_ms, int cnt)
+{
+	struct codec_mm_scatter_mgt *smgt;
+	int ret;
+	if (!mms)
+		return -1;
+	smgt = codec_mm_get_scatter_mgt(0);
+	ret = codec_mm_scatter_dec_user_in1(smgt,
+			mms,
+			delay_free_ms,
+			cnt);
+	if (ret < 0) {
+		smgt = codec_mm_get_scatter_mgt(1);
+		ret = codec_mm_scatter_dec_user_in1(smgt,
+			mms,
+			delay_free_ms,
+			cnt);
+	}
+	return ret;
 }
 
 

@@ -818,7 +818,7 @@ int codec_mm_extpool_pool_alloc(
 			size - alloced_size, try_alloced_size);
 		mem = codec_mm_alloc(TVP_POOL_NAME,
 					try_alloced_size,
-					0,
+					RESERVE_MM_ALIGNED_2N,
 					CODEC_MM_FLAGS_FOR_LOCAL_MGR |
 					CODEC_MM_FLAGS_RESERVED);
 
