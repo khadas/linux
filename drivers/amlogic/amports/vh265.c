@@ -4580,9 +4580,8 @@ static void set_aux_data(struct hevc_state_s *hevc,
 			}
 		}
 		new_size = pic->aux_data_size + aux_count + heads_size;
-		new_buf = krealloc(pic->aux_data_buf,
-			new_size,
-			GFP_KERNEL);
+		vfree(pic->aux_data_buf);
+		new_buf = vmalloc(new_size);
 		if (new_buf) {
 			unsigned char valid_tag = 0;
 			unsigned char *h =
@@ -4669,6 +4668,10 @@ static void set_aux_data(struct hevc_state_s *hevc,
 				hevc_print_cont(hevc, 0, "\n");
 			}
 
+		} else {
+			hevc_print(hevc, 0, "new buf alloc failed\n");
+			pic->aux_data_buf = NULL;
+			pic->aux_data_size = 0;
 		}
 	}
 
@@ -4677,7 +4680,7 @@ static void set_aux_data(struct hevc_state_s *hevc,
 static void release_aux_data(struct hevc_state_s *hevc,
 	struct PIC_s *pic)
 {
-	kfree(pic->aux_data_buf);
+	vfree(pic->aux_data_buf);
 	pic->aux_data_buf = NULL;
 	pic->aux_data_size = 0;
 }
