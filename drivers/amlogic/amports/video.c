@@ -751,10 +751,6 @@ static const struct vinfo_s *vinfo;
 /* config */
 static struct vframe_s *cur_dispbuf;
 static struct vframe_s *cur_dispbuf2;
-void update_cur_dispbuf(void *buf)
-{
-	cur_dispbuf = buf;
-}
 int get_video0_frame_info(struct vframe_s *vf)
 {
 	unsigned long flags;
@@ -811,6 +807,7 @@ u32 trickmode_fffb = 0;
 atomic_t trickmode_framedone = ATOMIC_INIT(0);
 atomic_t video_sizechange = ATOMIC_INIT(0);
 atomic_t video_unreg_flag = ATOMIC_INIT(0);
+atomic_t video_inirq_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
 int trickmode_duration = 0;
 int trickmode_duration_count = 0;
@@ -2487,7 +2484,6 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 				 (vf->compHeight > 1080))) {
 				if (vpu_clk_level == 0) {
 					vpu_clk_level = 1;
-
 					spin_lock_irqsave(&lock, flags);
 					vpu_delay_work_flag |=
 					    VPU_DELAYWORK_VPU_CLK;
@@ -2496,7 +2492,6 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			} else {
 				if (vpu_clk_level == 1) {
 					vpu_clk_level = 0;
-
 					spin_lock_irqsave(&lock, flags);
 					vpu_delay_work_flag |=
 					    VPU_DELAYWORK_VPU_CLK;
@@ -4098,9 +4093,9 @@ static void dmc_adjust_for_mali_vpu(unsigned int width, unsigned int height)
 }
 
 #ifdef FIQ_VSYNC
-void vsync_fisr(void)
+void vsync_fisr_in(void)
 #else
-static irqreturn_t vsync_isr(int irq, void *dev_id)
+static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 {
 	int hold_line;
@@ -5385,6 +5380,23 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 }
 
 
+#ifdef FIQ_VSYNC
+void vsync_fisr(void)
+{
+	atomic_set(&video_inirq_flag, 1);
+	vsync_fisr_in();
+	atomic_set(&video_inirq_flag, 0);
+}
+#else
+static irqreturn_t vsync_isr(int irq, void *dev_id)
+{
+	irqreturn_t ret;
+	atomic_set(&video_inirq_flag, 1);
+	ret = vsync_isr_in(irq, dev_id);
+	atomic_set(&video_inirq_flag, 0);
+	return ret;
+}
+#endif
 
 
 /*********************************************************
@@ -5481,6 +5493,8 @@ static void video_vf_unreg_provider(void)
 	first_frame_toggled = 0;
 
 	atomic_set(&video_unreg_flag, 1);
+	while (atomic_read(&video_inirq_flag) > 0)
+		schedule();
 	spin_lock_irqsave(&lock, flags);
 
 #ifdef CONFIG_VSYNC_RDMA

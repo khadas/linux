@@ -25,8 +25,6 @@ struct video_dev_s {
 	int viu_off;
 };
 void safe_disble_videolayer(void);
-void update_cur_dispbuf(void *buf);
-
 
 /*for video related files only.*/
 void video_module_lock(void);

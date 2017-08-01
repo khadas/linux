@@ -689,7 +689,6 @@ void try_free_keep_video(int flags)
 		/*pr_info("disbled keep video before free keep buffer.\n");
 		*/
 		keep_video_on = 0;
-		update_cur_dispbuf(NULL);
 		if (!get_video_enabled()) {
 			/*if not disable video,changed to 2 for */
 			pr_info("disbled video for next before free keep buffer!\n");
