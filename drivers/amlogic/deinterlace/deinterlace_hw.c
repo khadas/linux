@@ -2062,6 +2062,7 @@ unsigned char di_get_power_control(unsigned char type)
 	}
 
 }
+
 void di_top_gate_control(bool top_en, bool mc_en)
 {
 	if (top_en) {
@@ -2080,6 +2081,7 @@ void di_top_gate_control(bool top_en, bool mc_en)
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 0, 2);
 	}
 }
+
 void di_pre_gate_control(bool gate)
 {
 	if (gate) {
@@ -2259,8 +2261,9 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 	if (pq_load_dbg == 1)
 		return;
 	if (pq_load_dbg == 2)
-		pr_info("[DI]%s load 0x%x pq table.\n",
-			__func__, di_pq_ptr->pq_parm.table_name);
+		pr_info("[DI]%s hw load 0x%x pq table len %u.\n",
+			__func__, di_pq_ptr->pq_parm.table_name,
+			di_pq_ptr->pq_parm.table_len);
 	if (PTR_RET(di_pq_ptr->regs)) {
 		pr_err("[DI] table ptr error.\n");
 		return;

@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
 #include "register.h"
@@ -22,9 +23,6 @@ MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
 static bool dnr_en = true;
 module_param_named(dnr_en, dnr_en, bool, 0644);
-static bool dnr_reg_update = 1;/*gxtvbb can't work normal,must set to 0*/
-module_param(dnr_reg_update, bool, 0644);
-MODULE_PARM_DESC(dnr_reg_update, "/n dnr dm enable debug /n");
 
 static unsigned int nr2_en = 0x1;
 module_param_named(nr2_en, nr2_en, uint, 0644);
@@ -257,8 +255,8 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 		|((width-((border_offset<<3)+1))&0x3fff));
 	DI_Wr(DNR_STAT_Y_START_END, (((border_offset<<3)&0x3fff) << 16)
 		|((height-((border_offset<<3)+1))&0x3fff));
-	DI_Wr(DNR_CTRL, 0x1df00);
 	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
+	DI_Wr_reg_bits(DNR_CTRL, dnr_en?1:0, 16, 1);
 	/* dm for sd, hd will slower */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/*disable */
@@ -600,8 +598,6 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #ifdef DNR_HV_SHIFT
 	int ro_hbof_stat_cnt[32], ro_vbof_stat_cnt[32], i = 0;
 #endif
-	if (dnr_reg_update == 0)
-		return;
 
 	if (ro_gbs_stat_lr != Rd(DNR_RO_GBS_STAT_LR) ||
 		ro_gbs_stat_ll != Rd(DNR_RO_GBS_STAT_LL) ||
@@ -696,8 +692,6 @@ void nr_process_in_irq(void)
 	nr_param.frame_count++;
 	if (dnr_en)
 		dnr_process(&dnr_param);
-	if ((!dnr_en) && (Rd(DNR_CTRL) != 0) && dnr_reg_update)
-		DI_Wr(DNR_CTRL, 0);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		noise_meter_process(nr_param.pnr4_parm, nr_param.frame_count);
 		luma_enhancement_process(nr_param.pnr4_parm,
@@ -774,6 +768,7 @@ static ssize_t dnr_param_store(struct device *dev,
 		}
 	}
 
+	kfree(buf_orig);
 	return count;
 }
 
@@ -854,6 +849,7 @@ static void nr4_params_init(struct NR4_PARM_s *nr4_parm_p)
 	nr4_params[29].addr = &(nr4_parm_p->nr4_debug);
 
 };
+
 static ssize_t nr4_param_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buff, size_t count)
@@ -874,6 +870,7 @@ static ssize_t nr4_param_store(struct device *dev,
 		}
 	}
 
+	kfree(buf_orig);
 	return count;
 }
 
@@ -964,6 +961,51 @@ static int dnr_prm_init(DNR_PRM_t *pPrm)
 
 static DEVICE_ATTR(dnr_param, 0664, dnr_param_show, dnr_param_store);
 
+static void nr_all_ctrl(bool enable)
+{
+	unsigned char value = 0;
+	value = enable ? 1 : 0;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		/* nr4 nr2*/
+		DI_Wr_reg_bits(NR4_TOP_CTRL, value , 18, 1);
+		DI_Wr_reg_bits(NR4_TOP_CTRL, value , 2, 1);
+	} else {
+		DI_Wr_reg_bits(NR2_SW_EN, value, 4, 1);
+	}
+	DI_Wr_reg_bits(DNR_CTRL, value, 16, 1);
+
+}
+static ssize_t nr_dbg_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buff, size_t count)
+{
+	char *parm[2] = {NULL}, *buf_orig;
+
+	buf_orig = kstrdup(buff, GFP_KERNEL);
+	parse_cmd_params(buf_orig, (char **)(&parm));
+	if (!strcmp(parm[0], "disable"))
+		nr_all_ctrl(false);
+	else if (!strcmp(parm[0], "enable"))
+		nr_all_ctrl(true);
+
+	kfree(buf_orig);
+	return count;
+}
+
+static ssize_t nr_dbg_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buff)
+{
+	ssize_t len = 0;
+	len += sprintf(buff+len,
+		"echo disable/enable to disable/enable nr(nr2/nr4/dnr).\n");
+	return len;
+}
+
+
+static DEVICE_ATTR(nr_debug, 0664, nr_dbg_show, nr_dbg_store);
+
 void nr_hw_init(void)
 {
 
@@ -988,6 +1030,7 @@ void nr_hw_init(void)
 	DI_Wr(NR2_MATNR_ALPHAHP_LUT2, 0x90808080);
 	DI_Wr(NR2_MATNR_ALPHAHP_LUT3, 0xffe0c0a4);
 #endif
+	DI_Wr(DNR_CTRL, 0x1df00);
 	DI_Wr(NR3_MODE, 0x3);
 	DI_Wr(NR3_COOP_PARA, 0x28ff00);
 	DI_Wr(NR3_CNOOP_GAIN, 0x881900);
@@ -1049,6 +1092,7 @@ void nr_drv_uninit(struct device *dev)
 	}
 	device_remove_file(dev, &dev_attr_nr4_param);
 	device_remove_file(dev, &dev_attr_dnr_param);
+	device_remove_file(dev, &dev_attr_nr_debug);
 }
 void nr_drv_init(struct device *dev)
 {
@@ -1065,6 +1109,7 @@ void nr_drv_init(struct device *dev)
 	dnr_prm_init(&dnr_param);
 	nr_param.pdnr_parm = &dnr_param;
 	device_create_file(dev, &dev_attr_dnr_param);
+	device_create_file(dev, &dev_attr_nr_debug);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB))
 		dnr_dm_en = true;
 	else

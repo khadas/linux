@@ -9500,8 +9500,8 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
 			TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 		if (tmp_pq_s.table_name & tab_flag) {
-			pr_info("[DI] load 0x%x pq table.\n",
-				tmp_pq_s.table_name);
+			pr_info("[DI] load 0x%x pq table len %u.\n",
+				tmp_pq_s.table_name, tmp_pq_s.table_len);
 		} else {
 			pr_err("[DI] load 0x%x wrong pq table.\n",
 				tmp_pq_s.table_name);
@@ -9518,10 +9518,29 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_err("[DI] user copy pq table errors\n");
 			return -EFAULT;
 		}
-		mutex_lock(&di_devp->pq_lock);
-		list_add_tail(&di_pq_ptr->list, &di_devp->pq_table_list);
-		di_devp->flags |= DI_LOAD_REG_FLAG;
-		mutex_unlock(&di_devp->pq_lock);
+		if (init_flag) {
+			di_load_regs(di_pq_ptr);
+			di_pq_parm_destory(di_pq_ptr);
+		} else {
+			if (di_devp->flags & DI_LOAD_REG_FLAG) {
+				struct di_pq_parm_s *pos = NULL, *tmp = NULL;
+				mutex_lock(&de_devp->pq_lock);
+				list_for_each_entry_safe(pos, tmp,
+					&di_devp->pq_table_list, list) {
+					if (di_pq_ptr->pq_parm.table_name &
+						pos->pq_parm.table_name) {
+						list_del(&pos->list);
+						di_pq_parm_destory(pos);
+					}
+				}
+				mutex_unlock(&de_devp->pq_lock);
+			}
+			mutex_lock(&de_devp->pq_lock);
+			list_add_tail(&di_pq_ptr->list,
+				&di_devp->pq_table_list);
+			di_devp->flags |= DI_LOAD_REG_FLAG;
+			mutex_unlock(&di_devp->pq_lock);
+		}
 		break;
 	default:
 		break;
