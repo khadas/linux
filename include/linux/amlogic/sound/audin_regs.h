@@ -156,10 +156,9 @@
 #define I2SIN_CHAN_EN		10
 #define I2SIN_EN			15
 
-#define AUDIN_FIFO0_EN		0
+#define AUDIN_FIFO_EN		0
 /* write 1 to load address to AUDIN_FIFO0. */
-#define AUDIN_FIFO0_LOAD	2
-
+#define AUDIN_FIFO_LOAD	2
 enum data_source {
 	SPDIF_IN,
 	I2S_IN,
@@ -168,42 +167,26 @@ enum data_source {
 	PAO_IN,
 	ATV_ADEC
 };
-#define AUDIN_FIFO0_DIN_SEL	3
- /* MBOX platform*/
-		/* 0	 spdifIN */
-		/* 1	 i2Sin */
-		/* 2	 PCMIN */
-		/* 3	 Dmic in */
- /* TV platform*/
-		/* 0	 spdifIN */
-		/* 1	 i2Sin */
-		/* 2	 PCMIN */
-		/* 3	 HDMI in */
-		/* 4	 DEMODULATOR IN */
-		/* 5     atv_dmd or adec resample */
-
+#define DMIC HDMI_IN
+/* MBOX platform*/
+       /* 0     spdifIN */
+       /* 1     i2Sin */
+       /* 2     PCMIN */
+       /* 3     Dmic in */
+/* TV platform*/
+       /* 0     spdifIN */
+       /* 1     i2Sin */
+       /* 2     PCMIN */
+       /* 3     HDMI in */
+       /* 4     DEMODULATOR IN */
+       /* 5     atv_dmd or adec resample*/
+#define AUDIN_FIFO_DIN_SEL	3
 /* 10:8   data endian control. */
-#define AUDIN_FIFO0_ENDIAN	8
+#define AUDIN_FIFO_ENDIAN	8
 /* 14:11   channel number. */
-#define AUDIN_FIFO0_CHAN	11
+#define AUDIN_FIFO_CHAN	11
 /* urgent request enable. */
-#define AUDIN_FIFO0_UG		15
+#define AUDIN_FIFO_UG		15
 
-#define AUDIN_FIFO1_EN		0
-/* write 1 to load address to AUDIN_FIFO0. */
-#define AUDIN_FIFO1_LOAD	2
-
-#define AUDIN_FIFO1_DIN_SEL	3
-	    /* 0     spdifIN */
-	    /* 1     i2Sin */
-	    /* 2     PCMIN */
-	    /* 3     HDMI in */
-	    /* 4     DEMODULATOR IN */
-/* 10:8   data endian control. */
-#define AUDIN_FIFO1_ENDIAN	8
-/* 14:11   channel number. */
-#define AUDIN_FIFO1_CHAN	11
-/* urgent request enable. */
-#define AUDIN_FIFO1_UG		15
 
 #endif				/* _AML_AUDIN_REGS_H */

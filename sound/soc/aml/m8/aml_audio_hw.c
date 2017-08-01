@@ -37,9 +37,6 @@ unsigned IEC958_MODE = AIU_958_MODE_PCM16;
 unsigned I2S_MODE = AIU_I2S_MODE_PCM16;
 unsigned audio_in_source = 0;
 
-int audio_in_buf_ready = 0;
-int audio_out_buf_ready = 0;
-
 unsigned int IEC958_bpf = 0x7dd;
 EXPORT_SYMBOL(IEC958_bpf);
 unsigned int IEC958_brst = 0xc;
@@ -164,7 +161,6 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 	aml_aiu_write(AIU_MEM_I2S_BUF_CNTL, 1 | (0 << 1));
 	aml_aiu_write(AIU_MEM_I2S_BUF_CNTL, 0 | (0 << 1));
 
-	audio_out_buf_ready = 1;
 }
 
 void audio_set_958outbuf(u32 addr, u32 size, int flag)
@@ -227,19 +223,37 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode,
 	aml_audin_write(AUDIN_FIFO0_END,
 			   (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
 
-	aml_audin_write(AUDIN_FIFO0_CTRL, (1 << AUDIN_FIFO0_EN)	/* FIFO0_EN */
-			   | (1 << AUDIN_FIFO0_LOAD) /* load start address */
-			   | (din_sel << AUDIN_FIFO0_DIN_SEL) /*DIN from i2sin*/
-			   | (4 << AUDIN_FIFO0_ENDIAN) /*AUDIN_FIFO0_ENDIAN*/
-			   | ((ch == 2?2:1) << AUDIN_FIFO0_CHAN) /*ch mode ctl*/
-			   | (1 << AUDIN_FIFO0_UG) /* Urgent request. */
+	aml_audin_write(AUDIN_FIFO0_CTRL, (1 << AUDIN_FIFO_EN)	/* FIFO_EN */
+			   | (1 << AUDIN_FIFO_LOAD) /* load start address */
+			   | (din_sel << AUDIN_FIFO_DIN_SEL) /*DIN from i2sin*/
+			   | (4 << AUDIN_FIFO_ENDIAN) /*AUDIN_FIFO_ENDIAN*/
+			   | ((ch == 2?2:1) << AUDIN_FIFO_CHAN) /*ch mode ctl*/
+			   | (1 << AUDIN_FIFO_UG) /* Urgent request. */
 	);
 
 	aml_audin_write(AUDIN_FIFO0_CTRL1, 0 << 4	/* fifo0_dest_sel */
 			   | 2 << 2	/* 0: 8bit; 1:16bit; 2:32bit */
 			   | din_pos << 0);	/* fifo0_din_pos */
 
-	if (audio_in_source == 0) {
+	if (audio_in_source == 1 && (!is_meson_txlx_cpu())) {
+		aml_audin_write(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
+				   | (0 << I2SIN_SIZE)
+				   | (0 << I2SIN_LRCLK_INVT)
+				   | (0 << I2SIN_LRCLK_SKEW)
+				   | (1 << I2SIN_POS_SYNC)
+				   | (0 << I2SIN_LRCLK_SEL)
+				   | (0 << I2SIN_CLK_SEL)
+				   | (0 << I2SIN_DIR));
+	} else if (audio_in_source == 2 && (!is_meson_txlx_cpu())) {
+		aml_audin_write(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
+				   | (3 << I2SIN_SIZE)
+				   | (1 << I2SIN_LRCLK_INVT)
+				   | (1 << I2SIN_LRCLK_SKEW)
+				   | (1 << I2SIN_POS_SYNC)
+				   | (1 << I2SIN_LRCLK_SEL)
+				   | (1 << I2SIN_CLK_SEL)
+				   | (1 << I2SIN_DIR));
+	} else {
 		aml_audin_write(AUDIN_I2SIN_CTRL,
 				   ((0xf>>(4 - ch/2)) << I2SIN_CHAN_EN)
 				   | (3 << I2SIN_SIZE)
@@ -249,37 +263,53 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode,
 				   | (!mode << I2SIN_LRCLK_SEL)
 				   | (!mode << I2SIN_CLK_SEL)
 				   | (!mode << I2SIN_DIR));
-
-	} else if (audio_in_source == 1) {
-		aml_audin_write(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-				   | (0 << I2SIN_SIZE)
-				   | (0 << I2SIN_LRCLK_INVT)
-				   | (0 << I2SIN_LRCLK_SKEW)
-				   | (1 << I2SIN_POS_SYNC)
-				   | (0 << I2SIN_LRCLK_SEL)
-				   | (0 << I2SIN_CLK_SEL)
-				   | (0 << I2SIN_DIR));
-		if (is_meson_txlx_cpu()) {
-			/* adec */
-			aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 7);
-			/* fifo source adec */
-			aml_audin_update_bits(AUDIN_FIFO0_CTRL,
-				   (0x7 << AUDIN_FIFO0_DIN_SEL),
-				   (ATV_ADEC << AUDIN_FIFO0_DIN_SEL));
-			aml_audin_update_bits(AUDIN_FIFO0_CTRL1, 0x3,
-							(0x1 << 0));
-		}
-	} else if (audio_in_source == 2) {
-		aml_audin_write(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-				   | (3 << I2SIN_SIZE)
-				   | (1 << I2SIN_LRCLK_INVT)
-				   | (1 << I2SIN_LRCLK_SKEW)
-				   | (1 << I2SIN_POS_SYNC)
-				   | (1 << I2SIN_LRCLK_SEL)
-				   | (1 << I2SIN_CLK_SEL)
-				   | (1 << I2SIN_DIR));
 	}
 
+}
+
+static void i2sin_fifo2_set_buf(u32 addr, u32 size, u32 src, u32 ch)
+{
+	aml_audin_write(AUDIN_FIFO2_START, addr & 0xffffffc0);
+	aml_audin_write(AUDIN_FIFO2_PTR, (addr & 0xffffffc0));
+	aml_audin_write(AUDIN_FIFO2_END,
+			   (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
+	aml_audin_write(AUDIN_FIFO2_CTRL, (1 << AUDIN_FIFO_EN)	/* FIFO0_EN */
+			   |(1 << AUDIN_FIFO_LOAD)	/*load start address.*/
+			   |(src << AUDIN_FIFO_DIN_SEL)
+			   |(4 << AUDIN_FIFO_ENDIAN) /* AUDIN_FIFO0_ENDIAN */
+			   |((ch == 2?2:1) << AUDIN_FIFO_CHAN)	/*2 channel*/
+			   |(1 << AUDIN_FIFO_UG)	/* Urgent request. */
+	);
+
+	aml_audin_write(AUDIN_FIFO2_CTRL1, 0x08);
+	/* HDMI I2S-in module */
+	aml_audin_write(AUDIN_DECODE_FORMAT,
+				(0 << 24) /*spdif enable*/
+				|(0 << 16)/*i2s enable*/
+				|((ch == 2?0x3:0xff) << 8)/*2ch:0x3; 8ch:0xff*/
+				|(1 << 7) /*0:spdif; 1: i2s*/
+				|((ch == 2?0:1) << 6)/*0:2ch; 1:8ch*/
+				|(2 << 4)/*0:left-justify; 1:right-justify;*/
+						 /*2: I2S mode; 3: DSP mode*/
+				|(3 << 2)/*0:16bit; 1:18bit; 2:20bit; 3:24bit*/
+				|(0 << 1)/*0:left-right; 1:right-left*/
+				|(1 << 0)/*0:one bit audio; 2:i2s*/
+	);
+
+	if (audio_in_source == 1) {
+		/* ATV from adec */
+		aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 7);
+		aml_audin_update_bits(AUDIN_FIFO2_CTRL,
+				 (0x7 << AUDIN_FIFO_DIN_SEL),
+				 (ATV_ADEC << AUDIN_FIFO_DIN_SEL));
+		aml_audin_update_bits(AUDIN_FIFO2_CTRL1, 0x3,
+							(0x1 << 0));
+	} else if (audio_in_source == 2) {
+		/* HDMI from PAO */
+		aml_audin_update_bits(AUDIN_FIFO2_CTRL,
+				 (0x7 << AUDIN_FIFO_DIN_SEL),
+				 (PAO_IN << AUDIN_FIFO_DIN_SEL));
+	}
 }
 
 static void spdifin_reg_set(void)
@@ -312,18 +342,21 @@ static void spdifin_reg_set(void)
 
 static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 {
+	if (audio_in_source == 3)
+		src = SPDIF_IN;
+
 	aml_audin_write(AUDIN_SPDIF_MODE,
 			   aml_audin_read(AUDIN_SPDIF_MODE) & 0x7fffffff);
 	aml_audin_write(AUDIN_FIFO1_START, addr & 0xffffffc0);
 	aml_audin_write(AUDIN_FIFO1_PTR, (addr & 0xffffffc0));
 	aml_audin_write(AUDIN_FIFO1_END,
-		       (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
-	aml_audin_write(AUDIN_FIFO1_CTRL, (1 << AUDIN_FIFO1_EN)	/* FIFO0_EN */
-		       |(1 << AUDIN_FIFO1_LOAD)	/* load start address. */
-		       |(src << AUDIN_FIFO1_DIN_SEL)
-		       |(4 << AUDIN_FIFO1_ENDIAN) /* AUDIN_FIFO0_ENDIAN */
-		       |(2 << AUDIN_FIFO1_CHAN)	/* 2 channel */
-		       |(1 << AUDIN_FIFO1_UG)	/* Urgent request. */
+			   (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
+	aml_audin_write(AUDIN_FIFO1_CTRL, (1 << AUDIN_FIFO_EN)	/* FIFO_EN */
+			   |(1 << AUDIN_FIFO_LOAD)	/*load start address.*/
+			   |(src << AUDIN_FIFO_DIN_SEL)
+			   |(4 << AUDIN_FIFO_ENDIAN) /* AUDIN_FIFO_ENDIAN */
+			   |(2 << AUDIN_FIFO_CHAN)	/* 2 channel */
+			   |(1 << AUDIN_FIFO_UG)	/* Urgent request. */
 	);
 
 	/*
@@ -332,22 +365,13 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 	 */
 	spdifin_reg_set();
 
-	if (audio_in_source == 3)
-		src = SPDIF_IN;
-
 	/*3 byte mode, (23:0)*/
 	if (src == PAO_IN) {
 		aml_audin_write(AUDIN_FIFO1_CTRL1, 0x08);
 	} else if (src == HDMI_IN) {
-		/* there are two inputs for HDMI_IN. New I2S:SPDIF */
+		/* HDMI spdif-in module */
 		aml_audin_write(AUDIN_FIFO1_CTRL1, 0x08);
-		if (1) {
-			/* new SPDIF in module */
-			aml_audin_write(AUDIN_DECODE_FORMAT, 1<<24);
-		} else {
-			/* new I2S in module */
-			aml_audin_write(AUDIN_DECODE_FORMAT, 0x103ad);
-		}
+		aml_audin_write(AUDIN_DECODE_FORMAT, 1<<24);
 	} else
 		aml_audin_write(AUDIN_FIFO1_CTRL1, 0x88);
 }
@@ -357,7 +381,12 @@ void audio_in_i2s_set_buf(u32 addr, u32 size,
 {
 	pr_debug("i2sin_fifo0_set_buf din_sel:%d ch:%d\n", din_sel, ch);
 	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync, din_sel, ch);
-	audio_in_buf_ready = 1;
+}
+
+void audio_in_i2s2_set_buf(u32 addr, u32 size, u32 src, u32 ch)
+{
+	pr_debug("audio_in_i2s2_set_buf, src = %d\n", src);
+	i2sin_fifo2_set_buf(addr, size, src, ch);
 }
 
 void audio_in_spdif_set_buf(u32 addr, u32 size, u32 src)
@@ -381,14 +410,38 @@ void audio_in_i2s_enable(int flag)
 		start = aml_audin_read(AUDIN_FIFO0_START);
 		if (rd != start) {
 			pr_err("error %08x, %08x !\n",
-			       rd, start);
+				   rd, start);
 			goto reset_again;
 		}
 		aml_audin_update_bits(AUDIN_I2SIN_CTRL, 1 << I2SIN_EN,
-				     1 << I2SIN_EN);
+					 1 << I2SIN_EN);
 	} else {
 		aml_audin_update_bits(AUDIN_I2SIN_CTRL, 1 << I2SIN_EN,
-				     0 << I2SIN_EN);
+					 0 << I2SIN_EN);
+	}
+}
+
+void audio_in_i2s2_enable(int flag)
+{
+	int rd = 0, start = 0;
+	if (flag) {
+		/* reset only when start i2s input */
+ reset_again:
+		/* reset FIFO 2 */
+		aml_audin_update_bits(AUDIN_FIFO2_CTRL, 0x2, 0x2);
+		aml_audin_write(AUDIN_FIFO2_PTR, 0);
+		rd = aml_audin_read(AUDIN_FIFO2_PTR);
+		start = aml_audin_read(AUDIN_FIFO2_START);
+		if (rd != start) {
+			pr_err("error %08x, %08x !\n",
+				   rd, start);
+			goto reset_again;
+		}
+		aml_audin_update_bits(AUDIN_DECODE_FORMAT, 1 << 16,
+					 1 << 16);
+	} else {
+		aml_audin_update_bits(AUDIN_DECODE_FORMAT, 1 << 16,
+					 0 << 16);
 	}
 }
 
@@ -398,7 +451,7 @@ void audio_in_spdif_enable(int flag)
 
 	if (flag) {
  reset_again:
-		/* reset FIFO 0 */
+		/* reset FIFO 1 */
 		aml_audin_update_bits(AUDIN_FIFO1_CTRL, 0x2, 0x2);
 		aml_audin_write(AUDIN_FIFO1_PTR, 0);
 		rd = aml_audin_read(AUDIN_FIFO1_PTR);
@@ -446,6 +499,15 @@ unsigned int audio_in_i2s_wr_ptr(void)
 	unsigned int val;
 	aml_audin_write(AUDIN_FIFO0_PTR, 1);
 	val = aml_audin_read(AUDIN_FIFO0_PTR);
+	return (val) & (~0x3F);
+	/* return val&(~0x7); */
+}
+
+unsigned int audio_in_i2s2_wr_ptr(void)
+{
+	unsigned int val;
+	aml_audin_write(AUDIN_FIFO2_PTR, 1);
+	val = aml_audin_read(AUDIN_FIFO2_PTR);
 	return (val) & (~0x3F);
 	/* return val&(~0x7); */
 }

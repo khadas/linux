@@ -426,6 +426,8 @@ static snd_pcm_uframes_t aml_i2s_pointer(struct snd_pcm_substream *substream)
 	} else {
 		if (s->device_type == AML_AUDIO_I2SIN)
 			ptr = audio_in_i2s_wr_ptr();
+		else if (s->device_type == AML_AUDIO_I2SIN2)
+			ptr = audio_in_i2s2_wr_ptr();
 		else
 			ptr = audio_in_spdif_wr_ptr();
 		addr = ptr - s->I2S_addr;
@@ -479,6 +481,8 @@ static void aml_i2s_timer_callback(unsigned long data)
 	} else {
 		if (s->device_type == AML_AUDIO_I2SIN)
 			last_ptr = audio_in_i2s_wr_ptr();
+		else if (s->device_type == AML_AUDIO_I2SIN2)
+			last_ptr = audio_in_i2s2_wr_ptr();
 		else
 			last_ptr = audio_in_spdif_wr_ptr();
 

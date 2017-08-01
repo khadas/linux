@@ -165,7 +165,7 @@ static const struct snd_kcontrol_new txlx_acodec_snd_controls[] = {
 
 /*pgain Left Channel Input */
 static const char * const linein_left_txt[] = {
-	"None", "AIL1", "AIL2", "AIL3", "AIL4"
+	"None", "AIL1", "AIL2", "AIL3",
 };
 
 static const SOC_ENUM_SINGLE_DECL(linein_left_enum,
@@ -177,7 +177,7 @@ SOC_DAPM_ENUM("ROUTE_L", linein_left_enum);
 
 /*pgain right Channel Input */
 static const char * const linein_right_txt[] = {
-	"None", "AIR1", "AIR2", "AIR3", "AIR4"
+	"None", "AIR1", "AIR2", "AIR3",
 };
 
 static const SOC_ENUM_SINGLE_DECL(linein_right_enum,
@@ -239,12 +239,10 @@ static const struct snd_soc_dapm_widget txlx_acodec_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("Linein left 1"),
 	SND_SOC_DAPM_INPUT("Linein left 2"),
 	SND_SOC_DAPM_INPUT("Linein left 3"),
-	SND_SOC_DAPM_INPUT("Linein left 4"),
 
 	SND_SOC_DAPM_INPUT("Linein right 1"),
 	SND_SOC_DAPM_INPUT("Linein right 2"),
 	SND_SOC_DAPM_INPUT("Linein right 3"),
-	SND_SOC_DAPM_INPUT("Linein right 4"),
 
 	/*PGA input */
 	SND_SOC_DAPM_PGA("PGAL_IN_EN", AUDIO_CONFIG_BLOCK_ENABLE,
@@ -313,12 +311,10 @@ static const struct snd_soc_dapm_route txlx_acodec_dapm_routes[] = {
 	{"Linein left switch", "AIL1", "Linein left 1"},
 	{"Linein left switch", "AIL2", "Linein left 2"},
 	{"Linein left switch", "AIL3", "Linein left 3"},
-	{"Linein left switch", "AIL4", "Linein left 4"},
 
 	{"Linein right switch", "AIR1", "Linein right 1"},
 	{"Linein right switch", "AIR2", "Linein right 2"},
 	{"Linein right switch", "AIR3", "Linein right 3"},
-	{"Linein right switch", "AIR4", "Linein right 4"},
 
 	{"PGAL_IN_EN", NULL, "Linein left switch"},
 	{"PGAR_IN_EN", NULL, "Linein right switch"},
@@ -535,7 +531,7 @@ static int txlx_acodec_probe(struct snd_soc_codec *codec)
 			   |(2 << 2)
 	);
 
-	aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 3);
+	aml_audin_update_bits(AUDIN_SOURCE_SEL, 3 << 16, 3 << 16);
 
 	aml_acodec->codec = codec;
 

@@ -1,5 +1,5 @@
 /*
- * sound/soc/aml/m8/aml_i2s_dai.h
+ * sound/soc/aml/m8/aml_i2s2_dai.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -15,18 +15,15 @@
  *
 */
 
-#ifndef __AML_I2S_DAI_H__
-#define __AML_I2S_DAI_H__
+#ifndef __AML_I2S2_DAI_H__
+#define __AML_I2S2_DAI_H__
 
 extern struct snd_soc_dai_driver aml_dai[];
-struct aml_i2s {
+struct aml_i2s2 {
 	struct clk *clk_mpll;
 	struct clk *clk_mclk;
 	int old_samplerate;
-	bool disable_clk_suspend;
 	int audin_fifo_src;
-	int i2s_pos_sync;
-	int clk_data_pos;
 };
 
 #endif

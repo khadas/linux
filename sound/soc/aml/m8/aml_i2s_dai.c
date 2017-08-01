@@ -41,16 +41,13 @@
 
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/sound/aout_notify.h>
+#include <linux/amlogic/sound/audin_regs.h>
 
 #include "aml_i2s_dai.h"
 #include "aml_pcm.h"
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
 #include "aml_spdif_dai.h"
-
-struct aml_dai_info dai_info[3] = { {0} };
-
-static int i2s_pos_sync;
 
 /* extern int set_i2s_iec958_samesource(int enable); */
 
@@ -107,7 +104,10 @@ static int aml_dai_i2s_startup(struct snd_pcm_substream *substream,
 			== SNDRV_PCM_STREAM_PLAYBACK) {
 		s->device_type = AML_AUDIO_I2SOUT;
 	} else {
-		s->device_type = AML_AUDIO_I2SIN;
+		if (is_meson_txlx_cpu())
+			s->device_type = AML_AUDIO_I2SIN2;
+		else
+			s->device_type = AML_AUDIO_I2SIN;
 	}
 	return 0;
  out:
@@ -141,37 +141,58 @@ static int aml_i2s_set_amclk(struct aml_i2s *i2s, unsigned long rate)
 
 	audio_set_i2s_clk_div();
 	set_hdmi_tx_clk_source(2);
+	audio_util_set_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 
 	return 0;
 }
 
 static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
+				   struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
 	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
-	audio_util_set_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		s->i2s_mode = dai_info[dai->id].i2s_mode;
-		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
-			audio_in_i2s_set_buf(runtime->dma_addr,
-					runtime->dma_bytes * 2,
-					0, i2s_pos_sync, i2s->audin_fifo_src,
-					runtime->channels);
-			memset((void *)runtime->dma_area, 0,
-					runtime->dma_bytes * 2);
+		dev_info(substream->pcm->card->dev, "I2S capture prepare!\n");
+		if (is_meson_txlx_cpu()) {
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+				audio_in_i2s2_set_buf(runtime->dma_addr,
+						runtime->dma_bytes * 2, HDMI_IN,
+						runtime->channels);
+				memset((void *)runtime->dma_area, 0,
+						runtime->dma_bytes * 2);
+			} else {
+				audio_in_i2s2_set_buf(runtime->dma_addr,
+						runtime->dma_bytes, HDMI_IN,
+						runtime->channels);
+				memset((void *)runtime->dma_area, 0,
+						runtime->dma_bytes);
+			}
+			s->device_type = AML_AUDIO_I2SIN2;
 		} else {
-			audio_in_i2s_set_buf(runtime->dma_addr,
-					runtime->dma_bytes,
-					0, i2s_pos_sync, i2s->audin_fifo_src,
-					runtime->channels);
-			memset((void *)runtime->dma_area, 0,
-					runtime->dma_bytes);
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+				audio_in_i2s_set_buf(runtime->dma_addr,
+						runtime->dma_bytes * 2,
+						i2s->clk_data_pos,
+						i2s->i2s_pos_sync,
+						i2s->audin_fifo_src,
+						runtime->channels);
+				memset((void *)runtime->dma_area, 0,
+						runtime->dma_bytes * 2);
+			} else {
+				audio_in_i2s_set_buf(runtime->dma_addr,
+						runtime->dma_bytes,
+						i2s->clk_data_pos,
+						i2s->i2s_pos_sync,
+						i2s->audin_fifo_src,
+						runtime->channels);
+				memset((void *)runtime->dma_area, 0,
+						runtime->dma_bytes);
+			}
+			s->device_type = AML_AUDIO_I2SIN;
 		}
-		s->device_type = AML_AUDIO_I2SIN;
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
 		audio_out_i2s_enable(0);
@@ -193,7 +214,7 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 }
 
 static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
-			       struct snd_soc_dai *dai)
+				   struct snd_soc_dai *dai)
 {
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -208,7 +229,11 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 				audio_hw_958_enable(1);
 			}
 		} else {
-			audio_in_i2s_enable(1);
+			dev_info(substream->pcm->card->dev, "I2S capture enable!\n");
+			if (is_meson_txlx_cpu())
+				audio_in_i2s2_enable(1);
+			else
+				audio_in_i2s_enable(1);
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -222,7 +247,11 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 				audio_hw_958_enable(0);
 			}
 		} else {
-			audio_in_i2s_enable(0);
+			dev_info(substream->pcm->card->dev, "I2S capture disable!\n");
+			if (is_meson_txlx_cpu())
+				audio_in_i2s2_enable(0);
+			else
+				audio_in_i2s_enable(0);
 		}
 		break;
 	default:
@@ -251,15 +280,19 @@ static int aml_dai_i2s_hw_params(struct snd_pcm_substream *substream,
 
 static int aml_dai_set_i2s_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
+	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+
+	/*pr_info("%s: cpu_dai = %s, fmt = %u\n", __func__, dai->name, fmt);*/
+
 	if (fmt & SND_SOC_DAIFMT_CBS_CFS)	/* slave mode */
-		dai_info[dai->id].i2s_mode = I2S_SLAVE_MODE;
+		i2s->clk_data_pos = I2S_SLAVE_MODE;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		i2s_pos_sync = 0;
+		i2s->i2s_pos_sync = 0;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		i2s_pos_sync = 1;
+		i2s->i2s_pos_sync = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -393,7 +426,7 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't set aml_i2s :%d\n", ret);
 		goto err;
 	}
-	audio_util_set_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+	i2s->old_samplerate = DEFAULT_SAMPLERATE;
 
 	ret = clk_prepare_enable(i2s->clk_mclk);
 	if (ret) {
@@ -402,10 +435,10 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node, "DMIC")) {
-		i2s->audin_fifo_src = 3;
+		i2s->audin_fifo_src = DMIC;
 		dev_info(&pdev->dev, "DMIC is in platform!\n");
 	} else {
-		i2s->audin_fifo_src = 1;
+		i2s->audin_fifo_src = I2S_IN;
 		dev_info(&pdev->dev, "I2S Mic is in platform!\n");
 	}
 

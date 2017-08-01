@@ -78,6 +78,7 @@ enum {
 	AML_AUDIO_I2SOUT = 1 << 3,
 	AML_AUDIO_PCMIN = 1 << 4,
 	AML_AUDIO_PCMOUT = 1 << 5,
+	AML_AUDIO_I2SIN2 = 1 << 6,
 };
 
 #define AUDIO_CLK_256FS             0
@@ -120,10 +121,13 @@ void audio_set_958outbuf(u32 addr, u32 size, int flag);
 void audio_in_i2s_set_buf(u32 addr, u32 size,
 	u32 i2s_mode, u32 i2s_sync, u32 din_sel, u32 ch);
 void audio_in_spdif_set_buf(u32 addr, u32 size, u32 src);
+void audio_in_i2s2_set_buf(u32 addr, u32 size, u32 src, u32 ch);
 void audio_in_i2s_enable(int flag);
 void audio_in_spdif_enable(int flag);
+void audio_in_i2s2_enable(int flag);
 unsigned int audio_in_i2s_rd_ptr(void);
 unsigned int audio_in_i2s_wr_ptr(void);
+unsigned int audio_in_i2s2_wr_ptr(void);
 unsigned int audio_in_spdif_wr_ptr(void);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 void audio_set_i2s_mode(u32 mode, unsigned int channel);

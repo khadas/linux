@@ -132,18 +132,28 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
-		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+		if (is_meson_txlx_cpu())
+			/* select internal codec ADC in TXLX as HDMI-i2s*/
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3 << 16,
+						3 << 16);
+		else if (is_meson_txl_cpu()) {
 			/* select internal codec ADC in TXL as I2S source */
 			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 3);
 		} else
 			/* select external codec ADC as I2S source */
 			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 0);
+
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 		External_Mute(0);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
-		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 1);
+		if (is_meson_txlx_cpu())
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 16,
+						1 << 16);
+		else
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 1);
+
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu())
 			DRC0_enable(1);
 		External_Mute(0);
@@ -155,8 +165,13 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/* [5:4] spdif_src_sel:*/
 		/* 1=Select HDMIRX SPDIF output as AUDIN source */
 		/* [1:0] i2sin_src_sel: */
-		/*2=Select HDMIRX I2S output as AUDIN source */
-		aml_audin_update_bits(AUDIN_SOURCE_SEL, 3, 2);
+		/* 2=Select HDMIRX I2S output as AUDIN source */
+		if (is_meson_txlx_cpu())
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 16,
+						2 << 16);
+		else
+			aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3, 2);
+
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0x3 << 4,
 						1 << 4);
 		aml_audin_update_bits(AUDIN_SOURCE_SEL, 0xf << 8,
@@ -253,15 +268,15 @@ static int aml_spdif_audio_type_get_enum(
 		if (audio_type == 0 || audio_in_source == 3) {
 			/*In LPCM, use old spdif mode*/
 			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
-				(0x7 << AUDIN_FIFO1_DIN_SEL),
-				(SPDIF_IN << AUDIN_FIFO1_DIN_SEL));
+				(0x7 << AUDIN_FIFO_DIN_SEL),
+				(SPDIF_IN << AUDIN_FIFO_DIN_SEL));
 			/*spdif-in data fromat:(27:4)*/
 			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x88);
 		} else {
 			/*In RAW data, use PAO mode*/
 			aml_audin_update_bits(AUDIN_FIFO1_CTRL,
-				(0x7 << AUDIN_FIFO1_DIN_SEL),
-				(PAO_IN << AUDIN_FIFO1_DIN_SEL));
+				(0x7 << AUDIN_FIFO_DIN_SEL),
+				(PAO_IN << AUDIN_FIFO_DIN_SEL));
 			/*spdif-in data fromat:(23:0)*/
 			aml_audin_write(AUDIN_FIFO1_CTRL1, 0x8);
 		}
@@ -870,14 +885,18 @@ static int aml_resume_post(struct snd_soc_card *card)
 }
 
 static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *params)
+				  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
+	/*pr_info("%s: codec_dai = %s, cpu_dai = %s\n",
+			__func__, codec_dai->name, cpu_dai->name);*/
+
 	/* set cpu DAI configuration */
-	if (is_meson_txl_cpu() || is_meson_txlx_cpu())
+	if (NULL != strstr(codec_dai->name, "T9015S-audio-hifi"))
 		ret = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				  | SND_SOC_DAIFMT_CBM_CFM);
@@ -885,9 +904,16 @@ static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_NF
 				  | SND_SOC_DAIFMT_CBM_CFM);
-
 	if (ret < 0) {
 		pr_err("%s: set cpu dai fmt failed!\n", __func__);
+		return ret;
+	}
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0) {
+		pr_err("%s: set codec dai fmt failed!\n", __func__);
 		return ret;
 	}
 
@@ -1202,7 +1228,7 @@ static int of_get_resetpin_pdata(struct tas57xx_platform_data *pdata,
 
 	reset_desc = of_get_named_gpiod_flags(p_node, "reset_pin", 0, NULL);
 	if (IS_ERR(reset_desc)) {
-		pr_err("%s fail to get reset pin from dts!\n", __func__);
+		/*pr_err("%s fail to get reset pin from dts!\n", __func__);*/
 	} else {
 		int reset_pin = desc_to_gpio(reset_desc);
 		gpio_request(reset_pin, NULL);
@@ -1220,7 +1246,7 @@ static int of_get_phonepin_pdata(struct tas57xx_platform_data *pdata,
 	struct gpio_desc *phone_desc;
 	phone_desc = of_get_named_gpiod_flags(p_node, "phone_pin", 0, NULL);
 	if (IS_ERR(phone_desc)) {
-		pr_err("%s fail to get phone pin from dts!\n", __func__);
+		/*pr_err("%s fail to get phone pin from dts!\n", __func__);*/
 	} else {
 		int phone_pin = desc_to_gpio(phone_desc);
 		gpio_request(phone_pin, NULL);
@@ -1412,7 +1438,8 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 					      cpu_node,
 					      codec_node, plat_node);
 
-		dai_links[0].ops = &aml_asoc_ops;
+		if (NULL != strstr(dai_links[i].name, "I2S"))
+			dai_links[i].ops = &aml_asoc_ops;
 	}
 
 err:

@@ -968,7 +968,7 @@
 			reg = <0x0 0xFFD05800 0x0 0x100000>;
 		};
 	};
-	/* AUDIO MESON8 DEVICES */
+	/* AUDIO DEVICES */
 	i2s_dai: I2S {
 		#sound-dai-cells = <0>;
 		resets = <
@@ -1028,6 +1028,10 @@
 		clock-names = "mpll0", "pcm_mclk", "pcm_sclk";
 		pcm_mode = <1>;	/* 0=slave mode, 1=master mode */
 	};
+	i2s2_dai: I2S2 {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-i2s2-dai";
+	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";
 		interrupts = <0 29 1>;
@@ -1045,13 +1049,13 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, pcm2BT-codec";
 	};
-	/* endof AUDIO MESON8 DEVICES */
+	/* end of AUDIO DEVICES */
 
 	/* AUDIO board specific */
 	dummy_codec:dummy{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_dummy_codec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlogic_codec:txlx_acodec{
@@ -1066,15 +1070,15 @@
 		aml-sound-card,format = "i2s";
 		aml_sound_card,name = "AML-G9TVAUDIO";
 		pinctrl-names = "aml_snd_g9tv";
-		pinctrl-0 = <&audio_pins>;
+		pinctrl-0 = <&audio_pins /*&audioin_pins*/>;
 		/*avout mute gpio*/
 		mute_gpio-gpios = <&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
 		/*analog amp mute*/
 		/*amp_mute_gpio-gpios = <&gpio GPIOZ_18 GPIO_ACTIVE_LOW>;*/
 		aux_dev = "tas5707";
-		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
-		codec_list = <&codec0 &codec1 &codec2>;
-		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
+		cpu_list = <&cpudai0 &cpudai1 &cpudai2 &cpudai3>;
+		codec_list = <&codec0 &codec1 &codec2 &codec3>;
+		plat_list = <&i2s_plat &i2s_plat &pcm_plat &i2s_plat>;
 		cpudai0: cpudai0 {
 			sound-dai = <&i2s_dai>;
 		};
@@ -1084,6 +1088,9 @@
 		cpudai2: cpudai2 {
 			sound-dai = <&pcm_dai>;
 		};
+		cpudai3: cpudai3 {
+			sound-dai = <&i2s2_dai>;
+		};
 		codec0: codec0 {
 			sound-dai = <&amlogic_codec>;
 		};
@@ -1092,6 +1099,9 @@
 		};
 		codec2: codec2 {
 			sound-dai = <&pcm_codec>;
+		};
+		codec3: codec3 {
+			sound-dai = <&dummy_codec>;
 		};
 		tas5707 {
 			compatible = "amlogic, aml_tas5707_codec";
@@ -1114,7 +1124,8 @@
 		compatible = "amlogic, aml_amaudio2";
 		status = "okay";
 		interrupts = <0 48 1>;
- 	};
+	};
+	/* end of AUDIO board specific */
 
 	dvb {
 		compatible = "amlogic, dvb";
@@ -1290,9 +1301,18 @@
 &pinmux {
 	audio_pins:audio_pin{
 		amlogic,setmask=<4 0x00000780>;
-		amlogic,clrmask=<3 0x001c0000
-				 4 0x00000001>;
-		amlogic,pins = "GPIOZ_10", "GPIOZ_11", "GPIOZ_12", "GPIOZ_14";
+			amlogic,clrmask=<3 0x001c0000
+							4 0x00000001>;
+			amlogic,pins = "GPIOZ_10", "GPIOZ_11", "GPIOZ_12", "GPIOZ_14";
+	};
+	audioin_pins:audioin_pin{
+		amlogic,setmask=<4 0x00000070
+						0 0x00000f00>;
+		amlogic,clrmask=<3 0x9b600003
+				 0 0x8f1f8001
+				 10 0x0000001c>;
+		amlogic,pins = "GPIOZ_15", "GPIOZ_16", "GPIOZ_19",/*i2s out 2-7*/
+				"GPIOH_0", "GPIOH_4", "GPIOH_5", "GPIOH_6";/*i2s in 0-7*/
 	};
 	audio_spdif_pins:audio_pin1{
 		amlogic,setmask=<3 0x40000000
