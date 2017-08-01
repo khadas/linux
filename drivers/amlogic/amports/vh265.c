@@ -71,6 +71,7 @@
 #include "amvdec.h"
 #include "video.h"
 
+#define SEND_LMEM_WITH_RPM
 #define SUPPORT_10BIT
 /* #define ERROR_HANDLE_DEBUG */
 #if 0/*MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8B*/
@@ -379,6 +380,8 @@ bit 4: 0, set error_mark after reset/recover
     1, do not set error_mark after reset/recover
 bit 5: 0, check total lcu for every picture
     1, do not check total lcu
+bit 6: 0, do not check head error
+	1, check head error
 
 */
 
@@ -1518,7 +1521,42 @@ struct hevc_state_s {
 	u32 vf_pre_count;
 	u32 vf_get_count;
 	u32 vf_put_count;
+
+	u8 head_error_flag;
 } /*hevc_stru_t */;
+
+#ifdef SEND_LMEM_WITH_RPM
+#define get_lmem_params(hevc, ladr) \
+	hevc->lmem_ptr[ladr - (ladr & 0x3) + 3 - (ladr & 0x3)]
+
+void check_head_error(struct hevc_state_s *hevc)
+{
+#define pcm_enabled_flag                                  0x040
+#define pcm_sample_bit_depth_luma                         0x041
+#define pcm_sample_bit_depth_chroma                       0x042
+	hevc->head_error_flag = 0;
+	if ((error_handle_policy & 0x40) == 0)
+		return;
+	if (get_lmem_params(hevc, pcm_enabled_flag)) {
+		uint16_t pcm_depth_luma = get_lmem_params(
+			hevc, pcm_sample_bit_depth_luma);
+		uint16_t pcm_sample_chroma = get_lmem_params(
+			hevc, pcm_sample_bit_depth_chroma);
+		if (pcm_depth_luma >
+			hevc->bit_depth_luma ||
+			pcm_sample_chroma >
+			hevc->bit_depth_chroma) {
+			hevc_print(hevc, 0,
+			"error, pcm bit depth %d, %d is greater than normal bit depth %d, %d\n",
+			pcm_depth_luma,
+			pcm_sample_chroma,
+			hevc->bit_depth_luma,
+			hevc->bit_depth_chroma);
+			hevc->head_error_flag = 1;
+		}
+	}
+}
+#endif
 
 #ifdef SUPPORT_10BIT
 /* Losless compression body buffer size 4K per 64x32 (jt) */
@@ -1807,6 +1845,7 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 	hevc->col_pic = NULL;
 	hevc->wait_buf = 0;
 	hevc->error_flag = 0;
+	hevc->head_error_flag = 0;
 	hevc->error_skip_nal_count = 0;
 	hevc->have_vps = 0;
 	hevc->have_sps = 0;
@@ -4714,7 +4753,7 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 
 }
 
-static void check_pic_decoded_lcu_count_pre(struct hevc_state_s *hevc,
+static void check_pic_decoded_error_pre(struct hevc_state_s *hevc,
 	int decoded_lcu)
 {
 	int current_lcu_idx = decoded_lcu;
@@ -4754,11 +4793,16 @@ static void check_pic_decoded_lcu_count_pre(struct hevc_state_s *hevc,
 		}
 
 	}
+	if (hevc->cur_pic && hevc->head_error_flag) {
+		hevc->cur_pic->error_mark = 1;
+		hevc_print(hevc, 0,
+			"head has error, set error_mark\n");
+	}
 	hevc->lcu_x_num_pre = hevc->lcu_x_num;
 	hevc->lcu_y_num_pre = hevc->lcu_y_num;
 }
 
-static void check_pic_decoded_lcu_count(struct hevc_state_s *hevc,
+static void check_pic_decoded_error(struct hevc_state_s *hevc,
 	int decoded_lcu)
 {
 	int current_lcu_idx = decoded_lcu;
@@ -4792,6 +4836,12 @@ static void check_pic_decoded_lcu_count(struct hevc_state_s *hevc,
 		}
 
 	}
+	if (hevc->cur_pic && hevc->head_error_flag) {
+		hevc->cur_pic->error_mark = 1;
+		hevc_print(hevc, 0,
+			"head has error, set error_mark\n");
+	}
+
 }
 
 static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
@@ -5025,7 +5075,7 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 #ifdef MULTI_INSTANCE_SUPPORT
 			if (!hevc->m_ins_flag)
 #endif
-				check_pic_decoded_lcu_count_pre(hevc,
+				check_pic_decoded_error_pre(hevc,
 					READ_VREG(HEVC_PARSER_LCU_START)
 					& 0xffffff);
 			/**/ if (use_cma == 0) {
@@ -7398,7 +7448,7 @@ pic_done:
 					dolby_get_meta(hevc);
 			}
 #endif
-			check_pic_decoded_lcu_count(hevc,
+			check_pic_decoded_error(hevc,
 				hevc->pic_decoded_lcu_idx);
 			pic = get_pic_by_POC(hevc, hevc->curr_POC);
 			hevc->curr_POC = INVALID_POC;
@@ -7590,6 +7640,14 @@ pic_done:
 							- ii];
 					}
 				}
+#ifdef SEND_LMEM_WITH_RPM
+				dma_sync_single_for_cpu(
+					amports_get_dma_device(),
+					hevc->lmem_phy_addr,
+					LMEM_BUF_SIZE,
+					DMA_FROM_DEVICE);
+				check_head_error(hevc);
+#endif
 			}
 			if (get_dbg_flag(hevc) & H265_DEBUG_BUFMGR_MORE) {
 				hevc_print(hevc, 0,
@@ -7886,12 +7944,15 @@ static irqreturn_t vh265_isr(int irq, void *data)
 				hevc_print_cont(hevc, 0, "\n");
 		}
 
-		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+		if (((udebug_pause_pos & 0xffff)
+			== (debug_tag & 0xffff)) &&
 			(udebug_pause_decode_idx == 0 ||
 			udebug_pause_decode_idx == hevc->decode_idx) &&
 			(udebug_pause_val == 0 ||
-			udebug_pause_val == READ_HREG(DEBUG_REG2)))
+			udebug_pause_val == READ_HREG(DEBUG_REG2))) {
+			udebug_pause_pos &= 0xffff;
 			hevc->ucode_pause_pos = udebug_pause_pos;
+		}
 		else if (debug_tag & 0x20000)
 			hevc->ucode_pause_pos = 0xffffffff;
 		if (hevc->ucode_pause_pos)
@@ -7903,12 +7964,15 @@ static irqreturn_t vh265_isr(int irq, void *data)
 			"dbg%x: %x lcu %x\n", READ_HREG(DEBUG_REG1),
 			   READ_HREG(DEBUG_REG2),
 			   READ_VREG(HEVC_PARSER_LCU_START));
-		if ((udebug_pause_pos == (debug_tag & 0xffff)) &&
+		if (((udebug_pause_pos & 0xffff)
+			== (debug_tag & 0xffff)) &&
 			(udebug_pause_decode_idx == 0 ||
 			udebug_pause_decode_idx == hevc->decode_idx) &&
 			(udebug_pause_val == 0 ||
-			udebug_pause_val == READ_HREG(DEBUG_REG2)))
+			udebug_pause_val == READ_HREG(DEBUG_REG2))) {
+			udebug_pause_pos &= 0xffff;
 			hevc->ucode_pause_pos = udebug_pause_pos;
+		}
 		if (hevc->ucode_pause_pos)
 			reset_process_time(hevc);
 		else
@@ -8702,7 +8766,7 @@ static void timeout_process(struct hevc_state_s *hevc)
 
 	hevc_print(hevc,
 		0, "%s decoder timeout\n", __func__);
-	check_pic_decoded_lcu_count(hevc,
+	check_pic_decoded_error(hevc,
 				hevc->pic_decoded_lcu_idx);
 	hevc->decoded_poc = hevc->curr_POC;
 	hevc->decoding_pic = NULL;
@@ -9038,7 +9102,7 @@ static void vh265_work(struct work_struct *work)
 
 		hevc->used_4k_num = -1;
 
-		check_pic_decoded_lcu_count(hevc,
+		check_pic_decoded_error(hevc,
 			hevc->pic_decoded_lcu_idx);
 #ifdef CONFIG_AM_VDEC_DV
 #if 1
@@ -9106,7 +9170,7 @@ static void vh265_work(struct work_struct *work)
 			READ_VREG(HEVC_AUX_DATA_SIZE) != 0)
 			dolby_get_meta(hevc);
 #endif
-		check_pic_decoded_lcu_count(hevc,
+		check_pic_decoded_error(hevc,
 			hevc->pic_decoded_lcu_idx);
 		pic = get_pic_by_POC(hevc, hevc->curr_POC);
 		hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
@@ -9186,6 +9250,10 @@ static bool run_ready(struct vdec_s *vdec)
 	struct hevc_state_s *hevc =
 		(struct hevc_state_s *)vdec->private;
 	bool ret = 0;
+	if (step == 0x12)
+		return 0;
+	else if (step == 0x11)
+		step = 0x12;
 
 	if (hevc->eos)
 		return 0;
