@@ -1583,6 +1583,17 @@ static ssize_t show_disp_cap(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_preferred_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct rx_cap *pRXCap = &hdmitx_device.RXCap;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n",
+		hdmitx_edid_vic_to_string(pRXCap->preferred_mode));
+
+	return pos;
+}
 
 /* cea_cap, a clone of disp_cap */
 static ssize_t show_cea_cap(struct device *dev,
@@ -2496,6 +2507,7 @@ static DEVICE_ATTR(config, S_IWUSR | S_IRUGO | S_IWGRP, show_config,
 	store_config);
 static DEVICE_ATTR(debug, S_IWUSR, NULL, store_debug);
 static DEVICE_ATTR(disp_cap, S_IRUGO, show_disp_cap, NULL);
+static DEVICE_ATTR(preferred_mode, S_IRUGO, show_preferred_mode, NULL);
 static DEVICE_ATTR(cea_cap, S_IRUGO, show_cea_cap, NULL);
 static DEVICE_ATTR(vesa_cap, S_IRUGO, show_vesa_cap, NULL);
 static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
@@ -3417,6 +3429,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
+	ret = device_create_file(dev, &dev_attr_preferred_mode);
 	ret = device_create_file(dev, &dev_attr_cea_cap);
 	ret = device_create_file(dev, &dev_attr_vesa_cap);
 	ret = device_create_file(dev, &dev_attr_disp_cap_3d);
@@ -3605,6 +3618,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);
+	device_remove_file(dev, &dev_attr_preferred_mode);
 	device_remove_file(dev, &dev_attr_cea_cap);
 	device_remove_file(dev, &dev_attr_vesa_cap);
 	device_remove_file(dev, &dev_attr_disp_cap_3d);

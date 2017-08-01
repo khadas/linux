@@ -1969,6 +1969,7 @@ static void Edid_Descriptor_PMT(struct rx_cap *pRXCap,
 	t->tmds_clk = data[0] + (data[1] << 8);
 	t->hactive = data[2] + (((data[4] >> 4) & 0xf) << 8);
 	t->hblank = data[3] + ((data[4] & 0xf) << 8);
+	t->hsync = data[9] + (((data[11] >> 4) & 0x3) << 8);
 	t->vactive = data[5] + (((data[7] >> 4) & 0xf) << 8);
 	t->vblank = data[6] + ((data[7] & 0xf) << 8);
 	para = hdmi_get_vesa_paras(t);
@@ -1978,6 +1979,9 @@ static void Edid_Descriptor_PMT(struct rx_cap *pRXCap,
 	}
 	if (para && ((para->vic) >= HDMITX_VESA_OFFSET))
 		store_vesa_idx(pRXCap, para->vic);
+	if (pRXCap->preferred_mode == 0 || !pRXCap->preferred_mode)
+		pRXCap->preferred_mode = pRXCap->vesa_timing[0];
+
 }
 
 static void Edid_Descriptor_PMT2(struct rx_cap *pRXCap,
@@ -1988,6 +1992,7 @@ static void Edid_Descriptor_PMT2(struct rx_cap *pRXCap,
 	t->tmds_clk = data[0] + (data[1] << 8);
 	t->hactive = data[2] + (((data[4] >> 4) & 0xf) << 8);
 	t->hblank = data[3] + ((data[4] & 0xf) << 8);
+	t->hsync = data[9] + (((data[11] >> 4) & 0x3) << 8);
 	t->vactive = data[5] + (((data[7] >> 4) & 0xf) << 8);
 	t->vblank = data[6] + ((data[7] & 0xf) << 8);
 	para = hdmi_get_vesa_paras(t);
