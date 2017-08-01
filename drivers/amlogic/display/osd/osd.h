@@ -320,6 +320,8 @@ struct hw_para_s {
 	u32 screen_size[HW_OSD_COUNT];
 	char __iomem *screen_base_backup[HW_OSD_COUNT];
 	u32 screen_size_backup[HW_OSD_COUNT];
+	u32 vinfo_width;
+	u32 vinfo_height;
 };
 
 #endif /* _OSD_H_ */

@@ -2030,30 +2030,30 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			((fence_map->dst_y + fence_map->dst_h) *
 			height_dst) / height_src - 1;
 		if (osd_hw.osd_reverse[OSD1] == REVERSE_TRUE) {
-			x_start = width_dst
+			x_start = osd_hw.vinfo_width
 				- freescale_dst[index].x_end - 1;
-			y_start = height_dst
+			y_start = osd_hw.vinfo_height
 				- freescale_dst[index].y_end - 1;
-			x_end = width_dst
+			x_end = osd_hw.vinfo_width
 				- freescale_dst[index].x_start - 1;
-			y_end = height_dst
+			y_end = osd_hw.vinfo_height
 				- freescale_dst[index].y_start - 1;
 			freescale_dst[index].x_start = x_start;
 			freescale_dst[index].y_start = y_start;
 			freescale_dst[index].x_end = x_end;
 			freescale_dst[index].y_end = y_end;
 		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_X) {
-			x_start = width_dst
+			x_start = osd_hw.vinfo_width
 				- freescale_dst[index].x_end - 1;
-			x_end = width_dst
+			x_end = osd_hw.vinfo_width
 				- freescale_dst[index].x_start - 1;
 			freescale_dst[index].x_start = x_start;
 			freescale_dst[index].x_end = x_end;
 
 		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_Y) {
-			y_start = height_dst
+			y_start = osd_hw.vinfo_height
 				- freescale_dst[index].y_end - 1;
-			y_end = height_dst
+			y_end = osd_hw.vinfo_height
 				- freescale_dst[index].y_start - 1;
 			freescale_dst[index].y_start = y_start;
 			freescale_dst[index].y_end = y_end;
@@ -2111,30 +2111,30 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 		osd_hw.dispdata[index].y_end =
 			fence_map->dst_y + fence_map->dst_h - 1;
 		if (osd_hw.osd_reverse[OSD1] == REVERSE_TRUE) {
-			x_start = width_dst
+			x_start = osd_hw.vinfo_width
 				- osd_hw.dispdata[index].x_end - 1;
-			y_start = height_dst
+			y_start = osd_hw.vinfo_height
 				- osd_hw.dispdata[index].y_end - 1;
-			x_end = width_dst
+			x_end = osd_hw.vinfo_width
 				- osd_hw.dispdata[index].x_start - 1;
-			y_end = height_dst
+			y_end = osd_hw.vinfo_height
 				- osd_hw.dispdata[index].y_start - 1;
 			osd_hw.dispdata[index].x_start = x_start;
 			osd_hw.dispdata[index].y_start = y_start;
 			osd_hw.dispdata[index].x_end = x_end;
 			osd_hw.dispdata[index].y_end = y_end;
 		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_X) {
-			x_start = width_dst
+			x_start = osd_hw.vinfo_width
 				- osd_hw.dispdata[index].x_end - 1;
-			x_end = width_dst
+			x_end = osd_hw.vinfo_width
 				- osd_hw.dispdata[index].x_start - 1;
 			osd_hw.dispdata[index].x_start = x_start;
 			osd_hw.dispdata[index].x_end = x_end;
 
 		} else if (osd_hw.osd_reverse[OSD1] == REVERSE_Y) {
-			y_start = height_dst
+			y_start = osd_hw.vinfo_height
 				- osd_hw.dispdata[index].y_end - 1;
-			y_end = height_dst
+			y_end = osd_hw.vinfo_height
 				- osd_hw.dispdata[index].y_start - 1;
 			osd_hw.dispdata[index].y_start = y_start;
 			osd_hw.dispdata[index].y_end = y_end;
@@ -2156,6 +2156,8 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	bool freescale_update = false;
 	u32 osd_enable = 0;
 	bool skip = false;
+	const struct vinfo_s *vinfo;
+
 	if (index >= 2)
 		return;
 	if (timeline_created) { /* out fence created success. */
@@ -2170,6 +2172,12 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			skip = true;
 		else
 			osd_enable = (fence_map->op & 1) ? DISABLE : ENABLE;
+		vinfo = get_current_vinfo();
+		if (vinfo) {
+			osd_hw.vinfo_width = vinfo->width;
+			osd_hw.vinfo_height = vinfo->height;
+		}
+
 		if (fence_map->ext_addr && fence_map->width
 				&& fence_map->height && index == OSD1) {
 			spin_lock_irqsave(&osd_lock, lock_flags);
