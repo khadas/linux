@@ -35,6 +35,7 @@ static void tmds_config(unsigned long arg)
 		pr_info("hdmitx20: rx scrambler status\n");
 		return;
 	} else {
+		pr_info("hdmitx20: rx scrambler status is not ok\n");
 		if ((hdev->para->tmds_clk_div40) && (cnt < 3))
 			mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ / 2);
 		else
