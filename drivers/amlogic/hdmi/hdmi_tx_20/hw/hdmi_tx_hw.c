@@ -2051,23 +2051,17 @@ static void set_tmds_clk_div40(unsigned int div40)
 	hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
 
-static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
+static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 {
 	unsigned char rx_ver = 0;
-	if (hdev->cur_video_param == NULL) /* disable HDMI */
-		return 0;
-	else
-		if (!hdmitx_edid_VIC_support(hdev->cur_video_param->VIC))
-			return -1;
-	hdev->cur_VIC = hdev->cur_video_param->VIC;
 
 	scdc_rd_sink(SINK_VER, &rx_ver);
 	if (rx_ver != 1)
 		scdc_rd_sink(SINK_VER, &rx_ver);	/* Recheck */
-	pr_info("hdmirx version is %s\n",
+	hdmi_print(IMP, SYS "hdmirx version is %s\n",
 		(rx_ver == 1) ? "2.0" : "1.4 or below");
 
-	switch (hdev->cur_VIC) {
+	switch (hdev->cur_video_param->VIC) {
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
 	case HDMI_4096x2160p50_256x135:
@@ -2091,10 +2085,13 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		break;
 	case HDMI_3840x2160p24_16x9:
 	case HDMI_3840x2160p24_64x27:
+	case HDMI_4096x2160p24_256x135:
 	case HDMI_3840x2160p25_16x9:
 	case HDMI_3840x2160p25_64x27:
+	case HDMI_4096x2160p25_256x135:
 	case HDMI_3840x2160p30_16x9:
 	case HDMI_3840x2160p30_64x27:
+	case HDMI_4096x2160p30_256x135:
 		if ((hdev->para->cs == COLORSPACE_YUV422)
 			|| (hdev->para->cd == COLORDEPTH_24B))
 			hdev->para->tmds_clk_div40 = 0;
@@ -2110,6 +2107,18 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	}
 	set_tmds_clk_div40(hdev->para->tmds_clk_div40);
 	scdc_config(hdev);
+}
+
+static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
+{
+	if (hdev->cur_video_param == NULL) /* disable HDMI */
+		return 0;
+	else
+		if (!hdmitx_edid_VIC_support(hdev->cur_video_param->VIC))
+			return -1;
+	hdev->cur_VIC = hdev->cur_video_param->VIC;
+
+	hdmitx_set_scdc(hdev);
 
 	if (color_depth_f == 24)
 		hdev->cur_video_param->color_depth = COLORDEPTH_24B;
@@ -2342,6 +2351,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 4, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO2, 0x1, 4, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+		break;
 	default:
 		break;
 	}
