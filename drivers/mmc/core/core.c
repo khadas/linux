@@ -1453,6 +1453,8 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	 */
 	mmc_delay(1);
 	if (host->ops->card_busy && !host->ops->card_busy(host)) {
+		pr_info("[%s] not low immediately after the response of cmd11\n",
+				__func__);
 		err = -EAGAIN;
 		goto power_cycle;
 	}

@@ -586,6 +586,10 @@ static void aml_sd_emmc_set_timing_v3(struct amlsd_platform *pdata,
 		clkc->core_phase = 2;
 		sd_emmc_regs->gclock = vclkc;
 		pdata->clkc = vclkc;
+	} else if (timing == MMC_TIMING_UHS_SDR104) {
+		clkc->core_phase = 2;
+		sd_emmc_regs->gclock = vclkc;
+		pdata->clkc = vclkc;
 	} else
 		ctrl->ddr = 0;
 
@@ -1195,7 +1199,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 
 /* test clock, return delay cells for one cycle
  */
-static unsigned int emmc_clktest(struct mmc_host *mmc)
+static unsigned int aml_sd_emmc_clktest(struct mmc_host *mmc)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
@@ -1249,7 +1253,7 @@ static unsigned int emmc_clktest(struct mmc_host *mmc)
 int aml_post_hs400_timming(struct mmc_host *mmc)
 {
 	int ret = 0;
-	emmc_clktest(mmc);
+	aml_sd_emmc_clktest(mmc);
 	ret = emmc_ds_manual_sht(mmc);
 	return 0;
 }
@@ -1707,7 +1711,7 @@ static int emmc_test_line_sht(struct mmc_host *mmc)
 }
 #endif
 
-int aml_emmc_hs200_timming(struct mmc_host *mmc)
+int aml_emmc_hs200_timing(struct mmc_host *mmc)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
@@ -1715,7 +1719,7 @@ int aml_emmc_hs200_timming(struct mmc_host *mmc)
 			(struct sd_emmc_regs_v3 *)host->sd_emmc_regs;
 	u32 adjust = sd_emmc_regs->gadjust;
 	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
-	emmc_clktest(mmc);
+	aml_sd_emmc_clktest(mmc);
 	print_all_line_eyetest(mmc);
 	emmc_all_data_line_alignment(mmc);
 	gadjust->cali_enable = 1;
@@ -1724,6 +1728,146 @@ int aml_emmc_hs200_timming(struct mmc_host *mmc)
 	return 0;
 }
 
+static int sdio_eyetest_log(struct mmc_host *mmc, u32 line_x, u32 opcode,
+		struct aml_tuning_data *tuning_data)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct sd_emmc_regs_v3 *sd_emmc_regs =
+		(struct sd_emmc_regs_v3 *)host->sd_emmc_regs;
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust_v3 *gadjust =
+		(struct sd_emmc_adjust_v3 *)&adjust;
+	u32 eyetest_log = 0;
+	struct eyetest_log *geyetest_log = (struct eyetest_log *)&(eyetest_log);
+	u32 eyetest_out0 = 0, eyetest_out1 = 0;
+	u32 intf3 = sd_emmc_regs->intf3;
+	struct intf3 *gintf3 = (struct intf3 *)&(intf3);
+	int retry = 3, i;
+	u64 tmp = 0;
+	const u8 *blk_pattern = tuning_data->blk_pattern;
+	unsigned int blksz = tuning_data->blksz;
+	u8 *blk_test;
+		blk_test = kmalloc(blksz, GFP_KERNEL);
+	if (!blk_test)
+		return -ENOMEM;
+	host->is_tunning = 1;
+	/****** calculate  line_x ***************************/
+	/******* init eyetest register ************************/
+	emmc_dbg(AMLSD_DBG_V3, "delay1: 0x%x , delay2: 0x%x, line_x: %d\n",
+	    sd_emmc_regs->gdelay1, sd_emmc_regs->gdelay2, line_x);
+	gadjust->cali_enable = 1;
+	gadjust->cali_sel = line_x;
+	sd_emmc_regs->gadjust = adjust;
+	gintf3->eyetest_exp = 4;
+
+RETRY:
+
+	gintf3->eyetest_on = 1;
+	sd_emmc_regs->intf3 = intf3;
+	/*emmc_dbg(AMLSD_DBG_V3, "intf3: 0x%x\n", sd_emmc_regs->intf3);*/
+
+	/*****test start*************/
+	udelay(5);
+	for (i = 0; i < 40; i++)
+		aml_sd_emmc_tuning_transfer(mmc, opcode,
+				blk_pattern, blk_test, blksz);
+	udelay(1);
+	eyetest_log = sd_emmc_regs->eyetest_log;
+	eyetest_out0 = sd_emmc_regs->eyetest_out0;
+	eyetest_out1 = sd_emmc_regs->eyetest_out1;
+
+	if (!(geyetest_log->eyetest_done & 0x1)) {
+		pr_warn("testing eyetest times: 0x%x, out: 0x%x, 0x%x\n",
+				geyetest_log->eyetest_times,
+				eyetest_out0, eyetest_out1);
+		gintf3->eyetest_on = 0;
+		sd_emmc_regs->intf3 = intf3;
+		retry--;
+		if (retry == 0) {
+			pr_warn("[%s][%d] retry eyetest failed\n",
+					__func__, __LINE__);
+			return 1;
+		}
+		goto RETRY;
+	}
+	emmc_dbg(AMLSD_DBG_V3,
+		"test done! eyetest times: 0x%x, out: 0x%x, 0x%x\n",
+			geyetest_log->eyetest_times,
+			eyetest_out0, eyetest_out1);
+	gintf3->eyetest_on = 0;
+	sd_emmc_regs->intf3 = intf3;
+	/*emmc_dbg(AMLSD_DBG_V3, "intf3: 0x%x,adjust: 0x%x\n",
+			sd_emmc_regs->intf3, sd_emmc_regs->gadjust);*/
+	pdata->align[line_x] = ((tmp | eyetest_out1) << 32) | eyetest_out0;
+	emmc_dbg(AMLSD_DBG_V3, "u64 eyetestout 0x%llx\n",
+			pdata->align[line_x]);
+	host->is_tunning = 0;
+	kfree(blk_test);
+	return 0;
+}
+
+static int aml_sdio_timing(struct mmc_host *mmc, u32 opcode,
+					struct aml_tuning_data *tuning_data,
+					u32 adj_win_start)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct sd_emmc_regs_v3 *sd_emmc_regs =
+		(struct sd_emmc_regs_v3 *)host->sd_emmc_regs;
+	/*u32 vclk = sd_emmc_regs->gclock;
+	struct sd_emmc_clock_v3 *clkc = (struct sd_emmc_clock_v3 *)&(vclk);
+	u32 vctrl;
+	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust_v3 *gadjust =
+		(struct sd_emmc_adjust_v3 *)&adjust;*/
+	u32 line_x = 0, delay1 = 0, retry = 1, temp;
+	int ret;
+	host->is_tunning = 1;
+	delay1 = 0;
+
+	for (line_x = 0; line_x < 4; line_x++) {
+		sd_emmc_regs->gdelay1 = 0;
+		retry = 1;
+RETRY:
+		ret = sdio_eyetest_log(mmc, line_x, opcode, tuning_data);
+		if (ret && retry) {
+			pr_info("[%s][%d] add delay for data, retry...\n",
+					__func__, __LINE__);
+			sd_emmc_regs->gdelay1 = (5 << (6 * line_x));
+			delay1 |= sd_emmc_regs->gdelay1;
+			retry--;
+			goto RETRY;
+		} else if (ret && !retry) {
+			pr_info("[%s][%d] retry failed...\n",
+					__func__, __LINE__);
+			return 1;
+		}
+	}
+
+	sd_emmc_regs->gdelay1 = delay1;
+	delay1 = 0;
+	for (line_x = 0; line_x < 4; line_x++) {
+		temp = fbinary(pdata->align[line_x]);
+		if (temp < 31)
+			temp = 31 - temp;
+		else
+			temp = 0;
+		emmc_dbg(AMLSD_DBG_V3, "line_x: %d, result: %d\n",
+				line_x, temp);
+		delay1 |= temp << (6 * line_x);
+	}
+	sd_emmc_regs->gdelay1 += delay1;
+
+	host->is_tunning = 0;
+	pr_info("%s: gadjust=0x%x, gdelay1=0x%x\n",
+			mmc_hostname(host->mmc),
+			sd_emmc_regs->gadjust, sd_emmc_regs->gdelay1);
+	return 0;
+}
+
+#if 0
 static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 					struct aml_tuning_data *tuning_data,
 					u32 adj_win_start)
@@ -1893,6 +2037,8 @@ tunning:
 #endif
 	return 0;
 }
+#endif
+
 int aml_sd_emmc_execute_tuning_v3(struct mmc_host *mmc, u32 opcode)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
@@ -1925,16 +2071,15 @@ int aml_sd_emmc_execute_tuning_v3(struct mmc_host *mmc, u32 opcode)
 		return -EINVAL;
 	}
 
-	if (aml_card_type_sdio(pdata))
-		err = _aml_sd_emmc_execute_tuning(mmc, opcode,
+	sd_emmc_regs->intf3 |= (1 << 22);
+	if (aml_card_type_sdio(pdata)) {
+		aml_sd_emmc_clktest(mmc);
+		err = aml_sdio_timing(mmc, opcode,
 			&tuning_data, adj_win_start);
-	else if (!(pdata->caps2 & MMC_CAP2_HS400)) {
-		sd_emmc_regs->intf3 |= (1 << 22);
-		err = aml_emmc_hs200_timming(mmc);
-	} else {
-		sd_emmc_regs->intf3 |= (1 << 22);
+	} else if (!(pdata->caps2 & MMC_CAP2_HS400))
+		err = aml_emmc_hs200_timing(mmc);
+	else
 		err = 0;
-	}
 
 	pr_info("%s: gclock=0x%x, gdelay1=0x%x, gdelay2=0x%x,intf3=0x%x\n",
 		mmc_hostname(mmc), sd_emmc_regs->gclock,
