@@ -28,6 +28,7 @@
 
 #define MIN_FRAME_PADDING_SIZE ((u32)(L1_CACHE_BYTES))
 
+#define EXTRA_PADDING_SIZE  (16 * SZ_1K) /*HEVC_PADDING_SIZE*/
 
 #define MEM_NAME "VFRAME_INPUT"
 static int vdec_input_get_duration_u64(struct vdec_input_s *input);
@@ -719,7 +720,7 @@ int vdec_input_add_frame(struct vdec_input_s *input, const char *buf,
 	}
 	if (!block) {/*try new block.*/
 		int ret = vdec_input_get_free_block(input,
-			count + need_pading_size,
+			count + need_pading_size + EXTRA_PADDING_SIZE,
 			&block);
 		if (ret < 0)/*no enough block now.*/
 			return ret;
