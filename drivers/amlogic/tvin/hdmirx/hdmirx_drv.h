@@ -42,7 +42,7 @@
 #define RX_VER2 "Ref.2017/06/01"
 /*------------------------------*/
 
-#define RX_VER3 "Ref.2017/07/28"
+#define RX_VER3 "Ref.2017/08/02"
 /*------------------------------*/
 
 #define RX_VER4 "Ref.2017/07/28"
@@ -423,7 +423,9 @@ struct rx_video_info {
 	bool hw_dvi;
 
 	uint8_t hdcp_type;
+	/** bit'0:auth start  bit'1:enc state(0:not endrypted 1:encrypted) **/
 	uint8_t hdcp14_state;
+	/** 1:decrypted 0:encrypted **/
 	uint8_t hdcp22_state;
 	/** Deep color mode: 8, 10, 12 or 16 [bits per pixel] */
 	uint8_t colordepth;

@@ -2335,8 +2335,12 @@ void hdmirx_hw_monitor(void)
 					if (sig_stable_cnt < (sig_stable_max*7))
 						break;
 				}
+				/*For 1.4 source after esm reset,hdcp type will
+				be 2.2 untill tx send aksv,for some sources
+				which send aksv too late,this state will keep
+				2.2,so this state is correct */
 				if ((is_hdcp_source) &&
-					(rx.pre.hdcp_type == E_HDCP14) &&
+					/* (rx.pre.hdcp_type == E_HDCP14) && */
 					(rx.pre.hdcp14_state != 3) &&
 					(rx.pre.hdcp14_state != 0)) {
 					if (log_level & VIDEO_LOG)
