@@ -1656,6 +1656,8 @@ static ssize_t show_disp_cap_3d(struct device *dev,
 			if (vic == hdmitx_device.RXCap.VIC[j])
 				break;
 		}
+		if (vic == HDMI_Unkown)
+			continue;
 		pos += snprintf(buf+pos, PAGE_SIZE, "\n%s ",
 			disp_mode_t[i]);
 		if (local_support_3dfp(vic)
