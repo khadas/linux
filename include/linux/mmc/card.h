@@ -112,6 +112,7 @@ struct mmc_ext_csd {
 	u8			raw_pwr_cl_ddr_52_195;	/* 238 */
 	u8			raw_pwr_cl_ddr_52_360;	/* 239 */
 	u8			raw_pwr_cl_ddr_200_360;	/* 253 */
+	u8			firmware_version[8]; /* 254 - 8 bytes */
 	u8			raw_dev_lifetime_est_typ_a;	/* 268 */
 	u8			raw_dev_lifetime_est_typ_b;	/* 269 */
 	u8			raw_bkops_status;	/* 246 */

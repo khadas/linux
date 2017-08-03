@@ -614,6 +614,15 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.data_sector_size = 512;
 	}
 
+	card->ext_csd.firmware_version[0] = ext_csd[EXT_CSD_FIRMWARE_VERSION+0];
+	card->ext_csd.firmware_version[1] = ext_csd[EXT_CSD_FIRMWARE_VERSION+1];
+	card->ext_csd.firmware_version[2] = ext_csd[EXT_CSD_FIRMWARE_VERSION+2];
+	card->ext_csd.firmware_version[3] = ext_csd[EXT_CSD_FIRMWARE_VERSION+3];
+	card->ext_csd.firmware_version[4] = ext_csd[EXT_CSD_FIRMWARE_VERSION+4];
+	card->ext_csd.firmware_version[5] = ext_csd[EXT_CSD_FIRMWARE_VERSION+5];
+	card->ext_csd.firmware_version[6] = ext_csd[EXT_CSD_FIRMWARE_VERSION+6];
+	card->ext_csd.firmware_version[7] = ext_csd[EXT_CSD_FIRMWARE_VERSION+7];
+
 out:
 	return err;
 }
@@ -727,6 +736,15 @@ MMC_DEV_ATTR(dev_lifetime_est_typ_b, "0x%02x\n",
 		card->ext_csd.raw_dev_lifetime_est_typ_b);
 MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
+MMC_DEV_ATTR(firmware_version, "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		card->ext_csd.firmware_version[0],
+		card->ext_csd.firmware_version[1],
+		card->ext_csd.firmware_version[2],
+		card->ext_csd.firmware_version[3],
+		card->ext_csd.firmware_version[4],
+		card->ext_csd.firmware_version[5],
+		card->ext_csd.firmware_version[6],
+		card->ext_csd.firmware_version[7]);
 
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -749,8 +767,10 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_dev_lifetime_est_typ_b.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
+	&dev_attr_firmware_version.attr,
 	NULL,
 };
+
 ATTRIBUTE_GROUPS(mmc_std);
 
 static struct device_type mmc_type = {
