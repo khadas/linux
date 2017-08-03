@@ -770,6 +770,8 @@ struct h264_dpb_stru {
 	unsigned int aspect_ratio_sar_height;
 
 	unsigned int dec_dpb_status;
+	unsigned char buf_alloc_fail;
+	unsigned int dpb_error_flag;
 };
 
 
@@ -822,4 +824,11 @@ void print_pic_info(int decindex, const char *info,
 			int slice_type);
 void dump_dpb(struct DecodedPictureBuffer *p_Dpb, u8 force);
 
+void dump_pic(struct h264_dpb_stru *p_H264_Dpb);
+
+enum PictureStructure get_cur_slice_picture_struct(
+	struct h264_dpb_stru *p_H264_Dpb);
+
+int dpb_check_ref_list_error(
+	struct h264_dpb_stru *p_H264_Dpb);
 #endif
