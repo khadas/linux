@@ -1029,6 +1029,7 @@ static struct StorablePicture *get_new_pic(struct h264_dpb_stru *p_H264_Dpb,
 
 		s->top_poc = s->bottom_poc = s->poc = 0;
 		s->seiHasTone_mapping = 0;
+		s->frame_mbs_only_flag = p_Vid->active_sps->frame_mbs_only_flag;
 
 		if (!p_Vid->active_sps->frame_mbs_only_flag &&
 			structure != FRAME) {

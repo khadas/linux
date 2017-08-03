@@ -306,8 +306,7 @@ u32 V_BUF_ADDR_OFFSET = 0x200000;
 #define SWITCHING_STATE_ON_CMD3   1
 #define SWITCHING_STATE_ON_CMD1   2
 
-#define DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE 0x0001
-#define DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE  0x0002
+
 
 #define INCPTR(p) ptr_atomic_wrap_inc(&p)
 
@@ -1490,6 +1489,34 @@ static void update_vf_memhandle(struct vdec_h264_hw_s *hw,
 	}
 	return;
 }
+static int check_force_interlace(struct vdec_h264_hw_s *hw,
+	struct FrameStore *frame)
+{
+	int bForceInterlace = 0;
+
+	if (frame->frame) {
+		if (frame->frame->coded_frame
+			&& !frame->frame->frame_mbs_only_flag) {
+			if (frame->frame->structure == FRAME)
+				return 1;
+		}
+	}
+
+	if ((dec_control & DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE)
+		&& (hw->frame_width == 1920)
+		&& (hw->frame_height >= 1080)
+		&& (hw->frame_dur == 3203)) {
+		bForceInterlace = 1;
+	} else if ((dec_control & DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE)
+			 && (hw->frame_width == 720)
+			 && (hw->frame_height == 576)
+			 && (hw->frame_dur == 3840)) {
+		bForceInterlace = 1;
+	}
+
+	return bForceInterlace;
+}
+
 int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 {
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)vdec->private;
@@ -1497,6 +1524,8 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 	int buffer_index = frame->buf_spec_num;
 	int vf_count = 1;
 	int i;
+	int bForceInterlace = 0;
+
 	if (buffer_index < 0 || buffer_index >= BUFSPEC_POOL_SIZE) {
 		dpb_print(DECODE_ID(hw), 0,
 			"%s, buffer_index 0x%x is beyond range\n",
@@ -1554,6 +1583,9 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 		vf_count = 1;
 	else
 		vf_count = 2;
+	bForceInterlace = check_force_interlace(hw, frame);
+	if (bForceInterlace)
+		vf_count = 2;
 	hw->buffer_spec[buffer_index].vf_ref = 0;
 	for (i = 0; i < vf_count; i++) {
 		if (kfifo_get(&hw->newframe_q, &vf) == 0 ||
@@ -1595,14 +1627,25 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 		hw->buffer_spec[buffer_index].used = 2;
 		hw->buffer_spec[buffer_index].vf_ref++;
 
-		if (frame->frame &&
+
+		if (bForceInterlace ||
+			(frame->frame &&
 			frame->top_field &&
 			frame->bottom_field &&
-			(!frame->frame->coded_frame)) {
+			(!frame->frame->coded_frame))) {
 			vf->type =
 				VIDTYPE_INTERLACE_FIRST |
 				VIDTYPE_VIU_NV21;
-			if (frame->top_field->poc <=
+
+			if (bForceInterlace) {
+				vf->type |= (i == 0 ?
+					VIDTYPE_INTERLACE_TOP :
+					VIDTYPE_INTERLACE_BOTTOM);
+				if (i == 1) {
+					vf->pts = 0;
+					vf->pts_us64 = 0;
+				}
+			} else if (frame->top_field->poc <=
 				frame->bottom_field->poc) /*top first*/
 				vf->type |= (i == 0 ?
 					VIDTYPE_INTERLACE_TOP :
@@ -1613,6 +1656,7 @@ int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame)
 					VIDTYPE_INTERLACE_TOP);
 			vf->duration = vf->duration/2;
 		}
+
 		kfifo_put(&hw->display_q, (const struct vframe_s *)vf);
 		hw->vf_pre_count++;
 		vf_notify_receiver(vdec->vf_provider_name,
@@ -2792,6 +2836,7 @@ static int vh264_set_params(struct vdec_h264_hw_s *hw)
 		crop_right = ((crop_infor >> 16) & 0xff)
 			>> (2 - frame_mbs_only_flag);
 
+		p_H264_Dpb->mSPS.frame_mbs_only_flag = frame_mbs_only_flag;
 		hw->frame_width = mb_width << 4;
 		hw->frame_height = mb_height << 4;
 		if (frame_mbs_only_flag) {
