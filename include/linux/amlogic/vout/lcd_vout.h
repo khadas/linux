@@ -398,6 +398,9 @@ struct lcd_duration_s {
 	unsigned int duration_den;
 };
 
+#define LCD_VMODE_SWITCH         1
+#define LCD_VFRAME_RATE_AUTO     2
+#define LCD_FRAME_RATE_CHANGE    3
 struct aml_lcd_drv_s {
 	char *version;
 	enum lcd_chip_e chip_type;
@@ -409,6 +412,8 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_test_flag;
 	unsigned char lcd_resume_flag; /* 0=directly, 1=workqueue */
 	unsigned char lcd_mute;
+	unsigned char lcd_vmode_change_flag;
+	unsigned char lcd_vmode_vsync_en;
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -442,6 +447,7 @@ struct aml_lcd_drv_s {
 	struct delayed_work     lcd_probe_delayed_work;
 	struct delayed_work     lcd_vx1_delayed_work;
 	struct delayed_work     lcd_resume_delayed_work;
+	struct work_struct      lcd_vsync_work;
 	/*struct work_struct      lcd_resume_work;*/
 };
 

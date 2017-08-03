@@ -874,9 +874,11 @@ static int lcd_config_probe(void)
 
 	lcd_driver->lcd_info = &lcd_vinfo;
 	lcd_driver->lcd_config = &lcd_config_dft;
-	lcd_driver->vpp_sel = 1;
+	lcd_driver->vpp_sel = 0;
 	lcd_driver->lcd_test_flag = 0;
 	lcd_driver->lcd_resume_flag = 1; /* default workqueue */
+	lcd_driver->lcd_vmode_change_flag = 0;
+	lcd_driver->lcd_vmode_vsync_en = 0; /* default disable */
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
 	lcd_driver->power_tiny_ctrl = lcd_power_tiny_ctrl;

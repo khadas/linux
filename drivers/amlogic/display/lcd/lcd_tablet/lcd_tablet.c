@@ -139,6 +139,8 @@ static int lcd_framerate_automation_set_mode(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	LCDPR("%s\n", __func__);
+
 	/* update lcd config sync_duration, for calculate */
 	lcd_drv->lcd_config->lcd_timing.sync_duration_num =
 		lcd_drv->lcd_info->sync_duration_num;
@@ -230,7 +232,10 @@ static int lcd_set_vframe_rate_hint(int duration)
 	info->sync_duration_num = duration_num;
 	info->sync_duration_den = duration_den;
 
-	lcd_framerate_automation_set_mode();
+	if (lcd_drv->lcd_vmode_vsync_en)
+		lcd_drv->lcd_vmode_change_flag = LCD_VFRAME_RATE_AUTO;
+	else
+		lcd_framerate_automation_set_mode();
 #endif
 	return 0;
 }
@@ -257,7 +262,10 @@ static int lcd_set_vframe_rate_end_hint(void)
 		info->sync_duration_num = lcd_drv->std_duration.duration_num;
 		info->sync_duration_den = lcd_drv->std_duration.duration_den;
 
-		lcd_framerate_automation_set_mode();
+		if (lcd_drv->lcd_vmode_vsync_en)
+			lcd_drv->lcd_vmode_change_flag = LCD_VFRAME_RATE_AUTO;
+		else
+			lcd_framerate_automation_set_mode();
 	}
 #endif
 	return 0;
@@ -1161,6 +1169,7 @@ static int lcd_get_config(struct lcd_config_s *pconf, struct device *dev)
    lcd notify
  * ************************************************** */
 /* sync_duration is real_value * 100 */
+static int lcd_sync_duration;
 static void lcd_set_vinfo(unsigned int sync_duration)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
@@ -1199,6 +1208,7 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	unsigned int *sync_duration;
 
 	/* LCDPR("%s: 0x%lx\n", __func__, event); */
@@ -1206,7 +1216,11 @@ static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	sync_duration = (unsigned int *)data;
-	lcd_set_vinfo(*sync_duration);
+	lcd_sync_duration = *sync_duration;
+	if (lcd_drv->lcd_vmode_vsync_en)
+		lcd_drv->lcd_vmode_change_flag = LCD_FRAME_RATE_CHANGE;
+	else
+		lcd_set_vinfo(lcd_sync_duration);
 
 	return NOTIFY_OK;
 }
@@ -1214,6 +1228,72 @@ static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,
 static struct notifier_block lcd_frame_rate_adjust_nb = {
 	.notifier_call = lcd_frame_rate_adjust_notifier,
 };
+
+static void lcd_vsync_work(struct work_struct *p_work)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	unsigned char flag;
+
+	flag = lcd_drv->lcd_vmode_change_flag;
+	lcd_drv->lcd_vmode_change_flag = 0;
+
+	switch (flag) {
+	case LCD_VFRAME_RATE_AUTO:
+		lcd_framerate_automation_set_mode();
+		break;
+	case LCD_FRAME_RATE_CHANGE:
+		lcd_set_vinfo(lcd_sync_duration);
+	default:
+		break;
+	}
+
+	LCDPR("%s finished: vmode_change_flag=%d\n", __func__, flag);
+}
+
+static irqreturn_t lcd_vsync_isr(int irq, void *dev_id)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->lcd_status == 0)
+		return IRQ_HANDLED;
+
+	if (lcd_drv->lcd_vmode_vsync_en == 0)
+		return IRQ_HANDLED;
+
+	if (lcd_drv->lcd_vmode_change_flag) {
+		LCDPR("%s triggered, flag=%d\n",
+			__func__, lcd_drv->lcd_vmode_change_flag);
+		queue_work(lcd_drv->workqueue, &(lcd_drv->lcd_vsync_work));
+	}
+
+	return IRQ_HANDLED;
+}
+
+#define INT_VIU_VSYNC    35
+static void lcd_vsync_interrupt_up(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	INIT_WORK(&(lcd_drv->lcd_vsync_work), lcd_vsync_work);
+
+	if (request_irq(INT_VIU_VSYNC, &lcd_vsync_isr,
+		IRQF_SHARED, "lcd_vsync", (void *)"lcd_vsync")) {
+		LCDERR("can't request lcd_vsync irq\n");
+	} else {
+		if (lcd_debug_print_flag)
+			LCDPR("request lcd lcd_vsync irq successful\n");
+	}
+
+	LCDPR("add lcd_vsync irq\n");
+}
+
+static void lcd_vsync_interrupt_down(void)
+{
+	free_irq(INT_VIU_VSYNC, (void *)"lcd_vsync");
+
+	if (lcd_debug_print_flag)
+		LCDPR("free lcd_vsync irq\n");
+}
 
 /* ************************************************** *
    lcd tablet
@@ -1233,6 +1313,8 @@ int lcd_tablet_probe(struct device *dev)
 
 	lcd_get_config(lcd_drv->lcd_config, dev);
 
+	lcd_vsync_interrupt_up();
+
 	ret = aml_lcd_notifier_register(&lcd_frame_rate_adjust_nb);
 	if (ret)
 		LCDERR("register lcd_frame_rate_adjust_nb failed\n");
@@ -1245,6 +1327,7 @@ int lcd_tablet_remove(struct device *dev)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	aml_lcd_notifier_unregister(&lcd_frame_rate_adjust_nb);
+	lcd_vsync_interrupt_down();
 	kfree(lcd_drv->lcd_info);
 	lcd_drv->lcd_info = NULL;
 	return 0;

@@ -174,9 +174,11 @@ static void lcd_info_print(void)
 	LCDPR("panel_type: %s\n", pconf->lcd_propname);
 	LCDPR("key_valid: %d, config_load: %d\n",
 		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load);
-	LCDPR("chip: %d, mode : %s, status: %d, fr_auto_policy: %d\n",
+	LCDPR("chip: %d, mode : %s, status: %d\n",
 		lcd_drv->chip_type, lcd_mode_mode_to_str(lcd_drv->lcd_mode),
-		lcd_drv->lcd_status, lcd_drv->fr_auto_policy);
+		lcd_drv->lcd_status);
+	LCDPR("fr_auto_policy: %d, vmode_vsync_en: %d\n",
+		lcd_drv->fr_auto_policy, lcd_drv->lcd_vmode_vsync_en);
 
 	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
@@ -1168,14 +1170,19 @@ static ssize_t lcd_debug_frame_rate_show(struct class *class,
 	unsigned int sync_duration;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	ssize_t len;
 
 	pconf = lcd_drv->lcd_config;
 	sync_duration = pconf->lcd_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
 
-	return sprintf(buf, "get frame_rate: %u.%02uHz, fr_adjust_type: %d\n",
+	len = sprintf(buf, "get frame_rate: %u.%02uHz, fr_adjust_type: %d, ",
 		(sync_duration / 100), (sync_duration % 100),
 		pconf->lcd_timing.fr_adjust_type);
+	len += sprintf(buf+len, "vmode_vsync_en: %d\n",
+		lcd_drv->lcd_vmode_vsync_en);
+
+	return len;
 }
 
 static ssize_t lcd_debug_frame_rate_store(struct class *class,
@@ -1202,6 +1209,16 @@ static ssize_t lcd_debug_frame_rate_store(struct class *class,
 			pr_info("set frame rate(*100): %d\n", temp);
 			aml_lcd_notifier_call_chain(
 				LCD_EVENT_FRAME_RATE_ADJUST, &temp);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
+		break;
+	case 'v':
+		ret = sscanf(buf, "vsync %d", &temp);
+		if (ret == 1) {
+			pr_info("set vsync_en: %d\n", temp);
+			lcd_drv->lcd_vmode_vsync_en = (unsigned char)temp;
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
