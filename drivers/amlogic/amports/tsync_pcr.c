@@ -1258,6 +1258,7 @@ void tsync_pcr_stop(void)
 		del_timer_sync(&tsync_pcr_check_timer);
 		pr_info("[tsync_pcr_stop]PCRMASTER stop success.\n");
 	}
+	timestamp_pcrscr_set(0);
 	tsync_pcr_freerun_mode = 0;
 	tsync_pcr_started = 0;
 }
