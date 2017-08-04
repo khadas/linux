@@ -482,12 +482,12 @@ static void aml_sd_emmc_set_clk_rate_v3(struct mmc_host *mmc,
 				ioremap_nocache(P_HHI_NAND_CLK_CNTL,
 					sizeof(u32));
 			writel((1<<7)|(3<<9), source_base);
-			emmc_dbg(AMLSD_DBG_V3, "P_HHI_NAND_CLK_CNTL = 0x%x\n",
+			emmc_dbg(AMLSD_DBG_CLK_V3, "P_HHI_NAND_CLK_CNTL = 0x%x\n",
 				readl(source_base));
 			iounmap(source_base);
 		}
 	}
-	emmc_dbg(AMLSD_DBG_V3, "clk_ios: %u\n", clk_ios);
+	emmc_dbg(AMLSD_DBG_CLK_V3, "clk_ios: %u\n", clk_ios);
 	if (clk_ios > pdata->f_max)
 		clk_ios = pdata->f_max;
 	if (clk_ios < pdata->f_min)
@@ -519,7 +519,7 @@ static void aml_sd_emmc_set_clk_rate_v3(struct mmc_host *mmc,
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	clk_div = (clk_rate / clk_ios) + (!!(clk_rate % clk_ios));
-	emmc_dbg(AMLSD_DBG_V3, "clk_div: %u, clk_rate: %u\n",
+	emmc_dbg(AMLSD_DBG_CLK_V3, "clk_div: %u, clk_rate: %u\n",
 			clk_div, clk_rate);
 	aml_sd_emmc_clk_switch(pdata, clk_div, clk_src_sel);
 
@@ -528,7 +528,7 @@ static void aml_sd_emmc_set_clk_rate_v3(struct mmc_host *mmc,
 	pdata->clkc = sd_emmc_regs->gclock;
 
 	pdata->mmc->actual_clock = clk_rate / clk_div;
-	emmc_dbg(AMLSD_DBG_V3, "actual_clock: %u\n",
+	emmc_dbg(AMLSD_DBG_CLK_V3, "actual_clock: %u\n",
 			pdata->mmc->actual_clock);
 	/*Wait for a while after clock setting*/
 	/* udelay(100); */
@@ -653,6 +653,7 @@ static void aml_sd_emmc_set_power_v3(struct amlsd_platform *pdata,
 		sd_emmc_regs->gdelay1 = 0;
 		sd_emmc_regs->gdelay2 = 0;
 		sd_emmc_regs->gadjust = 0;
+		sd_emmc_regs->intf3 = 0;
 		break;
 	default:
 		if (pdata->pwr_pre)
@@ -1039,24 +1040,33 @@ static int emmc_ds_data_alignment(struct mmc_host *mmc)
 		(struct sd_emmc_regs_v3 *)host->sd_emmc_regs;
 	u32 delay1 = sd_emmc_regs->gdelay1;
 	u32 delay2 = sd_emmc_regs->gdelay2;
-	int i, line_x = 4;
+	int i, line_x, temp = 0;
 
-	for (i = 0; i < 64; i++) {
-		emmc_dbg(AMLSD_DBG_V3, "i = %d, delay1: 0x%x, delay2: 0x%x\n",
-			i, sd_emmc_regs->gdelay1,
-			sd_emmc_regs->gdelay2);
-		delay1 += (1<<0)|(1<<6)|(1<<12)|(1<<18)|(1<<24);
-		delay2 += (1<<0)|(1<<6)|(1<<12);
-		sd_emmc_regs->gdelay1 = delay1;
-		sd_emmc_regs->gdelay2 = delay2;
-		emmc_eyetest_log(mmc, line_x);
-		if (pdata->align[line_x] & 0xf0)
-			break;
-	}
-	if (i == 64) {
-		pr_warn("%s [%d] Don't find line delay which aligned with DS\n",
-			__func__, __LINE__);
-		return 1;
+	for (line_x = 0; line_x < 8; line_x++) {
+		temp = fbinary(pdata->align[line_x]);
+		if (temp <= 4)
+			continue;
+		for (i = 0; i < 64; i++) {
+			emmc_dbg(AMLSD_DBG_V3, "i = %d,delay1:0x%x,delay2:0x%x\n",
+				i, sd_emmc_regs->gdelay1,
+				sd_emmc_regs->gdelay2);
+			if (line_x < 5)
+				delay1 += 1<<(6*line_x);
+			else
+				delay2 += 1<<(6*(line_x-5));
+			/*delay1 += (1<<0)|(1<<6)|(1<<12)|(1<<18)|(1<<24);
+			delay2 += (1<<0)|(1<<6)|(1<<12);*/
+			sd_emmc_regs->gdelay1 = delay1;
+			sd_emmc_regs->gdelay2 = delay2;
+			emmc_eyetest_log(mmc, line_x);
+			if (pdata->align[line_x] & 0xf0)
+				break;
+		}
+		if (i == 64) {
+			pr_warn("%s [%d] Don't find line delay which aligned with DS\n",
+				__func__, __LINE__);
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -1079,7 +1089,7 @@ static int emmc_ds_core_align(struct mmc_host *mmc)
 	u32 delay2 = sd_emmc_regs->gdelay2;
 	u32 delay2_bak = delay2;
 	u32 count = 0;
-	u32 ds_count = 0;
+	u32 ds_count = 0, cmd_count = 0;
 	ds_count = fbinary(pdata->align[8]);
 	if (ds_count == 0)
 		if ((pdata->align[8] & 0xf0) == 0)
@@ -1101,7 +1111,11 @@ static int emmc_ds_core_align(struct mmc_host *mmc)
 	ds_count = fbinary(pdata->align[8]);
 	count = ((delay2>>18) & 0x3f) - ((delay2_bak>>18) & 0x3f);
 	delay1 += (count<<0)|(count<<6)|(count<<12)|(count<<18)|(count<<24);
-	delay2 += (count<<0)|(count<<6)|(count<<12)|(count<<24);
+	delay2 += (count<<0)|(count<<6)|(count<<12);
+	cmd_count = fbinary(pdata->align[9]);
+	if (cmd_count < (pdata->count / 2))
+		cmd_count = (pdata->count / 2) - cmd_count;
+	delay2 += (cmd_count<<24);
 	sd_emmc_regs->gdelay1 = delay1;
 	sd_emmc_regs->gdelay2 = delay2;
 	emmc_dbg(AMLSD_DBG_V3,
@@ -1128,6 +1142,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	int cur_start  = -1, cur_size = 0;
 	pr_info("[%s] 2017-7-4 emmc HS400 Timming\n", __func__);
 	sd_emmc_debug = 0x2000;
+	host->is_timming = 1;
 	blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
 	if (!blk_test)
 		return -ENOMEM;
@@ -1190,6 +1205,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	pr_info("ds_sht:%u, window:%d, intf3:0x%x",
 			gintf3->ds_sht_m, best_size, sd_emmc_regs->intf3);
 	host->is_tunning = 0;
+	host->is_timming = 0;
 	kfree(blk_test);
 	blk_test = NULL;
 	return 0;
