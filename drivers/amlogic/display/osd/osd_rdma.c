@@ -1217,8 +1217,9 @@ static int osd_rdma_init(void)
 	osd_reg_write(OSD_RDMA_FLAG_REG, 0x0);
 
 #ifdef CONFIG_AML_RDMA
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
-		&& (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)) {
+	if (((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
+		&& (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXLX)) {
 		osd_reset_rdma_op.arg = osd_rdma_dev;
 		osd_reset_rdma_handle =
 			rdma_register(&osd_reset_rdma_op,

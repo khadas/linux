@@ -206,7 +206,7 @@ int aml_read_vcbus(unsigned int reg)
 {
 	int ret, val;
 
-if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 	ret = aml_reg_read(IO_VAPB_BUS_BASE, (reg<<2), &val);
 else
 	ret = aml_reg_read(IO_APB_BUS_BASE, (0x100000+(reg<<2)), &val);
@@ -224,7 +224,7 @@ void aml_write_vcbus(unsigned int reg, unsigned int val)
 {
 	int ret;
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		ret = aml_reg_write(IO_VAPB_BUS_BASE, (reg<<2), val);
 	else
 		ret = aml_reg_write(IO_APB_BUS_BASE, (0x100000+(reg<<2)), val);
@@ -242,7 +242,7 @@ void aml_vcbus_update_bits(unsigned int reg,
 {
 	int ret;
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		ret = aml_regmap_update_bits(IO_VAPB_BUS_BASE,
 						(reg<<2), mask, val);
 	else

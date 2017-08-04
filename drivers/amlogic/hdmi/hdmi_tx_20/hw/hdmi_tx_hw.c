@@ -157,6 +157,7 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		return hdmitx_hpd_hw_op_gxl(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_TXLX:
@@ -179,6 +180,7 @@ int read_hpd_gpio(void)
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		return read_hpd_gpio_gxl();
 		break;
 	case MESON_CPU_MAJOR_ID_TXLX:
@@ -202,6 +204,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		return hdmitx_ddc_hw_op_gxl(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_TXLX:

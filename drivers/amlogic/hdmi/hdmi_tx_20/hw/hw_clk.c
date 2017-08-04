@@ -684,6 +684,7 @@ static void set_hpll_clk_out(unsigned clk)
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
 	case MESON_CPU_MAJOR_ID_TXLX:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		set_gxl_hpll_clk_out(frac_rate, clk);
 		break;
 	default:
@@ -703,6 +704,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		set_hpll_sspll_gxl(vic);
 		break;
 	default:
@@ -734,6 +736,7 @@ static void set_hpll_od1(unsigned div)
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_GXLX:
 	default:
 		set_hpll_od1_gxl(div);
 		break;

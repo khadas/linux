@@ -205,15 +205,16 @@ void di_hw_init(void)
 	if (!is_meson_txlx_cpu())
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 	/* enable old DI mode for m6tv */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		di_top_gate_control(true, true);
 	else if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()
-			|| is_meson_gxm_cpu())
+			|| is_meson_gxm_cpu() || is_meson_gxlx_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 
-	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()
+		|| is_meson_gxlx_cpu()) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
 		fifo_size_vpp = 0x180;
@@ -232,7 +233,7 @@ void di_hw_init(void)
 	/* 201a is if2 fifo size */
 	DI_Wr(DI_CHAN2_LUMA_FIFO_SIZE, fifo_size_di);
 	/* 17b3 is DI_chan2_luma_fifo_size */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 		di_pre_gate_control(true);
 		di_post_gate_control(true);
 	}
@@ -253,11 +254,11 @@ void di_hw_init(void)
 
 	if (mcpre_en)
 		mc_di_param_init();
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 		di_pre_gate_control(false);
 		di_post_gate_control(false);
 		di_top_gate_control(false, false);
-	} else if (is_meson_txl_cpu()) {
+	} else if (is_meson_txl_cpu() || is_meson_gxlx_cpu()) {
 		DI_Wr(DI_CLKG_CTRL, 0x80000000); /* di clock div enable for pq load */
 	} else {
 		DI_Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
@@ -1971,7 +1972,7 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					pre_flag, 8, 2);
 				} else {
@@ -2001,7 +2002,7 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					pre_flag, 8, 2);
 				} else {

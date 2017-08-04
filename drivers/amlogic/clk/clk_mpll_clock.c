@@ -25,6 +25,7 @@
 #include <linux/log2.h>
 #include <linux/delay.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/iomap.h>
 #include "mpll_clk.h"
 #include "clk.h"
 
@@ -43,6 +44,7 @@
 #define ERROR		10000000
 #define SDM_EN      15
 #define EN_DDS      14
+#define SAR_ADC_REG12 0x21ac
 
 static int mpll_enable(struct clk_hw *hw)
 {
@@ -118,6 +120,10 @@ static int mpll_set_rate(struct clk_hw *hw, unsigned long drate,
 	u64 divider;
 	unsigned long frac;
 	uint val;
+	char name[14];
+	int index;
+
+	strcpy(name, hw->clk->name);
 	divider = prate;
 	frac = do_div(divider, drate);
 	val = DIV_ROUND_UP(frac * SDM_MAX, drate);
@@ -145,6 +151,12 @@ static int mpll_set_rate(struct clk_hw *hw, unsigned long drate,
 		 */
 	}
 	pr_debug("readl con_reg=%x\n", readl(mpll->con_reg));
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXLX) {
+		if (!kstrtou32(&name[12], 10, &index))
+			aml_write_cbus(SAR_ADC_REG12,
+				aml_read_cbus(SAR_ADC_REG12)|(1<<index));
+	}
 
 	return 0;
 }

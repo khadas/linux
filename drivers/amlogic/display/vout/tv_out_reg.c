@@ -76,12 +76,22 @@ int tv_out_ioremap(void)
 	tvout_map = NULL;
 	tvout_map_num = 0;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-		tvout_map = tv_out_reg_maps_txlx;
-		tvout_map_num = ARRAY_SIZE(tv_out_reg_maps_txlx);
-	} else {
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_TXL:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		tvout_map = tv_out_reg_maps_gxb;
 		tvout_map_num = ARRAY_SIZE(tv_out_reg_maps_gxb);
+		break;
+	case MESON_CPU_MAJOR_ID_TXLX:
+		tvout_map = tv_out_reg_maps_txlx;
+		tvout_map_num = ARRAY_SIZE(tv_out_reg_maps_txlx);
+		break;
+	default:
+		pr_err("%s: unsupported chip\n", __func__);
+		break;
 	}
 
 	for (i = 0; i < tvout_map_num; i++) {

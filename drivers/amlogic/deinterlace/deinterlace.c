@@ -2190,7 +2190,7 @@ static void dis2_di(void)
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		DI_Wr(DI_CLKG_CTRL, 0x2);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false, false);
@@ -3766,7 +3766,7 @@ static void pre_de_process(void)
 
 	RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_TXLX)
 		di_apply_reg_cfg(0);
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag) {
@@ -5655,7 +5655,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			di_pre_stru.input_size_change_flag = true;
 			di_pre_stru.same_field_source_flag = 0;
 #if defined(NEW_DI_TV)
-			if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			if (get_cpu_type() != MESON_CPU_MAJOR_ID_TXLX)
 				di_set_para_by_tvinfo(vframe);
 #endif
 #ifdef SUPPORT_MPEG_TO_VDIN
@@ -7037,7 +7037,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
 			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?1:0);
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 				invert_mv = true;
 			else if (!overturn)
 				di_post_stru.di_buf2_mif.canvas0_addr0 =
@@ -7193,13 +7193,14 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 #ifdef NEW_DI_V1
 	if (di_post_stru.update_post_reg_flag && (!combing_fix_en)) {
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_TXLX)
 			di_apply_reg_cfg(1);
 		last_lev = -1;
 	}
 
 #endif
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() || is_meson_txlx_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() || is_meson_txlx_cpu()
+		|| is_meson_gxlx_cpu())
 		di_post_read_reverse_irq(overturn, mc_pre_flag);
 	if (mcpre_en) {
 		if (di_buf->di_buf_dup_p[2])
@@ -8251,7 +8252,7 @@ static void di_unreg_process_irq(void)
 
 	enable_di_pre_mif(false);
 	di_hw_uninit();
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		di_pre_gate_control(false);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
@@ -8263,7 +8264,7 @@ static void di_unreg_process_irq(void)
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		di_hw_disable();
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false, false);
@@ -8451,7 +8452,7 @@ static void di_reg_process_irq(void)
 		DI_Wr(DI_CLKG_CTRL, 0xfeff0000);
 		/* di enable nr clock gate */
 #else
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 			if (!use_2_interlace_buff) {
 				/* nr only clkb upto 500M*/
 				clk_set_rate(de_devp->vpu_clkb, 250000000);
@@ -8473,7 +8474,7 @@ static void di_reg_process_irq(void)
 #endif
 #if defined(NEW_DI_TV)
 		/* from txlx nr/di will load by pq db*/
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_TXLX)
 			di_set_para_by_tvinfo(vframe);
 #endif
 		if (di_printk_flag & 2)
@@ -9819,7 +9820,7 @@ static int di_probe(struct platform_device *pdev)
 #endif
 	di_pr_info("%s allocate rdma channel %d.\n", __func__,
 		di_devp->rdma_handle);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
 		struct clk *clk_div4, *vpu_clkb_tmp, *vpu_clk;
 		clk_div4 = clk_get(&pdev->dev, "fclk_div4");
 		if (IS_ERR(clk_div4))
@@ -9975,7 +9976,7 @@ static int di_remove(struct platform_device *pdev)
 
 	di_devp = platform_get_drvdata(pdev);
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		clk_disable_unprepare(di_devp->vpu_clkb);
 	di_hw_uninit();
 	di_devp->di_event = 0xff;
@@ -10063,7 +10064,7 @@ static int di_suspend(struct device *dev)
 	di_set_power_control(1, 0);
 	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
 		VPU_CLK_GATE_OFF);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		clk_disable_unprepare(di_devp->vpu_clkb);
 	pr_info("di: di_suspend\n");
 	return 0;
@@ -10074,7 +10075,7 @@ static int di_resume(struct device *dev)
 	struct di_dev_s *di_devp = NULL;
 
 	di_devp = dev_get_drvdata(dev);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
 #ifndef USE_HRTIMER

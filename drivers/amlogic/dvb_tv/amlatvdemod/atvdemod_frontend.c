@@ -802,12 +802,12 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 			__func__, atvaudiodem_reg_base, size_io_reg);
 	}
 	/*remap hiu mem*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		amlatvdemod_hiu_reg_base = ioremap(0xff63c000, 0x2000);
 	else
 		amlatvdemod_hiu_reg_base = ioremap(0xc883c000, 0x2000);
 	/*remap periphs mem*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
 		amlatvdemod_periphs_reg_base = ioremap(0xff634000, 0x2000);
 	else
 		amlatvdemod_periphs_reg_base = ioremap(0xc8834000, 0x2000);

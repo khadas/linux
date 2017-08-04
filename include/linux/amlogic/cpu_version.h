@@ -51,6 +51,7 @@
 #define MESON_CPU_MAJOR_ID_GXM		0x22
 #define MESON_CPU_MAJOR_ID_TXL		0x23
 #define MESON_CPU_MAJOR_ID_TXLX		0x24
+#define MESON_CPU_MAJOR_ID_GXLX		0x26
 
 #define MESON_CPU_VERSION_LVL_MAJOR	0
 #define MESON_CPU_VERSION_LVL_MINOR	1
@@ -197,5 +198,20 @@ static inline bool is_meson_txlx_package_962X(void)
 static inline bool is_meson_txlx_package_962E(void)
 {
 	return is_meson_txlx_cpu() && package_id_is(0x20);
+}
+
+static inline bool is_meson_gxlx_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_GXLX;
+}
+
+static inline bool is_meson_gxlx_package_905L2(void)
+{
+	return is_meson_gxlx_cpu() && package_id_is(0xc0);
+}
+
+static inline bool is_meson_gxlx_package_905C(void)
+{
+	return is_meson_gxlx_cpu() && package_id_is(0xd0);
 }
 #endif

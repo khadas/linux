@@ -454,6 +454,7 @@ static void set_hpll_clk_out(unsigned clk)
 	case MESON_CPU_MAJOR_ID_GXM:
 	case MESON_CPU_MAJOR_ID_TXL:
 	case MESON_CPU_MAJOR_ID_TXLX:
+	case MESON_CPU_MAJOR_ID_GXLX:
 		set_hpll_clk_out_gxl(clk);
 		break;
 	default:

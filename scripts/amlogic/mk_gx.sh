@@ -22,6 +22,9 @@ make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxl_skt.dtb \
 	|| echo "Compile dtb Fail !!"
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxl_p212.dtb \
 	|| echo "Compile dtb Fail !!"
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxlx_p279.dtb \
+	|| echo "Compile dtb Fail !!"
+
 #rootfs.cpio -- original buildroot rootfs, busybox
 #ROOTFS="rootfs.cpio"
 
