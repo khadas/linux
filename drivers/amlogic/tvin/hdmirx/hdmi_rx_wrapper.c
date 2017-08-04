@@ -1958,7 +1958,7 @@ void monitor_hdcp22_sts(void)
 		((HDCP22_AUTH_STATE_LOST == hdcp22_auth_sts) ||
 		(HDCP22_AUTH_STATE_FAILED == hdcp22_auth_sts))) {
 			hdmirx_hdcp22_reauth();
-			rx_pr("\n auth lost force hpd rst\n");
+			/*rx_pr("\n auth lost force hpd rst\n");*/
 		}
 }
 
