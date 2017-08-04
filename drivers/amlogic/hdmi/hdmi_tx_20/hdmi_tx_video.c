@@ -938,7 +938,8 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			}
 			if (VideoCode >= HDMITX_VESA_OFFSET) {
 				hdev->para->cs = COLORSPACE_RGB444;
-				pr_info("hdmitx: VESA only support RGB format\n");
+				hdev->para->cd = COLORDEPTH_24B;
+				pr_info("hdmitx: VESA only support RGB 8bit format\n");
 			}
 		}
 		if (hdev->HWOp.SetDispMode(hdev) >= 0) {

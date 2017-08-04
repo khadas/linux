@@ -729,6 +729,8 @@ static ssize_t show_attr(struct device *dev,
 {
 	int pos = 0;
 
+	if (hdmitx_device.cur_VIC >= HDMITX_VESA_OFFSET)
+		strcpy(fmt_attr, "rgb,8bit");/*vesa modes only support rgb8bit*/
 	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n\r", fmt_attr);
 	return pos;
 }
