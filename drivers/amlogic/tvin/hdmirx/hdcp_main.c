@@ -1,34 +1,30 @@
-/*-----------------------------------------------------------------------
+/* ------------------------------------------------------------------------
 //
-// Proprietary Information of Elliptic Technologies
-// Copyright (C) 2001-2015, all rights reserved
-// Elliptic Technologies, Inc.
+//              (C) COPYRIGHT 2014 - 2015 SYNOPSYS, INC.
 //
-// As part of our confidentiality agreement, Elliptic Technologies and
-// the Company, as a Receiving Party, of this information agrees to
-// keep strictly confidential all Proprietary Information so received
-// from Elliptic Technologies. Such Proprietary Information can be used
-// solely for the purpose of evaluating and/or conducting a proposed
-// business relationship or transaction between the  parties. Each
-// Party agrees that any and all Proprietary Information is and
-// shall remain confidential and the property of Elliptic Technologies.
-// The Company may not use any of the Proprietary Information of
-// Elliptic Technologies for any purpose other than the above-stated
-// purpose without the prior written consent of Elliptic Technologies.
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License version 2
+// as published by the Free Software Foundation.
 //
-//-----------------------------------------------------------------------
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ ------------------------------------------------------------------------
 //
 // Project:
 //
-// ESM Host Library.
+// ESM Host Library
 //
 // Description:
 //
-// ESM Host Library Driver - Linux driver (kernel module)
-// hdcp_main
+// ESM Host Library Driver: Linux kernel module
 //
-//-----------------------------------------------------------------------*/
-
+// ------------------------------------------------------------------------*/
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
