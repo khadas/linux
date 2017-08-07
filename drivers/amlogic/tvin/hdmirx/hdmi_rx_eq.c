@@ -668,8 +668,7 @@ enum eq_states_e rx_need_eq_algorithm(void)
 			if (log_level & EQ_LOG)
 				rx_pr("EQ_HD_same\n");
 			ret = EQ_USE_PRE;
-			}
-		else if (run_eq_flag == E_EQ_START) {
+		} else if (run_eq_flag == E_EQ_START) {
 			if (log_level & EQ_LOG)
 				rx_pr("EQ_HD_def\n");
 			eq_ch0.bestsetting = eq_cfg_hd;

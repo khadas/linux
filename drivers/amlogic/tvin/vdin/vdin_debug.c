@@ -441,6 +441,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.pre_he, devp->prop.he,
 		devp->prop.pre_vs, devp->prop.vs,
 		devp->prop.pre_ve, devp->prop.ve);
+	pr_info("frontend_fps:%d\n", devp->prop.fps);
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
 	pr_info("color_depth_config:%d\n", devp->color_depth_config);

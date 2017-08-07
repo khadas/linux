@@ -443,6 +443,7 @@ struct tvin_sig_property_s {
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_info_s hdr_info;
 	bool dolby_vision;/*is signal dolby version*/
+	uint8_t fps;
 };
 
 #define TVAFE_VF_POOL_SIZE			6 /* 8 */

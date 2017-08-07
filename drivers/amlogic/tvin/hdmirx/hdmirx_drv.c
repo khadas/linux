@@ -101,11 +101,7 @@ int resume_flag = 0;
 MODULE_PARM_DESC(resume_flag, "\n resume_flag\n");
 module_param(resume_flag, int, 0664);
 
-static int force_colorspace;
-MODULE_PARM_DESC(force_colorspace, "\n force_colorspace\n");
-module_param(force_colorspace, int, 0664);
-
-static int hdmi_yuv444_enable = 1;
+static int hdmi_yuv444_enable;
 module_param(hdmi_yuv444_enable, int, 0664);
 MODULE_PARM_DESC(hdmi_yuv444_enable, "hdmi_yuv444_enable");
 
@@ -129,7 +125,7 @@ bool mute_kill_en;
 MODULE_PARM_DESC(mute_kill_en, "\n mute_kill_en\n");
 module_param(mute_kill_en, bool, 0664);
 
-static bool en_4096_2_3840 = true;
+static bool en_4096_2_3840;
 MODULE_PARM_DESC(en_4096_2_3840, "\n en_4096_2_3840\n");
 module_param(en_4096_2_3840, bool, 0664);
 
@@ -570,75 +566,154 @@ enum tvin_sig_fmt_e hdmirx_get_fmt(struct tvin_frontend_s *fe)
 	return fmt;
 }
 
-void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
-	struct tvin_sig_property_s *prop)
+bool hdmirx_hw_check_frame_skip(void)
 {
-	unsigned char _3d_structure, _3d_ext_data;
-	enum tvin_sig_fmt_e sig_fmt;
-	int dvi_info = hdmirx_hw_get_dvi_info();
-	unsigned int rate = rx.pre.frame_rate;
+	if ((rx.state != FSM_SIG_READY) || (rx.skip > 0))
+		return true;
 
-	/* use dvi info bit4~ for frame rate display */
+	return false;
+}
+
+void hdmirx_get_dvi_info(struct tvin_sig_property_s *prop)
+{
+	prop->dvi_info = rx.pre.sw_dvi;
+}
+
+void hdmirx_get_fps_info(struct tvin_sig_property_s *prop)
+{
+	uint32_t rate = rx.pre.frame_rate;
 	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
+	prop->fps = rate;
+}
 
-	prop->dvi_info = (rate << 4) | dvi_info;
-	prop->colordepth = rx_get_colordepth();
+void hdmirx_set_timing_info(struct tvin_sig_property_s *prop)
+{
+	enum tvin_sig_fmt_e sig_fmt;
+	sig_fmt = hdmirx_hw_get_fmt();
+	/*in some PC case, 4096X2160 show in 3840X2160 monitor will
+	result in blurred, so adjust hactive to 3840 to show dot by dot*/
+	if (en_4k_2_2k) {
+		if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) ||
+			(TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt)) {
+			prop->scaling4w = 1920;
+			prop->scaling4h = 1080;
+		}
+	} else if (en_4096_2_3840) {
+		if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) &&
+			(prop->color_format == TVIN_RGB444)) {
+			prop->hs = 128;
+			prop->he = 128;
+		}
+	}
+}
+
+void hdmirx_get_color_fmt(struct tvin_sig_property_s *prop)
+{
+	int format = rx.pre.colorspace;
+	#if (DVI_FIXED_TO_RGB)
+	if (1 == rx.pre.sw_dvi)
+		format = E_COLOR_RGB;
+	#endif
 	prop->dest_cfmt = TVIN_YUV422;
-	switch (hdmirx_hw_get_color_fmt()) {
-	case E_COLORFMT_YUV420:
-		prop->color_format = TVIN_YUV444;
-		if (pc_mode_en)
-			prop->dest_cfmt = TVIN_YUV444;
-		/* if (hdmi_yuv444_enable) */
-			/* prop->dest_cfmt = TVIN_YUV444; */
-		break;
-	case E_COLORFMT_YUV444:
+	switch (format) {
+	case E_COLOR_YUV422:
+	case E_COLOR_YUV420:
 		prop->color_format = TVIN_YUV422;
 		break;
-	case E_COLORFMT_RGB:
-		prop->color_format = TVIN_RGB444;
-		if (((hdmi_yuv444_enable) && (it_content)) ||
-			 pc_mode_en)
+	case E_COLOR_YUV444:
+		prop->color_format = TVIN_YUV444;
+		if (hdmi_yuv444_enable)
 			prop->dest_cfmt = TVIN_YUV444;
 		break;
+	case E_COLOR_RGB:
 	default:
 		prop->color_format = TVIN_RGB444;
-		if (pc_mode_en)
+		if (it_content || pc_mode_en)
 			prop->dest_cfmt = TVIN_YUV444;
 		break;
 	}
+	if (rx.pre.interlaced == 1)
+		prop->dest_cfmt = TVIN_YUV422;
 
-	if (force_colorspace == FORCE_YUV)
-		prop->color_format = TVIN_YUV444;
-	if (force_colorspace == FORCE_RGB)
-		prop->color_format = TVIN_RGB444;
+	switch (prop->color_format) {
+	case TVIN_YUV444:
+	case TVIN_YUV422:
+		if (yuv_quant_range == E_RANGE_LIMIT)
+			prop->color_fmt_range = TVIN_YUV_LIMIT;
+		else if (yuv_quant_range == E_RANGE_FULL)
+			prop->color_fmt_range = TVIN_YUV_FULL;
+		else
+			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		break;
+	case TVIN_RGB444:
+		if ((rgb_quant_range == E_RANGE_FULL) || (1 == rx.pre.sw_dvi))
+			prop->color_fmt_range = TVIN_RGB_FULL;
+		else if (rgb_quant_range == E_RANGE_LIMIT)
+			prop->color_fmt_range = TVIN_RGB_LIMIT;
+		else
+			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		break;
+	default:
+		prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		break;
+	}
+}
 
-	sig_fmt = hdmirx_hw_get_fmt();
+void hdmirx_get_colordepth(struct tvin_sig_property_s *prop)
+{
+	int ret = rx.pre.colordepth;
+	if (pc_mode_en == 1) {
+		if ((rx.pre.sw_vic == HDMI_2160p_60hz_420) ||
+			(rx.pre.sw_vic == HDMI_4096p_60hz_420))
+			ret = E_COLORDEPTH_8;
+	}
+	prop->colordepth = ret;
+}
 
+int hdmirx_hw_get_dvi_info(void)
+{
+	int ret = E_HDMI;
+
+	if (rx.pre.sw_dvi)
+		ret = E_DVI;
+
+	return ret;
+}
+
+int hdmirx_hw_get_3d_structure(void)
+{
+	uint8_t ret = 0;
+	if (VSI_FORMAT_3D_FORMAT == rx.vsi_info.vd_fmt)
+		ret = 1;
+	return ret;
+}
+
+void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
+{
 	prop->trans_fmt = TVIN_TFMT_2D;
-	if (hdmirx_hw_get_3d_structure(&_3d_structure,
-		&_3d_ext_data) >= 0) {
-		if (_3d_structure == 0x1) {
+	prop->dolby_vision = FALSE;
+	if (hdmirx_hw_get_3d_structure() == 1) {
+		if (rx.vsi_info._3d_structure == 0x1) {
 			/* field alternative */
 			prop->trans_fmt = TVIN_TFMT_3D_FA;
-		} else if (_3d_structure == 0x2) {
+		} else if (rx.vsi_info._3d_structure == 0x2) {
 			/* line alternative */
 			prop->trans_fmt = TVIN_TFMT_3D_LA;
-		} else if (_3d_structure == 0x3) {
+		} else if (rx.vsi_info._3d_structure == 0x3) {
 			/* side-by-side full */
 			prop->trans_fmt = TVIN_TFMT_3D_LRF;
-		} else if (_3d_structure == 0x4) {
+		} else if (rx.vsi_info._3d_structure == 0x4) {
 			/* L + depth */
 			prop->trans_fmt = TVIN_TFMT_3D_LD;
-		} else if (_3d_structure == 0x5) {
+		} else if (rx.vsi_info._3d_structure == 0x5) {
 			/* L + depth + graphics + graphics-depth */
 			prop->trans_fmt = TVIN_TFMT_3D_LDGD;
-		} else if (_3d_structure == 0x6) {
+		} else if (rx.vsi_info._3d_structure == 0x6) {
 			/* top-and-bot */
 			prop->trans_fmt = TVIN_TFMT_3D_TB;
-		} else if (_3d_structure == 0x8) {
+		} else if (rx.vsi_info._3d_structure == 0x8) {
 			/* Side-by-Side half */
-			switch (_3d_ext_data) {
+			switch (rx.vsi_info._3d_ext_data) {
 			case 0x5:
 				/*Odd/Left picture, Even/Right picture*/
 				prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
@@ -658,70 +733,30 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 				break;
 			}
 		}
+		if (is_frame_packing())
+			prop->trans_fmt = TVIN_TFMT_3D_FP;
+		else if (is_alternative())
+			prop->trans_fmt = TVIN_TFMT_3D_LA;
+	} else {
+		if (rx.vsi_info.dolby_vision_sts ==
+			DOLBY_VERSION_START)
+			prop->dolby_vision = TRUE;
+		else if (rx.vsi_info.dolby_vision_sts ==
+			DOLBY_VERSION_STOP)
+			prop->dolby_vision = FALSE;
+		if (log_level & VSI_LOG)
+			rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
 	}
+}
 
-	if (rx.vendor_specific_info.dolby_vision_sts ==
-		DOLBY_VERSION_START)
-		prop->dolby_vision = TRUE;
-	else if (rx.vendor_specific_info.dolby_vision_sts ==
-		DOLBY_VERSION_STOP)
-		prop->dolby_vision = FALSE;
-	if (log_level & VSI_LOG)
-		rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
-
-	if (is_frame_packing())
-		prop->trans_fmt = TVIN_TFMT_3D_FP;
-	else if (is_alternative())
-		prop->trans_fmt = TVIN_TFMT_3D_LA;
-
-	prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1) |
+void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
+{
+	prop->decimation_ratio = rx.pre.repeat |
 			HDMI_DE_REPEAT_DONE_FLAG;
+}
 
-	if (rx.pre.interlaced == 1)
-		prop->dest_cfmt = TVIN_YUV422;
-
-	switch (prop->color_format) {
-	case TVIN_YUV444:
-	case TVIN_YUV422:
-		if (force_color_range) {
-			if (force_color_range == 1)
-				prop->color_fmt_range = TVIN_YUV_FULL;
-			else if (force_color_range == 2)
-				prop->color_fmt_range = TVIN_YUV_LIMIT;
-			else
-				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-		} else {
-			if (yuv_quant_range == 1)
-				prop->color_fmt_range = TVIN_YUV_LIMIT;
-			else if (yuv_quant_range == 2)
-				prop->color_fmt_range = TVIN_YUV_FULL;
-			else
-				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-		}
-		break;
-	case TVIN_RGB444:
-		if (force_color_range) {
-			if (force_color_range == 1)
-				prop->color_fmt_range = TVIN_RGB_FULL;
-			else if (force_color_range == 2)
-				prop->color_fmt_range = TVIN_RGB_LIMIT;
-			else
-				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-		} else {
-			if ((rgb_quant_range == 2) || (dvi_info == 1))
-				prop->color_fmt_range = TVIN_RGB_FULL;
-			else if (rgb_quant_range == 1)
-				prop->color_fmt_range = TVIN_RGB_LIMIT;
-			else
-				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-		}
-		break;
-
-	default:
-		prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-		break;
-	}
-
+void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
+{
 	/* hdr data processing */
 	switch (rx.hdr_info.hdr_state) {
 	case HDR_STATE_NULL:
@@ -749,33 +784,19 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	default:
 	break;
 	}
-	/*in some PC case, 4096X2160 show in 3840X2160 monitor will
-	result in blurred, so adjust hactive to 3840 to show dot by dot*/
-	if (en_4096_2_3840) {
-		if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) &&
-			(prop->color_format == TVIN_RGB444)) {
-			prop->hs = 128;
-			prop->he = 128;
-		}
-	}
-	if (en_4k_2_2k) {
-		if (TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) {
-			prop->hs = 128;
-			prop->he = 128;
-			prop->vs = 0;
-			prop->ve = 0;
-			prop->scaling4w = 1920;
-			prop->scaling4h = 1080;
-		} else if (TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt) {
-			prop->scaling4h = 1080;
-			prop->scaling4w = 1920;
-		}
-	}
-	if (((TVIN_SIG_FMT_HDMI_2880X480I_60HZ == sig_fmt) ||
-			(TVIN_SIG_FMT_HDMI_2880X576I_50HZ == sig_fmt)) &&
-			((prop->decimation_ratio & 0xF) == 0)) {
-			prop->scaling4w = 1440;
-		}
+}
+
+void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
+	struct tvin_sig_property_s *prop)
+{
+	hdmirx_get_dvi_info(prop);
+	hdmirx_get_colordepth(prop);
+	hdmirx_get_fps_info(prop);
+	hdmirx_get_color_fmt(prop);
+	hdmirx_get_repetition_info(prop);
+	hdmirx_set_timing_info(prop);
+	hdmirx_get_hdr_info(prop);
+	hdmirx_get_vsi_info(prop);
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
@@ -958,13 +979,13 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.vs_info;
 			else
-				rx_pkt_getvsi_ex(&pkt_info);
+				rx_pkt_get_vsi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_AVI:
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.avi_info;
 			else
-				rx_pkt_getavi_ex(&pkt_info);
+				rx_pkt_get_avi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_SPD:
 			srcbuff = &rx.spd_info;
@@ -973,7 +994,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.aud_pktinfo;
 			else
-				rx_pkt_getaudif_ex(&pkt_info);
+				rx_pkt_get_audif_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_MPEGSRC:
 			srcbuff = &rx.mpegs_info;
@@ -982,25 +1003,25 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.ntscvbi_info;
 			else
-				rx_pkt_getntscvbi_ex(&pkt_info);
+				rx_pkt_get_ntscvbi_ex(&pkt_info);
 			break;
 		case PKT_TYPE_INFOFRAME_DRM:
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.drm_info;
 			else
-				rx_pkt_getdrm_ex(&pkt_info);
+				rx_pkt_get_drm_ex(&pkt_info);
 			break;
 		case PKT_TYPE_ACR:
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.acr_info;
 			else
-				rx_pkt_getacr_ex(&pkt_info);
+				rx_pkt_get_acr_ex(&pkt_info);
 			break;
 		case PKT_TYPE_GCP:
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.gcp_info;
 			else
-				rx_pkt_getgcp_ex(&pkt_info);
+				rx_pkt_get_gcp_ex(&pkt_info);
 			break;
 		case PKT_TYPE_ACP:
 			srcbuff = &rx.acp_info;
@@ -1015,13 +1036,13 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.gameta_info;
 			else
-				rx_pkt_getgmd_ex(&pkt_info);
+				rx_pkt_get_gmd_ex(&pkt_info);
 			break;
 		case PKT_TYPE_AUD_META:
 			if (rx_pkt_get_fifo_pri())
 				srcbuff = &rx.amp_info;
 			else
-				rx_pkt_getamp_ex(&pkt_info);
+				rx_pkt_get_amp_ex(&pkt_info);
 			break;
 		default:
 			size = PFIFO_SIZE * sizeof(uint32_t);

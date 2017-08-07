@@ -33,7 +33,7 @@
 
 
 
-#define RX_VER0 "Ref.2017/07/14"
+#define RX_VER0 "Ref.2017/08/08"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/08/04b"
@@ -80,8 +80,6 @@
 
 #define TRUE 1
 #define FALSE 0
-#define CFG_CLK 24000
-#define MODET_CLK 24000
 
 #define HDCP_AUTH_COME_DELAY 150
 #define HDCP_AUTH_END_DELAY (HDCP_AUTH_COME_DELAY + 150)
@@ -189,7 +187,6 @@ struct hdmirx_dev_s {
 #define IOC_AVI_INFO _BIT(3)
 
 #define HDCP22_ENABLE
-#define HDMI20_ENABLE 1
 
 /* add new value at the end,
  * do not insert new value in the middle
@@ -310,6 +307,12 @@ enum colorspace_e {
 	E_COLOR_YUV420,
 };
 
+enum colorrange_e {
+	E_RANGE_DEFAULT,
+	E_RANGE_LIMIT,
+	E_RANGE_FULL,
+};
+
 enum colorfmt_e {
 	E_COLORFMT_RGB,
 	E_COLORFMT_YUV422,
@@ -400,7 +403,6 @@ enum chip_id_e {
 /** TMDS clock minimum [kHz] */
 #define TMDS_CLK_MIN			(24000UL)/* (25000UL) */
 #define TMDS_CLK_MAX			(340000UL)/* (600000UL) */
-#define CLK_RATE_THRESHOLD		(74000000)/*check clock rate*/
 struct freq_ref_s {
 	bool interlace;
 	uint8_t cd420;
@@ -539,8 +541,6 @@ struct hdmi_rx_ctrl_hdcp {
 	uint32_t keys[HDCP_KEYS_SIZE];
 	struct switch_dev switch_hdcp_auth;
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
-	bool onoff;
-	bool pass;
 	uint32_t hdcp_auth_count;/*hdcp auth times*/
 	uint32_t hdcp_auth_time;/*the time to clear auth count*/
 };
@@ -551,7 +551,7 @@ enum dolby_vision_sts_e {
 	DOLBY_VERSION_STOP,
 };
 
-struct vendor_specific_info_s {
+struct vsi_info_s {
 	unsigned identifier;
 	unsigned char vd_fmt;
 	unsigned char _3d_structure;
@@ -669,7 +669,7 @@ struct rx_s {
 	struct rx_video_info pre;
 	struct rx_video_info cur;
 	struct aud_info_s aud_info;
-	struct vendor_specific_info_s vendor_specific_info;
+	struct vsi_info_s vsi_info;
 	struct tvin_hdr_info_s hdr_info;
 	enum dolby_vision_sts_e dolby_vision_sts;
 	unsigned int pwr_sts;
@@ -790,27 +790,6 @@ enum vsi_vid_format_e {
 	VSI_FORMAT_FUTURE,
 };
 
-struct vsi_infoframe_t {
-	unsigned char packet_type:8;
-	unsigned char version:8;
-	unsigned char length:5;
-	unsigned char reserv3:3;
-	unsigned int checksum:8;
-	unsigned int ieee_id:24;
-	unsigned char reserv:5;
-	enum vsi_vid_format_e vid_format:3;
-	union detail_u {
-		unsigned char hdmi_vic:8;
-		struct struct_3d_t {
-			unsigned char reserv1:4;
-			unsigned char struct_3d:4;
-
-		} data_3d;
-	} detail;
-	unsigned char reserv2:4;
-	unsigned char struct_3d_ext:4;
-};
-
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -827,7 +806,6 @@ extern struct delayed_work	repeater_dwork;
 extern struct workqueue_struct	*repeater_wq;
 extern unsigned char run_eq_flag;
 extern unsigned int pwr_sts;
-extern uint32_t modet_clk;
 extern int md_ists_en;
 extern int hdmi_ists_en;
 extern int real_port_map;
@@ -924,7 +902,6 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max);
 int hdmirx_packet_fifo_rst(void);
 int hdmirx_audio_fifo_rst(void);
 void hdmirx_phy_init(void);
-void rx_port_switch(void);
 void hdmirx_hw_config(void);
 void hdmirx_hw_probe(void);
 void rx_hdcp_init(void);
@@ -965,9 +942,7 @@ extern int hdmirx_read_key_buf(char *buf, int max_size);
 extern void rx_set_global_varaible(const char *buf, int size);
 extern void rx_get_global_varaible(const char *buf);
 extern int hdmirx_debug(const char *buf, int size);
-extern int hdmirx_hw_get_color_fmt(void);
-extern int hdmirx_hw_get_3d_structure(unsigned char*, unsigned char*);
-extern int hdmirx_hw_get_dvi_info(void);
+extern void hdmirx_hw_get_color_fmt(void);
 extern int rx_get_colordepth(void);
 extern bool hdmirx_is_key_write(void);
 extern int hdmirx_hw_get_pixel_repeat(void);

@@ -426,9 +426,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->parm.info.trans_fmt =
 							prop->trans_fmt;
 						devp->parm.info.is_dvi =
-							prop->dvi_info & 0x1;
+							prop->dvi_info;
 						devp->parm.info.fps =
-							prop->dvi_info >> 4;
+							prop->fps;
 					}
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;
@@ -630,9 +630,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 					devp->parm.info.trans_fmt =
 						prop->trans_fmt;
 					devp->parm.info.is_dvi =
-						prop->dvi_info & 0x1;
+						prop->dvi_info;
 					devp->parm.info.fps =
-						prop->dvi_info >> 4;
+						prop->fps;
 					info->fmt = stable_fmt;
 					atv_stable_fmt_check_enable = 0;
 					if (sm_debug_enable)

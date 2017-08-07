@@ -860,16 +860,16 @@ extern void rx_pkt_set_fifo_pri(uint32_t pri);
 extern uint32_t rx_pkt_get_fifo_pri(void);
 
 /*please ignore checksum byte*/
-extern void rx_pkt_getaudif_ex(void *pktinfo);
+extern void rx_pkt_get_audif_ex(void *pktinfo);
 /*please ignore checksum byte*/
-extern void rx_pkt_getavi_ex(void *pktinfo);
-extern void rx_pkt_getdrm_ex(void *pktinfo);
-extern void rx_pkt_getacr_ex(void *pktinfo);
-extern void rx_pkt_getgmd_ex(void *pktinfo);
-extern void rx_pkt_getntscvbi_ex(void *pktinfo);
-extern void rx_pkt_getamp_ex(void *pktinfo);
-extern void rx_pkt_getvsi_ex(void *pktinfo);
-extern void rx_pkt_getgcp_ex(void *pktinfo);
+extern void rx_pkt_get_avi_ex(void *pktinfo);
+extern void rx_pkt_get_drm_ex(void *pktinfo);
+extern void rx_pkt_get_acr_ex(void *pktinfo);
+extern void rx_pkt_get_gmd_ex(void *pktinfo);
+extern void rx_pkt_get_ntscvbi_ex(void *pktinfo);
+extern void rx_pkt_get_amp_ex(void *pktinfo);
+extern void rx_pkt_get_vsi_ex(void *pktinfo);
+extern void rx_pkt_get_gcp_ex(void *pktinfo);
 #endif
 
 

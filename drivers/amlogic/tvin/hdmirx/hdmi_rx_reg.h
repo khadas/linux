@@ -142,6 +142,7 @@
 /* ------------------------------------- */
 
 #define TOP_SW_RESET                     0x000
+	#define HDCP22_TMDSCLK_EN		_BIT(3)
 #define TOP_CLK_CNTL                     0x001
 #define TOP_HPD_PWR5V                    0x002
 #define TOP_PORT_SEL                     0x003
@@ -852,10 +853,12 @@
 #define		CLK_CHANGE				_BIT(6)
 #define		PLL_LCK_CHG				_BIT(5)
 
+#define DWC_HDMI2_IEN_CLR		(0xf60UL)
+#define DWC_HDMI2_IEN_SET		(0xF64UL)
 #define DWC_HDMI2_ISTS			(0xF68UL)
 #define DWC_HDMI2_IEN			(0xF6CUL)
 #define DWC_HDMI2_ICLR			(0xF70UL)
-#define DWC_HDMI2_IEN_SET		(0xF64UL)
+
 /*
  * DMI registers
  */

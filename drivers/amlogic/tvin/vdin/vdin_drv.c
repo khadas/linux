@@ -894,10 +894,10 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	else
 		devp->vfp->size = devp->canvas_max_num;
 #endif
-	if (devp->prop.dvi_info>>4 &&
+	if (devp->prop.fps &&
 		devp->parm.port >= TVIN_PORT_HDMI0 &&
 		devp->parm.port <= TVIN_PORT_HDMI7)
-		devp->duration = 96000/(devp->prop.dvi_info>>4);
+		devp->duration = 96000/(devp->prop.fps);
 	else
 		devp->duration = devp->fmt_info_p->duration;
 
