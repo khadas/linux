@@ -1489,14 +1489,14 @@ static void zoom_get_vert_pos(struct vframe_s *vf, u32 vpp_3d_mode, u32 *ls,
 				*rs = *ls + (height >> 1);
 				*re = *le + (height >> 1);
 			}
-		}
-		if ((process_3d_type & MODE_3D_TO_2D_MASK)
-		    || (process_3d_type & MODE_3D_OUT_LR)) {
-			/* same width,half height */
-			*ls = zoom_start_y_lines;
-			*le = zoom_end_y_lines;
-			*rs = zoom_start_y_lines + (height >> 1);
-			*re = zoom_end_y_lines + (height >> 1);
+			if ((process_3d_type & MODE_3D_TO_2D_MASK)
+			    || (process_3d_type & MODE_3D_OUT_LR)) {
+				/* same width,half height */
+				*ls = zoom_start_y_lines;
+				*le = zoom_end_y_lines;
+				*rs = zoom_start_y_lines + (height >> 1);
+				*re = zoom_end_y_lines + (height >> 1);
+			}
 		}
 		break;
 	case VPP_3D_MODE_LR:
