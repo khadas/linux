@@ -599,7 +599,7 @@ static int set_disp_mode_auto(void)
 		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
-		hdev->para = para = hdmi_get_fmt_name("invalid", fmt_attr);
+		hdev->para = para = hdmitx_get_fmt_name("invalid", fmt_attr);
 		return -1;
 	} else {
 		memcpy(mode, info->name, strlen(info->name));
@@ -626,7 +626,7 @@ static int set_disp_mode_auto(void)
 		if (!strstr(mode, "420"))
 			strncat(mode, "420", 3);
 	}
-	para = hdmi_get_fmt_name(mode, fmt_attr);
+	para = hdmitx_get_fmt_name(mode, fmt_attr);
 	hdev->para = para;
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
@@ -3369,7 +3369,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 	hdmitx_device.hdtx_dev = &pdev->dev;
 	/* init para for NULL protection */
-	hdmitx_device.para = hdmi_get_fmt_name("invalid", fmt_attr);
+	hdmitx_device.para = hdmitx_get_fmt_name("invalid", fmt_attr);
 	pr_info("hdmitx: amhdmitx_probe\n");
 
 	r = alloc_chrdev_region(&hdmitx_id, 0, HDMI_TX_COUNT,

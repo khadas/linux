@@ -2054,6 +2054,25 @@ static void hdmi_parse_attr(struct hdmi_format_para *para, char const *name)
 		para->cr = COLORRANGE_FUL;
 }
 
+
+static struct hdmi_format_para parameter;
+/*
+*hdmitx_get_fmt_name is used to match attr and mode name  when
+*changing mode. If using hdmi_get_fmt_name directly, the point para
+*will affect the mode display at some time.
+*/
+struct hdmi_format_para *hdmitx_get_fmt_name(char const *name,
+	char const *attr)
+{
+	struct hdmi_format_para *para = NULL;
+	char const *par_name = name;
+	char const *par_attr = attr;
+
+	para = hdmi_get_fmt_name(par_name, par_attr);
+	memcpy(&parameter, para, sizeof(struct hdmi_format_para));
+	return &parameter;
+}
+
 /*
  * Paramter 'name' can be 1080p60hz, or 1920x1080p60hz
  * or 3840x2160p60hz, 2160p60hz
