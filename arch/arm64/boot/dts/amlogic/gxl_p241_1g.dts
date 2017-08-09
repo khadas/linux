@@ -85,16 +85,10 @@
 			alignment = <0x0 0x400000>;
 		};
 
-		carveout_reserved:linux,carveout-reserve {
+		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x1000>;
+			size = <0x0 0x3000000>;
 		};
-        cma_reserved:linux,cma-reserve {
-            compatible = "shared-dma-pool";
-            reusable;
-            alignment = <0x0 0x400000>;
-            size = <0x0 0x4000000>;
-        };
 
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -123,7 +117,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x4400000>;
+			size = <0x0 0xb400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -261,7 +255,7 @@
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
-		memory-region = <&cma_reserved>;
+		memory-region = <&ion_reserved>;
 	};
 
 	vdec {
@@ -414,7 +408,7 @@
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";
 		status = "ok";
-		clk_level = <2>;
+		clk_level = <7>;
 		/**	0: 100.0M    1: 166.7M    2: 200.0M
 			3: 250.0M    4: 333.3M    5: 400.0M
 			6: 500.0M    7: 666.7M */
