@@ -51,6 +51,7 @@
 #include "vh264.h"
 #include "streambuf.h"
 #include <linux/delay.h>
+#include "teeload.h"
 
 #undef pr_info
 #define pr_info printk
@@ -4311,7 +4312,8 @@ static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw)
 
 	WRITE_VREG(FRAME_COUNTER_REG, hw->decode_pic_count);
 	WRITE_VREG(AV_SCRATCH_8, hw->buf_offset);
-	WRITE_VREG(AV_SCRATCH_G, hw->mc_dma_handle);
+	if (!is_secload_get())
+		WRITE_VREG(AV_SCRATCH_G, hw->mc_dma_handle);
 
 	/* hw->error_recovery_mode = (error_recovery_mode != 0) ?
 		error_recovery_mode : error_recovery_mode_in; */
@@ -4463,7 +4465,14 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 			return -ENOMEM;
 		}
 	}
-
+	if (is_secload_get() && !firmwareloaded) {
+		pr_info("VMH264 start load sec firmware ...\n");
+		if (tee_load_video_fw((u32)VIDEO_DEC_H264_MULTI)
+			!= 0) {
+			amvdec_disable();
+			return -1;
+		}
+	} else {
 	/* -- ucode loading (amrisc and swap code) */
 	hw->mc_cpu_addr =
 		dma_alloc_coherent(amports_get_dma_device(), MC_TOTAL_SIZE,
@@ -4557,7 +4566,7 @@ static s32 vh264_init(struct vdec_h264_hw_s *hw)
 			return -EBUSY;
 		}
 	}
-
+	}
 #if 1 /* #ifdef  BUFFER_MGR_IN_C */
 	hw->lmem_addr = __get_free_page(GFP_KERNEL);
 	if (!hw->lmem_addr) {
@@ -5067,15 +5076,23 @@ static void run(struct vdec_s *vdec,
 
 	start_process_time(hw);
 
-	if (amvdec_vdec_loadmc_ex(vdec, "vmh264_mc") < 0) {
-		amvdec_enable_flag = false;
-		amvdec_disable();
-			if (mmu_enable)
-				amhevc_disable();
-		pr_info("%s: Error amvdec_vdec_loadmc fail\n",
-			__func__);
-		return;
+	if (is_secload_get()) {
+		if (tee_load_video_fw((u32)VIDEO_DEC_H264_MULTI)
+			!= 0) {
+			amvdec_enable_flag = false;
+			amvdec_disable();
+			pr_info("%s: Error amvdec_vdec_loadmc fail\n",
+				__func__);
+			return;
+		}
+	} else if (amvdec_vdec_loadmc_ex(vdec, "vmh264_mc") < 0) {
+			amvdec_enable_flag = false;
+			amvdec_disable();
+			pr_info("%s: Error amvdec_vdec_loadmc fail\n",
+				__func__);
+			return;
 	}
+
 
 	if (vh264_hw_ctx_restore(hw) < 0) {
 		vdec_schedule_work(&hw->work);

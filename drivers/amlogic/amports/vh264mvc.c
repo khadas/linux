@@ -46,7 +46,7 @@
 
 #include "amvdec.h"
 #include "decoder/decoder_bmmu_box.h"
-
+#include "teeload.h"
 
 #define TIME_TASK_PRINT_ENABLE  0x100
 #define PUT_PRINT_ENABLE    0x200
@@ -1404,6 +1404,12 @@ static s32 vh264mvc_init(void)
 
 	amvdec_enable();
 
+	if (is_secload_get()) {
+		if (tee_load_video_fw((u32)VIDEO_DEC_H264_MVC) != 0) {
+			amvdec_disable();
+			return -1;
+		}
+	} else {
 	/* -- ucode loading (amrisc and swap code) */
 	mc_cpu_addr = dma_alloc_coherent(amports_get_dma_device(),
 		MC_TOTAL_SIZE, &mc_dma_handle, GFP_KERNEL);
@@ -1464,7 +1470,7 @@ static s32 vh264mvc_init(void)
 		mc_cpu_addr = NULL;
 		return -EBUSY;
 	}
-
+	}
 	stat |= STAT_MC_LOAD;
 
 	/* enable AMRISC side protocol */

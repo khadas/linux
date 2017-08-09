@@ -50,6 +50,8 @@
 #include <linux/delay.h>
 
 #include <linux/amlogic/ge2d/ge2d.h>
+#include "teeload.h"
+
 
 #define DRIVER_NAME "amvdec_h264"
 #define MODULE_NAME "amvdec_h264"
@@ -2325,7 +2327,8 @@ static void vh264_prot_init(void)
 
 	WRITE_VREG(AV_SCRATCH_0, 0);
 	WRITE_VREG(AV_SCRATCH_1, buf_offset);
-	WRITE_VREG(AV_SCRATCH_G, mc_dma_handle);
+	if (!is_secload_get())
+		WRITE_VREG(AV_SCRATCH_G, mc_dma_handle);
 	WRITE_VREG(AV_SCRATCH_7, 0);
 	WRITE_VREG(AV_SCRATCH_8, 0);
 	WRITE_VREG(AV_SCRATCH_9, 0);
@@ -2541,7 +2544,12 @@ static s32 vh264_init(void)
 	query_video_status(0, &trickmode_fffb);
 
 	amvdec_enable();
-
+	if (!firmwareloaded && is_secload_get()) {
+		if (tee_load_video_fw((u32)VIDEO_DEC_H264) != 0) {
+			amvdec_disable();
+			return -1;
+		}
+	} else {
 	/* -- ucode loading (amrisc and swap code) */
 	mc_cpu_addr =
 		dma_alloc_coherent(amports_get_dma_device(), MC_TOTAL_SIZE,
@@ -2693,6 +2701,7 @@ static s32 vh264_init(void)
 			}
 			return -EBUSY;
 		}
+	}
 	}
 
 	stat |= STAT_MC_LOAD;
