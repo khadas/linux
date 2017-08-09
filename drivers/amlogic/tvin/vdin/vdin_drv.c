@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/poll.h>
 #include <linux/workqueue.h>
 #include <linux/time.h>
 #include <linux/mm.h>
@@ -437,10 +438,6 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	else
 		devp->parm.info.fmt = TVIN_SIG_FMT_NULL;
 	devp->parm.info.status = TVIN_SIG_STATUS_NULL;
-	if (devp->pre_info.status != TVIN_SIG_STATUS_NULL) {
-		devp->pre_info.status = TVIN_SIG_STATUS_NULL;
-		switch_set_state(&devp->sig_sdev, TVIN_SIG_STATUS_NULL);
-	}
 	devp->dec_enable = 1;  /* enable decoder */
 	/* clear color para*/
 	memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
@@ -502,10 +499,6 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 	devp->parm.port = TVIN_PORT_NULL;
 	devp->parm.info.fmt  = TVIN_SIG_FMT_NULL;
 	devp->parm.info.status = TVIN_SIG_STATUS_NULL;
-	if (devp->pre_info.status != TVIN_SIG_STATUS_NULL) {
-		devp->pre_info.status = TVIN_SIG_STATUS_NULL;
-		switch_set_state(&devp->sig_sdev, TVIN_SIG_STATUS_NULL);
-	}
 
 	pr_info("%s ok\n", __func__);
 }
@@ -2120,28 +2113,6 @@ irq_handled:
 	return IRQ_HANDLED;
 }
 
-static void vdin_sig_dwork(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct vdin_dev_s *devp =
-		container_of(dwork, struct vdin_dev_s, sig_dwork);
-
-	struct tvin_info_s *pre_info;
-
-	if (!devp || !devp->frontend) {
-		pr_info("%s, dwork error !!!\n", __func__);
-		return;
-	}
-
-	pre_info = &devp->pre_info;
-
-	cancel_delayed_work(&devp->sig_dwork);
-
-	switch_set_state(&devp->sig_sdev, pre_info->status);
-	/* if (vdin_dbg_en) */
-	pr_info("%s, dwork signal status: %d\n",
-			__func__, pre_info->status);
-}
 static void vdin_dv_dwork(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -2195,6 +2166,9 @@ static int vdin_open(struct inode *inode, struct file *file)
 	devp->flags |= VDIN_FLAG_ISR_REQ;
 	/*disable irq untill vdin is configured completely*/
 	disable_irq_nosync(devp->irq);
+
+	/*init queue*/
+	init_waitqueue_head(&devp->queue);
 
 	/* remove the hardware limit to vertical [0-max]*/
 	/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000fff); */
@@ -2648,6 +2622,17 @@ static int vdin_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+static unsigned int vdin_poll(struct file *file, poll_table *wait)
+{
+	struct vdin_dev_s *devp = file->private_data;
+	unsigned int mask = 0;
+
+	poll_wait(file, &devp->queue, wait);
+	mask = (POLLIN | POLLRDNORM);
+
+	return mask;
+}
+
 static const struct file_operations vdin_fops = {
 	.owner	         = THIS_MODULE,
 	.open	         = vdin_open,
@@ -2657,6 +2642,7 @@ static const struct file_operations vdin_fops = {
 	.compat_ioctl = vdin_compat_ioctl,
 #endif
 	.mmap	         = vdin_mmap,
+	.poll            = vdin_poll,
 };
 
 
@@ -3004,14 +2990,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdevp->rdma_enable = rdma_enable;
 	vdevp->game_mode = game_mode;
 	vdevp->canvas_config_mode = canvas_config_mode;
-	vdevp->sig_wq = create_singlethread_workqueue(vdevp->name);
-	INIT_DELAYED_WORK(&vdevp->sig_dwork, vdin_sig_dwork);
 	INIT_DELAYED_WORK(&vdevp->dv_dwork, vdin_dv_dwork);
-
-	vdevp->sig_sdev.name = vdevp->name;
-	ret = switch_dev_register(&vdevp->sig_sdev);
-	if (ret < 0)
-		pr_err("[vdin] %d: register sdev error.\n", vdevp->index);
 
 	pr_info("%s: driver initialized ok\n", __func__);
 	return 0;

@@ -148,7 +148,7 @@ static int nosig2_unstable_cnt = EXIT_NOSIG_MAX_CNT;
 module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
 
-static int signal_status = TVIN_SM_STATUS_NULL;
+static int signal_status = TVIN_SIG_STATUS_NULL;
 module_param(signal_status, int, 0664);
 MODULE_PARM_DESC(signal_status, "signal_status");
 
@@ -285,7 +285,7 @@ static void hdmirx_dv_check(struct vdin_dev_s *devp,
 void tvin_smr(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
-	struct tvin_info_s *info, *pre_info;
+	struct tvin_info_s *info;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	unsigned int unstb_in;
 	struct tvin_sm_s *sm_p;
@@ -305,7 +305,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 	fe = devp->frontend;
 	sm_ops = devp->frontend->sm_ops;
 	info = &devp->parm.info;
-	pre_info = &devp->pre_info;
 	port = devp->parm.port;
 	prop = &devp->prop;
 	pre_prop = &devp->pre_prop;
@@ -323,11 +322,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 			if (sm_p->state_cnt >= nosig_in_cnt) {
 				sm_p->state_cnt = nosig_in_cnt;
 				info->status = TVIN_SIG_STATUS_NOSIG;
-				if (pre_info->status != info->status) {
-					pre_info->status = info->status;
-					queue_delayed_work(devp->sig_wq,
-						&devp->sig_dwork, 0);
-				}
 				info->fmt = TVIN_SIG_FMT_NULL;
 				if (sm_debug_enable && !sm_print_nosig) {
 					pr_info("[smr.%d] no signal\n",
@@ -359,11 +353,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 				tvin_smr_init_counter(devp->index);
 				sm_p->state = TVIN_SM_STATUS_NOSIG;
 				info->status = TVIN_SIG_STATUS_NOSIG;
-				if (pre_info->status != info->status) {
-					pre_info->status = info->status;
-					queue_delayed_work(devp->sig_wq,
-						&devp->sig_dwork, 0);
-				}
 				info->fmt = TVIN_SIG_FMT_NULL;
 				if (sm_debug_enable)
 					pr_info("[smr.%d] unstable --> no signal\n",
@@ -386,11 +375,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (sm_p->state_cnt >= unstb_in) {
 					sm_p->state_cnt  = unstb_in;
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
-					if (pre_info->status != info->status) {
-						pre_info->status = info->status;
-						queue_delayed_work(devp->sig_wq,
-							&devp->sig_dwork, 0);
-					}
 					info->fmt = TVIN_SIG_FMT_NULL;
 					if (sm_debug_enable &&
 						!sm_print_unstable) {
@@ -421,6 +405,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 							sm_ops->get_fmt(fe);
 						sm_ops->get_sig_propery(fe,
 							prop);
+						info->cfmt = prop->color_format;
 						memcpy(pre_prop, prop,
 					sizeof(struct tvin_sig_property_s));
 						devp->parm.info.trans_fmt =
@@ -435,11 +420,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (info->fmt == TVIN_SIG_FMT_NULL) {
 					/* remove unsupport status */
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
-					if (pre_info->status != info->status) {
-						pre_info->status = info->status;
-						queue_delayed_work(devp->sig_wq,
-							&devp->sig_dwork, 0);
-					}
 					if (sm_debug_enable &&
 						!sm_print_notsup) {
 						pr_info("[smr.%d] unstable --> not support\n",
@@ -527,11 +507,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 			sm_p->state = TVIN_SM_STATUS_STABLE;
 			info->status = TVIN_SIG_STATUS_STABLE;
-			if (pre_info->status != info->status) {
-				pre_info->status = info->status;
-				queue_delayed_work(devp->sig_wq,
-						&devp->sig_dwork, 0);
-			}
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 						devp->index,
@@ -653,7 +628,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 		sm_p->state = TVIN_SM_STATUS_NOSIG;
 		break;
 	}
-	signal_status = sm_p->state;
+	if (sm_p->sig_status != info->status) {
+		sm_p->sig_status = info->status;
+		wake_up(&devp->queue);
+	}
+	signal_status = sm_p->sig_status;
 }
 
 /*
@@ -663,6 +642,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 void tvin_smr_init(int index)
 {
+	sm_dev[index].sig_status = TVIN_SIG_STATUS_NULL;
 	sm_dev[index].state = TVIN_SM_STATUS_NULL;
 	sm_dev[index].atv_stable_out_cnt = atv_stable_out_cnt;
 	sm_dev[index].atv_unstable_in_cnt = atv_unstable_in_cnt;

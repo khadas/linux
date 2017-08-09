@@ -240,11 +240,6 @@ struct vdin_dev_s {
 	struct clk				*msr_clk;
 	unsigned int             msr_clk_val;
 
-	/* signal event */
-	struct delayed_work     sig_dwork;
-	struct workqueue_struct *sig_wq;
-	struct switch_dev       sig_sdev;
-	struct tvin_info_s      pre_info;
 	struct delayed_work     dv_dwork;
 
 	struct vdin_debug_s			debug;
@@ -303,6 +298,7 @@ struct vdin_dev_s {
 	unsigned int		canvas_config_mode;
 	bool	prehsc_en;
 	bool	vshrk_en;
+	wait_queue_head_t queue;
 };
 
 
