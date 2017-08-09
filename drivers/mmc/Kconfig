@@ -22,7 +22,7 @@ config MMC_DEBUG
 if MMC
 config PXP_MMC
        boolean "PXP MMC compatible"
-       default y
+       default n
        help
          Say Y here if you hope pxp no response emmc unexpected status,
          in order to can operate emmc.
