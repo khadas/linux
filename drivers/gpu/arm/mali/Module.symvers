@@ -1,0 +1,5 @@
+0x00000000	mali_set_user_setting	/home/nick/work/code/project/bulidroot/630/buildroot_openlinux/output/mesongxl_p212/build/gpu-r7p0/utgard/r7p0/mali	EXPORT_SYMBOL
+0x00000000	mali_perf_set_num_pp_cores	/home/nick/work/code/project/bulidroot/630/buildroot_openlinux/output/mesongxl_p212/build/gpu-r7p0/utgard/r7p0/mali	EXPORT_SYMBOL
+0x00000000	mali_dev_resume	/home/nick/work/code/project/bulidroot/630/buildroot_openlinux/output/mesongxl_p212/build/gpu-r7p0/utgard/r7p0/mali	EXPORT_SYMBOL
+0x00000000	mali_dev_pause	/home/nick/work/code/project/bulidroot/630/buildroot_openlinux/output/mesongxl_p212/build/gpu-r7p0/utgard/r7p0/mali	EXPORT_SYMBOL
+0x00000000	mali_get_user_setting	/home/nick/work/code/project/bulidroot/630/buildroot_openlinux/output/mesongxl_p212/build/gpu-r7p0/utgard/r7p0/mali	EXPORT_SYMBOL

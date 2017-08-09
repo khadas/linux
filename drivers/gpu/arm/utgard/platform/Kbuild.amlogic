@@ -1,0 +1,159 @@
+ifeq ($(CONFIG_MALI_DVFS),y)
+    EXTRA_DEFINES += -DCONFIG_MALI_DVFS
+    USING_GPU_UTILIZATION=0
+    USING_DVFS=1
+else
+    USING_GPU_UTILIZATION=1
+    USING_DVFS=0
+endif
+
+ifeq ($(CONFIG_MALI400_DEBUG),y)
+	BUILD ?= debug
+else
+	BUILD ?= release
+	ldflags-y += --strip-debug
+endif
+
+#########
+TARGET_PLATFORM:=meson_bu
+ifeq ($(CONFIG_ARCH_MESON1),y)
+TARGET_PLATFORM:= meson_m400
+endif
+ifeq ($(CONFIG_ARCH_MESON3),y)
+TARGET_PLATFORM:= meson_m400
+endif
+ifeq ($(CONFIG_ARCH_MESON6),y)
+TARGET_PLATFORM:= meson_m400
+endif
+ifeq ($(CONFIG_ARCH_MESON6TV),y)
+TARGET_PLATFORM:= meson_m400
+endif
+
+ifeq ($(CONFIG_ARCH_MESON8),y)
+TARGET_PLATFORM:= meson_m450
+endif
+ifeq ($(CONFIG_ARCH_MESON6TVD),y)
+TARGET_PLATFORM:= meson_m450
+endif
+ifeq ($(CONFIG_ARCH_MESON8B),y)
+TARGET_PLATFORM:= meson_m450
+endif
+ifeq ($(CONFIG_ARCH_MESONG9TV),y)
+TARGET_PLATFORM:= meson_m450
+endif
+ifeq ($(CONFIG_ARCH_MESONG9BB),y)
+TARGET_PLATFORM:= meson_m450
+endif
+#########
+$(platform Kbuild.amlogic warning TARGET_PLATFORM is  $(TARGET_PLATFORM))
+ifeq ($(TARGET_PLATFORM),meson_m400)
+MALI_PLATFORM_FILES:= \
+	platform/meson_m400/mali_fix.c \
+	platform/meson_m400/mali_platform.c \
+	platform/meson_m400/platform_mx.c
+endif
+
+ifeq ($(TARGET_PLATFORM),meson_m450)
+EXTRA_DEFINES += -DCONFIG_MALI450=y
+MALI_PLATFORM_FILES:= \
+	platform/meson_m450/meson_main.c \
+	platform/meson_m450/mali_pm_device.c \
+	platform/meson_m450/mali_clock.c \
+	platform/meson_m450/mpgpu.c \
+	platform/meson_m450/scaling.c
+
+ifeq ($(CONFIG_ARCH_MESON),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m8.c
+endif
+ifeq ($(CONFIG_ARCH_MESON8),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m8.c
+endif
+ifeq ($(CONFIG_ARCH_MESON6TVD),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m6tvd.c
+endif
+ifeq ($(CONFIG_ARCH_MESON8B),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m8b.c
+endif
+ifeq ($(CONFIG_ARCH_MESONG9TV),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m8.c
+endif
+ifeq ($(CONFIG_ARCH_MESONG9BB),y)
+MALI_PLATFORM_FILES+= \
+	platform/meson_m450/platform_m8b.c
+endif
+
+endif
+
+ifeq ($(TARGET_PLATFORM),meson_bu)
+ifndef CONFIG_MALI450
+EXTRA_DEFINES += -DCONFIG_MALI450=y
+endif
+
+ccflags-y += -DCONFIG_MALI_DT=y
+ccflags-y += -DMESON_CPU_TYPE=0x80
+ccflags-y += -DMESON_CPU_TYPE_MESON6=0x60
+ccflags-y += -DMESON_CPU_TYPE_MESON6TVD=0x75
+ccflags-y += -DMESON_CPU_TYPE_MESON8=0x80
+ccflags-y += -DMESON_CPU_TYPE_MESON8B=0x8B
+
+USE_GPPLL?=0
+ifdef CONFIG_AM_VIDEO
+    USE_GPPLL:=1
+endif
+
+ccflags-y += -DAMLOGIC_GPU_USE_GPPLL=$(USE_GPPLL)
+
+MALI_PLATFORM_FILES:= \
+	platform/meson_bu/mali_pm_device.c \
+	platform/meson_bu/meson_main2.c \
+	platform/meson_bu/mali_clock.c \
+	platform/meson_bu/mpgpu.c \
+	platform/meson_bu/platform_gx.c
+
+ifeq ($(CONFIG_MALI_DVFS),y)
+MALI_PLATFORM_FILES+= \
+    meson_bu/mali_dvfs.c
+else
+MALI_PLATFORM_FILES+= \
+	platform/meson_bu/scaling.c
+endif
+endif
+
+ifndef CONFIG_DMA_SHARED_BUFFER
+    ccflags-y += -DCONFIG_DMA_SHARED_BUFFER=y
+endif
+
+ifndef CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH
+    ccflags-y += -DCONFIG_MALI_DMA_BUF_MAP_ON_ATTACH=y
+endif
+
+ccflags-y += -I$(src)/platform/$(TARGET_PLATFORM)
+ccflags-y += -DMALI_FAKE_PLATFORM_DEVICE=1
+#$(warning r7p0/Kbuild.plat ccflags-y is $(ccflags-y))
+
+
+#####################################################
+ifeq (true,false)
+ifndef CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH
+    ccflags-y += -DCONFIG_MALI_DMA_BUF_MAP_ON_ATTACH=y
+endif
+
+ccflags-y += -DCONFIG_MALI_DT=y
+ccflags-y += -DMESON_CPU_TYPE=0x80
+ccflags-y += -DMESON_CPU_TYPE_MESON6=0x60
+ccflags-y += -DMESON_CPU_TYPE_MESON6TVD=0x75
+ccflags-y += -DMESON_CPU_TYPE_MESON8=0x80
+ccflags-y += -DMESON_CPU_TYPE_MESON8B=0x8B
+
+USE_GPPLL?=0
+ifdef CONFIG_AM_VIDEO
+    USE_GPPLL:=1
+endif
+
+ccflags-y += -DAMLOGIC_GPU_USE_GPPLL=$(USE_GPPLL)
+endif
