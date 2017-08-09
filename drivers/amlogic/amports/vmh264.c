@@ -1053,6 +1053,7 @@ static void  hevc_sao_set_pic_buffer(struct vdec_h264_hw_s *hw,
 				hw->mmu_box,
 				hw->hevc_cur_buf_idx,
 				used_4k_num);
+			hw->hevc_cur_buf_idx = 0xffff;
 	}
 
 	WRITE_VREG(CURR_CANVAS_CTRL, pic->buf_spec_num << 24);
@@ -1133,11 +1134,15 @@ static void  hevc_set_unused_4k_buff_idx(struct vdec_h264_hw_s *hw,
 
 static void  hevc_set_frame_done(struct vdec_h264_hw_s *hw)
 {
+	ulong timeout = jiffies + HZ;
 	dpb_print(DECODE_ID(hw),
 		PRINT_FLAG_MMU_DETAIL, "hevc_frame_done...set\n");
 	while ((READ_VREG(HEVC_SAO_INT_STATUS) & 0x1) == 0) {
-		dpb_print(DECODE_ID(hw),
-		PRINT_FLAG_MMU_DETAIL, " %s...wait\n", __func__);
+		if (time_after(jiffies, timeout)) {
+			dpb_print(DECODE_ID(hw),
+			PRINT_FLAG_MMU_DETAIL, " %s..timeout!\n", __func__);
+			break;
+		}
 	}
 	WRITE_VREG(HEVC_SAO_INT_STATUS, 0x1);
 	hw->frame_done = 1;
@@ -1146,19 +1151,27 @@ static void  hevc_set_frame_done(struct vdec_h264_hw_s *hw)
 
 static void  hevc_sao_wait_done(struct vdec_h264_hw_s *hw)
 {
+	ulong timeout = jiffies + HZ;
 	dpb_print(DECODE_ID(hw),
 		PRINT_FLAG_MMU_DETAIL, "hevc_sao_wait_done...start\n");
-	while ((READ_VREG(HEVC_SAO_INT_STATUS) >> 31))
-		dpb_print(DECODE_ID(hw),
-		PRINT_FLAG_MMU_DETAIL, "hevc_sao_wait_done...wait\n");
-
+	while ((READ_VREG(HEVC_SAO_INT_STATUS) >> 31)) {
+		if (time_after(jiffies, timeout)) {
+			dpb_print(DECODE_ID(hw),
+			PRINT_FLAG_MMU_DETAIL,
+			"hevc_sao_wait_done...wait timeout!\n");
+			break;
+		}
+	}
+	timeout = jiffies + HZ;
 	if ((hw->frame_busy == 1) && (hw->frame_done == 1)) {
 		WRITE_VREG(SYS_COMMAND, H265_ABORT_SAO_4K_SET);
 		while ((READ_VREG(SYS_COMMAND) & 0xff) !=
 				H265_ABORT_SAO_4K_SET_DONE) {
-			dpb_print(DECODE_ID(hw),
-			PRINT_FLAG_MMU_DETAIL,
-			"hevc_sao_wait_done...wait h265_abort_sao_4k_set_done\n");
+			if (time_after(jiffies, timeout)) {
+				dpb_print(DECODE_ID(hw),
+				PRINT_FLAG_MMU_DETAIL,
+				"wait h265_abort_sao_4k_set_done timeout!\n");
+			}
 		}
 		hw->frame_busy = 0;
 		hw->frame_done = 0;
