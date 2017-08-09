@@ -764,7 +764,7 @@ int get_video0_frame_info(struct vframe_s *vf)
 	return ret;
 }
 
-static struct vframe_s vf_local;
+static struct vframe_s vf_local, vf_local2;
 static u32 vsync_pts_inc;
 static u32 vsync_pts_inc_scale;
 static u32 vsync_pts_inc_scale_base = 1;
@@ -5510,8 +5510,10 @@ static void video_vf_unreg_provider(void)
 		cur_dispbuf = &vf_local;
 		cur_dispbuf->video_angle = 0;
 	}
-	if (is_dolby_vision_enable())
-		cur_dispbuf2 = NULL;
+	if (is_dolby_vision_enable() && cur_dispbuf2 != NULL) {
+		vf_local2 = *cur_dispbuf2;
+		cur_dispbuf2 = &vf_local2;
+	}
 
 	if (trickmode_fffb) {
 		atomic_set(&trickmode_framedone, 0);
@@ -5534,7 +5536,7 @@ static void video_vf_unreg_provider(void)
 	if (cur_dispbuf) {
 		/* TODO: mod gate */
 		/* switch_mod_gate_by_name("ge2d", 1); */
-		vf_keep_current(cur_dispbuf);
+		vf_keep_current(cur_dispbuf, cur_dispbuf2);
 		/* TODO: mod gate */
 		/* switch_mod_gate_by_name("ge2d", 0); */
 	}
@@ -5543,7 +5545,7 @@ static void video_vf_unreg_provider(void)
 #else
 	/* if (!trickmode_fffb) */
 	if (cur_dispbuf)
-		vf_keep_current(cur_dispbuf);
+		vf_keep_current(cur_dispbuf, cur_dispbuf2);
 	if (hdmi_in_onvideo == 0)
 		tsync_avevent(VIDEO_STOP, 0);
 #endif
