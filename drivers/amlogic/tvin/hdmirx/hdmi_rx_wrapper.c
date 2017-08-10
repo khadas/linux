@@ -3807,8 +3807,9 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		if (pre_port != E_5V_LOST) {
 			rx.state = FSM_HPD_LOW;
 			rx_set_hpd(0);
-			hdmirx_hw_config();
 		}
+		/* need reset the whole module when switch port */
+		hdmirx_hw_config();
 		pre_port = rx.port;
 		rx_set_eq_run_state(E_EQ_START);
 	} else {
