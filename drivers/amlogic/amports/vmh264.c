@@ -129,6 +129,7 @@ static unsigned int reference_buf_margin = 4;
 
 static unsigned int max_alloc_buf_count;
 static unsigned int decode_timeout_val = 100;
+static unsigned int errordata_timeout_val = 50;
 static unsigned int get_data_timeout_val = 2000;
 static unsigned int frame_max_data_packet = 8;
 
@@ -4102,7 +4103,11 @@ static void check_timer_func(unsigned long arg)
 {
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)arg;
 	struct vdec_s *vdec = hw_to_vdec(hw);
-
+	int error_skip_frame_count = error_skip_count & 0xfff;
+	unsigned int timeout_val = decode_timeout_val;
+	if (timeout_val != 0 &&
+		hw->no_error_count < error_skip_frame_count)
+		timeout_val = errordata_timeout_val;
 	if ((h264_debug_cmd & 0x100) != 0 &&
 		DECODE_ID(hw) == (h264_debug_cmd & 0xff)) {
 		hw->dec_result = DEC_RESULT_DONE;
@@ -4139,10 +4144,10 @@ static void check_timer_func(unsigned long arg)
 	if ((input_frame_based(vdec) ||
 		(READ_VREG(VLD_MEM_VIFIFO_LEVEL) > 0x200)) &&
 		((h264_debug_flag & DISABLE_ERROR_HANDLE) == 0) &&
-		(decode_timeout_val > 0) &&
+		(timeout_val > 0) &&
 		(hw->start_process_time > 0) &&
 		((1000 * (jiffies - hw->start_process_time) / HZ)
-			> decode_timeout_val)
+			> timeout_val)
 	) {
 		u32 dpb_status = READ_VREG(DPB_STATUS_REG);
 		u32 mby_mbx = READ_VREG(MBY_MBX);
@@ -5541,6 +5546,9 @@ MODULE_PARM_DESC(fixed_frame_rate_mode, "\namvdec_h264 fixed_frame_rate_mode\n")
 
 module_param(decode_timeout_val, uint, 0664);
 MODULE_PARM_DESC(decode_timeout_val, "\n amvdec_h264 decode_timeout_val\n");
+
+module_param(errordata_timeout_val, uint, 0664);
+MODULE_PARM_DESC(errordata_timeout_val, "\n amvdec_h264 errordata_timeout_val\n");
 
 module_param(get_data_timeout_val, uint, 0664);
 MODULE_PARM_DESC(get_data_timeout_val, "\n amvdec_h264 get_data_timeout_val\n");

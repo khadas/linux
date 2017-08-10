@@ -5555,6 +5555,9 @@ int dpb_check_ref_list_error(
 			if (!is_pic_in_dpb(p_H264_Dpb,
 				currSlice->listX[0][i]))
 				return 1;
+			if (currSlice->listX[0][i]->frame &&
+				currSlice->listX[0][i]->frame->non_existing)
+				return 3;
 		}
 	}
 
@@ -5574,6 +5577,9 @@ int dpb_check_ref_list_error(
 			if (!is_pic_in_dpb(p_H264_Dpb,
 				currSlice->listX[1][i]))
 				return 2;
+			if (currSlice->listX[1][i]->frame &&
+				currSlice->listX[1][i]->frame->non_existing)
+				return 4;
 #if 0
 			if (currSlice->listXsize[0] == 1 &&
 				currSlice->listXsize[1] == 1 &&
