@@ -304,8 +304,18 @@ int stable_check_lvl = 0x7ff;
 module_param(stable_check_lvl, int, 0664);
 MODULE_PARM_DESC(stable_check_lvl, "stable_check_lvl");
 
+bool hdcp22_stop_auth;
+module_param(hdcp22_stop_auth, bool, 0664);
+MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
+
+bool hdcp22_esm_reset2;
+module_param(hdcp22_esm_reset2, bool, 0664);
+MODULE_PARM_DESC(hdcp22_esm_reset2, "hdcp22_esm_reset2");
+
 bool hdcp22_reauth_enable;
 int do_hpd_reset_flag;
+bool hdcp22_stop_auth_enable;
+bool hdcp22_esm_reset2_enable;
 static int sm_pause;
 int pre_port = 0xff;
 /*uint32_t irq_flag;*/
@@ -314,8 +324,8 @@ int pre_port = 0xff;
 static void dump_state(unsigned char enable);
 static void dump_hdcp_data(void);
 /*------------------------external function end------------------------------*/
-
 struct rx_s rx;
+
 
 struct hdmi_rx_ctrl_hdcp init_hdcp_data;
 static char key_buf[MAX_KEY_BUF_SIZE];
@@ -980,15 +990,14 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_LOST;
 		if (get(intr_hdcp22, _BIT(3)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_SUCCESS;
-			if ((intr_hdcp22 & 0x01) == 0) {
+			if ((intr_hdcp22 & 0x01) == 0)
 				hdmirx_hdcp_version_set(HDCP_VERSION_22);
-			}
 		}
-		if (get(intr_hdcp22, _BIT(4)) != 0) {
+		/*if (get(intr_hdcp22, _BIT(4)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_FAILED;
 			if (hdcp22_capable_sts == HDCP22_AUTH_STATE_CAPBLE)
 				esm_recovery();
-		}
+		}*/
 		if (log_level & HDCP_LOG) {
 			rx_pr("intr=%#x\n", intr_hdcp22);
 			rx_pr("capble sts = %d\n",
@@ -1696,8 +1705,8 @@ static void Signal_status_init(void)
 	rx_set_eq_run_state(E_EQ_START);
 	is_hdcp_source = true;
 	#ifdef HDCP22_ENABLE
-	if (hdcp22_on)
-		esm_set_stable(0);
+	/*if (hdcp22_on)
+		esm_set_stable(0);*/
 	hdmirx_hdcp_version_set(HDCP_VERSION_NONE);
 	#endif
 	rx.skip = 0;
@@ -1909,8 +1918,10 @@ void esm_set_stable(bool stable)
 
 void esm_recovery(void)
 {
-	if (!hdcp22_reauth_enable)
-		esm_set_stable(0);
+	if (hdcp22_stop_auth_enable)
+		hdcp22_stop_auth = 1;
+	if (hdcp22_esm_reset2_enable)
+		hdcp22_esm_reset2 = 1;
 }
 
 void esm_rst_monitor(void)
@@ -1974,8 +1985,30 @@ void monitor_cable_clk_sts(void)
 
 void fsm_restart(void)
 {
+	#ifdef HDCP22_ENABLE
+	rx_esm_tmdsclk_en(0);
+	#endif
 	rx.state = FSM_INIT;
 	rx_pr("force_fsm_init\n");
+}
+
+void rx_esm_exception_monitor(void)
+{
+	int irq_status, exception;
+
+	irq_status = rx_hdcp22_rd_reg(HPI_REG_IRQ_STATUS);
+	/*rx_pr("++++++hdcp22 state irq status:%#x\n", reg);*/
+	if (irq_status & IRQ_STATUS_UPDATE_BIT) {
+		exception =
+		rx_hdcp22_rd_reg_bits(HPI_REG_EXCEPTION_STATUS,
+						EXCEPTION_CODE);
+		if (exception != rx.hdcp.hdcp22_exception) {
+			rx_pr("++++++hdcp22 state:%#x,vec:%#x\n",
+				rx_hdcp22_rd_reg(HPI_REG_EXCEPTION_STATUS),
+				exception);
+			rx.hdcp.hdcp22_exception = exception;
+		}
+	}
 }
 
 void hdmirx_hw_monitor(void)
@@ -1993,6 +2026,8 @@ void hdmirx_hw_monitor(void)
 		return;
 
 	#ifdef HDCP22_ENABLE
+	if (log_level & VIDEO_LOG)
+		rx_esm_exception_monitor();/* only for debug */
 	if ((hdcp22_on) && (rx.state > FSM_SIG_UNSTABLE)) {
 		monitor_hdcp22_sts();
 		esm_rst_monitor();
@@ -2074,8 +2109,8 @@ void hdmirx_hw_monitor(void)
 			break;
 		case EQ_ENABLE:
 		default:
-			if (hdcp22_on)
-				esm_recovery();
+			/*if (hdcp22_on)
+				esm_recovery();*/
 			run_eq_flag = E_EQ_START;
 			rx.state = FSM_WAIT_EQ_DONE;
 			rx_pr("EQ_INIT-->FSM_WAIT_EQ_DONE\n");
@@ -2102,6 +2137,9 @@ void hdmirx_hw_monitor(void)
 				hdmirx_irq_enable(TRUE);
 				#ifdef HDCP22_ENABLE
 				if (hdcp22_on) {
+					#ifdef HDCP22_ENABLE
+					rx_esm_tmdsclk_en(1);
+					#endif
 					esm_set_stable(1);
 					if (rx.hdcp.hdcp_version !=
 						HDCP_VERSION_NONE)
@@ -2245,6 +2283,9 @@ void hdmirx_hw_monitor(void)
 				sig_unready_cnt = 0;
 				audio_sample_rate = 0;
 				rx_aud_pll_ctl(0);
+				#ifdef HDCP22_ENABLE
+				rx_esm_tmdsclk_en(0);
+				#endif
 				rx.state = FSM_WAIT_CLK_STABLE;
 				rx.pre_state = FSM_SIG_READY;
 				rx.skip = 0;
@@ -3178,6 +3219,10 @@ void rx_set_global_varaible(const char *buf, int size)
 	set_pr_var(tmpbuf, is_hdcp_source, value, index);
 	set_pr_var(tmpbuf, stable_check_lvl, value, index);
 	set_pr_var(tmpbuf, hdcp22_reauth_enable, value, index);
+	set_pr_var(tmpbuf, hdcp22_stop_auth_enable, value, index);
+	set_pr_var(tmpbuf, hdcp22_stop_auth, value, index);
+	set_pr_var(tmpbuf, hdcp22_esm_reset2_enable, value, index);
+	set_pr_var(tmpbuf, hdcp22_esm_reset2, value, index);
 }
 
 void rx_get_global_varaible(const char *buf)
@@ -3264,6 +3309,10 @@ void rx_get_global_varaible(const char *buf)
 	pr_var(is_hdcp_source, i++);
 	pr_var(stable_check_lvl, i++);
 	pr_var(hdcp22_reauth_enable, i++);
+	pr_var(hdcp22_stop_auth_enable, i++);
+	pr_var(hdcp22_stop_auth, i++);
+	pr_var(hdcp22_esm_reset2_enable, i++);
+	pr_var(hdcp22_esm_reset2, i++);
 }
 
 void print_reg(uint start_addr, uint end_addr)

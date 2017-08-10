@@ -995,7 +995,9 @@
  * ESM registers
  */
 
-/** HPI Register Base Offset */
-
-#define HRX_ELP_ESM_HPI_REG_BASE    0xd0076000
+/** HPI Register */
+#define HPI_REG_IRQ_STATUS				0x24
+#define IRQ_STATUS_UPDATE_BIT			_BIT(3)
+#define HPI_REG_EXCEPTION_STATUS		0x60
+#define EXCEPTION_CODE					MSK(8, 1)
 #endif

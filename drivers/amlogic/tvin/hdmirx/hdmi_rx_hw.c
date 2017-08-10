@@ -256,6 +256,16 @@ unsigned long hdmirx_rd_top(unsigned long addr)
 	return data;
 } /* hdmirx_rd_TOP */
 
+uint32_t hdmirx_rd_bits_top(uint16_t addr, uint32_t mask)
+{
+	return get(hdmirx_rd_top(addr), mask);
+}
+
+void hdmirx_wr_bits_top(uint16_t addr, uint32_t mask, uint32_t value)
+{
+	hdmirx_wr_top(addr, set(hdmirx_rd_top(addr), mask, value));
+}
+
 #ifdef HDCP22_ENABLE
 void rx_hdcp22_wr_only(uint32_t addr, uint32_t data)
 {
@@ -303,6 +313,16 @@ uint32_t rx_hdcp22_rd_reg(uint32_t addr)
 {
 	return (uint32_t)rx_sec_reg_read((unsigned *)(unsigned long)
 	(reg_maps[rx.chip_id][MAP_ADDR_MODULE_HDMIRX_CAPB3].phy_addr + addr));
+}
+
+uint32_t rx_hdcp22_rd_reg_bits(uint16_t addr, uint32_t mask)
+{
+	return get(rx_hdcp22_rd_reg(addr), mask);
+}
+
+void rx_hdcp22_wr_reg_bits(uint16_t addr, uint32_t mask, uint32_t value)
+{
+	rx_hdcp22_wr_reg(addr, set(rx_hdcp22_rd_reg(addr), mask, value));
 }
 
 void hdcp22_wr_top(uint32_t addr, uint32_t data)
@@ -839,6 +859,14 @@ void clk_off(void)
 }
 
 #ifdef HDCP22_ENABLE
+void rx_esm_tmdsclk_en(bool en)
+{
+	hdmirx_wr_bits_top(TOP_CLK_CNTL, HDCP22_TMDSCLK_EN, en);
+
+	if (log_level & HDCP_LOG)
+		rx_pr("%s:%d\n", __func__, en);
+}
+
 void hdcp22_clk_init(void)
 {
 	unsigned int data32;

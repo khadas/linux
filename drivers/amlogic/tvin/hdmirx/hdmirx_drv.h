@@ -36,7 +36,7 @@
 #define RX_VER0 "Ref.2017/08/08"
 /*------------------------------*/
 
-#define RX_VER1 "Ref.2017/08/04b"
+#define RX_VER1 "Ref.2017/08/14"
 /*------------------------------*/
 
 #define RX_VER2 "Ref.2017/08/14"
@@ -541,8 +541,10 @@ struct hdmi_rx_ctrl_hdcp {
 	uint32_t keys[HDCP_KEYS_SIZE];
 	struct switch_dev switch_hdcp_auth;
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
+	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
 	uint32_t hdcp_auth_count;/*hdcp auth times*/
 	uint32_t hdcp_auth_time;/*the time to clear auth count*/
+
 };
 
 enum dolby_vision_sts_e {
@@ -822,7 +824,6 @@ extern uint32_t *pd_fifo_buf;
 extern int packet_init(void);
 extern void rx_tasklet_handler(unsigned long arg);
 extern struct tasklet_struct rx_tasklet;
-
 extern int suspend_pddq;
 extern unsigned int hdmirx_addr_port;
 extern unsigned int hdmirx_data_port;
@@ -831,6 +832,9 @@ extern struct reg_map reg_maps[][MAP_ADDR_MODULE_NUM];
 extern unsigned char is_alternative(void);
 extern unsigned char is_frame_packing(void);
 extern void clk_init(void);
+#ifdef HDCP22_ENABLE
+extern void rx_esm_tmdsclk_en(bool en);
+#endif
 extern void clk_off(void);
 extern void set_scdc_cfg(int hpdlow, int pwrprovided);
 extern bool irq_ctrl_reg_en; /* enable/disable reg rd/wr in irq  */
@@ -875,6 +879,8 @@ void hdmirx_wr_bits_dwc(uint16_t addr, uint32_t mask, uint32_t value);
 #ifdef HDCP22_ENABLE
 void rx_hdcp22_wr_reg(uint32_t addr, uint32_t data);
 uint32_t rx_hdcp22_rd_reg(uint32_t addr);
+uint32_t rx_hdcp22_rd_reg_bits(uint16_t addr, uint32_t mask);
+void rx_hdcp22_wr_reg_bits(uint16_t addr, uint32_t mask, uint32_t value);
 void hdcp22_wr_top(uint32_t addr, uint32_t data);
 uint32_t hdcp22_rd_top(uint32_t addr);
 uint32_t rx_hdcp22_rd(uint32_t addr);
@@ -985,5 +991,4 @@ extern void vdac_enable(bool on, unsigned int module_sel);
 extern void hdmirx_dv_packet_stop(void);
 extern void rx_aud_pll_ctl(bool en);
 extern void rx_send_hpd_pulse(void);
-
 #endif  /* _TVHDMI_H */
