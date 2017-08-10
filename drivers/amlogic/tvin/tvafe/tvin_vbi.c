@@ -312,11 +312,11 @@ ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 {
 	size_t todo = len;
 	size_t split;
-	if (rbuf->data_wmode)
+
+	if (rbuf->data_wmode == 1)
 		len = rbuf->size;
 	split =
-	(rbuf->pwrite + len > rbuf->size) ? rbuf->size - rbuf->pwrite : 0;
-
+	(rbuf->pwrite + len > rbuf->size) ? (rbuf->size - rbuf->pwrite) : 0;
 	if (split > 0) {
 		if (capture_print_en)
 			pr_info("[vbi..] %s: pwrite: %6d\n",
@@ -327,6 +327,9 @@ ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 	}
 	memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf+split, todo);
 	rbuf->pwrite = (rbuf->pwrite + todo) % rbuf->size;
+	if (capture_print_en)
+		pr_info("[vbi..] %s: write finish return: %6Zd\n",
+			__func__, len);
 
 	return len;
 }
