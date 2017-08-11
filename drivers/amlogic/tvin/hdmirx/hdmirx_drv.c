@@ -690,6 +690,8 @@ int hdmirx_hw_get_3d_structure(void)
 
 void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 {
+	rx_get_vsi_info();
+
 	prop->trans_fmt = TVIN_TFMT_2D;
 	prop->dolby_vision = FALSE;
 	if (hdmirx_hw_get_3d_structure() == 1) {
@@ -749,6 +751,7 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 	}
 }
 
+
 void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 {
 	prop->decimation_ratio = rx.pre.repeat |
@@ -757,6 +760,18 @@ void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 
 void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 {
+	struct drm_infoframe_st *drmpkt;
+
+	/*check drm packet is attach every VS*/
+	uint32_t drm_attach = rx_pkt_chk_attach_drm();
+
+	drmpkt = (struct drm_infoframe_st *)&(rx.drm_info);
+
+	if (drm_attach) {
+		rx.hdr_info.hdr_state = HDR_STATE_SET;
+		rx_pkt_clr_attach_drm();
+	}
+
 	/* hdr data processing */
 	switch (rx.hdr_info.hdr_state) {
 	case HDR_STATE_NULL:
@@ -765,14 +780,48 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 			prop->hdr_info.hdr_state = HDR_STATE_NULL;
 			rx.hdr_info.hdr_check_cnt = 0;
 		}
-	break;
+		break;
 	case HDR_STATE_GET:
 		rx.hdr_info.hdr_check_cnt = 0;
-	break;
+		break;
 	case HDR_STATE_SET:
 		rx.hdr_info.hdr_check_cnt = 0;
 		if (prop->hdr_info.hdr_state != HDR_STATE_GET) {
-			prop->hdr_info.hdr_data = rx.hdr_info.hdr_data;
+			#if 0
+			/*prop->hdr_info.hdr_data = rx.hdr_info.hdr_data;*/
+			#else
+			if (rx_pkt_chk_busy_drm())
+				break;
+
+			prop->hdr_info.hdr_data.lenght = drmpkt->length;
+			prop->hdr_info.hdr_data.eotf = drmpkt->des_u.tp1.eotf;
+			prop->hdr_info.hdr_data.metadata_id =
+				drmpkt->des_u.tp1.meta_des_id;
+			prop->hdr_info.hdr_data.primaries[0].x =
+				drmpkt->des_u.tp1.dis_pri_x0;
+			prop->hdr_info.hdr_data.primaries[0].y =
+				drmpkt->des_u.tp1.dis_pri_y0;
+			prop->hdr_info.hdr_data.primaries[1].x =
+				drmpkt->des_u.tp1.dis_pri_x1;
+			prop->hdr_info.hdr_data.primaries[1].y =
+				drmpkt->des_u.tp1.dis_pri_y1;
+			prop->hdr_info.hdr_data.primaries[2].x =
+				drmpkt->des_u.tp1.dis_pri_x2;
+			prop->hdr_info.hdr_data.primaries[2].y =
+				drmpkt->des_u.tp1.dis_pri_y2;
+			prop->hdr_info.hdr_data.white_points.x =
+				drmpkt->des_u.tp1.white_points_x;
+			prop->hdr_info.hdr_data.white_points.y =
+				drmpkt->des_u.tp1.white_points_y;
+			prop->hdr_info.hdr_data.master_lum.x =
+				drmpkt->des_u.tp1.max_dislum;
+			prop->hdr_info.hdr_data.master_lum.y =
+				drmpkt->des_u.tp1.min_dislum;
+			prop->hdr_info.hdr_data.mcll =
+				drmpkt->des_u.tp1.max_light_lvl;
+			prop->hdr_info.hdr_data.mfall =
+				drmpkt->des_u.tp1.max_fa_light_lvl;
+			#endif
 
 			/* vdin can read current hdr data */
 			prop->hdr_info.hdr_state = HDR_STATE_GET;
@@ -780,9 +829,9 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 			/* Rx can get new hdr data */
 			rx.hdr_info.hdr_state = HDR_STATE_NULL;
 		}
-	break;
+		break;
 	default:
-	break;
+		break;
 	}
 }
 

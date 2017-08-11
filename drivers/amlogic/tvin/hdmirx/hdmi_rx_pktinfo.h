@@ -60,6 +60,27 @@ enum pkt_type_e {
 	PKT_TYPE_UNKNOWN,
 };
 
+enum pkt_op_flag {
+	/*infoframe type*/
+	PKT_OP_VSI = 0x01,
+	PKT_OP_AVI = 0x02,
+	PKT_OP_SPD = 0x04,
+	PKT_OP_AIF = 0x08,
+
+	PKT_OP_MPEGS = 0x10,
+	PKT_OP_NVBI = 0x20,
+	PKT_OP_DRM = 0x40,
+
+	PKT_OP_ACR = 0x100,
+	PKT_OP_GCP = 0x200,
+	PKT_OP_ACP = 0x400,
+	PKT_OP_ISRC1 = 0x800,
+
+	PKT_OP_ISRC2 = 0x1000,
+	PKT_OP_GMD = 0x2000,
+	PKT_OP_AMP = 0x4000,
+};
+
 struct pkt_typeregmap_st {
 	uint32_t pkt_type;
 	uint32_t reg_bit;
@@ -497,43 +518,52 @@ struct vsi_infoframe_st {
 	/*PB1-3*/
 	uint32_t ieee:24;/* first two hex digits*/
 
+	/*body by different format*/
 	union vsi_sbpkt_u {
-		struct vsi_st {
-			uint32_t payload[6];
-		} __packed vsi;
+		struct payload_st {
+			uint32_t data[6];
+		} __packed payload;
 
-		struct vsi_3d_st {
+		/* video format 0x01*/
+		struct vsi_st {
 			/*pb4*/
 			uint8_t rsvd0:5;
 			uint8_t vdfmt:3;
 			/*pb5*/
-			union pb5_u {
-				struct pb5_st {
-					uint8_t rsvd1:4;
-					uint8_t threeD_st:4;
-				} __packed pb5_st;
-				uint8_t hdmi_vic;
-			} __packed pb5;
-
+			uint8_t hdmi_vic;
 			/*pb6*/
-			union pb6_u {
-				struct pb6_st {
-					uint8_t rsvd2:4;
-					uint8_t threeD_ex:4;
-				} __packed pb6_st;
-				uint8_t pb6_data;
-			} __packed pb6;
+			uint8_t data[22];
+		} __packed vsi;
 
+		/* 3D: video format(0x2) */
+		struct vsi_3Dext_st {
+			/*pb4*/
+			uint8_t rsvd0:5;
+			uint8_t vdfmt:3;
+			/*pb5*/
+			uint8_t rsvd2:3;
+			uint8_t threeD_meta_pre:1;
+			uint8_t threeD_st:4;
+			/*pb6*/
+			uint8_t rsvd3:4;
+			uint8_t threeD_ex:4;
 			/*pb7*/
-			union pb7_u {
-				struct pb7_st {
-					uint8_t h3d_meta_pres:1;
-					uint8_t rsvd3:7;
-				} __packed pb7_st;
-				uint8_t pb7_data;
-			} __packed pb7;
-			uint8_t resd[20];
-		} __packed vsi_3d;
+			uint8_t threeD_meta_type:3;
+			uint8_t threeD_meta_length:5;
+			uint8_t threeD_meta_data[20];
+		} __packed vsi_3Dext;
+
+		/*dolby vision , length 0x18*/
+		struct vsi_DobV_st {
+			/*pb4*/
+			uint8_t rsvd0:5;
+			uint8_t vdfmt:3;
+			/*pb5*/
+			uint8_t hdmi_vic;
+			/*pb6*/
+			uint8_t data[22];/* val=0 */
+		} __packed vsi_DobV;
+
 	} __packed sbpkt;
 } __packed;
 
@@ -792,10 +822,15 @@ struct rxpkt_st {
 	uint32_t pkt_cnt_amp_ex;
 	uint32_t pkt_cnt_nvbi_ex;
 
+	uint32_t pkt_op_flag;
+
 	uint32_t fifo_Int_cnt;
 	uint32_t fifo_pkt_num;
 
 	uint32_t pkt_chk_flg;
+
+	uint32_t pkt_attach_vsi;
+	uint32_t pkt_attach_drm;
 };
 
 struct st_pkt_test_buff {
@@ -845,7 +880,6 @@ struct st_pkt_test_buff {
 
 
 /*extern bool hdr_enable;*/
-
 extern void rx_pkt_status(void);
 extern void rx_pkt_debug(void);
 extern void rx_debug_pktinfo(char input[][20]);
@@ -859,6 +893,8 @@ extern void rx_pkt_check_content(void);
 extern void rx_pkt_set_fifo_pri(uint32_t pri);
 extern uint32_t rx_pkt_get_fifo_pri(void);
 
+extern void rx_get_vsi_info(void);
+
 /*please ignore checksum byte*/
 extern void rx_pkt_get_audif_ex(void *pktinfo);
 /*please ignore checksum byte*/
@@ -870,6 +906,14 @@ extern void rx_pkt_get_ntscvbi_ex(void *pktinfo);
 extern void rx_pkt_get_amp_ex(void *pktinfo);
 extern void rx_pkt_get_vsi_ex(void *pktinfo);
 extern void rx_pkt_get_gcp_ex(void *pktinfo);
+
+extern uint32_t rx_pkt_chk_attach_vsi(void);
+extern void rx_pkt_clr_attach_vsi(void);
+extern uint32_t rx_pkt_chk_attach_drm(void);
+extern void rx_pkt_clr_attach_drm(void);
+extern uint32_t rx_pkt_chk_busy_vsi(void);
+extern uint32_t rx_pkt_chk_busy_drm(void);
+
 #endif
 
 

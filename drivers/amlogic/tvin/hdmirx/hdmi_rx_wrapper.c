@@ -3379,18 +3379,6 @@ void dump_edid_reg(void)
 	}
 }
 
-void dump_hdr_reg(void)
-{
-	int i = 0;
-
-	rx_pr("\n********** hdr *************\n");
-
-	for (i = 0; i < sizeof(rx.hdr_info.hdr_data)/4; i++)
-		rx_pr("playload[%d]: %#x\n", i ,
-		*((unsigned int *)&(rx.hdr_info.hdr_data) + i));
-	rx_pr("\n********** hdr end*************\n");
-}
-
 void timer_state(void)
 {
 	rx_pr("timer state:%d\n",
@@ -3677,21 +3665,6 @@ int hdmirx_debug(const char *buf, int size)
 			hdmirx_hdcp22_esm_rst();
 			#endif
 		}
-	} else if (strncmp(tmpbuf, "fifo", 4) == 0) {
-		if (tmpbuf[4] == '1')
-			rx_pkt_dump(0x81);
-		else if (tmpbuf[4] == '2')
-			rx_pkt_dump(0x82);
-		else if (tmpbuf[4] == '3')
-			rx_pkt_dump(0x83);
-		else if (tmpbuf[4] == '4')
-			rx_pkt_dump(0x84);
-		else if (tmpbuf[4] == '5')
-			rx_pkt_dump(0x85);
-		else if (tmpbuf[4] == '6')
-			rx_pkt_dump(0x86);
-		else if (tmpbuf[4] == '7')
-			rx_pkt_dump(0x84);
 	} else if (strncmp(tmpbuf, "state", 5) == 0) {
 		if (tmpbuf[5] == '1')
 			dump_state(0xff);
@@ -3717,8 +3690,6 @@ int hdmirx_debug(const char *buf, int size)
 		rx_pr("hdcp22=%d\n", rx_sec_set_duk());
 	} else if (strncmp(tmpbuf, "edid", 4) == 0) {
 		dump_edid_reg();
-	} else if (strncmp(tmpbuf, "hdr", 3) == 0) {
-		dump_hdr_reg();
 	} else if (strncmp(tmpbuf, "esmhpd", 6) == 0) {
 		#ifdef HDCP22_ENABLE
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
