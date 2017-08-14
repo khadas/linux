@@ -37,8 +37,9 @@
 #define CLK_VAPB_0      23
 #define CLK_VAPB_1      24
 #define CLK_GE2D        25
-#define CLK_CAMERA_12M  26
-#define CLK_CAMERA_24M  27
+/* gpio clock 0 */
+#define CLK_CAMERA_12M_0  26
+#define CLK_CAMERA_24M_0  27
 
 #define GP0_PLL		30
 
@@ -62,6 +63,12 @@
 #define CLK_VDIN_MEAS_CLK	46
 #define CLK_PCM_MCLK        47
 #define CLK_PCM_SCLK        48
+/* gpio clock 2 */
+#define CLK_CAMERA_12M_2  49
+#define CLK_CAMERA_24M_2  50
+/* gpio clock 3 */
+#define CLK_CAMERA_12M_3  51
+#define CLK_CAMERA_24M_3  52
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100

@@ -244,12 +244,25 @@ static struct mpll_clk_tab mpll_tab[] __initdata = {
 
 };
 
+/*gpio clock 0,2,3*/
 static struct amlogic_gate_clock clk_gates[] __initdata = {
-	GATE(CLK_CAMERA_12M, "clk_camera_12", "xtal",
+	GATE(CLK_CAMERA_12M_0, "clk_camera_12_0", "xtal",
 	HHI_XTAL_DIVN_CNTL, 11, CLK_SET_RATE_NO_REPARENT,
 	0, 0),
-	GATE(CLK_CAMERA_24M, "clk_camera_24", "xtal",
+	GATE(CLK_CAMERA_24M_0, "clk_camera_24_0", "xtal",
 	HHI_XTAL_DIVN_CNTL, 10, CLK_SET_RATE_NO_REPARENT,
+	0, 0),
+	GATE(CLK_CAMERA_12M_2, "clk_camera_12_2", "xtal",
+	HHI_XTAL_DIVN_CNTL, 15, CLK_SET_RATE_NO_REPARENT,
+	0, 0),
+	GATE(CLK_CAMERA_24M_2, "clk_camera_24_2", "xtal",
+	HHI_XTAL_DIVN_CNTL, 14, CLK_SET_RATE_NO_REPARENT,
+	0, 0),
+	GATE(CLK_CAMERA_12M_3, "clk_camera_12_3", "xtal",
+	HHI_XTAL_DIVN_CNTL, 18, CLK_SET_RATE_NO_REPARENT,
+	0, 0),
+	GATE(CLK_CAMERA_24M_3, "clk_camera_24_3", "xtal",
+	HHI_XTAL_DIVN_CNTL, 19, CLK_SET_RATE_NO_REPARENT,
 	0, 0),
 };
 
