@@ -2251,7 +2251,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 	case CEC_IOC_SET_ARC_ENABLE:
 		/* select arc according arg */
 		if (arg)
-			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x03);
+			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x01);
 		else
 			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x00);
 		CEC_INFO("set arc en:%ld, reg:%lx\n",
