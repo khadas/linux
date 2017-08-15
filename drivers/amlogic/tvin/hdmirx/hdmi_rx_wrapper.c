@@ -1988,6 +1988,7 @@ void fsm_restart(void)
 	#ifdef HDCP22_ENABLE
 	rx_esm_tmdsclk_en(0);
 	#endif
+	set_scdc_cfg(1, 0);
 	rx.state = FSM_INIT;
 	rx_pr("force_fsm_init\n");
 }
