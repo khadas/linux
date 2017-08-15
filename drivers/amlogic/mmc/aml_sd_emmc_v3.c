@@ -29,6 +29,7 @@
 #include "amlsd.h"
 #include "aml_sd_emmc_internal.h"
 #define CALI_BLK_CNT    80
+u8 *blk_test_v3;
 static struct mmc_claim aml_sd_emmc_claim;
 void aml_sd_emmc_reg_init_v3(struct amlsd_host *host)
 {
@@ -769,7 +770,7 @@ struct amlsd_host *aml_sd_emmc_init_host_v3(struct amlsd_host *host)
 }
 
 static int aml_sd_emmc_cali_v3(struct mmc_host *mmc,
-	u8 opcode, u8 *blk_test, u32 blksz, u32 blocks)
+	u8 opcode, u8 *blk_test_v3, u32 blksz, u32 blocks)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
@@ -793,8 +794,8 @@ static int aml_sd_emmc_cali_v3(struct mmc_host *mmc,
 	data.sg = &sg;
 	data.sg_len = 1;
 
-	memset(blk_test, 0, blksz * data.blocks);
-	sg_init_one(&sg, blk_test, blksz * data.blocks);
+	memset(blk_test_v3, 0, blksz * data.blocks);
+	sg_init_one(&sg, blk_test_v3, blksz * data.blocks);
 
 	mrq.cmd = &cmd;
 	mrq.stop = &stop;
@@ -822,10 +823,7 @@ static int emmc_eyetest_log(struct mmc_host *mmc, u32 line_x)
 	int retry = 3;
 	u64 tmp = 0;
 	u32 blksz = 512;
-	u8 *blk_test;
-		blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
-	if (!blk_test)
-		return -ENOMEM;
+
 	host->is_tunning = 1;
 	/****** calculate  line_x ***************************/
 	/******* init eyetest register ************************/
@@ -849,11 +847,11 @@ RETRY:
 	if (line_x < 9)
 		aml_sd_emmc_cali_v3(mmc,
 				MMC_READ_MULTIPLE_BLOCK,
-				blk_test, blksz, 40);
+				blk_test_v3, blksz, 40);
 	else
 		aml_sd_emmc_cali_v3(mmc,
 				MMC_READ_MULTIPLE_BLOCK,
-				blk_test, blksz, 80);
+				blk_test_v3, blksz, 80);
 	udelay(1);
 	eyetest_out0 = sd_emmc_regs->eyetest_out0;
 	eyetest_out1 = sd_emmc_regs->eyetest_out1;
@@ -892,7 +890,6 @@ RETRY:
 	emmc_dbg(AMLSD_DBG_V3, "u64 eyetestout 0x%llx\n",
 			pdata->align[line_x]);
 	host->is_tunning = 0;
-	kfree(blk_test);
 	return 0;
 }
 
@@ -1134,7 +1131,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 		(struct sd_emmc_regs_v3 *)host->sd_emmc_regs;
 	u32 intf3 = sd_emmc_regs->intf3;
 	struct intf3 *gintf3 = (struct intf3 *)&(intf3);
-	u8 *blk_test = NULL;
 	u32 blksz = 512;
 	int i, err = 0;
 	int match[32];
@@ -1143,9 +1139,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	pr_info("[%s] 2017-7-4 emmc HS400 Timming\n", __func__);
 	sd_emmc_debug = 0x2000;
 	host->is_timming = 1;
-	blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
-	if (!blk_test)
-		return -ENOMEM;
 
 	print_all_line_eyetest(mmc);
 	emmc_ds_core_align(mmc);
@@ -1160,7 +1153,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 		sd_emmc_regs->intf3 = intf3;
 		err = aml_sd_emmc_cali_v3(mmc,
 			MMC_READ_MULTIPLE_BLOCK,
-			blk_test, blksz, 20);
+			blk_test_v3, blksz, 20);
 		pr_warn("intf3: 0x%x, err[%d]: %d\n",
 				sd_emmc_regs->intf3, i, err);
 		if (!err)
@@ -1206,8 +1199,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 			gintf3->ds_sht_m, best_size, sd_emmc_regs->intf3);
 	host->is_tunning = 0;
 	host->is_timming = 0;
-	kfree(blk_test);
-	blk_test = NULL;
 	return 0;
 }
 #endif
@@ -1763,10 +1754,7 @@ static int sdio_eyetest_log(struct mmc_host *mmc, u32 line_x, u32 opcode,
 	u64 tmp = 0;
 	const u8 *blk_pattern = tuning_data->blk_pattern;
 	unsigned int blksz = tuning_data->blksz;
-	u8 *blk_test;
-		blk_test = kmalloc(blksz, GFP_KERNEL);
-	if (!blk_test)
-		return -ENOMEM;
+
 	host->is_tunning = 1;
 	/****** calculate  line_x ***************************/
 	/******* init eyetest register ************************/
@@ -1787,7 +1775,7 @@ RETRY:
 	udelay(5);
 	for (i = 0; i < 40; i++)
 		aml_sd_emmc_tuning_transfer(mmc, opcode,
-				blk_pattern, blk_test, blksz);
+				blk_pattern, blk_test_v3, blksz);
 	udelay(1);
 	eyetest_log = sd_emmc_regs->eyetest_log;
 	eyetest_out0 = sd_emmc_regs->eyetest_out0;
@@ -1819,7 +1807,6 @@ RETRY:
 	emmc_dbg(AMLSD_DBG_V3, "u64 eyetestout 0x%llx\n",
 			pdata->align[line_x]);
 	host->is_tunning = 0;
-	kfree(blk_test);
 	return 0;
 }
 

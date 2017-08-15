@@ -2,6 +2,8 @@
 
 #define __AML_SD_EMMC_V3_H__
 
+extern u8 *blk_test_v3;
+
 struct amlsd_host *aml_sd_emmc_init_host_v3(struct amlsd_host *host);
 void aml_sd_emmc_reg_init_v3(struct amlsd_host *host);
 

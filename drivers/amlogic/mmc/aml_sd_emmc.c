@@ -3625,8 +3625,15 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		pr_info("error to get irq resource\n");
 		return -ENODEV;
 	}
-	if (is_meson_txlx_cpu())
+	if (is_meson_txlx_cpu()) {
 		host->ctrl_ver = 3;
+		blk_test_v3 = kmalloc(80 * 512, GFP_KERNEL);
+		if (!blk_test_v3) {
+			pr_warn("[%s][%d] kmalloc failed\n",
+					__func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
 	host->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	host->base = ioremap(0xc8834400, 0x200);
 	host->sd_emmc_regs = (struct sd_emmc_regs *)
