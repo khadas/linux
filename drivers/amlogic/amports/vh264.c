@@ -2007,10 +2007,7 @@ static void vh264_isr(void)
 		fatal_error_flag = DECODER_FATAL_ERROR_UNKNOW;
 		/* this is fatal error, need restart */
 		pr_info("fatal error happend\n");
-		vh264_stream_switching_state = SWITCHING_STATE_ON_CMD3;
 		amvdec_stop();
-		pr_info("fatal error  switching mode cmd3.\n");
-			schedule_work(&stream_switching_work);
 		if (!fatal_error_reset)
 			schedule_work(&error_wd_work);
 	} else if ((cpu_cmd & 0xff) == 7) {
