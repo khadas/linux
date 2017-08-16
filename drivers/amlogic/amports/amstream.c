@@ -579,6 +579,7 @@ static void video_port_release(struct port_priv_s *priv,
 {
 	struct stream_port_s *port = priv->port;
 	struct vdec_s *vdec = priv->vdec;
+	struct vdec_s *slave = NULL;
 	bool is_multidec = !vdec_single(vdec);
 
 	switch (release_num) {
@@ -592,8 +593,10 @@ static void video_port_release(struct port_priv_s *priv,
 	/*fallthrough*/
 	case 3:
 		if (vdec->slave)
-			vdec_release(vdec->slave);
+			slave = vdec->slave;
 		vdec_release(vdec);
+		if (slave)
+			vdec_release(slave);
 		priv->vdec = NULL;
 	/*fallthrough*/
 	case 2:
@@ -1670,6 +1673,7 @@ static int amstream_release(struct inode *inode, struct file *file)
 {
 	struct port_priv_s *priv = file->private_data;
 	struct stream_port_s *port = priv->port;
+	struct vdec_s *slave = NULL;
 #ifdef CONFIG_MULTI_DEC
 	u32 port_flag = 0;
 #endif
@@ -1688,10 +1692,10 @@ static int amstream_release(struct inode *inode, struct file *file)
 #endif
 
 		if (priv->vdec->slave)
-			vdec_release(priv->vdec->slave);
-
+			slave = priv->vdec->slave;
 		vdec_release(priv->vdec);
-
+		if (slave)
+			vdec_release(slave);
 		priv->vdec = NULL;
 	}
 
