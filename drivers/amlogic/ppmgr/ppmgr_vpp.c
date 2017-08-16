@@ -1582,7 +1582,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 	if (unlikely((!new_vf) || (!vf)))
 		return;
-
+	memset(new_vf, 0, sizeof(struct vframe_s));
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 
 	pp_vf = to_ppframe(new_vf);
