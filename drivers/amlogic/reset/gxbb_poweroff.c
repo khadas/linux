@@ -56,6 +56,9 @@
 #define MESONGXBB_BOOTLOADER_REBOOT				7
 #define	MESONGXBB_CRASH_REBOOT					11
 #define	MESONGXBB_KERNEL_PANIC					12
+#define MESONGXBB_UBUNTU_BOOT                   14
+#define MESONGXBB_LIBREELEC_BOOT                15
+#define MESONGXBB_ANDROID_BOOT                  16
 
 
 #define AO_RTI_STATUS_REG1	((0x00 << 10) | (0x01 << 2))
@@ -81,6 +84,12 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESONGXBB_CRASH_REBOOT;
 		else if (strcmp(cmd, "uboot_suspend") == 0)
 			reboot_reason = MESONGXBB_UBOOT_SUSPEND;
+		else if (strcmp(cmd, "ubuntu") == 0)
+			reboot_reason = MESONGXBB_UBUNTU_BOOT;
+		else if (strcmp(cmd, "libreelec") == 0)
+			reboot_reason = MESONGXBB_LIBREELEC_BOOT;
+		else if (strcmp(cmd, "android") == 0)
+			reboot_reason = MESONGXBB_ANDROID_BOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0)
