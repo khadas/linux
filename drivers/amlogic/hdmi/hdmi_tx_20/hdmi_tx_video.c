@@ -961,8 +961,8 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			if ((VideoCode == HDMI_4k2k_30) ||
 				(VideoCode == HDMI_4k2k_25) ||
 				(VideoCode == HDMI_4k2k_24) ||
-				(VideoCode == HDMI_4k2k_smpte_24)
-				)
+				(VideoCode == HDMI_4k2k_smpte_24) ||
+				(hdev->dv_src_feature))
 				hdmi_set_vend_spec_infofram(hdev, VideoCode,
 					hdev->dv_src_feature);
 			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
@@ -999,20 +999,24 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	VEN_DB[0] = 0x03;
 	VEN_DB[1] = 0x0c;
 	VEN_DB[2] = 0x00;
-	VEN_DB[3] = 0x20;    /* 4k x 2k  Spec P156 */
+	VEN_DB[3] = 0x00;    /* 4k x 2k  Spec P156 */
 	if (VideoCode == 0) {	   /* For non-4kx2k mode setting */
 		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
 		return;
 	}
-	if (VideoCode == HDMI_4k2k_30)
+	if (VideoCode == HDMI_4k2k_30) {
+		VEN_DB[3] = 0x20;
 		VEN_DB[4] = 0x1;
-	else if (VideoCode == HDMI_4k2k_25)
+	} else if (VideoCode == HDMI_4k2k_25) {
+		VEN_DB[3] = 0x20;
 		VEN_DB[4] = 0x2;
-	else if (VideoCode == HDMI_4k2k_24)
+	} else if (VideoCode == HDMI_4k2k_24) {
+		VEN_DB[3] = 0x20;
 		VEN_DB[4] = 0x3;
-	else if (VideoCode == HDMI_4k2k_smpte_24)
+	} else if (VideoCode == HDMI_4k2k_smpte_24) {
+		VEN_DB[3] = 0x20;
 		VEN_DB[4] = 0x4;
-	else
+	} else
 		;
 	hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 	if (dv_flag == 1) {

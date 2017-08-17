@@ -1436,7 +1436,6 @@ static ssize_t store_config(struct device *dev,
 				DRM_DB, DRM_HB);
 	} else if (strncmp(buf, "vsif", 4) == 0)
 		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1');
-
 	return 16;
 }
 
@@ -2936,6 +2935,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
+	hdmitx_set_vsif_pkt(0, 0);/*after plugout, DV mode can't be supported*/
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(0);
