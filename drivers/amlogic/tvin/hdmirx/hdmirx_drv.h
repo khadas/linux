@@ -33,7 +33,7 @@
 
 
 
-#define RX_VER0 "Ref.2017/08/08"
+#define RX_VER0 "Ref.2017/08/16"
 /*------------------------------*/
 
 #define RX_VER1 "Ref.2017/08/14"
@@ -850,7 +850,7 @@ extern struct device *hdmirx_dev;
 
 extern int esm_err_force_14;
 extern int pc_mode_en;
-extern int do_hpd_reset_flag;
+extern int edid_update_flag;
 extern bool hdcp22_kill_esm;
 extern bool mute_kill_en;
 extern char pre_eq_freq;

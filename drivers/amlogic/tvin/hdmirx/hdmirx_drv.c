@@ -926,10 +926,10 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		fsm_restart();
 		break;
 	case HDMI_IOC_EDID_UPDATE:
-		do_hpd_reset_flag = 1;
 		hdmi_rx_ctrl_edid_update();
 		if (rx.open_fg) {
 			rx_set_hpd(0);
+			edid_update_flag = 1;
 		} else {
 			if (is_meson_gxtvbb_cpu())
 				hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);

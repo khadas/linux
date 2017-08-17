@@ -56,7 +56,7 @@
 /*------------------------variable define------------------------------*/
 static DEFINE_SPINLOCK(reg_rw_lock);
 
-static bool phy_fast_switching = true;
+static bool phy_fast_switching;
 static bool phy_fsm_enhancement = true;
 unsigned int last_clk_rate;
 
@@ -71,7 +71,7 @@ static uint32_t phy_cfg_clk = 24000;
 static uint32_t modet_clk = 24000;
 
 /* top_irq_en bit[16:13] hdcp_sts */
-int top_intr_maskn_value = 0x18001;
+int top_intr_maskn_value = 1;
 bool hdcp_enable = 1;
 
 static int acr_mode;

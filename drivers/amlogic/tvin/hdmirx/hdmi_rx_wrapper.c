@@ -294,6 +294,10 @@ module_param(esm_error_flag, bool, 0664);
 unsigned int esm_data_base_addr;
 /* MODULE_PARM_DESC(esm_data_base_addr,"\n esm_data_base_addr\n"); */
 /* module_param(esm_data_base_addr, unsigned, 0664); */
+
+bool hdcp22_esm_reset2;
+module_param(hdcp22_esm_reset2, bool, 0664);
+MODULE_PARM_DESC(hdcp22_esm_reset2, "hdcp22_esm_reset2");
 #endif
 
 bool is_hdcp_source = true;
@@ -308,12 +312,15 @@ bool hdcp22_stop_auth;
 module_param(hdcp22_stop_auth, bool, 0664);
 MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
 
-bool hdcp22_esm_reset2;
-module_param(hdcp22_esm_reset2, bool, 0664);
-MODULE_PARM_DESC(hdcp22_esm_reset2, "hdcp22_esm_reset2");
+/* If dvd source received the frequent pulses on HPD line,
+It will sent a lenth of dirty audio data sometimes.it's TX's issues.
+Compared with other brands TV, delay 1.5S to avoid this noise. */
+int edid_update_delay = 150;
+module_param(edid_update_delay, int, 0664);
+MODULE_PARM_DESC(edid_update_delay, "edid_update_delay");
 
 bool hdcp22_reauth_enable;
-int do_hpd_reset_flag;
+int edid_update_flag;
 bool hdcp22_stop_auth_enable;
 bool hdcp22_esm_reset2_enable;
 static int sm_pause;
@@ -2059,10 +2066,10 @@ void hdmirx_hw_monitor(void)
 		if ((0 == get_cur_hpd_sts()) &&
 			(hpd_wait_cnt <= hpd_wait_max))
 			break;
-		if (do_hpd_reset_flag) {
+		if (edid_update_flag) {
 			if (hpd_wait_cnt <= hpd_wait_max*10)
 				break;
-			do_hpd_reset_flag = 0;
+			/* edid_update_flag = 0; */
 			/*rx.boot_flag = FALSE;*/
 		}
 		hpd_wait_cnt = 0;
@@ -2170,6 +2177,10 @@ void hdmirx_hw_monitor(void)
 		dwc_rst_wait_cnt++;
 		if (dwc_rst_wait_cnt < dwc_rst_wait_cnt_max)
 			break;
+		if ((edid_update_flag) &&
+			(dwc_rst_wait_cnt < edid_update_delay))
+			break;
+		edid_update_flag = 0;
 		dwc_rst_wait_cnt = 0;
 		rx.state = FSM_SIG_STABLE;
 		rx_pr("DWC_RST->FSM_SIG_STABLE\n");
@@ -3842,7 +3853,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		else
 			rx.state = FSM_HPD_HIGH;
 	}
-	do_hpd_reset_flag = 0;
+	edid_update_flag = 0;
 
 	/*initial packet moudle resource*/
 	rx_pkt_initial();
