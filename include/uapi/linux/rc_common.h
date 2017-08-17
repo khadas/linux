@@ -36,6 +36,7 @@ union _codemap {
  */
 struct cursor_codemap {
 	__u16 fn_key_scancode;
+	__u16 fn_key_scancode_other;
 	__u16 cursor_left_scancode;
 	__u16 cursor_right_scancode;
 	__u16 cursor_up_scancode;

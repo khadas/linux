@@ -219,7 +219,7 @@ static u32 getkeycode(struct remote_dev *dev, u32 scancode)
 
 	/*save remote-control work mode*/
 	if (dev->keypressed == false &&
-			scancode == ct->tab.cursor_code.fn_key_scancode) {
+			((scancode == ct->tab.cursor_code.fn_key_scancode) || (scancode == ct->tab.cursor_code.fn_key_scancode_other))) {
 		if (ct->ir_dev_mode == NORMAL_MODE)
 			ct->ir_dev_mode = MOUSE_MODE;
 		else
@@ -465,6 +465,13 @@ static int get_custom_tables(struct device_node *node,
 		                goto err;
 		        }
 		        ptable->tab.cursor_code.fn_key_scancode = value;
+
+		        ret = of_property_read_u32(map, "fn_key_scancode_other", &value);
+		        if (ret) {
+		                dev_err(chip->dev, "please config fn_key_scancode_other item\n");
+		                goto err;
+		        }
+		        ptable->tab.cursor_code.fn_key_scancode_other = value;
 
 		        ret = of_property_read_u32(map, "cursor_left_scancode", &value);
 		        if (ret) {

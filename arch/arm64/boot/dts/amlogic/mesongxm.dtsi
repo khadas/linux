@@ -919,12 +919,13 @@
 			customcode = <0xff00>;
 			release_delay = <80>;
 			fn_key_scancode = <0x5c>;
+			fn_key_scancode_other = <0x5b>;
 			cursor_left_scancode = <0x0e>;
 			cursor_right_scancode = <0x1a>;
 			cursor_up_scancode = <0x03>;
 			cursor_down_scancode = <0x02>;
 			cursor_ok_scancode = <0x07>;
-			size  = <12>;
+			size  = <13>;
 			keymap = <REMOTE_KEY(0x14,116)
 				REMOTE_KEY(0x13,139)
 				REMOTE_KEY(0x03,103)
@@ -934,6 +935,7 @@
 				REMOTE_KEY(0x07,232)
 				REMOTE_KEY(0x58,114)
 				REMOTE_KEY(0x5c,63)
+				REMOTE_KEY(0x5b,63)
 				REMOTE_KEY(0x0b,115)
 				REMOTE_KEY(0x01,158)
 				REMOTE_KEY(0x48,102)>;
