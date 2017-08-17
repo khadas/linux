@@ -81,6 +81,7 @@ void vdec_get_clk_source(int clk, int *source, int *div, int *rclk)
 #define source_div3 (1)
 #define source_div5 (2)
 #define source_div7 (3)
+#define source_xtal	(7)
 	if (clk > 500) {
 		*source = source_div3;
 		*div = 1;
@@ -117,6 +118,10 @@ void vdec_get_clk_source(int clk, int *source, int *div, int *rclk)
 		*source = source_div5;
 		*div = 8;
 		*rclk = 50;
+	} else if (clk == 24) {
+		*source = source_xtal;
+		*div = 1;
+		*rclk = 24;
 	} else {
 		*source = source_div5;
 		*div = 20;

@@ -761,7 +761,7 @@ int amvdec_suspend(struct platform_device *dev, pm_message_t event)
 
 	if (has_hevc_vdec())
 		amhevc_pg_enable(false);
-
+	vdec_set_suspend_clk(1, 0);
 	return 0;
 }
 
@@ -778,21 +778,25 @@ int amvdec_resume(struct platform_device *dev)
 	if (has_hevc_vdec())
 		amhevc_pg_enable(true);
 	/* #endif */
-
+	vdec_set_suspend_clk(0, 0);
 	return 0;
 }
 
 int amhevc_suspend(struct platform_device *dev, pm_message_t event)
 {
-	if (has_hevc_vdec())
+	if (has_hevc_vdec()) {
 		amhevc_pg_enable(false);
+		vdec_set_suspend_clk(1, 1);
+	}
 	return 0;
 }
 
 int amhevc_resume(struct platform_device *dev)
 {
-	if (has_hevc_vdec())
+	if (has_hevc_vdec()) {
 		amhevc_pg_enable(true);
+		vdec_set_suspend_clk(0, 1);
+	}
 	return 0;
 }
 

@@ -81,6 +81,11 @@ int vdec_clock_set(int clk)
 
 	IF_HAVE_RUN_P1_RET(p_vdec(), clock_set, clk);
 }
+int vdec_clock_get(int clk)
+{
+
+	IF_HAVE_RUN_P1_RET(p_vdec(), clock_get, clk);
+}
 void vdec_clock_enable(void)
 {
 	vdec_clock_set(1);
@@ -251,7 +256,26 @@ int vdec_source_changed_for_clk_set(int format, int width, int height, int fps)
 	return ret_clk;
 }
 
-
+void vdec_set_suspend_clk(int mode, int hevc)
+{
+	static int old_clk;
+	if (mode) { /* suspend*/
+		if (hevc) {
+			old_clk = vdec_clock_get(VDEC_HEVC);
+			hevc_clock_set(24);
+		} else {
+			old_clk = vdec_clock_get(VDEC_1);
+			vdec_clock_set(24);
+		}
+		pr_info("save clk %d , switch to xtal clk\n", old_clk);
+	} else { /* resume */
+		if (hevc)
+			hevc_clock_set(old_clk);
+		 else
+			vdec_clock_set(old_clk);
+		 pr_info("restore clk %d\n", old_clk);
+	}
+}
 
 static int register_vdec_clk_mgr_per_cpu(int cputype,
 		enum vdec_type_e vdec_type, struct chip_vdec_clk_s *t_mgr)
