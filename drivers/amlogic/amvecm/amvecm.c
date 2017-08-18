@@ -30,6 +30,8 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amvecm/amvecm.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/poll.h>
+#include <linux/workqueue.h>
 
 #ifdef CONFIG_AML_LCD
 #include <linux/amlogic/vout/lcd_notify.h>
@@ -68,6 +70,7 @@ struct amvecm_dev_s {
 	dev_t                       devno;
 	struct device               *dev;
 	struct class                *clsp;
+	wait_queue_head_t			hdr_queue;
 };
 
 static struct amvecm_dev_s amvecm_dev;
@@ -961,6 +964,8 @@ static int amvecm_open(struct inode *inode, struct file *file)
 	/* Get the per-device structure that contains this cdev */
 	devp = container_of(inode->i_cdev, struct amvecm_dev_s, cdev);
 	file->private_data = devp;
+	/*init queue*/
+	init_waitqueue_head(&devp->hdr_queue);
 	return 0;
 }
 
@@ -3742,6 +3747,23 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR_NULL
 };
 
+void amvecm_wakeup_queue(void)
+{
+	struct amvecm_dev_s *devp = &amvecm_dev;
+	wake_up(&devp->hdr_queue);
+}
+
+static unsigned int amvecm_poll(struct file *file, poll_table *wait)
+{
+	struct amvecm_dev_s *devp = file->private_data;
+	unsigned int mask = 0;
+
+	poll_wait(file, &devp->hdr_queue, wait);
+	mask = (POLLIN | POLLRDNORM);
+
+	return mask;
+}
+
 static const struct file_operations amvecm_fops = {
 	.owner   = THIS_MODULE,
 	.open    = amvecm_open,
@@ -3752,6 +3774,7 @@ static const struct file_operations amvecm_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = amvecm_compat_ioctl,
 #endif
+	.poll = amvecm_poll,
 };
 static void aml_vecm_dt_parse(struct platform_device *pdev)
 {

@@ -4847,9 +4847,6 @@ static int vpp_matrix_update(
 				else
 					bypass_hdr_process(csc_type, vinfo, p);
 			}
-			if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-				(get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB))
-				csc_type = VPP_MATRIX_YUV709_RGB;
 		}
 		if (cur_hdr_process_mode != hdr_process_mode) {
 			cur_hdr_process_mode = hdr_process_mode;
@@ -4892,6 +4889,13 @@ static int vpp_matrix_update(
 			pr_csc("saturation offset = %d.\n",
 				saturation_offset);
 			cur_csc_type = csc_type;
+
+			if ((cur_csc_type >= VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+				(cur_csc_type != 0xffff) &&
+				(vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
+				amvecm_wakeup_queue();
+				pr_csc("wake up hdr status queue.\n");
+			}
 		}
 	}
 
