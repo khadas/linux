@@ -846,14 +846,13 @@ static void sub_port_release(struct stream_port_s *port,
 static int sub_port_init(struct stream_port_s *port, struct stream_buf_s *pbuf)
 {
 	int r;
+	r = stbuf_init(pbuf, NULL, false);
+	if (r < 0)
+		return r;
 	if ((port->flag & PORT_FLAG_SID) == 0) {
 		pr_err("subtitle id not set\n");
 		return 0;
 	}
-
-	r = stbuf_init(pbuf, NULL, false);
-	if (r < 0)
-		return r;
 
 	if ((port->sid == 0xffff) &&
 		((port->type & (PORT_TYPE_MPPS | PORT_TYPE_MPTS)) == 0)) {
