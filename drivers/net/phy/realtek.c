@@ -102,12 +102,14 @@ __setup("androidboot.mac=",init_mac_addr);
 void rtl8211f_shutdown(void) {
 
 	if (wol_enable) {
-		rtl8211f_config_speed(g_phydev, 0);
-		rtl8211f_config_mac_addr(g_phydev);
-		rtl8211f_config_max_packet(g_phydev);
-		rtl8211f_config_wol(g_phydev, 1);
-		rtl8211f_config_wakeup_frame_mask(g_phydev);
-		rtl8211f_config_pad_isolation(g_phydev, 1);
+		if (g_phydev != NULL) {
+			rtl8211f_config_speed(g_phydev, 0);
+			rtl8211f_config_mac_addr(g_phydev);
+			rtl8211f_config_max_packet(g_phydev);
+			rtl8211f_config_wol(g_phydev, 1);
+			rtl8211f_config_wakeup_frame_mask(g_phydev);
+			rtl8211f_config_pad_isolation(g_phydev, 1);
+		}
 	}
 }
 
