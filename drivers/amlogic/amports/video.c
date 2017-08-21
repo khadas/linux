@@ -4729,16 +4729,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 SET_FILTER:
-	if (is_dolby_vision_enable()) {
-		u32 skip_mode = 0;
-		if (cur_frame_par)
-			skip_mode =
-			(cur_frame_par->hscale_skip_count << 16)
-			| cur_frame_par->vscale_skip_count;
-		dolby_vision_process(toggle_vf, skip_mode);
-		dolby_vision_update_setting();
-	}
-
 #if defined(CONFIG_AM_VECM)
 	amvecm_on_vs(
 		(cur_dispbuf != &vf_local) ? cur_dispbuf : NULL,

@@ -3941,6 +3941,8 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 			h_size = 0;
 			v_size = 0;
 		}
+		dolby_vision_on_count = 1 +
+			dolby_vision_run_mode_delay;
 	}
 
 	if ((core1_disp_hsize != h_size)
@@ -4152,9 +4154,6 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 			core1_disp_vsize = v_size;
 		}
 	}
-	if (dolby_vision_flags & FLAG_CERTIFICAION)
-		dolby_vision_on_count = 1 +
-			dolby_vision_run_mode_delay;
 	if (dolby_vision_core1_on) {
 		if (dolby_vision_on_count <=
 			dolby_vision_run_mode_delay)
