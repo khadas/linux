@@ -91,6 +91,7 @@ static int hdcp_tst_sig;
 
 static atomic_t kref_audio_mute;
 static atomic_t kref_video_mute;
+static DEFINE_MUTEX(getedid_mutex);
 
 /* add attr for hdmi output colorspace and colordepth */
 static char fmt_attr[16];
@@ -658,7 +659,9 @@ static int set_disp_mode_auto(void)
 
 	hdev->cur_VIC = HDMI_Unkown;
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
+	mutex_lock(&getedid_mutex);
 	ret = hdmitx_set_display(hdev, vic);
+	mutex_unlock(&getedid_mutex);
 	pr_info("%s %d %d\n", info->name, info->sync_duration_num,
 		info->sync_duration_den);
 	recalc_vinfo_sync_duration(info, hdev->frac_rate_policy);
@@ -690,6 +693,7 @@ static int set_disp_mode_auto(void)
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
 	hdev->ready = 1;
+
 	return ret;
 }
 
@@ -1300,9 +1304,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 				YCC_RANGE_FUL);
 		}
 	} else {
-	if (hdmi_vic_4k_flag) {
+		if (hdmi_vic_4k_flag)
 			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
-		}
 		else
 			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, NULL);
 		hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
@@ -2791,7 +2794,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 struct i2c_client *i2c_edid_client;
 
-static DEFINE_MUTEX(getedid_mutex);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
 	mutex_lock(&getedid_mutex);
