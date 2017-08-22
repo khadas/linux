@@ -245,6 +245,7 @@ enum eotf_type {
 
 /* Dolby Version support information */
 /* Refer to DV Spec issue 2.6 Page 11 and 14 */
+#define DV_IEEE_OUI	0x00d046
 struct dv_info {
 	uint32_t ieeeoui;
 	uint8_t ver; /* 0 or 1 */

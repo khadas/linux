@@ -963,6 +963,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 				(VideoCode == HDMI_4k2k_25) ||
 				(VideoCode == HDMI_4k2k_24) ||
 				(VideoCode == HDMI_4k2k_smpte_24) ||
+				(hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) ||
 				(hdev->dv_src_feature))
 				hdmi_set_vend_spec_infofram(hdev, VideoCode,
 					hdev->dv_src_feature);
@@ -990,7 +991,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	VEN_HB[0] = 0x81;
 	VEN_HB[1] = 0x01;
 
-	if (dv_flag == 1)
+	if ((hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) && (dv_flag == 1))
 		VEN_HB[2] = 0x18;
 	else
 		VEN_HB[2] = 0x5;
@@ -1020,7 +1021,8 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	} else
 		;
 	hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
-	if (dv_flag == 1) {
+
+	if ((hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) && (dv_flag == 1)) {
 		hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
 			COLORSPACE_RGB444);
 		hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,

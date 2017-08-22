@@ -2271,6 +2271,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	case HDMI_PACKET_VEND:
 		if ((!DB) || (!HB)) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x0);
 			return;
 		}
 		/*DV function must set bit 0~1  to 0 in P_VPU_HDMI_FMT_CTRL */
@@ -4818,7 +4819,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	}
 
 	/* If RX support DV and feature is DV, then disable DV send out */
-	if ((hdev->RXCap.dv_info.ieeeoui == 0x00d046) && hdev->dv_src_feature) {
+	if ((hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI)
+		&& hdev->dv_src_feature) {
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 	 }

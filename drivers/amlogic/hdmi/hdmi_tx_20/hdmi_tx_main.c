@@ -731,6 +731,9 @@ static ssize_t show_attr(struct device *dev,
 
 	if (hdmitx_device.cur_VIC >= HDMITX_VESA_OFFSET)
 		strcpy(fmt_attr, "rgb,8bit");/*vesa modes only support rgb8bit*/
+	if (hdmitx_device.dv_src_feature == 1)
+		strcpy(fmt_attr, "rgb,8bit");
+	/*dv mode only support rgb8bit at present*/
 	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n\r", fmt_attr);
 	return pos;
 }
@@ -1230,7 +1233,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 	static enum eotf_type ltype = EOTF_T_NULL;
 	static uint8_t ltmode = -1;
 
-	if ((hdev->ready == 0) || (hdev->RXCap.dv_info.ieeeoui != 0x00d046)) {
+	if ((hdev->ready == 0) || (hdev->RXCap.dv_info.ieeeoui
+		!= DV_IEEE_OUI)) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
 		return;
@@ -1885,7 +1889,7 @@ static ssize_t show_dv_cap(struct device *dev,
 	int pos = 0;
 	const struct dv_info *dv = &(hdmitx_device.RXCap.dv_info);
 
-	if (dv->ieeeoui != 0x00d046)
+	if (dv->ieeeoui != DV_IEEE_OUI)
 		return pos;
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"DolbyVision%d RX support list:\n", dv->ver);
