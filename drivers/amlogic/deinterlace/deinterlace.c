@@ -8314,6 +8314,7 @@ static void di_reg_process(void)
 	vf_reg_provider(&di_vf_prov);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 	reg_flag = 1;
+	di_pre_stru.bypass_flag = false;
 	reg_cnt++;
 	if (reg_cnt > 0x3fffffff)
 		reg_cnt = 0;
@@ -9314,6 +9315,8 @@ static void di_vf_put(vframe_t *vf, void *arg)
 
 	if (di_pre_stru.bypass_flag) {
 		vf_put(vf, VFM_NAME);
+		vf_notify_provider(VFM_NAME,
+			VFRAME_EVENT_RECEIVER_PUT, NULL);
 		if (used_post_buf_index != -1)
 			recycle_keep_buffer();
 		return;
