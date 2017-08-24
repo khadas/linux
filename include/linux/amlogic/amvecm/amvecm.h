@@ -267,6 +267,7 @@ extern int dolby_vision_check_hdr10(struct vframe_s *vf);
 extern void tv_dolby_vision_dma_table_modify(u32 tbl_id, uint64_t value);
 extern void tv_dolby_vision_efuse_info(void);
 extern void amvecm_wakeup_queue(void);
+extern int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag);
 
 #endif /* AMVECM_H */
 

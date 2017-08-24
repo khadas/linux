@@ -3260,7 +3260,7 @@ static void calculate_panel_max_pq(
 	}
 }
 
-static int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
+int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	struct vframe_s *el_vf;
@@ -4163,6 +4163,7 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 	return 0;
 }
 EXPORT_SYMBOL(dolby_vision_process);
+EXPORT_SYMBOL(dolby_vision_parse_metadata);
 
 bool is_dolby_vision_on(void)
 {

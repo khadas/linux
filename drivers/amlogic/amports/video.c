@@ -112,6 +112,8 @@ static bool update_osd_vpp_misc;
  global video manage cmd.
 */
 static int video_global_output = 1;
+/*  video_pause_global: 0 is play, 1 is pause, 2 is invalid */
+static int video_pause_global = 1;
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -4234,6 +4236,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	struct vframe_s *toggle_frame = NULL;
 	int video1_off_req = 0;
 	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
+	static  struct vframe_s *pause_vf;
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -4600,11 +4603,14 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			}
 			vsync_toggle_frame(vf);
 			toggle_frame = vf;
-			if (is_dolby_vision_enable())
+			if (is_dolby_vision_enable()) {
 				toggle_vf = dolby_vision_toggle_frame(vf);
-			else
+				video_pause_global = 0;
+			} else {
 				cur_dispbuf2 = NULL;
-
+				video_pause_global = 2;
+				pause_vf = NULL;
+			}
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
 #ifdef CONFIG_VSYNC_RDMA
@@ -4706,8 +4712,20 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 								cur_dispbuf);
 				} else
 					vsync_toggle_frame(cur_dispbuf);
+				if (is_dolby_vision_enable()) {
+					pause_vf = cur_dispbuf;
+					video_pause_global = 1;
+				} else {
+					pause_vf = NULL;
+					video_pause_global = 2;
+				}
 			}
-
+			if (pause_vf && (video_pause_global == 1)
+			    && is_dolby_vision_enable()) {
+				toggle_vf = pause_vf;
+				dolby_vision_parse_metadata(cur_dispbuf, true);
+				dolby_vision_set_toggle_flag(1);
+			}
 			break;
 		}
 
