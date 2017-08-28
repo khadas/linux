@@ -3124,6 +3124,7 @@ static const char *amvecm_debug_usage_str = {
 	"echo dolby_dma index(D) value(H) > /sys/class/amvecm/debug; dolby dma table modify\n"
 	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 	"echo dv_efuse > /sys/class/amvecm/debug; get dv efuse info\n"
+	"echo dv_el > /sys/class/amvecm/debug; get dv enhanced layer info\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -3403,6 +3404,8 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		pr_info("vpp_clip_config done!\n");
 	} else if (!strcmp(parm[0], "dv_efuse")) {
 		tv_dolby_vision_efuse_info();
+	} else if (!strcmp(parm[0], "dv_el")) {
+		tv_dolby_vision_el_info();
 	} else {
 		pr_info("unsupport cmd\n");
 	}

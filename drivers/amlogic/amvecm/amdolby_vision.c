@@ -75,6 +75,7 @@ module_param(dolby_vision_efuse_bypass, bool, 0664);
 MODULE_PARM_DESC(dolby_vision_efuse_bypass, "\n dolby_vision_efuse_bypass\n");
 static bool efuse_mode;
 
+static bool el_mode;
 module_param(force_stb_mode, bool, 0664);
 MODULE_PARM_DESC(force_stb_mode, "\n force_stb_mode\n");
 
@@ -3605,6 +3606,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 			}
 			dump_tv_setting(&tv_dovi_setting,
 				frame_count, debug_dolby);
+			el_mode = el_flag;
 			return 0; /* setting updated */
 		} else {
 			tv_dovi_setting.video_width = 0;
@@ -3734,6 +3736,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 				total_md_size);
 		}
 		dump_setting(&new_dovi_setting, frame_count, debug_dolby);
+		el_mode = el_flag;
 		return 0; /* setting updated */
 	} else {
 		new_dovi_setting.video_width = 0;
@@ -4367,4 +4370,9 @@ void tv_dolby_vision_efuse_info(void)
 	return;
 }
 
+void tv_dolby_vision_el_info(void)
+{
+	pr_info("el_mode:%d\n", el_mode);
+	return;
+}
 
