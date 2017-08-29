@@ -63,7 +63,8 @@ exit:
 	return 0;
 }
 
-int32_t nand_secure_read(struct amlnand_chip *aml_chip, char *buf, int len)
+int32_t nand_secure_read(struct amlnand_chip *aml_chip,
+	char *buf, unsigned int len)
 {
 	unsigned char *secure_ptr = NULL;
 	int error = 0;
@@ -95,7 +96,8 @@ exit:
 	return error;
 }
 
-int32_t nand_secure_write(struct amlnand_chip *aml_chip, char *buf, int len)
+int32_t nand_secure_write(struct amlnand_chip *aml_chip,
+	char *buf, unsigned int len)
 {
 	/* struct secure_t *secure_ptr = NULL; */
 	unsigned char *secure_ptr = NULL;

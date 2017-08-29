@@ -424,10 +424,8 @@ void get_sys_clk_rate(struct hw_controller *controller, int *rate)
 	u32 cpu_type;
 
 	cpu_type = get_cpu_type();
-	if (cpu_type >= MESON_CPU_MAJOR_ID_M8) {
-
+	if (cpu_type >= MESON_CPU_MAJOR_ID_M8)
 		set_nand_core_clk(controller, *rate);
-	}
 }
 
 void nand_boot_info_prepare(struct amlnand_phydev *phydev,
@@ -450,14 +448,9 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 	slc_info = &(controller->slc_info);
 	i = 0;
 	info_cfg = (struct nand_page0_cfg_t *)page0_buf;
-	/*
-	info = (struct nand_page0_info_t *)((page0_buf + 384) -
-				sizeof(struct nand_page0_info_t));
-	*/
 	info = (struct nand_page0_info_t *)&info_cfg->nand_page0_info;
 	pages_per_blk = flash->blocksize / flash->pagesize;
 	new_nand_type = aml_chip->flash.new_type;
-	/* en_slc = (( flash->new_type < 10)&&( flash->new_type))? 1:0; */
 	configure_data = NFC_CMD_N2M(controller->ran_mode,
 			controller->bch_mode, 0, (controller->ecc_unit >> 3),
 			controller->ecc_steps);
@@ -493,10 +486,6 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 			}
 		}
 		chip_num = controller->chip_num;
-		/*
-		aml_nand_msg("chip_num %d controller->chip_num %d", \
-		chip_num, controller->chip_num);
-		*/
 		/* chip_num occupy the lowest 2 bit */
 		nand_read_info = chip_num;
 
@@ -519,11 +508,7 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 				break;
 		}
 		each_boot_pages = valid_pages/boot_num;
-		/*
-		each_boot_pages =
-			(en_slc)?(each_boot_pages<<1):each_boot_pages;
-		*/
-
+		each_boot_pages = (en_slc)?(each_boot_pages<<1):each_boot_pages;
 		info->ce_mask = aml_chip->ce_bit_mask;
 		info->nand_read_info = nand_read_info;
 		info->pages_in_block = pages_per_blk;
@@ -535,7 +520,6 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 		aml_nand_msg("page_per_blk = 0x%x\n", info->pages_in_block);
 		aml_nand_msg("boot_num = %d each_boot_pages = %d", boot_num,
 			each_boot_pages);
-
 	} else {
 		memset(page0_buf, 0xbb, flash->pagesize);
 		memcpy(page0_buf, (u8 *)(&configure_data), sizeof(int));
