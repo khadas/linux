@@ -28,7 +28,7 @@
 #endif /* CONFIG_PPC */
 
 #include <asm/page.h>
-
+#include <linux/amlogic/cpu_version.h>
 /**
  * of_fdt_is_compatible - Return true if given node from the given blob has
  * compat in its compatible list
@@ -830,14 +830,17 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	ddr_size = get_ddr_size();
-	if (ddr_size == 2)
-		reg = of_get_flat_dt_prop(node, "linux,usable-memory-2g", &l);
-	else if (ddr_size == 3)
-		reg = of_get_flat_dt_prop(node, "linux,usable-memory-3g", &l);
-	else
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM) {
+		ddr_size = get_ddr_size();
+		if (ddr_size == 2)
+			reg = of_get_flat_dt_prop(node, "linux,usable-memory-2g", &l);
+		else if (ddr_size == 3)
+			reg = of_get_flat_dt_prop(node, "linux,usable-memory-3g", &l);
+		else
+			reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	} else {
 		reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
-
+	}
 	if (reg == NULL)
 		reg = of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
