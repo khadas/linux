@@ -458,7 +458,8 @@ static int get_custom_tables(struct device_node *node,
 		memset(&ptable->tab.cursor_code, 0xff,
 					sizeof(struct cursor_codemap));
 
-		if (strcmp(ptable->tab.custom_name, "khadas-ir") == 0) {
+		if ((strcmp(ptable->tab.custom_name, "khadas-ir") == 0) ||
+			(strcmp(ptable->tab.custom_name, "dvb-ir") == 0)) {
 		        ret = of_property_read_u32(map, "fn_key_scancode", &value);
 		        if (ret) {
 		                dev_err(chip->dev, "please config fn_key_scancode item\n");
@@ -469,9 +470,9 @@ static int get_custom_tables(struct device_node *node,
 		        ret = of_property_read_u32(map, "fn_key_scancode_other", &value);
 		        if (ret) {
 		                dev_err(chip->dev, "please config fn_key_scancode_other item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.fn_key_scancode_other = value;
+		        } else {
+                        ptable->tab.cursor_code.fn_key_scancode_other = value;
+                }
 
 		        ret = of_property_read_u32(map, "cursor_left_scancode", &value);
 		        if (ret) {

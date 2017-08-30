@@ -21,6 +21,9 @@
 #include "arch/register.h"
 #include "amports_priv.h"
 
+#include <linux/amlogic/vout/vinfo.h>
+#include <linux/amlogic/vout/vout_notify.h>
+
 
 u32 acc_apts_inc = 0;
 u32 acc_apts_dec = 0;
@@ -199,6 +202,22 @@ void timestamp_pcrscr_set_adj(s32 inc)
 	system_time_inc_adj = inc;
 }
 EXPORT_SYMBOL(timestamp_pcrscr_set_adj);
+
+void timestamp_pcrscr_set_adj_pcr(s32 inc)
+{
+   const struct vinfo_s *info = get_current_vinfo();
+   if (inc != 0) {
+       system_time_inc_adj =
+       900 * info->sync_duration_den / (info->sync_duration_num*inc);
+   }
+   else
+   {
+       system_time_inc_adj = 0;
+   }
+   if (system_time_inc_adj != 0)
+       pr_info("----system_time_inc_adj=%d----\n",system_time_inc_adj);
+}
+EXPORT_SYMBOL(timestamp_pcrscr_set_adj_pcr);
 
 void timestamp_pcrscr_enable(u32 enable)
 {

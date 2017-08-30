@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_AM_DVB) += aml.o
 
-aml-objs=aml_dvb.o aml_dmx.o
+aml-objs=aml_dvb.o aml_dmx.o dtv_params.o
 
 obj-$(CONFIG_AM_DVB) += aml_fe.o
 

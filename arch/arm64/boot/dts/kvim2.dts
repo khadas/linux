@@ -1167,6 +1167,34 @@
 			};
 		};
 	};
+
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		ts0 = "serial";
+		ts0_control = <0>;
+		ts0_invert = <0>;
+		pinctrl-names = "p_ts0", "s_ts0", "s_ts1";
+		pinctrl-0 = <&dvb_p_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts0_pins>;
+		pinctrl-2 = <&dvb_s_ts1_pins>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+
+
+	dtv_params {
+		compatible = "dtv-params";
+		dev_name = "dtv-params";
+		demod_reset_1-gpio = <&gpio  GPIODV_12  0>;
+		ant_power_1-gpio = <&gpio  GPIODV_20  0>;
+		user_defined_1-gpio = <&gpio  GPIODV_11  0>;//ant overload
+		pinctrl-names = "default";
+		pinctrl-0 = <&dtv_params_pins>;
+	};
 };
 
 &pinmux {
@@ -1187,6 +1215,29 @@
 		amlogic,setmask=<5 0xf00000>;
 		amlogic,clrmask=<5 0x3c33>;
 		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
+	};
+
+	dvb_p_ts0_pins: dvb_p_ts0_pins {
+		amlogic,setmask = <2 0x1f>;
+		amlogic,clrmask = <3 0x787 2 0xff000400>;
+		amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7","GPIODV_8","GPIODV_9","GPIODV_10";
+	};
+
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		amlogic,setmask = <2 0x17>;
+		amlogic,clrmask = <3 0x584 2 0x7000000 1 0x100>;
+		amlogic,pins = "GPIODV_0","GPIODV_8","GPIODV_9","GPIODV_10";
+	};
+
+	dvb_s_ts1_pins:dvb_s_ts1_pins{
+		amlogic,setmask = <3 0x17>;
+		amlogic,clrmask = <2 0xf0000 1 0x7>;
+		amlogic,pins = "GPIODV_0","GPIODV_8","GPIODV_9","GPIODV_10";
+	};
+
+	dtv_params_pins:dtv_params_pin{
+		amlogic,clrmask=<1 0xC2000000 2 0xC00400 3 0xA0>;
+		amlogic,pins = "GPIODV_11", "GPIODV_12", "GPIODV_20";
 	};
 };
 &efuse {
