@@ -1188,6 +1188,9 @@
 &defendkey {
 	status = "okay";
 };
+&i2c_a {
+	status = "okay";
+};
 &i2c_b {
 	status = "okay";
 	khadas-hym8563{

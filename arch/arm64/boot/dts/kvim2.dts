@@ -1206,6 +1206,9 @@
 &t82x_gpu {
         tbl = <&dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg &dvfs666_cfg>;
 };
+&i2c_a {
+	status = "okay";
+};
 &i2c_b {
 	status = "okay";
 	khadas-hym8563{
