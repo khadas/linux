@@ -35,6 +35,7 @@
 #include <linux/stmmac.h>
 #include <linux/uaccess.h>
 #include <asm/irq.h>
+#include <linux/amlogic/cpu_version.h>
 
 MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
@@ -1380,9 +1381,10 @@ int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
 	/*don't power off if wol is needed*/
-
-	if (get_wol_state())
-		return 0;
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM) {
+		if (get_wol_state())
+			return 0;
+	}
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
