@@ -647,22 +647,22 @@
 		key_0:key_0{
 			keyname = "mac";
 			offset = <0>;
-			size = <6>;
+			size = <12>;
 		};
 		key_1:key_1{
 			keyname = "mac_bt";
-			offset = <6>;
-			size = <6>;
+			offset = <12>;
+			size = <12>;
 		};
 		key_2:key_2{
 			keyname = "mac_wifi";
-			offset = <12>;
-			size = <6>;
+			offset = <24>;
+			size = <12>;
 		};
 		key_3:key_3{
 			keyname = "usid";
-			offset = <18>;
-			size = <16>;
+			offset = <36>;
+			size = <12>;
 		};
 	};
 
