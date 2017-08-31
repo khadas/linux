@@ -91,7 +91,6 @@ static int pwm_off(void)
 	bl_write_ao_reg(AO_RTI_PIN_MUX_REG, 0, 4, 1);
 	bl_write_ao_reg(AO_RTI_PIN_MUX_REG, 0, 3, 1);
 	bl_write_ao_reg(AO_RTI_PIN_MUX_REG2, 0, 1, 1);
-	gpio_direction_output(228, 0);
 	return 0;
 }
 static int pwm_duty_set(int duty_high, int duty_low)
