@@ -180,6 +180,8 @@ static u32 setting_update_count;
 static s32 crc_read_delay;
 static u32 core1_disp_hsize;
 static u32 core1_disp_vsize;
+static u32 vsync_count;
+#define FLAG_VSYNC_CNT 10
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
@@ -1843,6 +1845,7 @@ void enable_dolby_vision(int enable)
 		dolby_vision_wait_on = false;
 		dolby_vision_wait_init = false;
 		dolby_vision_wait_count = 0;
+		vsync_count = 0;
 	} else {
 		if (dolby_vision_on) {
 			if (is_meson_txlx_package_962X() && !force_stb_mode) {
@@ -3994,8 +3997,11 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 		if (dolby_vision_flags & FLAG_TOGGLE_FRAME)
 			dolby_vision_parse_metadata(NULL, true);
 	}
-
 	if (dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+		if ((!vinfo->dv_info) && (vsync_count < FLAG_VSYNC_CNT)) {
+			vsync_count++;
+			return 0;
+		}
 		if (dolby_vision_status != BYPASS_PROCESS) {
 			enable_dolby_vision(0);
 			if (!is_meson_txlx_package_962X() && !force_stb_mode)
