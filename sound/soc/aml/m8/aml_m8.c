@@ -589,6 +589,7 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 		pr_info("%s,aml_m8_pinmux_init error!\n", __func__);
 		return;
 	}
+	aml_audio_i2s_mute();
 }
 
 static int aml_card_dai_parse_of(struct device *dev,

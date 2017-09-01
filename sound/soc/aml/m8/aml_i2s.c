@@ -1116,7 +1116,7 @@ static int aml_output_swap_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-bool aml_audio_i2s_mute_flag = 0;
+bool aml_audio_i2s_mute_flag = 1;
 static int aml_audio_set_i2s_mute(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
