@@ -170,8 +170,8 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-		logo_addr_2g = "0x7d851000";
-		logo_addr_3g = "0xbd851000"; /*ion base + fb0 memory size for uboot logo osd1*/
+		logo_addr_2g = "0x7f851000";
+		logo_addr_3g = "0xbf851000"; /*ion base + fb0 memory size for uboot logo osd1*/
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
