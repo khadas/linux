@@ -221,7 +221,11 @@ static void vvp9_vf_put(struct vframe_s *, void *);
 static int vvp9_event_cb(int type, void *data, void *private_data);
 
 static int vvp9_stop(struct VP9Decoder_s *pbi);
+#ifdef MULTI_INSTANCE_SUPPORT
+static s32 vvp9_init(struct vdec_s *vdec);
+#else
 static s32 vvp9_init(struct VP9Decoder_s *pbi);
+#endif
 static void vvp9_prot_init(struct VP9Decoder_s *pbi);
 static int vvp9_local_init(struct VP9Decoder_s *pbi);
 static void vvp9_put_timer_func(unsigned long arg);
@@ -6630,8 +6634,15 @@ TODO:FOR VERSION
 	return ret;
 }
 
+
+#ifdef MULTI_INSTANCE_SUPPORT
+static s32 vvp9_init(struct vdec_s *vdec)
+{
+	struct VP9Decoder_s *pbi = (struct VP9Decoder_s *)vdec->private;
+#else
 static s32 vvp9_init(struct VP9Decoder_s *pbi)
 {
+#endif
 	init_timer(&pbi->timer);
 
 	pbi->stat |= STAT_TIMER_INIT;
@@ -6644,10 +6655,10 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 		pbi->timer.function = vvp9_put_timer_func;
 		pbi->timer.expires = jiffies + PUT_INTERVAL;
 
-		add_timer(&pbi->timer);
+		/*add_timer(&pbi->timer);
 
 		pbi->stat |= STAT_TIMER_ARM;
-		pbi->stat |= STAT_ISR_REG;
+		pbi->stat |= STAT_ISR_REG;*/
 
 		INIT_WORK(&pbi->work, vp9_work);
 		return 0;
@@ -6693,6 +6704,19 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 	pbi->stat |= STAT_ISR_REG;
 
 	pbi->provider_name = PROVIDER_NAME;
+#ifdef MULTI_INSTANCE_SUPPORT
+	vf_provider_init(&vvp9_vf_prov, PROVIDER_NAME,
+				&vvp9_vf_provider, vdec);
+	vf_reg_provider(&vvp9_vf_prov);
+	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
+	if (pbi->frame_dur != 0) {
+		if (!is_reset)
+			vf_notify_receiver(pbi->provider_name,
+					VFRAME_EVENT_PROVIDER_FR_HINT,
+					(void *)
+					((unsigned long)pbi->frame_dur));
+	}
+#else
 	vf_provider_init(&vvp9_vf_prov, PROVIDER_NAME, &vvp9_vf_provider,
 					 pbi);
 	vf_reg_provider(&vvp9_vf_prov);
@@ -6700,7 +6724,7 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 	if (!is_reset)
 		vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
 		(void *)((unsigned long)pbi->frame_dur));
-
+#endif
 	pbi->stat |= STAT_VF_HOOK;
 
 	pbi->timer.data = (ulong)pbi;
@@ -6724,6 +6748,32 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 		__LINE__, READ_VREG(HEVC_STREAM_RD_PTR));
 	return 0;
 }
+
+static int vmvp9_stop(struct VP9Decoder_s *pbi)
+{
+	pbi->init_flag = 0;
+
+	if (pbi->stat & STAT_TIMER_ARM) {
+		del_timer_sync(&pbi->timer);
+		pbi->stat &= ~STAT_TIMER_ARM;
+	}
+
+	if (pbi->stat & STAT_VF_HOOK) {
+		if (!is_reset)
+			vf_notify_receiver(pbi->provider_name,
+					VFRAME_EVENT_PROVIDER_FR_END_HINT,
+					NULL);
+
+		vf_unreg_provider(&vvp9_vf_prov);
+		pbi->stat &= ~STAT_VF_HOOK;
+	}
+	vp9_local_uninit(pbi);
+	cancel_work_sync(&pbi->work);
+	uninit_mmu_buffers(pbi);
+
+	return 0;
+}
+
 
 static int vvp9_stop(struct VP9Decoder_s *pbi)
 {
@@ -6882,11 +6932,15 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 #else
 	cma_dev = pdata->cma_dev;
 #endif
+
+#ifdef MULTI_INSTANCE_SUPPORT
 	pdata->dec_status = vvp9_dec_status;
 	pdata->set_isreset = vvp9_set_isreset;
 	is_reset = 0;
-
+	if (vvp9_init(pdata) < 0) {
+#else
 	if (vvp9_init(pbi) < 0) {
+#endif
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);
 		uninit_mmu_buffers(pbi);
@@ -7594,7 +7648,7 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	}
 
 	pbi->cma_dev = pdata->cma_dev;
-	if (vvp9_init(pbi) < 0) {
+	if (vvp9_init(pdata) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);
 		uninit_mmu_buffers(pbi);
@@ -7602,11 +7656,9 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		vfree((void *)pbi);
 		return -ENODEV;
 	}
-
+	vdec_set_prepare_level(pdata, start_decode_buf_level);
 	hevc_source_changed(VFORMAT_VP9,
 			4096, 2048, 60);
-
-	vdec_set_prepare_level(pdata, start_decode_buf_level);
 	return 0;
 }
 
@@ -7617,7 +7669,7 @@ static int ammvdec_vp9_remove(struct platform_device *pdev)
 	if (debug)
 		pr_info("amvdec_vp9_remove\n");
 
-	vvp9_stop(pbi);
+	vmvp9_stop(pbi);
 
 	vdec_set_status(hw_to_vdec(pbi), VDEC_STATUS_DISCONNECTED);
 
