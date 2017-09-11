@@ -994,6 +994,11 @@ static ssize_t amvecm_write(
 			break;
 		}
 	}
+	if (len <= 0x1f) {
+		dolby_vision_update_vsvdb_config(
+			pq_config_buf, len);
+		pq_config_level = 0;
+	}
 	return len;
 }
 

@@ -2,6 +2,7 @@
 #define _DV_H_
 
 #define V1_5
+#define V2_4
 
 #include <linux/types.h>
 #include "target_display_config.h"
@@ -37,6 +38,13 @@ enum cp_signal_range_e {
 	SIG_RANGE_SMPTE = 0,  /* head range */
 	SIG_RANGE_FULL  = 1,  /* full range */
 	SIG_RANGE_SDI   = 2           /* PQ */
+};
+
+enum graphics_format_e {
+	GF_SDR_YUV = 0,  /* BT.709 YUV BT1886 */
+	GF_SDR_RGB = 1,  /* BT.709 RGB BT1886 */
+	GF_HDR_YUV = 2,  /* BT.2020 YUV PQ */
+	GF_HDR_RGB = 3   /* BT.2020 RGB PQ */
 };
 
 struct run_mode_s {
@@ -253,6 +261,20 @@ struct dovi_setting_s {
 	/* frame width & height */
 	uint32_t video_width;
 	uint32_t video_height;
+#ifdef V2_4
+	/* use for stb 2.4 */
+	enum graphics_format_e g_format;
+	uint32_t g_bitdepth;
+	uint32_t dovi2hdr10_nomapping;
+	uint32_t use_ll_flag;
+	uint32_t ll_rgb_desired;
+	uint32_t diagnostic_enable;
+	uint32_t diagnostic_mux_select;
+	uint32_t dovi_ll_enable;
+	uint32_t vout_width;
+	uint32_t vout_height;
+	u8 vsvdb_tbl[32];
+#endif
 };
 
 extern int control_path(

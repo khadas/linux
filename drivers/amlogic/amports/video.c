@@ -4810,7 +4810,18 @@ SET_FILTER:
 			else
 				v_size = cur_frame_par->VPP_vd_end_lines_
 				- cur_frame_par->VPP_vd_start_lines_ + 1;
-			v_size /= (cur_frame_par->vscale_skip_count + 1);
+			/* just work around for interlace sdr in dovi output */
+			if (cur_dispbuf &&
+				(cur_dispbuf->type &
+				VIDTYPE_INTERLACE))
+				v_size =
+				(cur_frame_par->vscale_skip_count > 1) ?
+				(v_size /
+				cur_frame_par->vscale_skip_count)
+				: v_size;
+			else
+				v_size /=
+				(cur_frame_par->vscale_skip_count + 1);
 			frame_size = (h_size << 16) | v_size;
 		} else if (toggle_vf) {
 			h_size = (toggle_vf->type & VIDTYPE_COMPRESS) ?
@@ -5538,6 +5549,11 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0);
 		VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG, 0);
 		VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG, 0);
+		if (is_dolby_vision_enable()
+			&& is_dolby_vision_stb_mode())
+			VSYNC_WR_MPEG_REG_BITS(
+				VIU_MISC_CTRL1,
+				1, 16, 1); /* bypass core1 */
 		if (cur_dispbuf && (cur_dispbuf == &vf_local))
 			cur_dispbuf = NULL;
 	}
