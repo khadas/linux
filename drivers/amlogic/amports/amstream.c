@@ -615,7 +615,6 @@ static int video_port_init(struct port_priv_s *priv,
 	int r;
 	struct stream_port_s *port = priv->port;
 	struct vdec_s *vdec = priv->vdec;
-
 	if ((vdec->port_flag & PORT_FLAG_VFORMAT) == 0) {
 		pr_err("vformat not set\n");
 		return -EPERM;
@@ -664,7 +663,6 @@ static int video_port_init(struct port_priv_s *priv,
 	r = vdec_init(vdec,
 		(priv->vdec->sys_info->height *
 		 priv->vdec->sys_info->width) > 1920*1088);
-
 	if (r < 0) {
 		pr_err("video_port_init %d, vdec_init failed\n", __LINE__);
 		video_port_release(priv, pbuf, 2);
@@ -2215,6 +2213,9 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 	case AMSTREAM_SET_IS_RESET:
 		if (priv->vdec)
 			vdec_set_isreset(priv->vdec, parm.data_32);
+		break;
+	case AMSTREAM_SET_NO_POWERDOWN:
+		vdec_set_no_powerdown(parm.data_32);
 		break;
 	default:
 		r = -ENOIOCTLCMD;

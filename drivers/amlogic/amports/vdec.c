@@ -82,7 +82,7 @@ static unsigned int clk_config;
 static int hevc_max_reset_count;
 #define MAX_INSTANCE_MUN  9
 
-
+static int no_powerdown;
 static DEFINE_SPINLOCK(vdec_spin_lock);
 
 #define HEVC_TEST_LIMIT 100
@@ -207,6 +207,13 @@ int vdec_set_isreset(struct vdec_s *vdec, int isreset)
 	if (vdec->set_isreset)
 		return vdec->set_isreset(vdec, isreset);
 	return 0;
+}
+
+void vdec_set_no_powerdown(int flag)
+{
+	no_powerdown = flag;
+	pr_info("no_powerdown=%d\n", no_powerdown);
+	return;
 }
 
 void  vdec_count_info(struct vdec_info *vs, unsigned int err,
@@ -1910,6 +1917,7 @@ static bool test_hevc(u32 decomp_addr, u32 us_delay)
 	return (READ_VREG(HEVCD_IPP_DBG_DATA) & 3) == 1;
 }
 
+
 void vdec_poweron(enum vdec_type_e core)
 {
 	void *decomp_addr = NULL;
@@ -2158,18 +2166,24 @@ void vdec_poweroff(enum vdec_type_e core)
 		}
 	} else if (core == VDEC_HEVC) {
 		if (has_hevc_vdec()) {
-			/* enable hevc isolation */
-			WRITE_AOREG(AO_RTI_GEN_PWR_ISO0,
+			if (no_powerdown == 0) {
+				/* enable hevc isolation */
+				WRITE_AOREG(AO_RTI_GEN_PWR_ISO0,
 					READ_AOREG(AO_RTI_GEN_PWR_ISO0) |
 					0xc00);
-			/* power off hevc memories */
-			WRITE_VREG(DOS_MEM_PD_HEVC, 0xffffffffUL);
-			/* disable hevc clock */
-			hevc_clock_off();
-			/* hevc power off */
-			WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
+				/* power off hevc memories */
+				WRITE_VREG(DOS_MEM_PD_HEVC, 0xffffffffUL);
+				/* disable hevc clock */
+				hevc_clock_off();
+				/* hevc power off */
+				WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
 					READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) |
 					0xc0);
+			} else {
+				pr_info("!!!!!!!!not power down\n");
+				hevc_reset_core(NULL);
+				no_powerdown = 0;
+			}
 		}
 	}
 	mutex_unlock(&vdec_mutex);
@@ -2313,7 +2327,7 @@ void hevc_reset_core(struct vdec_s *vdec)
 		& (1 << 4)))
 		;
 
-	if (input_frame_based(vdec))
+	if (vdec == NULL || input_frame_based(vdec))
 		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
 
 		/*
@@ -3144,7 +3158,6 @@ module_param(debug_trace_num, uint, 0664);
 module_param(hevc_max_reset_count, int, 0664);
 module_param(clk_config, uint, 0664);
 module_param(step_mode, int, 0664);
-
 module_init(vdec_module_init);
 module_exit(vdec_module_exit);
 

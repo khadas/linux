@@ -95,6 +95,10 @@
 #define DECODE_MODE_MULTI_STREAMBASE	1
 #define DECODE_MODE_MULTI_FRAMEBASE		2
 
+
+#define  VP9_TRIGGER_FRAME_DONE		0x100
+#define  VP9_TRIGGER_FRAME_ENABLE	0x200
+
 #define MV_MEM_UNIT 0x240
 /*---------------------------------------------------
  Include "parser_cmd.h"
@@ -5688,16 +5692,24 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			pbi->bmmu_box,
 			VF_BUFFER_IDX(pic_config->index));
 #endif
-		inc_vf_ref(pbi, pic_config->index);
-		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
-		pbi->vf_pre_count++;
+		if (!(pic_config->y_crop_width == 196
+				&& pic_config->y_crop_height == 196)) {
+			inc_vf_ref(pbi, pic_config->index);
+			kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
+			pbi->vf_pre_count++;
 #ifndef CONFIG_MULTI_DEC
-		/*count info*/
-		gvs->frame_dur = pbi->frame_dur;
-		vdec_count_info(gvs, 0, stream_offset);
+			/*count info*/
+			gvs->frame_dur = pbi->frame_dur;
+			vdec_count_info(gvs, 0, stream_offset);
 #endif
-		vf_notify_receiver(pbi->provider_name,
-				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+			vf_notify_receiver(pbi->provider_name,
+			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		} else {
+			pbi->stat |= VP9_TRIGGER_FRAME_DONE;
+			pr_info("[%s %d] drop trigger frame width %d height %d  state 0x%x\n",
+				__func__, __LINE__, vf->width,
+				vf->height, pbi->stat);
+		}
 	}
 
 	return 0;
@@ -6099,6 +6111,9 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 
 	dec_status = READ_VREG(HEVC_DEC_STATUS_REG);
 	adapt_prob_status = READ_VREG(VP9_ADAPT_PROB_REG);
+
+	if (!pbi)
+		return IRQ_HANDLED;
 	if (pbi->init_flag == 0)
 		return IRQ_HANDLED;
 	if (pbi->process_busy)/*on process.*/
@@ -6435,7 +6450,8 @@ static void vvp9_put_timer_func(unsigned long arg)
 
 int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	struct VP9Decoder_s *vp9 = &gHevc;
+	struct VP9Decoder_s *vp9 =
+		(struct VP9Decoder_s *)vdec->private;
 	vstatus->frame_width = frame_width;
 	vstatus->frame_height = frame_height;
 	if (vp9->frame_dur != 0)
@@ -7465,6 +7481,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 
 	pbi->platform_dev = pdev;
 	pbi->video_signal_type = 0;
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TXLX)
+		pbi->stat |= VP9_TRIGGER_FRAME_ENABLE;
 #if 1
 	if ((debug & IGNORE_PARAM_FROM_CONFIG) == 0 &&
 			pdata->config && pdata->config_len) {
