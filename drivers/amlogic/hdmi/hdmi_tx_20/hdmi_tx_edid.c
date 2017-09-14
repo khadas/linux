@@ -1102,7 +1102,7 @@ static int Edid_ParsingDRMBlock(struct rx_cap *pRXCap,
 	pRXCap->hdr_sup_eotf_sdr = !!(buf[pos] & (0x1 << 0));
 	pRXCap->hdr_sup_eotf_hdr = !!(buf[pos] & (0x1 << 1));
 	pRXCap->hdr_sup_eotf_smpte_st_2084 = !!(buf[pos] & (0x1 << 2));
-	pRXCap->hdr_sup_eotf_future = !!(buf[pos] & (0x1 << 3));
+	pRXCap->hdr_sup_eotf_hlg = !!(buf[pos] & (0x1 << 3));
 	pos++;
 	pRXCap->hdr_sup_SMD_type1 = !!(buf[pos] & (0x1 << 0));
 	pos++;

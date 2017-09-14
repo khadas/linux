@@ -1144,15 +1144,12 @@ static void hdr_work_func(struct work_struct *work)
 	struct hdmitx_dev *hdev =
 		container_of(work, struct hdmitx_dev, work_hdr);
 
-	if (hdev->hdr_src_feature == 0) {
-		unsigned char DRM_HB[3] = {0x87, 0x1, 26};
-		unsigned char DRM_DB[26] = {0x0};
-		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
-		msleep(1500);
-		if (hdev->hdr_src_feature == 0)
-			hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
-	}
+	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
+	unsigned char DRM_DB[26] = {0x0};
+	hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+	hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
+	msleep(1500);/*delay 1.5s*/
+	hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 	/* switch_set_state(&hdmi_hdr, hdev->hdr_src_feature); */
 }
 
@@ -1167,52 +1164,36 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
 		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
-		!(hdev->RXCap.hdr_sup_eotf_sdr))) {
+		!(hdev->RXCap.hdr_sup_eotf_sdr) &&
+		!(hdev->RXCap.hdr_sup_eotf_hlg))) {
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
 			CLR_AVI_BT2020);
-		pr_info("HDR: drm off\n");
 		hdr_state = -1;
 		return;
 	}
+/*
+hdr_src_feature: bit 23-16: color_primaries
+	1:bt709    0x9:bt2020
+hdr_color_feature: bit 15-8: transfer_characteristic
+	1:bt709     0xe:bt2020-10	0x10:smpte-st-2084   0x12:hlg(todo)
+*/
 
-	hdev->hdr_src_feature = (((data->features >> 16) & 0xff) == 0x9);
+	hdev->hdr_src_feature = (data->features >> 16) & 0xff;
+	hdev->hdr_color_feature = (data->features >> 8) & 0xff;
 
-	if (!hdev->hdr_src_feature) {
-#ifdef USE_TASK_FOR_DRM_OFF
+	if (hdr_state != hdev->hdr_src_feature)
 		hdr_state = hdev->hdr_src_feature;
+
+	/*SDR*/
+	if (hdev->hdr_src_feature == H_BT709 &&
+		hdev->hdr_color_feature == C_BT709) {
 		schedule_work(&hdev->work_hdr);
-#else
-		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
-		if (hdr_state != hdev->hdr_src_feature) {
-			hdr_state = hdev->hdr_src_feature;
-			pr_info("HDR: clr bt2020\n");
-		}
-#endif
 		return;
 	}
 
-	/* update DRM data */
-	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 && hdev->hdr_src_feature) {
-		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
-		if (hdr_state != hdev->hdr_src_feature) {
-			pr_info("HDR: set bt2020\n");
-			hdr_state = hdev->hdr_src_feature;
-		}
-	} else {
-		memset(DRM_DB, 0, sizeof(DRM_DB));
-		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
-		hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
-			CLR_AVI_BT2020);
-		if (hdr_state != -1) {
-			pr_info("HDR: no drm\n");
-			hdr_state = -1;
-		}
-		return;
-	}
 	DRM_DB[1] = 0x0;
 	DRM_DB[2] = GET_LOW8BIT(data->primaries[0][0]);
 	DRM_DB[3] = GET_HIGH8BIT(data->primaries[0][0]);
@@ -1239,9 +1220,46 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	DRM_DB[24] = GET_LOW8BIT(data->max_frame_average);
 	DRM_DB[25] = GET_HIGH8BIT(data->max_frame_average);
 
-	hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+	/*SMPTE ST 2084 and NON_STANDARD */
+	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084) {
+		if (hdev->hdr_src_feature == H_BT2020 &&
+			hdev->hdr_color_feature == C_SMPTE_ST_2084) {
+			DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
+			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
+				DRM_DB, DRM_HB);
+			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+				CONF_AVI_BT2020, SET_AVI_BT2020);
+			return;
+		} else if (hdev->hdr_src_feature != H_BT2020 &&
+			hdev->hdr_color_feature == C_SMPTE_ST_2084) {
+			DRM_DB[0] = 0x02; /* no standard SMPTE ST 2084 */
+			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
+				DRM_DB, DRM_HB);
+			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+				CONF_AVI_BT2020, CLR_AVI_BT2020);
+			return;
+		}
+	}
+
+	/*HLG     the value of eotf is 0x03, but now we use 0x02(2084)*/
+	if (hdev->RXCap.hdr_sup_eotf_hlg) {
+		if (hdev->hdr_src_feature == H_BT2020 &&
+			(hdev->hdr_color_feature == C_BT2020_10 ||
+			hdev->hdr_color_feature == C_HLG)) {
+			DRM_DB[0] = 0x02;/* HLG is 0x03 todo*/
+			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
+				DRM_DB, DRM_HB);
+			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+				CONF_AVI_BT2020, SET_AVI_BT2020);
+			return;
+		}
+	}
+
+	/*other case*/
+	hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
-			SET_AVI_BT2020);
+		CLR_AVI_BT2020);
+	return;
 }
 
 static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
@@ -1925,8 +1943,8 @@ static ssize_t show_hdr_cap(struct device *dev,
 		pRXCap->hdr_sup_eotf_hdr);
 	pos += snprintf(buf + pos, PAGE_SIZE, "    SMPTE ST 2084: %d\n",
 		pRXCap->hdr_sup_eotf_smpte_st_2084);
-	pos += snprintf(buf + pos, PAGE_SIZE, "    Future EOTF: %d\n",
-		pRXCap->hdr_sup_eotf_future);
+	pos += snprintf(buf + pos, PAGE_SIZE, "    Hybrif Log-Gamma: %d\n",
+		pRXCap->hdr_sup_eotf_hlg);
 	pos += snprintf(buf + pos, PAGE_SIZE, "Supported SMD type1: %d\n",
 		pRXCap->hdr_sup_SMD_type1);
 	pos += snprintf(buf + pos, PAGE_SIZE, "Luminance Data\n");

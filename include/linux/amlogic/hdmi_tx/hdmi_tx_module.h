@@ -83,7 +83,7 @@ struct rx_cap {
 	unsigned int hdr_sup_eotf_sdr:1;
 	unsigned int hdr_sup_eotf_hdr:1;
 	unsigned int hdr_sup_eotf_smpte_st_2084:1;
-	unsigned int hdr_sup_eotf_future:1;
+	unsigned int hdr_sup_eotf_hlg:1;
 	unsigned int hdr_sup_SMD_type1:1;
 	unsigned char hdr_lum_max;
 	unsigned char hdr_lum_avg;
@@ -159,6 +159,56 @@ struct frac_rate_table {
 	u32 sync_den_int;
 	u32 sync_num_dec;
 	u32 sync_den_dec;
+};
+
+struct hdcp_obs_val {
+	unsigned char obs0;
+	unsigned char obs1;
+	unsigned char obs2;
+	unsigned char obs3;
+	unsigned char intstat;
+};
+
+enum hdmi_hdr_eotf {
+	H_UNKNOWN = 0,
+	H_BT709,
+	H_UNDEF,
+	H_BT601,
+	H_BT470M,
+	H_BT470BG,
+	H_SMPTE170M,
+	H_SMPTE240M,
+	H_FILM,
+	H_BT2020,
+};
+
+enum hdmi_hdr_color {
+	C_UNKNOWN = 0,
+	C_BT709,
+	C_UNDEF,
+	C_BT601,
+	C_BT470M,
+	C_BT470BG,
+	C_SMPTE170M,
+	C_SMPTE240M,
+	C_LINEAR,
+	C_LOG100,
+	C_LOG316,
+	C_IEC61966_2_4,
+	C_BT1361E,
+	C_IEC61966_2_1,
+	C_BT2020_10,
+	C_BT2020_12,
+	C_SMPTE_ST_2084,
+	C_SMPTE_ST_28,
+	C_HLG,/*this item todo*/
+};
+
+/* 2kB should be enough to record */
+#define HDCP_LOG_SIZE (1024 * 2)
+struct hdcplog_buf {
+	int idx;
+	unsigned char buf[HDCP_LOG_SIZE + 64]; /* padding 8 bytes */
 };
 
 #define EDID_MAX_BLOCK              4
@@ -289,7 +339,8 @@ struct hdmitx_dev {
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
-	unsigned int hdr_src_feature;
+	enum hdmi_hdr_eotf hdr_src_feature;
+	enum hdmi_hdr_color hdr_color_feature;
 	unsigned int dv_src_feature;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
