@@ -4851,7 +4851,7 @@ static int vpp_matrix_update(
 					| (0 << 25)	/* limit */
 					| (1 << 24)	/* color available */
 					| (9 << 16)	/* bt2020 */
-					| (14 << 8)	/* bt2020-10 */
+					| (16 << 8)	/* bt2020-10 */
 					| (10 << 0);	/* bt2020c */
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vinfo->fresh_tx_hdr_pkt)
@@ -4869,8 +4869,10 @@ static int vpp_matrix_update(
 					| (5 << 26)	/* unspecified */
 					| (0 << 25)	/* limit */
 					| (1 << 24)	/* color available */
-					| (9 << 16)	/* bt2020 */
-					| (14 << 8)	/* bt2020-10 */
+					/* bt2020 */
+					| (signal_color_primaries << 16)
+					/* bt2020-10 */
+					| (signal_transfer_characteristic << 8)
 					| (10 << 0);	/* bt2020c */
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vinfo->fresh_tx_hdr_pkt)
