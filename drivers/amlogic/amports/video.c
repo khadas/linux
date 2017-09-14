@@ -5538,6 +5538,8 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0);
 		VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG, 0);
 		VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG, 0);
+		if (cur_dispbuf && (cur_dispbuf == &vf_local))
+			cur_dispbuf = NULL;
 	}
 
 #ifdef CONFIG_VSYNC_RDMA
