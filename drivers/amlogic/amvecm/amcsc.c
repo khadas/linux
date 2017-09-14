@@ -224,6 +224,10 @@ module_param(hdr_flag, uint, 0664);
 MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
 
 static uint rdma_flag =
+	(1 << VPP_MATRIX_OSD) |
+	(1 << VPP_MATRIX_VD1) |
+	(1 << VPP_MATRIX_VD2) |
+	(1 << VPP_MATRIX_POST) |
 	(1 << VPP_MATRIX_XVYCC);
 module_param(rdma_flag, uint, 0664);
 MODULE_PARM_DESC(rdma_flag, "\n set rdma_flag\n");
@@ -517,7 +521,7 @@ static void load_knee_lut(int on)
 	int value;
 	int final_knee_setting[MAX_KNEE_SETTING];
 
-	if ((cur_knee_factor != knee_factor) && (!lut_289_en)) {
+	if ((cur_knee_factor != knee_factor) && (!lut_289_en) && (on)) {
 		pr_csc("Knee_factor changed from %d to %d\n",
 			cur_knee_factor, knee_factor);
 		for (i = 0; i < MAX_KNEE_SETTING; i++) {
@@ -529,15 +533,16 @@ static void load_knee_lut(int on)
 			else if (final_knee_setting[i] < 0)
 				final_knee_setting[i] = 0;
 		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
+		VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL, 0x0);
 		for (j = 0; j < 3; j++) {
 			for (i = 0; i < 16; i++) {
-				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
+				VSYNC_WR_MPEG_REG(
+					XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				value = final_knee_setting[0]
 					+ (((final_knee_setting[1]
 					- final_knee_setting[0]) * i) >> 4);
 				value = clip(value, 0, 0x3ff);
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
 					pr_csc("xvycc_lut[%1d][%3d] = 0x%03x\n",
@@ -545,7 +550,8 @@ static void load_knee_lut(int on)
 			}
 			for (i = 16; i < 272; i++) {
 				k = 1 + ((i - 16) >> 3);
-				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
+				VSYNC_WR_MPEG_REG(
+					XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				if (knee_interpolation_mode == 0)
 					value = final_knee_setting[k]
 						+ (((final_knee_setting[k+1]
@@ -559,7 +565,7 @@ static void load_knee_lut(int on)
 						final_knee_setting[k+2],
 						((i - 16) & 0x7) << 3);
 				value = clip(value, 0, 0x3ff);
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
 					pr_csc("xvycc_lut[%1d][%3d] = 0x%03x\n",
@@ -567,13 +573,14 @@ static void load_knee_lut(int on)
 			}
 			for (i = 272; i < 289; i++) {
 				k = MAX_KNEE_SETTING - 2;
-				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
+				VSYNC_WR_MPEG_REG(
+					XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				value = final_knee_setting[k]
 					+ (((final_knee_setting[k+1]
 					- final_knee_setting[k])
 					* (i - 272)) >> 4);
 				value = clip(value, 0, 0x3ff);
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
 					pr_csc("xvycc_lut[%1d][%3d] = 0x%03x\n",
@@ -583,28 +590,28 @@ static void load_knee_lut(int on)
 		cur_knee_factor = knee_factor;
 	}
 
-	if ((cur_knee_factor != knee_factor) && (lut_289_en)) {
-			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT, 0);
+	if ((cur_knee_factor != knee_factor) && (lut_289_en) && (on)) {
+			VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL, 0x0);
+			VSYNC_WR_MPEG_REG(XVYCC_LUT_R_ADDR_PORT, 0);
 			for (i = 0; i < LUT_289_SIZE; i++)
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT,
 					lut_289_mapping[i]);
-			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2, 0);
+			VSYNC_WR_MPEG_REG(XVYCC_LUT_R_ADDR_PORT + 2, 0);
 			for (i = 0; i < LUT_289_SIZE; i++)
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT + 2,
 					lut_289_mapping[i]);
-			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 4, 0);
+			VSYNC_WR_MPEG_REG(XVYCC_LUT_R_ADDR_PORT + 4, 0);
 			for (i = 0; i < LUT_289_SIZE; i++)
-				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 4,
+				VSYNC_WR_MPEG_REG(XVYCC_LUT_R_DATA_PORT + 4,
 					lut_289_mapping[i]);
 		cur_knee_factor = knee_factor;
 	}
 
 	if (on) {
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
+		VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL, 0x7f);
 		knee_lut_on = 1;
 	} else {
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0f);
+		VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL, 0x0f);
 		knee_lut_on = 0;
 	}
 }
@@ -1083,6 +1090,10 @@ MODULE_PARM_DESC(post_matrix_coeff, "\n post matrix\n");
 module_param_array(xvycc_matrix_coeff, int,
 	&num_xvycc_matrix_coeff, 0664);
 MODULE_PARM_DESC(xvycc_matrix_coeff, "\n xvycc matrix\n");
+
+static unsigned int mtx_en_mux;
+module_param(mtx_en_mux, uint, 0664);
+MODULE_PARM_DESC(mtx_en_mux, "\n mtx enable mux\n");
 
 /****************** matrix/lut reload********************/
 
@@ -1658,6 +1669,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	int *m = NULL;
 	int size = 0;
 	int i, reg_value;
+
 	if (debug_csc && print_lut_mtx)
 		print_vpp_matrix(m_select, s, on);
 	if (m_select == VPP_MATRIX_OSD) {
@@ -1692,6 +1704,8 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			m[i] = s[i];
 	else
 		reload_mtx &= ~(1 << m_select);
+
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
 
 	if (m_select == VPP_MATRIX_OSD) {
 		/* osd matrix, VPP_MATRIX_0 */
@@ -1744,11 +1758,8 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			if (on) {
 				/*VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL,
 					4, 8, 3);*/
-				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
-				reg_value = (((reg_value & (~(7 << 8)))
-							| (4 << 8))
-							& (~(1 << 7)))
-							| (on << 7);
+				reg_value = (reg_value & (~(7 << 8)))
+							| (4 << 8);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 					reg_value);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
@@ -1792,12 +1803,10 @@ void set_vpp_matrix(int m_select, int *s, int on)
 					m[22], 5, 3);
 			}
 			/*VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL, on, 7, 1);*/
-			if (!on) {
-				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
-				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
-					(reg_value & (~(1 << 7))) | (on << 7));
-			}
-
+			if (on)
+				mtx_en_mux |= OSD1_MTX_EN_MASK;
+			else
+				mtx_en_mux &= ~OSD1_MTX_EN_MASK;
 		}
 	} else if (m_select == VPP_MATRIX_EOTF) {
 		/* eotf matrix, VPP_MATRIX_EOTF */
@@ -1869,15 +1878,22 @@ void set_vpp_matrix(int m_select, int *s, int on)
 		if (m_select == VPP_MATRIX_POST) {
 			/* post matrix */
 			m = post_matrix_coeff;
-			/* set bit for enable latched */
-			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 14, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
+			if (rdma_flag & (1 << m_select)) {
+				/* set bit for disable latched */
+				WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 0, 14, 1);
+				if (on)
+					mtx_en_mux |= POST_MTX_EN_MASK;
+				else
+					mtx_en_mux &= ~POST_MTX_EN_MASK;
+			} else {
+				WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 14, 1);
+				WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
+			}
+
 			if (on) {
 				if (rdma_flag & (1 << m_select)) {
 					/*VSYNC_WR_MPEG_REG_BITS(
 						VPP_MATRIX_CTRL, 0, 8, 3);*/
-					reg_value =
-						READ_VPP_REG(VPP_MATRIX_CTRL);
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 						(reg_value & (~(7 << 8)))
 						| (0 << 8));
@@ -1888,15 +1904,24 @@ void set_vpp_matrix(int m_select, int *s, int on)
 		} else if (m_select == VPP_MATRIX_VD1) {
 			/* vd1 matrix, latched */
 			m = vd1_matrix_coeff;
-			/* set bit for enable latched */
-			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 9, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
+			if (rdma_flag & (1 << m_select)) {
+				/* set bit for disable latched */
+				WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 0, 9, 1);
+				/*WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL,
+					on, 5, 1);*/
+				if (on)
+					mtx_en_mux |= VD1_MTX_EN_MASK;
+				else
+					mtx_en_mux &= ~VD1_MTX_EN_MASK;
+			} else {
+				/* set bit for enable latched */
+				WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 9, 1);
+				WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
+			}
 			if (on) {
 				if (rdma_flag & (1 << m_select)) {
 					/*VSYNC_WR_MPEG_REG_BITS(
 						VPP_MATRIX_CTRL, 1, 8, 3);*/
-					reg_value =
-						READ_VPP_REG(VPP_MATRIX_CTRL);
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 						(reg_value & (~(7 << 8)))
 						| (1 << 8));
@@ -1908,20 +1933,17 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			/* vd2 matrix, not latched */
 			m = vd2_matrix_coeff;
 			if (rdma_flag & (1 << m_select)) {
-				/*VSYNC_WR_MPEG_REG_BITS(
-					VPP_MATRIX_CTRL, on, 4, 1);*/
-				reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
-				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
-					(reg_value & (~(1 << 4))) | (on << 4));
-			} else
-				WRITE_VPP_REG_BITS(
-					VPP_MATRIX_CTRL, on, 4, 1);
+				if (on)
+					mtx_en_mux |= VD2_MTX_EN_MASK;
+				else
+					mtx_en_mux &= ~VD2_MTX_EN_MASK;
+			} else {
+				WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 4, 1);
+			}
 			if (on) {
 				if (rdma_flag & (1 << m_select)) {
 					/*VSYNC_WR_MPEG_REG_BITS(
 						VPP_MATRIX_CTRL, 2, 8, 3);*/
-					reg_value =
-						READ_VPP_REG(VPP_MATRIX_CTRL);
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 						(reg_value & (~(7 << 8)))
 						| (2 << 8));
@@ -1935,11 +1957,8 @@ void set_vpp_matrix(int m_select, int *s, int on)
 
 			if (on) {
 				if (rdma_flag & (1 << m_select)) {
-					reg_value =
-						READ_VPP_REG(VPP_MATRIX_CTRL);
-					reg_value = (((reg_value & (~(1 << 6)))
-							| (on << 6))
-							& (~(7 << 8)))
+					mtx_en_mux |= XVY_MTX_EN_MASK;
+					reg_value = (reg_value & (~(7 << 8)))
 							| (3 << 8);
 					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 						reg_value);
@@ -1951,11 +1970,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 				}
 			} else {
 				if (rdma_flag & (1 << m_select)) {
-					reg_value =
-						READ_VPP_REG(VPP_MATRIX_CTRL);
-					VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
-						(reg_value & (~(1 << 6)))
-						| (on << 6));
+					mtx_en_mux &= ~VD2_MTX_EN_MASK;
 				} else
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, on, 6, 1);
@@ -2640,29 +2655,73 @@ void set_vpp_lut(
 	6: customer matrix calculation according to src and dest primary
 		vd1 for ycbcr to rgb
 		post for rgb to r'g'b' */
+static void vpp_set_mtx_en_write(void)
+{
+	int reg_val;
+	reg_val = READ_VPP_REG(VPP_MATRIX_CTRL);
+	VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, (reg_val &
+			(~(POST_MTX_EN_MASK |
+			VD2_MTX_EN_MASK |
+			VD1_MTX_EN_MASK |
+			XVY_MTX_EN_MASK |
+			OSD1_MTX_EN_MASK))) |
+			mtx_en_mux);
+}
+
+static void vpp_set_mtx_en_read(void)
+{
+	int reg_value;
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+	mtx_en_mux = reg_value &
+				(POST_MTX_EN_MASK |
+				VD2_MTX_EN_MASK |
+				VD1_MTX_EN_MASK |
+				XVY_MTX_EN_MASK |
+				OSD1_MTX_EN_MASK);
+}
+
 static void vpp_set_matrix(
 		enum vpp_matrix_sel_e vd1_or_vd2_or_post,
 		unsigned int on,
 		enum vpp_matrix_csc_e csc_mode,
 		struct matrix_s *m)
 {
+	int reg_value;
 	if (force_csc_type != 0xff)
 		csc_mode = force_csc_type;
 
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+
 	if (vd1_or_vd2_or_post == VPP_MATRIX_VD1) {
 		/* vd1 matrix */
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 8, 3);
+		reg_value = (reg_value & (~(7 << 8))) |
+			(1 << 8);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, reg_value);
+
+		if (on)
+			mtx_en_mux |= VD1_MTX_EN_MASK;
+		else
+			mtx_en_mux &= ~VD1_MTX_EN_MASK;
 	} else if (vd1_or_vd2_or_post == VPP_MATRIX_VD2) {
 		/* vd2 matrix */
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 4, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 2, 8, 3);
+		reg_value = (reg_value & (~(7 << 8))) |
+			(2 << 8);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, reg_value);
+
+		if (on)
+			mtx_en_mux |= VD2_MTX_EN_MASK;
+		else
+			mtx_en_mux &= ~VD2_MTX_EN_MASK;
 	} else {
 		/* post matrix */
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 3);
-		/* saturation enable for 601 & 709 limited input */
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 1, 3);
+		reg_value = (reg_value & (~(7 << 8))) |
+			(0 << 8);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, reg_value);
+
+		if (on)
+			mtx_en_mux |= POST_MTX_EN_MASK;
+		else
+			mtx_en_mux &= ~POST_MTX_EN_MASK;
 	}
 	if (!on)
 		return;
@@ -2691,89 +2750,96 @@ static void vpp_set_matrix(
 		/*  -16  1.164   0       1.596   0
 		    -128 1.164   -0.392  -0.813  0
 		    -128 1.164   2.017   0       0 */
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x066204A8);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1e701cbf);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x04A80812);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000000);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x00000000);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x00000000);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x066204A8);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1e701cbf);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x04A80812);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x00000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x00000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x00000000);
+		VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV601F_RGB) {
 		/* ycbcr full range, 601F to RGB */
 		/*  0    1    0           1.402    0
 		   -128  1   -0.34414    -0.71414  0
 		   -128  1    1.772       0        0 */
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, (0x400 << 16) | 0);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, (0x59c << 16) | 0x400);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, (0x1ea0 << 16) | 0x1d24);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, (0x400 << 16) | 0x718);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, (0x400 << 16) | 0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, (0x59c << 16) | 0x400);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12,
+			(0x1ea0 << 16) | 0x1d24);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, (0x400 << 16) | 0x718);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV709_RGB) {
 		/* ycbcr limit range, 709 to RGB */
 		/* -16      1.164  0      1.793  0 */
 		/* -128     1.164 -0.213 -0.534  0 */
 		/* -128     1.164  2.115  0      0 */
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x072C04A8);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1F261DDD);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x04A80876);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x072C04A8);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1F261DDD);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x04A80876);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
 
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+		VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV709F_RGB) {
 		/* ycbcr full range, 709F to RGB */
 		/*  0    1      0       1.575   0
 		   -128  1     -0.187  -0.468   0
 		   -128  1      1.856   0       0 */
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04000000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x064D0400);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1F411E21);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x0400076D);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x04000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x064D0400);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1F411E21);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x0400076D);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_NULL) {
 		/* bypass matrix */
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04000000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x04000000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x00000000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000400);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x04000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x04000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x00000000);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x00000400);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode >= VPP_MATRIX_BT2020YUV_BT2020RGB) {
 		if (vd1_or_vd2_or_post == VPP_MATRIX_VD1) {
 			/* bt2020 limit to bt2020 RGB  */
-			WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x4ad0000);
-			WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x6e50492);
-			WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1f3f1d63);
-			WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x492089a);
-			WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
-			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-			WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x4ad0000);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x6e50492);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1f3f1d63);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x492089a);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x0);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+			VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
+			VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 		}
 		if (vd1_or_vd2_or_post == VPP_MATRIX_POST) {
 			if (csc_mode == VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				/* 2020 RGB to R'G'B */
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
-				WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0xd491b4d);
-				WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x1f6b1f01);
-				WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x9101fef);
-				WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x1fdb1f32);
-				WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x108f3);
-				WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
-				WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-				WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 1, 5, 3);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
+					0x0);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01,
+					0xd491b4d);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10,
+					0x1f6b1f01);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12,
+					0x9101fef);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21,
+					0x1fdb1f32);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x108f3);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x0);
+				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP,
+					1, 5, 3);
 #if 0 /* disable this case after calculate mtx on the fly*/
 			} else if (csc_mode == VPP_MATRIX_BT2020RGB_709RGB) {
 				/* 2020 RGB(G:33c2,86c4 B:1d4c,0bb8 R:84d0,3e80)
@@ -2792,32 +2858,32 @@ static void vpp_set_matrix(
 #endif
 			} else if (csc_mode == VPP_MATRIX_BT2020RGB_CUSRGB) {
 				/* customer matrix 2020 RGB to R'G'B' */
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
 					(m->pre_offset[0] << 16)
 					| (m->pre_offset[1] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET2,
 					m->pre_offset[2] & 0xffff);
-				WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01,
 					(m->matrix[0][0] << 16)
 					| (m->matrix[0][1] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10,
 					(m->matrix[0][2] << 16)
 					| (m->matrix[1][0] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12,
 					(m->matrix[1][1] << 16)
 					| (m->matrix[1][2] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21,
 					(m->matrix[2][0] << 16)
 					| (m->matrix[2][1] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF22,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22,
 					(m->right_shift << 16)
 					| (m->matrix[2][2] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1,
 					(m->offset[0] << 16)
 					| (m->offset[1] & 0xffff));
-				WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2,
 					m->offset[2] & 0xffff);
-				WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP,
 					m->right_shift, 5, 3);
 			}
 		}
@@ -2830,40 +2896,51 @@ static void vpp_set_matrix3(
 		unsigned int on,
 		enum vpp_matrix_csc_e csc_mode)
 {
-	WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 6, 1);
+	int reg_value;
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+
+	if (on)
+		mtx_en_mux |= XVY_MTX_EN_MASK;
+	else
+		mtx_en_mux &= ~XVY_MTX_EN_MASK;
+
 	if (!on)
 		return;
 
 	if (cur_csc_mode == csc_mode)
 		return;
 
-	WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+
+	VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
+		(reg_value & (~(7 << 8))) | (3 << 8));
+
 	if (csc_mode == VPP_MATRIX_RGB_YUV709F) {
 		/* RGB -> 709F*/
 		/*WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7360);*/
 
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0xda02dc);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x4a1f8a);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1e760200);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x2001e2f);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x1fd1);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x200);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x200);
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0xda02dc);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x4a1f8a);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1e760200);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x2001e2f);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x1fd1);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x200);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x200);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
 	} else if (csc_mode == VPP_MATRIX_RGB_YUV709) {
 		/* RGB -> 709 limit */
 		/*WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7360);*/
 
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x00bb0275);
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x003f1f99);
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1ea601c2);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x01c21e67);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00001fd7);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x00400200);
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x00000200);
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01, 0x00bb0275);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10, 0x003f1f99);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12, 0x1ea601c2);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21, 0x01c21e67);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22, 0x00001fd7);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1, 0x00400200);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2, 0x00000200);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+		VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
 	}
 	cur_csc_mode = csc_mode;
 }
@@ -3826,6 +3903,8 @@ static int hdr_process(
 	}
 
 	/************** OSD ***************/
+	/*vpp matrix mux read*/
+	vpp_set_mtx_en_read();
 	if ((get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
 	&& (csc_en & 0x2)) {
 		/* RGB to YUV */
@@ -3953,6 +4032,8 @@ static int hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
+	/*vpp matrix mux write*/
+	vpp_set_mtx_en_write();
 	return need_adjust_contrast_saturation;
 }
 
@@ -4035,7 +4116,8 @@ static int hlg_process(
 				&bt2020_white_point,
 				vinfo, &osd_m, 1);
 	}
-
+	/*vpp matrix mux read*/
+	vpp_set_mtx_en_read();
 	if ((get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
 	&& (csc_en & 0x2)) {
 		/************** OSD ***************/
@@ -4172,6 +4254,8 @@ static int hlg_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
+	/*vpp matrix mux write*/
+	vpp_set_mtx_en_write();
 	return need_adjust_contrast_saturation;
 }
 
@@ -4200,6 +4284,8 @@ static void bypass_hdr_process(
 		EOTF_COEFF_RIGHTSHIFT
 	};
 	int i, j;
+	/*vpp matrix mux read*/
+	vpp_set_mtx_en_read();
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		/************** OSD ***************/
 		/* RGB to YUV */
@@ -4433,6 +4519,8 @@ static void bypass_hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
+	/*vpp matrix mux write*/
+	vpp_set_mtx_en_write();
 }
 
 static void hlg_hdr_process(
@@ -4460,6 +4548,9 @@ static void hlg_hdr_process(
 		EOTF_COEFF_RIGHTSHIFT
 	};
 	int i, j;
+
+	/*vpp matrix mux read*/
+	vpp_set_mtx_en_read();
 	if ((get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
 	&& (csc_en & 0x2)) {
 		/************** OSD ***************/
@@ -4687,6 +4778,8 @@ static void hlg_hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
+	/*vpp matrix mux write*/
+	vpp_set_mtx_en_write();
 }
 
 static void sdr_hdr_process(
@@ -4696,6 +4789,8 @@ static void sdr_hdr_process(
 {
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+		/*vpp matrix mux read*/
+		vpp_set_mtx_en_read();
 		/* OSD convert to 709 limited to match SDR video */
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -4775,6 +4870,8 @@ static void sdr_hdr_process(
 		set_vpp_matrix(VPP_MATRIX_XVYCC,
 			RGB2020_to_YUV2020l_coeff,
 			CSC_ON);
+		/*vpp matrix mux write*/
+		vpp_set_mtx_en_write();
 	} else if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
 				(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
 		bypass_hdr_process(csc_type, vinfo, master_info);
@@ -4789,7 +4886,7 @@ static int vpp_eye_protection_process(
 	memcpy(&video_rgb_ogo, wb_val,
 		sizeof(struct tcon_rgb_ogo_s));
 	ve_ogo_param_update();
-
+	vpp_set_mtx_en_read();
 	/* only SDR need switch csc */
 	if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			hdr_process_mode)
@@ -4820,6 +4917,7 @@ static int vpp_eye_protection_process(
 			bypass_coeff,
 			CSC_ON);
 
+	vpp_set_mtx_en_write();
 	return 0;
 }
 
