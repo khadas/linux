@@ -1553,12 +1553,8 @@ const char *disp_mode_t[] = {
 	"smpte30hz",
 	"smpte50hz",
 	"smpte60hz",
-	"smpte50hz420",
-	"smpte60hz420",
 	"2160p50hz",
 	"2160p60hz",
-	"2160p50hz420",
-	"2160p60hz420",
 	/* VESA modes */
 	"640x480p60hz",
 	"800x480p60hz",
@@ -1590,6 +1586,24 @@ const char *disp_mode_t[] = {
 };
 
 /**/
+static int is_4k50_fmt(char *mode)
+{
+	int i;
+	const char *hdmi4k50[] = {
+		"2160p50hz",
+		"2160p60hz",
+		"smpte50hz",
+		"smpte50hz",
+		NULL
+	};
+
+	for (i = 0; hdmi4k50[i]; i++) {
+		if (strcmp(hdmi4k50[i], mode) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 static ssize_t show_disp_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1597,11 +1611,22 @@ static ssize_t show_disp_cap(struct device *dev,
 	const char *native_disp_mode =
 		hdmitx_edid_get_native_VIC(&hdmitx_device);
 	enum hdmi_vic vic;
+	char mode_tmp[32];
 	for (i = 0; disp_mode_t[i]; i++) {
-		vic = hdmitx_edid_get_VIC(&hdmitx_device,
-			disp_mode_t[i], 0);
-	if (vic != HDMI_Unkown) {
-		pos += snprintf(buf+pos, PAGE_SIZE, "%s", disp_mode_t[i]);
+		memset(mode_tmp, 0, sizeof(mode_tmp));
+		strncpy(mode_tmp, disp_mode_t[i], sizeof(mode_tmp));
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
+		/* Handling only 4k420 mode */
+		if (vic == HDMI_Unkown) {
+			if (is_4k50_fmt(mode_tmp)) {
+				strcat(mode_tmp, "420");
+				vic = hdmitx_edid_get_VIC(&hdmitx_device,
+					mode_tmp, 0);
+			}
+		}
+		if (vic != HDMI_Unkown) {
+			pos += snprintf(buf+pos, PAGE_SIZE, "%s",
+				disp_mode_t[i]);
 			if (native_disp_mode && (strcmp(native_disp_mode,
 				disp_mode_t[i]) == 0)) {
 				pos += snprintf(buf+pos, PAGE_SIZE,
@@ -1775,6 +1800,16 @@ static ssize_t show_dc_cap(struct device *dev,
 			goto next444;
 		}
 		vic = hdmitx_edid_get_VIC(&hdmitx_device, "2160p50hz420", 0);
+		if (vic != HDMI_Unkown) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+			goto next444;
+		}
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, "smpte60hz420", 0);
+		if (vic != HDMI_Unkown) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+			goto next444;
+		}
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, "smpte50hz420", 0);
 		if (vic != HDMI_Unkown) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 			goto next444;
