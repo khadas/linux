@@ -238,6 +238,11 @@ void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 	return;
 }
 
+int vdec_is_support_4k(void)
+{
+	return !is_meson_gxl_package_805X();
+}
+
 /*
  clk_config:
  0:default

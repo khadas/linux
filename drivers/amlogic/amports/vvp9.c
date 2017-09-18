@@ -5076,7 +5076,11 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 #ifdef MULTI_INSTANCE_SUPPORT
 	cur_buf_info = &pbi->work_space_buf_store;
 #ifdef SUPPORT_4K2K
-	memcpy(cur_buf_info, &amvvp9_workbuff_spec[1],	/* 4k2k work space */
+	if (vdec_is_support_4k())
+		memcpy(cur_buf_info, &amvvp9_workbuff_spec[1],	/* 4k */
+		sizeof(struct BuffInfo_s));
+	else
+		memcpy(cur_buf_info, &amvvp9_workbuff_spec[0],/* 1080p */
 		sizeof(struct BuffInfo_s));
 #else
 	memcpy(cur_buf_info, &amvvp9_workbuff_spec[0],	/* 1080p work space */
@@ -5089,9 +5093,12 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 #else
 /*! MULTI_INSTANCE_SUPPORT*/
 #ifdef SUPPORT_4K2K
-	cur_buf_info = &amvvp9_workbuff_spec[1];	/* 4k2k work space */
+	if (vdec_is_support_4k())
+		cur_buf_info = &amvvp9_workbuff_spec[1];/* 4k2k work space */
+	else
+		cur_buf_info = &amvvp9_workbuff_spec[0];/* 1080p work space */
 #else
-	cur_buf_info = &amvvp9_workbuff_spec[0];	/* 1080p work space */
+	cur_buf_info = &amvvp9_workbuff_spec[0];/* 1080p work space */
 #endif
 #endif
 
@@ -5111,7 +5118,13 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 	}
 	vp9_bufmgr_init(pbi, cur_buf_info, &pbi->mc_buf_spec);
 #endif
-
+	if (vdec_is_support_4k()) {
+		buf_alloc_width = 4096;
+		buf_alloc_height = 2304;
+	} else {
+		buf_alloc_width = 1920;
+		buf_alloc_height = 1088;
+	}
 	pbi->init_pic_w = buf_alloc_width ? buf_alloc_width :
 		(pbi->vvp9_amstream_dec_info.width ?
 		pbi->vvp9_amstream_dec_info.width :
@@ -7657,7 +7670,10 @@ static int __init amvdec_vp9_driver_init_module(void)
 
 	struct BuffInfo_s *p_buf_info;
 #ifdef SUPPORT_4K2K
-	p_buf_info = &amvvp9_workbuff_spec[1];
+	if (vdec_is_support_4k())
+		p_buf_info = &amvvp9_workbuff_spec[1];
+	else
+		p_buf_info = &amvvp9_workbuff_spec[0];
 #else
 	p_buf_info = &amvvp9_workbuff_spec[0];
 #endif
@@ -7690,9 +7706,14 @@ static int __init amvdec_vp9_driver_init_module(void)
 		return -ENODEV;
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
-		amvdec_vp9_profile.profile =
-			"4k, 10bit, dwrite, compressed";
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL
+		&& get_cpu_type() != MESON_CPU_MAJOR_ID_GXLX) {
+		if (vdec_is_support_4k())
+			amvdec_vp9_profile.profile =
+				"4k, 10bit, dwrite, compressed";
+		else
+			amvdec_vp9_profile.profile =
+				"10bit, dwrite, compressed";
 	} else {
 		amvdec_vp9_profile.name = "vp9_unsupport";
 	}

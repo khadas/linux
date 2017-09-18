@@ -5457,10 +5457,14 @@ static int hevc_local_init(struct hevc_state_s *hevc)
 
 	cur_buf_info = &hevc->work_space_buf_store;
 #ifdef SUPPORT_4K2K
-	memcpy(cur_buf_info, &amvh265_workbuff_spec[1],	/* 4k2k work space */
+	if (vdec_is_support_4k())
+		memcpy(cur_buf_info, &amvh265_workbuff_spec[1],	/* 4k */
+		sizeof(struct BuffInfo_s));
+	else
+		memcpy(cur_buf_info, &amvh265_workbuff_spec[0],	/* 1080p */
 		sizeof(struct BuffInfo_s));
 #else
-	memcpy(cur_buf_info, &amvh265_workbuff_spec[0],	/* 1080p work space */
+	memcpy(cur_buf_info, &amvh265_workbuff_spec[0],	/* 1080p */
 		sizeof(struct BuffInfo_s));
 #endif
 	cur_buf_info->start_adr = hevc->buf_start;
@@ -9934,7 +9938,10 @@ static int __init amvdec_h265_driver_init_module(void)
 {
 	struct BuffInfo_s *p_buf_info;
 #ifdef SUPPORT_4K2K
-	p_buf_info = &amvh265_workbuff_spec[1];
+	if (vdec_is_support_4k())
+		p_buf_info = &amvh265_workbuff_spec[1];
+	else
+		p_buf_info = &amvh265_workbuff_spec[0];
 #else
 	p_buf_info = &amvh265_workbuff_spec[0];
 #endif
@@ -9969,14 +9976,17 @@ static int __init amvdec_h265_driver_init_module(void)
 	if (!has_hevc_vdec()) {
 		/* not support hevc */
 		amvdec_h265_profile.name = "hevc_unsupport";
-	} else if (is_meson_m8m2_cpu()) {
-		/* m8m2 support 4k */
-		amvdec_h265_profile.profile = "4k";
-	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		amvdec_h265_profile.profile =
-			"4k, 9bit, 10bit, dwrite, compressed";
-	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
-		amvdec_h265_profile.profile = "4k";
+	}
+	if (vdec_is_support_4k()) {
+		if (is_meson_m8m2_cpu()) {
+			/* m8m2 support 4k */
+			amvdec_h265_profile.profile = "4k";
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			amvdec_h265_profile.profile =
+				"4k, 9bit, 10bit, dwrite, compressed";
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
+			amvdec_h265_profile.profile = "4k";
+	}
 #endif
 	if (codec_mm_get_total_size() < 80 * SZ_1M) {
 		pr_info("amvdec_h265 default mmu enabled.\n");
