@@ -1970,7 +1970,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 				}
 			} else {
 				if (rdma_flag & (1 << m_select)) {
-					mtx_en_mux &= ~VD2_MTX_EN_MASK;
+					mtx_en_mux &= ~XVY_MTX_EN_MASK;
 				} else
 					WRITE_VPP_REG_BITS(
 						VPP_MATRIX_CTRL, on, 6, 1);
