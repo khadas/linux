@@ -1175,11 +1175,11 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		return;
 	}
 /*
-hdr_src_feature: bit 23-16: color_primaries
-	1:bt709    0x9:bt2020
-hdr_color_feature: bit 15-8: transfer_characteristic
-	1:bt709     0xe:bt2020-10	0x10:smpte-st-2084   0x12:hlg(todo)
-*/
+   *hdr_src_feature: bit 23-16: color_primaries
+   *	1:bt709    0x9:bt2020
+   *hdr_color_feature: bit 15-8: transfer_characteristic
+   *	1:bt709     0xe:bt2020-10	0x10:smpte-st-2084   0x12:hlg(todo)
+   */
 
 	hdev->hdr_src_feature = (data->features >> 16) & 0xff;
 	hdev->hdr_color_feature = (data->features >> 8) & 0xff;
@@ -1242,7 +1242,7 @@ hdr_color_feature: bit 15-8: transfer_characteristic
 	}
 
 	/*HLG     the value of eotf is 0x03, but now we use 0x02(2084)*/
-	if (hdev->RXCap.hdr_sup_eotf_hlg) {
+	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084) {
 		if (hdev->hdr_src_feature == H_BT2020 &&
 			(hdev->hdr_color_feature == C_BT2020_10 ||
 			hdev->hdr_color_feature == C_HLG)) {
