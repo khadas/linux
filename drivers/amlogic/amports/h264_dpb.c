@@ -318,7 +318,6 @@ void slice_prepare(struct h264_dpb_stru *p_H264_Dpb,
 	sps->offset_for_top_to_bottom_field =
 		(short) p_H264_Dpb->dpb_param.l.data
 		[OFFSET_FOR_TOP_TO_BOTTOM_FIELD];
-
 	pSlice->frame_num = p_H264_Dpb->dpb_param.dpb.frame_num;
 	pSlice->idr_flag =
 		(p_H264_Dpb->dpb_param.dpb.NAL_info_mmco & 0x1f)
@@ -349,6 +348,8 @@ void slice_prepare(struct h264_dpb_stru *p_H264_Dpb,
 		FRAME : p_H264_Dpb->dpb_param.l.data[NEW_PICTURE_STRUCTURE];
 	sps->num_ref_frames = p_H264_Dpb->
 		dpb_param.l.data[MAX_REFERENCE_FRAME_NUM];
+	sps->profile_idc =
+		 (p_H264_Dpb->dpb_param.l.data[PROFILE_IDC_MMCO] >> 8) & 0xff;
 	/*sps->max_dpb_size = p_H264_Dpb->dpb_param.l.data[MAX_DPB_SIZE];*/
 	if (pSlice->idr_flag) {
 		pSlice->long_term_reference_flag = mmco_cmd[0] & 1;
@@ -2019,6 +2020,10 @@ int output_frames(struct h264_dpb_stru *p_H264_Dpb, unsigned char flush_flag)
 
 				if ((p_H264_Dpb->fast_output_enable & 0x1) &&
 					(p_Dpb->fs[i]->data_flag & IDR_FLAG))
+					fast_output_flag = 1;
+				if (p_H264_Dpb->fast_output_enable & 0x6
+					&& p_H264_Dpb->poc_even_odd_flag
+					&& p_Dpb->last_output_poc == INT_MIN)
 					fast_output_flag = 1;
 				if ((p_H264_Dpb->fast_output_enable & 0x2) &&
 					((p_Dpb->fs[i]->poc -

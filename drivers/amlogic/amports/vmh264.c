@@ -2784,6 +2784,12 @@ static irqreturn_t vh264_isr(struct vdec_s *vdec)
 				schedule_work(&hw->user_data_work);
 			}
 			if (slice_header_process_status == 1) {
+				/* for baseline , set fast_output mode */
+				if (p_H264_Dpb->mSPS.profile_idc == BASELINE)
+					p_H264_Dpb->fast_output_enable = 4;
+				else
+					p_H264_Dpb->fast_output_enable
+							= fast_output_enable;
 				hw->data_flag =
 					(p_H264_Dpb->
 						dpb_param.l.data[SLICE_TYPE]
