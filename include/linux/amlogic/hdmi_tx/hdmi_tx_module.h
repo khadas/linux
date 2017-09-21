@@ -169,17 +169,26 @@ struct hdcp_obs_val {
 	unsigned char intstat;
 };
 
-enum hdmi_hdr_eotf {
-	H_UNKNOWN = 0,
-	H_BT709,
-	H_UNDEF,
-	H_BT601,
-	H_BT470M,
-	H_BT470BG,
-	H_SMPTE170M,
-	H_SMPTE240M,
-	H_FILM,
-	H_BT2020,
+enum hdmi_hdr_transfer {
+	T_UNKNOWN = 0,
+	T_BT709,
+	T_UNDEF,
+	T_BT601,
+	T_BT470M,
+	T_BT470BG,
+	T_SMPTE170M,
+	T_SMPTE240M,
+	T_LINEAR,
+	T_LOG100,
+	T_LOG316,
+	T_IEC61966_2_4,
+	T_BT1361E,
+	T_IEC61966_2_1,
+	T_BT2020_10,
+	T_BT2020_12,
+	T_SMPTE_ST_2084,
+	T_SMPTE_ST_28,
+	T_HLG,/*this item todo*/
 };
 
 enum hdmi_hdr_color {
@@ -191,17 +200,8 @@ enum hdmi_hdr_color {
 	C_BT470BG,
 	C_SMPTE170M,
 	C_SMPTE240M,
-	C_LINEAR,
-	C_LOG100,
-	C_LOG316,
-	C_IEC61966_2_4,
-	C_BT1361E,
-	C_IEC61966_2_1,
-	C_BT2020_10,
-	C_BT2020_12,
-	C_SMPTE_ST_2084,
-	C_SMPTE_ST_28,
-	C_HLG,/*this item todo*/
+	C_FILM,
+	C_BT2020,
 };
 
 /* 2kB should be enough to record */
@@ -339,9 +339,10 @@ struct hdmitx_dev {
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
-	enum hdmi_hdr_eotf hdr_src_feature;
+	enum hdmi_hdr_transfer hdr_transfer_feature;
 	enum hdmi_hdr_color hdr_color_feature;
 	unsigned int dv_src_feature;
+	unsigned int sdr_hdr_feature;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
 	unsigned int flag_3dss:1;
