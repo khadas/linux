@@ -1914,7 +1914,8 @@ void enable_dolby_vision(int enable)
 					0x01000042);
 				VSYNC_WR_MPEG_REG(
 					VPP_VD1_CLIP_MISC0,
-					(0x3ff << 20) | (0x3ff << 10) | 0x3ff);
+					(0x3ff << 20)
+					| (0x3ff << 10) | 0x3ff);
 				VSYNC_WR_MPEG_REG(
 					VPP_VD1_CLIP_MISC1,
 					0);
@@ -3211,7 +3212,10 @@ static bool video_off_handled;
 static int is_video_output_off(struct vframe_s *vf)
 {
 	if ((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0) {
-		if (vf == NULL)
+		/*Not reset frame0/1 clipping
+		when core off to avoid green garbage*/
+		if ((vf == NULL)
+		&& (dolby_vision_on_count > dolby_vision_run_mode_delay))
 			null_vf_cnt++;
 		else
 			null_vf_cnt = 0;
