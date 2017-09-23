@@ -6706,7 +6706,7 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 	pbi->provider_name = PROVIDER_NAME;
 #ifdef MULTI_INSTANCE_SUPPORT
 	vf_provider_init(&vvp9_vf_prov, PROVIDER_NAME,
-				&vvp9_vf_provider, vdec);
+				&vvp9_vf_provider, pbi);
 	vf_reg_provider(&vvp9_vf_prov);
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 	if (pbi->frame_dur != 0) {
@@ -6934,6 +6934,7 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 #endif
 
 #ifdef MULTI_INSTANCE_SUPPORT
+	pdata->private = pbi;
 	pdata->dec_status = vvp9_dec_status;
 	pdata->set_isreset = vvp9_set_isreset;
 	is_reset = 0;
