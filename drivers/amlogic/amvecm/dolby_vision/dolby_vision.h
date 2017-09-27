@@ -10,6 +10,15 @@
 #define DEF_G2L_LUT_SIZE_2P        8
 #define DEF_G2L_LUT_SIZE           (1 << DEF_G2L_LUT_SIZE_2P)
 
+#ifdef V2_4
+#define EXT_MD_AVAIL_LEVEL_1 (1 << 0)
+#define EXT_MD_AVAIL_LEVEL_2 (1 << 1)
+#define EXT_MD_AVAIL_LEVEL_4 (1 << 2)
+#define EXT_MD_AVAIL_LEVEL_5 (1 << 3)
+#define EXT_MD_AVAIL_LEVEL_6 (1 << 4)
+#define EXT_MD_AVAIL_LEVEL_255 (1 << 31)
+#endif
+
 enum input_mode_e {
 	INPUT_MODE_OTT  = 0,
 	INPUT_MODE_HDMI = 1
@@ -241,6 +250,82 @@ struct hdr10_param_s {
 	uint16_t max_pic_average_light_level;
 };
 
+#ifdef V2_4
+struct ext_level_1_s {
+	uint8_t min_PQ_hi;
+	uint8_t min_PQ_lo;
+	uint8_t max_PQ_hi;
+	uint8_t max_PQ_lo;
+	uint8_t avg_PQ_hi;
+	uint8_t avg_PQ_lo;
+};
+
+struct ext_level_2_s {
+	uint8_t target_max_PQ_hi;
+	uint8_t target_max_PQ_lo;
+	uint8_t trim_slope_hi;
+	uint8_t trim_slope_lo;
+	uint8_t trim_offset_hi;
+	uint8_t trim_offset_lo;
+	uint8_t trim_power_hi;
+	uint8_t trim_power_lo;
+	uint8_t trim_chroma_weight_hi;
+	uint8_t trim_chroma_weight_lo;
+	uint8_t trim_saturation_gain_hi;
+	uint8_t trim_saturation_gain_lo;
+	uint8_t ms_weight_hi;
+	uint8_t ms_weight_lo;
+};
+
+struct ext_level_4_s {
+	uint8_t anchor_PQ_hi;
+	uint8_t anchor_PQ_lo;
+	uint8_t anchor_power_hi;
+	uint8_t anchor_power_lo;
+};
+
+struct ext_level_5_s {
+	uint8_t active_area_left_offset_hi;
+	uint8_t active_area_left_offset_lo;
+	uint8_t active_area_right_offset_hi;
+	uint8_t active_area_right_offset_lo;
+	uint8_t active_area_top_offset_hi;
+	uint8_t active_area_top_offset_lo;
+	uint8_t active_area_bottom_offset_hi;
+	uint8_t active_area_bottom_offset_lo;
+};
+
+struct ext_level_6_s {
+	uint8_t max_display_mastering_luminance_hi;
+	uint8_t max_display_mastering_luminance_lo;
+	uint8_t min_display_mastering_luminance_hi;
+	uint8_t min_display_mastering_luminance_lo;
+	uint8_t max_content_light_level_hi;
+	uint8_t max_content_light_level_lo;
+	uint8_t max_frame_average_light_level_hi;
+	uint8_t max_frame_average_light_level_lo;
+};
+
+struct ext_level_255_s {
+	uint8_t dm_run_mode;
+	uint8_t dm_run_version;
+	uint8_t dm_debug0;
+	uint8_t dm_debug1;
+	uint8_t dm_debug2;
+	uint8_t dm_debug3;
+};
+
+struct ext_md_s {
+	uint32_t available_level_mask;
+	struct ext_level_1_s level_1;
+	struct ext_level_2_s level_2;
+	struct ext_level_4_s level_4;
+	struct ext_level_5_s level_5;
+	struct ext_level_6_s level_6;
+	struct ext_level_255_s level_255;
+};
+#endif
+
 struct dovi_setting_s {
 	struct composer_register_ipcore_s comp_reg;
 	struct dm_register_ipcore_1_s dm_reg1;
@@ -274,6 +359,7 @@ struct dovi_setting_s {
 	uint32_t vout_width;
 	uint32_t vout_height;
 	u8 vsvdb_tbl[32];
+	struct ext_md_s ext_md;
 #endif
 };
 

@@ -36,7 +36,7 @@
 static unsigned char hdmi_output_rgb;
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev);
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-	enum hdmi_vic VideoCode, unsigned int dv_flag);
+	enum hdmi_vic VideoCode);
 
 static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	{
@@ -962,14 +962,11 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			if ((VideoCode == HDMI_4k2k_30) ||
 				(VideoCode == HDMI_4k2k_25) ||
 				(VideoCode == HDMI_4k2k_24) ||
-				(VideoCode == HDMI_4k2k_smpte_24) ||
-				(hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) ||
-				(hdev->dv_src_feature))
-				hdmi_set_vend_spec_infofram(hdev, VideoCode,
-					hdev->dv_src_feature);
+				(VideoCode == HDMI_4k2k_smpte_24))
+				hdmi_set_vend_spec_infofram(hdev, VideoCode);
 			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
 				(!hdev->flag_3dss))
-				hdmi_set_vend_spec_infofram(hdev, 0, 0);
+				hdmi_set_vend_spec_infofram(hdev, 0);
 			else /* nothing */
 				;
 			ret = 0;
@@ -983,18 +980,24 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 }
 
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-	enum hdmi_vic VideoCode, unsigned int dv_flag)
+	enum hdmi_vic VideoCode)
 {
 	int i;
 	unsigned char VEN_DB[6];
 	unsigned char VEN_HB[3];
 	VEN_HB[0] = 0x81;
 	VEN_HB[1] = 0x01;
+	VEN_HB[2] = 0x5;
 
-	if ((hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) && (dv_flag == 1))
-		VEN_HB[2] = 0x18;
-	else
-		VEN_HB[2] = 0x5;
+	if (VideoCode == 0) {	   /* For non-4kx2k mode setting */
+		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
+		return;
+	}
+
+	if ((hdev->RXCap.dv_info.block_flag == CORRECT) ||
+		(hdev->dv_src_feature == 1)) {	   /* For dolby */
+		return;
+	}
 
 	for (i = 0; i < 0x6; i++)
 		VEN_DB[i] = 0;
@@ -1002,10 +1005,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	VEN_DB[1] = 0x0c;
 	VEN_DB[2] = 0x00;
 	VEN_DB[3] = 0x00;    /* 4k x 2k  Spec P156 */
-	if (VideoCode == 0) {	   /* For non-4kx2k mode setting */
-		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
-		return;
-	}
+
 	if (VideoCode == HDMI_4k2k_30) {
 		VEN_DB[3] = 0x20;
 		VEN_DB[4] = 0x1;
@@ -1021,13 +1021,6 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	} else
 		;
 	hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
-
-	if ((hdev->RXCap.dv_info.ieeeoui == DV_IEEE_OUI) && (dv_flag == 1)) {
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
-			COLORSPACE_RGB444);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
-			RGB_RANGE_FUL);
-	}
 
 }
 

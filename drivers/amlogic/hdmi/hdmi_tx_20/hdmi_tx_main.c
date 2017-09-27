@@ -87,15 +87,14 @@ static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
 static void gpio_read_edid(unsigned char *rx_edid);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
-static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode);
+static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
+	tunnel_mode, struct dv_vsif_para *data);
 static int check_fbc_special(unsigned char *edid_dat);
 static int hdcp_tst_sig;
 
 static atomic_t kref_audio_mute;
 static atomic_t kref_video_mute;
 static DEFINE_MUTEX(getedid_mutex);
-
-int tx_debug;
 
 /* add attr for hdmi output colorspace and colordepth */
 static char fmt_attr[16];
@@ -736,9 +735,6 @@ static ssize_t show_attr(struct device *dev,
 
 	if (hdmitx_device.cur_VIC >= HDMITX_VESA_OFFSET)
 		strcpy(fmt_attr, "rgb,8bit");/*vesa modes only support rgb8bit*/
-	if (hdmitx_device.dv_src_feature == 1)
-		strcpy(fmt_attr, "rgb,8bit");
-	/*dv mode only support rgb8bit at present*/
 	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n\r", fmt_attr);
 	return pos;
 }
@@ -1189,13 +1185,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		return;
 	}
 
-	if (tx_debug) {
-		pr_info("hdev->hdr_transfer_feature = 0x%x\n",
-			hdev->hdr_transfer_feature);
-		pr_info("hdev->hdr_color_feature = 0x%x\n",
-			hdev->hdr_color_feature);
-	}
-
 	/*SDR*/
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 		hdev->hdr_color_feature == C_BT709) {
@@ -1237,24 +1226,18 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 				NULL, NULL);
 			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 				CONF_AVI_BT2020, SET_AVI_BT2020);
-			if (tx_debug)
-				pr_info("hdev->sdr_hdr_feature == 0\n");
 		} else if (hdev->sdr_hdr_feature == 1) {
 			memset(DRM_DB, 0, sizeof(DRM_DB));
 			hdev->HWOp.SetPacket(HDMI_PACKET_DRM,
 				DRM_DB, DRM_HB);
 			hdev->HWOp.CntlConfig(&hdmitx_device,
 				CONF_AVI_BT2020, SET_AVI_BT2020);
-			if (tx_debug)
-				pr_info("hdev->sdr_hdr_feature == 1\n");
 		} else {
 			DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
 			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
 				DRM_DB, DRM_HB);
 			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 				CONF_AVI_BT2020, SET_AVI_BT2020);
-			if (tx_debug)
-				pr_info("hdev->sdr_hdr_feature == 2\n");
 		}
 		return;
 	}
@@ -1301,11 +1284,14 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	return;
 }
 
-static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
+static void hdmitx_set_vsif_pkt(enum eotf_type type,
+	enum mode_type tunnel_mode, struct dv_vsif_para *data)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct dv_vsif_para para = {0};
 	unsigned char VEN_HB[3] = {0x81, 0x01};
-	unsigned char VEN_DB[24] = {0x00};
+	unsigned char VEN_DB1[24] = {0x00};
+	unsigned char VEN_DB2[27] = {0x00};
 	unsigned char len = 0;
 	unsigned int vic = hdev->cur_VIC;
 	unsigned int hdmi_vic_4k_flag = 0;
@@ -1319,86 +1305,185 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 		return;
 	}
 
-	if ((ltype != type) || (ltmode != tunnel_mode)) {
-		ltype = type;
-		ltmode = tunnel_mode;
-	} else
-		return;
-
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL) {
 		pr_info("hdmitx: not support DolbyVision\n");
 		return;
 	}
+/*ver0 and ver1_15 use hdmi 1.4b VSIF*/
+	if ((hdev->RXCap.dv_info.ver == 0) || ((hdev->RXCap.dv_info.ver == 1)
+		&& (hdev->RXCap.dv_info.length == 0xE))) {
+		if ((vic == HDMI_3840x2160p30_16x9) ||
+		    (vic == HDMI_3840x2160p25_16x9) ||
+		    (vic == HDMI_3840x2160p24_16x9) ||
+		    (vic == HDMI_4096x2160p24_256x135))
+			hdmi_vic_4k_flag = 1;
 
-	if ((vic == HDMI_3840x2160p30_16x9) ||
-	    (vic == HDMI_3840x2160p25_16x9) ||
-	    (vic == HDMI_3840x2160p24_16x9) ||
-	    (vic == HDMI_4096x2160p24_256x135))
-		hdmi_vic_4k_flag = 1;
-
-	switch (type) {
-	case EOTF_T_DOLBYVISION:
-		len = 0x18;
-		hdev->dv_src_feature = 1;
-		break;
-	case EOTF_T_HDR10:
-		len = 0x05;
-		hdev->dv_src_feature = 0;
-		break;
-	case EOTF_T_SDR:
-		len = 0x05;
-		hdev->dv_src_feature = 0;
-		break;
-	case EOTF_T_NULL:
-	default:
-		len = 0x05;
-		hdev->dv_src_feature = 0;
-		break;
-	}
-
-	VEN_HB[2] = len;
-	VEN_DB[0] = 0x03;
-	VEN_DB[1] = 0x0c;
-	VEN_DB[2] = 0x00;
-	VEN_DB[3] = 0x00;
-
-	if (hdmi_vic_4k_flag) {
-		VEN_DB[3] = 0x20;
-		if (vic == HDMI_3840x2160p30_16x9)
-			VEN_DB[4] = 0x1;
-		else if (vic == HDMI_3840x2160p25_16x9)
-			VEN_DB[4] = 0x2;
-		else if (vic == HDMI_3840x2160p24_16x9)
-			VEN_DB[4] = 0x3;
-		else if (vic == HDMI_4096x2160p24_256x135)
-			VEN_DB[4] = 0x4;
-		else
-			VEN_DB[4] = 0x0;
-	}
-	if (type == EOTF_T_DOLBYVISION) {
-		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
-		if (tunnel_mode == 1) {
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
-				COLORSPACE_RGB444);
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
-				RGB_RANGE_FUL);
-		} else {
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
-				COLORSPACE_YUV422);
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01,
-				YCC_RANGE_FUL);
+		switch (type) {
+		case EOTF_T_DOLBYVISION:
+			len = 0x18;
+			hdev->dv_src_feature = 1;
+			break;
+		case EOTF_T_HDR10:
+		case EOTF_T_SDR:
+		case EOTF_T_NULL:
+		default:
+			len = 0x05;
+			hdev->dv_src_feature = 0;
+			break;
 		}
-	} else {
-		if (hdmi_vic_4k_flag)
-			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
-		else
-			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, NULL);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_RGBYCC_INDIC,
-			hdev->para->cs);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01, RGB_RANGE_LIM);
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01, YCC_RANGE_LIM);
+
+		VEN_HB[2] = len;
+		VEN_DB1[0] = 0x03;
+		VEN_DB1[1] = 0x0c;
+		VEN_DB1[2] = 0x00;
+		VEN_DB1[3] = 0x00;
+
+		if (hdmi_vic_4k_flag) {
+			VEN_DB1[3] = 0x20;
+			if (vic == HDMI_3840x2160p30_16x9)
+				VEN_DB1[4] = 0x1;
+			else if (vic == HDMI_3840x2160p25_16x9)
+				VEN_DB1[4] = 0x2;
+			else if (vic == HDMI_3840x2160p24_16x9)
+				VEN_DB1[4] = 0x3;
+			else if (vic == HDMI_4096x2160p24_256x135)
+				VEN_DB1[4] = 0x4;
+			else
+				VEN_DB1[4] = 0x0;
+		}
+		if (type == EOTF_T_DOLBYVISION) {
+			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB1, VEN_HB);
+			if (tunnel_mode == RGB_8BIT) {
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_RGB444);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
+					RGB_RANGE_FUL);
+			} else {
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_YUV422);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01,
+					YCC_RANGE_FUL);
+			}
+		} else {
+			if (hdmi_vic_4k_flag)
+				hdev->HWOp.SetPacket(
+					HDMI_PACKET_VEND, VEN_DB1, VEN_HB);
+			else
+				hdev->HWOp.SetPacket(
+					HDMI_PACKET_VEND, NULL, NULL);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_Q01, RGB_RANGE_LIM);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_YQ01, YCC_RANGE_LIM);
+		}
+
 	}
-}
+	/*ver1_12 and ver2 use Dolby VSIF*/
+	if ((hdev->RXCap.dv_info.ver == 2) || ((hdev->RXCap.dv_info.ver == 1)
+		&& (hdev->RXCap.dv_info.length == 0xB))) {
+
+		if (data == NULL)
+			data = &para;
+		/*4k vsif package */
+		if ((vic == HDMI_3840x2160p30_16x9) ||
+		    (vic == HDMI_3840x2160p25_16x9) ||
+		    (vic == HDMI_3840x2160p24_16x9) ||
+		    (vic == HDMI_4096x2160p24_256x135))
+			hdmi_vic_4k_flag = 1;
+
+		switch (type) {
+		case EOTF_T_DOLBYVISION:
+		case EOTF_T_LL_MODE:
+			len = 0x1b;
+			hdev->dv_src_feature = 1;
+			break;
+		case EOTF_T_HDR10:
+		case EOTF_T_SDR:
+		case EOTF_T_NULL:
+		default:
+			len = 0x5;
+			hdev->dv_src_feature = 0;
+			break;
+		}
+		VEN_HB[2] = len;
+		VEN_DB2[0] = 0x46;
+		VEN_DB2[1] = 0xd0;
+		VEN_DB2[2] = 0x00;
+		VEN_DB2[3] = (data->vers.ver2.low_latency) |
+			(data->vers.ver2.dobly_vision_signal << 1);
+		VEN_DB2[4] = (data->vers.ver2.eff_tmax_PQ_hi)
+			| (data->vers.ver2.auxiliary_MD_present << 6)
+			| (data->vers.ver2.backlt_ctrl_MD_present << 7);
+		VEN_DB2[5] = data->vers.ver2.eff_tmax_PQ_low;
+		VEN_DB2[6] = data->vers.ver2.auxiliary_runmode;
+		VEN_DB2[7] = data->vers.ver2.auxiliary_runversion;
+		VEN_DB2[8] = data->vers.ver2.auxiliary_debug0;
+
+		/*Dolby Vision standard case*/
+		if (type == EOTF_T_DOLBYVISION) {
+			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			if (tunnel_mode == RGB_8BIT) {/*RGB444*/
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_RGB444);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
+					RGB_RANGE_FUL);
+			} else {/*YUV422*/
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_YUV422);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01,
+					YCC_RANGE_FUL);
+			}
+		}
+		/*Dolby Vision low-latency case*/
+		else if  (type == EOTF_T_LL_MODE) {
+			hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			if (tunnel_mode == RGB_10_12BIT) {/*10/12bit RGB444*/
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_RGB444);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
+					RGB_RANGE_LIM);
+			} else if (tunnel_mode == YUV444_10_12BIT) {
+				/*10/12bit YUV444*/
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_YUV444);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01,
+					YCC_RANGE_LIM);
+			} else {/*YUV422*/
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC,
+					COLORSPACE_YUV422);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_YQ01,
+					YCC_RANGE_LIM);
+			}
+		}
+		/*SDR case*/
+		else {
+			if (hdmi_vic_4k_flag) {
+				VEN_DB1[0] = 0x03;
+				VEN_DB1[1] = 0x0c;
+				VEN_DB1[2] = 0x00;
+				hdev->HWOp.SetPacket(
+					HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			} else
+				hdev->HWOp.SetPacket(
+					HDMI_PACKET_VEND, NULL, NULL);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_Q01, RGB_RANGE_LIM);
+			hdev->HWOp.CntlConfig(hdev,
+				CONF_AVI_YQ01, YCC_RANGE_LIM);
+			}
+		}
+	}
 
 /*config attr*/
 static ssize_t show_config(struct device *dev,
@@ -1520,7 +1605,7 @@ static ssize_t store_config(struct device *dev,
 			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
 				DRM_DB, DRM_HB);
 	} else if (strncmp(buf, "vsif", 4) == 0)
-		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1');
+		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL);
 	return 16;
 }
 
@@ -1591,6 +1676,7 @@ static ssize_t store_debug(struct device *dev,
 
 /* support format lists */
 const char *disp_mode_t[] = {
+	"480i60hz",
 	"480p60hz",
 	"576p50hz",
 	"720p60hz",
@@ -2001,29 +2087,113 @@ static ssize_t show_dv_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	int i;
 	const struct dv_info *dv = &(hdmitx_device.RXCap.dv_info);
 
-	if (dv->ieeeoui != DV_IEEE_OUI)
+	if (dv->ieeeoui != DV_IEEE_OUI) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"The Rx don't support DolbyVision\n");
 		return pos;
+	}
+	if (dv->block_flag != CORRECT) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"DolbyVision block is error\n");
+		return pos;
+	}
 	pos += snprintf(buf + pos, PAGE_SIZE,
-		"DolbyVision%d RX support list:\n", dv->ver);
-	if (dv->sup_yuv422_12bit)
-		pos += snprintf(buf + pos, PAGE_SIZE, "    yuv422_12bit\n");
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"    2160p%shz: 1\n", dv->sup_2160p60hz ? "60" : "30");
-	if (dv->sup_global_dimming)
-		pos += snprintf(buf + pos, PAGE_SIZE, "    global dimming\n");
-	if (dv->colorimetry)
-		pos += snprintf(buf + pos, PAGE_SIZE, "    colorimetry\n");
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"    IEEEOUI: 0x%06x\n", dv->ieeeoui);
-	if (dv->ver == 0)
-		pos += snprintf(buf + pos, PAGE_SIZE, "    DM Ver: %x:%x\n",
-			dv->vers.ver0.dm_major_ver, dv->vers.ver0.dm_minor_ver);
-	if (dv->ver == 1)
-		pos += snprintf(buf + pos, PAGE_SIZE, "    DM Ver: %x\n",
-			dv->vers.ver1.dm_version);
+		"DolbyVision RX support list:\n");
 
+	if (dv->ver == 0) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"VSVDB Version: V%d\n", dv->ver);
+		pos += snprintf(buf + pos, PAGE_SIZE, "DM Ver: %x:%x\n",
+			dv->dm_major_ver, dv->dm_minor_ver);
+
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"yuv422_12bit: %s\n",
+			dv->sup_yuv422_12bit ? "1" : "0");
+
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"2160p%shz: 1\n",
+			dv->sup_2160p60hz ? "60" : "30");
+		if (dv->sup_global_dimming)
+			pos += snprintf(buf + pos, PAGE_SIZE,
+			"global dimming\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+	}
+	if (dv->ver == 1) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"VSVDB Version: V%d(%d-byte)\n",
+			dv->ver, dv->length + 1);
+		if (dv->length == 0xB) {
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"    DM Ver: %x\n",
+				dv->dm_version);
+
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"yuv422_12bit: %s\n",
+				dv->sup_yuv422_12bit ? "1" : "0");
+
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"2160p%shz: 1\n",
+				dv->sup_2160p60hz ? "60" : "30");
+			if (dv->sup_global_dimming)
+				pos += snprintf(buf + pos, PAGE_SIZE,
+				"global dimming\n");
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+			if (dv->colorimetry)
+				pos += snprintf(buf + pos, PAGE_SIZE,
+				"colorimetry\n");
+		}
+
+		if (dv->length == 0xE) {
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"DM Ver: %x\n",
+				dv->dm_version);
+
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"yuv422_12bit: %s\n",
+				dv->sup_yuv422_12bit ? "1" : "0");
+
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"2160p%shz: 1\n",
+				dv->sup_2160p60hz ? "60" : "30");
+			if (dv->sup_global_dimming)
+				pos += snprintf(buf + pos, PAGE_SIZE,
+				"global dimming\n");
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+			if (dv->colorimetry)
+				pos += snprintf(buf + pos, PAGE_SIZE,
+				"colorimetry\n");
+		}
+	}
+	if (dv->ver == 2) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"VSVDB Version: V%d\n", dv->ver);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"DM Ver: %x\n", dv->dm_version);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"yuv422_12bit: %s\n",
+			dv->sup_yuv422_12bit ? "1" : "0");
+		if (dv->sup_global_dimming)
+			pos += snprintf(buf + pos, PAGE_SIZE,
+			"global dimming\n");
+
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"sup_10b_12b_444: %s\n",
+			dv->sup_10b_12b_444 ? "1" : "0");
+
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE, "VSVDB: ");
+	for (i = 0; i < 27; i++)
+		pos += snprintf(buf+pos, PAGE_SIZE, "%02x",
+		dv->rawdata[i]);
+	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 	return pos;
 }
 
@@ -3068,7 +3238,8 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
-	hdmitx_set_vsif_pkt(0, 0);/*after plugout, DV mode can't be supported*/
+	hdmitx_set_vsif_pkt(0, 0, NULL);
+	/*after plugout, DV mode can't be supported*/
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(0);
@@ -4087,9 +4258,6 @@ __setup("hdmitx=", hdmitx_boot_para_setup);
 MODULE_PARM_DESC(force_vout_index, "\n force_vout_index\n");
 module_param(force_vout_index, uint, 0664);
 #endif
-
-MODULE_PARM_DESC(tx_debug, "\n tx_debug\n");
-module_param(tx_debug, int, 0664);
 
 MODULE_PARM_DESC(hdmi_detect_when_booting, "\n hdmi_detect_when_booting\n");
 module_param(hdmi_detect_when_booting, int, 0664);

@@ -4789,7 +4789,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			    && is_dolby_vision_enable()) {
 				toggle_vf = pause_vf;
 				dolby_vision_parse_metadata(
-					cur_dispbuf, false, false);
+					cur_dispbuf, 0, false);
 				dolby_vision_set_toggle_flag(1);
 			}
 			break;
@@ -4828,6 +4828,15 @@ SET_FILTER:
 
 	if (is_dolby_vision_enable()) {
 		u32 frame_size = 0, h_size, v_size;
+		/* force toggle when keeping frame after playing */
+		if ((cur_dispbuf == &vf_local)
+			&& !toggle_vf
+			&& is_dolby_vision_on()) {
+			toggle_vf = cur_dispbuf;
+			dolby_vision_parse_metadata(
+				cur_dispbuf, 2, false);
+			dolby_vision_set_toggle_flag(1);
+		}
 		if (cur_frame_par) {
 			if (cur_frame_par->VPP_hd_start_lines_
 				>=  cur_frame_par->VPP_hd_end_lines_)
