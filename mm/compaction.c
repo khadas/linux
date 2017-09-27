@@ -603,6 +603,12 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 					goto isolate_success;
 				}
 			}
+			/* isolate for zs pages */
+			if (unlikely(PageMovable(page)) &&
+				 !PageIsolated(page)) {
+				if (isolate_movable_page(page, mode))
+					goto isolate_success;
+			}
 			continue;
 		}
 

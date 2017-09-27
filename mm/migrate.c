@@ -38,6 +38,7 @@
 #include <linux/balloon_compaction.h>
 #include <linux/page-isolation.h>
 #include <linux/mmu_notifier.h>
+#include <linux/zsmalloc.h>
 
 #include <asm/tlbflush.h>
 
@@ -72,6 +73,74 @@ int migrate_prep_local(void)
 	return 0;
 }
 
+bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+{
+	/*
+	 * Avoid burning cycles with pages that are yet under __free_pages(),
+	 * or just got freed under us.
+	 *
+	 * In case we 'win' a race for a movable page being freed under us and
+	 * raise its refcount preventing __free_pages() from doing its job
+	 * the put_page() at the end of this block will take care of
+	 * release this page, thus avoiding a nasty leakage.
+	 */
+	if (unlikely(!get_page_unless_zero(page)))
+		goto out;
+
+	/*
+	 * Check PageMovable before holding a PG_lock because page's owner
+	 * assumes anybody doesn't touch PG_lock of newly allocated page
+	 * so unconditionally grapping the lock ruins page's owner side.
+	 */
+	if (unlikely(!PageMovable(page)))
+		goto out_putpage;
+	/*
+	 * As movable pages are not isolated from LRU lists, concurrent
+	 * compaction threads can race against page migration functions
+	 * as well as race against the releasing a page.
+	 *
+	 * In order to avoid having an already isolated movable page
+	 * being (wrongly) re-isolated while it is under migration,
+	 * or to avoid attempting to isolate pages being released,
+	 * lets be sure we have the page lock
+	 * before proceeding with the movable page isolation steps.
+	 */
+	if (unlikely(!trylock_page(page)))
+		goto out_putpage;
+
+	if (PageIsolated(page))
+		goto out_no_isolated;
+
+	if (zs_page_isolate(page, mode))
+		goto out_no_isolated;
+
+	/* Driver shouldn't use PG_isolated bit of page->flags */
+	WARN_ON_ONCE(PageIsolated(page));
+	__SetPageIsolated(page);
+	unlock_page(page);
+
+	return true;
+
+out_no_isolated:
+	unlock_page(page);
+out_putpage:
+	put_page(page);
+out:
+	return false;
+}
+
+/* It should be called on page which is PG_movable */
+void putback_movable_page(struct page *page)
+{
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(!PageMovable(page), page);
+	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+
+	zs_page_putback(page);
+	__ClearPageIsolated(page);
+}
+
+
 /*
  * Put previously isolated pages back onto the appropriate lists
  * from where they were once taken off for compaction/migration.
@@ -95,7 +164,13 @@ void putback_movable_pages(struct list_head *l)
 				page_is_file_cache(page));
 		if (unlikely(isolated_balloon_page(page)))
 			balloon_page_putback(page);
-		else
+		else if (unlikely(PageMovable(page))) {
+			VM_BUG_ON_PAGE(!PageIsolated(page), page);
+			lock_page(page);
+			putback_movable_page(page);
+			unlock_page(page);
+			put_page(page);
+		} else
 			putback_lru_page(page);
 	}
 }
@@ -769,23 +844,35 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		SetPageSwapBacked(newpage);
 
 	mapping = page_mapping(page);
-	if (!mapping)
-		rc = migrate_page(mapping, newpage, page, mode);
-	else if (mapping->a_ops->migratepage)
-		/*
-		 * Most pages have a mapping and most filesystems provide a
-		 * migratepage callback. Anonymous pages are part of swap
-		 * space which also has its own migratepage callback. This
-		 * is the most common path for page migration.
-		 */
-		rc = mapping->a_ops->migratepage(mapping,
-						newpage, page, mode);
-	else
-		rc = fallback_migrate_page(mapping, newpage, page, mode);
+
+	if (unlikely(PageMovable(page))) { /* zram movable */
+		VM_BUG_ON_PAGE(!PageIsolated(page), page);
+		rc = mapping->a_ops->migratepage(mapping, newpage, page, mode);
+	} else {
+		if (!mapping)
+			rc = migrate_page(mapping, newpage, page, mode);
+		else if (mapping->a_ops->migratepage)
+			/*
+			 * Most pages have a mapping and most filesystems
+			 * provide a migratepage callback. Anonymous pages are
+			 * part of swap space which also has its own migratepage
+			 * callback. This is the most common path for page
+			 * migration.
+			 */
+			rc = mapping->a_ops->migratepage(mapping,
+							newpage, page, mode);
+		else
+			rc = fallback_migrate_page(mapping, newpage,
+						   page, mode);
+	}
 
 	if (rc != MIGRATEPAGE_SUCCESS) {
 		newpage->mapping = NULL;
 	} else {
+		if (PageMovable(page)) {
+			VM_BUG_ON_PAGE(!PageIsolated(page), page);
+			__ClearPageIsolated(page);
+		}
 		if (remap_swapcache)
 			remove_migration_ptes(page, newpage);
 		page->mapping = NULL;
@@ -845,6 +932,11 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 			goto uncharge;
 		wait_on_page_writeback(page);
 	}
+	if (unlikely(PageMovable(page))) { /* for zram */
+		rc = move_to_new_page(newpage, page, 0, mode);
+		goto zram_page;
+	}
+
 	/*
 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
 	 * we cannot notice that anon_vma is freed while we migrates a page.
@@ -925,6 +1017,7 @@ skip_unmap:
 	if (rc && remap_swapcache)
 		remove_migration_ptes(page, page);
 
+zram_page:
 	/* Drop an anon_vma reference if we took one */
 	if (anon_vma)
 		put_anon_vma(anon_vma);
@@ -1005,6 +1098,11 @@ out:
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
+		if (unlikely(PageMovable(page))) {
+			lock_page(page);
+			putback_movable_page(page);
+			unlock_page(page);
+		}
 		putback_lru_page(page);
 	}
 

@@ -109,6 +109,7 @@ enum pageflags {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	PG_compound_lock,
 #endif
+	PG_movable,		/* for zram movable */
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
@@ -126,6 +127,9 @@ enum pageflags {
 
 	/* SLOB */
 	PG_slob_free = PG_private,
+
+	/* non-lru isolated movable page */
+	PG_isolated = PG_reclaim,
 };
 
 #ifndef __GENERATING_BOUNDS_H
@@ -210,6 +214,8 @@ PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
 PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
 
 __PAGEFLAG(SlobFree, slob_free)
+__PAGEFLAG(Isolated, isolated)
+__PAGEFLAG(Movable, movable)
 
 /*
  * Private page markings that may be used by the filesystem that owns the page
