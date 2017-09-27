@@ -220,6 +220,7 @@ void di_hw_init(void)
 		fifo_size_vpp = 0x180;
 		fifo_size_di = 0x120;
 	}
+	DI_Wr_reg_bits(DI_ARB_CTRL, 0xffff, 0, 16);
 	DI_Wr(VD1_IF0_LUMA_FIFO_SIZE, fifo_size_vpp);
 	DI_Wr(VD2_IF0_LUMA_FIFO_SIZE, fifo_size_vpp);
 	/* 1a83 is vd2_if0_luma_fifo_size */
@@ -374,9 +375,6 @@ void enable_di_pre_aml(
 						(urgent << 8));	/* urgent. */
 	}
 
-	/* frame + soft reset for the pre modules. */
-	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 3 << 30);
-
 	RDMA_WR(DI_PRE_CTRL, nr_en |			/* NR enable */
 					(mtn_en << 1) |	/* MTN_EN */
 			(pd32_check_en << 2)|/* check 3:2 pulldown */
@@ -397,8 +395,7 @@ void enable_di_pre_aml(
 			(pre_vdin_link << 14) |/* pre go line link */
 			(hold_line << 16)|/* pre hold line number */
 					(1 << 22)|/* MTN after NR. */
-			(pre_field_num << 29)|/* pre field number.*/
-			(0x1 << 30) /* pre soft rst, pre frame rst */
+			(pre_field_num << 29)/* pre field number.*/
 				   );
 
 #ifdef SUPPORT_MPEG_TO_VDIN
@@ -2190,6 +2187,12 @@ void enable_di_pre_mif(bool en)
 			RDMA_WR_BITS(MCDI_MCVECWR_CTRL, 0, 9, 1);
 			/* gate clk */
 			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 9, 1);
+			/* mcinfo rd req en =1 */
+			RDMA_WR_BITS(MCDI_MCINFORD_CTRL, 1, 9, 1);
+			/* mv wr req en =1 */
+			RDMA_WR_BITS(MCDI_MCVECWR_CTRL, 1, 12, 1);
+			/* mcinfo wr req en =1 */
+			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 1, 12, 1);
 		}
 		/* enable di nr/mtn/mv mif */
 		/* RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f); */

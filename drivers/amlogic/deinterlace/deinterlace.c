@@ -3694,23 +3694,7 @@ static void pre_de_process(void)
 		di_mtn_1_ctrl1 &= (~(1 << 31)); /* disable contwr */
 		di_mtn_1_ctrl1 &= (~(1 << 29)); /* disable txt */
 		cont_rd = 0;
-		if (mcpre_en)
-			RDMA_WR(DI_ARB_CTRL,
-				(RDMA_RD(DI_ARB_CTRL) & (~0x303)) | 0xF0F);
-		else
-			RDMA_WR(DI_ARB_CTRL,
-				RDMA_RD(DI_ARB_CTRL) | 1 << 9 | 1 << 8
-				| 1 << 1 | 1 <<	0);
 	} else {
-		if (mcpre_en)
-			RDMA_WR(DI_ARB_CTRL,
-				RDMA_RD(DI_ARB_CTRL) | 1 << 9 | 1 << 8
-				| 1 << 1 | 1 << 0 | 0xF0F);
-		else
-			RDMA_WR(DI_ARB_CTRL,
-				RDMA_RD(DI_ARB_CTRL) | 1 << 9 | 1 << 8
-				| 1 << 1 | 1 <<	0);
-
 		di_mtn_1_ctrl1 |= (1 << 31); /* enable contwr */
 		RDMA_WR(DI_PRE_CTRL, RDMA_RD(DI_PRE_CTRL) | (1 << 1));
 		/* mtn must enable for mtn1 enable */
@@ -3719,8 +3703,6 @@ static void pre_de_process(void)
 	}
 	if (di_pre_stru.field_count_for_cont >= 3) {
 		di_mtn_1_ctrl1 |= 1 << 29;/* enable txt */
-		RDMA_WR(DI_PRE_CTRL,
-			RDMA_RD(DI_PRE_CTRL) | (cont_rd << 25));
 		if (mcpre_en) {
 			if ((di_pre_stru.cur_prog_flag == 0) &&
 				(di_pre_stru.enable_mtnwr == 1)
@@ -3777,7 +3759,10 @@ static void pre_de_process(void)
 			vdin_ops->tvin_vdin_func(0, &vdin_arg);
 	}
 #endif
-
+	/* frame + soft reset for the pre modules. */
+	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 3 << 30);
+	RDMA_WR(DI_PRE_CTRL,
+		RDMA_RD(DI_PRE_CTRL) | (cont_rd << 25));
 	/* enable pre mif*/
 	enable_di_pre_mif(true);
 	di_print("DI:buf[%d] irq start.\n", di_pre_stru.di_inp_buf->seq);
