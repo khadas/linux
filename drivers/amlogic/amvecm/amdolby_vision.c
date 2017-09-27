@@ -4002,6 +4002,8 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 			dolby_vision_parse_metadata(NULL, true);
 	}
 	if (dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+		if (vinfo && sink_support_dolby_vision(vinfo))
+			dolby_vision_set_toggle_flag(1);
 		if ((!vinfo->dv_info) && (vsync_count < FLAG_VSYNC_CNT)) {
 			vsync_count++;
 			return 0;
