@@ -1525,12 +1525,20 @@ static void apply_stb_core_settings(
 			(uint32_t *)&dovi_setting.dm_reg2,
 			(uint32_t *)&dovi_setting.dm_lut2,
 			1920, 1080, 1, 1);
+	v_size = vinfo->height;
+	if ((vinfo->mode == VMODE_480I) ||
+		(vinfo->mode == VMODE_480I_RPT) ||
+		(vinfo->mode == VMODE_576I) ||
+		(vinfo->mode == VMODE_576I_RPT) ||
+		(vinfo->mode == VMODE_1080I) ||
+		(vinfo->mode == VMODE_1080I_50HZ))
+		v_size = v_size/2;
 	if (mask & 4)
 		dolby_core3_set(
 			26, dovi_setting.md_reg3.size,
 			(uint32_t *)&dovi_setting.dm_reg3,
 			dovi_setting.md_reg3.raw_metadata,
-			vinfo->width, vinfo->height,
+			vinfo->width, v_size,
 			1,
 			dolby_vision_mode ==
 			DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);
