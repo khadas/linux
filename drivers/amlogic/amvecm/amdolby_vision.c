@@ -3222,8 +3222,10 @@ static int is_video_output_off(struct vframe_s *vf)
 	if ((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0) {
 		/*Not reset frame0/1 clipping
 		when core off to avoid green garbage*/
-		if ((vf == NULL)
-		&& (dolby_vision_on_count > dolby_vision_run_mode_delay))
+		if (is_meson_txlx_package_962X() && (vf == NULL) &&
+			(dolby_vision_on_count <= dolby_vision_run_mode_delay))
+			return 0;
+		if (vf == NULL)
 			null_vf_cnt++;
 		else
 			null_vf_cnt = 0;
