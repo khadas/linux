@@ -6762,6 +6762,7 @@ static int vmvp9_stop(struct VP9Decoder_s *pbi)
 		pbi->stat &= ~STAT_VF_HOOK;
 	}
 	vp9_local_uninit(pbi);
+	reset_process_time(pbi);
 	cancel_work_sync(&pbi->work);
 	uninit_mmu_buffers(pbi);
 
@@ -7182,6 +7183,10 @@ static void vp9_work(struct work_struct *work)
 		}
 	}
 
+	if (pbi->stat & STAT_TIMER_ARM) {
+		del_timer_sync(&pbi->timer);
+		pbi->stat &= ~STAT_TIMER_ARM;
+	}
 	/* mark itself has all HW resource released and input released */
 	vdec_set_status(hw_to_vdec(pbi), VDEC_STATUS_CONNECTED);
 
@@ -7309,10 +7314,12 @@ static void run(struct vdec_s *vdec,
 		READ_VREG(HEVC_MPC_E),
 		READ_VREG(HEVC_MPSR));
 
+	start_process_time(pbi);
+	mod_timer(&pbi->timer, jiffies);
+	pbi->stat |= STAT_TIMER_ARM;
+	pbi->stat |= STAT_ISR_REG;
 	amhevc_start();
 	pbi->stat |= STAT_VDEC_RUN;
-
-	start_process_time(pbi);
 }
 
 static void reset(struct vdec_s *vdec)
