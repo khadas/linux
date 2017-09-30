@@ -5127,6 +5127,11 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 	vp9_bufmgr_init(pbi, cur_buf_info, &pbi->mc_buf_spec);
 #endif
 
+	if (!vdec_is_support_4k()
+		&& (buf_alloc_width > 1920 &&  buf_alloc_height > 1088)) {
+		buf_alloc_width = 1920;
+		buf_alloc_height = 1088;
+	}
 	pbi->init_pic_w = buf_alloc_width ? buf_alloc_width :
 		(pbi->vvp9_amstream_dec_info.width ?
 		pbi->vvp9_amstream_dec_info.width :
