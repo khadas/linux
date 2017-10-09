@@ -3432,8 +3432,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 			((src_format == FORMAT_DOVI) ? "DOVI" : "SDR"),
 			req.aux_size, req.dv_enhance_exist);
 
-		if (src_format == FORMAT_DOVI
-		&& req.dv_enhance_exist && toggle_flag) {
+		if (req.dv_enhance_exist && toggle_flag) {
 			el_vf = dvel_vf_get();
 			if (el_vf &&
 			((el_vf->pts_us64 == vf->pts_us64)
@@ -3449,6 +3448,34 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 				vf_notify_provider_by_name("dveldec",
 					VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					(void *)&el_req);
+				if (el_req.aux_buf
+					&& el_req.aux_size
+					&& meta_flag_bl) {
+					enum signal_format_e el_src_format =
+						FORMAT_SDR;
+					int el_total_md_size = 0;
+					int el_total_comp_size = 0;
+					int meta_flag_el = 1;
+					meta_flag_el = parse_sei_and_meta(
+						el_vf, &el_req,
+						&el_total_comp_size,
+						&el_total_md_size,
+						&el_src_format);
+					if (!meta_flag_el) {
+						src_format = el_src_format;
+						total_comp_size =
+							el_total_comp_size;
+						total_md_size =
+							el_total_md_size;
+						meta_flag_bl = meta_flag_el;
+						src_bdp = 12;
+					}
+					if (debug_dolby & 2)
+						pr_dolby_dbg(
+							"meta data el mode: el_src_format: %d, meta_flag_el: %d\n",
+							el_src_format,
+							meta_flag_el);
+				}
 				dolby_vision_vf_add(vf, el_vf);
 				el_flag = 1;
 				if (vf->width == el_vf->width)
