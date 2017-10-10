@@ -1210,4 +1210,8 @@
 		compatible = "khadas-hym8563";
 		reg = <0x51>;
 	};
+	khadas-wol{
+		compatible = "khadas-wol";
+		reg = <0x18>;
+	};
 };
