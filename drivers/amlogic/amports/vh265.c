@@ -7206,7 +7206,7 @@ static void dolby_get_meta(struct hevc_state_s *hevc)
 	if (get_dbg_flag(hevc) &
 		H265_DEBUG_BUFMGR_MORE)
 		dump_aux_buf(hevc);
-	if (dolby_meta_with_el || vdec->slave) {
+	if (vdec->dolby_meta_with_el || vdec->slave) {
 		set_aux_data(hevc,
 		hevc->cur_pic, 0, 0);
 	} else if (vdec->master) {

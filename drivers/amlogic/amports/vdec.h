@@ -188,6 +188,7 @@ struct vdec_s {
 	char config[PAGE_SIZE];
 	int config_len;
 	bool is_reset;
+	bool dolby_meta_with_el;
 
 	/* canvas */
 	int (*get_canvas)(unsigned int index, unsigned int base);
@@ -317,6 +318,8 @@ extern int vdec_status(struct vdec_s *vdec, struct vdec_info *vstatus);
 extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
 
 extern int vdec_set_isreset(struct vdec_s *vdec, int isreset);
+
+extern int vdec_set_dv_metawithel(struct vdec_s *vdec, int isdvmetawithel);
 
 extern void vdec_set_no_powerdown(int flag);
 

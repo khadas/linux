@@ -209,6 +209,13 @@ int vdec_set_isreset(struct vdec_s *vdec, int isreset)
 	return 0;
 }
 
+int vdec_set_dv_metawithel(struct vdec_s *vdec, int isdvmetawithel)
+{
+	vdec->dolby_meta_with_el = isdvmetawithel;
+	pr_info("isdvmetawithel=%d\n", isdvmetawithel);
+	return 0;
+}
+
 void vdec_set_no_powerdown(int flag)
 {
 	no_powerdown = flag;
@@ -1426,6 +1433,8 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 			}
 		}
 	}
+
+	p->dolby_meta_with_el = 0;
 
 	pr_info("vdec_init, vf_provider_name = %s\n", p->vf_provider_name);
 	vdec_input_prepare_bufs(/*prepared buffer for fast playing.*/

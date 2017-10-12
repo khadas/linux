@@ -2221,6 +2221,14 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 		if (priv->vdec)
 			vdec_set_isreset(priv->vdec, parm.data_32);
 		break;
+	case AMSTREAM_SET_DV_META_WITH_EL:
+		if (priv->vdec) {
+			vdec_set_dv_metawithel(priv->vdec, parm.data_32);
+			if (vdec_dual(priv->vdec) && priv->vdec->slave)
+				vdec_set_dv_metawithel(priv->vdec->slave,
+				parm.data_32);
+		}
+		break;
 	case AMSTREAM_SET_NO_POWERDOWN:
 		vdec_set_no_powerdown(parm.data_32);
 		break;

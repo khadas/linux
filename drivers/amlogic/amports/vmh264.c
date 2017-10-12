@@ -3591,7 +3591,7 @@ pic_done_proc:
 				PRINT_FLAG_DPB_DETAIL))
 				dump_aux_buf(hw);
 #ifdef CONFIG_AM_VDEC_DV
-			if (dolby_meta_with_el || vdec->slave) {
+			if (vdec->dolby_meta_with_el || vdec->slave) {
 				if (hw->last_dec_picture)
 					set_aux_data(hw, hw->last_dec_picture,
 						0, 0, NULL);
