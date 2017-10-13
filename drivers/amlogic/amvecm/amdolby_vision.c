@@ -1827,7 +1827,49 @@ void enable_dolby_vision(int enable)
 					video_effect_bypass(1);
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL, 0);
 				VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1, 0x20000000);
-				enable_osd_path(0);
+				/* disable osd effect and shadow mode */
+				enable_osd_path(0, 0);
+				VSYNC_WR_MPEG_REG(VIU_OSD1_EOTF_CTL, 0);
+				VSYNC_WR_MPEG_REG(VIU_OSD1_OETF_CTL, 0);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_PRE_OFFSET0_1,
+				hdr_osd_reg.viu_osd1_matrix_pre_offset0_1);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_PRE_OFFSET2,
+				hdr_osd_reg.viu_osd1_matrix_pre_offset2);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF00_01,
+				hdr_osd_reg.viu_osd1_matrix_coef00_01);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF02_10,
+				hdr_osd_reg.viu_osd1_matrix_coef02_10);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF11_12,
+				hdr_osd_reg.viu_osd1_matrix_coef11_12);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF20_21,
+				hdr_osd_reg.viu_osd1_matrix_coef20_21);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF22_30,
+				hdr_osd_reg.viu_osd1_matrix_coef22_30);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF31_32,
+				hdr_osd_reg.viu_osd1_matrix_coef31_32);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COEF40_41,
+				hdr_osd_reg.viu_osd1_matrix_coef40_41);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_COLMOD_COEF42,
+				hdr_osd_reg.viu_osd1_matrix_colmod_coef42);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_OFFSET0_1,
+				hdr_osd_reg.viu_osd1_matrix_offset0_1);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_OFFSET2,
+				hdr_osd_reg.viu_osd1_matrix_offset2);
+				VSYNC_WR_MPEG_REG(
+				VIU_OSD1_MATRIX_CTRL,
+				hdr_osd_reg.viu_osd1_matrix_ctrl);
 				pr_dolby_dbg("Dolby Vision turn on\n");
 			}
 		} else {
@@ -1899,7 +1941,9 @@ void enable_dolby_vision(int enable)
 					16, 3);
 				VSYNC_WR_MPEG_REG_BITS(VPP_DOLBY_CTRL,
 					0, 3, 1);   /* core3 disable */
-				enable_osd_path(1);
+				/* enable osd effect and
+					use default shadow mode */
+				enable_osd_path(1, -1);
 				pr_dolby_dbg("Dolby Vision turn off\n");
 			}
 			VSYNC_WR_MPEG_REG(VIU_SW_RESET, 3 << 9);
@@ -3299,7 +3343,6 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 	int src_bdp = 12;
 	bool video_frame = false;
 	int i;
-
 	struct vframe_master_display_colour_s *p_mdc;
 	unsigned int current_mode = dolby_vision_mode;
 	uint32_t target_lumin_max = 0;
@@ -3902,7 +3945,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				}
 			}
 		} else if (dolby_vision_policy_process(
-		&mode, FORMAT_SDR)) {
+			&mode, FORMAT_SDR)) {
 			if ((mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
 				&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS)) {
@@ -3913,13 +3956,14 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 		}
 	}
 	if (dolby_vision_wait_init
-	&& dolby_vision_wait_count) {
+		&& dolby_vision_wait_count) {
 		dolby_vision_wait_count--;
 		pr_dolby_dbg("delay wait %d\n",
 		dolby_vision_wait_count);
 		ret = 1;
 	} else if (dolby_vision_core1_on
-	&& (dolby_vision_on_count <= dolby_vision_run_mode_delay))
+		&& (dolby_vision_on_count <=
+		dolby_vision_run_mode_delay))
 		ret = 1;
 
 	return ret;
@@ -4200,10 +4244,6 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 						dolby_vision_on_count,
 						reset_flag);
 			}
-		} else if (force_set) {
-			/* TODO GXM case */
-			core1_disp_hsize = h_size;
-			core1_disp_vsize = v_size;
 		}
 	}
 	if (dolby_vision_core1_on) {

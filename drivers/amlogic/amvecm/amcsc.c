@@ -114,7 +114,8 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 		}
-	}
+	},
+	-1 /* shadow mode */
 };
 
 static struct vframe_s *dbg_vf;
@@ -2012,7 +2013,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	}
 }
 
-void enable_osd_path(int on)
+void enable_osd_path(int on, int shadow_mode)
 {
 	static int *osd1_mtx_backup;
 	static uint32_t osd1_eotf_ctl_backup;
@@ -2025,10 +2026,12 @@ void enable_osd_path(int on)
 		set_vpp_matrix(VPP_MATRIX_OSD, bypass_coeff, CSC_ON);
 		hdr_osd_reg.viu_osd1_eotf_ctl &= 0x07ffffff;
 		hdr_osd_reg.viu_osd1_oetf_ctl &= 0x1fffffff;
+		hdr_osd_reg.shadow_mode = shadow_mode;
 	} else {
 		set_vpp_matrix(VPP_MATRIX_OSD, osd1_mtx_backup, CSC_ON);
 		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_eotf_ctl_backup;
 		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_oetf_ctl_backup;
+		hdr_osd_reg.shadow_mode = shadow_mode;
 	}
 }
 EXPORT_SYMBOL(enable_osd_path);

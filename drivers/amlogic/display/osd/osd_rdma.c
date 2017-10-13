@@ -566,7 +566,8 @@ struct hdr_osd_reg_s hdr_osd_shadow_reg = {
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 		}
-	}
+	},
+	-1
 };
 
 struct hdr_osd_reg_s hdr_osd_display_reg = {
@@ -646,7 +647,8 @@ struct hdr_osd_reg_s hdr_osd_display_reg = {
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 		}
-	}
+	},
+	-1
 };
 
 #ifdef CONFIG_AM_VECM
@@ -842,7 +844,8 @@ static void osd_reset_rdma_func(u32 reset_bit)
 		rdma_write_reg(osd_reset_rdma_handle,
 			VIU_SW_RESET, 0);
 #ifdef CONFIG_AM_VECM
-		if (rdma_hdr_delay == 0)
+		if ((rdma_hdr_delay == 0) ||
+			(hdr_osd_reg.shadow_mode == 0))
 			memcpy(&hdr_osd_shadow_reg, &hdr_osd_reg,
 				sizeof(struct hdr_osd_reg_s));
 		hdr_restore_osd_csc();
@@ -850,14 +853,32 @@ static void osd_reset_rdma_func(u32 reset_bit)
 		set_reset_rdma_trigger_line();
 		rdma_config(osd_reset_rdma_handle, 1 << 6);
 #ifdef CONFIG_AM_VECM
-		if (rdma_hdr_delay == 1) {
-			memcpy(&hdr_osd_shadow_reg, &hdr_osd_reg,
-				sizeof(struct hdr_osd_reg_s));
-		} else if (rdma_hdr_delay == 2) {
-			memcpy(&hdr_osd_shadow_reg, &hdr_osd_display_reg,
-				sizeof(struct hdr_osd_reg_s));
-			memcpy(&hdr_osd_display_reg, &hdr_osd_reg,
-				sizeof(struct hdr_osd_reg_s));
+		if (hdr_osd_reg.shadow_mode == -1) {
+			if (rdma_hdr_delay == 1) {
+				memcpy(&hdr_osd_shadow_reg,
+					&hdr_osd_reg,
+					sizeof(struct hdr_osd_reg_s));
+			} else if (rdma_hdr_delay == 2) {
+				memcpy(&hdr_osd_shadow_reg,
+					&hdr_osd_display_reg,
+					sizeof(struct hdr_osd_reg_s));
+				memcpy(&hdr_osd_display_reg,
+					&hdr_osd_reg,
+					sizeof(struct hdr_osd_reg_s));
+			}
+		} else {
+			if (hdr_osd_reg.shadow_mode == 1) {
+				memcpy(&hdr_osd_shadow_reg,
+					&hdr_osd_reg,
+					sizeof(struct hdr_osd_reg_s));
+			} else if (hdr_osd_reg.shadow_mode == 2) {
+				memcpy(&hdr_osd_shadow_reg,
+					&hdr_osd_display_reg,
+					sizeof(struct hdr_osd_reg_s));
+				memcpy(&hdr_osd_display_reg,
+					&hdr_osd_reg,
+					sizeof(struct hdr_osd_reg_s));
+			}
 		}
 #endif
 	} else
