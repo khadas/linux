@@ -212,9 +212,9 @@ static int update_table_item(u32 addr, u32 val, u8 irq_mode)
 	int reject1 = 0, reject2 = 0, ret = 0;
 	u32 paddr;
 
-	if (item_count > 500) {
+	if ((item_count > 500) || rdma_reset_tigger_flag) {
 		/* rdma table is full */
-		pr_info("update_table_item overflow!\n");
+		/* pr_info("update_table_item overflow!\n"); */
 		return -1;
 	}
 	/* pr_debug("%02dth, ctrl: 0x%x, status: 0x%x, auto:0x%x, flag:0x%x\n",
@@ -973,9 +973,9 @@ void osd_rdma_interrupt_done_clear(void)
 			osd_reg_read(RDMA_STATUS);
 		pr_info("osd rdma restart! 0x%x\n",
 			rdma_status);
-		rdma_reset_tigger_flag = 0;
 		osd_rdma_enable(0);
 		osd_rdma_enable(2);
+		rdma_reset_tigger_flag = 0;
 	}
 }
 int read_rdma_table(void)
@@ -1217,9 +1217,8 @@ static int osd_rdma_init(void)
 	osd_reg_write(OSD_RDMA_FLAG_REG, 0x0);
 
 #ifdef CONFIG_AML_RDMA
-	if (((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
-		&& (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXLX)) {
+	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
+		&& (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)) {
 		osd_reset_rdma_op.arg = osd_rdma_dev;
 		osd_reset_rdma_handle =
 			rdma_register(&osd_reset_rdma_op,

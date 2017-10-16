@@ -50,12 +50,12 @@
 
 #define RDMA_TABLE_SIZE                    (8 * (PAGE_SIZE))
 static int vsync_rdma_handle;
-static int irq_count;
+int irq_count;
 static int enable;
 static int cur_enable;
 static int pre_enable_;
 static int debug_flag;
-static int vsync_cfg_count;
+int vsync_cfg_count;
 static u32 force_rdma_config;
 static bool first_config;
 static bool rdma_done;

@@ -35,7 +35,6 @@
 #include <linux/clk.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-
 #include <linux/amlogic/rdma/rdma_mgr.h>
 #include "../amports/vdec_reg.h"
 
@@ -64,6 +63,7 @@ static int reset_count;
 static int rdma_watchdog_count;
 static int rdma_force_reset = -1;
 static u16 trace_reg;
+
 
 #define RDMA_NUM 8
 struct rdma_regadr_s {

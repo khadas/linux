@@ -1,5 +1,7 @@
 #ifndef RDMA_VSYNC_H_
 #define RDMA_VSYNC_H_
+
+
 void vsync_rdma_config(void);
 void vsync_rdma_config_pre(void);
 bool is_vsync_rdma_enable(void);
