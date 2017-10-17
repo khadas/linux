@@ -3194,6 +3194,13 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	int count;
 	unsigned int offset = devp->addr_offset;
 	uint32_t crc_result, crc;
+	bool multimeta_flag = 0;
+	bool multimetatail_flag = 0;
+	uint32_t crc_result1 = 0;
+	uint32_t crc1 = 0;
+	int j, k;
+	char  tmpmeta[1024];
+	uint32_t extmetasize;
 
 	if (index >= devp->canvas_max_num)
 		return;
@@ -3207,21 +3214,43 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		} else {
 			wr(offset, VDIN_DOLBY_DSC_CTRL3, 0);
 			wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xd180c0d5);
-			for (i = 0; i < 32; i++) {
+			for (i = 0; i < 128; i++) {
 				meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
 				p[i] = swap32(meta32);
+			if (((c[0] & (1 << 7)) == 0) &&
+				((c[0] & (1 << 6)) != 0))
+				multimeta_flag = 1;
+			if ((i == 31) && (multimeta_flag == 0))
+				break;
 			}
 		}
 		meta_size = (c[3] << 8) | c[4];
-		if (meta_size + 5 > 128)
-			meta_size = 128 - 5;
 		crc = p[31];
 		crc_result = crc32(0, p, 124);
 		crc_result = swap32(crc_result);
-		if (crc == crc_result)
-			break;
+		for (j = 128; j < 128 * 4; j += 128) {
+			if (((c[j] & (1 << 7)) != 0) &&
+				((c[j] & (1 << 6)) != 0))
+				multimetatail_flag = 1;
+		}
+		if (dv_dbg_log&(1<<0))
+			pr_info("multimeta_flag=%d multimetatail_flag=%d\n",
+			multimeta_flag, multimetatail_flag);
+		if ((multimeta_flag == 1) && (multimetatail_flag == 1)) {
+			crc1 = p[127];
+			crc_result1 = crc32(0,  p + 32 * 3, 124);
+			crc_result1 = swap32(crc_result1);
+		}
+		if (crc == crc_result) {
+			if ((multimeta_flag == 1) &&
+				(multimetatail_flag == 1)) {
+				if (crc1 == crc_result1)
+					break;
+			} else
+				break;
+		}
 	}
-	if (crc != crc_result) {
+	if ((crc != crc_result) || (crc1 != crc_result1)) {
 		/* set small size to make control path return -1
 		   to use previous setting */
 		devp->vfp->dv_buf[index] = &c[5];
@@ -3234,7 +3263,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 				devp->vfp->dv_buf_mem[index],
 				devp->vfp->dv_buf_vmem[index],
 				meta_size);
-			for (i = 0; i < 32; i += 4)
+			for (i = 0; i < 128; i += 4)
 				pr_info("\t%08x %08x %08x %08x\n",
 					p[i], p[i+1], p[i+2], p[i+3]);
 		}
@@ -3243,14 +3272,21 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		devp->dv_crc_check = true;
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = meta_size;
+		if ((multimeta_flag == 1) && (multimetatail_flag == 1)) {
+			memcpy(tmpmeta, c + 5, 128 - 3 - 2 - 4);
+			extmetasize = meta_size - (128 - 3 - 2 - 4);
+			for (k = 0; k < extmetasize; k++)
+				tmpmeta[119 + k] = c[128 * 3 + 3 + k];
+			memcpy(devp->vfp->dv_buf[index], tmpmeta, meta_size);
+		}
 		if (dv_dbg_log&(1<<0))
-			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x\n",
+			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x crc1:%x\n",
 				__func__, index,
 				devp->vfp->dv_buf_mem[index],
 				devp->vfp->dv_buf_vmem[index],
-				meta_size, crc);
+				meta_size, crc, crc1);
 		if (dv_dbg_log&(1<<2))
-			for (i = 0; i < 32; i += 4)
+			for (i = 0; i < 128; i += 4)
 				pr_info("\t%08x %08x %08x %08x\n",
 					p[i], p[i+1], p[i+2], p[i+3]);
 	}
