@@ -306,53 +306,29 @@ struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		       struct zonelist *zonelist, nodemask_t *nodemask);
 
-static inline void mark_page_ip(struct page *page,
-				unsigned long ip, gfp_t mask, int order)
-{
-	if (page) {
-		page->_ret_ip = (unsigned long)ip;
-		page->alloc_mask = mask | (order << 28);
-	}
-}
-
-static inline void relpace_page_ip(struct page *page, unsigned long ip)
-{
-	if (page)
-		page->_ret_ip = ip;
-}
-
 static inline struct page *
 __alloc_pages(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist)
 {
-	struct page *page;
-	page = __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
-	mark_page_ip(page, _RET_IP_, gfp_mask, order);
-	return page;
+	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
 }
 
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
-	struct page *page;
 	/* Unknown node is current node */
 	if (nid < 0)
 		nid = numa_node_id();
 
-	page = __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-	mark_page_ip(page, _RET_IP_, gfp_mask, order);
-	return page;
+	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
 }
 
 static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
-	struct page *page;
 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
 
-	page = __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-	mark_page_ip(page, _RET_IP_, gfp_mask, order);
-	return page;
+	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
 }
 
 #ifdef CONFIG_NUMA
@@ -379,9 +355,6 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
 	alloc_pages_vma(gfp_mask, 0, vma, addr, node)
 
 extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
-extern unsigned long __get_free_pages_with_ip(gfp_t gfp_mask,
-					      unsigned int order,
-					      unsigned long ip);
 extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 
 void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
@@ -390,10 +363,10 @@ void free_pages_exact(void *virt, size_t size);
 void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
 
 #define __get_free_page(gfp_mask) \
-		__get_free_pages_with_ip((gfp_mask), 0, _RET_IP_)
+		__get_free_pages((gfp_mask), 0)
 
 #define __get_dma_pages(gfp_mask, order) \
-	 __get_free_pages_with_ip((gfp_mask) | GFP_DMA, (order), _RET_IP_)
+	 __get_free_pages((gfp_mask) | GFP_DMA, (order))
 
 extern void __free_pages(struct page *page, unsigned int order);
 extern void free_pages(unsigned long addr, unsigned int order);

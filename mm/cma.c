@@ -35,6 +35,9 @@
 #include <linux/highmem.h>
 #include <linux/page-isolation.h>
 #include <linux/list.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 struct cma {
 	unsigned long	base_pfn;
@@ -507,18 +510,20 @@ err:
 	return ret;
 }
 
-void update_cma_ip(struct page *page, int count, unsigned long ip)
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+static void update_cma_page_trace(struct page *page, unsigned long cnt)
 {
-	int i;
+	long i;
 
-	if (!page)
+	if (page == NULL)
 		return;
-	for (i = 0; i < count; i++) {
-		relpace_page_ip(page, ip);
-		page->alloc_mask = __GFP_BDEV;
+
+	for (i = 0; i < cnt; i++) {
+		set_page_trace(page, 0, __GFP_BDEV);
 		page++;
 	}
 }
+#endif
 
 /**
  * cma_alloc() - allocate pages from contiguous area
@@ -584,8 +589,11 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		start = bitmap_no + mask + 1;
 	}
 	put_cma_alloc_ref();
-	atomic_long_add(count, &nr_cma_allocated);
-	update_cma_ip(page, count, _RET_IP_);
+	if (page)
+		atomic_long_add(count, &nr_cma_allocated);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	update_cma_page_trace(page, count);
+#endif
 	pr_debug("%s(): returned %p\n", __func__, page);
 	return page;
 }

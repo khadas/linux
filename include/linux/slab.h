@@ -364,7 +364,7 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	void *ret;
 
 	flags |= (__GFP_COMP | __GFP_KMEMCG);
-	ret = (void *) __get_free_pages_with_ip(flags, order, _RET_IP_);
+	ret = (void *) __get_free_pages(flags, order);
 	kmemleak_alloc(ret, size, 1, flags);
 	return ret;
 }

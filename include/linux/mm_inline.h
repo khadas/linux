@@ -33,28 +33,11 @@ static __always_inline void add_page_to_lru_list(struct page *page,
 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
 	list_add(&page->lru, &lruvec->lists[lru]);
 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
-	__mod_zone_page_state(lruvec_zone(lruvec),
-			  NR_INACTIVE_ANON_TEST + lru, nr_pages);
 
 	migrate_type = get_pageblock_migratetype(page);
-	if (is_migrate_cma(migrate_type) ||
-				is_migrate_isolate(migrate_type))
+	if (is_migrate_cma(migrate_type) || is_migrate_isolate(migrate_type))
 		__mod_zone_page_state(lruvec_zone(lruvec),
-					  NR_LRU_BASE + lru + num, nr_pages);
-	else {
-		num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
-		if (page->lru_normal.next != LIST_POISON1
-			&& !list_empty(&page->lru_normal)) {
-			pr_err("-----------------%s %d, %p\n",
-				   __func__, __LINE__, page->lru_normal.next);
-			BUG();
-		}
-		BUG_ON(!PageLRU(page));
-		list_add(&page->lru_normal,
-			 &lruvec->lists[lru - LRU_BASE + LRU_BASE_NORMAL]);
-		__mod_zone_page_state(lruvec_zone(lruvec),
-					  NR_LRU_BASE + lru + num, nr_pages);
-	}
+				      NR_LRU_BASE + lru + num, nr_pages);
 }
 
 static __always_inline void del_page_from_lru_list(struct page *page,
@@ -67,19 +50,10 @@ static __always_inline void del_page_from_lru_list(struct page *page,
 	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
 	list_del(&page->lru);
 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
-	__mod_zone_page_state(lruvec_zone(lruvec),
-				  NR_INACTIVE_ANON_TEST + lru, -nr_pages);
 	migrate_type = get_pageblock_migratetype(page);
-	if (is_migrate_cma(migrate_type) ||
-				is_migrate_isolate(migrate_type))
+	if (is_migrate_cma(migrate_type) || is_migrate_isolate(migrate_type))
 		__mod_zone_page_state(lruvec_zone(lruvec),
-					  NR_LRU_BASE + lru + num, -nr_pages);
-	else {
-		num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
-		list_del(&page->lru_normal);
-		__mod_zone_page_state(lruvec_zone(lruvec),
-					  NR_LRU_BASE + lru + num, -nr_pages);
-	}
+				      NR_LRU_BASE + lru + num, -nr_pages);
 }
 
 /**

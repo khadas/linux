@@ -61,6 +61,9 @@
 #include <linux/page-debug-flags.h>
 #include <linux/hugetlb.h>
 #include <linux/sched/rt.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -598,8 +601,6 @@ static inline int __free_one_page(struct page *page,
 
 	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-	page->_ret_ip = 0;
-	page->alloc_mask = 0;
 
 	while (order < MAX_ORDER-1) {
 		buddy_idx = __find_buddy_index(page_idx, order);
@@ -785,6 +786,9 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 	}
 	arch_free_page(page, order);
 	kernel_map_pages(page, 1 << order, 0);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	reset_page_trace(page, order);
+#endif
 
 	return true;
 }
@@ -2980,6 +2984,9 @@ out:
 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
 		goto retry_cpuset;
 
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	set_page_trace(page, order, gfp_mask);
+#endif
 	memcg_kmem_commit_charge(page, memcg, order);
 	return page;
 }
@@ -3020,7 +3027,6 @@ unsigned long __get_free_pages_with_ip(gfp_t gfp_mask,
 	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
 
 	page = alloc_pages(gfp_mask, order);
-	relpace_page_ip(page, ip);
 	if (!page)
 		return 0;
 	return (unsigned long) page_address(page);
@@ -3029,7 +3035,7 @@ EXPORT_SYMBOL(__get_free_pages_with_ip);
 
 unsigned long get_zeroed_page(gfp_t gfp_mask)
 {
-	return __get_free_pages_with_ip(gfp_mask | __GFP_ZERO, 0, _RET_IP_);
+	return __get_free_pages(gfp_mask | __GFP_ZERO, 0);
 }
 EXPORT_SYMBOL(get_zeroed_page);
 
@@ -4343,7 +4349,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 
 		INIT_LIST_HEAD(&page->lru);
-		INIT_LIST_HEAD(&page->lru_normal);
 #ifdef WANT_PAGE_VIRTUAL
 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
 		if (!is_highmem_idx(zone))

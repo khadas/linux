@@ -94,9 +94,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int nomove_file = 0;
 	int file_cma = 0;
 	struct zone *zone = NULL;
-#ifdef CONFIG_ZRAM
-	unsigned long select_mm_swap;
-#endif
 
 	if (IS_ENABLED(CONFIG_CMA)
 		&& (allocflags_to_migratetype(sc->gfp_mask)
@@ -149,9 +146,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	for_each_process(tsk) {
 		struct task_struct *p;
 		short oom_score_adj;
-	#ifdef CONFIG_ZRAM
-		unsigned long mm_swap;
-	#endif
 
 		if (tsk->flags & PF_KTHREAD)
 			continue;
@@ -172,27 +166,18 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			continue;
 		}
 		tasksize = get_mm_rss(p->mm);
-	#ifdef CONFIG_ZRAM
-		/*
-		 * ZRAM will use ram for swap, so we shoud consider zram
-		 * memory used by tasks if ZRAM is enabled, usually zram
-		 * can get a average compress ratio of 3.2.
-		 */
-		mm_swap = get_mm_counter(p->mm, MM_SWAPENTS);
-		tasksize += mm_swap * 5 / 16;
-	#endif
 		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
 		if (selected) {
-			if (tasksize <= selected_tasksize)
+			if (oom_score_adj < selected_oom_score_adj)
+				continue;
+			if (oom_score_adj == selected_oom_score_adj &&
+				tasksize <= selected_tasksize)
 				continue;
 		}
 		selected = p;
 		selected_tasksize = tasksize;
-	#ifdef CONFIG_ZRAM
-		select_mm_swap = mm_swap;
-	#endif
 		selected_oom_score_adj = oom_score_adj;
 		lowmem_print(2, "select '%s' (%d), adj %hd, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
@@ -212,10 +197,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			     other_free * (long)(PAGE_SIZE / 1024),
 			     nomove_free * (long)(PAGE_SIZE / 1024),
 			     nomove_file * (long)(PAGE_SIZE / 1024));
-	#ifdef CONFIG_ZRAM
-		lowmem_print(1, "zram freed:%ld KB,\n",
-				select_mm_swap * (long)(PAGE_SIZE / 1024));
-	#endif
 		lowmem_deathpending_timeout = jiffies + HZ;
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);

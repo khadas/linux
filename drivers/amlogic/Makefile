@@ -139,3 +139,5 @@ obj-$(CONFIG_AMLOGIC_WATCHPOINT) += watchpoint/
 obj-$(CONFIG_AML_ESM) += esm/
 
 obj-$(CONFIG_DRM_MESON) += drm/
+
+obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND) += memory_ext/

@@ -132,4 +132,7 @@ source "drivers/amlogic/watchpoint/Kconfig"
 source "drivers/amlogic/esm/Kconfig"
 
 source "drivers/amlogic/drm/Kconfig"
+
+source "drivers/amlogic/memory_ext/Kconfig"
+
 endmenu

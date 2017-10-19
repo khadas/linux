@@ -405,7 +405,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 		next = pmd_addr_end(addr, end);
 
 		/* page address may not just same as next */
-		while (((unsigned long)page) <= next)
+		while (((unsigned long)page) < next)
 			page++;
 
 		if (check_pfn_overflow(page_to_pfn(page)))

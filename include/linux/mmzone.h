@@ -64,6 +64,8 @@ enum {
 	MIGRATE_TYPES
 };
 
+extern char * const migratetype_names[MIGRATE_TYPES];
+
 #ifdef CONFIG_CMA
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
 #else
@@ -164,16 +166,6 @@ enum zone_stat_item {
 	NR_INACTIVE_FILE_CMA,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE_CMA,		/*  "     "     "   "       "         */
 	NR_UNEVICTABLE_FILE_CMA,		/*  "   "   "       "         */
-	NR_INACTIVE_ANON_NORMAL,	/* must match order of LRU_[IN]ACTIVE */
-	NR_ACTIVE_ANON_NORMAL,		/*  "     "     "   "       "         */
-	NR_INACTIVE_FILE_NORMAL,	/*  "     "     "   "       "         */
-	NR_ACTIVE_FILE_NORMAL,		/*  "     "     "   "       "         */
-	NR_UNEVICTABLE_FILE_NORMAL,		/*  "   "   "       "         */
-	NR_INACTIVE_ANON_TEST,	/* must match order of LRU_[IN]ACTIVE */
-	NR_ACTIVE_ANON_TEST,		/*  "     "     "   "       "         */
-	NR_INACTIVE_FILE_TEST,	/*  "     "     "   "       "         */
-	NR_ACTIVE_FILE_TEST,		/*  "     "     "   "       "         */
-	NR_UNEVICTABLE_FILE_TEST,		/*  " "       "         */
 #ifdef CONFIG_CMA
 	NR_CMA_ISOLATED,		/* cma isolate */
 #endif
@@ -198,21 +190,10 @@ enum lru_list {
 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
 	LRU_UNEVICTABLE,
-	NR_LRU_LISTS,
-	LRU_BASE_NORMAL = NR_LRU_LISTS,
-	LRU_INACTIVE_ANON_NORMAL = LRU_BASE_NORMAL + LRU_BASE,
-	LRU_ACTIVE_ANON_NORMAL = LRU_BASE_NORMAL + LRU_BASE + LRU_ACTIVE,
-	LRU_INACTIVE_FILE_NORMAL = LRU_BASE_NORMAL + LRU_BASE + LRU_FILE,
-	LRU_ACTIVE_FILE_NORMAL = LRU_BASE_NORMAL
-		+ LRU_BASE + LRU_FILE
-		+ LRU_ACTIVE,
-	LRU_UNEVICTABLE_NORMAL,
-	NR_LRU_TOTAL_LISTS
+	NR_LRU_LISTS
 };
 
 #define for_each_lru(lru) for (lru = 0; lru < NR_LRU_LISTS; lru++)
-#define for_each_lru_normal(lru) \
-	for (lru = LRU_INACTIVE_ANON_NORMAL; lru < NR_LRU_TOTAL_LISTS; lru++)
 #define for_each_evictable_lru(lru) for (lru = 0; lru <= LRU_ACTIVE_FILE; lru++)
 
 static inline int is_file_lru(enum lru_list lru)
@@ -244,7 +225,7 @@ struct zone_reclaim_stat {
 };
 
 struct lruvec {
-	struct list_head lists[NR_LRU_TOTAL_LISTS];
+	struct list_head lists[NR_LRU_LISTS];
 	struct zone_reclaim_stat reclaim_stat;
 #ifdef CONFIG_MEMCG
 	struct zone *zone;

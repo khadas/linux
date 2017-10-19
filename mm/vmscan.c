@@ -99,8 +99,6 @@ struct scan_control {
 };
 
 #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-#define lru_normal_to_page(_head) \
-	(list_entry((_head)->prev, struct page, lru_normal))
 
 #ifdef ARCH_HAS_PREFETCH
 #define prefetch_prev_lru_page(_page, _base, _field)			\
@@ -176,26 +174,6 @@ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 		return mem_cgroup_get_lru_size(lruvec, lru);
 
 	return zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru);
-}
-static unsigned long
-get_lru_cma_size(struct lruvec *lruvec, enum lru_list lru)
-{
-	int num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
-
-	return zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num);
-}
-static unsigned long
-get_lru_normal_size(struct lruvec *lruvec, enum lru_list lru)
-{
-	int num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
-
-	return zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num);
-}
-static unsigned long get_lru_test_size(struct lruvec *lruvec, enum lru_list lru)
-{
-	int num = NR_INACTIVE_ANON_TEST - NR_INACTIVE_ANON;
-
-	return zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num);
 }
 
 struct dentry *debug_file;
@@ -1212,23 +1190,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
 	return ret;
 }
-bool __isolate_cma_ornot(int migrate_type)
-{
-#if 0
-	unsigned long free_cma = 0, total_free = 0;
-
-/*	if (migrate_type != MIGRATE_MOVABLE) { */
-		free_cma = global_page_state(NR_FREE_CMA_PAGES);
-		free_cma += free_cma << 1;
-		total_free = global_page_state(NR_FREE_PAGES);
-
-		if (free_cma > total_free)
-			return false;
-/*	} */
-#endif
-
-	return true;
-}
 /*
  * Attempt to remove the specified page from its LRU.  Only take this page
  * if it is of the appropriate PageActive status.  Pages which are being
@@ -1239,22 +1200,9 @@ bool __isolate_cma_ornot(int migrate_type)
  *
  * returns 0 on success, -ve errno on failure.
  */
-int __isolate_lru_page(struct page *page, isolate_mode_t mode, int migrate_type)
+int __isolate_lru_page(struct page *page, isolate_mode_t mode)
 {
 	int ret = -EINVAL;
-	int page_migrate_type = 0;
-
-	if (!(mode & ISOLATE_UNEVICTABLE)) {
-#if 1
-		if (page) {
-			page_migrate_type = get_pageblock_migratetype(page);
-			if ((!__isolate_cma_ornot(migrate_type)) &&
-				(is_migrate_cma(page_migrate_type)
-				 || is_migrate_isolate(page_migrate_type)))
-				return -EBUSY;
-		}
-#endif
-	}
 
 	/* Only take pages on the LRU. */
 	if (!PageLRU(page))
@@ -1316,32 +1264,6 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int migrate_type)
 	return ret;
 }
 
-unsigned long print_lru_info(struct lruvec *lruvec)
-{
-		pr_warn("-----%s %d, free:%lu, free cma:%lu, lru:%lu %lu %lu %lu, lru cma:%lu %lu %lu %lu, normal:%lu %lu %lu %lu, test:%lu %lu %lu %lu\n",
-				   __func__, __LINE__,
-		   global_page_state(NR_FREE_PAGES),
-		   global_page_state(NR_FREE_CMA_PAGES),
-		   get_lru_size(lruvec, 0),
-		   get_lru_size(lruvec, 1),
-		   get_lru_size(lruvec, 2),
-		   get_lru_size(lruvec, 3),
-		   get_lru_cma_size(lruvec, 0),
-		   get_lru_cma_size(lruvec, 1),
-		   get_lru_cma_size(lruvec, 2),
-		   get_lru_cma_size(lruvec, 3),
-		   get_lru_normal_size(lruvec, 0),
-		   get_lru_normal_size(lruvec, 1),
-		   get_lru_normal_size(lruvec, 2),
-		   get_lru_normal_size(lruvec, 3),
-		   get_lru_test_size(lruvec, 0),
-		   get_lru_test_size(lruvec, 1),
-		   get_lru_test_size(lruvec, 2),
-		   get_lru_test_size(lruvec, 3));
-
-	return 1;
-}
-EXPORT_SYMBOL(print_lru_info);
 /*
  * zone->lru_lock is heavily contended.  Some of the functions that
  * shrink the lists perform better by taking out a batch of pages
@@ -1368,91 +1290,43 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		isolate_mode_t mode, enum lru_list lru)
 {
 	struct list_head *src = &lruvec->lists[lru];
-	struct list_head *src_head = src;
 	unsigned long nr_taken = 0, nr_cma_taken = 0;
 	unsigned long scan;
-	bool has_cma = true;
-	int num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
+	int num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
 	int migrate_type = 0;
 
-	has_cma = __isolate_cma_ornot(allocflags_to_migratetype(sc->gfp_mask));
-	if (!has_cma)
-		src_head = &lruvec->lists[lru - LRU_BASE + LRU_BASE_NORMAL];
-
-	for (scan = 0; scan < nr_to_scan && !list_empty(src_head); scan++) {
+	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
 		struct page *page;
 		int nr_pages;
 
-		if (has_cma)
-			page = lru_to_page(src);
-		else
-			page = lru_normal_to_page(src_head);
+		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
 		VM_BUG_ON_PAGE(!PageLRU(page), page);
 
-		switch (__isolate_lru_page(page, mode,
-				   allocflags_to_migratetype(sc->gfp_mask))) {
+		switch (__isolate_lru_page(page, mode)) {
 		case 0:
 			nr_pages = hpage_nr_pages(page);
 			mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
 			list_move(&page->lru, dst);
 			migrate_type = get_pageblock_migratetype(page);
-			if (!is_migrate_cma(migrate_type)
-				&& !is_migrate_isolate(migrate_type)) {
-				list_del(&page->lru_normal);
-			} else if (page->lru_normal.next != LIST_POISON1
-					   && !list_empty(&page->lru_normal)) {
-				pr_err("-----%s %d, %d, %p\n",
-					   __func__, __LINE__,
-					   get_pageblock_migratetype(page),
-					   page->lru_normal.next);
-				BUG();
-			}
-
 			nr_taken += nr_pages;
 			if (is_migrate_cma(migrate_type) ||
-				is_migrate_isolate(migrate_type))
+			    is_migrate_isolate(migrate_type))
 				nr_cma_taken += nr_pages;
 			break;
 
 		case -EBUSY:
 			/* else it is being freed elsewhere */
 			list_move(&page->lru, src);
-			migrate_type = get_pageblock_migratetype(page);
-			if (!is_migrate_cma(migrate_type)
-				&& !is_migrate_isolate(migrate_type)) {
-				BUG_ON(!PageLRU(page));
-				list_move(&page->lru_normal,
-						  &lruvec->lists[lru - LRU_BASE
-						  + LRU_BASE_NORMAL]);
-			}
 			continue;
 		default:
-			pr_err("---%s %d, %x\n",
-				   __func__, __LINE__, has_cma);
-			print_lru_info(lruvec);
-			if (!has_cma) {
-				src_head = src;
-				while (src_head->prev != src) {
-					if (page == lru_to_page(src_head)) {
-						pr_err("---%s %d, %x, src contains the page\n",
-							   __func__, __LINE__,
-							   has_cma);
-						break;
-					}
-					src_head = src_head->prev;
-				}
-			}
 			BUG();
 		}
 	}
 	*nr_scanned = scan;
 	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
 				    nr_taken, mode, is_file_lru(lru));
-	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num,
-						  nr_cma_taken - nr_taken);
-	num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num,
 						  -nr_cma_taken);
 	return nr_taken;
@@ -1653,7 +1527,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 				     &nr_scanned, sc, isolate_mode, lru);
 
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
-	__mod_zone_page_state(zone, NR_INACTIVE_ANON_TEST + lru, -nr_taken);
 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
 
 	if (global_reclaim(sc)) {
@@ -1810,18 +1683,9 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
 		mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
 		list_move(&page->lru, &lruvec->lists[lru]);
 		migrate_type = get_pageblock_migratetype(page);
-		if (!is_migrate_cma(migrate_type) &&
-					!is_migrate_isolate(migrate_type)) {
-			if (page->lru_normal.next != LIST_POISON1
-					&& !list_empty(&page->lru_normal))
-				BUG();
-			list_add(&page->lru_normal,
-				 &lruvec->lists[lru - LRU_BASE +
-					 LRU_BASE_NORMAL]);
-		}
 		pgmoved += nr_pages;
 		if (is_migrate_cma(migrate_type) ||
-				is_migrate_isolate(migrate_type))
+		    is_migrate_isolate(migrate_type))
 			pgmoved_cma += nr_pages;
 
 		if (put_page_testzero(page)) {
@@ -1837,14 +1701,8 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
 				list_add(&page->lru, pages_to_free);
 		}
 	}
-	if (pgmoved_cma)
-		__mod_zone_page_state(zone, NR_LRU_BASE + lru + num,
-							  pgmoved_cma);
-	num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
-	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru + num,
-						  pgmoved - pgmoved_cma);
+	__mod_zone_page_state(zone, NR_LRU_BASE + lru + num, pgmoved_cma);
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-	__mod_zone_page_state(zone, NR_INACTIVE_ANON_TEST + lru, pgmoved);
 	if (!is_active_lru(lru))
 		__count_vm_events(PGDEACTIVATE, pgmoved);
 }
@@ -1885,7 +1743,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 
 	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
-	__mod_zone_page_state(zone, NR_INACTIVE_ANON_TEST + lru, -nr_taken);
 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
 	spin_unlock_irq(&zone->lru_lock);
 
@@ -2072,9 +1929,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	bool force_scan = false;
 	unsigned long ap, fp;
 	enum lru_list lru;
-	int ret = 0;
-	struct per_cpu_pageset __percpu *pcp = zone->pageset;
-	long t;
 
 	/*
 	 * If the zone or memcg is small, nr[l] can be 0.  This
@@ -2196,21 +2050,12 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	fraction[1] = fp;
 	denominator = ap + fp + 1;
 out:
-	ret = __isolate_cma_ornot(allocflags_to_migratetype(sc->gfp_mask));
 	for_each_evictable_lru(lru) {
 		int file = is_file_lru(lru);
-		unsigned long size, tmp_size = 0;
+		unsigned long size;
 		unsigned long scan;
 
 		size = get_lru_size(lruvec, lru);
-		t = __this_cpu_read(pcp->stat_threshold);
-		if (!ret) {
-			tmp_size = get_lru_cma_size(lruvec, lru);
-			if (size <= tmp_size)
-				size = 0;
-			else
-				size -= tmp_size;
-		}
 		scan = size >> sc->priority;
 
 		if (!scan && force_scan)

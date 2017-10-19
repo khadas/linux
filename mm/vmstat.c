@@ -656,7 +656,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-static char * const migratetype_names[MIGRATE_TYPES] = {
+char * const migratetype_names[MIGRATE_TYPES] = {
 	"Unmovable",
 	"Reclaimable",
 	"Movable",
@@ -1043,184 +1043,6 @@ static const struct file_operations pagetypeinfo_file_ops = {
 	.release	= seq_release,
 };
 
-#define SHOW_CNT	1024
-struct page_trace {
-	unsigned long ip;
-	unsigned int cnt;
-};
-
-static int find_page_ip(struct page *page, struct page_trace *trace, int *o)
-{
-	int i = 0;
-	int order;
-
-	*o = 0;
-	for (i = 0; i < SHOW_CNT; i++) {
-		if (trace[i].ip == page->_ret_ip) {		/* find */
-			order = (page->alloc_mask >> 28) & 0xf;
-			trace[i].cnt += (1 << order);
-			*o = order;
-			return 0;
-		}
-		if (trace[i].ip == 0) {				/* empty */
-			order = (page->alloc_mask >> 28) & 0xf;
-			trace[i].cnt += (1 << order);
-			trace[i].ip = page->_ret_ip;
-			*o = order;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-#define K(x)		((x) << (PAGE_SHIFT - 10))
-static int trace_cmp(const void *x1, const void *x2)
-{
-	struct page_trace *t1, *t2;
-
-	t1 = (struct page_trace *)x1;
-	t2 = (struct page_trace *)x2;
-	return t2->cnt - t1->cnt;
-}
-
-static void show_page_trace(struct seq_file *m,
-			    struct page_trace *trace, int cnt, int type)
-{
-	int i;
-	unsigned long total = 0;
-
-	if (!cnt)
-		return;
-	sort(trace, cnt, sizeof(*trace), trace_cmp, NULL);
-	for (i = 0; i < cnt; i++) {
-		seq_printf(m, "%8d, %16lx, %pf\n",
-			   trace[i].cnt, trace[i].ip, (void *)trace[i].ip);
-		total += trace[i].cnt;
-	}
-	seq_puts(m, "------------------------------\n");
-	seq_printf(m, "total pages:%ld, %ld kB, type:%s\n",
-		   total, K(total), migratetype_names[type]);
-}
-
-static inline int type_match(struct page *page, int type)
-{
-#ifdef CONFIG_CMA
-	if (type == MIGRATE_CMA && page->alloc_mask == __GFP_BDEV)
-		return 1;
-#endif
-	if (allocflags_to_migratetype(page->alloc_mask) == type)
-		return 1;
-	return 0;
-}
-
-static int update_page_trace(struct seq_file *m, struct zone *zone,
-			     struct page_trace *trace, int type)
-{
-	unsigned long pfn, flags;
-	unsigned long start_pfn = zone->zone_start_pfn;
-	unsigned long end_pfn = zone_end_pfn(zone);
-	int    max_trace = 0, ret;
-	int    order;
-
-	spin_lock_irqsave(&zone->lock, flags);
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		struct page *page;
-
-		if (!pfn_valid(pfn))
-			continue;
-
-		page = pfn_to_page(pfn);
-
-		/* Watch for unexpected holes punched in the memmap */
-		if (!memmap_valid_within(pfn, page, zone))
-			continue;
-
-		if (!page->_ret_ip)
-			continue;
-
-		if (type_match(page, type)) {
-			ret = find_page_ip(page, trace, &order);
-			if (max_trace == SHOW_CNT && ret) {
-				pr_err("MAX trace cnt, pfn:%ld, lr:%lx, %pf\n",
-				       pfn, page->_ret_ip,
-				       (void *)page->_ret_ip);
-			} else
-				max_trace += ret;
-			if (order)
-				pfn += ((1 << order) - 1);
-		}
-	}
-	spin_unlock_irqrestore(&zone->lock, flags);
-	return max_trace;
-}
-
-/*
- * This prints out statistics in relation to grouping pages by mobility.
- * It is expensive to collect so do not constantly read the file.
- */
-static int pagetrace_show(struct seq_file *m, void *arg)
-{
-	pg_data_t *p = (pg_data_t *)arg;
-	struct zone *zone;
-	struct zone *node_zones = p->node_zones;
-	int mtype, ret, print_flag;
-	struct page_trace *trace;
-
-	/* check memoryless node */
-	if (!node_state(p->node_id, N_MEMORY))
-		return 0;
-
-	trace = vmalloc(sizeof(struct page_trace) * SHOW_CNT);
-	if (!trace) {
-		seq_printf(m, "%s, out of memory\n", __func__);
-		return 0;
-	}
-	node_zones = p->node_zones;
-
-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-		if (!populated_zone(zone))
-			continue;
-
-		print_flag = 0;
-		seq_printf(m, "Node %d, zone %8s\n", p->node_id, zone->name);
-		for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
-			memset(trace, 0, sizeof(struct page_trace) * SHOW_CNT);
-			ret = update_page_trace(m, zone, trace, mtype);
-			if (ret > 0) {
-				seq_printf(m, "   %s  %s         %s\n",
-					   "count", "return ip", "function");
-				seq_puts(m, "------------------------------\n");
-				show_page_trace(m, trace, ret, mtype);
-				seq_puts(m, "\n");
-				print_flag = 1;
-			}
-		}
-		if (print_flag)
-			seq_puts(m, "------------------------------\n");
-	}
-	vfree(trace);
-	return 0;
-}
-
-static const struct seq_operations pagetrace_op = {
-	.start	= frag_start,
-	.next	= frag_next,
-	.stop	= frag_stop,
-	.show	= pagetrace_show,
-};
-
-static int pagetrace_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &pagetrace_op);
-}
-
-static const struct file_operations pagetrace_file_ops = {
-	.open		= pagetrace_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 							struct zone *zone)
 {
@@ -1488,7 +1310,6 @@ static int __init setup_vmstat(void)
 #ifdef CONFIG_PROC_FS
 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
-	proc_create("pagetrace", S_IRUGO, NULL, &pagetrace_file_ops);
 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
 #endif

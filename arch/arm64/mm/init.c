@@ -209,11 +209,16 @@ static void arm64_memory_present(void)
 
 int __init check_pfn_overflow(unsigned long pfn)
 {
+	unsigned long pfn_up;
+	unsigned long size;
 	/*
 	 * reserve pfn is larger than max_pfn, we don't need to reserve memory
 	 * this can help for memory less than 1GB platform
 	 */
-	if (pfn > (max_pfn + PMD_SIZE / (sizeof(struct page))))
+	size = sizeof(struct page);
+	pfn_up = ALIGN(max_pfn * size, PMD_SIZE);
+	pfn_up = (pfn_up + size - 1) / size;	/* round up */
+	if (pfn > pfn_up)
 		return -1;
 	return 0;
 }
