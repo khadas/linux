@@ -3229,7 +3229,8 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		crc_result = crc32(0, p, 124);
 		crc_result = swap32(crc_result);
 		for (j = 128; j < 128 * 4; j += 128) {
-			if (((c[j] & (1 << 7)) != 0) &&
+			if ((meta_size > (128 - 3 - 2 - 4)) &&
+				((c[j] & (1 << 7)) != 0) &&
 				((c[j] & (1 << 6)) != 0))
 				multimetatail_flag = 1;
 		}
@@ -3250,7 +3251,9 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 				break;
 		}
 	}
-	if ((crc != crc_result) || (crc1 != crc_result1)) {
+	if ((crc != crc_result) || ((multimeta_flag == 1)
+		&& (multimetatail_flag == 1)
+		&& (crc1 != crc_result1))) {
 		/* set small size to make control path return -1
 		   to use previous setting */
 		devp->vfp->dv_buf[index] = &c[5];
