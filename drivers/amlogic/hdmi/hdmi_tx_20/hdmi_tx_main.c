@@ -1166,6 +1166,16 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	unsigned char DRM_DB[26] = {0x0};
+	/*
+	 *hdr_color_feature: bit 23-16: color_primaries
+	 *	1:bt709  0x9:bt2020
+	 *hdr_transfer_feature: bit 15-8: transfer_characteristic
+	 *	1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(todo)
+	 */
+	if (data) {
+		hdev->hdr_transfer_feature = (data->features >> 8) & 0xff;
+		hdev->hdr_color_feature = (data->features >> 16) & 0xff;
+	}
 
 	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
 		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
@@ -1178,15 +1188,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			CLR_AVI_BT2020);
 		return;
 	}
-/*
-   *hdr_color_feature: bit 23-16: color_primaries
-   *	1:bt709    0x9:bt2020
-   *hdr_transfer_feature: bit 15-8: transfer_characteristic
-   *	1:bt709     0xe:bt2020-10	0x10:smpte-st-2084   0x12:hlg(todo)
-   */
 
-	hdev->hdr_transfer_feature = (data->features >> 8) & 0xff;
-	hdev->hdr_color_feature = (data->features >> 16) & 0xff;
 	if (tx_debug) {
 		pr_info("hdev->hdr_transfer_feature = 0x%x\n",
 			hdev->hdr_transfer_feature);
