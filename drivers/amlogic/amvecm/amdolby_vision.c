@@ -3815,7 +3815,8 @@ static void calculate_panel_max_pq(
 	}
 }
 
-int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
+int dolby_vision_parse_metadata(
+	struct vframe_s *vf, bool toggle_flag, bool bypass_release)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	struct vframe_s *el_vf;
@@ -4060,7 +4061,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf, bool toggle_flag)
 	}
 
 	/* if not DOVI, release metadata_parser */
-	if ((src_format != FORMAT_DOVI) && metadata_parser && vf) {
+	if ((src_format != FORMAT_DOVI)
+		&& metadata_parser
+		&& !bypass_release) {
 		if (p_funcs)
 			p_funcs->metadata_parser_release();
 		metadata_parser = NULL;
@@ -4575,7 +4578,8 @@ int dolby_vision_update_metadata(struct vframe_s *vf)
 		return -1;
 
 	if (vf && dolby_vision_vf_check(vf)) {
-		ret = dolby_vision_parse_metadata(vf, true);
+		ret = dolby_vision_parse_metadata(
+			vf, true, false);
 		frame_count++;
 	}
 
@@ -4616,6 +4620,7 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	bool reset_flag = false;
 	bool force_set = false;
+	bool bypass_release = false;
 
 	if (!is_meson_gxm_cpu() && !is_meson_txlx_cpu())
 		return -1;
@@ -4673,11 +4678,11 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 	if (dolby_vision_on
 		&& is_video_output_off(vf)
 		&& !video_off_handled) {
-			dolby_vision_set_toggle_flag(1);
-			frame_count = 0;
-			pr_dolby_dbg("video off\n");
-			if (debug_dolby)
-				video_off_handled = 1;
+		dolby_vision_set_toggle_flag(1);
+		frame_count = 0;
+		pr_dolby_dbg("video off\n");
+		if (debug_dolby)
+			video_off_handled = 1;
 	}
 
 	if (last_dolby_vision_policy != dolby_vision_policy) {
@@ -4694,6 +4699,7 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 		|| (dolby_vision_on_count >
 		dolby_vision_run_mode_delay))) {
 		dolby_vision_set_toggle_flag(1);
+		bypass_release = true;
 		pr_dolby_dbg(
 			"core1 size changed--old: %d x %d, new: %d x %d\n",
 			core1_disp_hsize, core1_disp_vsize,
@@ -4714,7 +4720,8 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 
 	if (!vf) {
 		if (dolby_vision_flags & FLAG_TOGGLE_FRAME)
-			dolby_vision_parse_metadata(NULL, true);
+			dolby_vision_parse_metadata(
+				NULL, true, bypass_release);
 	}
 	if (dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {
 		if (vinfo && sink_support_dolby_vision(vinfo))

@@ -4757,7 +4757,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (pause_vf && (video_pause_global == 1)
 			    && is_dolby_vision_enable()) {
 				toggle_vf = pause_vf;
-				dolby_vision_parse_metadata(cur_dispbuf, true);
+				dolby_vision_parse_metadata(
+					cur_dispbuf, true, false);
 				dolby_vision_set_toggle_flag(1);
 			}
 			break;
