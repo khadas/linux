@@ -8,7 +8,7 @@
  */
  / {
     partitions: partitions{
-        parts = <10>;
+        parts = <11>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&rsv>;
@@ -19,6 +19,7 @@
 		part-7 = <&system>;
 		part-8 = <&cache>;
 		part-9 = <&data>;
+		part-10 = <&linux>;
 
 		logo:logo{
 			pname = "logo";
@@ -71,6 +72,12 @@
 		data:data
 		{
 			pname = "data";
+			size = <0x0 0xffffffff>;
+			mask = <4>;
+		};
+		linux:linux
+		{
+			pname = "linux";
 			size = <0xffffffff 0xffffffff>;
 			mask = <4>;
 		};
