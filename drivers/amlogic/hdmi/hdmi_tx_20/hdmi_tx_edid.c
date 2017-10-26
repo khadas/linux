@@ -2583,6 +2583,8 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			return 0;
 		if (pRXCap->dc_y444 && pRXCap->dc_30bit)
 			rx_y444_max_dc = COLORDEPTH_30B;
+		if (pRXCap->dc_y444 && pRXCap->dc_36bit)
+			rx_y444_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_y444_max_dc)
 			valid = 1;
 		else
@@ -2595,6 +2597,8 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			return 0;
 		if (pRXCap->dc_y444 && pRXCap->dc_30bit)
 			rx_y422_max_dc = COLORDEPTH_30B;
+		if (pRXCap->dc_y444 && pRXCap->dc_36bit)
+			rx_y422_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_y422_max_dc)
 			valid = 1;
 		else
@@ -2605,6 +2609,8 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		/* Always assume RX supports RGB444 */
 		if (pRXCap->dc_30bit)
 			rx_rgb_max_dc = COLORDEPTH_30B;
+		if (pRXCap->dc_36bit)
+			rx_rgb_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_rgb_max_dc)
 			valid = 1;
 		else
@@ -2614,6 +2620,8 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (para->cs == COLORSPACE_YUV420) {
 		if (pRXCap->dc_30bit_420)
 			rx_y420_max_dc = COLORDEPTH_30B;
+		if (pRXCap->dc_36bit_420)
+			rx_y420_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_y420_max_dc)
 			valid = 1;
 		else

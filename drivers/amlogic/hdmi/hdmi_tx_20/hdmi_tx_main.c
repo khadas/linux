@@ -1931,9 +1931,9 @@ static ssize_t show_dc_cap(struct device *dev,
 #if 0
 	if (pRXCap->dc_48bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,16bit\n");
+#endif
 	if (pRXCap->dc_36bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
-#endif
 	if (pRXCap->dc_30bit_420) {
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,10bit\n");
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
@@ -1961,12 +1961,8 @@ static ssize_t show_dc_cap(struct device *dev,
 	}
 next444:
 	if (pRXCap->dc_y444) {
-#if 0
 		if (pRXCap->dc_36bit)
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
-		if (pRXCap->dc_36bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
-#endif
 		if (pRXCap->dc_30bit) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
@@ -1975,6 +1971,8 @@ next444:
 		if (pRXCap->dc_48bit)
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,16bit\n");
 #endif
+		if (pRXCap->dc_36bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
 		if (pRXCap->dc_30bit) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
 			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
@@ -1990,9 +1988,9 @@ nextrgb:
 #if 0
 	if (pRXCap->dc_48bit)
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,16bit\n");
+#endif
 	if (pRXCap->dc_36bit)
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
-#endif
 	if (pRXCap->dc_30bit)
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
@@ -2107,21 +2105,16 @@ static ssize_t show_dv_cap(struct device *dev,
 	if (dv->ver == 0) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"VSVDB Version: V%d\n", dv->ver);
-		pos += snprintf(buf + pos, PAGE_SIZE, "DM Ver: %x:%x\n",
-			dv->dm_major_ver, dv->dm_minor_ver);
-
-		pos += snprintf(buf + pos, PAGE_SIZE,
-			"yuv422_12bit: %s\n",
-			dv->sup_yuv422_12bit ? "1" : "0");
-
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"2160p%shz: 1\n",
 			dv->sup_2160p60hz ? "60" : "30");
-		if (dv->sup_global_dimming)
-			pos += snprintf(buf + pos, PAGE_SIZE,
-			"global dimming\n");
 		pos += snprintf(buf + pos, PAGE_SIZE,
-			"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+			"Support mode:\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  DV_RGB_444_8BIT\n");
+		if (dv->sup_yuv422_12bit)
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"  DV_YCbCr_422_12BIT\n");
 	}
 	if (dv->ver == 1) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
@@ -2129,69 +2122,64 @@ static ssize_t show_dv_cap(struct device *dev,
 			dv->ver, dv->length + 1);
 		if (dv->length == 0xB) {
 			pos += snprintf(buf + pos, PAGE_SIZE,
-				"    DM Ver: %x\n",
-				dv->dm_version);
-
-			pos += snprintf(buf + pos, PAGE_SIZE,
-				"yuv422_12bit: %s\n",
-				dv->sup_yuv422_12bit ? "1" : "0");
-
-			pos += snprintf(buf + pos, PAGE_SIZE,
 				"2160p%shz: 1\n",
 				dv->sup_2160p60hz ? "60" : "30");
-			if (dv->sup_global_dimming)
-				pos += snprintf(buf + pos, PAGE_SIZE,
-				"global dimming\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"Support mode:\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  DV_RGB_444_8BIT\n");
+		if (dv->sup_yuv422_12bit)
 			pos += snprintf(buf + pos, PAGE_SIZE,
-				"IEEEOUI: 0x%06x\n", dv->ieeeoui);
-			if (dv->colorimetry)
-				pos += snprintf(buf + pos, PAGE_SIZE,
-				"colorimetry\n");
+			"  DV_YCbCr_422_12BIT\n");
+		if (dv->low_latency == 0x01)
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"  LL_YCbCr_422_12BIT\n");
 		}
 
 		if (dv->length == 0xE) {
 			pos += snprintf(buf + pos, PAGE_SIZE,
-				"DM Ver: %x\n",
-				dv->dm_version);
-
-			pos += snprintf(buf + pos, PAGE_SIZE,
-				"yuv422_12bit: %s\n",
-				dv->sup_yuv422_12bit ? "1" : "0");
-
-			pos += snprintf(buf + pos, PAGE_SIZE,
 				"2160p%shz: 1\n",
 				dv->sup_2160p60hz ? "60" : "30");
-			if (dv->sup_global_dimming)
-				pos += snprintf(buf + pos, PAGE_SIZE,
-				"global dimming\n");
 			pos += snprintf(buf + pos, PAGE_SIZE,
-				"IEEEOUI: 0x%06x\n", dv->ieeeoui);
-			if (dv->colorimetry)
+				"Support mode:\n");
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"  DV_RGB_444_8BIT\n");
+			if (dv->sup_yuv422_12bit)
 				pos += snprintf(buf + pos, PAGE_SIZE,
-				"colorimetry\n");
+				"  DV_YCbCr_422_12BIT\n");
 		}
 	}
 	if (dv->ver == 2) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"VSVDB Version: V%d\n", dv->ver);
 		pos += snprintf(buf + pos, PAGE_SIZE,
-			"DM Ver: %x\n", dv->dm_version);
+			"2160p60hz: 1\n");
 		pos += snprintf(buf + pos, PAGE_SIZE,
-			"yuv422_12bit: %s\n",
-			dv->sup_yuv422_12bit ? "1" : "0");
-		if (dv->sup_global_dimming)
+			"Support mode:\n");
+		if ((dv->Interface != 0x00) && (dv->Interface != 0x01)) {
 			pos += snprintf(buf + pos, PAGE_SIZE,
-			"global dimming\n");
-
+				"  DV_RGB_444_8BIT\n");
+			if (dv->sup_yuv422_12bit)
+				pos += snprintf(buf + pos, PAGE_SIZE,
+					"  DV_YCbCr_422_12BIT\n");
+		}
 		pos += snprintf(buf + pos, PAGE_SIZE,
-			"sup_10b_12b_444: %s\n",
-			dv->sup_10b_12b_444 ? "1" : "0");
-
-		pos += snprintf(buf + pos, PAGE_SIZE,
-			"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+			"  LL_YCbCr_422_12BIT\n");
+		if ((dv->Interface == 0x01) || (dv->Interface == 0x03)) {
+			if (dv->sup_10b_12b_444 == 0x1) {
+				pos += snprintf(buf + pos, PAGE_SIZE,
+					"  LL_RGB_444_10BIT\n");
+			}
+			if (dv->sup_10b_12b_444 == 0x2) {
+				pos += snprintf(buf + pos, PAGE_SIZE,
+					"  LL_RGB_444_12BIT\n");
+			}
+		}
 	}
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"IEEEOUI: 0x%06x\n", dv->ieeeoui);
 	pos += snprintf(buf + pos, PAGE_SIZE, "VSVDB: ");
-	for (i = 0; i < 27; i++)
+	for (i = 0; i < (dv->length + 1); i++)
 		pos += snprintf(buf+pos, PAGE_SIZE, "%02x",
 		dv->rawdata[i]);
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
