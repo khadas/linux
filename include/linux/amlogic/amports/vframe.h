@@ -232,7 +232,6 @@ enum vframe_disp_mode_e {
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
-	u32 omx_index;
 	u32 type;
 	u32 type_backup;
 	u32 type_original;
