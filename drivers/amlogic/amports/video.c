@@ -4811,17 +4811,7 @@ SET_FILTER:
 			else
 				v_size = cur_frame_par->VPP_vd_end_lines_
 				- cur_frame_par->VPP_vd_start_lines_ + 1;
-			/* just work around for interlace sdr in dovi output */
-			if (cur_dispbuf &&
-				(cur_dispbuf->type &
-				VIDTYPE_INTERLACE))
-				v_size =
-				(cur_frame_par->vscale_skip_count > 1) ?
-				(v_size /
-				cur_frame_par->vscale_skip_count)
-				: v_size;
-			else
-				v_size /=
+			v_size /=
 				(cur_frame_par->vscale_skip_count + 1);
 			frame_size = (h_size << 16) | v_size;
 		} else if (toggle_vf) {
@@ -5217,7 +5207,10 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 
 #if (!HAS_VPU_PROT)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB && cur_dispbuf) {
-			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
+			/* TODO: need check the txlx dolby case */
+			if ((cur_dispbuf->type & VIDTYPE_INTERLACE)
+				&& (!is_dolby_vision_on()
+				|| !is_meson_gxm_cpu())) {
 				cur_frame_par->VPP_pic_in_height_ =
 				zoom_end_y_lines - zoom_start_y_lines + 1;
 				cur_frame_par->VPP_line_in_length_ =
