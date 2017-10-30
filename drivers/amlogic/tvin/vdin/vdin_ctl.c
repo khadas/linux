@@ -77,6 +77,11 @@ static unsigned int use_frame_rate;
 module_param(use_frame_rate, uint, 0644);
 MODULE_PARM_DESC(use_frame_rate, "use frame rate to cal duraton");
 
+#define DV_META_PACKET_SIZE			128
+#define DV_META_HEADER_LEN	  2
+#define DV_META_TAIL_CRC_SIZE		4
+#define DV_META_PACKET_TYPE_SIZE		3
+
 static bool cm_enable = 1;
 module_param(cm_enable, bool, 0644);
 MODULE_PARM_DESC(cm_enable, "cm_enable");
@@ -3201,7 +3206,12 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	int j, k;
 	char  tmpmeta[1024];
 	uint32_t extmetasize;
+	uint32_t metapayloadsize;
 
+	metapayloadsize = DV_META_PACKET_SIZE -
+		DV_META_PACKET_TYPE_SIZE -
+		DV_META_HEADER_LEN -
+		DV_META_TAIL_CRC_SIZE;
 	if (index >= devp->canvas_max_num)
 		return;
 
@@ -3229,7 +3239,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		crc_result = crc32(0, p, 124);
 		crc_result = swap32(crc_result);
 		for (j = 128; j < 128 * 4; j += 128) {
-			if ((meta_size > (128 - 3 - 2 - 4)) &&
+			if ((meta_size > metapayloadsize) &&
 				((c[j] & (1 << 7)) != 0) &&
 				((c[j] & (1 << 6)) != 0))
 				multimetatail_flag = 1;
@@ -3276,12 +3286,13 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = meta_size;
 		if ((multimeta_flag == 1) && (multimetatail_flag == 1)) {
-			memcpy(tmpmeta, c + 5, 128 - 3 - 2 - 4);
-			extmetasize = meta_size - (128 - 3 - 2 - 4);
+			memcpy(tmpmeta, c + 5, metapayloadsize);
+			extmetasize = meta_size - metapayloadsize;
 			for (k = 0; k < extmetasize; k++)
 				tmpmeta[119 + k] = c[128 * 3 + 3 + k];
 			memcpy(devp->vfp->dv_buf[index], tmpmeta, meta_size);
-		}
+		} else if (meta_size > metapayloadsize)
+			devp->dv.dv_crc_check = false;
 		if (dv_dbg_log&(1<<0))
 			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x crc1:%x\n",
 				__func__, index,
