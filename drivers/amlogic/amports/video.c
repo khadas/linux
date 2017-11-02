@@ -4126,12 +4126,32 @@ static void dmc_adjust_for_mali_vpu(unsigned int width, unsigned int height)
 	}
 }
 
+static bool is_sc_enable_before_pps(struct vpp_frame_par_s *par)
+{
+	bool ret = false;
+	if (par) {
+		if (par->supsc0_enable &&
+			((par->supscl_path == CORE0_PPS_CORE1)
+			|| (par->supscl_path == CORE0_BEFORE_PPS)))
+			ret = true;
+		else if (par->supsc1_enable &&
+			(par->supscl_path == CORE1_BEFORE_PPS))
+			ret = true;
+		else if ((par->supsc0_enable || par->supsc1_enable)
+			&& (par->supscl_path == CORE0_CORE1_PPS))
+			ret = true;
+	}
+	return ret;
+}
+
 void correct_vd1_mif_size_for_DV(struct vpp_frame_par_s *par)
 {
 	u32 aligned_mask = 0xfffffffe;
 	u32 old_len;
-	if ((is_dolby_vision_on() == true) &&
-		(par->VPP_line_in_length_ > 0)) {
+	if ((is_dolby_vision_on() == true)
+		&& (par->VPP_line_in_length_ > 0)
+		&& !is_sc_enable_before_pps(par)) {
+		/* work around to skip the size check when sc enable */
 		if (cur_dispbuf2) {
 			/*
 			if (cur_dispbuf2->type
@@ -4187,8 +4207,10 @@ void correct_vd2_mif_size_for_DV(
 {
 	int width_bl, width_el, line_in_length;
 	int shift;
-	if ((is_dolby_vision_on() == true) &&
-		(par->VPP_line_in_length_ > 0)) {
+	if ((is_dolby_vision_on() == true)
+		&& (par->VPP_line_in_length_ > 0)
+		&& !is_sc_enable_before_pps(par)) {
+		/* work around to skip the size check when sc enable */
 		width_el = (cur_dispbuf2->type
 			& VIDTYPE_COMPRESS) ?
 			cur_dispbuf2->compWidth :
