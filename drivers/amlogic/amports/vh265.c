@@ -236,7 +236,7 @@ static u32 pts_unstable;
 #define H265_DEBUG_TRIG_SLICE_SEGMENT_PROC  0x80000
 #define H265_DEBUG_HW_RESET                 0x100000
 #define H265_CFG_CANVAS_IN_DECODE           0x200000
-#define H265_DEBUG_ERROR_TRIG               0x400000
+#define H265_DEBUG_DV                       0x400000
 #define H265_DEBUG_NO_EOS_SEARCH_DONE       0x800000
 #define H265_DEBUG_NOT_USE_LAST_DISPBUF     0x1000000
 #define H265_DEBUG_IGNORE_CONFORMANCE_WINDOW	0x2000000
@@ -405,6 +405,7 @@ static u32 parser_sei_enable;
 #ifdef CONFIG_AM_VDEC_DV
 static u32 parser_dolby_vision_enable = 1;
 static u32 dolby_meta_with_el;
+static u32 dolby_el_flush_th = 2;
 #endif
 /* this is only for h265 mmu enable */
 
@@ -1299,6 +1300,7 @@ struct hevc_state_s {
 	unsigned timeout_num;
 #ifdef CONFIG_AM_VDEC_DV
 	unsigned char switch_dvlayer_flag;
+	unsigned char no_switch_dvlayer_count;
 #endif
 	unsigned char start_parser_type;
 	/*start_decoding_flag:
@@ -2757,6 +2759,21 @@ static void dump_pic_list(struct hevc_state_s *hevc)
 			"output_ready:%d, mv_wr_start %x vf_ref %d\n",
 				pic->output_ready, pic->mpred_mv_wr_start_addr,
 				pic->vf_ref);
+	}
+}
+
+static void clear_referenced_flag(struct hevc_state_s *hevc)
+{
+	int i;
+	struct PIC_s *pic;
+	for (i = 0; i < MAX_REF_PIC_NUM; i++) {
+		pic = hevc->m_PIC[i];
+		if (pic == NULL || pic->index == -1)
+			continue;
+		if (pic->referenced) {
+			pic->referenced = 0;
+			put_mv_buf(hevc, pic);
+		}
 	}
 }
 
@@ -4523,6 +4540,7 @@ static void flush_output(struct hevc_state_s *hevc, struct PIC_s *pic)
 			}
 		}
 	} while (pic_display);
+	clear_referenced_flag(hevc);
 }
 
 /*
@@ -5162,8 +5180,12 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 				struct hevc_state_s *hevc_ba =
 				(struct hevc_state_s *)
 					vdec->master->private;
-				if (hevc_ba->cur_pic != NULL)
+				if (hevc_ba->cur_pic != NULL) {
 					hevc_ba->cur_pic->dv_enhance_exist = 1;
+					hevc_print(hevc, H265_DEBUG_DV,
+					"To decode el (poc %d) => set bl (poc %d) dv_enhance_exist flag\n",
+					hevc->curr_POC, hevc_ba->cur_pic->POC);
+				}
 			}
 			if (vdec->master == NULL &&
 				vdec->slave == NULL)
@@ -5184,6 +5206,10 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 #endif
 #ifdef CONFIG_AM_VDEC_DV
 			hevc->cur_pic->dv_enhance_exist = 0;
+			if (vdec->slave)
+				hevc_print(hevc, H265_DEBUG_DV,
+				"Clear bl (poc %d) dv_enhance_exist flag\n",
+				hevc->curr_POC);
 			if (vdec->master == NULL &&
 				vdec->slave == NULL)
 				set_aux_data(hevc, hevc->cur_pic, 0, 0);
@@ -5225,6 +5251,9 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 
 #ifdef CONFIG_AM_VDEC_DV
 			hevc->cur_pic->dv_enhance_exist = 0;
+			hevc_print(hevc, H265_DEBUG_DV,
+			"Clear bl (poc %d) dv_enhance_exist flag\n",
+			hevc->curr_POC);
 			if (vdec->master == NULL &&
 				vdec->slave == NULL)
 				set_aux_data(hevc, hevc->cur_pic, 0, 0);
@@ -6280,6 +6309,9 @@ static int vh265_event_cb(int type, void *data, void *op_arg)
 #ifdef CONFIG_AM_VDEC_DV
 			req->dv_enhance_exist =
 				hevc->m_PIC[index]->dv_enhance_exist;
+			hevc_print(hevc, H265_DEBUG_DV,
+			"query dv_enhance_exist for pic (poc %d) flag => %d\n",
+			hevc->m_PIC[index]->POC, req->dv_enhance_exist);
 #else
 			req->dv_enhance_exist = 0;
 #endif
@@ -7425,8 +7457,14 @@ pic_done:
 				(struct hevc_state_s *)
 					vdec->slave->private;
 				hevc->switch_dvlayer_flag = 1;
+				hevc->no_switch_dvlayer_count = 0;
 				hevc_el->start_parser_type =
 					next_parser_type;
+				hevc_print(hevc, H265_DEBUG_DV,
+					"switch (poc %d) to el\n",
+					hevc->cur_pic ?
+					hevc->cur_pic->POC :
+					INVALID_POC);
 			} else if (vdec->master &&
 				dec_status == HEVC_FIND_NEXT_PIC_NAL) {
 				/*cur is enhance, found base*/
@@ -7434,12 +7472,46 @@ pic_done:
 				(struct hevc_state_s *)
 					vdec->master->private;
 				hevc->switch_dvlayer_flag = 1;
+				hevc->no_switch_dvlayer_count = 0;
 				hevc_ba->start_parser_type =
 					next_parser_type;
+				hevc_print(hevc, H265_DEBUG_DV,
+					"switch (poc %d) to bl\n",
+					hevc->cur_pic ?
+					hevc->cur_pic->POC :
+					INVALID_POC);
 			} else {
 				hevc->switch_dvlayer_flag = 0;
 				hevc->start_parser_type =
 					next_parser_type;
+				hevc->no_switch_dvlayer_count++;
+				hevc_print(hevc, H265_DEBUG_DV,
+					"%s: no_switch_dvlayer_count = %d\n",
+					vdec->master ? "el" : "bl",
+					hevc->no_switch_dvlayer_count);
+				if (vdec->slave &&
+					dolby_el_flush_th != 0 &&
+					hevc->no_switch_dvlayer_count >
+					dolby_el_flush_th) {
+					struct hevc_state_s *hevc_el =
+					(struct hevc_state_s *)
+					vdec->slave->private;
+					struct PIC_s *el_pic;
+					check_pic_decoded_error(hevc_el,
+					hevc_el->pic_decoded_lcu_idx);
+					el_pic = get_pic_by_POC(hevc_el,
+						hevc_el->curr_POC);
+					hevc_el->curr_POC = INVALID_POC;
+					hevc_el->m_pocRandomAccess = MAX_INT;
+					flush_output(hevc_el, el_pic);
+					hevc_el->decoded_poc = INVALID_POC; /*
+					already call flush_output*/
+					hevc_el->decoding_pic = NULL;
+					hevc->no_switch_dvlayer_count = 0;
+					if (get_dbg_flag(hevc) & H265_DEBUG_DV)
+						hevc_print(hevc, 0,
+						"no el anymore, flush_output el\n");
+				}
 			}
 			hevc->decoded_poc = hevc->curr_POC;
 			hevc->decoding_pic = NULL;
@@ -10274,6 +10346,10 @@ MODULE_PARM_DESC(parser_dolby_vision_enable,
 module_param(dolby_meta_with_el, uint, 0664);
 MODULE_PARM_DESC(dolby_meta_with_el,
 	"\n dolby_meta_with_el\n");
+
+module_param(dolby_el_flush_th, uint, 0664);
+MODULE_PARM_DESC(dolby_el_flush_th,
+	"\n dolby_el_flush_th\n");
 #endif
 module_param(mmu_enable, uint, 0664);
 MODULE_PARM_DESC(mmu_enable, "\n mmu_enable\n");

@@ -119,6 +119,7 @@ static unsigned int force_disp_bufspec_num;
 static unsigned int fixed_frame_rate_mode;
 static unsigned int error_recovery_mode_in;
 static int start_decode_buf_level = 0x8000;
+static int pre_decode_buf_level = 0x800;
 
 #ifdef CONFIG_AM_VDEC_DV
 /*to make reorder size difference of bl and el not too big*/
@@ -4793,6 +4794,21 @@ static bool run_ready(struct vdec_s *vdec)
 	struct vdec_h264_hw_s *hw =
 		(struct vdec_h264_hw_s *)vdec->private;
 
+	if (vdec_stream_based(vdec) && (hw->init_flag == 0)
+		&& pre_decode_buf_level != 0) {
+		u32 rp, wp, level;
+
+		rp = READ_MPEG_REG(PARSER_VIDEO_RP);
+		wp = READ_MPEG_REG(PARSER_VIDEO_WP);
+		if (wp < rp)
+			level = vdec->input.size + wp - rp;
+		else
+			level = wp - rp;
+
+		if (level < pre_decode_buf_level)
+			return 0;
+	}
+
 #ifndef CONFIG_AM_VDEC_DV
 	if (vdec->master)
 		return false;
@@ -5358,6 +5374,10 @@ MODULE_PARM_DESC(h264_debug_flag, "\n ammvdec_h264 h264_debug_flag\n");
 module_param(start_decode_buf_level, int, 0664);
 MODULE_PARM_DESC(start_decode_buf_level,
 		"\n ammvdec_h264 start_decode_buf_level\n");
+
+module_param(pre_decode_buf_level, int, 0664);
+MODULE_PARM_DESC(pre_decode_buf_level,
+		"\n ammvdec_h264 pre_decode_buf_level\n");
 
 module_param(fixed_frame_rate_mode, uint, 0664);
 MODULE_PARM_DESC(fixed_frame_rate_mode, "\namvdec_h264 fixed_frame_rate_mode\n");
