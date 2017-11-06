@@ -94,6 +94,7 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	 */
 	if (unlikely(!PageMovable(page)))
 		goto out_putpage;
+
 	/*
 	 * As movable pages are not isolated from LRU lists, concurrent
 	 * compaction threads can race against page migration functions
@@ -111,7 +112,7 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	if (PageIsolated(page))
 		goto out_no_isolated;
 
-	if (zs_page_isolate(page, mode))
+	if (!zs_page_isolate(page, mode))
 		goto out_no_isolated;
 
 	/* Driver shouldn't use PG_isolated bit of page->flags */
@@ -1096,14 +1097,19 @@ out:
 		 * restored.
 		 */
 		list_del(&page->lru);
-		dec_zone_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
+		if (likely(!PageMovable(page)))
+			dec_zone_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 		if (unlikely(PageMovable(page))) {
 			lock_page(page);
-			putback_movable_page(page);
+			if (PageMovable(page))
+				putback_movable_page(page);
+			else
+				__ClearPageIsolated(page);
 			unlock_page(page);
-		}
-		putback_lru_page(page);
+			put_page(page);
+		} else
+			putback_lru_page(page);
 	}
 
 	/*
@@ -1114,8 +1120,12 @@ out:
 	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
 		ClearPageSwapBacked(newpage);
 		put_new_page(newpage, private);
-	} else
-		putback_lru_page(newpage);
+	} else {
+		if (unlikely(PageMovable(newpage)))
+			put_page(newpage);
+		else
+			putback_lru_page(newpage);
+	}
 
 	if (result) {
 		if (rc)

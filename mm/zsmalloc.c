@@ -344,6 +344,51 @@ static int create_cache(struct zs_pool *pool)
 	return 0;
 }
 
+/*
+ * debug switch for zsmalloc
+ */
+#define AMLOGIC_ZS_DEBUG		1
+#if AMLOGIC_ZS_DEBUG
+static void dump_zspage(struct zspage *zspage, struct size_class *class)
+{
+	if (!zspage || !class)
+		return;
+
+	pr_info("zspage:%p, fullness:%x, class:%x, isolate:%x, magic:%x\n",
+		zspage, zspage->fullness, zspage->class,
+		zspage->isolated, zspage->magic);
+	pr_info("inuse:%d, freeobj:%d\n", zspage->inuse, zspage->freeobj);
+	pr_info("first_page:%p, list:%p, next:%p, prev:%p\n",
+		zspage->first_page, &zspage->list,
+		zspage->list.next, zspage->list.prev);
+	pr_info("size class:%p, %x, objs:%d, pages_per_zspage:%d, idx:%d\n",
+		class, class->size, class->objs_per_zspage,
+		class->pages_per_zspage, class->index);
+}
+#endif
+
+/* Protected by class->lock */
+static inline int get_zspage_inuse(struct zspage *zspage)
+{
+	return zspage->inuse;
+}
+
+static bool zspage_full(struct size_class *class, struct zspage *zspage)
+{
+	return get_zspage_inuse(zspage) == class->objs_per_zspage;
+}
+
+static bool obj_range_ok(unsigned long obj, struct size_class *class)
+{
+	unsigned long idx;
+
+	idx = ((obj >> OBJ_TAG_BITS) & OBJ_INDEX_MASK);
+	if (idx >= class->objs_per_zspage)
+		return false;
+	else
+		return true;
+}
+
 static void destroy_cache(struct zs_pool *pool)
 {
 	kmem_cache_destroy(pool->handle_cachep);
@@ -477,12 +522,6 @@ static bool is_zspage_isolated(struct zspage *zspage)
 static int is_first_page(struct page *page)
 {
 	return PagePrivate(page);
-}
-
-/* Protected by class->lock */
-static inline int get_zspage_inuse(struct zspage *zspage)
-{
-	return zspage->inuse;
 }
 
 static inline void set_zspage_inuse(struct zspage *zspage, int val)
@@ -812,6 +851,12 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
 	if (!is_zspage_isolated(zspage)) {
 		remove_zspage(class, zspage, currfg);
 		insert_zspage(class, zspage, newfg);
+	} else if (newfg == ZS_FULL) {
+	#if AMLOGIC_ZS_DEBUG
+		pr_info("newfg:%d, curfg:%d\n", newfg, currfg);
+		dump_zspage(zspage, class);
+		WARN(true, "page list not changed by isolate\n");
+	#endif
 	}
 
 	set_zspage_mapping(zspage, class_idx, newfg);
@@ -1161,6 +1206,14 @@ static struct zspage *find_get_zspage(struct size_class *class)
 			break;
 	}
 
+	if (zspage &&
+	   (zspage->fullness == ZS_FULL || zspage_full(class, zspage))) {
+	#if AMLOGIC_ZS_DEBUG
+		dump_zspage(zspage, class);
+		WARN(true, "get full zspage\n");
+	#endif
+		return NULL;
+	}
 	return zspage;
 }
 
@@ -1364,11 +1417,6 @@ static bool can_merge(struct size_class *prev, int pages_per_zspage,
 	return false;
 }
 
-static bool zspage_full(struct size_class *class, struct zspage *zspage)
-{
-	return get_zspage_inuse(zspage) == class->objs_per_zspage;
-}
-
 unsigned long zs_get_total_pages(struct zs_pool *pool)
 {
 	return atomic_long_read(&pool->pages_allocated);
@@ -1524,6 +1572,15 @@ static unsigned long obj_malloc(struct size_class *class,
 
 	obj = location_to_obj(m_page, obj);
 
+#if AMLOGIC_ZS_DEBUG
+	if (!obj_range_ok(obj, class)) {
+		pr_info("class size:%d, obj_max:%d\n",
+			class->size, class->objs_per_zspage);
+		dump_zspage(zspage, class);
+		WARN(true, "obj out of order:%lx", obj);
+	}
+#endif
+
 	return obj;
 }
 
@@ -1561,11 +1618,12 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 	if (likely(zspage)) {
 		obj = obj_malloc(class, zspage, handle);
 		/* Now move the zspage to another fullness group, if required */
-		fix_fullness_group(class, zspage);
-		record_obj(handle, obj);
-		spin_unlock(&class->lock);
-
-		return handle;
+		if (obj_range_ok(obj, class)) {
+			fix_fullness_group(class, zspage);
+			record_obj(handle, obj);
+			spin_unlock(&class->lock);
+			return handle;
+		}
 	}
 
 	spin_unlock(&class->lock);
@@ -2028,6 +2086,14 @@ bool zs_page_isolate(struct page *page, isolate_mode_t mode)
 	}
 
 	inc_zspage_isolation(zspage);
+#if AMLOGIC_ZS_DEBUG
+	if (zspage->isolated > (1 << ZS_MAX_ZSPAGE_ORDER)) {
+		pr_info("%s, zspage:%p, page:%p %lx, flags:%lx isolate:%d\n",
+			__func__, zspage, page, page_to_pfn(page),
+			page->flags, zspage->isolated);
+		dump_zspage(zspage, class);
+	}
+#endif
 	spin_unlock(&class->lock);
 
 	return true;
@@ -2107,6 +2173,14 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
 	get_page(newpage);
 
 	dec_zspage_isolation(zspage);
+#if AMLOGIC_ZS_DEBUG
+	if (zspage->isolated > (1 << ZS_MAX_ZSPAGE_ORDER)) {
+		pr_info("%s, zspage:%p, page:%p %lx, flags:%lx isolate:%d\n",
+			__func__, zspage, page, page_to_pfn(page),
+			page->flags, zspage->isolated);
+		dump_zspage(zspage, class);
+	}
+#endif
 
 	/*
 	 * Page migration is done so let's putback isolated zspage to
@@ -2159,6 +2233,14 @@ void zs_page_putback(struct page *page)
 
 	spin_lock(&class->lock);
 	dec_zspage_isolation(zspage);
+#if AMLOGIC_ZS_DEBUG
+	if (zspage->isolated > (1 << ZS_MAX_ZSPAGE_ORDER)) {
+		pr_info("%s, zspage:%p, page:%p %lx, flags:%lx isolate:%d\n",
+			__func__, zspage, page, page_to_pfn(page),
+			page->flags, zspage->isolated);
+		dump_zspage(zspage, class);
+	}
+#endif
 	if (!is_zspage_isolated(zspage)) {
 		fg = putback_zspage(class, zspage);
 		/*
