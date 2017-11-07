@@ -2388,7 +2388,7 @@ void enable_dolby_vision(int enable)
 					(1 << 0),	/* core1 bl bypass */
 					16, 3);
 				VSYNC_WR_MPEG_REG_BITS(VPP_DOLBY_CTRL,
-					0, 3, 1);   /* core3 disable */
+					0, 16, 1);   /* core3 disable */
 				/* enable osd effect and
 					use default shadow mode */
 				osd_path_enable(1);
@@ -2428,6 +2428,17 @@ void enable_dolby_vision(int enable)
 					0x414);
 				VSYNC_WR_MPEG_REG(DOLBY_TV_AXI2DMA_CTRL0,
 					0x01000042);
+			}
+			if (is_meson_gxm_cpu()) {
+				VSYNC_WR_MPEG_REG(
+					DOLBY_CORE1_CLKGATE_CTRL,
+					0x55555555);
+				VSYNC_WR_MPEG_REG(
+					DOLBY_CORE2A_CLKGATE_CTRL,
+					0x55555555);
+				VSYNC_WR_MPEG_REG(
+					DOLBY_CORE3_CLKGATE_CTRL,
+					0x55555555);
 			}
 			VSYNC_WR_MPEG_REG(
 				VPP_VD1_CLIP_MISC0,
