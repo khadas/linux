@@ -1997,7 +1997,10 @@ static void vframe_canvas_set(struct canvas_config_s *config, u32 planes,
 		canvas_config_config(*canvas_index, cfg);
 }
 
-
+/* for sdr/hdr/single dv switch with dual dv */
+static u32 last_el_status;
+/* for dual dv switch with different el size */
+static u32 last_el_w;
 bool has_enhanced_layer(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
@@ -2368,7 +2371,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	    (last_process_3d_type != process_3d_type) ||
 	    (cur_dispbuf->ratio_control != vf->ratio_control) ||
 	    ((cur_dispbuf->type_backup & VIDTYPE_INTERLACE) !=
-	     (vf->type_backup & VIDTYPE_INTERLACE)) ||
+	    (vf->type_backup & VIDTYPE_INTERLACE)) ||
+	    (last_el_status != vf_with_el) ||
 	    (cur_dispbuf->type != vf->type)
 #if HAS_VPU_PROT
 	    || cur_dispbuf && (cur_dispbuf->video_angle != vf->video_angle)
@@ -2528,9 +2532,9 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			}
 		}
 		/* #endif */
-
 	}
 
+	last_el_status = vf_with_el;
 	if (((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0) &&
 	    ((!property_changed_true) || (vf != cur_dispbuf))) {
 		if (disable_video == VIDEO_DISABLE_FORNEXT) {
@@ -3127,6 +3131,11 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 type = vf->type, bit_mode = 0;
 
 	pr_debug("set dcu for vd2 %p, type:0x%x\n", vf, type);
+
+	last_el_w = (vf->type
+		& VIDTYPE_COMPRESS) ?
+		vf->compWidth :
+		vf->width;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		if (type & VIDTYPE_COMPRESS) {
 			r = (3 << 24) |
@@ -4780,7 +4789,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			    && is_dolby_vision_enable()) {
 				toggle_vf = pause_vf;
 				dolby_vision_parse_metadata(
-					cur_dispbuf, true, false);
+					cur_dispbuf, false, false);
 				dolby_vision_set_toggle_flag(1);
 			}
 			break;
@@ -4860,19 +4869,33 @@ SET_FILTER:
 	if (cur_dispbuf) {
 		struct f2v_vphase_s *vphase;
 		u32 vin_type = cur_dispbuf->type & VIDTYPE_TYPEMASK;
-		{
-			int need_afbc = (cur_dispbuf->type & VIDTYPE_COMPRESS);
-			int afbc_need_reset =
-				video_enabled &&
-				need_afbc &&
-				(!(READ_VCBUS_REG(AFBC_ENABLE) & 0x100));
-			/*video on && afbc is off && is compress frame.*/
-			if (frame_par_ready_to_set || afbc_need_reset) {
-				viu_set_dcu(cur_frame_par, cur_dispbuf);
-				if (cur_dispbuf2)
-					vd2_set_dcu(cur_frame_par,
-						cur_dispbuf2);
+		int need_afbc = (cur_dispbuf->type & VIDTYPE_COMPRESS);
+		int afbc_need_reset =
+			video_enabled &&
+			need_afbc &&
+			(!(READ_VCBUS_REG(AFBC_ENABLE) & 0x100));
+		/*video on && afbc is off && is compress frame.*/
+		if (frame_par_ready_to_set || afbc_need_reset) {
+			viu_set_dcu(cur_frame_par, cur_dispbuf);
+			if (cur_dispbuf2)
+				vd2_set_dcu(cur_frame_par,
+					cur_dispbuf2);
+		} else if (cur_dispbuf2) {
+			u32 new_el_w =
+				(cur_dispbuf2->type
+				& VIDTYPE_COMPRESS) ?
+				cur_dispbuf2->compWidth :
+				cur_dispbuf2->width;
+			if (new_el_w != last_el_w) {
+				pr_info("reset vd2 dcu for el change, %d->%d, %p--%p\n",
+					last_el_w, new_el_w,
+					cur_dispbuf, cur_dispbuf2);
+				vd2_set_dcu(cur_frame_par,
+					cur_dispbuf2);
 			}
+		} else {
+			last_el_w = 0;
+			last_el_status = 0;
 		}
 		{
 #if 0
@@ -5570,6 +5593,8 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 			VSYNC_WR_MPEG_REG_BITS(
 				VIU_MISC_CTRL1,
 				1, 16, 1); /* bypass core1 */
+		last_el_w = 0;
+		last_el_status = 0;
 		if (cur_dispbuf && (cur_dispbuf == &vf_local))
 			cur_dispbuf = NULL;
 	}

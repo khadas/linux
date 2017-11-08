@@ -2439,9 +2439,12 @@ void enable_dolby_vision(int enable)
 			video_effect_bypass(0);
 			VSYNC_WR_MPEG_REG(VPP_DOLBY_CTRL,
 				dolby_ctrl_backup);
+			/* always vd2 to vpp and bypass core 1 */
+			viu_misc_ctrl_backup |=
+				(VSYNC_RD_MPEG_REG(VIU_MISC_CTRL1) & 2);
 			VSYNC_WR_MPEG_REG(VIU_MISC_CTRL1,
 				viu_misc_ctrl_backup
-				| (1 << 17)); /* always vd2 to vpp */
+				| (3 << 16));
 			VSYNC_WR_MPEG_REG(VPP_MATRIX_CTRL,
 				vpp_matrix_backup);
 			VSYNC_WR_MPEG_REG(VPP_DUMMY_DATA1,
@@ -4032,6 +4035,12 @@ int dolby_vision_parse_metadata(
 							el_md_size;
 						src_bdp = 12;
 					}
+					/* force set format as DOVI
+						when meta data error */
+					if (meta_flag_el
+						&& el_req.aux_buf
+						&& el_req.aux_size)
+						src_format = FORMAT_DOVI;
 					if (debug_dolby & 2)
 						pr_dolby_dbg(
 						"meta data el mode: el_src_format: %d, meta_flag_el: %d\n",
@@ -4065,6 +4074,10 @@ int dolby_vision_parse_metadata(
 					vf, vf->pts_us64);
 			dolby_vision_vf_add(vf, NULL);
 		}
+
+		if (!toggle_flag && req.dv_enhance_exist)
+			el_flag = 1;
+
 		if ((src_format == FORMAT_DOVI)
 		&& meta_flag_bl && meta_flag_el) {
 			/* dovi frame no meta or meta error */
@@ -4556,6 +4569,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 					dolby_vision_wait_init = true;
 					dolby_vision_wait_count =
 						dolby_vision_wait_delay;
+					dolby_vision_wait_on = true;
 				}
 			}
 		} else if (is_hdr10_frame(vf)) {
@@ -4567,6 +4581,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 					dolby_vision_wait_init = true;
 					dolby_vision_wait_count =
 						dolby_vision_wait_delay;
+					dolby_vision_wait_on = true;
 				}
 			}
 		} else if (dolby_vision_policy_process(
@@ -4577,8 +4592,14 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 					dolby_vision_wait_init = true;
 					dolby_vision_wait_count =
 						dolby_vision_wait_delay;
+					dolby_vision_wait_on = true;
 				}
 		}
+		/* don't use run mode when sdr -> dv and vd1 not disable */
+		if (dolby_vision_wait_init &&
+			(READ_VPP_REG(VPP_MISC) & (1<<10)))
+			dolby_vision_on_count =
+				dolby_vision_run_mode_delay + 1;
 	}
 	if (dolby_vision_wait_init
 		&& dolby_vision_wait_count) {
