@@ -458,56 +458,26 @@ static int get_custom_tables(struct device_node *node,
 		memset(&ptable->tab.cursor_code, 0xff,
 					sizeof(struct cursor_codemap));
 
-		if (strcmp(ptable->tab.custom_name, "khadas-ir") == 0) {
-		        ret = of_property_read_u32(map, "fn_key_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config fn_key_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.fn_key_scancode = value;
+		ret = of_property_read_u32(map, "fn_key_scancode", &value);
+		ptable->tab.cursor_code.fn_key_scancode = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "fn_key_scancode_other", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config fn_key_scancode_other item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.fn_key_scancode_other = value;
+		ret = of_property_read_u32(map, "fn_key_scancode_other", &value);
+		ptable->tab.cursor_code.fn_key_scancode_other = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "cursor_left_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config cursor_left_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.cursor_left_scancode = value;
+		ret = of_property_read_u32(map, "cursor_left_scancode", &value);
+		ptable->tab.cursor_code.cursor_left_scancode = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "cursor_right_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config cursor_right_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.cursor_right_scancode = value;
+		ret = of_property_read_u32(map, "cursor_right_scancode", &value);
+		ptable->tab.cursor_code.cursor_right_scancode = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "cursor_up_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config cursor_up_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.cursor_up_scancode = value;
+		ret = of_property_read_u32(map, "cursor_up_scancode", &value);
+		ptable->tab.cursor_code.cursor_up_scancode = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "cursor_down_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config cursor_down_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.cursor_down_scancode = value;
+		ret = of_property_read_u32(map, "cursor_down_scancode", &value);
+		ptable->tab.cursor_code.cursor_down_scancode = ret ? -1 : value;
 
-		        ret = of_property_read_u32(map, "cursor_ok_scancode", &value);
-		        if (ret) {
-		                dev_err(chip->dev, "please config cursor_ok_scancode item\n");
-		                goto err;
-		        }
-		        ptable->tab.cursor_code.cursor_ok_scancode= value;
-		}
+		ret = of_property_read_u32(map, "cursor_ok_scancode", &value);
+		ptable->tab.cursor_code.cursor_ok_scancode= ret ? -1 : value;
 
 		ir_scancode_sort(&ptable->tab);
 		/*insert list*/
