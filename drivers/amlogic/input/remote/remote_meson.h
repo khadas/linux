@@ -119,6 +119,7 @@ struct remote_chip {
 	struct ir_map_tab_list *cur_tab;
 	int custom_num;
 	struct key_number key_num;
+	unsigned long repeat_max_jiffies;
 	int decode_status;
 	int sys_custom_code;
 	const char *keymap_name;

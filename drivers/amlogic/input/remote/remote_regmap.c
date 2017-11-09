@@ -145,6 +145,84 @@ static struct remote_reg_map regs_default_toshiba[] = {
 	{ REG_DURATN3    ,  0x00}
 };
 
+static struct remote_reg_map regs_default_sony_sirc12[] = {
+	/* (4 +/- .5) * 600 us */
+	{ REG_LDR_ACTIVE, 135 << 16 | 105 << 0		   },
+	/* (1 +/- .5) * 600 us */
+	{ REG_LDR_IDLE,	  45 << 16 | 15 << 0		   },
+	/* No repeat code */
+	{ REG_LDR_REPEAT, 0				   },
+	/* (2 +/- .5) * 600 us */
+	{ REG_BIT_0,	  75 << 16 | 45 << 0		   },
+	/*
+	 * Filter: 140 us, max frame time: (4.5 + 1.5 + 12 * 3.5) * 600 us,
+	 * base time: 20 us
+	 */
+	{ REG_REG0,	  7 << 28 | 1440 << 12 | (20 - 1)  },
+	/* Logic "1": (3 +/- .5) * 600 us */
+	{ REG_STATUS,	  1 << 30 | 105 << 20 | 75 << 10   },
+	/* Decoder, frame body limited to 11 bits because of IP erratum */
+	{ REG_REG1,	  1 << 15 | (11 - 1) << 8	   },
+	/* Check repeat time, compare frames for repeat, lsb first, Sony SIRC */
+	{ REG_REG2,	  1 << 12 | 1 << 11 | 0 << 8 | 0x6 },
+	{ REG_DURATN2,	  0				   },
+	{ REG_DURATN3,	  0				   },
+	/* Repeat max frame interval: 50 ms */
+	{ REG_REG3,	  500				   },
+};
+
+static struct remote_reg_map regs_default_sony_sirc15[] = {
+	/* (4 +/- .5) * 600 us */
+	{ REG_LDR_ACTIVE, 135 << 16 | 105 << 0		   },
+	/* (1 +/- .5) * 600 us */
+	{ REG_LDR_IDLE,	  45 << 16 | 15 << 0		   },
+	/* No repeat code */
+	{ REG_LDR_REPEAT, 0				   },
+	/* (2 +/- .5) * 600 us */
+	{ REG_BIT_0,	  75 << 16 | 45 << 0		   },
+	/*
+	 * Filter: 140 us, max frame time: (4.5 + 1.5 + 15 * 3.5) * 600 us,
+	 * base time: 20 us
+	 */
+	{ REG_REG0,	  7 << 28 | 1755 << 12 | (20 - 1)  },
+	/* Logic "1": (3 +/- .5) * 600 us */
+	{ REG_STATUS,	  1 << 30 | 105 << 20 | 75 << 10   },
+	/* Decoder, frame body limited to 14 bits because of IP erratum */
+	{ REG_REG1,	  1 << 15 | (14 - 1) << 8	   },
+	/* Check repeat time, compare frames for repeat, lsb first, Sony SIRC */
+	{ REG_REG2,	  1 << 12 | 1 << 11 | 0 << 8 | 0x6 },
+	{ REG_DURATN2,	  0				   },
+	{ REG_DURATN3,	  0				   },
+	/* Repeat max frame interval: 50 ms */
+	{ REG_REG3,	  500				   },
+};
+
+static struct remote_reg_map regs_default_sony_sirc20[] = {
+	/* (4 +/- .5) * 600 us */
+	{ REG_LDR_ACTIVE, 135 << 16 | 105 << 0		   },
+	/* (1 +/- .5) * 600 us */
+	{ REG_LDR_IDLE,	  45 << 16 | 15 << 0		   },
+	/* No repeat code */
+	{ REG_LDR_REPEAT, 0				   },
+	/* (2 +/- .5) * 600 us */
+	{ REG_BIT_0,	  75 << 16 | 45 << 0		   },
+	/*
+	 * Filter: 140 us, max frame time: (4.5 + 1.5 + 20 * 3.5) * 600 us,
+	 * base time: 20 us
+	 */
+	{ REG_REG0,	  7 << 28 | 2280 << 12 | (20 - 1)  },
+	/* Logic "1": (3 +/- .5) * 600 us */
+	{ REG_STATUS,	  1 << 30 | 105 << 20 | 75 << 10   },
+	/* Decoder, frame body limited to 19 bits because of IP erratum */
+	{ REG_REG1,	  1 << 15 | (19 - 1) << 8	   },
+	/* Check repeat time, compare frames for repeat, lsb first, Sony SIRC */
+	{ REG_REG2,	  1 << 12 | 1 << 11 | 0 << 8 | 0x6 },
+	{ REG_DURATN2,	  0				   },
+	{ REG_DURATN3,	  0				   },
+	/* Repeat max frame interval: 50 ms */
+	{ REG_REG3,	  500				   },
+};
+
 void set_hardcode(struct remote_chip *chip, int code)
 {
 	remote_dbg(chip->dev, "framecode=0x%x\n", code);
@@ -462,6 +540,39 @@ static u32 ir_toshiba_get_custom_code(struct remote_chip *chip)
 	return custom_code;
 }
 
+static int ir_sony_sirc_get_scancode(struct remote_chip *chip)
+{
+	int  code = 0;
+	int decode_status = 0;
+	int status = 0;
+
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
+	if (decode_status & 0x01 &&
+			!time_is_before_eq_jiffies(chip->repeat_max_jiffies))
+		status |= REMOTE_REPEAT;
+	/*
+	 * Workaround for IP erratum causing the repeat max frame interval in
+	 * REG3 to be ignored for SIRC
+	 */
+	chip->repeat_max_jiffies = jiffies + msecs_to_jiffies(60);
+	chip->decode_status = status; /*set decode status*/
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
+	chip->r_dev->cur_hardcode = code;
+	code &= 0x7f;
+	return code;
+}
+
+static int ir_sony_sirc_get_decode_status(struct remote_chip *chip)
+{
+	return chip->decode_status;
+}
+
+static u32 ir_sony_sirc_get_custom_code(struct remote_chip *chip)
+{
+	return chip->r_dev->cur_hardcode >> 7;
+}
+
 
 /*legacy IR controller support protocols*/
 static struct aml_remote_reg_proto reg_legacy_nec = {
@@ -555,6 +666,36 @@ static struct aml_remote_reg_proto reg_toshiba = {
 	.get_custom_code   = ir_toshiba_get_custom_code,
 };
 
+static struct aml_remote_reg_proto reg_sony_sirc12 = {
+	.protocol = REMOTE_TYPE_SONY_SIRC12,
+	.name	  = "SONY_SIRC12",
+	.reg_map      = regs_default_sony_sirc12,
+	.reg_map_size = ARRAY_SIZE(regs_default_sony_sirc12),
+	.get_scancode      = ir_sony_sirc_get_scancode,
+	.get_decode_status = ir_sony_sirc_get_decode_status,
+	.get_custom_code   = ir_sony_sirc_get_custom_code,
+};
+
+static struct aml_remote_reg_proto reg_sony_sirc15 = {
+	.protocol = REMOTE_TYPE_SONY_SIRC15,
+	.name	  = "SONY_SIRC15",
+	.reg_map      = regs_default_sony_sirc15,
+	.reg_map_size = ARRAY_SIZE(regs_default_sony_sirc15),
+	.get_scancode      = ir_sony_sirc_get_scancode,
+	.get_decode_status = ir_sony_sirc_get_decode_status,
+	.get_custom_code   = ir_sony_sirc_get_custom_code,
+};
+
+static struct aml_remote_reg_proto reg_sony_sirc20 = {
+	.protocol = REMOTE_TYPE_SONY_SIRC20,
+	.name	  = "SONY_SIRC20",
+	.reg_map      = regs_default_sony_sirc20,
+	.reg_map_size = ARRAY_SIZE(regs_default_sony_sirc20),
+	.get_scancode      = ir_sony_sirc_get_scancode,
+	.get_decode_status = ir_sony_sirc_get_decode_status,
+	.get_custom_code   = ir_sony_sirc_get_custom_code,
+};
+
 
 const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_nec,
@@ -566,6 +707,9 @@ const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_rc6,
 	&reg_legacy_nec,
 	&reg_toshiba,
+	&reg_sony_sirc12,
+	&reg_sony_sirc15,
+	&reg_sony_sirc20,
 	NULL
 };
 
