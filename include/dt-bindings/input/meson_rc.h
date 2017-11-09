@@ -22,6 +22,9 @@
 #define     REMOTE_TYPE_RC5         0x04
 #define     REMOTE_TYPE_RC6         0x05
 #define     REMOTE_TYPE_TOSHIBA     0x06
+#define     REMOTE_TYPE_SONY_SIRC12 0x07
+#define     REMOTE_TYPE_SONY_SIRC15 0x08
+#define     REMOTE_TYPE_SONY_SIRC20 0x09
 
 /*hardware decode one protocol by using legacy IR controller*/
 #define     REMOTE_TYPE_LEGACY_NEC  0xff
