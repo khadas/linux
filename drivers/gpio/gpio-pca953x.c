@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -84,6 +85,7 @@ struct pca953x_chip {
 	struct mutex i2c_lock;
 
 #ifdef CONFIG_GPIO_PCA953X_IRQ
+	int irq_gpio;
 	struct mutex irq_lock;
 	u8 irq_mask[MAX_BANK];
 	u8 irq_stat[MAX_BANK];
@@ -578,22 +580,51 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		if (!chip->domain)
 			return -ENODEV;
 
+		if (gpio_is_valid(chip->irq_gpio)) {
+			ret = gpio_request_one(chip->irq_gpio, GPIOF_IN,
+					       dev_name(&client->dev));
+			if (ret) {
+				dev_err(&client->dev,
+					"unable to request GPIO %d\n",
+					chip->irq_gpio);
+				return ret;
+			}
+
+			ret = gpio_for_irq(chip->irq_gpio,
+					   AML_GPIO_IRQ(client->irq,
+						FILTER_NUM0, GPIO_IRQ_LOW));
+			if (ret) {
+				dev_err(&client->dev,
+					"unable to set GPIO for IRQ %d\n",
+					client->irq);
+				goto exit_free_irq_gpio;
+			}
+		}
+
 		ret = devm_request_threaded_irq(&client->dev,
 					client->irq,
 					   NULL,
 					   pca953x_irq_handler,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					   (gpio_is_valid(chip->irq_gpio) ?
+					   IRQF_TRIGGER_HIGH :
+					   IRQF_TRIGGER_FALLING) | IRQF_ONESHOT,
 					   dev_name(&client->dev), chip);
 		if (ret) {
 			dev_err(&client->dev, "failed to request irq %d\n",
 				client->irq);
-			return ret;
+			goto exit_free_irq_gpio;
 		}
 
 		chip->gpio_chip.to_irq = pca953x_gpio_to_irq;
 	}
 
 	return 0;
+
+exit_free_irq_gpio:
+	if (gpio_is_valid(chip->irq_gpio))
+		gpio_free(chip->irq_gpio);
+
+	return ret;
 }
 
 #else /* CONFIG_GPIO_PCA953X_IRQ */
@@ -710,6 +741,7 @@ static int pca953x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct pca953x_platform_data *pdata;
+	struct device_node *node;
 	struct pca953x_chip *chip;
 	int irq_base = 0;
 	int ret;
@@ -721,6 +753,9 @@ static int pca953x_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	pdata = dev_get_platdata(&client->dev);
+#ifdef CONFIG_GPIO_PCA953X_IRQ
+	chip->irq_gpio = -1;
+#endif
 	if (pdata) {
 		irq_base = pdata->irq_base;
 		chip->gpio_start = pdata->gpio_base;
@@ -729,9 +764,15 @@ static int pca953x_probe(struct i2c_client *client,
 	} else {
 		pca953x_get_alt_pdata(client, &chip->gpio_start, &invert);
 #ifdef CONFIG_OF_GPIO
+		node = client->dev.of_node;
 		/* If I2C node has no interrupts property, disable GPIO interrupts */
-		if (of_find_property(client->dev.of_node, "interrupts", NULL) == NULL)
+		if (of_find_property(node, "interrupts", NULL) == NULL)
 			irq_base = -1;
+#ifdef CONFIG_GPIO_PCA953X_IRQ
+		else if (client->irq)
+			chip->irq_gpio = of_get_named_gpio_flags(node,
+							"irq-gpios", 0, NULL);
+#endif
 #endif
 	}
 
@@ -758,8 +799,13 @@ static int pca953x_probe(struct i2c_client *client,
 		return ret;
 
 	ret = gpiochip_add(&chip->gpio_chip);
-	if (ret)
+	if (ret) {
+#ifdef CONFIG_GPIO_PCA953X_IRQ
+		if (gpio_is_valid(chip->irq_gpio))
+			gpio_free(chip->irq_gpio);
+#endif
 		return ret;
+	}
 
 	if (pdata && pdata->setup) {
 		ret = pdata->setup(client, chip->gpio_chip.base,
@@ -794,6 +840,11 @@ static int pca953x_remove(struct i2c_client *client)
 				"gpiochip_remove()", ret);
 		return ret;
 	}
+
+#ifdef CONFIG_GPIO_PCA953X_IRQ
+	if (gpio_is_valid(chip->irq_gpio))
+		gpio_free(chip->irq_gpio);
+#endif
 
 	return 0;
 }
