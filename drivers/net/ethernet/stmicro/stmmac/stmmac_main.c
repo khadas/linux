@@ -132,6 +132,9 @@ static void stmmac_exit_fs(void);
 
 #define STMMAC_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
 
+static struct workqueue_struct *moniter_tx_wq;
+static struct delayed_work moniter_tx_worker;
+
 /**
  * stmmac_verify_args - verify the driver parameters.
  * Description: it verifies if some wrong parameter is passed to the driver.
@@ -1406,11 +1409,55 @@ end:
 	kfree(buff);
 	return 0;
 }
+
+static const char *g_eyemap_help = {
+	"Usage:\n"
+	"    echo 0 > eyemap;    //disable eyemap test\n"
+	"    echo 1 > eyemap;    //enable  eyemap test\n"
+};
+
+static ssize_t eth_eyemap_help(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", g_eyemap_help);
+}
+
+static ssize_t eth_eyemap_func(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	int ret, val;
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	switch (val) {
+	case 0:
+		pr_info("dnx: enable monitor\n");
+		phy_write(c_phy_dev, 0, phy_read(c_phy_dev, 0) & ~0x2100);
+
+		phy_write(c_phy_dev, 17, phy_read(c_phy_dev, 17) & ~0x0004);
+
+		queue_delayed_work(moniter_tx_wq, &moniter_tx_worker, HZ);
+		break;
+	case 1:
+		pr_info("dnx: stop monitor\n");
+		cancel_delayed_work_sync(&moniter_tx_worker);
+
+		phy_write(c_phy_dev, 0, 0x2100);
+
+		phy_write(c_phy_dev, 17, 0x0004);
+		break;
+	}
+
+	return count;
+}
+
 #define DRIVER_NAME "ethernet"
 
 static struct class *phy_sys_class;
 static CLASS_ATTR(phyreg, S_IWUSR | S_IRUGO, eth_phyreg_help, eth_phyreg_func);
 static CLASS_ATTR(macreg, S_IWUSR | S_IRUGO, eth_macreg_help, eth_macreg_func);
+static CLASS_ATTR(eyemap, S_IWUSR | S_IRUGO, eth_eyemap_help, eth_eyemap_func);
 static CLASS_ATTR(linkspeed, S_IWUSR | S_IRUGO, eth_linkspeed_show, NULL);
 static CLASS_ATTR(cali, S_IWUSR | S_IRUGO, NULL, eth_cali_store);
 #endif
@@ -1434,6 +1481,7 @@ int gmac_create_sysfs(struct phy_device *phy_dev, void __iomem *ioaddr)
 	ret = class_create_file(phy_sys_class, &class_attr_macreg);
 	ret = class_create_file(phy_sys_class, &class_attr_linkspeed);
 	ret = class_create_file(phy_sys_class, &class_attr_cali);
+	ret = class_create_file(phy_sys_class, &class_attr_eyemap);
 	return 0;
 }
 
@@ -2362,8 +2410,6 @@ static int stmmac_hw_setup(struct net_device *dev)
 	return 0;
 }
 
-static struct workqueue_struct *moniter_tx_wq;
-static struct delayed_work moniter_tx_worker;
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
