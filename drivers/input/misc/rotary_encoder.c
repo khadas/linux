@@ -21,10 +21,12 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/rotary_encoder.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 
 #define DRV_NAME "rotary-encoder"
@@ -156,6 +158,7 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 	struct device_node *np = dev->of_node;
 	struct rotary_encoder_platform_data *pdata;
 	enum of_gpio_flags flags;
+	int i;
 
 	if (!of_id || !np)
 		return NULL;
@@ -173,6 +176,15 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 
 	pdata->gpio_b = of_get_gpio_flags(np, 1, &flags);
 	pdata->inverted_b = flags & OF_GPIO_ACTIVE_LOW;
+
+	for (i = 0; i < ARRAY_SIZE(pdata->irqs); i++) {
+		pdata->irqs[i] = irq_of_parse_and_map(np, i);
+		if (!pdata->irqs[i]) {
+			while (i)
+				pdata->irqs[--i] = 0;
+			break;
+		}
+	}
 
 	pdata->relative_axis = !!of_get_property(np,
 					"rotary-encoder,relative-axis", NULL);
@@ -198,7 +210,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	struct rotary_encoder *encoder;
 	struct input_dev *input;
 	irq_handler_t handler;
-	int err;
+	int i, err;
 
 	if (!pdata) {
 		pdata = rotary_encoder_parse_dt(dev);
@@ -247,9 +259,6 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		goto exit_free_gpio_a;
 	}
 
-	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
-	encoder->irq_b = gpio_to_irq(pdata->gpio_b);
-
 	/* request the IRQs */
 	if (pdata->half_period) {
 		handler = &rotary_encoder_half_period_irq;
@@ -258,36 +267,92 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		handler = &rotary_encoder_irq;
 	}
 
-	err = request_irq(encoder->irq_a, handler,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  DRV_NAME, encoder);
-	if (err) {
-		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_a);
-		goto exit_free_gpio_b;
-	}
+	if (pdata->irqs[0]) {
+		err = gpio_for_irq(pdata->gpio_a, AML_GPIO_IRQ(pdata->irqs[0],
+						FILTER_NUM0, GPIO_IRQ_RISING));
+		if (err) {
+			dev_err(dev, "unable to set GPIO for IRQ %d\n",
+				pdata->irqs[0]);
+			goto exit_free_gpio_b;
+		}
 
-	err = request_irq(encoder->irq_b, handler,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  DRV_NAME, encoder);
-	if (err) {
-		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_b);
-		goto exit_free_irq_a;
+		err = gpio_for_irq(pdata->gpio_a, AML_GPIO_IRQ(pdata->irqs[1],
+						FILTER_NUM0, GPIO_IRQ_FALLING));
+		if (err) {
+			dev_err(dev, "unable to set GPIO for IRQ %d\n",
+				pdata->irqs[1]);
+			goto exit_free_gpio_b;
+		}
+
+		err = gpio_for_irq(pdata->gpio_b, AML_GPIO_IRQ(pdata->irqs[2],
+						FILTER_NUM0, GPIO_IRQ_RISING));
+		if (err) {
+			dev_err(dev, "unable to set GPIO for IRQ %d\n",
+				pdata->irqs[2]);
+			goto exit_free_gpio_b;
+		}
+
+		err = gpio_for_irq(pdata->gpio_b, AML_GPIO_IRQ(pdata->irqs[3],
+						FILTER_NUM0, GPIO_IRQ_FALLING));
+		if (err) {
+			dev_err(dev, "unable to set GPIO for IRQ %d\n",
+				pdata->irqs[3]);
+			goto exit_free_gpio_b;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(pdata->irqs); i++) {
+			err = request_irq(pdata->irqs[i], handler,
+					IRQF_TRIGGER_RISING, DRV_NAME, encoder);
+			if (err) {
+				dev_err(dev, "unable to request IRQ %d\n",
+					pdata->irqs[i]);
+				goto exit_free_rem_irqs;
+			}
+		}
+	} else {
+		encoder->irq_a = gpio_to_irq(pdata->gpio_a);
+		encoder->irq_b = gpio_to_irq(pdata->gpio_b);
+
+		err = request_irq(encoder->irq_a, handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				DRV_NAME, encoder);
+		if (err) {
+			dev_err(dev, "unable to request IRQ %d\n",
+				encoder->irq_a);
+			goto exit_free_gpio_b;
+		}
+
+		err = request_irq(encoder->irq_b, handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				DRV_NAME, encoder);
+		if (err) {
+			dev_err(dev, "unable to request IRQ %d\n",
+				encoder->irq_b);
+			goto exit_free_irq_a;
+		}
 	}
 
 	err = input_register_device(input);
 	if (err) {
 		dev_err(dev, "failed to register input device\n");
-		goto exit_free_irq_b;
+		goto exit_free_irqs;
 	}
 
 	platform_set_drvdata(pdev, encoder);
 
 	return 0;
 
-exit_free_irq_b:
-	free_irq(encoder->irq_b, encoder);
+exit_free_irqs:
+	if (pdata->irqs[0]) {
+		i = ARRAY_SIZE(pdata->irqs);
+exit_free_rem_irqs:
+		while (i)
+			free_irq(pdata->irqs[--i], encoder);
+	} else {
+		free_irq(encoder->irq_b, encoder);
 exit_free_irq_a:
-	free_irq(encoder->irq_a, encoder);
+		free_irq(encoder->irq_a, encoder);
+	}
 exit_free_gpio_b:
 	gpio_free(pdata->gpio_b);
 exit_free_gpio_a:
@@ -305,9 +370,15 @@ static int rotary_encoder_remove(struct platform_device *pdev)
 {
 	struct rotary_encoder *encoder = platform_get_drvdata(pdev);
 	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
+	int i;
 
-	free_irq(encoder->irq_a, encoder);
-	free_irq(encoder->irq_b, encoder);
+	if (pdata->irqs[0]) {
+		for (i = 0; i < ARRAY_SIZE(pdata->irqs); i++)
+			free_irq(pdata->irqs[i], encoder);
+	} else {
+		free_irq(encoder->irq_a, encoder);
+		free_irq(encoder->irq_b, encoder);
+	}
 	gpio_free(pdata->gpio_a);
 	gpio_free(pdata->gpio_b);
 

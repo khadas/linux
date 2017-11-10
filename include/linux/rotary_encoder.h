@@ -8,6 +8,7 @@ struct rotary_encoder_platform_data {
 	unsigned int gpio_b;
 	unsigned int inverted_a;
 	unsigned int inverted_b;
+	unsigned int irqs[4];
 	bool relative_axis;
 	bool rollover;
 	bool half_period;
