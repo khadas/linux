@@ -868,7 +868,7 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 		if (ret < 0)
 			return ret;
 	}
-	if (NULL != strstr(dai_links[0].codec_dai_name, "tlv320aic32x4"))
+	if (NULL != strstr(dai_links[0].codec_dai_name, "tlv320"))
 		dai_links[0].ops = &aml_asoc_ops;
 
  err:
