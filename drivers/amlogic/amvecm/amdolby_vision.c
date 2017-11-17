@@ -946,6 +946,8 @@ static int stb_dolby_core1_set(
 	int composer_enable = el_enable;
 	uint32_t run_mode = 0;
 	int reg_size = 0;
+	bool bypass_core1 = (!hsize || !vsize
+		|| !(dolby_vision_mask & 1));
 
 	if (dolby_vision_on
 		&& (dolby_vision_flags &
@@ -993,6 +995,19 @@ static int stb_dolby_core1_set(
 			VIU_MISC_CTRL1,
 			/* vd2 to vpp */
 			1, 17, 1);
+
+	if (dolby_vision_core1_on
+		&& !bypass_core1)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* enable core 1 */
+			0, 16, 1);
+	else if (dolby_vision_core1_on
+		&& bypass_core1)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* bypass core 1 */
+			1, 16, 1);
 
 	/* run mode = bypass, when fake frame */
 	if (!bl_enable)
@@ -1117,7 +1132,8 @@ static int tv_dolby_core1_set(
 {
 	uint64_t run_mode;
 	int composer_enable = el_enable;
-
+	bool bypass_core1 = (!hsize || !vsize
+		|| !(dolby_vision_mask & 1));
 	if (dolby_vision_on
 		&& (dolby_vision_flags &
 		FLAG_DISABE_CORE_SETTING))
@@ -1176,6 +1192,19 @@ static int tv_dolby_core1_set(
 			VIU_MISC_CTRL1,
 			/* vd2 to vpp */
 			1, 17, 1);
+
+	if (dolby_vision_core1_on
+		&& !bypass_core1)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* enable core 1 */
+			0, 16, 1);
+	else if (dolby_vision_core1_on
+		&& bypass_core1)
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_MISC_CTRL1,
+			/* bypass core 1 */
+			1, 16, 1);
 
 	if (dolby_vision_run_mode != 0xff)
 		run_mode = dolby_vision_run_mode;
@@ -1294,6 +1323,8 @@ static int dolby_core1_set(
 	bool set_lut = false;
 	uint32_t *last_dm = (uint32_t *)&dovi_setting.dm_reg1;
 	uint32_t *last_comp = (uint32_t *)&dovi_setting.comp_reg;
+	bool bypass_core1 = (!hsize || !vsize
+		|| !(dolby_vision_mask & 1));
 	if (dolby_vision_on
 		&& (dolby_vision_flags &
 		FLAG_DISABE_CORE_SETTING))
@@ -1436,9 +1467,18 @@ static int dolby_core1_set(
 		VSYNC_WR_MPEG_REG(
 			VPP_VD1_CLIP_MISC1,
 			0);
-		VSYNC_WR_MPEG_REG_BITS(
-			VIU_MISC_CTRL1,
-			0, 16, 1);
+		if (dolby_vision_core1_on
+			&& !bypass_core1)
+			VSYNC_WR_MPEG_REG_BITS(
+				VIU_MISC_CTRL1,
+				/* enable core 1 */
+				0, 16, 1);
+		else if (dolby_vision_core1_on
+			&& bypass_core1)
+			VSYNC_WR_MPEG_REG_BITS(
+				VIU_MISC_CTRL1,
+				/* bypass core 1 */
+				1, 16, 1);
 	}
 	/* enable core1 */
 	VSYNC_WR_MPEG_REG(DOLBY_CORE1_SWAP_CTRL0,
@@ -4794,7 +4834,8 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 		return 0;
 	}
 
-	if ((debug_dolby & 2) && force_set)
+	if ((debug_dolby & 2) && force_set
+		&& !(dolby_vision_flags & FLAG_CERTIFICAION))
 		pr_dolby_dbg(
 			"core1 size changed--old: %d x %d, new: %d x %d\n",
 			core1_disp_hsize, core1_disp_vsize,
