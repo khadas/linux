@@ -3986,8 +3986,8 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 		return -EFAULT;
 #else
 		encode_manager.cma_pool_size =
-			(codec_mm_get_total_size() > (MIN_SIZE * 2)) ?
-			(MIN_SIZE * 2) : codec_mm_get_total_size();
+			(codec_mm_get_total_size() > (MIN_SIZE * 3)) ?
+			(MIN_SIZE * 3) : codec_mm_get_total_size();
 		enc_pr(LOG_DEBUG,
 			"amvenc_avc - cma memory pool size: %d MB\n",
 			(u32)encode_manager.cma_pool_size / SZ_1M);
