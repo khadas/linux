@@ -37,6 +37,8 @@ signed int vd1_contrast_offset;
 
 signed int saturation_offset;
 
+static void vpp_set_mtx_en_write(void);
+
 struct hdr_osd_reg_s hdr_osd_reg = {
 	0x00000001, /* VIU_OSD1_MATRIX_CTRL 0x1a90 */
 	0x00ba0273, /* VIU_OSD1_MATRIX_COEF00_01 0x1a91 */
@@ -2135,10 +2137,12 @@ int enable_rgb_to_yuv_matrix_for_dvll(
 		coeff[22] = bits - 10;
 		set_vpp_matrix(VPP_MATRIX_POST,
 			coeff, CSC_ON);
+		vpp_set_mtx_en_write();
 		restore_post_table = true;
 	} else if (restore_post_table) {
 		set_vpp_matrix(VPP_MATRIX_POST,
 			post_mtx_backup, post_on_backup);
+		vpp_set_mtx_en_write();
 		restore_post_table = false;
 	}
 	return 0;
