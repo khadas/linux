@@ -4815,6 +4815,16 @@ SET_FILTER:
 				cur_dispbuf, 2, false);
 			dolby_vision_set_toggle_flag(1);
 		}
+		/* force toggle in pause mode */
+		if (cur_dispbuf
+			&& (cur_dispbuf != &vf_local)
+			&& !toggle_vf
+			&& is_dolby_vision_on()) {
+			toggle_vf = cur_dispbuf;
+			dolby_vision_parse_metadata(
+				cur_dispbuf, 0, false);
+			dolby_vision_set_toggle_flag(1);
+		}
 		if (cur_frame_par) {
 			if (cur_frame_par->VPP_hd_start_lines_
 				>=  cur_frame_par->VPP_hd_end_lines_)
