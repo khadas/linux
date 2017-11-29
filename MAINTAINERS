@@ -14051,3 +14051,7 @@ F:	arch/arm64/boot/dts/amlogic/axg_s420_128m.dts
 AMLOGIC MESONGXL ADD P241 DTS
 M:	Lianghu Su <lianghu.su@amlogic.com>
 F:	arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts
+
+AMLOGIC ADD P241 buildroot V2 DTS
+M: Wenbiao <wenbiao.zhang@amlogic.com>
+F: arch/arm64/boot/dts/amlogic/gxl_p241_v2_1g_buildroot.dts
