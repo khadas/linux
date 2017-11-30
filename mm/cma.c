@@ -39,15 +39,6 @@
 #include <linux/amlogic/page_trace.h>
 #endif
 
-struct cma {
-	unsigned long	base_pfn;
-	unsigned long	count;
-	unsigned long	*bitmap;
-	unsigned int order_per_bit; /* Order of pages represented by one bit */
-	struct mutex	lock;
-};
-
-
 /*
  * try to migrate pages with many map count to non cma areas
  */
@@ -65,8 +56,8 @@ static LIST_HEAD(mr_list);
 static DEFINE_SPINLOCK(mr_lock);
 struct work_struct cma_migrate_work;
 
-static struct cma cma_areas[MAX_CMA_AREAS];
-static unsigned cma_area_count;
+struct cma cma_areas[MAX_CMA_AREAS];
+unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
 static atomic_t cma_allocate;
@@ -266,11 +257,6 @@ static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
 	if (align_order <= cma->order_per_bit)
 		return 0;
 	return (1UL << (align_order - cma->order_per_bit)) - 1;
-}
-
-static unsigned long cma_bitmap_maxno(struct cma *cma)
-{
-	return cma->count >> cma->order_per_bit;
 }
 
 static unsigned long cma_bitmap_pages_to_bits(struct cma *cma,
@@ -561,6 +547,7 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 				bitmap_maxno, start, bitmap_count, mask);
 		if (bitmap_no >= bitmap_maxno) {
 			mutex_unlock(&cma->lock);
+			ret = -ERANGE;
 			break;
 		}
 		bitmap_set(cma->bitmap, bitmap_no, bitmap_count);
@@ -593,6 +580,8 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 	update_cma_page_trace(page, count);
 #endif
 	pr_debug("%s(): returned %p\n", __func__, page);
+	if (!page)
+		pr_info("%s failed reason:%d\n", __func__, ret);
 	return page;
 }
 
