@@ -208,6 +208,9 @@ static u32 core1_disp_vsize;
 static u32 vsync_count;
 #define FLAG_VSYNC_CNT 10
 
+static bool is_osd_off;
+static bool force_reset_core2;
+
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 module_param(vpotch, uint, 0664);
@@ -1341,14 +1344,17 @@ static int dolby_core1_set(
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
+	if (dolby_vision_on_count
+		== dolby_vision_run_mode_delay)
+		reset = true;
+
 	if ((!dolby_vision_on || reset) && bl_enable) {
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, 1 << 9);
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, 0);
 		reset = true;
 	}
 
-	if ((dolby_vision_flags & FLAG_CERTIFICAION)
-		|| (frame_count < 10))
+	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		reset = true;
 
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC)
@@ -1467,14 +1473,17 @@ static int dolby_core1_set(
 			VIU_MISC_CTRL1,
 			1, 16, 1);
 	} else {
-		VSYNC_WR_MPEG_REG(
-			VPP_VD1_CLIP_MISC0,
-			(0x3ff << 20) |
-			(0x3ff << 10) |
-			0x3ff);
-		VSYNC_WR_MPEG_REG(
-			VPP_VD1_CLIP_MISC1,
-			0);
+		if (dolby_vision_on_count >
+			dolby_vision_run_mode_delay) {
+			VSYNC_WR_MPEG_REG(
+				VPP_VD1_CLIP_MISC0,
+				(0x3ff << 20) |
+				(0x3ff << 10) |
+				0x3ff);
+			VSYNC_WR_MPEG_REG(
+				VPP_VD1_CLIP_MISC1,
+				0);
+		}
 		if (dolby_vision_core1_on
 			&& !bypass_core1)
 			VSYNC_WR_MPEG_REG_BITS(
@@ -1518,14 +1527,14 @@ static int dolby_core2_set(
 		FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (!dolby_vision_on) {
+	if (!dolby_vision_on || force_reset_core2) {
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, (1 << 10));
 		VSYNC_WR_MPEG_REG(VIU_SW_RESET, 0);
+		force_reset_core2 = false;
 		reset = true;
 	}
 
-	if ((dolby_vision_flags & FLAG_CERTIFICAION)
-		|| (frame_count < 10))
+	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		reset = true;
 
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC2)
@@ -1562,10 +1571,12 @@ static int dolby_core2_set(
 	for (i = 0; i < count; i++)
 		if (reset ||
 			(p_core2_dm_regs[i] !=
-			last_dm[i]))
+			last_dm[i])) {
 			VSYNC_WR_MPEG_REG(
 				DOLBY_CORE2A_REG_START + 6 + i,
 				p_core2_dm_regs[i]);
+			set_lut = true;
+		}
 	/* core2 metadata program done */
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_REG_START + 3, 1);
 
@@ -1573,7 +1584,7 @@ static int dolby_core2_set(
 		count = 256 * 5;
 	else
 		count = lut_count;
-	if (set_lut && (count || reset)) {
+	if (count && (set_lut || reset)) {
 		if (dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT)
 			VSYNC_WR_MPEG_REG_BITS(DOLBY_CORE2A_CLKGATE_CTRL,
 				2, 2, 2);
@@ -1633,12 +1644,10 @@ static int dolby_core3_set(
 		FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (!dolby_vision_on)
+	if (!dolby_vision_on ||
+		(dolby_vision_flags & FLAG_CERTIFICAION))
 		reset = true;
 
-	if ((dolby_vision_flags & FLAG_CERTIFICAION)
-		|| (frame_count < 10))
-		reset = true;
 #ifdef V2_4
 	if (((cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL)
 		|| (cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT))
@@ -4411,18 +4420,16 @@ int dolby_vision_parse_metadata(
 	if (is_graphics_output_off()) {
 		graphic_min = 0;
 		graphic_max = 0;
+		is_osd_off = true;
 	} else {
-		graphic_min =
-			dolby_vision_graphic_min;
-#ifdef V2_4
-		if (dolby_vision_flags & FLAG_CERTIFICAION)
-			graphic_max = 500;
-		else
-			graphic_max =
-				dolby_vision_graphic_max;
-#else
+		graphic_min = dolby_vision_graphic_min;
 		graphic_max = dolby_vision_graphic_max;
-#endif
+		/* force reset core2 when osd off->on */
+		/* TODO: 962e need ? */
+		if (is_osd_off
+			&& is_meson_gxm_cpu())
+			force_reset_core2 = true;
+		is_osd_off = false;
 	}
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
 		if (vinfo->dv_info->ieeeoui == 0x00d046) {
@@ -4642,19 +4649,20 @@ int dolby_vision_parse_metadata(
 		dovi_setting_video_flag = video_frame;
 		if (debug_dolby & 1) {
 			if (el_flag)
-				pr_dolby_dbg("setting %d->%d(T:%d-%d): flag=%02x,md=%d,comp=%d\n",
+				pr_dolby_dbg("setting %d->%d(T:%d-%d): flag=%02x,md=%d,comp=%d, frame:%d\n",
 				src_format, dst_format,
 				dolby_vision_target_min,
 				dolby_vision_target_max[src_format][dst_format],
 				flag,
-				total_md_size, total_comp_size);
+				total_md_size, total_comp_size,
+				frame_count);
 			else
-				pr_dolby_dbg("setting %d->%d(T:%d-%d): flag=%02x,md=%d\n",
+				pr_dolby_dbg("setting %d->%d(T:%d-%d): flag=%02x,md=%d, frame:%d\n",
 				src_format, dst_format,
 				dolby_vision_target_min,
 				dolby_vision_target_max[src_format][dst_format],
 				flag,
-				total_md_size);
+				total_md_size, frame_count);
 		}
 		dump_setting(&new_dovi_setting, frame_count, debug_dolby);
 		el_mode = el_flag;
@@ -4920,9 +4928,10 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size)
 		&& !video_off_handled) {
 		dolby_vision_set_toggle_flag(1);
 		frame_count = 0;
-		pr_dolby_dbg("video off\n");
-		if (debug_dolby)
+		if (debug_dolby & 2) {
 			video_off_handled = 1;
+			pr_dolby_dbg("video off\n");
+		}
 	}
 
 	if (last_dolby_vision_policy != dolby_vision_policy) {
