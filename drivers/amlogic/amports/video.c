@@ -2271,7 +2271,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			VSYNC_WR_MPEG_REG(
 				VD1_IF0_CANVAS1 + cur_dev->viu_off,
 				disp_canvas[0]);
-			if (!vf_with_el)
+			if (!vf_with_el) {
 				VSYNC_WR_MPEG_REG(
 					VD2_IF0_CANVAS0 + cur_dev->viu_off,
 					disp_canvas[1]);
@@ -2973,6 +2973,16 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		}
 	}
 #endif
+
+	if (is_meson_txlx_cpu()
+		&& is_dolby_vision_on()
+		&& is_dolby_vision_stb_mode()
+		&& (vf->source_type ==
+		VFRAME_SOURCE_TYPE_OTHERS))
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_VD1_FMT_CTRL + cur_dev->viu_off,
+			1, 29, 1);
+
 	/* LOOP/SKIP pattern */
 	pat = vpat[frame_par->vscale_skip_count];
 
@@ -3287,11 +3297,11 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 #ifdef TV_REVERSE
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		if (reverse) {
-				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
-					cur_dev->viu_off), 0xf, 2, 4);
+			VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+				cur_dev->viu_off), 0xf, 2, 4);
 		} else {
-				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
-					cur_dev->viu_off), 0, 2, 4);
+			VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+				cur_dev->viu_off), 0, 2, 4);
 		}
 	}
 #endif
@@ -3404,6 +3414,15 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				is_dolby_vision_on());
 		}
 	}
+
+	if (is_meson_txlx_cpu()
+		&& is_dolby_vision_on()
+		&& is_dolby_vision_stb_mode()
+		&& (vf->source_type ==
+		VFRAME_SOURCE_TYPE_OTHERS))
+		VSYNC_WR_MPEG_REG_BITS(
+			VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+			1, 29, 1);
 	/* LOOP/SKIP pattern */
 	pat = vpat[frame_par->vscale_skip_count];
 
@@ -4826,7 +4845,8 @@ SET_FILTER:
 		if (cur_dispbuf
 			&& (cur_dispbuf != &vf_local)
 			&& !toggle_vf
-			&& is_dolby_vision_on()) {
+			&& is_dolby_vision_on()
+			&& !for_dolby_vision_certification()) {
 			toggle_vf = cur_dispbuf;
 			dolby_vision_parse_metadata(
 				cur_dispbuf, 0, false);
@@ -5421,7 +5441,7 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 	&& (video_onoff_state == VIDEO_ENABLE_STATE_IDLE)) {
 		struct vppfilter_mode_s *vpp_filter =
 		    &cur_frame_par->vpp_filter;
-		u32 h_phase_step , v_phase_step;
+		u32 h_phase_step, v_phase_step;
 		h_phase_step = READ_VCBUS_REG(
 		VPP_HSC_START_PHASE_STEP + cur_dev->vpp_off);
 		v_phase_step = READ_VCBUS_REG(
@@ -7358,15 +7378,15 @@ static u32 yuv2rgb(u32 yuv)
 	r = r - 16;
 	if (r < 0)
 		r = 0;
-		r = r*1164/1000;
+	r = r*1164/1000;
 	g = g - 16;
 	if (g < 0)
 		g = 0;
-		g = g*1164/1000;
+	g = g*1164/1000;
 	b = b - 16;
 	if (b < 0)
 		b = 0;
-		b = b*1164/1000;
+	b = b*1164/1000;
 
 	r = (r <= 0) ? 0 : (r >= 255) ? 255 : r;
 	g = (g <= 0) ? 0 : (g >= 255) ? 255 : g;

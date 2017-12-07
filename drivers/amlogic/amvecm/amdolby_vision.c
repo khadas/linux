@@ -128,10 +128,7 @@ module_param(dolby_vision_tunning_mode, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_tunning_mode, "\n dolby_vision_tunning_mode\n");
 
 #ifdef V2_4
-#define DV_LL_OUTPUT_BITS 12
-/* bit0 ~ bit7: output mode, bit8 ~ bit15: output bits */
-static unsigned int dv_ll_output_mode =
-	(DV_LL_OUTPUT_BITS << 8) | DOLBY_VISION_OUTPUT_MODE_HDR10;
+static unsigned int dv_ll_output_mode = DOLBY_VISION_OUTPUT_MODE_HDR10;
 module_param(dv_ll_output_mode, uint, 0664);
 MODULE_PARM_DESC(dv_ll_output_mode, "\n dv_ll_output_mode\n");
 
@@ -1038,7 +1035,9 @@ static int stb_dolby_core1_set(
 	if (dolby_vision_run_mode != 0xff)
 		run_mode = dolby_vision_run_mode;
 	else {
-		run_mode = (0x7 << 6) | (el_41_mode << 3) | bypass_flag;
+		run_mode = (0x7 << 6) |
+			((el_41_mode ? 3 : 1) << 2) |
+			bypass_flag;
 		if (dolby_vision_on_count < dolby_vision_run_mode_delay) {
 			run_mode |= 1;
 			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0,
@@ -1061,7 +1060,11 @@ static int stb_dolby_core1_set(
 	if (reset)
 		VSYNC_WR_MPEG_REG(DOLBY_TV_REG_START + 1, run_mode);
 
-	VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL5, 0x6);
+	/* 962e work around to fix the uv swap issue when bl:el = 1:1 */
+	if (el_41_mode)
+		VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL5, 0x6);
+	else
+		VSYNC_WR_MPEG_REG(DOLBY_TV_SWAP_CTRL5, 0xa);
 
 	/* axi dma for reg table */
 	reg_size = prepare_stb_dolby_core1_reg(
@@ -1542,7 +1545,8 @@ static int dolby_core2_set(
 
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_CLKGATE_CTRL, 0);
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL0, 0);
-	if (is_meson_gxm_cpu()) {
+
+	if (is_meson_gxm_cpu() || reset) {
 		VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
 			((hsize + g_htotal_add) << 16)
 			| (vsize + g_vtotal_add + g_vsize_add));
@@ -1652,7 +1656,7 @@ static int dolby_core3_set(
 	if (((cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL)
 		|| (cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT))
 		&& diag_enable) {
-		cur_dv_mode = dv_ll_output_mode & 0xff;
+		cur_dv_mode = dv_ll_output_mode;
 		diag_mode = 3;
 	}
 	if (dolby_vision_on &&
@@ -1721,8 +1725,7 @@ static int dolby_core3_set(
 		memcmp(&p_core3_dm_regs[18],
 		&last_dm[18], 32)))
 		enable_rgb_to_yuv_matrix_for_dvll(
-			1, &p_core3_dm_regs[18],
-			(dv_ll_output_mode >> 8) & 0xff);
+			1, &p_core3_dm_regs[18], 12);
 #endif
 
 	VSYNC_WR_MPEG_REG(DOLBY_CORE3_CLKGATE_CTRL, 0);
@@ -1814,14 +1817,27 @@ static void apply_stb_core_settings(
 #endif
 	u32 graphics_w = 1920;
 	u32 graphics_h = 1080;
-	if (is_meson_gxm_cpu()
-		&& dolby_vision_flags & FLAG_CERTIFICAION) {
+	if (is_dolby_vision_stb_mode()
+		&& (dolby_vision_flags & FLAG_CERTIFICAION)) {
 		graphics_w = dv_cert_graphic_width;
 		graphics_h = dv_cert_graphic_height;
 	}
+	if (is_meson_txlx_package_962E()
+		|| force_stb_mode) {
+		if (vinfo->mode >= VMODE_1080P)
+			dma_start_line = 0x400;
+		else
+			dma_start_line = 0x180;
+		/* adjust core2 setting to work around
+			fixing with 1080p24hz and 480p60hz */
+		if (vinfo->mode < VMODE_720P)
+			g_vpotch = 0x60;
+		else
+			g_vpotch = 0x20;
+	}
 	if (mask & 1) {
 		if (is_meson_txlx_package_962E()
-			|| force_stb_mode)
+			|| force_stb_mode) {
 			stb_dolby_core1_set(
 				27, 173, 256 * 5,
 				(uint32_t *)&new_dovi_setting.dm_reg1,
@@ -1839,7 +1855,7 @@ static void apply_stb_core_settings(
 				new_dovi_setting.src_format == FORMAT_DOVI,
 				1,
 				reset);
-		else
+		} else
 			dolby_core1_set(
 				core1_dm_count, 173, 256 * 5,
 				(uint32_t *)&new_dovi_setting.dm_reg1,
@@ -2279,9 +2295,7 @@ void enable_dolby_vision(int enable)
 					VSYNC_WR_MPEG_REG_BITS(
 						VPP_DOLBY_CTRL, 1, 1, 2);
 					enable_rgb_to_yuv_matrix_for_dvll(
-						1, &reg[18],
-						(dv_ll_output_mode >> 8)
-						& 0xff);
+						1, &reg[18], 12);
 				} else
 					enable_rgb_to_yuv_matrix_for_dvll(
 						0, NULL, 12);
@@ -2358,9 +2372,7 @@ void enable_dolby_vision(int enable)
 						VPP_DOLBY_CTRL,
 						3, 6, 2); /* post matrix */
 					enable_rgb_to_yuv_matrix_for_dvll(
-						1, &reg[18],
-						(dv_ll_output_mode >> 8)
-						& 0xff);
+						1, &reg[18], 12);
 				} else
 					enable_rgb_to_yuv_matrix_for_dvll(
 						0, NULL, 12);
@@ -2728,22 +2740,37 @@ static void dump_setting(
 		p = (uint32_t *)&setting->comp_reg;
 		for (i = 0; i < 173; i++)
 			pr_info("%08x\n", p[i]);
-		pr_info("core1 swap\n");
-		for (i = DOLBY_CORE1_CLKGATE_CTRL;
-			i <= DOLBY_CORE1_DMA_PORT; i++)
-			pr_info("[0x%4x] = 0x%x\n",
-				i, READ_VPP_REG(i));
-		pr_info("core1 real reg\n");
-		for (i = DOLBY_CORE1_REG_START;
-			i <= DOLBY_CORE1_REG_START + 5; i++)
-			pr_info("[0x%4x] = 0x%x\n",
-				i, READ_VPP_REG(i));
-		pr_info("core1 composer real reg\n");
-		for (i = 0; i < 173 ; i++)
-			pr_info("%08x\n",
-				READ_VPP_REG(
-				DOLBY_CORE1_REG_START
-				+ 50 + i));
+		if (is_meson_gxm_cpu()) {
+			pr_info("core1 swap\n");
+			for (i = DOLBY_CORE1_CLKGATE_CTRL;
+				i <= DOLBY_CORE1_DMA_PORT; i++)
+				pr_info("[0x%4x] = 0x%x\n",
+					i, READ_VPP_REG(i));
+			pr_info("core1 real reg\n");
+			for (i = DOLBY_CORE1_REG_START;
+				i <= DOLBY_CORE1_REG_START + 5;
+				i++)
+				pr_info("[0x%4x] = 0x%x\n",
+					i, READ_VPP_REG(i));
+			pr_info("core1 composer real reg\n");
+			for (i = 0; i < 173 ; i++)
+				pr_info("%08x\n",
+					READ_VPP_REG(
+					DOLBY_CORE1_REG_START
+					+ 50 + i));
+		} else if (is_meson_txlx_cpu()) {
+			pr_info("core1 swap\n");
+			for (i = DOLBY_TV_SWAP_CTRL0;
+				i <= DOLBY_TV_STATUS1; i++)
+				pr_info("[0x%4x] = 0x%x\n",
+					i, READ_VPP_REG(i));
+			pr_info("core1 real reg\n");
+			for (i = DOLBY_TV_REG_START;
+				i <= DOLBY_CORE1_REG_START + 5;
+				i++)
+				pr_info("[0x%4x] = 0x%x\n",
+					i, READ_VPP_REG(i));
+		}
 	}
 
 	if ((debug_flag & 0x20) && dump_enable) {
@@ -4148,7 +4175,7 @@ int dolby_vision_parse_metadata(
 #ifdef V2_4
 		/* TODO: need 962e ? */
 		if ((src_format == FORMAT_SDR)
-			&& is_meson_gxm_cpu()
+			&& is_dolby_vision_stb_mode()
 			&& !req.dv_enhance_exist)
 			src_bdp = 10;
 #endif
@@ -4429,8 +4456,7 @@ int dolby_vision_parse_metadata(
 		graphic_max = dolby_vision_graphic_max;
 		/* force reset core2 when osd off->on */
 		/* TODO: 962e need ? */
-		if (is_osd_off
-			&& is_meson_gxm_cpu())
+		if (is_osd_off)
 			force_reset_core2 = true;
 		is_osd_off = false;
 	}

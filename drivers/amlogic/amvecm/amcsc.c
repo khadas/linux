@@ -2093,9 +2093,9 @@ static bool restore_post_table;
 int enable_rgb_to_yuv_matrix_for_dvll(
 	int32_t on, uint32_t *coeff_orig, uint32_t bits)
 {
-	int32_t i, j;
-	uint32_t coeff01, coeff23, coeff45, coeff67;
-	uint32_t coeff8, scale, shift, offset[3];
+	int32_t i;
+	uint32_t coeff01, coeff23, coeff45, coeff67, coeff89;
+	uint32_t scale, shift, offset[3];
 	int32_t *coeff = dvll_RGB_to_YUV709l_coeff;
 
 	if ((bits < 10) || (bits > 12))
@@ -2113,43 +2113,49 @@ int enable_rgb_to_yuv_matrix_for_dvll(
 		coeff23 = coeff_orig[1];
 		coeff45 = coeff_orig[2];
 		coeff67 = coeff_orig[3];
-		coeff8 = coeff_orig[4] & 0xffff;
-		scale =  (coeff_orig[4] >> 16) & 0x0f;
-		offset[0] = 0; /* coeff_orig[5]; */
+		coeff89 = coeff_orig[4] & 0xffff;
+		scale = (coeff_orig[4] >> 16) & 0x0f;
+		offset[0] = coeff_orig[5];
 		offset[1] = 0; /* coeff_orig[6]; */
 		offset[2] = 0; /* coeff_orig[7]; */
-		if (scale >= bits) {
-			shift = scale - bits;
-			coeff[5] = (coeff01 & 0xffff) >> shift;
-			coeff[3] = ((coeff01 >> 16) & 0xffff) >> shift;
-			coeff[4] = (coeff23 & 0xffff) >> shift;
-			coeff[8] = ((coeff23 >> 16) & 0xffff) >> shift;
-			coeff[6] = (coeff45 & 0xffff) >> shift;
-			coeff[7] = ((coeff45 >> 16) & 0xffff) >> shift;
-			coeff[11] = (coeff67 & 0xffff) >> shift;
-			coeff[9] = ((coeff67 >> 16) & 0xffff) >> shift;
-			coeff[10] = (coeff8 & 0xffff) >> shift;
-		} else {
-			shift = bits - scale;
-			coeff[5] = (coeff01 & 0xffff) << shift;
-			coeff[3] = ((coeff01 >> 16) & 0xffff) << shift;
-			coeff[4] = (coeff23 & 0xffff) << shift;
-			coeff[8] = ((coeff23 >> 16) & 0xffff) << shift;
-			coeff[6] = (coeff45 & 0xffff) << shift;
-			coeff[7] = ((coeff45 >> 16) & 0xffff) << shift;
-			coeff[11] = (coeff67 & 0xffff) << shift;
-			coeff[9] = ((coeff67 >> 16) & 0xffff) << shift;
-			coeff[10] = (coeff8 & 0xffff) << shift;
+
+		coeff[0] = coeff[1] = coeff[2] = 0; /* pre offset */
+
+		coeff[5] = (int32_t)((coeff01 & 0xffff) << 16) >> 16;
+		coeff[3] = (int32_t)coeff01 >> 16;
+		coeff[4] = (int32_t)((coeff23 & 0xffff) << 16) >> 16;
+		coeff[8] = (int32_t)coeff23 >> 16;
+		coeff[6] = (int32_t)((coeff45 & 0xffff) << 16) >> 16;
+		coeff[7] = (int32_t)coeff45 >> 16;
+		coeff[11] = (int32_t)((coeff67 & 0xffff) << 16) >> 16;
+		coeff[9] = (int32_t)coeff67 >> 16;
+		coeff[10] = (int32_t)((coeff89 & 0xffff) << 16) >> 16;
+
+		if (scale > 12) {
+			shift = scale - 12;
+			for (i = 3; i < 12; i++)
+				coeff[i] =
+					(coeff[i] + (1 << (shift - 1)))
+					>> shift;
+		} else if (scale < 12) {
+			shift = 12 - scale;
+			for (i = 3; i < 12; i++)
+				coeff[i] <<= shift;
 		}
-		coeff[18] = offset[0] >> (12 - bits);
-		coeff[19] = offset[1] >> (12 - bits);
-		coeff[20] = offset[2] >> (12 - bits);
-		for (i = 3; i < 12; i++) {
-			if (coeff[i] & (1 << bits))
-				for (j = bits + 1; j <= 12; j++)
-					coeff[i] |= 1 << j;
-		}
-		coeff[22] = bits - 10;
+
+		/* post offset */
+		coeff[18] = offset[0];
+		coeff[19] = offset[1];
+		coeff[20] = offset[2];
+
+		coeff[5] =
+			((coeff[3] + coeff[4] + coeff[5]) & 0xfffe)
+			- coeff[3] - coeff[4];
+		coeff[8] = 0 - coeff[6] - coeff[7];
+		coeff[11] = 0 - coeff[9] - coeff[10];
+		coeff[18] -= (0x1000 - coeff[3] - coeff[4] - coeff[5]) >> 1;
+
+		coeff[22] = 2;
 		set_vpp_matrix(VPP_MATRIX_POST,
 			coeff, CSC_ON);
 		vpp_set_mtx_en_write();
