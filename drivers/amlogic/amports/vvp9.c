@@ -1331,6 +1331,8 @@ struct VP9Decoder_s {
 	void *mmu_box;
 	void *bmmu_box;
 	struct vframe_master_display_colour_s vf_dp;
+	int max_pic_w;
+	int max_pic_h;
 } VP9Decoder;
 
 static int vp9_print(struct VP9Decoder_s *pbi,
@@ -2286,9 +2288,14 @@ static u32 step;
 #ifdef SUPPORT_4K2K
 static u32 buf_alloc_width = 4096;
 static u32 buf_alloc_height = 2304;
+static u32 vp9_max_pic_w = 4096;
+static u32 vp9_max_pic_h = 2304;
 #else
 static u32 buf_alloc_width = 1920;
 static u32 buf_alloc_height = 1088;
+static u32 vp9_max_pic_w = 1920;
+static u32 vp9_max_pic_h = 1088;
+
 #endif
 static u32 dynamic_buf_num_margin;
 #else
@@ -5599,15 +5606,21 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 		&& (buf_alloc_width > 1920 &&  buf_alloc_height > 1088)) {
 		buf_alloc_width = 1920;
 		buf_alloc_height = 1088;
+		if (pbi->max_pic_w > 1920 && pbi->max_pic_h > 1088) {
+			pbi->max_pic_w = 1920;
+			pbi->max_pic_h = 1088;
+		}
 	}
-	pbi->init_pic_w = buf_alloc_width ? buf_alloc_width :
+	pbi->init_pic_w = pbi->max_pic_w ? pbi->max_pic_w :
+		(buf_alloc_width ? buf_alloc_width :
 		(pbi->vvp9_amstream_dec_info.width ?
 		pbi->vvp9_amstream_dec_info.width :
-		pbi->work_space_buf->max_width);
-	pbi->init_pic_h = buf_alloc_height ? buf_alloc_height :
+		pbi->work_space_buf->max_width));
+	pbi->init_pic_h = pbi->max_pic_h ? pbi->max_pic_h :
+		(buf_alloc_height ? buf_alloc_height :
 		(pbi->vvp9_amstream_dec_info.height ?
 		pbi->vvp9_amstream_dec_info.height :
-		pbi->work_space_buf->max_height);
+		pbi->work_space_buf->max_height));
 #ifndef MV_USE_FIXED_BUF
 	if (init_mv_buf_list(pbi) < 0) {
 		pr_err("%s: init_mv_buf_list fail\n", __func__);
@@ -7299,11 +7312,18 @@ static int amvdec_vp9_mmu_init(struct VP9Decoder_s *pbi)
 {
 	int tvp_flag = vdec_secure(hw_to_vdec(pbi)) ?
 		CODEC_MM_FLAGS_TVP : 0;
-
+	int buf_size = 48;
 #ifdef VP9_10B_MMU
+	if ((pbi->max_pic_w * pbi->max_pic_h > 1280*736) &&
+		(pbi->max_pic_w * pbi->max_pic_h <= 1920*1088)) {
+		buf_size = 12;
+	} else if ((pbi->max_pic_w * pbi->max_pic_h > 0) &&
+		(pbi->max_pic_w * pbi->max_pic_h <= 1280*736)) {
+		buf_size = 4;
+	}
 	pbi->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
 		pbi->index, FRAME_BUFFERS,
-		48 * SZ_1M,
+		buf_size * SZ_1M,
 		tvp_flag
 		);
 	if (!pbi->mmu_box) {
@@ -7343,6 +7363,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 
 	pbi->init_flag = 0;
+	pbi->max_pic_w = vp9_max_pic_w;
+	pbi->max_pic_h = vp9_max_pic_h;
 
 #ifdef MULTI_INSTANCE_SUPPORT
 	pbi->eos = 0;
@@ -8027,6 +8049,16 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 			pbi->double_write_mode = config_val;
 		else
 			pbi->double_write_mode = double_write_mode;
+
+		/*use ptr config for max_pic_w, etc*/
+		if (get_config_int(pdata->config, "vp9_max_pic_w",
+				&config_val) == 0) {
+				pbi->max_pic_w = config_val;
+		}
+		if (get_config_int(pdata->config, "vp9_max_pic_h",
+				&config_val) == 0) {
+				pbi->max_pic_h = config_val;
+		}
 #endif
 		if (get_config_int(pdata->config, "HDRStaticInfo",
 				&vf_dp.present_flag) == 0
@@ -8209,6 +8241,8 @@ static struct mconfig vp9_configs[] = {
 	MC_PU32("on_no_keyframe_skiped", &on_no_keyframe_skiped),
 	MC_PU32("start_decode_buf_level", &start_decode_buf_level),
 	MC_PU32("decode_timeout_val", &decode_timeout_val),
+	MC_PU32("vp9_max_pic_w", &vp9_max_pic_w),
+	MC_PU32("vp9_max_pic_h", &vp9_max_pic_h),
 };
 static struct mconfig_node vp9_node;
 
@@ -8399,6 +8433,12 @@ MODULE_PARM_DESC(start_decode_buf_level,
 module_param(decode_timeout_val, uint, 0664);
 MODULE_PARM_DESC(decode_timeout_val,
 	"\n vp9 decode_timeout_val\n");
+
+module_param(vp9_max_pic_w, uint, 0664);
+MODULE_PARM_DESC(vp9_max_pic_w, "\n vp9_max_pic_w\n");
+
+module_param(vp9_max_pic_h, uint, 0664);
+MODULE_PARM_DESC(vp9_max_pic_h, "\n vp9_max_pic_h\n");
 
 module_param_array(decode_frame_count, uint,
 	&max_decode_instance_num, 0664);
