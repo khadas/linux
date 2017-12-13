@@ -514,6 +514,14 @@ struct zone {
 	unsigned long		present_pages;
 	unsigned long		managed_pages;
 
+#ifdef CONFIG_MEMORY_ISOLATION
+	/*
+	 * Number of isolated pageblock. It is used to solve incorrect
+	 * freepage counting problem due to racy retrieving migratetype
+	 * of pageblock. Protected by zone->lock.
+	 */
+	unsigned long		nr_isolate_pageblock;
+#endif
 	/*
 	 * Number of MIGRATE_RESEVE page block. To maintain for just
 	 * optimization. Protected by zone->lock.
