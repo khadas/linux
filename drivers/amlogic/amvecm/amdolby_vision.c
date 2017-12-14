@@ -4249,7 +4249,10 @@ int dolby_vision_parse_metadata(
 		} else if (meta_flag_bl && meta_flag_el) {
 			total_md_size = last_total_md_size;
 			total_comp_size = last_total_comp_size;
-			el_flag = dovi_setting.el_flag;
+			if (is_dolby_vision_stb_mode())
+				el_flag = dovi_setting.el_flag;
+			else
+				el_flag = tv_dovi_setting.el_flag;
 			meta_flag_bl = 0;
 		}
 		if ((src_format == FORMAT_DOVI)
