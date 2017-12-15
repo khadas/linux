@@ -65,6 +65,7 @@
 
 		idle-states {
 			entry-method = "arm,psci";
+
 			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm, idle-state";
 				arm,psci-suspend-param = <0x0010000>;
@@ -74,7 +75,6 @@
 				min-residency-us = <20000>;
 			};
 		};
-
 	};
 
 	timer {
@@ -261,7 +261,6 @@
 			amlogic,clrmask = <6 0x3c>;
 			amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3";
 		};
-
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1>;
 			amlogic,clrmask = <AO 0x200000>;
@@ -476,7 +475,6 @@
 			amlogic,pins="GPIOAO_8";
 		};
 
-		/*I2C-AO*/
 		ao_i2c_master:ao_i2c{
 			amlogic,setmask=<AO 0x60>;
 			amlogic,clrmask=<AO 0x1800006>;
@@ -591,7 +589,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		use_pio = <0>;
-		master_i2c_speed = <300000>;
+		master_i2c_speed = <100000>;
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
 		resets = <&clock GCLK_IDX_I2C>;
@@ -714,7 +712,7 @@
 			mapname = "khadas-ir";
 			customcode = <0xff00>;
 			release_delay = <80>;
-			fn_key_scancode	= <0x5c>;
+			fn_key_scancode = <0x5c>;
 			fn_key_scancode_other = <0x5b>;
 			cursor_left_scancode = <0x0e>;
 			cursor_right_scancode = <0x1a>;
