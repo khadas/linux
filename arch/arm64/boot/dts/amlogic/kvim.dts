@@ -1168,6 +1168,9 @@
 &audio_data{
 	status = "okay";
 };
+&i2c_a {
+	status = "okay";
+};
 
 &uart_AO_B {
 	status = "okay";
