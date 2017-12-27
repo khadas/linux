@@ -228,7 +228,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "okay";
+		status = "disabled";
 		select = "apao"; /* disable/apao/apee */
 		jtagao-gpios = <&gpio   GPIOH_6         0
 				&gpio   GPIOH_7         0
