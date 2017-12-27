@@ -585,8 +585,6 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		cma_clear_bitmap(cma, pfn, count);
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
-		/* try again with a bit different memory target */
-		start = bitmap_no + mask + 1;
 	}
 	put_cma_alloc_ref();
 	if (page)
