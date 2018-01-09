@@ -148,18 +148,18 @@
 				compatible = "arm, idle-state";
 				arm,psci-suspend-param = <0x0010000>;
 				local-timer-stop;
-				entry-latency-us = <8000>;
-				exit-latency-us = <8000>;
-				min-residency-us = <20000>;
+				entry-latency-us = <10000>;
+				exit-latency-us = <10000>;
+				min-residency-us = <30000>;
 			};
 
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
 				compatible = "arm, idle-state";
 				arm,psci-suspend-param = <0x1010000>;
 				local-timer-stop;
-				entry-latency-us = <8000>;
-				exit-latency-us = <8000>;
-				min-residency-us = <25000>;
+				entry-latency-us = <15000>;
+				exit-latency-us = <10000>;
+				min-residency-us = <35000>;
 			};
 		};
 	};
