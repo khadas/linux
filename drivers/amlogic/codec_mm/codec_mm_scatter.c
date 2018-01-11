@@ -2094,7 +2094,7 @@ int codec_mm_scatter_mgt_delay_free_swith(
 		}
 	}
 	codec_mm_list_unlock(smgt);
-	if (on && wait_size_M > 0) {
+	if (on && wait_size_M > 0 && !is_tvp) {
 		u64 start_time = get_jiffies_64();
 		int try_max = 1000;
 		smgt->force_cache_on = 1;
@@ -2354,13 +2354,13 @@ static int codec_mm_scatter_free_all_ignorecache_in(
 	} while ((smgt->scatters_cnt > 0) && (retry_num++ < 1000));
 	if (need_retry || smgt->scatters_cnt > 0) {
 		pr_info("can't free all scatter, because some have used!!\n");
-		codec_mm_dump_all_scatters();
+		/*codec_mm_dump_all_scatters();*/
 	}
 	codec_mm_free_all_free_slots_in(smgt);
 	if (smgt->total_page_num > 0) {
 		/*have some not free,dump tables for debug*/
 		pr_info("Some slots have not free!!\n\n");
-		codec_mm_dump_all_hash_table();
+		/*codec_mm_dump_all_hash_table();*/
 	}
 	mutex_unlock(&smgt->monitor_lock);
 	return smgt->total_page_num;
@@ -2472,7 +2472,7 @@ int codec_mm_scatter_mgt_init(void)
 	enable_slot_from_sys = smgt->enable_slot_from_sys;
 	support_from_slot_sys = smgt->support_from_slot_sys;
 	no_cache_size_M = smgt->no_cache_size_M;
-	no_alloc_from_sys = smgt->no_cache_size_M;
+	no_alloc_from_sys = 0;
 	INIT_REG_NODE_CONFIGS("media.codec_mm",
 		&codec_mm_sc, "scatter",
 		codec_mm_sc_configs,

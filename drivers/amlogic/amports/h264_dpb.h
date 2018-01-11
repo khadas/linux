@@ -16,6 +16,7 @@
 #define PRINT_FRAMEBASE_DATA          0x0100
 #define PRINT_FLAG_DEBUG_POC          0x0200
 #define RRINT_FLAG_RPM                0x0400
+#define DEBUG_DISABLE_RUNREADY_RMBUF  0x0800
 #define DISABLE_ERROR_HANDLE          0x10000
 #define DEBUG_DUMP_STAT               0x80000
 
@@ -556,6 +557,7 @@ struct StorablePicture {
 
 	int         pic_num;
 	int         buf_spec_num;
+	int         buf_spec_is_alloced;
 	int         colocated_buf_index;
 	int         long_term_pic_num;
 	int         long_term_frame_idx;
@@ -783,6 +785,8 @@ struct h264_dpb_stru {
 	unsigned int aspect_ratio_sar_height;
 
 	unsigned int dec_dpb_status;
+	unsigned char buf_alloc_fail;
+	unsigned int dpb_error_flag;
 };
 
 
@@ -814,13 +818,17 @@ int release_colocate_buf(struct h264_dpb_stru *p_H264_Dpb, int index);
 
 int get_free_buf_idx(struct vdec_s *vdec);
 
-void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
+int store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 			struct StorablePicture *p, unsigned char data_flag);
 
-int remove_picture(struct h264_dpb_stru *p_H264_Dpb,
+int release_picture(struct h264_dpb_stru *p_H264_Dpb,
 			struct StorablePicture *pic);
 
+void remove_dpb_pictures(struct h264_dpb_stru *p_H264_Dpb);
+
 void bufmgr_post(struct h264_dpb_stru *p_H264_Dpb);
+
+void bufmgr_force_recover(struct h264_dpb_stru *p_H264_Dpb);
 
 int get_long_term_flag_by_buf_spec_num(struct h264_dpb_stru *p_H264_Dpb,
 	int buf_spec_num);
@@ -835,4 +843,11 @@ void print_pic_info(int decindex, const char *info,
 			int slice_type);
 void dump_dpb(struct DecodedPictureBuffer *p_Dpb, u8 force);
 
+void dump_pic(struct h264_dpb_stru *p_H264_Dpb);
+
+enum PictureStructure get_cur_slice_picture_struct(
+	struct h264_dpb_stru *p_H264_Dpb);
+
+int dpb_check_ref_list_error(
+	struct h264_dpb_stru *p_H264_Dpb);
 #endif

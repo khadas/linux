@@ -407,9 +407,12 @@ s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count)
 
 void stbuf_release(struct stream_buf_s *buf, bool is_multi)
 {
+	int r;
 	buf->first_tstamp = INVALID_PTS;
 
-	stbuf_init(buf, NULL, is_multi);/* reinit buffer */
+	r = stbuf_init(buf, NULL, is_multi);/* reinit buffer */
+	if (r < 0)
+		pr_err("stbuf_release %d, stbuf_init failed\n", __LINE__);
 
 	if (buf->flag & BUF_FLAG_ALLOC && buf->buf_start) {
 		codec_mm_free_for_dma(MEM_NAME, buf->buf_start);

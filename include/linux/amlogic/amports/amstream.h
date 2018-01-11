@@ -89,6 +89,7 @@
 #define AMSTREAM_IOC_VDECINFO _IOR((_A_M), 0x20, int)
 #define AMSTREAM_IOC_GLOBAL_GET_VIDEO_OUTPUT  _IOR((_A_M), 0x21, int)
 #define AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT  _IOW((_A_M), 0x22, int)
+#define AMSTREAM_IOC_GET_VIDEO_LAYER1_ON  _IOR((_A_M), 0x23, int)
 
 #define AMSTREAM_IOC_APTS             _IOR((_A_M), 0x40, int)
 #define AMSTREAM_IOC_VPTS             _IOR((_A_M), 0x41, int)
@@ -137,6 +138,8 @@
 #define AMSTREAM_IOC_SET_VSYNC_UPINT   _IOW((_A_M), 0x89, int)
 #define AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR   _IOW((_A_M), 0x8a, int)
 #define AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR   _IOW((_A_M), 0x8b, int)
+#define AMSTREAM_IOC_GET_FIRST_FRAME_LATENCY _IOR((_A_M), 0x8c, int)
+#define AMSTREAM_IOC_CLEAR_FIRST_FRAME_LATENCY _IOR((_A_M), 0x8d, int)
 #define AMSTREAM_IOC_SET_DEMUX  _IOW((_A_M), 0x90, int)
 #define AMSTREAM_IOC_SET_DRMMODE _IOW((_A_M), 0x91, int)
 #define AMSTREAM_IOC_TSTAMP_uS64 _IOW((_A_M), 0x95, int)

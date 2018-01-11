@@ -844,14 +844,13 @@ static void sub_port_release(struct stream_port_s *port,
 static int sub_port_init(struct stream_port_s *port, struct stream_buf_s *pbuf)
 {
 	int r;
+	r = stbuf_init(pbuf, NULL, false);
+	if (r < 0)
+		return r;
 	if ((port->flag & PORT_FLAG_SID) == 0) {
 		pr_err("subtitle id not set\n");
 		return 0;
 	}
-
-	r = stbuf_init(pbuf, NULL, false);
-	if (r < 0)
-		return r;
 
 	if ((port->sid == 0xffff) &&
 		((port->type & (PORT_TYPE_MPPS | PORT_TYPE_MPTS)) == 0)) {
@@ -1677,7 +1676,6 @@ static int amstream_release(struct inode *inode, struct file *file)
 	struct vdec_s *slave = NULL;
 #ifdef CONFIG_MULTI_DEC
 	u32 port_flag = 0;
-	u32 is_4k = 0;
 #endif
 
 	if (iminor(inode) >= amstream_port_num)
@@ -1692,9 +1690,6 @@ static int amstream_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_MULTI_DEC
 		port_flag = priv->vdec->port_flag;
 #endif
-		if ((priv->vdec->sys_info->height *
-			priv->vdec->sys_info->width) > 1920*1088)
-			is_4k = 1;
 		if (priv->vdec->slave)
 			slave = priv->vdec->slave;
 		vdec_release(priv->vdec);
@@ -1738,7 +1733,7 @@ static int amstream_release(struct inode *inode, struct file *file)
 #else
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX
 				&& port->vformat == VFORMAT_H264
-				&& is_4k)
+				&& bufs[BUF_TYPE_VIDEO].for_4k)
 				vdec_poweroff(VDEC_HEVC);
 
 			 if ((port->vformat == VFORMAT_HEVC
@@ -3170,9 +3165,10 @@ static long amstream_do_ioctl(struct port_priv_s *priv,
 		r = amstream_do_ioctl_old(priv, cmd, arg);
 		break;
 	}
+	/*
 	if (r != 0)
 		pr_err("amstream_do_ioctl error :%lx, %x\n", r, cmd);
-
+	*/
 	return r;
 }
 static long amstream_ioctl(struct file *file, unsigned int cmd, ulong arg)

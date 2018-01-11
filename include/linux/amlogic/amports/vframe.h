@@ -137,6 +137,9 @@ struct vframe_view_s {
 	unsigned int height;
 } /*vframe_view_t */;
 
+
+#define SEI_PicTiming         1
+
 #define SEI_ContentLightLevel 144
 struct vframe_content_light_level_s {
 	u32 present_flag;
