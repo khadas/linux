@@ -335,6 +335,23 @@ static void khadas_fan_shutdown(struct platform_device *pdev)
 	khadas_fan_set(fan_data);
 }
 
+#ifdef CONFIG_PM
+static int khadas_fan_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
+	cancel_delayed_work(&fan_data->work);
+	khadas_fan_level_set(fan_data, 0);
+	return 0;
+}
+
+static int khadas_fan_resume(struct platform_device *pdev)
+{
+	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
+	khadas_fan_set(fan_data);
+	return 0;
+}
+#endif
+
 static struct of_device_id of_khadas_fan_match[] = {
 	{ .compatible = "fanctl", },
 	{},
@@ -342,6 +359,10 @@ static struct of_device_id of_khadas_fan_match[] = {
 
 static struct platform_driver khadas_fan_driver = {
 	.probe	= khadas_fan_probe,
+#ifdef CONFIG_PM
+	.suspend = khadas_fan_suspend,
+	.resume = khadas_fan_resume,
+#endif
 	.remove	= khadas_fan_remove,
 	.shutdown = khadas_fan_shutdown,
 	.driver	= {
