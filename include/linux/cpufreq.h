@@ -571,4 +571,7 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		struct cpufreq_frequency_table **table);
 void dev_pm_opp_free_cpufreq_table(struct device *dev,
 		struct cpufreq_frequency_table   **table);
+#ifdef CONFIG_AMLOGIC_INPUT_BOOST
+void set_boostpulse(void);
+#endif
 #endif /* _LINUX_CPUFREQ_H */

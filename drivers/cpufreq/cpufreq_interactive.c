@@ -1319,6 +1319,33 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 {
 }
 
+#ifdef CONFIG_AMLOGIC_INPUT_BOOST
+void set_boostpulse(void)
+{
+	struct cpufreq_interactive_tunables *tunables;
+	struct cpufreq_interactive_cpuinfo *pcpu;
+	int cpu = get_cpu();
+
+	put_cpu();
+	pcpu = &per_cpu(cpuinfo, cpu);
+
+	if (!down_read_trylock(&pcpu->enable_sem))
+		return;
+	if (!pcpu->governor_enabled) {
+		up_read(&pcpu->enable_sem);
+		return;
+	}
+	tunables = pcpu->policy->governor_data;
+	tunables->boostpulse_endtime = ktime_to_us(ktime_get()) +
+		CONFIG_AMLOGIC_INPUT_BOOST_DURATION * 1000;
+	trace_cpufreq_interactive_boost("pulse");
+	if (!tunables->boosted)
+		cpufreq_interactive_boost(tunables);
+	up_read(&pcpu->enable_sem);
+}
+EXPORT_SYMBOL(set_boostpulse);
+#endif
+
 static int __init cpufreq_interactive_init(void)
 {
 	unsigned int i;
