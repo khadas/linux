@@ -4097,7 +4097,7 @@ static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw)
 		while (READ_VREG(DCAC_DMA_CTRL) & 0x8000)
 			;
 		while (READ_VREG(LMEM_DMA_CTRL) & 0x8000)
-			;    /* reg address is 0x350 */
+			;	 /* reg address is 0x350 */
 
 #if 1 /* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 		WRITE_VREG(DOS_SW_RESET0, (1<<7) | (1<<6) | (1<<4));
