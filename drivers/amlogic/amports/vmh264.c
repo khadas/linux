@@ -4687,8 +4687,10 @@ static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw)
 {
 	int i, j;
 
-	/************ reset vdec core ********/
-	dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
+	/* if (hw->init_flag == 0) { */
+	if (h264_debug_flag & 0x40000000) {
+		/* if (1) */
+		dpb_print(DECODE_ID(hw), PRINT_FLAG_VDEC_STATUS,
 		"%s, reset register\n", __func__);
 
 		while (READ_VREG(DCAC_DMA_CTRL) & 0x8000)
@@ -4723,12 +4725,16 @@ static int vh264_hw_ctx_restore(struct vdec_h264_hw_s *hw)
 
 		WRITE_RESET_REG(RESET2_REGISTER, RESET_PIC_DC | RESET_DBLK);
 #endif
-	/************ reset vdec end ********/
-
-	WRITE_VREG(POWER_CTL_VLD,
-		READ_VREG(POWER_CTL_VLD) | (0 << 10) |
-			(1 << 9) | (1 << 6));
-
+		WRITE_VREG(POWER_CTL_VLD,
+			READ_VREG(POWER_CTL_VLD) | (0 << 10) |
+				(1 << 9) | (1 << 6));
+	} else {
+		/* WRITE_VREG(POWER_CTL_VLD,
+			READ_VREG(POWER_CTL_VLD) | (0 << 10) | (1 << 9) ); */
+		WRITE_VREG(POWER_CTL_VLD,
+			READ_VREG(POWER_CTL_VLD) |
+				(0 << 10) | (1 << 9) | (1 << 6));
+	}
 	/* disable PSCALE for hardware sharing */
 	WRITE_VREG(PSCALE_CTRL, 0);
 
