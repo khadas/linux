@@ -326,6 +326,7 @@ static int bt_probe(struct platform_device *pdev)
 	register_early_suspend(&bt_early_suspend);
 #endif
 
+	bt_device_on(pdata);
 	return 0;
 
 err_rfkill:
