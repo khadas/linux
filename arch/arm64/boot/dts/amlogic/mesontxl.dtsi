@@ -66,7 +66,18 @@
 			     <GIC_PPI 11 0xff01>,
 			     <GIC_PPI 10 0xff01>;
 	};
-
+	timer_bc {
+		compatible = "arm, meson-bc-timer";
+		reg=   <0x0 0xc1109990 0x0 0x4 0x0 0xc1109994 0x0 0x4>;
+		timer_name = "Meson TimerF";
+		clockevent-rating=<300>;
+		clockevent-shift=<20>;
+		clockevent-features=<0x23>;
+		interrupts = <0 60 1>;
+		bit_enable=<16>;
+		bit_mode=<12>;
+		bit_resolution=<0>;
+	};
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <0 137 4>,
@@ -129,6 +140,9 @@
 		storage_out_func = <0x82000024>;
 		storage_block_func = <0x82000025>;
 		storage_size_func = <0x82000027>;
+		storage_set_enctype = <0x8200006A>;
+		storage_get_enctype = <0x8200006B>;
+		storage_version = <0x8200006C>;
 	};
 
 	cpu_iomap {
@@ -214,13 +228,6 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
-
-		avin_gpio_disable_pull:avin_gpio_disable_pull{
-			amlogic,pins = "GPIODV_8","GPIODV_7";
-			amlogic,enable-output=<1>;
-			amlogic,pullupen=<0>;
-		};
-
 		jtag_apao_pins:jtag_apao_pin{
 			amlogic,clrmask = <AO 0x01C2C2E6>;
 			amlogic,pins = "GPIOAO_3","GPIOAO_4","GPIOAO_5","GPIOAO_7";
@@ -239,6 +246,14 @@
 			amlogic,clrmask=<AO  0x00028000>;
 			amlogic,pins="GPIOAO_7";
 		};
+		hdmirx_pins: hdmirx_pins {
+                amlogic,setmask = <5  0xffff0000>;
+                amlogic,clrmask = <5  0x0000ff00>;
+                amlogic,pins = "GPIOW_6","GPIOW_8",
+                        "GPIOW_10","GPIOW_12",
+                        "GPIOW_14","GPIOW_16",
+                        "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
+    };
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1>;
 			amlogic,clrmask = <AO 0x200000>;
@@ -325,6 +340,27 @@
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
 		};
+		/* fixme, begin; yyh */
+		ao_to_sd_uart_pins:ao_to_sd_uart_pins{
+			amlogic,setmask=<6 0x300>;
+			amlogic,clrmask=<6 0xc000c03>;
+			amlogic,pins = "CARD_4","CARD_5";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		/* switch jtag pins to card from apao */
+		ao_to_sd_jtag_pins:ao_to_sd_jtag_pins{
+			amlogic,setmask=<6 0x300>; /*set for uart-ee, fixme? */
+			amlogic,clrmask=<6 0xf000f03f>; /* clear for jtag */  /* clear for uart-ee, fixme? */
+			amlogic,pins = "CARD_4","CARD_5"; /* should be CARD_0/1/2/3 */
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		/* switch jtag pins to apao from card */
+		/* fixme, end; yyh */
+
 		emmc_clk_cmd_pins:emmc_clk_cmd_pins{
 			amlogic,setmask=<7 0x60000000>;
 			amlogic,pins = "BOOT_8","BOOT_10"; /** BOOT_10:CMD, BOOT_8:CLK */
@@ -360,6 +396,11 @@
 			amlogic,clrmask=<2  0x980000>;
 			amlogic,pins="GPIODV_2";
 		};
+		ao_i2c_master:ao_i2c{
+			amlogic,setmask=<AO 0x60>;
+			amlogic,clrmask=<AO 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
 		i2c_a_master:i2c_a{
 			amlogic,setmask=<4 0x1800>;
 			amlogic,clrmask=<3 0x200000>;
@@ -376,12 +417,17 @@
 		};
 		i2c_d_master:i2c_d{
 			amlogic,setmask=<4 0x00300000>;
-			amlogic,clrmask=<4 0x30c00000 3 0x00006000>;
+			amlogic,clrmask=<4 0x30c00000 3 0x00206000>;
 			amlogic,pins="GPIOZ_2","GPIOZ_3";
 		};
 		lcd_vbyone_pins:lcd_vbyone_pin {
 			amlogic,setmask = <0 0xC0000000>;
 			amlogic,pins = "GPIOH_0","GPIOH_1";
+		};
+		spicc_pins: spicc_pins{
+			amlogic,setmask=<4 0xF0000000>;
+			amlogic,clrmask=<4 0x3F00000 3 0x21E000>;
+			amlogic,pins="GPIOZ_0","GPIOZ_1","GPIOZ_2", "GPIOZ_3";
 		};
 	}; /* end of pinmux */
 
@@ -395,6 +441,22 @@
 		       0x0 0xc1108764 0x0 0x4>;
 	};
 
+	i2c_ao: i2c@c8100500{ /*I2C-AO*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-AO";
+		status = "disabled";
+		reg = <0x0 0xc8100500 0x0 0x1d>;
+		device_id = <0>;
+		pinctrl-names="default";
+		pinctrl-0=<&ao_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
+	};
 	i2c_a: i2c@c1108500 { /*I2C-A*/
 		compatible = "amlogic, meson-i2c";
 		dev_name = "i2c-A";
@@ -476,26 +538,26 @@
 
 	efusekey:efusekey {
 		keynum = <4>;
-		key0 = <&key0>;
-		key1 = <&key1>;
-		key2 = <&key2>;
-		key3 = <&key3>;
-		key0:key0{
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
 			keyname = "mac";
 			offset = <0>;
 			size = <6>;
 		};
-		key1:key1{
+		key_1:key_1{
 			keyname = "mac_bt";
 			offset = <6>;
 			size = <6>;
 		};
-		key2:key2{
+		key_2:key_2{
 			keyname = "mac_wifi";
 			offset = <12>;
 			size = <6>;
 		};
-		key3:key3{
+		key_3:key_3{
 			keyname = "usid";
 			offset = <18>;
 			size = <16>;
@@ -554,7 +616,7 @@
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "saradc_clk";
 		resets = <&clock GCLK_IDX_SARADC>;
-		reg = <0x0 0xc1108680 0x0 0x30
+		reg = <0x0 0xc8100600 0x0 0x30
 					 0x0 0xc883c3d8 0x0 0x08>;
 	};
 
@@ -568,12 +630,14 @@
 	spicc:spicc {
 		compatible = "amlogic, spicc";
 		status = "disabled";
-		reg = <0x0 0xc1108d80 0x0 0x28>;
+		reg = <0x0 0xc1108d80 0x0 0x3c>;
 		resets = <&clock GCLK_IDX_SPICC>;
+		reset-names = "spicc_clk";
 		clocks = <&clock CLK_81>;
-		clock-names = "spicc_clk";
+		clock-names = "clk81";
 		interrupts = <0 81 1>;
 		device_id = <0>;
+		enhance = <1>;
 	};
 
 	aml_aes {
@@ -603,5 +667,5 @@
 
 &gpu{
 /*gpu max freq is 750M*/
-    tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk750_cfg &clk750_cfg>;
+    tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk750_cfg>;
 };

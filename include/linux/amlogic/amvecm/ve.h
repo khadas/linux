@@ -280,6 +280,9 @@ struct ve_regmap_s {
 	unsigned long reg[43];
 };
 
+#define EOTF_LUT_SIZE 33
+#define OSD_OETF_LUT_SIZE 41
+
 /********************OSD HDR registers backup********************************/
 struct hdr_osd_lut_s {
 	uint32_t r_map[33];

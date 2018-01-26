@@ -93,6 +93,9 @@
  *
  * 7.22
  *  - add FUSE_ASYNC_DIO
+ *
+ * 7.23
+ *  - add FUSE_RENAME2 request
  */
 
 #ifndef _LINUX_FUSE_H
@@ -343,6 +346,7 @@ enum fuse_opcode {
 	FUSE_BATCH_FORGET  = 42,
 	FUSE_FALLOCATE     = 43,
 	FUSE_READDIRPLUS   = 44,
+	FUSE_RENAME2       = 45,
 
 	/* CUSE specific operations */
 	CUSE_INIT          = 4096,
@@ -419,6 +423,12 @@ struct fuse_mkdir_in {
 
 struct fuse_rename_in {
 	uint64_t	newdir;
+};
+
+struct fuse_rename2_in {
+	uint64_t	newdir;
+	uint32_t	flags;
+	uint32_t	padding;
 };
 
 struct fuse_link_in {

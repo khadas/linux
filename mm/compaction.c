@@ -664,7 +664,9 @@ isolate_success:
 		nr_isolated++;
 
 		/* Avoid isolating too much */
-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
+		/* for cma speed, try to got more pages each time */
+		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX &&
+		    cc->page_type != COMPACT_CMA) {
 			++low_pfn;
 			break;
 		}

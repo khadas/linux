@@ -32,14 +32,27 @@ struct aml_audio_private_data {
 	bool suspended;
 	void *data;
 
+	int hp_last_state;
+	bool hp_det_status;
+	int av_hs_switch;
+	int hp_det_inv;
+	int timer_en;
+	int detect_flag;
+	struct work_struct work;
+	struct mutex lock;
+	struct gpio_desc *hp_det_desc;
+
 	struct pinctrl *pin_ctl;
 	struct timer_list timer;
-	struct gpio_desc *mute_desc;
+	struct gpio_desc *av_mute_desc;
+	int av_mute_inv;
+	struct gpio_desc *amp_mute_desc;
+	int amp_mute_inv;
 	struct clk *clk;
 	int sleep_time;
-
-	struct switch_dev sdev;	/* for android */
-	struct switch_dev mic_sdev;	/* for android */
+	struct work_struct pinmux_work;
+	int aml_EQ_enable;
+	int aml_DRC_enable;
 };
 
 struct aml_audio_codec_info {

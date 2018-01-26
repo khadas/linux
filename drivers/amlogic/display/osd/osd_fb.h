@@ -61,10 +61,10 @@ struct osd_fb_dev_s {
 	bool dis_osd_mchange;
 };
 
-#define OSD_INVALID_INFO        0xffffffff
-#define OSD_FIRST_GROUP_START   1
-#define OSD_SECOND_GROUP_START  4
-#define OSD_END                 5
+#define OSD_INVALID_INFO 0xffffffff
+#define OSD_FIRST_GROUP_START 1
+#define OSD_SECOND_GROUP_START 4
+#define OSD_END 7
 
 extern phys_addr_t get_fb_rmem_paddr(int index);
 extern void __iomem *get_fb_rmem_vaddr(int index);

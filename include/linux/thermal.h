@@ -200,7 +200,7 @@ struct thermal_zone_device {
 	int last_temperature;
 	int emul_temperature;
 	int passive;
-	int enter_hot;
+	int hot_step;
 	unsigned int forced_passive;
 	struct thermal_zone_device_ops *ops;
 	struct thermal_zone_params *tzp;

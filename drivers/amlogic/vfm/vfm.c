@@ -126,7 +126,7 @@ static int vfm_map_remove_by_index(int index)
 	return ret;
 }
 
-static int vfm_map_remove(char *id)
+int vfm_map_remove(char *id)
 {
 	int i;
 	int index;
@@ -144,7 +144,7 @@ static int vfm_map_remove(char *id)
 	return ret;
 }
 
-static int vfm_map_add(char *id, char *name_chain)
+int vfm_map_add(char *id, char *name_chain)
 {
 	int i, j;
 	int ret = -1;
@@ -230,6 +230,7 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 {
 	int j;
 	int provide_namelen = strlen(provider_name);
+	bool found = false;
 	char *receiver_name = NULL;
 	int namelen;
 
@@ -239,16 +240,25 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 			pr_err("%s:vfm_map:%s\n", __func__,
 				vfm_map[i]->name[j]);
 		}
-		if (!strncmp(vfm_map[i]->name[j], provider_name, namelen)) {
-			if ((namelen == provide_namelen) ||
-			    (provider_name[namelen] == '.')) {
-				if ((j + 1) < vfm_map[i]->vfm_map_size) {
-					receiver_name =
-					vfm_map[i]->name[j + 1];
-				}
+		if ((!strncmp(vfm_map[i]->name[j], provider_name, namelen)) &&
+			((j + 1) < vfm_map[i]->vfm_map_size)) {
+			receiver_name = vfm_map[i]->name[j + 1];
+
+			if (namelen == provide_namelen) {
+				/* exact match */
+				receiver_name = vfm_map[i]->name[j + 1];
+				found = true;
 				break;
+			} else if (provider_name[namelen] == '.') {
+				/* continue looking, an exact matching
+				 * has higher priority
+				 */
+				receiver_name = vfm_map[i]->name[j + 1];
 			}
 		}
+
+		if (found)
+			break;
 	}
 	return receiver_name;
 }
@@ -272,7 +282,11 @@ static void vfm_init(void)
 {
 #if (defined CONFIG_POST_PROCESS_MANAGER) && (defined CONFIG_DEINTERLACE)
 	char def_id[] = "default";
+#ifndef CONFIG_MULTI_DEC
 	char def_name_chain[] = "decoder ppmgr deinterlace amvideo";
+#else
+	char def_name_chain[] = "decoder amvideo";
+#endif
 #elif (defined CONFIG_POST_PROCESS_MANAGER)
 	char def_id[] = "default";
 	char def_name_chain[] = "decoder ppmgr amvideo";
@@ -305,9 +319,6 @@ static void vfm_init(void)
 				 */
 #endif				/*
 				 */
-	char def_osd_id[] = "default_osd";
-	char def_osd_name_chain[] = "osd amvideo4osd";
-	/* char def_osd_name_chain[] = "osd amvideo"; */
 #ifdef CONFIG_VDIN_MIPI
 	char def_mipi_id[] = "default_mipi";
 	char def_mipi_name_chain[] = "vdin mipi";
@@ -315,7 +326,7 @@ static void vfm_init(void)
 				 */
 #ifdef CONFIG_V4L_AMLOGIC_VIDEO2
 	char def_amlvideo2_id[] = "default_amlvideo2";
-	char def_amlvideo2_chain[] = "vdin1 amlvideo2_1";
+	char def_amlvideo2_chain[] = "vdin1 amlvideo2.1";
 #endif				/*
 				 */
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
@@ -328,10 +339,18 @@ static void vfm_init(void)
 #endif
 #endif				/*
 				 */
+#ifdef CONFIG_AM_VDEC_DV
+	char def_dvbl_id[] = "dvblpath";
+/*	char def_dvbl_chain[] = "dvbldec dvbl amvideo";*/
+	char def_dvbl_chain[] = "dvbldec amvideo";
+
+	char def_dvel_id[] = "dvelpath";
+	char def_dvel_chain[] = "dveldec dvel";
+#endif
+
 	int i;
 	for (i = 0; i < VFM_MAP_COUNT; i++)
 		vfm_map[i] = NULL;
-	vfm_map_add(def_osd_id, def_osd_name_chain);
 	vfm_map_add(def_id, def_name_chain);
 #ifdef CONFIG_VDIN_MIPI
 	vfm_map_add(def_mipi_id, def_mipi_name_chain);
@@ -350,6 +369,10 @@ static void vfm_init(void)
 	vfm_map_add(def_amlvideo2_id, def_amlvideo2_chain);
 #endif				/*
 				 */
+#ifdef CONFIG_AM_VDEC_DV
+	vfm_map_add(def_dvbl_id, def_dvbl_chain);
+	vfm_map_add(def_dvel_id, def_dvel_chain);
+#endif
 }
 
 /*
@@ -428,18 +451,26 @@ static void vfm_dump_provider(const char *name)
 				HZ);
 			pr_info("vf index=%d\n", vf->index);
 			pr_info("vf->pts=%d\n", vf->pts);
-			pr_info("vf canvas0Addr=%x\n", vf->canvas0Addr);
-			pr_info("vf canvas1Addr=%x\n", vf->canvas1Addr);
-			pr_info("vf canvas0Addr.y.addr=%x(%d)\n",
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)));
-			pr_info("vf canvas0Adr.uv.adr=%x(%d)\n",
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)));
+			pr_info("vf->type=%d\n", vf->type);
+			if (vf->type & VIDTYPE_COMPRESS) {
+				pr_info("vf compHeadAddr=%x\n",
+						vf->compHeadAddr);
+				pr_info("vf compBodyAddr =%x\n",
+						vf->compBodyAddr);
+			} else {
+				pr_info("vf canvas0Addr=%x\n", vf->canvas0Addr);
+				pr_info("vf canvas1Addr=%x\n", vf->canvas1Addr);
+				pr_info("vf canvas0Addr.y.addr=%x(%d)\n",
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)));
+				pr_info("vf canvas0Adr.uv.adr=%x(%d)\n",
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)));
+			}
 		}
 		spin_unlock_irqrestore(&lock, flags);
 	}
@@ -450,12 +481,66 @@ static void vfm_dump_provider(const char *name)
 #define VFM_CMD_ADD 1
 #define VFM_CMD_RM  2
 #define VFM_CMD_DUMP  3
+#define VFM_CMD_ADDDUMMY 4
+
+/*
+    dummy receiver
+*/
+
+static int dummy_receiver_event_fun(int type, void *data, void *arg)
+{
+	struct vframe_receiver_s *dummy_vf_recv
+		= (struct vframe_receiver_s *)arg;
+	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
+		char *provider_name = (char *)data;
+		pr_info("%s, provider %s unregistered\n",
+			__func__, provider_name);
+	} else if (type ==
+		VFRAME_EVENT_PROVIDER_VFRAME_READY) {
+		struct vframe_s *vframe_tmp = vf_get(dummy_vf_recv->name);
+		while (vframe_tmp) {
+			vf_put(vframe_tmp, dummy_vf_recv->name);
+			vf_notify_provider(dummy_vf_recv->name,
+				VFRAME_EVENT_RECEIVER_PUT, NULL);
+			vframe_tmp = vf_get(dummy_vf_recv->name);
+		}
+	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
+		return RECEIVER_ACTIVE;
+	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
+		char *provider_name = (char *)data;
+		pr_info("%s, provider %s registered\n",
+			__func__, provider_name);
+	}
+	return 0;
+}
+
+static const struct vframe_receiver_op_s dummy_vf_receiver = {
+	.event_cb = dummy_receiver_event_fun
+};
+
+static void add_dummy_receiver(char *vfm_name_)
+{
+	struct vframe_receiver_s *dummy_vf_recv =
+	 kmalloc(sizeof(struct vframe_receiver_s), GFP_KERNEL);
+	pr_info("%s(%s)\n", __func__, vfm_name_);
+	if (dummy_vf_recv) {
+		char *vfm_name = kmalloc(16, GFP_KERNEL);
+		snprintf(vfm_name, 16, "%s", vfm_name_);
+		vf_receiver_init(dummy_vf_recv, vfm_name,
+			&dummy_vf_receiver, dummy_vf_recv);
+		vf_reg_receiver(dummy_vf_recv);
+		pr_info("%s: %s\n", __func__, dummy_vf_recv->name);
+	}
+}
+
+/**/
 
 /*
  * echo add <name> <node1 node2 ...> > /sys/class/vfm/map
  * echo rm <name>                    > /sys/class/vfm/map
  * echo rm all                       > /sys/class/vfm/map
  * echo dump providername			> /sys/class/vfm/map
+ * echo dummy name > /sys/class/vfm/map
  * <name> the name of the path.
  * <node1 node2 ...> the name of the nodes in the path.
 */
@@ -467,7 +552,11 @@ static ssize_t vfm_map_store(struct class *class,
 	int i = 0;
 	int cmd = 0;
 	char *id = NULL;
+#ifdef CONFIG_MULTI_DEC
+	if (strncmp(buf, "dummy", 5))
+#else
 	if (vfm_debug_flag & 0x10000)
+#endif
 		return count;
 	pr_err("%s:%s\n", __func__, buf);
 	buf_orig = kstrdup(buf, GFP_KERNEL);
@@ -485,6 +574,8 @@ static ssize_t vfm_map_store(struct class *class,
 				cmd = VFM_CMD_RM;
 			else if (!strcmp(token, "dump"))
 				cmd = VFM_CMD_DUMP;
+			else if (!strcmp(token, "dummy"))
+				cmd = VFM_CMD_ADDDUMMY;
 			else
 				break;
 		} else if (i == 1) {
@@ -498,6 +589,8 @@ static ssize_t vfm_map_store(struct class *class,
 					count = 0;
 			} else if (cmd == VFM_CMD_DUMP) {
 				vfm_dump_provider(token);
+			} else if (cmd == VFM_CMD_ADDDUMMY) {
+				add_dummy_receiver(token);
 			}
 			break;
 		}

@@ -235,7 +235,7 @@
 
 static void __iomem *bt656_reg_base[BT656_MAX_DEVS];
 
-static int reg_read(u32 index,
+static int bt656_reg_read(u32 index,
 		unsigned int reg,
 		unsigned int *val)
 {
@@ -246,7 +246,7 @@ static int reg_read(u32 index,
 		return -1;
 }
 
-static int reg_write(u32 index,
+static int bt656_reg_write(u32 index,
 		unsigned int reg,
 		unsigned int val)
 {
@@ -257,41 +257,41 @@ static int reg_write(u32 index,
 		return -1;
 }
 
-static inline uint32_t rd(u32 index,
+static inline uint32_t bt656_rd(u32 index,
 		uint32_t reg)
 {
 	int val;
 
-	reg_read(index, (reg<<2), &val);
+	bt656_reg_read(index, (reg<<2), &val);
 	return val;
 }
 
-static inline void wr(u32 index,
+static inline void bt656_wr(u32 index,
 		uint32_t reg,
 		const uint32_t val)
 {
-	reg_write(index, (reg<<2), val);
+	bt656_reg_write(index, (reg<<2), val);
 }
 
-static inline void wr_bits(u32 index,
+static inline void bt656_wr_bits(u32 index,
 		uint32_t reg,
 		const uint32_t value,
 		const uint32_t start,
 		const uint32_t len)
 {
-	wr(index, reg, ((rd(index, reg) &
+	bt656_wr(index, reg, ((bt656_rd(index, reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
 
-static inline uint32_t rd_bits(u32 index,
+static inline uint32_t bt656_rd_bits(u32 index,
 		uint32_t reg,
 		const uint32_t start,
 		const uint32_t len)
 {
 	uint32_t val;
 
-	val = ((rd(index, reg) >> (start)) & ((1L << (len)) - 1));
+	val = ((bt656_rd(index, reg) >> (start)) & ((1L << (len)) - 1));
 
 	return val;
 }

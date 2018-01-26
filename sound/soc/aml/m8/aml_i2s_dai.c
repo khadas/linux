@@ -38,6 +38,7 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <sound/tlv.h>
 #include "aml_i2s_dai.h"
 #include "aml_pcm.h"
 #include "aml_i2s.h"
@@ -48,6 +49,50 @@
 struct aml_dai_info dai_info[3] = { {0} };
 
 static int i2s_pos_sync;
+
+struct channel_speaker_allocation {
+        int channels;
+        int speakers[8];
+};
+
+#define NA	SNDRV_CHMAP_NA
+#define FL	SNDRV_CHMAP_FL
+#define FR	SNDRV_CHMAP_FR
+#define RL	SNDRV_CHMAP_RL
+#define RR	SNDRV_CHMAP_RR
+#define LFE	SNDRV_CHMAP_LFE
+#define FC	SNDRV_CHMAP_FC
+#define RLC	SNDRV_CHMAP_RLC
+#define RRC	SNDRV_CHMAP_RRC
+#define RC	SNDRV_CHMAP_RC
+#define FLC	SNDRV_CHMAP_FLC
+#define FRC	SNDRV_CHMAP_FRC
+#define FLH	SNDRV_CHMAP_TFL
+#define FRH	SNDRV_CHMAP_TFR
+#define FLW	SNDRV_CHMAP_FLW
+#define FRW	SNDRV_CHMAP_FRW
+#define TC	SNDRV_CHMAP_TC
+#define FCH	SNDRV_CHMAP_TFC
+
+static struct channel_speaker_allocation channel_allocations[] = {
+/*      	       channel:   7     6    5    4    3     2    1    0  */
+{ .channels = 2,  .speakers = {  NA,   NA,  NA,  NA,  NA,   NA,  FR,  FL } },
+                                 /* 2.1 */
+{ .channels = 3,  .speakers = {  NA,   NA,  NA,  NA,  NA,  LFE,  FR,  FL } },
+                                 /* surround40 */
+{ .channels = 4,  .speakers = {  NA,   NA,  RR,  RL,  NA,   NA,  FR,  FL } },
+                                 /* surround41 */
+{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,  NA,  LFE,  FR,  FL } },
+                                 /* surround50 */
+{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,  FC,   NA,  FR,  FL } },
+                                 /* surround51 */
+{ .channels = 6,  .speakers = {  NA,   NA,  RR,  RL,  FC,  LFE,  FR,  FL } },
+                                 /* 6.1 */
+{ .channels = 7,  .speakers = {  NA,   RC,  RR,  RL,  FC,  LFE,  FR,  FL } },
+                                 /* surround71 */
+{ .channels = 8,  .speakers = { RRC,  RLC,  RR,  RL,  FC,  LFE,  FR,  FL } },
+};
+
 
 /* extern int set_i2s_iec958_samesource(int enable); */
 #define DEFAULT_SAMPLERATE 48000
@@ -80,14 +125,191 @@ static void aml_hw_i2s_init(struct snd_pcm_runtime *runtime)
 			 runtime->channels);
 }
 
+static int aml_dai_i2s_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+                                     unsigned int size, unsigned int __user *tlv)
+{
+    unsigned int __user *dst;
+    int count = 0;
+    int i;
+
+    if (size < 8)
+        return -ENOMEM;
+
+    if (put_user(SNDRV_CTL_TLVT_CONTAINER, tlv))
+        return -EFAULT;
+
+    size -= 8;
+    dst = tlv + 2;
+
+    for (i = 0; i < ARRAY_SIZE(channel_allocations); i++)
+    {
+        struct channel_speaker_allocation *ch = &channel_allocations[i];
+        int num_chs = 0;
+        int chs_bytes;
+        int c;
+
+        for (c = 0; c < 8; c++)
+        {
+            if (ch->speakers[c])
+                num_chs++;
+        }
+
+        chs_bytes = num_chs * 4;
+        if (size < 8)
+            return -ENOMEM;
+
+        if (put_user(SNDRV_CTL_TLVT_CHMAP_FIXED, dst) ||
+            put_user(chs_bytes, dst + 1))
+            return -EFAULT;
+
+        dst += 2;
+        size -= 8;
+        count += 8;
+
+        if (size < chs_bytes)
+            return -ENOMEM;
+
+        size -= chs_bytes;
+        count += chs_bytes;
+
+        for (c = 0; c < 8; c++)
+        {
+            int sp = ch->speakers[7 - c];
+            if (sp)
+            {
+                if (put_user(sp, dst))
+                    return -EFAULT;
+                dst++;
+            }
+        }
+    }
+
+    if (put_user(count, tlv + 1))
+        return -EFAULT;
+
+    return 0;
+}
+
+static int aml_dai_i2s_chmap_ctl_get(struct snd_kcontrol *kcontrol,
+                                     struct snd_ctl_elem_value *ucontrol)
+{
+
+    struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+    unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+    struct snd_pcm_substream *substream = snd_pcm_chmap_substream(info, idx);
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    struct aml_runtime_data *prtd = (struct aml_runtime_data *)runtime->private_data;
+    int res = 0, channel;
+
+    if (mutex_lock_interruptible(&prtd->chmap_lock))
+        return -EINTR;
+
+    // we need 8 channels
+    if (runtime->channels != 8)
+    {
+        pr_err("channel count should be 8, we got %d aborting\n", runtime->channels);
+        res = -EINVAL;
+        goto unlock;
+    }
+
+    for (channel=0; channel<8; channel++)
+    {
+        ucontrol->value.integer.value[7 - channel] = channel_allocations[prtd->chmap_layout].speakers[channel];
+    }
+
+unlock:
+    mutex_unlock(&prtd->chmap_lock);
+    return res;
+}
+
+static int aml_dai_i2s_chmap_ctl_put(struct snd_kcontrol *kcontrol,
+                                     struct snd_ctl_elem_value *ucontrol)
+{
+
+    struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+    unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+    struct snd_pcm_substream *substream = snd_pcm_chmap_substream(info, idx);
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    struct aml_runtime_data *prtd = (struct aml_runtime_data *)runtime->private_data;
+    int res = 0, channel, layout, matches, matched_layout;
+
+    if (mutex_lock_interruptible(&prtd->chmap_lock))
+        return -EINTR;
+
+    // we need 8 channels
+    if (runtime->channels != 8)
+    {
+        pr_err("channel count should be 8, we got %d aborting\n", runtime->channels);
+        res = -EINVAL;
+        goto unlock;
+    }
+
+    // now check if the channel setup matches one of our layouts
+    for (layout = 0; layout < ARRAY_SIZE(channel_allocations); layout++)
+    {
+        matches = 1;
+
+        for (channel = 0; channel < substream->runtime->channels; channel++)
+        {
+            int sp = ucontrol->value.integer.value[channel];
+            int chan = channel_allocations[layout].speakers[7 - channel];
+
+            if (sp != chan)
+            {
+                matches = 0;
+                break;
+            }
+        }
+
+        if (matches)
+        {
+            matched_layout = layout;
+            break;
+        }
+    }
+
+
+    // default to first layout if we didnt find any
+    if (!matches)
+        matched_layout = 0;
+
+    pr_info("Setting a %d channel layout matching layout #%d\n", runtime->channels, matched_layout);
+
+    prtd->chmap_layout = matched_layout;
+
+unlock:
+    mutex_unlock(&prtd->chmap_lock);
+    return res;
+}
+
+static struct snd_kcontrol *aml_dai_i2s_chmap_kctrl_get(struct snd_pcm_substream *substream)
+{
+    int str;
+
+    if ((substream) && (substream->pcm))
+    {
+        for (str=0; str<2; str++)
+        {
+            if (substream->pcm->streams[str].chmap_kctl)
+            {
+                return substream->pcm->streams[str].chmap_kctl;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int aml_dai_i2s_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	int ret = 0;
+        int ret = 0, i;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd =
 	    (struct aml_runtime_data *)runtime->private_data;
 	struct audio_stream *s;
+	struct snd_pcm_chmap *chmap;
+	struct snd_kcontrol *kctl;
 
 	if (prtd == NULL) {
 		prtd =
@@ -108,6 +330,29 @@ static int aml_dai_i2s_startup(struct snd_pcm_substream *substream,
 	} else {
 		s->device_type = AML_AUDIO_I2SIN;
 	}
+
+
+	// Alsa Channel Mapping API handling
+	if (!aml_dai_i2s_chmap_kctrl_get(substream))
+	{
+	    ret = snd_pcm_add_chmap_ctls(substream->pcm, SNDRV_PCM_STREAM_PLAYBACK, NULL, 8, 0, &chmap);
+
+	    if (ret < 0)
+	    {
+	      pr_err("aml_dai_i2s_startup error %d\n", ret);
+	      goto out;
+	    }
+
+	    kctl = chmap->kctl;
+	    for (i = 0; i < kctl->count; i++)
+	      kctl->vd[i].access |= SNDRV_CTL_ELEM_ACCESS_WRITE;
+
+	    kctl->get = aml_dai_i2s_chmap_ctl_get;
+	    kctl->put = aml_dai_i2s_chmap_ctl_put;
+	    kctl->tlv.c = aml_dai_i2s_chmap_ctl_tlv;
+	}
+
+	mutex_init(&prtd->chmap_lock);
 	return 0;
  out:
 	return ret;
@@ -149,39 +394,43 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
+	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		audio_out_i2s_enable(0);
-		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
-	}
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		s->i2s_mode = dai_info[dai->id].i2s_mode;
-		audio_in_i2s_set_buf(runtime->dma_addr, runtime->dma_bytes * 2,
-				     0, i2s_pos_sync);
-		memset((void *)runtime->dma_area, 0, runtime->dma_bytes * 2);
-		{
-			int *ppp =
-			    (int *)(runtime->dma_area + runtime->dma_bytes * 2 -
-				    8);
-			ppp[0] = 0x78787878;
-			ppp[1] = 0x78787878;
+		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+			audio_in_i2s_set_buf(runtime->dma_addr,
+					runtime->dma_bytes * 2,
+					0, i2s_pos_sync, i2s->audin_fifo_src);
+			memset((void *)runtime->dma_area, 0,
+					runtime->dma_bytes * 2);
+		} else {
+			audio_in_i2s_set_buf(runtime->dma_addr,
+					runtime->dma_bytes,
+					0, i2s_pos_sync, i2s->audin_fifo_src);
+			memset((void *)runtime->dma_area, 0,
+					runtime->dma_bytes);
 		}
 		s->device_type = AML_AUDIO_I2SIN;
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
+		audio_out_i2s_enable(0);
+		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+		IEC958_mode_codec = 0;
 		aml_hw_i2s_init(runtime);
 		/* i2s/958 share the same audio hw buffer when PCM mode */
 		if (IEC958_mode_codec == 0) {
 			aml_hw_iec958_init(substream, 1);
 			/* use the hw same sync for i2s/958 */
 			dev_info(substream->pcm->card->dev, "i2s/958 same source\n");
-			/* aml_set_spdif_clk(runtime->rate*512, 0); */
 			audio_i2s_958_same_source(1);
 		}
-	}
-	if (runtime->channels == 8) {
-		dev_info(substream->pcm->card->dev, "8ch PCM output->notify HDMI\n");
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
+		if (runtime->channels == 8) {
+			dev_info(substream->pcm->card->dev,
+				"8ch PCM output->notify HDMI\n");
+			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
+				substream);
+		}
 	}
 	return 0;
 }
@@ -189,9 +438,6 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
-	struct snd_pcm_runtime *rtd = substream->runtime;
-	int *ppp = NULL;
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -206,9 +452,6 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			}
 		} else {
 			audio_in_i2s_enable(1);
-			ppp = (int *)(rtd->dma_area + rtd->dma_bytes * 2 - 8);
-			ppp[0] = 0x78787878;
-			ppp[1] = 0x78787878;
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -293,9 +536,8 @@ static int aml_dai_i2s_resume(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_8000_192000)
-#define AML_DAI_I2S_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE |\
-		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
+#define AML_DAI_I2S_RATES		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000
+#define AML_DAI_I2S_FORMATS		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
 
 static struct snd_soc_dai_ops aml_dai_i2s_ops = {
 	.startup = aml_dai_i2s_startup,
@@ -391,6 +633,14 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Can't enable I2S mclk clock: %d\n", ret);
 		goto err;
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "DMIC")) {
+		i2s->audin_fifo_src = 3;
+		dev_info(&pdev->dev, "DMIC is in platform!\n");
+	} else {
+		i2s->audin_fifo_src = 1;
+		dev_info(&pdev->dev, "I2S Mic is in platform!\n");
 	}
 
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,

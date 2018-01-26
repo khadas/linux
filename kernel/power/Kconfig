@@ -59,6 +59,14 @@ config EARLYSUSPEND
 		Call early suspend handlers when the user requested sleep state
 		changes.
 
+config FORCE_POWER_ON_STATE_AFTER_RESUME
+	bool "Force to request the Power ON state after a resume"
+	depends on WAKELOCK && EARLYSUSPEND
+	default n
+	help
+	  Force to request the Power ON state after a resume, causing to execute the late resume
+	  and prevent transition back into the suspended state.
+
 choice
 	prompt "User-space screen access"
 	default FB_EARLYSUSPEND if !FRAMEBUFFER_CONSOLE

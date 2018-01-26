@@ -355,6 +355,7 @@
 #define DWC_SCDC_WRDATA6                0x0878
 #define DWC_SCDC_WRDATA7                0x087C
 #define DWC_HDMI20_STATUS               0x08E0
+#define DWC_HDCP22_STATUS               0x08FC
 
 /*
  * hdcp register
@@ -419,6 +420,7 @@
  */
 /** Register address: audio mode control */
 #define DWC_AUD_CTRL             (0x200UL)
+#define DWC_AUD_HBR_ENABLE	_BIT(8)
 /** Register address: audio PLL control */
 #define DWC_AUD_PLL_CTRL         (0x208UL)
 /** Register address: audio PLL lock */
@@ -572,6 +574,7 @@
 /** Register address: Packet Decoder Audio Status*/
 #define DWC_PDEC_AUD_STS         (0x364UL)
 #define AUDS_RCV					MSK(1, 0)
+#define AUDS_HBR_RCV			_BIT(3)
 /** Register address: general control packet AV mute */
 #define DWC_PDEC_GCP_AVMUTE      (0x380UL)
 /** Register address: audio clock regeneration */
@@ -807,10 +810,12 @@
  */
 /** Register address: control */
 #define DWC_HDCP_CTRL			(0x0C0UL)
+/** HDCP enable */
+#define		HDCP_ENABLE		_BIT(24)
 /** HDCP key decryption */
 #define		KEY_DECRYPT_ENABLE		_BIT(1)
 /** HDCP activation */
-#define		HDCP_ENABLE				_BIT(0)
+#define		ENCRIPTION_ENABLE				_BIT(0)
 /** Register address: configuration */
 #define DWC_HDCP_SETTINGS		(0x0C4UL)
 /*fast mode*/

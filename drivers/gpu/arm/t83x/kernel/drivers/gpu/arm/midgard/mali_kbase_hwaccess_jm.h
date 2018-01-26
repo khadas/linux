@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,17 +32,6 @@
  */
 void kbase_backend_run_atom(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
-
-/**
- * kbase_backend_slot_update - Update state based on slot ringbuffers
- *
- * @kbdev:  Device pointer
- *
- * Inspect the jobs in the slot ringbuffers and update state.
- *
- * This will cause jobs to be submitted to hardware if they are unblocked
- */
-void kbase_backend_slot_update(struct kbase_device *kbdev);
 
 /**
  * kbase_backend_find_free_address_space() - Find a free address space.
@@ -82,7 +71,9 @@ void kbase_backend_release_free_address_space(struct kbase_device *kbdev,
  *
  * kbase_gpu_next_job() will pull atoms from the active context.
  *
- * Return: true if successful, false if ASID not assigned.
+ * Return: true if successful, false if ASID not assigned. If kctx->as_pending
+ *         is true then ASID assignment will complete at some point in the
+ *         future and will re-start scheduling, otherwise no ASIDs are available
  */
 bool kbase_backend_use_ctx(struct kbase_device *kbdev,
 				struct kbase_context *kctx,
@@ -99,7 +90,7 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
  * the context is not scheduled, then kbase_gpu_use_ctx() should be used
  * instead.
  *
- * Caller must hold hwaccess_lock
+ * Caller must hold runpool_irq.lock
  *
  * Return: true if context is now active, false otherwise (ie if context does
  *	   not have an address space assigned)
@@ -113,7 +104,7 @@ bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev,
  * @kbdev: Device pointer
  * @kctx:  Context pointer
  *
- * Caller must hold kbase_device->mmu_hw_mutex and hwaccess_lock
+ * Caller must hold as->transaction_mutex and runpool_irq.lock
  */
 void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
 				struct kbase_context *kctx);
@@ -124,26 +115,13 @@ void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
  * @kbdev: Device pointer
  * @kctx:  Context pointer
  *
- * Caller must hold kbase_device->mmu_hw_mutex
+ * Caller must hold as->transaction_mutex
  *
  * This function must perform any operations that could not be performed in IRQ
  * context by kbase_backend_release_ctx_irq().
  */
 void kbase_backend_release_ctx_noirq(struct kbase_device *kbdev,
 						struct kbase_context *kctx);
-
-/**
- * kbase_backend_cacheclean - Perform a cache clean if the given atom requires
- *                            one
- * @kbdev:	Device pointer
- * @katom:	Pointer to the failed atom
- *
- * On some GPUs, the GPU cache must be cleaned following a failed atom. This
- * function performs a clean if it is required by @katom.
- */
-void kbase_backend_cacheclean(struct kbase_device *kbdev,
-		struct kbase_jd_atom *katom);
-
 
 /**
  * kbase_backend_complete_wq() - Perform backend-specific actions required on
@@ -236,15 +214,6 @@ int kbase_backend_nr_atoms_submitted(struct kbase_device *kbdev, int js);
 void kbase_backend_ctx_count_changed(struct kbase_device *kbdev);
 
 /**
- * kbase_backend_timeouts_changed() - Job Scheduler timeouts have changed.
- * @kbdev:	Device pointer
- *
- * Perform any required backend-specific actions (eg updating timeouts of
- * currently running atoms).
- */
-void kbase_backend_timeouts_changed(struct kbase_device *kbdev);
-
-/**
  * kbase_backend_slot_free() - Return the number of jobs that can be currently
  *			       submitted to slot @js.
  * @kbdev:	Device pointer
@@ -284,15 +253,6 @@ void kbase_backend_jm_kill_jobs_from_kctx(struct kbase_context *kctx);
  * can be safely destroyed.
  */
 void kbase_jm_wait_for_zero_jobs(struct kbase_context *kctx);
-
-/**
- * kbase_backend_get_current_flush_id - Return the current flush ID
- *
- * @kbdev: Device pointer
- *
- * Return: the current flush ID to be recorded for each job chain
- */
-u32 kbase_backend_get_current_flush_id(struct kbase_device *kbdev);
 
 #if KBASE_GPU_RESET_EN
 /**
@@ -350,28 +310,6 @@ bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev);
  * signalled to know when the reset has completed.
  */
 void kbase_reset_gpu_locked(struct kbase_device *kbdev);
-
-/**
- * kbase_reset_gpu_silent - Reset the GPU silently
- * @kbdev: Device pointer
- *
- * Reset the GPU without trying to cancel jobs and don't emit messages into
- * the kernel log while doing the reset.
- *
- * This function should be used in cases where we are doing a controlled reset
- * of the GPU as part of normal processing (e.g. exiting protected mode) where
- * the driver will have ensured the scheduler has been idled and all other
- * users of the GPU (e.g. instrumentation) have been suspended.
- */
-void kbase_reset_gpu_silent(struct kbase_device *kbdev);
-
-/**
- * kbase_reset_gpu_active - Reports if the GPU is being reset
- * @kbdev: Device pointer
- *
- * Return: True if the GPU is in the process of being reset.
- */
-bool kbase_reset_gpu_active(struct kbase_device *kbdev);
 #endif
 
 /**

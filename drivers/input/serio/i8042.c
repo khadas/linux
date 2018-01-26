@@ -1470,12 +1470,34 @@ static struct platform_driver i8042_driver = {
 	.shutdown	= i8042_shutdown,
 };
 
+#ifdef CONFIG_DMI
+static struct dmi_system_id __initdata dmi_system_table[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Apple Computer, Inc.")
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Apple Inc.")
+		},
+	},
+	{}
+};
+#endif /*CONFIG_DMI*/
+
 static int __init i8042_init(void)
 {
 	struct platform_device *pdev;
 	int err;
 
 	dbg_init();
+
+#ifdef CONFIG_DMI
+	/* Intel Apple Macs never have an i8042 controller */
+	if (dmi_check_system(dmi_system_table) > 0)
+		return -ENODEV;
+#endif /*CONFIG_DMI*/
 
 	err = i8042_platform_init();
 	if (err)

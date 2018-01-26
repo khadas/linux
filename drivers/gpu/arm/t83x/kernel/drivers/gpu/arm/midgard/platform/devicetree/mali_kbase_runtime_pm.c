@@ -17,17 +17,17 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
-#include <backend/gpu/mali_kbase_pm_internal.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <backend/gpu/mali_kbase_device_internal.h>
 
 void *reg_base_hiubus = NULL;
 u32  override_value_aml = 0;
 static int first = 1;
 
+extern u64 kbase_pm_get_ready_cores(struct kbase_device *kbdev, enum kbase_pm_core_type type);
 static void  Mali_pwr_on_with_kdev ( struct kbase_device *kbdev, uint32_t  mask)
 {
     uint32_t    part1_done;
@@ -163,24 +163,12 @@ ret:
 
 static void pm_callback_power_off(struct kbase_device *kbdev)
 {
+	dev_dbg(kbdev->dev, "pm_callback_power_off\n");
     //printk("%s, %d\n", __FILE__, __LINE__);
 #if 0
     iounmap(reg_base_hiubus);
     reg_base_hiubus = NULL;
 #endif
-	u64 core_ready  = kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_SHADER);
-	u64 l2_ready    = kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_L2);
-	u64 tiler_ready = kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_TILER);
-
-	dev_dbg(kbdev->dev, "pm_callback_power_off\n");
-	if (core_ready)
-		kbase_pm_invoke(kbdev, KBASE_PM_CORE_SHADER, core_ready, ACTION_PWROFF);
-
-	if (l2_ready)
-		kbase_pm_invoke(kbdev, KBASE_PM_CORE_L2, l2_ready, ACTION_PWROFF);
-
-	if (tiler_ready)
-		kbase_pm_invoke(kbdev, KBASE_PM_CORE_TILER, tiler_ready, ACTION_PWROFF);
 
 	pm_runtime_put_autosuspend(kbdev->dev);
 }
@@ -189,7 +177,14 @@ int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	dev_dbg(kbdev->dev, "kbase_device_runtime_init\n");
 	pm_runtime_enable(kbdev->dev);
+#ifdef CONFIG_MALI_MIDGARD_DEBUG_SYS
+	{
+		int err = kbase_platform_create_sysfs_file(kbdev->dev);
 
+		if (err)
+			return err;
+	}
+#endif				/* CONFIG_MALI_MIDGARD_DEBUG_SYS */
 	return 0;
 }
 

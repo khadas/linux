@@ -152,6 +152,13 @@ enum select_scaler_path_e {
 	sup0_pp_sp1_scpath,
 	sup0_pp_post_blender,
 };
+/*
+* note frome vlsi!!!
+* if core0 v enable,core0 input width max=1024;
+* if core0 v disable,core0 input width max=2048;
+* if core1 v enable,core1 input width max=2048;
+* if core1 v disable,core1 input width max=4096;
+*/
 #define SUPER_CORE0_WIDTH_MAX  2048
 #define SUPER_CORE1_WIDTH_MAX  4096
 
@@ -174,6 +181,12 @@ enum select_scaler_path_e {
 #define MODE_3D_OUT_LR	0x00020000
 #define MODE_FORCE_3D_TO_2D_LR	0x00100000
 #define MODE_FORCE_3D_TO_2D_TB	0x00200000
+#define MODE_FORCE_3D_LR	0x01000000
+#define MODE_FORCE_3D_TB	0x02000000
+#define MODE_3D_FP			0x04000000
+#define MODE_FORCE_3D_FA_LR	0x10000000
+#define MODE_FORCE_3D_FA_TB	0x20000000
+
 
 /*when the output mode is field alterlative*/
 /* LRLRLRLRL mode */
@@ -206,7 +219,7 @@ enum select_scaler_path_e {
 extern
 void vpp_set_3d_scale(bool enable);
 extern
-void get_vpp_3d_mode(u32 trans_fmt, u32 *vpp_3d_mode);
+void get_vpp_3d_mode(u32 process_3d_type, u32 trans_fmt, u32 *vpp_3d_mode);
 #endif
 
 extern void
@@ -232,22 +245,19 @@ extern u32 vpp_get_zoom_ratio(void);
 
 extern void vpp_set_osd_layer_preblend(u32 *);
 
-extern
-void vpp_set_osd_layer_position(s32 *);
+extern void vpp_set_osd_layer_position(s32 *);
 
-extern
-s32 vpp_set_nonlinear_factor(u32 f);
+extern s32 vpp_set_nonlinear_factor(u32 f);
 
-extern
-u32 vpp_get_nonlinear_factor(void);
-extern
-void vpp_set_video_speed_check(u32 h, u32 w);
+extern u32 vpp_get_nonlinear_factor(void);
 
-extern
-void vpp_get_video_speed_check(u32 *h, u32 *w);
+extern void vpp_set_video_speed_check(u32 h, u32 w);
 
-extern
-void vpp_super_scaler_support(void);
+extern void vpp_get_video_speed_check(u32 *h, u32 *w);
+
+extern void vpp_super_scaler_support(void);
+
+extern void vpp_bypass_ratio_config(void);
 
 #ifdef CONFIG_AM_VIDEO2
 extern void
@@ -263,6 +273,7 @@ extern void vpp2_set_zoom_ratio(u32 r);
 
 extern u32 vpp2_get_zoom_ratio(void);
 #endif
+extern int video_property_notify(int flag);
 
 extern int vpp_set_super_scaler_regs(int scaler_path_sel,
 		int reg_srscl0_enable,

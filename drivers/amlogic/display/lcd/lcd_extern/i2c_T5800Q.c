@@ -150,7 +150,6 @@ static int lcd_extern_power_cmd(unsigned char *init_table)
 
 static int lcd_extern_power_ctrl(int flag)
 {
-	struct aml_lcd_extern_driver_s *ext_drv = aml_lcd_extern_get_driver();
 	int ret = 0;
 
 	if (flag)
@@ -225,12 +224,12 @@ static ssize_t lcd_extern_debug_write(struct class *class,
 		&temp[0], &temp[1], &temp[2], &temp[3],
 		&temp[4], &temp[5], &temp[6]);
 	EXTPR("T5800Q i2c write:\n");
-	for (i = 0; i < INIT_LEN; i++) {
+	for (i = 0; i < 7; i++) {
 		data[i] = (unsigned char)temp[i];
 		pr_info("0x%02x ", data[i]);
 	}
 	pr_info("\n");
-	lcd_extern_i2c_write(aml_T5800Q_i2c_client, data, INIT_LEN);
+	lcd_extern_i2c_write(aml_T5800Q_i2c_client, data, 7);
 
 	if (ret != 1 || ret != 2)
 		return -EINVAL;

@@ -88,6 +88,29 @@
 #define MicroCode gxm_vh264_slice_mc
 #include "gxm_h264slice_linux.h"
 
+#undef MicroCode
+#define MicroCode vmh264_mc
+#include "mh264c_linux.h"
+
+#undef MicroCode
+#define MicroCode vmh264_header_mc
+#include "mh264header_linux.h"
+
+#undef MicroCode
+#define MicroCode vmh264_data_mc
+#include "mh264data_linux.h"
+
+#undef MicroCode
+#define MicroCode vmh264_mmco_mc
+#include "mh264mmc_linux.h"
+
+#undef MicroCode
+#define MicroCode vmh264_list_mc
+#include "mh264list_linux.h"
+
+#undef MicroCode
+#define MicroCode vmh264_slice_mc
+#include "mh264slice_linux.h"
 
 #undef FOR_CPUS
 #define FOR_CPUS {MESON_CPU_MAJOR_ID_GXTVBB, MESON_CPU_MAJOR_ID_GXL,\
@@ -133,6 +156,12 @@
 		DEF_FIRMWARE(gxtvbb_vh264_slice_mc);\
 		DEF_FIRMEARE_FOR_GXM(gxm_vh264_slice_mc);\
 		DEF_FIRMEARE_FOR_TXL(gxm_vh264_slice_mc);\
+		DEF_FIRMWARE(vmh264_mc);\
+		DEF_FIRMWARE(vmh264_header_mc);\
+		DEF_FIRMWARE(vmh264_data_mc);\
+		DEF_FIRMWARE(vmh264_mmco_mc);\
+		DEF_FIRMWARE(vmh264_list_mc);\
+		DEF_FIRMWARE(vmh264_slice_mc);\
 	} while (0)
 
 INIT_DEF_FIRMWARE();

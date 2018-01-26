@@ -119,6 +119,8 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
+	/** i_mtime has been updated locally; a flush to userspace needed */
+	FUSE_I_MTIME_DIRTY,
 };
 
 struct fuse_conn;
@@ -480,6 +482,9 @@ struct fuse_conn {
 	/** Set if bdi is valid */
 	unsigned bdi_initialized:1;
 
+	/** write-back cache policy (default is write-through) */
+	unsigned writeback_cache:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -538,6 +543,9 @@ struct fuse_conn {
 
 	/** Is fallocate not implemented by fs? */
 	unsigned no_fallocate:1;
+
+	/** Is rename with flags implemented by fs? */
+	unsigned no_rename2:1;
 
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
@@ -873,7 +881,9 @@ long fuse_ioctl_common(struct file *file, unsigned int cmd,
 unsigned fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 
-void fuse_write_update_size(struct inode *inode, loff_t pos);
+bool fuse_write_update_size(struct inode *inode, loff_t pos);
+
+int fuse_flush_mtime(struct file *file, bool nofail);
 
 int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file);

@@ -103,7 +103,7 @@ config ARCH_MMAP_RND_BITS_MAX
        default 33 if ARM64_VA_BITS=48
        default 14 if ARM64_64K_PAGES
        default 16 if ARM64_16K_PAGES
-       default 18
+       default 24
 
 config ARCH_MMAP_RND_COMPAT_BITS_MIN
        default 7 if ARM64_64K_PAGES
@@ -181,6 +181,12 @@ config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
+
+config ARCH_MESON64_ODROIDC2
+        bool "Hardkernel's ODROID-C2 board"
+        help
+          This enables support for the board ODROID-C2 of Hardkernel
+          which is based on ARMv8 SoC of AMLogic, Inc.
 
 endmenu
 
@@ -629,6 +635,10 @@ config COMPAT
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	def_bool y
+	depends on COMPAT && KEYS
 
 endmenu
 

@@ -347,6 +347,8 @@ struct inode_operations {
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
+	int (*rename2) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
@@ -362,6 +364,7 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -413,6 +416,20 @@ otherwise noted.
 
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
+
+  rename2: this has an additional flags argument compared to rename.
+	If no flags are supported by the filesystem then this method
+	need not be implemented.  If some flags are supported then the
+	filesystem must return -EINVAL for any unsupported or unknown
+	flags.  Currently the following flags are implemented:
+	(1) RENAME_NOREPLACE: this flag indicates that if the target
+	of the rename exists the rename should fail with -EEXIST
+	instead of replacing the target.  The VFS already checks for
+	existence, so for local filesystems the RENAME_NOREPLACE
+	implementation is equivalent to plain rename.
+	(2) RENAME_EXCHANGE: exchange source and target.  Both must
+	exist; this is checked by the VFS.  Unlike plain rename,
+	source and target may be of different type.
 
   readlink: called by the readlink(2) system call. Only required if
 	you want to support reading symbolic links
@@ -680,6 +697,12 @@ struct address_space_operations {
   	device.  The swap system does not go through the filesystem
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
+
+  dentry_open: *WARNING: probably going away soon, do not use!* This is an
+	alternative to f_op->open(), the difference is that this method may open
+	a file not necessarily originating from the same filesystem as the one
+	i_op->open() was called on.  It may be useful for stacking filesystems
+	which want to allow native I/O directly on underlying files.
 
 
   invalidatepage: If a page has PagePrivate set, then invalidatepage

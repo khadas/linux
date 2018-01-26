@@ -34,6 +34,7 @@
 #include <linux/gpio.h>
 #include "../aml_fe.h"
 
+#include <linux/dma-contiguous.h>
 #include <linux/dvb/aml_demod.h>
 #include "demod_func.h"
 #include "../aml_dvb.h"
@@ -50,6 +51,7 @@ module_param(debug_aml, int, 0644);
 		} \
 	} while (0)
 #define pr_error(fmt, args ...) pr_err("GXTV_DEMOD: "fmt, ## args)
+#define pr_inf(fmt, args...)  pr_err("GXTV_DEMOD: " fmt, ## args)
 
 static int last_lock = -1;
 #define DEMOD_DEVICE_NAME  "gxtv_demod"
@@ -244,12 +246,6 @@ static int install_isr(struct aml_fe_dev *state)
 	return r;
 }
 
-static void uninstall_isr(struct aml_fe_dev *state)
-{
-/*      pr_dbg("amdemod irq unregister[IRQ(%d)].\n", INT_DEMOD);*/
-
-/*      free_irq(INT_DEMOD, (void*)state);*/
-}
 
 static int amdemod_qam(fe_modulation_t qam)
 {
@@ -338,11 +334,13 @@ static int gxtv_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
 
 static void gxtv_demod_dvbc_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dvbc_read_status
@@ -548,11 +546,13 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 
 static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dvbt_read_status
@@ -730,11 +730,13 @@ int Gxtv_Demod_Dvbt_Init(struct aml_fe_dev *dev)
 
 static void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
@@ -924,11 +926,13 @@ int Gxtv_Demod_Atsc_Init(struct aml_fe_dev *dev)
 
 static void gxtv_demod_dtmb_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dtmb_read_status
@@ -1115,6 +1119,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			gxtv_demod_dvbt_read_signal_strength;
 		fe_ops->read_snr = gxtv_demod_dvbt_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_dvbt_read_ucblocks;
+		fe_ops->read_dtmb_fsm = NULL;
 
 		pr_dbg("=========================dvbt demod init\r\n");
 		Gxtv_Demod_Dvbt_Init(dev);
@@ -1142,6 +1147,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_snr = gxtv_demod_dvbc_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_dvbc_read_ucblocks;
 		fe_ops->set_qam_mode = gxtv_demod_dvbc_set_qam_mode;
+		fe_ops->read_dtmb_fsm = NULL;
 		install_isr(dev);
 		pr_dbg("=========================dvbc demod init\r\n");
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
@@ -1168,6 +1174,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_snr = gxtv_demod_atsc_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_atsc_read_ucblocks;
 		fe_ops->set_qam_mode = gxtv_demod_atsc_set_qam_mode;
+		fe_ops->read_dtmb_fsm = NULL;
 		Gxtv_Demod_Atsc_Init(dev);
 	} else if (mode == AM_FE_DTMB) {
 		fe_ops->info.frequency_min = 51000000;
@@ -1199,18 +1206,56 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 
 static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 {
-	pr_dbg("gxtv_demod_fe_resume\n");
+	int memstart_dtmb;
+	pr_inf("gxtv_demod_fe_resume\n");
 /*	demod_power_switch(PWR_ON);*/
 	Gxtv_Demod_Dtmb_Init(dev);
+	memstart_dtmb = dev->fe->dtv_demod->mem_start;
+	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
+	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
+	pr_dbg("[dtmb]mem_buf is 0x%x\n",
+	dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
 	return 0;
 }
 
 static int gxtv_demod_fe_suspend(struct aml_fe_dev *dev)
 {
-	pr_dbg("gxtv_demod_fe_suspend\n");
+	pr_inf("gxtv_demod_fe_suspend\n");
 /*	demod_power_switch(PWR_OFF);*/
 	return 0;
 }
+
+#ifdef CONFIG_CMA
+void dtmb_cma_alloc(struct aml_fe_dev *devp)
+{
+	unsigned int mem_size = devp->cma_mem_size;
+	devp->venc_pages =
+			dma_alloc_from_contiguous(&(devp->this_pdev->dev),
+			mem_size >> PAGE_SHIFT, 0);
+		pr_dbg("[cma]mem_size is %d,%d\n",
+			mem_size, mem_size >> PAGE_SHIFT);
+		if (devp->venc_pages) {
+			devp->mem_start = page_to_phys(devp->venc_pages);
+			devp->mem_size  = mem_size;
+			pr_dbg("demod mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->mem_start, devp->mem_size);
+			pr_dbg("demod cma alloc ok!\n");
+		} else {
+			pr_dbg("demod cma mem undefined2.\n");
+		}
+}
+
+void dtmb_cma_release(struct aml_fe_dev *devp)
+{
+	dma_release_from_contiguous(&(devp->this_pdev->dev),
+			devp->venc_pages,
+			devp->cma_mem_size>>PAGE_SHIFT);
+		pr_dbg("demod cma release ok!\n");
+	devp->mem_start = 0;
+	devp->mem_size = 0;
+}
+#endif
+
 
 static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 {
@@ -1224,14 +1269,23 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 	if (cci_thread)
 		if (dvbc_get_cci_task() == 1)
 			dvbc_create_cci_task();
-	memstart_dtmb = fe->dtv_demod->mem_start;
-	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 	/*mem_buf = (long *)phys_to_virt(memstart);*/
 	if (mode == AM_FE_DTMB) {
 		Gxtv_Demod_Dtmb_Init(dev);
+	if (fe->dtv_demod->cma_flag == 1) {
+		pr_dbg("CMA MODE, cma flag is %d,mem size is %d",
+			fe->dtv_demod->cma_flag, fe->dtv_demod->cma_mem_size);
+		dtmb_cma_alloc(dev);
+		memstart_dtmb = dev->mem_start;
+	} else {
+		memstart_dtmb = fe->dtv_demod->mem_start;
+	}
+		pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 		dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
 		pr_dbg("[dtmb]mem_buf is 0x%x\n",
 			dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+		/* open arbit */
+		demod_set_demod_reg(0x8, DEMOD_REG4);
 	} else if (mode == AM_FE_QAM) {
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
 	}
@@ -1241,10 +1295,17 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 
 static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 {
+	struct aml_fe_dev *dev = fe->dtv_demod;
 	dtvpll_init_flag(0);
 	/*dvbc_timer_exit();*/
 	if (cci_thread)
 		dvbc_kill_cci_task();
+	if (mode == AM_FE_DTMB) {
+		/* close arbit */
+		demod_set_demod_reg(0x0, DEMOD_REG4);
+		if (fe->dtv_demod->cma_flag == 1)
+			dtmb_cma_release(dev);
+	}
 
 	/* should disable the adc ref signal for demod */
 	vdac_enable(0, 0x2);

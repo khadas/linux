@@ -22,6 +22,7 @@ struct bt_dev_data {
 	int gpio_reset;
 	int gpio_en;
 	int power_low_level;
+	int power_on_pin_OD;
 };
 
 #endif

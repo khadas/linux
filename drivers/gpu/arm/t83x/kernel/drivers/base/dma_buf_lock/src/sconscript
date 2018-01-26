@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2013, 2016 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -17,17 +17,20 @@ import os
 import re
 Import('env')
 
+if env['v'] != '1':
+	env['MAKECOMSTR'] = '[MAKE] ${SOURCE.dir}'
+
 src = [Glob('#kernel/drivers/base/dma_buf_lock/src/*.c'), Glob('#kernel/drivers/base/dma_buf_lock/src/*.h'), Glob('#kernel/drivers/base/dma_buf_lock/src/K*')]
 
 if env.GetOption('clean') :
 	# Clean module
 	env.Execute(Action("make clean", '[CLEAN] dma_buf_lock'))
 	cmd = env.Command('$STATIC_LIB_PATH/dma_buf_lock.ko', src, [])
-	env.KernelObjTarget('dma_buf_lock', cmd)
+	env.ProgTarget('dma_buf_lock', cmd)
 
 else:
 	# Build module
 	makeAction=Action("cd ${SOURCE.dir} && make dma_buf_lock && cp dma_buf_lock.ko $STATIC_LIB_PATH/", '$MAKECOMSTR')
 	cmd = env.Command('$STATIC_LIB_PATH/dma_buf_lock.ko', src, [makeAction])
-	env.KernelObjTarget('dma_buf_lock', cmd)
+	env.ProgTarget('dma_buf_lock', cmd)
 

@@ -19,7 +19,7 @@
 #endif
 
 #undef pr_fmt
-#define pr_fmt(fmt)    "avin_detect: " fmt
+#define pr_fmt(fmt)    "avin-detect: " fmt
 
 #define DEBUG_DEF  1
 #define INPUT_REPORT_SWITCH 0
@@ -78,12 +78,12 @@ static irqreturn_t avin_detect_handler(int irq, void *data)
 	}
 
 	if (avdev->code_variable.loop_detect_times[i]++
-		>= LOOP_DETECT_TIMES) {
+		== LOOP_DETECT_TIMES) {
 		avdev->code_variable.irq_falling_times[
 			i * avdev->dts_param.dts_detect_times +
 			avdev->code_variable.detect_channel_times[i]]++;
 		avdev->code_variable.pin_mask_irq_flag[i] = 1;
-		avdev->code_variable.loop_detect_times[i] = 0;
+		/*avdev->code_variable.loop_detect_times[i] = 0;*/
 		schedule_work(&(avdev->work_struct_maskirq));
 	}
 	return IRQ_HANDLED;
@@ -103,8 +103,9 @@ static void avin_timer_sr(unsigned long data)
 				avdev->code_variable.detect_channel_times[
 					i]-1] != 0) {
 				avdev->code_variable.loop_detect_times[i] = 0;
-				ENABLE_AVIRQ(i, avdev);
+				/*ENABLE_AVIRQ(i, avdev);*/
 			}
+			ENABLE_AVIRQ(i, avdev);
 			if (avdev->code_variable.detect_channel_times[
 				i] == 1) {
 				avdev->code_variable.irq_falling_times[
@@ -117,9 +118,9 @@ static void avin_timer_sr(unsigned long data)
 		} else {
 			avdev->code_variable.detect_channel_times[i] = 0;
 			avdev->code_variable.loop_detect_times[i] = 0;
-			if (avdev->code_variable.irq_falling_times[
+			/*if (avdev->code_variable.irq_falling_times[
 				(i+1) * avdev->dts_param.dts_detect_times
-				-1] != 0)
+				-1] != 0)*/
 				ENABLE_AVIRQ(i, avdev);
 		}
 	}

@@ -20,6 +20,7 @@
 #include "arch/vpp_regs.h"
 #include "../tvin/tvin_global.h"
 #include "arch/vpp_hdr_regs.h"
+#include "arch/hdr_curve.h"
 
 /* use osd rdma reg w/r */
 #include "../display/osd/osd_rdma.h"
@@ -34,6 +35,8 @@
 
 signed int vd1_contrast_offset;
 
+signed int saturation_offset;
+
 struct hdr_osd_reg_s hdr_osd_reg = {
 	0x00000001, /* VIU_OSD1_MATRIX_CTRL 0x1a90 */
 	0x00ba0273, /* VIU_OSD1_MATRIX_COEF00_01 0x1a91 */
@@ -41,7 +44,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 	0x1ea801c0, /* VIU_OSD1_MATRIX_COEF11_12 0x1a93 */
 	0x01c01e6a, /* VIU_OSD1_MATRIX_COEF20_21 0x1a94 */
 	0x00000000, /* VIU_OSD1_MATRIX_COLMOD_COEF42 0x1a95 */
-	0x00000200, /* VIU_OSD1_MATRIX_OFFSET0_1 0x1a96 */
+	0x00400200, /* VIU_OSD1_MATRIX_OFFSET0_1 0x1a96 */
 	0x00000200, /* VIU_OSD1_MATRIX_PRE_OFFSET2 0x1a97 */
 	0x00000000, /* VIU_OSD1_MATRIX_PRE_OFFSET0_1 0x1a98 */
 	0x00000000, /* VIU_OSD1_MATRIX_PRE_OFFSET2 0x1a99 */
@@ -54,7 +57,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 	0x08000000, /* VIU_OSD1_EOTF_COEF11_12 0x1ad7 */
 	0x00000000, /* VIU_OSD1_EOTF_COEF20_21 0x1ad8 */
 	0x08000001, /* VIU_OSD1_EOTF_COEF22_RS 0x1ad9 */
-	0x00000000, /* VIU_OSD1_OETF_CTL 0x1adc */
+	0x01c00000, /* VIU_OSD1_OETF_CTL 0x1adc */
 	{
 		/* eotf table */
 		{ /* r map */
@@ -82,7 +85,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 			0x3c00, 0x3e00, 0x4000
 		},
 		/* oetf table */
-		{ /* ob map */
+		{ /* or map */
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -91,7 +94,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 		},
-		{ /* ob map */
+		{ /* og map */
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -157,6 +160,17 @@ static uint cur_hdr_process_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr */
 module_param(hdr_process_mode, uint, 0444);
 MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 
+uint sdr_mode = 0; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
+static uint sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
+static uint cur_sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
+static int sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
+module_param(sdr_mode, uint, 0664);
+MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
+module_param(sdr_process_mode, uint, 0444);
+MODULE_PARM_DESC(sdr_process_mode, "\n current hdr_process_mode\n");
+module_param(sdr_saturation_offset, int, 0664);
+MODULE_PARM_DESC(sdr_saturation_offset, "\n add saturation\n");
+
 static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
@@ -165,28 +179,120 @@ static uint cur_hdr_support;
 module_param(cur_hdr_support, uint, 0664);
 MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
 
-#define MAX_KNEE_SETTING	11
+static uint range_control;
+module_param(range_control, uint, 0664);
+MODULE_PARM_DESC(range_control, "\n range_control 0:limit 1:full\n");
+
+/* bit 0: use source primary,
+   bit 1: use display primary,
+   bit 2: adjust contrast according to source lumin,
+   bit 3: adjust saturation according to source lumin */
+uint hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
+module_param(hdr_flag, uint, 0664);
+MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
+
+static uint rdma_flag =
+	(1 << VPP_MATRIX_XVYCC);
+module_param(rdma_flag, uint, 0664);
+MODULE_PARM_DESC(rdma_flag, "\n set rdma_flag\n");
+
+#define MAX_KNEE_SETTING	35
 /* recommended setting for 100 nits panel: */
 /* 0,16,96,224,320,544,720,864,1000,1016,1023 */
 /* knee factor = 256 */
 static int num_knee_setting = MAX_KNEE_SETTING;
 static int knee_setting[MAX_KNEE_SETTING] = {
 	/* 0, 16, 96, 224, 320, 544, 720, 864, 1000, 1016, 1023 */
-	0, 16, 96, 204, 320, 512, 720, 864, 980, 1016, 1023
+	0, 16, 36, 59, 71, 96,
+	120, 145, 170, 204, 230, 258,
+	288, 320, 355, 390, 428, 470,
+	512, 554, 598, 650, 720, 758,
+	790, 832, 864, 894, 920, 945,
+	968, 980, 1000, 1016, 1023
 };
 
 static int num_knee_linear_setting = MAX_KNEE_SETTING;
 static int knee_linear_setting[MAX_KNEE_SETTING] = {
 	0x000,
 	0x010,
+	0x02f,
+	0x04e,
+	0x06d,
 	0x08c,
+	0x0ab,
+	0x0ca,
+	0x0e9,
 	0x108,
+	0x127,
+	0x146,
+	0x165,
 	0x184,
+	0x1a3,
+	0x1c2,
+	0x1e1,
 	0x200,
+	0x21f,
+	0x23e,
+	0x25d,
 	0x27c,
+	0x29b,
+	0x2ba,
+	0x2d9,
 	0x2f8,
+	0x317,
+	0x336,
+	0x355,
 	0x374,
+	0x393,
+	0x3b2,
+	0x3d1,
 	0x3f0,
+	0x3ff
+};
+
+static bool lut_289_en = 1;
+module_param(lut_289_en, bool, 0664);
+MODULE_PARM_DESC(lut_289_en, "\n if enable 289 lut\n");
+
+/*for gxtvbb(968), only 289 point lut for hdr curve set */
+/*default for 350nit panel*/
+unsigned int lut_289_mapping[LUT_289_SIZE] = {
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0x9, 0xa, 0xb, 0xd, 0xe, 0x10, 0x11, 0x12,
+	  0x14, 0x15, 0x17, 0x18, 0x1a, 0x1c, 0x1d, 0x1f,
+	  0x20, 0x22, 0x24, 0x26, 0x27, 0x29, 0x2b, 0x2d,
+	 0x2f,  0x31,  0x33,  0x35,  0x37,  0x39,  0x3b,  0x3d,
+	 0x40,  0x42,  0x44,  0x46,  0x49,  0x4b,  0x4e,  0x50,
+	 0x53,  0x55,  0x58,  0x5a,  0x5d,  0x60,  0x62,  0x65,
+	 0x68,  0x6b,  0x6e,  0x71,  0x74,  0x77,  0x7a,  0x7e,
+	 0x81,  0x84,  0x87,  0x8b,  0x8e,  0x92,  0x95,  0x99,
+	 0x9d,  0xa1,  0xa4,  0xa8,  0xac,  0xb0,  0xb4,  0xb8,
+	 0xbc,  0xc1,  0xc5,  0xc9,  0xce,  0xd2,  0xd7,  0xdc,
+	 0xe0,  0xe5,  0xea,  0xef,  0xf4,  0xf9,  0xfe,  0x104,
+	 0x109,  0x10e,  0x114,  0x11a,  0x11f,  0x125,  0x12b,  0x131,
+	 0x137,  0x13d,  0x143,  0x14a,  0x150,  0x156,  0x15d,  0x164,
+	 0x16b,  0x172,  0x179,  0x180,  0x187,  0x18e,  0x196,  0x19d,
+	 0x1a5,  0x1ad,  0x1b5,  0x1bd,  0x1c5,  0x1cd,  0x1d6,  0x1de,
+	 0x1e7,  0x1f0,  0x1f9,  0x202,  0x20b,  0x214,  0x21e,  0x227,
+	 0x231,  0x23b,  0x245,  0x24f,  0x25a,  0x264,  0x26f,  0x27a,
+	 0x285,  0x290,  0x29c,  0x2a7,  0x2b3,  0x2bf,  0x2cb,  0x2d7,
+	 0x2e3,  0x2f0,  0x2fd,  0x30a,  0x317,  0x325,  0x332,  0x33e,
+	 0x34a,  0x356,  0x362,  0x36d,  0x377,  0x381,  0x38b,  0x394,
+	 0x39c,  0x3a4,  0x3ac,  0x3b3,  0x3ba,  0x3c1,  0x3c7,  0x3cd,
+	 0x3d2,  0x3d7,  0x3db,  0x3df,  0x3e3,  0x3e6,  0x3e9,  0x3ec,
+	 0x3ef,  0x3f1,  0x3f3,  0x3f5,  0x3f6,  0x3f7,  0x3f8,  0x3f9,
+	 0x3fa,  0x3fa,  0x3fb,  0x3fb,  0x3fb,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,  0x3fc,
+	 0x3fc, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff,
+	0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff,
+	0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff,
 	0x3ff
 };
 
@@ -209,14 +315,14 @@ MODULE_PARM_DESC(knee_interpolation_mode, "\n 0: linear, 1: cubic\n");
 static uint num_customer_matrix_param = NUM_MATRIX_PARAM;
 static uint customer_matrix_param[NUM_MATRIX_PARAM] = {
 	0, 0, 0,
-	0x0b77, 0x1c75, 0x0014,
-	0x1f90, 0x07ed, 0x0083,
-	0x0046, 0x1fb4, 0x0806,
+	0x0d49, 0x1b4d, 0x1f6b,
+	0x1f01, 0x0910, 0x1fef,
+	0x1fdb, 0x1f32, 0x08f3,
 	0, 0, 0,
 	1
 };
 
-static bool customer_matrix_en;
+static bool customer_matrix_en = true;
 
 #define INORM	50000
 #define BL		16
@@ -241,13 +347,69 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
+/* 0: off, 1: on */
+static int customer_master_display_en;
+static uint num_customer_master_display_param = 12;
+static uint customer_master_display_param[12] = {
+	0.17 * INORM + 0.5, 0.797 * INORM + 0.5,      /* G */
+	0.131 * INORM + 0.5, 0.046 * INORM + 0.5,     /* B */
+	0.708 * INORM + 0.5, 0.292 * INORM + 0.5,     /* R */
+	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5,   /* W */
+	5000 * 10000, 50,
+	/* man/min lumin */
+	5000, 50
+	/* content lumin and frame average */
+};
+
 module_param(customer_matrix_en, bool, 0664);
 MODULE_PARM_DESC(customer_matrix_en, "\n if enable customer matrix\n");
 
 module_param_array(customer_matrix_param, uint,
 	&num_customer_matrix_param, 0664);
 MODULE_PARM_DESC(customer_matrix_param,
-	 "\n matrix from source primary to panel primary\n");
+	"\n matrix from source primary to panel primary\n");
+
+module_param(customer_master_display_en, int, 0664);
+MODULE_PARM_DESC(customer_master_display_en,
+	"\n if enable customer primaries and white point\n");
+
+module_param_array(customer_master_display_param, uint,
+	&num_customer_master_display_param, 0664);
+MODULE_PARM_DESC(customer_master_display_param,
+	"\n matrix from source primary and white point\n");
+
+/* 0: off, 1: on */
+static int customer_hdmi_display_en;
+static uint num_customer_hdmi_display_param = 14;
+static uint customer_hdmi_display_param[14] = {
+	9, /* color priamry = bt2020 */
+	16, /* characteristic = st2084 */
+	0.17 * INORM + 0.5, 0.797 * INORM + 0.5,      /* G */
+	0.131 * INORM + 0.5, 0.046 * INORM + 0.5,     /* B */
+	0.708 * INORM + 0.5, 0.292 * INORM + 0.5,     /* R */
+	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5,   /* W */
+	9997 * 10000, 0,
+	/* man/min lumin */
+	5000, 50
+	/* content lumin and frame average */
+};
+
+module_param(customer_hdmi_display_en, int, 0664);
+MODULE_PARM_DESC(customer_hdmi_display_en,
+	"\n if enable customer primaries and white point\n");
+
+module_param_array(customer_hdmi_display_param, uint,
+	&num_customer_hdmi_display_param, 0664);
+MODULE_PARM_DESC(customer_hdmi_display_param,
+	"\n matrix from source primary and white point\n");
+
+/* sat offset when > 1200 and <= 1200 */
+static uint num_extra_sat_lut = 2;
+static uint extra_sat_lut[] = {16, 32};
+module_param_array(extra_sat_lut, uint,
+	&num_extra_sat_lut, 0664);
+MODULE_PARM_DESC(extra_sat_lut,
+	 "\n lookup table for saturation match source luminance.\n");
 
 /* norm to 128 as 1, LUT can be changed */
 static uint num_extra_con_lut = 5;
@@ -323,7 +485,7 @@ static void load_knee_lut(int on)
 	int value;
 	int final_knee_setting[MAX_KNEE_SETTING];
 
-	if (cur_knee_factor != knee_factor) {
+	if ((cur_knee_factor != knee_factor) && (!lut_289_en)) {
 		pr_csc("Knee_factor changed from %d to %d\n",
 			cur_knee_factor, knee_factor);
 		for (i = 0; i < MAX_KNEE_SETTING; i++) {
@@ -350,20 +512,20 @@ static void load_knee_lut(int on)
 							j, i, value);
 			}
 			for (i = 16; i < 272; i++) {
-				k = 1 + ((i - 16) >> 5);
+				k = 1 + ((i - 16) >> 3);
 				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				if (knee_interpolation_mode == 0)
 					value = final_knee_setting[k]
 						+ (((final_knee_setting[k+1]
 						- final_knee_setting[k])
-						* ((i - 16) & 0x1f)) >> 5);
+						* ((i - 16) & 0x7)) >> 3);
 				else
 					value = cubic_interpolation(
 						final_knee_setting[k-1],
 						final_knee_setting[k],
 						final_knee_setting[k+1],
 						final_knee_setting[k+2],
-						((i - 16) & 0x1f) << 1);
+						((i - 16) & 0x7) << 3);
 				value = clip(value, 0, 0x3ff);
 				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
@@ -388,16 +550,62 @@ static void load_knee_lut(int on)
 		}
 		cur_knee_factor = knee_factor;
 	}
+
+	if ((cur_knee_factor != knee_factor) && (lut_289_en)) {
+			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
+			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT, 0);
+			for (i = 0; i < LUT_289_SIZE; i++)
+				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT,
+					lut_289_mapping[i]);
+			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2, 0);
+			for (i = 0; i < LUT_289_SIZE; i++)
+				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2,
+					lut_289_mapping[i]);
+			WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 4, 0);
+			for (i = 0; i < LUT_289_SIZE; i++)
+				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 4,
+					lut_289_mapping[i]);
+		cur_knee_factor = knee_factor;
+	}
+
 	if (on) {
 		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
 		knee_lut_on = 1;
 	} else {
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
+		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0f);
 		knee_lut_on = 0;
 	}
 }
 
 /***************************** gxl hdr ****************************/
+#define EOTF_INV_LUT_NEG2048_SIZE 16 /* 16 for [-2048, 0), 32 for [0, 1024), 17 for [1024, 2048) */
+#define EOTF_INV_LUT_SIZE 32
+#define EOTF_INV_LUT_1024_SIZE 17
+
+static unsigned int num_invlut_neg_mapping = EOTF_INV_LUT_NEG2048_SIZE;
+static int invlut_y_neg[EOTF_INV_LUT_NEG2048_SIZE] = {
+	-2048, -1920, -1792, -1664,
+	-1536, -1408, -1280, -1152,
+	-1024, -896, -768, -640,
+	-512, -384, -256, -128
+};
+
+static unsigned int num_invlut_mapping = EOTF_INV_LUT_SIZE;
+static unsigned int invlut_y[EOTF_INV_LUT_SIZE] = {
+	0, 32, 64, 96, 128, 160, 192, 224,
+	256, 288, 320, 352, 384, 416, 448, 480,
+	512, 544, 576, 608, 640, 672, 704, 736,
+	768, 800, 832, 864, 896, 928, 960, 992
+};
+
+static unsigned int num_invlut_1024_mapping = EOTF_INV_LUT_1024_SIZE;
+static unsigned int invlut_y_1024[EOTF_INV_LUT_1024_SIZE] = {
+	1024, 1088, 1152, 1216,
+	1280, 1344, 1408, 1472,
+	1536, 1600, 1664, 1728,
+	1792, 1856, 1920, 1984,
+	2047
+};
 
 #define EOTF_LUT_SIZE 33
 static unsigned int num_osd_eotf_r_mapping = EOTF_LUT_SIZE;
@@ -502,49 +710,48 @@ static unsigned int reload_lut;
 
 /******************** osd oetf **************/
 
-#define OSD_OETF_LUT_SIZE 41
 static unsigned int num_osd_oetf_r_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_r_mapping[OSD_OETF_LUT_SIZE] = {
-		0, 150, 250, 330,
-		395, 445, 485, 520,
-		544, 632, 686, 725,
-		756, 782, 803, 822,
-		839, 854, 868, 880,
-		892, 902, 913, 922,
-		931, 939, 947, 954,
-		961, 968, 974, 981,
-		986, 993, 998, 1003,
-		1009, 1014, 1018, 1023,
-		0
+		0, 4, 8, 12,
+		16, 20, 24, 28,
+		31, 62, 93, 124,
+		155, 186, 217, 248,
+		279, 310, 341, 372,
+		403, 434, 465, 496,
+		527, 558, 589, 620,
+		651, 682, 713, 744,
+		775, 806, 837, 868,
+		899, 930, 961, 992,
+		1023
 };
 
 static unsigned int num_osd_oetf_g_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_g_mapping[OSD_OETF_LUT_SIZE] = {
-		0, 0, 0, 0,
-		0, 32, 64, 96,
-		128, 160, 196, 224,
-		256, 288, 320, 352,
-		384, 416, 448, 480,
-		512, 544, 576, 608,
-		640, 672, 704, 736,
-		768, 800, 832, 864,
-		896, 928, 960, 992,
-		1023, 1023, 1023, 1023,
+		0, 4, 8, 12,
+		16, 20, 24, 28,
+		31, 62, 93, 124,
+		155, 186, 217, 248,
+		279, 310, 341, 372,
+		403, 434, 465, 496,
+		527, 558, 589, 620,
+		651, 682, 713, 744,
+		775, 806, 837, 868,
+		899, 930, 961, 992,
 		1023
 };
 
 static unsigned int num_osd_oetf_b_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_b_mapping[OSD_OETF_LUT_SIZE] = {
-		0, 0, 0, 0,
-		0, 32, 64, 96,
-		128, 160, 196, 224,
-		256, 288, 320, 352,
-		384, 416, 448, 480,
-		512, 544, 576, 608,
-		640, 672, 704, 736,
-		768, 800, 832, 864,
-		896, 928, 960, 992,
-		1023, 1023, 1023, 1023,
+		0, 4, 8, 12,
+		16, 20, 24, 28,
+		31, 62, 93, 124,
+		155, 186, 217, 248,
+		279, 310, 341, 372,
+		403, 434, 465, 496,
+		527, 558, 589, 620,
+		651, 682, 713, 744,
+		775, 806, 837, 868,
+		899, 930, 961, 992,
 		1023
 };
 
@@ -757,6 +964,18 @@ module_param_array(osd_matrix_coeff, int,
 MODULE_PARM_DESC(osd_matrix_coeff, "\n coef for osd matrix\n");
 
 /****************** video eotf ********************/
+module_param_array(invlut_y_neg, int,
+	&num_invlut_neg_mapping, 0664);
+MODULE_PARM_DESC(invlut_y_neg, "\n lut for inv y -2048..0 eotf\n");
+
+module_param_array(invlut_y, uint,
+	&num_invlut_mapping, 0664);
+MODULE_PARM_DESC(invlut_y, "\n lut for inv y 0..1024 eotf\n");
+
+module_param_array(invlut_y_1024, uint,
+	&num_invlut_1024_mapping, 0664);
+MODULE_PARM_DESC(invlut_y_1024, "\n lut for inv y 1024..2048 eotf\n");
+
 module_param_array(video_eotf_coeff, int,
 	&num_video_eotf_coeff, 0664);
 MODULE_PARM_DESC(video_eotf_coeff, "\n matrix for video eotf\n");
@@ -825,6 +1044,16 @@ MODULE_PARM_DESC(reload_mtx, "\n reload matrix coeff\n");
 module_param(reload_lut, uint, 0664);
 MODULE_PARM_DESC(reload_lut, "\n reload lut settings\n");
 
+static int RGB709_to_YUV709_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, 0, 0, /* pre offset */
+	COEFF_NORM(0.2126),	COEFF_NORM(0.7152),	COEFF_NORM(0.0722),
+	COEFF_NORM(-0.114572),	COEFF_NORM(-0.385428),	COEFF_NORM(0.5),
+	COEFF_NORM(0.5),	COEFF_NORM(-0.454153),	COEFF_NORM(-0.045847),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	0, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
 
 static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
@@ -833,6 +1062,17 @@ static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
 	0, 0, 0, /* 10'/11'/12' */
 	0, 0, 0, /* 20'/21'/22' */
+	64, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
+static int RGB2020_to_YUV2020l_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, 0, 0, /* pre offset */
+	COEFF_NORM(0.224732),	COEFF_NORM(0.580008),	COEFF_NORM(0.050729),
+	COEFF_NORM(-0.122176),	COEFF_NORM(-0.315324),	COEFF_NORM(0.437500),
+	COEFF_NORM(0.437500),	COEFF_NORM(-0.402312),	COEFF_NORM(-0.035188),
+	0, 0, 0, /* 30/31/32 */
+	0, 0, 0, /* 40/41/42 */
 	64, 512, 512, /* offset */
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
@@ -848,6 +1088,16 @@ static int YUV709f_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
+static int YUV709l_to_YUV709f_coeff[MATRIX_5x3_COEF_SIZE] = {
+	64, -512, -512, /* pre offset */
+	COEFF_NORM(1.16895),	COEFF_NORM(0),	COEFF_NORM(0),
+	COEFF_NORM(0),	COEFF_NORM(1.14286),	COEFF_NORM(0),
+	COEFF_NORM(0),	COEFF_NORM(0),	COEFF_NORM(1.14286),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	0, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
 
 static int YUV709l_to_RGB709_coeff[MATRIX_5x3_COEF_SIZE] = {
 	-64, -512, -512, /* pre offset */
@@ -892,6 +1142,16 @@ static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 
+static int eotf_RGB709_to_RGB2020_coeff[EOTF_COEFF_SIZE] = {
+	EOTF_COEFF_NORM(0.627441),	EOTF_COEFF_NORM(0.329285),
+	EOTF_COEFF_NORM(0.043274),
+	EOTF_COEFF_NORM(0.069092),	EOTF_COEFF_NORM(0.919556),
+	EOTF_COEFF_NORM(0.011322),
+	EOTF_COEFF_NORM(0.016418),	EOTF_COEFF_NORM(0.088058),
+	EOTF_COEFF_NORM(0.895554),
+	EOTF_COEFF_RIGHTSHIFT /* right shift */
+};
+
 /* post matrix: YUV2020 limit to RGB2020 */
 static int YUV2020l_to_RGB2020_coeff[MATRIX_5x3_COEF_SIZE] = {
 	-64, -512, -512, /* pre offset */
@@ -917,69 +1177,148 @@ static unsigned int eotf_33_linear_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-/* eotf lut: 2084 src_lum_max = 800 nits, maximum of 10000 nits */
-static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
-	    0,     0,     2,     6,    12,    23,    40,    67,
-	  106,   161,   240,   351,   503,   712,   994,  1376,
-	 1889,  2575,  3491,  4709,  6328,  8477, 11329, 15114,
-	20140, 21164, 22188, 23212, 24236, 25260, 26284, 27308,
-	28332
-};
-
 /* osd oetf lut: linear */
 static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
-	0, 0, 0, 0,
-	0, 32, 64, 96,
-	128, 160, 196, 224,
-	256, 288, 320, 352,
-	384, 416, 448, 480,
-	512, 544, 576, 608,
-	640, 672, 704, 736,
-	768, 800, 832, 864,
-	896, 928, 960, 992,
-	1023, 1023, 1023, 1023,
+		0, 4, 8, 12,
+		16, 20, 24, 28,
+		31, 62, 93, 124,
+		155, 186, 217, 248,
+		279, 310, 341, 372,
+		403, 434, 465, 496,
+		527, 558, 589, 620,
+		651, 682, 713, 744,
+		775, 806, 837, 868,
+		899, 930, 961, 992,
+		1023
+};
+
+/* following array generated from model, do not edit */
+
+/* gamma=2.200000 lumin=500 boost=0.075000 */
+static unsigned int display_scale_factor =
+	(unsigned int)((((1.000000) * 4096.0) + 1) / 2);
+
+static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
+	    0,     3,     6,    11,    18,    27,    40,    58,
+	   84,   119,   169,   237,   329,   455,   636,   881,
+	 1209,  1648,  2234,  3014,  4050,  5425,  7251,  9673,
+	12889, 13773, 14513, 15117, 15594, 15951, 16196, 16338,
+	16383
+};
+
+static unsigned int oetf_289_gamma22_mapping[VIDEO_OETF_LUT_SIZE] = {
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0,  125,  171,  206,  235,  259,  281,  302,
+	 321,  339,  356,  371,  386,  401,  414,  427,
+	 440,  453,  465,  476,  488,  498,  509,  519,
+	 529,  539,  549,  558,  568,  577,  586,  595,
+	 603,  612,  620,  628,  637,  645,  652,  660,
+	 668,  675,  683,  690,  697,  705,  712,  719,
+	 726,  733,  740,  748,  755,  763,  771,  778,
+	 786,  793,  801,  808,  814,  821,  827,  832,
+	 837,  842,  846,  849,  852,  854,  856,  858,
+	 860,  862,  864,  866,  867,  869,  871,  873,
+	 875,  877,  879,  880,  882,  884,  886,  887,
+	 889,  891,  893,  894,  896,  898,  899,  901,
+	 902,  904,  906,  907,  909,  910,  912,  914,
+	 915,  917,  918,  920,  921,  923,  924,  925,
+	 927,  928,  930,  931,  933,  934,  935,  937,
+	 938,  939,  941,  942,  943,  945,  946,  947,
+	 948,  950,  951,  952,  953,  954,  956,  957,
+	 958,  959,  960,  961,  962,  963,  965,  966,
+	 967,  968,  969,  970,  971,  972,  973,  974,
+	 975,  976,  977,  978,  979,  980,  981,  981,
+	 982,  983,  984,  985,  986,  987,  987,  988,
+	 989,  990,  991,  991,  992,  993,  994,  995,
+	 995,  996,  997,  997,  998,  999,  999, 1000,
+	1001, 1001, 1002, 1003, 1003, 1004, 1004, 1005,
+	1006, 1006, 1007, 1007, 1008, 1008, 1009, 1009,
+	1010, 1010, 1011, 1011, 1012, 1012, 1012, 1013,
+	1013, 1014, 1014, 1015, 1015, 1015, 1016, 1016,
+	1016, 1017, 1017, 1017, 1018, 1018, 1018, 1019,
+	1019, 1019, 1019, 1020, 1020, 1020, 1020, 1020,
+	1021, 1021, 1021, 1021, 1021, 1022, 1022, 1022,
+	1022, 1022, 1022, 1022, 1022, 1023, 1023, 1023,
+	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
+	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
+	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
 	1023
 };
 
-static unsigned int oetf_289_hlg_mapping[VIDEO_OETF_LUT_SIZE] = {
-	    0,     7,    14,    21,    28,    36,    43,    50,
-	   57,    64,    71,    78,    85,    92,   100,   107,
-	  114,   121,   128,   157,   181,   202,   222,   239,
-	  256,   272,   286,   300,   314,   326,   339,   351,
-	  362,   373,   384,   395,   405,   415,   425,   434,
-	  443,   453,   462,   470,   479,   487,   496,   504,
-	  512,   520,   527,   535,   541,   548,   555,   561,
-	  567,   573,   578,   584,   589,   594,   599,   604,
-	  609,   614,   618,   623,   627,   631,   635,   639,
-	  643,   647,   651,   655,   658,   662,   665,   669,
-	  672,   675,   679,   682,   685,   688,   691,   694,
-	  697,   700,   703,   706,   708,   711,   714,   716,
-	  719,   722,   724,   727,   729,   731,   734,   736,
-	  739,   741,   743,   745,   748,   750,   752,   754,
-	  756,   758,   760,   762,   765,   767,   769,   770,
-	  772,   774,   776,   778,   780,   782,   784,   785,
-	  787,   789,   791,   792,   794,   796,   798,   799,
-	  801,   803,   804,   806,   807,   809,   811,   812,
-	  814,   815,   817,   818,   820,   821,   823,   824,
-	  826,   827,   828,   830,   831,   833,   834,   835,
-	  837,   838,   840,   841,   842,   843,   845,   846,
-	  847,   849,   850,   851,   852,   854,   855,   856,
-	  857,   859,   860,   861,   862,   863,   864,   866,
-	  867,   868,   869,   870,   871,   872,   874,   875,
-	  876,   877,   878,   879,   880,   881,   882,   883,
-	  884,   885,   886,   887,   889,   890,   891,   892,
-	  893,   894,   895,   896,   897,   898,   898,   899,
-	  900,   901,   902,   903,   904,   905,   906,   907,
-	  908,   909,   910,   911,   912,   912,   913,   914,
-	  915,   916,   917,   918,   919,   920,   920,   921,
-	  922,   923,   924,   925,   925,   926,   927,   928,
-	  929,   930,   930,   931,   932,   933,   934,   934,
-	  935,   936,   937,   938,   938,   939,   940,   941,
-	  941,   942,   943,   944,   945,   945,   946,   947,
-	  948,   952,   957,   961,   966,   970,   975,   979,
-	  984,   988,   993,   997,  1002,  1006,  1011,  1015,
-	 1020
+/* osd eotf lut: 709 */
+static unsigned int osd_eotf_33_709_mapping[EOTF_LUT_SIZE] = {
+	    0,   512,  1024,  1536,  2048,  2560,  3072,  3584,
+	 4096,  4608,  5120,  5632,  6144,  6656,  7168,  7680,
+	 8192,  8704,  9216,  9728, 10240, 10752, 11264, 11776,
+	12288, 12800, 13312, 13824, 14336, 14848, 15360, 15872,
+	16383
 };
+
+/* osd oetf lut: 2084 */
+static unsigned int osd_oetf_41_2084_mapping[OSD_OETF_LUT_SIZE] = {
+	   0,   21,   43,   64,   79,   90,  101,  111,
+	 120,  174,  208,  233,  277,  313,  344,  372,
+	 398,  420,  440,  459,  476,  492,  507,  522,
+	 536,  549,  561,  574,  585,  596,  606,  616,
+	 624,  632,  642,  661,  684,  706,  727,  749,
+	1023
+};
+
+/* sdr eotf lut: 709 */
+static unsigned int eotf_33_sdr_709_mapping[EOTF_LUT_SIZE] = {
+	    0,   512,  1024,  1536,  2048,  2560,  3072,  3584,
+	 4096,  4608,  5120,  5632,  6144,  6656,  7168,  7680,
+	 8192,  8704,  9216,  9728, 10240, 10752, 11264, 11776,
+	12288, 12800, 13312, 13824, 14336, 14848, 15360, 15872,
+	16383
+};
+
+/* sdr oetf lut: 2084 */
+static unsigned int oetf_sdr_2084_mapping[VIDEO_OETF_LUT_SIZE] = {
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0,    0,    0,    0,    0,    0,    0,    0,
+	   0,   32,   55,   72,   85,   96,  106,  115,
+	 124,  132,  140,  147,  154,  160,  166,  171,
+	 176,  181,  186,  190,  194,  198,  204,  208,
+	 211,  215,  218,  221,  224,  227,  230,  233,
+	 239,  245,  252,  257,  263,  268,  274,  279,
+	 283,  288,  292,  296,  302,  306,  310,  315,
+	 319,  323,  326,  331,  334,  339,  342,  346,
+	 350,  354,  357,  361,  365,  368,  372,  376,
+	 379,  382,  386,  389,  392,  396,  399,  402,
+	 405,  408,  411,  413,  416,  419,  422,  424,
+	 427,  429,  432,  434,  437,  439,  442,  444,
+	 446,  449,  451,  454,  456,  459,  461,  463,
+	 465,  468,  470,  472,  474,  476,  478,  481,
+	 483,  485,  487,  489,  491,  493,  495,  497,
+	 499,  501,  503,  505,  507,  509,  511,  513,
+	 515,  516,  518,  520,  522,  524,  526,  527,
+	 529,  531,  533,  535,  536,  538,  540,  541,
+	 543,  545,  546,  548,  550,  551,  553,  555,
+	 556,  558,  559,  561,  562,  564,  566,  567,
+	 569,  570,  572,  573,  575,  576,  578,  579,
+	 580,  582,  584,  585,  586,  588,  589,  591,
+	 592,  594,  595,  596,  598,  599,  600,  602,
+	 603,  604,  606,  607,  608,  609,  611,  612,
+	 613,  615,  616,  617,  618,  619,  620,  621,
+	 622,  623,  624,  625,  626,  627,  628,  629,
+	 630,  631,  632,  634,  635,  636,  637,  638,
+	 640,  641,  642,  644,  646,  648,  651,  654,
+	 657,  661,  664,  666,  670,  672,  676,  678,
+	 681,  684,  687,  690,  692,  695,  698,  701,
+	 704,  706,  709,  712,  715,  718,  720,  723,
+	 726,  729,  731,  734,  737,  740,  743,  746,
+	 748,  751,  754,  758,  763,  772,  797,  833,
+	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
+	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
+	1023
+};
+
+/* end of array generated from model */
+
+module_param(display_scale_factor, uint, 0664);
+MODULE_PARM_DESC(display_scale_factor, "\n display scale factor\n");
 
 /* video oetf: linear */
 #if 0
@@ -1020,19 +1359,6 @@ static unsigned int oetf_289_linear_mapping[VIDEO_OETF_LUT_SIZE] = {
 	 996, 1000, 1004, 1008, 1012, 1016, 1020, 1023,
 	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
 	1023
-};
-
-/* eotf lut: 2084 */
-static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
-	0, 0, 0, 0,
-	1, 2, 3, 5,
-	8, 13, 19, 28,
-	40, 57, 80, 110,
-	151, 206, 279, 377,
-	506, 678, 906, 1209,
-	1611, 2146, 2857, 3807,
-	5077, 6781, 9075, 12175,
-	16384,
 };
 
 /* video oetf: 709 */
@@ -1116,25 +1442,28 @@ static void print_vpp_matrix(int m_select, int *s, int on)
 	pr_csc("%s matrix %s:\n", matrix_name[m_select],
 		on ? "on" : "off");
 
-if (size == MATRIX_5x3_COEF_SIZE) {
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[0]), DECI(s[0]), FRAC(s[0]),
-			SIGN(s[3]), DECI(s[3]), FRAC(s[3]),
-			SIGN(s[4]), DECI(s[4]), FRAC(s[4]),
-			SIGN(s[5]), DECI(s[5]), FRAC(s[5]),
-			SIGN(s[18]), DECI(s[18]), FRAC(s[18]));
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[1]), DECI(s[1]), FRAC(s[1]),
-			SIGN(s[6]), DECI(s[6]), FRAC(s[6]),
-			SIGN(s[7]), DECI(s[7]), FRAC(s[7]),
-			SIGN(s[8]), DECI(s[8]), FRAC(s[8]),
-			SIGN(s[19]), DECI(s[19]), FRAC(s[19]));
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[2]), DECI(s[2]), FRAC(s[2]),
-			SIGN(s[9]), DECI(s[9]), FRAC(s[9]),
-			SIGN(s[10]), DECI(s[10]), FRAC(s[10]),
-			SIGN(s[11]), DECI(s[11]), FRAC(s[11]),
-			SIGN(s[20]), DECI(s[20]), FRAC(s[20]));
+	if (size == MATRIX_5x3_COEF_SIZE) {
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[0]), DECI(s[0]), FRAC(s[0]),
+				SIGN(s[3]), DECI(s[3]), FRAC(s[3]),
+				SIGN(s[4]), DECI(s[4]), FRAC(s[4]),
+				SIGN(s[5]), DECI(s[5]), FRAC(s[5]),
+				SIGN(s[18]), DECI(s[18]), FRAC(s[18]));
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[1]), DECI(s[1]), FRAC(s[1]),
+				SIGN(s[6]), DECI(s[6]), FRAC(s[6]),
+				SIGN(s[7]), DECI(s[7]), FRAC(s[7]),
+				SIGN(s[8]), DECI(s[8]), FRAC(s[8]),
+				SIGN(s[19]), DECI(s[19]), FRAC(s[19]));
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[2]), DECI(s[2]), FRAC(s[2]),
+				SIGN(s[9]), DECI(s[9]), FRAC(s[9]),
+				SIGN(s[10]), DECI(s[10]), FRAC(s[10]),
+				SIGN(s[11]), DECI(s[11]), FRAC(s[11]),
+				SIGN(s[20]), DECI(s[20]), FRAC(s[20]));
 		if (s[21]) {
 			pr_csc("\t\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
 				SIGN(s[12]), DECI(s[12]), FRAC(s[12]),
@@ -1166,16 +1495,18 @@ if (size == MATRIX_5x3_COEF_SIZE) {
 	pr_csc("\n");
 }
 
+static int *cur_osd_mtx = RGB709_to_YUV709l_coeff;
 void set_vpp_matrix(int m_select, int *s, int on)
 {
 	int *m = NULL;
 	int size = 0;
 	int i;
-
-	print_vpp_matrix(m_select, s, on);
+	if (debug_csc)
+		print_vpp_matrix(m_select, s, on);
 	if (m_select == VPP_MATRIX_OSD) {
 		m = osd_matrix_coeff;
 		size = MATRIX_5x3_COEF_SIZE;
+		cur_osd_mtx = s;
 	} else if (m_select == VPP_MATRIX_POST)	{
 		m = post_matrix_coeff;
 		size = MATRIX_5x3_COEF_SIZE;
@@ -1205,6 +1536,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 
 	if (m_select == VPP_MATRIX_OSD) {
 		/* osd matrix, VPP_MATRIX_0 */
+		/* not enable latched */
 		hdr_osd_reg.viu_osd1_matrix_pre_offset0_1 =
 			((m[0] & 0xfff) << 16) | (m[1] & 0xfff);
 		hdr_osd_reg.viu_osd1_matrix_pre_offset2 =
@@ -1244,16 +1576,16 @@ void set_vpp_matrix(int m_select, int *s, int on)
 		hdr_osd_reg.viu_osd1_matrix_ctrl |= on;
 	} else if (m_select == VPP_MATRIX_EOTF) {
 		/* eotf matrix, VPP_MATRIX_EOTF */
+		/* enable latched */
 		for (i = 0; i < 5; i++)
-			WRITE_VPP_REG(VIU_EOTF_CTL + i + 1,
+			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL + i + 1,
 				((m[i * 2] & 0x1fff) << 16)
 				| (m[i * 2 + 1] & 0x1fff));
-
 		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 30, 1);
 		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 31, 1);
 	} else if (m_select == VPP_MATRIX_OSD_EOTF) {
 		/* osd eotf matrix, VPP_MATRIX_OSD_EOTF */
-
+		/* enable latched */
 		hdr_osd_reg.viu_osd1_eotf_coef00_01 =
 			((m[0 * 2] & 0x1fff) << 16)
 			| (m[0 * 2 + 1] & 0x1fff);
@@ -1283,62 +1615,179 @@ void set_vpp_matrix(int m_select, int *s, int on)
 		if (m_select == VPP_MATRIX_POST) {
 			/* post matrix */
 			m = post_matrix_coeff;
+			/* set bit for enable latched */
+			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 14, 1);
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 2);
+			if (on) {
+				if (rdma_flag & (1 << m_select))
+					VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 0, 8, 2);
+				else
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, 0, 8, 2);
+			}
 		} else if (m_select == VPP_MATRIX_VD1) {
-			/* vd1 matrix */
+			/* vd1 matrix, latched */
 			m = vd1_matrix_coeff;
+			/* set bit for enable latched */
+			WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 1, 9, 1);
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 8, 2);
+			if (on) {
+				if (rdma_flag & (1 << m_select))
+					VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 1, 8, 2);
+				else
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, 1, 8, 2);
+			}
 		} else if (m_select == VPP_MATRIX_VD2) {
-			/* vd2 matrix */
+			/* vd2 matrix, not latched */
 			m = vd2_matrix_coeff;
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 4, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 2, 8, 2);
+			if (rdma_flag & (1 << m_select))
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_MATRIX_CTRL, on, 4, 1);
+			else
+				WRITE_VPP_REG_BITS(
+					VPP_MATRIX_CTRL, on, 4, 1);
+			if (on) {
+				if (rdma_flag & (1 << m_select))
+					VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 2, 8, 2);
+				else
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, 2, 8, 2);
+			}
 		} else if (m_select == VPP_MATRIX_XVYCC) {
-			/* xvycc matrix */
+			/* xvycc matrix, not latched */
 			m = xvycc_matrix_coeff;
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 6, 1);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 2);
+			if (rdma_flag & (1 << m_select))
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_MATRIX_CTRL, on, 6, 1);
+			else
+				WRITE_VPP_REG_BITS(
+					VPP_MATRIX_CTRL, on, 6, 1);
+			if (on) {
+				if (rdma_flag & (1 << m_select))
+					VSYNC_WR_MPEG_REG_BITS(
+						VPP_MATRIX_CTRL, 3, 8, 2);
+				else
+					WRITE_VPP_REG_BITS(
+						VPP_MATRIX_CTRL, 3, 8, 2);
+			}
 		}
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
-			((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
-		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
-			m[2] & 0xfff);
-		WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
-			((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
-		WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
-			((m[5]  & 0x1fff) << 16) | (m[6] & 0x1fff));
-		WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
-			((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
-			((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
-		WRITE_VPP_REG(VPP_MATRIX_COEF22,
-			m[11] & 0x1fff);
-		if (m[21]) {
-			WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
-				((m[12] & 0x1fff) << 16) | (m[13] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
-				((m[14] & 0x1fff) << 16) | (m[17] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
-				((m[15] & 0x1fff) << 16) | (m[16] & 0x1fff));
+		if (on) {
+			if (rdma_flag & (1 << m_select)) {
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
+					((m[0] & 0xfff) << 16)
+					| (m[1] & 0xfff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET2,
+					m[2] & 0xfff);
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF00_01,
+					((m[3] & 0x1fff) << 16)
+					| (m[4] & 0x1fff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF02_10,
+					((m[5]  & 0x1fff) << 16)
+					| (m[6] & 0x1fff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF11_12,
+					((m[7] & 0x1fff) << 16)
+					| (m[8] & 0x1fff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF20_21,
+					((m[9] & 0x1fff) << 16)
+					| (m[10] & 0x1fff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF22,
+					m[11] & 0x1fff);
+				if (m[21]) {
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF13_14,
+						((m[12] & 0x1fff) << 16)
+						| (m[13] & 0x1fff));
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF15_25,
+						((m[14] & 0x1fff) << 16)
+						| (m[17] & 0x1fff));
+					VSYNC_WR_MPEG_REG(VPP_MATRIX_COEF23_24,
+						((m[15] & 0x1fff) << 16)
+						| (m[16] & 0x1fff));
+				}
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET0_1,
+					((m[18] & 0xfff) << 16)
+					| (m[19] & 0xfff));
+				VSYNC_WR_MPEG_REG(VPP_MATRIX_OFFSET2,
+					m[20] & 0xfff);
+				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP,
+					m[21], 3, 2);
+				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CLIP,
+					m[22], 5, 3);
+			} else {
+				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+					((m[0] & 0xfff) << 16)
+					| (m[1] & 0xfff));
+				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+					m[2] & 0xfff);
+				WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
+					((m[3] & 0x1fff) << 16)
+					| (m[4] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
+					((m[5]  & 0x1fff) << 16)
+					| (m[6] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
+					((m[7] & 0x1fff) << 16)
+					| (m[8] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
+					((m[9] & 0x1fff) << 16)
+					| (m[10] & 0x1fff));
+				WRITE_VPP_REG(VPP_MATRIX_COEF22,
+					m[11] & 0x1fff);
+				if (m[21]) {
+					WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
+						((m[12] & 0x1fff) << 16)
+						| (m[13] & 0x1fff));
+					WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
+						((m[14] & 0x1fff) << 16)
+						| (m[17] & 0x1fff));
+					WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
+						((m[15] & 0x1fff) << 16)
+						| (m[16] & 0x1fff));
+				}
+				WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
+					((m[18] & 0xfff) << 16)
+					| (m[19] & 0xfff));
+				WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
+					m[20] & 0xfff);
+				WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+					m[21], 3, 2);
+				WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+					m[22], 5, 3);
+			}
 		}
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
-			((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
-		WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
-			m[20] & 0xfff);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
-			m[21], 3, 2);
-		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
-			m[22], 5, 3);
 	}
 }
 
-const char lut_name[4][16] = {
+void enable_osd_path(int on)
+{
+	static int *osd1_mtx_backup;
+	static uint32_t osd1_eotf_ctl_backup;
+	static uint32_t osd1_oetf_ctl_backup;
+	if (!on) {
+		osd1_mtx_backup = cur_osd_mtx;
+		osd1_eotf_ctl_backup = hdr_osd_reg.viu_osd1_eotf_ctl;
+		osd1_oetf_ctl_backup = hdr_osd_reg.viu_osd1_oetf_ctl;
+
+		set_vpp_matrix(VPP_MATRIX_OSD, bypass_coeff, CSC_ON);
+		hdr_osd_reg.viu_osd1_eotf_ctl &= 0x07ffffff;
+		hdr_osd_reg.viu_osd1_oetf_ctl &= 0x1fffffff;
+	} else {
+		set_vpp_matrix(VPP_MATRIX_OSD, osd1_mtx_backup, CSC_ON);
+		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_eotf_ctl_backup;
+		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_oetf_ctl_backup;
+	}
+}
+EXPORT_SYMBOL(enable_osd_path);
+
+const char lut_name[NUM_LUT][16] = {
 	"OSD_EOTF",
 	"OSD_OETF",
 	"EOTF",
 	"OETF",
+	"INV_EOTF"
 };
 /* VIDEO_OETF_LUT_SIZE 289 >
 	OSD_OETF_LUT_SIZE 41 >
@@ -1360,6 +1809,7 @@ static void print_vpp_lut(
 		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
 		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_EOTF_CTL;
+		return;
 	} else if (lut_sel == VPP_LUT_EOTF) {
 		addr_port = VIU_EOTF_LUT_ADDR_PORT;
 		data_port = VIU_EOTF_LUT_DATA_PORT;
@@ -1368,32 +1818,41 @@ static void print_vpp_lut(
 		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
 		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_OETF_CTL;
+		return;
 	} else if (lut_sel == VPP_LUT_OETF) {
 		addr_port = XVYCC_LUT_R_ADDR_PORT;
 		data_port = XVYCC_LUT_R_DATA_PORT;
 		ctrl_port = XVYCC_LUT_CTL;
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		addr_port = XVYCC_INV_LUT_Y_ADDR_PORT;
+		data_port = XVYCC_INV_LUT_Y_DATA_PORT;
+		ctrl_port = XVYCC_INV_LUT_CTL;
 	} else
 		return;
 	if (lut_sel == VPP_LUT_OSD_OETF) {
-		WRITE_VPP_REG(addr_port, 0);
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, i);
 			data = READ_VPP_REG(data_port);
 			r_map[i * 2] = data & 0xffff;
 			r_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
+		WRITE_VPP_REG(addr_port, 20);
 		data = READ_VPP_REG(data_port);
 		r_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 		g_map[0] = (data >> 16) & 0xffff;
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, 21 + i);
 			data = READ_VPP_REG(data_port);
 			g_map[i * 2 + 1] = data & 0xffff;
 			g_map[i * 2 + 2] = (data >> 16) & 0xffff;
 		}
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, 41 + i);
 			data = READ_VPP_REG(data_port);
 			b_map[i * 2] = data & 0xffff;
 			b_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
+		WRITE_VPP_REG(addr_port, 61);
 		data = READ_VPP_REG(data_port);
 		b_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 		pr_csc("%s lut %s:\n", lut_name[lut_sel], on ? "on" : "off");
@@ -1477,6 +1936,24 @@ static void print_vpp_lut(
 		pr_csc("\n");
 		if (on)
 			WRITE_VPP_REG(ctrl_port, 0x7f);
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
+		pr_csc("%s lut %s:\n", lut_name[lut_sel], on ? "on" : "off");
+		for (i = 0;
+			i < EOTF_INV_LUT_NEG2048_SIZE +
+			EOTF_INV_LUT_SIZE + EOTF_INV_LUT_1024_SIZE;
+			i++) {
+			WRITE_VPP_REG(addr_port, i);
+			data = READ_VPP_REG(data_port) & 0xfff;
+			if (data & 0x800)
+				pr_csc("\t[%d] = %d\n",
+					i, -(~(data|0xfffff000) + 1));
+			else
+				pr_csc("\t[%d] = %d\n", i, data);
+		}
+		pr_csc("\n");
+		if (on)
+			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
 	}
 }
 
@@ -1501,8 +1978,8 @@ void set_vpp_lut(
 		r_map = osd_eotf_r_mapping;
 		g_map = osd_eotf_g_mapping;
 		b_map = osd_eotf_b_mapping;
-		/* addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT; */
-		/* data_port = VIU_OSD1_EOTF_LUT_DATA_PORT; */
+		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
+		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_EOTF_CTL;
 	} else if (lut_sel == VPP_LUT_EOTF) {
 		r_map = video_eotf_r_mapping;
@@ -1515,8 +1992,8 @@ void set_vpp_lut(
 		r_map = osd_oetf_r_mapping;
 		g_map = osd_oetf_g_mapping;
 		b_map = osd_oetf_b_mapping;
-		/* addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT; */
-		/* data_port = VIU_OSD1_OETF_LUT_DATA_PORT; */
+		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
+		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_OETF_CTL;
 	} else if (lut_sel == VPP_LUT_OETF) {
 #if 0
@@ -1530,10 +2007,15 @@ void set_vpp_lut(
 		data_port = XVYCC_LUT_R_DATA_PORT;
 		ctrl_port = XVYCC_LUT_CTL;
 #endif
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		addr_port = XVYCC_INV_LUT_Y_ADDR_PORT;
+		data_port = XVYCC_INV_LUT_Y_DATA_PORT;
+		ctrl_port = XVYCC_INV_LUT_CTL;
 	} else
 		return;
 
 	if (lut_sel == VPP_LUT_OSD_OETF) {
+		/* enable latched */
 		if (r && r_map)
 			for (i = 0; i < OSD_OETF_LUT_SIZE; i++)
 				r_map[i] = r[i];
@@ -1544,14 +2026,17 @@ void set_vpp_lut(
 			for (i = 0; i < OSD_OETF_LUT_SIZE; i++)
 				b_map[i] = b[i];
 
-		memcpy(hdr_osd_reg.lut_val.r_map,
-			r_map,
-			3 * OSD_OETF_LUT_SIZE * sizeof(uint32_t));
-
+		for (i = 0; i < OSD_OETF_LUT_SIZE; i++) {
+			hdr_osd_reg.lut_val.or_map[i] = r_map[i];
+			hdr_osd_reg.lut_val.og_map[i] = g_map[i];
+			hdr_osd_reg.lut_val.ob_map[i] = b_map[i];
+		}
 		hdr_osd_reg.viu_osd1_oetf_ctl &= 0x1fffffff;
+		hdr_osd_reg.viu_osd1_oetf_ctl |= 7 << 22;
 		if (on)
 			hdr_osd_reg.viu_osd1_oetf_ctl |= 7 << 29;
 	} else if (lut_sel == VPP_LUT_OSD_EOTF) {
+		/* enable latched */
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				r_map[i] = r[i];
@@ -1562,16 +2047,17 @@ void set_vpp_lut(
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
 
-		memcpy(hdr_osd_reg.lut_val.or_map,
-			r_map,
-			3 * EOTF_LUT_SIZE * sizeof(uint32_t));
-
+		for (i = 0; i < EOTF_LUT_SIZE; i++) {
+			hdr_osd_reg.lut_val.r_map[i] = r_map[i];
+			hdr_osd_reg.lut_val.g_map[i] = g_map[i];
+			hdr_osd_reg.lut_val.b_map[i] = b_map[i];
+		}
 		hdr_osd_reg.viu_osd1_eotf_ctl &= 0xc7ffffff;
 		if (on)
 			hdr_osd_reg.viu_osd1_eotf_ctl |= 7 << 27;
-
 		hdr_osd_reg.viu_osd1_eotf_ctl |= 1 << 31;
 	} else if (lut_sel == VPP_LUT_EOTF) {
+		/* enable latched */
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				r_map[i] = r[i];
@@ -1581,29 +2067,38 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
-		WRITE_VPP_REG(addr_port, 0);
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
-				r_map[i * 2]
-				| (r_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port,
-			r_map[EOTF_LUT_SIZE - 1]
-			| (g_map[0] << 16));
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
-				g_map[i * 2 + 1]
-				| (b_map[i * 2 + 2] << 16));
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
-				b_map[i * 2]
-				| (b_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port, b_map[EOTF_LUT_SIZE - 1]);
-		if (on)
+		if (on) {
+			for (i = 0; i < 16; i++) {
+				VSYNC_WR_MPEG_REG(addr_port, i);
+				VSYNC_WR_MPEG_REG(data_port,
+					r_map[i * 2]
+					| (r_map[i * 2 + 1] << 16));
+			}
+			VSYNC_WR_MPEG_REG(addr_port, 16);
+			VSYNC_WR_MPEG_REG(data_port,
+				r_map[EOTF_LUT_SIZE - 1]
+				| (g_map[0] << 16));
+			for (i = 0; i < 16; i++) {
+				VSYNC_WR_MPEG_REG(addr_port, i + 17);
+				VSYNC_WR_MPEG_REG(data_port,
+					g_map[i * 2 + 1]
+					| (g_map[i * 2 + 2] << 16));
+			}
+			for (i = 0; i < 16; i++) {
+				VSYNC_WR_MPEG_REG(addr_port, i + 33);
+				VSYNC_WR_MPEG_REG(data_port,
+					b_map[i * 2]
+					| (b_map[i * 2 + 1] << 16));
+			}
+			VSYNC_WR_MPEG_REG(addr_port, 49);
+			VSYNC_WR_MPEG_REG(data_port, b_map[EOTF_LUT_SIZE - 1]);
 			WRITE_VPP_REG_BITS(ctrl_port, 7, 27, 3);
-		else
+		} else
 			WRITE_VPP_REG_BITS(ctrl_port, 0, 27, 3);
 		WRITE_VPP_REG_BITS(ctrl_port, 1, 31, 1);
 	} else if (lut_sel == VPP_LUT_OETF) {
+		/* set bit to disable latched */
+		WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 0, 18, 3);
 		if (r && r_map)
 			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
 				r_map[i] = r[i];
@@ -1613,26 +2108,53 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
 				b_map[i] = b[i];
-		WRITE_VPP_REG(ctrl_port, 0x0);
-		WRITE_VPP_REG(addr_port, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port, r_map[i]);
-		WRITE_VPP_REG(addr_port + 2, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port + 2, g_map[i]);
-		WRITE_VPP_REG(addr_port + 4, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port + 4, b_map[i]);
 		if (on) {
-			WRITE_VPP_REG(ctrl_port, 0x7f);
+			VSYNC_WR_MPEG_REG(ctrl_port, 0x0f);
+			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port, i);
+				VSYNC_WR_MPEG_REG(data_port, r_map[i]);
+			}
+			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port + 2, i);
+				VSYNC_WR_MPEG_REG(data_port + 2, g_map[i]);
+			}
+			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port + 4, i);
+				VSYNC_WR_MPEG_REG(data_port + 4, b_map[i]);
+			}
+			VSYNC_WR_MPEG_REG(ctrl_port, 0x7f);
 			knee_lut_on = 1;
 		} else {
-			WRITE_VPP_REG(ctrl_port, 0x0);
+			VSYNC_WR_MPEG_REG(ctrl_port, 0x0f);
 			knee_lut_on = 0;
 		}
 		cur_knee_factor = knee_factor;
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		/* set bit to enable latched */
+		WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 0x7, 4, 3);
+		if (on) {
+			VSYNC_WR_MPEG_REG(addr_port, 0);
+			for (i = 0; i < EOTF_INV_LUT_NEG2048_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port, i);
+				VSYNC_WR_MPEG_REG(data_port, invlut_y_neg[i]);
+			}
+			for (i = 0; i < EOTF_INV_LUT_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port,
+					EOTF_INV_LUT_NEG2048_SIZE + i);
+				VSYNC_WR_MPEG_REG(data_port, invlut_y[i]);
+			}
+			for (i = 0; i < EOTF_INV_LUT_1024_SIZE; i++) {
+				VSYNC_WR_MPEG_REG(addr_port,
+					EOTF_INV_LUT_NEG2048_SIZE +
+					EOTF_INV_LUT_SIZE + i);
+				VSYNC_WR_MPEG_REG(data_port, invlut_y_1024[i]);
+			}
+			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
+		} else
+			WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
 	}
-	print_vpp_lut(lut_sel, on);
+	if (debug_csc)
+		print_vpp_lut(lut_sel, on);
 }
 
 /***************************** end of gxl hdr **************************/
@@ -1919,6 +2441,7 @@ static struct vframe_master_display_colour_s cur_master_display_colour = {
 #define SIG_HDR_MODE	0x10
 #define SIG_HDR_SUPPORT	0x20
 #define SIG_WB_CHG	0x40
+
 int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 signal_type = 0;
@@ -1927,20 +2450,32 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 	int i, j;
 	struct vframe_master_display_colour_s *p_cur;
 	struct vframe_master_display_colour_s *p_new;
+	struct vframe_master_display_colour_s cus;
 
 	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
-		default_signal_type =
-			/* default 709 full */
-			  (1 << 29)	/* video available */
-			| (5 << 26)	/* unspecified */
-			| (1 << 25)	/* full */
-			| (1 << 24)	/* color available */
-			| (1 << 16)	/* bt709 */
-			| (1 << 8)	/* bt709 */
-			| (1 << 0);	/* bt709 */
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			default_signal_type =
+				/* default 709 full */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (1 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (1 << 16)	/* bt709 */
+				| (1 << 8)	/* bt709 */
+				| (1 << 0);	/* bt709 */
+		else
+			default_signal_type =
+				/* default 709 limit */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (1 << 16)	/* bt709 */
+				| (1 << 8)	/* bt709 */
+				| (1 << 0);	/* bt709 */
 	} else { /* for local play */
 		if (vf->height >= 720)
 			default_signal_type =
@@ -1970,7 +2505,30 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 
 	p_new = &vf->prop.master_display_colour;
 	p_cur = &cur_master_display_colour;
-	if (p_new->present_flag) {
+	/* customer overwrite */
+	if (customer_master_display_en
+	&& ((p_new->present_flag & 0x80000000) == 0)) {
+		signal_type =	  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (9 << 16)	/* 2020 */
+				| (16 << 8)	/* 2084 */
+				| (9 << 0);	/* 2020 */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				cus.primaries[i][j] =
+					customer_master_display_param[i*2+j];
+		for (i = 0; i < 2; i++)
+			cus.white_point[i] =
+				customer_master_display_param[6+i];
+		for (i = 0; i < 2; i++)
+			cus.luminance[i] =
+				customer_master_display_param[8+i];
+		cus.present_flag = 1;
+		p_new = &cus;
+	}
+	if (p_new->present_flag & 1) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
 				if (p_cur->primaries[i][j]
@@ -2025,6 +2583,11 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 		change_flag |= SIG_HDR_MODE;
 		cur_hdr_process_mode = hdr_process_mode;
 	}
+	if (cur_sdr_process_mode != sdr_process_mode) {
+		pr_csc("SDR mode changed.\n");
+		change_flag |= SIG_HDR_MODE;
+		cur_sdr_process_mode = sdr_process_mode;
+	}
 	if (cur_hdr_support != (vinfo->hdr_info.hdr_support & 0x4)) {
 		pr_csc("Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
@@ -2056,9 +2619,13 @@ enum vpp_matrix_csc_e get_csc_type(void)
 			csc_type = VPP_MATRIX_YUV601_RGB;
 		else
 			csc_type = VPP_MATRIX_YUV601F_RGB;
-	} else if (signal_color_primaries == 9) {
+	} else if ((signal_color_primaries == 9) ||
+			(signal_transfer_characteristic == 16)) {
 		if (signal_transfer_characteristic == 16) {
 			/* smpte st-2084 */
+			if (signal_color_primaries != 9)
+				pr_csc("\tWARNING: non-standard HDR!!!\n");
+
 			if (signal_range == 0)
 				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 			else {
@@ -2097,6 +2664,26 @@ enum vpp_matrix_csc_e get_csc_type(void)
 	return csc_type;
 }
 
+static void cal_out_curve(uint panel_luma)
+{
+	int index;
+	if (panel_luma == 0)
+		return;
+
+	if (panel_luma <= 500) {
+		if (panel_luma < 250)
+			panel_luma = 250;
+		index = (panel_luma - 250) / 20;
+	} else {
+		if (panel_luma > 1000)
+			panel_luma = 1000;
+		index = ((500 - 240) / 20) + (panel_luma - 500) / 100;
+	}
+	memcpy(eotf_33_2084_mapping,
+		eotf_33_2084_table[index], sizeof(int) * 33);
+	memcpy(oetf_289_gamma22_mapping,
+		oetf_289_gamma22_table[index], sizeof(int) * 289);
+}
 static void mtx_dot_mul(
 	int64_t (*a)[3], int64_t (*b)[3],
 	int64_t (*out)[3], int32_t norm)
@@ -2206,6 +2793,29 @@ static void gamut_mtx(
 	mtx_mul_mtx(out, Tsrc, Tout, 1 << obl);
 }
 
+static void apply_scale_factor(int64_t (*in)[3], int32_t *rs)
+{
+	int i, j;
+	int32_t right_shift;
+
+	if (display_scale_factor > 2 * 2048)
+		right_shift = -2;
+	else if (display_scale_factor > 2048)
+		right_shift = -1;
+	else
+		right_shift = 0;
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++) {
+			in[i][j] *= display_scale_factor;
+			in[i][j] >>= 11 - right_shift;
+		}
+	right_shift += 1;
+	if (right_shift < 0)
+		*rs = 8 + right_shift;
+	else
+		*rs = right_shift;
+}
+
 static void N2C(int64_t (*in)[3], int32_t ibl, int32_t obl)
 {
 	int i, j;
@@ -2224,6 +2834,11 @@ static void cal_mtx_seting(
 	struct matrix_s *m)
 {
 	int i, j;
+	int32_t right_shift;
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+		apply_scale_factor(in, &right_shift);
+		m->right_shift = right_shift;
+	}
 	N2C(in, ibl, obl);
 	pr_csc("\tHDR color convert matrix:\n");
 	for (i = 0; i < 3; i++) {
@@ -2236,7 +2851,6 @@ static void cal_mtx_seting(
 			(int)(m->matrix[i][1] & 0xffff),
 			(int)(m->matrix[i][2] & 0xffff));
 	}
-	m->right_shift = 1;
 }
 
 static int check_primaries(
@@ -2249,75 +2863,89 @@ static int check_primaries(
 	int32_t (*si)[4][2], int32_t (*di)[4][2])
 {
 	int i, j;
-	int need_calculate_mtx = 0;
+	/* always calculate to apply scale factor */
+	int need_calculate_mtx = 1;
 	const struct master_display_info_s *d;
 
 	/* check and copy primaries */
-	if (((*p)[0][1] > (*p)[1][1])
-		&& ((*p)[0][1] > (*p)[2][1])
-		&& ((*p)[2][0] > (*p)[0][0])
-		&& ((*p)[2][0] > (*p)[1][0])) {
-		/* reasonable g,b,r */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				(*si)[i][j] = (*p)[(i + 2) % 3][j];
-			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
-				need_calculate_mtx = 1;
-			}
-	} else if (((*p)[0][0] > (*p)[1][0])
-		&& ((*p)[0][0] > (*p)[2][0])
-		&& ((*p)[1][1] > (*p)[0][1])
-		&& ((*p)[1][1] > (*p)[2][1])) {
-		/* reasonable r,g,b */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				(*si)[i][j] = (*p)[i][j];
-			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
-				need_calculate_mtx = 1;
-			}
-	} else {
-		/* source not usable, use standard bt2020 */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++)
-				(*si)[i][j] = bt2020_primaries[(i + 2) % 3][j];
-	}
-
-	/* check white point */
-	if (need_calculate_mtx == 1) {
-		if (((*w)[0] > (*si)[2][0]) &&
-			((*w)[0] < (*si)[0][0]) &&
-			((*w)[1] > (*si)[2][1]) &&
-			((*w)[1] < (*si)[1][1])) {
-				for (i = 0; i < 2; i++)
-					(*si)[3][i] = (*w)[i];
+	if (hdr_flag & 1) {
+		if (((*p)[0][1] > (*p)[1][1])
+			&& ((*p)[0][1] > (*p)[2][1])
+			&& ((*p)[2][0] > (*p)[0][0])
+			&& ((*p)[2][0] > (*p)[1][0])) {
+			/* reasonable g,b,r */
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					(*si)[i][j] = (*p)[(i + 2) % 3][j];
+				if ((*si)[i][j] !=
+				bt2020_primaries[(i + 2) % 3][j])
+					need_calculate_mtx = 1;
+				}
+		} else if (((*p)[0][0] > (*p)[1][0])
+			&& ((*p)[0][0] > (*p)[2][0])
+			&& ((*p)[1][1] > (*p)[0][1])
+			&& ((*p)[1][1] > (*p)[2][1])) {
+			/* reasonable r,g,b */
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					(*si)[i][j] = (*p)[i][j];
+					if ((*si)[i][j] !=
+					bt2020_primaries[(i + 2) % 3][j])
+						need_calculate_mtx = 1;
+				}
 		} else {
+			/* source not usable, use standard bt2020 */
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++)
 					(*si)[i][j] =
-				bt2020_primaries[(i + 2) % 3][j];
-
-			for (i = 0; i < 2; i++)
-				(*si)[3][i] = bt2020_white_point[i];
-			need_calculate_mtx = 0;
+						bt2020_primaries
+						[(i + 2) % 3][j];
 		}
-	} else {
-		if (((*w)[0] > (*si)[2][0]) &&
-			((*w)[0] < (*si)[0][0]) &&
-			((*w)[1] > (*si)[2][1]) &&
-			((*w)[1] < (*si)[1][1])) {
-			for (i = 0; i < 2; i++) {
-				(*si)[3][i] = (*w)[i];
-				if ((*si)[3][i] != bt2020_white_point[i])
-					need_calculate_mtx = 1;
+		/* check white point */
+		if (need_calculate_mtx == 1) {
+			if (((*w)[0] > (*si)[2][0]) &&
+				((*w)[0] < (*si)[0][0]) &&
+				((*w)[1] > (*si)[2][1]) &&
+				((*w)[1] < (*si)[1][1])) {
+					for (i = 0; i < 2; i++)
+						(*si)[3][i] = (*w)[i];
+			} else {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						(*si)[i][j] =
+					bt2020_primaries[(i + 2) % 3][j];
+
+				for (i = 0; i < 2; i++)
+					(*si)[3][i] = bt2020_white_point[i];
+				/* need_calculate_mtx = 0; */
 			}
 		} else {
-			for (i = 0; i < 2; i++)
-				(*si)[3][i] = bt2020_white_point[i];
+			if (((*w)[0] > (*si)[2][0]) &&
+				((*w)[0] < (*si)[0][0]) &&
+				((*w)[1] > (*si)[2][1]) &&
+				((*w)[1] < (*si)[1][1])) {
+				for (i = 0; i < 2; i++) {
+					(*si)[3][i] = (*w)[i];
+					if ((*si)[3][i] !=
+					bt2020_white_point[i])
+						need_calculate_mtx = 1;
+				}
+			} else {
+				for (i = 0; i < 2; i++)
+					(*si)[3][i] = bt2020_white_point[i];
+			}
 		}
+	} else {
+		/* use standard bt2020 */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				(*si)[i][j] = bt2020_primaries[(i + 2) % 3][j];
+		for (i = 0; i < 2; i++)
+			(*si)[3][i] = bt2020_white_point[i];
 	}
 
 	/* check display */
-	if (v->master_display_info.present_flag) {
+	if ((v->master_display_info.present_flag) && (hdr_flag & 2)) {
 		d = &v->master_display_info;
 		for (i = 0; i < 3; i++) {
 			for (j = 0; j < 2; j++) {
@@ -2332,6 +2960,8 @@ static int check_primaries(
 			if ((*di)[3][i] != bt709_white_point[i])
 				need_calculate_mtx = 1;
 		}
+		if (v->hdr_info.sink_flag)
+			cal_out_curve(v->hdr_info.lumi_max);
 	} else {
 		for (i = 0; i < 3; i++) {
 			for (j = 0; j < 2; j++)
@@ -2347,14 +2977,16 @@ enum vpp_matrix_csc_e prepare_customer_matrix(
 	u32 (*s)[3][2],	/* source primaries */
 	u32 (*w)[2],	/* source white point */
 	const struct vinfo_s *v, /* vinfo carry display primaries */
-	struct matrix_s *m)
+	struct matrix_s *m,
+	bool inverse_flag)
 {
 	int32_t prmy_src[4][2];
 	int32_t prmy_dst[4][2];
 	int64_t out[3][3];
 	int i, j;
 
-	if (customer_matrix_en) {
+	if ((customer_matrix_en &&
+		get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)) {
 		for (i = 0; i < 3; i++) {
 			m->pre_offset[i] =
 				customer_matrix_param[i];
@@ -2368,11 +3000,18 @@ enum vpp_matrix_csc_e prepare_customer_matrix(
 			customer_matrix_param[15];
 		return VPP_MATRIX_BT2020RGB_CUSRGB;
 	} else {
-		if (check_primaries(s, w, v, &prmy_src, &prmy_dst)) {
-			gamut_mtx(prmy_src, prmy_dst, out, INORM, BL);
-			cal_mtx_seting(out, BL, 13, m);
-			return VPP_MATRIX_BT2020RGB_CUSRGB;
+		if (inverse_flag) {
+			if (check_primaries(s, w, v, &prmy_src, &prmy_dst)) {
+				gamut_mtx(prmy_dst, prmy_src, out, INORM, BL);
+				cal_mtx_seting(out, BL, 13, m);
+			}
+		} else {
+			if (check_primaries(s, w, v, &prmy_src, &prmy_dst)) {
+				gamut_mtx(prmy_src, prmy_dst, out, INORM, BL);
+				cal_mtx_seting(out, BL, 13, m);
+			}
 		}
+		return VPP_MATRIX_BT2020RGB_CUSRGB;
 	}
 	return VPP_MATRIX_BT2020YUV_BT2020RGB;
 }
@@ -2432,23 +3071,53 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 }
 
 static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
-		struct vframe_s *vf)
+		struct vframe_master_display_colour_s *p)
 {
 	int i, j;
-
-	if (((hdr_data->features >> 16) & 0xff) == 9) {
-		if (vf->prop.master_display_colour.present_flag) {
-
+	if (customer_hdmi_display_en) {
+		hdr_data->features =
+			  (1 << 29)	/* video available */
+			| (5 << 26)	/* unspecified */
+			| (0 << 25)	/* limit */
+			| (1 << 24)	/* color available */
+			| (customer_hdmi_display_param[0] << 16) /* bt2020 */
+			| (customer_hdmi_display_param[1] << 8)	/* 2084 */
+			| (10 << 0);	/* bt2020c */
+		memcpy(hdr_data->primaries,
+			&customer_hdmi_display_param[2],
+			sizeof(u32)*6);
+		memcpy(hdr_data->white_point,
+			&customer_hdmi_display_param[8],
+			sizeof(u32)*2);
+		hdr_data->luminance[0] =
+				customer_hdmi_display_param[10];
+		hdr_data->luminance[1] =
+				customer_hdmi_display_param[11];
+		hdr_data->max_content =
+				customer_hdmi_display_param[12];
+		hdr_data->max_frame_average =
+				customer_hdmi_display_param[13];
+	} else if (((hdr_data->features >> 16) & 0xff) == 9) {
+		if (p->present_flag & 1) {
 			memcpy(hdr_data->primaries,
-				vf->prop.master_display_colour.primaries,
+				p->primaries,
 				sizeof(u32)*6);
 			memcpy(hdr_data->white_point,
-				vf->prop.master_display_colour.white_point,
+				p->white_point,
 				sizeof(u32)*2);
 			hdr_data->luminance[0] =
-				vf->prop.master_display_colour.luminance[0];
+				p->luminance[0];
 			hdr_data->luminance[1] =
-				vf->prop.master_display_colour.luminance[1];
+				p->luminance[1];
+			if (p->content_light_level.present_flag == 1) {
+				hdr_data->max_content =
+					p->content_light_level.max_content;
+				hdr_data->max_frame_average =
+					p->content_light_level.max_pic_average;
+			} else {
+				hdr_data->max_content = 0;
+				hdr_data->max_frame_average = 0;
+			}
 		} else {
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++)
@@ -2456,10 +3125,13 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 							bt2020_primaries[i][j];
 			hdr_data->white_point[0] = bt709_white_point[0];
 			hdr_data->white_point[1] = bt709_white_point[1];
-			/* default luminance
-			 * (got from exodus uhd hdr exodus draft.mp4) */
-			hdr_data->luminance[0] = 0xb71b00;
-			hdr_data->luminance[1] = 0xc8;
+			/* default luminance */
+			hdr_data->luminance[0] = 5000 * 10000;
+			hdr_data->luminance[1] = 50;
+
+			/* content_light_level */
+			hdr_data->max_content = 0;
+			hdr_data->max_frame_average = 0;
 		}
 		hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
 		hdr_data->present_flag = 1;
@@ -2472,18 +3144,35 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 
 }
 
+static void hdr_process_pq_enable(int enable)
+{
+	dnlp_en = enable;
+	/*cm_en = enable;*/
+}
+
 static int hdr_process(
 	enum vpp_matrix_csc_e csc_type,
 	struct vinfo_s *vinfo,
 	struct vframe_master_display_colour_s *master_info)
 {
-	int need_adjust_contrast = 0;
+	int need_adjust_contrast_saturation = 0;
+	int max_lumin = 10000;
 	struct matrix_s m = {
 		{0, 0, 0},
 		{
 			{0x0d49, 0x1b4d, 0x1f6b},
 			{0x1f01, 0x0910, 0x1fef},
 			{0x1fdb, 0x1f32, 0x08f3},
+		},
+		{0, 0, 0},
+		1
+	};
+	struct matrix_s osd_m = {
+		{0, 0, 0},
+		{
+			{0x505, 0x2A2, 0x059},
+			{0x08E, 0x75B, 0x017},
+			{0x022, 0x0B4, 0x72A},
 		},
 		{0, 0, 0},
 		1
@@ -2497,26 +3186,48 @@ static int hdr_process(
 		EOTF_COEFF_NORM(1.1186371/2),
 		EOTF_COEFF_RIGHTSHIFT,
 	};
+	int osd_mtx[EOTF_COEFF_SIZE] = {
+		EOTF_COEFF_NORM(0.627441),	EOTF_COEFF_NORM(0.329285),
+		EOTF_COEFF_NORM(0.043274),
+		EOTF_COEFF_NORM(0.069092),	EOTF_COEFF_NORM(0.919556),
+		EOTF_COEFF_NORM(0.011322),
+		EOTF_COEFF_NORM(0.016418),	EOTF_COEFF_NORM(0.088058),
+		EOTF_COEFF_NORM(0.895554),
+		EOTF_COEFF_RIGHTSHIFT
+	};
 	int i, j;
 
-	if (master_info->present_flag) {
+	if (master_info->present_flag & 1) {
 		pr_csc("\tMaster_display_colour available.\n");
 		print_primaries_info(master_info);
+		/* for VIDEO */
 		csc_type =
 			prepare_customer_matrix(
 				&master_info->primaries,
 				&master_info->white_point,
-				vinfo, &m);
-		need_adjust_contrast = 1;
+				vinfo, &m, 0);
+		/* for OSD */
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+			prepare_customer_matrix(
+				&master_info->primaries,
+				&master_info->white_point,
+				vinfo, &osd_m, 1);
+		need_adjust_contrast_saturation |= 1;
 	} else {
 		/* use bt2020 primaries */
 		pr_csc("\tNo master_display_colour.\n");
+		/* for VIDEO */
 		csc_type =
-		prepare_customer_matrix(
+			prepare_customer_matrix(
 			&bt2020_primaries,
 			&bt2020_white_point,
-			vinfo, &m);
-		need_adjust_contrast = 0;
+			vinfo, &m, 0);
+		/* for OSD */
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+			prepare_customer_matrix(
+				&bt2020_primaries,
+				&bt2020_white_point,
+				vinfo, &osd_m, 1);
 	}
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -2528,48 +3239,74 @@ static int hdr_process(
 			0, 7, 1);
 		*/
 
-		/* eotf lut bypass */
+		/* eotf lut 709 */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
-			eotf_33_linear_mapping, /* R */
-			eotf_33_linear_mapping, /* G */
-			eotf_33_linear_mapping, /* B */
+			osd_eotf_33_709_mapping, /* R */
+			osd_eotf_33_709_mapping, /* G */
+			osd_eotf_33_709_mapping, /* B */
 			CSC_ON);
 
-		/* eotf matrix bypass */
+		/* eotf matrix 709->2020 */
+		osd_mtx[EOTF_COEFF_SIZE - 1] = osd_m.right_shift;
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 3; j++) {
+				if (osd_m.matrix[i][j] & 0x1000)
+					osd_mtx[i * 3 + j] =
+					-(((~osd_m.matrix[i][j]) & 0xfff) + 1);
+				else
+					osd_mtx[i * 3 + j] = osd_m.matrix[i][j];
+			}
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
-			eotf_bypass_coeff,
+			osd_mtx,
 			CSC_ON);
 
-		/* oetf lut bypass */
+		/* oetf lut 2084 */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
-			oetf_41_linear_mapping, /* R */
-			oetf_41_linear_mapping, /* G */
-			oetf_41_linear_mapping, /* B */
+			osd_oetf_41_2084_mapping, /* R */
+			osd_oetf_41_2084_mapping, /* G */
+			osd_oetf_41_2084_mapping, /* B */
 			CSC_ON);
 
-		/* osd matrix RGB709 to YUV709 limit */
+		/* osd matrix RGB2020 to YUV2020 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
-			RGB709_to_YUV709l_coeff,
+			RGB2020_to_YUV2020l_coeff,
 			CSC_ON);
 
 		/************** VIDEO **************/
 		/* vd1 matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_VD1,
 			bypass_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/* post matrix YUV2020 to RGB2020 */
 		set_vpp_matrix(VPP_MATRIX_POST,
 			YUV2020l_to_RGB2020_coeff,
 			CSC_ON);
 
-		/* eotf lut bypass */
+		/* eotf lut 2048 */
 		set_vpp_lut(VPP_LUT_EOTF,
 			eotf_33_2084_mapping, /* R */
 			eotf_33_2084_mapping, /* G */
 			eotf_33_2084_mapping, /* B */
 			CSC_ON);
 
+		need_adjust_contrast_saturation = 0;
+		saturation_offset =	0;
+		if (hdr_flag & 8) {
+			need_adjust_contrast_saturation |= 2;
+			saturation_offset =	extra_sat_lut[0];
+		}
+		if (master_info->present_flag & 1) {
+			max_lumin = master_info->luminance[0]
+				/ 10000;
+			if ((max_lumin <= 1200) && (max_lumin > 0)) {
+				if (hdr_flag & 4)
+					need_adjust_contrast_saturation |= 1;
+				if (hdr_flag & 8)
+					saturation_offset =
+						extra_sat_lut[1];
+			}
+		}
 		/* eotf matrix RGB2020 to RGB709 */
 		mtx[EOTF_COEFF_SIZE - 1] = m.right_shift;
 		for (i = 0; i < 3; i++)
@@ -2586,9 +3323,9 @@ static int hdr_process(
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OETF,
-			oetf_289_hlg_mapping,
-			oetf_289_hlg_mapping,
-			oetf_289_hlg_mapping,
+			oetf_289_gamma22_mapping,
+			oetf_289_gamma22_mapping,
+			oetf_289_gamma22_mapping,
 			CSC_ON);
 
 		/* xvyccc matrix3: bypass */
@@ -2596,12 +3333,6 @@ static int hdr_process(
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				RGB709_to_YUV709l_coeff,
 				CSC_ON);
-		else /* xvycc matrix bypass for LCD */
-			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				bypass_coeff,
-				CSC_ON);
-		/* not adjust contrast in gxl for now */
-		need_adjust_contrast = 0;
 	} else {
 
 		/* turn vd1 matrix on */
@@ -2612,6 +3343,9 @@ static int hdr_process(
 			csc_type, &m);
 		/* xvycc lut on */
 		load_knee_lut(CSC_ON);
+
+		vecm_latch_flag |= FLAG_VADJ1_BRI;
+		hdr_process_pq_enable(0);
 		/* if GXTVBB HDMI output(YUV) case */
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
@@ -2622,13 +3356,34 @@ static int hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
-	return need_adjust_contrast;
+	return need_adjust_contrast_saturation;
 }
 
 static void bypass_hdr_process(
 	enum vpp_matrix_csc_e csc_type,
-	struct vinfo_s *vinfo)
+	struct vinfo_s *vinfo,
+	struct vframe_master_display_colour_s *master_info)
 {
+	struct matrix_s osd_m = {
+		{0, 0, 0},
+		{
+			{0x505, 0x2A2, 0x059},
+			{0x08E, 0x75B, 0x017},
+			{0x022, 0x0B4, 0x72A},
+		},
+		{0, 0, 0},
+		1
+	};
+	int osd_mtx[EOTF_COEFF_SIZE] = {
+		EOTF_COEFF_NORM(0.627441),	EOTF_COEFF_NORM(0.329285),
+		EOTF_COEFF_NORM(0.043274),
+		EOTF_COEFF_NORM(0.069092),	EOTF_COEFF_NORM(0.919556),
+		EOTF_COEFF_NORM(0.011322),
+		EOTF_COEFF_NORM(0.016418),	EOTF_COEFF_NORM(0.088058),
+		EOTF_COEFF_NORM(0.895554),
+		EOTF_COEFF_RIGHTSHIFT
+	};
+	int i, j;
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		/************** OSD ***************/
 		/* RGB to YUV */
@@ -2637,46 +3392,122 @@ static void bypass_hdr_process(
 		/* WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
 			0, 7, 1);
 		*/
+		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+			(((vinfo->hdr_info.hdr_support & 0x4) &&
+			(vinfo->viu_color_fmt != TVIN_RGB444)) ||
+			(vinfo->viu_color_fmt == TVIN_RGB444))) {
+			/* OSD convert to HDR to match HDR video */
+			/* osd eotf lut 709 */
+			set_vpp_lut(VPP_LUT_OSD_EOTF,
+				osd_eotf_33_709_mapping, /* R */
+				osd_eotf_33_709_mapping, /* G */
+				osd_eotf_33_709_mapping, /* B */
+				CSC_ON);
 
-		/* eotf lut bypass */
-		set_vpp_lut(VPP_LUT_OSD_EOTF,
-			eotf_33_linear_mapping, /* R */
-			eotf_33_linear_mapping, /* G */
-			eotf_33_linear_mapping, /* B */
-			CSC_ON);
+			/* osd eotf matrix 709->2020 */
+			if (master_info->present_flag & 1) {
+				pr_csc("\tMaster_display_colour available.\n");
+				print_primaries_info(master_info);
+				prepare_customer_matrix(
+					&master_info->primaries,
+					&master_info->white_point,
+					vinfo, &osd_m, 1);
+			} else {
+				pr_csc("\tNo master_display_colour.\n");
+				prepare_customer_matrix(
+					&bt2020_primaries,
+					&bt2020_white_point,
+					vinfo, &osd_m, 1);
+			}
+			osd_mtx[EOTF_COEFF_SIZE - 1] = osd_m.right_shift;
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 3; j++) {
+					if (osd_m.matrix[i][j] & 0x1000) {
+						osd_mtx[i * 3 + j] =
+						(~osd_m.matrix[i][j]) & 0xfff;
+						osd_mtx[i * 3 + j] =
+						-(1 + osd_mtx[i * 3 + j]);
+					} else
+						osd_mtx[i * 3 + j] =
+							osd_m.matrix[i][j];
+				}
+			set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
+				osd_mtx,
+				CSC_ON);
 
-		/* eotf matrix bypass */
-		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
-			eotf_bypass_coeff,
-			CSC_ON);
+			/* osd oetf lut 2084 */
+			set_vpp_lut(VPP_LUT_OSD_OETF,
+				osd_oetf_41_2084_mapping, /* R */
+				osd_oetf_41_2084_mapping, /* G */
+				osd_oetf_41_2084_mapping, /* B */
+				CSC_ON);
 
-		/* oetf lut bypass */
-		set_vpp_lut(VPP_LUT_OSD_OETF,
-			oetf_41_linear_mapping, /* R */
-			oetf_41_linear_mapping, /* G */
-			oetf_41_linear_mapping, /* B */
-			CSC_ON);
+			/* osd matrix RGB2020 to YUV2020 limit */
+			set_vpp_matrix(VPP_MATRIX_OSD,
+				RGB2020_to_YUV2020l_coeff,
+				CSC_ON);
+		} else {
+			/* OSD convert to 709 limited to match SDR video */
+			/* eotf lut bypass */
+			set_vpp_lut(VPP_LUT_OSD_EOTF,
+				eotf_33_linear_mapping, /* R */
+				eotf_33_linear_mapping, /* G */
+				eotf_33_linear_mapping, /* B */
+				CSC_OFF);
 
-		/* osd matrix RGB709 to YUV709 limit/full */
-		set_vpp_matrix(VPP_MATRIX_OSD,
-			RGB709_to_YUV709l_coeff,
-			CSC_ON);	/* use limit range */
+			/* eotf matrix bypass */
+			set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
+				eotf_bypass_coeff,
+				CSC_OFF);
+
+			/* oetf lut bypass */
+			set_vpp_lut(VPP_LUT_OSD_OETF,
+				oetf_41_linear_mapping, /* R */
+				oetf_41_linear_mapping, /* G */
+				oetf_41_linear_mapping, /* B */
+				CSC_OFF);
+
+			/* osd matrix RGB709 to YUV709 limit/full */
+			if (range_control)
+				set_vpp_matrix(VPP_MATRIX_OSD,
+					RGB709_to_YUV709_coeff,
+					CSC_ON);	/* use full range */
+			else
+				set_vpp_matrix(VPP_MATRIX_OSD,
+					RGB709_to_YUV709l_coeff,
+					CSC_ON);	/* use limit range */
+		}
 
 		/************** VIDEO **************/
 		/* vd1 matrix: bypass */
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
 			set_vpp_matrix(VPP_MATRIX_VD1,
 				bypass_coeff,
-				CSC_ON);	/* limit->limit range */
+				CSC_OFF);	/* limit->limit range */
 		else {
-			if (signal_range == 0) /* limit range */
-				set_vpp_matrix(VPP_MATRIX_VD1,
-					bypass_coeff,
-					CSC_ON);	/* limit->limit range */
-			else
-				set_vpp_matrix(VPP_MATRIX_VD1,
-					YUV709f_to_YUV709l_coeff,
-					CSC_ON);	/* full->limit range */
+			if (range_control) {
+				if (signal_range == 0) /* limit range */
+					set_vpp_matrix(VPP_MATRIX_VD1,
+						YUV709l_to_YUV709f_coeff,
+						CSC_ON);
+					/* limit->full range */
+				else
+					set_vpp_matrix(VPP_MATRIX_VD1,
+						bypass_coeff,
+						CSC_OFF);
+					/* full->full range */
+			} else {
+				if (signal_range == 0) /* limit range */
+					set_vpp_matrix(VPP_MATRIX_VD1,
+						bypass_coeff,
+						CSC_OFF);
+					/* limit->limit range */
+				else
+					set_vpp_matrix(VPP_MATRIX_VD1,
+						YUV709f_to_YUV709l_coeff,
+						CSC_ON);
+					/* full->limit range */
+			}
 		}
 
 		/* post matrix bypass */
@@ -2684,22 +3515,39 @@ static void bypass_hdr_process(
 			/* yuv2rgb for eye protect mode */
 			set_vpp_matrix(VPP_MATRIX_POST,
 				bypass_coeff,
-				CSC_ON);
+				CSC_OFF);
 		else /* matrix yuv2rgb for LCD */
 			set_vpp_matrix(VPP_MATRIX_POST,
 				YUV709l_to_RGB709_coeff,
 				CSC_ON);
+		/* xvycc inv lut */
+		if (sdr_process_mode &&
+		(csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)))
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_ON);
+		else
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_OFF);
+
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
-			eotf_33_linear_mapping, /* R */
-			eotf_33_linear_mapping, /* G */
-			eotf_33_linear_mapping, /* B */
-			CSC_ON);
+			NULL, /* R */
+			NULL, /* G */
+			NULL, /* B */
+			CSC_OFF);
 
 		/* eotf matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_EOTF,
 			eotf_bypass_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OETF,
@@ -2708,10 +3556,23 @@ static void bypass_hdr_process(
 			NULL,
 			CSC_OFF);
 
-		/* xvycc matrix bypass */
-		set_vpp_matrix(VPP_MATRIX_XVYCC,
-			bypass_coeff,
-			CSC_ON);
+		/* xvycc matrix full2limit or bypass */
+		if (vinfo->viu_color_fmt != TVIN_RGB444) {
+			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
+				set_vpp_matrix(VPP_MATRIX_XVYCC,
+					bypass_coeff,
+					CSC_OFF);
+			else {
+				if (range_control)
+					set_vpp_matrix(VPP_MATRIX_XVYCC,
+						YUV709f_to_YUV709l_coeff,
+						CSC_ON);
+				else
+					set_vpp_matrix(VPP_MATRIX_XVYCC,
+						bypass_coeff,
+						CSC_OFF);
+			}
+		}
 	} else {
 		/* OSD */
 		/* keep RGB */
@@ -2729,6 +3590,23 @@ static void bypass_hdr_process(
 			csc_type, NULL);
 		/* xvycc lut off */
 		load_knee_lut(CSC_OFF);
+		/* xvycc inv lut */
+
+		if (sdr_process_mode)
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_ON);
+		else
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_OFF);
+
+		vecm_latch_flag |= FLAG_VADJ1_BRI;
+		hdr_process_pq_enable(1);
 		/* if GXTVBB HDMI output(YUV) case */
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
@@ -2738,6 +3616,98 @@ static void bypass_hdr_process(
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
+	}
+}
+
+static void sdr_hdr_process(
+	enum vpp_matrix_csc_e csc_type,
+	struct vinfo_s *vinfo,
+	struct vframe_master_display_colour_s *master_info)
+{
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+		/* OSD convert to 709 limited to match SDR video */
+		/* eotf lut bypass */
+		set_vpp_lut(VPP_LUT_OSD_EOTF,
+			eotf_33_linear_mapping, /* R */
+			eotf_33_linear_mapping, /* G */
+			eotf_33_linear_mapping, /* B */
+			CSC_OFF);
+
+		/* eotf matrix bypass */
+		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
+			eotf_bypass_coeff,
+			CSC_OFF);
+
+		/* oetf lut bypass */
+		set_vpp_lut(VPP_LUT_OSD_OETF,
+			oetf_41_linear_mapping, /* R */
+			oetf_41_linear_mapping, /* G */
+			oetf_41_linear_mapping, /* B */
+			CSC_OFF);
+
+		/* osd matrix RGB709 to YUV709 limit/full */
+		if (range_control)
+			set_vpp_matrix(VPP_MATRIX_OSD,
+				RGB709_to_YUV709_coeff,
+				CSC_ON);	/* use full range */
+		else
+			set_vpp_matrix(VPP_MATRIX_OSD,
+				RGB709_to_YUV709l_coeff,
+				CSC_ON);	/* use limit range */
+
+		/************** VIDEO **************/
+		/* convert SDR Video to HDR */
+		if (range_control) {
+			if (signal_range == 0) /* limit range */
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					YUV709l_to_YUV709f_coeff,
+					CSC_ON);	/* limit->full range */
+			else
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					bypass_coeff,
+					CSC_OFF);	/* full->full range */
+		} else {
+			if (signal_range == 0) /* limit range */
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					bypass_coeff,
+					CSC_OFF);	/* limit->limit range */
+			else
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					YUV709f_to_YUV709l_coeff,
+					CSC_ON);	/* full->limit range */
+		}
+
+		set_vpp_matrix(VPP_MATRIX_POST,
+			YUV709l_to_RGB709_coeff,
+			CSC_ON);
+
+		/* eotf lut bypass */
+		set_vpp_lut(VPP_LUT_EOTF,
+			eotf_33_sdr_709_mapping, /* R */
+			eotf_33_sdr_709_mapping, /* G */
+			eotf_33_sdr_709_mapping, /* B */
+			CSC_ON);
+
+		/* eotf matrix bypass */
+		set_vpp_matrix(VPP_MATRIX_EOTF,
+			eotf_RGB709_to_RGB2020_coeff,
+			CSC_ON);
+
+		/* oetf lut bypass */
+		set_vpp_lut(VPP_LUT_OETF,
+			oetf_sdr_2084_mapping,
+			oetf_sdr_2084_mapping,
+			oetf_sdr_2084_mapping,
+			CSC_ON);
+
+		/* xvycc matrix bypass */
+		set_vpp_matrix(VPP_MATRIX_XVYCC,
+			RGB2020_to_YUV2020l_coeff,
+			CSC_ON);
+	} else if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
+		bypass_hdr_process(csc_type, vinfo, master_info);
 	}
 }
 
@@ -2753,6 +3723,9 @@ static int vpp_eye_protection_process(
 	/* only SDR need switch csc */
 	if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			hdr_process_mode)
+		return 0;
+	if ((csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+			sdr_process_mode)
 		return 0;
 
 	/* post matrix bypass */
@@ -2771,9 +3744,7 @@ static int vpp_eye_protection_process(
 	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
 		(cur_eye_protect_mode == 1))
 		/*  for eye protect mode */
-		set_vpp_matrix(VPP_MATRIX_XVYCC,
-			RGB709_to_YUV709l_coeff,
-			CSC_ON);
+		video_rgb_ogo_xvy_mtx_latch &= MTX_RGB2YUVL_RGB_OGO;
 	else /* matrix yuv2rgb for LCD */
 		set_vpp_matrix(VPP_MATRIX_XVYCC,
 			bypass_coeff,
@@ -2782,16 +3753,13 @@ static int vpp_eye_protection_process(
 	return 0;
 }
 
-static void vpp_matrix_update(struct vframe_s *vf)
+static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
-	struct vinfo_s *vinfo;
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
 	int signal_change_flag = 0;
 	struct vframe_master_display_colour_s *p = &cur_master_display_colour;
 	struct master_display_info_s send_info;
-	int need_adjust_contrast = 0;
-
-	vinfo = get_current_vinfo();
+	int need_adjust_contrast_saturation = 0;
 
 	/* Tx hdr information */
 	memcpy(&receiver_hdr_info, &vinfo->hdr_info,
@@ -2805,6 +3773,20 @@ static void vpp_matrix_update(struct vframe_s *vf)
 			hdr_process_mode = 1; /* hdr->sdr*/
 	} else
 		hdr_process_mode = hdr_mode;
+
+	if (sdr_mode == 2) { /* auto */
+		if ((vinfo->hdr_info.hdr_support & 0x4) &&
+		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+		 (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)))
+			sdr_process_mode = 1; /*box sdr->hdr*/
+		else if ((vinfo->viu_color_fmt == TVIN_RGB444) &&
+			((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)))
+			sdr_process_mode = 1; /*tv sdr->hdr*/
+		else
+			sdr_process_mode = 0; /* sdr->sdr*/
+	} else
+		sdr_process_mode = sdr_mode; /* force sdr->hdr */
 
 	signal_change_flag = signal_type_changed(vf, vinfo);
 
@@ -2820,8 +3802,20 @@ static void vpp_matrix_update(struct vframe_s *vf)
 
 	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
 		(vinfo->hdr_info.hdr_support & 0x4)) {
-		/* bypass mode */
-		if ((hdr_process_mode == 0) &&
+		if (sdr_process_mode &&
+			(csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB)) {
+			/* sdr source convert to hdr */
+			/* send hdr info */
+			/* use the features to discribe source info */
+			send_info.features =
+					  (1 << 29)	/* video available */
+					| (5 << 26)	/* unspecified */
+					| (0 << 25)	/* limit */
+					| (1 << 24)	/* color available */
+					| (9 << 16)	/* bt2020 */
+					| (14 << 8)	/* bt2020-10 */
+					| (10 << 0);	/* bt2020c */
+		} else if ((hdr_process_mode == 0) &&
 			(csc_type >= VPP_MATRIX_BT2020YUV_BT2020RGB)) {
 			/* source is hdr, send hdr info */
 			/* use the features to discribe source info */
@@ -2846,7 +3840,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 					| (1 << 8)	/* bt709 */
 					| (1 << 0);	/* bt709 */
 		}
-		amvecm_cp_hdr_info(&send_info, vf);
+		amvecm_cp_hdr_info(&send_info, p);
 		if (vinfo->fresh_tx_hdr_pkt)
 			vinfo->fresh_tx_hdr_pkt(&send_info);
 	}
@@ -2860,35 +3854,57 @@ static void vpp_matrix_update(struct vframe_s *vf)
 			/* hdr->sdr */
 			if ((signal_change_flag &
 					(SIG_PRI_INFO |
-						SIG_KNEE_FACTOR |
+					SIG_KNEE_FACTOR |
 					SIG_HDR_MODE)
 				) ||
 				(cur_csc_type <
 					VPP_MATRIX_BT2020YUV_BT2020RGB)) {
-				need_adjust_contrast =
+				need_adjust_contrast_saturation =
 					hdr_process(csc_type, vinfo, p);
 			}
 		} else {
-			/* for gxtvbb and gxl HDR bypass process */
-			bypass_hdr_process(csc_type, vinfo);
+			if ((csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+				sdr_process_mode)
+				/* for gxl and gxm SDR to HDR process */
+				sdr_hdr_process(csc_type, vinfo, p);
+			else
+				/* for gxtvbb and gxl HDR bypass process */
+				bypass_hdr_process(csc_type, vinfo, p);
 
 			if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 				(get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB))
 				csc_type = VPP_MATRIX_YUV709_RGB;
 		}
-		if (need_adjust_contrast) {
-			vd1_contrast_offset =
+		if (need_adjust_contrast_saturation & 1) {
+			if (lut_289_en &&
+				(get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB))
+				vd1_contrast_offset = 0;
+			else
+				vd1_contrast_offset =
 				calculate_contrast_adj(p->luminance[0] / 10000);
 			vecm_latch_flag |= FLAG_VADJ1_CON;
-		} else{
+		} else {
 			vd1_contrast_offset = 0;
 			vecm_latch_flag |= FLAG_VADJ1_CON;
+		}
+		if (need_adjust_contrast_saturation & 2) {
+			vecm_latch_flag |= FLAG_VADJ1_COLOR;
+		} else {
+			if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) &&
+				(sdr_process_mode == 1))
+				saturation_offset = sdr_saturation_offset;
+			else
+				saturation_offset =	0;
+			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		}
 		if (cur_csc_type != csc_type) {
 			pr_csc("CSC from 0x%x to 0x%x.\n",
 				cur_csc_type, csc_type);
 			pr_csc("contrast offset = %d.\n",
 				vd1_contrast_offset);
+			pr_csc("saturation offset = %d.\n",
+				saturation_offset);
 			cur_csc_type = csc_type;
 		}
 	}
@@ -2910,6 +3926,7 @@ MODULE_PARM_DESC(null_vf_max, "\n null_vf_max\n");
 void amvecm_matrix_process(struct vframe_s *vf)
 {
 	struct vframe_s fake_vframe;
+	struct vinfo_s *vinfo = get_current_vinfo();
 	int i;
 
 	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
@@ -2933,12 +3950,24 @@ void amvecm_matrix_process(struct vframe_s *vf)
 					CSC_ON);
 	}
 
-	if ((vf == last_vf) &&
+	/* OSD sdr -> hdr in first vsync when hdr output */
+	if ((vinfo->hdr_info.hdr_support & 0x4) && (vf == NULL) &&
+		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+		 (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))) {
+		if (((sdr_process_mode != 1) && (sdr_mode > 0))
+		|| ((sdr_process_mode > 0) && (sdr_mode == 0)))
+			null_vf_cnt = null_vf_max + 1;
+	}
+
+	if ((vf == last_vf) && (null_vf_cnt <= null_vf_max) &&
 		(cur_eye_protect_mode == wb_val[0]))
 		return;
 
+	if (is_dolby_vision_on())
+		return;
+
 	if (vf != NULL) {
-		vpp_matrix_update(vf);
+		vpp_matrix_update(vf, vinfo);
 		last_vf = vf;
 		null_vf_cnt = 0;
 		fg_vf_sw_dbg = 1;
@@ -2948,7 +3977,8 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	} else {
 		/* check last signal type */
 		if ((last_vf != NULL) &&
-			((last_vf->signal_type >> 16) & 0xff) == 9)
+			((((last_vf->signal_type >> 16) & 0xff) == 9)
+			|| customer_master_display_en))
 			null_vf_cnt++;
 
 		if ((((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
@@ -2960,8 +3990,10 @@ void amvecm_matrix_process(struct vframe_s *vf)
 			fake_vframe.signal_type = 0;
 			fake_vframe.width = 720;
 			fake_vframe.height = 480;
-			fake_vframe.prop.master_display_colour.present_flag = 0;
-			vpp_matrix_update(&fake_vframe);
+			fake_vframe.prop.master_display_colour.present_flag
+				= 0x80000000;
+			vpp_matrix_update(&fake_vframe, vinfo);
+			pr_csc("change CSC when disable video.\n");
 			last_vf = vf;
 			null_vf_cnt = 0;
 			fg_vf_sw_dbg = 2;
@@ -2981,6 +4013,7 @@ int amvecm_hdr_dbg(u32 sel)
 	if (dbg_vf == NULL)
 		goto hdr_dump;
 
+	/*
 	pr_err("----vframe info----\n");
 	pr_err("index:%d, type:0x%x, type_backup:0x%x, blend_mode:%d\n",
 		dbg_vf->index, dbg_vf->type,
@@ -3000,7 +4033,6 @@ int amvecm_hdr_dbg(u32 sel)
 	pr_err("source_type:%d, phase:%d, soruce_mode:%d, sig_fmt:0x%x\n",
 		dbg_vf->source_type, dbg_vf->phase,
 		dbg_vf->source_mode, dbg_vf->sig_fmt);
-	/*
 	pr_err(
 		"trans_fmt 0x%x, lefteye(%d %d %d %d), righteye(%d %d %d %d)\n",
 		vf->trans_fmt, vf->left_eye.start_x, vf->left_eye.start_y,
@@ -3038,41 +4070,64 @@ int amvecm_hdr_dbg(u32 sel)
 	 vs_cycle %d, vs_stamp %d\n",
 		vf->prop.meas.hs_cnt2, vf->prop.meas.hs_cnt3,
 		vf->prop.meas.vs_cycle, vf->prop.meas.vs_stamp);
-	*/
+
 	pr_err("pixel_ratio:%d list:%p ready_jiffies64:%lld, frame_dirty %d\n",
 		dbg_vf->pixel_ratio, &dbg_vf->list,
 		dbg_vf->ready_jiffies64, dbg_vf->frame_dirty);
+	*/
 
-	pr_err("----Source HDR info----\n");
-	pr_err("\tsignal_type:0x%x, present_flag:%d\n",
+	pr_err("----Video frame info----\n");
+	pr_err("bitdepth:0x%x, signal_type:0x%x, present_flag:0x%x\n",
+		dbg_vf->bitdepth,
 		dbg_vf->signal_type,
 		dbg_vf->prop.master_display_colour.present_flag);
-	for (i = 0; i < 3; i++)
-		for (j = 0; j < 2; j++)
-			pr_err(
-				"\tprimaries[%1d][%1d] = %04x\n",
-			i, j,
+
+	if (((dbg_vf->signal_type >> 16) & 0xff) == 9) {
+		pr_err("HDR color primaries:0x%x\n",
+			((dbg_vf->signal_type >> 16) & 0xff));
+		pr_err("HDR transfer_characteristic:0x%x\n",
+			((dbg_vf->signal_type >> 8) & 0xff));
+	} else
+		pr_err("SDR color primaries:0x%x\n", signal_color_primaries);
+
+	if (dbg_vf->prop.master_display_colour.present_flag == 1) {
+		pr_err("----SEI info----\n");
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				pr_err(
+					"\tprimaries[%1d][%1d] = %04x\n",
+				i, j,
 			dbg_vf->prop.master_display_colour.primaries[i][j]);
-	pr_err("\twhite_point = (%04x, %04x)\n",
-		dbg_vf->prop.master_display_colour.white_point[0],
-		dbg_vf->prop.master_display_colour.white_point[1]);
-	pr_err("\tmax,min luminance = %08x, %08x\n",
-		dbg_vf->prop.master_display_colour.luminance[0],
-		dbg_vf->prop.master_display_colour.luminance[1]);
+		pr_err("\twhite_point = (%04x, %04x)\n",
+			dbg_vf->prop.master_display_colour.white_point[0],
+			dbg_vf->prop.master_display_colour.white_point[1]);
+		pr_err("\tmax,min luminance = %08x, %08x\n",
+			dbg_vf->prop.master_display_colour.luminance[0],
+			dbg_vf->prop.master_display_colour.luminance[1]);
+	}
+
 hdr_dump:
 	pr_err("----HDR process info----\n");
+	pr_err("customer_master_display_en:0x%x\n", customer_master_display_en);
 
-	pr_err("hdr_mode:0x%x, hdr_process_mode:0x%x, force_csc_type:0x%x\n",
-		hdr_mode, hdr_process_mode, force_csc_type);
+	pr_err("hdr_mode:0x%x, hdr_process_mode:0x%x, cur_hdr_process_mode:0x%x\n",
+		hdr_mode, hdr_process_mode, cur_hdr_process_mode);
+
+	pr_err("sdr_mode:0x%x, sdr_process_mode:0x%x, cur_sdr_process_mode:0x%x\n",
+		sdr_mode, sdr_process_mode, cur_sdr_process_mode);
+
+	pr_err("hdr_flag:0x%x,     fg_vf_sw_dbg:0x%x\n",
+		hdr_flag, fg_vf_sw_dbg);
 	pr_err("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x\n",
 		cur_signal_type, cur_csc_mode, cur_csc_type);
 
 	pr_err("knee_lut_on:0x%x,knee_interpolation_mode:0x%x,cur_knee_factor:0x%x\n",
 		knee_lut_on, knee_interpolation_mode, cur_knee_factor);
-	pr_err("fg_vf_sw_dbg: 0x%x\n", fg_vf_sw_dbg);
 
+	if ((receiver_hdr_info.hdr_support & 0x4) == 0)
+		goto dbg_end;
 	pr_err("----TV EDID info----\n");
-	pr_err("hdr_support:0x%x,lumi_max:%d,lumi_avg:%d,lumi_min:%d\n",
+	pr_err("hdr_support:0x%x, lumi_max:%d, lumi_avg:%d, lumi_min:%d\n",
 		receiver_hdr_info.hdr_support,
 		receiver_hdr_info.lumi_max,
 		receiver_hdr_info.lumi_avg,
@@ -3181,25 +4236,32 @@ reg_dump:
 		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_OETF_CTL;
 
-		WRITE_VPP_REG(addr_port, 0);
+		pr_err("\taddr = %08x, val = %08x\n",
+			ctrl_port, READ_VPP_REG(ctrl_port));
+
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, i);
 			data = READ_VPP_REG(data_port);
 			r_map[i * 2] = data & 0xffff;
 			r_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
+		WRITE_VPP_REG(addr_port, 20);
 		data = READ_VPP_REG(data_port);
 		r_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 		g_map[0] = (data >> 16) & 0xffff;
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, 21 + i);
 			data = READ_VPP_REG(data_port);
 			g_map[i * 2 + 1] = data & 0xffff;
 			g_map[i * 2 + 2] = (data >> 16) & 0xffff;
 		}
 		for (i = 0; i < 20; i++) {
+			WRITE_VPP_REG(addr_port, 41 + i);
 			data = READ_VPP_REG(data_port);
 			b_map[i * 2] = data & 0xffff;
 			b_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
+		WRITE_VPP_REG(addr_port, 61);
 		data = READ_VPP_REG(data_port);
 		b_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 
@@ -3239,7 +4301,7 @@ reg_dump:
 				i, r_map[i], g_map[i], b_map[i]);
 		}
 
-		pr_err("----dump hdr_osd_reg----\n");
+		pr_err("----dump hdr_osd_reg structure ----\n");
 
 		pr_err("\tviu_osd1_matrix_ctrl = 0x%04x\n",
 				hdr_osd_reg.viu_osd1_matrix_ctrl);
@@ -3298,6 +4360,10 @@ reg_dump:
 		}
 		pr_err("\n");
 	}
+	pr_err("----dump regs VPP_LUT_EOTF----\n");
+	print_vpp_lut(VPP_LUT_EOTF, READ_VPP_REG(VIU_EOTF_CTL) & (7 << 27));
+	pr_err("----dump regs VPP_LUT_OETF----\n");
+	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x7f);
 	/*********************dump reg end*********************/
 dbg_end:
 

@@ -27,7 +27,7 @@
 /* struct ve_dnlp_s          video_ve_dnlp; */
 
 #define FLAG_RSV31              (1 << 31)
-#define FLAG_RSV30              (1 << 30)
+#define FLAG_VADJ1_COLOR        (1 << 30)
 #define FLAG_VE_DNLP            (1 << 29)
 #define FLAG_VE_NEW_DNLP        (1 << 28)
 #define FLAG_RSV27              (1 << 27)
@@ -64,6 +64,15 @@
 #define VPP_VADJ1_BLMINUS_EN        (1 << 1)
 #define VPP_VADJ1_EN                (1 << 0)
 
+#define VPP_DEMO_DNLP_DIS           (1 << 3)
+#define VPP_DEMO_DNLP_EN            (1 << 2)
+#define VPP_DEMO_CM_DIS             (1 << 1)
+#define VPP_DEMO_CM_EN              (1 << 0)
+
+/*white balance latch*/
+#define MTX_BYPASS_RGB_OGO			(1 << 0)
+#define MTX_RGB2YUVL_RGB_OGO		(1 << 1)
+
 #define _VE_CM  'C'
 
 #define AMVECM_IOC_VE_DNLP      _IOW(_VE_CM, 0x21, struct ve_dnlp_s)
@@ -72,6 +81,7 @@
 #define AMVECM_IOC_VE_DNLP_DIS  _IO(_VE_CM, 0x24)
 #define AMVECM_IOC_VE_NEW_DNLP  _IOW(_VE_CM, 0x25, struct ve_dnlp_table_s)
 #define AMVECM_IOC_G_HIST_BIN   _IOW(_VE_CM, 0x26, struct vpp_hist_param_s)
+#define AMVECM_IOC_G_HDR_METADATA _IOW(_VE_CM, 0x27, struct hdr_metadata_info_s)
 
 
 /* VPP.CM IOCTL command list */
@@ -86,6 +96,14 @@
 #define AMVECM_IOC_GAMMA_TABLE_B _IOW(_VE_CM, 0x44, struct tcon_gamma_table_s)
 #define AMVECM_IOC_S_RGB_OGO   _IOW(_VE_CM, 0x45, struct tcon_rgb_ogo_s)
 #define AMVECM_IOC_G_RGB_OGO  _IOR(_VE_CM, 0x46, struct tcon_rgb_ogo_s)
+
+/*VPP.VLOCK IOCTL command list*/
+#define AMVECM_IOC_VLOCK_EN  _IO(_VE_CM, 0x47)
+#define AMVECM_IOC_VLOCK_DIS _IO(_VE_CM, 0x48)
+
+/*VPP.3D-SYNC IOCTL command list*/
+#define AMVECM_IOC_3D_SYNC_EN  _IO(_VE_CM, 0x49)
+#define AMVECM_IOC_3D_SYNC_DIS _IO(_VE_CM, 0x50)
 
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 /* #define WRITE_VPP_REG(x,val)
@@ -146,5 +164,36 @@ extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 
+/* master_display_info for display device */
+struct hdr_metadata_info_s {
+	u32 primaries[3][2];		/* normalized 50000 in G,B,R order */
+	u32 white_point[2];		/* normalized 50000 */
+	u32 luminance[2];		/* max/min lumin, normalized 10000 */
+};
+
+extern void vpp_vd_adj1_saturation_hue(signed int sat_val,
+	signed int hue_val, struct vframe_s *vf);
+
+extern int metadata_read_u32(uint32_t *value);
+extern int metadata_wait(struct vframe_s *vf);
+extern int metadata_sync(uint32_t frame_id, uint64_t pts);
+
+extern void enable_dolby_vision(int enable);
+extern bool is_dolby_vision_enable(void);
+extern bool is_dolby_vision_on(void);
+extern bool for_dolby_vision_certification(void);
+extern void set_dolby_vision_mode(int mode);
+extern int get_dolby_vision_mode(void);
+extern void dolby_vision_set_toggle_flag(int flag);
+extern int dolby_vision_wait_metadata(struct vframe_s *vf);
+extern int dolby_vision_pop_metadata(void);
+extern int dolby_vision_update_metadata(struct vframe_s *vf);
+extern int dolby_vision_process(struct vframe_s *vf);
+extern void dolby_vision_init_receiver(void);
+extern void dolby_vision_vf_put(struct vframe_s *vf);
+extern struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf);
+extern void dolby_vision_dump_setting(int debug_flag);
+extern void dolby_vision_dump_struct(void);
+extern void enable_osd_path(int);
 #endif /* AMVECM_H */
 

@@ -894,19 +894,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 		p = (char *)of_get_flat_dt_prop(node, "bootargs", &l);
 
 	if (p != NULL && l > 0) {
-		if (concat_cmdline) {
-			int cmdline_len;
-			int copy_len;
-			strlcat(cmdline, " ", COMMAND_LINE_SIZE);
-			cmdline_len = strlen(cmdline);
-			copy_len = COMMAND_LINE_SIZE - cmdline_len - 1;
-			copy_len = min((int)l, copy_len);
-			strncpy(cmdline + cmdline_len, p, copy_len);
-			cmdline[cmdline_len + copy_len] = '\0';
-		} else {
-			strlcpy(cmdline, p, min((int)l, COMMAND_LINE_SIZE));
-		}
+		strlcpy(cmdline, p, min((int)l, COMMAND_LINE_SIZE));
 	}
+
+	if (concat_cmdline)
+		strlcat(cmdline, config_cmdline, COMMAND_LINE_SIZE);
 
 	pr_debug("Command line is: %s\n", (char*)data);
 

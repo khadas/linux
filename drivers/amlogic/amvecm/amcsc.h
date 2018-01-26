@@ -83,9 +83,10 @@ enum vpp_lut_sel_e {
 	VPP_LUT_OSD_EOTF = 0,
 	VPP_LUT_OSD_OETF,
 	VPP_LUT_EOTF,
-	VPP_LUT_OETF
+	VPP_LUT_OETF,
+	VPP_LUT_INV_EOTF
 };
-#define NUM_LUT 4
+#define NUM_LUT 5
 
 /* matrix registers */
 struct matrix_s {
@@ -95,16 +96,25 @@ struct matrix_s {
 	u16 right_shift;
 };
 
+#define LUT_289_SIZE	289
+extern unsigned int lut_289_mapping[LUT_289_SIZE];
+extern int dnlp_en;
+/*extern int cm_en;*/
+
 extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
+extern signed int saturation_offset;
+extern uint sdr_mode;
+extern uint hdr_flag;
+extern int video_rgb_ogo_xvy_mtx_latch;
 
 extern void amvecm_matrix_process(struct vframe_s *vf);
 extern int amvecm_hdr_dbg(u32 sel);
-
-/* use osd rdma w/r */
-u32 VSYNCOSD_RD_MPEG_REG(u32 reg);
-int VSYNCOSD_WR_MPEG_REG(u32 reg, u32 val);
-int VSYNCOSD_WR_MPEG_REG_BITS(u32 reg, u32 val, u32 start, u32 len);
+#ifdef CONFIG_VSYNC_RDMA
+extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+extern u32 VSYNC_RD_MPEG_REG(u32 adr);
+extern int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+#endif
 
 #endif /* AM_CSC_H */
 

@@ -1006,6 +1006,22 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 					gpio_work_mask = of_read_ulong(prop, 1);
 			}
 
+#if defined(CONFIG_ARCH_MESON64_ODROIDC2)
+			gpio_name = of_get_property(of_node,
+						"gpio-hub-rst", NULL);
+			if (gpio_name) {
+				struct gpio_desc *hub_gd =
+					gpiod_get_index(&pdev->dev, NULL, 0);
+				if (IS_ERR(hub_gd))
+					return -1;
+
+				gpiod_direction_output(hub_gd, 0);
+				mdelay(20);
+				gpiod_direction_output(hub_gd, 1);
+				mdelay(20);
+				gpiod_put(hub_gd);
+			}
+#endif
 			prop = of_get_property(of_node, "host-only-core", NULL);
 			if (prop)
 				host_only_core = of_read_ulong(prop, 1);

@@ -11,27 +11,3 @@
 # Boston, MA  02110-1301, USA.
 #
 #
-USE_GPPLL?=0
-ifdef CONFIG_AM_VIDEO
-    USE_GPPLL:=1
-endif
-
-ccflags-y += -DAMLOGIC_GPU_USE_GPPLL=$(USE_GPPLL)
-
-ifeq ($(CONFIG_MALI_MIDGARD),y)
-obj-y += platform/devicetree/mali_clock.c
-obj-y += platform/devicetree/mpgpu.c
-obj-y += platform/devicetree/meson_main2.c
-obj-y += platform/devicetree/platform_gx.c
-obj-y += platform/devicetree/scaling.c
-obj-y += mali_kbase_runtime_pm.c
-obj-y += mali_kbase_config_devicetree.c
-else ifeq ($(CONFIG_MALI_MIDGARD),m)
-SRC += platform/devicetree/mali_clock.c
-SRC += platform/devicetree/mpgpu.c
-SRC += platform/devicetree/meson_main2.c
-SRC += platform/devicetree/platform_gx.c
-SRC += platform/devicetree/scaling.c
-SRC += platform/devicetree/mali_kbase_runtime_pm.c
-SRC += platform/devicetree/mali_kbase_config_devicetree.c
-endif

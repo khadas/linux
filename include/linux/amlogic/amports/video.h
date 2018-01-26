@@ -19,18 +19,27 @@
 
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val,
-			   u32 start, u32 len);
+	u32 start, u32 len);
 u32 VSYNC_RD_MPEG_REG(u32 adr);
 u32 RDMA_READ_REG(u32 adr);
 int RDMA_SET_READ(u32 adr);
 #endif
 
-void try_free_keep_video(void);
+void try_free_keep_video(int flags);
 void vh265_free_cmabuf(void);
 void vh264_4k_free_cmabuf(void);
 void vdec_free_cmabuf(void);
 
+#define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 
+#ifdef CONFIG_AM_VIDEO
+int amvideo_notifier_call_chain(unsigned long val, void *v);
+#else
+static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
+{
+	return 0;
+}
+#endif
 #endif
 
 

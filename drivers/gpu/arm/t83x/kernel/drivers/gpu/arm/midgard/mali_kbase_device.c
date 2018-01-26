@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,7 +30,6 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
-#include <mali_kbase_hwaccess_instr.h>
 #include <mali_kbase_hw.h>
 #include <mali_kbase_config_defaults.h>
 
@@ -82,6 +81,7 @@ static int kbase_device_as_init(struct kbase_device *kbdev, int i)
 	if (!kbdev->as[i].pf_wq)
 		return -EINVAL;
 
+	mutex_init(&kbdev->as[i].transaction_mutex);
 	INIT_WORK(&kbdev->as[i].work_pagefault, page_fault_worker);
 	INIT_WORK(&kbdev->as[i].work_busfault, bus_fault_worker);
 
@@ -145,33 +145,8 @@ static void kbase_device_all_as_term(struct kbase_device *kbdev)
 int kbase_device_init(struct kbase_device * const kbdev)
 {
 	int i, err;
-#ifdef CONFIG_ARM64
-	struct device_node *np = NULL;
-#endif /* CONFIG_ARM64 */
 
 	spin_lock_init(&kbdev->mmu_mask_change);
-	mutex_init(&kbdev->mmu_hw_mutex);
-#ifdef CONFIG_ARM64
-	kbdev->cci_snoop_enabled = false;
-	np = kbdev->dev->of_node;
-	if (np != NULL) {
-		if (of_property_read_u32(np, "snoop_enable_smc",
-					&kbdev->snoop_enable_smc))
-			kbdev->snoop_enable_smc = 0;
-		if (of_property_read_u32(np, "snoop_disable_smc",
-					&kbdev->snoop_disable_smc))
-			kbdev->snoop_disable_smc = 0;
-		/* Either both or none of the calls should be provided. */
-		if (!((kbdev->snoop_disable_smc == 0
-			&& kbdev->snoop_enable_smc == 0)
-			|| (kbdev->snoop_disable_smc != 0
-			&& kbdev->snoop_enable_smc != 0))) {
-			WARN_ON(1);
-			err = -EINVAL;
-			goto fail;
-		}
-	}
-#endif /* CONFIG_ARM64 */
 	/* Get the list of workarounds for issues on the current HW
 	 * (identified by the GPU_ID register)
 	 */
@@ -183,8 +158,6 @@ int kbase_device_init(struct kbase_device * const kbdev)
 	 * (identified by the GPU_ID register)
 	 */
 	kbase_hw_set_features_mask(kbdev);
-
-	kbase_gpuprops_set_features(kbdev);
 
 	/* On Linux 4.0+, dma coherency is determined from device tree */
 #if defined(CONFIG_ARM64) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -233,7 +206,7 @@ int kbase_device_init(struct kbase_device * const kbdev)
 	for (i = 0; i < FBDUMP_CONTROL_MAX; i++)
 		kbdev->kbase_profiling_controls[i] = 0;
 
-	kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
+		kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
 
 	atomic_set(&kbdev->ctx_num, 0);
 
@@ -245,11 +218,7 @@ int kbase_device_init(struct kbase_device * const kbdev)
 
 	kbdev->reset_timeout_ms = DEFAULT_RESET_TIMEOUT_MS;
 
-#ifdef CONFIG_MALI_GPU_MMU_AARCH64
-	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
-#else
 	kbdev->mmu_mode = kbase_mmu_mode_get_lpae();
-#endif /* CONFIG_MALI_GPU_MMU_AARCH64 */
 
 #ifdef CONFIG_MALI_DEBUG
 	init_waitqueue_head(&kbdev->driver_inactive_wait);
@@ -286,19 +255,12 @@ void kbase_device_free(struct kbase_device *kbdev)
 	kfree(kbdev);
 }
 
-int kbase_device_trace_buffer_install(
-		struct kbase_context *kctx, u32 *tb, size_t size)
+void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size_t size)
 {
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kctx);
 	KBASE_DEBUG_ASSERT(tb);
-
-	/* Interface uses 16-bit value to track last accessed entry. Each entry
-	 * is composed of two 32-bit words.
-	 * This limits the size that can be handled without an overflow. */
-	if (0xFFFF * (2 * sizeof(u32)) < size)
-		return -EINVAL;
 
 	/* set up the header */
 	/* magic number in the first 4 bytes */
@@ -314,8 +276,6 @@ int kbase_device_trace_buffer_install(
 	kctx->jctx.tb_wrap_offset = size / 8;
 	kctx->jctx.tb = tb;
 	spin_unlock_irqrestore(&kctx->jctx.tb_lock, flags);
-
-	return 0;
 }
 
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx)

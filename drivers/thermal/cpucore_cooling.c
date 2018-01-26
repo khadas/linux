@@ -203,22 +203,20 @@ static int cpucore_notify_state(struct thermal_cooling_device *cdev,
 
 	switch (type) {
 	case THERMAL_TRIP_HOT:
-		if (tz->enter_hot) {
-			for (i = 0; i < tz->trips; i++) {
-				ins = get_thermal_instance(tz, cdev, i);
-				if (ins && ins->upper > upper)
-					upper = ins->upper;
-			}
-			cdev->ops->get_cur_state(cdev, &cur_state);
-			cur_state += 1;
-			/* do not exceed upper levels */
-			if (upper != -1 && cur_state > upper)
-				cur_state = upper;
-			cdev->ops->set_cur_state(cdev, cur_state);
-		} else {
-			cur_state = 0;
-			cdev->ops->set_cur_state(cdev, cur_state);
+		for (i = 0; i < tz->trips; i++) {
+			ins = get_thermal_instance(tz, cdev, i);
+			if (ins && ins->upper > upper)
+				upper = ins->upper;
 		}
+		cur_state = tz->hot_step;
+		/* do not exceed levels */
+		if (upper != -1 && cur_state > upper)
+			cur_state = upper;
+		if (cur_state < 0)
+			cur_state = 0;
+		pr_debug("%s, cur_state:%ld, upper:%ld, step:%d\n",
+			 __func__, cur_state, upper, tz->hot_step);
+		cdev->ops->set_cur_state(cdev, cur_state);
 		break;
 	default:
 		break;

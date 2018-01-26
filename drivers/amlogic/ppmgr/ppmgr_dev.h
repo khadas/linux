@@ -64,6 +64,10 @@ struct ppmgr_device_t {
 	int started;
 	int global_angle;
 	int use_reserved;
+	unsigned int tb_detect;
+	unsigned int tb_detect_period;
+	unsigned int tb_detect_buf_len;
+	unsigned int tb_detect_init_mute;
 	struct page *cma_pages;
 	struct io_mapping *mapping;
 	void  __iomem *vir_addr;

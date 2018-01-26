@@ -1,5 +1,13 @@
 config WIRELESS_EXT
-	bool
+	bool "wireless ext support"
+	help
+	  You can enable this if you supplicant is enable driver_wext.
+	  For more information on wireless ext  regulatory refer to the wireless
+	  wiki:
+
+	  http://wireless.kernel.org
+
+	  If unsure, say N
 
 config WEXT_CORE
 	def_bool y
@@ -14,7 +22,15 @@ config WEXT_SPY
 	bool
 
 config WEXT_PRIV
-	bool
+	bool "wext priv support"
+	help
+	  You can enable this if you driver is support iwpriv ioctl.
+	  For more information on wext priv  regulatory refer to the wireless
+	  wiki:
+
+	  http://wireless.kernel.org
+
+	  If unsure, say N
 
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"

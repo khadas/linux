@@ -142,6 +142,14 @@ struct aml_fe_dev {
 	/*for mem reserved*/
 	int			mem_start;
 	int			mem_end;
+	int			mem_size;
+	int			cma_flag;
+#ifdef CONFIG_CMA
+	struct platform_device	*this_pdev;
+	struct page			*venc_pages;
+	unsigned int			cma_mem_size;/* BYTE */
+	unsigned int			cma_mem_alloc;
+#endif
 
 	/*for dtv spectrum*/
 	int			spectrum;
@@ -186,6 +194,8 @@ extern int aml_register_fe_drv(enum aml_fe_dev_type_t	type,
 			       struct aml_fe_drv *drv);
 extern int aml_unregister_fe_drv(enum aml_fe_dev_type_t type,
 				 struct aml_fe_drv *drv);
+extern int aml_fe_suspend(struct platform_device *dev, pm_message_t state);
+extern int aml_fe_resume(struct platform_device *dev);
 
 extern struct dvb_frontend *get_si2177_tuner(void);
 extern const char *soundsys_to_str(unsigned short soundsys);
@@ -202,5 +212,5 @@ extern int amlogic_gpio_request(unsigned int pin, const char *label);
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
 extern void vdac_enable(bool on, unsigned int module_sel);
-extern void set_aft_thread_enable(int enable);
+extern void set_aft_thread_enable(int enable, u32_t delay);
 #endif /*_AML_FE_H_*/

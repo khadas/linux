@@ -6,6 +6,11 @@ menu "Amlogic temperature sensor"
 
 config AML_TEMP_SENSOR
 	bool "Amlgoic temperature sensor Support"
+	select THERMAL
+	select CPU_THERMAL
+	select CPUCORE_THERMAL
+	select GPU_THERMAL
+	select GPUCORE_THERMAL
 	default n
 	---help---
 		"thermal sensor low level support for thermal"

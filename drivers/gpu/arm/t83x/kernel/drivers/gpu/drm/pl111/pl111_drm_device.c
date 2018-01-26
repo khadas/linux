@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -143,8 +143,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 	}
 
 	pl111_connector->connector.encoder = &pl111_encoder->encoder;
-
-	pl111_encoder->encoder.crtc = &priv->pl111_crtc->crtc;
 
 	goto finish;
 

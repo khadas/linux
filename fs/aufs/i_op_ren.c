@@ -129,7 +129,7 @@ static void au_ren_rev_rename(int err, struct au_ren_args *a)
 	delegated = NULL;
 	rerr = vfsub_rename(a->dst_h_dir,
 			    au_h_dptr(a->src_dentry, a->btgt),
-			    a->src_h_dir, &a->h_path, &delegated);
+			    a->src_h_dir, &a->h_path, &delegated, a->flags);
 	if (unlikely(rerr == -EWOULDBLOCK)) {
 		pr_warn("cannot retry for NFSv4 delegation"
 			" for an internal rename\n");
@@ -162,7 +162,7 @@ static void au_ren_rev_whtmp(int err, struct au_ren_args *a)
 
 	delegated = NULL;
 	rerr = vfsub_rename(a->dst_h_dir, a->h_dst, a->dst_h_dir, &a->h_path,
-			    &delegated);
+			    &delegated, a->flags);
 	if (unlikely(rerr == -EWOULDBLOCK)) {
 		pr_warn("cannot retry for NFSv4 delegation"
 			" for an internal rename\n");
@@ -210,7 +210,7 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 		AuDebugOn(au_dbstart(d) != a->btgt);
 		delegated = NULL;
 		err = vfsub_rename(a->src_h_dir, au_h_dptr(d, a->btgt),
-				   a->dst_h_dir, &a->h_path, &delegated);
+				   a->dst_h_dir, &a->h_path, &delegated, a->flags);
 		if (unlikely(err == -EWOULDBLOCK)) {
 			pr_warn("cannot retry for NFSv4 delegation"
 				" for an internal rename\n");

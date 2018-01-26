@@ -27,8 +27,11 @@ unsigned int system_serial_high1;
 struct aml_cpu_info {
 	unsigned int version;
 	u8 chipid[12];
-	unsigned int reserved[103];
+	unsigned int  cpuid;
+	unsigned int reserved[102];
 };
+#define MAGIC_31		0xB31B31
+#define MATCH_31(magic)	(((magic >> 8) & 0xffffff) == MAGIC_31)
 static void __iomem *sharemem_output;
 static struct aml_cpu_info *cpu_info_buf;
 static noinline int fn_smc(u64 function_id, u64 arg0, u64 arg1,
@@ -55,10 +58,6 @@ static int cpuinfo_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	unsigned id;
 	unsigned int *p = NULL;
-	unsigned int version =
-		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) << 24) |
-		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) << 16) |
-		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK) << 8);
 
 	if (!of_property_read_u32(np, "cpuinfo_cmd", &id))
 		cpuinfo_func_id = id;
@@ -73,7 +72,7 @@ static int cpuinfo_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 	sharemem_mutex_lock();
-	fn_smc(cpuinfo_func_id, 0, 0, 0);
+	fn_smc(cpuinfo_func_id, 1, 0, 0);
 	memcpy((void *)cpu_info_buf,
 		(const void *)sharemem_output, sizeof(struct aml_cpu_info));
 	sharemem_mutex_unlock();
@@ -88,10 +87,27 @@ static int cpuinfo_probe(struct platform_device *pdev)
 	system_serial_low0 = *p;
 	system_serial_low1 = *(p+1);
 	system_serial_high0 = *(p+2);
-	system_serial_high1 = version;
+	if (MATCH_31(cpu_info_buf->version) && (cpu_info_buf->version & 0xff))
+		system_serial_high1 = cpu_info_buf->cpuid;
+	else {
+		unsigned int version =
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) << 24) |
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) << 16) |
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK) << 8);
+		system_serial_high1 = version;
+	}
 
 	pr_info("probe done\n");
 	return 0;
+}
+
+void cpuinfo_get_chipid(unsigned int *low0, unsigned int *low1,
+		unsigned int *high0, unsigned int *high1)
+{
+	*low0 = system_serial_low0;
+	*low1 = system_serial_low1;
+	*high0 = system_serial_high0;
+	*high1 = system_serial_high1;
 }
 
 static const struct of_device_id cpuinfo_dt_match[] = {

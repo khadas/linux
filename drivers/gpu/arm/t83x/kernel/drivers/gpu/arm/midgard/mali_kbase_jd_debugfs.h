@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,13 +27,11 @@
 
 #include <mali_kbase.h>
 
-#define MALI_JD_DEBUGFS_VERSION 2
-
 /**
- * kbasep_jd_debugfs_ctx_init() - Add debugfs entries for JD system
+ * kbasep_jd_debugfs_ctx_add() - Add debugfs entries for JD system
  *
  * @kctx Pointer to kbase_context
  */
-void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx);
+void kbasep_jd_debugfs_ctx_add(struct kbase_context *kctx);
 
 #endif  /*_KBASE_JD_DEBUGFS_H*/

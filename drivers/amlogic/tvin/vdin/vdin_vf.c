@@ -833,39 +833,43 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	pr_info("buffers in writeable list:\n");
 	spin_lock_irqsave(&p->wr_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
-		pr_info("\t index: %2u,status %u, canvas index0: 0x%x,",
+		pr_info("index: %2u,status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
-		pr_info("index1: 0x%x, vframe type: 0x%x.\n",
+		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
+		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
 	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 
 	pr_info("buffer in readable list:\n");
 	spin_lock_irqsave(&p->rd_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->rd_list, list) {
-		pr_info("\t index: %u,status %u, canvas index0: 0x%x,",
+		pr_info("index: %u,status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
-		pr_info("index1: 0x%x, vframe type: 0x%x.\n",
+		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
+		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
 	}
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 
 	pr_info("buffer in waiting list:\n");
 	spin_lock_irqsave(&p->wt_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->wt_list, list) {
-		pr_info("\t index: %u, status %u, canvas index0: 0x%x,",
+		pr_info("index: %u, status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
-		pr_info("index1: 0x%x, vframe type: 0x%x.\n",
+		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
+		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
 	}
 	spin_unlock_irqrestore(&p->wt_lock, flags);
 	pr_info("buffer in temp list:\n");
 	spin_lock_irqsave(&p->tmp_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->tmp_list, list) {
-		pr_info("\t index: %u, status %u, canvas index0: 0x%x,",
+		pr_info("index: %u, status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
-		pr_info("index1: 0x%x, vframe type: 0x%x.\n",
+		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
+		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
 	}
 	spin_unlock_irqrestore(&p->tmp_lock, flags);
 	pr_info("buffer get count %d.\n", atomic_read(&p->buffer_cnt));

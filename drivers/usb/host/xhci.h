@@ -1882,4 +1882,6 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container
 /* xHCI quirks */
 bool xhci_compliance_mode_recovery_timer_quirk_check(void);
 
+extern struct timer_list	xhci_reset_timer;
+
 #endif /* __LINUX_XHCI_HCD_H */

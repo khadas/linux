@@ -2071,8 +2071,6 @@ static inline int mmc_blk_readonly(struct mmc_card *card)
 	       !(card->csd.cmdclass & CCC_BLOCK_WRITE);
 }
 
-int is_card_emmc(struct mmc_card *card);
-
 static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 					      struct device *parent,
 					      sector_t size,
@@ -2101,10 +2099,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 * index anymore so we keep track of a name index.
 	 */
 	if (!subname) {
-		if (!is_card_emmc(card))
-			md->name_idx  = find_first_zero_bit(name_use, max_devices);
-		else
-			md->name_idx  = 1;
+		md->name_idx = find_first_zero_bit(name_use, max_devices);
 		__set_bit(md->name_idx, name_use);
 	} else
 		md->name_idx = ((struct mmc_blk_data *)

@@ -39,6 +39,14 @@
 #include "pinconf-amlogic.h"
 #include "pinctrl_txl.h"
 
+struct txl_od_gpio {
+	int start;
+	int end;
+};
+
+static const struct txl_od_gpio txl_all_od_gpios[] = {
+	{GPIOW_0, GPIOW_15},
+};
 
 struct pinctrl_pin_desc pmx_pins[] = {
 	PINCTRL_PIN(PIN_GPIOAO_0,	"GPIOAO_0"),
@@ -183,14 +191,14 @@ static struct meson_bank pmx_ee_banks[] = {
 
 	BANK("BOOT",	PIN_BOOT_0,	PIN_BOOT_11,
 			PULL_EN_REG2,	0,
-			PULL_UP_REG1,	0,
+			PULL_UP_REG2,	0,
 			GPIO_D_REG2,	0,
 			GPIO_O_REG2,	0,
 			GPIO_I_REG2,	0),
 
 	BANK("CARD",	PIN_CARD_0,	PIN_CARD_6,
 			PULL_EN_REG2,	20,
-			PULL_UP_REG1,	20,
+			PULL_UP_REG2,	20,
 			GPIO_D_REG2,	20,
 			GPIO_O_REG2,	20,
 			GPIO_I_REG2,	20),
@@ -530,6 +538,18 @@ int pmx_extern_gpio_get(struct meson_domain *domain, unsigned int pin)
 	return -1;
 }
 
+static int is_txl_gpio_in_od_domain(unsigned int pin)
+{
+	int i = 0;
+	int len = sizeof(txl_all_od_gpios)/sizeof(txl_all_od_gpios[0]);
+
+	for (i = 0; i < len; i++) {
+		if ((pin >= txl_all_od_gpios[i].start)
+			&& (pin <= txl_all_od_gpios[i].end))
+			return 1;
+	}
+	return 0;
+}
 static struct amlogic_pinctrl_soc_data pmx_pinctrl_data = {
 	.pins = pmx_pins,
 	.npins = ARRAY_SIZE(pmx_pins),
@@ -539,6 +559,7 @@ static struct amlogic_pinctrl_soc_data pmx_pinctrl_data = {
 	.name_to_pin = pmx_gpio_name_to_pin,
 	.soc_extern_gpio_output = pmx_extern_gpio_output,
 	.soc_extern_gpio_get = pmx_extern_gpio_get,
+	.is_od_domain = is_txl_gpio_in_od_domain,
 };
 
 static struct of_device_id pmx_pinctrl_of_table[] = {

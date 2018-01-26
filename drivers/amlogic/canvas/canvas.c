@@ -207,26 +207,25 @@ int canvas_read_hw(u32 index, struct canvas_s *canvas)
 }
 EXPORT_SYMBOL(canvas_read_hw);
 
-static inline void canvas_lock(void)
-{
-	struct canvas_device_info *info = &canvas_info;
-	raw_local_save_flags(info->fiq_flag);
-	local_fiq_disable();
-	spin_lock_irqsave(&info->lock, info->flags);
-}
+#define canvas_lock(info, f, f2) do {\
+		spin_lock_irqsave(&info->lock, f);\
+		raw_local_save_flags(f2);\
+		local_fiq_disable();\
+	} while (0)
 
-static inline void canvas_unlock(void)
-{
-	struct canvas_device_info *info = &canvas_info;
-	spin_unlock_irqrestore(&info->lock, info->flags);
-	raw_local_irq_restore(info->fiq_flag);
-}
+#define canvas_unlock(info, f, f2) do {\
+		raw_local_irq_restore(f2);\
+		spin_unlock_irqrestore(&info->lock, f);\
+	} while (0)
+
+
 
 void canvas_config_ex(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 					  u32 blkmode, u32 endian)
 {
 	struct canvas_device_info *info = &canvas_info;
 	struct canvas_s *canvas;
+	unsigned long flags, fiqflags;
 	if (!CANVAS_VALID(index))
 		return;
 
@@ -236,7 +235,7 @@ void canvas_config_ex(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 		dump_stack();
 		return;
 	}
-	canvas_lock();
+	canvas_lock(info, flags, fiqflags);
 	canvas = &info->canvasPool[index];
 	canvas->addr = addr;
 	canvas->width = width;
@@ -245,10 +244,18 @@ void canvas_config_ex(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 	canvas->blkmode = blkmode;
 	canvas->endian = endian;
 	canvas_config_locked(index, canvas);
-	canvas_unlock();
+	canvas_unlock(info, flags, fiqflags);
 	return;
 }
 EXPORT_SYMBOL(canvas_config_ex);
+
+void canvas_config_config(u32 index, struct canvas_config_s *cfg)
+{
+	canvas_config_ex(index, cfg->phy_addr,
+		cfg->width, cfg->height, CANVAS_ADDR_NOWRAP,
+		cfg->block_mode, cfg->endian);
+}
+EXPORT_SYMBOL(canvas_config_config);
 
 void canvas_config(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 				   u32 blkmode)
@@ -270,6 +277,7 @@ void canvas_copy(u32 src, u32 dst)
 	struct canvas_device_info *info = &canvas_info;
 	struct canvas_s *canvas_src = &info->canvasPool[src];
 	struct canvas_s *canvas_dst = &info->canvasPool[dst];
+	unsigned long flags, fiqflags;
 
 	if (!CANVAS_VALID(src) || !CANVAS_VALID(dst))
 		return;
@@ -282,7 +290,7 @@ void canvas_copy(u32 src, u32 dst)
 		return;
 	}
 
-	canvas_lock();
+	canvas_lock(info, flags, fiqflags);
 	canvas_dst->addr = canvas_src->addr;
 	canvas_dst->width = canvas_src->width;
 	canvas_dst->height = canvas_src->height;
@@ -292,7 +300,7 @@ void canvas_copy(u32 src, u32 dst)
 	canvas_dst->dataH = canvas_src->dataH;
 	canvas_dst->dataL = canvas_src->dataL;
 	canvas_config_locked(dst, canvas_dst);
-	canvas_unlock();
+	canvas_unlock(info, flags, fiqflags);
 	return;
 }
 EXPORT_SYMBOL(canvas_copy);
@@ -301,6 +309,7 @@ void canvas_update_addr(u32 index, u32 addr)
 {
 	struct canvas_device_info *info = &canvas_info;
 	struct canvas_s *canvas;
+	unsigned long flags, fiqflags;
 
 	if (!CANVAS_VALID(index))
 		return;
@@ -311,10 +320,10 @@ void canvas_update_addr(u32 index, u32 addr)
 		dump_stack();
 		return;
 	}
-	canvas_lock();
+	canvas_lock(info, flags, fiqflags);
 	canvas->addr = addr;
 	canvas_config_locked(index, canvas);
-	canvas_unlock();
+	canvas_unlock(info, flags, fiqflags);
 
 	return;
 }

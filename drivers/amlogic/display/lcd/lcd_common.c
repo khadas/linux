@@ -26,6 +26,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#ifdef CONFIG_AML_VPU
+#include <linux/amlogic/vpu.h>
+#endif
 #include <linux/amlogic/vout/lcd_vout.h>
 #include <linux/amlogic/vout/lcd_notify.h>
 #include <linux/amlogic/vout/lcd_unifykey.h>
@@ -315,6 +318,72 @@ void lcd_vbyone_pinmux_set(int status)
 #endif
 }
 
+unsigned int lcd_lvds_channel_on_value(struct lcd_config_s *pconf)
+{
+	unsigned int channel_on = 0;
+
+	if (pconf->lcd_control.lvds_config->dual_port == 0) {
+		if (pconf->lcd_control.lvds_config->lane_reverse == 0) {
+			switch (pconf->lcd_basic.lcd_bits) {
+			case 6:
+				channel_on = 0xf;
+				break;
+			case 8:
+				channel_on = 0x1f;
+				break;
+			case 10:
+			default:
+				channel_on = 0x3f;
+				break;
+			}
+		} else {
+			switch (pconf->lcd_basic.lcd_bits) {
+			case 6:
+				channel_on = 0x3c;
+				break;
+			case 8:
+				channel_on = 0x3e;
+				break;
+			case 10:
+			default:
+				channel_on = 0x3f;
+				break;
+			}
+		}
+		if (pconf->lcd_control.lvds_config->port_swap == 1)
+			channel_on = (channel_on << 6); /* use channel B */
+	} else {
+		if (pconf->lcd_control.lvds_config->lane_reverse == 0) {
+			switch (pconf->lcd_basic.lcd_bits) {
+			case 6:
+				channel_on = 0x3cf;
+				break;
+			case 8:
+				channel_on = 0x7df;
+				break;
+			case 10:
+			default:
+				channel_on = 0xfff;
+				break;
+			}
+		} else {
+			switch (pconf->lcd_basic.lcd_bits) {
+			case 6:
+				channel_on = 0xf3c;
+				break;
+			case 8:
+				channel_on = 0xfbe;
+				break;
+			case 10:
+			default:
+				channel_on = 0xfff;
+				break;
+			}
+		}
+	}
+	return channel_on;
+}
+
 int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 		struct device_node *child)
 {
@@ -337,6 +406,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	} else {
 		i = 0;
 		while (i < LCD_PWR_STEP_MAX) {
+			lcd_power->power_on_step_max = i;
 			j = 4 * i;
 			ret = of_property_read_u32_index(child, "power_on_step",
 				j, &val);
@@ -387,6 +457,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	} else {
 		i = 0;
 		while (i < LCD_PWR_STEP_MAX) {
+			lcd_power->power_off_step_max = i;
 			j = 4 * i;
 			ret = of_property_read_u32_index(child,
 				"power_off_step", j, &val);
@@ -442,20 +513,20 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 }
 
 int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
-		unsigned char *buf, int key_len)
+		unsigned char *buf, int key_len, int len)
 {
-	int i, len;
+	int i;
 	unsigned char *p;
 	unsigned int index;
 	int ret;
 
-	len = 10 + 36 + 18 + 31 + 20;
 	/* power: (5byte * n) */
 	p = buf + len;
-	i = 0;
 	if (lcd_debug_print_flag)
 		LCDPR("power_on step:\n");
+	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
+		pconf->lcd_power->power_on_step_max = i;
 		len += 5;
 		ret = lcd_unifykey_len_check(key_len, len);
 		if (ret < 0) {
@@ -463,6 +534,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			pconf->lcd_power->power_on_step[i].index = 0;
 			pconf->lcd_power->power_on_step[i].value = 0;
 			pconf->lcd_power->power_on_step[i].delay = 0;
+			LCDERR("unifykey power_on length is incorrect\n");
 			return -1;
 		}
 		pconf->lcd_power->power_on_step[i].type = *p;
@@ -499,10 +571,12 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			i++;
 		}
 	}
-	i = 0;
+
 	if (lcd_debug_print_flag)
 		LCDPR("power_off step:\n");
+	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
+		pconf->lcd_power->power_off_step_max = i;
 		len += 5;
 		ret = lcd_unifykey_len_check(key_len, len);
 		if (ret < 0) {
@@ -510,6 +584,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			pconf->lcd_power->power_off_step[i].index = 0;
 			pconf->lcd_power->power_off_step[i].value = 0;
 			pconf->lcd_power->power_off_step[i].delay = 0;
+			LCDERR("unifykey power_off length is incorrect\n");
 			return -1;
 		}
 		pconf->lcd_power->power_off_step[i].type = *p;
@@ -550,6 +625,31 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 	return 0;
 }
 
+void lcd_hdr_vinfo_update(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	struct master_display_info_s *hdr_vinfo;
+
+	pconf = lcd_drv->lcd_config;
+	hdr_vinfo = &lcd_drv->lcd_info->master_display_info;
+	hdr_vinfo->present_flag = pconf->hdr_info.hdr_support;
+	hdr_vinfo->features = pconf->hdr_info.features;
+	hdr_vinfo->primaries[0][0] = pconf->hdr_info.primaries_g_x;
+	hdr_vinfo->primaries[0][1] = pconf->hdr_info.primaries_g_y;
+	hdr_vinfo->primaries[1][0] = pconf->hdr_info.primaries_b_x;
+	hdr_vinfo->primaries[1][1] = pconf->hdr_info.primaries_b_y;
+	hdr_vinfo->primaries[2][0] = pconf->hdr_info.primaries_r_x;
+	hdr_vinfo->primaries[2][1] = pconf->hdr_info.primaries_r_y;
+	hdr_vinfo->white_point[0] = pconf->hdr_info.white_point_x;
+	hdr_vinfo->white_point[1] = pconf->hdr_info.white_point_y;
+	hdr_vinfo->luminance[0] = pconf->hdr_info.luma_max;
+	hdr_vinfo->luminance[1] = pconf->hdr_info.luma_min;
+
+	lcd_drv->lcd_info->hdr_info.sink_flag = 1;
+	lcd_drv->lcd_info->hdr_info.lumi_max = pconf->hdr_info.luma_max;
+}
+
 void lcd_tcon_config(struct lcd_config_s *pconf)
 {
 	unsigned short h_period, v_period, h_active, v_active;
@@ -566,8 +666,9 @@ void lcd_tcon_config(struct lcd_config_s *pconf)
 		h_delay = 0;
 		break;
 	}
-	h_period = pconf->lcd_basic.h_period;
-	v_period = pconf->lcd_basic.v_period;
+	/* use peroid_dft to avoid period changing offset */
+	h_period = pconf->lcd_timing.h_period_dft;
+	v_period = pconf->lcd_timing.v_period_dft;
 	h_active = pconf->lcd_basic.h_active;
 	v_active = pconf->lcd_basic.v_active;
 	hsync_bp = pconf->lcd_timing.hsync_bp;
@@ -800,8 +901,10 @@ int lcd_vmode_change(struct lcd_config_s *pconf)
 			(pclk / 1000000), ((pclk / 1000) % 1000));
 		pconf->lcd_timing.lcd_clk = pclk;
 	}
-	if (len > 0)
-		LCDPR("%s: %s\n", __func__, str);
+	if (lcd_debug_print_flag) {
+		if (len > 0)
+			LCDPR("%s: %s\n", __func__, str);
+	}
 
 	return 0;
 }
@@ -821,8 +924,11 @@ void lcd_venc_change(struct lcd_config_s *pconf)
 		lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT,
 			pconf->lcd_basic.v_period - 1);
 	}
-	LCDPR("venc changed: %d,%d\n",
-		pconf->lcd_basic.h_period, pconf->lcd_basic.v_period);
+	if (lcd_debug_print_flag) {
+		LCDPR("venc changed: %d,%d\n",
+			pconf->lcd_basic.h_period,
+			pconf->lcd_basic.v_period);
+	}
 
 	if (pconf->lcd_basic.v_period != vtotal)
 		aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
@@ -841,11 +947,17 @@ void lcd_clk_gate_switch(int status)
 			reset_control_deassert(pconf->rstc.encl);
 		if (pconf->rstc.vencl)
 			reset_control_deassert(pconf->rstc.vencl);
+#ifdef CONFIG_AML_VPU
+		switch_vpu_clk_gate_vmod(VPU_VENCL, VPU_CLK_GATE_ON);
+#endif
 	} else {
 		if (pconf->rstc.encl)
 			reset_control_assert(pconf->rstc.encl);
 		if (pconf->rstc.vencl)
 			reset_control_assert(pconf->rstc.vencl);
+#ifdef CONFIG_AML_VPU
+		switch_vpu_clk_gate_vmod(VPU_VENCL, VPU_CLK_GATE_OFF);
+#endif
 	}
 }
 

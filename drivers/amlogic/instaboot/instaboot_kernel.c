@@ -14,7 +14,7 @@
 #include <linux/vmalloc.h>
 #include "instaboot_kernel.h"
 
-static void *nftl_info_trans_buffer[3]  __nosavedata;
+void *nftl_info_trans_buffer[3]  __nosavedata;
 EXPORT_SYMBOL(nftl_info_trans_buffer);
 
 #ifdef CONFIG_HIBERNATION

@@ -45,6 +45,10 @@ enum lcd_extern_i2c_bus_e {
 #define LCD_EXTERN_INIT_NONE         0xf0
 #define LCD_EXTERN_INIT_END          0xff
 
+
+#define LCD_EXTERN_DYNAMIC_LEN		0xff
+
+
 #define LCD_EXTERN_GPIO_NUM_MAX      6
 #define LCD_EXTERN_INDEX_INVALID     0xff
 #define LCD_EXTERN_NAME_LEN_MAX      30

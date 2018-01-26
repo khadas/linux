@@ -196,6 +196,8 @@ struct page {
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 	int _last_cpupid;
 #endif
+	unsigned long _ret_ip;
+	gfp_t alloc_mask;
 }
 /*
  * The struct page can be forced to be double word aligned so that atomic ops

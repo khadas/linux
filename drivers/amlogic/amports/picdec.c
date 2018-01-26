@@ -71,7 +71,9 @@
 /*class property info.*/
 /* #include "picdeccls.h" */
 static int debug_flag;
+static int dump_file_flag;
 static int p2p_mode = 2;
+static int output_format_mode = 1;
 /* #define MM_ALLOC_SIZE 48*SZ_1M */
 #define NO_TASK_MODE
 
@@ -392,10 +394,14 @@ dev->target_width, dev->target_height);
 
 	new_vf->width =  dev->target_width;
 	new_vf->height = dev->target_height;
-
-	new_vf->type =
-		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
-		|VIDTYPE_PIC;
+	if (dev->output_format_mode)
+		new_vf->type =
+			VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
+			| VIDTYPE_VIU_FIELD | VIDTYPE_PIC;
+	else
+		new_vf->type =
+			VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
+			VIDTYPE_VIU_NV21 | VIDTYPE_PIC;
 
 	new_vf->duration_pulldown = 0;
 
@@ -525,9 +531,14 @@ dev->target_width , dev->target_height);
 	new_vf->width = picdec_device.target_width;
 	new_vf->height = picdec_device.target_height;
 
-	new_vf->type =
-		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
-	|VIDTYPE_PIC;
+	if (dev->output_format_mode)
+		new_vf->type =
+			VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
+			| VIDTYPE_VIU_FIELD | VIDTYPE_PIC;
+	else
+		new_vf->type =
+			VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
+			VIDTYPE_VIU_NV21 | VIDTYPE_PIC;
 
 	new_vf->duration_pulldown = 0;
 
@@ -641,7 +652,10 @@ static int picdec_start(void)
 
 	unsigned map_start, map_size = 0;
 
-	picdec_buffer_init();
+	if (picdec_buffer_init() < 0) {
+		aml_pr_info(0, "no memory, open fail\n");
+		return -1;
+	}
 
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
@@ -926,6 +940,73 @@ int picdec_pre_process(void)
 	return 0;
 }
 
+int fill_black_color_by_ge2d(struct vframe_s *vf,
+					struct ge2d_context_s *context,
+					struct config_para_ex_s *ge2d_config) {
+		struct canvas_s cd;
+		memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+
+		ge2d_config->alu_const_color = 0;
+		ge2d_config->bitmask_en = 0;
+		ge2d_config->src1_gb_alpha = 0;
+		ge2d_config->dst_xy_swap = 0;
+
+		canvas_read(vf->canvas0Addr & 0xff, &cd);
+		ge2d_config->src_planes[0].addr = cd.addr;
+		ge2d_config->src_planes[0].w = cd.width;
+		ge2d_config->src_planes[0].h = cd.height;
+		ge2d_config->dst_planes[0].addr = cd.addr;
+		ge2d_config->dst_planes[0].w = cd.width;
+		ge2d_config->dst_planes[0].h = cd.height;
+
+		ge2d_config->src_key.key_enable = 0;
+		ge2d_config->src_key.key_mask = 0;
+		ge2d_config->src_key.key_mode = 0;
+
+		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
+		ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+		ge2d_config->src_para.format = GE2D_FORMAT_S24_YUV444;
+		ge2d_config->src_para.fill_color_en = 0;
+		ge2d_config->src_para.fill_mode = 0;
+		ge2d_config->src_para.x_rev = 0;
+		ge2d_config->src_para.y_rev = 0;
+		ge2d_config->src_para.color = 0;
+		ge2d_config->src_para.top = 0;
+		ge2d_config->src_para.left = 0;
+		ge2d_config->src_para.width = vf->width;
+		ge2d_config->src_para.height = vf->height;
+
+		ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+
+		ge2d_config->dst_para.canvas_index = vf->canvas0Addr;
+		ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+		ge2d_config->dst_para.format = GE2D_FORMAT_S24_YUV444;
+		ge2d_config->dst_para.fill_color_en = 0;
+		ge2d_config->dst_para.fill_mode = 0;
+		ge2d_config->dst_para.x_rev = 0;
+		ge2d_config->dst_para.y_rev = 0;
+		ge2d_config->dst_para.color = 0;
+		ge2d_config->dst_para.top = 0;
+		ge2d_config->dst_para.left = 0;
+		ge2d_config->dst_para.width = vf->width;
+		ge2d_config->dst_para.height = vf->height;
+
+		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+			pr_err("++ge2d configing error.\n");
+			return -2;
+		}
+		fillrect(
+			context,
+			0,
+			0,
+			vf->width,
+			vf->height,
+			0x008080ff);
+
+		memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+		return 0;
+}
+
 int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 			   struct config_para_ex_s *ge2d_config)
 {
@@ -947,6 +1028,7 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 	unsigned long time_use = 0;
 
 	void __iomem *p;
+	int ret = 0;
 
 	do_gettimeofday(&start);
 
@@ -1121,11 +1203,18 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 		memset(p, 0x80, cs1.width * cs1.height);
 
 		iounmap(p);
-	} else{
-		p = phys_to_virt(cs0.addr);
-		memset(p, 0, cs0.width * cs0.height);
-		p = phys_to_virt(cs1.addr);
-		memset(p, 0x80, cs1.width * cs1.height);
+	} else {
+		if (picdec_device.output_format_mode) {
+			ret = fill_black_color_by_ge2d(vf, context,
+						ge2d_config);
+			if (ret < 0)
+				pr_err("fill black color by ge2d failed\n");
+		} else {
+			p = phys_to_virt(cs0.addr);
+			memset(p, 0, cs0.width * cs0.height);
+			p = phys_to_virt(cs1.addr);
+			memset(p, 0x80, cs1.width * cs1.height);
+		}
 	}
 
 #endif				/*
@@ -1364,6 +1453,11 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	int dst_top, dst_left, dst_width, dst_height;
 
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void __iomem *p;
+	mm_segment_t old_fs = get_fs();
+
 	fill_color(vf, context, ge2d_config);
 
 	/* memset(&ge2d_config,0,sizeof(struct config_para_ex_s)); */
@@ -1435,9 +1529,9 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	ge2d_config->src_para.left = 0;
 
-	ge2d_config->src_para.width = frame_width;
+	ge2d_config->src_para.width = picdec_device.origin_width;
 
-	ge2d_config->src_para.height = frame_height;
+	ge2d_config->src_para.height = picdec_device.origin_height;
 
 	/* pr_info("vf_width is %d , vf_height is %d\n",
 	   vf->width ,vf->height); */
@@ -1473,9 +1567,10 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	aml_pr_info(1, "dst 2 addr  is %x\n", (unsigned)cs2.addr);
 	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-
-	ge2d_config->dst_para.format = GE2D_FORMAT_M24_NV21;
-
+	if (picdec_device.output_format_mode)
+		ge2d_config->dst_para.format = GE2D_FORMAT_S24_YUV444;
+	else
+		ge2d_config->dst_para.format = GE2D_FORMAT_M24_NV21;
 	ge2d_config->dst_para.fill_color_en = 0;
 
 	ge2d_config->dst_para.fill_mode = 0;
@@ -1574,6 +1669,43 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 	stretchblt_noalpha(context, 0, 0, picdec_device.origin_width,
 	picdec_device.origin_height,
 			dst_left, dst_top, dst_width, dst_height);
+
+/*dump ge2d output buffer data. use this function should close selinux*/
+	if ((dump_file_flag) && (picdec_device.origin_width > 100)) {
+		if (picdec_device.output_format_mode) {
+			set_fs(KERNEL_DS);
+			filp = filp_open("/data/temp/yuv444.yuv",
+				O_RDWR|O_CREAT, 0666);
+			if (IS_ERR(filp)) {
+				aml_pr_info(0, "open file failed\n");
+			} else {
+				p = phys_to_virt(cs0.addr);
+				vfs_write(filp, (char *)p,
+					cs0.width * cs0.height, &pos);
+				vfs_fsync(filp, 0);
+				filp_close(filp, NULL);
+				set_fs(old_fs);
+			}
+		} else {
+			set_fs(KERNEL_DS);
+			filp = filp_open("/data/temp/NV21.yuv",
+				O_RDWR|O_CREAT, 0666);
+			if (IS_ERR(filp)) {
+				aml_pr_info(0, "open file failed\n");
+			} else {
+				p = phys_to_virt(cs0.addr);
+				vfs_write(filp, (char *)p,
+					cs0.width * cs0.height, &pos);
+				pos = cs0.width * cs0.height;
+				p = phys_to_virt(cs1.addr);
+				vfs_write(filp, (char *)p,
+					cs1.width * cs1.height, &pos);
+				vfs_fsync(filp, 0);
+				filp_close(filp, NULL);
+				set_fs(old_fs);
+			}
+		}
+	}
 
 	return 0;
 }
@@ -1705,19 +1837,41 @@ int picdec_cma_buf_init(void)
 			return -1;
 		}
 		aml_pr_info(0, "reserved memory config fail , use CMA	.\n");
-		if (picdec_device.cma_mode == 0) {
-			picdec_device.cma_pages = dma_alloc_from_contiguous(
+
+		if (picdec_device.output_format_mode) {
+			if (picdec_device.cma_mode == 0) {
+				picdec_device.cma_pages =
+					dma_alloc_from_contiguous(
+					&(picdec_device.pdev->dev),
+					(72*SZ_1M) >> PAGE_SHIFT, 0);
+				picdec_device.buffer_start = page_to_phys(
+				picdec_device.cma_pages);
+				picdec_device.buffer_size = (72*SZ_1M);
+			} else{
+				flags = CODEC_MM_FLAGS_DMA_CPU |
+					CODEC_MM_FLAGS_CMA_CLEAR;
+				picdec_device.buffer_start =
+					codec_mm_alloc_for_dma("picdec",
+					(72*SZ_1M)/PAGE_SIZE, 0, flags);
+				picdec_device.buffer_size = (72*SZ_1M);
+			}
+		} else {
+			if (picdec_device.cma_mode == 0) {
+				picdec_device.cma_pages =
+					dma_alloc_from_contiguous(
 					&(picdec_device.pdev->dev),
 					(48*SZ_1M) >> PAGE_SHIFT, 0);
-			picdec_device.buffer_start = page_to_phys(
-			picdec_device.cma_pages);
-			picdec_device.buffer_size = (48*SZ_1M);
-		} else{
-			flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
-			picdec_device.buffer_start = codec_mm_alloc_for_dma(
-					"picdec",
+				picdec_device.buffer_start = page_to_phys(
+				picdec_device.cma_pages);
+				picdec_device.buffer_size = (48*SZ_1M);
+			} else{
+				flags = CODEC_MM_FLAGS_DMA_CPU |
+					CODEC_MM_FLAGS_CMA_CLEAR;
+				picdec_device.buffer_start =
+					codec_mm_alloc_for_dma("picdec",
 					(48*SZ_1M)/PAGE_SIZE, 0, flags);
-			picdec_device.buffer_size = (48*SZ_1M);
+				picdec_device.buffer_size = (48*SZ_1M);
+			}
 		}
 		aml_pr_info(0, "cma memory is %x , size is  %x\n" ,
 		(unsigned)picdec_device.buffer_start ,
@@ -1741,22 +1895,43 @@ int picdec_cma_buf_init(void)
 int picdec_cma_buf_uninit(void)
 {
 	if (!picdec_device.use_reserved) {
-		if (picdec_device.cma_mode == 0) {
-			if (picdec_device.cma_pages) {
-				dma_release_from_contiguous(
-					&picdec_device.pdev->dev,
-					picdec_device.cma_pages,
-					(48*SZ_1M) >> PAGE_SHIFT);
-				picdec_device.cma_pages = NULL;
+		if (picdec_device.output_format_mode) {
+			if (picdec_device.cma_mode == 0) {
+				if (picdec_device.cma_pages) {
+					dma_release_from_contiguous(
+						&picdec_device.pdev->dev,
+						picdec_device.cma_pages,
+						(72*SZ_1M) >> PAGE_SHIFT);
+					picdec_device.cma_pages = NULL;
+				}
+			} else {
+				if (picdec_device.buffer_start != 0) {
+					codec_mm_free_for_dma(
+					"picdec",
+					picdec_device.buffer_start);
+					picdec_device.buffer_start = 0;
+					picdec_device.buffer_size = 0;
+					aml_pr_info(0, "cma memory release succeed\n");
+				}
 			}
 		} else {
-			if (picdec_device.buffer_start != 0) {
-				codec_mm_free_for_dma(
-				"picdec",
-				picdec_device.buffer_start);
-				picdec_device.buffer_start = 0;
-				picdec_device.buffer_size = 0;
-				aml_pr_info(0, "cma memory release succeed\n");
+			if (picdec_device.cma_mode == 0) {
+				if (picdec_device.cma_pages) {
+					dma_release_from_contiguous(
+						&picdec_device.pdev->dev,
+						picdec_device.cma_pages,
+						(48*SZ_1M) >> PAGE_SHIFT);
+					picdec_device.cma_pages = NULL;
+				}
+			} else {
+				if (picdec_device.buffer_start != 0) {
+					codec_mm_free_for_dma(
+					"picdec",
+					picdec_device.buffer_start);
+					picdec_device.buffer_start = 0;
+					picdec_device.buffer_size = 0;
+					aml_pr_info(0, "cma memory release succeed\n");
+				}
 			}
 		}
 	}
@@ -1767,7 +1942,7 @@ int picdec_cma_buf_uninit(void)
 int picdec_buffer_init(void)
 {
 	int i;
-
+	int ret = 0;
 	u32 canvas_width, canvas_height;
 
 	u32 decbuf_size;
@@ -1776,6 +1951,8 @@ int picdec_buffer_init(void)
 	unsigned int buf_size;
 	unsigned offset = 0;
 	picdec_buffer_status = 0;
+	picdec_device.output_format_mode = output_format_mode;
+
 	picdec_cma_buf_init();
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
@@ -1784,8 +1961,10 @@ int picdec_buffer_init(void)
 
 	sema_init(&pic_vb_done_sema, 1);/*init 1*/
 
-	if (!buf_start || !buf_size)
+	if (!buf_start || !buf_size) {
+		ret = -1;
 		goto exit;
+	}
 
 	picdec_device.vinfo = get_current_vinfo();
 
@@ -1799,38 +1978,60 @@ int picdec_buffer_init(void)
 
 	decbuf_size = canvas_width * canvas_height;
 
-	for (i = 0; i < MAX_VF_POOL_SIZE; i++) {
-		pr_info("%d addr is %x################\n",
+	if (picdec_device.output_format_mode) {
+
+		for (i = 0; i < MAX_VF_POOL_SIZE; i++) {
+			canvas_config(PIC_DEC_CANVAS_START + i,
+					(unsigned)(buf_start + offset),
+					canvas_width * 3,
+					canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			offset = canvas_width * canvas_height * 3;
+			picdec_canvas_table[i] =
+				PIC_DEC_CANVAS_START + i;
+			vfbuf_use[i] = 0;
+		}
+	} else {
+
+		for (i = 0; i < MAX_VF_POOL_SIZE; i++) {
+			pr_info("%d addr is %x################\n",
 				   i, (unsigned)(buf_start + offset));
-		canvas_config(PIC_DEC_CANVAS_START + 2 * i,
-				(unsigned)(buf_start + offset),
-				canvas_width,
-				canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config(PIC_DEC_CANVAS_START + 2 * i,
+					(unsigned)(buf_start + offset),
+					canvas_width,
+					canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
 
-		offset += canvas_width * canvas_height;
+			offset += canvas_width * canvas_height;
 
-		canvas_config(PIC_DEC_CANVAS_START + 2 * i + 1,
-				(unsigned)(buf_start + offset),
-				canvas_width,
-				canvas_height / 2,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config(PIC_DEC_CANVAS_START + 2 * i + 1,
+					(unsigned)(buf_start + offset),
+					canvas_width,
+					canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
 
-		offset += canvas_width * canvas_height / 2;
+			offset += canvas_width * canvas_height / 2;
 
-		picdec_canvas_table[i] =
-			(PIC_DEC_CANVAS_START +
-			 2 * i) | ((PIC_DEC_CANVAS_START + 2 * i + 1) << 8);
+			picdec_canvas_table[i] =
+				(PIC_DEC_CANVAS_START + 2 * i) |
+				((PIC_DEC_CANVAS_START + 2 * i + 1) << 8);
 
-		vfbuf_use[i] = 0;
+			vfbuf_use[i] = 0;
 
+		}
 	}
 
-
-	picdec_device.assit_buf_start =
-		buf_start + canvas_width * canvas_height * 3;
+	if (picdec_device.output_format_mode)
+		picdec_device.assit_buf_start =
+			buf_start + canvas_width * canvas_height * 6;
+	else
+		picdec_device.assit_buf_start =
+			buf_start + canvas_width * canvas_height * 3;
 exit:
-	return 0;
+	return ret;
 
 }
 
@@ -2439,6 +2640,7 @@ static int picdec_driver_probe(struct platform_device *pdev)
 	picdec_device.pdev = pdev;
 	init_picdec_device();
 	picdec_device.p2p_mode = 0;
+	picdec_device.output_format_mode = 0;
 	return r;
 
 	/* char *buf_start; */
@@ -2545,9 +2747,14 @@ RESERVEDMEM_OF_DECLARE(picdec, "amlogic, picdec_memory", picdec_mem_setup);
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
 module_param(debug_flag, uint, 0664);
 
+module_param(dump_file_flag, uint, 0664);
+MODULE_PARM_DESC(dump_file_flag, "\n picdec dump file flag\n");
+
 module_param(p2p_mode, uint, 0664);
 MODULE_PARM_DESC(p2p_mode, "\n picdec zoom mode\n");
 
+module_param(output_format_mode, uint, 0664);
+MODULE_PARM_DESC(output_format_mode, "\n picdec output fomat mode\n");
 
 MODULE_DESCRIPTION("Amlogic picture decoder driver");
 MODULE_LICENSE("GPL");

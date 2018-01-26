@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2013, 2016 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2013 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -22,6 +22,9 @@ env_ion = env.Clone()
 
 if env_ion['ump_ion'] != '1':
 	Return()
+
+if env_ion['v'] != '1':
+	env_ion['MAKECOMSTR'] = '[MAKE] ${SOURCE.dir}'
 
 # Source files required for UMP.
 ion_src = [Glob('#kernel/drivers/base/ump/src/imports/ion/*.c')]
@@ -46,4 +49,4 @@ for p in patterns:
 	Clean(cmd, Glob('#kernel/drivers/base/ump/src/imports/ion/%s' % p))
 
 env_ion.Depends('$STATIC_LIB_PATH/ump_ion_import.ko', '$STATIC_LIB_PATH/ump.ko')
-env_ion.KernelObjTarget('ump', cmd)
+env_ion.ProgTarget('ump', cmd)

@@ -89,7 +89,7 @@ static const char * const supported_devices[] = {
 #define USE_RATES_MASK       (SNDRV_PCM_RATE_16000)
 
 #ifndef DECODER_BITS_PER_SAMPLE
-#define DECODER_BITS_PER_SAMPLE         4
+#define DECODER_BITS_PER_SAMPLE         3
 #endif
 #define DECODER_BUFFER_LATENCY_MS       200
 #define DECODER_MAX_ADJUST_FRAMES       USE_RATE_MAX

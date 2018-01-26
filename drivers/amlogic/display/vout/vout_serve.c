@@ -51,7 +51,7 @@ static int early_suspend_flag;
 static int early_resume_flag;
 #endif
 
-
+#define VOUT_CDEV_NAME  "display"
 #define VOUT_CLASS_NAME "display"
 #define	MAX_NUMBER_PARA 10
 
@@ -62,6 +62,14 @@ static char vout_mode[64] __nosavedata;
 static char vout_axis[64] __nosavedata;
 static u32 vout_init_vmode = VMODE_INIT_NULL;
 static int uboot_display;
+
+struct vout_cdev_s {
+	dev_t           devno;
+	struct cdev     cdev;
+	struct device   *dev;
+};
+
+static struct vout_cdev_s *vout_cdev;
 
 void update_vout_mode_attr(const struct vinfo_s *vinfo)
 {
@@ -83,8 +91,14 @@ static ssize_t axis_show(struct class *class, struct class_attribute *attr,
 			 char *buf);
 static ssize_t axis_store(struct class *class, struct class_attribute *attr,
 			  const char *buf, size_t count);
+static ssize_t fr_policy_show(struct class *class,
+		struct class_attribute *attr, char *buf);
+static ssize_t fr_policy_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count);
 static CLASS_ATTR(mode, S_IWUSR | S_IRUGO, mode_show, mode_store);
 static CLASS_ATTR(axis, S_IWUSR | S_IRUGO, axis_show, axis_store);
+static CLASS_ATTR(fr_policy, S_IWUSR | S_IRUGO,
+		fr_policy_show, fr_policy_store);
 
 static ssize_t mode_show(struct class *class, struct class_attribute *attr,
 			 char *buf)
@@ -123,6 +137,38 @@ static ssize_t axis_store(struct class *class, struct class_attribute *attr,
 	mutex_lock(&vout_mutex);
 	snprintf(vout_axis, 64, "%s", buf);
 	set_vout_axis(vout_axis);
+	mutex_unlock(&vout_mutex);
+	return count;
+}
+
+static ssize_t fr_policy_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	int policy;
+	int ret = 0;
+
+	policy = get_vframe_rate_policy();
+	ret = sprintf(buf, "%d\n", policy);
+
+	return ret;
+}
+
+static ssize_t fr_policy_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int policy;
+	int ret = 0;
+
+	mutex_lock(&vout_mutex);
+	ret = sscanf(buf, "%d", &policy);
+	if (ret == 1) {
+		ret = set_vframe_rate_policy(policy);
+		if (ret)
+			pr_info("%s: %d failed\n", __func__, policy);
+	} else {
+		pr_info("%s: invalid data\n", __func__);
+		return -EINVAL;
+	}
 	mutex_unlock(&vout_mutex);
 	return count;
 }
@@ -318,6 +364,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	const struct vinfo_s *info = NULL;
+	ssize_t len = 0;
 
 	info = get_current_vinfo();
 	if (info == NULL) {
@@ -325,7 +372,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		return sprintf(buf, "\n");
 	}
 
-	pr_info("current vinfo:\n"
+	len = sprintf(buf, "current vinfo:\n"
 		"    name:                  %s\n"
 		"    mode:                  %d\n"
 		"    width:                 %d\n"
@@ -338,14 +385,34 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		"    screen_real_width:     %d\n"
 		"    screen_real_height:    %d\n"
 		"    video_clk:             %d\n"
-		"    viu_color_fmt:         %d\n",
+		"    viu_color_fmt:         %d\n\n",
 		info->name, info->mode,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->video_clk, info->viu_color_fmt);
-	return sprintf(buf, "\n");
+	len += sprintf(buf+len, "hdr_info:\n"
+		"    present_flag          %d\n"
+		"    features              0x%x\n"
+		"    primaries             0x%x, 0x%x\n"
+		"                          0x%x, 0x%x\n"
+		"                          0x%x, 0x%x\n"
+		"    white_point           0x%x, 0x%x\n"
+		"    luminance             %d, %d\n\n",
+		info->master_display_info.present_flag,
+		info->master_display_info.features,
+		info->master_display_info.primaries[0][0],
+		info->master_display_info.primaries[0][1],
+		info->master_display_info.primaries[1][0],
+		info->master_display_info.primaries[1][1],
+		info->master_display_info.primaries[2][0],
+		info->master_display_info.primaries[2][1],
+		info->master_display_info.white_point[0],
+		info->master_display_info.white_point[1],
+		info->master_display_info.luminance[0],
+		info->master_display_info.luminance[1]);
+	return len;
 }
 
 static struct  class_attribute  class_attr_vinfo =
@@ -365,18 +432,20 @@ static int create_vout_attr(void)
 
 	/* create vout class attr files */
 	ret = class_create_file(vout_class, &class_attr_mode);
-
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr mode failed!\n");
 
 	ret = class_create_file(vout_class, &class_attr_axis);
-
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr axis failed!\n");
+
+	ret = class_create_file(vout_class, &class_attr_fr_policy);
+	if (ret != 0)
+		vout_log_err("create class attr fr_policy failed!\n");
 
 	ret = class_create_file(vout_class, &class_attr_vinfo);
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr vinfo failed!\n");
 
 	/*
 	 * init /sys/class/display/mode
@@ -388,6 +457,123 @@ static int create_vout_attr(void)
 
 	return ret;
 }
+
+/* ************************************************************* */
+/* vout ioctl                                                    */
+/* ************************************************************* */
+static int vout_io_open(struct inode *inode, struct file *file)
+{
+	struct vout_cdev_s *vcdev;
+
+	vout_log_info("%s\n", __func__);
+	vcdev = container_of(inode->i_cdev, struct vout_cdev_s, cdev);
+	file->private_data = vcdev;
+	return 0;
+}
+
+static int vout_io_release(struct inode *inode, struct file *file)
+{
+	vout_log_info("%s\n", __func__);
+	file->private_data = NULL;
+	return 0;
+}
+
+static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	void __user *argp;
+	int mcd_nr;
+	struct vinfo_s *info = NULL;
+
+	mcd_nr = _IOC_NR(cmd);
+	vout_log_info("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+		__func__, _IOC_DIR(cmd), mcd_nr);
+
+	argp = (void __user *)arg;
+	switch (mcd_nr) {
+	case VOUT_IOC_NR_GET_VINFO:
+		info = get_current_vinfo();
+		if (info == NULL)
+			ret = -EFAULT;
+		else if (info->mode == VMODE_INIT_NULL)
+			ret = -EFAULT;
+		else if (copy_to_user(argp, info, sizeof(struct vinfo_s)))
+			ret = -EFAULT;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long vout_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	unsigned long ret;
+
+	arg = (unsigned long)compat_ptr(arg);
+	ret = vout_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
+
+static const struct file_operations vout_fops = {
+	.owner          = THIS_MODULE,
+	.open           = vout_io_open,
+	.release        = vout_io_release,
+	.unlocked_ioctl = vout_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = vout_compat_ioctl,
+#endif
+};
+
+static int create_vout_fops(void)
+{
+	int ret = 0;
+
+	vout_cdev = kmalloc(sizeof(struct vout_cdev_s), GFP_KERNEL);
+	if (!vout_cdev) {
+		vout_log_info("error: failed to allocate vout_cdev\n");
+		return -1;
+	}
+
+	ret = alloc_chrdev_region(&vout_cdev->devno, 0, 1, VOUT_CDEV_NAME);
+	if (ret < 0) {
+		vout_log_info("error: faild to alloc devno\n");
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	cdev_init(&vout_cdev->cdev, &vout_fops);
+	vout_cdev->cdev.owner = THIS_MODULE;
+	ret = cdev_add(&vout_cdev->cdev, vout_cdev->devno, 1);
+	if (ret) {
+		vout_log_info("error: failed to add device\n");
+		unregister_chrdev_region(vout_cdev->devno, 1);
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	vout_cdev->dev = device_create(vout_class, NULL, vout_cdev->devno,
+			NULL, VOUT_CDEV_NAME);
+	if (IS_ERR(vout_cdev->dev)) {
+		ret = PTR_ERR(vout_cdev->dev);
+		cdev_del(&vout_cdev->cdev);
+		unregister_chrdev_region(vout_cdev->devno, 1);
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	vout_log_info("%s OK\n", __func__);
+	return 0;
+}
+/* ************************************************************* */
 
 #ifdef CONFIG_PM
 static int  meson_vout_suspend(struct platform_device *pdev, pm_message_t state)
@@ -507,6 +693,7 @@ static int meson_vout_probe(struct platform_device *pdev)
 
 	vout_class = NULL;
 	ret = create_vout_attr();
+	ret = create_vout_fops();
 
 	if (ret == 0)
 		vout_log_info("create vout attribute OK\n");
@@ -527,8 +714,15 @@ static int meson_vout_remove(struct platform_device *pdev)
 #endif
 	class_remove_file(vout_class, &class_attr_mode);
 	class_remove_file(vout_class, &class_attr_axis);
+	class_remove_file(vout_class, &class_attr_fr_policy);
 	class_remove_file(vout_class, &class_attr_vinfo);
 	class_destroy(vout_class);
+
+	cdev_del(&vout_cdev->cdev);
+	unregister_chrdev_region(vout_cdev->devno, 1);
+	kfree(vout_cdev);
+	vout_cdev = NULL;
+
 	return 0;
 }
 
@@ -665,6 +859,17 @@ static int __init get_vout_init_mode(char *str)
 	return 0;
 }
 __setup("vout=", get_vout_init_mode);
+
+void set_vout_init_vmode(char *str)
+{
+	char str2[1024];
+	strcpy(str2, str);
+	strcat(str2, ",en"); // logo was already displayed by uboot
+	get_vout_init_mode(str2);
+	pr_err("set_vout_init_vmode: %s\n", str2);
+
+}
+EXPORT_SYMBOL(set_vout_init_vmode);
 
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 MODULE_DESCRIPTION("VOUT Server Module");

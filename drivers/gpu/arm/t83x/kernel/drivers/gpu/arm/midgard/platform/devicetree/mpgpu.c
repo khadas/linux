@@ -135,7 +135,6 @@ static ssize_t scale_mode_write(struct class *class,
 	return count;
 }
 
-#if 0
 static ssize_t max_pp_read(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -195,7 +194,6 @@ static ssize_t min_pp_write(struct class *class,
 
 	return count;
 }
-#endif
 
 static ssize_t max_freq_read(struct class *class,
 		struct class_attribute *attr, char *buf)
@@ -279,7 +277,6 @@ static ssize_t freq_write(struct class *class,
 	return count;
 }
 
-#if 0
 static ssize_t current_pp_read(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -310,7 +307,6 @@ static ssize_t current_pp_write(struct class *class,
 
 	return count;
 }
-#endif
 
 static struct class_attribute mali_class_attrs[] = {
 	__ATTR(domain_stat,	0644, domain_stat_read, NULL),
@@ -318,14 +314,10 @@ static struct class_attribute mali_class_attrs[] = {
 	__ATTR(scale_mode,	0644, scale_mode_read,  scale_mode_write),
 	__ATTR(min_freq,	0644, min_freq_read,  	min_freq_write),
 	__ATTR(max_freq,	0644, max_freq_read,	max_freq_write),
-#if 0
 	__ATTR(min_pp,		0644, min_pp_read,	min_pp_write),
 	__ATTR(max_pp,		0644, max_pp_read,	max_pp_write),
-#endif
 	__ATTR(cur_freq,	0644, freq_read,	freq_write),
-#if 0
 	__ATTR(cur_pp,		0644, current_pp_read,	current_pp_write),
-#endif
 };
 
 static struct class mpgpu_class = {

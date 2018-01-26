@@ -210,10 +210,12 @@ enum hdmi_vic {
 #define HDMI_4k2k_smpte_60_y420 HDMI_4096x2160p60_256x135_Y420
 
 enum hdmi_audio_fs;
+struct dtd;
 
 /* CEA TIMING STRUCT DEFINITION */
 struct hdmi_cea_timing {
 	unsigned int pixel_freq; /* Unit: 1000 */
+	unsigned int frac_freq; /* 1.001 shift */
 	unsigned int h_freq; /* Unit: Hz */
 	unsigned int v_freq; /* Unit: 0.001 Hz */
 	unsigned int vsync_polarity:1;
@@ -251,6 +253,19 @@ enum hdmi_color_space {
 enum hdmi_color_range {
 	COLORRANGE_LIM,
 	COLORRANGE_FUL,
+};
+
+enum hdmi_3d_type {
+	T3D_FRAME_PACKING = 0,
+	T3D_FIELD_ALTER = 1,
+	T3D_LINE_ALTER = 2,
+	T3D_SBS_FULL = 3,
+	T3D_L_DEPTH = 4,
+	T3D_L_DEPTH_GRAPHICS = 5,
+	T3D_TAB = 6, /* Top and Buttom */
+	T3D_RSVD = 7,
+	T3D_SBS_HALF = 8,
+	T3D_DISABLE,
 };
 
 /* get hdmi cea timing */
@@ -327,12 +342,16 @@ enum hdmi_aspect_ratio {
 };
 
 struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic);
+struct hdmi_format_para *hdmi_match_dtd_paras(struct dtd *t);
 void check_detail_fmt(void);
 unsigned int hdmi_get_csc_coef(
 	unsigned int input_format, unsigned int output_format,
 	unsigned int color_depth, unsigned int color_format,
 	unsigned char **coef_array, unsigned int *coef_length);
-struct hdmi_format_para *hdmi_get_fmt_name(char const *name);
+struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr);
+const char *hdmi_get_str_cd(struct hdmi_format_para *para);
+const char *hdmi_get_str_cs(struct hdmi_format_para *para);
+const char *hdmi_get_str_cr(struct hdmi_format_para *para);
 unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs,
 	enum hdmi_color_depth cd, unsigned int tmds_clk);
 
@@ -503,7 +522,7 @@ struct hdmi_rx_audioinfo {
 	unsigned CTS;
 };
 
-#define AUDIO_PARA_MAX_NUM       13
+#define AUDIO_PARA_MAX_NUM       14
 struct hdmi_audio_fs_ncts {
 	struct {
 		unsigned int tmds_clk;
@@ -530,6 +549,25 @@ struct parse_cs {
 struct parse_cr {
 	enum hdmi_color_range cr;
 	const char *name;
+};
+
+/* Refer CEA861-D Page 116 Table 55 */
+struct dtd {
+	unsigned short pixel_clock;
+	unsigned short h_active;
+	unsigned short h_blank;
+	unsigned short v_active;
+	unsigned short v_blank;
+	unsigned short h_sync_offset;
+	unsigned short h_sync;
+	unsigned short v_sync_offset;
+	unsigned short v_sync;
+	unsigned char h_image_size;
+	unsigned char v_image_size;
+	unsigned char h_border;
+	unsigned char v_border;
+	unsigned char flags;
+	enum hdmi_vic vic;
 };
 
 #endif

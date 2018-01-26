@@ -76,6 +76,7 @@ struct tas5707_priv {
 	struct soc_enum eq_conf_enum;
 	unsigned char Ch1_vol;
 	unsigned char Ch2_vol;
+	unsigned char master_vol;
 	unsigned mclk;
 };
 
@@ -536,6 +537,7 @@ static int tas5707_suspend(struct snd_soc_codec *codec)
 	/*save volume */
 	tas5707->Ch1_vol = snd_soc_read(codec, DDX_CHANNEL1_VOL);
 	tas5707->Ch2_vol = snd_soc_read(codec, DDX_CHANNEL2_VOL);
+	tas5707->master_vol = snd_soc_read(codec, DDX_MASTER_VOLUME);
 	tas5707_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -553,6 +555,7 @@ static int tas5707_resume(struct snd_soc_codec *codec)
 	tas5707_init(codec);
 	snd_soc_write(codec, DDX_CHANNEL1_VOL, tas5707->Ch1_vol);
 	snd_soc_write(codec, DDX_CHANNEL2_VOL, tas5707->Ch2_vol);
+	snd_soc_write(codec, DDX_MASTER_VOLUME, tas5707->master_vol);
 	tas5707_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }

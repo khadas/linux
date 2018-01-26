@@ -34,10 +34,9 @@
 		/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		lcd_cpu-gpios = <&gpio GPIOH_7 1 &gpio GPIOZ_3 1
-				&gpio GPIOH_4 1 &gpio GPIOH_5 1
-				&gpio GPIOH_6 1>;
-		lcd_cpu_gpio_names = "GPIOH_7","GPIOZ_3","GPIOH_4","GPIOH_5","GPIOH_6";
+		lcd_cpu-gpios = <&gpio GPIOH_7 1 &gpio GPIOH_6 1
+				&gpio GPIOH_4 1 &gpio GPIOH_5 1>;
+		lcd_cpu_gpio_names = "GPIOH_7","GPIOH_6","GPIOH_4","GPIOH_5";
 
 		lvds_0{
 			model_name = "1080p-vfreq";
@@ -46,7 +45,7 @@
 			range_setting = <2060 2650 1100 1480 120000000 160000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -63,7 +62,7 @@
 			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -82,6 +81,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 10   /* signal enable */
@@ -99,6 +99,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 10   /* signal enable */
@@ -116,6 +117,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 10   /* signal enable */
@@ -133,6 +135,27 @@
 			lcd_timing = <33 477 1 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <0 0 1 20 /* panel power on */
+					0 1 0 10  /* 3d_disable */
+					2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0 1 2 0   /* 3d_disable */
+					0 0 0 100 /* panel power off */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <3>;
+		};
+		vbyone_4{
+			model_name = "INNOLUX_V580D";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 560000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 1 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					0 1 0 10  /* 3d_disable */
@@ -191,14 +214,21 @@
 		dev_name = "backlight";
 		status = "okay";
 		key_valid = <0>;
-		pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
-				"pwm_combo_0_on","pwm_combo_1_on";
+		pinctrl-names = "pwm_on","pwm_vs_on",
+				"pwm_combo_0_1_on",
+				"pwm_combo_0_vs_1_on",
+				"pwm_combo_0_1_vs_on",
+				"pwm_combo_0_on","pwm_combo_0_vs_on",
+				"pwm_combo_1_on","pwm_combo_1_vs_on";
 		pinctrl-0 = <&bl_pwm_on_pins>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_combo_0_on_pins &bl_pwm_combo_1_on_pins>;
-		pinctrl-3 = <&bl_pwm_combo_0_on_pins>;
-		pinctrl-4 = <&bl_pwm_combo_1_on_pins>;
-
+		pinctrl-3 = <&bl_pwm_combo_0_vs_on_pins &bl_pwm_combo_1_on_pins>;
+		pinctrl-4 = <&bl_pwm_combo_0_on_pins &bl_pwm_combo_1_vs_on_pins>;
+		pinctrl-5 = <&bl_pwm_combo_0_on_pins>;
+		pinctrl-6 = <&bl_pwm_combo_0_vs_on_pins>;
+		pinctrl-7 = <&bl_pwm_combo_1_on_pins>;
+		pinctrl-8 = <&bl_pwm_combo_1_vs_on_pins>;
 		/* power index:(point gpios_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */

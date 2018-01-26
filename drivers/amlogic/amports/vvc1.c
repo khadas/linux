@@ -30,6 +30,7 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
+#include <linux/slab.h>
 
 #include "vdec_reg.h"
 #include "amvdec.h"
@@ -75,6 +76,7 @@
 #define MEM_FIFO_CNT_BIT        16
 #define MEM_LEVEL_CNT_BIT       18
 #endif
+static struct vdec_info *gvs;
 
 static struct vframe_s *vvc1_vf_peek(void *);
 static struct vframe_s *vvc1_vf_get(void *);
@@ -112,6 +114,7 @@ static u32 stat;
 static unsigned long buf_start;
 static u32 buf_size, buf_offset;
 static u32 avi_flag;
+static u32 keyframe_pts_only;
 static u32 vvc1_ratio;
 static u32 vvc1_format;
 
@@ -122,6 +125,8 @@ static u32 pts_by_offset = 1;
 static u32 total_frame;
 static u32 next_pts;
 static u64 next_pts_us64;
+static u32 next_IP_pts;
+static u64 next_IP_pts_us64;
 
 #ifdef DEBUG_PTS
 static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
@@ -258,7 +263,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 	u32 picture_type;
 	u32 buffer_index;
 	unsigned int pts, pts_valid = 0, offset;
-	u32 v_width, v_height;
+	u32 v_width, v_height, dur;
 	u64 pts_us64 = 0;
 
 	reg = READ_VREG(VC1_BUFFEROUT);
@@ -282,12 +287,34 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			frame_height = v_height;
 		}
 
+
+		repeat_count = READ_VREG(VC1_REPEAT_COUNT);
+		buffer_index = ((reg & 0x7) - 1) & 3;
+		picture_type = (reg >> 3) & 7;
+
 		if (pts_by_offset) {
 			offset = READ_VREG(VC1_OFFSET_REG);
-			if (pts_lookup_offset_us64(
-					PTS_TYPE_VIDEO,
-					offset, &pts, 0, &pts_us64) == 0) {
+			if (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0) {
 				pts_valid = 1;
+				if (keyframe_pts_only)
+				{
+					//pr_info("PT:%d rpc:%d pts64:%lld\n", picture_type , repeat_count, pts_us64);
+					dur = DUR2PTS(vvc1_amstream_dec_info.rate);
+					if (picture_type == B_PICTURE)
+					{
+						next_IP_pts = pts;
+						next_IP_pts_us64 = pts_us64;
+						pts -= dur;
+						pts_us64 -= (dur * 100) / 9;
+					}
+					else if (next_IP_pts)
+					{
+						pts = next_IP_pts;
+						next_IP_pts = 0;
+						pts_us64 = next_IP_pts_us64;
+						next_IP_pts_us64 = 0;
+					}
+				}
 #ifdef DEBUG_PTS
 				pts_hit++;
 #endif
@@ -297,10 +324,6 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 #endif
 			}
 		}
-
-		repeat_count = READ_VREG(VC1_REPEAT_COUNT);
-		buffer_index = ((reg & 0x7) - 1) & 3;
-		picture_type = (reg >> 3) & 7;
 
 		if (buffer_index >= DECODE_BUFFER_NUM_MAX) {
 			pr_info("fatal error, invalid buffer index.");
@@ -609,6 +632,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 		frame_dur = vvc1_amstream_dec_info.rate;
 		total_frame++;
 
+		/*count info*/
+		gvs->frame_dur = frame_dur;
+		vdec_count_info(gvs, 0, offset);
+
 		/* pr_info("PicType = %d, PTS = 0x%x, repeat
 		count %d\n", picture_type, vf->pts, repeat_count); */
 		WRITE_VREG(VC1_BUFFEROUT, 0);
@@ -681,17 +708,39 @@ static int vvc1_event_cb(int type, void *data, void *private_data)
 	return 0;
 }
 
-int vvc1_dec_status(struct vdec_status *vstatus)
+int vvc1_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = vvc1_amstream_dec_info.width;
-	vstatus->height = vvc1_amstream_dec_info.height;
-	if (0 != vvc1_amstream_dec_info.rate)
-		vstatus->fps = 96000 / vvc1_amstream_dec_info.rate;
+	vstatus->frame_width = vvc1_amstream_dec_info.width;
+	vstatus->frame_height = vvc1_amstream_dec_info.height;
+	if (vvc1_amstream_dec_info.rate != 0)
+		vstatus->frame_rate = 96000 / vvc1_amstream_dec_info.rate;
 	else
-		vstatus->fps = 96000;
-	vstatus->error_count = READ_VREG(AV_SCRATCH_4);
+		vstatus->frame_rate = -1;
+	vstatus->error_count = READ_VREG(AV_SCRATCH_C);
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = vvc1_amstream_dec_info.rate;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+static int vvc1_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -858,12 +907,14 @@ static void vvc1_local_init(void)
 	vvc1_ratio = 0x100;
 
 	avi_flag = (unsigned long) vvc1_amstream_dec_info.param;
-
+	keyframe_pts_only = (u32)vvc1_amstream_dec_info.param & 0x100;
 	total_frame = 0;
 
 	next_pts = 0;
-
 	next_pts_us64 = 0;
+	next_IP_pts = 0;
+	next_IP_pts_us64 = 0;
+
 	saved_resolution = 0;
 	frame_width = frame_height = frame_dur = 0;
 #ifdef DEBUG_PTS
@@ -1022,15 +1073,12 @@ static s32 vvc1_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vvc1_dec_status);
-
 	return 0;
 }
 
 static int amvdec_vc1_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	if (pdata == NULL) {
 		pr_info("amvdec_vc1 memory resource undefined.\n");
@@ -1044,9 +1092,14 @@ static int amvdec_vc1_probe(struct platform_device *pdev)
 	if (pdata->sys_info)
 		vvc1_amstream_dec_info = *pdata->sys_info;
 
+	pdata->dec_status = vvc1_dec_status;
+
+	vvc1_vdec_info_init();
+
 	if (vvc1_init() < 0) {
 		pr_info("amvdec_vc1 init failed.\n");
-
+		kfree(gvs);
+		gvs = NULL;
 		return -ENODEV;
 	}
 
@@ -1087,6 +1140,8 @@ static int amvdec_vc1_remove(struct platform_device *pdev)
 		total_frame, avi_flag,
 		vvc1_amstream_dec_info.rate);
 #endif
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }

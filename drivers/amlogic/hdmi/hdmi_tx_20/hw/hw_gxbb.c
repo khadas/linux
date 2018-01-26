@@ -1,7 +1,6 @@
 #include <linux/printk.h>
 #include "common.h"
 #include "mach_reg.h"
-#include "mach_reg_gxbb.h"
 
 /*
  * NAME		PAD		PINMUX		GPIO

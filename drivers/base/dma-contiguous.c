@@ -211,10 +211,13 @@ unsigned long dma_get_cma_size_int_byte(struct device *dev)
 struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 				       unsigned int align)
 {
+	struct page *page;
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
 
-	return cma_alloc(dev_get_cma_area(dev), count, align);
+	page = cma_alloc(dev_get_cma_area(dev), count, align);
+	update_cma_ip(page, count, _RET_IP_);
+	return page;
 }
 
 /**

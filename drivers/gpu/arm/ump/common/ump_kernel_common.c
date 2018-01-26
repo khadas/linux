@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -253,9 +253,11 @@ _mali_osk_errcode_t _ump_ukk_map_mem(_ump_uk_map_mem_s *args)
 
 	if (mem->is_cached) {
 		descriptor->is_cached = 1;
+		args->is_cached       = 1;
 		DBG_MSG(3, ("Mapping UMP secure_id: %d as cached.\n", args->secure_id));
 	} else {
 		descriptor->is_cached = 0;
+		args->is_cached       = 0;
 		DBG_MSG(3, ("Mapping UMP secure_id: %d  as Uncached.\n", args->secure_id));
 	}
 

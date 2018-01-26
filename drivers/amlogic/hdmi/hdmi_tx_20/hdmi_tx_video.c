@@ -34,8 +34,8 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_compliance.h>
 
 static unsigned char hdmi_output_rgb;
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
+static void hdmitx_set_spd_info(struct hdmitx_dev *hdev);
+static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	enum hdmi_vic VideoCode);
 
 static struct hdmitx_vidpara hdmi_tx_video_params[] = {
@@ -593,8 +593,7 @@ void hdmitx_output_rgb(void)
 	hdmi_output_rgb = 1;
 }
 
-int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
-	enum hdmi_vic VideoCode)
+int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 {
 	struct hdmitx_vidpara *param = NULL;
 	enum hdmi_vic vic;
@@ -607,17 +606,16 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 	for (i = 0; i < 32; i++)
 		AVI_DB[i] = 0;
 
-	vic = hdmitx_device->HWOp.GetState(hdmitx_device,
-		STAT_VIDEO_VIC, 0);
+	vic = hdev->HWOp.GetState(hdev, STAT_VIDEO_VIC, 0);
 	hdmi_print(IMP, SYS "already init VIC = %d  Now VIC = %d\n",
 		vic, VideoCode);
 	if ((vic != HDMI_Unkown) && (vic == VideoCode)) {
-		hdmitx_device->cur_VIC = vic;
+		hdev->cur_VIC = vic;
 		/* return 1; */
 	}
 
 	param = hdmi_get_video_param(VideoCode);
-	hdmitx_device->cur_video_param = param;
+	hdev->cur_video_param = param;
 	if (param) {
 		param->color = param->color_prefer;
 		if (hdmi_output_rgb) {
@@ -626,7 +624,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 			/* HDMI CT 7-24 Pixel Encoding
 			 * YCbCr to YCbCr Sink
 			 */
-			switch (hdmitx_device->RXCap.native_Mode & 0x30) {
+			switch (hdev->RXCap.native_Mode & 0x30) {
 			case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
 			case 0x30:
 				param->color = COLORSPACE_YUV444;
@@ -649,25 +647,24 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 				break;
 			}
 			if (param->color == COLORSPACE_RGB444) {
-				hdmitx_device->para->cs =
-					hdmitx_device->cur_video_param->color;
+				hdev->para->cs = hdev->cur_video_param->color;
 				pr_info("hdmitx: rx edid only support RGB format\n");
 			}
 
 		}
-		if (hdmitx_device->HWOp.SetDispMode(hdmitx_device) >= 0) {
+		if (hdev->HWOp.SetDispMode(hdev) >= 0) {
 			/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
 			 * other VSDB, No GB or DI expected
 			 * TMDS_MODE[hdmi_config]
 			 * 0: DVI Mode	   1: HDMI Mode
 			 */
-			if (is_dvi_device(&hdmitx_device->RXCap)) {
+			if (is_dvi_device(&hdev->RXCap)) {
 				hdmi_print(1, "Sink is DVI device\n");
-				hdmitx_device->HWOp.CntlConfig(hdmitx_device,
+				hdev->HWOp.CntlConfig(hdev,
 					CONF_HDMI_DVI_MODE, DVI_MODE);
 			} else {
 				hdmi_print(1, "Sink is HDMI device\n");
-				hdmitx_device->HWOp.CntlConfig(hdmitx_device,
+				hdev->HWOp.CntlConfig(hdev,
 					CONF_HDMI_DVI_MODE, HDMI_MODE);
 			}
 			hdmi_tx_construct_avi_packet(param, (char *)AVI_DB);
@@ -676,21 +673,23 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 				(VideoCode == HDMI_4k2k_25) ||
 				(VideoCode == HDMI_4k2k_24) ||
 				(VideoCode == HDMI_4k2k_smpte_24))
-				hdmi_set_vend_spec_infofram(hdmitx_device,
-					VideoCode);
-			else
-				hdmi_set_vend_spec_infofram(hdmitx_device, 0);
+				hdmi_set_vend_spec_infofram(hdev, VideoCode);
+			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
+				(!hdev->flag_3dss))
+				hdmi_set_vend_spec_infofram(hdev, 0);
+			else /* nothing */
+				;
 			ret = 0;
 		}
 	}
-	hdmitx_set_spd_info(hdmitx_device);
+	hdmitx_set_spd_info(hdev);
 #if 0
-	hdmitx_special_handler_video(hdmitx_device);
+	hdmitx_special_handler_video(hdev);
 #endif
 	return ret;
 }
 
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
+static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	enum hdmi_vic VideoCode)
 {
 	int i;
@@ -698,7 +697,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
 	unsigned char VEN_HB[3];
 	VEN_HB[0] = 0x81;
 	VEN_HB[1] = 0x01;
-	VEN_HB[2] = 0x6;
+	VEN_HB[2] = 0x5;
 
 	for (i = 0; i < 0x6; i++)
 		VEN_DB[i] = 0;
@@ -707,7 +706,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
 	VEN_DB[2] = 0x00;
 	VEN_DB[3] = 0x20;    /* 4k x 2k  Spec P156 */
 	if (VideoCode == 0) {	   /* For non-4kx2k mode setting */
-		hdmitx_device->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
+		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
 		return;
 	}
 	if (VideoCode == HDMI_4k2k_30)
@@ -720,10 +719,10 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
 		VEN_DB[4] = 0x4;
 	else
 		;
-	hdmitx_device->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+	hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 }
 
-int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type, unsigned int param)
+int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 {
 	int i;
 	unsigned char VEN_DB[6];
@@ -731,8 +730,8 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type, unsigned int param)
 	VEN_HB[0] = 0x81;
 	VEN_HB[1] = 0x01;
 	VEN_HB[2] = 0x6;
-	if (type == 0xf)
-		hdmitx_device->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
+	if (type == T3D_DISABLE)
+		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
 	else {
 		for (i = 0; i < 0x6; i++)
 			VEN_DB[i] = 0;
@@ -742,7 +741,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type, unsigned int param)
 		VEN_DB[3] = 0x40;
 		VEN_DB[4] = type<<4;
 		VEN_DB[5] = param<<4;
-		hdmitx_device->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 	}
 	return 0;
 
@@ -750,14 +749,14 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type, unsigned int param)
 
 /* Set Source Product Descriptor InfoFrame
  */
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device)
+static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 {
 	unsigned char SPD_DB[25] = {0x00};
 	unsigned char SPD_HB[3] = {0x83, 0x1, 0x19};
 	unsigned int len = 0;
 	struct vendor_info_data *vend_data;
-	if (hdmitx_device->config_data.vend_data)
-		vend_data = hdmitx_device->config_data.vend_data;
+	if (hdev->config_data.vend_data)
+		vend_data = hdev->config_data.vend_data;
 	else {
 		hdmi_print(INF, SYS "packet: can\'t get vendor data\n");
 		return;
@@ -772,5 +771,6 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device)
 		strncpy(&SPD_DB[8], vend_data->product_desc,
 			(len > 16) ? 16 : len);
 	}
-	hdmitx_device->HWOp.SetPacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
+	SPD_DB[24] = 0x1;
+	hdev->HWOp.SetPacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
 }

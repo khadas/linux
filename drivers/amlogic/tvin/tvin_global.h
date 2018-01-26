@@ -363,9 +363,9 @@ enum tvin_hdr_eotf_e {
 };
 
 enum tvin_hdr_state_e {
-	HDR_STATE_OLD,
-	HDR_STATE_READ,
-	HDR_STATE_NEW,
+	HDR_STATE_NULL,
+	HDR_STATE_GET,
+	HDR_STATE_SET,
 };
 
 struct tvin_hdr_property_s {
@@ -377,12 +377,18 @@ struct tvin_hdr_data_s {
 	enum tvin_hdr_eotf_e eotf:8;
 	unsigned char metadata_id;
 	unsigned char lenght;
-	enum tvin_hdr_state_e data_status:8;
+	unsigned char reserved;
 	struct tvin_hdr_property_s primaries[3];
 	struct tvin_hdr_property_s white_points;
 	struct tvin_hdr_property_s master_lum;/* max min lum */
 	unsigned int mcll;
 	unsigned int mfall;
+};
+
+struct tvin_hdr_info_s {
+	struct tvin_hdr_data_s hdr_data;
+	enum tvin_hdr_state_e hdr_state;
+	unsigned int hdr_check_cnt;
 };
 
 struct tvin_sig_property_s {
@@ -398,11 +404,15 @@ struct tvin_sig_property_s {
 	unsigned int		he;	/* for horizontal end cut window */
 	unsigned int		vs;	/* for vertical start cut window */
 	unsigned int		ve;	/* for vertical end cut window */
+	unsigned int		pre_vs;	/* for vertical start cut window */
+	unsigned int		pre_ve;	/* for vertical end cut window */
+	unsigned int		pre_hs;	/* for horizontal start cut window */
+	unsigned int		pre_he;	/* for horizontal end cut window */
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
 	unsigned int		vdin_hdr_Flag;
 	enum tvin_color_fmt_range_e color_fmt_range;
-	struct tvin_hdr_data_s hdr_data;
+	struct tvin_hdr_info_s hdr_info;
 };
 
 #define TVAFE_VF_POOL_SIZE			6 /* 8 */

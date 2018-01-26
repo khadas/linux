@@ -117,10 +117,14 @@
 #define FILTER_TYPE_BICUBIC     1
 #define FILTER_TYPE_BILINEAR    2
 #define FILTER_TYPE_TRIANGLE    3
+#define FILTER_TYPE_GAU0    4
+#define FILTER_TYPE_GAU0_BOT    5
+#define FILTER_TYPE_GAU1    6
 
 #define MATRIX_YCC_TO_RGB               1
 #define MATRIX_RGB_TO_YCC               2
 #define MATRIX_FULL_RANGE_YCC_TO_RGB    3
+#define MATRIX_RGB_TO_FULL_RANGE_YCC    4
 
 
 #define GE2D_ENDIAN_SHIFT	24
@@ -133,6 +137,15 @@
 /* nv12 &nv21, only works on m6*/
 #define GE2D_COLOR_MAP_NV12		(15 << GE2D_COLOR_MAP_SHIFT)
 #define GE2D_COLOR_MAP_NV21		(14 << GE2D_COLOR_MAP_SHIFT)
+
+/* deep color, only works after TXL */
+#define GE2D_COLOR_MAP_10BIT_YUV444		(0 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_VUY444		(5 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_YUV422		(0 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_YVU422		(1 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_12BIT_YUV422		(8 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_12BIT_YVU422		(9 << GE2D_COLOR_MAP_SHIFT)
+
 /* 16 bit */
 #define GE2D_COLOR_MAP_YUV422		(0 << GE2D_COLOR_MAP_SHIFT)
 #define GE2D_COLOR_MAP_RGB655		(1 << GE2D_COLOR_MAP_SHIFT)
@@ -175,8 +188,9 @@
 #define GE2D_COLOR_MAP_VUYA8888     (3 << GE2D_COLOR_MAP_SHIFT)
 
 /* format code is defined as:
-[11] : 1-YUV color space, 0-RGB color space
-[10] : compress_range
+[18] : 1-deep color mode(10/12 bit), 0-8bit mode
+[17] : 1-YUV color space, 0-RGB color space
+[16] : compress_range
 [9:8]: format
 [7:6]: 8bit_mode_sel
 [5]  : LUT_EN
@@ -190,8 +204,11 @@
 #define GE2D_BPP_16BIT                  0x00100
 #define GE2D_BPP_24BIT                  0x00200
 #define GE2D_BPP_32BIT                  0x00300
+#define GE2D_FORMAT_DEEP_COLOR   0x40000
 #define GE2D_FORMAT_YUV                 0x20000
 #define GE2D_FORMAT_COMP_RANGE          0x10000
+
+
 /*bit8(2)  format   bi6(2) mode_8b_sel  bit5(1)lut_en   bit2 sep_en*/
 /*M  seperate block S one block.*/
 
@@ -226,6 +243,20 @@
 #define GE2D_FMT_S16_YUV422B	0x20138 /* 01_00_0_11_0_00 */
 #define GE2D_FMT_S24_YUV444T	0x20210 /* 10_00_0_10_0_00 */
 #define GE2D_FMT_S24_YUV444B	0x20218 /* 10_00_0_11_0_00 */
+
+/* only works after TXL and for src1. */
+#define GE2D_FMT_S24_10BIT_YUV444		0x60200
+#define GE2D_FMT_S24_10BIT_YUV444T		0x60210
+#define GE2D_FMT_S24_10BIT_YUV444B		0x60218
+
+#define GE2D_FMT_S16_10BIT_YUV422		0x60102
+#define GE2D_FMT_S16_10BIT_YUV422T		0x60112
+#define GE2D_FMT_S16_10BIT_YUV422B		0x6011a
+
+#define GE2D_FMT_S16_12BIT_YUV422		0x60102
+#define GE2D_FMT_S16_12BIT_YUV422T		0x60112
+#define GE2D_FMT_S16_12BIT_YUV422B		0x6011a
+
 
 /* back compatible defines */
 #define GE2D_FORMAT_S8_Y            (GE2D_FORMAT_YUV|GE2D_FMT_S8_Y)
@@ -282,6 +313,25 @@
 #define GE2D_FORMAT_S32_ABGR (GE2D_FMT_S32_RGBA | GE2D_COLOR_MAP_ABGR8888)
 #define GE2D_FORMAT_S32_BGRA (GE2D_FMT_S32_RGBA | GE2D_COLOR_MAP_BGRA8888)
 
+/* format added in TXL */
+#define GE2D_FORMAT_S24_10BIT_YUV444 \
+	(GE2D_FMT_S24_10BIT_YUV444 | GE2D_COLOR_MAP_10BIT_YUV444)
+
+#define GE2D_FORMAT_S24_10BIT_VUY444 \
+	(GE2D_FMT_S24_10BIT_YUV444 | GE2D_COLOR_MAP_10BIT_VUY444)
+
+#define GE2D_FORMAT_S16_10BIT_YUV422 \
+	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YUV422)
+
+#define GE2D_FORMAT_S16_10BIT_YVU422 \
+	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YVU422)
+
+#define GE2D_FORMAT_S16_12BIT_YUV422 \
+	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YUV422)
+
+#define GE2D_FORMAT_S16_12BIT_YVU422 \
+	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YVU422)
+
 
 #define	UPDATE_SRC_DATA     0x01
 #define	UPDATE_SRC_GEN      0x02
@@ -331,6 +381,7 @@ struct ge2d_src1_data_s {
 
 	unsigned char     mode_8b_sel;
 	unsigned char     lut_en;
+	unsigned char     deep_color;
 	unsigned int      def_color;
 	unsigned int      format_all;
 };
@@ -572,6 +623,7 @@ struct ge2d_context_s {
 	wait_queue_head_t	cmd_complete;
 	int				queue_dirty;
 	int				queue_need_recycle;
+	int				ge2d_request_exit;
 	spinlock_t		lock;	/* for get and release item. */
 };
 
@@ -591,6 +643,7 @@ struct ge2d_manager_s {
 	struct ge2d_event_s event;
 	int irq_num;
 	int ge2d_state;
+	spinlock_t state_lock;  //for sync access to ge2d_state
 	int process_queue_state;
 	struct platform_device *pdev;
 };
@@ -752,6 +805,102 @@ struct compat_config_para_ex_s {
 };
 #endif
 
+struct config_planes_ion_s {
+	unsigned long addr;
+	unsigned int w;
+	unsigned int h;
+	int shared_fd;
+};
+
+#ifdef CONFIG_COMPAT
+struct compat_config_planes_ion_s {
+	compat_uptr_t addr;
+	unsigned int w;
+	unsigned int h;
+	int shared_fd;
+};
+#endif
+
+struct config_para_ex_ion_s {
+	struct src_dst_para_ex_s src_para;
+	struct src_dst_para_ex_s src2_para;
+	struct src_dst_para_ex_s dst_para;
+
+	/* key mask */
+	struct src_key_ctrl_s  src_key;
+	struct src_key_ctrl_s  src2_key;
+
+	int alu_const_color;
+	unsigned src1_gb_alpha;
+	unsigned op_mode;
+	unsigned char bitmask_en;
+	unsigned char bytemask_only;
+	unsigned int  bitmask;
+	unsigned char dst_xy_swap;
+
+	/* scaler and phase releated */
+	unsigned hf_init_phase;
+	int hf_rpt_num;
+	unsigned hsc_start_phase_step;
+	int hsc_phase_slope;
+	unsigned vf_init_phase;
+	int vf_rpt_num;
+	unsigned vsc_start_phase_step;
+	int vsc_phase_slope;
+	unsigned char src1_vsc_phase0_always_en;
+	unsigned char src1_hsc_phase0_always_en;
+	/* 1bit, 0: using minus, 1: using repeat data */
+	unsigned char src1_hsc_rpt_ctrl;
+	/* 1bit, 0: using minus  1: using repeat data */
+	unsigned char src1_vsc_rpt_ctrl;
+
+	/* canvas info */
+	struct config_planes_ion_s src_planes[4];
+	struct config_planes_ion_s src2_planes[4];
+	struct config_planes_ion_s dst_planes[4];
+};
+
+#ifdef CONFIG_COMPAT
+struct compat_config_para_ex_ion_s {
+	struct src_dst_para_ex_s src_para;
+	struct src_dst_para_ex_s src2_para;
+	struct src_dst_para_ex_s dst_para;
+
+	/* key mask */
+	struct src_key_ctrl_s  src_key;
+	struct src_key_ctrl_s  src2_key;
+
+	int alu_const_color;
+	unsigned src1_gb_alpha;
+	unsigned op_mode;
+	unsigned char bitmask_en;
+	unsigned char bytemask_only;
+	unsigned int  bitmask;
+	unsigned char dst_xy_swap;
+
+	/* scaler and phase releated */
+	unsigned hf_init_phase;
+	int hf_rpt_num;
+	unsigned hsc_start_phase_step;
+	int hsc_phase_slope;
+	unsigned vf_init_phase;
+	int vf_rpt_num;
+	unsigned vsc_start_phase_step;
+	int vsc_phase_slope;
+	unsigned char src1_vsc_phase0_always_en;
+	unsigned char src1_hsc_phase0_always_en;
+	/* 1bit, 0: using minus, 1: using repeat data */
+	unsigned char src1_hsc_rpt_ctrl;
+	/* 1bit, 0: using minus  1: using repeat data */
+	unsigned char src1_vsc_rpt_ctrl;
+
+	/* canvas info */
+	struct compat_config_planes_ion_s src_planes[4];
+	struct compat_config_planes_ion_s src2_planes[4];
+	struct compat_config_planes_ion_s dst_planes[4];
+};
+#endif
+
 #define GE2D_IOC_MAGIC  'G'
 
 #define GE2D_CONFIG		_IOW(GE2D_IOC_MAGIC, 0x00, struct config_para_s)
@@ -765,6 +914,23 @@ struct compat_config_para_ex_s {
 #ifdef CONFIG_COMPAT
 #define GE2D_CONFIG_EX32  \
 	_IOW(GE2D_IOC_MAGIC, 0x01,  struct compat_config_para_ex_s)
+#endif
+
+
+#define	GE2D_SRCCOLORKEY     _IOW(GE2D_IOC_MAGIC, 0x02, struct config_para_s)
+
+#ifdef CONFIG_COMPAT
+#define	GE2D_SRCCOLORKEY32   \
+	_IOW(GE2D_IOC_MAGIC, 0x02, struct compat_config_para_s)
+#endif
+
+
+#define GE2D_CONFIG_EX_ION	 \
+	_IOW(GE2D_IOC_MAGIC, 0x03,  struct config_para_ex_ion_s)
+
+#ifdef CONFIG_COMPAT
+#define GE2D_CONFIG_EX32_ION  \
+	_IOW(GE2D_IOC_MAGIC, 0x03,  struct compat_config_para_ex_ion_s)
 #endif
 
 extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
@@ -785,6 +951,8 @@ extern int ge2d_context_config(struct ge2d_context_s *context,
 			       struct config_para_s *ge2d_config);
 extern int ge2d_context_config_ex(struct ge2d_context_s *context,
 				  struct config_para_ex_s *ge2d_config);
+extern int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
+			   struct config_para_ex_ion_s *ge2d_config);
 extern struct ge2d_context_s *create_ge2d_work_queue(void);
 extern int destroy_ge2d_work_queue(struct ge2d_context_s *);
 extern int ge2d_wq_remove_config(struct ge2d_context_s *wq);

@@ -51,7 +51,7 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 		ret = 0;
 		break;
 	default:
-		LCDPR("invalid lcd type: %s(%d)\n",
+		LCDERR("invalid lcd type: %s(%d)\n",
 			lcd_type_type_to_str(lcd_type), lcd_type);
 		break;
 	}
@@ -60,7 +60,7 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 
 static void lcd_lvds_phy_set(struct lcd_config_s *pconf, int status)
 {
-	unsigned int vswing, preem, clk_vswing, clk_preem;
+	unsigned int vswing, preem, clk_vswing, clk_preem, channel_on;
 	unsigned int data32;
 
 	if (lcd_debug_print_flag)
@@ -72,30 +72,33 @@ static void lcd_lvds_phy_set(struct lcd_config_s *pconf, int status)
 		clk_vswing = pconf->lcd_control.lvds_config->phy_clk_vswing;
 		clk_preem = pconf->lcd_control.lvds_config->phy_clk_preem;
 		if (vswing > 7) {
-			LCDERR("%s: wrong vswing_level=%d, use default\n",
+			LCDERR("%s: wrong vswing_level=0x%x, use default\n",
 				__func__, vswing);
 			vswing = LVDS_PHY_VSWING_DFT;
 		}
 		if (preem > 7) {
-			LCDERR("%s: wrong preemphasis_level=%d, use default\n",
+			LCDERR("%s: wrong preem_level=0x%x, use default\n",
 				__func__, preem);
 			preem = LVDS_PHY_PREEM_DFT;
 		}
 		if (clk_vswing > 7) {
-			LCDERR("%s: wrong clk_vswing_level=%d, use default\n",
+			LCDERR("%s: wrong clk_vswing_level=0x%x, use default\n",
 				__func__, clk_vswing);
 			clk_vswing = LVDS_PHY_CLK_VSWING_DFT;
 		}
 		if (clk_preem > 7) {
-			LCDERR("%s: wrong clk_preem_level=%d, use default\n",
+			LCDERR("%s: wrong clk_preem_level=0x%x, use default\n",
 				__func__, clk_preem);
 			clk_preem = LVDS_PHY_CLK_PREEM_DFT;
 		}
+		channel_on = lcd_lvds_channel_on_value(pconf);
+
 		data32 = 0x606cca80 | (vswing << 26) | (preem << 0);
 		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
 		/*lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x6c6cca80);*/
 		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x0000006c);
-		data32 = 0x0fff0800 | (clk_vswing << 8) | (clk_preem << 5);
+		data32 = (channel_on << 16) | 0x0800 | /* DIF_TX_CTL5 */
+			(clk_vswing << 8) | (clk_preem << 5); /* DIF_TX_CTL4 */
 		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, data32);
 		/*lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x0fff0800);*/
 	} else {
@@ -111,11 +114,20 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 
 	lcd_vcbus_write(L_RGB_BASE_ADDR, 0);
 	lcd_vcbus_write(L_RGB_COEFF_ADDR, 0x400);
+	aml_lcd_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, NULL);
 
-	if (pconf->lcd_basic.lcd_bits == 6)
+	switch (pconf->lcd_basic.lcd_bits) {
+	case 6:
 		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x600);
-	else if (pconf->lcd_basic.lcd_bits == 8)
+		break;
+	case 8:
 		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x400);
+		break;
+	case 10:
+	default:
+		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x0);
+		break;
+	}
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
@@ -182,8 +194,9 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 	lcd_vcbus_write(L_TCON_MISC_SEL_ADDR,
 		((1 << STV1_SEL) | (1 << STV2_SEL)));
 
-	lcd_vcbus_write(VPP_MISC,
-		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
+	if (lcd_vcbus_read(VPP_MISC) & VPP_OUT_SATURATE)
+		lcd_vcbus_write(VPP_MISC,
+			lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
 static void lcd_ttl_control_set(struct lcd_config_s *pconf)
@@ -223,7 +236,7 @@ static void lcd_lvds_clk_util_set(struct lcd_config_s *pconf)
 static void lcd_lvds_control_set(struct lcd_config_s *pconf)
 {
 	unsigned int bit_num = 1;
-	unsigned int pn_swap, port_swap;
+	unsigned int pn_swap, port_swap, lane_reverse;
 	unsigned int dual_port, fifo_mode;
 	unsigned int lvds_repack = 1;
 
@@ -232,14 +245,17 @@ static void lcd_lvds_control_set(struct lcd_config_s *pconf)
 
 	lcd_lvds_clk_util_set(pconf);
 
-	lvds_repack = (pconf->lcd_control.lvds_config->lvds_repack) & 0x1;
+	lvds_repack = (pconf->lcd_control.lvds_config->lvds_repack) & 0x3;
 	pn_swap   = (pconf->lcd_control.lvds_config->pn_swap) & 0x1;
 	dual_port = (pconf->lcd_control.lvds_config->dual_port) & 0x1;
 	port_swap = (pconf->lcd_control.lvds_config->port_swap) & 0x1;
+	lane_reverse = (pconf->lcd_control.lvds_config->lane_reverse) & 0x1;
 
 	switch (pconf->lcd_basic.lcd_bits) {
 	case 10:
 		bit_num = 0;
+		if (lvds_repack == 1)
+			lvds_repack = 2;
 		break;
 	case 8:
 		bit_num = 1;
@@ -260,8 +276,7 @@ static void lcd_lvds_control_set(struct lcd_config_s *pconf)
 		fifo_mode = 0x1;
 
 	lcd_vcbus_write(LVDS_PACK_CNTL_ADDR,
-		(lvds_repack << 0) | /* repack */
-		(port_swap << 2) | /* odd_even */
+		(lvds_repack << 0) | /* repack //[1:0] */
 		(0 << 3) |	/* reserve */
 		(0 << 4) |	/* lsb first */
 		(pn_swap << 5) | /* pn swap */
@@ -272,8 +287,15 @@ static void lcd_lvds_control_set(struct lcd_config_s *pconf)
 		(1 << 12) |	/* g_select  //0:R, 1:G, 2:B, 3:0 */
 		(2 << 14));	/* b_select  //0:R, 1:G, 2:B, 3:0 */
 
+	lcd_vcbus_setb(LCD_PORT_SWAP, port_swap, 12, 1);
+
+	if (lane_reverse)
+		lcd_vcbus_setb(LVDS_GEN_CNTL, 0x03, 13, 2);
+
 	lcd_vcbus_write(LVDS_GEN_CNTL,
-		(lcd_vcbus_read(LVDS_GEN_CNTL) | (1 << 4) | (fifo_mode << 0)));
+		(lcd_vcbus_read(LVDS_GEN_CNTL) |
+		(1 << 4) | (fifo_mode << 0)));
+
 	lcd_vcbus_setb(LVDS_GEN_CNTL, 1, 3, 1);
 }
 
@@ -353,6 +375,7 @@ void lcd_tablet_driver_init_pre(void)
 	lcd_clk_set(pconf);
 	lcd_venc_set(pconf);
 	lcd_tcon_set(pconf);
+	lcd_drv->lcd_test_check();
 }
 
 int lcd_tablet_driver_init(void)
@@ -423,5 +446,58 @@ void lcd_tablet_driver_disable(void)
 
 	if (lcd_debug_print_flag)
 		LCDPR("%s finished\n", __func__);
+}
+
+void lcd_tablet_driver_tiny_enable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	/* init driver */
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_TTL:
+		lcd_ttl_control_set(pconf);
+		lcd_ttl_pinmux_set(1);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_control_set(pconf);
+		lcd_lvds_phy_set(pconf, 1);
+		break;
+	default:
+		break;
+	}
+
+	LCDPR("enable driver\n");
+}
+
+void lcd_tablet_driver_tiny_disable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	LCDPR("disable driver\n");
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_TTL:
+		lcd_ttl_pinmux_set(0);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_phy_set(pconf, 0);
+		lcd_lvds_disable();
+		break;
+	default:
+		break;
+	}
 }
 

@@ -10,6 +10,8 @@
 #include <dt-bindings/gpio/gxtvbb.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxtvbb.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 #include "mesongxtvbb.dtsi"
 
 / {
@@ -50,12 +52,28 @@
 			size = <0x0 0x2000000>;
 			no-map;
 		};*/
-
+		/*di reserved mem*/
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x1e00000>; //10x1920x1088x3/2=30M
+			/* buffer_size = 3552320(yuv422 8bit) | 4596800(yuv422 10bit) | 4074560(yuv422 10bit full pack mode) */
+			/** 10x3552320=34M(0x22) support 8bit **/
+			/** 10x44596800=44M(0x2c) support 12bit **/
+			/** 10x4074560=39M(0x27) support 10bit **/
+			size = <0x0 0x2c00000>;
 			//no-map;
 		};
+		/*di CMA pool */
+		//di_cma_reserved:linux,di_cma {
+			//compatible = "shared-dma-pool";
+			//reusable;
+			/* buffer_size = 3552320(yuv422 8bit) | 44596800(yuv422 10bit) | 4074560(yuv422 10bit full pack mode) */
+			/** 10x3552320=34M(0x22) support 8bit **/
+			/** 10x44596800=44M(0x2c) support 12bit **/
+			/** 10x4074560=39M(0x27) support 10bit **/
+			//size = <0x0 0x03000000>;
+			//alignment = <0x0 0x400000>;
+		//};
+
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
@@ -699,6 +717,35 @@
 	};
 	/* END OF AUDIO board specific */
 
+	pwm {
+		compatible = "amlogic, meson-pwm";
+		status = "okay";
+		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
+		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
+		reg = <0x0 0xc1108550 0x0 0x30>,
+		      <0x0 0xc8100550  0x0 0x10>;
+		clocks = <&clock CLK_XTAL>,
+			 <&clock CLK_VID_PLL>,
+			 <&clock CLK_FPLL_DIV4>,
+			 <&clock CLK_FPLL_DIV3>;
+		clock-names = "xtal",
+			      "vid_pll_clk",
+			      "fclk_div4",
+			      "fclk_div3";
+		clock-select = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+			       	   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		clock-select-new = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		                   /*all channels use the default clock source XTAL_CLK*/
+		                   /*and you can shoose it in file dt-bindings/pwm/meson.h*/
+	};
+
 	adc_keypad{
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
@@ -749,6 +796,13 @@
 		amlogic,clrmask=<AO 0x8
 					AO2 0x80000002>;	/*spdif_out*/
 		amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
+	};
+
+	audio_btpcm_pins:audio_btpcm_pins{
+		/* BT PCM PINMUX SETTING*/
+		amlogic,setmask=<1 0x3c0000>;
+		amlogic,clrmask=<1 0x3C000000>;
+		amlogic,pins ="GPIOX_4", "GPIOX_5", "GPIOX_6", "GPIOX_7";
 	};
 };
 &efuse {

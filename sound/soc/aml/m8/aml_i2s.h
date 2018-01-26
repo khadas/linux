@@ -18,6 +18,8 @@
 #ifndef __AML_I2S_H__
 #define __AML_I2S_H__
 
+#include <linux/mutex.h>
+
 /* #define debug_printk */
 #ifdef debug_printk
 #define dug_printk(fmt, args...)  printk(fmt, ## args)
@@ -81,6 +83,8 @@ struct aml_runtime_data {
 	void *buf; /* tmp buffer for playback or capture */
 	int active;
 	unsigned int xrun_num;
+	struct mutex chmap_lock;
+	int chmap_layout;
 };
 
 #endif

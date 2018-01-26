@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,7 +23,8 @@
 
 #include <mali_kbase.h>
 #include <mali_midg_regmap.h>
-#include <mali_kbase_mem_linux.h>
+#include <mali_kbase_instr.h>
+
 
 /**
  * kbase_create_context() - Create a kernel base context.
@@ -53,19 +54,17 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	kctx->kbdev = kbdev;
 	kctx->as_nr = KBASEP_AS_NR_INVALID;
-	if (is_compat)
-		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
+	kctx->is_compat = is_compat;
 #ifdef CONFIG_MALI_TRACE_TIMELINE
 	kctx->timeline.owner_tgid = task_tgid_nr(current);
 #endif
 	atomic_set(&kctx->setup_complete, 0);
 	atomic_set(&kctx->setup_in_progress, 0);
+	kctx->infinite_cache_active = 0;
 	spin_lock_init(&kctx->mm_update_lock);
 	kctx->process_mm = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
 	kctx->slots_pullable = 0;
-	kctx->tgid = current->tgid;
-	kctx->pid = current->pid;
 
 	err = kbase_mem_pool_init(&kctx->mem_pool,
 			kbdev->mem_pool_max_size_default,
@@ -73,15 +72,11 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	if (err)
 		goto free_kctx;
 
-	err = kbase_mem_evictable_init(kctx);
-	if (err)
-		goto free_pool;
-
 	atomic_set(&kctx->used_pages, 0);
 
 	err = kbase_jd_init(kctx);
 	if (err)
-		goto deinit_evictable;
+		goto free_pool;
 
 	err = kbasep_js_kctx_init(kctx);
 	if (err)
@@ -91,38 +86,27 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	if (err)
 		goto free_jd;
 
-	atomic_set(&kctx->drain_pending, 0);
-
 	mutex_init(&kctx->reg_lock);
 
 	INIT_LIST_HEAD(&kctx->waiting_soft_jobs);
-	spin_lock_init(&kctx->waiting_soft_jobs_lock);
 #ifdef CONFIG_KDS
 	INIT_LIST_HEAD(&kctx->waiting_kds_resource);
 #endif
-	err = kbase_dma_fence_init(kctx);
-	if (err)
-		goto free_event;
 
 	err = kbase_mmu_init(kctx);
 	if (err)
-		goto term_dma_fence;
+		goto free_event;
 
-	do {
-		err = kbase_mem_pool_grow(&kctx->mem_pool,
-				MIDGARD_MMU_BOTTOMLEVEL);
-		if (err)
-			goto pgd_no_mem;
+	kctx->pgd = kbase_mmu_alloc_pgd(kctx);
+	if (!kctx->pgd)
+		goto free_mmu;
 
-		mutex_lock(&kctx->mmu_lock);
-		kctx->pgd = kbase_mmu_alloc_pgd(kctx);
-		mutex_unlock(&kctx->mmu_lock);
-	} while (!kctx->pgd);
-
-	kctx->aliasing_sink_page = kbase_mem_alloc_page(kctx->kbdev);
+	kctx->aliasing_sink_page = kbase_mem_pool_alloc(&kctx->mem_pool);
 	if (!kctx->aliasing_sink_page)
 		goto no_sink_page;
 
+	kctx->tgid = current->tgid;
+	kctx->pid = current->pid;
 	init_waitqueue_head(&kctx->event_queue);
 
 	kctx->cookies = KBASE_COOKIE_MASK;
@@ -131,14 +115,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	err = kbase_region_tracker_init(kctx);
 	if (err)
 		goto no_region_tracker;
-
-	err = kbase_sticky_resource_init(kctx);
-	if (err)
-		goto no_sticky;
-
-	err = kbase_jit_init(kctx);
-	if (err)
-		goto no_jit;
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_set(&kctx->jctx.work_id, 0);
 #endif
@@ -150,18 +126,8 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	mutex_init(&kctx->vinstr_cli_lock);
 
-	setup_timer(&kctx->soft_job_timeout,
-		    kbasep_soft_job_timeout_worker,
-		    (uintptr_t)kctx);
-
 	return kctx;
 
-no_jit:
-	kbase_gpu_vm_lock(kctx);
-	kbase_sticky_resource_term(kctx);
-	kbase_gpu_vm_unlock(kctx);
-no_sticky:
-	kbase_region_tracker_term(kctx);
 no_region_tracker:
 	kbase_mem_pool_free(&kctx->mem_pool, kctx->aliasing_sink_page, false);
 no_sink_page:
@@ -169,18 +135,14 @@ no_sink_page:
 	kbase_gpu_vm_lock(kctx);
 	kbase_mmu_free_pgd(kctx);
 	kbase_gpu_vm_unlock(kctx);
-pgd_no_mem:
+free_mmu:
 	kbase_mmu_term(kctx);
-term_dma_fence:
-	kbase_dma_fence_term(kctx);
 free_event:
 	kbase_event_cleanup(kctx);
 free_jd:
 	/* Safe to call this one even when didn't initialize (assuming kctx was sufficiently zeroed) */
 	kbasep_js_kctx_term(kctx);
 	kbase_jd_exit(kctx);
-deinit_evictable:
-	kbase_mem_evictable_deinit(kctx);
 free_pool:
 	kbase_mem_pool_term(&kctx->mem_pool);
 free_kctx:
@@ -224,27 +186,9 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_pm_context_active(kbdev);
 
 	kbase_jd_zap_context(kctx);
-
-#ifdef CONFIG_DEBUG_FS
-	/* Removing the rest of the debugfs entries here as we want to keep the
-	 * atom debugfs interface alive until all atoms have completed. This
-	 * is useful for debugging hung contexts. */
-	debugfs_remove_recursive(kctx->kctx_dentry);
-#endif
-
 	kbase_event_cleanup(kctx);
 
-	/*
-	 * JIT must be terminated before the code below as it must be called
-	 * without the region lock being held.
-	 * The code above ensures no new JIT allocations can be made by
-	 * by the time we get to this point of context tear down.
-	 */
-	kbase_jit_term(kctx);
-
 	kbase_gpu_vm_lock(kctx);
-
-	kbase_sticky_resource_term(kctx);
 
 	/* MMU is disabled as part of scheduling out the context */
 	kbase_mmu_free_pgd(kctx);
@@ -275,15 +219,12 @@ void kbase_destroy_context(struct kbase_context *kctx)
 
 	kbase_pm_context_idle(kbdev);
 
-	kbase_dma_fence_term(kctx);
-
 	kbase_mmu_term(kctx);
 
 	pages = atomic_read(&kctx->used_pages);
 	if (pages != 0)
 		dev_warn(kbdev->dev, "%s: %d pages in use!\n", __func__, pages);
 
-	kbase_mem_evictable_deinit(kctx);
 	kbase_mem_pool_term(&kctx->mem_pool);
 	WARN_ON(atomic_read(&kctx->nonmapped_pages) != 0);
 
@@ -315,16 +256,20 @@ int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags)
 	}
 
 	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
-	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, irq_flags);
+	spin_lock_irqsave(&kctx->kbdev->js_data.runpool_irq.lock, irq_flags);
 
 	/* Translate the flags */
 	if ((flags & BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) == 0)
-		kbase_ctx_flag_clear(kctx, KCTX_SUBMIT_DISABLED);
+		js_kctx_info->ctx.flags &= ~((u32) KBASE_CTX_FLAG_SUBMIT_DISABLED);
+
+	if ((flags & BASE_CONTEXT_HINT_ONLY_COMPUTE) != 0)
+		js_kctx_info->ctx.flags |= (u32) KBASE_CTX_FLAG_HINT_ONLY_COMPUTE;
 
 	/* Latch the initial attributes into the Job Scheduler */
 	kbasep_js_ctx_attr_set_initial_attrs(kctx->kbdev, kctx);
 
-	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, irq_flags);
+	spin_unlock_irqrestore(&kctx->kbdev->js_data.runpool_irq.lock,
+			irq_flags);
 	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
  out:
 	return err;

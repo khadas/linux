@@ -55,6 +55,7 @@
 static int i2sbuf[32 + 16];
 static void aml_i2s_play(void)
 {
+#if 0
 	audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 	audio_set_i2s_mode(AIU_I2S_MODE_PCM16, 2);
@@ -65,6 +66,7 @@ static void aml_i2s_play(void)
 	audio_set_aiubuf((virt_to_phys(i2sbuf) + 63) & (~63), 128, 2);
 	audio_out_i2s_enable(1);
 
+#endif
 }
 
 static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
@@ -656,6 +658,19 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 	return ret;
 }
 
+static void aml_pinmux_work_func(struct work_struct *pinmux_work)
+{
+	struct aml_audio_private_data *p_aml_audio = NULL;
+	struct snd_soc_card *card = NULL;
+	p_aml_audio = container_of(pinmux_work,
+				  struct aml_audio_private_data, pinmux_work);
+	card = (struct snd_soc_card *)p_aml_audio->data;
+
+	aml_m8_pinmux_init(card);
+
+	return;
+}
+
 static int aml_m8_audio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -718,7 +733,12 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	}
 
 	aml_i2s_play();
-	aml_m8_pinmux_init(card);
+
+	p_aml_audio->data = (void *)card;
+	INIT_WORK(&p_aml_audio->pinmux_work, aml_pinmux_work_func);
+	schedule_work(&p_aml_audio->pinmux_work);
+
+	/*aml_m8_pinmux_init(card);*/
 	return 0;
  err:
 	dev_err(dev, "Can't probe snd_soc_card\n");

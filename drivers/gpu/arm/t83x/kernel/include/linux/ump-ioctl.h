@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2008-2013, 2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2008-2013 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -18,7 +18,7 @@
 
 
 #ifndef _UMP_IOCTL_H_
-#define _UMP_IOCTL_H_
+#define _UMP_IOCTL_H
 
 #include <linux/ump-common.h>
 

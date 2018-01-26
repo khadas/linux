@@ -1,20 +1,3 @@
-/*
- * drivers/amlogic/amports/arch/m8_m8m2/avs/avs_linux.h
- *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
-*/
-
 static const u32 MicroCode[] __initconst = {
 	0x06807801, 0x06800000, 0x0d000001, 0x07400040, 0x0c018200,
 	0x00000000, 0x00000000, 0x00000000, 0x080c0002, 0x06932000,
@@ -274,7 +257,7 @@ static const u32 MicroCode[] __initconst = {
 	0x040012ca, 0x0950828b, 0x0c780080, 0x0960828b, 0x07801607,
 	0x090041c7, 0x0a8051c8, 0x0aa2001a, 0x07801607, 0x090841c7,
 	0x0a4051c8, 0x06800047, 0x03407207, 0x0c7ff8c0, 0x02c091c9,
-	0x078008c7, 0x040c0248, 0x07400247, 0x07800907, 0x04004249,
+	0x078008c7, 0x040c0248, 0x07400247, 0x07800907, 0x04010249,
 	0x07400247, 0x07804187, 0x054031c7, 0x02c07687, 0x04090248,
 	0x07400247, 0x040801c8, 0x07801049, 0x074001c9, 0x040a01c8,
 	0x07801009, 0x0a60c05a, 0x074001c9, 0x040006c8, 0x0a62009a,

@@ -26,9 +26,9 @@
 		pmu_domain_config = <0x1 0x2 0x4 0x4 0x0 0x0 0x0 0x0 0x0 0x1 0x2 0x0>;
 		pmu_switch_delay = <0xffff> ;
 		num_of_pp = <3> ;
-		def_clock = <3> ;
+		def_clk = <3>;
 		sc_mpp = <3>;/* number of pp used most of time.*/
-		tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk800_cfg>;
+		tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk800_cfg &clk800_cfg>;
 
 		clocks = <&clock CLK_FPLL_DIV3>,
 			<&clock CLK_FPLL_DIV4>,

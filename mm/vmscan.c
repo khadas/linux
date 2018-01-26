@@ -203,7 +203,7 @@ struct dentry *debug_file;
 static int debug_shrinker_show(struct seq_file *s, void *unused)
 {
 	struct shrinker *shrinker;
-	struct shrink_control sc;
+	struct shrink_control sc = {};
 
 	sc.gfp_mask = -1;
 	sc.nr_to_scan = 0;
@@ -1214,6 +1214,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 }
 bool __isolate_cma_ornot(int migrate_type)
 {
+#if 0
 	unsigned long free_cma = 0, total_free = 0;
 
 /*	if (migrate_type != MIGRATE_MOVABLE) { */
@@ -1224,6 +1225,7 @@ bool __isolate_cma_ornot(int migrate_type)
 		if (free_cma > total_free)
 			return false;
 /*	} */
+#endif
 
 	return true;
 }
@@ -1515,7 +1517,7 @@ int isolate_lru_page(struct page *page)
 static int too_many_isolated(struct zone *zone, int file,
 		struct scan_control *sc)
 {
-	unsigned long inactive, isolated;
+	signed long inactive, isolated;
 
 	if (current_is_kswapd())
 		return 0;
@@ -1531,6 +1533,9 @@ static int too_many_isolated(struct zone *zone, int file,
 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
 	}
 
+#ifdef CONFIG_CMA
+	isolated -= zone_page_state(zone, NR_CMA_ISOLATED);
+#endif
 	/*
 	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
 	 * won't get blocked by normal direct-reclaimers, forming a circular
@@ -1539,6 +1544,12 @@ static int too_many_isolated(struct zone *zone, int file,
 	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
 		inactive >>= 3;
 
+#ifdef CONFIG_CMA
+	WARN_ONCE(isolated > inactive,
+		  "isolated:%ld, cma:%ld, inactive:%ld, mask:%x, file:%d\n",
+		  isolated, zone_page_state(zone, NR_CMA_ISOLATED),
+		  inactive, sc->gfp_mask, file);
+#endif
 	return isolated > inactive;
 }
 

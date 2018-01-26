@@ -156,28 +156,32 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 #endif
 
 	if (channel == 8) {
+		/*select cts_aoclkx2_int as AIU clk to hdmi_tx_audio_mster_clk*/
 		aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 6, 1 << 6);
+		/*unmute all channels*/
+		aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0xff << 8, 0 << 8);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
 			(addr & 0xffffff00) + (size & 0xffffff00) - 256);
 #else
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
-			       (addr & 0xffffffc0) + (size & 0xffffffc0) - 256);
+			(addr & 0xffffffc0) + (size & 0xffffffc0) - 256);
 #endif
 	} else {
+		/*select cts_clk_i958 as AIU clk to hdmi_tx_audio_mster_clk*/
 		aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 6, 0 << 6);
+		/*unmute 0/1 channel*/
+		aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0xff << 8, 0xfc << 8);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
 			(addr & 0xffffff00) + (size & 0xffffff00) - 256);
 #else
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
-			       (addr & 0xffffffc0) + (size & 0xffffffc0) - 64);
+			(addr & 0xffffffc0) + (size & 0xffffffc0) - 64);
 #endif
 	}
 	/* Hold I2S */
 	aml_write_cbus(AIU_I2S_MISC, 0x0004);
-	/* No mute, no swap */
-	/*aml_write_cbus(AIU_I2S_MUTE_SWAP, 0x0000);*/
 	/* Release hold and force audio data to left or right */
 	aml_write_cbus(AIU_I2S_MISC, 0x0010);
 
@@ -185,25 +189,25 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 		pr_info("%s channel == 8\n", __func__);
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-		/*  [15: 8] chan_mem_mask.
+		/* [15: 8] chan_mem_mask.
 		*  Each bit indicates which channels exist in memory
 		*/
-			       (0xff << 8) |
-		/*  [ 7: 0] chan_rd_mask.
+				   (0xff << 8) |
+		/* [ 7: 0] chan_rd_mask.
 		*  Each bit indicates which channels are READ from memory
 		*/
-			       (0xff << 0));
+				   (0xff << 0));
 	} else {
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-			(0xff << 8) |
-			(0xff << 0));
+					(0xff << 8) |
+					(0xff << 0));
 #else
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-			       (0x3 << 8) |
-			       (0x3 << 0));
+				   (0x3 << 8) |
+				   (0x3 << 0));
 #endif
 	}
 	/* 16 bit PCM mode */
@@ -267,15 +271,19 @@ void audio_set_958outbuf(u32 addr, u32 size, int flag)
 
 /*
 i2s mode 0: master 1: slave
+din_sel 0:spdif 1:i2s 2:pcm 3: dmic
 */
-static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
+static void i2sin_fifo0_set_buf(u32 addr, u32 size,
+				u32 i2s_mode, u32 i2s_sync, u32 din_sel)
 {
 	unsigned char mode = 0;
-	unsigned int sync_mode = 0;
+	unsigned int sync_mode = 0, din_pos = 0;
 	if (i2s_sync)
 		sync_mode = i2s_sync;
 	if (i2s_mode & I2SIN_SLAVE_MODE)
 		mode = 1;
+	if (din_sel != 1)
+		din_pos = 1;
 	aml_write_cbus(AUDIN_FIFO0_START, addr & 0xffffffc0);
 	aml_write_cbus(AUDIN_FIFO0_PTR, (addr & 0xffffffc0));
 	aml_write_cbus(AUDIN_FIFO0_END,
@@ -283,7 +291,7 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 
 	aml_write_cbus(AUDIN_FIFO0_CTRL, (1 << AUDIN_FIFO0_EN)	/* FIFO0_EN */
 		       |(1 << AUDIN_FIFO0_LOAD)	/* load start address */
-		       |(1 << AUDIN_FIFO0_DIN_SEL)
+		       |(din_sel << AUDIN_FIFO0_DIN_SEL)
 
 		       /* DIN from i2sin */
 		       /* |(1<<6)    // 32 bits data in. */
@@ -301,46 +309,35 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 
 	aml_write_cbus(AUDIN_FIFO0_CTRL1, 0 << 4	/* fifo0_dest_sel */
 		       | 2 << 2	/* fifo0_din_byte_num */
-		       | 0 << 0);	/* fifo0_din_pos */
+		       | din_pos << 0);	/* fifo0_din_pos */
 
 	if (audio_in_source == 0) {
-		if (is_meson_txl_cpu()) {
-			aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-					| (3 << I2SIN_SIZE)
-					| (1 << I2SIN_LRCLK_INVT)
-					| (1 << I2SIN_LRCLK_SKEW)
-					| (0 << I2SIN_POS_SYNC)
-					| (0 << I2SIN_LRCLK_SEL)
-					| (0 << I2SIN_CLK_SEL)
-					| (0 << I2SIN_DIR));
-		} else {
-			aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-					| (3 << I2SIN_SIZE)
-					| (1 << I2SIN_LRCLK_INVT)
-					| (1 << I2SIN_LRCLK_SKEW)
-					| (sync_mode << I2SIN_POS_SYNC)
-					| (!mode << I2SIN_LRCLK_SEL)
-					| (!mode << I2SIN_CLK_SEL)
-					| (!mode << I2SIN_DIR));
-		}
+		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
+				   | (3 << I2SIN_SIZE)
+				   | (1 << I2SIN_LRCLK_INVT)
+				   | (1 << I2SIN_LRCLK_SKEW)
+				   | (sync_mode << I2SIN_POS_SYNC)
+				   | (!mode << I2SIN_LRCLK_SEL)
+				   | (!mode << I2SIN_CLK_SEL)
+				   | (!mode << I2SIN_DIR));
 	} else if (audio_in_source == 1) {
 		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-			       | (0 << I2SIN_SIZE)
-			       | (0 << I2SIN_LRCLK_INVT)
-			       | (0 << I2SIN_LRCLK_SKEW)
-			       | (sync_mode << I2SIN_POS_SYNC)
-			       | (0 << I2SIN_LRCLK_SEL)
-			       | (0 << I2SIN_CLK_SEL)
-			       | (0 << I2SIN_DIR));
+				   | (0 << I2SIN_SIZE)
+				   | (0 << I2SIN_LRCLK_INVT)
+				   | (0 << I2SIN_LRCLK_SKEW)
+				   | (1 << I2SIN_POS_SYNC)
+				   | (0 << I2SIN_LRCLK_SEL)
+				   | (0 << I2SIN_CLK_SEL)
+				   | (0 << I2SIN_DIR));
 	} else if (audio_in_source == 2) {
 		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-			       | (3 << I2SIN_SIZE)
-			       | (1 << I2SIN_LRCLK_INVT)
-			       | (1 << I2SIN_LRCLK_SKEW)
-			       | (sync_mode << I2SIN_POS_SYNC)
-			       | (1 << I2SIN_LRCLK_SEL)
-			       | (1 << I2SIN_CLK_SEL)
-			       | (1 << I2SIN_DIR));
+				   | (3 << I2SIN_SIZE)
+				   | (1 << I2SIN_LRCLK_INVT)
+				   | (1 << I2SIN_LRCLK_SKEW)
+				   | (1 << I2SIN_POS_SYNC)
+				   | (1 << I2SIN_LRCLK_SEL)
+				   | (1 << I2SIN_CLK_SEL)
+				   | (1 << I2SIN_DIR));
 	}
 
 }
@@ -373,17 +370,19 @@ static void spdifin_reg_set(void)
 
 }
 
-static void spdifin_fifo1_set_buf(u32 addr, u32 size)
+static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 {
 	aml_write_cbus(AUDIN_SPDIF_MODE,
-		       aml_read_cbus(AUDIN_SPDIF_MODE) & 0x7fffffff);
+			   aml_read_cbus(AUDIN_SPDIF_MODE) & 0x7fffffff);
+	/*set channel invert from old spdif in mode*/
+	aml_cbus_update_bits(AUDIN_SPDIF_MODE, (1 << 19), (1 << 19));
 	aml_write_cbus(AUDIN_FIFO1_START, addr & 0xffffffc0);
 	aml_write_cbus(AUDIN_FIFO1_PTR, (addr & 0xffffffc0));
 	aml_write_cbus(AUDIN_FIFO1_END,
 		       (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
 	aml_write_cbus(AUDIN_FIFO1_CTRL, (1 << AUDIN_FIFO1_EN)	/* FIFO0_EN */
 		       |(1 << AUDIN_FIFO1_LOAD)	/* load start address. */
-		       |(0 << AUDIN_FIFO1_DIN_SEL)
+		       |(src << AUDIN_FIFO1_DIN_SEL)
 
 		       /* DIN from i2sin. */
 		       /* |(1<<6)   // 32 bits data in. */
@@ -404,22 +403,35 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size)
 	 *  the last 14 bit and reg Spdif_fs_clk_rltn(0x2801)
 	 */
 	spdifin_reg_set();
-	/*3 byte mode, (27:4)*/
-	aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
+	/*3 byte mode, (23:0)*/
+	if (src == PAO_IN) {
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x08);
+	} else if (src == HDMI_IN) {
+		/* there are two inputs for HDMI_IN. New I2S:SPDIF */
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x08);
+		if (1) {
+			/* new SPDIF in module */
+			aml_write_cbus(AUDIN_DECODE_FORMAT, 1<<24);
+		} else {
+			/* new I2S in module */
+			aml_write_cbus(AUDIN_DECODE_FORMAT, 0x103ad);
+		}
+	} else
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
 }
 
-void audio_in_i2s_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
+void audio_in_i2s_set_buf(u32 addr, u32 size,
+	u32 i2s_mode, u32 i2s_sync, u32 din_sel)
 {
 	pr_info("i2sin_fifo0_set_buf\n");
-	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync);
+	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync, din_sel);
 	audio_in_buf_ready = 1;
 }
 
-void audio_in_spdif_set_buf(u32 addr, u32 size)
+void audio_in_spdif_set_buf(u32 addr, u32 size, u32 src)
 {
-	pr_info("spdifin_fifo1_set_buf\n");
-	spdifin_fifo1_set_buf(addr, size);
-
+	pr_info("spdifin_fifo1_set_buf, src = %d\n", src);
+	spdifin_fifo1_set_buf(addr, size, src);
 }
 
 /* extern void audio_in_enabled(int flag); */
@@ -1031,7 +1043,8 @@ unsigned int read_i2s_mute_swap_reg(void)
 
 void audio_i2s_swap_left_right(unsigned int flag)
 {
-	if (ENABLE_IEC958)
+    /*only LPCM output can set aiu hw channel swap*/
+	if (ENABLE_IEC958 && (IEC958_mode_codec == 0 || IEC958_mode_codec == 9))
 		aml_cbus_update_bits(AIU_958_CTRL, 0x3 << 1, flag << 1);
 
 	aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0x3, flag);

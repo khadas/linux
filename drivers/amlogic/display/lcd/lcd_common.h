@@ -25,6 +25,9 @@
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
+extern struct mutex lcd_vout_mutex;
+extern unsigned char lcd_resume_flag;
+
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
 extern char *lcd_type_type_to_str(int type);
@@ -36,11 +39,13 @@ extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
 extern void lcd_ttl_pinmux_set(int status);
 extern void lcd_vbyone_pinmux_set(int status);
+extern unsigned int lcd_lvds_channel_on_value(struct lcd_config_s *pconf);
 extern int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 		struct device_node *child);
 extern int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
-		unsigned char *buf, int key_len);
+		unsigned char *buf, int key_len, int len);
 
+extern void lcd_hdr_vinfo_update(void);
 extern void lcd_tcon_config(struct lcd_config_s *pconf);
 extern int lcd_vmode_change(struct lcd_config_s *pconf);
 extern void lcd_venc_change(struct lcd_config_s *pconf);
