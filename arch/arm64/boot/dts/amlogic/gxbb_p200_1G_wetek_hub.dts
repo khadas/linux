@@ -408,33 +408,6 @@
 		pinctrl-names = "wifi_32k_pins";
 		pinctrl-0 = <&wifi_32k_pins>;
 	};
-	emmc{
-        compatible = "amlogic, aml_sd_emmc";
-        dev_name = "aml_newsd.0";
-        status = "okay";
-        reg = <0x0 0xd0074000 0x0 0x2000>;
-        interrupts = <	0 218 1>;
-        pinctrl-names = "emmc_clk_cmd_pins", "emmc_all_pins";
-        pinctrl-0 = <&emmc_clk_cmd_pins>;
-        pinctrl-1 = <&emmc_all_pins>;
-        emmc{
-            status = "okay";
-            pinname = "emmc";
-            ocr_avail = <0x200080>;          /**VDD voltage 3.3 ~ 3.4 */
-            caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-			"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR",
-			"MMC_CAP_HW_RESET", "MMC_CAP_ERASE", "MMC_CAP_CMD23";
-            caps2 = "MMC_CAP2_HS200";
-			f_min = <300000>;
-            f_max = <200000000>;
-			tx_phase = <0>;
-            max_req_size = <0x20000>;          /**256KB*/
-//            gpio_dat3 = "BOOT_3"
-		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
-		hw_reset =  <&gpio       BOOT_9      GPIO_ACTIVE_HIGH>;
-            card_type = <1>; /* 1:mmc card(include eMMC), 2:sd card(include tSD), */
-		};
-    };
     sd{
         compatible = "amlogic, aml_sd_emmc";
         dev_name = "aml_newsd.0";
@@ -475,6 +448,33 @@
 	   		card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
 		};
     };
+    emmc{
+        compatible = "amlogic, aml_sd_emmc";
+        dev_name = "aml_newsd.0";
+        status = "okay";
+        reg = <0x0 0xd0074000 0x0 0x2000>;
+        interrupts = <	0 218 1>;
+        pinctrl-names = "emmc_clk_cmd_pins", "emmc_all_pins";
+        pinctrl-0 = <&emmc_clk_cmd_pins>;
+        pinctrl-1 = <&emmc_all_pins>;
+        emmc{
+            status = "okay";
+            pinname = "emmc";
+            ocr_avail = <0x200080>;          /**VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
+			"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR",
+			"MMC_CAP_HW_RESET", "MMC_CAP_ERASE", "MMC_CAP_CMD23";
+            caps2 = "MMC_CAP2_HS200";
+			f_min = <300000>;
+            f_max = <200000000>;
+			tx_phase = <0>;
+            max_req_size = <0x20000>;          /**256KB*/
+//            gpio_dat3 = "BOOT_3"
+		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
+		hw_reset =  <&gpio       BOOT_9      GPIO_ACTIVE_HIGH>;
+            card_type = <1>; /* 1:mmc card(include eMMC), 2:sd card(include tSD), */
+		};
+    };
 	sdio{
 		compatible = "amlogic, aml_sd_emmc";
 		dev_name = "aml_newsd.0";
@@ -492,7 +492,7 @@
 				"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
 				"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
 				"MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-				"MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
+				"MMC_PM_KEEP_POWER";
 				f_min = <400000>;
 				f_max = <200000000>;
 				max_req_size = <0x20000>;          /**128KB*/
@@ -618,7 +618,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x60000000>;
+			size = <0x0 0x40000000>;
 			mask = <1>;
 		};
 		cache:cache
@@ -752,12 +752,11 @@
 	};
 	aocec: aocec{
 		compatible = "amlogic, amlogic-aocec";
-		device_name = "aocec";
 		status = "okay";
-		vendor_name = "Amlogic"; /* Max Chars: 8     */
+		vendor_name = "WeTek"; /* Max Chars: 8     */
 		vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
-		product_desc = "GXBB Mbox"; /* Max Chars: 16    */
-		cec_osd_string = "MBox"; /* Max Chars: 14    */
+		product_desc = "WeTek Hub"; /* Max Chars: 16    */
+		cec_osd_string = "Hub"; /* Max Chars: 14    */
 		port_num = <1>;
 		arc_port_mask = <0x0>;
 		interrupts = <0 199 1>;
@@ -867,11 +866,11 @@
 		pl-periph-id = <0>; /** lm name */
 		clock-src = "usb0"; /** clock src */
 		port-id = <0>;  /** ref to mach/usb.h */
-		port-type = <1>;	/** 0: otg, 1: host, 2: slave */
+		port-type = <0>;	/** 0: otg, 1: host, 2: slave */
 		port-speed = <0>; /** 0: default, high, 1: full */
 		port-config = <0>; /** 0: default */
 		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
-		port-id-mode = <1>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		gpio-vbus-power = "GPIODV_24";
 		gpios = <&gpio       GPIODV_24       GPIO_ACTIVE_HIGH>;
 		gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
@@ -955,9 +954,10 @@
 	pcm_plat: pcm_platform {
 		compatible = "amlogic, aml-pcm";
 	};
-	spdif_codec: spdif_codec{
+	spdif_codec: spdif_codec {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-spdif-codec";
+		device_name = "dummy-spdif-dit.0";
 		pinctrl-names = "aml_audio_spdif";
 		pinctrl-0 = <&audio_spdif_pins>;
 	};
@@ -1190,9 +1190,9 @@
 	};
 
 	audio_spdif_pins:audio_pin1{
-		amlogic,setmask=<1 0x200>;    /*spdif_out*/
-		amlogic,clrmask=<1 0x10000>;  /*spdif_out*/
-		amlogic,pins ="GPIOY_12";     /*spdif_out*/
+		amlogic,setmask=<AO 0x10000>;	/*spdif_out*/
+		amlogic,clrmask=<AO 0x40000>;	/*spdif_out*/
+		amlogic,pins ="GPIOAO_6";		/*spdif_out*/
 	};
 
 	audio_btpcm_pins:audio_btpcm_pins{
@@ -1211,5 +1211,8 @@
 	status = "okay";
 };
 &defendkey {
+	status = "okay";
+};
+&meson_ir {
 	status = "okay";
 };

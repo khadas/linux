@@ -1,0 +1,95 @@
+/*
+ * arch/arm64/boot/dts/partitions-dualos.dtsi
+ * Partitions for Android OS + Linux Distro(i.e. Ubuntu)
+ *
+ * Copyright (C) 2017 Khadsa.com All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+/ {
+	partitions: partitions{
+		parts = <11>;
+		part-0 = <&recovery>;
+		part-1 = <&rsv>;
+		part-2 = <&tee>;
+		part-3 = <&crypt>;
+		part-4 = <&misc>;
+		part-5 = <&boot>;
+		part-6 = <&system>;
+		part-7 = <&cache>;
+		part-8 = <&libreelec>;
+		part-9 = <&linux>;
+		part-10 = <&data>;
+
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		crypt:crypt{
+			pname = "crypt";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		system:system
+		{
+			pname = "system";
+			size = <0x0 0x80000000>;
+			mask = <1>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x20000000>;
+			mask = <2>;
+		};
+		libreelec:libreelec {
+			pname = "libreelec";
+			size = <0x0 0x20000000>;
+			mask = <1>;
+		};
+		linux:linux {
+			pname = "linux";
+			size = <0x0 0xfffffe00>;
+			mask = <4>;
+		};
+		data:data
+		{
+			pname = "data";
+//			size = <0x0 0x68C00000>;
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};

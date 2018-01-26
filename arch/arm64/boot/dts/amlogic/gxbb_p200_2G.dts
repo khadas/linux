@@ -465,7 +465,7 @@
 				"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
 				"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
 				"MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-				"MMC_PM_KEEP_POWER";
+				"MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
 				f_min = <400000>;
 				f_max = <200000000>;
 				max_req_size = <0x20000>;          /**128KB*/
@@ -591,7 +591,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x40000000>;
+			size = <0x0 0x60000000>;
 			mask = <1>;
 		};
 		cache:cache
@@ -822,11 +822,11 @@
 		pl-periph-id = <0>; /** lm name */
 		clock-src = "usb0"; /** clock src */
 		port-id = <0>;  /** ref to mach/usb.h */
-		port-type = <0>;	/** 0: otg, 1: host, 2: slave */
+		port-type = <1>;	/** 0: otg, 1: host, 2: slave */
 		port-speed = <0>; /** 0: default, high, 1: full */
 		port-config = <0>; /** 0: default */
 		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
-		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+		port-id-mode = <1>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		gpio-vbus-power = "GPIODV_24";
 		gpios = <&gpio       GPIODV_24       GPIO_ACTIVE_HIGH>;
 		gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
@@ -1142,9 +1142,9 @@
 	};
 
 	audio_spdif_pins:audio_pin1{
-		amlogic,setmask=<AO 0x10000>;	/*spdif_out*/
-		amlogic,clrmask=<AO 0x40000>;	/*spdif_out*/
-		amlogic,pins ="GPIOAO_6";		/*spdif_out*/
+		amlogic,setmask=<1 0x200>;    /*spdif_out*/
+		amlogic,clrmask=<1 0x10000>;  /*spdif_out*/
+		amlogic,pins ="GPIOY_12";     /*spdif_out*/
 	};
 
 	audio_btpcm_pins:audio_btpcm_pins{
