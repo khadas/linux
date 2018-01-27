@@ -1051,6 +1051,8 @@ void page_add_file_rmap(struct page *page)
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
 		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
 	}
+	if (cma_page(page) && page_mapcount(page) > CMA_MIGRATE_MAP_THRESHOLD)
+		mark_cma_migrate_page(page);
 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
 }
 

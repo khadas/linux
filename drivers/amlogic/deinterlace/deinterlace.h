@@ -127,6 +127,12 @@ enum pulldown_mode_e {
 	PULL_DOWN_EI	  = 4,/* ei only */
 	PULL_DOWN_NORMAL  = 5,/* normal di */
 };
+
+enum canvas_idx_e {
+	NR_CANVAS,
+	MTN_CANVAS,
+	MV_CANVAS,
+};
 #define pulldown_mode_t enum pulldown_mode_e
 struct di_buf_s {
 #ifdef USE_LIST
@@ -184,7 +190,8 @@ struct di_buf_s {
 	unsigned int canvas_config_flag;
 	/* 0,configed; 1,config type 1 (prog);
 	2, config type 2 (interlace) */
-	unsigned int canvas_config_size;
+	unsigned int canvas_height;
+	unsigned int canvas_width[3];/* nr/mtn/mv */
 	/*bit [31~16] width; bit [15~0] height*/
 	pulldown_detect_info_t field_pd_info;
 	pulldown_detect_info_t win_pd_info[MAX_WIN_NUM];
@@ -252,10 +259,10 @@ struct DI_MIF_s {
 	unsigned short	chroma_y_end0;
 	unsigned		set_separate_en:2;
 	unsigned		src_field_mode:1;
-	unsigned		src_prog:1;
 	unsigned		video_mode:1;
 	unsigned		output_field_num:1;
 	unsigned		bit_mode:2;
+	unsigned		src_prog:1;
 	/*
 	unsigned		burst_size_y:2; set 3 as default
 	unsigned		burst_size_cb:2;set 1 as default
@@ -279,7 +286,7 @@ struct DI_MC_MIF_s {
 	unsigned short size_x;
 	unsigned short size_y;
 	unsigned short canvas_num;
-	unsigned short blend_mode;
+	unsigned short blend_en;
 	unsigned short vecrd_offset;
 };
 void disable_deinterlace(void);
@@ -341,7 +348,7 @@ void deinterlace_init(void);
 void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line);
 
 void initial_di_post_2(int hsize_post, int vsize_post, int hold_line);
-
+void di_nr_level_config(int level);
 void enable_di_post_2(
 	struct DI_MIF_s		*di_buf0_mif,
 	struct DI_MIF_s		*di_buf1_mif,
@@ -385,10 +392,10 @@ void read_mtn_info(unsigned long *mtn_info, unsigned long*);
 
 /* for video reverse */
 void di_post_read_reverse(bool reverse);
-void di_post_read_reverse_irq(bool reverse);
+void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag);
 extern void recycle_keep_buffer(void);
 
-#undef DI_DEBUG
+/* #define DI_BUFFER_DEBUG */
 
 #define DI_LOG_MTNINFO		0x02
 #define DI_LOG_PULLDOWN		0x10
@@ -402,6 +409,7 @@ extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
 extern bool mcpre_en;
 extern bool dnr_reg_update;
+extern bool dnr_dm_en;
 extern int mpeg2vdin_flag;
 extern int di_vscale_skip_count_real;
 extern unsigned int pulldown_enable;
@@ -444,6 +452,7 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
 void combing_pd22_window_config(unsigned int width, unsigned int height);
 int tff_bff_check(int height, int width);
 void tbff_init(void);
+void di_hw_disable(void);
 #ifdef CONFIG_AM_ATVDEMOD
 extern int aml_atvdemod_get_snr_ex(void);
 #endif
@@ -456,25 +465,32 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 	unsigned int start, unsigned int len);
 
 #define DI_COUNT   1
-
+#define DI_MAP_FLAG	0x1
 struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
 	struct device	   *dev;
+	struct platform_device	*pdev;
 	struct task_struct *task;
 	unsigned char	   di_event;
 	unsigned int	   di_irq;
+	unsigned int	   flags;
 	unsigned int	   timerc_irq;
+	unsigned long	   jiffy;
 	unsigned long	   mem_start;
 	unsigned int	   mem_size;
 	unsigned int	   buffer_size;
 	unsigned int	   buf_num_avail;
 	unsigned int	   hw_version;
-	int							rdma_handle;
+	int		rdma_handle;
 	/* is surpport nr10bit */
 	unsigned int	   nr10bit_surpport;
 	/* is DI surpport post wr to mem for OMX */
 	unsigned int       post_wr_surpport;
+	unsigned int	   flag_cma;
+	unsigned int	   cma_alloc[10];
+	unsigned int	   buffer_addr[10];
+	struct page	*pages[10];
 };
 #define di_dev_t struct di_dev_s
 

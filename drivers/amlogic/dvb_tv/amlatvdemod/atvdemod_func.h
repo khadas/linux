@@ -305,6 +305,7 @@ struct amlatvdemod_device_s {
 	const char *pin_name;
 };
 
+extern void aml_audio_overmodulation(int enable);
 extern void amlatvdemod_set_std(int val);
 extern struct amlatvdemod_device_s *amlatvdemod_devp;
 extern void aml_fix_PWM_adjust(int enable);

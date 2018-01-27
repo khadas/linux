@@ -74,6 +74,7 @@
 	} while (0)
 
 static s32 print_level = LOG_DEBUG;
+static s32 clock_level = 4;
 
 static struct video_mm_t s_vmem;
 static struct vpudrv_buffer_t s_video_memory = {0};
@@ -130,7 +131,7 @@ s32 vpu_hw_reset(void)
 s32 vpu_clk_config(u32 enable)
 {
 	if (enable)
-		HevcEnc_clock_enable(4);
+		HevcEnc_clock_enable(clock_level);
 	else
 		HevcEnc_clock_disable();
 	return 0;
@@ -1426,11 +1427,15 @@ static s32 vpu_map_to_instance_pool_memory(
  */
 static s32 vpu_mmap(struct file *fp, struct vm_area_struct *vm)
 {
+	/* if (vm->vm_pgoff == (s_vpu_register.phys_addr >> PAGE_SHIFT)) */
+	if ((vm->vm_end - vm->vm_start == s_vpu_register.size + 1) &&
+						(vm->vm_pgoff == 0)) {
+		vm->vm_pgoff = (s_vpu_register.phys_addr >> PAGE_SHIFT);
+		return vpu_map_to_register(fp, vm);
+	}
+
 	if (vm->vm_pgoff == 0)
 		return vpu_map_to_instance_pool_memory(fp, vm);
-
-	if (vm->vm_pgoff == (s_vpu_register.phys_addr >> PAGE_SHIFT))
-		return vpu_map_to_register(fp, vm);
 
 	return vpu_map_to_physical_memory(fp, vm);
 }
@@ -1979,6 +1984,9 @@ static s32 __init hevc_mem_setup(struct reserved_mem *rmem)
 
 module_param(print_level, uint, 0664);
 MODULE_PARM_DESC(print_level, "\n print_level\n");
+
+module_param(clock_level, uint, 0664);
+MODULE_PARM_DESC(clock_level, "\n clock_level\n");
 
 MODULE_AUTHOR("Amlogic using C&M VPU, Inc.");
 MODULE_DESCRIPTION("VPU linux driver");

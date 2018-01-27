@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
 #include <linux/list.h>
 #include <linux/file.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if CONFIG_DEBUG_FS
 
 struct debug_mem_mapping {
 	struct list_head node;
@@ -90,10 +90,8 @@ static void *debug_mem_next(struct seq_file *m, void *v, loff_t *pos)
 		return data;
 	}
 
-	if (list_is_last(data->lh, &mem_data->mapping_list)) {
-		kfree(data);
+	if (list_is_last(data->lh, &mem_data->mapping_list))
 		return NULL;
-	}
 
 	data->lh = data->lh->next;
 	data->offset = 0;
@@ -127,8 +125,6 @@ static int debug_mem_show(struct seq_file *m, void *v)
 
 	page = pfn_to_page(PFN_DOWN(map->alloc->pages[data->offset]));
 	mapping = vmap(&page, 1, VM_MAP, prot);
-	if (!mapping)
-		goto out;
 
 	for (i = 0; i < PAGE_SIZE; i += 4*sizeof(*mapping)) {
 		seq_printf(m, "%016llx:", i + ((map->start_pfn +
@@ -155,55 +151,20 @@ static const struct seq_operations ops = {
 	.show = debug_mem_show,
 };
 
-static int debug_mem_zone_open(struct rb_root *rbtree,
-						struct debug_mem_data *mem_data)
-{
-	int ret = 0;
-	struct rb_node *p;
-	struct kbase_va_region *reg;
-	struct debug_mem_mapping *mapping;
-
-	for (p = rb_first(rbtree); p; p = rb_next(p)) {
-		reg = rb_entry(p, struct kbase_va_region, rblink);
-
-		if (reg->gpu_alloc == NULL)
-			/* Empty region - ignore */
-			continue;
-
-		mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
-		if (!mapping) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		mapping->alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
-		mapping->start_pfn = reg->start_pfn;
-		mapping->nr_pages = reg->nr_pages;
-		mapping->flags = reg->flags;
-		list_add_tail(&mapping->node, &mem_data->mapping_list);
-	}
-
-out:
-	return ret;
-}
-
 static int debug_mem_open(struct inode *i, struct file *file)
 {
 	struct file *kctx_file = i->i_private;
 	struct kbase_context *kctx = kctx_file->private_data;
+	struct rb_node *p;
 	struct debug_mem_data *mem_data;
 	int ret;
 
 	ret = seq_open(file, &ops);
+
 	if (ret)
 		return ret;
 
 	mem_data = kmalloc(sizeof(*mem_data), GFP_KERNEL);
-	if (!mem_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	mem_data->kctx = kctx;
 
 	INIT_LIST_HEAD(&mem_data->mapping_list);
@@ -212,22 +173,23 @@ static int debug_mem_open(struct inode *i, struct file *file)
 
 	kbase_gpu_vm_lock(kctx);
 
-	ret = debug_mem_zone_open(&kctx->reg_rbtree_same, mem_data);
-	if (0 != ret) {
-		kbase_gpu_vm_unlock(kctx);
-		goto out;
-	}
+	for (p = rb_first(&kctx->reg_rbtree); p; p = rb_next(p)) {
+		struct kbase_va_region *reg;
+		struct debug_mem_mapping *mapping;
 
-	ret = debug_mem_zone_open(&kctx->reg_rbtree_exec, mem_data);
-	if (0 != ret) {
-		kbase_gpu_vm_unlock(kctx);
-		goto out;
-	}
+		reg = rb_entry(p, struct kbase_va_region, rblink);
 
-	ret = debug_mem_zone_open(&kctx->reg_rbtree_custom, mem_data);
-	if (0 != ret) {
-		kbase_gpu_vm_unlock(kctx);
-		goto out;
+		if (reg->gpu_alloc == NULL)
+			/* Empty region - ignore */
+			continue;
+
+		mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+
+		mapping->alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
+		mapping->start_pfn = reg->start_pfn;
+		mapping->nr_pages = reg->nr_pages;
+		mapping->flags = reg->flags;
+		list_add_tail(&mapping->node, &mem_data->mapping_list);
 	}
 
 	kbase_gpu_vm_unlock(kctx);
@@ -235,23 +197,6 @@ static int debug_mem_open(struct inode *i, struct file *file)
 	((struct seq_file *)file->private_data)->private = mem_data;
 
 	return 0;
-
-out:
-	if (mem_data) {
-		while (!list_empty(&mem_data->mapping_list)) {
-			struct debug_mem_mapping *mapping;
-
-			mapping = list_first_entry(&mem_data->mapping_list,
-					struct debug_mem_mapping, node);
-			kbase_mem_phy_alloc_put(mapping->alloc);
-			list_del(&mapping->node);
-			kfree(mapping);
-		}
-		fput(kctx_file);
-		kfree(mem_data);
-	}
-	seq_release(i, file);
-	return ret;
 }
 
 static int debug_mem_release(struct inode *inode, struct file *file)

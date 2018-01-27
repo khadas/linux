@@ -127,4 +127,6 @@ source "drivers/amlogic/crypto/Kconfig"
 
 source "drivers/amlogic/watchpoint/Kconfig"
 
+source "drivers/amlogic/esm/Kconfig"
+
 endmenu

@@ -241,7 +241,7 @@ int roomboot_nand_read(struct amlnand_phydev *phydev)
 	struct phydev_ops *devops = &(phydev->ops);
 	struct hw_controller *controller = &(aml_chip->controller);
 	uint64_t offset , write_len;
-	unsigned char *buffer;
+	unsigned char *buffer, tmp_user_mode = 0;
 	int ret = 0;
 	int oob_set = 0;
 
@@ -261,6 +261,8 @@ int roomboot_nand_read(struct amlnand_phydev *phydev)
 		oob_set = controller->oob_mod;
 		NFC_CLR_OOB_MODE(controller, 3<<26);
 		controller->oob_mod = 0;
+		tmp_user_mode = controller->user_mode;
+		controller->user_mode = 2;
 	}
 
 	ret = read_uboot(phydev);
@@ -270,6 +272,7 @@ int roomboot_nand_read(struct amlnand_phydev *phydev)
 	if (oob_set) {
 		controller->oob_mod = oob_set;
 		NFC_SET_OOB_MODE(controller, 3<<26);
+		controller->user_mode = tmp_user_mode;
 	}
 
 	amlnand_release_device(aml_chip);
@@ -574,7 +577,7 @@ int roomboot_nand_write(struct amlnand_phydev *phydev)
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 
 	uint64_t offset , write_len, addr;
-	unsigned char *buffer;
+	unsigned char *buffer, tmp_user_mode = 0;
 	int pages_per_blk = 0, ret = 0;
 	int oob_set = 0;
 	unsigned int tmp_value;
@@ -622,6 +625,8 @@ int roomboot_nand_write(struct amlnand_phydev *phydev)
 		oob_set = controller->oob_mod;
 		NFC_CLR_OOB_MODE(controller, 3<<26);
 		controller->oob_mod = 0;
+		tmp_user_mode = controller->user_mode;
+		controller->user_mode = 2;
 	}
 	pages_per_blk = flash->blocksize / flash->pagesize;
 	memset(ops_para, 0, sizeof(struct chip_ops_para));
@@ -675,6 +680,7 @@ int roomboot_nand_write(struct amlnand_phydev *phydev)
 	if (oob_set) {
 		controller->oob_mod = oob_set;
 		NFC_SET_OOB_MODE(controller, 3<<26);
+		controller->user_mode = tmp_user_mode;
 	}
 	return ret;
 exit_error0:

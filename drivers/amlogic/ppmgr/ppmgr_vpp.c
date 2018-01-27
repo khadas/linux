@@ -24,6 +24,7 @@
 /*#include <mach/am_regs.h>*/
 #include <linux/amlogic/amports/ptsserv.h>
 #include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/amports/vframe.h>
@@ -53,6 +54,8 @@
 #include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/amlogic/ppmgr/tbff.h>
+
 /*#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6*/
 /*#include <mach/mod_gate.h>*/
 /*#endif*/
@@ -75,6 +78,8 @@
 #else
 #define MASK_POOL_SIZE 0
 #endif
+
+#define PPMGR_TB_DETECT
 
 #define RECEIVER_NAME "ppmgr"
 #define PROVIDER_NAME   "ppmgr"
@@ -130,6 +135,48 @@ struct vfq_s q_ready, q_free;
 static int display_mode_change = VF_POOL_SIZE;
 static struct semaphore thread_sem;
 static DEFINE_MUTEX(ppmgr_mutex);
+static bool ppmgr_quit_flag;
+
+#ifdef PPMGR_TB_DETECT
+#define TB_DETECT_BUFFER_MAX_SIZE 16
+#define TB_DETECT_W 128
+#define TB_DETECT_H 96
+
+struct tb_buf_s {
+	ulong vaddr;
+	ulong paddr;
+};
+
+enum tb_status {
+	tb_idle,
+	tb_running,
+	tb_done,
+};
+
+static DEFINE_MUTEX(tb_mutex);
+
+static struct tb_buf_s detect_buf[TB_DETECT_BUFFER_MAX_SIZE];
+static struct task_struct *tb_detect_task;
+static int tb_task_running;
+static struct semaphore tb_sem;
+static atomic_t detect_status;
+static atomic_t tb_detect_flag;
+static u8 tb_detect_last_flag;
+static u32 tb_buff_wptr;
+static u32 tb_buff_rptr;
+static s32 tb_canvas = -1;
+static s8 tb_buffer_status;
+static u32 tb_buffer_start;
+static u32 tb_buffer_size;
+static u8 tb_first_frame_type;
+static u32 tb_buffer_len = TB_DETECT_BUFFER_MAX_SIZE;
+static atomic_t tb_reset_flag;
+static u32 tb_init_mute;
+static atomic_t tb_skip_flag;
+static bool tb_quit_flag;
+static struct TB_DetectFuncPtr *gfunc;
+static int tb_buffer_init(void);
+#endif
 
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void);
 
@@ -766,6 +813,133 @@ static void display_mode_adjust(struct ge2d_context_s *context,
 	}
 }
 #endif
+
+#ifdef PPMGR_TB_DETECT
+static int process_vf_tb_detect(struct vframe_s *vf,
+		struct ge2d_context_s *context,
+		struct config_para_ex_s *ge2d_config)
+{
+	struct canvas_s cs0, cs1, cs2, cd;
+	int interlace_mode;
+	u32 format = GE2D_FORMAT_M24_YUV420;
+	u32 h_scale_coef_type =
+		context->config.h_scale_coef_type;
+	u32 v_scale_coef_type =
+		context->config.v_scale_coef_type;
+
+	if (unlikely(!vf))
+		return -1;
+
+	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
+	if (!interlace_mode)
+		return 0;
+
+	if (vf->type & VIDTYPE_VIU_422)
+		format = GE2D_FORMAT_S16_YUV422;
+	else if (vf->type & VIDTYPE_VIU_NV21)
+		format = GE2D_FORMAT_M24_NV21;
+	else
+		format = GE2D_FORMAT_M24_YUV420;
+	if (tb_buff_wptr & 1) {
+		format = format
+			| (GE2D_FORMAT_M24_NV21B & (3 << 3));
+		context->config.h_scale_coef_type =
+			FILTER_TYPE_GAU0;
+		context->config.v_scale_coef_type =
+			FILTER_TYPE_GAU0_BOT;
+	} else {
+		format = format
+			| (GE2D_FORMAT_M24_NV21T & (3 << 3));
+		context->config.h_scale_coef_type =
+			FILTER_TYPE_GAU0;
+		context->config.v_scale_coef_type =
+			FILTER_TYPE_GAU0;
+	}
+	canvas_config(tb_canvas,
+		detect_buf[tb_buff_wptr].paddr,
+		TB_DETECT_W, TB_DETECT_H,
+		CANVAS_ADDR_NOWRAP,
+		CANVAS_BLKMODE_LINEAR);
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+
+	ge2d_config->alu_const_color = 0;
+	ge2d_config->bitmask_en = 0;
+	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
+	ge2d_config->dst_xy_swap = 0;
+
+	canvas_read(vf->canvas0Addr & 0xff, &cs0);
+	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
+	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+	ge2d_config->src_planes[0].addr = cs0.addr;
+	ge2d_config->src_planes[0].w = cs0.width;
+	ge2d_config->src_planes[0].h = cs0.height;
+	ge2d_config->src_planes[1].addr = cs1.addr;
+	ge2d_config->src_planes[1].w = cs1.width;
+	ge2d_config->src_planes[1].h = cs1.height;
+	ge2d_config->src_planes[2].addr = cs2.addr;
+	ge2d_config->src_planes[2].w = cs2.width;
+	ge2d_config->src_planes[2].h = cs2.height;
+	canvas_read(tb_canvas & 0xff, &cd);
+	ge2d_config->dst_planes[0].addr = cd.addr;
+	ge2d_config->dst_planes[0].w = cd.width;
+	ge2d_config->dst_planes[0].h = cd.height;
+	ge2d_config->src_key.key_enable = 0;
+	ge2d_config->src_key.key_mask = 0;
+	ge2d_config->src_key.key_mode = 0;
+	ge2d_config->src_para.canvas_index = vf->canvas0Addr;
+	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->src_para.format = format;
+	ge2d_config->src_para.fill_color_en = 0;
+	ge2d_config->src_para.fill_mode = 0;
+	ge2d_config->src_para.x_rev = 0;
+	ge2d_config->src_para.y_rev = 0;
+	ge2d_config->src_para.color = 0xffffffff;
+	ge2d_config->src_para.top = 0;
+	ge2d_config->src_para.left = 0;
+	ge2d_config->src_para.width = vf->width;
+	ge2d_config->src_para.height = vf->height / 2;
+	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.canvas_index = tb_canvas;
+
+	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.format =
+		GE2D_FORMAT_S8_Y | GE2D_LITTLE_ENDIAN;
+	ge2d_config->dst_para.fill_color_en = 0;
+	ge2d_config->dst_para.fill_mode = 0;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	ge2d_config->dst_para.color = 0;
+	ge2d_config->dst_para.top = 0;
+	ge2d_config->dst_para.left = 0;
+	ge2d_config->dst_para.width = TB_DETECT_W;
+	ge2d_config->dst_para.height = TB_DETECT_H;
+
+	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+		pr_err("++ge2d configing error.\n");
+		context->config.h_scale_coef_type =
+			h_scale_coef_type;
+		context->config.v_scale_coef_type =
+			v_scale_coef_type;
+		return -1;
+	}
+
+	stretchblt_noalpha(
+		context, 0, 0, vf->width,
+		vf->height / 2,
+		0, 0, TB_DETECT_W,
+		TB_DETECT_H);
+	codec_mm_dma_flush(
+		(void *)detect_buf[tb_buff_wptr].vaddr,
+		TB_DETECT_W * TB_DETECT_H,
+		DMA_FROM_DEVICE);
+	context->config.h_scale_coef_type =
+		h_scale_coef_type;
+	context->config.v_scale_coef_type =
+		v_scale_coef_type;
+	return 1;
+}
+#endif
+
 static int process_vf_deinterlace_nv21(struct vframe_s *vf,
 		struct ge2d_context_s *context,
 		struct config_para_ex_s *ge2d_config)
@@ -2535,8 +2709,18 @@ static int ppmgr_task(void *data)
 	struct ppframe_s *pp_local = NULL;
 	struct ge2d_context_s *context = create_ge2d_work_queue();
 	struct config_para_ex_s ge2d_config;
+#ifdef PPMGR_TB_DETECT
+	bool first_frame = true;
+	int first_frame_type = 0;
+	unsigned int skip_picture = 0;
+	u8 cur_invert = 0;
+	u8 last_type = 0;
+	u32 last_width = 0;
+	u32 last_height = 0;
+	u8 reset_tb = 0;
+	u32 init_mute = 0;
+#endif
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
-
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
@@ -2545,7 +2729,7 @@ static int ppmgr_task(void *data)
 	while (down_interruptible(&thread_sem) == 0) {
 		struct vframe_s *vf = NULL;
 
-		if (kthread_should_stop())
+		if (kthread_should_stop() || ppmgr_quit_flag)
 			break;
 
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
@@ -2585,8 +2769,7 @@ static int ppmgr_task(void *data)
 #endif
 		if (still_picture_notify) {
 			still_picture_notify = 0;
-			DisableVideoLayer()
-			;
+			/* DisableVideoLayer(); */
 
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
@@ -2605,8 +2788,7 @@ static int ppmgr_task(void *data)
 				vf = vfq_peek(&q_ready);
 			}
 			vfq_lookup_end(&q_ready);
-			EnableVideoLayer()
-			;
+			/* EnableVideoLayer(); */
 			up(&thread_sem);
 			continue;
 		}
@@ -2729,6 +2911,233 @@ static int ppmgr_task(void *data)
 					ppmgr_device.angle
 					+ ppmgr_device.orientation
 					+ vf->orientation) % 4;
+#ifdef PPMGR_TB_DETECT
+			if (vf->source_type !=
+				VFRAME_SOURCE_TYPE_OTHERS)
+				goto SKIP_DETECT;
+			if (first_frame) {
+				last_type = vf->type & VIDTYPE_TYPEMASK;
+				last_width = vf->width;
+				last_height = vf->height;
+				first_frame_type = last_type;
+				tb_first_frame_type = last_type;
+				first_frame = false;
+				reset_tb = 0;
+				skip_picture = 0;
+				cur_invert = 0;
+				init_mute = tb_init_mute;
+				atomic_set(&tb_skip_flag, 1);
+				atomic_set(&tb_reset_flag, 0);
+				if (ppmgr_device.tb_detect & 0xe)
+					PPMGRVPP_INFO(
+					"tb first frame type: %d\n",
+					last_type);
+			} else if ((last_type ==
+				(vf->type & VIDTYPE_TYPEMASK))
+				&& last_type) {
+				/* interlace seq changed */
+				first_frame_type =
+					vf->type & VIDTYPE_TYPEMASK;
+				tb_first_frame_type =
+					first_frame_type;
+				reset_tb = 1;
+				/* keep old invert */
+				if (ppmgr_device.tb_detect & 0xe)
+					PPMGRVPP_INFO(
+					"tb interlace seq change, old: %d, new: %d, invert: %d\n",
+					last_type,
+					first_frame_type,
+					cur_invert);
+			} else if ((last_type == 0) &&
+				((vf->type & VIDTYPE_TYPEMASK) != 0)) {
+				/* prog -> interlace changed */
+				first_frame_type =
+					vf->type & VIDTYPE_TYPEMASK;
+				tb_first_frame_type =
+					first_frame_type;
+				reset_tb = 1;
+				if (ppmgr_device.tb_detect & 0xe)
+					PPMGRVPP_INFO(
+					"tb prog -> interlace, new type: %d, invert: %d\n",
+					first_frame_type, cur_invert);
+				/* not invert */
+				cur_invert = 0;
+			} else if (((last_width != vf->width)
+				|| (last_height != vf->height))
+				&& ((vf->type & VIDTYPE_TYPEMASK) != 0)) {
+				/* size changed and next seq is interlace */
+				first_frame_type =
+					vf->type & VIDTYPE_TYPEMASK;
+				tb_first_frame_type =
+					first_frame_type;
+				reset_tb = 1;
+				/* keep old invert */
+				if (ppmgr_device.tb_detect & 0xe)
+					PPMGRVPP_INFO(
+					"tb size change new type: %d, invert: %d\n",
+					first_frame_type, cur_invert);
+			} else if ((last_type != 0) &&
+				((vf->type & VIDTYPE_TYPEMASK) == 0)) {
+				/* interlace -> prog changed */
+				if (ppmgr_device.tb_detect & 0xe)
+					PPMGRVPP_INFO(
+					"tb interlace -> prog, invert: %d\n",
+					cur_invert);
+				/* not invert */
+				cur_invert = 0;
+			}
+			last_type = vf->type & VIDTYPE_TYPEMASK;
+			last_width = vf->width;
+			last_height = vf->height;
+			if (ppmgr_device.tb_detect) {
+				ret = 0;
+				if (tb_buffer_status < 0)
+					goto SKIP_DETECT;
+				if (tb_buffer_status == 0)
+					if (tb_buffer_init() <= 0)
+						goto SKIP_DETECT;
+				ppmgr_device.tb_detect_buf_len = tb_buffer_len;
+				vf->type = (vf->type & ~TB_DETECT_MASK);
+				if (init_mute > 0) {
+					init_mute--;
+					atomic_set(&tb_skip_flag, 1);
+					goto SKIP_DETECT;
+				}
+				if (last_type == 0) {/* cur type is prog */
+					skip_picture++;
+					cur_invert = 0;
+					goto SKIP_DETECT;
+				}
+				vf->type |=
+					cur_invert <<
+					TB_DETECT_MASK_BIT;
+				if (reset_tb) {
+					/* wait tb task done */
+					while ((tb_buff_wptr >= 5)
+						&& (tb_buff_rptr
+						<= tb_buff_wptr - 5))
+						usleep_range(
+							4000, 5000);
+					atomic_set(&detect_status,
+						tb_idle);
+					tb_buff_wptr = 0;
+					tb_buff_rptr = 0;
+					atomic_set(
+						&tb_detect_flag,
+						TB_DETECT_NC);
+					atomic_set(&tb_reset_flag, 1);
+					atomic_set(&tb_skip_flag, 1);
+					skip_picture = 0;
+					reset_tb  = 0;
+					if (ppmgr_device.tb_detect & 0xc)
+						PPMGRVPP_INFO(
+						"tb detect reset once\n");
+				}
+				if ((atomic_read(&detect_status) == tb_done)
+					&& (skip_picture >=
+					ppmgr_device.tb_detect_period)
+					&& (last_type == first_frame_type)) {
+					int tbf_flag =
+						atomic_read(&tb_detect_flag);
+					u8 old_invert = cur_invert;
+					atomic_set(&detect_status, tb_idle);
+					tb_buff_wptr = 0;
+					tb_buff_rptr = 0;
+					skip_picture = 0;
+					if ((tbf_flag == TB_DETECT_TBF)
+						&& (first_frame_type ==
+						VIDTYPE_INTERLACE_TOP)) {
+						/* TBF sams as BFF */
+						vf->type |=
+							TB_DETECT_INVERT
+							<< TB_DETECT_MASK_BIT;
+						cur_invert = 1;
+					} else if ((tbf_flag == TB_DETECT_BFF)
+						&& (first_frame_type ==
+						VIDTYPE_INTERLACE_TOP)) {
+						vf->type |=
+							TB_DETECT_INVERT
+							<< TB_DETECT_MASK_BIT;
+						cur_invert = 1;
+					} else if ((tbf_flag == TB_DETECT_TFF)
+						&& (first_frame_type ==
+						VIDTYPE_INTERLACE_BOTTOM)) {
+						vf->type |=
+							TB_DETECT_INVERT
+							<< TB_DETECT_MASK_BIT;
+						cur_invert = 1;
+					} else if (tbf_flag != TB_DETECT_NC) {
+						cur_invert = 0;
+					}
+					vf->type = (vf->type & ~TB_DETECT_MASK);
+					vf->type |=
+						cur_invert <<
+						TB_DETECT_MASK_BIT;
+					if ((old_invert != cur_invert)
+						&& (ppmgr_device.tb_detect
+						& 0xe))
+						PPMGRVPP_INFO(
+						"tb detect flag: %d->%d, invert: %d->%d\n",
+						tb_detect_last_flag,
+						tbf_flag,
+						old_invert,
+						cur_invert);
+					else if ((tb_detect_last_flag
+						!= tbf_flag)
+						&& (ppmgr_device.tb_detect
+						& 0xc))
+						PPMGRVPP_INFO(
+						"tb detect flag %d->%d, invert: %d\n",
+						tb_detect_last_flag,
+						tbf_flag,
+						cur_invert);
+					tb_detect_last_flag = tbf_flag;
+					atomic_set(&tb_detect_flag,
+						TB_DETECT_NC);
+				}
+				if ((tb_buff_wptr == 0) &&
+					(last_type != first_frame_type)) {
+					skip_picture++;
+					atomic_set(&tb_skip_flag, 1);
+					if (ppmgr_device.tb_detect & 0xc)
+						PPMGRVPP_INFO(
+						"tb detect skip case1\n");
+					goto SKIP_DETECT;
+				}
+				if (tb_buff_wptr < tb_buffer_len) {
+					ret = process_vf_tb_detect(
+						vf, context, &ge2d_config);
+				} else {
+					if (ppmgr_device.tb_detect & 0xc)
+						PPMGRVPP_INFO(
+						"tb detect skip case2\n");
+					atomic_set(&tb_skip_flag, 1);
+					skip_picture++;
+				}
+				if (ret > 0) {
+					tb_buff_wptr++;
+					if ((tb_buff_wptr >= 5) &&
+						(atomic_read(&detect_status)
+						== tb_idle))
+						atomic_set(
+							&detect_status,
+							tb_running);
+					if (tb_buff_wptr >= 5)
+						up(&tb_sem);
+				}
+			} else {
+				reset_tb = 1;
+				skip_picture++;
+				cur_invert = 0;
+				if (init_mute > 0)
+					init_mute--;
+			}
+SKIP_DETECT:
+			if (skip_picture >
+				ppmgr_device.tb_detect_period)
+				skip_picture =
+					ppmgr_device.tb_detect_period;
+#endif
 			ret = process_vf_deinterlace(vf, context, &ge2d_config);
 			process_vf_rotate(
 					vf, context,
@@ -3112,6 +3521,9 @@ int start_ppmgr_task(void)
 	/*    if (get_cpu_type()>= MESON_CPU_TYPE_MESON6)*/
 	/*	    switch_mod_gate_by_name("ge2d", 1);*/
 	/*#endif*/
+#ifdef PPMGR_TB_DETECT
+	start_tb_task();
+#endif
 	if (!task) {
 		vf_local_init();
 		ppmgr_blocking = false;
@@ -3119,6 +3531,7 @@ int start_ppmgr_task(void)
 		ppmgr_reset_type = 0;
 		set_buff_change(0);
 		ppmgr_buffer_status = 0;
+		ppmgr_quit_flag = false;
 		task = kthread_run(ppmgr_task, 0, "ppmgr");
 	}
 	task_running = 1;
@@ -3127,9 +3540,15 @@ int start_ppmgr_task(void)
 
 void stop_ppmgr_task(void)
 {
+#ifdef PPMGR_TB_DETECT
+	stop_tb_task();
+#endif
 	if (task) {
-		send_sig(SIGTERM, task, 1);
+		/* send_sig(SIGTERM, task, 1); */
+		ppmgr_quit_flag = true;
+		up(&thread_sem);
 		kthread_stop(task);
+		ppmgr_quit_flag = false;
 		task = NULL;
 	}
 	task_running = 0;
@@ -3138,3 +3557,295 @@ void stop_ppmgr_task(void)
 	/*    switch_mod_gate_by_name("ge2d", 0);*/
 	/*#endif*/
 }
+
+#ifdef PPMGR_TB_DETECT
+static int tb_buffer_init(void)
+{
+	int i;
+	int flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_CMA_CLEAR;
+	if (tb_buffer_status)
+		return tb_buffer_status;
+
+	if (tb_canvas < 0)
+		tb_canvas =
+			canvas_pool_map_alloc_canvas("tb_detect");
+
+	if (tb_canvas < 0)
+		return -1;
+
+	if (tb_buffer_start == 0) {
+		if (!ppmgr_device.tb_detect_buf_len)
+			ppmgr_device.tb_detect_buf_len = 8;
+		tb_buffer_len = ppmgr_device.tb_detect_buf_len;
+		tb_buffer_size = TB_DETECT_H * TB_DETECT_W
+			* tb_buffer_len;
+		tb_buffer_size = PAGE_ALIGN(tb_buffer_size);
+		tb_buffer_start = codec_mm_alloc_for_dma(
+			"tb_detect",
+			tb_buffer_size/PAGE_SIZE, 0, flags);
+		PPMGRVPP_INFO("tb cma memory %x, size %x, item %d\n" ,
+			(unsigned)tb_buffer_start,
+			(unsigned)tb_buffer_size,
+			tb_buffer_len);
+		if (tb_buffer_start == 0) {
+			PPMGRVPP_ERR("tb cma memory config fail\n");
+			tb_buffer_status = -1;
+			return -1;
+		}
+		for (i = 0; i < tb_buffer_len; i++) {
+			detect_buf[i].paddr = tb_buffer_start +
+				TB_DETECT_H * TB_DETECT_W * i;
+			detect_buf[i].vaddr =
+				(ulong)phys_to_virt(detect_buf[i].paddr);
+			if (ppmgr_device.tb_detect & 0xc) {
+				PPMGRVPP_INFO(
+					"detect buff(%d) paddr: %lx, vaddr: %lx\n" ,
+					i,
+					detect_buf[i].paddr,
+					detect_buf[i].vaddr);
+			}
+		}
+	}
+	tb_buffer_status = 1;
+	return 1;
+}
+
+static int tb_buffer_uninit(void)
+{
+	if (tb_canvas >= 0)
+		canvas_pool_map_free_canvas(tb_canvas);
+	tb_canvas = -1;
+	if (tb_buffer_start) {
+		PPMGRVPP_INFO("tb cma free addr is %x, size is %x\n",
+			(unsigned)tb_buffer_start,
+			(unsigned)tb_buffer_size);
+		codec_mm_free_for_dma(
+			"tb_detect",
+			tb_buffer_start);
+		tb_buffer_start = 0;
+		tb_buffer_size = 0;
+	}
+	tb_buffer_status = 0;
+	return 0;
+}
+
+static void tb_detect_init(void)
+{
+	int val = 0;
+	sema_init(&tb_sem, val);
+	memset(detect_buf, 0, sizeof(detect_buf));
+	atomic_set(&detect_status, tb_idle);
+	atomic_set(&tb_detect_flag, TB_DETECT_NC);
+	atomic_set(&tb_reset_flag, 0);
+	atomic_set(&tb_skip_flag, 0);
+	tb_detect_last_flag = TB_DETECT_NC;
+	tb_buff_wptr = 0;
+	tb_buff_rptr = 0;
+	tb_buffer_status = 0;
+	tb_buffer_start = 0;
+	tb_buffer_size = 0;
+	tb_first_frame_type = 0;
+	tb_quit_flag = false;
+	tb_init_mute =
+		ppmgr_device.tb_detect_init_mute;
+}
+
+static int tb_task(void *data)
+{
+	int tbff_flag;
+	struct tbff_stats pReg;
+	ulong y5fld[5];
+	int is_top;
+	int inited = 0;
+	const char *detect_type[] = {"NC", "TFF", "BFF", "TBF"};
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	sched_setscheduler(current, SCHED_FIFO, &param);
+
+	if (gfunc)
+		gfunc->stats_init((&pReg), TB_DETECT_H, TB_DETECT_W);
+	allow_signal(SIGTERM);
+	while (down_interruptible(&tb_sem) == 0) {
+		if (kthread_should_stop() || tb_quit_flag)
+			break;
+		if (tb_buff_rptr == 0) {
+			if (atomic_read(&tb_reset_flag) != 0)
+				inited = 0;
+			atomic_set(&tb_reset_flag, 0);
+			if (gfunc)
+				gfunc->fwalg_init(inited);
+		}
+		inited = 1;
+		is_top = (tb_buff_rptr & 1) ? 0 : 1;
+		/* new -> old */
+		y5fld[0] = detect_buf[tb_buff_rptr + 4].vaddr;
+		y5fld[1] = detect_buf[tb_buff_rptr + 3].vaddr;
+		y5fld[2] = detect_buf[tb_buff_rptr + 2].vaddr;
+		y5fld[3] = detect_buf[tb_buff_rptr + 1].vaddr;
+		y5fld[4] = detect_buf[tb_buff_rptr].vaddr;
+		if (gfunc)
+			gfunc->stats_get(y5fld, &pReg);
+
+		is_top = is_top ^ 1;
+		tbff_flag = -1;
+		if (gfunc)
+			tbff_flag = gfunc->fwalg_get(
+				&pReg, is_top,
+				(tb_first_frame_type == 3) ? 0 : 1,
+				tb_buff_rptr,
+				atomic_read(&tb_skip_flag),
+				(ppmgr_device.tb_detect & 0x8) ? 1 : 0);
+
+		if (tb_buff_rptr == 0)
+			atomic_set(&tb_skip_flag, 0);
+
+		if ((tbff_flag < -1) || (tbff_flag > 2)) {
+			PPMGRVPP_ERR(
+				"get tb detect flag error: %d\n",
+				tbff_flag);
+		}
+
+		if ((tbff_flag == -1) && (gfunc))
+			tbff_flag =
+				gfunc->majority_get();
+
+		if (tbff_flag == -1)
+			tbff_flag =
+				TB_DETECT_NC;
+		else if (tbff_flag == 0)
+			tbff_flag =
+				TB_DETECT_TFF;
+		else if (tbff_flag == 1)
+			tbff_flag =
+				TB_DETECT_BFF;
+		else if (tbff_flag == 2)
+			tbff_flag =
+				TB_DETECT_TBF;
+		else
+			tbff_flag =
+				TB_DETECT_NC;
+		tb_buff_rptr++;
+		if ((tb_buff_rptr > tb_buffer_len - 5)
+			&& (atomic_read(&detect_status) == tb_running)) {
+			atomic_set(
+				&tb_detect_flag,
+				tbff_flag);
+			if (ppmgr_device.tb_detect & 0xc)
+				PPMGRVPP_INFO("get tb detect final flag: %s\n",
+					detect_type[tbff_flag]);
+			atomic_set(&detect_status, tb_done);
+		}
+	}
+	while (!kthread_should_stop())
+		usleep_range(9000, 10000);
+	tb_buffer_uninit();
+	return 0;
+}
+
+int start_tb_task(void)
+{
+	if (!tb_detect_task) {
+		tb_detect_init();
+		tb_detect_task = kthread_run(tb_task, 0, "tb_detect");
+	}
+	tb_task_running = 1;
+	return 0;
+}
+
+void stop_tb_task(void)
+{
+	int val = 0;
+	if (tb_detect_task) {
+		tb_quit_flag = true;
+		up(&tb_sem);
+		/* send_sig(SIGTERM, tb_detect_task, 1); */
+		kthread_stop(tb_detect_task);
+		tb_quit_flag = false;
+		sema_init(&tb_sem, val);
+		tb_detect_task = NULL;
+	}
+	tb_task_running = 0;
+}
+#endif
+
+void get_tb_detect_status(void)
+{
+#ifdef PPMGR_TB_DETECT
+	const char *tb_type[] = {"Prog", "Top", "N/C", "Bottom"};
+	const char *detect_type[] = {"NC", "TFF", "BFF", "TBF"};
+	const char *status_str[] = {"Idle", "Run", "Done", "N/C"};
+	u32 status = atomic_read(&detect_status);
+	u32 flag = atomic_read(&tb_detect_flag);
+	u32 reset_flag = atomic_read(&tb_reset_flag);
+	PPMGRVPP_INFO(
+		"T/B detect buffer addr: 0x%x, size: 0x%x\n",
+		(unsigned)tb_buffer_start,
+		(unsigned)tb_buffer_size);
+	PPMGRVPP_INFO(
+		"T/B detect canvas: %x, len: %d, buff status: %d\n",
+		(unsigned)tb_canvas,
+		tb_buffer_len,
+		(unsigned)tb_buffer_status);
+	PPMGRVPP_INFO(
+		"T/B detect buffer wptr: %d, rptr: %d, reset: %d\n",
+		tb_buff_wptr,
+		tb_buff_rptr,
+		reset_flag);
+	PPMGRVPP_INFO(
+		"T/B detect first frame type: %s, period: %d\n",
+		tb_type[tb_first_frame_type],
+		ppmgr_device.tb_detect_period);
+	PPMGRVPP_INFO(
+		"T/B detect status: %s, cur flag: %s, last flag: %s\n",
+		status_str[status],
+		detect_type[flag],
+		detect_type[tb_detect_last_flag]);
+	PPMGRVPP_INFO(
+		"T/B detect init mute is %d\n",
+		tb_init_mute);
+	PPMGRVPP_INFO(
+		"T/B detect tb_detect_task: %p, running: %d\n",
+		tb_detect_task,
+		tb_task_running);
+	PPMGRVPP_INFO(
+		"current T/B detect mode is %d\n",
+		ppmgr_device.tb_detect);
+#endif
+	return;
+}
+
+int RegisterTB_Function(struct TB_DetectFuncPtr *func, const char *ver)
+{
+	int ret = -1;
+#ifdef PPMGR_TB_DETECT
+	mutex_lock(&tb_mutex);
+	PPMGRVPP_INFO(
+		"RegisterTB_Function: gfunc %p, func: %p, ver:%s\n",
+		gfunc, func, ver);
+	if (!gfunc && func) {
+		gfunc = func;
+		ret = 0;
+	}
+	mutex_unlock(&tb_mutex);
+#endif
+	return ret;
+}
+EXPORT_SYMBOL(RegisterTB_Function);
+
+int UnRegisterTB_Function(struct TB_DetectFuncPtr *func)
+{
+	int ret = -1;
+#ifdef PPMGR_TB_DETECT
+	mutex_lock(&tb_mutex);
+	PPMGRVPP_INFO(
+		"UnRegisterTB_Function: gfunc %p, func: %p\n",
+		gfunc, func);
+	if (func && func == gfunc) {
+		gfunc = NULL;
+		ret = 0;
+	}
+	mutex_unlock(&tb_mutex);
+#endif
+	return ret;
+}
+EXPORT_SYMBOL(UnRegisterTB_Function);
+

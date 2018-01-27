@@ -105,6 +105,11 @@
 #define P_HHI_ADC_PLL_CNTL1			CBUS_REG_ADDR(HHI_ADC_PLL_CNTL1)
 #define HHI_GCLK_OTHER              0x1054
 
+/* adc pll ctl, atv demod & tvafe use the same adc module
+ * module index: atv demod:0x01; tvafe:0x2
+*/
+#define ADC_EN_ATV_DEMOD	0x1
+#define ADC_EN_TVAFE		0x2
 
 #define LOG_ADC_CAL
 /* #define LOG_VGA_EDID */
@@ -210,8 +215,11 @@ extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
 void vdac_enable(bool on, unsigned int module_sel);
+extern void adc_set_pll_reset(void);
+extern int tvafe_adc_get_pll_flag(void);
 
 extern struct mutex pll_mutex;
+extern bool tvafe_dbg_enable;
 
 #endif  /* _TVAFE_GENERAL_H */
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -35,15 +35,6 @@ static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
 	return pt->parent;
 }
 #endif
-
-static inline int kbase_fence_get_status(struct sync_fence *fence)
-{
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-	return fence->status;
-#else
-	return atomic_read(&fence->status);
-#endif
-}
 
 /*
  * Create a stream object.
@@ -96,13 +87,5 @@ struct sync_pt *kbase_sync_pt_alloc(struct sync_timeline *parent);
  * result can be negative to indicate error, any other value is interpreted as success.
  */
 void kbase_sync_signal_pt(struct sync_pt *pt, int result);
-
-/**
- * kbase_sync_status_string() - Get string matching @status
- * @status: Value of fence status.
- *
- * Return: Pointer to string describing @status.
- */
-const char *kbase_sync_status_string(int status);
 
 #endif

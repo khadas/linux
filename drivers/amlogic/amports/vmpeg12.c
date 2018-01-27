@@ -32,6 +32,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include "vdec_reg.h"
 #include "vmpeg12.h"
@@ -164,6 +165,7 @@ static DEFINE_SPINLOCK(lock);
 static u32 frame_rpt_state;
 
 static struct dec_sysinfo vmpeg12_amstream_dec_info;
+static struct vdec_info *gvs;
 
 /* for error handling */
 static s32 frame_force_skip_flag;
@@ -224,6 +226,8 @@ static void set_frame_info(struct vframe_s *vf)
 		vf->duration = frame_dur =
 			frame_rate_tab[(READ_VREG(MREG_SEQ_INFO) >> 4) & 0xf];
 	}
+
+	gvs->frame_dur = vf->duration;
 
 	ar_bits = READ_VREG(MREG_SEQ_INFO) & 0xf;
 
@@ -382,6 +386,9 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 						vf->duration >> 1 : 0;
 			}
 
+			/*count info*/
+			vdec_count_info(gvs, info & PICINFO_ERROR, offset);
+
 			vf->duration += vf->duration_pulldown;
 			vf->canvas0Addr = vf->canvas1Addr =
 						index2canvas(index);
@@ -396,6 +403,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				((first_i_frame_ready == 0)
 				 && ((PICINFO_TYPE_MASK & info) !=
 					 PICINFO_TYPE_I))) {
+				gvs->drop_frame_count++;
 				kfifo_put(&recycle_q,
 						  (const struct vframe_s *)vf);
 			} else {
@@ -468,6 +476,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				((first_i_frame_ready == 0)
 				 && ((PICINFO_TYPE_MASK & info) !=
 					 PICINFO_TYPE_I))) {
+				gvs->drop_frame_count++;
 				kfifo_put(&recycle_q,
 						  (const struct vframe_s *)vf);
 			} else {
@@ -505,10 +514,14 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			vf->pts_us64 = 0;
 			vf->type_original = vf->type;
 
+			/*count info*/
+			vdec_count_info(gvs, info & PICINFO_ERROR, offset);
+
 			if ((error_skip(info, vf)) ||
 				((first_i_frame_ready == 0)
 				 && ((PICINFO_TYPE_MASK & info) !=
 					PICINFO_TYPE_I))) {
+				gvs->drop_frame_count++;
 				kfifo_put(&recycle_q,
 					(const struct vframe_s *)vf);
 			} else {
@@ -673,17 +686,39 @@ static void vmpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmpeg12_dec_status(struct vdec_status *vstatus)
+int vmpeg12_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
 	if (frame_dur != 0)
-		vstatus->fps = 96000 / frame_dur;
+		vstatus->frame_rate = 96000 / frame_dur;
 	else
-		vstatus->fps = 96000;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = READ_VREG(AV_SCRATCH_C);
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+static int vmpeg12_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -969,15 +1004,12 @@ static s32 vmpeg12_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vmpeg12_dec_status);
-
 	return 0;
 }
 
 static int amvdec_mpeg12_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe start.\n");
 
@@ -993,8 +1025,14 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 	buf_start = pdata->mem_start;
 	buf_size = pdata->mem_end - pdata->mem_start + 1;
 
+	pdata->dec_status = vmpeg12_dec_status;
+
+	vmpeg12_vdec_info_init();
+
 	if (vmpeg12_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 init failed.\n");
+		kfree(gvs);
+		gvs = NULL;
 
 		return -ENODEV;
 	}
@@ -1037,6 +1075,9 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 	ccbuf_phyAddress = 0;
 	ccbuf_phyAddress_is_remaped_nocache = 0;
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 remove.\n");
+
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }

@@ -201,7 +201,7 @@ static unsigned int mode_menu(void)
 	unsigned int sel;
 
 	puts("Press <ENTER> to see video modes available, "
-	     "<SPACE> to continue, or wait 30 sec\n");
+	     "<SPACE> to continue, or wait 3 sec\n");
 
 	kbd_flush();
 	while (1) {

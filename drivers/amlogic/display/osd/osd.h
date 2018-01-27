@@ -49,6 +49,7 @@
 #define FBIOPUT_OSD_ROTATE_ON            0x4516
 #define FBIOPUT_OSD_ROTATE_ANGLE         0x4517
 #define FBIOPUT_OSD_SYNC_ADD             0x4518
+#define FBIOPUT_OSD_SYNC_RENDER_ADD      0x4519
 
 /* OSD color definition */
 #define KEYCOLOR_FLAG_TARGET  1
@@ -74,7 +75,7 @@
 #define OSD_RIGHT 1
 #define OSD_ORDER_01 1
 #define OSD_ORDER_10 2
-#define OSD_GLOBAL_ALPHA_DEF 0xff
+#define OSD_GLOBAL_ALPHA_DEF 0x100
 #define OSD_DATA_BIG_ENDIAN 0
 #define OSD_DATA_LITTLE_ENDIAN 1
 #define OSD_TC_ALPHA_ENABLE_DEF 0  /* disable tc_alpha */
@@ -162,6 +163,8 @@ enum osd_dev_e {
 enum reverse_info_e {
 	REVERSE_FALSE = 0,
 	REVERSE_TRUE,
+	REVERSE_X,
+	REVERSE_Y,
 	REVERSE_MAX
 };
 
@@ -178,6 +181,7 @@ enum hw_reg_index_e {
 	DISP_FREESCALE_ENABLE,
 	DISP_OSD_REVERSE,
 	DISP_OSD_ROTATE,
+	OSD_FIFO,
 	HW_REG_INDEX_MAX
 };
 
@@ -193,6 +197,8 @@ struct fb_geometry_s {
 	u32 height;
 	u32 canvas_idx;
 	u32 addr;
+	u32 xres;
+	u32 yres;
 };
 
 struct osd_scale_s {
@@ -226,6 +232,12 @@ struct osd_fence_map_s {
 	s32 in_fd;
 	s32 out_fd;
 	u32 val;
+	u32 ext_addr;
+	u32 format;
+	u32 width;
+	u32 height;
+	u32 op;
+	u32 reserve;
 	struct sync_fence *in_fence;
 	struct files_struct *files;
 };
@@ -249,9 +261,9 @@ struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
 	struct pandata_s scaledata[HW_OSD_COUNT];
-	struct pandata_s free_scale_data[HW_OSD_COUNT];
+	struct pandata_s free_src_data[HW_OSD_COUNT];
 	struct pandata_s free_dst_data[HW_OSD_COUNT];
-	struct pandata_s rotation_pandata[HW_OSD_COUNT];
+	/* struct pandata_s rotation_pandata[HW_OSD_COUNT]; */
 	struct pandata_s cursor_dispdata[HW_OSD_COUNT];
 
 	u32 gbl_alpha[HW_OSD_COUNT];
@@ -265,19 +277,18 @@ struct hw_para_s {
 	struct osd_scale_s scale[HW_OSD_COUNT];
 	struct osd_scale_s free_scale[HW_OSD_COUNT];
 	u32 free_scale_enable[HW_OSD_COUNT];
-	u32 free_scale_width[HW_OSD_COUNT];
-	u32 free_scale_height[HW_OSD_COUNT];
 	struct fb_geometry_s fb_gem[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_info[HW_OSD_COUNT];
+	const struct color_bit_define_s *color_backup[HW_OSD_COUNT];
 	u32 scan_mode;
 	u32 order;
 	struct osd_3d_mode_s mode_3d[HW_OSD_COUNT];
 	u32 updated[HW_OSD_COUNT];
-	u32 block_windows[HW_OSD_COUNT][HW_OSD_BLOCK_REG_COUNT];
+	/* u32 block_windows[HW_OSD_COUNT][HW_OSD_BLOCK_REG_COUNT]; */
 	u32 block_mode[HW_OSD_COUNT];
 	u32 free_scale_mode[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];
-	struct osd_rotate_s rotate[HW_OSD_COUNT];
+	/* struct osd_rotate_s rotate[HW_OSD_COUNT]; */
 	struct hw_list_s reg[HW_OSD_COUNT][HW_REG_INDEX_MAX];
 	u32 field_out_en;
 	u32 scale_workaround;
@@ -286,7 +297,9 @@ struct hw_para_s {
 	u32 angle[HW_OSD_COUNT];
 	u32 clone[HW_OSD_COUNT];
 	u32 bot_type;
+	u32 hw_reset_flag;
 	struct afbcd_data_s osd_afbcd[HW_OSD_COUNT];
+	u32 urgent[HW_OSD_COUNT];
 };
 
 #endif /* _OSD_H_ */

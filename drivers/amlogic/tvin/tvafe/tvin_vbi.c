@@ -21,6 +21,10 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/of_irq.h>
 
 /* #include <linux/mutex.h> */
 #include <linux/mm.h>
@@ -30,9 +34,6 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h> /* for virt_to_phys */
 
-/* Amlogic headers */
-#include <mach/am_regs.h>
-#include <mach/irqs.h>
 
 /* Local include */
 #include "tvafe_regs.h"
@@ -47,236 +48,241 @@
 
 static dev_t vbi_id;
 static struct class *vbi_clsp;
-static struct vbi_dev_s *vbi_dev;
 
 /******debug********/
-static int vbi_dbg_en;
+static unsigned int vbi_dbg_en;
 MODULE_PARM_DESC(vbi_dbg_en, "\n vbi_dbg_en\n");
-module_param(vbi_dbg_en, int, 0664);
+module_param(vbi_dbg_en, uint, 0664);
 
-static int capture_print_en;
+static bool capture_print_en;
 MODULE_PARM_DESC(capture_print_en, "\n capture_print_en\n");
-module_param(capture_print_en, int, 0664);
+module_param(capture_print_en, bool, 0664);
 
-static int data_print_en;
+static bool data_print_en;
 MODULE_PARM_DESC(data_print_en, "\n data_print_en\n");
-module_param(data_print_en, int, 0664);
+module_param(data_print_en, bool, 0664);
 
-static int bypass_slicer = 1;
-MODULE_PARM_DESC(bypass_slicer, "\n bypass_slicer\n");
-module_param(bypass_slicer, int, 0664);
+static unsigned int vcnt = 1;
 
-#if 0  /* not used now */
-static void vbi_enable_lines(unsigned short start_line,
-		unsigned short end_line, unsigned char data_type)
+static void vbi_hw_reset(struct vbi_dev_s *devp)
 {
-	int i = 0;
-
-    /*@todo*/
-	if (start_line < VBI_LINE_MIN) {
-		if (vbi_dbg_en)
-			pr_info("[vbi..]: start line abnormal!!! line:%d\n",
-			start_line);
-		start_line = VBI_LINE_MIN;
-	}
-
-	if (end_line > VBI_LINE_MAX) {
-		if (vbi_dbg_en)
-			pr_info("[vbi..]: end line abnormal!!! line:%d\n",
-			end_line);
-		end_line = VBI_LINE_MAX;
-	}
-
-	for (i = VBI_LINE_MIN; i <= VBI_LINE_MAX ; i++) {
-		if ((i < start_line) || (i > end_line)) {
-			W_APB_REG((CVD2_VBI_DATA_TYPE_LINE7 + i - VBI_LINE_MIN),
-				0);
-			continue;
-		}
-		if (i == VBI_LINE_MIN) {
-			W_APB_REG(CVD2_VBI_DATA_TYPE_LINE6, data_type);
-		} else {
-		W_APB_REG((CVD2_VBI_DATA_TYPE_LINE7 + i - VBI_LINE_MIN),
-			data_type);
-		if (vbi_dbg_en)
-			pr_info("[vbi..]: set line:%d type to 0x%x\n", i,
-				data_type);
-		}
-	}
+	W_APB_REG(ACD_REG_22, 0x82080000);
+	W_APB_REG(ACD_REG_22, 0x04080000);
+	/* after hw reset,bellow paramters must be reset!!! */
+	vcnt = 1;
+	devp->pac_addr = devp->pac_addr_start;
+	devp->current_pac_wptr = 0;
 }
-#endif
-#ifdef VBI_ON_M6TV
-static void vbi_hw_init(struct vbi_dev_s *devp)
+
+static void vbi_tt_start_code_set(struct vbi_dev_s *devp)
 {
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x11);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
-	W_APB_REG(CVD2_VSYNC_TIME_CONSTANT, 0x0000004a);
-	W_APB_REG(CVD2_VBI_CC_START, 0x00000054);
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000015);
+	unsigned int vbi_start_code = devp->vbi_start_code;
+	/* start code */
+	W_APB_REG(CVD2_VBI_TT_FRAME_CODE_CTL, vbi_start_code);
 }
-#else
+
+static void vbi_data_type_set(struct vbi_dev_s *devp)
+{
+	unsigned int vbi_data_type = devp->vbi_data_type;
+	/* data type */
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE6,  vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE7 , vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE8 , vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE9 , vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE10, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE11, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE12, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE13, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE14, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE15, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE16, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE18, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE19, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE22, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE24, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE25, vbi_data_type);
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE26, vbi_data_type);
+}
+
+static void vbi_dto_set(struct vbi_dev_s *devp)
+{
+	unsigned int dto_cc, dto_tt, dto_wss, dto_vps;
+
+	dto_cc = devp->vbi_dto_cc;
+	dto_tt = devp->vbi_dto_tt;
+	dto_wss = devp->vbi_dto_wss;
+	dto_vps = devp->vbi_dto_vps;
+	W_APB_REG(CVD2_VBI_CC_DTO_MSB,	     ((dto_cc>>8) & 0xff));
+	W_APB_REG(CVD2_VBI_CC_DTO_LSB,	     (dto_cc & 0xff));
+	W_APB_REG(CVD2_VBI_TT_DTO_MSB,	     ((dto_tt>>8) & 0xff));
+	W_APB_REG(CVD2_VBI_TT_DTO_LSB,	     (dto_tt & 0xff));
+	W_APB_REG(CVD2_VBI_WSS_DTO_MSB,	     ((dto_wss>>8) & 0xff));
+	W_APB_REG(CVD2_VBI_WSS_DTO_LSB,	     (dto_wss & 0xff));
+	W_APB_REG(CVD2_VBI_VPS_DTO_MSB,	     ((dto_vps>>8) & 0xff));
+	W_APB_REG(CVD2_VBI_VPS_DTO_LSB,	     (dto_vps & 0xff));
+
+}
+/* hw reset,config vbi line data type,start code,dto */
+static void vbi_slicer_type_set(struct vbi_dev_s *devp)
+{
+	enum vbi_slicer_e slicer_type = devp->slicer->type;
+	vbi_hw_reset(devp);
+	switch (slicer_type) {
+	case VBI_TYPE_USCC:
+		devp->vbi_data_type = VBI_DATA_TYPE_USCC;
+		devp->vbi_start_code = VBI_START_CODE_USCC;
+		devp->vbi_dto_cc = VBI_DTO_USCC;
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21,
+			VBI_DATA_TYPE_USCC);
+		break;
+	case VBI_TYPE_EUROCC:
+		devp->vbi_data_type = VBI_DATA_TYPE_EUROCC;
+		devp->vbi_start_code = VBI_START_CODE_EUROCC;
+		devp->vbi_dto_cc = VBI_DTO_EURCC;
+		/*line18 for PAL M*/
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE18,
+			VBI_DATA_TYPE_EUROCC);
+		/*line22 for PAL B,D,G,H,I,N,CN*/
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE22,
+			VBI_DATA_TYPE_EUROCC);
+		break;
+	case VBI_TYPE_VPS:
+		devp->vbi_data_type = VBI_DATA_TYPE_VPS;
+		devp->vbi_start_code = VBI_START_CODE_VPS;
+		devp->vbi_dto_vps = VBI_DTO_VPS;
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE16, VBI_DATA_TYPE_VPS);
+		break;
+	case VBI_TYPE_TT_625A:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_625A;
+		devp->vbi_start_code = VBI_START_CODE_TT_625A_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT625A;
+		break;
+	case VBI_TYPE_TT_625B:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_625B;
+		devp->vbi_start_code = VBI_START_CODE_TT_625B_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT625B;
+		break;
+	case VBI_TYPE_TT_625C:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_625B;
+		devp->vbi_start_code = VBI_START_CODE_TT_625C_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT625C;
+		break;
+	case VBI_TYPE_TT_625D:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_625D;
+		devp->vbi_start_code = VBI_START_CODE_TT_625D_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT625D;
+		break;
+	case VBI_TYPE_TT_525B:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_525B;
+		devp->vbi_start_code = VBI_START_CODE_TT_525B_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT525B;
+		break;
+	case VBI_TYPE_TT_525C:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_525C;
+		devp->vbi_start_code = VBI_START_CODE_TT_525C_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT525C;
+		break;
+	case VBI_TYPE_TT_525D:
+		devp->vbi_data_type = VBI_DATA_TYPE_TT_525D;
+		devp->vbi_start_code = VBI_START_CODE_TT_525D_REVERSE;
+		devp->vbi_dto_tt = VBI_DTO_TT525D;
+		break;
+	case VBI_TYPE_WSS625:
+		devp->vbi_data_type = VBI_DATA_TYPE_WSS625;
+		devp->vbi_start_code = VBI_START_CODE_WSS625;
+		devp->vbi_dto_wss = VBI_DTO_WSS625;
+		/*line17 for PAL M*/
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17,
+			VBI_DATA_TYPE_WSS625);
+		/*line23 for PAL B,D,G,H,I,N,CN*/
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23,
+			VBI_DATA_TYPE_WSS625);
+		break;
+	case VBI_TYPE_WSSJ:
+		devp->vbi_data_type = VBI_DATA_TYPE_WSSJ;
+		devp->vbi_start_code = VBI_START_CODE_WSSJ;
+		devp->vbi_dto_wss = VBI_DTO_WSSJ;
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20,
+			VBI_DATA_TYPE_WSSJ);
+		break;
+	case VBI_TYPE_NULL:
+		devp->vbi_dto_cc = VBI_DTO_USCC;
+		devp->vbi_dto_wss = VBI_DTO_WSS625;
+		devp->vbi_dto_tt = VBI_DTO_TT625B;
+		devp->vbi_dto_vps = VBI_DTO_VPS;
+		devp->vbi_data_type = VBI_DATA_TYPE_NULL;
+		vbi_data_type_set(devp);
+		break;
+	default:/*for tt625b+wss625+vps*/
+		devp->vbi_dto_cc = VBI_DTO_USCC;
+		devp->vbi_dto_wss = VBI_DTO_WSS625;
+		devp->vbi_dto_tt = VBI_DTO_TT625B;
+		devp->vbi_dto_vps = VBI_DTO_VPS;
+		W_APB_REG(CVD2_VBI_TT_FRAME_CODE_CTL,
+			VBI_START_CODE_TT_625B_REVERSE);
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE16, VBI_DATA_TYPE_VPS);
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20,
+			VBI_DATA_TYPE_TT_625B);
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21,
+			VBI_DATA_TYPE_TT_625B);
+		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23,
+			VBI_DATA_TYPE_WSS625);
+		break;
+	}
+	if ((slicer_type >= VBI_TYPE_TT_625A) &&
+		(slicer_type <= VBI_TYPE_TT_525D)) {
+		vbi_data_type_set(devp);
+		vbi_tt_start_code_set(devp);
+	}
+	vbi_dto_set(devp);
+}
+
 static void vbi_hw_init(struct vbi_dev_s *devp)
 {
 	/* vbi memory setting */
-	W_APB_REG(ACD_REG_2F, devp->mem_start >> 3);
-	W_APB_BIT(ACD_REG_21, ((devp->mem_size >> 3) - 1), 16, 16);
+	memset(devp->pac_addr_start, 0, devp->mem_size);
+	W_APB_REG(ACD_REG_2F, devp->mem_start >> 4);
+	W_APB_BIT(ACD_REG_21, ((devp->mem_size >> 4) - 1), 16, 16);
 	W_APB_BIT(ACD_REG_21, 0, AML_VBI_START_ADDR_BIT,
 		AML_VBI_START_ADDR_WID);
-
-#if defined(VBI_CC_SUPPORT)
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x11);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
-	W_APB_REG(CVD2_VSYNC_TIME_CONSTANT, 0x0000004a);
-	W_APB_REG(ACD_REG_22, 0x82080000);
-	/* manuel reset vbi */
-	W_APB_REG(ACD_REG_22, 0x04080000);
-	/* vbi reset release, vbi agent enable */
-	W_APB_REG(CVD2_VBI_CC_START, 0x00000054);
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000015);
-#endif
-
-#if defined(VBI_TT_SUPPORT)
-	/* 625B */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE6,  0x66);
-	/* > /sys/class/amdbg/reg             //  0x6    0x6 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE7 , 0x66);
-	/* > /sys/class/amdbg/reg             //  0x7    0x7 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE8 , 0x66);
-	/* > /sys/class/amdbg/reg             //  0x8    0x8 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE9 , 0x66);
-	/* > /sys/class/amdbg/reg             //  0x9    0x9 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE10, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xa    0xa */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE11, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xb    0xb */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE12, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xc    0xc */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE13, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xd    0xd */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE14, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xe    0xe */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE15, 0x66);
-	/* > /sys/class/amdbg/reg             //  0xf    0xf */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE16, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x10   0x10 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x11   0x11 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE18, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x12   0x12 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE19, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x13   0x13 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x14   0x14 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x15   0x15 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE22, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x16   0x16 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x17   0x17 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE24, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x18   0x18 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE25, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x19   0x19 */
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE26, 0x66);
-	/* > /sys/class/amdbg/reg             //  0x20   0x20 */
-
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
-	W_APB_REG(CVD2_VSYNC_TIME_CONSTANT, 0x0000004a);
-	W_APB_REG(ACD_REG_22, 0x82080000);
-	/* manuel reset vbi */
-	W_APB_REG(ACD_REG_22, 0x04080000);
-	/* vbi reset release, vbi agent enable */
-
-	W_APB_REG(CVD2_VBI_TT_FRAME_CODE_CTL, 0x27);
-
-	W_APB_REG(CVD2_VBI_TT_DTO_MSB,       0x0d);
-	/* echo wa 0x185b 0x0d > /sys/class/amdbg/reg */
-	W_APB_REG(CVD2_VBI_TT_DTO_LSB,       0xd6);
-	/* echo wa 0x185c 0xd6 > /sys/class/amdbg/reg */
-
-	W_APB_REG(CVD2_VBI_FRAME_START,      0xaa);
-	/* echo wa 0x1861 0xaa > /sys/class/amdbg/reg */
-	W_APB_REG(CVD2_VBI_TT_START,         0x64);
-	/* echo wa 0x18f7 0x64 > /sys/class/amdbg/reg */
-
+	/*disable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL,   0x14);
-	/* echo wa 0x1840 0x14 > /sys/class/amdbg/reg */
+	/* config vbi start line */
+	W_APB_REG(CVD2_VBI_CC_START,	     VBI_START_CC);
+	W_APB_REG(CVD2_VBI_WSS_START,	     VBI_START_WSS);
+	W_APB_REG(CVD2_VBI_TT_START,	     VBI_START_TT);
+	W_APB_REG(CVD2_VBI_VPS_START,	     VBI_START_VPS);
+	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
+	/* be care the polarity bellow!!! */
+	W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
+	/*enable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL,   0x15);
-	/* echo wa 0x1840 0x15 > /sys/class/amdbg/reg */
-
-#endif
-	pr_info("[vbi..] %s: vbi hw init.\n", __func__);
+	pr_info("[vbi..] %s: vbi hw init done.\n", __func__);
 }
-#endif
-static inline int odd_parity_check(int b)
-{
-	int chk, k;
-
-	chk = (b & 1);
-	for (k = 0; k < 7; k++) {
-		b >>= 1;
-		chk ^= (b & 1);
-	}
-	return chk & 1;
-}
-
-#ifdef VBI_BUF_DIV_EN
 #define vbi_get_byte(rdptr, total_buffer, retbyte) \
-{\
-	retbyte = *(rdptr); \
-	rdptr += 1; \
-}
-#else
-#if 1/* for new mem operation */
-#define vbi_get_byte(rdptr, total_buffer, devp, retbyte) \
-{\
-	retbyte = *(rdptr); \
-	rdptr += 1; \
-	if (rdptr > devp->pac_addr_end) \
-		rdptr = devp->pac_addr_start; \
-	total_buffer--; \
-}
-
-#else
-#define vbi_get_byte(rdptr, total_buffer, devp, retbyte) \
-{\
-	retbyte = ioread8(rdptr); \
-	rdptr += 1; \
-	if (rdptr > devp->pac_addr_end) \
-		rdptr = devp->pac_addr_start; \
-	total_buffer--; \
-}
-#endif
-#endif
+	do {\
+		retbyte = *(rdptr); \
+		rdptr += 1; \
+	} while (0)
 #define vbi_skip_bytes(rdptr, total_buffer, devp, nbytes) \
-{\
-	rdptr += nbytes;\
-	if (rdptr > devp->pac_addr_end)\
-		rdptr = devp->pac_addr_start;\
-	total_buffer -= nbytes;\
-}
-
-#define vbi_get_last_byte_addr(rdptr, devp, nbytes, retaddr)  \
-{\
-	uint i;\
-	u8 *p = rdptr;\
-	for (i = 0; i < nbytes; i++) {\
-		p -= 1;\
-		if (p < devp->pac_addr_start)\
-			p = devp->pac_addr_end;\
-	} \
-	retaddr = p;\
-}
+	do {\
+		rdptr += nbytes;\
+		if (rdptr > devp->pac_addr_end)\
+			rdptr = devp->pac_addr_start;\
+		total_buffer -= nbytes;\
+	} while (0)
 
 ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
 {
 	ssize_t free;
 
 	free = rbuf->pread - rbuf->pwrite;
-
 	if (free <= 0) {
 		free += rbuf->size;
 		if (capture_print_en)
@@ -288,11 +294,12 @@ ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
 
 
 ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
-		const struct cc_data_s *buf, size_t len)
+		const struct vbi_data_s *buf, size_t len)
 {
 	size_t todo = len;
 	size_t split;
-	/* unsigned int i; */
+	if (rbuf->data_wmode)
+		len = rbuf->size;
 	split =
 	(rbuf->pwrite + len > rbuf->size) ? rbuf->size - rbuf->pwrite : 0;
 
@@ -301,11 +308,10 @@ ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 			pr_info("[vbi..] %s: pwrite: %6d\n",
 			__func__, rbuf->pwrite);
 		memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf, split);
-		buf += split;
 		todo -= split;
 		rbuf->pwrite = 0;
 	}
-	memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf, todo);
+	memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf+split, todo);
 	rbuf->pwrite = (rbuf->pwrite + todo) % rbuf->size;
 
 	return len;
@@ -313,7 +319,7 @@ ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 
 
 static int vbi_buffer_write(struct vbi_ringbuffer_s *buf,
-		   const struct cc_data_s *src, size_t len)
+		   const struct vbi_data_s *src, size_t len)
 {
 	ssize_t free;
 
@@ -332,7 +338,7 @@ static int vbi_buffer_write(struct vbi_ringbuffer_s *buf,
 	free = vbi_ringbuffer_free(buf);
 	if (len > free) {
 		if (capture_print_en)
-			pr_info("[vbi..] %s: buffer overflow ,len: %6d, free: %6d\n",
+			pr_info("[vbi..] %s: buffer overflow ,len: %6Zd, free: %6Zd\n",
 			__func__, len, free);
 		return -EOVERFLOW;
 	}
@@ -340,13 +346,9 @@ static int vbi_buffer_write(struct vbi_ringbuffer_s *buf,
 	return vbi_ringbuffer_write(buf, src, len);
 }
 
-#ifdef VBI_IRQ_EN
 static irqreturn_t vbi_isr(int irq, void *dev_id)
 {
 	ulong flags;
-	#ifdef VBI_ON_M6TV
-	unsigned int n, m;
-	#endif
 	struct vbi_dev_s *devp = (struct vbi_dev_s *)dev_id;
 	spin_lock_irqsave(&devp->vbi_isr_lock, flags);
 	if (devp->vs_delay > 0) {
@@ -354,340 +356,166 @@ static irqreturn_t vbi_isr(int irq, void *dev_id)
 		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 		return IRQ_HANDLED;
 	}
-	devp->vbi_start = true;
 	if (devp->vbi_start == false) {
 		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 		return IRQ_HANDLED;
 	}
-	/* Mark tasklet as pending */
-
-#ifdef VBI_ON_M6TV
-	m = 1024;
-	/* if(R_APB_BIT(CVD2_VBI_DATA_STATUS, 0,1)){ */
-	while (!(R_APB_BIT(CVD2_VBI_DATA_STATUS, 0, 1))) {
-		if (!(m--)) {
-			pr_err("[vbi..] %s: wait vbi data ready timeout.\n",
-				__func__);
-			spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-			return IRQ_HANDLED;
-			/* mark avoid app get null pointer */
-		}
-		n = 10240;
-		while (n--)
-			;
-	}
-	*(devp->pac_addr) = R_APB_BIT(CVD2_VBI_CC_DATA1,
-						CC_DATA0_BIT, CC_DATA0_WID);
-	devp->pac_addr++;
-	*(devp->pac_addr) = R_APB_BIT(CVD2_VBI_CC_DATA2,
-						CC_DATA1_BIT, CC_DATA1_WID);
-	W_APB_BIT(CVD2_VBI_CC_DATA2, 1, 2, 1);
-	W_APB_BIT(CVD2_VBI_CC_DATA2, 0, 2, 1);
-	if ((devp->pac_addr+2) >= devp->pac_addr_end)
-		devp->pac_addr = devp->pac_addr_start;
-	else
-		devp->pac_addr++;
-	tasklet_schedule(&vbi_dev->tsklt_slicer);
-#else
-	/* Mark tasklet as pending */
-	tasklet_schedule(&vbi_dev->tsklt_slicer);
-#endif
-	/* tasklet_schedule(&vbi_dev->tsklt_slicer); */
-
+	if (devp->tasklet_enable)
+		tasklet_schedule(&devp->tsklt_slicer);
 	spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-
 	return IRQ_HANDLED;
 }
-#else
-/* kuka add begin */
-void vbi_timer_handler(unsigned long dev_id)
+static unsigned int vbi_vcnt_search(struct vbi_dev_s *devp)
 {
-	ulong flags;
-	struct vbi_dev_s *devp = (struct vbi_dev_s *)dev_id;
-	devp->timer.expires = jiffies + VBI_TIMER_INTERVAL;
-	add_timer(&devp->timer);
-
-	spin_lock_irqsave(&devp->vbi_isr_lock, flags);
-	if (devp->vs_delay > 0) {
-		devp->vs_delay--;
-		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-		return;
+	unsigned char *rptr = devp->pac_addr;
+	unsigned int size =  devp->mem_size;
+	unsigned int i, j;
+	unsigned char burst_data[VBI_WRITE_BURST_BYTE] = {0};
+	unsigned char burst_data_vcnt[VBI_WRITE_BURST_BYTE] = {0};
+	unsigned int match_cnt, ret;
+	ret = 0;
+	for (i = 0; i < VBI_WRITE_BURST_BYTE; i++) {
+		burst_data_vcnt[i] = 0;
+		burst_data[i] = 0;
 	}
-	devp->vbi_start = true;
-	if (devp->vbi_start == false) {
-		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-		return;
+	burst_data_vcnt[0] = vcnt&0xff;
+	burst_data_vcnt[1] = (vcnt >> 8)&0xff;
+	for (i = 0; i < size; i += VBI_WRITE_BURST_BYTE) {
+		if (rptr >= devp->pac_addr_end + 1)
+			rptr = devp->pac_addr_start;
+		match_cnt = 0;
+		for (j = 0; j < VBI_WRITE_BURST_BYTE; j++) {
+			burst_data[j] = *(rptr+i+j);
+			if (burst_data[j] != burst_data_vcnt[j]) {
+				match_cnt = 0;
+				break;
+			} else {
+				match_cnt++;
+			}
+		}
+		if (match_cnt == VBI_WRITE_BURST_BYTE)
+			break;
 	}
-	#ifdef VBI_ON_M6TV
-	if (R_APB_BIT(CVD2_VBI_DATA_STATUS, 0, 1)) {
-		*(devp->pac_addr) = R_APB_BIT(CVD2_VBI_CC_DATA1,
-						CC_DATA0_BIT, CC_DATA0_WID);
-		devp->pac_addr++;
-		*(devp->pac_addr) = R_APB_BIT(CVD2_VBI_CC_DATA2,
-						CC_DATA1_BIT, CC_DATA1_WID);
-		W_APB_BIT(CVD2_VBI_CC_DATA2, 1, 2, 1);
-		W_APB_BIT(CVD2_VBI_CC_DATA2, 0, 2, 1);
-		if ((devp->pac_addr+2) >= devp->pac_addr_end)
-			devp->pac_addr = devp->pac_addr_start;
-		else
-			devp->pac_addr++;
-		tasklet_schedule(&vbi_dev->tsklt_slicer);
+	if (vcnt == 0xffff)
+		vcnt = 1;
+	else
+		vcnt++;
+	if ((i < size) && i >= VBI_WRITE_BURST_BYTE &&
+		match_cnt == VBI_WRITE_BURST_BYTE) {
+		ret = i + VBI_WRITE_BURST_BYTE;
+		return ret;
+	} else {
+		return ret;
 	}
-	#else
-	/* Mark tasklet as pending */
-	tasklet_schedule(&vbi_dev->tsklt_slicer);
-	#endif
-	spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-
-	return;
 }
-/* kuka add end */
-#endif
-#ifdef VBI_ON_M6TV
 static void vbi_slicer_task(unsigned long arg)
 {
 	struct vbi_dev_s *devp = (struct vbi_dev_s *)arg;
-	struct cc_data_s sliced_data;
-	if (data_print_en)
-		pr_info("[vbi..]: read cc data:0x%x;0x%x ...\n",
-				*(devp->pac_addr-2), *(devp->pac_addr-1));
-	sliced_data.b[0] = *(devp->pac_addr-2);
-	sliced_data.b[1] = *(devp->pac_addr-1);
-	if ((devp->pac_addr+1) > devp->pac_addr_end)
-		devp->pac_addr = devp->pac_addr_start;
-	vbi_buffer_write(&devp->slicer->buffer, &sliced_data, 2);
-	if (devp->slicer->buffer.pread != devp->slicer->buffer.pwrite)
-		wake_up(&devp->slicer->buffer.queue);
-
-	return;
-}
-#else
-static void vbi_slicer_task(unsigned long arg)
-{
-	struct vbi_dev_s *devp = (struct vbi_dev_s *)arg;
+	struct vbi_data_s vbi_data;
 	unsigned char rbyte = 0;
 	unsigned short pre_val = 0;
 	int i = 0;
-	int bytes_buffer = 0, bytes_buf_backup = 0;
-	unsigned char *current_pac_addr, *wr_addr, *rptr, *sync_addr, *addr;
-	unsigned char wr_burst = VBI_WRITE_BURST_BYTE;
-	uint sync_code = (uint)-1;
-	struct cc_data_s sliced_data;
+	unsigned char *local_rptr = NULL;
+	unsigned int bytes_buffer, bytes_reserve, bytes_buffer_pre;
+	unsigned char *current_pac_addr, *rptr;
+	unsigned int sync_code = 0;
 	unsigned int len;
 	if (devp->vbi_start == false)
 		return;
 	rptr = devp->pac_addr;  /* backup package data pointer */
-	devp->current_pac_wptr = R_APB_REG(ACD_REG_0C);
-	if (devp->current_pac_wptr != 0)
-		current_pac_addr = devp->pac_addr_start +
-		(devp->current_pac_wptr<<3) - devp->mem_start;
-	else
-		current_pac_addr = devp->pac_addr_start;
-
-	if (devp->last_pac_wptr != devp->current_pac_wptr) {
-		/* Go back 8 BEATS!
-		Don't remove this if running with > 1 BEAT VBI burst. */
-		vbi_get_last_byte_addr(current_pac_addr,
-		devp, wr_burst, wr_addr)
-		/* if (vbi_dbg_en) */
-		/* pr_info("[vbi..]: Start rptr:0x%p, current_pac_addr:0x%p ,
-		wr_addr:0x%p...\n", rptr, current_pac_addr, wr_addr); */
-	} else {
-		wr_addr = current_pac_addr;
-		if (vbi_dbg_en)
-			pr_info("[vbi..]: last_wptr == current_wptr:0x%x ...\n",
-			devp->current_pac_wptr);
-	}
-	devp->last_pac_wptr = devp->current_pac_wptr;  /* backup current wptr */
-
 	/* get tatal bytes */
-	bytes_buffer = (wr_addr >= devp->pac_addr) ?
-	(wr_addr - devp->pac_addr) :
-	((devp->mem_size + wr_addr) - devp->pac_addr);
-	#ifdef VBI_BUF_DIV_EN
-	memcpy(devp->pac_addr_end + 1, rptr, bytes_buffer);
-	unsigned char *local_rptr = devp->pac_addr_end + 1;
-	#endif
-	/* wordsInBuffer >>=3; /* in 8 bytes word*/ */
+	bytes_buffer = vbi_vcnt_search(devp);
 	if (bytes_buffer < VBI_WRITE_BURST_BYTE) {
 		if (vbi_dbg_en)
-			pr_info("[vbi..]: over range bytes_buffer:0x%x, wr_addr:0x%p,rptr:0x%p ... ...\n",
-			bytes_buffer, wr_addr, rptr);
+			pr_info("[vbi..]: no enough data bytes_buffer:0x%x, rptr:0x%p ... ...\n",
+			bytes_buffer, rptr);
 		goto err_exit;
 	}
-	bytes_buffer -= VBI_WRITE_BURST_BYTE;/* ??? */
+	devp->current_pac_wptr = devp->mem_start + (devp->pac_addr -
+		devp->pac_addr_start) + bytes_buffer;
+	/*reg ACD_REG_0C is not used ?!! hope add in next ic!!*/
+	/*devp->current_pac_wptr = R_APB_REG(ACD_REG_0C);*/
+	if (devp->current_pac_wptr != 0 &&
+		devp->current_pac_wptr > devp->mem_start)
+		current_pac_addr = devp->pac_addr_start +
+			(devp->current_pac_wptr - devp->mem_start);
+	else
+		current_pac_addr = devp->pac_addr_start;
+	bytes_reserve = devp->pac_addr_end - devp->pac_addr + 1;
+
+	if (bytes_buffer < bytes_reserve)
+		memcpy(devp->pac_addr_end + 1, rptr, bytes_buffer);
+	else {
+		bytes_buffer_pre = bytes_buffer - bytes_reserve;
+		memcpy(devp->pac_addr_end + 1, rptr, bytes_reserve);
+		memcpy(devp->pac_addr_end + 1 + bytes_reserve,
+			devp->pac_addr_start, bytes_buffer_pre);
+	}
+	local_rptr = devp->pac_addr_end + 1;
 	if (vbi_dbg_en)
-		pr_info("[vbi..]: Start, bytes_buffer:%d, rptr:0x%p, wr_addr:0x%p, current_pac_addr:0x%p ...\n",
-		bytes_buffer, rptr, wr_addr, current_pac_addr);
-	while (bytes_buffer >= -3) {
-		#ifdef VBI_BUF_DIV_EN
-		vbi_get_byte(local_rptr, bytes_buffer, rbyte)
-		vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-		#else
-		vbi_get_byte(rptr, bytes_buffer, devp, rbyte)
-		#endif
+		pr_info("[vbi..]: Start parsing, bytes_buffer:%d, rptr:0x%p...\n",
+		bytes_buffer, rptr);
+	while (bytes_buffer) {
+		vbi_get_byte(local_rptr, bytes_buffer, rbyte);
+		vbi_skip_bytes(rptr, bytes_buffer, devp, 1);
 		sync_code <<= 8;
 		sync_code |= rbyte;
-
-		if ((sync_code & 0xFFFFFF) != 0x00FFFF) {
-			if ((0 == rbyte) && (bytes_buffer < -2)) {
-
-				vbi_get_last_byte_addr(rptr, devp, 1,
-					devp->pac_addr)
-				/* if(vbi_dbg_en) */
-				/* pr_info("[vbi..]:  PRE1 rptr:%p=0x%x,
-				pac_addr:%p ... ...\n",
-				rptr,rbyte, devp->pac_addr); */
-
-				goto err_exit;
-			} else if ((0xFF == rbyte) && (bytes_buffer < -3)) {
-				vbi_get_last_byte_addr(rptr, devp, 2,
-					devp->pac_addr)
-				/* if (vbi_dbg_en) */
-				/* pr_info("[vbi..]: PRE2 rptr:%p=0x%x,
-				pac_addr:%p ... ...\n",
-				rptr,rbyte, devp->pac_addr); */
-
-				goto err_exit;
-			} else {
-				/* if (vbi_dbg_en && rbyte != 0) */
-				/* pr_info("[vbi..]:
-				not find PRE,bytes_buffer:%d rptr:%p,
-				val:%x, pac_addr:%p ... ...\n", bytes_buffer,
-				rptr,rbyte, devp->pac_addr); */
-				continue;
-			}
-		}
-		vbi_get_last_byte_addr(rptr, devp, 3, sync_addr)
-
-		/* if we don't have packet ID and length
-		byte in the buffer then wait for next time */
-		if (bytes_buffer < -3) {
-			devp->pac_addr = sync_addr;
-			if (vbi_dbg_en)
-				pr_info("[vbi..]: wait next vs pac; pac_addr:%p ... ...\n",
-			devp->pac_addr);
-			goto err_exit;
-		}
-		#ifdef VBI_BUF_DIV_EN
-		vbi_get_byte(local_rptr, bytes_buffer, rbyte)  /* status */
-		vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-		#else
-		vbi_get_byte(rptr, bytes_buffer, devp, rbyte)
-		#endif
-		sliced_data.vbi_type = (rbyte>>1) & 0x7;
-		sliced_data.field_id = rbyte & 1;
+		if ((sync_code & 0xFFFFFF) != 0x00FFFF)
+			continue;
+		/* vbi_type & field_id */
+		vbi_get_byte(local_rptr, bytes_buffer, rbyte);
+		vbi_skip_bytes(rptr, bytes_buffer, devp, 1);
+		vbi_data.vbi_type = (rbyte>>1) & 0x7;
+		vbi_data.field_id = rbyte & 1;
 	#if defined(VBI_TT_SUPPORT)
-		sliced_data->tt_sys = rbyte >> 5;
+		vbi_data.tt_sys = rbyte >> 5;
 	#endif
-		if (sliced_data.vbi_type > MAX_PACKET_TYPE) {
-			vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-			if (vbi_dbg_en)
-				pr_info("[vbi..]: invalid pac type, go on; pac_addr:%p ... ...\n",
-			devp->pac_addr);
+		if (vbi_data.vbi_type > MAX_PACKET_TYPE) {
+			pr_info("[vbi..]: unsupport vbi_type_id:%d\n",
+				vbi_data.vbi_type);
 			continue;
 		}
-		#ifdef VBI_BUF_DIV_EN
-		vbi_get_byte(local_rptr, bytes_buffer, rbyte)
 		/* byte counter */
-		vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-		#else
-		vbi_get_byte(rptr, bytes_buffer, devp, rbyte)
-		#endif
-		/* check range by byte counter */
-		bytes_buf_backup = bytes_buffer;
-		addr = rptr;
-		vbi_skip_bytes(rptr, bytes_buffer, devp, rbyte)
-		if (bytes_buffer < -3) {
-			devp->pac_addr = sync_addr;
-			if (vbi_dbg_en)
-				pr_info("[vbi..]: wait next vs pac; pac_addr:%p ... ...\n",
-				devp->pac_addr);
-			goto err_exit;
-		}
-		bytes_buffer = bytes_buf_backup;
-		rptr = addr;
-		sliced_data.nbytes = rbyte;
-		#ifdef VBI_BUF_DIV_EN
-		vbi_get_byte(local_rptr, bytes_buffer, rbyte)  /* line number */
-		vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-		#else
-		vbi_get_byte(rptr, bytes_buffer, devp, rbyte)
-		#endif
+		vbi_get_byte(local_rptr, bytes_buffer, rbyte);
+		vbi_skip_bytes(rptr, bytes_buffer, devp, 1);
+		vbi_data.nbytes = rbyte;
+		/* line number */
+		vbi_get_byte(local_rptr, bytes_buffer, rbyte);
+		vbi_skip_bytes(rptr, bytes_buffer, devp, 1);
 		pre_val = (u16)rbyte;
-		#ifdef VBI_BUF_DIV_EN
-		vbi_get_byte(local_rptr, bytes_buffer, rbyte)
-		vbi_skip_bytes(rptr, bytes_buffer, devp, 1)
-		#else
-		vbi_get_byte(rptr, bytes_buffer, devp, rbyte)
-		#endif
+		vbi_get_byte(local_rptr, bytes_buffer, rbyte);
+		vbi_skip_bytes(rptr, bytes_buffer, devp, 1);
 		pre_val |= ((u16)rbyte & 0x3) << 8;
-		sliced_data.line_num = pre_val;
-		addr = rptr;
-
-		if ((rptr + sliced_data.nbytes) <= vbi_dev->pac_addr_end) {
-			#if 1/* for new mem operation */
-			memcpy(&(sliced_data.b[0]), rptr, sliced_data.nbytes);
-			#else
-			memcpy_fromio(&(sliced_data.b[0]), rptr,
-			sliced_data.nbytes);
-			#endif
-			/* rptr += buf[devp->sli_wr].nbytes; */
-			/* if (vbi_dbg_en) */
-			/* pr_info("[vbi..] %s: normal addr pac = 0x%p ;
-			bytes: %2d ... ...\n",
-			__func__, vbi_dev->pac_addr,(sliced_data.nbytes)); */
-		} else{
-			i = (vbi_dev->pac_addr_end - rptr + 1);
-			#if 1/* for new mem operation */
-			memcpy(&sliced_data.b[0], rptr, i);
-			memcpy(&sliced_data.b[i], vbi_dev->pac_addr_start,
-				(sliced_data.nbytes - i));
-			#else
-			memcpy_fromio(&sliced_data.b[0], rptr, i);
-			/* pr_info("[vbi..] %s: over range addr pac = 0x%p;
-			cnt:%d ... ...\n", __func__, vbi_dev->pac_addr, i); */
-			/* rptr = vbi_dev->pac_addr_start; */
-			memcpy_fromio(&sliced_data.b[i],
-			vbi_dev->pac_addr_start,
-			(sliced_data.nbytes - i));
-			/* rptr += (buf[devp->sli_wr].nbytes - i); */
-			/* if (vbi_dbg_en) */
-			/* pr_info("[vbi..] %s: over range addr pac = 0x%p;
-			cnt:%d ... ...\n", __func__, vbi_dev->pac_addr,
-			(buf[devp->sli_wr].nbytes - i)); */
-			#endif
-		}
-
-		vbi_skip_bytes(rptr, bytes_buffer, devp, sliced_data.nbytes)
-		/* go to next package */
+		vbi_data.line_num = pre_val;
+		/* data */
+		memcpy(&(vbi_data.b[0]), local_rptr, vbi_data.nbytes);
+		local_rptr += vbi_data.nbytes;
+		vbi_skip_bytes(rptr, bytes_buffer, devp, vbi_data.nbytes);
+		/* capture data to vbi buffer */
+		len = sizeof(struct vbi_data_s);
+		vbi_buffer_write(&devp->slicer->buffer, &vbi_data, len);
+		/* go to search next package */
 		if (data_print_en) {
-			pr_info("[vbi..]: cnt:%4d, line:%3x; ",
-			bytes_buffer, sliced_data.line_num);
-			for (i = 0; i < sliced_data.nbytes ; i++)
-				pr_info("%2x ", sliced_data.b[i]);
-
+			pr_info("[vbi..]: field_id:%d, data_bytes:%4d, line_num:%4d;",
+				vbi_data.field_id, bytes_buffer,
+				vbi_data.line_num);
+			for (i = 0; i < vbi_data.nbytes ; i++) {
+				if (i%16 == 0)
+					pr_info("\n");
+				pr_info("%2x ", vbi_data.b[i]);
+			}
 			pr_info("\n");
 		}
-		/* capture data to vbi buffer */
-		len = sizeof(struct cc_data_s);
-		vbi_buffer_write(&devp->slicer->buffer, &sliced_data, len);
-		if (data_print_en)
-			pr_info("[vbi..]%s: sliced_data.field_id : %d; sliced_data.line_num : %d\n",
-			__func__, sliced_data.field_id, sliced_data.line_num);
-		if (devp->slicer->buffer.pread != devp->slicer->buffer.pwrite)
-			wake_up(&devp->slicer->buffer.queue);
-
 	}
 	devp->pac_addr = rptr;
+	if (devp->slicer->buffer.pread != devp->slicer->buffer.pwrite)
+		wake_up(&devp->slicer->buffer.queue);
 err_exit:
-
 	return;
 }
-#endif
 void vbi_ringbuffer_flush(struct vbi_ringbuffer_s *rbuf)
 {
-	rbuf->pread = rbuf->pwrite;
+	rbuf->pread = rbuf->pwrite = 0;
 	rbuf->error = 0;
 }
 
@@ -751,10 +579,11 @@ static void vbi_ringbuffer_init(struct vbi_ringbuffer_s *rbuf,
 {
 	rbuf->pread = rbuf->pwrite = 0;
 	if (data == NULL)
-		rbuf->data = vmalloc(len);
+		rbuf->data = vmalloc(len*sizeof(struct vbi_data_s));
 	else
 		rbuf->data = data;
-	rbuf->size = len;
+	rbuf->size = len*sizeof(struct vbi_data_s);
+	rbuf->data_num = len;
 	rbuf->error = 0;
 
 	init_waitqueue_head(&rbuf->queue);
@@ -846,6 +675,8 @@ static int vbi_slicer_set(struct vbi_dev_s *vbi_dev,
 
 	vbi_slicer_state_set(vbi_dev, VBI_STATE_SET);
 
+	vbi_slicer_type_set(vbi_dev);
+
 	return 0;/* vbi_slicer_start(vbi_dev); */
 }
 
@@ -861,7 +692,7 @@ ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
 
 int vbi_ringbuffer_empty(struct vbi_ringbuffer_s *rbuf)
 {
-	return rbuf->pread == rbuf->pwrite;
+	return (int)(rbuf->pread == rbuf->pwrite);
 }
 
 ssize_t vbi_ringbuffer_read_user(struct vbi_ringbuffer_s *rbuf,
@@ -944,18 +775,18 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		buf += ret;
 	}
 	if ((count - todo) <= 0)
-		pr_info("[vbi..] %s: read error!! counter: %x or %x\n",
+		pr_info("[vbi..] %s: read error!! counter: %Zx or %Zx\n",
 			__func__, (count - todo) , ret);
 
 	return (count - todo) ? (count - todo) : ret;
 }
 
-static int vbi_read(struct file *file, char __user *buf, size_t count,
+static ssize_t vbi_read(struct file *file, char __user *buf, size_t count,
 	loff_t *ppos)
 {
 	struct vbi_dev_s *vbi_dev = file->private_data;
 	struct vbi_slicer_s *vbi_slicer = vbi_dev->slicer;
-	int ret;
+	int ret = 0;
 
 	if (mutex_lock_interruptible(&vbi_slicer->mutex)) {
 		pr_info("[vbi..] %s: slicer mutex error\n", __func__);
@@ -973,61 +804,57 @@ static int vbi_read(struct file *file, char __user *buf, size_t count,
 
 static int vbi_open(struct inode *inode, struct file *file)
 {
-	struct vbi_dev_s *vbi_dev;/* = file->private_data; */
+	struct vbi_dev_s *vbi_dev;
+	int ret = 0;
 
 	pr_info("[vbi..] %s: open start.\n", __func__);
-
 	vbi_dev = container_of(inode->i_cdev, struct vbi_dev_s, cdev);
 	file->private_data = vbi_dev;
-
 	if (mutex_lock_interruptible(&vbi_dev->mutex)) {
 		pr_info("[vbi..] %s: dev mutex_lock_interruptible error\n",
 			__func__);
 		return -ERESTARTSYS;
 	}
-
 	mutex_init(&vbi_dev->slicer->mutex);
-
-	vbi_ringbuffer_init(&vbi_dev->slicer->buffer,
-			NULL, VBI_DEFAULT_BUFFER_SIZE);
-			/* set default buffer size--8KByte */
-	vbi_dev->slicer->type = 0;
+	vbi_ringbuffer_init(&vbi_dev->slicer->buffer, NULL,
+		VBI_DEFAULT_BUFFER_PACKEGE_NUM);
+	vbi_dev->slicer->type = VBI_TYPE_NULL;
 	vbi_slicer_state_set(vbi_dev, VBI_STATE_ALLOCATED);
+	spin_lock_init(&vbi_dev->vbi_isr_lock);
+	/*disable data capture function*/
+	vbi_dev->tasklet_enable = false;
+	vbi_dev->vbi_start = false;
+	/* request irq */
+	ret = request_irq(vbi_dev->vs_irq, vbi_isr, IRQF_SHARED,
+		vbi_dev->irq_name, (void *)vbi_dev);
+	if (ret < 0)
+		pr_err("[vbi..] %s: request_irq fail\n", __func__);
 
 	mutex_unlock(&vbi_dev->mutex);
-
 	pr_info("[vbi..]%s: open device ok.\n", __func__);
-
 	return 0;
 }
+
 
 static int vbi_release(struct inode *inode, struct file *file)
 {
 	struct vbi_dev_s *vbi_dev = file->private_data;
 	struct vbi_slicer_s *vbi_slicer = vbi_dev->slicer;
-	int ret;
+	int ret = 0;
 
 	ret = vbi_slicer_free(vbi_dev, vbi_slicer);
-	#ifdef	VBI_IRQ_EN
+	vbi_dev->tasklet_enable = false;
+	vbi_dev->vbi_start = false;  /*disable data capture function*/
 	/* free irq */
 	free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
-	#else
-	del_timer_sync(&vbi_dev->timer);
-	#endif
-	/* W_APB_REG(ACD_REG_22, 0x82080000); // manuel reset vbi */
-	W_APB_REG(ACD_REG_22, 0x06080000);
 	/* vbi reset release, vbi agent enable */
-	/* W_APB_REG(CVD2_VBI_CC_START, 0x00000054); */
+	W_APB_REG(ACD_REG_22, 0x06080000);
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
-	pr_info("[vbi..] %s: disable vbi function\n", __func__);
-
 	pr_info("[vbi..]%s: device release OK.\n", __func__);
-
 	return ret;
 }
 
-/* static int vbi_ioctl(struct inode *inode,
-struct file *file, unsigned int cmd, unsigned long arg) */
+
 static long vbi_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
@@ -1049,40 +876,19 @@ static long vbi_ioctl(struct file *file,
 			return -ERESTARTSYS;
 		}
 		vbi_hw_init(vbi_dev);
-		#ifdef VBI_IRQ_EN
-		vbi_dev->vs_irq = INT_VDIN0_VSYNC;
-		spin_lock_init(&vbi_dev->vbi_isr_lock);
-			/* vbi_dev->vbi_isr_lock = SPIN_LOCK_UNLOCKED; */
-			/* request irq */
-		snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
-				"vbi%d-irq", vbi_dev->index);
-		ret = request_irq(vbi_dev->vs_irq, vbi_isr,
-			IRQF_SHARED, vbi_dev->irq_name, (void *)vbi_dev);
-		#else
-		spin_lock_init(&vbi_dev->vbi_isr_lock);
-		init_timer(&vbi_dev->timer);
-		vbi_dev->timer.data = (unsigned long)vbi_dev;
-		vbi_dev->timer.function = vbi_timer_handler;
-		vbi_dev->timer.expires = jiffies + (VBI_TIMER_INTERVAL);
-		add_timer(&vbi_dev->timer);
-		#endif
-
-		if (ret < 0)
-			pr_err("[vbi..] %s: request_irq fail\n", __func__);
-
-
 		if (vbi_slicer->state < VBI_STATE_SET)
 			ret = -EINVAL;
 		else
 			ret = vbi_slicer_start(vbi_dev);
-
-		vbi_dev->vbi_start = false;  /* enable data capture function */
+		/* enable data capture function */
+		vbi_dev->tasklet_enable = true;
+		vbi_dev->vbi_start = true;
 		vbi_dev->vs_delay = 40;
 
 		mutex_unlock(&vbi_slicer->mutex);
 		mdelay(1000);
 		pr_info("[vbi..] %s: start slicer state:%d\n",
-				__func__, vbi_slicer->state);
+			__func__, vbi_slicer->state);
 		break;
 
 	case VBI_IOC_STOP:
@@ -1092,27 +898,22 @@ static long vbi_ioctl(struct file *file,
 			return -ERESTARTSYS;
 		}
 		ret = vbi_slicer_stop(vbi_slicer);
-		#if 1/* avoid double free_irq or del_timer_sync */
-		#ifdef	VBI_IRQ_EN
-		/* free irq */
-		free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
-		#else
-		del_timer_sync(&vbi_dev->timer);
-		#endif
-		#endif
-		/* W_APB_REG(ACD_REG_22, 0x82080000); // manuel reset vbi */
+		/* disable data capture function */
+		vbi_dev->tasklet_enable = false;
+		vbi_dev->vbi_start = false;
+		/* manuel reset vbi */
+		/*W_APB_REG(ACD_REG_22, 0x82080000);*/
+		/* vbi reset release, vbi agent enable*/
 		W_APB_REG(ACD_REG_22, 0x06080000);
-		/* vbi reset release, vbi agent enable */
-		/* W_APB_REG(CVD2_VBI_CC_START, 0x00000054); */
+		/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
 		W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
 		pr_info("[vbi..] %s: disable vbi function\n", __func__);
-
 		mutex_unlock(&vbi_slicer->mutex);
 		pr_info("[vbi..] %s: stop slicer state:%d\n",
-				__func__, vbi_slicer->state);
+			__func__, vbi_slicer->state);
 		break;
 
-	case VBI_IOC_SET_FILTER:
+	case VBI_IOC_SET_TYPE:
 		if (mutex_lock_interruptible(&vbi_slicer->mutex)) {
 			mutex_unlock(&vbi_dev->mutex);
 			pr_info("[vbi..] %s: slicer mutex error\n", __func__);
@@ -1124,8 +925,8 @@ static long vbi_ioctl(struct file *file,
 		}
 		ret = vbi_slicer_set(vbi_dev, vbi_slicer);
 		mutex_unlock(&vbi_slicer->mutex);
-		pr_info("[vbi..] %s: set slicer to %d ,state:%d\n",
-				__func__, vbi_slicer->type, vbi_slicer->state);
+		pr_info("[vbi..] %s: set slicer type to %d ,state:%d\n",
+			__func__, vbi_slicer->type, vbi_slicer->state);
 		break;
 
 	case VBI_IOC_S_BUF_SIZE:
@@ -1140,6 +941,8 @@ static long vbi_ioctl(struct file *file,
 		}
 		ret = vbi_set_buffer_size(vbi_dev, buffer_size_t);
 		mutex_unlock(&vbi_slicer->mutex);
+		pr_info("[vbi..] %s: set buf size to %d ,state:%d\n",
+			__func__, vbi_slicer->buffer.size, vbi_slicer->state);
 		break;
 
 	default:
@@ -1150,6 +953,17 @@ static long vbi_ioctl(struct file *file,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long vbi_compat_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	unsigned long ret;
+	arg = (unsigned long)compat_ptr(arg);
+	ret = vbi_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
 
 /* vbi package data capture */
 static int vbi_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1177,13 +991,11 @@ static int vbi_mmap(struct file *file, struct vm_area_struct *vma)
 	(vma->vm_end), vma->vm_start, len); */
 	/* return -EINVAL; */
 	/* } */
-	/* pr_info("[vbi..]: cat mem_size add:0x%x\n",
-	((devp->mem_size) << 3)); */
 	off += start;
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= VM_IO | VM_RESERVED;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	size = vma->vm_end - vma->vm_start;
 	pfn  = off >> PAGE_SHIFT;
@@ -1227,29 +1039,230 @@ static const struct file_operations vbi_fops = {
 	.open    = vbi_open,            /* Open method */
 	.release = vbi_release,         /* Release method */
 	.unlocked_ioctl   = vbi_ioctl,           /* Ioctl method */
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = vbi_compat_ioctl,
+#endif
 	.mmap    = vbi_mmap,
 	.read    = vbi_read,
 	.poll    = vbi_poll,
 	/* ... */
 };
+static struct resource vbi_memobj;
+static void vbi_parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	char delim1[2] = " ";
+	char delim2[2] = "\n";
+	unsigned int n = 0;
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (token == NULL)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+static void vbi_dump_mem(char *path, struct vbi_dev_s *devp)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	mm_segment_t old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+
+	if (IS_ERR(filp)) {
+		pr_info(KERN_ERR"create %s error.\n", path);
+		return;
+	}
+	buf = phys_to_virt(devp->mem_start);
+	if (buf == NULL) {
+		pr_info(KERN_ERR"buf is null!!!.\n");
+		return;
+	}
+
+	vfs_write(filp, buf, devp->mem_size, &pos);
+	pr_info("write buffer addr:0x%p size: %2u  to %s.\n",
+			buf, devp->mem_size, path);
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+}
+static void vbi_dump_buf(char *path, struct vbi_dev_s *devp)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	mm_segment_t old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+
+	if (IS_ERR(filp)) {
+		pr_info(KERN_ERR"create %s error.\n", path);
+		return;
+	}
+	buf = (void *)devp->slicer->buffer.data;
+	if (buf == NULL) {
+		pr_info(KERN_ERR"buf is null!!!.\n");
+		return;
+	}
+	vfs_write(filp, buf, devp->slicer->buffer.size, &pos);
+	pr_info("write buffer addr:0x%p size: %2u  to %s.\n",
+			buf, devp->slicer->buffer.size, path);
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+}
+
+static const char *vbi_debug_usage_str = {
+	"Usage:\n"
+	"echo dumpmem /udisk-path/***/xxx.txt > /sys/class/vbi/vbi/debug; dump vbi mem\n"
+	"echo dumpbuf /udisk-path/***/xxx.txt > /sys/class/vbi/vbi/debug; dump vbi mem\n"
+	"echo status > /sys/class/vbi/vbi/debug; dump vbi status\n"
+	"echo enable_tasklet > /sys/class/vbi/vbi/debug; enable vbi tasklet\n"
+	"echo data_wmode val(d) > /sys/class/vbi/vbi/debug; set vbi data write mode\n"
+	"echo start > /sys/class/vbi/vbi/debug; start vbi\n"
+	"echo stop > /sys/class/vbi/vbi/debug; stop vbi\n"
+	"echo set_size val(d) > /sys/class/vbi/vbi/debug; set vbi buf size\n"
+	"echo set_type val(x) > /sys/class/vbi/vbi/debug; set vbi type\n"
+	"echo open > /sys/class/vbi/vbi/debug; open vbi device\n"
+	"echo release > /sys/class/vbi/vbi/debug; release vbi device\n"
+};
+
+static ssize_t vbi_show(struct device *dev,
+		struct device_attribute *attr, char *buff)
+{
+	return sprintf(buff, "%s\n", vbi_debug_usage_str);
+}
+
+static ssize_t vbi_store(struct device *dev,
+		struct device_attribute *attr, const char *buff, size_t len)
+{
+	char *buf_orig;
+	char *parm[6] = {NULL};
+	struct vbi_dev_s *devp = dev_get_drvdata(dev);
+	struct vbi_slicer_s *vbi_slicer = devp->slicer;
+	struct vbi_ringbuffer_s *vbi_buffer = &(vbi_slicer->buffer);
+	long val;
+	int ret = 0;
+	if (!buff || !devp)
+		return len;
+	buf_orig = kstrdup(buff, GFP_KERNEL);
+	vbi_parse_param(buf_orig, (char **)&parm);
+	if (!strncmp(parm[0], "dumpmem", strlen("dumpmem"))) {
+		vbi_dump_mem(parm[1], devp);
+		pr_info("dump mem done!!\n");
+	} else if (!strncmp(parm[0], "dumpbuf", strlen("dumpbuf"))) {
+		vbi_dump_buf(parm[1], devp);
+		pr_info("dump buf done!!\n");
+	} else if (!strncmp(parm[0], "status", strlen("status"))) {
+		pr_info("vcnt:0x%x\n", vcnt);
+		pr_info("mem_start:0x%x,mem_size:0x%x\n",
+			devp->mem_start, devp->mem_size);
+		pr_info("vbi_start:%d,vbi_data_type:0x%x,vbi_start_code:0x%x,tasklet_enable:%d\n",
+			devp->vbi_start, devp->vbi_data_type,
+			devp->vbi_start_code, devp->tasklet_enable);
+		pr_info("vbi_dto_cc:0x%x,vbi_dto_tt:0x%x\n",
+			devp->vbi_dto_cc, devp->vbi_dto_tt);
+		pr_info("vbi_dto_wss:0x%x,vbi_dto_vps:0x%x\n",
+			devp->vbi_dto_wss, devp->vbi_dto_vps);
+		pr_info("mem_start:0x%p,pac_addr_start:0x%p,pac_addr_end:0x%p\n",
+			devp->pac_addr, devp->pac_addr_start,
+			devp->pac_addr_end);
+		if (vbi_slicer)
+			pr_info("vbi_slicer:type:%d,state:%d\n",
+				vbi_slicer->type, vbi_slicer->state);
+		if (vbi_buffer)
+			pr_info("vbi_buffer:size:%d,data_num:%d,pread:%d,pwrite:%d,data_wmode:%d\n",
+				vbi_buffer->size, vbi_buffer->data_num,
+				vbi_buffer->pread, vbi_buffer->pwrite,
+				vbi_buffer->data_wmode);
+		pr_info("dump satus done!!\n");
+	} else if (!strncmp(parm[0], "enable_tasklet",
+		strlen("enable_tasklet"))) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->tasklet_enable = val;
+		pr_info("tasklet_enable:%d\n", devp->tasklet_enable);
+	} else if (!strncmp(parm[0], "data_wmode",
+		strlen("data_wmode"))) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vbi_buffer->data_wmode = val;
+		pr_info("data_wmode:%d\n", vbi_buffer->data_wmode);
+	} else if (!strncmp(parm[0], "start", strlen("start"))) {
+		vbi_hw_init(devp);
+		vbi_slicer_start(devp);
+		/* enable data capture function */
+		devp->tasklet_enable = true;
+		devp->vbi_start = true;
+		devp->vs_delay = 40;
+		pr_info("start done!!!\n");
+	} else if (!strncmp(parm[0], "stop", strlen("stop"))) {
+		vbi_slicer_stop(vbi_slicer);
+		/* disable data capture function */
+		devp->tasklet_enable = false;
+		devp->vbi_start = false;
+		/* manuel reset vbi */
+		/* vbi reset release, vbi agent enable*/
+		W_APB_REG(ACD_REG_22, 0x06080000);
+		W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+		pr_info("[vbi..] disable vbi function\n");
+		pr_info("stop done!!!\n");
+	} else if (!strncmp(parm[0], "set_size", strlen("set_size"))) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vbi_set_buffer_size(devp, val);
+		pr_info("[vbi..] set buf size to %d\n",
+			vbi_slicer->buffer.size);
+	} else if (!strncmp(parm[0], "set_type", strlen("set_type"))) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		vbi_slicer->type = val;
+		vbi_slicer_set(devp, vbi_slicer);
+		pr_info("[vbi..] set slicer type to %d\n",
+			vbi_slicer->type);
+	} else if (!strncmp(parm[0], "open", strlen("open"))) {
+		vbi_ringbuffer_init(vbi_buffer, NULL,
+			VBI_DEFAULT_BUFFER_PACKEGE_NUM);
+		devp->slicer->type = VBI_TYPE_NULL;
+		vbi_slicer_state_set(devp, VBI_STATE_ALLOCATED);
+		spin_lock_init(&devp->vbi_isr_lock);
+		/*disable data capture function*/
+		devp->tasklet_enable = false;
+		devp->vbi_start = false;
+		/* request irq */
+		ret = request_irq(devp->vs_irq, vbi_isr, IRQF_SHARED,
+			devp->irq_name, (void *)devp);
+		if (ret < 0)
+			pr_err("[vbi..] request_irq fail\n");
+		pr_info("[vbi..] open ok.\n");
+	} else if (!strncmp(parm[0], "release", strlen("release"))) {
+		ret = vbi_slicer_free(devp, vbi_slicer);
+		devp->tasklet_enable = false;
+		devp->vbi_start = false;  /*disable data capture function*/
+		/* free irq */
+		free_irq(devp->vs_irq, (void *)devp);
+		/* vbi reset release, vbi agent enable */
+		W_APB_REG(ACD_REG_22, 0x06080000);
+		W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x00000014);
+		pr_info("[vbi..]device release OK.\n");
+	} else {
+		pr_info("[vbi..]unsupport cmd!!!\n");
+	}
+	return len;
+}
+
+static DEVICE_ATTR(debug, 0644, vbi_show, vbi_store);
 
 static int vbi_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret = 0;
 	struct resource *res;
-
-	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
-	if (ret < 0) {
-		pr_err("[vbi..]: failed to allocate major number\n");
-		return 0;
-	}
-
-	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
-	if (IS_ERR(vbi_clsp)) {
-		pr_err("[vbi..]: can't get vbi_clsp\n");
-		unregister_chrdev_region(vbi_id, 1);
-		return PTR_ERR(vbi_clsp);
-	}
+	struct vbi_dev_s *vbi_dev;
 
 	/* allocate memory for the per-device structure */
 	vbi_dev = kmalloc(sizeof(struct vbi_dev_s), GFP_KERNEL);
@@ -1257,6 +1270,7 @@ static int vbi_probe(struct platform_device *pdev)
 		pr_err("[vbi..]: failed to allocate memory for vbi device\n");
 		return -ENOMEM;
 	}
+	memset(vbi_dev, 0, sizeof(struct vbi_dev_s));
 
 	/* connect the file operations with cdev */
 	cdev_init(&vbi_dev->cdev, &vbi_fops);
@@ -1265,41 +1279,44 @@ static int vbi_probe(struct platform_device *pdev)
 	ret = cdev_add(&vbi_dev->cdev, vbi_id, 1);
 	if (ret) {
 		pr_err("[vbi..]: failed to add device\n");
-		/* @todo do with error */
-		return ret;
+		goto fail_add_cdev;
 	}
 	/* create /dev nodes */
-	vbi_dev->dev = device_create(vbi_clsp, NULL, MKDEV(MAJOR(vbi_id), 0),
-					NULL, "%s", VBI_NAME);
+	vbi_dev->dev = device_create(vbi_clsp, &pdev->dev,
+		MKDEV(MAJOR(vbi_id), 0), NULL, "%s", VBI_NAME);
 	if (IS_ERR(vbi_dev->dev)) {
 		pr_err("[vbi..]: failed to create device node\n");
-		cdev_del(&vbi_dev->cdev);
-		kfree(vbi_dev);
-		return PTR_ERR(vbi_dev->dev);
+		ret = PTR_ERR(vbi_dev->dev);
+		goto fail_create_device;
+	}
+	/*create sysfs attribute files*/
+	ret = device_create_file(vbi_dev->dev, &dev_attr_debug);
+	if (ret < 0) {
+		pr_err("tvafe: fail to create dbg attribute file\n");
+		goto fail_create_dbg_file;
 	}
 
 	/* get device memory */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_err("[vbi..]: can't get memory resource\n");
-		return -EFAULT;
-	}
+	res = &vbi_memobj;
+	ret = of_reserved_mem_device_init(&pdev->dev);
+	if (ret == 0)
+		pr_info("\n vbi memory resource done.\n");
+	else
+		pr_info("vbi: can't get memory resource\n");
 	vbi_dev->mem_start = res->start;
-	#if 1
 	vbi_dev->mem_size = res->end - res->start + 1;
-	#else
-	vbi_dev->mem_size = VBI_MEM_SIZE;
-	#endif
+	if (vbi_dev->mem_size > VBI_MEM_SIZE)
+		vbi_dev->mem_size = VBI_MEM_SIZE;
 	pr_info("[vbi..]: start_addr is:0x%x, size is:0x%x\n",
 			vbi_dev->mem_start, vbi_dev->mem_size);
 
 	/* remap the package vbi hardware address for our conversion */
-	vbi_dev->pac_addr_start =
-			ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size);
+	vbi_dev->pac_addr_start = phys_to_virt(vbi_dev->mem_start);
+	/*ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size);*/
 	memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
-	#ifdef VBI_BUF_DIV_EN
 	vbi_dev->mem_size = vbi_dev->mem_size/2;
-	#endif
+	vbi_dev->mem_size >>= 4;
+	vbi_dev->mem_size <<= 4;
 	vbi_dev->pac_addr_end = vbi_dev->pac_addr_start + vbi_dev->mem_size - 1;
 	if (vbi_dev->pac_addr_start == NULL)
 		pr_err("[vbi..]: ioremap error!!!\n");
@@ -1311,30 +1328,58 @@ static int vbi_probe(struct platform_device *pdev)
 	mutex_init(&vbi_dev->mutex);
 	spin_lock_init(&vbi_dev->lock);
 
+	/* init drv data */
+	dev_set_drvdata(vbi_dev->dev, vbi_dev);
+	platform_set_drvdata(pdev, vbi_dev);
+
 	/* Initialize tasklet */
 	tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
 				(unsigned long)vbi_dev);
 
+	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;
 	vbi_dev->vs_delay = 40;
 
 	vbi_dev->slicer = vmalloc(sizeof(struct vbi_slicer_s));
 	if (!vbi_dev->slicer) {
 		pr_err("[vbi..]: vmalloc error!!!\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_alloc_mem;
 	}
 	vbi_dev->slicer->buffer.data = NULL;
 	vbi_dev->slicer->state = VBI_STATE_FREE;
 
-	pr_info("[vbi..]: driver probe ok\n");
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		pr_err("%s: can't get irq resource\n", __func__);
+		ret = -ENXIO;
+		goto fail_get_resource_irq;
+	}
+	vbi_dev->vs_irq = res->start;
+	snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
+			"vbi-irq");
+	pr_info("vbi irq: %d\n", vbi_dev->vs_irq);
 
+	pr_info("[vbi..]: driver probe ok\n");
 	return 0;
+
+fail_get_resource_irq:
+fail_alloc_mem:
+fail_create_dbg_file:
+	device_destroy(vbi_clsp, MKDEV(MAJOR(vbi_id), 0));
+fail_create_device:
+	cdev_del(&vbi_dev->cdev);
+fail_add_cdev:
+	kfree(vbi_dev);
+	return ret;
 }
 
 static int vbi_remove(struct platform_device *pdev)
 {
-	tasklet_kill(&vbi_dev->tsklt_slicer);
+	struct vbi_dev_s *vbi_dev;
+	vbi_dev = platform_get_drvdata(pdev);
 
+	tasklet_kill(&vbi_dev->tsklt_slicer);
 	if (vbi_dev->pac_addr_start)
 		iounmap(vbi_dev->pac_addr_start);
 	vfree(vbi_dev->slicer);
@@ -1348,26 +1393,52 @@ static int vbi_remove(struct platform_device *pdev)
 
 	return 0;
 }
+static const struct of_device_id vbi_dt_match[] = {
+	{
+	.compatible     = "amlogic, vbi",
+	},
+	{},
+};
 
 static struct platform_driver vbi_driver = {
 	.probe      = vbi_probe,
 	.remove     = vbi_remove,
 	.driver     = {
-	.name   = VBI_DRIVER_NAME,
+		.name   = VBI_DRIVER_NAME,
+		.of_match_table = vbi_dt_match,
 	}
 };
 
 static int __init vbi_init(void)
 {
 	int ret = 0;
+	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
+	if (ret < 0) {
+		pr_err("[vbi..]: failed to allocate major number\n");
+		goto fail_alloc_cdev_region;
+	}
+
+	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
+	if (IS_ERR(vbi_clsp)) {
+		pr_err("[vbi..]: can't get vbi_clsp\n");
+		goto fail_class_create;
+	}
 
 	ret = platform_driver_register(&vbi_driver);
 	if (ret != 0) {
 		pr_err("[vbi..] failed to register vbi module, error %d\n",
 			ret);
+		goto fail_pdrv_register;
 		return -ENODEV;
 	}
+	pr_info("vbi: vbi_init.\n");
+	return 0;
 
+fail_pdrv_register:
+	class_destroy(vbi_clsp);
+fail_class_create:
+	unregister_chrdev_region(vbi_id, 1);
+fail_alloc_cdev_region:
 	return ret;
 }
 
@@ -1375,9 +1446,41 @@ static void __exit vbi_exit(void)
 {
 	platform_driver_unregister(&vbi_driver);
 }
+static int vbi_mem_device_init(struct reserved_mem *rmem,
+		struct device *dev)
+{
+	s32 ret = 0;
+	struct resource *res = NULL;
+	if (!rmem) {
+		pr_info("Can't get reverse mem!\n");
+		ret = -EFAULT;
+		return ret;
+	}
+	res = &vbi_memobj;
+	res->start = rmem->base;
+	res->end = rmem->base + rmem->size - 1;
+
+	pr_info("init vbi memsource 0x%lx->0x%lx\n",
+		(unsigned long)res->start, (unsigned long)res->end);
+
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_vbi_ops = {
+	.device_init = vbi_mem_device_init,
+};
+
+static int __init vbi_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_vbi_ops;
+	pr_info("vbi share mem setup\n");
+	return 0;
+}
 
 module_init(vbi_init);
 module_exit(vbi_exit);
+RESERVEDMEM_OF_DECLARE(vbi, "amlogic, vbi-mem",
+	vbi_mem_setup);
 
 MODULE_DESCRIPTION("AMLOGIC vbi driver");
 MODULE_LICENSE("GPL");

@@ -60,6 +60,7 @@ extern int mmap_rnd_compat_bits __read_mostly;
 #endif
 
 #ifdef CONFIG_CMA
+#define CMA_MIGRATE_MAP_THRESHOLD	5
 #define MIGRATE_CMA_HOLD  1
 #define MIGRATE_CMA_ALLOC 2
 #define MIGRATE_CMA_REL   3
@@ -75,8 +76,17 @@ extern int mutex_status;
 extern int migrate_refcount;
 extern wait_queue_head_t migrate_wq;
 extern int cma_alloc_ref(void);
+extern bool can_use_cma(gfp_t gfp_flags);
 extern void get_cma_alloc_ref(void);
 extern void put_cma_alloc_ref(void);
+extern bool cma_page(struct page *page);
+extern int mark_cma_migrate_page(struct page *page);
+extern int migrate_cma_page(unsigned long pfn);
+extern unsigned long get_cma_allocated(void);
+extern unsigned long get_total_cmapages(void);
+#else
+static inline unsigned long get_cma_allocated(void) { return 0; }
+static inline unsigned long get_total_cmapages(void) { return 0; }
 #endif
 #include <asm/page.h>
 #include <asm/pgtable.h>

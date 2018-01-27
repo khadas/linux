@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2013-2016 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -42,26 +42,6 @@ for details.
 	  simultaneously, 0 otherwise.
 	- Value between 0 and 63 (including). If job throttle is enabled, this is one
 	  less than the number of cores that can be started simultaneously.
-- power_model : Sets power model parameters. Note that this model was designed for the Juno
-	        platform, and may not be suitable for other platforms. A structure containing :
-	- compatible: Should be arm,mali-simple-power-model
-	- voltage: Voltage at reference point. Specified in mV.
-	- frequency: Frequency at reference point. Specified in MHz.
-	- dynamic-power: Dynamic power at reference frequency and voltage. Specified in mW.
-	- static-power: Static power at reference frequency. Specified in mW.
-	- ts: An array containing coefficients for the temperature scaling factor.
-	  Used as : tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0], where T = temperature
-	- thermal-zone: A string identifying the thermal zone used for the GPU
-- system-coherency : Sets the coherency protocol to be used for coherent
-		     accesses made from the GPU.
-		     If not set then no coherency is used.
-	- 0  : ACE-Lite
-	- 1  : ACE
-	- 31 : No coherency
-- ipa-model : Sets the IPA model to be used for power management. GPU probe will fail if the
-	      model is not found in the registered models list. If no model is specified here,
-	      a gpu-id based model is picked if available, otherwise the default model is used.
-	- generic_ipa_model : Default model used on mali
 
 Example for a Mali-T602:
 
@@ -84,13 +64,4 @@ gpu@0xfc010000 {
 		160000  925000,
 		100000  912500,
 	>;
-	power_model {
-		compatible = "arm,mali-simple-power-model";
-		voltage = <800>;
-		frequency = <500>;
-		static-power = <500>;
-		dynamic-power = <1500>;
-		ts = <20000 2000 (-20) 2>;
-		thermal-zone = "gpu";
-	};
 };

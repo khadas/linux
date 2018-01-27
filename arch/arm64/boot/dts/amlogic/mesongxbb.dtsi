@@ -120,6 +120,9 @@
 		storage_out_func = <0x82000024>;
 		storage_block_func = <0x82000025>;
 		storage_size_func = <0x82000027>;
+		storage_set_enctype = <0x8200006A>;
+		storage_get_enctype = <0x8200006B>;
+		storage_version = <0x8200006C>;
 	};
 	cpu_iomap{
 		compatible = "amlogic, iomap";
@@ -181,6 +184,14 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		reg = <0x0 0xc1109880 0x0 0x10>;
+		interrupts = <	0 64 1	 /* gpio irq 0 = 64 + 32 = 96 */
+				0 65 1
+				0 66 1
+				0 67 1
+				0 68 1
+				0 69 1
+				0 70 1
+				0 71 1>; /* gpio irq bank 7 = 71 + 32 = 103 */
 		ranges;
 		gpio: banks@c11080b0 {
 			reg = <0x0 0xc88344b0 0x0 0x28>,
@@ -547,26 +558,26 @@
 	};
 	efusekey:efusekey{
 		keynum = <4>;
-		key0 = <&key0>;
-		key1 = <&key1>;
-		key2 = <&key2>;
-		key3 = <&key3>;
-		key0:key0{
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
 			keyname = "mac";
 			offset = <0>;
 			size = <6>;
 		};
-		key1:key1{
+		key_1:key_1{
 			keyname = "mac_bt";
 			offset = <6>;
 			size = <6>;
 		};
-		key2:key2{
+		key_2:key_2{
 			keyname = "mac_wifi";
 			offset = <12>;
 			size = <6>;
 		};
-		key3:key3{
+		key_3:key_3{
 			keyname = "usid";
 			offset = <18>;
 			size = <16>;
@@ -597,7 +608,7 @@
 	aml_remote:meson-remote {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
-		status = "ok";
+		status = "okay";
 		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
 		interrupts = <0 196 1>;
 		pinctrl-names = "default";

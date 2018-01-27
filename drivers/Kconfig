@@ -179,4 +179,7 @@ source "drivers/gator/Kconfig"
 source "drivers/coresight/Kconfig"
 
 source "drivers/gpu/arm/mali/Kconfig"
+
+source "drivers/gpu/arm/ump/Kconfig"
+
 endmenu

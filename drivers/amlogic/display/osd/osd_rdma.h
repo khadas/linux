@@ -29,7 +29,7 @@ struct rdma_table_item {
 
 #define TABLE_SIZE	 PAGE_SIZE
 #define MAX_TABLE_ITEM	 (TABLE_SIZE/sizeof(struct rdma_table_item_t))
-#define OSD_RDMA_CHANNEL_INDEX	3  /*auto  1,2,3   manual is */
+#define OSD_RDMA_CHANNEL_INDEX	osd_rdma_handle
 #define START_ADDR	(RDMA_AHB_START_ADDR_MAN+(OSD_RDMA_CHANNEL_INDEX<<1))
 #define END_ADDR	(RDMA_AHB_END_ADDR_MAN+(OSD_RDMA_CHANNEL_INDEX<<1))
 
@@ -70,5 +70,4 @@ extern int rdma_mgr_irq_request;
 #ifdef CONFIG_VSYNC_RDMA
 extern void osd_rdma_interrupt_done_clear(void);
 #endif
-
 #endif

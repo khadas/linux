@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,7 +16,6 @@
 
 
 #include <mali_kbase.h>
-#include <mali_kbase_tlstream.h>
 #include <mali_kbase_config_defaults.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
@@ -207,8 +206,6 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	kbdev->current_voltage = voltage;
 	kbdev->current_freq = freq;
 
-	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET((u64)freq);
-
 	kbase_pm_reset_dvfs_utilisation(kbdev);
 
 	return err;
@@ -236,6 +233,10 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 
 	stat->private_data = NULL;
 
+#ifdef CONFIG_DEVFREQ_THERMAL
+	memcpy(&kbdev->devfreq_cooling->last_status, stat, sizeof(*stat));
+#endif
+
 	return 0;
 }
 
@@ -244,7 +245,7 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 {
 	int count;
 	int i = 0;
-	unsigned long freq;
+	unsigned long freq = 0;
 	struct dev_pm_opp *opp;
 
 	rcu_read_lock();
@@ -261,8 +262,8 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 		return -ENOMEM;
 
 	rcu_read_lock();
-	for (i = 0, freq = ULONG_MAX; i < count; i++, freq--) {
-		opp = dev_pm_opp_find_freq_floor(kbdev->dev, &freq);
+	for (i = 0; i < count; i++, freq++) {
+		opp = dev_pm_opp_find_freq_ceil(kbdev->dev, &freq);
 		if (IS_ERR(opp))
 			break;
 
@@ -295,8 +296,13 @@ static void kbase_devfreq_exit(struct device *dev)
 
 int kbase_devfreq_init(struct kbase_device *kbdev)
 {
+#ifdef CONFIG_DEVFREQ_THERMAL
+	struct devfreq_cooling_ops *callbacks = POWER_MODEL_CALLBACKS;
+#endif
 	struct devfreq_dev_profile *dp;
 	int err;
+
+	dev_dbg(kbdev->dev, "Init Mali devfreq\n");
 
 	if (!kbdev->clock)
 		return -ENODEV;
@@ -331,22 +337,19 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	}
 
 #ifdef CONFIG_DEVFREQ_THERMAL
-	err = kbase_ipa_model_init(kbdev);
-	if (err) {
-		dev_err(kbdev->dev, "IPA initialization failed\n");
-		goto cooling_failed;
-	}
+	if (callbacks) {
 
-	kbdev->devfreq_cooling = of_devfreq_cooling_register_power(
-			kbdev->dev->of_node,
-			kbdev->devfreq,
-			&power_model_ops);
-	if (IS_ERR_OR_NULL(kbdev->devfreq_cooling)) {
-		err = PTR_ERR(kbdev->devfreq_cooling);
-		dev_err(kbdev->dev,
-			"Failed to register cooling device (%d)\n",
-			err);
-		goto cooling_failed;
+		kbdev->devfreq_cooling = of_devfreq_cooling_register_power(
+				kbdev->dev->of_node,
+				kbdev->devfreq,
+				callbacks);
+		if (IS_ERR_OR_NULL(kbdev->devfreq_cooling)) {
+			err = PTR_ERR(kbdev->devfreq_cooling);
+			dev_err(kbdev->dev,
+				"Failed to register cooling device (%d)\n",
+				err);
+			goto cooling_failed;
+		}
 	}
 #endif
 
@@ -357,7 +360,8 @@ cooling_failed:
 	devfreq_unregister_opp_notifier(kbdev->dev, kbdev->devfreq);
 #endif /* CONFIG_DEVFREQ_THERMAL */
 opp_notifier_failed:
-	if (devfreq_remove_device(kbdev->devfreq))
+	err = devfreq_remove_device(kbdev->devfreq);
+	if (err)
 		dev_err(kbdev->dev, "Failed to terminate devfreq (%d)\n", err);
 	else
 		kbdev->devfreq = NULL;
@@ -372,10 +376,7 @@ void kbase_devfreq_term(struct kbase_device *kbdev)
 	dev_dbg(kbdev->dev, "Term Mali devfreq\n");
 
 #ifdef CONFIG_DEVFREQ_THERMAL
-	if (kbdev->devfreq_cooling)
-		devfreq_cooling_unregister(kbdev->devfreq_cooling);
-
-	kbase_ipa_model_term(kbdev);
+	devfreq_cooling_unregister(kbdev->devfreq_cooling);
 #endif
 
 	devfreq_unregister_opp_notifier(kbdev->dev, kbdev->devfreq);

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -177,16 +177,6 @@ void kbase_sync_signal_pt(struct sync_pt *pt, int result)
 			return;
 		}
 	} while (atomic_cmpxchg(&mtl->signalled, signalled, mpt->order) != signalled);
-}
-
-const char *kbase_sync_status_string(int status)
-{
-	if (status == 0)
-		return "signaled";
-	else if (status > 0)
-		return "active";
-	else
-		return "error";
 }
 
 #endif				/* CONFIG_SYNC */

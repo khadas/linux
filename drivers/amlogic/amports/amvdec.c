@@ -44,7 +44,7 @@
 #include "amports_config.h"
 #include "arch/firmware.h"
 
-#define MC_SIZE (4096 * 4)
+#define MC_SIZE (4096 * 16)
 
 #ifdef CONFIG_WAKELOCK
 static struct wake_lock amvdec_lock;
@@ -63,7 +63,6 @@ static int video_stated_changed = 1;
 static void amvdec_pg_enable(bool enable)
 {
 	ulong timeout;
-
 	if (enable) {
 		AMVDEC_CLK_GATE_ON(MDEC_CLK_PIC_DC);
 		AMVDEC_CLK_GATE_ON(MDEC_CLK_DBLK);
@@ -240,17 +239,41 @@ int amvdec_wake_unlock(void)
 #define amvdec_wake_unlock()
 #endif
 
+static s32 am_vdec_loadmc_ex(struct vdec_s *vdec,
+		const char *name, s32(*load)(const u32 *))
+{
+	int err;
+
+	if (!vdec->mc_loaded) {
+		int loaded;
+		loaded = get_decoder_firmware_data(vdec->format,
+					name, (u8 *)(vdec->mc), (4096 * 4 * 4));
+		if (loaded <= 0)
+			return -1;
+
+		vdec->mc_loaded = true;
+	}
+
+	err = (*load)(vdec->mc);
+	if (err < 0) {
+		pr_err("loading firmware %s to vdec ram  failed!\n", name);
+		return err;
+	}
+	pr_debug("loading firmware %s to vdec ram  ok!\n", name);
+	return err;
+}
+
 static s32 am_loadmc_ex(enum vformat_e type,
 		const char *name, char *def, s32(*load)(const u32 *))
 {
-	char *mc_addr = vmalloc(4096 * 4);
+	char *mc_addr = vmalloc(4096 * 16);
 	char *pmc_addr = def;
 	int err;
 
 	if (!def && mc_addr) {
 		int loaded;
 		loaded = get_decoder_firmware_data(type,
-					name, mc_addr, (4096 * 4));
+					name, mc_addr, (4096 * 16));
 		if (loaded > 0)
 			pmc_addr = mc_addr;
 	}
@@ -326,6 +349,11 @@ static s32 amvdec_loadmc(const u32 *p)
 s32 amvdec_loadmc_ex(enum vformat_e type, const char *name, char *def)
 {
 	return am_loadmc_ex(type, name, def, &amvdec_loadmc);
+}
+
+s32 amvdec_vdec_loadmc_ex(struct vdec_s *vdec, const char *name)
+{
+	return am_vdec_loadmc_ex(vdec, name, &amvdec_loadmc);
 }
 
 static s32 amvdec2_loadmc(const u32 *p)
@@ -500,6 +528,14 @@ s32 amhevc_loadmc_ex(enum vformat_e type, const char *name, char *def)
 		return 0;
 }
 
+s32 amhevc_vdec_loadmc_ex(struct vdec_s *vdec, const char *name)
+{
+	if (has_hevc_vdec())
+		return am_vdec_loadmc_ex(vdec, name, &amhevc_loadmc);
+	else
+		return 0;
+}
+
 void amvdec_start(void)
 {
 #ifdef CONFIG_WAKELOCK
@@ -566,6 +602,7 @@ void amhcodec_start(void)
 
 void amhevc_start(void)
 {
+
 	if (has_hevc_vdec()) {
 #ifdef CONFIG_WAKELOCK
 		amvdec_wake_lock();
@@ -744,6 +781,22 @@ int amvdec_resume(struct platform_device *dev)
 
 	return 0;
 }
+
+int amhevc_suspend(struct platform_device *dev, pm_message_t event)
+{
+	if (has_hevc_vdec())
+		amhevc_pg_enable(false);
+	return 0;
+}
+
+int amhevc_resume(struct platform_device *dev)
+{
+	if (has_hevc_vdec())
+		amhevc_pg_enable(true);
+	return 0;
+}
+
+
 #endif
 
 #ifdef CONFIG_WAKELOCK

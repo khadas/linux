@@ -853,7 +853,7 @@ static ssize_t _psparser_write(const char __user *buf, size_t count)
 	return count - r;
 }
 
-s32 psparser_init(u32 vid, u32 aid, u32 sid)
+s32 psparser_init(u32 vid, u32 aid, u32 sid, struct vdec_s *vdec)
 {
 	s32 r;
 	u32 parser_sub_start_ptr;
@@ -911,10 +911,19 @@ s32 psparser_init(u32 vid, u32 aid, u32 sid)
 	CLEAR_MPEG_REG_MASK(TS_FILE_CONFIG, (1 << TS_HIU_ENABLE));
 
 	/* hook stream buffer with PARSER */
-	WRITE_MPEG_REG(PARSER_VIDEO_START_PTR,
-				   READ_VREG(VLD_MEM_VIFIFO_START_PTR));
-	WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, READ_VREG(VLD_MEM_VIFIFO_END_PTR));
-	CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+	WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+	WRITE_MPEG_REG(PARSER_VIDEO_END_PTR,
+		vdec->input.start + vdec->input.size - 8);
+
+	if (vdec_single(vdec)) {
+		CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+		WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+		CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	} else {
+		SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+		WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
+		WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
+	}
 
 	WRITE_MPEG_REG(PARSER_AUDIO_START_PTR,
 				   READ_MPEG_REG(AIU_MEM_AIFIFO_START_PTR));
@@ -927,8 +936,10 @@ s32 psparser_init(u32 vid, u32 aid, u32 sid)
 				   (1 << PS_CFG_MAX_ES_WR_CYCLE_BIT) |
 				   (16 << PS_CFG_MAX_FETCH_CYCLE_BIT));
 
-	WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
-	CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	if (vdec_single(vdec)) {
+		WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+		CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+	}
 
 	WRITE_MPEG_REG(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
 	CLEAR_MPEG_REG_MASK(AIU_MEM_AIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
@@ -1017,7 +1028,8 @@ ssize_t psparser_write(struct file *file,
 	const char __user *buf, size_t count)
 {
 	s32 r;
-	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
+	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
+	struct stream_port_s *port = priv->port;
 
 	if ((stbuf_space(vbuf) < count) || (stbuf_space(abuf) < count)) {
 		if (file->f_flags & O_NONBLOCK)

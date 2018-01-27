@@ -37,6 +37,8 @@
 #define FETCHBUF_SIZE   (64*1024)
 #define USER_DATA_SIZE  (8*1024)
 
+struct vdec_s;
+
 struct stream_buf_s {
 	s32 flag;
 	u32 type;
@@ -105,6 +107,9 @@ struct drm_info {
 } /*drminfo_t */;
 
 #define TYPE_DRMINFO   0x80
+#define TYPE_PATTERN   0x40
+
+struct vdec_s;
 
 extern void *fetchbuf;
 
@@ -113,7 +118,7 @@ extern u32 stbuf_rp(struct stream_buf_s *buf);
 extern u32 stbuf_space(struct stream_buf_s *buf);
 extern u32 stbuf_size(struct stream_buf_s *buf);
 extern u32 stbuf_canusesize(struct stream_buf_s *buf);
-extern s32 stbuf_init(struct stream_buf_s *buf);
+extern s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec);
 extern s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count);
 extern void stbuf_release(struct stream_buf_s *buf);
 extern int stbuf_change_size(struct stream_buf_s *buf, int size);

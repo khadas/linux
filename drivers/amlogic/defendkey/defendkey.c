@@ -41,6 +41,7 @@
 void __iomem *mem_base_virt;
 unsigned long mem_size;
 unsigned long random_virt;
+unsigned long wbuf_size;
 
 struct defendkey_dev_t {
 	struct cdev cdev;
@@ -51,6 +52,7 @@ static struct defendkey_dev_t *defendkey_devp;
 static dev_t defendkey_devno;
 static struct device *defendkey_device;
 struct platform_device *defendkey_pdev = NULL;
+static int decrypt_dtb;
 
 static int defendkey_open(struct inode *inode, struct file *file)
 {
@@ -93,7 +95,51 @@ static long defendkey_compat_ioctl(struct file *filp,
 static ssize_t defendkey_read(struct file *file,
 	char __user *buf, size_t count, loff_t *ppos)
 {
-	return 0;
+	int i, ret;
+	unsigned long copy_base, copy_size;/* , mem_base_phy; */
+	switch (decrypt_dtb) { /*for decrypt dtb*/
+	case 0: /*not decrypt dtb, no data for user*/
+		pr_err("%s:not decrypt dtb, no data for user!decrypt_dtb:%d\n",
+			__func__, decrypt_dtb);
+		return 0;
+	case 1: /*decrypt dtb fail*/
+		pr_err("%s: not decrypt or decrypt dtb fail! decrypt_dtb:%d\n",
+			__func__, decrypt_dtb);
+		return 0;
+	case 2: /*defendkey_write decrypted dtb successfully,
+		and keep data in memory*/
+	{
+		for (i = 0; i <= count/mem_size; i++) {
+			copy_size = mem_size;
+			copy_base = (unsigned long)buf+i*mem_size;
+			if ((i+1)*mem_size > count)
+				copy_size = count - mem_size*i;
+			ret = copy_to_user((void __user *)copy_base,
+				(const void *)mem_base_virt, copy_size);
+			if (ret) {
+				pr_err("%s:copy_to_user fail! ret:%d\n",
+					__func__, ret);
+				return 0;
+			}
+		pr_info("%s: copy_to_user OK!", __func__);
+		pr_info("user copy_base: 0x%lx copy_size:0x%lx\n",
+			copy_base, copy_size);
+		__dma_flush_range((const void *)mem_base_virt,
+			(const void *)(mem_base_virt+copy_size));
+		/*pr_info("defendkey: firmware checking...\n");*/
+		}
+		if (!ret) {
+			pr_info("%s: copy data to user successfully!\n",
+				__func__);
+			return 1;
+		}
+	}
+	default:
+	{
+		pr_err("defendkey_read: bad decrypt_dtb: %d\n", decrypt_dtb);
+		return 0;  /*error*/
+	}
+	}
 }
 
 static ssize_t defendkey_write(struct file *file,
@@ -106,8 +152,6 @@ static ssize_t defendkey_write(struct file *file,
 	unsigned long option = 0;
 	int i;
 
-	mem_size = 1 * SZ_1M;
-
 	mem_base_phy = virt_to_phys(mem_base_virt);
 
 	if (!mem_base_phy || !mem_size) {
@@ -119,6 +163,7 @@ static ssize_t defendkey_write(struct file *file,
 		mem_base_phy, mem_size, mem_base_virt);
 	random = readl((void *)random_virt);
 
+	wbuf_size = count;/*backup write data size from user*/
 	for (i = 0; i <= count/mem_size; i++) {
 		copy_size = mem_size;
 		copy_base = (unsigned long)buf+i*mem_size;
@@ -131,12 +176,12 @@ static ssize_t defendkey_write(struct file *file,
 			ret =  -EFAULT;
 			goto exit;
 		}
-		/*pr_info("defendkey: copy_from_user OK!");
+		pr_info("defendkey: copy_from_user OK!");
 		pr_info("user copy_base: 0x%lx copy_size:0x%lx\n",
-			copy_base, copy_size);*/
+			copy_base, copy_size);
 		__dma_flush_range((const void *)mem_base_virt,
 			(const void *)(mem_base_virt+copy_size));
-		/*pr_info("defendkey: firmware checking...\n");*/
+		pr_info("defendkey: firmware checking...\n");
 
 		if (i == 0) {
 			option = 1;
@@ -156,20 +201,36 @@ static ssize_t defendkey_write(struct file *file,
 			else
 				option = 4|(random<<32);
 		}
-		/*pr_info("defendkey:%d: copy_size:0x%lx, option:0x%lx\n",
-			__LINE__, copy_size, option);*/
-		ret = aml_sec_boot_check(AML_D_P_UPGRADE_CHECK,
-			(unsigned long) mem_base_phy, copy_size, option);
+		pr_info("defendkey:%d: copy_size:0x%lx, option:0x%lx\n",
+			__LINE__, copy_size, option);
+		pr_info("decrypt_dtb: %d\n", decrypt_dtb);
+		if (decrypt_dtb == 1)
+			ret = aml_sec_boot_check(AML_D_P_IMG_DECRYPT,
+				mem_base_phy, copy_size, 0); /*option: 0: dtb*/
+		else if (!decrypt_dtb)
+			ret = aml_sec_boot_check(AML_D_P_UPGRADE_CHECK,
+				mem_base_phy, copy_size, option);
+		else {
+			ret = -1;
+			pr_err("%s: decrypt_dtb: %d,", __func__, decrypt_dtb);
+			pr_err("not for upgrade check and decrypt_dtb\n");
+		}
 		if (ret) {
 			value = 0;
-			pr_err("defendkey: aml_sec_boot_check error,%s:%d: ret %d\n",
-			__func__, __LINE__, ret);
+			pr_err("defendkey: aml_sec_boot_check error,");
+			pr_err(" %s:%d: ret %d %s", __func__, __LINE__,
+				ret, decrypt_dtb ? "\n":": for decrypt_dtb\n");
 			goto exit;
 		}
 	}
 
 	if (!ret) {
-		pr_info("defendkey: aml_sec_boot_check ok!\n");
+		if (decrypt_dtb) {
+			decrypt_dtb = 2;
+			pr_info("defendkey: aml_sec_boot_check decrypt dtb ok!\n");
+		} else {
+			pr_info("defendkey: aml_sec_boot_check ok!\n");
+		}
 		value = 1;
 	}
 exit:
@@ -199,11 +260,47 @@ static ssize_t secure_check_show(struct class *cla,
 
 	return n;
 }
+
 static ssize_t secure_verify_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
 	ssize_t n = 0;
 	return n;
+}
+
+static ssize_t decrypt_dtb_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	ssize_t n = 0;
+	/* show lock state. */
+	n += sprintf(&buf[n], "%d\n", decrypt_dtb);
+	buf[n] = 0;
+	/* pr_info("decrypt_dtb: %d\n", decrypt_dtb); */
+
+	return n;
+}
+static ssize_t decrypt_dtb_store(struct class *cla,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int len;
+	/* check '\n' and del */
+	if (buf[count - 1] == '\n')
+		len = count - 1;
+	else
+		len = count;
+
+	if (!strncmp(buf, "1", len))
+		decrypt_dtb = 1;
+	else if (!strncmp(buf, "0", len))
+		decrypt_dtb = 0;
+	else {
+		pr_info("set defendkey decrypt_dtb fail\n");
+		goto _out;
+	}
+
+_out:
+	/* pr_info("decrypt_dtb is %d\n", decrypt_dtb); */
+	return count;
 }
 
 static const struct file_operations defendkey_fops = {
@@ -223,6 +320,7 @@ static struct class_attribute defendkey_class_attrs[] = {
 	__ATTR_RO(version),
 	__ATTR_RO(secure_check),
 	__ATTR_RO(secure_verify),
+	__ATTR(decrypt_dtb, (S_IRWXU), decrypt_dtb_show, decrypt_dtb_store),
 	__ATTR_NULL
 };
 static struct class defendkey_class = {
@@ -254,11 +352,13 @@ static int aml_defendkey_probe(struct platform_device *pdev)
 	random_virt = (unsigned long)devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR((void *)random_virt))
 		return PTR_ERR((void *)random_virt);
+
 	mem_base_virt = kmalloc(mem_size, GFP_KERNEL);
 	if (!mem_base_virt) {
 		dev_err(&pdev->dev, "defendkey: failed to allocate memory\n ");
 		return -ENOMEM;
 	}
+
 	ret = alloc_chrdev_region(&defendkey_devno, 0, 1,
 		DEFENDKEY_DEVICE_NAME);
 	if (ret < 0) {

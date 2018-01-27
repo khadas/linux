@@ -422,26 +422,48 @@ static void handle_non_critical_trips(struct thermal_zone_device *tz,
 		       def_governor->throttle(tz, trip);
 }
 
+static bool can_notify(struct thermal_zone_device *tz,
+		       int trip, enum thermal_trip_type trip_type,
+		       long trip_temp)
+{
+	unsigned long hyst = 0;
+
+	if (trip_type != THERMAL_TRIP_HOT)
+		return false;
+	tz->ops->get_trip_hyst(tz, trip, &hyst);
+
+	if (tz->temperature < 0)
+		return false;
+
+	/* increase each hyst step */
+	if (tz->temperature >= (trip_temp + tz->hot_step * hyst)) {
+		tz->hot_step++;
+		dev_info(&tz->device,
+			 "temp:%d increase, hyst:%ld, trip_temp:%ld, hot:%x\n",
+			 tz->temperature, hyst, trip_temp, tz->hot_step);
+		return true;
+	}
+	/* reserve a step gap */
+	if (tz->temperature <= (trip_temp + (tz->hot_step - 2) * hyst) &&
+	    tz->hot_step) {
+		tz->hot_step--;
+		dev_info(&tz->device,
+			 "temp:%d decrease, hyst:%ld, trip_temp:%ld, hot:%x\n",
+			 tz->temperature, hyst, trip_temp, tz->hot_step);
+		return true;
+	}
+	return false;
+}
+
 static void handle_critical_trips(struct thermal_zone_device *tz,
 				int trip, enum thermal_trip_type trip_type)
 {
 	long trip_temp;
-	unsigned long hyst = 0;
 
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
-	tz->ops->get_trip_hyst(tz, trip, &hyst);
 
 	/* notify enter hot and exit hot */
-	if (((tz->temperature >= (trip_temp + tz->enter_hot * hyst)) ||
-	    (tz->temperature + hyst <= trip_temp && tz->enter_hot)) &&
-	    (trip_type == THERMAL_TRIP_HOT)) {
-		if ((tz->temperature + hyst) <= trip_temp && tz->enter_hot)
-			tz->enter_hot = 0;
-		else
-			tz->enter_hot++;
-		dev_info(&tz->device,
-			 "temp:%d, hyst:%ld, trip_temp:%ld, hot:%d\n",
-			 tz->temperature, hyst, trip_temp, tz->enter_hot);
+	if (can_notify(tz, trip, trip_type, trip_temp)) {
 		if (tz->ops->notify)
 			tz->ops->notify(tz, trip, trip_type);
 	}
@@ -1769,7 +1791,7 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	tz->trips = trips;
 	tz->passive_delay = passive_delay;
 	tz->polling_delay = polling_delay;
-	tz->enter_hot = 0;
+	tz->hot_step = 0;
 
 	dev_set_name(&tz->device, "thermal_zone%d", tz->id);
 	result = device_register(&tz->device);

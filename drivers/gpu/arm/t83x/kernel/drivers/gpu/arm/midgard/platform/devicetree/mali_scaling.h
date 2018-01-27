@@ -18,8 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <linux/clk-provider.h>
-#include <linux/clk.h>
+#include <linux/clk-private.h>
 
 enum mali_scale_mode_t {
 	MALI_PP_SCALING = 0,

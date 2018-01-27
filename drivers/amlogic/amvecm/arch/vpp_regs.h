@@ -148,6 +148,7 @@
 #define VPP_VE_DEMO_LEFT_TOP_SCREEN_WIDTH 0x1da2
 #define VPP_VE_DEMO_CENTER_BAR 0x1da3
 #define VPP_VE_H_V_SIZE 0x1da4
+#define VPP_PSR_H_V_SIZE 0x1da5
 #define VPP_VDO_MEAS_CTRL 0x1da8
 #define VPP_VDO_MEAS_VS_COUNT_HI 0x1da9
 #define VPP_VDO_MEAS_VS_COUNT_LO 0x1daa
@@ -185,6 +186,7 @@
 #define VPP_OSD_SCALE_COEF_IDX 0x1dcc
 #define VPP_OSD_SCALE_COEF 0x1dcd
 #define VPP_INT_LINE_NUM 0x1dce
+#define VPP_XVYCC_MISC 0x1dcf
 
 #define VPP_CLIP_MISC0 0x1dd9
 
@@ -447,6 +449,7 @@
 #define SRSHARP0_PK_FINALGAIN_HP_BP 0x3222
 #define SRSHARP0_SHARP_PK_NR_ENABLE 0x3227
 #define SRSHARP0_SHARP_DNLP_EN 0x3245
+#define SRSHARP1_PK_FINALGAIN_HP_BP 0x32a2
 #define SRSHARP1_SHARP_PK_NR_ENABLE 0x32a7
 #define SRSHARP1_SHARP_DNLP_EN 0x32c5
 
@@ -472,6 +475,15 @@
 #define SRSHARP1_VLTI_FLT_CON_CLP     0x32ba/*bit14*/
 #define SRSHARP1_VCTI_FLT_CON_CLP     0x32bf
 
+/*sr0 sr1 dejaggy/direction/dering*/
+#define SRSHARP0_DEJ_CTRL				0x3264/*bit 0*/
+#define SRSHARP0_SR3_DRTLPF_EN			0x3266/*bit 0-2*/
+#define SRSHARP0_SR3_DERING_CTRL		0x326b/*bit 28-30*/
+
+#define SRSHARP1_DEJ_CTRL				0x32e4/*bit 0*/
+#define SRSHARP1_SR3_DRTLPF_EN			0x32e6/*bit 0-2*/
+#define SRSHARP1_SR3_DERING_CTRL		0x32eb/*bit 28-30*/
+
 /* for pll bug */
 #define HHI_HDMI_PLL_CNTL			    0x10c8
 #define HHI_HDMI_PLL_CNTL2			    0x10c9
@@ -484,7 +496,10 @@
 
 #define ENCL_VIDEO_MAX_LNCNT            0x1cbb
 #define VDIN_MEAS_VS_COUNT_LO 0x125c
-
+/*after GXL new add CNTL1,same with CNTL2 on G9TV/GXTVBB*/
+#define HHI_HDMI_PLL_CNTL1			    0x10c9
+/*after GXL CNTL5[bit3] is same with CNTL6[bit20] on G9TV/GXTVBB*/
+#define HHI_HDMI_PLL_CNTL5			    0x10cd
 
 
 /* #define VI_HIST_CTRL                             0x2e00 */

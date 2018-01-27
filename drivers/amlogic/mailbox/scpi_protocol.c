@@ -83,7 +83,10 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_GET_PSU,
 	SCPI_CMD_SENSOR_CFG_PERIODIC,
 	SCPI_CMD_SENSOR_CFG_BOUNDS,
+	SCPI_CMD_WAKEUP_REASON_GET,
 };
+
+static unsigned long max_freq_dvfs = 1500000000;
 
 static struct scpi_opp *scpi_opps[MAX_DVFS_DOMAINS];
 
@@ -236,6 +239,7 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 	struct scpi_opp *opps;
 	size_t opps_sz;
 	int count, ret;
+	int i, max_count;
 
 	if (domain >= MAX_DVFS_DOMAINS)
 		return ERR_PTR(-EINVAL);
@@ -254,6 +258,25 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 		return ERR_PTR(-ENOMEM);
 
 	count = DVFS_OPP_COUNT(buf.header);
+	max_count = count;
+
+	if (max_freq_dvfs) {
+		for (i = 0; i < count; i++)	{
+			pr_info("dvfs [%s] - buf.opp[%d].freq_hz = %ld\n",
+				__func__, i, buf.opp[i].freq_hz);
+			if (buf.opp[i].freq_hz >= max_freq_dvfs)
+				break;
+		}
+		count = i + 1;
+		/* if no param "max_freq_dvfs or wrong "max_freq_dvfs"
+		 * from boot.ini, consider stable max value */
+		if ((max_freq_dvfs == 0) || (count > max_count))
+			count = max_count;
+
+		pr_info("dvfs [%s] - new count %d, max_freq %ld\n", __func__,
+			count, buf.opp[count - 1].freq_hz);
+	}
+
 	opps_sz = count * sizeof(*(opps->opp));
 
 	opps->count = count;
@@ -422,3 +445,107 @@ int scpi_send_usr_data(u32 client_id, u32 *val, u32 size)
 }
 EXPORT_SYMBOL_GPL(scpi_send_usr_data);
 
+int scpi_get_usr_data(u32 client_id, u32 *val, u32 size)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	struct __packed {
+		u32 status;
+		u32 count;
+		unsigned int buf1[MAX_DVFS_OPPS];
+	} buf;
+	int  ret;
+	size_t opps_sz;
+	unsigned int domain = 0;
+
+	SCPI_SETUP_DBUF(sdata, mdata, client_id,
+			SCPI_CMD_GET_USR_DATA, domain, buf);
+	ret = scpi_execute_cmd(&sdata);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+
+	if (size > buf.count)
+		size = buf.count;
+	opps_sz = size * sizeof(unsigned int);
+	memcpy(val, &buf.buf1[0], opps_sz);
+	return size;
+}
+EXPORT_SYMBOL_GPL(scpi_get_usr_data);
+
+int scpi_get_vrtc(u32 *p_vrtc)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 status;
+		u32 vrtc;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_GET_RTC, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	*p_vrtc = buf.vrtc;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_get_vrtc);
+
+int scpi_set_vrtc(u32 vrtc_val)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	int state;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_SET_RTC, vrtc_val, state);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_set_vrtc);
+
+int scpi_get_wakeup_reason(u32 *wakeup_reason)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 status;
+		u32 reason;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_WAKEUP_REASON_GET, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	*wakeup_reason = buf.reason;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_get_wakeup_reason);
+
+static int __init get_max_freq(char *str)
+{
+	int ret;
+
+	if (NULL == str) {
+		/* consider default set */
+		max_freq_dvfs = 1536000000;
+		return -EINVAL;
+	}
+
+	ret = kstrtoul(str, 0, &max_freq_dvfs);
+
+	/* in unit Hz */
+	max_freq_dvfs *= 1000000;
+
+	pr_info("dvfs [%s] - max_freq : %ld\n", __func__, max_freq_dvfs);
+
+	return 0;
+}
+__setup("max_freq=", get_max_freq);

@@ -104,6 +104,12 @@ const char *tvin_port_str(enum tvin_port_e port)
 	case TVIN_PORT_CAMERA:
 		return "TVIN_PORT_CAMERA";
 		break;
+	case TVIN_PORT_BT656_HDMI:
+		return "TVIN_PORT_BT656_HDMI";
+		break;
+	case TVIN_PORT_BT601_HDMI:
+		return "TVIN_PORT_BT601_HDMI";
+		break;
 	case TVIN_PORT_VGA0:
 		return "TVIN_PORT_VGA0";
 		break;

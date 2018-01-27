@@ -30,6 +30,7 @@
 #endif
 
 #include <linux/pinctrl/pinmux.h>
+#include <linux/amlogic/amdsc.h>
 
 #include "../amports/streambuf.h"
 #include "aml_dvb.h"
@@ -40,6 +41,7 @@
 
 #define ENABLE_SEC_BUFF_WATCHDOG
 #define USE_AHB_MODE
+#define PR_ERROR_SPEED_LIMIT
 
 #define pr_dbg_flag(_f, _args...)\
 	do {\
@@ -58,8 +60,22 @@
 #define pr_dbg_irq_sf(args...) pr_dbg_irq_flag(0x4, args)
 #define pr_dbg_ss(args...) pr_dbg_flag(0x8, args)
 #define pr_dbg_irq_ss(args...) pr_dbg_irq_flag(0x8, args)
+#define pr_dbg_irq_pes(args...) pr_dbg_irq_flag(0x10, args)
 
-#define pr_error(fmt, args...) printk("DVB: " fmt, ## args)
+#ifdef PR_ERROR_SPEED_LIMIT
+static u32 last_pr_error_time;
+#define pr_error(fmt, _args...)\
+	do {\
+		u32 diff = jiffies_to_msecs(jiffies - last_pr_error_time);\
+		if (!last_pr_error_time || diff > 50) {\
+			pr_err("DVB:" fmt, ## _args);\
+			last_pr_error_time = jiffies;\
+		} \
+	} while (0)
+#else
+#define pr_error(fmt, args...) pr_err("DVB: " fmt, ## args)
+#endif
+
 #define pr_inf(fmt, args...)  printk("DVB: " fmt, ## args)
 
 #define dump(b, l) \
@@ -82,12 +98,25 @@ MODULE_PARM_DESC(debug_irq, "\n\t\t Enable demux IRQ debug information");
 static int debug_irq;
 module_param(debug_irq, int, 0644);
 
+MODULE_PARM_DESC(debug_irq, "\n\t\t Disable discrambler");
+static int disable_dsc = 0x0;
+module_param(disable_dsc, int, 0644);
+
+/*For old version kernel */
+#ifndef MESON_CPU_MAJOR_ID_GXL
+#define MESON_CPU_MAJOR_ID_GXL	0x21
+#endif
+
 static int npids = CHANNEL_COUNT;
 #define MOD_PARAM_DECLARE_CHANPIDS(_dmx) \
 MODULE_PARM_DESC(debug_dmx##_dmx##_chanpids, "\n\t\t pids of dmx channels"); \
 static short debug_dmx##_dmx##_chanpids[CHANNEL_COUNT] = \
 					{[0 ... (CHANNEL_COUNT - 1)] = -1}; \
 module_param_array(debug_dmx##_dmx##_chanpids, short, &npids, 0444)
+
+#define CIPLUS_OUTPUT_AUTO 8
+static int ciplus_out_sel = CIPLUS_OUTPUT_AUTO;
+static int ciplus_out_auto_mode = 1;
 
 MOD_PARAM_DECLARE_CHANPIDS(0);
 MOD_PARAM_DECLARE_CHANPIDS(1);
@@ -114,6 +143,83 @@ module_param(force_sec_sf, int, 0644);
 MODULE_PARM_DESC(force_pes_sf, "\n\t\t force sf mode for pes filter");
 static int force_pes_sf;
 module_param(force_pes_sf, int, 0644);
+
+MODULE_PARM_DESC(use_of_sop, "\n\t\t Enable use of sop input");
+static int use_of_sop;
+module_param(use_of_sop, int, 0644);
+
+#define CIPLUS_KEY0   0x16f8
+#define CIPLUS_KEY1   0x16f9
+#define CIPLUS_KEY2   0x16fa
+#define CIPLUS_KEY3   0x16fb
+#define CIPLUS_KEY_WR 0x16fc
+#define CIPLUS_CONFIG 0x16fd
+#define CIPLUS_ENDIAN 0x16fe
+
+static u32 old_stb_top_config = 0x0;
+static u32 old_fec_input_control = 0x0;
+static int have_old_stb_top_config = 1;
+static int have_old_fec_input_control = 1;
+
+static void
+dmx_write_reg(int r, u32 v)
+{
+	u32 oldv, mask;
+
+	if (disable_dsc) {
+		if (r == STB_TOP_CONFIG) {
+			if (have_old_stb_top_config) {
+				oldv = old_stb_top_config;
+				have_old_stb_top_config = 0;
+			} else {
+				oldv = READ_MPEG_REG(STB_TOP_CONFIG);
+			}
+
+			mask = (1<<7)|(1<<15)|(3<<26)|(7<<28);
+			v    &= ~mask;
+			v    |= (oldv & mask);
+		} else if (r == FEC_INPUT_CONTROL) {
+			if (have_old_fec_input_control) {
+				oldv = old_fec_input_control;
+				have_old_fec_input_control = 0;
+			} else {
+				oldv = READ_MPEG_REG(FEC_INPUT_CONTROL);
+			}
+
+			mask = (1<<15);
+			v   &= ~mask;
+			v   |= (oldv & mask);
+		} else if ((r == RESET1_REGISTER) || (r == RESET3_REGISTER)) {
+			if (!have_old_stb_top_config) {
+				have_old_stb_top_config = 1;
+				old_stb_top_config =
+					READ_MPEG_REG(STB_TOP_CONFIG);
+			}
+			if (!have_old_fec_input_control) {
+				have_old_fec_input_control = 1;
+				old_fec_input_control =
+					READ_MPEG_REG(FEC_INPUT_CONTROL);
+			}
+		} else if ((r == TS_PL_PID_INDEX) || (r == TS_PL_PID_DATA)
+					|| (r == COMM_DESC_KEY0)
+					|| (r == COMM_DESC_KEY1)
+					|| (r == COMM_DESC_KEY_RW)
+					|| (r == CIPLUS_KEY0)
+					|| (r == CIPLUS_KEY1)
+					|| (r == CIPLUS_KEY2)
+					|| (r == CIPLUS_KEY3)
+					|| (r == CIPLUS_KEY_WR)
+					|| (r == CIPLUS_CONFIG)
+					|| (r == CIPLUS_ENDIAN)) {
+			return;
+		}
+	}
+
+	WRITE_MPEG_REG(r, v);
+}
+
+#undef WRITE_MPEG_REG
+#define WRITE_MPEG_REG(r, v) dmx_write_reg(r, v)
 
 #define DMX_READ_REG(i, r)\
 	((i)?((i == 1)?READ_MPEG_REG(r##_2) :\
@@ -185,6 +291,15 @@ MOD_PARAM_DECLARE_CHANPROC(2);
 static inline int _setbit(int v, int b) { return v|(1<<b); }
 static inline int _clrbit(int v, int b) { return v&~(1<<b); }
 static inline int _set(int v, int b) { return b; }
+
+static int dsc_set_csa_key(struct aml_dsc_channel *ch, int type, u8 *key);
+static int dsc_set_aes_key(struct aml_dsc_channel *ch, int type, u8 *key);
+
+static void aml_ci_plus_disable_output(void);
+static void aml_ci_plus_disable(void);
+static void am_ci_plus_set_output(struct aml_dsc_channel *ch);
+static void aml_ci_plus_enable(void);
+
 static void dmxn_op_chan(int dmx, int ch, int(*op)(int, int), int ch_op)
 {
 	int enable_0, enable_1, enable_2;
@@ -274,7 +389,7 @@ static void dmxn_op_chan(int dmx, int ch, int(*op)(int, int), int ch_op)
 #define DEMUX_INT_MASK\
 			((0<<(AUDIO_SPLICING_POINT))    |\
 			(0<<(VIDEO_SPLICING_POINT))     |\
-			(0<<(OTHER_PES_READY))          |\
+			(1<<(OTHER_PES_READY))          |\
 			(1<<(SUB_PES_READY))            |\
 			(1<<(SECTION_BUFFER_READY))     |\
 			(0<<(OM_CMD_READ_PENDING))      |\
@@ -381,9 +496,9 @@ static void section_buffer_watchdog_func(unsigned long arg)
 		}
 #else
 		/* bit 15:12 -- om_cmd_count (read only) */
-		/* bit  11:9 -- overflow_count //
+		/* bit  11:9 -- overflow_count */
 		   bit  11:9 -- om_cmd_wr_ptr (read only) */
-		/* bit   8:6 -- om_overwrite_count //
+		/* bit   8:6 -- om_overwrite_count */
 		   bit   8:6 -- om_cmd_rd_ptr (read only) */
 		/* bit   5:3 -- type_stb_om_w_rd (read only) */
 		/* bit     2 -- unit_start_stb_om_w_rd (read only) */
@@ -496,6 +611,27 @@ static inline int sec_filter_match(struct aml_dmx *dmx, struct aml_filter *f,
 	return 1;
 }
 
+static void trigger_crc_monitor(struct aml_dmx *dmx)
+{
+	if (!dmx->crc_check_time) {
+		dmx->crc_check_time = jiffies;
+		dmx->crc_check_count = 0;
+	}
+
+	if (dmx->crc_check_count > 100) {
+		if (jiffies_to_msecs(jiffies - dmx->crc_check_time) <= 1000) {
+			struct aml_dvb *dvb = (struct aml_dvb *)dmx->demux.priv;
+			pr_error("Too many crc fail (%d crc fail in %d ms)!\n",
+				dmx->crc_check_count,
+				jiffies_to_msecs(jiffies - dmx->crc_check_time)
+			);
+			dmx_reset_dmx_hw_ex_unlock(dvb, dmx, 0);
+		}
+		dmx->crc_check_time = 0;
+	}
+
+	dmx->crc_check_count++;
+}
 static int section_crc(struct aml_dmx *dmx, struct aml_filter *f, u8 *p)
 {
 	int sec_len = (((p[1] & 0xF) << 8) | p[2]) + 3;
@@ -513,15 +649,25 @@ static int section_crc(struct aml_dmx *dmx, struct aml_filter *f, u8 *p)
 			pr_error("section CRC check failed!\n");
 
 #if 0
-			int i;
-
+{
+	int i;
+	pr_error("sec:[%#lx:%#lx:%#lx-%#lx:%#lx:%#lx-%#lx:%#lx:%#lx]\n",
+	dmx->sec_cnt[0], dmx->sec_cnt_match[0], dmx->sec_cnt_crc_fail[0],
+	dmx->sec_cnt[1], dmx->sec_cnt_match[1], dmx->sec_cnt_crc_fail[1],
+	dmx->sec_cnt[2], dmx->sec_cnt_match[2], dmx->sec_cnt_crc_fail[2]);
+		pr_error("bad sec[%d]:\n", sec_len);
+		/*
+			if (sec_len > 256)
+				sec_len = 256;
 			for (i = 0; i < sec_len; i++) {
-				pr_dbg("%02x ", p[i]);
+				pr_err("%02x ", p[i]);
 				if (!((i + 1) % 16))
-					pr_dbg("\n");
+					pr_err("\n");
 			}
-			pr_dbg("\nerror section data\n");
+		*/
+}
 #endif
+			trigger_crc_monitor(dmx);
 			return 0;
 		}
 #if 0
@@ -568,17 +714,21 @@ static void hardware_match_section(struct aml_dmx *dmx,
 	f = &dmx->filter[sec_num];
 	chid = f->chan_id;
 
+	dmx->sec_cnt[SEC_CNT_HW]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 		if (f->chan_id != chid)
 			continue;
 		if (sec_filter_match(dmx, f, p)) {
 			if (need_crc) {
-				if (!section_crc(dmx, f, p))
+				dmx->sec_cnt_match[SEC_CNT_HW]++;
+				if (!section_crc(dmx, f, p)) {
+					dmx->sec_cnt_crc_fail[SEC_CNT_HW]++;
 					return;
+				}
 				need_crc = 0;
 			}
-
 			section_notify(dmx, f, p);
 		}
 	}
@@ -594,6 +744,8 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 				dmx->sec_pages_map + (buf_num << 0x0c),
 				(1 << 0x0c), DMA_FROM_DEVICE);
 
+	dmx->sec_cnt[SEC_CNT_SW]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 
@@ -604,7 +756,7 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 				fmatch = f;
 				fid = i;
 			} else {
-				pr_dbg("software match]Muli-filter match this\n"
+				pr_error("[sw match]Muli-filter match this\n"
 					"section, will skip this section\n");
 				return;
 			}
@@ -615,8 +767,11 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 		pr_dbg("[software match]dispatch\n"
 			"section to filter %d pid %d\n",
 			fid, dmx->channel[fmatch->chan_id].pid);
+		dmx->sec_cnt_match[SEC_CNT_SW]++;
 		if (section_crc(dmx, fmatch, p))
 			section_notify(dmx, fmatch, p);
+		else
+			dmx->sec_cnt_crc_fail[SEC_CNT_SW]++;
 	} else {
 		pr_dbg("[software match]this section do not\n"
 			"match any filter!!!\n");
@@ -726,17 +881,21 @@ static void smallsection_match_section(struct aml_dmx *dmx, u8 *p, u16 sec_num)
 	f = &dmx->filter[sec_num];
 	chid = f->chan_id;
 
+	dmx->sec_cnt[SEC_CNT_SS]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 		if (f->chan_id != chid)
 			continue;
 		if (sec_filter_match(dmx, f, p)) {
 			if (need_crc) {
-				if (!section_crc(dmx, f, p))
+				dmx->sec_cnt_match[SEC_CNT_SS]++;
+				if (!section_crc(dmx, f, p)) {
+					dmx->sec_cnt_crc_fail[SEC_CNT_SS]++;
 					return;
+				}
 				need_crc = 0;
 			}
-
 			section_notify(dmx, f, p);
 		}
 	}
@@ -944,7 +1103,7 @@ static void process_sub(struct aml_dmx *dmx)
 		rd_ptr += len1;
 		len2 = 0;
 	} else if (rd_ptr == wr_ptr) {
-		pr_dbg("no data\n");
+		pr_dbg("sub no data\n");
 	}
 
 	if (buffer1)
@@ -975,6 +1134,62 @@ static void process_sub(struct aml_dmx *dmx)
 
 static void process_pes(struct aml_dmx *dmx)
 {
+	static long off, off_pre;
+	u8 *buffer1 = 0, *buffer2 = 0;
+	u8 *buffer1_phys = 0, *buffer2_phys = 0;
+	u32 len1 = 0, len2 = 0;
+	int i = 1;
+	off = (DMX_READ_REG(dmx->id, OB_PES_WR_PTR) << 3);
+
+	pr_dbg_irq_pes("[%d]WR:0x%x PES WR:0x%x\n", dmx->id,
+			DMX_READ_REG(dmx->id, OTHER_WR_PTR),
+			DMX_READ_REG(dmx->id, OB_PES_WR_PTR));
+	buffer1 = (u8 *)(dmx->pes_pages + off_pre);
+	pr_dbg_irq_pes("[%d]PES WR[%02x %02x %02x %02x %02x %02x %02x %02x",
+		dmx->id,
+		buffer1[0], buffer1[1], buffer1[2], buffer1[3],
+		buffer1[4], buffer1[5], buffer1[6], buffer1[7]);
+	pr_dbg_irq_pes(" %02x %02x %02x %02x %02x %02x %02x %02x]\n",
+			buffer1[8], buffer1[9], buffer1[10], buffer1[11],
+			buffer1[12], buffer1[13], buffer1[14], buffer1[15]);
+
+	if (off > off_pre) {
+		len1 = off-off_pre;
+		buffer1 = (unsigned char *)(dmx->pes_pages + off_pre);
+	} else if (off < off_pre) {
+		len1 = dmx->pes_buf_len-off_pre;
+		buffer1 = (unsigned char *)(dmx->pes_pages + off_pre);
+		len2 = off;
+		buffer2 = (unsigned char *)dmx->pes_pages;
+	} else if (off == off_pre) {
+		pr_dbg("pes no data\n");
+	}
+	off_pre = off;
+	if (len1) {
+		buffer1_phys = (unsigned char *)virt_to_phys(buffer1);
+		dma_sync_single_for_cpu(dmx_get_dev(dmx),
+			(dma_addr_t)buffer1_phys, len1, DMA_FROM_DEVICE);
+	}
+	if (len2) {
+		buffer2_phys = (unsigned char *)virt_to_phys(buffer2);
+		dma_sync_single_for_cpu(dmx_get_dev(dmx),
+			(dma_addr_t)buffer2_phys, len2, DMA_FROM_DEVICE);
+	}
+	if (len1 || len2) {
+		struct aml_channel *ch;
+		for (i = 0; i < CHANNEL_COUNT; i++) {
+			ch = &dmx->channel[i];
+			if (ch->used && ch->feed
+				&& (ch->feed->type == DMX_TYPE_TS)) {
+				if (ch->feed->ts_type & TS_PAYLOAD_ONLY) {
+					ch->feed->cb.ts(buffer1,
+						len1, buffer2, len2,
+						&ch->feed->feed.ts,
+						DMX_OK);
+				}
+			}
+		}
+	}
 }
 
 static void process_om_read(struct aml_dmx *dmx)
@@ -1030,7 +1245,7 @@ static irqreturn_t dmx_irq_handler(int irq_number, void *para)
 	if (!status)
 		goto irq_handled;
 
-	pr_dbg_irq("demux %d irq status: 0x08%x\n", dmx->id, status);
+	pr_dbg_irq("demux %d irq status: 0x%08x\n", dmx->id, status);
 
 	if (status & (1 << SECTION_BUFFER_READY))
 		process_section(dmx);
@@ -1054,10 +1269,10 @@ static irqreturn_t dmx_irq_handler(int irq_number, void *para)
 	if (status & (1 << VIDEO_SPLICING_POINT)) {
 	}
 	if (status & (1 << AUDIO_SPLICING_POINT)) {
-	}
+	}*/
 	if (status & (1 << TS_ERROR_PIN)) {
 		pr_error("TS_ERROR_PIN\n");
-	}*/
+	}
 
 	if (status & (1 << NEW_PDTS_READY)) {
 		u32 pdts_status = DMX_READ_REG(dmx->id, STB_PTS_DTS_STATUS);
@@ -1253,7 +1468,7 @@ static void stb_enable(struct aml_dvb *dvb)
 	int src, tso_src, i;
 	u32 fec_s0, fec_s1;
 	u32 invert0, invert1;
-
+	u32 data;
 	switch (dvb->stb_source) {
 	case AM_TS_SRC_DMX0:
 		src = dvb->dmx[0].source;
@@ -1394,7 +1609,14 @@ static void stb_enable(struct aml_dvb *dvb)
 
 	if (dvb->reset_flag)
 		hiu = 0;
-
+	/* invert ts out clk,add ci model need add this*/
+	if (dvb->ts_out_invert) {
+		/*printk("ts out invert ---\r\n");*/
+		data = READ_MPEG_REG(TS_TOP_CONFIG);
+		data |= 1 << TS_OUT_CLK_INVERT;
+		WRITE_MPEG_REG(TS_TOP_CONFIG, data);
+	}
+	/* invert ts out clk  end */
 	WRITE_MPEG_REG(TS_FILE_CONFIG,
 		       (demux_skipbyte << 16) |
 		       (6 << DES_OUT_DLY) |
@@ -1437,27 +1659,378 @@ int dsc_set_pid(struct aml_dsc_channel *ch, int pid)
 
 int dsc_set_key(struct aml_dsc_channel *ch, int type, u8 *key)
 {
+	/*struct aml_dsc *dsc = ch->dsc;*/
+	int dtype = type;
+	int ret = -1;
+
+	dtype &= ~AM_DSC_FROM_KL_KEY;
+
+	if (dtype == AM_DSC_EVEN_KEY ||
+		dtype == AM_DSC_ODD_KEY) {
+		ret = dsc_set_csa_key(ch, type, key);
+		if (ret != 0)
+			goto END;
+		/* Different with old mode, do change */
+		if (ch->work_mode == CIPLUS_MODE || ch->work_mode == -1) {
+			if (ch->work_mode == -1)
+				pr_error("Dsc set output and enable\n");
+			else
+				pr_error("Dsc set output change from ciplus\n");
+			aml_ci_plus_disable_output();
+			ch->aes_mode = AES_ECB_MODE;
+			/*aml_ci_plus_disable();*/
+			ch->work_mode = DVBCSA_MODE;
+		}
+	} else if (dtype == AM_DSC_EVEN_KEY_AES ||
+			dtype == AM_DSC_ODD_KEY_AES ||
+			dtype == AM_DSC_ODD_KEY_AES_IV ||
+			dtype == AM_DSC_EVEN_KEY_AES_IV) {
+		ret = dsc_set_aes_key(ch, type, key);
+		if (ret != 0)
+			goto END;
+		/* Different with old mode, do change */
+		if (ch->work_mode == DVBCSA_MODE || ch->work_mode == -1) {
+			if (ch->work_mode == -1)
+				pr_error("Ciplus set output and enable\n");
+			else
+				pr_error("Ciplus set output change from dsc\n");
+			am_ci_plus_set_output(ch);
+			aml_ci_plus_enable();
+			ch->work_mode = CIPLUS_MODE;
+		}
+	}
+END:
+	return ret;
+}
+
+static int dsc_set_csa_key(struct aml_dsc_channel *ch, int type, u8 *key)
+{
 	struct aml_dsc *dsc = ch->dsc;
 	int is_dsc2 = (dsc->id == 1) ? 1 : 0;
 	u16 k0, k1, k2, k3;
 	u32 key0, key1;
+	int reg; /*not sure if reg readable*/
+/*	u32 data;
+	u32 pid = 0x1fff; */
+	int from_kl = type & AM_DSC_FROM_KL_KEY;
+/*  int pid = ch->pid; */
 
-	k0 = (key[0] << 8) | key[1];
-	k1 = (key[2] << 8) | key[3];
-	k2 = (key[4] << 8) | key[5];
-	k3 = (key[6] << 8) | key[7];
+	type &= ~AM_DSC_FROM_KL_KEY;
 
-	key0 = (k0 << 16) | k1;
-	key1 = (k2 << 16) | k3;
-	WRITE_MPEG_REG(COMM_DESC_KEY0, key0);
-	WRITE_MPEG_REG(COMM_DESC_KEY1, key1);
-	WRITE_MPEG_REG(COMM_DESC_KEY_RW,
-			(ch->id + type * DSC_COUNT)+(is_dsc2 ? 16 : 0));
+	if (from_kl) {
+		k0 = k1 = k2 = k3 = 0;
+/*		ch->used = 1;
+		dsc_set_pid(ch, pid); */
+		/*dummy write to check if kl not working*/
+		key0 = key1 = 0;
+		WRITE_MPEG_REG(COMM_DESC_KEY0, key0);
+		WRITE_MPEG_REG(COMM_DESC_KEY1, key1);
 
-	pr_dbg("set DSC %d ch %d type %d key %04x %04x %04x %04x\n",
-		dsc->id, ch->id, type, k0, k1, k2, k3);
+	/*tdes? :*/
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+			WRITE_MPEG_REG(COMM_DESC_KEY_RW,
+/*				(type ? (1 << 6) : (1 << 5)) | */
+				((1 << 5)) |
+				((ch->id + type * DSC_COUNT)+
+					(is_dsc2 ? 16 : 0)));
+		}
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+			WRITE_MPEG_REG(COMM_DESC_KEY_RW,
+				(type ? (1 << 6) : (1 << 5)) | (1<<7) |
+				((ch->id + type * DSC_COUNT)+
+				 (is_dsc2 ? 16 : 0)));
+		}
+		reg = (type ? (1 << 6) : (1 << 5)) |
+				((ch->id + type * DSC_COUNT)+
+				 (is_dsc2 ? 16 : 0));
+	} else {
+		k0 = (key[0] << 8) | key[1];
+		k1 = (key[2] << 8) | key[3];
+		k2 = (key[4] << 8) | key[5];
+		k3 = (key[6] << 8) | key[7];
+
+		key0 = (k0 << 16) | k1;
+		key1 = (k2 << 16) | k3;
+		WRITE_MPEG_REG(COMM_DESC_KEY0, key0);
+		WRITE_MPEG_REG(COMM_DESC_KEY1, key1);
+		WRITE_MPEG_REG(COMM_DESC_KEY_RW,
+				(ch->id + type * DSC_COUNT)+(is_dsc2 ? 16 : 0));
+		reg = (ch->id + type * DSC_COUNT)+(is_dsc2 ? 16 : 0);
+	}
+
 	return 0;
 }
+
+/************************* AES DESC************************************/
+#define STB_TOP_CONFIG 0x16f0
+#define CIPLUS_KEY0   0x16f8
+#define CIPLUS_KEY1   0x16f9
+#define CIPLUS_KEY2   0x16fa
+#define CIPLUS_KEY3   0x16fb
+#define CIPLUS_KEY_WR 0x16fc
+#define CIPLUS_CONFIG 0x16fd
+#define CIPLUS_ENDIAN 0x16fe
+
+#define ENABLE_DEC_PL     7
+#define ENABLE_DES_PL_CLK 15
+#define CIPLUS_OUT_SEL    28
+#define CIPLUS_IN_SEL     26
+
+#define KEY_WR_AES_IV_B 5
+#define KEY_WR_AES_IV_A 4
+#define KEY_WR_AES_B    3
+#define KEY_WR_AES_A    2
+
+#define CNTL_ENABLE     3
+#define AES_CBC_DISABLE 2
+#define AES_EN          1
+#define DES_EN          0
+
+#define AES_MSG_OUT_ENDIAN 24
+#define AES_MSG_IN_ENDIAN  20
+#define AES_KEY_ENDIAN  16
+
+
+#if 0
+static void aml_ci_plus_set_stb(void){
+	unsigned int data;
+	/* data = READ_MPEG_REG(FEC_INPUT_CONTROL); */
+	/* data |= (0<<FEC_SEL); */
+	/* data |= (1<<FEC_CORE_SEL); */
+	/* data |= (1<<FEC_INPUT_FEC_CLK);
+		local playback will not work if set this*/
+	/* WRITE_MPEG_REG(FEC_INPUT_CONTROL, data); */
+
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data |
+			(0 << CIPLUS_IN_SEL) | (0 << CIPLUS_OUT_SEL));
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	/* data |= (1<<ENABLE_DEC_PL); bit 7 --
+		enable_des_pl, this step was set in dsc_enable*/
+	/*bit 15 -- enable_des_pl_clk*/
+	/* data |= (1<<ENABLE_DES_PL_CLK); */
+	data |= (1<<CIPLUS_OUT_SEL);/*bit 28 -- ciplus_out_sel from ciplus*/
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data);
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+}
+#endif
+
+/*
+ * param:
+ * key:
+ *	16bytes IV key
+ * type:
+ *	AM_DSC_KEY_TYPE_AES_ODD    IV odd key
+ *	AM_DSC_KEY_TYPE_AES_EVEN  IV even key
+ */
+void aml_ci_plus_set_iv(struct aml_dsc_channel *ch, u8 *key, int type)
+{
+	unsigned int k0, k1, k2, k3;
+
+	k3 = (key[0] << 24) | (key[1] << 16) | (key[2] << 8) | key[3];
+	k2 = (key[4] << 24) | (key[5] << 16) | (key[6] << 8) | key[7];
+	k1 = (key[8] << 24) | (key[9] << 16) | (key[10] << 8) | key[11];
+	k0 = (key[12] << 24) | (key[13] << 16) | (key[14] << 8) | key[15];
+
+	if (type == AM_DSC_EVEN_KEY_AES_IV) {
+		WRITE_MPEG_REG(CIPLUS_KEY0, k0);
+		WRITE_MPEG_REG(CIPLUS_KEY1, k1);
+		WRITE_MPEG_REG(CIPLUS_KEY2, k2);
+		WRITE_MPEG_REG(CIPLUS_KEY3, k3);
+		WRITE_MPEG_REG(CIPLUS_KEY_WR,
+			(ch->id << 9) | (1<<KEY_WR_AES_IV_A));
+	} else if (type == AM_DSC_ODD_KEY_AES_IV) {
+		WRITE_MPEG_REG(CIPLUS_KEY0, k0);
+		WRITE_MPEG_REG(CIPLUS_KEY1, k1);
+		WRITE_MPEG_REG(CIPLUS_KEY2, k2);
+		WRITE_MPEG_REG(CIPLUS_KEY3, k3);
+		WRITE_MPEG_REG(CIPLUS_KEY_WR,
+			(ch->id << 9) | (1<<KEY_WR_AES_IV_B));
+	}
+}
+
+/*
+ * Param:
+ * key_endian
+ *	S905D  7 for kl    0 for set key directly
+ * aes_mode
+ *  0 for ebc
+ *  1 for cbc
+ */
+static void aml_ci_plus_config(int key_endian, int aes_mode)
+{
+	unsigned int data;
+	WRITE_MPEG_REG(CIPLUS_ENDIAN, (15 << AES_MSG_OUT_ENDIAN) |
+				(15 << AES_MSG_IN_ENDIAN) |
+				(key_endian << AES_KEY_ENDIAN));
+	data = READ_MPEG_REG(CIPLUS_ENDIAN);
+	WRITE_MPEG_REG(CIPLUS_CONFIG, (1 << CNTL_ENABLE) |
+				(aes_mode << AES_CBC_DISABLE) |
+					/*1 << AES_CBC_DISABLE     : ECB
+					0 << AES_CBC_DISABLE     : CBC  */
+				(1 << AES_EN));
+	data = READ_MPEG_REG(DEMUX_CONTROL);
+
+}
+
+/*
+  * Set output to demux set.
+*/
+static void am_ci_plus_set_output(struct aml_dsc_channel *ch)
+{
+	struct aml_dsc *dsc = ch->dsc;
+	u32 data;
+	if (dsc->id != 0) {
+		pr_error("Ciplus set output can only work at dsc0 device\n");
+		return;
+	}
+
+	if (ciplus_out_auto_mode == 1) {
+		data = READ_MPEG_REG(STB_TOP_CONFIG);
+		switch (dsc->source) {
+		case  AM_TS_SRC_DMX0:
+			data |= 1 << CIPLUS_OUT_SEL;
+			ciplus_out_sel = 1;
+		break;
+		case  AM_TS_SRC_DMX1:
+			data |= 2 << CIPLUS_OUT_SEL;
+			ciplus_out_sel = 2;
+		break;
+		case  AM_TS_SRC_DMX2:
+			data |= 4 << CIPLUS_OUT_SEL;
+			ciplus_out_sel = 4;
+		break;
+		default:
+			pr_error("ciplus auto set source failed\n");
+			return;
+		}
+		WRITE_MPEG_REG(STB_TOP_CONFIG, data);
+	} else if (ciplus_out_sel >= 0 && ciplus_out_sel <= 7) {
+		pr_error("Set output selection %d\n", ciplus_out_sel);
+		data = READ_MPEG_REG(STB_TOP_CONFIG);
+		data &= ~(7<<CIPLUS_OUT_SEL);
+		WRITE_MPEG_REG(STB_TOP_CONFIG, data |
+			(ciplus_out_sel << CIPLUS_OUT_SEL));
+	} else
+		pr_error("Ciplus out config is invalid\n");
+	return;
+}
+
+/*
+  * Ciplus output has high priority,
+  * disable it's output will let dsc output go.
+ */
+static void aml_ci_plus_disable_output(void)
+{
+	u32 data = 0;
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data &
+			~(7 << CIPLUS_OUT_SEL));
+}
+
+static void aml_ci_plus_enable(void)
+{
+	u32 data = 0;
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	WRITE_MPEG_REG(CIPLUS_CONFIG,
+			(1 << CNTL_ENABLE) | (1 << AES_EN));
+}
+
+static void aml_ci_plus_disable(void){
+	u32 data = 0;
+
+	WRITE_MPEG_REG(CIPLUS_CONFIG, 0);
+
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data &
+			~((1 << CIPLUS_IN_SEL) | (7 << CIPLUS_OUT_SEL)));
+/*	WRITE_MPEG_REG(CIPLUS_CONFIG,
+			(0 << CNTL_ENABLE) | (0 << AES_EN));*/
+}
+
+static int dsc_set_aes_key(struct aml_dsc_channel *ch, int type, u8 *key)
+{
+	unsigned int k0, k1, k2, k3, index_flag = 0;
+	int from_kl = type & AM_DSC_FROM_KL_KEY;
+	int aes_a = 0, aes_b = 0;
+
+	type &= ~AM_DSC_FROM_KL_KEY;
+
+	/* Set odd/even */
+	if (type == AM_DSC_EVEN_KEY_AES) {
+		aes_a = 0;
+		aes_b = 1;
+		if (ch->aes_mode == -1)
+			ch->aes_mode = AES_ECB_MODE;
+	} else if (type == AM_DSC_ODD_KEY_AES) {
+		aes_a = 1;
+		aes_b = 0;
+		if (ch->aes_mode == -1)
+			ch->aes_mode = AES_ECB_MODE;
+	} else if ((type == AM_DSC_EVEN_KEY_AES_IV) |
+		(type == AM_DSC_ODD_KEY_AES_IV)) {
+		aml_ci_plus_set_iv(ch, key, type);
+		ch->aes_mode = AES_CBC_MODE;
+		return 0;
+	}
+
+	/* Set endian and cbc/ecb mode */
+	if (from_kl)
+		aml_ci_plus_config(7, ch->aes_mode);
+	else
+		aml_ci_plus_config(0, ch->aes_mode);
+
+	/* Write keys to work */
+	if (from_kl) {
+		k0 = k1 = k2 = k3 = 0; /*dummy write to
+					check if kl not working*/
+		WRITE_MPEG_REG(CIPLUS_KEY0, k0);
+		WRITE_MPEG_REG(CIPLUS_KEY1, k1);
+		WRITE_MPEG_REG(CIPLUS_KEY2, k2);
+		WRITE_MPEG_REG(CIPLUS_KEY3, k3);
+		WRITE_MPEG_REG(CIPLUS_KEY_WR,
+		(ch->id << 9) | /* bit[11:9] the key of index,
+						   need match PID index*/
+		(0 << 8) |        /* bit[8] des key use cw[127:64]*/
+		(0 << 7) |        /* bit[7] aes iv use cw*/
+		(1 << 6) |        /* bit[6] aes/des key use cw*/
+		(0 << 5) |        /* bit[5] write AES IV B value*/
+		(0 << 4) |        /* bit[4] write AES IV A value*/
+		(aes_b << 3) |        /* bit[3] write AES B key*/
+		(aes_a << 2) |        /* bit[2] write AES A key*/
+		(0 << 1) |        /* bit[1] write DES B key*/
+		(0));             /* bit[0] write DES A key*/
+	} else {
+
+		k3 = (key[0] << 24) | (key[1] << 16) | (key[2] << 8) | key[3];
+		k2 = (key[4] << 24) | (key[5] << 16) | (key[6] << 8) | key[7];
+		k1 = (key[8] << 24) | (key[9] << 16) |
+			(key[10] << 8) | key[11];
+		k0 = (key[12] << 24) | (key[13] << 16) |
+			(key[14] << 8) | key[15];
+
+		WRITE_MPEG_REG(CIPLUS_KEY0, k0);
+		WRITE_MPEG_REG(CIPLUS_KEY1, k1);
+		WRITE_MPEG_REG(CIPLUS_KEY2, k2);
+		WRITE_MPEG_REG(CIPLUS_KEY3, k3);
+		index_flag = (ch->id << 9);
+		if (type == 2) { /* even */
+			WRITE_MPEG_REG(CIPLUS_KEY_WR,
+				index_flag | (1<<KEY_WR_AES_A));
+		} else if (type == 3) { /* odd */
+			WRITE_MPEG_REG(CIPLUS_KEY_WR,
+				index_flag | (1<<KEY_WR_AES_B));
+		}
+	}
+	return 0;
+}
+
+
+void dsc_release(void)
+{
+	aml_ci_plus_disable();
+}
+/************************* AES DESC************************************/
 
 int dsc_enable(struct aml_dsc *dsc, int enable)
 {
@@ -1612,8 +2185,21 @@ static int asyncfifo_set_buffer(struct aml_asyncfifo *afifo,
 	pr_error("async fifo %d buf size %d, flush size %d\n",
 			afifo->id, afifo->buf_len, afifo->flush_size);
 
-	if (afifo->flush_size <= 0)
+	if ((afifo->flush_size <= 0)
+			|| (afifo->flush_size > (afifo->buf_len>>1))) {
 		afifo->flush_size = afifo->buf_len>>1;
+	} else if (afifo->flush_size < 128) {
+		afifo->flush_size = 128;
+	} else {
+		int fsize;
+
+		for (fsize = 128; fsize < (afifo->buf_len>>1); fsize <<= 1) {
+			if (fsize >= afifo->flush_size)
+				break;
+		}
+
+		afifo->flush_size = fsize;
+	}
 
 	afifo->pages = buf;
 	if (!afifo->pages)
@@ -2008,9 +2594,13 @@ static int dmx_enable(struct aml_dmx *dmx)
 	int set_stb = 0, fec_s = 0;
 	int s2p_id;
 	u32 invert0 = 0, invert1 = 0, fec_s0 = 0, fec_s1 = 0;
+	u32 use_sop = 0;
 
 	record = dmx_get_record_flag(dmx);
-
+	if (use_of_sop == 1) {
+		use_sop = 1;
+		pr_inf("dmx use of sop input\r\n");
+	}
 	switch (dmx->source) {
 	case AM_TS_SRC_TS0:
 		fec_sel = 0;
@@ -2165,6 +2755,12 @@ static int dmx_enable(struct aml_dmx *dmx)
 				(1 << OTHER_PES_PACKET));
 		DMX_WRITE_REG(dmx->id, PES_STRONG_SYNC, 0x1234);
 		DMX_WRITE_REG(dmx->id, DEMUX_ENDIAN,
+			      (1<<SEPERATE_ENDIAN) |
+			      (0<<OTHER_PES_ENDIAN) |
+			      (7<<SCR_ENDIAN) |
+			      (7<<SUB_ENDIAN) |
+			      (7<<AUDIO_ENDIAN) |
+			      (7<<VIDEO_ENDIAN) |
 			      (7 << OTHER_ENDIAN) |
 			      (7 << BYPASS_ENDIAN) | (0 << SECTION_ENDIAN));
 		DMX_WRITE_REG(dmx->id, TS_HIU_CTL,
@@ -2190,7 +2786,7 @@ static int dmx_enable(struct aml_dmx *dmx)
 			      (1 << ENABLE_FREE_CLK_FEC_DATA_VALID) |
 			      (1 << ENABLE_FREE_CLK_STB_REG) |
 			      (1 << STB_DEMUX_ENABLE) |
-			      (1 << NOT_USE_OF_SOP_INPUT));
+			      (use_sop << NOT_USE_OF_SOP_INPUT));
 	} else {
 		DMX_WRITE_REG(dmx->id, STB_INT_MASK, 0);
 		DMX_WRITE_REG(dmx->id, FEC_INPUT_CONTROL, 0);
@@ -2548,9 +3144,9 @@ static void async_fifo_set_regs(struct aml_asyncfifo *afifo, int source_val)
 			(0 << ASYNC_FIFO_FLUSH_EN) |
 			/* disable the flush path */
 			/*(0x3 << ASYNC_FIFO_FLUSH_CNT_LSB);
-			// flush 3 x 32  32-bit words */
+			 flush 3 x 32  32-bit words */
 			/*(0x7fff << ASYNC_FIFO_FLUSH_CNT_LSB);
-			// flush 4MBytes of data */
+			 flush 4MBytes of data */
 			(((size >> 7) & 0x7fff) << ASYNC_FIFO_FLUSH_CNT_LSB));
 			/* number of 128-byte blocks to flush */
 
@@ -2569,7 +3165,7 @@ static void async_fifo_set_regs(struct aml_asyncfifo *afifo, int source_val)
 			     (0 << ASYNC_FIFO_FILL_EN) |
 			     /* disable fill path to reset fill path */
 			     /*(96 << ASYNC_FIFO_FILL_CNT_LSB);
-				// 3 x 32  32-bit words */
+				 3 x 32  32-bit words */
 			     (0 << ASYNC_FIFO_FILL_CNT_LSB));
 				/* forever FILL; */
 	WRITE_ASYNC_FIFO_REG(afifo->id, REG2,
@@ -2830,13 +3426,20 @@ void dmx_reset_hw_ex(struct aml_dvb *dvb, int reset_irq)
 			struct aml_dsc_channel *ch = &dsc->channel[n];
 			/*if(ch->used) */
 			{
-				ch->id = n;
+						ch->id = n;
 				dsc_set_pid(ch, ch->pid);
 
-				if (ch->set & 1)
-					dsc_set_key(ch, 0, ch->even);
-				if (ch->set & 2)
-					dsc_set_key(ch, 1, ch->odd);
+				if (ch->set & (1 << AM_DSC_EVEN_KEY)) {
+					dsc_set_key(ch, AM_DSC_EVEN_KEY |
+						(ch->set & AM_DSC_FROM_KL_KEY),
+						ch->even);
+				}
+				if (ch->set & (1 << AM_DSC_ODD_KEY)) {
+					dsc_set_key(ch, AM_DSC_ODD_KEY |
+						(ch->set & AM_DSC_FROM_KL_KEY),
+						ch->odd);
+				}
+				/* TODO what about aes? / what if kl cleared? */
 			}
 		}
 	}
@@ -2987,6 +3590,12 @@ void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 				dmx_set_filter_regs(dmx, n);
 		}
 
+		for (n = 0; n < SEC_CNT_MAX; n++) {
+			dmx->sec_cnt[n] = 0;
+			dmx->sec_cnt_match[n] = 0;
+			dmx->sec_cnt_crc_fail[n] = 0;
+		}
+
 		dmx_enable(dmx);
 
 		dmx_smallsec_set(&dmx->smallsec,
@@ -3011,13 +3620,17 @@ void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 			for (n = 0; n < DSC_COUNT; n++) {
 				struct aml_dsc_channel *ch = &dsc->channel[n];
 				/*if(ch->used) */
-				{
-					dsc_set_pid(ch, ch->pid);
+				dsc_set_pid(ch, ch->pid);
 
-					if (ch->set & 1)
-						dsc_set_key(ch, 0, ch->even);
-					if (ch->set & 2)
-						dsc_set_key(ch, 1, ch->odd);
+				if (ch->set & (1 << AM_DSC_EVEN_KEY)) {
+					dsc_set_key(ch, AM_DSC_EVEN_KEY |
+						(ch->set & AM_DSC_FROM_KL_KEY),
+						ch->even);
+				}
+				if (ch->set & (1 << AM_DSC_ODD_KEY)) {
+					dsc_set_key(ch, AM_DSC_ODD_KEY |
+						(ch->set & AM_DSC_FROM_KL_KEY),
+						ch->odd);
 				}
 			}
 		}
@@ -3182,6 +3795,7 @@ void dmx_free_chan(struct aml_dmx *dmx, int cid)
 	pr_dbg("free channel(id:%d PID:0x%x)\n", cid, dmx->channel[cid].pid);
 
 	dmx->channel[cid].used = 0;
+	dmx->channel[cid].pid = 0x1fff;
 	dmx_set_chan_regs(dmx, cid);
 
 	if (cid == 2) {
@@ -3250,7 +3864,7 @@ static void dmx_remove_filter(struct aml_dmx *dmx, int cid, int fid)
 
 static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 {
-	int ret;
+	int ret = 0;
 
 	struct aml_dvb *dvb = (struct aml_dvb *)src_dmx->demux.priv;
 	struct aml_swfilter *sf = &dvb->swfilter;
@@ -3261,8 +3875,10 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	if (!sf->user) {
 		void *mem;
 		mem = vmalloc(SF_BUFFER_SIZE);
-		if (!mem)
-			return -ENOMEM;
+		if (!mem) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 		dvb_ringbuffer_init(&sf->rbuf, mem, SF_BUFFER_SIZE);
 
 		sf->dmx = &dvb->dmx[SF_DMX_ID];
@@ -3279,7 +3895,8 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 		pr_error(" pid=%d[src:%d] already used with sfdmx%d[src:%d]\n",
 			 feed->pid, src_dmx->source, sf->dmx->id,
 			 sf->dmx->source);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto fail;
 	}
 
 	/*setup feed */
@@ -3289,14 +3906,16 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 			 feed->pid, src_dmx->id,
 			 ((struct aml_dmx *)sf->dmx->channel[ret].feed->
 			 demux)->id);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto fail;
 	}
 	ret =
 	     dmx_alloc_chan(sf->dmx, DMX_TYPE_TS, DMX_PES_OTHER,
 			    feed->pid);
 	if (ret < 0) {
 		pr_error(" %s: alloc chan error, ret=%d\n", __func__, ret);
-		return ret;
+		ret = -EBUSY;
+		goto fail;
 	}
 	sf->dmx->channel[ret].feed = feed;
 	feed->priv = (void *)(long)ret;
@@ -3309,6 +3928,10 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	dmx_enable(sf->dmx);
 
 	return 0;
+
+fail:
+	feed->priv = (void *)-1;
+	return ret;
 }
 
 static int sf_remove_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
@@ -3319,6 +3942,10 @@ static int sf_remove_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	struct aml_swfilter *sf = &dvb->swfilter;
 
 	if (!sf->user || (sf->dmx->source != src_dmx->source))
+		return 0;
+
+	/*add fail, no need to remove*/
+	if (((long)feed->priv) < 0)
 		return 0;
 
 	ret = dmx_get_chan(sf->dmx, feed->pid);
@@ -3443,7 +4070,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 					/*dvr feed already work */
 					pr_error("PID %d already used(DVR)\n",
 						 feed->pid);
-					return -EBUSY;
+					ret = -EBUSY;
+					goto fail;
 				}
 				if (sf_ret) {
 					/*if sf_on, we do not reset the
@@ -3465,7 +4093,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 				} else {
 					pr_error("PID %d already used\n",
 						 feed->pid);
-					return -EBUSY;
+					ret = -EBUSY;
+					goto fail;
 				}
 			}
 		}
@@ -3477,7 +4106,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 			if (ret < 0) {
 				pr_dbg("%s: alloc chan error, ret=%d\n",
 				       __func__, ret);
-				return ret;
+				ret = -EBUSY;
+				goto fail;
 			}
 			dmx->channel[ret].feed = feed;
 			feed->priv = (void *)(long)ret;
@@ -3513,14 +4143,19 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 				}
 			} else {
 				pr_error("PID %d already used\n", feed->pid);
-				return -EBUSY;
+				ret = -EBUSY;
+				goto fail;
 			}
 		}
 		if (sf_ret) {	/*not sf feed. */
 			id = dmx_alloc_chan(dmx, feed->type,
 				feed->pes_type, feed->pid);
-			if (id < 0)
-				return id;
+			if (id < 0) {
+				pr_dbg("%s: alloc chan error, ret=%d\n",
+				       __func__, id);
+				ret = -EBUSY;
+				goto fail;
+			}
 			for (filter = feed->filter; filter;
 				filter = filter->next) {
 				ret = dmx_chan_add_filter(dmx, id, filter);
@@ -3550,6 +4185,10 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 	dmx->feed_count++;
 
 	return 0;
+
+fail:
+	feed->priv = (void *)-1;
+	return ret;
 }
 
 static int dmx_remove_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
@@ -3558,6 +4197,10 @@ static int dmx_remove_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 	struct dvb_demux_feed *dfeed = NULL;
 
 	int sf_ret = 0;		/*<0:error, =0:sf_on, >0:sf_off */
+
+	/*add fail, no need to remove*/
+	if (((long)feed->priv) < 0)
+		return 0;
 
 	sf_ret = sf_check_feed(dmx, feed, 0/*SF_FEED_OP_RM */);
 	if (sf_ret <= 0)
@@ -3748,6 +4391,10 @@ int aml_dmx_hw_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	ret = dmx_add_feed(dmx, dvbdmxfeed);
 	spin_unlock_irqrestore(&dvb->slock, flags);
 
+	/*handle errors silently*/
+	if (ret != 0)
+		ret = 0;
+
 	return ret;
 }
 
@@ -3906,6 +4553,8 @@ int aml_stb_hw_set_source(struct aml_dvb *dvb, enum dmx_source_t src)
 	return ret;
 }
 
+
+
 int aml_dsc_hw_set_source(struct aml_dsc *dsc,
 			enum dmx_source_t src, enum dmx_source_t dst)
 {
@@ -3999,6 +4648,46 @@ int aml_dsc_hw_set_source(struct aml_dsc *dsc,
 	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return ret;
+}
+
+int aml_ciplus_hw_set_source(int src)
+{
+	int hw_src = 0;
+	int hw_dst = 0;
+	u32 data;
+
+	switch (src) {
+	case DMX_SOURCE_FRONT0_OFFSET:
+		hw_src = 0;
+		hw_dst = 1;
+		break;
+	case DMX_SOURCE_FRONT1_OFFSET:
+		hw_src = 1;
+		hw_dst = 2;
+		break;
+	case DMX_SOURCE_FRONT2_OFFSET:
+		hw_src = 2;
+		hw_dst = 4;
+		break;
+	default:
+		return -1;
+	}
+
+	data = READ_MPEG_REG(STB_TOP_CONFIG);
+
+	/* Set ciplus input source ,
+	  * output set 0 means no ouput. ---> need confirm.
+	  * if output set 0 still affects dsc output, we need to disable
+	  * ciplus module.*/
+	data &= ~(3<<CIPLUS_IN_SEL);
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data |
+			(hw_src << CIPLUS_IN_SEL));
+
+	data &= ~(7<<CIPLUS_OUT_SEL);
+	WRITE_MPEG_REG(STB_TOP_CONFIG, data |
+			(hw_dst << CIPLUS_OUT_SEL));
+	aml_ci_plus_enable();
+	return 0;
 }
 
 int aml_tso_hw_set_source(struct aml_dvb *dvb, enum dmx_source_t src)
@@ -4294,7 +4983,72 @@ DEMUX_SCAMBLE_FUNC_DECL(1)
 #if DMX_DEV_COUNT > 2
 DEMUX_SCAMBLE_FUNC_DECL(2)
 #endif
+static ssize_t ciplus_output_ctrl_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf)
+{
+	int ret;
+	pr_error("output demux use 3 bit to indicate. ");
+	pr_error("1bit:demux0 2bit:demux1 3bit:demux2\n");
+	if (ciplus_out_auto_mode == 1)
+		ret = sprintf(buf, "Using auto mode, value: %x\n",
+			ciplus_out_sel);
+	else
+		ret = sprintf(buf, "%d\n", ciplus_out_sel);
+	pr_error("ciplus output path:\n");
+	if (ciplus_out_sel&1)
+		pr_error("demux0 ");
+	if (ciplus_out_sel&1<<1)
+		pr_error("demux1 ");
+	if (ciplus_out_sel&1<<2)
+		pr_error("demux2 ");
+	pr_error("\n");
+	return ret;
+}
 
+static ssize_t ciplus_output_ctrl_store(struct class *class,
+					  struct class_attribute *attr,
+					  const char *buf, size_t size)
+{
+	int i, tmp;
+
+	pr_error("output demux use 3 bit to indicate. ");
+	pr_error("1bit:demux0 2bit:demux1 3bit:demux2, 8 for auto\n");
+	i = sscanf(buf, "%d", &tmp);
+	if (tmp > 8 || tmp < 0)
+		pr_error("Invalid output set\n");
+	else if (tmp == 8) {
+		ciplus_out_auto_mode = 1;
+		ciplus_out_sel = -1;
+		pr_error("Auto set output mode enable\n");
+	} else {
+		ciplus_out_auto_mode = 0;
+		ciplus_out_sel = tmp;
+		pr_error("Auto set output mode disable\n");
+	}
+	return size;
+}
+static ssize_t reset_fec_input_ctrl_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf)
+{
+	return 0;
+}
+
+static ssize_t reset_fec_input_ctrl_store(struct class *class,
+					  struct class_attribute *attr,
+					  const char *buf, size_t size)
+{
+	u32 v;
+
+	v = READ_MPEG_REG(FEC_INPUT_CONTROL);
+	v &= ~(1<<11);
+	WRITE_MPEG_REG(FEC_INPUT_CONTROL, v);
+
+	pr_dbg("reset FEC_INPUT_CONTROL to %x\n", v);
+
+	return size;
+}
 static ssize_t dmx_reg_addr_show_source(struct class *class,
 					struct class_attribute *attr,
 					char *buf);
@@ -4312,7 +5066,9 @@ static ssize_t dmx_reg_value_show_source(struct class *class,
 static ssize_t dmx_reg_value_store_source(struct class *class,
 					  struct class_attribute *attr,
 					  const char *buf, size_t size);
-
+static ssize_t dmx_sec_statistics_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf);
 static int reg_addr;
 
 static struct class_attribute aml_dmx_class_attrs[] = {
@@ -4344,7 +5100,13 @@ static struct class_attribute aml_dmx_class_attrs[] = {
 	__ATTR(dmx_timeout,  S_IRUGO | S_IWUSR,
 			dmx_timeout_show,
 			dmx_timeout_store),
-
+	__ATTR(reset_fec_input_ctrl,  S_IRUGO | S_IWUSR,
+			reset_fec_input_ctrl_show,
+			reset_fec_input_ctrl_store),
+	__ATTR(ciplus_output_ctrl,  S_IRUGO | S_IWUSR,
+			ciplus_output_ctrl_show,
+			ciplus_output_ctrl_store),
+	__ATTR_RO(dmx_sec_statistics),
 	__ATTR_NULL
 };
 
@@ -4422,6 +5184,28 @@ static ssize_t dmx_reg_value_store_source(struct class *class,
 		value = (int)val;
 	WRITE_MPEG_REG(reg_addr, value);
 	return size;
+}
+
+static ssize_t dmx_sec_statistics_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf)
+{
+	ssize_t ret;
+	char tmp[128];
+	struct aml_dvb *dvb = aml_get_dvb_device();
+	ret = sprintf(tmp, "[hw]%#lx:%#lx:%#lx\n[sw]%#lx:%#lx:%#lx\n",
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_SW],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_SW],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_SW]);
+	ret = sprintf(buf, "%s[ss]%#lx:%#lx:%#lx\n",
+			tmp,
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_SS],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_SS],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_SS]);
+	return ret;
 }
 
 int aml_regist_dmx_class(void)

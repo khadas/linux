@@ -686,6 +686,9 @@ static int ldim_dev_add_driver(struct ldim_dev_config_s *ldev_conf, int index)
 	if (strcmp(ldev_conf->name, "iw7019") == 0) {
 		ret = ldim_dev_iw7019_probe();
 		goto ldim_dev_add_driver_next;
+	} else if (strcmp(ldev_conf->name, "iw7027") == 0) {
+		ret = ldim_dev_iw7027_probe();
+		goto ldim_dev_add_driver_next;
 	} else if (strcmp(ldev_conf->name, "ob3350") == 0) {
 		ret = ldim_dev_ob3350_probe();
 		goto ldim_dev_add_driver_next;
@@ -712,6 +715,9 @@ static int ldim_dev_remove_driver(struct ldim_dev_config_s *ldev_conf,
 
 	if (strcmp(ldev_conf->name, "iw7019") == 0) {
 		ret = ldim_dev_iw7019_remove();
+		goto ldim_dev_remove_driver_next;
+	} else if (strcmp(ldev_conf->name, "iw7027") == 0) {
+		ret = ldim_dev_iw7027_remove();
 		goto ldim_dev_remove_driver_next;
 	} else if (strcmp(ldev_conf->name, "ob3350") == 0) {
 		ret = ldim_dev_ob3350_remove();

@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/08/12a"
+#define VDIN_VER "Ref.2017/02/09"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -78,6 +78,8 @@
 #define VDIN_FLAG_SNOW_FLAG             0x00004000
 /*flag for disable vdin sm*/
 #define VDIN_FLAG_SM_DISABLE            0x00008000
+/*flag for vdin suspend state*/
+#define VDIN_FLAG_SUSPEND               0x00010000
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002
@@ -180,6 +182,7 @@ struct vdin_dev_s {
 	unsigned int			*canvas_ids;
 	unsigned int			canvas_h;
 	unsigned int			canvas_w;
+	unsigned int			canvas_alin_w;
 	unsigned int			canvas_max_size;
 	unsigned int			canvas_max_num;
 	struct vf_entry			*curr_wr_vfe;
@@ -267,6 +270,16 @@ struct vdin_dev_s {
 	*1: full pack mode;config 10bit as 10bit
 	*0: config 10bit as 12bit*/
 	unsigned int			color_depth_mode;
+	/* cutwindow config */
+	unsigned int		cutwindow_cfg;
+	unsigned int		auto_cutwindow_en;
+	/*
+	*1:vdin out limit range
+	*0:vdin out full range
+	*/
+	unsigned int			color_range_mode;
+	/*auto detect av/atv input ratio*/
+	unsigned int		auto_ratio_en;
 };
 
 
@@ -280,6 +293,8 @@ enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
 extern bool enable_reset;
 extern unsigned int max_buf_num;
+extern unsigned int max_buf_width;
+extern unsigned int max_buf_height;
 extern unsigned int   vdin_ldim_max_global[100];
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);

@@ -149,7 +149,16 @@ enum zone_stat_item {
 	NUMA_OTHER,		/* allocation from other node */
 #endif
 	NR_ANON_TRANSPARENT_HUGEPAGES,
+	NR_FREE_UNMOVABLE,
+	NR_FREE_RECLAIMABLE,
+	NR_FREE_MOVABLE,
+	NR_FREE_RESERVE,
+#ifdef CONFIG_CMA
 	NR_FREE_CMA_PAGES,
+#endif
+#ifdef CONFIG_MEMORY_ISOLATION
+	NR_FREE_ISOLATE,
+#endif
 	NR_INACTIVE_ANON_CMA,	/* must match order of LRU_[IN]ACTIVE */
 	NR_ACTIVE_ANON_CMA,		/*  "     "     "   "       "         */
 	NR_INACTIVE_FILE_CMA,	/*  "     "     "   "       "         */
@@ -165,6 +174,9 @@ enum zone_stat_item {
 	NR_INACTIVE_FILE_TEST,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE_TEST,		/*  "     "     "   "       "         */
 	NR_UNEVICTABLE_FILE_TEST,		/*  " "       "         */
+#ifdef CONFIG_CMA
+	NR_CMA_ISOLATED,		/* cma isolate */
+#endif
 	NR_VM_ZONE_STAT_ITEMS };
 
 /*

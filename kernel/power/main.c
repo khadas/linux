@@ -362,6 +362,9 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 			error = 0;
 			request_suspend_state(state);
 		}
+		if (state == PM_SUSPEND_MEM) {
+			msleep_interruptible(5000);
+		}
 #else
 		error = pm_suspend(state);
 #endif

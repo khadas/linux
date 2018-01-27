@@ -201,13 +201,21 @@
 		dev_name = "backlight";
 		status = "disable";
 		key_valid = <0>;
-		pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
-				"pwm_combo_0_on","pwm_combo_1_on";
+		pinctrl-names = "pwm_on","pwm_vs_on",
+				"pwm_combo_0_1_on",
+				"pwm_combo_0_vs_1_on",
+				"pwm_combo_0_1_vs_on",
+				"pwm_combo_0_on","pwm_combo_0_vs_on",
+				"pwm_combo_1_on","pwm_combo_1_vs_on";
 		pinctrl-0 = <&bl_pwm_on_pins>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_combo_0_on_pins &bl_pwm_combo_1_on_pins>;
-		pinctrl-3 = <&bl_pwm_combo_0_on_pins>;
-		pinctrl-4 = <&bl_pwm_combo_1_on_pins>;
+		pinctrl-3 = <&bl_pwm_combo_0_vs_on_pins &bl_pwm_combo_1_on_pins>;
+		pinctrl-4 = <&bl_pwm_combo_0_on_pins &bl_pwm_combo_1_vs_on_pins>;
+		pinctrl-5 = <&bl_pwm_combo_0_on_pins>;
+		pinctrl-6 = <&bl_pwm_combo_0_vs_on_pins>;
+		pinctrl-7 = <&bl_pwm_combo_1_on_pins>;
+		pinctrl-8 = <&bl_pwm_combo_1_vs_on_pins>;
 
 		/* power index:(point gpios_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */

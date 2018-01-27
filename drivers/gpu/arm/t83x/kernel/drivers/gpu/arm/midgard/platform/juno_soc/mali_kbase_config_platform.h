@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -70,15 +70,25 @@
  */
 #define PLATFORM_FUNCS (NULL)
 
-/**
- * Protected mode switch
+/** Power model for IPA
  *
- * Attached value: pointer to @ref kbase_protected_ops
+ * Attached value: pointer to @ref mali_pa_model_ops
  */
-#define PROTECTED_CALLBACKS (&juno_protected_ops)
+#ifdef CONFIG_DEVFREQ_THERMAL
+#define POWER_MODEL_CALLBACKS (&juno_model_ops)
+#else
+#define POWER_MODEL_CALLBACKS (NULL)
+#endif
+
+/**
+ * Secure mode switch
+ *
+ * Attached value: pointer to @ref kbase_secure_ops
+ */
+#define SECURE_CALLBACKS (&juno_secure_ops)
 
 extern struct kbase_pm_callback_conf pm_callbacks;
 #ifdef CONFIG_DEVFREQ_THERMAL
 extern struct devfreq_cooling_ops juno_model_ops;
 #endif
-extern struct kbase_protected_ops juno_protected_ops;
+extern struct kbase_secure_ops juno_secure_ops;

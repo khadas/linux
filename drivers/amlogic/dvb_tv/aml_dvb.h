@@ -95,14 +95,22 @@ struct aml_filter {
 	u8                   neq;
 };
 
+#define DVBCSA_MODE 0
+#define CIPLUS_MODE 1
+#define AES_CBC_MODE 0
+#define AES_ECB_MODE 1
 struct aml_dsc_channel {
 	int                  pid;
 	u8                   even[8];
 	u8                   odd[8];
+	u8                   aes_even[16];
+	u8                   aes_odd[16];
 	int                  used;
 	int                  set;
 	int                  id;
 	struct aml_dsc      *dsc;
+	int                  work_mode;
+	int                  aes_mode;
 };
 
 struct aml_dsc {
@@ -112,6 +120,7 @@ struct aml_dsc {
 	enum aml_ts_source_t   dst;
 	struct aml_dvb      *dvb;
 	int                 id;
+	int                  work_mode;
 };
 
 struct aml_smallsec {
@@ -185,6 +194,17 @@ struct aml_dmx {
 	struct aml_dmxtimeout timeout;
 
 	int                  demux_filter_user;
+
+	unsigned long sec_cnt[3];
+	unsigned long sec_cnt_match[3];
+	unsigned long sec_cnt_crc_fail[3];
+	#define SEC_CNT_HW (0)
+	#define SEC_CNT_SW (1)
+	#define SEC_CNT_SS (2)
+	#define SEC_CNT_MAX (3)
+
+	int                   crc_check_count;
+	u32                 crc_check_time;
 };
 
 struct aml_asyncfifo {
@@ -253,6 +273,7 @@ struct aml_dvb {
 	struct timer_list    watchdog_timer;
 	int                  dmx_watchdog_disable[DMX_DEV_COUNT];
 	struct aml_swfilter  swfilter;
+	int	ts_out_invert;
 };
 
 
@@ -281,6 +302,8 @@ extern int dmx_get_ts_serial(enum aml_ts_source_t src);
 /*AMLogic dsc interface*/
 extern int dsc_set_pid(struct aml_dsc_channel *ch, int pid);
 extern int dsc_set_key(struct aml_dsc_channel *ch, int type, u8 *key);
+extern void dsc_release(void);
+extern int aml_ciplus_hw_set_source(int src);
 
 /*AMLogic ASYNC FIFO interface*/
 extern int aml_asyncfifo_hw_init(struct aml_asyncfifo *afifo);
@@ -319,6 +342,8 @@ struct devio_aml_platform_data {
 	int (*io_power)(void *, int enable);
 	int (*io_reset)(void *, int enable);
 };
+
+void get_aml_dvb(struct aml_dvb *dvb_device);
 
 /*Reset the demux device*/
 void dmx_reset_hw(struct aml_dvb *dvb);

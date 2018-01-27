@@ -191,7 +191,7 @@ int au_whtmp_ren(struct dentry *h_dentry, struct au_branch *br)
 
 	/* under the same dir, no need to lock_rename() */
 	delegated = NULL;
-	err = vfsub_rename(h_dir, h_dentry, h_dir, &h_path, &delegated);
+	err = vfsub_rename(h_dir, h_dentry, h_dir, &h_path, &delegated, /*flags*/0);
 	AuTraceErr(err);
 	if (unlikely(err == -EWOULDBLOCK)) {
 		pr_warn("cannot retry for NFSv4 delegation"

@@ -35,6 +35,8 @@ struct vout_op_s {
 	int (*disable)(enum vmode_e);
 	int (*set_vframe_rate_hint)(int);
 	int (*set_vframe_rate_end_hint)(void);
+	int (*set_vframe_rate_policy)(int);
+	int (*get_vframe_rate_policy)(void);
 	int (*vout_suspend)(void);
 	int (*vout_resume)(void);
 };
@@ -63,6 +65,8 @@ extern enum vmode_e validate_vmode(char *);
 extern int get_vsource_fps(int duration);
 extern int set_vframe_rate_hint(int);
 extern int set_vframe_rate_end_hint(void);
+extern int set_vframe_rate_policy(int);
+extern int get_vframe_rate_policy(void);
 
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
@@ -88,6 +92,16 @@ extern int get_power_level(void);
 #define VOUT_EVENT_OSD_PREBLEND_ENABLE 0x00040000
 #define VOUT_EVENT_MODE_CHANGE_PRE     0x00050000
 
+/* vout_ioctl */
+#define VOUT_IOC_TYPE            'C'
+#define VOUT_IOC_NR_GET_VINFO    0x0
+#define VOUT_IOC_NR_SET_VINFO    0x1
+
+#define VOUT_IOC_CMD_GET_VINFO   \
+		_IOR(VOUT_IO_TYPE, VOUT_IOC_NR_GET_VINFO, struct vinfo_s)
+#define VOUT_IOC_CMD_SET_VINFO   \
+		_IOW(VOUT_IO_TYPE, VOUT_IOC_NR_SET_VINFO, struct vinfo_s)
+
 /* vout2 */
 extern int vout2_register_client(struct notifier_block *);
 extern int vout2_unregister_client(struct notifier_block *);
@@ -102,6 +116,7 @@ extern enum vmode_e validate_vmode2(char *);
 extern void set_vout2_mode_internal(char *name);
 extern enum vmode_e get_logo_vmode(void);
 extern int set_logo_vmode(enum vmode_e);
+extern void set_vout_init_vmode(char *);
 
 extern int vout2_suspend(void);
 extern int vout2_resume(void);

@@ -64,7 +64,8 @@ PNAME(mux_mali_1_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
 PNAME(mpll) = {"fixed_pll"};
-PNAME(cts_pdm_p) = {"amclk", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
+PNAME(cts_pdm_p) = {"cts_amclk", "mpll_clk_out0",
+			"mpll_clk_out1", "mpll_clk_out2"};
 PNAME(cts_am_p) = {"ddr_pll_clk", "mpll_clk_out0", "mpll_clk_out1",
 							"mpll_clk_out2"};
 PNAME(cts_i958_p) = {"NULL", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
@@ -150,7 +151,8 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 	COMPOSITE(CLK_PDM, "cts_pdm", cts_pdm_p,
 			CLK_SET_RATE_NO_REPARENT,
 			HHI_AUD_CLK_CNTL3, 17, 2, 0,
-			HHI_AUD_CLK_CNTL3, 0, 16, 0,
+			HHI_AUD_CLK_CNTL3, 0, 16,
+			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_AUD_CLK_CNTL3, 16, 0),
 
 	COMPOSITE(CLK_I958, "cts_i958", cts_i958_p,

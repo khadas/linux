@@ -146,4 +146,5 @@ struct stmmac_of_data {
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 };
+extern int chip_simulation;
 #endif

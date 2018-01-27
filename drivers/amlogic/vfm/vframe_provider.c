@@ -61,7 +61,8 @@ struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name)
 		int namelen = strlen(provider_name);
 		for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 			p = provider_table[i];
-			if (p && !strncmp(p->name, provider_name, namelen)) {
+			if (p && p->name && !strncmp(p->name,
+					provider_name, namelen)) {
 				if (strlen(p->name) == namelen
 					|| p->name[namelen] == '.')
 					break;
@@ -100,6 +101,26 @@ int vf_notify_provider(const char *receiver_name, int event_type, void *data)
 	return ret;
 }
 EXPORT_SYMBOL(vf_notify_provider);
+
+int vf_notify_provider_by_name(const char *provider_name, int event_type,
+							   void *data)
+{
+	int ret = -1;
+	struct vframe_provider_s *provider =
+		vf_get_provider_by_name(provider_name);
+	if (provider) {
+		if (provider->ops && provider->ops->event_cb) {
+			provider->ops->event_cb(event_type, data,
+				provider->op_arg);
+			ret = 0;
+		}
+	} else{
+		/* pr_err("Error: %s, fail to get provider of receiver %s\n",
+				__func__, receiver_name); */
+	}
+	return ret;
+}
+EXPORT_SYMBOL(vf_notify_provider_by_name);
 
 void vf_provider_init(struct vframe_provider_s *prov,
 		const char *name,

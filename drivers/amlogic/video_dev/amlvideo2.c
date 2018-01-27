@@ -3801,9 +3801,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 		node->vid_dev->v4l2_dev.name,
 		sizeof(cap->bus_info));
 	cap->version = AMLVIDEO2_VERSION;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
 		|V4L2_CAP_STREAMING
 		| V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -4978,7 +4979,7 @@ static const struct v4l2_file_operations amlvideo2_fops = {
 .release = amlvideo2_close,
 .read = amlvideo2_read,
 .poll = amlvideo2_poll,
-.ioctl = video_ioctl2, /* V4L2 ioctl handler */
+.unlocked_ioctl = video_ioctl2, /* V4L2 ioctl handler */
 .mmap = amlvideo2_mmap, };
 
 static const struct v4l2_ioctl_ops amlvideo2_ioctl_ops = {
@@ -5259,7 +5260,7 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 			break;
 		}
 		*vfd = amlvideo2_template;
-		vfd->debug = debug;
+		// vfd->debug = debug;
 		vfd->v4l2_dev = v4l2_dev;
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
 		if (ret < 0) {

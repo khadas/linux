@@ -223,8 +223,8 @@ MODULE_PARM_DESC(bar_det_time, "bar det delta:delta limit of bar det");
 #endif
 
 /**************the  version of changing log************************/
-static  const char last_version_s[] = "2013-11-4||10-13";
-static  const char version_s[] = "2013-11-4||10-13";
+static  const char last_version_s[] = "2013-11-4a";
+static  const char version_s[] = "2013-11-4a";
 /***************************************************************************/
 void get_adc_version(const char **ver, const char **last_ver)
 {

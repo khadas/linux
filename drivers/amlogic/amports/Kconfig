@@ -58,6 +58,14 @@ config GE2D_KEEP_FRAME
 menu "Video Decoders"
 	depends on AM_VIDEO
 
+config MULTI_DEC
+	tristate "Amlogic Multi-Instance Decoding"
+	default n
+	---help---
+	   Support multi-instance decoding in amlogic drivers.
+	   select for building amports and ion drivers with support.
+	   ...
+
 config AM_VDEC_MPEG12
 	tristate "Amlogic MPEG1/2 Video Decoder"
 	default y
@@ -74,6 +82,16 @@ config AM_VDEC_MPEG4
 	select AM_PTSSERVER
 	---help---
 	  Driver for mpeg4 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_MMPEG4
+	tristate "Amlogic MMPEG4 Video Decoder"
+	default n
+	---help---
+	  Driver for Mmpeg4 video decoder.
 	  need write more details...
 	  write need more.....
 	  need more...
@@ -96,6 +114,17 @@ config AM_VDEC_H264
 	select AM_PTSSERVER
 	---help---
 	  Driver for h264 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_MH264
+	tristate "Amlogic MH264 Video Decoder"
+	default n
+	select AM_PTSSERVER
+	---help---
+	  Driver for Mh264 video decoder.
 	  need write more details...
 	  write need more.....
 	  need more...

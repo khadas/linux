@@ -126,13 +126,10 @@ void kbase_hwaccess_pm_gpu_idle(struct kbase_device *kbdev);
  *
  * @param kbdev         The kbase device structure for the device (must be a
  *                      valid pointer)
- * @param new_core_mask_js0 The core mask to use for job slot 0
- * @param new_core_mask_js0 The core mask to use for job slot 1
- * @param new_core_mask_js0 The core mask to use for job slot 2
+ * @param new_core_mask The core mask to use
  */
 void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
-		u64 new_core_mask_js0, u64 new_core_mask_js1,
-		u64 new_core_mask_js2);
+							u64 new_core_mask);
 
 
 /**
@@ -183,7 +180,6 @@ kbase_pm_ca_list_policies(const struct kbase_pm_ca_policy * const **policies);
  * @return The current policy
  */
 const struct kbase_pm_policy *kbase_pm_get_policy(struct kbase_device *kbdev);
-int set_policy_by_name(struct kbase_device *kbdev, const char *name);
 
 /**
  * Change the policy to the one specified.

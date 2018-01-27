@@ -89,21 +89,21 @@ int global_bs_calc_sw(int *pGbsVldCnt,
 	nMax = max(max(nGbsStatLR, nGbsStatLL), nGbsStatRR);
 	nMin = min(min(nGbsStatLR, nGbsStatLL), nGbsStatRR);
 
-	nDif0 = nMax == 0 ? 0 : 512*(nMax - nMin)/nMax;
+	nDif0 = nMax == 0 ? 0 : ((nMax - nMin) << 9)/nMax;
 	nDif0 = min(511, nDif0);
 
 	nDif1 = nGbsStatLR == 0 ? 0 :
-512*abs(nGbsStatLR - (nGbsStatLL + nGbsStatRR)/2)/nGbsStatLR;
+	(abs(nGbsStatLR - (nGbsStatLL + nGbsStatRR)/2) << 9)/nGbsStatLR;
 	nDif1 = min(511, nDif1);
 
 	nDif2 = nGbsStatLR == 0 ? 0 :
-512*abs(nGbsStatLR - max(nGbsStatLL, nGbsStatRR))/nGbsStatLR;
+	(abs(nGbsStatLR - max(nGbsStatLL, nGbsStatRR)) << 9)/nGbsStatLR;
 	nDif2 = min(511, nDif2);
 
 	if (0 == prm_gbs_ratcalcmod)
-		nRat = 16 * nGbsStatLR / max(prm_gbs_cnt_min, nGbsStatCnt);
+		nRat = (nGbsStatLR << 4) / max(prm_gbs_cnt_min, nGbsStatCnt);
 	else
-		nRat = 16 * nGbsStatDif / max(prm_gbs_cnt_min, nGbsStatCnt);
+		nRat = (nGbsStatDif << 4) / max(prm_gbs_cnt_min, nGbsStatCnt);
 
 	nDif = 0 == prm_gbs_calcmod ? nDif0 :
 (1 == prm_gbs_calcmod ? nDif1 : nDif2);
@@ -284,9 +284,9 @@ int ver_blk_ofst_calc_sw(int *pVbOfVldCnt,
 }
 #endif
 
-void run_dnr_in_irq(int nCol, int nRow)
+void run_dnr_in_irq(unsigned short nCol, unsigned short nRow)
 {
-	int ro_gbs_stat_lr = 0, ro_gbs_stat_ll = 0, ro_gbs_stat_rr = 0,
+	static int ro_gbs_stat_lr = 0, ro_gbs_stat_ll = 0, ro_gbs_stat_rr = 0,
 	ro_gbs_stat_dif = 0, ro_gbs_stat_cnt = 0;
 	/* int reg_dnr_stat_xst=0,reg_dnr_stat_xed=0,
 reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
@@ -295,19 +295,33 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #endif
 	if (dnr_reg_update == 0)
 		return;
+
 	DI_Wr(DNR_CTRL, 0x1df00);
 	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
-	DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+	/* dm for sd, hd will slower */
+	if (nCol >= 1920)
+		DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+	else
+		DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 	DI_Wr(DNR_HVSIZE, nCol<<16|nRow);
-	DI_Wr(DNR_STAT_X_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
-		|((nCol-(8*dnr_stat_coef+1))&0x3fff));
-	DI_Wr(DNR_STAT_Y_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
-		|((nRow-(8*dnr_stat_coef+1))&0x3fff));
-	ro_gbs_stat_lr = Rd(DNR_RO_GBS_STAT_LR);
-	ro_gbs_stat_ll = Rd(DNR_RO_GBS_STAT_LL);
-	ro_gbs_stat_rr = Rd(DNR_RO_GBS_STAT_RR);
-	ro_gbs_stat_dif = Rd(DNR_RO_GBS_STAT_DIF);
-	ro_gbs_stat_cnt = Rd(DNR_RO_GBS_STAT_CNT);
+	DI_Wr(DNR_STAT_X_START_END, (((dnr_stat_coef<<3)&0x3fff) << 16)
+		|((nCol-((dnr_stat_coef<<3)+1))&0x3fff));
+	DI_Wr(DNR_STAT_Y_START_END, (((dnr_stat_coef<<3)&0x3fff) << 16)
+		|((nRow-((dnr_stat_coef<<3)+1))&0x3fff));
+	if (ro_gbs_stat_lr != Rd(DNR_RO_GBS_STAT_LR) ||
+		ro_gbs_stat_ll != Rd(DNR_RO_GBS_STAT_LL) ||
+		ro_gbs_stat_rr != Rd(DNR_RO_GBS_STAT_RR) ||
+		ro_gbs_stat_dif != Rd(DNR_RO_GBS_STAT_DIF) ||
+		ro_gbs_stat_cnt != Rd(DNR_RO_GBS_STAT_CNT)) {
+
+		ro_gbs_stat_lr = Rd(DNR_RO_GBS_STAT_LR);
+		ro_gbs_stat_ll = Rd(DNR_RO_GBS_STAT_LL);
+		ro_gbs_stat_rr = Rd(DNR_RO_GBS_STAT_RR);
+		ro_gbs_stat_dif = Rd(DNR_RO_GBS_STAT_DIF);
+		ro_gbs_stat_cnt = Rd(DNR_RO_GBS_STAT_CNT);
+	} else {
+		return;
+	}
 
 	global_bs_calc_sw(&pDnrPrm->sw_gbs_vld_cnt,
 			  &pDnrPrm->sw_gbs_vld_flg,

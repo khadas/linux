@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2008-2013, 2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2008-2013 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -86,7 +86,7 @@ int umpp_phys_commit(umpp_allocation * alloc)
 			break;
 		}
 
-		alloc->block_array[i].addr = PFN_PHYS(page_to_pfn(page));
+		alloc->block_array[i].addr = page_to_pfn(page) << PAGE_SHIFT;
 		alloc->block_array[i].size = PAGE_SIZE;
 
 		mp = kmap(page);

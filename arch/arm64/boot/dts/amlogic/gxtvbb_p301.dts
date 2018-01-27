@@ -11,6 +11,8 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxtvbb.h>
 #include "mesongxtvbb.dtsi"
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 
 / {
 	model = "Amlogic";
@@ -55,15 +57,27 @@
 			size = <0x0 0x2000000>;
 			no-map;
 		};*/
-
+		/*di reserved mem*/
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			/* if nr10bit-surpport set to 1, size should be <0x0 0x3300000>, 51M */
-			/* if nr10bit-surpport set to 0, size should be <0x0 0x2200000>, 34M */
-			size = <0x0 0x3300000>; //51M for support nr10bit
+			/* buffer_size = 3552320(yuv422 8bit) | 4596800(yuv422 10bit) | 4074560(yuv422 10bit full pack mode) */
+			/** 10x3552320=34M(0x22) support 8bit **/
+			/** 10x44596800=44M(0x2c) support 12bit **/
+			/** 10x4074560=39M(0x27) support 10bit **/
+			size = <0x0 0x2c00000>;
 			//no-map;
-			multi-use;
 		};
+		/*di CMA pool */
+		//di_cma_reserved:linux,di_cma {
+			//compatible = "shared-dma-pool";
+			//reusable;
+			/* buffer_size = 3552320(yuv422 8bit) | 44596800(yuv422 10bit) | 4074560(yuv422 10bit full pack mode) */
+			/** 10x3552320=34M(0x22) support 8bit **/
+			/** 10x44596800=44M(0x2c) support 12bit **/
+			/** 10x4074560=39M(0x27) support 10bit **/
+			//size = <0x0 0x03000000>;
+			//alignment = <0x0 0x400000>;
+		//};
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
 			size = <0x0 0x600000>; //20m
@@ -267,15 +281,24 @@
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";
+		flag_cma = <0>;/*0:use reserved;1:use cma*/
 		memory-region = <&di_reserved>;
+		//memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
 				0 6 1>;
 		interrupt-names = "de_irq",
 				"timerc";
-		buffer-size = <3552320>;	//for gxtvbb, include mcdi, nr10bit size
+		/* nr_size(byte) = 1920*544*2(yuv422 8bit) | 1920*544*2*12/8(yuv422 10bit) | 1920*544*2*10/8(yuv422 10bit full pack mode) */
+		/* mtn_size(byte) = 1920*544/2 */
+		/* count_size(byte) = 1920*544/2 */
+		/* mv_size(byte) = 1920*544*2/5 */
+		/* mc_size(byte) = 544*2 */
+		/* buffer_size = nr_size + mtn_size + count_size + mv_size + mc_size */
+		/* buffer_size = 3552320(yuv422 8bit) | 4596800(yuv422 10bit) | 4074560(yuv422 10bit full pack mode) */
+		buffer-size = <4596800>;
 		hw-version = <2>;
+		/* reserve-iomap = "true"; */
 		/* if enable nr10bit, set nr10bit-surpport to 1 */
-		/* if disable nr10bit, set nr10bit-surpport to 0 */
 		nr10bit-surpport = <1>;
 	};
 /*
@@ -400,6 +423,7 @@
 			"xtal",
 			"fclk_div5";
 		hdmirx_id = <0>;
+		en_4k_2_2k = <0>;
 		uart_scl_a_pin =  <&gpio       GPIOW_8       GPIO_ACTIVE_HIGH>;
 		uart_scl_b_pin =  <&gpio       GPIOW_12      GPIO_ACTIVE_HIGH>;
 		uart_scl_c_pin =  <&gpio       GPIOW_16      GPIO_ACTIVE_HIGH>;
@@ -410,7 +434,7 @@
 		dev_name = "tvafe";
 		status = "ok";
 		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
-		cma_size = <8>;/*MByte*/
+		cma_size = <5>;/*MByte*/
 		reg = <0x0 0xc8842000 0x0 0x2000>;
 		reserve-iomap = "true";
 		tvafe_id = <0>;
@@ -613,19 +637,18 @@
 		};
 	};
 	partitions: partitions{
-        parts = <12>;
+        parts = <11>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&param>;
 		part-3 = <&tee>;
 		part-4 = <&crypt>;
 		part-5 = <&misc>;
-		part-6 = <&instaboot>;
-		part-7 = <&boot>;
-		part-8 = <&system>;
-		part-9 = <&cache>;
-		part-10 = <&cri_data>;
-		part-11 = <&data>;
+		part-6 = <&boot>;
+		part-7 = <&system>;
+		part-8 = <&cache>;
+		part-9 = <&cri_data>;
+		part-10 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -657,11 +680,7 @@
 			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
-		instaboot:instaboot{
-			pname = "instaboot";
-			size = <0x0 0x20000000>;
-			mask = <1>;
-		};
+
 		boot:boot
 		{
 			pname = "boot";
@@ -985,7 +1004,7 @@
 			range_setting = <2060 2650 1100 1480 120000000 160000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -1002,7 +1021,7 @@
 			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -1019,7 +1038,7 @@
 			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			lvds_attr = <1 1 0 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap, lane_reverse */
 			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -1038,6 +1057,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 50 /* panel power on */
 					2 0 0 200   /* signal enable */
@@ -1056,6 +1076,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 50 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -1074,6 +1095,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 50 /* panel power on */
 					2 0 0 0   /* signal enable */
@@ -1092,6 +1114,7 @@
 			lcd_timing = <33 477 1 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal, 3=auto range), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			vbyone_intr_enable = <1 1>; /* vbyone_intr_enable, vbyone_vsync_intr_enable */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					0 1 0 10  /* 3d_enable=0 */
@@ -1143,6 +1166,14 @@
 			i2c_address = <0x1c>; /* 7bit i2c address */
 			i2c_bus = "i2c_bus_d";
 		};
+		extern_2{
+			index = <2>;
+			extern_name = "i2c_DLPC3439";
+			status = "disabled";
+			type = <0>; /* 0=i2c, 1=spi, 2=mipi */
+			i2c_address = <0x1b>; /* 7bit i2c address */
+			i2c_bus = "i2c_bus_a";
+		};
 	};
 
 	backlight{
@@ -1150,13 +1181,19 @@
 		dev_name = "backlight";
 		status = "okay";
 		key_valid = <0>;
-		pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
-				"pwm_combo_0_on","pwm_combo_1_on";
+		pinctrl-names = "pwm_on","pwm_vs_on",
+				"pwm_combo_0_1_on",
+				"pwm_combo_0_vs_1_on",
+				"pwm_combo_0_on",
+				"pwm_combo_0_vs_on",
+				"pwm_combo_1_on";
 		pinctrl-0 = <&bl_pwm_on_pins>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_combo_0_on_pins &bl_pwm_combo_1_on_pins>;
-		pinctrl-3 = <&bl_pwm_combo_0_on_pins>;
-		pinctrl-4 = <&bl_pwm_combo_1_on_pins>;
+		pinctrl-3 = <&bl_pwm_combo_0_vs_on_pins &bl_pwm_combo_1_on_pins>;
+		pinctrl-4 = <&bl_pwm_combo_0_on_pins>;
+		pinctrl-5 = <&bl_pwm_combo_0_vs_on_pins>;
+		pinctrl-6 = <&bl_pwm_combo_1_on_pins>;
 		interrupts = <0 3 1 0 143 1>;
 
 		/* power index:(point gpios_index, 0xff=invalid) */
@@ -1243,6 +1280,20 @@
 			bl_ldim_region_row_col = <1 1>;
 			bl_ldim_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
 			ldim_dev_index = <2>;
+		};
+		backlight_5{
+			index = <5>;
+			bl_name = "backlight_5";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <3>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+
+			bl_ldim_region_row_col = <1 10>;
+			bl_ldim_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
+			bl_ldim_mapping = <0 1 2 3 4 5 6 7 8 9>;
+			ldim_dev_index = <1>;
 		};
 	};
 
@@ -1350,19 +1401,35 @@
 			spi_chip_select = <0>;
 			spi_max_frequency = <400000>; /* unit: hz */
 			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
-			spi_cs_delay = <10 10>; /* hold_high_delay, clk_cs_delay (unit: us) */
+			spi_cs_delay = <10 100>; /* hold_high_delay, clk_cs_delay (unit: us) */
 
 			en_gpio_on_off = <0 1 0>; /* ldim_dev-gpios index, on_level, off_level */
 			lamp_err_gpio = <0xff>; /* ldim_dev-gpios index, 0xff=invalid */
 			spi_write_check = <0>; /* 0=disable, 1=enable */
 
-			dim_max_min = <0xff 0x10>; /* dim_max, dim_min */
+			dim_max_min = <0xfff 0x7f>; /* dim_max, dim_min */
 			cmd_size = <4>;
 			/* init: (type, data..., delay), must match cmd_size for every group */
 			/*   type: 0x00=cmd, 0xff=ending*/
 			/*   data: spi data, fill 0x0 for no use */
 			/*   delay: unit ms */
-			init_on = <0xff 0x00 0x00 0x00>;
+			init_on = <
+				0x00 0x23 0x03 0x00
+				0x00 0x24 0xff 0x00
+				0x00 0x25 0x00 0x00
+				0x00 0x26 0x00 0x00
+				0x00 0x27 0x60 0x00
+				0x00 0x29 0x00 0x00
+				0x00 0x2a 0x00 0x00
+				/*0x00 0x2b 0x7f 0x00*/
+				0x00 0x2c 0x73 0x00
+				0x00 0x2d 0x37 0x00
+				0x00 0x31 0x93 0x00
+				0x00 0x32 0x0f 0x00
+				0x00 0x33 0xff 0x00
+				0x00 0x34 0xc8 0x00
+				0x00 0x35 0xbf 0x00
+				0xff 0x00 0x00 0x00>;
 		};
 		ldim_dev_2 {
 			index = <2>;
@@ -1619,21 +1686,34 @@
 	};
 
 	pwm {
-		compatible = "amlogic, gx-pwm";
+		compatible = "amlogic, meson-pwm";
 		status = "okay";
-		pwm-outputs = <0>,<1>,<2>,<3>,<4>,<5>,<6>,<7>;
+		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
+		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
-				<0x0 0xc8100550 0x0 0x10>;
+		      <0x0 0xc8100550  0x0 0x10>;
 		clocks = <&clock CLK_XTAL>,
-				<&clock CLK_VID_PLL>,
-				<&clock CLK_FPLL_DIV4>,
-				<&clock CLK_FPLL_DIV3>;
+			 <&clock CLK_VID_PLL>,
+			 <&clock CLK_FPLL_DIV4>,
+			 <&clock CLK_FPLL_DIV3>;
 		clock-names = "xtal",
-				"vid_pll_clk",
-				"fclk_div4",
-				"fclk_div3";
-		clock-select = <0x0>,<0x0>,<0x0>,<0x0>,<0x3>,<0x0>,<0x0>,<0x0>;
+			      "vid_pll_clk",
+			      "fclk_div4",
+			      "fclk_div3";
+		clock-select 	 = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+			       	   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		clock-select-new = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		                   /*all channels use the default clock source XTAL_CLK*/
+		                   /*and you can shoose it in file dt-bindings/pwm/meson.h*/
 	};
+
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
 		device_name = "thermal";
@@ -1797,6 +1877,13 @@
 		amlogic,pins = "GPIOH_10";
 	};
 
+	audio_btpcm_pins:audio_btpcm_pins{
+		/* BT PCM PINMUX SETTING*/
+		amlogic,setmask=<1 0x3c0000>;
+		amlogic,clrmask=<1 0x3C000000>;
+		amlogic,pins ="GPIOX_4", "GPIOX_5", "GPIOX_6", "GPIOX_7";
+	};
+
 	eth_pins: eth_pins{
 		amlogic,setmask =<8 0x19cf8000>;
 		amlogic,clrmask =<8 0x20000000>,
@@ -1839,6 +1926,11 @@
 		amlogic,setmask = <10 0x00040000>;
 		amlogic,clrmask = <4 0x29001008>;
 		amlogic,pins = "GPIOY_8";
+	};
+	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
+		amlogic,setmask = <10 0x01000000>;
+		amlogic,clrmask = <10 0x0080a000>;
+		amlogic,pins = "GPIOY_13";
 	};
 	hdmirx_pins: hdmirx_pins {
                 amlogic,setmask = <6  0x3def780>;
@@ -1952,7 +2044,11 @@
 		amlogic,setmask=<AO 0x3>;
 		amlogic,pins = "GPIOW_5";
 	};
-
+	avin_gpio_disable_pull:avin_gpio_disable_pull{
+		amlogic,pins = "GPIOW_3","GPIOW_4";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<0>;
+	};
 	/* pwm_ao_a */
 	pwm_ao_a_pins:pwm_ao_a_pins {
 		amlogic,setmask=<AO 0x80000>;

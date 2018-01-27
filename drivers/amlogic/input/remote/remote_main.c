@@ -30,6 +30,8 @@
 #include <linux/errno.h>
 #include <asm/irq.h>
 #include <linux/io.h>
+#include <linux/amlogic/scpi_protocol.h>
+
 
 /*#include <mach/pinmux.h>*/
 #include <linux/major.h>
@@ -326,6 +328,7 @@ void remote_reprot_key(struct remote *remote_data)
 {
 	remote_report_key[remote_data->work_mode](remote_data);
 }
+
 static void remote_release_timer_sr(unsigned long data)
 {
 	struct remote *remote_data = (struct remote *)data;
@@ -395,9 +398,25 @@ static ssize_t remote_enable_store(struct device *dev,
 	return strnlen(buf, count);
 }
 
+
+static ssize_t remote_powerkey_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	unsigned int val = 0;
+	unsigned int ret;
+
+	ret = scpi_get_usr_data(SCPI_CL_POWER, &val, 1);
+	if (IS_ERR_VALUE(ret)) {
+		pr_info("scpi_get_usr_data error: val =0x%x\n", val);
+		return 0;
+	}
+	return sprintf(buf, "powerkey = 0x%x\n", val);
+}
+
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, remote_enable_show,
 		   remote_enable_store);
 static DEVICE_ATTR(log_buffer, S_IRUGO , remote_log_buffer_show, NULL);
+static DEVICE_ATTR(powerkey, S_IRUGO , remote_powerkey_show, NULL);
 
 static int hardware_init(struct platform_device *pdev)
 {
@@ -632,6 +651,15 @@ static long remote_config_ioctl(struct file *filp, unsigned int cmd,
 	case REMOTE_IOC_GET_TW_REPEATE_LEADER:
 		ret = copy_to_user(argp, &val, sizeof(long));
 		break;
+	case REMOTE_IOC_GET_POWERKEY:
+		ret = scpi_get_usr_data(SCPI_CL_POWER, &val, 1);
+		if (IS_ERR_VALUE(ret)) {
+			pr_info("scpi_get_usr_data SCPI_CL_POWER error\n");
+			mutex_unlock(&remote_file_mutex);
+			return -1;
+		}
+		ret = copy_to_user(argp, &val, sizeof(long));
+		break;
 	}
 	mutex_unlock(&remote_file_mutex);
 	return 0;
@@ -695,6 +723,7 @@ static int remote_probe(struct platform_device *pdev)
 	int ao_offset;
 	struct resource *res_irq;
 	int i, ret;
+
 	/*aml_set_reg32_mask(P_AO_RTI_PIN_MUX_REG, (1 << 0));*/
 	if (!pdev->dev.of_node) {
 		pr_err("remote: pdev->dev.of_node == NULL!\n");
@@ -776,6 +805,13 @@ static int remote_probe(struct platform_device *pdev)
 		device_remove_file(&pdev->dev, &dev_attr_enable);
 		goto err1;
 	}
+	ret = device_create_file(&pdev->dev, &dev_attr_powerkey);
+	if (ret < 0) {
+		device_remove_file(&pdev->dev, &dev_attr_enable);
+		device_remove_file(&pdev->dev, &dev_attr_log_buffer);
+		goto err1;
+	}
+
 	input_dbg("device_create_file completed \r\n");
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL)
 						| BIT_MASK(EV_ABS);
@@ -816,6 +852,7 @@ static int remote_probe(struct platform_device *pdev)
 	input_dbg("physical address:0x%x\n",
 		(unsigned int)virt_to_phys(remote_log_buf));
 	return 0;
+
 err3:
 	input_unregister_device(remote->input);
 	input_dev = NULL;
@@ -863,18 +900,15 @@ static int remote_remove(struct platform_device *pdev)
 
 static int remote_resume(struct platform_device *pdev)
 {
+	struct remote *remote = platform_get_drvdata(pdev);
 	input_dbg("remote_resume To do remote resume\n");
 	input_dbg("remote_resume make sure read frame enable ir interrupt\n");
 	am_remote_read_reg(DURATION_REG1_AND_STATUS);
 	am_remote_read_reg(FRAME_BODY);
+	remote_restore_regs(remote->work_mode); /*restore remote regs*/
 	if (is_meson_m8m2_cpu()) {
 #define  AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
 		if (aml_read_aobus(AO_RTI_STATUS_REG2) == 0x1234abcd) {
-			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
-			input_sync(gp_remote->input);
-			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
-			input_sync(gp_remote->input);
-
 			/*aml_write_reg32(P_AO_RTC_ADDR0,
 			(aml_read_reg32(P_AO_RTC_ADDR0) | (0x0000f000)));*/
 			aml_write_aobus(AO_RTI_STATUS_REG2, 0);
@@ -882,19 +916,16 @@ static int remote_resume(struct platform_device *pdev)
 	} else {
 		if (get_resume_method() == REMOTE_WAKEUP) {
 			input_dbg("remote_wakeup\n");
+		}
+		if (get_resume_method() == ETH_PHY_WAKEUP) {
+			input_dbg("ethernet_wakeup\n");
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 			input_sync(gp_remote->input);
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
 			input_sync(gp_remote->input);
 		}
-
-		if (get_resume_method() == REMOTE_CUS_WAKEUP) {
-			input_event(gp_remote->input, EV_KEY, 133, 1);
-			input_sync(gp_remote->input);
-			input_event(gp_remote->input, EV_KEY, 133, 0);
-			input_sync(gp_remote->input);
-		}
 	}
+
 	gp_remote->sleep = 0;
 	input_dbg("to clear irq ...\n");
 	disable_irq(NEC_REMOTE_IRQ_NO);
@@ -906,7 +937,9 @@ static int remote_resume(struct platform_device *pdev)
 
 static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct remote *remote = platform_get_drvdata(pdev);
 	input_dbg("remote_suspend, set sleep 1\n");
+	remote_save_regs(remote->work_mode); /*save remote regs*/
 	gp_remote->sleep = 1;
 	return 0;
 }

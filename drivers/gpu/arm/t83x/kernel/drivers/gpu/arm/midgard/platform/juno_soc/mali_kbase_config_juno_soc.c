@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,6 +16,9 @@
 
 
 #include <linux/ioport.h>
+#ifdef CONFIG_DEVFREQ_THERMAL
+#include <linux/devfreq_cooling.h>
+#endif
 #include <linux/thermal.h>
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
@@ -65,71 +68,117 @@ struct kbase_pm_callback_conf pm_callbacks = {
 	.power_resume_callback = NULL
 };
 
+#ifdef CONFIG_DEVFREQ_THERMAL
+
+#define FALLBACK_STATIC_TEMPERATURE 55000
+
+static unsigned long juno_model_static_power(unsigned long voltage)
+{
+	struct thermal_zone_device *tz;
+	unsigned long temperature, temp;
+	unsigned long temp_squared, temp_cubed, temp_scaling_factor;
+	const unsigned long coefficient = (410UL << 20) / (729000000UL >> 10);
+	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
+
+	tz = thermal_zone_get_zone_by_name("gpu");
+	if (IS_ERR(tz)) {
+		pr_warn_ratelimited("Error getting gpu thermal zone (%ld), not yet ready?\n",
+				PTR_ERR(tz));
+		temperature = FALLBACK_STATIC_TEMPERATURE;
+	} else {
+		int ret;
+
+		ret = tz->ops->get_temp(tz, &temperature);
+		if (ret) {
+			pr_warn_ratelimited("Error reading temperature for gpu thermal zone: %d\n",
+					ret);
+			temperature = FALLBACK_STATIC_TEMPERATURE;
+		}
+	}
+
+	/* Calculate the temperature scaling factor. To be applied to the
+	 * voltage scaled power.
+	 */
+	temp = temperature / 1000;
+	temp_squared = temp * temp;
+	temp_cubed = temp_squared * temp;
+	temp_scaling_factor =
+			(2 * temp_cubed)
+			- (80 * temp_squared)
+			+ (4700 * temp)
+			+ 32000;
+
+	return (((coefficient * voltage_cubed) >> 20)
+			* temp_scaling_factor)
+				/ 1000000;
+}
+
+static unsigned long juno_model_dynamic_power(unsigned long freq,
+		unsigned long voltage)
+{
+	/* The inputs: freq (f) is in Hz, and voltage (v) in mV.
+	 * The coefficient (c) is in mW/(MHz mV mV).
+	 *
+	 * This function calculates the dynamic power after this formula:
+	 * Pdyn (mW) = c (mW/(MHz*mV*mV)) * v (mV) * v (mV) * f (MHz)
+	 */
+	const unsigned long v2 = (voltage * voltage) / 1000; /* m*(V*V) */
+	const unsigned long f_mhz = freq / 1000000; /* MHz */
+	const unsigned long coefficient = 3600; /* mW/(MHz*mV*mV) */
+
+	return (coefficient * v2 * f_mhz) / 1000000; /* mW */
+}
+
+struct devfreq_cooling_ops juno_model_ops = {
+	.get_static_power = juno_model_static_power,
+	.get_dynamic_power = juno_model_dynamic_power,
+};
+
+#endif /* CONFIG_DEVFREQ_THERMAL */
+
 /*
- * Juno Protected Mode integration
+ * Juno Secure Mode integration
  */
 
 /* SMC Function Numbers */
-#define JUNO_SMC_PROTECTED_ENTER_FUNC  0xff06
-#define JUNO_SMC_PROTECTED_RESET_FUNC 0xff07
+#define JUNO_SMC_SECURE_ENABLE_FUNC  0xff06
+#define JUNO_SMC_SECURE_DISABLE_FUNC 0xff07
 
-static int juno_protected_mode_enter(struct kbase_device *kbdev)
-{
-	/* T62X in SoC detected */
-	u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
-		JUNO_SMC_PROTECTED_ENTER_FUNC, false,
-		0, 0, 0);
-	return ret;
-}
-
-/* TODO: Remove these externs, reset should should be done by the firmware */
-extern void kbase_reg_write(struct kbase_device *kbdev, u16 offset, u32 value,
-						struct kbase_context *kctx);
-
-extern u32 kbase_reg_read(struct kbase_device *kbdev, u16 offset,
-						struct kbase_context *kctx);
-
-static int juno_protected_mode_reset(struct kbase_device *kbdev)
-{
-
-	/* T62X in SoC detected */
-	u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
-		JUNO_SMC_PROTECTED_RESET_FUNC, false,
-		0, 0, 0);
-
-	/* The GPU should now be reset */
-
-	return ret;
-}
-
-static bool juno_protected_mode_supported(struct kbase_device *kbdev)
+static int juno_secure_mode_enable(struct kbase_device *kbdev)
 {
 	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
 
-	/*
-	 * Protected mode is only supported for the built in GPU
-	 * _and_ only if the right firmware is running.
-	 *
-	 * Given that at init time the GPU is not powered up the
-	 * juno_protected_mode_reset function can't be used as
-	 * is needs to access GPU registers.
-	 * However, although we don't want the GPU to boot into
-	 * protected mode we know a GPU reset will be done after
-	 * this function is called so although we set the GPU to
-	 * protected mode it will exit protected mode before the
-	 * driver is ready to run work.
-	 */
 	if (gpu_id == GPU_ID_MAKE(GPU_ID_PI_T62X, 0, 1, 0) &&
-			(kbdev->reg_start == 0x2d000000))
-		return juno_protected_mode_enter(kbdev) == 0;
+			kbdev->reg_start == 0x2d000000) {
+		/* T62X in SoC detected */
+		u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
+			JUNO_SMC_SECURE_ENABLE_FUNC, false,
+			0, 0, 0);
+		return ret;
+	}
 
-	return false;
+	return -EINVAL; /* Not supported */
 }
 
-struct kbase_protected_ops juno_protected_ops = {
-	.protected_mode_enter = juno_protected_mode_enter,
-	.protected_mode_reset = juno_protected_mode_reset,
-	.protected_mode_supported = juno_protected_mode_supported,
+static int juno_secure_mode_disable(struct kbase_device *kbdev)
+{
+	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+
+	if (gpu_id == GPU_ID_MAKE(GPU_ID_PI_T62X, 0, 1, 0) &&
+			kbdev->reg_start == 0x2d000000) {
+		/* T62X in SoC detected */
+		u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
+			JUNO_SMC_SECURE_DISABLE_FUNC, false,
+			0, 0, 0);
+		return ret;
+	}
+
+	return -EINVAL; /* Not supported */
+}
+
+struct kbase_secure_ops juno_secure_ops = {
+	.secure_mode_enable = juno_secure_mode_enable,
+	.secure_mode_disable = juno_secure_mode_disable,
 };
 
 static struct kbase_platform_config versatile_platform_config = {

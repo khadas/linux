@@ -26,6 +26,9 @@
 #define XVYCC_INV_LUT_CTL		0x3164
 #define XVYCC_LUT_CTL			0x3165
 
+#define XVYCC_INV_LUT_Y_ADDR_PORT     0x3158
+#define XVYCC_INV_LUT_Y_DATA_PORT     0x3159
+
 extern struct am_regs_s r_lut_hdr_hdr;
 extern struct am_regs_s r_lut_sdr_sdr;
 extern struct am_regs_s r_lut_hdr_sdr_level1;

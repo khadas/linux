@@ -59,6 +59,16 @@ config LEDS_TRIGGER_BACKLIGHT
 
 	  If unsure, say N.
 
+config LEDS_TRIGGER_OFF
+    tristate "LED Off Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	This allows LEDs to be initialised in the OFF state.
+	Switch the mode, the LEDs is alway off.
+	For more details read Documentation/leds/leds-class.txt.
+
+	If unsure, say Y.
+
 config LEDS_TRIGGER_CPU
 	bool "LED CPU Trigger"
 	depends on LEDS_TRIGGERS

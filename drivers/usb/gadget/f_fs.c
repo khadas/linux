@@ -33,6 +33,12 @@
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
 
+/*The actual maximum length will depend on the version of the shell
+protocol being used. This should be able to be raised to 16K for
+devices */
+#define MAX_PAYLOAD_EP0		(1024)
+#define MAX_PAYLOAD_EPS		(4096*4)
+
 /* Variable Length Array Macros **********************************************/
 #define vla_group(groupname) size_t groupname##__next = 0
 #define vla_group_size(groupname) groupname##__next
@@ -197,7 +203,9 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 
 	spin_unlock_irq(&ffs->ev.waitq.lock);
 
-	req->buf      = data;
+	memcpy(ffs->data_ep0, data, len);
+
+	req->buf      = ffs->data_ep0;
 	req->length   = len;
 
 	/*
@@ -219,6 +227,8 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 		usb_ep_dequeue(ffs->gadget->ep0, req);
 		return -EINTR;
 	}
+
+	memcpy(data, ffs->data_ep0, len);
 
 	ffs->setup_state = FFS_NO_SETUP;
 	return ffs->ep0req_status;
@@ -589,10 +599,12 @@ static ssize_t ffs_epfile_io(struct file *file,
 			     char __user *buf, size_t len, int read)
 {
 	struct ffs_epfile *epfile = file->private_data;
-	struct ffs_ep *ep;
+	struct ffs_ep *ep = epfile->ep;
 	char *data = NULL;
-	ssize_t ret, data_len;
+	ssize_t ret, data_len = 0;
 	int halt;
+	struct usb_request *req;
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	/* Are we still active? */
 	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE)) {
@@ -664,13 +676,36 @@ static ssize_t ffs_epfile_io(struct file *file,
 		spin_unlock_irq(&epfile->ffs->eps_lock);
 		ret = -EBADMSG;
 	} else {
+		req = ep->req;
 		/* Fire the request */
-		DECLARE_COMPLETION_ONSTACK(done);
+		/*Avoid kernel panic caused by race condition. For example,
+		1. In the ffs_epfile_io function, data buffer is allocated
+		for non-halt requests and the address of this buffer is
+		writed to usb controller registers.
+		2. After adb process be killed, data buffer is freed and
+		this memory is allocated for the other. But the address
+		is hold by the controller.
+		3. Adbd in PC is running. So, the controller receive the
+		data and write to this memory.
+		4. The value of this memory is modified by the controller.
+		This could cause the kernel panic.
 
-		struct usb_request *req = ep->req;
+		To avoid this, during FunctionFS mount, we allocated the
+		data buffer for requests. And the memory resources has
+		been released in kill_sb.*/
+		if (data) {
+			if (ep->num == 0)
+				memcpy(epfile->ffs->data_ep_in, data, len);
+			else
+				memcpy(epfile->ffs->data_ep_out, data, len);
+		}
+
 		req->context  = &done;
 		req->complete = ffs_epfile_io_complete;
-		req->buf      = data;
+		if (ep->num == 0)
+			req->buf      = epfile->ffs->data_ep_in;
+		else
+			req->buf      = epfile->ffs->data_ep_out;
 		req->length   = data_len;
 
 		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
@@ -691,10 +726,17 @@ static ssize_t ffs_epfile_io(struct file *file,
 			 * space for.
 			 */
 			ret = ep->status;
-			if (read && ret > 0 &&
-			    unlikely(copy_to_user(buf, data,
+			if (read && ret > 0) {
+				if (ep->num == 0)
+					memcpy(data, epfile->ffs->data_ep_in,
+						 min_t(size_t, ret, len));
+				else
+					memcpy(data, epfile->ffs->data_ep_out,
+						 min_t(size_t, ret, len));
+				if (unlikely(copy_to_user(buf, data,
 						  min_t(size_t, ret, len))))
-				ret = -EFAULT;
+					ret = -EFAULT;
+			}
 		}
 	}
 
@@ -1034,6 +1076,19 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	ffs->data_ep0 = kmalloc(MAX_PAYLOAD_EP0, GFP_KERNEL);
+	if (unlikely(!ffs->data_ep0))
+		return ERR_PTR(-ENOMEM);
+
+	ffs->data_ep_in = kmalloc(MAX_PAYLOAD_EPS, GFP_KERNEL);
+	if (unlikely(!ffs->data_ep_in))
+		return ERR_PTR(-ENOMEM);
+
+	ffs->data_ep_out = kmalloc(MAX_PAYLOAD_EPS, GFP_KERNEL);
+	if (unlikely(!ffs->data_ep_out))
+		return ERR_PTR(-ENOMEM);
+
+
 	ffs_dev = ffs_acquire_dev(dev_name);
 	if (IS_ERR(ffs_dev)) {
 		ffs_data_put(ffs);
@@ -1053,10 +1108,18 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 static void
 ffs_fs_kill_sb(struct super_block *sb)
 {
+	struct ffs_data *ffs = sb->s_fs_info;
+
 	ENTER();
 
 	kill_litter_super(sb);
 	if (sb->s_fs_info) {
+		kfree(ffs->data_ep0);
+		ffs->data_ep0 = NULL;
+		kfree(ffs->data_ep_in);
+		ffs->data_ep_in = NULL;
+		kfree(ffs->data_ep_out);
+		ffs->data_ep_out = NULL;
 		ffs_release_dev(sb->s_fs_info);
 		ffs_data_put(sb->s_fs_info);
 	}

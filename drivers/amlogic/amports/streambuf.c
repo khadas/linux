@@ -74,9 +74,12 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 			flags |= CODEC_MM_FLAGS_FOR_ADECODER;
 			flags |= CODEC_MM_FLAGS_DMA_CPU;
 		}
+		if ((flags & CODEC_MM_FLAGS_FOR_VDECODER) &&
+			codec_mm_video_tvp_enabled())/*TVP TODO for MULTI*/
+			flags |= CODEC_MM_FLAGS_TVP;
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
-			buf->buf_page_num, 4+PAGE_SHIFT, flags);
+			buf->buf_page_num, 4 + PAGE_SHIFT, flags);
 		if (!buf->buf_start) {
 			int is_video = (buf->type == BUF_TYPE_HEVC) ||
 					(buf->type == BUF_TYPE_VIDEO);
@@ -105,7 +108,8 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 				"Subtitle", (void *)buf->buf_start,
 				buf->buf_size);
 	}
-
+	if (buf->buf_size < buf->canusebuf_size)
+		buf->canusebuf_size = buf->buf_size;
 	buf->flag |= BUF_FLAG_ALLOC;
 
 	return 0;
@@ -181,11 +185,6 @@ void stbuf_fetch_release(void)
 	return;
 }
 
-static inline u32 _stbuf_wp(struct stream_buf_s *buf)
-{
-	return _READ_ST_REG(WP);
-}
-
 static void _stbuf_timer_func(unsigned long arg)
 {
 	struct stream_buf_s *p = (struct stream_buf_s *)arg;
@@ -201,16 +200,35 @@ static void _stbuf_timer_func(unsigned long arg)
 
 u32 stbuf_level(struct stream_buf_s *buf)
 {
-	return (buf->type ==
-			BUF_TYPE_HEVC) ? READ_VREG(HEVC_STREAM_LEVEL) :
-		   _READ_ST_REG(LEVEL);
+	if ((buf->type == BUF_TYPE_HEVC) || (buf->type == BUF_TYPE_VIDEO)) {
+		if (READ_MPEG_REG(PARSER_ES_CONTROL) & 1) {
+			int level = READ_MPEG_REG(PARSER_VIDEO_WP) -
+				READ_MPEG_REG(PARSER_VIDEO_RP);
+			if (level < 0)
+				level += READ_MPEG_REG(PARSER_VIDEO_END_PTR) -
+				READ_MPEG_REG(PARSER_VIDEO_START_PTR) + 8;
+			return (u32)level;
+		} else
+			return (buf->type == BUF_TYPE_HEVC) ?
+				READ_VREG(HEVC_STREAM_LEVEL) :
+				_READ_ST_REG(LEVEL);
+	}
+
+	return _READ_ST_REG(LEVEL);
 }
 
 u32 stbuf_rp(struct stream_buf_s *buf)
 {
-	return (buf->type ==
-			BUF_TYPE_HEVC) ? READ_VREG(HEVC_STREAM_RD_PTR) :
-		   _READ_ST_REG(RP);
+	if ((buf->type == BUF_TYPE_HEVC) || (buf->type == BUF_TYPE_VIDEO)) {
+		if (READ_MPEG_REG(PARSER_ES_CONTROL) & 1)
+			return READ_MPEG_REG(PARSER_VIDEO_RP);
+		else
+			return (buf->type == BUF_TYPE_HEVC) ?
+				READ_VREG(HEVC_STREAM_RD_PTR) :
+				_READ_ST_REG(RP);
+	}
+
+	return _READ_ST_REG(RP);
 }
 
 u32 stbuf_space(struct stream_buf_s *buf)
@@ -219,30 +237,7 @@ u32 stbuf_space(struct stream_buf_s *buf)
 	   the parser fifo size is 1024byts, so reserve it */
 	int size;
 
-	if (buf->type == BUF_TYPE_HEVC)
-		size = buf->canusebuf_size - READ_VREG(HEVC_STREAM_LEVEL);
-	else
-		size = (buf->canusebuf_size - _READ_ST_REG(LEVEL));
-
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6TVD */
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		if ((buf->type == BUF_TYPE_VIDEO) && (vdec_on(VDEC_2))) {
-			int v2_start = _READ_VDEC2_ST_REG(START_PTR);
-			int v_start = _READ_ST_REG(START_PTR);
-			int v2_end = _READ_VDEC2_ST_REG(END_PTR);
-			int v_end = _READ_ST_REG(END_PTR);
-			int v2_ctl = _READ_VDEC2_ST_REG(CONTROL);
-			if ((v2_start == v_start)
-					&& (v2_end == v_end)
-					&& (v2_ctl & MEM_CTRL_FILL_EN)) {
-				int v2_st_level = _READ_VDEC2_ST_REG(LEVEL);
-				size = min(size,
-						(int)(buf->canusebuf_size -
-							  v2_st_level));
-			}
-		}
-	}
-	/* #endif */
+	size = buf->canusebuf_size - stbuf_level(buf);
 
 	if (buf->canusebuf_size >= buf->buf_size / 2) {
 		/* old reversed value,tobe full, reversed only... */
@@ -266,7 +261,7 @@ u32 stbuf_canusesize(struct stream_buf_s *buf)
 	return buf->canusebuf_size;
 }
 
-s32 stbuf_init(struct stream_buf_s *buf)
+s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 {
 	s32 r;
 	u32 dummy;
@@ -279,6 +274,18 @@ s32 stbuf_init(struct stream_buf_s *buf)
 	}
 	addr32 = buf->buf_start & 0xffffffff;
 	init_waitqueue_head(&buf->wq);
+
+	if ((buf->type == BUF_TYPE_VIDEO) || (buf->type == BUF_TYPE_HEVC)) {
+		if (vdec) {
+			if (vdec_stream_based(vdec))
+				vdec_input_set_buffer(&vdec->input, addr32,
+						buf->buf_size);
+			else
+				return vdec_input_set_buffer(&vdec->input,
+					addr32,	buf->buf_size);
+		}
+	}
+
 	buf->write_thread = 0;
 	if (has_hevc_vdec() && buf->type == BUF_TYPE_HEVC) {
 		CLEAR_VREG_MASK(HEVC_STREAM_CONTROL, 1);
@@ -384,7 +391,9 @@ s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count)
 void stbuf_release(struct stream_buf_s *buf)
 {
 	buf->first_tstamp = INVALID_PTS;
-	stbuf_init(buf);	/* reinit buffer */
+
+	stbuf_init(buf, NULL);	/* reinit buffer */
+
 	if (buf->flag & BUF_FLAG_ALLOC && buf->buf_start) {
 		codec_mm_free_for_dma(MEM_NAME, buf->buf_start);
 		buf->flag &= ~BUF_FLAG_ALLOC;

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -221,7 +221,7 @@ static const char * const hardware_counters_mali_t60x[] = {
 	"T60x_LSC_DIRTY_LINE",
 	"T60x_LSC_SNOOPS",
 	"T60x_AXI_TLB_STALL",
-	"T60x_AXI_TLB_MISS",
+	"T60x_AXI_TLB_MIESS",
 	"T60x_AXI_TLB_TRANSACTION",
 	"T60x_LS_TLB_MISS",
 	"T60x_LS_TLB_HIT",
@@ -486,7 +486,7 @@ static const char * const hardware_counters_mali_t62x[] = {
 	"T62x_LSC_DIRTY_LINE",
 	"T62x_LSC_SNOOPS",
 	"T62x_AXI_TLB_STALL",
-	"T62x_AXI_TLB_MISS",
+	"T62x_AXI_TLB_MIESS",
 	"T62x_AXI_TLB_TRANSACTION",
 	"T62x_LS_TLB_MISS",
 	"T62x_LS_TLB_HIT",
@@ -1018,7 +1018,7 @@ static const char * const hardware_counters_mali_t76x[] = {
 	"T76x_LSC_DIRTY_LINE",
 	"T76x_LSC_SNOOPS",
 	"T76x_AXI_TLB_STALL",
-	"T76x_AXI_TLB_MISS",
+	"T76x_AXI_TLB_MIESS",
 	"T76x_AXI_TLB_TRANSACTION",
 	"T76x_LS_TLB_MISS",
 	"T76x_LS_TLB_HIT",
@@ -1284,7 +1284,7 @@ static const char * const hardware_counters_mali_t82x[] = {
 	"T82x_LSC_DIRTY_LINE",
 	"T82x_LSC_SNOOPS",
 	"T82x_AXI_TLB_STALL",
-	"T82x_AXI_TLB_MISS",
+	"T82x_AXI_TLB_MIESS",
 	"T82x_AXI_TLB_TRANSACTION",
 	"T82x_LS_TLB_MISS",
 	"T82x_LS_TLB_HIT",
@@ -1550,7 +1550,7 @@ static const char * const hardware_counters_mali_t83x[] = {
 	"T83x_LSC_DIRTY_LINE",
 	"T83x_LSC_SNOOPS",
 	"T83x_AXI_TLB_STALL",
-	"T83x_AXI_TLB_MISS",
+	"T83x_AXI_TLB_MIESS",
 	"T83x_AXI_TLB_TRANSACTION",
 	"T83x_LS_TLB_MISS",
 	"T83x_LS_TLB_HIT",
@@ -1816,7 +1816,7 @@ static const char * const hardware_counters_mali_t86x[] = {
 	"T86x_LSC_DIRTY_LINE",
 	"T86x_LSC_SNOOPS",
 	"T86x_AXI_TLB_STALL",
-	"T86x_AXI_TLB_MISS",
+	"T86x_AXI_TLB_MIESS",
 	"T86x_AXI_TLB_TRANSACTION",
 	"T86x_LS_TLB_MISS",
 	"T86x_LS_TLB_HIT",
@@ -2082,7 +2082,7 @@ static const char * const hardware_counters_mali_t88x[] = {
 	"T88x_LSC_DIRTY_LINE",
 	"T88x_LSC_SNOOPS",
 	"T88x_AXI_TLB_STALL",
-	"T88x_AXI_TLB_MISS",
+	"T88x_AXI_TLB_MIESS",
 	"T88x_AXI_TLB_TRANSACTION",
 	"T88x_LS_TLB_MISS",
 	"T88x_LS_TLB_HIT",
@@ -2155,11 +2155,5 @@ static const char * const hardware_counters_mali_t88x[] = {
 	"T88x_L2_SNOOP_FULL",
 	"T88x_L2_REPLAY_FULL"
 };
-
-#include "mali_kbase_gator_hwcnt_names_tmix.h"
-
-#include "mali_kbase_gator_hwcnt_names_thex.h"
-
-#include "mali_kbase_gator_hwcnt_names_tsix.h"
 
 #endif

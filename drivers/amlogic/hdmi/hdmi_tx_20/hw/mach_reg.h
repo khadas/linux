@@ -18,6 +18,7 @@
 #ifndef __MACH_REG_H__
 #define __MACH_REG_H__
 #include <linux/amlogic/iomap.h>
+#include <linux/delay.h>
 
 #define OFFSET	24
 #define CBUS_REG_ADDR(reg)  ((IO_CBUS_BASE << OFFSET) + (reg << 2))
@@ -33,6 +34,20 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 void sec_reg_write(unsigned *addr, unsigned value);
 unsigned sec_reg_read(unsigned *addr);
 void init_reg_map(void);
+
+#define WAIT_FOR_PLL_LOCKED(reg)                        \
+	do {                                                \
+		unsigned int cnt = 10;                          \
+		unsigned int time_out = 0;                      \
+		while (cnt--) {                                 \
+			time_out = 0;                               \
+			while ((!(hd_read_reg(reg) & (1 << 31)))\
+				& (time_out < 10000))               \
+				time_out++;                            \
+			}                                               \
+		if (cnt < 9)                                     \
+			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+	} while (0)
 
 #define P_PREG_PAD_GPIO6_EN_N nCBUS_REG_ADDR(0x08)
 #define P_PREG_PAD_GPIO6_O    nCBUS_REG_ADDR(0x09)
@@ -299,6 +314,23 @@ void init_reg_map(void);
 #define VENC_DVI_SETTING 0x1b62	/* register.h:8014 */
 #define P_VENC_DVI_SETTING VCBUS_REG_ADDR(VENC_DVI_SETTING)
 
+#define VENC_VIDEO_TST_EN 0x1b70
+#define P_VENC_VIDEO_TST_EN VCBUS_REG_ADDR(VENC_VIDEO_TST_EN)
+#define VENC_VIDEO_TST_MDSEL 0x1b71
+#define P_VENC_VIDEO_TST_MDSEL VCBUS_REG_ADDR(VENC_VIDEO_TST_MDSEL)
+#define VENC_VIDEO_TST_Y 0x1b72
+#define P_VENC_VIDEO_TST_Y VCBUS_REG_ADDR(VENC_VIDEO_TST_Y)
+#define VENC_VIDEO_TST_CB 0x1b73
+#define P_VENC_VIDEO_TST_CB VCBUS_REG_ADDR(VENC_VIDEO_TST_CB)
+#define VENC_VIDEO_TST_CR 0x1b74
+#define P_VENC_VIDEO_TST_CR VCBUS_REG_ADDR(VENC_VIDEO_TST_CR)
+#define VENC_VIDEO_TST_CLRBAR_STRT 0x1b75
+#define P_VENC_VIDEO_TST_CLRBAR_STRT VCBUS_REG_ADDR(VENC_VIDEO_TST_CLRBAR_STRT)
+#define VENC_VIDEO_TST_CLRBAR_WIDTH 0x1b76
+#define P_VENC_VIDEO_TST_CLRBAR_WIDTH \
+		VCBUS_REG_ADDR(VENC_VIDEO_TST_CLRBAR_WIDTH)
+#define VENC_VIDEO_TST_VDCNT_STSET 0x1b77
+#define P_VENC_VIDEO_TST_VDCNT_STSET VCBUS_REG_ADDR(VENC_VIDEO_TST_VDCNT_STSET)
 #define VENC_VDAC_SETTING 0x1b7e
 #define P_VENC_VDAC_SETTING VCBUS_REG_ADDR(VENC_VDAC_SETTING)
 #define ENCP_VIDEO_EN 0x1b80	/* register.h:8078 */
@@ -757,6 +789,9 @@ void init_reg_map(void);
 #define P_VPU_HDMI_DATA_OVR VCBUS_REG_ADDR(VPU_HDMI_DATA_OVR)
 #define VPU_HDMI_FMT_CTRL 0x2743
 #define P_VPU_HDMI_FMT_CTRL VCBUS_REG_ADDR(VPU_HDMI_FMT_CTRL)
+/* For GXM and later */
+#define VPU_HDMI_DITH_CNTL 0x27fc
+#define P_VPU_HDMI_DITH_CNTL VCBUS_REG_ADDR(VPU_HDMI_DITH_CNTL)
 
 /* c_always_on_pointer.h:71 */
 #define AO_RTI_PULL_UP_REG ((0x00 << 10) | (0x0B << 2))

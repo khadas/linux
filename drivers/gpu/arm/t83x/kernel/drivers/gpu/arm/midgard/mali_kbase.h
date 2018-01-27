@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,18 +45,13 @@
 #include <mali_kbase_uku.h>
 #include <mali_kbase_linux.h>
 
-/*
- * Include mali_kbase_defs.h first as this provides types needed by other local
- * header files.
- */
-#include "mali_kbase_defs.h"
-
-#include "mali_kbase_context.h"
-#include "mali_kbase_strings.h"
+#include "mali_kbase_pm.h"
 #include "mali_kbase_mem_lowlevel.h"
+#include "mali_kbase_defs.h"
 #include "mali_kbase_trace_timeline.h"
 #include "mali_kbase_js.h"
 #include "mali_kbase_mem.h"
+#include "mali_kbase_security.h"
 #include "mali_kbase_utility.h"
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
@@ -65,16 +60,15 @@
 #include "mali_kbase_gpuprops.h"
 #include "mali_kbase_jm.h"
 #include "mali_kbase_vinstr.h"
-
-#ifdef CONFIG_DEVFREQ_THERMAL
-#include "ipa/mali_kbase_ipa.h"
-#endif
-
+#include "mali_kbase_ipa.h"
 #ifdef CONFIG_GPU_TRACEPOINTS
 #include <trace/events/gpu.h>
 #endif
 /**
  * @page page_base_kernel_main Kernel-side Base (KBase) APIs
+ *
+ * The Kernel-side Base (KBase) APIs are divided up as follows:
+ * - @subpage page_kbase_js_policy
  */
 
 /**
@@ -88,7 +82,7 @@ struct kbase_device *kbase_device_alloc(void);
 */
 
 /*
-* API to acquire device list semaphore and return pointer
+* API to acquire device list semaphone and return pointer
 * to the device list head
 */
 const struct list_head *kbase_dev_list_get(void);
@@ -111,6 +105,7 @@ u32 kbase_get_profiling_control(struct kbase_device *kbdev, u32 control);
 struct kbase_context *
 kbase_create_context(struct kbase_device *kbdev, bool is_compat);
 void kbase_destroy_context(struct kbase_context *kctx);
+int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags);
 
 int kbase_jd_init(struct kbase_context *kctx);
 void kbase_jd_exit(struct kbase_context *kctx);
@@ -145,6 +140,7 @@ void kbase_jd_done_worker(struct work_struct *data);
 void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr, ktime_t *end_timestamp,
 		kbasep_js_atom_done_code done_code);
 void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
+void kbase_jd_evict(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 void kbase_jd_zap_context(struct kbase_context *kctx);
 bool jd_done_nolock(struct kbase_jd_atom *katom,
 		struct list_head *completed_jobs_ctx);
@@ -152,10 +148,11 @@ void kbase_jd_free_external_resources(struct kbase_jd_atom *katom);
 bool jd_submit_atom(struct kbase_context *kctx,
 			 const struct base_jd_atom_v2 *user_atom,
 			 struct kbase_jd_atom *katom);
-void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom);
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done);
 
+void kbase_gpu_cacheclean(struct kbase_device *kbdev,
+					struct kbase_jd_atom *katom);
 /**
  * kbase_job_slot_ctx_priority_check_locked(): - Check for lower priority atoms
  *                                               and soft stop them
@@ -166,7 +163,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done);
  * than @katom will be soft stopped and put back in the queue, so that atoms
  * with higher priority can run.
  *
- * The hwaccess_lock must be held when calling this function.
+ * The js_data.runpool_irq.lock must be held when calling this function.
  */
 void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 				struct kbase_jd_atom *katom);
@@ -178,7 +175,7 @@ void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 		struct kbase_jd_atom *target_katom);
 void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
-		base_jd_core_req core_reqs, struct kbase_jd_atom *target_katom);
+		u16 core_reqs, struct kbase_jd_atom *target_katom);
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom);
 
@@ -195,26 +192,18 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom);
 void kbase_finish_soft_job(struct kbase_jd_atom *katom);
 void kbase_cancel_soft_job(struct kbase_jd_atom *katom);
 void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev);
-void kbasep_add_waiting_soft_job(struct kbase_jd_atom *katom);
-void kbasep_remove_waiting_soft_job(struct kbase_jd_atom *katom);
-int kbase_soft_event_update(struct kbase_context *kctx,
-			    u64 event,
-			    unsigned char new_status);
 
 bool kbase_replay_process(struct kbase_jd_atom *katom);
 
-void kbasep_soft_job_timeout_worker(unsigned long data);
-void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
-
 /* api used internally for register access. Contains validation and tracing */
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value);
-int kbase_device_trace_buffer_install(
-		struct kbase_context *kctx, u32 *tb, size_t size);
+void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size_t size);
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx);
 
 /* api to be ported per OS, only need to do the raw register access */
 void kbase_os_reg_write(struct kbase_device *kbdev, u16 offset, u32 value);
 u32 kbase_os_reg_read(struct kbase_device *kbdev, u16 offset);
+
 
 void kbasep_as_do_poke(struct work_struct *work);
 
@@ -356,10 +345,6 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
  * it is reported as a disjoint event
  */
 #define KBASE_DISJOINT_STATE_INTERLEAVED_CONTEXT_COUNT_THRESHOLD 2
-
-#if !defined(UINT64_MAX)
-	#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
-#endif
 
 #if KBASE_TRACE_ENABLE
 void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
@@ -570,58 +555,4 @@ extern void *reg_base_hiubus;
 #endif
 
 
-
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
-
-/* kbase_io_history_init - initialize data struct for register access history
- *
- * @kbdev The register history to initialize
- * @n The number of register accesses that the buffer could hold
- *
- * @return 0 if successfully initialized, failure otherwise
- */
-int kbase_io_history_init(struct kbase_io_history *h, u16 n);
-
-/* kbase_io_history_term - uninit all resources for the register access history
- *
- * @h The register history to terminate
- */
-void kbase_io_history_term(struct kbase_io_history *h);
-
-/* kbase_io_history_dump - print the register history to the kernel ring buffer
- *
- * @kbdev Pointer to kbase_device containing the register history to dump
- */
-void kbase_io_history_dump(struct kbase_device *kbdev);
-
-/**
- * kbase_io_history_resize - resize the register access history buffer.
- *
- * @h: Pointer to a valid register history to resize
- * @new_size: Number of accesses the buffer could hold
- *
- * A successful resize will clear all recent register accesses.
- * If resizing fails for any reason (e.g., could not allocate memory, invalid
- * buffer size) then the original buffer will be kept intact.
- *
- * @return 0 if the buffer was resized, failure otherwise
- */
-int kbase_io_history_resize(struct kbase_io_history *h, u16 new_size);
-
-#else /* CONFIG_DEBUG_FS */
-
-#define kbase_io_history_init(...) ((int)0)
-
-#define kbase_io_history_term CSTD_NOP
-
-#define kbase_io_history_dump CSTD_NOP
-
-#define kbase_io_history_resize CSTD_NOP
-
-#endif /* CONFIG_DEBUG_FS */
-
-
 #endif
-
-
-

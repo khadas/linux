@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -86,6 +86,7 @@ int kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpup
 	/* Before API 8.2 they expect L3 cache info here, which was always 0 */
 	if (kctx->api_version < KBASE_API_VERSION(8, 2))
 		kbase_props->props.raw_props.suspend_size = 0;
+
 
 	return 0;
 }
@@ -185,22 +186,9 @@ static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, struct kb
 
 	gpu_props->raw_props.as_present = regdump.as_present;
 	gpu_props->raw_props.js_present = regdump.js_present;
-	gpu_props->raw_props.shader_present =
-		((u64) regdump.shader_present_hi << 32) +
-		regdump.shader_present_lo;
-	gpu_props->raw_props.tiler_present =
-		((u64) regdump.tiler_present_hi << 32) +
-		regdump.tiler_present_lo;
-	gpu_props->raw_props.l2_present =
-		((u64) regdump.l2_present_hi << 32) +
-		regdump.l2_present_lo;
-#ifdef CONFIG_MALI_CORESTACK
-	gpu_props->raw_props.stack_present =
-		((u64) regdump.stack_present_hi << 32) +
-		regdump.stack_present_lo;
-#else /* CONFIG_MALI_CORESTACK */
-	gpu_props->raw_props.stack_present = 0;
-#endif /* CONFIG_MALI_CORESTACK */
+	gpu_props->raw_props.shader_present = ((u64) regdump.shader_present_hi << 32) + regdump.shader_present_lo;
+	gpu_props->raw_props.tiler_present = ((u64) regdump.tiler_present_hi << 32) + regdump.tiler_present_lo;
+	gpu_props->raw_props.l2_present = ((u64) regdump.l2_present_hi << 32) + regdump.l2_present_lo;
 
 	for (i = 0; i < GPU_MAX_JOB_SLOTS; i++)
 		gpu_props->raw_props.js_features[i] = regdump.js_features[i];
@@ -212,6 +200,7 @@ static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, struct kb
 	gpu_props->raw_props.thread_max_threads = regdump.thread_max_threads;
 	gpu_props->raw_props.thread_max_workgroup_size = regdump.thread_max_workgroup_size;
 	gpu_props->raw_props.thread_features = regdump.thread_features;
+
 }
 
 /**
@@ -307,23 +296,4 @@ void kbase_gpuprops_set(struct kbase_device *kbdev)
 	gpu_props->num_core_groups = hweight64(raw->l2_present);
 	gpu_props->num_address_spaces = hweight32(raw->as_present);
 	gpu_props->num_job_slots = hweight32(raw->js_present);
-}
-
-void kbase_gpuprops_set_features(struct kbase_device *kbdev)
-{
-	base_gpu_props *gpu_props;
-	struct kbase_gpuprops_regdump regdump;
-
-	gpu_props = &kbdev->gpu_props.props;
-
-	/* Dump relevant registers */
-	kbase_backend_gpuprops_get_features(kbdev, &regdump);
-
-	/*
-	 * Copy the raw value from the register, later this will get turned
-	 * into the selected coherency mode.
-	 * Additionally, add non-coherent mode, as this is always supported.
-	 */
-	gpu_props->raw_props.coherency_mode = regdump.coherency_features |
-		COHERENCY_FEATURE_BIT(COHERENCY_NONE);
 }

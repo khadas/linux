@@ -91,6 +91,7 @@
 /*  7:0 -- fec_sync_byte (default : 0x47)*/
 /*#define TS_TOP_CONFIG           (STB_CBUS_BASE + 0xf1) // 0x16f1*/
 /*----------- bit define -----------*/
+#define TS_OUT_CLK_INVERT						16
 #define TS_PACKAGE_LENGTH_SUB_1     8
 #define FEC_DEFAULT_SYNC_BYTE       0
 

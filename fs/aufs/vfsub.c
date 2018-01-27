@@ -347,7 +347,7 @@ out:
 
 int vfsub_rename(struct inode *src_dir, struct dentry *src_dentry,
 		 struct inode *dir, struct path *path,
-		 struct inode **delegated_inode)
+		 struct inode **delegated_inode, unsigned int flags)
 {
 	int err;
 	struct path tmp = {
@@ -361,14 +361,14 @@ int vfsub_rename(struct inode *src_dir, struct dentry *src_dentry,
 	d = path->dentry;
 	path->dentry = d->d_parent;
 	tmp.dentry = src_dentry->d_parent;
-	err = security_path_rename(&tmp, src_dentry, path, d);
+	err = security_path_rename(&tmp, src_dentry, path, d, /*flags*/0);
 	path->dentry = d;
 	if (unlikely(err))
 		goto out;
 
 	lockdep_off();
 	err = vfs_rename(src_dir, src_dentry, dir, path->dentry,
-			 delegated_inode);
+			 delegated_inode, flags);
 	lockdep_on();
 	if (!err) {
 		int did;

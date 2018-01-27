@@ -49,7 +49,6 @@
 #include "vreal.h"
 #include "arch/register.h"
 
-
 #define DRIVER_NAME "amvdec_real"
 #define MODULE_NAME "amvdec_real"
 
@@ -490,14 +489,14 @@ static void vreal_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vreal_dec_status(struct vdec_status *vstatus)
+int vreal_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = vreal_amstream_dec_info.width;
-	vstatus->height = vreal_amstream_dec_info.height;
+	vstatus->frame_width = vreal_amstream_dec_info.width;
+	vstatus->frame_height = vreal_amstream_dec_info.height;
 	if (0 != vreal_amstream_dec_info.rate)
-		vstatus->fps = 96000 / vreal_amstream_dec_info.rate;
+		vstatus->frame_rate = 96000 / vreal_amstream_dec_info.rate;
 	else
-		vstatus->fps = 96000;
+		vstatus->frame_rate = 96000;
 	vstatus->error_count = real_err_count;
 	vstatus->status =
 		((READ_VREG(STATUS_AMRISC) << 16) | fatal_flag) | stat;
@@ -761,7 +760,7 @@ static void load_block_data(void *dest, unsigned int count)
 	return;
 }
 
-s32 vreal_init(void)
+s32 vreal_init(struct vdec_s *vdec)
 {
 	int r;
 
@@ -775,7 +774,7 @@ s32 vreal_init(void)
 
 	vreal_local_init();
 
-	r = rmparser_init();
+	r = rmparser_init(vdec);
 	if (r) {
 		amvdec_disable();
 
@@ -853,8 +852,6 @@ s32 vreal_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vreal_dec_status);
-
 	pr_info("vreal init finished\n");
 
 	return 0;
@@ -871,8 +868,7 @@ void vreal_set_fatal_flag(int flag)
 
 static int amvdec_real_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	if (pdata == NULL) {
 		pr_info("amvdec_real memory resource undefined.\n");
@@ -907,8 +903,9 @@ static int amvdec_real_probe(struct platform_device *pdev)
 	/* } */
 	/* #endif */
 
+	pdata->dec_status = vreal_dec_status;
 
-	if (vreal_init() < 0) {
+	if (vreal_init(pdata) < 0) {
 		pr_info("amvdec_real init failed.\n");
 		/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC) */
 		/* if(IS_MESON_M8_CPU) */

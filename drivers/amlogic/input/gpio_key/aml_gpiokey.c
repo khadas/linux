@@ -46,6 +46,9 @@
 #include <linux/amlogic/sd.h>
 #include <linux/amlogic/iomap.h>
 #include <dt-bindings/gpio/gxbb.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/pm.h>
+#include <linux/of_address.h>
 
 #include <linux/switch.h>
 #define OFFSET  24
@@ -318,7 +321,7 @@ static int gpio_key_probe(struct platform_device *pdev)
 			goto get_key_param_failed;
 		}
 		desc = of_get_named_gpiod_flags(pdev->dev.of_node ,
-			"key_pin" ,  0 ,  NULL);
+			"key_pin" ,  i ,  NULL);
 		pdata->key[i].pin = desc_to_gpio(desc);
 		dev_info(&pdev->dev, "gpio_key: %d %s(%d)\n", i,
 			 (pdata->key[i].name) ,  pdata->key[i].pin);
@@ -380,9 +383,9 @@ static int gpio_key_probe(struct platform_device *pdev)
 	key = pdata->key;
 
 	for (i = 0; i < kp->key_num; i++) {
-		set_bit(key->code ,  input_dev->keybit);
+		set_bit(pdata->key[i].code ,  input_dev->keybit);
 		dev_info(&pdev->dev, "%s key(%d) registed.\n",
-			 key->name , key->code);
+			 key->name , pdata->key[i].code);
 	}
 	input_dev->name = "gpio_keypad";
 	input_dev->phys = "gpio_keypad/input0";
@@ -452,20 +455,13 @@ static int gpio_key_suspend(struct platform_device *dev ,  pm_message_t state)
 
 static int gpio_key_resume(struct platform_device *dev)
 {
- /*if (readl(AO_RTI_STATUS_REG2) == FLAG_WAKEUP_PWRKEY) {
-		//if ( quick_boot_mode == 0 ) {
-		// power button ,  not alarm
-		//dev_info(&kp->input->dev, "gpio_key_resume send KEY_POWER\n");
-		input_report_key(gp_kp->input ,  KEY_POWER ,  0);
-		input_sync(gp_kp->input);
+	if (get_resume_method() == POWER_KEY_WAKEUP) {
+		pr_info("gpio keypad wakeup\n");
 		input_report_key(gp_kp->input ,  KEY_POWER ,  1);
 		input_sync(gp_kp->input);
+		input_report_key(gp_kp->input ,  KEY_POWER ,  0);
+		input_sync(gp_kp->input);
 	}
-	//WRITE_AOBUS_REG(AO_RTI_STATUS_REG2 ,  0);
-	//writel(0 , AO_RTI_STATUS_REG2);
-	deep_suspend_flag = 0;
-	//clr_pwr_key();
-	}*/
 	return 0;
 }
 

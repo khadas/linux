@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,31 +28,6 @@
 
 #include "mali_kbase_pm_ca.h"
 #include "mali_kbase_pm_policy.h"
-
-
-/**
- * enum kbasep_pm_action - Actions that can be performed on a core.
- *
- * This enumeration is private to the file. Its values are set to allow
- * core_type_to_reg() function, which decodes this enumeration, to be simpler
- * and more efficient.
- *
- * @ACTION_PRESENT: The cores that are present
- * @ACTION_READY: The cores that are ready
- * @ACTION_PWRON: Power on the cores specified
- * @ACTION_PWROFF: Power off the cores specified
- * @ACTION_PWRTRANS: The cores that are transitioning
- * @ACTION_PWRACTIVE: The cores that are active
- */
-enum kbasep_pm_action {
-	ACTION_PRESENT = 0,
-	ACTION_READY = (SHADER_READY_LO - SHADER_PRESENT_LO),
-	ACTION_PWRON = (SHADER_PWRON_LO - SHADER_PRESENT_LO),
-	ACTION_PWROFF = (SHADER_PWROFF_LO - SHADER_PRESENT_LO),
-	ACTION_PWRTRANS = (SHADER_PWRTRANS_LO - SHADER_PRESENT_LO),
-	ACTION_PWRACTIVE = (SHADER_PWRACTIVE_LO - SHADER_PRESENT_LO)
-};
-
 
 
 /**
@@ -180,6 +155,17 @@ bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend);
 void kbase_pm_enable_interrupts(struct kbase_device *kbdev);
 
 /**
+ * kbase_pm_enable_interrupts_mmu_mask - Enable interrupts on the device, using
+ *                                       the provided mask to set MMU_IRQ_MASK.
+ *
+ * Interrupts are also enabled after a call to kbase_pm_clock_on().
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ * @mask:  The mask to use for MMU_IRQ_MASK
+ */
+void kbase_pm_enable_interrupts_mmu_mask(struct kbase_device *kbdev, u32 mask);
+
+/**
  * kbase_pm_disable_interrupts - Disable interrupts on the device.
  *
  * This prevents delivery of Power Management interrupts to the CPU so that
@@ -191,16 +177,6 @@ void kbase_pm_enable_interrupts(struct kbase_device *kbdev);
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_disable_interrupts(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_disable_interrupts_nolock - Version of kbase_pm_disable_interrupts()
- *                                      that does not take the hwaccess_lock
- *
- * Caller must hold the hwaccess_lock.
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- */
-void kbase_pm_disable_interrupts_nolock(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_init_hw - Initialize the hardware.
@@ -313,30 +289,14 @@ void kbase_pm_update_cores_state(struct kbase_device *kbdev);
 void kbase_pm_cancel_deferred_poweroff(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_invoke - Invokes an action on a core set
+ * kbasep_pm_read_present_cores - Read the bitmasks of present cores.
  *
- * This function performs the action given by @action on a set of cores of a
- * type given by @core_type. It is a static function used by
- * kbase_pm_transition_core_type()
- *
- * @kbdev:     The kbase device structure of the device
- * @core_type: The type of core that the action should be performed on
- * @cores:     A bit mask of cores to perform the action on (low 32 bits)
- * @action:    The action to perform on the cores
- */
-
-void kbase_pm_invoke(struct kbase_device *kbdev,
-					enum kbase_pm_core_type core_type,
-					u64 cores,
-					enum kbasep_pm_action action);
-
-/**
- * kbasep_pm_init_core_use_bitmaps - Initialise data tracking the required
- *                                   and used cores.
+ * This information is cached to avoid having to perform register reads whenever
+ * the information is required.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
-void kbasep_pm_init_core_use_bitmaps(struct kbase_device *kbdev);
+void kbasep_pm_read_present_cores(struct kbase_device *kbdev);
 
 /**
  * kbasep_pm_metrics_init - Initialize the metrics gathering framework.
@@ -424,34 +384,13 @@ void kbase_pm_request_gpu_cycle_counter_l2_is_on(struct kbase_device *kbdev);
  * kbase_pm_release_gpu_cycle_counter - Mark that the GPU cycle counter is no
  *                                      longer in use
  *
- * If the caller is the last caller then the GPU cycle counters will be
- * disabled. A request must have been made before a call to this.
- *
- * Caller must not hold the hwaccess_lock, as it will be taken in this function.
- * If the caller is already holding this lock then
- * kbase_pm_release_gpu_cycle_counter_nolock() must be used instead.
+ * If the caller is the
+ * last caller then the GPU cycle counters will be disabled. A request must have
+ * been made before a call to this.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_release_gpu_cycle_counter(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_release_gpu_cycle_counter_nolock - Version of kbase_pm_release_gpu_cycle_counter()
- *                                             that does not take hwaccess_lock
- *
- * Caller must hold the hwaccess_lock.
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- */
-void kbase_pm_release_gpu_cycle_counter_nolock(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_wait_for_poweroff_complete - Wait for the poweroff workqueue to
- *                                       complete
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- */
-void kbase_pm_wait_for_poweroff_complete(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_register_access_enable - Enable access to GPU registers
@@ -526,8 +465,12 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume);
  *              pointer)
  * @is_suspend: true if power off due to suspend,
  *              false otherwise
+ * Return:
+ *         true      if power was turned off, else
+ *         false     if power can not be turned off due to pending page/bus
+ *                   fault workers. Caller must flush MMU workqueues and retry
  */
-void kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
+bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
 
 #ifdef CONFIG_PM_DEVFREQ
 void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
@@ -564,28 +507,10 @@ void kbase_pm_power_changed(struct kbase_device *kbdev);
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  * @now:   Pointer to the timestamp of the change, or NULL to use current time
  *
- * Caller must hold hwaccess_lock
+ * Caller must hold runpool_irq.lock
  */
 void kbase_pm_metrics_update(struct kbase_device *kbdev,
 				ktime_t *now);
 
-/**
- * kbase_pm_cache_snoop_enable - Allow CPU snoops on the GPU
- * If the GPU does not have coherency this is a no-op
- * @kbdev:	Device pointer
- *
- * This function should be called after L2 power up.
- */
-
-void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_cache_snoop_disable - Prevent CPU snoops on the GPU
- * If the GPU does not have coherency this is a no-op
- * @kbdev:	Device pointer
- *
- * This function should be called before L2 power off.
- */
-void kbase_pm_cache_snoop_disable(struct kbase_device *kbdev);
 
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

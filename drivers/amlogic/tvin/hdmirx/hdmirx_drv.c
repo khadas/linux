@@ -64,7 +64,6 @@ static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
 /* static int open_flage; */
 struct hdmirx_dev_s *devp_hdmirx_suspend;
-unsigned int hu_share_choise;
 struct device *hdmirx_dev;
 struct delayed_work     eq_dwork;
 struct workqueue_struct *eq_wq;
@@ -85,13 +84,13 @@ static int hdmi_yuv444_enable = 1;
 module_param(hdmi_yuv444_enable, int, 0664);
 MODULE_PARM_DESC(hdmi_yuv444_enable, "hdmi_yuv444_enable");
 
-int hdmirx_de_repeat_enable = 1;
-module_param(hdmirx_de_repeat_enable, int, 0664);
-MODULE_PARM_DESC(hdmirx_de_repeat_enable, "hdmirx_do_de_repeat_enable");
-
 static int repeat_function;
 MODULE_PARM_DESC(repeat_function, "\n repeat_function\n");
 module_param(repeat_function, int, 0664);
+
+bool downstream_repeat_support = 1;
+MODULE_PARM_DESC(downstream_repeat_support, "\n downstream_repeat_support\n");
+module_param(downstream_repeat_support, bool, 0664);
 
 static int force_color_range;
 MODULE_PARM_DESC(force_color_range, "\n force_color_range\n");
@@ -101,11 +100,24 @@ int pc_mode_en;
 MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
 module_param(pc_mode_en, int, 0664);
 
+bool mute_kill_en;
+MODULE_PARM_DESC(mute_kill_en, "\n mute_kill_en\n");
+module_param(mute_kill_en, bool, 0664);
+
+static bool en_4096_2_3840 = true;
+MODULE_PARM_DESC(en_4096_2_3840, "\n en_4096_2_3840\n");
+module_param(en_4096_2_3840, bool, 0664);
+
+static int en_4k_2_2k;
+MODULE_PARM_DESC(en_4k_2_2k, "\n en_4k_2_2k\n");
+module_param(en_4k_2_2k, int, 0664);
+
+int suspend_pddq = 1;
+
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
-struct gpio_desc *g_uart_pin[3];
-
+/* int en_4k_2_2k; */
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -183,7 +195,7 @@ static int check_regmap_flag(unsigned int addr)
 
 bool hdmirx_repeat_support(void)
 {
-	return repeat_function;
+	return repeat_function && downstream_repeat_support;
 }
 
 unsigned int rd_reg(unsigned int addr)
@@ -234,12 +246,9 @@ uint32_t set(uint32_t data, uint32_t mask, uint32_t value)
 void hdmirx_timer_handler(unsigned long arg)
 {
 	struct hdmirx_dev_s *devp = (struct hdmirx_dev_s *)arg;
-	uart_plugin_monitor();
 	rx_5v_det();
 	rx_check_repeat();
-	if (edid_update_flag)
-		edid_update();
-	if ((rx.open_fg) && (!edid_update_flag))
+	if (rx.open_fg)
 		hdmirx_hw_monitor();
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
@@ -301,7 +310,6 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	parm = &devp->param;
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
-	to_init_state();
 	rx_pr("%s ok\n", __func__);
 }
 
@@ -319,10 +327,8 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	parm = &devp->param;
 	/*del_timer_sync(&devp->timer);*/
 	hdmirx_hw_uninit();
-	hdmirx_hw_disable(0);
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
-	to_init_state();
 	rx_pr("%s ok\n", __func__);
 }
 
@@ -336,9 +342,10 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	parm = &devp->param;
 	/* if there is any error or overflow, do some reset, then rerurn -1;*/
 	if ((parm->info.status != TVIN_SIG_STATUS_STABLE) ||
-	    (parm->info.fmt == TVIN_SIG_FMT_NULL)) {
+	    (parm->info.fmt == TVIN_SIG_FMT_NULL))
 		return -1;
-	}
+	else if (rx.change > 0)
+		return TVIN_BUF_SKIP;
 	return 0;
 }
 
@@ -432,7 +439,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	unsigned char _3d_structure, _3d_ext_data;
 	enum tvin_sig_fmt_e sig_fmt;
 	int dvi_info = hdmirx_hw_get_dvi_info();
-	unsigned int rate = rx.pre_params.refresh_rate * 2;
+	unsigned int rate = rx.pre.refresh_rate * 2;
 
 	/* use dvi info bit4~ for frame rate display */
 	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
@@ -520,13 +527,10 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	else if (is_alternative())
 		prop->trans_fmt = TVIN_TFMT_3D_LA;
 
-	if (hdmirx_de_repeat_enable)
-		prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1) |
+	prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1) |
 			HDMI_DE_REPEAT_DONE_FLAG;
-	else
-		prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1);
 
-	if (rx.pre_params.interlaced == 1)
+	if (rx.pre.interlaced == 1)
 		prop->dest_cfmt = TVIN_YUV422;
 
 	switch (prop->color_format) {
@@ -571,10 +575,60 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		break;
 	}
 
-	if (rx.hdr_data.data_status == HDR_STATE_NEW) {
-		prop->hdr_data = rx.hdr_data;
-		rx.hdr_data.data_status = HDR_STATE_OLD;
+	/* hdr data processing */
+	switch (rx.hdr_info.hdr_state) {
+	case HDR_STATE_NULL:
+		/* filter for state, 10*10ms */
+		if (rx.hdr_info.hdr_check_cnt++ > 10) {
+			prop->hdr_info.hdr_state = HDR_STATE_NULL;
+			rx.hdr_info.hdr_check_cnt = 0;
+		}
+	break;
+	case HDR_STATE_GET:
+		rx.hdr_info.hdr_check_cnt = 0;
+	break;
+	case HDR_STATE_SET:
+		rx.hdr_info.hdr_check_cnt = 0;
+		if (prop->hdr_info.hdr_state != HDR_STATE_GET) {
+			prop->hdr_info.hdr_data = rx.hdr_info.hdr_data;
+
+			/* vdin can read current hdr data */
+			prop->hdr_info.hdr_state = HDR_STATE_GET;
+
+			/* Rx can get new hdr data */
+			rx.hdr_info.hdr_state = HDR_STATE_NULL;
+		}
+	break;
+	default:
+	break;
 	}
+	/*in some PC case, 4096X2160 show in 3840X2160 monitor will
+	result in blurred, so adjust hactive to 3840 to show dot by dot*/
+	if (en_4096_2_3840) {
+		if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) &&
+			(prop->color_format == TVIN_RGB444)) {
+			prop->hs = 128;
+			prop->he = 128;
+		}
+	}
+	if (en_4k_2_2k) {
+		if (TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) {
+			prop->hs = 128;
+			prop->he = 128;
+			prop->vs = 0;
+			prop->ve = 0;
+			prop->scaling4w = 1920;
+			prop->scaling4h = 1080;
+		} else if (TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt) {
+			prop->scaling4h = 1080;
+			prop->scaling4w = 1920;
+		}
+	}
+	if (((TVIN_SIG_FMT_HDMI_2880X480I_60HZ == sig_fmt) ||
+			(TVIN_SIG_FMT_HDMI_2880X576I_50HZ == sig_fmt)) &&
+			((prop->decimation_ratio & 0xF) == 0)) {
+			prop->scaling4w = 1440;
+		}
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
@@ -650,25 +704,18 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rx.pre_state = FSM_HPD_LOW;
 		break;
 	case HDMI_IOC_EDID_UPDATE:
-		/* hdmi_rx_ctrl_edid_update(); */
-		/* hdmirx_set_hpd(rx.port, 0); */
-		/* force_reset_hpd = true; */
 		do_hpd_reset_flag = 1;
-		/* rx.state = FSM_HDMI5V_LOW; */
-		/* rx.pre_state = FSM_HDMI5V_LOW; */
+		rx.state = FSM_HPD_LOW;
+		rx.pre_state = FSM_HPD_LOW;
+		hdmi_rx_ctrl_edid_update();
+		rx_pr("*update edid*\n");
 		break;
 	case HDMI_IOC_PC_MODE_ON:
 		pc_mode_en = 1;
-		/* hdmirx_set_hpd(rx.port, 0); */
-		/* rx.state = FSM_HDMI5V_HIGH; */
-		/* rx.pre_state = FSM_HDMI5V_HIGH; */
 		rx_pr("pc mode on\n");
 		break;
 	case HDMI_IOC_PC_MODE_OFF:
 		pc_mode_en = 0;
-		/* hdmirx_set_hpd(rx.port, 0); */
-		/* rx.state = FSM_HDMI5V_HIGH; */
-		/* rx.pre_state = FSM_HDMI5V_HIGH; */
 		rx_pr("pc mode off\n");
 		break;
 	case HDMI_IOC_HDCP22_AUTO:
@@ -813,8 +860,8 @@ int rx_pr(const char *fmt, ...)
 	int pos = 0;
 	int len = 0;
 	static bool last_break = 1;
-
-	if (last_break == 1) {
+	if ((last_break == 1) &&
+		(strlen(fmt) > 1)) {
 		strcpy(buf, "[RX]-");
 		for (len = 0; len < strlen(fmt); len++)
 			if (fmt[len] == '\n')
@@ -829,7 +876,7 @@ int rx_pr(const char *fmt, ...)
 		last_break = 1;
 	else
 		last_break = 0;
-	if (log_flag & LOG_EN) {
+	if (log_level & LOG_EN) {
 		va_start(args, fmt);
 		vprintk(buf, args);
 		va_end(args);
@@ -1153,18 +1200,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
 		rx_pr("hdmirx: driver probe error!!!\n");
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-			"hdmiuart_share_cfg", &(hu_share_choise));
-	if (ret) {
-		pr_err("%s:don't find hu_cfg.\n", __func__);
-		hu_share_choise = 0;
-	} else if (hu_share_choise == 0) {
-		pr_err("%s:hu_cfg = 0.\n", __func__);
-		hu_share_choise = 0;
-	}
-	hu_share_choise &= share_with_uart_cfg;
-	rx_pr("hu_share_choise = %d\n", hu_share_choise);
-
 	/* pinmux set */
 	if (pdev->dev.of_node) {
 		ret = of_property_read_string_index(pdev->dev.of_node,
@@ -1203,14 +1238,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 			repeat_function = 0;
 		}
 	}
-
-	g_uart_pin[0] = of_get_named_gpiod_flags(pdev->dev.of_node,
-			"uart_scl_a_pin", 0, NULL);
-	g_uart_pin[1] = of_get_named_gpiod_flags(pdev->dev.of_node,
-			"uart_scl_b_pin", 0, NULL);
-	g_uart_pin[2] = of_get_named_gpiod_flags(pdev->dev.of_node,
-			"uart_scl_c_pin", 0, NULL);
-
 	dev_set_drvdata(hdevp->dev, hdevp);
 
 	xtal_clk = clk_get(&pdev->dev, "xtal");
@@ -1282,6 +1309,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
 	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"en_4k_2_2k", &en_4k_2_2k);
+	if (ret) {
+			pr_err("%s:don't find  en_4k_2_2k.\n", __func__);
+			en_4k_2_2k = 0;
+	}
+
 	hdmirx_hw_probe();
 
 	init_timer(&hdevp->timer);
@@ -1289,6 +1323,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdevp->timer.function = hdmirx_timer_handler;
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&hdevp->timer);
+	rx.boot_flag = TRUE;
 
 	rx_pr("hdmirx: driver probe ok\n");
 
@@ -1355,7 +1390,10 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 		for (i = 0; i < 5000; i++)
 			;
 	}
-	/*hdmirx_phy_pddq(1);*/
+	if (suspend_pddq)
+		hdmirx_phy_pddq(1);
+	if (hdcp22_on)
+		hdcp22_suspend();
 	/*clk_off();*/
 	rx_pr("[hdmirx]: suspend success\n");
 	return 0;
@@ -1365,11 +1403,14 @@ static int hdmirx_resume(struct platform_device *pdev)
 {
 	int i;
 	/*hdmirx_hw_probe();*/
-	/*hdmirx_phy_pddq(0);*/
+	if (suspend_pddq)
+		hdmirx_phy_pddq(0);
 	for (i = 0; i < 5000; i++)
 		;
 	if ((resume_flag == 0) && (rx.open_fg == 1))
 		add_timer(&devp_hdmirx_suspend->timer);
+	if (hdcp22_on)
+		hdcp22_resume();
 	rx_pr("hdmirx: resume module---end,rx.open_fg:%d\n", rx.open_fg);
 	pre_port = 0xff;
 	return 0;

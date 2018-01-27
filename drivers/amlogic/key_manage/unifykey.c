@@ -655,18 +655,23 @@ static long unifykey_unlocked_ioctl(struct file *file,
 			unsigned int keypermit, keystate;
 			struct key_item_t *kkey;
 			struct key_item_info_t *key_item_info;
+			char *keyname;
 			int ret;
 
 			key_item_info = (struct key_item_info_t *)arg;
 			index = key_item_info->id;
-			kkey = unifykey_find_item_by_id(index);
+			keyname = key_item_info->name;
+			if (strlen(keyname))
+				kkey = unifykey_find_item_by_name(keyname);
+			else
+				kkey = unifykey_find_item_by_id(index);
 			if (NULL == kkey) {
 				pr_err("%s() %d, find name fail\n",
 					__func__, __LINE__);
 				return -ENOTTY;
 			}
 			pr_err("%s() %d, %d, %s\n", __func__,
-				__LINE__, index, kkey->name);
+				__LINE__, kkey->id, kkey->name);
 
 			ret = key_unify_query(kkey->name,
 					&keystate, &keypermit);
@@ -677,6 +682,9 @@ static long unifykey_unlocked_ioctl(struct file *file,
 			}
 			key_item_info->permit = keypermit;
 			key_item_info->flag = keystate;
+			key_item_info->id = kkey->id;
+			strncpy(key_item_info->name,
+					kkey->name, strlen(kkey->name));
 			ret = key_unify_size(kkey->name, &reallen);
 			if (ret < 0) {
 				pr_err("%s() %d, get size fail\n",
@@ -992,7 +1000,6 @@ static ssize_t name_store(struct class *cla,
 	}
 	if (!IS_ERR_OR_NULL(name))
 		kfree(name);
-	reval =  count+1;
 
 	return reval;
 }

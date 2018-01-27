@@ -9,7 +9,7 @@ int cmb32_blw_wnd = 180; /*192 */
 module_param(cmb32_blw_wnd, int, 0644);
 MODULE_PARM_DESC(cmb32_blw_wnd, "cmb32_blw_wnd");
 
-int cmb32_wnd_ext = 4;
+static int cmb32_wnd_ext = 11;
 module_param(cmb32_wnd_ext, int, 0644);
 MODULE_PARM_DESC(cmb32_wnd_ext, "cmb32_wnd_ext");
 
@@ -65,7 +65,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		UShort *rPstCYWnd0, UShort *rPstCYWnd1,
 		UShort *rPstCYWnd2, UShort *rPstCYWnd3, int nMod,
 		UINT32 *rROCmbInf, struct sFlmDatSt *pRDat,
-		struct sFlmSftPar *pPar, int nROW, int nCOL)
+		struct sFlmSftPar *pPar, int nROW, int nCOL, bool reverse)
 {
 	/* HSCMB[hist10][9(32bit)] */
 	static UINT32 HSCMB[HISCMBNUM][ROWCMBLEN];
@@ -210,11 +210,21 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		nWCmb = 0;
 		nBCmb = 0;
 		for (nT0 = 0; nT0 < nT1; nT0++) {
-			if (VOFWnd[2 * nT0] > (cmb32_blw_wnd * nROW >> 8)) {
-				CWND[HISDETNUM - 1][2 * nT0] =
-					VOFWnd[2 * nT0] - cmb32_wnd_ext;
-				CWND[HISDETNUM - 1][2 * nT0 + 1] =
-					VOFWnd[2 * nT0 + 1] + cmb32_wnd_ext;
+			if (VOFWnd[2*nT0] > (cmb32_blw_wnd * nROW >> 8)) {
+				CWND[HISDETNUM-1][2*nT0] =
+					VOFWnd[2*nT0] - cmb32_wnd_ext;
+				CWND[HISDETNUM-1][2*nT0+1] =
+					VOFWnd[2*nT0+1] + cmb32_wnd_ext;
+				if (reverse) {
+					if (CWND[HISDETNUM-1][2*nT0+1] >=
+						nROW - 1)
+						CWND[HISDETNUM-1][2*nT0+1]
+							= nROW - 1;
+					CWND[HISDETNUM-1][2*nT0] = nROW - 1
+					- CWND[HISDETNUM-1][2*nT0+1];
+					CWND[HISDETNUM-1][2*nT0+1] = nROW
+					- 1 - (VOFWnd[2*nT0] - cmb32_wnd_ext);
+				}
 
 				nBCmb = VOFWnd[2*nT0+1]-VOFWnd[2*nT0]+1;
 
@@ -362,7 +372,12 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		for (nT0 = 0; nT0 < nT1; nT0++) {
 			CWND[HISDETNUM-1][2*nT0]   = VOFWnd[2*nT0];
 			CWND[HISDETNUM-1][2*nT0+1] = VOFWnd[2*nT0+1];
-
+			if (reverse) {
+				CWND[HISDETNUM-1][2*nT0] =
+					nROW - 1 - VOFWnd[2*nT0+1];
+				CWND[HISDETNUM-1][2*nT0+1] =
+					nROW - 1 - VOFWnd[2*nT0];
+			}
 			if (prt_flg)
 				sprintf(debug_str + strlen(debug_str),
 					"Wnd22[%d]=[%3d~%3d]\n",
@@ -413,13 +428,18 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		for (nT0 = 0; nT0 < nT1; nT0++) {
 			CWND[HISDETNUM-1][2*nT0]   = VOFWnd[2*nT0];
 			CWND[HISDETNUM-1][2*nT0+1] = VOFWnd[2*nT0+1];
-
+			if (reverse) {
+				CWND[HISDETNUM-1][2*nT0] =
+					nROW - 1 - VOFWnd[2*nT0+1];
+				CWND[HISDETNUM-1][2*nT0+1] =
+					nROW - 1 - VOFWnd[2*nT0];
+			}
 			if (prt_flg)
 				sprintf(debug_str + strlen(debug_str),
-				"WndXx[%d]=[%3d~%3d]\n",
-				nT0, VOFWnd[2*nT0], VOFWnd[2*nT0+1]);
+					"WndXx[%d]=[%3d~%3d]\n",
+					nT0, VOFWnd[2*nT0], VOFWnd[2*nT0+1]);
 
-				nWCmb += VOFWnd[2*nT0+1]-VOFWnd[2*nT0]+1;
+			nWCmb += VOFWnd[2*nT0+1]-VOFWnd[2*nT0]+1;
 		}
 
 		nT1 = pRDat->pModXx[HISDETNUM - 1];

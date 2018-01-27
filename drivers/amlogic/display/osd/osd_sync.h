@@ -19,9 +19,6 @@
 #ifndef _OSD_SYNC_H_
 #define _OSD_SYNC_H_
 
-#include <sw_sync.h>
-#include <sync.h>
-
 struct fb_sync_request_s {
 	unsigned int xoffset;
 	unsigned int yoffset;
@@ -29,4 +26,16 @@ struct fb_sync_request_s {
 	int out_fen_fd;
 };
 
+struct fb_sync_request_render_s {
+	unsigned int    xoffset;
+	unsigned int    yoffset;
+	int             in_fen_fd;
+	int             out_fen_fd;
+	int             width;
+	int             height;
+	int             format;
+	int             shared_fd;
+	u32             op;
+	u32             reserve;
+};
 #endif

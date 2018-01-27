@@ -219,8 +219,9 @@ module_param(force_nostd, uint, 0644);
 MODULE_PARM_DESC(force_nostd,
 			"fixed nosig problem by removing the nostd config.\n");
 
-/*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga*/
-static unsigned int  cvd_isr_en = 0x111;
+/*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga;
+0x1000:enable hs adj,which can instead cdto*/
+static unsigned int  cvd_isr_en = 0x1110;
 module_param(cvd_isr_en, uint, 0644);
 MODULE_PARM_DESC(cvd_isr_en, "cvd_isr_en\n");
 
@@ -271,10 +272,34 @@ static unsigned int acd_h_config = 0x8e035e;
 module_param(acd_h_config, uint, 0664);
 MODULE_PARM_DESC(acd_h_config, "acd_h_config");
 
+static unsigned int acd_h = 0X880358;
+module_param(acd_h, uint, 0664);
+MODULE_PARM_DESC(acd_h, "acd_h");
+
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 static unsigned int cvd2_filter_config_level;
 module_param(cvd2_filter_config_level, uint, 0664);
 MODULE_PARM_DESC(cvd2_filter_config_level, "cvd2_filter_config_level");
+
+static unsigned int hs_adj_th_level0 = 0x260;
+module_param(hs_adj_th_level0, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level0, "hs_adj_th_level0");
+
+static unsigned int hs_adj_th_level1 = 0x4f0;
+module_param(hs_adj_th_level1, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level1, "hs_adj_th_level1");
+
+static unsigned int hs_adj_th_level2 = 0x770;
+module_param(hs_adj_th_level2, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level2, "hs_adj_th_level2");
+
+static unsigned int hs_adj_th_level3 = 0x9e0;
+module_param(hs_adj_th_level3, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level3, "hs_adj_th_level3");
+
+static unsigned int hs_adj_th_level4 = 0xc50;
+module_param(hs_adj_th_level4, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level4, "hs_adj_th_level4");
 
 static unsigned int try_format_cnt;
 
@@ -296,8 +321,8 @@ static unsigned int noise3;
 static short print_cnt;
 
 /*****************the  version of changing log**********************/
-static  const char last_version_s[] = "2015-06-01|17-18";
-static  const char version_s[] = "2015-07-06|15-16";
+static  const char last_version_s[] = "2015-07-06a";
+static  const char version_s[] = "2017-01-19a";
 /**********************************************************/
 
 void get_cvd_version(const char **ver, const char **last_ver)
@@ -314,6 +339,9 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 				enum tvin_sig_fmt_e fmt)
 {
 	unsigned int cvd2_addr = mem->start >> 4;/*gxtvbb >>4;g9tv >>3*/
+	unsigned int motion_offset = DECODER_MOTION_BUFFER_ADDR_OFFSET;
+	unsigned int vbi_offset = DECODER_VBI_ADDR_OFFSET;
+	unsigned int vbi_size = DECODER_VBI_VBI_SIZE;
 
 	if ((mem->start == 0) || (mem->size == 0)) {
 
@@ -323,20 +351,31 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 		return;
 	}
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
+		cvd2_addr = mem->start >> 4;
+		motion_offset = motion_offset >> 4;
+		vbi_offset = vbi_offset >> 4;
+		vbi_size = vbi_size >> 4;
+	} else {
+		cvd2_addr = mem->start >> 3;
+		motion_offset = motion_offset >> 3;
+		vbi_offset = vbi_offset >> 3;
+		vbi_size = vbi_size >> 3;
+	}
 	/* CVD2 mem addr is based on 64bit, system mem is based on 8bit*/
 	W_APB_REG(CVD2_REG_96, cvd2_addr);
-	W_APB_REG(ACD_REG_30, (cvd2_addr + DECODER_MOTION_BUFFER_ADDR_OFFSET));
+	W_APB_REG(ACD_REG_30, (cvd2_addr + motion_offset));
 	/* 4frame mode memory setting */
 	W_APB_BIT(ACD_REG_2A ,
 		cvd_mem_4f_length[fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
-			REG_4F_MOTION_LENGTH_BIT, REG_4F_MOTION_LENGTH_WID);
+		REG_4F_MOTION_LENGTH_BIT, REG_4F_MOTION_LENGTH_WID);
 
 	/* vbi memory setting */
-	W_APB_REG(ACD_REG_2F, (cvd2_addr + DECODER_VBI_ADDR_OFFSET));
-	W_APB_BIT(ACD_REG_21, DECODER_VBI_VBI_SIZE,
-			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
+	W_APB_REG(ACD_REG_2F, (cvd2_addr + vbi_offset));
+	W_APB_BIT(ACD_REG_21, vbi_size,
+		AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
 	W_APB_BIT(ACD_REG_21, DECODER_VBI_START_ADDR,
-			AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
+		AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
 	/*open front lpf for av ring*/
 	W_APB_BIT(ACD_REG_26, 1, 8, 1);
 
@@ -498,6 +537,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	W_APB_REG(ACD_REG_22, 0x04080000);
 	/* vbi reset release, vbi agent enable */
 #endif
+
 #if defined(CONFIG_TVIN_TUNER_SI2176)
 	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
@@ -521,8 +561,42 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		&& (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I))
 		W_APB_REG(CVD2_OUTPUT_CONTROL, cvd_reg07_pal);
 
+	/*disable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x14);
+
 	/* 3D comb filter buffer assignment */
 	tvafe_cvd2_memory_init(mem, cvd2->config_fmt);
+
+#if 1/* TVAFE_CVD2_WSS_ENABLE */
+	/* config data type */
+	/*line17 for PAL M*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, 0xcc);
+	/*line23 for PAL B,D,G,H,I,N,CN*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0xcc);
+	/* config wss dto */
+	W_APB_REG(CVD2_VBI_WSS_DTO_MSB, 0x20);
+	W_APB_REG(CVD2_VBI_WSS_DTO_LSB, 0x66);
+
+	/* config vbi start line */
+	W_APB_REG(CVD2_VBI_WSS_START, 0x54);
+	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
+	/* be care the polarity bellow!!! */
+	W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
+	/*enable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x15);
+	/* manuel reset vbi */
+	W_APB_REG(ACD_REG_22, 0x82080000);
+	W_APB_REG(ACD_REG_22, 0x04080000);
+#endif
+
+	/*set for wipe off vertical stripes*/
+	if ((cvd2->vd_port > TVIN_PORT_CVBS0) &&
+		(cvd2->vd_port <= TVIN_PORT_CVBS7) &&
+		(cvd2->vd_port != TVIN_PORT_CVBS3) &&
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
+		W_APB_REG(ACD_REG_25, 0x00e941a8);
 
 	/* enable CVD2 */
 	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
@@ -681,7 +755,7 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		} else{
 
 			W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD, 0,
--VS_SIGNAL_AUTO_TH_BIT, VS_SIGNAL_AUTO_TH_WID);
+				VS_SIGNAL_AUTO_TH_BIT, VS_SIGNAL_AUTO_TH_WID);
 			W_APB_REG(CVD2_VSYNC_CNTL, 0x01);
 			W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD, 0,
 				VS_SIGNAL_AUTO_TH_BIT, VS_SIGNAL_AUTO_TH_WID);
@@ -1334,6 +1408,13 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 {
 	bool ret = false;
 
+	/* check non standard signal, ignore SECAM/525 mode */
+	if (!tvafe_cvd2_sig_unstable(cvd2))
+		tvafe_cvd2_non_std_signal_det(cvd2);
+
+	if (cvd2->manual_fmt)
+		return false;
+
 	if (tvafe_cvd2_sig_unstable(cvd2)) {
 
 		if (cvd_dbg_en)
@@ -1342,12 +1423,6 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 			cvd2->hw.no_sig, cvd2->hw.h_lock, cvd2->hw.v_lock);
 		return true;
 	}
-
-	/* check non standard signal, ignore SECAM/525 mode */
-	tvafe_cvd2_non_std_signal_det(cvd2);
-
-	if (cvd2->manual_fmt)
-		return false;
 
 	/* check line flag */
 		switch (cvd2->config_fmt) {
@@ -1871,7 +1946,6 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 	lines->val[2] = lines->val[3];
 	lines->val[3] = R_APB_REG(CVD2_REG_E6);
 	for (i = 0; i < 4; i++) {
-
 		if (l_max < lines->val[i])
 			l_max = lines->val[i];
 		if (l_min > lines->val[i])
@@ -1901,7 +1975,6 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 					pr_info("%s: vlines:%d, de_offset:%d tmp:%x\n",
 				__func__, l_ave, lines->de_offset, tmp);
 			}
-
 		} else {
 			if (lines->de_offset > 0) {
 				tmp = ((TVAFE_CVD2_PAL_DE_START -
@@ -2359,7 +2432,79 @@ static void tvafe_cvd2_cdto_tune(unsigned int cur, unsigned int dest)
 	W_APB_REG(CVD2_CHROMA_DTO_INCREMENT_7_0,   (cur >>  0) & 0x000000ff);
 
 }
+inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
+			unsigned int hcnt64)
+{
+	unsigned int hcnt64_max, hcnt64_min;
+	unsigned int diff, hcnt64_ave, i, hcnt64_standard;
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+		hcnt64_standard = 0x31380;
+	else
+		hcnt64_standard = 0x17a00;
+
+	if ((cvd_isr_en & 0x1000) == 0)
+		return;
+
+	/* only for pal-i adjusment */
+	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I)
+		return;
+
+	cvd2->info.hcnt64[0] = cvd2->info.hcnt64[1];
+	cvd2->info.hcnt64[1] = cvd2->info.hcnt64[2];
+	cvd2->info.hcnt64[2] = cvd2->info.hcnt64[3];
+	cvd2->info.hcnt64[3] = hcnt64;
+	hcnt64_ave = 0;
+	hcnt64_max = 0;
+	hcnt64_min = 0xffffffff;
+	for (i = 0; i < 4; i++) {
+		if (hcnt64_max < cvd2->info.hcnt64[i])
+			hcnt64_max = cvd2->info.hcnt64[i];
+		if (hcnt64_min > cvd2->info.hcnt64[i])
+			hcnt64_min = cvd2->info.hcnt64[i];
+		hcnt64_ave += cvd2->info.hcnt64[i];
+	}
+	if (++cvd2->info.hcnt64_cnt >= 300)
+		cvd2->info.hcnt64_cnt = 300;
+	if (cvd2->info.hcnt64_cnt == 300) {
+		hcnt64_ave = (hcnt64_ave - hcnt64_max - hcnt64_min + 1) >> 1;
+		if (hcnt64_ave == 0)  /* to avoid kernel crash */
+			return;
+		diff = abs(hcnt64_ave - hcnt64_standard);
+		if (diff > hs_adj_th_level0) {
+			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x11)
+				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x11);
+			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xc)
+				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xc);
+			if (R_APB_REG(CVD2_REG_87) != 0xc0)
+				W_APB_REG(CVD2_REG_87, 0xc0);
+			cvd2->info.hs_adj_en = 1;
+			if (diff > hs_adj_th_level4)
+				cvd2->info.hs_adj_level = 4;
+			else if (diff > hs_adj_th_level3)
+				cvd2->info.hs_adj_level = 3;
+			else if (diff > hs_adj_th_level2)
+				cvd2->info.hs_adj_level = 2;
+			else if (diff > hs_adj_th_level1)
+				cvd2->info.hs_adj_level = 1;
+			else
+				cvd2->info.hs_adj_level = 0;
+			if (hcnt64_ave > hcnt64_standard)
+				cvd2->info.hs_adj_dir = 1;
+			else
+				cvd2->info.hs_adj_dir = 0;
+		} else {
+			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
+				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
+			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
+				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
+			if (R_APB_REG(CVD2_REG_87) != 0x0)
+				W_APB_REG(CVD2_REG_87, 0x0);
+			cvd2->info.hs_adj_en = 0;
+			cvd2->info.hs_adj_level = 0;
+		}
+	}
+}
 /*
  * tvafe cvd2 cdto adjustment in vsync interval
  */
@@ -2370,6 +2515,7 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 				hcnt64_ave = 0, i = 0;
 	unsigned int cur_cdto = 0, diff = 0;
 	u64 cal_cdto = 0;
+
 
 	if ((cvd_isr_en & 0x001) == 0)
 		return;
@@ -2383,7 +2529,6 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 	cvd2->info.hcnt64[2] = cvd2->info.hcnt64[3];
 	cvd2->info.hcnt64[3] = hcnt64;
 	for (i = 0; i < 4; i++) {
-
 		if (hcnt64_max < cvd2->info.hcnt64[i])
 			hcnt64_max = cvd2->info.hcnt64[i];
 		if (hcnt64_min > cvd2->info.hcnt64[i])
@@ -2417,7 +2562,6 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 					(unsigned int)CVD2_CHROMA_DTO_PAL_I);
 			cvd2->info.non_std_worst = 0;
 			return;
-
 		} else
 			cvd2->info.non_std_worst = 1;
 
@@ -2569,9 +2713,10 @@ void tvafe_cvd2_set_reg8a(unsigned int v)
 	cvd_reg8a = v;
 	W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
 }
-
 void tvafe_snow_config(unsigned int onoff)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	if (onoff) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
 	} else {
@@ -2581,16 +2726,43 @@ void tvafe_snow_config(unsigned int onoff)
 
 void tvafe_snow_config_clamp(unsigned int onoff)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	if (onoff)
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
 	else
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
 }
-
+/*only for pal-i*/
 void tvafe_snow_config_acd(void)
 {
-	/*0x900360 is debug test result*/
+	if (tvafe_snow_function_flag == 0)
+		return;
+	/*0x8e035e is debug test result*/
 	if (acd_h_config)
 		W_APB_REG(ACD_REG_2D, acd_h_config);
+}
+/*only for pal-i*/
+void tvafe_snow_config_acd_resume(void)
+{
+	if (tvafe_snow_function_flag == 0)
+		return;
+	/*@todo,0x880358 must be same with cvbs_acd_table/rf_acd_table*/
+	if (R_APB_REG(ACD_REG_2D) != acd_h)
+		W_APB_REG(ACD_REG_2D, acd_h);
+}
+
+enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void)
+{
+	unsigned int full_format = 0;
+	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
+	full_format = R_APB_BIT(CVD2_VBI_WSS_DATA1, 0, 4);
+	if (full_format == 0x8)
+		aspect_ratio = TVIN_ASPECT_4x3;
+	else if (full_format == 0x7)
+		aspect_ratio = TVIN_ASPECT_16x9;
+	else
+		aspect_ratio = TVIN_ASPECT_NULL;
+	return aspect_ratio;
 }
 

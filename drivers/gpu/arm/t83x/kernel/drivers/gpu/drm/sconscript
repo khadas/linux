@@ -15,7 +15,7 @@
 
 Import('env')
 
-if 'x11' in env['winsys'] or 'gbm' in env['winsys']:
+if 'x11' in env['winsys']:
 	# pl111_drm isn't released so only try to build it if it's there
 	if Glob('pl111/sconscript') and (env['platform_config'] == 'vexpress' or env['platform_config'] == 'vexpress_6xvirtex7_10mhz'):
 		SConscript('pl111/sconscript')

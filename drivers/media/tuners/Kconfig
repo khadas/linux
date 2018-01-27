@@ -1,7 +1,7 @@
 # Analog TV tuners, auto-loaded via tuner.ko
 config MEDIA_TUNER
 	tristate
-	depends on (MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT) && I2C
+	depends on (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT) && I2C
 	default y
 	select MEDIA_TUNER_XC2028 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
@@ -44,6 +44,13 @@ config MEDIA_TUNER_TDA827X
 
 config MEDIA_TUNER_TDA18271
 	tristate "NXP TDA18271 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A silicon tuner module. Say Y when you want to support this tuner.
+
+config MEDIA_TUNER_TDA18272
+	tristate "NXP TDA18272 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -228,6 +235,13 @@ config MEDIA_TUNER_TUA9001
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Infineon TUA 9001 silicon tuner driver.
+
+config MEDIA_TUNER_SI2157
+	tristate "Silicon Labs Si2157 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Silicon Labs Si2157 silicon tuner driver.
 
 config MEDIA_TUNER_IT913X
 	tristate "ITE Tech IT913x silicon tuner"

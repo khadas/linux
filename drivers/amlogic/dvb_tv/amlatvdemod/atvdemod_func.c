@@ -315,8 +315,10 @@ void set_video_gain_val(int val)
 
 void atv_dmd_soft_reset(void)
 {
+	atv_dmd_wr_long(0x1d, 0x0, 0x1035);/* disable dac */
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x0);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x1);
+	atv_dmd_wr_long(0x1d, 0x0, 0x1037);/* enable dac */
 }
 
 void atv_dmd_input_clk_32m(void)
@@ -384,7 +386,7 @@ void atv_dmd_misc(void)
 
 	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_MXL661) {
 		atv_dmd_wr_long(0x0c, 0x04, 0xbffa0000) ;/*test in sky*/
-		atv_dmd_wr_long(0x0c, 0x00, 0x5a4000);/*test in sky*/
+		atv_dmd_wr_long(0x0c, 0x00, 0x6f4000);/*test in sky*/
 		/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0x0c030901);
 	} else {
@@ -396,27 +398,26 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_long(0x19, 0x00, 0x4a4000);/*zhuangwei*/
 	/*atv_dmd_wr_byte(0x0c,0x01,0x28);//pwd-out gain*/
 	/*atv_dmd_wr_byte(0x0c,0x04,0xc0);//pwd-out offset*/
-	if (is_meson_gxtvbb_cpu()) {
-		aml_audio_valume_gain_set(audio_gain_val);
-		/* 20160121 fix audio demodulation over */
-		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
-		atv_dmd_wr_long(0x09, 0x04, 0x1900000);
-		if (aud_dmd_jilinTV)
-			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
-		if (non_std_en == 1) {
-			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
-			atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
-			atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
-		} else {
-			atv_dmd_wr_long(0x09, 0x00, 0x1030501);
-			if (atv_video_gain)
-				atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
-			else
-				atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
-			atv_dmd_wr_long(0x06, 0x24, 0xc030901);
-		}
 
+	aml_audio_valume_gain_set(audio_gain_val);
+	/* 20160121 fix audio demodulation over */
+	atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+	atv_dmd_wr_long(0x09, 0x04, 0x1900000);
+	if (aud_dmd_jilinTV)
+		atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+	if (non_std_en == 1) {
+		atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+		atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
+		atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
+	} else {
+		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+		if (atv_video_gain)
+			atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
+		else
+			atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
+		atv_dmd_wr_long(0x06, 0x24, 0xc030901);
 	}
+
 }
 
 /*Broadcast_Standard*/
@@ -1068,6 +1069,10 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 				 ((sif_deemp & 0xff) << 16) | 0x0500 |
 				 sif_fm_gain));
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x06, sif_cfg_demod);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x24,
+				(((sif_bb_bw & 0xff) << 24) |
+				 0xfffff));
+		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x1c, 0x1f000);
 	}
 
 	if (Broadcast_Standard != AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
@@ -1574,7 +1579,7 @@ int atvdemod_init(void)
 		timer_init_flag = 1;
 	}
 	#endif
-	pr_info("delay done\n");
+	pr_info("%s done\n", __func__);
 	return 0;
 }
 void atvdemod_uninit(void)
@@ -2070,4 +2075,48 @@ void aml_fix_PWM_adjust(int enable)
 	}
 }
 
+void aml_audio_overmodulation(int enable)
+{
+	static int ov_flag;
+	unsigned long tmp_v;
+	unsigned long tmp_v1;
+	u32 Broadcast_Standard = broad_std;
+	if (enable && Broadcast_Standard ==
+		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK) {
+		tmp_v = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0x28);
+		tmp_v = tmp_v&0xffff;
+		if (tmp_v >= 0x10 && ov_flag == 0) {
+			tmp_v1 =
+				atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0x8000015);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x0f000);
+		} else if (tmp_v >= 0x2500 && ov_flag == 0) {
+			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0xf400015);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x18, 0xc000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x0f000);
+			ov_flag = 1;
+		} else if (tmp_v <= 0x10 && ov_flag == 1) {
+			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(0<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0xf400000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x18, 0xc000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x1f000);
+			ov_flag = 0;
+		}
+	}
+}
 

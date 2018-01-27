@@ -23,6 +23,13 @@ config AML_VOUT_FRAMERATE_AUTOMATION
 	help
 		framerate adjustment automatically from video source
 
+config AML_VOUT_CC_BYPASS
+	boolean "closed caption bypass"
+	default n
+	depends on AM_TV_OUTPUT
+	help
+		add cvbsout closed caption bypass function
+
 config AML_VDAC_HW_SWITCH
 	boolean "vdac hardware switch"
 	default n
@@ -30,4 +37,10 @@ config AML_VDAC_HW_SWITCH
 	help
 		vdac hardware switch of cvbs/ypbpr for mx.
 
+config AML_WSS
+	bool "WSS function"
+	default y
+	depends on AM_TV_OUTPUT
+	help
+		Wide Screen Signalling config.
 endmenu

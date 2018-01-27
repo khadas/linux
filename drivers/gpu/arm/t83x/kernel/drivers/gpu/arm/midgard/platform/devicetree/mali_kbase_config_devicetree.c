@@ -16,7 +16,6 @@
 
 
 #ifdef CONFIG_DEVFREQ_THERMAL
-#include <linux/version.h>
 #include <linux/devfreq_cooling.h>
 #include <linux/thermal.h>
 
@@ -82,18 +81,13 @@ static unsigned long t83x_dynamic_power(unsigned long freq,
 
 	return (coefficient * v2 * f_mhz) / 1000000; /* mW */
 }
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 16))
+
 struct devfreq_cooling_ops t83x_model_ops = {
-#else
-struct devfreq_cooling_power t83x_model_ops = {
-#endif
 	.get_static_power = t83x_static_power,
 	.get_dynamic_power = t83x_dynamic_power,
 };
 
 #endif
-
-#include <mali_kbase_config.h>
 
 int kbase_platform_early_init(void)
 {
@@ -101,9 +95,3 @@ int kbase_platform_early_init(void)
 	return 0;
 }
 
-static struct kbase_platform_config dummy_platform_config;
-
-struct kbase_platform_config *kbase_get_platform_config(void)
-{
-	return &dummy_platform_config;
-}

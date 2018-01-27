@@ -29,7 +29,7 @@
  * ********************************** */
 /* #define LCD_DEBUG_INFO */
 
-extern unsigned int lcd_debug_print_flag;
+extern unsigned char lcd_debug_print_flag;
 #define LCDPR(fmt, args...)     pr_info("lcd: "fmt"", ## args)
 #define LCDERR(fmt, args...)    pr_info("lcd: error: "fmt"", ## args)
 
@@ -195,6 +195,25 @@ struct lcd_effect_s {
 */
 };
 
+/* **********************************
+ * HDR info define
+ * ********************************** */
+struct lcd_hdr_info_s {
+	unsigned int hdr_support;
+	unsigned int features;
+	unsigned int primaries_r_x;
+	unsigned int primaries_r_y;
+	unsigned int primaries_g_x;
+	unsigned int primaries_g_y;
+	unsigned int primaries_b_x;
+	unsigned int primaries_b_y;
+	unsigned int white_point_x;
+	unsigned int white_point_y;
+	unsigned int luma_max;
+	unsigned int luma_min;
+	unsigned int luma_avg;
+};
+
 struct ttl_config_s {
 	unsigned int clk_pol;
 	unsigned int sync_valid; /* [1]DE, [0]hvsync */
@@ -211,6 +230,7 @@ struct lvds_config_s {
 	unsigned int dual_port;
 	unsigned int pn_swap;
 	unsigned int port_swap;
+	unsigned int lane_reverse;
 	unsigned int port_sel;
 	unsigned int phy_vswing;
 	unsigned int phy_preem;
@@ -227,8 +247,10 @@ struct vbyone_config_s {
 	unsigned int color_fmt;
 	unsigned int phy_div;
 	unsigned int bit_rate;
-	unsigned int phy_vswing;
+	unsigned int phy_vswing; /*[4]:ext_pullup, [3:0]vswing*/
 	unsigned int phy_preem;
+	unsigned int intr_en;
+	unsigned int vsync_intr_en;
 };
 
 /* mipi-dsi config */
@@ -339,6 +361,8 @@ struct lcd_power_ctrl_s {
 	struct lcd_pmu_gpio_s pmu_gpio[LCD_PMU_GPIO_NUM_MAX];
 	struct lcd_power_step_s power_on_step[LCD_PWR_STEP_MAX];
 	struct lcd_power_step_s power_off_step[LCD_PWR_STEP_MAX];
+	int power_on_step_max; /*  internal use for debug */
+	int power_off_step_max; /* internal use for debug */
 };
 
 struct lcd_clk_gate_ctrl_s {
@@ -356,6 +380,7 @@ struct lcd_config_s {
 	struct lcd_basic_s lcd_basic;
 	struct lcd_timing_s lcd_timing;
 	struct lcd_effect_s lcd_effect;
+	struct lcd_hdr_info_s hdr_info;
 	struct lcd_control_config_s lcd_control;
 	struct lcd_power_ctrl_s *lcd_power;
 	struct pinctrl *pin;
@@ -376,18 +401,26 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_key_valid;
 	unsigned char lcd_config_load;
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
+	unsigned char lcd_test_flag;
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
-	unsigned char fr_auto_policy;
+	struct class *lcd_debug_class;
+	int fr_auto_policy;
 	struct lcd_duration_s std_duration;
 
 	void (*vout_server_init)(void);
 	void (*driver_init_pre)(void);
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
+	int (*driver_change)(void);
 	void (*module_reset)(void);
+	void (*power_tiny_ctrl)(int status);
+	void (*driver_tiny_enable)(void);
+	void (*driver_tiny_disable)(void);
+	void (*module_tiny_reset)(void);
+	void (*lcd_test_check)(void);
 	/*void (*module_enable)(void);
 	void (*module_disable)(void);
 	void (*set_gamma_table)(unsigned int gamma_en);
@@ -404,13 +437,24 @@ struct aml_lcd_drv_s {
 	void (*power_ctrl)(int status);
 
 	struct workqueue_struct *workqueue;
-	struct delayed_work     lcd_delayed_work;
+	struct delayed_work     lcd_probe_delayed_work;
+	struct delayed_work     lcd_vx1_delayed_work;
+	struct work_struct      lcd_resume_work;
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);
 
+
 /* **********************************
- * global control
+ * IOCTL define
  * ********************************** */
+#define LCD_IOC_TYPE               'C'
+#define LCD_IOC_NR_GET_HDR_INFO    0x0
+#define LCD_IOC_NR_SET_HDR_INFO    0x1
+
+#define LCD_IOC_CMD_GET_HDR_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_hdr_info_s)
+#define LCD_IOC_CMD_SET_HDR_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_NR_SET_HDR_INFO, struct lcd_hdr_info_s)
 
 #endif

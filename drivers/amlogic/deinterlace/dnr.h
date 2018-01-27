@@ -93,6 +93,6 @@ int ver_blk_ofst_calc_sw(int *pVbOfVldCnt,
 			 int prm_vbof_vldcntthd,
 			 int nRow,
 			 int nCol);
-void run_dnr_in_irq(int nCol, int nRow);
+void run_dnr_in_irq(unsigned short nCol, unsigned short nRow);
 #endif
 

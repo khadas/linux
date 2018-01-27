@@ -98,6 +98,7 @@ struct amlsd_platform {
 	unsigned int width;
 	unsigned int caps;
 	unsigned int caps2;
+	unsigned int pm_caps;
 	unsigned int card_capacity;
 	unsigned int tx_phase;
 	unsigned int tx_delay;
@@ -183,7 +184,8 @@ struct amlsd_platform {
 	/*for inand partition: struct mtd_partition, easy porting from nand*/
 	struct mtd_partition *parts;
 	unsigned int nr_parts;
-
+	/* fixme, debug code */
+	unsigned int desc_cnt;
 	struct resource *resource;
 	void (*xfer_pre)(struct amlsd_platform *pdata);
 	void (*xfer_post)(struct amlsd_platform *pdata);

@@ -3,7 +3,7 @@
 #
 
 
-menuconfig AML_PWM
+menuconfig AMLOGIC_PWM
 	boolean "Amlogic PWM driver"
 	select PWM
 	select PWM_SYSFS
@@ -11,9 +11,9 @@ menuconfig AML_PWM
 	help
 	  say y to enable Amlogic PWM driver.
 
-if	AML_PWM
-config GX_PWM
-	bool "Amlogic GXBB & GXTVBB PWM driver"
+if	AMLOGIC_PWM
+config PWM_MESON
+	bool "Amlogic GXBB | GXTVBB | TXL PWM driver"
 	default n
 	help
 	  say y to enable Amlogic PWM driver.

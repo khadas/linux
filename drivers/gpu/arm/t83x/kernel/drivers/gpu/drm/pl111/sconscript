@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2013, 2015-2016 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2013, 2015 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -48,5 +48,5 @@ else:
 # need Module.symvers from drm.ko
 #drm_env.Depends('$STATIC_LIB_PATH/pl111_drm.ko', '$STATIC_LIB_PATH/drm.ko')
 
-drm_env.KernelObjTarget('x11', cmd)
+env.ProgTarget('x11', cmd)
 

@@ -663,6 +663,124 @@ static ssize_t platform_type_write(struct class *cla,
 	return count;
 }
 
+static ssize_t tb_detect_read(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	unsigned int detect = ppmgr_device.tb_detect;
+	return snprintf(buf, 80, "current T/B detect mode is %d\n",
+		detect);
+}
+
+static ssize_t tb_detect_write(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t size;
+	char *endp;
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.tb_detect = tmp;
+	size = endp - buf;
+	return count;
+}
+
+static ssize_t tb_detect_period_read(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	unsigned int period = ppmgr_device.tb_detect_period;
+	return snprintf(buf, 80, "current T/B detect period is %d\n",
+		period);
+}
+
+static ssize_t tb_detect_period_write(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t size;
+	char *endp;
+	unsigned long tmp;
+	/* platform_type = simple_strtoul(buf, &endp, 0); */
+	int ret = kstrtoul(buf, 0, &tmp);
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.tb_detect_period = tmp;
+	size = endp - buf;
+	return count;
+}
+
+static ssize_t tb_detect_len_read(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	unsigned int len = ppmgr_device.tb_detect_buf_len;
+	return snprintf(buf, 80, "current T/B detect buff len is %d\n",
+		len);
+}
+
+static ssize_t tb_detect_len_write(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t size;
+	char *endp;
+	unsigned long tmp;
+	/* platform_type = simple_strtoul(buf, &endp, 0); */
+	int ret = kstrtoul(buf, 0, &tmp);
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	if ((tmp < 6) || (tmp > 16)) {
+		PPMGRDRV_INFO(
+			"tb detect buffer len should be  6~16 (%ld)\n", tmp);
+		tmp = 6;
+	}
+	ppmgr_device.tb_detect_buf_len = tmp;
+	size = endp - buf;
+	return count;
+}
+
+static ssize_t tb_detect_mute_read(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	unsigned int mute = ppmgr_device.tb_detect_init_mute;
+	return snprintf(buf, 80, "current T/B detect init mute is %d\n",
+		mute);
+}
+
+static ssize_t tb_detect_mute_write(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t size;
+	char *endp;
+	unsigned long tmp;
+	/* platform_type = simple_strtoul(buf, &endp, 0); */
+	int ret = kstrtoul(buf, 0, &tmp);
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	PPMGRDRV_INFO(
+		"tb detect init mute is  %ld\n", tmp);
+	ppmgr_device.tb_detect_init_mute = tmp;
+	size = endp - buf;
+	return count;
+}
+
+static ssize_t tb_status_read(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	get_tb_detect_status();
+	return snprintf(buf, 80, "#################\n");
+}
+
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
 static ssize_t _3dmode_read(
 	struct class *cla, struct class_attribute *attr, char *buf)
@@ -1118,7 +1236,7 @@ __ATTR(orientation,
 		receiver_write),
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
 	__ATTR(ppmgr_3d_mode,
-		S_IRUGO | S_IWUSR,
+		S_IRUGO | S_IWUSR | S_IWGRP,
 		_3dmode_read,
 		_3dmode_write),
 	__ATTR(viewmode,
@@ -1177,6 +1295,26 @@ __ATTR(orientation,
 		S_IRUGO | S_IWUSR,
 		disable_prot_show,
 		disable_prot_store),
+	__ATTR(tb_detect,
+		S_IRUGO | S_IWUSR,
+		tb_detect_read,
+		tb_detect_write),
+	__ATTR(tb_detect_period,
+		S_IRUGO | S_IWUSR,
+		tb_detect_period_read,
+		tb_detect_period_write),
+	__ATTR(tb_detect_len,
+		S_IRUGO | S_IWUSR,
+		tb_detect_len_read,
+		tb_detect_len_write),
+	__ATTR(tb_detect_mute,
+		S_IRUGO | S_IWUSR,
+		tb_detect_mute_read,
+		tb_detect_mute_write),
+	__ATTR(tb_status,
+		S_IRUGO | S_IWUSR,
+		tb_status_read,
+		NULL),
 	__ATTR_NULL };
 
 static struct class ppmgr_class = {.name = PPMGR_CLASS_NAME, .class_attrs =
@@ -1226,6 +1364,7 @@ void get_ppmgr_buf_info(unsigned int *start, unsigned int *size)
 	*start = ppmgr_device.buffer_start;
 	*size = ppmgr_device.buffer_size;
 }
+EXPORT_SYMBOL(get_ppmgr_buf_info);
 
 static int ppmgr_open(struct inode *inode, struct file *file)
 {
@@ -1395,6 +1534,10 @@ int init_ppmgr_device(void)
 #endif
 	ppmgr_device.mirror_flag = 0;
 	ppmgr_device.canvas_width = ppmgr_device.canvas_height = 0;
+	ppmgr_device.tb_detect = 0;
+	ppmgr_device.tb_detect_period = 0;
+	ppmgr_device.tb_detect_buf_len = 8;
+	ppmgr_device.tb_detect_init_mute = 0;
 	PPMGRDRV_INFO("ppmgr_dev major:%d\n", ret);
 
 	ppmgr_device.cla = init_ppmgr_cls();

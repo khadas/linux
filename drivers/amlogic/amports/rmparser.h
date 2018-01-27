@@ -18,6 +18,8 @@
 #ifndef RMPARSER_H
 #define RMPARSER_H
 
+#include "vdec.h"
+
 extern void rm_set_vasid(u32 vid, u32 aid);
 
 extern ssize_t rmparser_write(struct file *file,
@@ -25,7 +27,7 @@ extern ssize_t rmparser_write(struct file *file,
 		struct stream_buf_s *abuf,
 		const char __user *buf, size_t count);
 
-s32 rmparser_init(void);
+s32 rmparser_init(struct vdec_s *vdec);
 
 extern void rmparser_release(void);
 

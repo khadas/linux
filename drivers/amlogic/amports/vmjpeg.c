@@ -28,7 +28,7 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-
+#include <linux/slab.h>
 #include "vdec_reg.h"
 #include "arch/register.h"
 #include "amports_priv.h"
@@ -92,6 +92,7 @@ static void vmjpeg_prot_init(void);
 static void vmjpeg_local_init(void);
 
 static const char vmjpeg_dec_id[] = "vmjpeg-dev";
+static struct vdec_info *gvs;
 
 #define PROVIDER_NAME   "decoder.mjpeg"
 static const struct vframe_operations_s vmjpeg_vf_provider = {
@@ -204,6 +205,9 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			vf->type_original = vf->type;
 			vfbuf_use[index]++;
 
+			gvs->frame_dur = frame_dur;
+			vdec_count_info(gvs, 0, offset);
+
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 
 			vf_notify_receiver(PROVIDER_NAME,
@@ -281,6 +285,9 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			}
 			vf->type_original = vf->type;
 			vfbuf_use[index]++;
+
+			gvs->frame_dur = frame_dur;
+			vdec_count_info(gvs, 0, offset);
 
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 
@@ -386,16 +393,28 @@ static void vmjpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmjpeg_dec_status(struct vdec_status *vstatus)
+int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
 	if (0 != frame_dur)
-		vstatus->fps = 96000 / frame_dur;
+		vstatus->frame_rate = 96000 / frame_dur;
 	else
-		vstatus->fps = 96000;
+		vstatus->frame_rate = 96000;
 	vstatus->error_count = 0;
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
 
 	return 0;
 }
@@ -685,6 +704,16 @@ static void vmjpeg_prot_init(void)
 #endif
 }
 
+static int vmjpeg_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 static void vmjpeg_local_init(void)
 {
 	int i;
@@ -773,15 +802,12 @@ static s32 vmjpeg_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vmjpeg_dec_status);
-
 	return 0;
 }
 
 static int amvdec_mjpeg_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	mutex_lock(&vmjpeg_mutex);
 
@@ -801,10 +827,15 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 	if (pdata->sys_info)
 		vmjpeg_amstream_dec_info = *pdata->sys_info;
 
+	pdata->dec_status = vmjpeg_dec_status;
+
+	vmjpeg_vdec_info_init();
+
 	if (vmjpeg_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mjpeg init failed.\n");
 		mutex_unlock(&vmjpeg_mutex);
-
+		kfree(gvs);
+		gvs = NULL;
 		return -ENODEV;
 	}
 
@@ -845,6 +876,9 @@ static int amvdec_mjpeg_remove(struct platform_device *pdev)
 	amvdec_disable();
 
 	mutex_unlock(&vmjpeg_mutex);
+
+	kfree(gvs);
+	gvs = NULL;
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mjpeg remove.\n");
 

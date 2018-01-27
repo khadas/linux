@@ -275,6 +275,7 @@ struct dma_features {
 #define BUF_SIZE_8KiB 8192
 #define BUF_SIZE_4KiB 4096
 #define BUF_SIZE_2KiB 2048
+#define	DEFAULT_BUFSIZE	1536
 
 /* Power Down and WOL */
 #define PMT_NOT_SUPPORTED 0
@@ -423,7 +424,7 @@ struct stmmac_mode_ops {
 	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
 		      unsigned int extend_desc);
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
-	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	int (*jumbo_frm)(void *priv, struct sk_buff *skb, int csum);
 	int (*set_16kib_bfsize)(int mtu);
 	void (*init_desc3)(struct dma_desc *p);
 	void (*refill_desc3) (void *priv, struct dma_desc *p);

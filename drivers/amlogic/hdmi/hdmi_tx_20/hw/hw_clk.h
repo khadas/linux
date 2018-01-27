@@ -3,6 +3,7 @@
 #define __HW_ENC_CLK_CONFIG_H__
 
 #include <linux/amlogic/hdmi_tx/hdmi_common.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/vout/vinfo.h>
 
 #define VID_PLL_DIV_1      0
@@ -35,12 +36,7 @@ struct hw_enc_clk_val_group {
 	unsigned enci_div;
 };
 
-void hdmitx_set_clk(enum hdmi_vic vic); /* For 24bits */
-void hdmitx_set_clk_30b(enum hdmi_vic vic); /* For 30bits */
-
-/* for framerate-auto, fine tune for clock */
-int hdmitx_fine_tune_hpll(enum fine_tune_mode_e mode);
-
+void hdmitx_set_clk(struct hdmitx_dev *hdev);
 
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -19,8 +19,9 @@ extern "C" {
 #include "mali_osk.h"
 #include "mali_memory.h"
 
-int mali_mem_bind_ump_buf(mali_mem_allocation *alloc, mali_mem_backend *mem_backend, u32  secure_id, u32 flags);
-void mali_mem_unbind_ump_buf(mali_mem_backend *mem_backend);
+int mali_memory_bind_ump_buf(mali_mem_allocation *alloc, mali_mem_backend *mem_backend, u32  secure_id, u32 flags);
+int mali_memory_unbind_ump_buf(mali_mem_backend *mem_backend);
+void mali_mem_ump_release(mali_mem_backend *mem_backend);
 
 #ifdef __cplusplus
 }
