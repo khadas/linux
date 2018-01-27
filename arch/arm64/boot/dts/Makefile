@@ -1,5 +1,6 @@
 dtb-$(CONFIG_ARM64) += 	kvim_nougat.dtb \
 			kvim_multios.dtb \
+			kvim.dtb \
 			kvim2_nougat.dtb \
 			kvim2_dualos.dtb \
 			kvim2_multios.dtb \
