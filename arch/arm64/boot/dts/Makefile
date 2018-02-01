@@ -5,7 +5,8 @@ dtb-$(CONFIG_ARM64) += 	kvim_nougat.dtb \
 			kvim2_dualos.dtb \
 			kvim2_multios.dtb \
 			kvim2_libreelec.dtb \
-			kvim2_linux.dtb
+			kvim2_linux.dtb \
+			kvim2.dtb
 
 targets += dtbs
 
