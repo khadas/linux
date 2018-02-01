@@ -22,7 +22,7 @@ ccflags-y += -DCONFIG_MALI450=y
 #ifeq ($(CONFIG_MALI450),y)
 #ccflags-y += -DCONFIG_MALI450=y
 #endif
-ccflags-y += -DCONFIG_MALI_DT=y
+#ccflags-y += -DCONFIG_MALI_DT=y
 ccflags-y += -DMESON_CPU_TYPE=0x80
 ccflags-y += -DMESON_CPU_TYPE_MESON6=0x60
 ccflags-y += -DMESON_CPU_TYPE_MESON6TVD=0x75
