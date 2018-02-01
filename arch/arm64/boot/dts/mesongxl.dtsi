@@ -33,7 +33,7 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			/*cpu-idle-states = <&CPU_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		cpu1:cpu@1 {
@@ -41,14 +41,14 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			/*cpu-idle-states = <&CPU_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 		cpu2:cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			/*cpu-idle-states = <&CPU_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		cpu3:cpu@3 {
@@ -56,22 +56,21 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			/*cpu-idle-states = <&CPU_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
-/*
 		idle-states {
 			entry-method = "arm,psci";
 			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm, idle-state";
 				arm,psci-suspend-param = <0x0010000>;
 				local-timer-stop;
-				entry-latency-us = <3000>;
-				exit-latency-us = <3000>;
-				min-residency-us = <8000>;
+				entry-latency-us = <8000>;
+				exit-latency-us = <8000>;
+				min-residency-us = <20000>;
 			};
 		};
-*/
+
 	};
 
 	timer {
@@ -154,6 +153,9 @@
 		storage_out_func = <0x82000024>;
 		storage_block_func = <0x82000025>;
 		storage_size_func = <0x82000027>;
+		storage_set_enctype = <0x8200006A>;
+		storage_get_enctype = <0x8200006B>;
+		storage_version = <0x8200006C>;
 	};
 	cpu_iomap{
 		compatible = "amlogic, iomap";
@@ -191,7 +193,7 @@
 	};
 	amlogic-jtag {
 		compatible = "amlogic, jtag";
-		status = "okay";
+		status = "disable";
 		pinctrl-names = "jtag_apao_pins", "jtag_apee_pins";
 		pinctrl-0 = <&jtag_apao_pins>;
 		pinctrl-1 = <&jtag_apee_pins>;
@@ -461,7 +463,12 @@
 			amlogic,pins="GPIOAO_8";
 		};
 
-		/*p200 i2c-A multiplex with usb PWR*/
+		/*I2C-AO*/
+		ao_i2c_master:ao_i2c{
+			amlogic,setmask=<AO 0x60>;
+			amlogic,clrmask=<AO 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
 		a_i2c_master:a_i2c{
 			amlogic,setmask=<1 0xc000>;
 			amlogic,clrmask=<3 0x18 2 0x18000 2 0xc0 1 0x600000>;
@@ -477,9 +484,14 @@
 			amlogic,clrmask=<2 0x1800 1 0x200 2 0x20>;
 			amlogic,pins="GPIODV_28","GPIODV_29";
 		};
+		c_i2c_master_pin1:c_i2c_pin1{
+			amlogic,setmask=<1 0x30000>;
+			amlogic,clrmask=<1 0x2000000 3 0x20>;
+			amlogic,pins="GPIODV_18","GPIODV_19";
+		};
 		d_i2c_master:d_i2c{
 			amlogic,setmask=<5 0x30>;
-			amlogic,clrmask=<5 0x300c03>;
+			amlogic,clrmask=<5 0x300c03 6 0x3>;
 			amlogic,pins="GPIOX_10","GPIOX_11";
 		};
 
@@ -523,6 +535,22 @@
 		       0x0 0xc1108764 0x0 0x4>;
 	};
 
+	i2c_ao: i2c@c8100500{ /*I2C-AO*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-AO";
+		status = "disabled";
+		reg = <0x0 0xc8100500 0x0 0x1d>;
+		device_id = <0>;
+		pinctrl-names="default";
+		pinctrl-0=<&ao_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
+	};
 	i2c_a: i2c@c1108500{ /*I2C-A*/
 		compatible = "amlogic, meson-i2c";
 		dev_name = "i2c-A";
@@ -599,26 +627,26 @@
 	};
 	efusekey:efusekey{
 		keynum = <4>;
-		key0 = <&key0>;
-		key1 = <&key1>;
-		key2 = <&key2>;
-		key3 = <&key3>;
-		key0:key0{
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
 			keyname = "mac";
 			offset = <0>;
 			size = <6>;
 		};
-		key1:key1{
+		key_1:key_1{
 			keyname = "mac_bt";
 			offset = <6>;
 			size = <6>;
 		};
-		key2:key2{
+		key_2:key_2{
 			keyname = "mac_wifi";
 			offset = <12>;
 			size = <6>;
 		};
-		key3:key3{
+		key_3:key_3{
 			keyname = "usid";
 			offset = <18>;
 			size = <16>;
@@ -646,11 +674,19 @@
 		};
 
 	};
-	meson-remote {
+	aml_remote:meson-remote {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
 		status = "okay";
 		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+	};
+	meson_ir:meson-ir {
+		compatible = "amlogic,meson-gxbb-ir";
+		status = "disabled";
+		reg = <0x0 0xc8100580 0x0 0x40>;
 		interrupts = <0 196 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&remote_pins>;
@@ -691,8 +727,9 @@
 		status = "disabled";
 		reg = <0x0 0xc1108d80 0x0 0x28>;
 		resets = <&clock GCLK_IDX_SPICC>;
+		reset-names = "spicc_clk";
 		clocks = <&clock CLK_81>;
-		clock-names = "spicc_clk";
+		clock-names = "clk81";
 		interrupts = <0 81 1>;
 		device_id = <0>;
 	};

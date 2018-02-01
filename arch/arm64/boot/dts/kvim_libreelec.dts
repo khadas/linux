@@ -1,0 +1,54 @@
+#include "gxl_p212_2g.dts"
+#include "partitions-android.dtsi"
+
+/{
+	le-dt-id = "gxl_p212_2g_kvim";
+	amlogic-dt-id = "kvim";
+
+	sysled {
+		led_gpio = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
+	};
+
+	ethmac: ethernet@0xc9410000 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+	};
+
+	rtc {
+		status = "disabled";
+	};
+
+	uart_AO_B: serial@c81004e0 {
+		status = "okay";
+	};
+
+	dwc2_a {
+		controller-type = <2>; /** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	};
+
+	aml_m8_snd {
+		/delete-property/ mute_gpio-gpios;
+		/delete-property/ pinctrl-0;
+	};
+	
+	adc_keypad{
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		key_code = <300>;
+		key_chan = <0>;
+		key_val = <10>;
+		key_tolerance = <40>;
+	};
+};
+
+&i2c_b {
+	status = "okay";
+	rtc_hym8563{
+			compatible = "amlogic, rtc_hym8563";
+			dev_name = "rtc_hym8563";
+			status = "okay";
+			reg = <0x51>;
+	};
+};
