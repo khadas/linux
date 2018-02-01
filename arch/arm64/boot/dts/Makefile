@@ -1,9 +1,7 @@
-dtb-$(CONFIG_ARM64) += 	kvim_libreelec.dtb \
-			kvim_nougat.dtb \
+dtb-$(CONFIG_ARM64) += 	kvim_android.dtb \
 			kvim_linux.dtb \
 			kvim_multios.dtb \
-			kvim2_libreelec.dtb \
-			kvim2_nougat.dtb \
+			kvim2_android.dtb \
 			kvim2_linux.dtb \
 			kvim2_multios.dtb
 
