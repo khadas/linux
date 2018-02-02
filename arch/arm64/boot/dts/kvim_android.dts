@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/gxl_p231_2g.dts
+ * arch/arm64/boot/dts/kvim.dts
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -25,10 +25,11 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include "mesongxl.dtsi"
+#include "partitions-android.dtsi"
 / {
 	model = "Amlogic";
+	amlogic-dt-id = "kvim";
 	compatible = "amlogic, Gxbb";
-	amlogic-dt-id = "gxl_p231_2g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -40,9 +41,10 @@
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
 	};
+
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x100000 0x0 0x7f000000>;
+		linux,usable-memory = <0x0 0x100000 0x0 0x7ff00000>;
 	};
 
 	reserved-memory {
@@ -68,7 +70,7 @@
 		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			size = <0x0 0x2000000>;
+			reg = <0x0 0x7e000000 0x0 0x2000000>;
 			no-map;
 		};
 
@@ -78,7 +80,6 @@
 			size = <0x0 0x1e00000>;
 			//no-map;
 		};
-
 		chunk_reserved:linux,chunk-reserve {
 			compatible = "amlogic, chunk-reserve";
 			size = <0x0 0x4000000>;
@@ -86,7 +87,7 @@
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x3000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -144,7 +145,7 @@
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
 		status = "okay";
-		led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+		led_gpio = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
 		led_active_low = <1>;
 	};
 
@@ -167,11 +168,11 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x01851000 0x00100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-		logo_addr = "0x7d851000";
+		logo_addr = "0x7f851000";
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
@@ -224,8 +225,6 @@
 			interrupts = <0 8 1
 						  0 9 1>;
 			phy-mode= "rmii";
-			pinctrl-names = "internal_eth_pins";
-			pinctrl-0 = <&internal_eth_pins>;
 			mc_val = <0x1800>;
 			resets = <&clock GCLK_IDX_ETHERNET>;
 			reset-names = "ethpower";
@@ -234,7 +233,7 @@
 			clocks = <&clock CLK_81>;
 			clock-names = "ethclk81";
 			internal_phy=<1>;
-						wol=<0>;
+			wol=<0>;
     };
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
@@ -437,7 +436,7 @@
 		pinctrl-0 = <&wifi_32k_pins>;
 		pwm_config = <&wifi_pwm_conf>;
 	};
- 	wifi_pwm_conf:wifi_pwm_conf{
+	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1 = <PWM_E>;
 		pwm_channel2 = <PWM_E2>;
 		pwm_channel1_conf = <30541 15270 6>;
@@ -574,75 +573,6 @@
 						status = "okay";
 					};
 	};*/
-	partitions: partitions{
-        parts = <10>;
-		part-0 = <&logo>;
-		part-1 = <&recovery>;
-		part-2 = <&rsv>;
-		part-3 = <&tee>;
-		part-4 = <&crypt>;
-		part-5 = <&misc>;
-		part-6 = <&boot>;
-		part-7 = <&system>;
-		part-8 = <&cache>;
-		part-9 = <&data>;
-
-		logo:logo{
-			pname = "logo";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		recovery:recovery{
-			pname = "recovery";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		rsv:rsv{
-			pname = "rsv";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
-		tee:tee{
-			pname = "tee";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
-		crypt:crypt{
-			pname = "crypt";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		misc:misc{
-			pname = "misc";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-
-		boot:boot
-		{
-			pname = "boot";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		system:system
-		{
-			pname = "system";
-			size = <0x0 0x80000000>;
-			mask = <1>;
-		};
-		cache:cache
-		{
-			pname = "cache";
-			size = <0x0 0x20000000>;
-			mask = <2>;
-		};
-		data:data
-		{
-			pname = "data";
-			size = <0xffffffff 0xffffffff>;
-			mask = <4>;
-		};
-	};
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
@@ -851,7 +781,7 @@
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xc81004e0 0x0 0x18>;
 		interrupts = <0 197 1>;
-		status = "disable";
+		status = "okay";
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
@@ -912,7 +842,7 @@
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		usb-fifo = <728>;
 		cpu-type = "gxl";
-		controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
+		controller-type = <2>; /** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 		phy-reg = <0xd0078000>;
 		phy-reg-size = <0xa0>;
 		resets = <&clock GCLK_IDX_USB_GENERAL
@@ -1025,13 +955,11 @@
 				"Ext Spk","LOUTL",
 				"Ext Spk","LOUTR";
 
-		mute_gpio-gpios = <&gpio GPIOH_5 0>;
 		mute_inv;
-		hp_disable;
 		sleep_time = <100>;
+		hp_disable;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
-		pinctrl-0 = <&audio_pins>;
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
@@ -1060,11 +988,11 @@
 		compatible = "amlogic, meson-pwm";
 		status = "okay";
 		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
-			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
+						<PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
 		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
-				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
-			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
-			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
+						<PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+						<PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+						<PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
 		      <0x0 0xc8100550  0x0 0x10>;
 		clocks = <&clock CLK_XTAL>,
@@ -1076,7 +1004,7 @@
 			      "fclk_div4",
 			      "fclk_div3";
 		clock-select = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
-			       	   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+					<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
 		clock-select-new = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
 		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
 		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
@@ -1096,6 +1024,17 @@
 		irq_keyup = <6>;
 		irq_keydown = <7>;
 	};
+	adc_keypad{
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		key_code = <300>;
+		key_chan = <0>;
+		key_val = <10>;
+		key_tolerance = <40>;
+	};
+
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
 		device_name = "thermal";
@@ -1222,4 +1161,14 @@
 };
 &defendkey {
 	status = "okay";
+};
+&i2c_a {
+	status = "okay";
+};
+&i2c_b {
+	status = "okay";
+	kvim_hym8563{
+		compatible = "kvim_hym8563";
+		reg = <0x51>;
+	};
 };

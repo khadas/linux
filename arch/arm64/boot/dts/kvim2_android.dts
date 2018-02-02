@@ -1,5 +1,5 @@
 #include "gxm_q200_2g.dts"
-#include "partitions-linux.dtsi"
+#include "partitions-android.dtsi"
 
 /{
 	le-dt-id = "gxm_kvim2";
