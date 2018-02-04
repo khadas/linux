@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -284,7 +284,7 @@ void _ump_ukk_msync(_ump_uk_msync_s *args)
 		    (ump_secure_id)args->secure_id, args->op, args->address, args->mapping));
 
 	if (args->address) {
-		virtual = (void *)((u32)args->address);
+		virtual = (void *)((uintptr_t)args->address);
 		offset = (u32)((args->address) - (args->mapping));
 	} else {
 		/* Flush entire mapping when no address is specified. */
@@ -331,12 +331,12 @@ void _ump_ukk_cache_operations_control(_ump_uk_cache_operations_control_s *args)
 	} else if (op == _UMP_UK_CACHE_OP_FINISH) {
 		DBG_MSG(4, ("Cache ops finish\n"));
 		session_data->cache_operations_ongoing--;
-#if 0
+
 		if (session_data->has_pending_level1_cache_flush) {
 			/* This function will set has_pending_level1_cache_flush=0 */
 			_ump_osk_msync(NULL, NULL, 0, 0, _UMP_UK_MSYNC_FLUSH_L1, session_data);
 		}
-#endif
+
 
 		/* to be on the safe side: always flush l1 cache when cache operations are done */
 		_ump_osk_msync(NULL, NULL, 0, 0, _UMP_UK_MSYNC_FLUSH_L1, session_data);

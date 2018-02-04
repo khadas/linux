@@ -76,8 +76,6 @@ typedef struct mali_plat_info_t {
 	u32 dvfs_table_size;
 
 	mali_scale_info_t scale_info;
-	u32 maxclk_sysfs;
-	u32 maxpp_sysfs;
 
 	/* set upper limit of pp or frequency, for THERMAL thermal or band width saving.*/
 	u32 limit_on;
@@ -118,8 +116,6 @@ void flush_scaling_job(void);
 void get_mali_rt_clkpp(u32* clk, u32* pp);
 u32 set_mali_rt_clkpp(u32 clk, u32 pp, u32 flush);
 void revise_mali_rt(void);
-/* get max gpu clk level of this chip*/
-int get_gpu_max_clk_level(void);
 
 /* get or set the scale mode. */
 u32 get_mali_schel_mode(void);

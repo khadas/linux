@@ -1,8 +1,6 @@
-menu "Mali GPU OpenGL device driver"
 config MALI400
 	tristate "Mali-300/400/450 support"
 	depends on ARM || ARM64
-	default m
 	select DMA_SHARED_BUFFER
 	---help---
 	  This enables support for the ARM Mali-300, Mali-400, and Mali-450
@@ -11,31 +9,29 @@ config MALI400
 	  To compile this driver as a module, choose M here: the module will be
 	  called mali.
 
+config MALI450
+	bool "Enable Mali-450 support"
+	depends on MALI400
+	---help---
+	  This enables support for Mali-450 specific features.
+
+config MALI470
+	bool "Enable Mali-470 support"
+	depends on MALI400
+	---help---
+	  This enables support for Mali-470 specific features.
+
 config MALI400_DEBUG
 	bool "Enable debug in Mali driver"
 	depends on MALI400
-	default n
 	---help---
 	  This enabled extra debug checks and messages in the Mali driver.
-
-config MALI400_PROFILING_EXTRA_SUPPORT
-	bool "Select other items in kernel to support PROFILING."
-	depends on MALI400_PROFILING
-	select PROFILING
-	select FTRACE
-	select PERF_EVENTS
-	select ENABLE_DEFAULT_TRACERS
-	select DEBUG_MUTEXES
-	select HIGH_RES_TIMERS
-	select HW_PERF_EVENTS
-	select CPU_FREQ
-	select MALI400_DEBUG
 
 config MALI400_PROFILING
 	bool "Enable Mali profiling"
 	depends on MALI400
 	select TRACEPOINTS
-	default n
+	default y
 	---help---
 	  This enables gator profiling of Mali GPU events.
 
@@ -54,8 +50,8 @@ config MALI400_UMP
 
 config MALI_DVFS
 	bool "Enable Mali dynamically frequency change"
-	depends on MALI400
-	default n
+	depends on MALI400 && !MALI_DEVFREQ
+	default y
 	---help---
 	  This enables support for dynamic change frequency of Mali with the goal of lowering power consumption.
 
@@ -80,14 +76,6 @@ config MALI_SHARED_INTERRUPTS
 	  works when the GPU is not using shared interrupts, but might have a slight performance
 	  impact.
 
-if ARCH_MESON6
-config	MESON6_GPU_EXTRA
-	bool "M6 fix"
-	depends on MALI400
-	default y
-	select MALI_SHARED_INTERRUPTS
-endif
-
 config MALI_PMU_PARALLEL_POWER_UP
 	bool "Power up Mali PMU domains in parallel"
 	depends on MALI400
@@ -108,6 +96,17 @@ config MALI_DT
 	  device tree is enabled in kernel and corresponding hardware description is implemented
 	  properly in device DTS file.
 
+config MALI_DEVFREQ
+	bool "Using devfreq to tuning frequency"
+	depends on MALI400 && PM_DEVFREQ
+	default n
+	---help---
+	Support devfreq for Mali.
+
+	Using the devfreq framework and, by default, the simpleondemand
+	governor, the frequency of Mali will be dynamically selected from the
+	available OPPs.
+
 config MALI_QUIET
 	bool "Make Mali driver very quiet"
 	depends on MALI400 && !MALI400_DEBUG
@@ -116,4 +115,3 @@ config MALI_QUIET
 	  This forces the Mali driver to never print any messages.
 
 	  If unsure, say N.
-endmenu

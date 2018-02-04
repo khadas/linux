@@ -15,11 +15,11 @@
 #include "regs/mali_200_regs.h"
 #include "mali_kernel_common.h"
 #include "mali_kernel_core.h"
+#include "mali_osk_mali.h"
+
 #if defined(CONFIG_MALI400_PROFILING)
 #include "mali_osk_profiling.h"
 #endif
-
-#include <mali_platform.h>
 
 /* Number of frame registers on Mali-200 */
 #define MALI_PP_MALI200_NUM_FRAME_REGISTERS ((0x04C/4)+1)
@@ -45,7 +45,7 @@ struct mali_pp_core *mali_pp_create(const _mali_osk_resource_t *resource, struct
 		return NULL;
 	}
 
-	core = _mali_osk_malloc(sizeof(struct mali_pp_core));
+	core = _mali_osk_calloc(1, sizeof(struct mali_pp_core));
 	if (NULL != core) {
 		core->core_id = mali_global_num_pp_cores;
 		core->bcast_id = bcast_id;
@@ -149,8 +149,6 @@ _mali_osk_errcode_t mali_pp_stop_bus_wait(struct mali_pp_core *core)
 
 	if (MALI_REG_POLL_COUNT_FAST == i) {
 		MALI_PRINT_ERROR(("Mali PP: Failed to stop bus on %s. Status: 0x%08x\n", core->hw_core.description, mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_STATUS)));
-		if (mali_gp_reset_fail < 65533)
-			mali_gp_reset_fail++;
 		return _MALI_OSK_ERR_FAULT;
 	}
 	return _MALI_OSK_ERR_OK;
@@ -203,20 +201,19 @@ static const u32 mali_wb_registers_reset_values[_MALI_PP_MAX_WB_REGISTERS] = {
 /* Performance Counter 0 Enable Register reset value */
 static const u32 mali_perf_cnt_enable_reset_value = 0;
 
-extern int pp_hardware_reset;
 _mali_osk_errcode_t mali_pp_hard_reset(struct mali_pp_core *core)
 {
 	/* Bus must be stopped before calling this function */
+	const u32 reset_wait_target_register = MALI200_REG_ADDR_MGMT_PERF_CNT_0_LIMIT;
 	const u32 reset_invalid_value = 0xC0FFE000;
 	const u32 reset_check_value = 0xC01A0000;
 	int i;
 
 	MALI_DEBUG_ASSERT_POINTER(core);
 	MALI_DEBUG_PRINT(2, ("Mali PP: Hard reset of core %s\n", core->hw_core.description));
-	pp_hardware_reset ++;
 
 	/* Set register to a bogus value. The register will be used to detect when reset is complete */
-	mali_hw_core_register_write_relaxed(&core->hw_core, MALI200_REG_ADDR_MGMT_WRITE_BOUNDARY_LOW, reset_invalid_value);
+	mali_hw_core_register_write_relaxed(&core->hw_core, reset_wait_target_register, reset_invalid_value);
 	mali_hw_core_register_write_relaxed(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_MASK, MALI200_REG_VAL_IRQ_MASK_NONE);
 
 	/* Force core to reset */
@@ -224,8 +221,8 @@ _mali_osk_errcode_t mali_pp_hard_reset(struct mali_pp_core *core)
 
 	/* Wait for reset to be complete */
 	for (i = 0; i < MALI_REG_POLL_COUNT_FAST; i++) {
-		mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_WRITE_BOUNDARY_LOW, reset_check_value);
-		if (reset_check_value == mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_WRITE_BOUNDARY_LOW)) {
+		mali_hw_core_register_write(&core->hw_core, reset_wait_target_register, reset_check_value);
+		if (reset_check_value == mali_hw_core_register_read(&core->hw_core, reset_wait_target_register)) {
 			break;
 		}
 	}
@@ -234,7 +231,7 @@ _mali_osk_errcode_t mali_pp_hard_reset(struct mali_pp_core *core)
 		MALI_PRINT_ERROR(("Mali PP: The hard reset loop didn't work, unable to recover\n"));
 	}
 
-	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_WRITE_BOUNDARY_LOW, 0x00000000); /* set it back to the default */
+	mali_hw_core_register_write(&core->hw_core, reset_wait_target_register, 0x00000000); /* set it back to the default */
 	/* Re-enable interrupts */
 	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_CLEAR, MALI200_REG_VAL_IRQ_MASK_ALL);
 	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_MASK, MALI200_REG_VAL_IRQ_MASK_USED);
@@ -300,6 +297,13 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 	u32 counter_src1 = mali_pp_job_get_perf_counter_src1(job, sub_job);
 
 	MALI_DEBUG_ASSERT_POINTER(core);
+
+	/* Change gpu secure mode if needed. */
+	if (MALI_TRUE == mali_pp_job_is_protected_job(job) && MALI_FALSE == _mali_osk_gpu_secure_mode_is_enabled()) {
+		_mali_osk_gpu_secure_mode_enable();
+	} else if (MALI_FALSE == mali_pp_job_is_protected_job(job) && MALI_TRUE == _mali_osk_gpu_secure_mode_is_enabled()) {
+		_mali_osk_gpu_secure_mode_disable();
+	}
 
 	/* Write frame registers */
 
@@ -417,7 +421,7 @@ static void mali_pp_irq_probe_trigger(void *data)
 {
 	struct mali_pp_core *core = (struct mali_pp_core *)data;
 	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_MASK, MALI200_REG_VAL_IRQ_MASK_USED);
-	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_RAWSTAT, MALI200_REG_VAL_IRQ_FORCE_HANG);
+	mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_RAWSTAT, MALI200_REG_VAL_IRQ_BUS_ERROR);
 	_mali_osk_mem_barrier();
 }
 
@@ -427,8 +431,8 @@ static _mali_osk_errcode_t mali_pp_irq_probe_ack(void *data)
 	u32 irq_readout;
 
 	irq_readout = mali_hw_core_register_read(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_STATUS);
-	if (MALI200_REG_VAL_IRQ_FORCE_HANG & irq_readout) {
-		mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_CLEAR, MALI200_REG_VAL_IRQ_FORCE_HANG);
+	if (MALI200_REG_VAL_IRQ_BUS_ERROR & irq_readout) {
+		mali_hw_core_register_write(&core->hw_core, MALI200_REG_ADDR_MGMT_INT_CLEAR, MALI200_REG_VAL_IRQ_BUS_ERROR);
 		_mali_osk_mem_barrier();
 		return _MALI_OSK_ERR_OK;
 	}
@@ -479,6 +483,7 @@ void mali_pp_update_performance_counters(struct mali_pp_core *parent, struct mal
 
 #if defined(CONFIG_MALI400_PROFILING)
 		_mali_osk_profiling_report_hw_counter(counter_index, val0);
+		_mali_osk_profiling_record_global_counters(counter_index, val0);
 #endif
 	}
 
@@ -488,6 +493,7 @@ void mali_pp_update_performance_counters(struct mali_pp_core *parent, struct mal
 
 #if defined(CONFIG_MALI400_PROFILING)
 		_mali_osk_profiling_report_hw_counter(counter_index + 1, val1);
+		_mali_osk_profiling_record_global_counters(counter_index + 1, val1);
 #endif
 	}
 }

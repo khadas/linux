@@ -1200,8 +1200,8 @@ int sdio_reset_comm(struct mmc_card *card)
 	printk("%s():\n", __func__);
 	mmc_claim_host(host);
 
-	/* for realtek sdio wifi need send IO reset command firstly */
-	if (588 == card->cis.vendor)
+	/* for realtek / s9082c sdio wifi need send IO reset command firstly */
+	if ((588 == card->cis.vendor) || (743 == card->cis.vendor))
 		sdio_reset(host);
 
 	mmc_go_idle(host);

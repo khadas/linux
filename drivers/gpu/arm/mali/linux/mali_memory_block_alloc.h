@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2013, 2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2013, 2015-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -37,10 +37,10 @@ typedef struct mali_block_allocator {
 
 unsigned long _mali_blk_item_get_phy_addr(mali_block_item *item);
 unsigned long _mali_blk_item_get_pfn(mali_block_item *item);
-u32 mali_mem_block_get_ref_count(mali_block_node *node);
-u32 mali_mem_block_add_ref(mali_block_node *node);
-u32 mali_mem_block_dec_ref(mali_block_node *node);
-void mali_mem_block_release(mali_mem_backend *mem_bkend);
+u32 mali_mem_block_get_ref_count(mali_page_node *node);
+u32 mali_mem_block_add_ref(mali_page_node *node);
+u32 mali_mem_block_dec_ref(mali_page_node *node);
+u32 mali_mem_block_release(mali_mem_backend *mem_bkend);
 int mali_mem_block_alloc(mali_mem_block_mem *block_mem, u32 size);
 int mali_mem_block_mali_map(mali_mem_block_mem *block_mem, struct mali_session_data *session, u32 vaddr, u32 props);
 void mali_mem_block_mali_unmap(mali_mem_allocation *alloc);
@@ -48,10 +48,11 @@ void mali_mem_block_mali_unmap(mali_mem_allocation *alloc);
 int mali_mem_block_cpu_map(mali_mem_backend *mem_bkend, struct vm_area_struct *vma);
 _mali_osk_errcode_t mali_memory_core_resource_dedicated_memory(u32 start, u32 size);
 mali_bool mali_memory_have_dedicated_memory(void);
-void mali_mem_block_free(mali_mem_block_mem *block_mem);
-void mali_mem_block_free_list(struct list_head *list);
-void mali_mem_block_free_node(struct mali_block_node *node);
+u32 mali_mem_block_free(mali_mem_block_mem *block_mem);
+u32 mali_mem_block_free_list(struct list_head *list);
+void mali_mem_block_free_node(struct mali_page_node *node);
 void mali_mem_block_allocator_destroy(void);
+_mali_osk_errcode_t mali_mem_block_unref_node(struct mali_page_node *node);
 u32 mali_mem_block_allocator_stat(void);
 
 #endif /* __MALI_BLOCK_ALLOCATOR_H__ */

@@ -24,8 +24,6 @@
 #ifdef CONFIG_GPU_THERMAL
 #include <linux/gpu_cooling.h>
 #include <linux/gpucore_cooling.h>
-#include <linux/amlogic/aml_thermal_hw.h>
-#include <common/mali_ukk.h>
 #endif
 #include <common/mali_kernel_common.h>
 #include <common/mali_osk_profiling.h>
@@ -34,7 +32,6 @@
 #include "mali_scaling.h"
 #include "mali_clock.h"
 #include "meson_main.h"
-#include "mali_executor.h"
 
 /*
  *    For Meson 8 M2.
@@ -42,8 +39,8 @@
  */
 static void mali_plat_preheat(void);
 static mali_plat_info_t mali_plat_data = {
-    .bst_gpu = 210, /* threshold for boosting gpu. */
-    .bst_pp = 160, /* threshold for boosting PP. */
+    .bst_gpu = 1, /* threshold for boosting gpu. */
+    .bst_pp = 1, /* threshold for boosting PP. */
     .have_switch = 1,
     .limit_on = 1,
     .plat_preheat = mali_plat_preheat,
@@ -99,11 +96,6 @@ unsigned int get_mali_max_level(void)
     return mali_plat_data.dvfs_table_size - 1;
 }
 
-int get_gpu_max_clk_level(void)
-{
-    return mali_plat_data.cfg_clock;
-}
-
 #ifdef CONFIG_GPU_THERMAL
 static void set_limit_mali_freq(u32 idx)
 {
@@ -111,10 +103,6 @@ static void set_limit_mali_freq(u32 idx)
         return;
     if (idx > mali_plat_data.turbo_clock || idx < mali_plat_data.scale_info.minclk)
         return;
-    if (idx > mali_plat_data.maxclk_sysfs) {
-        printk("idx > max freq\n");
-        return;
-    }
     mali_plat_data.scale_info.maxclk= idx;
     revise_mali_rt();
 }
@@ -122,11 +110,6 @@ static void set_limit_mali_freq(u32 idx)
 static u32 get_limit_mali_freq(void)
 {
     return mali_plat_data.scale_info.maxclk;
-}
-
-static u32 get_mali_utilization(void)
-{
-    return (_mali_ukk_utilization_pp() * 100) / 256;
 }
 #endif
 
@@ -139,28 +122,11 @@ static u32 set_limit_pp_num(u32 num)
     if (num > mali_plat_data.cfg_pp ||
             num < mali_plat_data.scale_info.minpp)
         goto quit;
-
-    if (num > mali_plat_data.maxpp_sysfs) {
-        printk("pp > sysfs set pp\n");
-        goto quit;
-    }
-
     mali_plat_data.scale_info.maxpp = num;
     revise_mali_rt();
     ret = 0;
 quit:
     return ret;
-}
-static u32 mali_get_online_pp(void)
-{
-    unsigned int val;
-    mali_plat_info_t* pmali_plat = get_mali_plat_data();
-
-    val = readl(pmali_plat->reg_base_aobus + 0xf0) & 0xff;
-    if (val == 0x07)    /* No pp is working */
-        return 0;
-
-    return mali_executor_get_num_cores_enabled();
 }
 #endif
 
@@ -348,11 +314,7 @@ void mali_post_init(void)
         gcdev->get_gpu_max_level = get_mali_max_level;
         gcdev->set_gpu_freq_idx = set_limit_mali_freq;
         gcdev->get_gpu_current_max_level = get_limit_mali_freq;
-        gcdev->get_gpu_freq = get_mali_freq;
-        gcdev->get_gpu_loading = get_mali_utilization;
-        gcdev->get_online_pp = mali_get_online_pp;
         err = gpufreq_cooling_register(gcdev);
-        aml_thermal_min_update(gcdev->cool_dev);
         if (err < 0)
             printk("register GPU  cooling error\n");
         printk("gpu cooling register okay with err=%d\n",err);
@@ -367,7 +329,6 @@ void mali_post_init(void)
         gccdev->max_gpu_core_num=mali_plat_data.cfg_pp;
         gccdev->set_max_pp_num=set_limit_pp_num;
         err = (int)gpucore_cooling_register(gccdev);
-        aml_thermal_min_update(gccdev->cool_dev);
         if (err < 0)
             printk("register GPU  cooling error\n");
         printk("gpu core cooling register okay with err=%d\n",err);

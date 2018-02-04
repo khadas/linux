@@ -229,11 +229,6 @@ void mali_core_scaling_term(void)
 
 }
 
-int get_gpu_max_clk_level(void)
-{
-    return 0;
-}
-
 void mali_post_init(void)
 {
 }

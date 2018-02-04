@@ -96,6 +96,8 @@ struct mali_group *mali_group_create(struct mali_l2_cache_core *core,
 				     struct mali_bcast_unit *bcast,
 				     u32 domain_index);
 
+void mali_group_dump_status(struct mali_group *group);
+
 void mali_group_delete(struct mali_group *group);
 
 _mali_osk_errcode_t mali_group_add_mmu_core(struct mali_group *group,
@@ -126,7 +128,7 @@ MALI_STATIC_INLINE mali_bool mali_group_is_virtual(struct mali_group *group)
 {
 	MALI_DEBUG_ASSERT_POINTER(group);
 
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	return (NULL != group->dlbu_core);
 #else
 	return MALI_FALSE;
@@ -140,7 +142,7 @@ MALI_STATIC_INLINE mali_bool mali_group_is_in_virtual(struct mali_group *group)
 	MALI_DEBUG_ASSERT_POINTER(group);
 	MALI_DEBUG_ASSERT_EXECUTOR_LOCK_HELD();
 
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	return (NULL != group->parent_group) ? MALI_TRUE : MALI_FALSE;
 #else
 	return MALI_FALSE;
@@ -408,6 +410,7 @@ MALI_STATIC_INLINE void mali_group_schedule_bottom_half_gp(struct mali_group *gr
 	MALI_DEBUG_ASSERT_POINTER(group->gp_core);
 	_mali_osk_wq_schedule_work(group->bottom_half_work_gp);
 }
+
 
 MALI_STATIC_INLINE void mali_group_schedule_bottom_half_pp(struct mali_group *group)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -42,7 +42,7 @@ extern int ump_debug_level;
 
 #define DEBUG_ASSERT_POINTER(pointer) do  {if( (pointer)== NULL) MSG_ERR(("NULL pointer " #pointer)); } while(0)
 #define DEBUG_ASSERT(condition) do  {if(!(condition)) MSG_ERR(("ASSERT failed: " #condition)); } while(0)
-#else /* DEBUG */
+#else
 #define UMP_DEBUG_PRINT(args) do {} while(0)
 #define UMP_DEBUG_CODE(args)
 #define DBG_MSG(level,args) do {} while(0)
@@ -50,7 +50,7 @@ extern int ump_debug_level;
 #define DBG_MSG_ELSE(level,args) do {} while(0)
 #define DEBUG_ASSERT(condition) do {} while(0)
 #define DEBUG_ASSERT_POINTER(pointer) do  {} while(0)
-#endif /* DEBUG */
+#endif
 
 #define MSG_ERR(args) do{ /* args should be in brackets */ \
 		_mali_osk_dbgmsg("UMP: ERR: %s\n" ,__FILE__); \
@@ -110,7 +110,7 @@ extern struct ump_dev device;
 
 _mali_osk_errcode_t ump_kernel_constructor(void);
 void ump_kernel_destructor(void);
-int map_errcode(_mali_osk_errcode_t err);
+int ump_map_errcode(_mali_osk_errcode_t err);
 
 /**
  * variables from user space cannot be dereferenced from kernel space; tagging them

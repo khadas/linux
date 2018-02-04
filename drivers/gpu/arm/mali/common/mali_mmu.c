@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -395,7 +395,6 @@ static void mali_mmu_probe_trigger(void *data)
 }
 
 /* Is called when the irq probe wants the mmu to acknowledge an interrupt from the hw */
-extern int mali_page_fault;
 static _mali_osk_errcode_t mali_mmu_probe_ack(void *data)
 {
 	struct mali_mmu_core *mmu = (struct mali_mmu_core *)data;
@@ -409,7 +408,6 @@ static _mali_osk_errcode_t mali_mmu_probe_ack(void *data)
 		mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_CLEAR, MALI_MMU_INTERRUPT_PAGE_FAULT);
 	} else {
 		MALI_DEBUG_PRINT(1, ("Probe: Page fault detect: FAILED\n"));
-		mali_page_fault++;
 	}
 
 	if (int_stat & MALI_MMU_INTERRUPT_READ_BUS_ERROR) {
@@ -417,7 +415,6 @@ static _mali_osk_errcode_t mali_mmu_probe_ack(void *data)
 		mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_CLEAR, MALI_MMU_INTERRUPT_READ_BUS_ERROR);
 	} else {
 		MALI_DEBUG_PRINT(1, ("Probe: Bus read error detect: FAILED\n"));
-		mali_page_fault++;
 	}
 
 	if ((int_stat & (MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR)) ==

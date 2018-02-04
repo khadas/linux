@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -13,80 +13,6 @@
 #include "mali_memory_block_alloc.h"
 #include "mali_osk.h"
 #include <linux/mutex.h>
-
-
-struct mali_block_node *_mali_block_node_allocate(mali_page_node_type type)
-{
-	mali_block_node *block_node = NULL;
-
-	block_node = kzalloc(sizeof(mali_block_node), GFP_KERNEL);
-	MALI_DEBUG_ASSERT(NULL != block_node);
-
-	if (block_node) {
-		block_node->type = type;
-		INIT_LIST_HEAD(&block_node->list);
-	}
-
-	return block_node;
-}
-
-void _mali_block_node_ref(struct mali_block_node *node)
-{
-	if (node->type == MALI_PAGE_NODE_BLOCK) {
-		mali_mem_block_add_ref(node);
-	} else
-		MALI_DEBUG_ASSERT(0);
-}
-
-void _mali_block_node_unref(struct mali_block_node *node)
-{
-	if (node->type == MALI_PAGE_NODE_BLOCK) {
-		mali_mem_block_dec_ref(node);
-	} else
-		MALI_DEBUG_ASSERT(0);
-}
-
-
-
-void _mali_block_node_add_block_item(struct mali_block_node *node, mali_block_item *item)
-{
-	MALI_DEBUG_ASSERT(MALI_PAGE_NODE_BLOCK == node->type);
-	node->blk_it = item;
-}
-
-
-int _mali_block_node_get_ref_count(struct mali_block_node *node)
-{
-	if (node->type == MALI_PAGE_NODE_BLOCK) {
-		return mali_mem_block_get_ref_count(node);
-	} else {
-		MALI_DEBUG_ASSERT(0);
-	}
-	return -1;
-}
-
-
-dma_addr_t _mali_block_node_get_phy_addr(struct mali_block_node *node)
-{
-	if (node->type == MALI_PAGE_NODE_BLOCK) {
-		return _mali_blk_item_get_phy_addr(node->blk_it);
-	} else {
-		MALI_DEBUG_ASSERT(0);
-	}
-	return 0;
-}
-
-
-unsigned long _mali_block_node_get_pfn(struct mali_block_node *node)
-{
-	if (node->type == MALI_PAGE_NODE_BLOCK) {
-		/* get phy addr for BLOCK page*/
-		return _mali_blk_item_get_pfn(node->blk_it);
-	} else {
-		MALI_DEBUG_ASSERT(0);
-	}
-	return 0;
-}
 
 
 static mali_block_allocator *mali_mem_block_gobal_allocator = NULL;
@@ -103,7 +29,7 @@ unsigned long _mali_blk_item_get_pfn(mali_block_item *item)
 }
 
 
-u32 mali_mem_block_get_ref_count(mali_block_node *node)
+u32 mali_mem_block_get_ref_count(mali_page_node *node)
 {
 	MALI_DEBUG_ASSERT(node->type == MALI_PAGE_NODE_BLOCK);
 	return (node->blk_it->phy_addr & MALI_BLOCK_REF_MASK);
@@ -114,7 +40,7 @@ u32 mali_mem_block_get_ref_count(mali_block_node *node)
 * It not atomic, so it need to get sp_lock before call this function
 */
 
-u32 mali_mem_block_add_ref(mali_block_node *node)
+u32 mali_mem_block_add_ref(mali_page_node *node)
 {
 	MALI_DEBUG_ASSERT(node->type == MALI_PAGE_NODE_BLOCK);
 	MALI_DEBUG_ASSERT(mali_mem_block_get_ref_count(node) < MALI_BLOCK_MAX_REF_COUNT);
@@ -124,7 +50,7 @@ u32 mali_mem_block_add_ref(mali_block_node *node)
 /* Decase the refence count
 * It not atomic, so it need to get sp_lock before call this function
 */
-u32 mali_mem_block_dec_ref(mali_block_node *node)
+u32 mali_mem_block_dec_ref(mali_page_node *node)
 {
 	MALI_DEBUG_ASSERT(node->type == MALI_PAGE_NODE_BLOCK);
 	MALI_DEBUG_ASSERT(mali_mem_block_get_ref_count(node) > 0);
@@ -137,7 +63,7 @@ static mali_block_allocator *mali_mem_block_allocator_create(u32 base_address, u
 	mali_block_allocator *info;
 	u32 usable_size;
 	u32 num_blocks;
-	mali_block_node *m_node;
+	mali_page_node *m_node;
 	mali_block_item *mali_blk_items = NULL;
 	int i = 0;
 
@@ -166,10 +92,10 @@ static mali_block_allocator *mali_mem_block_allocator_create(u32 base_address, u
 				/* add block information*/
 				mali_blk_items[i].phy_addr = base_address + (i * MALI_BLOCK_SIZE);
 				/* add  to free list */
-				m_node = _mali_block_node_allocate(MALI_PAGE_NODE_BLOCK);
+				m_node = _mali_page_node_allocate(MALI_PAGE_NODE_BLOCK);
 				if (m_node == NULL)
 					goto fail;
-				_mali_block_node_add_block_item(m_node, &(mali_blk_items[i]));
+				_mali_page_node_add_block_item(m_node, &(mali_blk_items[i]));
 				list_add_tail(&m_node->list, &info->free);
 				atomic_add(1, &info->free_num);
 			}
@@ -183,7 +109,7 @@ fail:
 
 void mali_mem_block_allocator_destroy(void)
 {
-	struct mali_block_node *m_page, *m_tmp;
+	struct mali_page_node *m_page, *m_tmp;
 	mali_block_allocator *info = mali_mem_block_gobal_allocator;
 	MALI_DEBUG_ASSERT_POINTER(info);
 	MALI_DEBUG_PRINT(4, ("Memory block destroy !\n"));
@@ -201,22 +127,24 @@ void mali_mem_block_allocator_destroy(void)
 	_mali_osk_free(info);
 }
 
-void mali_mem_block_release(mali_mem_backend *mem_bkend)
+u32 mali_mem_block_release(mali_mem_backend *mem_bkend)
 {
-	mali_mem_allocation *alloc = mem_bkend->mali_allocation;;
-	MALI_DEBUG_PRINT(4, ("BLOCK Mem: Release size = 0x%x\n", mem_bkend->size));
-
+	mali_mem_allocation *alloc = mem_bkend->mali_allocation;
+	u32 free_pages_nr = 0;
 	MALI_DEBUG_ASSERT(mem_bkend->type == MALI_MEM_BLOCK);
 
 	/* Unmap the memory from the mali virtual address space. */
 	mali_mem_block_mali_unmap(alloc);
-	mali_mem_block_free(&mem_bkend->block_mem);
+	mutex_lock(&mem_bkend->mutex);
+	free_pages_nr = mali_mem_block_free(&mem_bkend->block_mem);
+	mutex_unlock(&mem_bkend->mutex);
+	return free_pages_nr;
 }
 
 
 int mali_mem_block_alloc(mali_mem_block_mem *block_mem, u32 size)
 {
-	struct mali_block_node *m_page, *m_tmp;
+	struct mali_page_node *m_page, *m_tmp;
 	size_t page_count = PAGE_ALIGN(size) / _MALI_OSK_MALI_PAGE_SIZE;
 	mali_block_allocator *info = mali_mem_block_gobal_allocator;
 	MALI_DEBUG_ASSERT_POINTER(info);
@@ -235,7 +163,7 @@ int mali_mem_block_alloc(mali_mem_block_mem *block_mem, u32 size)
 				list_move(&m_page->list, &block_mem->pfns);
 				block_mem->count++;
 				atomic_dec(&info->free_num);
-				_mali_block_node_ref(m_page);
+				_mali_page_node_ref(m_page);
 			} else {
 				break;
 			}
@@ -251,62 +179,99 @@ int mali_mem_block_alloc(mali_mem_block_mem *block_mem, u32 size)
 	return 0;
 }
 
-void mali_mem_block_free(mali_mem_block_mem *block_mem)
+u32 mali_mem_block_free(mali_mem_block_mem *block_mem)
 {
-	mali_mem_block_free_list(&block_mem->pfns);
-	MALI_DEBUG_PRINT(4, ("BLOCK Mem free : size = 0x%x\n", block_mem->count * _MALI_OSK_MALI_PAGE_SIZE));
+	u32 free_pages_nr = 0;
+
+	free_pages_nr = mali_mem_block_free_list(&block_mem->pfns);
+	MALI_DEBUG_PRINT(4, ("BLOCK Mem free : allocated size = 0x%x, free size = 0x%x\n", block_mem->count * _MALI_OSK_MALI_PAGE_SIZE,
+			     free_pages_nr * _MALI_OSK_MALI_PAGE_SIZE));
 	block_mem->count = 0;
 	MALI_DEBUG_ASSERT(list_empty(&block_mem->pfns));
+
+	return free_pages_nr;
 }
 
 
-void mali_mem_block_free_list(struct list_head *list)
+u32 mali_mem_block_free_list(struct list_head *list)
 {
-	struct mali_block_node *m_page, *m_tmp;
+	struct mali_page_node *m_page, *m_tmp;
 	mali_block_allocator *info = mali_mem_block_gobal_allocator;
+	u32 free_pages_nr = 0;
 
 	if (info) {
 		spin_lock(&info->sp_lock);
 		list_for_each_entry_safe(m_page, m_tmp , list, list) {
+			if (1 == _mali_page_node_get_ref_count(m_page)) {
+				free_pages_nr++;
+			}
 			mali_mem_block_free_node(m_page);
 		}
 		spin_unlock(&info->sp_lock);
 	}
+	return free_pages_nr;
 }
 
 /* free the node,*/
-void mali_mem_block_free_node(struct mali_block_node *node)
+void mali_mem_block_free_node(struct mali_page_node *node)
 {
 	mali_block_allocator *info = mali_mem_block_gobal_allocator;
 
 	/* only handle BLOCK node */
 	if (node->type == MALI_PAGE_NODE_BLOCK && info) {
 		/*Need to make this atomic?*/
-		if (1 == _mali_block_node_get_ref_count(node)) {
+		if (1 == _mali_page_node_get_ref_count(node)) {
 			/*Move to free list*/
-			_mali_block_node_unref(node);
+			_mali_page_node_unref(node);
 			list_move_tail(&node->list, &info->free);
 			atomic_add(1, &info->free_num);
 		} else {
-			_mali_block_node_unref(node);
+			_mali_page_node_unref(node);
 			list_del(&node->list);
 			kfree(node);
 		}
 	}
 }
 
+/* unref the node, but not free it */
+_mali_osk_errcode_t mali_mem_block_unref_node(struct mali_page_node *node)
+{
+	mali_block_allocator *info = mali_mem_block_gobal_allocator;
+	mali_page_node *new_node;
+
+	/* only handle BLOCK node */
+	if (node->type == MALI_PAGE_NODE_BLOCK && info) {
+		/*Need to make this atomic?*/
+		if (1 == _mali_page_node_get_ref_count(node)) {
+			/* allocate a  new node, Add to free list, keep the old node*/
+			_mali_page_node_unref(node);
+			new_node = _mali_page_node_allocate(MALI_PAGE_NODE_BLOCK);
+			if (new_node) {
+				memcpy(new_node, node, sizeof(mali_page_node));
+				list_add(&new_node->list, &info->free);
+				atomic_add(1, &info->free_num);
+			} else
+				return _MALI_OSK_ERR_FAULT;
+
+		} else {
+			_mali_page_node_unref(node);
+		}
+	}
+	return _MALI_OSK_ERR_OK;
+}
+
 
 int mali_mem_block_mali_map(mali_mem_block_mem *block_mem, struct mali_session_data *session, u32 vaddr, u32 props)
 {
 	struct mali_page_directory *pagedir = session->page_directory;
-	struct mali_block_node *m_page;
+	struct mali_page_node *m_page;
 	dma_addr_t phys;
 	u32 virt = vaddr;
 	u32 prop = props;
 
 	list_for_each_entry(m_page, &block_mem->pfns, list) {
 		MALI_DEBUG_ASSERT(m_page->type == MALI_PAGE_NODE_BLOCK);
-		phys = _mali_block_node_get_phy_addr(m_page);
+		phys = _mali_page_node_get_dma_addr(m_page);
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT)
 		/* Verify that the "physical" address is 32-bit and
 		 * usable for Mali, when on a system with bus addresses
@@ -330,7 +295,6 @@ void mali_mem_block_mali_unmap(mali_mem_allocation *alloc)
 	mali_session_memory_lock(session);
 	mali_mem_mali_map_free(session, alloc->psize, alloc->mali_vma_node.vm_node.start,
 			       alloc->flags);
-	session->mali_mem_array[alloc->type] -= alloc->psize;
 	mali_session_memory_unlock(session);
 }
 
@@ -340,12 +304,12 @@ int mali_mem_block_cpu_map(mali_mem_backend *mem_bkend, struct vm_area_struct *v
 	int ret;
 	mali_mem_block_mem *block_mem = &mem_bkend->block_mem;
 	unsigned long addr = vma->vm_start;
-	struct mali_block_node *m_page;
+	struct mali_page_node *m_page;
 	MALI_DEBUG_ASSERT(mem_bkend->type == MALI_MEM_BLOCK);
 
 	list_for_each_entry(m_page, &block_mem->pfns, list) {
 		MALI_DEBUG_ASSERT(m_page->type == MALI_PAGE_NODE_BLOCK);
-		ret = vm_insert_pfn(vma, addr, _mali_block_node_get_pfn(m_page));
+		ret = vm_insert_pfn(vma, addr, _mali_page_node_get_pfn(m_page));
 
 		if (unlikely(0 != ret)) {
 			return -EFAULT;

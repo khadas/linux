@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+# Copyright (C) 2010-2016 ARM Limited. All rights reserved.
 # 
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -16,6 +16,8 @@ MALI_HEATMAPS_ENABLED ?= 0
 MALI_DMA_BUF_MAP_ON_ATTACH ?= 1
 MALI_PMU_PARALLEL_POWER_UP ?= 0
 USING_DT ?= 0
+MALI_MEM_SWAP_TRACKING ?= 0
+USING_DEVFREQ ?= 0
 
 # The Makefile sets up "arch" based on the CONFIG, creates the version info
 # string and the __malidrv_build_info.c file, and then call the Linux build
@@ -102,9 +104,11 @@ endif
 # Set up build config
 export CONFIG_MALI400=m
 export CONFIG_MALI450=y
+export CONFIG_MALI470=y
 
 export EXTRA_DEFINES += -DCONFIG_MALI400=1
 export EXTRA_DEFINES += -DCONFIG_MALI450=1
+export EXTRA_DEFINES += -DCONFIG_MALI470=1
 
 ifneq ($(MALI_PLATFORM),)
 export EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
@@ -139,7 +143,6 @@ export EXTRA_DEFINES += -DCONFIG_MALI_SHARED_INTERRUPTS
 endif
 
 ifeq ($(USING_DVFS),1)
-	xxxyyyy
 export CONFIG_MALI_DVFS=y
 export EXTRA_DEFINES += -DCONFIG_MALI_DVFS
 endif
@@ -156,6 +159,15 @@ export EXTRA_DEFINES += -DCONFIG_MALI_DT
 endif
 endif
 
+ifeq ($(USING_DEVFREQ), 1)
+ifdef CONFIG_PM_DEVFREQ
+export CONFIG_MALI_DEVFREQ=y
+export EXTRA_DEFINES += -DCONFIG_MALI_DEVFREQ=1
+else
+$(warning "You want to support DEVFREQ but kernel didn't support DEVFREQ.")
+endif
+endif
+
 ifneq ($(BUILD),release)
 # Debug
 export CONFIG_MALI400_DEBUG=y
@@ -169,6 +181,10 @@ endif
 
 ifeq ($(MALI_SKIP_JOBS),1)
 EXTRA_DEFINES += -DPROFILING_SKIP_PP_JOBS=1 -DPROFILING_SKIP_GP_JOBS=1
+endif
+
+ifeq ($(MALI_MEM_SWAP_TRACKING),1)
+EXTRA_DEFINES += -DMALI_MEM_SWAP_TRACKING=1
 endif
 
 all: $(UMP_SYMVERS_FILE)

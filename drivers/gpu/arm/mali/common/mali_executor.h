@@ -58,7 +58,6 @@ void mali_executor_schedule_from_mask(mali_scheduler_mask mask, mali_bool deferr
 _mali_osk_errcode_t mali_executor_interrupt_gp(struct mali_group *group, mali_bool in_upper_half);
 _mali_osk_errcode_t mali_executor_interrupt_pp(struct mali_group *group, mali_bool in_upper_half);
 _mali_osk_errcode_t mali_executor_interrupt_mmu(struct mali_group *group, mali_bool in_upper_half);
-
 void mali_executor_group_power_up(struct mali_group *groups[], u32 num_groups);
 void mali_executor_group_power_down(struct mali_group *groups[], u32 num_groups);
 
@@ -96,4 +95,8 @@ MALI_STATIC_INLINE mali_bool mali_executor_hint_is_enabled(mali_executor_hint hi
 	return mali_executor_hints[hint];
 }
 
+void mali_executor_running_status_print(void);
+void mali_executor_status_dump(void);
+void mali_executor_lock(void);
+void mali_executor_unlock(void);
 #endif /* __MALI_EXECUTOR_H__ */

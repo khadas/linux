@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2010-2012, 2014-2015 ARM Limited. All rights reserved.
+# Copyright (C) 2010-2012, 2014, 2016 ARM Limited. All rights reserved.
 # 
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -7,12 +7,6 @@
 # A copy of the licence is included with the program, and can also be obtained from Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
-
-# Skip this Makefile when included from modpost
-ifeq ($(KBUILD_EXTMOD),)
-
-TARGET_PLATFORM ?= aml-meson
-CONFIG ?= aml-meson-m400-1
 
 # For each arch check: CROSS_COMPILE , KDIR , CFLAGS += -DARCH
 
@@ -42,7 +36,7 @@ endif
 KDIR-$(shell uname -m):=/lib/modules/$(shell uname -r)/build
 
 ifeq ($(ARCH), arm)
-	# when compiling for ARM we're cross compiling
+# when compiling for ARM we're cross compiling
 export CROSS_COMPILE ?= $(call check_cc2, arm-linux-gnueabi-gcc, arm-linux-gnueabi-, arm-none-linux-gnueabi-)
 endif
 
@@ -71,5 +65,3 @@ kernelrelease:
 clean:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) clean
 	$(MAKE) -C $(KDIR) M=$(CURDIR)/../mali clean
-
-endif

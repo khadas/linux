@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -13,12 +13,7 @@
  * Implementation of the OS abstraction layer for the kernel device driver
  */
 
-#include <linux/types.h>
-#include <linux/version.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 29))
-#include <mach/cpu.h>
-#endif
-#include <linux/slab.h>	/* For memory allocation */
+#include <linux/slab.h> /* For memory allocation */
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -34,16 +29,6 @@ typedef struct _mali_osk_irq_t_struct {
 
 typedef irqreturn_t (*irq_handler_func_t)(int, void *, struct pt_regs *);
 static irqreturn_t irq_handler_upper_half(int port_name, void *dev_id);   /* , struct pt_regs *regs*/
-
-#if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6
-u32 get_irqnum(struct _mali_osk_irq_t_struct* irq)
-{
-	if (irq)
-		return irq->irqnum;
-	else
-		return 0;
-}
-#endif
 
 #if defined(DEBUG)
 
@@ -168,7 +153,7 @@ _mali_osk_irq_t *_mali_osk_irq_init(u32 irqnum, _mali_osk_irq_uhandler_t uhandle
 #if defined(DEBUG)
 	/* Verify that the configured interrupt settings are working */
 	if (_MALI_OSK_ERR_OK != test_interrupt(irqnum, trigger_func, ack_func, probe_data, description)) {
-		MALI_DEBUG_PRINT(2, ("Test of IRQ handler for core '%s' failed\n", description));
+		MALI_DEBUG_PRINT(2, ("Test of IRQ(%d) handler for core '%s' failed\n", irqnum, description));
 		kfree(irq_object);
 		return NULL;
 	}

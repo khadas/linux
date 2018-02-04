@@ -748,6 +748,10 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 static void aml_audio_shutdown(struct platform_device *pdev)
 {
 	struct pinctrl_state *state;
+	struct snd_soc_card *card;
+
+	card = platform_get_drvdata(pdev);
+	aml_suspend_pre(card);
 
 	if (IS_ERR_OR_NULL(p_audio->pin_ctl)) {
 		pr_info("no audio pin_ctrl to shutdown\n");

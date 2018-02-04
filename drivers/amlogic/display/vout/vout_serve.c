@@ -726,6 +726,12 @@ static int meson_vout_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void meson_vout_shutdown(struct platform_device *pdev)
+{
+	vout_log_info("%s\n", __func__);
+	vout_shutdown();
+}
+
 static const struct of_device_id meson_vout_dt_match[] = {
 	{ .compatible = "amlogic, meson-vout",},
 	{ },
@@ -745,6 +751,7 @@ static struct platform_driver
 	vout_driver = {
 	.probe      = meson_vout_probe,
 	.remove     = meson_vout_remove,
+	.shutdown   = meson_vout_shutdown,
 #ifdef CONFIG_PM
 	.suspend  = meson_vout_suspend,
 	.resume    = meson_vout_resume,
@@ -761,7 +768,7 @@ static struct platform_driver
 static int __init vout_init_module(void)
 {
 	int ret = 0;
-	vout_log_info("%s\n", __func__);
+	/*vout_log_info("%s\n", __func__);*/
 
 	if (platform_driver_register(&vout_driver)) {
 		vout_log_err("failed to register VOUT driver\n");
@@ -773,7 +780,7 @@ static int __init vout_init_module(void)
 
 static __exit void vout_exit_module(void)
 {
-	vout_log_info("%s\n", __func__);
+	/*vout_log_info("%s\n", __func__);*/
 	platform_driver_unregister(&vout_driver);
 }
 

@@ -381,7 +381,7 @@ error_exit:
 	return ret;
 }
 
-char *efuse_get_mac(char *addr)
+int efuse_get_mac(char *addr)
 {
 	char buf[6];
 	int ret;
@@ -391,11 +391,13 @@ char *efuse_get_mac(char *addr)
 	 */
 	ret = efuse_user_attr_show("mac", buf);
 	if (ret < 0) {
-		pr_err("hwmac: error to read MAC address, use default address\n");
-		memcpy(buf, "\xc0\xff\xee\x00\x01\x9f", 6);
+		pr_err("%s: failed to read MAC\n", __func__);
+	} else {
+		printk("%s: %pM\n", __func__, buf);
+		memcpy(addr, buf, 6);
 	}
 
-	return memcpy(addr, buf, 6);
+	return ret;
 }
 EXPORT_SYMBOL(efuse_get_mac);
 

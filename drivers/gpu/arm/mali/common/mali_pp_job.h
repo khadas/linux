@@ -26,6 +26,12 @@
 #include "linux/mali_memory_dma_buf.h"
 #endif
 
+typedef enum pp_job_status {
+	MALI_NO_SWAP_IN,
+	MALI_SWAP_IN_FAIL,
+	MALI_SWAP_IN_SUCC,
+} pp_job_status;
+
 /**
  * This structure represents a PP job, including all sub jobs.
  *
@@ -54,6 +60,10 @@ struct mali_pp_job {
 	u32 perf_counter_per_sub_job_src0[_MALI_PP_MAX_SUB_JOBS]; /**< Per sub job counters src0 */
 	u32 perf_counter_per_sub_job_src1[_MALI_PP_MAX_SUB_JOBS]; /**< Per sub job counters src1 */
 	u32 sub_jobs_num;                                  /**< Number of subjobs; set to 1 for Mali-450 if DLBU is used, otherwise equals number of PP cores */
+
+	pp_job_status swap_status;                         /**< Used to track each PP job swap status, if fail, we need to drop them in scheduler part */
+	mali_bool user_notification;                       /**< When we deferred delete PP job, we need to judge if we need to send job finish notification to user space */
+	u32 num_pp_cores_in_virtual;                       /**< How many PP cores we have when job finished */
 
 	/*
 	 * These members are used by both scheduler and executor.
@@ -169,7 +179,7 @@ MALI_STATIC_INLINE u32 *mali_pp_job_get_dlbu_registers(struct mali_pp_job *job)
 
 MALI_STATIC_INLINE mali_bool mali_pp_job_is_virtual(struct mali_pp_job *job)
 {
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	MALI_DEBUG_ASSERT_POINTER(job);
 	return (0 == job->uargs.num_cores) ? MALI_TRUE : MALI_FALSE;
 #else
@@ -482,6 +492,13 @@ MALI_STATIC_INLINE mali_bool mali_pp_job_is_window_surface(
 {
 	MALI_DEBUG_ASSERT_POINTER(job);
 	return (job->uargs.flags & _MALI_PP_JOB_FLAG_IS_WINDOW_SURFACE)
+	       ? MALI_TRUE : MALI_FALSE;
+}
+
+MALI_STATIC_INLINE mali_bool mali_pp_job_is_protected_job(struct mali_pp_job *job)
+{
+	MALI_DEBUG_ASSERT_POINTER(job);
+	return (job->uargs.flags & _MALI_PP_JOB_FLAG_PROTECTED)
 	       ? MALI_TRUE : MALI_FALSE;
 }
 

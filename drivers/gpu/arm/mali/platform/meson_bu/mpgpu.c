@@ -29,7 +29,6 @@
 #include <linux/mali/mali_utgard.h>
 #include <common/mali_kernel_common.h>
 #include <common/mali_pmu.h>
-//#include "mali_pp_scheduler.h"
 #include "meson_main.h"
 
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
@@ -52,6 +51,8 @@ static ssize_t domain_stat_read(struct class *class,
 #define LIMIT_CMD "lmt"  /* lmt [0 or 1] */
 #define MAX_TOKEN 20
 #define FULL_UTILIZATION 256
+
+extern int utilization_level;
 
 static ssize_t mpgpu_write(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
@@ -140,14 +141,16 @@ static ssize_t scale_mode_write(struct class *class,
 	return count;
 }
 
+static ssize_t utilization(struct class *class, struct class_attribute *attr, char *buf) 
+{
+	return sprintf(buf, "%d\n", utilization_level * 100 / 255);
+}
+
 static ssize_t max_pp_read(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	mali_plat_info_t* pmali_plat = get_mali_plat_data();
-	printk("maxpp:%d, maxpp_sysfs:%d, total=%d\n",
-			pmali_plat->scale_info.maxpp, pmali_plat->maxpp_sysfs,
-			pmali_plat->cfg_pp);
-	return sprintf(buf, "%d\n", pmali_plat->cfg_pp);
+	return sprintf(buf, "%d\n", pmali_plat->scale_info.maxpp);
 }
 
 static ssize_t max_pp_write(struct class *class,
@@ -165,7 +168,6 @@ static ssize_t max_pp_write(struct class *class,
 	if ((0 != ret) || (val > pmali_plat->cfg_pp) || (val < pinfo->minpp))
 		return -EINVAL;
 
-	pmali_plat->maxpp_sysfs = val;
 	pinfo->maxpp = val;
 	revise_mali_rt();
 
@@ -204,9 +206,7 @@ static ssize_t max_freq_read(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	mali_plat_info_t* pmali_plat = get_mali_plat_data();
-	printk("maxclk:%d, maxclk_sys:%d, max gpu level=%d\n",
-			pmali_plat->scale_info.maxclk, pmali_plat->maxclk_sysfs, get_gpu_max_clk_level());
-	return sprintf(buf, "%d\n", get_gpu_max_clk_level());
+	return sprintf(buf, "%d\n", pmali_plat->scale_info.maxclk);
 }
 
 static ssize_t max_freq_write(struct class *class,
@@ -224,7 +224,6 @@ static ssize_t max_freq_write(struct class *class,
 	if ((0 != ret) || (val > pmali_plat->cfg_clock) || (val < pinfo->minclk))
 		return -EINVAL;
 
-	pmali_plat->maxclk_sysfs = val;
 	pinfo->maxclk = val;
 	revise_mali_rt();
 
@@ -323,6 +322,7 @@ static struct class_attribute mali_class_attrs[] = {
 	__ATTR(max_pp,		0644, max_pp_read,	max_pp_write),
 	__ATTR(cur_freq,	0644, freq_read,	freq_write),
 	__ATTR(cur_pp,		0644, current_pp_read,	current_pp_write),
+	__ATTR(utilization, 0644, utilization, NULL),
 };
 
 static struct class mpgpu_class = {

@@ -32,11 +32,7 @@ int mali_pm_statue = 0;
 extern void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 
 u32 mali_gp_reset_fail = 0;
-module_param(mali_gp_reset_fail, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw-rw-r-- */
-MODULE_PARM_DESC(mali_gp_reset_fail, "times of failed to reset GP");
 u32 mali_core_timeout  = 0;
-module_param(mali_core_timeout, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw-rw-r-- */
-MODULE_PARM_DESC(mali_core_timeout, "timeout of failed to reset GP");
 
 static struct mali_gpu_device_data mali_gpu_data = {
 

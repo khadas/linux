@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -87,6 +87,18 @@ void mali_memory_session_end(struct mali_session_data *session);
  */
 _mali_osk_errcode_t mali_mem_mali_map_prepare(mali_mem_allocation *descriptor);
 
+/** @brief Resize Mali page tables for mapping
+ *
+ * This function will Resize the Mali page tables for mapping the memory
+ * described by \a descriptor.
+ *
+ * Page tables will be reference counted and allocated, if not yet present.
+ *
+ * @param descriptor Pointer to the memory descriptor to the mapping
+ * @param new_size The new size of descriptor
+ */
+_mali_osk_errcode_t mali_mem_mali_map_resize(mali_mem_allocation *descriptor, u32 new_size);
+
 /** @brief Free Mali page tables for mapping
  *
  * This function will unmap pages from Mali memory and free the page tables
@@ -97,7 +109,6 @@ _mali_osk_errcode_t mali_mem_mali_map_prepare(mali_mem_allocation *descriptor);
  * @param descriptor Pointer to the memory descriptor to unmap
  */
 void mali_mem_mali_map_free(struct mali_session_data *session, u32 size, mali_address_t vaddr, u32 flags);
-
 
 /** @brief Parse resource and prepare the OS memory allocator
  *
@@ -114,5 +125,19 @@ _mali_osk_errcode_t mali_memory_core_resource_os_memory(u32 size);
  */
 _mali_osk_errcode_t mali_memory_core_resource_dedicated_memory(u32 start, u32 size);
 
+
+struct mali_page_node *_mali_page_node_allocate(mali_page_node_type type);
+
+void _mali_page_node_ref(struct mali_page_node *node);
+void _mali_page_node_unref(struct mali_page_node *node);
+void _mali_page_node_add_page(struct mali_page_node *node, struct page *page);
+
+void _mali_page_node_add_block_item(struct mali_page_node *node, mali_block_item *item);
+
+void _mali_page_node_add_swap_item(struct mali_page_node *node, struct mali_swap_item *item);
+
+int _mali_page_node_get_ref_count(struct mali_page_node *node);
+dma_addr_t _mali_page_node_get_dma_addr(struct mali_page_node *node);
+unsigned long _mali_page_node_get_pfn(struct mali_page_node *node);
 
 #endif /* __MALI_MEMORY_H__ */

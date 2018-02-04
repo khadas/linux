@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -974,6 +974,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 2;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 1;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 0;
 		}
 	}
 
@@ -983,6 +985,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 3;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 1;
 		}
 	}
 
@@ -992,6 +996,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 4;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 1;
 		}
 	}
 
@@ -1001,6 +1007,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 5;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 1;
 		}
 	}
 
@@ -1045,6 +1053,11 @@ static void mali_pm_set_default_pm_domain_config(void)
 		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
 			    MALI450_OFFSET_L2_CACHE2, NULL)) {
 			domain_config[MALI_DOMAIN_INDEX_L22] = 0x01 << 3;
+		}
+	} else if (mali_is_mali470()) {
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
+			    MALI470_OFFSET_L2_CACHE1, NULL)) {
+			domain_config[MALI_DOMAIN_INDEX_L21] = 0x01 << 0;
 		}
 	}
 }
@@ -1336,4 +1349,14 @@ void mali_pm_get_best_power_cost_mask(int num_requested, int *dst)
 	MALI_DEBUG_ASSERT((mali_executor_get_num_cores_total() >= num_requested) && (0 <= num_requested));
 
 	_mali_osk_memcpy(dst, mali_pm_domain_power_cost_result[num_requested], MALI_MAX_NUMBER_OF_DOMAINS * sizeof(int));
+}
+
+u32 mali_pm_get_current_mask(void)
+{
+	return pd_mask_current;
+}
+
+u32 mali_pm_get_wanted_mask(void)
+{
+	return pd_mask_wanted;
 }

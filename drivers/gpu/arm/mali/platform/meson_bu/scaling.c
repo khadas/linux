@@ -25,6 +25,7 @@
 #include "meson_main2.h"
 #include "mali_clock.h"
 
+int utilization_level = 0;
 static int currentStep;
 #ifndef CONFIG_MALI_DVFS
 static int num_cores_enabled;
@@ -327,9 +328,10 @@ static void mali_decide_next_status(struct mali_gpu_utilization_data *data, int*
 	u32 ld_up, ld_down;
 	u32 change_mode;
 
+	utilization_level = data->utilization_gpu;
 	*pp_change_flag = 0;
 	change_mode = 0;
-	utilization = data->utilization_gpu;
+	utilization = 255;
 
 	scalingdbg(5, "line(%d), scaling_mode=%d, MALI_TURBO_MODE=%d, turbo=%d, maxclk=%d\n",
 			__LINE__,  scaling_mode, MALI_TURBO_MODE,
@@ -405,16 +407,6 @@ static void mali_decide_next_status(struct mali_gpu_utilization_data *data, int*
 			*pp_change_flag = -1;
 		}
 	}
-
-	if (decided_fs_idx < 0 ) {
-		printk("gpu debug, next index below 0\n");
-		decided_fs_idx = 0;
-	}
-	if (decided_fs_idx > pmali_plat->scale_info.maxclk) {
-		decided_fs_idx = pmali_plat->scale_info.maxclk;
-		printk("gpu debug, next index above max, set to %d\n", decided_fs_idx);
-	}
-
 	if (change_mode)
 		mali_stay_count = pmali_plat->dvfs_table[decided_fs_idx].keep_count;
 	*next_fs_idx = decided_fs_idx;
@@ -475,7 +467,7 @@ void set_mali_schel_mode(u32 mode)
 	MALI_DEBUG_ASSERT(mode < MALI_SCALING_MODE_MAX);
 	if (mode >= MALI_SCALING_MODE_MAX)
 		return;
-	scaling_mode = mode;
+	scaling_mode = MALI_TURBO_MODE;
 
 	//disable thermal in turbo mode
 	if (scaling_mode == MALI_TURBO_MODE) {

@@ -166,38 +166,38 @@ int pwm_set_blink_times(struct aml_pwm_chip *chip,
 
 #else
 static inline int pwm_constant_enable
-				(struct aml_pwm_chip *chip, int index)
+				(struct aml_pwm_chip *chip, int index);
 {
 	return -EINVAL;
 }
 
 static inline int pwm_constant_disable
-				(struct aml_pwm_chip *chip , int index)
+				(struct aml_pwm_chip *chip , int index);
 {
 	return -EINVAL;
 }
 
 static inline int pwm_blink_enable
-				(struct aml_pwm_chip *chip, int index)
+				(struct aml_pwm_chip *chip, int index);
 {
 	return -EINVAL;
 }
 
 static inline int pwm_blink_disable
-				(struct aml_pwm_chip *chip , int index)
+				(struct aml_pwm_chip *chip , int index);
 {
 	return -EINVAL;
 }
 
 static inline int pwm_set_times(struct aml_pwm_chip *chip,
-						int index, int value)
+						int index, int value);
 {
 	return -EINVAL;
 }
 
 static inline int pwm_set_blink_times(struct aml_pwm_chip *chip,
 								int index,
-								int value)
+								int value);
 {
 	return -EINVAL;
 }

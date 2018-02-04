@@ -78,6 +78,8 @@ static void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para);
 
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
+extern unsigned char hdmi_output_rgb;
+
 /* HSYNC polarity: active high */
 #define HSYNC_POLARITY	 1
 /* VSYNC polarity: active high */
@@ -3781,7 +3783,7 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0, 0, 2);
 #else
 		hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
-			TX_OUTPUT_COLOR_FORMAT, TX_COLOR_DEPTH);
+			COLORSPACE_RGB444, TX_COLOR_DEPTH);
 #endif
 
 		/* set dvi flag */
@@ -3792,7 +3794,11 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
 
 		/* set ycc indicator */
-		if (hdev->para->cs == COLORSPACE_YUV420)
+		if (hdmi_output_rgb) {
+			hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
+				COLORSPACE_RGB444, TX_COLOR_DEPTH);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
+		} else if (hdev->para->cs == COLORSPACE_YUV420)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);

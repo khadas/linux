@@ -42,6 +42,18 @@
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
 
+int usb_timing_tweak = 0;
+static int __init setup_usbtweak(char *s) {
+	usb_timing_tweak = 0;
+	
+	if (!strcmp(s, "true"))
+		usb_timing_tweak = 1;
+	
+	return 0;
+}
+__setup("usbmulticam=", setup_usbtweak);
+
+
 /**
  * Free each QTD in the QH's QTD-list then free the QH.  QH should already be
  * removed from a list.  QTD list should already be empty if called from URB
@@ -366,14 +378,19 @@ static int check_periodic_bandwidth(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 		 * High speed mode.
 		 * Max periodic usecs is 80% x 125 usec = 100 usec.
 		 */
-
-		max_claimed_usecs = 100 - qh->usecs;
+		if(usb_timing_tweak)
+			max_claimed_usecs = 125 - qh->usecs;
+		else
+			max_claimed_usecs = 100 - qh->usecs;
 	else
 		/*
 		 * Full speed mode.
 		 * Max periodic usecs is 90% x 1000 usec = 900 usec.
 		 */
-		max_claimed_usecs = 900 - qh->usecs;
+		if(usb_timing_tweak)
+			max_claimed_usecs = 1000 - qh->usecs;
+		else
+			max_claimed_usecs = 900 - qh->usecs;
 
 	if (hcd->periodic_usecs > max_claimed_usecs) {
 		DWC_INFO("%s: already claimed usecs %d, required usecs %d\n", __func__, hcd->periodic_usecs, qh->usecs);

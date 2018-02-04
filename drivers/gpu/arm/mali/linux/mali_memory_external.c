@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -15,7 +15,7 @@
 #include "mali_mem_validation.h"
 #include "mali_uk_types.h"
 
-void mali_mem_external_release(mali_mem_backend *mem_backend)
+void mali_mem_unbind_ext_buf(mali_mem_backend *mem_backend)
 {
 	mali_mem_allocation *alloc;
 	struct mali_session_data *session;
@@ -29,11 +29,10 @@ void mali_mem_external_release(mali_mem_backend *mem_backend)
 	mali_session_memory_lock(session);
 	mali_mem_mali_map_free(session, alloc->psize, alloc->mali_vma_node.vm_node.start,
 			       alloc->flags);
-	session->mali_mem_array[mem_backend->type] -= mem_backend->size;
 	mali_session_memory_unlock(session);
 }
 
-_mali_osk_errcode_t mali_memory_bind_ext_mem(mali_mem_allocation *alloc,
+_mali_osk_errcode_t mali_mem_bind_ext_buf(mali_mem_allocation *alloc,
 		mali_mem_backend *mem_backend,
 		u32 phys_addr,
 		u32 flag)
@@ -83,16 +82,8 @@ _mali_osk_errcode_t mali_memory_bind_ext_mem(mali_mem_allocation *alloc,
 			 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
 			  phys_addr, (phys_addr + size - 1),
 			  virt));
-	session->mali_mem_array[mem_backend->type] += mem_backend->size;
 	mali_session_memory_unlock(session);
 
 	MALI_SUCCESS;
-}
-
-
-void mali_memory_unbind_ext_mem(mali_mem_backend *mem_backend)
-{
-	MALI_DEBUG_ASSERT_POINTER(mem_backend);
-	mali_mem_external_release(mem_backend);
 }
 

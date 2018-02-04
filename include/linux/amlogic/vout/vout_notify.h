@@ -39,6 +39,7 @@ struct vout_op_s {
 	int (*get_vframe_rate_policy)(void);
 	int (*vout_suspend)(void);
 	int (*vout_resume)(void);
+	int (*vout_shutdown)(void);
 };
 
 struct vout_server_s {
@@ -83,6 +84,7 @@ extern void set_vout_mode_fr_auto(char *name);
 
 extern int vout_suspend(void);
 extern int vout_resume(void);
+extern int vout_shutdown(void);
 
 extern int get_power_level(void);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -61,6 +61,10 @@ int mem_free_wrapper(struct mali_session_data *session_data, _mali_uk_free_mem_s
 		return map_errcode(err);
 	}
 
+	if (0 != put_user(kargs.free_pages_nr, &uargs->free_pages_nr)) {
+		return -EFAULT;
+	}
+
 	return 0;
 }
 
@@ -108,6 +112,80 @@ int mem_unbind_wrapper(struct mali_session_data *session_data, _mali_uk_unbind_m
 	return 0;
 }
 
+
+int mem_cow_wrapper(struct mali_session_data *session_data, _mali_uk_cow_mem_s __user *uargs)
+{
+	_mali_uk_cow_mem_s kargs;
+	_mali_osk_errcode_t err;
+
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	MALI_CHECK_NON_NULL(session_data, -EINVAL);
+
+	if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_cow_mem_s))) {
+		return -EFAULT;
+	}
+	kargs.ctx = (uintptr_t)session_data;
+
+	err = _mali_ukk_mem_cow(&kargs);
+
+	if (_MALI_OSK_ERR_OK != err) {
+		return map_errcode(err);
+	}
+
+	if (0 != put_user(kargs.backend_handle, &uargs->backend_handle)) {
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int mem_cow_modify_range_wrapper(struct mali_session_data *session_data, _mali_uk_cow_modify_range_s __user *uargs)
+{
+	_mali_uk_cow_modify_range_s kargs;
+	_mali_osk_errcode_t err;
+
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	MALI_CHECK_NON_NULL(session_data, -EINVAL);
+
+	if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_cow_modify_range_s))) {
+		return -EFAULT;
+	}
+	kargs.ctx = (uintptr_t)session_data;
+
+	err = _mali_ukk_mem_cow_modify_range(&kargs);
+
+	if (_MALI_OSK_ERR_OK != err) {
+		return map_errcode(err);
+	}
+
+	if (0 != put_user(kargs.change_pages_nr, &uargs->change_pages_nr)) {
+		return -EFAULT;
+	}
+	return 0;
+}
+
+
+int mem_resize_mem_wrapper(struct mali_session_data *session_data, _mali_uk_mem_resize_s __user *uargs)
+{
+	_mali_uk_mem_resize_s kargs;
+	_mali_osk_errcode_t err;
+
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	MALI_CHECK_NON_NULL(session_data, -EINVAL);
+
+	if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_mem_resize_s))) {
+		return -EFAULT;
+	}
+	kargs.ctx = (uintptr_t)session_data;
+
+	err = _mali_ukk_mem_resize(&kargs);
+
+	if (_MALI_OSK_ERR_OK != err) {
+		return map_errcode(err);
+	}
+
+	return 0;
+}
 
 int mem_write_safe_wrapper(struct mali_session_data *session_data, _mali_uk_mem_write_safe_s __user *uargs)
 {
@@ -226,3 +304,30 @@ err_exit:
 	if (buffer) _mali_osk_vfree(buffer);
 	return rc;
 }
+
+int mem_usage_get_wrapper(struct mali_session_data *session_data, _mali_uk_profiling_memory_usage_get_s __user *uargs)
+{
+	_mali_osk_errcode_t err;
+	_mali_uk_profiling_memory_usage_get_s kargs;
+
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	MALI_CHECK_NON_NULL(session_data, -EINVAL);
+
+	if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_profiling_memory_usage_get_s))) {
+		return -EFAULT;
+	}
+
+	kargs.ctx = (uintptr_t)session_data;
+	err = _mali_ukk_mem_usage_get(&kargs);
+	if (_MALI_OSK_ERR_OK != err) {
+		return map_errcode(err);
+	}
+
+	kargs.ctx = (uintptr_t)NULL; /* prevent kernel address to be returned to user space */
+	if (0 != copy_to_user(uargs, &kargs, sizeof(_mali_uk_profiling_memory_usage_get_s))) {
+		return -EFAULT;
+	}
+
+	return 0;
+}
+

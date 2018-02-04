@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -198,7 +198,7 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_map(ump_memory_allocation *descriptor
 
 	if (NULL == vma) return _MALI_OSK_ERR_FAULT;
 
-	retval = remap_pfn_range(vma, ((u32)descriptor->mapping) + offset, (*phys_addr) >> PAGE_SHIFT, size, vma->vm_page_prot) ? _MALI_OSK_ERR_FAULT : _MALI_OSK_ERR_OK;;
+	retval = remap_pfn_range(vma, ((uintptr_t)descriptor->mapping) + offset, (*phys_addr) >> PAGE_SHIFT, size, vma->vm_page_prot) ? _MALI_OSK_ERR_FAULT : _MALI_OSK_ERR_OK;;
 
 	DBG_MSG(4, ("Mapping virtual to physical memory. ID: %u, vma: 0x%08lx, virtual addr:0x%08lx, physical addr: 0x%08lx, size:%lu, prot:0x%x, vm_flags:0x%x RETVAL: 0x%x\n",
 		    ump_dd_secure_id_get(descriptor->handle),
@@ -214,7 +214,7 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_map(ump_memory_allocation *descriptor
 static void level1_cache_flush_all(void)
 {
 	DBG_MSG(4, ("UMP[xx] Flushing complete L1 cache\n"));
-	__cpuc_flush_kern_all();
+	flush_cache_all();
 }
 
 void _ump_osk_msync(ump_dd_mem *mem, void *virt, u32 offset, u32 size, ump_uk_msync_op op, ump_session_data *session_data)
@@ -224,7 +224,7 @@ void _ump_osk_msync(ump_dd_mem *mem, void *virt, u32 offset, u32 size, ump_uk_ms
 	/* Flush L1 using virtual address, the entire range in one go.
 	 * Only flush if user space process has a valid write mapping on given address. */
 	if ((mem) && (virt != NULL) && (access_ok(VERIFY_WRITE, virt, size))) {
-		__cpuc_flush_dcache_area(virt, size);
+		__flush_dcache_area(virt, size);
 		DBG_MSG(3, ("UMP[%02u] Flushing CPU L1 Cache. CPU address: %x, size: %x\n", mem->secure_id, virt, size));
 	} else {
 		if (session_data) {
@@ -292,13 +292,10 @@ void _ump_osk_msync(ump_dd_mem *mem, void *virt, u32 offset, u32 size, ump_uk_ms
 
 		switch (op) {
 		case _UMP_UK_MSYNC_CLEAN:
-			outer_clean_range(start_p, end_p);
 			break;
 		case _UMP_UK_MSYNC_CLEAN_AND_INVALIDATE:
-			outer_flush_range(start_p, end_p);
 			break;
 		case _UMP_UK_MSYNC_INVALIDATE:
-			outer_inv_range(start_p, end_p);
 			break;
 		default:
 			break;

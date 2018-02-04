@@ -59,11 +59,14 @@
 #endif
 #include <linux/reset.h>
 #include <linux/amlogic/securitykey.h>
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+#include <linux/amlogic/cpu_version.h>
+#endif
 
 extern unsigned int g_mac_addr_setup;
 
 #if defined (CONFIG_EFUSE)
-extern char *efuse_get_mac(char *addr);
+extern int efuse_get_mac(char *addr);
 #endif
 
 #define STMMAC_ALIGN(x)	L1_CACHE_ALIGN(x)
@@ -2426,6 +2429,12 @@ static int stmmac_open(struct net_device *dev)
 
 	int ret = 0;
 
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	static const u8 def_mac[] = {0x00, 0x15, 0x18, 0x01, 0x81, 0x31};
+	unsigned int low0, low1, high0, high1;
+	u8 buf[6];
+#endif
+
 	if (g_mac_addr_setup == 0) {
 #if defined (CONFIG_AML_NAND_KEY) || defined (CONFIG_SECURITYKEY)
 		ret = read_mac_from_nand(dev);
@@ -2433,10 +2442,24 @@ static int stmmac_open(struct net_device *dev)
 #endif
 		{
 #if defined CONFIG_EFUSE
-			efuse_get_mac(dev->dev_addr);
+			ret = efuse_get_mac(dev->dev_addr);
 #endif
 		}
 	}
+
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	if (ether_addr_equal(priv->dev->dev_addr, def_mac) ||
+	    !is_valid_ether_addr(priv->dev->dev_addr) ||
+	    ret < 0) {
+		printk("%s: generate MAC from CPU serial number\n", __func__);
+		cpuinfo_get_chipid(&low0, &low1, &high0, &high1);
+		memcpy(buf, &low0, 6);
+		buf[0] &= 0xfe;  /* clear multicast bit */
+		buf[0] |= 0x02;  /* set local assignment bit (IEEE802) */
+		printk("%s: generated MAC address: %pM\n", __func__, buf);
+		ether_addr_copy(dev->dev_addr, buf);
+	}
+#endif
 
 	stmmac_check_ether_addr(priv);
 
