@@ -11,4 +11,12 @@ config BCMDHD_USE_STATIC_BUF
 	boolean "broadcom wifi static buff support"
 	depends on AM_WIFI
 	default n
+
+config AM_WIFI_DUMMY
+	tristate "Amlogic SDIO WiFi turn on and rescan module"
+	depends on AM_WIFI
+	default m
+
+source "drivers/amlogic/wifi/bcmdhd/Kconfig"
+
 endif # AM_WIFI
