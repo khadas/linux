@@ -1,9 +1,30 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.h 487838 2014-06-27 05:51:44Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: wl_android.h 608194 2015-12-24 04:34:35Z $
  */
 
 #ifndef _wl_android_
@@ -16,20 +37,44 @@
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
  */
-#if defined(WL_SDO) || defined(BT_WIFI_HANDOVER) || defined(WL_NAN)
+#if defined(BT_WIFI_HANDOVER) || defined(WL_NAN)
 #define WL_GENL
 #endif
 
 
-#ifdef WL_GENL
-#include <net/genetlink.h>
-#endif
 
 /**
  * Android platform dependent functions, feel free to add Android specific functions here
  * (save the macros in dhd). Please do NOT declare functions that are NOT exposed to dhd
  * or cfg, define them as static in wl_android.c
  */
+
+/* message levels */
+#define ANDROID_ERROR_LEVEL	0x0001
+#define ANDROID_TRACE_LEVEL	0x0002
+#define ANDROID_INFO_LEVEL	0x0004
+
+#define ANDROID_ERROR(x) \
+	do { \
+		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
+			printk(KERN_ERR "ANDROID-ERROR) ");	\
+			printk x; \
+		} \
+	} while (0)
+#define ANDROID_TRACE(x) \
+	do { \
+		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
+			printk(KERN_ERR "ANDROID-TRACE) ");	\
+			printk x; \
+		} \
+	} while (0)
+#define ANDROID_INFO(x) \
+	do { \
+		if (android_msg_level & ANDROID_INFO_LEVEL) { \
+			printk(KERN_ERR "ANDROID-INFO) ");	\
+			printk x; \
+		} \
+	} while (0)
 
 /**
  * wl_android_init will be called from module init function (dhd_module_init now), similarly
@@ -39,50 +84,89 @@ int wl_android_init(void);
 int wl_android_exit(void);
 void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
-int wl_android_wifi_off(struct net_device *dev);
+int wl_android_wifi_off(struct net_device *dev, bool on_failure);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
+#ifdef WL_EXT_IAPSTA
+int wl_android_ext_attach_netdev(struct net_device *net, uint8 bssidx);
+int wl_android_ext_dettach_netdev(void);
+void wl_android_ext_iapsta_disconnect_sta(struct net_device *dev, u32 channel);
+#endif
+int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len,
+	int *bytes_written);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+#define strnicmp(str1, str2, len) strncasecmp((str1), (str2), (len))
+#endif
 
-#ifdef WL_GENL
-typedef struct bcm_event_hdr {
-	u16 event_type;
-	u16 len;
-} bcm_event_hdr_t;
+typedef enum IF_STATE {
+	IF_STATE_INIT = 1,
+	IF_STATE_DISALBE,
+	IF_STATE_ENABLE
+} if_state_t;
 
-/* attributes (variables): the index in this enum is used as a reference for the type,
- *             userspace application has to indicate the corresponding type
- *             the policy is used for security considerations
- */
-enum {
-	BCM_GENL_ATTR_UNSPEC,
-	BCM_GENL_ATTR_STRING,
-	BCM_GENL_ATTR_MSG,
-	__BCM_GENL_ATTR_MAX
-};
-#define BCM_GENL_ATTR_MAX (__BCM_GENL_ATTR_MAX - 1)
+typedef enum APSTAMODE {
+	ISTAONLY_MODE = 1,
+	IAPONLY_MODE,
+	IAPSTA_MODE,
+	IDUALAP_MODE,
+	IGOSTA_MODE,
+	IGCSTA_MODE
+} apstamode_t;
 
-/* commands: enumeration of all commands (functions),
- * used by userspace application to identify command to be ececuted
- */
-enum {
-	BCM_GENL_CMD_UNSPEC,
-	BCM_GENL_CMD_MSG,
-	__BCM_GENL_CMD_MAX
-};
-#define BCM_GENL_CMD_MAX (__BCM_GENL_CMD_MAX - 1)
+typedef enum IFMODE {
+	ISTA_MODE = 1,
+	IAP_MODE
+} ifmode_t;
 
-/* Enum values used by the BCM supplicant to identify the events */
-enum {
-	BCM_E_UNSPEC,
-	BCM_E_SVC_FOUND,
-	BCM_E_DEV_FOUND,
-	BCM_E_DEV_LOST,
-	BCM_E_DEV_BT_WIFI_HO_REQ,
-	BCM_E_MAX
-};
+typedef enum BGNMODE {
+	IEEE80211B = 1,
+	IEEE80211G,
+	IEEE80211BG,
+	IEEE80211BGN,
+	IEEE80211BGNAC
+} bgnmode_t;
 
-s32 wl_genl_send_msg(struct net_device *ndev, u32 event_type,
-	u8 *string, u16 len, u8 *hdr, u16 hdrlen);
-#endif /* WL_GENL */
+typedef enum AUTHMODE {
+	AUTH_OPEN,
+	AUTH_SHARED,
+	AUTH_WPAPSK,
+	AUTH_WPA2PSK,
+	AUTH_WPAWPA2PSK
+} authmode_t;
+
+typedef enum ENCMODE {
+	ENC_NONE,
+	ENC_WEP,
+	ENC_TKIP,
+	ENC_AES,
+	ENC_TKIPAES
+} encmode_t;
+
+/* i/f query */
+typedef struct wl_if_info {
+	struct net_device *dev;
+	if_state_t ifstate;
+	ifmode_t ifmode;
+	uint bssidx;
+	char ifname[IFNAMSIZ+1];
+	char ssid[DOT11_MAX_SSID_LEN];
+	struct ether_addr bssid;
+	bgnmode_t bgnmode;
+	int hidden;
+	int maxassoc;
+	uint16 channel;
+	authmode_t amode;
+	encmode_t emode;
+	char key[100];
+} wl_apsta_if_t;
+
+typedef struct wl_apsta_params {
+	struct wl_if_info pif; // primary device
+	struct wl_if_info vif; // virtual device
+	int ioctl_ver;
+	bool init;
+	apstamode_t apstamode;
+} wl_apsta_params_t;
+
 s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
 
 /* hostap mac mode */
@@ -93,12 +177,17 @@ s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
 /* max number of assoc list */
 #define MAX_NUM_OF_ASSOCLIST    64
 
+/* Bandwidth */
+#define WL_CH_BANDWIDTH_20MHZ 20
+#define WL_CH_BANDWIDTH_40MHZ 40
+#define WL_CH_BANDWIDTH_80MHZ 80
 /* max number of mac filter list
  * restrict max number to 10 as maximum cmd string size is 255
  */
 #define MAX_NUM_MAC_FILT        10
 
 int wl_android_set_ap_mac_list(struct net_device *dev, int macmode, struct maclist *maclist);
+int wl_android_set_roam_offload_bssid_list(struct net_device *dev, const char *cmd);
 
 /* terence:
  * BSSCACHE: Cache bss list
@@ -176,7 +265,7 @@ void wl_free_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_dirty_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_disconnected_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl, u8 *bssid);
 void wl_reset_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
-void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl,	
+void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl,
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t *rssi_cache_ctrl,
 #endif

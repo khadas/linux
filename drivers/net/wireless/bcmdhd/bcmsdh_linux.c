@@ -1,9 +1,30 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 461444 2014-03-12 02:55:28Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: bcmsdh_linux.c 514727 2014-11-12 03:02:48Z $
  */
 
 /**
@@ -30,6 +51,8 @@ extern void dhdsdio_isr(void * args);
 #include <linux/platform_data/gpio-odin.h>
 #endif /* defined(CONFIG_ARCH_ODIN) */
 #include <dhd_linux.h>
+
+#include <linux/interrupt.h>
 
 /* driver info, initialized when bcmsdh_register is called */
 static bcmsdh_driver_t drvinfo = {NULL, NULL, NULL, NULL};
@@ -324,8 +347,13 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 #else
 	printf("%s: SW_OOB enabled\n", __FUNCTION__);
 #endif
-	SDLX_MSG(("%s OOB irq=%d flags=%X\n", __FUNCTION__,
+	SDLX_MSG(("%s OOB irq=%d flags=0x%X\n", __FUNCTION__,
 		(int)bcmsdh_osinfo->oob_irq_num, (int)bcmsdh_osinfo->oob_irq_flags));
+	// anthony: test begin
+	bcmsdh_osinfo->oob_irq_flags &= IRQF_TRIGGER_MASK;
+	printf("%s change flags to 0x%X\n", __FUNCTION__, (int)bcmsdh_osinfo->oob_irq_flags);
+	// anthony: test end	
+
 	bcmsdh_osinfo->oob_irq_handler = oob_irq_handler;
 	bcmsdh_osinfo->oob_irq_handler_context = oob_irq_handler_context;
 	bcmsdh_osinfo->oob_irq_enabled = TRUE;
@@ -343,6 +371,10 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
 		return err;
 	}
+
+#ifdef CUSTOM_DPC_CPUCORE
+	irq_set_affinity(bcmsdh_osinfo->oob_irq_num, cpumask_of(CUSTOM_DPC_CPUCORE));
+#endif
 
 #if defined(DISABLE_WOWLAN)
 	SDLX_MSG(("%s: disable_irq_wake\n", __FUNCTION__));
@@ -381,7 +413,7 @@ void bcmsdh_oob_intr_unregister(bcmsdh_info_t *bcmsdh)
 	free_irq(bcmsdh_osinfo->oob_irq_num, bcmsdh);
 	bcmsdh_osinfo->oob_irq_registered = FALSE;
 }
-#endif
+#endif 
 
 /* Module parameters specific to each host-controller driver */
 

@@ -1,14 +1,14 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
- *
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,12 +16,15 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 459285 2014-03-03 02:54:39Z $
+ *
+ * <<Broadcom-WL-IPTag/Proprietary,Open:>>
+ *
+ * $Id: bcmsdh_sdmmc.c 591104 2015-10-07 04:45:18Z $
  */
 #include <typedefs.h>
 
@@ -60,7 +63,7 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
-#if defined(ENABLE_INSMOD_NO_FW_LOAD)
+#if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(BUS_POWER_RESTORE)
 extern int sdio_reset_comm(struct mmc_card *card);
 #else
 int sdio_reset_comm(struct mmc_card *card)
@@ -543,6 +546,17 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		/* Now set it */
 		si->client_block_size[func] = blksize;
 
+		if (si->func[func] == NULL) {
+			sd_err(("%s: SDIO Device not present\n", __FUNCTION__));
+			bcmerror = BCME_NORESOURCE;
+			break;
+		}
+		sdio_claim_host(si->func[func]);
+		bcmerror = sdio_set_block_size(si->func[func], blksize);
+		if (bcmerror)
+			sd_err(("%s: Failed to set F%d blocksize to %d(%d)\n",
+				__FUNCTION__, func, blksize, bcmerror));
+		sdio_release_host(si->func[func]);
 		break;
 	}
 
@@ -706,7 +720,9 @@ exit:
 }
 
 #if (defined(OOB_INTR_ONLY) && defined(HW_OOB)) || defined(FORCE_WOWLAN)
+#ifdef CUSTOMER_HW_AMLOGIC
 extern int wifi_irq_trigger_level(void);
+#endif
 SDIOH_API_RC
 sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 {
@@ -807,14 +823,14 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 #endif
 	struct timespec now, before;
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
 
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
 
 	DHD_PM_RESUME_WAIT(sdioh_request_byte_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
-	if (rw) { /* CMD52 Write */
+	if(rw) { /* CMD52 Write */
 		if (func == 0) {
 			/* Can only directly write to some F0 registers.  Handle F2 enable
 			 * as a special case.
@@ -901,10 +917,11 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 		}
 	}
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL) {
 		getnstimeofday(&now);
-	sd_cost(("%s: len=1 cost=%lds %luus\n", __FUNCTION__,
-		now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
+//	sd_cost(("%s: rw=%d len=1 cost=%lds %luus\n", __FUNCTION__,
+//		rw, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
+	}
 
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
@@ -1314,7 +1331,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 #endif
 	struct timespec now, before;
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
 
 	if (func == 0) {
@@ -1330,7 +1347,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	/* Claim host controller */
 	sdio_claim_host(sd->func[func]);
 
-	if (rw) { /* CMD52 Write */
+	if(rw) { /* CMD52 Write */
 		if (nbytes == 4) {
 			sdio_writel(sd->func[func], *word, addr, &err_ret);
 		} else if (nbytes == 2) {
@@ -1377,10 +1394,11 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 		}
 	}
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL) {
 		getnstimeofday(&now);
-	sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
-		nbytes, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+//	sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
+//		rw, nbytes, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+	}
 
 	return (((err_ret == 0)&&(err_ret2 == 0)) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
@@ -1415,7 +1433,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 	DHD_PM_RESUME_WAIT(sdioh_request_packet_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
 
 	blk_size = sd->client_block_size[func];
@@ -1457,7 +1475,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 			 * a restriction on max tx/glom count (based on host->max_segs).
 			 */
 			if (sg_count >= ARRAYSIZE(sd->sg_list)) {
-				sd_err(("%s: sg list entries exceed limit\n", __FUNCTION__));
+//				sd_err(("%s: sg list entries exceed limit, sg_count=%d(%lu)\n", __FUNCTION__, sg_count, ARRAYSIZE(sd->sg_list)));
 				return (SDIOH_API_RC_FAIL);
 			}
 			pdata += pkt_offset;
@@ -1593,10 +1611,11 @@ txglomfail:
 		MFREE(sd->osh, localbuf, ttl_len);
 #endif /* BCMSDIOH_TXGLOM */
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL) {
 		getnstimeofday(&now);
-	sd_cost(("%s: cost=%lds %luus\n", __FUNCTION__,
-		now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
+//	sd_cost(("%s: rw=%d, cost=%lds %luus\n", __FUNCTION__,
+//		write, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
+	}
 
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 	return SDIOH_API_RC_SUCCESS;
@@ -1613,7 +1632,7 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	ASSERT(buf);
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
 
 	/* NOTE:
@@ -1647,10 +1666,12 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL) {
 		getnstimeofday(&now);
-	sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
-		len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+//	sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
+//		write, len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+	}
+
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
 
@@ -1678,7 +1699,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
 
 	if (pkt) {
@@ -1722,10 +1743,11 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 
 	PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
 
-	if (sd_msglevel && SDH_COST_VAL)
+	if (sd_msglevel & SDH_COST_VAL) {
 		getnstimeofday(&now);
-	sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
-		buf_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+//	sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
+//		buf_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+	}
 
 	return status;
 }
