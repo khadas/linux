@@ -586,6 +586,13 @@ static void cpufreq_interactive_boost(struct cpufreq_interactive_tunables *tunab
 
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
+		/*
+		 * for platforms like q200, 2 clusters may use different
+		 * governors, the policy for none interactive governors
+		 * will be NULL here, and should never be processed
+		 */
+		if (!pcpu->policy)
+			continue;
 		if (tunables != pcpu->policy->governor_data)
 			continue;
 
