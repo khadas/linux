@@ -1,0 +1,6 @@
+config	AES_HWKEY_GCM
+	bool "AES-GCM using HW Unique Key"
+	default n
+	help
+	  say y to enable
+	  AES_HWKEY_GCM
