@@ -108,7 +108,7 @@ int aes_hwkey_gcm_init(struct aes_gcm_ctx *ctx,
 			!sharemem_output) {
 		return -EINVAL;
 	}
-	if (aad_len > MAX_AAD_LEN || (aad_len % 16) || (aad_len && !aad))
+	if (aad_len > MAX_AAD_LEN || (aad_len && !aad))
 		return -EINVAL;
 
 	memset(ctx, 0, sizeof(struct aes_gcm_ctx));
