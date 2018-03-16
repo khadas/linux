@@ -1381,7 +1381,7 @@ int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
 	/*don't power off if wol is needed*/
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM || is_meson_gxl_package_905D()) {
 		if (get_wol_state())
 			return 0;
 	}

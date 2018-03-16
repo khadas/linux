@@ -500,7 +500,7 @@ static void stmmac_pltfr_shutdown(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM || is_meson_gxl_package_905D())
 		rtl8211f_shutdown();
 
 	stmmac_suspend(ndev);
