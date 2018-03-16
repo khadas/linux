@@ -706,8 +706,9 @@
 		pinctrl-0 = <&irblaster_pins>;
 	};
 	custom_maps:custom_maps {
-		mapnum = <1>;
+		mapnum = <2>;
 		map0 = <&map_0>;
+		map1 = <&map_1>;
 		map_0: map_0{
 			mapname = "khadas-ir";
 			customcode = <0xff00>;
@@ -733,6 +734,63 @@
 				REMOTE_KEY(0x0b,115)
 				REMOTE_KEY(0x01,158)
 				REMOTE_KEY(0x48,102)>;
+		};
+		map_1: map_1{
+			mapname = "dvb-ir";
+			customcode = <0xfe01>;
+			release_delay = <80>;
+			fn_key_scancode = <0x0d>;
+			cursor_left_scancode = <0x54>;
+			cursor_right_scancode = <0x15>;
+			cursor_up_scancode = <0x59>;
+			cursor_down_scancode = <0x51>;
+			cursor_ok_scancode = <0x55>;
+			size  = <45>;
+			keymap = <REMOTE_KEY(0x0d,272)
+				REMOTE_KEY(0x00,116)
+				REMOTE_KEY(0x50,102)
+				REMOTE_KEY(0x41,113)
+				REMOTE_KEY(0x48,115)
+				REMOTE_KEY(0x0b,114)
+				REMOTE_KEY(0x58,139)
+				REMOTE_KEY(0x59,103)
+				REMOTE_KEY(0x51,108)
+				REMOTE_KEY(0x54,105)
+				REMOTE_KEY(0x15,106)
+				REMOTE_KEY(0x55,232)
+				REMOTE_KEY(0x1e,11)
+				REMOTE_KEY(0x13,2)
+				REMOTE_KEY(0x12,3)
+				REMOTE_KEY(0x10,4)
+				REMOTE_KEY(0x17,5)
+				REMOTE_KEY(0x16,6)
+				REMOTE_KEY(0x14,7)
+				REMOTE_KEY(0x1b,8)
+				REMOTE_KEY(0x1a,9)
+				REMOTE_KEY(0x18,10)
+				REMOTE_KEY(0x11,14)
+				REMOTE_KEY(0x07,128)
+				REMOTE_KEY(0x40,121)
+				REMOTE_KEY(0x03,120)
+				REMOTE_KEY(0x01,123)
+				REMOTE_KEY(0x05,122)
+				REMOTE_KEY(0x44,119)
+				REMOTE_KEY(0x19,158)
+				REMOTE_KEY(0x04,104)
+				REMOTE_KEY(0x06,109)
+				REMOTE_KEY(0x5c,365)
+				REMOTE_KEY(0x1d,358)
+				REMOTE_KEY(0x0a,398)
+				REMOTE_KEY(0x4d,399)
+				REMOTE_KEY(0x0e,400)
+				REMOTE_KEY(0x0c,401)
+				REMOTE_KEY(0x1c,750)
+				REMOTE_KEY(0x08,751)
+				REMOTE_KEY(0x45,752)
+				REMOTE_KEY(0x1f,753)
+				REMOTE_KEY(0x4c,754)
+				REMOTE_KEY(0x49,755)
+				REMOTE_KEY(0x09,756)>;
 		};
 	};
 
