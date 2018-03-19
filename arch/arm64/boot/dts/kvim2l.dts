@@ -41,7 +41,7 @@
 	};
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x100000 0x0 0x7f000000>;
+		linux,usable-memory = <0x0 0x100000 0x0 0x7ff00000>;
 	};
 
 	reserved-memory {
@@ -67,7 +67,7 @@
 		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			size = <0x0 0x2000000>;
+			reg = <0x0 0x7e000000 0x0 0x2000000>;
 			no-map;
 		};
 
@@ -169,7 +169,7 @@
 	};
 	meson-fb {
 		compatible = "amlogic, meson-fb";
-		//memory-region = <&fb_reserved>;
+		memory-region = <&fb_reserved>;
 		dev_name = "meson-fb";
 		status = "okay";
 		interrupts = <0 3 1
@@ -815,7 +815,7 @@
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xc81004e0 0x0 0x18>;
 		interrupts = <0 197 1>;
-		status = "okay";
+		status = "disable";
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
@@ -850,7 +850,7 @@
 
 	usb2_phy: usb2phy@d0078000 {
 		compatible = "amlogic, amlogic-new-usb2";
-		portnum = <3>;
+		portnum = <2>;
 		reg = <0x0 0xd0078000 0x0 0x80>;
 	};
 
@@ -991,6 +991,7 @@
 
 		mute_inv;
 		hp_disable;
+		sleep_time = <100>;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
 		pinctrl-0 = <&audio_pins>;
