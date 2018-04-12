@@ -106,11 +106,11 @@ static int __init init_mac_addr(char *line)
 __setup("androidboot.mac=",init_mac_addr);
 
 
-void enable_wol(int enable)
+void enable_wol(int enable, bool is_shutdown)
 {
 	if (g_phydev != NULL) {
-		if (enable) {
-			rtl8211f_config_speed(g_phydev, 0);
+		if (enable == 1 || enable == 3) {
+			rtl8211f_config_speed(g_phydev, is_shutdown ? 0:1);
 			rtl8211f_config_mac_addr(g_phydev);
 			rtl8211f_config_max_packet(g_phydev);
 			rtl8211f_config_wol(g_phydev, 1);
@@ -123,7 +123,7 @@ void enable_wol(int enable)
 }
 void rtl8211f_shutdown(void)
 {
-	enable_wol(get_wol_state());
+	enable_wol(get_wol_state(), true);
 }
 
 static void rtl8211f_early_suspend(struct early_suspend *h)
@@ -299,19 +299,26 @@ static ssize_t store_enable(struct class *cls, struct class_attribute *attr,
 	u8 reg[2];
 	int ret;
 	int enable;
+	int state;
 
 	if (kstrtoint(buf, 0, &enable))
 		return -EINVAL;
 
-	reg[0] = enable;
+	ret = wol_i2c_read_regs(g_wol_data->client, WOL_REG, reg, 1);
+	if (ret < 0) {
+		printk("write wol state err\n");
+		return ret;
+	}
+	state = (int)reg[0];
+	reg[0] = enable|(state&0x02);
 	ret = wol_i2c_write_regs(g_wol_data->client, WOL_REG, reg, 1);
 	if (ret < 0) {
 		printk("write wol state err\n");
 		return ret;
 	}
 
-	g_wol_data->enable = enable;
-	enable_wol(enable);
+	g_wol_data->enable = reg[0];
+	enable_wol(g_wol_data->enable,false);
 
 	printk("write wol state: %d\n", g_wol_data->enable);
 	return count;
@@ -320,7 +327,9 @@ static ssize_t store_enable(struct class *cls, struct class_attribute *attr,
 static ssize_t show_enable(struct class *cls,
 		        struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", g_wol_data->enable);
+	int enable;
+	enable = g_wol_data->enable&0x01;
+	return sprintf(buf, "%d\n", enable);
 }
 
 static struct class_attribute wol_class_attrs[] = {
@@ -362,6 +371,17 @@ static int wol_probe(struct i2c_client *client,
 	g_wol_data->enable = (int)reg[0];
 	create_wol_enable_attr();
 	printk("%s,wol enable=%d\n",__func__ ,g_wol_data->enable);
+
+	if (g_wol_data->enable == 3)
+	enable_wol(g_wol_data->enable, false);
+
+
+	reg[0] = 0x01;
+	ret = wol_i2c_write_regs(client, 0x87, reg, 1);
+	if (ret < 0) {
+		printk("write mcu err\n");
+		goto  exit;
+	}
 	return 0;
 exit:
 	return ret;
