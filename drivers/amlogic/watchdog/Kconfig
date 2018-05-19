@@ -13,8 +13,11 @@ menuconfig AML_WDT
 
 if	AML_WDT
 config GX_WDT
-	bool "Amlogic GX Watchdog driver"
+	tristate "Amlogic Meson GXBB SoCs watchdog support"
 	default n
 	help
-	  say y to enable Amlogic watchdog driver.
+	  Say Y here to include support for the watchdog timer
+	  in Amlogic Meson GXBB SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_gxbb_wdt.
 endif

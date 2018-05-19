@@ -179,18 +179,13 @@
 		clock-names = "cpu_clk";
         };
 
-	amlogic-watchdog{
-		compatible = "amlogic, gx-wdt";
+	amlwatchdog: amlogic-watchdog{
+		compatible = "amlogic,meson-gxbb-wdt";
 		status = "disable";
-		default_timeout=<10>;
-		reset_watchdog_method=<1>;//0:sysfs,1:kernel
-		reset_watchdog_time=<2>;
-		shutdown_timeout=<10>;
-		firmware_timeout=<6>;
-		suspend_timeout=<6>;
 		reg = <0x0 0xc11098d0 0x0 0x10>;
 		clocks = <&clock CLK_XTAL>;
 	};
+
 	amlogic-jtag {
 		compatible = "amlogic, jtag";
 		status = "disable";
