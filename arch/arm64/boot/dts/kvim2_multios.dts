@@ -3,7 +3,7 @@
 
 /{
 	le-dt-id = "gxm_kvim2";
-	compatible = "kvim";
+	compatible = "amlogic, Gxm";
 	amlogic-dt-id = "kvim";
 
 	memory@00000000 {
