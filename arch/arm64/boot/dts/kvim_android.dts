@@ -1172,3 +1172,7 @@
 		reg = <0x51>;
 	};
 };
+
+&amlwatchdog {
+	status = "okay";
+};

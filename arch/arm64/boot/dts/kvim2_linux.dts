@@ -103,6 +103,10 @@
 	status = "okay";
 };
 
+&amlwatchdog {
+	status = "okay";
+};
+
 &pinmux {
 	dvb_p_ts0_pins:dvb_p_ts0_pins {
 		amlogic,setmask = <0x2 0x1f>;
