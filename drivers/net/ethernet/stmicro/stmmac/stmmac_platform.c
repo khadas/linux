@@ -34,6 +34,9 @@
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
 #endif
+
+#include <linux/amlogic/cpu_version.h>
+extern void rtl8211f_shutdown(void);
 static const struct of_device_id stmmac_dt_ids[] = {
 #ifdef CONFIG_DWMAC_MESON
 	{.compatible = "amlogic, meson6-dwmac",},
@@ -496,6 +499,9 @@ static void stmmac_pltfr_shutdown(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM || is_meson_gxl_package_905D())
+		rtl8211f_shutdown();
 
 	stmmac_suspend(ndev);
 

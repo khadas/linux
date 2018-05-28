@@ -12,6 +12,7 @@
 #define	CEC_WAKEUP			8
 #define	REMOTE_CUS_WAKEUP		9
 #define ETH_PHY_WAKEUP      10
+#define WOL_WAKEUP          11
 #ifdef CONFIG_GXBB_SUSPEND
 unsigned int get_resume_method(void);
 #else

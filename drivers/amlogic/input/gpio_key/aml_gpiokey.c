@@ -455,7 +455,7 @@ static int gpio_key_suspend(struct platform_device *dev ,  pm_message_t state)
 
 static int gpio_key_resume(struct platform_device *dev)
 {
-	if (get_resume_method() == POWER_KEY_WAKEUP) {
+	if (get_resume_method() == WOL_WAKEUP) {
 		pr_info("gpio keypad wakeup\n");
 		input_report_key(gp_kp->input ,  KEY_POWER ,  1);
 		input_sync(gp_kp->input);
