@@ -454,16 +454,22 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	 * phy_write(phydev, 0x15,val| 1<<21);
 	 */
 
+	if (g_phydev == NULL) {
+		g_phydev = kzalloc(sizeof(struct phy_device), GFP_KERNEL);
+		if (g_phydev == NULL)
+			return -ENOMEM;
+		g_phydev = phydev;
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	g_phydev = kzalloc(sizeof(struct phy_device), GFP_KERNEL);
-	if (g_phydev == NULL)
-		return -ENOMEM;
-	g_phydev = phydev;
-	register_early_suspend(&rtl8211f_early_suspend_handler);
+		register_early_suspend(&rtl8211f_early_suspend_handler);
 #endif
-	ret = i2c_add_driver(&wol_driver);
-	if (ret) {
-		pr_err("error khadas-wol probe: add i2c_driver failed\n");
+		ret = i2c_add_driver(&wol_driver);
+		if (ret) {
+			pr_err("error khadas-wol probe: add i2c_driver failed\n");
+		}
+	}
+	else {
+		if (g_wol_data->enable == 3)
+			enable_wol(g_wol_data->enable, false);
 	}
 	return 0;
 }
