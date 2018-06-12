@@ -398,7 +398,7 @@
 };
 
 &cdn_dp {
-	status = "okay";
+	status = "disabled";
 	extcon = <&fusb0>;
 	phys = <&tcphy0_dp>;
 };
