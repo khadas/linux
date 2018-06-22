@@ -36,6 +36,7 @@
 #define AML_DEV_NAME		"sysled"
 #define AML_LED_NAME		"led-sys"
 
+extern int led_on_off_state;
 
 static void aml_sysled_output_setup(struct aml_sysled_dev *ldev,
 				enum led_brightness value)
@@ -191,7 +192,10 @@ static int aml_sysled_resume(struct platform_device *pdev)
 {
 	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
 	/* set led on */
-	aml_sysled_output_setup(ldev, 1);
+	if (led_on_off_state == 1)
+		aml_sysled_output_setup(ldev, 1);
+	else
+		aml_sysled_output_setup(ldev, 0);
 	pr_info("module resume ok\n");
 	return 0;
 }

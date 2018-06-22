@@ -29,6 +29,8 @@
 static DECLARE_RWSEM(triggers_list_lock);
 static LIST_HEAD(trigger_list);
 
+int led_on_off_state = 0;
+
  /* Used by LED Class */
 
 ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
@@ -109,6 +111,10 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 	name = trig ? trig->name : "none";
 	event = kasprintf(GFP_KERNEL, "TRIGGER=%s", name);
 
+	if (!strcmp(trig->name, "default-on"))
+		led_on_off_state = 1;
+	else
+		led_on_off_state = 0;
 	/* Remove any existing trigger */
 	if (led_cdev->trigger) {
 		write_lock_irqsave(&led_cdev->trigger->leddev_list_lock, flags);
