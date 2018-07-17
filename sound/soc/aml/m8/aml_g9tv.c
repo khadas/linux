@@ -52,8 +52,7 @@
 
 #define DRV_NAME "aml_snd_card_g9tv"
 
-static int aml_audio_Hardware_resample;
-static int hardware_resample_locked_flag;
+int aml_audio_Hardware_resample = 0;
 unsigned int clk_rate = 0;
 
 static u32 aml_EQ_param[20][5] = {
@@ -92,21 +91,7 @@ static u32 drc_tko_table[2][3] = {
 	{0x0, 0x0, 0x40000}, /*offset, thd, k*/
 };
 
-static int DRC0_enable(int enable)
-{
-	if ((aml_read_cbus(AED_DRC_EN) & 1) == 1) {
-		if (enable == 1) {
-			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
-			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
-		} else {
-			aml_write_cbus(AED_DRC_THD0, 0xbf000000);
-			aml_write_cbus(AED_DRC_K0, 0x40000);
-		}
-	}
-	return 0;
-}
-
-static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI"};
+static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI" };
 
 static const struct soc_enum audio_in_source_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_in_source_texts),
@@ -115,10 +100,14 @@ static const struct soc_enum audio_in_source_enum =
 static int aml_audio_get_in_source(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	int value = audio_in_source;
+	int value = aml_read_cbus(AUDIN_SOURCE_SEL) & 0x3;
 
-	ucontrol->value.enumerated.item[0] = value;
-
+	if (value == 0)
+		ucontrol->value.enumerated.item[0] = 0;
+	else if (value == 1)
+		ucontrol->value.enumerated.item[0] = 1;
+	else if (value == 2)
+		ucontrol->value.enumerated.item[0] = 2;
 	return 0;
 }
 
@@ -127,22 +116,18 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
 		if (is_meson_txl_cpu()) {
-			/* select internal codec ADC in TXL as I2S source */
+			/* select internal acodec output in TXL as I2S source */
 			aml_write_cbus(AUDIN_SOURCE_SEL, 3);
 		} else
-			/* select external codec ADC as I2S source */
+			/* select external codec output as I2S source */
 			aml_write_cbus(AUDIN_SOURCE_SEL, 0);
 		audio_in_source = 0;
-		if (is_meson_txl_cpu())
-			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
 		aml_write_cbus(AUDIN_SOURCE_SEL, 1);
 		audio_in_source = 1;
-		if (is_meson_txl_cpu())
-			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
-		/* select HDMI-rx as Audio In source */
+		/* select HDMI-rx as I2S source */
 		/* [14:12]cntl_hdmirx_chsts_sel: */
 		/* 0=Report chan1 status; 1=Report chan2 status */
 		/* [11:8] cntl_hdmirx_chsts_en */
@@ -151,12 +136,9 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/* [1:0] i2sin_src_sel: */
 		/*2=Select HDMIRX I2S output as AUDIN source */
 		aml_write_cbus(AUDIN_SOURCE_SEL, (0 << 12) |
-				   (0xf << 8) | (1 << 4) | (2 << 0));
+			       (0xf << 8) | (1 << 4) | (2 << 0));
 		audio_in_source = 2;
-		if (is_meson_txl_cpu())
-			DRC0_enable(0);
 	}
-
 	set_i2s_source(audio_in_source);
 	return 0;
 }
@@ -184,6 +166,13 @@ static int aml_i2s_audio_type_get_enum(
 	} else {
 		ucontrol->value.enumerated.item[0] = 2;
 	}
+	return 0;
+}
+
+static int aml_i2s_audio_type_set_enum(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
 	return 0;
 }
 
@@ -217,7 +206,6 @@ static const struct soc_enum spdif_audio_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
 			spdif_audio_type_texts);
 
-static int last_audio_type = -1;
 static int aml_spdif_audio_type_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -234,26 +222,6 @@ static int aml_spdif_audio_type_get_enum(
 		}
 	}
 	ucontrol->value.enumerated.item[0] = audio_type;
-	if (last_audio_type != audio_type) {
-		if (audio_type == 0) {
-			/*In LPCM, use old spdif mode*/
-			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
-				(0x7 << AUDIN_FIFO1_DIN_SEL),
-				(SPDIF_IN << AUDIN_FIFO1_DIN_SEL));
-			/*spdif-in data fromat:(27:4)*/
-			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
-			hardware_resample_locked_flag = 0;
-		} else {
-			/*In RAW data, use PAO mode*/
-			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
-				(0x7 << AUDIN_FIFO1_DIN_SEL),
-				(PAO_IN << AUDIN_FIFO1_DIN_SEL));
-			/*spdif-in data fromat:(23:0)*/
-			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x8);
-			hardware_resample_locked_flag = 1;
-		}
-		last_audio_type = audio_type;
-	}
 	return 0;
 }
 
@@ -264,6 +232,7 @@ static int aml_spdif_audio_type_set_enum(
 	return 0;
 }
 
+int hardware_resample_locked_flag = 0;
 #define RESAMPLE_BUFFER_SOURCE 1
 /*Cnt_ctrl = mclk/fs_out-1 ; fest 256fs */
 #define RESAMPLE_CNT_CONTROL 255
@@ -273,10 +242,8 @@ static int hardware_resample_enable(int input_sr)
 	u16 Avg_cnt_init = 0;
 	unsigned int clk_rate = clk81;
 
-	if (hardware_resample_locked_flag == 1) {
-		pr_info("HW resample is locked in RAW data.\n");
+	if (hardware_resample_locked_flag == 1)
 		return 0;
-	}
 
 	if (input_sr < 8000 || input_sr > 48000) {
 		pr_err("Error input sample rate,input_sr = %d!\n", input_sr);
@@ -354,6 +321,26 @@ static int aml_hardware_resample_set_enum(
 	return 0;
 }
 
+static const char *const output_swap_texts[] = { "L/R", "L/L", "R/R", "R/L" };
+
+static const struct soc_enum output_swap_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(output_swap_texts),
+			output_swap_texts);
+
+static int aml_output_swap_get_enum(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = read_i2s_mute_swap_reg();
+	return 0;
+}
+
+static int aml_output_swap_set_enum(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	audio_i2s_swap_left_right(ucontrol->value.enumerated.item[0]);
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget aml_asoc_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINEIN"),
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
@@ -421,29 +408,6 @@ static int set_internal_EQ_volume(unsigned master_volume,
 	return 0;
 }
 
-static int Speaker_Channel_Mask;
-static const char *const Speaker_Channel_Mask_texts[] = {
-	"Channel0/1", "Channel2/3", "Channe4/5", "Channe6/7" };
-
-static const struct soc_enum Speaker_Channel_Mask_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(Speaker_Channel_Mask_texts),
-			Speaker_Channel_Mask_texts);
-
-static int aml_Speaker_Channel_Mask_get_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.enumerated.item[0] = Speaker_Channel_Mask;
-	return 0;
-}
-
-static int aml_Speaker_Channel_Mask_set_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	Speaker_Channel_Mask = ucontrol->value.enumerated.item[0];
-	return 0;
-}
-
 static const struct snd_kcontrol_new av_controls[] = {
 	SOC_ENUM_EXT("AudioIn Switch",
 			 audio_in_switch_enum,
@@ -460,7 +424,7 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 	SOC_ENUM_EXT("I2SIN Audio Type",
 		     i2s_audio_type_enum,
 		     aml_i2s_audio_type_get_enum,
-		     NULL),
+		     aml_i2s_audio_type_set_enum),
 
 	SOC_ENUM_EXT("SPDIFIN Audio Type",
 		     spdif_audio_type_enum,
@@ -472,20 +436,11 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_hardware_resample_get_enum,
 		     aml_hardware_resample_set_enum),
 
-	SOC_ENUM_EXT("Speaker Channel Mask",
-		     Speaker_Channel_Mask_enum,
-		     aml_Speaker_Channel_Mask_get_enum,
-		     aml_Speaker_Channel_Mask_set_enum),
+	SOC_ENUM_EXT("Output Swap",
+		     output_swap_enum,
+		     aml_output_swap_get_enum,
+		     aml_output_swap_set_enum),
 };
-
-static int set_HW_resample_pause_thd(unsigned int thd)
-{
-	aml_write_cbus(AUD_RESAMPLE_CTRL2,
-			(1 << 24) /* enable HW_resample_pause*/
-			| (thd << 11) /* set HW resample pause thd (sample)*/
-			);
-	return 0;
-}
 
 static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol) {
@@ -593,200 +548,16 @@ static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 			 NULL),
 };
 
-static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
-				  unsigned long delay)
-{
-	p_aml_audio->timer.expires = jiffies + delay;
-	p_aml_audio->timer.data = (unsigned long)p_aml_audio;
-	p_aml_audio->detect_flag = -1;
-	add_timer(&p_aml_audio->timer);
-	p_aml_audio->timer_en = 1;
-}
-
-static void aml_audio_stop_timer(struct aml_audio_private_data *p_aml_audio)
-{
-	del_timer_sync(&p_aml_audio->timer);
-	cancel_work_sync(&p_aml_audio->work);
-	p_aml_audio->timer_en = 0;
-	p_aml_audio->detect_flag = -1;
-}
-
-static int audio_hp_status;
-static int aml_get_audio_hp_status(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.enumerated.item[0] = audio_hp_status;
-	return 0;
-}
-
-static const char * const audio_hp_status_texts[] = {"Unpluged", "Pluged"};
-
-static const struct soc_enum audio_hp_status_enum = SOC_ENUM_SINGLE(
-			   SND_SOC_NOPM, 0, ARRAY_SIZE(audio_hp_status_texts),
-			   audio_hp_status_texts);
-
-static const struct snd_kcontrol_new hp_controls[] = {
-	   SOC_ENUM_EXT("Hp Status",
-			   audio_hp_status_enum,
-			   aml_get_audio_hp_status,
-			   NULL),
-};
-
-static int hp_det_adc_value(struct aml_audio_private_data *p_aml_audio)
-{
-	int ret, hp_value;
-	int hp_val_sum = 0;
-	int loop_num = 0;
-
-	while (loop_num < 8) {
-		hp_value = gpiod_get_value(p_aml_audio->hp_det_desc);
-		if (hp_value < 0) {
-			pr_info("hp detect get error adc value!\n");
-			return -1;	/* continue; */
-		}
-		hp_val_sum += hp_value;
-		loop_num++;
-		msleep_interruptible(15);
-	}
-	hp_val_sum = hp_val_sum >> 3;
-
-	if (p_aml_audio->hp_det_inv) {
-		if (hp_val_sum > 0) {
-			/* plug in */
-			ret = 1;
-		} else {
-			/* unplug */
-			ret = 0;
-		}
-	} else {
-		if (hp_val_sum > 0) {
-			/* unplug */
-			ret = 0;
-		} else {
-			/* plug in */
-			ret = 1;
-		}
-	}
-
-	return ret;
-}
-
-static int aml_audio_hp_detect(struct aml_audio_private_data *p_aml_audio)
-{
-	int loop_num = 0;
-	int ret;
-	p_aml_audio->hp_det_status = false;
-
-	while (loop_num < 3) {
-		ret = hp_det_adc_value(p_aml_audio);
-		if (p_aml_audio->hp_last_state != ret) {
-			msleep_interruptible(50);
-			if (ret < 0)
-				ret = p_aml_audio->hp_last_state;
-			else
-				p_aml_audio->hp_last_state = ret;
-		} else
-			msleep_interruptible(50);
-
-		loop_num = loop_num + 1;
-	}
-
-	return ret;
-}
-
-/*mute: 1, ummute: 0*/
-static int aml_mute_unmute(struct snd_soc_card *card, int av_mute, int amp_mute)
-{
-	struct aml_audio_private_data *p_aml_audio;
-
-	p_aml_audio = snd_soc_card_get_drvdata(card);
-
-	if (!IS_ERR(p_aml_audio->av_mute_desc)) {
-		if (p_aml_audio->av_mute_inv ^ av_mute) {
-			gpiod_direction_output(
-				p_aml_audio->av_mute_desc, GPIOF_OUT_INIT_LOW);
-			pr_info("set av out GPIOF_OUT_INIT_LOW!\n");
-		} else {
-			gpiod_direction_output(
-				p_aml_audio->av_mute_desc, GPIOF_OUT_INIT_HIGH);
-			pr_info("set av out GPIOF_OUT_INIT_HIGH!\n");
-		}
-	}
-
-	if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-		if (p_aml_audio->amp_mute_inv ^ amp_mute) {
-			gpiod_direction_output(
-				p_aml_audio->amp_mute_desc, GPIOF_OUT_INIT_LOW);
-			pr_info("set amp out GPIOF_OUT_INIT_LOW!\n");
-		} else {
-			gpiod_direction_output(
-				p_aml_audio->amp_mute_desc,
-				GPIOF_OUT_INIT_HIGH);
-			pr_info("set amp out GPIOF_OUT_INIT_HIGH!\n");
-		}
-	}
-	return 0;
-}
-
-static void aml_asoc_work_func(struct work_struct *work)
-{
-	struct aml_audio_private_data *p_aml_audio = NULL;
-	struct snd_soc_card *card = NULL;
-	int flag = -1;
-	p_aml_audio = container_of(work, struct aml_audio_private_data, work);
-	card = (struct snd_soc_card *)p_aml_audio->data;
-
-	flag = aml_audio_hp_detect(p_aml_audio);
-
-	if (p_aml_audio->detect_flag != flag) {
-		p_aml_audio->detect_flag = flag;
-
-		if (flag & 0x1) {
-			pr_info("aml aduio hp pluged\n");
-			audio_hp_status = 1;
-			aml_mute_unmute(card, 0, 1);
-		} else {
-			pr_info("aml audio hp unpluged\n");
-			audio_hp_status = 0;
-			aml_mute_unmute(card, 1, 0);
-		}
-
-	}
-
-	p_aml_audio->hp_det_status = true;
-}
-
-static void aml_asoc_timer_func(unsigned long data)
-{
-	struct aml_audio_private_data *p_aml_audio =
-	    (struct aml_audio_private_data *)data;
-	unsigned long delay = msecs_to_jiffies(150);
-
-	if (p_aml_audio->hp_det_status &&
-			!p_aml_audio->suspended) {
-		schedule_work(&p_aml_audio->work);
-	}
-	mod_timer(&p_aml_audio->timer, jiffies + delay);
-}
-
 static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
-
-	if (p_aml_audio->av_hs_switch) {
-		/* stop timer */
-		mutex_lock(&p_aml_audio->lock);
-		p_aml_audio->suspended = true;
-		if (p_aml_audio->timer_en)
-			aml_audio_stop_timer(p_aml_audio);
-
-		mutex_unlock(&p_aml_audio->lock);
-	}
-
-	aml_mute_unmute(card, 1, 1);
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
+		gpiod_direction_output(p_aml_audio->mute_desc,
+					GPIOF_OUT_INIT_LOW);
+	};
 	return 0;
 }
 
@@ -809,8 +580,12 @@ static int aml_resume_post(struct snd_soc_card *card)
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	schedule_work(&p_aml_audio->pinmux_work);
-
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		gpiod_direction_output(p_aml_audio->mute_desc,
+					GPIOF_OUT_INIT_HIGH);
+	}
 	return 0;
 }
 
@@ -822,15 +597,9 @@ static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* set cpu DAI configuration */
-	if (is_meson_txl_cpu())
-		ret = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-				  | SND_SOC_DAIFMT_CBM_CFM);
-	else
-		ret = snd_soc_dai_set_fmt(cpu_dai,
+	ret = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_NF
 				  | SND_SOC_DAIFMT_CBM_CFM);
-
 	if (ret < 0) {
 		pr_err("%s: set cpu dai fmt failed!\n", __func__);
 		return ret;
@@ -856,74 +625,12 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 	ret = snd_soc_add_card_controls(codec->card, aml_g9tv_controls,
 					ARRAY_SIZE(aml_g9tv_controls));
+	if (ret)
+		return ret;
 
 	/* Add specific widgets */
 	snd_soc_dapm_new_controls(dapm, aml_asoc_dapm_widgets,
 				  ARRAY_SIZE(aml_asoc_dapm_widgets));
-
-	p_aml_audio->pin_ctl =
-		devm_pinctrl_get_select(card->dev, "aml_snd_g9tv");
-	if (IS_ERR(p_aml_audio->pin_ctl)) {
-		pr_info("%s, aml_g9tv_pinmux_init error!\n", __func__);
-		return 0;
-	}
-
-	/*read avmute pinmux from dts*/
-	p_aml_audio->av_mute_desc = gpiod_get(card->dev, "mute_gpio");
-	of_property_read_u32(card->dev->of_node, "av_mute_inv",
-		&p_aml_audio->av_mute_inv);
-	of_property_read_u32(card->dev->of_node, "sleep_time",
-		&p_aml_audio->sleep_time);
-
-	/*read amp mute pinmux from dts*/
-	p_aml_audio->amp_mute_desc = gpiod_get(card->dev, "amp_mute_gpio");
-	of_property_read_u32(card->dev->of_node, "amp_mute_inv",
-		&p_aml_audio->amp_mute_inv);
-
-	/*read headset pinmux from dts*/
-	of_property_read_u32(card->dev->of_node, "av_hs_switch",
-		&p_aml_audio->av_hs_switch);
-
-	if (p_aml_audio->av_hs_switch) {
-		/* headset dection gipo */
-		p_aml_audio->hp_det_desc = gpiod_get(card->dev, "hp_det");
-		if (!IS_ERR(p_aml_audio->hp_det_desc))
-			gpiod_direction_input(p_aml_audio->hp_det_desc);
-		else
-			pr_err("ASoC: hp_det-gpio failed\n");
-
-		of_property_read_u32(card->dev->of_node,
-			"hp_det_inv",
-			&p_aml_audio->hp_det_inv);
-		pr_info("hp_det_inv:%d, %s\n",
-			p_aml_audio->hp_det_inv,
-			p_aml_audio->hp_det_inv ?
-			"hs pluged, HP_DET:1; hs unpluged, HS_DET:0"
-			:
-			"hs pluged, HP_DET:0; hs unpluged, HS_DET:1");
-
-		p_aml_audio->hp_det_status = true;
-
-		init_timer(&p_aml_audio->timer);
-		p_aml_audio->timer.function = aml_asoc_timer_func;
-		p_aml_audio->timer.data = (unsigned long)p_aml_audio;
-		p_aml_audio->data = (void *)card;
-
-		INIT_WORK(&p_aml_audio->work, aml_asoc_work_func);
-		mutex_init(&p_aml_audio->lock);
-
-		ret = snd_soc_add_card_controls(codec->card,
-					hp_controls, ARRAY_SIZE(hp_controls));
-	}
-
-	/*It is used for KaraOK, */
-	av_source = gpiod_get(card->dev, "av_source");
-	if (!IS_ERR(av_source)) {
-		pr_info("%s, make av_source gpio low!\n", __func__);
-		gpiod_direction_output(av_source, GPIOF_OUT_INIT_LOW);
-		snd_soc_add_card_controls(card, av_controls,
-					ARRAY_SIZE(av_controls));
-	}
 
 	return 0;
 }
@@ -931,31 +638,35 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
+	int ret = 0;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
-
-	if (!p_aml_audio->av_hs_switch) {
-		if (p_aml_audio->sleep_time &&
-				(!IS_ERR(p_aml_audio->av_mute_desc)))
-			msleep(p_aml_audio->sleep_time);
-		aml_mute_unmute(card, 0, 0);
-		pr_info("av_mute_inv:%d, amp_mute_inv:%d, sleep %d ms\n",
-			p_aml_audio->av_mute_inv, p_aml_audio->amp_mute_inv,
-			p_aml_audio->sleep_time);
-	} else {
-		if (p_aml_audio->sleep_time &&
-				(!IS_ERR(p_aml_audio->av_mute_desc)))
-			msleep(p_aml_audio->sleep_time);
-		pr_info("aml audio hs detect enable!\n");
-		p_aml_audio->suspended = false;
-		mutex_lock(&p_aml_audio->lock);
-		if (!p_aml_audio->timer_en) {
-			aml_audio_start_timer(p_aml_audio,
-						  msecs_to_jiffies(100));
-		}
-		mutex_unlock(&p_aml_audio->lock);
+	p_aml_audio->pin_ctl =
+		devm_pinctrl_get_select(card->dev, "aml_snd_g9tv");
+	if (IS_ERR(p_aml_audio->pin_ctl)) {
+		pr_info("%s, aml_g9tv_pinmux_init error!\n", __func__);
+		return;
 	}
 
+	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
+		ret = of_property_read_u32(card->dev->of_node, "sleep_time",
+				&p_aml_audio->sleep_time);
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		pr_info("make av unmute! sleep %d ms\n",
+				p_aml_audio->sleep_time);
+		gpiod_direction_output(p_aml_audio->mute_desc,
+					   GPIOF_OUT_INIT_HIGH);
+	}
+
+	av_source = gpiod_get(card->dev, "av_source");
+	if (!IS_ERR(av_source)) {
+		pr_info("%s, make av_source gpio low!\n", __func__);
+		gpiod_direction_output(av_source, GPIOF_OUT_INIT_LOW);
+		snd_soc_add_card_controls(card, av_controls,
+					ARRAY_SIZE(av_controls));
+	}
 	return;
 }
 
@@ -1377,7 +1088,6 @@ static int aml_aux_dev_parse_of(struct snd_soc_card *card)
 		}
 		codec_get_of_pdata(pdata, child);
 		client->dev.platform_data = pdata;
-		Speaker_Channel_Mask = 1;
 	}
 	return 0;
 }
@@ -1474,13 +1184,10 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 {
 	struct device_node *audio_codec_node = card->dev->of_node;
 	struct device_node *child;
-	struct aml_audio_private_data *p_aml_audio;
 	int length = 0;
 	int ret = 0;
 	int i = 0;
 	u32 *reg_ptr = &aml_EQ_param[0][0];
-
-	p_aml_audio = snd_soc_card_get_drvdata(card);
 
 	child = of_get_child_by_name(audio_codec_node, "aml_EQ_DRC");
 	if (child == NULL) {
@@ -1489,111 +1196,70 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 	}
 
 	if (of_find_property(child, "eq_table", &length) == NULL) {
-		pr_err("[%s] node not found!\n", "eq_table");
+		pr_err("[%s] not found!\n", "eq_table");
 	} else {
-		of_property_read_u32(child, "EQ_enable",
-				&p_aml_audio->aml_EQ_enable);
-		/*read EQ value from dts*/
-		if (p_aml_audio->aml_EQ_enable) {
-			ret = of_property_read_u32_array(child, "eq_table",
+		/*pr_info("child name: %s, length = %d\n",
+			child->name, length);*/
+		ret = of_property_read_u32_array(child, "eq_table",
 					reg_ptr, 100);
-			if (ret) {
-				pr_err("Can't get EQ param [%s]!\n",
-					"eq_table");
-			} else {
-				for (i = 0; i < 100; i++) {
-					aml_write_cbus(AED_EQ_CH1_COEF00 + i,
-						*reg_ptr);
-					/*pr_info("EQ value[%d]: 0x%x\n",
-						i, *reg_ptr);*/
-					reg_ptr++;
-				}
-				/*enable aml EQ*/
-				aml_cbus_update_bits(AED_EQ_EN, 0x1, 0x1);
-				pr_info("aml EQ enable!\n");
+		if (ret) {
+			pr_err("Can't get EQ param [%s]!\n", "eq_table");
+		} else {
+			for (i = 0; i < 100; i++) {
+				aml_write_cbus(AED_EQ_CH1_COEF00 + i, *reg_ptr);
+				/*pr_info("EQ value[%d]: 0x%x\n",
+					i, *reg_ptr);*/
+				reg_ptr++;
 			}
 		}
 	}
 
-	if (of_find_property(child, "drc_table", &length) == NULL ||
-			of_find_property(child, "drc_tko_table", &length)
-			== NULL) {
-		pr_err("[%s or %s] not found!\n", "drc_table", "drc_tko_table");
+	reg_ptr = &drc_table[0][0];
+	if (of_find_property(child, "drc_table", &length) == NULL) {
+		pr_err("[%s] not found!\n", "drc_table");
 	} else {
-		/*read DRC value from dts*/
-		of_property_read_u32(child, "DRC_enable",
-			&p_aml_audio->aml_DRC_enable);
-		if (p_aml_audio->aml_DRC_enable) {
-			reg_ptr = &drc_table[0][0];
-			ret = of_property_read_u32_array(child, "drc_table",
+		ret = of_property_read_u32_array(child, "drc_table",
 					reg_ptr, 6);
-			if (ret) {
-				pr_err("Can't get drc param [%s]!\n",
-					"drc_table");
-			} else {
-				aml_write_cbus(AED_DRC_AE,
-					drc_table[0][0]);
-				aml_write_cbus(AED_DRC_AA,
-					drc_table[1][0]);
-				aml_write_cbus(AED_DRC_AD,
-					drc_table[2][0]);
-				aml_write_cbus(AED_DRC_AE_1M,
-					drc_table[0][1]);
-				aml_write_cbus(AED_DRC_AA_1M,
-					drc_table[1][1]);
-				aml_write_cbus(AED_DRC_AD_1M,
-					drc_table[2][1]);
-				/*pr_info("DRC table: 0x%x, 0x%x,"
-				"0x%x, 0x%x, 0x%x, 0x%x,\n",
-				drc_table[0][0], drc_table[0][1],
-				drc_table[1][0], drc_table[1][1],
-				drc_table[2][0], drc_table[2][1]);*/
-			}
+		if (ret) {
+			pr_err("Can't get drc param [%s]!\n", "drc_table");
+		} else {
+			aml_write_cbus(AED_DRC_AE, drc_table[0][0]);
+			aml_write_cbus(AED_DRC_AA, drc_table[1][0]);
+			aml_write_cbus(AED_DRC_AD, drc_table[2][0]);
+			aml_write_cbus(AED_DRC_AE_1M, drc_table[0][1]);
+			aml_write_cbus(AED_DRC_AA_1M, drc_table[1][1]);
+			aml_write_cbus(AED_DRC_AD_1M, drc_table[2][1]);
+			/*pr_info("DRC table: 0x%x, 0x%x,"
+					"0x%x, 0x%x, 0x%x, 0x%x,\n",
+					drc_table[0][0], drc_table[0][1],
+					drc_table[1][0], drc_table[1][1],
+					drc_table[2][0], drc_table[2][1]);*/
+		}
+	}
 
-			reg_ptr = &drc_tko_table[0][0];
-			ret = of_property_read_u32_array(child, "drc_tko_table",
-						reg_ptr, 6);
-			if (ret) {
-				pr_err("Can't get drc param [%s]!\n",
-					"drc_tko_table");
-			} else {
-				aml_write_cbus(AED_DRC_OFFSET0,
-					drc_tko_table[0][0]);
-				aml_write_cbus(AED_DRC_OFFSET1,
-					drc_tko_table[1][0]);
-				aml_write_cbus(AED_DRC_THD0,
-					drc_tko_table[0][1]);
-				aml_write_cbus(AED_DRC_THD1,
-					drc_tko_table[1][1]);
-				aml_write_cbus(AED_DRC_K0,
-					drc_tko_table[0][2]);
-				aml_write_cbus(AED_DRC_K1,
-					drc_tko_table[1][2]);
-				/*pr_info("DRC tko: 0x%x, 0x%x,"
-				"0x%x, 0x%x, 0x%x, 0x%x,\n",
-				drc_tko_table[0][0], drc_tko_table[1][0],
-				drc_tko_table[0][1], drc_tko_table[1][1],
-				drc_tko_table[0][2], drc_tko_table[1][2]);*/
-
-				/*enable aml DRC*/
-				aml_cbus_update_bits(AED_DRC_EN, 0x1, 0x1);
-				pr_info("aml DRC enable!\n");
-			}
+	reg_ptr = &drc_tko_table[0][0];
+	if (of_find_property(child, "drc_tko_table", &length) == NULL) {
+		pr_err("[%s] not found!\n", "drc_tko_table");
+	} else {
+		ret = of_property_read_u32_array(child, "drc_tko_table",
+					reg_ptr, 6);
+		if (ret) {
+			pr_err("Can't get drc param [%s]!\n", "drc_tko_table");
+		} else {
+			aml_write_cbus(AED_DRC_OFFSET0, drc_tko_table[0][0]);
+			aml_write_cbus(AED_DRC_OFFSET1, drc_tko_table[1][0]);
+			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
+			aml_write_cbus(AED_DRC_THD1, drc_tko_table[1][1]);
+			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
+			aml_write_cbus(AED_DRC_K1, drc_tko_table[1][2]);
+			/*pr_info("DRC tko: 0x%x, 0x%x,"
+			"0x%x, 0x%x, 0x%x, 0x%x,\n",
+			drc_tko_table[0][0], drc_tko_table[1][0],
+			drc_tko_table[0][1], drc_tko_table[1][1],
+			drc_tko_table[0][2], drc_tko_table[1][2]);*/
 		}
 	}
 	return 0;
-}
-
-static void aml_pinmux_work_func(struct work_struct *pinmux_work)
-{
-	struct aml_audio_private_data *p_aml_audio = NULL;
-	struct snd_soc_card *card = NULL;
-	p_aml_audio = container_of(pinmux_work,
-				  struct aml_audio_private_data, pinmux_work);
-	card = (struct snd_soc_card *)p_aml_audio->data;
-
-	aml_g9tv_pinmux_init(card);
-	return;
 }
 
 static int aml_g9tv_audio_probe(struct platform_device *pdev)
@@ -1605,7 +1271,7 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 
 	p_aml_audio =
 		devm_kzalloc(dev, sizeof(struct aml_audio_private_data),
-				 GFP_KERNEL);
+			     GFP_KERNEL);
 	if (!p_aml_audio) {
 		dev_err(&pdev->dev, "Can't allocate aml_audio_private_data\n");
 		ret = -ENOMEM;
@@ -1653,28 +1319,14 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
 					ARRAY_SIZE(aml_EQ_DRC_controls));
 		aml_EQ_DRC_parse_of(card);
-		set_HW_resample_pause_thd(128);
 	}
 
-	p_aml_audio->data = (void *)card;
-	INIT_WORK(&p_aml_audio->pinmux_work, aml_pinmux_work_func);
-	schedule_work(&p_aml_audio->pinmux_work);
-
+	aml_g9tv_pinmux_init(card);
 	return 0;
 err:
 	dev_err(dev, "Can't probe snd_soc_card\n");
 	return ret;
 }
-
-static void aml_g9tv_audio_shutdown(struct platform_device *pdev)
-{
-	struct snd_soc_card *card;
-
-	card = platform_get_drvdata(pdev);
-	aml_suspend_pre(card);
-	return;
-}
-
 
 static const struct of_device_id amlogic_audio_of_match[] = {
 	{ .compatible = "aml, aml_snd_g9tv", },
@@ -1689,7 +1341,6 @@ static struct platform_driver aml_g9tv_audio_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe			= aml_g9tv_audio_probe,
-	.shutdown		= aml_g9tv_audio_shutdown,
 };
 
 module_platform_driver(aml_g9tv_audio_driver);

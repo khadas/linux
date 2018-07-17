@@ -46,7 +46,6 @@
 #include "aml_i2s.h"
 #include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/sound/aiu_regs.h>
-#include <linux/amlogic/sound/audin_regs.h>
 #include <linux/amlogic/cpu_version.h>
 
 /*
@@ -65,10 +64,6 @@ struct aml_spdif {
 	struct clk *clk_spdif;
 	struct clk *clk_81;
 	int old_samplerate;
-	/* spdif dai data in source select.
-	* !Check this with chip spec.
-	*/
-	uint src;
 };
 struct aml_spdif *spdif_p;
 unsigned int clk81 = 0;
@@ -79,7 +74,6 @@ static int flag_samesrc = -1;
 
 void aml_spdif_play(int samesrc)
 {
-#if 0
 	if (is_meson_gxtvbb_cpu() == false) {
 		static int iec958buf[32 + 16];
 		struct _aiu_958_raw_setting_t set;
@@ -133,7 +127,6 @@ void aml_spdif_play(int samesrc)
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
 		audio_hw_958_enable(1);
 	}
-#endif
 }
 
 static void aml_spdif_play_stop(void)
@@ -188,73 +181,86 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 {
 	struct _aiu_958_raw_setting_t set;
 	struct _aiu_958_channel_status_t chstat;
-	unsigned iec958_mode;
+	unsigned i2s_mode, iec958_mode;
+	unsigned start, size;
+	int sample_rate;
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (buf == NULL || runtime == NULL) {
+	if (buf == NULL && runtime == NULL) {
 		pr_info("buf/%p runtime/%p\n", buf, runtime);
 		return;
 	}
 
-	iec958_mode = AIU_958_MODE_PCM16;
+	i2s_mode = AIU_I2S_MODE_PCM16;
+	sample_rate = AUDIO_CLK_FREQ_48;
 	memset((void *)(&set), 0, sizeof(set));
 	memset((void *)(&chstat), 0, sizeof(chstat));
 	set.chan_stat = &chstat;
-
-	if (!samesrc) {
-		unsigned i2s_mode = AIU_I2S_MODE_PCM16;
-		switch (runtime->format) {
-		case SNDRV_PCM_FORMAT_S32:
-			i2s_mode = AIU_I2S_MODE_PCM32;
-			break;
-		case SNDRV_PCM_FORMAT_S24:
-			i2s_mode = AIU_I2S_MODE_PCM24;
-			break;
-		case SNDRV_PCM_FORMAT_S16:
-			i2s_mode = AIU_I2S_MODE_PCM16;
-			break;
-		}
-		audio_out_i2s_enable(0);
-		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
-#ifdef CONFIG_SND_AML_SPLIT_MODE
-		audio_set_i2s_mode(i2s_mode, (runtime->format == SNDRV_PCM_FORMAT_S16) ? 2 : runtime->channels);
-#else
-		audio_set_i2s_mode(i2s_mode);
-#endif
-		audio_set_aiubuf(runtime->dma_addr, runtime->dma_bytes, (runtime->format == SNDRV_PCM_FORMAT_S16) ? 2 : runtime->channels);
-	}
-
+	switch (runtime->rate) {
+	case 192000:
+		sample_rate = AUDIO_CLK_FREQ_192;
+		break;
+	case 176400:
+		sample_rate = AUDIO_CLK_FREQ_1764;
+		break;
+	case 96000:
+		sample_rate = AUDIO_CLK_FREQ_96;
+		break;
+	case 88200:
+		sample_rate = AUDIO_CLK_FREQ_882;
+		break;
+	case 48000:
+		sample_rate = AUDIO_CLK_FREQ_48;
+		break;
+	case 44100:
+		sample_rate = AUDIO_CLK_FREQ_441;
+		break;
+	case 32000:
+		sample_rate = AUDIO_CLK_FREQ_32;
+		break;
+	case 8000:
+		sample_rate = AUDIO_CLK_FREQ_8;
+		break;
+	case 11025:
+		sample_rate = AUDIO_CLK_FREQ_11;
+		break;
+	case 16000:
+		sample_rate = AUDIO_CLK_FREQ_16;
+		break;
+	case 22050:
+		sample_rate = AUDIO_CLK_FREQ_22;
+		break;
+	case 12000:
+		sample_rate = AUDIO_CLK_FREQ_12;
+		break;
+	case 24000:
+		sample_rate = AUDIO_CLK_FREQ_22;
+		break;
+	default:
+		sample_rate = AUDIO_CLK_FREQ_441;
+		break;
+	};
 	audio_hw_958_enable(0);
-	pr_info("aml_hw_iec958_init,runtime->rate=%d, runtime->channels=%d, same source mode(%d)\n",
-	       runtime->rate, runtime->channels, samesrc);
+	pr_info("aml_hw_iec958_init,runtime->rate=%d, same source mode(%d)\n",
+	       runtime->rate, samesrc);
 
-	if (runtime->rate == 192000 && runtime->channels == 2 && runtime->format == SNDRV_PCM_FORMAT_S16) {
-		aml_set_spdif_clk((runtime->rate >> 2) * 512, samesrc); /* EAC3 */
-	} else {
+	if (old_samplerate != sample_rate || samesrc != flag_samesrc) {
+		old_samplerate = sample_rate;
+		flag_samesrc = samesrc;
 		aml_set_spdif_clk(runtime->rate * 512, samesrc);
 	}
 
 	/* Todo, div can be changed, for most case, div = 2 */
 	/* audio_set_spdif_clk_div(); */
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	if (runtime->rate == 192000 && runtime->channels == 8 && runtime->format == SNDRV_PCM_FORMAT_S16) {
-		// IEC958_mode_codec = 8; /* TrueHD/DTS-HD MA */
-		pr_info("set 4x audio clk for 958\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (runtime->rate == 192000 && runtime->channels == 2 && runtime->format == SNDRV_PCM_FORMAT_S16) {
-		IEC958_mode_codec = 4; /* EAC3 */
+	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
+	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
 		pr_info("set 4x audio clk for 958\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
 	} else if (samesrc) {
-		IEC958_mode_codec = 0;
 		pr_info("share the same clock\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
-	} else if (runtime->rate == 48000 && runtime->channels == 2 && runtime->format == SNDRV_PCM_FORMAT_S16) {
-		IEC958_mode_codec = 2; /* AC3/DTS */
-		pr_info("set normal 512 fs /4 fs\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
 	} else {
-		IEC958_mode_codec = 0;
 		pr_info("set normal 512 fs /4 fs\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
 	}
@@ -265,65 +271,127 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 	audio_i2s_958_same_source(0);
 
 	switch (runtime->format) {
-	case SNDRV_PCM_FORMAT_S32:
-		iec958_mode = AIU_958_MODE_PCM32;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		i2s_mode = AIU_I2S_MODE_PCM32;
 		break;
-	case SNDRV_PCM_FORMAT_S24:
-		iec958_mode = AIU_958_MODE_PCM24;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		i2s_mode = AIU_I2S_MODE_PCM24;
 		break;
-	case SNDRV_PCM_FORMAT_S16:
-		iec958_mode = AIU_958_MODE_PCM16;
+	case SNDRV_PCM_FORMAT_S16_LE:
+		i2s_mode = AIU_I2S_MODE_PCM16;
 		break;
-	}
-	if (IEC958_mode_codec > 0) {
-		iec958_mode = AIU_958_MODE_PCM_RAW;
 	}
 
-	/* AES1+0 */
-	if (iec958_mode == AIU_958_MODE_PCM_RAW) {
-		set.chan_stat->chstat0_l = 0x8206;
+	/* audio_set_i2s_mode(i2s_mode); */
+	/* case 1,raw mode enabled */
+	if (IEC958_mode_codec && IEC958_mode_codec != 9) {
+		if (IEC958_mode_codec == 1) {
+			/* dts, use raw sync-word mode */
+			iec958_mode = AIU_958_MODE_RAW;
+			pr_info("iec958 mode RAW\n");
+		} else {
+			/* ac3,use the same pcm mode as i2s configuration */
+			iec958_mode = AIU_958_MODE_PCM_RAW;
+			pr_info("iec958 mode %s\n",
+				(i2s_mode == AIU_I2S_MODE_PCM32) ? "PCM32_RAW"
+				: ((I2S_MODE == AIU_I2S_MODE_PCM24) ?
+				"PCM24_RAW"	: "PCM16_RAW"));
+		}
 	} else {
-		set.chan_stat->chstat0_l = 0x8204;
+		if (i2s_mode == AIU_I2S_MODE_PCM32)
+			iec958_mode = AIU_958_MODE_PCM32;
+		else if (i2s_mode == AIU_I2S_MODE_PCM24)
+			iec958_mode = AIU_958_MODE_PCM24;
+		else
+			iec958_mode = AIU_958_MODE_PCM16;
+		pr_info("iec958 mode %s\n",
+		       (i2s_mode ==
+			AIU_I2S_MODE_PCM32) ? "PCM32" : ((i2s_mode ==
+							  AIU_I2S_MODE_PCM24) ?
+							 "PCM24" : "PCM16"));
 	}
-	set.chan_stat->chstat0_r = set.chan_stat->chstat0_l;
+	if (iec958_mode == AIU_958_MODE_PCM16
+	    || iec958_mode == AIU_958_MODE_PCM24
+	    || iec958_mode == AIU_958_MODE_PCM32
+	    || IEC958_mode_codec == 9) {
+		set.chan_stat->chstat0_l = 0x0100;
+		set.chan_stat->chstat0_r = 0x0100;
+		set.chan_stat->chstat1_l = 0x200;
+		set.chan_stat->chstat1_r = 0x200;
+		if (sample_rate == AUDIO_CLK_FREQ_882) {
+			pr_info("sample_rate==AUDIO_CLK_FREQ_882\n");
+			set.chan_stat->chstat1_l = 0x800;
+			set.chan_stat->chstat1_r = 0x800;
+		}
 
-	/* AES3+2 */
-	if (IEC958_mode_codec == 8 || IEC958_mode_codec == 7) {
-		set.chan_stat->chstat1_l = 0x0900;
-	} else if (runtime->rate == 192000) {
-		set.chan_stat->chstat1_l = 0x0e00;
-	} else if (runtime->rate == 176400) {
-		set.chan_stat->chstat1_l = 0x0c00;
-	} else if (runtime->rate == 96000) {
-		set.chan_stat->chstat1_l = 0x0a00;
-	} else if (runtime->rate == 88200) {
-		set.chan_stat->chstat1_l = 0x0800;
-	} else if (runtime->rate == 48000) {
-		set.chan_stat->chstat1_l = 0x0200;
-	} else if (runtime->rate == 44100) {
-		set.chan_stat->chstat1_l = 0x0000;
-	} else if (runtime->rate == 32000) {
-		set.chan_stat->chstat1_l = 0x0300;
+		if (sample_rate == AUDIO_CLK_FREQ_96) {
+			pr_info("sample_rate==AUDIO_CLK_FREQ_96\n");
+			set.chan_stat->chstat1_l = 0xa00;
+			set.chan_stat->chstat1_r = 0xa00;
+		}
+		start = buf->addr;
+		size = snd_pcm_lib_buffer_bytes(substream);
+		audio_set_958outbuf(start, size, 0);
+		/* audio_set_i2s_mode(AIU_I2S_MODE_PCM16); */
+		/* audio_set_aiubuf(start, size); */
 	} else {
-		set.chan_stat->chstat1_l = 0x0100;
-	}
-	set.chan_stat->chstat1_r = set.chan_stat->chstat1_l;
 
-	audio_set_958outbuf(buf->addr, snd_pcm_lib_buffer_bytes(substream), 0);
+		set.chan_stat->chstat0_l = 0x1902;
+		set.chan_stat->chstat0_r = 0x1902;
+		if (IEC958_mode_codec == 4 || IEC958_mode_codec == 5) {
+			/* DD+ */
+			if (runtime->rate == 32000) {
+				set.chan_stat->chstat1_l = 0x300;
+				set.chan_stat->chstat1_r = 0x300;
+			} else if (runtime->rate == 44100) {
+				set.chan_stat->chstat1_l = 0xc00;
+				set.chan_stat->chstat1_r = 0xc00;
+			} else {
+				set.chan_stat->chstat1_l = 0Xe00;
+				set.chan_stat->chstat1_r = 0Xe00;
+			}
+		} else {
+			/* DTS,DD */
+			if (runtime->rate == 32000) {
+				set.chan_stat->chstat1_l = 0x300;
+				set.chan_stat->chstat1_r = 0x300;
+			} else if (runtime->rate == 44100) {
+				set.chan_stat->chstat1_l = 0;
+				set.chan_stat->chstat1_r = 0;
+			} else {
+				set.chan_stat->chstat1_l = 0x200;
+				set.chan_stat->chstat1_r = 0x200;
+			}
+		}
+		start = buf->addr;
+		size = snd_pcm_lib_buffer_bytes(substream);
+		audio_set_958outbuf(start, size,
+				    (iec958_mode == AIU_958_MODE_RAW) ? 1 : 0);
+		memset((void *)buf->area, 0, size);
+	}
 	audio_set_958_mode(iec958_mode, &set);
 
-	/* notify hdmi to set audio type */
-	if (IEC958_mode_codec == 8) {
-		/* DTS-HD MA */
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA, substream);
-	} else if (IEC958_mode_codec == 7) {
-		/* TrueHD */
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP, substream);
-	} else if (iec958_mode == AIU_958_MODE_PCM_RAW) {
-		/* AC3/DTS/EAC3 */
+	if (IEC958_mode_codec == 2) {
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3, substream);
+	} else if (IEC958_mode_codec == 3) {
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS, substream);
+	} else if (IEC958_mode_codec == 4) {
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DOBLY_DIGITAL_PLUS,
+					 substream);
+	} else if (IEC958_mode_codec == 5) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD, substream);
+	} else if (IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+		aml_write_cbus(AIU_958_CHSTAT_L0, 0x1902);
+		aml_write_cbus(AIU_958_CHSTAT_L1, 0x900);
+		aml_write_cbus(AIU_958_CHSTAT_R0, 0x1902);
+		aml_write_cbus(AIU_958_CHSTAT_R1, 0x900);
+		if (IEC958_mode_codec == 8)
+			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
+			substream);
+		else
+			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP,
+			substream);
 	} else {
-		/* PCM */
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
 	}
 }
@@ -417,8 +485,15 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		aml_hw_iec958_init(substream, 0);
 	} else {
 		audio_in_spdif_set_buf(runtime->dma_addr,
-				       runtime->dma_bytes * 2, spdif_p->src);
+				       runtime->dma_bytes * 2);
 		memset((void *)runtime->dma_area, 0, runtime->dma_bytes * 2);
+		{
+			int *ppp =
+			    (int *)(runtime->dma_area + runtime->dma_bytes * 2 -
+				    8);
+			ppp[0] = 0x78787878;
+			ppp[1] = 0x78787878;
+		}
 	}
 
 	return 0;
@@ -623,9 +698,6 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 	}
 	clk81 = clk_get_rate(spdif_priv->clk_81);
 
-	/*In PAO mode, audio data from hdmi-rx has no channel order,
-	set default mode from spdif-in*/
-	spdif_priv->src = SPDIF_IN;
 	aml_spdif_play(0);
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_spdif_dai,

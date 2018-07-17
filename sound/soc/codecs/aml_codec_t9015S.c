@@ -14,7 +14,6 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <linux/regmap.h>
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
@@ -22,27 +21,74 @@
 
 #include "aml_codec_t9015S.h"
 
+static struct mutex acodec;
+static void acodec_reg_write(unsigned data, unsigned addr)
+{
+	void __iomem *vaddr;
+	mutex_lock(&acodec);
+	vaddr = ioremap((addr), 0x4);
+	writel(data, vaddr);
+	iounmap(vaddr);
+	mutex_unlock(&acodec);
+}
+
+static unsigned acodec_reg_read(unsigned addr)
+{
+	unsigned tmp;
+	void __iomem *vaddr;
+	mutex_lock(&acodec);
+	vaddr = ioremap((addr), 0x4);
+	tmp = readl(vaddr);
+	iounmap(vaddr);
+	mutex_unlock(&acodec);
+	return tmp;
+}
+
 struct aml_T9015S_audio_priv {
 	struct snd_soc_codec *codec;
 	struct snd_pcm_hw_params *params;
 };
 
-static const struct reg_default t9015s_init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x3400BCFF},
+struct T9015S_audio_init_reg {
+	u32 reg;
+	u32 val;
+};
+
+static struct T9015S_audio_init_reg init_list[] = {
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x3400Bc0F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x50502929},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
 	{LINE_OUT_CONFIG, 0x00004444},
 	{POWER_CONFIG, 0x00010000},
 };
 
+#define T9015S_AUDIO_INIT_REG_LEN ARRAY_SIZE(init_list)
+
 static int aml_T9015S_audio_reg_init(struct snd_soc_codec *codec)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(t9015s_init_list); i++)
-		snd_soc_write(codec, t9015s_init_list[i].reg,
-				t9015s_init_list[i].def);
+	for (i = 0; i < T9015S_AUDIO_INIT_REG_LEN; i++)
+		snd_soc_write(codec, init_list[i].reg, init_list[i].val);
 
+	return 0;
+}
+
+static unsigned int aml_T9015S_audio_read(struct snd_soc_codec *codec,
+				unsigned int reg)
+{
+	u32 val;
+	u32 int_reg = reg & (~0x3);
+	val = acodec_reg_read(ACODEC_BASE_ADD + int_reg);
+	return val;
+
+}
+
+static int aml_T9015S_audio_write(struct snd_soc_codec *codec, unsigned int reg,
+				unsigned int val)
+{
+	u32 int_reg = reg & (~0x3);
+	acodec_reg_write(val, (ACODEC_BASE_ADD + int_reg));
 	return 0;
 }
 
@@ -50,9 +96,8 @@ static int aml_DAC_Gain_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	u32 add = ADC_VOL_CTR_PGA_IN_CONFIG;
-	u32 val = snd_soc_read(codec, add);
+	u32 add = ACODEC_BASE_ADD + ADC_VOL_CTR_PGA_IN_CONFIG;
+	u32 val = acodec_reg_read(add);
 	u32 val1 = (val & (0x1 <<  DAC_GAIN_SEL_L)) >> DAC_GAIN_SEL_L;
 	u32 val2 = (val & (0x1 <<  DAC_GAIN_SEL_H)) >> (DAC_GAIN_SEL_H - 1);
 	val = val1 | val2;
@@ -64,28 +109,29 @@ static int aml_DAC_Gain_set_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	u32 add = ADC_VOL_CTR_PGA_IN_CONFIG;
-	u32 val = snd_soc_read(codec, add);
+	u32 add = ACODEC_BASE_ADD + ADC_VOL_CTR_PGA_IN_CONFIG;
+	u32 val = acodec_reg_read(add);
 
 	if (ucontrol->value.enumerated.item[0] == 0) {
 		val &= ~(0x1 << DAC_GAIN_SEL_H);
 		val &= ~(0x1 << DAC_GAIN_SEL_L);
+		acodec_reg_write(val, add);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		val &= ~(0x1 << DAC_GAIN_SEL_H);
 		val |= (0x1 << DAC_GAIN_SEL_L);
+		acodec_reg_write(val, add);
 		pr_info("It has risk of distortion!\n");
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
 		val |= (0x1 << DAC_GAIN_SEL_H);
 		val &= ~(0x1 << DAC_GAIN_SEL_L);
+		acodec_reg_write(val, add);
 		pr_info("It has risk of distortion!\n");
 	} else if (ucontrol->value.enumerated.item[0] == 3) {
 		val |= (0x1 << DAC_GAIN_SEL_H);
 		val |= (0x1 << DAC_GAIN_SEL_L);
+		acodec_reg_write(val, add);
 		pr_info("It has risk of distortion!\n");
 	}
-
-	snd_soc_write(codec, val, add);
 	return 0;
 }
 
@@ -425,7 +471,6 @@ static int aml_T9015S_audio_probe(struct snd_soc_codec *codec)
 	if (NULL == T9015S_audio)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, T9015S_audio);
-	snd_soc_codec_set_cache_io(codec, 32, 32, SND_SOC_REGMAP);
 
 	/*reset audio codec register*/
 	aml_T9015S_audio_reset(codec);
@@ -511,6 +556,8 @@ static struct snd_soc_codec_driver soc_codec_dev_aml_T9015S_audio = {
 	.remove = aml_T9015S_audio_remove,
 	.suspend = aml_T9015S_audio_suspend,
 	.resume = aml_T9015S_audio_resume,
+	.read = aml_T9015S_audio_read,
+	.write = aml_T9015S_audio_write,
 	.set_bias_level = aml_T9015S_audio_set_bias_level,
 	.controls = T9015S_audio_snd_controls,
 	.num_controls = ARRAY_SIZE(T9015S_audio_snd_controls),
@@ -518,44 +565,16 @@ static struct snd_soc_codec_driver soc_codec_dev_aml_T9015S_audio = {
 	.num_dapm_widgets = ARRAY_SIZE(T9015S_audio_dapm_widgets),
 	.dapm_routes = T9015S_audio_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(T9015S_audio_dapm_routes),
-};
-
-static const struct regmap_config t9015s_codec_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 4,
-	.val_bits = 32,
-	.max_register = 0x14,
-	.reg_defaults = t9015s_init_list,
-	.num_reg_defaults = ARRAY_SIZE(t9015s_init_list),
-	.cache_type = REGCACHE_RBTREE,
+	.reg_cache_size = 16,
+	.reg_word_size = sizeof(u16),
+	.reg_cache_step = 2,
 };
 
 static int aml_T9015S_audio_codec_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct resource *res_mem;
-	struct device_node *np;
-	void __iomem *regs;
-	struct regmap *regmap;
-
+	int ret;
 	dev_info(&pdev->dev, "aml_T9015S_audio_codec_probe\n");
-
-	np = pdev->dev.of_node;
-
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
-
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, regs,
-					    &t9015s_codec_regmap_config);
-
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
+	mutex_init(&acodec);
 	ret = snd_soc_register_codec(&pdev->dev,
 				     &soc_codec_dev_aml_T9015S_audio,
 				     &aml_T9015S_audio_dai[0], 1);
