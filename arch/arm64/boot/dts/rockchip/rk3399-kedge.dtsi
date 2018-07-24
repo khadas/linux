@@ -81,10 +81,6 @@
 		};
 	};
 
-	hdmi_sound: hdmi-sound {
-		status = "okay";
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -1035,8 +1031,6 @@
 };
 
 &hdmi {
-	/* remove the hdmi_cec, reused by edp_hpd */
-	pinctrl-0 = <&hdmi_i2c_xfer>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
@@ -1044,6 +1038,10 @@
 };
 
 &vopb {
+	status = "okay";
+};
+
+&hdmi_sound{
 	status = "okay";
 };
 
