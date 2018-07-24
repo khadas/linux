@@ -419,6 +419,14 @@
    };
 };
 
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
+&hdmi_in_vopb {
+	status = "okay";
+};
+
 &cdn_dp {
 	status = "disabled";
 	extcon = <&fusb0>;
