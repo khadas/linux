@@ -252,6 +252,18 @@
 		    status = "okay";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+
+		sys_led {
+			gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;  /* GPIO0_A6 */
+			label = "sys_led";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+	};
+
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
