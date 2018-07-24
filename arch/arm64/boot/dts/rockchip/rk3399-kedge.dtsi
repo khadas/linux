@@ -285,6 +285,8 @@
 	vcc_sd: vcc-sd {
 		compatible = "regulator-fixed";
 		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
 		gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc_sd_h>;
