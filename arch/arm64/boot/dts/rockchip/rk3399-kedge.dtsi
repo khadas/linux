@@ -515,7 +515,7 @@
 	mali-supply = <&vdd_gpu>;
 };
 
-&i2c0 {
+&i2c4 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
@@ -528,7 +528,7 @@
 		regulator-compatible = "fan53555-reg";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vsel1_gpio>;
-		vsel-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+		vsel-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>; /* GPIO1_B5 */
 		regulator-name = "vdd_cpu_b";
 		regulator-min-microvolt = <712500>;
 		regulator-max-microvolt = <1500000>;
@@ -549,7 +549,7 @@
 		regulator-compatible = "fan53555-reg";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vsel2_gpio>;
-		vsel-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		sel-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;/* GPIO0_B5 */
 		regulator-name = "vdd_gpu";
 		regulator-min-microvolt = <712500>;
 		regulator-max-microvolt = <1500000>;
@@ -567,7 +567,7 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l &pmic_dvs2>;
 		rockchip,system-power-controller;
@@ -634,23 +634,23 @@
 				};
 			};
 
-			vcc1v8_dvp: LDO_REG1 {
+			vcc1v8_apio2: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc1v8_dvp";
+				regulator-name = "vcc1v8_apio2";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
 
-			vcc3v0_tp: LDO_REG2 {
+			vcc1v8_efuse: LDO_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-name = "vcc3v0_tp";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc1v8_efuse";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -680,12 +680,12 @@
 				};
 			};
 
-			vcca3v0_codec: LDO_REG5 {
+			vcc_vldo5: LDO_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
-				regulator-name = "vcca3v0_codec";
+				regulator-name = "vcc_vldo5";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -747,7 +747,7 @@
 	};
 };
 
-&i2c4 {
+&i2c8 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <475>;
 	i2c-scl-falling-time-ns = <26>;
@@ -1027,7 +1027,7 @@
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
-				<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 22 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		pmic_dvs2: pmic-dvs2 {
@@ -1036,11 +1036,11 @@
 		};
 		vsel1_gpio: vsel1-gpio {
 			rockchip,pins =
-				<1 17 RK_FUNC_GPIO &pcfg_pull_down>;
+				<1 13 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 		vsel2_gpio: vsel2-gpio {
 			rockchip,pins =
-				<1 14 RK_FUNC_GPIO &pcfg_pull_down>;
+				 <0 13 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
