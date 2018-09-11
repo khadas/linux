@@ -1706,6 +1706,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
 		clocks = <&cru SCLK_I2S1_8CH>, <&cru HCLK_I2S1_8CH>;
+		assigned-clocks = <&cru SCLK_I2S_8CH>;
+		assigned-clock-parents = <&cru SCLK_I2S1_8CH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_2ch_bus>;
 		power-domains = <&power RK3399_PD_SDIOAUDIO>;
