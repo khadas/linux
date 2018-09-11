@@ -90,8 +90,10 @@
 };
 
 &i2s1 {
-		assigned-clocks = <&cru SCLK_I2S1_DIV>;
-		assigned-clock-parents = <&cru PLL_GPLL>;
+//		assigned-clocks = <&cru SCLK_I2S1_DIV>;
+//		assigned-clock-parents = <&cru PLL_GPLL>;
+		assigned-clocks = <&cru SCLK_I2S_8CH>;	//
+		assigned-clock-parents = <&cru SCLK_I2S1_8CH>;
 };
 
 &i2s2 {
