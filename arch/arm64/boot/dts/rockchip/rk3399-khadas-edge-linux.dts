@@ -42,7 +42,7 @@
 
 /dts-v1/;
 
-#include "rk3399-kedge.dtsi"
+#include "rk3399-khadas-edge.dtsi"
 
 / {
 	model = "Khadas Edge";
