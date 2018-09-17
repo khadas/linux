@@ -154,6 +154,13 @@
 		};
 	};
 
+	hdmi_dp_sound: hdmi-dp-sound {
+		status = "disabled";
+		compatible = "rockchip,rk3399-hdmi-dp";
+		rockchip,cpu = <&i2s2>;
+		rockchip,codec = <&hdmi>, <&cdn_dp>;
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 1>;
@@ -663,6 +670,11 @@
 	};
 };
 
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
 &io_domains {
 	status = "okay";
 
@@ -859,7 +871,7 @@
 	status = "okay";
 };
 
-&hdmi_sound{
+&hdmi_dp_sound {
 	status = "okay";
 };
 
