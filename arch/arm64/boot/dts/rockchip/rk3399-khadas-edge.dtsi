@@ -305,9 +305,17 @@
 };
 
 &cdn_dp {
-	status = "disabled";
+	status = "okay";
 	extcon = <&fusb0>;
 	phys = <&tcphy0_dp>;
+};
+
+&dp_in_vopl {
+	status = "okay";
+};
+
+&dp_in_vopb {
+	status = "disabled";
 };
 
 &dmc {
@@ -652,6 +660,18 @@
 			};
 		};
 	};
+
+	fusb1: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		//fusb302,role="ROLE_MODE_UFP";
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb1_int>;
+		int-n-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		support-uboot-charge = <1>;
+		port-num = <1>;
+		status = "okay";
+	};
 };
 
 &i2c8 {
@@ -665,7 +685,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		vbus-5v-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
+		vbus-5v-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -867,8 +887,16 @@
 	status = "okay";
 };
 
+&route_hdmi {
+	status = "okay";
+	connect = <&vopb_out_hdmi>;
+};
+
+
 &vopb {
 	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
 };
 
 &hdmi_dp_sound {
@@ -881,6 +909,8 @@
 
 &vopl {
 	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
 };
 
 &vopl_mmu {
@@ -954,6 +984,9 @@
 	fusb30x {
 		fusb0_int: fusb0-int {
 			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fusb1_int: fusb1-int {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO4_D6 */
 		};
 	};
 
