@@ -284,7 +284,7 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		status = "okay";
-		pwms = <&pwm0 0 10000000 0>; /* 100Hz */
+		pwms = <&pwm0 0 40000 0>; /* 25kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
