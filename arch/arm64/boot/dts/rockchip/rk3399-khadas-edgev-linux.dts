@@ -67,12 +67,12 @@
 
 &fusb0 {
 	status = "okay";
-	max-input-voltage = <20000000>;
+	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
 };
 
 &fusb1 {
 	status = "okay";
-	max-input-voltage = <20000000>;
+	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
 };
