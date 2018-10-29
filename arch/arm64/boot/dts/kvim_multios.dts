@@ -27,7 +27,7 @@
 #include "mesongxl.dtsi"
 #include "partitions-multios.dtsi"
 / {
-	model = "Amlogic";
+	model = "Khadas VIM";
 	amlogic-dt-id = "kvim";
 	compatible = "amlogic, Gxbb";
 	interrupt-parent = <&gic>;

@@ -2,6 +2,7 @@
 #include "partitions-linux.dtsi"
 
 /{
+	model = "Khadas VIM2";
 	le-dt-id = "gxm_kvim2";
 	compatible = "amlogic, Gxm";
 	amlogic-dt-id = "kvim";
