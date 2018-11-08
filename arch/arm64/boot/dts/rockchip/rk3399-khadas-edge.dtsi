@@ -653,7 +653,7 @@
 
 &spdif {
 	status = "okay";
-	pinctrl-0 = <&spdif_bus>;
+	pinctrl-0 = <&spdif_bus_1>;
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;
 	#sound-dai-cells = <0>;
