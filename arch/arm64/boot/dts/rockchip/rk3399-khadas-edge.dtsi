@@ -43,6 +43,7 @@
 #include "dt-bindings/pwm/pwm.h"
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
+#include "rk3399-android.dtsi"
 
 / {
 	compatible = "khadas,edge", "rockchip,rk3399";
@@ -246,6 +247,39 @@
 		rockchip,pwm_id= <2>;
 		rockchip,pwm_voltage = <900000>;
 	};
+};
+
+&hdmi {
+	status = "okay";
+	rockchip,phy-table =
+		<74250000 0x8009 0x0004 0x0272>,
+		<165000000 0x802b 0x0004 0x0209>,
+		<297000000 0x8029 0x0005 0x028d>,
+		<594000000 0x8039 0x0000 0x0090>,
+		<000000000 0x0000 0x0000 0x0000>;
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vopb_out_hdmi>;
+};
+
+&hdmi_in_vopb {
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
 };
 
 &cdn_dp {
