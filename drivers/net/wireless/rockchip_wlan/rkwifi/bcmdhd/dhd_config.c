@@ -543,6 +543,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path)
 				strcpy(&fw_path[i+1], FW_BCM4359B1);
 			else if (chiprev == BCM4359C0_CHIP_REV)
 				strcpy(&fw_path[i+1], FW_BCM4359C0);
+			strcpy(&nv_path[j + 1], "nvram_ap6398sr3.txt");
 			break;
 #endif
 #ifdef BCMPCIE
