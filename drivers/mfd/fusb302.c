@@ -217,8 +217,29 @@ static int fusb302_set_pos_power_by_charge_ic(struct fusb30x_chip *chip)
 	max_vol = 0;
 	max_cur = 0;
 	psy = power_supply_get_by_phandle(chip->dev->of_node, "charge-dev");
-	if (!psy || IS_ERR(psy))
-		return -1;
+	if (!psy || IS_ERR(psy)) {
+		int ret;
+		u32 value;
+
+		ret = of_property_read_u32(chip->dev->of_node, "max-input-voltage", &value);
+		if (ret) {
+			dev_err(chip->dev, "'max-input-voltage' not found!\n");
+			return -1;
+		}
+		max_vol = value / 1000;
+
+		ret = of_property_read_u32(chip->dev->of_node, "max-input-current", &value);
+		if (ret) {
+			dev_err(chip->dev, "'max-input-current' not found!\n");
+			return -1;
+		}
+		max_cur = value / 1000;
+
+		if (max_vol > 0 && max_cur > 0)
+			fusb_set_pos_power(chip, max_vol, max_cur);
+
+		return 0;
+	}
 
 	psp = POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX;
 	if (power_supply_get_property(psy, psp, &val) == 0)
