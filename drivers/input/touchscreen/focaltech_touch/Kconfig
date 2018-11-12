@@ -1,0 +1,10 @@
+#
+# Focaltech touch driver configuration
+#
+menu "Focaltech Touch"
+comment "Focaltech Touch Driver"
+
+config TOUCHSCREEN_FOCALTECH_ALL
+	bool "Focaltech touch"
+
+endmenu
