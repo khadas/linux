@@ -772,12 +772,12 @@
 
 			trips {
 				threshold: trip-point-0 {
-					temperature = <70000>; /* millicelsius */
+					temperature = <85000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
 				target: trip-point-1 {
-					temperature = <85000>; /* millicelsius */
+					temperature = <95000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
