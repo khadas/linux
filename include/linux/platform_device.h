@@ -17,6 +17,10 @@
 #define PLATFORM_DEVID_NONE	(-1)
 #define PLATFORM_DEVID_AUTO	(-2)
 
+#define KHADAS_EDGE    0
+#define KHADAS_CAPTAIN 1
+#define KHADAS_EDGE_V  2
+
 struct mfd_cell;
 
 struct platform_device {
