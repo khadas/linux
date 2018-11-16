@@ -278,6 +278,10 @@
 	phys = <&tcphy0_dp>;
 };
 
+&hdmi_dp_sound {
+	status = "okay";
+};
+
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu_l>;
 };
