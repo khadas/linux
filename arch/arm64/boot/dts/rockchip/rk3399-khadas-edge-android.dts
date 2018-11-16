@@ -75,6 +75,22 @@
 	max-input-current = <6000000>;
 };
 
+&i2c8 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+
+	apds9960@39 {
+		compatible = "avago,apds9960";
+		reg = <0x39>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&apds_int_l>;
+	};
+
+};
+
 &pinctrl {
 	matrix {
 		matrix_gpio: matrix_gpio {
@@ -83,5 +99,9 @@
 				<0 11 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 12 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
+	};
+
+	apds_int_l: apds-int-l {
+		rockchip,pins = <3 10 RK_FUNC_GPIO &pcfg_pull_up>;
 	};
 };
