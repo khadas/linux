@@ -47,6 +47,20 @@
 / {
 	model = "Khadas Edge";
 	compatible = "Khadas,edge", "Khadas,edge-io", "rockchip,rk3399";
+
+    khadas-matrix-keypad {
+		status = "okay";
+		compatible = "khadas-matrix-keypad";
+		row_col_gpio =
+				<&gpio0 10 GPIO_ACTIVE_HIGH>,
+				<&gpio0 11 GPIO_ACTIVE_HIGH>,
+				<&gpio0 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&matrix_gpio>;
+		debounce-delay-ms = <10>;
+		col-scan-delay-us = <10>;
+		linux,no-autorepeat;
+	};
 };
 
 &fusb0 {
@@ -59,4 +73,15 @@
 	status = "okay";
 	max-input-voltage = <20000000>;
 	max-input-current = <6000000>;
+};
+
+&pinctrl {
+	matrix {
+		matrix_gpio: matrix_gpio {
+			rockchip,pins =
+				<0 10 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 11 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 12 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
