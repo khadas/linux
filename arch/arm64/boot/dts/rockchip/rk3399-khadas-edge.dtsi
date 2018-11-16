@@ -142,7 +142,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
+		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
 	spdif-sound {
@@ -182,7 +182,7 @@
 		pinctrl-0 = <&uart0_rts>;
 		pinctrl-1 = <&uart0_gpios>;
 		//BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIOx_xx */
-		BT,reset_gpio    = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* GPIO0_B1 */
+		BT,reset_gpio    = <&gpio2 27 GPIO_ACTIVE_HIGH>; /* GPIO0_D3 */
 		BT,wake_gpio     = <&gpio2 26 GPIO_ACTIVE_HIGH>; /* GPIO2_D2 */
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; /* GPIO0_A4 */
 		status = "okay";
@@ -940,7 +940,7 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 28 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
