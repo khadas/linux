@@ -27,6 +27,7 @@
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
+extern int get_board_type(void);
 #define cw_printk(args...) \
 	do { \
 		if (dbg_enable) { \
@@ -780,10 +781,13 @@ static int cw2015_parse_dt(struct cw_battery *cw_bat)
 static int cw_bat_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int ret;
+	int ret, type;
 	struct cw_battery *cw_bat;
 	struct power_supply_config psy_cfg = {0};
-
+ 
+    type = get_board_type();
+    if (type != KHADAS_CAPTAIN)
+		return -1;
 	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
 	if (!cw_bat) {
 		dev_err(&client->dev,
