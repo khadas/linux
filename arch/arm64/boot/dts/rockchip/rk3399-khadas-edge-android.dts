@@ -43,6 +43,7 @@
 /dts-v1/;
 
 #include "rk3399-khadas-edge.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Khadas Edge";
@@ -149,6 +150,38 @@
 		label = "enter";
 		rockchip,adc_value = <170>;
 	};
+};
+
+&pwm3 {
+	status = "okay";
+
+	interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH 0>;
+	compatible = "rockchip,remotectl-pwm";
+	remote_pwm_id = <3>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3b_pin>;
+
+	ir_key1 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xeb   KEY_POWER>,
+			<0xec   KEY_MENU>,
+			<0xfc   KEY_UP>,
+			<0xfd   KEY_DOWN>,
+			<0xf1   KEY_LEFT>,
+			<0xe5   KEY_RIGHT>,
+			<0xf8   232>,
+			<0xa7   KEY_VOLUMEDOWN>,
+			<0xa3    250>,  //mouse func
+			<0xa4    250>,  //mouse func
+			<0xf4   KEY_VOLUMEUP>,
+			<0xfe   KEY_BACK>,
+			<0xb7   KEY_HOME>;
+
+	};
+
 };
 
 &pinctrl {

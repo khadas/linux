@@ -20,6 +20,8 @@
 #include "rockchip_pwm_remotectl.h"
 
 
+#define PMUGRF_BASE 0xff320000
+#define PMUGRF_SOC_CON0 0x0180
 
 /*sys/module/rk_pwm_remotectl/parameters,
 modify code_print to change the value*/
@@ -56,6 +58,7 @@ struct rkxx_remotectl_button {
 
 struct rkxx_remotectl_drvdata {
 	void __iomem *base;
+	void __iomem *pmugrf_base;
 	int state;
 	int nbuttons;
 	int result;
@@ -380,6 +383,7 @@ static int rk_pwm_remotectl_hw_init(struct rkxx_remotectl_drvdata *ddata)
 	val = readl_relaxed(ddata->base + PWM_REG_CTRL);
 	val = (val & 0xFFFFFFFE) | PWM_ENABLE;
 	writel_relaxed(val, ddata->base + PWM_REG_CTRL);
+	writel_relaxed(0x200020, ddata->pmugrf_base + PMUGRF_SOC_CON0);
 	return 0;
 }
 
@@ -421,6 +425,9 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	ddata->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
+	ddata->pmugrf_base = devm_ioremap(&pdev->dev, PMUGRF_BASE , 4);
+	if (IS_ERR(ddata->pmugrf_base))
+		return PTR_ERR(ddata->pmugrf_base);
 	count = of_property_count_strings(np, "clock-names");
 	if (count == 2) {
 		clk = devm_clk_get(&pdev->dev, "pwm");
