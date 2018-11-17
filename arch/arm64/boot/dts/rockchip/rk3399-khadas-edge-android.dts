@@ -135,6 +135,14 @@
 	};
 };
 
+&rk_key {
+	enter-key {
+		linux,code = <232>;
+		label = "enter";
+		rockchip,adc_value = <170>;
+	};
+};
+
 &pinctrl {
 	matrix {
 		matrix_gpio: matrix_gpio {
