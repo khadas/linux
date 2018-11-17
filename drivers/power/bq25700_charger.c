@@ -33,13 +33,15 @@
 #include <linux/of_gpio.h>
 #include <linux/rk_keys.h>
 
-static int dbg_enable;
+static int dbg_enable = 1;
 module_param_named(dbg_level, dbg_enable, int, 0644);
+
+extern int get_board_type(void);
 
 #define DBG(args...) \
 	do { \
 		if (dbg_enable) { \
-			pr_info(args); \
+			pr_info("bq25703: "args); \
 		} \
 	} while (0)
 
@@ -47,7 +49,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define BQ25700_MANUFACTURER		"Texas Instruments"
 #define BQ25700_ID			0x59
-#define BQ25703_ID			0x58
+#define BQ25703_ID			0x78
 
 #define DEFAULT_INPUTVOL		((5000 - 1280) * 1000)
 #define MAX_INPUTVOLTAGE		24000000
@@ -1237,6 +1239,11 @@ static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 
 	if (bq25700_field_read(charger, AC_STAT)) {
 		irq_flag = IRQF_TRIGGER_LOW;
+		bq25700_field_write(charger, INPUT_CURRENT, charger->init_data.input_current_cdp);
+		bq25700_field_write(charger, CHARGE_CURRENT, charger->init_data.ichg);
+		bq25700_get_chip_state(charger, &state);
+		charger->state = state;
+		power_supply_changed(charger->supply_charger);
 	} else {
 		irq_flag = IRQF_TRIGGER_HIGH;
 		bq25700_field_write(charger, INPUT_CURRENT,
@@ -1919,9 +1926,13 @@ static int bq25700_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct bq25700_device *charger;
 	struct device_node *charger_np;
-	int ret = 0;
+	int ret = 0, type = 0;
 	u32 i = 0;
 	int irq_flag;
+
+	type = get_board_type();
+	if (type != KHADAS_CAPTAIN)
+		return -1;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;
@@ -1985,6 +1996,8 @@ static int bq25700_probe(struct i2c_client *client,
 		dev_err(dev, "Cannot read chip ID.\n");
 		return charger->chip_id;
 	}
+
+	DBG("chip id: 0x%x\n", charger->chip_id);
 
 	if (!dev->platform_data) {
 		ret = bq25700_fw_probe(charger);

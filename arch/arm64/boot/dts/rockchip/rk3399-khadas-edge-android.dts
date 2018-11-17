@@ -67,12 +67,14 @@
 	status = "okay";
 	max-input-voltage = <20000000>;
 	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
 };
 
 &fusb1 {
 	status = "okay";
 	max-input-voltage = <20000000>;
 	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
 };
 
 &i2c8 {
@@ -89,6 +91,30 @@
 		pinctrl-0 = <&apds_int_l>;
 	};
 
+	bq25703: bq25703@6b {
+		compatible = "ti,bq25703";
+		reg = <0x6b>;
+		extcon = <&fusb0>, <&fusb1>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_LOW>; /* GPIO1_C7 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_ok>;
+		ti,charge-current = <2500000>;
+		ti,max-charge-voltage = <8750000>;
+		ti,max-input-voltage = <20000000>;
+		ti,max-input-current = <6000000>;
+		ti,input-current-sdp = <500000>;
+		ti,input-current-dcp = <2000000>;
+		ti,input-current-cdp = <2000000>;
+		ti,input-current-dc = <2000000>;
+		ti,minimum-sys-voltage = <7400000>;
+		ti,otg-voltage = <5000000>;
+		ti,otg-current = <500000>;
+		ti,input-current = <500000>;
+		pd-charge-only = <0>;
+		status = "okay";
+	};
+
 };
 
 &pinctrl {
@@ -103,5 +129,11 @@
 
 	apds_int_l: apds-int-l {
 		rockchip,pins = <3 10 RK_FUNC_GPIO &pcfg_pull_up>;
+	};
+
+	charger {
+		charger_ok: charge-ok {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_C7 */
+		};
 	};
 };
