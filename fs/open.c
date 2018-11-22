@@ -69,6 +69,7 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 {
 	return do_truncate2(NULL, dentry, length, time_attrs, filp);
 }
+EXPORT_SYMBOL_GPL(do_truncate);
 
 long vfs_truncate(struct path *path, loff_t length)
 {
@@ -691,6 +692,7 @@ int open_check_o_direct(struct file *f)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(open_check_o_direct);
 
 static int do_dentry_open(struct file *f,
 			  struct inode *inode,
