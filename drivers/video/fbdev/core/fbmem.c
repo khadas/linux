@@ -1160,13 +1160,17 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		break;
 	default:
+		#ifndef CONFIG_AMLOGIC_MODIFY
 		lock_fb_info(info);
+		#endif
 		fb = info->fbops;
 		if (fb->fb_ioctl)
 			ret = fb->fb_ioctl(info, cmd, arg);
 		else
 			ret = -ENOTTY;
+		#ifndef CONFIG_AMLOGIC_MODIFY
 		unlock_fb_info(info);
+		#endif
 	}
 	return ret;
 }
