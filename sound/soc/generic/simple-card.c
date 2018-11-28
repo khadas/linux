@@ -21,6 +21,7 @@
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
 
+extern int get_board_type(void);
 struct simple_card_data {
 	struct snd_soc_card snd_card;
 	struct simple_dai_props {
@@ -470,6 +471,11 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 	/* Parse the card name from DT */
 	snd_soc_of_parse_card_name(&priv->snd_card, "simple-audio-card,name");
+	//type = get_board_type();
+	//if (type != KHADAS_CAPTAIN) {
+	//	if (strcmp(priv->snd_card.name, "realtek,rt5651-codec") == 0)
+	//		return -EINVAL;
+	//}
 
 	/* The off-codec widgets */
 	if (of_property_read_bool(node, "simple-audio-card,widgets")) {

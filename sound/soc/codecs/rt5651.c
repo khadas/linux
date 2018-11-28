@@ -37,6 +37,8 @@
 
 #define RT5651_PR_BASE (RT5651_PR_RANGE_BASE + (0 * RT5651_PR_SPACING))
 
+extern int get_board_type(void);
+
 static const struct regmap_range_cfg rt5651_ranges[] = {
 	{ .name = "PR", .range_min = RT5651_PR_BASE,
 	  .range_max = RT5651_PR_BASE + 0xb4,
@@ -1801,7 +1803,11 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5651_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5651_priv *rt5651;
-	int ret;
+	int ret, type;
+
+	type = get_board_type();
+	if (type != KHADAS_CAPTAIN)
+		return -ENODEV;
 
 	rt5651 = devm_kzalloc(&i2c->dev, sizeof(*rt5651),
 				GFP_KERNEL);

@@ -62,6 +62,34 @@
 		col-scan-delay-us = <10>;
 		linux,no-autorepeat;
 	};
+
+	rt5651-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt5651_hpdet>;
+
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "realtek,rt5651-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,hp-det-gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Mic Jack", "MICBIAS1",
+			"IN1P", "Mic Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rt5651>;
+		};
+	};
 };
 
 &fusb0 {
@@ -76,6 +104,31 @@
 	max-input-voltage = <20000000>;
 	max-input-current = <6000000>;
 	charge-dev = <&bq25703>;
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <2>;
+	rockchip,capture-channels = <2>;
+	#sound-dai-cells = <0>;
+};
+
+&i2c1 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <300>;
+	i2c-scl-falling-time-ns = <15>;
+
+	rt5651: rt5651@1a {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rt5651";
+		reg = <0x1a>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+		status = "disabled";
+	};
 };
 
 &i2c8 {
@@ -201,6 +254,12 @@
 	charger {
 		charger_ok: charge-ok {
 			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_C7 */
+		};
+	};
+
+	rt5651 {
+		rt5651_hpdet: rt5651-hpdet {
+			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_A0 */
 		};
 	};
 };
