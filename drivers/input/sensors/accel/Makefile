@@ -13,3 +13,4 @@ obj-$(CONFIG_MPU6500_ACC)	+= mpu6500_acc.o
 obj-$(CONFIG_LSM330_ACC)	+= lsm330_acc.o
 obj-$(CONFIG_BMA2XX_ACC)	+= bma2xx.o
 obj-$(CONFIG_STK8BAXX_ACC)	+= stk8baxx.o
+obj-$(CONFIG_ICM20602_ACC)  += icm20602_acc.o

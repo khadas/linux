@@ -43,6 +43,7 @@
 /dts-v1/;
 
 #include "rk3399-khadas-edge.dtsi"
+#include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/input/input.h>
 
 / {
@@ -128,6 +129,20 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_mclk>;
 		status = "disabled";
+	};
+};
+
+&i2c7 {
+	status = "okay";
+
+	icm20602_acc: icm_acc@68 {
+		compatible = "icm20602_acc";
+		reg = <0x68>;
+		irq-gpio = <&gpio0 8 IRQ_TYPE_LEVEL_LOW>; /* GPIO0_B0 */
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <7>;
 	};
 };
 
