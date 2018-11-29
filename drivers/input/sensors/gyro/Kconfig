@@ -36,4 +36,9 @@ config GYRO_MPU6880
 config GYRO_LSM330
 	bool "gyroscope lsm330_gyro"
 	default y
+
+config GYRO_ICM20602
+	bool "gyroscope icm20602_gyro"
+	default y
+
 endif

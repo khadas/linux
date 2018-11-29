@@ -2029,6 +2029,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"mpu6500_gyro", GYRO_ID_MPU6500},
 	{"mpu6880_gyro", GYRO_ID_MPU6880},
 	{"lsm330_gyro", GYRO_ID_LSM330},
+	{"icm20602_gyro", GYRO_ID_ICM20602},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},
 	{"light_cm3217", LIGHT_ID_CM3217},
