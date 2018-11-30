@@ -88,10 +88,8 @@
 
 &i2c_b {
 	status = "okay";
-	rtc_hym8563{
-			compatible = "amlogic, rtc_hym8563";
-			dev_name = "rtc_hym8563";
-			status = "okay";
+	khadas-hym8563{
+		compatible = "khadas-hym8563";
 		reg = <0x51>;
 	};
 	khadas-wol{

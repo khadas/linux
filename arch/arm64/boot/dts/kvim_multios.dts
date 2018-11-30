@@ -1167,8 +1167,8 @@
 };
 &i2c_b {
 	status = "okay";
-	kvim_hym8563{
-		compatible = "kvim_hym8563";
+	khadas-hym8563{
+		compatible = "khadas-hym8563";
 		reg = <0x51>;
 	};
 };
