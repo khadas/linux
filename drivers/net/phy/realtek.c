@@ -50,9 +50,187 @@
 #define RTL8211F_INTBCR				0x16
 #define RTL8211F_INTBCR_INTB_PMEB		BIT(5)
 
+#define RTL8211F_MAC_ADDR_CTRL0 0x10
+#define RTL8211F_MAC_ADDR_CTRL1 0x11
+#define RTL8211F_MAC_ADDR_CTRL2 0x12
+#define RTL8211F_WOL_CTRL 0x10
+#define RTL8211F_WOL_RST 0x11
+#define RTL8211F_MAX_PACKET_CTRL 0x11
+#define RTL8211F_BMCR   0x00
+#define RTL821x_EPAGSR      0x1f
+
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
+
+static void rtl8211f_config_mac_addr(struct phy_device *phydev);
+static void rtl8211f_config_pin_as_pmeb(struct phy_device *phydev);
+static void rtl8211f_config_wakeup_frame_mask(struct phy_device *phydev);
+static void rtl8211f_config_max_packet(struct phy_device *phydev);
+static void rtl8211f_config_pad_isolation(struct phy_device *phydev, int enable);
+static void rtl8211f_config_wol(struct phy_device *phydev, int enable);
+static void rtl8211f_config_speed(struct phy_device *phydev, int mode);
+
+int wol_enable = 0;
+static u8 mac_addr[] = {0, 0, 0, 0, 0, 0};
+struct phy_device *g_phydev;
+
+int get_wol_state(void) {
+   return wol_enable;
+}
+
+static unsigned char chartonum(char c)
+{
+   if (c >= '0' && c <= '9')
+       return c - '0';
+   if (c >= 'A' && c <= 'F')
+       return (c - 'A') + 10;
+   if (c >= 'a' && c <= 'f')
+       return (c - 'a') + 10;
+   return 0;
+}
+
+static int __init init_mac_addr(char *line)
+{
+   unsigned char mac[6];
+   int i = 0;
+   for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
+       mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
+       line += 3;
+   }
+   memcpy(mac_addr, mac, 6);
+   printk("realtek init mac-addr: %x:%x:%x:%x:%x:%x\n",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4],
+           mac_addr[5]);
+
+   return 1;
+}
+__setup("androidboot.mac=",init_mac_addr);
+
+static int __init init_wol_state(char *str)
+{
+   wol_enable = simple_strtol(str, NULL, 0);
+   printk("%s, wol_enable=%d\b",__func__, wol_enable);
+
+   return 1;
+}
+__setup("wol_enable=", init_wol_state);
+
+#ifdef CONFIG_PM
+void rtl8211f_shutdown(void) {
+   if (wol_enable && g_phydev) {
+       printk("rtl8211f_shutdown...\n");
+	   rtl8211f_config_pin_as_pmeb(g_phydev);
+       rtl8211f_config_speed(g_phydev, 0);
+       rtl8211f_config_mac_addr(g_phydev);
+       rtl8211f_config_max_packet(g_phydev);
+       rtl8211f_config_wol(g_phydev, 1);
+       rtl8211f_config_wakeup_frame_mask(g_phydev);
+       rtl8211f_config_pad_isolation(g_phydev, 1);
+   }
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+void rtl8211f_suspend(void) {
+   if (wol_enable && g_phydev) {
+	   printk("rtl8211f_suspend...\n");
+	   rtl8211f_config_pin_as_pmeb(g_phydev);
+       rtl8211f_config_mac_addr(g_phydev);
+       rtl8211f_config_max_packet(g_phydev);
+       rtl8211f_config_wol(g_phydev, 1);
+       rtl8211f_config_wakeup_frame_mask(g_phydev);
+       rtl8211f_config_pad_isolation(g_phydev, 1);
+   }
+}
+
+void rtl8211f_resume(void) {
+   if (wol_enable && g_phydev) {
+	   printk("rtl8211f_resume...\n");
+       rtl8211f_config_speed(g_phydev, 1);
+       rtl8211f_config_wol(g_phydev, 0);
+       rtl8211f_config_pad_isolation(g_phydev, 0);
+   }
+}
+#endif
+
+static void rtl8211f_config_speed(struct phy_device *phydev, int mode)
+{
+   phy_write(phydev, RTL821x_EPAGSR, 0x0); /*set page 0x0*/
+   if (mode == 1) {
+       phy_write(phydev, RTL8211F_BMCR, 0x1040);  /* 1000Mbps */
+   } else {
+       phy_write(phydev, RTL8211F_BMCR, 0x0); /* 10Mbps */
+   }
+}
+
+static void rtl8211f_config_mac_addr(struct phy_device *phydev)
+{
+   phy_write(phydev, RTL821x_EPAGSR, 0xd8c); /*set page 0xd8c*/
+    phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, mac_addr[1] << 8 | mac_addr[0]);
+   phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, mac_addr[3] << 8 | mac_addr[2]);
+   phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, mac_addr[5] << 8 | mac_addr[4]);
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_pin_as_pmeb(struct phy_device *phydev)
+{
+   int val;
+   phy_write(phydev, RTL821x_EPAGSR, 0xd40); /*set page 0xd40*/
+   val = phy_read(phydev, 0x16);
+   val = val | 0x20;
+   phy_write(phydev, 0x16, val);
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_wakeup_frame_mask(struct phy_device *phydev)
+{
+   phy_write(phydev, RTL821x_EPAGSR, 0xd80); /*set page 0xd80*/
+   phy_write(phydev, 0x10, 0x3000);
+   phy_write(phydev, 0x11, 0x0020);
+   phy_write(phydev, 0x12, 0x03c0);
+   phy_write(phydev, 0x13, 0x0000);
+   phy_write(phydev, 0x14, 0x0000);
+   phy_write(phydev, 0x15, 0x0000);
+   phy_write(phydev, 0x16, 0x0000);
+   phy_write(phydev, 0x17, 0x0000);
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_max_packet(struct phy_device *phydev)
+{
+   phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+   phy_write(phydev, RTL8211F_MAX_PACKET_CTRL, 0x9fff);
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_pad_isolation(struct phy_device *phydev, int enable)
+{
+   int val;
+   phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+   val = phy_read(phydev, 0x13);
+   if (enable)
+       val = val | 0x1000;
+   else
+       val = val & 0x7fff;
+   phy_write(phydev, 0x13, val);
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
+static void rtl8211f_config_wol(struct phy_device *phydev, int enable)
+{
+   int val;
+   phy_write(phydev, RTL821x_EPAGSR, 0xd8a); /*set page 0xd8a*/
+   if (enable)
+       phy_write(phydev, RTL8211F_WOL_CTRL, 0x1000);
+   else {
+       phy_write(phydev, RTL8211F_WOL_CTRL, 0);
+       val =  phy_read(phydev,  RTL8211F_WOL_RST);
+       phy_write(phydev, RTL8211F_WOL_RST, val & 0x7fff);
+   }
+   phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
+}
+
 
 static int rtl8211x_page_read(struct phy_device *phydev, u16 page, u16 address)
 {
@@ -241,6 +419,13 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 				      RTL8211F_RX_DELAY_EN, val);
 	if (ret)
 		return ret;
+
+	rtl8211f_config_pin_as_pmeb(phydev);
+	rtl8211f_config_speed(phydev, 1);
+	g_phydev = kzalloc(sizeof(struct phy_device), GFP_KERNEL);
+	if (g_phydev == NULL)
+		return -ENOMEM;
+	g_phydev = phydev;
 
 	return 0;
 }

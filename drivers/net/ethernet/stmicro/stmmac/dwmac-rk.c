@@ -1660,6 +1660,8 @@ static int rk_gmac_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+extern void rtl8211f_suspend(void);
+extern void rtl8211f_resume(void);
 static int rk_gmac_suspend(struct device *dev)
 {
 	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
@@ -1670,6 +1672,8 @@ static int rk_gmac_suspend(struct device *dev)
 		rk_gmac_powerdown(bsp_priv);
 		bsp_priv->suspended = true;
 	}
+
+	rtl8211f_suspend();
 
 	return ret;
 }
@@ -1684,9 +1688,19 @@ static int rk_gmac_resume(struct device *dev)
 		bsp_priv->suspended = false;
 	}
 
+	rtl8211f_resume();
+
 	return stmmac_resume(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+extern void rtl8211f_shutdown(void);
+static void stmmac_pltfr_shutdown(struct platform_device *dev)
+{
+	rtl8211f_shutdown();
+}
+#endif
 
 static SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend, rk_gmac_resume);
 
@@ -1709,6 +1723,9 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
 	.remove = rk_gmac_remove,
+#ifdef CONFIG_PM
+	.shutdown = stmmac_pltfr_shutdown,
+#endif
 	.driver = {
 		.name           = "rk_gmac-dwmac",
 		.pm		= &rk_gmac_pm_ops,
