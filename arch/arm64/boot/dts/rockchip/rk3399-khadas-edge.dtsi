@@ -896,6 +896,15 @@
 	status = "okay";
 };
 
+&rk_key {
+	wol-wakeup-key {
+		gpios = <&gpio1 1 GPIO_ACTIVE_LOW>; /* GPIO1_A1 */
+		linux,code = <116>;
+		label = "wol-wakeup";
+		gpio-key,wakeup;
+	};
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
