@@ -525,9 +525,9 @@ static const union {
 	/* range tables */
 	[TBL_ICHG] =	{ .rt = {0,	  8128000, 64000} },
 	/* uV */
-	[TBL_CHGMAX] = { .rt = {0, 19200000, 16000} },
+	[TBL_CHGMAX] = { .rt = {0, 12032000, 16000} },
 	/* uV  max charge voltage*/
-	[TBL_INPUTVOL] = { .rt = {3200000, 19520000, 64000} },
+	[TBL_INPUTVOL] = { .rt = {3200000, 12032000, 64000} },
 	/* uV  input charge voltage*/
 	[TBL_INPUTCUR] = {.rt = {0, 6350000, 50000} },
 	/*uA input current*/
