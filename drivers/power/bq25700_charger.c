@@ -1931,8 +1931,8 @@ static int bq25700_probe(struct i2c_client *client,
 	int irq_flag;
 
 	type = get_board_type();
-	if (type != KHADAS_CAPTAIN)
-		return -1;
+//	if (type != KHADAS_CAPTAIN)
+//		return -1;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;

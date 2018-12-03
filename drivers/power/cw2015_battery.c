@@ -786,8 +786,8 @@ static int cw_bat_probe(struct i2c_client *client,
 	struct power_supply_config psy_cfg = {0};
  
     type = get_board_type();
-    if (type != KHADAS_CAPTAIN)
-		return -1;
+//    if (type != KHADAS_CAPTAIN)
+//		return -1;
 	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
 	if (!cw_bat) {
 		dev_err(&client->dev,
