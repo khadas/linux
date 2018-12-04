@@ -131,10 +131,12 @@ static const unsigned int nor_q_pins[]		= { BOOT_12 };
 static const unsigned int nor_c_pins[]		= { BOOT_13 };
 static const unsigned int nor_cs_pins[]		= { BOOT_15 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static const unsigned int spi_mosi_pins[]	= { GPIOX_8 };
 static const unsigned int spi_miso_pins[]	= { GPIOX_9 };
 static const unsigned int spi_ss0_pins[]	= { GPIOX_10 };
 static const unsigned int spi_sclk_pins[]	= { GPIOX_11 };
+#endif
 
 static const unsigned int sdcard_d0_pins[]	= { CARD_1 };
 static const unsigned int sdcard_d1_pins[]	= { CARD_0 };
@@ -241,6 +243,125 @@ static const unsigned int tsin_a_dp_pins[] = {
 	GPIODV_1, GPIODV_2, GPIODV_3, GPIODV_4, GPIODV_5, GPIODV_6, GPIODV_7,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* spi */
+static const unsigned int spi_mosi_x_pins[]	= { GPIOX_8 };
+static const unsigned int spi_miso_x_pins[]	= { GPIOX_9 };
+static const unsigned int spi_ss0_x_pins[]	= { GPIOX_10 };
+static const unsigned int spi_sclk_x_pins[]	= { GPIOX_11 };
+
+static const unsigned int spi_mosi_z_pins[]	= { GPIOZ_13 };
+static const unsigned int spi_miso_z_pins[]	= { GPIOZ_12 };
+static const unsigned int spi_sclk_z_pins[]	= { GPIOZ_11 };
+static const unsigned int spi_ss0_z_pins[]	= { GPIOZ_10 };
+static const unsigned int spi_ss1_pins[]	= { GPIOZ_9 };
+static const unsigned int spi_ss2_pins[]	= { GPIOZ_8 };
+
+/* i2c_d */
+static const unsigned int i2c_sck_d_pins[]	= { GPIOX_11 };
+static const unsigned int i2c_sda_d_pins[]	= { GPIOX_10 };
+
+/* dmic */
+static const unsigned int pdm_in_z_pins[] = { GPIOZ_8 };
+static const unsigned int pdm_clk_z_pins[] = { GPIOZ_9 };
+static const unsigned int pdm_in_dv_pins[] = { GPIODV_24 };
+static const unsigned int pdm_clk_dv_pins[] = { GPIODV_25 };
+
+/* spdif_in */
+static const unsigned int spdif_in_h_pins[] = { GPIOH_4 };
+static const unsigned int spdif_in_z_pins[] = { GPIOZ_14 };
+
+/* i2s_in */
+static const unsigned int i2s_in_ch23_pins[]	= { GPIOZ_2 };
+static const unsigned int i2s_in_ch45_pins[]	= { GPIOZ_3 };
+static const unsigned int i2s_in_ch67_pins[]	= { GPIOZ_4 };
+
+/* pcm */
+static const unsigned int pcm_a_out_pins[] = { GPIOX_8 };
+static const unsigned int pcm_a_in_pins[] = { GPIOX_9 };
+static const unsigned int pcm_a_fs_pins[] = { GPIOX_10 };
+static const unsigned int pcm_a_clk_pins[] = { GPIOX_11 };
+
+/* tsin_b */
+static const unsigned int tsin_b_clk_h_pins[] = { GPIOH_6 };
+static const unsigned int tsin_b_d0_h_pins[] = { GPIOH_7 };
+static const unsigned int tsin_b_sop_h_pins[] = { GPIOH_8 };
+static const unsigned int tsin_b_d_valid_h_pins[] = { GPIOH_9 };
+
+static const unsigned int tsin_b_d_valid_z_pins[] = { GPIOZ_0 };
+static const unsigned int tsin_b_sop_z_pins[] = { GPIOZ_1 };
+static const unsigned int tsin_b_d0_z_pins[] = { GPIOZ_2 };
+static const unsigned int tsin_b_clk_z_pins[] = { GPIOZ_3 };
+
+static const unsigned int tsin_b_fail_pins[] = { GPIOZ_4 };
+
+/* lcd */
+static const unsigned int lcd_r0_1_pins[] = {
+	GPIODV_0, GPIODV_1,
+};
+
+static const unsigned int lcd_r2_7_pins[] = {
+	GPIODV_2, GPIODV_3,
+	GPIODV_4, GPIODV_5,
+	GPIODV_6, GPIODV_7,
+};
+static const unsigned int lcd_g0_1_pins[] = {
+	GPIODV_8, GPIODV_9,
+};
+static const unsigned int lcd_g2_7_pins[] = {
+	GPIODV_10, GPIODV_11,
+	GPIODV_12, GPIODV_13,
+	GPIODV_14, GPIODV_15,
+};
+static const unsigned int lcd_b0_1_pins[] = {
+	GPIODV_16, GPIODV_17,
+};
+static const unsigned int lcd_b2_7_pins[] = {
+	GPIODV_18, GPIODV_19,
+	GPIODV_20, GPIODV_21,
+	GPIODV_22, GPIODV_23,
+};
+static const unsigned int lcd_vs_pins[] = { GPIODV_24 };
+static const unsigned int lcd_hs_pins[] = { GPIODV_25 };
+
+/* tcon */
+static const unsigned int tcon_stv1_pins[] = { GPIODV_24 };
+static const unsigned int tcon_sth1_pins[] = { GPIODV_25 };
+static const unsigned int tcon_cph_pins[] = { GPIODV_26 };
+static const unsigned int tcon_vcom_pins[] = { GPIODV_27 };
+static const unsigned int tcon_oeh_pins[] = { GPIODV_27 };
+
+/* tsout */
+static const unsigned int tsout_fail_pins[] = { GPIODV_12 };
+static const unsigned int tsout_d_valid_pins[] = { GPIODV_13 };
+static const unsigned int tsout_sop_pins[] = { GPIODV_14 };
+static const unsigned int tsout_clk_pins[] = { GPIODV_15 };
+static const unsigned int tsout_d0_pins[] = { GPIODV_16 };
+static const unsigned int tsout_d1_7_pins[] = {
+	GPIODV_17, GPIODV_18,
+	GPIODV_19, GPIODV_20,
+	GPIODV_21, GPIODV_22,
+	GPIODV_23
+};
+
+/* dvp */
+static const unsigned int dvp_vs_pins[] = { GPIOZ_0 };
+static const unsigned int dvp_hs_pins[] = { GPIOZ_1 };
+static const unsigned int dvp_clk_pins[] = { GPIOZ_3 };
+static const unsigned int dvp_d2_9_pins[] = {
+	GPIOZ_4, GPIOZ_5,
+	GPIOZ_6, GPIOZ_7,
+	GPIOZ_8, GPIOZ_9,
+	GPIOZ_10, GPIOZ_11
+};
+
+/* iso7816 */
+static const unsigned int iso7816_clk_dv_pins[] = { GPIODV_22 };
+static const unsigned int iso7816_data_dv_pins[] = { GPIODV_23 };
+static const unsigned int iso7816_clk_z_pins[] = { GPIOZ_6 };
+static const unsigned int iso7816_data_z_pins[] = { GPIOZ_7 };
+#endif
+
 static const struct pinctrl_pin_desc meson_gxl_aobus_pins[] = {
 	MESON_PIN(GPIOAO_0),
 	MESON_PIN(GPIOAO_1),
@@ -289,6 +410,12 @@ static const unsigned int spdif_out_ao_9_pins[] = { GPIOAO_9 };
 
 static const unsigned int ao_cec_pins[]		= { GPIOAO_8 };
 static const unsigned int ee_cec_pins[]		= { GPIOAO_8 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* remote_out */
+static const unsigned int remote_out_ao7_pins[] = {GPIOAO_7 };
+static const unsigned int remote_out_ao9_pins[] = {GPIOAO_9 };
+#endif
 
 static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GPIO_GROUP(GPIOZ_0),
@@ -418,11 +545,23 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(pwm_a,		5,	25),
 	GROUP(pwm_e,		5,	15),
 	GROUP(pwm_f_x,		5,	14),
+#ifndef CONFIG_AMLOGIC_MODIFY
 	GROUP(spi_mosi,		5,	3),
 	GROUP(spi_miso,		5,	2),
 	GROUP(spi_ss0,		5,	1),
 	GROUP(spi_sclk,		5,	0),
-
+#else
+	GROUP(spi_mosi_x,	5,	3),
+	GROUP(spi_miso_x,	5,	2),
+	GROUP(spi_ss0_x,	5,	1),
+	GROUP(spi_sclk_x,	5,	0),
+	GROUP(i2c_sda_d,	5,	5),
+	GROUP(i2c_sck_d,	5,	4),
+	GROUP(pcm_a_out,	5,	23),
+	GROUP(pcm_a_in,		5,	22),
+	GROUP(pcm_a_fs,		5,	21),
+	GROUP(pcm_a_clk,	5,	20),
+#endif
 	/* Bank Z */
 	GROUP(eth_mdio,		4,	23),
 	GROUP(eth_mdc,		4,	22),
@@ -444,6 +583,31 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(i2s_out_ch67_z,	3,	24),
 	GROUP(eth_link_led,	4,	25),
 	GROUP(eth_act_led,	4,	24),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	GROUP(pdm_in_z,		3,	23),
+	GROUP(pdm_clk_z,	3,	22),
+	GROUP(spdif_in_z,	3,	21),
+	GROUP(spi_mosi_z,	4,	2),
+	GROUP(spi_miso_z,	4,	3),
+	GROUP(spi_sclk_z,	4,	4),
+	GROUP(spi_ss0_z,	4,	5),
+	GROUP(spi_ss1,		4,	6),
+	GROUP(spi_ss2,		4,	7),
+	GROUP(i2s_in_ch23,	3,      29),
+	GROUP(i2s_in_ch45,	3,      28),
+	GROUP(i2s_in_ch67,	3,      27),
+	GROUP(tsin_b_d_valid_z,	3,	19),
+	GROUP(tsin_b_sop_z,	3,	18),
+	GROUP(tsin_b_d0_z,	3,	17),
+	GROUP(tsin_b_clk_z,	3,	16),
+	GROUP(tsin_b_fail,	3,	15),
+	GROUP(dvp_vs,		3,	14),
+	GROUP(dvp_hs,		3,	13),
+	GROUP(dvp_clk,		3,	12),
+	GROUP(dvp_d2_9,		3,	11),
+	GROUP(iso7816_clk_z,	4,	9),
+	GROUP(iso7816_data_z,	4,	8),
+#endif
 
 	/* Bank H */
 	GROUP(hdmi_hpd,		6,	31),
@@ -454,6 +618,13 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(i2s_out_lr_clk,	6,	24),
 	GROUP(i2s_out_ch01,	6,	23),
 	GROUP(spdif_out_h,	6,	28),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	GROUP(spdif_in_h,	6,	27),
+	GROUP(tsin_b_clk_h,	6,	20),
+	GROUP(tsin_b_d0_h,	6,	19),
+	GROUP(tsin_b_sop_h,	6,	18),
+	GROUP(tsin_b_d_valid_h,	6,	17),
+#endif
 
 	/* Bank DV */
 	GROUP(uart_tx_b,	2,	16),
@@ -476,6 +647,31 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(tsin_a_sop,	2,	1),
 	GROUP(tsin_a_d_valid,	2,	0),
 	GROUP(tsin_a_fail,	1,	31),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	GROUP(pdm_in_dv,	2,	7),
+	GROUP(pdm_clk_dv,	2,	6),
+	GROUP(lcd_r0_1,		3,	10),
+	GROUP(lcd_r2_7,		3,	9),
+	GROUP(lcd_g0_1,		3,	8),
+	GROUP(lcd_g2_7,		3,	7),
+	GROUP(lcd_b0_1,		3,	6),
+	GROUP(lcd_b2_7,		3,	5),
+	GROUP(lcd_vs,		3,	4),
+	GROUP(lcd_hs,		3,	3),
+	GROUP(tcon_stv1,	1,	22),
+	GROUP(tcon_sth1,	1,	21),
+	GROUP(tcon_cph,		1,	20),
+	GROUP(tcon_vcom,	1,	19),
+	GROUP(tcon_oeh,		1,	18),
+	GROUP(tsout_fail,	1,	30),
+	GROUP(tsout_d_valid,	1,	29),
+	GROUP(tsout_sop,	1,	28),
+	GROUP(tsout_clk,	1,	27),
+	GROUP(tsout_d0,		1,	26),
+	GROUP(tsout_d1_7,	1,	25),
+	GROUP(iso7816_clk_dv,	2,	18),
+	GROUP(iso7816_data_dv,	2,	17),
+#endif
 
 	/* Bank BOOT */
 	GROUP(emmc_nand_d07,	7,	31),
@@ -545,7 +741,10 @@ static struct meson_pmx_group meson_gxl_aobus_groups[] = {
 	GROUP(spdif_out_ao_9,	0,	4),
 	GROUP(ao_cec,		0,	15),
 	GROUP(ee_cec,		0,	14),
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	GROUP(remote_out_ao7,	0,	21),
+	GROUP(remote_out_ao9,	0,	31),
+#endif
 	/* test n pin */
 	GROUP(i2s_out_ch67_ao,	1,	2),
 };
@@ -588,9 +787,11 @@ static const char * const nor_groups[] = {
 	"nor_d", "nor_q", "nor_c", "nor_cs",
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static const char * const spi_groups[] = {
 	"spi_mosi", "spi_miso", "spi_ss0", "spi_sclk",
 };
+#endif
 
 static const char * const sdcard_groups[] = {
 	"sdcard_d0", "sdcard_d1", "sdcard_d2", "sdcard_d3",
@@ -689,6 +890,68 @@ static const char * const tsin_a_groups[] = {
 	"tsin_a_dp", "tsin_a_fail",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const char * const spi_groups[] = {
+	"spi_mosi_x", "spi_miso_x", "spi_ss0_x", "spi_sclk_x",
+	"spi_mosi_z", "spi_miso_z", "spi_ss0_z", "spi_sclk_z",
+	"spi_ss1", "spi_ss2",
+};
+
+static const char * const i2c_d_groups[] = {
+	"i2c_sck_d", "i2c_sda_d",
+};
+
+static const char * const i2s_in_groups[] = {
+	"i2s_in_ch23", "i2s_in_ch45", "i2s_in_ch67",
+};
+
+static const char * const spdif_in_groups[] = {
+	"spdif_in_h", "spdif_in_z",
+};
+
+static const char * const pdm_groups[] = {
+	"pdm_in_z", "pdm_clk_z",
+	"pdm_in_dv", "pdm_clk_dv",
+};
+
+static const char * const pcm_groups[] = {
+	"pcm_a_out", "pcm_a_in", "pcm_a_fs", "pcm_a_clk",
+};
+
+static const char * const tsin_b_groups[] = {
+	"tsin_b_clk_h", "tsin_b_d0_h", "tsin_b_sop_h", "tsin_b_d_valid_h",
+	"tsin_b_clk_z", "tsin_b_d0_z", "tsin_b_sop_z", "tsin_b_d_valid_z",
+	"tsin_b_fail",
+};
+
+static const char * const lcd_groups[] = {
+	"lcd_r0_1", "lcd_r2_7",
+	"lcd_g0_1", "lcd_g2_7",
+	"lcd_b0_1", "lcd_b2_7",
+	"lcd_vs", "lcd_hs",
+};
+
+static const char * const tcon_groups[] = {
+	"tcon_stv1", "tcon_sth1",
+	"tcon_cph", "tcon_vcom",
+	"tcon_oeh",
+};
+
+static const char * const tsout_groups[] = {
+	"tsout_fail", "tsout_d_valid", "tsout_sop", "tsout_clk",
+	"tsout_d0", "tsout_d1_7",
+};
+
+static const char *const dvp_groups[] = {
+	"dvp_vs", "dvp_hs", "dvp_clk", "dvp_d2_9"
+};
+
+static const char * const iso7816_groups[] = {
+	"iso7816_clk_dv", "iso7816_data_dv",
+	"iso7816_clk_z", "iso7816_data_z",
+};
+#endif
+
 static const char * const gpio_aobus_groups[] = {
 	"GPIOAO_0", "GPIOAO_1", "GPIOAO_2", "GPIOAO_3", "GPIOAO_4",
 	"GPIOAO_5", "GPIOAO_6", "GPIOAO_7", "GPIOAO_8", "GPIOAO_9",
@@ -716,6 +979,12 @@ static const char * const i2c_slave_ao_groups[] = {
 static const char * const remote_input_ao_groups[] = {
 	"remote_input_ao",
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const char *const remote_out_ao_groups[] = {
+	"remote_out_ao9", "remote_out_ao7",
+};
+#endif
 
 static const char * const pwm_ao_a_groups[] = {
 	"pwm_ao_a_3", "pwm_ao_a_8",
@@ -764,6 +1033,19 @@ static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(spdif_out),
 	FUNCTION(eth_led),
 	FUNCTION(tsin_a),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	FUNCTION(spdif_in),
+	FUNCTION(i2c_d),
+	FUNCTION(i2s_in),
+	FUNCTION(tsin_b),
+	FUNCTION(pdm),
+	FUNCTION(pcm),
+	FUNCTION(lcd),
+	FUNCTION(tcon),
+	FUNCTION(tsout),
+	FUNCTION(dvp),
+	FUNCTION(iso7816),
+#endif
 };
 
 static struct meson_pmx_func meson_gxl_aobus_functions[] = {
@@ -778,6 +1060,9 @@ static struct meson_pmx_func meson_gxl_aobus_functions[] = {
 	FUNCTION(i2s_out_ao),
 	FUNCTION(spdif_out_ao),
 	FUNCTION(cec_ao),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	FUNCTION(remote_out_ao),
+#endif
 };
 
 static struct meson_bank meson_gxl_periphs_banks[] = {

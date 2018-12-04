@@ -675,6 +675,17 @@ static const unsigned int jtag_ao_tms_pins[] = {GPIOAO_7};
 /* gen_clk */
 static const unsigned int gen_clk_ee_pins[] = {GPIOAO_13};
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* clk12_24 */
+static const unsigned int clk12_24_pins[] = {GPIOAO_12};
+
+/* clk25 */
+static const unsigned int clk25_pins[] = {GPIOAO_13};
+
+/* gen_clk_ao */
+static const unsigned int gen_clk_ao_pins[] = {GPIOAO_13};
+#endif
+
 static struct meson_pmx_group meson_axg_aobus_groups[] = {
 	GPIO_GROUP(GPIOAO_0),
 	GPIO_GROUP(GPIOAO_1),
@@ -722,6 +733,11 @@ static struct meson_pmx_group meson_axg_aobus_groups[] = {
 	GROUP(jtag_ao_clk, 4),
 	GROUP(jtag_ao_tms, 4),
 	GROUP(gen_clk_ee, 4),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	GROUP(gen_clk_ao, 2),
+	GROUP(clk12_24, 1),
+	GROUP(clk25, 1),
+#endif
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -955,6 +971,20 @@ static const char * const gen_clk_ee_groups[] = {
 	"gen_clk_ee",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const char * const gen_clk_ao_groups[] = {
+	"gen_clk_ao",
+};
+
+static const char * const clk12_24_groups[] = {
+	"clk12_24",
+};
+
+static const char * const clk25_groups[] = {
+	"clk25",
+};
+#endif
+
 static struct meson_pmx_func meson_axg_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
@@ -1001,6 +1031,11 @@ static struct meson_pmx_func meson_axg_aobus_functions[] = {
 	FUNCTION(pwm_ao_d),
 	FUNCTION(jtag_ao),
 	FUNCTION(gen_clk_ee),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	FUNCTION(gen_clk_ao),
+	FUNCTION(clk12_24),
+	FUNCTION(clk25),
+#endif
 };
 
 static struct meson_bank meson_axg_periphs_banks[] = {
