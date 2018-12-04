@@ -48,6 +48,12 @@
 / {
 	compatible = "khadas,edge", "rockchip,rk3399";
 
+	/* first 64k(0xff8c0000~0xff8d0000) for ddr and suspend */
+	iram: sram@ff8d0000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xff8d0000 0x0 0x20000>; /* 128k */
+	};
+
 	backlight: backlight {
 		status = "disabled";
 		compatible = "pwm-backlight";
@@ -257,6 +263,11 @@
 		#cooling-cells = <2>;
 		cooling-levels = <0 150 200 255>;
 	};
+};
+
+&dmac_bus {
+	iram = <&iram>;
+	rockchip,force-iram;
 };
 
 &hdmi {
@@ -583,6 +594,10 @@
 		port-num = <1>;
 		status = "okay";
 	};
+};
+
+&dfi {
+	status = "okay";
 };
 
 &dmc {
