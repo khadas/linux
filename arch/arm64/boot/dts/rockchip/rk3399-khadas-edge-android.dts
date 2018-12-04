@@ -115,6 +115,22 @@
 	#sound-dai-cells = <0>;
 };
 
+&isp0_mmu {
+	status = "okay";
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <300>;
@@ -130,6 +146,10 @@
 		pinctrl-0 = <&i2s_8ch_mclk>;
 		status = "disabled";
 	};
+};
+
+&i2c6 {
+	status = "okay";
 };
 
 &i2c7 {
