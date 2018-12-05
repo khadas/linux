@@ -293,7 +293,8 @@
 };
 
 &dmac_bus {
-   iram = <&iram>;
+	iram = <&iram>;
+	rockchip,force-iram;
 };
 
 &hdmi_in_vopl {
@@ -316,6 +317,10 @@
 
 &dp_in_vopb {
 	status = "disabled";
+};
+
+&dfi {
+	status = "okay";
 };
 
 &dmc {
