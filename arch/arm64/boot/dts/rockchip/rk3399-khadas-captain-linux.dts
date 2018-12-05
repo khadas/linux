@@ -47,6 +47,36 @@
 / {
 	model = "Khadas Captain";
 	compatible = "khadas,captain", "rockchip,rk3399";
+
+	rt5651-sound {
+		compatible = "simple-audio-card";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt5651_hpdet>;
+
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "realtek,rt5651-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,hp-det-gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Mic Jack", "MICBIAS1",
+			"IN1P", "Mic Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rt5651>;
+		};
+	};
+
+
+
 };
 
 &gmac {
@@ -75,4 +105,39 @@
 	status = "okay";
 	max-input-voltage = <13000000>; /* need to be removed when enable charge IC */
 	max-input-current = <6000000>;
+};
+
+&i2c1 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <150>;
+	i2c-scl-falling-time-ns = <30>;
+	clock-frequency = <200000>;
+
+	rt5651: rt5651@1a {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rt5651";
+		reg = <0x1a>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+		status = "okay";
+	};
+
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <2>;
+	rockchip,capture-channels = <2>;
+	#sound-dai-cells = <0>;
+};
+
+&pinctrl {
+	rt5651 {
+		rt5651_hpdet: rt5651-hpdet {
+			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_A0 */
+		};
+	};
 };
