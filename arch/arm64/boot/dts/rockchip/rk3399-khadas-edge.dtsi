@@ -742,6 +742,8 @@
 };
 
 &i2s2 {
+	dmas = <&dmac_bus 4>;
+	dma-names = "tx";
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
