@@ -1806,8 +1806,8 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 	int ret, type;
 
 	type = get_board_type();
-	if (type != KHADAS_CAPTAIN)
-		return -ENODEV;
+//	if (type != KHADAS_CAPTAIN)
+//		return -ENODEV;
 
 	rt5651 = devm_kzalloc(&i2c->dev, sizeof(*rt5651),
 				GFP_KERNEL);
