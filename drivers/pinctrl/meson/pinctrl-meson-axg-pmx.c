@@ -115,4 +115,7 @@ const struct pinmux_ops meson_axg_pmx_ops = {
 	.get_function_name = meson_pmx_get_func_name,
 	.get_function_groups = meson_pmx_get_groups,
 	.gpio_request_enable = meson_axg_pmx_request_gpio,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.strict = true,
+#endif
 };
