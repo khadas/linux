@@ -26,6 +26,9 @@
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#include <linux/amlogic/debug_lockup.h>
+#endif
 
 static DEFINE_MUTEX(watchdog_mutex);
 
@@ -336,6 +339,13 @@ static void watchdog_interrupt_count(void)
 {
 	__this_cpu_inc(hrtimer_interrupts);
 }
+
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+unsigned long watchdog_get_interrupt_count_cpu(int cpu)
+{
+	return per_cpu(hrtimer_interrupts, cpu);
+}
+#endif
 
 static DEFINE_PER_CPU(struct completion, softlockup_completion);
 static DEFINE_PER_CPU(struct cpu_stop_work, softlockup_stop_work);

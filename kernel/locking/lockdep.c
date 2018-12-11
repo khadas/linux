@@ -62,6 +62,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/lock.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#include <linux/amlogic/debug_lockup.h>
+#endif
+
 #ifdef CONFIG_PROVE_LOCKING
 int prove_locking = 1;
 module_param(prove_locking, int, 0644);
@@ -4399,6 +4403,11 @@ static void check_flags(unsigned long flags)
 #if defined(CONFIG_PROVE_LOCKING) && defined(CONFIG_DEBUG_LOCKDEP)
 	if (!debug_locks)
 		return;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+	if (in_irq_trace())
+		return;
+#endif
 
 	if (irqs_disabled_flags(flags)) {
 		if (DEBUG_LOCKS_WARN_ON(current->hardirqs_enabled)) {

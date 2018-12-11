@@ -1,14 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_ARM_IRQFLAGS_H
-#define __ASM_ARM_IRQFLAGS_H
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef __ASM_IRQFLAGS_DEBUG_ARM_H
+#define __ASM_IRQFLAGS_DEBUG_ARM_H
 
 #ifdef __KERNEL__
 
-#include <asm/ptrace.h>
-
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
-#include <linux/amlogic/irqflags_debug_arm.h>
-#else
+#include <linux/amlogic/debug_lockup.h>
 
 /*
  * CPU interrupt mask handling.
@@ -30,31 +30,28 @@ static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
 
-	asm volatile(
-		"	mrs	%0, " IRQMASK_REG_NAME_R "	@ arch_local_irq_save\n"
-		"	cpsid	i"
-		: "=r" (flags) : : "memory", "cc");
+	asm volatile("mrs	%0, " IRQMASK_REG_NAME_R
+		     "	@ arch_local_irq_save\n"
+		     "cpsid	i"
+		     : "=r" (flags) : : "memory", "cc");
+	irq_trace_start(flags);
 	return flags;
 }
 
 #define arch_local_irq_enable arch_local_irq_enable
 static inline void arch_local_irq_enable(void)
 {
-	asm volatile(
-		"	cpsie i			@ arch_local_irq_enable"
-		:
-		:
-		: "memory", "cc");
+	irq_trace_stop(0);
+	asm volatile("	cpsie i			@ arch_local_irq_enable"
+		     :
+		     :
+		     : "memory", "cc");
 }
 
 #define arch_local_irq_disable arch_local_irq_disable
 static inline void arch_local_irq_disable(void)
 {
-	asm volatile(
-		"	cpsid i			@ arch_local_irq_disable"
-		:
-		:
-		: "memory", "cc");
+	arch_local_irq_save();
 }
 
 #define local_fiq_enable()  __asm__("cpsie f	@ __stf" : : : "memory", "cc")
@@ -77,13 +74,12 @@ static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags, temp;
 
-	asm volatile(
-		"	mrs	%0, cpsr	@ arch_local_irq_save\n"
-		"	orr	%1, %0, #128\n"
-		"	msr	cpsr_c, %1"
-		: "=r" (flags), "=r" (temp)
-		:
-		: "memory", "cc");
+	asm volatile("	mrs	%0, cpsr	@ arch_local_irq_save\n"
+		     "	orr	%1, %0, #128\n"
+		     "	msr	cpsr_c, %1"
+		     : "=r" (flags), "=r" (temp)
+		     :
+		     : "memory", "cc");
 	return flags;
 }
 
@@ -94,13 +90,13 @@ static inline unsigned long arch_local_irq_save(void)
 static inline void arch_local_irq_enable(void)
 {
 	unsigned long temp;
-	asm volatile(
-		"	mrs	%0, cpsr	@ arch_local_irq_enable\n"
-		"	bic	%0, %0, #128\n"
-		"	msr	cpsr_c, %0"
-		: "=r" (temp)
-		:
-		: "memory", "cc");
+
+	asm volatile("	mrs	%0, cpsr	@ arch_local_irq_enable\n"
+		     "	bic	%0, %0, #128\n"
+		     "	msr	cpsr_c, %0"
+		     : "=r" (temp)
+		     :
+		     : "memory", "cc");
 }
 
 /*
@@ -110,13 +106,13 @@ static inline void arch_local_irq_enable(void)
 static inline void arch_local_irq_disable(void)
 {
 	unsigned long temp;
-	asm volatile(
-		"	mrs	%0, cpsr	@ arch_local_irq_disable\n"
-		"	orr	%0, %0, #128\n"
-		"	msr	cpsr_c, %0"
-		: "=r" (temp)
-		:
-		: "memory", "cc");
+
+	asm volatile("	mrs	%0, cpsr	@ arch_local_irq_disable\n"
+		     "	orr	%0, %0, #128\n"
+		     "	msr	cpsr_c, %0"
+		     : "=r" (temp)
+		     :
+		     : "memory", "cc");
 }
 
 /*
@@ -160,9 +156,9 @@ static inline void arch_local_irq_disable(void)
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
-	asm volatile(
-		"	mrs	%0, " IRQMASK_REG_NAME_R "	@ local_save_flags"
-		: "=r" (flags) : : "memory", "cc");
+
+	asm volatile("mrs %0," IRQMASK_REG_NAME_R "	@ local_save_flags"
+		     : "=r" (flags) : : "memory", "cc");
 	return flags;
 }
 
@@ -172,11 +168,11 @@ static inline unsigned long arch_local_save_flags(void)
 #define arch_local_irq_restore arch_local_irq_restore
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-	asm volatile(
-		"	msr	" IRQMASK_REG_NAME_W ", %0	@ local_irq_restore"
-		:
-		: "r" (flags)
-		: "memory", "cc");
+	irq_trace_stop(flags);
+	asm volatile("msr " IRQMASK_REG_NAME_W ",%0	@ local_irq_restore"
+		     :
+		     : "r" (flags)
+		     : "memory", "cc");
 }
 
 #define arch_irqs_disabled_flags arch_irqs_disabled_flags
@@ -188,5 +184,4 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 #include <asm-generic/irqflags.h>
 
 #endif /* ifdef __KERNEL__ */
-#endif /* ifndef __ASM_ARM_IRQFLAGS_H */
-#endif /* ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP */
+#endif /* ifndef __ASM_IRQFLAGS_DEBUG_ARM_H */

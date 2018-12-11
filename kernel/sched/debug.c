@@ -984,3 +984,11 @@ void proc_sched_set_task(struct task_struct *p)
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
 }
+
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+struct task_struct *get_current_cpu_task(int cpu)
+{
+	return cpu_rq(cpu)->curr;
+}
+#endif
+
