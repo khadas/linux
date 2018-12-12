@@ -29,6 +29,7 @@
 #include <linux/of_net.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/of_gpio.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -166,6 +167,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	enum of_gpio_flags flags;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
@@ -173,6 +175,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	setup_mac_addr(pdev, mac);
 	plat->interface = of_get_phy_mode(np);
+
+	plat->wolirq_io = of_get_named_gpio_flags(np, "wolirq-gpio", 0, &flags);
 
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))

@@ -1542,8 +1542,6 @@ static int rk_gmac_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-extern void rtl8211f_suspend(void);
-extern void rtl8211f_resume(void);
 static int rk_gmac_suspend(struct device *dev)
 {
 	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
@@ -1554,8 +1552,6 @@ static int rk_gmac_suspend(struct device *dev)
 		rk_gmac_powerdown(bsp_priv);
 		bsp_priv->suspended = true;
 	}
-
-	rtl8211f_suspend();
 
 	return ret;
 }
@@ -1569,8 +1565,6 @@ static int rk_gmac_resume(struct device *dev)
 		rk_gmac_powerup(bsp_priv);
 		bsp_priv->suspended = false;
 	}
-
-	rtl8211f_resume();
 
 	return stmmac_resume(dev);
 }
