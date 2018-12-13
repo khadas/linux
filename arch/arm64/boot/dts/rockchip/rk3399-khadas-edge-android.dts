@@ -198,7 +198,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&charger_ok>;
 		ti,charge-current = <1500000>;
-		ti,max-charge-voltage = <8750000>;
+		ti,max-charge-voltage = <8500000>;
 		ti,max-input-voltage = <20000000>;
 		ti,max-input-current = <6000000>;
 		ti,input-current-sdp = <500000>;
