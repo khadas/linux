@@ -121,13 +121,23 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 			       u32 **channel_hwirq)
 {
 	unsigned int reg, idx;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long flags;
+#endif
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	spin_lock(&ctl->lock);
-
+#else
+	spin_lock_irqsave(&ctl->lock, flags);
+#endif
 	/* Find a free channel */
 	idx = find_first_zero_bit(ctl->channel_map, NUM_CHANNEL);
 	if (idx >= NUM_CHANNEL) {
+#ifndef CONFIG_AMLOGIC_MODIFY
 		spin_unlock(&ctl->lock);
+#else
+		spin_unlock_irqrestore(&ctl->lock, flags);
+#endif
 		pr_err("No channel available\n");
 		return -ENOSPC;
 	}
@@ -152,7 +162,11 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 	 */
 	*channel_hwirq = &(ctl->channel_irqs[idx]);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	spin_unlock(&ctl->lock);
+#else
+	spin_unlock_irqrestore(&ctl->lock, flags);
+#endif
 
 	pr_debug("hwirq %lu assigned to channel %d - irq %u\n",
 		 hwirq, idx, **channel_hwirq);
@@ -183,6 +197,9 @@ static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 {
 	u32 val = 0;
 	unsigned int idx;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long flags;
+#endif
 
 	idx = meson_gpio_irq_get_channel_idx(ctl, channel_hwirq);
 
@@ -212,12 +229,20 @@ static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 			val |= REG_EDGE_POL_LOW(idx);
 	}
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	spin_lock(&ctl->lock);
+#else
+	spin_lock_irqsave(&ctl->lock, flags);
+#endif
 
 	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL,
 				   REG_EDGE_POL_MASK(idx), val);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	spin_unlock(&ctl->lock);
+#else
+	spin_unlock_irqrestore(&ctl->lock, flags);
+#endif
 
 	return 0;
 }
