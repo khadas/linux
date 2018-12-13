@@ -1133,4 +1133,13 @@ static struct platform_driver meson8_pinctrl_driver = {
 		.of_match_table = meson8_pinctrl_dt_match,
 	},
 };
+
+#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(meson8_pinctrl_driver);
+#else
+static int __init meson8_pinctrl_init(void)
+{
+	return platform_driver_register(&meson8_pinctrl_driver);
+}
+arch_initcall(meson8_pinctrl_init);
+#endif

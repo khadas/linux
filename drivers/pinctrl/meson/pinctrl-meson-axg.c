@@ -1124,4 +1124,12 @@ static struct platform_driver meson_axg_pinctrl_driver = {
 	},
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(meson_axg_pinctrl_driver);
+#else
+static int __init meson_axg_pinctrl_init(void)
+{
+	return platform_driver_register(&meson_axg_pinctrl_driver);
+}
+arch_initcall(meson_axg_pinctrl_init);
+#endif

@@ -873,4 +873,13 @@ static struct platform_driver meson_gxbb_pinctrl_driver = {
 		.of_match_table = meson_gxbb_pinctrl_dt_match,
 	},
 };
+
+#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(meson_gxbb_pinctrl_driver);
+#else
+static int __init meson_gxbb_pinctrl_init(void)
+{
+	return platform_driver_register(&meson_gxbb_pinctrl_driver);
+}
+arch_initcall(meson_gxbb_pinctrl_init);
+#endif
