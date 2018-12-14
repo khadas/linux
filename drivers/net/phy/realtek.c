@@ -110,7 +110,7 @@ __setup("androidboot.mac=",init_mac_addr);
 static int __init init_wol_state(char *str)
 {
    wol_enable = simple_strtol(str, NULL, 0);
-   printk("%s, wol_enable=%d\b",__func__, wol_enable);
+   printk("%s, wol_enable=%d\n",__func__, wol_enable);
 
    return 1;
 }
