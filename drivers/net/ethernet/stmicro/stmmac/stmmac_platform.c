@@ -33,6 +33,41 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
+#ifdef CONFIG_DWMAC_ROCKCHIP
+static u8 DEFMAC[] = {0, 0, 0, 0, 0, 0};
+static unsigned int g_mac_addr_setup;
+static unsigned char chartonum(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'A' && c <= 'F')
+		return (c - 'A') + 10;
+	if (c >= 'a' && c <= 'f')
+		return (c - 'a') + 10;
+	return 0;
+
+}
+
+static int __init mac_addr_set(char *line)
+{
+	unsigned char mac[6];
+	int i = 0;
+	for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
+		mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
+		line += 3;
+	}
+	memcpy(DEFMAC, mac, 6);
+	printk("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
+		DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4],
+		DEFMAC[5]);
+	g_mac_addr_setup++;
+
+	return 1;
+}
+
+__setup("mac=", mac_addr_set);
+#endif
+
 #ifdef CONFIG_OF
 
 /**
@@ -114,7 +149,14 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
+#ifdef CONFIG_DWMAC_ROCKCHIP
+	if (g_mac_addr_setup)	/*so uboot mac= is first priority.*/
+		*mac = DEFMAC;
+	else
+		*mac = of_get_mac_address(np);
+#else
 	*mac = of_get_mac_address(np);
+#endif
 	plat->interface = of_get_phy_mode(np);
 
 	/* Get max speed of operation from device tree */
