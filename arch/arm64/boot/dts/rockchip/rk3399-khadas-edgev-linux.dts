@@ -45,7 +45,7 @@
 #include "rk3399-khadas-edge.dtsi"
 
 / {
-	model = "Khadas Edge V";
+	model = "Khadas Edge-V";
 	compatible = "khadas,edgev", "rockchip,rk3399";
 };
 
