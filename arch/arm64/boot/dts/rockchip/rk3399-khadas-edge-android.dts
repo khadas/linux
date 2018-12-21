@@ -121,6 +121,14 @@
 
 &isp0 {
 	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
 };
 
 &isp1_mmu {
@@ -129,6 +137,14 @@
 
 &isp1 {
 	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
 };
 
 &i2c1 {
