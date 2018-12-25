@@ -724,3 +724,18 @@
     };
 };
 
+&i2c2 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>; /* GPIO2_A3 */
+		status = "okay";
+	};
+};
+
