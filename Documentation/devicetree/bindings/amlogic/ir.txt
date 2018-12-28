@@ -1,0 +1,34 @@
+Amlogic IR remote control driver
+
+This driver is used to configure Amlogic SoC internal IR remote
+control decoder.
+
+Required properties:
+- compatible: Must be "amlogic, meson-ir".
+- protocol: Specify the default protocol.
+- map: Specify the map between scancode and keycode.
+- customcode: Set customcode for each supported ir remote control.
+- release_delay: Key up time when release a key.
+- size: number of a map of scancode and keycode.
+- keymap: actual key map between scancode and keycode.
+- max_frame_time: use to soft decode.
+
+Optional properties:
+- status: Shall be "ok" or "okay" if enabled or "disabled" if disabled.
+          Default is "ok".
+
+Example:
+
+should use REMOTE_TYPE_* form
+<dt-bindings/input/meson_rc.h>
+
+        ir: ir@8040{
+		compatible = "amlogic, meson-ir";
+		status = "okay";
+		protocol = <REMOTE_TYPE_NEC>;
+		interrupts = <0 196 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		map = <&custom_maps>;
+		max_frame_time = <200>;
+	}
