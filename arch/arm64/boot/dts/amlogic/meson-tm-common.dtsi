@@ -7,6 +7,9 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-tm2-gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/input/meson_ir.h>
+#include "meson-ir-map.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -141,6 +144,14 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&ao_pinctrl 0 0 15>;
 				};
+
+				remote_input_ao_pins: remote-input-ao {
+					mux {
+						groups = "remote_input_ao";
+						function = "remote_input_ao";
+						bias-disable;
+					};
+				};
 			};
 
 			uart_AO: serial@3000 {
@@ -153,6 +164,16 @@
 				status = "disabled";
 			};
 
+			ir: ir@8040 {
+				compatible = "amlogic, meson-ir";
+				reg = <0x0 0x8040 0x0 0xA4>,
+				      <0x0 0x8000 0x0 0x20>;
+				status = "disabled";
+				protocol = <REMOTE_TYPE_NEC>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
+				map = <&custom_maps>;
+				max_frame_time = <200>;
+			};
 		};
 
 		gic: interrupt-controller@ffc01000 {

@@ -68,5 +68,7 @@ source "drivers/amlogic/pinctrl/Kconfig"
 source "drivers/amlogic/thermal/Kconfig"
 
 source "drivers/amlogic/clk_debug/Kconfig"
+
+source "drivers/amlogic/input/Kconfig"
 endmenu
 endif

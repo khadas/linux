@@ -28,6 +28,7 @@
 #define		REMOTE_TYPE_TOSHIBA	0x06
 #define		REMOTE_TYPE_RCA		0x08
 #define		REMOTE_TYPE_SHARP	0x09
+#define		REMOTE_TYPE_RCMM	0x0A
 
 /*hardware decode one protocol by using legacy IR controller*/
 #define		REMOTE_TYPE_LEGACY_NEC  0xff

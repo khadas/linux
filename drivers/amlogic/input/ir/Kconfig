@@ -1,0 +1,8 @@
+#
+#Amlogic  IR Remote control drivers
+#
+config AMLOGIC_MESON_IR
+	tristate  "Amlogic Meson IR remote control support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR remote control.
