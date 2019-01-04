@@ -422,6 +422,7 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
 			snps,xhci-slow-suspend-quirk;
+			snps,xhci-trb-ent-quirk;
 			snps,usb3-warm-reset-on-resume-quirk;
 			status = "disabled";
 		};
@@ -454,6 +455,7 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
 			snps,xhci-slow-suspend-quirk;
+			snps,xhci-trb-ent-quirk;
 			snps,usb3-warm-reset-on-resume-quirk;
 			status = "disabled";
 		};
