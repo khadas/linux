@@ -197,6 +197,21 @@
 /* for use with IIO_VAL_INT_PLUS_MICRO */
 #define MILLION							1000000
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define MESON_SAR_ADC_CHAN(_chan) {					\
+	.type = IIO_VOLTAGE,						\
+	.indexed = 1,							\
+	.channel = _chan,						\
+	.address = _chan,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+				BIT(IIO_CHAN_INFO_AVERAGE_RAW) |	\
+				BIT(IIO_CHAN_INFO_PROCESSED),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_CALIBBIAS) |	\
+				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
+	.datasheet_name = "SAR_ADC_CH"#_chan,				\
+}
+#else
 #define MESON_SAR_ADC_CHAN(_chan) {					\
 	.type = IIO_VOLTAGE,						\
 	.indexed = 1,							\
@@ -209,6 +224,7 @@
 				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
 	.datasheet_name = "SAR_ADC_CH"#_chan,				\
 }
+#endif
 
 #define MESON_SAR_ADC_TEMP_CHAN(_chan) {				\
 	.type = IIO_TEMP,						\
@@ -658,6 +674,21 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 						MEAN_AVERAGING, EIGHT_SAMPLES,
 						val);
 		break;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	case IIO_CHAN_INFO_PROCESSED:
+		ret = meson_sar_adc_get_sample(indio_dev, chan,
+					       MEAN_AVERAGING, EIGHT_SAMPLES,
+					       val);
+		if (ret < 0)
+			return ret;
+
+		/* return the 10-bit sampling value */
+		if (priv->param->resolution == 12)
+			*val = *val >> 2;
+
+		return IIO_VAL_INT;
+#endif
 
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_VOLTAGE) {
