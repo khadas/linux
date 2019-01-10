@@ -21,6 +21,9 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/syscon.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/iio/sysfs.h>
+#endif
 
 #define MESON_SAR_ADC_REG0					0x00
 	#define MESON_SAR_ADC_REG0_PANEL_DETECT			BIT(31)
@@ -264,6 +267,19 @@ static const struct iio_chan_spec meson_sar_adc_and_temp_iio_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(9),
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const char * const chan7_vol[] = {
+	"gnd",
+	"vdd/4",
+	"vdd/2",
+	"vdd*3/4",
+	"vdd",
+	"ch7_input",
+	"ch7_input",
+	"ch7_input",
+};
+#endif
+
 enum meson_sar_adc_avg_mode {
 	NO_AVERAGING = 0x0,
 	MEAN_AVERAGING = 0x1,
@@ -345,6 +361,9 @@ struct meson_sar_adc_priv {
 	bool					temperature_sensor_calibrated;
 	u8					temperature_sensor_coefficient;
 	u16					temperature_sensor_adc_val;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u8					chan7_mux_sel;
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -520,6 +539,10 @@ static void meson_sar_adc_set_chan7_mux(struct iio_dev *indio_dev,
 	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, sel);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
 			   MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, regval);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	priv->chan7_mux_sel = sel;
+#endif
 
 	usleep_range(10, 20);
 }
@@ -1173,8 +1196,57 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static ssize_t chan7_mux_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+	int len = 0;
+	int i;
+
+	len = sprintf(buf, "current: [%d]%s\n\n",
+		      priv->chan7_mux_sel, chan7_vol[priv->chan7_mux_sel]);
+	for (i = 0; i < ARRAY_SIZE(chan7_vol); i++)
+		len += sprintf(buf + len, "%d: %s\n", i, chan7_vol[i]);
+
+	return len;
+}
+
+static ssize_t chan7_mux_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	int val;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+	if (val >= ARRAY_SIZE(chan7_vol))
+		return -EINVAL;
+	meson_sar_adc_set_chan7_mux(indio_dev, val);
+
+	return count;
+}
+
+static IIO_DEVICE_ATTR(chan7_mux, 0644,
+		       chan7_mux_show, chan7_mux_store, -1);
+
+static struct attribute *meson_sar_adc_attrs[] = {
+	&iio_dev_attr_chan7_mux.dev_attr.attr,
+	NULL, /*need to terminate the list of attributes by NULL*/
+};
+
+static const struct attribute_group meson_sar_adc_attr_group = {
+	.attrs = meson_sar_adc_attrs,
+};
+#endif
+
 static const struct iio_info meson_sar_adc_iio_info = {
 	.read_raw = meson_sar_adc_iio_info_read_raw,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.attrs = &meson_sar_adc_attr_group,
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
