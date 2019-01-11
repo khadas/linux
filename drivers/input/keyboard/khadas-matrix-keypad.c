@@ -337,11 +337,11 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad;
 	struct input_dev *input_dev;
-	int err, ret, type;
+	int err, ret;
 
-    type = get_board_type();
-    if (type != KHADAS_CAPTAIN)
-       return -1;
+//    type = get_board_type();
+//    if (type != KHADAS_CAPTAIN)
+//       return -1;
 
 	printk("%s start\n", __func__);
 	keypad = kzalloc(sizeof(*keypad), GFP_KERNEL);
