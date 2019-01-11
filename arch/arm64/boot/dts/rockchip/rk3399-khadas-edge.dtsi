@@ -152,7 +152,7 @@
 	};
 
 	spdif-sound {
-		status = "okay";
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "ROCKCHIP,SPDIF";
 		simple-audio-card,cpu {
@@ -164,7 +164,7 @@
 	};
 
 	spdif_out: spdif-out {
-		status = "okay";
+		status = "disabled";
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
 	};
@@ -691,7 +691,7 @@
 };
 
 &spdif {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&spdif_bus_1>;
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;
