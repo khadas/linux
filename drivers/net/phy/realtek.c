@@ -15,7 +15,6 @@
  */
 #include <linux/phy.h>
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/err.h>
@@ -43,8 +42,6 @@
 #define RTL8211F_MAX_PACKET_CTRL 0x11
 #define RTL8211F_BMCR   0x00
 
-#define WOL_REG    0x21
-
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Terry");
 MODULE_LICENSE("GPL");
@@ -64,8 +61,6 @@ struct phy_device *g_phydev;
 
 struct wol_data {
     int enable;
-	struct i2c_client *client;
-	struct class *wol_class;
 };
 
 struct wol_data *g_wol_data;
@@ -230,189 +225,10 @@ static void rtl8211f_config_wol(struct phy_device *phydev, int enable)
 }
 #endif
 
-static int i2c_master_reg8_send(const struct i2c_client *client,
-		const char reg, const char *buf, int count)
-{
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msg;
-	int ret;
-	char *tx_buf = kzalloc(count + 1, GFP_KERNEL);
-	if (!tx_buf)
-		return -ENOMEM;
-	tx_buf[0] = reg;
-	memcpy(tx_buf+1, buf, count);
-
-	msg.addr = client->addr;
-	msg.flags = client->flags;
-	msg.len = count + 1;
-	msg.buf = (char *)tx_buf;
-
-	ret = i2c_transfer(adap, &msg, 1);
-	kfree(tx_buf);
-	return (ret == 1) ? count : ret;
-}
-
-
-static int i2c_master_reg8_recv(const struct i2c_client *client,
-		const char reg, char *buf, int count)
-{
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msgs[2];
-	int ret;
-	char reg_buf = reg;
-
-	msgs[0].addr = client->addr;
-	msgs[0].flags = client->flags;
-	msgs[0].len = 1;
-	msgs[0].buf = &reg_buf;
-
-	msgs[1].addr = client->addr;
-	msgs[1].flags = client->flags | I2C_M_RD;
-	msgs[1].len = count;
-	msgs[1].buf = (char *)buf;
-
-	ret = i2c_transfer(adap, msgs, 2);
-
-	return (ret == 2) ? count : ret;
-}
-
-static int wol_i2c_read_regs(struct i2c_client *client,
-		u8 reg, u8 buf[], unsigned len)
-{
-	int ret;
-	ret = i2c_master_reg8_recv(client, reg, buf, len);
-	return ret;
-}
-
-static int wol_i2c_write_regs(struct i2c_client *client,
-		u8 reg, u8 const buf[], __u16 len)
-{
-	int ret;
-	ret = i2c_master_reg8_send(client, reg, buf, (int)len);
-	return ret;
-}
-
-
-static ssize_t store_enable(struct class *cls, struct class_attribute *attr,
-		        const char *buf, size_t count)
-{
-	u8 reg[2];
-	int ret;
-	int enable;
-	int state;
-
-	if (kstrtoint(buf, 0, &enable))
-		return -EINVAL;
-
-	ret = wol_i2c_read_regs(g_wol_data->client, WOL_REG, reg, 1);
-	if (ret < 0) {
-		printk("write wol state err\n");
-		return ret;
-	}
-	state = (int)reg[0];
-	reg[0] = enable|(state&0x02);
-	ret = wol_i2c_write_regs(g_wol_data->client, WOL_REG, reg, 1);
-	if (ret < 0) {
-		printk("write wol state err\n");
-		return ret;
-	}
-
-	g_wol_data->enable = reg[0];
-	enable_wol(g_wol_data->enable,false);
-
-	printk("write wol state: %d\n", g_wol_data->enable);
-	return count;
-}
-
-static ssize_t show_enable(struct class *cls,
-		        struct class_attribute *attr, char *buf)
-{
-	int enable;
-	enable = g_wol_data->enable&0x01;
-	return sprintf(buf, "%d\n", enable);
-}
-
-static struct class_attribute wol_class_attrs[] = {
-	__ATTR(enable, 0666, show_enable, store_enable),
-};
-
-void create_wol_enable_attr(void)
-{
-	int i;
-	printk("%s\n",__func__);
-	g_wol_data->wol_class = class_create(THIS_MODULE, "wol");
-	if (IS_ERR(g_wol_data->wol_class)) {
-		pr_err("create wol_class debug class fail\n");
-		return;
-	}
-	for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
-		if (class_create_file(g_wol_data->wol_class, &wol_class_attrs[i]))
-			pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
-	}
-}
-
-static int wol_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
-{
-	u8 reg[2];
-	int ret;
-
-    if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-	g_wol_data = kzalloc(sizeof(struct wol_data), GFP_KERNEL);
-
-	if (g_wol_data == NULL)
-		return -ENOMEM;
-
-	g_wol_data->client = client;
-	ret = wol_i2c_read_regs(client, WOL_REG, reg, 1);
-	if (ret < 0)
-		goto exit;
-	g_wol_data->enable = (int)reg[0];
-	create_wol_enable_attr();
-	printk("%s,wol enable=%d\n",__func__ ,g_wol_data->enable);
-
-	if (g_wol_data->enable == 3)
-	enable_wol(g_wol_data->enable, false);
-
-
-	reg[0] = 0x01;
-	ret = wol_i2c_write_regs(client, 0x87, reg, 1);
-	if (ret < 0) {
-		printk("write mcu err\n");
-		goto  exit;
-	}
-	return 0;
-exit:
-	return ret;
-
-}
-static const struct i2c_device_id wol_id[] = {
-	{ "khadas-wol", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wol_id);
-
-static struct of_device_id wol_dt_ids[] = {
-	{ .compatible = "khadas-wol" },
-	{},
-};
-
-struct i2c_driver wol_driver = {
-    .driver     = {
-         .name   = "khadas-wol",
-		 .owner  = THIS_MODULE,
-		 .of_match_table = of_match_ptr(wol_dt_ids),
-	},
-	.probe      = wol_probe,
-	.id_table   = wol_id,
-};
-
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	int val;
 	int bmcr = 0;
-	int ret;
 
 	/* close CLOCK output */
 	val = phy_read(phydev, RTL821x_PHYCR2);
@@ -462,10 +278,6 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 		register_early_suspend(&rtl8211f_early_suspend_handler);
 #endif
-		ret = i2c_add_driver(&wol_driver);
-		if (ret) {
-			pr_err("error khadas-wol probe: add i2c_driver failed\n");
-		}
 	}
 	else {
 		if (g_wol_data->enable == 3)
