@@ -38,7 +38,15 @@ enum khadas_fan_enable {
 	KHADAS_FAN_ENABLE,
 };
 
+enum khadas_fan_hwver {
+	KHADAS_FAN_HWVER_NONE = 0,
+	KHADAS_FAN_HWVER_V12,
+	KHADAS_FAN_HWVER_V13,
+	KHADAS_FAN_HWVER_V14
+};
+
 struct khadas_fan_data {
+	int initialized;
 	struct platform_device *pdev;
 	struct class *class;
 	struct delayed_work work;
@@ -51,6 +59,7 @@ struct khadas_fan_data {
 	int	trig_temp_level0;
 	int	trig_temp_level1;
 	int	trig_temp_level2;
+	enum khadas_fan_hwver hwver;
 };
 
 struct khadas_fan_data *fan_data = NULL;
@@ -255,12 +264,36 @@ static int khadas_fan_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 	int i;
+	const char *hwver = NULL;
 
 	printk("khadas_fan_probe\n");
 
 	fan_data = devm_kzalloc(dev, sizeof(struct khadas_fan_data), GFP_KERNEL);
 	if (!fan_data)
 		return -ENOMEM;
+
+	// Get hardwere version
+	ret = of_property_read_string(dev->of_node, "hwver", &hwver);
+	if (ret < 0) {
+		fan_data->hwver = KHADAS_FAN_HWVER_V12;
+	} else {
+		if (0 == strcmp(hwver, "VIM2.V12")) {
+			fan_data->hwver = KHADAS_FAN_HWVER_V12;
+		} else if (0 == strcmp(hwver, "VIM2.V13")) {
+			fan_data->hwver = KHADAS_FAN_HWVER_V13;
+		} else if (0 == strcmp(hwver, "VIM2.V14")) {
+			fan_data->hwver = KHADAS_FAN_HWVER_V14;
+		}
+		else {
+			fan_data->hwver = KHADAS_FAN_HWVER_NONE;
+		}
+	}
+
+	if (KHADAS_FAN_HWVER_V12 != fan_data->hwver) {
+		// This driver is only for Khadas VIM2 V12 version.
+		printk("FAN: This driver is only for Khadas VIM2 V12 version.\n");
+		return 0;
+	}
 
 	ret = of_property_read_u32(dev->of_node, "trig_temp_level0", &fan_data->trig_temp_level0);
 	if (ret < 0)
@@ -303,34 +336,47 @@ static int khadas_fan_probe(struct platform_device *pdev)
 		}
 	}
 	dev_info(dev, "trigger temperature is level0:%d, level1:%d, level2:%d.\n", fan_data->trig_temp_level0, fan_data->trig_temp_level1, fan_data->trig_temp_level2);
+
+	fan_data->initialized = 1;
+
 	return 0;
 }
 
 static int khadas_fan_remove(struct platform_device *pdev)
 {
-	fan_data->enable = KHADAS_FAN_DISABLE;
-	khadas_fan_set(fan_data);
+	if (fan_data->initialized) {
+		fan_data->enable = KHADAS_FAN_DISABLE;
+		khadas_fan_set(fan_data);
+	}
 
 	return 0;
 }
 
 static void khadas_fan_shutdown(struct platform_device *pdev)
 {
-	fan_data->enable = KHADAS_FAN_DISABLE;
-	khadas_fan_set(fan_data);
+	if (fan_data->initialized) {
+		fan_data->enable = KHADAS_FAN_DISABLE;
+		khadas_fan_set(fan_data);
+	}
 }
 
 #ifdef CONFIG_PM
 static int khadas_fan_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	cancel_delayed_work(&fan_data->work);
-	khadas_fan_level_set(fan_data, 0);
+	if (fan_data->initialized) {
+		cancel_delayed_work(&fan_data->work);
+		khadas_fan_level_set(fan_data, 0);
+	}
+
 	return 0;
 }
 
 static int khadas_fan_resume(struct platform_device *pdev)
 {
-	khadas_fan_set(fan_data);
+	if (fan_data->initialized) {
+		khadas_fan_set(fan_data);
+	}
+
 	return 0;
 }
 #endif
