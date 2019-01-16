@@ -49,6 +49,7 @@
 #include <linux/sched.h>
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
+#include <trace/events/meson_atrace.h>
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -3536,8 +3537,10 @@ static u64 func_div(u64 number, u32 divid)
 	return tmp;
 }
 
-static void vsync_toggle_frame(struct vframe_s *vf)
+static void vsync_toggle_frame(struct vframe_s *vf, int line)
 {
+	static u32 last_pts;
+	u32 diff_pts;
 	u32 first_picture = 0;
 	unsigned long flags = 0;
 	bool vf_with_el = false;
@@ -3545,8 +3548,18 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	long long *clk_array;
 	bool is_mvc = false;
 
+	ATRACE_COUNTER(__func__,  line);
 	if (vf == NULL)
 		return;
+	ATRACE_COUNTER("vsync_toggle_frame_pts", vf->pts);
+
+	diff_pts = vf->pts - last_pts;
+	if (last_pts && diff_pts < 90000)
+		ATRACE_COUNTER("vsync_toggle_frame_inc", diff_pts);
+	else
+		ATRACE_COUNTER("vsync_toggle_frame_inc", 0);  /* discontinue */
+	last_pts = vf->pts;
+
 	frame_count++;
 	toggle_count++;
 
@@ -3629,6 +3642,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	if ((vf->width == 0) && (vf->height == 0)) {
 		amlog_level(LOG_LEVEL_ERROR,
 			    "Video: invalid frame dimension\n");
+		ATRACE_COUNTER(__func__,  __LINE__);
 		return;
 	}
 
@@ -3662,6 +3676,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 				}
 			}
 			video_vf_put(vf);
+			ATRACE_COUNTER(__func__,  __LINE__);
 			return;
 		}
 	}
@@ -4052,6 +4067,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 #endif
 		}
 	}
+	ATRACE_COUNTER(__func__,  0);
 }
 
 static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
@@ -6453,7 +6469,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						cur_index;
 					}
 				}
-				vsync_toggle_frame(cur_dispbuf);
+				vsync_toggle_frame(cur_dispbuf, __LINE__);
 			} else
 				video_property_changed = 0;
 		} else {
@@ -6466,11 +6482,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	/* setting video display property in underflow mode */
 	if ((!vf) && cur_dispbuf && (video_property_changed))
-		vsync_toggle_frame(cur_dispbuf);
+		vsync_toggle_frame(cur_dispbuf, __LINE__);
 
 	/*debug info for skip & repeate vframe case*/
 	if (!vf) {
 		underflow++;
+		ATRACE_COUNTER("underflow",  1);
 		if (video_dbg_vf&(1<<0))
 			dump_vframe_status("vdin0");
 		if (video_dbg_vf&(1<<1))
@@ -6481,6 +6498,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			dump_vframe_status("ppmgr");
 		if (video_dbg_vf&(1<<4))
 			dump_vdin_reg();
+	} else {
+		ATRACE_COUNTER("underflow",  0);
 	}
 	video_get_vf_cnt = 0;
 	if (platform_type == 1) {
@@ -6490,6 +6509,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 	while (vf) {
 		if (vpts_expire(cur_dispbuf, vf, toggle_cnt) || show_nosync) {
+			ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 			if (debug_flag & DEBUG_FLAG_PTS_TRACE)
 				pr_info("vpts = 0x%x, c.dur=0x%x, n.pts=0x%x, scr = 0x%x, pcr-pts-diff=%d, ptstrace=%d\n",
 					timestamp_vpts_get(),
@@ -6540,8 +6560,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				hdmiin_frame_check_cnt = 0;
 
 			vf = video_vf_get();
-			if (!vf)
+			if (!vf) {
+				ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 				break;
+			}
 			if (debug_flag & DEBUG_FLAG_LATENCY) {
 				vf->ready_clock[2] = sched_clock();
 				pr_info("video get latency %lld ms vdin put latency %lld ms. first %lld ms.\n",
@@ -6549,8 +6571,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				func_div(vf->ready_clock[1], 1000),
 				func_div(vf->ready_clock[0], 1000));
 			}
-			if (video_vf_dirty_put(vf))
+			if (video_vf_dirty_put(vf)) {
+				ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 				break;
+			}
 			if (vf && hdmiin_frame_check && (vf->source_type ==
 				VFRAME_SOURCE_TYPE_HDMI) &&
 				video_vf_disp_mode_check(vf))
@@ -6568,7 +6592,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					video_3d_format = vf->trans_fmt;
 				}
 			}
-			vsync_toggle_frame(vf);
+			vsync_toggle_frame(vf, __LINE__);
 			toggle_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (is_dolby_vision_enable()) {
@@ -6615,6 +6639,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (video_get_vf_cnt >= 2)
 				video_drop_vf_cnt++;
 		} else {
+			ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 			/* check if current frame's duration has expired,
 			 *in this example
 			 * it compares current frame display duration
@@ -6626,6 +6651,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			 * The playback can be smoother than previous method.
 			 */
 			if (slowsync_repeat_enable) {
+				ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 				if (duration_expire
 				    (cur_dispbuf, vf,
 				     frame_repeat_count * vsync_pts_inc)
@@ -6657,9 +6683,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						break;
 #endif
 					vf = video_vf_get();
-					if (!vf)
+					if (!vf) {
+						ATRACE_COUNTER(MODULE_NAME,
+								__LINE__);
 						break;
-					vsync_toggle_frame(vf);
+					}
+					vsync_toggle_frame(vf, __LINE__);
 					toggle_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if (is_dolby_vision_enable())
@@ -6692,9 +6721,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				if (blackout | force_blackout) {
 					if (cur_dispbuf != &vf_local)
 						vsync_toggle_frame(
-								cur_dispbuf);
+								cur_dispbuf,
+								__LINE__);
 				} else
-					vsync_toggle_frame(cur_dispbuf);
+					vsync_toggle_frame(cur_dispbuf,
+							__LINE__);
 				if (is_dolby_vision_enable()) {
 					pause_vf = cur_dispbuf;
 					video_pause_global = 1;
