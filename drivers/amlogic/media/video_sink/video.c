@@ -52,6 +52,9 @@
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
 #include "video_reg.h"
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO
+#include <trace/events/meson_atrace.h>
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 #include <linux/amlogic/media/frame_sync/ptsserv.h>
 #include <linux/amlogic/media/frame_sync/timestamp.h>

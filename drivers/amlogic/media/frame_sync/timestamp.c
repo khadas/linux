@@ -10,9 +10,8 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_TSYNC
 #include <trace/events/meson_atrace.h>
-#endif
 
 u32 acc_apts_inc;
 u32 acc_apts_dec;
@@ -47,10 +46,6 @@ void set_timestamp_inc_factor(u32 factor)
 {
 	timestamp_inc_factor = factor;
 }
-#endif
-
-#ifndef CONFIG_AMLOGIC_DEBUG_ATRACE
-static void ATRACE_COUNTER(const char *name, int val) { }
 #endif
 
 u32 timestamp_vpts_get(void)

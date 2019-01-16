@@ -16,6 +16,14 @@ config AMLOGIC_DEBUG_LOCKUP
 		Debug lockup in isr and deaklock whit irq disabled.
 		When enable this config, Watchdog should be disabled.
 
+config AMLOGIC_DEBUG_ATRACE
+	bool "Amlogic Kernel ATrace"
+	depends on AMLOGIC_DEBUG
+	default y
+	help
+		Add android atrace compatible function.
+		Support Tags
+
 config AMLOGIC_DEBUG_FTRACE_PSTORE
 	bool "Amlogic ftrace pstore debug"
 	depends on AMLOGIC_DEBUG
