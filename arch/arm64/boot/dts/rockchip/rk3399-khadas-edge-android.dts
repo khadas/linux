@@ -178,7 +178,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <7>;
+		layout = <9>;
 	};
 
 	icm20602_gyro: icm_gyro@68 {
