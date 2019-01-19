@@ -116,10 +116,6 @@ static inline void *evl_zalloc_chunk(struct evl_heap *heap, u32 size)
 	return p;
 }
 
-void *evl_alloc_irq_work(size_t size);
-
-void evl_free_irq_work(void *p);
-
 static inline
 int evl_shared_offset(void *p)
 {

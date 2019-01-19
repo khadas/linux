@@ -40,6 +40,8 @@
 
 static DECLARE_WAIT_QUEUE_HEAD(join_all);
 
+static void inband_task_wakeup(struct irq_work *work);
+
 static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
 {
 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
@@ -169,6 +171,7 @@ int evl_init_thread(struct evl_thread *thread,
 	memset(&thread->poll_context, 0, sizeof(thread->poll_context));
 	memset(&thread->stat, 0, sizeof(thread->stat));
 	memset(&thread->altsched, 0, sizeof(thread->altsched));
+	init_irq_work(&thread->inband_work, inband_task_wakeup);
 
 	INIT_LIST_HEAD(&thread->next);
 	INIT_LIST_HEAD(&thread->boosters);
@@ -625,30 +628,15 @@ abort:
 }
 EXPORT_SYMBOL_GPL(evl_suspend_thread);
 
-struct lostage_wakeup {
-	struct task_struct *task;
-	struct irq_work work;
-};
-
-static void lostage_task_wakeup(struct irq_work *work)
+static void inband_task_wakeup(struct irq_work *work)
 {
-	struct lostage_wakeup *rq;
+	struct evl_thread *thread;
+	struct task_struct *p;
 
-	rq = container_of(work, struct lostage_wakeup, work);
-	trace_evl_inband_wakeup(rq->task);
-	wake_up_process(rq->task);
-	evl_free_irq_work(rq);
-}
-
-static void post_wakeup(struct task_struct *p)
-{
-	struct lostage_wakeup *rq;
-
-	rq = evl_alloc_irq_work(sizeof(*rq));
-	init_irq_work(&rq->work, lostage_task_wakeup);
-	rq->task = p;
-	trace_evl_inband_request("wakeup", p);
-	irq_work_queue(&rq->work);
+	thread = container_of(work, struct evl_thread, inband_work);
+	p = thread->altsched.task;
+	trace_evl_inband_wakeup(p);
+	wake_up_process(p);
 }
 
 void evl_switch_inband(int cause)
@@ -677,7 +665,7 @@ void evl_switch_inband(int cause)
 	 * evl_suspend_thread() has an interrupts-on section built in.
 	 */
 	oob_irq_disable();
-	post_wakeup(p);
+	irq_work_queue(&curr->inband_work);
 
 	/*
 	 * This is the only location where we may assert T_INBAND for a
@@ -1484,50 +1472,6 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	}
 }
 
-struct lostage_signal {
-	struct task_struct *task;
-	int signo, sigval;
-	struct irq_work work;
-};
-
-static inline void do_kthread_signal(struct task_struct *p,
-				     struct evl_thread *thread,
-				     struct lostage_signal *rq)
-{
-	printk(EVL_WARNING
-	       "kthread %s received unhandled signal %d (action=0x%x)\n",
-	       thread->name, rq->signo, rq->sigval);
-}
-
-static void lostage_task_signal(struct irq_work *work)
-{
-	struct evl_thread *thread;
-	struct lostage_signal *rq;
-	struct kernel_siginfo si;
-	struct task_struct *p;
-	int signo;
-
-	rq = container_of(work, struct lostage_signal, work);
-	p = rq->task;
-	thread = evl_thread_from_task(p);
-	if (thread && !(thread->state & T_USER))
-		do_kthread_signal(p, thread, rq);
-	else {
-		signo = rq->signo;
-		trace_evl_inband_signal(p, signo);
-		if (signo == SIGSHADOW || signo == SIGDEBUG) {
-			memset(&si, '\0', sizeof(si));
-			si.si_signo = signo;
-			si.si_code = SI_QUEUE;
-			si.si_int = rq->sigval;
-			send_sig_info(signo, &si, p);
-		} else
-			send_sig(signo, p, 1);
-	}
-
-	evl_free_irq_work(rq);
-}
-
 static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 {
 	int ret = 0;
@@ -1674,17 +1618,57 @@ void evl_demote_thread(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_demote_thread);
 
+struct inband_signal {
+	fundle_t fundle;
+	int signo, sigval;
+	struct irq_work work;
+};
+
+static void inband_task_signal(struct irq_work *work)
+{
+	struct evl_thread *thread;
+	struct inband_signal *req;
+	struct kernel_siginfo si;
+	struct task_struct *p;
+	int signo;
+
+	req = container_of(work, struct inband_signal, work);
+	thread = evl_get_element_by_fundle(&evl_thread_factory,
+			   req->fundle, struct evl_thread);
+	if (thread == NULL)
+		goto done;
+
+	p = thread->altsched.task;
+	signo = req->signo;
+	trace_evl_inband_signal(p, signo);
+
+	if (signo == SIGSHADOW || signo == SIGDEBUG) {
+		memset(&si, '\0', sizeof(si));
+		si.si_signo = signo;
+		si.si_code = SI_QUEUE;
+		si.si_int = req->sigval;
+		send_sig_info(signo, &si, p);
+	} else
+		send_sig(signo, p, 1);
+
+	evl_put_element(&thread->element);
+done:
+	evl_free(req);
+}
+
 void evl_signal_thread(struct evl_thread *thread, int sig, int arg)
 {
-	struct lostage_signal *rq;
+	struct inband_signal *req;
 
-	rq = evl_alloc_irq_work(sizeof(*rq));
-	init_irq_work(&rq->work, lostage_task_signal);
-	rq->task = thread->altsched.task;
-	rq->signo = sig;
-	rq->sigval = sig == SIGDEBUG ? arg | sigdebug_marker : arg;
-	trace_evl_inband_request("signal", rq->task);
-	irq_work_queue(&rq->work);
+	if (EVL_WARN_ON(CORE, !(thread->state & T_USER)))
+		return;
+
+	req = evl_alloc(sizeof(*req));
+	init_irq_work(&req->work, inband_task_signal);
+	req->fundle = fundle_of(thread);
+	req->signo = sig;
+	req->sigval = sig == SIGDEBUG ? arg | sigdebug_marker : arg;
+	irq_work_queue(&req->work);
 }
 EXPORT_SYMBOL_GPL(evl_signal_thread);
 
