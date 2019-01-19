@@ -144,6 +144,15 @@ config EVENLESS_NR_LOGGERS
 	This value gives the maximum number of loggers which can be
 	alive concurrently in the system for user-space applications.
 
+config EVENLESS_NR_MAPPERS
+	int "Maximum number of mappers"
+	range 1 16384
+	default 64
+	help
+
+	This value gives the maximum number of mappers which can be
+	alive concurrently in the system for user-space applications.
+
 endmenu
 
 menu "Latency settings"
