@@ -28,6 +28,19 @@
 
 #define MAX_PWM 255
 
+#define PWM_FAN_LOOP_SECS 				30 * HZ	// 30 seconds
+#define PWM_FAN_LOOP_NODELAY_SECS   	0
+
+enum pwm_fan_mode {
+	PWM_FAN_MODE_MANUAL = 0,
+	PWM_FAN_MODE_AUTO,
+};
+
+enum pwm_fan_enable {
+	PWM_FAN_DISABLE = 0,
+	PWM_FAN_ENABLE,
+};
+
 struct pwm_fan_ctx {
 	struct mutex lock;
 	struct pwm_device *pwm;
@@ -36,7 +49,17 @@ struct pwm_fan_ctx {
 	unsigned int pwm_fan_max_state;
 	unsigned int *pwm_fan_cooling_levels;
 	struct thermal_cooling_device *cdev;
+	enum pwm_fan_mode pwm_fan_mode;
+	enum pwm_fan_enable pwm_fan_enable;
+	struct delayed_work pwm_fan_work;
+	int	trig_temp_level0;
+	int	trig_temp_level1;
+	int	trig_temp_level2;
 };
+
+//struct pwm_fan_ctx *g_ctx = NULL;
+
+static void pwm_fan_set(struct pwm_fan_ctx *ctx);
 
 static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
@@ -107,11 +130,70 @@ static ssize_t show_pwm(struct device *dev,
 	return sprintf(buf, "%u\n", ctx->pwm_value);
 }
 
+static ssize_t show_pwm_fan_mode(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+
+	return sprintf(buf, "Fan mode: %d\n", ctx->pwm_fan_mode);
+}
+
+static ssize_t store_pwm_fan_mode(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	// 0: manual, 1: auto
+	if (mode >= 0 && mode < 2) {
+		ctx->pwm_fan_mode = mode;
+		pwm_fan_set(ctx);
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t show_pwm_fan_enable(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+
+	return sprintf(buf, "Fan enable: %d\n", ctx->pwm_fan_enable);
+}
+
+static ssize_t store_pwm_fan_enable(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+	int enable;
+
+	if (kstrtoint(buf, 0, &enable))
+		return -EINVAL;
+
+	// 0: manual, 1: auto
+	if (enable >= 0 && enable < 2) {
+		ctx->pwm_fan_enable = enable;
+		pwm_fan_set(ctx);
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
 
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 0);
+static SENSOR_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR, show_pwm_fan_mode, store_pwm_fan_mode, 0);
+static SENSOR_DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, show_pwm_fan_enable, store_pwm_fan_enable, 0);
 
 static struct attribute *pwm_fan_attrs[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_mode.dev_attr.attr,
+	&sensor_dev_attr_enable.dev_attr.attr,
 	NULL,
 };
 
@@ -148,7 +230,7 @@ static int
 pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 {
 	struct pwm_fan_ctx *ctx = cdev->devdata;
-	int ret;
+	int ret = 0;
 
 	if (!ctx || (state > ctx->pwm_fan_max_state))
 		return -EINVAL;
@@ -165,6 +247,44 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 	ctx->pwm_fan_state = state;
 
 	return ret;
+}
+
+static void pwm_fan_set(struct pwm_fan_ctx *ctx)
+{
+	cancel_delayed_work(&ctx->pwm_fan_work);
+
+	if (ctx->pwm_fan_enable == PWM_FAN_DISABLE) {
+		pwm_fan_set_cur_state(ctx->cdev, 0);
+		return;
+	}
+
+	switch (ctx->pwm_fan_mode) {
+		case PWM_FAN_MODE_MANUAL:
+			switch(ctx->pwm_fan_state) {
+				case 0:
+					pwm_fan_set_cur_state(ctx->cdev, 0);
+					break;
+				case 1:
+					pwm_fan_set_cur_state(ctx->cdev, 1);
+					break;
+				case 2:
+					pwm_fan_set_cur_state(ctx->cdev, 2);
+					break;
+				case 3:
+					pwm_fan_set_cur_state(ctx->cdev, 3);
+					break;
+				default:
+					break;
+			}
+			break;
+
+		case PWM_FAN_MODE_AUTO:
+			schedule_delayed_work(&ctx->pwm_fan_work, PWM_FAN_LOOP_NODELAY_SECS);
+			break;
+
+		default:
+			break;
+	}
 }
 
 static const struct thermal_cooling_device_ops pwm_fan_cooling_ops = {
@@ -212,6 +332,34 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	ctx->pwm_fan_max_state = num - 1;
 
 	return 0;
+}
+
+extern void rockchip_get_cpu_temperature(int *out_temp);
+static void pwm_fan_work_func(struct work_struct *_work)
+{
+	int temp = -EINVAL;
+	struct pwm_fan_ctx *ctx = container_of(_work, struct pwm_fan_ctx, pwm_fan_work.work);
+	int state = 0;
+
+	rockchip_get_cpu_temperature(&temp);
+
+	temp /= 1000;
+
+	if (temp != -EINVAL){
+		if (temp < ctx->trig_temp_level0) {
+			state = 0;
+		} else if (temp < ctx->trig_temp_level1) {
+			state = 1;
+		} else if (temp < ctx->trig_temp_level2) {
+			state = 2;
+		} else{
+			state = 3;
+		}
+
+		pwm_fan_set_cur_state(ctx->cdev, state);
+	}
+
+	schedule_delayed_work(&ctx->pwm_fan_work, PWM_FAN_LOOP_SECS);
 }
 
 static int pwm_fan_probe(struct platform_device *pdev)
@@ -274,6 +422,22 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = of_property_read_u32(pdev->dev.of_node, "trig_temp_level0", &ctx->trig_temp_level0);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Property 'trig_temp_level0' cannot be read!\n");
+		return ret;
+	}
+	ret = of_property_read_u32(pdev->dev.of_node, "trig_temp_level1", &ctx->trig_temp_level1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Property 'trig_temp_level1' cannot be read!\n");
+		return ret;
+	}
+	ret = of_property_read_u32(pdev->dev.of_node, "trig_temp_level2", &ctx->trig_temp_level2);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Property 'trig_temp_level2' cannot be read!\n");
+		return ret;
+	}
+
 	ctx->pwm_fan_state = ctx->pwm_fan_max_state;
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		cdev = thermal_of_cooling_device_register(pdev->dev.of_node,
@@ -288,6 +452,13 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		ctx->cdev = cdev;
 		thermal_cdev_update(cdev);
 	}
+
+	ctx->pwm_fan_mode = PWM_FAN_MODE_AUTO;
+	ctx->pwm_fan_state = 0;
+	ctx->pwm_fan_enable = PWM_FAN_DISABLE;
+	pwm_fan_set(ctx);
+
+	INIT_DELAYED_WORK(&ctx->pwm_fan_work, pwm_fan_work_func);
 
 	return 0;
 }

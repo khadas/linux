@@ -289,6 +289,9 @@
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
 		cooling-levels = <0 150 200 255>;
+		trig_temp_level0 = <50>;
+		trig_temp_level1 = <60>;
+		trig_temp_level2 = <70>;
 	};
 };
 
