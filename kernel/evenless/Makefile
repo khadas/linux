@@ -11,6 +11,7 @@ evenless-y :=		\
 	irq.o		\
 	lock.o		\
 	logger.o	\
+	mapper.o	\
 	memory.o	\
 	monitor.o	\
 	poller.o	\
