@@ -711,13 +711,3 @@ void evl_cleanup_memory(void)
 	cleanup_shared_heap();
 	cleanup_system_heap();
 }
-
-void *evl_alloc_irq_work(size_t size)
-{
-	return evl_alloc(size);
-}
-
-void evl_free_irq_work(void *p)
-{
-	evl_free(p);
-}

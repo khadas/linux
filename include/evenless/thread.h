@@ -64,10 +64,8 @@ struct evl_thread {
 
 	/* Base priority (before PI/PP boost) */
 	int bprio;
-
 	/* Current (effective) priority */
 	int cprio;
-
 	/*
 	 * Weighted priority (cprio + scheduling class weight).
 	 */
@@ -76,9 +74,7 @@ struct evl_thread {
 	int lock_count;	/* Scheduler lock count. */
 
 	struct list_head rq_next;	/* evl_rq->policy.runqueue */
-
 	struct list_head syn_next;	/* evl_syn->wait_list */
-
 	struct list_head next;	/* evl_thread_list */
 
 	/*
@@ -96,13 +92,11 @@ struct evl_thread {
 	struct list_head boosters;
 
 	struct evl_syn *wchan;		/* Resource the thread pends on */
-
 	struct evl_syn *wwake;		/* Wait channel the thread was resumed from */
 
 	int res_count;			/* Held resources count */
 
 	struct evl_timer rtimer;		/* Resource timer */
-
 	struct evl_timer ptimer;		/* Periodic timer */
 
 	ktime_t rrperiod;		/* Allotted round-robin period (ns) */
@@ -125,14 +119,14 @@ struct evl_thread {
 	} stat;
 
 	char *name;
+	struct completion exited;
+	struct irq_work inband_work;
 
 	/*
 	 * Thread data visible from userland through a window on the
 	 * global heap.
 	 */
 	struct evl_user_window *u_window;
-
-	struct completion exited;
 };
 
 struct evl_kthread {

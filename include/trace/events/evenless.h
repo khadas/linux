@@ -521,26 +521,6 @@ DEFINE_EVENT(curr_thread_event, evl_thread_unmap,
 	TP_ARGS(thread)
 );
 
-TRACE_EVENT(evl_inband_request,
-        TP_PROTO(const char *type, struct task_struct *task),
-	TP_ARGS(type, task),
-
-	TP_STRUCT__entry(
-		__field(pid_t, pid)
-		__array(char, comm, TASK_COMM_LEN)
-		__field(const char *, type)
-	),
-
-	TP_fast_assign(
-		__entry->type = type;
-		__entry->pid = task_pid_nr(task);
-		memcpy(__entry->comm, task->comm, TASK_COMM_LEN);
-	),
-
-	TP_printk("request=%s pid=%d comm=%s",
-		  __entry->type, __entry->pid, __entry->comm)
-);
-
 TRACE_EVENT(evl_inband_wakeup,
 	TP_PROTO(struct task_struct *task),
 	TP_ARGS(task),
