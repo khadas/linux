@@ -287,8 +287,8 @@
 			<0xe5   KEY_RIGHT>,
 			<0xf8   232>,
 			<0xa7   KEY_VOLUMEDOWN>,
-			<0xa3    250>,  //mouse func
-			<0xa4    250>,  //mouse func
+			<0xa3    388>,  //mouse func
+			<0xa4    388>,  //mouse func
 			<0xf4   KEY_VOLUMEUP>,
 			<0xfe   KEY_BACK>,
 			<0xb7   KEY_HOME>;
