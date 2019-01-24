@@ -15,6 +15,7 @@ evenless-y :=		\
 	mapper.o	\
 	memory.o	\
 	monitor.o	\
+	mutex.o		\
 	poller.o	\
 	sem.o		\
 	synch.o		\
