@@ -7,7 +7,7 @@
 #ifndef _EVENLESS_XBUF_H
 #define _EVENLESS_XBUF_H
 
-#include <evenless/factory.h>
+#include <linux/types.h>
 
 struct evl_file;
 struct evl_xbuf;

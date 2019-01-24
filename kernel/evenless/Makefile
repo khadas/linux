@@ -9,6 +9,7 @@ evenless-y :=		\
 	file.o		\
 	init.o		\
 	irq.o		\
+	ksem.o		\
 	lock.o		\
 	logger.o	\
 	mapper.o	\
