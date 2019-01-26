@@ -731,8 +731,9 @@ static bool transfer_ownership(struct evl_syn *synch,
 	return true;
 }
 
-bool evl_release_syn(struct evl_syn *synch, struct evl_thread *curr)
+bool evl_release_syn(struct evl_syn *synch)
 {
+	struct evl_thread *curr = evl_current_thread();
 	bool need_resched = false;
 	unsigned long flags;
 	fundle_t currh, h;
