@@ -226,21 +226,9 @@ static void uninit_thread(struct evl_thread *thread)
 	kfree(thread->name);
 }
 
-static inline void release_all_ownerships(struct evl_thread *curr)
-{
-	struct evl_syn *synch, *tmp;
-
-	/*
-	 * Release all the ownerships obtained by a thread on
-	 * synchronization objects. This routine must be entered
-	 * interrupts off.
-	 */
-	for_each_evl_booster_safe(synch, tmp, curr)
-		evl_release_syn(synch);
-}
-
 static void do_cleanup_current(struct evl_thread *curr)
 {
+	struct evl_syn *synch, *tmp;
 	unsigned long flags;
 
 	evl_unindex_element(&curr->element);
@@ -266,14 +254,17 @@ static void do_cleanup_current(struct evl_thread *curr)
 	if (curr->state & T_PEND)
 		evl_forget_syn_waiter(curr);
 
-	curr->state |= T_ZOMBIE;
 	/*
 	 * NOTE: we must be running over the root thread, or @curr
 	 * is dormant, which means that we don't risk sched->curr to
 	 * disappear due to voluntary rescheduling while holding the
 	 * nklock, despite @curr bears the zombie bit.
 	 */
-	release_all_ownerships(curr);
+	curr->state |= T_ZOMBIE;
+
+	/* Release all resources owned by current. */
+	for_each_evl_booster_safe(synch, tmp, curr)
+		evl_release_syn(synch);
 
 	xnlock_put_irqrestore(&nklock, flags);
 
