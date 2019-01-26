@@ -102,7 +102,7 @@ int __must_check evl_acquire_syn(struct evl_syn *synch,
 
 int __must_check evl_try_acquire_syn(struct evl_syn *synch);
 
-bool evl_release_syn(struct evl_syn *synch, struct evl_thread *thread);
+bool evl_release_syn(struct evl_syn *synch);
 
 bool evl_flush_syn(struct evl_syn *synch, int reason);
 

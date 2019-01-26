@@ -63,9 +63,7 @@ EXPORT_SYMBOL_GPL(evl_lock);
 
 void evl_unlock(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current_thread();
-
-	if (evl_release_syn(&mutex->wait_queue, curr))
+	if (evl_release_syn(&mutex->wait_queue))
 		evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_unlock);

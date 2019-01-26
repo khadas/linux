@@ -236,7 +236,7 @@ static inline void release_all_ownerships(struct evl_thread *curr)
 	 * interrupts off.
 	 */
 	for_each_evl_booster_safe(synch, tmp, curr)
-		evl_release_syn(synch, curr);
+		evl_release_syn(synch);
 }
 
 static void do_cleanup_current(struct evl_thread *curr)

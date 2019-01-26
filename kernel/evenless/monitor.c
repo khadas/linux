@@ -204,7 +204,7 @@ static void __exit_monitor(struct evl_monitor *gate,
 	if (fundle_of(gate) == curr->u_window->pp_pending)
 		curr->u_window->pp_pending = EVL_NO_HANDLE;
 
-	evl_release_syn(&gate->lock, curr);
+	evl_release_syn(&gate->lock);
 }
 
 /* nklock held, irqs off */
