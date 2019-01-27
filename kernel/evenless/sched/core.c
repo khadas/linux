@@ -244,7 +244,7 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 		 * considered for the root thread which may never
 		 * defer scheduling.
 		 */
-		if (curr->lock_count > 0 && !(curr->state & T_ROOT)) {
+		if (evl_preempt_count() > 0 && !(curr->state & T_ROOT)) {
 			evl_set_self_resched(rq);
 			return curr;
 		}
@@ -278,42 +278,15 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 
 void evl_disable_preempt(void)
 {
-	struct evl_rq *rq = this_evl_rq();
-	struct evl_thread *curr = rq->curr;
-
-	/* If RQ_IRQ is set, the scheduler is already locked. */
-
-	if (rq->lflags & RQ_IRQ)
-		return;
-
-	/*
-	 * The fast evl_current_thread() accessor carries the
-	 * relevant lock nesting count only if current runs in OOB
-	 * context. Otherwise, if the caller is running in-band,
-	 * we fall back to the root thread on the current rq, which
-	 * must be done with IRQs off to prevent CPU migration.
-	 * Either way, we don't need to grab the super lock.
-	 */
-	EVL_WARN_ON_ONCE(CORE, (curr->state & T_ROOT) &&
-			 !hard_irqs_disabled());
-
-	curr->lock_count++;
+	oob_context_only();
+	__evl_disable_preempt();
 }
 EXPORT_SYMBOL(evl_disable_preempt);
 
 void evl_enable_preempt(void)
 {
-	struct evl_rq *rq = this_evl_rq();
-	struct evl_thread *curr = rq->curr;
-
-	if (rq->lflags & RQ_IRQ)
-		return;
-
-	if (!EVL_ASSERT(CORE, curr->lock_count > 0))
-		return;
-
-	if (--curr->lock_count == 0)
-		evl_schedule();
+	oob_context_only();
+	__evl_enable_preempt();
 }
 EXPORT_SYMBOL(evl_enable_preempt);
 

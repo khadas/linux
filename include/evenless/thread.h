@@ -71,8 +71,6 @@ struct evl_thread {
 	 */
 	int wprio;
 
-	int lock_count;	/* Scheduler lock count. */
-
 	struct list_head rq_next;	/* evl_rq->policy.runqueue */
 	struct list_head syn_next;	/* evl_syn->wait_list */
 	struct list_head next;	/* evl_thread_list */
