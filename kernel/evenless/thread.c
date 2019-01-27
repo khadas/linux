@@ -735,6 +735,7 @@ void evl_stop_thread(struct evl_thread *thread, int mask)
 {
 	evl_suspend_thread(thread, mask, EVL_INFINITE,
 			   EVL_REL, NULL, NULL);
+	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_stop_thread);
 
@@ -805,6 +806,7 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 
 	evl_suspend_thread(curr, T_DELAY, timeout,
 			   timeout_mode, clock, NULL);
+	evl_schedule();
 
 	if (curr->info & T_BREAK) {
 		xnlock_get_irqsave(&nklock, flags);
