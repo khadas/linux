@@ -124,7 +124,7 @@ int evl_init_thread(struct evl_thread *thread,
 	va_list args;
 
 	if (!(flags & T_ROOT))
-		flags |= T_DORMANT;
+		flags |= T_DORMANT | T_INBAND;
 
 	/*
 	 * If no rq was given, pick an initial CPU for the new thread
@@ -317,7 +317,6 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	pin_to_initial_cpu(curr);
 
 	dovetail_init_altsched(&curr->altsched);
-	evl_stop_thread(curr, T_INBAND);
 	set_oob_threadinfo(curr);
 	dovetail_start_altsched();
 	evl_resume_thread(curr, T_DORMANT);
@@ -332,12 +331,10 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	kthread->status = evl_switch_oob();
 
 	/*
-	 * In the normal case, __evl_run_kthread() can't start us
-	 * before we stopped in evl_stop_thread() because
+	 * We are now running OOB, therefore __evl_run_kthread() can't
+	 * start us before we enter the dormant state because
 	 * irq_work_queue() schedules the in-band wakeup request on
-	 * the current CPU: since we are currently running OOB on that
-	 * CPU, there is no way __evl_run_kthread() could resume
-	 * before we suspend. If we fail switching to OOB context,
+	 * the current CPU. If we fail switching to OOB context,
 	 * kthread->status tells __evl_run_kthread() not to start but
 	 * cancel us instead.
 	 */
@@ -584,26 +581,20 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 	 * breaking the most common assumptions regarding suspended
 	 * threads.
 	 *
-	 * We only care for threads that are not current, and for
-	 * T_SUSP, T_DELAY, T_DORMANT and T_HALT conditions, because:
+	 * We only care for T_SUSP and T_HALT conditions, because
+	 * among all blocking bits (EVL_THREAD_BLOCK_BITS), only these
+	 * conditions may be applied to a non-current thread.
 	 *
-	 * - There is no point in dealing with in-band threads, since
-	 * any OOB request causes the caller to switch to OOB context
-	 * before it is handled.
+	 * On the other hand, T_PEND and T_DELAY are always added by
+	 * the caller to its own state, like T_INBAND which
+	 * additionally has special semantics escaping this issue.
 	 *
-	 * - among all blocking bits (EVL_THREAD_BLOCK_BITS), only
-	 * T_SUSP, T_DELAY and T_HALT may be applied by the current
-	 * thread to a non-current thread. T_PEND is always added by
-	 * the caller to its own state, T_INBAND has special semantics
-	 * escaping this issue.
-	 *
-	 * We don't signal threads which are already in a dormant
-	 * state, since they are suspended by definition.
+	 * We don't signal threads which are in T_DORMANT state, since
+	 * these are suspended by definition.
 	 */
 	if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)) &&
-	    (mask & (T_DELAY | T_SUSP | T_HALT)) != 0)
-		evl_signal_thread(thread, SIGSHADOW,
-				  SIGSHADOW_ACTION_HOME);
+	    (mask & (T_SUSP | T_HALT)))
+		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
 out:
 	xnlock_put_irqrestore(&nklock, flags);
 	return;
@@ -2330,7 +2321,6 @@ static int map_uthread_self(struct evl_thread *thread)
 	trace_evl_thread_map(thread);
 
 	dovetail_init_altsched(&thread->altsched);
-	evl_stop_thread(thread, T_INBAND);
 	set_oob_threadinfo(thread);
 
 	/*
