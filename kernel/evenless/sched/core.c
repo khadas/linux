@@ -732,7 +732,7 @@ irqreturn_t __evl_schedule_handler(int irq, void *dev_id)
 bool ___evl_schedule(struct evl_rq *this_rq)
 {
 	struct evl_thread *prev, *next, *curr;
-	bool switched, shadow;
+	bool switched, oob_entry;
 	unsigned long flags;
 
 	trace_evl_schedule(this_rq);
@@ -769,11 +769,11 @@ bool ___evl_schedule(struct evl_rq *this_rq)
 	trace_evl_switch_context(prev, next);
 
 	this_rq->curr = next;
-	shadow = true;
+	oob_entry = true;
 
 	if (prev->state & T_ROOT) {
 		leave_root(prev);
-		shadow = false;
+		oob_entry = false;
 	} else if (next->state & T_ROOT) {
 		if (this_rq->lflags & RQ_TPROXY)
 			evl_notify_proxy_tick(this_rq);
@@ -806,26 +806,28 @@ bool ___evl_schedule(struct evl_rq *this_rq)
 
 	EVL_WARN_ON(CORE, curr->state & EVL_THREAD_BLOCK_BITS);
 
-	if (shadow && !test_thread_local_flags(_TLF_OOB))
-		goto inband;
+	/*
+	 * If we entered __evl_schedule() over the oob stage but don't
+	 * have the OOB flag set into our flags anymore, this portion
+	 * of code is the switch tail of the inband schedule()
+	 * routine, finalizing an earlier call to evl_switch_inband():
+	 *
+	 * irq_work_queue() ->
+	 *        IRQ:wake_up_process() ->
+	 *                         schedule() ->
+	 *                               back from dovetail_context_switch()
+	 */
+	if (oob_entry && !test_thread_local_flags(_TLF_OOB)) {
+		EVL_WARN_ON_ONCE(CORE, !(preempt_count() & STAGE_MASK));
+		preempt_count_sub(STAGE_OFFSET);
+		return true;
+	}
 
 	switched = true;
 out:
 	xnlock_put_irqrestore(&nklock, flags);
 
 	return switched;
-
-inband:
-	/*
-	 * This represents the switch tail code of the regular
-	 * schedule() routine for a thread re-entering the in-band stage,
-	 * as a result of an earlier call to evl_switch_inband():
-	 * post_event() -> ... IRQ:wake_up_process() -> schedule()
-	 */
-	EVL_WARN_ON_ONCE(CORE, !(preempt_count() & STAGE_MASK));
-	preempt_count_sub(STAGE_OFFSET);
-
-	return true;
 }
 EXPORT_SYMBOL_GPL(___evl_schedule);
 
