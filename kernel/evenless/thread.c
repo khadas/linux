@@ -461,14 +461,15 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 			struct evl_syn *wchan)
 {
 	unsigned long oldstate;
-	struct evl_rq *rq;
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	/*
-	 * Two things we can't do: suspend the root thread, ask for a
-	 * conjunctive wait on multiple syns.
+	 * Things we can't do: apply T_INBAND using this call, suspend
+	 * the root thread, ask for a conjunctive wait on multiple
+	 * channels.
 	 */
-	if (EVL_WARN_ON(CORE, (thread->state & T_ROOT) ||
+	if (EVL_WARN_ON(CORE, (mask & T_INBAND) || (thread->state & T_ROOT) ||
 			(wchan && thread->wchan)))
 		return;
 
@@ -482,21 +483,21 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 	/*
 	 * If attempting to suspend a runnable thread which is pending
 	 * a forced switch to in-band context (T_KICKED), just raise
-	 * the T_BREAK status and return immediately, except if we are
-	 * precisely doing such switch by applying T_INBAND.
-	 *
-	 * In the latter case, we also make sure to clear T_KICKED,
-	 * since we won't go through prepare_for_signal() once
-	 * running in in-band context.
+	 * the T_BREAK status and return immediately.
 	 */
-	if (likely((oldstate & EVL_THREAD_BLOCK_BITS) == 0)) {
-		if (likely((mask & T_INBAND) == 0)) {
-			if (thread->info & T_KICKED)
-				goto abort;
+	if (likely(!(oldstate & EVL_THREAD_BLOCK_BITS))) {
+		if (thread->info & T_KICKED) {
+			if (wchan) {
+				thread->wchan = wchan;
+				evl_forget_syn_waiter(thread);
+			}
+			thread->info &= ~(T_RMID|T_TIMEO);
+			thread->info |= T_BREAK;
+			xnlock_put_irqrestore(&nklock, flags);
+			return;
 		}
 		if (thread == rq->curr)
-			thread->info &= ~(T_RMID|T_TIMEO|T_BREAK|
-					  T_WAKEN|T_ROBBED|T_KICKED);
+			thread->info &= ~EVL_THREAD_INFO_MASK;
 	}
 
 	/*
@@ -530,82 +531,40 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 		thread->wchan = wchan;
 
 	/*
-	 * If the current thread is switching to in-band context, we
-	 * must have been called from evl_switch_inband(), in which
-	 * case we introduce an opportunity for interrupt delivery
-	 * right before switching context, which shortens the
-	 * uninterruptible code path.
+	 * If the thread is current on its CPU, we need to reschedule
+	 * immediately; __evl_schedule() will trigger a resched IPI to
+	 * a remote CPU if required.
 	 *
-	 * CAVEAT: dovetail_leave_head() must run _before_ the in-band
-	 * kernel is allowed to take interrupts again from the root
-	 * stage, so that try_to_wake_up() does not block the wake up
-	 * request for the switching thread, testing
-	 * task_is_off_stage().
-	 */
-	if (likely(thread == rq->curr)) {
-		evl_set_resched(rq);
-		if (unlikely(mask & T_INBAND)) {
-			dovetail_leave_oob();
-			xnlock_clear_irqon(&nklock);
-			oob_irq_disable();
-			__evl_schedule(rq);
-			oob_irq_enable();
-			dovetail_resume_inband();
-			return;
-		}
-		/*
-		 * If the thread is running on another CPU,
-		 * evl_schedule will trigger the IPI as required.
-		 */
-		__evl_schedule(rq);
-		goto out;
-	}
-
-	/*
-	 * Ok, this one is an interesting corner case, which requires
-	 * a bit of background first. Here, we handle the case of
-	 * suspending an in-band user thread which is _not_ current.
+	 * Otherwise, handle the case of suspending a user thread
+	 * running in-band which is _not_ current EVL-wise, but could
+	 * still be running some code under the control of the in-band
+	 * scheduler. We have to force this thread out of in-band
+	 * mode, to honor the basic assumption that a suspended
+	 * thread is not running any code.
 	 *
-	 * The net effect is that we are attempting to stop the thread
-	 * for the EVL core, whilst it is actually running some code
-	 * under the control of the Linux scheduler.
-	 *
-	 *  To make this possible, we force the target task to switch
-	 * back to the OOB context by sending it a
-	 * SIGSHADOW_ACTION_HOME request.
-	 *
-	 * By forcing this switch, we make sure that EVL controls,
-	 * hence properly stops, the target thread according to the
-	 * requested suspension condition. Otherwise, the thread
-	 * currently running in-band would just keep doing so, thus
-	 * breaking the most common assumptions regarding suspended
-	 * threads.
+	 * To this end, we force the thread to switch back to OOB
+	 * context by sending it a SIGSHADOW_ACTION_HOME request,
+	 * which will end up getting it out of the CPU when EVL
+	 * reschedules at this opportunity.
 	 *
 	 * We only care for T_SUSP and T_HALT conditions, because
 	 * among all blocking bits (EVL_THREAD_BLOCK_BITS), only these
 	 * conditions may be applied to a non-current thread.
 	 *
 	 * On the other hand, T_PEND and T_DELAY are always added by
-	 * the caller to its own state, like T_INBAND which
-	 * additionally has special semantics escaping this issue.
+	 * the caller to its own state. T_INBAND may not be set in
+	 * @mask.
 	 *
 	 * We don't signal threads which are in T_DORMANT state, since
 	 * these are suspended by definition.
 	 */
-	if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)) &&
-	    (mask & (T_SUSP | T_HALT)))
+	if (likely(thread == rq->curr)) {
+		evl_set_resched(rq);
+		__evl_schedule(rq);
+	} else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
+		    (T_INBAND|T_USER)) && (mask & (T_SUSP | T_HALT)))
 		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
-out:
-	xnlock_put_irqrestore(&nklock, flags);
-	return;
 
-abort:
-	if (wchan) {
-		thread->wchan = wchan;
-		evl_forget_syn_waiter(thread);
-	}
-	thread->info &= ~(T_RMID|T_TIMEO);
-	thread->info |= T_BREAK;
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_suspend_thread);
@@ -627,33 +586,39 @@ void evl_switch_inband(int cause)
 	struct task_struct *p = current;
 	struct kernel_siginfo si;
 	int cpu __maybe_unused;
+	struct evl_rq *rq;
 
 	oob_context_only();
 
 	trace_evl_switching_inband(cause);
 
 	/*
-	 * Enqueue the request to move the running thread from the oob
-	 * stage to the in-band stage.  This will cause the in-band
-	 * task to resume using the same register file.
+	 * This is the only location where we may assert T_INBAND for
+	 * a thread. Basic assumption: we are the current thread on
+	 * this CPU running in OOB context.
 	 *
-	 * If you intend to change the following interrupt-free
-	 * sequence, /first/ make sure to check the special handling
-	 * of T_INBAND in evl_suspend_thread() when switching out the
-	 * current thread, not to break basic assumptions we make
-	 * there.
+	 * We introduce an opportunity for interrupt delivery right
+	 * before switching context, which shortens the
+	 * uninterruptible code path.
 	 *
-	 * We disable interrupts during the stage transition, but
-	 * evl_suspend_thread() has an interrupts-on section built in.
+	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
+	 * kernel is allowed to take interrupts again, so that
+	 * try_to_wake_up() does not block the wake up request for the
+	 * switching thread as a result of testing task_is_off_stage().
 	 */
 	oob_irq_disable();
 	irq_work_queue(&curr->inband_work);
-
-	/*
-	 * This is the only location where we may assert T_INBAND for a
-	 * thread.
-	 */
-	evl_stop_thread(curr, T_INBAND);
+	xnlock_get(&nklock);
+	curr->info &= ~EVL_THREAD_INFO_MASK;
+	curr->state |= T_INBAND;
+	rq = curr->rq;
+	evl_set_resched(rq);
+	dovetail_leave_oob();
+	xnlock_clear_irqon(&nklock);
+	oob_irq_disable();	/* <= REQUIRED. */
+	___evl_schedule(rq);
+	oob_irq_enable();
+	dovetail_resume_inband();
 
 	/*
 	 * Basic sanity check after an expected transition to in-band
@@ -702,7 +667,7 @@ void evl_switch_inband(int cause)
 		evl_detect_boost_drop(curr);
 	}
 
-	/* @current is now running inband. */
+	/* @curr is now running inband. */
 	evl_sync_uwindow(curr);
 }
 EXPORT_SYMBOL_GPL(evl_switch_inband);

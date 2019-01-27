@@ -29,7 +29,7 @@
 #include <asm/evenless/thread.h>
 
 #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_DORMANT|T_INBAND|T_HALT)
-#define EVL_THREAD_MODE_BITS    (T_RRB|T_WARN)
+#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED)
 
 struct evl_thread;
 struct evl_rq;
