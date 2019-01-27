@@ -59,7 +59,7 @@ static void evl_rt_rotate(struct evl_rq *rq,
 	 */
 	if (thread != curr ||
 	    (!(curr->state & EVL_THREAD_BLOCK_BITS) &&
-	     curr->lock_count == 0))
+	     evl_preempt_count() == 0))
 		evl_putback_thread(thread);
 }
 

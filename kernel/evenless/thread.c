@@ -161,7 +161,6 @@ int evl_init_thread(struct evl_thread *thread,
 	thread->wprio = EVL_IDLE_PRIO;
 	thread->cprio = EVL_IDLE_PRIO;
 	thread->bprio = EVL_IDLE_PRIO;
-	thread->lock_count = 0;
 	thread->rrperiod = EVL_INFINITE;
 	thread->wchan = NULL;
 	thread->wwake = NULL;
@@ -1337,20 +1336,6 @@ int __evl_set_thread_schedparam(struct evl_thread *thread,
 	if (old_wprio != new_wprio && thread->wchan &&
 	    (thread->wchan->status & EVL_SYN_PRIO))
 		evl_requeue_syn_waiter(thread);
-	/*
-	 * We should not move the thread at the end of its priority
-	 * group, if any of these conditions is true:
-	 *
-	 * - thread is not runnable;
-	 * - thread bears the ready bit which means that evl_set_thread_policy()
-	 * already reordered the run queue;
-	 * - thread currently holds the scheduler lock, so we don't want
-	 * any round-robin effect to take place;
-	 * - a priority boost is undergoing for this thread.
-	 */
-	if (!(thread->state & (EVL_THREAD_BLOCK_BITS|T_READY|T_BOOST)) &&
-	    thread->lock_count == 0)
-		evl_putback_thread(thread);
 
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */

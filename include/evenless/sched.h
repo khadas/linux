@@ -292,19 +292,20 @@ static inline bool __evl_schedule(struct evl_rq *this_rq)
 	return (bool)run_oob_call((int (*)(void *))___evl_schedule, this_rq);
 }
 
-static inline bool evl_schedule(void)
+static inline int evl_preempt_count(void)
 {
-	struct evl_rq *this_rq = this_evl_rq();
+	return dovetail_current_state()->preempt_count;
+}
 
-	/*
-	 * Block rescheduling if either the current thread holds the
-	 * scheduler lock, or an interrupt context is active.
-	 */
-	smp_rmb();
-	if (unlikely(this_rq->curr->lock_count > 0))
-		return false;
+static inline void __evl_disable_preempt(void)
+{
+	dovetail_current_state()->preempt_count++;
+}
 
-	return __evl_schedule(this_rq);
+static inline void __evl_enable_preempt(void)
+{
+	if (--dovetail_current_state()->preempt_count == 0)
+		__evl_schedule(this_evl_rq());
 }
 
 #ifdef CONFIG_EVENLESS_DEBUG_LOCKING
@@ -316,23 +317,27 @@ void evl_enable_preempt(void);
 
 static inline void evl_disable_preempt(void)
 {
-	struct evl_rq *rq = this_evl_rq();
-	struct evl_thread *curr = rq->curr;
-
-	if (!(rq->lflags & RQ_IRQ))
-		curr->lock_count++;
+	__evl_disable_preempt();
 }
 
 static inline void evl_enable_preempt(void)
 {
-	struct evl_rq *rq = this_evl_rq();
-	struct evl_thread *curr = rq->curr;
-
-	if (!(rq->lflags & RQ_IRQ) && --curr->lock_count == 0)
-		evl_schedule();
+	__evl_enable_preempt();
 }
 
 #endif /* !CONFIG_EVENLESS_DEBUG_LOCKING */
+
+static inline bool evl_schedule(void)
+{
+	/*
+	 * Block rescheduling if either the current thread holds the
+	 * scheduler lock.
+	 */
+	if (unlikely(evl_preempt_count() > 0))
+		return false;
+
+	return __evl_schedule(this_evl_rq());
+}
 
 static inline bool evl_in_irq(void)
 {
@@ -414,7 +419,7 @@ static inline void evl_sched_tick(struct evl_rq *rq)
 	if (sched_class == curr->base_class &&
 	    sched_class->sched_tick &&
 	    (curr->state & (EVL_THREAD_BLOCK_BITS|T_RRB)) == T_RRB &&
-	    curr->lock_count == 0)
+	    evl_preempt_count() == 0)
 		sched_class->sched_tick(rq);
 }
 
