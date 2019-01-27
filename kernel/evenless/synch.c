@@ -100,8 +100,12 @@ int block_thread_timed(ktime_t timeout, enum evl_tmode timeout_mode,
 {
 	struct evl_thread *curr = evl_current_thread();
 
-	evl_suspend_thread(curr, T_PEND, timeout,
-			   timeout_mode, clock, wchan);
+	evl_suspend_thread(curr, T_PEND, timeout, timeout_mode, clock, wchan);
+	/*
+	 * FIXME: bypass sched_lock test until the situation is fixed
+	 * for evl_enable/disable_preempt().
+	 */
+	__evl_schedule(curr->rq);
 
 	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
 }

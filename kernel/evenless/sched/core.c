@@ -102,7 +102,7 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		 * thread. Therefore we manually raise T_KICKED to
 		 * cause the next call to evl_suspend_thread() to
 		 * return early in T_BREAK condition, and T_CANCELD so
-		 * that @thread exits next time it invokes
+		 * that @curr exits next time it invokes
 		 * evl_test_cancel().
 		 */
 		xnlock_get(&nklock);
@@ -785,17 +785,6 @@ bool ___evl_schedule(struct evl_rq *this_rq)
 	evl_switch_account(this_rq, &next->stat.account);
 	evl_inc_counter(&next->stat.csw);
 	dovetail_context_switch(&prev->altsched, &next->altsched);
-
-	/*
-	 * Hard interrupts must be disabled here (has to be done on
-	 * entry of the host kernel's switch_to() function), but it is
-	 * what callers expect, particularly the reschedule of an IRQ
-	 * handler that hit before we call evl_schedule() from
-	 * evl_suspend_thread() when switching a thread to in-band
-	 * context.
-	 */
-	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
-		hard_irqs_disabled();
 
 	/*
 	 * Refresh the current rq and thread pointers, this is
