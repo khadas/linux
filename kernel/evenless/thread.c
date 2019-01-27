@@ -531,9 +531,9 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 		thread->wchan = wchan;
 
 	/*
-	 * If the thread is current on its CPU, we need to reschedule
-	 * immediately; __evl_schedule() will trigger a resched IPI to
-	 * a remote CPU if required.
+	 * If the thread is current on its CPU, we need to raise
+	 * RQ_SCHED on the target runqueue; __evl_schedule() may
+	 * trigger a resched IPI to a remote CPU if required.
 	 *
 	 * Otherwise, handle the case of suspending a user thread
 	 * running in-band which is _not_ current EVL-wise, but could
@@ -558,10 +558,9 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 	 * We don't signal threads which are in T_DORMANT state, since
 	 * these are suspended by definition.
 	 */
-	if (likely(thread == rq->curr)) {
+	if (likely(thread == rq->curr))
 		evl_set_resched(rq);
-		__evl_schedule(rq);
-	} else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
+	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
 		    (T_INBAND|T_USER)) && (mask & (T_SUSP | T_HALT)))
 		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
 
@@ -596,10 +595,6 @@ void evl_switch_inband(int cause)
 	 * This is the only location where we may assert T_INBAND for
 	 * a thread. Basic assumption: we are the current thread on
 	 * this CPU running in OOB context.
-	 *
-	 * We introduce an opportunity for interrupt delivery right
-	 * before switching context, which shortens the
-	 * uninterruptible code path.
 	 *
 	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
 	 * kernel is allowed to take interrupts again, so that

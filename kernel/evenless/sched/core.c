@@ -744,7 +744,8 @@ bool ___evl_schedule(struct evl_rq *this_rq)
 	 * CAUTION: curr->altsched.task may be unsynced and even stale
 	 * if curr == &this_rq->root_thread, since the task logged by
 	 * leave_root() may not still be the current one. Use
-	 * "current" for disambiguating.
+	 * "current" for disambiguating if you need to refer to the
+	 * underlying inband task.
 	 */
 	if (curr->state & T_USER)
 		evl_commit_monitor_ceiling(curr);
