@@ -305,7 +305,7 @@ TRACE_EVENT(evl_init_thread,
 		  __get_str(class_name), __entry->cprio, __entry->status)
 );
 
-TRACE_EVENT(evl_suspend_thread,
+TRACE_EVENT(evl_block_thread,
 	TP_PROTO(struct evl_thread *thread, unsigned long mask, ktime_t timeout,
 		 enum evl_tmode timeout_mode, struct evl_clock *clock,
 		 struct evl_syn *wchan),

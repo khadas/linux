@@ -343,7 +343,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	xnlock_get_irqsave(&nklock, flags);
 	enlist_new_thread(curr);
 	xnlock_put_irqrestore(&nklock, flags);
-	evl_stop_thread(curr, T_DORMANT);
+	evl_block_thread(curr, T_DORMANT);
 
 	return kthread->status;
 }
@@ -454,10 +454,10 @@ void evl_start_thread(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_start_thread);
 
-void evl_suspend_thread(struct evl_thread *thread, int mask,
-			ktime_t timeout, enum evl_tmode timeout_mode,
-			struct evl_clock *clock,
-			struct evl_syn *wchan)
+void evl_block_thread_timeout(struct evl_thread *thread, int mask,
+			      ktime_t timeout, enum evl_tmode timeout_mode,
+			      struct evl_clock *clock,
+			      struct evl_syn *wchan)
 {
 	unsigned long oldstate;
 	unsigned long flags;
@@ -474,8 +474,8 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_suspend_thread(thread, mask, timeout,
-				 timeout_mode, clock, wchan);
+	trace_evl_block_thread(thread, mask, timeout,
+			       timeout_mode, clock, wchan);
 	rq = thread->rq;
 	oldstate = thread->state;
 
@@ -565,7 +565,7 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
 
 	xnlock_put_irqrestore(&nklock, flags);
 }
-EXPORT_SYMBOL_GPL(evl_suspend_thread);
+EXPORT_SYMBOL_GPL(evl_block_thread_timeout);
 
 static void inband_task_wakeup(struct irq_work *work)
 {
@@ -725,13 +725,13 @@ int evl_switch_oob(void)
 }
 EXPORT_SYMBOL_GPL(evl_switch_oob);
 
-void evl_stop_thread(struct evl_thread *thread, int mask)
+void evl_block_thread(struct evl_thread *thread, int mask)
 {
-	evl_suspend_thread(thread, mask, EVL_INFINITE,
-			   EVL_REL, NULL, NULL);
+	evl_block_thread_timeout(thread, mask, EVL_INFINITE,
+				 EVL_REL, NULL, NULL);
 	evl_schedule();
 }
-EXPORT_SYMBOL_GPL(evl_stop_thread);
+EXPORT_SYMBOL_GPL(evl_block_thread);
 
 void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 {
@@ -798,8 +798,8 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 	unsigned long flags;
 	ktime_t rem = 0;
 
-	evl_suspend_thread(curr, T_DELAY, timeout,
-			   timeout_mode, clock, NULL);
+	evl_block_thread_timeout(curr, T_DELAY, timeout,
+				 timeout_mode, clock, NULL);
 	evl_schedule();
 
 	if (curr->info & T_BREAK) {
@@ -883,7 +883,7 @@ clear_wchan:
 	/*
 	 * If the thread was actually suspended, clear the wait
 	 * channel. This allows requests like
-	 * evl_suspend_thread(thread, T_DELAY,...) to skip the
+	 * evl_block_thread_timeout(thread, T_DELAY,...) to skip the
 	 * following code when the suspended thread is woken up while
 	 * undergoing a simple delay.
 	 */
@@ -1037,7 +1037,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
 	clock = curr->ptimer.clock;
 	now = evl_read_clock(clock);
 	if (likely(now < evl_get_timer_next_date(&curr->ptimer))) {
-		evl_stop_thread(curr, T_DELAY);
+		evl_block_thread(curr, T_DELAY);
 		if (unlikely(curr->info & T_BREAK)) {
 			ret = -EINTR;
 			goto out;
@@ -1289,7 +1289,7 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
 	 * Timer migration is postponed until the next timeout happens
 	 * for the periodic and rrb timers. The resource timer will be
 	 * moved to the right CPU next time it is armed in
-	 * evl_suspend_thread().
+	 * evl_block_thread_timeout().
 	 */
 	evl_migrate_rq(thread, rq);
 
@@ -1416,13 +1416,13 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	/*
 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
 	 * block state, such as T_SUSP, T_HALT. The caller of
-	 * evl_suspend_thread() we unblock shall proceed as for a
-	 * normal return, until it traverses a cancellation point if
+	 * evl_block_thread_timeout() we unblock shall proceed as for
+	 * a normal return, until it traverses a cancellation point if
 	 * T_CANCELD was raised earlier, or calls
-	 * evl_suspend_thread() which will detect T_KICKED and act
-	 * accordingly.
+	 * evl_block_thread_timeout() which will detect T_KICKED and
+	 * act accordingly.
 	 *
-	 * Rationale: callers of evl_suspend_thread() may assume
+	 * Rationale: callers of evl_block_thread_timeout() may assume
 	 * that receiving T_BREAK means that the process that
 	 * motivated the blocking did not go to completion. E.g. the
 	 * wait context was NOT updated before evl_sleep_on_syn()
@@ -1433,9 +1433,9 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * we want the kicked thread to know that it did receive the
 	 * requested resource, not finding T_BREAK in its state word.
 	 *
-	 * Callers of evl_suspend_thread() may inquire for T_KICKED
-	 * to detect forcible unblocks from T_SUSP, T_HALT, if they
-	 * should act upon this case specifically.
+	 * Callers of evl_block_thread_timeout() may inquire for
+	 * T_KICKED to detect forcible unblocks from T_SUSP, T_HALT,
+	 * if they should act upon this case specifically.
 	 */
 	if (thread->state & (T_SUSP|T_HALT)) {
 		evl_resume_thread(thread, T_SUSP|T_HALT);
@@ -1449,7 +1449,7 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * running, but nevertheless waits for the CPU in OOB context,
 	 * so we have to make sure that it will be notified of the
 	 * pending break condition as soon as it enters
-	 * evl_suspend_thread() from a blocking EVL syscall.
+	 * evl_block_thread_timeout() from a blocking EVL syscall.
 	 *
 	 * - a ready/readied thread on exit may be prevented from
 	 * running by the scheduling policy module it belongs
