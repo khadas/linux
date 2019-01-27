@@ -16,11 +16,9 @@
 #include <evenless/factory.h>
 #include <uapi/evenless/poller.h>
 
-struct oob_poll_wait;
-
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
-		__HARD_SPIN_LOCK_INIT((__name).__lock),			\
+		lock = __HARD_SPIN_LOCK_INITIALIZER(__name),		\
 	}
 
 struct evl_poll_head {
@@ -32,7 +30,7 @@ static inline
 void evl_init_poll_head(struct evl_poll_head *head)
 {
 	INIT_LIST_HEAD(&head->watchpoints);
-	raw_spin_lock_init(&head->lock);
+	hard_spin_lock_init(&head->lock);
 }
 
 void evl_poll_watch(struct evl_poll_head *head,
