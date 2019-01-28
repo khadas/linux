@@ -14,6 +14,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
+#include <linux/uaccess.h>
 #include <evenless/file.h>
 #include <evenless/wait.h>
 #include <evenless/clock.h>
