@@ -106,7 +106,7 @@ int block_thread_timed(ktime_t timeout, enum evl_tmode timeout_mode,
 	 * FIXME: bypass sched_lock test until the situation is fixed
 	 * for evl_enable/disable_preempt().
 	 */
-	__evl_schedule(curr->rq);
+	__evl_schedule();
 
 	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
 }

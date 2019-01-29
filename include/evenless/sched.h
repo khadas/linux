@@ -270,8 +270,10 @@ bool ___evl_schedule(struct evl_rq *this_rq);
 
 irqreturn_t __evl_schedule_handler(int irq, void *dev_id);
 
-static inline bool __evl_schedule(struct evl_rq *this_rq)
+static inline bool __evl_schedule(void)
 {
+	struct evl_rq *this_rq = this_evl_rq();
+
 	/*
 	 * If we race here reading the scheduler state locklessly
 	 * because of a CPU migration, we must be running over the
@@ -305,7 +307,7 @@ static inline void __evl_disable_preempt(void)
 static inline void __evl_enable_preempt(void)
 {
 	if (--dovetail_current_state()->preempt_count == 0)
-		__evl_schedule(this_evl_rq());
+		__evl_schedule();
 }
 
 #ifdef CONFIG_EVENLESS_DEBUG_LOCKING
@@ -336,7 +338,7 @@ static inline bool evl_schedule(void)
 	if (unlikely(evl_preempt_count() > 0))
 		return false;
 
-	return __evl_schedule(this_evl_rq());
+	return __evl_schedule();
 }
 
 static inline bool evl_in_irq(void)
