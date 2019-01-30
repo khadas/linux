@@ -275,7 +275,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	 *
 	 * The in-band tick deferral is cleared whenever EVL is about
 	 * to yield control to the in-band code (see
-	 * ___evl_schedule()), or a timer with an earlier timeout date
+	 * __evl_schedule()), or a timer with an earlier timeout date
 	 * is scheduled, whichever comes first.
 	 */
 	this_rq->lflags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
