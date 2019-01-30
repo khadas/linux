@@ -12,7 +12,7 @@
 #include <linux/wait.h>
 #include <linux/log2.h>
 #include <linux/atomic.h>
-#include <evenless/synch.h>
+#include <evenless/wait.h>
 #include <evenless/thread.h>
 #include <evenless/clock.h>
 #include <evenless/xbuf.h>
@@ -21,7 +21,7 @@
 #include <evenless/factory.h>
 #include <evenless/sched.h>
 #include <evenless/poller.h>
-#include <evenless/wait.h>
+#include <evenless/flag.h>
 #include <uapi/evenless/xbuf.h>
 
 struct xbuf_ring {
@@ -43,13 +43,13 @@ struct xbuf_ring {
 
 struct xbuf_inbound {		/* oob_write->read */
 	struct wait_queue_head i_event;
-	struct evl_wait_flag o_event;
+	struct evl_flag o_event;
 	struct irq_work irq_work;
 	struct xbuf_ring ring;
 };
 
 struct xbuf_outbound {		/* write->oob_read */
-	struct evl_wait_flag i_event;
+	struct evl_flag i_event;
 	struct wait_queue_head o_event;
 	struct irq_work irq_work;
 	struct xbuf_ring ring;
@@ -105,7 +105,7 @@ static int read_from_kernel(char *dst, struct xbuf_wdesc *src, size_t len)
 }
 
 static ssize_t do_xbuf_read(struct xbuf_ring *ring,
-			    struct xbuf_rdesc *rd, int f_flags)
+			struct xbuf_rdesc *rd, int f_flags)
 {
 	ssize_t len, ret, rbytes, n;
 	unsigned int rdoff, avail;
@@ -222,7 +222,7 @@ out:
 }
 
 static ssize_t do_xbuf_write(struct xbuf_ring *ring,
-			     struct xbuf_wdesc *wd, int f_flags)
+			struct xbuf_wdesc *wd, int f_flags)
 {
 	ssize_t len, ret, wbytes, n;
 	unsigned int wroff, avail;
@@ -390,7 +390,7 @@ static void inbound_clear_pollable(struct xbuf_ring *ring, int events)
 }
 
 static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
-			 size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 	struct xbuf_rdesc rd = {
@@ -403,7 +403,7 @@ static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
 }
 
 static ssize_t xbuf_write(struct file *filp, const char __user *u_buf,
-			  size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 	struct xbuf_wdesc wd = {
@@ -416,7 +416,7 @@ static ssize_t xbuf_write(struct file *filp, const char __user *u_buf,
 }
 
 static long xbuf_ioctl(struct file *filp,
-		       unsigned int cmd, unsigned long arg)
+		unsigned int cmd, unsigned long arg)
 {
 	return -ENOTTY;
 }
@@ -444,7 +444,7 @@ static __poll_t xbuf_poll(struct file *filp, poll_table *wait)
 }
 
 static long xbuf_oob_ioctl(struct file *filp,
-			   unsigned int cmd, unsigned long arg)
+			unsigned int cmd, unsigned long arg)
 {
 	return -ENOTTY;
 }
@@ -481,7 +481,7 @@ static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
 
 	return wait_event_interruptible(xbuf->obnd.o_event,
-				  ring->fillsz + len <= ring->bufsz);
+					ring->fillsz + len <= ring->bufsz);
 }
 
 static void resume_inband_writer(struct irq_work *work)
@@ -522,7 +522,7 @@ static void outbound_clear_pollable(struct xbuf_ring *ring, int events)
 }
 
 static ssize_t xbuf_oob_read(struct file *filp,
-			     char __user *u_buf, size_t count)
+			char __user *u_buf, size_t count)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 	struct xbuf_rdesc rd = {
@@ -535,7 +535,7 @@ static ssize_t xbuf_oob_read(struct file *filp,
 }
 
 static ssize_t xbuf_oob_write(struct file *filp,
-			      const char __user *u_buf, size_t count)
+			const char __user *u_buf, size_t count)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 	struct xbuf_wdesc wd = {
@@ -548,7 +548,7 @@ static ssize_t xbuf_oob_write(struct file *filp,
 }
 
 static __poll_t xbuf_oob_poll(struct file *filp,
-			      struct oob_poll_wait *wait)
+			struct oob_poll_wait *wait)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 	unsigned long flags;
@@ -602,7 +602,7 @@ void evl_put_xbuf(struct evl_file *sfilp)
 EXPORT_SYMBOL_GPL(evl_put_xbuf);
 
 ssize_t evl_read_xbuf(struct evl_xbuf *xbuf, void *buf,
-		      size_t count, int f_flags)
+		size_t count, int f_flags)
 {
 	struct xbuf_rdesc rd = {
 		.buf = buf,
@@ -618,7 +618,7 @@ ssize_t evl_read_xbuf(struct evl_xbuf *xbuf, void *buf,
 EXPORT_SYMBOL_GPL(evl_read_xbuf);
 
 ssize_t evl_write_xbuf(struct evl_xbuf *xbuf, const void *buf,
-		       size_t count, int f_flags)
+		size_t count, int f_flags)
 {
 	struct xbuf_wdesc wd = {
 		.buf = buf,
@@ -635,7 +635,7 @@ EXPORT_SYMBOL_GPL(evl_write_xbuf);
 
 static struct evl_element *
 xbuf_factory_build(struct evl_factory *fac, const char *name,
-		   void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	void *i_bufmem = NULL, *o_bufmem = NULL;
 	struct evl_xbuf_attrs attrs;
@@ -648,8 +648,8 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 
 	/* LART */
 	if ((attrs.i_bufsz == 0 && attrs.o_bufsz == 0) ||
-	    order_base_2(attrs.i_bufsz) > 30 ||
-	    order_base_2(attrs.o_bufsz) > 30)
+		order_base_2(attrs.i_bufsz) > 30 ||
+		order_base_2(attrs.o_bufsz) > 30)
 		return ERR_PTR(-EINVAL);
 
 	xbuf = kzalloc(sizeof(*xbuf), GFP_KERNEL);
@@ -737,8 +737,8 @@ static void xbuf_factory_dispose(struct evl_element *e)
 }
 
 static ssize_t rings_show(struct device *dev,
-			  struct device_attribute *attr,
-			  char *buf)
+			struct device_attribute *attr,
+			char *buf)
 {
 	struct evl_xbuf *xbuf;
 	ssize_t ret;
@@ -746,10 +746,10 @@ static ssize_t rings_show(struct device *dev,
 	xbuf = evl_get_element_by_dev(dev, struct evl_xbuf);
 
 	ret = snprintf(buf, PAGE_SIZE, "%zu %zu %zu %zu\n",
-		       xbuf->ibnd.ring.fillsz,
-		       xbuf->ibnd.ring.bufsz,
-		       xbuf->obnd.ring.fillsz,
-		       xbuf->obnd.ring.bufsz);
+		xbuf->ibnd.ring.fillsz,
+		xbuf->ibnd.ring.bufsz,
+		xbuf->obnd.ring.fillsz,
+		xbuf->obnd.ring.bufsz);
 
 	evl_put_element(&xbuf->element);
 

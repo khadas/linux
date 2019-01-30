@@ -8,20 +8,20 @@
 #define _EVENLESS_KSEM_H
 
 #include <linux/ktime.h>
-#include <evenless/synch.h>
+#include <evenless/wait.h>
 
 struct evl_ksem {
 	unsigned int value;
-	struct evl_syn wait_queue;
+	struct evl_wait_queue wait_queue;
 };
 
 void evl_init_sem(struct evl_ksem *sem,
-		  unsigned int value);
+		unsigned int value);
 
 void evl_destroy_sem(struct evl_ksem *sem);
 
 int evl_down_timeout(struct evl_ksem *sem,
-		     ktime_t timeout);
+		ktime_t timeout);
 
 int evl_down(struct evl_ksem *sem);
 

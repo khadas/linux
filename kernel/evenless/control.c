@@ -43,8 +43,8 @@ static int start_services(void)
 	int ret = 0;
 
 	state = atomic_cmpxchg(&evl_runstate,
-			       EVL_STATE_STOPPED,
-			       EVL_STATE_WARMUP);
+			EVL_STATE_STOPPED,
+			EVL_STATE_WARMUP);
 	switch (state) {
 	case EVL_STATE_RUNNING:
 		break;
@@ -71,8 +71,8 @@ static int stop_services(void)
 	int ret = 0;
 
 	state = atomic_cmpxchg(&evl_runstate,
-			       EVL_STATE_RUNNING,
-			       EVL_STATE_TEARDOWN);
+			EVL_STATE_RUNNING,
+			EVL_STATE_TEARDOWN);
 	switch (state) {
 	case EVL_STATE_STOPPED:
 		break;
@@ -96,7 +96,7 @@ static int stop_services(void)
 }
 
 static long control_ioctl(struct file *filp, unsigned int cmd,
-			  unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_core_info info;
 	long ret;
@@ -114,7 +114,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 		info.fpu_features = evl_detect_fpu();
 		info.shm_size = evl_shm_size;
 		ret = raw_copy_to_user((struct evl_core_info __user *)arg,
-				       &info, sizeof(info)) ? -EFAULT : 0;
+				&info, sizeof(info)) ? -EFAULT : 0;
 		break;
 	case EVL_CTLIOC_SWITCH_OOB:
 		ret = evl_switch_oob();
@@ -162,8 +162,8 @@ static const char *state_labels[] = {
 };
 
 static ssize_t state_show(struct device *dev,
-			  struct device_attribute *attr,
-			  char *buf)
+			struct device_attribute *attr,
+			char *buf)
 {
 	int st = atomic_read(&evl_runstate);
 
@@ -171,8 +171,8 @@ static ssize_t state_show(struct device *dev,
 }
 
 static ssize_t state_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
+			struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t len = count;
 

@@ -81,8 +81,8 @@ page_is_valid(struct evl_heap *heap, int pg)
 }
 
 static void mark_pages(struct evl_heap *heap,
-		       int pg, int nrpages,
-		       enum evl_heap_pgtype type)
+		int pg, int nrpages,
+		enum evl_heap_pgtype type)
 {
 	while (nrpages-- > 0)
 		heap->pagemap[pg].type = type;
@@ -97,8 +97,8 @@ page_is_valid(struct evl_heap *heap, int pg)
 }
 
 static void mark_pages(struct evl_heap *heap,
-		       int pg, int nrpages,
-		       enum evl_heap_pgtype type)
+		int pg, int nrpages,
+		enum evl_heap_pgtype type)
 { }
 
 #endif
@@ -245,7 +245,7 @@ static int reserve_page_range(struct evl_heap *heap, size_t size)
 }
 
 static void release_page_range(struct evl_heap *heap,
-			       void *page, size_t size)
+			void *page, size_t size)
 {
 	struct evl_heap_range *freed = page, *left, *right;
 	bool addr_linked = false;
@@ -274,11 +274,11 @@ static void release_page_range(struct evl_heap *heap,
 
 	insert_range_bysize(heap, freed);
 	mark_pages(heap, addr_to_pagenr(heap, page),
-		   size >> EVL_HEAP_PAGE_SHIFT, page_free);
+		size >> EVL_HEAP_PAGE_SHIFT, page_free);
 }
 
 static void add_page_front(struct evl_heap *heap,
-			   int pg, int log2size)
+			int pg, int log2size)
 {
 	struct evl_heap_pgentry *new, *head, *next;
 	int ilog;
@@ -323,7 +323,7 @@ static void remove_page(struct evl_heap *heap,
 }
 
 static void move_page_front(struct evl_heap *heap,
-			    int pg, int log2size)
+			int pg, int log2size)
 {
 	int ilog = log2size - EVL_HEAP_MIN_LOG2;
 
@@ -337,7 +337,7 @@ static void move_page_front(struct evl_heap *heap,
 }
 
 static void move_page_back(struct evl_heap *heap,
-			   int pg, int log2size)
+			int pg, int log2size)
 {
 	struct evl_heap_pgentry *old, *last, *head, *next;
 	int ilog;
@@ -361,7 +361,7 @@ static void move_page_back(struct evl_heap *heap,
 }
 
 static void *add_free_range(struct evl_heap *heap,
-			    size_t bsize, int log2size)
+			size_t bsize, int log2size)
 {
 	int pg;
 
@@ -397,7 +397,7 @@ static void *add_free_range(struct evl_heap *heap,
 		heap->pagemap[pg].type = page_list;
 		heap->pagemap[pg].bsize = (u32)bsize;
 		mark_pages(heap, pg + 1,
-			   (bsize >> EVL_HEAP_PAGE_SHIFT) - 1, page_cont);
+			(bsize >> EVL_HEAP_PAGE_SHIFT) - 1, page_cont);
 	}
 
 	heap->used_size += bsize;
@@ -574,7 +574,7 @@ void evl_free_chunk(struct evl_heap *heap, void *block)
 		if (heap->pagemap[pg].map == ~gen_block_mask(log2size)) {
 			remove_page(heap, pg, log2size);
 			release_page_range(heap, pagenr_to_addr(heap, pg),
-					   EVL_HEAP_PAGE_SIZE);
+					EVL_HEAP_PAGE_SIZE);
 		} else if (oldmap == -1U)
 			move_page_front(heap, pg, log2size);
 	}
@@ -588,8 +588,8 @@ bad:
 	raw_spin_unlock_irqrestore(&heap->lock, flags);
 
 	EVL_WARN(MEMORY, 1, "invalid block %p in heap %s",
-		 block, heap == &evl_shared_heap ?
-		 "shared" : "system");
+		block, heap == &evl_shared_heap ?
+		"shared" : "system");
 }
 EXPORT_SYMBOL_GPL(evl_free_chunk);
 

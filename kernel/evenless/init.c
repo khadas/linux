@@ -185,9 +185,9 @@ static int __init evl_init(void)
 		goto fail;
 
 	printk(EVL_INFO "core started %s%s%s\n",
-	       boot_debug_notice,
-	       boot_trace_notice,
-	       boot_state_notice);
+		boot_debug_notice,
+		boot_trace_notice,
+		boot_state_notice);
 
 	return 0;
 fail:

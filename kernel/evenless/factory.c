@@ -44,7 +44,7 @@ static struct evl_factory *factories[] = {
 #endif
 };
 
-#define NR_FACTORIES	\
+#define NR_FACTORIES						\
 	(ARRAY_SIZE(early_factories) + ARRAY_SIZE(factories))
 
 static dev_t factory_rdev;
@@ -57,7 +57,7 @@ int evl_init_element(struct evl_element *e, struct evl_factory *fac)
 		minor = find_first_zero_bit(fac->minor_map, fac->nrdev);
 		if (minor >= fac->nrdev) {
 			printk_ratelimited(EVL_WARNING "out of %ss",
-					   fac->name);
+					fac->name);
 			return -EAGAIN;
 		}
 	} while (test_and_set_bit(minor, fac->minor_map));
@@ -240,8 +240,8 @@ int evl_close_element(struct inode *inode, struct file *filp)
 }
 
 int evl_create_element_device(struct evl_element *e,
-			      struct evl_factory *fac,
-			      const char *devname)
+			struct evl_factory *fac,
+			const char *devname)
 {
 	struct device *dev;
 	dev_t rdev;
@@ -286,7 +286,7 @@ void evl_remove_element_device(struct evl_element *e)
 }
 
 static long ioctl_clone_device(struct file *filp, unsigned int cmd,
-			       unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_element *e = filp->private_data;
 	struct evl_clone_req req, __user *u_req;
@@ -318,7 +318,7 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 
 	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
 	e = fac->build(fac, devname ? devname->name : NULL,
-		       req.attrs, &state_offset);
+		req.attrs, &state_offset);
 	if (IS_ERR(e)) {
 		if (devname)
 			putname(devname);
@@ -486,7 +486,7 @@ __evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
 static char *factory_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "evenless/%s/%s",
-			 dev->class->name, dev_name(dev));
+			dev->class->name, dev_name(dev));
 }
 
 static int create_element_class(struct evl_factory *fac)
@@ -606,7 +606,7 @@ create_factories(struct evl_factory **factories, int nr)
 
 	for (n = 0; n < nr; n++) {
 		ret = create_factory(factories[n],
-				     MKDEV(MAJOR(factory_rdev), n));
+				MKDEV(MAJOR(factory_rdev), n));
 		if (ret)
 			goto fail;
 	}
@@ -639,14 +639,14 @@ int __init evl_early_init_factories(void)
 	evl_class->devnode = evl_devnode;
 
 	ret = alloc_chrdev_region(&factory_rdev, 0, NR_FACTORIES,
-				  "evenless_factory");
+				"evenless_factory");
 	if (ret) {
 		class_destroy(evl_class);
 		return ret;
 	}
 
 	ret = create_factories(early_factories,
-			       ARRAY_SIZE(early_factories));
+			ARRAY_SIZE(early_factories));
 	if (ret) {
 		unregister_chrdev_region(factory_rdev, NR_FACTORIES);
 		class_destroy(evl_class);

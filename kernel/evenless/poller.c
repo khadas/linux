@@ -21,7 +21,7 @@
 struct event_poller {
 	struct rb_root node_index;  /* struct poll_node */
 	struct list_head node_list;  /* struct poll_node */
-	struct evl_syn wait_queue;
+	struct evl_wait_queue wait_queue;
 	struct evl_element element;
 	hard_spinlock_t lock;
 	int nodenr;
@@ -51,7 +51,7 @@ struct evl_poll_watchpoint {
 };
 
 void evl_poll_watch(struct evl_poll_head *head,
-		    struct oob_poll_wait *wait)
+		struct oob_poll_wait *wait)
 {
 	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
@@ -66,7 +66,7 @@ void evl_poll_watch(struct evl_poll_head *head,
 EXPORT_SYMBOL_GPL(evl_poll_watch);
 
 void __evl_signal_poll_events(struct evl_poll_head *head,
-			      int events)
+			int events)
 {
 	struct evl_poll_watchpoint *wpt, *n;
 	struct event_poller *poller;
@@ -92,7 +92,7 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 		list_for_each_entry(poller, &wakeup_list, next) {
 			xnlock_get_irqsave(&nklock, flags);
 			poller->readied = true;
-			evl_wake_up_syn(&poller->wait_queue);
+			evl_wake_up_head(&poller->wait_queue);
 			xnlock_put_irqrestore(&nklock, flags);
 		}
 	}
@@ -102,7 +102,7 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
 
 void __evl_clear_poll_events(struct evl_poll_head *head,
-			     int events)
+			int events)
 {
 	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
@@ -142,7 +142,7 @@ int __index_node(struct rb_root *root, struct poll_node *node)
 }
 
 static int add_node(struct event_poller *poller,
-		    struct evl_poller_ctlreq *creq)
+		struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
 	unsigned long flags;
@@ -212,7 +212,7 @@ static void __del_node(struct poll_node *node)
 }
 
 static int del_node(struct event_poller *poller,
-		    struct evl_poller_ctlreq *creq)
+		struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
 	unsigned long flags;
@@ -239,7 +239,7 @@ static int del_node(struct event_poller *poller,
 
 static inline
 int mod_node(struct event_poller *poller,
-	     struct evl_poller_ctlreq *creq)
+	struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
 	unsigned long flags;
@@ -262,7 +262,7 @@ int mod_node(struct event_poller *poller,
 
 static inline
 int setup_node(struct event_poller *poller,
-	       struct evl_poller_ctlreq *creq)
+	struct evl_poller_ctlreq *creq)
 {
 	int ret;
 
@@ -282,8 +282,8 @@ int setup_node(struct event_poller *poller,
 }
 
 static int collect_events(struct event_poller *poller,
-			  struct evl_poll_event __user *u_ev,
-			  int maxevents, bool do_poll)
+			struct evl_poll_event __user *u_ev,
+			int maxevents, bool do_poll)
 {
 	struct evl_thread *curr = evl_current_thread();
 	struct evl_poll_watchpoint *wpt, *table;
@@ -414,7 +414,7 @@ int wait_events(struct file *filp,
 		return 0;
 
 	count = collect_events(poller, wreq->events,
-			       wreq->nrevents, true);
+			wreq->nrevents, true);
 	if (count > 0 || count == -EFAULT)
 		goto unwait;
 	if (count < 0)
@@ -432,7 +432,7 @@ int wait_events(struct file *filp,
 
 	info = 0;
 	if (!poller->readied)
-		info = evl_sleep_on_syn(&poller->wait_queue, timeout, tmode);
+		info = evl_wait_timeout(&poller->wait_queue, timeout, tmode);
 
 	xnlock_put_irqrestore(&nklock, flags);
 	if (info)
@@ -440,7 +440,7 @@ int wait_events(struct file *filp,
 		count = info & T_BREAK ? -EINTR : -ETIMEDOUT;
 	else
 		count = collect_events(poller, wreq->events,
-				       wreq->nrevents, false);
+				wreq->nrevents, false);
 unwait:
 	clear_wait();
 
@@ -448,7 +448,7 @@ unwait:
 }
 
 static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
-			     unsigned long arg)
+			unsigned long arg)
 {
 	struct event_poller *poller = element_of(filp, struct event_poller);
 	struct evl_poller_waitreq wreq, __user *u_wreq;
@@ -488,7 +488,7 @@ static const struct file_operations poller_fops = {
 
 static struct evl_element *
 poller_factory_build(struct evl_factory *fac, const char *name,
-		     void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_poller_attrs attrs;
 	struct event_poller *poller;
@@ -515,7 +515,7 @@ poller_factory_build(struct evl_factory *fac, const char *name,
 
 	poller->node_index = RB_ROOT;
 	INIT_LIST_HEAD(&poller->node_list);
-	evl_init_syn(&poller->wait_queue, EVL_SYN_PRIO, clock, NULL);
+	evl_init_wait(&poller->wait_queue, clock, EVL_WAIT_PRIO);
 	raw_spin_lock_init(&poller->lock);
 
 	return &poller->element;

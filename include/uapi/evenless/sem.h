@@ -7,7 +7,6 @@
 #ifndef _EVENLESS_UAPI_SEM_H
 #define _EVENLESS_UAPI_SEM_H
 
-#include <uapi/evenless/synch.h>
 #include <uapi/evenless/factory.h>
 
 struct timespec;

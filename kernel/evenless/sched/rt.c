@@ -39,7 +39,7 @@ static void evl_rt_dequeue(struct evl_thread *thread)
 }
 
 static void evl_rt_rotate(struct evl_rq *rq,
-			  const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	struct evl_thread *thread, *curr;
 
@@ -58,8 +58,8 @@ static void evl_rt_rotate(struct evl_rq *rq,
 	 * holds the scheduler lock.
 	 */
 	if (thread != curr ||
-	    (!(curr->state & EVL_THREAD_BLOCK_BITS) &&
-	     evl_preempt_count() == 0))
+		(!(curr->state & EVL_THREAD_BLOCK_BITS) &&
+			evl_preempt_count() == 0))
 		evl_putback_thread(thread);
 }
 
@@ -76,25 +76,25 @@ static void evl_rt_tick(struct evl_rq *rq)
 }
 
 static int evl_rt_chkparam(struct evl_thread *thread,
-			   const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	return __evl_chk_rt_schedparam(thread, p);
 }
 
 static bool evl_rt_setparam(struct evl_thread *thread,
-			    const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	return __evl_set_rt_schedparam(thread, p);
 }
 
 static void evl_rt_getparam(struct evl_thread *thread,
-			    union evl_sched_param *p)
+			union evl_sched_param *p)
 {
 	__evl_get_rt_schedparam(thread, p);
 }
 
 static void evl_rt_trackprio(struct evl_thread *thread,
-			     const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	__evl_track_rt_priority(thread, p);
 }
@@ -105,7 +105,7 @@ static void evl_rt_ceilprio(struct evl_thread *thread, int prio)
 }
 
 static ssize_t evl_rt_show(struct evl_thread *thread,
-			   char *buf, ssize_t count)
+			char *buf, ssize_t count)
 {
 	if (thread->state & T_RRB)
 		return snprintf(buf, count, "%Ld\n",

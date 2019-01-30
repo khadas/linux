@@ -34,17 +34,17 @@ static struct evl_thread *weak_pick(struct evl_rq *rq)
 }
 
 static int weak_chkparam(struct evl_thread *thread,
-			 const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (p->weak.prio < EVL_WEAK_MIN_PRIO ||
-	    p->weak.prio > EVL_WEAK_MAX_PRIO)
+		p->weak.prio > EVL_WEAK_MAX_PRIO)
 		return -EINVAL;
 
 	return 0;
 }
 
 static bool weak_setparam(struct evl_thread *thread,
-			  const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (!(thread->state & T_BOOST))
 		thread->state |= T_WEAK;
@@ -53,13 +53,13 @@ static bool weak_setparam(struct evl_thread *thread,
 }
 
 static void weak_getparam(struct evl_thread *thread,
-			  union evl_sched_param *p)
+			union evl_sched_param *p)
 {
 	p->weak.prio = thread->cprio;
 }
 
 static void weak_trackprio(struct evl_thread *thread,
-			   const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (p)
 		thread->cprio = p->weak.prio;
@@ -79,7 +79,7 @@ static int weak_declare(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
 	if (p->weak.prio < EVL_WEAK_MIN_PRIO ||
-	    p->weak.prio > EVL_WEAK_MAX_PRIO)
+		p->weak.prio > EVL_WEAK_MAX_PRIO)
 		return -EINVAL;
 
 	return 0;

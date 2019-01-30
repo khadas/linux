@@ -17,7 +17,7 @@
 #define EVL_WEAK_NR_PRIO   (EVL_WEAK_MAX_PRIO - EVL_WEAK_MIN_PRIO + 1)
 
 #if EVL_WEAK_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
-	 EVL_WEAK_NR_PRIO > EVL_MLQ_LEVELS
+	EVL_WEAK_NR_PRIO > EVL_MLQ_LEVELS
 #error "WEAK class has too many priority levels"
 #endif
 

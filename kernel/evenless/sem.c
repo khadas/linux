@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <evenless/synch.h>
+#include <evenless/wait.h>
 #include <evenless/thread.h>
 #include <evenless/clock.h>
 #include <evenless/sem.h>
@@ -22,7 +22,8 @@
 struct evl_sem {
 	struct evl_element element;
 	struct evl_sem_state *state;
-	struct evl_syn wait_queue;
+	struct evl_wait_queue wait_queue;
+	int initval;
 };
 
 struct sem_wait_data {
@@ -30,12 +31,13 @@ struct sem_wait_data {
 };
 
 static int acquire_sem(struct evl_sem *sem,
-		       struct evl_sem_waitreq *req)
+		struct evl_sem_waitreq *req)
 {
 	struct evl_thread *curr = evl_current_thread();
 	struct evl_sem_state *state = sem->state;
 	struct sem_wait_data wda;
 	enum evl_tmode tmode;
+	unsigned long flags;
 	int info, ret = 0;
 	ktime_t timeout;
 
@@ -48,15 +50,17 @@ static int acquire_sem(struct evl_sem *sem,
 	if (state->flags & EVL_SEM_PULSE)
 		req->count = 1;
 
+	xnlock_get_irqsave(&nklock, flags);
+
 	if (atomic_sub_return(req->count, &state->value) >= 0)
-		return 0;
+		goto out;
 
 	wda.count = req->count;
 	curr->wait_data = &wda;
 
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	info = evl_sleep_on_syn(&sem->wait_queue, timeout, tmode);
+	info = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
 	if (info & (T_BREAK|T_BCAST|T_TIMEO)) {
 		atomic_add(req->count, &state->value);
 		ret = -ETIMEDOUT;
@@ -65,6 +69,8 @@ static int acquire_sem(struct evl_sem *sem,
 		else if (info & T_BCAST)
 			ret = -EAGAIN;
 	} /* No way we could receive T_RMID */
+out:
+	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
 }
@@ -87,16 +93,16 @@ static int release_sem(struct evl_sem *sem, int count)
 	if (state->flags & EVL_SEM_PULSE)
 		count = 1;
 
+	xnlock_get_irqsave(&nklock, flags);
+
 	if (atomic_add_return(count, &state->value) >= count) {
 		/* Old value >= 0, nobody is waiting. */
 		if (state->flags & EVL_SEM_PULSE)
 			atomic_set(&state->value, 0);
-		return 0;
+		goto out;
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (!evl_syn_has_waiter(&sem->wait_queue))
+	if (!evl_wait_active(&sem->wait_queue))
 		goto out;
 
 	/*
@@ -104,13 +110,13 @@ static int release_sem(struct evl_sem *sem, int count)
 	 * serve other waiters down the queue until this one is
 	 * satisfied.
 	 */
-	evl_for_each_syn_waiter_safe(waiter, n, &sem->wait_queue) {
+	evl_for_each_waiter_safe(waiter, n, &sem->wait_queue) {
 		wda = waiter->wait_data;
 		if (atomic_sub_return(wda->count, &state->value) < 0) {
 			atomic_add(wda->count, &state->value); /* Nope, undo. */
 			break;
 		}
-		evl_wake_up_targeted_syn(&sem->wait_queue, waiter);
+		evl_wake_up(&sem->wait_queue, waiter);
 	}
 
 	evl_schedule();
@@ -122,14 +128,14 @@ out:
 
 static int broadcast_sem(struct evl_sem *sem)
 {
-	if (evl_flush_syn(&sem->wait_queue, T_BCAST))
-		evl_schedule();
+	evl_flush_wait(&sem->wait_queue, T_BCAST);
+	evl_schedule();
 
 	return 0;
 }
 
 static long sem_common_ioctl(struct evl_sem *sem,
-			     unsigned int cmd, unsigned long arg)
+			unsigned int cmd, unsigned long arg)
 {
 	__s32 count;
 	long ret;
@@ -152,7 +158,7 @@ static long sem_common_ioctl(struct evl_sem *sem,
 }
 
 static long sem_oob_ioctl(struct file *filp, unsigned int cmd,
-			  unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_sem *sem = element_of(filp, struct evl_sem);
 	struct evl_sem_waitreq wreq, __user *u_wreq;
@@ -174,7 +180,7 @@ static long sem_oob_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static long sem_ioctl(struct file *filp, unsigned int cmd,
-		      unsigned long arg)
+		unsigned long arg)
 {
 	struct evl_sem *sem = element_of(filp, struct evl_sem);
 	struct evl_element_ids eids, __user *u_eids;
@@ -199,7 +205,7 @@ static const struct file_operations sem_fops = {
 
 static struct evl_element *
 sem_factory_build(struct evl_factory *fac, const char *name,
-		  void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_sem_state *state;
 	struct evl_sem_attrs attrs;
@@ -241,12 +247,13 @@ sem_factory_build(struct evl_factory *fac, const char *name,
 	}
 
 	if (attrs.flags & EVL_SEM_PRIO)
-		synflags |= EVL_SYN_PRIO;
+		synflags |= EVL_WAIT_PRIO;
 
-	evl_init_syn(&sem->wait_queue, synflags, clock, NULL);
+	evl_init_wait(&sem->wait_queue, clock, synflags);
 	atomic_set(&state->value, attrs.initval);
 	state->flags = attrs.flags;
 	sem->state = state;
+	sem->initval = attrs.initval;
 
 	*state_offp = evl_shared_offset(state);
 	evl_index_element(&sem->element);
@@ -271,22 +278,22 @@ static void sem_factory_dispose(struct evl_element *e)
 
 	evl_unindex_element(&sem->element);
 	evl_put_clock(sem->wait_queue.clock);
-	evl_destroy_syn(&sem->wait_queue);
+	evl_destroy_wait(&sem->wait_queue);
 	evl_free_chunk(&evl_shared_heap, sem->state);
 	evl_destroy_element(&sem->element);
 	kfree_rcu(sem, element.rcu);
 }
 
 static ssize_t value_show(struct device *dev,
-			  struct device_attribute *attr,
-			  char *buf)
+			struct device_attribute *attr,
+			char *buf)
 {
 	struct evl_sem *sem;
 	ssize_t ret;
 
 	sem = evl_get_element_by_dev(dev, struct evl_sem);
 	ret = snprintf(buf, PAGE_SIZE, "%d\n",
-		       atomic_read(&sem->state->value));
+		atomic_read(&sem->state->value));
 	evl_put_element(&sem->element);
 
 	return ret;

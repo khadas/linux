@@ -41,13 +41,13 @@ struct evl_clock {
 				const struct timespec *ts);
 		void (*program_local_shot)(struct evl_clock *clock);
 		void (*program_remote_shot)(struct evl_clock *clock,
-					    struct evl_rq *rq);
+					struct evl_rq *rq);
 		int (*set_gravity)(struct evl_clock *clock,
-				   const struct evl_clock_gravity *p);
+				const struct evl_clock_gravity *p);
 		void (*reset_gravity)(struct evl_clock *clock);
 		void (*adjust)(struct evl_clock *clock);
 		int (*adjust_time)(struct evl_clock *clock,
-				   struct timex *tx);
+				struct timex *tx);
 	} ops;
 	struct evl_timerbase *timerdata;
 	struct evl_clock *master;
@@ -67,15 +67,15 @@ extern struct evl_clock evl_mono_clock;
 extern struct evl_clock evl_realtime_clock;
 
 int evl_init_clock(struct evl_clock *clock,
-		   const struct cpumask *affinity);
+		const struct cpumask *affinity);
 
 int evl_init_slave_clock(struct evl_clock *clock,
-			 struct evl_clock *master);
+			struct evl_clock *master);
 
 void evl_announce_tick(struct evl_clock *clock);
 
 void evl_adjust_timers(struct evl_clock *clock,
-		       ktime_t delta);
+		ktime_t delta);
 
 void evl_stop_timers(struct evl_clock *clock);
 
@@ -105,7 +105,7 @@ static inline ktime_t evl_read_clock(struct evl_clock *clock)
 
 static inline int
 evl_set_clock_time(struct evl_clock *clock,
-		   const struct timespec *ts)
+		const struct timespec *ts)
 {
 	if (clock->ops.set_time)
 		return clock->ops.set_time(clock, ts);
@@ -121,14 +121,14 @@ ktime_t evl_get_clock_resolution(struct evl_clock *clock)
 
 static inline
 void evl_set_clock_resolution(struct evl_clock *clock,
-			      ktime_t resolution)
+			ktime_t resolution)
 {
 	clock->resolution = resolution;
 }
 
 static inline
 int evl_set_clock_gravity(struct evl_clock *clock,
-			  const struct evl_clock_gravity *gravity)
+			const struct evl_clock_gravity *gravity)
 {
 	if (clock->ops.set_gravity)
 		return clock->ops.set_gravity(clock, gravity);
@@ -158,7 +158,7 @@ int evl_clock_init(void);
 void evl_clock_cleanup(void);
 
 int evl_register_clock(struct evl_clock *clock,
-		       const struct cpumask *affinity);
+		const struct cpumask *affinity);
 
 void evl_unregister_clock(struct evl_clock *clock);
 

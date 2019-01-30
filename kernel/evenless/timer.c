@@ -38,7 +38,7 @@ lock_timer_base(struct evl_timer *timer, unsigned long *flags)
 }
 
 static inline void unlock_timer_base(struct evl_timerbase *base,
-				     unsigned long flags)
+				unsigned long flags)
 {
 	raw_spin_unlock_irqrestore(&base->lock, flags);
 }
@@ -66,7 +66,7 @@ static bool timer_at_front(struct evl_timer *timer)
 
 /* timer base locked. */
 static void program_timer(struct evl_timer *timer,
-			  struct evl_tqueue *tq)
+			struct evl_tqueue *tq)
 {
 	struct evl_rq *rq;
 
@@ -83,7 +83,7 @@ static void program_timer(struct evl_timer *timer,
 }
 
 void evl_start_timer(struct evl_timer *timer,
-		     ktime_t value, ktime_t interval)
+		ktime_t value, ktime_t interval)
 {
 	struct evl_timerbase *base;
 	struct evl_tqueue *tq;
@@ -270,10 +270,10 @@ EXPORT_SYMBOL_GPL(__evl_set_timer_rq);
 #endif /* CONFIG_SMP */
 
 void __evl_init_timer(struct evl_timer *timer,
-		      struct evl_clock *clock,
-		      void (*handler)(struct evl_timer *timer),
-		      struct evl_rq *rq,
-		      int opflags)
+		struct evl_clock *clock,
+		void (*handler)(struct evl_timer *timer),
+		struct evl_rq *rq,
+		int opflags)
 {
 	int cpu __maybe_unused;
 
@@ -337,7 +337,7 @@ EXPORT_SYMBOL_GPL(evl_destroy_timer);
  * @rq:         runqueue to assign the timer to
  */
 void evl_bolt_timer(struct evl_timer *timer,
-		    struct evl_clock *clock, struct evl_rq *rq)
+		struct evl_clock *clock, struct evl_rq *rq)
 {	/* nklocked, IRQs off */
 	struct evl_timerbase *old_base, *new_base;
 	struct evl_clock *master = clock->master;
@@ -411,8 +411,8 @@ unsigned long evl_get_timer_overruns(struct evl_timer *timer)
 		goto done;
 
 	EVL_WARN_ON_ONCE(CORE, (timer->status &
-				(EVL_TIMER_DEQUEUED|EVL_TIMER_PERIODIC))
-			 != EVL_TIMER_PERIODIC);
+						(EVL_TIMER_DEQUEUED|EVL_TIMER_PERIODIC))
+			!= EVL_TIMER_PERIODIC);
 	tq = &base->q;
 	evl_dequeue_timer(timer, tq);
 	while (evl_tdate(timer) < now) {
@@ -440,7 +440,7 @@ EXPORT_SYMBOL_GPL(evl_get_timer_overruns);
 
 /* same or earlier date. */
 static inline bool date_is_earlier(struct evl_tnode *left,
-				   struct evl_tnode *right)
+				struct evl_tnode *right)
 {
 	return left->date < right->date
 		|| (left->date == right->date && left->prio > right->prio);

@@ -46,7 +46,7 @@ static const struct file_operations mapper_fops = {
 
 static struct evl_element *
 mapper_factory_build(struct evl_factory *fac, const char *name,
-		     void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_mapper_attrs attrs;
 	struct evl_mapper *mapper;

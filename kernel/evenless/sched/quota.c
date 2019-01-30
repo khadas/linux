@@ -68,14 +68,14 @@ static inline int group_is_active(struct evl_quota_group *tg)
 	 * accounts for it).
 	 */
 	if (curr->quota == tg &&
-	    (curr->state & (T_READY|EVL_THREAD_BLOCK_BITS)) == 0)
+		(curr->state & (T_READY|EVL_THREAD_BLOCK_BITS)) == 0)
 		return 1;
 
 	return 0;
 }
 
 static inline void replenish_budget(struct evl_sched_quota *qs,
-				    struct evl_quota_group *tg)
+				struct evl_quota_group *tg)
 {
 	ktime_t budget, credit;
 
@@ -118,7 +118,7 @@ static inline void replenish_budget(struct evl_sched_quota *qs,
 		/* Too much budget, spread it over intervals. */
 		tg->run_credit =
 			ktime_add(tg->run_credit,
-				  ktime_sub(budget, tg->quota_peak));
+				ktime_sub(budget, tg->quota_peak));
 		tg->run_budget = tg->quota_peak;
 	} else if (tg->run_credit) {
 		credit = ktime_sub(tg->quota_peak, budget);
@@ -213,18 +213,18 @@ static void quota_init(struct evl_rq *rq)
 	INIT_LIST_HEAD(&qs->groups);
 
 	evl_init_timer(&qs->refill_timer,
-		       &evl_mono_clock, quota_refill_handler, rq,
-		       EVL_TIMER_IGRAVITY);
+		&evl_mono_clock, quota_refill_handler, rq,
+		EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&qs->refill_timer, "[quota-refill]");
 
 	evl_init_timer(&qs->limit_timer,
-		       &evl_mono_clock, quota_limit_handler, rq,
-		       EVL_TIMER_IGRAVITY);
+		&evl_mono_clock, quota_limit_handler, rq,
+		EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&qs->limit_timer, "[quota-limit]");
 }
 
 static bool quota_setparam(struct evl_thread *thread,
-			   const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	struct evl_quota_group *tg;
 	struct evl_sched_quota *qs;
@@ -252,20 +252,20 @@ static bool quota_setparam(struct evl_thread *thread,
 }
 
 static void quota_getparam(struct evl_thread *thread,
-			   union evl_sched_param *p)
+			union evl_sched_param *p)
 {
 	p->quota.prio = thread->cprio;
 	p->quota.tgid = thread->quota->tgid;
 }
 
 static void quota_trackprio(struct evl_thread *thread,
-			    const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (p) {
 		/* We should not cross groups during PI boost. */
 		EVL_WARN_ON(CORE,
-			    thread->base_class == &evl_sched_quota &&
-			    thread->quota->tgid != p->quota.tgid);
+			thread->base_class == &evl_sched_quota &&
+			thread->quota->tgid != p->quota.tgid);
 		thread->cprio = p->quota.prio;
 	} else
 		thread->cprio = thread->bprio;
@@ -280,14 +280,14 @@ static void quota_ceilprio(struct evl_thread *thread, int prio)
 }
 
 static int quota_chkparam(struct evl_thread *thread,
-			  const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	struct evl_quota_group *tg;
 	struct evl_sched_quota *qs;
 	int tgid;
 
 	if (p->quota.prio < EVL_QUOTA_MIN_PRIO ||
-	    p->quota.prio > EVL_QUOTA_MAX_PRIO)
+		p->quota.prio > EVL_QUOTA_MAX_PRIO)
 		return -EINVAL;
 
 	tgid = p->quota.tgid;
@@ -462,15 +462,15 @@ static void quota_migrate(struct evl_thread *thread, struct evl_rq *rq)
 }
 
 static ssize_t quota_show(struct evl_thread *thread,
-			  char *buf, ssize_t count)
+			char *buf, ssize_t count)
 {
 	return snprintf(buf, count, "%d\n",
 			thread->quota->tgid);
 }
 
 int evl_quota_create_group(struct evl_quota_group *tg,
-			   struct evl_rq *rq,
-			   int *quota_sum_r)
+			struct evl_rq *rq,
+			int *quota_sum_r)
 {
 	int tgid, nr_groups = CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS;
 	struct evl_sched_quota *qs = &rq->quota;
@@ -508,7 +508,7 @@ int evl_quota_create_group(struct evl_quota_group *tg,
 EXPORT_SYMBOL_GPL(evl_quota_create_group);
 
 int evl_quota_destroy_group(struct evl_quota_group *tg,
-			    int force, int *quota_sum_r)
+			int force, int *quota_sum_r)
 {
 	struct evl_sched_quota *qs = &tg->rq->quota;
 	struct evl_thread *thread, *tmp;
@@ -539,8 +539,8 @@ int evl_quota_destroy_group(struct evl_quota_group *tg,
 EXPORT_SYMBOL_GPL(evl_quota_destroy_group);
 
 void evl_quota_set_limit(struct evl_quota_group *tg,
-			 int quota_percent, int quota_peak_percent,
-			 int *quota_sum_r)
+			int quota_percent, int quota_peak_percent,
+			int *quota_sum_r)
 {
 	struct evl_sched_quota *qs = &tg->rq->quota;
 	ktime_t now, elapsed, consumed;

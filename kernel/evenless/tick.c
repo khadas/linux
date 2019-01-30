@@ -85,7 +85,7 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *ced)
 }
 
 static void proxy_device_register(struct clock_event_device *proxy_ced,
-				  struct clock_event_device *real_ced)
+				struct clock_event_device *real_ced)
 {
 	struct core_tick_device *ctd = this_cpu_ptr(&clock_cpu_device);
 
@@ -105,7 +105,7 @@ static void proxy_device_register(struct clock_event_device *proxy_ced,
 }
 
 static void proxy_device_unregister(struct clock_event_device *proxy_ced,
-				    struct clock_event_device *real_ced)
+				struct clock_event_device *real_ced)
 {
 	struct core_tick_device *ctd = this_cpu_ptr(&clock_cpu_device);
 
@@ -182,9 +182,9 @@ int evl_enable_tick(void)
 
 #ifdef CONFIG_SMP
 	ret = __request_percpu_irq(TIMER_OOB_IPI,
-				   clock_ipi_handler,
-				   IRQF_OOB, "Evenless timer IPI",
-				   &evl_machine_cpudata);
+				clock_ipi_handler,
+				IRQF_OOB, "Evenless timer IPI",
+				&evl_machine_cpudata);
 	if (ret)
 		return ret;
 #endif
@@ -282,7 +282,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	timer = container_of(tn, struct evl_timer, node);
 	if (timer == &this_rq->htimer) {
 		if (evl_need_resched(this_rq) ||
-		    !(this_rq->curr->state & T_ROOT)) {
+			!(this_rq->curr->state & T_ROOT)) {
 			tn = evl_get_tqueue_next(&tmb->q, tn);
 			if (tn) {
 				this_rq->lflags |= RQ_TDEFER;
@@ -318,6 +318,6 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 void evl_send_timer_ipi(struct evl_clock *clock, struct evl_rq *rq)
 {
 	irq_pipeline_send_remote(TIMER_OOB_IPI,
-				 cpumask_of(evl_rq_cpu(rq)));
+				cpumask_of(evl_rq_cpu(rq)));
 }
 #endif

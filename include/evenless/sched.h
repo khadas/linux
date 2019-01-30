@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <evenless/lock.h>
 #include <evenless/thread.h>
+#include <evenless/wait.h>
 #include <evenless/sched/queue.h>
 #include <evenless/sched/weak.h>
 #include <evenless/sched/quota.h>
@@ -102,7 +103,7 @@ struct evl_rq {
 	/* Currently active account */
 	struct evl_account *current_account;
 #endif
-	struct evl_syn yield_sync;
+	struct evl_wait_queue yield_sync;
 };
 
 DECLARE_PER_CPU(struct evl_rq, evl_runqueues);

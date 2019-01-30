@@ -1,123 +1,92 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2017 Philippe Gerum  <rpm@xenomai.org>
+ * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
+ * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
 #ifndef _EVENLESS_WAIT_H
 #define _EVENLESS_WAIT_H
 
+#include <linux/types.h>
 #include <linux/spinlock.h>
-#include <evenless/synch.h>
-#include <evenless/sched.h>
+#include <evenless/list.h>
+#include <evenless/timer.h>
+#include <evenless/clock.h>
+#include <evenless/thread.h>
+#include <uapi/evenless/thread.h>
 
-/*
- * FIXME: general rework pending. Maybe merge that with synch.h. as
- * evenless/wait.h, provided the superlock is gone and synch.c
- * serializes with a local per-synch lock, which would allow to turn
- * evl_syn into evl_wait_queue.
- */
+#define EVL_WAIT_FIFO    0
+#define EVL_WAIT_PRIO    BIT(0)
 
 struct evl_wait_queue {
-	struct evl_syn wait;
-	hard_spinlock_t lock;
+	int flags;
+	struct list_head wait_list;
+	struct evl_clock *clock;
+	struct evl_wait_channel wchan;
 };
 
-#define EVL_WAIT_INITIALIZER(__name) {	\
-		.wait = EVL_SYN_INITIALIZER((__name).wait, EVL_SYN_PRIO), \
-		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	  \
+#define EVL_WAIT_INITIALIZER(__name) {					\
+		.flags = EVL_WAIT_PRIO,					\
+		.wait_list = LIST_HEAD_INIT((__name).wait_list), 	\
+		.clock = &evl_mono_clock,				\
+		.wchan = {						\
+			.abort_wait = evl_abort_wait,			\
+			.reorder_wait = evl_reorder_wait,		\
+			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+		},							\
 	}
 
-#define DEFINE_EVL_WAIT(__name)	\
-	struct evl_wait_queue __name = EVL_WAIT_INITIALIZER(__name)
+#define evl_head_waiter(__wq)				\
+	list_first_entry_or_null(&(__wq)->wait_list,	\
+				struct evl_thread, wait_next)
 
-#define DEFINE_EVL_WAIT_ONSTACK(__name)  DEFINE_EVL_WAIT(__name)
+#define evl_for_each_waiter(__pos, __wq)	\
+	list_for_each_entry(__pos, &(__wq)->wait_list, wait_next)
 
-static inline void evl_init_wait(struct evl_wait_queue *wq)
+#define evl_for_each_waiter_safe(__pos, __tmp, __wq)		\
+	list_for_each_entry_safe(__pos, __tmp, &(__wq)->wait_list, wait_next)
+
+static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
-	*wq = (struct evl_wait_queue)EVL_WAIT_INITIALIZER(*wq);
+	return !list_empty(&wq->wait_list);
 }
 
-static inline void evl_destroy_wait(struct evl_wait_queue *wq)
+static inline
+struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
-	evl_destroy_syn(&wq->wait);
+	return list_first_entry_or_null(&wq->wait_list,
+					struct evl_thread, wait_next);
 }
 
-struct evl_wait_flag {
-	struct evl_wait_queue wq;
-	bool signaled;
-};
+void evl_init_wait(struct evl_wait_queue *wq,
+		struct evl_clock *clock,
+		int flags);
 
-#define DEFINE_EVL_WAIT_FLAG(__name)					\
-	struct evl_wait_flag __name = {					\
-		.wq = EVL_WAIT_INITIALIZER((__name).wq),		\
-		.signaled = false,					\
-	}
+void evl_destroy_wait(struct evl_wait_queue *wq);
 
-static inline void evl_init_flag(struct evl_wait_flag *wf)
+int __must_check evl_wait_timeout(struct evl_wait_queue *wq,
+				ktime_t timeout,
+				enum evl_tmode timeout_mode);
+
+static inline int evl_wait(struct evl_wait_queue *wq)
 {
-	evl_init_wait(&wf->wq);
-	wf->signaled = false;
+	return evl_wait_timeout(wq, EVL_INFINITE, EVL_REL);
 }
 
-static inline void evl_destroy_flag(struct evl_wait_flag *wf)
+struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+			struct evl_thread *waiter);
+
+static inline
+struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 {
-	evl_destroy_wait(&wf->wq);
+	return evl_wake_up(wq, NULL);
 }
 
-static inline int evl_wait_flag_timeout(struct evl_wait_flag *wf,
-					ktime_t timeout, enum evl_tmode timeout_mode)
-{
-	unsigned long flags;
-	int ret = 0;
+void evl_flush_wait(struct evl_wait_queue *wq, int reason);
 
-	xnlock_get_irqsave(&nklock, flags);
+void evl_abort_wait(struct evl_thread *thread);
 
-	while (!wf->signaled) {
-		ret = evl_sleep_on_syn(&wf->wq.wait, timeout, timeout_mode);
-		if (ret & T_BREAK)
-			ret = -EINTR;
-		if (ret & T_TIMEO)
-			ret = -ETIMEDOUT;
-		if (ret & T_RMID)
-			ret = -EIDRM;
-		if (ret)
-			break;
-	}
+void evl_reorder_wait(struct evl_thread *thread);
 
-	if (ret == 0)
-		wf->signaled = false;
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
-}
-
-static inline int evl_wait_flag(struct evl_wait_flag *wf)
-{
-	return evl_wait_flag_timeout(wf, EVL_INFINITE, EVL_REL);
-}
-
-static inline			/* nklock held. */
-struct evl_thread *evl_wait_flag_head(struct evl_wait_flag *wf)
-{
-	return evl_syn_wait_head(&wf->wq.wait);
-}
-
-static inline bool evl_raise_flag(struct evl_wait_flag *wf)
-{
-	struct evl_thread *waiter;
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	wf->signaled = true;
-	waiter = evl_wake_up_syn(&wf->wq.wait);
-	evl_schedule();
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return waiter != NULL;
-}
-
-#endif /* _EVENLESS_WAIT_H */
+#endif /* !_EVENLESS_WAIT_H_ */

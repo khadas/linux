@@ -60,7 +60,7 @@ static void relay_output(struct work_struct *work)
 			filp->f_pos = pos;
 
 		smp_store_release(&circ->tail,
-				  (tail + len) & (logger->logsz - 1));
+				(tail + len) & (logger->logsz - 1));
 	}
 
 	mutex_unlock(&filp->f_pos_lock);
@@ -119,7 +119,7 @@ retry:
 		}
 
 		smp_store_release(&circ->head,
-				  (head + len) & (logger->logsz - 1));
+				(head + len) & (logger->logsz - 1));
 		u_ptr += len;
 		rem -= len;
 		written += len;
@@ -136,7 +136,7 @@ retry:
 }
 
 static ssize_t logger_write(struct file *filp, const char __user *u_buf,
-			    size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	return logger_oob_write(filp, u_buf, count);
 }
@@ -150,7 +150,7 @@ static const struct file_operations logger_fops = {
 
 static struct evl_element *
 logger_factory_build(struct evl_factory *fac, const char *name,
-		     void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_logger_attrs attrs;
 	struct evl_logger *logger;
