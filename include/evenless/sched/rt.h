@@ -48,10 +48,10 @@ static inline void __evl_dequeue_rt_thread(struct evl_thread *thread)
 
 static inline
 int __evl_chk_rt_schedparam(struct evl_thread *thread,
-			    const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (p->rt.prio < EVL_CORE_MIN_PRIO ||
-	    p->rt.prio > EVL_CORE_MAX_PRIO)
+		p->rt.prio > EVL_CORE_MAX_PRIO)
 		return -EINVAL;
 
 	return 0;
@@ -59,7 +59,7 @@ int __evl_chk_rt_schedparam(struct evl_thread *thread,
 
 static inline
 bool __evl_set_rt_schedparam(struct evl_thread *thread,
-			     const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	bool ret = evl_set_effective_thread_priority(thread, p->rt.prio);
 
@@ -71,14 +71,14 @@ bool __evl_set_rt_schedparam(struct evl_thread *thread,
 
 static inline
 void __evl_get_rt_schedparam(struct evl_thread *thread,
-			     union evl_sched_param *p)
+			union evl_sched_param *p)
 {
 	p->rt.prio = thread->cprio;
 }
 
 static inline
 void __evl_track_rt_priority(struct evl_thread *thread,
-			     const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	if (p)
 		thread->cprio = p->rt.prio; /* Force update. */

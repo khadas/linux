@@ -38,9 +38,9 @@ struct evl_factory {
 	const struct file_operations *fops;
 	unsigned int nrdev;
 	struct evl_element *(*build)(struct evl_factory *fac,
-				     const char *name,
-				     void __user *u_attrs,
-				     u32 *state_offp);
+				const char *name,
+				void __user *u_attrs,
+				u32 *state_offp);
 	void (*dispose)(struct evl_element *e);
 	const struct attribute_group **attrs;
 	int flags;
@@ -80,7 +80,7 @@ evl_element_name(struct evl_element *e)
 }
 
 int evl_init_element(struct evl_element *e,
-		     struct evl_factory *fac);
+		struct evl_factory *fac);
 
 void evl_destroy_element(struct evl_element *e);
 
@@ -88,7 +88,7 @@ void evl_get_element(struct evl_element *e);
 
 struct evl_element *
 __evl_get_element_by_fundle(struct evl_factory *fac,
-			    fundle_t fundle);
+			fundle_t fundle);
 
 #define evl_get_element_by_fundle(__fac, __fundle, __type)		\
 	({								\
@@ -111,21 +111,21 @@ __evl_get_element_by_fundle(struct evl_factory *fac,
 void evl_put_element(struct evl_element *e);
 
 int evl_open_element(struct inode *inode,
-		     struct file *filp);
+		struct file *filp);
 
 int evl_close_element(struct inode *inode,
-		      struct file *filp);
+		struct file *filp);
 
 int evl_create_element_device(struct evl_element *e,
-			      struct evl_factory *fac,
-			      const char *devname);
+			struct evl_factory *fac,
+			const char *devname);
 
 void evl_remove_element_device(struct evl_element *e);
 
 void evl_index_element(struct evl_element *e);
 
 int evl_index_element_at(struct evl_element *e,
-			 fundle_t fundle);
+			fundle_t fundle);
 
 void evl_unindex_element(struct evl_element *e);
 

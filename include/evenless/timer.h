@@ -100,7 +100,7 @@ struct evl_tnode *evl_get_tqueue_head(struct evl_tqueue *tq)
 
 static inline
 struct evl_tnode *evl_get_tqueue_next(struct evl_tqueue *tq,
-				      struct evl_tnode *node)
+				struct evl_tnode *node)
 {
 	struct rb_node *_node = rb_next(&node->rb);
 	return _node ? container_of(_node, struct evl_tnode, rb) : NULL;
@@ -120,7 +120,7 @@ void evl_remove_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 	     (__node) = evl_get_tqueue_next(__tq, __node))
 
 void evl_insert_tnode(struct evl_tqueue *tq,
-		      struct evl_tnode *node);
+		struct evl_tnode *node);
 
 struct evl_rq;
 
@@ -179,8 +179,8 @@ struct evl_timer {
 #define evl_tdate(__timer)	((__timer)->node.date)
 
 void evl_start_timer(struct evl_timer *timer,
-		     ktime_t value,
-		     ktime_t interval);
+		ktime_t value,
+		ktime_t interval);
 
 void __evl_stop_timer(struct evl_timer *timer);
 
@@ -203,7 +203,7 @@ static inline void evl_stop_timer(struct evl_timer *timer)
 void evl_destroy_timer(struct evl_timer *timer);
 
 static inline ktime_t evl_abs_timeout(struct evl_timer *timer,
-				      ktime_t delta)
+				ktime_t delta)
 {
 	return ktime_add(evl_read_clock(timer->clock), delta);
 }
@@ -246,7 +246,7 @@ static inline
 ktime_t evl_get_timer_next_date(struct evl_timer *timer)
 {
 	return ktime_add_ns(timer->start_date,
-			    timer->pexpect_ticks * ktime_to_ns(timer->interval));
+			timer->pexpect_ticks * ktime_to_ns(timer->interval));
 }
 
 static inline
@@ -256,13 +256,13 @@ void evl_set_timer_priority(struct evl_timer *timer, int prio)
 }
 
 void __evl_init_timer(struct evl_timer *timer,
-		      struct evl_clock *clock,
-		      void (*handler)(struct evl_timer *timer),
-		      struct evl_rq *rq,
-		      int flags);
+		struct evl_clock *clock,
+		void (*handler)(struct evl_timer *timer),
+		struct evl_rq *rq,
+		int flags);
 
 void evl_set_timer_gravity(struct evl_timer *timer,
-			   int gravity);
+			int gravity);
 
 #ifdef CONFIG_EVENLESS_STATS
 
@@ -317,13 +317,13 @@ void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
 
 #define evl_init_core_timer(__timer, __handler)				\
 	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
-		       EVL_TIMER_IGRAVITY)
+		EVL_TIMER_IGRAVITY)
 
 #define evl_init_timer_on_cpu(__timer, __cpu, __handler)		\
 	do {								\
 		struct evl_rq *__rq = evl_cpu_rq(__cpu);		\
 		evl_init_timer(__timer, &evl_mono_clock, __handler,	\
-			       __rq, EVL_TIMER_IGRAVITY);		\
+			__rq, EVL_TIMER_IGRAVITY);			\
 	} while (0)
 
 bool evl_timer_deactivate(struct evl_timer *timer);
@@ -333,7 +333,7 @@ static inline ktime_t evl_get_timer_expiry(struct evl_timer *timer)
 {
 	/* Ideal expiry date without anticipation (no gravity) */
 	return ktime_add(evl_tdate(timer),
-			 evl_get_timer_gravity(timer));
+			evl_get_timer_gravity(timer));
 }
 
 static inline
@@ -378,7 +378,7 @@ ktime_t evl_get_stopped_timer_delta(struct evl_timer *timer)
 }
 
 static inline void evl_dequeue_timer(struct evl_timer *timer,
-				     struct evl_tqueue *tq)
+				struct evl_tqueue *tq)
 {
 	evl_remove_tnode(tq, &timer->node);
 	timer->status |= EVL_TIMER_DEQUEUED;
@@ -387,7 +387,7 @@ static inline void evl_dequeue_timer(struct evl_timer *timer,
 /* timer base locked. */
 static inline
 void evl_enqueue_timer(struct evl_timer *timer,
-		       struct evl_tqueue *tq)
+		struct evl_tqueue *tq)
 {
 	evl_insert_tnode(tq, &timer->node);
 	timer->status &= ~EVL_TIMER_DEQUEUED;
@@ -395,13 +395,13 @@ void evl_enqueue_timer(struct evl_timer *timer,
 }
 
 void evl_enqueue_timer(struct evl_timer *timer,
-		       struct evl_tqueue *tq);
+		struct evl_tqueue *tq);
 
 unsigned long evl_get_timer_overruns(struct evl_timer *timer);
 
 void evl_bolt_timer(struct evl_timer *timer,
-		    struct evl_clock *clock,
-		    struct evl_rq *rq);
+		struct evl_clock *clock,
+		struct evl_rq *rq);
 
 #ifdef CONFIG_SMP
 
@@ -410,15 +410,15 @@ void __evl_set_timer_rq(struct evl_timer *timer,
 			struct evl_rq *rq);
 
 static inline void evl_set_timer_rq(struct evl_timer *timer,
-				    struct evl_rq *rq)
+				struct evl_rq *rq)
 {
 	if (rq != timer->rq)
 		__evl_set_timer_rq(timer, timer->clock, rq);
 }
 
 static inline void evl_prepare_timer_wait(struct evl_timer *timer,
-					  struct evl_clock *clock,
-					  struct evl_rq *rq)
+					struct evl_clock *clock,
+					struct evl_rq *rq)
 {
 	/* We may change the reference clock before waiting. */
 	if (rq != timer->rq || clock != timer->clock)
@@ -426,7 +426,7 @@ static inline void evl_prepare_timer_wait(struct evl_timer *timer,
 }
 
 static inline bool evl_timer_on_rq(struct evl_timer *timer,
-				   struct evl_rq *rq)
+				struct evl_rq *rq)
 {
 	return timer->rq == rq;
 }
@@ -434,19 +434,19 @@ static inline bool evl_timer_on_rq(struct evl_timer *timer,
 #else /* ! CONFIG_SMP */
 
 static inline void evl_set_timer_rq(struct evl_timer *timer,
-				    struct evl_rq *rq)
+				struct evl_rq *rq)
 { }
 
 static inline void evl_prepare_timer_wait(struct evl_timer *timer,
-					  struct evl_clock *clock,
-					  struct evl_rq *rq)
+					struct evl_clock *clock,
+					struct evl_rq *rq)
 {
 	if (clock != timer->clock)
 		evl_bolt_timer(timer, clock, rq);
 }
 
 static inline bool evl_timer_on_rq(struct evl_timer *timer,
-				   struct evl_rq *rq)
+				struct evl_rq *rq)
 {
 	return true;
 }

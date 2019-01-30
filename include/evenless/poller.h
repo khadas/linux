@@ -12,13 +12,13 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>
-#include <evenless/synch.h>
+#include <evenless/wait.h>
 #include <evenless/factory.h>
 #include <uapi/evenless/poller.h>
 
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
-		lock = __HARD_SPIN_LOCK_INITIALIZER(__name),		\
+		lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
 	}
 
 struct evl_poll_head {

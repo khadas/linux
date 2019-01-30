@@ -70,7 +70,7 @@ static inline int index_sfd(struct evl_fd *sfd, struct file *filp)
 
 static inline
 struct evl_fd *lookup_sfd(unsigned int fd,
-			  struct files_struct *files)
+			struct files_struct *files)
 {
 	struct evl_fd *sfd, tmp;
 	struct rb_node *rb;
@@ -93,7 +93,7 @@ struct evl_fd *lookup_sfd(unsigned int fd,
 
 static inline
 struct evl_fd *unindex_sfd(unsigned int fd,
-			   struct files_struct *files)
+			struct files_struct *files)
 {
 	struct evl_fd *sfd = lookup_sfd(fd, files);
 
@@ -104,7 +104,7 @@ struct evl_fd *unindex_sfd(unsigned int fd,
 }
 
 void install_inband_fd(unsigned int fd, struct file *filp,
-		       struct files_struct *files) /* in-band */
+		struct files_struct *files) /* in-band */
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -127,7 +127,7 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 }
 
 void uninstall_inband_fd(unsigned int fd, struct file *filp,
-			 struct files_struct *files) /* in-band */
+			struct files_struct *files) /* in-band */
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -144,7 +144,7 @@ void uninstall_inband_fd(unsigned int fd, struct file *filp,
 }
 
 void replace_inband_fd(unsigned int fd, struct file *filp,
-		       struct files_struct *files) /* in-band */
+		struct files_struct *files) /* in-band */
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -246,8 +246,8 @@ void evl_cleanup_files(void)
 int __init evl_init_files(void)
 {
 	fd_cache = kmem_cache_create("evl_fdcache",
-				     sizeof(struct evl_fd),
-				     0, 0, NULL);
+				sizeof(struct evl_fd),
+				0, 0, NULL);
 	if (fd_cache == NULL)
 		return -ENOMEM;
 

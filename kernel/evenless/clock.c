@@ -38,8 +38,8 @@ static DEFINE_MUTEX(clocklist_lock);
 
 /* timer base locked */
 static void adjust_timer(struct evl_clock *clock,
-			 struct evl_timer *timer, struct evl_tqueue *q,
-			 ktime_t delta)
+			struct evl_timer *timer, struct evl_tqueue *q,
+			ktime_t delta)
 {
 	ktime_t period, diff;
 	s64 div;
@@ -65,8 +65,8 @@ static void adjust_timer(struct evl_clock *clock,
 		timer->periodic_ticks += div;
 		evl_update_timer_date(timer);
 	} else if (ktime_to_ns(delta) < 0
-		   && (timer->status & EVL_TIMER_FIRED)
-		   && ktime_to_ns(ktime_add(diff, period)) <= 0) {
+		&& (timer->status & EVL_TIMER_FIRED)
+		&& ktime_to_ns(ktime_add(diff, period)) <= 0) {
 		/*
 		 * Timer is periodic and NOT waiting for its first
 		 * shot, so we make it tick sooner than its original
@@ -148,7 +148,7 @@ void inband_clock_was_set(void)
 }
 
 static int init_clock(struct evl_clock *clock,
-		      struct evl_clock *master)
+		struct evl_clock *master)
 {
 	int ret;
 
@@ -179,7 +179,7 @@ static int init_clock(struct evl_clock *clock,
 }
 
 int evl_init_clock(struct evl_clock *clock,
-		   const struct cpumask *affinity)
+		const struct cpumask *affinity)
 {
 	struct evl_timerbase *tmb;
 	int cpu, ret;
@@ -240,7 +240,7 @@ fail:
 EXPORT_SYMBOL_GPL(evl_init_clock);
 
 int evl_init_slave_clock(struct evl_clock *clock,
-			 struct evl_clock *master)
+			struct evl_clock *master)
 {
 	inband_context_only();
 
@@ -265,9 +265,9 @@ static inline bool timer_needs_enqueuing(struct evl_timer *timer)
 	 */
 	return (timer->status &
 		(EVL_TIMER_PERIODIC|EVL_TIMER_DEQUEUED|
-		 EVL_TIMER_RUNNING|EVL_TIMER_KILLED))
+			EVL_TIMER_RUNNING|EVL_TIMER_KILLED))
 		== (EVL_TIMER_PERIODIC|EVL_TIMER_DEQUEUED|
-		    EVL_TIMER_RUNNING);
+			EVL_TIMER_RUNNING);
 }
 
 /* Announce a tick from a master clock. */
@@ -288,7 +288,7 @@ void evl_announce_tick(struct evl_clock *clock)
 	 * timers will be queued to CPU0.
 	 */
 	if (clock != &evl_mono_clock &&
-	    !cpumask_test_cpu(evl_rq_cpu(rq), &clock->affinity))
+		!cpumask_test_cpu(evl_rq_cpu(rq), &clock->affinity))
 		tmb = evl_percpu_timers(clock, 0);
 	else
 #endif
@@ -328,7 +328,7 @@ void evl_announce_tick(struct evl_clock *clock)
 		raw_spin_lock_irqsave(&tmb->lock, flags);
 
 		if (timer_needs_enqueuing(timer) &&
-		    evl_timer_on_rq(timer, rq))
+			evl_timer_on_rq(timer, rq))
 			evl_enqueue_timer(timer, tq);
 	}
 
@@ -367,7 +367,7 @@ void evl_stop_timers(struct evl_clock *clock)
 }
 
 int evl_register_clock(struct evl_clock *clock,
-		       const struct cpumask *affinity)
+		const struct cpumask *affinity)
 {
 	int ret;
 
@@ -413,7 +413,7 @@ static long restart_clock_delay(struct restart_block *param)
 }
 
 static int clock_delay(struct evl_clock *clock,
-		       struct evl_clock_delayreq __user *u_req)
+		struct evl_clock_delayreq __user *u_req)
 {
 	struct evl_thread *curr = evl_current_thread();
 	struct evl_clock_delayreq req;
@@ -440,7 +440,7 @@ static int clock_delay(struct evl_clock *clock,
 				rem = evl_get_stopped_timer_delta(&curr->rtimer);
 				remain = ktime_to_timespec(rem);
 				ret = raw_copy_to_user(req.remain, &remain,
-						       sizeof(remain));
+						sizeof(remain));
 				if (ret)
 					return -EFAULT;
 			}
@@ -478,7 +478,7 @@ static int get_clock_resolution(struct evl_clock *clock,
 }
 
 static int get_clock_time(struct evl_clock *clock,
-			  struct timespec __user *u_ts)
+			struct timespec __user *u_ts)
 {
 	struct timespec ts;
 
@@ -490,7 +490,7 @@ static int get_clock_time(struct evl_clock *clock,
 }
 
 static int set_clock_time(struct evl_clock *clock,
-			  struct timespec __user *u_ts)
+			struct timespec __user *u_ts)
 {
 	struct timespec ts;
 	int ret;
@@ -508,7 +508,7 @@ static int set_clock_time(struct evl_clock *clock,
 }
 
 static int adjust_clock_time(struct evl_clock *clock,
-			     struct timex __user *u_tx)
+			struct timex __user *u_tx)
 {
 	struct timex tx;
 	int ret;
@@ -521,22 +521,22 @@ static int adjust_clock_time(struct evl_clock *clock,
 }
 
 static long clock_common_ioctl(struct evl_clock *clock,
-			       unsigned int cmd, unsigned long arg)
+			unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
 	switch (cmd) {
 	case EVL_CLKIOC_GET_RES:
 		ret = get_clock_resolution(clock,
-					   (struct timespec __user *)arg);
+					(struct timespec __user *)arg);
 		break;
 	case EVL_CLKIOC_GET_TIME:
 		ret = get_clock_time(clock,
-				     (struct timespec __user *)arg);
+				(struct timespec __user *)arg);
 		break;
 	case EVL_CLKIOC_SET_TIME:
 		ret = set_clock_time(clock,
-				     (struct timespec __user *)arg);
+				(struct timespec __user *)arg);
 		break;
 	case EVL_CLKIOC_ADJ_TIME:
 		ret = adjust_clock_time(clock,
@@ -550,7 +550,7 @@ static long clock_common_ioctl(struct evl_clock *clock,
 }
 
 static long clock_oob_ioctl(struct file *filp, unsigned int cmd,
-			    unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_clock *clock = element_of(filp, struct evl_clock);
 	int ret;
@@ -558,7 +558,7 @@ static long clock_oob_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case EVL_CLKIOC_DELAY:
 		ret = clock_delay(clock,
-				  (struct evl_clock_delayreq __user *)arg);
+				(struct evl_clock_delayreq __user *)arg);
 		break;
 	default:
 		ret = clock_common_ioctl(clock, cmd, arg);
@@ -626,25 +626,25 @@ static void clock_factory_dispose(struct evl_element *e)
 }
 
 static ssize_t gravity_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+			struct device_attribute *attr,
+			char *buf)
 {
 	struct evl_clock *clock;
 	ssize_t ret;
 
 	clock = evl_get_element_by_dev(dev, struct evl_clock);
 	ret = snprintf(buf, PAGE_SIZE, "%Ldi %Ldk %Ldu\n",
-		       ktime_to_ns(evl_get_clock_gravity(clock, irq)),
-		       ktime_to_ns(evl_get_clock_gravity(clock, kernel)),
-		       ktime_to_ns(evl_get_clock_gravity(clock, user)));
+		ktime_to_ns(evl_get_clock_gravity(clock, irq)),
+		ktime_to_ns(evl_get_clock_gravity(clock, kernel)),
+		ktime_to_ns(evl_get_clock_gravity(clock, user)));
 	evl_put_element(&clock->element);
 
 	return ret;
 }
 
 static ssize_t gravity_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+			struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct evl_clock_gravity gravity;
 	struct evl_clock *clock;
@@ -708,7 +708,7 @@ struct evl_factory evl_clock_factory = {
 };
 
 static int set_coreclk_gravity(struct evl_clock *clock,
-			       const struct evl_clock_gravity *p)
+			const struct evl_clock_gravity *p)
 {
 	clock->gravity = *p;
 
@@ -806,12 +806,12 @@ int __init evl_clock_init(void)
 	evl_reset_clock_gravity(&evl_realtime_clock);
 
 	ret = evl_init_clock(&evl_mono_clock,
-			     &evl_oob_cpus);
+			&evl_oob_cpus);
 	if (ret)
 		return ret;
 
 	ret = evl_init_slave_clock(&evl_realtime_clock,
-				   &evl_mono_clock);
+				&evl_mono_clock);
 	if (ret)
 		evl_put_element(&evl_mono_clock.element);
 

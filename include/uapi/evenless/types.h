@@ -13,9 +13,9 @@ typedef __u32 fundle_t;
 #define EVL_NO_HANDLE		((fundle_t)0x00000000)
 
 /* Reserved status bits */
-#define EVL_SYN_FLCLAIM		((fundle_t)0x80000000) /* Contended. */
-#define EVL_SYN_FLCEIL		((fundle_t)0x40000000) /* Ceiling active. */
-#define EVL_HANDLE_INDEX_MASK	(EVL_SYN_FLCLAIM|EVL_SYN_FLCEIL)
+#define EVL_MUTEX_FLCLAIM	((fundle_t)0x80000000) /* Contended. */
+#define EVL_MUTEX_FLCEIL	((fundle_t)0x40000000) /* Ceiling active. */
+#define EVL_HANDLE_INDEX_MASK	(EVL_MUTEX_FLCLAIM|EVL_MUTEX_FLCEIL)
 
 /*
  * Strip all reserved bits from the handle, only retaining the fast

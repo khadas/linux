@@ -14,9 +14,8 @@
 #include <linux/uaccess.h>
 #include <linux/semaphore.h>
 #include <linux/irq_work.h>
-#include <evenless/synch.h>
 #include <evenless/thread.h>
-#include <evenless/wait.h>
+#include <evenless/flag.h>
 #include <evenless/file.h>
 #include <asm/evenless/fptest.h>
 #include <uapi/evenless/devices/hectic.h>
@@ -29,7 +28,7 @@ struct rtswitch_context;
 
 struct rtswitch_task {
 	struct hectic_task_index base;
-	struct evl_wait_flag rt_synch;
+	struct evl_flag rt_synch;
 	struct semaphore nrt_synch;
 	struct evl_kthread kthread; /* For kernel-space real-time tasks. */
 	unsigned int last_switch;

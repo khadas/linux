@@ -37,7 +37,7 @@ struct evl_file_binding {
 };
 
 int evl_open_file(struct evl_file *sfilp,
-		  struct file *filp);
+		struct file *filp);
 
 void evl_release_file(struct evl_file *sfilp);
 

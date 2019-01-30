@@ -95,7 +95,7 @@ static inline void *evl_get_heap_base(const struct evl_heap *heap)
 }
 
 int evl_init_heap(struct evl_heap *heap, void *membase,
-		  size_t size);
+		size_t size);
 
 void evl_destroy_heap(struct evl_heap *heap);
 

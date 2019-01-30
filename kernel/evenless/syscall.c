@@ -13,7 +13,7 @@
 #include <linux/sched.h>
 #include <linux/dovetail.h>
 #include <linux/kconfig.h>
-#include <linux/kernel.h>
+#include <linux/atomic.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/signal.h>
 #include <evenless/control.h>
@@ -37,8 +37,8 @@
 #define SYSCALL_STOP        1
 
 typedef long (*evl_syshand)(unsigned long arg1, unsigned long arg2,
-			    unsigned long arg3, unsigned long arg4,
-			    unsigned long arg5);
+			unsigned long arg3, unsigned long arg4,
+			unsigned long arg5);
 
 static const evl_syshand evl_syscalls[__NR_EVENLESS_SYSCALLS];
 
@@ -49,17 +49,17 @@ static inline void do_oob_request(int nr, struct pt_regs *regs)
 
 	handler = evl_syscalls[nr];
 	ret = handler(oob_arg1(regs),
-		      oob_arg2(regs),
-		      oob_arg3(regs),
-		      oob_arg4(regs),
-		      oob_arg5(regs));
+		oob_arg2(regs),
+		oob_arg3(regs),
+		oob_arg4(regs),
+		oob_arg5(regs));
 
 	set_oob_retval(regs, ret);
 }
 
 static void prepare_for_signal(struct task_struct *p,
-			       struct evl_thread *curr,
-			       struct pt_regs *regs)
+			struct evl_thread *curr,
+			struct pt_regs *regs)
 {
 	int cause = SIGDEBUG_UNDEFINED;
 	unsigned long flags;
@@ -104,8 +104,8 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	if (curr == NULL || !cap_raised(current_cap(), CAP_SYS_NICE)) {
 		if (EVL_DEBUG(CORE))
 			printk(EVL_WARNING
-			       "OOB syscall <%d> denied to %s[%d]\n",
-			       nr, current->comm, task_pid_nr(current));
+				"OOB syscall <%d> denied to %s[%d]\n",
+				nr, current->comm, task_pid_nr(current));
 		set_oob_error(regs, -EPERM);
 		return SYSCALL_STOP;
 	}
@@ -130,7 +130,8 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		p = current;
 		if (signal_pending(p) || (curr->info & T_KICKED))
 			prepare_for_signal(p, curr, regs);
-		else if ((curr->state & T_WEAK) && curr->res_count == 0)
+		else if ((curr->state & T_WEAK) &&
+			!atomic_read(&curr->inband_disable_count))
 			evl_switch_inband(SIGDEBUG_UNDEFINED);
 	}
 
@@ -206,7 +207,8 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		p = current;
 		if (signal_pending(p))
 			prepare_for_signal(p, curr, regs);
-		else if ((curr->state & T_WEAK) && curr->res_count == 0)
+		else if ((curr->state & T_WEAK) &&
+			!atomic_read(&curr->inband_disable_count))
 			evl_switch_inband(SIGDEBUG_UNDEFINED);
 	}
 done:
@@ -322,17 +324,17 @@ static int EvEnLeSs_ni(void)
 
 #define __syshand__(__name)	((evl_syshand)(EvEnLeSs_ ## __name))
 
-#define __EVENLESS_CALL_ENTRIES		\
-	__EVENLESS_CALL_ENTRY(read)	\
-	__EVENLESS_CALL_ENTRY(write)	\
-	__EVENLESS_CALL_ENTRY(ioctl)
+#define __EVENLESS_CALL_ENTRIES			\
+	__EVENLESS_CALL_ENTRY(read)		\
+		__EVENLESS_CALL_ENTRY(write)	\
+		__EVENLESS_CALL_ENTRY(ioctl)
 
 #define __EVENLESS_NI	__syshand__(ni)
 
-#define __EVENLESS_CALL_NI		\
+#define __EVENLESS_CALL_NI					\
 	[0 ... __NR_EVENLESS_SYSCALLS-1] = __EVENLESS_NI,
 
-#define __EVENLESS_CALL_ENTRY(__name)	\
+#define __EVENLESS_CALL_ENTRY(__name)				\
 	[sys_evenless_ ## __name] = __syshand__(__name),
 
 static const evl_syshand evl_syscalls[] = {

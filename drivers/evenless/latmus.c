@@ -16,7 +16,7 @@
 #include <linux/fcntl.h>
 #include <linux/uaccess.h>
 #include <evenless/file.h>
-#include <evenless/wait.h>
+#include <evenless/flag.h>
 #include <evenless/clock.h>
 #include <evenless/thread.h>
 #include <evenless/xbuf.h>
@@ -67,7 +67,7 @@ struct latmus_runner {
 	int (*run)(struct latmus_runner *runner, struct latmus_result *result);
 	void (*cleanup)(struct latmus_runner *runner);
 	struct runner_state state;
-	struct evl_wait_flag done;
+	struct evl_flag done;
 	int status;
 	int verbosity;
 	ktime_t period;
@@ -94,14 +94,14 @@ struct irq_runner {
 
 struct kthread_runner {
 	struct evl_kthread kthread;
-	struct evl_wait_flag barrier;
+	struct evl_flag barrier;
 	ktime_t start_time;
 	struct latmus_runner runner;
 };
 
 struct uthread_runner {
 	struct evl_timer timer;
-	struct evl_wait_flag pulse;
+	struct evl_flag pulse;
 	struct latmus_runner runner;
 };
 

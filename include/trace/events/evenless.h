@@ -23,7 +23,9 @@ struct evl_rq;
 struct evl_thread;
 struct evl_sched_attrs;
 struct evl_init_thread_attr;
-struct evl_syn;
+struct evl_wait_channel;
+struct evl_wait_queue;
+struct evl_mutex;
 struct evl_clock;
 
 DECLARE_EVENT_CLASS(thread_event,
@@ -65,34 +67,34 @@ DECLARE_EVENT_CLASS(curr_thread_event,
 		  __entry->state, __entry->info)
 );
 
-DECLARE_EVENT_CLASS(synch_wait_event,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch),
+DECLARE_EVENT_CLASS(wq_event,
+	TP_PROTO(struct evl_wait_queue *wq),
+	TP_ARGS(wq),
 
 	TP_STRUCT__entry(
-		__field(struct evl_syn *, synch)
+		__field(struct evl_wait_queue *, wq)
 	),
 
 	TP_fast_assign(
-		__entry->synch = synch;
+		__entry->wq = wq;
 	),
 
-	TP_printk("synch=%p", __entry->synch)
+	TP_printk("wq=%p", __entry->wq)
 );
 
-DECLARE_EVENT_CLASS(synch_post_event,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch),
+DECLARE_EVENT_CLASS(mutex_event,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex),
 
 	TP_STRUCT__entry(
-		__field(struct evl_syn *, synch)
+		__field(struct evl_mutex *, mutex)
 	),
 
 	TP_fast_assign(
-		__entry->synch = synch;
+		__entry->mutex = mutex;
 	),
 
-	TP_printk("synch=%p", __entry->synch)
+	TP_printk("mutex=%p", __entry->mutex)
 );
 
 DECLARE_EVENT_CLASS(timer_event,
@@ -308,7 +310,7 @@ TRACE_EVENT(evl_init_thread,
 TRACE_EVENT(evl_block_thread,
 	TP_PROTO(struct evl_thread *thread, unsigned long mask, ktime_t timeout,
 		 enum evl_tmode timeout_mode, struct evl_clock *clock,
-		 struct evl_syn *wchan),
+		 struct evl_wait_channel *wchan),
 	TP_ARGS(thread, mask, timeout, timeout_mode, clock, wchan),
 
 	TP_STRUCT__entry(
@@ -316,7 +318,7 @@ TRACE_EVENT(evl_block_thread,
 		__field(unsigned long, mask)
 		__field(ktime_t, timeout)
 		__field(enum evl_tmode, timeout_mode)
-		__field(struct evl_syn *, wchan)
+		__field(struct evl_wait_channel *, wchan)
 		__string(clock_name, clock ? clock->name : "none")
 	),
 
@@ -648,44 +650,44 @@ TRACE_EVENT(evl_timer_shot,
 		  __entry->nsecs / 1000, div_s64(__entry->delta, 1000))
 );
 
-DEFINE_EVENT(synch_wait_event, evl_synch_sleepon,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(wq_event, evl_wait,
+	TP_PROTO(struct evl_wait_queue *wq),
+	TP_ARGS(wq)
 );
 
-DEFINE_EVENT(synch_wait_event, evl_synch_try_acquire,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(wq_event, evl_wait_wakeup,
+	TP_PROTO(struct evl_wait_queue *wq),
+	TP_ARGS(wq)
 );
 
-DEFINE_EVENT(synch_wait_event, evl_synch_acquire,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(wq_event, evl_wait_flush,
+	TP_PROTO(struct evl_wait_queue *wq),
+	TP_ARGS(wq)
 );
 
-DEFINE_EVENT(synch_post_event, evl_synch_release,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(mutex_event, evl_mutex_trylock,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex)
 );
 
-DEFINE_EVENT(synch_post_event, evl_synch_wakeup,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(mutex_event, evl_mutex_lock,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex)
 );
 
-DEFINE_EVENT(synch_post_event, evl_synch_wakeup_many,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(mutex_event, evl_mutex_unlock,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex)
 );
 
-DEFINE_EVENT(synch_post_event, evl_synch_flush,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(mutex_event, evl_mutex_destroy,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex)
 );
 
-DEFINE_EVENT(synch_post_event, evl_synch_forget,
-	TP_PROTO(struct evl_syn *synch),
-	TP_ARGS(synch)
+DEFINE_EVENT(mutex_event, evl_mutex_flush,
+	TP_PROTO(struct evl_mutex *mutex),
+	TP_ARGS(mutex)
 );
 
 #define __timespec_fields(__name)				\

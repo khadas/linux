@@ -13,19 +13,19 @@ static struct evl_thread *evl_idle_pick(struct evl_rq *rq)
 }
 
 static bool evl_idle_setparam(struct evl_thread *thread,
-			      const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	return __evl_set_idle_schedparam(thread, p);
 }
 
 static void evl_idle_getparam(struct evl_thread *thread,
-			      union evl_sched_param *p)
+			union evl_sched_param *p)
 {
 	__evl_get_idle_schedparam(thread, p);
 }
 
 static void evl_idle_trackprio(struct evl_thread *thread,
-			       const union evl_sched_param *p)
+			const union evl_sched_param *p)
 {
 	__evl_track_idle_priority(thread, p);
 }

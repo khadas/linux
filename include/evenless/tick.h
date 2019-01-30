@@ -24,7 +24,7 @@ static inline void evl_program_local_tick(struct evl_clock *clock)
 }
 
 static inline void evl_program_remote_tick(struct evl_clock *clock,
-					   struct evl_rq *rq)
+					struct evl_rq *rq)
 {
 #ifdef CONFIG_SMP
 	struct evl_clock *master = clock->master;

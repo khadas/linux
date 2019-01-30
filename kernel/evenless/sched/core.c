@@ -50,7 +50,7 @@ static void register_one_class(struct evl_sched_class *sched_class)
 	 * idle first and up.
 	 */
 	EVL_WARN_ON(CORE, sched_class->next &&
-		    sched_class->next->weight > sched_class->weight);
+		sched_class->next->weight > sched_class->weight);
 }
 
 static void register_classes(void)
@@ -91,11 +91,11 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 
 	if (curr->state & T_USER) {
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
-		       "'%s' signaled\n", evl_rq_cpu(this_rq), curr->name);
+			"'%s' signaled\n", evl_rq_cpu(this_rq), curr->name);
 		evl_call_mayday(curr, SIGDEBUG_WATCHDOG);
 	} else {
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
-		       "'%s' canceled\n", evl_rq_cpu(this_rq), curr->name);
+			"'%s' canceled\n", evl_rq_cpu(this_rq), curr->name);
 		/*
 		 * On behalf on an IRQ handler, evl_cancel_thread()
 		 * would go half way cancelling the preempted
@@ -168,16 +168,16 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 * specifically by the generic timer code.
 	 */
 	evl_init_timer(&rq->htimer, &evl_mono_clock, proxy_tick_handler,
-		       rq, EVL_TIMER_IGRAVITY);
+		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_priority(&rq->htimer, EVL_TIMER_LOPRIO);
 	evl_set_timer_name(&rq->htimer, rq->proxy_timer_name);
 	evl_init_timer(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
-		       rq, EVL_TIMER_IGRAVITY);
+		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
 	evl_set_timer_priority(&rq->rrbtimer, EVL_TIMER_LOPRIO);
 #ifdef CONFIG_EVENLESS_WATCHDOG
 	evl_init_timer(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
-		       rq, EVL_TIMER_IGRAVITY);
+		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->wdtimer, "[watchdog]");
 	evl_set_timer_priority(&rq->wdtimer, EVL_TIMER_LOPRIO);
 #endif /* CONFIG_EVENLESS_WATCHDOG */
@@ -195,9 +195,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	iattr.sched_class = &evl_sched_idle;
 	iattr.sched_param.idle.prio = EVL_IDLE_PRIO;
 	evl_init_thread(&rq->root_thread, &iattr, rq, name_fmt, cpu);
-
-	evl_init_syn(&rq->yield_sync, EVL_SYN_FIFO,
-		     &evl_mono_clock, NULL);
+	evl_init_wait(&rq->yield_sync, &evl_mono_clock, EVL_WAIT_FIFO);
 
 	dovetail_init_altsched(&rq->root_thread.altsched);
 
@@ -219,7 +217,7 @@ static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
 }
 
 static inline void set_thread_running(struct evl_rq *rq,
-				      struct evl_thread *thread)
+				struct evl_thread *thread)
 {
 	thread->state &= ~T_READY;
 	if (thread->state & T_RRB)
@@ -305,8 +303,8 @@ void evl_putback_thread(struct evl_thread *thread)
 
 /* nklock locked, interrupts off. */
 int evl_set_thread_policy(struct evl_thread *thread,
-			  struct evl_sched_class *sched_class,
-			  const union evl_sched_param *p)
+			struct evl_sched_class *sched_class,
+			const union evl_sched_param *p)
 {
 	struct evl_sched_class *orig_effective_class __maybe_unused;
 	bool effective;
@@ -385,7 +383,7 @@ int evl_set_thread_policy(struct evl_thread *thread,
 		evl_set_resched(thread->rq);
 	else
 		EVL_WARN_ON(CORE, (thread->state & T_ROOT) &&
-			    sched_class != &evl_sched_idle);
+			sched_class != &evl_sched_idle);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_set_thread_policy);
@@ -418,7 +416,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 
 /* nklock locked, interrupts off. */
 void evl_track_thread_policy(struct evl_thread *thread,
-			     struct evl_thread *target)
+			struct evl_thread *target)
 {
 	union evl_sched_param param;
 
@@ -562,21 +560,21 @@ static struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
 }
 
 void evl_add_schedq(struct evl_multilevel_queue *q,
-		    struct evl_thread *thread)
+		struct evl_thread *thread)
 {
 	struct list_head *head = add_q(q, thread->cprio);
 	list_add(&thread->rq_next, head);
 }
 
 void evl_add_schedq_tail(struct evl_multilevel_queue *q,
-			 struct evl_thread *thread)
+			struct evl_thread *thread)
 {
 	struct list_head *head = add_q(q, thread->cprio);
 	list_add_tail(&thread->rq_next, head);
 }
 
 static void del_q(struct evl_multilevel_queue *q,
-		  struct list_head *entry, int idx)
+		struct list_head *entry, int idx)
 {
 	struct list_head *head = q->heads + idx;
 
@@ -588,7 +586,7 @@ static void del_q(struct evl_multilevel_queue *q,
 }
 
 void evl_del_schedq(struct evl_multilevel_queue *q,
-		    struct evl_thread *thread)
+		struct evl_thread *thread)
 {
 	del_q(q, &thread->rq_next, get_qindex(q, thread->cprio));
 }
@@ -720,7 +718,7 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	 * underlying inband task.
 	 */
 	if (curr->state & T_USER)
-		evl_commit_monitor_ceiling(curr);
+		evl_commit_monitor_ceiling();
 
 	switched = false;
 	if (!test_resched(this_rq))
@@ -795,8 +793,8 @@ EXPORT_SYMBOL_GPL(__evl_schedule);
 
 struct evl_sched_class *
 evl_find_sched_class(union evl_sched_param *param,
-		     const struct evl_sched_attrs *attrs,
-		     ktime_t *tslice_r)
+		const struct evl_sched_attrs *attrs,
+		ktime_t *tslice_r)
 {
 	struct evl_sched_class *sched_class;
 	int prio, policy;
@@ -825,7 +823,7 @@ evl_find_sched_class(union evl_sched_param *param,
 		/* Fallback wanted */
 	case SCHED_WEAK:
 		if (prio < EVL_WEAK_MIN_PRIO ||
-		    prio > EVL_WEAK_MAX_PRIO)
+			prio > EVL_WEAK_MAX_PRIO)
 			return NULL;
 		param->weak.prio = prio;
 		sched_class = &evl_sched_weak;
@@ -838,12 +836,12 @@ evl_find_sched_class(union evl_sched_param *param,
 		/* falldown wanted */
 	case SCHED_FIFO:
 		if (prio < EVL_FIFO_MIN_PRIO ||
-		    prio > EVL_FIFO_MAX_PRIO)
+			prio > EVL_FIFO_MAX_PRIO)
 			return NULL;
 		break;
 	case SCHED_EVL:
 		if (prio < EVL_CORE_MIN_PRIO ||
-		    prio > EVL_CORE_MAX_PRIO)
+			prio > EVL_CORE_MAX_PRIO)
 			return NULL;
 		break;
 #ifdef CONFIG_EVENLESS_SCHED_QUOTA
@@ -871,8 +869,8 @@ void evl_notify_inband_yield(void) /* In-band only */
 
 	this_rq = this_evl_rq();
 
-	if (evl_syn_has_waiter(&this_rq->yield_sync)) {
-		evl_flush_syn(&this_rq->yield_sync, 0);
+	if (evl_wait_active(&this_rq->yield_sync)) {
+		evl_flush_wait(&this_rq->yield_sync, 0);
 		evl_schedule();
 	}
 
@@ -896,12 +894,12 @@ static int yield_inband(void)	/* OOB only */
 	start = evl_read_clock(&evl_mono_clock);
 
 	do {
-		ret = evl_sleep_on_syn(&this_rq->yield_sync,
-				       TICK_NSEC, EVL_ABS);
+		ret = evl_wait_timeout(&this_rq->yield_sync,
+				TICK_NSEC, EVL_ABS);
 		if (ret)
 			break;
 	} while (ktime_before(evl_read_clock(&evl_mono_clock),
-			      TICK_NSEC));
+				TICK_NSEC));
 
 	return ret & T_BREAK ? -EINTR : 0;
 }
@@ -939,15 +937,15 @@ EXPORT_SYMBOL_GPL(evl_sched_yield);
 #ifdef CONFIG_TRACING
 
 const char *evl_trace_sched_attrs(struct trace_seq *p,
-				  struct evl_sched_attrs *attrs)
+				struct evl_sched_attrs *attrs)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
 	switch (attrs->sched_policy) {
 	case SCHED_QUOTA:
 		trace_seq_printf(p, "priority=%d, group=%d",
-				 attrs->sched_priority,
-				 attrs->sched_quota_group);
+				attrs->sched_priority,
+				attrs->sched_quota_group);
 		break;
 	case SCHED_NORMAL:
 		break;
@@ -968,7 +966,7 @@ const char *evl_trace_sched_attrs(struct trace_seq *p,
 
 /* in-band stage, hard_irqs_disabled() */
 bool irq_cpuidle_control(struct cpuidle_device *dev,
-			 struct cpuidle_state *state)
+			struct cpuidle_state *state)
 {
 	/*
 	 * Deny entering sleep state if this entails stopping the
@@ -994,10 +992,10 @@ int __init evl_init_sched(void)
 
 	if (IS_ENABLED(CONFIG_SMP)) {
 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
-					   reschedule_interrupt,
-					   IRQF_OOB,
-					   "Evenless reschedule",
-					   &evl_machine_cpudata);
+					reschedule_interrupt,
+					IRQF_OOB,
+					"Evenless reschedule",
+					&evl_machine_cpudata);
 		if (ret)
 			goto cleanup_rq;
 	}

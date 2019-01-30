@@ -44,7 +44,7 @@ void xnlock_dbg_prepare_acquire(ktime_t *start)
 EXPORT_SYMBOL_GPL(xnlock_dbg_prepare_acquire);
 
 void xnlock_dbg_acquired(struct xnlock *lock, int cpu, ktime_t *start,
-			 const char *file, int line, const char *function)
+			const char *file, int line, const char *function)
 {
 	lock->lock_date = *start;
 	lock->spin_time = ktime_sub(evl_read_clock(&evl_mono_clock), *start);
@@ -56,7 +56,7 @@ void xnlock_dbg_acquired(struct xnlock *lock, int cpu, ktime_t *start,
 EXPORT_SYMBOL_GPL(xnlock_dbg_acquired);
 
 int xnlock_dbg_release(struct xnlock *lock,
-		       const char *file, int line, const char *function)
+		const char *file, int line, const char *function)
 {
 	struct xnlockinfo *stats;
 	ktime_t lock_time;
@@ -75,8 +75,8 @@ int xnlock_dbg_release(struct xnlock *lock,
 	if (unlikely(lock->owner != cpu)) {
 		printk(EVL_ERR "lock %p already unlocked on CPU #%d\n"
 			"          last owner = %s:%u (%s(), CPU #%d)\n",
-		       lock, cpu, lock->file, lock->line, lock->function,
-		       lock->cpu);
+			lock, cpu, lock->file, lock->line, lock->function,
+			lock->cpu);
 		show_stack(NULL,NULL);
 		return 1;
 	}

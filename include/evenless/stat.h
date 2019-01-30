@@ -70,7 +70,7 @@ static inline void evl_reset_account(struct evl_account *account)
 		struct evl_account *__prev;				\
 		__prev = (struct evl_account *)				\
 			atomic_long_xchg(&(__rq)->current_account,	\
-					 (long)(__new_account));	\
+					(long)(__new_account));		\
 		__prev;							\
 	})
 
@@ -85,9 +85,9 @@ static inline void evl_reset_account(struct evl_account *account)
 		(__rq)->current_account = (__new_account);	\
 	} while (0)
 
-	struct evl_counter {
-		unsigned long counter;
-	};
+struct evl_counter {
+	unsigned long counter;
+};
 
 static inline unsigned long evl_inc_counter(struct evl_counter *c)
 {
@@ -99,7 +99,8 @@ static inline unsigned long evl_get_counter(struct evl_counter *c)
 	return c->counter;
 }
 
-static inline void evl_set_counter(struct evl_counter *c, unsigned long value)
+static inline
+void evl_set_counter(struct evl_counter *c, unsigned long value)
 {
 	c->counter = value;
 }

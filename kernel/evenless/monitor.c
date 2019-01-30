@@ -8,7 +8,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <evenless/thread.h>
-#include <evenless/synch.h>
+#include <evenless/wait.h>
+#include <evenless/mutex.h>
 #include <evenless/clock.h>
 #include <evenless/monitor.h>
 #include <evenless/thread.h>
@@ -27,11 +28,11 @@ struct evl_monitor {
 	int type;
 	union {
 		struct {
-			struct evl_syn lock;
+			struct evl_mutex lock;
 			struct list_head events;
 		};
 		struct {
-			struct evl_syn wait_queue;
+			struct evl_wait_queue wait_queue;
 			struct evl_monitor *gate;
 			struct list_head next; /* in ->events */
 		};
@@ -75,7 +76,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	 * not, we might race updating the state flags, possibly
 	 * loosing events. Too bad.
 	 */
-	if (target->wchan == &event->wait_queue) {
+	if (target->wchan == &event->wait_queue.wchan) {
 		target->info |= T_SIGNAL;
 		event->state->flags |= EVL_MONITOR_TARGETED;
 		ret = 0;
@@ -88,8 +89,9 @@ out:
 	return ret;
 }
 
-void __evl_commit_monitor_ceiling(struct evl_thread *curr)  /* nklock held, irqs off, OOB */
+void __evl_commit_monitor_ceiling(void)  /* nklock held, irqs off, OOB */
 {
+	struct evl_thread *curr = evl_current_thread();
 	struct evl_monitor *gate;
 
 	/*
@@ -97,13 +99,13 @@ void __evl_commit_monitor_ceiling(struct evl_thread *curr)  /* nklock held, irqs
 	 * pp_pending is a bad handle, just skip ceiling.
 	 */
 	gate = evl_get_element_by_fundle(&evl_monitor_factory,
-					 curr->u_window->pp_pending,
-					 struct evl_monitor);
+					curr->u_window->pp_pending,
+					struct evl_monitor);
 	if (gate == NULL)
 		goto out;
 
 	if (gate->type == EVL_MONITOR_PP)
-		evl_commit_syn_ceiling(&gate->lock, curr);
+		evl_commit_mutex_ceiling(&gate->lock);
 
 	evl_put_element(&gate->element);
 out:
@@ -133,8 +135,8 @@ static void wakeup_waiters(struct evl_monitor *event)
 	 * if at some point userland sent a targeted event to a
 	 * (valid) waiter during a transaction, the kernel will only
 	 * look for targeted waiters in the wake up loop. We don't
-	 * default to calling evl_wake_up_syn() in case those
-	 * waiters have aborted wait in the meantime.
+	 * default to calling evl_wake_up() in case those waiters have
+	 * aborted wait in the meantime.
 	 *
 	 * CAUTION: we must keep the wake up ops rescheduling-free, so
 	 * that low priority threads cannot preempt us before high
@@ -143,34 +145,32 @@ static void wakeup_waiters(struct evl_monitor *event)
 	 * careful when killing the latter.
 	 */
 	if ((state->flags & EVL_MONITOR_SIGNALED) &&
-	    evl_syn_has_waiter(&event->wait_queue)) {
+		evl_wait_active(&event->wait_queue)) {
 		if (bcast)
-			evl_flush_syn(&event->wait_queue, 0);
+			evl_flush_wait(&event->wait_queue, 0);
 		else if (state->flags & EVL_MONITOR_TARGETED) {
-			evl_for_each_syn_waiter_safe(waiter, n,
-						     &event->wait_queue) {
+			evl_for_each_waiter_safe(waiter, n,
+						&event->wait_queue) {
 				if (waiter->info & T_SIGNAL)
-					evl_wake_up_targeted_syn(&event->wait_queue,
-								 waiter);
+					evl_wake_up(&event->wait_queue, waiter);
 			}
 		} else
-			evl_wake_up_syn(&event->wait_queue);
+			evl_wake_up_head(&event->wait_queue);
 	}
 
 	state->flags &= ~(EVL_MONITOR_SIGNALED|
-			  EVL_MONITOR_BROADCAST|
-			  EVL_MONITOR_TARGETED);
+			EVL_MONITOR_BROADCAST|
+			EVL_MONITOR_TARGETED);
 }
 
 /* nklock held, irqs off */
-static int __enter_monitor(struct evl_monitor *gate,
-			   struct evl_thread *curr)
+static int __enter_monitor(struct evl_monitor *gate)
 {
 	int info;
 
-	evl_commit_monitor_ceiling(curr);
+	evl_commit_monitor_ceiling();
 
-	info = evl_acquire_syn(&gate->lock, EVL_INFINITE, EVL_REL);
+	info = evl_lock_mutex(&gate->lock);
 	if (info)
 		/* Break or error, no timeout possible. */
 		return info & T_BREAK ? -EINTR : -EINVAL;
@@ -186,15 +186,15 @@ static int enter_monitor(struct evl_monitor *gate)
 	if (gate->type == EVL_MONITOR_EV)
 		return -EINVAL;
 
-	if (evl_is_syn_owner(gate->lock.fastlock, fundle_of(curr)))
+	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
 		return -EDEADLK;	/* Deny recursive locking. */
 
-	return __enter_monitor(gate, curr);
+	return __enter_monitor(gate);
 }
 
 /* nklock held, irqs off */
 static void __exit_monitor(struct evl_monitor *gate,
-			   struct evl_thread *curr)
+			struct evl_thread *curr)
 {
 	/*
 	 * If we are about to release the lock which is still pending
@@ -204,7 +204,7 @@ static void __exit_monitor(struct evl_monitor *gate,
 	if (fundle_of(gate) == curr->u_window->pp_pending)
 		curr->u_window->pp_pending = EVL_NO_HANDLE;
 
-	evl_release_syn(&gate->lock);
+	__evl_unlock_mutex(&gate->lock);
 }
 
 /* nklock held, irqs off */
@@ -217,7 +217,7 @@ static int exit_monitor(struct evl_monitor *gate)
 	if (gate->type == EVL_MONITOR_EV)
 		return -EINVAL;
 
-	if (!evl_is_syn_owner(gate->lock.fastlock, fundle_of(curr)))
+	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
 		return -EPERM;
 
 	if (state->flags & EVL_MONITOR_SIGNALED) {
@@ -240,10 +240,10 @@ static int exit_monitor(struct evl_monitor *gate)
 
 /* nklock held, irqs off */
 static void untrack_event(struct evl_monitor *event,
-			  struct evl_monitor *gate)
+			struct evl_monitor *gate)
 {
 	if (event->gate == gate &&
-	    !evl_syn_has_waiter(&event->wait_queue)) {
+		!evl_wait_active(&event->wait_queue)) {
 		event->state->u.gate_offset = EVL_MONITOR_NOGATE;
 		list_del(&event->next);
 		event->gate = NULL;
@@ -280,7 +280,7 @@ static int wait_monitor(struct evl_monitor *event,
 	}
 
 	/* Make sure we actually passed the gate. */
-	if (!evl_is_syn_owner(gate->lock.fastlock, fundle_of(curr))) {
+	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr))) {
 		op_ret = -EPERM;
 		goto put;
 	}
@@ -313,7 +313,7 @@ static int wait_monitor(struct evl_monitor *event,
 	 */
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	info = evl_sleep_on_syn(&event->wait_queue, timeout, tmode);
+	info = evl_wait_timeout(&event->wait_queue, timeout, tmode);
 	if (info) {
 		if (info & T_BREAK) {
 			ret = -EINTR;
@@ -323,7 +323,7 @@ static int wait_monitor(struct evl_monitor *event,
 			op_ret = -ETIMEDOUT;
 	}
 
-	ret = __enter_monitor(gate, curr);
+	ret = __enter_monitor(gate);
 
 	untrack_event(event, gate);
 put:
@@ -336,7 +336,7 @@ out:
 
 /* nklock held, irqs off */
 static int unwait_monitor(struct evl_monitor *event,
-			  struct evl_monitor_unwaitreq *req)
+			struct evl_monitor_unwaitreq *req)
 {
 	struct evl_monitor *gate;
 	struct evl_file *sfilp;
@@ -360,7 +360,7 @@ static int unwait_monitor(struct evl_monitor *event,
 }
 
 static long monitor_ioctl(struct file *filp, unsigned int cmd,
-			  unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 	struct evl_monitor_binding bind, __user *u_bind;
@@ -378,7 +378,7 @@ static long monitor_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
-			      unsigned long arg)
+			unsigned long arg)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 	struct evl_monitor_unwaitreq uwreq, __user *u_uwreq;
@@ -435,7 +435,7 @@ static const struct file_operations monitor_fops = {
 
 static struct evl_element *
 monitor_factory_build(struct evl_factory *fac, const char *name,
-		      void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_monitor_state *state;
 	struct evl_monitor_attrs attrs;
@@ -450,7 +450,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	switch (attrs.type) {
 	case EVL_MONITOR_PP:
 		if (attrs.ceiling == 0 ||
-		    attrs.ceiling > EVL_CORE_MAX_PRIO)
+			attrs.ceiling > EVL_CORE_MAX_PRIO)
 			return ERR_PTR(-EINVAL);
 		break;
 	case EVL_MONITOR_PI:
@@ -486,20 +486,19 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	switch (attrs.type) {
 	case EVL_MONITOR_PP:
 		state->u.gate.ceiling = attrs.ceiling;
-		evl_init_syn_protect(&mon->lock, clock,
-				     &state->u.gate.owner,
-				     &state->u.gate.ceiling);
+		evl_init_mutex_pp(&mon->lock, clock,
+				&state->u.gate.owner,
+				&state->u.gate.ceiling);
 		INIT_LIST_HEAD(&mon->events);
 		break;
 	case EVL_MONITOR_PI:
-		evl_init_syn(&mon->lock, EVL_SYN_PI, clock,
-			     &state->u.gate.owner);
+		evl_init_mutex_pi(&mon->lock, clock,
+				&state->u.gate.owner);
 		INIT_LIST_HEAD(&mon->events);
 		break;
 	case EVL_MONITOR_EV:
 	default:
-		evl_init_syn(&mon->wait_queue, EVL_SYN_PRIO,
-			     clock, NULL);
+		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
 		state->u.gate_offset = EVL_MONITOR_NOGATE;
 	}
 
@@ -536,7 +535,7 @@ static void monitor_factory_dispose(struct evl_element *e)
 
 	if (mon->type == EVL_MONITOR_EV) {
 		evl_put_clock(mon->wait_queue.clock);
-		evl_destroy_syn(&mon->wait_queue);
+		evl_destroy_wait(&mon->wait_queue);
 		if (mon->gate) {
 			xnlock_get_irqsave(&nklock, flags);
 			list_del(&mon->next);
@@ -544,7 +543,7 @@ static void monitor_factory_dispose(struct evl_element *e)
 		}
 	} else {
 		evl_put_clock(mon->lock.clock);
-		evl_destroy_syn(&mon->lock);
+		evl_destroy_mutex(&mon->lock);
 	}
 
 	evl_free_chunk(&evl_shared_heap, mon->state);
@@ -553,8 +552,8 @@ static void monitor_factory_dispose(struct evl_element *e)
 }
 
 static ssize_t state_show(struct device *dev,
-			  struct device_attribute *attr,
-			  char *buf)
+			struct device_attribute *attr,
+			char *buf)
 {
 	struct evl_thread *owner = NULL;
 	struct evl_monitor *mon;
@@ -565,15 +564,15 @@ static ssize_t state_show(struct device *dev,
 
 	if (mon->type == EVL_MONITOR_EV)
 		ret = snprintf(buf, PAGE_SIZE, "%#x\n",
-			       mon->state->flags);
+			mon->state->flags);
 	else {
 		fun = atomic_read(&mon->state->u.gate.owner);
 		if (fun != EVL_NO_HANDLE)
 			owner = evl_get_element_by_fundle(&evl_thread_factory,
-						  fun, struct evl_thread);
+							fun, struct evl_thread);
 		ret = snprintf(buf, PAGE_SIZE, "%d %u\n",
-			       owner ? evl_get_inband_pid(owner) : -1,
-			       mon->state->u.gate.ceiling);
+			owner ? evl_get_inband_pid(owner) : -1,
+			mon->state->u.gate.ceiling);
 		if (owner)
 			evl_put_element(&owner->element);
 	}

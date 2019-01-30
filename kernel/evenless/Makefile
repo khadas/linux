@@ -18,12 +18,12 @@ evenless-y :=		\
 	mutex.o		\
 	poller.o	\
 	sem.o		\
-	synch.o		\
 	syscall.o	\
 	thread.o	\
 	tick.o		\
 	timer.o		\
 	timerfd.o	\
+	wait.o		\
 	xbuf.o
 
 evenless-$(CONFIG_FTRACE) +=	trace.o

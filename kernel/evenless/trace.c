@@ -12,7 +12,7 @@
 #include <trace/trace.h>
 
 static long trace_common_ioctl(struct file *filp, unsigned int cmd,
-			       unsigned long arg)
+			unsigned long arg)
 {
 	long ret = 0;
 
@@ -30,7 +30,7 @@ static long trace_common_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static long trace_oob_ioctl(struct file *filp, unsigned int cmd,
-			    unsigned long arg)
+			unsigned long arg)
 {
 	return trace_common_ioctl(filp, cmd, arg);
 }
@@ -73,8 +73,8 @@ static long trace_ioctl(struct file *filp, unsigned int cmd,
 
 static notrace
 ssize_t trace_write(struct file *filp,
-		    const char __user *u_buf, size_t count,
-		    loff_t *ppos)
+		const char __user *u_buf, size_t count,
+		loff_t *ppos)
 {
 	return trace_oob_write(filp, u_buf, count);
 }

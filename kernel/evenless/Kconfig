@@ -254,24 +254,24 @@ config EVENLESS_DEBUG_USER
 
 if EVENLESS_DEBUG_USER
 
-config EVENLESS_DEBUG_MONITOR_INBAND
-       bool "Detect in-band monitor owner"
+config EVENLESS_DEBUG_MUTEX_INBAND
+       bool "Detect in-band mutex owner"
        default y
        help
-         A thread which attempts to enter a monitor currently owned by
-         another thread running in-band will suffer unwanted latencies,
-         due to a priority inversion.  This switch enables debug
-         notifications sending a SIGDEBUG signal to the monitor owner.
+         A thread which attempts to acquire a mutex currently locked by
+         another thread running in-band may experience unwanted latency
+         due to priority inversion.  This switch enables debug
+         notifications sending a SIGDEBUG signal to the lock owner.
 
 	 This option may add overhead to out-of-band execution over
-	 contented monitors.
+	 contented locks.
 
-config EVENLESS_DEBUG_MONITOR_SLEEP
-       bool "Detect sleeping while holding a monitor"
+config EVENLESS_DEBUG_MUTEX_SLEEP
+       bool "Detect sleeping while holding a mutex"
        default y
        help
-         A thread which goes sleeping while holding a monitor is prone
-         to cause unwanted latencies to other threads serialized by
+         A thread which goes sleeping while holding a mutex is prone
+         to cause unwanted latency to other threads serialized by
          the same lock. If debug notifications are enabled for such
          thread, it receives a SIGDEBUG signal right before entering
 	 sleep.

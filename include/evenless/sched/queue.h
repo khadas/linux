@@ -32,13 +32,13 @@ struct evl_thread;
 void evl_init_schedq(struct evl_multilevel_queue *q);
 
 void evl_add_schedq(struct evl_multilevel_queue *q,
-		    struct evl_thread *thread);
+		struct evl_thread *thread);
 
 void evl_add_schedq_tail(struct evl_multilevel_queue *q,
-			 struct evl_thread *thread);
+			struct evl_thread *thread);
 
 void evl_del_schedq(struct evl_multilevel_queue *q,
-		    struct evl_thread *thread);
+		struct evl_thread *thread);
 
 struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q);
 

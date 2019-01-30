@@ -21,14 +21,14 @@
 
 struct evl_timerfd {
 	struct evl_timer timer;
-	struct evl_syn readers;
+	struct evl_wait_queue readers;
 	bool ticked;
 	struct evl_poll_head poll_head;
 	struct evl_element element;
 };
 
 static void get_timer_value(struct evl_timer *__restrict__ timer,
-			    struct itimerspec *__restrict__ value)
+			struct itimerspec *__restrict__ value)
 {
 	value->it_interval = ktime_to_timespec(timer->interval);
 
@@ -41,7 +41,7 @@ static void get_timer_value(struct evl_timer *__restrict__ timer,
 }
 
 static int set_timer_value(struct evl_timer *__restrict__ timer,
-			   const struct itimerspec *__restrict__ value)
+			const struct itimerspec *__restrict__ value)
 {
 	ktime_t start, period;
 
@@ -51,8 +51,8 @@ static int set_timer_value(struct evl_timer *__restrict__ timer,
 	}
 
 	if ((unsigned long)value->it_value.tv_nsec >= ONE_BILLION ||
-	    ((unsigned long)value->it_interval.tv_nsec >= ONE_BILLION &&
-	     (value->it_value.tv_sec != 0 || value->it_value.tv_nsec != 0)))
+		((unsigned long)value->it_interval.tv_nsec >= ONE_BILLION &&
+			(value->it_value.tv_sec != 0 || value->it_value.tv_nsec != 0)))
 		return -EINVAL;
 
 	period = timespec_to_ktime(value->it_interval);
@@ -63,7 +63,7 @@ static int set_timer_value(struct evl_timer *__restrict__ timer,
 }
 
 static int set_timerfd(struct evl_timerfd *timerfd,
-		       struct evl_timerfd_setreq *sreq)
+		struct evl_timerfd_setreq *sreq)
 {
 	unsigned long flags;
 
@@ -76,7 +76,7 @@ static int set_timerfd(struct evl_timerfd *timerfd,
 }
 
 static long timerfd_oob_ioctl(struct file *filp,
-			      unsigned int cmd, unsigned long arg)
+			unsigned int cmd, unsigned long arg)
 {
 	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
 	struct evl_timerfd_setreq sreq, __user *u_sreq;
@@ -93,14 +93,14 @@ static long timerfd_oob_ioctl(struct file *filp,
 		if (ret)
 			return ret;
 		if (raw_copy_to_user(&u_sreq->ovalue, &sreq.ovalue,
-				     sizeof(sreq.ovalue)))
+					sizeof(sreq.ovalue)))
 			return -EFAULT;
 		break;
 	case EVL_TFDIOC_GET:
 		get_timer_value(&timerfd->timer, &greq.value);
 		u_greq = (typeof(u_greq))arg;
 		if (raw_copy_to_user(&u_greq->value, &greq.value,
-				     sizeof(greq.value)))
+					sizeof(greq.value)))
 			return -EFAULT;
 		break;
 	default:
@@ -118,7 +118,7 @@ static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
 
 	timerfd->ticked = true;
 	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
-	evl_flush_syn(&timerfd->readers, 0);
+	evl_flush_wait(&timerfd->readers, 0);
 }
 
 static ssize_t timerfd_oob_read(struct file *filp,
@@ -145,8 +145,8 @@ static ssize_t timerfd_oob_read(struct file *filp,
 	}
 
 	do
-		ret = evl_sleep_on_syn(&timerfd->readers,
-				       EVL_INFINITE, EVL_REL);
+		ret = evl_wait_timeout(&timerfd->readers,
+				EVL_INFINITE, EVL_REL);
 	while (ret == 0 && !timerfd->ticked);
 
 	if (ret & T_BREAK) {
@@ -176,7 +176,7 @@ fail:
 }
 
 static __poll_t timerfd_oob_poll(struct file *filp,
-				 struct oob_poll_wait *wait)
+				struct oob_poll_wait *wait)
 {
 	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
 
@@ -195,7 +195,7 @@ static const struct file_operations timerfd_fops = {
 
 static struct evl_element *
 timerfd_factory_build(struct evl_factory *fac, const char *name,
-		      void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_timerfd_attrs attrs;
 	struct evl_timerfd *timerfd;
@@ -217,13 +217,13 @@ timerfd_factory_build(struct evl_factory *fac, const char *name,
 	}
 
 	ret = evl_init_element(&timerfd->element,
-			       &evl_timerfd_factory);
+			&evl_timerfd_factory);
 	if (ret)
 		goto fail_element;
 
 	evl_init_timer(&timerfd->timer, clock, timerfd_handler,
-		       NULL, EVL_TIMER_UGRAVITY);
-	evl_init_syn(&timerfd->readers, EVL_SYN_PRIO, clock, NULL);
+		NULL, EVL_TIMER_UGRAVITY);
+	evl_init_wait(&timerfd->readers, clock, EVL_WAIT_PRIO);
 	evl_init_poll_head(&timerfd->poll_head);
 
 	return &timerfd->element;
@@ -244,7 +244,7 @@ static void timerfd_factory_dispose(struct evl_element *e)
 
 	evl_destroy_timer(&timerfd->timer);
 	evl_put_clock(timerfd->readers.clock);
-	evl_destroy_syn(&timerfd->readers);
+	evl_destroy_wait(&timerfd->readers);
 	evl_destroy_element(&timerfd->element);
 
 	kfree_rcu(timerfd, element.rcu);
