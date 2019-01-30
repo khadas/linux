@@ -237,14 +237,13 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 	struct evl_thread *curr = rq->curr;
 	struct evl_thread *thread;
 
+	/*
+	 * We have to switch the current thread out if a blocking
+	 * condition is raised for it. Otherwise, check whether
+	 * preemption is allowed.
+	 */
 	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
-		/*
-		 * Do not preempt the current thread if it holds the
-		 * scheduler lock. However, such lock is never
-		 * considered for the root thread which may never
-		 * defer scheduling.
-		 */
-		if (evl_preempt_count() > 0 && !(curr->state & T_ROOT)) {
+		if (evl_preempt_count() > 0) {
 			evl_set_self_resched(rq);
 			return curr;
 		}
@@ -693,7 +692,7 @@ static inline void leave_root(struct evl_thread *root)
 #endif
 }
 
-irqreturn_t __evl_schedule_handler(int irq, void *dev_id)
+static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
 {
 	/* hw interrupts are off. */
 	trace_evl_schedule_remote(this_evl_rq());
@@ -702,7 +701,7 @@ irqreturn_t __evl_schedule_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-bool ___evl_schedule(struct evl_rq *this_rq)
+bool __evl_schedule(struct evl_rq *this_rq)
 {
 	struct evl_thread *prev, *next, *curr;
 	bool switched, oob_entry;
@@ -792,7 +791,7 @@ out:
 
 	return switched;
 }
-EXPORT_SYMBOL_GPL(___evl_schedule);
+EXPORT_SYMBOL_GPL(__evl_schedule);
 
 struct evl_sched_class *
 evl_find_sched_class(union evl_sched_param *param,
@@ -995,7 +994,7 @@ int __init evl_init_sched(void)
 
 	if (IS_ENABLED(CONFIG_SMP)) {
 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
-					   __evl_schedule_handler,
+					   reschedule_interrupt,
 					   IRQF_OOB,
 					   "Evenless reschedule",
 					   &evl_machine_cpudata);

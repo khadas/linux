@@ -531,8 +531,7 @@ void evl_block_thread_timeout(struct evl_thread *thread, int mask,
 
 	/*
 	 * If the thread is current on its CPU, we need to raise
-	 * RQ_SCHED on the target runqueue; __evl_schedule() may
-	 * trigger a resched IPI to a remote CPU if required.
+	 * RQ_SCHED on the target runqueue.
 	 *
 	 * Otherwise, handle the case of suspending a user thread
 	 * running in-band which is _not_ current EVL-wise, but could
@@ -610,7 +609,7 @@ void evl_switch_inband(int cause)
 	dovetail_leave_oob();
 	xnlock_clear_irqon(&nklock);
 	oob_irq_disable();	/* <= REQUIRED. */
-	___evl_schedule(rq);
+	__evl_schedule(rq);
 	oob_irq_enable();
 	dovetail_resume_inband();
 

@@ -266,18 +266,16 @@ static inline bool is_threading_cpu(int cpu)
 	for_each_online_cpu(cpu)	\
 		if (is_evl_cpu(cpu))
 
-bool ___evl_schedule(struct evl_rq *this_rq);
+bool __evl_schedule(struct evl_rq *this_rq);
 
-irqreturn_t __evl_schedule_handler(int irq, void *dev_id);
-
-static inline bool __evl_schedule(void)
+static inline bool evl_schedule(void)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
 	/*
 	 * If we race here reading the scheduler state locklessly
 	 * because of a CPU migration, we must be running over the
-	 * in-band stage, in which case the call to ___evl_schedule()
+	 * in-band stage, in which case the call to __evl_schedule()
 	 * will be escalated to the oob stage where migration cannot
 	 * happen, ensuring safe access to the runqueue state.
 	 *
@@ -291,7 +289,7 @@ static inline bool __evl_schedule(void)
 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
 		return false;
 
-	return (bool)run_oob_call((int (*)(void *))___evl_schedule, this_rq);
+	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
 }
 
 static inline int evl_preempt_count(void)
@@ -307,7 +305,7 @@ static inline void __evl_disable_preempt(void)
 static inline void __evl_enable_preempt(void)
 {
 	if (--dovetail_current_state()->preempt_count == 0)
-		__evl_schedule();
+		evl_schedule();
 }
 
 #ifdef CONFIG_EVENLESS_DEBUG_LOCKING
@@ -328,18 +326,6 @@ static inline void evl_enable_preempt(void)
 }
 
 #endif /* !CONFIG_EVENLESS_DEBUG_LOCKING */
-
-static inline bool evl_schedule(void)
-{
-	/*
-	 * Block rescheduling if either the current thread holds the
-	 * scheduler lock.
-	 */
-	if (unlikely(evl_preempt_count() > 0))
-		return false;
-
-	return __evl_schedule();
-}
 
 static inline bool evl_in_irq(void)
 {
