@@ -34,10 +34,9 @@
 
 #define oob_context_only()	EVL_WARN_ON_ONCE(CONTEXT, running_inband())
 #define inband_context_only()	EVL_WARN_ON_ONCE(CONTEXT, !running_inband())
-#ifdef CONFIG_EVENLESS_DEBUG_LOCKING
-#define atomic_only()		EVL_WARN_ON_ONCE(CONTEXT, !(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
-#else
-#define atomic_only()		EVL_WARN_ON_ONCE(CONTEXT, !hard_irqs_disabled())
-#endif
+
+/* TEMP: needed until we have gotten rid of the infamous nklock. */
+#define atomic_only()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+#define no_ugly_lock()	WARN_ON_ONCE(xnlock_is_owner(&nklock))
 
 #endif /* !_EVENLESS_ASSERT_H */
