@@ -271,7 +271,7 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 	return NULL; /* Never executed because of the idle class. */
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_LOCKING
+#ifdef CONFIG_EVENLESS_DEBUG_CORE
 
 void evl_disable_preempt(void)
 {
@@ -287,7 +287,7 @@ void evl_enable_preempt(void)
 }
 EXPORT_SYMBOL(evl_enable_preempt);
 
-#endif /* CONFIG_EVENLESS_DEBUG_LOCKING */
+#endif /* CONFIG_EVENLESS_DEBUG_CORE */
 
 /* nklock locked, interrupts off. */
 void evl_putback_thread(struct evl_thread *thread)

@@ -309,7 +309,7 @@ static inline void __evl_enable_preempt(void)
 		evl_schedule();
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_LOCKING
+#ifdef CONFIG_EVENLESS_DEBUG_CORE
 
 void evl_disable_preempt(void);
 void evl_enable_preempt(void);
@@ -326,7 +326,7 @@ static inline void evl_enable_preempt(void)
 	__evl_enable_preempt();
 }
 
-#endif /* !CONFIG_EVENLESS_DEBUG_LOCKING */
+#endif
 
 static inline bool evl_in_irq(void)
 {

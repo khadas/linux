@@ -231,19 +231,6 @@ config EVENLESS_DEBUG_MEMORY
 	  kernel. This option may induce significant overhead with large
 	  heaps.
 
-config EVENLESS_DEBUG_LOCKING
-	bool "Spinlock debugging support"
-	default n
-	help
-	  This option activates runtime assertions, and measurements
-	  of spinlocks spinning time and duration in the Evenless
-	  kernel. It helps finding latency spots due to interrupt
-	  masked sections. Statistics about the longest masked section
-	  can be found in /proc/evenless/debug/lock.
-
-	  This option may induce a measurable overhead on low end
-	  machines.
-
 config EVENLESS_DEBUG_USER
 	bool "User consistency checks"
 	help
