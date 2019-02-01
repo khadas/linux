@@ -218,11 +218,14 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan);
 
+void evl_wakeup_thread(struct evl_thread *thread,
+		int mask);
+
 void evl_hold_thread(struct evl_thread *thread,
 		int mask);
 
-void evl_resume_thread(struct evl_thread *thread,
-		int mask);
+void evl_release_thread(struct evl_thread *thread,
+			int mask);
 
 int evl_unblock_thread(struct evl_thread *thread);
 

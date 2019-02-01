@@ -83,7 +83,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 						struct evl_thread, wait_next);
 		list_del(&waiter->wait_next);
 		waiter->wchan = NULL;
-		evl_resume_thread(waiter, T_PEND);
+		evl_wakeup_thread(waiter, T_PEND);
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
@@ -106,7 +106,7 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 			list_del(&waiter->wait_next);
 			waiter->info |= reason;
 			waiter->wchan = NULL;
-			evl_resume_thread(waiter, T_PEND);
+			evl_wakeup_thread(waiter, T_PEND);
 		}
 	}
 
