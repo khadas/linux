@@ -38,7 +38,7 @@ EXPORT_SYMBOL_GPL(evl_destroy_wait);
 int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
 		enum evl_tmode timeout_mode)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	int ret;
 

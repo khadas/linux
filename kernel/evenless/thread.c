@@ -268,7 +268,7 @@ static void do_cleanup_current(struct evl_thread *curr)
 static void cleanup_current_thread(void)
 {
 	struct oob_thread_state *p = dovetail_current_state();
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	/*
 	 * We are called for exiting kernel and user threads over the
@@ -285,12 +285,12 @@ static void cleanup_current_thread(void)
 	if (waitqueue_active(&join_all))
 		wake_up(&join_all);
 
-	p->thread = NULL;	/* evl_current_thread() <- NULL */
+	p->thread = NULL;	/* evl_current() <- NULL */
 }
 
 static void put_current_thread(void)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	cleanup_current_thread();
 	evl_put_element(&curr->element);
@@ -466,7 +466,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
@@ -704,7 +704,7 @@ static void inband_task_wakeup(struct irq_work *work)
 
 void evl_switch_inband(int cause)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct task_struct *p = current;
 	struct kernel_siginfo si;
 	int cpu __maybe_unused;
@@ -799,7 +799,7 @@ int evl_switch_oob(void)
 
 	inband_context_only();
 
-	curr = evl_current_thread();
+	curr = evl_current();
 	if (curr == NULL)
 		return -EPERM;
 
@@ -910,7 +910,7 @@ EXPORT_SYMBOL_GPL(evl_get_thread_period);
 ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 			struct evl_clock *clock)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	ktime_t rem = 0;
 
@@ -950,7 +950,7 @@ EXPORT_SYMBOL_GPL(evl_sleep);
 int evl_set_thread_period(struct evl_clock *clock,
 			ktime_t idate, ktime_t period)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	int ret = 0;
 
@@ -1000,7 +1000,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
 	if (!EVL_ASSERT(CORE, !evl_cannot_block()))
 		return -EPERM;
 
-	curr = evl_current_thread();
+	curr = evl_current();
 
 	xnlock_get_irqsave(&nklock, flags);
 
@@ -1070,7 +1070,7 @@ void evl_cancel_thread(struct evl_thread *thread)
 	}
 
 check_self_cancel:
-	if (evl_current_thread() == thread) {
+	if (evl_current() == thread) {
 		xnlock_put_irqrestore(&nklock, flags);
 		evl_test_cancel();
 		/*
@@ -1104,7 +1104,7 @@ EXPORT_SYMBOL_GPL(evl_cancel_thread);
 
 int evl_detach_self(void)
 {
-	if (evl_current_thread() == NULL)
+	if (evl_current() == NULL)
 		return -EPERM;
 
 	put_current_thread();
@@ -1150,7 +1150,7 @@ static void wait_for_rcu_grace_period(struct pid *pid)
 
 int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	bool switched = false;
 	unsigned long flags;
 	struct pid *pid;
@@ -1621,7 +1621,7 @@ int evl_killall(int mask)
 
 	inband_context_only();
 
-	if (evl_current_thread())
+	if (evl_current())
 		return -EPERM;
 
 	/*
@@ -1688,7 +1688,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 
 	oob_context_only();
 
-	curr = evl_current_thread();
+	curr = evl_current();
 	trace_evl_thread_fault(trapnr, regs);
 
 #if defined(CONFIG_EVENLESS_DEBUG_CORE) || defined(CONFIG_EVENLESS_DEBUG_USER)
@@ -1720,7 +1720,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 
 void handle_oob_mayday(struct pt_regs *regs)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	if (EVL_WARN_ON(CORE, !(curr->state & T_USER)))
 		return;
@@ -1967,7 +1967,7 @@ static void handle_sigwake_event(struct task_struct *p)
 
 static void handle_cleanup_event(struct mm_struct *mm)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	/*
 	 * Detect an EVL thread running exec(), i.e. still attached to
@@ -2113,7 +2113,7 @@ out:
 static int update_state_bits(struct evl_thread *thread,
 			__u32 mask, bool set)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 
 	if (curr != thread)
@@ -2292,7 +2292,7 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	struct evl_thread *curr;
 	int ret;
 
-	if (evl_current_thread())
+	if (evl_current())
 		return ERR_PTR(-EBUSY);
 
 	curr = kzalloc(sizeof(*curr), GFP_KERNEL);
@@ -2356,7 +2356,7 @@ static void thread_factory_dispose(struct evl_element *e)
 	 * state.
 	 */
 	if (!(thread->state & T_ZOMBIE)) {
-		if (EVL_WARN_ON(CORE, evl_current_thread() != thread))
+		if (EVL_WARN_ON(CORE, evl_current() != thread))
 			return;
 		cleanup_current_thread();
 	}

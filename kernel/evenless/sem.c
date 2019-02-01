@@ -33,7 +33,7 @@ struct sem_wait_data {
 static int acquire_sem(struct evl_sem *sem,
 		struct evl_sem_waitreq *req)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_sem_state *state = sem->state;
 	struct sem_wait_data wda;
 	enum evl_tmode tmode;

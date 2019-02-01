@@ -100,7 +100,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		goto do_inband;
 
 	nr = oob_syscall_nr(regs);
-	curr = evl_current_thread();
+	curr = evl_current();
 	if (curr == NULL || !cap_raised(current_cap(), CAP_SYS_NICE)) {
 		if (EVL_DEBUG(CORE))
 			printk(EVL_WARNING
@@ -167,7 +167,7 @@ bad_syscall:
 
 static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 {
-	struct evl_thread *curr = evl_current_thread(); /* Always valid. */
+	struct evl_thread *curr = evl_current(); /* Always valid. */
 	struct task_struct *p;
 	unsigned int nr;
 	int ret;

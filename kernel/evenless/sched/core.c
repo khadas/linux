@@ -905,7 +905,7 @@ static int yield_inband(void)	/* OOB only */
 
 int evl_sched_yield(void)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	oob_context_only();
 

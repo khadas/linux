@@ -91,7 +91,7 @@ out:
 
 void __evl_commit_monitor_ceiling(void)  /* nklock held, irqs off, OOB */
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
 
 	/*
@@ -181,7 +181,7 @@ static int __enter_monitor(struct evl_monitor *gate)
 /* nklock held, irqs off */
 static int enter_monitor(struct evl_monitor *gate)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	if (gate->type == EVL_MONITOR_EV)
 		return -EINVAL;
@@ -210,7 +210,7 @@ static void __exit_monitor(struct evl_monitor *gate,
 /* nklock held, irqs off */
 static int exit_monitor(struct evl_monitor *gate)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_monitor_state *state = gate->state;
 	struct evl_monitor *event, *n;
 
@@ -255,7 +255,7 @@ static int wait_monitor(struct evl_monitor *event,
 			struct evl_monitor_waitreq *req,
 			__s32 *r_op_ret)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	int ret = 0, op_ret = 0, info;
 	struct evl_monitor *gate;
 	struct evl_file *sfilp;

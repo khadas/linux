@@ -18,7 +18,7 @@ void __evl_commit_monitor_ceiling(void);
 
 static inline void evl_commit_monitor_ceiling(void)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	if (curr->u_window->pp_pending != EVL_NO_HANDLE)
 		__evl_commit_monitor_ceiling();

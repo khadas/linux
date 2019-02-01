@@ -285,7 +285,7 @@ static int collect_events(struct event_poller *poller,
 			struct evl_poll_event __user *u_ev,
 			int maxevents, bool do_poll)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_poll_watchpoint *wpt, *table;
 	int ret, n, nr, count = 0, ready;
 	struct evl_poll_event ev;
@@ -375,7 +375,7 @@ collect:
 
 static inline void clear_wait(void)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
 	int n;

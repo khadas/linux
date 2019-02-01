@@ -342,7 +342,7 @@ static void inbound_signal_input(struct xbuf_ring *ring)
 static int inbound_wait_output(struct xbuf_ring *ring, size_t len)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct xbuf_wait_data wait;
 
 	wait.len = len;
@@ -452,7 +452,7 @@ static long xbuf_oob_ioctl(struct file *filp,
 static int outbound_wait_input(struct xbuf_ring *ring, size_t len)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct xbuf_wait_data wait;
 
 	wait.len = len;
