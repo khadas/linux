@@ -47,10 +47,7 @@ static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
 {
 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
 
-	xnlock_get(&nklock);
-	thread->info |= T_TIMEO;
-	evl_resume_thread(thread, T_DELAY);
-	xnlock_put(&nklock);
+	evl_wakeup_thread(thread, T_DELAY|T_PEND);
 }
 
 static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
@@ -64,7 +61,7 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 	 * blocked on a resource.
 	 */
 	if ((thread->state & (T_DELAY|T_PEND)) == T_DELAY)
-		evl_resume_thread(thread, T_DELAY);
+		evl_wakeup_thread(thread, T_DELAY);
 
 	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
 
@@ -226,14 +223,6 @@ static void uninit_thread(struct evl_thread *thread)
 	kfree(thread->name);
 }
 
-static inline void abort_wait(struct evl_thread *thread)
-{
-	struct evl_wait_channel *wchan = thread->wchan;
-
-	if (wchan)
-		wchan->abort_wait(thread);
-}
-
 static void do_cleanup_current(struct evl_thread *curr)
 {
 	struct evl_mutex *mutex, *tmp;
@@ -324,7 +313,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	dovetail_init_altsched(&curr->altsched);
 	set_oob_threadinfo(curr);
 	dovetail_start_altsched();
-	evl_resume_thread(curr, T_DORMANT);
+	evl_release_thread(curr, T_DORMANT);
 
 	trace_evl_thread_map(curr);
 
@@ -453,12 +442,25 @@ void evl_start_thread(struct evl_thread *thread)
 		enlist_new_thread(thread);
 
 	trace_evl_thread_start(thread);
-	evl_resume_thread(thread, T_DORMANT);
+	evl_release_thread(thread, T_DORMANT);
 	evl_schedule();
 
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_start_thread);
+
+static inline bool abort_wait(struct evl_thread *thread)
+{
+	struct evl_wait_channel *wchan = thread->wchan;
+
+	if (wchan) {
+		thread->wchan = NULL;
+		wchan->abort_wait(thread, wchan);
+		return true;
+	}
+
+	return false;
+}
 
 void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
@@ -524,6 +526,40 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 }
 EXPORT_SYMBOL_GPL(evl_sleep_on);
 
+void evl_wakeup_thread(struct evl_thread *thread, int mask)
+{
+	unsigned long oldstate, flags;
+	struct evl_rq *rq;
+
+	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND)))
+		return;
+
+	xnlock_get_irqsave(&nklock, flags);
+
+	trace_evl_wakeup_thread(thread, mask);
+
+	rq = thread->rq;
+	oldstate = thread->state;
+	if (likely(oldstate & mask)) {
+		thread->state &= ~mask;
+
+		if (mask & (T_DELAY|T_PEND))
+			evl_stop_timer(&thread->rtimer);
+
+		if ((mask & T_PEND) && abort_wait(thread) && (mask & T_DELAY))
+			thread->info |= T_TIMEO;
+
+		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
+			evl_enqueue_thread(thread);
+			thread->state |= T_READY;
+			evl_set_resched(rq);
+		}
+	}
+
+	xnlock_put_irqrestore(&nklock, flags);
+}
+EXPORT_SYMBOL_GPL(evl_wakeup_thread);
+
 void evl_hold_thread(struct evl_thread *thread, int mask)
 {
 	unsigned long oldstate, flags;
@@ -579,25 +615,22 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 }
 EXPORT_SYMBOL_GPL(evl_hold_thread);
 
-void evl_resume_thread(struct evl_thread *thread, int mask)
+void evl_release_thread(struct evl_thread *thread, int mask)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
+	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT)))
+		return;
+
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_resume_thread(thread, mask);
+	trace_evl_release_thread(thread, mask);
 
 	rq = thread->rq;
 	oldstate = thread->state;
-	if (oldstate & EVL_THREAD_BLOCK_BITS) {
+	if (oldstate & mask) {
 		thread->state &= ~mask;
-
-		if (mask & (T_DELAY|T_PEND))
-			evl_stop_timer(&thread->rtimer);
-
-		if (mask & T_PEND)
-			abort_wait(thread);
 
 		if (thread->state & EVL_THREAD_BLOCK_BITS)
 			goto out;
@@ -621,30 +654,19 @@ out:
 
 	return;
 }
-EXPORT_SYMBOL_GPL(evl_resume_thread);
+EXPORT_SYMBOL_GPL(evl_release_thread);
 
 int evl_unblock_thread(struct evl_thread *thread)
 {
 	unsigned long flags;
 	int ret = 1;
 
-	/*
-	 * Attempt to abort an undergoing wait for the given thread.
-	 * If this state is due to an alarm that has been armed to
-	 * limit the sleeping thread's waiting time while it pends for
-	 * a resource, the corresponding T_PEND state will be cleared
-	 * by evl_resume_thread() in the same move. Otherwise, this call
-	 * may abort an undergoing infinite wait for a resource (if
-	 * any).
-	 */
 	xnlock_get_irqsave(&nklock, flags);
 
 	trace_evl_unblock_thread(thread);
 
-	if (thread->state & T_DELAY)
-		evl_resume_thread(thread, T_DELAY);
-	else if (thread->state & T_PEND)
-		evl_resume_thread(thread, T_PEND);
+	if (thread->state & (T_DELAY|T_PEND))
+		evl_wakeup_thread(thread, T_DELAY|T_PEND);
 	else
 		ret = 0;
 
@@ -1043,7 +1065,7 @@ void evl_cancel_thread(struct evl_thread *thread)
 		if (!(thread->state & T_INBAND))
 			goto check_self_cancel;
 		thread->info |= T_KICKED;
-		evl_resume_thread(thread, T_DORMANT);
+		evl_release_thread(thread, T_DORMANT);
 		goto out;
 	}
 
@@ -1391,7 +1413,7 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * should act upon this case specifically.
 	 */
 	if (thread->state & (T_SUSP|T_HALT)) {
-		evl_resume_thread(thread, T_SUSP|T_HALT);
+		evl_release_thread(thread, T_SUSP|T_HALT);
 		thread->info |= T_KICKED;
 	}
 
@@ -1822,7 +1844,7 @@ void resume_oob_task(struct task_struct *p) /* hw IRQs off */
 	 */
 	xnlock_get(&nklock);
 	if (affinity_ok(p))
-		evl_resume_thread(thread, T_INBAND);
+		evl_release_thread(thread, T_INBAND);
 	xnlock_put(&nklock);
 
 	evl_schedule();

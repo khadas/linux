@@ -336,25 +336,47 @@ TRACE_EVENT(evl_sleep_on,
 		  __entry->wchan)
 );
 
-TRACE_EVENT(evl_hold_thread,
+TRACE_EVENT(evl_wakeup_thread,
 	TP_PROTO(struct evl_thread *thread, unsigned long mask),
 	TP_ARGS(thread, mask),
 
 	TP_STRUCT__entry(
+		__string(name, thread->name)
 		__field(pid_t, pid)
 		__field(unsigned long, mask)
 	),
 
 	TP_fast_assign(
+		__assign_str(name, thread->name);
 		__entry->pid = evl_get_inband_pid(thread);
 		__entry->mask = mask;
 	),
 
-	TP_printk("pid=%d mask=%#lx",
-		__entry->pid, __entry->mask)
+	TP_printk("name=%s pid=%d mask=%#lx",
+		  __get_str(name), __entry->pid, __entry->mask)
 );
 
-TRACE_EVENT(evl_resume_thread,
+TRACE_EVENT(evl_hold_thread,
+	TP_PROTO(struct evl_thread *thread, unsigned long mask),
+	TP_ARGS(thread, mask),
+
+	TP_STRUCT__entry(
+		__string(name, thread->name)
+		__field(pid_t, pid)
+		__field(unsigned long, mask)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, thread->name);
+		__entry->pid = evl_get_inband_pid(thread);
+		__entry->mask = mask;
+	),
+
+	TP_printk("name=%s pid=%d mask=%#lx",
+		  __get_str(name), __entry->pid, __entry->mask)
+);
+
+TRACE_EVENT(evl_release_thread,
 	TP_PROTO(struct evl_thread *thread, unsigned long mask),
 	TP_ARGS(thread, mask),
 

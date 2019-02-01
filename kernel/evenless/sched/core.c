@@ -909,7 +909,7 @@ int evl_sched_yield(void)
 
 	oob_context_only();
 
-	evl_resume_thread(curr, 0);
+	evl_release_thread(curr, 0);
 	if (evl_schedule())
 		return 0;
 
