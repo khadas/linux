@@ -350,9 +350,7 @@ bool evl_destroy_mutex(struct evl_mutex *mutex)
 	} else {
 		ret = true;
 		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next) {
-			list_del(&waiter->wait_next);
 			waiter->info |= T_RMID;
-			waiter->wchan = NULL;
 			evl_wakeup_thread(waiter, T_PEND);
 		}
 		if (mutex->flags & EVL_MUTEX_CLAIMED)
@@ -567,8 +565,18 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	}
 
 	n_owner = list_first_entry(&mutex->wait_list, struct evl_thread, wait_next);
-	list_del(&n_owner->wait_next);
+	/*
+	 * We clear the wait channel early on - instead of waiting for
+	 * evl_wakeup_thread() to do so - because we want to hide
+	 * n_owner from the PI/PP adjustment which takes place over
+	 * set_current_owner_locked(). Because of that, we also have
+	 * to unlink the thread from the wait list manually since the
+	 * abort_wait() handler won't be called. NOTE: we do want
+	 * set_current_owner_locked() to run before
+	 * evl_wakeup_thread() is called.
+	 */
 	n_owner->wchan = NULL;
+	list_del(&n_owner->wait_next);
 	n_owner->wwake = &mutex->wchan;
 	set_current_owner_locked(mutex, n_owner);
 	n_owner->info |= T_WAKEN;
@@ -638,9 +646,10 @@ wchan_to_mutex(struct evl_wait_channel *wchan)
 }
 
 /* nklock held, irqs off */
-void evl_abort_mutex_wait(struct evl_thread *thread)
+void evl_abort_mutex_wait(struct evl_thread *thread,
+			struct evl_wait_channel *wchan)
 {
-	struct evl_mutex *mutex = wchan_to_mutex(thread->wchan);
+	struct evl_mutex *mutex = wchan_to_mutex(wchan);
 	struct evl_thread *owner, *target;
 
 	/*
@@ -648,7 +657,6 @@ void evl_abort_mutex_wait(struct evl_thread *thread)
 	 * from waiting on a mutex. Doing so may require to update a
 	 * PI chain.
 	 */
-	thread->wchan = NULL;
 	list_del(&thread->wait_next); /* mutex->wait_list */
 
 	/*
