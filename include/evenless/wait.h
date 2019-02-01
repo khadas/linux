@@ -85,7 +85,8 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 
 void evl_flush_wait(struct evl_wait_queue *wq, int reason);
 
-void evl_abort_wait(struct evl_thread *thread);
+void evl_abort_wait(struct evl_thread *thread,
+		struct evl_wait_channel *wchan);
 
 void evl_reorder_wait(struct evl_thread *thread);
 

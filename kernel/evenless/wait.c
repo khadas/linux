@@ -81,8 +81,6 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 		if (waiter == NULL)
 			waiter = list_first_entry(&wq->wait_list,
 						struct evl_thread, wait_next);
-		list_del(&waiter->wait_next);
-		waiter->wchan = NULL;
 		evl_wakeup_thread(waiter, T_PEND);
 	}
 
@@ -102,10 +100,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 	trace_evl_wait_flush(wq);
 
 	if (!list_empty(&wq->wait_list)) {
-		list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next) {
-			list_del(&waiter->wait_next);
+		list_for_each_entry_safe(waiter, tmp,
+					&wq->wait_list, wait_next) {
 			waiter->info |= reason;
-			waiter->wchan = NULL;
 			evl_wakeup_thread(waiter, T_PEND);
 		}
 	}
@@ -115,10 +112,10 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 EXPORT_SYMBOL_GPL(evl_flush_wait);
 
 /* nklock held, irqs off */
-void evl_abort_wait(struct evl_thread *thread)
+void evl_abort_wait(struct evl_thread *thread,
+		struct evl_wait_channel *wchan)
 {
 	list_del(&thread->wait_next);
-	thread->wchan = NULL;
 }
 EXPORT_SYMBOL_GPL(evl_abort_wait);
 

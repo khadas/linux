@@ -73,7 +73,8 @@ static inline
 void evl_detect_boost_drop(struct evl_thread *owner) { }
 #endif
 
-void evl_abort_mutex_wait(struct evl_thread *thread);
+void evl_abort_mutex_wait(struct evl_thread *thread,
+			struct evl_wait_channel *wchan);
 
 void evl_reorder_mutex_wait(struct evl_thread *thread);
 
