@@ -173,7 +173,7 @@ void __evl_test_cancel(struct evl_thread *curr);
 
 void evl_discard_thread(struct evl_thread *thread);
 
-static inline struct evl_thread *evl_current_thread(void)
+static inline struct evl_thread *evl_current(void)
 {
 	return dovetail_current_state()->thread;
 }
@@ -184,9 +184,9 @@ struct evl_rq *evl_thread_rq(struct evl_thread *thread)
 	return thread->rq;
 }
 
-static inline struct evl_rq *evl_current_thread_rq(void)
+static inline struct evl_rq *evl_current_rq(void)
 {
-	return evl_thread_rq(evl_current_thread());
+	return evl_thread_rq(evl_current());
 }
 
 static inline
@@ -197,7 +197,7 @@ struct evl_thread *evl_thread_from_task(struct task_struct *p)
 
 static inline void evl_test_cancel(void)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 
 	if (curr && (curr->info & T_CANCELD))
 		__evl_test_cancel(curr);
@@ -334,7 +334,7 @@ static inline void evl_cancel_kthread(struct evl_kthread *kthread)
 
 static inline int evl_kthread_should_stop(void)
 {
-	return evl_current_thread()->info & T_CANCELD;
+	return evl_current()->info & T_CANCELD;
 }
 
 void evl_set_kthread_priority(struct evl_kthread *thread,

@@ -367,7 +367,7 @@ EXPORT_SYMBOL_GPL(evl_destroy_mutex);
 
 int evl_trylock_mutex(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	atomic_t *lockp = mutex->fastlock;
 	fundle_t h;
 
@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(evl_trylock_mutex);
 int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
 			enum evl_tmode timeout_mode)
 {
-	struct evl_thread *curr = evl_current_thread(), *owner;
+	struct evl_thread *curr = evl_current(), *owner;
 	atomic_t *lockp = mutex->fastlock;
 	fundle_t currh, h, oldh;
 	unsigned long flags;
@@ -586,7 +586,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
 
 void __evl_unlock_mutex(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	fundle_t currh, h;
 	atomic_t *lockp;
@@ -713,7 +713,7 @@ void evl_reorder_mutex_wait(struct evl_thread *thread)
 
 void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	fundle_t oldh, h;
 	atomic_t *lockp;
 

@@ -322,7 +322,7 @@ TRACE_EVENT(evl_sleep_on,
 	),
 
 	TP_fast_assign(
-		__entry->pid = evl_get_inband_pid(evl_current_thread());
+		__entry->pid = evl_get_inband_pid(evl_current());
 		__entry->timeout = timeout;
 		__entry->timeout_mode = timeout_mode;
 		__entry->wchan = wchan;

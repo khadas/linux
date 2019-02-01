@@ -69,7 +69,7 @@ static int set_timerfd(struct evl_timerfd *timerfd,
 
 	get_timer_value(&timerfd->timer, &sreq->ovalue);
 	xnlock_get_irqsave(&nklock, flags);
-	evl_set_timer_rq(&timerfd->timer, evl_current_thread_rq());
+	evl_set_timer_rq(&timerfd->timer, evl_current_rq());
 	xnlock_put_irqrestore(&nklock, flags);
 
 	return set_timer_value(&timerfd->timer, &sreq->value);

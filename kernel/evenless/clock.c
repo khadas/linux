@@ -415,7 +415,7 @@ static long restart_clock_delay(struct restart_block *param)
 static int clock_delay(struct evl_clock *clock,
 		struct evl_clock_delayreq __user *u_req)
 {
-	struct evl_thread *curr = evl_current_thread();
+	struct evl_thread *curr = evl_current();
 	struct evl_clock_delayreq req;
 	struct restart_block *restart;
 	struct timespec remain;

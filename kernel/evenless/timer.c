@@ -430,7 +430,7 @@ done:
 	 * Hide overruns due to the most recent ptracing session from
 	 * the caller.
 	 */
-	thread = evl_current_thread();
+	thread = evl_current();
 	if (thread->local_info & T_HICCUP)
 		return 0;
 
