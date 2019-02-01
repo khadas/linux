@@ -349,7 +349,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	xnlock_get_irqsave(&nklock, flags);
 	enlist_new_thread(curr);
 	xnlock_put_irqrestore(&nklock, flags);
-	evl_block_thread(curr, T_DORMANT);
+	evl_hold_thread(curr, T_DORMANT);
 
 	return kthread->status;
 }
@@ -460,41 +460,92 @@ void evl_start_thread(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_start_thread);
 
-void evl_block_thread_timeout(struct evl_thread *thread, int mask,
-			ktime_t timeout, enum evl_tmode timeout_mode,
-			struct evl_clock *clock,
-			struct evl_wait_channel *wchan)
+void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+		struct evl_clock *clock,
+		struct evl_wait_channel *wchan)
 {
+	struct evl_thread *curr = evl_current_thread();
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
 	oob_context_only();
 
+	xnlock_get_irqsave(&nklock, flags);
+
+	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
+
+	rq = curr->rq;
+	oldstate = curr->state;
+
 	/*
-	 * Things we can't do: apply T_INBAND using this call, or ask
-	 * for a conjunctive wait on multiple channels.
+	 * If a request to switch to in-band context is pending
+	 * (T_KICKED), raise T_BREAK then return immediately.
 	 */
-	if (EVL_WARN_ON(CORE, (mask & T_INBAND) || (wchan && thread->wchan)))
+	if (likely(!(oldstate & EVL_THREAD_BLOCK_BITS))) {
+		if (curr->info & T_KICKED) {
+			if (wchan) {
+				curr->wchan = wchan;
+				abort_wait(curr);
+			}
+			curr->info &= ~(T_RMID|T_TIMEO);
+			curr->info |= T_BREAK;
+			xnlock_put_irqrestore(&nklock, flags);
+			return;
+		}
+		curr->info &= ~EVL_THREAD_INFO_MASK;
+	}
+
+	/*
+	 * If a zero relative delay was given, we want to sleep
+	 * indefinitely. Otherwise, set up a timer.
+	 */
+	if (timeout_mode != EVL_REL || !timeout_infinite(timeout)) {
+		evl_prepare_timer_wait(&curr->rtimer, clock,
+				evl_thread_rq(curr));
+		if (timeout_mode == EVL_REL)
+			timeout = evl_abs_timeout(&curr->rtimer, timeout);
+		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
+		curr->state |= T_DELAY;
+	}
+
+	if (oldstate & T_READY) {
+		evl_dequeue_thread(curr);
+		curr->state &= ~T_READY;
+	}
+
+	if (wchan) {
+		curr->wchan = wchan;
+		curr->state |= T_PEND;
+	}
+
+	evl_set_resched(rq);
+
+	xnlock_put_irqrestore(&nklock, flags);
+}
+EXPORT_SYMBOL_GPL(evl_sleep_on);
+
+void evl_hold_thread(struct evl_thread *thread, int mask)
+{
+	unsigned long oldstate, flags;
+	struct evl_rq *rq;
+
+	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_DORMANT)))
 		return;
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_block_thread(thread, mask, timeout,
-			timeout_mode, clock, wchan);
+	trace_evl_hold_thread(thread, mask);
+
 	rq = thread->rq;
 	oldstate = thread->state;
 
 	/*
-	 * If attempting to block a runnable thread which is pending a
-	 * forced switch to in-band context (T_KICKED), just raise the
-	 * T_BREAK status and return immediately.
+	 * If a request to switch to in-band context is pending for
+	 * the target thread (T_KICKED), raise T_BREAK for it then
+	 * return immediately.
 	 */
 	if (likely(!(oldstate & EVL_THREAD_BLOCK_BITS))) {
 		if (thread->info & T_KICKED) {
-			if (wchan) {
-				thread->wchan = wchan;
-				abort_wait(thread);
-			}
 			thread->info &= ~(T_RMID|T_TIMEO);
 			thread->info |= T_BREAK;
 			xnlock_put_irqrestore(&nklock, flags);
@@ -502,20 +553,6 @@ void evl_block_thread_timeout(struct evl_thread *thread, int mask,
 		}
 		if (thread == rq->curr)
 			thread->info &= ~EVL_THREAD_INFO_MASK;
-	}
-
-	/*
-	 * Don't start the timer for a thread delayed
-	 * indefinitely. Zero relative delay currently means infinite
-	 * wait, all other combinations mean timed wait.
-	 */
-	if (timeout_mode != EVL_REL || !timeout_infinite(timeout)) {
-		evl_prepare_timer_wait(&thread->rtimer, clock,
-				evl_thread_rq(thread));
-		if (timeout_mode == EVL_REL)
-			timeout = evl_abs_timeout(&thread->rtimer, timeout);
-		evl_start_timer(&thread->rtimer, timeout, EVL_INFINITE);
-		thread->state |= T_DELAY;
 	}
 
 	if (oldstate & T_READY) {
@@ -526,50 +563,21 @@ void evl_block_thread_timeout(struct evl_thread *thread, int mask,
 	thread->state |= mask;
 
 	/*
-	 * We must make sure that we don't clear the wait channel if a
-	 * thread is first blocked (wchan != NULL) then forcibly
-	 * suspended (wchan == NULL), since these are conjunctive
-	 * conditions.
-	 */
-	if (wchan)
-		thread->wchan = wchan;
-
-	/*
 	 * If the thread is current on its CPU, we need to raise
 	 * RQ_SCHED on the target runqueue.
 	 *
-	 * Otherwise, handle the case of suspending a user thread
-	 * running in-band which is _not_ current EVL-wise, but could
-	 * still be running some code under the control of the in-band
-	 * scheduler. We have to force this thread out of in-band
-	 * mode, to honor the basic assumption that a suspended
-	 * thread is not running any code.
-	 *
-	 * To this end, we force the thread to switch back to OOB
-	 * context by sending it a SIGSHADOW_ACTION_HOME request,
-	 * which will end up getting it out of the CPU when EVL
-	 * reschedules at this opportunity.
-	 *
-	 * We only care for T_SUSP and T_HALT conditions, because
-	 * among all blocking bits (EVL_THREAD_BLOCK_BITS), only these
-	 * conditions may be applied to a non-current thread.
-	 *
-	 * On the other hand, T_PEND and T_DELAY are always added by
-	 * the caller to its own state. T_INBAND may not be set in
-	 * @mask.
-	 *
-	 * We don't signal threads which are in T_DORMANT state, since
-	 * these are suspended by definition.
+	 * If the target thread runs in-band in userland on a remote
+	 * CPU, force it back to OOB context by sending it a
+	 * SIGSHADOW_ACTION_HOME request.
 	 */
 	if (likely(thread == rq->curr))
 		evl_set_resched(rq);
-	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
-			(T_INBAND|T_USER)) && (mask & (T_SUSP | T_HALT)))
+	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)))
 		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
 
 	xnlock_put_irqrestore(&nklock, flags);
 }
-EXPORT_SYMBOL_GPL(evl_block_thread_timeout);
+EXPORT_SYMBOL_GPL(evl_hold_thread);
 
 void evl_resume_thread(struct evl_thread *thread, int mask)
 {
@@ -819,14 +827,6 @@ int evl_switch_oob(void)
 }
 EXPORT_SYMBOL_GPL(evl_switch_oob);
 
-void evl_block_thread(struct evl_thread *thread, int mask)
-{
-	evl_block_thread_timeout(thread, mask, EVL_INFINITE,
-				EVL_REL, NULL, NULL);
-	evl_schedule();
-}
-EXPORT_SYMBOL_GPL(evl_block_thread);
-
 void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 {
 	union evl_sched_param param = { .rt = { .prio = priority } };
@@ -892,8 +892,7 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 	unsigned long flags;
 	ktime_t rem = 0;
 
-	evl_block_thread_timeout(curr, T_DELAY, timeout,
-				timeout_mode, clock, NULL);
+	evl_sleep_on(timeout, timeout_mode, clock, NULL);
 	evl_schedule();
 
 	if (curr->info & T_BREAK) {
@@ -993,7 +992,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
 	clock = curr->ptimer.clock;
 	now = evl_read_clock(clock);
 	if (likely(now < evl_get_timer_next_date(&curr->ptimer))) {
-		evl_block_thread(curr, T_DELAY);
+		evl_sleep_on(EVL_INFINITE, EVL_REL, NULL, NULL);
 		if (unlikely(curr->info & T_BREAK)) {
 			ret = -EINTR;
 			goto out;
@@ -1244,8 +1243,8 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
 	/*
 	 * Timer migration is postponed until the next timeout happens
 	 * for the periodic and rrb timers. The resource timer will be
-	 * moved to the right CPU next time it is armed in
-	 * evl_block_thread_timeout().
+	 * moved to the right CPU next time evl_prepare_timer_wait()
+	 * is called for it.
 	 */
 	evl_migrate_rq(thread, rq);
 
@@ -1371,26 +1370,25 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	/*
 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
 	 * block state, such as T_SUSP, T_HALT. The caller of
-	 * evl_block_thread_timeout() we unblock shall proceed as for
-	 * a normal return, until it traverses a cancellation point if
-	 * T_CANCELD was raised earlier, or calls
-	 * evl_block_thread_timeout() which will detect T_KICKED and
-	 * act accordingly.
+	 * evl_sleep_on() we unblock shall proceed as for a normal
+	 * return, until it traverses a cancellation point if
+	 * T_CANCELD was raised earlier, or calls evl_sleep_on() again
+	 * which will detect T_KICKED and act accordingly.
 	 *
-	 * Rationale: callers of evl_block_thread_timeout() may assume
-	 * that receiving T_BREAK means that the process that
-	 * motivated the blocking did not go to completion. E.g. the
-	 * wait context was NOT updated before evl_wait_timeout()
-	 * returned, leaving no useful data there.  Therefore, in case
-	 * only T_SUSP remains set for the thread on entry to
-	 * force_wakeup(), after T_PEND was lifted earlier when the
-	 * wait went to successful completion (i.e. no timeout), then
-	 * we want the kicked thread to know that it did receive the
-	 * requested resource, not finding T_BREAK in its state word.
+	 * Rationale: callers of evl_sleep_on() may assume that
+	 * receiving T_BREAK means that the awaited event was not
+	 * received. Typically, the wait context was NOT updated
+	 * before evl_wait_timeout() returned, leaving no useful data
+	 * there.  Therefore, in case only T_SUSP remains set for the
+	 * thread on entry to force_wakeup(), after T_PEND was lifted
+	 * earlier when the wait went to successful completion
+	 * (i.e. no timeout), then we want the kicked thread to know
+	 * that it did receive the requested resource, not finding
+	 * T_BREAK in its state word.
 	 *
-	 * Callers of evl_block_thread_timeout() may inquire for
-	 * T_KICKED to detect forcible unblocks from T_SUSP, T_HALT,
-	 * if they should act upon this case specifically.
+	 * Callers of evl_sleep_on() may inquire for T_KICKED locally
+	 * to detect forcible unblocks from T_SUSP, T_HALT, if they
+	 * should act upon this case specifically.
 	 */
 	if (thread->state & (T_SUSP|T_HALT)) {
 		evl_resume_thread(thread, T_SUSP|T_HALT);
@@ -1403,8 +1401,8 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * - a thread which was ready on entry wasn't actually
 	 * running, but nevertheless waits for the CPU in OOB context,
 	 * so we have to make sure that it will be notified of the
-	 * pending break condition as soon as it enters
-	 * evl_block_thread_timeout() from a blocking EVL syscall.
+	 * pending break condition as soon as it enters a blocking EVL
+	 * call.
 	 *
 	 * - a ready/readied thread on exit may be prevented from
 	 * running by the scheduling policy module it belongs

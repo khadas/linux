@@ -307,15 +307,14 @@ TRACE_EVENT(evl_init_thread,
 		  __get_str(class_name), __entry->cprio, __entry->status)
 );
 
-TRACE_EVENT(evl_block_thread,
-	TP_PROTO(struct evl_thread *thread, unsigned long mask, ktime_t timeout,
+TRACE_EVENT(evl_sleep_on,
+	TP_PROTO(ktime_t timeout,
 		 enum evl_tmode timeout_mode, struct evl_clock *clock,
 		 struct evl_wait_channel *wchan),
-	TP_ARGS(thread, mask, timeout, timeout_mode, clock, wchan),
+	TP_ARGS(timeout, timeout_mode, clock, wchan),
 
 	TP_STRUCT__entry(
 		__field(pid_t, pid)
-		__field(unsigned long, mask)
 		__field(ktime_t, timeout)
 		__field(enum evl_tmode, timeout_mode)
 		__field(struct evl_wait_channel *, wchan)
@@ -323,19 +322,36 @@ TRACE_EVENT(evl_block_thread,
 	),
 
 	TP_fast_assign(
-		__entry->pid = evl_get_inband_pid(thread);
-		__entry->mask = mask;
+		__entry->pid = evl_get_inband_pid(evl_current_thread());
 		__entry->timeout = timeout;
 		__entry->timeout_mode = timeout_mode;
 		__entry->wchan = wchan;
 		__assign_str(clock_name, clock ? clock->name : "none");
 	),
 
-	TP_printk("pid=%d mask=%#lx timeout=%Lu timeout_mode=%d clock=%s wchan=%p",
-		  __entry->pid, __entry->mask,
+	TP_printk("pid=%d timeout=%Lu timeout_mode=%d clock=%s wchan=%p",
+		  __entry->pid,
 		  ktime_to_ns(__entry->timeout), __entry->timeout_mode,
 		  __get_str(clock_name),
 		  __entry->wchan)
+);
+
+TRACE_EVENT(evl_hold_thread,
+	TP_PROTO(struct evl_thread *thread, unsigned long mask),
+	TP_ARGS(thread, mask),
+
+	TP_STRUCT__entry(
+		__field(pid_t, pid)
+		__field(unsigned long, mask)
+	),
+
+	TP_fast_assign(
+		__entry->pid = evl_get_inband_pid(thread);
+		__entry->mask = mask;
+	),
+
+	TP_printk("pid=%d mask=%#lx",
+		__entry->pid, __entry->mask)
 );
 
 TRACE_EVENT(evl_resume_thread,
