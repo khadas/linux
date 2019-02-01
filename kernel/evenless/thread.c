@@ -571,6 +571,96 @@ void evl_block_thread_timeout(struct evl_thread *thread, int mask,
 }
 EXPORT_SYMBOL_GPL(evl_block_thread_timeout);
 
+void evl_resume_thread(struct evl_thread *thread, int mask)
+{
+	unsigned long oldstate, flags;
+	struct evl_rq *rq;
+
+	xnlock_get_irqsave(&nklock, flags);
+
+	trace_evl_resume_thread(thread, mask);
+
+	rq = thread->rq;
+	oldstate = thread->state;
+	if (oldstate & EVL_THREAD_BLOCK_BITS) {
+		thread->state &= ~mask;
+
+		if (mask & (T_DELAY|T_PEND))
+			evl_stop_timer(&thread->rtimer);
+
+		if (mask & T_PEND)
+			abort_wait(thread);
+
+		if (thread->state & EVL_THREAD_BLOCK_BITS)
+			goto out;
+
+		if (unlikely((oldstate & mask) & T_HALT)) {
+			/* Requeue at head of priority group. */
+			evl_requeue_thread(thread);
+			goto ready;
+		}
+	} else if (oldstate & T_READY)
+		/* Ends up in round-robin (group rotation). */
+		evl_dequeue_thread(thread);
+
+	/* Enqueue at the tail of priority group. */
+	evl_enqueue_thread(thread);
+ready:
+	thread->state |= T_READY;
+	evl_set_resched(rq);
+out:
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return;
+}
+EXPORT_SYMBOL_GPL(evl_resume_thread);
+
+int evl_unblock_thread(struct evl_thread *thread)
+{
+	unsigned long flags;
+	int ret = 1;
+
+	/*
+	 * Attempt to abort an undergoing wait for the given thread.
+	 * If this state is due to an alarm that has been armed to
+	 * limit the sleeping thread's waiting time while it pends for
+	 * a resource, the corresponding T_PEND state will be cleared
+	 * by evl_resume_thread() in the same move. Otherwise, this call
+	 * may abort an undergoing infinite wait for a resource (if
+	 * any).
+	 */
+	xnlock_get_irqsave(&nklock, flags);
+
+	trace_evl_unblock_thread(thread);
+
+	if (thread->state & T_DELAY)
+		evl_resume_thread(thread, T_DELAY);
+	else if (thread->state & T_PEND)
+		evl_resume_thread(thread, T_PEND);
+	else
+		ret = 0;
+
+	/*
+	 * We should not clear a previous break state if this service
+	 * is called more than once before the target thread actually
+	 * resumes, so we only set the bit here and never clear
+	 * it. However, we must not raise the T_BREAK bit if the
+	 * target thread was already awake at the time of this call,
+	 * so that downstream code does not get confused by some
+	 * "successful but interrupted syscall" condition. IOW, a
+	 * break state raised here must always trigger an error code
+	 * downstream, and an already successful syscall cannot be
+	 * marked as interrupted.
+	 */
+	if (ret)
+		thread->info |= T_BREAK;
+
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(evl_unblock_thread);
+
 static void inband_task_wakeup(struct irq_work *work)
 {
 	struct evl_thread *thread;
@@ -815,136 +905,6 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 	return rem;
 }
 EXPORT_SYMBOL_GPL(evl_delay_thread);
-
-void evl_resume_thread(struct evl_thread *thread, int mask)
-{
-	unsigned long oldstate;
-	unsigned long flags;
-	struct evl_rq *rq;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	trace_evl_resume_thread(thread, mask);
-
-	rq = thread->rq;
-	oldstate = thread->state;
-
-	if ((oldstate & EVL_THREAD_BLOCK_BITS) == 0) {
-		if (oldstate & T_READY)
-			evl_dequeue_thread(thread);
-		goto enqueue;
-	}
-
-	/* Clear the specified block bit(s) */
-	thread->state &= ~mask;
-
-	/*
-	 * If T_DELAY was set in the clear mask, evl_unblock_thread()
-	 * was called for the thread, or a timeout has elapsed. In the
-	 * latter case, stopping the timer is a no-op.
-	 */
-	if (mask & T_DELAY)
-		evl_stop_timer(&thread->rtimer);
-
-	if (!(thread->state & EVL_THREAD_BLOCK_BITS))
-		goto clear_wchan;
-
-	if (mask & T_DELAY) {
-		mask = thread->state & T_PEND;
-		if (mask == 0)
-			goto unlock_and_exit;
-		abort_wait(thread);
-		goto recheck_state;
-	}
-
-	if (thread->state & T_DELAY) {
-		if (mask & T_PEND) {
-			/*
-			 * A resource became available to the thread.
-			 * Cancel the watchdog timer.
-			 */
-			evl_stop_timer(&thread->rtimer);
-			thread->state &= ~T_DELAY;
-		}
-		goto recheck_state;
-	}
-
-	/*
-	 * The thread is still blocked, but isn't pending on a wait
-	 * channel anymore.
-	 */
-	if (mask & T_PEND)
-		abort_wait(thread);
-
-	goto unlock_and_exit;
-
-recheck_state:
-	if (thread->state & EVL_THREAD_BLOCK_BITS)
-		goto unlock_and_exit;
-
-clear_wchan:
-	if (mask & ~T_DELAY)
-		abort_wait(thread);
-
-	if (unlikely((oldstate & mask) & T_HALT)) {
-		evl_requeue_thread(thread);
-		goto ready;
-	}
-enqueue:
-	evl_enqueue_thread(thread);
-ready:
-	thread->state |= T_READY;
-	evl_set_resched(rq);
-unlock_and_exit:
-	xnlock_put_irqrestore(&nklock, flags);
-}
-EXPORT_SYMBOL_GPL(evl_resume_thread);
-
-int evl_unblock_thread(struct evl_thread *thread)
-{
-	unsigned long flags;
-	int ret = 1;
-
-	/*
-	 * Attempt to abort an undergoing wait for the given thread.
-	 * If this state is due to an alarm that has been armed to
-	 * limit the sleeping thread's waiting time while it pends for
-	 * a resource, the corresponding T_PEND state will be cleared
-	 * by evl_resume_thread() in the same move. Otherwise, this call
-	 * may abort an undergoing infinite wait for a resource (if
-	 * any).
-	 */
-	xnlock_get_irqsave(&nklock, flags);
-
-	trace_evl_unblock_thread(thread);
-
-	if (thread->state & T_DELAY)
-		evl_resume_thread(thread, T_DELAY);
-	else if (thread->state & T_PEND)
-		evl_resume_thread(thread, T_PEND);
-	else
-		ret = 0;
-
-	/*
-	 * We should not clear a previous break state if this service
-	 * is called more than once before the target thread actually
-	 * resumes, so we only set the bit here and never clear
-	 * it. However, we must not raise the T_BREAK bit if the
-	 * target thread was already awake at the time of this call,
-	 * so that downstream code does not get confused by some
-	 * "successful but interrupted syscall" condition. IOW, a
-	 * break state raised here must always trigger an error code
-	 * downstream, and an already successful syscall cannot be
-	 * marked as interrupted.
-	 */
-	if (ret)
-		thread->info |= T_BREAK;
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(evl_unblock_thread);
 
 int evl_sleep_until(ktime_t timeout)
 {
