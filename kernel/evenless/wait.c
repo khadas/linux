@@ -56,8 +56,7 @@ int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
 	else
 		list_add_priff(curr, &wq->wait_list, wprio, wait_next);
 
-	evl_block_thread_timeout(curr, T_PEND, timeout, timeout_mode,
-				wq->clock, &wq->wchan);
+	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
 	evl_schedule();
 	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
 
@@ -119,7 +118,6 @@ EXPORT_SYMBOL_GPL(evl_flush_wait);
 void evl_abort_wait(struct evl_thread *thread)
 {
 	list_del(&thread->wait_next);
-	thread->state &= ~T_PEND;
 	thread->wchan = NULL;
 }
 EXPORT_SYMBOL_GPL(evl_abort_wait);

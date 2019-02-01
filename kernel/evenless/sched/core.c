@@ -100,10 +100,9 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		 * On behalf on an IRQ handler, evl_cancel_thread()
 		 * would go half way cancelling the preempted
 		 * thread. Therefore we manually raise T_KICKED to
-		 * cause the next call to evl_block_thread_timeout()
-		 * to return early in T_BREAK condition, and T_CANCELD
-		 * so that @curr exits next time it invokes
-		 * evl_test_cancel().
+		 * cause the next blockig call to return early in
+		 * T_BREAK condition, and T_CANCELD so that @curr
+		 * exits next time it invokes evl_test_cancel().
 		 */
 		xnlock_get(&nklock);
 		curr->info |= (T_KICKED|T_CANCELD);

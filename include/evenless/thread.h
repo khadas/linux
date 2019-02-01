@@ -214,19 +214,17 @@ int evl_init_thread(struct evl_thread *thread,
 
 void evl_start_thread(struct evl_thread *thread);
 
-void evl_block_thread_timeout(struct evl_thread *thread, int mask,
-			ktime_t timeout,
-			enum evl_tmode timeout_mode,
-			struct evl_clock *clock,
-			struct evl_wait_channel *wchan);
+void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+		struct evl_clock *clock,
+		struct evl_wait_channel *wchan);
+
+void evl_hold_thread(struct evl_thread *thread,
+		int mask);
 
 void evl_resume_thread(struct evl_thread *thread,
 		int mask);
 
 int evl_unblock_thread(struct evl_thread *thread);
-
-void evl_block_thread(struct evl_thread *thread,
-		int mask);
 
 ktime_t evl_delay_thread(ktime_t timeout,
 			enum evl_tmode timeout_mode,

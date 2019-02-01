@@ -502,8 +502,7 @@ redo:
 	} else
 		list_add_priff(curr, &mutex->wait_list, wprio, wait_next);
 
-	evl_block_thread_timeout(curr, T_PEND, timeout, timeout_mode,
-				mutex->clock, &mutex->wchan);
+	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 	evl_schedule();
 	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
 	curr->wwake = NULL;
@@ -649,7 +648,6 @@ void evl_abort_mutex_wait(struct evl_thread *thread)
 	 * from waiting on a mutex. Doing so may require to update a
 	 * PI chain.
 	 */
-	thread->state &= ~T_PEND;
 	thread->wchan = NULL;
 	list_del(&thread->wait_next); /* mutex->wait_list */
 
