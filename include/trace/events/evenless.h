@@ -464,11 +464,6 @@ DEFINE_EVENT(curr_thread_event, evl_thread_missed_period,
 	TP_ARGS(thread)
 );
 
-DEFINE_EVENT(curr_thread_event, evl_thread_set_mode,
-	TP_PROTO(struct evl_thread *thread),
-	TP_ARGS(thread)
-);
-
 TRACE_EVENT(evl_thread_migrate,
 	TP_PROTO(struct evl_thread *thread, unsigned int cpu),
 	TP_ARGS(thread, cpu),

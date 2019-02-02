@@ -958,27 +958,23 @@ int evl_set_thread_period(struct evl_clock *clock,
 		return 0;
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	/*
 	 * LART: detect periods which are shorter than the target
 	 * clock gravity for kernel thread timers. This can't work,
 	 * caller must have messed up arguments.
 	 */
-	if (period < evl_get_clock_gravity(clock, kernel)) {
-		ret = -EINVAL;
-		goto unlock_and_exit;
-	}
+	if (period < evl_get_clock_gravity(clock, kernel))
+		return -EINVAL;
 
-	evl_prepare_timer_wait(&curr->ptimer, clock,
-			evl_thread_rq(curr));
+	xnlock_get_irqsave(&nklock, flags);
+
+	evl_prepare_timer_wait(&curr->ptimer, clock, evl_thread_rq(curr));
 
 	if (timeout_infinite(idate))
 		idate = evl_abs_timeout(&curr->ptimer, period);
 
 	evl_start_timer(&curr->ptimer, idate, period);
 
-unlock_and_exit:
 	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
@@ -987,48 +983,38 @@ EXPORT_SYMBOL_GPL(evl_set_thread_period);
 
 int evl_wait_thread_period(unsigned long *overruns_r)
 {
-	unsigned long overruns = 0, flags;
+	unsigned long overruns, flags;
 	struct evl_thread *curr;
 	struct evl_clock *clock;
 	ktime_t now;
-	int ret = 0;
-
-	if (!EVL_ASSERT(CORE, !evl_cannot_block()))
-		return -EPERM;
 
 	curr = evl_current();
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (unlikely(!evl_timer_is_running(&curr->ptimer))) {
-		ret = -EWOULDBLOCK;
-		goto out;
-	}
+	if (unlikely(!evl_timer_is_running(&curr->ptimer)))
+		return -EAGAIN;
 
 	trace_evl_thread_wait_period(curr);
 
+	flags = hard_local_irq_save();
 	clock = curr->ptimer.clock;
 	now = evl_read_clock(clock);
 	if (likely(now < evl_get_timer_next_date(&curr->ptimer))) {
-		evl_sleep_on(EVL_INFINITE, EVL_REL, NULL, NULL);
-		if (unlikely(curr->info & T_BREAK)) {
-			ret = -EINTR;
-			goto out;
-		}
-	}
+		evl_sleep_on(EVL_INFINITE, EVL_REL, NULL, NULL); /* T_WAIT */
+		hard_local_irq_restore(flags);
+		evl_schedule();
+		if (unlikely(curr->info & T_BREAK))
+			return -EINTR;
+	} else
+		hard_local_irq_restore(flags);
 
 	overruns = evl_get_timer_overruns(&curr->ptimer);
 	if (overruns) {
-		ret = -ETIMEDOUT;
+		if (likely(overruns_r != NULL))
+			*overruns_r = overruns;
 		trace_evl_thread_missed_period(curr);
+		return -ETIMEDOUT;
 	}
 
-	if (likely(overruns_r != NULL))
-		*overruns_r = overruns;
-out:
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_wait_thread_period);
 
@@ -1395,11 +1381,9 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 	 *
 	 * Rationale: callers of evl_sleep_on() may assume that
 	 * receiving T_BREAK means that the awaited event was not
-	 * received. Typically, the wait context was NOT updated
-	 * before evl_wait_timeout() returned, leaving no useful data
-	 * there.  Therefore, in case only T_SUSP remains set for the
-	 * thread on entry to force_wakeup(), after T_PEND was lifted
-	 * earlier when the wait went to successful completion
+	 * received. Therefore, in case only T_SUSP remains set for
+	 * the thread on entry to force_wakeup(), after T_PEND was
+	 * lifted earlier when the wait went to successful completion
 	 * (i.e. no timeout), then we want the kicked thread to know
 	 * that it did receive the requested resource, not finding
 	 * T_BREAK in its state word.
