@@ -239,7 +239,7 @@ int evl_sleep_until(ktime_t timeout);
 int evl_sleep(ktime_t delay);
 
 int evl_set_thread_period(struct evl_clock *clock,
-			ktime_t idate, /* abs */
+			ktime_t idate,
 			ktime_t period);
 
 int evl_wait_thread_period(unsigned long *overruns_r);

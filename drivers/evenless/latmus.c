@@ -328,8 +328,8 @@ void kthread_handler(struct evl_kthread *kthread)
 			break;
 
 		ret = evl_set_thread_period(&evl_mono_clock,
-					    k_runner->start_time,
-					    k_runner->runner.period);
+					k_runner->start_time,
+					k_runner->runner.period);
 		if (ret)
 			break;
 
