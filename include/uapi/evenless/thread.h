@@ -12,22 +12,23 @@
 
 /* State flags (shared) */
 
-#define T_SUSP    0x00000001 /*< Suspended. */
-#define T_PEND    0x00000002 /*< Sleep-wait for a resource. */
-#define T_DELAY   0x00000004 /*< Delayed */
-#define T_READY   0x00000008 /*< Linked to the ready queue. */
-#define T_DORMANT 0x00000010 /*< Not started yet */
-#define T_ZOMBIE  0x00000020 /*< Zombie thread in deletion process */
-#define T_INBAND  0x00000040 /*< Thread is running in-band */
-#define T_HALT    0x00000080 /*< Thread is halted. */
-#define T_BOOST   0x00000100 /*< PI/PP boost undergoing */
-#define T_SSTEP   0x00000200 /*< Single-stepped by debugger */
-#define T_RRB     0x00000400 /*< Undergoes a round-robin scheduling */
-#define T_WARN    0x00000800 /*< Issue SIGDEBUG on error detection */
-#define T_ROOT    0x00001000 /*< Root thread (in-band context placeholder) */
-#define T_WEAK    0x00002000 /*< Weak scheduling (non real-time) */
-#define T_USER    0x00004000 /*< Userland thread */
-#define T_DEBUG   0x00008000 /*< User-level debugging enabled */
+#define T_SUSP    0x00000001 /*< Suspended */
+#define T_PEND    0x00000002 /*< Sleeping on a wait_queue/mutex */
+#define T_DELAY   0x00000004 /*< Delayed/timed */
+#define T_WAIT    0x00000008 /*< Periodic wait */
+#define T_READY   0x00000010 /*< Ready to run (in rq) */
+#define T_DORMANT 0x00000020 /*< Not started yet */
+#define T_ZOMBIE  0x00000040 /*< Dead, waiting for cleanup */
+#define T_INBAND  0x00000080 /*< Running in-band */
+#define T_HALT    0x00000100 /*< Halted */
+#define T_BOOST   0x00000200 /*< PI/PP boost undergoing */
+#define T_SSTEP   0x00000400 /*< Single-stepped by debugger */
+#define T_RRB     0x00000800 /*< Undergoes a round-robin scheduling */
+#define T_WARN    0x00001000 /*< Wants SIGDEBUG on error detection */
+#define T_ROOT    0x00002000 /*< Root thread (in-band context placeholder) */
+#define T_WEAK    0x00004000 /*< Weak scheduling (non real-time) */
+#define T_USER    0x00008000 /*< Userland thread */
+#define T_DEBUG   0x00010000 /*< User-level debugging enabled */
 
 /* Information flags (shared) */
 
