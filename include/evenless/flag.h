@@ -78,12 +78,10 @@ static inline bool evl_raise_flag(struct evl_flag *wf)
 	unsigned long flags;
 
 	xnlock_get_irqsave(&nklock, flags);
-
 	wf->signaled = true;
 	waiter = evl_wake_up_head(&wf->wait);
-	evl_schedule();
-
 	xnlock_put_irqrestore(&nklock, flags);
+	evl_schedule();
 
 	return waiter != NULL;
 }
