@@ -35,20 +35,17 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 }
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 
-int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
-		enum evl_tmode timeout_mode)
+void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+			enum evl_tmode timeout_mode)
 {
 	struct evl_thread *curr = evl_current();
-	unsigned long flags;
+
+	trace_evl_wait(wq);
 
 	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP) &&
 		atomic_read(&curr->inband_disable_count) &&
 		(curr->state & T_WARN))
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	trace_evl_wait(wq);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
 		list_add_tail(&curr->wait_next, &wq->wait_list);
@@ -56,14 +53,8 @@ int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
 		list_add_priff(curr, &wq->wait_list, wprio, wait_next);
 
 	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	evl_schedule();
-
-	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
 }
-EXPORT_SYMBOL_GPL(evl_wait_timeout);
+EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter)
