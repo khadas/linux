@@ -190,7 +190,6 @@ retry:
 		 * we freed enough room to post its message.
 		 */
 		ring->unblock_output(ring);
-		evl_schedule();
 		goto out;
 	wait:
 		if (len > ring->bufsz)
@@ -217,6 +216,8 @@ retry:
 	}
 out:
 	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 
 	return ret;
 }
@@ -295,7 +296,6 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 			ring->clear_pollable(ring, POLLOUT|POLLWRNORM);
 
 		ring->signal_input(ring);
-		evl_schedule();
 		goto out;
 	wait:
 		if (f_flags & O_NONBLOCK) {
@@ -313,6 +313,8 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 	}
 out:
 	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 
 	return ret;
 }
