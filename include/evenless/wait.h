@@ -9,6 +9,7 @@
 #define _EVENLESS_WAIT_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <evenless/list.h>
 #include <evenless/timer.h>
@@ -47,6 +48,65 @@ struct evl_wait_queue {
 #define evl_for_each_waiter_safe(__pos, __tmp, __wq)		\
 	list_for_each_entry_safe(__pos, __tmp, &(__wq)->wait_list, wait_next)
 
+#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
+({									\
+	int __ret = 0, __info;						\
+	unsigned long __flags;						\
+									\
+	xnlock_get_irqsave(&nklock, __flags);				\
+	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
+	xnlock_put_irqrestore(&nklock, __flags);			\
+	evl_schedule();							\
+	__info = evl_current()->info;					\
+	if (__info & T_BREAK)						\
+		__ret = -EINTR;						\
+	else if (__info & T_TIMEO)					\
+		__ret = -ETIMEDOUT;					\
+	else if (__info & T_RMID)					\
+		__ret = -EIDRM;						\
+	__ret;								\
+})
+
+#define evl_wait(__wq)	evl_wait_timeout(__wq, EVL_INFINITE, EVL_REL)
+
+#define evl_wait_event_timeout(__wq, __timeout, __timeout_mode, __cond)	\
+({									\
+	int __ret = 0, __info = 0;					\
+	unsigned long __flags;						\
+									\
+	xnlock_get_irqsave(&nklock, __flags);				\
+	if (!(__cond)) {						\
+		if (timeout_nonblock(__timeout))			\
+			__ret = -EAGAIN;				\
+		else {							\
+			do {						\
+				evl_add_wait_queue(__wq, __timeout,	\
+						__timeout_mode);	\
+				xnlock_put_irqrestore(&nklock, __flags); \
+				evl_schedule();				\
+				xnlock_get_irqsave(&nklock, __flags);	\
+				__info = evl_current()->info;		\
+				__info &= EVL_THREAD_WAKE_MASK;		\
+			} while (!__info && !(__cond));			\
+		}							\
+	}								\
+	xnlock_put_irqrestore(&nklock, __flags);			\
+	if (__info & T_BREAK)						\
+		__ret = -EINTR;						\
+	else if (__info & T_TIMEO)					\
+		__ret = -ETIMEDOUT;					\
+	else if (__info & T_RMID)					\
+		__ret = -EIDRM;						\
+	__ret;								\
+})
+
+#define evl_wait_event(__wq, __cond)					\
+	evl_wait_event_timeout(__wq, EVL_INFINITE, EVL_REL, __cond)
+
+void evl_add_wait_queue(struct evl_wait_queue *wq,
+			ktime_t timeout,
+			enum evl_tmode timeout_mode);
+
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
 	return !list_empty(&wq->wait_list);
@@ -64,15 +124,6 @@ void evl_init_wait(struct evl_wait_queue *wq,
 		int flags);
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
-
-int __must_check evl_wait_timeout(struct evl_wait_queue *wq,
-				ktime_t timeout,
-				enum evl_tmode timeout_mode);
-
-static inline int evl_wait(struct evl_wait_queue *wq)
-{
-	return evl_wait_timeout(wq, EVL_INFINITE, EVL_REL);
-}
 
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter);
