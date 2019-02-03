@@ -233,7 +233,6 @@ static int exit_monitor(struct evl_monitor *gate)
 	}
 
 	__exit_monitor(gate, curr);
-	evl_schedule();
 
 	return 0;
 }
@@ -408,20 +407,22 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		return ret;
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	switch (cmd) {
 	case EVL_MONIOC_ENTER:
+		xnlock_get_irqsave(&nklock, flags);
 		ret = enter_monitor(mon);
+		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	case EVL_MONIOC_EXIT:
+		xnlock_get_irqsave(&nklock, flags);
 		ret = exit_monitor(mon);
+		xnlock_put_irqrestore(&nklock, flags);
+		evl_schedule();
 		break;
 	default:
 		ret = -ENOTTY;
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
 }
