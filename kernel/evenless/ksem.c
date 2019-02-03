@@ -23,42 +23,27 @@ void evl_destroy_sem(struct evl_ksem *sem)
 }
 EXPORT_SYMBOL_GPL(evl_destroy_sem);
 
-static int down_sem(struct evl_ksem *sem,
-		ktime_t timeout, enum evl_tmode tmode)
+static bool down_sem(struct evl_ksem *sem)
 {
-	unsigned long flags;
-	int ret = 0;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (sem->value > 0)
+	if (sem->value > 0) {
 		--sem->value;
-	else if (timeout_nonblock(timeout))
-		ret = -EWOULDBLOCK;
-	else {
-		ret = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
-		if (ret & T_TIMEO)
-			ret = -ETIMEDOUT;
-		else if (ret & T_RMID)
-			ret = -EIDRM;
-		else if (ret & T_BREAK)
-			ret = -EINTR;
+		return true;
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
+	return false;
 }
 
 int evl_down_timeout(struct evl_ksem *sem, ktime_t timeout)
 {
-	return down_sem(sem, timeout, EVL_ABS);
+	return evl_wait_event_timeout(&sem->wait_queue, timeout,
+				EVL_ABS, down_sem(sem));
 }
 EXPORT_SYMBOL_GPL(evl_down_timeout);
 
 int evl_down(struct evl_ksem *sem)
 {
-	return down_sem(sem, EVL_INFINITE, EVL_REL);
+	return evl_wait_event_timeout(&sem->wait_queue, EVL_INFINITE,
+				EVL_REL, down_sem(sem));
 }
 EXPORT_SYMBOL_GPL(evl_down);
 
