@@ -14,6 +14,7 @@
 #include <evenless/timer.h>
 #include <evenless/lock.h>
 #include <evenless/poller.h>
+#include <evenless/sched.h>
 #include <evenless/factory.h>
 #include <asm/evenless/syscall.h>
 #include <uapi/evenless/timerfd.h>
@@ -115,10 +116,19 @@ static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
 	struct evl_timerfd *timerfd;
 
 	timerfd = container_of(timer, struct evl_timerfd, timer);
-
 	timerfd->ticked = true;
 	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
 	evl_flush_wait(&timerfd->readers, 0);
+}
+
+static bool read_timerfd_event(struct evl_timerfd *timerfd)
+{
+	if (timerfd->ticked) {
+		timerfd->ticked = false;
+		return true;
+	}
+
+	return false;
 }
 
 static ssize_t timerfd_oob_read(struct file *filp,
@@ -126,53 +136,30 @@ static ssize_t timerfd_oob_read(struct file *filp,
 {
 	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
 	__u64 __user *u_ticks = (__u64 __user *)u_buf, ticks = 0;
-	unsigned long flags;
+	ktime_t timeout = EVL_INFINITE;
 	int ret;
 
 	if (count < sizeof(ticks))
 		return -EINVAL;
 
-	xnlock_get_irqsave(&nklock, flags);
+	if (filp->f_flags & O_NONBLOCK)
+		timeout = EVL_NONBLOCK;
 
-	if (timerfd->ticked) {
-		ret = 0;
-		goto out;
-	}
+	ret = evl_wait_event_timeout(&timerfd->readers, timeout,
+			EVL_REL, read_timerfd_event(timerfd));
+	if (ret)
+		return ret;
 
-	if (filp->f_flags & O_NONBLOCK) {
-		ret = -EAGAIN;
-		goto fail;
-	}
+	ticks = 1;
+	if (evl_timer_is_periodic(&timerfd->timer))
+		ticks += evl_get_timer_overruns(&timerfd->timer);
 
-	do
-		ret = evl_wait_timeout(&timerfd->readers,
-				EVL_INFINITE, EVL_REL);
-	while (ret == 0 && !timerfd->ticked);
+	evl_clear_poll_events(&timerfd->poll_head, POLLIN);
 
-	if (ret & T_BREAK) {
-		ret = -EINTR;
-		goto fail;
-	}
-out:
-	if (ret == 0) {
-		ticks = 1;
-		if (evl_timer_is_periodic(&timerfd->timer))
-			ticks += evl_get_timer_overruns(&timerfd->timer);
+	if (raw_put_user(ticks, u_ticks))
+		return -EFAULT;
 
-		timerfd->ticked = false;
-		evl_clear_poll_events(&timerfd->poll_head, POLLIN);
-	}
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	if (ret == 0 && raw_put_user(ticks, u_ticks))
-		ret = -EFAULT;
-
-	return ret ?: sizeof(ticks);
-fail:
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
+	return sizeof(ticks);
 }
 
 static __poll_t timerfd_oob_poll(struct file *filp,
