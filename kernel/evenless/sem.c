@@ -118,10 +118,10 @@ static int release_sem(struct evl_sem *sem, int count)
 		}
 		evl_wake_up(&sem->wait_queue, waiter);
 	}
-
-	evl_schedule();
 out:
 	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 
 	return 0;
 }
