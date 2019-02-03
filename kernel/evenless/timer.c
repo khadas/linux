@@ -43,6 +43,29 @@ static inline void unlock_timer_base(struct evl_timerbase *base,
 	raw_spin_unlock_irqrestore(&base->lock, flags);
 }
 
+/* hard irqs off */
+static inline void double_timer_base_lock(struct evl_timerbase *tb1,
+					struct evl_timerbase *tb2)
+{
+	if (tb1 == tb2)
+		raw_spin_lock(&tb1->lock);
+	else if (tb1 < tb2) {
+		raw_spin_lock(&tb1->lock);
+		raw_spin_lock(&tb2->lock);
+	} else {
+		raw_spin_lock(&tb2->lock);
+		raw_spin_lock(&tb1->lock);
+	}
+}
+
+static inline void double_timer_base_unlock(struct evl_timerbase *tb1,
+					struct evl_timerbase *tb2)
+{
+	raw_spin_unlock(&tb1->lock);
+	if (tb1 != tb2)
+		raw_spin_unlock(&tb2->lock);
+}
+
 /* timer base locked. */
 static bool timer_at_front(struct evl_timer *timer)
 {
@@ -145,15 +168,10 @@ bool evl_timer_deactivate(struct evl_timer *timer)
 	return heading;
 }
 
-void __evl_stop_timer(struct evl_timer *timer)
+/* timerbase locked, hard irqs off */
+static void stop_timer_locked(struct evl_timer *timer)
 {
-	struct evl_timerbase *base;
-	unsigned long flags;
 	bool heading;
-
-	trace_evl_timer_stop(timer);
-
-	base = lock_timer_base(timer, &flags);
 
 	/*
 	 * If we removed the heading timer, reprogram the next shot if
@@ -164,7 +182,16 @@ void __evl_stop_timer(struct evl_timer *timer)
 		if (heading && evl_timer_on_rq(timer, this_evl_rq()))
 			evl_program_local_tick(timer->clock);
 	}
+}
 
+void __evl_stop_timer(struct evl_timer *timer)
+{
+	struct evl_timerbase *base;
+	unsigned long flags;
+
+	trace_evl_timer_stop(timer);
+	base = lock_timer_base(timer, &flags);
+	stop_timer_locked(timer);
 	unlock_timer_base(base, flags);
 }
 EXPORT_SYMBOL_GPL(__evl_stop_timer);
@@ -336,22 +363,15 @@ EXPORT_SYMBOL_GPL(evl_destroy_timer);
  * @clock:      reference clock
  * @rq:         runqueue to assign the timer to
  */
-void evl_bolt_timer(struct evl_timer *timer,
+void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 		struct evl_clock *clock, struct evl_rq *rq)
-{	/* nklocked, IRQs off */
+{
 	struct evl_timerbase *old_base, *new_base;
 	struct evl_clock *master = clock->master;
 	unsigned long flags;
 	int cpu;
 
 	trace_evl_timer_bolt(timer, clock, evl_rq_cpu(rq));
-
-	old_base = lock_timer_base(timer, &flags);
-
-	if (evl_timer_on_rq(timer, rq) && clock == timer->clock) {
-		unlock_timer_base(old_base, flags);
-		return;
-	}
 
 	/*
 	 * This assertion triggers when the timer is migrated to a CPU
@@ -360,33 +380,43 @@ void evl_bolt_timer(struct evl_timer *timer,
 	 * since clock ticks would never happen on that CPU.
 	 */
 	cpu = evl_rq_cpu(rq);
-	EVL_WARN_ON_SMP(EVENLESS,
+	if (EVL_WARN_ON_SMP(EVENLESS,
 			!cpumask_empty(&master->affinity) &&
-			!cpumask_test_cpu(cpu, &master->affinity));
+			!cpumask_test_cpu(cpu, &master->affinity)))
+		return;
+
+	old_base = lock_timer_base(timer, &flags);
+
+	if (evl_timer_on_rq(timer, rq) && clock == timer->clock) {
+		unlock_timer_base(old_base, flags);
+		return;
+	}
 
 	new_base = evl_percpu_timers(master, cpu);
 
 	if (timer->status & EVL_TIMER_RUNNING) {
-		__evl_stop_timer(timer);
-		raw_spin_lock(&new_base->lock);
+		stop_timer_locked(timer);
+		unlock_timer_base(old_base, flags);
+		flags = hard_local_irq_save();
+		double_timer_base_lock(old_base, new_base);
 #ifdef CONFIG_SMP
 		timer->rq = rq;
 #endif
 		timer->base = new_base;
+		timer->clock = clock;
 		evl_enqueue_timer(timer, &new_base->q);
 		if (timer_at_front(timer))
 			evl_program_remote_tick(clock, rq);
-		raw_spin_unlock(&new_base->lock);
+		double_timer_base_unlock(old_base, new_base);
+		hard_local_irq_restore(flags);
 	} else {
 #ifdef CONFIG_SMP
 		timer->rq = rq;
 #endif
 		timer->base = new_base;
+		timer->clock = clock;
+		unlock_timer_base(old_base, flags);
 	}
-
-	timer->clock = clock;
-
-	raw_spin_unlock_irqrestore(&old_base->lock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_bolt_timer);
 
