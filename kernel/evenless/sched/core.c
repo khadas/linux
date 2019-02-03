@@ -867,13 +867,12 @@ void evl_notify_inband_yield(void) /* In-band only */
 	flags = hard_local_irq_save();
 
 	this_rq = this_evl_rq();
-
-	if (evl_wait_active(&this_rq->yield_sync)) {
+	if (evl_wait_active(&this_rq->yield_sync))
 		evl_flush_wait(&this_rq->yield_sync, 0);
-		evl_schedule();
-	}
 
 	hard_local_irq_restore(flags);
+
+	evl_schedule();
 }
 
 static int yield_inband(void)	/* OOB only */
