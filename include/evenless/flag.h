@@ -32,33 +32,22 @@ static inline void evl_destroy_flag(struct evl_flag *wf)
 	evl_destroy_wait(&wf->wait);
 }
 
+static inline bool evl_read_flag(struct evl_flag *wf)
+{
+	if (wf->signaled) {
+		wf->signaled = false;
+		return true;
+	}
+
+	return false;
+}
+
 static inline
 int evl_wait_flag_timeout(struct evl_flag *wf,
 			ktime_t timeout, enum evl_tmode timeout_mode)
 {
-	unsigned long flags;
-	int ret = 0;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	while (!wf->signaled) {
-		ret = evl_wait_timeout(&wf->wait, timeout, timeout_mode);
-		if (ret & T_BREAK)
-			ret = -EINTR;
-		if (ret & T_TIMEO)
-			ret = -ETIMEDOUT;
-		if (ret & T_RMID)
-			ret = -EIDRM;
-		if (ret)
-			break;
-	}
-
-	if (ret == 0)
-		wf->signaled = false;
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
+	return evl_wait_event_timeout(&wf->wait, timeout,
+				timeout_mode, evl_read_flag(wf));
 }
 
 static inline int evl_wait_flag(struct evl_flag *wf)
