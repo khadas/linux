@@ -55,16 +55,9 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 	struct evl_thread *thread =
 		container_of(timer, struct evl_thread, ptimer);
 
+	evl_wakeup_thread(thread, T_WAIT);
 	xnlock_get(&nklock);
-	/*
-	 * Prevent unwanted round-robin, and do not wake up threads
-	 * blocked on a resource.
-	 */
-	if ((thread->state & (T_DELAY|T_PEND)) == T_DELAY)
-		evl_wakeup_thread(thread, T_DELAY);
-
 	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
-
 	xnlock_put(&nklock);
 }
 
@@ -498,8 +491,10 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	}
 
 	/*
-	 * If a zero relative delay was given, we want to sleep
-	 * indefinitely. Otherwise, set up a timer.
+	 * wchan + timeout: timed wait for a resource (T_PEND|T_DELAY)
+	 * wchan + !timeout: unbounded sleep on resource (T_PEND)
+	 * !wchan + timeout: timed sleep (T_DELAY)
+	 * !wchan + !timeout: periodic wait (T_WAIT)
 	 */
 	if (timeout_mode != EVL_REL || !timeout_infinite(timeout)) {
 		evl_prepare_timer_wait(&curr->rtimer, clock,
@@ -508,7 +503,8 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
 		curr->state |= T_DELAY;
-	}
+	} else if (!wchan)
+		curr->state |= T_WAIT;
 
 	if (oldstate & T_READY) {
 		evl_dequeue_thread(curr);
@@ -531,7 +527,7 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask)
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
-	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND)))
+	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
 		return;
 
 	xnlock_get_irqsave(&nklock, flags);
