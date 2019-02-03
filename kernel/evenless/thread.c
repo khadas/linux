@@ -436,9 +436,10 @@ void evl_start_thread(struct evl_thread *thread)
 
 	trace_evl_thread_start(thread);
 	evl_release_thread(thread, T_DORMANT);
-	evl_schedule();
 
 	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_start_thread);
 
@@ -1940,9 +1941,9 @@ static void handle_sigwake_event(struct task_struct *p)
 	 */
 	__evl_kick_thread(thread);
 
-	evl_schedule();
-
 	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 }
 
 static void handle_cleanup_event(struct mm_struct *mm)
