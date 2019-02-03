@@ -103,7 +103,6 @@ struct evl_rq {
 	/* Currently active account */
 	struct evl_account *current_account;
 #endif
-	struct evl_wait_queue yield_sync;
 };
 
 DECLARE_PER_CPU(struct evl_rq, evl_runqueues);
@@ -533,9 +532,7 @@ evl_find_sched_class(union evl_sched_param *param,
 		     const struct evl_sched_attrs *attrs,
 		     ktime_t *tslice_r);
 
-int evl_sched_yield(void);
-
-void evl_notify_inband_yield(void);
+bool evl_sched_yield(void);
 
 int __init evl_init_sched(void);
 
