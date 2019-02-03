@@ -400,9 +400,8 @@ int wait_events(struct file *filp,
 		struct evl_poller_waitreq *wreq)
 {
 	enum evl_tmode tmode;
-	unsigned long flags;
 	ktime_t timeout;
-	int info, count;
+	int ret, count;
 
 	if (wreq->nrevents < 0 || wreq->nrevents > poller->nodenr)
 		return -EINVAL;
@@ -427,20 +426,13 @@ int wait_events(struct file *filp,
 
 	timeout = timespec_to_ktime(wreq->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	info = 0;
-	if (!poller->readied)
-		info = evl_wait_timeout(&poller->wait_queue, timeout, tmode);
-
-	xnlock_put_irqrestore(&nklock, flags);
-	if (info)
-		/* No way we could have received T_RMID. */
-		count = info & T_BREAK ? -EINTR : -ETIMEDOUT;
-	else
+	ret = evl_wait_event_timeout(&poller->wait_queue, timeout,
+				tmode, poller->readied);
+	if (ret == 0)
 		count = collect_events(poller, wreq->events,
 				wreq->nrevents, false);
+	else
+		count = ret;
 unwait:
 	clear_wait();
 
