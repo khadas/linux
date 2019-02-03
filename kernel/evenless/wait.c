@@ -40,7 +40,6 @@ int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
-	int ret;
 
 	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP) &&
 		atomic_read(&curr->inband_disable_count) &&
@@ -57,12 +56,12 @@ int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
 		list_add_priff(curr, &wq->wait_list, wprio, wait_next);
 
 	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
-	evl_schedule();
-	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
 
 	xnlock_put_irqrestore(&nklock, flags);
 
-	return ret;
+	evl_schedule();
+
+	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
 }
 EXPORT_SYMBOL_GPL(evl_wait_timeout);
 
