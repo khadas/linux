@@ -1838,8 +1838,6 @@ static void handle_schedule_event(struct task_struct *next_task)
 	unsigned long flags;
 	sigset_t pending;
 
-	evl_notify_inband_yield();
-
 	prev_task = current;
 	next = evl_thread_from_task(next_task);
 	if (next == NULL)

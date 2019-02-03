@@ -194,7 +194,6 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	iattr.sched_class = &evl_sched_idle;
 	iattr.sched_param.idle.prio = EVL_IDLE_PRIO;
 	evl_init_thread(&rq->root_thread, &iattr, rq, name_fmt, cpu);
-	evl_init_wait(&rq->yield_sync, &evl_mono_clock, EVL_WAIT_FIFO);
 
 	dovetail_init_altsched(&rq->root_thread.altsched);
 
@@ -859,76 +858,13 @@ evl_find_sched_class(union evl_sched_param *param,
 	return sched_class;
 }
 
-void evl_notify_inband_yield(void) /* In-band only */
-{
-	struct evl_rq *this_rq;
-	unsigned long flags;
-
-	flags = hard_local_irq_save();
-
-	this_rq = this_evl_rq();
-	if (evl_wait_active(&this_rq->yield_sync))
-		evl_flush_wait(&this_rq->yield_sync, 0);
-
-	hard_local_irq_restore(flags);
-
-	evl_schedule();
-}
-
-static int yield_inband(void)	/* OOB only */
-{
-	struct evl_rq *this_rq = this_evl_rq();
-	ktime_t start;
-	int ret;
-
-	/*
-	 * We need to limit the wait time in order to prevent a
-	 * SCHED_FIFO non-rt thread stuck in a tight loop from
-	 * blocking the caller from waking up, since no
-	 * linux-originated schedule event would happen for unblocking
-	 * it on the current CPU. For this reason, we wait for
-	 * TICK_NSEC.
-	 */
-	start = evl_read_clock(&evl_mono_clock);
-
-	do {
-		ret = evl_wait_timeout(&this_rq->yield_sync,
-				TICK_NSEC, EVL_ABS);
-		if (ret)
-			break;
-	} while (ktime_before(evl_read_clock(&evl_mono_clock),
-				TICK_NSEC));
-
-	return ret & T_BREAK ? -EINTR : 0;
-}
-
-int evl_sched_yield(void)
+bool evl_sched_yield(void)
 {
 	struct evl_thread *curr = evl_current();
 
-	oob_context_only();
-
 	evl_release_thread(curr, 0);
-	if (evl_schedule())
-		return 0;
 
-	/*
-	 * If the round-robin move did not beget any context switch to
-	 * a thread running in OOB context, then wait for the next
-	 * linux context switch to happen.
-	 *
-	 * Rationale: evl_sched_yield() not causing any context
-	 * switch is most likely unwanted, since this service is
-	 * commonly used for implementing a poor man's cooperative
-	 * scheduling. By waiting for an inband context switch to
-	 * happen, we guarantee that the CPU has been relinquished for
-	 * a while.
-	 *
-	 * Typically, this behavior allows a thread running in OOB
-	 * context to effectively yield the CPU to a thread of
-	 * same/higher priority stuck running in-band.
-	 */
-	return yield_inband();
+	return evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_sched_yield);
 
