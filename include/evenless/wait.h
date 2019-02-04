@@ -134,6 +134,8 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 	return evl_wake_up(wq, NULL);
 }
 
+void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason);
+
 void evl_flush_wait(struct evl_wait_queue *wq, int reason);
 
 void evl_abort_wait(struct evl_thread *thread,

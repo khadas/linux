@@ -51,12 +51,13 @@ void evl_up(struct evl_ksem *sem)
 {
 	unsigned long flags;
 
-	if (evl_wake_up_head(&sem->wait_queue))
-		evl_schedule();
-	else {
-		xnlock_get_irqsave(&nklock, flags);
+	xnlock_get_irqsave(&nklock, flags);
+
+	if (!evl_wake_up_head(&sem->wait_queue))
 		sem->value++;
-		xnlock_put_irqrestore(&nklock, flags);
-	}
+
+	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_up);
