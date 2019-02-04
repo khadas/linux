@@ -349,10 +349,9 @@ bool evl_destroy_mutex(struct evl_mutex *mutex)
 		ret = false;
 	} else {
 		ret = true;
-		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next) {
-			waiter->info |= T_RMID;
-			evl_wakeup_thread(waiter, T_PEND);
-		}
+		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next)
+			evl_wakeup_thread(waiter, T_PEND, T_RMID);
+
 		if (mutex->flags & EVL_MUTEX_CLAIMED)
 			clear_pi_boost(mutex, mutex->owner);
 	}
@@ -579,8 +578,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	list_del(&n_owner->wait_next);
 	n_owner->wwake = &mutex->wchan;
 	set_current_owner_locked(mutex, n_owner);
-	n_owner->info |= T_WAKEN;
-	evl_wakeup_thread(n_owner, T_PEND);
+	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
 
 	if (mutex->flags & EVL_MUTEX_CLAIMED)
 		clear_pi_boost(mutex, lastowner);
