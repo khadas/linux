@@ -47,7 +47,7 @@ static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
 {
 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
 
-	evl_wakeup_thread(thread, T_DELAY|T_PEND);
+	evl_wakeup_thread(thread, T_DELAY|T_PEND, T_TIMEO);
 }
 
 static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
@@ -55,7 +55,7 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 	struct evl_thread *thread =
 		container_of(timer, struct evl_thread, ptimer);
 
-	evl_wakeup_thread(thread, T_WAIT);
+	evl_wakeup_thread(thread, T_WAIT, T_TIMEO);
 	xnlock_get(&nklock);
 	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
 	xnlock_put(&nklock);
@@ -443,17 +443,14 @@ void evl_start_thread(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_start_thread);
 
-static inline bool abort_wait(struct evl_thread *thread)
+static inline void abort_wait(struct evl_thread *thread)
 {
 	struct evl_wait_channel *wchan = thread->wchan;
 
 	if (wchan) {
 		thread->wchan = NULL;
 		wchan->abort_wait(thread, wchan);
-		return true;
 	}
-
-	return false;
 }
 
 void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
@@ -523,7 +520,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 }
 EXPORT_SYMBOL_GPL(evl_sleep_on);
 
-void evl_wakeup_thread(struct evl_thread *thread, int mask)
+void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
@@ -533,7 +530,7 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask)
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_wakeup_thread(thread, mask);
+	trace_evl_wakeup_thread(thread, mask, info);
 
 	rq = thread->rq;
 	oldstate = thread->state;
@@ -543,8 +540,10 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask)
 		if (mask & (T_DELAY|T_PEND))
 			evl_stop_timer(&thread->rtimer);
 
-		if ((mask & T_PEND) && abort_wait(thread) && (mask & T_DELAY))
-			thread->info |= T_TIMEO;
+		if (mask & T_PEND)
+			abort_wait(thread);
+
+		thread->info |= info;
 
 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
 			evl_enqueue_thread(thread);
@@ -653,19 +652,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(evl_release_thread);
 
-int evl_unblock_thread(struct evl_thread *thread)
+/* nklock held, irqs off */
+static bool unblock_thread(struct evl_thread *thread, int reason)
 {
-	unsigned long flags;
-	int ret = 1;
-
-	xnlock_get_irqsave(&nklock, flags);
-
 	trace_evl_unblock_thread(thread);
-
-	if (thread->state & (T_DELAY|T_PEND))
-		evl_wakeup_thread(thread, T_DELAY|T_PEND);
-	else
-		ret = 0;
 
 	/*
 	 * We should not clear a previous break state if this service
@@ -676,12 +666,24 @@ int evl_unblock_thread(struct evl_thread *thread)
 	 * so that downstream code does not get confused by some
 	 * "successful but interrupted syscall" condition. IOW, a
 	 * break state raised here must always trigger an error code
-	 * downstream, and an already successful syscall cannot be
-	 * marked as interrupted.
+	 * downstream, and a wait which went to completion should not
+	 * be marked as interrupted.
 	 */
-	if (ret)
-		thread->info |= T_BREAK;
+	if (thread->state & (T_DELAY|T_PEND)) {
+		evl_wakeup_thread(thread, T_DELAY|T_PEND, reason|T_BREAK);
+		return true;
+	}
 
+	return false;
+}
+
+bool evl_unblock_thread(struct evl_thread *thread, int reason)
+{
+	unsigned long flags;
+	bool ret;
+
+	xnlock_get_irqsave(&nklock, flags);
+	ret = unblock_thread(thread, reason);
 	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
@@ -853,14 +855,6 @@ void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_set_kthread_priority);
-
-int evl_unblock_kthread(struct evl_kthread *kthread)
-{
-	int ret = evl_unblock_thread(&kthread->thread);
-	evl_schedule();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(evl_unblock_kthread);
 
 ktime_t evl_get_thread_timeout(struct evl_thread *thread)
 {
@@ -1360,17 +1354,15 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	}
 }
 
-static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
+static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 {
-	int ret = 0;
+	bool ret = false;
 
 	if (thread->info & T_KICKED)
-		return 1;
+		return true;
 
-	if (evl_unblock_thread(thread)) {
-		thread->info |= T_KICKED;
-		ret = 1;
-	}
+	if (unblock_thread(thread, T_KICKED))
+		ret = true;
 
 	/*
 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible

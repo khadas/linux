@@ -221,7 +221,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_wait_channel *wchan);
 
 void evl_wakeup_thread(struct evl_thread *thread,
-		int mask);
+		int mask, int info);
 
 void evl_hold_thread(struct evl_thread *thread,
 		int mask);
@@ -229,7 +229,8 @@ void evl_hold_thread(struct evl_thread *thread,
 void evl_release_thread(struct evl_thread *thread,
 			int mask);
 
-int evl_unblock_thread(struct evl_thread *thread);
+bool evl_unblock_thread(struct evl_thread *thread,
+			int reason);
 
 ktime_t evl_delay_thread(ktime_t timeout,
 			enum evl_tmode timeout_mode,
@@ -341,8 +342,6 @@ static inline int evl_kthread_should_stop(void)
 
 void evl_set_kthread_priority(struct evl_kthread *thread,
 			int priority);
-
-int evl_unblock_kthread(struct evl_kthread *thread);
 
 pid_t evl_get_inband_pid(struct evl_thread *thread);
 

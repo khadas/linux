@@ -71,7 +71,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 		if (waiter == NULL)
 			waiter = list_first_entry(&wq->wait_list,
 						struct evl_thread, wait_next);
-		evl_wakeup_thread(waiter, T_PEND);
+		evl_wakeup_thread(waiter, T_PEND, 0);
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
@@ -91,10 +91,8 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 
 	if (!list_empty(&wq->wait_list)) {
 		list_for_each_entry_safe(waiter, tmp,
-					&wq->wait_list, wait_next) {
-			waiter->info |= reason;
-			evl_wakeup_thread(waiter, T_PEND);
-		}
+					&wq->wait_list, wait_next)
+			evl_wakeup_thread(waiter, T_PEND, reason);
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);

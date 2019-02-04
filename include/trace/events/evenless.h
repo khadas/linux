@@ -337,13 +337,14 @@ TRACE_EVENT(evl_sleep_on,
 );
 
 TRACE_EVENT(evl_wakeup_thread,
-	TP_PROTO(struct evl_thread *thread, unsigned long mask),
-	TP_ARGS(thread, mask),
+	TP_PROTO(struct evl_thread *thread, int mask, int reason),
+	TP_ARGS(thread, mask, reason),
 
 	TP_STRUCT__entry(
 		__string(name, thread->name)
 		__field(pid_t, pid)
-		__field(unsigned long, mask)
+		__field(int, mask)
+		__field(int, reason)
 	),
 
 	TP_fast_assign(
@@ -352,8 +353,9 @@ TRACE_EVENT(evl_wakeup_thread,
 		__entry->mask = mask;
 	),
 
-	TP_printk("name=%s pid=%d mask=%#lx",
-		  __get_str(name), __entry->pid, __entry->mask)
+	TP_printk("name=%s pid=%d mask=%#x reason=%#x",
+		__get_str(name), __entry->pid,
+		__entry->mask, __entry->reason)
 );
 
 TRACE_EVENT(evl_hold_thread,
