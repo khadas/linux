@@ -147,7 +147,7 @@ static void wakeup_waiters(struct evl_monitor *event)
 	if ((state->flags & EVL_MONITOR_SIGNALED) &&
 		evl_wait_active(&event->wait_queue)) {
 		if (bcast)
-			evl_flush_wait(&event->wait_queue, 0);
+			evl_flush_wait_locked(&event->wait_queue, 0);
 		else if (state->flags & EVL_MONITOR_TARGETED) {
 			evl_for_each_waiter_safe(waiter, n,
 						&event->wait_queue) {

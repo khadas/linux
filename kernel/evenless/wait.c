@@ -35,6 +35,7 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 }
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 
+/* nklock held, irqs off */
 void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 			enum evl_tmode timeout_mode)
 {
@@ -56,13 +57,10 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 }
 EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 
+/* nklock held, irqs off */
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter)
 {
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-
 	trace_evl_wait_wakeup(wq);
 
 	if (list_empty(&wq->wait_list))
@@ -74,18 +72,14 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 		evl_wakeup_thread(waiter, T_PEND, 0);
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
-
 	return waiter;
 }
 EXPORT_SYMBOL_GPL(evl_wake_up);
 
-void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+/* nklock held, irqs off */
+void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
 
 	trace_evl_wait_flush(wq);
 
@@ -94,7 +88,15 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 					&wq->wait_list, wait_next)
 			evl_wakeup_thread(waiter, T_PEND, reason);
 	}
+}
+EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
 
+void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+{
+	unsigned long flags;
+
+	xnlock_get_irqsave(&nklock, flags);
+	evl_flush_wait_locked(wq, reason);
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait);
