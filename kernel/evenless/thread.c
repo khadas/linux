@@ -653,43 +653,6 @@ out:
 EXPORT_SYMBOL_GPL(evl_release_thread);
 
 /* nklock held, irqs off */
-static bool unblock_thread(struct evl_thread *thread, int reason)
-{
-	trace_evl_unblock_thread(thread);
-
-	/*
-	 * We should not clear a previous break state if this service
-	 * is called more than once before the target thread actually
-	 * resumes, so we only set the bit here and never clear
-	 * it. However, we must not raise the T_BREAK bit if the
-	 * target thread was already awake at the time of this call,
-	 * so that downstream code does not get confused by some
-	 * "successful but interrupted syscall" condition. IOW, a
-	 * break state raised here must always trigger an error code
-	 * downstream, and a wait which went to completion should not
-	 * be marked as interrupted.
-	 */
-	if (thread->state & (T_DELAY|T_PEND)) {
-		evl_wakeup_thread(thread, T_DELAY|T_PEND, reason|T_BREAK);
-		return true;
-	}
-
-	return false;
-}
-
-bool evl_unblock_thread(struct evl_thread *thread, int reason)
-{
-	unsigned long flags;
-	bool ret;
-
-	xnlock_get_irqsave(&nklock, flags);
-	ret = unblock_thread(thread, reason);
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(evl_unblock_thread);
-
 static void inband_task_wakeup(struct irq_work *work)
 {
 	struct evl_thread *thread;
@@ -1353,6 +1316,41 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 		EVL_WARN_ON(CORE, ret != 0);
 	}
 }
+
+static bool unblock_thread(struct evl_thread *thread, int reason)
+{
+	trace_evl_unblock_thread(thread);
+
+	/*
+	 * We must not raise the T_BREAK bit if the target thread was
+	 * already runnable at the time of this call, so that
+	 * downstream code does not get confused by some "successful
+	 * but interrupted syscall" condition. IOW, a break state
+	 * raised here must always trigger an error code downstream,
+	 * and a wait which went to completion should not be marked as
+	 * interrupted.
+	 */
+	if (thread->state & (T_DELAY|T_PEND|T_WAIT)) {
+		evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT,
+				reason|T_BREAK);
+		return true;
+	}
+
+	return false;
+}
+
+bool evl_unblock_thread(struct evl_thread *thread, int reason)
+{
+	unsigned long flags;
+	bool ret;
+
+	xnlock_get_irqsave(&nklock, flags);
+	ret = unblock_thread(thread, reason);
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(evl_unblock_thread);
 
 static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
 {
