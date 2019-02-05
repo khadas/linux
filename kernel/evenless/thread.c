@@ -520,13 +520,14 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 }
 EXPORT_SYMBOL_GPL(evl_sleep_on);
 
-void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
+	bool ret = false;
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
-		return;
+		return false;
 
 	xnlock_get_irqsave(&nklock, flags);
 
@@ -544,6 +545,7 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 			abort_wait(thread);
 
 		thread->info |= info;
+		ret = true;
 
 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
 			evl_enqueue_thread(thread);
@@ -553,6 +555,8 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(evl_wakeup_thread);
 
@@ -1317,7 +1321,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	}
 }
 
-static bool unblock_thread(struct evl_thread *thread, int reason)
+bool evl_unblock_thread(struct evl_thread *thread, int reason)
 {
 	trace_evl_unblock_thread(thread);
 
@@ -1329,26 +1333,11 @@ static bool unblock_thread(struct evl_thread *thread, int reason)
 	 * raised here must always trigger an error code downstream,
 	 * and a wait which went to completion should not be marked as
 	 * interrupted.
+	 *
+	 * evl_wakeup_thread() guarantees this by updating the info
+	 * bits only if any of the mask bits is set.
 	 */
-	if (thread->state & (T_DELAY|T_PEND|T_WAIT)) {
-		evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT,
-				reason|T_BREAK);
-		return true;
-	}
-
-	return false;
-}
-
-bool evl_unblock_thread(struct evl_thread *thread, int reason)
-{
-	unsigned long flags;
-	bool ret;
-
-	xnlock_get_irqsave(&nklock, flags);
-	ret = unblock_thread(thread, reason);
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
+	return evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT, reason|T_BREAK);
 }
 EXPORT_SYMBOL_GPL(evl_unblock_thread);
 
@@ -1356,10 +1345,7 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 {
 	bool ret = false;
 
-	if (thread->info & T_KICKED)
-		return true;
-
-	if (unblock_thread(thread, T_KICKED))
+	if (evl_unblock_thread(thread, T_KICKED))
 		ret = true;
 
 	/*
@@ -1383,8 +1369,7 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 	 * to detect forcible unblocks from T_SUSP, T_HALT, if they
 	 * should act upon this case specifically.
 	 */
-	if (thread->state & (T_SUSP|T_HALT))
-		evl_release_thread(thread, T_SUSP|T_HALT, T_KICKED);
+	evl_release_thread(thread, T_SUSP|T_HALT, T_KICKED);
 
 	/*
 	 * Tricky cases:

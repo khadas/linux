@@ -220,7 +220,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan);
 
-void evl_wakeup_thread(struct evl_thread *thread,
+bool evl_wakeup_thread(struct evl_thread *thread,
 		int mask, int info);
 
 void evl_hold_thread(struct evl_thread *thread,
