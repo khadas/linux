@@ -408,6 +408,9 @@ redo:
 		return 0;
 	}
 
+	if (unlikely(evl_get_index(h) == currh))
+		return -EDEADLK;
+
 	xnlock_get_irqsave(&nklock, flags);
 
 	/*
@@ -604,6 +607,9 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	lockp = mutex->fastlock;
 	currh = fundle_of(curr);
+	if (evl_get_index(atomic_read(lockp)) != currh)
+		return;
+
 	/*
 	 * FLCEIL may only be raised by the owner, or when the owner
 	 * is blocked waiting for the mutex (ownership transfer). In
