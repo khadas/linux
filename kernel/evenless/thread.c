@@ -999,27 +999,27 @@ void evl_cancel_thread(struct evl_thread *thread)
 
 	/*
 	 * If @thread is not started yet, fake a start request,
-	 * raising the kicked condition bit to make sure it will reach
+	 * raising the kicked condition bit to make sure it reaches
 	 * evl_test_cancel() on its wakeup path.
 	 *
 	 * NOTE: if T_DORMANT and !T_INBAND, then some not-yet-mapped
 	 * emerging thread is self-cancelling due to an early error in
 	 * the prep work.
 	 */
-	if (thread->state & T_DORMANT) {
-		if (!(thread->state & T_INBAND))
-			goto check_self_cancel;
+	if ((thread->state & (T_DORMANT|T_INBAND)) == (T_DORMANT|T_INBAND)) {
+		xnlock_put_irqrestore(&nklock, flags);
 		evl_release_thread(thread, T_DORMANT, T_KICKED);
 		goto out;
 	}
 
 check_self_cancel:
+	xnlock_put_irqrestore(&nklock, flags);
+
 	if (evl_current() == thread) {
-		xnlock_put_irqrestore(&nklock, flags);
 		evl_test_cancel();
 		/*
-		 * May return if on behalf of an IRQ handler which has
-		 * preempted @thread.
+		 * May return if on behalf of some IRQ handler which
+		 * interrupted @thread.
 		 */
 		return;
 	}
@@ -1031,17 +1031,14 @@ check_self_cancel:
 	 * then send it SIGTERM.
 	 *
 	 * - just unblock a kernel thread, it is expected to reach a
-	 * cancellation point soon after
-	 * (i.e. evl_test_cancel()).
+	 * cancellation point soon after (i.e. evl_test_cancel()).
 	 */
 	if (thread->state & T_USER) {
-		__evl_demote_thread(thread);
+		evl_demote_thread(thread);
 		evl_signal_thread(thread, SIGTERM, 0);
 	} else
-		__evl_kick_thread(thread);
+		evl_kick_thread(thread);
 out:
-	xnlock_put_irqrestore(&nklock, flags);
-
 	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_cancel_thread);
