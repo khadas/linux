@@ -306,7 +306,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	dovetail_init_altsched(&curr->altsched);
 	set_oob_threadinfo(curr);
 	dovetail_start_altsched();
-	evl_release_thread(curr, T_DORMANT);
+	evl_release_thread(curr, T_DORMANT, 0);
 
 	trace_evl_thread_map(curr);
 
@@ -435,7 +435,7 @@ void evl_start_thread(struct evl_thread *thread)
 		enlist_new_thread(thread);
 
 	trace_evl_thread_start(thread);
-	evl_release_thread(thread, T_DORMANT);
+	evl_release_thread(thread, T_DORMANT, 0);
 
 	xnlock_put_irqrestore(&nklock, flags);
 
@@ -611,7 +611,7 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 }
 EXPORT_SYMBOL_GPL(evl_hold_thread);
 
-void evl_release_thread(struct evl_thread *thread, int mask)
+void evl_release_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
@@ -621,12 +621,13 @@ void evl_release_thread(struct evl_thread *thread, int mask)
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_release_thread(thread, mask);
+	trace_evl_release_thread(thread, mask, info);
 
 	rq = thread->rq;
 	oldstate = thread->state;
 	if (oldstate & mask) {
 		thread->state &= ~mask;
+		thread->info |= info;
 
 		if (thread->state & EVL_THREAD_BLOCK_BITS)
 			goto out;
@@ -997,15 +998,14 @@ void evl_cancel_thread(struct evl_thread *thread)
 	 * raising the kicked condition bit to make sure it will reach
 	 * evl_test_cancel() on its wakeup path.
 	 *
-	 * NOTE: if T_DORMANT and !T_INBAND, then some non-mapped
+	 * NOTE: if T_DORMANT and !T_INBAND, then some not-yet-mapped
 	 * emerging thread is self-cancelling due to an early error in
 	 * the prep work.
 	 */
 	if (thread->state & T_DORMANT) {
 		if (!(thread->state & T_INBAND))
 			goto check_self_cancel;
-		thread->info |= T_KICKED;
-		evl_release_thread(thread, T_DORMANT);
+		evl_release_thread(thread, T_DORMANT, T_KICKED);
 		goto out;
 	}
 
@@ -1383,10 +1383,8 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 	 * to detect forcible unblocks from T_SUSP, T_HALT, if they
 	 * should act upon this case specifically.
 	 */
-	if (thread->state & (T_SUSP|T_HALT)) {
-		evl_release_thread(thread, T_SUSP|T_HALT);
-		thread->info |= T_KICKED;
-	}
+	if (thread->state & (T_SUSP|T_HALT))
+		evl_release_thread(thread, T_SUSP|T_HALT, T_KICKED);
 
 	/*
 	 * Tricky cases:
@@ -1815,7 +1813,7 @@ void resume_oob_task(struct task_struct *p) /* hw IRQs off */
 	 */
 	xnlock_get(&nklock);
 	if (affinity_ok(p))
-		evl_release_thread(thread, T_INBAND);
+		evl_release_thread(thread, T_INBAND, 0);
 	xnlock_put(&nklock);
 
 	evl_schedule();

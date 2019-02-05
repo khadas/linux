@@ -227,7 +227,7 @@ void evl_hold_thread(struct evl_thread *thread,
 		int mask);
 
 void evl_release_thread(struct evl_thread *thread,
-			int mask);
+			int mask, int info);
 
 bool evl_unblock_thread(struct evl_thread *thread,
 			int reason);

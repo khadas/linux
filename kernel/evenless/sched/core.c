@@ -862,7 +862,7 @@ bool evl_sched_yield(void)
 {
 	struct evl_thread *curr = evl_current();
 
-	evl_release_thread(curr, 0);
+	evl_release_thread(curr, 0, 0);
 
 	return evl_schedule();
 }
