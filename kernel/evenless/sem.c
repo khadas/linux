@@ -36,33 +36,37 @@ static int acquire_sem(struct evl_sem *sem,
 	struct evl_thread *curr = evl_current();
 	struct evl_sem_state *state = sem->state;
 	struct sem_wait_data wda;
+	int info, ret = 0, count;
 	enum evl_tmode tmode;
 	unsigned long flags;
-	int info, ret = 0;
 	ktime_t timeout;
 
-	if (req->count <= 0)
+	count = req->count;
+	if (count <= 0)
 		return -EINVAL;
 
 	if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
 		return -EINVAL;
 
-	if (state->flags & EVL_SEM_PULSE)
-		req->count = 1;
-
 	xnlock_get_irqsave(&nklock, flags);
 
-	if (atomic_sub_return(req->count, &state->value) >= 0)
+	if (state->flags & EVL_SEM_PULSE)
+		count = 0;
+	else if (atomic_sub_return(count, &state->value) >= 0) {
+		printk("## %s no block, count %d\n", evl_current()->name, count);
 		goto out;
+	}
 
-	wda.count = req->count;
+	printk("## %s goes waiting, count %d\n", evl_current()->name, count);
+	wda.count = count;
 	curr->wait_data = &wda;
 
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 	info = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
 	if (info & (T_BREAK|T_TIMEO)) {
-		atomic_add(req->count, &state->value);
+		if (count > 0)
+			atomic_add(count, &state->value);
 		ret = -ETIMEDOUT;
 		if (info & T_BREAK)
 			ret = -EINTR;
@@ -81,42 +85,56 @@ static int release_sem(struct evl_sem *sem, int count)
 	unsigned long flags;
 	int oldval;
 
+	printk("## %s releases, count %d\n", evl_current()->name, count);
+
 	if (count <= 0)
 		return -EINVAL;
 
 	oldval = atomic_read(&state->value);
-	if (oldval + count < 0)
+	if (oldval + count < 0) {
+		printk("## %s invalid %d + count %d\n", evl_current()->name, oldval, count);
 		return -EINVAL;
-
-	if (state->flags & EVL_SEM_PULSE)
-		count = 1;
+	}
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	if (atomic_add_return(count, &state->value) >= count) {
-		/* Old value >= 0, nobody is waiting. */
-		if (state->flags & EVL_SEM_PULSE)
-			atomic_set(&state->value, 0);
-		goto out;
-	}
-
-	if (!evl_wait_active(&sem->wait_queue))
-		goto out;
-
-	/*
-	 * Try waking up waiters. The top waiter must progress, do not
-	 * serve other waiters down the queue until this one is
-	 * satisfied.
-	 */
-	evl_for_each_waiter_safe(waiter, n, &sem->wait_queue) {
-		wda = waiter->wait_data;
-		if (atomic_sub_return(wda->count, &state->value) < 0) {
-			atomic_add(wda->count, &state->value); /* Nope, undo. */
-			break;
+	if (state->flags & EVL_SEM_PULSE)
+		evl_flush_wait_locked(&sem->wait_queue, 0);
+	else if (atomic_add_return(count, &state->value) < count) {
+		/*
+		 * Old value < 0, try waking up waiter(s). The @count
+		 * units just posted are now transferred to the
+		 * waiters in sequence. If a waiter needs more than
+		 * @count, we have to deplete the semaphore from the
+		 * difference. NOTE: the top waiter must progress, do
+		 * not serve other waiters past the first one which
+		 * cannot be satisfied.
+		 */
+		evl_for_each_waiter_safe(waiter, n, &sem->wait_queue) {
+			wda = waiter->wait_data;
+			wda->count -= count;
+			if (wda->count > 0 &&
+				atomic_sub_return(wda->count, &state->value) < 0) {
+				/* Not enough yet, undo. */
+				atomic_add(wda->count, &state->value);
+				printk("## %s NOT releasing %s, value=%d\n", evl_current()->name, waiter->name, atomic_read(&state->value));
+				break;
+			}
+			printk("## %s releasing %s, value=%d\n", evl_current()->name, waiter->name, atomic_read(&state->value));
+			evl_wake_up(&sem->wait_queue, waiter);
+			count -= wda->count;
+			/*
+			 * CAUTION: We could have wda->count > count
+			 * here if userland sneaked in more units in
+			 * the meantime.
+			 */
+			if (count <= 0)
+				break;
 		}
-		evl_wake_up(&sem->wait_queue, waiter);
-	}
-out:
+	} else
+		/* Old value >= 0, nobody is waiting. */
+		printk("## no waiter, count %d\n", count);
+
 	xnlock_put_irqrestore(&nklock, flags);
 
 	evl_schedule();
