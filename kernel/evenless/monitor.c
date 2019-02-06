@@ -164,21 +164,34 @@ static void wakeup_waiters(struct evl_monitor *event)
 }
 
 /* nklock held, irqs off */
-static int __enter_monitor(struct evl_monitor *gate)
+static int __enter_monitor(struct evl_monitor *gate,
+			struct evl_monitor_lockreq *req)
 {
+	ktime_t timeout = EVL_INFINITE;
+	enum evl_tmode tmode;
 	int info;
 
 	evl_commit_monitor_ceiling();
 
-	info = evl_lock_mutex(&gate->lock);
-	if (info)
-		/* Break or error, no timeout possible. */
-		return info & T_BREAK ? -EINTR : -EINVAL;
+	if (req) {
+		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
+			return -EINVAL;
+		timeout = timespec_to_ktime(req->timeout);
+	}
+
+	tmode = timeout ? EVL_ABS : EVL_REL;
+	info = evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
+	if (info) {
+		if (info & T_BREAK)
+			return -EINTR;
+		return info & T_TIMEO ? -EAGAIN : -EINVAL;
+	}
 
 	return 0;
 }
 
-static int enter_monitor(struct evl_monitor *gate)
+static int enter_monitor(struct evl_monitor *gate,
+			struct evl_monitor_lockreq *req)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
@@ -188,10 +201,10 @@ static int enter_monitor(struct evl_monitor *gate)
 		return -EINVAL;
 
 	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
-		return -EDEADLK;	/* Deny recursive locking. */
+		return -EDEADLK; /* Deny recursive locking. */
 
 	xnlock_get_irqsave(&nklock, flags);
-	ret = __enter_monitor(gate);
+	ret = __enter_monitor(gate, req);
 	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
@@ -276,6 +289,11 @@ static int wait_monitor(struct evl_monitor *event,
 		goto out;
 	}
 
+	if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION) {
+		op_ret = -EINVAL;
+		goto out;
+	}
+
 	/* Find the gate monitor protecting us. */
 	gate = get_monitor_by_fd(req->gatefd, &sfilp);
 	if (gate == NULL) {
@@ -334,7 +352,7 @@ static int wait_monitor(struct evl_monitor *event,
 			op_ret = -ETIMEDOUT;
 	}
 
-	ret = __enter_monitor(gate);
+	ret = __enter_monitor(gate, NULL);
 
 	untrack_event(event, gate);
 unlock:
@@ -363,7 +381,7 @@ static int unwait_monitor(struct evl_monitor *event,
 	if (gate == NULL)
 		return -EINVAL;
 
-	ret = enter_monitor(gate);
+	ret = enter_monitor(gate, NULL);
 	if (ret == 0) {
 		xnlock_get_irqsave(&nklock, flags);
 		untrack_event(event, gate);
@@ -399,6 +417,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 	struct evl_monitor_unwaitreq uwreq, __user *u_uwreq;
 	struct evl_monitor_waitreq wreq, __user *u_wreq;
+	struct evl_monitor_lockreq lreq, __user *u_lreq;
 	__s32 op_ret;
 	long ret;
 
@@ -410,7 +429,9 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = wait_monitor(mon, &wreq, &op_ret);
 		raw_put_user(op_ret, &u_wreq->status);
 		return ret;
-	} else if (cmd == EVL_MONIOC_UNWAIT) {
+	}
+
+	if (cmd == EVL_MONIOC_UNWAIT) {
 		u_uwreq = (typeof(u_uwreq))arg;
 		ret = raw_copy_from_user(&uwreq, u_uwreq, sizeof(uwreq));
 		if (ret)
@@ -420,7 +441,11 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case EVL_MONIOC_ENTER:
-		ret = enter_monitor(mon);
+		u_lreq = (typeof(u_lreq))arg;
+		ret = raw_copy_from_user(&lreq, u_lreq, sizeof(lreq));
+		if (ret)
+			return -EFAULT;
+		ret = enter_monitor(mon, &lreq);
 		break;
 	case EVL_MONIOC_EXIT:
 		ret = exit_monitor(mon);
@@ -428,7 +453,6 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	default:
 		ret = -ENOTTY;
 	}
-
 
 	return ret;
 }
