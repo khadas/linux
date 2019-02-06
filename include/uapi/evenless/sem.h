@@ -38,7 +38,6 @@ struct evl_sem_waitreq {
 
 #define EVL_SEMIOC_GET		_IOW(EVL_SEM_IOCBASE, 0, __u32)
 #define EVL_SEMIOC_PUT		_IOW(EVL_SEM_IOCBASE, 1, __u32)
-#define EVL_SEMIOC_BCAST	_IO(EVL_SEM_IOCBASE, 2)
-#define EVL_SEMIOC_BIND		_IOR(EVL_SEM_IOCBASE, 3, struct evl_element_ids)
+#define EVL_SEMIOC_BIND		_IOR(EVL_SEM_IOCBASE, 2, struct evl_element_ids)
 
 #endif /* !_EVENLESS_UAPI_SEM_H */
