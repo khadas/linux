@@ -61,13 +61,11 @@ static int acquire_sem(struct evl_sem *sem,
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 	info = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
-	if (info & (T_BREAK|T_BCAST|T_TIMEO)) {
+	if (info & (T_BREAK|T_TIMEO)) {
 		atomic_add(req->count, &state->value);
 		ret = -ETIMEDOUT;
 		if (info & T_BREAK)
 			ret = -EINTR;
-		else if (info & T_BCAST)
-			ret = -EAGAIN;
 	} /* No way we could receive T_RMID */
 out:
 	xnlock_put_irqrestore(&nklock, flags);
@@ -126,14 +124,6 @@ out:
 	return 0;
 }
 
-static int broadcast_sem(struct evl_sem *sem)
-{
-	evl_flush_wait(&sem->wait_queue, T_BCAST);
-	evl_schedule();
-
-	return 0;
-}
-
 static long sem_common_ioctl(struct evl_sem *sem,
 			unsigned int cmd, unsigned long arg)
 {
@@ -146,9 +136,6 @@ static long sem_common_ioctl(struct evl_sem *sem,
 		if (ret)
 			return -EFAULT;
 		ret = release_sem(sem, count);
-		break;
-	case EVL_SEMIOC_BCAST:
-		ret = broadcast_sem(sem);
 		break;
 	default:
 		ret = -ENOTTY;
