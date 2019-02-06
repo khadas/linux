@@ -397,11 +397,22 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
 	struct evl_clock *clock = NULL;
 	struct evl_file *sfilp;
 
-	sfilp = evl_get_file(efd);
-	if (sfilp && sfilp->filp->f_op == &clock_fops) {
-		clock = element_of(sfilp->filp, struct evl_clock);
+	switch (efd) {
+	case EVL_CLOCK_MONOTONIC:
+		clock = &evl_mono_clock;
 		evl_get_element(&clock->element);
-		evl_put_file(sfilp);
+		break;
+	case EVL_CLOCK_REALTIME:
+		clock = &evl_realtime_clock;
+		evl_get_element(&clock->element);
+		break;
+	default:
+		sfilp = evl_get_file(efd);
+		if (sfilp && sfilp->filp->f_op == &clock_fops) {
+			clock = element_of(sfilp->filp, struct evl_clock);
+			evl_get_element(&clock->element);
+			evl_put_file(sfilp);
+		}
 	}
 
 	return clock;

@@ -7,6 +7,9 @@
 #ifndef _EVENLESS_UAPI_CLOCK_H
 #define _EVENLESS_UAPI_CLOCK_H
 
+#define EVL_CLOCK_MONOTONIC  (-CLOCK_MONOTONIC)
+#define EVL_CLOCK_REALTIME   (-CLOCK_REALTIME)
+
 #define EVL_CLOCK_IOCBASE	'c'
 
 struct evl_clock_delayreq {
