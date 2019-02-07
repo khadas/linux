@@ -31,13 +31,12 @@ struct evl_sem_state {
 
 struct evl_sem_waitreq {
 	struct timespec timeout;
-	__s32 count;
 };
 
 #define EVL_SEM_IOCBASE	's'
 
-#define EVL_SEMIOC_GET		_IOW(EVL_SEM_IOCBASE, 0, __u32)
-#define EVL_SEMIOC_PUT		_IOW(EVL_SEM_IOCBASE, 1, __u32)
+#define EVL_SEMIOC_GET		_IOW(EVL_SEM_IOCBASE, 0, struct evl_sem_waitreq)
+#define EVL_SEMIOC_PUT		_IO(EVL_SEM_IOCBASE, 1)
 #define EVL_SEMIOC_BIND		_IOR(EVL_SEM_IOCBASE, 2, struct evl_element_ids)
 
 #endif /* !_EVENLESS_UAPI_SEM_H */
