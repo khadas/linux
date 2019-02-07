@@ -1615,6 +1615,32 @@ int evl_killall(int mask)
 }
 EXPORT_SYMBOL_GPL(evl_killall);
 
+int evl_update_mode(__u32 mask, bool set)
+{
+	struct evl_thread *curr = evl_current();
+	unsigned long flags;
+
+	if (curr == NULL)
+		return -EPERM;
+
+	if (mask & ~T_WARN)
+		return -EINVAL;
+
+	trace_evl_thread_update_mode(mask, set);
+
+	xnlock_get_irqsave(&nklock, flags);
+
+	if (set)
+		curr->state |= mask;
+	else
+		curr->state &= ~mask;
+
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(evl_update_mode);
+
 pid_t evl_get_inband_pid(struct evl_thread *thread)
 {
 	if (thread->state & (T_ROOT|T_DORMANT|T_ZOMBIE))
@@ -2053,32 +2079,6 @@ out:
 	return 0;
 }
 
-static int update_state_bits(struct evl_thread *thread,
-			__u32 mask, bool set)
-{
-	struct evl_thread *curr = evl_current();
-	unsigned long flags;
-
-	if (curr != thread)
-		return -EPERM;
-
-	if (mask & ~T_WARN)
-		return -EINVAL;
-
-	trace_evl_thread_update_mode(mask, set);
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (set)
-		curr->state |= mask;
-	else
-		curr->state &= ~mask;
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	return 0;
-}
-
 static long thread_common_ioctl(struct evl_thread *thread,
 				unsigned int cmd, unsigned long arg)
 {
@@ -2113,7 +2113,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
-	__u32 monfd, mask;
+	__u32 monfd;
 	long ret;
 
 	if (thread->state & T_ZOMBIE)
@@ -2125,14 +2125,6 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 		if (ret)
 			return -EFAULT;
 		ret = evl_signal_monitor_targeted(thread, monfd);
-		break;
-	case EVL_THRIOC_SET_MODE:
-	case EVL_THRIOC_CLEAR_MODE:
-		ret = raw_get_user(mask, (__u32 *)arg);
-		if (ret)
-			return -EFAULT;
-		ret = update_state_bits(thread, mask,
-					cmd == EVL_THRIOC_SET_MODE);
 		break;
 	default:
 		ret = thread_common_ioctl(thread, cmd, arg);
