@@ -801,16 +801,6 @@ evl_find_sched_class(union evl_sched_param *param,
 	policy = attrs->sched_policy;
 	prio = attrs->sched_priority;
 	tslice = EVL_INFINITE;
-
-	/*
-	 * NOTE: The user-defined policy may be different than ours,
-	 * e.g. SCHED_FIFO,prio=-7 from userland would be interpreted
-	 * as SCHED_WEAK,prio=7 in kernel space.
-	 */
-	if (prio < 0) {
-		prio = -prio;
-		policy = SCHED_WEAK;
-	}
 	sched_class = &evl_sched_rt;
 	param->rt.prio = prio;
 
@@ -820,8 +810,7 @@ evl_find_sched_class(union evl_sched_param *param,
 			return NULL;
 		/* Fallback wanted */
 	case SCHED_WEAK:
-		if (prio < EVL_WEAK_MIN_PRIO ||
-			prio > EVL_WEAK_MAX_PRIO)
+		if (prio < EVL_WEAK_MIN_PRIO ||	prio > EVL_WEAK_MAX_PRIO)
 			return NULL;
 		param->weak.prio = prio;
 		sched_class = &evl_sched_weak;
@@ -833,13 +822,11 @@ evl_find_sched_class(union evl_sched_param *param,
 			tslice = *tslice_r;
 		/* falldown wanted */
 	case SCHED_FIFO:
-		if (prio < EVL_FIFO_MIN_PRIO ||
-			prio > EVL_FIFO_MAX_PRIO)
+		if (prio < EVL_FIFO_MIN_PRIO ||	prio > EVL_FIFO_MAX_PRIO)
 			return NULL;
 		break;
 	case SCHED_EVL:
-		if (prio < EVL_CORE_MIN_PRIO ||
-			prio > EVL_CORE_MAX_PRIO)
+		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
 			return NULL;
 		break;
 #ifdef CONFIG_EVENLESS_SCHED_QUOTA
