@@ -80,7 +80,5 @@ struct evl_user_window {
 #define EVL_THRIOC_SET_SCHEDPARAM	_IOW(EVL_THREAD_IOCBASE, 1, struct evl_sched_attrs)
 #define EVL_THRIOC_GET_SCHEDPARAM	_IOR(EVL_THREAD_IOCBASE, 2, struct evl_sched_attrs)
 #define EVL_THRIOC_JOIN			_IO(EVL_THREAD_IOCBASE, 3)
-#define EVL_THRIOC_SET_MODE		_IOW(EVL_THREAD_IOCBASE, 4, __u32)
-#define EVL_THRIOC_CLEAR_MODE		_IOW(EVL_THREAD_IOCBASE, 5, __u32)
 
 #endif /* !_EVENLESS_UAPI_THREAD_H */

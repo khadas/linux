@@ -255,6 +255,8 @@ int evl_switch_oob(void);
 
 void evl_switch_inband(int cause);
 
+int evl_update_mode(__u32 mask, bool set);
+
 int evl_detach_self(void);
 
 void __evl_kick_thread(struct evl_thread *thread);

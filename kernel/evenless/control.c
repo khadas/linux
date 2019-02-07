@@ -99,6 +99,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_core_info info;
+	__u32 mask;
 	long ret;
 
 	/*
@@ -125,6 +126,13 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 		 * a result of handling this ioctl() call. Yummie.
 		 */
 		ret = 0;
+		break;
+	case EVL_CTLIOC_SET_MODE:
+	case EVL_CTLIOC_CLEAR_MODE:
+		ret = raw_get_user(mask, (__u32 *)arg);
+		if (ret)
+			return -EFAULT;
+		ret = evl_update_mode(mask, cmd == EVL_CTLIOC_SET_MODE);
 		break;
 	case EVL_CTLIOC_DETACH_SELF:
 		ret = evl_detach_self();
