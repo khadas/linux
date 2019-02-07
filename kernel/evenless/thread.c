@@ -2038,12 +2038,6 @@ static int get_sched_attrs(struct evl_thread *thread,
 		goto out;
 	}
 
-	if (base_class == &evl_sched_weak) {
-		if (attrs->sched_policy != SCHED_WEAK)
-			attrs->sched_priority = -attrs->sched_priority;
-		goto out;
-	}
-
 #ifdef CONFIG_EVENLESS_SCHED_QUOTA
 	if (base_class == &evl_sched_quota) {
 		attrs->sched_quota_group = thread->quota->tgid;
