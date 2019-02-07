@@ -2041,21 +2041,15 @@ out:
 	return ret;
 }
 
-static int get_sched_attrs(struct evl_thread *thread,
+static void __get_sched_attrs(struct evl_sched_class *sched_class,
+			struct evl_thread *thread,
 			struct evl_sched_attrs *attrs)
 {
-	struct evl_sched_class *base_class;
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	base_class = thread->base_class;
-	attrs->sched_policy = base_class->policy;
-	attrs->sched_priority = thread->bprio;
+	attrs->sched_policy = sched_class->policy;
 	if (attrs->sched_priority == 0) /* SCHED_FIFO/SCHED_WEAK */
 		attrs->sched_policy = SCHED_NORMAL;
 
-	if (base_class == &evl_sched_rt) {
+	if (sched_class == &evl_sched_rt) {
 		if (thread->state & T_RRB) {
 			attrs->sched_rr_quantum =
 				ktime_to_timespec(thread->rrperiod);
@@ -2065,23 +2059,46 @@ static int get_sched_attrs(struct evl_thread *thread,
 	}
 
 #ifdef CONFIG_EVENLESS_SCHED_QUOTA
-	if (base_class == &evl_sched_quota) {
+	if (sched_class == &evl_sched_quota) {
 		attrs->sched_quota_group = thread->quota->tgid;
 		goto out;
 	}
 #endif
 
 out:
-	xnlock_put_irqrestore(&nklock, flags);
-
 	trace_evl_thread_getsched(thread, attrs);
-
-	return 0;
 }
+
+static void get_sched_attrs(struct evl_thread *thread,
+			struct evl_sched_attrs *attrs)
+{
+	unsigned long flags;
+
+	xnlock_get_irqsave(&nklock, flags);
+	/* Get the base scheduling attributes. */
+	attrs->sched_priority = thread->bprio;
+	__get_sched_attrs(thread->base_class, thread, attrs);
+	xnlock_put_irqrestore(&nklock, flags);
+}
+
+void evl_get_thread_state(struct evl_thread *thread,
+			struct evl_thread_state *statebuf)
+{
+	unsigned long flags;
+
+	xnlock_get_irqsave(&nklock, flags);
+	/* Get the effective scheduling attributes. */
+	statebuf->eattrs.sched_priority = thread->cprio;
+	__get_sched_attrs(thread->sched_class, thread, &statebuf->eattrs);
+	statebuf->cpu = evl_rq_cpu(thread->rq);
+	xnlock_put_irqrestore(&nklock, flags);
+}
+EXPORT_SYMBOL_GPL(evl_get_thread_state);
 
 static long thread_common_ioctl(struct evl_thread *thread,
 				unsigned int cmd, unsigned long arg)
 {
+	struct evl_thread_state statebuf;
 	struct evl_sched_attrs attrs;
 	long ret;
 
@@ -2094,11 +2111,16 @@ static long thread_common_ioctl(struct evl_thread *thread,
 		ret = set_sched_attrs(thread, &attrs);
 		break;
 	case EVL_THRIOC_GET_SCHEDPARAM:
-		ret = get_sched_attrs(thread, &attrs);
-		if (ret)
-			return ret;
+		get_sched_attrs(thread, &attrs);
 		ret = raw_copy_to_user((struct evl_sched_attrs *)arg,
 				&attrs, sizeof(attrs));
+		if (ret)
+			return -EFAULT;
+		break;
+	case EVL_THRIOC_GET_STATE:
+		evl_get_thread_state(thread, &statebuf);
+		ret = raw_copy_to_user((struct evl_thread_state *)arg,
+				&statebuf, sizeof(statebuf));
 		if (ret)
 			return -EFAULT;
 		break;
