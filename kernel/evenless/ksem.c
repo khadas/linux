@@ -47,6 +47,19 @@ int evl_down(struct evl_ksem *sem)
 }
 EXPORT_SYMBOL_GPL(evl_down);
 
+int evl_trydown(struct evl_ksem *sem)
+{
+	unsigned long flags;
+	bool ret;
+
+	xnlock_get_irqsave(&nklock, flags);
+	ret = down_sem(sem);
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return ret ? 0 : -EAGAIN;
+}
+EXPORT_SYMBOL_GPL(evl_trydown);
+
 void evl_up(struct evl_ksem *sem)
 {
 	unsigned long flags;

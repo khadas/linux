@@ -25,6 +25,8 @@ int evl_down_timeout(struct evl_ksem *sem,
 
 int evl_down(struct evl_ksem *sem);
 
+int evl_trydown(struct evl_ksem *sem);
+
 void evl_up(struct evl_ksem *sem);
 
 #endif /* !_EVENLESS_KSEM_H */
