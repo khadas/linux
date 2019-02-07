@@ -74,11 +74,17 @@ struct evl_user_window {
 	__u32 pp_pending;
 };
 
+struct evl_thread_state {
+	struct evl_sched_attrs eattrs;
+	int cpu;
+};
+
 #define EVL_THREAD_IOCBASE	'T'
 
 #define EVL_THRIOC_SIGNAL		_IOW(EVL_THREAD_IOCBASE, 0, __u32)
 #define EVL_THRIOC_SET_SCHEDPARAM	_IOW(EVL_THREAD_IOCBASE, 1, struct evl_sched_attrs)
 #define EVL_THRIOC_GET_SCHEDPARAM	_IOR(EVL_THREAD_IOCBASE, 2, struct evl_sched_attrs)
 #define EVL_THRIOC_JOIN			_IO(EVL_THREAD_IOCBASE, 3)
+#define EVL_THRIOC_GET_STATE		_IOR(EVL_THREAD_IOCBASE, 4, struct evl_thread_state)
 
 #endif /* !_EVENLESS_UAPI_THREAD_H */

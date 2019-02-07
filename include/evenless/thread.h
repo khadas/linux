@@ -251,6 +251,9 @@ void evl_cancel_thread(struct evl_thread *thread);
 int evl_join_thread(struct evl_thread *thread,
 		bool uninterruptible);
 
+void evl_get_thread_state(struct evl_thread *thread,
+			struct evl_thread_state *statebuf);
+
 int evl_switch_oob(void);
 
 void evl_switch_inband(int cause);
