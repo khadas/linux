@@ -13,9 +13,9 @@ struct evl_file;
 struct evl_xbuf;
 
 struct evl_xbuf *evl_get_xbuf(int efd,
-			struct evl_file **sfilpp);
+			struct evl_file **efilpp);
 
-void evl_put_xbuf(struct evl_file *sfilp);
+void evl_put_xbuf(struct evl_file *efilp);
 
 ssize_t evl_read_xbuf(struct evl_xbuf *xbuf,
 		void *buf, size_t count,

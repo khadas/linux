@@ -26,7 +26,7 @@ struct evl_file {
 
 struct evl_fd {
 	unsigned int fd;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 	struct files_struct *files;
 	struct rb_node rb;
 };
@@ -36,26 +36,26 @@ struct evl_file_binding {
 	struct evl_element *element;
 };
 
-int evl_open_file(struct evl_file *sfilp,
+int evl_open_file(struct evl_file *efilp,
 		struct file *filp);
 
-void evl_release_file(struct evl_file *sfilp);
+void evl_release_file(struct evl_file *efilp);
 
 static inline
-void evl_get_fileref(struct evl_file *sfilp)
+void evl_get_fileref(struct evl_file *efilp)
 {
-	atomic_inc(&sfilp->oob_refs);
+	atomic_inc(&efilp->oob_refs);
 }
 
 struct evl_file *evl_get_file(unsigned int fd);
 
-void __evl_put_file(struct evl_file *sfilp);
+void __evl_put_file(struct evl_file *efilp);
 
 static inline
-void evl_put_file(struct evl_file *sfilp) /* OOB */
+void evl_put_file(struct evl_file *efilp) /* OOB */
 {
-	if (atomic_dec_return(&sfilp->oob_refs) == 0)
-		__evl_put_file(sfilp);
+	if (atomic_dec_return(&efilp->oob_refs) == 0)
+		__evl_put_file(efilp);
 }
 
 int evl_init_files(void);

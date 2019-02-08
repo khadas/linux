@@ -242,14 +242,14 @@ int handle_oob_syscall(struct pt_regs *regs)
 
 static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
 {
-	struct evl_file *sfilp = evl_get_file(fd);
+	struct evl_file *efilp = evl_get_file(fd);
 	struct file *filp;
 	ssize_t ret;
 
-	if (sfilp == NULL)
+	if (efilp == NULL)
 		return -EBADF;
 
-	filp = sfilp->filp;
+	filp = efilp->filp;
 	if (!(filp->f_mode & FMODE_READ)) {
 		ret = -EBADF;
 		goto out;
@@ -262,21 +262,21 @@ static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
 
 	ret = filp->f_op->oob_read(filp, u_buf, size);
 out:
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 
 	return ret;
 }
 
 static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
 {
-	struct evl_file *sfilp = evl_get_file(fd);
+	struct evl_file *efilp = evl_get_file(fd);
 	struct file *filp;
 	ssize_t ret;
 
-	if (sfilp == NULL)
+	if (efilp == NULL)
 		return -EBADF;
 
-	filp = sfilp->filp;
+	filp = efilp->filp;
 	if (!(filp->f_mode & FMODE_WRITE)) {
 		ret = -EBADF;
 		goto out;
@@ -289,7 +289,7 @@ static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
 
 	ret = filp->f_op->oob_write(filp, u_buf, size);
 out:
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 
 	return ret;
 }
@@ -297,14 +297,14 @@ out:
 static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
 				unsigned long arg))
 {
-	struct evl_file *sfilp = evl_get_file(fd);
+	struct evl_file *efilp = evl_get_file(fd);
 	struct file *filp;
 	long ret;
 
-	if (sfilp == NULL)
+	if (efilp == NULL)
 		return -EBADF;
 
-	filp = sfilp->filp;
+	filp = efilp->filp;
 	if (filp->f_op->oob_ioctl) {
 		ret = filp->f_op->oob_ioctl(filp, request, arg);
 		if (ret == -ENOIOCTLCMD)
@@ -312,7 +312,7 @@ static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
 	} else
 		ret = -ENOTTY;
 
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 
 	return ret;
 }

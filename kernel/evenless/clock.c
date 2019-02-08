@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(evl_unregister_clock);
 struct evl_clock *evl_get_clock_by_fd(int efd)
 {
 	struct evl_clock *clock = NULL;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 
 	switch (efd) {
 	case EVL_CLOCK_MONOTONIC:
@@ -407,11 +407,11 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
 		evl_get_element(&clock->element);
 		break;
 	default:
-		sfilp = evl_get_file(efd);
-		if (sfilp && sfilp->filp->f_op == &clock_fops) {
-			clock = element_of(sfilp->filp, struct evl_clock);
+		efilp = evl_get_file(efd);
+		if (efilp && efilp->filp->f_op == &clock_fops) {
+			clock = element_of(efilp->filp, struct evl_clock);
 			evl_get_element(&clock->element);
-			evl_put_file(sfilp);
+			evl_put_file(efilp);
 		}
 	}
 
