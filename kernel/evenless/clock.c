@@ -418,16 +418,16 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
 	return clock;
 }
 
-static long restart_clock_delay(struct restart_block *param)
+static long restart_clock_sleep(struct restart_block *param)
 {
 	return -EINVAL;
 }
 
-static int clock_delay(struct evl_clock *clock,
-		struct evl_clock_delayreq __user *u_req)
+static int clock_sleep(struct evl_clock *clock,
+		struct evl_clock_sleepreq __user *u_req)
 {
 	struct evl_thread *curr = evl_current();
-	struct evl_clock_delayreq req;
+	struct evl_clock_sleepreq req;
 	struct restart_block *restart;
 	struct timespec remain;
 	ktime_t timeout, rem;
@@ -446,7 +446,7 @@ static int clock_delay(struct evl_clock *clock,
 	if (curr->local_info & T_SYSRST) {
 		curr->local_info &= ~T_SYSRST;
 		restart = &current->restart_block;
-		if (restart->fn != restart_clock_delay) {
+		if (restart->fn != restart_clock_sleep) {
 			if (req.remain) {
 				rem = evl_get_stopped_timer_delta(&curr->rtimer);
 				remain = ktime_to_timespec(rem);
@@ -468,7 +468,7 @@ static int clock_delay(struct evl_clock *clock,
 	if (signal_pending(current)) {
 		restart = &current->restart_block;
 		restart->nanosleep.expires = timeout;
-		restart->fn = restart_clock_delay;
+		restart->fn = restart_clock_sleep;
 		curr->local_info |= T_SYSRST;
 		return -ERESTARTSYS;
 	}
@@ -567,9 +567,9 @@ static long clock_oob_ioctl(struct file *filp, unsigned int cmd,
 	int ret;
 
 	switch (cmd) {
-	case EVL_CLKIOC_DELAY:
-		ret = clock_delay(clock,
-				(struct evl_clock_delayreq __user *)arg);
+	case EVL_CLKIOC_SLEEP:
+		ret = clock_sleep(clock,
+				(struct evl_clock_sleepreq __user *)arg);
 		break;
 	default:
 		ret = clock_common_ioctl(clock, cmd, arg);

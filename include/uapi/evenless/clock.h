@@ -12,12 +12,12 @@
 
 #define EVL_CLOCK_IOCBASE	'c'
 
-struct evl_clock_delayreq {
+struct evl_clock_sleepreq {
 	struct timespec timeout;
 	struct timespec *remain;
 };
 
-#define EVL_CLKIOC_DELAY	_IOWR(EVL_CLOCK_IOCBASE, 0, struct evl_clock_delayreq)
+#define EVL_CLKIOC_SLEEP	_IOWR(EVL_CLOCK_IOCBASE, 0, struct evl_clock_sleepreq)
 #define EVL_CLKIOC_GET_RES	_IOR(EVL_CLOCK_IOCBASE, 1, struct timespec)
 #define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct timespec)
 #define EVL_CLKIOC_SET_TIME	_IOR(EVL_CLOCK_IOCBASE, 3, struct timespec)
