@@ -587,6 +587,8 @@ static long clock_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static const struct file_operations clock_fops = {
+	.open		= evl_open_element,
+	.release	= evl_close_element,
 	.unlocked_ioctl	= clock_ioctl,
 	.oob_ioctl	= clock_oob_ioctl,
 };
