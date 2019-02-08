@@ -41,13 +41,13 @@ struct evl_monitor {
 
 static const struct file_operations monitor_fops;
 
-struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **sfilpp)
+struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **efilpp)
 {
-	struct evl_file *sfilp = evl_get_file(efd);
+	struct evl_file *efilp = evl_get_file(efd);
 
-	if (sfilp && sfilp->filp->f_op == &monitor_fops) {
-		*sfilpp = sfilp;
-		return element_of(sfilp->filp, struct evl_monitor);
+	if (efilp && efilp->filp->f_op == &monitor_fops) {
+		*efilpp = efilp;
+		return element_of(efilp->filp, struct evl_monitor);
 	}
 
 	return NULL;
@@ -56,11 +56,11 @@ struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **sfilpp)
 int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 {
 	struct evl_monitor *event;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 	unsigned long flags;
 	int ret = -EAGAIN;
 
-	event = get_monitor_by_fd(monfd, &sfilp);
+	event = get_monitor_by_fd(monfd, &efilp);
 	if (event == NULL)
 		return -EINVAL;
 
@@ -84,7 +84,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 
 	xnlock_put_irqrestore(&nklock, flags);
 out:
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 
 	return ret;
 }
@@ -279,7 +279,7 @@ static int wait_monitor(struct evl_monitor *event,
 	struct evl_thread *curr = evl_current();
 	int ret = 0, op_ret = 0, info;
 	struct evl_monitor *gate;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 	enum evl_tmode tmode;
 	unsigned long flags;
 	ktime_t timeout;
@@ -295,7 +295,7 @@ static int wait_monitor(struct evl_monitor *event,
 	}
 
 	/* Find the gate monitor protecting us. */
-	gate = get_monitor_by_fd(req->gatefd, &sfilp);
+	gate = get_monitor_by_fd(req->gatefd, &efilp);
 	if (gate == NULL) {
 		op_ret = -EINVAL;
 		goto out;
@@ -358,7 +358,7 @@ static int wait_monitor(struct evl_monitor *event,
 unlock:
 	xnlock_put_irqrestore(&nklock, flags);
 put:
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 out:
 	*r_op_ret = op_ret;
 
@@ -369,7 +369,7 @@ static int unwait_monitor(struct evl_monitor *event,
 			struct evl_monitor_unwaitreq *req)
 {
 	struct evl_monitor *gate;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 	unsigned long flags;
 	int ret;
 
@@ -377,7 +377,7 @@ static int unwait_monitor(struct evl_monitor *event,
 		return -EINVAL;
 
 	/* Find the gate monitor we need to re-acquire. */
-	gate = get_monitor_by_fd(req->gatefd, &sfilp);
+	gate = get_monitor_by_fd(req->gatefd, &efilp);
 	if (gate == NULL)
 		return -EINVAL;
 
@@ -388,7 +388,7 @@ static int unwait_monitor(struct evl_monitor *event,
 		xnlock_put_irqrestore(&nklock, flags);
 	}
 
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 
 	return ret;
 }

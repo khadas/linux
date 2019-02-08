@@ -584,22 +584,22 @@ static const struct file_operations xbuf_fops = {
 	.oob_poll	= xbuf_oob_poll,
 };
 
-struct evl_xbuf *evl_get_xbuf(int efd, struct evl_file **sfilpp)
+struct evl_xbuf *evl_get_xbuf(int efd, struct evl_file **efilpp)
 {
-	struct evl_file *sfilp = evl_get_file(efd);
+	struct evl_file *efilp = evl_get_file(efd);
 
-	if (sfilp && sfilp->filp->f_op == &xbuf_fops) {
-		*sfilpp = sfilp;
-		return element_of(sfilp->filp, struct evl_xbuf);
+	if (efilp && efilp->filp->f_op == &xbuf_fops) {
+		*efilpp = efilp;
+		return element_of(efilp->filp, struct evl_xbuf);
 	}
 
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(evl_get_xbuf);
 
-void evl_put_xbuf(struct evl_file *sfilp)
+void evl_put_xbuf(struct evl_file *efilp)
 {
-	evl_put_file(sfilp);
+	evl_put_file(efilp);
 }
 EXPORT_SYMBOL_GPL(evl_put_xbuf);
 

@@ -32,7 +32,7 @@ struct event_poller {
 
 struct poll_node {
 	unsigned int fd;
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 	int events_polled;
 	struct event_poller *poller;
 	struct rb_node rb;	/* in poller->node_index */
@@ -155,8 +155,8 @@ static int add_node(struct event_poller *poller,
 	node->fd = creq->fd;
 	node->events_polled = creq->events;
 
-	node->sfilp = evl_get_file(creq->fd);
-	if (node->sfilp == NULL) {
+	node->efilp = evl_get_file(creq->fd);
+	if (node->efilp == NULL) {
 		ret = -EBADF;
 		goto fail_get;
 	}
@@ -178,7 +178,7 @@ static int add_node(struct event_poller *poller,
 
 fail_add:
 	raw_spin_unlock_irqrestore(&poller->lock, flags);
-	evl_put_file(node->sfilp);
+	evl_put_file(node->efilp);
 fail_get:
 	evl_free(node);
 
@@ -207,7 +207,7 @@ lookup_node(struct rb_root *root, unsigned int fd)
 
 static void __del_node(struct poll_node *node)
 {
-	evl_put_file(node->sfilp);
+	evl_put_file(node->efilp);
 	evl_free(node);
 }
 
@@ -334,7 +334,7 @@ static int collect_events(struct event_poller *poller,
 
 	wpt = table;
 	list_for_each_entry(node, &poller->node_list, next) {
-		evl_get_fileref(node->sfilp);
+		evl_get_fileref(node->efilp);
 		wpt->node = *node;
 		wpt++;
 	}
@@ -344,15 +344,15 @@ collect:
 
 	/*
 	 * Provided that each f_op->release of the OOB drivers maintaining
-	 * wpt->node.sfilp is properly calling evl_release_file()
+	 * wpt->node.efilp is properly calling evl_release_file()
 	 * before it dismantles the file, having a reference on
-	 * wpt->sfilp guarantees us that wpt->sfilp->filp is stable
+	 * wpt->efilp guarantees us that wpt->efilp->filp is stable
 	 * until the last ref. is dropped via evl_put_file().
 	 */
 	for (n = 0, wpt = table; n < nr; n++, wpt++) {
 		if (do_poll) {
 			ready = POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM; /* Default. */
-			filp = wpt->node.sfilp->filp;
+			filp = wpt->node.efilp->filp;
 			if (filp->f_op->oob_poll)
 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
 		} else
@@ -390,7 +390,7 @@ static inline void clear_wait(void)
 		raw_spin_lock_irqsave(&wpt->head->lock, flags);
 		list_del(&wpt->wait.next);
 		raw_spin_unlock_irqrestore(&wpt->head->lock, flags);
-		evl_put_file(wpt->node.sfilp);
+		evl_put_file(wpt->node.efilp);
 	}
 }
 

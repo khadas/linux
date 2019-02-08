@@ -117,7 +117,7 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 	if (sfd) {
 		sfd->fd = fd;
 		sfd->files = files;
-		sfd->sfilp = filp->oob_data;
+		sfd->efilp = filp->oob_data;
 		raw_spin_lock_irqsave(&fdt_lock, flags);
 		ret = index_sfd(sfd, filp);
 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
@@ -156,7 +156,7 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 
 	sfd = lookup_sfd(fd, files);
 	if (sfd) {
-		sfd->sfilp = filp->oob_data;
+		sfd->efilp = filp->oob_data;
 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
 		return;
 	}
@@ -168,47 +168,47 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 
 struct evl_file *evl_get_file(unsigned int fd) /* OOB */
 {
-	struct evl_file *sfilp = NULL;
+	struct evl_file *efilp = NULL;
 	struct evl_fd *sfd;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
 	sfd = lookup_sfd(fd, current->files);
 	if (sfd) {
-		sfilp = sfd->sfilp;
-		evl_get_fileref(sfilp);
+		efilp = sfd->efilp;
+		evl_get_fileref(efilp);
 	}
 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
 
-	return sfilp;
+	return efilp;
 }
 
 static void release_oob_ref(struct irq_work *work)
 {
-	struct evl_file *sfilp;
+	struct evl_file *efilp;
 
-	sfilp = container_of(work, struct evl_file, oob_work);
-	complete(&sfilp->oob_done);
+	efilp = container_of(work, struct evl_file, oob_work);
+	complete(&efilp->oob_done);
 }
 
-void __evl_put_file(struct evl_file *sfilp)
+void __evl_put_file(struct evl_file *efilp)
 {
-	init_irq_work(&sfilp->oob_work, release_oob_ref);
-	irq_work_queue(&sfilp->oob_work);
+	init_irq_work(&efilp->oob_work, release_oob_ref);
+	irq_work_queue(&efilp->oob_work);
 }
 
 /**
  * evl_open_file - Open new file with OOB capabilities
  *
- * Called by chrdev with OOB capabilities when a new @sfilp is
- * opened. @sfilp is paired with the in-band file struct at @filp.
+ * Called by chrdev with OOB capabilities when a new @efilp is
+ * opened. @efilp is paired with the in-band file struct at @filp.
  */
-int evl_open_file(struct evl_file *sfilp, struct file *filp)
+int evl_open_file(struct evl_file *efilp, struct file *filp)
 {
-	sfilp->filp = filp;
-	filp->oob_data = sfilp;	/* mark filp as OOB-capable. */
-	atomic_set(&sfilp->oob_refs, 1);
-	init_completion(&sfilp->oob_done);
+	efilp->filp = filp;
+	filp->oob_data = efilp;	/* mark filp as OOB-capable. */
+	atomic_set(&efilp->oob_refs, 1);
+	init_completion(&efilp->oob_done);
 
 	return 0;
 }
@@ -216,26 +216,26 @@ int evl_open_file(struct evl_file *sfilp, struct file *filp)
 /**
  * evl_release_file - Drop an OOB-capable file
  *
- * Called by chrdev with OOB capabilities when @sfilp is about to be
+ * Called by chrdev with OOB capabilities when @efilp is about to be
  * released. Must be called from a fops->release() handler, and paired
  * with a previous call to evl_open_file() from the fops->open()
  * handler.
  */
-void evl_release_file(struct evl_file *sfilp)
+void evl_release_file(struct evl_file *efilp)
 {
 	/*
-	 * Release the original reference on @sfilp. If OOB references
+	 * Release the original reference on @efilp. If OOB references
 	 * are still pending (e.g. some thread is still blocked in
 	 * fops->oob_read()), we must wait for them to be dropped
-	 * before allowing the in-band code to dismantle @sfilp->filp.
+	 * before allowing the in-band code to dismantle @efilp->filp.
 	 *
 	 * NOTE: In-band and OOB fds are working together in lockstep
 	 * mode via dovetail_install/uninstall_fd() calls.  Therefore,
-	 * we can't livelock with evl_get_file() as @sfilp was
+	 * we can't livelock with evl_get_file() as @efilp was
 	 * removed from the fd tree before fops->release() called us.
 	 */
-	if (atomic_dec_return(&sfilp->oob_refs) > 0)
-		wait_for_completion(&sfilp->oob_done);
+	if (atomic_dec_return(&efilp->oob_refs) > 0)
+		wait_for_completion(&efilp->oob_done);
 }
 
 void evl_cleanup_files(void)
