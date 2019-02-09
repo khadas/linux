@@ -30,8 +30,8 @@ struct evl_poll_event {
 
 struct evl_poller_waitreq {
 	struct timespec timeout;
-	struct evl_poll_event *events;
-	int nrevents;
+	struct evl_poll_event *pollset;
+	int nrset;
 };
 
 #define EVL_POLIOC_CTL	_IOW(EVL_POLLER_IOCBASE, 0, struct evl_poller_ctlreq)
