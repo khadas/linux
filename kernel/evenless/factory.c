@@ -300,7 +300,7 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 		return -ENOTTY;
 
 	if (!evl_is_running())
-		return -EAGAIN;
+		return -ENXIO;
 
 	if (e)
 		return -EBUSY;
