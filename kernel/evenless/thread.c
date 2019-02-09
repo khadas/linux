@@ -2046,8 +2046,6 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 			struct evl_sched_attrs *attrs)
 {
 	attrs->sched_policy = sched_class->policy;
-	if (attrs->sched_priority == 0) /* SCHED_FIFO/SCHED_WEAK */
-		attrs->sched_policy = SCHED_NORMAL;
 
 	if (sched_class == &evl_sched_rt) {
 		if (thread->state & T_RRB) {
