@@ -311,7 +311,7 @@ static void init_mutex(struct evl_mutex *mutex,
 	mutex->flags = flags & ~EVL_MUTEX_CLAIMED;
 	mutex->owner = NULL;
 	mutex->wprio = -1;
-	mutex->ceiling_ref = NULL;
+	mutex->ceiling_ref = ceiling_ref;
 	mutex->clock = clock;
 	INIT_LIST_HEAD(&mutex->wait_list);
 	mutex->wchan.abort_wait = evl_abort_mutex_wait;
