@@ -58,7 +58,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	struct evl_monitor *event;
 	struct evl_file *efilp;
 	unsigned long flags;
-	int ret = -EAGAIN;
+	int ret = -ESRCH;
 
 	event = get_monitor_by_fd(monfd, &efilp);
 	if (event == NULL)
