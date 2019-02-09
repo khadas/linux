@@ -10,12 +10,14 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/poll.h>
+#include <linux/pid.h>
 #include <linux/module.h>
 #include <evenless/file.h>
 #include <evenless/thread.h>
 #include <evenless/memory.h>
 #include <evenless/poller.h>
 #include <evenless/sched.h>
+#include <evenless/flag.h>
 #include <asm/evenless/syscall.h>
 
 struct event_poller {
@@ -26,15 +28,13 @@ struct event_poller {
 	hard_spinlock_t lock;
 	int nodenr;
 	unsigned int generation;
-	bool readied;
-	struct list_head next;	/* in private wake up list */
+	struct pid *owner;
 };
 
 struct poll_node {
 	unsigned int fd;
 	struct evl_file *efilp;
 	int events_polled;
-	struct event_poller *poller;
 	struct rb_node rb;	/* in poller->node_index */
 	struct list_head next;	/* in poller->node_list */
 };
@@ -47,6 +47,7 @@ struct evl_poll_watchpoint {
 	struct poll_node node;
 	int events_received;
 	struct oob_poll_wait wait;
+	struct evl_flag *flag;
 	struct evl_poll_head *head;
 };
 
@@ -68,34 +69,21 @@ EXPORT_SYMBOL_GPL(evl_poll_watch);
 void __evl_signal_poll_events(struct evl_poll_head *head,
 			int events)
 {
-	struct evl_poll_watchpoint *wpt, *n;
-	struct event_poller *poller;
-	LIST_HEAD(wakeup_list);
+	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
 	int ready;
 
 	raw_spin_lock_irqsave(&head->lock, flags);
 
-	if (!list_empty(&head->watchpoints)) {
-		list_for_each_entry_safe(wpt, n, &head->watchpoints, wait.next) {
-			ready = events & wpt->node.events_polled;
-			if (ready) {
-				wpt->events_received |= ready;
-				list_add(&wpt->node.poller->next, &wakeup_list);
-			}
+	list_for_each_entry(wpt, &head->watchpoints, wait.next) {
+		ready = events & wpt->node.events_polled;
+		if (ready) {
+			wpt->events_received |= ready;
+			evl_raise_flag_nosched(wpt->flag);
 		}
 	}
 
 	raw_spin_unlock_irqrestore(&head->lock, flags);
-
-	if (!list_empty(&wakeup_list)) {
-		list_for_each_entry(poller, &wakeup_list, next) {
-			xnlock_get_irqsave(&nklock, flags);
-			poller->readied = true;
-			evl_wake_up_head(&poller->wait_queue);
-			xnlock_put_irqrestore(&nklock, flags);
-		}
-	}
 
 	evl_schedule();
 }
@@ -109,13 +97,21 @@ void __evl_clear_poll_events(struct evl_poll_head *head,
 
 	raw_spin_lock_irqsave(&head->lock, flags);
 
-	if (!list_empty(&head->watchpoints))
-		list_for_each_entry(wpt, &head->watchpoints, wait.next)
-			wpt->events_received &= ~events;
+	list_for_each_entry(wpt, &head->watchpoints, wait.next)
+		wpt->events_received &= ~events;
 
 	raw_spin_unlock_irqrestore(&head->lock, flags);
 }
 EXPORT_SYMBOL_GPL(__evl_clear_poll_events);
+
+void evl_drop_poll_table(struct evl_thread *thread)
+{
+	struct evl_poll_watchpoint *table;
+
+	table = thread->poll_context.table;
+	if (table)
+		evl_free(table);
+}
 
 static inline
 int __index_node(struct rb_root *root, struct poll_node *node)
@@ -141,7 +137,13 @@ int __index_node(struct rb_root *root, struct poll_node *node)
 	return 0;
 }
 
-static int add_node(struct event_poller *poller,
+static inline void new_generation(struct event_poller *poller)
+{
+	if (++poller->generation == 0) /* Keep zero for init state. */
+		poller->generation = 1;
+}
+
+static int add_node(struct file *filp, struct event_poller *poller,
 		struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
@@ -161,6 +163,12 @@ static int add_node(struct event_poller *poller,
 		goto fail_get;
 	}
 
+	/* Make sure not to have a poller watch itself. */
+	if (node->efilp->filp == filp) {
+		ret = -EINVAL;
+		goto fail_check;
+	}
+
 	raw_spin_lock_irqsave(&poller->lock, flags);
 
 	ret = __index_node(&poller->node_index, node);
@@ -169,8 +177,7 @@ static int add_node(struct event_poller *poller,
 
 	list_add(&node->next, &poller->node_list);
 	poller->nodenr++;
-	if (++poller->generation == 0) /* Keep zero for init state. */
-		poller->generation = 1;
+	new_generation(poller);
 
 	raw_spin_unlock_irqrestore(&poller->lock, flags);
 
@@ -178,6 +185,7 @@ static int add_node(struct event_poller *poller,
 
 fail_add:
 	raw_spin_unlock_irqrestore(&poller->lock, flags);
+fail_check:
 	evl_put_file(node->efilp);
 fail_get:
 	evl_free(node);
@@ -228,7 +236,7 @@ static int del_node(struct event_poller *poller,
 	rb_erase(&node->rb, &poller->node_index);
 	list_del(&node->next);
 	poller->nodenr--;
-	poller->generation++;
+	new_generation(poller);
 
 	raw_spin_unlock_irqrestore(&poller->lock, flags);
 
@@ -253,7 +261,7 @@ int mod_node(struct event_poller *poller,
 	}
 
 	node->events_polled = creq->events;
-	poller->generation++;
+	new_generation(poller);
 
 	raw_spin_unlock_irqrestore(&poller->lock, flags);
 
@@ -261,14 +269,14 @@ int mod_node(struct event_poller *poller,
 }
 
 static inline
-int setup_node(struct event_poller *poller,
+int setup_node(struct file *filp, struct event_poller *poller,
 	struct evl_poller_ctlreq *creq)
 {
 	int ret;
 
 	switch (creq->action) {
 	case EVL_POLLER_CTLADD:
-		ret = add_node(poller, creq);
+		ret = add_node(filp, poller, creq);
 		break;
 	case EVL_POLLER_CTLDEL:
 		ret = del_node(poller, creq);
@@ -276,21 +284,23 @@ int setup_node(struct event_poller *poller,
 	case EVL_POLLER_CTLMOD:
 		ret = mod_node(poller, creq);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 
-	return -EINVAL;
+	return ret;
 }
 
 static int collect_events(struct event_poller *poller,
-			struct evl_poll_event __user *u_ev,
-			int maxevents, bool do_poll)
+			struct evl_poll_event __user *u_set,
+			int maxevents, struct evl_flag *flag)
 {
 	struct evl_thread *curr = evl_current();
 	struct evl_poll_watchpoint *wpt, *table;
 	int ret, n, nr, count = 0, ready;
 	struct evl_poll_event ev;
-	struct poll_node *node;
 	unsigned int generation;
+	struct poll_node *node;
 	unsigned long flags;
 	struct file *filp;
 
@@ -308,16 +318,21 @@ static int collect_events(struct event_poller *poller,
 	 * directly using those watchpoints if so, otherwise resync.
 	 */
 	table = curr->poll_context.table;
-	generation = poller->generation;
-	if (likely(generation == curr->poll_context.generation || !do_poll))
+	if (flag == NULL)
 		goto collect;
+
+	generation = poller->generation;
+	if (likely(generation == curr->poll_context.generation)) {
+		list_for_each_entry(node, &poller->node_list, next)
+			evl_get_fileref(node->efilp);
+		goto collect;
+	}
 
 	/* Need to resync. */
 	do {
 		generation = poller->generation;
 		raw_spin_unlock_irqrestore(&poller->lock, flags);
-		if (table)
-			evl_free(table);
+		evl_drop_poll_table(curr);
 		table = evl_alloc(sizeof(*wpt) * nr);
 		if (table == NULL) {
 			curr->poll_context.nr = 0;
@@ -332,6 +347,7 @@ static int collect_events(struct event_poller *poller,
 	curr->poll_context.nr = nr;
 	curr->poll_context.generation = generation;
 
+	/* Build the poll table. */
 	wpt = table;
 	list_for_each_entry(node, &poller->node_list, next) {
 		evl_get_fileref(node->efilp);
@@ -347,24 +363,27 @@ collect:
 	 * wpt->node.efilp is properly calling evl_release_file()
 	 * before it dismantles the file, having a reference on
 	 * wpt->efilp guarantees us that wpt->efilp->filp is stable
-	 * until the last ref. is dropped via evl_put_file().
+	 * until the last ref. is dropped by evl_put_file().
 	 */
 	for (n = 0, wpt = table; n < nr; n++, wpt++) {
-		if (do_poll) {
-			ready = POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM; /* Default. */
+		if (flag) {
+			wpt->flag = flag;
+			/* If oob_poll() is absent, default to all events ready. */
+			ready = POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM;
 			filp = wpt->node.efilp->filp;
 			if (filp->f_op->oob_poll)
 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
 		} else
-			ready = wpt->events_received & wpt->node.events_polled;
+			ready = wpt->events_received;
 
+		ready &= wpt->node.events_polled;
 		if (ready) {
 			ev.fd = wpt->node.fd;
 			ev.events = ready;
-			ret = raw_copy_to_user(u_ev, &ev, sizeof(ev));
+			ret = raw_copy_to_user(u_set, &ev, sizeof(ev));
 			if (ret)
 				return -EFAULT;
-			u_ev++;
+			u_set++;
 			if (++count >= maxevents)
 				break;
 		}
@@ -399,21 +418,21 @@ int wait_events(struct file *filp,
 		struct event_poller *poller,
 		struct evl_poller_waitreq *wreq)
 {
+	DEFINE_EVL_FLAG(flag);
 	enum evl_tmode tmode;
 	ktime_t timeout;
 	int ret, count;
 
-	if (wreq->nrevents < 0 || wreq->nrevents > poller->nodenr)
+	if (wreq->nrset < 0 || wreq->nrset > poller->nodenr)
 		return -EINVAL;
 
 	if ((unsigned long)wreq->timeout.tv_nsec >= ONE_BILLION)
 		return -EINVAL;
 
-	if (wreq->nrevents == 0)
+	if (wreq->nrset == 0)
 		return 0;
 
-	count = collect_events(poller, wreq->events,
-			wreq->nrevents, true);
+	count = collect_events(poller, wreq->pollset, wreq->nrset, &flag);
 	if (count > 0 || count == -EFAULT)
 		goto unwait;
 	if (count < 0)
@@ -426,17 +445,42 @@ int wait_events(struct file *filp,
 
 	timeout = timespec_to_ktime(wreq->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	ret = evl_wait_event_timeout(&poller->wait_queue, timeout,
-				tmode, poller->readied);
+	ret = evl_wait_flag_timeout(&flag, timeout, tmode);
 	if (ret == 0)
-		count = collect_events(poller, wreq->events,
-				wreq->nrevents, false);
+		count = collect_events(poller, wreq->pollset,
+				wreq->nrset, NULL);
 	else
 		count = ret;
 unwait:
 	clear_wait();
+	evl_destroy_flag(&flag);
 
 	return count;
+}
+
+static int poller_open(struct inode *inode, struct file *filp)
+{
+	struct task_struct *group_leader;
+	struct event_poller *poller;
+	int ret;
+
+	ret = evl_open_element(inode, filp);
+	if (ret)
+		return ret;
+
+	/*
+	 * A poller is privately owned by the process which
+	 * instantiates it, as it implicitly refers to its file
+	 * table. Deny threads from other processes from opening it.
+	 */
+	poller = element_of(filp, struct event_poller);
+	rcu_read_lock();
+	group_leader = pid_task(poller->owner, PIDTYPE_PID);
+	if (group_leader != current->group_leader)
+		ret = -EPERM;
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
@@ -453,7 +497,7 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&creq, u_creq, sizeof(creq));
 		if (ret)
 			return -EFAULT;
-		ret = setup_node(poller, &creq);
+		ret = setup_node(filp, poller, &creq);
 		break;
 	case EVL_POLIOC_WAIT:
 		u_wreq = (typeof(u_wreq))arg;
@@ -461,7 +505,9 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
 		if (ret)
 			return -EFAULT;
 		ret = wait_events(filp, poller, &wreq);
-		if (ret >= 0 && raw_put_user(ret, &u_wreq->nrevents))
+		if (ret < 0)
+			return ret;
+		if (raw_put_user(ret, &u_wreq->nrset))
 			return -EFAULT;
 		ret = 0;
 		break;
@@ -473,7 +519,7 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static const struct file_operations poller_fops = {
-	.open		= evl_open_element,
+	.open		= poller_open,
 	.release	= evl_close_element,
 	.oob_ioctl	= poller_oob_ioctl,
 };
@@ -509,6 +555,7 @@ poller_factory_build(struct evl_factory *fac, const char *name,
 	INIT_LIST_HEAD(&poller->node_list);
 	evl_init_wait(&poller->wait_queue, clock, EVL_WAIT_PRIO);
 	raw_spin_lock_init(&poller->lock);
+	poller->owner = get_task_pid(current->group_leader, PIDTYPE_PID);
 
 	return &poller->element;
 
@@ -522,11 +569,10 @@ fail_alloc:
 
 static inline void flush_nodes(struct event_poller *poller)
 {
-	struct poll_node *node;
+	struct poll_node *node, *n;
 
-	if (!list_empty(&poller->node_list))
-		list_for_each_entry(node, &poller->node_list, next)
-			__del_node(node);
+	list_for_each_entry_safe(node, n, &poller->node_list, next)
+		__del_node(node);
 }
 
 static void poller_factory_dispose(struct evl_element *e)
@@ -535,6 +581,7 @@ static void poller_factory_dispose(struct evl_element *e)
 
 	poller = container_of(e, struct event_poller, element);
 
+	put_pid(poller->owner);
 	flush_nodes(poller);
 	evl_put_clock(poller->wait_queue.clock);
 	evl_destroy_element(&poller->element);

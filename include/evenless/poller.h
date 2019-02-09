@@ -62,4 +62,6 @@ evl_clear_poll_events(struct evl_poll_head *head,
 
 }
 
+void evl_drop_poll_table(struct evl_thread *thread);
+
 #endif /* !_EVENLESS_POLLER_H */
