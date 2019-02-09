@@ -184,7 +184,7 @@ static int __enter_monitor(struct evl_monitor *gate,
 	if (info) {
 		if (info & T_BREAK)
 			return -EINTR;
-		return info & T_TIMEO ? -EAGAIN : -EINVAL;
+		return info & T_TIMEO ? -ETIMEDOUT : -EINVAL;
 	}
 
 	return 0;
