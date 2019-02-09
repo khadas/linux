@@ -210,6 +210,22 @@ static int enter_monitor(struct evl_monitor *gate,
 	return ret;
 }
 
+static int tryenter_monitor(struct evl_monitor *gate)
+{
+	unsigned long flags;
+	int ret;
+
+	if (gate->type == EVL_MONITOR_EV)
+		return -EINVAL;
+
+	xnlock_get_irqsave(&nklock, flags);
+	evl_commit_monitor_ceiling();
+	ret = evl_trylock_mutex(&gate->lock);
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return ret;
+}
+
 /* nklock may be held, irqs off (NONE REQUIRED) */
 static void __exit_monitor(struct evl_monitor *gate,
 			struct evl_thread *curr)
@@ -446,6 +462,9 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		if (ret)
 			return -EFAULT;
 		ret = enter_monitor(mon, &lreq);
+		break;
+	case EVL_MONIOC_TRYENTER:
+		ret = tryenter_monitor(mon);
 		break;
 	case EVL_MONIOC_EXIT:
 		ret = exit_monitor(mon);

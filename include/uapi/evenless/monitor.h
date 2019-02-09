@@ -60,9 +60,10 @@ struct evl_monitor_binding {
 #define EVL_MONITOR_IOCBASE	'm'
 
 #define EVL_MONIOC_ENTER	_IOW(EVL_MONITOR_IOCBASE, 0, struct evl_monitor_lockreq)
-#define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 1)
-#define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 2, struct evl_monitor_waitreq)
-#define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_unwaitreq)
-#define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_binding)
+#define EVL_MONIOC_TRYENTER	_IO(EVL_MONITOR_IOCBASE, 1)
+#define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 2)
+#define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
+#define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
+#define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
 
 #endif /* !_EVENLESS_UAPI_MONITOR_H */
