@@ -36,6 +36,7 @@
 #include <evenless/factory.h>
 #include <evenless/monitor.h>
 #include <evenless/mutex.h>
+#include <evenless/poller.h>
 #include <asm/evenless/syscall.h>
 #include <trace/events/evenless.h>
 
@@ -226,8 +227,7 @@ static void do_cleanup_current(struct evl_thread *curr)
 	if (curr->state & T_USER) {
 		evl_free_chunk(&evl_shared_heap, curr->u_window);
 		curr->u_window = NULL;
-		if (curr->poll_context.table)
-			evl_free(curr->poll_context.table);
+		evl_drop_poll_table(curr);
 	}
 
 	xnlock_get_irqsave(&nklock, flags);
