@@ -113,8 +113,8 @@ void evl_put_element(struct evl_element *e);
 int evl_open_element(struct inode *inode,
 		struct file *filp);
 
-int evl_close_element(struct inode *inode,
-		struct file *filp);
+int evl_release_element(struct inode *inode,
+			struct file *filp);
 
 int evl_create_element_device(struct evl_element *e,
 			struct evl_factory *fac,

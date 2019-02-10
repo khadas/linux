@@ -2175,7 +2175,7 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations thread_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.unlocked_ioctl	= thread_ioctl,
 	.oob_ioctl	= thread_oob_ioctl,
 };

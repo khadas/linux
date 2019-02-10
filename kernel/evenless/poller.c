@@ -520,7 +520,7 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations poller_fops = {
 	.open		= poller_open,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.oob_ioctl	= poller_oob_ioctl,
 };
 

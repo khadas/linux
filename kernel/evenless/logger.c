@@ -143,7 +143,7 @@ static ssize_t logger_write(struct file *filp, const char __user *u_buf,
 
 static const struct file_operations logger_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.oob_write	= logger_oob_write,
 	.write		= logger_write,
 };

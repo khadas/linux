@@ -174,7 +174,7 @@ static __poll_t timerfd_oob_poll(struct file *filp,
 
 static const struct file_operations timerfd_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.oob_ioctl	= timerfd_oob_ioctl,
 	.oob_read	= timerfd_oob_read,
 	.oob_poll	= timerfd_oob_poll,

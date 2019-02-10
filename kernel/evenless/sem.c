@@ -136,7 +136,7 @@ static long sem_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations sem_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.unlocked_ioctl	= sem_ioctl,
 	.oob_ioctl	= sem_oob_ioctl,
 };
