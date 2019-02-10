@@ -40,7 +40,7 @@ static int mapper_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static const struct file_operations mapper_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.mmap		= mapper_mmap,
 };
 

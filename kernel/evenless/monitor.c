@@ -478,7 +478,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations monitor_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.unlocked_ioctl	= monitor_ioctl,
 	.oob_ioctl	= monitor_oob_ioctl,
 };

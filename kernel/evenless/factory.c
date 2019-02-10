@@ -227,7 +227,7 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 }
 
-int evl_close_element(struct inode *inode, struct file *filp)
+int evl_release_element(struct inode *inode, struct file *filp)
 {
 	struct evl_file_binding *fbind = filp->private_data;
 	struct evl_element *e = fbind->element;

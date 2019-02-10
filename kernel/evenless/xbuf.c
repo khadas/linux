@@ -573,7 +573,7 @@ static __poll_t xbuf_oob_poll(struct file *filp,
 
 static const struct file_operations xbuf_fops = {
 	.open		= evl_open_element,
-	.release	= evl_close_element,
+	.release	= evl_release_element,
 	.unlocked_ioctl	= xbuf_ioctl,
 	.read		= xbuf_read,
 	.write		= xbuf_write,
