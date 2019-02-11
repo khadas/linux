@@ -275,7 +275,7 @@ void __evl_set_timer_rq(struct evl_timer *timer,
 {
 	int cpu;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	/*
 	 * Figure out which CPU is best suited for managing this
