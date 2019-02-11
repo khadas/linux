@@ -475,7 +475,7 @@ int evl_quota_create_group(struct evl_quota_group *tg,
 	int tgid, nr_groups = CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS;
 	struct evl_sched_quota *qs = &rq->quota;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	tgid = find_first_zero_bit(group_map, nr_groups);
 	if (tgid >= nr_groups)
@@ -514,7 +514,7 @@ int evl_quota_destroy_group(struct evl_quota_group *tg,
 	struct evl_thread *thread, *tmp;
 	union evl_sched_param param;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	if (!list_empty(&tg->members)) {
 		if (!force)
@@ -547,7 +547,7 @@ void evl_quota_set_limit(struct evl_quota_group *tg,
 	ktime_t old_quota = tg->quota;
 	u64 n;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	if (quota_percent < 0 || quota_percent > 100) { /* Quota off. */
 		quota_percent = 100;
@@ -614,7 +614,7 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
 {
 	struct evl_quota_group *tg;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	if (list_empty(&rq->quota.groups))
 		return NULL;
@@ -632,7 +632,7 @@ int evl_quota_sum_all(struct evl_rq *rq)
 {
 	struct evl_sched_quota *qs = &rq->quota;
 
-	atomic_only();
+	requires_ugly_lock();
 
 	return quota_sum_all(qs);
 }

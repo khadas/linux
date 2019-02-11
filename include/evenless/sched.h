@@ -212,7 +212,7 @@ static inline int evl_need_resched(struct evl_rq *rq)
 /* Set self resched flag for the current scheduler. */
 static inline void evl_set_self_resched(struct evl_rq *rq)
 {
-	atomic_only();
+	requires_ugly_lock();
 	rq->status |= RQ_SCHED;
 }
 
