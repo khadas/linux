@@ -342,11 +342,6 @@ static inline bool evl_cannot_block(void)
 	return evl_in_irq() || evl_is_inband();
 }
 
-static inline int evl_may_block(void)
-{
-	return !evl_cannot_block();
-}
-
 bool evl_set_effective_thread_priority(struct evl_thread *thread,
 				       int prio);
 
