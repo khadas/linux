@@ -214,8 +214,6 @@ int evl_init_thread(struct evl_thread *thread,
 		struct evl_rq *rq,
 		const char *fmt, ...);
 
-void evl_start_thread(struct evl_thread *thread);
-
 void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan);

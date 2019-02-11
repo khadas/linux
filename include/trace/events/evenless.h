@@ -439,11 +439,6 @@ TRACE_EVENT(evl_thread_set_current_prio,
 		  __entry->thread, __entry->pid, __entry->cprio)
 );
 
-DEFINE_EVENT(curr_thread_event, evl_thread_start,
-	TP_PROTO(struct evl_thread *thread),
-	TP_ARGS(thread)
-);
-
 DEFINE_EVENT(thread_event, evl_thread_cancel,
 	TP_PROTO(struct evl_thread *thread),
 	TP_ARGS(thread)
