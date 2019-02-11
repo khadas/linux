@@ -85,8 +85,7 @@ struct evl_rq {
 	/* Context of runtime quota scheduling. */
 	struct evl_sched_quota quota;
 #endif
-	/* Host timer. */
-	struct evl_timer htimer;
+	struct evl_timer inband_timer;
 	/* Round-robin timer. */
 	struct evl_timer rrbtimer;
 	/* In-band kernel placeholder. */

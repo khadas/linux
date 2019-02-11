@@ -47,8 +47,8 @@ static int proxy_set_next_ktime(ktime_t expires,
 
 	flags = hard_local_irq_save(); /* Prevent CPU migration. */
 	rq = this_evl_rq();
-	evl_start_timer(&rq->htimer,
-			evl_abs_timeout(&rq->htimer, delta),
+	evl_start_timer(&rq->inband_timer,
+			evl_abs_timeout(&rq->inband_timer, delta),
 			EVL_INFINITE);
 	hard_local_irq_restore(flags);
 
@@ -73,7 +73,7 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *ced)
 	flags = hard_local_irq_save();
 
 	rq = this_evl_rq();
-	evl_stop_timer(&rq->htimer);
+	evl_stop_timer(&rq->inband_timer);
 	rq->lflags |= RQ_TSTOPPED;
 
 	if (rq->lflags & RQ_IDLE)
@@ -280,7 +280,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	 */
 	this_rq->lflags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
 	timer = container_of(tn, struct evl_timer, node);
-	if (timer == &this_rq->htimer) {
+	if (timer == &this_rq->inband_timer) {
 		if (evl_need_resched(this_rq) ||
 			!(this_rq->curr->state & T_ROOT)) {
 			tn = evl_get_tqueue_next(&tmb->q, tn);

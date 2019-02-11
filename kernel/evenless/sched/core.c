@@ -131,7 +131,7 @@ static void proxy_tick_handler(struct evl_timer *timer) /* hard irqs off */
 	 * priority duty: postpone this until the end of the core tick
 	 * handler.
 	 */
-	this_rq = container_of(timer, struct evl_rq, htimer);
+	this_rq = container_of(timer, struct evl_rq, inband_timer);
 	this_rq->lflags |= RQ_TPROXY;
 	this_rq->lflags &= ~RQ_TDEFER;
 }
@@ -166,10 +166,10 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 * No direct handler here since proxy timer events are handled
 	 * specifically by the generic timer code.
 	 */
-	evl_init_timer(&rq->htimer, &evl_mono_clock, proxy_tick_handler,
+	evl_init_timer(&rq->inband_timer, &evl_mono_clock, proxy_tick_handler,
 		rq, EVL_TIMER_IGRAVITY);
-	evl_set_timer_priority(&rq->htimer, EVL_TIMER_LOPRIO);
-	evl_set_timer_name(&rq->htimer, rq->proxy_timer_name);
+	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
+	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
 	evl_init_timer(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
 		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
@@ -203,7 +203,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 
 static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
 {
-	evl_destroy_timer(&rq->htimer);
+	evl_destroy_timer(&rq->inband_timer);
 	evl_destroy_timer(&rq->rrbtimer);
 	kfree(rq->proxy_timer_name);
 	kfree(rq->rrb_timer_name);
