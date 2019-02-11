@@ -5,10 +5,6 @@
  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <stdarg.h>
-#include <linux/signal.h>
-#include <linux/kernel.h>
-#include <linux/atomic.h>
 #include <evenless/sched.h>
 #include <evenless/wait.h>
 #include <evenless/thread.h>
