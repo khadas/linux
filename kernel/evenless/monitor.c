@@ -258,12 +258,10 @@ static int exit_monitor(struct evl_monitor *gate)
 
 	if (state->flags & EVL_MONITOR_SIGNALED) {
 		state->flags &= ~EVL_MONITOR_SIGNALED;
-		if (!list_empty(&gate->events)) {
-			list_for_each_entry_safe(event, n, &gate->events, next) {
-				if (event->state->flags & EVL_MONITOR_SIGNALED) {
-					list_del(&event->next);
-					wakeup_waiters(event);
-				}
+		list_for_each_entry_safe(event, n, &gate->events, next) {
+			if (event->state->flags & EVL_MONITOR_SIGNALED) {
+				list_del(&event->next);
+				wakeup_waiters(event);
 			}
 		}
 	}
