@@ -64,8 +64,12 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 
 static inline void enlist_new_thread(struct evl_thread *thread)
 {				/* nklock held, irqs off */
+	unsigned long flags;
+
+	xnlock_get_irqsave(&nklock, flags);
 	list_add_tail(&thread->next, &evl_thread_list);
 	evl_nrthreads++;
+	xnlock_put_irqrestore(&nklock, flags);
 }
 
 static inline void set_oob_threadinfo(struct evl_thread *thread)
@@ -299,7 +303,6 @@ static void wakeup_kthread_parent(struct irq_work *irq_work)
 static int map_kthread_self(struct evl_kthread *kthread)
 {
 	struct evl_thread *curr = &kthread->thread;
-	unsigned long flags;
 
 	pin_to_initial_cpu(curr);
 
@@ -328,9 +331,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	init_irq_work(&kthread->irq_work, wakeup_kthread_parent);
 	irq_work_queue(&kthread->irq_work);
 
-	xnlock_get_irqsave(&nklock, flags);
 	enlist_new_thread(curr);
-	xnlock_put_irqrestore(&nklock, flags);
 	evl_hold_thread(curr, T_DORMANT);
 
 	return kthread->status;
@@ -402,7 +403,8 @@ int __evl_run_kthread(struct evl_kthread *kthread)
 	if (kthread->status)
 		return kthread->status;
 
-	evl_start_thread(thread);
+	evl_release_thread(thread, T_DORMANT, 0);
+	evl_schedule();
 
 	return 0;
 
@@ -416,32 +418,6 @@ fail_element:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__evl_run_kthread);
-
-void evl_start_thread(struct evl_thread *thread)
-{
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	/*
-	 * A user-space thread starts immediately EVL-wise since we
-	 * already have an underlying in-band context for it, so we
-	 * can enlist it now.
-	 *
-	 * NOTE: starting an already started thread moves it to the
-	 * head of the runqueue if running, nop otherwise.
-	 */
-	if ((thread->state & (T_DORMANT|T_USER)) == (T_DORMANT|T_USER))
-		enlist_new_thread(thread);
-
-	trace_evl_thread_start(thread);
-	evl_release_thread(thread, T_DORMANT, 0);
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	evl_schedule();
-}
-EXPORT_SYMBOL_GPL(evl_start_thread);
 
 static inline void abort_wait(struct evl_thread *thread)
 {
@@ -2206,7 +2182,14 @@ static int map_uthread_self(struct evl_thread *thread)
 	 * debug code from handle_schedule_event() and friends.
 	 */
 	dovetail_start_altsched();
-	evl_start_thread(thread);
+
+	/*
+	 * A user-space thread is already started EVL-wise since we
+	 * have an underlying in-band context for it, so we can enlist
+	 * it now.
+	 */
+	enlist_new_thread(thread);
+	evl_release_thread(thread, T_DORMANT, 0);
 	evl_sync_uwindow(thread);
 
 	return 0;
