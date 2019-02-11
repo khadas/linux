@@ -137,11 +137,9 @@ void inband_clock_was_set(void)
 
 	mutex_lock(&clocklist_lock);
 
-	if (!list_empty(&clock_list)) {
-		list_for_each_entry(clock, &clock_list, next) {
-			if (clock->ops.adjust)
-				clock->ops.adjust(clock);
-		}
+	list_for_each_entry(clock, &clock_list, next) {
+		if (clock->ops.adjust)
+			clock->ops.adjust(clock);
 	}
 
 	mutex_unlock(&clocklist_lock);
