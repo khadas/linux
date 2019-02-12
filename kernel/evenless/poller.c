@@ -18,6 +18,7 @@
 #include <evenless/poller.h>
 #include <evenless/sched.h>
 #include <evenless/flag.h>
+#include <evenless/mutex.h>
 #include <asm/evenless/syscall.h>
 
 struct event_poller {
@@ -25,7 +26,7 @@ struct event_poller {
 	struct list_head node_list;  /* struct poll_node */
 	struct evl_wait_queue wait_queue;
 	struct evl_element element;
-	hard_spinlock_t lock;
+	struct evl_kmutex lock;
 	int nodenr;
 	unsigned int generation;
 	struct pid *owner;
@@ -50,6 +51,11 @@ struct evl_poll_watchpoint {
 	struct evl_flag *flag;
 	struct evl_poll_head *head;
 };
+
+/* Maximum nesting depth (poller watching poller(s) */
+#define POLLER_NEST_MAX  4
+
+static const struct file_operations poller_fops;
 
 void evl_poll_watch(struct evl_poll_head *head,
 		struct oob_poll_wait *wait)
@@ -143,11 +149,18 @@ static inline void new_generation(struct event_poller *poller)
 		poller->generation = 1;
 }
 
+static int check_no_loop(struct file *origin, struct file *child)
+{
+	if (origin == child)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int add_node(struct file *filp, struct event_poller *poller,
 		struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
-	unsigned long flags;
 	int ret;
 
 	node = evl_alloc(sizeof(*node));
@@ -164,12 +177,11 @@ static int add_node(struct file *filp, struct event_poller *poller,
 	}
 
 	/* Make sure not to have a poller watch itself. */
-	if (node->efilp->filp == filp) {
-		ret = -EINVAL;
+	ret = check_no_loop(filp, node->efilp->filp);
+	if (ret)
 		goto fail_check;
-	}
 
-	raw_spin_lock_irqsave(&poller->lock, flags);
+	evl_lock_kmutex(&poller->lock);
 
 	ret = __index_node(&poller->node_index, node);
 	if (ret)
@@ -179,12 +191,12 @@ static int add_node(struct file *filp, struct event_poller *poller,
 	poller->nodenr++;
 	new_generation(poller);
 
-	raw_spin_unlock_irqrestore(&poller->lock, flags);
+	evl_unlock_kmutex(&poller->lock);
 
 	return 0;
 
 fail_add:
-	raw_spin_unlock_irqrestore(&poller->lock, flags);
+	evl_unlock_kmutex(&poller->lock);
 fail_check:
 	evl_put_file(node->efilp);
 fail_get:
@@ -223,13 +235,12 @@ static int del_node(struct event_poller *poller,
 		struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&poller->lock, flags);
+	evl_lock_kmutex(&poller->lock);
 
 	node = lookup_node(&poller->node_index, creq->fd);
 	if (node == NULL) {
-		raw_spin_unlock_irqrestore(&poller->lock, flags);
+		evl_unlock_kmutex(&poller->lock);
 		return -EBADF;
 	}
 
@@ -238,7 +249,7 @@ static int del_node(struct event_poller *poller,
 	poller->nodenr--;
 	new_generation(poller);
 
-	raw_spin_unlock_irqrestore(&poller->lock, flags);
+	evl_unlock_kmutex(&poller->lock);
 
 	__del_node(node);
 
@@ -250,20 +261,19 @@ int mod_node(struct event_poller *poller,
 	struct evl_poller_ctlreq *creq)
 {
 	struct poll_node *node;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&poller->lock, flags);
+	evl_lock_kmutex(&poller->lock);
 
 	node = lookup_node(&poller->node_index, creq->fd);
 	if (node == NULL) {
-		raw_spin_unlock_irqrestore(&poller->lock, flags);
+		evl_unlock_kmutex(&poller->lock);
 		return -EBADF;
 	}
 
 	node->events_polled = creq->events;
 	new_generation(poller);
 
-	raw_spin_unlock_irqrestore(&poller->lock, flags);
+	evl_unlock_kmutex(&poller->lock);
 
 	return 0;
 }
@@ -301,14 +311,13 @@ static int collect_events(struct event_poller *poller,
 	struct evl_poll_event ev;
 	unsigned int generation;
 	struct poll_node *node;
-	unsigned long flags;
 	struct file *filp;
 
-	raw_spin_lock_irqsave(&poller->lock, flags);
+	evl_lock_kmutex(&poller->lock);
 
 	nr = poller->nodenr;
 	if (nr == 0) {
-		raw_spin_unlock_irqrestore(&poller->lock, flags);
+		evl_unlock_kmutex(&poller->lock);
 		return -EINVAL;
 	}
 
@@ -331,7 +340,7 @@ static int collect_events(struct event_poller *poller,
 	/* Need to resync. */
 	do {
 		generation = poller->generation;
-		raw_spin_unlock_irqrestore(&poller->lock, flags);
+		evl_unlock_kmutex(&poller->lock);
 		evl_drop_poll_table(curr);
 		table = evl_alloc(sizeof(*wpt) * nr);
 		if (table == NULL) {
@@ -340,7 +349,7 @@ static int collect_events(struct event_poller *poller,
 			curr->poll_context.generation = 0;
 			return -ENOMEM;
 		}
-		raw_spin_lock_irqsave(&poller->lock, flags);
+		evl_lock_kmutex(&poller->lock);
 	} while (generation != poller->generation);
 
 	curr->poll_context.table = table;
@@ -356,7 +365,7 @@ static int collect_events(struct event_poller *poller,
 	}
 
 collect:
-	raw_spin_unlock_irqrestore(&poller->lock, flags);
+	evl_unlock_kmutex(&poller->lock);
 
 	/*
 	 * Provided that each f_op->release of the OOB drivers maintaining
@@ -554,7 +563,7 @@ poller_factory_build(struct evl_factory *fac, const char *name,
 	poller->node_index = RB_ROOT;
 	INIT_LIST_HEAD(&poller->node_list);
 	evl_init_wait(&poller->wait_queue, clock, EVL_WAIT_PRIO);
-	raw_spin_lock_init(&poller->lock);
+	evl_init_kmutex(&poller->lock);
 	poller->owner = get_task_pid(current->group_leader, PIDTYPE_PID);
 
 	return &poller->element;
