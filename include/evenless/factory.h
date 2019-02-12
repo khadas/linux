@@ -17,6 +17,8 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 #include <linux/irq_work.h>
+#include <linux/mutex.h>
+#include <linux/hashtable.h>
 #include <evenless/file.h>
 #include <uapi/evenless/types.h>
 
@@ -32,6 +34,8 @@ struct evl_element;
 
 #define EVL_FACTORY_CLONE	BIT(0)
 #define EVL_FACTORY_SINGLE	BIT(1)
+
+#define EVL_DEVHASH_BITS	8
 
 struct evl_factory {
 	const char *name;
@@ -55,10 +59,13 @@ struct evl_factory {
 			hard_spinlock_t lock;
 			fundle_t generator;
 		} index;
+		DECLARE_HASHTABLE(name_hash, EVL_DEVHASH_BITS);
+		struct mutex hash_lock;
 	}; /* Internal. */
 };
 
 struct evl_element {
+	struct rcu_head rcu;
 	struct evl_factory *factory;
 	struct cdev cdev;
 	struct filename *devname;
@@ -70,7 +77,7 @@ struct evl_element {
 	struct rb_node index_node;
 	struct irq_work irq_work;
 	struct work_struct work;
-	struct rcu_head rcu;
+	struct hlist_node hash;
 };
 
 static inline const char *
@@ -118,7 +125,7 @@ int evl_release_element(struct inode *inode,
 
 int evl_create_element_device(struct evl_element *e,
 			struct evl_factory *fac,
-			const char *devname);
+			const char *name);
 
 void evl_remove_element_device(struct evl_element *e);
 
