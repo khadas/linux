@@ -16,6 +16,8 @@
 #include <linux/rcupdate.h>
 #include <linux/irq_work.h>
 #include <linux/uaccess.h>
+#include <linux/hashtable.h>
+#include <linux/stringhash.h>
 #include <evenless/assert.h>
 #include <evenless/file.h>
 #include <evenless/control.h>
@@ -239,21 +241,41 @@ int evl_release_element(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int evl_create_element_device(struct evl_element *e,
-			struct evl_factory *fac,
-			const char *devname)
+static int create_named_element_device(struct evl_element *e,
+				struct evl_factory *fac)
 {
+	struct evl_element *n;
 	struct device *dev;
 	dev_t rdev;
+	u64 hlen;
 	int ret;
+
+	/*
+	 * Do a quick hash check on the new device name, to make sure
+	 * device_create() won't trigger a kernel log splash because
+	 * of a naming conflict.
+	 */
+	hlen = hashlen_string("EVL", e->devname->name);
+	mutex_lock(&fac->hash_lock);
+
+	hash_for_each_possible(fac->name_hash, n, hash, hlen)
+		if (!strcmp(n->devname->name, e->devname->name)) {
+			mutex_unlock(&fac->hash_lock);
+			return -EEXIST;
+		}
+
+	hash_add(fac->name_hash, &e->hash, hlen);
+
+	mutex_unlock(&fac->hash_lock);
 
 	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
 	cdev_init(&e->cdev, fac->fops);
 	ret = cdev_add(&e->cdev, rdev, 1);
 	if (ret)
-		return ret;
+		goto fail_add;
 
-	dev = device_create(fac->class, NULL, rdev, e, "%s", devname);
+	dev = device_create(fac->class, NULL, rdev, e,
+			"%s", evl_element_name(e));
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto fail_dev;
@@ -271,8 +293,27 @@ fail_groups:
 	device_destroy(fac->class, rdev);
 fail_dev:
 	cdev_del(&e->cdev);
+fail_add:
+	mutex_lock(&fac->hash_lock);
+	hash_del(&e->hash);
+	mutex_unlock(&fac->hash_lock);
 
 	return ret;
+}
+
+int evl_create_element_device(struct evl_element *e,
+			struct evl_factory *fac,
+			const char *name)
+{
+	struct filename *devname;
+
+	devname = getname_kernel(name);
+	if (devname == NULL)
+		return PTR_ERR(devname);
+
+	e->devname = devname;
+
+	return create_named_element_device(e, fac);
 }
 
 void evl_remove_element_device(struct evl_element *e)
@@ -283,6 +324,9 @@ void evl_remove_element_device(struct evl_element *e)
 	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
 	device_destroy(fac->class, rdev);
 	cdev_del(&e->cdev);
+	mutex_lock(&fac->hash_lock);
+	hash_del(&e->hash);
+	mutex_unlock(&fac->hash_lock);
 }
 
 static long ioctl_clone_device(struct file *filp, unsigned int cmd,
@@ -342,7 +386,7 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	filp->private_data = e;
 	barrier();
 
-	ret = evl_create_element_device(e, fac, devname->name);
+	ret = create_named_element_device(e, fac);
 	if (ret) {
 		/* release_clone_device() must skip cleanup. */
 		filp->private_data = NULL;
@@ -569,6 +613,8 @@ static int create_factory(struct evl_factory *fac, dev_t rdev)
 	raw_spin_lock_init(&fac->index.lock);
 	fac->index.root = RB_ROOT;
 	fac->index.generator = EVL_NO_HANDLE;
+	hash_init(fac->name_hash);
+	mutex_init(&fac->hash_lock);
 
 	return 0;
 
