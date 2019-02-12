@@ -149,12 +149,43 @@ static inline void new_generation(struct event_poller *poller)
 		poller->generation = 1;
 }
 
-static int check_no_loop(struct file *origin, struct file *child)
+static int check_no_loop_deeper(struct event_poller *origin,
+				struct poll_node *node,
+				int depth)
 {
-	if (origin == child)
+	struct event_poller *poller;
+	struct poll_node *_node;
+	struct file *filp;
+	int ret = 0;
+
+	if (depth >= POLLER_NEST_MAX)
 		return -EINVAL;
 
-	return 0;
+	filp = node->efilp->filp;
+	if (filp->f_op != &poller_fops)
+		return 0;
+
+	poller = element_of(filp, struct event_poller);
+	if (poller == origin)
+		return -EINVAL;
+
+	evl_lock_kmutex(&poller->lock);
+
+	list_for_each_entry(_node, &poller->node_list, next) {
+		ret = check_no_loop_deeper(origin, _node, depth + 1);
+		if (ret)
+			break;
+	}
+
+	evl_unlock_kmutex(&poller->lock);
+
+	return ret;
+}
+
+static int check_no_loop(struct event_poller *poller,
+			struct poll_node *node)
+{
+	return check_no_loop_deeper(poller, node, 0);
 }
 
 static int add_node(struct file *filp, struct event_poller *poller,
@@ -169,19 +200,18 @@ static int add_node(struct file *filp, struct event_poller *poller,
 
 	node->fd = creq->fd;
 	node->events_polled = creq->events;
-
 	node->efilp = evl_get_file(creq->fd);
 	if (node->efilp == NULL) {
 		ret = -EBADF;
 		goto fail_get;
 	}
 
-	/* Make sure not to have a poller watch itself. */
-	ret = check_no_loop(filp, node->efilp->filp);
-	if (ret)
-		goto fail_check;
-
 	evl_lock_kmutex(&poller->lock);
+
+	/* Check for cyclic deps. */
+	ret = check_no_loop(poller, node);
+	if (ret)
+		goto fail_add;
 
 	ret = __index_node(&poller->node_index, node);
 	if (ret)
@@ -197,7 +227,6 @@ static int add_node(struct file *filp, struct event_poller *poller,
 
 fail_add:
 	evl_unlock_kmutex(&poller->lock);
-fail_check:
 	evl_put_file(node->efilp);
 fail_get:
 	evl_free(node);
