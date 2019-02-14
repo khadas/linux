@@ -291,8 +291,8 @@ static int wait_monitor(struct evl_monitor *event,
 			__s32 *r_op_ret)
 {
 	struct evl_thread *curr = evl_current();
-	int ret = 0, op_ret = 0, info;
 	struct evl_monitor *gate;
+	int ret = 0, op_ret = 0;
 	struct evl_file *efilp;
 	enum evl_tmode tmode;
 	unsigned long flags;
@@ -329,9 +329,9 @@ static int wait_monitor(struct evl_monitor *event,
 	xnlock_get_irqsave(&nklock, flags);
 
 	/*
-	 * Track event monitors the gate monitor protects. When
-	 * multiple threads issue concurrent wait requests on the same
-	 * event monitor, they must use the same gate to serialize.
+	 * Track event monitors the gate protects. When multiple
+	 * threads issue concurrent wait requests on the same event
+	 * monitor, they must use the same gate to serialize.
 	 */
 	if (event->gate == NULL) {
 		list_add_tail(&event->next, &gate->events);
@@ -356,17 +356,15 @@ static int wait_monitor(struct evl_monitor *event,
 	 */
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	info = evl_wait_timeout(&event->wait_queue, timeout, tmode);
-	if (info) {
-		if (info & T_BREAK) {
-			ret = -EINTR;
-			goto unlock;
-		}
-		if (info & T_TIMEO)
-			op_ret = -ETIMEDOUT;
-	}
+	ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
+	if (ret == -EINTR)
+		goto unlock;
 
-	ret = __enter_monitor(gate, NULL);
+	if (ret)
+		op_ret = ret;
+
+	if (ret != -EIDRM)
+		ret = __enter_monitor(gate, NULL);
 
 	untrack_event(event, gate);
 unlock:
