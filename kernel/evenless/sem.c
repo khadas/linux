@@ -32,8 +32,8 @@ static int acquire_sem(struct evl_sem *sem,
 	struct evl_sem_state *state = sem->state;
 	enum evl_tmode tmode;
 	unsigned long flags;
-	int info, ret = 0;
 	ktime_t timeout;
+	int ret = 0;
 
 	if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
 		return -EINVAL;
@@ -46,14 +46,9 @@ static int acquire_sem(struct evl_sem *sem,
 
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	info = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
-	if (info & (T_BREAK|T_TIMEO)) {
-		if (!(state->flags & EVL_SEM_PULSE))
-			atomic_inc(&state->value);
-		ret = -ETIMEDOUT;
-		if (info & T_BREAK)
-			ret = -EINTR;
-	} /* No way we could receive T_RMID */
+	ret = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
+	if (ret && ret != -EIDRM && !(state->flags & EVL_SEM_PULSE))
+		atomic_inc(&state->value);
 out:
 	xnlock_put_irqrestore(&nklock, flags);
 
