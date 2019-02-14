@@ -83,7 +83,10 @@ struct evl_element {
 static inline const char *
 evl_element_name(struct evl_element *e)
 {
-	return e->devname->name;
+	if (e->devname)
+		return e->devname->name;
+
+	return NULL;
 }
 
 int evl_init_element(struct evl_element *e,
