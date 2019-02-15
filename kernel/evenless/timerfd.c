@@ -172,9 +172,18 @@ static __poll_t timerfd_oob_poll(struct file *filp,
 	return timerfd->ticked ? POLLIN|POLLRDNORM : 0;
 }
 
+static int timerfd_release(struct inode *inode, struct file *filp)
+{
+	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
+
+	evl_flush_wait(&timerfd->readers, T_RMID);
+
+	return evl_release_element(inode, filp);
+}
+
 static const struct file_operations timerfd_fops = {
 	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.release	= timerfd_release,
 	.oob_ioctl	= timerfd_oob_ioctl,
 	.oob_read	= timerfd_oob_read,
 	.oob_poll	= timerfd_oob_poll,
