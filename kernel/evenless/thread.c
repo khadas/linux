@@ -580,12 +580,12 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 	 *
 	 * If the target thread runs in-band in userland on a remote
 	 * CPU, force it back to OOB context by sending it a
-	 * SIGSHADOW_ACTION_HOME request.
+	 * SIGEVL_ACTION_HOME request.
 	 */
 	if (likely(thread == rq->curr))
 		evl_set_resched(rq);
 	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)))
-		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
+		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
 
 	xnlock_put_irqrestore(&nklock, flags);
 }
@@ -1233,8 +1233,7 @@ int __evl_set_thread_schedparam(struct evl_thread *thread,
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */
 	if (thread->state & T_INBAND)
-		evl_signal_thread(thread, SIGSHADOW,
-				SIGSHADOW_ACTION_HOME);
+		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
 
 	return ret;
 }
@@ -1473,7 +1472,7 @@ static void inband_task_signal(struct irq_work *work)
 	signo = req->signo;
 	trace_evl_inband_signal(p, signo);
 
-	if (signo == SIGSHADOW || signo == SIGDEBUG) {
+	if (signo == SIGEVL || signo == SIGDEBUG) {
 		memset(&si, '\0', sizeof(si));
 		si.si_signo = signo;
 		si.si_code = SI_QUEUE;
@@ -1709,14 +1708,13 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 	 * context first, then move back to OOB, so that affinity_ok()
 	 * does the fixup work.
 	 *
-	 * We force this by sending a SIGSHADOW signal to the migrated
+	 * We force this by sending a SIGEVL signal to the migrated
 	 * thread, asking it to switch back to OOB context from the
 	 * handler, at which point the interrupted syscall may be
 	 * restarted.
 	 */
 	if (thread->state & (EVL_THREAD_BLOCK_BITS & ~T_INBAND))
-		evl_signal_thread(thread, SIGSHADOW,
-				SIGSHADOW_ACTION_HOME);
+		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
 }
 
 static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */

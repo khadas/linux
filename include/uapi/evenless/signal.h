@@ -9,13 +9,13 @@
 #ifndef _EVENLESS_UAPI_SIGNAL_H
 #define _EVENLESS_UAPI_SIGNAL_H
 
-#define SIGSHADOW			SIGWINCH
+#define SIGEVL				SIGWINCH
 #define sigshadow_action(code)		((code) & 0xff)
 #define sigshadow_arg(code)		(((code) >> 8) & 0xff)
 #define sigshadow_int(action, arg)	((action) | ((arg) << 8))
 
-/* SIGSHADOW action codes. */
-#define SIGSHADOW_ACTION_HOME		1
+/* SIGEVL action codes. */
+#define SIGEVL_ACTION_HOME		1
 
 #define SIGDEBUG			SIGXCPU
 #define sigdebug_code(si)		((si)->si_value.sival_int)
