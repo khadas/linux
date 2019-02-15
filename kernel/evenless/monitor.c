@@ -181,11 +181,14 @@ static int __enter_monitor(struct evl_monitor *gate,
 
 	tmode = timeout ? EVL_ABS : EVL_REL;
 	info = evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
-	if (info) {
-		if (info & T_BREAK)
-			return -EINTR;
-		return info & T_TIMEO ? -ETIMEDOUT : -EINVAL;
-	}
+	if (info & T_BREAK)
+		return -EINTR;
+
+	if (info & T_RMID)
+		return -EIDRM;
+
+	if (info & T_TIMEO)
+		return -ETIMEDOUT;
 
 	return 0;
 }
@@ -472,9 +475,21 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+static int monitor_release(struct inode *inode, struct file *filp)
+{
+	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+
+	if (mon->type == EVL_MONITOR_EV)
+		evl_flush_wait(&mon->wait_queue, T_RMID);
+	else
+		evl_flush_mutex(&mon->lock, T_RMID);
+
+	return evl_release_element(inode, filp);
+}
+
 static const struct file_operations monitor_fops = {
 	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.release	= monitor_release,
 	.unlocked_ioctl	= monitor_ioctl,
 	.oob_ioctl	= monitor_oob_ioctl,
 };
