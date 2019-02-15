@@ -26,7 +26,7 @@ struct evl_sem {
 	int initval;
 };
 
-static int acquire_sem(struct evl_sem *sem,
+static int get_sem(struct evl_sem *sem,
 		struct evl_sem_waitreq *req)
 {
 	struct evl_sem_state *state = sem->state;
@@ -47,7 +47,7 @@ static int acquire_sem(struct evl_sem *sem,
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 	ret = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
-	if (ret && ret != -EIDRM && !(state->flags & EVL_SEM_PULSE))
+	if (ret && !(state->flags & EVL_SEM_PULSE))
 		atomic_inc(&state->value);
 out:
 	xnlock_put_irqrestore(&nklock, flags);
@@ -55,7 +55,7 @@ out:
 	return ret;
 }
 
-static int release_sem(struct evl_sem *sem)
+static int put_sem(struct evl_sem *sem)
 {
 	struct evl_sem_state *state = sem->state;
 	unsigned long flags;
@@ -81,7 +81,7 @@ static long sem_common_ioctl(struct evl_sem *sem,
 
 	switch (cmd) {
 	case EVL_SEMIOC_PUT:
-		ret = release_sem(sem);
+		ret = put_sem(sem);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -103,7 +103,7 @@ static long sem_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		ret = acquire_sem(sem, &wreq);
+		ret = get_sem(sem, &wreq);
 		break;
 	default:
 		ret = sem_common_ioctl(sem, cmd, arg);
@@ -129,9 +129,18 @@ static long sem_ioctl(struct file *filp, unsigned int cmd,
 	return copy_to_user(u_eids, &eids, sizeof(eids)) ? -EFAULT : 0;
 }
 
+static int sem_release(struct inode *inode, struct file *filp)
+{
+	struct evl_sem *sem = element_of(filp, struct evl_sem);
+
+	evl_flush_wait(&sem->wait_queue, T_RMID);
+
+	return evl_release_element(inode, filp);
+}
+
 static const struct file_operations sem_fops = {
 	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.release	= sem_release,
 	.unlocked_ioctl	= sem_ioctl,
 	.oob_ioctl	= sem_oob_ioctl,
 };
