@@ -13,19 +13,19 @@
 /* State flags (shared) */
 
 #define T_SUSP    0x00000001 /*< Suspended */
-#define T_PEND    0x00000002 /*< Sleeping on a wait_queue/mutex */
+#define T_PEND    0x00000002 /*< Blocked on a wait_queue/mutex */
 #define T_DELAY   0x00000004 /*< Delayed/timed */
 #define T_WAIT    0x00000008 /*< Periodic wait */
 #define T_READY   0x00000010 /*< Ready to run (in rq) */
 #define T_DORMANT 0x00000020 /*< Not started yet */
-#define T_ZOMBIE  0x00000040 /*< Dead, waiting for cleanup */
+#define T_ZOMBIE  0x00000040 /*< Dead, waiting for disposal */
 #define T_INBAND  0x00000080 /*< Running in-band */
 #define T_HALT    0x00000100 /*< Halted */
 #define T_BOOST   0x00000200 /*< PI/PP boost undergoing */
 #define T_SSTEP   0x00000400 /*< Single-stepped by debugger */
-#define T_RRB     0x00000800 /*< Undergoes a round-robin scheduling */
+#define T_RRB     0x00000800 /*< Undergoes round-robin scheduling */
 #define T_WARN    0x00001000 /*< Wants SIGDEBUG on error detection */
-#define T_ROOT    0x00002000 /*< Root thread (in-band context placeholder) */
+#define T_ROOT    0x00002000 /*< Root thread (in-band kernel placeholder) */
 #define T_WEAK    0x00004000 /*< Weak scheduling (non real-time) */
 #define T_USER    0x00008000 /*< Userland thread */
 #define T_DEBUG   0x00010000 /*< User-level debugging enabled */
@@ -54,17 +54,17 @@
  * Must follow strictly the declaration order of the state flags
  * defined above. Status symbols are defined as follows:
  *
- * 'S' -> Forcibly suspended.
- * 'w'/'W' -> Waiting for a resource, with or without timeout.
- * 'D' -> Delayed (without any other wait condition).
- * 'R' -> Runnable.
- * 'U' -> Unstarted or dormant.
- * 'X' -> Relaxed shadow.
- * 'H' -> Held in emergency.
- * 'b' -> Priority boost undergoing.
- * 'T' -> Ptraced and stopped.
- * 'r' -> Undergoes round-robin.
- * 't' -> Runtime mode errors notified.
+ * 'S' -> Forcibly suspended
+ * 'w'/'W' -> Blocked with/without timeout
+ * 'D' -> Delayed
+ * 'R' -> Runnable
+ * 'U' -> Dormant
+ * 'X' -> Running in-band
+ * 'H' -> Held in emergency
+ * 'b' -> Priority boost undergoing
+ * 'T' -> Ptraced and stopped
+ * 'r' -> Undergoes round-robin
+ * 't' -> SIGDEBUG notifications enabled
  */
 #define EVL_THREAD_STATE_LABELS  "SWDRU.XHbTrt...."
 
