@@ -48,7 +48,7 @@ void evl_init_mutex_pp(struct evl_mutex *mutex,
 		atomic_t *fastlock,
 		u32 *ceiling_ref);
 
-bool evl_destroy_mutex(struct evl_mutex *mutex);
+void evl_destroy_mutex(struct evl_mutex *mutex);
 
 int evl_trylock_mutex(struct evl_mutex *mutex);
 
@@ -63,6 +63,9 @@ static inline int evl_lock_mutex(struct evl_mutex *mutex)
 void __evl_unlock_mutex(struct evl_mutex *mutex);
 
 void evl_unlock_mutex(struct evl_mutex *mutex);
+
+void evl_flush_mutex(struct evl_mutex *mutex,
+		int reason);
 
 void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 

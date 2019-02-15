@@ -334,31 +334,32 @@ void evl_init_mutex_pp(struct evl_mutex *mutex,
 }
 EXPORT_SYMBOL_GPL(evl_init_mutex_pp);
 
-bool evl_destroy_mutex(struct evl_mutex *mutex)
+void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 {
 	struct evl_thread *waiter, *tmp;
 	unsigned long flags;
-	bool ret;
+
+	trace_evl_mutex_flush(mutex);
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	trace_evl_mutex_destroy(mutex);
-
-	if (list_empty(&mutex->wait_list)) {
+	if (list_empty(&mutex->wait_list))
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
-		ret = false;
-	} else {
-		ret = true;
+	else {
 		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next)
-			evl_wakeup_thread(waiter, T_PEND, T_RMID);
+			evl_wakeup_thread(waiter, T_PEND, reason);
 
 		if (mutex->flags & EVL_MUTEX_CLAIMED)
 			clear_pi_boost(mutex, mutex->owner);
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
+}
 
-	return ret;
+void evl_destroy_mutex(struct evl_mutex *mutex)
+{
+	trace_evl_mutex_destroy(mutex);
+	evl_flush_mutex(mutex, T_RMID);
 }
 EXPORT_SYMBOL_GPL(evl_destroy_mutex);
 
