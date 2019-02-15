@@ -571,9 +571,19 @@ static __poll_t xbuf_oob_poll(struct file *filp,
 	return ready;
 }
 
+static int xbuf_release(struct inode *inode, struct file *filp)
+{
+	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
+
+	evl_flush_flag(&xbuf->obnd.i_event, T_RMID);
+	evl_flush_flag(&xbuf->ibnd.o_event, T_RMID);
+
+	return evl_release_element(inode, filp);
+}
+
 static const struct file_operations xbuf_fops = {
 	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.release	= xbuf_release,
 	.unlocked_ioctl	= xbuf_ioctl,
 	.read		= xbuf_read,
 	.write		= xbuf_write,
