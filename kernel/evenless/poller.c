@@ -24,7 +24,6 @@
 struct event_poller {
 	struct rb_root node_index;  /* struct poll_node */
 	struct list_head node_list;  /* struct poll_node */
-	struct evl_wait_queue wait_queue;
 	struct evl_element element;
 	struct evl_kmutex lock;
 	int nodenr;
@@ -566,24 +565,12 @@ static struct evl_element *
 poller_factory_build(struct evl_factory *fac, const char *name,
 		void __user *u_attrs, u32 *state_offp)
 {
-	struct evl_poller_attrs attrs;
 	struct event_poller *poller;
-	struct evl_clock *clock;
 	int ret;
 
-	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
-	if (ret)
-		return ERR_PTR(-EFAULT);
-
-	clock = evl_get_clock_by_fd(attrs.clockfd);
-	if (clock == NULL)
-		return ERR_PTR(-EINVAL);
-
 	poller = kzalloc(sizeof(*poller), GFP_KERNEL);
-	if (poller == NULL) {
-		ret = -ENOMEM;
-		goto fail_alloc;
-	}
+	if (poller == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	ret = evl_init_element(&poller->element, &evl_poller_factory);
 	if (ret)
@@ -591,7 +578,6 @@ poller_factory_build(struct evl_factory *fac, const char *name,
 
 	poller->node_index = RB_ROOT;
 	INIT_LIST_HEAD(&poller->node_list);
-	evl_init_wait(&poller->wait_queue, clock, EVL_WAIT_PRIO);
 	evl_init_kmutex(&poller->lock);
 	poller->owner = get_task_pid(current->group_leader, PIDTYPE_PID);
 
@@ -599,8 +585,6 @@ poller_factory_build(struct evl_factory *fac, const char *name,
 
 fail_element:
 	kfree(poller);
-fail_alloc:
-	evl_put_clock(clock);
 
 	return ERR_PTR(ret);
 }
@@ -621,7 +605,6 @@ static void poller_factory_dispose(struct evl_element *e)
 
 	put_pid(poller->owner);
 	flush_nodes(poller);
-	evl_put_clock(poller->wait_queue.clock);
 	evl_destroy_element(&poller->element);
 	kfree_rcu(poller, element.rcu);
 }
