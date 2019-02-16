@@ -7,10 +7,6 @@
 #ifndef _EVENLESS_UAPI_POLLER_H
 #define _EVENLESS_UAPI_POLLER_H
 
-struct evl_poller_attrs {
-	__u32 clockfd;
-};
-
 #define EVL_POLLER_IOCBASE	'p'
 
 #define EVL_POLLER_CTLADD   0
