@@ -53,14 +53,14 @@ menu "Sizes and static limits"
 
 config EVENLESS_SYS_HEAPSZ
 	int "Size of system heap (Kb)"
-	default 512
+	default 2048
 	help
 	The system heap is used for various internal allocations by
 	the Evenless kernel. The size is expressed in Kilobytes.
 
 config EVENLESS_SHARED_HEAPSZ
 	int "Size of shared heap (Kb)"
-	default 64
+	default 128
 	help
 	The Evenless core implements fast IPC mechanisms between
 	processes which require a shared kernel memory heap to be
