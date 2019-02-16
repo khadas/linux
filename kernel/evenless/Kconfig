@@ -44,8 +44,8 @@ config EVENLESS_STATS
 	default y
 	help
 	This option causes the Evenless kernel to collect various
-	per-thread runtime statistics, which are accessible through
-	the /proc/evenless/sched/stat interface.
+	per-thread runtime statistics, which are accessible via
+	the /sys interface.
 
 endmenu
 
