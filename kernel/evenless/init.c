@@ -102,10 +102,6 @@ static __init int init_core(void)
 	if (ret)
 		goto cleanup_clock;
 
-	ret = evl_init_files();
-	if (ret)
-		goto cleanup_sched;
-
 	/*
 	 * If starting in stopped mode, do all initializations, but do
 	 * not enable the core timer.
@@ -113,7 +109,7 @@ static __init int init_core(void)
 	if (evl_is_warming()) {
 		ret = evl_enable_tick();
 		if (ret)
-			goto cleanup_files;
+			goto cleanup_sched;
 		set_evl_state(EVL_STATE_RUNNING);
 	}
 
@@ -137,8 +133,6 @@ cleanup_dovetail:
 cleanup_tick:
 	if (evl_is_running())
 		evl_disable_tick();
-cleanup_files:
-	evl_cleanup_files();
 cleanup_sched:
 	evl_cleanup_sched();
 cleanup_clock:

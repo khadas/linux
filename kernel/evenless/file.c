@@ -13,10 +13,9 @@
 #include <linux/completion.h>
 #include <linux/irq_work.h>
 #include <evenless/file.h>
+#include <evenless/memory.h>
 #include <evenless/assert.h>
 #include <evenless/sched.h>
-
-static struct kmem_cache *fd_cache;
 
 static struct rb_root fd_tree = RB_ROOT;
 
@@ -103,8 +102,9 @@ struct evl_fd *unindex_sfd(unsigned int fd,
 	return sfd;
 }
 
+/* in-band, caller may hold files->file_lock */
 void install_inband_fd(unsigned int fd, struct file *filp,
-		struct files_struct *files) /* in-band */
+		struct files_struct *files)
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -113,7 +113,7 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 	if (filp->oob_data == NULL)
 		return;
 
-	sfd = kmem_cache_alloc(fd_cache, GFP_KERNEL);
+	sfd = evl_alloc(sizeof(struct evl_fd));
 	if (sfd) {
 		sfd->fd = fd;
 		sfd->files = files;
@@ -126,8 +126,9 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 	EVL_WARN_ON(CORE, ret);
 }
 
+/* in-band, caller holds files->file_lock */
 void uninstall_inband_fd(unsigned int fd, struct file *filp,
-			struct files_struct *files) /* in-band */
+			struct files_struct *files)
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -140,11 +141,12 @@ void uninstall_inband_fd(unsigned int fd, struct file *filp,
 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
 
 	if (sfd)
-		kmem_cache_free(fd_cache, sfd);
+		evl_free(sfd);
 }
 
+/* in-band, caller holds files->file_lock */
 void replace_inband_fd(unsigned int fd, struct file *filp,
-		struct files_struct *files) /* in-band */
+		struct files_struct *files)
 {
 	struct evl_fd *sfd;
 	unsigned long flags;
@@ -236,20 +238,4 @@ void evl_release_file(struct evl_file *efilp)
 	 */
 	if (atomic_dec_return(&efilp->oob_refs) > 0)
 		wait_for_completion(&efilp->oob_done);
-}
-
-void evl_cleanup_files(void)
-{
-	kmem_cache_destroy(fd_cache);
-}
-
-int __init evl_init_files(void)
-{
-	fd_cache = kmem_cache_create("evl_fdcache",
-				sizeof(struct evl_fd),
-				0, 0, NULL);
-	if (fd_cache == NULL)
-		return -ENOMEM;
-
-	return 0;
 }
