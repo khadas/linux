@@ -31,7 +31,7 @@
 #endif
 
 #define EVENLESS_SYSCALL(__name, __args)	\
-	long EvEnLeSs_ ## __name __args
+	long EVL_ ## __name __args
 
 #define SYSCALL_PROPAGATE   0
 #define SYSCALL_STOP        1
@@ -317,12 +317,12 @@ static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
 	return ret;
 }
 
-static int EvEnLeSs_ni(void)
+static int EVL_ni(void)
 {
 	return -ENOSYS;
 }
 
-#define __syshand__(__name)	((evl_syshand)(EvEnLeSs_ ## __name))
+#define __syshand__(__name)	((evl_syshand)(EVL_ ## __name))
 
 #define __EVENLESS_CALL_ENTRIES			\
 	__EVENLESS_CALL_ENTRY(read)		\
