@@ -26,6 +26,10 @@ struct evl_poll_head {
 	hard_spinlock_t lock;
 };
 
+struct evl_poll_node {
+	struct list_head next;	/* in evl_fd->poll_nodes */
+};
+
 static inline
 void evl_init_poll_head(struct evl_poll_head *head)
 {
@@ -63,5 +67,7 @@ evl_clear_poll_events(struct evl_poll_head *head,
 }
 
 void evl_drop_poll_table(struct evl_thread *thread);
+
+void evl_drop_watchpoints(struct list_head *drop_list);
 
 #endif /* !_EVENLESS_POLL_H */

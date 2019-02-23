@@ -12,10 +12,12 @@
 #include <linux/err.h>
 #include <linux/completion.h>
 #include <linux/irq_work.h>
+#include <linux/spinlock.h>
 #include <evenless/file.h>
 #include <evenless/memory.h>
 #include <evenless/assert.h>
 #include <evenless/sched.h>
+#include <evenless/poll.h>
 
 static struct rb_root fd_tree = RB_ROOT;
 
@@ -44,7 +46,7 @@ static inline bool lean_right(struct evl_fd *lh, struct evl_fd *rh)
 	return lh->files > rh->files;
 }
 
-static inline int index_sfd(struct evl_fd *sfd, struct file *filp)
+static inline int index_efd(struct evl_fd *efd, struct file *filp)
 {
 	struct rb_node **rbp, *parent = NULL;
 	struct evl_fd *tmp;
@@ -53,113 +55,126 @@ static inline int index_sfd(struct evl_fd *sfd, struct file *filp)
 	while (*rbp) {
 		tmp = rb_entry(*rbp, struct evl_fd, rb);
 		parent = *rbp;
-		if (lean_left(sfd, tmp))
+		if (lean_left(efd, tmp))
 			rbp = &(*rbp)->rb_left;
-		else if (lean_right(sfd, tmp))
+		else if (lean_right(efd, tmp))
 			rbp = &(*rbp)->rb_right;
 		else
 			return -EEXIST;
 	}
 
-	rb_link_node(&sfd->rb, parent, rbp);
-	rb_insert_color(&sfd->rb, &fd_tree);
+	rb_link_node(&efd->rb, parent, rbp);
+	rb_insert_color(&efd->rb, &fd_tree);
 
 	return 0;
 }
 
 static inline
-struct evl_fd *lookup_sfd(unsigned int fd,
+struct evl_fd *lookup_efd(unsigned int fd,
 			struct files_struct *files)
 {
-	struct evl_fd *sfd, tmp;
+	struct evl_fd *efd, tmp;
 	struct rb_node *rb;
 
 	tmp.fd = fd;
 	tmp.files = files;
 	rb = fd_tree.rb_node;
 	while (rb) {
-		sfd = rb_entry(rb, struct evl_fd, rb);
-		if (lean_left(&tmp, sfd))
+		efd = rb_entry(rb, struct evl_fd, rb);
+		if (lean_left(&tmp, efd))
 			rb = rb->rb_left;
-		else if (lean_right(&tmp, sfd))
+		else if (lean_right(&tmp, efd))
 			rb = rb->rb_right;
 		else
-			return sfd;
+			return efd;
 	}
 
 	return NULL;
 }
 
 static inline
-struct evl_fd *unindex_sfd(unsigned int fd,
+struct evl_fd *unindex_efd(unsigned int fd,
 			struct files_struct *files)
 {
-	struct evl_fd *sfd = lookup_sfd(fd, files);
+	struct evl_fd *efd = lookup_efd(fd, files);
 
-	if (sfd)
-		rb_erase(&sfd->rb, &fd_tree);
+	if (efd)
+		rb_erase(&efd->rb, &fd_tree);
 
-	return sfd;
+	return efd;
 }
 
 /* in-band, caller may hold files->file_lock */
 void install_inband_fd(unsigned int fd, struct file *filp,
 		struct files_struct *files)
 {
-	struct evl_fd *sfd;
 	unsigned long flags;
+	struct evl_fd *efd;
 	int ret = -ENOMEM;
 
 	if (filp->oob_data == NULL)
 		return;
 
-	sfd = evl_alloc(sizeof(struct evl_fd));
-	if (sfd) {
-		sfd->fd = fd;
-		sfd->files = files;
-		sfd->efilp = filp->oob_data;
+	efd = evl_alloc(sizeof(struct evl_fd));
+	if (efd) {
+		efd->fd = fd;
+		efd->files = files;
+		efd->efilp = filp->oob_data;
+		INIT_LIST_HEAD(&efd->poll_nodes);
 		raw_spin_lock_irqsave(&fdt_lock, flags);
-		ret = index_sfd(sfd, filp);
+		ret = index_efd(efd, filp);
 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
 	}
 
 	EVL_WARN_ON(CORE, ret);
 }
 
+/* fdt_lock held, irqs off. CAUTION: resched required on exit. */
+static void drop_watchpoints(struct evl_fd *efd)
+{
+	if (!list_empty(&efd->poll_nodes))
+		evl_drop_watchpoints(&efd->poll_nodes);
+}
+
 /* in-band, caller holds files->file_lock */
 void uninstall_inband_fd(unsigned int fd, struct file *filp,
 			struct files_struct *files)
 {
-	struct evl_fd *sfd;
 	unsigned long flags;
+	struct evl_fd *efd;
 
 	if (filp->oob_data == NULL)
 		return;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
-	sfd = unindex_sfd(fd, files);
+	efd = unindex_efd(fd, files);
+	if (efd)
+		drop_watchpoints(efd);
 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_schedule();
 
-	if (sfd)
-		evl_free(sfd);
+	if (efd)
+		evl_free(efd);
 }
 
 /* in-band, caller holds files->file_lock */
 void replace_inband_fd(unsigned int fd, struct file *filp,
 		struct files_struct *files)
 {
-	struct evl_fd *sfd;
 	unsigned long flags;
+	struct evl_fd *efd;
 
 	if (filp->oob_data == NULL)
 		return;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
 
-	sfd = lookup_sfd(fd, files);
-	if (sfd) {
-		sfd->efilp = filp->oob_data;
+	efd = lookup_efd(fd, files);
+	if (efd) {
+		drop_watchpoints(efd);
+		efd->efilp = filp->oob_data;
 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
+		evl_schedule();
 		return;
 	}
 
@@ -168,16 +183,16 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 	install_inband_fd(fd, filp, files);
 }
 
-struct evl_file *evl_get_file(unsigned int fd) /* OOB */
+struct evl_file *evl_get_file(unsigned int fd)
 {
 	struct evl_file *efilp = NULL;
-	struct evl_fd *sfd;
 	unsigned long flags;
+	struct evl_fd *efd;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
-	sfd = lookup_sfd(fd, current->files);
-	if (sfd) {
-		efilp = sfd->efilp;
+	efd = lookup_efd(fd, current->files);
+	if (efd) {
+		efilp = efd->efilp;
 		evl_get_fileref(efilp);
 	}
 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
@@ -197,6 +212,34 @@ void __evl_put_file(struct evl_file *efilp)
 {
 	init_irq_work(&efilp->oob_work, release_oob_ref);
 	irq_work_queue(&efilp->oob_work);
+}
+
+struct evl_file *evl_watch_fd(unsigned int fd,
+			struct evl_poll_node *node)
+{
+	struct evl_file *efilp = NULL;
+	unsigned long flags;
+	struct evl_fd *efd;
+
+	raw_spin_lock_irqsave(&fdt_lock, flags);
+	efd = lookup_efd(fd, current->files);
+	if (efd) {
+		efilp = efd->efilp;
+		evl_get_fileref(efilp);
+		list_add(&node->next, &efd->poll_nodes);
+	}
+	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+
+	return efilp;
+}
+
+void evl_ignore_fd(struct evl_poll_node *node)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&fdt_lock, flags);
+	list_del(&node->next);
+	raw_spin_unlock_irqrestore(&fdt_lock, flags);
 }
 
 /**

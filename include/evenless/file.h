@@ -10,12 +10,14 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/rbtree.h>
+#include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/irq_work.h>
 
 struct file;
 struct files_struct;
 struct evl_element;
+struct evl_poll_node;
 
 struct evl_file {
 	struct file *filp;
@@ -29,6 +31,7 @@ struct evl_fd {
 	struct evl_file *efilp;
 	struct files_struct *files;
 	struct rb_node rb;
+	struct list_head poll_nodes; /* poll_item->node */
 };
 
 struct evl_file_binding {
@@ -57,6 +60,11 @@ void evl_put_file(struct evl_file *efilp) /* OOB */
 	if (atomic_dec_return(&efilp->oob_refs) == 0)
 		__evl_put_file(efilp);
 }
+
+struct evl_file *evl_watch_fd(unsigned int fd,
+			struct evl_poll_node *node);
+
+void evl_ignore_fd(struct evl_poll_node *node);
 
 int evl_init_files(void);
 
