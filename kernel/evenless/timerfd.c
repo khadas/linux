@@ -13,7 +13,7 @@
 #include <evenless/clock.h>
 #include <evenless/timer.h>
 #include <evenless/lock.h>
-#include <evenless/poller.h>
+#include <evenless/poll.h>
 #include <evenless/sched.h>
 #include <evenless/factory.h>
 #include <asm/evenless/syscall.h>

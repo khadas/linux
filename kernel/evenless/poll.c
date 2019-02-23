@@ -5,17 +5,15 @@
  */
 
 #include <linux/types.h>
-#include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/poll.h>
-#include <linux/pid.h>
 #include <linux/module.h>
 #include <evenless/file.h>
 #include <evenless/thread.h>
 #include <evenless/memory.h>
-#include <evenless/poller.h>
+#include <evenless/poll.h>
 #include <evenless/sched.h>
 #include <evenless/flag.h>
 #include <evenless/mutex.h>
@@ -24,11 +22,10 @@
 struct event_poller {
 	struct rb_root node_index;  /* struct poll_node */
 	struct list_head node_list;  /* struct poll_node */
-	struct evl_element element;
+	struct evl_file efile;
 	struct evl_kmutex lock;
 	int nodenr;
 	unsigned int generation;
-	struct pid *owner;
 };
 
 struct poll_node {
@@ -54,7 +51,7 @@ struct evl_poll_watchpoint {
 /* Maximum nesting depth (poller watching poller(s) */
 #define POLLER_NEST_MAX  4
 
-static const struct file_operations poller_fops;
+static const struct file_operations poll_fops;
 
 void evl_poll_watch(struct evl_poll_head *head,
 		struct oob_poll_wait *wait)
@@ -161,10 +158,10 @@ static int check_no_loop_deeper(struct event_poller *origin,
 		return -EINVAL;
 
 	filp = node->efilp->filp;
-	if (filp->f_op != &poller_fops)
+	if (filp->f_op != &poll_fops)
 		return 0;
 
-	poller = element_of(filp, struct event_poller);
+	poller = filp->private_data;
 	if (poller == origin)
 		return -EINVAL;
 
@@ -188,7 +185,7 @@ static int check_no_loop(struct event_poller *poller,
 }
 
 static int add_node(struct file *filp, struct event_poller *poller,
-		struct evl_poller_ctlreq *creq)
+		struct evl_poll_ctlreq *creq)
 {
 	struct poll_node *node;
 	int ret;
@@ -260,7 +257,7 @@ static void __del_node(struct poll_node *node)
 }
 
 static int del_node(struct event_poller *poller,
-		struct evl_poller_ctlreq *creq)
+		struct evl_poll_ctlreq *creq)
 {
 	struct poll_node *node;
 
@@ -286,7 +283,7 @@ static int del_node(struct event_poller *poller,
 
 static inline
 int mod_node(struct event_poller *poller,
-	struct evl_poller_ctlreq *creq)
+	struct evl_poll_ctlreq *creq)
 {
 	struct poll_node *node;
 
@@ -308,18 +305,18 @@ int mod_node(struct event_poller *poller,
 
 static inline
 int setup_node(struct file *filp, struct event_poller *poller,
-	struct evl_poller_ctlreq *creq)
+	struct evl_poll_ctlreq *creq)
 {
 	int ret;
 
 	switch (creq->action) {
-	case EVL_POLLER_CTLADD:
+	case EVL_POLL_CTLADD:
 		ret = add_node(filp, poller, creq);
 		break;
-	case EVL_POLLER_CTLDEL:
+	case EVL_POLL_CTLDEL:
 		ret = del_node(poller, creq);
 		break;
-	case EVL_POLLER_CTLMOD:
+	case EVL_POLL_CTLMOD:
 		ret = mod_node(poller, creq);
 		break;
 	default:
@@ -453,7 +450,7 @@ static inline void clear_wait(void)
 static inline
 int wait_events(struct file *filp,
 		struct event_poller *poller,
-		struct evl_poller_waitreq *wreq)
+		struct evl_poll_waitreq *wreq)
 {
 	DEFINE_EVL_FLAG(flag);
 	enum evl_tmode tmode;
@@ -495,37 +492,54 @@ unwait:
 	return count;
 }
 
-static int poller_open(struct inode *inode, struct file *filp)
+static int poll_open(struct inode *inode, struct file *filp)
 {
-	struct task_struct *group_leader;
 	struct event_poller *poller;
 	int ret;
 
-	ret = evl_open_element(inode, filp);
-	if (ret)
-		return ret;
+	poller = kzalloc(sizeof(*poller), GFP_KERNEL);
+	if (poller == NULL)
+		return -ENOMEM;
 
-	/*
-	 * A poller is privately owned by the process which
-	 * instantiates it, as it implicitly refers to its file
-	 * table. Deny threads from other processes from opening it.
-	 */
-	poller = element_of(filp, struct event_poller);
-	rcu_read_lock();
-	group_leader = pid_task(poller->owner, PIDTYPE_PID);
-	if (group_leader != current->group_leader)
-		ret = -EPERM;
-	rcu_read_unlock();
+	ret = evl_open_file(&poller->efile, filp);
+	if (ret) {
+		kfree(poller);
+		return ret;
+	}
+
+	poller->node_index = RB_ROOT;
+	INIT_LIST_HEAD(&poller->node_list);
+	evl_init_kmutex(&poller->lock);
+	filp->private_data = poller;
 
 	return ret;
 }
 
-static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
+static inline void flush_nodes(struct event_poller *poller)
+{
+	struct poll_node *node, *n;
+
+	list_for_each_entry_safe(node, n, &poller->node_list, next)
+		__del_node(node);
+}
+
+static int poll_release(struct inode *inode, struct file *filp)
+{
+	struct event_poller *poller = filp->private_data;
+
+	evl_release_file(&poller->efile);
+	flush_nodes(poller);
+	kfree(poller);
+
+	return 0;
+}
+
+static long poll_oob_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
-	struct event_poller *poller = element_of(filp, struct event_poller);
-	struct evl_poller_waitreq wreq, __user *u_wreq;
-	struct evl_poller_ctlreq creq, __user *u_creq;
+	struct event_poller *poller = filp->private_data;
+	struct evl_poll_waitreq wreq, __user *u_wreq;
+	struct evl_poll_ctlreq creq, __user *u_creq;
 	int ret;
 
 	switch (cmd) {
@@ -555,65 +569,14 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static const struct file_operations poller_fops = {
-	.open		= poller_open,
-	.release	= evl_release_element,
-	.oob_ioctl	= poller_oob_ioctl,
+static const struct file_operations poll_fops = {
+	.open		= poll_open,
+	.release	= poll_release,
+	.oob_ioctl	= poll_oob_ioctl,
 };
 
-static struct evl_element *
-poller_factory_build(struct evl_factory *fac, const char *name,
-		void __user *u_attrs, u32 *state_offp)
-{
-	struct event_poller *poller;
-	int ret;
-
-	poller = kzalloc(sizeof(*poller), GFP_KERNEL);
-	if (poller == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ret = evl_init_element(&poller->element, &evl_poller_factory);
-	if (ret)
-		goto fail_element;
-
-	poller->node_index = RB_ROOT;
-	INIT_LIST_HEAD(&poller->node_list);
-	evl_init_kmutex(&poller->lock);
-	poller->owner = get_task_pid(current->group_leader, PIDTYPE_PID);
-
-	return &poller->element;
-
-fail_element:
-	kfree(poller);
-
-	return ERR_PTR(ret);
-}
-
-static inline void flush_nodes(struct event_poller *poller)
-{
-	struct poll_node *node, *n;
-
-	list_for_each_entry_safe(node, n, &poller->node_list, next)
-		__del_node(node);
-}
-
-static void poller_factory_dispose(struct evl_element *e)
-{
-	struct event_poller *poller;
-
-	poller = container_of(e, struct event_poller, element);
-
-	put_pid(poller->owner);
-	flush_nodes(poller);
-	evl_destroy_element(&poller->element);
-	kfree_rcu(poller, element.rcu);
-}
-
-struct evl_factory evl_poller_factory = {
-	.name	=	"poller",
-	.fops	=	&poller_fops,
-	.build =	poller_factory_build,
-	.dispose =	poller_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_POLLERS,
-	.flags	=	EVL_FACTORY_CLONE,
+struct evl_factory evl_poll_factory = {
+	.name	=	"poll",
+	.fops	=	&poll_fops,
+	.flags	=	EVL_FACTORY_SINGLE,
 };
