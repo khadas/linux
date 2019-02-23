@@ -17,7 +17,7 @@ static long trace_common_ioctl(struct file *filp, unsigned int cmd,
 	long ret = 0;
 
 	switch (cmd) {
-	case EVL_TRCIOC_TRACE_SNAPSHOT:
+	case EVL_TRCIOC_SNAPSHOT:
 #ifdef CONFIG_TRACER_SNAPSHOT
 		tracing_snapshot();
 #endif
