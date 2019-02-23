@@ -59,17 +59,10 @@ static u8 mac_addr[] = {0, 0, 0, 0, 0, 0};
 #include <linux/earlysuspend.h>
 struct phy_device *g_phydev;
 
-struct wol_data {
-    int enable;
-};
-
-struct wol_data *g_wol_data;
+extern int mcu_get_wol_status(void);
 
 int get_wol_state(void){
-	if (g_wol_data != NULL) {
-		return g_wol_data->enable;
-	}
-	return 0;
+	return mcu_get_wol_status();
 }
 
 static unsigned char chartonum(char c)
@@ -116,6 +109,12 @@ void enable_wol(int enable, bool is_shutdown)
 		}
 	}
 }
+
+void realtek_enable_wol(int enable, bool is_shutdown)
+{
+	enable_wol(enable, is_shutdown);
+}
+
 void rtl8211f_shutdown(void)
 {
 	enable_wol(get_wol_state(), true);
@@ -279,10 +278,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		register_early_suspend(&rtl8211f_early_suspend_handler);
 #endif
 	}
-	else {
-		if (g_wol_data->enable == 3)
-			enable_wol(g_wol_data->enable, false);
-	}
+	if (3 == mcu_get_wol_status())
+		enable_wol(3, false);
 	return 0;
 }
 

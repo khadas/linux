@@ -38,6 +38,13 @@ enum khadas_fan_enable {
 	KHADAS_FAN_ENABLE,
 };
 
+enum khadas_fan_hwver {
+	KHADAS_FAN_HWVER_NONE = 0,
+	KHADAS_FAN_HWVER_V12,
+    KHADAS_FAN_HWVER_V13,
+    KHADAS_FAN_HWVER_V14
+};
+
 struct khadas_fan_data {
 	struct platform_device *pdev;
 	struct class *class;
@@ -51,7 +58,10 @@ struct khadas_fan_data {
 	int	trig_temp_level0;
 	int	trig_temp_level1;
 	int	trig_temp_level2;
+	enum khadas_fan_hwver hwver;
 };
+
+struct khadas_fan_data *g_fan_data;
 
 void khadas_fan_level_set(struct khadas_fan_data *fan_data, int level )
 {
@@ -75,36 +85,31 @@ extern int get_cpu_temp(void);
 static void fan_work_func(struct work_struct *_work)
 {
 	int temp = -EINVAL;
-	struct khadas_fan_data *fan_data = container_of(_work,
-		   struct khadas_fan_data, work.work);
 
 	temp = get_cpu_temp();
 
 	if(temp != -EINVAL){
-		if(temp < fan_data->trig_temp_level0 ){
-			khadas_fan_level_set(fan_data,0);
+		if(temp < g_fan_data->trig_temp_level0 ){
+			khadas_fan_level_set(g_fan_data,0);
 
-		}else if(temp < fan_data->trig_temp_level1 ){
-			khadas_fan_level_set(fan_data,1);
+		}else if(temp < g_fan_data->trig_temp_level1 ){
+			khadas_fan_level_set(g_fan_data,1);
 
-		}else if(temp < fan_data->trig_temp_level2 ){
-			khadas_fan_level_set(fan_data,2);
+		}else if(temp < g_fan_data->trig_temp_level2 ){
+			khadas_fan_level_set(g_fan_data,2);
 
 		}else{
-			khadas_fan_level_set(fan_data,3);
+			khadas_fan_level_set(g_fan_data,3);
 		}
 	}
 
-	schedule_delayed_work(&fan_data->work, KHADAS_FAN_LOOP_SECS);
+	schedule_delayed_work(&g_fan_data->work, KHADAS_FAN_LOOP_SECS);
 }
 
 static void fan_test_work_func(struct work_struct *_work)
 {
-	struct khadas_fan_data *fan_data = container_of(_work,
-			struct khadas_fan_data, fan_test_work.work);
 
-
-	khadas_fan_level_set(fan_data,0);
+	khadas_fan_level_set(g_fan_data,0);
 
 }
 
@@ -145,18 +150,16 @@ static void khadas_fan_set(struct khadas_fan_data  *fan_data)
 	}
 }
 
-static ssize_t fan_enable_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t fan_enable_show(struct class *cls,
+			 struct class_attribute *attr, char *buf)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "Fan enable: %d\n", fan_data->enable);
+	return sprintf(buf, "Fan enable: %d\n", g_fan_data->enable);
 }
 
-static ssize_t fan_enable_store(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_enable_store(struct class *cls, struct class_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 	int enable;
 
 	if (kstrtoint(buf, 0, &enable))
@@ -164,25 +167,23 @@ static ssize_t fan_enable_store(struct device *dev, struct device_attribute *att
 
 	// 0: manual, 1: auto
 	if( enable >= 0 && enable < 2 ){
-		fan_data->enable = enable;
-		khadas_fan_set(fan_data);
+		g_fan_data->enable = enable;
+		khadas_fan_set(g_fan_data);
 	}
 
 	return count;
 }
 
-static ssize_t fan_mode_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t fan_mode_show(struct class *cls,
+			 struct class_attribute *attr, char *buf)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "Fan mode: %d\n", fan_data->mode);
+	return sprintf(buf, "Fan mode: %d\n", g_fan_data->mode);
 }
 
-static ssize_t fan_mode_store(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_mode_store(struct class *cls, struct class_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 	int mode;
 
 	if (kstrtoint(buf, 0, &mode))
@@ -190,54 +191,50 @@ static ssize_t fan_mode_store(struct device *dev, struct device_attribute *attr,
 
 	// 0: manual, 1: auto
 	if( mode >= 0 && mode < 2 ){
-		fan_data->mode = mode;
-		khadas_fan_set(fan_data);
+		g_fan_data->mode = mode;
+		khadas_fan_set(g_fan_data);
 	}
 
 	return count;
 }
 
-static ssize_t fan_level_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t fan_level_show(struct class *cls,
+			 struct class_attribute *attr, char *buf)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "Fan level: %d\n", fan_data->level);
+	return sprintf(buf, "Fan level: %d\n", g_fan_data->level);
 }
 
-static ssize_t fan_level_store(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_level_store(struct class *cls, struct class_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 	int level;
 
 	if (kstrtoint(buf, 0, &level))
 		return -EINVAL;
 
 	if( level >= 0 && level < 4){
-		fan_data->level = level;
-		khadas_fan_set(fan_data);
+		g_fan_data->level = level;
+		khadas_fan_set(g_fan_data);
 	}
 
 	return count;
 }
 
 
-static ssize_t fan_temp_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t fan_temp_show(struct class *cls,
+			 struct class_attribute *attr, char *buf)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 	int temp = -EINVAL;
     temp = get_cpu_temp();
 
-	return sprintf(buf, "cpu_temp:%d\nFan trigger temperature: level0:%d level1:%d level2:%d\n", temp, fan_data->trig_temp_level0, fan_data->trig_temp_level1, fan_data->trig_temp_level2);
+	return sprintf(buf, "cpu_temp:%d\nFan trigger temperature: level0:%d level1:%d level2:%d\n", temp, g_fan_data->trig_temp_level0, g_fan_data->trig_temp_level1, g_fan_data->trig_temp_level2);
 }
 
 #if 0
-static ssize_t fan_temp_store(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_temp_store(struct class *cls, struct class_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct khadas_fan_data *fan_data = dev_get_drvdata(dev);
 	int temp;
 
 	if (kstrtoint(buf, 0, &temp))
@@ -245,13 +242,13 @@ static ssize_t fan_temp_store(struct device *dev, struct device_attribute *attr,
 
 	if (temp > KHADAS_FAN_TRIG_MAXTEMP)
 		temp = KHADAS_FAN_TRIG_MAXTEMP;
-	fan_data->trig_temp_level0 = temp;
+	g_fan_data->trig_temp_level0 = temp;
 
 	return count;
 }
 #endif
 
-static struct device_attribute fan_class_attrs[] = {
+static struct class_attribute fan_class_attrs[] = {
 	__ATTR(enable, S_IRUGO | S_IWUGO, fan_enable_show, fan_enable_store),
 	__ATTR(mode, S_IRUGO | S_IWUGO, fan_mode_show, fan_mode_store),
 	__ATTR(level, S_IRUGO | S_IWUGO, fan_level_show, fan_level_store),
@@ -260,94 +257,110 @@ static struct device_attribute fan_class_attrs[] = {
 
 static int khadas_fan_probe(struct platform_device *pdev)
 {
-	struct khadas_fan_data *fan_data = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
 	struct class *fclass;
 	int ret;
 	int i;
+	const char *hwver = NULL;
 
 	printk("khadas_fan_probe\n");
 
-	fan_data = devm_kzalloc(dev, sizeof(struct khadas_fan_data), GFP_KERNEL);
-	if (!fan_data)
+	g_fan_data = devm_kzalloc(dev, sizeof(struct khadas_fan_data), GFP_KERNEL);
+	if (!g_fan_data)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(dev->of_node, "trig_temp_level0", &fan_data->trig_temp_level0);
-	if (ret < 0)
-		fan_data->trig_temp_level0 = KHADAS_FAN_TRIG_TEMP_LEVEL0;
-	ret = of_property_read_u32(dev->of_node, "trig_temp_level1", &fan_data->trig_temp_level1);
-	if (ret < 0)
-		fan_data->trig_temp_level1 = KHADAS_FAN_TRIG_TEMP_LEVEL1;
-	ret = of_property_read_u32(dev->of_node, "trig_temp_level2", &fan_data->trig_temp_level2);
-	if (ret < 0)
-		fan_data->trig_temp_level2 = KHADAS_FAN_TRIG_TEMP_LEVEL2;
+	// Get hardwere version
+	ret = of_property_read_string(dev->of_node, "hwver", &hwver);
+	if (ret < 0) {
+		g_fan_data->hwver = KHADAS_FAN_HWVER_V12;
+	} else {
+		if (0 == strcmp(hwver, "VIM2.V12"))
+			g_fan_data->hwver = KHADAS_FAN_HWVER_V12;
+		else if (0 == strcmp(hwver, "VIM2.V13"))
+			g_fan_data->hwver = KHADAS_FAN_HWVER_V13;
+		else if (0 == strcmp(hwver, "VIM2.V14"))
+			g_fan_data->hwver = KHADAS_FAN_HWVER_V14;
+		else
+			g_fan_data->hwver = KHADAS_FAN_HWVER_NONE;
+	}
 
-	fan_data->ctrl_gpio0 = of_get_named_gpio(dev->of_node, "fan_ctl0", 0);
-	fan_data->ctrl_gpio1 = of_get_named_gpio(dev->of_node, "fan_ctl1", 0);
-	if ((gpio_request(fan_data->ctrl_gpio0, "FAN") != 0)|| (gpio_request(fan_data->ctrl_gpio1, "FAN") != 0))
+	if (KHADAS_FAN_HWVER_V12 != g_fan_data->hwver) {
+		// This driver is only for Khadas VIM2 V12 version.
+		printk("FAN: This driver is only for Khadas VIM2 V12 version.\n");
+		return -1;
+	}
+
+	ret = of_property_read_u32(dev->of_node, "trig_temp_level0", &g_fan_data->trig_temp_level0);
+	if (ret < 0)
+		g_fan_data->trig_temp_level0 = KHADAS_FAN_TRIG_TEMP_LEVEL0;
+	ret = of_property_read_u32(dev->of_node, "trig_temp_level1", &g_fan_data->trig_temp_level1);
+	if (ret < 0)
+		g_fan_data->trig_temp_level1 = KHADAS_FAN_TRIG_TEMP_LEVEL1;
+	ret = of_property_read_u32(dev->of_node, "trig_temp_level2", &g_fan_data->trig_temp_level2);
+	if (ret < 0)
+		g_fan_data->trig_temp_level2 = KHADAS_FAN_TRIG_TEMP_LEVEL2;
+
+	g_fan_data->ctrl_gpio0 = of_get_named_gpio(dev->of_node, "fan_ctl0", 0);
+	g_fan_data->ctrl_gpio1 = of_get_named_gpio(dev->of_node, "fan_ctl1", 0);
+	if ((gpio_request(g_fan_data->ctrl_gpio0, "FAN") != 0)|| (gpio_request(g_fan_data->ctrl_gpio1, "FAN") != 0))
 		return -EIO;
 
-	gpio_direction_output(fan_data->ctrl_gpio0, KHADAS_FAN_GPIO_OFF);
-	gpio_direction_output(fan_data->ctrl_gpio1, KHADAS_FAN_GPIO_OFF);
-	fan_data->mode = KHADAS_FAN_STATE_AUTO;
-	fan_data->level = KHADAS_FAN_LEVEL_0;
-	fan_data->enable = KHADAS_FAN_DISABLE;
+	gpio_direction_output(g_fan_data->ctrl_gpio0, KHADAS_FAN_GPIO_OFF);
+	gpio_direction_output(g_fan_data->ctrl_gpio1, KHADAS_FAN_GPIO_OFF);
+	g_fan_data->mode = KHADAS_FAN_STATE_AUTO;
+	g_fan_data->level = KHADAS_FAN_LEVEL_0;
+	g_fan_data->enable = KHADAS_FAN_DISABLE;
 
-	INIT_DELAYED_WORK(&fan_data->work, fan_work_func);
-	khadas_fan_level_set(fan_data,1);
-	INIT_DELAYED_WORK(&fan_data->fan_test_work, fan_test_work_func);
-	schedule_delayed_work(&fan_data->fan_test_work, KHADAS_FAN_TEST_LOOP_SECS);
+	INIT_DELAYED_WORK(&g_fan_data->work, fan_work_func);
+	khadas_fan_level_set(g_fan_data,1);
+	INIT_DELAYED_WORK(&g_fan_data->fan_test_work, fan_test_work_func);
+	schedule_delayed_work(&g_fan_data->fan_test_work, KHADAS_FAN_TEST_LOOP_SECS);
 
-	fan_data->pdev = pdev;
-	platform_set_drvdata(pdev, fan_data);
+	g_fan_data->pdev = pdev;
+	platform_set_drvdata(pdev, g_fan_data);
 
-	fclass = fan_data->class;
+	fclass = g_fan_data->class;
 	fclass = class_create(THIS_MODULE, "fan");
 	if (IS_ERR(fclass))
 		return PTR_ERR(fclass);
 
-	dev = device_create(fclass, dev->parent, 0, fan_data, "ctrl");
 	for (i = 0; i < ARRAY_SIZE(fan_class_attrs); i++){
-		ret = device_create_file(dev, &fan_class_attrs[i]);
+		ret = class_create_file(fclass, &fan_class_attrs[i]);
 		if(0!=ret){
-			printk("khadas_fan_probe,device_create_file%d failed \n", i);
+			printk("khadas_fan_probe,class_create_file%d failed \n", i);
 		}
 	}
-	dev_info(dev, "trigger temperature is level0:%d, level1:%d, level2:%d.\n", fan_data->trig_temp_level0, fan_data->trig_temp_level1, fan_data->trig_temp_level2);
+	dev_info(dev, "trigger temperature is level0:%d, level1:%d, level2:%d.\n", g_fan_data->trig_temp_level0, g_fan_data->trig_temp_level1, g_fan_data->trig_temp_level2);
 	return 0;
 }
 
 static int khadas_fan_remove(struct platform_device *pdev)
 {
-	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
 
-	fan_data->enable = KHADAS_FAN_DISABLE;
-	khadas_fan_set(fan_data);
+	g_fan_data->enable = KHADAS_FAN_DISABLE;
+	khadas_fan_set(g_fan_data);
 
 	return 0;
 }
 
 static void khadas_fan_shutdown(struct platform_device *pdev)
 {
-	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
 
-	fan_data->enable = KHADAS_FAN_DISABLE;
-	khadas_fan_set(fan_data);
+	g_fan_data->enable = KHADAS_FAN_DISABLE;
+	khadas_fan_set(g_fan_data);
 }
 
 #ifdef CONFIG_PM
 static int khadas_fan_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
-	cancel_delayed_work(&fan_data->work);
-	khadas_fan_level_set(fan_data, 0);
+	cancel_delayed_work(&g_fan_data->work);
+	khadas_fan_level_set(g_fan_data, 0);
 	return 0;
 }
 
 static int khadas_fan_resume(struct platform_device *pdev)
 {
-	struct khadas_fan_data *fan_data = platform_get_drvdata(pdev);
-	khadas_fan_set(fan_data);
+	khadas_fan_set(g_fan_data);
 	return 0;
 }
 #endif

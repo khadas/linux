@@ -56,3 +56,4 @@ obj-$(CONFIG_SRAM)		+= sram.o
 obj-y				+= mic/
 obj-$(CONFIG_GENWQE)		+= genwqe/
 obj-$(CONFIG_KHADAS_FAN)	+=khadas-fan.o
+obj-$(CONFIG_KHADAS_MCU)	+=khadas-mcu.o

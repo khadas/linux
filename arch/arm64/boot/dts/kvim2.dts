@@ -1261,8 +1261,12 @@
 		compatible = "khadas-hym8563";
 		reg = <0x51>;
 	};
-	khadas-wol{
-		compatible = "khadas-wol";
+	khadas-mcu{
+		compatible = "khadas-mcu";
 		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		hwver = "VIM2.V12"; /* Will be updated in uboot. */
 	};
 };
