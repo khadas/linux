@@ -37,7 +37,7 @@ static struct evl_factory *factories[] = {
 	&evl_monitor_factory,
 	&evl_sem_factory,
 	&evl_timerfd_factory,
-	&evl_poller_factory,
+	&evl_poll_factory,
 	&evl_xbuf_factory,
 	&evl_logger_factory,
 	&evl_mapper_factory,

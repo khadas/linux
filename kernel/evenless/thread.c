@@ -36,7 +36,7 @@
 #include <evenless/factory.h>
 #include <evenless/monitor.h>
 #include <evenless/mutex.h>
-#include <evenless/poller.h>
+#include <evenless/poll.h>
 #include <asm/evenless/syscall.h>
 #include <trace/events/evenless.h>
 

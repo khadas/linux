@@ -4,8 +4,8 @@
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVENLESS_POLLER_H
-#define _EVENLESS_POLLER_H
+#ifndef _EVENLESS_POLL_H
+#define _EVENLESS_POLL_H
 
 #include <linux/types.h>
 #include <linux/list.h>
@@ -14,7 +14,7 @@
 #include <linux/poll.h>
 #include <evenless/wait.h>
 #include <evenless/factory.h>
-#include <uapi/evenless/poller.h>
+#include <uapi/evenless/poll.h>
 
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
@@ -64,4 +64,4 @@ evl_clear_poll_events(struct evl_poll_head *head,
 
 void evl_drop_poll_table(struct evl_thread *thread);
 
-#endif /* !_EVENLESS_POLLER_H */
+#endif /* !_EVENLESS_POLL_H */

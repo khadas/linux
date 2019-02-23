@@ -16,7 +16,7 @@ evenless-y :=		\
 	memory.o	\
 	monitor.o	\
 	mutex.o		\
-	poller.o	\
+	poll.o		\
 	sem.o		\
 	syscall.o	\
 	thread.o	\

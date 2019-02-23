@@ -20,7 +20,7 @@
 #include <evenless/lock.h>
 #include <evenless/factory.h>
 #include <evenless/sched.h>
-#include <evenless/poller.h>
+#include <evenless/poll.h>
 #include <evenless/flag.h>
 #include <uapi/evenless/xbuf.h>
 
