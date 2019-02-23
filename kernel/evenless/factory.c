@@ -41,6 +41,7 @@ static struct evl_factory *factories[] = {
 	&evl_xbuf_factory,
 	&evl_logger_factory,
 	&evl_mapper_factory,
+	&evl_proxy_factory,
 #ifdef CONFIG_FTRACE
 	&evl_trace_factory,
 #endif
