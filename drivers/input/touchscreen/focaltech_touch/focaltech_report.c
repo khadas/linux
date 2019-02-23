@@ -47,7 +47,7 @@
 #define FOCALTECH_REPORT_INFO  "File Version of  focaltech_report.c:  V1.0.0 2016-03-09"
 
 /*上报协议（A或B）*/
-#define REPORT_PROTOCOL_OF_INPUT_DEVICE		0//0:A protocol, 1:B protocol
+#define REPORT_PROTOCOL_OF_INPUT_DEVICE		1//0:A protocol, 1:B protocol
 enum enum_Report_Protocol_Type
 {
 	A_PROTOCOL = 0,
