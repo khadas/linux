@@ -26,7 +26,7 @@
 	({								\
 		struct evl_file_binding *__fbind = (__filp)->private_data; \
 		container_of(__fbind->element, __type, element);	\
-	})								\
+	})
 
 #define fundle_of(__obj)	((__obj)->element.fundle)
 
@@ -156,7 +156,6 @@ extern struct evl_factory evl_thread_factory;
 extern struct evl_factory evl_timerfd_factory;
 extern struct evl_factory evl_trace_factory;
 extern struct evl_factory evl_xbuf_factory;
-extern struct evl_factory evl_mapper_factory;
 extern struct evl_factory evl_proxy_factory;
 
 #endif /* !_EVENLESS_FACTORY_H */
