@@ -135,6 +135,16 @@ config EVENLESS_NR_MAPPERS
 	This value gives the maximum number of mappers which can be
 	alive concurrently in the system for user-space applications.
 
+config EVENLESS_NR_PROXIES
+	int "Maximum number of proxies"
+	range 1 16384
+	default 64
+	help
+
+	This value gives the maximum number of file proxies which can
+	be alive concurrently in the system for user-space
+	applications.
+
 endmenu
 
 menu "Latency settings"

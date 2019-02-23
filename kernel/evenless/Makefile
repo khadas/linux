@@ -17,6 +17,7 @@ evenless-y :=		\
 	monitor.o	\
 	mutex.o		\
 	poll.o		\
+	proxy.o		\
 	sem.o		\
 	syscall.o	\
 	thread.o	\
