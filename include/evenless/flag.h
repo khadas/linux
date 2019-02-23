@@ -77,15 +77,25 @@ static inline void evl_raise_flag(struct evl_flag *wf)
 	evl_schedule();
 }
 
-static inline void evl_pulse_flag(struct evl_flag *wf)
+static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
 {
 	evl_flush_wait(&wf->wait, T_BCAST);
+}
+
+static inline void evl_pulse_flag(struct evl_flag *wf)
+{
+	evl_pulse_flag_nosched(wf);
 	evl_schedule();
+}
+
+static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
+{
+	evl_flush_wait(&wf->wait, reason);
 }
 
 static inline void evl_flush_flag(struct evl_flag *wf, int reason)
 {
-	evl_flush_wait(&wf->wait, reason);
+	evl_flush_flag_nosched(wf, reason);
 	evl_schedule();
 }
 
