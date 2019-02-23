@@ -724,19 +724,3 @@
     };
 };
 
-&i2c2 {
-	status = "okay";
-	i2c-scl-rising-time-ns = <600>;
-	i2c-scl-falling-time-ns = <20>;
-
-	ft5336: ft5336@38 {
-		compatible = "focaltech,focaltech_ts";
-		reg = <0x38>;
-		focaltech,x-resolution = <1080>;
-		focaltech,y-resolution = <1920>;
-		focaltech,irq-gpio = <&gpio2 RK_PA2 IRQ_TYPE_LEVEL_LOW>; /* GPIO2_A2 */
-		focaltech,reset-gpio = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>; /* GPIO2_A3 */
-		status = "okay";
-	};
-};
-
