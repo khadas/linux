@@ -39,7 +39,6 @@ static struct evl_factory *factories[] = {
 	&evl_timerfd_factory,
 	&evl_poll_factory,
 	&evl_xbuf_factory,
-	&evl_logger_factory,
 	&evl_mapper_factory,
 	&evl_proxy_factory,
 #ifdef CONFIG_FTRACE
@@ -47,7 +46,7 @@ static struct evl_factory *factories[] = {
 #endif
 };
 
-#define NR_FACTORIES						\
+#define NR_FACTORIES	\
 	(ARRAY_SIZE(early_factories) + ARRAY_SIZE(factories))
 
 static dev_t factory_rdev;
