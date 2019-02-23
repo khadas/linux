@@ -17,6 +17,7 @@
 #include <linux/circ_buf.h>
 #include <linux/atomic.h>
 #include <evenless/factory.h>
+#include <evenless/file.h>
 #include <uapi/evenless/logger.h>
 
 struct evl_logger {
@@ -24,11 +25,47 @@ struct evl_logger {
 	struct circ_buf circ_buf;
 	atomic_t write_sem;
 	size_t logsz;
-	struct evl_element element;
+	struct evl_file efile;
 	struct irq_work irq_work;
 	struct work_struct work;
 	hard_spinlock_t lock;
 };
+
+static int logger_open(struct inode *inode, struct file *filp)
+{
+	struct evl_logger *logger;
+	int ret;
+
+	logger = kzalloc(sizeof(*logger), GFP_KERNEL);
+	if (logger == NULL)
+		return -ENOMEM;
+
+	ret = evl_open_file(&logger->efile, filp);
+	if (ret) {
+		kfree(logger);
+		return ret;
+	}
+
+	filp->private_data = logger;
+
+	return 0;
+}
+
+static int logger_release(struct inode *inode, struct file *filp)
+{
+	struct evl_logger *logger = filp->private_data;
+
+	evl_release_file(&logger->efile);
+
+	if (logger->outfilp) {
+		fput(logger->outfilp);
+		kfree(logger->circ_buf.buf);
+	}
+
+	kfree(logger);
+
+	return 0;
+}
 
 static void relay_output(struct work_struct *work)
 {
@@ -74,16 +111,78 @@ static void relay_output_irq(struct irq_work *work)
 	schedule_work(&logger->work);
 }
 
+static long logger_ioctl(struct file *filp, unsigned int cmd,
+			 unsigned long arg)
+{
+	struct evl_logger *logger = filp->private_data;
+	struct evl_logger_attrs attrs, __user *u_attrs;
+	struct file *outfilp;
+	void *bufmem;
+	size_t logsz;
+	int ret;
+
+	if (cmd != EVL_LOGIOC_CONFIG)
+		return -ENOTTY;
+
+	u_attrs = (typeof(u_attrs))arg;
+	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
+	if (ret)
+		return ret;
+
+	logsz = roundup_pow_of_two(attrs.logsz);
+	if (logsz == 0 || order_base_2(logsz) > 30) /* LART */
+		return -EINVAL;
+
+	bufmem = kzalloc(logsz, GFP_KERNEL);
+	if (bufmem == NULL)
+		return -ENOMEM;
+
+	/* Abusing the position lock. Oh well... */
+	mutex_lock(&filp->f_pos_lock);
+
+	if (logger->outfilp) {	/* Can't reconfigure. */
+		ret = -EBUSY;
+		goto fail;
+	}
+
+	outfilp = fget(attrs.fd);
+	if (outfilp == NULL) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	logger->outfilp = outfilp;
+	logger->circ_buf.buf = bufmem;
+	logger->logsz = logsz;
+	atomic_set(&logger->write_sem, 1);
+	INIT_WORK(&logger->work, relay_output);
+	init_irq_work(&logger->irq_work, relay_output_irq);
+	raw_spin_lock_init(&logger->lock);
+
+	mutex_unlock(&filp->f_pos_lock);
+
+	return 0;
+fail:
+	mutex_unlock(&filp->f_pos_lock);
+	kfree(bufmem);
+
+	return ret;
+}
+
 static ssize_t logger_oob_write(struct file *filp,
 				const char __user *u_buf, size_t count)
 {
-	struct evl_logger *logger = element_of(filp, struct evl_logger);
+	struct evl_logger *logger = filp->private_data;
 	struct circ_buf *circ = &logger->circ_buf;
 	ssize_t rem, avail, written = 0;
 	const char __user *u_ptr;
 	int head, tail, len, ret;
 	unsigned long flags;
 	bool kick;
+
+	/* EVL_LOGIOC_CONFIG is required first. */
+	if (logger->outfilp == NULL)
+		return -EIO;
 
 	if (count >= logger->logsz) /* Avail space is logsz - 1. */
 		return -EFBIG;
@@ -142,89 +241,15 @@ static ssize_t logger_write(struct file *filp, const char __user *u_buf,
 }
 
 static const struct file_operations logger_fops = {
-	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.open		= logger_open,
+	.release	= logger_release,
+	.unlocked_ioctl	= logger_ioctl,
 	.oob_write	= logger_oob_write,
 	.write		= logger_write,
 };
 
-static struct evl_element *
-logger_factory_build(struct evl_factory *fac, const char *name,
-		void __user *u_attrs, u32 *state_offp)
-{
-	struct evl_logger_attrs attrs;
-	struct evl_logger *logger;
-	struct file *outfilp;
-	void *bufmem;
-	size_t logsz;
-	int ret;
-
-	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
-	if (ret)
-		return ERR_PTR(-EFAULT);
-
-	logsz = roundup_pow_of_two(attrs.logsz);
-	if (order_base_2(logsz) > 30) /* LART */
-		return ERR_PTR(-EINVAL);
-
-	outfilp = fget(attrs.fd);
-	if (outfilp == NULL)
-		return ERR_PTR(-EINVAL);
-
-	logger = kzalloc(sizeof(*logger), GFP_KERNEL);
-	if (logger == NULL) {
-		ret = -ENOMEM;
-		goto fail_logger;
-	}
-
-	bufmem = kzalloc(attrs.logsz, GFP_KERNEL);
-	if (bufmem == NULL) {
-		ret = -ENOMEM;
-		goto fail_bufmem;
-	}
-
-	ret = evl_init_element(&logger->element, &evl_logger_factory);
-	if (ret)
-		goto fail_element;
-
-	logger->outfilp = outfilp;
-	logger->circ_buf.buf = bufmem;
-	logger->logsz = logsz;
-	atomic_set(&logger->write_sem, 1);
-	INIT_WORK(&logger->work, relay_output);
-	init_irq_work(&logger->irq_work, relay_output_irq);
-	raw_spin_lock_init(&logger->lock);
-
-	return &logger->element;
-
-fail_element:
-	kfree(bufmem);
-fail_bufmem:
-	kfree(logger);
-fail_logger:
-	fput(outfilp);
-
-	return ERR_PTR(ret);
-}
-
-static void logger_factory_dispose(struct evl_element *e)
-{
-	struct evl_logger *logger;
-
-	logger = container_of(e, struct evl_logger, element);
-
-	fput(logger->outfilp);
-	kfree(logger->circ_buf.buf);
-	evl_destroy_element(&logger->element);
-
-	kfree_rcu(logger, element.rcu);
-}
-
 struct evl_factory evl_logger_factory = {
 	.name	=	"logger",
 	.fops	=	&logger_fops,
-	.build =	logger_factory_build,
-	.dispose =	logger_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_LOGGERS,
-	.flags	=	EVL_FACTORY_CLONE,
+	.flags	=	EVL_FACTORY_SINGLE,
 };

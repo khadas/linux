@@ -12,4 +12,8 @@ struct evl_logger_attrs {
 	__u32 logsz;
 };
 
+#define EVL_LOGGER_IOCBASE	'l'
+
+#define EVL_LOGIOC_CONFIG	_IOW(EVL_LOGGER_IOCBASE, 0, struct evl_logger_attrs)
+
 #endif /* !_EVENLESS_UAPI_LOGGER_H */
