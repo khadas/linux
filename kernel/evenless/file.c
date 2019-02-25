@@ -21,7 +21,7 @@
 
 static struct rb_root fd_tree = RB_ROOT;
 
-static DEFINE_HARD_SPINLOCK(fdt_lock);
+static DEFINE_EVL_SPINLOCK(fdt_lock);
 
 /*
  * We could have a per-files_struct table of OOB fds, but this looks
@@ -121,9 +121,9 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 		efd->files = files;
 		efd->efilp = filp->oob_data;
 		INIT_LIST_HEAD(&efd->poll_nodes);
-		raw_spin_lock_irqsave(&fdt_lock, flags);
+		evl_spin_lock_irqsave(&fdt_lock, flags);
 		ret = index_efd(efd, filp);
-		raw_spin_unlock_irqrestore(&fdt_lock, flags);
+		evl_spin_unlock_irqrestore(&fdt_lock, flags);
 	}
 
 	EVL_WARN_ON(CORE, ret);
@@ -146,11 +146,11 @@ void uninstall_inband_fd(unsigned int fd, struct file *filp,
 	if (filp->oob_data == NULL)
 		return;
 
-	raw_spin_lock_irqsave(&fdt_lock, flags);
+	evl_spin_lock_irqsave(&fdt_lock, flags);
 	efd = unindex_efd(fd, files);
 	if (efd)
 		drop_watchpoints(efd);
-	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_spin_unlock_irqrestore(&fdt_lock, flags);
 	evl_schedule();
 
 	if (efd)
@@ -167,18 +167,18 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 	if (filp->oob_data == NULL)
 		return;
 
-	raw_spin_lock_irqsave(&fdt_lock, flags);
+	evl_spin_lock_irqsave(&fdt_lock, flags);
 
 	efd = lookup_efd(fd, files);
 	if (efd) {
 		drop_watchpoints(efd);
 		efd->efilp = filp->oob_data;
-		raw_spin_unlock_irqrestore(&fdt_lock, flags);
+		evl_spin_unlock_irqrestore(&fdt_lock, flags);
 		evl_schedule();
 		return;
 	}
 
-	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_spin_unlock_irqrestore(&fdt_lock, flags);
 
 	install_inband_fd(fd, filp, files);
 }
@@ -189,13 +189,13 @@ struct evl_file *evl_get_file(unsigned int fd)
 	unsigned long flags;
 	struct evl_fd *efd;
 
-	raw_spin_lock_irqsave(&fdt_lock, flags);
+	evl_spin_lock_irqsave(&fdt_lock, flags);
 	efd = lookup_efd(fd, current->files);
 	if (efd) {
 		efilp = efd->efilp;
 		evl_get_fileref(efilp);
 	}
-	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_spin_unlock_irqrestore(&fdt_lock, flags);
 
 	return efilp;
 }
@@ -221,14 +221,14 @@ struct evl_file *evl_watch_fd(unsigned int fd,
 	unsigned long flags;
 	struct evl_fd *efd;
 
-	raw_spin_lock_irqsave(&fdt_lock, flags);
+	evl_spin_lock_irqsave(&fdt_lock, flags);
 	efd = lookup_efd(fd, current->files);
 	if (efd) {
 		efilp = efd->efilp;
 		evl_get_fileref(efilp);
 		list_add(&node->next, &efd->poll_nodes);
 	}
-	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_spin_unlock_irqrestore(&fdt_lock, flags);
 
 	return efilp;
 }
@@ -237,9 +237,9 @@ void evl_ignore_fd(struct evl_poll_node *node)
 {
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&fdt_lock, flags);
+	evl_spin_lock_irqsave(&fdt_lock, flags);
 	list_del(&node->next);
-	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+	evl_spin_unlock_irqrestore(&fdt_lock, flags);
 }
 
 /**
