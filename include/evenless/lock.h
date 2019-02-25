@@ -6,16 +6,14 @@
  * Copyright (C) 2004,2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
  *
  * NOTE: this code is on its way out, the ugly superlock is the only
- * remaining lock of this type. Moving away from the inefficient
- * single-lock model is planned.
+ * remaining lock of this type. There is an ongoing effort for moving
+ * away from the inefficient single-lock model. Do NOT add more
+ * instances of such lock.
  */
 #ifndef _EVENLESS_LOCK_H
 #define _EVENLESS_LOCK_H
 
 #include <linux/irq_pipeline.h>
-#include <linux/percpu.h>
-#include <linux/ktime.h>
-#include <evenless/assert.h>
 
 #define splhigh(x)  ((x) = oob_irq_save() & 1)
 #ifdef CONFIG_SMP
@@ -134,5 +132,66 @@ static inline void __xnlock_put(struct xnlock *lock)
 #endif /* !CONFIG_SMP */
 
 DECLARE_EXTERN_XNLOCK(nklock);
+
+/*
+ * This new spinlock API enforces EVL preemption disabling on lock,
+ * and may be nested with the obsolete ugly lock API. Specifically,
+ * this lock _must_ be used in patterns like follows:
+ *
+ * evl_spin_lock--(&lock[, flags_outer]);
+ *    xnlock_get--(&nklock[, flags_inner]);
+ *    xnlock_put--(&nklock[, flags_inner]);
+ * evl_spin_unlock--(&lock[, flags_outer]);
+ *
+ * Conversely, when the protected section is guaranteed not to call
+ * evl_schedule() either directly or indirectly, and the ugly nklock
+ * is not nested, Dovetail's hard spinlock API may be used instead.
+ *
+ * Once the ugly lock is entirely dropped from the code, we may
+ * manipulate pure hardware flags for interrupt masking instead of the
+ * OOB stall bit, as we won't have to store any lock recursion marker
+ * there anymore. IOW, splhigh/exit can be replaced by regular
+ * hard_local_irqsave/restore pairs.
+ */
+
+typedef struct evl_spinlock {
+	hard_spinlock_t _lock;
+} evl_spinlock_t;
+
+#define __EVL_SPIN_LOCK_INITIALIZER(__lock)	{			\
+		._lock = __HARD_SPIN_LOCK_INITIALIZER((__lock)._lock),	\
+	}
+
+#define DEFINE_EVL_SPINLOCK(__lock)					\
+	evl_spinlock_t __lock = {					\
+		._lock = __HARD_SPIN_LOCK_INITIALIZER((__lock)._lock),	\
+	}
+
+#define evl_spin_lock_init(__lock)	raw_spin_lock_init(&(__lock)->_lock)
+
+#define evl_spin_lock(__lock)				\
+	do {						\
+		evl_disable_preempt();			\
+		raw_spin_lock(&(__lock)->_lock);	\
+	} while (0)
+
+#define evl_spin_lock_irqsave(__lock, __flags)		\
+	do {						\
+		splhigh(__flags);			\
+		evl_spin_lock(__lock);			\
+	} while (0)
+
+#define evl_spin_unlock(__lock)				\
+	do {						\
+		raw_spin_unlock(&(__lock)->_lock);	\
+		evl_enable_preempt();			\
+	} while (0)
+
+#define evl_spin_unlock_irqrestore(__lock, __flags)	\
+	do {						\
+		raw_spin_unlock(&(__lock)->_lock);	\
+		splexit(__flags);			\
+		evl_enable_preempt();			\
+	} while (0)
 
 #endif /* !_EVENLESS_LOCK_H */
