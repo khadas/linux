@@ -174,6 +174,9 @@
 #define MESON_SAR_ADC_REG11					0x2c
 #ifdef CONFIG_AMLOGIC_MODIFY
 	#define MESON_SAR_ADC_REG11_VREF_SEL			BIT(0)
+	#define MESON_SAR_ADC_REG11_EOC				BIT(1)
+	#define MESON_SAR_ADC_REG11_VREF_EN			BIT(5)
+	#define MESON_SAR_ADC_REG11_CMV_SEL			BIT(6)
 	#define MESON_SAR_ADC_REG11_CHNL_REGS_EN		BIT(30)
 	#define MESON_SAR_ADC_REG11_FIFO_EN			BIT(31)
 #endif
@@ -349,6 +352,12 @@ enum meson_sar_adc_sampling_mode {
  * counter, but others write 0
  *
  * @has_chnl_regs: enable period sampling mode when the SoCs contain chnl regs
+ *
+ * @vref_enable: g12a and later SoCs must write 0, others SoC write 1
+ *
+ * @cmv_select: g12a and later SoCs must write 0, others SoC write 1
+ *
+ * @adc_eoc: g12a and later SoCs must write 1
  */
 struct meson_sar_adc_param {
 	bool					has_bl30_integration;
@@ -363,6 +372,9 @@ struct meson_sar_adc_param {
 	bool					vref_is_optional;
 	bool					disable_ring_counter;
 	bool					has_chnl_regs;
+	bool					vref_enable;
+	bool					cmv_select;
+	bool					adc_eoc;
 #endif
 };
 
@@ -1089,6 +1101,24 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK,
 			   regval);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW);
+#endif
+
 	/*
 	 * set up the input channel muxes in MESON_SAR_ADC_AUX_SW
 	 * (2 = SAR_ADC_CH2, 3 = SAR_ADC_CH3, ...) and enable
@@ -1142,6 +1172,10 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	regval = FIELD_PREP(MESON_SAR_ADC_REG11_EOC, priv->param->adc_eoc);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_EOC, regval);
+
 	/* disable internal ring counter */
 	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
 			    priv->param->disable_ring_counter);
@@ -1216,6 +1250,16 @@ static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
 	}
 
 #ifndef CONFIG_AMLOGIC_MODIFY
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_VREF_EN,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_VREF_EN,
+				      priv->param->vref_enable));
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_CMV_SELECT,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SELECT,
+				      priv->param->cmv_select));
+
 	regval = FIELD_PREP(MESON_SAR_ADC_REG0_FIFO_CNT_IRQ_MASK, 1);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG0,
 			   MESON_SAR_ADC_REG0_FIFO_CNT_IRQ_MASK, regval);
@@ -1654,6 +1698,10 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.vref_enable = 1,
+	.cmv_select = 1,
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -1668,6 +1716,8 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.resolution = 12,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.disable_ring_counter = 1,
+	.vref_enable = 1,
+	.cmv_select = 1,
 #endif
 };
 
@@ -1680,6 +1730,8 @@ static const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.resolution = 12,
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
+	.vref_enable = 1,
+	.cmv_select = 1,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
@@ -1691,6 +1743,9 @@ static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
 	.has_chnl_regs = true,
+	.vref_enable = 0,
+	.cmv_select = 0,
+	.adc_eoc = 1,
 };
 #endif
 
