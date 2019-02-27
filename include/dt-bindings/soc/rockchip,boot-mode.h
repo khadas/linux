@@ -16,5 +16,7 @@
 #define BOOT_CHARGING		(REBOOT_FLAG + 11)
 /* enter usb mass storage mode */
 #define BOOT_UMS		(REBOOT_FLAG + 12)
+/* enter reboot test mode */
+#define BOOT_REBOOT_TEST        (REBOOT_FLAG + 13)
 
 #endif

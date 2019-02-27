@@ -954,6 +954,10 @@
         <&gpio1 13 GPIO_ACTIVE_HIGH>;
 };
 
+&reboot_mode {
+	mode-reboot_test = <BOOT_REBOOT_TEST>;
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
