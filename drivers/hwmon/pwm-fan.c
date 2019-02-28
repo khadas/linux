@@ -28,6 +28,7 @@
 
 #define MAX_PWM 255
 
+#define KHADAS_FAN_TEST_LOOP_SECS   5 * HZ  // 5 seconds
 #define PWM_FAN_LOOP_SECS 				30 * HZ	// 30 seconds
 #define PWM_FAN_LOOP_NODELAY_SECS   	0
 
@@ -52,6 +53,7 @@ struct pwm_fan_ctx {
 	enum pwm_fan_mode pwm_fan_mode;
 	enum pwm_fan_enable pwm_fan_enable;
 	struct delayed_work pwm_fan_work;
+	struct delayed_work fan_test_work;
 	int	trig_temp_level0;
 	int	trig_temp_level1;
 	int	trig_temp_level2;
@@ -362,6 +364,12 @@ static void pwm_fan_work_func(struct work_struct *_work)
 	schedule_delayed_work(&ctx->pwm_fan_work, PWM_FAN_LOOP_SECS);
 }
 
+static void fan_test_work_func(struct work_struct *_work)
+{
+	struct pwm_fan_ctx *ctx = container_of(_work, struct pwm_fan_ctx, fan_test_work.work);
+	pwm_fan_set_cur_state(ctx->cdev, 0);
+}
+
 static int pwm_fan_probe(struct platform_device *pdev)
 {
 	struct thermal_cooling_device *cdev;
@@ -458,7 +466,10 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	ctx->pwm_fan_enable = PWM_FAN_DISABLE;
 	pwm_fan_set(ctx);
 
+	pwm_fan_set_cur_state(ctx->cdev, 1);
 	INIT_DELAYED_WORK(&ctx->pwm_fan_work, pwm_fan_work_func);
+	INIT_DELAYED_WORK(&ctx->fan_test_work, fan_test_work_func);
+	schedule_delayed_work(&ctx->fan_test_work, KHADAS_FAN_TEST_LOOP_SECS);
 
 	return 0;
 }
