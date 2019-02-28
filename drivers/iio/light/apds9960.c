@@ -997,7 +997,7 @@ static int apds9960_probe(struct i2c_client *client,
 	int ret, type;
 
 	type = get_board_type();
-	if (type != KHADAS_CAPTAIN)
+	if (type == KHADAS_EDGE)
 		return -1;
 
 	printk("%s ...\n", __func__);

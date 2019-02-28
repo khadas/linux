@@ -17,9 +17,10 @@
 #define PLATFORM_DEVID_NONE	(-1)
 #define PLATFORM_DEVID_AUTO	(-2)
 
-#define KHADAS_EDGE    0
-#define KHADAS_CAPTAIN 1
-#define KHADAS_EDGE_V  2
+#define KHADAS_UNKNOW  0
+#define KHADAS_EDGE    1
+#define KHADAS_EDGEV   2
+#define KHADAS_CAPTAIN 3
 
 struct mfd_cell;
 

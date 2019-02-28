@@ -87,19 +87,6 @@ static struct resource mem_res[] = {
 #define kernel_code mem_res[0]
 #define kernel_data mem_res[1]
 
-int get_board_type(void)
-{
-    int type = 0;
-    if (strstr(boot_command_line, "board.type=2"))
-        type = 2;  //edge_v
-    else if (strstr(boot_command_line, "board.type=1"))
-        type = 1;  //captain
-	else
-        type = 0;  //edge
-    return type;
-}
-EXPORT_SYMBOL(get_board_type);
-
 /*
  * The recorded values of x0 .. x3 upon kernel entry.
  */

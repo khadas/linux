@@ -107,6 +107,11 @@
 
 	};
 
+	boardtype {
+		status = "okay";
+		compatible =  "khadas-boardtype";
+	};
+
 	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
