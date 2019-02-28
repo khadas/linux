@@ -53,7 +53,8 @@ static int set_timer_value(struct evl_timer *__restrict__ timer,
 
 	if ((unsigned long)value->it_value.tv_nsec >= ONE_BILLION ||
 		((unsigned long)value->it_interval.tv_nsec >= ONE_BILLION &&
-			(value->it_value.tv_sec != 0 || value->it_value.tv_nsec != 0)))
+			(value->it_value.tv_sec != 0 ||
+				value->it_value.tv_nsec != 0)))
 		return -EINVAL;
 
 	period = timespec_to_ktime(value->it_interval);
@@ -64,16 +65,17 @@ static int set_timer_value(struct evl_timer *__restrict__ timer,
 }
 
 static int set_timerfd(struct evl_timerfd *timerfd,
-		struct evl_timerfd_setreq *sreq)
+		const struct itimerspec *__restrict__ value,
+		struct itimerspec *__restrict__ ovalue)
 {
 	unsigned long flags;
 
-	get_timer_value(&timerfd->timer, &sreq->ovalue);
+	get_timer_value(&timerfd->timer, ovalue);
 	xnlock_get_irqsave(&nklock, flags);
 	evl_set_timer_rq(&timerfd->timer, evl_current_rq());
 	xnlock_put_irqrestore(&nklock, flags);
 
-	return set_timer_value(&timerfd->timer, &sreq->value);
+	return set_timer_value(&timerfd->timer, value);
 }
 
 static long timerfd_oob_ioctl(struct file *filp,
@@ -82,6 +84,7 @@ static long timerfd_oob_ioctl(struct file *filp,
 	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
 	struct evl_timerfd_setreq sreq, __user *u_sreq;
 	struct evl_timerfd_getreq greq, __user *u_greq;
+	struct itimerspec value, ovalue;
 	long ret = 0;
 
 	switch (cmd) {
@@ -90,18 +93,25 @@ static long timerfd_oob_ioctl(struct file *filp,
 		ret = raw_copy_from_user(&sreq, u_sreq, sizeof(sreq));
 		if (ret)
 			return -EFAULT;
-		ret = set_timerfd(timerfd, &sreq);
+		ret = raw_copy_from_user(&value,
+					u_sreq->value, sizeof(value));
+		if (ret)
+			return -EFAULT;
+		ret = set_timerfd(timerfd, &value, &ovalue);
 		if (ret)
 			return ret;
-		if (raw_copy_to_user(&u_sreq->ovalue, &sreq.ovalue,
-					sizeof(sreq.ovalue)))
+		if (u_sreq->ovalue &&
+			raw_copy_to_user(u_sreq->ovalue,
+					&ovalue, sizeof(ovalue)))
 			return -EFAULT;
 		break;
 	case EVL_TFDIOC_GET:
-		get_timer_value(&timerfd->timer, &greq.value);
 		u_greq = (typeof(u_greq))arg;
-		if (raw_copy_to_user(&u_greq->value, &greq.value,
-					sizeof(greq.value)))
+		ret = raw_copy_from_user(&greq, u_greq, sizeof(greq));
+		if (ret)
+			return -EFAULT;
+		get_timer_value(&timerfd->timer, &value);
+		if (raw_copy_to_user(u_greq->value, &value, sizeof(value)))
 			return -EFAULT;
 		break;
 	default:
@@ -247,7 +257,7 @@ static void timerfd_factory_dispose(struct evl_element *e)
 }
 
 struct evl_factory evl_timerfd_factory = {
-	.name	=	"timerfd",
+	.name	=	"timer",
 	.fops	=	&timerfd_fops,
 	.build =	timerfd_factory_build,
 	.dispose =	timerfd_factory_dispose,

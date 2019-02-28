@@ -15,12 +15,12 @@ struct evl_timerfd_attrs {
 #define EVL_TIMERFD_ABSTIME  0x1
 
 struct evl_timerfd_setreq {
-	struct itimerspec value;
-	struct itimerspec ovalue;
+	struct itimerspec *value;
+	struct itimerspec *ovalue;
 };
 
 struct evl_timerfd_getreq {
-	struct itimerspec value;
+	struct itimerspec *value;
 };
 
 #define EVL_TIMERFD_IOCBASE	't'
