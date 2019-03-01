@@ -176,6 +176,11 @@ static void rtl8211f_config_mac_addr(struct phy_device *phydev)
    phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
 }
 
+void wol_rtl8211f_config_mac_addr(struct phy_device *phydev)
+{
+	rtl8211f_config_mac_addr(phydev);
+}
+
 static void rtl8211f_config_pin_as_pmeb(struct phy_device *phydev)
 {
    int val;

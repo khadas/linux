@@ -426,6 +426,7 @@
 	snps,reset-delays-us = <0 20000 100000>;
 	assigned-clocks = <&cru SCLK_RMII_SRC>;
 	assigned-clock-parents = <&clkin_gmac>;
+	wolirq-gpio = <&gpio1 1 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x28>;
@@ -663,7 +664,8 @@
 				regulator-boot-on;
 				regulator-name = "vcc3v3_s0";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					//regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 		};
