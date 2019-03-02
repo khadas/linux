@@ -283,10 +283,60 @@ static void untrack_event(struct evl_monitor *event,
 			struct evl_monitor *gate)
 {
 	if (event->gate == gate && !evl_wait_active(&event->wait_queue)) {
-		event->state->u.gate_offset = EVL_MONITOR_NOGATE;
+		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 		list_del(&event->next);
 		event->gate = NULL;
 	}
+}
+
+/*
+ * A special form of the wait operation which is not protected by a
+ * lock but behaves as a semaphore P operations based on the
+ * signedness of the event value. Userland is assumed to deal with
+ * signal-vs-wait races in its own way.
+ */
+static int wait_monitor_ungated(struct evl_monitor *event,
+				struct evl_monitor_waitreq *req,
+				__s32 *r_op_ret)
+{
+	struct evl_monitor_state *state = event->state;
+	enum evl_tmode tmode;
+	unsigned long flags;
+	ktime_t timeout;
+	int ret = 0;
+
+	xnlock_get_irqsave(&nklock, flags);
+
+	if (atomic_dec_return(&state->u.event.value) < 0) {
+		timeout = timespec_to_ktime(req->timeout);
+		tmode = timeout ? EVL_ABS : EVL_REL;
+		ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
+		if (ret) /* Rollback decrement if failed. */
+			atomic_inc(&state->u.event.value);
+	}
+
+	xnlock_put_irqrestore(&nklock, flags);
+
+	*r_op_ret = ret;
+
+	return ret;
+}
+
+static int signal_monitor_ungated(struct evl_monitor *event)
+{
+	struct evl_monitor_state *state = event->state;
+	unsigned long flags;
+
+	xnlock_get_irqsave(&nklock, flags);
+
+	if (atomic_inc_return(&state->u.event.value) <= 0)
+		evl_wake_up_head(&event->wait_queue);
+
+	xnlock_put_irqrestore(&nklock, flags);
+
+	evl_schedule();
+
+	return 0;
 }
 
 static int wait_monitor(struct evl_monitor *event,
@@ -310,6 +360,9 @@ static int wait_monitor(struct evl_monitor *event,
 		op_ret = -EINVAL;
 		goto out;
 	}
+
+	if (req->gatefd < 0)
+		return wait_monitor_ungated(event, req, r_op_ret);
 
 	/* Find the gate monitor protecting us. */
 	gate = get_monitor_by_fd(req->gatefd, &efilp);
@@ -339,7 +392,7 @@ static int wait_monitor(struct evl_monitor *event,
 	if (event->gate == NULL) {
 		list_add_tail(&event->next, &gate->events);
 		event->gate = gate;
-		event->state->u.gate_offset = evl_shared_offset(gate->state);
+		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
 		op_ret = -EINVAL;
 		goto unlock;
@@ -408,6 +461,23 @@ static int unwait_monitor(struct evl_monitor *event,
 	return ret;
 }
 
+static long monitor_common_ioctl(struct file *filp, unsigned int cmd,
+				unsigned long arg)
+{
+	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+	int ret;
+
+	switch (cmd) {
+	case EVL_MONIOC_SIGNAL:
+		ret = signal_monitor_ungated(mon);
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
 static long monitor_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
@@ -415,7 +485,7 @@ static long monitor_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_monitor_binding bind, __user *u_bind;
 
 	if (cmd != EVL_MONIOC_BIND)
-		return -ENOTTY;
+		return monitor_common_ioctl(filp, cmd, arg);
 
 	bind.type = mon->type;
 	bind.eids.minor = mon->element.minor;
@@ -469,7 +539,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = exit_monitor(mon);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = monitor_common_ioctl(filp, cmd, arg);
 	}
 
 	return ret;
@@ -510,12 +580,12 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 
 	switch (attrs.type) {
 	case EVL_MONITOR_PP:
-		if (attrs.ceiling == 0 ||
-			attrs.ceiling > EVL_CORE_MAX_PRIO)
+		if (attrs.initval == 0 ||
+			attrs.initval > EVL_CORE_MAX_PRIO)
 			return ERR_PTR(-EINVAL);
 		break;
 	case EVL_MONITOR_PI:
-		if (attrs.ceiling)
+		if (attrs.initval)
 			return ERR_PTR(-EINVAL);
 		break;
 	case EVL_MONITOR_EV:
@@ -546,7 +616,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 
 	switch (attrs.type) {
 	case EVL_MONITOR_PP:
-		state->u.gate.ceiling = attrs.ceiling;
+		state->u.gate.ceiling = attrs.initval;
 		evl_init_mutex_pp(&mon->lock, clock,
 				&state->u.gate.owner,
 				&state->u.gate.ceiling);
@@ -560,7 +630,8 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	case EVL_MONITOR_EV:
 	default:
 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
-		state->u.gate_offset = EVL_MONITOR_NOGATE;
+		state->u.event.gate_offset = EVL_MONITOR_NOGATE;
+		atomic_set(&state->u.event.value, attrs.initval);
 	}
 
 	/*
