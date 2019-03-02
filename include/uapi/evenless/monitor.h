@@ -16,8 +16,8 @@
 
 struct evl_monitor_attrs {
 	__u32 clockfd;
-	__u32 type : 2,
-	      ceiling : 30;
+	__u32 type;
+	__u32 initval;
 };
 
 /* State flags. */
@@ -34,7 +34,10 @@ struct evl_monitor_state {
 			atomic_t owner;
 			__u32 ceiling;
 		} gate;
-		__u32 gate_offset;
+		struct {
+			__u32 gate_offset;
+			atomic_t value;
+		} event;
 	} u;
 };
 
@@ -44,12 +47,12 @@ struct evl_monitor_lockreq {
 
 struct evl_monitor_waitreq {
 	struct timespec timeout;
-	__u32 gatefd;
+	__s32 gatefd;
 	__s32 status;
 };
 
 struct evl_monitor_unwaitreq {
-	__u32 gatefd;
+	__s32 gatefd;
 };
 
 struct evl_monitor_binding {
@@ -65,5 +68,6 @@ struct evl_monitor_binding {
 #define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
 #define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
 #define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
+#define EVL_MONIOC_SIGNAL	_IO(EVL_MONITOR_IOCBASE, 6)
 
 #endif /* !_EVENLESS_UAPI_MONITOR_H */
