@@ -22,5 +22,23 @@ struct evl_clock_sleepreq {
 #define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct timespec)
 #define EVL_CLKIOC_SET_TIME	_IOR(EVL_CLOCK_IOCBASE, 3, struct timespec)
 #define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct timex)
+#define EVL_CLKIOC_NEW_TIMER	_IO(EVL_CLOCK_IOCBASE, 5)
+
+/* Set operation flag for timers. */
+#define EVL_TIMERFD_ABSTIME  0x1
+
+struct evl_timerfd_setreq {
+	struct itimerspec *value;
+	struct itimerspec *ovalue;
+};
+
+struct evl_timerfd_getreq {
+	struct itimerspec *value;
+};
+
+#define EVL_TIMERFD_IOCBASE	't'
+
+#define EVL_TFDIOC_SET	_IOWR(EVL_TIMERFD_IOCBASE, 0, struct evl_timerfd_setreq)
+#define EVL_TFDIOC_GET	_IOR(EVL_TIMERFD_IOCBASE, 1, struct evl_timerfd_getreq)
 
 #endif /* !_EVENLESS_UAPI_CLOCK_H */
