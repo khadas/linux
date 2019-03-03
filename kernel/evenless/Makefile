@@ -20,7 +20,6 @@ evenless-y :=		\
 	thread.o	\
 	tick.o		\
 	timer.o		\
-	timerfd.o	\
 	wait.o		\
 	xbuf.o
 

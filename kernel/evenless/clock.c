@@ -18,10 +18,14 @@
 #include <linux/sched/signal.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/anon_inodes.h>
+#include <linux/file.h>
 #include <evenless/sched.h>
 #include <evenless/timer.h>
 #include <evenless/clock.h>
+#include <evenless/timer.h>
 #include <evenless/tick.h>
+#include <evenless/poll.h>
 #include <evenless/thread.h>
 #include <evenless/factory.h>
 #include <evenless/control.h>
@@ -529,6 +533,236 @@ static int adjust_clock_time(struct evl_clock *clock,
 	return evl_clock_adjust_time(clock, &tx);
 }
 
+static void get_timer_value(struct evl_timer *__restrict__ timer,
+			struct itimerspec *__restrict__ value)
+{
+	value->it_interval = ktime_to_timespec(timer->interval);
+
+	if (!evl_timer_is_running(timer)) {
+		value->it_value.tv_sec = 0;
+		value->it_value.tv_nsec = 0;
+	} else
+		value->it_value =
+			ktime_to_timespec(evl_get_timer_delta(timer));
+}
+
+static int set_timer_value(struct evl_timer *__restrict__ timer,
+			const struct itimerspec *__restrict__ value)
+{
+	ktime_t start, period;
+
+	if (value->it_value.tv_nsec == 0 && value->it_value.tv_sec == 0) {
+		evl_stop_timer(timer);
+		return 0;
+	}
+
+	if ((unsigned long)value->it_value.tv_nsec >= ONE_BILLION ||
+		((unsigned long)value->it_interval.tv_nsec >= ONE_BILLION &&
+			(value->it_value.tv_sec != 0 ||
+				value->it_value.tv_nsec != 0)))
+		return -EINVAL;
+
+	period = timespec_to_ktime(value->it_interval);
+	start = timespec_to_ktime(value->it_value);
+	evl_start_timer(timer, start, period);
+
+	return 0;
+}
+
+struct evl_timerfd {
+	struct evl_timer timer;
+	struct evl_wait_queue readers;
+	struct evl_poll_head poll_head;
+	struct evl_file efile;
+	bool ticked;
+};
+
+static int set_timerfd(struct evl_timerfd *timerfd,
+		const struct itimerspec *__restrict__ value,
+		struct itimerspec *__restrict__ ovalue)
+{
+	unsigned long flags;
+
+	get_timer_value(&timerfd->timer, ovalue);
+	xnlock_get_irqsave(&nklock, flags);
+	evl_set_timer_rq(&timerfd->timer, evl_current_rq());
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return set_timer_value(&timerfd->timer, value);
+}
+
+static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
+{
+	struct evl_timerfd *timerfd;
+
+	timerfd = container_of(timer, struct evl_timerfd, timer);
+	timerfd->ticked = true;
+	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
+	evl_flush_wait(&timerfd->readers, 0);
+}
+
+static bool read_timerfd_event(struct evl_timerfd *timerfd)
+{
+	if (timerfd->ticked) {
+		timerfd->ticked = false;
+		return true;
+	}
+
+	return false;
+}
+
+static long timerfd_oob_ioctl(struct file *filp,
+			unsigned int cmd, unsigned long arg)
+{
+	struct evl_timerfd *timerfd = filp->private_data;
+	struct evl_timerfd_setreq sreq, __user *u_sreq;
+	struct evl_timerfd_getreq greq, __user *u_greq;
+	struct itimerspec value, ovalue;
+	long ret = 0;
+
+	switch (cmd) {
+	case EVL_TFDIOC_SET:
+		u_sreq = (typeof(u_sreq))arg;
+		ret = raw_copy_from_user(&sreq, u_sreq, sizeof(sreq));
+		if (ret)
+			return -EFAULT;
+		ret = raw_copy_from_user(&value, sreq.value, sizeof(value));
+		if (ret)
+			return -EFAULT;
+		ret = set_timerfd(timerfd, &value, &ovalue);
+		if (ret)
+			return ret;
+		if (sreq.ovalue &&
+			raw_copy_to_user(sreq.ovalue, &ovalue, sizeof(ovalue)))
+			return -EFAULT;
+		break;
+	case EVL_TFDIOC_GET:
+		u_greq = (typeof(u_greq))arg;
+		ret = raw_copy_from_user(&greq, u_greq, sizeof(greq));
+		if (ret)
+			return -EFAULT;
+		get_timer_value(&timerfd->timer, &value);
+		if (raw_copy_to_user(greq.value, &value, sizeof(value)))
+			return -EFAULT;
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
+static ssize_t timerfd_oob_read(struct file *filp,
+				char __user *u_buf, size_t count)
+{
+	__u32 __user *u_ticks = (__u32 __user *)u_buf, ticks = 0;
+	struct evl_timerfd *timerfd = filp->private_data;
+	ktime_t timeout = EVL_INFINITE;
+	int ret;
+
+	if (count < sizeof(ticks))
+		return -EINVAL;
+
+	if (filp->f_flags & O_NONBLOCK)
+		timeout = EVL_NONBLOCK;
+
+	ret = evl_wait_event_timeout(&timerfd->readers, timeout,
+			EVL_REL, read_timerfd_event(timerfd));
+	if (ret)
+		return ret;
+
+	ticks = 1;
+	if (evl_timer_is_periodic(&timerfd->timer))
+		ticks += (u32)evl_get_timer_overruns(&timerfd->timer);
+
+	evl_clear_poll_events(&timerfd->poll_head, POLLIN);
+
+	if (raw_put_user(ticks, u_ticks))
+		return -EFAULT;
+
+	return sizeof(ticks);
+}
+
+static __poll_t timerfd_oob_poll(struct file *filp,
+				struct oob_poll_wait *wait)
+{
+	struct evl_timerfd *timerfd = filp->private_data;
+
+	evl_poll_watch(&timerfd->poll_head, wait);
+
+	return timerfd->ticked ? POLLIN|POLLRDNORM : 0;
+}
+
+static int timerfd_release(struct inode *inode, struct file *filp)
+{
+	struct evl_timerfd *timerfd = filp->private_data;
+
+	evl_stop_timer(&timerfd->timer);
+	evl_flush_wait(&timerfd->readers, T_RMID);
+	evl_release_file(&timerfd->efile);
+	evl_put_element(&timerfd->timer.clock->element);
+	kfree(timerfd);
+
+	return 0;
+}
+
+static const struct file_operations timerfd_fops = {
+	.release	= timerfd_release,
+	.oob_ioctl	= timerfd_oob_ioctl,
+	.oob_read	= timerfd_oob_read,
+	.oob_poll	= timerfd_oob_poll,
+};
+
+static int new_timerfd(struct evl_clock *clock)
+{
+	struct evl_timerfd *timerfd;
+	struct file *filp;
+	int ret, fd;
+
+	timerfd = kzalloc(sizeof(*timerfd), GFP_KERNEL);
+	if (timerfd == NULL)
+		return -ENOMEM;
+
+	filp = anon_inode_getfile("[evl-timerfd]", &timerfd_fops,
+				timerfd, O_RDWR|O_CLOEXEC);
+	if (IS_ERR(filp)) {
+		kfree(timerfd);
+		return PTR_ERR(filp);
+	}
+
+	/*
+	 * From that point, timerfd_release() might be called for
+	 * cleaning up on error via filp_close(). So initialize
+	 * everything we need for a graceful cleanup.
+	 */
+	evl_get_element(&clock->element);
+	evl_init_timer(&timerfd->timer, clock, timerfd_handler,
+		NULL, EVL_TIMER_UGRAVITY);
+	evl_init_wait(&timerfd->readers, clock, EVL_WAIT_PRIO);
+	evl_init_poll_head(&timerfd->poll_head);
+
+	ret = evl_open_file(&timerfd->efile, filp);
+	if (ret)
+		goto fail_open;
+
+	fd = get_unused_fd_flags(O_RDWR|O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto fail_getfd;
+	}
+
+	fd_install(fd, filp);
+
+	return fd;
+
+fail_getfd:
+	evl_release_file(&timerfd->efile);
+fail_open:
+	filp_close(filp, current->files);
+
+	return ret;
+}
+
 static long clock_common_ioctl(struct evl_clock *clock,
 			unsigned int cmd, unsigned long arg)
 {
@@ -580,8 +814,22 @@ static long clock_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_clock *clock = element_of(filp, struct evl_clock);
+	int __user *u_fd;
+	int ret;
 
-	return clock_common_ioctl(clock, cmd, arg);
+	switch (cmd) {
+	case EVL_CLKIOC_NEW_TIMER:
+		ret = new_timerfd(clock);
+		if (ret >= 0) {
+			u_fd = (typeof(u_fd))arg;
+			ret = put_user(ret, u_fd);
+		}
+		break;
+	default:
+		ret = clock_common_ioctl(clock, cmd, arg);
+	}
+
+	return ret;
 }
 
 static const struct file_operations clock_fops = {
