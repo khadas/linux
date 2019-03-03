@@ -9,13 +9,13 @@ evenless-y :=		\
 	file.o		\
 	init.o		\
 	irq.o		\
-	ksem.o		\
 	lock.o		\
 	memory.o	\
 	monitor.o	\
 	mutex.o		\
 	poll.o		\
 	proxy.o		\
+	sem.o		\
 	syscall.o	\
 	thread.o	\
 	tick.o		\
