@@ -22,7 +22,6 @@
 #include <evenless/assert.h>
 #include <evenless/init.h>
 #include <uapi/evenless/thread.h>
-#include <uapi/evenless/sem.h>
 #include <uapi/evenless/monitor.h>
 
 static unsigned long sysheap_size_arg;
@@ -632,9 +631,7 @@ static int init_shared_heap(void)
 	size = CONFIG_EVENLESS_NR_THREADS *
 		sizeof(struct evl_user_window) +
 		CONFIG_EVENLESS_NR_MONITORS *
-		sizeof(struct evl_monitor_state) +
-		CONFIG_EVENLESS_NR_SEMAPHORES *
-		sizeof(struct evl_sem_state);
+		sizeof(struct evl_monitor_state);
 	size = PAGE_ALIGN(size);
 	mem = kzalloc(size, GFP_KERNEL);
 	if (mem == NULL)

@@ -16,7 +16,6 @@ evenless-y :=		\
 	mutex.o		\
 	poll.o		\
 	proxy.o		\
-	sem.o		\
 	syscall.o	\
 	thread.o	\
 	tick.o		\

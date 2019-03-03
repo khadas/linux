@@ -99,15 +99,6 @@ config EVENLESS_NR_CLOCKS
 	This value gives the maximum number of semaphores which can be
 	alive concurrently in the system for user-space applications.
 
-config EVENLESS_NR_SEMAPHORES
-	int "Maximum number of semaphores"
-	range 1 16384
-	default 512
-	help
-
-	This value gives the maximum number of semaphores which can be
-	alive concurrently in the system for user-space applications.
-
 config EVENLESS_NR_TIMERFDS
 	int "Maximum number of timerfds"
 	range 1 16384
