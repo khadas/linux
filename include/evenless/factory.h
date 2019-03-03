@@ -151,7 +151,6 @@ extern struct evl_factory evl_clock_factory;
 extern struct evl_factory evl_control_factory;
 extern struct evl_factory evl_monitor_factory;
 extern struct evl_factory evl_poll_factory;
-extern struct evl_factory evl_sem_factory;
 extern struct evl_factory evl_thread_factory;
 extern struct evl_factory evl_timerfd_factory;
 extern struct evl_factory evl_trace_factory;
