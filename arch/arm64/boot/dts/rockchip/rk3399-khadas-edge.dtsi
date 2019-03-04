@@ -759,6 +759,12 @@
 		vbus-5v-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	khadas-mcu {
+		compatible = "khadas-mcu";
+		status = "okay";
+		reg = <0x18>;
+	};
 };
 
 &i2s0 {
