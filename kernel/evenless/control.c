@@ -99,15 +99,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_core_info info;
-	__u32 mask;
 	long ret;
-
-	/*
-	 * NOTE: OOB <-> in-band switching services can only apply to
-	 * the current thread, which should not need a file descriptor
-	 * on its own element for issuing them. The control device is
-	 * the right channel for requesting such services.
-	 */
 
 	switch (cmd) {
 	case EVL_CTLIOC_GET_COREINFO:
@@ -116,26 +108,6 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 		info.shm_size = evl_shm_size;
 		ret = raw_copy_to_user((struct evl_core_info __user *)arg,
 				&info, sizeof(info)) ? -EFAULT : 0;
-		break;
-	case EVL_CTLIOC_SWITCH_OOB:
-		ret = evl_switch_oob();
-		break;
-	case EVL_CTLIOC_SWITCH_INBAND:
-		/*
-		 * We already switched an OOB caller to inband mode as
-		 * a result of handling this ioctl() call. Yummie.
-		 */
-		ret = 0;
-		break;
-	case EVL_CTLIOC_SET_MODE:
-	case EVL_CTLIOC_CLEAR_MODE:
-		ret = raw_get_user(mask, (__u32 *)arg);
-		if (ret)
-			return -EFAULT;
-		ret = evl_update_mode(mask, cmd == EVL_CTLIOC_SET_MODE);
-		break;
-	case EVL_CTLIOC_DETACH_SELF:
-		ret = evl_detach_self();
 		break;
 	default:
 		ret = -ENOTTY;
