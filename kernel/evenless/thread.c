@@ -143,8 +143,8 @@ int evl_init_thread(struct evl_thread *thread,
 
 	/*
 	 * We mirror the global user debug state into the per-thread
-	 * state, to speed up branch taking in libevenless wherever this
-	 * needs to be tested.
+	 * state, to speed up branch taking in user-space wherever
+	 * this needs to be tested.
 	 */
 	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP))
 		flags |= T_DEBUG;
@@ -1028,6 +1028,7 @@ int evl_detach_self(void)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(evl_detach_self);
 
 struct wait_grace_struct {
 	struct completion done;
@@ -2131,12 +2132,38 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
-	long ret;
+	struct evl_thread *curr = evl_current();
+	long ret = -EPERM;
+	__u32 mask;
 
 	if (thread->state & T_ZOMBIE)
 		return -ESTALE;
 
 	switch (cmd) {
+	case EVL_THRIOC_SWITCH_OOB:
+		if (thread == curr)
+			ret = evl_switch_oob();
+		break;
+	case EVL_THRIOC_SWITCH_INBAND:
+		/*
+		 * If we got there, we were already switched from oob
+		 * to inband mode as a result of calling ioctl().
+		 * Yummie.
+		 */
+		ret = 0;
+		break;
+	case EVL_THRIOC_SET_MODE:
+	case EVL_THRIOC_CLEAR_MODE:
+		if (thread == curr) {
+			ret = raw_get_user(mask, (__u32 *)arg);
+			if (ret)
+				return -EFAULT;
+			ret = evl_update_mode(mask, cmd == EVL_THRIOC_SET_MODE);
+		}
+		break;
+	case EVL_THRIOC_DETACH_SELF:
+		ret = evl_detach_self();
+		break;
 	case EVL_THRIOC_JOIN:
 		ret = evl_join_thread(thread, false);
 		break;
@@ -2268,7 +2295,7 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	 * thread here to block automatic disposal on last file
 	 * release. put_current_thread() drops this reference when the
 	 * thread exits, or voluntarily detaches by sending the
-	 * EVL_CTLIOC_DETACH_SELF control request.
+	 * EVL_THRIOC_DETACH_SELF control request.
 	 */
 	evl_get_element(&curr->element);
 
