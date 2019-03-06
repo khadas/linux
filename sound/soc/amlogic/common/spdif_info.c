@@ -56,7 +56,6 @@ void spdif_get_channel_status_info(
 		pr_err("Unsupport sample rate\n");
 		return;
 	}
-
 	if (IEC958_mode_codec && IEC958_mode_codec != 9) {
 		if (IEC958_mode_codec == 1) {
 			/* dts, use raw sync-word mode */
@@ -79,6 +78,12 @@ void spdif_get_channel_status_info(
 				chsts->chstat1_l = 0Xe00;
 				chsts->chstat1_r = 0Xe00;
 			}
+		} else if (IEC958_mode_codec == 8 || IEC958_mode_codec == 7) {
+			/* DTS-HD MA, TrueHD */
+				chsts->chstat0_l = 0x8206;
+				chsts->chstat0_r = 0x8206;
+				chsts->chstat1_l = 0x900;
+				chsts->chstat1_r = 0x900;
 		} else {
 			/* DTS,DD */
 			if (rate_bit == SNDRV_PCM_RATE_32000) {
