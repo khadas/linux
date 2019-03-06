@@ -75,10 +75,12 @@ struct vivi_dev {
 
 	struct videobuf_res_privdata *res;
 	struct vfq_s q_ready;
+	struct vfq_s q_omx;
 	u8 first_frame;
 	u64 last_pts_us64;
 	struct vframe_s *vf;
 	struct vframe_s *amlvideo_pool_ready[AMLVIDEO_POOL_SIZE + 1];
+	struct vframe_s *amlvideo_pool_omx[AMLVIDEO_POOL_SIZE + 1];
 	int index;
 	struct mutex vfpMutex;
 	int amlvideo_v4l_num;

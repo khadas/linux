@@ -374,6 +374,7 @@ struct di_post_stru_s {
 	bool		toggle_flag;
 	bool		vscale_skip_flag;
 	uint		start_pts;
+	u64		start_pts_us64;
 	int		buf_type;
 	int de_post_process_done;
 	int post_de_busy;
