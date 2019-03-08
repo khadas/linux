@@ -10,6 +10,7 @@
 #include <evenless/thread.h>
 #include <evenless/factory.h>
 #include <evenless/tick.h>
+#include <evenless/sched.h>
 #include <evenless/control.h>
 #include <asm/evenless/syscall.h>
 #include <asm/evenless/fptest.h>
@@ -95,6 +96,84 @@ static int stop_services(void)
 	return ret;
 }
 
+#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+
+static int do_quota_control(struct evl_sched_ctlreq *ctl)
+{
+	union evl_sched_ctlparam param, __user *u_ctlp;
+	union evl_sched_ctlinfo info, __user *u_infp;
+	int ret;
+
+	u_ctlp = (typeof(u_ctlp))ctl->param;
+	ret = raw_copy_from_user(&param.quota, &u_ctlp->quota,
+				sizeof(param.quota));
+	if (ret)
+		return -EFAULT;
+
+	ret = evl_sched_quota.sched_control(ctl->cpu, &param, &info);
+	if (ret || ctl->info == NULL)
+		return ret;
+
+	u_infp = (typeof(u_infp))ctl->info;
+	ret = raw_copy_to_user(&u_infp->quota, &info.quota,
+			sizeof(info.quota));
+	if (ret)
+		return -EFAULT;
+
+	return 0;
+}
+
+#else
+
+static int do_quota_control(struct evl_sched_ctlreq *ctl)
+{
+	return -EINVAL;
+}
+
+#endif
+
+static int do_sched_control(struct evl_sched_ctlreq *ctl)
+{
+	int ret;
+
+	switch (ctl->policy) {
+	case SCHED_QUOTA:
+		ret = do_quota_control(ctl);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static long control_common_ioctl(struct file *filp, unsigned int cmd,
+			unsigned long arg)
+{
+	struct evl_sched_ctlreq ctl, __user *u_ctl;
+	long ret;
+
+	switch (cmd) {
+	case EVL_CTLIOC_SCHEDCTL:
+		u_ctl = (typeof(u_ctl))arg;
+		ret = raw_copy_from_user(&ctl, u_ctl, sizeof(ctl));
+		if (ret)
+			return -EFAULT;
+		ret = do_sched_control(&ctl);
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
+static long control_oob_ioctl(struct file *filp, unsigned int cmd,
+			unsigned long arg)
+{
+	return control_common_ioctl(filp, cmd, arg);
+}
+
 static long control_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
@@ -110,7 +189,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 				&info, sizeof(info)) ? -EFAULT : 0;
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = control_common_ioctl(filp, cmd, arg);
 	}
 
 	return ret;
@@ -129,6 +208,7 @@ static int control_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 static const struct file_operations control_fops = {
+	.oob_ioctl	=	control_oob_ioctl,
 	.unlocked_ioctl	=	control_ioctl,
 	.mmap		=	control_mmap,
 };

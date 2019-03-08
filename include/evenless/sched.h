@@ -113,6 +113,7 @@ extern struct list_head evl_thread_list;
 extern int evl_nrthreads;
 
 union evl_sched_param;
+struct evl_sched_config;
 
 struct evl_sched_class {
 	void (*sched_init)(struct evl_rq *rq);
@@ -163,6 +164,8 @@ struct evl_sched_class {
 	void (*sched_kick)(struct evl_thread *thread);
 	ssize_t (*sched_show)(struct evl_thread *thread,
 			      char *buf, ssize_t count);
+	int (*sched_control)(int cpu, union evl_sched_ctlparam *ctlp,
+			union evl_sched_ctlinfo *infp);
 	int nthreads;
 	struct evl_sched_class *next;
 	int weight;
