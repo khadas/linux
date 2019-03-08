@@ -30,15 +30,6 @@ config EVENLESS_SCHED_QUOTA_PERIOD
 	help
 	The global period thread groups can get a share of.
 
-config EVENLESS_SCHED_QUOTA_NR_GROUPS
-	int "Number of thread groups"
-	default 32
-	range 1 1024
-	depends on EVENLESS_SCHED_QUOTA
-	help
-	The overall number of thread groups which may be defined
-	across all CPUs.
-
 config EVENLESS_STATS
 	bool "Runtime statistics"
 	default y

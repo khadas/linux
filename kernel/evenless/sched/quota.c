@@ -52,7 +52,10 @@
  * core. This only means that the SCHED_QUOTA policy won't pick them
  * until the corresponding budget is replenished.
  */
-static DECLARE_BITMAP(group_map, CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS);
+
+#define MAX_QUOTA_GROUPS  32
+
+static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
 
 static LIST_HEAD(group_list);
 
@@ -293,7 +296,7 @@ static int quota_chkparam(struct evl_thread *thread,
 		return -EINVAL;
 
 	tgid = p->quota.tgid;
-	if (tgid < 0 || tgid >= CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS)
+	if (tgid < 0 || tgid >= MAX_QUOTA_GROUPS)
 		return -EINVAL;
 
 	/*
@@ -474,7 +477,7 @@ static int quota_create_group(struct evl_quota_group *tg,
 			struct evl_rq *rq,
 			int *quota_sum_r)
 {
-	int tgid, nr_groups = CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS;
+	int tgid, nr_groups = MAX_QUOTA_GROUPS;
 	struct evl_sched_quota *qs = &rq->quota;
 
 	requires_ugly_lock();
