@@ -33,4 +33,49 @@ struct evl_sched_attrs {
 	} sched_u;
 };
 
+struct evl_quota_ctlparam {
+	enum {
+		evl_quota_add,
+		evl_quota_remove,
+		evl_quota_force_remove,
+		evl_quota_set,
+		evl_quota_get,
+	} op;
+	union {
+		struct {
+			int tgid;
+		} remove;
+		struct {
+			int tgid;
+			int quota;
+			int quota_peak;
+		} set;
+		struct {
+			int tgid;
+		} get;
+	} u;
+};
+
+union evl_sched_ctlparam {
+	struct evl_quota_ctlparam quota;
+};
+
+struct evl_quota_ctlinfo {
+	int tgid;
+	int quota;
+	int quota_peak;
+	int quota_sum;
+};
+
+union evl_sched_ctlinfo {
+	struct evl_quota_ctlinfo quota;
+};
+
+struct evl_sched_ctlreq {
+	int policy;
+	int cpu;
+	union evl_sched_ctlparam *param;
+	union evl_sched_ctlinfo *info;
+};
+
 #endif /* !_EVENLESS_UAPI_SCHED_H */

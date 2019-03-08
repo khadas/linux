@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
- * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+ * Copyright (C) 2001, 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
 #include <linux/types.h>

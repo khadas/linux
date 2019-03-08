@@ -54,6 +54,8 @@
  */
 static DECLARE_BITMAP(group_map, CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS);
 
+static LIST_HEAD(group_list);
+
 static inline int group_is_active(struct evl_quota_group *tg)
 {
 	struct evl_thread *curr = tg->rq->curr;
@@ -468,7 +470,7 @@ static ssize_t quota_show(struct evl_thread *thread,
 			thread->quota->tgid);
 }
 
-int evl_quota_create_group(struct evl_quota_group *tg,
+static int quota_create_group(struct evl_quota_group *tg,
 			struct evl_rq *rq,
 			int *quota_sum_r)
 {
@@ -479,7 +481,7 @@ int evl_quota_create_group(struct evl_quota_group *tg,
 
 	tgid = find_first_zero_bit(group_map, nr_groups);
 	if (tgid >= nr_groups)
-		return -ENOSPC;
+		return -EAGAIN;
 
 	__set_bit(tgid, group_map);
 	tg->tgid = tgid;
@@ -505,10 +507,9 @@ int evl_quota_create_group(struct evl_quota_group *tg,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(evl_quota_create_group);
 
-int evl_quota_destroy_group(struct evl_quota_group *tg,
-			int force, int *quota_sum_r)
+static int quota_destroy_group(struct evl_quota_group *tg,
+			bool force, int *quota_sum_r)
 {
 	struct evl_sched_quota *qs = &tg->rq->quota;
 	struct evl_thread *thread, *tmp;
@@ -536,9 +537,8 @@ int evl_quota_destroy_group(struct evl_quota_group *tg,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(evl_quota_destroy_group);
 
-void evl_quota_set_limit(struct evl_quota_group *tg,
+static void quota_set_limit(struct evl_quota_group *tg,
 			int quota_percent, int quota_peak_percent,
 			int *quota_sum_r)
 {
@@ -607,7 +607,90 @@ void evl_quota_set_limit(struct evl_quota_group *tg,
 	evl_set_resched(tg->rq);
 	evl_schedule();
 }
-EXPORT_SYMBOL_GPL(evl_quota_set_limit);
+
+static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
+			union evl_sched_ctlinfo *infp)
+{
+	struct evl_quota_ctlparam *pq = &ctlp->quota;
+	struct evl_quota_ctlinfo *iq = &infp->quota;
+	struct evl_sched_group *group;
+	struct evl_quota_group *tg;
+	unsigned long flags;
+	int ret, quota_sum;
+	struct evl_rq *rq;
+
+	if (cpu < 0 || !cpu_present(cpu) || !is_threading_cpu(cpu))
+		return -EINVAL;
+
+	switch (pq->op) {
+	case evl_quota_add:
+		group = evl_alloc(sizeof(*group));
+		if (group == NULL)
+			return -ENOMEM;
+		tg = &group->quota;
+		xnlock_get_irqsave(&nklock, flags);
+		rq = evl_cpu_rq(cpu);
+		ret = quota_create_group(tg, rq, &quota_sum);
+		if (ret) {
+			xnlock_put_irqrestore(&nklock, flags);
+			evl_free(group);
+			return ret;
+		}
+		list_add(&group->next, &group_list);
+		break;
+	case evl_quota_remove:
+	case evl_quota_force_remove:
+		xnlock_get_irqsave(&nklock, flags);
+		rq = evl_cpu_rq(cpu);
+		tg = evl_quota_find_group(rq, pq->u.remove.tgid);
+		if (tg == NULL)
+			goto bad_tgid;
+		group = container_of(tg, struct evl_sched_group, quota);
+		ret = quota_destroy_group(tg,
+					pq->op == evl_quota_force_remove,
+					&quota_sum);
+		if (ret) {
+			xnlock_put_irqrestore(&nklock, flags);
+			return ret;
+		}
+		list_del(&group->next);
+		xnlock_put_irqrestore(&nklock, flags);
+		evl_free(group);
+		return 0;
+	case evl_quota_set:
+		xnlock_get_irqsave(&nklock, flags);
+		rq = evl_cpu_rq(cpu);
+		tg = evl_quota_find_group(rq, pq->u.set.tgid);
+		if (tg == NULL)
+			goto bad_tgid;
+		group = container_of(tg, struct evl_sched_group, quota);
+		quota_set_limit(tg, pq->u.set.quota, pq->u.set.quota_peak,
+				&quota_sum);
+		break;
+	case evl_quota_get:
+		xnlock_get_irqsave(&nklock, flags);
+		rq = evl_cpu_rq(cpu);
+		tg = evl_quota_find_group(rq, pq->u.get.tgid);
+		if (tg == NULL)
+			goto bad_tgid;
+		quota_sum = quota_sum_all(&rq->quota);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	iq->tgid = tg->tgid;
+	iq->quota = tg->quota_percent;
+	iq->quota_peak = tg->quota_peak_percent;
+	xnlock_put_irqrestore(&nklock, flags);
+	iq->quota_sum = quota_sum;
+
+	return 0;
+bad_tgid:
+	xnlock_put_irqrestore(&nklock, flags);
+
+	return -EINVAL;
+}
 
 struct evl_quota_group *
 evl_quota_find_group(struct evl_rq *rq, int tgid)
@@ -628,16 +711,6 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
 }
 EXPORT_SYMBOL_GPL(evl_quota_find_group);
 
-int evl_quota_sum_all(struct evl_rq *rq)
-{
-	struct evl_sched_quota *qs = &rq->quota;
-
-	requires_ugly_lock();
-
-	return quota_sum_all(qs);
-}
-EXPORT_SYMBOL_GPL(evl_quota_sum_all);
-
 struct evl_sched_class evl_sched_quota = {
 	.sched_init		=	quota_init,
 	.sched_enqueue		=	quota_enqueue,
@@ -653,6 +726,7 @@ struct evl_sched_class evl_sched_quota = {
 	.sched_forget		=	quota_forget,
 	.sched_kick		=	quota_kick,
 	.sched_show		=	quota_show,
+	.sched_control		=	quota_control,
 	.weight			=	EVL_CLASS_WEIGHT(2),
 	.policy			=	SCHED_QUOTA,
 	.name			=	"quota"
