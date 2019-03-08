@@ -155,10 +155,6 @@
 	phys = <&tcphy0_dp>;
 };
 
-&hdmi_dp_sound {
-	status = "okay";
-};
-
 &dp_in_vopb {
 	status = "disabled";
 };
@@ -214,11 +210,18 @@
 };
 
 &dp_sound {
-	status = "disabled";
+	status = "okay";
 };
 
-&hdmi_dp_sound {
-	status = "disabled";
+/*
+ * if enable dp_sound, should disable spdif_sound and spdif_out
+ */
+&spdif_out {
+        status = "disabled";
+};
+
+&spdif_sound {
+        status = "disabled";
 };
 
 &hdmi_sound {

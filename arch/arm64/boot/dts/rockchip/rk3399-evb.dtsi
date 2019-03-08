@@ -140,6 +140,13 @@
 		};
 	};
 
+	dp_sound: dp-sound {
+		status = "disabled";
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&spdif>;
+		rockchip,codec = <&cdn_dp 1>;
+	};
+
 	hdmi_sound: hdmi-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";

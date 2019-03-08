@@ -109,6 +109,29 @@
 	status = "okay";
 };
 
+&spdif {
+	status = "okay";
+};
+
+&dp_sound {
+	status = "okay";
+};
+
+/*
+ * if enable dp_sound, should disable spdif_sound and spdif_out
+ */
+&spdif_out {
+	status = "disabled";
+};
+
+&spdif_sound {
+	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
 &dmc {
 	status = "okay";
 	center-supply = <&vdd_center>;
