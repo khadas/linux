@@ -34,6 +34,7 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 
+extern void set_test(int flag);
 extern void realtek_enable_wol(int enable, bool is_shutdown);
 void mcu_enable_wol(int enable, bool is_shutdown)
 {
@@ -101,6 +102,18 @@ static int mcu_i2c_write_regs(struct i2c_client *client,
 	return ret;
 }
 
+static ssize_t store_test(struct class *cls, struct class_attribute *attr,
+		        const char *buf, size_t count)
+{
+	int flag;
+
+	if (kstrtoint(buf, 0, &flag))
+		return -EINVAL;
+
+	set_test(flag);
+	return count;
+}
+
 static ssize_t store_wol_enable(struct class *cls, struct class_attribute *attr,
 		        const char *buf, size_t count)
 {
@@ -142,6 +155,7 @@ static ssize_t show_wol_enable(struct class *cls,
 
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
+	__ATTR(test, 0644, NULL, store_test),
 };
 
 static void create_mcu_attrs(void)
