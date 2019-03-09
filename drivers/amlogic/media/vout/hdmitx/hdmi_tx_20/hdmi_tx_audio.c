@@ -159,7 +159,7 @@ static void hdmi_tx_construct_aud_packet(
 			AUD_DB[4] = 0;
 		}
 	} else if (audio_param->type == CT_DOLBY_D) {
-		pr_info(AUD "Audio Type: Dobly Digital +\n");
+		pr_info(AUD "Audio Type: Dolby Digital +\n");
 		if (AUD_DB) {
 			AUD_DB[0] =
 				(FS_REFER_TO_STREAM<<4)|(CC_REFER_TO_STREAM);

@@ -1236,7 +1236,7 @@ int tsync_set_apts(unsigned int pts)
 		t = timestamp_pcrscr_get();
 
 	if (tsync_mode == TSYNC_MODE_AMASTER) {
-		/* special used for Dobly Certification AVSync test */
+		/* special used for Dolby Certification AVSync test */
 		if (dobly_avsync_test) {
 			if (get_vsync_pts_inc_mode()
 				&&

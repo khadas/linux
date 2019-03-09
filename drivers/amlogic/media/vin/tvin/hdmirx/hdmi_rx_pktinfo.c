@@ -516,7 +516,7 @@ static void rx_pktdump_vsi(void *pdata)
 	rx_pr("3d vdfmt: 0x%x\n", pktdata->sbpkt.vsi.vdfmt);
 
 	if (pktdata->length == E_DV_LENGTH_24) {
-		/*dobly version v0 pkt*/
+		/*dolby version v0 pkt*/
 
 	} else {
 		if (pktdata->sbpkt.vsi.vdfmt == 0) {
@@ -1378,7 +1378,7 @@ void rx_get_vsi_info(void)
 			rx.vs_info_details.eff_tmax_pq = tmp;
 		}
 	} else if (pkt->ieee == 0x000c03) {
-		/* dobly10 */
+		/* dolby10 */
 		if (pkt->length == E_DV_LENGTH_24) {
 			rx.vs_info_details.dolby_vision = true;
 			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
