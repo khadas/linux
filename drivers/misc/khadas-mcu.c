@@ -25,6 +25,7 @@
 
 /* Device registers */
 #define MCU_WOL_REG		0x21
+#define MCU_RST_REG             0x2c
 
 struct mcu_data {
 	struct i2c_client *client;
@@ -114,6 +115,25 @@ static ssize_t store_test(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
+		        const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int rst;
+
+	if (kstrtoint(buf, 0, &rst))
+		return -EINVAL;
+
+	reg[0] = rst;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_RST_REG, reg, 1);
+	if (ret < 0) {
+		printk("rst mcu err\n");
+		return ret;
+	}
+	return count;
+}
+
 static ssize_t store_wol_enable(struct class *cls, struct class_attribute *attr,
 		        const char *buf, size_t count)
 {
@@ -156,6 +176,7 @@ static ssize_t show_wol_enable(struct class *cls,
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 	__ATTR(test, 0644, NULL, store_test),
+	__ATTR(rst_mcu, 0644, NULL, store_rst_mcu),
 };
 
 static void create_mcu_attrs(void)
