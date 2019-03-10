@@ -35,7 +35,7 @@ source "drivers/block/Kconfig"
 
 source "drivers/nvme/Kconfig"
 
-source "drivers/evenless/Kconfig"
+source "drivers/evl/Kconfig"
 
 source "drivers/misc/Kconfig"
 

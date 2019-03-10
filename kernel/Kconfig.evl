@@ -1,0 +1,29 @@
+
+# EVL real-time core
+config HAVE_ARCH_EVL
+	bool
+
+menuconfig EVL
+	bool "Enable the EVL core"
+	depends on HAVE_ARCH_EVL
+	select DOVETAIL
+	help
+
+	  The EVL core is a real-time component of the Linux kernel,
+	  which exhibits very short interrupt and scheduling latency,
+	  without affecting the regular kernel services.
+
+if EVL
+
+source "kernel/evl/Kconfig"
+
+if WARN_CPUFREQ_GOVERNOR
+comment "WARNING! CPU_FREQ governors other than 'performance'"
+comment "or 'powersave' may significantly increase latency"
+comment "on this platform during the frequency transitions."
+endif
+
+endif
+
+config WARN_CPUFREQ_GOVERNOR
+       def_bool n
