@@ -1,8 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Context handling logic derived from Xenomai Cobalt
- * (http://git.xenomai.org/xenomai-3.git/)
+ * Derived from Xenomai Cobalt, https://xenomai.org/
  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
  * Copyright (C) 2005 Gilles Chanteperdrix  <gilles.chanteperdrix@xenomai.org>
  */

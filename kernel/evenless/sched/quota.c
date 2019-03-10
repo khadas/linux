@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
+ * Derived from Xenomai Cobalt, https://xenomai.org/
  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
@@ -53,7 +53,7 @@
  * until the corresponding budget is replenished.
  */
 
-#define MAX_QUOTA_GROUPS  32
+#define MAX_QUOTA_GROUPS  1024
 
 static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
 

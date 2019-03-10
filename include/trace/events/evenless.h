@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Derived from Xenomai's Cobalt core:
+ * Derived from Xenomai Cobalt, https://xenomai.org/
  * Copyright (C) 2014 Jan Kiszka <jan.kiszka@siemens.com>.
  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
  */

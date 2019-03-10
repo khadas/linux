@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Derived from the Xenomai Cobalt core:
+ * Derived from Xenomai Cobalt, https://xenomai.org/
  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
  * Copyright (C) 2013, 2018 Philippe Gerum <rpm@xenomai.org>
  */
