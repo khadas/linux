@@ -273,14 +273,12 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 
 void evl_disable_preempt(void)
 {
-	oob_context_only();
 	__evl_disable_preempt();
 }
 EXPORT_SYMBOL(evl_disable_preempt);
 
 void evl_enable_preempt(void)
 {
-	oob_context_only();
 	__evl_enable_preempt();
 }
 EXPORT_SYMBOL(evl_enable_preempt);
