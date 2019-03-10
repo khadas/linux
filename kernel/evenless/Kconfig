@@ -12,23 +12,9 @@ config EVENLESS_SCHED_QUOTA
 	threads over a globally defined period, known as the quota
 	interval. This is done by pooling threads with common
 	requirements in groups, and giving each group a share of the
-	global period (see CONFIG_EVENLESS_SCHED_QUOTA_PERIOD).
-
-	When threads have entirely consumed the quota allotted to the
-	group they belong to, the latter is suspended as a whole,
-	until the next quota interval starts. At this point, a new
-	runtime budget is given to each group, in accordance with its
-	share.
+	global period.
 
 	If in doubt, say N.
-
-config EVENLESS_SCHED_QUOTA_PERIOD
-	int "Quota interval (us)"
-	default 10000
-	range 100 1000000000
-	depends on EVENLESS_SCHED_QUOTA
-	help
-	The global period thread groups can get a share of.
 
 config EVENLESS_STATS
 	bool "Runtime statistics"

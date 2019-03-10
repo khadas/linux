@@ -257,9 +257,48 @@ static ssize_t abi_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(abi);
 
+#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+
+static ssize_t quota_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%Lu\n",
+			ktime_to_ns(evl_get_quota_period()));
+}
+
+static ssize_t quota_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long long period;
+	int ret;
+
+	ret = kstrtoull(buf, 10, &period);
+	if (ret < 0)
+		return -EINVAL;
+
+	/*
+	 * If the quota period is shorter than the monotonic clock
+	 * gravity for user-targeted timers, assume PEBKAC.
+	 */
+	if (period < evl_get_clock_gravity(&evl_mono_clock, user))
+		return -EINVAL;
+
+	evl_set_quota_period(ns_to_ktime(period));
+
+	return count;
+}
+static DEVICE_ATTR_RW(quota);
+
+#endif
+
 static struct attribute *control_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_abi.attr,
+#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+	&dev_attr_quota.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(control);
