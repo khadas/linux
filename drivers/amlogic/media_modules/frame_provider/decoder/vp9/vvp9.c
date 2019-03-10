@@ -6898,7 +6898,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		decoder_do_frame_check(hw_to_vdec(pbi), vf);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
 		pbi->vf_pre_count++;
-#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 		/*count info*/
 		gvs->frame_dur = pbi->frame_dur;
 		vdec_count_info(gvs, 0, stream_offset);
@@ -7826,7 +7826,7 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	vstatus->error_count = 0;
 	vstatus->status = vp9->stat | vp9->fatal_error;
 	vstatus->frame_dur = vp9->frame_dur;
-#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	vstatus->bit_rate = gvs->bit_rate;
 	vstatus->frame_data = gvs->frame_data;
 	vstatus->total_data = gvs->total_data;
