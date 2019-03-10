@@ -114,7 +114,7 @@ static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static u32 error_watchdog_count;
-static uint error_recovery_mode;
+static uint error_recovery_mode = 1;
 static u32 sync_outside;
 static u32 vh264_4k2k_rotation;
 static u32 first_i_received;

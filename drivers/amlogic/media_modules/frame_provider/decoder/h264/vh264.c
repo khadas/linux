@@ -276,7 +276,7 @@ static bool check_pts_discontinue;
 static u32 wait_buffer_counter;
 static u32 video_signal_from_vui;
 
-static uint error_recovery_mode;
+static uint error_recovery_mode = 1;
 static uint error_recovery_mode_in = 3;
 static uint error_recovery_mode_use = 3;
 
