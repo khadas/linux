@@ -153,7 +153,7 @@ else ifeq ($(CONFIG_DYNAMIC_FTRACE_WITH_ARGS),y)
 endif
 
 ifeq ($(CONFIG_EVL),y)
-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
+KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
 endif
 
 ifeq ($(CONFIG_KASAN_SW_TAGS), y)
