@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Derived from Xenomai Cobalt's switchtest driver
+ * Derived from Xenomai Cobalt's switchtest driver, https://xenomai.org/
  * Copyright (C) 2010 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */

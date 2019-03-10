@@ -1,13 +1,13 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Inherited from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
+ * Derived from Xenomai Cobalt, https://xenomai.org/
  * Copyright (C) 2004, 2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
  * Copyright (C) 2010, 2018 Philippe Gerum  <rpm@xenomai.org>
  *
  * NOTE: this code is on its way out, the ugly superlock is the only
- * remaining lock of this type. Moving away from the inefficient
- * single-lock model is planned.
+ * remaining lock of this type. We are moving away from the
+ * inefficient single-lock model.
  */
 
 #include <linux/module.h>

@@ -1,8 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
- * Derived from Xenomai Cobalt's autotune driver
- * (http://git.xenomai.org/xenomai-3.git/)
+ * Derived from Xenomai Cobalt's autotune driver, https://xenomai.org/
  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
