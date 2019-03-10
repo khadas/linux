@@ -1,4 +1,4 @@
-obj-$(CONFIG_EVENLESS) += evenless.o sched/
+obj-$(CONFIG_EVL) += evenless.o sched/
 
 ccflags-y += -Ikernel
 

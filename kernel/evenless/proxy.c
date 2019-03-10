@@ -266,6 +266,6 @@ struct evl_factory evl_proxy_factory = {
 	.fops	=	&proxy_fops,
 	.build =	proxy_factory_build,
 	.dispose =	proxy_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_PROXIES,
+	.nrdev	=	CONFIG_EVL_NR_PROXIES,
 	.flags	=	EVL_FACTORY_CLONE,
 };

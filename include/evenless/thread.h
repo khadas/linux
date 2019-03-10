@@ -60,7 +60,7 @@ struct evl_thread {
 	struct evl_sched_class *sched_class; /* Current scheduling class */
 	struct evl_sched_class *base_class; /* Base scheduling class */
 
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	struct evl_quota_group *quota; /* Quota scheduling group. */
 	struct list_head quota_expired;
 	struct list_head quota_next;

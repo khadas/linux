@@ -14,7 +14,7 @@
 
 struct evl_rq;
 
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 
 struct evl_account {
 	ktime_t start;   /* Start of execution time accumulation */
@@ -105,7 +105,7 @@ void evl_set_counter(struct evl_counter *c, unsigned long value)
 	c->counter = value;
 }
 
-#else /* !CONFIG_EVENLESS_STATS */
+#else /* !CONFIG_EVL_RUNSTATS */
 
 struct evl_account {
 };
@@ -125,7 +125,7 @@ struct evl_counter {
 #define evl_get_counter(__c) 	({ 0; })
 #define evl_set_counter(_c, __value)	do { } while (0)
 
-#endif /* CONFIG_EVENLESS_STATS */
+#endif /* CONFIG_EVL_RUNSTATS */
 
 /*
  * Account the exectime of the current account until now, switch to

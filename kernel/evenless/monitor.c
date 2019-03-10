@@ -726,7 +726,7 @@ struct evl_factory evl_monitor_factory = {
 	.fops	=	&monitor_fops,
 	.build =	monitor_factory_build,
 	.dispose =	monitor_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_MONITORS,
+	.nrdev	=	CONFIG_EVL_NR_MONITORS,
 	.attrs	=	monitor_groups,
 	.flags	=	EVL_FACTORY_CLONE,
 };

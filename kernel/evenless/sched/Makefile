@@ -1,4 +1,4 @@
-obj-$(CONFIG_EVENLESS) += evenless.o
+obj-$(CONFIG_EVL) += evenless.o
 
 ccflags-y += -Ikernel
 
@@ -8,4 +8,4 @@ evenless-y :=	\
 	idle.o	\
 	weak.o
 
-evenless-$(CONFIG_EVENLESS_SCHED_QUOTA) += quota.o
+evenless-$(CONFIG_EVL_SCHED_QUOTA) += quota.o

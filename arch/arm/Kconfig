@@ -315,7 +315,7 @@ config PGTABLE_LEVELS
 	default 3 if ARM_LPAE
 	default 2
 
-source "kernel/Kconfig.evenless"
+source "kernel/Kconfig.evl"
 
 menu "System Type"
 

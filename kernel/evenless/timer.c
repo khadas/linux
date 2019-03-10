@@ -325,10 +325,10 @@ void __evl_init_timer(struct evl_timer *timer,
 	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
 	timer->clock = clock;
 
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 	timer->name = "anon";
 	evl_reset_timer_stats(timer);
-#endif /* CONFIG_EVENLESS_STATS */
+#endif /* CONFIG_EVL_RUNSTATS */
 }
 EXPORT_SYMBOL_GPL(__evl_init_timer);
 
@@ -380,7 +380,7 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 	 * since clock ticks would never happen on that CPU.
 	 */
 	cpu = evl_rq_cpu(rq);
-	if (EVL_WARN_ON_SMP(EVENLESS,
+	if (EVL_WARN_ON_SMP(CORE,
 			!cpumask_empty(&master->affinity) &&
 			!cpumask_test_cpu(cpu, &master->affinity)))
 		return;

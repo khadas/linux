@@ -81,7 +81,7 @@ struct evl_rq {
 	struct evl_sched_rt rt;
 	/* Context of weak scheduling class. */
 	struct evl_sched_weak weak;
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	/* Context of runtime quota scheduling. */
 	struct evl_sched_quota quota;
 #endif
@@ -92,11 +92,11 @@ struct evl_rq {
 	struct evl_thread root_thread;
 	char *proxy_timer_name;
 	char *rrb_timer_name;
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 	/* Watchdog timer object. */
 	struct evl_timer wdtimer;
 #endif
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 	/* Last account switch date (ticks). */
 	ktime_t last_account_switch;
 	/* Currently active account */
@@ -310,7 +310,7 @@ static inline void __evl_enable_preempt(void)
 		evl_schedule();
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_CORE
+#ifdef CONFIG_EVL_DEBUG_CORE
 
 void evl_disable_preempt(void);
 void evl_enable_preempt(void);
@@ -381,11 +381,11 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 
 	evl_init_idle_thread(thread);
 	evl_init_rt_thread(thread);
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	ret = evl_quota_init_thread(thread);
 	if (ret)
 		return ret;
-#endif /* CONFIG_EVENLESS_SCHED_QUOTA */
+#endif /* CONFIG_EVL_SCHED_QUOTA */
 
 	return ret;
 }
@@ -518,7 +518,7 @@ static inline void evl_force_thread(struct evl_thread *thread)
 }
 
 struct evl_sched_group {
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	struct evl_quota_group quota;
 #endif
 	struct list_head next;
