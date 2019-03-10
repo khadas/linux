@@ -158,7 +158,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
 obj-$(CONFIG_RPMSG)		+= rpmsg/
 obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
 
-obj-$(CONFIG_EVENLESS)		+= evenless/
+obj-$(CONFIG_EVL)		+= evenless/
 
 # Virtualization drivers
 obj-$(CONFIG_VIRT_DRIVERS)	+= virt/

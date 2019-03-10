@@ -39,7 +39,7 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 
 	trace_evl_wait(wq);
 
-	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP) &&
+	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP) &&
 		atomic_read(&curr->inband_disable_count) &&
 		(curr->state & T_WARN))
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);

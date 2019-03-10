@@ -146,7 +146,7 @@ int evl_init_thread(struct evl_thread *thread,
 	 * state, to speed up branch taking in user-space wherever
 	 * this needs to be tested.
 	 */
-	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP))
+	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP))
 		flags |= T_DEBUG;
 
 	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
@@ -1256,7 +1256,7 @@ void __evl_test_cancel(struct evl_thread *curr)
 
 	do_exit(0);
 	/* ... won't return ... */
-	EVL_WARN_ON(EVENLESS, 1);
+	EVL_WARN_ON(CORE, 1);
 }
 EXPORT_SYMBOL_GPL(__evl_test_cancel);
 
@@ -1644,7 +1644,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 	curr = evl_current();
 	trace_evl_thread_fault(trapnr, regs);
 
-#if defined(CONFIG_EVENLESS_DEBUG_CORE) || defined(CONFIG_EVENLESS_DEBUG_USER)
+#if defined(CONFIG_EVL_DEBUG_CORE) || defined(CONFIG_EVL_DEBUG_USER)
 	if (xnarch_fault_notify(trapnr))
 		printk(EVL_WARNING
 			"%s switching in-band [pid=%d, excpt=%#x, %spc=%#lx]\n",
@@ -2031,7 +2031,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 		goto out;
 	}
 
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	if (sched_class == &evl_sched_quota) {
 		attrs->sched_quota_group = thread->quota->tgid;
 		goto out;
@@ -2487,7 +2487,7 @@ struct evl_factory evl_thread_factory = {
 	.fops	=	&thread_fops,
 	.build	=	thread_factory_build,
 	.dispose =	thread_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_THREADS,
+	.nrdev	=	CONFIG_EVL_NR_THREADS,
 	.attrs	=	thread_groups,
 	.flags	=	EVL_FACTORY_CLONE,
 };

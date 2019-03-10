@@ -5,14 +5,14 @@
  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVENLESS_SCHED_QUOTA_H
-#define _EVENLESS_SCHED_QUOTA_H
+#ifndef _EVL_SCHED_QUOTA_H
+#define _EVL_SCHED_QUOTA_H
 
 #ifndef _EVENLESS_SCHED_H
 #error "please don't include evenless/sched/quota.h directly"
 #endif
 
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 
 #define EVL_QUOTA_MIN_PRIO	1
 #define EVL_QUOTA_MAX_PRIO	255
@@ -74,6 +74,6 @@ void evl_set_quota_period(ktime_t period);
 
 ktime_t evl_get_quota_period(void);
 
-#endif /* !CONFIG_EVENLESS_SCHED_QUOTA */
+#endif /* !CONFIG_EVL_SCHED_QUOTA */
 
-#endif /* !_EVENLESS_SCHED_QUOTA_H */
+#endif /* !_EVL_SCHED_QUOTA_H */

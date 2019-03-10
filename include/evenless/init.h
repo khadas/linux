@@ -18,7 +18,7 @@ DECLARE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
 extern struct cpumask evl_oob_cpus;
 #endif
 
-#ifdef CONFIG_EVENLESS_DEBUG
+#ifdef CONFIG_EVL_DEBUG
 void evl_warn_init(const char *fn, int level, int status);
 #else
 static inline void evl_warn_init(const char *fn, int level, int status)

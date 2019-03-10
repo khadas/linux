@@ -58,7 +58,7 @@ void *pagenr_to_addr(struct evl_heap *heap, int pg)
 	return heap->membase + (pg << EVL_HEAP_PAGE_SHIFT);
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_MEMORY
+#ifdef CONFIG_EVL_DEBUG_MEMORY
 /*
  * Setting page_cont/page_free in the page map is only required for
  * enabling full checking of the block address in free requests, which
@@ -628,9 +628,9 @@ static int init_shared_heap(void)
 	void *mem;
 	int ret;
 
-	size = CONFIG_EVENLESS_NR_THREADS *
+	size = CONFIG_EVL_NR_THREADS *
 		sizeof(struct evl_user_window) +
-		CONFIG_EVENLESS_NR_MONITORS *
+		CONFIG_EVL_NR_MONITORS *
 		sizeof(struct evl_monitor_state);
 	size = PAGE_ALIGN(size);
 	mem = kzalloc(size, GFP_KERNEL);
@@ -663,7 +663,7 @@ static int init_system_heap(void)
 	int ret;
 
 	if (size == 0)
-		size = CONFIG_EVENLESS_SYS_HEAPSZ * 1024;
+		size = CONFIG_EVL_COREMEM_SIZE * 1024;
 
 	sysmem = vmalloc(size);
 	if (sysmem == NULL)

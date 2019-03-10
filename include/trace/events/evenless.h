@@ -615,7 +615,7 @@ TRACE_EVENT(evl_timer_start,
 
 	TP_STRUCT__entry(
 		__field(struct evl_timer *, timer)
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 		__string(name, timer->name)
 #endif
 		__field(ktime_t, value)
@@ -623,7 +623,7 @@ TRACE_EVENT(evl_timer_start,
 	),
 
 	TP_fast_assign(
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 		__assign_str(name, timer->name);
 #endif
 		__entry->value = value;
@@ -631,7 +631,7 @@ TRACE_EVENT(evl_timer_start,
 	),
 
 	TP_printk("timer=%s value=%Lu interval=%Lu",
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 		  __get_str(name),
 #else
 		  "?",

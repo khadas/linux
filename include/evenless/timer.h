@@ -164,7 +164,7 @@ struct evl_timer {
 	struct evl_timerbase *base;
 	/* Timeout handler. */
 	void (*handler)(struct evl_timer *timer);
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 	/* Timer name to be displayed. */
 	const char *name;
 	/* Timer holder in timebase. */
@@ -173,7 +173,7 @@ struct evl_timer {
 	struct evl_counter scheduled;
 	/* Number of timer events. */
 	struct evl_counter fired;
-#endif /* CONFIG_EVENLESS_STATS */
+#endif /* CONFIG_EVL_RUNSTATS */
 };
 
 #define evl_tdate(__timer)	((__timer)->node.date)
@@ -264,7 +264,7 @@ void __evl_init_timer(struct evl_timer *timer,
 void evl_set_timer_gravity(struct evl_timer *timer,
 			int gravity);
 
-#ifdef CONFIG_EVENLESS_STATS
+#ifdef CONFIG_EVL_RUNSTATS
 
 #define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
 	do {								\
@@ -297,7 +297,7 @@ void evl_set_timer_name(struct evl_timer *timer, const char *name)
 	timer->name = name;
 }
 
-#else /* !CONFIG_EVENLESS_STATS */
+#else /* !CONFIG_EVL_RUNSTATS */
 
 #define evl_init_timer	__evl_init_timer
 
@@ -313,7 +313,7 @@ void evl_account_timer_fired(struct evl_timer *timer) { }
 static inline
 void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
 
-#endif /* !CONFIG_EVENLESS_STATS */
+#endif /* !CONFIG_EVL_RUNSTATS */
 
 #define evl_init_core_timer(__timer, __handler)				\
 	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\

@@ -57,15 +57,15 @@ static void register_classes(void)
 {
 	register_one_class(&evl_sched_idle);
 	register_one_class(&evl_sched_weak);
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	register_one_class(&evl_sched_quota);
 #endif
 	register_one_class(&evl_sched_rt);
 }
 
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 
-static unsigned long wd_timeout_arg = CONFIG_EVENLESS_WATCHDOG_TIMEOUT;
+static unsigned long wd_timeout_arg = CONFIG_EVL_WATCHDOG_TIMEOUT;
 module_param_named(watchdog_timeout, wd_timeout_arg, ulong, 0644);
 
 static inline ktime_t get_watchdog_timeout(void)
@@ -110,7 +110,7 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 	}
 }
 
-#endif /* CONFIG_EVENLESS_WATCHDOG */
+#endif /* CONFIG_EVL_WATCHDOG */
 
 static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
 {
@@ -174,12 +174,12 @@ static void init_rq(struct evl_rq *rq, int cpu)
 		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
 	evl_set_timer_priority(&rq->rrbtimer, EVL_TIMER_LOPRIO);
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 	evl_init_timer(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
 		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->wdtimer, "[watchdog]");
 	evl_set_timer_priority(&rq->wdtimer, EVL_TIMER_LOPRIO);
-#endif /* CONFIG_EVENLESS_WATCHDOG */
+#endif /* CONFIG_EVL_WATCHDOG */
 
 	evl_set_current_account(rq, &rq->root_thread.stat.account);
 
@@ -209,9 +209,9 @@ static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
 	kfree(rq->rrb_timer_name);
 	evl_destroy_timer(&rq->root_thread.ptimer);
 	evl_destroy_timer(&rq->root_thread.rtimer);
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 	evl_destroy_timer(&rq->wdtimer);
-#endif /* CONFIG_EVENLESS_WATCHDOG */
+#endif /* CONFIG_EVL_WATCHDOG */
 }
 
 static inline void set_thread_running(struct evl_rq *rq,
@@ -269,7 +269,7 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
 	return NULL; /* Never executed because of the idle class. */
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_CORE
+#ifdef CONFIG_EVL_DEBUG_CORE
 
 void evl_disable_preempt(void)
 {
@@ -285,7 +285,7 @@ void evl_enable_preempt(void)
 }
 EXPORT_SYMBOL(evl_enable_preempt);
 
-#endif /* CONFIG_EVENLESS_DEBUG_CORE */
+#endif /* CONFIG_EVL_DEBUG_CORE */
 
 /* nklock locked, interrupts off. */
 void evl_putback_thread(struct evl_thread *thread)
@@ -671,7 +671,7 @@ static inline int test_resched(struct evl_rq *rq)
 
 static inline void enter_root(struct evl_thread *root)
 {
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 	evl_stop_timer(&evl_thread_rq(root)->wdtimer);
 #endif
 }
@@ -680,7 +680,7 @@ static inline void leave_root(struct evl_thread *root)
 {
 	dovetail_resume_oob(&root->altsched);
 
-#ifdef CONFIG_EVENLESS_WATCHDOG
+#ifdef CONFIG_EVL_WATCHDOG
 	evl_start_timer(&evl_thread_rq(root)->wdtimer,
 			evl_abs_timeout(&evl_thread_rq(root)->wdtimer,
 					get_watchdog_timeout()),
@@ -829,7 +829,7 @@ evl_find_sched_class(union evl_sched_param *param,
 		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
 			return NULL;
 		break;
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	case SCHED_QUOTA:
 		param->quota.prio = attrs->sched_priority;
 		param->quota.tgid = attrs->sched_quota_group;
@@ -915,7 +915,7 @@ int __init evl_init_sched(void)
 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
 					reschedule_interrupt,
 					IRQF_OOB,
-					"Evenless reschedule",
+					"EVL reschedule",
 					&evl_machine_cpudata);
 		if (ret)
 			goto cleanup_rq;

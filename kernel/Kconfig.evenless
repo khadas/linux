@@ -1,19 +1,19 @@
 
-# Evenless real-time co-kernel
-config HAVE_ARCH_EVENLESS
+# EVL real-time core
+config HAVE_ARCH_EVL
 	bool
 
-menuconfig EVENLESS
-	bool "Enable the Evenless core"
-	depends on HAVE_ARCH_EVENLESS
+menuconfig EVL
+	bool "Enable the EVL core"
+	depends on HAVE_ARCH_EVL
 	select DOVETAIL
 	help
 
-	  The Evenless core is a real-time component of the Linux
-	  kernel, which exhibits very short interrupt and scheduling
-	  latency, without affecting the regular kernel services.
+	  The EVL core is a real-time component of the Linux kernel,
+	  which exhibits very short interrupt and scheduling latency,
+	  without affecting the regular kernel services.
 
-if EVENLESS
+if EVL
 
 source "kernel/evenless/Kconfig"
 

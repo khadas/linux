@@ -183,7 +183,7 @@ int evl_enable_tick(void)
 #ifdef CONFIG_SMP
 	ret = __request_percpu_irq(TIMER_OOB_IPI,
 				clock_ipi_handler,
-				IRQF_OOB, "Evenless timer IPI",
+				IRQF_OOB, "EVL timer IPI",
 				&evl_machine_cpudata);
 	if (ret)
 		return ret;

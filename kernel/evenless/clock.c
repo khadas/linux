@@ -961,7 +961,7 @@ ATTRIBUTE_GROUPS(clock);
 struct evl_factory evl_clock_factory = {
 	.name	=	"clock",
 	.fops	=	&clock_fops,
-	.nrdev	=	CONFIG_EVENLESS_NR_CLOCKS,
+	.nrdev	=	CONFIG_EVL_NR_CLOCKS,
 	.attrs	=	clock_groups,
 	.dispose =	clock_factory_dispose,
 };
@@ -978,12 +978,12 @@ static void get_default_gravity(struct evl_clock_gravity *p)
 {
 	unsigned int ulat = 4000; /* ns */
 
-#if CONFIG_EVENLESS_TIMING_SCHEDLAT != 0
+#if CONFIG_EVL_LATENCY_USER != 0
 	ulat = CONFIG_XENO_OPT_TIMING_SCHEDLAT;
 #endif
 	p->user = ulat;
-	p->kernel = CONFIG_EVENLESS_TIMING_KSCHEDLAT;
-	p->irq = CONFIG_EVENLESS_TIMING_IRQLAT;
+	p->kernel = CONFIG_EVL_LATENCY_KERNEL;
+	p->irq = CONFIG_EVL_LATENCY_IRQ;
 }
 
 static void reset_coreclk_gravity(struct evl_clock *clock)

@@ -780,7 +780,7 @@ struct evl_factory evl_xbuf_factory = {
 	.fops	=	&xbuf_fops,
 	.build =	xbuf_factory_build,
 	.dispose =	xbuf_factory_dispose,
-	.nrdev	=	CONFIG_EVENLESS_NR_XBUFS,
+	.nrdev	=	CONFIG_EVL_NR_XBUFS,
 	.attrs	=	xbuf_groups,
 	.flags	=	EVL_FACTORY_CLONE,
 };

@@ -30,7 +30,7 @@ EXPORT_SYMBOL_GPL(evl_oob_cpus);
 DEFINE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
 EXPORT_PER_CPU_SYMBOL_GPL(evl_machine_cpudata);
 
-#ifdef CONFIG_EVENLESS_DEBUG
+#ifdef CONFIG_EVL_DEBUG
 #define boot_debug_notice "[DEBUG]"
 #else
 #define boot_debug_notice ""
@@ -71,7 +71,7 @@ static void __init setup_init_state(void)
 	printk(warn_bad_state, init_state_arg);
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG
+#ifdef CONFIG_EVL_DEBUG
 
 void __init evl_warn_init(const char *fn, int level, int status)
 {
@@ -84,7 +84,7 @@ static __init int init_core(void)
 {
 	int ret;
 
-	enable_oob_stage("Evenless");
+	enable_oob_stage("EVL");
 
 	ret = evl_init_memory();
 	if (ret)

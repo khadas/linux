@@ -39,7 +39,7 @@ static inline void disable_inband_switch(struct evl_thread *curr)
 static inline bool enable_inband_switch(struct evl_thread *curr)
 {
 	if ((curr->state & T_WEAK) ||
-		IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP)) {
+		IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP)) {
 		if (unlikely(atomic_dec_return(&curr->inband_disable_count) < 0)) {
 			atomic_set(&curr->inband_disable_count, 0);
 			if (curr->state & T_WARN)
@@ -248,7 +248,7 @@ static inline void clear_pp_boost(struct evl_mutex *mutex,
 	drop_booster(mutex, owner);
 }
 
-#ifdef CONFIG_EVENLESS_DEBUG_MUTEX_INBAND
+#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
 
 /*
  * Detect when a thread is about to wait on a mutex currently owned by

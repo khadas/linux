@@ -69,7 +69,7 @@ void evl_flush_mutex(struct evl_mutex *mutex,
 
 void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 
-#ifdef CONFIG_EVENLESS_DEBUG_MUTEX_INBAND
+#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
 void evl_detect_boost_drop(struct evl_thread *owner);
 #else
 static inline

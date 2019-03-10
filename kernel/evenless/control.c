@@ -96,7 +96,7 @@ static int stop_services(void)
 	return ret;
 }
 
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 
 static int do_quota_control(struct evl_sched_ctlreq *ctl)
 {
@@ -257,7 +257,7 @@ static ssize_t abi_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(abi);
 
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 
 static ssize_t quota_show(struct device *dev,
 			struct device_attribute *attr,
@@ -296,7 +296,7 @@ static DEVICE_ATTR_RW(quota);
 static struct attribute *control_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_abi.attr,
-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
+#ifdef CONFIG_EVL_SCHED_QUOTA
 	&dev_attr_quota.attr,
 #endif
 	NULL,

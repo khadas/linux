@@ -1,13 +1,13 @@
-menu "Evenless OOB devices"
+menu "Out-of-band device drivers"
 
-config EVENLESS_LATMUS
+config EVL_LATMUS
 	bool "Latency calibration and measurement"
-	depends on EVENLESS
+	depends on EVL
 	default y
 
-config EVENLESS_HECTIC
+config EVL_HECTIC
 	bool "OOB context switching validator"
-	depends on EVENLESS
+	depends on EVL
 	default y
 
 endmenu

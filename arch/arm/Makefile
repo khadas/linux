@@ -239,7 +239,7 @@ TEXT_OFFSET := $(textofs-y)
 
 export	TEXT_OFFSET GZFLAGS MMUEXT
 
-ifeq ($(CONFIG_EVENLESS),y)
+ifeq ($(CONFIG_EVL),y)
 KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
 endif
 
