@@ -70,6 +70,10 @@ evl_quota_find_group(struct evl_rq *rq, int tgid);
 
 int evl_quota_sum_all(struct evl_rq *rq);
 
+void evl_set_quota_period(ktime_t period);
+
+ktime_t evl_get_quota_period(void);
+
 #endif /* !CONFIG_EVENLESS_SCHED_QUOTA */
 
 #endif /* !_EVENLESS_SCHED_QUOTA_H */

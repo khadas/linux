@@ -55,6 +55,8 @@
 
 #define MAX_QUOTA_GROUPS  1024
 
+static ktime_t quota_period = 1000000000UL; /* 1s */
+
 static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
 
 static LIST_HEAD(group_list);
@@ -214,7 +216,7 @@ static void quota_init(struct evl_rq *rq)
 {
 	struct evl_sched_quota *qs = &rq->quota;
 
-	qs->period = CONFIG_EVENLESS_SCHED_QUOTA_PERIOD * 1000ULL;
+	qs->period = quota_period;
 	INIT_LIST_HEAD(&qs->groups);
 
 	evl_init_timer(&qs->refill_timer,
@@ -713,6 +715,16 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(evl_quota_find_group);
+
+void evl_set_quota_period(ktime_t period)
+{
+	quota_period = period;
+}
+
+ktime_t evl_get_quota_period(void)
+{
+	return quota_period;
+}
 
 struct evl_sched_class evl_sched_quota = {
 	.sched_init		=	quota_init,
