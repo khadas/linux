@@ -1,8 +1,6 @@
 
-menu "Core features"
-
 config EVL_SCHED_QUOTA
-	bool "Thread groups with runtime quota"
+	bool "Enable quota-based scheduling"
 	default n
 	help
 	This option enables the SCHED_QUOTA scheduling policy in the
@@ -17,22 +15,20 @@ config EVL_SCHED_QUOTA
 	If in doubt, say N.
 
 config EVL_RUNSTATS
-	bool "Runtime statistics"
+	bool "Collect runtime statistics"
 	default y
 	help
 	This option causes the EVL core to collect various
 	per-thread runtime statistics, which are accessible via
 	the /sys interface.
 
-endmenu
-
-menu "Sizes and static limits"
+menu "Fixed sizes and limits"
 
 config EVL_COREMEM_SIZE
-	int "Size of system heap (Kb)"
+	int "Size of core memory heap (Kb)"
 	default 2048
 	help
-	The system heap is used for various internal allocations by
+	The core heap is used for various internal allocations by
 	the EVL core. The size is expressed in Kilobytes.
 
 config EVL_NR_THREADS
@@ -85,7 +81,7 @@ config EVL_NR_PROXIES
 
 endmenu
 
-menu "Latency settings"
+menu "Pre-calibrated latency"
 
 config EVL_LATENCY_USER
 	int "User scheduling latency (ns)"
