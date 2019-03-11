@@ -10,23 +10,23 @@
 #include <linux/ktime.h>
 #include <evl/wait.h>
 
-struct evl_sem {
+struct evl_ksem {
 	unsigned int value;
 	struct evl_wait_queue wait_queue;
 };
 
-void evl_init_sem(struct evl_sem *sem,
+void evl_init_ksem(struct evl_ksem *ksem,
 		unsigned int value);
 
-void evl_destroy_sem(struct evl_sem *sem);
+void evl_destroy_ksem(struct evl_ksem *ksem);
 
-int evl_down_timeout(struct evl_sem *sem,
+int evl_down_timeout(struct evl_ksem *ksem,
 		ktime_t timeout);
 
-int evl_down(struct evl_sem *sem);
+int evl_down(struct evl_ksem *ksem);
 
-int evl_trydown(struct evl_sem *sem);
+int evl_trydown(struct evl_ksem *ksem);
 
-void evl_up(struct evl_sem *sem);
+void evl_up(struct evl_ksem *ksem);
 
 #endif /* !_EVL_SEM_H */
