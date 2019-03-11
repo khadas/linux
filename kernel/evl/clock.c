@@ -419,6 +419,7 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
 
 	return clock;
 }
+EXPORT_SYMBOL_GPL(evl_get_clock_by_fd);
 
 static long restart_clock_sleep(struct restart_block *param)
 {
