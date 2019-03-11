@@ -199,6 +199,7 @@ struct evl_file *evl_get_file(unsigned int fd)
 
 	return efilp;
 }
+EXPORT_SYMBOL_GPL(evl_get_file);
 
 static void release_oob_ref(struct irq_work *work)
 {
@@ -213,6 +214,7 @@ void __evl_put_file(struct evl_file *efilp)
 	init_irq_work(&efilp->oob_work, release_oob_ref);
 	irq_work_queue(&efilp->oob_work);
 }
+EXPORT_SYMBOL_GPL(__evl_put_file);
 
 struct evl_file *evl_watch_fd(unsigned int fd,
 			struct evl_poll_node *node)
@@ -257,6 +259,7 @@ int evl_open_file(struct evl_file *efilp, struct file *filp)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(evl_open_file);
 
 /**
  * evl_release_file - Drop an OOB-capable file
@@ -282,3 +285,4 @@ void evl_release_file(struct evl_file *efilp)
 	if (atomic_dec_return(&efilp->oob_refs) > 0)
 		wait_for_completion(&efilp->oob_done);
 }
+EXPORT_SYMBOL_GPL(evl_release_file);
