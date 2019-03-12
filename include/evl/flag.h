@@ -67,7 +67,7 @@ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
 
 	xnlock_get_irqsave(&nklock, flags);
 	wf->raised = true;
-	evl_flush_wait_locked(&wf->wait, T_BCAST);
+	evl_flush_wait_locked(&wf->wait, 0);
 	xnlock_put_irqrestore(&nklock, flags);
 }
 
