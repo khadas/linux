@@ -188,6 +188,14 @@ static void khadas_fan_level_set(struct khadas_fan_data *fan_data, int level)
 	}
 }
 
+static void fan_test_work_func(struct work_struct *_work)
+{
+	if (is_mcu_fan_control_available()) {
+		struct khadas_fan_data *fan_data = &g_mcu_data->fan_data;
+		khadas_fan_level_set(fan_data, 0);
+	}
+}
+
 extern int get_cpu_temp(void);
 static void fan_work_func(struct work_struct *_work)
 {
@@ -514,7 +522,9 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		g_mcu_data->fan_data.enable = KHADAS_FAN_DISABLE;
 
 		INIT_DELAYED_WORK(&g_mcu_data->fan_data.work, fan_work_func);
-		khadas_fan_level_set(&g_mcu_data->fan_data, 0);
+		khadas_fan_level_set(&g_mcu_data->fan_data, 1);
+		INIT_DELAYED_WORK(&g_mcu_data->fan_data.fan_test_work, fan_test_work_func);
+		schedule_delayed_work(&g_mcu_data->fan_data.fan_test_work, KHADAS_FAN_TEST_LOOP_SECS);
 	}
 	create_mcu_attrs();
 	printk("%s,wol enable=%d\n",__func__ ,g_mcu_data->wol_enable);
