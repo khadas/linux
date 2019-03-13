@@ -25,6 +25,7 @@
 
 /* Device registers */
 #define MCU_WOL_REG		0x21
+#define MCU_RST_REG             0x2c
 #define MCU_FAN_CTRL	0x88
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
@@ -368,6 +369,23 @@ static ssize_t show_wol_enable(struct class *cls,
 	return sprintf(buf, "%d\n", enable);
 }
 
+static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
+		       const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int rst;
+
+	if (kstrtoint(buf, 0, &rst))
+		return -EINVAL;
+
+	reg[0] = rst;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_RST_REG, reg, 1);
+	if (ret < 0)
+		printk("rst mcu err\n");
+	return count;
+}
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 };
@@ -377,6 +395,7 @@ static struct class_attribute fan_class_attrs[] = {
 	__ATTR(mode, 0644, show_fan_mode, store_fan_mode),
 	__ATTR(level, 0644, show_fan_level, store_fan_level),
 	__ATTR(temp, 0644, show_fan_temp, NULL),
+	__ATTR(rst_mcu, 0644, NULL, store_rst_mcu),
 };
 
 static void create_mcu_attrs(void)
