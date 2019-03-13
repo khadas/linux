@@ -9,6 +9,10 @@
 #ifndef _EVL_UAPI_DEVICES_HECTIC_H
 #define _EVL_UAPI_DEVICES_HECTIC_H
 
+/* hectic_task_index.flags */
+#define HECTIC_OOB_WAIT     0x10000
+#define HECTIC_INBAND_WAIT  0
+
 struct hectic_task_index {
 	unsigned int index;
 	unsigned int flags;

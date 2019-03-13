@@ -19,9 +19,7 @@
 #include <asm/evl/fptest.h>
 #include <uapi/evl/devices/hectic.h>
 
-#define RTSWITCH_RT      0x10000
-#define RTSWITCH_NRT     0
-#define RTSWITCH_KERNEL  0x20000
+#define HECTIC_KTHREAD      0x20000
 
 struct rtswitch_context;
 
@@ -69,22 +67,22 @@ static void handle_fpu_error(struct rtswitch_context *ctx,
 	ctx->failed = true;
 	ctx->error.fp_val = fp_out;
 
-	if ((cur->base.flags & RTSWITCH_RT) == RTSWITCH_RT)
+	if ((cur->base.flags & HECTIC_OOB_WAIT) == HECTIC_OOB_WAIT)
 		for (i = 0; i < ctx->tasks_count; i++) {
 			struct rtswitch_task *task = &ctx->tasks[i];
 
 			/* Find the first non kernel-space task. */
-			if ((task->base.flags & RTSWITCH_KERNEL))
+			if ((task->base.flags & HECTIC_KTHREAD))
 				continue;
 
 			/* Unblock it. */
-			switch(task->base.flags & RTSWITCH_RT) {
-			case RTSWITCH_NRT:
+			switch(task->base.flags & HECTIC_OOB_WAIT) {
+			case HECTIC_INBAND_WAIT:
 				ctx->utask = task;
 				irq_work_queue(&ctx->wake_utask);
 				break;
 
-			case RTSWITCH_RT:
+			case HECTIC_OOB_WAIT:
 				evl_raise_flag(&task->rt_synch);
 				break;
 			}
@@ -103,7 +101,7 @@ static int rtswitch_pend_rt(struct rtswitch_context *ctx,
 		return -EINVAL;
 
 	task = &ctx->tasks[idx];
-	task->base.flags |= RTSWITCH_RT;
+	task->base.flags |= HECTIC_OOB_WAIT;
 
 	rc = evl_wait_flag(&task->rt_synch);
 	if (rc < 0)
@@ -123,13 +121,13 @@ static void timed_wake_up(struct evl_timer *timer) /* hard irqs off */
 	ctx = container_of(timer, struct rtswitch_context, wake_up_delay);
 	task = &ctx->tasks[ctx->next_task];
 
-	switch (task->base.flags & RTSWITCH_RT) {
-	case RTSWITCH_NRT:
+	switch (task->base.flags & HECTIC_OOB_WAIT) {
+	case HECTIC_INBAND_WAIT:
 		ctx->utask = task;
 		irq_work_queue(&ctx->wake_utask);
 		break;
 
-	case RTSWITCH_RT:
+	case HECTIC_OOB_WAIT:
 		evl_raise_flag(&task->rt_synch);
 	}
 }
@@ -152,7 +150,7 @@ static int rtswitch_to_rt(struct rtswitch_context *ctx,
 	from = &ctx->tasks[from_idx];
 	to = &ctx->tasks[to_idx];
 
-	from->base.flags |= RTSWITCH_RT;
+	from->base.flags |= HECTIC_OOB_WAIT;
 	from->last_switch = ++ctx->switches_count;
 	ctx->error.last_switch.from = from_idx;
 	ctx->error.last_switch.to = to_idx;
@@ -167,15 +165,15 @@ static int rtswitch_to_rt(struct rtswitch_context *ctx,
 				EVL_INFINITE);
 		evl_disable_preempt();
 	} else
-		switch (to->base.flags & RTSWITCH_RT) {
-		case RTSWITCH_NRT:
+		switch (to->base.flags & HECTIC_OOB_WAIT) {
+		case HECTIC_INBAND_WAIT:
 			ctx->utask = to;
 			barrier();
 			irq_work_queue(&ctx->wake_utask);
 			evl_disable_preempt();
 			break;
 
-		case RTSWITCH_RT:
+		case HECTIC_OOB_WAIT:
 			evl_disable_preempt();
 			evl_raise_flag(&to->rt_synch);
 			break;
@@ -206,7 +204,7 @@ static int rtswitch_pend_nrt(struct rtswitch_context *ctx,
 
 	task = &ctx->tasks[idx];
 
-	task->base.flags &= ~RTSWITCH_RT;
+	task->base.flags &= ~HECTIC_OOB_WAIT;
 
 	if (down_interruptible(&task->nrt_synch))
 		return -EINTR;
@@ -241,7 +239,7 @@ static int rtswitch_to_nrt(struct rtswitch_context *ctx,
 		&& ctx->error.last_switch.from == to_idx
 		&& ctx->error.last_switch.to == from_idx;
 
-	from->base.flags &= ~RTSWITCH_RT;
+	from->base.flags &= ~HECTIC_OOB_WAIT;
 	from->last_switch = ++ctx->switches_count;
 	ctx->error.last_switch.from = from_idx;
 	ctx->error.last_switch.to = to_idx;
@@ -255,13 +253,13 @@ static int rtswitch_to_nrt(struct rtswitch_context *ctx,
 						ctx->pause_us * 1000),
 				EVL_INFINITE);
 	} else
-		switch (to->base.flags & RTSWITCH_RT) {
-		case RTSWITCH_NRT:
+		switch (to->base.flags & HECTIC_OOB_WAIT) {
+		case HECTIC_INBAND_WAIT:
 		switch_to_nrt:
 			up(&to->nrt_synch);
 			break;
 
-		case RTSWITCH_RT:
+		case HECTIC_OOB_WAIT:
 
 			if (!fp_check || !evl_begin_fpu())
 				goto signal_nofp;
@@ -283,11 +281,11 @@ static int rtswitch_to_nrt(struct rtswitch_context *ctx,
 				return 1;
 			}
 
-			from->base.flags &= ~RTSWITCH_RT;
+			from->base.flags &= ~HECTIC_OOB_WAIT;
 			from->last_switch = ++ctx->switches_count;
 			ctx->error.last_switch.from = from_idx;
 			ctx->error.last_switch.to = to_idx;
-			if ((to->base.flags & RTSWITCH_RT) == RTSWITCH_NRT)
+			if ((to->base.flags & HECTIC_OOB_WAIT) == HECTIC_INBAND_WAIT)
 				goto switch_to_nrt;
 			expected = from_idx + 500 +
 				(ctx->switches_count % 4000000) * 1000;
@@ -308,12 +306,12 @@ static int rtswitch_to_nrt(struct rtswitch_context *ctx,
 				return 1;
 			}
 
-			from->base.flags &= ~RTSWITCH_RT;
+			from->base.flags &= ~HECTIC_OOB_WAIT;
 			from->last_switch = ++ctx->switches_count;
 			ctx->error.last_switch.from = from_idx;
 			ctx->error.last_switch.to = to_idx;
 			barrier();
-			if ((to->base.flags & RTSWITCH_RT) == RTSWITCH_NRT)
+			if ((to->base.flags & HECTIC_OOB_WAIT) == HECTIC_INBAND_WAIT)
 				goto switch_to_nrt;
 
 		signal_nofp:
@@ -360,7 +358,8 @@ static int rtswitch_set_tasks_count(struct rtswitch_context *ctx, unsigned int c
 }
 
 static int rtswitch_register_task(struct rtswitch_context *ctx,
-				  struct hectic_task_index *arg)
+				struct hectic_task_index *arg,
+				int flags)
 {
 	struct rtswitch_task *t;
 
@@ -374,7 +373,8 @@ static int rtswitch_register_task(struct rtswitch_context *ctx,
 	arg->index = ctx->next_index;
 	t = &ctx->tasks[arg->index];
 	ctx->next_index++;
-	t->base = *arg;
+	t->base.index = arg->index;
+	t->base.flags = (arg->flags & HECTIC_OOB_WAIT)|flags;
 	t->last_switch = 0;
 	sema_init(&t->nrt_synch, 0);
 	evl_init_flag(&t->rt_synch);
@@ -426,8 +426,7 @@ static int rtswitch_create_kthread(struct rtswitch_context *ctx,
 	struct rtswitch_task *task;
 	int err;
 
-	ptask->flags |= RTSWITCH_KERNEL;
-	err = rtswitch_register_task(ctx, ptask);
+	err = rtswitch_register_task(ctx, ptask, HECTIC_KTHREAD);
 	if (err)
 		return err;
 
@@ -487,7 +486,7 @@ static long hectic_ioctl(struct file *filp, unsigned int cmd,
 		if (err)
 			return -EFAULT;
 
-		err = rtswitch_register_task(ctx, &task);
+		err = rtswitch_register_task(ctx, &task, 0);
 		if (!err && copy_to_user(u_task, &task, sizeof(task)))
 			err = -EFAULT;
 
@@ -610,7 +609,7 @@ static int hectic_release(struct inode *inode, struct file *filp)
 		for (i = 0; i < ctx->next_index; i++) {
 			struct rtswitch_task *task = &ctx->tasks[i];
 
-			if (task->base.flags & RTSWITCH_KERNEL)
+			if (task->base.flags & HECTIC_KTHREAD)
 				evl_cancel_kthread(&task->kthread);
 
 			evl_destroy_flag(&task->rt_synch);
