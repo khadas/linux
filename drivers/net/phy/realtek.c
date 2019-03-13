@@ -58,8 +58,20 @@ static u8 mac_addr[] = {0, 0, 0, 0, 0, 0};
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 struct phy_device *g_phydev;
+static int factory_test = 0;
+static u8 test_mac_addr[] = { 0x22, 0x22, 0x22, 0x22, 0x22, 0x22 };
 
 extern int mcu_get_wol_status(void);
+
+void set_test(int flag)
+{
+	factory_test = flag;
+}
+
+int get_test(void)
+{
+	return factory_test;
+}
 
 int get_wol_state(void){
 	return mcu_get_wol_status();
@@ -159,9 +171,15 @@ static void rtl8211f_config_speed(struct phy_device *phydev, int mode)
 static void rtl8211f_config_mac_addr(struct phy_device *phydev)
 {
 	phy_write(phydev, RTL821x_EPAGSR, 0xd8c); /*set page 0xd8c*/
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, mac_addr[1] << 8 | mac_addr[0]);
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, mac_addr[3] << 8 | mac_addr[2]);
-	phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, mac_addr[5] << 8 | mac_addr[4]);
+	if (get_test() == 1) {
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, test_mac_addr[1] << 8 | test_mac_addr[0]);
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, test_mac_addr[3] << 8 | test_mac_addr[2]);
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, test_mac_addr[5] << 8 | test_mac_addr[4]);
+	} else {
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL0, mac_addr[1] << 8 | mac_addr[0]);
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL1, mac_addr[3] << 8 | mac_addr[2]);
+		phy_write(phydev, RTL8211F_MAC_ADDR_CTRL2, mac_addr[5] << 8 | mac_addr[4]);
+	}
 	phy_write(phydev, RTL821x_EPAGSR, 0); /*set page 0*/
 }
 

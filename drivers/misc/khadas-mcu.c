@@ -87,6 +87,7 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 
+extern void set_test(int flag);
 extern void realtek_enable_wol(int enable, bool is_shutdown);
 void mcu_enable_wol(int enable, bool is_shutdown)
 {
@@ -386,8 +387,21 @@ static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t store_test(struct class *cls, struct class_attribute *attr,
+		       const char *buf, size_t count)
+{
+	int flag;
+
+	if (kstrtoint(buf, 0, &flag))
+		return -EINVAL;
+
+	set_test(flag);
+	return count;
+}
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
+	__ATTR(test, 0644, NULL, store_test),
 };
 
 static struct class_attribute fan_class_attrs[] = {
