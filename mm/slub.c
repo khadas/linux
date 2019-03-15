@@ -730,9 +730,11 @@ static void restore_bytes(struct kmem_cache *s, char *message, u8 data,
 	memset(from, data, to - from);
 }
 
-static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
-			u8 *object, char *what,
-			u8 *start, unsigned int value, unsigned int bytes)
+static int notrace check_bytes_and_report(struct kmem_cache *s,
+					  struct page *page, u8 *object,
+					  char *what, u8 *start,
+					  unsigned int value,
+					  unsigned int bytes)
 {
 	u8 *fault;
 	u8 *end;

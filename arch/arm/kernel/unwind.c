@@ -372,7 +372,7 @@ error:
  * Unwind a single frame starting with *sp for the symbol at *pc. It
  * updates the *pc and *sp with the new values.
  */
-int unwind_frame(struct stackframe *frame)
+int notrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long low;
 	const struct unwind_idx *idx;

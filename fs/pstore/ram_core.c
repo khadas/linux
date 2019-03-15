@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Google, Inc.
  */
 
+#define SKIP_IO_TRACE
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>

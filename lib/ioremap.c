@@ -13,6 +13,10 @@
 #include <linux/export.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/moduleparam.h>
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#endif
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
 static int __read_mostly ioremap_p4d_capable;
@@ -186,6 +190,19 @@ static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
 	return p4d_set_huge(p4d, phys_addr, prot);
 }
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+bool is_normal_memory(pgprot_t p)
+{
+#if defined(CONFIG_ARM)
+	return ((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC);
+#elif defined(CONFIG_ARM64)
+	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
+#else
+#error "Unuspported architecture"
+#endif
+}
+#endif
+
 static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
 {
@@ -214,7 +231,9 @@ int ioremap_page_range(unsigned long addr,
 	unsigned long start;
 	unsigned long next;
 	int err;
-
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	phys_addr_t phys_addr_save = phys_addr;
+#endif
 	might_sleep();
 	BUG_ON(addr >= end);
 
@@ -228,6 +247,11 @@ int ioremap_page_range(unsigned long addr,
 	} while (pgd++, phys_addr += (next - addr), addr = next, addr != end);
 
 	flush_cache_vmap(start, end);
-
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (need_dump_iomap() && !is_normal_memory(prot))
+		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
+		       start, end, (unsigned long)phys_addr_save,
+		       (unsigned long)pgprot_val(prot));
+#endif
 	return err;
 }

@@ -471,7 +471,8 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
 	end_report(&flags);
 }
 
-void __kasan_report(unsigned long addr, size_t size, bool is_write, unsigned long ip)
+void notrace __kasan_report(unsigned long addr, size_t size, bool is_write,
+			    unsigned long ip)
 {
 	struct kasan_access_info info;
 	void *tagged_addr;

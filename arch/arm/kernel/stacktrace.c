@@ -69,7 +69,7 @@ struct stack_trace_data {
 	unsigned int skip;
 };
 
-static int save_trace(struct stackframe *frame, void *d)
+static int notrace save_trace(struct stackframe *frame, void *d)
 {
 	struct stack_trace_data *data = d;
 	struct stack_trace *trace = data->trace;
@@ -99,8 +99,9 @@ static int save_trace(struct stackframe *frame, void *d)
 }
 
 /* This must be noinline to so that our skip calculation works correctly */
-static noinline void __save_stack_trace(struct task_struct *tsk,
-	struct stack_trace *trace, unsigned int nosched)
+static noinline void notrace __save_stack_trace(struct task_struct *tsk,
+						struct stack_trace *trace,
+						unsigned int nosched)
 {
 	struct stack_trace_data data;
 	struct stackframe frame;
@@ -135,7 +136,8 @@ static noinline void __save_stack_trace(struct task_struct *tsk,
 	walk_stackframe(&frame, save_trace, &data);
 }
 
-void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
+void notrace
+save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 {
 	struct stack_trace_data data;
 	struct stackframe frame;
@@ -152,13 +154,14 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 	walk_stackframe(&frame, save_trace, &data);
 }
 
-void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+void notrace
+save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	__save_stack_trace(tsk, trace, 1);
 }
 EXPORT_SYMBOL(save_stack_trace_tsk);
 
-void save_stack_trace(struct stack_trace *trace)
+void notrace save_stack_trace(struct stack_trace *trace)
 {
 	__save_stack_trace(current, trace, 0);
 }

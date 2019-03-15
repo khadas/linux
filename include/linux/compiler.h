@@ -211,13 +211,14 @@ void __read_once_size(const volatile void *p, void *res, int size)
 # define __no_kasan_or_inline __always_inline
 #endif
 
-static __no_kasan_or_inline
-void __read_once_size_nocheck(const volatile void *p, void *res, int size)
+static __no_kasan_or_inline void notrace
+__read_once_size_nocheck(const volatile void *p, void *res, int size)
 {
 	__READ_ONCE_SIZE;
 }
 
-static __always_inline void __write_once_size(volatile void *p, void *res, int size)
+static __always_inline void notrace
+__write_once_size(volatile void *p, void *res, int size)
 {
 	switch (size) {
 	case 1: *(volatile __u8 *)p = *(__u8 *)res; break;

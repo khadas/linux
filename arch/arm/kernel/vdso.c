@@ -131,7 +131,11 @@ static void * __init find_section(Elf32_Ehdr *ehdr, const char *name,
 	return NULL;
 }
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+static Elf32_Sym * __init _find_symbol(struct elfinfo *lib, const char *symname)
+#else
 static Elf32_Sym * __init find_symbol(struct elfinfo *lib, const char *symname)
+#endif
 {
 	unsigned int i;
 
@@ -155,7 +159,11 @@ static void __init vdso_nullpatch_one(struct elfinfo *lib, const char *symname)
 {
 	Elf32_Sym *sym;
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	sym = _find_symbol(lib, symname);
+#else
 	sym = find_symbol(lib, symname);
+#endif
 	if (!sym)
 		return;
 

@@ -870,9 +870,18 @@ static int ramoops_probe(struct platform_device *pdev)
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
 
-	pr_info("using 0x%lx@0x%llx, ecc: %d\n",
-		cxt->size, (unsigned long long)cxt->phys_addr,
-		cxt->ecc_info.ecc_size);
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (ramoops_ftrace_size)
+		ramoops_ftrace_en = 1;
+
+	pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx\n",
+		ramoops_io_en, ramoops_ftrace_en,
+		cxt->fprzs[0] ?
+		(unsigned long)persistent_ram_old_size(cxt->fprzs[0]) : 0,
+		ramoops_ftrace_size);
+
+	pstore_ftrace_dump_old(cxt->fprzs[0]);
+#endif
 
 	return 0;
 
