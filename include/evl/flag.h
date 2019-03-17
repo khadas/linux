@@ -15,16 +15,17 @@ struct evl_flag {
 	bool raised;
 };
 
-#define DEFINE_EVL_FLAG(__name)					\
-	struct evl_flag __name = {				\
+#define EVL_FLAG_INITIALIZER(__name) {				\
 		.wait = EVL_WAIT_INITIALIZER((__name).wait),	\
 		.raised = false,				\
 	}
 
+#define DEFINE_EVL_FLAG(__name)					\
+	struct evl_flag __name = EVL_FLAG_INITIALIZER(__name)
+
 static inline void evl_init_flag(struct evl_flag *wf)
 {
-	wf->wait = (struct evl_wait_queue)EVL_WAIT_INITIALIZER(wf->wait);
-	wf->raised = false;
+	*wf = (struct evl_flag)EVL_FLAG_INITIALIZER(*wf);
 }
 
 static inline void evl_destroy_flag(struct evl_flag *wf)
