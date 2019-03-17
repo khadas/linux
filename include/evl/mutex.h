@@ -104,7 +104,7 @@ struct evl_kmutex {
 			.fastlock = ATOMIC_INIT(0),			\
 	}
 
-#define DEFINE_EVL_MUTEX(__name)					\
+#define DEFINE_EVL_KMUTEX(__name)					\
 	struct evl_kmutex __name = EVL_KMUTEX_INITIALIZER(__name)
 
 static inline
