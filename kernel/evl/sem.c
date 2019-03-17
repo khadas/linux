@@ -10,19 +10,6 @@
 #include <evl/sched.h>
 #include <evl/sem.h>
 
-void evl_init_ksem(struct evl_ksem *ksem, unsigned int value)
-{
-	ksem->value = value;
-	evl_init_wait(&ksem->wait_queue, &evl_mono_clock, EVL_WAIT_PRIO);
-}
-EXPORT_SYMBOL_GPL(evl_init_ksem);
-
-void evl_destroy_ksem(struct evl_ksem *ksem)
-{
-	evl_destroy_wait(&ksem->wait_queue);
-}
-EXPORT_SYMBOL_GPL(evl_destroy_ksem);
-
 static bool down_ksem(struct evl_ksem *ksem)
 {
 	if (ksem->value > 0) {
@@ -35,14 +22,14 @@ static bool down_ksem(struct evl_ksem *ksem)
 
 int evl_down_timeout(struct evl_ksem *ksem, ktime_t timeout)
 {
-	return evl_wait_event_timeout(&ksem->wait_queue, timeout,
+	return evl_wait_event_timeout(&ksem->wait, timeout,
 				EVL_ABS, down_ksem(ksem));
 }
 EXPORT_SYMBOL_GPL(evl_down_timeout);
 
 int evl_down(struct evl_ksem *ksem)
 {
-	return evl_wait_event_timeout(&ksem->wait_queue, EVL_INFINITE,
+	return evl_wait_event_timeout(&ksem->wait, EVL_INFINITE,
 				EVL_REL, down_ksem(ksem));
 }
 EXPORT_SYMBOL_GPL(evl_down);
@@ -66,7 +53,7 @@ void evl_up(struct evl_ksem *ksem)
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	if (!evl_wake_up_head(&ksem->wait_queue))
+	if (!evl_wake_up_head(&ksem->wait))
 		ksem->value++;
 
 	xnlock_put_irqrestore(&nklock, flags);
