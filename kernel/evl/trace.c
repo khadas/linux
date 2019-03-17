@@ -42,9 +42,6 @@ trace_oob_write(struct file *filp,
 	char buf[128];
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_FTRACE))
-		return -EINVAL;
-
 	if (count >= sizeof(buf))
 		count = sizeof(buf) - 1;
 
