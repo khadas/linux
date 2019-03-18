@@ -178,18 +178,6 @@ struct evl_sched_class {
 #define for_each_evl_thread(__thread)				\
 	list_for_each_entry(__thread, &evl_thread_list, next)
 
-#ifdef CONFIG_SMP
-static inline int evl_rq_cpu(struct evl_rq *rq)
-{
-	return rq->cpu;
-}
-#else /* !CONFIG_SMP */
-static inline int evl_rq_cpu(struct evl_rq *rq)
-{
-	return 0;
-}
-#endif /* CONFIG_SMP */
-
 static inline struct evl_rq *evl_cpu_rq(int cpu)
 {
 	return &per_cpu(evl_runqueues, cpu);
@@ -219,13 +207,18 @@ static inline void evl_set_self_resched(struct evl_rq *rq)
 	rq->status |= RQ_SCHED;
 }
 
+/* Set resched flag for the given scheduler. */
+#ifdef CONFIG_SMP
+
 static inline bool is_evl_cpu(int cpu)
 {
 	return !!cpumask_test_cpu(cpu, &evl_oob_cpus);
 }
 
-/* Set resched flag for the given scheduler. */
-#ifdef CONFIG_SMP
+static inline int evl_rq_cpu(struct evl_rq *rq)
+{
+	return rq->cpu;
+}
 
 static inline void evl_set_resched(struct evl_rq *rq)
 {
@@ -247,14 +240,19 @@ static inline bool is_threading_cpu(int cpu)
 
 #else /* !CONFIG_SMP */
 
-static inline void evl_set_resched(struct evl_rq *rq)
-{
-	evl_set_self_resched(rq);
-}
-
 static inline bool is_evl_cpu(int cpu)
 {
 	return true;
+}
+
+static inline int evl_rq_cpu(struct evl_rq *rq)
+{
+	return 0;
+}
+
+static inline void evl_set_resched(struct evl_rq *rq)
+{
+	evl_set_self_resched(rq);
 }
 
 static inline bool is_threading_cpu(int cpu)
