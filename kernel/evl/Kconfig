@@ -34,7 +34,7 @@ config EVL_COREMEM_SIZE
 config EVL_NR_THREADS
 	int "Maximum number of threads"
 	range 1 4096
-	default 128
+	default 256
 	help
 
 	The maximum number of user-space threads attached to the
