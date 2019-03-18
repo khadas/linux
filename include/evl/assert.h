@@ -28,8 +28,7 @@
 #define EVL_WARN_ON_SMP(__subsys, __cond)		\
 	EVL_WARN_ON(__subsys, __cond)
 #else
-#define EVL_WARN_ON_SMP(__subsys, __cond)		\
-	do { } while (0)
+#define EVL_WARN_ON_SMP(__subsys, __cond)  0
 #endif
 
 #define oob_context_only()	EVL_WARN_ON_ONCE(CORE, running_inband())
