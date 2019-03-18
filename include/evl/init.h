@@ -14,9 +14,7 @@ struct evl_machine_cpudata {
 
 DECLARE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
 
-#ifdef CONFIG_SMP
 extern struct cpumask evl_oob_cpus;
-#endif
 
 #ifdef CONFIG_EVL_DEBUG
 void evl_warn_init(const char *fn, int level, int status);
