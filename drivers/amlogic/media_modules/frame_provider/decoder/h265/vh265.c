@@ -1908,13 +1908,11 @@ static int hevc_print(struct hevc_state_s *hevc,
 #define HEVC_PRINT_BUF		256
 	unsigned char buf[HEVC_PRINT_BUF];
 	int len = 0;
-#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	if (hevc == NULL ||
 		(flag == 0) ||
 		((debug_mask &
 		(1 << hevc->index))
 		&& (debug & flag))) {
-#endif
 		va_list args;
 
 		va_start(args, fmt);
@@ -1923,9 +1921,7 @@ static int hevc_print(struct hevc_state_s *hevc,
 		vsnprintf(buf + len, HEVC_PRINT_BUF - len, fmt, args);
 		pr_debug("%s", buf);
 		va_end(args);
-#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	}
-#endif
 	return 0;
 }
 
