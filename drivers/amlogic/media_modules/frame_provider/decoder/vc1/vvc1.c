@@ -382,10 +382,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 					frm.end_pts = pts;
 					frm.rate = (frm.end_pts -
 						frm.start_pts) / frm.num;
-					pr_info("frate before=%d,%d,num=%d\n",
-					frm.rate,
-					DUR2PTS(vvc1_amstream_dec_info.rate),
-					frm.num);
+					//pr_info("frate before=%d,%d,num=%d\n",
+					//frm.rate,
+					//DUR2PTS(vvc1_amstream_dec_info.rate),
+					//frm.num);
 					/* check if measured rate is same as
 					 * settings from upper layer
 					 * and correct it if necessary
@@ -406,10 +406,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 						vvc1_amstream_dec_info.rate),
 						RATE_30_FPS,
 						RATE_CORRECTION_THRESHOLD))) {
-						pr_info(
-						"vvc1: frate from %d to %d\n",
-						vvc1_amstream_dec_info.rate,
-						PTS2DUR(frm.rate));
+						//pr_info(
+						//"vvc1: frate from %d to %d\n",
+						//vvc1_amstream_dec_info.rate,
+						//PTS2DUR(frm.rate));
 
 						vvc1_amstream_dec_info.rate =
 							PTS2DUR(frm.rate);
