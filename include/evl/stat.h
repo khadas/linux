@@ -69,8 +69,7 @@ static inline void evl_reset_account(struct evl_account *account)
 	({								\
 		struct evl_account *__prev;				\
 		__prev = (struct evl_account *)				\
-			atomic_long_xchg(&(__rq)->current_account,	\
-					(long)(__new_account));		\
+			xchg(&(__rq)->current_account, (__new_account)); \
 		__prev;							\
 	})
 
