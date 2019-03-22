@@ -407,6 +407,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		needs-reset-on-resume;
 		status = "disabled";
 		usbdrd_dwc3_0: dwc3@fe800000 {
 			compatible = "snps,dwc3";
@@ -440,6 +441,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		needs-reset-on-resume;
 		status = "disabled";
 		usbdrd_dwc3_1: dwc3@fe900000 {
 			compatible = "snps,dwc3";
