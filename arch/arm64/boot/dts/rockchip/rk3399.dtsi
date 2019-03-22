@@ -1323,6 +1323,11 @@
 			SYS_STATUS_DUALVIEW     600000
 			SYS_STATUS_ISP          600000
 		>;
+		vop-pn-msch-readlatency = <
+			/* plane_number  readlatency */
+			0       0
+			4       0x20
+		>;
 		auto-min-freq = <400000>;
 		auto-freq-en = <1>;
 		status = "disabled";
