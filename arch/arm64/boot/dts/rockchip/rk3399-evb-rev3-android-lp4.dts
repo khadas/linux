@@ -154,7 +154,7 @@
 		578     99999    800000
 	>;
 	auto-min-freq = <400000>;
-	auto-freq-en = <0>;
+	auto-freq-en = <1>;
 };
 
 &dmc_opp_table {
