@@ -656,7 +656,7 @@ static const struct file_operations poll_fops = {
 };
 
 struct evl_factory evl_poll_factory = {
-	.name	=	"poll",
+	.name	=	EVL_POLL_DEV,
 	.fops	=	&poll_fops,
 	.flags	=	EVL_FACTORY_SINGLE,
 };

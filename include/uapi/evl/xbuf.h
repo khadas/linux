@@ -7,6 +7,8 @@
 #ifndef _EVL_UAPI_XBUF_H
 #define _EVL_UAPI_XBUF_H
 
+#define EVL_XBUF_DEV		"xbuf"
+
 struct evl_xbuf_attrs {
 	__u32 i_bufsz;
 	__u32 o_bufsz;

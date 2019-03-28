@@ -7,6 +7,8 @@
 #ifndef _EVL_UAPI_PROXY_H
 #define _EVL_UAPI_PROXY_H
 
+#define EVL_PROXY_DEV	"proxy"
+
 struct evl_proxy_attrs {
 	__u32 fd;
 	__u32 bufsz;

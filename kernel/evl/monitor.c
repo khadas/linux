@@ -722,7 +722,7 @@ static struct attribute *monitor_attrs[] = {
 ATTRIBUTE_GROUPS(monitor);
 
 struct evl_factory evl_monitor_factory = {
-	.name	=	"monitor",
+	.name	=	EVL_MONITOR_DEV,
 	.fops	=	&monitor_fops,
 	.build =	monitor_factory_build,
 	.dispose =	monitor_factory_dispose,
