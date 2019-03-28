@@ -776,7 +776,7 @@ static struct attribute *xbuf_attrs[] = {
 ATTRIBUTE_GROUPS(xbuf);
 
 struct evl_factory evl_xbuf_factory = {
-	.name	=	"xbuf",
+	.name	=	EVL_XBUF_DEV,
 	.fops	=	&xbuf_fops,
 	.build =	xbuf_factory_build,
 	.dispose =	xbuf_factory_dispose,

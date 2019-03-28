@@ -7,6 +7,10 @@
 #ifndef _EVL_UAPI_CLOCK_H
 #define _EVL_UAPI_CLOCK_H
 
+#define EVL_CLOCK_MONOTONIC_DEV		"monotonic"
+#define EVL_CLOCK_REALTIME_DEV		"realtime"
+#define EVL_CLOCK_DEV			"clock"
+
 #define EVL_CLOCK_MONOTONIC  (-CLOCK_MONOTONIC)
 #define EVL_CLOCK_REALTIME   (-CLOCK_REALTIME)
 

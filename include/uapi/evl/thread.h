@@ -10,6 +10,8 @@
 
 #include <uapi/evl/sched.h>
 
+#define EVL_THREAD_DEV		"thread"
+
 /* State flags (shared) */
 
 #define T_SUSP    0x00000001 /*< Suspended */

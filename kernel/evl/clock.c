@@ -960,7 +960,7 @@ static struct attribute *clock_attrs[] = {
 ATTRIBUTE_GROUPS(clock);
 
 struct evl_factory evl_clock_factory = {
-	.name	=	"clock",
+	.name	=	EVL_CLOCK_DEV,
 	.fops	=	&clock_fops,
 	.nrdev	=	CONFIG_EVL_NR_CLOCKS,
 	.attrs	=	clock_groups,
@@ -1030,7 +1030,7 @@ static void adjust_realtime_clock(struct evl_clock *clock)
 }
 
 struct evl_clock evl_mono_clock = {
-	.name = "monotonic",
+	.name = EVL_CLOCK_MONOTONIC_DEV,
 	.resolution = 1,	/* nanosecond. */
 	.ops = {
 		.read = read_mono_clock,
@@ -1046,7 +1046,7 @@ struct evl_clock evl_mono_clock = {
 EXPORT_SYMBOL_GPL(evl_mono_clock);
 
 struct evl_clock evl_realtime_clock = {
-	.name = "realtime",
+	.name = EVL_CLOCK_REALTIME_DEV,
 	.resolution = 1,	/* nanosecond. */
 	.ops = {
 		.read = read_realtime_clock,

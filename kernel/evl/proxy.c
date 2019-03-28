@@ -262,7 +262,7 @@ static void proxy_factory_dispose(struct evl_element *e)
 }
 
 struct evl_factory evl_proxy_factory = {
-	.name	=	"proxy",
+	.name	=	EVL_PROXY_DEV,
 	.fops	=	&proxy_fops,
 	.build =	proxy_factory_build,
 	.dispose =	proxy_factory_dispose,

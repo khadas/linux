@@ -7,6 +7,8 @@
 #ifndef _EVL_UAPI_POLL_H
 #define _EVL_UAPI_POLL_H
 
+#define EVL_POLL_DEV		"poll"
+
 #define EVL_POLL_IOCBASE  'p'
 
 #define EVL_POLL_CTLADD  0

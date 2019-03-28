@@ -2483,7 +2483,7 @@ static struct attribute *thread_attrs[] = {
 ATTRIBUTE_GROUPS(thread);
 
 struct evl_factory evl_thread_factory = {
-	.name	=	"thread",
+	.name	=	EVL_THREAD_DEV,
 	.fops	=	&thread_fops,
 	.build	=	thread_factory_build,
 	.dispose =	thread_factory_dispose,

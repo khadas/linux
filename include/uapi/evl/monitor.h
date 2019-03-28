@@ -10,6 +10,8 @@
 #include <uapi/evl/types.h>
 #include <uapi/evl/factory.h>
 
+#define EVL_MONITOR_DEV		"monitor"
+
 #define EVL_MONITOR_EV  0	/* Event monitor. */
 #define EVL_MONITOR_PI  1	/* Gate with priority inheritance. */
 #define EVL_MONITOR_PP  2	/* Gate with priority protection (ceiling). */
