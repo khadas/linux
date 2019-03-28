@@ -243,7 +243,9 @@ static int aml_m8_set_spk(struct snd_kcontrol *kcontrol,
 
 	msleep_interruptible(10);
 	if (!IS_ERR(p_audio->mute_desc))
-		gpiod_direction_output(p_audio->mute_desc, aml_m8_spk_enabled);
+		gpiod_direction_output(p_audio->mute_desc,
+				!aml_m8_spk_enabled != !p_audio->mute_inv ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
 
 	if (aml_m8_spk_enabled == 1)
 		msleep_interruptible(100);
@@ -312,7 +314,6 @@ static int aml_resume_post(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 	struct pinctrl_state *state;
-	int val = 0;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
@@ -339,9 +340,9 @@ static int aml_resume_post(struct snd_soc_card *card)
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		if (p_aml_audio->sleep_time)
 			msleep(p_aml_audio->sleep_time);
-		val = p_aml_audio->mute_inv ?
-			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		gpiod_direction_output(p_aml_audio->mute_desc, val);
+		gpiod_direction_output(p_aml_audio->mute_desc,
+				!aml_m8_spk_enabled != !p_aml_audio->mute_inv ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
 	}
 	return 0;
 }
@@ -359,15 +360,15 @@ static int speaker_events(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		pr_info("audio speaker on\n");
 		val = p_audio->mute_inv ?
-			GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
-		gpiod_direction_output(p_audio->mute_desc, 1);
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		gpiod_direction_output(p_audio->mute_desc, val);
 		aml_m8_spk_enabled = 1;
 		msleep(p_audio->sleep_time);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		pr_info("audio speaker off\n");
 		val = p_audio->mute_inv ?
-			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+			GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 		gpiod_direction_output(p_audio->mute_desc, val);
 		aml_m8_spk_enabled = 0;
 		break;
@@ -572,7 +573,7 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 		if (p_aml_audio->sleep_time)
 			msleep(p_aml_audio->sleep_time);
 		val = p_aml_audio->mute_inv ?
-			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+			GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 		gpiod_direction_output(p_aml_audio->mute_desc, val);
 	}
 
@@ -864,8 +865,10 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 		ret =
 		    aml_card_dai_parse_of(dev, &dai_links[i], init, cpu_node,
 					  codec_node, plat_node);
+		if (ret < 0)
+			return ret;
 	}
-	if (NULL != strstr(dai_links[0].codec_dai_name, "tlv320aic32x4"))
+	if (NULL != strstr(dai_links[0].codec_dai_name, "tlv320"))
 		dai_links[0].ops = &aml_asoc_ops;
 
  err:
