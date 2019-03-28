@@ -3,6 +3,9 @@ Rotary encoder DT bindings
 Required properties:
 - gpios: a spec for two GPIOs to be used
 
+Properties required if Amlogic GPIOs are used:
+- interrupts: a list of 4 specifiers for the interrupts to be used
+
 Optional properties:
 - linux,axis: the input subsystem axis to map to this rotary encoder.
   Defaults to 0 (ABS_X / REL_X)
