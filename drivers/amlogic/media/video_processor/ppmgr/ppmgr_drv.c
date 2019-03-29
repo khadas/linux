@@ -1419,6 +1419,7 @@ void get_ppmgr_buf_info(unsigned int *start, unsigned int *size)
 	*start = ppmgr_device.buffer_start;
 	*size = ppmgr_device.buffer_size;
 }
+EXPORT_SYMBOL(get_ppmgr_buf_info);
 
 static int ppmgr_open(struct inode *inode, struct file *file)
 {

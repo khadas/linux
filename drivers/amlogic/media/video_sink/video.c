@@ -176,6 +176,7 @@ bool platform_type = 1;
 int bit_depth_flag = 8;
 
 bool omx_secret_mode;
+EXPORT_SYMBOL(omx_secret_mode);
 #define DEBUG_FLAG_FFPLAY	(1<<0)
 #define DEBUG_FLAG_CALC_PTS_INC	(1<<1)
 
