@@ -227,8 +227,6 @@
 				BIT(IIO_CHAN_INFO_AVERAGE_RAW) |	\
 				BIT(IIO_CHAN_INFO_PROCESSED),		\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
-	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_CALIBBIAS) |	\
-				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
 	.scan_type = {							\
 		.sign = 'u',						\
 		.storagebits = 16,					\
@@ -236,6 +234,17 @@
 		.endianness = IIO_CPU,					\
 	},								\
 	.datasheet_name = "SAR_ADC_CH"#_chan,				\
+}
+
+#define MESON_SAR_ADC_TEMP_CHAN(_chan) {				\
+	.type = IIO_TEMP,						\
+	.channel = _chan,						\
+	.address = MESON_SAR_ADC_VOLTAGE_AND_TEMP_CHANNEL,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+				BIT(IIO_CHAN_INFO_AVERAGE_RAW),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |		\
+					BIT(IIO_CHAN_INFO_SCALE),	\
+	.datasheet_name = "TEMP_SENSOR",				\
 }
 #else
 #define MESON_SAR_ADC_CHAN(_chan) {					\
@@ -250,7 +259,6 @@
 				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
 	.datasheet_name = "SAR_ADC_CH"#_chan,				\
 }
-#endif
 
 #define MESON_SAR_ADC_TEMP_CHAN(_chan) {				\
 	.type = IIO_TEMP,						\
@@ -264,6 +272,7 @@
 				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
 	.datasheet_name = "TEMP_SENSOR",				\
 }
+#endif
 
 static const struct iio_chan_spec meson_sar_adc_iio_channels[] = {
 	MESON_SAR_ADC_CHAN(0),
@@ -358,6 +367,9 @@ enum meson_sar_adc_sampling_mode {
  * @cmv_select: g12a and later SoCs must write 0, others SoC write 1
  *
  * @adc_eoc: g12a and later SoCs must write 1
+ *
+ * @calib_enable: enable sw calibration, TXL and before SoCs must write true,
+ * other SoCs are optional.
  */
 struct meson_sar_adc_param {
 	bool					has_bl30_integration;
@@ -375,6 +387,7 @@ struct meson_sar_adc_param {
 	bool					vref_enable;
 	bool					cmv_select;
 	bool					adc_eoc;
+	bool					calib_enable;
 #endif
 };
 
@@ -512,9 +525,17 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 	fifo_val = FIELD_GET(MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK, regval);
 	fifo_val &= GENMASK(priv->param->resolution - 1, 0);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (priv->param->calib_enable)
+		/* to fix the sample value by software */
+		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	else
+		*val = fifo_val;
+#else
+
 	/* to fix the sample value by software */
 	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
-
+#endif
 	return 0;
 }
 
@@ -761,9 +782,16 @@ meson_sar_adc_read_raw_sample_from_chnl(struct iio_dev *indio_dev,
 	fifo_val = regval >> MESON_SAR_ADC_CHNLX_SAMPLE_VALUE_SHIFT(chan_off);
 	fifo_val &= GENMASK(priv->param->resolution - 1, 0);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (priv->param->calib_enable)
+		/* to fix the sample value by software */
+		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	else
+		*val = fifo_val;
+#else
 	/* to fix the sample value by software */
 	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
-
+#endif
 	return 0;
 }
 #endif
@@ -889,10 +917,20 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		}
 
 	case IIO_CHAN_INFO_CALIBBIAS:
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (!priv->param->calib_enable)
+			return -EINVAL;
+#endif
+
 		*val = priv->calibbias;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_CALIBSCALE:
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (!priv->param->calib_enable)
+			return -EINVAL;
+#endif
+
 		*val = priv->calibscale / MILLION;
 		*val2 = priv->calibscale % MILLION;
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -1670,6 +1708,9 @@ static const struct meson_sar_adc_param meson_sar_adc_meson8_param = {
 	.temperature_trimming_bits = 4,
 	.temperature_multiplier = 18 * 10000,
 	.temperature_divider = 1024 * 10 * 85,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.calib_enable = true,
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -1686,6 +1727,9 @@ static const struct meson_sar_adc_param meson_sar_adc_meson8b_param = {
 	.temperature_trimming_bits = 5,
 	.temperature_multiplier = 10,
 	.temperature_divider = 32,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.calib_enable = true,
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -1701,6 +1745,7 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.vref_enable = 1,
 	.cmv_select = 1,
+	.calib_enable = true,
 #endif
 };
 
@@ -1718,6 +1763,7 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.disable_ring_counter = 1,
 	.vref_enable = 1,
 	.cmv_select = 1,
+	.calib_enable = true,
 #endif
 };
 
@@ -1885,6 +1931,8 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	int irq, ret;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_sar_adc_param *match_param;
+	struct iio_chan_spec *chan;
+	int i;
 #endif
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev) {
@@ -2049,10 +2097,27 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (priv->param->calib_enable) {
+		for (i = 0; i < indio_dev->num_channels; i++) {
+			chan = (struct iio_chan_spec *)indio_dev->channels + i;
+			if (chan->channel < 0)
+				continue;
+
+			chan->info_mask_shared_by_all =
+				BIT(IIO_CHAN_INFO_CALIBBIAS) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE);
+		}
+
+		ret = meson_sar_adc_calib(indio_dev);
+		if (ret)
+			dev_warn(&pdev->dev, "calibration failed\n");
+	}
+#else
 	ret = meson_sar_adc_calib(indio_dev);
 	if (ret)
 		dev_warn(&pdev->dev, "calibration failed\n");
-
+#endif
 	platform_set_drvdata(pdev, indio_dev);
 
 	ret = iio_device_register(indio_dev);
