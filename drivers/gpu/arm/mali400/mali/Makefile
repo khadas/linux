@@ -199,7 +199,6 @@ all: $(UMP_SYMVERS_FILE)
 
 clean:
 	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean
-	@rm $(FILES_PREFIX)__malidrv_build_info.c
 
 kernelrelease:
 	$(MAKE) ARCH=$(ARCH) -C $(KDIR) kernelrelease
