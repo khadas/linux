@@ -696,6 +696,33 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 
 	mutex_lock(&indio_dev->mlock);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (priv->param->has_bl30_integration) {
+again:
+		/* wait until BL30 releases it's lock (so we can use
+		 * the SAR ADC)
+		 */
+		do {
+			udelay(1);
+			regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
+		} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
+
+		if (timeout < 0) {
+			mutex_unlock(&indio_dev->mlock);
+			return -ETIMEDOUT;
+		}
+		/* prevent BL30 from using the SAR ADC while we are using it */
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY,
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
+		isb();
+		dsb(sy);
+		udelay(5);
+		regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
+		if (val & MESON_SAR_ADC_DELAY_BL30_BUSY)
+			goto again;
+	}
+#else
 	if (priv->param->has_bl30_integration) {
 		/* prevent BL30 from using the SAR ADC while we are using it */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
@@ -716,6 +743,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 			return -ETIMEDOUT;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -724,10 +752,21 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (priv->param->has_bl30_integration) {
+		/* allow BL30 to use the SAR ADC again */
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+		isb();
+		dsb(sy);
+		udelay(5);
+	}
+#else
 	if (priv->param->has_bl30_integration)
 		/* allow BL30 to use the SAR ADC again */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
 				MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+#endif
 
 	mutex_unlock(&indio_dev->mlock);
 }
