@@ -17,6 +17,8 @@
 #include <asm/div64.h>
 #include <trace/events/evl.h>
 
+#ifdef CONFIG_SMP
+
 static struct evl_timerbase *
 lock_timer_base(struct evl_timer *timer, unsigned long *flags)
 {
@@ -42,6 +44,24 @@ static inline void unlock_timer_base(struct evl_timerbase *base,
 {
 	raw_spin_unlock_irqrestore(&base->lock, flags);
 }
+
+#else
+
+static inline struct evl_timerbase *
+lock_timer_base(struct evl_timer *timer, unsigned long *flags)
+{
+	*flags = hard_local_irq_save();
+
+	return timer->base;
+}
+
+static inline void unlock_timer_base(struct evl_timerbase *base,
+				unsigned long flags)
+{
+	hard_local_irq_restore(flags);
+}
+
+#endif
 
 /* hard irqs off */
 static inline void double_timer_base_lock(struct evl_timerbase *tb1,
