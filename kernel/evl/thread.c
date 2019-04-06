@@ -2108,18 +2108,38 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
-	__u32 monfd;
-	long ret;
+	struct evl_thread *curr = evl_current();
+	long ret = -EPERM;
+	__u32 monfd, mask;
 
 	if (thread->state & T_ZOMBIE)
 		return -ESTALE;
 
 	switch (cmd) {
+	case EVL_THRIOC_SWITCH_OOB:
+		if (thread == curr)
+			ret = 0;	/* Already there. */
+		break;
+	case EVL_THRIOC_SWITCH_INBAND:
+		if (thread == curr) {
+			evl_switch_inband(SIGDEBUG_UNDEFINED);
+			ret = 0;
+		}
+		break;
 	case EVL_THRIOC_SIGNAL:
 		ret = raw_get_user(monfd, (__u32 *)arg);
 		if (ret)
 			return -EFAULT;
 		ret = evl_signal_monitor_targeted(thread, monfd);
+		break;
+	case EVL_THRIOC_SET_MODE:
+	case EVL_THRIOC_CLEAR_MODE:
+		if (thread == curr) {
+			ret = raw_get_user(mask, (__u32 *)arg);
+			if (ret)
+				return -EFAULT;
+			ret = evl_update_mode(mask, cmd == EVL_THRIOC_SET_MODE);
+		}
 		break;
 	default:
 		ret = thread_common_ioctl(thread, cmd, arg);
@@ -2134,7 +2154,6 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 	struct evl_thread *curr = evl_current();
 	long ret = -EPERM;
-	__u32 mask;
 
 	if (thread->state & T_ZOMBIE)
 		return -ESTALE;
@@ -2145,21 +2164,8 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 			ret = evl_switch_oob();
 		break;
 	case EVL_THRIOC_SWITCH_INBAND:
-		/*
-		 * If we got there, we were already switched from oob
-		 * to inband mode as a result of calling ioctl().
-		 * Yummie.
-		 */
-		ret = 0;
-		break;
-	case EVL_THRIOC_SET_MODE:
-	case EVL_THRIOC_CLEAR_MODE:
-		if (thread == curr) {
-			ret = raw_get_user(mask, (__u32 *)arg);
-			if (ret)
-				return -EFAULT;
-			ret = evl_update_mode(mask, cmd == EVL_THRIOC_SET_MODE);
-		}
+		if (thread == curr)
+			ret = 0;
 		break;
 	case EVL_THRIOC_DETACH_SELF:
 		ret = evl_detach_self();
