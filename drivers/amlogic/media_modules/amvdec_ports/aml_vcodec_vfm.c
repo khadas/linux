@@ -78,7 +78,7 @@ void video_vf_put(char *receiver, struct vdec_fb *fb, int id)
 	aml_v4l2_debug(2, "[%d] TO   (%s) vf: %p, idx: %d",
 		id, vfp->name, vf, vf->index);
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt))
+	if (vfp && vf)
 		vf_put(vf, receiver);
 }
 

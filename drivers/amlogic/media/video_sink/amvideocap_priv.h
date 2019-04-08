@@ -57,7 +57,7 @@ struct amvideocap_req_data {
 };
 
 struct amvideocap_req {
-	int (*callback)(unsigned long data, struct vframe_s *vfput,
+	int (*callback)(struct amvideocap_private *privdata, struct vframe_s *vfput,
 					int index);
 	unsigned long data;
 	int at_flags;		/*AT_ */
