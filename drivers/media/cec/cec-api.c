@@ -189,33 +189,49 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	struct cec_msg msg = {};
 	long err = 0;
 
-	if (!(adap->capabilities & CEC_CAP_TRANSMIT))
+	if (!(adap->capabilities & CEC_CAP_TRANSMIT)) {
+		pr_info("CEC_CAP_TRANSMIT capabilities err\n");
 		return -ENOTTY;
-	if (copy_from_user(&msg, parg, sizeof(msg)))
+	}
+	if (copy_from_user(&msg, parg, sizeof(msg))) {
+		pr_info("copy_from_user err\n");
 		return -EFAULT;
+	}
 
 	/* A CDC-Only device can only send CDC messages */
 	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
-	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
+	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE)) {
+		pr_info("cdc err\n");
 		return -EINVAL;
+	}
 
 	mutex_lock(&adap->lock);
-	if (adap->log_addrs.num_log_addrs == 0)
+	if (adap->log_addrs.num_log_addrs == 0) {
+		pr_info("no log addr err\n");
 		err = -EPERM;
-	else if (adap->is_configuring)
+	}
+	else if (adap->is_configuring) {
+		pr_info("is_configuring err\n");
 		err = -ENONET;
+	}
 	else if (!adap->is_configured &&
-		 (adap->needs_hpd || msg.msg[0] != 0xf0))
+		 (adap->needs_hpd || msg.msg[0] != 0xf0)) {
+		pr_info("needs_hpd err\n");
 		err = -ENONET;
-	else if (cec_is_busy(adap, fh))
+	}
+	else if (cec_is_busy(adap, fh)) {
 		err = -EBUSY;
+		pr_info("cec_is_busy err \n");
+	}
 	else
 		err = cec_transmit_msg_fh(adap, &msg, fh, block);
 	mutex_unlock(&adap->lock);
 	if (err)
 		return err;
-	if (copy_to_user(parg, &msg, sizeof(msg)))
+	if (copy_to_user(parg, &msg, sizeof(msg))) {
+		pr_info("copy_to_user err \n");
 		return -EFAULT;
+	}
 	return 0;
 }
 

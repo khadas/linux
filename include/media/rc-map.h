@@ -31,6 +31,7 @@ enum rc_type {
 	RC_TYPE_RC6_MCE		= 16,	/* MCE (Philips RC6-6A-32 subtype) protocol */
 	RC_TYPE_SHARP		= 17,	/* Sharp protocol */
 	RC_TYPE_XMP		= 18,	/* XMP protocol */
+	RC_PROTO_CEC		= 22,
 };
 
 #define RC_BIT_NONE		0

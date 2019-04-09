@@ -97,7 +97,8 @@ static int dw_hdmi_cec_transmit(struct cec_adapter *adap, u8 attempts,
 {
 	struct dw_hdmi_cec *cec = cec_get_drvdata(adap);
 	unsigned int i, ctrl;
-
+	
+	pr_info("%s, %*ph\n", __func__, msg->len, msg->msg);
 	switch (signal_free_time) {
 	case CEC_SIGNAL_FREE_TIME_RETRY:
 		ctrl = CEC_CTRL_RETRY;
@@ -153,9 +154,12 @@ static irqreturn_t dw_hdmi_cec_hardirq(int irq, void *data)
 		if (len > sizeof(cec->rx_msg.msg))
 			len = sizeof(cec->rx_msg.msg);
 
-		for (i = 0; i < len; i++)
+		for (i = 0; i < len; i++) {
+			pr_info("receive len:%d\n", len);						
 			cec->rx_msg.msg[i] =
 				dw_hdmi_read(cec, HDMI_CEC_RX_DATA0 + i);
+			pr_info("msg[%d]:%02x\n", i, cec->rx_msg.msg[i]);
+		}
 
 		dw_hdmi_write(cec, 0, HDMI_CEC_LOCK);
 
@@ -175,10 +179,12 @@ static irqreturn_t dw_hdmi_cec_thread(int irq, void *data)
 	struct dw_hdmi_cec *cec = cec_get_drvdata(adap);
 
 	if (cec->tx_done) {
+		pr_info("tx_done\n");
 		cec->tx_done = false;
 		cec_transmit_attempt_done(adap, cec->tx_status);
 	}
 	if (cec->rx_done) {
+		pr_info("rx_done\n");
 		cec->rx_done = false;
 		smp_rmb();
 		cec_received_msg(adap, &cec->rx_msg);
@@ -213,6 +219,7 @@ static int dw_hdmi_cec_enable(struct cec_adapter *adap, bool enable)
 		dw_hdmi_write(cec, ~irqs, HDMI_CEC_MASK);
 		dw_hdmi_write(cec, ~irqs, HDMI_IH_MUTE_CEC_STAT0);
 	}
+
 	return 0;
 }
 
@@ -298,6 +305,7 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	devm_remove_action(&pdev->dev, dw_hdmi_cec_del, cec);
 
 	cec_register_cec_notifier(cec->adap, cec->notify);
+	pr_info("%s success\n",__func__);
 
 	return 0;
 }

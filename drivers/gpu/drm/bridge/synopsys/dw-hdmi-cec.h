@@ -12,6 +12,7 @@ struct dw_hdmi_cec_ops {
 };
 
 struct dw_hdmi_cec_data {
+	struct device dev;
 	struct dw_hdmi *hdmi;
 	const struct dw_hdmi_cec_ops *ops;
 	int irq;
