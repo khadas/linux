@@ -329,7 +329,8 @@ atomic_t capture_use_cnt = ATOMIC_INIT(CAPTURE_STATE_OFF);
 	do { \
 		unsigned long flags; \
 		spin_lock_irqsave(&video_onoff_lock, flags); \
-		video_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
+		if (video_onoff_state != VIDEO_ENABLE_STATE_ON_PENDING) \
+			video_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
 		video_enabled = 1; \
 		video_status_saved = 1; \
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
@@ -357,7 +358,8 @@ atomic_t capture_use_cnt = ATOMIC_INIT(CAPTURE_STATE_OFF);
 	do { \
 		unsigned long flags; \
 		spin_lock_irqsave(&video2_onoff_lock, flags); \
-		video2_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
+		if (video2_onoff_state != VIDEO_ENABLE_STATE_ON_PENDING) \
+			video2_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
 		video2_enabled = 1; \
 		video2_status_saved = 1; \
 		spin_unlock_irqrestore(&video2_onoff_lock, flags); \
