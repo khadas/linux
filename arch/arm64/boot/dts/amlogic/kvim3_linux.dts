@@ -794,6 +794,27 @@
 	};
 };
 
+&i2c_AO {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&ao_i2c_master_pins1>;
+	clock-frequency = <1000000>; /* default 100k */
+
+	fusb: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		fusb302,role="ROLE_MODE_UFP";
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&fusb302_int>;
+		int-n-gpios = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
+		//support-uboot-charge = <1>;
+		port-num = <0>;
+		max-input-voltage = <13000000>;
+		max-input-current = <6000000>;
+		status = "okay";
+	};
+};
+
 &audiobus {
 	aml_tdma: tdma {
 		compatible = "amlogic, g12a-snd-tdma";

@@ -1643,5 +1643,12 @@ config MFD_VEXPRESS_SYSREG
 	  System Registers are the platform configuration block
 	  on the ARM Ltd. Versatile Express board.
 
+config FUSB302
+	tristate "Fairchild fusb302 Support"
+	depends on I2C=y
+	help
+	  This option provides a driver for the Fairchild FUSB302.
+	  It support typec-pd functionality by controlled using I2C.
+
 endmenu
 endif
