@@ -798,7 +798,7 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&ao_i2c_master_pins1>;
-	clock-frequency = <1000000>; /* default 100k */
+	clock-frequency = <400000>; /* default 100k */
 
 	fusb: fusb30x@22 {
 		compatible = "fairchild,fusb302";
@@ -811,6 +811,12 @@
 		port-num = <0>;
 		max-input-voltage = <13000000>;
 		max-input-current = <6000000>;
+		status = "okay";
+	};
+
+	khadas-tca6408{
+		compatible = "khadas-tca6408";
+		reg = <0x20>;
 		status = "okay";
 	};
 };

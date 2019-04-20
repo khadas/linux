@@ -787,6 +787,12 @@ config MEMORY_STATE_TIME
 	help
 	  Memory time statistics exported to /sys/kernel/memory_state_time
 
+config KHADAS_TCA6408
+	tristate "Khadas TCA6408"
+	default y
+	help
+	  This driver is TCA6408A IO expanders.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
