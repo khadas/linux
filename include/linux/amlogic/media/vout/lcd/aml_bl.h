@@ -83,6 +83,7 @@ enum bl_pwm_port_e {
 	BL_PWM_D,
 	BL_PWM_E,
 	BL_PWM_F,
+	BL_PWM_AO_C,
 	BL_PWM_VS,
 	BL_PWM_MAX,
 };

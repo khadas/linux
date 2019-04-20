@@ -19,7 +19,7 @@
 
 #include "mesong12a.dtsi"
 #include "partition_linux.dtsi"
-#include "mesong12a_skt-panel.dtsi"
+#include "khadas-ts050-panel.dtsi"
 
 / {
 	model = "Khadas VIM3L";
@@ -1064,16 +1064,6 @@
 			function = "pdm";
 		};
 	};
-
-	bl_pwm_off_pins:bl_pwm_off_pin {
-		mux {
-			pins = "GPIOH_5";
-			function = "gpio_periphs";
-			output-high;
-		};
-	};
-
-
 }; /* end of pinctrl_periphs */
 &pinctrl_aobus {
 	spdifout: spdifout {
@@ -1087,6 +1077,14 @@
 		mux { /* gpiao_10 */
 			groups = "GPIOAO_10";
 			function = "gpio_aobus";
+		};
+	};
+
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			pins = "GPIOAO_6";
+			function = "gpio_aobus";
+			output-low;
 		};
 	};
 };  /* end of pinctrl_aobus */
