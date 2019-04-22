@@ -3945,7 +3945,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 
 static void hdmitx_internal_intr_handler(struct work_struct *work)
 {
-	struct hdmitx_dev *hdev = container_of((struct work_struct *)work,
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_internal_intr);
 
 	hdev->HWOp.DebugFun(hdev, "dumpintr");
@@ -3998,7 +3998,7 @@ static int hdmi_task_handle(void *data)
 		hdmitx_hpd_plugin_handler);
 	INIT_DELAYED_WORK(&hdmitx_device->work_hpd_plugout,
 		hdmitx_hpd_plugout_handler);
-	INIT_WORK(&hdmitx_device->work_internal_intr,
+	INIT_DELAYED_WORK(&hdmitx_device->work_internal_intr,
 		hdmitx_internal_intr_handler);
 
 	/* for rx sense feature */
