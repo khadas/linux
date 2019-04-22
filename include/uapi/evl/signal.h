@@ -10,9 +10,9 @@
 #define _EVL_UAPI_SIGNAL_H
 
 #define SIGEVL				SIGWINCH
-#define sigshadow_action(code)		((code) & 0xff)
-#define sigshadow_arg(code)		(((code) >> 8) & 0xff)
-#define sigshadow_int(action, arg)	((action) | ((arg) << 8))
+#define sigevl_action(code)		((code) & 0xff)
+#define sigevl_arg(code)		(((code) >> 8) & 0xff)
+#define sigevl_int(action, arg)		((action) | ((arg) << 8))
 
 /* SIGEVL action codes. */
 #define SIGEVL_ACTION_HOME		1
