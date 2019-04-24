@@ -252,7 +252,7 @@ int rtl8211f_resume(struct phy_device *phydev)
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
 		mutex_unlock(&phydev->lock);
 	} else {
-		genphy_resume(phydev);
+		rtl8211f_config_init(phydev);
 	}
 	pr_debug("%s %d\n", __func__, __LINE__);
 
