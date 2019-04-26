@@ -377,6 +377,11 @@ extern const struct earlycon_id *__earlycon_table_end[];
 	_OF_EARLYCON_DECLARE(_name, compat, fn,				\
 			     __UNIQUE_ID(__earlycon_##_name))
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define OF_EARLYCON_DECLARE_COMP(_name, compact, fn) \
+	_OF_EARLYCON_DECLARE(_name, compact, fn, __LINE__ ## __COUNTER__)
+#endif
+
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
 extern int of_setup_earlycon(const struct earlycon_id *match,

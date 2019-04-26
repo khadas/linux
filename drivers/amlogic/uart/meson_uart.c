@@ -624,6 +624,8 @@ OF_EARLYCON_DECLARE(meson, "amlogic,meson-uart",
 		    meson_serial_early_console_setup);
 OF_EARLYCON_DECLARE(aml_uart, "amlogic,meson-uart",
 		    meson_serial_early_console_setup);
+OF_EARLYCON_DECLARE_COMP(aml-uart, "amlogic,meson-uart",
+			 meson_serial_early_console_setup);
 
 #define MESON_SERIAL_CONSOLE	(&meson_serial_console)
 #else
