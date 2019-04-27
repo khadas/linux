@@ -819,6 +819,11 @@
 		reg = <0x20>;
 		status = "okay";
 	};
+
+	khadas-rtc {
+		compatible = "khadas-rtc";
+		reg = <0x51>;
+	};
 };
 
 &audiobus {
