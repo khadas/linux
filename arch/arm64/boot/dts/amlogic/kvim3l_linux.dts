@@ -1052,7 +1052,7 @@
 		mux { /* gpioa_5, gpioa_6, gpioa_7, gpioa_8, gpioa_9*/
 			groups = "pdm_din0_a",
 			/*"pdm_din1_a",*/
-			"pdm_din2_a",
+			/*"pdm_din2_a",*/
 			/*"pdm_din3_a",*/
 			"pdm_dclk_a";
 			function = "pdm";
@@ -1102,14 +1102,14 @@
 &usb2_phy_v2 {
 	status = "okay";
 	portnum = <2>;
+	gpio-vbus-power = "GPIOA_6";
+	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <1>;
 	otg = <1>;
-	gpio-vbus-power = "GPIOH_6";
-	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
 
 &dwc2_a {

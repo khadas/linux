@@ -72,6 +72,7 @@ static void aml_new_usb_notifier_call(unsigned long is_device_on)
 			(&aml_new_usb_v2_notifier_list, is_device_on, NULL);
 }
 
+#if 0
 static void set_usb_vbus_power
 	(struct gpio_desc *usb_gd, int pin, char is_power_on)
 {
@@ -82,13 +83,16 @@ static void set_usb_vbus_power
 		/*set vbus off by gpio first*/
 		gpiod_direction_output(usb_gd, 0);
 }
+#endif
 
 static void amlogic_new_set_vbus_power
 		(struct amlogic_usb_v2 *phy, char is_power_on)
 {
+#if 0
 	if (phy->vbus_power_pin != -1)
 		set_usb_vbus_power(phy->usb_gpio_desc,
 			phy->vbus_power_pin, is_power_on);
+#endif
 }
 
 static int amlogic_new_usb3_suspend(struct usb_phy *x, int suspend)
