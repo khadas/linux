@@ -156,7 +156,10 @@
 		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
-	spdif-sound {
+	/*
+	 * if enable dp_sound, should disable spdif_sound and spdif_out
+	 */
+	spdif_sound: spdif-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "ROCKCHIP,SPDIF";
@@ -323,10 +326,6 @@
 &vopl {
 	assigned-clocks = <&cru DCLK_VOP1_DIV>;
 	assigned-clock-parents = <&cru PLL_CPLL>;
-};
-
-&hdmi_dp_sound {
-	status = "okay";
 };
 
 &cpu_l0 {
@@ -638,21 +637,21 @@
 		SYS_STATUS_NORMAL       800000
 		SYS_STATUS_REBOOT       400000
 		SYS_STATUS_SUSPEND      400000
-		SYS_STATUS_VIDEO_1080P  400000
+		SYS_STATUS_VIDEO_1080P  800000
 		SYS_STATUS_VIDEO_4K     800000
 		SYS_STATUS_VIDEO_4K_10B 800000
 		SYS_STATUS_PERFORMANCE  800000
-		SYS_STATUS_BOOST        400000
+		SYS_STATUS_BOOST        800000
 		SYS_STATUS_DUALVIEW     800000
 		SYS_STATUS_ISP          800000
 	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       577      200000
-		578     1701     300000
-		1702    99999    400000
+		0       577      400000
+		578     99999    800000
 	>;
 	auto-min-freq = <400000>;
+	auto-freq-en = <1>;
 };
 
 &dmc_opp_table {
@@ -699,7 +698,7 @@
 };
 
 &spdif {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&spdif_bus_1>;
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;

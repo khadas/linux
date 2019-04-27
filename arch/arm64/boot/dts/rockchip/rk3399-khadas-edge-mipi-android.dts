@@ -65,7 +65,7 @@
 	};
 
 	rt5651-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "simple-audio-card";
 
 		pinctrl-names = "default";
@@ -91,18 +91,40 @@
 			sound-dai = <&rt5651>;
 		};
 	};
-};
+	
+	dp_sound: dp-sound {
+		status = "disabled";
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&spdif>;
+		rockchip,codec = <&cdn_dp 1>;
+	};
 
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};	
+};
+	
 &fusb0 {
 	status = "okay";
-	max-input-voltage = <20000000>;
+	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
 	charge-dev = <&bq25703>;
 };
 
 &fusb1 {
 	status = "okay";
-	max-input-voltage = <20000000>;
+	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
 	charge-dev = <&bq25703>;
 };
@@ -121,6 +143,14 @@
 
 &isp0 {
 	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
 };
 
 &isp1_mmu {
@@ -129,6 +159,14 @@
 
 &isp1 {
 	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
 };
 
 &i2c1 {
@@ -144,7 +182,7 @@
 		clock-names = "mclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_mclk>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 
@@ -162,7 +200,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <7>;
+		layout = <9>;
 	};
 
 	icm20602_gyro: icm_gyro@68 {
@@ -198,7 +236,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&charger_ok>;
 		ti,charge-current = <1500000>;
-		ti,max-charge-voltage = <8750000>;
+		ti,max-charge-voltage = <8500000>;
 		ti,max-input-voltage = <20000000>;
 		ti,max-input-current = <6000000>;
 		ti,input-current-sdp = <500000>;
@@ -225,11 +263,19 @@
 				0x01 0x54 0x52 0x87 0x8F 0x91 0x94 0x52
 				0x82 0x8C 0x92 0x96 0x82 0xFF 0xFF 0xCB
 				0x2F 0x7D 0x64 0xA5 0xB5 0x13 0x58 0x09>;
-		monitor_sec = <2>;
+		monitor_sec = <5>;
 		virtual_power = <0>;
 		divider_res1 = <200>;
 		divider_res2 = <200>;
 		dc_det_gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&rk_key {
+	enter-key {
+		linux,code = <232>;
+		label = "enter";
+		rockchip,adc_value = <170>;
 	};
 };
 
@@ -263,8 +309,8 @@
 			<0xe5   KEY_RIGHT>,
 			<0xf8   232>,
 			<0xa7   KEY_VOLUMEDOWN>,
-			<0xa3    250>,  //mouse func
-			<0xa4    250>,  //mouse func
+			<0xa3    388>,  //mouse func
+			<0xa4    388>,  //mouse func
 			<0xf4   KEY_VOLUMEUP>,
 			<0xfe   KEY_BACK>,
 			<0xb7   KEY_HOME>;
@@ -284,14 +330,6 @@
 
 &cdn_dp {
 	status = "disabled";
-};
-
-&hdmi_dp_sound {
-	status = "disabled";
-};
-
-&hdmi_sound {
-	status = "okay";
 };
 
 &dp_in_vopl {

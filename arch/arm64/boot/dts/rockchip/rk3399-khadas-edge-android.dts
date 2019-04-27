@@ -91,8 +91,30 @@
 			sound-dai = <&rt5651>;
 		};
 	};
-};
+	
+	dp_sound: dp-sound {
+		status = "okay";
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&spdif>;
+		rockchip,codec = <&cdn_dp 1>;
+	};
 
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};	
+};
+	
 &fusb0 {
 	status = "okay";
 	max-input-voltage = <13000000>;
