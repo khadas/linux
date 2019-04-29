@@ -411,7 +411,7 @@ const struct file_operations sw_sync_debugfs_fops = {
 	.compat_ioctl	= sw_sync_ioctl,
 };
 
-#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_MODIFY_OLD
 /*api for amlogic use.*/
 void *aml_sync_create_timeline(const char *tname)
 {
