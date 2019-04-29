@@ -32,7 +32,7 @@
 #define TEE_MSG_UID_1         0xe7f811e3
 #define TEE_MSG_UID_2         0xaf630002
 #define TEE_MSG_UID_3         0xa5d5c51b
-static int disable_flag;
+static int disable_flag = 1;
 #define TEE_SMC_FUNCID_CALLS_REVISION 0xFF03
 #define TEE_SMC_CALLS_REVISION \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
