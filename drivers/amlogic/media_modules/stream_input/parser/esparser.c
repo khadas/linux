@@ -437,7 +437,7 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 
 		/* TS data path */
 #ifndef CONFIG_AM_DVB
-		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
+//		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
 #else
 		tsdemux_set_reset_flag();
 #endif
