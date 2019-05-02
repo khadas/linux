@@ -21,19 +21,10 @@
 #include <evl/control.h>
 #include <trace/events/evl.h>
 
-/*
- * This is our high-precision clock tick device, which operates the
- * best rated clock event device taken over from the kernel. A head
- * stage handler forwards tick events to our clock management core.
- */
-struct core_tick_device {
-	struct clock_event_device *real_device;
-};
-
-static DEFINE_PER_CPU(struct core_tick_device, clock_cpu_device);
+static DEFINE_PER_CPU(struct clock_proxy_device *, proxy_tick_device);
 
 static int proxy_set_next_ktime(ktime_t expires,
-				struct clock_event_device *proxy_ced)
+				struct clock_event_device *proxy_dev)
 {
 	struct evl_rq *rq;
 	unsigned long flags;
@@ -55,11 +46,14 @@ static int proxy_set_next_ktime(ktime_t expires,
 	return 0;
 }
 
-static int proxy_set_oneshot_stopped(struct clock_event_device *ced)
+static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
 {
-	struct core_tick_device *ctd = this_cpu_ptr(&clock_cpu_device);
+	struct clock_event_device *real_dev;
+	struct clock_proxy_device *dev;
 	unsigned long flags;
 	struct evl_rq *rq;
+
+	dev = container_of(proxy_dev, struct clock_proxy_device, proxy_device);
 
 	/*
 	 * In-band wants to disable the clock hardware on entering a
@@ -76,40 +70,14 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *ced)
 	evl_stop_timer(&rq->inband_timer);
 	rq->lflags |= RQ_TSTOPPED;
 
-	if (rq->lflags & RQ_IDLE)
-		ctd->real_device->set_state_oneshot_stopped(ctd->real_device);
+	if (rq->lflags & RQ_IDLE) {
+		real_dev = dev->real_device;
+		real_dev->set_state_oneshot_stopped(real_dev);
+	}
 
 	hard_local_irq_restore(flags);
 
 	return 0;
-}
-
-static void proxy_device_register(struct clock_event_device *proxy_ced,
-				struct clock_event_device *real_ced)
-{
-	struct core_tick_device *ctd = this_cpu_ptr(&clock_cpu_device);
-
-	ctd->real_device = real_ced;
-	proxy_ced->features |= CLOCK_EVT_FEAT_KTIME;
-	proxy_ced->set_next_ktime = proxy_set_next_ktime;
-	proxy_ced->set_next_event = NULL;
-	if (real_ced->set_state_oneshot_stopped)
-		proxy_ced->set_state_oneshot_stopped =
-			proxy_set_oneshot_stopped;
-	proxy_ced->rating = real_ced->rating + 1;
-	proxy_ced->min_delta_ns = 1;
-	proxy_ced->max_delta_ns = KTIME_MAX;
-	proxy_ced->min_delta_ticks = 1;
-	proxy_ced->max_delta_ticks = ULONG_MAX;
-	clockevents_register_device(proxy_ced);
-}
-
-static void proxy_device_unregister(struct clock_event_device *proxy_ced,
-				struct clock_event_device *real_ced)
-{
-	struct core_tick_device *ctd = this_cpu_ptr(&clock_cpu_device);
-
-	ctd->real_device = NULL;
 }
 
 /*
@@ -170,11 +138,22 @@ static irqreturn_t clock_ipi_handler(int irq, void *dev_id)
 
 #endif
 
-static struct proxy_tick_ops proxy_ops = {
-	.register_device = proxy_device_register,
-	.unregister_device = proxy_device_unregister,
-	.handle_event = clock_event_handler,
-};
+static void setup_proxy(struct clock_proxy_device *dev)
+{
+	struct clock_event_device *proxy_dev = &dev->proxy_device;
+
+	dev->handle_oob_event = clock_event_handler;
+	proxy_dev->features |= CLOCK_EVT_FEAT_KTIME;
+	proxy_dev->min_delta_ns = 1;
+	proxy_dev->max_delta_ns = KTIME_MAX;
+	proxy_dev->min_delta_ticks = 1;
+	proxy_dev->max_delta_ticks = ULONG_MAX;
+	proxy_dev->set_next_ktime = proxy_set_next_ktime;
+	if (proxy_dev->set_state_oneshot_stopped)
+		proxy_dev->set_state_oneshot_stopped = proxy_set_oneshot_stopped;
+
+	__this_cpu_write(proxy_tick_device, dev);
+}
 
 int evl_enable_tick(void)
 {
@@ -200,7 +179,7 @@ int evl_enable_tick(void)
 	 * - tick_install_proxy() guarantees that the real clock
 	 * device supports oneshot mode, or fails.
 	 */
-	ret = tick_install_proxy(&proxy_ops, &evl_oob_cpus);
+	ret = tick_install_proxy(setup_proxy, &evl_oob_cpus);
 	if (ret) {
 #ifdef CONFIG_SMP
 		free_percpu_irq(TIMER_OOB_IPI,
@@ -214,7 +193,7 @@ int evl_enable_tick(void)
 
 void evl_disable_tick(void)
 {
-	tick_uninstall_proxy(&proxy_ops, &evl_oob_cpus);
+	tick_uninstall_proxy(&evl_oob_cpus);
 #ifdef CONFIG_SMP
 	free_percpu_irq(TIMER_OOB_IPI, &evl_machine_cpudata);
 #endif
@@ -234,8 +213,8 @@ void evl_disable_tick(void)
 /* per-cpu timer queue locked. */
 void evl_program_proxy_tick(struct evl_clock *clock)
 {
-	struct core_tick_device *ctd = raw_cpu_ptr(&clock_cpu_device);
-	struct clock_event_device *real_ced = ctd->real_device;
+	struct clock_proxy_device *dev = __this_cpu_read(proxy_tick_device);
+	struct clock_event_device *real_dev = dev->real_device;
 	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_timerbase *tmb;
 	struct evl_timer *timer;
@@ -294,22 +273,22 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	t = evl_tdate(timer);
 	delta = ktime_to_ns(ktime_sub(t, evl_read_clock(clock)));
 
-	if (real_ced->features & CLOCK_EVT_FEAT_KTIME) {
-		real_ced->set_next_ktime(t, real_ced);
+	if (real_dev->features & CLOCK_EVT_FEAT_KTIME) {
+		real_dev->set_next_ktime(t, real_dev);
 		trace_evl_timer_shot(delta);
 	} else {
 		if (delta <= 0)
-			delta = real_ced->min_delta_ns;
+			delta = real_dev->min_delta_ns;
 		else {
-			delta = min(delta, (int64_t)real_ced->max_delta_ns);
-			delta = max(delta, (int64_t)real_ced->min_delta_ns);
+			delta = min(delta, (int64_t)real_dev->max_delta_ns);
+			delta = max(delta, (int64_t)real_dev->min_delta_ns);
 		}
-		cycles = ((u64)delta * real_ced->mult) >> real_ced->shift;
-		ret = real_ced->set_next_event(cycles, real_ced);
+		cycles = ((u64)delta * real_dev->mult) >> real_dev->shift;
+		ret = real_dev->set_next_event(cycles, real_dev);
 		trace_evl_timer_shot(delta);
 		if (ret) {
-			real_ced->set_next_event(real_ced->min_delta_ticks, real_ced);
-			trace_evl_timer_shot(real_ced->min_delta_ns);
+			real_dev->set_next_event(real_dev->min_delta_ticks, real_dev);
+			trace_evl_timer_shot(real_dev->min_delta_ns);
 		}
 	}
 }
