@@ -14,6 +14,30 @@ config EVL_SCHED_QUOTA
 
 	If in doubt, say N.
 
+config EVL_SCHED_TP
+	bool "Temporal partitioning policy"
+	default n
+	help
+	This option enables the SCHED_TP scheduling policy in the
+	EVL core.
+
+	This policy runs threads which execution is confined to
+	dedicated time windows defined within a recurring time frame
+	or global period. The ARINC653 standard describes such
+	scheduling policy.
+
+	If in doubt, say N.
+
+config EVL_SCHED_TP_NR_PART
+	int "Number of partitions"
+	default 4
+	range 1 1024
+	depends on EVL_SCHED_TP
+	help
+
+	Define the maximum number of temporal partitions the TP
+	scheduler may have to handle.
+
 config EVL_RUNSTATS
 	bool "Collect runtime statistics"
 	default y
