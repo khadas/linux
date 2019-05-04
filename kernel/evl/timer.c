@@ -299,7 +299,7 @@ void __evl_set_timer_rq(struct evl_timer *timer,
 
 	/*
 	 * Figure out which CPU is best suited for managing this
-	 * timer, preferably picking xnsched_cpu(sched) if the ticking
+	 * timer, preferably picking evl_rq_cpu(rq) if the ticking
 	 * device moving the timer clock beats on that CPU. Otherwise,
 	 * pick the first CPU from the clock affinity mask if set. If
 	 * not, the timer is backed by a global device with no
