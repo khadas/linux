@@ -613,6 +613,24 @@ static void quota_set_limit(struct evl_quota_group *tg,
 	evl_schedule();
 }
 
+static struct evl_quota_group *
+find_quota_group(struct evl_rq *rq, int tgid)
+{
+	struct evl_quota_group *tg;
+
+	requires_ugly_lock();
+
+	if (list_empty(&rq->quota.groups))
+		return NULL;
+
+	list_for_each_entry(tg, &rq->quota.groups, next) {
+		if (tg->tgid == tgid)
+			return tg;
+	}
+
+	return NULL;
+}
+
 static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 			union evl_sched_ctlinfo *infp)
 {
@@ -647,7 +665,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_quota_force_remove:
 		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
-		tg = evl_quota_find_group(rq, pq->u.remove.tgid);
+		tg = find_quota_group(rq, pq->u.remove.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
 		group = container_of(tg, struct evl_sched_group, quota);
@@ -665,7 +683,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_quota_set:
 		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
-		tg = evl_quota_find_group(rq, pq->u.set.tgid);
+		tg = find_quota_group(rq, pq->u.set.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
 		group = container_of(tg, struct evl_sched_group, quota);
@@ -675,7 +693,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_quota_get:
 		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
-		tg = evl_quota_find_group(rq, pq->u.get.tgid);
+		tg = find_quota_group(rq, pq->u.get.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
 		quota_sum = quota_sum_all(&rq->quota);
@@ -696,25 +714,6 @@ bad_tgid:
 
 	return -EINVAL;
 }
-
-struct evl_quota_group *
-evl_quota_find_group(struct evl_rq *rq, int tgid)
-{
-	struct evl_quota_group *tg;
-
-	requires_ugly_lock();
-
-	if (list_empty(&rq->quota.groups))
-		return NULL;
-
-	list_for_each_entry(tg, &rq->quota.groups, next) {
-		if (tg->tgid == tgid)
-			return tg;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(evl_quota_find_group);
 
 void evl_set_quota_period(ktime_t period)
 {

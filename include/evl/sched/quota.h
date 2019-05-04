@@ -65,9 +65,6 @@ void evl_quota_set_limit(struct evl_quota_group *tg,
 			int quota_percent, int quota_peak_percent,
 			int *quota_sum_r);
 
-struct evl_quota_group *
-evl_quota_find_group(struct evl_rq *rq, int tgid);
-
 int evl_quota_sum_all(struct evl_rq *rq);
 
 void evl_set_quota_period(ktime_t period);
