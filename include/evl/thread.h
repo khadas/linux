@@ -65,6 +65,10 @@ struct evl_thread {
 	struct list_head quota_expired;
 	struct list_head quota_next;
 #endif
+#ifdef CONFIG_EVL_SCHED_TP
+	struct evl_tp_rq *tps;	  /* Current runqueue slot */
+	struct list_head tp_link; /* evl_rq->tp.threads */
+#endif
 	struct cpumask affinity;	/* Processor affinity. */
 
 	/* Base priority (before PI/PP boost) */

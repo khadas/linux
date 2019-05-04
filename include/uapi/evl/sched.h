@@ -24,15 +24,6 @@ struct __sched_quota_param {
 	int __sched_group;
 };
 
-struct evl_sched_attrs {
-	int sched_policy;
-	int sched_priority;
-	union {
-		struct __sched_rr_param rr;
-		struct __sched_quota_param quota;
-	} sched_u;
-};
-
 struct evl_quota_ctlparam {
 	enum {
 		evl_quota_add,
@@ -56,10 +47,6 @@ struct evl_quota_ctlparam {
 	} u;
 };
 
-union evl_sched_ctlparam {
-	struct evl_quota_ctlparam quota;
-};
-
 struct evl_quota_ctlinfo {
 	int tgid;
 	int quota;
@@ -67,8 +54,57 @@ struct evl_quota_ctlinfo {
 	int quota_sum;
 };
 
+#define SCHED_TP		45
+#define sched_tp_partition	sched_u.tp.__sched_partition
+
+struct __sched_tp_param {
+	int __sched_partition;
+};
+
+#define EVL_TP_IDLE	-1	/* Idle pseudo-partition */
+
+struct evl_tp_ctlparam {
+	enum {
+		evl_install_tp,
+		evl_uninstall_tp,
+		evl_start_tp,
+		evl_stop_tp,
+		evl_get_tp,
+	} op;
+	int nr_windows;
+	struct __sched_tp_window {
+		struct timespec offset;
+		struct timespec duration;
+		int ptid;
+	} windows[0];
+};
+
+struct evl_tp_ctlinfo {
+	int nr_windows;
+	struct __sched_tp_window windows[0];
+};
+
+#define evl_tp_paramlen(__p)	\
+	(sizeof(*__p) + (__p)->nr_windows * sizeof((__p)->windows))
+
+struct evl_sched_attrs {
+	int sched_policy;
+	int sched_priority;
+	union {
+		struct __sched_rr_param rr;
+		struct __sched_quota_param quota;
+		struct __sched_tp_param tp;
+	} sched_u;
+};
+
+union evl_sched_ctlparam {
+	struct evl_quota_ctlparam quota;
+	struct evl_tp_ctlparam tp;
+};
+
 union evl_sched_ctlinfo {
 	struct evl_quota_ctlinfo quota;
+	struct evl_tp_ctlinfo tp;
 };
 
 struct evl_sched_ctlreq {

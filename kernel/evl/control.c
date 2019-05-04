@@ -132,6 +132,56 @@ static int do_quota_control(struct evl_sched_ctlreq *ctl)
 
 #endif
 
+#ifdef CONFIG_EVL_SCHED_TP
+
+static int do_tp_control(struct evl_sched_ctlreq *ctl)
+{
+	union evl_sched_ctlinfo *info = NULL, __user *u_infp;
+	union evl_sched_ctlparam param, __user *u_ctlp;
+	size_t len;
+	int ret;
+
+	u_ctlp = (typeof(u_ctlp))ctl->param;
+	ret = raw_copy_from_user(&param.tp, &u_ctlp->tp, sizeof(param.tp));
+	if (ret)
+		return -EFAULT;
+
+	if (ctl->info) {
+		/* Quick check to prevent creepy memalloc. */
+		if (param.tp.nr_windows > CONFIG_EVL_SCHED_TP_NR_PART)
+			return -EINVAL;
+
+		len = evl_tp_paramlen(&param.tp);
+		info = evl_alloc(len);
+		if (info == NULL)
+			return -ENOMEM;
+	}
+
+	ret = evl_sched_tp.sched_control(ctl->cpu, &param, info);
+	if (ret || info == NULL)
+		goto out;
+
+	u_infp = (typeof(u_infp))ctl->info;
+	len = evl_tp_paramlen(&info->tp);
+	ret = raw_copy_to_user(&u_infp->tp, &info->tp, len);
+	if (ret)
+		ret = -EFAULT;
+out:
+	if (info)
+		evl_free(info);
+
+	return ret;
+}
+
+#else
+
+static int do_tp_control(struct evl_sched_ctlreq *ctl)
+{
+	return -EINVAL;
+}
+
+#endif
+
 static int do_sched_control(struct evl_sched_ctlreq *ctl)
 {
 	int ret;
@@ -139,6 +189,9 @@ static int do_sched_control(struct evl_sched_ctlreq *ctl)
 	switch (ctl->policy) {
 	case SCHED_QUOTA:
 		ret = do_quota_control(ctl);
+		break;
+	case SCHED_TP:
+		ret = do_tp_control(ctl);
 		break;
 	default:
 		return -EINVAL;

@@ -16,6 +16,7 @@
 #include <evl/sched/queue.h>
 #include <evl/sched/weak.h>
 #include <evl/sched/quota.h>
+#include <evl/sched/tp.h>
 #include <evl/assert.h>
 #include <evl/init.h>
 
@@ -84,6 +85,10 @@ struct evl_rq {
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	/* Context of runtime quota scheduling. */
 	struct evl_sched_quota quota;
+#endif
+#ifdef CONFIG_EVL_SCHED_TP
+	/* Context for time partitioning policy. */
+	struct evl_sched_tp tp;
 #endif
 	struct evl_timer inband_timer;
 	/* Round-robin timer. */

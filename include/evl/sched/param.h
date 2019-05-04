@@ -25,12 +25,20 @@ struct evl_quota_param {
 	int tgid;	/* thread group id. */
 };
 
+struct evl_tp_param {
+	int prio;
+	int ptid;	/* partition id. */
+};
+
 union evl_sched_param {
 	struct evl_idle_param idle;
 	struct evl_rt_param rt;
 	struct evl_weak_param weak;
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	struct evl_quota_param quota;
+#endif
+#ifdef CONFIG_EVL_SCHED_TP
+	struct evl_tp_param tp;
 #endif
 };
 

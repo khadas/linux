@@ -9,3 +9,4 @@ evl-y :=	\
 	weak.o
 
 evl-$(CONFIG_EVL_SCHED_QUOTA) += quota.o
+evl-$(CONFIG_EVL_SCHED_TP) += tp.o
