@@ -712,7 +712,7 @@
 		pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
+		status = "okay";	
 	};
 
 	spi2: spi@ff1e0000 {
