@@ -128,7 +128,7 @@ struct evl_sched_class evl_sched_rt = {
 	.sched_ceilprio		=	evl_rt_ceilprio,
 	.sched_getparam		=	evl_rt_getparam,
 	.sched_show		=	evl_rt_show,
-	.weight			=	EVL_CLASS_WEIGHT(3),
+	.weight			=	EVL_CLASS_WEIGHT(4),
 	.policy			=	SCHED_FIFO,
 	.name			=	"rt"
 };
