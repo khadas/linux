@@ -346,11 +346,26 @@ static DEVICE_ATTR_RW(quota);
 
 #endif
 
+#ifdef CONFIG_EVL_SCHED_TP
+
+static ssize_t tp_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", CONFIG_EVL_SCHED_TP_NR_PART);
+}
+static DEVICE_ATTR_RO(tp);
+
+#endif
+
 static struct attribute *control_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_abi.attr,
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	&dev_attr_quota.attr,
+#endif
+#ifdef CONFIG_EVL_SCHED_TP
+	&dev_attr_tp.attr,
 #endif
 	NULL,
 };
