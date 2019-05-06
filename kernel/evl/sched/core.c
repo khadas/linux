@@ -60,6 +60,9 @@ static void register_classes(void)
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	register_one_class(&evl_sched_quota);
 #endif
+#ifdef CONFIG_EVL_SCHED_TP
+	register_one_class(&evl_sched_tp);
+#endif
 	register_one_class(&evl_sched_rt);
 }
 
