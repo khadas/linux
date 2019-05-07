@@ -624,6 +624,7 @@ static long timerfd_oob_ioctl(struct file *filp,
 	switch (cmd) {
 	case EVL_TFDIOC_SET:
 		u_sreq = (typeof(u_sreq))arg;
+		sreq.ovalue = NULL;
 		ret = raw_copy_from_user(&sreq, u_sreq, sizeof(sreq));
 		if (ret)
 			return -EFAULT;
