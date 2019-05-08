@@ -2176,10 +2176,6 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 		return -ESTALE;
 
 	switch (cmd) {
-	case EVL_THRIOC_SWITCH_OOB:
-		if (thread == curr)
-			ret = evl_switch_oob();
-		break;
 	case EVL_THRIOC_SWITCH_INBAND:
 		if (thread == curr)
 			ret = 0;
