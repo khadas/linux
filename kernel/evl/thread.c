@@ -1635,6 +1635,20 @@ void arch_inband_task_init(struct task_struct *tsk)
 	evl_init_thread_state(p);
 }
 
+static inline void note_trap(struct evl_thread *curr,
+		unsigned int trapnr, struct pt_regs *regs,
+		const char *msg)
+{
+	printk(EVL_WARNING
+		"%s %s [pid=%d, excpt=%#x, %spc=%#lx]\n",
+		curr->name, msg,
+		evl_get_inband_pid(curr),
+		trapnr,
+		user_mode(regs) ? "" : "kernel_",
+		instruction_pointer(regs));
+}
+
+/* hard irqs off. */
 void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
@@ -1642,17 +1656,18 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 	oob_context_only();
 
 	curr = evl_current();
+	if (curr->local_info & T_INFAULT) {
+		note_trap(curr, trapnr, regs, "recursive fault");
+		return;
+	}
+
+	curr->local_info |= T_INFAULT;
+
 	trace_evl_thread_fault(trapnr, regs);
 
 #if defined(CONFIG_EVL_DEBUG_CORE) || defined(CONFIG_EVL_DEBUG_USER)
 	if (xnarch_fault_notify(trapnr))
-		printk(EVL_WARNING
-			"%s switching in-band [pid=%d, excpt=%#x, %spc=%#lx]\n",
-			curr->name,
-			evl_get_inband_pid(curr),
-			trapnr,
-			user_mode(regs) ? "" : "kernel_",
-			instruction_pointer(regs));
+		note_trap(curr, trapnr, regs, "switching in-band");
 #endif
 	if (xnarch_fault_pf_p(trapnr))
 		/*
@@ -1669,6 +1684,8 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 	evl_switch_inband(xnarch_fault_notify(trapnr) ?
 			SIGDEBUG_MIGRATE_FAULT :
 			SIGDEBUG_UNDEFINED);
+
+	curr->local_info &= ~T_INFAULT;
 }
 
 void handle_oob_mayday(struct pt_regs *regs)
