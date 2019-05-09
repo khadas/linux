@@ -4484,7 +4484,7 @@ static void __exit osd_exit_module(void)
 	platform_driver_unregister(&osd_driver);
 }
 
-subsys_initcall(osd_init_module);
+module_init(osd_init_module);
 module_exit(osd_exit_module);
 
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
