@@ -144,10 +144,6 @@ static void setup_proxy(struct clock_proxy_device *dev)
 
 	dev->handle_oob_event = clock_event_handler;
 	proxy_dev->features |= CLOCK_EVT_FEAT_KTIME;
-	proxy_dev->min_delta_ns = 1;
-	proxy_dev->max_delta_ns = KTIME_MAX;
-	proxy_dev->min_delta_ticks = 1;
-	proxy_dev->max_delta_ticks = ULONG_MAX;
 	proxy_dev->set_next_ktime = proxy_set_next_ktime;
 	if (proxy_dev->set_state_oneshot_stopped)
 		proxy_dev->set_state_oneshot_stopped = proxy_set_oneshot_stopped;
