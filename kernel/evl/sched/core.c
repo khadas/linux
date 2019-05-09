@@ -670,17 +670,15 @@ static inline int test_resched(struct evl_rq *rq)
 	return resched;
 }
 
-static inline void enter_root(struct evl_thread *root)
+static inline void enter_inband(struct evl_thread *root)
 {
 #ifdef CONFIG_EVL_WATCHDOG
 	evl_stop_timer(&evl_thread_rq(root)->wdtimer);
 #endif
 }
 
-static inline void leave_root(struct evl_thread *root)
+static inline void leave_inband(struct evl_thread *root)
 {
-	dovetail_resume_oob(&root->altsched);
-
 #ifdef CONFIG_EVL_WATCHDOG
 	evl_start_timer(&evl_thread_rq(root)->wdtimer,
 			evl_abs_timeout(&evl_thread_rq(root)->wdtimer,
@@ -700,8 +698,8 @@ static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
 
 bool __evl_schedule(struct evl_rq *this_rq)
 {
+	bool switched, leaving_inband, inband_tail;
 	struct evl_thread *prev, *next, *curr;
-	bool switched, oob_entry;
 	unsigned long flags;
 
 	trace_evl_schedule(this_rq);
@@ -712,7 +710,7 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	/*
 	 * CAUTION: curr->altsched.task may be unsynced and even stale
 	 * if curr == &this_rq->root_thread, since the task logged by
-	 * leave_root() may not still be the current one. Use
+	 * leave_inband() may not still be the current one. Use
 	 * "current" for disambiguating if you need to refer to the
 	 * underlying inband task.
 	 */
@@ -735,52 +733,38 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	}
 
 	prev = curr;
-
 	trace_evl_switch_context(prev, next);
-
 	this_rq->curr = next;
-	oob_entry = true;
+	leaving_inband = false;
 
 	if (prev->state & T_ROOT) {
-		leave_root(prev);
-		oob_entry = false;
+		leave_inband(prev);
+		leaving_inband = true;
 	} else if (next->state & T_ROOT) {
 		if (this_rq->lflags & RQ_TPROXY)
 			evl_notify_proxy_tick(this_rq);
 		if (this_rq->lflags & RQ_TDEFER)
 			evl_program_local_tick(&evl_mono_clock);
-		enter_root(next);
+		enter_inband(next);
 	}
 
 	evl_switch_account(this_rq, &next->stat.account);
 	evl_inc_counter(&next->stat.csw);
-	dovetail_context_switch(&prev->altsched, &next->altsched);
+	inband_tail = dovetail_context_switch(&prev->altsched,
+					&next->altsched, leaving_inband);
+	EVL_WARN_ON(CORE, this_evl_rq()->curr->state & EVL_THREAD_BLOCK_BITS);
 
 	/*
-	 * Refresh the current rq and thread pointers, this is
-	 * required to cope with in-band<->oob stage transitions.
-	 */
-	this_rq = this_evl_rq();
-	curr = this_rq->curr;
-
-	EVL_WARN_ON(CORE, curr->state & EVL_THREAD_BLOCK_BITS);
-
-	/*
-	 * If we entered __evl_schedule() over the oob stage but don't
-	 * have the OOB flag set into our flags anymore, this portion
-	 * of code is the switch tail of the inband schedule()
-	 * routine, finalizing an earlier call to evl_switch_inband():
+	 * Check whether we are completing a transition to the inband
+	 * stage for the current task, i.e.:
 	 *
 	 * irq_work_queue() ->
 	 *        IRQ:wake_up_process() ->
 	 *                         schedule() ->
 	 *                               back from dovetail_context_switch()
 	 */
-	if (oob_entry && !test_thread_local_flags(_TLF_OOB)) {
-		EVL_WARN_ON_ONCE(CORE, !(preempt_count() & STAGE_MASK));
-		preempt_count_sub(STAGE_OFFSET);
+	if (inband_tail)
 		return true;
-	}
 
 	switched = true;
 out:
