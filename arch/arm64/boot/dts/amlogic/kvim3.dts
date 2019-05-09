@@ -165,7 +165,7 @@
 		status = "okay";
 		sys_led {
 			label="sys_led";
-			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
 			default-state ="on";
 		};
 	};
