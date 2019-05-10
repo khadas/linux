@@ -978,7 +978,7 @@ static int set_coreclk_gravity(struct evl_clock *clock,
 
 static void get_default_gravity(struct evl_clock_gravity *p)
 {
-	unsigned int ulat = 4000; /* ns */
+	unsigned int ulat = 3000; /* ns, decent default. */
 
 #if CONFIG_EVL_LATENCY_USER != 0
 	ulat = CONFIG_XENO_OPT_TIMING_SCHEDLAT;
