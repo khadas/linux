@@ -39,7 +39,7 @@ struct latmus_result {
  * second through an xbuf channel.
  */
 struct latmus_measurement {
-	__u64 sum_lat;
+	__s64 sum_lat;
 	__s32 min_lat;
 	__s32 max_lat;
 	__u32 overruns;
