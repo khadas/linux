@@ -20,6 +20,11 @@
 #define w25q128fw_DEVICE_ID 0x6018
 #define w25q128fw_SPI_READ_ID_CMD 0x9F
 static int w25q128fw_id=0;//0:NG,1:OK
+int usb2_id=0;//0:NG,1:OK
+int usb3_id=0;//0:NG,1:OK
+int fusb302_1=0;//0:NG,1:OK
+int fusb302_2=0;//0:NG,1:OK
+int charge_id=0;//0:NG,1:OK
 
 static ssize_t show_w25q128fw_id(struct class *cls,
 		        struct class_attribute *attr, char *buf)
@@ -27,8 +32,36 @@ static ssize_t show_w25q128fw_id(struct class *cls,
 	return sprintf(buf, "%d\n", w25q128fw_id);
 }
 
+static ssize_t show_usb2(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", usb2_id);
+}
+
+static ssize_t show_usb3(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", usb3_id);
+}
+
+static ssize_t show_fusb302(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", fusb302_2<<1|fusb302_1);
+}
+
+static ssize_t show_charge(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", charge_id);
+}
+
 static struct class_attribute w25q128fw_attrs[] = {
 	__ATTR(id, 0644, show_w25q128fw_id, NULL),
+	__ATTR(usb2, 0644, show_usb2, NULL),
+	__ATTR(usb3, 0644, show_usb3, NULL),
+	__ATTR(fusb302, 0644, show_fusb302, NULL),
+	__ATTR(charge, 0644, show_charge, NULL),
 };
 
 static void create_w25q128fw_attrs(void)
@@ -58,7 +91,6 @@ static int w25q128fw_spi_read_id(struct spi_device *spi)
 		if(w25q128fw_DEVICE_ID==(rbuf[1]<<8|rbuf[2])){
 			printk("w25q128fw is ok\n"); 
 			w25q128fw_id=1;
-			create_w25q128fw_attrs();
 		}
 		else
 			w25q128fw_id=0;
@@ -87,6 +119,7 @@ static int w25q128fw_spi_probe(struct spi_device *spi)
 			(spi->mode & SPI_LOOP) ? "loopback, " : "",
 			spi->bits_per_word, spi->max_speed_hz);
 	w25q128fw_spi_read_id(spi);	
+	create_w25q128fw_attrs();
     return ret;
 }
 
