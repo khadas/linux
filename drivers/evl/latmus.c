@@ -49,7 +49,7 @@ struct runner_state {
 	int prev_mean;
 	int prev_sqs;
 	int cur_sqs;
-	unsigned int sum;
+	int sum;
 	unsigned int overruns;
 	unsigned int cur_samples;
 	unsigned int max_samples;
@@ -608,7 +608,7 @@ static void dump_scores(struct latmus_runner *runner)
 
 	for (n = 0; n < runner->nscores; n++)
 		printk(EVL_INFO
-		       ".. S%.2d pmean=%d stddev=%u minlat=%u gravity=%u\n",
+		       ".. S%.2d pmean=%d stddev=%d minlat=%d gravity=%u\n",
 		       runner->scores[n].step,
 		       runner->scores[n].pmean,
 		       runner->scores[n].stddev,
