@@ -4,14 +4,16 @@ config HAVE_ARCH_EVL
 	bool
 
 menuconfig EVL
-	bool "Enable the EVL core"
+	bool "EVL real-time core"
 	depends on HAVE_ARCH_EVL
 	select DOVETAIL
 	help
 
 	  The EVL core is a real-time component of the Linux kernel,
-	  which exhibits very short interrupt and scheduling latency,
-	  without affecting the regular kernel services.
+	  which delivers very short and bounded response time to
+	  interrupt and task events.  EVL runs asynchronously to the
+	  common kernel services, on the high-priority, out-of-band
+	  stage managed by the Dovetail layer.
 
 if EVL
 
