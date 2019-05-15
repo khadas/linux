@@ -591,20 +591,6 @@
 		};
 
 		aml-audio-card,dai-link@3 {
-			mclk-fs = <64>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-pdm";
-			cpu {
-				sound-dai = <&aml_pdm>;
-			};
-			codec {
-				sound-dai = <&pdm_codec>;
-			};
-		};
-
-		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
 			continuous-clock;
 			/* suffix-name, sync with android audio hal
@@ -941,7 +927,7 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>; /* mode 0~4, defalut:1 */
-		status = "okay";
+		status = "disable";
 	};
 	aml_loopback: loopback {
 		compatible = "amlogic, snd-loopback";
