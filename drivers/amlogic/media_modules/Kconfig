@@ -1,0 +1,95 @@
+config AMLOGIC_MEDIA_VDEC_MPEG12
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_MPEG4
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_MPEG4_MULTI
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_VC1
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_H264
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_H264_MULTI
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_H264_MVC
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_H265
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_VP9
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_MJPEG
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_MJPEG_MULTI
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_REAL
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_AVS
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VDEC_AVS2
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VENC_H264
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
+config AMLOGIC_MEDIA_VENC_H265
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
