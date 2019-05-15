@@ -854,7 +854,8 @@ static int refresh_tvout_mode(void)
 	if (tvout_monitor_flag == 0)
 		return 0;
 
-	hpd_state = vout_get_hpd_state();
+       hpd_state = 1;
+
 	if (hpd_state) {
 		cur_vmode = validate_vmode(hdmimode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", hdmimode);
