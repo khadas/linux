@@ -73,7 +73,7 @@ retry:
 		radix_tree_delete(&pids, pid);
 
 	if (radix_tree_insert(&pids, pid, current)) {
-		spin_unlock(&pids_lock);
+		spin_unlock((spinlock_t *)&pids_lock);
 		radix_tree_preload_end();
 		cond_resched();
 		goto retry;
