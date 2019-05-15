@@ -160,7 +160,7 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 		}
 	}
 }
-
+EXPORT_SYMBOL(videosync_pcrscr_update);
 
 /* -----------------------------------------------------------------
  *           videosync operations
