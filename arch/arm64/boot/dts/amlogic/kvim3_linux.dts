@@ -1258,8 +1258,8 @@
 };
 
 &pcie_A {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
 };
 
 &saradc {
