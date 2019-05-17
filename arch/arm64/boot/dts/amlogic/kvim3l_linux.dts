@@ -1243,3 +1243,6 @@
 	status = "okay";
 };
 
+&irblaster {
+	status = "disabled";
+};
