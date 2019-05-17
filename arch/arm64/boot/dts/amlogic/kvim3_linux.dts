@@ -1222,15 +1222,14 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <3>;
 };
+
 &ethmac {
 	status = "okay";
-/*	//conflict with isp i2c
- *	pinctrl-names = "internal_eth_pins";
- *	pinctrl-0 = <&internal_eth_pins>;
- */
-	mc_val = <0x4be04>;
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1621>;
 
-	internal_phy=<1>;
+	internal_phy=<0>;
 };
 
 &uart_A {
