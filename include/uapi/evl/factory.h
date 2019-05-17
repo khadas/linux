@@ -7,6 +7,8 @@
 #ifndef _EVL_UAPI_FACTORY_H
 #define _EVL_UAPI_FACTORY_H
 
+#include <linux/types.h>
+
 #define EVL_FACTORY_IOCBASE	'f'
 
 struct evl_element_ids {

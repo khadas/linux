@@ -8,6 +8,8 @@
 #ifndef _EVL_UAPI_SCHED_H
 #define _EVL_UAPI_SCHED_H
 
+#include <linux/types.h>
+
 #define SCHED_EVL	42
 #define SCHED_WEAK	43
 

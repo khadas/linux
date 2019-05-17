@@ -7,6 +7,8 @@
 #ifndef _EVL_ARM64_ASM_UAPI_FPTEST_H
 #define _EVL_ARM64_ASM_UAPI_FPTEST_H
 
+#include <linux/types.h>
+
 #define evl_arm64_fpsimd  0x1
 #define evl_arm64_sve     0x2
 
