@@ -1276,3 +1276,7 @@
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_6 0>;
 };
+
+&remote {
+	status = "disabled";
+};

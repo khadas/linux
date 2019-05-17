@@ -1250,3 +1250,7 @@
 &irblaster {
 	status = "disabled";
 };
+
+&remote {
+	status = "disabled";
+};
