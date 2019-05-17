@@ -270,12 +270,10 @@ static int set_vout_init_mode(void)
 	snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", vout_mode_uboot);
 	vout_init_vmode = validate_vmode(vout_mode_uboot);
 	if (vout_init_vmode >= VMODE_MAX) {
-		VOUTERR("no matched vout_init mode %s, force to invalid\n",
+		VOUTERR("no matched vout mode %s, force to set 1080p60hz\n",
 			vout_mode_uboot);
-		nulldisp_index = 1;
-		vout_init_vmode = nulldisp_vinfo[nulldisp_index].mode;
-		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s",
-			nulldisp_vinfo[nulldisp_index].name);
+		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", "1080p60hz");
+		vout_init_vmode = validate_vmode("1080p60hz");
 	}
 	last_vmode = vout_init_vmode;
 
@@ -864,12 +862,10 @@ static int refresh_tvout_mode(void)
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
 	}
 	if (cur_vmode >= VMODE_MAX) {
-		VOUTERR("%s: no matched cur_mode: %s, force to invalid\n",
+		VOUTERR("%s: no matched vmode: %s, force to set 1080p60hz\n",
 			__func__, cur_mode_str);
-		nulldisp_index = 1;
-		cur_vmode = nulldisp_vinfo[nulldisp_index].mode;
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s",
-			nulldisp_vinfo[nulldisp_index].name);
+		cur_vmode = validate_vmode("1080p60hz");
+		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", "1080p60hz");
 	}
 
 	/* not box platform */
