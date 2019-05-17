@@ -494,11 +494,28 @@
 		aml-audio-card,loopback = <&aml_loopback>;
 		aml-audio-card,aux-devs = <&amlogic_codec>;
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		//avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 		/*for audio effect ,eqdrc */
 		aml-audio-card,effect = <&audio_effect>;
 
+		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			continuous-clock;
+			/* suffix-name, sync with android audio hal
+			* what's the dai link used for
+			*/
+			suffix-name = "alsaPORT-spdifb2hdmi";
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
 			format = "dsp_a";
 			mclk-fs = <512>;
 			//continuous-clock;
@@ -525,7 +542,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@1 {
+		aml-audio-card,dai-link@2 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
 			//continuous-clock;
@@ -556,32 +573,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec &ad82584f_62>;
-			};
-		};
-
-		aml-audio-card,dai-link@2 {
-			format = "i2s";
-			mclk-fs = <256>;
-			//continuous-clock;
-			//bitclock-inversion;
-			//frame-inversion;
-			bitclock-master = <&aml_tdmc>;
-			frame-master = <&aml_tdmc>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			//suffix-name = "alsaPORT-tdm";
-			cpu {
-				sound-dai = <&aml_tdmc>;
-				dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&tlv320adc3101_32 &dummy_codec>;
+				&amlogic_codec>;
 			};
 		};
 
@@ -593,22 +585,6 @@
 			suffix-name = "alsaPORT-spdif";
 			cpu {
 				sound-dai = <&aml_spdif>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-		/* spdif_b to hdmi, only playback */
-		aml-audio-card,dai-link@4 {
-			mclk-fs = <128>;
-			continuous-clock;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
-			cpu {
-				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
 			};
 			codec {
@@ -713,31 +689,6 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
-
-	/* for ref board */
-	ad82584f_62: ad82584f_62@62 {
-		compatible = "ESMT, ad82584f";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-		reset_pin = <&gpio GPIOA_5 0>;
-	};
-
-	tlv320adc3101_32: tlv320adc3101_32@32 {
-		compatible = "ti,tlv320adc3101";
-		#sound-dai-cells = <0>;
-		reg = <0x19>;
-		differential_pair = <1>;
-		status = "okay";
-	};
-
-	tas5707_36: tas5707_36@36 {
-		compatible = "ti,tas5707";
-		#sound-dai-cells = <0>;
-		reg = <0x1b>;
-		status = "disabled";
-		reset_pin = <&gpio GPIOA_5 0>;
-	};
 
 	bl_extern_i2c {
 		compatible = "bl_extern, i2c";
