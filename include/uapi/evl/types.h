@@ -8,6 +8,8 @@
 #ifndef _EVL_UAPI_TYPES_H
 #define _EVL_UAPI_TYPES_H
 
+#include <linux/types.h>
+
 typedef __u32 fundle_t;
 
 #define EVL_NO_HANDLE		((fundle_t)0x00000000)

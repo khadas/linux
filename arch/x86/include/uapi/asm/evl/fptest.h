@@ -7,6 +7,8 @@
 #ifndef _EVL_X86_ASM_UAPI_FPTEST_H
 #define _EVL_X86_ASM_UAPI_FPTEST_H
 
+#include <linux/types.h>
+
 #define evl_x86_xmm2  0x1
 #define evl_x86_avx   0x2
 

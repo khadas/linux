@@ -8,6 +8,7 @@
 #ifndef _EVL_UAPI_THREAD_H
 #define _EVL_UAPI_THREAD_H
 
+#include <linux/types.h>
 #include <uapi/evl/sched.h>
 
 #define EVL_THREAD_DEV		"thread"

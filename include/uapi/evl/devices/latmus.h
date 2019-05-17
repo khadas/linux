@@ -8,6 +8,8 @@
 #ifndef _EVL_UAPI_DEVICES_LATMUS_H
 #define _EVL_UAPI_DEVICES_LATMUS_H
 
+#include <linux/types.h>
+
 /* Latmus context types. */
 #define EVL_LAT_IRQ   0
 #define EVL_LAT_KERN  1

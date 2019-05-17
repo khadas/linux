@@ -7,6 +7,7 @@
 #ifndef _EVL_UAPI_MONITOR_H
 #define _EVL_UAPI_MONITOR_H
 
+#include <linux/types.h>
 #include <uapi/evl/types.h>
 #include <uapi/evl/factory.h>
 

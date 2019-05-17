@@ -7,6 +7,8 @@
 #ifndef _EVL_ARM_ASM_UAPI_FPTEST_H
 #define _EVL_ARM_ASM_UAPI_FPTEST_H
 
+#include <linux/types.h>
+
 #define evl_arm_vfp  0x1
 
 #define evl_set_fpregs(__features, __val)				\

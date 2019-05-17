@@ -7,6 +7,7 @@
 #ifndef _EVL_UAPI_CONTROL_H
 #define _EVL_UAPI_CONTROL_H
 
+#include <linux/types.h>
 #include <uapi/evl/sched.h>
 
 struct evl_core_info {
