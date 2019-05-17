@@ -400,6 +400,15 @@ static int osd_set_fb_var(int index, const struct vinfo_s *vinfo)
 	return 0;
 }
 
+static void osd_set_fb_parameters(int index, const struct vinfo_s *vinfo)
+{
+	osd_set_free_scale_enable_hw(index, 0);
+	osd_set_free_scale_mode_hw(index, 1);
+	osd_set_free_scale_axis_hw(index, 0, 0, vinfo->width, vinfo->height);
+	osd_set_window_axis_hw(index, 0, 0, vinfo->width, vinfo->height);
+	osd_enable_hw(index, 1);
+}
+
 phys_addr_t get_fb_rmem_paddr(int index)
 {
 	if (index < 0 || index > 1)
@@ -4306,6 +4315,9 @@ static int osd_probe(struct platform_device *pdev)
 			for (i = 0; i < ARRAY_SIZE(osd_attrs_viu2); i++)
 			ret = device_create_file(fbi->dev, &osd_attrs_viu2[i]);
 		}
+
+		if (index == DEV_OSD0)
+			osd_set_fb_parameters(DEV_OSD0, vinfo);
 	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING;
