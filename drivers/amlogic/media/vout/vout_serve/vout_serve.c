@@ -861,6 +861,13 @@ static int refresh_tvout_mode(void)
 		cur_vmode = validate_vmode(cvbsmode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
 	}
+
+	/* update current vout mode string */
+	memset(local_name, 0, sizeof(local_name));
+	strncpy(local_name, cur_mode_str, VMODE_NAME_LEN_MAX);
+
+	strncpy(vout_mode, cur_mode_str, VMODE_NAME_LEN_MAX);
+
 	if (cur_vmode >= VMODE_MAX) {
 		VOUTERR("%s: no matched vmode: %s, force to set 1080p60hz\n",
 			__func__, cur_mode_str);
