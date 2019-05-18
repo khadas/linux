@@ -267,6 +267,11 @@ static int set_vout_init_mode(void)
 	char init_mode_str[VMODE_NAME_LEN_MAX];
 	int ret = 0;
 
+	strncpy(vout_mode_uboot,
+			(vout_get_hpd_state() || !is_panel_exist()) ?
+			hdmimode : "panel",
+			sizeof(vout_mode_uboot));
+
 	snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", vout_mode_uboot);
 	vout_init_vmode = validate_vmode(vout_mode_uboot);
 	if (vout_init_vmode >= VMODE_MAX) {
@@ -852,7 +857,10 @@ static int refresh_tvout_mode(void)
 	if (tvout_monitor_flag == 0)
 		return 0;
 
-       hpd_state = 1;
+	hpd_state = vout_get_hpd_state();
+
+	if (!is_panel_exist())
+		hpd_state = 1;
 
 	if (hpd_state) {
 		cur_vmode = validate_vmode(hdmimode);
