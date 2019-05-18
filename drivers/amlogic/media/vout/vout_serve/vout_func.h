@@ -90,4 +90,6 @@ extern int vout2_resume(void);
 extern int vout2_shutdown(void);
 #endif
 
+extern int is_panel_exist(void);
+
 #endif

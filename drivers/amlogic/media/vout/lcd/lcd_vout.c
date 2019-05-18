@@ -1513,6 +1513,22 @@ static int __init lcd_panel_type_para_setup(char *str)
 }
 __setup("panel_type=", lcd_panel_type_para_setup);
 
+static int panel_exist = 0;
+
+int is_panel_exist(void)
+{
+	return panel_exist;
+}
+EXPORT_SYMBOL(is_panel_exist);
+
+static int __init get_panel_status(char *str)
+{
+	panel_exist = (str[0] == '0') ? 0 : 1;
+
+	return 0;
+}
+__setup("panel_exist=", get_panel_status);
+
 MODULE_DESCRIPTION("Meson LCD Panel Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amlogic, Inc.");
