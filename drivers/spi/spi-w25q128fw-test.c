@@ -25,6 +25,7 @@ int usb3_id=0;//0:NG,1:OK
 int fusb302_1=0;//0:NG,1:OK
 int fusb302_2=0;//0:NG,1:OK
 int charge_id=0;//0:NG,1:OK
+int key_test_flag=0;//0:NG,1:OK
 
 static ssize_t show_w25q128fw_id(struct class *cls,
 		        struct class_attribute *attr, char *buf)
@@ -56,12 +57,19 @@ static ssize_t show_charge(struct class *cls,
 	return sprintf(buf, "%d\n", charge_id);
 }
 
+static ssize_t show_key(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	key_test_flag=1;
+	return sprintf(buf, "%d\n", key_test_flag);
+}
 static struct class_attribute w25q128fw_attrs[] = {
 	__ATTR(id, 0644, show_w25q128fw_id, NULL),
 	__ATTR(usb2, 0644, show_usb2, NULL),
 	__ATTR(usb3, 0644, show_usb3, NULL),
 	__ATTR(fusb302, 0644, show_fusb302, NULL),
 	__ATTR(charge, 0644, show_charge, NULL),
+	__ATTR(key, 0644, show_key, NULL),
 };
 
 static void create_w25q128fw_attrs(void)

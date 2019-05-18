@@ -279,13 +279,6 @@
 	};
 };
 
-&rk_key {
-	enter-key {
-		linux,code = <232>;
-		label = "enter";
-		rockchip,adc_value = <170>;
-	};
-};
 
 &pwm3 {
 	status = "okay";

@@ -60,6 +60,19 @@ static int Khadas_Code[KEYS_NUM] = {
 	KEY_SPACE
 };
 
+static int key_Code_test[KEYS_NUM+2] = {
+	KEY_1,
+	KEY_3,
+	KEY_2,
+	KEY_4,
+	KEY_RIGHT,
+	KEY_LEFT,
+	KEY_DOWN,
+	KEY_UP,
+	KEY_5,
+	KEY_6,
+	KEY_7
+};
 struct matrix_keypad {
 	struct platform_device *pdev;
 	struct input_dev *input_dev;
@@ -74,6 +87,13 @@ struct matrix_keypad {
 	bool no_autorepeat;
 	int debounce_ms;
 };
+struct input_dev *input_key_dev;
+void Khadas_key_test(u32 code,u32 state)
+{
+	//printk("hlm code=%d, state=%d\n",code, state);
+	input_report_key(input_key_dev, code, state);
+	input_sync(input_key_dev);
+}
 
 static void __activate_col(struct matrix_keypad *keypad,
 			   int col, bool on)
@@ -172,10 +192,19 @@ static void matrix_keypad_scan(struct work_struct *work)
 
 end:
 	if (keypad->last_key != key_num) {
-		if(key_num != -1)
-			input_report_key(input_dev, keypad->key[key_num].code, 1);
-		else
-			input_report_key(input_dev, keypad->key[keypad->last_key].code, 0);
+extern int key_test_flag;
+		if(key_test_flag){
+			if(key_num != -1)
+				input_report_key(input_dev, key_Code_test[key_num], 1);
+			else
+				input_report_key(input_dev, key_Code_test[keypad->last_key], 0);
+		}
+		else{
+			if(key_num != -1)
+				input_report_key(input_dev, keypad->key[key_num].code, 1);
+			else
+				input_report_key(input_dev, keypad->key[keypad->last_key].code, 0);
+		}
 		input_sync(input_dev);
 	}
 	keypad->last_key = key_num;
@@ -306,7 +335,7 @@ static int matrix_keypad_parse_dt(struct device *dev, struct matrix_keypad *keyp
 		return -ENOMEM;
 	}
 
-	keys = devm_kzalloc(dev, sizeof(*(keypad->key))*KEYS_NUM , GFP_KERNEL);
+	keys = devm_kzalloc(dev, sizeof(*(keypad->key))*(KEYS_NUM+2) , GFP_KERNEL);
 
 	if (!keys) {
 		dev_err(dev, "could not allocate memory for keys\n");
@@ -323,7 +352,12 @@ static int matrix_keypad_parse_dt(struct device *dev, struct matrix_keypad *keyp
 
 	keypad->row_gpios = gpios;
 	keypad->col_gpios = &gpios[ROW_GPIO_NUM];
-
+	
+	for (i =0; i < (KEYS_NUM+2); i++) {
+		keys[i].key = i;
+		keys[i].code = key_Code_test[i];
+		input_set_capability(input_dev, EV_KEY, keys[i].code);
+	}
 	for (i =0; i < KEYS_NUM; i++) {
 		keys[i].key = i;
 		keys[i].code = Khadas_Code[i];
@@ -350,7 +384,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_free_mem;
 	}
-
+	input_key_dev=input_dev;
 	ret = matrix_keypad_parse_dt(&pdev->dev, keypad, input_dev);
 	if (ret < 0)
 		goto err_free_mem;
