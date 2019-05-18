@@ -92,7 +92,7 @@ static inline struct page_trace *find_page_base(struct page *page)
 {
 	return NULL;
 }
-static unsigned long find_back_trace(void)
+static inline unsigned long find_back_trace(void)
 {
 	return 0;
 }

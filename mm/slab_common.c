@@ -1073,9 +1073,11 @@ static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 			p++;
 			saved++;
 		}
+		#ifdef CONFIG_AMLOGIC_PAGE_TRACE
 		pr_debug("%s, page:%p, all:%5ld, size:%5ld, save:%5ld, f:%pf\n",
 			__func__, page_address(page), total_pages * PAGE_SIZE,
 			(long)size, saved * PAGE_SIZE, (void *)fun);
+		#endif
 		return page;
 	} else
 		return NULL;

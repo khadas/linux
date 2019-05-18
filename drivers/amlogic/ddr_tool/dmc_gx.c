@@ -112,10 +112,12 @@ static void check_violation(struct dmc_monitor *mon)
 		if (pfn_valid(__phys_to_pfn(addr))) {
 			page = phys_to_page(addr);
 			p = (page_address(page) + (addr & (PAGE_SIZE - 1)));
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
 			pr_info(DMC_TAG" [%08lx]:%016lx, f:%8lx, m:%p, a:%pf\n",
 				addr, *p, page->flags & 0xffffffff,
 				page->mapping,
 				(void *)get_page_trace(page));
+#endif
 		}
 		if (!port) /* dump stack for CPU write */
 			dump_stack();
