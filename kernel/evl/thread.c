@@ -275,13 +275,6 @@ static void cleanup_current_thread(void)
 	dovetail_stop_altsched();
 	do_cleanup_current(curr);
 
-	/* Wake up the joiner if any (we can't have more than one). */
-	complete(&curr->exited);
-
-	/* Notify our exit to evl_killall() if need be. */
-	if (waitqueue_active(&join_all))
-		wake_up(&join_all);
-
 	p->thread = NULL;	/* evl_current() <- NULL */
 }
 
@@ -1030,50 +1023,12 @@ int evl_detach_self(void)
 }
 EXPORT_SYMBOL_GPL(evl_detach_self);
 
-struct wait_grace_struct {
-	struct completion done;
-	struct rcu_head rcu;
-};
-
-static void grace_elapsed(struct rcu_head *head)
-{
-	struct wait_grace_struct *wgs;
-
-	wgs = container_of(head, struct wait_grace_struct, rcu);
-	complete(&wgs->done);
-}
-
-static void wait_for_rcu_grace_period(struct pid *pid)
-{
-	struct wait_grace_struct wait = {
-		.done = COMPLETION_INITIALIZER_ONSTACK(wait.done),
-	};
-	struct task_struct *p;
-
-	init_rcu_head_on_stack(&wait.rcu);
-
-	for (;;) {
-		call_rcu(&wait.rcu, grace_elapsed);
-		wait_for_completion(&wait.done);
-		if (pid == NULL)
-			break;
-		rcu_read_lock(); /* pid_task() is RCU-protected. */
-		p = pid_task(pid, PIDTYPE_PID);
-		rcu_read_unlock();
-		if (p == NULL)
-			break;
-		reinit_completion(&wait.done);
-	}
-}
-
 int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 {
 	struct evl_thread *curr = evl_current();
 	bool switched = false;
 	unsigned long flags;
-	struct pid *pid;
 	int ret = 0;
-	pid_t tpid;
 
 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
 		return -EINVAL;
@@ -1088,12 +1043,12 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 	 * synchronization mechanism with no resource collection.
 	 */
 
-	if (thread->info & T_DORMANT)
-		goto out;
+	if (thread->info & T_DORMANT) {
+		xnlock_put_irqrestore(&nklock, flags);
+		return 0;
+	}
 
 	trace_evl_thread_join(thread);
-
-	tpid = evl_get_inband_pid(thread);
 
 	if (curr && !(curr->state & T_INBAND)) {
 		xnlock_put_irqrestore(&nklock, flags);
@@ -1101,15 +1056,6 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 		switched = true;
 	} else
 		xnlock_put_irqrestore(&nklock, flags);
-
-	/*
-	 * Since in theory, we might be sleeping there for a long
-	 * time, we get a reference on the pid struct holding our
-	 * target, then we check for its existence upon wake up.
-	 */
-	pid = find_get_pid(tpid);
-	if (pid == NULL)
-		goto done;
 
 	/*
 	 * We have a tricky issue to deal with, which involves code
@@ -1149,24 +1095,14 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 		wait_for_completion(&thread->exited);
 	else {
 		ret = wait_for_completion_interruptible(&thread->exited);
-		if (ret < 0) {
-			put_pid(pid);
+		if (ret < 0)
 			return -EINTR;
-		}
 	}
 
-	/* Make sure the joinee has scheduled away ultimately. */
-	wait_for_rcu_grace_period(pid);
+	/* The joinee is gone at this point, @thread is invalid. */
 
-	put_pid(pid);
-done:
-	ret = 0;
 	if (switched)
 		ret = evl_switch_oob();
-
-	return ret;
-out:
-	xnlock_put_irqrestore(&nklock, flags);
 
 	return ret;
 }
@@ -1579,9 +1515,6 @@ int evl_killall(int mask)
 
 	ret = wait_event_interruptible(join_all,
 				evl_nrthreads == count);
-
-	/* Wait for a full RCU grace period to expire. */
-	wait_for_rcu_grace_period(NULL);
 
 	if (EVL_DEBUG(CORE))
 		printk(EVL_INFO "joined %d threads\n",
@@ -2331,13 +2264,19 @@ static void thread_factory_dispose(struct evl_element *e)
 	thread = container_of(e, struct evl_thread, element);
 
 	/*
-	 * Two ways to get there: if open_factory_node() fails
-	 * creating a device for @thread which is current, or when the
-	 * last file reference to @thread is dropped after it has
-	 * exited. We detect the first case by checking the zombie
-	 * state.
+	 * Two ways to get into the disposal handler: either
+	 * open_factory_node() failed creating a device for @thread
+	 * which is current, or when the last file reference to
+	 * @thread is dropped after it has exited. T_ZOMBIE cleared
+	 * denotes the first case, otherwise @thread has existed and
+	 * is now dead and no more reachable, so we can wakeup any
+	 * joiners.
 	 */
-	if (!(thread->state & T_ZOMBIE)) {
+	if (thread->state & T_ZOMBIE) {
+		complete_all(&thread->exited);	 /* evl_join_thread() */
+		if (waitqueue_active(&join_all)) /* evl_killall() */
+			wake_up(&join_all);
+	} else {
 		if (EVL_WARN_ON(CORE, evl_current() != thread))
 			return;
 		cleanup_current_thread();
