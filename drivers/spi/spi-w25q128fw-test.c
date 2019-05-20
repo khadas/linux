@@ -17,6 +17,19 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
 
+#include <linux/fs.h>
+#include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/cdev.h>
+#include <linux/gpio.h>
+#include <linux/input.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#include <linux/delay.h>
+#include <asm/uaccess.h>
+#include <asm/io.h>
+#include <linux/ioctl.h>
+
 #define w25q128fw_DEVICE_ID 0x6018
 #define w25q128fw_SPI_READ_ID_CMD 0x9F
 static int w25q128fw_id=0;//0:NG,1:OK
@@ -26,6 +39,100 @@ int fusb302_1=0;//0:NG,1:OK
 int fusb302_2=0;//0:NG,1:OK
 int charge_id=0;//0:NG,1:OK
 int key_test_flag=0;//0:NG,1:OK
+
+#define PWM_IO 149
+typedef enum {
+    PWM_DISABLE = 0,
+    PWM_ENABLE,
+}PWM_STATUS_t;
+
+//pwm的设备对象
+struct pwm_chip{
+    unsigned long period; //PWM周期
+    unsigned long duty;   //PWM占空比
+    struct hrtimer mytimer;
+    ktime_t kt;           //设置定时时间
+    PWM_STATUS_t status;
+};
+struct pwm_chip *pwm_dev;
+
+static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
+{    
+    if (gpio_get_value(PWM_IO) == 1) {
+        if (pwm_dev->duty != pwm_dev->period) {     //占空比100%的情况下没必要拉低
+            gpio_set_value(PWM_IO, 0);
+            pwm_dev->kt = ktime_set(0, pwm_dev->period-pwm_dev->duty);
+        }
+        hrtimer_forward_now(&pwm_dev->mytimer, pwm_dev->kt);
+    } else {
+        if (pwm_dev->duty != 0) {                   //占空比０%的情况下没必要拉高
+            gpio_set_value(PWM_IO, 1);
+            pwm_dev->kt = ktime_set(0, pwm_dev->duty);
+        }
+        hrtimer_forward_now(&pwm_dev->mytimer, pwm_dev->kt);
+    }
+    return HRTIMER_RESTART;    
+}
+
+static void pwm_gpio_start(void)
+{    
+    //高精度定时器
+    hrtimer_init(&pwm_dev->mytimer,CLOCK_MONOTONIC,HRTIMER_MODE_REL);
+    pwm_dev->mytimer.function = hrtimer_handler;
+    pwm_dev->kt = ktime_set(0, pwm_dev->period-pwm_dev->duty);
+    hrtimer_start(&pwm_dev->mytimer,pwm_dev->kt,HRTIMER_MODE_REL);
+    
+}
+
+static int pwm_gpio_init(void)
+{
+    int ret = -1;
+
+    pwm_dev = kzalloc(sizeof(struct pwm_chip),GFP_KERNEL);
+    if(pwm_dev == NULL){
+        printk("kzalloc error");
+        return -ENOMEM;
+    }
+    //初始化占空比
+    pwm_dev->period = 500000;//2000HZ
+    pwm_dev->duty = 250000;
+
+    if(gpio_request(PWM_IO, "PWM_GPIO")){
+        printk("error pwm_gpio_init");
+        return ret;
+
+    }else{
+        gpio_direction_output(PWM_IO, 1);
+        gpio_set_value(PWM_IO, 0);
+		pwm_dev->status = PWM_DISABLE;
+    }
+
+    return 0;
+}
+
+static ssize_t store_buzzer(struct class *cls, struct class_attribute *attr,
+		        const char *buf, size_t count)
+{
+	int enable;
+
+	if (kstrtoint(buf, 0, &enable)){
+		printk("store_buzzer error\n");
+		return -EINVAL;
+	}
+	printk("pwm enable=%d\n",enable);
+	if(enable && pwm_dev->status==PWM_DISABLE){
+		//启动定时器  
+		pwm_gpio_start();
+		pwm_dev->status = PWM_ENABLE;
+	}
+	else if(!enable && pwm_dev->status==PWM_ENABLE){
+		hrtimer_cancel(&pwm_dev->mytimer);
+        gpio_set_value(PWM_IO, 0);
+		pwm_dev->status = PWM_DISABLE;
+	}
+
+	return count;
+}
 
 static ssize_t show_w25q128fw_id(struct class *cls,
 		        struct class_attribute *attr, char *buf)
@@ -70,6 +177,7 @@ static struct class_attribute w25q128fw_attrs[] = {
 	__ATTR(fusb302, 0644, show_fusb302, NULL),
 	__ATTR(charge, 0644, show_charge, NULL),
 	__ATTR(key, 0644, show_key, NULL),
+	__ATTR(buzzer, 0644, NULL, store_buzzer),
 };
 
 static void create_w25q128fw_attrs(void)
@@ -147,6 +255,7 @@ static struct spi_driver w25q128fw_spi_driver = {
 		
 static int w25q128fw_spi_init(void)
 {
+	pwm_gpio_init();
 	return spi_register_driver(&w25q128fw_spi_driver);
 }
 module_init(w25q128fw_spi_init);
