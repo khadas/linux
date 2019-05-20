@@ -2260,19 +2260,21 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 static void thread_factory_dispose(struct evl_element *e)
 {
 	struct evl_thread *thread;
+	int state;
 
 	thread = container_of(e, struct evl_thread, element);
+	state = thread->state;
 
 	/*
 	 * Two ways to get into the disposal handler: either
 	 * open_factory_node() failed creating a device for @thread
-	 * which is current, or when the last file reference to
-	 * @thread is dropped after it has exited. T_ZOMBIE cleared
-	 * denotes the first case, otherwise @thread has existed and
-	 * is now dead and no more reachable, so we can wakeup any
-	 * joiners.
+	 * which is current, or after the last file reference to
+	 * @thread was dropped after exit. T_ZOMBIE cleared denotes
+	 * the first case, otherwise @thread has existed, is now dead
+	 * and no more reachable, so we can wakeup joiners if any.
 	 */
-	if (thread->state & T_ZOMBIE) {
+	if (likely(state & T_ZOMBIE)) {
+		evl_destroy_element(&thread->element);
 		complete_all(&thread->exited);	 /* evl_join_thread() */
 		if (waitqueue_active(&join_all)) /* evl_killall() */
 			wake_up(&join_all);
@@ -2280,11 +2282,10 @@ static void thread_factory_dispose(struct evl_element *e)
 		if (EVL_WARN_ON(CORE, evl_current() != thread))
 			return;
 		cleanup_current_thread();
+		evl_destroy_element(&thread->element);
 	}
 
-	evl_destroy_element(&thread->element);
-
-	if (thread->state & T_USER)
+	if (state & T_USER)
 		kfree_rcu(thread, element.rcu);
 }
 
