@@ -652,6 +652,10 @@ static inline void verify_block_addr(struct f2fs_io_info *fio, block_t blk_addr)
 	else
 		BUG_ON(blk_addr < MAIN_BLKADDR(sbi) ||
 				blk_addr >= MAX_BLKADDR(sbi));
+	if (__is_meta_io(fio))
+		verify_blkaddr(sbi, blk_addr, META_GENERIC);
+	else
+		verify_blkaddr(sbi, blk_addr, DATA_GENERIC);
 }
 
 /*
