@@ -112,7 +112,7 @@ else
 
         KBUILD_CFLAGS += -fno-pic
 
-        # By default gcc and clang use a stack alignment of 16 bytes for x86.
+		# By default gcc and clang use a stack alignment of 16 bytes for x86.
         # However the standard kernel entry on x86-64 leaves the stack on an
         # 8-byte boundary. If the compiler isn't informed about the actual
         # alignment it will generate extra alignment instructions for the
