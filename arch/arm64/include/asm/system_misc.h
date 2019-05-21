@@ -40,7 +40,6 @@ void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 			   int sig, int code, const char *name);
 
 struct mm_struct;
-extern void show_pte(struct mm_struct *mm, unsigned long addr);
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 extern void show_all_pfn(struct task_struct *task, struct pt_regs *regs);
 #else
@@ -48,6 +47,7 @@ static inline void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
 {
 }
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
+extern void show_pte(unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
