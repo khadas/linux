@@ -238,6 +238,11 @@ static void recover_inode(struct inode *inode, struct page *page)
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 				bool check_only)
+	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode: ino = %x, name = %s",
+			ino_of_node(page), name);
+}
+
+static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 {
 	struct curseg_info *curseg;
 	struct page *page = NULL;
