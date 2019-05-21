@@ -345,7 +345,6 @@ asmlinkage __visible void do_softirq(void)
 
 	if (pending && !ksoftirqd_running(pending))
 		do_softirq_own_stack();
-	}
 
 	local_irq_restore(flags);
 }
@@ -373,7 +372,6 @@ static inline void invoke_softirq(void)
 {
 	if (ksoftirqd_running(local_softirq_pending()))
 		return;
-#endif
 	if (!force_irqthreads) {
 #ifdef CONFIG_HAVE_IRQ_EXIT_ON_IRQ_STACK
 		/*

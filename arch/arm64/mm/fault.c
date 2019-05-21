@@ -316,7 +316,7 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x\n",
 			tsk->comm, task_pid_nr(tsk), inf->name, sig,
 			addr, esr);
-		show_pte(tsk->mm, addr);
+		show_pte(addr);
 	#ifdef CONFIG_AMLOGIC_USER_FAULT
 		show_all_pfn(tsk, regs);
 	#endif /* CONFIG_AMLOGIC_USER_FAULT */

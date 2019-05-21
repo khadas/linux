@@ -228,7 +228,7 @@ static int do_null_task(void *data)
 }
 
 static ssize_t show_hotplug_max_cpus(struct kobject *kobj,
-	struct attribute *attr, char *buf)
+	struct kobj_attribute *attr, char *buf)
 {
 	unsigned int max = 0;
 	unsigned int c = 0;
@@ -239,7 +239,7 @@ static ssize_t show_hotplug_max_cpus(struct kobject *kobj,
 }
 
 static ssize_t store_hotplug_max_cpus(struct kobject *kobj,
-	struct attribute *attr, const char *buf, size_t count)
+	struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int input;
 	unsigned int max;
