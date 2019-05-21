@@ -500,9 +500,9 @@ DEFINE_EVENT(curr_thread_event, evl_switched_oob,
 	TP_ARGS(curr)
 );
 
-#define evl_print_switch_cause(cause)				\
+#define evl_print_switch_cause(cause)					\
 	__print_symbolic(cause,						\
-			 { SIGDEBUG_UNDEFINED,		"undefined" },	\
+			 { SIGDEBUG_NONE,		"undefined" },	\
 			 { SIGDEBUG_MIGRATE_SIGNAL,	"signal" },	\
 			 { SIGDEBUG_MIGRATE_SYSCALL,	"syscall" },	\
 			 { SIGDEBUG_MIGRATE_FAULT,	"fault" })

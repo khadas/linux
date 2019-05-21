@@ -709,7 +709,7 @@ void evl_switch_inband(int cause)
 	}
 #endif
 
-	if ((curr->state & T_USER) && cause != SIGDEBUG_UNDEFINED) {
+	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
 		if (curr->state & T_WARN) {
 			/* Help debugging spurious mode switches. */
 			memset(&si, 0, sizeof(si));
@@ -777,7 +777,7 @@ int evl_switch_oob(void)
 	if (signal_pending(p)) {
 		evl_switch_inband(!(curr->state & T_SSTEP) ?
 				SIGDEBUG_MIGRATE_SIGNAL:
-				SIGDEBUG_UNDEFINED);
+				SIGDEBUG_NONE);
 		return -ERESTARTSYS;
 	}
 
@@ -1052,7 +1052,7 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 
 	if (curr && !(curr->state & T_INBAND)) {
 		xnlock_put_irqrestore(&nklock, flags);
-		evl_switch_inband(SIGDEBUG_UNDEFINED);
+		evl_switch_inband(SIGDEBUG_NONE);
 		switched = true;
 	} else
 		xnlock_put_irqrestore(&nklock, flags);
@@ -1188,7 +1188,7 @@ void __evl_test_cancel(struct evl_thread *curr)
 		return;
 
 	if (!(curr->state & T_INBAND))
-		evl_switch_inband(SIGDEBUG_UNDEFINED);
+		evl_switch_inband(SIGDEBUG_NONE);
 
 	do_exit(0);
 	/* ... won't return ... */
@@ -1616,7 +1616,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 	 */
 	evl_switch_inband(xnarch_fault_notify(trapnr) ?
 			SIGDEBUG_MIGRATE_FAULT :
-			SIGDEBUG_UNDEFINED);
+			SIGDEBUG_NONE);
 
 	curr->local_info &= ~T_INFAULT;
 }
@@ -1634,7 +1634,7 @@ void handle_oob_mayday(struct pt_regs *regs)
 	 * syscall. Filter this case out.
 	 */
 	if (!(curr->state & T_INBAND))
-		evl_switch_inband(SIGDEBUG_UNDEFINED);
+		evl_switch_inband(SIGDEBUG_NONE);
 }
 
 #ifdef CONFIG_SMP
@@ -2072,7 +2072,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case EVL_THRIOC_SWITCH_INBAND:
 		if (thread == curr) {
-			evl_switch_inband(SIGDEBUG_UNDEFINED);
+			evl_switch_inband(SIGDEBUG_NONE);
 			ret = 0;
 		}
 		break;
