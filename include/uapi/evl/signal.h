@@ -25,7 +25,7 @@
 	((sigdebug_code(si) & 0xffff0000) == sigdebug_marker)
 
 /* Possible values of sigdebug_cause() */
-#define SIGDEBUG_UNDEFINED		0
+#define SIGDEBUG_NONE			0
 #define SIGDEBUG_MIGRATE_SIGNAL		1
 #define SIGDEBUG_MIGRATE_SYSCALL	2
 #define SIGDEBUG_MIGRATE_FAULT		3

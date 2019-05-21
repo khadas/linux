@@ -60,7 +60,7 @@ static void prepare_for_signal(struct task_struct *p,
 			struct evl_thread *curr,
 			struct pt_regs *regs)
 {
-	int cause = SIGDEBUG_UNDEFINED;
+	int cause = SIGDEBUG_NONE;
 	unsigned long flags;
 
 	/*
@@ -131,7 +131,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 			prepare_for_signal(p, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
-			evl_switch_inband(SIGDEBUG_UNDEFINED);
+			evl_switch_inband(SIGDEBUG_NONE);
 	}
 
 	/* Update the stats and user visible info. */
@@ -208,7 +208,7 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 			prepare_for_signal(p, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
-			evl_switch_inband(SIGDEBUG_UNDEFINED);
+			evl_switch_inband(SIGDEBUG_NONE);
 	}
 done:
 	curr->local_info &= ~T_HICCUP;
