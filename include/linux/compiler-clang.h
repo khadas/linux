@@ -32,6 +32,8 @@
 #if __has_feature(address_sanitizer)
 #define __SANITIZE_ADDRESS__
 #endif
+#undef __no_sanitize_address
+#define __no_sanitize_address __attribute__((no_sanitize("address")))
 
 /* Clang doesn't have a way to turn it off per-function, yet. */
 #ifdef __noretpoline
