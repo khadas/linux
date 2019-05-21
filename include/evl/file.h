@@ -39,10 +39,20 @@ struct evl_file_binding {
 	struct evl_element *element;
 };
 
+#ifdef CONFIG_EVL
+
 int evl_open_file(struct evl_file *efilp,
 		struct file *filp);
 
 void evl_release_file(struct evl_file *efilp);
+
+#else
+
+#define evl_open_file(__efilp, __filp)	   ({ (void)__efilp; 0; })
+
+#define evl_release_file(__efilp, __filp)  do { (void)__efilp; } while (0)
+
+#endif	/* !CONFIG_EVL */
 
 static inline
 void evl_get_fileref(struct evl_file *efilp)
