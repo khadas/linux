@@ -4,6 +4,12 @@ config AMLOGIC_MEDIA_VDEC_MPEG12
 	help
 		Enables amlogic video decoder
 
+config AMLOGIC_MEDIA_VDEC_MPEG2_MULTI
+	tristate "Amlogic Video decoder"
+	default m
+	help
+		Enables amlogic video decoder
+
 config AMLOGIC_MEDIA_VDEC_MPEG4
 	tristate "Amlogic Video decoder"
 	default m
