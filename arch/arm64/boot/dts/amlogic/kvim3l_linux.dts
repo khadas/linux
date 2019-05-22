@@ -1186,5 +1186,5 @@
 };
 
 &remote {
-	status = "disabled";
+	status = "okay";
 };
