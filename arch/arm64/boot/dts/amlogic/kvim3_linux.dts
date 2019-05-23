@@ -790,9 +790,11 @@
 		status = "okay";
 	};
 
-	khadas-rtc {
-		compatible = "khadas-rtc";
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
 		reg = <0x51>;
+
+		#clock-cells = <0>;
 	};
 };
 
