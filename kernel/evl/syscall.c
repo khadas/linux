@@ -25,9 +25,6 @@
 #include <trace/events/evl.h>
 #include <uapi/evl/syscall.h>
 #include <asm/evl/syscall.h>
-#ifdef CONFIG_FTRACE
-#include <trace/trace.h>
-#endif
 
 #define EVL_SYSCALL(__name, __args)	\
 	long EVL_ ## __name __args
