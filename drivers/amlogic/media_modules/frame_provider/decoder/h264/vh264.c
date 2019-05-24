@@ -419,7 +419,7 @@ static int ge2d_canvas_dup(struct canvas_s *srcy, struct canvas_s *srcu,
 		return -1;
 	}
 
-	stretchblt_noalpha(ge2d_videoh264_context, 0, 0, srcy->width,
+	stretchblt_noalpha_noblk(ge2d_videoh264_context, 0, 0, srcy->width,
 			srcy->height, 0, 0, srcy->width, srcy->height);
 
 	return 0;
