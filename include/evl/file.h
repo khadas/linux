@@ -19,6 +19,8 @@ struct files_struct;
 struct evl_element;
 struct evl_poll_node;
 
+#ifdef CONFIG_EVL
+
 struct evl_file {
 	struct file *filp;
 	atomic_t oob_refs;
@@ -39,20 +41,10 @@ struct evl_file_binding {
 	struct evl_element *element;
 };
 
-#ifdef CONFIG_EVL
-
 int evl_open_file(struct evl_file *efilp,
 		struct file *filp);
 
 void evl_release_file(struct evl_file *efilp);
-
-#else
-
-#define evl_open_file(__efilp, __filp)	   ({ (void)__efilp; 0; })
-
-#define evl_release_file(__efilp, __filp)  do { (void)__efilp; } while (0)
-
-#endif	/* !CONFIG_EVL */
 
 static inline
 void evl_get_fileref(struct evl_file *efilp)
@@ -70,6 +62,16 @@ void evl_put_file(struct evl_file *efilp) /* OOB */
 	if (atomic_dec_return(&efilp->oob_refs) == 0)
 		__evl_put_file(efilp);
 }
+
+#else
+
+struct evl_file { };
+
+#define evl_open_file(__efilp, __filp)	({ 0; })
+
+#define evl_release_file(__efilp)	do { } while (0)
+
+#endif	/* !CONFIG_EVL */
 
 struct evl_file *evl_watch_fd(unsigned int fd,
 			struct evl_poll_node *node);
