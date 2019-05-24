@@ -9,7 +9,6 @@
 #include <evl/factory.h>
 #include <uapi/evl/trace.h>
 #include <trace/events/evl.h>
-#include <trace/trace.h>
 
 static long trace_common_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
