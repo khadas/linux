@@ -271,7 +271,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 
 	if (real_dev->features & CLOCK_EVT_FEAT_KTIME) {
 		real_dev->set_next_ktime(t, real_dev);
-		trace_evl_timer_shot(delta, t);
+		trace_evl_timer_shot(timer, delta, t);
 	} else {
 		if (delta <= 0)
 			delta = real_dev->min_delta_ns;
@@ -281,10 +281,12 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 		}
 		cycles = ((u64)delta * real_dev->mult) >> real_dev->shift;
 		ret = real_dev->set_next_event(cycles, real_dev);
-		trace_evl_timer_shot(delta, cycles);
+		trace_evl_timer_shot(timer, delta, cycles);
 		if (ret) {
-			real_dev->set_next_event(real_dev->min_delta_ticks, real_dev);
-			trace_evl_timer_shot(real_dev->min_delta_ns, real_dev->min_delta_ticks);
+			real_dev->set_next_event(real_dev->min_delta_ticks,
+						real_dev);
+			trace_evl_timer_shot(timer, real_dev->min_delta_ns,
+					real_dev->min_delta_ticks);
 		}
 	}
 }
