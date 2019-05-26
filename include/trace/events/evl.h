@@ -664,24 +664,27 @@ TRACE_EVENT(evl_timer_bolt,
 );
 
 TRACE_EVENT(evl_timer_shot,
-	TP_PROTO(s64 delta),
-	TP_ARGS(delta),
+	TP_PROTO(s64 delta, u64 cycles),
+	TP_ARGS(delta, cycles),
 
 	TP_STRUCT__entry(
 		__field(u64, secs)
 		__field(u32, nsecs)
 		__field(s64, delta)
+		__field(u64, cycles)
 	),
 
 	TP_fast_assign(
+		__entry->cycles = cycles;
 		__entry->delta = delta;
 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
 					    NSEC_PER_SEC, &__entry->nsecs);
 	),
 
-	TP_printk("tick at %Lu.%06u (delay: %Ld us)",
+	TP_printk("tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
 		  (unsigned long long)__entry->secs,
-		  __entry->nsecs / 1000, div_s64(__entry->delta, 1000))
+		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
+		__entry->cycles)
 );
 
 DEFINE_EVENT(wq_event, evl_wait,
