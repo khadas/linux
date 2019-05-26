@@ -297,6 +297,12 @@ void evl_set_timer_name(struct evl_timer *timer, const char *name)
 	timer->name = name;
 }
 
+static inline
+const char *evl_get_timer_name(struct evl_timer *timer)
+{
+	return timer->name;
+}
+
 #else /* !CONFIG_EVL_RUNSTATS */
 
 #define evl_init_timer	__evl_init_timer
@@ -312,6 +318,12 @@ void evl_account_timer_fired(struct evl_timer *timer) { }
 
 static inline
 void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
+
+static inline
+const char *evl_get_timer_name(struct evl_timer *timer)
+{
+	return "<timer>";
+}
 
 #endif /* !CONFIG_EVL_RUNSTATS */
 

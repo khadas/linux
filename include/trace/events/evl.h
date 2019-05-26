@@ -109,7 +109,7 @@ DECLARE_EVENT_CLASS(timer_event,
 		__entry->timer = timer;
 	),
 
-	TP_printk("timer=%p", __entry->timer)
+	TP_printk("timer=%s", evl_get_timer_name(__entry->timer))
 );
 
 #define evl_print_syscall(__nr)			\
@@ -616,29 +616,20 @@ TRACE_EVENT(evl_timer_start,
 
 	TP_STRUCT__entry(
 		__field(struct evl_timer *, timer)
-#ifdef CONFIG_EVL_RUNSTATS
-		__string(name, timer->name)
-#endif
 		__field(ktime_t, value)
 		__field(ktime_t, interval)
 	),
 
 	TP_fast_assign(
-#ifdef CONFIG_EVL_RUNSTATS
-		__assign_str(name, timer->name);
-#endif
+		__entry->timer = timer;
 		__entry->value = value;
 		__entry->interval = interval;
 	),
 
 	TP_printk("timer=%s value=%Lu interval=%Lu",
-#ifdef CONFIG_EVL_RUNSTATS
-		  __get_str(name),
-#else
-		  "?",
-#endif
-		  ktime_to_ns(__entry->value),
-		  ktime_to_ns(__entry->interval))
+		evl_get_timer_name(__entry->timer),
+		ktime_to_ns(__entry->value),
+		ktime_to_ns(__entry->interval))
 );
 
 TRACE_EVENT(evl_timer_bolt,
@@ -659,30 +650,34 @@ TRACE_EVENT(evl_timer_bolt,
 		__entry->cpu = cpu;
 	),
 
-	TP_printk("timer=%p clock=%s, cpu=%u",
-		  __entry->timer, __entry->clock->name, __entry->cpu)
+	TP_printk("timer=%s clock=%s, cpu=%u",
+		evl_get_timer_name(__entry->timer),
+		__entry->clock->name, __entry->cpu)
 );
 
 TRACE_EVENT(evl_timer_shot,
-	TP_PROTO(s64 delta, u64 cycles),
-	TP_ARGS(delta, cycles),
+	TP_PROTO(struct evl_timer *timer, s64 delta, u64 cycles),
+	TP_ARGS(timer, delta, cycles),
 
 	TP_STRUCT__entry(
 		__field(u64, secs)
 		__field(u32, nsecs)
 		__field(s64, delta)
 		__field(u64, cycles)
+		__field(struct evl_timer *, timer)
 	),
 
 	TP_fast_assign(
+		__entry->timer = timer;
 		__entry->cycles = cycles;
 		__entry->delta = delta;
 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
 					    NSEC_PER_SEC, &__entry->nsecs);
 	),
 
-	TP_printk("tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
-		  (unsigned long long)__entry->secs,
+	TP_printk("%s tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
+		evl_get_timer_name(__entry->timer),
+		(unsigned long long)__entry->secs,
 		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
 		__entry->cycles)
 );
