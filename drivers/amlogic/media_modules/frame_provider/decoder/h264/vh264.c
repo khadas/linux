@@ -62,6 +62,7 @@
 #define MODULE_NAME "amvdec_h264"
 #define MEM_NAME "codec_264"
 #define HANDLE_H264_IRQ
+#define ENABLE_SEI_ITU_T35
 
 #if 0
 /* currently, only iptv supports this function*/
