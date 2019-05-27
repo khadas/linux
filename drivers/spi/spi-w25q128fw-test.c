@@ -29,6 +29,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioctl.h>
+#include <linux/soc/rockchip/rk_vendor_storage.h>
+
 
 #define w25q128fw_DEVICE_ID 0x6018
 #define w25q128fw_SPI_READ_ID_CMD 0x9F
@@ -55,6 +57,46 @@ struct pwm_chip{
     PWM_STATUS_t status;
 };
 struct pwm_chip *pwm_dev;
+
+int StringToHex(char *str, unsigned char *out, unsigned int *outlen)
+{
+	char *p = str;
+	char high = 0, low = 0;
+	int tmplen = strlen(p), cnt = 0;
+	tmplen = strlen(p);
+	while(cnt < (tmplen / 2))
+	{
+		high = ((*p > '9') && ((*p <= 'F') || (*p <= 'f'))) ? *p - 48 - 7 : *p - 48;
+		low = (*(++ p) > '9' && ((*p <= 'F') || (*p <= 'f'))) ? *(p) - 48 - 7 : *(p) - 48;
+		out[cnt] = ((high & 0x0f) << 4 | (low & 0x0f));
+		p ++;
+		cnt ++;
+	}
+	if(tmplen % 2 != 0) out[cnt] = ((*p > '9') && ((*p <= 'F') || (*p <= 'f'))) ? *p - 48 - 7 : *p - 48;
+	
+	if(outlen != NULL) *outlen = tmplen / 2 + tmplen % 2;
+	return tmplen / 2 + tmplen % 2;
+}
+
+void HexToAscii(unsigned char *pHex, unsigned char *pAscii, int nLen)
+{
+    unsigned char Nibble[2];
+    unsigned int i,j;
+    for (i = 0; i < nLen; i++){
+        Nibble[0] = (pHex[i] & 0xF0) >> 4;
+        Nibble[1] = pHex[i] & 0x0F;
+        for (j = 0; j < 2; j++){
+            if (Nibble[j] < 10){            
+                Nibble[j] += 0x30;
+            }
+            else{
+                if (Nibble[j] < 16)
+                    Nibble[j] = Nibble[j] - 10 + 'A';
+            }
+            *pAscii++ = Nibble[j];
+        }
+    }
+}
 
 static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 {    
@@ -170,6 +212,43 @@ static ssize_t show_key(struct class *cls,
 	key_test_flag=1;
 	return sprintf(buf, "%d\n", key_test_flag);
 }
+
+static ssize_t show_mac_addr(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr_Ascii[12]={0};
+	unsigned char addr[6]={0};
+	ret = rk_vendor_read(LAN_MAC_ID, addr, 6);
+	if (ret != 6) 
+		printk("%s: rk_vendor_read eth mac address failed (%d)",__func__, ret);
+	/*printk("%s: mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				__func__, addr[0], addr[1], addr[2],
+				addr[3], addr[4], addr[5]);*/
+    HexToAscii(addr,addr_Ascii,6);
+	return sprintf(buf, "%s\n", addr_Ascii);
+}	
+
+static ssize_t store_mac_addr(struct class *cls, struct class_attribute *attr,
+		        const char *buf, size_t count)
+{
+	int ret;
+	char addr_Ascii[12]={0};
+	unsigned char addr[6]={0};
+    int outlen = 0;
+	
+	sscanf(buf,"%s",addr_Ascii);
+
+    StringToHex(addr_Ascii,addr,&outlen);
+	printk("%s: mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			__func__, addr[0], addr[1], addr[2],
+			addr[3], addr[4], addr[5]);
+	ret = rk_vendor_write(LAN_MAC_ID, &addr, 6);
+	if (ret != 0)
+		printk("%s: rk_vendor_write eth mac address failed (%d)\n",__func__, ret);
+	return count;
+}
+				
 static struct class_attribute w25q128fw_attrs[] = {
 	__ATTR(id, 0644, show_w25q128fw_id, NULL),
 	__ATTR(usb2, 0644, show_usb2, NULL),
@@ -178,6 +257,7 @@ static struct class_attribute w25q128fw_attrs[] = {
 	__ATTR(charge, 0644, show_charge, NULL),
 	__ATTR(key, 0644, show_key, NULL),
 	__ATTR(buzzer, 0644, NULL, store_buzzer),
+	__ATTR(mac_addr, 0644, show_mac_addr, store_mac_addr),
 };
 
 static void create_w25q128fw_attrs(void)
