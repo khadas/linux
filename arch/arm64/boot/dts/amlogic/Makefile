@@ -1,3 +1,4 @@
+dtb-$(CONFIG_ARM64) += kvim_linux.dtb
 dtb-$(CONFIG_ARM64) += kvim3l_linux.dtb
 dtb-$(CONFIG_ARM64) += kvim3_linux.dtb
 

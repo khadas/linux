@@ -236,8 +236,8 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "okay";
-		select = "apao"; /* disable/apao/apee */
+		status = "disabled";
+		select = "disable"; /* disable/apao/apee */
 		jtagao-gpios = <&gpio   GPIOH_6         0
 				&gpio   GPIOH_7         0
 				&gpio   GPIOH_8         0
@@ -1376,7 +1376,7 @@
 		alarm_reg_addr = <0xc81000a8>;
 		timer_e_addr = <0xc1109988>;
 		init_date = "2017/01/01";
-		status = "okay";
+		status = "disabled";
 	};
 
     pwm_ab: pwm@c1108550 {
