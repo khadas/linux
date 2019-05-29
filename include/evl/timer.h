@@ -119,9 +119,6 @@ void evl_remove_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 	for ((__node) = evl_get_tqueue_head(__tq); (__node);	\
 	     (__node) = evl_get_tqueue_next(__tq, __node))
 
-void evl_insert_tnode(struct evl_tqueue *tq,
-		struct evl_tnode *node);
-
 struct evl_rq;
 
 struct evl_timerbase {
@@ -389,15 +386,51 @@ ktime_t evl_get_stopped_timer_delta(struct evl_timer *timer)
 	return t;
 }
 
-static inline void evl_dequeue_timer(struct evl_timer *timer,
-				struct evl_tqueue *tq)
+static __always_inline
+void evl_dequeue_timer(struct evl_timer *timer,
+		struct evl_tqueue *tq)
 {
 	evl_remove_tnode(tq, &timer->node);
 	timer->status |= EVL_TIMER_DEQUEUED;
 }
 
+
+/* same or earlier date. */
+static __always_inline
+bool date_is_earlier(struct evl_tnode *left,
+		struct evl_tnode *right)
+{
+	return left->date < right->date
+		|| (left->date == right->date && left->prio > right->prio);
+}
+
+static __always_inline
+void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
+{
+	struct rb_node **new = &tq->root.rb_node, *parent = NULL;
+
+	if (!tq->head)
+		tq->head = node;
+	else if (date_is_earlier(node, tq->head)) {
+		parent = &tq->head->rb;
+		new = &parent->rb_left;
+		tq->head = node;
+	} else while (*new) {
+			struct evl_tnode *i = container_of(*new, struct evl_tnode, rb);
+
+			parent = *new;
+			if (date_is_earlier(node, i))
+				new = &((*new)->rb_left);
+			else
+				new = &((*new)->rb_right);
+		}
+
+	rb_link_node(&node->rb, parent, new);
+	rb_insert_color(&node->rb, &tq->root);
+}
+
 /* timer base locked. */
-static inline
+static __always_inline
 void evl_enqueue_timer(struct evl_timer *timer,
 		struct evl_tqueue *tq)
 {
@@ -405,9 +438,6 @@ void evl_enqueue_timer(struct evl_timer *timer,
 	timer->status &= ~EVL_TIMER_DEQUEUED;
 	evl_account_timer_scheduled(timer);
 }
-
-void evl_enqueue_timer(struct evl_timer *timer,
-		struct evl_tqueue *tq);
 
 unsigned long evl_get_timer_overruns(struct evl_timer *timer);
 
