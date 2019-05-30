@@ -21,7 +21,7 @@
 struct evl_proxy {
 	struct file *filp;
 	struct circ_buf circ_buf;
-	atomic_t write_sem;
+	bool write_flag;
 	size_t bufsz;
 	struct irq_work irq_work;
 	struct work_struct work;
@@ -82,7 +82,7 @@ static ssize_t proxy_oob_write(struct file *filp,
 	const char __user *u_ptr;
 	int head, tail, len, ret;
 	unsigned long flags;
-	bool kick;
+	bool kick, race;
 
 	if (count == 0)
 		return 0;
@@ -104,16 +104,20 @@ retry:
 		avail = CIRC_SPACE_TO_END(head, tail, proxy->bufsz);
 		len = min(avail, rem);
 
+		race = proxy->write_flag;
+		if (!race)
+			proxy->write_flag = true;
+
 		raw_spin_unlock_irqrestore(&proxy->lock, flags);
 
-		if (atomic_dec_return(&proxy->write_sem) < 0) {
-			atomic_inc(&proxy->write_sem);
+		if (race)
 			goto retry;
-		}
 
 		ret = raw_copy_from_user(circ->buf + head, u_ptr, len);
+
 		raw_spin_lock_irqsave(&proxy->lock, flags);
-		atomic_inc(&proxy->write_sem);
+
+		proxy->write_flag = false;
 
 		if (ret) {
 			written = -EFAULT;
@@ -228,7 +232,6 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 	proxy->filp = filp;
 	proxy->circ_buf.buf = bufmem;
 	proxy->bufsz = bufsz;
-	atomic_set(&proxy->write_sem, 1);
 	INIT_WORK(&proxy->work, relay_output);
 	init_irq_work(&proxy->irq_work, relay_output_irq);
 	raw_spin_lock_init(&proxy->lock);
