@@ -61,8 +61,10 @@
  * 'S' -> Forcibly suspended
  * 'w'/'W' -> Blocked with/without timeout
  * 'D' -> Delayed
- * 'R' -> Runnable
+ * 'p' -> Periodic timeline
+ * 'R' -> Ready to run
  * 'U' -> Dormant
+ * 'Z' -> Zombie
  * 'X' -> Running in-band
  * 'H' -> Held in emergency
  * 'b' -> Priority boost undergoing
@@ -70,7 +72,7 @@
  * 'r' -> Undergoes round-robin
  * 't' -> SIGDEBUG notifications enabled
  */
-#define EVL_THREAD_STATE_LABELS  "SWDRU.XHbTrt...."
+#define EVL_THREAD_STATE_LABELS  "SWDpRUZXHbTrt...."
 
 struct evl_user_window {
 	__u32 state;
