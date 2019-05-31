@@ -105,11 +105,11 @@ static void clock_event_handler(struct clock_event_device *dummy)
 	evl_announce_tick(&evl_mono_clock);
 
 	/*
-	 * If a real-time thread was preempted by this clock
-	 * interrupt, any transition to the root thread will cause a
-	 * in-band tick to be propagated by evl_schedule() from
-	 * irq_finish_head(), so we only need to propagate the in-band
-	 * tick in case the root thread was preempted.
+	 * If an EVL thread was preempted by this clock event, any
+	 * transition to the root thread will cause a pending in-band
+	 * tick to be propagated by evl_schedule() from
+	 * exit_oob_irq(), so we may have to propagate the in-band
+	 * tick immediately only if the root thread was preempted.
 	 */
 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
 		evl_notify_proxy_tick(this_rq);
