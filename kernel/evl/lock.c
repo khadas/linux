@@ -11,24 +11,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched/debug.h>
 #include <evl/lock.h>
-#include <evl/clock.h>
 
 DEFINE_XNLOCK(nklock);
 #if defined(CONFIG_SMP)
 EXPORT_SYMBOL_GPL(nklock);
-
-int ___xnlock_get(struct xnlock *lock)
-{
-	return ____xnlock_get(lock);
-}
-EXPORT_SYMBOL_GPL(___xnlock_get);
-
-void ___xnlock_put(struct xnlock *lock)
-{
-	____xnlock_put(lock);
-}
-EXPORT_SYMBOL_GPL(___xnlock_put);
-
 #endif /* CONFIG_SMP */
