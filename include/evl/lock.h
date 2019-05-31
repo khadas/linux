@@ -54,7 +54,7 @@ static inline void xnlock_init (struct xnlock *lock)
 #define DEFINE_XNLOCK(lock)		struct xnlock lock = XNARCH_LOCK_UNLOCKED
 #define DEFINE_PRIVATE_XNLOCK(lock)	static DEFINE_XNLOCK(lock)
 
-static inline int ____xnlock_get(struct xnlock *lock)
+static inline int ___xnlock_get(struct xnlock *lock)
 {
 	int cpu = raw_smp_processor_id();
 
@@ -67,15 +67,11 @@ static inline int ____xnlock_get(struct xnlock *lock)
 	return 0;
 }
 
-static inline void ____xnlock_put(struct xnlock *lock)
+static inline void ___xnlock_put(struct xnlock *lock)
 {
 	lock->owner = ~0U;
 	arch_spin_unlock(&lock->alock);
 }
-
-int ___xnlock_get(struct xnlock *lock);
-
-void ___xnlock_put(struct xnlock *lock);
 
 static inline unsigned long
 __xnlock_get_irqsave(struct xnlock *lock)
