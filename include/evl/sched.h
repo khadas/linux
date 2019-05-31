@@ -353,8 +353,6 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread,
 #include <evl/sched/idle.h>
 #include <evl/sched/rt.h>
 
-struct evl_thread *evl_pick_thread(struct evl_rq *rq);
-
 void evl_putback_thread(struct evl_thread *thread);
 
 int evl_set_thread_policy(struct evl_thread *thread,
