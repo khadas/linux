@@ -217,61 +217,6 @@ static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
 #endif /* CONFIG_EVL_WATCHDOG */
 }
 
-static inline void set_thread_running(struct evl_rq *rq,
-				struct evl_thread *thread)
-{
-	thread->state &= ~T_READY;
-	if (thread->state & T_RRB)
-		evl_start_timer(&rq->rrbtimer,
-				evl_abs_timeout(&rq->rrbtimer, thread->rrperiod),
-				EVL_INFINITE);
-	else
-		evl_stop_timer(&rq->rrbtimer);
-}
-
-/* Must be called with nklock locked, interrupts off. */
-struct evl_thread *evl_pick_thread(struct evl_rq *rq)
-{
-	struct evl_sched_class *sched_class __maybe_unused;
-	struct evl_thread *curr = rq->curr;
-	struct evl_thread *thread;
-
-	/*
-	 * We have to switch the current thread out if a blocking
-	 * condition is raised for it. Otherwise, check whether
-	 * preemption is allowed.
-	 */
-	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
-		if (evl_preempt_count() > 0) {
-			evl_set_self_resched(rq);
-			return curr;
-		}
-		/*
-		 * Push the current thread back to the run queue of
-		 * the scheduling class it belongs to, if not yet
-		 * linked to it (T_READY tells us if it is).
-		 */
-		if (!(curr->state & T_READY)) {
-			evl_requeue_thread(curr);
-			curr->state |= T_READY;
-		}
-	}
-
-	/*
-	 * Find the runnable thread having the highest priority among
-	 * all scheduling classes, scanned by decreasing priority.
-	 */
-	for_each_evl_sched_class(sched_class) {
-		thread = sched_class->sched_pick(rq);
-		if (thread) {
-			set_thread_running(rq, thread);
-			return thread;
-		}
-	}
-
-	return NULL; /* Never executed because of the idle class. */
-}
-
 #ifdef CONFIG_EVL_DEBUG_CORE
 
 void evl_disable_preempt(void)
@@ -696,6 +641,60 @@ static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static inline void set_thread_running(struct evl_rq *rq,
+				struct evl_thread *thread)
+{
+	thread->state &= ~T_READY;
+	if (thread->state & T_RRB)
+		evl_start_timer(&rq->rrbtimer,
+				evl_abs_timeout(&rq->rrbtimer, thread->rrperiod),
+				EVL_INFINITE);
+	else
+		evl_stop_timer(&rq->rrbtimer);
+}
+
+static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+{
+	struct evl_sched_class *sched_class __maybe_unused;
+	struct evl_thread *curr = rq->curr;
+	struct evl_thread *thread;
+
+	/*
+	 * We have to switch the current thread out if a blocking
+	 * condition is raised for it. Otherwise, check whether
+	 * preemption is allowed.
+	 */
+	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
+		if (evl_preempt_count() > 0) {
+			evl_set_self_resched(rq);
+			return curr;
+		}
+		/*
+		 * Push the current thread back to the run queue of
+		 * the scheduling class it belongs to, if not yet
+		 * linked to it (T_READY tells us if it is).
+		 */
+		if (!(curr->state & T_READY)) {
+			evl_requeue_thread(curr);
+			curr->state |= T_READY;
+		}
+	}
+
+	/*
+	 * Find the runnable thread having the highest priority among
+	 * all scheduling classes, scanned by decreasing priority.
+	 */
+	for_each_evl_sched_class(sched_class) {
+		thread = sched_class->sched_pick(rq);
+		if (thread) {
+			set_thread_running(rq, thread);
+			return thread;
+		}
+	}
+
+	return NULL; /* Never executed because of the idle class. */
+}
+
 bool __evl_schedule(struct evl_rq *this_rq)
 {
 	bool switched, leaving_inband, inband_tail;
@@ -721,7 +720,7 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	if (!test_resched(this_rq))
 		goto out;
 
-	next = evl_pick_thread(this_rq);
+	next = pick_next_thread(this_rq);
 	if (next == curr) {
 		if (unlikely(next->state & T_ROOT)) {
 			if (this_rq->lflags & RQ_TPROXY)
