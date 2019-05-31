@@ -343,7 +343,7 @@ static u32 run_ready_display_q_num;
 static u32 run_ready_max_buf_num = 0xff;
 #endif
 
-static u32 dynamic_buf_num_margin = 7;
+static u32 dynamic_buf_num_margin = 8;
 static u32 buf_alloc_width;
 static u32 buf_alloc_height;
 
