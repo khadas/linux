@@ -1158,3 +1158,7 @@
 &t82x_gpu {
 	status = "disabled";
 };
+
+&uart_B {
+	status = "disabled";
+};
