@@ -33,6 +33,8 @@
 #define RTL821x_INER_INIT	0x6400
 #define RTL821x_INSR		0x13
 #define RTL8211E_INER_LINK_STATUS 0x400
+#define RTL8211F_BMCR   0x00
+#define RTL821x_EPAGSR      0x1f
 
 #define RTL8211F_INER_LINK_STATUS 0x0010
 #define RTL8211F_INSR		0x1d
@@ -42,6 +44,8 @@
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
+
+struct phy_device *g_phydev;
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 unsigned int support_external_phy_wol;
@@ -156,6 +160,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	/* restore to default page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 
+	g_phydev = phydev;
+
 	return 0;
 }
 
@@ -165,6 +171,7 @@ int rtl8211f_suspend(struct phy_device *phydev)
 	int value = 0;
 
 	if (support_external_phy_wol) {
+		printk("rtl8211f_suspend...\n");
 		mutex_lock(&phydev->lock);
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
 		/*set magic packet for wol*/
@@ -211,6 +218,34 @@ int rtl8211f_resume(struct phy_device *phydev)
 
 	return 0;
 }
+
+void rtl8211f_shutdown(void)
+{
+	int value;
+
+	if (support_external_phy_wol) {
+		printk("rtl8211f_shutdown...\n");
+		mutex_lock(&g_phydev->lock);
+		/*set speed to 10Mbps */
+		phy_write(g_phydev, RTL821x_EPAGSR, 0x0); /*set page 0x0*/
+		phy_write(g_phydev, RTL8211F_BMCR, 0x0); /* 10Mbps */
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd8a);
+		/*set magic packet for wol*/
+		phy_write(g_phydev, 0x10, 0x1000);
+		phy_write(g_phydev, 0x11, 0x9fff);
+		/*pad isolation*/
+		value = phy_read(g_phydev, 0x13);
+		phy_write(g_phydev, 0x13, value | (0x1 << 15));
+		/*pin 31 pull high*/
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
+		value = phy_read(g_phydev, 0x16);
+		phy_write(g_phydev, 0x16, value | (1 << 5));
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
+
+		mutex_unlock(&g_phydev->lock);
+	}
+}
+
 #endif
 static struct phy_driver realtek_drvs[] = {
 	{
