@@ -26,6 +26,7 @@
 #include "dwmac_dma.h"
 #endif
 #include "stmmac_platform.h"
+#include <linux/amlogic/cpu_version.h>
 
 #define ETHMAC_SPEED_10	BIT(1)
 
@@ -463,6 +464,7 @@ static int meson6_dwmac_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(meson6_dwmac_resume);
 
+void rtl8211f_shutdown(void);
 void meson6_dwmac_shutdown(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -489,6 +491,7 @@ void meson6_dwmac_shutdown(struct platform_device *pdev)
 		}
 		dwmac_meson_disable_analog(&pdev->dev);
 	}
+
 	//stmmac_release(ndev);
 	//stmmac_pltfr_suspend(&pdev->dev);
 	if (priv->phydev) {
@@ -500,6 +503,9 @@ void meson6_dwmac_shutdown(struct platform_device *pdev)
 		}
 	}
 	stmmac_pltfr_suspend(&pdev->dev);
+
+	if (is_meson_gxm_cpu() || is_meson_g12a_cpu() || is_meson_g12b_cpu())
+		rtl8211f_shutdown();
 }
 
 #endif
