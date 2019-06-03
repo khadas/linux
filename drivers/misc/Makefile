@@ -59,6 +59,7 @@ obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
 
 obj-$(CONFIG_KHADAS_TCA6408)	+= khadas_tca6408.o
 obj-$(CONFIG_KHADAS_FAN) += khadas-fan.o
+obj-$(CONFIG_KHADAS_MCU) += khadas-mcu.o
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o

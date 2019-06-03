@@ -799,6 +799,12 @@ config KHADAS_FAN
 	help
 	  This driver is for Khadas FAN.
 
+config KHADAS_MCU
+	tristate "Khadas MCU"
+	default y
+	help
+	  This driver is for Khadas MCU.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
