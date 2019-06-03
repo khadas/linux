@@ -46,10 +46,22 @@ MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
 struct phy_device *g_phydev;
+static int wol_enable = 0;
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 unsigned int support_external_phy_wol;
 #endif
+
+static int __init init_wol_state(char *str)
+{
+	wol_enable = simple_strtol(str, NULL, 0);
+	support_external_phy_wol = wol_enable;
+	printk("%s, wol_enable=%d\b",__func__, wol_enable);
+
+	return 0;
+}
+__setup("wol_enable=", init_wol_state);
+
 static int rtl821x_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
