@@ -29,9 +29,51 @@
 #include <linux/of_net.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/of_gpio.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
+
+#ifdef CONFIG_DWMAC_ROCKCHIP
+static u8 DEFMAC[] = {0, 0, 0, 0, 0, 0};
+static unsigned int g_mac_addr_setup;
+static unsigned char chartonum(char c)
+{
+   if (c >= '0' && c <= '9')
+       return c - '0';
+   if (c >= 'A' && c <= 'F')
+       return (c - 'A') + 10;
+   if (c >= 'a' && c <= 'f')
+       return (c - 'a') + 10;
+   return 0;
+}
+int chip_simulation = 0;
+static int __init get_chip_simulation(char *chip_simulation_status)
+{
+   chip_simulation = chartonum(chip_simulation_status[0]);
+   return 1;
+}
+__setup("chip_simulation_status=", get_chip_simulation);
+
+static int __init mac_addr_set(char *line)
+{
+   unsigned char mac[6];
+   int i = 0;
+   for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
+       mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
+       line += 3;
+   }
+   memcpy(DEFMAC, mac, 6);
+   pr_debug("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
+       DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4], DEFMAC[5]);
+
+   g_mac_addr_setup++;
+
+   return 1;
+}
+__setup("mac=", mac_addr_set);
+#endif
+
 
 #ifdef CONFIG_OF
 
@@ -94,6 +136,21 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 	return x;
 }
 
+static int setup_mac_addr(struct platform_device *pdev, const char **mac)
+{
+struct device_node *np = pdev->dev.of_node;
+#ifdef CONFIG_DWMAC_ROCKCHIP
+   if (g_mac_addr_setup)   /*so uboot mac= is first priority.*/
+       *mac = DEFMAC;
+   else
+       *mac = of_get_mac_address(np);
+#else
+       *mac = of_get_mac_address(np);
+#endif
+   return 0;
+}
+
+
 /**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
@@ -109,13 +166,16 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	enum of_gpio_flags flags;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
-	*mac = of_get_mac_address(np);
+	setup_mac_addr(pdev, mac);
 	plat->interface = of_get_phy_mode(np);
+
+	plat->wolirq_io = of_get_named_gpio_flags(np, "wolirq-gpio", 0, &flags);
 
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))

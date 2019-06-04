@@ -27,6 +27,7 @@
 #define __STMMAC_PLATFORM_DATA
 
 #include <linux/platform_device.h>
+#include <linux/wakelock.h>
 
 #define STMMAC_RX_COE_NONE	0
 #define STMMAC_RX_COE_TYPE1	1
@@ -123,5 +124,11 @@ struct plat_stmmacenet_data {
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void (*get_eth_addr)(void *priv, unsigned char *addr);
 	void *bsp_priv;
+	int wolirq_io;
+	int wolirq_io_level;
+	int wol_irq;
+	struct wake_lock wol_wake_lock;
+	int wol_suspended;
+	int wol_suspend_count;
 };
 #endif

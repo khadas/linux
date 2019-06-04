@@ -41,6 +41,7 @@ MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
 
+extern int get_wol_state(void);
 void phy_device_free(struct phy_device *phydev)
 {
 	put_device(&phydev->dev);
@@ -1227,6 +1228,47 @@ int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
 
+	if (get_wol_state())
+	{
+		struct net_device * ndev = phydev->attached_dev;
+
+		if (!phydev || !ndev) return 0;
+
+		mutex_lock(&phydev->lock);
+
+		//set INTB pin
+		phy_write(phydev, 31, 0x0d40);
+		value = phy_read(phydev, 22);
+		phy_write(phydev, 22, value | BIT(5));
+
+		//set MAC address
+		phy_write(phydev, 31, 0x0d8c);
+		phy_write(phydev, 16, ((u16)ndev->dev_addr[1] << 8) + ndev->dev_addr[0]);
+		phy_write(phydev, 17, ((u16)ndev->dev_addr[3] << 8) + ndev->dev_addr[2]);
+		phy_write(phydev, 18, ((u16)ndev->dev_addr[5] << 8) + ndev->dev_addr[4]);
+
+		//set max packet length
+		phy_write(phydev, 31, 0x0d8a);
+		phy_write(phydev, 17, 0x9fff);
+
+		//enable wol event
+		phy_write(phydev, 31, 0x0d8a);
+		phy_write(phydev, 16, 0x1000);
+
+		//disable rgmii pad
+		phy_write(phydev, 31, 0x0d8a);
+		value = phy_read(phydev, 19);
+		phy_write(phydev, 19, value | BIT(15));
+
+		phy_write(phydev, 31, 0xa42);
+
+		phy_read(phydev, 31);
+
+		mutex_unlock(&phydev->lock);
+
+		return 0;
+	}
+
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
@@ -1246,6 +1288,39 @@ static int gen10g_suspend(struct phy_device *phydev)
 int genphy_resume(struct phy_device *phydev)
 {
 	int value;
+
+	if (get_wol_state() && phydev->suspended) {
+		mutex_lock(&phydev->lock);
+
+		//disable wol event
+		phy_write(phydev, 31, 0x0d8a);
+		phy_write(phydev, 16, 0x0);
+
+		//reset wol
+		phy_write(phydev, 31, 0x0d8a);
+		value = phy_read(phydev, 17);
+		phy_write(phydev, 17, value & (~BIT(15)));
+
+		//enable rgmii pad
+		phy_write(phydev, 31, 0x0d8a);
+		value = phy_read(phydev, 19);
+		phy_write(phydev, 19, value & (~BIT(15)));
+
+		//set INTB pin
+		phy_write(phydev, 31, 0x0d40);
+		value = phy_read(phydev, 22);
+		phy_write(phydev, 22, value & (~BIT(5)));
+
+		phy_write(phydev, 31, 0xa42);
+
+		phy_read(phydev, 31);
+
+		mutex_unlock(&phydev->lock);
+
+		msleep(100);
+
+		return 0;
+	}
 
 	mutex_lock(&phydev->lock);
 

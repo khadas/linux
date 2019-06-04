@@ -1688,6 +1688,14 @@ static int rk_gmac_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+#ifdef CONFIG_PM
+extern void rtl8211f_shutdown(void);
+static void stmmac_pltfr_shutdown(struct platform_device *dev)
+{
+	rtl8211f_shutdown();
+}
+#endif
+
 static SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend, rk_gmac_resume);
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {
@@ -1709,6 +1717,9 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
 	.remove = rk_gmac_remove,
+#ifdef CONFIG_PM
+	.shutdown = stmmac_pltfr_shutdown,
+#endif
 	.driver = {
 		.name           = "rk_gmac-dwmac",
 		.pm		= &rk_gmac_pm_ops,
