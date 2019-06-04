@@ -564,6 +564,14 @@ config GPIO_DET
 	help
 	  Enable this driver will support gpio detection.
 
+config KHADAS_BOARD_TYPE
+        tristate "Khadas board type detect driver"
+        help
+          This driver allow you to get the type of khadas board
+config KHADAS_MCU
+        tristate "Khadas MCU control driver"
+        help
+          This driver allow to control MCU
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
