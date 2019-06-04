@@ -1764,7 +1764,19 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 		pdata->orientation[7] = 0;
 		pdata->orientation[8] = -1;
 		break;
+	case 9:
+		pdata->orientation[0] = 1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = -1;
+		pdata->orientation[5] = 0;
+
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 	default:
 		pdata->orientation[0] = 1;
 		pdata->orientation[1] = 0;
@@ -2021,6 +2033,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"lsm330_acc", ACCEL_ID_LSM330},
 	{"bma2xx_acc", ACCEL_ID_BMA2XX},
 	{"gs_stk8baxx", ACCEL_ID_STK8BAXX},
+	{"icm20602_acc", ACCEL_ID_ICM20602},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},
@@ -2036,6 +2049,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"mpu6500_gyro", GYRO_ID_MPU6500},
 	{"mpu6880_gyro", GYRO_ID_MPU6880},
 	{"lsm330_gyro", GYRO_ID_LSM330},
+	{"icm20602_gyro", GYRO_ID_ICM20602},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},
 	{"light_cm3217", LIGHT_ID_CM3217},

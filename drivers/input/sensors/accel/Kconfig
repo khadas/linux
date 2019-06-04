@@ -110,4 +110,11 @@ config BMA2XX_ACC
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config ICM20602_ACC
+	bool "Sensor icm20602_acc"
+	default y
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif
