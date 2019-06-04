@@ -96,8 +96,6 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 	}
 
 	evl_spin_unlock_irqrestore(&head->lock, flags);
-
-	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
 
