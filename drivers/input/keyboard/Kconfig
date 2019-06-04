@@ -750,4 +750,8 @@ config KEYBOARD_BCM
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm-keypad.
 
+config KEYBOARD_KHADAS_MATRIX
+    tristate "Khadas Matrix Keypad support"
+    help
+      Say Y here to enable the khadas matrix keypad
 endif
