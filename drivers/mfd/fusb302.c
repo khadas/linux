@@ -726,6 +726,8 @@ static int tcpm_check_vbus(struct fusb30x_chip *chip)
 	return (val & STATUS0_VBUSOK) ? 1 : 0;
 }
 
+extern int fusb302_1;//0:NG,1:OK
+extern int fusb302_2;//0:NG,1:OK
 static void tcpm_init(struct fusb30x_chip *chip)
 {
 	u8 val;
@@ -733,6 +735,19 @@ static void tcpm_init(struct fusb30x_chip *chip)
 
 	regmap_read(chip->regmap, FUSB_REG_DEVICEID, &tmp);
 	chip->chip_id = (u8)tmp;
+	//printk("hlm chip->chip_id=%x\n",chip->chip_id);
+	if(0==chip->port_num){//i2c 4
+		if(0x91==chip->chip_id)
+			fusb302_2=1;
+		else
+			fusb302_2=0;			
+	}
+	if(1==chip->port_num){//i2c 8
+		if(0x91==chip->chip_id)
+			fusb302_1=1;
+		else
+			fusb302_1=0;			
+	}	
 	platform_set_vbus_lvl_enable(chip, 0, 0);
 	chip->notify.is_cc_connected = false;
 	chip->cc_state = 0;

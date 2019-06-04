@@ -2081,6 +2081,9 @@ static void hub_disconnect_children(struct usb_device *udev)
  *
  * This call is synchronous, and may not be used in an interrupt context.
  */
+ 
+extern int usb2_id;//0:NG,1:OK
+extern int usb3_id;//0:NG,1:OK
 void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_port *port_dev = NULL;
@@ -2095,6 +2098,14 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
+	if (strcmp(udev->bus->controller->driver->name, "ehci-platform") == 0){
+		usb2_id=0;
+		//printk("is usb 2.0 out\n");
+	}
+	else if (strcmp(udev->bus->controller->driver->name, "xhci-hcd") == 0){
+		usb3_id=0;
+		//printk("is usb 3.0 out\n");
+	}		
 
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
@@ -4367,11 +4378,23 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	else
 		speed = usb_speed_string(udev->speed);
 
-	if (udev->speed < USB_SPEED_SUPER)
+	if (udev->speed < USB_SPEED_SUPER){
 		dev_info(&udev->dev,
 				"%s %s USB device number %d using %s\n",
 				(udev->config) ? "reset" : "new", speed,
 				devnum, udev->bus->controller->driver->name);
+
+		if (strcmp(udev->bus->controller->driver->name, "ehci-platform") == 0){
+			usb2_id=1;
+			//printk("is usb 2.0\n");
+		}
+		else if (strcmp(udev->bus->controller->driver->name, "xhci-hcd") == 0){
+			usb3_id=0;
+			//printk("is usb 3.0 for 2.0 u\n");
+		}		
+		else
+			usb2_id=0;
+	}
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -4506,6 +4529,10 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						(udev->config) ? "reset" : "new",
 					 (udev->speed == USB_SPEED_SUPER_PLUS) ? "Plus" : "",
 						devnum, udev->bus->controller->driver->name);
+					//if (strcmp(speed, "SuperSpeed") == 0){
+						usb3_id=1;
+						//printk("is usb 3.0\n");
+					//}			
 			}
 
 			/* cope with hardware quirkiness:

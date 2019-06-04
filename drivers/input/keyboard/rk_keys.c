@@ -114,6 +114,8 @@ void rk_send_wakeup_key(void)
 }
 EXPORT_SYMBOL(rk_send_wakeup_key);
 
+extern int key_test_flag;
+extern void Khadas_key_test(u32 code,u32 state);
 static void keys_timer(unsigned long _data)
 {
 	struct rk_keys_button *button = (struct rk_keys_button *)_data;
@@ -129,12 +131,22 @@ static void keys_timer(unsigned long _data)
 
 	if (button->state != state) {
 		button->state = state;
-		input_event(input, EV_KEY, button->code, button->state);
-		key_dbg(pdata, "%skey[%s]: report event[%d] state[%d]\n",
-			button->type == TYPE_ADC ? "adc" : "gpio",
-			button->desc, button->code, button->state);
-		input_event(input, EV_KEY, button->code, button->state);
-		input_sync(input);
+		if(2==key_test_flag){
+			Khadas_key_test(KEY_6, button->state);
+			if(!state)
+				key_test_flag=0;			
+		}
+		else if(3==key_test_flag){
+			Khadas_key_test(KEY_7, button->state);
+		}
+		else{
+			input_event(input, EV_KEY, button->code, button->state);
+			key_dbg(pdata, "%skey[%s]: report event[%d] state[%d]\n",
+				button->type == TYPE_ADC ? "adc" : "gpio",
+				button->desc, button->code, button->state);
+			input_event(input, EV_KEY, button->code, button->state);
+			input_sync(input);
+		}
 	}
 
 	if (state)
@@ -213,6 +225,13 @@ static void adc_key_poll(struct work_struct *work)
 
 			if (!button->adc_value)
 				continue;
+			if(key_test_flag){
+				if (result < button->adc_value + ddata->drift_advalue &&
+				    result > button->adc_value - ddata->drift_advalue)
+					key_test_flag=3;
+				else if (result < ddata->drift_advalue)
+					key_test_flag=2;				
+			}			
 			if (result < button->adc_value + ddata->drift_advalue &&
 			    result > button->adc_value - ddata->drift_advalue)
 				button->adc_state = 1;

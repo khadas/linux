@@ -1928,6 +1928,7 @@ static int bq25700_parse_dt(struct bq25700_device *charger)
 	return 0;
 }
 
+extern int charge_id;//0:NG,1:OK
 static int bq25700_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -2001,6 +2002,8 @@ static int bq25700_probe(struct i2c_client *client,
 		dev_err(dev, "Cannot read chip ID.\n");
 		return charger->chip_id;
 	}
+	charge_id=1;
+	DBG("chip id: 0x%x\n", charger->chip_id);
 
 	if (!dev->platform_data) {
 		ret = bq25700_fw_probe(charger);
