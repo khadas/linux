@@ -18,6 +18,7 @@
 #include <evl/sched.h>
 #include <evl/factory.h>
 #include <evl/syscall.h>
+#include <evl/poll.h>
 #include <asm/evl/syscall.h>
 #include <uapi/evl/monitor.h>
 #include <trace/events/evl.h>
@@ -34,6 +35,7 @@ struct evl_monitor {
 		struct {
 			struct evl_wait_queue wait_queue;
 			struct evl_monitor *gate;
+			struct evl_poll_head poll_head;
 			struct list_head next; /* in ->events */
 		};
 	};
@@ -250,6 +252,7 @@ static int exit_monitor(struct evl_monitor *gate)
 	struct evl_monitor_state *state = gate->state;
 	struct evl_monitor *event, *n;
 	unsigned long flags;
+	LIST_HEAD(polled);
 
 	if (gate->type == EVL_MONITOR_EV)
 		return -EINVAL;
@@ -257,19 +260,22 @@ static int exit_monitor(struct evl_monitor *gate)
 	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
 		return -EPERM;
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	if (state->flags & EVL_MONITOR_SIGNALED) {
+		xnlock_get_irqsave(&nklock, flags);
 		state->flags &= ~EVL_MONITOR_SIGNALED;
 		list_for_each_entry_safe(event, n, &gate->events, next) {
 			if (event->state->flags & EVL_MONITOR_SIGNALED) {
 				list_del(&event->next);
+				list_add(&event->next, &polled);
 				wakeup_waiters(event);
 			}
 		}
-	}
+		xnlock_put_irqrestore(&nklock, flags);
 
-	xnlock_put_irqrestore(&nklock, flags);
+		/* Wake up threads polling the condition too. */
+		list_for_each_entry(event, &polled, next)
+			evl_signal_poll_events(&event->poll_head, POLLIN);
+	}
 
 	__exit_monitor(gate, curr);
 
@@ -632,6 +638,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
 		state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 		atomic_set(&state->u.event.value, attrs.initval);
+		evl_init_poll_head(&mon->poll_head);
 	}
 
 	/*
