@@ -1449,6 +1449,24 @@ void rockchip_dump_temperature(void)
 }
 EXPORT_SYMBOL_GPL(rockchip_dump_temperature);
 
+void rockchip_get_cpu_temperature(int *out_temp)
+{
+	struct rockchip_thermal_data *thermal;
+	struct platform_device *pdev;
+	struct rockchip_thermal_sensor *sensor;
+
+	if (!thermal_device)
+		return;
+
+	pdev = thermal_device;
+	thermal = platform_get_drvdata(pdev);
+
+	sensor = &thermal->sensors[0];
+
+	rockchip_thermal_get_temp(sensor, out_temp);
+}
+EXPORT_SYMBOL_GPL(rockchip_get_cpu_temperature);
+
 static int rockchip_thermal_panic(struct notifier_block *this,
 				  unsigned long ev, void *ptr)
 {
