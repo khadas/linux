@@ -858,7 +858,7 @@ TRACE_EVENT(evl_latspot,
 	TP_fast_assign(
 		__entry->latmax_ns = latmax_ns;
 	),
-	TP_printk("** latency spot: %d.%.3d us **",
+	TP_printk("** latency peak: %d.%.3d us **",
 		  __entry->latmax_ns / 1000,
 		  __entry->latmax_ns % 1000)
 );
