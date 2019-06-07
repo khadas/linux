@@ -140,35 +140,21 @@ evl_this_cpu_timers(struct evl_clock *clock)
 
 struct evl_timer {
 	struct evl_clock *clock;
-	/* Link in timers list. */
 	struct evl_tnode node;
 	struct list_head adjlink;
-	/* Timer status. */
 	int status;
-	/* Periodic interval (clock ticks, 0 == one shot). */
-	ktime_t interval;
-	/* First tick date in periodic mode. */
+	ktime_t interval;	/* 0 == oneshot */
 	ktime_t start_date;
-	/* Position of next periodic release point. */
-	u64 pexpect_ticks;
-	/* Count of timer ticks in periodic mode. */
+	u64 pexpect_ticks;	/* periodic release date */
 	u64 periodic_ticks;
 #ifdef CONFIG_SMP
-	/* Runqueue the timer is affine to. */
 	struct evl_rq *rq;
 #endif
-	/* Per-cpu base. */
 	struct evl_timerbase *base;
-	/* Timeout handler. */
 	void (*handler)(struct evl_timer *timer);
-#ifdef CONFIG_EVL_RUNSTATS
-	/* Timer name to be displayed. */
 	const char *name;
-	/* Timer holder in timebase. */
-	struct list_head next_stat;
-	/* Number of timer schedules. */
+#ifdef CONFIG_EVL_RUNSTATS
 	struct evl_counter scheduled;
-	/* Number of timer events. */
 	struct evl_counter fired;
 #endif /* CONFIG_EVL_RUNSTATS */
 };
@@ -261,13 +247,13 @@ void __evl_init_timer(struct evl_timer *timer,
 void evl_set_timer_gravity(struct evl_timer *timer,
 			int gravity);
 
-#ifdef CONFIG_EVL_RUNSTATS
-
 #define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
 	do {								\
 		__evl_init_timer(__timer, __clock, __handler, __rq, __flags); \
 		evl_set_timer_name(__timer, #__handler);		\
 	} while (0)
+
+#ifdef CONFIG_EVL_RUNSTATS
 
 static inline
 void evl_reset_timer_stats(struct evl_timer *timer)
@@ -288,6 +274,19 @@ void evl_account_timer_fired(struct evl_timer *timer)
 	evl_inc_counter(&timer->fired);
 }
 
+#else /* !CONFIG_EVL_RUNSTATS */
+
+static inline
+void evl_reset_timer_stats(struct evl_timer *timer) { }
+
+static inline
+void evl_account_timer_scheduled(struct evl_timer *timer) { }
+
+static inline
+void evl_account_timer_fired(struct evl_timer *timer) { }
+
+#endif /* !CONFIG_EVL_RUNSTATS */
+
 static inline
 void evl_set_timer_name(struct evl_timer *timer, const char *name)
 {
@@ -299,30 +298,6 @@ const char *evl_get_timer_name(struct evl_timer *timer)
 {
 	return timer->name;
 }
-
-#else /* !CONFIG_EVL_RUNSTATS */
-
-#define evl_init_timer	__evl_init_timer
-
-static inline
-void evl_reset_timer_stats(struct evl_timer *timer) { }
-
-static inline
-void evl_account_timer_scheduled(struct evl_timer *timer) { }
-
-static inline
-void evl_account_timer_fired(struct evl_timer *timer) { }
-
-static inline
-void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
-
-static inline
-const char *evl_get_timer_name(struct evl_timer *timer)
-{
-	return "<timer>";
-}
-
-#endif /* !CONFIG_EVL_RUNSTATS */
 
 #define evl_init_core_timer(__timer, __handler)				\
 	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
