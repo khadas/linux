@@ -642,16 +642,18 @@ TRACE_EVENT(evl_timer_bolt,
 		__field(struct evl_timer *, timer)
 		__field(struct evl_clock *, clock)
 		__field(unsigned int, cpu)
+		__string(timer_name, timer->name)
 	),
 
 	TP_fast_assign(
 		__entry->timer = timer;
 		__entry->clock = clock;
 		__entry->cpu = cpu;
+		__assign_str(timer_name, timer->name);
 	),
 
 	TP_printk("timer=%s clock=%s, cpu=%u",
-		evl_get_timer_name(__entry->timer),
+		  __get_str(timer_name),
 		__entry->clock->name, __entry->cpu)
 );
 
@@ -664,22 +666,22 @@ TRACE_EVENT(evl_timer_shot,
 		__field(u32, nsecs)
 		__field(s64, delta)
 		__field(u64, cycles)
-		__field(struct evl_timer *, timer)
+		__string(name, timer->name)
 	),
 
 	TP_fast_assign(
-		__entry->timer = timer;
 		__entry->cycles = cycles;
 		__entry->delta = delta;
 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
 					    NSEC_PER_SEC, &__entry->nsecs);
+		__assign_str(name, timer->name);
 	),
 
-	TP_printk("%s tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
-		evl_get_timer_name(__entry->timer),
-		(unsigned long long)__entry->secs,
-		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
-		__entry->cycles)
+	TP_printk("%s at %Lu.%06u (delay: %Ld us, %Lu cycles)",
+		  __get_str(name),
+		  (unsigned long long)__entry->secs,
+		  __entry->nsecs / 1000, div_s64(__entry->delta, 1000),
+		  __entry->cycles)
 );
 
 DEFINE_EVENT(wq_event, evl_wait,

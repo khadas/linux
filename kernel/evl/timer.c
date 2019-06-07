@@ -344,11 +344,8 @@ void __evl_init_timer(struct evl_timer *timer,
 #endif
 	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
 	timer->clock = clock;
-
-#ifdef CONFIG_EVL_RUNSTATS
-	timer->name = "anon";
+	timer->name = "<timer>";
 	evl_reset_timer_stats(timer);
-#endif /* CONFIG_EVL_RUNSTATS */
 }
 EXPORT_SYMBOL_GPL(__evl_init_timer);
 
