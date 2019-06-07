@@ -191,17 +191,17 @@ DECLARE_EVENT_CLASS(evl_clock_timespec,
 	TP_ARGS(clock, val),
 
 	TP_STRUCT__entry(
-		__field(struct evl_clock *, clock)
 		__timespec_fields(val)
+		__string(name, clock->name)
 	),
 
 	TP_fast_assign(
-		__entry->clock = clock;
 		__assign_timespec(val, val);
+		__assign_str(name, clock->name);
 	),
 
 	TP_printk("clock=%s timeval=(%ld.%09ld)",
-		  __entry->clock->name,
+		  __get_str(name),
 		  __timespec_args(val)
 	)
 );
@@ -639,22 +639,21 @@ TRACE_EVENT(evl_timer_bolt,
 	    TP_ARGS(timer, clock, cpu),
 
 	TP_STRUCT__entry(
-		__field(struct evl_timer *, timer)
-		__field(struct evl_clock *, clock)
 		__field(unsigned int, cpu)
 		__string(timer_name, timer->name)
+		__string(clock_name, clock->name)
 	),
 
 	TP_fast_assign(
-		__entry->timer = timer;
-		__entry->clock = clock;
 		__entry->cpu = cpu;
 		__assign_str(timer_name, timer->name);
+		__assign_str(clock_name, clock->name);
 	),
 
-	TP_printk("timer=%s clock=%s, cpu=%u",
+	TP_printk("timer=%s clock=%s cpu=%u",
 		  __get_str(timer_name),
-		__entry->clock->name, __entry->cpu)
+		  __get_str(clock_name),
+		  __entry->cpu)
 );
 
 TRACE_EVENT(evl_timer_shot,
@@ -809,17 +808,17 @@ TRACE_EVENT(evl_clock_adjtime,
 	TP_ARGS(clock, tx),
 
 	TP_STRUCT__entry(
-		__field(struct evl_clock *, clock)
 		__field(struct timex *, tx)
+		__string(name, clock->name)
 	),
 
 	TP_fast_assign(
-		__entry->clock = clock;
 		__entry->tx = tx;
+		__assign_str(name, clock->name);
 	),
 
 	TP_printk("clock=%s timex=%p",
-		  __entry->clock->name,
+		  __get_str(name),
 		  __entry->tx
 	)
 );
