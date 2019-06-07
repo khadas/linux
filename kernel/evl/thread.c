@@ -2343,6 +2343,8 @@ out:
 }
 static DEVICE_ATTR_RO(sched);
 
+#ifdef CONFIG_EVL_RUNSTATS
+
 static ssize_t stats_show(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
@@ -2398,6 +2400,18 @@ static ssize_t stats_show(struct device *dev,
 
 	return ret;
 }
+
+#else
+
+static ssize_t stats_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0 0 0 0 0\n");
+}
+
+#endif	/* !CONFIG_EVL_RUNSTATS */
+
 static DEVICE_ATTR_RO(stats);
 
 static ssize_t timeout_show(struct device *dev,
