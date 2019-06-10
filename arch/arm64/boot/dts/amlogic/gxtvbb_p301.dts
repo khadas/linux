@@ -1760,7 +1760,6 @@
 			pagesize = <8>;
 			write_ops_interval= <10>;/*Write operation interval  at24c32 at24c64 is 10ms  at24c128 is 5ms in spec*/
 			wp_gpios = <&gpio  GPIOY_7  GPIO_ACTIVE_HIGH>;
-			write_gpio_port_status = <0>;
 		};
 	};
 &pinmux {

@@ -24,11 +24,9 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/at24.h>
 #include <linux/gpio.h>
-#include <linux/amlogic/aml_gpio_consumer.h>
-#include <linux/amlogic/gpio-amlogic.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-
+#include <linux/of_gpio.h>
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -135,28 +133,23 @@ static const struct i2c_device_id at24_ids[] = {
 	{ /* END OF LIST */ }
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
-#define MODULE_NAME  "at24"
+
 static struct at24_data *gp_at24;
 static ssize_t at24_wp_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
-
-	return sprintf(buf, "%d\n", gpiod_get_value(gp_at24->chip.wp_pin_desc));
+	return sprintf(buf, "%d\n", gpio_get_value(gp_at24->chip.wp_port));
 }
 static ssize_t at24_wp_store(struct class *class,
 	struct class_attribute *attr, const char *buf, size_t count)
 {
 	u8 wp;
-	u8  ret;
-	ret = sscanf(buf, "%x", (int *)&wp);
+	u8 ret;
+	ret = sscanf(buf, "%hhx", &wp);
 
 	mutex_lock(&gp_at24->lock);
-	if (wp == 0)
-		amlogic_gpio_direction_output(gp_at24->chip.wp_port , 0 ,
-							MODULE_NAME);
-	else if (wp == 1)
-		amlogic_gpio_direction_output(gp_at24->chip.wp_port , 1 ,
-							MODULE_NAME);
+	if (wp <= 1)
+		gpio_set_value(gp_at24->chip.wp_port, wp);
 	else
 		pr_info("only support 1 or 0\n");
 
@@ -168,39 +161,14 @@ struct class *at24_class;
 static CLASS_ATTR(at24_wp , S_IWUSR | S_IRUGO , at24_wp_show , at24_wp_store);
 
 
-/*eeprom protect gpio enable*/
-void at24_wp_enable(struct at24_platform_data *chip)
-{
-	int ret;
-	if (chip->wp_port > 0) {
-		ret = gpio_request(chip->wp_port , MODULE_NAME);
-		if (ret)
-			pr_info("faild to alloc write protect (%d)!\n" ,
-								chip->wp_port);
-		else
-			amlogic_gpio_direction_output(chip->wp_port ,
-				chip->wp_port_level , MODULE_NAME);
-	} else {
-			pr_info("wrong wp port\n");
-	}
-}
 /* enable write protect*/
-void at24_enable_write_operation(struct at24_platform_data *chip)
+static void at24_enable_write_operation(struct at24_platform_data *chip,
+					bool enable)
 {
-if (chip->wp_port > 0)	{
-		chip->wp_port_level = chip->wp_port_level_save;
-		amlogic_gpio_direction_output(chip->wp_port ,
-					chip->wp_port_level , MODULE_NAME);
-	}
-}
-/* disable write protect*/
-void at24_disable_write_operation(struct at24_platform_data *chip)
-{
-if (chip->wp_port > 0)	{
-		chip->wp_port_level = !chip->wp_port_level_save;
-		amlogic_gpio_direction_output(chip->wp_port ,
-					chip->wp_port_level , MODULE_NAME);
-	}
+	if (gpio_is_valid(chip->wp_port))
+		gpio_set_value(chip->wp_port,
+			       enable ? !chip->wp_port_active_level :
+					chip->wp_port_active_level);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -469,7 +437,7 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 	if (unlikely(!count))
 		return count;
 	/*enable write ops*/
-	at24_enable_write_operation(&at24->chip);
+	at24_enable_write_operation(&at24->chip, true);
 	mdelay(at24->chip.write_ops_interval);
 	/*
 	 * Write data to chip, protecting against concurrent updates
@@ -496,7 +464,7 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 	mutex_unlock(&at24->lock);
 
 	/*write protect*/
-	at24_disable_write_operation(&at24->chip);
+	at24_enable_write_operation(&at24->chip, false);
 
 	return retval;
 }
@@ -561,43 +529,33 @@ static void at24_get_ofdata(struct i2c_client *client,
 { }
 #endif /* CONFIG_OF */
 
-void at24_dt_parse(struct i2c_client *client , struct at24_platform_data *chip)
+static int at24_dt_parse(struct i2c_client *client,
+			 struct at24_platform_data *chip)
 {
-/*	const char *str;*/
-	int ret;
-	enum of_gpio_flags flags;
-
 	struct device_node *node = client->dev.of_node;
+	enum of_gpio_flags flags;
+	int ret;
 
-	ret = of_property_read_u32(node, "write_ops_interval",
-						&(chip->write_ops_interval));
-	if (ret)
-		pr_info("faild to get write interval time !\n");
+	chip->write_ops_interval = 0;
+	of_property_read_u32(node, "write_ops_interval",
+			     &chip->write_ops_interval);
 
-	chip->wp_pin_desc = of_get_named_gpiod_flags(node , "wp_gpios" ,
-						0 , &flags);
-	chip->wp_port = desc_to_gpio(chip->wp_pin_desc);
+	chip->wp_port = of_get_named_gpio_flags(node, "wp_gpios", 0, &flags);
+	if (gpio_is_valid(chip->wp_port)) {
+		chip->wp_port_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
 
-	ret = of_property_read_u32(node , "write_gpio_port_status",
-					&(chip->wp_port_level));
-	if (ret)
-		pr_info("faild to get write interval time !\n");
+		ret = gpio_request_one(chip->wp_port,
+				       chip->wp_port_active_level ?
+				       GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+				       dev_name(&client->dev));
+		if (ret) {
+			dev_err(&client->dev, "unable to request WP GPIO %d\n",
+				chip->wp_port);
+			return ret;
+		}
+	}
 
-	if (!chip->wp_port_level)
-		chip->wp_port_level_save = chip->wp_port_level = 0;
-		/*at24_wp_enable(chip);*/
-	else
-		chip->wp_port_level_save = chip->wp_port_level = 1;
-		/*at24_wp_enable(chip);*/
-
-	chip->wp_port_level = !chip->wp_port_level_save;
-	at24_wp_enable(chip);
-
-	pr_info("EEPROM_AT%s " , client->name);
-	pr_info("write protect port level is %d" , chip->wp_port);
-	pr_info("wp_port=%d write_ops_interval=%dms\n" ,
-	chip->wp_port ,
-	chip->write_ops_interval);
+	return 0;
 }
 
 
@@ -696,8 +654,10 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	writable = !(chip.flags & AT24_FLAG_READONLY);
 	if (writable) {
+		err = at24_dt_parse(client, &at24->chip);
+		if (err)
+			return err;
 
-		at24_dt_parse(client , &at24->chip);
 		if (!use_smbus || i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
 
@@ -758,10 +718,12 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* export data to kernel code */
 	if (chip.setup)
 		chip.setup(&at24->macc, chip.context);
-	at24_class = class_create(THIS_MODULE , "at24_wp");
-	err = class_create_file(at24_class , &class_attr_at24_wp);
+	if (writable && gpio_is_valid(chip.wp_port)) {
+		at24_class = class_create(THIS_MODULE , "at24_wp");
+		err = class_create_file(at24_class , &class_attr_at24_wp);
+	}
 
-	return 0;
+	return err;
 
 err_clients:
 	for (i = 1; i < num_addresses; i++)
@@ -782,7 +744,9 @@ static int at24_remove(struct i2c_client *client)
 	for (i = 1; i < at24->num_addresses; i++)
 		i2c_unregister_device(at24->client[i]);
 
-	class_destroy(at24_class);
+	if (!(at24->chip.flags & AT24_FLAG_READONLY) &&
+			gpio_is_valid(at24->chip.wp_port))
+		class_destroy(at24_class);
 	return 0;
 }
 

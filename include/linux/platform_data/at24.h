@@ -47,17 +47,11 @@ struct at24_platform_data {
 #define AT24_FLAG_READONLY	0x40	/* sysfs-entry will be read-only */
 #define AT24_FLAG_IRUGO		0x20	/* sysfs-entry will be world-readable */
 #define AT24_FLAG_TAKE8ADDR	0x10	/* take always 8 addresses (24c00) */
-	unsigned int wp_port;
-	unsigned int wp_port_level;
-	unsigned int wp_port_level_save;
+	int wp_port;
+	unsigned int wp_port_active_level;
 	unsigned int write_ops_interval;
-	struct gpio_desc *wp_pin_desc;
 	void		(*setup)(struct memory_accessor *, void *context);
 	void		*context;
 };
-extern int amlogic_gpio_name_map_num(const char *name);
-extern int amlogic_gpio_direction_output(unsigned int pin, int value,
-					 const char *owner);
-extern int amlogic_gpio_request(unsigned int pin, const char *label);
 
 #endif /* _LINUX_AT24_H */
