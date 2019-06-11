@@ -11,8 +11,6 @@
 #include <linux/notifier.h>
 #include <evl/factory.h>
 
-#define EVL_ABI_LEVEL  0
-
 enum evl_run_states {
 	EVL_STATE_DISABLED,
 	EVL_STATE_RUNNING,
