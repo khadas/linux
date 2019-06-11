@@ -44,6 +44,8 @@
 #define MESON_CPU_VERSION_LVL_MISC	3
 #define MESON_CPU_VERSION_LVL_MAX	MESON_CPU_VERSION_LVL_MISC
 
+extern const char *machine_model;
+
 #define CHIPID_LEN 16
 void cpuinfo_get_chipid(unsigned char *cid, unsigned int size);
 int  meson_cpu_version_init(void);

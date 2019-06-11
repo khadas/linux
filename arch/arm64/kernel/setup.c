@@ -66,6 +66,9 @@
 
 phys_addr_t __fdt_pointer __initdata;
 
+const char *machine_model;
+EXPORT_SYMBOL(machine_model);
+
 /*
  * Standard memory resources
  */
@@ -180,6 +183,7 @@ static void __init smp_build_mpidr_hash(void)
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
 	void *dt_virt = fixmap_remap_fdt(dt_phys);
+	const char *name;
 
 	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
 		pr_crit("\n"
@@ -192,7 +196,14 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 			cpu_relax();
 	}
 
-	dump_stack_set_arch_desc("%s (DT)", of_flat_dt_get_machine_name());
+	name = of_flat_dt_get_machine_name();
+	if (!name)
+		return;
+
+	machine_model = name;
+
+	pr_info("Machine model: %s\n", name);
+	dump_stack_set_arch_desc("%s (DT)", name);
 }
 
 static void __init request_standard_resources(void)
