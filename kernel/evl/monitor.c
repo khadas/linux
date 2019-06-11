@@ -26,7 +26,8 @@
 struct evl_monitor {
 	struct evl_element element;
 	struct evl_monitor_state *state;
-	int type;
+	int type : 2,
+	    protocol : 4;
 	union {
 		struct {
 			struct evl_mutex lock;
@@ -66,7 +67,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	if (event == NULL)
 		return -EINVAL;
 
-	if (event->type != EVL_MONITOR_EV) {
+	if (event->type != EVL_MONITOR_EVENT) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -106,7 +107,7 @@ void __evl_commit_monitor_ceiling(void)  /* nklock held, irqs off, OOB */
 	if (gate == NULL)
 		goto out;
 
-	if (gate->type == EVL_MONITOR_PP)
+	if (gate->protocol == EVL_GATE_PP)
 		evl_commit_mutex_ceiling(&gate->lock);
 
 	evl_put_element(&gate->element);
@@ -202,7 +203,7 @@ static int enter_monitor(struct evl_monitor *gate,
 	unsigned long flags;
 	int ret;
 
-	if (gate->type == EVL_MONITOR_EV)
+	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
 	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
@@ -220,7 +221,7 @@ static int tryenter_monitor(struct evl_monitor *gate)
 	unsigned long flags;
 	int ret;
 
-	if (gate->type == EVL_MONITOR_EV)
+	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
 	xnlock_get_irqsave(&nklock, flags);
@@ -254,7 +255,7 @@ static int exit_monitor(struct evl_monitor *gate)
 	unsigned long flags;
 	LIST_HEAD(polled);
 
-	if (gate->type == EVL_MONITOR_EV)
+	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
 	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
@@ -296,10 +297,10 @@ static void untrack_event(struct evl_monitor *event,
 }
 
 /*
- * A special form of the wait operation which is not protected by a
- * lock but behaves as a semaphore P operations based on the
- * signedness of the event value. Userland is assumed to deal with
- * signal-vs-wait races in its own way.
+ * Special form of the wait operation which is not protected by a lock
+ * but behaves as a semaphore P operation based on the signedness of
+ * the event value.  Userland is expected to implement a fast atomic
+ * path if possible and deal with signal-vs-wait races in its own way.
  */
 static int wait_monitor_ungated(struct evl_monitor *event,
 				struct evl_monitor_waitreq *req,
@@ -313,12 +314,18 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	if (atomic_dec_return(&state->u.event.value) < 0) {
-		timeout = timespec_to_ktime(req->timeout);
-		tmode = timeout ? EVL_ABS : EVL_REL;
-		ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
-		if (ret) /* Rollback decrement if failed. */
-			atomic_inc(&state->u.event.value);
+	switch (event->protocol) {
+	case EVL_EVENT_COUNT:
+		if (atomic_dec_return(&state->u.event.value) < 0) {
+			timeout = timespec_to_ktime(req->timeout);
+			tmode = timeout ? EVL_ABS : EVL_REL;
+			ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
+			if (ret) /* Rollback decrement if failed. */
+				atomic_inc(&state->u.event.value);
+		}
+		break;
+	default:
+		ret = -EINVAL;	/* uh? brace for rollercoaster. */
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
@@ -357,7 +364,7 @@ static int wait_monitor(struct evl_monitor *event,
 	unsigned long flags;
 	ktime_t timeout;
 
-	if (event->type != EVL_MONITOR_EV) {
+	if (event->type != EVL_MONITOR_EVENT) {
 		op_ret = -EINVAL;
 		goto out;
 	}
@@ -377,7 +384,7 @@ static int wait_monitor(struct evl_monitor *event,
 		goto out;
 	}
 
-	if (gate->type == EVL_MONITOR_EV) {
+	if (gate->type != EVL_MONITOR_GATE) {
 		op_ret = -EINVAL;
 		goto put;
 	}
@@ -447,7 +454,7 @@ static int unwait_monitor(struct evl_monitor *event,
 	unsigned long flags;
 	int ret;
 
-	if (event->type != EVL_MONITOR_EV)
+	if (event->type != EVL_MONITOR_EVENT)
 		return -EINVAL;
 
 	/* Find the gate monitor we need to re-acquire. */
@@ -494,6 +501,7 @@ static long monitor_ioctl(struct file *filp, unsigned int cmd,
 		return monitor_common_ioctl(filp, cmd, arg);
 
 	bind.type = mon->type;
+	bind.protocol = mon->protocol;
 	bind.eids.minor = mon->element.minor;
 	bind.eids.state_offset = evl_shared_offset(mon->state);
 	bind.eids.fundle = fundle_of(mon);
@@ -555,7 +563,7 @@ static int monitor_release(struct inode *inode, struct file *filp)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 
-	if (mon->type == EVL_MONITOR_EV)
+	if (mon->type == EVL_MONITOR_EVENT)
 		evl_flush_wait(&mon->wait_queue, T_RMID);
 	else
 		evl_flush_mutex(&mon->lock, T_RMID);
@@ -585,16 +593,29 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		return ERR_PTR(-EFAULT);
 
 	switch (attrs.type) {
-	case EVL_MONITOR_PP:
-		if (attrs.initval == 0 ||
-			attrs.initval > EVL_CORE_MAX_PRIO)
+	case EVL_MONITOR_GATE:
+		switch (attrs.protocol) {
+		case EVL_GATE_PP:
+			if (attrs.initval == 0 ||
+				attrs.initval > EVL_CORE_MAX_PRIO)
+				return ERR_PTR(-EINVAL);
+			break;
+		case EVL_GATE_PI:
+			if (attrs.initval)
+				return ERR_PTR(-EINVAL);
+			break;
+		default:
 			return ERR_PTR(-EINVAL);
+		}
 		break;
-	case EVL_MONITOR_PI:
-		if (attrs.initval)
+	case EVL_MONITOR_EVENT:
+		switch (attrs.protocol) {
+		case EVL_EVENT_GATED:
+		case EVL_EVENT_COUNT:
+			break;
+		default:
 			return ERR_PTR(-EINVAL);
-		break;
-	case EVL_MONITOR_EV:
+		}
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
@@ -621,20 +642,23 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	}
 
 	switch (attrs.type) {
-	case EVL_MONITOR_PP:
-		state->u.gate.ceiling = attrs.initval;
-		evl_init_mutex_pp(&mon->lock, clock,
-				&state->u.gate.owner,
-				&state->u.gate.ceiling);
-		INIT_LIST_HEAD(&mon->events);
+	case EVL_MONITOR_GATE:
+		switch (attrs.protocol) {
+		case EVL_GATE_PP:
+			state->u.gate.ceiling = attrs.initval;
+			evl_init_mutex_pp(&mon->lock, clock,
+					&state->u.gate.owner,
+					&state->u.gate.ceiling);
+			INIT_LIST_HEAD(&mon->events);
+			break;
+		case EVL_GATE_PI:
+			evl_init_mutex_pi(&mon->lock, clock,
+					&state->u.gate.owner);
+			INIT_LIST_HEAD(&mon->events);
+			break;
+		}
 		break;
-	case EVL_MONITOR_PI:
-		evl_init_mutex_pi(&mon->lock, clock,
-				&state->u.gate.owner);
-		INIT_LIST_HEAD(&mon->events);
-		break;
-	case EVL_MONITOR_EV:
-	default:
+	case EVL_MONITOR_EVENT:
 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
 		state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 		atomic_set(&state->u.event.value, attrs.initval);
@@ -647,6 +671,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	 * shared state for this.
 	 */
 	mon->type = attrs.type;
+	mon->protocol = attrs.protocol;
 	mon->state = state;
 	*state_offp = evl_shared_offset(state);
 	evl_index_element(&mon->element);
@@ -672,7 +697,7 @@ static void monitor_factory_dispose(struct evl_element *e)
 
 	evl_unindex_element(&mon->element);
 
-	if (mon->type == EVL_MONITOR_EV) {
+	if (mon->type == EVL_MONITOR_EVENT) {
 		evl_put_clock(mon->wait_queue.clock);
 		evl_destroy_wait(&mon->wait_queue);
 		if (mon->gate) {
@@ -701,7 +726,7 @@ static ssize_t state_show(struct device *dev,
 
 	mon = evl_get_element_by_dev(dev, struct evl_monitor);
 
-	if (mon->type == EVL_MONITOR_EV)
+	if (mon->type == EVL_MONITOR_EVENT)
 		ret = snprintf(buf, PAGE_SIZE, "%#x\n",
 			mon->state->flags);
 	else {

@@ -13,13 +13,17 @@
 
 #define EVL_MONITOR_DEV		"monitor"
 
-#define EVL_MONITOR_EV  0	/* Event monitor. */
-#define EVL_MONITOR_PI  1	/* Gate with priority inheritance. */
-#define EVL_MONITOR_PP  2	/* Gate with priority protection (ceiling). */
+#define EVL_MONITOR_EVENT  0	/* Event monitor. */
+#  define EVL_EVENT_GATED  0	/* Gate protected. */
+#  define EVL_EVENT_COUNT  1	/* Semaphore. */
+#define EVL_MONITOR_GATE   1	/* Gate monitor. */
+#  define EVL_GATE_PI      0	/* Gate with priority inheritance. */
+#  define EVL_GATE_PP      1	/* Gate with priority protection (ceiling). */
 
 struct evl_monitor_attrs {
 	__u32 clockfd;
-	__u32 type;
+	__u32 type : 2,
+	      protocol : 4;
 	__u32 initval;
 };
 
@@ -59,7 +63,8 @@ struct evl_monitor_unwaitreq {
 };
 
 struct evl_monitor_binding {
-	__u32 type;
+	__u32 type : 2,
+	      protocol : 4;
 	struct evl_element_ids eids;
 };
 
