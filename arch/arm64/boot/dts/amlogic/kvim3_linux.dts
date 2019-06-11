@@ -276,6 +276,12 @@
 		status = "okay";
 	};
 
+	gpiomem {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xff634000 0x0 0x1000>;
+		status = "okay";
+	};
+
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";

@@ -130,6 +130,12 @@
 		};
 	};
 
+	gpiomem {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xda834000 0x0 0x1000>;
+		status = "okay";
+	};
+
 	bt-dev{
 		compatible = "amlogic, bt-dev";
 		dev_name = "bt-dev";
