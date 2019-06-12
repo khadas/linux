@@ -49,10 +49,9 @@
 
 /* Local information flags (private to current thread) */
 
-#define T_MOVED   0x00000001 /*< CPU migration request issued from OOB context */
-#define T_SYSRST  0x00000002 /*< Thread awaiting syscall restart after signal */
-#define T_HICCUP  0x00000004 /*< Just left from ptracing - timings wrecked */
-#define T_INFAULT 0x00000008 /*< In fault handling */
+#define T_SYSRST  0x00000001 /*< Thread awaiting syscall restart after signal */
+#define T_HICCUP  0x00000002 /*< Just left from ptracing - timings wrecked */
+#define T_INFAULT 0x00000004 /*< In fault handling */
 
 /*
  * Must follow strictly the declaration order of the state flags
