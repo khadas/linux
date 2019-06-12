@@ -296,15 +296,48 @@ static void untrack_event(struct evl_monitor *event,
 	}
 }
 
+static inline bool test_event_mask(struct evl_monitor_state *state,
+				s32 *r_value)
+{
+	int val;
+
+	/* Read and reset the event mask, unblocking if non-zero. */
+	for (;;) {
+		val = atomic_read(&state->u.event.value);
+		if (!val)
+			return false;
+		if (atomic_cmpxchg(&state->u.event.value, val, 0) == val) {
+			*r_value = val;
+			return true;
+		}
+	}
+}
+
+static inline s32 set_event_mask(struct evl_monitor_state *state,
+				s32 addval)
+{
+	int oldval, newval;
+
+	for (;;) {
+		oldval = atomic_read(&state->u.event.value);
+		newval = oldval | (int)addval;
+		if (atomic_cmpxchg(&state->u.event.value, oldval, newval) == oldval)
+			break;
+	}
+
+	return oldval;
+}
+
 /*
- * Special form of the wait operation which is not protected by a lock
- * but behaves as a semaphore P operation based on the signedness of
- * the event value.  Userland is expected to implement a fast atomic
- * path if possible and deal with signal-vs-wait races in its own way.
+ * Special forms of the wait operation which are not protected by a
+ * lock but behave either as a semaphore P operation based on the
+ * signedness of the event value, or as a bitmask of discrete events.
+ * Userland is expected to implement a fast atomic path if possible
+ * and deal with signal-vs-wait races in its own way.
  */
 static int wait_monitor_ungated(struct evl_monitor *event,
 				struct evl_monitor_waitreq *req,
-				__s32 *r_op_ret)
+				s32 *r_value)
 {
 	struct evl_monitor_state *state = event->state;
 	enum evl_tmode tmode;
@@ -312,49 +345,69 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 	ktime_t timeout;
 	int ret = 0;
 
-	xnlock_get_irqsave(&nklock, flags);
+	timeout = timespec_to_ktime(req->timeout);
+	tmode = timeout ? EVL_ABS : EVL_REL;
 
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
+		xnlock_get_irqsave(&nklock, flags);
 		if (atomic_dec_return(&state->u.event.value) < 0) {
-			timeout = timespec_to_ktime(req->timeout);
-			tmode = timeout ? EVL_ABS : EVL_REL;
 			ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
 			if (ret) /* Rollback decrement if failed. */
 				atomic_inc(&state->u.event.value);
 		}
+		xnlock_put_irqrestore(&nklock, flags);
+		break;
+	case EVL_EVENT_MASK:
+		ret = evl_wait_event_timeout(&event->wait_queue,
+					timeout, tmode,
+					test_event_mask(state, r_value));
 		break;
 	default:
 		ret = -EINVAL;	/* uh? brace for rollercoaster. */
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
+	return ret;
+}
 
-	*r_op_ret = ret;
+static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
+{
+	struct evl_monitor_state *state = event->state;
+	unsigned long flags;
+	int ret = 0, oldval;
+
+	/*
+	 * Still serializing on the nklock until we can get rid of it,
+	 * using the per-waitqueue lock instead. In any case, we have
+	 * to serialize against the read side not to lose wake up
+	 * events.
+	 */
+	switch (event->protocol) {
+	case EVL_EVENT_COUNT:
+		xnlock_get_irqsave(&nklock, flags);
+		if (atomic_inc_return(&state->u.event.value) <= 0)
+			evl_wake_up_head(&event->wait_queue);
+		xnlock_put_irqrestore(&nklock, flags);
+		break;
+	case EVL_EVENT_MASK:
+		if (!sigval)
+			return -EINVAL;
+		xnlock_get_irqsave(&nklock, flags);
+		oldval = set_event_mask(state, (int)sigval);
+		evl_wake_up_head(&event->wait_queue);
+		xnlock_put_irqrestore(&nklock, flags);
+		break;
+	}
+
+	evl_schedule();
 
 	return ret;
 }
 
-static int signal_monitor_ungated(struct evl_monitor *event)
-{
-	struct evl_monitor_state *state = event->state;
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (atomic_inc_return(&state->u.event.value) <= 0)
-		evl_wake_up_head(&event->wait_queue);
-
-	xnlock_put_irqrestore(&nklock, flags);
-
-	evl_schedule();
-
-	return 0;
-}
-
 static int wait_monitor(struct evl_monitor *event,
 			struct evl_monitor_waitreq *req,
-			__s32 *r_op_ret)
+			s32 *r_op_ret,
+			s32 *r_value)
 {
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
@@ -374,8 +427,11 @@ static int wait_monitor(struct evl_monitor *event,
 		goto out;
 	}
 
-	if (req->gatefd < 0)
-		return wait_monitor_ungated(event, req, r_op_ret);
+	if (req->gatefd < 0) {
+		ret = wait_monitor_ungated(event, req, r_value);
+		*r_op_ret = ret;
+		return ret;
+	}
 
 	/* Find the gate monitor protecting us. */
 	gate = get_monitor_by_fd(req->gatefd, &efilp);
@@ -478,11 +534,14 @@ static long monitor_common_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+	__s32 sigval = 0;
 	int ret;
 
 	switch (cmd) {
 	case EVL_MONIOC_SIGNAL:
-		ret = signal_monitor_ungated(mon);
+		if (arg && raw_get_user(sigval, (__s32 __user *)arg))
+			return -EFAULT;
+		ret = signal_monitor_ungated(mon, sigval);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -517,7 +576,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_monitor_unwaitreq uwreq, __user *u_uwreq;
 	struct evl_monitor_waitreq wreq, __user *u_wreq;
 	struct evl_monitor_lockreq lreq, __user *u_lreq;
-	__s32 op_ret;
+	s32 op_ret, value = 0;
 	long ret;
 
 	if (cmd == EVL_MONIOC_WAIT) {
@@ -525,8 +584,10 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		ret = wait_monitor(mon, &wreq, &op_ret);
+		ret = wait_monitor(mon, &wreq, &op_ret, &value);
 		raw_put_user(op_ret, &u_wreq->status);
+		if (!ret && !op_ret)
+			raw_put_user(value, &u_wreq->value);
 		return ret;
 	}
 
@@ -612,6 +673,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		switch (attrs.protocol) {
 		case EVL_EVENT_GATED:
 		case EVL_EVENT_COUNT:
+		case EVL_EVENT_MASK:
 			break;
 		default:
 			return ERR_PTR(-EINVAL);
@@ -719,24 +781,38 @@ static ssize_t state_show(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
+	struct evl_monitor_state *state;
 	struct evl_thread *owner = NULL;
 	struct evl_monitor *mon;
+	ssize_t ret = 0;
 	fundle_t fun;
-	ssize_t ret;
 
 	mon = evl_get_element_by_dev(dev, struct evl_monitor);
+	state = mon->state;
 
-	if (mon->type == EVL_MONITOR_EVENT)
-		ret = snprintf(buf, PAGE_SIZE, "%#x\n",
-			mon->state->flags);
-	else {
-		fun = atomic_read(&mon->state->u.gate.owner);
+	if (mon->type == EVL_MONITOR_EVENT) {
+		switch (mon->protocol) {
+		case EVL_EVENT_MASK:
+			ret = snprintf(buf, PAGE_SIZE, "%#x\n",
+				atomic_read(&state->u.event.value));
+			break;
+		case EVL_EVENT_COUNT:
+			ret = snprintf(buf, PAGE_SIZE, "%d\n",
+				atomic_read(&state->u.event.value));
+			break;
+		case EVL_EVENT_GATED:
+			ret = snprintf(buf, PAGE_SIZE, "%#x\n",
+				state->flags);
+			break;
+		}
+	} else {
+		fun = atomic_read(&state->u.gate.owner);
 		if (fun != EVL_NO_HANDLE)
 			owner = evl_get_element_by_fundle(&evl_thread_factory,
 							fun, struct evl_thread);
 		ret = snprintf(buf, PAGE_SIZE, "%d %u\n",
 			owner ? evl_get_inband_pid(owner) : -1,
-			mon->state->u.gate.ceiling);
+			state->u.gate.ceiling);
 		if (owner)
 			evl_put_element(&owner->element);
 	}

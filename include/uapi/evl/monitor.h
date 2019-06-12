@@ -16,6 +16,7 @@
 #define EVL_MONITOR_EVENT  0	/* Event monitor. */
 #  define EVL_EVENT_GATED  0	/* Gate protected. */
 #  define EVL_EVENT_COUNT  1	/* Semaphore. */
+#  define EVL_EVENT_MASK   2	/* Event (bit)mask. */
 #define EVL_MONITOR_GATE   1	/* Gate monitor. */
 #  define EVL_GATE_PI      0	/* Gate with priority inheritance. */
 #  define EVL_GATE_PP      1	/* Gate with priority protection (ceiling). */
@@ -56,6 +57,7 @@ struct evl_monitor_waitreq {
 	struct timespec timeout;
 	__s32 gatefd;
 	__s32 status;
+	__s32 value;
 };
 
 struct evl_monitor_unwaitreq {
@@ -76,6 +78,6 @@ struct evl_monitor_binding {
 #define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
 #define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
 #define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
-#define EVL_MONIOC_SIGNAL	_IO(EVL_MONITOR_IOCBASE, 6)
+#define EVL_MONIOC_SIGNAL	_IOW(EVL_MONITOR_IOCBASE, 6, __s32)
 
 #endif /* !_EVL_UAPI_MONITOR_H */
