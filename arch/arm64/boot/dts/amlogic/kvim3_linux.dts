@@ -787,7 +787,7 @@
 		port-num = <0>;
 		max-input-voltage = <13000000>;
 		max-input-current = <6000000>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	khadas-tca6408{
