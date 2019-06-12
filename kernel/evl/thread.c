@@ -702,14 +702,6 @@ void evl_switch_inband(int cause)
 	 */
 	evl_propagate_schedparam_change(curr);
 
-#ifdef CONFIG_SMP
-	if (curr->local_info & T_MOVED) {
-		curr->local_info &= ~T_MOVED;
-		cpu = evl_rq_cpu(curr->rq);
-		set_cpus_allowed_ptr(p, cpumask_of(cpu));
-	}
-#endif
-
 	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
 		if (curr->state & T_WARN) {
 			/* Help debugging spurious mode switches. */
