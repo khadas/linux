@@ -2056,7 +2056,7 @@ void bq25700_shutdown(struct i2c_client *client)
 	vol_idx = bq25700_find_idx(DEFAULT_INPUTVOL, TBL_INPUTVOL);
 	bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
 	bq25700_field_write(charger, INPUT_CURRENT,
-			    charger->init_data.input_current_sdp);
+			    charger->init_data.input_current_dcp);
 }
 
 #ifdef CONFIG_PM_SLEEP
