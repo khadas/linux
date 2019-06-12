@@ -665,6 +665,7 @@ void evl_switch_inband(int cause)
 	xnlock_get(&nklock);
 	curr->info &= ~EVL_THREAD_INFO_MASK;
 	curr->state |= T_INBAND;
+	curr->local_info &= ~T_SYSRST;
 	rq = curr->rq;
 	evl_set_resched(rq);
 	dovetail_leave_oob();
