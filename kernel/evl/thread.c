@@ -80,6 +80,26 @@ static inline void set_oob_threadinfo(struct evl_thread *thread)
 	p->thread = thread;
 }
 
+static inline void add_u_cap(struct evl_thread *thread,
+			struct cred *newcap,
+			int cap)
+{
+	if (!capable(cap)) {
+		cap_raise(newcap->cap_effective, cap);
+		cap_raise(thread->raised_cap, cap);
+	}
+}
+
+static inline void drop_u_cap(struct evl_thread *thread,
+			struct cred *newcap,
+			int cap)
+{
+	if (cap_raised(thread->raised_cap, cap)) {
+		cap_lower(newcap->cap_effective, cap);
+		cap_lower(thread->raised_cap, cap);
+	}
+}
+
 static void pin_to_initial_cpu(struct evl_thread *thread)
 {
 	struct task_struct *p = current;
@@ -224,6 +244,7 @@ static void uninit_thread(struct evl_thread *thread)
 static void do_cleanup_current(struct evl_thread *curr)
 {
 	struct evl_mutex *mutex, *tmp;
+	struct cred *newcap;
 	unsigned long flags;
 
 	evl_unindex_element(&curr->element);
@@ -232,6 +253,13 @@ static void do_cleanup_current(struct evl_thread *curr)
 		evl_free_chunk(&evl_shared_heap, curr->u_window);
 		curr->u_window = NULL;
 		evl_drop_poll_table(curr);
+		newcap = prepare_creds();
+		if (newcap) {
+			drop_u_cap(curr, newcap, CAP_SYS_NICE);
+			drop_u_cap(curr, newcap, CAP_IPC_LOCK);
+			drop_u_cap(curr, newcap, CAP_SYS_RAWIO);
+			commit_creds(newcap);
+		}
 	}
 
 	xnlock_get_irqsave(&nklock, flags);
@@ -2129,6 +2157,7 @@ static const struct file_operations thread_fops = {
 static int map_uthread_self(struct evl_thread *thread)
 {
 	struct evl_user_window *u_window;
+	struct cred *newcap;
 	int ret;
 
 	ret = commit_process_memory();
@@ -2139,6 +2168,26 @@ static int map_uthread_self(struct evl_thread *thread)
 	if (u_window == NULL)
 		return -ENOMEM;
 
+	/*
+	 * Raise capababilities of user threads when attached to the
+	 * core. Filtering access to /dev/evl/control can be used to
+	 * restrict attachment.
+	 */
+	thread->raised_cap = CAP_EMPTY_SET;
+	newcap = prepare_creds();
+	if (newcap == NULL)
+		return -ENOMEM;
+
+	add_u_cap(thread, newcap, CAP_SYS_NICE);
+	add_u_cap(thread, newcap, CAP_IPC_LOCK);
+	add_u_cap(thread, newcap, CAP_SYS_RAWIO);
+	commit_creds(newcap);
+
+	/*
+	 * CAUTION: From that point, we assume the mapping won't fail,
+	 * therefore there is no added capability to drop in
+	 * discard_unmapped_uthread().
+	 */
 	thread->u_window = u_window;
 	pin_to_initial_cpu(thread);
 	trace_evl_thread_map(thread);
