@@ -127,6 +127,7 @@ struct evl_thread {
 	char *name;
 	struct completion exited;
 	struct irq_work inband_work;
+	kernel_cap_t raised_cap;
 
 	/*
 	 * Thread data visible from userland through a window on the
