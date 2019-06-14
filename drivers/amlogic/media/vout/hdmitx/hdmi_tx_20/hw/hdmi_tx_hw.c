@@ -5001,6 +5001,13 @@ static int hdmitx_tmds_rxsense(void)
 	return ret;
 }
 
+/*Check from SCDC Status_Flags_0/1 */
+/* 0 means TMDS ok */
+static int hdmitx_tmds_cedst(struct hdmitx_dev *hdev)
+{
+	return scdc_status_flags(hdev);
+}
+
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 	unsigned int argv)
 {
@@ -5031,6 +5038,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		break;
 	case MISC_TMDS_RXSENSE:
 		return hdmitx_tmds_rxsense();
+	case MISC_TMDS_CEDST:
+		return hdmitx_tmds_cedst(hdev);
 	case MISC_ESM_RESET:
 		if (hdev->hdcp_hpd_stick == 1) {
 			pr_info(HW "hdcp: stick mode\n");
