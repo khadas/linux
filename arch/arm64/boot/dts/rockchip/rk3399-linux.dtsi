@@ -162,7 +162,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopl_out_hdmi>;
+			connect = <&vopb_out_hdmi>;
 		};
 
 		route_dsi: route-dsi {
@@ -171,7 +171,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopb_out_dsi>;
+			connect = <&vopl_out_dsi>;
 		};
 
 		route_edp: route-edp {
@@ -180,7 +180,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopb_out_edp>;
+			connect = <&vopl_out_edp>;
 		};
 	};
 };
