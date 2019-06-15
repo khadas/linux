@@ -115,6 +115,15 @@ out:
 	curr->u_window->pp_pending = EVL_NO_HANDLE;
 }
 
+/* nklock held, irqs off (testing the wait_queue). */
+static void untrack_event(struct evl_monitor *event)
+{
+	list_del(&event->next);
+	event->gate = NULL;
+	if (!evl_wait_active(&event->wait_queue))
+		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
+}
+
 /* nklock held, irqs off */
 static void wakeup_waiters(struct evl_monitor *event)
 {
@@ -125,21 +134,18 @@ static void wakeup_waiters(struct evl_monitor *event)
 	bcast = !!(state->flags & EVL_MONITOR_BROADCAST);
 
 	/*
-	 * Unblock threads for which an event is pending, either one
-	 * or all of them, depending on the broadcast flag.
+	 * We are called upon exiting a gate which serializes access
+	 * to a signaled event. Unblock the thread(s) satisfied by the
+	 * signal, either all, some or only one of them, depending on
+	 * whether this is due to a broadcast, targeted or regular
+	 * notification.
 	 *
-	 * NOTES:
-	 *
-	 * 1. event delivery is postponed until the poster releases
-	 * the gate, so a signal may be pending in absence of any
-	 * waiter for it.
-	 *
-	 * 2. targeted events have precedence over un-targeted ones:
-	 * if at some point userland sent a targeted event to a
-	 * (valid) waiter during a transaction, the kernel will only
-	 * look for targeted waiters in the wake up loop. We don't
-	 * default to calling evl_wake_up() in case those waiters have
-	 * aborted wait in the meantime.
+	 * Precedence order for event delivery is as follows:
+	 * broadcast > targeted > regular.  This means that a
+	 * broadcast notification is considered first and applied if
+	 * detected. Otherwise, and in presence of a targeted wake up
+	 * request, only the target thread(s) are woken up. Otherwise,
+	 * the thread heading the wait queue is readied.
 	 *
 	 * CAUTION: we must keep the wake up ops rescheduling-free, so
 	 * that low priority threads cannot preempt us before high
@@ -147,8 +153,7 @@ static void wakeup_waiters(struct evl_monitor *event)
 	 * covered by disabling IRQs when grabbing the nklock: be
 	 * careful when killing the latter.
 	 */
-	if ((state->flags & EVL_MONITOR_SIGNALED) &&
-		evl_wait_active(&event->wait_queue)) {
+	if (evl_wait_active(&event->wait_queue)) {
 		if (bcast)
 			evl_flush_wait_locked(&event->wait_queue, 0);
 		else if (state->flags & EVL_MONITOR_TARGETED) {
@@ -159,6 +164,8 @@ static void wakeup_waiters(struct evl_monitor *event)
 			}
 		} else
 			evl_wake_up_head(&event->wait_queue);
+
+		untrack_event(event);
 	}
 
 	state->flags &= ~(EVL_MONITOR_SIGNALED|
@@ -249,8 +256,8 @@ static void __exit_monitor(struct evl_monitor *gate,
 
 static int exit_monitor(struct evl_monitor *gate)
 {
-	struct evl_thread *curr = evl_current();
 	struct evl_monitor_state *state = gate->state;
+	struct evl_thread *curr = evl_current();
 	struct evl_monitor *event, *n;
 	unsigned long flags;
 	LIST_HEAD(polled);
@@ -266,9 +273,8 @@ static int exit_monitor(struct evl_monitor *gate)
 		state->flags &= ~EVL_MONITOR_SIGNALED;
 		list_for_each_entry_safe(event, n, &gate->events, next) {
 			if (event->state->flags & EVL_MONITOR_SIGNALED) {
-				list_del(&event->next);
-				list_add(&event->next, &polled);
 				wakeup_waiters(event);
+				list_add(&event->next, &polled);
 			}
 		}
 		xnlock_put_irqrestore(&nklock, flags);
@@ -283,17 +289,6 @@ static int exit_monitor(struct evl_monitor *gate)
 	evl_schedule();
 
 	return 0;
-}
-
-/* nklock held, irqs off */
-static void untrack_event(struct evl_monitor *event,
-			struct evl_monitor *gate)
-{
-	if (event->gate == gate && !evl_wait_active(&event->wait_queue)) {
-		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
-		list_del(&event->next);
-		event->gate = NULL;
-	}
 }
 
 static inline bool test_event_mask(struct evl_monitor_state *state,
@@ -463,7 +458,7 @@ static int wait_monitor(struct evl_monitor *event,
 		event->gate = gate;
 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
-		op_ret = -EINVAL;
+		op_ret = -EBADFD;
 		goto unlock;
 	}
 
@@ -475,23 +470,23 @@ static int wait_monitor(struct evl_monitor *event,
 	 * Wait on the event. If a break condition is raised such as
 	 * an inband signal pending, do not attempt to reacquire the
 	 * gate lock just yet as this might block indefinitely (in
-	 * theory). Exit to user mode, allowing any pending signal to
-	 * be handled in the meantime, then expect userland to issue
-	 * UNWAIT to recover.
+	 * theory) and we want the inband signal to be handled
+	 * asap. So exit to user mode, allowing any pending signal to
+	 * be handled during the transition, then expect userland to
+	 * issue UNWAIT to recover (or exit, whichever comes first).
 	 */
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 	ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
-	if (ret == -EINTR)
-		goto unlock;
-
-	if (ret)
+	if (ret) {
+		untrack_event(event);
+		if (ret == -EINTR)
+			goto unlock;
 		op_ret = ret;
+	}
 
-	if (ret != -EIDRM)
+	if (ret != -EIDRM)	/* Success or -ETIMEDOUT */
 		ret = __enter_monitor(gate, NULL);
-
-	untrack_event(event, gate);
 unlock:
 	xnlock_put_irqrestore(&nklock, flags);
 put:
@@ -507,7 +502,6 @@ static int unwait_monitor(struct evl_monitor *event,
 {
 	struct evl_monitor *gate;
 	struct evl_file *efilp;
-	unsigned long flags;
 	int ret;
 
 	if (event->type != EVL_MONITOR_EVENT)
@@ -519,11 +513,6 @@ static int unwait_monitor(struct evl_monitor *event,
 		return -EINVAL;
 
 	ret = enter_monitor(gate, NULL);
-	if (ret == 0) {
-		xnlock_get_irqsave(&nklock, flags);
-		untrack_event(event, gate);
-		xnlock_put_irqrestore(&nklock, flags);
-	}
 
 	evl_put_file(efilp);
 
