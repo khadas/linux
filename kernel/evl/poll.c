@@ -206,7 +206,7 @@ static int add_item(struct file *filp, struct poll_group *group,
 
 	efilp = evl_get_file(creq->fd);
 	if (efilp == NULL) {
-		ret = -EINVAL;
+		ret = -EBADF;
 		goto fail_get;
 	}
 
@@ -269,7 +269,7 @@ static int del_item(struct poll_group *group,
 	item = lookup_item(&group->item_index, creq->fd);
 	if (item == NULL) {
 		evl_unlock_kmutex(&group->item_lock);
-		return -ENOENT;
+		return -EBADF;
 	}
 
 	rb_erase(&item->rb, &group->item_index);
@@ -322,7 +322,7 @@ int mod_item(struct poll_group *group,
 	item = lookup_item(&group->item_index, creq->fd);
 	if (item == NULL) {
 		evl_unlock_kmutex(&group->item_lock);
-		return -ENOENT;
+		return -EBADF;
 	}
 
 	item->events_polled = events;
