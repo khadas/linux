@@ -81,7 +81,8 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	 */
 	if (target->wchan == &event->wait_queue.wchan) {
 		target->info |= T_SIGNAL;
-		event->state->flags |= EVL_MONITOR_TARGETED;
+		event->state->flags |= (EVL_MONITOR_TARGETED|
+					EVL_MONITOR_SIGNALED);
 		ret = 0;
 	}
 
