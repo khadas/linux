@@ -38,7 +38,6 @@ struct xbuf_ring {
 	void (*unblock_output)(struct xbuf_ring *ring);
 	bool (*in_output_contention)(struct xbuf_ring *ring);
 	void (*signal_pollable)(struct xbuf_ring *ring, int events);
-	void (*clear_pollable)(struct xbuf_ring *ring, int events);
 };
 
 struct xbuf_inbound {		/* oob_write->read */
@@ -181,10 +180,6 @@ retry:
 		ring->rdrsvd -= len;
 		ring->fillsz -= len;
 
-		if (ring->fillsz == 0)
-			/* -> non-readable */
-			ring->clear_pollable(ring, POLLIN|POLLRDNORM);
-
 		/*
 		 * Wake up the thread heading the output wait queue if
 		 * we freed enough room to post its message.
@@ -291,10 +286,6 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 			/* -> readable */
 			ring->signal_pollable(ring, POLLIN|POLLRDNORM);
 
-		if (ring->fillsz == ring->bufsz)
-			/* non-writable */
-			ring->clear_pollable(ring, POLLOUT|POLLWRNORM);
-
 		ring->signal_input(ring);
 		goto out;
 	wait:
@@ -381,14 +372,6 @@ static void inbound_signal_pollable(struct xbuf_ring *ring, int events)
 
 	if (events & POLLOUT)
 		evl_signal_poll_events(&xbuf->poll_head, events);
-}
-
-static void inbound_clear_pollable(struct xbuf_ring *ring, int events)
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
-
-	if (events & POLLOUT)
-		evl_clear_poll_events(&xbuf->poll_head, events);
 }
 
 static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
@@ -513,14 +496,6 @@ static void outbound_signal_pollable(struct xbuf_ring *ring, int events)
 
 	if (events & POLLIN)
 		evl_signal_poll_events(&xbuf->poll_head, events);
-}
-
-static void outbound_clear_pollable(struct xbuf_ring *ring, int events)
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-
-	if (events & POLLIN)
-		evl_clear_poll_events(&xbuf->poll_head, events);
 }
 
 static ssize_t xbuf_oob_read(struct file *filp,
@@ -700,7 +675,6 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 	xbuf->ibnd.ring.unblock_output = inbound_unblock_output;
 	xbuf->ibnd.ring.in_output_contention = inbound_output_contention;
 	xbuf->ibnd.ring.signal_pollable = inbound_signal_pollable;
-	xbuf->ibnd.ring.clear_pollable = inbound_clear_pollable;
 
 	/* Outbound traffic: write() -> oob_read(). */
 	evl_init_flag(&xbuf->obnd.i_event);
@@ -714,7 +688,6 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 	xbuf->obnd.ring.unblock_output = outbound_unblock_output;
 	xbuf->obnd.ring.in_output_contention = outbound_output_contention;
 	xbuf->obnd.ring.signal_pollable = outbound_signal_pollable;
-	xbuf->obnd.ring.clear_pollable = outbound_clear_pollable;
 
 	evl_init_poll_head(&xbuf->poll_head);
 

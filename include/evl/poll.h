@@ -44,9 +44,6 @@ void evl_poll_watch(struct evl_poll_head *head,
 void __evl_signal_poll_events(struct evl_poll_head *head,
 			      int events);
 
-void __evl_clear_poll_events(struct evl_poll_head *head,
-			     int events);
-
 static inline void
 evl_signal_poll_events(struct evl_poll_head *head,
 		       int events)
@@ -54,16 +51,6 @@ evl_signal_poll_events(struct evl_poll_head *head,
 	/* Quick check. We'll redo under lock */
 	if (!list_empty(&head->watchpoints))
 		__evl_signal_poll_events(head, events);
-
-}
-
-static inline void
-evl_clear_poll_events(struct evl_poll_head *head,
-		      int events)
-{
-	/* Quick check. We'll redo under lock */
-	if (!list_empty(&head->watchpoints))
-		__evl_clear_poll_events(head, events);
 
 }
 
