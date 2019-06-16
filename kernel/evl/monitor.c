@@ -369,8 +369,12 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 {
 	struct evl_monitor_state *state = event->state;
+	bool pollable = true;
 	unsigned long flags;
 	int ret = 0, oldval;
+
+	if (event->type != EVL_MONITOR_EVENT)
+		return -EINVAL;
 
 	/*
 	 * Still serializing on the nklock until we can get rid of it,
@@ -381,8 +385,10 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
 		xnlock_get_irqsave(&nklock, flags);
-		if (atomic_inc_return(&state->u.event.value) <= 0)
+		if (atomic_inc_return(&state->u.event.value) <= 0) {
 			evl_wake_up_head(&event->wait_queue);
+			pollable = false;
+		}
 		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	case EVL_EVENT_MASK:
@@ -393,7 +399,12 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 		evl_wake_up_head(&event->wait_queue);
 		xnlock_put_irqrestore(&nklock, flags);
 		break;
+	default:
+		return -EINVAL;
 	}
+
+	if (pollable)
+		evl_signal_poll_events(&event->poll_head, POLLIN);
 
 	evl_schedule();
 
@@ -610,6 +621,51 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+static __poll_t monitor_oob_poll(struct file *filp,
+				struct oob_poll_wait *wait)
+{
+	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+	struct evl_monitor_state *state = mon->state;
+	__poll_t ret = 0;
+
+	evl_poll_watch(&mon->poll_head, wait);
+
+	switch (mon->type) {
+	case EVL_MONITOR_EVENT:
+		switch (mon->protocol) {
+		case EVL_EVENT_COUNT:
+			if (atomic_read(&state->u.event.value) > 0)
+				ret = POLLIN|POLLRDNORM;
+			break;
+		case EVL_EVENT_MASK:
+			if (atomic_read(&state->u.event.value))
+				ret = POLLIN|POLLRDNORM;
+			break;
+		case EVL_EVENT_GATED:
+			/*
+			 * The poll interface does not cope with the
+			 * event one, we cannot figure out which gate
+			 * protects the event, so polling an event
+			 * will block indefinitely.
+			 */
+			break;
+		}
+		break;
+	case EVL_MONITOR_GATE:
+		/*
+		 * We don't poll for lock ownership, because this
+		 * would slow down the fast release path in
+		 * user-space. A mutex should be held for a short
+		 * period of time anyway, so assume it is always
+		 * readable.
+		 */
+		ret = POLLIN|POLLRDNORM;
+		break;
+	}
+
+	return ret;
+}
+
 static int monitor_release(struct inode *inode, struct file *filp)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
@@ -627,6 +683,7 @@ static const struct file_operations monitor_fops = {
 	.release	= monitor_release,
 	.unlocked_ioctl	= monitor_ioctl,
 	.oob_ioctl	= monitor_oob_ioctl,
+	.oob_poll	= monitor_oob_poll,
 };
 
 static struct evl_element *
