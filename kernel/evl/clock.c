@@ -677,8 +677,6 @@ static ssize_t timerfd_oob_read(struct file *filp,
 	if (evl_timer_is_periodic(&timerfd->timer))
 		ticks += (u32)evl_get_timer_overruns(&timerfd->timer);
 
-	evl_clear_poll_events(&timerfd->poll_head, POLLIN);
-
 	if (raw_put_user(ticks, u_ticks))
 		return -EFAULT;
 

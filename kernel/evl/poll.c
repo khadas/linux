@@ -99,21 +99,6 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 }
 EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
 
-void __evl_clear_poll_events(struct evl_poll_head *head,
-			int events)
-{
-	struct evl_poll_watchpoint *wpt;
-	unsigned long flags;
-
-	evl_spin_lock_irqsave(&head->lock, flags);
-
-	list_for_each_entry(wpt, &head->watchpoints, wait.next)
-		wpt->events_received &= ~events;
-
-	evl_spin_unlock_irqrestore(&head->lock, flags);
-}
-EXPORT_SYMBOL_GPL(__evl_clear_poll_events);
-
 void evl_drop_poll_table(struct evl_thread *thread)
 {
 	struct evl_poll_watchpoint *table;
