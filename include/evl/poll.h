@@ -17,6 +17,8 @@
 #include <evl/factory.h>
 #include <uapi/evl/poll.h>
 
+struct file;
+
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
 		lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
@@ -31,6 +33,22 @@ struct evl_poll_node {
 	struct list_head next;	/* in evl_fd->poll_nodes */
 };
 
+/*
+ * The watchpoint struct linked to poll heads by drivers. This watches
+ * files not elements, so that we can monitor any type of EVL files.
+ */
+struct evl_poll_watchpoint {
+	unsigned int fd;
+	int events_polled;
+	int events_received;
+	struct oob_poll_wait wait;
+	struct evl_flag *flag;
+	struct file *filp;
+	struct evl_poll_head *head;
+	void (*unwatch)(struct file *filp);
+	struct evl_poll_node node;
+};
+
 static inline
 void evl_init_poll_head(struct evl_poll_head *head)
 {
@@ -39,7 +57,8 @@ void evl_init_poll_head(struct evl_poll_head *head)
 }
 
 void evl_poll_watch(struct evl_poll_head *head,
-		    struct oob_poll_wait *wait);
+		struct oob_poll_wait *wait,
+		void (*unwait)(struct file *filp));
 
 void __evl_signal_poll_events(struct evl_poll_head *head,
 			      int events);

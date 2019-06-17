@@ -61,7 +61,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	struct evl_monitor *event;
 	struct evl_file *efilp;
 	unsigned long flags;
-	int ret = -ESRCH;
+	int ret = 0;
 
 	event = get_monitor_by_fd(monfd, &efilp);
 	if (event == NULL)
@@ -83,7 +83,6 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 		target->info |= T_SIGNAL;
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
-		ret = 0;
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
@@ -309,21 +308,6 @@ static inline bool test_event_mask(struct evl_monitor_state *state,
 	}
 }
 
-static inline s32 set_event_mask(struct evl_monitor_state *state,
-				s32 addval)
-{
-	int oldval, newval;
-
-	for (;;) {
-		oldval = atomic_read(&state->u.event.value);
-		newval = oldval | (int)addval;
-		if (atomic_cmpxchg(&state->u.event.value, oldval, newval) == oldval)
-			break;
-	}
-
-	return oldval;
-}
-
 /*
  * Special forms of the wait operation which are not protected by a
  * lock but behave either as a semaphore P operation based on the
@@ -358,6 +342,9 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 		ret = evl_wait_event_timeout(&event->wait_queue,
 					timeout, tmode,
 					test_event_mask(state, r_value));
+		if (!ret) /* POLLOUT if flags have been received. */
+			evl_signal_poll_events(&event->poll_head,
+					POLLOUT|POLLWRNORM);
 		break;
 	default:
 		ret = -EINVAL;	/* uh? brace for rollercoaster. */
@@ -366,24 +353,45 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 	return ret;
 }
 
+static inline s32 set_event_mask(struct evl_monitor_state *state,
+				s32 addval)
+{
+	int prev, val, next;
+
+	val = atomic_read(&state->u.event.value);
+	do {
+		prev = val;
+		next = prev | (int)addval;
+		val = atomic_cmpxchg(&state->u.event.value, prev, next);
+	} while (val != prev);
+
+	return next;
+}
+
 static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 {
 	struct evl_monitor_state *state = event->state;
 	bool pollable = true;
 	unsigned long flags;
-	int ret = 0, oldval;
+	int ret = 0, val;
 
 	if (event->type != EVL_MONITOR_EVENT)
 		return -EINVAL;
 
 	/*
-	 * Still serializing on the nklock until we can get rid of it,
-	 * using the per-waitqueue lock instead. In any case, we have
-	 * to serialize against the read side not to lose wake up
-	 * events.
+	 * We might receive a null sigval for the purpose of
+	 * triggering a wakeup check and/or poll notification without
+	 * changing the event value.
+	 *
+	 * Also, we still serialize on the nklock until we can get rid
+	 * of it, using the per-waitqueue lock instead. In any case,
+	 * we have to serialize against the read side not to lose wake
+	 * up events.
 	 */
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
+		if (!sigval)
+			break;
 		xnlock_get_irqsave(&nklock, flags);
 		if (atomic_inc_return(&state->u.event.value) <= 0) {
 			evl_wake_up_head(&event->wait_queue);
@@ -392,11 +400,12 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	case EVL_EVENT_MASK:
-		if (!sigval)
-			return -EINVAL;
 		xnlock_get_irqsave(&nklock, flags);
-		oldval = set_event_mask(state, (int)sigval);
-		evl_wake_up_head(&event->wait_queue);
+		val = set_event_mask(state, (int)sigval);
+		if (val)
+			evl_flush_wait_locked(&event->wait_queue, 0);
+		else
+			pollable = false;
 		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	default:
@@ -404,7 +413,7 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	}
 
 	if (pollable)
-		evl_signal_poll_events(&event->poll_head, POLLIN);
+		evl_signal_poll_events(&event->poll_head, POLLIN|POLLRDNORM);
 
 	evl_schedule();
 
@@ -535,12 +544,12 @@ static long monitor_common_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
-	__s32 sigval = 0;
+	__s32 sigval;
 	int ret;
 
 	switch (cmd) {
 	case EVL_MONIOC_SIGNAL:
-		if (arg && raw_get_user(sigval, (__s32 __user *)arg))
+		if (raw_get_user(sigval, (__s32 __user *)arg))
 			return -EFAULT;
 		ret = signal_monitor_ungated(mon, sigval);
 		break;
@@ -621,6 +630,13 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+static void monitor_unwatch(struct file *filp)
+{
+	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+
+	atomic_dec(&mon->state->u.event.pollrefs);
+}
+
 static __poll_t monitor_oob_poll(struct file *filp,
 				struct oob_poll_wait *wait)
 {
@@ -628,36 +644,49 @@ static __poll_t monitor_oob_poll(struct file *filp,
 	struct evl_monitor_state *state = mon->state;
 	__poll_t ret = 0;
 
-	evl_poll_watch(&mon->poll_head, wait);
-
+	/*
+	 * NOTE: for ungated events, we close a race window by queuing
+	 * the caller into the poll queue _before_ incrementing the
+	 * pollrefs count which userland checks.
+	 */
 	switch (mon->type) {
 	case EVL_MONITOR_EVENT:
 		switch (mon->protocol) {
 		case EVL_EVENT_COUNT:
+			evl_poll_watch(&mon->poll_head, wait, monitor_unwatch);
+			atomic_inc(&state->u.event.pollrefs);
 			if (atomic_read(&state->u.event.value) > 0)
 				ret = POLLIN|POLLRDNORM;
 			break;
 		case EVL_EVENT_MASK:
+			evl_poll_watch(&mon->poll_head, wait, monitor_unwatch);
+			atomic_inc(&state->u.event.pollrefs);
 			if (atomic_read(&state->u.event.value))
 				ret = POLLIN|POLLRDNORM;
+			else
+				ret = POLLOUT|POLLWRNORM;
 			break;
 		case EVL_EVENT_GATED:
 			/*
 			 * The poll interface does not cope with the
-			 * event one, we cannot figure out which gate
-			 * protects the event, so polling an event
-			 * will block indefinitely.
+			 * gated event one, we cannot figure out which
+			 * gate protects the event when signaling it
+			 * from userland in order to mark that gate,
+			 * so we cannot force a kernel entry upon gate
+			 * release. Therefore, polling such event will
+			 * block indefinitely.
 			 */
 			break;
 		}
 		break;
 	case EVL_MONITOR_GATE:
 		/*
-		 * We don't poll for lock ownership, because this
-		 * would slow down the fast release path in
-		 * user-space. A mutex should be held for a short
-		 * period of time anyway, so assume it is always
-		 * readable.
+		 * A mutex should be held only for a short period of
+		 * time, with the locked state appearing as a discrete
+		 * event to users. Assume a gate lock is always
+		 * readable then. If this is about probing for a mutex
+		 * state from userland then trylock() should be used
+		 * instead of poll().
 		 */
 		ret = POLLIN|POLLRDNORM;
 		break;

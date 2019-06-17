@@ -688,7 +688,7 @@ static __poll_t timerfd_oob_poll(struct file *filp,
 {
 	struct evl_timerfd *timerfd = filp->private_data;
 
-	evl_poll_watch(&timerfd->poll_head, wait);
+	evl_poll_watch(&timerfd->poll_head, wait, NULL);
 
 	return timerfd->ticked ? POLLIN|POLLRDNORM : 0;
 }
