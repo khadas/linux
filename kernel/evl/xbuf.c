@@ -531,7 +531,7 @@ static __poll_t xbuf_oob_poll(struct file *filp,
 	unsigned long flags;
 	__poll_t ready = 0;
 
-	evl_poll_watch(&xbuf->poll_head, wait);
+	evl_poll_watch(&xbuf->poll_head, wait, NULL);
 
 	xnlock_get_irqsave(&nklock, flags);
 

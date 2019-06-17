@@ -43,27 +43,14 @@ struct poll_waiter {
 	struct list_head next;
 };
 
-/*
- * The watchpoint struct linked to poll heads by drivers. This watches
- * files not elements, so that we can monitor any type of EVL files.
- */
-struct evl_poll_watchpoint {
-	unsigned int fd;
-	int events_polled;
-	int events_received;
-	struct oob_poll_wait wait;
-	struct evl_flag *flag;
-	struct evl_poll_head *head;
-	struct evl_poll_node node;
-};
-
 /* Maximum nesting depth (poll group watching other group(s)) */
 #define POLLER_NEST_MAX  4
 
 static const struct file_operations poll_fops;
 
 void evl_poll_watch(struct evl_poll_head *head,
-		struct oob_poll_wait *wait)
+		struct oob_poll_wait *wait,
+		void (*unwatch)(struct file *filp))
 {
 	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
@@ -73,6 +60,7 @@ void evl_poll_watch(struct evl_poll_head *head,
 	evl_spin_lock_irqsave(&head->lock, flags);
 	wpt->head = head;
 	wpt->events_received = 0;
+	wpt->unwatch = unwatch;
 	list_add(&wait->next, &head->watchpoints);
 	evl_spin_unlock_irqrestore(&head->lock, flags);
 }
@@ -291,18 +279,25 @@ void evl_drop_watchpoints(struct list_head *drop_list)
 	struct evl_poll_node *node;
 
 	/*
-	 * Drop the watchpoints attached to a closed file
-	 * descriptor. A watchpoint found in @drop_list was registered
-	 * via a call to evl_watch_fd() from wait_events() but not
-	 * unregistered by calling evl_ignore_fd() from clear_wait()
-	 * yet, so we know it is still valid.
+	 * Drop the watchpoints attached to a closed file descriptor
+	 * upon release from inband. A watchpoint found in @drop_list
+	 * was registered via a call to evl_watch_fd() from
+	 * wait_events() but not unregistered by calling
+	 * evl_ignore_fd() from clear_wait() yet, so we know it is
+	 * still valid. Since a polled EVL fd has to be passed to this
+	 * routine before the file it references can be dismantled, we
+	 * may keep and use a direct pointer to this file in the
+	 * watchpoint struct until we return.
 	 */
 	list_for_each_entry(node, drop_list, next) {
 		wpt = container_of(node, struct evl_poll_watchpoint, node);
 		evl_spin_lock(&wpt->head->lock);
 		wpt->events_received |= POLLFREE;
+		if (wpt->unwatch)
+			wpt->unwatch(wpt->filp);
 		evl_raise_flag_nosched(wpt->flag);
 		evl_spin_unlock(&wpt->head->lock);
+		wpt->filp = NULL;
 	}
 }
 
@@ -430,6 +425,7 @@ collect:
 			if (efilp == NULL)
 				goto stale;
 			filp = efilp->filp;
+			wpt->filp = filp;
 			if (filp->f_op->oob_poll)
 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
 			evl_put_file(efilp);
@@ -476,6 +472,8 @@ static inline void clear_wait(void)
 	 * Current stopped waiting for events, remove the watchpoints
 	 * we have been monitoring so far from their poll heads.
 	 * wpt->head->lock serializes with __evl_signal_poll_events().
+	 * Any watchpoint which does not bear the POLLFREE bit is
+	 * monitoring a still valid file by construction.
 	 */
 	for (n = 0, wpt = curr->poll_context.table;
 	     n < curr->poll_context.nr; n++, wpt++) {
@@ -484,6 +482,8 @@ static inline void clear_wait(void)
 		if (!list_empty(&wpt->wait.next)) {
 			evl_spin_lock_irqsave(&wpt->head->lock, flags);
 			list_del(&wpt->wait.next);
+			if (!(wpt->events_received & POLLFREE) && wpt->unwatch)
+				wpt->unwatch(wpt->filp);
 			evl_spin_unlock_irqrestore(&wpt->head->lock, flags);
 		}
 	}
@@ -494,7 +494,7 @@ int wait_events(struct file *filp,
 		struct poll_group *group,
 		struct evl_poll_waitreq *wreq)
 {
-	struct poll_waiter wait;
+	struct poll_waiter waiter;
 	enum evl_tmode tmode;
 	unsigned long flags;
 	ktime_t timeout;
@@ -509,9 +509,9 @@ int wait_events(struct file *filp,
 	if (wreq->nrset == 0)
 		return 0;
 
-	evl_init_flag(&wait.flag);
+	evl_init_flag(&waiter.flag);
 
-	count = collect_events(group, wreq->pollset, wreq->nrset, &wait.flag);
+	count = collect_events(group, wreq->pollset, wreq->nrset, &waiter.flag);
 	if (count > 0 || (count == -EFAULT || count == -EBADF))
 		goto unwait;
 	if (count < 0)
@@ -526,11 +526,11 @@ int wait_events(struct file *filp,
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
 	evl_spin_lock_irqsave(&group->wait_lock, flags);
-	list_add(&wait.next, &group->waiter_list);
+	list_add(&waiter.next, &group->waiter_list);
 	evl_spin_unlock_irqrestore(&group->wait_lock, flags);
-	ret = evl_wait_flag_timeout(&wait.flag, timeout, tmode);
+	ret = evl_wait_flag_timeout(&waiter.flag, timeout, tmode);
 	evl_spin_lock_irqsave(&group->wait_lock, flags);
-	list_del(&wait.next);
+	list_del(&waiter.next);
 	evl_spin_unlock_irqrestore(&group->wait_lock, flags);
 
 	count = ret;
@@ -540,7 +540,7 @@ int wait_events(struct file *filp,
 unwait:
 	clear_wait();
 out:
-	evl_destroy_flag(&wait.flag);
+	evl_destroy_flag(&waiter.flag);
 
 	return count;
 }

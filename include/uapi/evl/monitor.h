@@ -43,8 +43,9 @@ struct evl_monitor_state {
 			__u32 ceiling;
 		} gate;
 		struct {
-			__u32 gate_offset;
 			atomic_t value;
+			atomic_t pollrefs;
+			__u32 gate_offset;
 		} event;
 	} u;
 };
