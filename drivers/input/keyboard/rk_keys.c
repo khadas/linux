@@ -226,10 +226,10 @@ static void adc_key_poll(struct work_struct *work)
 			if (!button->adc_value)
 				continue;
 			if(key_test_flag){
-				if (result < button->adc_value + ddata->drift_advalue &&
-				    result > button->adc_value - ddata->drift_advalue)
+				if (result < button->adc_value + ddata->drift_advalue/2 &&
+				    result > button->adc_value - ddata->drift_advalue/2)
 					key_test_flag=3;
-				else if (result < ddata->drift_advalue)
+				else if (result < ddata->drift_advalue + ddata->drift_advalue/2)
 					key_test_flag=2;				
 			}			
 			if (result < button->adc_value + ddata->drift_advalue &&
