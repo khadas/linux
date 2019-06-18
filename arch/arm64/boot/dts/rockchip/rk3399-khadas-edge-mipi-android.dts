@@ -1,0 +1,949 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3399-khadas-edge.dtsi"
+#include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Khadas Board";
+	compatible = "Khadas,edge", "Khadas,edge-io", "rockchip,rk3399";
+	chosen {
+	bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
+	};
+    khadas-matrix-keypad {
+		status = "okay";
+		compatible = "khadas-matrix-keypad";
+		row_col_gpio =
+				<&gpio0 10 GPIO_ACTIVE_HIGH>,
+				<&gpio0 11 GPIO_ACTIVE_HIGH>,
+				<&gpio0 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&matrix_gpio>;
+		debounce-delay-ms = <10>;
+		col-scan-delay-us = <10>;
+		linux,no-autorepeat;
+	};
+
+	rt5651-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt5651_hpdet>;
+
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "realtek,rt5651-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,hp-det-gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Mic Jack", "MICBIAS1",
+			"IN1P", "Mic Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rt5651>;
+		};
+	};
+};
+&firmware_android {
+       compatible = "android,firmware";
+       boot_devices = "fe330000.sdhci";
+       vbmeta {
+               compatible = "android,vbmeta";
+               parts = "vbmeta,boot,system,vendor,dtbo";
+       };
+       fstab {
+               compatible = "android,fstab";
+               vendor {
+                       compatible = "android,vendor";
+                       dev = "/dev/block/by-name/vendor";
+                       type = "ext4";
+                       mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+                       fsmgr_flags = "wait,avb";
+		};
+	};
+};
+
+&fusb0 {
+	status = "okay";
+	max-input-voltage = <13000000>;
+	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
+};
+
+&fusb1 {
+	status = "okay";
+	max-input-voltage = <13000000>;
+	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <2>;
+	rockchip,capture-channels = <2>;
+	#sound-dai-cells = <0>;
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&isp0 {
+	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+
+	pinctrl-names =
+		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
+
+	/delete-property/ pinctrl-3;
+	/delete-property/ pinctrl-4;
+	/delete-property/ pinctrl-5;
+	/delete-property/ rockchip,gpios;
+};
+
+&i2c1 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <300>;
+	i2c-scl-falling-time-ns = <15>;
+
+	rt5651: rt5651@1a {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rt5651";
+		reg = <0x1a>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+		status = "okay";
+	};
+};
+
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+
+	icm20602_acc: icm_acc@68 {
+		compatible = "icm20602_acc";
+		reg = <0x68>;
+		irq-gpio = <&gpio0 8 IRQ_TYPE_LEVEL_LOW>; /* GPIO0_B0 */
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <9>;
+	};
+
+	icm20602_gyro: icm_gyro@68 {
+		compatible = "icm20602_gyro";
+		reg = <0x68>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		layout = <7>;
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+
+	apds9960@39 {
+		compatible = "avago,apds9960";
+		reg = <0x39>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&apds_int_l>;
+	};
+
+	bq25703: bq25703@6b {
+		compatible = "ti,bq25703";
+		reg = <0x6b>;
+		extcon = <&fusb0>, <&fusb1>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_LOW>; /* GPIO1_C7 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_ok>;
+		ti,charge-current = <1500000>;
+		ti,max-charge-voltage = <8500000>;
+		ti,max-input-voltage = <20000000>;
+		ti,max-input-current = <6000000>;
+		ti,input-current-sdp = <500000>;
+		ti,input-current-dcp = <2000000>;
+		ti,input-current-cdp = <2000000>;
+		ti,input-current-dc = <2000000>;
+		ti,minimum-sys-voltage = <7400000>;
+		ti,otg-voltage = <5000000>;
+		ti,otg-current = <500000>;
+		ti,input-current = <500000>;
+		pd-charge-only = <0>;
+		status = "okay";
+	};
+
+	cw2013: cw2013@62 {
+		status = "okay";
+		compatible = "cw201x";
+		reg = <0x62>;
+		bat_config_info = <0x15 0x7F 0x6E 0x66 0x65 0x5C 0x5B 0x59
+				0x58 0x57 0x57 0x54 0x53 0x51 0x4B 0x48
+				0x40 0x33 0x2A 0x26 0x23 0x25 0x2A 0x34
+				0x45 0x4F 0x0C 0xCD 0x44 0x68 0x67 0x68
+				0x6E 0x6F 0x6C 0x68 0x3A 0x10 0x8A 0x01
+				0x01 0x54 0x52 0x87 0x8F 0x91 0x94 0x52
+				0x82 0x8C 0x92 0x96 0x82 0xFF 0xFF 0xCB
+				0x2F 0x7D 0x64 0xA5 0xB5 0x13 0x58 0x09>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+		divider_res1 = <200>;
+		divider_res2 = <200>;
+		dc_det_gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&rk_key {
+	enter-key {
+		linux,code = <232>;
+		label = "enter";
+		rockchip,adc_value = <170>;
+	};
+};
+
+
+&pwm3 {
+	status = "okay";
+
+	interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH 0>;
+	compatible = "rockchip,remotectl-pwm";
+	remote_pwm_id = <3>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3b_pin>;
+
+	ir_key1 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xeb   KEY_POWER>,
+			<0xec   KEY_MENU>,
+			<0xfc   KEY_UP>,
+			<0xfd   KEY_DOWN>,
+			<0xf1   KEY_LEFT>,
+			<0xe5   KEY_RIGHT>,
+			<0xf8   232>,
+			<0xa7   KEY_VOLUMEDOWN>,
+			<0xa3    388>,  //mouse func
+			<0xa4    388>,  //mouse func
+			<0xf4   KEY_VOLUMEUP>,
+			<0xfe   KEY_BACK>,
+			<0xb7   KEY_HOME>;
+
+	};
+
+};
+
+&backlight {
+	pwms = <&pwm1 0 25000 0>;
+	status = "okay";
+};
+
+
+&pwm1 {
+	status = "okay";
+};
+
+&cdn_dp {
+	status = "disabled";
+};
+
+&dp_in_vopl {
+	status = "disabled";
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
+&hdmi_in_vopl {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vopl_out_hdmi>;
+};
+
+&vopb {
+	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
+
+&vopl {
+	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&route_dsi {
+	status = "okay";
+	connect = <&vopb_out_dsi>;
+};
+
+&dsi_in_vopl {
+	status = "disabled";
+};
+
+&dsi_in_vopb {
+	status = "okay";
+};
+
+&dsi {
+    status = "okay";
+    rockchip,lane-rate = <1000>;
+    dsi_panel: panel@0 {
+        status = "okay";
+        compatible = "simple-panel-dsi";
+        reg = <0>;
+        backlight = <&backlight>;
+        reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_HIGH>; /* GPIO4_D4 */
+        enable-gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>; /* GPIO4_D5 */
+//		pinctrl-names = "default";
+//      pinctrl-0 = <&lcd_reset_gpio>, <&lcd_enable_gpio>;
+        reset-delay-ms = <10>;
+        enable-delay-ms = <60>;
+        prepare-delay-ms = <60>;
+        unprepare-delay-ms = <60>;
+        disable-delay-ms = <60>;
+        dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+                  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+        dsi,lanes  = <4>;
+        panel-init-sequence = [
+			15 00 02  FF 05
+			15 00 02  FB 01
+			15 64 02  C5 01
+			15 00 02  FF EE
+			15 00 02  FB 01
+			15 00 02  1F 45
+			15 00 02  24 4F
+			15 00 02  38 C8
+			15 00 02  39 27
+			15 00 02  1E 77
+			15 00 02  1D 0F
+			15 00 02  7E 71
+			15 00 02  7C 03
+			15 00 02  FF 00
+			15 00 02  FB 01
+			15 00 02  35  01
+			15 00 02  FF  01
+			15 00 02  FB  01
+			15 00 02  00  01
+			15 00 02  01  55
+			15 00 02  02  40
+			15 00 02  05  40
+			15 00 02  06  4A
+			15 00 02  07  24
+			15 00 02  08  0C
+			15 00 02  0B  7D
+			15 00 02  0C  7D
+			15 00 02  0E  B0
+			15 00 02  0F  AE
+			15 00 02  11  10
+			15 00 02  12  10
+			15 00 02  13  03
+			15 00 02  14  4A
+			15 00 02  15  12
+			15 00 02  16  12
+			15 00 02  18  00
+			15 00 02  19  77
+			15 00 02  1A  55
+			15 00 02  1B  13
+			15 00 02  1C  00
+			15 00 02  1D  00
+			15 00 02  1E  13
+			15 00 02  1F  00
+			15 00 02  23  00
+			15 00 02  24  00
+			15 00 02  25  00
+			15 00 02  26  00
+			15 00 02  27  00
+			15 00 02  28  00
+			15 00 02  35  00
+			15 00 02  66  00
+			15 00 02  58  82
+			15 00 02  59  02
+			15 00 02  5A  02
+			15 00 02  5B  02
+			15 00 02  5C  82
+			15 00 02  5D  82
+			15 00 02  5E  02
+			15 00 02  5F  02
+			15 00 02  72  31
+			15 00 02  FF  05
+			15 00 02  FB  01
+			15 00 02  00  01
+			15 00 02  01  0B
+			15 00 02  02  0C
+			15 00 02  03  09
+			15 00 02  04  0A
+			15 00 02  05  00
+			15 00 02  06  0F
+			15 00 02  07  10
+			15 00 02  08  00
+			15 00 02  09  00
+			15 00 02  0A  00
+			15 00 02  0B  00
+			15 00 02  0C  00
+			15 00 02  0D  13
+			15 00 02  0E  15
+			15 00 02  0F  17
+			15 00 02  10  01
+			15 00 02  11  0B
+			15 00 02  12  0C
+			15 00 02  13  09
+			15 00 02  14  0A
+			15 00 02  15  00
+			15 00 02  16  0F
+			15 00 02  17  10
+			15 00 02  18  00
+			15 00 02  19  00
+			15 00 02  1A  00
+			15 00 02  1B  00
+			15 00 02  1C  00
+			15 00 02  1D  13
+			15 00 02  1E  15
+			15 00 02  1F  17
+			15 00 02  20  00
+			15 00 02  21  03
+			15 00 02  22  01
+			15 00 02  23  40
+			15 00 02  24  40
+			15 00 02  25  ED
+			15 00 02  29  58
+			15 00 02  2A  12
+			15 00 02  2B  01
+			15 00 02  4B  06
+			15 00 02  4C  11
+			15 00 02  4D  20
+			15 00 02  4E  02
+			15 00 02  4F  02
+			15 00 02  50  20
+			15 00 02  51  61
+			15 00 02  52  01
+			15 00 02  53  63
+			15 00 02  54  77
+			15 00 02  55  ED
+			15 00 02  5B  00
+			15 00 02  5C  00
+			15 00 02  5D  00
+			15 00 02  5E  00
+			15 00 02  5F  15
+			15 00 02  60  75
+			15 00 02  61  00
+			15 00 02  62  00
+			15 00 02  63  00
+			15 00 02  64  00
+			15 00 02  65  00
+			15 00 02  66  00
+			15 00 02  67  00
+			15 00 02  68  04
+			15 00 02  69  00
+			15 00 02  6A  00
+			15 00 02  6C  40
+			15 00 02  75  01
+			15 00 02  76  01
+			15 00 02  7A  80
+			15 00 02  7B  A3
+			15 00 02  7C  D8
+			15 00 02  7D  60
+			15 00 02  7F  15
+			15 00 02  80  81
+			15 00 02  83  05
+			15 00 02  93  08
+			15 00 02  94  10
+			15 00 02  8A  00
+			15 00 02  9B  0F
+			15 00 02  EA  FF
+			15 00 02  EC  00
+			15 00 02  FF  01
+			15 00 02  FB  01
+			15 00 02  75  00
+			15 00 02  76  DF
+			15 00 02  77  00
+			15 00 02  78  E4
+			15 00 02  79  00
+			15 00 02  7A  ED
+			15 00 02  7B  00
+			15 00 02  7C  F6
+			15 00 02  7D  00
+			15 00 02  7E  FF
+			15 00 02  7F  01
+			15 00 02  80  07
+			15 00 02  81  01
+			15 00 02  82  10
+			15 00 02  83  01
+			15 00 02  84  18
+			15 00 02  85  01
+			15 00 02  86  20
+			15 00 02  87  01
+			15 00 02  88  3D
+			15 00 02  89  01
+			15 00 02  8A  56
+			15 00 02  8B  01
+			15 00 02  8C  84
+			15 00 02  8D  01
+			15 00 02  8E  AB
+			15 00 02  8F  01
+			15 00 02  90  EC
+			15 00 02  91  02
+			15 00 02  92  22
+			15 00 02  93  02
+			15 00 02  94  23
+			15 00 02  95  02
+			15 00 02  96  55
+			15 00 02  97  02
+			15 00 02  98  8B
+			15 00 02  99  02
+			15 00 02  9A  AF
+			15 00 02  9B  02
+			15 00 02  9C  DF
+			15 00 02  9D  03
+			15 00 02  9E  01
+			15 00 02  9F  03
+			15 00 02  A0  2C
+			15 00 02  A2  03
+			15 00 02  A3  39
+			15 00 02  A4  03
+			15 00 02  A5  47
+			15 00 02  A6  03
+			15 00 02  A7  56
+			15 00 02  A9  03
+			15 00 02  AA  66
+			15 00 02  AB  03
+			15 00 02  AC  76
+			15 00 02  AD  03
+			15 00 02  AE  85
+			15 00 02  AF  03
+			15 00 02  B0  90
+			15 00 02  B1  03
+			15 00 02  B2  CB
+			15 00 02  B3  00
+			15 00 02  B4  DF
+			15 00 02  B5  00
+			15 00 02  B6  E4
+			15 00 02  B7  00
+			15 00 02  B8  ED
+			15 00 02  B9  00
+			15 00 02  BA  F6
+			15 00 02  BB  00
+			15 00 02  BC  FF
+			15 00 02  BD  01
+			15 00 02  BE  07
+			15 00 02  BF  01
+			15 00 02  C0  10
+			15 00 02  C1  01
+			15 00 02  C2  18
+			15 00 02  C3  01
+			15 00 02  C4  20
+			15 00 02  C5  01
+			15 00 02  C6  3D
+			15 00 02  C7  01
+			15 00 02  C8  56
+			15 00 02  C9  01
+			15 00 02  CA  84
+			15 00 02  CB  01
+			15 00 02  CC  AB
+			15 00 02  CD  01
+			15 00 02  CE  EC
+			15 00 02  CF  02
+			15 00 02  D0  22
+			15 00 02  D1  02
+			15 00 02  D2  23
+			15 00 02  D3  02
+			15 00 02  D4  55
+			15 00 02  D5  02
+			15 00 02  D6  8B
+			15 00 02  D7  02
+			15 00 02  D8  AF
+			15 00 02  D9  02
+			15 00 02  DA  DF
+			15 00 02  DB  03
+			15 00 02  DC  01
+			15 00 02  DD  03
+			15 00 02  DE  2C
+			15 00 02  DF  03
+			15 00 02  E0  39
+			15 00 02  E1  03
+			15 00 02  E2  47
+			15 00 02  E3  03
+			15 00 02  E4  56
+			15 00 02  E5  03
+			15 00 02  E6  66
+			15 00 02  E7  03
+			15 00 02  E8  76
+			15 00 02  E9  03
+			15 00 02  EA  85
+			15 00 02  EB  03
+			15 00 02  EC  90
+			15 00 02  ED  03
+			15 00 02  EE  CB
+			15 00 02  EF  00
+			15 00 02  F0  BB
+			15 00 02  F1  00
+			15 00 02  F2  C0
+			15 00 02  F3  00
+			15 00 02  F4  CC
+			15 00 02  F5  00
+			15 00 02  F6  D6
+			15 00 02  F7  00
+			15 00 02  F8  E1
+			15 00 02  F9  00
+			15 00 02  FA  EA
+			15 00 02  FF  02
+			15 00 02  FB  01
+			15 00 02  00  00
+			15 00 02  01  F4
+			15 00 02  02  00
+			15 00 02  03  EF
+			15 00 02  04  01
+			15 00 02  05  07
+			15 00 02  06  01
+			15 00 02  07  28
+			15 00 02  08  01
+			15 00 02  09  44
+			15 00 02  0A  01
+			15 00 02  0B  76
+			15 00 02  0C  01
+			15 00 02  0D  A0
+			15 00 02  0E  01
+			15 00 02  0F  E7
+			15 00 02  10  02
+			15 00 02  11  1F
+			15 00 02  12  02
+			15 00 02  13  22
+			15 00 02  14  02
+			15 00 02  15  54
+			15 00 02  16  02
+			15 00 02  17  8B
+			15 00 02  18  02
+			15 00 02  19  AF
+			15 00 02  1A  02
+			15 00 02  1B  E0
+			15 00 02  1C  03
+			15 00 02  1D  01
+			15 00 02  1E  03
+			15 00 02  1F  2D
+			15 00 02  20  03
+			15 00 02  21  39
+			15 00 02  22  03
+			15 00 02  23  47
+			15 00 02  24  03
+			15 00 02  25  57
+			15 00 02  26  03
+			15 00 02  27  65
+			15 00 02  28  03
+			15 00 02  29  77
+			15 00 02  2A  03
+			15 00 02  2B  85
+			15 00 02  2D  03
+			15 00 02  2F  8F
+			15 00 02  30  03
+			15 00 02  31  CB
+			15 00 02  32  00
+			15 00 02  33  BB
+			15 00 02  34  00
+			15 00 02  35  C0
+			15 00 02  36  00
+			15 00 02  37  CC
+			15 00 02  38  00
+			15 00 02  39  D6
+			15 00 02  3A  00
+			15 00 02  3B  E1
+			15 00 02  3D  00
+			15 00 02  3F  EA
+			15 00 02  40  00
+			15 00 02  41  F4
+			15 00 02  42  00
+			15 00 02  43  FE
+			15 00 02  44  01
+			15 00 02  45  07
+			15 00 02  46  01
+			15 00 02  47  28
+			15 00 02  48  01
+			15 00 02  49  44
+			15 00 02  4A  01
+			15 00 02  4B  76
+			15 00 02  4C  01
+			15 00 02  4D  A0
+			15 00 02  4E  01
+			15 00 02  4F  E7
+			15 00 02  50  02
+			15 00 02  51  1F
+			15 00 02  52  02
+			15 00 02  53  22
+			15 00 02  54  02
+			15 00 02  55  54
+			15 00 02  56  02
+			15 00 02  58  8B
+			15 00 02  59  02
+			15 00 02  5A  AF
+			15 00 02  5B  02
+			15 00 02  5C  E0
+			15 00 02  5D  03
+			15 00 02  5E  01
+			15 00 02  5F  03
+			15 00 02  60  2D
+			15 00 02  61  03
+			15 00 02  62  39
+			15 00 02  63  03
+			15 00 02  64  47
+			15 00 02  65  03
+			15 00 02  66  57
+			15 00 02  67  03
+			15 00 02  68  65
+			15 00 02  69  03
+			15 00 02  6A  77
+			15 00 02  6B  03
+			15 00 02  6C  85
+			15 00 02  6D  03
+			15 00 02  6E  8F
+			15 00 02  6F  03
+			15 00 02  70  CB
+			15 00 02  71  00
+			15 00 02  72  00
+			15 00 02  73  00
+			15 00 02  74  21
+			15 00 02  75  00
+			15 00 02  76  4C
+			15 00 02  77  00
+			15 00 02  78  6B
+			15 00 02  79  00
+			15 00 02  7A  85
+			15 00 02  7B  00
+			15 00 02  7C  9A
+			15 00 02  7D  00
+			15 00 02  7E  AD
+			15 00 02  7F  00
+			15 00 02  80  BE
+			15 00 02  81  00
+			15 00 02  82  CD
+			15 00 02  83  01
+			15 00 02  84  01
+			15 00 02  85  01
+			15 00 02  86  29
+			15 00 02  87  01
+			15 00 02  88  68
+			15 00 02  89  01
+			15 00 02  8A  98
+			15 00 02  8B  01
+			15 00 02  8C  E5
+			15 00 02  8D  02
+			15 00 02  8E  1E
+			15 00 02  8F  02
+			15 00 02  90  30
+			15 00 02  91  02
+			15 00 02  92  52
+			15 00 02  93  02
+			15 00 02  94  88
+			15 00 02  95  02
+			15 00 02  96  AA
+			15 00 02  97  02
+			15 00 02  98  D7
+			15 00 02  99  02
+			15 00 02  9A  F7
+			15 00 02  9B  03
+			15 00 02  9C  21
+			15 00 02  9D  03
+			15 00 02  9E  2E
+			15 00 02  9F  03
+			15 00 02  A0  3D
+			15 00 02  A2  03
+			15 00 02  A3  4C
+			15 00 02  A4  03
+			15 00 02  A5  5E
+			15 00 02  A6  03
+			15 00 02  A7  71
+			15 00 02  A9  03
+			15 00 02  AA  86
+			15 00 02  AB  03
+			15 00 02  AC  94
+			15 00 02  AD  03
+			15 00 02  AE  FA
+			15 00 02  AF  00
+			15 00 02  B0  00
+			15 00 02  B1  00
+			15 00 02  B2  21
+			15 00 02  B3  00
+			15 00 02  B4  4C
+			15 00 02  B5  00
+			15 00 02  B6  6B
+			15 00 02  B7  00
+			15 00 02  B8  85
+			15 00 02  B9  00
+			15 00 02  BA  9A
+			15 00 02  BB  00
+			15 00 02  BC  AD
+			15 00 02  BD  00
+			15 00 02  BE  BE
+			15 00 02  BF  00
+			15 00 02  C0  CD
+			15 00 02  C1  01
+			15 00 02  C2  01
+			15 00 02  C3  01
+			15 00 02  C4  29
+			15 00 02  C5  01
+			15 00 02  C6  68
+			15 00 02  C7  01
+			15 00 02  C8  98
+			15 00 02  C9  01
+			15 00 02  CA  E5
+			15 00 02  CB  02
+			15 00 02  CC  1E
+			15 00 02  CD  02
+			15 00 02  CE  20
+			15 00 02  CF  02
+			15 00 02  D0  52
+			15 00 02  D1  02
+			15 00 02  D2  88
+			15 00 02  D3  02
+			15 00 02  D4  AA
+			15 00 02  D5  02
+			15 00 02  D6  D7
+			15 00 02  D7  02
+			15 00 02  D8  F7
+			15 00 02  D9  03
+			15 00 02  DA  21
+			15 00 02  DB  03
+			15 00 02  DC  2E
+			15 00 02  DD  03
+			15 00 02  DE  3D
+			15 00 02  DF  03
+			15 00 02  E0  4C
+			15 00 02  E1  03
+			15 00 02  E2  5E
+			15 00 02  E3  03
+			15 00 02  E4  71
+			15 00 02  E5  03
+			15 00 02  E6  86
+			15 00 02  E7  03
+			15 00 02  E8  94
+			15 00 02  E9  03
+			15 00 02  EA  FA
+			15 00 02  FF  01
+			15 00 02  FB  01
+			15 00 02  FF  02
+			15 00 02  FB  01
+			15 00 02  FF  04
+			15 00 02  FB  01
+			15 00 02  FF  00
+			15 00 02  D3  05
+			15 00 02  D4  04
+			05 78 01  11
+			15 00 02  FF  00
+			15 00 02  35  00
+			05 0A 01  29
+		];
+		panel-exit-sequence = [
+			05 05 01 28
+			05 78 01 10
+		];
+
+        disp_timings: display-timings {
+            native-mode = <&timing0>;
+            timing0: timing0 {
+                clock-frequency = <120000000>;
+                hactive = <1088>; /* default 1080, but afbdc must 16 align */
+                hfront-porch = <104>;
+                hback-porch = <127>;
+                hsync-len = <4>; /////
+                vactive = <1920>;
+                vfront-porch = <4>;
+                vback-porch = <3>;
+                vsync-len = <2>; /////
+                hsync-active = <0>;
+                vsync-active = <0>;
+                de-active = <0>;
+                pixelclk-active = <0>;
+            };
+        };
+    };
+};
+
+&i2c2 {
+    status = "okay";
+    i2c-scl-rising-time-ns = <600>;
+    i2c-scl-falling-time-ns = <20>;
+
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>; /* GPIO2_A3 */
+		status = "okay";
+	};
+};
+
+&pinctrl {
+	matrix {
+		matrix_gpio: matrix_gpio {
+			rockchip,pins =
+				<0 10 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 11 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 12 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	apds_int_l: apds-int-l {
+		rockchip,pins = <3 10 RK_FUNC_GPIO &pcfg_pull_up>;
+	};
+
+	charger {
+		charger_ok: charge-ok {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_C7 */
+		};
+	};
+
+	rt5651 {
+		rt5651_hpdet: rt5651-hpdet {
+			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_A0 */
+		};
+	};
+};
