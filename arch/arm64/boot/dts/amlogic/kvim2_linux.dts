@@ -27,6 +27,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	chosen { };
+
 	aliases {
 		serial0 = &uart_AO;
 		serial1 = &uart_A;
