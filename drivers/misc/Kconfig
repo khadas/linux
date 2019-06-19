@@ -787,6 +787,12 @@ config MEMORY_STATE_TIME
 	help
 	  Memory time statistics exported to /sys/kernel/memory_state_time
 
+config KHADAS_MCU
+	tristate "Khadas MCU"
+	default y
+	help
+	  This driver is for Khadas MCU.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
