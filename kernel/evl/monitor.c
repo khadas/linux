@@ -315,10 +315,11 @@ static inline bool test_event_mask(struct evl_monitor_state *state,
  * Userland is expected to implement a fast atomic path if possible
  * and deal with signal-vs-wait races in its own way.
  */
-static int wait_monitor_ungated(struct evl_monitor *event,
+static int wait_monitor_ungated(struct file *filp,
 				struct evl_monitor_waitreq *req,
 				s32 *r_value)
 {
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
 	struct evl_monitor_state *state = event->state;
 	enum evl_tmode tmode;
 	unsigned long flags;
@@ -332,13 +333,19 @@ static int wait_monitor_ungated(struct evl_monitor *event,
 	case EVL_EVENT_COUNT:
 		xnlock_get_irqsave(&nklock, flags);
 		if (atomic_dec_return(&state->u.event.value) < 0) {
-			ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
+			if (filp->f_flags & O_NONBLOCK)
+				ret = -EAGAIN;
+			else
+				ret = evl_wait_timeout(&event->wait_queue,
+						timeout, tmode);
 			if (ret) /* Rollback decrement if failed. */
 				atomic_inc(&state->u.event.value);
 		}
 		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	case EVL_EVENT_MASK:
+		if (filp->f_flags & O_NONBLOCK)
+			timeout = EVL_NONBLOCK;
 		ret = evl_wait_event_timeout(&event->wait_queue,
 					timeout, tmode,
 					test_event_mask(state, r_value));
@@ -420,11 +427,12 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	return ret;
 }
 
-static int wait_monitor(struct evl_monitor *event,
+static int wait_monitor(struct file *filp,
 			struct evl_monitor_waitreq *req,
 			s32 *r_op_ret,
 			s32 *r_value)
 {
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
 	int ret = 0, op_ret = 0;
@@ -444,7 +452,7 @@ static int wait_monitor(struct evl_monitor *event,
 	}
 
 	if (req->gatefd < 0) {
-		ret = wait_monitor_ungated(event, req, r_value);
+		ret = wait_monitor_ungated(filp, req, r_value);
 		*r_op_ret = ret;
 		return ret;
 	}
@@ -594,7 +602,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		ret = wait_monitor(mon, &wreq, &op_ret, &value);
+		ret = wait_monitor(filp, &wreq, &op_ret, &value);
 		raw_put_user(op_ret, &u_wreq->status);
 		if (!ret && !op_ret)
 			raw_put_user(value, &u_wreq->value);
