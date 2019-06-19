@@ -643,6 +643,7 @@
 			clkc: clock-controller@0 {
 				compatible = "amlogic,gxl-clkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x0 0x0 0x3db>;
 			};
 		};
