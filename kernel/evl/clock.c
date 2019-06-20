@@ -598,7 +598,7 @@ static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
 
 	timerfd = container_of(timer, struct evl_timerfd, timer);
 	timerfd->ticked = true;
-	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
+	evl_signal_poll_events(&timerfd->poll_head, POLLIN|POLLRDNORM);
 	evl_flush_wait(&timerfd->readers, 0);
 }
 
