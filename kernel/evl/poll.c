@@ -149,7 +149,7 @@ static int check_no_loop_deeper(struct poll_group *origin,
 
 	group = filp->private_data;
 	if (group == origin) {
-		ret = -EINVAL;
+		ret = -ELOOP;
 		goto out;
 	}
 
@@ -181,16 +181,13 @@ static int add_item(struct file *filp, struct poll_group *group,
 	struct evl_file *efilp;
 	int ret, events;
 
-	events = creq->events & ~POLLFREE;
-	if (events == 0)
-		return -EINVAL;
-
 	item = evl_alloc(sizeof(*item));
 	if (item == NULL)
 		return -ENOMEM;
 
 	item->fd = creq->fd;
-	item->events_polled = events;
+	events = creq->events & ~POLLNVAL;
+	item->events_polled = events | POLLERR | POLLHUP;
 
 	efilp = evl_get_file(creq->fd);
 	if (efilp == NULL) {
@@ -257,7 +254,7 @@ static int del_item(struct poll_group *group,
 	item = lookup_item(&group->item_index, creq->fd);
 	if (item == NULL) {
 		evl_unlock_kmutex(&group->item_lock);
-		return -EBADF;
+		return -ENOENT;
 	}
 
 	rb_erase(&item->rb, &group->item_index);
@@ -292,7 +289,7 @@ void evl_drop_watchpoints(struct list_head *drop_list)
 	list_for_each_entry(node, drop_list, next) {
 		wpt = container_of(node, struct evl_poll_watchpoint, node);
 		evl_spin_lock(&wpt->head->lock);
-		wpt->events_received |= POLLFREE;
+		wpt->events_received |= POLLNVAL;
 		if (wpt->unwatch)
 			wpt->unwatch(wpt->filp);
 		evl_raise_flag_nosched(wpt->flag);
@@ -308,19 +305,17 @@ int mod_item(struct poll_group *group,
 	struct poll_item *item;
 	int events;
 
-	events = creq->events & ~POLLFREE;
-	if (events == 0)
-		return del_item(group, creq);
+	events = creq->events & ~POLLNVAL;
 
 	evl_lock_kmutex(&group->item_lock);
 
 	item = lookup_item(&group->item_index, creq->fd);
 	if (item == NULL) {
 		evl_unlock_kmutex(&group->item_lock);
-		return -EBADF;
+		return -ENOENT;
 	}
 
-	item->events_polled = events;
+	item->events_polled = events | POLLERR | POLLHUP;
 	new_generation(group);
 
 	evl_unlock_kmutex(&group->item_lock);
@@ -431,7 +426,7 @@ collect:
 			evl_put_file(efilp);
 		} else {
 			ready = wpt->events_received;
-			if (ready & POLLFREE)
+			if (ready & POLLNVAL)
 				goto stale;
 		}
 
@@ -472,7 +467,7 @@ static inline void clear_wait(void)
 	 * Current stopped waiting for events, remove the watchpoints
 	 * we have been monitoring so far from their poll heads.
 	 * wpt->head->lock serializes with __evl_signal_poll_events().
-	 * Any watchpoint which does not bear the POLLFREE bit is
+	 * Any watchpoint which does not bear the POLLNVAL bit is
 	 * monitoring a still valid file by construction.
 	 */
 	for (n = 0, wpt = curr->poll_context.table;
@@ -482,7 +477,7 @@ static inline void clear_wait(void)
 		if (!list_empty(&wpt->wait.next)) {
 			evl_spin_lock_irqsave(&wpt->head->lock, flags);
 			list_del(&wpt->wait.next);
-			if (!(wpt->events_received & POLLFREE) && wpt->unwatch)
+			if (!(wpt->events_received & POLLNVAL) && wpt->unwatch)
 				wpt->unwatch(wpt->filp);
 			evl_spin_unlock_irqrestore(&wpt->head->lock, flags);
 		}
