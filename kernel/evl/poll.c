@@ -424,13 +424,10 @@ collect:
 			if (filp->f_op->oob_poll)
 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
 			evl_put_file(efilp);
-		} else {
+		} else
 			ready = wpt->events_received;
-			if (ready & POLLNVAL)
-				goto stale;
-		}
 
-		ready &= wpt->events_polled;
+		ready &= wpt->events_polled | POLLNVAL;
 		if (ready) {
 			ev.fd = wpt->fd;
 			ev.events = ready;
