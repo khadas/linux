@@ -281,7 +281,8 @@ static int exit_monitor(struct evl_monitor *gate)
 
 		/* Wake up threads polling the condition too. */
 		list_for_each_entry(event, &polled, next)
-			evl_signal_poll_events(&event->poll_head, POLLIN);
+			evl_signal_poll_events(&event->poll_head,
+					POLLIN|POLLRDNORM);
 	}
 
 	__exit_monitor(gate, curr);
@@ -420,7 +421,8 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	}
 
 	if (pollable)
-		evl_signal_poll_events(&event->poll_head, POLLIN|POLLRDNORM);
+		evl_signal_poll_events(&event->poll_head,
+				POLLIN|POLLRDNORM);
 
 	evl_schedule();
 
