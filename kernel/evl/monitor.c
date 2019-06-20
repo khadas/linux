@@ -684,6 +684,7 @@ static __poll_t monitor_oob_poll(struct file *filp,
 			 * release. Therefore, polling such event will
 			 * block indefinitely.
 			 */
+			ret = POLLERR;
 			break;
 		}
 		break;
