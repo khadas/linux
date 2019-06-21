@@ -701,7 +701,22 @@ static struct platform_driver meson_i2c_driver = {
 	},
 };
 
-module_platform_driver(meson_i2c_driver);
+
+//module_platform_driver(meson_i2c_driver);
+
+static int __init meson_i2c_driver_init(void)
+{
+    return platform_driver_register(&meson_i2c_driver);
+}
+
+static void __exit meson_i2c_driver_exit(void)
+{
+    return platform_driver_unregister(&meson_i2c_driver);
+}
+
+subsys_initcall(meson_i2c_driver_init);
+module_exit(meson_i2c_driver_exit);
+
 
 MODULE_DESCRIPTION("Amlogic Meson I2C Bus driver");
 MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");

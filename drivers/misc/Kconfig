@@ -793,6 +793,12 @@ config KHADAS_MCU
 	help
 	  This driver is for Khadas MCU.
 
+config KHADAS_TCA6408
+	tristate "Khadas TCA6408"
+	default y
+	help
+	  This driver is TCA6408A IO expanders.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
