@@ -14,6 +14,7 @@
 #include <linux/cdev.h>
 #include <linux/module.h>
 #include <linux/rcupdate.h>
+#include <linux/uidgid.h>
 #include <linux/irq_work.h>
 #include <linux/uaccess.h>
 #include <linux/hashtable.h>
@@ -238,6 +239,43 @@ int evl_release_element(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static void release_device(struct device *dev)
+{
+	kfree(dev);
+}
+
+static struct device *create_device(dev_t rdev, struct evl_factory *fac,
+				void *drvdata, const char *name)
+{
+	struct device *dev;
+	int ret;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	dev->devt = rdev;
+	dev->class = fac->class;
+	dev->type = &fac->type;
+	dev->groups = fac->attrs;
+	dev->release = release_device;
+	dev_set_drvdata(dev, drvdata);
+	ret = dev_set_name(dev, "%s", name);
+	if (ret)
+		goto fail;
+
+	ret = device_register(dev);
+	if (ret)
+		goto fail;
+
+	return dev;
+
+fail:
+	put_device(dev); /* ->release_device() */
+
+	return ERR_PTR(ret);
+}
+
 static int create_named_element_device(struct evl_element *e,
 				struct evl_factory *fac)
 {
@@ -249,7 +287,7 @@ static int create_named_element_device(struct evl_element *e,
 
 	/*
 	 * Do a quick hash check on the new device name, to make sure
-	 * device_create() won't trigger a kernel log splash because
+	 * device_register() won't trigger a kernel log splash because
 	 * of a naming conflict.
 	 */
 	hlen = hashlen_string("EVL", e->devname->name);
@@ -269,28 +307,21 @@ static int create_named_element_device(struct evl_element *e,
 	cdev_init(&e->cdev, fac->fops);
 	ret = cdev_add(&e->cdev, rdev, 1);
 	if (ret)
-		goto fail_add;
+		goto fail_cdev;
 
-	dev = device_create(fac->class, NULL, rdev, e,
-			"%s", evl_element_name(e));
+	dev = create_device(rdev, fac, e, evl_element_name(e));
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto fail_dev;
 	}
 
-	if (fac->attrs) {
-		ret = device_add_groups(dev, fac->attrs);
-		if (ret)
-			goto fail_groups;
-	}
+	e->dev = dev;
 
 	return 0;
 
-fail_groups:
-	device_destroy(fac->class, rdev);
 fail_dev:
 	cdev_del(&e->cdev);
-fail_add:
+fail_cdev:
 	mutex_lock(&fac->hash_lock);
 	hash_del(&e->hash);
 	mutex_unlock(&fac->hash_lock);
@@ -316,10 +347,9 @@ int evl_create_element_device(struct evl_element *e,
 void evl_remove_element_device(struct evl_element *e)
 {
 	struct evl_factory *fac = e->factory;
-	dev_t rdev;
+	struct device *dev = e->dev;
 
-	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
-	device_destroy(fac->class, rdev);
+	device_unregister(dev);
 	cdev_del(&e->cdev);
 	mutex_lock(&fac->hash_lock);
 	hash_del(&e->hash);
@@ -410,9 +440,21 @@ static int release_clone_device(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int open_clone_device(struct inode *inode, struct file *filp)
+{
+	struct evl_factory *fac;
+
+	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
+	fac->kuid = inode->i_uid;
+	fac->kgid = inode->i_gid;
+
+	return 0;
+}
+
 static const struct file_operations clone_fops = {
-	.unlocked_ioctl	= ioctl_clone_device,
+	.open		= open_clone_device,
 	.release	= release_clone_device,
+	.unlocked_ioctl	= ioctl_clone_device,
 };
 
 static int index_element_at(struct evl_element *e, fundle_t fundle)
@@ -524,10 +566,25 @@ __evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
 	return NULL;
 }
 
-static char *factory_devnode(struct device *dev, umode_t *mode)
+static char *factory_type_devnode(struct device *dev, umode_t *mode,
+			kuid_t *uid, kgid_t *gid)
 {
+	struct evl_element *e;
+
+	/*
+	 * Inherit the ownership of a new element device from the
+	 * clone device which has instantiated it.
+	 */
+	e = dev_get_drvdata(dev);
+	if (e) {
+		if (uid)
+			*uid = e->factory->kuid;
+		if (gid)
+			*gid = e->factory->kgid;
+	}
+
 	return kasprintf(GFP_KERNEL, "evl/%s/%s",
-			dev->class->name, dev_name(dev));
+			dev->type->name, dev_name(dev));
 }
 
 static int create_element_class(struct evl_factory *fac)
@@ -545,13 +602,15 @@ static int create_element_class(struct evl_factory *fac)
 		goto cleanup_minor;
 	}
 
-	class->devnode = factory_devnode;
+	fac->class = class;
+	fac->type.name = fac->name;
+	fac->type.devnode = factory_type_devnode;
+	fac->kuid = GLOBAL_ROOT_UID;
+	fac->kgid = GLOBAL_ROOT_GID;
 
 	ret = alloc_chrdev_region(&fac->sub_rdev, 0, fac->nrdev, fac->name);
 	if (ret)
 		goto cleanup_class;
-
-	fac->class = class;
 
 	return 0;
 
@@ -573,7 +632,7 @@ static void delete_element_class(struct evl_factory *fac)
 static int create_factory(struct evl_factory *fac, dev_t rdev)
 {
 	const char *idevname = "clone"; /* Initial device in factory. */
-	struct device *dev;
+	struct device *dev = NULL;
 	int ret;
 
 	if (fac->flags & EVL_FACTORY_SINGLE) {
@@ -595,18 +654,12 @@ static int create_factory(struct evl_factory *fac, dev_t rdev)
 		if (ret)
 			goto fail_cdev;
 
-		dev = device_create(fac->class, NULL, rdev, fac, idevname);
+		dev = create_device(rdev, fac, NULL, idevname);
 		if (IS_ERR(dev))
 			goto fail_dev;
-
-		if ((fac->flags & EVL_FACTORY_SINGLE) && fac->attrs) {
-			ret = device_add_groups(dev, fac->attrs);
-			if (ret)
-				goto fail_groups;
-		}
 	}
 
-	fac->rdev = rdev;
+	fac->dev = dev;
 	raw_spin_lock_init(&fac->index.lock);
 	fac->index.root = RB_ROOT;
 	fac->index.generator = EVL_NO_HANDLE;
@@ -615,8 +668,6 @@ static int create_factory(struct evl_factory *fac, dev_t rdev)
 
 	return 0;
 
-fail_groups:
-	device_destroy(fac->class, rdev);
 fail_dev:
 	cdev_del(&fac->cdev);
 fail_cdev:
@@ -628,10 +679,12 @@ fail_cdev:
 
 static void delete_factory(struct evl_factory *fac)
 {
-	device_destroy(fac->class, fac->rdev);
+	struct device *dev = fac->dev;
 
-	if (fac->flags & (EVL_FACTORY_CLONE|EVL_FACTORY_SINGLE))
+	if (dev) {
+		device_unregister(dev);
 		cdev_del(&fac->cdev);
+	}
 
 	if (!(fac->flags & EVL_FACTORY_SINGLE))
 		delete_element_class(fac);
