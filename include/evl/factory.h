@@ -49,10 +49,13 @@ struct evl_factory {
 	const struct attribute_group **attrs;
 	int flags;
 	struct {
+		struct device_type type;
 		struct class *class;
 		struct cdev cdev;
-		dev_t rdev;
+		struct device *dev;
 		dev_t sub_rdev;
+		kuid_t kuid;
+		kgid_t kgid;
 		unsigned long *minor_map;
 		struct evl_index {
 			struct rb_root root;
@@ -68,6 +71,7 @@ struct evl_element {
 	struct rcu_head rcu;
 	struct evl_factory *factory;
 	struct cdev cdev;
+	struct device *dev;
 	struct filename *devname;
 	unsigned int minor;
 	int refs;
