@@ -863,6 +863,19 @@ TRACE_EVENT(evl_latspot,
 		  __entry->latmax_ns % 1000)
 );
 
+TRACE_EVENT(evl_fpu_corrupt,
+	TP_PROTO(unsigned int fp_val),
+	TP_ARGS(fp_val),
+	TP_STRUCT__entry(
+		 __field(unsigned int, fp_val)
+	),
+	TP_fast_assign(
+		__entry->fp_val = fp_val;
+	),
+	TP_printk("** bad FPU context: fp_val = %u **",
+		__entry->fp_val)
+);
+
 /* Basically evl_trace() + trigger point */
 TRACE_EVENT(evl_trigger,
 	TP_PROTO(const char *issuer),

@@ -54,6 +54,12 @@ struct rtswitch_context {
 
 static u32 fp_features;
 
+#define trace_fpu_breakage(__ctx)				\
+	do {							\
+		trace_evl_fpu_corrupt((__ctx)->error.fp_val);	\
+		trace_evl_trigger("hectic");			\
+	} while (0)
+
 static void handle_fpu_error(struct rtswitch_context *ctx,
 			     unsigned int fp_in, unsigned int fp_out,
 			     int bad_reg)
@@ -66,6 +72,7 @@ static void handle_fpu_error(struct rtswitch_context *ctx,
 
 	ctx->failed = true;
 	ctx->error.fp_val = fp_out;
+	trace_fpu_breakage(ctx);
 
 	if ((cur->base.flags & HECTIC_OOB_WAIT) == HECTIC_OOB_WAIT)
 		for (i = 0; i < ctx->tasks_count; i++) {
@@ -526,6 +533,7 @@ static long hectic_ioctl(struct file *filp, unsigned int cmd,
 			-EFAULT : 0;
 
 	case EVL_HECIOC_GET_LAST_ERROR:
+		trace_fpu_breakage(ctx);
 		u_lerr = (typeof(u_lerr))arg;
 		return copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
 			-EFAULT : 0;
@@ -557,6 +565,7 @@ static long hectic_oob_ioctl(struct file *filp, unsigned int cmd,
 			rtswitch_to_rt(ctx, fromto.from, fromto.to);
 
 	case EVL_HECIOC_GET_LAST_ERROR:
+		trace_fpu_breakage(ctx);
 		u_lerr = (typeof(u_lerr))arg;
 		return raw_copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
 			-EFAULT : 0;
