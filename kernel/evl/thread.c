@@ -775,9 +775,9 @@ int evl_switch_oob(void)
 	}
 
 	/*
-	 * current is now running on the head interrupt stage. Hard
-	 * irqs must be off, otherwise something is really wrong in
-	 * the Dovetail layer.
+	 * The current task is now running on the out-of-band
+	 * execution stage. Hard irqs must be off, otherwise something
+	 * is really wrong in the Dovetail layer.
 	 */
 	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
 		hard_irqs_disabled();
