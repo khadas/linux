@@ -7,6 +7,7 @@ menuconfig EVL
 	bool "EVL real-time core"
 	depends on HAVE_ARCH_EVL
 	select DOVETAIL
+	select DEVTMPFS
 	help
 
 	  The EVL core is a real-time component of the Linux kernel,
