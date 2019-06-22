@@ -3,7 +3,7 @@
  *
  * Written by: Nick <nick@khadas.com>
  *
- * Copyright (C) 2019 Wesion Technologies Ltd.
+ * Copyright (c) 2019 Shenzhen Wesion Technology Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -58,9 +58,17 @@ enum khadas_fan_enable {
 
 enum khadas_fan_hwver {
 	KHADAS_FAN_HWVER_NONE = 0,
+	KHADAS_FAN_HWVER_V11,
 	KHADAS_FAN_HWVER_V12,
 	KHADAS_FAN_HWVER_V13,
 	KHADAS_FAN_HWVER_V14
+};
+
+enum khadas_board {
+	KHADAS_BOARD_NONE,
+	KHADAS_BOARD_VIM1,
+	KHADAS_BOARD_VIM2,
+	KHADAS_BOARD_VIM3
 };
 
 struct khadas_fan_data {
@@ -68,6 +76,7 @@ struct khadas_fan_data {
 	struct class *fan_class;
 	struct delayed_work work;
 	struct delayed_work fan_test_work;
+	enum khadas_board board;
 	enum    khadas_fan_enable enable;
 	enum 	khadas_fan_mode mode;
 	enum 	khadas_fan_level level;
@@ -155,10 +164,20 @@ static int mcu_i2c_write_regs(struct i2c_client *client,
 
 static int is_mcu_fan_control_available(void)
 {
-	// MCU FAN control only for Khadas VIM2 V13 and later.
-	if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_V12)
-		return 1;
-	else
+	// MCU FAN control is available for:
+	// 1. Khadas VIM2 V13 and later
+	// 2. Khadas VIM3 V11 and later
+	if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
+		if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_V12)
+			return 1;
+		else
+			return 0;
+	} else if (KHADAS_BOARD_VIM3 == g_mcu_data->fan_data.board) {
+		if (g_mcu_data->fan_data.hwver >= KHADAS_FAN_HWVER_V11)
+			return 1;
+		else
+			return 0;
+	} else
 		return 0;
 }
 
@@ -418,16 +437,37 @@ static int mcu_parse_dt(struct device *dev)
 	ret = of_property_read_string(dev->of_node, "hwver", &hwver);
 	if (ret < 0) {
 		g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
+		g_mcu_data->fan_data.board = KHADAS_BOARD_VIM2;
 	} else {
-		if (0 == strcmp(hwver, "VIM2.V12")) {
-			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
-		} else if (0 == strcmp(hwver, "VIM2.V13")) {
-			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V13;
-		} else if (0 == strcmp(hwver, "VIM2.V14")) {
-			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V14;
-		}
-		else {
-			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
+		if (strstr(hwver, "VIM2"))
+			g_mcu_data->fan_data.board = KHADAS_BOARD_VIM2;
+		else if (strstr(hwver, "VIM3"))
+			g_mcu_data->fan_data.board = KHADAS_BOARD_VIM3;
+		else
+			g_mcu_data->fan_data.board = KHADAS_BOARD_NONE;
+
+		if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
+			if (0 == strcmp(hwver, "VIM2.V12")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
+			} else if (0 == strcmp(hwver, "VIM2.V13")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V13;
+			} else if (0 == strcmp(hwver, "VIM2.V14")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V14;
+			} else {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
+			}
+		} else if (KHADAS_BOARD_VIM3 == g_mcu_data->fan_data.board) {
+			if (0 == strcmp(hwver, "VIM3.V11")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V11;
+			} else if (0 == strcmp(hwver, "VIM3.V12")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
+			} else if (0 == strcmp(hwver, "VIM3.V13")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V13;
+			} else if (0 == strcmp(hwver, "VIM3.V14")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V14;
+			} else {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
+			}
 		}
 	}
 
@@ -468,6 +508,8 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	mcu_parse_dt(&client->dev);
+
+	printk("%s: board: %d, hwver: %d\n", __func__, (int)g_mcu_data->fan_data.board, (int)g_mcu_data->fan_data.hwver);
 
 	g_mcu_data->client = client;
 	ret = mcu_i2c_read_regs(client, MCU_WOL_REG, reg, 1);
