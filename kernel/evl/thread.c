@@ -691,6 +691,10 @@ void evl_switch_inband(int cause)
 	oob_irq_disable();
 	irq_work_queue(&curr->inband_work);
 	xnlock_get(&nklock);
+	if (curr->state & T_READY) {
+		evl_dequeue_thread(curr);
+		curr->state &= ~T_READY;
+	}
 	curr->info &= ~EVL_THREAD_INFO_MASK;
 	curr->state |= T_INBAND;
 	curr->local_info &= ~T_SYSRST;
@@ -1063,7 +1067,6 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 	 * We allow multiple callers to join @thread, this is purely a
 	 * synchronization mechanism with no resource collection.
 	 */
-
 	if (thread->info & T_DORMANT) {
 		xnlock_put_irqrestore(&nklock, flags);
 		return 0;
@@ -1079,38 +1082,10 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 		xnlock_put_irqrestore(&nklock, flags);
 
 	/*
-	 * We have a tricky issue to deal with, which involves code
-	 * relying on the assumption that a destroyed thread will have
-	 * scheduled away from do_exit() before evl_join_thread()
-	 * returns. A typical example is illustrated by the following
-	 * sequence, with a EVL kthread implemented in a dynamically
-	 * loaded module:
-	 *
-	 * CPU0:  evl_cancel_kthread(kthread)
-	 *           evl_cancel_thread(kthread)
-	 *           evl_join_thread(kthread)
-	 *        ...<back to user>..
-	 *        rmmod(module)
-	 *
-	 * CPU1:  in kthread()
-	 *        ...
-	 *        ...
-	 *          __evl_test_cancel()
-	 *             do_exit()
-         *                schedule()
-	 *
-	 * In such a sequence, the code on CPU0 would expect the EVL
-	 * kthread to have scheduled away upon return from
-	 * evl_cancel_kthread(), so that unmapping the cancelled
-	 * kthread code and data memory when unloading the module is
-	 * always safe.
-	 *
-	 * To address this, the joiner first waits for the joinee to
-	 * signal completion from the EVL thread cleanup handler
-	 * (cleanup_current_thread), then waits for a full RCU grace
-	 * period to have elapsed. Since the completion signal is sent
-	 * on behalf of do_exit(), we may assume that the joinee has
-	 * scheduled away before the RCU grace period ends.
+	 * Wait until the joinee is fully dismantled in
+	 * thread_factory_dispose(), which guarantees safe module
+	 * removal afterwards if applicable. After this point, @thread
+	 * is invalid.
 	 */
 	if (uninterruptible)
 		wait_for_completion(&thread->exited);
@@ -1119,8 +1094,6 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 		if (ret < 0)
 			return -EINTR;
 	}
-
-	/* The joinee is gone at this point, @thread is invalid. */
 
 	if (switched)
 		ret = evl_switch_oob();
@@ -1358,8 +1331,7 @@ void __evl_kick_thread(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * epilogue. Otherwise, we want that thread to enter the
 	 * mayday trap asap.
 	 */
-	if (thread != this_evl_rq_thread() &&
-		(thread->state & T_USER))
+	if ((thread->state & T_USER) && thread != this_evl_rq_thread())
 		dovetail_send_mayday(p);
 }
 
@@ -1866,11 +1838,6 @@ static void handle_sigwake_event(struct task_struct *p)
 			sigismember(&pending, SIGSTOP)
 			|| sigismember(&pending, SIGINT))
 			thread->state &= ~T_SSTEP;
-	}
-
-	if (thread->state & T_INBAND) {
-		xnlock_put_irqrestore(&nklock, flags);
-		return;
 	}
 
 	/*
