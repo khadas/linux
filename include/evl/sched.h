@@ -386,7 +386,12 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 	ret = evl_quota_init_thread(thread);
 	if (ret)
 		return ret;
-#endif /* CONFIG_EVL_SCHED_QUOTA */
+#endif
+#ifdef CONFIG_EVL_SCHED_TP
+	ret = evl_tp_init_thread(thread);
+	if (ret)
+		return ret;
+#endif
 
 	return ret;
 }

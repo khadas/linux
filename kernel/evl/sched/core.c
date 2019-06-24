@@ -820,6 +820,13 @@ evl_find_sched_class(union evl_sched_param *param,
 		sched_class = &evl_sched_quota;
 		break;
 #endif
+#ifdef CONFIG_EVL_SCHED_TP
+	case SCHED_TP:
+		param->tp.prio = attrs->sched_priority;
+		param->tp.ptid = attrs->sched_tp_partition;
+		sched_class = &evl_sched_tp;
+		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -852,6 +859,10 @@ const char *evl_trace_sched_attrs(struct trace_seq *p,
 				attrs->sched_priority,
 				attrs->sched_quota_group);
 		break;
+	case SCHED_TP:
+		trace_seq_printf(p, "priority=%d, partition=%d",
+				attrs->sched_priority,
+				attrs->sched_tp_partition);
 	case SCHED_NORMAL:
 		break;
 	case SCHED_RR:
