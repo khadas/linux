@@ -120,11 +120,11 @@ static int tca6408_setup_registers(struct tca6408_gpio_chip *chip)
 
 	debug_info("%s\n", __func__);
 
-	/* ensure that keypad pins are set to input */
+	/* ensure that keypad pins are set to output */
 	error = tca6408_write_reg(chip->client, TCA6408_DIRECTION, 0x00);
 	if (error)
 		return error;
-	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0xFF);
+	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0x00);
 	if (error)
 		return error;
 
