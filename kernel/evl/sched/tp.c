@@ -150,8 +150,10 @@ static int tp_chkparam(struct evl_thread *thread,
 	struct evl_sched_tp *tp = &evl_thread_rq(thread)->tp;
 
 	if (tp->gps == NULL ||
-	    p->tp.prio < EVL_TP_MIN_PRIO ||
-	    p->tp.prio > EVL_TP_MAX_PRIO)
+		p->tp.prio < EVL_TP_MIN_PRIO ||
+		p->tp.prio > EVL_TP_MAX_PRIO ||
+		p->tp.ptid < 0 ||
+		p->tp.ptid >= CONFIG_EVL_SCHED_TP_NR_PART)
 		return -EINVAL;
 
 	return 0;

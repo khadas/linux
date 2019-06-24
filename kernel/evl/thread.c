@@ -1958,7 +1958,11 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 			struct evl_thread *thread,
 			struct evl_sched_attrs *attrs)
 {
+	union evl_sched_param param;
+
 	attrs->sched_policy = sched_class->policy;
+
+	sched_class->sched_getparam(thread, &param);
 
 	if (sched_class == &evl_sched_rt) {
 		if (thread->state & T_RRB) {
@@ -1971,7 +1975,14 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	if (sched_class == &evl_sched_quota) {
-		attrs->sched_quota_group = thread->quota->tgid;
+		attrs->sched_quota_group = param.quota.tgid;
+		goto out;
+	}
+#endif
+
+#ifdef CONFIG_EVL_SCHED_TP
+	if (sched_class == &evl_sched_tp) {
+		attrs->sched_tp_partition = param.tp.ptid;
 		goto out;
 	}
 #endif
