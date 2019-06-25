@@ -61,7 +61,7 @@
  */
 #define RQ_TSTOPPED	0x00000800
 
-struct evl_sched_rt {
+struct evl_sched_fifo {
 	struct evl_multilevel_queue runnable;
 };
 
@@ -73,7 +73,7 @@ struct evl_rq {
 	int cpu;
 	struct cpumask resched;	/* CPUs pending resched */
 #endif
-	struct evl_sched_rt rt;
+	struct evl_sched_fifo fifo;
 	struct evl_sched_weak weak;
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	struct evl_sched_quota quota;
@@ -337,7 +337,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread,
 				       int prio);
 
 #include <evl/sched/idle.h>
-#include <evl/sched/rt.h>
+#include <evl/sched/fifo.h>
 
 void evl_putback_thread(struct evl_thread *thread);
 
@@ -367,7 +367,7 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 	int ret = 0;
 
 	evl_init_idle_thread(thread);
-	evl_init_rt_thread(thread);
+	evl_init_fifo_thread(thread);
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	ret = evl_quota_init_thread(thread);
 	if (ret)

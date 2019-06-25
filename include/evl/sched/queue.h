@@ -14,10 +14,10 @@
 /*
  * EVL core priority scale. We reserve a couple of additional priority
  * levels above the highest inband kthread priority (MAX_RT_PRIO-1),
- * which is guaranteed not to be less than the highest inband user
- * task priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those
- * extra levels can be used for EVL kthreads which must top the
- * priority of any userland thread.
+ * which is guaranteed not to be less than the highest EVL user task
+ * priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those extra
+ * levels can be used for EVL kthreads which must top the priority of
+ * any userland thread.
  */
 #define EVL_CORE_MIN_PRIO  0
 #define EVL_CORE_MAX_PRIO  (MAX_RT_PRIO + 1)

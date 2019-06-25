@@ -63,7 +63,7 @@ static void register_classes(void)
 #ifdef CONFIG_EVL_SCHED_TP
 	register_one_class(&evl_sched_tp);
 #endif
-	register_one_class(&evl_sched_rt);
+	register_one_class(&evl_sched_fifo);
 }
 
 #ifdef CONFIG_EVL_WATCHDOG
@@ -406,7 +406,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
 	/*
 	 * Apply a PP boost by changing the effective priority of a
-	 * thread, forcing it to the RT class. Like
+	 * thread, forcing it to the FIFO class. Like
 	 * evl_track_thread_policy(), this routine is allowed to lower
 	 * the weighted priority with no restriction, even if a boost
 	 * is undergoing.
@@ -418,7 +418,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	if (thread->state & T_READY)
 		evl_dequeue_thread(thread);
 
-	thread->sched_class = &evl_sched_rt;
+	thread->sched_class = &evl_sched_fifo;
 	evl_ceil_priority(thread, prio);
 
 	if (thread->state & T_READY)
@@ -562,9 +562,9 @@ evl_lookup_schedq(struct evl_multilevel_queue *q, int prio)
 	return list_first_entry(head, struct evl_thread, rq_next);
 }
 
-struct evl_thread *evl_rt_pick(struct evl_rq *rq)
+struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
 {
-	struct evl_multilevel_queue *q = &rq->rt.runnable;
+	struct evl_multilevel_queue *q = &rq->fifo.runnable;
 	struct evl_thread *thread;
 	struct list_head *head;
 	int idx;
@@ -587,7 +587,7 @@ struct evl_thread *evl_rt_pick(struct evl_rq *rq)
 	 * PI.
 	 */
 	thread = list_first_entry(head, struct evl_thread, rq_next);
-	if (unlikely(thread->sched_class != &evl_sched_rt))
+	if (unlikely(thread->sched_class != &evl_sched_fifo))
 		return thread->sched_class->sched_pick(rq);
 
 	del_q(q, &thread->rq_next, idx);
@@ -781,8 +781,8 @@ evl_find_sched_class(union evl_sched_param *param,
 	policy = attrs->sched_policy;
 	prio = attrs->sched_priority;
 	tslice = EVL_INFINITE;
-	sched_class = &evl_sched_rt;
-	param->rt.prio = prio;
+	sched_class = &evl_sched_fifo;
+	param->fifo.prio = prio;
 
 	switch (policy) {
 	case SCHED_NORMAL:

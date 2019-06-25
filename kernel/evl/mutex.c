@@ -20,7 +20,7 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
 	/*
 	 * The ceiling priority value is stored in user-writable
 	 * memory, make sure to constrain it within valid bounds for
-	 * evl_sched_rt before using it.
+	 * evl_sched_fifo before using it.
 	 */
 	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
 }
@@ -131,8 +131,8 @@ static void ceil_owner_priority(struct evl_mutex *mutex)
 	struct evl_thread *owner = mutex->owner;
 	int wprio;
 
-	/* PP ceiling values are implicitly based on the RT class. */
-	wprio = evl_calc_weighted_prio(&evl_sched_rt,
+	/* PP ceiling values are implicitly based on the FIFO class. */
+	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
 				get_ceiling_value(mutex));
 	mutex->wprio = wprio;
 	list_add_priff(mutex, &owner->boosters, wprio, next);

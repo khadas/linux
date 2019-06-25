@@ -4,7 +4,7 @@ ccflags-y += -Ikernel
 
 evl-y :=	\
 	core.o	\
-	rt.o	\
+	fifo.o	\
 	idle.o	\
 	weak.o
 

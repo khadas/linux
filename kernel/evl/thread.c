@@ -366,12 +366,12 @@ static int kthread_trampoline(void *arg)
 	int policy, prio, ret;
 
 	/*
-	 * It only makes sense to create EVL kthreads with the
-	 * SCHED_FIFO, SCHED_NORMAL or SCHED_WEAK policies. So
-	 * anything that is not from EVL's RT class is assumed to
-	 * belong to in-band SCHED_NORMAL.
+	 * It makes sense to schedule EVL kthreads either in the
+	 * SCHED_FIFO or SCHED_NORMAL policy only. So anything that is
+	 * not based on EVL's FIFO class is assumed to belong to the
+	 * in-band SCHED_NORMAL class.
 	 */
-	if (curr->sched_class != &evl_sched_rt) {
+	if (curr->sched_class != &evl_sched_fifo) {
 		policy = SCHED_NORMAL;
 		prio = 0;
 	} else {
@@ -812,8 +812,8 @@ EXPORT_SYMBOL_GPL(evl_switch_oob);
 
 void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 {
-	union evl_sched_param param = { .rt = { .prio = priority } };
-	evl_set_thread_schedparam(&kthread->thread, &evl_sched_rt, &param);
+	union evl_sched_param param = { .fifo = { .prio = priority } };
+	evl_set_thread_schedparam(&kthread->thread, &evl_sched_fifo, &param);
 	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_set_kthread_priority);
@@ -1964,7 +1964,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 
 	sched_class->sched_getparam(thread, &param);
 
-	if (sched_class == &evl_sched_rt) {
+	if (sched_class == &evl_sched_fifo) {
 		if (thread->state & T_RRB) {
 			attrs->sched_rr_quantum =
 				ktime_to_timespec(thread->rrperiod);

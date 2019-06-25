@@ -16,7 +16,7 @@ struct evl_weak_param {
 	int prio;
 };
 
-struct evl_rt_param {
+struct evl_fifo_param {
 	int prio;
 };
 
@@ -32,7 +32,7 @@ struct evl_tp_param {
 
 union evl_sched_param {
 	struct evl_idle_param idle;
-	struct evl_rt_param rt;
+	struct evl_fifo_param fifo;
 	struct evl_weak_param weak;
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	struct evl_quota_param quota;

@@ -312,8 +312,8 @@ int __evl_run_kthread(struct evl_kthread *kthread);
 		struct evl_init_thread_attr __iattr = {			\
 			.flags = 0,					\
 			.affinity = __affinity,				\
-			.sched_class = &evl_sched_rt,			\
-			.sched_param.rt.prio = __priority,		\
+			.sched_class = &evl_sched_fifo,			\
+			.sched_param.fifo.prio = __priority,		\
 		};							\
 		(__kthread)->threadfn = __fn;				\
 		(__kthread)->status = 0;				\
