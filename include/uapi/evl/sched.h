@@ -10,7 +10,6 @@
 
 #include <linux/types.h>
 
-#define SCHED_EVL	42
 #define SCHED_WEAK	43
 
 #define sched_rr_quantum	sched_u.rr.__sched_rr_quantum

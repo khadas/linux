@@ -477,12 +477,8 @@ void evl_init_schedq(struct evl_multilevel_queue *q)
 static inline int get_qindex(struct evl_multilevel_queue *q, int prio)
 {
 	/*
-	 * BIG FAT WARNING: We need to rescale the priority level to a
-	 * 0-based range. We use find_first_bit() to scan the bitmap
-	 * which is a bit scan forward operation. Therefore, the lower
-	 * the index value, the higher the priority (since least
-	 * significant bits will be found first when scanning the
-	 * bitmap).
+	 * find_first_bit() is used to scan the bitmap, so the lower
+	 * the index value, the higher the priority.
 	 */
 	return EVL_MLQ_LEVELS - prio - 1;
 }
@@ -806,11 +802,12 @@ evl_find_sched_class(union evl_sched_param *param,
 			tslice = *tslice_r;
 		/* falldown wanted */
 	case SCHED_FIFO:
+		/*
+		 * This routine handles requests submitted from
+		 * user-space exclusively, so a SCHED_FIFO priority
+		 * must be in the [FIFO_MIN..FIFO_MAX] range.
+		 */
 		if (prio < EVL_FIFO_MIN_PRIO ||	prio > EVL_FIFO_MAX_PRIO)
-			return NULL;
-		break;
-	case SCHED_EVL:
-		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
 			return NULL;
 		break;
 #ifdef CONFIG_EVL_SCHED_QUOTA
@@ -867,7 +864,6 @@ const char *evl_trace_sched_attrs(struct trace_seq *p,
 		break;
 	case SCHED_RR:
 	case SCHED_FIFO:
-	case SCHED_EVL:
 	case SCHED_WEAK:
 	default:
 		trace_seq_printf(p, "priority=%d", attrs->sched_priority);

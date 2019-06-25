@@ -14,8 +14,8 @@
 
 #ifdef CONFIG_EVL_SCHED_TP
 
-#define EVL_TP_MIN_PRIO  1
-#define EVL_TP_MAX_PRIO  EVL_CORE_MAX_PRIO
+#define EVL_TP_MIN_PRIO  EVL_FIFO_MIN_PRIO
+#define EVL_TP_MAX_PRIO  EVL_FIFO_MAX_PRIO
 #define EVL_TP_NR_PRIO	 (EVL_TP_MAX_PRIO - EVL_TP_MIN_PRIO + 1)
 
 extern struct evl_sched_class evl_sched_tp;

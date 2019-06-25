@@ -11,15 +11,26 @@
 #include <linux/bitmap.h>
 #include <evl/list.h>
 
-#define EVL_CLASS_WEIGHT_FACTOR	1024
-
 /*
- * Multi-level priority queue, suitable for handling the runnable
- * thread queue of the core scheduling class with O(1) property. We
- * only manage a descending queuing order, i.e. highest numbered
- * priorities come first.
+ * EVL core priority scale. We reserve a couple of additional priority
+ * levels above the highest inband kthread priority (MAX_RT_PRIO-1),
+ * which is guaranteed not to be less than the highest inband user
+ * task priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those
+ * extra levels can be used for EVL kthreads which must top the
+ * priority of any userland thread.
  */
-#define EVL_MLQ_LEVELS  (MAX_RT_PRIO + 1) /* i.e. EVL_CORE_NR_PRIO */
+#define EVL_CORE_MIN_PRIO  0
+#define EVL_CORE_MAX_PRIO  (MAX_RT_PRIO + 1)
+#define EVL_CORE_NR_PRIO   (EVL_CORE_MAX_PRIO - EVL_CORE_MIN_PRIO + 1)
+
+#define EVL_MLQ_LEVELS		 EVL_CORE_NR_PRIO
+
+#define EVL_CLASS_WEIGHT_FACTOR	 1024
+
+#if EVL_CORE_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
+	EVL_CORE_NR_PRIO > EVL_MLQ_LEVELS
+#error "EVL_MLQ_LEVELS is too low"
+#endif
 
 struct evl_multilevel_queue {
 	int elems;
@@ -49,11 +60,11 @@ static inline int evl_schedq_is_empty(struct evl_multilevel_queue *q)
 
 static inline int evl_get_schedq_weight(struct evl_multilevel_queue *q)
 {
+	/* Highest priorities are mapped to lowest array elements. */
 	return find_first_bit(q->prio_map, EVL_MLQ_LEVELS);
 }
 
-typedef struct evl_multilevel_queue evl_schedqueue_t;
-
-struct evl_thread *evl_lookup_schedq(evl_schedqueue_t *q, int prio);
+struct evl_thread *
+evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
 
 #endif /* !_EVL_SCHED_QUEUE_H */

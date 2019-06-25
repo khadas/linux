@@ -22,7 +22,7 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
 	 * memory, make sure to constrain it within valid bounds for
 	 * evl_sched_rt before using it.
 	 */
-	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_CORE_MAX_PRIO);
+	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
 }
 
 static inline void disable_inband_switch(struct evl_thread *curr)
