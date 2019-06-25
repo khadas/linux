@@ -205,14 +205,14 @@ static void tp_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	/*
 	 * Since our partition schedule is a per-rq property, it
 	 * cannot apply to a thread that moves to another CPU
-	 * anymore. So we upgrade that thread to the RT class when a
+	 * anymore. So we upgrade that thread to the FIFO class when a
 	 * CPU migration occurs. A subsequent call to
 	 * __evl_set_thread_schedparam() may move it back to TP
 	 * scheduling, with a partition assignment that fits the
 	 * remote CPU's partition schedule.
 	 */
-	param.rt.prio = thread->cprio;
-	__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
+	param.fifo.prio = thread->cprio;
+	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
 }
 
 static ssize_t tp_show(struct evl_thread *thread,
@@ -258,15 +258,15 @@ set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
 	stop_tp_schedule(rq);
 
 	/*
-	 * Move all TP threads on this scheduler to the RT class,
+	 * Move all TP threads on this scheduler to the FIFO class,
 	 * until we call __evl_set_thread_schedparam() for them again.
 	 */
 	if (list_empty(&tp->threads))
 		goto done;
 
 	list_for_each_entry_safe(thread, tmp, &tp->threads, tp_link) {
-		param.rt.prio = thread->cprio;
-		__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
+		param.fifo.prio = thread->cprio;
+		__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
 	}
 done:
 	old_gps = tp->gps;

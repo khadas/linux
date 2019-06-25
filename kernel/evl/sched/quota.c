@@ -13,7 +13,7 @@
 
 /*
  * With this policy, each per-CPU runqueue maintains a list of active
- * thread groups for the sched_rt class.
+ * thread groups for the sched_fifo class.
  *
  * Each time a thread is picked from the runqueue, we check whether we
  * still have budget for running it, looking at the group it belongs
@@ -45,12 +45,12 @@
  * means calling evl_quota_pick() eventually.
  *
  * CAUTION: evl_quota_group->nr_active does count both the threads
- * from that group linked to the sched_rt runqueue, _and_ the threads
- * moved to the local expiry queue. As a matter of fact, the expired
- * threads - those for which we consumed all the per-group budget -
- * are still seen as runnable (i.e. not blocked/suspended) by the EVL
- * core. This only means that the SCHED_QUOTA policy won't pick them
- * until the corresponding budget is replenished.
+ * from that group linked to the sched_fifo runqueue, _and_ the
+ * threads moved to the local expiry queue. As a matter of fact, the
+ * expired threads - those for which we consumed all the per-group
+ * budget - are still seen as runnable (i.e. not blocked/suspended) by
+ * the EVL core. This only means that the SCHED_QUOTA policy won't
+ * pick them until the corresponding budget is replenished.
  */
 
 #define MAX_QUOTA_GROUPS  1024
@@ -173,7 +173,7 @@ static void quota_refill_handler(struct evl_timer *timer) /* hard irqs off */
 		 */
 		list_for_each_entry_safe_reverse(thread, tmp, &tg->expired, quota_expired) {
 			list_del_init(&thread->quota_expired);
-			evl_add_schedq(&rq->rt.runnable, thread);
+			evl_add_schedq(&rq->fifo.runnable, thread);
 		}
 	}
 
@@ -341,7 +341,7 @@ static void quota_kick(struct evl_thread *thread)
 	 */
 	if (tg->run_budget == 0 && !list_empty(&thread->quota_expired)) {
 		list_del_init(&thread->quota_expired);
-		evl_add_schedq_tail(&rq->rt.runnable, thread);
+		evl_add_schedq_tail(&rq->fifo.runnable, thread);
 	}
 }
 
@@ -358,7 +358,7 @@ static void quota_enqueue(struct evl_thread *thread)
 	if (!thread_is_runnable(thread))
 		list_add_tail(&thread->quota_expired, &tg->expired);
 	else
-		evl_add_schedq_tail(&rq->rt.runnable, thread);
+		evl_add_schedq_tail(&rq->fifo.runnable, thread);
 
 	tg->nr_active++;
 }
@@ -371,7 +371,7 @@ static void quota_dequeue(struct evl_thread *thread)
 	if (!list_empty(&thread->quota_expired))
 		list_del_init(&thread->quota_expired);
 	else
-		evl_del_schedq(&rq->rt.runnable, thread);
+		evl_del_schedq(&rq->fifo.runnable, thread);
 
 	tg->nr_active--;
 }
@@ -384,7 +384,7 @@ static void quota_requeue(struct evl_thread *thread)
 	if (!thread_is_runnable(thread))
 		list_add(&thread->quota_expired, &tg->expired);
 	else
-		evl_add_schedq(&rq->rt.runnable, thread);
+		evl_add_schedq(&rq->fifo.runnable, thread);
 
 	tg->nr_active++;
 }
@@ -410,7 +410,7 @@ static struct evl_thread *quota_pick(struct evl_rq *rq)
 	else
 		otg->run_budget = 0;
 pick:
-	next = evl_get_schedq(&rq->rt.runnable);
+	next = evl_get_schedq(&rq->fifo.runnable);
 	if (next == NULL) {
 		evl_stop_timer(&qs->limit_timer);
 		return NULL;
@@ -462,10 +462,10 @@ static void quota_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	/*
 	 * Runtime quota groups are defined per-CPU, so leaving the
 	 * current CPU means exiting the group. We do this by moving
-	 * the target thread to the plain RT class.
+	 * the target thread to the FIFO class.
 	 */
-	param.rt.prio = thread->cprio;
-	__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
+	param.fifo.prio = thread->cprio;
+	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
 }
 
 static ssize_t quota_show(struct evl_thread *thread,
@@ -525,10 +525,12 @@ static int quota_destroy_group(struct evl_quota_group *tg,
 	if (!list_empty(&tg->members)) {
 		if (!force)
 			return -EBUSY;
-		/* Move group members to the rt class. */
-		list_for_each_entry_safe(thread, tmp, &tg->members, quota_next) {
-			param.rt.prio = thread->cprio;
-			__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
+		/* Move group members to the fifo class. */
+		list_for_each_entry_safe(thread, tmp,
+					&tg->members, quota_next) {
+			param.fifo.prio = thread->cprio;
+			__evl_set_thread_schedparam(thread,
+						&evl_sched_fifo, &param);
 		}
 	}
 
