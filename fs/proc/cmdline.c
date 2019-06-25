@@ -19,7 +19,7 @@ static int cmdline_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, cmdline_proc_show, NULL);
 }
 
-static int cmdline_proc_write(struct file *file, const char __user *buf,
+static ssize_t cmdline_proc_write(struct file *file, const char __user *buf,
 				size_t len, loff_t *ppos)
 {
 	char str[COMMAND_LINE_SIZE];
@@ -28,7 +28,7 @@ static int cmdline_proc_write(struct file *file, const char __user *buf,
 	   return -EFAULT;
 	}
 	str[len] = '\0';
-	strlcpy(proc_cmdline, str, min((int)len, COMMAND_LINE_SIZE));
+	strlcpy(proc_cmdline, str, min(len, COMMAND_LINE_SIZE));
 
 	return len;
 }
