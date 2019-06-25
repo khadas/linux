@@ -24,7 +24,7 @@
 extern struct evl_sched_class evl_sched_weak;
 
 struct evl_sched_weak {
-	evl_schedqueue_t runnable;	/*!< Runnable thread queue. */
+	struct evl_multilevel_queue runnable;
 };
 
 static inline int evl_weak_init_thread(struct evl_thread *thread)

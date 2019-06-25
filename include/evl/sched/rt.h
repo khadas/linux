@@ -13,21 +13,12 @@
 #endif
 
 /*
- * Global priority scale for the core scheduling class, available to
- * SCHED_EVL members.
+ * EVL's SCHED_FIFO class is meant to exactly map onto the inband
+ * SCHED_FIFO priority scale, applicable to user threads. EVL kthreads
+ * may use up to EVL_CORE_MAX_PRIO levels.
  */
-#define EVL_CORE_MIN_PRIO  0
-#define EVL_CORE_MAX_PRIO  MAX_RT_PRIO
-#define EVL_CORE_NR_PRIO   (EVL_CORE_MAX_PRIO - EVL_CORE_MIN_PRIO + 1)
-
-/* Priority range for SCHED_FIFO. */
 #define EVL_FIFO_MIN_PRIO  1
 #define EVL_FIFO_MAX_PRIO  (MAX_USER_RT_PRIO - 1)
-
-#if EVL_CORE_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
-	EVL_CORE_NR_PRIO > EVL_MLQ_LEVELS
-#error "EVL_MLQ_LEVELS is too low"
-#endif
 
 extern struct evl_sched_class evl_sched_rt;
 
@@ -50,8 +41,14 @@ static inline
 int __evl_chk_rt_schedparam(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
-	if (p->rt.prio < EVL_CORE_MIN_PRIO ||
-		p->rt.prio > EVL_CORE_MAX_PRIO)
+	int min = EVL_FIFO_MIN_PRIO, max = EVL_FIFO_MAX_PRIO;
+
+	if (!(thread->state & T_USER)) {
+		min = EVL_CORE_MIN_PRIO;
+		max = EVL_CORE_MAX_PRIO;
+	}
+
+	if (p->rt.prio < min || p->rt.prio > max)
 		return -EINVAL;
 
 	return 0;

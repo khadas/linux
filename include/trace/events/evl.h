@@ -154,7 +154,6 @@ DECLARE_EVENT_CLASS(syscall_exit,
 			 {SCHED_FIFO, "fifo"},		\
 			 {SCHED_RR, "rr"},		\
 			 {SCHED_QUOTA, "quota"},	\
-			 {SCHED_EVL, "evl"},		\
 			 {SCHED_WEAK, "weak"})
 
 const char *evl_trace_sched_attrs(struct trace_seq *seq,

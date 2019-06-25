@@ -1214,8 +1214,8 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	 */
 	if ((curr->state & T_WEAK) && kprio == 0)
 		kpolicy = SCHED_NORMAL;
-	else if (kprio >= MAX_USER_RT_PRIO)
-		kprio = MAX_USER_RT_PRIO - 1;
+	else if (kprio > EVL_FIFO_MAX_PRIO)
+		kprio = EVL_FIFO_MAX_PRIO;
 
 	if (p->policy != kpolicy || (kprio > 0 && p->rt_priority != kprio)) {
 		param.sched_priority = kprio;

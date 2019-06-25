@@ -745,7 +745,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		switch (attrs.protocol) {
 		case EVL_GATE_PP:
 			if (attrs.initval == 0 ||
-				attrs.initval > EVL_CORE_MAX_PRIO)
+				attrs.initval > EVL_FIFO_MAX_PRIO)
 				return ERR_PTR(-EINVAL);
 			break;
 		case EVL_GATE_PI:

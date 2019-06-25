@@ -38,7 +38,7 @@
 #define RQ_TIMER	0x00010000
 /*
  * A proxy tick is being processed, i.e. matching an earlier timing
- * request from the regular kernel.
+ * request from inband via set_next_event().
  */
 #define RQ_TPROXY	0x00008000
 /*
@@ -62,49 +62,35 @@
 #define RQ_TSTOPPED	0x00000800
 
 struct evl_sched_rt {
-	evl_schedqueue_t runnable;	/* Runnable thread queue. */
+	struct evl_multilevel_queue runnable;
 };
 
 struct evl_rq {
-	/* Shared status bitmask. */
-	unsigned long status;
-	/* Private status bitmask. */
-	unsigned long lflags;
-	/* Current thread. */
+	unsigned long status;	/* Shared flags */
+	unsigned long lflags;	/* Private flags (lockless) */
 	struct evl_thread *curr;
 #ifdef CONFIG_SMP
-	/* Owner CPU id. */
 	int cpu;
-	/* Mask of CPUs needing rescheduling. */
-	struct cpumask resched;
+	struct cpumask resched;	/* CPUs pending resched */
 #endif
-	/* Context of built-in real-time class. */
 	struct evl_sched_rt rt;
-	/* Context of weak scheduling class. */
 	struct evl_sched_weak weak;
 #ifdef CONFIG_EVL_SCHED_QUOTA
-	/* Context of runtime quota scheduling. */
 	struct evl_sched_quota quota;
 #endif
 #ifdef CONFIG_EVL_SCHED_TP
-	/* Context for time partitioning policy. */
 	struct evl_sched_tp tp;
 #endif
 	struct evl_timer inband_timer;
-	/* Round-robin timer. */
-	struct evl_timer rrbtimer;
-	/* In-band kernel placeholder. */
+	struct evl_timer rrbtimer; /* Round-robin */
 	struct evl_thread root_thread;
 	char *proxy_timer_name;
 	char *rrb_timer_name;
 #ifdef CONFIG_EVL_WATCHDOG
-	/* Watchdog timer object. */
 	struct evl_timer wdtimer;
 #endif
 #ifdef CONFIG_EVL_RUNSTATS
-	/* Last account switch date (ticks). */
 	ktime_t last_account_switch;
-	/* Currently active account */
 	struct evl_account *current_account;
 #endif
 };
