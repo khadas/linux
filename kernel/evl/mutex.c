@@ -28,28 +28,27 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
 static inline void disable_inband_switch(struct evl_thread *curr)
 {
 	/*
-	 * Track mutex locking depth, to prevent weak threads from
+	 * Track mutex locking depth: 1) to prevent weak threads from
 	 * being switched back to in-band context on return from OOB
-	 * syscalls.
+	 * syscalls, 2) when locking consistency is being checked.
 	 */
-	if (curr->state & (T_WEAK|T_DEBUG))
+	if (curr->state & (T_WEAK|T_WOLI))
 		atomic_inc(&curr->inband_disable_count);
 }
 
 static inline bool enable_inband_switch(struct evl_thread *curr)
 {
-	if ((curr->state & T_WEAK) ||
-		IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP)) {
-		if (unlikely(atomic_dec_return(&curr->inband_disable_count) < 0)) {
-			atomic_set(&curr->inband_disable_count, 0);
-			if (curr->state & T_WARN)
-				evl_signal_thread(curr, SIGDEBUG,
-						SIGDEBUG_MUTEX_IMBALANCE);
-			return false;
-		}
-	}
+	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
+		return true;
 
-	return true;
+	if (likely(atomic_dec_return(&curr->inband_disable_count) >= 0))
+		return true;
+
+	atomic_set(&curr->inband_disable_count, 0);
+	if (curr->state & T_WOLI)
+		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_IMBALANCE);
+
+	return false;
 }
 
 static inline void raise_boost_flag(struct evl_thread *owner)
@@ -248,30 +247,31 @@ static inline void clear_pp_boost(struct evl_mutex *mutex,
 	drop_booster(mutex, owner);
 }
 
-#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
-
 /*
- * Detect when a thread is about to wait on a mutex currently owned by
- * someone running in-band.
+ * Detect when an out-of-band thread is about to sleep on a mutex
+ * currently owned by another thread running in-band.
  */
 static void detect_inband_owner(struct evl_mutex *mutex,
 				struct evl_thread *waiter)
 {
-	if ((waiter->state & T_WARN) &&
-		!(waiter->info & T_PIALERT) &&
-		(mutex->owner->state & T_INBAND)) {
+	if (waiter->info & T_PIALERT) {
+		waiter->info &= ~T_PIALERT;
+		return;
+	}
+
+	if (mutex->owner->state & T_INBAND) {
 		waiter->info |= T_PIALERT;
 		evl_signal_thread(waiter, SIGDEBUG,
 				SIGDEBUG_MIGRATE_PRIOINV);
-	} else
-		waiter->info &= ~T_PIALERT;
+	}
 }
 
 /*
- * Detect when a thread is about to switch to in-band context while
- * holding booster(s) (claimed PI or active PP mutex), which denotes a
- * potential priority inversion. In such an event, any waiter bearing
- * the T_WARN bit will receive a SIGDEBUG notification.
+ * Detect when a thread is about to switch in-band while holding a
+ * mutex which is causing an active PI or PP boost. Since this would
+ * cause a priority inversion, any thread waiting for this mutex
+ * bearing the T_WOLI bit receives a SIGDEBUG notification in this
+ * case.
  */
 void evl_detect_boost_drop(struct evl_thread *owner)
 {
@@ -283,7 +283,7 @@ void evl_detect_boost_drop(struct evl_thread *owner)
 
 	for_each_evl_booster(mutex, owner) {
 		evl_for_each_mutex_waiter(waiter, mutex) {
-			if (waiter->state & T_WARN) {
+			if (waiter->state & T_WOLI) {
 				waiter->info |= T_PIALERT;
 				evl_signal_thread(waiter, SIGDEBUG,
 						SIGDEBUG_MIGRATE_PRIOINV);
@@ -293,14 +293,6 @@ void evl_detect_boost_drop(struct evl_thread *owner)
 
 	xnlock_put_irqrestore(&nklock, flags);
 }
-
-#else
-
-static inline
-void detect_inband_owner(struct evl_mutex *mutex,
-			struct evl_thread *waiter) { }
-
-#endif
 
 static void init_mutex(struct evl_mutex *mutex,
 		struct evl_clock *clock, int flags,
@@ -467,7 +459,9 @@ redo:
 	 * this CPU.
 	 */
 	track_owner(mutex, owner);
-	detect_inband_owner(mutex, curr);
+
+	if (unlikely(curr->state & T_WOLI))
+		detect_inband_owner(mutex, curr);
 
 	if (curr->wprio > owner->wprio) {
 		if ((owner->info & T_WAKEN) && owner->wwake == &mutex->wchan) {

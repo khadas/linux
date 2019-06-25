@@ -27,11 +27,11 @@
 #define T_BOOST   0x00000200 /*< PI/PP boost undergoing */
 #define T_SSTEP   0x00000400 /*< Single-stepped by debugger */
 #define T_RRB     0x00000800 /*< Undergoes round-robin scheduling */
-#define T_WARN    0x00001000 /*< Wants SIGDEBUG on error detection */
-#define T_ROOT    0x00002000 /*< Root thread (in-band kernel placeholder) */
-#define T_WEAK    0x00004000 /*< Weak scheduling (non real-time) */
-#define T_USER    0x00008000 /*< Userland thread */
-#define T_DEBUG   0x00010000 /*< User-level debugging enabled */
+#define T_ROOT    0x00001000 /*< Root thread (in-band kernel placeholder) */
+#define T_WEAK    0x00002000 /*< Weak scheduling (non real-time) */
+#define T_USER    0x00004000 /*< Userland thread */
+#define T_WOSS    0x00008000 /*< Warn on stage switch (SIGDEBUG) */
+#define T_WOLI    0x00010000 /*< Warn on locking inconsistency (SIGDEBUG)  */
 
 /* Information flags (shared) */
 
@@ -69,9 +69,10 @@
  * 'b' -> Priority boost undergoing
  * 'T' -> Ptraced and stopped
  * 'r' -> Undergoes round-robin
- * 't' -> SIGDEBUG notifications enabled
+ * 'g' -> Warned on stage switch (SIGDEBUG)
+ * 'G' -> Warned on locking inconsistency (SIGDEBUG)
  */
-#define EVL_THREAD_STATE_LABELS  "SWDpRUZXHbTrt...."
+#define EVL_THREAD_STATE_LABELS  "SWDpRUZXHbTr...12"
 
 struct evl_user_window {
 	__u32 state;

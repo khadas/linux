@@ -142,6 +142,9 @@ int evl_init_thread(struct evl_thread *thread,
 	if (!(flags & T_ROOT))
 		flags |= T_DORMANT | T_INBAND;
 
+	if ((flags & T_USER) && IS_ENABLED(CONFIG_EVL_DEBUG_WOLI))
+		flags |= T_WOLI;
+
 	/*
 	 * If no rq was given, pick an initial CPU for the new thread
 	 * which is part of its affinity mask, and therefore also part
@@ -160,14 +163,6 @@ int evl_init_thread(struct evl_thread *thread,
 	va_end(args);
 	if (thread->name == NULL)
 		return -ENOMEM;
-
-	/*
-	 * We mirror the global user debug state into the per-thread
-	 * state, to speed up branch taking in user-space wherever
-	 * this needs to be tested.
-	 */
-	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP))
-		flags |= T_DEBUG;
 
 	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
 	thread->rq = rq;
@@ -735,15 +730,22 @@ void evl_switch_inband(int cause)
 	evl_propagate_schedparam_change(curr);
 
 	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
-		if (curr->state & T_WARN) {
-			/* Help debugging spurious mode switches. */
+		/*
+		 * Help debugging spurious stage switches by sending
+		 * SIGDEBUG. We are running inband on the context of
+		 * the receiver, so we may bypass evl_signal_thread()
+		 * for this.
+		 */
+		if (curr->state & T_WOSS) {
 			memset(&si, 0, sizeof(si));
 			si.si_signo = SIGDEBUG;
 			si.si_code = SI_QUEUE;
 			si.si_int = cause | sigdebug_marker;
 			send_sig_info(SIGDEBUG, &si, p);
 		}
-		evl_detect_boost_drop(curr);
+		/* May check for locking inconsistency too. */
+		if (curr->state & T_WOLI)
+			evl_detect_boost_drop(curr);
 	}
 
 	/* @curr is now running inband. */
@@ -1525,7 +1527,7 @@ int evl_update_mode(__u32 mask, bool set)
 	if (curr == NULL)
 		return -EPERM;
 
-	if (mask & ~T_WARN)
+	if (mask & ~(T_WOSS|T_WOLI))
 		return -EINVAL;
 
 	trace_evl_thread_update_mode(mask, set);
@@ -1591,16 +1593,11 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 
 	trace_evl_thread_fault(trapnr, regs);
 
-#if defined(CONFIG_EVL_DEBUG_CORE) || defined(CONFIG_EVL_DEBUG_USER)
-	if (xnarch_fault_notify(trapnr))
+	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) &&
+		xnarch_fault_notify(trapnr))
 		note_trap(curr, trapnr, regs, "switching in-band");
-#endif
+
 	if (xnarch_fault_pf_p(trapnr))
-		/*
-		 * The page fault counter is not SMP-safe, but it's a
-		 * simple indicator that something went wrong wrt
-		 * memory locking anyway.
-		 */
 		evl_inc_counter(&curr->stat.pf);
 
 	/*

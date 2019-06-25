@@ -39,9 +39,8 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 
 	trace_evl_wait(wq);
 
-	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP) &&
-		atomic_read(&curr->inband_disable_count) &&
-		(curr->state & T_WARN))
+	if ((curr->state & T_WOLI) &&
+		atomic_read(&curr->inband_disable_count) > 0)
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
