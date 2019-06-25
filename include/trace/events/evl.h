@@ -767,9 +767,10 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
 	TP_ARGS(thread, attrs)
 );
 
-#define evl_print_thread_mode(__mode)		\
-	__print_flags(__mode, "|",		\
-		      {T_WARN, "warnsw"})
+#define evl_print_thread_mode(__mode)	\
+	__print_flags(__mode, "|",	\
+		{T_WOSS, "woss"},	\
+		{T_WOLI, "woli"})
 
 TRACE_EVENT(evl_thread_update_mode,
 	TP_PROTO(int mode, bool set),

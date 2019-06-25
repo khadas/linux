@@ -174,44 +174,15 @@ config EVL_DEBUG_MEMORY
 	  core. This option may induce significant overhead with large
 	  heaps.
 
-config EVL_DEBUG_USER
-	bool "User consistency checks"
+config EVL_DEBUG_WOLI
+	bool "Enable locking consistency checks"
 	help
-	  This option enables a set of consistency checks for
-	  detecting wrong runtime behavior in user applications.
-	  Some of these runtime checks may induce overhead, enable
-	  them for debugging purposes only.
-
-if EVL_DEBUG_USER
-
-config EVL_DEBUG_MUTEX_INBAND
-       bool "Detect in-band mutex owner"
-       default y
-       help
-         A thread which attempts to acquire a mutex currently locked by
-         another thread running in-band may experience unwanted latency
-         due to priority inversion.  This switch enables debug
-         notifications sending a SIGDEBUG signal to the lock owner.
-
-	 This option may add overhead to out-of-band execution over
-	 contented locks.
-
-config EVL_DEBUG_MUTEX_SLEEP
-       bool "Detect sleeping while holding a mutex"
-       default y
-       help
-         A thread which goes sleeping while holding a mutex is prone
-         to cause unwanted latency to other threads serialized by
-         the same lock. If debug notifications are enabled for such
-         thread, it receives a SIGDEBUG signal right before entering
-	 sleep.
-
-	 This option has noticeable overhead for out-of-band threads
-	 as it disables the normal fast locking operations from
-	 user-space, causing a system call for each monitor enter/exit
-	 operation.
-
-endif # EVL_DEBUG_USER
+	  This option enables a set of consistency checks by default
+	  for every new EVL thread for detecting wrong mutex-based
+	  locking patterns (aka T_WOLI flag), which are otherwise
+	  opted-in programmatically on a per-thread basis when this
+	  option is off. This feature may induce overhead in some
+	  cases, so you should enable it for debugging purposes only.
 
 config EVL_WATCHDOG
 	bool "Watchdog support"

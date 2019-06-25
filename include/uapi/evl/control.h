@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <uapi/evl/sched.h>
 
-#define EVL_ABI_LEVEL  3
+#define EVL_ABI_LEVEL  4
 
 struct evl_core_info {
 	__u32 abi_level;
