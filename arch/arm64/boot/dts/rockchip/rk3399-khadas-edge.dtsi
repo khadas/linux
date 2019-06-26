@@ -338,7 +338,11 @@
 	assigned-clock-parents = <&cru PLL_CPLL>;
 };
 
-&hdmi_dp_sound {
+&dp_sound {
+	status = "okay";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 
