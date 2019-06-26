@@ -1,5 +1,5 @@
 /*
- * Khadas VIM2 MCU control driver
+ * Khadas MCU control driver
  *
  * Written by: Nick <nick@khadas.com>
  *
@@ -24,8 +24,9 @@
 
 
 /* Device registers */
-#define MCU_WOL_REG		0x21
-#define MCU_FAN_CTRL	0x88
+#define MCU_WOL_REG				0x21
+#define MCU_FAN_CTRL			0x88
+#define MCU_USB_PCIE_SWITCH		0x33 /* VIM3 only */
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -89,7 +90,9 @@ struct khadas_fan_data {
 struct mcu_data {
 	struct i2c_client *client;
 	struct class *wol_class;
+	struct class *usb_pcie_switch_class;
 	int wol_enable;
+	u8 usb_pcie_switch_mode;
 	struct khadas_fan_data fan_data;
 };
 
@@ -387,6 +390,38 @@ static ssize_t show_wol_enable(struct class *cls,
 	return sprintf(buf, "%d\n", enable);
 }
 
+static ssize_t store_usb_pcie_switch_mode(struct class *cls, struct class_attribute *attr,
+                const char *buf, size_t count)
+{
+	int ret;
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	if (0 != mode && 1 != mode)
+		return -EINVAL;
+
+	g_mcu_data->usb_pcie_switch_mode = (u8)mode;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_USB_PCIE_SWITCH, &g_mcu_data->usb_pcie_switch_mode, 1);
+	if (ret < 0) {
+		printk("write USB PCIe switch error\n");
+
+		return ret;
+	}
+
+	printk("Set USB PCIe Switch Mode: %s\n", g_mcu_data->usb_pcie_switch_mode ? "PCIe" : "USB3.0");
+
+	return count;
+}
+
+static ssize_t show_usb_pcie_switch_mode(struct class *cls,
+                struct class_attribute *attr, char *buf)
+{
+	printk("USB PCIe Switch Mode: %s\n", g_mcu_data->usb_pcie_switch_mode ? "PCIe" : "USB3.0");
+	return sprintf(buf, "%d\n", g_mcu_data->usb_pcie_switch_mode);
+}
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 };
@@ -398,6 +433,10 @@ static struct class_attribute fan_class_attrs[] = {
 	__ATTR(temp, 0644, show_fan_temp, NULL),
 };
 
+static struct class_attribute usb_pcie_switch_class_attrs[] = {
+	__ATTR(mode, 0644, show_usb_pcie_switch_mode, store_usb_pcie_switch_mode),
+};
+
 static void create_mcu_attrs(void)
 {
 	int i;
@@ -407,6 +446,7 @@ static void create_mcu_attrs(void)
 		pr_err("create wol_class debug class fail\n");
 		return;
 	}
+
 	for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
 		if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
 			pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
@@ -424,6 +464,20 @@ static void create_mcu_attrs(void)
 				pr_err("create fan attribute %s fail\n", fan_class_attrs[i].attr.name);
 		}
 	}
+
+	if (KHADAS_BOARD_VIM3 == g_mcu_data->fan_data.board) {
+		g_mcu_data->usb_pcie_switch_class = class_create(THIS_MODULE, "usb_pcie_switch");
+		if (IS_ERR(g_mcu_data->usb_pcie_switch_class)) {
+			pr_err("create usb_pcie_switch_class fail\n");
+			return;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(usb_pcie_switch_class_attrs); i++) {
+			if (class_create_file(g_mcu_data->usb_pcie_switch_class, &usb_pcie_switch_class_attrs[i]))
+				pr_err("create mcu attribute %s fail\n", usb_pcie_switch_class_attrs[i].attr.name);
+		}
+	}
+
 }
 
 static int mcu_parse_dt(struct device *dev)
@@ -517,6 +571,12 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit;
 	g_mcu_data->wol_enable = (int)reg[0];
 
+	// Get USB PCIe Switch status
+	ret = mcu_i2c_read_regs(client, MCU_USB_PCIE_SWITCH, reg, 1);
+	if (ret < 0)
+		goto exit;
+	g_mcu_data->usb_pcie_switch_mode = (u8)reg[0];
+
 	if (is_mcu_fan_control_available()) {
 		g_mcu_data->fan_data.mode = KHADAS_FAN_STATE_AUTO;
 		g_mcu_data->fan_data.level = KHADAS_FAN_LEVEL_0;
@@ -608,5 +668,5 @@ struct i2c_driver mcu_driver = {
 module_i2c_driver(mcu_driver);
 
 MODULE_AUTHOR("Nick <nick@khadas.com>");
-MODULE_DESCRIPTION("Khadas VIM2 MCU control driver");
+MODULE_DESCRIPTION("Khadas MCU control driver");
 MODULE_LICENSE("GPL");
