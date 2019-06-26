@@ -211,13 +211,17 @@ static void khadas_fan_level_set(struct khadas_fan_data *fan_data, int level)
 }
 
 extern int get_cpu_temp(void);
+extern int meson_get_temperature(void);
 static void fan_work_func(struct work_struct *_work)
 {
 	if (is_mcu_fan_control_available()) {
 		int temp = -EINVAL;
 		struct khadas_fan_data *fan_data = &g_mcu_data->fan_data;
 
-		temp = get_cpu_temp();
+		if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board)
+			temp = get_cpu_temp();
+		else if (KHADAS_BOARD_VIM3 == g_mcu_data->fan_data.board)
+			temp = meson_get_temperature();
 
 		if(temp != -EINVAL){
 			if(temp < fan_data->trig_temp_level0 ) {
@@ -348,7 +352,11 @@ static ssize_t show_fan_temp(struct class *cls,
 			 struct class_attribute *attr, char *buf)
 {
 	int temp = -EINVAL;
-    temp = get_cpu_temp();
+
+	if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board)
+		temp = get_cpu_temp();
+	else if (KHADAS_BOARD_VIM3 == g_mcu_data->fan_data.board)
+		temp = meson_get_temperature();
 
 	return sprintf(buf, "cpu_temp:%d\nFan trigger temperature: level0:%d level1:%d level2:%d\n", temp, g_mcu_data->fan_data.trig_temp_level0, g_mcu_data->fan_data.trig_temp_level1, g_mcu_data->fan_data.trig_temp_level2);
 }
