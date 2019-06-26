@@ -7826,7 +7826,7 @@ int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	vstatus->error_count = 0;
 	vstatus->status = vp9->stat | vp9->fatal_error;
 	vstatus->frame_dur = vp9->frame_dur;
-#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+#if 0	//#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	vstatus->bit_rate = gvs->bit_rate;
 	vstatus->frame_data = gvs->frame_data;
 	vstatus->total_data = gvs->total_data;
