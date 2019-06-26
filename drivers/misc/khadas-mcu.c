@@ -202,6 +202,8 @@ static void khadas_fan_level_set(struct khadas_fan_data *fan_data, int level)
 			data[0] = KHADAS_FAN_SPEED_HIGH;
 		}
 
+		g_mcu_data->fan_data.level = data[0];
+
 		ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_FAN_CTRL, data, 1);
 		if (ret < 0) {
 			printk("write fan control err\n");
