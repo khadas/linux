@@ -31,11 +31,6 @@ struct latmus_setup {
 	} u;
 };
 
-struct latmus_result {
-	__s32 *data;
-	__u32 len;
-};
-
 /*
  * The measurement record which the driver sends to userland each
  * second through an xbuf channel.
@@ -46,6 +41,17 @@ struct latmus_measurement {
 	__s32 max_lat;
 	__u32 overruns;
 	__u32 samples;
+};
+
+struct latmus_measurement_result {
+	struct latmus_measurement *last;
+	__s32 *histogram;
+	__u32 len;
+};
+
+struct latmus_result {
+	void *data;
+	__u32 len;
 };
 
 #define EVL_LATMUS_IOCBASE	'L'

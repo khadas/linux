@@ -5,6 +5,7 @@
  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
+#include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -142,8 +143,8 @@ static void send_measurement(struct latmus_runner *runner)
 	evl_write_xbuf(runner->xbuf, &meas, sizeof(meas), O_NONBLOCK);
 
 	/* Reset counters for next round. */
-	state->min_lat = ktime_to_ns(runner->period);
-	state->max_lat = 0;
+	state->min_lat = INT_MAX;
+	state->max_lat = INT_MIN;
 	state->sum = 0;
 	state->overruns = 0;
 	state->cur_samples = 0;
@@ -166,13 +167,12 @@ static int add_measurement_sample(struct latmus_runner *runner,
 	delta = (int)ktime_to_ns(ktime_sub(timestamp, state->ideal));
 	if (delta < state->min_lat)
 		state->min_lat = delta;
-	if (delta > state->max_lat) {
+	if (delta > state->max_lat)
 		state->max_lat = delta;
-		if (delta > state->allmax_lat) {
-			state->allmax_lat = delta;
-			trace_evl_latspot(delta);
-			trace_evl_trigger("latmus");
-		}
+	if (delta > state->allmax_lat) {
+		state->allmax_lat = delta;
+		trace_evl_latspot(delta);
+		trace_evl_trigger("latmus");
 	}
 
 	if (runner->histogram) {
@@ -645,9 +645,9 @@ static int measure_continously(struct latmus_runner *runner)
 	state->max_samples = ONE_BILLION / (int)ktime_to_ns(period);
 	runner->add_sample = add_measurement_sample;
 	runner->xbuf = xbuf;
-	state->min_lat = ktime_to_ns(period);
-	state->max_lat = 0;
-	state->allmax_lat = 0;
+	state->min_lat = INT_MAX;
+	state->max_lat = INT_MIN;
+	state->allmax_lat = INT_MIN;
 	state->sum = 0;
 	state->overruns = 0;
 	state->cur_samples = 0;
@@ -683,8 +683,8 @@ static int tune_gravity(struct latmus_runner *runner)
 	for (step = 0; step < TUNER_WARMUP_STEPS + TUNER_RESULT_STEPS; step++) {
 		state->ideal = ktime_add_ns(evl_read_clock(&evl_mono_clock),
 			    ktime_to_ns(period) * TUNER_WARMUP_STEPS);
-		state->min_lat = ktime_to_ns(period);
-		state->max_lat = 0;
+		state->min_lat = INT_MAX;
+		state->max_lat = INT_MIN;
 		state->prev_mean = 0;
 		state->prev_sqs = 0;
 		state->cur_sqs = 0;
@@ -812,20 +812,40 @@ static int setup_measurement(struct latmus_runner *runner,
 static int run_measurement(struct latmus_runner *runner,
 			   struct latmus_result *result)
 {
+	struct runner_state *state = &runner->state;
+	struct latmus_measurement_result mr;
+	struct latmus_measurement last;
 	size_t len;
 	int ret;
+
+	if (result->len != sizeof(mr))
+		return -EINVAL;
+
+	if (raw_copy_from_user(&mr, result->data, sizeof(mr)))
+		return -EFAULT;
 
 	ret = measure_continously(runner);
 	if (ret != -EINTR)
 		return ret;
 
-	/* Copy distribution data back to userland. */
+	/*
+	 * Copy the last bulk of consolidated measurements and the
+	 * histogram distribution data back to userland.
+	 */
+	last.min_lat = state->min_lat;
+	last.max_lat = state->max_lat;
+	last.sum_lat = state->sum;
+	last.overruns = state->overruns;
+	last.samples = state->cur_samples;
+	if (raw_copy_to_user(mr.last, &last, sizeof(last)))
+		return -EFAULT;
+
 	if (runner->histogram) {
 		len = runner->hcells * sizeof(s32);
-		if (len > result->len)
+		if (len > mr.len)
 			len = result->len;
 		if (len > 0 &&
-		    raw_copy_to_user(result->data, runner->histogram, len))
+		    raw_copy_to_user(mr.histogram, runner->histogram, len))
 			return -EFAULT;
 	}
 
