@@ -6364,7 +6364,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		atomic_set(&trickmode_framedone, 1);
 
 		diff = system_time - omx_pts;
-		if (time_setomxpts > 0) {
+		if (time_setomxpts > 0
+			&& time_setomxpts_last > 0) {
 			/* time_setomxpts record hwc setomxpts time, */
 			/* when check  diff between pcr and  omx_pts, */
 			/* add compensation will let omx_pts and pcr */
@@ -6377,7 +6378,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				(4 * vsync_pts_inc * 1000 / 90)) {
 				time_setomxpts = 0;
 				time_setomxpts_last = 0;
-				pr_info("omxpts is not update for a while,do not need compenstate\n");
+				if (debug_flag & DEBUG_FLAG_PTS_TRACE)
+					pr_info("omxpts is not update for a while,do not need compenstate\n");
 			} else {
 				diff -=  delta1 * 90 / 1000;
 			}
