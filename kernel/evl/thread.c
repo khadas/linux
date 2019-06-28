@@ -1567,13 +1567,20 @@ static inline void note_trap(struct evl_thread *curr,
 		unsigned int trapnr, struct pt_regs *regs,
 		const char *msg)
 {
-	printk(EVL_WARNING
-		"%s %s [pid=%d, excpt=%#x, %spc=%#lx]\n",
-		curr->name, msg,
-		evl_get_inband_pid(curr),
-		trapnr,
-		user_mode(regs) ? "" : "kernel_",
-		instruction_pointer(regs));
+	if (user_mode(regs))
+		printk(EVL_WARNING
+			"%s %s [pid=%d, excpt=%d, user_pc=%#lx]\n",
+			curr->name, msg,
+			evl_get_inband_pid(curr),
+			trapnr,
+			instruction_pointer(regs));
+	else
+		printk(EVL_WARNING
+			"%s %s [pid=%d, excpt=%d, %pS]\n",
+			curr->name, msg,
+			evl_get_inband_pid(curr),
+			trapnr,
+			(void *)instruction_pointer(regs));
 }
 
 /* hard irqs off. */
