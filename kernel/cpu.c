@@ -910,6 +910,10 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	if (!cpu_present(cpu))
 		return -EINVAL;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* avoid dead lock */
+	workqueue_offline_cpu(cpu);
+#endif
 	cpu_hotplug_begin();
 
 	cpuhp_tasks_frozen = tasks_frozen;
