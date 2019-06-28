@@ -14,6 +14,7 @@
 struct evl_proxy_attrs {
 	__u32 fd;
 	__u32 bufsz;
+	__u32 granularity;
 };
 
 #endif /* !_EVL_UAPI_PROXY_H */
