@@ -12,6 +12,8 @@
 
 #define EVL_ABI_LEVEL  5
 
+#define EVL_CONTROL_DEV  "/dev/evl/control"
+
 struct evl_core_info {
 	__u32 abi_level;
 	__u32 fpu_features;
