@@ -429,10 +429,13 @@ static long restart_clock_sleep(struct restart_block *param)
 static int clock_sleep(struct evl_clock *clock,
 		struct evl_clock_sleepreq __user *u_req)
 {
+	struct evl_clock_sleepreq req = {
+		.timeout = {
+			.tv_sec = 0, .tv_nsec = 0
+		},
+	};
 	struct evl_thread *curr = evl_current();
-	struct evl_clock_sleepreq req;
 	struct restart_block *restart;
-	struct timespec remain;
 	ktime_t timeout, rem;
 	int ret;
 
@@ -449,17 +452,8 @@ static int clock_sleep(struct evl_clock *clock,
 	if (curr->local_info & T_SYSRST) {
 		curr->local_info &= ~T_SYSRST;
 		restart = &current->restart_block;
-		if (restart->fn != restart_clock_sleep) {
-			if (req.remain) {
-				rem = evl_get_stopped_timer_delta(&curr->rtimer);
-				remain = ktime_to_timespec(rem);
-				ret = raw_copy_to_user(req.remain, &remain,
-						sizeof(remain));
-				if (ret)
-					return -EFAULT;
-			}
+		if (restart->fn != restart_clock_sleep)
 			return -EINTR;
-		}
 		timeout = restart->nanosleep.expires;
 	} else
 		timeout = timespec_to_ktime(req.timeout);
