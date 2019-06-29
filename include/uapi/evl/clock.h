@@ -18,7 +18,6 @@
 
 struct evl_clock_sleepreq {
 	struct timespec timeout;
-	struct timespec *remain;
 };
 
 #define EVL_CLKIOC_SLEEP	_IOWR(EVL_CLOCK_IOCBASE, 0, struct evl_clock_sleepreq)
