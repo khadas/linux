@@ -606,8 +606,8 @@ static bool read_timerfd_event(struct evl_timerfd *timerfd)
 	return false;
 }
 
-static long timerfd_oob_ioctl(struct file *filp,
-			unsigned int cmd, unsigned long arg)
+static long timerfd_common_ioctl(struct file *filp,
+				unsigned int cmd, unsigned long arg)
 {
 	struct evl_timerfd *timerfd = filp->private_data;
 	struct evl_timerfd_setreq sreq, __user *u_sreq;
@@ -702,9 +702,10 @@ static int timerfd_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations timerfd_fops = {
 	.release	= timerfd_release,
-	.oob_ioctl	= timerfd_oob_ioctl,
+	.oob_ioctl	= timerfd_common_ioctl,
 	.oob_read	= timerfd_oob_read,
 	.oob_poll	= timerfd_oob_poll,
+	.unlocked_ioctl	= timerfd_common_ioctl,
 };
 
 static int new_timerfd(struct evl_clock *clock)
