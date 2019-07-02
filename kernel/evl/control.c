@@ -310,6 +310,15 @@ static ssize_t abi_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(abi);
 
+static ssize_t cpus_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%*pbl\n",
+			cpumask_pr_args(&evl_oob_cpus));
+}
+static DEVICE_ATTR_RO(cpus);
+
 #ifdef CONFIG_EVL_SCHED_QUOTA
 
 static ssize_t quota_show(struct device *dev,
@@ -361,6 +370,7 @@ static DEVICE_ATTR_RO(tp);
 static struct attribute *control_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_abi.attr,
+	&dev_attr_cpus.attr,
 #ifdef CONFIG_EVL_SCHED_QUOTA
 	&dev_attr_quota.attr,
 #endif
