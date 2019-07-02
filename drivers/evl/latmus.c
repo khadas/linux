@@ -901,6 +901,10 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 	    setup_data.priority > EVL_FIFO_MAX_PRIO)
 		return -EINVAL;
 
+	if (setup_data.cpu >= num_possible_cpus() ||
+		!is_evl_cpu(setup_data.cpu))
+		return -EINVAL;
+
 	/* Clear previous runner. */
 	runner = ls->runner;
 	if (runner) {
