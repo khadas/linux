@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <uapi/evl/sched.h>
 
-#define EVL_ABI_LEVEL  7
+#define EVL_ABI_LEVEL  8
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 
@@ -20,9 +20,15 @@ struct evl_core_info {
 	__u64 shm_size;
 };
 
+struct evl_cpu_state {
+	__u32 cpu;
+	__u32 *state;
+};
+
 #define EVL_CONTROL_IOCBASE	'C'
 
 #define EVL_CTLIOC_GET_COREINFO		_IOR(EVL_CONTROL_IOCBASE, 0, struct evl_core_info)
 #define EVL_CTLIOC_SCHEDCTL		_IOWR(EVL_CONTROL_IOCBASE, 1, struct evl_sched_ctlreq)
+#define EVL_CTLIOC_GET_CPUSTATE		_IOR(EVL_CONTROL_IOCBASE, 2, struct evl_cpu_state)
 
 #endif /* !_EVL_UAPI_CONTROL_H */

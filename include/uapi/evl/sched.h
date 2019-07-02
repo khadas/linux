@@ -10,6 +10,10 @@
 
 #include <linux/types.h>
 
+#define EVL_CPU_OOB      (1 << 0)
+#define EVL_CPU_ISOL     (1 << 1)
+#define EVL_CPU_OFFLINE  (1 << 2)
+
 #define SCHED_WEAK	43
 
 #define sched_rr_quantum	sched_u.rr.__sched_rr_quantum

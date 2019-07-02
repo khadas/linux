@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/sched/isolation.h>
 #include <evl/memory.h>
 #include <evl/thread.h>
 #include <evl/factory.h>
@@ -200,10 +201,32 @@ static int do_sched_control(struct evl_sched_ctlreq *ctl)
 	return ret;
 }
 
+static int do_cpu_state(struct evl_cpu_state *cpst)
+{
+	int cpu = cpst->cpu;
+	__u32 state = 0;
+
+	if (cpst->cpu >= num_possible_cpus() || !cpu_present(cpu))
+		return -EINVAL;
+
+	if (!cpu_online(cpu))
+		state |= EVL_CPU_OFFLINE;
+
+	if (is_evl_cpu(cpu))
+		state |= EVL_CPU_OOB;
+
+	if (!housekeeping_cpu(cpu, HK_FLAG_DOMAIN))
+		state |= EVL_CPU_ISOL;
+
+	return raw_copy_to_user(cpst->state, &state, sizeof(state)) ?
+		-EFAULT : 0;
+}
+
 static long control_common_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_sched_ctlreq ctl, __user *u_ctl;
+	struct evl_cpu_state cpst, __user *u_cpst;
 	long ret;
 
 	switch (cmd) {
@@ -213,6 +236,13 @@ static long control_common_ioctl(struct file *filp, unsigned int cmd,
 		if (ret)
 			return -EFAULT;
 		ret = do_sched_control(&ctl);
+		break;
+	case EVL_CTLIOC_GET_CPUSTATE:
+		u_cpst = (typeof(u_cpst))arg;
+		ret = raw_copy_from_user(&cpst, u_cpst, sizeof(cpst));
+		if (ret)
+			return -EFAULT;
+		ret = do_cpu_state(&cpst);
 		break;
 	default:
 		ret = -ENOTTY;
