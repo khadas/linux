@@ -537,7 +537,7 @@ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
 	struct list_head *head;
 	int idx;
 
-	if (q->elems == 0)
+	if (evl_schedq_is_empty(q))
 		return NULL;
 
 	idx = evl_get_schedq_weight(q);
@@ -569,7 +569,7 @@ struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
 	struct list_head *head;
 	int idx;
 
-	if (q->elems == 0)
+	if (evl_schedq_is_empty(q))
 		return NULL;
 
 	/*
