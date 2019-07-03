@@ -12,32 +12,6 @@ static void evl_fifo_init(struct evl_rq *rq)
 	evl_init_schedq(&rq->fifo.runnable);
 }
 
-static void evl_fifo_requeue(struct evl_thread *thread)
-{
-	/*
-	 * Put back at same place: i.e. requeue to head of current
-	 * priority group (i.e. LIFO, used for preemption handling).
-	 */
-	__evl_requeue_fifo_thread(thread);
-}
-
-static void evl_fifo_enqueue(struct evl_thread *thread)
-{
-	/*
-	 * Enqueue for next pick: i.e. move to end of current priority
-	 * group (i.e. FIFO).
-	 */
-	__evl_enqueue_fifo_thread(thread);
-}
-
-static void evl_fifo_dequeue(struct evl_thread *thread)
-{
-	/*
-	 * Pull from the runnable thread queue.
-	 */
-	__evl_dequeue_fifo_thread(thread);
-}
-
 static void evl_fifo_rotate(struct evl_rq *rq,
 			const union evl_sched_param *p)
 {
@@ -116,9 +90,6 @@ static ssize_t evl_fifo_show(struct evl_thread *thread,
 
 struct evl_sched_class evl_sched_fifo = {
 	.sched_init		=	evl_fifo_init,
-	.sched_enqueue		=	evl_fifo_enqueue,
-	.sched_dequeue		=	evl_fifo_dequeue,
-	.sched_requeue		=	evl_fifo_requeue,
 	.sched_pick		=	evl_fifo_pick,
 	.sched_tick		=	evl_fifo_tick,
 	.sched_rotate		=	evl_fifo_rotate,

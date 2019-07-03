@@ -474,63 +474,6 @@ void evl_init_schedq(struct evl_multilevel_queue *q)
 		INIT_LIST_HEAD(q->heads + prio);
 }
 
-static inline int get_qindex(struct evl_multilevel_queue *q, int prio)
-{
-	/*
-	 * find_first_bit() is used to scan the bitmap, so the lower
-	 * the index value, the higher the priority.
-	 */
-	return EVL_MLQ_LEVELS - prio - 1;
-}
-
-static struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
-{
-	struct list_head *head;
-	int idx;
-
-	idx = get_qindex(q, prio);
-	head = q->heads + idx;
-	q->elems++;
-
-	/* New item is not linked yet. */
-	if (list_empty(head))
-		__set_bit(idx, q->prio_map);
-
-	return head;
-}
-
-void evl_add_schedq(struct evl_multilevel_queue *q,
-		struct evl_thread *thread)
-{
-	struct list_head *head = add_q(q, thread->cprio);
-	list_add(&thread->rq_next, head);
-}
-
-void evl_add_schedq_tail(struct evl_multilevel_queue *q,
-			struct evl_thread *thread)
-{
-	struct list_head *head = add_q(q, thread->cprio);
-	list_add_tail(&thread->rq_next, head);
-}
-
-static void del_q(struct evl_multilevel_queue *q,
-		struct list_head *entry, int idx)
-{
-	struct list_head *head = q->heads + idx;
-
-	list_del(entry);
-	q->elems--;
-
-	if (list_empty(head))
-		__clear_bit(idx, q->prio_map);
-}
-
-void evl_del_schedq(struct evl_multilevel_queue *q,
-		struct evl_thread *thread)
-{
-	del_q(q, &thread->rq_next, get_qindex(q, thread->cprio));
-}
-
 struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
 {
 	struct evl_thread *thread;
@@ -543,7 +486,7 @@ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
 	idx = evl_get_schedq_weight(q);
 	head = q->heads + idx;
 	thread = list_first_entry(head, struct evl_thread, rq_next);
-	del_q(q, &thread->rq_next, idx);
+	__evl_del_schedq(q, &thread->rq_next, idx);
 
 	return thread;
 }
@@ -590,7 +533,7 @@ struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
 	if (unlikely(thread->sched_class != &evl_sched_fifo))
 		return thread->sched_class->sched_pick(rq);
 
-	del_q(q, &thread->rq_next, idx);
+	__evl_del_schedq(q, &thread->rq_next, idx);
 
 	return thread;
 }

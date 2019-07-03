@@ -437,27 +437,44 @@ static inline int evl_calc_weighted_prio(struct evl_sched_class *sched_class,
 	return prio + sched_class->weight;
 }
 
-static inline void evl_enqueue_thread(struct evl_thread *thread)
+static __always_inline void evl_enqueue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	if (sched_class != &evl_sched_idle)
+	/*
+	 * Enqueue for next pick: i.e. move to end of current priority
+	 * group (i.e. FIFO).
+	 */
+	if (likely(sched_class == &evl_sched_fifo))
+		__evl_enqueue_fifo_thread(thread);
+	else if (sched_class != &evl_sched_idle)
 		sched_class->sched_enqueue(thread);
 }
 
-static inline void evl_dequeue_thread(struct evl_thread *thread)
+static __always_inline void evl_dequeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	if (sched_class != &evl_sched_idle)
+	/*
+	 * Pull from the runnable thread queue.
+	 */
+	if (likely(sched_class == &evl_sched_fifo))
+		__evl_dequeue_fifo_thread(thread);
+	else if (sched_class != &evl_sched_idle)
 		sched_class->sched_dequeue(thread);
 }
 
-static inline void evl_requeue_thread(struct evl_thread *thread)
+static __always_inline void evl_requeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	if (sched_class != &evl_sched_idle)
+	/*
+	 * Put back at same place: i.e. requeue to head of current
+	 * priority group (i.e. LIFO, used for preemption handling).
+	 */
+	if (likely(sched_class == &evl_sched_fifo))
+		__evl_requeue_fifo_thread(thread);
+	else if (sched_class != &evl_sched_idle)
 		sched_class->sched_requeue(thread);
 }
 
