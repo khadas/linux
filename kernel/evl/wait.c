@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter)
 {
-	trace_evl_wait_wakeup(wq);
+	trace_evl_wake_up(wq);
 
 	if (list_empty(&wq->wait_list))
 		waiter = NULL;
