@@ -142,7 +142,7 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
 
-	trace_evl_wait_flush(wq);
+	trace_evl_flush_wait(wq);
 
 	list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next)
 		evl_wakeup_thread(waiter, T_PEND, reason);

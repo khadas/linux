@@ -687,12 +687,12 @@ DEFINE_EVENT(wq_event, evl_wait,
 	TP_ARGS(wq)
 );
 
-DEFINE_EVENT(wq_event, evl_wait_wakeup,
+DEFINE_EVENT(wq_event, evl_wake_up,
 	TP_PROTO(struct evl_wait_queue *wq),
 	TP_ARGS(wq)
 );
 
-DEFINE_EVENT(wq_event, evl_wait_flush,
+DEFINE_EVENT(wq_event, evl_flush_wait,
 	TP_PROTO(struct evl_wait_queue *wq),
 	TP_ARGS(wq)
 );
