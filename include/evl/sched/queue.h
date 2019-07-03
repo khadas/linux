@@ -42,29 +42,85 @@ struct evl_thread;
 
 void evl_init_schedq(struct evl_multilevel_queue *q);
 
-void evl_add_schedq(struct evl_multilevel_queue *q,
-		struct evl_thread *thread);
-
-void evl_add_schedq_tail(struct evl_multilevel_queue *q,
-			struct evl_thread *thread);
-
-void evl_del_schedq(struct evl_multilevel_queue *q,
-		struct evl_thread *thread);
-
 struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q);
 
-static inline int evl_schedq_is_empty(struct evl_multilevel_queue *q)
+struct evl_thread *
+evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
+
+static __always_inline
+int evl_schedq_is_empty(struct evl_multilevel_queue *q)
 {
 	return q->elems == 0;
 }
 
-static inline int evl_get_schedq_weight(struct evl_multilevel_queue *q)
+static __always_inline
+int evl_get_schedq_weight(struct evl_multilevel_queue *q)
 {
 	/* Highest priorities are mapped to lowest array elements. */
 	return find_first_bit(q->prio_map, EVL_MLQ_LEVELS);
 }
 
-struct evl_thread *
-evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
+static __always_inline
+int get_qindex(struct evl_multilevel_queue *q, int prio)
+{
+	/*
+	 * find_first_bit() is used to scan the bitmap, so the lower
+	 * the index value, the higher the priority.
+	 */
+	return EVL_MLQ_LEVELS - prio - 1;
+}
+
+static __always_inline
+struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
+{
+	struct list_head *head;
+	int idx;
+
+	idx = get_qindex(q, prio);
+	head = q->heads + idx;
+	q->elems++;
+
+	/* New item is not linked yet. */
+	if (list_empty(head))
+		__set_bit(idx, q->prio_map);
+
+	return head;
+}
+
+static __always_inline
+void evl_add_schedq(struct evl_multilevel_queue *q,
+		struct evl_thread *thread)
+{
+	struct list_head *head = add_q(q, thread->cprio);
+	list_add(&thread->rq_next, head);
+}
+
+static __always_inline
+void evl_add_schedq_tail(struct evl_multilevel_queue *q,
+			struct evl_thread *thread)
+{
+	struct list_head *head = add_q(q, thread->cprio);
+	list_add_tail(&thread->rq_next, head);
+}
+
+static __always_inline
+void __evl_del_schedq(struct evl_multilevel_queue *q,
+		struct list_head *entry, int idx)
+{
+	struct list_head *head = q->heads + idx;
+
+	list_del(entry);
+	q->elems--;
+
+	if (list_empty(head))
+		__clear_bit(idx, q->prio_map);
+}
+
+static __always_inline
+void evl_del_schedq(struct evl_multilevel_queue *q,
+	struct evl_thread *thread)
+{
+	__evl_del_schedq(q, &thread->rq_next, get_qindex(q, thread->cprio));
+}
 
 #endif /* !_EVL_SCHED_QUEUE_H */
