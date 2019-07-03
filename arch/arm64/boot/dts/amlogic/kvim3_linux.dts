@@ -476,7 +476,7 @@
 	};
 	dummy_codec:dummy{
 		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_dummy_codec";
+		compatible = "linux,spdif-dit";
 		status = "okay";
 	};
 	amlogic_codec:t9015{
@@ -509,8 +509,6 @@
 
 		//aml-audio-card,loopback = <&aml_loopback>;
 		//aml-audio-card,aux-devs = <&amlogic_codec>;
-		/*avout mute gpio*/
-		//avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 		/*for audio effect ,eqdrc */
 		aml-audio-card,effect = <&audio_effect>;
 
@@ -955,7 +953,7 @@
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins",
 					"spdif_pins_mute";
-		pinctrl-0 = <&spdifout &spdifin>;
+		pinctrl-0 = <&spdifout>;
 		pinctrl-1 = <&spdifout_a_mute>;
 		status = "okay";
 	};
@@ -1142,21 +1140,6 @@
 		};
 	};
 
-	spdifin: spdifin {
-		mux {/* GPIOH_5 */
-			groups = "spdif_in_h";
-			function = "spdif_in";
-		};
-	};
-
-	/* GPIOH_4 */
-	spdifout: spdifout {
-		mux {
-			groups = "spdif_out_h";
-			function = "spdif_out";
-		};
-	};
-
 	pdmin: pdmin {
 		mux { /* gpioa_5, gpioa_6, gpioa_7, gpioa_8, gpioa_9*/
 			groups = "pdm_din0_a",
@@ -1170,6 +1153,12 @@
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
+	spdifout: spdifout {
+		mux { /* gpiao_10 */
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
 	spdifout_a_mute: spdifout_a_mute {
 		mux { /* gpiao_10 */
 			groups = "GPIOAO_10";
