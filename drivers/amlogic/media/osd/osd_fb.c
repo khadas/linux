@@ -767,11 +767,17 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 				sizeof(struct fb_sync_request_s));
 		break;
 	case FBIO_WAITFORVSYNC:
-		vsync_timestamp = (s32)osd_wait_vsync_event();
+		if (info->node < osd_meson_dev.viu1_osd_count)
+			vsync_timestamp = (s32)osd_wait_vsync_event();
+		else
+			vsync_timestamp = (s32)osd_wait_vsync_event_viu2();
 		ret = copy_to_user(argp, &vsync_timestamp, sizeof(s32));
 		break;
 	case FBIO_WAITFORVSYNC_64:
-		vsync_timestamp_64 = osd_wait_vsync_event();
+		if (info->node < osd_meson_dev.viu1_osd_count)
+			vsync_timestamp_64 = osd_wait_vsync_event();
+		else
+			vsync_timestamp_64 = osd_wait_vsync_event_viu2();
 		ret = copy_to_user(argp, &vsync_timestamp_64, sizeof(s64));
 		break;
 	case FBIOGET_OSD_SCALE_AXIS:

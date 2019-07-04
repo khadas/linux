@@ -132,6 +132,7 @@ extern int osd_sync_request_render(u32 index, u32 yres,
 	size_t len);
 int osd_sync_do_hwc(u32 output_index, struct do_hwc_cmd_s *hwc_cmd);
 extern s64  osd_wait_vsync_event(void);
+extern s64 osd_wait_vsync_event_viu2(void);
 extern void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart,
 			  u32 osd_w, u32 osd_h);
 extern void osd_cursor_hw_no_scale(u32 index, s16 x, s16 y, s16 xstart,
