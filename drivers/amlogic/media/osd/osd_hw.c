@@ -98,9 +98,10 @@
 struct hw_para_s osd_hw;
 static DEFINE_MUTEX(osd_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(osd_vsync_wq);
+static DECLARE_WAIT_QUEUE_HEAD(osd_vsync2_wq);
 
-static bool vsync_hit;
-static bool user_vsync_hit;
+static bool vsync_hit[VIU_COUNT];
+static bool user_vsync_hit[VIU_COUNT];
 static bool osd_update_window_axis;
 static int osd_afbc_dec_enable;
 static int ext_canvas_id[HW_OSD_COUNT];
@@ -109,6 +110,7 @@ static bool suspend_flag;
 static u32 rdma_dt_cnt;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
+static void osd_wait_vsync_hw_viu1(void);
 
 struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 
@@ -563,7 +565,7 @@ static void osd_put_fenceobj(struct fence *fence)
 #endif
 
 static int pxp_mode;
-s64 timestamp;
+s64 timestamp[VIU_COUNT];
 
 static unsigned int osd_h_filter_mode = 1;
 #define CANVAS_ALIGNED(x)	(((x) + 31) & ~31)
@@ -1563,8 +1565,14 @@ void osd_update_3d_mode(void)
 
 static inline void wait_vsync_wakeup(void)
 {
-	user_vsync_hit = vsync_hit = true;
+	user_vsync_hit[VIU1] = vsync_hit[VIU1] = true;
 	wake_up_interruptible_all(&osd_vsync_wq);
+}
+
+static inline void wait_vsync_wakeup_viu2(void)
+{
+	user_vsync_hit[VIU2] = vsync_hit[VIU2] = true;
+	wake_up_interruptible_all(&osd_vsync2_wq);
 }
 
 void osd_update_vsync_hit(void)
@@ -1572,11 +1580,24 @@ void osd_update_vsync_hit(void)
 	ktime_t stime;
 
 	stime = ktime_get();
-	timestamp = stime.tv64;
+	timestamp[VIU1] = stime.tv64;
 #ifdef FIQ_VSYNC
-		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
+	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
-		wait_vsync_wakeup();
+	wait_vsync_wakeup();
+#endif
+}
+
+void osd_update_vsync_hit_viu2(void)
+{
+	ktime_t stime;
+
+	stime = ktime_get();
+	timestamp[VIU2] = stime.tv64;
+#ifdef FIQ_VSYNC
+	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
+#else
+	wait_vsync_wakeup_viu2();
 #endif
 }
 
@@ -2152,6 +2173,7 @@ static irqreturn_t vsync_viu2_isr(int irq, void *dev_id)
 #endif
 {
 	osd_update_scan_mode_viu2();
+	osd_update_vsync_hit_viu2();
 #ifndef FIQ_VSYNC
 	return IRQ_HANDLED;
 #endif
@@ -2191,11 +2213,12 @@ u32 osd_get_reset_status(void)
 	return osd_hw.hw_reset_flag;
 }
 
-void osd_wait_vsync_hw(void)
+static void osd_wait_vsync_hw_viu1(void)
 {
 	unsigned long timeout;
+
 	if (osd_hw.fb_drvier_probe) {
-		vsync_hit = false;
+		vsync_hit[VIU1] = false;
 
 		if (pxp_mode)
 			timeout = msecs_to_jiffies(50);
@@ -2210,15 +2233,49 @@ void osd_wait_vsync_hw(void)
 				timeout = msecs_to_jiffies(1000);
 		}
 		wait_event_interruptible_timeout(
-				osd_vsync_wq, vsync_hit, timeout);
+				osd_vsync_wq, vsync_hit[VIU1], timeout);
 	}
+}
+
+static void osd_wait_vsync_hw_viu2(void)
+{
+	unsigned long timeout;
+
+	if (osd_hw.fb_drvier_probe) {
+		vsync_hit[VIU2] = false;
+
+		if (pxp_mode)
+			timeout = msecs_to_jiffies(50);
+		else {
+			struct vinfo_s *vinfo;
+
+			vinfo = get_current_vinfo2();
+			if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+				!strcmp(vinfo->name, "null"))) {
+				timeout = msecs_to_jiffies(1);
+			} else
+				timeout = msecs_to_jiffies(1000);
+		}
+		wait_event_interruptible_timeout(
+				osd_vsync_wq, vsync_hit[VIU2], timeout);
+	}
+}
+
+void osd_wait_vsync_hw(u32 index)
+{
+	u32 output_index = get_output_device_id(index);
+
+	if (output_index == VIU1)
+		osd_wait_vsync_hw_viu1();
+	else if (output_index == VIU2)
+		osd_wait_vsync_hw_viu2();
 }
 
 s64 osd_wait_vsync_event(void)
 {
 	unsigned long timeout;
 
-	user_vsync_hit = false;
+	user_vsync_hit[VIU1] = false;
 
 	if (pxp_mode)
 		timeout = msecs_to_jiffies(50);
@@ -2226,9 +2283,28 @@ s64 osd_wait_vsync_event(void)
 		timeout = msecs_to_jiffies(1000);
 
 	/* waiting for 10ms. */
-	wait_event_interruptible_timeout(osd_vsync_wq, user_vsync_hit, timeout);
+	wait_event_interruptible_timeout(osd_vsync_wq,
+		user_vsync_hit[VIU1], timeout);
 
-	return timestamp;
+	return timestamp[VIU1];
+}
+
+s64 osd_wait_vsync_event_viu2(void)
+{
+	unsigned long timeout;
+
+	user_vsync_hit[VIU2] = false;
+
+	if (pxp_mode)
+		timeout = msecs_to_jiffies(50);
+	else
+		timeout = msecs_to_jiffies(1000);
+
+	/* waiting for 10ms. */
+	wait_event_interruptible_timeout(osd_vsync2_wq,
+		user_vsync_hit[VIU2], timeout);
+
+	return timestamp[VIU2];
 }
 
 int is_interlaced(struct vinfo_s *vinfo)
@@ -2380,7 +2456,7 @@ void  osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha)
 	if (osd_hw.gbl_alpha[index] != gbl_alpha) {
 		osd_hw.gbl_alpha[index] = gbl_alpha;
 		add_to_update_list(index, OSD_GBL_ALPHA);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 	}
 }
 
@@ -2466,7 +2542,7 @@ void osd_set_color_key_hw(u32 index, u32 color_index, u32 colorkey)
 			"bpp:%d--r:0x%x g:0x%x b:0x%x ,a:0x%x\n",
 			color_index, r, g, b, a);
 		add_to_update_list(index, OSD_COLOR_KEY);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 	}
 }
 void  osd_srckey_enable_hw(u32  index, u8 enable)
@@ -2474,7 +2550,7 @@ void  osd_srckey_enable_hw(u32  index, u8 enable)
 	if (enable != osd_hw.color_key_enable[index]) {
 		osd_hw.color_key_enable[index] = enable;
 		add_to_update_list(index, OSD_COLOR_KEY_ENABLE);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 	}
 }
 
@@ -2540,7 +2616,7 @@ void osd_update_disp_axis_hw(
 	osd_hw.reg[DISP_GEOMETRY].update_func(index);
 	osd_update_window_axis = true;
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_setup_hw(u32 index,
@@ -2702,7 +2778,7 @@ void osd_setup_hw(u32 index,
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_EXT
 	osd_ext_clone_pan(index);
 #endif
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_setpal_hw(u32 index,
@@ -2786,7 +2862,7 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 		osd_hw.reg[OSD_ENABLE].update_func(index);
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	}
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_set_free_scale_enable_hw(u32 index, u32 enable)
@@ -3090,7 +3166,7 @@ void osd_set_block_windows_hw(u32 index, u32 *windows)
 	 *      sizeof(osd_hw.block_windows[index]));
 	 */
 	add_to_update_list(index, DISP_GEOMETRY);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_get_block_mode_hw(u32 index, u32 *mode)
@@ -3102,7 +3178,7 @@ void osd_set_block_mode_hw(u32 index, u32 mode)
 {
 	/* osd_hw.block_mode[index] = mode; */
 	add_to_update_list(index, DISP_GEOMETRY);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_enable_3d_mode_hw(u32 index, u32 enable)
@@ -3161,12 +3237,12 @@ void osd_enable_hw(u32 index, u32 enable)
 		add_to_update_list(index, OSD_COLOR_MODE);
 		add_to_update_list(index, OSD_GBL_ALPHA);
 		add_to_update_list(index, DISP_GEOMETRY);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 
 		while ((index == 0) && osd_hw.osd_afbcd[index].enable &&
 			(osd_hw.osd_afbcd[index].phy_addr == 0) &&
 			enable && (i < count)) {
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 			i++;
 		}
 		if (i > 0)
@@ -3178,7 +3254,7 @@ void osd_enable_hw(u32 index, u32 enable)
 	output_index = get_output_device_id(index);
 	if (get_osd_hwc_type(index) != OSD_G12A_NEW_HWC) {
 		add_to_update_list(index, OSD_ENABLE);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 	} else if (osd_hw.hwc_enable[output_index] &&
 		osd_hw.osd_display_debug)
 		osd_setting_blend(output_index);
@@ -3207,7 +3283,7 @@ void osd_set_2x_scale_hw(u32 index, u16 h_scale_enable, u16 v_scale_enable)
 	osd_hw.reg[DISP_SCALE_ENABLE].update_func(index);
 	osd_hw.reg[DISP_GEOMETRY].update_func(index);
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_get_flush_rate_hw(u32 index, u32 *break_rate)
@@ -3361,7 +3437,7 @@ void osd_set_reverse_hw(u32 index, u32 reverse, u32 update)
 	pr_info("set osd%d reverse as %s\n", index, str[reverse]);
 	if (update) {
 		add_to_update_list(index, DISP_OSD_REVERSE);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(index);
 	}
 }
 
@@ -3391,7 +3467,7 @@ void osd_switch_free_scale(
 				&& osd_hw.osd_afbcd[next_index].enable
 				&& (osd_hw.osd_afbcd[next_index].phy_addr == 0)
 				&& next_enable && (i < count)) {
-				osd_wait_vsync_hw();
+				osd_wait_vsync_hw(OSD1);
 				i++;
 			}
 			if (i > 0)
@@ -3448,7 +3524,7 @@ void osd_switch_free_scale(
 		osd_hw.reg[OSD_ENABLE].update_func(next_index);
 
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw(next_index);
 	} else {
 		if (pre_index != next_index)
 			osd_enable_hw(pre_index, pre_enable);
@@ -3465,7 +3541,7 @@ void osd_set_urgent(u32 index, u32 urgent)
 {
 	osd_hw.urgent[index] = urgent;
 	add_to_update_list(index, OSD_FIFO);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_get_deband(u32 *osd_deband_enable)
@@ -3502,7 +3578,7 @@ void osd_set_deband(u32 osd_deband_enable)
 			}
 			VSYNCOSD_WR_MPEG_REG(OSD_DB_FLT_CTRL, data32);
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw_viu1();
 		}
 	}
 }
@@ -3698,7 +3774,7 @@ void osd_set_rotate(u32 index, u32 osd_rotate)
 		osd_log_err("osd%d not support rotate\n", index);
 	osd_hw.osd_rotate[index] = osd_rotate;
 	add_to_update_list(index, DISP_OSD_ROTATE);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 void osd_get_afbc_err_cnt(u32 *err_cnt)
@@ -4370,7 +4446,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 			if (osd_hw.hw_rdma_en)
 				osd_mali_afbc_start();
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 		} else if (xoffset != osd_hw.pandata[index].x_start
 			|| yoffset != osd_hw.pandata[index].y_start
 			|| (use_ext)) {
@@ -4494,7 +4570,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 			if (osd_hw.hw_rdma_en)
 				osd_mali_afbc_start();
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 		} else if ((osd_enable != osd_hw.enable[index] ||
 			(osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 			osd_hw.osd_afbcd[index].enable))
@@ -4509,7 +4585,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 			if (osd_hw.hw_rdma_en)
 				osd_mali_afbc_start();
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 		}
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_EXT
@@ -8283,7 +8359,7 @@ static int osd_setting_order(u32 output_index)
 		osd_log_dbg(MODULE_RENDER,
 			"enter osd_setting_order:encp line=%d\n",
 			line1);
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw_viu1();
 		line1 = get_enter_encp_line();
 	}
 	spin_lock_irqsave(&osd_lock, lock_flags);
@@ -8361,11 +8437,11 @@ static int osd_setting_order(u32 output_index)
 	osd_log_dbg2(MODULE_RENDER,
 		"enter osd_setting_order:encp line=%d\n",
 		line2);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw_viu1();
 	val = osd_reg_read(RDMA_DETECT_REG);
 	/* if missed, need wait vsync */
 	if (/*(line2 < line1) || */(val != rdma_dt_cnt)) {
-		osd_wait_vsync_hw();
+		osd_wait_vsync_hw_viu1();
 		osd_log_dbg(MODULE_RENDER, "osd line %d,%d\n", line1, line2);
 	}
 	return 0;
@@ -8548,7 +8624,7 @@ static void osd_setting_old_hwc(void)
 		osd_enable = osd_hw.enable[index];
 	}
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw(index);
 }
 
 static void osd_setting_viu2(void)
@@ -8569,7 +8645,7 @@ static void osd_setting_viu2(void)
 	if (!osd_hw.osd_display_debug)
 		osd_hw.reg[OSD_ENABLE]
 		.update_func(index);
-	osd_wait_vsync_hw();
+	osd_wait_vsync_hw_viu2();
 }
 
 
@@ -10829,7 +10905,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 			}
 			if (osd_hw.hw_rdma_en)
 				osd_mali_afbc_start();
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 		} else if (plane_map->phy_addr && plane_map->src_w
 				&& plane_map->src_h && index == OSD2) {
 			color = convert_panel_format(plane_map->format);
@@ -10903,7 +10979,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 			}
 			if (osd_hw.hw_rdma_en)
 				osd_mali_afbc_start();
-			osd_wait_vsync_hw();
+			osd_wait_vsync_hw(index);
 		}
 	}
 }
