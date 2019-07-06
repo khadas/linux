@@ -229,7 +229,7 @@ static const char * const matrix_coeffs_names[] = {
  *	3, (1/4):(1/4) ratio, with both compressed frame included
  *	0x10, double write only
  */
-static u32 double_write_mode;
+static u32 double_write_mode = 0x200;
 
 /*#define DECOMP_HEADR_SURGENT*/
 
@@ -1876,7 +1876,13 @@ static int get_double_write_mode(struct hevc_state_s *hevc)
 			dw = 0x4; /*1:2*/
 		else
 			dw = 0x1; /*1:1*/
-
+	} else if (valid_dw_mode == 0x200) {
+		int w = hevc->pic_w;
+		int h = hevc->pic_h;
+		if (w > 4096 && h > 2176)
+			dw = 0x4; /*1:2*/
+		else
+			dw = 0x0; /*off*/
 	} else
 		dw = valid_dw_mode;
 	return dw;

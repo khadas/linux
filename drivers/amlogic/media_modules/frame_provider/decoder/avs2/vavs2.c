@@ -258,7 +258,7 @@ static u32 again_threshold = 0x40;
 					  4, (1/2):(1/2) ratio
 					0x10, double write only
 */
-static u32 double_write_mode;
+static u32 double_write_mode = 0x200;
 
 #define DRIVER_NAME "amvdec_avs2"
 #define MODULE_NAME "amvdec_avs2"
@@ -873,6 +873,15 @@ static int get_double_write_mode(struct AVS2Decoder_s *dec)
 			dw = 0x1; /*1:1*/
 
 		return dw;
+	} else if (valid_dw_mode == 0x200) {
+		int w = dec->avs2_dec.img.width;
+		int h = dec->avs2_dec.img.height;
+		if (w > 4096 && h > 2176)
+			dw = 0x4; /*1:2*/
+		else
+			dw = 0x0; /*off*/
+
+		return dw;
 	}
 
 	return valid_dw_mode;
@@ -890,6 +899,16 @@ static int get_double_write_mode_init(struct AVS2Decoder_s *dec)
 			dw = 0x4; /*1:2*/
 		else
 			dw = 0x1; /*1:1*/
+
+		return dw;
+	} else if (valid_dw_mode == 0x200) {
+		u32 dw;
+		int w = dec->init_pic_w;
+		int h = dec->init_pic_h;
+		if (w > 4096 && h > 2176)
+			dw = 0x4; /*1:2*/
+		else
+			dw = 0x0; /*off*/
 
 		return dw;
 	}
