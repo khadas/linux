@@ -3239,12 +3239,12 @@ static void osd_set_two_ports(bool set)
 
 	if (set) {
 		data32[0] = osd_reg_read(VPP_RDARB_MODE);
-		data32[1] = osd_reg_read(VPU_RDARB_MODE_L2C1);
+		data32[1] = osd_reg_read(VPU_WRARB_MODE_L2C1);
 		osd_reg_set_bits(VPP_RDARB_MODE, 2, 20, 8);
-		osd_reg_set_bits(VPU_RDARB_MODE_L2C1, 2, 16, 8);
+		osd_reg_set_bits(VPU_WRARB_MODE_L2C1, 2, 16, 4);
 	} else {
 		osd_reg_write(VPP_RDARB_MODE, data32[0]);
-		osd_reg_write(VPU_RDARB_MODE_L2C1, data32[1]);
+		osd_reg_write(VPU_WRARB_MODE_L2C1, data32[1]);
 	}
 }
 

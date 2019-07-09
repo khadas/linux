@@ -1424,6 +1424,7 @@
 #define VPP_POST_BLEND_DUMMY_ALPHA                 0x3969
 #define VPP_RDARB_MODE                             0x3978
 #define VPP_RDARB_REQEN_SLV                        0x3979
+#define VPU_WRARB_MODE_L2C1                        0x27a2
 #define VPU_RDARB_MODE_L2C1                        0x279d
 
 /*VIU2 osd1 reg*/
