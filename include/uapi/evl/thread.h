@@ -82,7 +82,12 @@ struct evl_user_window {
 
 struct evl_thread_state {
 	struct evl_sched_attrs eattrs;
-	int cpu;
+	__u32 cpu;
+	__u32 state;
+	__u32 isw;
+	__u32 csw;
+	__u32 sc;
+	__u64 xtime;
 };
 
 #define EVL_THREAD_IOCBASE	'T'
