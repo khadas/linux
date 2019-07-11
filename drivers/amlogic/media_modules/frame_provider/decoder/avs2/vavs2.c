@@ -4532,7 +4532,7 @@ static int avs2_prepare_display_buf(struct AVS2Decoder_s *dec)
 			decoder_do_frame_check(hw_to_vdec(dec), vf);
 			kfifo_put(&dec->display_q, (const struct vframe_s *)vf);
 
-	#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+	#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 			/*count info*/
 			gvs->frame_dur = dec->frame_dur;
 			vdec_count_info(gvs, 0, stream_offset);
@@ -5636,7 +5636,7 @@ int vavs2_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	vstatus->error_count = 0;
 	vstatus->status = dec->stat | dec->fatal_error;
 	vstatus->frame_dur = dec->frame_dur;
-#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+#if 0 //#ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	vstatus->bit_rate = gvs->bit_rate;
 	vstatus->frame_data = gvs->frame_data;
 	vstatus->total_data = gvs->total_data;
