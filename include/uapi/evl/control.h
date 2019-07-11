@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <uapi/evl/sched.h>
 
-#define EVL_ABI_LEVEL  8
+#define EVL_ABI_LEVEL  9
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 
