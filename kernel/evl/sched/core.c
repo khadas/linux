@@ -594,7 +594,7 @@ static inline void set_thread_running(struct evl_rq *rq,
 
 static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 {
-	struct evl_sched_class *sched_class __maybe_unused;
+	struct evl_sched_class *sched_class;
 	struct evl_thread *curr = rq->curr;
 	struct evl_thread *thread;
 

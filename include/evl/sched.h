@@ -280,11 +280,10 @@ static inline bool evl_schedule(void)
 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
 		return false;
 
-	if (unlikely(running_inband()))
-		return (bool)run_oob_call((int (*)(void *))__evl_schedule,
-					this_rq);
+	if (running_oob())
+		return __evl_schedule(this_rq);
 
-	return __evl_schedule(this_rq);
+	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
 }
 
 static inline int evl_preempt_count(void)
