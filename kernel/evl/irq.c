@@ -28,7 +28,13 @@ void exit_oob_irq(void)
 	 * handler on the current CPU, so there is no cache coherence
 	 * issue. Remote CPUs pair RQ_SCHED requests with an IPI, so
 	 * we don't care about missing them here.
+	 *
+	 * CAUTION: Switching stages as a result of rescheduling may
+	 * re-enable irqs, shut them off before returning if so.
 	 */
-	if (rq->status & RQ_SCHED)
+	if (rq->status & RQ_SCHED) {
 		evl_schedule();
+		if (!hard_irqs_disabled())
+			hard_local_irq_disable();
+	}
 }
