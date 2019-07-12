@@ -34,6 +34,7 @@ struct proxy_ring {
 struct proxy_out {		/* oob_write->write */
 	struct evl_flag oob_drained;
 	wait_queue_head_t inband_drained;
+	bool release_pending;
 	struct irq_work irq_work;
 	struct work_struct work;
 	hard_spinlock_t lock;
@@ -54,20 +55,14 @@ static void relay_output(struct work_struct *work)
 	struct proxy_ring *ring = &out->ring;
 	unsigned int rdoff, count, len, n;
 	struct file *filp = proxy->filp;
-	ssize_t ret;
-	loff_t pos;
-
-	mutex_lock(&filp->f_pos_lock);
+	ssize_t ret = 0;
+	loff_t pos = 0;
 
 	count = atomic_read(&ring->fillsz);
 	rdoff = ring->rdoff;
 
-	for (;;) {
-		if (count == 0)
-			break;
-
+	 while (count > 0 && ret >= 0) {
 		len = count;
-
 		do {
 			if (rdoff + len > ring->bufsz)
 				n = ring->bufsz - rdoff;
@@ -77,31 +72,23 @@ static void relay_output(struct work_struct *work)
 			if (ring->granularity > 0)
 				n = min(n, ring->granularity);
 
-			pos = filp->f_pos;
-			ret = vfs_write(filp, ring->bufmem + rdoff, n, &pos);
-			if (ret >= 0)
-				filp->f_pos = pos;
-
+			ret = kernel_write(filp, ring->bufmem + rdoff, n, &pos);
 			len -= n;
 			rdoff = (rdoff + n) % ring->bufsz;
-		} while (len > 0);
-
+		} while (len > 0 && ret > 0);
 		count = atomic_sub_return(count, &ring->fillsz);
 	}
 
 	ring->rdoff = rdoff;
 
-	mutex_unlock(&filp->f_pos_lock);
+	if (count == 0)
+		evl_signal_poll_events(&out->poll_head, POLLOUT|POLLWRNORM);
 
 	/* Give precedence to oob waiters for wakeups. */
-
-	evl_signal_poll_events(&out->poll_head, POLLOUT|POLLWRNORM);
-
-	if (!(filp->f_flags & O_NONBLOCK)) {
+	if (count < ring->bufsz) {
 		evl_raise_flag(&out->oob_drained);
 		wake_up(&out->inband_drained);
-	} else
-		evl_schedule();
+	}
 }
 
 static void relay_output_irq(struct irq_work *work)
@@ -178,7 +165,7 @@ static ssize_t do_proxy_write(struct file *filp,
 	if (--ring->wrpending == 0) {
 		n = atomic_add_return(ring->fillrsvd, &ring->fillsz);
 		ring->fillrsvd = 0;
-		if (n == count)	/* empty -> non-empty transition */
+		if (n == count) /* empty -> non-empty transition */
 			irq_work_queue(&out->irq_work);
 	}
 out:
@@ -201,7 +188,7 @@ static ssize_t proxy_oob_write(struct file *filp,
 		ret = evl_wait_flag(&out->oob_drained);
 	} while (!ret);
 
-	return ret;
+	return ret == -EIDRM ? -EBADF : ret;
 }
 
 static ssize_t proxy_write(struct file *filp, const char __user *u_buf,
@@ -216,7 +203,10 @@ static ssize_t proxy_write(struct file *filp, const char __user *u_buf,
 		if (ret != -EAGAIN || filp->f_flags & O_NONBLOCK)
 			break;
 		ret = wait_event_interruptible(out->inband_drained,
-					can_write_buffer(out, count));
+					can_write_buffer(out, count) ||
+					out->release_pending);
+		if (!ret && out->release_pending)
+			ret = -EBADF;
 	} while (ret != -ERESTARTSYS);
 
 	return ret;
@@ -263,9 +253,21 @@ static int proxy_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
+static int proxy_release(struct inode *inode, struct file *filp)
+{
+	struct evl_proxy *proxy = element_of(filp, struct evl_proxy);
+	struct proxy_out *out = &proxy->output;
+
+	out->release_pending = true;
+	evl_flush_flag(&out->oob_drained, T_RMID);
+	wake_up(&out->inband_drained);
+
+	return evl_release_element(inode, filp);
+}
+
 static const struct file_operations proxy_fops = {
 	.open		= evl_open_element,
-	.release	= evl_release_element,
+	.release	= proxy_release,
 	.oob_write	= proxy_oob_write,
 	.oob_poll	= proxy_oob_poll,
 	.write		= proxy_write,
@@ -278,6 +280,7 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 {
 	struct evl_proxy_attrs attrs;
 	struct evl_proxy *proxy;
+	struct proxy_out *out;
 	void *bufmem = NULL;
 	struct file *filp;
 	size_t bufsz;
@@ -326,15 +329,16 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 		goto fail_element;
 
 	proxy->filp = filp;
-	proxy->output.ring.bufmem = bufmem;
-	proxy->output.ring.bufsz = bufsz;
-	proxy->output.ring.granularity = attrs.granularity;
-	raw_spin_lock_init(&proxy->output.lock);
-	init_irq_work(&proxy->output.irq_work, relay_output_irq);
-	INIT_WORK(&proxy->output.work, relay_output);
-	evl_init_poll_head(&proxy->output.poll_head);
-	evl_init_flag(&proxy->output.oob_drained);
-	init_waitqueue_head(&proxy->output.inband_drained);
+	out = &proxy->output;
+	out->ring.bufmem = bufmem;
+	out->ring.bufsz = bufsz;
+	out->ring.granularity = attrs.granularity;
+	raw_spin_lock_init(&out->lock);
+	init_irq_work(&out->irq_work, relay_output_irq);
+	INIT_WORK(&out->work, relay_output);
+	evl_init_poll_head(&out->poll_head);
+	evl_init_flag(&out->oob_drained);
+	init_waitqueue_head(&out->inband_drained);
 	evl_index_element(&proxy->element);
 
 	return &proxy->element;
@@ -352,15 +356,19 @@ fail_proxy:
 static void proxy_factory_dispose(struct evl_element *e)
 {
 	struct evl_proxy *proxy;
+	struct proxy_out *out;
 
 	proxy = container_of(e, struct evl_proxy, element);
-	evl_destroy_flag(&proxy->output.oob_drained);
-	evl_unindex_element(&proxy->element);
+	out = &proxy->output;
+	irq_work_sync(&out->irq_work);
+	cancel_work_sync(&out->work);
 	fput(proxy->filp);
+	evl_destroy_flag(&out->oob_drained);
+	evl_unindex_element(&proxy->element);
 	evl_destroy_element(&proxy->element);
 
-	if (proxy->output.ring.bufmem)
-		kfree(proxy->output.ring.bufmem);
+	if (out->ring.bufmem)
+		kfree(out->ring.bufmem);
 
 	kfree_rcu(proxy, element.rcu);
 }
