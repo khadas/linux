@@ -20,6 +20,7 @@
 
 struct evl_rq;
 struct evl_timerbase;
+struct clock_event_device;
 
 struct evl_clock_gravity {
 	ktime_t irq;
@@ -71,6 +72,8 @@ int evl_init_clock(struct evl_clock *clock,
 
 int evl_init_slave_clock(struct evl_clock *clock,
 			struct evl_clock *master);
+
+void evl_core_tick(struct clock_event_device *dummy);
 
 void evl_announce_tick(struct evl_clock *clock);
 

@@ -80,41 +80,6 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
 	return 0;
 }
 
-/*
- * This is our high-precision clock tick handler. We only have two
- * possible callers, each of them may only run over a CPU which is a
- * member of the real-time set:
- *
- * - our TIMER_OOB_IPI handler, such IPI is directed to members of our
- * real-time CPU set exclusively.
- *
- * - our clock_event_handler() routine. The IRQ pipeline
- * guarantees that such handler always runs over a CPU which is a
- * member of the CPU set passed to enable_clock_devices() (i.e. our
- * real-time CPU set).
- *
- * hard IRQs are off.
- */
-static void clock_event_handler(struct clock_event_device *dummy)
-{
-	struct evl_rq *this_rq = this_evl_rq();
-
-	if (EVL_WARN_ON_ONCE(CORE, !is_evl_cpu(evl_rq_cpu(this_rq))))
-		return;
-
-	evl_announce_tick(&evl_mono_clock);
-
-	/*
-	 * If an EVL thread was preempted by this clock event, any
-	 * transition to the root thread will cause a pending in-band
-	 * tick to be propagated by evl_schedule() from
-	 * exit_oob_irq(), so we may have to propagate the in-band
-	 * tick immediately only if the root thread was preempted.
-	 */
-	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
-		evl_notify_proxy_tick(this_rq);
-}
-
 void evl_notify_proxy_tick(struct evl_rq *this_rq) /* hard IRQs off. */
 {
 	/*
@@ -131,7 +96,7 @@ void evl_notify_proxy_tick(struct evl_rq *this_rq) /* hard IRQs off. */
 
 static irqreturn_t clock_ipi_handler(int irq, void *dev_id)
 {
-	clock_event_handler(NULL);
+	evl_core_tick(NULL);
 
 	return IRQ_HANDLED;
 }
@@ -142,7 +107,7 @@ static void setup_proxy(struct clock_proxy_device *dev)
 {
 	struct clock_event_device *proxy_dev = &dev->proxy_device;
 
-	dev->handle_oob_event = clock_event_handler;
+	dev->handle_oob_event = evl_core_tick;
 	proxy_dev->features |= CLOCK_EVT_FEAT_KTIME;
 	proxy_dev->set_next_ktime = proxy_set_next_ktime;
 	if (proxy_dev->set_state_oneshot_stopped)
