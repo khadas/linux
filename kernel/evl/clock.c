@@ -272,29 +272,15 @@ static inline bool timer_needs_enqueuing(struct evl_timer *timer)
 			EVL_TIMER_RUNNING);
 }
 
-/* Announce a tick from a master clock. */
-void evl_announce_tick(struct evl_clock *clock)
+/* hard irqs off */
+static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 {
 	struct evl_rq *rq = this_evl_rq();
-	struct evl_timerbase *tmb;
 	struct evl_timer *timer;
 	struct evl_tqueue *tq;
 	struct evl_tnode *tn;
 	unsigned long flags;
 	ktime_t now;
-
-#ifdef CONFIG_SMP
-	/*
-	 * Some external clock devices may be global without any
-	 * particular IRQ affinity, in which case the associated
-	 * timers will be queued to CPU0.
-	 */
-	if (clock != &evl_mono_clock &&
-		!cpumask_test_cpu(evl_rq_cpu(rq), &clock->affinity))
-		tmb = evl_percpu_timers(clock, 0);
-	else
-#endif
-		tmb = evl_this_cpu_timers(clock);
 
 	tq = &tmb->q;
 	raw_spin_lock_irqsave(&tmb->lock, flags);
@@ -339,6 +325,48 @@ void evl_announce_tick(struct evl_clock *clock)
 	evl_program_local_tick(clock);
 
 	raw_spin_unlock_irqrestore(&tmb->lock, flags);
+}
+
+void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+{
+	struct evl_rq *this_rq = this_evl_rq();
+	struct evl_timerbase *tmb;
+
+	if (EVL_WARN_ON_ONCE(CORE, !is_evl_cpu(evl_rq_cpu(this_rq))))
+		return;
+
+	tmb = evl_this_cpu_timers(&evl_mono_clock);
+	do_clock_tick(&evl_mono_clock, tmb);
+
+	/*
+	 * If an EVL thread was preempted by this clock event, any
+	 * transition to the root thread will cause a pending in-band
+	 * tick to be propagated by evl_schedule() from
+	 * exit_oob_irq(), so we may have to propagate the in-band
+	 * tick immediately only if the root thread was preempted.
+	 */
+	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+		evl_notify_proxy_tick(this_rq);
+}
+
+void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
+{
+	struct evl_rq *this_rq = this_evl_rq();
+	struct evl_timerbase *tmb;
+
+#ifdef CONFIG_SMP
+	/*
+	 * Some external clock devices may be global without any
+	 * particular IRQ affinity, in which case the associated
+	 * timers will be queued to CPU0.
+	 */
+	if (!cpumask_test_cpu(evl_rq_cpu(this_rq), &clock->affinity))
+		tmb = evl_percpu_timers(clock, 0);
+	else
+#endif
+		tmb = evl_this_cpu_timers(clock);
+
+	do_clock_tick(clock, tmb);
 }
 EXPORT_SYMBOL_GPL(evl_announce_tick);
 
