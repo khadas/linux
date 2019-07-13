@@ -280,11 +280,13 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 	struct evl_timer *timer;
 	struct evl_tqueue *tq;
 	struct evl_tnode *tn;
-	unsigned long flags;
 	ktime_t now;
 
+	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
+		hard_local_irq_disable();
+
 	tq = &tmb->q;
-	raw_spin_lock_irqsave(&tmb->lock, flags);
+	raw_spin_lock(&tmb->lock);
 
 	/*
 	 * Optimisation: any local timer reprogramming triggered by
@@ -312,9 +314,9 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 			} while (evl_tdate(timer) < now);
 		}
 
-		raw_spin_unlock_irqrestore(&tmb->lock, flags);
+		raw_spin_unlock(&tmb->lock);
 		timer->handler(timer);
-		raw_spin_lock_irqsave(&tmb->lock, flags);
+		raw_spin_lock(&tmb->lock);
 
 		if (timer_needs_enqueuing(timer) &&
 			evl_timer_on_rq(timer, rq))
@@ -325,7 +327,7 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 
 	evl_program_local_tick(clock);
 
-	raw_spin_unlock_irqrestore(&tmb->lock, flags);
+	raw_spin_unlock(&tmb->lock);
 }
 
 void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
