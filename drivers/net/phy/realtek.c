@@ -62,7 +62,7 @@ static int __init init_wol_state(char *str)
 }
 __setup("wol_enable=", init_wol_state);
 
-static void enable_wol(int enable, bool is_shutdown)
+static void enable_wol(int enable, bool suspend)
 {
 	printk("enable_wol: %d\n", enable);
 
@@ -73,7 +73,7 @@ static void enable_wol(int enable, bool is_shutdown)
 			int value;
 
 			mutex_lock(&g_phydev->lock);
-			if (is_shutdown)
+			if (suspend)
 			{
 				/*set speed to 10Mbps */
 				phy_write(g_phydev, RTL821x_EPAGSR, 0x0); /*set page 0x0*/
@@ -101,9 +101,9 @@ static void enable_wol(int enable, bool is_shutdown)
 	}
 }
 
-void realtek_enable_wol(int enable, bool is_shutdown)
+void realtek_enable_wol(int enable, bool suspend)
 {
-	enable_wol(enable, is_shutdown);
+	enable_wol(enable, suspend);
 }
 
 static int rtl821x_ack_interrupt(struct phy_device *phydev)
@@ -226,8 +226,15 @@ int rtl8211f_suspend(struct phy_device *phydev)
 {
 	if (support_external_phy_wol) {
 		printk("rtl8211f_suspend...\n");
-		enable_wol((wol_enable << 0), false);
+		enable_wol((wol_enable << 0), true);
 	} else {
+		int value;
+		/*pin 31 pull high*/
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
+		value = phy_read(g_phydev, 0x16);
+		phy_write(g_phydev, 0x16, value | (1 << 5));
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
+
 		genphy_suspend(phydev);
 	}
 	return 0;
@@ -239,6 +246,10 @@ int rtl8211f_resume(struct phy_device *phydev)
 
 	if (support_external_phy_wol) {
 		mutex_lock(&phydev->lock);
+
+		/* 1000Mbps */
+		phy_write(phydev, RTL821x_EPAGSR, 0x0);
+		phy_write(phydev, RTL8211F_BMCR, 0x1040);
 
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
 		phy_write(phydev, 0x10, 0x0);
@@ -259,12 +270,9 @@ int rtl8211f_resume(struct phy_device *phydev)
 	return 0;
 }
 
-void rtl8211f_shutdown(void)
+static void rtl8211f_remove(struct phy_device *phydev)
 {
-	if (support_external_phy_wol) {
-		printk("rtl8211f_shutdown...\n");
-		enable_wol((wol_enable << 0), true);
-	}
+	rtl8211f_suspend(phydev);
 }
 
 #endif
@@ -325,6 +333,7 @@ static struct phy_driver realtek_drvs[] = {
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 		.suspend	= rtl8211f_suspend,
 		.resume		= rtl8211f_resume,
+		.remove         = rtl8211f_remove,
 #else
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

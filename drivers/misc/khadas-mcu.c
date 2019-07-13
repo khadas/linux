@@ -89,10 +89,10 @@ struct mcu_data {
 struct mcu_data *g_mcu_data;
 
 extern void send_power_key(int state);
-extern void realtek_enable_wol(int enable, bool is_shutdown);
-void mcu_enable_wol(int enable, bool is_shutdown)
+extern void realtek_enable_wol(int enable, bool suspend);
+void mcu_enable_wol(int enable, bool suspend)
 {
-	realtek_enable_wol(enable, is_shutdown);
+	realtek_enable_wol(enable, suspend);
 }
 
 static int i2c_master_reg8_send(const struct i2c_client *client,
