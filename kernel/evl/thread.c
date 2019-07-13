@@ -1736,11 +1736,6 @@ void resume_oob_task(struct task_struct *p) /* hw IRQs off */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 
-	/*
-	 * We fire the handler before the thread is migrated, so that
-	 * thread->rq does not change between paired invocations of
-	 * relax_thread/harden handlers.
-	 */
 	xnlock_get(&nklock);
 	if (affinity_ok(p))
 		evl_release_thread(thread, T_INBAND, 0);
