@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/amlogic/pm.h>
 
 
 
@@ -87,6 +88,7 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 
+extern void send_power_key(int state);
 extern void realtek_enable_wol(int enable, bool is_shutdown);
 void mcu_enable_wol(int enable, bool is_shutdown)
 {
@@ -531,6 +533,10 @@ static int khadas_fan_resume(struct device *dev)
 {
 	khadas_fan_set(&g_mcu_data->fan_data);
 
+	if (get_resume_method() == WOL_WAKEUP) {
+		send_power_key(1);
+		send_power_key(0);
+	}
 	return 0;
 }
 
