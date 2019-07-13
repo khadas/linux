@@ -228,6 +228,14 @@ int rtl8211f_suspend(struct phy_device *phydev)
 		printk("rtl8211f_suspend...\n");
 		enable_wol((wol_enable << 0), false);
 	} else {
+		int value;
+
+		/*pin 31 pull high*/
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
+		value = phy_read(g_phydev, 0x16);
+		phy_write(g_phydev, 0x16, value | (1 << 5));
+		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
+
 		genphy_suspend(phydev);
 	}
 	return 0;
