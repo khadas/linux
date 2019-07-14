@@ -358,7 +358,6 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 
 void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
 {
-	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_timerbase *tmb;
 
 #ifdef CONFIG_SMP
@@ -367,7 +366,7 @@ void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
 	 * particular IRQ affinity, in which case the associated
 	 * timers will be queued to CPU0.
 	 */
-	if (!cpumask_test_cpu(evl_rq_cpu(this_rq), &clock->affinity))
+	if (!cpumask_test_cpu(evl_rq_cpu(this_evl_rq()), &clock->affinity))
 		tmb = evl_percpu_timers(clock, 0);
 	else
 #endif
