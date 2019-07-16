@@ -241,13 +241,8 @@ static void latmus_irq_handler(struct evl_timer *timer) /* hard irqs off */
 
 	irq_runner = container_of(timer, struct irq_runner, timer);
 	now = evl_read_clock(&evl_mono_clock);
-
-	xnlock_get(&nklock);
-
 	if (irq_runner->runner.add_sample(&irq_runner->runner, now))
 		evl_stop_timer(timer);
-
-	xnlock_put(&nklock);
 }
 
 static void destroy_irq_runner(struct latmus_runner *runner)
