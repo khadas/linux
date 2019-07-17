@@ -225,8 +225,8 @@ static int do_cpu_state(struct evl_cpu_state *cpst)
 static long control_common_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
+	struct evl_cpu_state cpst = { .state = 0 }, __user *u_cpst;
 	struct evl_sched_ctlreq ctl, __user *u_ctl;
-	struct evl_cpu_state cpst, __user *u_cpst;
 	long ret;
 
 	switch (cmd) {
