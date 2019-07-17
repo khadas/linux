@@ -4,12 +4,13 @@
  * Copyright (C) 2017 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <linux/interrupt.h>
-#include <linux/irq.h>
+#ifndef _EVL_IRQ_H
+#define _EVL_IRQ_H
+
 #include <evl/sched.h>
 
 /* hard IRQs off. */
-void enter_oob_irq(void)
+static inline void evl_enter_irq(void)
 {
 	struct evl_rq *rq = this_evl_rq();
 
@@ -17,7 +18,7 @@ void enter_oob_irq(void)
 }
 
 /* hard IRQs off. */
-void exit_oob_irq(void)
+static inline void evl_leave_irq(void)
 {
 	struct evl_rq *rq = this_evl_rq();
 
@@ -38,3 +39,5 @@ void exit_oob_irq(void)
 			hard_local_irq_disable();
 	}
 }
+
+#endif /* !_EVL_IRQ_H */

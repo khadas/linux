@@ -190,7 +190,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 * Postpone evl_init_thread() - which sets RQ_SCHED upon
 	 * setting the schedparams for the root thread - until we have
 	 * enough of the runqueue initialized, so that attempting to
-	 * reschedule from exit_oob_irq() later on is harmless.
+	 * reschedule from evl_leave_irq() later on is harmless.
 	 */
 	iattr.flags = T_ROOT;
 	iattr.affinity = *cpumask_of(cpu);
@@ -318,7 +318,7 @@ int evl_set_thread_policy(struct evl_thread *thread,
 	/*
 	 * Make sure not to raise RQ_SCHED when setting up the root
 	 * thread, so that we can't start rescheduling from
-	 * exit_oob_irq() before all CPUs have their runqueue fully
+	 * evl_leave_irq() before all CPUs have their runqueue fully
 	 * built. Filtering on T_ROOT here is correct because the root
 	 * thread enters the idle class once as part of the runqueue
 	 * setup process and never leaves it afterwards.
