@@ -27,6 +27,7 @@
 /* Device registers */
 #define MCU_WOL_REG		0x21
 #define MCU_FAN_CTRL	0x88
+#define MCU_RST_REG             0x2c
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -82,6 +83,7 @@ struct khadas_fan_data {
 struct mcu_data {
 	struct i2c_client *client;
 	struct class *wol_class;
+	struct class *mcu_class;
 	int wol_enable;
 	struct khadas_fan_data fan_data;
 };
@@ -374,6 +376,28 @@ static ssize_t show_wol_enable(struct class *cls,
 	return sprintf(buf, "%d\n", enable);
 }
 
+static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int rst;
+
+	if (kstrtoint(buf, 0, &rst))
+		return -EINVAL;
+
+	reg[0] = rst;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_RST_REG, reg, 1);
+	if (ret < 0)
+		printk("rst mcu err\n");
+	return count;
+
+}
+
+static struct class_attribute mcu_class_attrs[] = {
+	__ATTR(rst, 0644, NULL, store_rst_mcu),
+};
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 };
@@ -397,6 +421,17 @@ static void create_mcu_attrs(void)
 	for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
 		if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
 			pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
+	}
+
+	g_mcu_data->mcu_class = class_create(THIS_MODULE, "mcu");
+	if (IS_ERR(g_mcu_data->mcu_class)) {
+		pr_err("create mcu_class debug class fail\n");
+		return;
+	}
+
+	for (i=0; i<ARRAY_SIZE(mcu_class_attrs); i++) {
+		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i]))
+			pr_err("create fan attribute %s fail\n", mcu_class_attrs[i].attr.name);
 	}
 
 	if (is_mcu_fan_control_available()) {
