@@ -27,7 +27,7 @@
 #define TCA6408_INVERT         2
 #define TCA6408_DIRECTION      3
 
-#define TCA6408_DEBUG
+//#define TCA6408_DEBUG
 #ifdef TCA6408_DEBUG
     #define debug_info(msg...) printk(msg);
 #else
