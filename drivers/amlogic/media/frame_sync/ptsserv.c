@@ -515,7 +515,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 			if (tsync_get_debug_apts() && (type == PTS_TYPE_AUDIO))
 				pr_info("init apts[%d] at 0x%x\n", type, val);
 
-			if (type == PTS_TYPE_VIDEO)
+			if (type == PTS_TYPE_VIDEO && !tsync_get_tunnel_mode())
 				timestamp_vpts_set(val);
 			else if (type == PTS_TYPE_AUDIO)
 				timestamp_apts_set(val);

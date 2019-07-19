@@ -214,6 +214,7 @@ static int tsync_dec_reset_flag;
 static int tsync_dec_reset_video_start;
 static int tsync_automute_on;
 static int tsync_video_started;
+static int is_tunnel_mode;
 
 static int debug_pts_checkin;
 static int debug_pts_checkout;
@@ -1431,6 +1432,18 @@ int tsync_set_startsync_mode(int mode)
 	return startsync_mode = mode;
 }
 EXPORT_SYMBOL(tsync_set_startsync_mode);
+
+int tsync_set_tunnel_mode(int mode)
+{
+	return is_tunnel_mode = mode;
+}
+EXPORT_SYMBOL(tsync_set_tunnel_mode);
+
+int tsync_get_tunnel_mode(void)
+{
+	return is_tunnel_mode;
+}
+EXPORT_SYMBOL(tsync_get_tunnel_mode);
 
 bool tsync_check_vpts_discontinuity(unsigned int vpts)
 {

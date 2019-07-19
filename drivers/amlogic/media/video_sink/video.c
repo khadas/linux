@@ -9865,6 +9865,16 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			break;
 		}
 
+	case AMSTREAM_IOC_SET_TUNNEL_MODE: {
+		u32 tunnelmode = 0;
+
+		if (copy_from_user(&tunnelmode, argp, sizeof(u32)) == 0)
+			tsync_set_tunnel_mode(tunnelmode);
+		else
+			ret = -EFAULT;
+		break;
+	}
+
 	case AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED:
 		put_user(first_frame_toggled, (u32 __user *)argp);
 		break;
@@ -10017,6 +10027,7 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_SET_VSYNC_UPINT:
 	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
+	case AMSTREAM_IOC_SET_TUNNEL_MODE:
 	case AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED:
 	case AMSTREAM_IOC_SET_VIDEOPEEK:
 		return amvideo_ioctl(file, cmd, arg);
