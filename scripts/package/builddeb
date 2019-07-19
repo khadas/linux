@@ -32,9 +32,25 @@ create_package() {
 		echo "exit 0" >> $pdir/DEBIAN/preinst
 		chmod 775 $pdir/DEBIAN/preinst
 		#
-		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/postinst
-		echo "ln -sf dtb-$version /boot/dtb > /dev/null 2>&1 || mv /boot/dtb-$version /boot/dtb" >> $pdir/DEBIAN/postinst
-		echo "exit 0" >> $pdir/DEBIAN/postinst
+		# Set up postinst file
+		cat <<-EOF > $pdir/DEBIAN/postinst
+		#!/bin/bash
+		if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi
+		ln -sf dtb-$version /boot/dtb > /dev/null 2>&1 || mv /boot/dtb-$version /boot/dtb
+
+		# Exit if we are running chroot
+		if [ "\$(stat -c %d:%i /)" != "\$(stat -c %d:%i /proc/1/root/.)" ]; then exit 0; fi
+		# Create dtb upgrade mark for eMMC image
+		tmp=\$(cat /proc/cmdline)
+		imagetype="\${tmp##*imagetype=}"
+		imagetype="\${imagetype%% *}"
+		if [ "\$imagetype" == "EMMC" ]; then
+			touch /boot/.DTB-NEED-UPDATE
+		fi
+
+		exit 0
+		EOF
+
 		chmod 775 $pdir/DEBIAN/postinst
 	fi
 
