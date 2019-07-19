@@ -103,7 +103,7 @@
 };
 
 &isp0 {
-	status = "okay";
+	status = "disabled";
 
 	pinctrl-names =
 		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
@@ -119,7 +119,7 @@
 };
 
 &isp1 {
-	status = "okay";
+	status = "disabled";
 
 	pinctrl-names =
 		"cif_clkout", "isp_dvp8bit0", "isp_mipi_fl";
@@ -149,6 +149,41 @@
 
 &i2c6 {
 	status = "okay";
+
+	vm149c: vm149c@0c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+	
+	imx214: imx214@10 {
+		compatible = "sony,imx214";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		pwdn-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "YG9626-S600Y7-C";
+		rockchip,camera-module-lens-name = "LG-50013A7";
+		lens-focus = <&vm149c>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				//remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};	
 };
 
 &i2c7 {
@@ -296,6 +331,52 @@
 	rt5651 {
 		rt5651_hpdet: rt5651-hpdet {
 			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_A0 */
+		};
+	};
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
+&rkisp1_0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
 		};
 	};
 };
