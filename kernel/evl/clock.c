@@ -307,19 +307,29 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 		evl_account_timer_fired(timer);
 		timer->status |= EVL_TIMER_FIRED;
 
-		if (timer->status & EVL_TIMER_PERIODIC) {
-			do {
-				timer->periodic_ticks++;
-				evl_update_timer_date(timer);
-			} while (evl_tdate(timer) < now);
+		/*
+		 * Propagating the proxy tick to the inband stage is a
+		 * low priority task: postpone this until the very end
+		 * of the core tick interrupt.
+		 */
+		if (unlikely(timer == &rq->inband_timer)) {
+			rq->lflags |= RQ_TPROXY;
+			rq->lflags &= ~RQ_TDEFER;
+			continue;
 		}
 
 		raw_spin_unlock(&tmb->lock);
 		timer->handler(timer);
 		raw_spin_lock(&tmb->lock);
 
-		if (timer_needs_enqueuing(timer) &&
-			evl_timer_on_rq(timer, rq))
+		if (!timer_needs_enqueuing(timer))
+			continue;
+		do {
+			timer->periodic_ticks++;
+			evl_update_timer_date(timer);
+		} while (evl_tdate(timer) < now);
+
+		if (likely(evl_timer_on_rq(timer, rq)))
 			evl_enqueue_timer(timer, tq);
 	}
 
@@ -343,6 +353,8 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 	tmb = evl_this_cpu_timers(&evl_mono_clock);
 	do_clock_tick(&evl_mono_clock, tmb);
 
+	evl_leave_irq();
+
 	/*
 	 * If an EVL thread was preempted by this clock event, any
 	 * transition to the root thread will cause a pending in-band
@@ -352,8 +364,6 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 	 */
 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
 		evl_notify_proxy_tick(this_rq);
-
-	evl_leave_irq();
 }
 
 void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
