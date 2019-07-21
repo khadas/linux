@@ -185,7 +185,8 @@ static int add_measurement_sample(struct latmus_runner *runner,
 	state->sum += delta;
 	state->ideal = ktime_add(state->ideal, period);
 
-	while (delta > ktime_to_ns(period)) { /* period > 0 */
+	while (delta > 0 &&
+		(unsigned int)delta > ktime_to_ns(period)) { /* period > 0 */
 		state->overruns++;
 		state->ideal = ktime_add(state->ideal, period);
 		delta -= ktime_to_ns(period);
