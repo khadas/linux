@@ -125,20 +125,6 @@ static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
 	xnlock_put(&nklock);
 }
 
-static void proxy_tick_handler(struct evl_timer *timer) /* hard irqs off */
-{
-	struct evl_rq *this_rq;
-
-	/*
-	 * Propagating the proxy tick to the host kernel is a low
-	 * priority duty: postpone this until the end of the core tick
-	 * handler.
-	 */
-	this_rq = container_of(timer, struct evl_rq, inband_timer);
-	this_rq->lflags |= RQ_TPROXY;
-	this_rq->lflags &= ~RQ_TDEFER;
-}
-
 static void init_rq(struct evl_rq *rq, int cpu)
 {
 	struct evl_sched_class *sched_class;
@@ -166,10 +152,11 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	rq->curr = &rq->root_thread;
 
 	/*
-	 * No direct handler here since proxy timer events are handled
-	 * specifically by the generic timer code.
+	 * No handler needed for the inband timer since proxy timer
+	 * events are handled specifically by the generic timer code
+	 * (do_clock_tick()).
 	 */
-	evl_init_timer(&rq->inband_timer, &evl_mono_clock, proxy_tick_handler,
+	evl_init_timer(&rq->inband_timer, &evl_mono_clock, NULL,
 		rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
 	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
