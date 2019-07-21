@@ -322,15 +322,12 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 		timer->handler(timer);
 		raw_spin_lock(&tmb->lock);
 
-		if (!timer_needs_enqueuing(timer))
-			continue;
-		do {
+		if (timer_needs_enqueuing(timer)) {
 			timer->periodic_ticks++;
 			evl_update_timer_date(timer);
-		} while (evl_tdate(timer) < now);
-
-		if (likely(evl_timer_on_rq(timer, rq)))
-			evl_enqueue_timer(timer, tq);
+			if (likely(evl_timer_on_rq(timer, rq)))
+				evl_enqueue_timer(timer, tq);
+		}
 	}
 
 	rq->lflags &= ~RQ_TIMER;
