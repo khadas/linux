@@ -18,7 +18,7 @@ static inline void evl_enter_irq(void)
 }
 
 /* hard IRQs off. */
-static inline void evl_leave_irq(void)
+static inline void evl_exit_irq(void)
 {
 	struct evl_rq *rq = this_evl_rq();
 

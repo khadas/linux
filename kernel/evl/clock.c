@@ -345,18 +345,14 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 	if (EVL_WARN_ON_ONCE(CORE, !is_evl_cpu(evl_rq_cpu(this_rq))))
 		return;
 
-	evl_enter_irq();
-
 	tmb = evl_this_cpu_timers(&evl_mono_clock);
 	do_clock_tick(&evl_mono_clock, tmb);
-
-	evl_leave_irq();
 
 	/*
 	 * If an EVL thread was preempted by this clock event, any
 	 * transition to the root thread will cause a pending in-band
-	 * tick to be propagated by evl_schedule() from
-	 * evl_leave_irq(), so we may have to propagate the in-band
+	 * tick to be propagated by evl_schedule() called from
+	 * evl_exit_irq(), so we may have to propagate the in-band
 	 * tick immediately only if the root thread was preempted.
 	 */
 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
