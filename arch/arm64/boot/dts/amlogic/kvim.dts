@@ -411,9 +411,6 @@
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;
-			rst_pin-gpios = <&gpio GPIOZ_14 0>;
-			GPIOZ4_pin-gpios = <&gpio GPIOZ_4 0>;
-			GPIOZ5_pin-gpios = <&gpio GPIOZ_5 0>;
 			mc_val_internal_phy = <0x1800>;
 			mc_val_external_phy = <0x1621>;
 			cali_val = <0x20000>;
@@ -421,6 +418,7 @@
 			clocks = <&clkc CLKID_ETH>;
 			clock-names = "ethclk81";
 			internal_phy=<1>;
+			wol=<0>;
 	};
 
 	codec_io {
