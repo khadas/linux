@@ -22,7 +22,7 @@
 #include <sound/initval.h>
 #include <linux/of.h>
 
-#define DRV_NAME "spdif-dit"
+#define DRV_NAME "spdif-dit-dummy"
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
