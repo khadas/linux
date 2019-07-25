@@ -484,3 +484,36 @@ done:
 	return overruns;
 }
 EXPORT_SYMBOL_GPL(evl_get_timer_overruns);
+
+static __always_inline
+bool date_is_earlier(struct evl_tnode *left,
+		struct evl_tnode *right)
+{
+	return left->date < right->date
+		|| (left->date == right->date && left->prio > right->prio);
+}
+
+void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
+{
+	struct rb_node **new = &tq->root.rb_node, *parent = NULL;
+
+	if (!tq->head)
+		tq->head = node;
+	else if (date_is_earlier(node, tq->head)) {
+		parent = &tq->head->rb;
+		new = &parent->rb_left;
+		tq->head = node;
+	} else while (*new) {
+			struct evl_tnode *i = container_of(*new, struct evl_tnode, rb);
+
+			parent = *new;
+			if (date_is_earlier(node, i))
+				new = &((*new)->rb_left);
+			else
+				new = &((*new)->rb_right);
+		}
+
+	rb_link_node(&node->rb, parent, new);
+	rb_insert_color(&node->rb, &tq->root);
+}
+EXPORT_SYMBOL_GPL(evl_insert_tnode);
