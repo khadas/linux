@@ -23,7 +23,9 @@ struct evl_account {
 
 /*
  * Return current date which can be passed to other accounting
- * services for immediate accounting.
+ * services for immediate accounting. We do not use sched_clock() on
+ * purpose: its worst case execution time may be really bad under some
+ * combination of clock data updates and high cache pressure.
  */
 static inline ktime_t evl_get_timestamp(void)
 {
@@ -80,7 +82,7 @@ static inline void evl_reset_account(struct evl_account *account)
 #define evl_close_account(__rq, __new_account)			\
 	do {							\
 		(__rq)->last_account_switch =			\
-			evl_read_coreclk_monotonic();		\
+			evl_get_timestamp();			\
 		(__rq)->current_account = (__new_account);	\
 	} while (0)
 
