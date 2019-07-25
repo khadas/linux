@@ -2013,10 +2013,11 @@ void evl_get_thread_state(struct evl_thread *thread,
 	__get_sched_attrs(thread->sched_class, thread, &statebuf->eattrs);
 	statebuf->cpu = evl_rq_cpu(thread->rq);
 	statebuf->state = evl_rq_cpu(thread->rq);
-	statebuf->isw = thread->stat.isw.counter;
-	statebuf->csw = thread->stat.csw.counter;
-	statebuf->sc = thread->stat.sc.counter;
-	statebuf->xtime = ktime_to_ns(thread->stat.account.total);
+	statebuf->isw = evl_get_counter(&thread->stat.isw);
+	statebuf->csw = evl_get_counter(&thread->stat.csw);
+	statebuf->sc = evl_get_counter(&thread->stat.sc);
+	statebuf->xtime = ktime_to_ns(evl_get_account_total(
+					&thread->stat.account));
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_get_thread_state);
