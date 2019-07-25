@@ -60,6 +60,7 @@ enum khadas_fan_enable {
 
 enum khadas_fan_hwver {
 	KHADAS_FAN_HWVER_NONE = 0,
+	KHADAS_FAN_HWVER_VIM1_V13,
 	KHADAS_FAN_HWVER_VIM2_V12,
 	KHADAS_FAN_HWVER_VIM2_V13,
 	KHADAS_FAN_HWVER_VIM2_V14,
@@ -161,7 +162,7 @@ static int mcu_i2c_write_regs(struct i2c_client *client,
 static int is_mcu_fan_control_available(void)
 {
 	// MCU FAN control only for Khadas VIM2 V13 and later.
-	if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_VIM2_V12)
+	if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_NONE)
 		return 1;
 	else
 		return 0;
@@ -469,8 +470,8 @@ static int mcu_parse_dt(struct device *dev)
 	if (ret < 0) {
 		g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
 	} else {
-		if (0 == strcmp(hwver, "VIM2.V12")) {
-			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM2_V12;
+		if (0 == strcmp(hwver, "VIM1.V13")) {
+			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM1_V13;
 		} else if (0 == strcmp(hwver, "VIM2.V13")) {
 			g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM2_V13;
 		} else if (0 == strcmp(hwver, "VIM2.V14")) {
