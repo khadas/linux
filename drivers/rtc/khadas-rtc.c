@@ -49,7 +49,7 @@
 #define WEEKDAY_MASK    0x07
 #define RTC_CTL2_AIE    BIT(1)
 
-#define HY8563_DEBUG
+//#define HY8563_DEBUG
 #ifdef HY8563_DEBUG
     #define debug_info(msg...) printk(msg);
 #else
@@ -115,7 +115,7 @@ static int hym8563_i2c_read_regs(struct i2c_client *client,
 {
 	int ret;
 	ret = i2c_master_reg8_recv(client, reg, buf, len);
-    printk("%s,ret=%d\n", __func__, ret);
+
 	return ret;
 }
 
@@ -224,7 +224,9 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 regs[RTC_SECTION_LEN] = { 0, };
-    debug_info("%s\n", __func__);
+
+	debug_info("%s\n", __func__);
+
 	mutex_lock(&hym8563->mutex);
 	hym8563_i2c_read_regs(client, RTC_SEC, regs, RTC_SECTION_LEN);
 	mutex_unlock(&hym8563->mutex);
