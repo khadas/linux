@@ -296,9 +296,9 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 	 */
 	rq->lflags |= RQ_TIMER;
 
+	now = evl_read_clock(clock);
 	while ((tn = evl_get_tqueue_head(tq)) != NULL) {
 		timer = container_of(tn, struct evl_timer, node);
-		now = evl_read_clock(clock);
 		if (now < evl_tdate(timer))
 			break;
 
@@ -320,11 +320,14 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 
 		raw_spin_unlock(&tmb->lock);
 		timer->handler(timer);
+		now = evl_read_clock(clock);
 		raw_spin_lock(&tmb->lock);
 
 		if (timer_needs_enqueuing(timer)) {
-			timer->periodic_ticks++;
-			evl_update_timer_date(timer);
+			do {
+				timer->periodic_ticks++;
+				evl_update_timer_date(timer);
+			} while (evl_tdate(timer) < now);
 			if (likely(evl_timer_on_rq(timer, rq)))
 				evl_enqueue_timer(timer, tq);
 		}
