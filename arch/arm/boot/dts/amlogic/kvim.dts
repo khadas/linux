@@ -1096,6 +1096,19 @@
 		tx_op_color_primary = <0>;
 	};
 
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		io-channels = <&saradc SARADC_CH0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
+		key_code = <102>;
+		key_val = <108>; //val=voltage/1800mV*1023
+		key_tolerance = <40>;
+	};
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
