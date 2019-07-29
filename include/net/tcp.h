@@ -1526,6 +1526,11 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 bool tcp_fastopen_defer_connect(struct sock *sk, int *err);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
+static inline void tcp_init_send_head(struct sock *sk)
+{
+	sk->sk_send_head = NULL;
+}
+
 /* Fastopen key context */
 struct tcp_fastopen_context {
 	struct crypto_cipher	*tfm;
@@ -1542,6 +1547,7 @@ static inline void tcp_write_queue_purge(struct sock *sk)
 		sk_wmem_free_skb(sk, skb);
 	sk_mem_reclaim(sk);
 	tcp_clear_all_retrans_hints(tcp_sk(sk));
+	tcp_init_send_head(sk);
 }
 
 static inline struct sk_buff *tcp_write_queue_head(const struct sock *sk)
@@ -1600,11 +1606,6 @@ static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unli
 		sk->sk_send_head = NULL;
 	if (tcp_sk(sk)->highest_sack == skb_unlinked)
 		tcp_sk(sk)->highest_sack = NULL;
-}
-
-static inline void tcp_init_send_head(struct sock *sk)
-{
-	sk->sk_send_head = NULL;
 }
 
 static inline void __tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
