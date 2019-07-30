@@ -1340,6 +1340,150 @@ static unsigned int aml_sd_emmc_clktest(struct mmc_host *mmc)
 	return count;
 }
 
+static void pr_adj_info(char *name,
+		unsigned long x, u32 fir_adj, u32 div)
+{
+	int i;
+
+	pr_info("[%s] fixed_adj_win_map:%lu\n",
+			name, x);
+	for (i = 0; i < div; i++)
+		pr_info("[%d]=%d\n", (fir_adj + i) % div,
+				((x >> i) & 0x1) ? 1 : 0);
+}
+
+static unsigned long _test_fixed_adj(struct amlsd_host *host,
+		struct aml_tuning_data *tuning_data, u32 opcode,
+		u32 adj, u32 div)
+{
+	int i = 0;
+	u32 nmatch = 0;
+	u32 adjust = readl(host->base + SD_EMMC_ADJUST_V3);
+	struct sd_emmc_adjust_v3 *gadjust =
+		(struct sd_emmc_adjust_v3 *)&adjust;
+	const u8 *blk_pattern = tuning_data->blk_pattern;
+	unsigned int blksz = tuning_data->blksz;
+	DECLARE_BITMAP(fixed_adj_map, div);
+
+	bitmap_zero(fixed_adj_map, div);
+	for (i = 0; i < div; i++) {
+		gadjust->adj_delay = adj + i;
+		gadjust->adj_enable = 1;
+		gadjust->cali_enable = 0;
+		gadjust->cali_rise = 0;
+		writel(adjust, host->base + SD_EMMC_ADJUST_V3);
+		nmatch = aml_sd_emmc_tuning_transfer(host->mmc, opcode,
+				blk_pattern, host->blk_test, blksz);
+		/*get a ok adjust point!*/
+		if (nmatch == TUNING_NUM_PER_POINT) {
+			set_bit(adj+i, fixed_adj_map);
+			pr_info("%s: rx_tuning_result[%d] = %d\n",
+				mmc_hostname(host->mmc), adj+i, nmatch);
+		}
+	}
+	return *fixed_adj_map;
+}
+
+static u32 _find_fixed_adj_mid(unsigned long map,
+		u32 adj, u32 div)
+{
+	u32 left, right, mid, size = 0;
+
+	left = find_last_bit(&map, div);
+	right = find_first_bit(&map, div);
+	mid = find_first_zero_bit(&map, div);
+	size = left - right + 1;
+	pr_info("left:%u, right:%u, mid:%u, size:%u\n",
+			left, right, mid, size);
+	if ((size >= 3) && ((mid < right) || (mid > left))) {
+		mid = (adj + (size - 1) / 2 + (size - 1) % 2) % div;
+		return mid;
+	}
+	return NO_FIXED_ADJ_MID;
+}
+
+static unsigned long _swap_fixed_adj_win(unsigned long map,
+		u32 shift, u32 div)
+{
+	unsigned long left, right;
+
+	bitmap_shift_right(&right, &map,
+			shift, div);
+	bitmap_shift_left(&left, &map,
+			div - shift, div);
+	bitmap_or(&map, &right, &left, div);
+	return map;
+}
+
+static void set_fixed_adj_line_delay(u32 step,
+		struct amlsd_host *host)
+{
+	writel(AML_MOVE_DELAY1(step), host->base + SD_EMMC_DELAY1_V3);
+	writel(AML_MOVE_DELAY2(step), host->base + SD_EMMC_DELAY2_V3);
+	pr_info("step:%u, delay1:0x%x, delay2:0x%x\n",
+			step,
+			readl(host->base + SD_EMMC_DELAY1_V3),
+			readl(host->base + SD_EMMC_DELAY2_V3));
+}
+/*	1. find first removed a fixed_adj_point
+ *	2. re-range fixed adj point
+ *	3. retry
+ */
+static u32 _find_fixed_adj_valid_win(struct amlsd_host *host,
+		struct aml_tuning_data *tuning_data, u32 opcode,
+		unsigned long *fixed_adj_map, u32 div)
+{
+	u32 step = 0, ret = NO_FIXED_ADJ_MID, fir_adj = 0xff;
+	unsigned long cur_map[1] = {0};
+	unsigned long prev_map[1] = {0};
+	unsigned long tmp[1] = {0};
+	unsigned long dst[1] = {0};
+
+	div = (div == AML_FIXED_ADJ_MIN) ?
+			AML_FIXED_ADJ_MIN : AML_FIXED_ADJ_MAX;
+	*prev_map = *fixed_adj_map;
+	pr_adj_info("prev_map", *prev_map, 0, div);
+	for (; step <= 63;) {
+		pr_info("[%s]retry test fixed adj...\n", __func__);
+		step += AML_FIXED_ADJ_STEP;
+		set_fixed_adj_line_delay(step, host);
+		*cur_map = _test_fixed_adj(host, tuning_data, opcode, 0, div);
+		/*pr_adj_info("cur_map", *cur_map, 0, div);*/
+		bitmap_and(tmp, prev_map, cur_map, div);
+		bitmap_xor(dst, prev_map, tmp, div);
+		if (*dst != 0) {
+			fir_adj = find_first_bit(dst, div);
+			pr_adj_info(">>>>>>>>bitmap_xor_dst", *dst, 0, div);
+			pr_info("[%s] fir_adj:%u\n", __func__, fir_adj);
+
+			*prev_map = _swap_fixed_adj_win(*prev_map,
+					fir_adj, div);
+			pr_adj_info(">>>>>>>>prev_map_range",
+					*prev_map, fir_adj, div);
+			ret = _find_fixed_adj_mid(*prev_map, fir_adj, div);
+			if (ret != NO_FIXED_ADJ_MID) {
+				set_fixed_adj_line_delay(0, host);
+				return ret;
+			}
+
+			fir_adj = (fir_adj + find_next_bit(prev_map,
+				div, 1)) % div;
+		}
+		if (fir_adj == 0xff)
+			continue;
+
+		*prev_map = *cur_map;
+		*cur_map = _swap_fixed_adj_win(*cur_map, fir_adj, div);
+		pr_adj_info(">>>>>>>>cur_map_range", *cur_map, fir_adj, div);
+		ret = _find_fixed_adj_mid(*cur_map, fir_adj, div);
+		if (ret != NO_FIXED_ADJ_MID)
+			return ret;
+	}
+
+	pr_info("[%s][%d] no fixed adj\n", __func__, __LINE__);
+	return ret;
+}
+
 static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 					struct aml_tuning_data *tuning_data,
 					u32 adj_win_start)
@@ -1359,12 +1503,12 @@ static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 	int adj_delay = 0;
 	u8 tuning_num = 0;
 	u32 clk_div;
-	u32 adj_delay_find;
+	u32 adj_delay_find =  0xff;
 	int wrap_win_start, wrap_win_size;
 	int best_win_start, best_win_size;
 	int curr_win_start, curr_win_size;
 	u32 old_dly, d1_dly, dly;
-	struct para_e *para = &(host->data->sdmmc);
+	unsigned long fixed_adj_map[1];
 
 	if ((host->mem->start == host->data->port_b_base)
 			&& host->data->tdma_f)
@@ -1394,27 +1538,8 @@ tunning:
 	pr_info("%s: clk %d tuning start\n",
 			mmc_hostname(mmc), mmc->actual_clock);
 
-	/*retry adj[clk_div-1] tuning result*/
-	if ((clk_div == 5) && (aml_card_type_mmc(pdata))) {
-		gadjust->adj_delay = clk_div-1;
-		gadjust->adj_enable = 1;
-		gadjust->cali_enable = 0;
-		gadjust->cali_rise = 0;
-		writel(adjust, host->base +	SD_EMMC_ADJUST_V3);
-		nmatch = aml_sd_emmc_tuning_transfer(mmc, opcode,
-				blk_pattern, host->blk_test, blksz);
-		if (nmatch != TUNING_NUM_PER_POINT) {
-			if (host->data->chip_type != MMC_CHIP_SM1) {
-				clkc->core_phase = para->hs2.tx_phase;
-				clkc->tx_phase = para->hs2.core_phase;
-			}
-			writel(vclk, host->base + SD_EMMC_CLOCK_V3);
-			pr_info("%s:try clock:0x%x>>>rx_tuning[%d] = %d\n",
-				mmc_hostname(host->mmc),
-				readl(host->base + SD_EMMC_CLOCK_V3),
-				gadjust->adj_delay, nmatch);
-		}
-	}
+	if (clk_div <= AML_FIXED_ADJ_MAX)
+		bitmap_zero(fixed_adj_map, clk_div);
 	for (adj_delay = 0; adj_delay < clk_div; adj_delay++) {
 		gadjust->adj_delay = adj_delay;
 		gadjust->adj_enable = 1;
@@ -1438,6 +1563,8 @@ tunning:
 			curr_win_size++;
 			pr_info("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(host->mmc), adj_delay, nmatch);
+			if (clk_div <= AML_FIXED_ADJ_MAX)
+				set_bit(adj_delay, fixed_adj_map);
 		} else {
 			if (curr_win_start >= 0) {
 				if (best_win_start < 0) {
@@ -1492,6 +1619,10 @@ tunning:
 		pr_info("%s: tuning failed, reduce freq and retuning\n",
 			mmc_hostname(host->mmc));
 		goto tunning;
+	} else if ((best_win_size < clk_div)
+			&& (clk_div <= AML_FIXED_ADJ_MAX)) {
+		adj_delay_find = _find_fixed_adj_valid_win(host,
+				tuning_data, opcode, fixed_adj_map, clk_div);
 	} else if (best_win_size == clk_div) {
 		dly = readl(host->base + SD_EMMC_DELAY1_V3);
 		d1_dly = (dly >> 0x6) & 0x3F;
@@ -1516,8 +1647,12 @@ tunning:
 				mmc_hostname(host->mmc),
 				best_win_start, best_win_size);
 
-	adj_delay_find = best_win_start + (best_win_size - 1) / 2
+	if (adj_delay_find == 0xff) {
+		adj_delay_find = best_win_start + (best_win_size - 1) / 2
 		+ (best_win_size - 1) % 2;
+		pdata->dly1 = old_dly;
+		writel(old_dly, host->base + SD_EMMC_DELAY1_V3);
+	}
 	adj_delay_find = adj_delay_find % clk_div;
 
 	gadjust->adj_delay = adj_delay_find;
@@ -1526,13 +1661,15 @@ tunning:
 	gadjust->cali_rise = 0;
 	writel(adjust, host->base + SD_EMMC_ADJUST_V3);
 	pdata->adj = adjust;
-	pdata->dly1 = old_dly;
-	writel(old_dly, host->base + SD_EMMC_DELAY1_V3);
+	pdata->dly1 = readl(host->base + SD_EMMC_DELAY1_V3);
 
 	pr_info("%s: sd_emmc_regs->gclock=0x%x,sd_emmc_regs->gadjust=0x%x\n",
 			mmc_hostname(host->mmc),
 			readl(host->base + SD_EMMC_CLOCK_V3),
 			readl(host->base + SD_EMMC_ADJUST_V3));
+	pr_info("delay1:0x%x, delay2:0x%x\n",
+			readl(host->base + SD_EMMC_DELAY1_V3),
+			readl(host->base + SD_EMMC_DELAY2_V3));
 	host->is_tunning = 0;
 	if ((host->mem->start == host->data->port_b_base)
 			&& host->data->tdma_f)

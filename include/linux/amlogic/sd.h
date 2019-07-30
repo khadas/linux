@@ -27,6 +27,15 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "meson-mmc: " fmt
 
+#define AML_FIXED_ADJ_MIN	5
+#define AML_FIXED_ADJ_MAX	6
+#define AML_FIXED_ADJ_STEP	4
+#define AML_MOVE_DELAY1(x)	\
+	((x << 0)|(x << 6)|(x << 12)|(x << 18)|(x << 24))
+#define AML_MOVE_DELAY2(x)	\
+	((x << 0)|(x << 6)|(x << 12)|(x << 24))
+#define NO_FIXED_ADJ_MID	(1 << 31)
+
 #define	 AML_ERROR_RETRY_COUNTER		 10
 #define	 AML_TIMEOUT_RETRY_COUNTER	   2
 #define AML_CALIBRATION
