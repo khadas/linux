@@ -353,10 +353,10 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 
 	/*
 	 * If an EVL thread was preempted by this clock event, any
-	 * transition to the root thread will cause a pending in-band
-	 * tick to be propagated by evl_schedule() called from
+	 * transition to the in-band context will cause a pending
+	 * in-band tick to be propagated by evl_schedule() called from
 	 * evl_exit_irq(), so we may have to propagate the in-band
-	 * tick immediately only if the root thread was preempted.
+	 * tick immediately only if the in-band context was preempted.
 	 */
 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
 		evl_notify_proxy_tick(this_rq);

@@ -80,18 +80,6 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
 	return 0;
 }
 
-void evl_notify_proxy_tick(struct evl_rq *this_rq) /* hard IRQs off. */
-{
-	/*
-	 * A proxy clock event device is active on this CPU, make it
-	 * tick asap when the in-band code resumes; this will honour a
-	 * previous set_next_ktime() request received from the kernel
-	 * we have carried out using our core timing services.
-	 */
-	this_rq->lflags &= ~RQ_TPROXY;
-	tick_notify_proxy();
-}
-
 #ifdef CONFIG_SMP
 
 static irqreturn_t clock_ipi_handler(int irq, void *dev_id)
