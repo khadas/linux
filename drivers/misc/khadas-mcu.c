@@ -28,6 +28,7 @@
 #define MCU_WOL_REG		0x21
 #define MCU_FAN_CTRL	0x88
 #define MCU_RST_REG             0x2c
+#define MCU_PORT_MODE_REG       0x33
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -67,6 +68,11 @@ enum khadas_fan_hwver {
         KHADAS_FAN_HWVER_VIM3_V11
 };
 
+enum khadas_portmode {
+	KHADAS_PORT_MODE_USB3 = 0,
+	KHADAS_PORT_MODE_PCIE
+};
+
 struct khadas_fan_data {
 	struct platform_device *pdev;
 	struct class *fan_class;
@@ -86,6 +92,7 @@ struct mcu_data {
 	struct class *wol_class;
 	struct class *mcu_class;
 	int wol_enable;
+	int portmode;
 	struct khadas_fan_data fan_data;
 };
 
@@ -404,8 +411,39 @@ static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
 
 }
 
+static ssize_t show_portmode(struct class *cls,
+			struct class_attribute *attr, char *buf)
+{
+	int mode;
+	mode = g_mcu_data->portmode;
+	return sprintf(buf, "%d\n", mode);
+}
+
+static ssize_t store_portmode(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	if ((mode < KHADAS_PORT_MODE_USB3) || (mode > KHADAS_PORT_MODE_PCIE))
+		return -EINVAL;
+
+	reg[0] = mode;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_PORT_MODE_REG, reg, 1);
+	if (ret < 0)
+		printk("write mcu port mode err\n");
+	else
+		g_mcu_data->portmode = mode;
+	return count;
+}
+
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(rst, 0644, NULL, store_rst_mcu),
+	__ATTR(portmode, 0644, show_portmode, store_portmode),
 };
 
 static struct class_attribute wol_class_attrs[] = {
@@ -527,6 +565,11 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret < 0)
 		goto exit;
 	g_mcu_data->wol_enable = (int)reg[0];
+
+	ret = mcu_i2c_read_regs(client, MCU_PORT_MODE_REG, reg, 1);
+	if (ret < 0)
+		goto exit;
+	g_mcu_data->portmode = (int)reg[0];
 
 	if (is_mcu_fan_control_available()) {
 		g_mcu_data->fan_data.mode = KHADAS_FAN_STATE_AUTO;
