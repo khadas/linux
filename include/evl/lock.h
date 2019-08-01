@@ -171,6 +171,28 @@ typedef struct evl_spinlock {
 		raw_spin_lock(&(__lock)->_lock);	\
 	} while (0)
 
+#define evl_spin_lock_nested(__lock, __subclass)			\
+	do {								\
+		evl_disable_preempt();					\
+		raw_spin_lock_nested(&(__lock)->_lock, __subclass);	\
+	} while (0)
+
+#define evl_spin_trylock(__lock)				\
+	({							\
+		int __ret;					\
+		evl_disable_preempt();				\
+		__ret = raw_spin_trylock(&(__lock)->_lock);	\
+		if (!__ret)					\
+			evl_enable_preempt();			\
+		__ret;						\
+	})
+
+#define evl_spin_lock_irq(__lock)			\
+	do {						\
+		evl_disable_preempt();			\
+		raw_spin_lock_irq(&(__lock)->_lock);	\
+	} while (0)
+
 #define evl_spin_lock_irqsave(__lock, __flags)		\
 	do {						\
 		splhigh(__flags);			\
@@ -180,6 +202,12 @@ typedef struct evl_spinlock {
 #define evl_spin_unlock(__lock)				\
 	do {						\
 		raw_spin_unlock(&(__lock)->_lock);	\
+		evl_enable_preempt();			\
+	} while (0)
+
+#define evl_spin_unlock_irq(__lock)			\
+	do {						\
+		raw_spin_unlock_irq(&(__lock)->_lock);	\
 		evl_enable_preempt();			\
 	} while (0)
 
