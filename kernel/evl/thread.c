@@ -528,6 +528,9 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 	rq = thread->rq;
 	oldstate = thread->state;
 	if (likely(oldstate & mask)) {
+		if (mask & T_PEND)
+			mask |= T_DELAY;
+
 		thread->state &= ~mask;
 
 		if (mask & (T_DELAY|T_PEND))
