@@ -546,6 +546,8 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 			evl_enqueue_thread(thread);
 			thread->state |= T_READY;
 			evl_set_resched(rq);
+			if (rq != this_evl_rq())
+				evl_inc_counter(&thread->stat.rwa);
 		}
 	}
 
@@ -645,6 +647,8 @@ void evl_release_thread(struct evl_thread *thread, int mask, int info)
 ready:
 	thread->state |= T_READY;
 	evl_set_resched(rq);
+	if (rq != this_evl_rq())
+		evl_inc_counter(&thread->stat.rwa);
 out:
 	xnlock_put_irqrestore(&nklock, flags);
 
@@ -2019,6 +2023,7 @@ void evl_get_thread_state(struct evl_thread *thread,
 	statebuf->isw = evl_get_counter(&thread->stat.isw);
 	statebuf->csw = evl_get_counter(&thread->stat.csw);
 	statebuf->sc = evl_get_counter(&thread->stat.sc);
+	statebuf->rwa = evl_get_counter(&thread->stat.rwa);
 	statebuf->xtime = ktime_to_ns(evl_get_account_total(
 					&thread->stat.account));
 	xnlock_put_irqrestore(&nklock, flags);
@@ -2417,10 +2422,11 @@ static ssize_t stats_show(struct device *dev,
 	} else
 		usage = 0;
 
-	ret = snprintf(buf, PAGE_SIZE, "%lu %lu %lu %Lu %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%lu %lu %lu %lu %Lu %d\n",
 		thread->stat.isw.counter,
 		thread->stat.csw.counter,
 		thread->stat.sc.counter,
+		thread->stat.rwa.counter,
 		ktime_to_ns(thread->stat.account.total),
 		usage);
 

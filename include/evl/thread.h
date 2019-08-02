@@ -119,6 +119,7 @@ struct evl_thread {
 		struct evl_counter isw;	/* in-band switches */
 		struct evl_counter csw;	/* context switches */
 		struct evl_counter sc;	/* OOB syscalls */
+		struct evl_counter rwa;	/* remote wakeups */
 		struct evl_counter pf;	/* Number of page faults */
 		struct evl_account account; /* Execution time accounting entity */
 		struct evl_account lastperiod; /* Interval marker for execution time reports */

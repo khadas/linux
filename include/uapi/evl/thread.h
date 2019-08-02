@@ -87,6 +87,7 @@ struct evl_thread_state {
 	__u32 isw;
 	__u32 csw;
 	__u32 sc;
+	__u32 rwa;
 	__u64 xtime;
 };
 
