@@ -133,8 +133,10 @@ int evl_init_thread(struct evl_thread *thread,
 		const char *fmt, ...)
 {
 	int flags = iattr->flags & ~T_SUSP, ret, gravity;
-	struct cpumask affinity;
+	cpumask_var_t affinity;
 	va_list args;
+
+	inband_context_only();
 
 	if (!(flags & T_ROOT))
 		flags |= T_DORMANT | T_INBAND;
@@ -148,11 +150,15 @@ int evl_init_thread(struct evl_thread *thread,
 	 * of the supported CPUs. This CPU may change in
 	 * pin_to_initial_cpu().
 	 */
-	if (rq == NULL) {
-		cpumask_and(&affinity, &iattr->affinity, &evl_cpu_affinity);
-		if (cpumask_empty(&affinity))
+	if (!rq) {
+		if (!alloc_cpumask_var(&affinity, GFP_KERNEL))
+			return -ENOMEM;
+		cpumask_and(affinity, &iattr->affinity, &evl_cpu_affinity);
+		if (!cpumask_empty(affinity))
+			rq = evl_cpu_rq(cpumask_first(affinity));
+		free_cpumask_var(affinity);
+		if (!rq)
 			return -EINVAL;
-		rq = evl_cpu_rq(cpumask_first(&affinity));
 	}
 
 	va_start(args, fmt);
