@@ -81,8 +81,8 @@ static void tp_init(struct evl_rq *rq)
 	tp->gps = NULL;
 	INIT_LIST_HEAD(&tp->threads);
 	evl_init_schedq(&tp->idle.runnable);
-	evl_init_timer(&tp->tf_timer, &evl_mono_clock, tp_tick_handler,
-		rq, EVL_TIMER_IGRAVITY);
+	evl_init_timer_on_rq(&tp->tf_timer, &evl_mono_clock, tp_tick_handler,
+			rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&tp->tf_timer, "[tp-tick]");
 }
 

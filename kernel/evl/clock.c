@@ -777,8 +777,8 @@ static int new_timerfd(struct evl_clock *clock)
 	 * everything we need for a graceful cleanup.
 	 */
 	evl_get_element(&clock->element);
-	evl_init_timer(&timerfd->timer, clock, timerfd_handler,
-		NULL, EVL_TIMER_UGRAVITY);
+	evl_init_timer_on_rq(&timerfd->timer, clock, timerfd_handler,
+			NULL, EVL_TIMER_UGRAVITY);
 	evl_init_wait(&timerfd->readers, clock, EVL_WAIT_PRIO);
 	evl_init_poll_head(&timerfd->poll_head);
 

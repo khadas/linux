@@ -290,14 +290,15 @@ void __evl_init_timer(struct evl_timer *timer,
 		struct evl_clock *clock,
 		void (*handler)(struct evl_timer *timer),
 		struct evl_rq *rq,
-		int opflags)
+		const char *name,
+		int flags)
 {
 	int cpu;
 
 	timer->clock = clock;
 	evl_tdate(timer) = EVL_INFINITE;
 	evl_set_timer_priority(timer, EVL_TIMER_STDPRIO);
-	timer->status = EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK);
+	timer->status = EVL_TIMER_DEQUEUED|(flags & EVL_TIMER_INIT_MASK);
 	timer->handler = handler;
 	timer->interval = EVL_INFINITE;
 
@@ -313,7 +314,7 @@ void __evl_init_timer(struct evl_timer *timer,
 #endif
 	timer->base = evl_percpu_timers(clock, cpu);
 	timer->clock = clock;
-	timer->name = "<timer>";
+	timer->name = name ?: "<timer>";
 	evl_reset_timer_stats(timer);
 }
 EXPORT_SYMBOL_GPL(__evl_init_timer);

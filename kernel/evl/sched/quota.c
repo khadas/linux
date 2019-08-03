@@ -219,14 +219,14 @@ static void quota_init(struct evl_rq *rq)
 	qs->period = quota_period;
 	INIT_LIST_HEAD(&qs->groups);
 
-	evl_init_timer(&qs->refill_timer,
-		&evl_mono_clock, quota_refill_handler, rq,
-		EVL_TIMER_IGRAVITY);
+	evl_init_timer_on_rq(&qs->refill_timer,
+			&evl_mono_clock, quota_refill_handler, rq,
+			EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&qs->refill_timer, "[quota-refill]");
 
-	evl_init_timer(&qs->limit_timer,
-		&evl_mono_clock, quota_limit_handler, rq,
-		EVL_TIMER_IGRAVITY);
+	evl_init_timer_on_rq(&qs->limit_timer,
+			&evl_mono_clock, quota_limit_handler, rq,
+			EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&qs->limit_timer, "[quota-limit]");
 }
 
