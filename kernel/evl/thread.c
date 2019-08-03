@@ -57,9 +57,6 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 		container_of(timer, struct evl_thread, ptimer);
 
 	evl_wakeup_thread(thread, T_WAIT, T_TIMEO);
-	xnlock_get(&nklock);
-	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
-	xnlock_put(&nklock);
 }
 
 static inline void enlist_new_thread(struct evl_thread *thread)
@@ -481,20 +478,23 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	}
 
 	/*
-	 * wchan + timeout: timed wait for a resource (T_PEND|T_DELAY)
-	 * wchan + !timeout: unbounded sleep on resource (T_PEND)
+	 *  wchan + timeout: timed wait for a resource (T_PEND|T_DELAY)
+	 *  wchan + !timeout: unbounded sleep on resource (T_PEND)
 	 * !wchan + timeout: timed sleep (T_DELAY)
 	 * !wchan + !timeout: periodic wait (T_WAIT)
 	 */
 	if (timeout_mode != EVL_REL || !timeout_infinite(timeout)) {
-		evl_prepare_timer_wait(&curr->rtimer, clock,
+		evl_prepare_timed_wait(&curr->rtimer, clock,
 				evl_thread_rq(curr));
 		if (timeout_mode == EVL_REL)
 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
 		curr->state |= T_DELAY;
-	} else if (!wchan)
+	} else if (!wchan) {
+		evl_prepare_timed_wait(&curr->ptimer, clock,
+				evl_thread_rq(curr));
 		curr->state |= T_WAIT;
+	}
 
 	if (oldstate & T_READY) {
 		evl_dequeue_thread(curr);
@@ -528,6 +528,7 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 	rq = thread->rq;
 	oldstate = thread->state;
 	if (likely(oldstate & mask)) {
+		/* Clear T_DELAY along w/ T_PEND in state. */
 		if (mask & T_PEND)
 			mask |= T_DELAY;
 
@@ -934,7 +935,7 @@ int evl_set_thread_period(struct evl_clock *clock,
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	evl_prepare_timer_wait(&curr->ptimer, clock, evl_thread_rq(curr));
+	evl_prepare_timed_wait(&curr->ptimer, clock, evl_thread_rq(curr));
 
 	if (timeout_infinite(idate))
 		idate = evl_abs_timeout(&curr->ptimer, period);
@@ -964,7 +965,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
 	clock = curr->ptimer.clock;
 	now = evl_read_clock(clock);
 	if (likely(now < evl_get_timer_next_date(&curr->ptimer))) {
-		evl_sleep_on(EVL_INFINITE, EVL_REL, NULL, NULL); /* T_WAIT */
+		evl_sleep_on(EVL_INFINITE, EVL_REL, clock, NULL); /* T_WAIT */
 		hard_local_irq_restore(flags);
 		evl_schedule();
 		if (unlikely(curr->info & T_BREAK))
@@ -1121,9 +1122,10 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
 	trace_evl_thread_migrate(thread, evl_rq_cpu(rq));
 	/*
 	 * Timer migration is postponed until the next timeout happens
-	 * for the periodic and rrb timers. The resource timer will be
-	 * moved to the right CPU next time evl_prepare_timer_wait()
-	 * is called for it.
+	 * for the periodic and rrb timers. The resource/periodic
+	 * timer will be moved to the right CPU next time
+	 * evl_prepare_timed_wait() is called for it (via
+	 * evl_sleep_on()).
 	 */
 	evl_migrate_rq(thread, rq);
 
@@ -1675,8 +1677,8 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
-	struct evl_rq *rq;
 	int cpu = task_cpu(p);
+	struct evl_rq *rq;
 
 	/*
 	 * To maintain consistency between both the EVL and in-band
@@ -1714,9 +1716,9 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
 		return true;
 
 	/*
-	 * The current thread moved to a supported real-time CPU,
-	 * which is not part of its original affinity mask
-	 * though. Assume user wants to extend this mask.
+	 * If the current thread moved to a supported out-of-band CPU,
+	 * which is not part of its original affinity mask, assume
+	 * user wants to extend this mask.
 	 */
 	if (!cpumask_test_cpu(cpu, &thread->affinity))
 		cpumask_set_cpu(cpu, &thread->affinity);

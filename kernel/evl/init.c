@@ -160,8 +160,9 @@ static int __init evl_init(void)
 	}
 
 	/*
-	 * Set of CPUs the core knows about (>= set of CPUs running
-	 * EVL threads).
+	 * Set of CPUs the core knows about and which should run an
+	 * in-band proxy timer. This set includes the subset of CPUs
+	 * which may run EVL threads, aka evl_cpu_affinity.
 	 */
 	if (oobcpus_arg && *oobcpus_arg) {
 		if (cpulist_parse(oobcpus_arg, &evl_oob_cpus)) {

@@ -262,57 +262,27 @@ static inline int get_clock_cpu(struct evl_clock *clock, int cpu)
 	 * suggested CPU does not receive events from this device,
 	 * return the first one which does instead.
 	 *
-	 * A global clock device with no particular IRQ affinity may
-	 * tick on any CPU, but timers should always be queued on
-	 * CPU0.
-	 *
-	 * NOTE: we have scheduler slots initialized for all online
-	 * CPUs, we can program and receive clock ticks on any of
-	 * them. So there is no point in restricting the valid CPU set
-	 * to cobalt_cpu_affinity, which specifically refers to the
-	 * set of CPUs which may run real-time threads. Although
-	 * receiving a clock tick for waking up a thread living on a
-	 * remote CPU is not optimal since this involves IPI-signaled
-	 * rescheds, this is still a valid case.
+	 * NOTE: we have run queues initialized for all online CPUs,
+	 * we can program and receive clock ticks on any of them. So
+	 * there is no point in restricting the valid CPU set to
+	 * evl_cpu_affinity, which specifically refers to the set of
+	 * CPUs which may run EVL threads. Although receiving a clock
+	 * tick for waking up a thread living on a remote CPU is not
+	 * optimal since this involves IPI-signaled rescheds, this is
+	 * still acceptable.
 	 */
-	if (cpumask_empty(&clock->affinity))
-		return 0;
-
 	if (cpumask_test_cpu(cpu, &clock->affinity))
 		return cpu;
 
 	return cpumask_first(&clock->affinity);
 }
 
-/**
- * __evl_set_timer_rq - change the CPU affinity of a timer
- * @timer:      timer to modify
- * @rq:         runqueue to assign the timer to
- */
-void __evl_set_timer_rq(struct evl_timer *timer,
-			struct evl_clock *clock,
-			struct evl_rq *rq)
+#else
+
+static inline int get_clock_cpu(struct evl_clock *clock, int cpu)
 {
-	int cpu;
-
-	requires_ugly_lock();
-
-	/*
-	 * Figure out which CPU is best suited for managing this
-	 * timer, preferably picking evl_rq_cpu(rq) if the ticking
-	 * device moving the timer clock beats on that CPU. Otherwise,
-	 * pick the first CPU from the clock affinity mask if set. If
-	 * not, the timer is backed by a global device with no
-	 * particular IRQ affinity, so it should always be queued to
-	 * CPU0.
-	 */
-	cpu = 0;
-	if (!cpumask_empty(&clock->master->affinity))
-		cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
-
-	evl_bolt_timer(timer, clock, evl_cpu_rq(cpu));
+	return 0;
 }
-EXPORT_SYMBOL_GPL(__evl_set_timer_rq);
 
 #endif /* CONFIG_SMP */
 
@@ -322,27 +292,26 @@ void __evl_init_timer(struct evl_timer *timer,
 		struct evl_rq *rq,
 		int opflags)
 {
-	int cpu __maybe_unused;
+	int cpu;
 
 	timer->clock = clock;
 	evl_tdate(timer) = EVL_INFINITE;
 	evl_set_timer_priority(timer, EVL_TIMER_STDPRIO);
-	timer->status = (EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK));
+	timer->status = EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK);
 	timer->handler = handler;
 	timer->interval = EVL_INFINITE;
+
 	/*
-	 * Set the timer affinity, preferably to rq if given, CPU0
-	 * otherwise.
+	 * Set the timer affinity to the CPU rq is on if given, or the
+	 * first CPU which may run EVL threads otherwise.
 	 */
-	if (!rq)
-		rq = evl_cpu_rq(0);
+	cpu = rq ?
+		get_clock_cpu(clock->master, evl_rq_cpu(rq)) :
+		cpumask_first(&evl_cpu_affinity);
 #ifdef CONFIG_SMP
-	cpu = 0;
-	if (!cpumask_empty(&clock->master->affinity))
-		cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
 	timer->rq = evl_cpu_rq(cpu);
 #endif
-	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
+	timer->base = evl_percpu_timers(clock, cpu);
 	timer->clock = clock;
 	timer->name = "<timer>";
 	evl_reset_timer_stats(timer);
@@ -374,13 +343,13 @@ void evl_destroy_timer(struct evl_timer *timer)
 EXPORT_SYMBOL_GPL(evl_destroy_timer);
 
 /*
- * evl_bolt_timer - change the reference clock and/or the CPU
+ * evl_move_timer - change the reference clock and/or the CPU
  *                     affinity of a timer
  * @timer:      timer to modify
  * @clock:      reference clock
  * @rq:         runqueue to assign the timer to
  */
-void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+void evl_move_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 		struct evl_clock *clock, struct evl_rq *rq)
 {
 	struct evl_timerbase *old_base, *new_base;
@@ -388,19 +357,18 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 	unsigned long flags;
 	int cpu;
 
-	trace_evl_timer_bolt(timer, clock, evl_rq_cpu(rq));
+	requires_ugly_lock();	/* XXX: why that? */
+
+	trace_evl_timer_move(timer, clock, evl_rq_cpu(rq));
 
 	/*
-	 * This assertion triggers when the timer is migrated to a CPU
-	 * for which we do not expect any clock events/IRQs from the
-	 * associated clock device. If so, the timer would never fire
-	 * since clock ticks would never happen on that CPU.
+	 * Find out which CPU is best suited for managing this timer,
+	 * preferably picking evl_rq_cpu(rq) if the ticking device
+	 * moving the timer clock beats on that CPU. Otherwise, pick
+	 * the first CPU from the clock affinity mask if set.
 	 */
-	cpu = evl_rq_cpu(rq);
-	if (EVL_WARN_ON_SMP(CORE,
-			!cpumask_empty(&master->affinity) &&
-			!cpumask_test_cpu(cpu, &master->affinity)))
-		return;
+	cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
+	rq = evl_cpu_rq(cpu);
 
 	old_base = lock_timer_base(timer, &flags);
 
@@ -435,7 +403,7 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 		unlock_timer_base(old_base, flags);
 	}
 }
-EXPORT_SYMBOL_GPL(evl_bolt_timer);
+EXPORT_SYMBOL_GPL(evl_move_timer);
 
 unsigned long evl_get_timer_overruns(struct evl_timer *timer)
 {

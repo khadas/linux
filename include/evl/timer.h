@@ -320,12 +320,6 @@ static inline ktime_t evl_get_timer_expiry(struct evl_timer *timer)
 			evl_get_timer_gravity(timer));
 }
 
-static inline
-void evl_move_timer_backward(struct evl_timer *timer, ktime_t delta)
-{
-	evl_tdate(timer) = ktime_sub(evl_tdate(timer), delta);
-}
-
 /* no lock required. */
 ktime_t evl_get_timer_date(struct evl_timer *timer);
 
@@ -383,30 +377,26 @@ void evl_enqueue_timer(struct evl_timer *timer,
 
 unsigned long evl_get_timer_overruns(struct evl_timer *timer);
 
-void evl_bolt_timer(struct evl_timer *timer,
+void evl_move_timer(struct evl_timer *timer,
 		struct evl_clock *clock,
 		struct evl_rq *rq);
 
 #ifdef CONFIG_SMP
 
-void __evl_set_timer_rq(struct evl_timer *timer,
-			struct evl_clock *clock,
-			struct evl_rq *rq);
-
 static inline void evl_set_timer_rq(struct evl_timer *timer,
 				struct evl_rq *rq)
 {
 	if (rq != timer->rq)
-		__evl_set_timer_rq(timer, timer->clock, rq);
+		evl_move_timer(timer, timer->clock, rq);
 }
 
-static inline void evl_prepare_timer_wait(struct evl_timer *timer,
+static inline void evl_prepare_timed_wait(struct evl_timer *timer,
 					struct evl_clock *clock,
 					struct evl_rq *rq)
 {
 	/* We may change the reference clock before waiting. */
 	if (rq != timer->rq || clock != timer->clock)
-		__evl_set_timer_rq(timer, clock, rq);
+		evl_move_timer(timer, clock, rq);
 }
 
 static inline bool evl_timer_on_rq(struct evl_timer *timer,
@@ -421,12 +411,12 @@ static inline void evl_set_timer_rq(struct evl_timer *timer,
 				struct evl_rq *rq)
 { }
 
-static inline void evl_prepare_timer_wait(struct evl_timer *timer,
+static inline void evl_prepare_timed_wait(struct evl_timer *timer,
 					struct evl_clock *clock,
 					struct evl_rq *rq)
 {
 	if (clock != timer->clock)
-		evl_bolt_timer(timer, clock, rq);
+		evl_move_timer(timer, clock, rq);
 }
 
 static inline bool evl_timer_on_rq(struct evl_timer *timer,
