@@ -49,7 +49,8 @@ static void adjust_timer(struct evl_clock *clock,
 	ktime_t period, diff;
 	s64 div;
 
-	evl_move_timer_backward(timer, delta);
+	/* Apply the new offset from the master base. */
+	evl_tdate(timer) = ktime_sub(evl_tdate(timer), delta);
 
 	if (!evl_timer_is_periodic(timer))
 		goto enqueue;
@@ -193,12 +194,17 @@ int evl_init_clock(struct evl_clock *clock,
 	 * A CPU affinity set may be defined for each clock,
 	 * enumerating the CPUs which can receive ticks from the
 	 * backing clock device.  When given, this set must be a
-	 * subset of the out-of-band CPU set.
+	 * subset of the out-of-band CPU set. Otherwise, this is a
+	 * global device for which we pick a constant affinity based
+	 * on a known-to-be-always-valid CPU, i.e. the first OOB CPU
+	 * available.
 	 */
 #ifdef CONFIG_SMP
-	if (!affinity)	/* Is this device global? */
+	if (!affinity) {
 		cpumask_clear(&clock->affinity);
-	else {
+		cpumask_set_cpu(cpumask_first(&evl_oob_cpus),
+				&clock->affinity);
+	} else {
 		cpumask_and(&clock->affinity, affinity, &evl_oob_cpus);
 		if (cpumask_empty(&clock->affinity))
 			return -EINVAL;
@@ -214,7 +220,7 @@ int evl_init_clock(struct evl_clock *clock,
 	 * of them might remain unused depending on the CPU affinity
 	 * of the event source(s). If the clock device is global
 	 * without any particular IRQ affinity, all timers will be
-	 * queued to CPU0.
+	 * queued to the first OOB CPU.
 	 */
 	for_each_online_cpu(cpu) {
 		tmb = evl_percpu_timers(clock, cpu);
@@ -368,12 +374,12 @@ void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
 
 #ifdef CONFIG_SMP
 	/*
-	 * Some external clock devices may be global without any
-	 * particular IRQ affinity, in which case the associated
-	 * timers will be queued to CPU0.
+	 * Some external clock devices may tick on any CPU, expect the
+	 * timers to be be queued to the first legit CPU for them
+	 * (i.e. global devices with no affinity).
 	 */
 	if (!cpumask_test_cpu(evl_rq_cpu(this_evl_rq()), &clock->affinity))
-		tmb = evl_percpu_timers(clock, 0);
+		tmb = evl_percpu_timers(clock, cpumask_first(&clock->affinity));
 	else
 #endif
 		tmb = evl_this_cpu_timers(clock);
@@ -1099,8 +1105,7 @@ int __init evl_clock_init(void)
 	evl_reset_clock_gravity(&evl_mono_clock);
 	evl_reset_clock_gravity(&evl_realtime_clock);
 
-	ret = evl_init_clock(&evl_mono_clock,
-			&evl_oob_cpus);
+	ret = evl_init_clock(&evl_mono_clock, &evl_oob_cpus);
 	if (ret)
 		return ret;
 

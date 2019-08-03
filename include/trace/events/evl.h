@@ -631,7 +631,7 @@ TRACE_EVENT(evl_timer_start,
 		ktime_to_ns(__entry->interval))
 );
 
-TRACE_EVENT(evl_timer_bolt,
+TRACE_EVENT(evl_timer_move,
 	TP_PROTO(struct evl_timer *timer,
 		 struct evl_clock *clock,
 		 unsigned int cpu),
