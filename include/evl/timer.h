@@ -221,8 +221,8 @@ static inline unsigned long evl_get_timer_gravity(struct evl_timer *timer)
 static inline void evl_update_timer_date(struct evl_timer *timer)
 {
 	evl_tdate(timer) = ktime_add_ns(timer->start_date,
-					(timer->periodic_ticks * ktime_to_ns(timer->interval))
-					- evl_get_timer_gravity(timer));
+		(timer->periodic_ticks * ktime_to_ns(timer->interval))
+			- evl_get_timer_gravity(timer));
 }
 
 static inline
@@ -242,16 +242,26 @@ void __evl_init_timer(struct evl_timer *timer,
 		struct evl_clock *clock,
 		void (*handler)(struct evl_timer *timer),
 		struct evl_rq *rq,
+		const char *name,
 		int flags);
 
 void evl_set_timer_gravity(struct evl_timer *timer,
 			int gravity);
 
-#define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
+#define evl_init_timer_on_rq(__timer, __clock, __handler, __rq, __flags) \
+	__evl_init_timer(__timer, __clock, __handler,			\
+			__rq, #__handler, __flags)
+
+#define evl_init_timer_on_cpu(__timer, __cpu, __handler)		\
 	do {								\
-		__evl_init_timer(__timer, __clock, __handler, __rq, __flags); \
-		evl_set_timer_name(__timer, #__handler);		\
+		struct evl_rq *__rq = evl_cpu_rq(__cpu);		\
+		evl_init_timer_on_rq(__timer, &evl_mono_clock, __handler, \
+				__rq, EVL_TIMER_IGRAVITY);		\
 	} while (0)
+
+#define evl_init_timer(__timer, __handler)				\
+	evl_init_timer_on_rq(__timer, &evl_mono_clock, __handler, NULL,	\
+			EVL_TIMER_IGRAVITY)
 
 #ifdef CONFIG_EVL_RUNSTATS
 
@@ -298,17 +308,6 @@ const char *evl_get_timer_name(struct evl_timer *timer)
 {
 	return timer->name;
 }
-
-#define evl_init_core_timer(__timer, __handler)				\
-	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
-		EVL_TIMER_IGRAVITY)
-
-#define evl_init_timer_on_cpu(__timer, __cpu, __handler)		\
-	do {								\
-		struct evl_rq *__rq = evl_cpu_rq(__cpu);		\
-		evl_init_timer(__timer, &evl_mono_clock, __handler,	\
-			__rq, EVL_TIMER_IGRAVITY);			\
-	} while (0)
 
 bool evl_timer_deactivate(struct evl_timer *timer);
 
