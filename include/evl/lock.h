@@ -190,7 +190,8 @@ typedef struct evl_spinlock {
 #define evl_spin_lock_irq(__lock)			\
 	do {						\
 		evl_disable_preempt();			\
-		raw_spin_lock_irq(&(__lock)->_lock);	\
+		oob_irq_disable();			\
+		raw_spin_lock(&(__lock)->_lock);	\
 	} while (0)
 
 #define evl_spin_lock_irqsave(__lock, __flags)		\
@@ -207,7 +208,8 @@ typedef struct evl_spinlock {
 
 #define evl_spin_unlock_irq(__lock)			\
 	do {						\
-		raw_spin_unlock_irq(&(__lock)->_lock);	\
+		raw_spin_unlock(&(__lock)->_lock);	\
+		oob_irq_enable();			\
 		evl_enable_preempt();			\
 	} while (0)
 
