@@ -4662,7 +4662,6 @@ static void vscale_skip_disable_post(struct di_buf_s *di_buf, vframe_t *disp_vf)
 	disp_vf->height = di_buf_i->vframe->height;
 	disp_vf->duration = di_buf_i->vframe->duration;
 	disp_vf->pts = di_buf_i->vframe->pts;
-	disp_vf->pts_us64 = di_buf_i->vframe->pts_us64;
 	disp_vf->flag = di_buf_i->vframe->flag;
 	disp_vf->canvas0Addr = di_post_idx[di_post_stru.canvas_id][0];
 	disp_vf->canvas1Addr = di_post_idx[di_post_stru.canvas_id][0];
@@ -5539,20 +5538,16 @@ void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 	int i = 0, drop_flag = 0;
 
 	di_lock_irqfiq_save(irq_flag2);
-	if ((frame_count == 0) && check_drop) {
+	if ((frame_count == 0) && check_drop)
 		di_post_stru.start_pts = di_buf->vframe->pts;
-		di_post_stru.start_pts_us64 = di_buf->vframe->pts_us64;
-	}
 	if ((check_drop && (frame_count < start_frame_drop_count))
 	|| throw_flag) {
 		drop_flag = 1;
 	} else {
 		if (check_drop && (frame_count == start_frame_drop_count)) {
 			if ((di_post_stru.start_pts)
-			&& (di_buf->vframe->pts == 0)) {
+			&& (di_buf->vframe->pts == 0))
 				di_buf->vframe->pts = di_post_stru.start_pts;
-				di_buf->vframe->pts_us64 = di_post_stru.start_pts_us64;
-			}
 			di_post_stru.start_pts = 0;
 		}
 		for (i = 0; i < 3; i++) {
