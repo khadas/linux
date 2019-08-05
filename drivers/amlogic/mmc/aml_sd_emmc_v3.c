@@ -1509,6 +1509,7 @@ static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 	int curr_win_start, curr_win_size;
 	u32 old_dly, d1_dly, dly;
 	unsigned long fixed_adj_map[1];
+	bool all_flag = false;
 
 	if ((host->mem->start == host->data->port_b_base)
 			&& host->data->tdma_f)
@@ -1620,10 +1621,13 @@ tunning:
 			mmc_hostname(host->mmc));
 		goto tunning;
 	} else if ((best_win_size < clk_div)
-			&& (clk_div <= AML_FIXED_ADJ_MAX)) {
+			&& (clk_div <= AML_FIXED_ADJ_MAX)
+			&& (clk_div >= AML_FIXED_ADJ_MIN)
+			&& !all_flag) {
 		adj_delay_find = _find_fixed_adj_valid_win(host,
 				tuning_data, opcode, fixed_adj_map, clk_div);
 	} else if (best_win_size == clk_div) {
+		all_flag = true;
 		dly = readl(host->base + SD_EMMC_DELAY1_V3);
 		d1_dly = (dly >> 0x6) & 0x3F;
 		pr_warn("%s() d1_dly %d, window start %d, size %d\n",
