@@ -33,7 +33,7 @@
 
 
 #define AML_DEV_NAME		"sysled"
-#define AML_LED_NAME		"led-sys"
+#define AML_LED_NAME		"sys_led"
 
 
 static void aml_sysled_output_setup(struct aml_sysled_dev *ldev,
