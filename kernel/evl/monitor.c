@@ -679,12 +679,11 @@ static __poll_t monitor_oob_poll(struct file *filp,
 		case EVL_EVENT_GATED:
 			/*
 			 * The poll interface does not cope with the
-			 * gated event one, we cannot figure out which
-			 * gate protects the event when signaling it
-			 * from userland in order to mark that gate,
-			 * so we cannot force a kernel entry upon gate
-			 * release. Therefore, polling such event will
-			 * block indefinitely.
+			 * gated event semantics, since we could not
+			 * release the gate protecting the event and
+			 * enter a poll wait atomically to prevent
+			 * missed wakeups.  Therefore, polling a gated
+			 * event leads to an error.
 			 */
 			ret = POLLERR;
 			break;
@@ -695,9 +694,9 @@ static __poll_t monitor_oob_poll(struct file *filp,
 		 * A mutex should be held only for a short period of
 		 * time, with the locked state appearing as a discrete
 		 * event to users. Assume a gate lock is always
-		 * readable then. If this is about probing for a mutex
-		 * state from userland then trylock() should be used
-		 * instead of poll().
+		 * readable (as "unlocked") then. If this is about
+		 * probing for a mutex state from userland then
+		 * trylock() should be used instead of poll().
 		 */
 		ret = POLLIN|POLLRDNORM;
 		break;
