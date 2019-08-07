@@ -697,7 +697,7 @@ static long timerfd_common_ioctl(struct file *filp,
 static ssize_t timerfd_oob_read(struct file *filp,
 				char __user *u_buf, size_t count)
 {
-	__u32 __user *u_ticks = (__u32 __user *)u_buf, ticks = 0;
+	__u64 __user *u_ticks = (__u64 __user *)u_buf, ticks = 0;
 	struct evl_timerfd *timerfd = filp->private_data;
 	ktime_t timeout = EVL_INFINITE;
 	int ret;
@@ -715,7 +715,7 @@ static ssize_t timerfd_oob_read(struct file *filp,
 
 	ticks = 1;
 	if (evl_timer_is_periodic(&timerfd->timer))
-		ticks += (u32)evl_get_timer_overruns(&timerfd->timer);
+		ticks += evl_get_timer_overruns(&timerfd->timer);
 
 	if (raw_put_user(ticks, u_ticks))
 		return -EFAULT;
