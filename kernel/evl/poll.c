@@ -137,7 +137,7 @@ static int check_no_loop_deeper(struct poll_group *origin,
 	int ret = 0;
 
 	if (depth >= POLLER_NEST_MAX)
-		return -EINVAL;
+		return -ELOOP;
 
 	efilp = evl_get_file(item->fd);
 	if (efilp == NULL)
