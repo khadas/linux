@@ -718,7 +718,7 @@ evl_find_sched_class(union evl_sched_param *param,
 	case SCHED_NORMAL:
 		if (prio)
 			return NULL;
-		/* Fallback wanted */
+		/* fall-through */
 	case SCHED_WEAK:
 		if (prio < EVL_WEAK_MIN_PRIO ||	prio > EVL_WEAK_MAX_PRIO)
 			return NULL;
@@ -730,7 +730,7 @@ evl_find_sched_class(union evl_sched_param *param,
 		tslice = timespec_to_ktime(attrs->sched_rr_quantum);
 		if (timeout_infinite(tslice) && tslice_r)
 			tslice = *tslice_r;
-		/* falldown wanted */
+		/* fall-through */
 	case SCHED_FIFO:
 		/*
 		 * This routine handles requests submitted from

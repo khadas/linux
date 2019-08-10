@@ -318,7 +318,7 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_install_tp:
 		if (pt->nr_windows > 0)
 			goto install_schedule;
-		/* Fallback wanted. */
+		/* fall-through. */
 	case evl_uninstall_tp:
 		gps = NULL;
 		goto switch_schedule;
