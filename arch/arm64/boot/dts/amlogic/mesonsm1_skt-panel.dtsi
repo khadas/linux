@@ -19,7 +19,7 @@
 	lcd:lcd{
 		compatible = "amlogic, lcd-sm1";
 		mode = "tablet";
-		status = "okay";
+		status = "disable";
 		key_valid = <0>;
 		clocks = <&clkc CLKID_MIPI_DSI_HOST
 			&clkc CLKID_MIPI_DSI_PHY
@@ -199,7 +199,7 @@
 
 	lcd_extern{
 		compatible = "amlogic, lcd_extern";
-		status = "okay";
+		status = "disable";
 		i2c_bus = "i2c_bus_0";
 		key_valid = <0>;
 
@@ -484,7 +484,7 @@
 
 	backlight{
 		compatible = "amlogic, backlight-sm1";
-		status = "okay";
+		status = "disable";
 		key_valid = <0>;
 		pinctrl-names = "pwm_on";
 		pinctrl-0 = <&pwm_f_pins2>;
