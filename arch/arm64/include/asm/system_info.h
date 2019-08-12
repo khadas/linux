@@ -8,6 +8,7 @@
 extern unsigned int system_rev;
 extern unsigned int system_serial_low;
 extern unsigned int system_serial_high;
+extern const char *machine_model;
 
 #endif /* !__ASSEMBLY__ */
 
