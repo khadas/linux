@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_P_32.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
@@ -1392,7 +1392,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <6>;
+		datain_chnum = <4>;
 		datain_chmask = <0x3f>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 1 1 0>;
@@ -1573,11 +1573,17 @@
 		};
 	};
 
+	spdifout: spdifout {
+		mux { /* GPIOH_4 */
+			groups = "spdif_out_h";
+			function = "spdif_out";
+		};
+	};
+
 	pdmin: pdmin {
 		mux { /* GPIOA_5, GPIOA_6, GPIOA_8, GPIOA_9, GPIOA_7 */
 			groups = "pdm_din0_a",
 				"pdm_din1_a",
-				"pdm_din2_a",
 				/*"pdm_din3_a",*/
 				"pdm_dclk_a";
 			function = "pdm";
@@ -1620,15 +1626,6 @@
 
 
 }; /* end of pinctrl_periphs */
-
-&pinctrl_aobus {
-	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
-			function = "spdif_out";
-		};
-	};
-};  /* end of pinctrl_aobus */
 
 &audio_data {
 	status = "okay";
