@@ -194,7 +194,8 @@ void enable_di_post_mif(enum gate_mode_e mode);
 void di_hw_uninit(void);
 void combing_pd22_window_config(unsigned int width, unsigned int height);
 void calc_lmv_init(void);
-void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned short *mcinfo_vadr);
+void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr,
+						unsigned int mcinfo_size);
 void init_field_mode(unsigned short height);
 void film_mode_win_config(unsigned int width, unsigned int height);
 void pulldown_vof_win_config(struct pulldown_detected_s *wins);

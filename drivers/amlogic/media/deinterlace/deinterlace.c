@@ -1944,7 +1944,6 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp)
 	unsigned int start_time, end_time, delta_time;
 	struct di_buf_s *buf_p = NULL;
 	int itmp, alloc_cnt = 0;
-	u8 *tmp;
 
 	start_time = jiffies_to_msecs(jiffies);
 	queue_for_each_entry(buf_p, ptmp, QUEUE_LOCAL_FREE, list) {
@@ -1990,18 +1989,6 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp)
 					di_pre_stru.mtn_size +
 					di_pre_stru.count_size +
 					di_pre_stru.mv_size;
-					tmp = di_vmap(buf_p->mcinfo_adr,
-						di_pre_stru.mcinfo_size,
-						&buf_p->bflg_vmap);
-
-					if (buf_p->bflg_vmap == true)
-						buf_p->mcinfo_vaddr =
-							(unsigned short *)tmp;
-					else {
-						buf_p->mcinfo_vaddr = NULL;
-						pr_err("DI: %s vmap fail\n",
-							__func__);
-					}
 			}
 		}
 	}
@@ -2066,12 +2053,6 @@ static void di_cma_release(struct di_dev_s *devp)
 		}
 		if ((ii >= USED_LOCAL_BUF_MAX) &&
 			(buf_p->pages != NULL)) {
-
-			if (buf_p->bflg_vmap == true) {
-				di_unmap_phyaddr((u8 *)buf_p->mcinfo_vaddr);
-				buf_p->bflg_vmap = false;
-			}
-
 			if (dma_release_from_contiguous(&(devp->pdev->dev),
 					buf_p->pages,
 					devp->buffer_size >> PAGE_SHIFT)) {
@@ -2134,7 +2115,6 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	unsigned int mv_canvas_width = width, canvas_align_width = 32;
 	unsigned long di_post_mem = 0, nrds_mem = 0;
 	struct di_buf_s *keep_buf = di_post_stru.keep_buf;
-	u8 *tmp;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		canvas_align_width = 64;
@@ -2262,38 +2242,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 						di_buf_size * i;
 					di_buf->mtn_adr = de_devp->mem_start +
 						di_buf_size * i +
-						nr_size;
-					di_buf->cnt_adr = de_devp->mem_start +
-						di_buf_size * i +
-						nr_size + mtn_size;
-
-					if (mc_mem_alloc) {
-						di_buf->mcvec_adr =
-							de_devp->mem_start +
-							di_buf_size * i +
-							nr_size + mtn_size +
-							count_size;
-						di_buf->mcinfo_adr =
-							de_devp->mem_start +
-							di_buf_size * i +
-							nr_size +
-							mtn_size +
-							count_size + mv_size;
-						tmp = di_vmap(
-							di_buf->mcinfo_adr,
-							di_pre_stru.
-							mcinfo_size,
-							&di_buf->bflg_vmap);
-
-					if (di_buf->bflg_vmap == true)
-						di_buf->mcinfo_vaddr =
-						(unsigned short *)tmp;
-					else {
-						di_buf->mcinfo_vaddr = NULL;
-						pr_err("DI: %s vmap fail\n",
-							__func__);
-					}
-					}
+						nr_size + mtn_size + count_size;
+					di_buf->mcinfo_adr =
+						de_devp->mem_start +
+						di_buf_size * i + nr_size +
+						mtn_size + count_size + mv_size;
 				}
 
 				di_buf->canvas_config_flag = 2;
@@ -4523,7 +4476,8 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 				is_meson_txhd_cpu())
 				mc_pre_mv_irq();
 			calc_lmv_base_mcinfo((di_pre_stru.cur_height>>1),
-				di_pre_stru.di_wr_buf->mcinfo_vaddr);
+				di_pre_stru.di_wr_buf->mcinfo_adr,
+				di_pre_stru.mcinfo_size);
 		}
 		nr_process_in_irq();
 		if ((data32&0x200) && de_devp->nrds_enable)
