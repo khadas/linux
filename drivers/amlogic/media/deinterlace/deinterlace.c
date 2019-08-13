@@ -114,7 +114,6 @@ static bool mc_mem_alloc;
 
 static unsigned int di_pre_rdma_enable;
 static struct mutex di_event_mutex;
-static atomic_t di_flag_unreg;	//ary 2019-05-27
 
 static unsigned int di_force_bit_mode = 10;
 module_param(di_force_bit_mode, uint, 0664);
@@ -2964,7 +2963,6 @@ static void pre_de_process(void)
 
 	di_pre_stru.pre_de_process_flag = 1;
 	di_pre_stru.pre_de_busy_timer_count = 0;
-	ddbg_mod_save(eDI_DBG_MOD_PRE_SETB, 0, di_pre_stru.in_seq);/*dbg*/
 	#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	pre_inp_canvas_config(di_pre_stru.di_inp_buf->vframe);
 	#endif
@@ -3151,7 +3149,6 @@ static void pre_de_process(void)
 	#endif
 	di_pre_stru.irq_time[0] = cur_to_msecs();
 	di_pre_stru.irq_time[1] = cur_to_msecs();
-	ddbg_mod_save(eDI_DBG_MOD_PRE_SETE, 0, di_pre_stru.in_seq);/*dbg*/
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable & 0x2)
 		rdma_config(de_devp->rdma_handle, RDMA_TRIGGER_MANUAL);
@@ -3223,7 +3220,6 @@ static void pre_de_done_buf_config(void)
 	unsigned int glb_frame_mot_num = 0;
 	unsigned int glb_field_mot_num = 0;
 
-	ddbg_mod_save(eDI_DBG_MOD_PRE_DONEB, 0, di_pre_stru.in_seq);/*dbg*/
 	if (di_pre_stru.di_wr_buf) {
 		if (di_pre_stru.pre_throw_flag > 0) {
 			di_pre_stru.di_wr_buf->throw_flag = 1;
@@ -3433,7 +3429,6 @@ static void pre_de_done_buf_config(void)
 			di_pre_stru.di_inp_buf = NULL;
 		}
 	}
-	ddbg_mod_save(eDI_DBG_MOD_PRE_DONEE, 0, di_pre_stru.in_seq);/*dbg*/
 }
 
 static void recycle_vframe_type_pre(struct di_buf_s *di_buf)
@@ -4492,7 +4487,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	}
 
 #endif
-	ddbg_mod_save(eDI_DBG_MOD_PRE_IRQB, 0, di_pre_stru.in_seq);
+
 #ifdef DET3D
 	if (det3d_en) {
 		if ((data32 & 0x100) && !(mask32 & 0x100) && flag) {
@@ -4510,7 +4505,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 #endif
 
 	if (di_pre_stru.pre_de_busy == 0) {
-		pr_err("di:err:%s: enter %x\n", __func__, Rd(DI_INTR_CTRL));
+		di_print("%s: wrong enter %x\n", __func__, Rd(DI_INTR_CTRL));
 		return IRQ_HANDLED;
 	}
 
@@ -4545,7 +4540,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 			/* pr_dbg("%s:up di sema\n", __func__); */
 			trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
 	}
-	ddbg_mod_save(eDI_DBG_MOD_PRE_IRQE, 0, di_pre_stru.in_seq);
+
 	return IRQ_HANDLED;
 }
 
@@ -4559,7 +4554,6 @@ static irqreturn_t post_irq(int irq, void *dev_instance)
 		pr_info("irq[%d]post write undone.\n", irq);
 		return IRQ_HANDLED;
 	}
-	ddbg_mod_save(eDI_DBG_MOD_POST_IRQB, 0, 0);
 	if ((post_wr_en && post_wr_support) && (data32&0x4)) {
 		di_post_stru.de_post_process_done = 1;
 		di_post_stru.post_de_busy = 0;
@@ -4572,7 +4566,6 @@ static irqreturn_t post_irq(int irq, void *dev_instance)
 		/* disable wr back avoid pps sreay in g12a */
 		DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1);
 	}
-	ddbg_mod_save(eDI_DBG_MOD_POST_IRQE, 0, 0);
 
 	if (init_flag)
 		trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
@@ -4882,7 +4875,6 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 	if (init_flag == 0 && IS_ERR_OR_NULL(di_post_stru.keep_buf))
 		return 0;
 
-	ddbg_mod_save(eDI_DBG_MOD_POST_SETB, 0, frame_count);/*dbg*/
 	di_start_x = zoom_start_x_lines;
 	di_end_x = zoom_end_x_lines;
 	di_width = di_end_x - di_start_x + 1;
@@ -4905,8 +4897,6 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 	    di_post_stru.buf_type != di_buf->di_buf_dup_p[0]->type ||
 	    (di_post_stru.di_buf0_mif.luma_x_start0 != di_start_x) ||
 	    (di_post_stru.di_buf0_mif.luma_y_start0 != di_start_y / 2)) {
-		ddbg_mod_save(eDI_DBG_MOD_POST_RESIZE, 0,
-			frame_count);/*dbg*/
 		di_post_stru.buf_type = di_buf->di_buf_dup_p[0]->type;
 
 		initial_di_post_2(di_width, di_height,
@@ -5400,7 +5390,6 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 
 	if (di_post_stru.update_post_reg_flag > 0)
 		di_post_stru.update_post_reg_flag--;
-	ddbg_mod_save(eDI_DBG_MOD_POST_SETE, 0, frame_count);/*dbg*/
 	return 0;
 }
 
@@ -5412,7 +5401,6 @@ static void post_de_done_buf_config(void)
 
 	if (di_post_stru.cur_post_buf == NULL)
 		return;
-	ddbg_mod_save(eDI_DBG_MOD_POST_DB, 0, frame_count);/*dbg*/
 
 	di_lock_irqfiq_save(irq_flag2);
 	queue_out(di_post_stru.cur_post_buf);
@@ -5425,7 +5413,6 @@ static void post_de_done_buf_config(void)
 	di_unlock_irqfiq_restore(irq_flag2);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	di_post_stru.cur_post_buf = NULL;
-	ddbg_mod_save(eDI_DBG_MOD_POST_DE, 0, frame_count);/*dbg*/
 
 }
 
@@ -6605,8 +6592,7 @@ static void di_process(void)
 				if (pre_run_flag == DI_RUN_FLAG_STEP)
 					pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 				if (pre_de_buf_config() &&
-					(di_pre_stru.pre_de_process_flag == 0)
-					&& (!atomic_read(&di_flag_unreg)))
+					(di_pre_stru.pre_de_process_flag == 0))
 					pre_de_process();
 			}
 		}
@@ -6646,7 +6632,6 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 				dump_mif_size_state(&di_pre_stru,
 					&di_post_stru);
 			}
-			ddbg_mod_save(eDI_DBG_MOD_PRE_TIMEOUT, 0, 0);
 			enable_di_pre_mif(false, mcpre_en);
 			if (de_devp->nrds_enable)
 				nr_ds_hw_ctrl(false);
@@ -6779,8 +6764,7 @@ static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 		if (pre_stru_p->unreg_req_flag_irq &&
 			(di_pre_stru.pre_de_busy == 0))
 			di_unreg_process_irq();
-		if (init_flag == 0 && pre_stru_p->reg_req_flag_irq == 0
-			&& (!atomic_read(&di_flag_unreg)))
+		if (init_flag == 0 && pre_stru_p->reg_req_flag_irq == 0)
 			di_reg_process_irq();
 	}
 
@@ -6824,23 +6808,16 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		return di_pre_stru.vdin2nr;
 	} else if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		mutex_lock(&di_event_mutex);
-		atomic_set(&di_flag_unreg, 1);	//ary 2019-05-27
 		pr_dbg("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
 			__func__, is_bypass(NULL), trick_mode, bypass_all);
 		di_pre_stru.vdin_source = false;
 		pr_info("DI: %s: unreg\n", __func__);
 		pr_info("DI: provider name:%s\n", provider_name);
-		ddbg_mod_save(eDI_DBG_MOD_UNREGB, 0, 0);
+
 		di_pre_stru.unreg_req_flag = 1;
 		di_pre_stru.vdin_source = false;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
-		//wait 10ms:
-		if (di_pre_stru.pre_de_process_flag
-			|| di_pre_stru.pre_de_busy) {
-			pr_info("di:w10\n");
-			usleep_range(10000, 10001);
-		}
 		while (di_pre_stru.unreg_req_flag ||
 			di_pre_stru.reg_irq_busy) {
 			usleep_range(1000, 1001);
@@ -6870,13 +6847,12 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		if (di_pre_stru.vdin_source)
 			DI_Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
 #endif
-		ddbg_mod_save(eDI_DBG_MOD_UNREGE, 0, 0);
 		mutex_unlock(&di_event_mutex);
 		pr_info("DI: unreg f\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		di_blocking = 1;
 
-		pr_info("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
+		pr_dbg("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
 		if (is_bypass(NULL)
 			|| bypass_state
 			|| di_pre_stru.bypass_flag) {
@@ -6889,7 +6865,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
 		di_blocking = 1;
 
-		pr_info("%s: vf_notify_receiver ligth unreg\n", __func__);
+		pr_dbg("%s: vf_notify_receiver ligth unreg\n", __func__);
 
 light_unreg:
 		spin_lock_irqsave(&plist_lock, flags);
@@ -7048,8 +7024,7 @@ light_unreg:
 		}
 		pr_info("%s: vframe provider reg %s\n", __func__,
 			provider_name);
-		ddbg_mod_save(eDI_DBG_MOD_REGB, 0, 0);
-		atomic_set(&di_flag_unreg, 0); //ary
+
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
@@ -7084,7 +7059,6 @@ light_unreg:
 		} else {
 			pr_info("%s error receiver is null.\n", __func__);
 		}
-		ddbg_mod_save(eDI_DBG_MOD_REGE, 0, 0);
 		mutex_unlock(&di_event_mutex);
 		pr_info("DI: reg f\n");
 	}
@@ -8004,7 +7978,7 @@ static int di_probe(struct platform_device *pdev)
 	di_sema_init_flag = 1;
 	di_hw_init(pulldown_enable, mcpre_en);
 	set_di_flag();
-	atomic_set(&di_flag_unreg, 0);
+
 /* Disable MCDI when code does not surpport MCDI */
 	if (!mcpre_en)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 1);
