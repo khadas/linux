@@ -1446,7 +1446,7 @@ static inline void video_vf_put(struct vframe_s *vf)
 	if (vf == &hist_test_vf)
 		return;
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vfp && vf) {
 		vf_put(vf, RECEIVER_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_dolby_vision_enable())
