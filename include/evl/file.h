@@ -7,8 +7,6 @@
 #ifndef _EVL_FILE_H
 #define _EVL_FILE_H
 
-#ifdef CONFIG_EVL
-
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/rbtree.h>
@@ -71,15 +69,5 @@ void evl_ignore_fd(struct evl_poll_node *node);
 int evl_init_files(void);
 
 void evl_cleanup_files(void);
-
-#else
-
-struct evl_file { };
-
-#define evl_open_file(__efilp, __filp)	({ 0; })
-
-#define evl_release_file(__efilp)	do { } while (0)
-
-#endif	/* !CONFIG_EVL */
 
 #endif /* !_EVL_FILE_H */
