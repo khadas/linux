@@ -161,7 +161,6 @@ struct di_buf_s {
 	 */
 	atomic_t di_cnt;
 	struct page	*pages;
-	u32 width_bk;
 };
 #define RDMA_DET3D_IRQ				0x20
 /* vdin0 rdma irq */
@@ -344,7 +343,7 @@ struct di_pre_stru_s {
 	unsigned int det_tp;
 	unsigned int det_la;
 	unsigned int det_null;
-	/*unsigned int width_bk;*/
+	unsigned int width_bk;
 #ifdef DET3D
 	int	vframe_interleave_flag;
 #endif
