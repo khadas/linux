@@ -18,8 +18,6 @@
 #ifndef _FLMVOFSFT_H_
 #define _FLMVOFSFT_H_
 #include <linux/kernel.h>
-#include <linux/amlogic/media/vfm/vframe.h>
-
 /* Film Detection and VOF detection Software implementation */
 /* Designer: Xin.Hu@amlogic.com */
 /* Date: 12/06/13 */
@@ -132,9 +130,6 @@ struct sFlmSftPar {
 	int flag_di01th;
 	int numthd;
 
-	int flm32_dif02_gap_th;
-	int flm32_luma_th;
-
 	UINT32 sF32Dif02M0;	/* mpeg-4096, cvbs-8192 */
 	UINT32 sF32Dif02M1;	/* mpeg-4096, cvbs-8192 */
 	unsigned int field_count;
@@ -169,8 +164,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	UINT8 *dif01flag, UINT32 *rROFldDif01, UINT32 *rROFrmDif02,
 	UINT32 *rROCmbInf, UINT32 glb_frame_mot_num,
 	UINT32 glb_field_mot_num, unsigned int *cmb_row_num,
-	unsigned int *frame_diff_avg, struct sFlmSftPar *pPar, bool reverse,
-	struct vframe_s *vf);
+	unsigned int *frame_diff_avg, struct sFlmSftPar *pPar, bool reverse);
 
 /* length of pFlm01/nDif01: [0:5]; */
 /* iDx: index of minimum dif02 ([0:5] */
@@ -181,7 +175,7 @@ int Cal32Flm01(UINT8 *pFlm01, int *nDif01, int iDx, struct sFlmSftPar *pPar);
 /* nDif02: Frame Difference */
 /* WND: The index of Window */
 int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02, int WND,
-	      struct sFlmSftPar *pPar, struct vframe_s *vf);
+	      struct sFlmSftPar *pPar);
 
 int VOFDetSub1(int *PREWV, int *nCNum, int nMod, UINT32 *nRCmb, int nROW,
 	       struct sFlmSftPar *pPar);
@@ -193,7 +187,7 @@ int VOFDetSft(int *VOFWnd, int *nCNum, int *nGCmb,
 
 /*  */
 int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02, int *nDif01,
-		struct sFlmSftPar *pPar, struct vframe_s *vf);
+		struct sFlmSftPar *pPar);
 
 /* Film2-2 Detection */
 int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
