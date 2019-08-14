@@ -14,6 +14,8 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
 #include <linux/version.h>
@@ -124,12 +126,16 @@ struct imx214 {
 	bool			streaming;
 	bool			power_on;
 	const struct imx214_mode *cur_mode;
+	unsigned int		lane_num;
+	unsigned int		cfg_num;
+	unsigned int		pixel_rate;
+
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
 	struct v4l2_ctrl *link_freq;
-	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *pixel_rate_ctrl;
 	struct imx214_otp_info *otp;
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
@@ -161,7 +167,7 @@ static const struct imx214_id_name imx214_lens_info[] = {
 static const struct regval imx214_global_regs[] = {
 	{0x0136, 0x18},
 	{0x0137, 0x00},
-	{0x0101, 0x03}, 
+	{0x0101, 0x03},
 	{0x0105, 0x01},
 	{0x0106, 0x01},
 	{0x4550, 0x02},
@@ -387,7 +393,7 @@ static const struct regval imx214_4208x3120_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct imx214_mode supported_modes[] = {
+static const struct imx214_mode supported_modes_2lane[] = {
 	{
 		.width = 4208,
 		.height = 3120,
@@ -413,6 +419,8 @@ static const struct imx214_mode supported_modes[] = {
 		.reg_list = imx214_2104x1560_regs,
 	},
 };
+			
+static const struct imx214_mode *supported_modes;
 
 static const s64 link_freq_menu_items[] = {
 	IMX214_LINK_FREQ_FULL,
@@ -512,7 +520,8 @@ static int imx214_get_reso_dist(const struct imx214_mode *mode,
 }
 
 static const struct imx214_mode *
-	imx214_find_best_fit(struct v4l2_subdev_format *fmt)
+	imx214_find_best_fit(struct imx214 *imx214,
+						struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
@@ -520,7 +529,7 @@ static const struct imx214_mode *
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+	for (i = 0; i < imx214->cfg_num; i++) {
 		dist = imx214_get_reso_dist(&supported_modes[i], framefmt);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
@@ -541,7 +550,7 @@ static int imx214_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&imx214->mutex);
 
-	mode = imx214_find_best_fit(fmt);
+	mode = imx214_find_best_fit(imx214, fmt);
 	fmt->format.code = IMX214_MEDIA_BUS_FMT;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
@@ -565,12 +574,12 @@ static int imx214_set_fmt(struct v4l2_subdev *sd,
 		if (mode->width == 2104 && mode->height == 1560) {
 			__v4l2_ctrl_s_ctrl(imx214->link_freq,
 				link_freq_menu_items[1]);
-			__v4l2_ctrl_s_ctrl_int64(imx214->pixel_rate,
+			__v4l2_ctrl_s_ctrl_int64(imx214->pixel_rate_ctrl,
 				IMX214_PIXEL_RATE_BINNING);
 		} else {
 			__v4l2_ctrl_s_ctrl(imx214->link_freq,
 				link_freq_menu_items[0]);
-			__v4l2_ctrl_s_ctrl_int64(imx214->pixel_rate,
+			__v4l2_ctrl_s_ctrl_int64(imx214->pixel_rate_ctrl,
 				IMX214_PIXEL_RATE_FULL_SIZE);
 		}
 	}
@@ -620,7 +629,8 @@ static int imx214_enum_frame_sizes(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= ARRAY_SIZE(supported_modes))
+	struct imx214 *imx214 = to_imx214(sd);
+	if (fse->index >= imx214->cfg_num)
 		return -EINVAL;
 
 	if (fse->code != IMX214_MEDIA_BUS_FMT)
@@ -1021,6 +1031,7 @@ static int imx214_s_power(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = imx214->client;
 	int ret = 0;
 
+	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
 	mutex_lock(&imx214->mutex);
 
 	/* If the power state is not modified - no work to do. */
@@ -1064,6 +1075,8 @@ static int __imx214_power_on(struct imx214 *imx214)
 	int ret;
 	u32 delay_us;
 	struct device *dev = &imx214->client->dev;
+
+	dev_info(&imx214->client->dev, "%s(%d) enter!\n", __func__, __LINE__);
 
 	if (!IS_ERR_OR_NULL(imx214->pins_default)) {
 		ret = pinctrl_select_state(imx214->pinctrl,
@@ -1109,6 +1122,7 @@ disable_clk:
 static void __imx214_power_off(struct imx214 *imx214)
 {
 	int ret;
+	dev_info(&imx214->client->dev, "%s(%d) enter!\n", __func__, __LINE__);
 
 	if (!IS_ERR(imx214->pwdn_gpio))
 		gpiod_set_value_cansleep(imx214->pwdn_gpio, 0);
@@ -1300,7 +1314,7 @@ static int imx214_initialize_controls(struct imx214 *imx214)
 		V4L2_CID_LINK_FREQ, 1, 0,
 		link_freq_menu_items);
 
-	imx214->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
+	imx214->pixel_rate_ctrl = v4l2_ctrl_new_std(handler, NULL,
 		V4L2_CID_PIXEL_RATE, 0, IMX214_PIXEL_RATE_FULL_SIZE,
 		1, IMX214_PIXEL_RATE_FULL_SIZE);
 
@@ -1382,6 +1396,41 @@ static int imx214_configure_regulators(struct imx214 *imx214)
 		imx214->supplies);
 }
 
+static int imx214_parse_of(struct imx214 *imx214)
+{
+	struct device *dev = &imx214->client->dev;
+	struct device_node *endpoint;
+	struct fwnode_handle *fwnode;
+	int rval;
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+	fwnode = of_fwnode_handle(endpoint);
+	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	if (rval <= 0) {
+		dev_warn(dev, " Get mipi lane num failed!\n");
+		return -1;
+	}
+
+	imx214->lane_num = rval;
+	if (4 == imx214->lane_num) {
+		dev_info(dev, "lane_num(%d) not supported!\n", imx214->lane_num);
+	} else {
+		imx214->cur_mode = &supported_modes_2lane[0];
+		supported_modes = supported_modes_2lane;
+		imx214->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+
+		/*pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+		imx214->pixel_rate = IMX214_LINK_FREQ_FULL * 2U * (imx214->lane_num) / 8U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
+				 imx214->lane_num, imx214->pixel_rate);
+	}
+	return 0;
+}
+
 static int imx214_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1447,6 +1496,10 @@ static int imx214_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get power regulators\n");
 		return ret;
 	}
+
+	ret = imx214_parse_of(imx214);
+	if (ret != 0)
+		return -EINVAL;
 
 	imx214->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(imx214->pinctrl)) {
