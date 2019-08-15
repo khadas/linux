@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/amlogic/pm.h>
+#include <linux/khadas-hwver.h>
 
 
 
@@ -164,6 +165,24 @@ static int mcu_i2c_write_regs(struct i2c_client *client,
 	int ret;
 	ret = i2c_master_reg8_send(client, reg, buf, (int)len);
 	return ret;
+}
+
+static bool is_support_wol(void)
+{
+	int hwver;
+	hwver = get_hwver();
+	switch(hwver) {
+		case HW_VERSION_VIM2_V12:
+		case HW_VERSION_VIM2_V14:
+		case HW_VERSION_VIM3_V11:
+		case HW_VERSION_VIM3_V12:
+			return true;
+		case HW_VERSION_UNKNOW:
+		case HW_VERSION_VIM1_V12:
+		case HW_VERSION_VIM1_V13:
+		default:
+			return false;
+	}
 }
 
 static int is_mcu_fan_control_available(void)
@@ -461,14 +480,16 @@ static void create_mcu_attrs(void)
 {
 	int i;
 	printk("%s\n",__func__);
-	g_mcu_data->wol_class = class_create(THIS_MODULE, "wol");
-	if (IS_ERR(g_mcu_data->wol_class)) {
-		pr_err("create wol_class debug class fail\n");
-		return;
-	}
-	for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
-		if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
-			pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
+	if (is_support_wol()) {
+		g_mcu_data->wol_class = class_create(THIS_MODULE, "wol");
+		if (IS_ERR(g_mcu_data->wol_class)) {
+			pr_err("create wol_class debug class fail\n");
+			return;
+		}
+		for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
+			if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
+				pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
+		}
 	}
 
 	g_mcu_data->mcu_class = class_create(THIS_MODULE, "mcu");
@@ -561,11 +582,12 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	mcu_parse_dt(&client->dev);
 
 	g_mcu_data->client = client;
-	ret = mcu_i2c_read_regs(client, MCU_WOL_REG, reg, 1);
-	if (ret < 0)
-		goto exit;
-	g_mcu_data->wol_enable = (int)reg[0];
-
+	if (is_support_wol()) {
+		ret = mcu_i2c_read_regs(client, MCU_WOL_REG, reg, 1);
+		if (ret < 0)
+			goto exit;
+		g_mcu_data->wol_enable = (int)reg[0];
+	}
 	ret = mcu_i2c_read_regs(client, MCU_PORT_MODE_REG, reg, 1);
 	if (ret < 0)
 		goto exit;
@@ -586,12 +608,13 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 //	if (g_mcu_data->wol_enable == 3)
 //		mcu_enable_wol(g_mcu_data->wol_enable, false);
-
-	reg[0] = 0x01;
-	ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
-	if (ret < 0) {
-		printk("write mcu err\n");
-		goto  exit;
+	if (is_support_wol()) {
+		reg[0] = 0x01;
+		ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
+		if (ret < 0) {
+			printk("write mcu err\n");
+			goto  exit;
+		}
 	}
 	return 0;
 exit:
