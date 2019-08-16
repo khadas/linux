@@ -16,6 +16,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/of_gpio.h>
+
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
 #include <linux/version.h>
@@ -1025,6 +1027,9 @@ unlock_and_return:
 	return ret;
 }
 
+static int __imx214_power_on(struct imx214 *imx214);
+static void __imx214_power_off(struct imx214 *imx214);
+
 static int imx214_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct imx214 *imx214 = to_imx214(sd);
@@ -1044,7 +1049,7 @@ static int imx214_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-
+		__imx214_power_on(imx214);
 		ret = imx214_write_array(imx214->client, imx214_global_regs);
 		if (ret) {
 			v4l2_err(sd, "could not set init registers\n");
@@ -1053,9 +1058,21 @@ static int imx214_s_power(struct v4l2_subdev *sd, int on)
 		}
 
 		imx214->power_on = true;
+		/* export gpio */
+		if (!IS_ERR(imx214->reset_gpio))
+			gpiod_export(imx214->reset_gpio, false);
+		if (!IS_ERR(imx214->pwdn_gpio))
+			gpiod_export(imx214->pwdn_gpio, false);
+
 	} else {
 		pm_runtime_put(&client->dev);
+		__imx214_power_off(imx214);
 		imx214->power_on = false;
+		/* unexport gpio */
+		if (!IS_ERR(imx214->reset_gpio))
+			gpiod_unexport(imx214->reset_gpio);
+		if (!IS_ERR(imx214->pwdn_gpio))
+			gpiod_unexport(imx214->pwdn_gpio);
 	}
 
 unlock_and_return:
@@ -1431,6 +1448,20 @@ static int imx214_parse_of(struct imx214 *imx214)
 	return 0;
 }
 
+static void free_gpio(struct imx214 *imx214)
+{
+	dev_info(&imx214->client->dev, "%s(%d) enter!\n", __func__, __LINE__);
+
+	if (!IS_ERR(imx214->pwdn_gpio)){
+		//gpiod_free(imx214->pwdn_gpio);
+		gpio_free(desc_to_gpio(imx214->pwdn_gpio));
+	}
+	if (!IS_ERR(imx214->reset_gpio)){
+		//gpiod_free(imx214->reset_gpio);
+		gpio_free(desc_to_gpio(imx214->reset_gpio));
+	}
+}
+
 static int imx214_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1444,6 +1475,9 @@ static int imx214_probe(struct i2c_client *client,
 	struct v4l2_subdev *eeprom_ctrl;
 	struct imx214_otp_info *otp_ptr;
 	int ret;
+	struct gpio_desc *pwdn_gpio, *reset_gpio;
+	unsigned int pwdn = -1, reset = -1;
+	enum of_gpio_flags flags;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -1484,12 +1518,26 @@ static int imx214_probe(struct i2c_client *client,
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	imx214->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(imx214->reset_gpio))
-		dev_warn(dev, "Failed to get reset-gpios\n");
+	if (IS_ERR(imx214->reset_gpio)) {
+		dev_info(dev, "Failed to get reset-gpios, maybe no use\n");
+		reset = of_get_named_gpio_flags(node, "reset-gpios", 0, &flags);
+		reset_gpio = gpio_to_desc(reset);
+		if (IS_ERR(reset_gpio))
+			dev_info(dev, "Failed to get reset-gpios again\n");
+		else
+			imx214->reset_gpio = reset_gpio;
+	}
 
 	imx214->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(imx214->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios\n");
+	if (IS_ERR(imx214->pwdn_gpio)) {
+		dev_info(dev, "Failed to get pwdn-gpios, maybe no use\n");
+		pwdn = of_get_named_gpio_flags(node, "pwdn-gpios", 0, &flags);
+		pwdn_gpio = gpio_to_desc(pwdn);
+		if (IS_ERR(pwdn_gpio))
+			dev_info(dev, "Failed to get pwdn-gpios again\n");
+		else
+			imx214->pwdn_gpio = pwdn_gpio;
+	}
 
 	ret = imx214_configure_regulators(imx214);
 	if (ret) {
@@ -1600,6 +1648,7 @@ err_clean_entity:
 #endif
 err_power_off:
 	__imx214_power_off(imx214);
+	free_gpio(imx214);
 err_free_handler:
 	v4l2_ctrl_handler_free(&imx214->ctrl_handler);
 err_destroy_mutex:

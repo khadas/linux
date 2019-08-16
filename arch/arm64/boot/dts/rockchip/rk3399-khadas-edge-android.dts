@@ -153,6 +153,7 @@
 		/* dovdd-supply = <>; */
 		/* reset-gpios = <>; */
 		pwdn-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
 		rockchip,camera-module-index = <0>;
@@ -188,6 +189,7 @@
 		/* dovdd-supply = <>; */
 		/* reset-gpios = <>; */
 		pwdn-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
 		rockchip,camera-module-index = <1>;
