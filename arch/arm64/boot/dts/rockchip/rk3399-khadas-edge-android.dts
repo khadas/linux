@@ -163,6 +163,7 @@
 		reg = <0x39>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		led-r-gpio = <&gpio4 24 GPIO_ACTIVE_HIGH>;		
 		pinctrl-names = "default";
 		pinctrl-0 = <&apds_int_l>;
 	};

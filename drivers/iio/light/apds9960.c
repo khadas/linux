@@ -27,6 +27,8 @@
 #include <linux/iio/sysfs.h>
 #include <linux/of_gpio.h>
 #include <linux/input.h>
+#include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #define APDS9960_REGMAP_NAME	"apds9960_regmap"
 #define APDS9960_DRV_NAME	"apds9960"
@@ -105,6 +107,8 @@
 #define APDS9960_MAX_INT_TIME_IN_US	1000000
 
 extern int get_board_type(void);
+static int board_type;
+
 enum apds9960_als_channel_idx {
 	IDX_ALS_CLEAR, IDX_ALS_RED, IDX_ALS_GREEN, IDX_ALS_BLUE,
 };
@@ -125,6 +129,8 @@ struct apds9960_data {
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
 	struct mutex lock;
+	struct gpio_desc *led_r_gpio;
+	int led_r_gpio_pin;
 
 	/* regmap fields */
 	struct regmap *regmap;
@@ -328,7 +334,7 @@ static const int apds9960_int_time[][2] = {
 static const int apds9960_pxs_gain_map[] = {1, 2, 4, 8};
 static const int apds9960_als_gain_map[] = {1, 4, 16, 64};
 
-#define USE_KHADAS_GESTURE_TEST  0
+static unsigned int khadas_gesture_test_mode = 0;
 /* Acceptable device IDs */
 #define APDS9960_ID_1           0xAB
 #define APDS9960_ID_2           0x9C 
@@ -1310,7 +1316,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 	mutex_lock(&data->lock);
 	data->gesture_mode_running = 1;
 	
-	if(USE_KHADAS_GESTURE_TEST){
+	if(khadas_gesture_test_mode){
 	    /* Make sure that power and gesture is on and data is valid */
 	    if( !isGestureAvailable(data) || !(getMode(data) & 0b01000001) ) 
 			goto err_read;
@@ -2029,17 +2035,76 @@ static int apds9960_chip_init(struct apds9960_data *data)
 	return apds9960_set_powermode(data, 1);
 }
 
+static ssize_t show_apds9960_mode(struct class *cls, struct class_attribute *attr, char *buf)
+{
+#if 1
+		unsigned int i, val;
+
+		for(i=0x80;i<256;i++){
+			regmap_read(data_p->regmap, i, &val);
+			printk("apds9960 0x%x=0x%x\n",i,val);  
+		}
+#endif
+
+	return sprintf(buf, "%d\n", khadas_gesture_test_mode);
+}
+
+static ssize_t store_apds9960_mode(struct class *cls, struct class_attribute *attr,
+		        const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 0, &khadas_gesture_test_mode))
+		return -EINVAL;
+
+	printk("khadas_gesture_test_mode=%d\n",khadas_gesture_test_mode);
+	if(khadas_gesture_test_mode){
+		 if (KHADAS_EDGEV == board_type)
+			gpiod_set_value_cansleep(data_p->led_r_gpio, 0);//GPIO4_D0 LED_R
+		 APDS9960_init(data_p);
+	}		
+	else{
+		setMode(data_p,ALL, OFF);
+		apds9960_regfield_init(data_p);
+		apds9960_chip_init(data_p);
+		if (KHADAS_EDGEV == board_type)
+			gpiod_set_value_cansleep(data_p->led_r_gpio, 1);//GPIO4_D0 LED_R
+	}	
+	return count;
+}
+
+static struct class_attribute apds9960_class_attrs[] = {
+	__ATTR(apds9960_mode, 0644, show_apds9960_mode, store_apds9960_mode),
+};
+
+static void create_apds9960_attrs(void)
+{
+	int i;
+	struct class *apds9960_class;
+	
+	apds9960_class = class_create(THIS_MODULE, "apds9960");
+	if (IS_ERR(apds9960_class)) {
+		pr_err("create apds9960_class debug class fail\n");
+		return;
+	}
+	for (i = 0; i < ARRAY_SIZE(apds9960_class_attrs); i++) {
+		if (class_create_file(apds9960_class, &apds9960_class_attrs[i]))
+			pr_err("create apds9960 attribute %s fail\n", apds9960_class_attrs[i].attr.name);
+	}
+}
+
 static int apds9960_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct apds9960_data *data;
 	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
-	int ret, type;
+	int ret;
+	enum of_gpio_flags flags;
+	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
     //unsigned int i, val;
 
-	type = get_board_type();
-	if (type == KHADAS_EDGE)
+	board_type = get_board_type();
+	if (board_type == KHADAS_EDGE)
 		return -1;
 
 	printk("%s ...\n", __func__);
@@ -2084,10 +2149,23 @@ static int apds9960_probe(struct i2c_client *client,
 	pm_runtime_set_autosuspend_delay(&client->dev, 5000);
 	pm_runtime_use_autosuspend(&client->dev);
 
+	data_p = data;
+	if (KHADAS_EDGEV == board_type){
+		data->led_r_gpio_pin = of_get_named_gpio_flags(node, "led-r-gpio", 0, &flags);
+		data->led_r_gpio = gpio_to_desc(data->led_r_gpio_pin);
+		if (IS_ERR(data->led_r_gpio)) {
+			printk("Failed to request GPIO led_r_gpio\n");
+		}
+		if(gpio_request(data->led_r_gpio_pin, "led-r-gpio")){
+			printk("Failed to request GPIO led_r_gpio\n");
+			gpio_free(data->led_r_gpio_pin);
+		}
+		gpio_direction_output(data->led_r_gpio_pin, 1);
+		//printk("led_r_gpio = %d \n",gpiod_get_value_cansleep(data->led_r_gpio));
+	}
 	apds9960_set_power_state(data, true);
 	
-	if(USE_KHADAS_GESTURE_TEST){
-		data_p = data;
+	if(khadas_gesture_test_mode){
 		ret = APDS9960_init(data);
 		if (!ret)
 			goto error_power_down;
@@ -2129,7 +2207,9 @@ static int apds9960_probe(struct i2c_client *client,
 		goto error_power_down;
 
 	apds9960_set_power_state(data, true);
-
+	
+	create_apds9960_attrs();
+	
 	printk("%s done!\n", __func__);
 
 	return 0;
