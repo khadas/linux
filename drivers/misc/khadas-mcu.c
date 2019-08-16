@@ -22,6 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/amlogic/pm.h>
 #include <linux/khadas-hwver.h>
+#include <linux/amlogic/cpu_version.h>
 
 
 
@@ -185,6 +186,15 @@ static bool is_support_wol(void)
 	}
 }
 
+static bool is_vim1_or_vim2(void)
+{
+	int cpu_type = get_cpu_type();
+	if ((cpu_type == MESON_CPU_MAJOR_ID_GXL) || (cpu_type == MESON_CPU_MAJOR_ID_GXM)) {
+		return true;
+	}
+	return false;
+}
+
 static int is_mcu_fan_control_available(void)
 {
 	// MCU FAN control only for Khadas VIM2 V13 and later.
@@ -227,7 +237,7 @@ static void fan_test_work_func(struct work_struct *_work)
 
 }
 
-//extern int get_cpu_temp(void);
+extern int get_cpu_temp(void);
 extern int meson_get_temperature(void);
 static void fan_work_func(struct work_struct *_work)
 {
@@ -235,8 +245,10 @@ static void fan_work_func(struct work_struct *_work)
 		int temp = -EINVAL;
 		struct khadas_fan_data *fan_data = &g_mcu_data->fan_data;
 
-		//temp = get_cpu_temp();
-		temp = meson_get_temperature();
+		if (is_vim1_or_vim2())
+			temp = get_cpu_temp();
+		else
+			temp = meson_get_temperature();
 
 		if(temp != -EINVAL){
 			if(temp < fan_data->trig_temp_level0 ) {
@@ -367,8 +379,10 @@ static ssize_t show_fan_temp(struct class *cls,
 			 struct class_attribute *attr, char *buf)
 {
 	int temp = -EINVAL;
-//    temp = get_cpu_temp();
-	temp = meson_get_temperature();
+	if (is_vim1_or_vim2())
+		temp = get_cpu_temp();
+	else
+		temp = meson_get_temperature();
 
 	return sprintf(buf, "cpu_temp:%d\nFan trigger temperature: level0:%d level1:%d level2:%d\n", temp, g_mcu_data->fan_data.trig_temp_level0, g_mcu_data->fan_data.trig_temp_level1, g_mcu_data->fan_data.trig_temp_level2);
 }
