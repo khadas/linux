@@ -186,6 +186,24 @@ static bool is_support_wol(void)
 	}
 }
 
+static bool is_support_pcie(void)
+{
+	int hwver;
+	hwver = get_hwver();
+	switch (hwver) {
+		case HW_VERSION_VIM3_V11:
+		case HW_VERSION_VIM3_V12:
+			return true;
+		case HW_VERSION_UNKNOW:
+		case HW_VERSION_VIM1_V12:
+		case HW_VERSION_VIM1_V13:
+		case HW_VERSION_VIM2_V12:
+		case HW_VERSION_VIM2_V14:
+		default:
+			return false;
+	}
+}
+
 static bool is_vim1_or_vim2(void)
 {
 	int cpu_type = get_cpu_type();
@@ -501,6 +519,10 @@ static void create_mcu_attrs(void)
 			return;
 		}
 		for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
+			if (strstr(wol_class_attrs[i].attr.name, "portmode")) {
+				if (!is_support_pcie())
+					continue;
+			}
 			if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
 				pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
 		}
@@ -602,10 +624,12 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto exit;
 		g_mcu_data->wol_enable = (int)reg[0];
 	}
-	ret = mcu_i2c_read_regs(client, MCU_PORT_MODE_REG, reg, 1);
-	if (ret < 0)
-		goto exit;
-	g_mcu_data->portmode = (int)reg[0];
+	if (is_support_pcie()) {
+		ret = mcu_i2c_read_regs(client, MCU_PORT_MODE_REG, reg, 1);
+		if (ret < 0)
+			goto exit;
+		g_mcu_data->portmode = (int)reg[0];
+	}
 
 	if (is_mcu_fan_control_available()) {
 		g_mcu_data->fan_data.mode = KHADAS_FAN_STATE_AUTO;
