@@ -896,9 +896,11 @@ static ssize_t state_show(struct device *dev,
 		if (fun != EVL_NO_HANDLE)
 			owner = evl_get_element_by_fundle(&evl_thread_factory,
 							fun, struct evl_thread);
-		ret = snprintf(buf, PAGE_SIZE, "%d %u\n",
+		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
 			owner ? evl_get_inband_pid(owner) : -1,
-			state->u.gate.ceiling);
+			state->u.gate.ceiling,
+			owner ? (state->u.gate.recursive ?
+				state->u.gate.nesting : 1) : 0);
 		if (owner)
 			evl_put_element(&owner->element);
 	}
