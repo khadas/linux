@@ -41,6 +41,8 @@ struct evl_monitor_state {
 		struct {
 			atomic_t owner;
 			__u32 ceiling;
+			__u32 recursive: 1,
+				nesting : 31;
 		} gate;
 		struct {
 			atomic_t value;
