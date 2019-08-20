@@ -510,6 +510,11 @@
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
+	khadas-hwver {
+		compatible = "khadas-hwver";
+		status = "okay";
+	};
+
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
 		device_name = "thermal";

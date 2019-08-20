@@ -805,6 +805,12 @@ config KHADAS_RED_LED
 	help
 	  This driver is for Khadas VIM3 Red Led.
 
+config KHADAS_HWVER
+	tristate "Khadas VIMs HWVER"
+	default y
+	help
+	  This driver is for Khadas VIMs hardware version.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

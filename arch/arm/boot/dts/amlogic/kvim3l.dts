@@ -401,6 +401,11 @@
 		status = "okay";
 	};
 
+	khadas-hwver {
+		compatible = "khadas-hwver";
+		status = "okay";
+	};
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
