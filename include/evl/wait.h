@@ -165,11 +165,6 @@ void evl_abort_wait(struct evl_thread *thread,
 	list_del(&thread->wait_next);
 }
 
-void evl_flush_wait(struct evl_wait_queue *wq, int reason);
-
-void evl_abort_wait(struct evl_thread *thread,
-		struct evl_wait_channel *wchan);
-
 void evl_reorder_wait(struct evl_thread *thread);
 
 #endif /* !_EVL_WAIT_H_ */
