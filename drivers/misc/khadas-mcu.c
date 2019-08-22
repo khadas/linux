@@ -31,6 +31,8 @@
 #define MCU_FAN_CTRL	0x88
 #define MCU_RST_REG             0x2c
 #define MCU_PORT_MODE_REG       0x33
+#define MCU_VERSION_H_REG       0x12
+#define MCU_VERSION_L_REG       0x13
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -603,6 +605,7 @@ int mcu_get_wol_status(void)
 static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	u8 reg[2];
+	u8 ver[2];
 	int ret;
 
 	printk("%s\n", __func__);
@@ -641,6 +644,20 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		INIT_DELAYED_WORK(&g_mcu_data->fan_data.fan_test_work, fan_test_work_func);
 		schedule_delayed_work(&g_mcu_data->fan_data.fan_test_work, KHADAS_FAN_TEST_LOOP_SECS);
 	}
+	ret = mcu_i2c_read_regs(client, MCU_VERSION_H_REG, reg, 1);
+	if (ret < 0) {
+		printk("can't read mcu version h");
+		goto exit;
+	}
+	ver[0] = reg[0];
+	ret = mcu_i2c_read_regs(client, MCU_VERSION_L_REG, reg, 1);
+	if (ret < 0) {
+		printk("can't read mcu version l");
+		goto exit;
+	}
+	ver[1] = reg[0];
+	printk("mcu version is %x%x\n", ver[0], ver[1]);
+
 	create_mcu_attrs();
 	printk("%s,wol enable=%d\n",__func__ ,g_mcu_data->wol_enable);
 
