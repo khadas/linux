@@ -1448,7 +1448,7 @@ static int imx214_parse_of(struct imx214 *imx214)
 	return 0;
 }
 
-static void free_gpio(struct imx214 *imx214)
+/*static void free_gpio(struct imx214 *imx214)
 {
 	dev_info(&imx214->client->dev, "%s(%d) enter!\n", __func__, __LINE__);
 
@@ -1460,7 +1460,7 @@ static void free_gpio(struct imx214 *imx214)
 		//gpiod_free(imx214->reset_gpio);
 		gpio_free(desc_to_gpio(imx214->reset_gpio));
 	}
-}
+}*/
 
 static int imx214_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -1648,7 +1648,7 @@ err_clean_entity:
 #endif
 err_power_off:
 	__imx214_power_off(imx214);
-	free_gpio(imx214);
+	//free_gpio(imx214);
 err_free_handler:
 	v4l2_ctrl_handler_free(&imx214->ctrl_handler);
 err_destroy_mutex:
