@@ -453,6 +453,25 @@
 		};
 	};//End unifykey
 
+	efuse: efuse{
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		key = <&efusekey>;
+		status = "okay";
+	};
+
+	efusekey:efusekey{
+		keynum = <1>;
+		key0 = <&key_0>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+	};//End efusekey
+
 	amlvecm {
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
