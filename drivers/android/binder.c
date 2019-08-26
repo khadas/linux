@@ -1205,11 +1205,19 @@ static void binder_do_set_priority(struct task_struct *task,
 	if (verify && is_rt_policy(policy) && !has_cap_nice) {
 		long max_rtprio = task_rlimit(task, RLIMIT_RTPRIO);
 
-		if (max_rtprio == 0) {
-			policy = SCHED_NORMAL;
-			priority = MIN_NICE;
-		} else if (priority > max_rtprio) {
-			priority = max_rtprio;
+	if (mm) {
+		down_write(&mm->mmap_sem);
+		if (!mmget_still_valid(mm)) {
+			if (allocate == 0)
+				goto free_range;
+			goto err_no_vma;
+		}
+
+		vma = proc->vma;
+		if (vma && mm != proc->vma_vm_mm) {
+			pr_err("%d: vma mm and task mm mismatch\n",
+				proc->pid);
+			vma = NULL;
 		}
 	}
 
