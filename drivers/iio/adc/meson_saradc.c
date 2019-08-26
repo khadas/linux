@@ -31,6 +31,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #endif
 
 #define MESON_SAR_ADC_REG0					0x00
@@ -204,6 +205,9 @@
 #define MESON_SAR_ADC_TIMEOUT					100 /* ms */
 #define MESON_SAR_ADC_VOLTAGE_AND_TEMP_CHANNEL			6
 #define MESON_SAR_ADC_TEMP_OFFSET				27
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define MESON_SAR_ADC_PM_TIMEOUT				5000 /* ms */
+#endif
 
 /* temperature sensor calibration information in eFuse */
 #define MESON_SAR_ADC_EFUSE_BYTES				4
@@ -447,6 +451,19 @@ static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
 	.reg_stride = 4,
 	.max_register = MESON_SAR_ADC_DELTA_10,
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static bool meson_sar_adc_pm_runtime_supported(struct iio_dev *indio_dev)
+{
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
+	/* if the saradc is shared with bl30 it should't enable pm runtime */
+	if (priv->param->has_bl30_integration)
+		return false;
+
+	return true;
+}
+#endif
 
 static unsigned int meson_sar_adc_get_fifo_count(struct iio_dev *indio_dev)
 {
@@ -866,6 +883,14 @@ static int meson_sar_adc_get_sample(struct iio_dev *indio_dev,
 
 		return -EBUSY;
 	}
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		ret = pm_runtime_get_sync(indio_dev->dev.parent);
+		if (ret < 0) {
+			meson_sar_adc_unlock(indio_dev);
+			return ret;
+		}
+	}
 #endif
 
 	/* clear the FIFO to make sure we're not reading old values */
@@ -883,6 +908,12 @@ static int meson_sar_adc_get_sample(struct iio_dev *indio_dev,
 	ret = meson_sar_adc_read_raw_sample(indio_dev, chan, val);
 	meson_sar_adc_stop_sample_engine(indio_dev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_mark_last_busy(indio_dev->dev.parent);
+		pm_runtime_put_autosuspend(indio_dev->dev.parent);
+	}
+#endif
 	meson_sar_adc_unlock(indio_dev);
 
 	if (ret) {
@@ -1105,16 +1136,35 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_sar_adc_uninit(struct iio_dev *indio_dev)
+{
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
+	clk_disable_unprepare(priv->core_clk);
+
+	return 0;
+}
+#endif
+
 static int meson_sar_adc_init(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int regval, i, ret;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ret = clk_prepare_enable(priv->core_clk);
+	if (ret) {
+		dev_err(indio_dev->dev.parent, "failed to enable core clk\n");
+		return ret;
+	}
+#else
 	/*
 	 * make sure we start at CH7 input since the other muxes are only used
 	 * for internal calibration.
 	 */
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_CH7_INPUT);
+#endif
 
 	if (priv->param->has_bl30_integration) {
 		/*
@@ -1301,13 +1351,105 @@ static void meson_sar_adc_set_bandgap(struct iio_dev *indio_dev, bool on_off)
 			   on_off ? enable_mask : 0);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_sar_adc_hw_enable_unlock(struct iio_dev *indio_dev)
+{
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+	int ret;
+
+	ret = regulator_enable(priv->vref);
+	if (ret < 0) {
+		dev_err(indio_dev->dev.parent,
+			"failed to enable vref regulator\n");
+		goto err_vref;
+	}
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_VREF_EN,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_VREF_EN,
+				      priv->param->vref_enable));
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_CMV_SEL,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
+				      priv->param->cmv_select));
+
+	meson_sar_adc_set_bandgap(indio_dev, true);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_ADC_EN,
+			   MESON_SAR_ADC_REG3_ADC_EN);
+
+	udelay(5);
+
+	ret = clk_prepare_enable(priv->adc_clk);
+	if (ret) {
+		dev_err(indio_dev->dev.parent, "failed to enable adc clk\n");
+		goto err_adc_clk;
+	}
+
+	return 0;
+
+err_adc_clk:
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_ADC_EN, 0);
+	meson_sar_adc_set_bandgap(indio_dev, false);
+	regulator_disable(priv->vref);
+err_vref:
+	return ret;
+}
+
+static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	ret = meson_sar_adc_lock(indio_dev);
+	if (ret)
+		return ret;
+
+	ret = meson_sar_adc_hw_enable_unlock(indio_dev);
+
+	meson_sar_adc_unlock(indio_dev);
+
+	return ret;
+}
+
+static int meson_sar_adc_hw_disable_unlock(struct iio_dev *indio_dev)
+{
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
+	clk_disable_unprepare(priv->adc_clk);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_ADC_EN, 0);
+
+	meson_sar_adc_set_bandgap(indio_dev, false);
+
+	regulator_disable(priv->vref);
+
+	return 0;
+}
+
+static int meson_sar_adc_hw_disable(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	ret = meson_sar_adc_lock(indio_dev);
+	if (ret)
+		return ret;
+
+	meson_sar_adc_hw_disable_unlock(indio_dev);
+
+	meson_sar_adc_unlock(indio_dev);
+
+	return 0;
+}
+#else
 static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int ret;
-#ifndef CONFIG_AMLOGIC_MODIFY
 	u32 regval;
-#endif
 
 	ret = meson_sar_adc_lock(indio_dev);
 	if (ret)
@@ -1326,21 +1468,9 @@ static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
 		goto err_core_clk;
 	}
 
-#ifndef CONFIG_AMLOGIC_MODIFY
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_VREF_EN,
-			   FIELD_PREP(MESON_SAR_ADC_REG11_VREF_EN,
-				      priv->param->vref_enable));
-
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_CMV_SELECT,
-			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SELECT,
-				      priv->param->cmv_select));
-
 	regval = FIELD_PREP(MESON_SAR_ADC_REG0_FIFO_CNT_IRQ_MASK, 1);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG0,
 			   MESON_SAR_ADC_REG0_FIFO_CNT_IRQ_MASK, regval);
-#endif
 
 	meson_sar_adc_set_bandgap(indio_dev, true);
 
@@ -1397,6 +1527,7 @@ static int meson_sar_adc_hw_disable(struct iio_dev *indio_dev)
 
 	return 0;
 }
+#endif
 
 static irqreturn_t meson_sar_adc_irq(int irq, void *data)
 {
@@ -1598,6 +1729,12 @@ static int meson_sar_adc_buffer_postenable(struct iio_dev *indio_dev)
 	unsigned char idx = 0;
 	unsigned char bit;
 
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_dont_use_autosuspend(indio_dev->dev.parent);
+		if (pm_runtime_get_sync(indio_dev->dev.parent) < 0)
+			return -EINVAL;
+	}
+
 	meson_sar_adc_sample_mode_set(indio_dev, PERIOD_MODE);
 
 	/* set sampling period time */
@@ -1672,6 +1809,12 @@ static int meson_sar_adc_buffer_predisable(struct iio_dev *indio_dev)
 	/* disable chnl regs */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
 			   MESON_SAR_ADC_REG11_CHNL_REGS_EN, 0);
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_use_autosuspend(indio_dev->dev.parent);
+		pm_runtime_put_sync(indio_dev->dev.parent);
+	}
+
 	return 0;
 }
 
@@ -1707,7 +1850,18 @@ static ssize_t chan7_mux_store(struct device *dev,
 		return -EINVAL;
 	if (val >= ARRAY_SIZE(chan7_vol))
 		return -EINVAL;
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		if (pm_runtime_get_sync(indio_dev->dev.parent) < 0)
+			return -EINVAL;
+	}
+
 	meson_sar_adc_set_chan7_mux(indio_dev, val);
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_mark_last_busy(indio_dev->dev.parent);
+		pm_runtime_put_autosuspend(indio_dev->dev.parent);
+	}
 
 	return count;
 }
@@ -1973,6 +2127,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	struct iio_chan_spec *chan;
 	int i;
 #endif
+
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
@@ -2128,6 +2283,28 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	}
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	platform_set_drvdata(pdev, indio_dev);
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_enable(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev,
+						 MESON_SAR_ADC_PM_TIMEOUT);
+		pm_runtime_use_autosuspend(&pdev->dev);
+
+		ret = pm_runtime_get_sync(&pdev->dev);
+		if (ret < 0)
+			goto err;
+	} else {
+		ret = meson_sar_adc_init(indio_dev);
+		if (ret)
+			goto err;
+
+		ret = meson_sar_adc_hw_enable(indio_dev);
+		if (ret)
+			goto err;
+	}
+#else
 	ret = meson_sar_adc_init(indio_dev);
 	if (ret)
 		goto err;
@@ -2135,6 +2312,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	ret = meson_sar_adc_hw_enable(indio_dev);
 	if (ret)
 		goto err;
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (priv->param->calib_enable) {
@@ -2156,12 +2334,20 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	ret = meson_sar_adc_calib(indio_dev);
 	if (ret)
 		dev_warn(&pdev->dev, "calibration failed\n");
-#endif
+
 	platform_set_drvdata(pdev, indio_dev);
+#endif
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto err_hw;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_mark_last_busy(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	}
+#endif
 
 	return 0;
 
@@ -2171,7 +2357,11 @@ err:
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (iio_buffer_enabled(indio_dev))
 		meson_sar_adc_iio_buffer_cleanup(indio_dev);
+
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 #endif
+
 	return ret;
 }
 
@@ -2180,6 +2370,11 @@ static int meson_sar_adc_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+	}
 #endif
 
 	iio_device_unregister(indio_dev);
@@ -2188,9 +2383,13 @@ static int meson_sar_adc_remove(struct platform_device *pdev)
 		meson_sar_adc_iio_buffer_cleanup(indio_dev);
 		kfree(priv->datum_buf);
 	}
-#endif
 
+	meson_sar_adc_hw_disable(indio_dev);
+
+	return meson_sar_adc_uninit(indio_dev);
+#else
 	return meson_sar_adc_hw_disable(indio_dev);
+#endif
 }
 
 static int __maybe_unused meson_sar_adc_suspend(struct device *dev)
@@ -2198,6 +2397,9 @@ static int __maybe_unused meson_sar_adc_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	int ret;
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev))
+		return 0;
 
 	if (iio_buffer_enabled(indio_dev)) {
 		ret = meson_sar_adc_buffer_predisable(indio_dev);
@@ -2214,6 +2416,13 @@ static int __maybe_unused meson_sar_adc_resume(struct device *dev)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	int ret;
 
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		if (iio_buffer_enabled(indio_dev))
+			return meson_sar_adc_buffer_postenable(indio_dev);
+
+		return 0;
+	}
+
 	ret = meson_sar_adc_hw_enable(indio_dev);
 	if (ret)
 		return ret;
@@ -2227,8 +2436,44 @@ static int __maybe_unused meson_sar_adc_resume(struct device *dev)
 #endif
 }
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static SIMPLE_DEV_PM_OPS(meson_sar_adc_pm_ops,
 			 meson_sar_adc_suspend, meson_sar_adc_resume);
+#else
+static int __maybe_unused meson_sar_adc_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	meson_sar_adc_hw_disable_unlock(indio_dev);
+
+	return meson_sar_adc_uninit(indio_dev);
+}
+
+static int __maybe_unused meson_sar_adc_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+	int ret;
+
+	ret = meson_sar_adc_init(indio_dev);
+	if (ret)
+		return ret;
+
+	ret = meson_sar_adc_hw_enable_unlock(indio_dev);
+	if (ret)
+		return ret;
+
+	meson_sar_adc_set_chan7_mux(indio_dev, priv->chan7_mux_sel);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_sar_adc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_sar_adc_suspend, meson_sar_adc_resume)
+	SET_RUNTIME_PM_OPS(meson_sar_adc_runtime_suspend,
+			   meson_sar_adc_runtime_resume, NULL)
+};
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static void meson_sar_adc_shutdown(struct platform_device *pdev)
