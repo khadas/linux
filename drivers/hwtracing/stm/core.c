@@ -68,24 +68,9 @@ static ssize_t channels_show(struct device *dev,
 
 static DEVICE_ATTR_RO(channels);
 
-static ssize_t hw_override_show(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct stm_device *stm = to_stm_device(dev);
-	int ret;
-
-	ret = sprintf(buf, "%u\n", stm->data->hw_override);
-
-	return ret;
-}
-
-static DEVICE_ATTR_RO(hw_override);
-
 static struct attribute *stm_attrs[] = {
 	&dev_attr_masters.attr,
 	&dev_attr_channels.attr,
-	&dev_attr_hw_override.attr,
 	NULL,
 };
 
@@ -395,19 +380,14 @@ err_free:
 static int stm_char_release(struct inode *inode, struct file *file)
 {
 	struct stm_file *stmf = file->private_data;
-	struct stm_device *stm = stmf->stm;
 
-	if (stm->data->unlink)
-		stm->data->unlink(stm->data, stmf->output.master,
-				  stmf->output.channel);
-
-	stm_output_free(stm, &stmf->output);
+	stm_output_free(stmf->stm, &stmf->output);
 
 	/*
 	 * matches the stm_char_open()'s
 	 * class_find_device() + try_module_get()
 	 */
-	stm_put_device(stm);
+	stm_put_device(stmf->stm);
 	kfree(stmf);
 
 	return 0;
@@ -428,8 +408,8 @@ static int stm_file_assign(struct stm_file *stmf, char *id, unsigned int width)
 	return ret;
 }
 
-static ssize_t stm_write(struct stm_data *data, unsigned int master,
-			  unsigned int channel, const char *buf, size_t count)
+static void stm_write(struct stm_data *data, unsigned int master,
+		      unsigned int channel, const char *buf, size_t count)
 {
 	unsigned int flags = STP_PACKET_TIMESTAMPED;
 	const unsigned char *p = buf, nil = 0;
@@ -441,14 +421,9 @@ static ssize_t stm_write(struct stm_data *data, unsigned int master,
 		sz = data->packet(data, master, channel, STP_PACKET_DATA, flags,
 				  sz, p);
 		flags = 0;
-
-		if (sz < 0)
-			break;
 	}
 
 	data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0, &nil);
-
-	return pos;
 }
 
 static ssize_t stm_char_write(struct file *file, const char __user *buf,
@@ -486,8 +461,8 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	}
 
-	count = stm_write(stm->data, stmf->output.master, stmf->output.channel,
-			  kbuf, count);
+	stm_write(stm->data, stmf->output.master, stmf->output.channel, kbuf,
+		  count);
 
 	kfree(kbuf);
 
@@ -566,6 +541,8 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 	ret = stm_file_assign(stmf, id->id, id->width);
 	if (ret)
 		goto err_free;
+
+	ret = 0;
 
 	if (stm->data->link)
 		ret = stm->data->link(stm->data, stmf->output.master,
@@ -892,18 +869,8 @@ unlock:
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
 
-	/*
-	 * Call the unlink callbacks for both source and stm, when we know
-	 * that we have actually performed the unlinking.
-	 */
-	if (!ret) {
-		if (src->data->unlink)
-			src->data->unlink(src->data);
-
-		if (stm->data->unlink)
-			stm->data->unlink(stm->data, src->output.master,
-					  src->output.channel);
-	}
+	if (!ret && src->data->unlink)
+		src->data->unlink(src->data);
 
 	return ret;
 }
@@ -1092,9 +1059,9 @@ int stm_source_write(struct stm_source_data *data, unsigned int chan,
 
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	if (stm)
-		count = stm_write(stm->data, src->output.master,
-				  src->output.channel + chan,
-				  buf, count);
+		stm_write(stm->data, src->output.master,
+			  src->output.channel + chan,
+			  buf, count);
 	else
 		count = -ENODEV;
 
