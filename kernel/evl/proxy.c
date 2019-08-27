@@ -55,13 +55,20 @@ static void relay_output(struct work_struct *work)
 	struct proxy_ring *ring = &out->ring;
 	unsigned int rdoff, count, len, n;
 	struct file *filp = proxy->filp;
+	loff_t pos, *ppos;
 	ssize_t ret = 0;
-	loff_t pos = 0;
 
 	count = atomic_read(&ring->fillsz);
 	rdoff = ring->rdoff;
 
-	 while (count > 0 && ret >= 0) {
+	ppos = NULL;
+	if (!(filp->f_mode & FMODE_STREAM)) {
+		mutex_lock(&filp->f_pos_lock);
+		ppos = &pos;
+		pos = filp->f_pos;
+	}
+
+	while (count > 0 && ret >= 0) {
 		len = count;
 		do {
 			if (rdoff + len > ring->bufsz)
@@ -72,12 +79,17 @@ static void relay_output(struct work_struct *work)
 			if (ring->granularity > 0)
 				n = min(n, ring->granularity);
 
-			ret = kernel_write(filp, ring->bufmem + rdoff, n, &pos);
+			ret = kernel_write(filp, ring->bufmem + rdoff, n, ppos);
+			if (ret >= 0 && ppos)
+				filp->f_pos = *ppos;
 			len -= n;
 			rdoff = (rdoff + n) % ring->bufsz;
 		} while (len > 0 && ret > 0);
 		count = atomic_sub_return(count, &ring->fillsz);
 	}
+
+	if (ppos)
+		mutex_unlock(&filp->f_pos_lock);
 
 	ring->rdoff = rdoff;
 
