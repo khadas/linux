@@ -333,7 +333,7 @@
 
 	aml_cams {
 		compatible = "amlogic, cams_prober";
-		status = "okay";
+		status = "disabled";
 		pinctrl-names="default";
 		pinctrl-0=<&gen_clk_ee_z>;
 		clocks = <&clkc CLKID_GEN_CLK>;
@@ -1051,13 +1051,6 @@
 
 &pwm_AO_cd {
 		status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_master_pins3>;
-	clock-frequency = <100000>;
 };
 
 &i2c3 {
