@@ -50,7 +50,7 @@
 
 #define LCD_CDEV_NAME  "lcd"
 
-#define LCD_DEBUG_INFO 1
+//#define LCD_DEBUG_INFO 1
 
 unsigned char lcd_debug_print_flag;
 unsigned char lcd_resume_flag;
