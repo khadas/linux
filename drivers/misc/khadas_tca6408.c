@@ -124,7 +124,7 @@ static int tca6408_setup_registers(struct tca6408_gpio_chip *chip)
 	error = tca6408_write_reg(chip->client, TCA6408_DIRECTION, 0x00);
 	if (error)
 		return error;
-	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0x00);
+	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0x03);//set LCD_RESET(1 << 0) & LCD_EN(1 << 1) to high by default
 	if (error)
 		return error;
 
