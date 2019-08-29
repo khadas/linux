@@ -400,7 +400,7 @@ static int osd_set_fb_var(int index, const struct vinfo_s *vinfo)
 
 	fb_def_var[index].xres = vinfo->width;
 	fb_def_var[index].yres = vinfo->height;
-	fb_def_var[index].xres_virtual = vinfo->width;
+	fb_def_var[index].xres_virtual = vinfo->width == 1088 ? 1080 : vinfo->width;
 	fb_def_var[index].yres_virtual = vinfo->height * 2;
 	fb_def_var[index].bits_per_pixel = 32;
 
