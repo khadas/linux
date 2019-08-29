@@ -160,6 +160,7 @@
 /* Global User Control Register */
 #define DWC3_GUCTL_USBHSTINAUTORETRYEN	(1 << 14)
 #define DWC3_GUCTL_NAKPERENHHS			(1 << 18)
+#define DWC3_GUCTL_PARKMODEDISABLESS	(1 << 17)
 #endif
 
 /* Global Debug Queue/FIFO Space Available Register */

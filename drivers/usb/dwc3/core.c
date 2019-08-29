@@ -764,6 +764,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 #ifdef CONFIG_AMLOGIC_USB
 	reg = dwc3_readl(dwc->regs, DWC3_GUCTL1);
 	reg |= DWC3_GUCTL_NAKPERENHHS;
+	reg |= DWC3_GUCTL_PARKMODEDISABLESS;
 	dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUCTL);
