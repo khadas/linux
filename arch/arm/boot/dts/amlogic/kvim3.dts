@@ -763,7 +763,7 @@
 
 	sensor: sensor {
 		compatible = "soc, sensor";
-		status = "okay";
+		status = "disabled";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
 		pinctrl-0=<&clk12_24_z_pins>;
