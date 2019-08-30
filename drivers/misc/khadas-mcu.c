@@ -172,9 +172,15 @@ static int mcu_i2c_write_regs(struct i2c_client *client,
 static int is_mcu_fan_control_available(void)
 {
 	// MCU FAN control is available for:
-	// 1. Khadas VIM2 V13 and later
-	// 2. Khadas VIM3 V11 and later
-	if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
+	// 1. Khadas VIM1 V13 and later
+	// 2. Khadas VIM2 V13 and later
+	// 3. Khadas VIM3 V11 and later
+	if (KHADAS_BOARD_VIM1 == g_mcu_data->fan_data.board) {
+		if (g_mcu_data->fan_data.hwver >= KHADAS_FAN_HWVER_V13)
+			return 1;
+		else
+			return 0;
+	} else if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
 		if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_V12)
 			return 1;
 		else
@@ -546,14 +552,24 @@ static int mcu_parse_dt(struct device *dev)
 		g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
 		g_mcu_data->fan_data.board = KHADAS_BOARD_VIM2;
 	} else {
-		if (strstr(hwver, "VIM2"))
+		if (strstr(hwver, "VIM1"))
+			g_mcu_data->fan_data.board = KHADAS_BOARD_VIM1;
+		else if (strstr(hwver, "VIM2"))
 			g_mcu_data->fan_data.board = KHADAS_BOARD_VIM2;
 		else if (strstr(hwver, "VIM3"))
 			g_mcu_data->fan_data.board = KHADAS_BOARD_VIM3;
 		else
 			g_mcu_data->fan_data.board = KHADAS_BOARD_NONE;
 
-		if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
+		if (KHADAS_BOARD_VIM1 == g_mcu_data->fan_data.board) {
+			if (0 == strcmp(hwver, "VIM1.V13")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V13;
+			} else if (0 == strcmp(hwver, "VIM1.V14")) {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V14;
+			} else {
+				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
+			}
+		} else if (KHADAS_BOARD_VIM2 == g_mcu_data->fan_data.board) {
 			if (0 == strcmp(hwver, "VIM2.V12")) {
 				g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_V12;
 			} else if (0 == strcmp(hwver, "VIM2.V13")) {
