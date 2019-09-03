@@ -130,3 +130,4 @@ obj-$(CONFIG_MTD_SPI_NOR) += spi-nor/
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 
 obj-y   += media_modules/
+obj-$(CONFIG_AMLOGIC_NPU) += npu/

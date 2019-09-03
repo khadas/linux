@@ -140,5 +140,7 @@ source "drivers/amlogic/dolby_fw/Kconfig"
 
 source "drivers/amlogic/media_modules/Kconfig"
 
+source "drivers/amlogic/npu/Kconfig"
+
 endmenu
 endif
