@@ -1248,6 +1248,13 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&a_i2c_master>;
+	clock-frequency = <400000>;
+};
+
 &i2c1 {
        status = "okay";
        pinctrl-names="default";
