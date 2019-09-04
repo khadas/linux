@@ -1244,6 +1244,10 @@
 	status = "okay";
 };
 
+&uart_AO_B {
+	status = "okay";
+};
+
 &i2c1 {
        status = "okay";
        pinctrl-names="default";
