@@ -85,6 +85,8 @@ struct aml_tdm {
 	struct clk *clk;
 	struct clk *clk_gate;
 	struct clk *mclk;
+	/* mclk mux out to pad */
+	struct clk *mclk2pad;
 	struct clk *samesrc_srcpll;
 	struct clk *samesrc_clk;
 	bool contns_clk;
@@ -909,12 +911,17 @@ static int aml_tdm_set_clk_pad(struct aml_tdm *p_tdm)
 	if (p_tdm->chipinfo && (!p_tdm->chipinfo->mclkpad_no_offset))
 		mpad_offset = 1;
 
-	aml_tdm_clk_pad_select(p_tdm->actrl,
-		p_tdm->mclk_pad,
-		mpad_offset,
-		p_tdm->id,
-		p_tdm->id,
-		p_tdm->clk_sel);
+	if (p_tdm->mclk_pad >= 0) {
+		aml_tdm_mclk_pad_select(p_tdm->actrl,
+					p_tdm->mclk_pad,
+					mpad_offset,
+					p_tdm->clk_sel);
+	}
+
+	aml_tdm_sclk_pad_select(p_tdm->actrl,
+				mpad_offset,
+				p_tdm->id,
+				p_tdm->id);
 
 	return 0;
 }
@@ -1659,7 +1666,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	ret = of_parse_tdm_lane_slot_out(node,
 			&p_tdm->setting.lane_mask_out);
 	if (ret < 0)
-		p_tdm->setting.lane_mask_out = 0x0;
+		p_tdm->setting.lane_mask_out = 0x1;
 
 	/* get tdm lanes oe info. if not, set to default 0 */
 	ret = of_parse_tdm_lane_oe_slot_in(node,
@@ -1701,6 +1708,28 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* clk tree style after SM1, instead of legacy prop */
+	p_tdm->mclk2pad = devm_clk_get(&pdev->dev, "mclk_pad");
+	if (!IS_ERR(p_tdm->mclk2pad)) {
+		ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
+		if (ret) {
+			dev_err(&pdev->dev, "Can't set tdm mclk_pad parent\n");
+			return -EINVAL;
+		}
+		clk_prepare_enable(p_tdm->mclk2pad);
+		p_tdm->mclk_pad = -1;
+	} else {
+		/* mclk pad ctrl */
+		ret = of_property_read_u32(node, "mclk_pad",
+					   &p_tdm->mclk_pad);
+		if (ret < 0) {
+			/* No mclk in defalut if chip needs mclk pad mux. */
+			p_tdm->mclk_pad = -1;
+			dev_warn_once(&pdev->dev,
+				      "neither mclk_pad nor mclk2pad set\n");
+		}
+	}
+
 	/* complete mclk for tdm */
 	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) == 0xa)
 		meson_clk_measure((1<<16) | 0x67);
@@ -1722,12 +1751,6 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	/*set default clk for output*/
 	if (p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
-
-	/* mclk pad ctrl */
-	ret = of_property_read_u32(node, "mclk_pad",
-			&p_tdm->mclk_pad);
-	if (ret < 0)
-		p_tdm->mclk_pad = -1; /* not use mclk in defalut. */
 
 	p_tdm->dev = dev;
 	/* For debug to disable share buffer */
