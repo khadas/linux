@@ -69,15 +69,6 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1 /* msec */
 
-#define TP_CHANGE_X2Y        1
-#define TP_X_REVERSE_ENABLE	 0
-#define TP_Y_REVERSE_ENABLE	 1
-#define TP_SWAP(x, y)       do{\
-	                             typeof(x) z = x;\
-	                             x = y;\
-	                             y = z;\
-                             }while (0)
-
 enum edt_ver {
 	M06,
 	M09,
@@ -180,7 +171,6 @@ static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 	return true;
 }
 
-static int max_y,max_x;
 static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 {
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
@@ -260,17 +250,6 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		if (!down)
 			continue;
 
-#if TP_Y_REVERSE_ENABLE
-		y = max_y - y;
-#endif
-
-#if TP_X_REVERSE_ENABLE
-		x = max_x - x;
-#endif
-		
-#if TP_CHANGE_X2Y
-		TP_SWAP(x, y);
-#endif
 		input_report_abs(tsdata->input, ABS_MT_POSITION_X, x);
 		input_report_abs(tsdata->input, ABS_MT_POSITION_Y, y);
 	}
@@ -984,23 +963,16 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	dev_info(&client->dev,
 		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
-	
-	max_y = tsdata->num_y;
-	max_x = tsdata->num_x;
+
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
-#if TP_CHANGE_X2Y
-	input_set_abs_params(input, ABS_MT_POSITION_Y,
-				 0, tsdata->num_x, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_X,
-				 0, tsdata->num_y, 0, 0);
-#else
+
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			     0, tsdata->num_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y, 0, 0);
-#endif
+
 	touchscreen_parse_properties(input, true);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
