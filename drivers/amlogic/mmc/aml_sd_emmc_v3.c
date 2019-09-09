@@ -1352,10 +1352,11 @@ static void pr_adj_info(char *name,
 				((x >> i) & 0x1) ? 1 : 0);
 }
 
-static unsigned long _test_fixed_adj(struct amlsd_host *host,
+static unsigned long _test_fixed_adj(struct amlsd_platform *pdata,
 		struct aml_tuning_data *tuning_data, u32 opcode,
 		u32 adj, u32 div)
 {
+	struct amlsd_host *host = pdata->host;
 	int i = 0;
 	u32 nmatch = 0;
 	u32 adjust = readl(host->base + SD_EMMC_ADJUST_V3);
@@ -1371,6 +1372,7 @@ static unsigned long _test_fixed_adj(struct amlsd_host *host,
 		gadjust->adj_enable = 1;
 		gadjust->cali_enable = 0;
 		gadjust->cali_rise = 0;
+		pdata->adj = adjust;
 		writel(adjust, host->base + SD_EMMC_ADJUST_V3);
 		nmatch = aml_sd_emmc_tuning_transfer(host->mmc, opcode,
 				blk_pattern, host->blk_test, blksz);
@@ -1416,8 +1418,12 @@ static unsigned long _swap_fixed_adj_win(unsigned long map,
 }
 
 static void set_fixed_adj_line_delay(u32 step,
-		struct amlsd_host *host)
+		struct amlsd_platform *pdata)
 {
+	struct amlsd_host *host = pdata->host;
+
+	pdata->dly1 = AML_MOVE_DELAY1(step);
+	pdata->dly2 = AML_MOVE_DELAY2(step);
 	writel(AML_MOVE_DELAY1(step), host->base + SD_EMMC_DELAY1_V3);
 	writel(AML_MOVE_DELAY2(step), host->base + SD_EMMC_DELAY2_V3);
 	pr_info("step:%u, delay1:0x%x, delay2:0x%x\n",
@@ -1429,7 +1435,7 @@ static void set_fixed_adj_line_delay(u32 step,
  *	2. re-range fixed adj point
  *	3. retry
  */
-static u32 _find_fixed_adj_valid_win(struct amlsd_host *host,
+static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 		struct aml_tuning_data *tuning_data, u32 opcode,
 		unsigned long *fixed_adj_map, u32 div)
 {
@@ -1446,8 +1452,8 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_host *host,
 	for (; step <= 63;) {
 		pr_info("[%s]retry test fixed adj...\n", __func__);
 		step += AML_FIXED_ADJ_STEP;
-		set_fixed_adj_line_delay(step, host);
-		*cur_map = _test_fixed_adj(host, tuning_data, opcode, 0, div);
+		set_fixed_adj_line_delay(step, pdata);
+		*cur_map = _test_fixed_adj(pdata, tuning_data, opcode, 0, div);
 		/*pr_adj_info("cur_map", *cur_map, 0, div);*/
 		bitmap_and(tmp, prev_map, cur_map, div);
 		bitmap_xor(dst, prev_map, tmp, div);
@@ -1462,7 +1468,7 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_host *host,
 					*prev_map, fir_adj, div);
 			ret = _find_fixed_adj_mid(*prev_map, fir_adj, div);
 			if (ret != NO_FIXED_ADJ_MID) {
-				set_fixed_adj_line_delay(0, host);
+				set_fixed_adj_line_delay(0, pdata);
 				return ret;
 			}
 
@@ -1624,7 +1630,7 @@ tunning:
 			&& (clk_div <= AML_FIXED_ADJ_MAX)
 			&& (clk_div >= AML_FIXED_ADJ_MIN)
 			&& !all_flag) {
-		adj_delay_find = _find_fixed_adj_valid_win(host,
+		adj_delay_find = _find_fixed_adj_valid_win(pdata,
 				tuning_data, opcode, fixed_adj_map, clk_div);
 	} else if (best_win_size == clk_div) {
 		all_flag = true;
