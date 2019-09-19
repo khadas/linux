@@ -818,6 +818,14 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
+
+	ft5336@38 {
+               compatible = "edt,edt-ft5336", "ft5x06";
+               reg = <0x38>;
+               interrupt_pin = <&gpio GPIOA_5 GPIO_ACTIVE_HIGH>;
+               reset_pin = <6>;
+               status = "okay";
+       };
 };
 
 &i2c_AO {
