@@ -273,7 +273,7 @@ struct vbyone_config_s {
 #define DSI_CMD_SIZE_INDEX       1  /* byte[1] */
 #define DSI_GPIO_INDEX           2  /* byte[2] */
 
-#define DSI_INIT_ON_MAX          100
+#define DSI_INIT_ON_MAX          5000
 #define DSI_INIT_OFF_MAX         30
 
 #define DSI_READ_CNT_MAX         30
@@ -372,6 +372,7 @@ enum lcd_power_type_e {
 	LCD_POWER_TYPE_PMU,
 	LCD_POWER_TYPE_SIGNAL,
 	LCD_POWER_TYPE_EXTERN,
+	LCD_POWER_TYPE_EXPANDER_IO,
 	LCD_POWER_TYPE_MAX,
 };
 
@@ -404,6 +405,13 @@ struct lcd_pmu_gpio_s {
 	int gpio;
 };
 
+#define LCD_EXPANDER_GPIO_NUM_MAX         8
+struct lcd_expander_gpio_s {
+	char name[15];
+	int gpio;
+	int probe_flag;
+};
+
 #define LCD_PWR_STEP_MAX         15
 struct lcd_power_step_s {
 	unsigned char type;
@@ -415,6 +423,7 @@ struct lcd_power_step_s {
 struct lcd_power_ctrl_s {
 	struct lcd_cpu_gpio_s cpu_gpio[LCD_CPU_GPIO_NUM_MAX];
 	struct lcd_pmu_gpio_s pmu_gpio[LCD_PMU_GPIO_NUM_MAX];
+	struct lcd_expander_gpio_s expander_gpio[LCD_EXPANDER_GPIO_NUM_MAX];
 	struct lcd_power_step_s power_on_step[LCD_PWR_STEP_MAX];
 	struct lcd_power_step_s power_off_step[LCD_PWR_STEP_MAX];
 	int power_on_step_max; /*  internal use for debug */

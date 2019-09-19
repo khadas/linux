@@ -201,7 +201,7 @@
 		/* 1:gp0_pll vid2_clk */
 		/* 2:vid_pll vid1_clk */
 		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
+		clk_path = <2>;
 
 		/* performance: reg_address, reg_value */
 		/* g12b */
@@ -476,7 +476,7 @@
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <0>;/*1:enabel ;0:disable*/
+		gamma_en = <1>;/*1:enabel ;0:disable*/
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
 	};
@@ -793,7 +793,7 @@
 
 &meson_fb {
 	status = "okay";
-	display_size_default = <1920 1080 1920 2160 32>;
+	display_size_default = <1080 1920 1080 3840 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
@@ -1188,14 +1188,6 @@
 		};
 	};
 
-	bl_pwm_off_pins:bl_pwm_off_pin {
-		mux {
-			pins = "GPIOH_5";
-			function = "gpio_periphs";
-			output-high;
-		};
-	};
-
 	clk12_24_z_pins:clk12_24_z_pins {
 		mux {
 			groups = "clk12_24_z";
@@ -1210,6 +1202,13 @@
 		mux { /* gpiao_10 */
 			groups = "GPIOAO_10";
 			function = "gpio_aobus";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			pins = "GPIOAO_6";
+			function = "gpio_aobus";
+			output-low;
 		};
 	};
 };  /* end of pinctrl_aobus */
@@ -1409,3 +1408,15 @@
 	status = "okay";
 };
 
+&lcd {
+	clk_path = <1>;
+};
+
+&gpu {
+	tbl = <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
+};

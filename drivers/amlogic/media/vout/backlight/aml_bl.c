@@ -581,6 +581,7 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_D:
 		case BL_PWM_E:
 		case BL_PWM_F:
+		case BL_PWM_AO_C:
 			bl_set_pwm_normal(bl_pwm, pol, out_level);
 			break;
 		case BL_PWM_VS:
@@ -598,6 +599,7 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_D:
 		case BL_PWM_E:
 		case BL_PWM_F:
+		case BL_PWM_AO_C:
 			if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
 				BLERR("%s: invalid bl_pwm_ch\n", __func__);
 				return;
@@ -1265,6 +1267,7 @@ static char *bl_pwm_name[] = {
 	"PWM_D",
 	"PWM_E",
 	"PWM_F",
+	"PWM_AO_C",
 	"PWM_VS",
 	"invalid",
 };

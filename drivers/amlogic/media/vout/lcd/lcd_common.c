@@ -104,6 +104,21 @@ char *lcd_mode_mode_to_str(int mode)
 	return lcd_mode_table[mode];
 }
 
+extern int tca6408_output_set_value(u8 value, u8 mask);
+int gpio_expander_direction_output(u8 index, u8 value)
+{
+	u8 val = 0, mask = 0;
+
+	mask = 1 << index;
+
+	if (0 == value)
+		val = ~mask;
+	else
+		val = mask;
+
+	return tca6408_output_set_value(val, mask);
+}
+
 /* **********************************
  * lcd gpio
  * **********************************
@@ -259,6 +274,73 @@ unsigned int lcd_cpu_gpio_get(unsigned int index)
 	}
 
 	return gpiod_get_value(cpu_gpio->gpio);
+}
+
+// Expander GPIO
+void lcd_expander_gpio_probe(unsigned int index)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_expander_gpio_s *expander_gpio;
+	const char *str;
+	int ret;
+
+	printk("lcd_expander_gpio_probe...\n");
+
+	if (index >= LCD_EXPANDER_GPIO_NUM_MAX) {
+		LCDERR("expander gpio index %d, exit\n", index);
+		return;
+	}
+	expander_gpio = &lcd_drv->lcd_config->lcd_power->expander_gpio[index];
+	if (expander_gpio->probe_flag) {
+		if (lcd_debug_print_flag) {
+			LCDPR("expander gpio %s[%d] is already registered\n",
+				expander_gpio->name, index);
+		}
+		return;
+	}
+
+	/* get expander gpio name */
+	ret = of_property_read_string_index(lcd_drv->dev->of_node,
+		"lcd_expander_gpio_names", index, &str);
+	if (ret) {
+		LCDERR("failed to get lcd_expander_gpio_names: %d\n", index);
+		str = "unknown";
+	}
+	strcpy(expander_gpio->name, str);
+
+	/* init expander gpio flag */
+	expander_gpio->probe_flag = 1;
+}
+
+void lcd_expander_gpio_set(unsigned int index, int value)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_expander_gpio_s *expander_gpio;
+
+	if (index >= LCD_EXPANDER_GPIO_NUM_MAX) {
+		LCDERR("expander gpio index %d, exit\n", index);
+		return;
+	}
+	expander_gpio = &lcd_drv->lcd_config->lcd_power->expander_gpio[index];
+	if (expander_gpio->probe_flag == 0) {
+		LCDERR("%s: expander gpio [%d] is not probed, exit\n", __func__, index);
+		return;
+	}
+
+	switch (value) {
+	case LCD_GPIO_OUTPUT_LOW:
+	case LCD_GPIO_OUTPUT_HIGH:
+		gpio_expander_direction_output(index, value);
+		break;
+	case LCD_GPIO_INPUT:
+	default:
+//		gpiod_direction_input(cpu_gpio->gpio);
+		break;
+	}
+	if (lcd_debug_print_flag) {
+		LCDPR("set expander gpio %s[%d] value: %d\n",
+			expander_gpio->name, index, value);
+	}
 }
 
 static char *lcd_ttl_pinmux_str[] = {
@@ -512,6 +594,9 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			case LCD_POWER_TYPE_EXTERN:
 				pconf->extern_index = index;
 				break;
+			case LCD_POWER_TYPE_EXPANDER_IO:
+				lcd_expander_gpio_probe(index);
+				break;
 			default:
 				break;
 			}
@@ -566,6 +651,9 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			case LCD_POWER_TYPE_EXTERN:
 				if (pconf->extern_index == 0xff)
 					pconf->extern_index = index;
+				break;
+			case LCD_POWER_TYPE_EXPANDER_IO:
+				lcd_expander_gpio_probe(index);
 				break;
 			default:
 				break;

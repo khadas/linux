@@ -80,7 +80,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x50000000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
@@ -190,7 +190,7 @@
 		/* 1:gp0_pll vid2_clk */
 		/* 2:vid_pll vid1_clk */
 		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
+		clk_path = <2>;
 
 		/* performance: reg_address, reg_value */
 		/* sm1 */
@@ -1596,14 +1596,6 @@
 		};
 	};
 
-	bl_pwm_off_pins:bl_pwm_off_pin {
-		mux {
-			pins = "GPIOH_5";
-			function = "gpio_periphs";
-			output-high;
-		};
-	};
-
 	clk12_24_z_pins:clk12_24_z_pins {
 		mux {
 			groups = "clk12_24_z";
@@ -1632,6 +1624,16 @@
 
 
 }; /* end of pinctrl_periphs */
+
+&pinctrl_aobus {
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			pins = "GPIOAO_6";
+			function = "gpio_aobus";
+			output-low;
+		};
+	};
+};
 
 &audio_data {
 	status = "okay";
@@ -1835,4 +1837,17 @@
 
 &irblaster {
 	status = "disable";
+};
+
+&lcd {
+	clk_path = <1>;
+};
+
+&gpu{
+	tbl =  <&dvfs285_cfg
+				&dvfs400_cfg
+				&dvfs500_cfg
+				&dvfs666_cfg
+				&dvfs800_cfg
+				&dvfs800_cfg>;
 };

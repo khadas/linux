@@ -94,9 +94,11 @@ extern char *lcd_type_type_to_str(int type);
 extern unsigned char lcd_mode_str_to_mode(const char *str);
 extern char *lcd_mode_mode_to_str(int mode);
 
+extern void lcd_expander_gpio_set(unsigned int index, int value);
 extern void lcd_cpu_gpio_probe(unsigned int index);
 extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
+extern void lcd_expander_gpio_probe(unsigned int index);
 extern void lcd_ttl_pinmux_set(int status);
 extern void lcd_vbyone_pinmux_set(int status);
 extern void lcd_tcon_pinmux_set(int status);

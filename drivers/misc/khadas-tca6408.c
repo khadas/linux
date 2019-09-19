@@ -124,7 +124,7 @@ static int tca6408_setup_registers(struct tca6408_gpio_chip *chip)
 	error = tca6408_write_reg(chip->client, TCA6408_DIRECTION, 0x00);
 	if (error)
 		return error;
-	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0x20);
+	error = tca6408_write_reg(chip->client, TCA6408_OUTPUT, 0x23);
 	if (error)
 		return error;
 
