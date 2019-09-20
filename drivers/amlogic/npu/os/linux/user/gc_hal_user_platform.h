@@ -42,7 +42,7 @@ typedef struct _gcsPLATFORM_OPERATIONS
     gceSTATUS
     (*getCPUPhysical)(
         IN gcoPLATFORM Platform,
-        IN gctUINT32 GPUPhysical,
+        IN gctPHYS_ADDR_T GPUPhysical,
         OUT gctPHYS_ADDR_T * CPUPhysical
         );
 }

@@ -212,9 +212,19 @@ static int smallBatch = 1;
 module_param(smallBatch, int, 0644);
 MODULE_PARM_DESC(smallBatch, "Enable/disable small batch");
 
-static ulong sRAMBases[gcvSRAM_COUNT * gcvCORE_COUNT] = {[0 ... gcvSRAM_COUNT * gcvCORE_COUNT - 1] = gcvINVALID_PHYSICAL_ADDRESS};
-module_param_array(sRAMBases, ulong, NULL, 0644);
-MODULE_PARM_DESC(sRAMBases, "Array of base of bus address of SRAM,INTERNAL, EXTERNAL0, EXTERNAL1..., 0xFFFFFFFF means no bus address");
+static gctPHYS_ADDR_T sRAMBases[gcvSRAM_COUNT * gcvCORE_COUNT] = {[0 ... gcvSRAM_COUNT * gcvCORE_COUNT - 1] = gcvINVALID_PHYSICAL_ADDRESS};
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+module_param_array(sRAMBases, ullong, NULL, 0644);
+MODULE_PARM_DESC(sRAMBases, "Array of base of bus address of SRAM,INTERNAL, EXTERNAL0, EXTERNAL1..., gcvINVALID_PHYSICAL_ADDRESS means no bus address");
+#endif
+
+static uint sRAMSizes[gcvSRAM_COUNT * gcvCORE_COUNT] = {[0 ... gcvSRAM_COUNT * gcvCORE_COUNT - 1] = 0};
+module_param_array(sRAMSizes, uint, NULL, 0644);
+MODULE_PARM_DESC(sRAMSizes, "Array of size of SRAM,INTERNAL, EXTERNAL0, EXTERNAL1..., 0 means no SRAM");
+
+static uint sRAMMode = 0;
+module_param(sRAMMode, uint, 0644);
+MODULE_PARM_DESC(sRAMMode, "Default 0 means SRAM is exclusive mode usage, 1 means contiguous memory heap usage.");
 
 #if USE_LINUX_PCIE
 static int bar = 1;
@@ -316,8 +326,11 @@ _InitModuleParam(
         for (j = 0; j < gcvSRAM_COUNT; j++)
         {
             p->sRAMBases[i][j] = sRAMBases[i * gcvSRAM_COUNT + j];
+            p->sRAMSizes[i][j] = sRAMSizes[i * gcvSRAM_COUNT + j];
         }
     }
+
+    p->sRAMMode = sRAMMode;
 
     p->baseAddress = baseAddress;
     p->physSize    = physSize;
@@ -407,9 +420,12 @@ _SyncModuleParam(
     {
         for (j = 0; j < gcvSRAM_COUNT; j++)
         {
-            sRAMBases[i * gcvSRAM_COUNT + j] = (ulong)p->sRAMBases[i][j];
+            sRAMBases[i * gcvSRAM_COUNT + j] = p->sRAMBases[i][j];
+            sRAMSizes[i * gcvSRAM_COUNT + j] = p->sRAMSizes[i][j];
         }
     }
+
+    sRAMMode = p->sRAMMode;
 
     baseAddress = (ulong)p->baseAddress;
     physSize    = p->physSize;
@@ -529,7 +545,7 @@ gckOS_DumpParam(
 
         for (j = 0; j < gcvSRAM_COUNT; j++)
         {
-            printk("0x%08lX, ", sRAMBases[i * gcvSRAM_COUNT + j]);
+            printk("0x%llX, ", sRAMBases[i * gcvSRAM_COUNT + j]);
         }
         printk("\n");
     }
@@ -987,7 +1003,11 @@ int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 
     gcmkHEADER();
-
+    if (get_nna_status(pdev) == 1)
+    {
+        printk("nn is disable,should not do probe continue\n");
+        return ret;
+    }
     platform->device = pdev;
     galcore_device = &pdev->dev;
 

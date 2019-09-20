@@ -1811,6 +1811,8 @@ _Construct(
 
     gcmkONERROR(gckQUEUE_Allocate(os, &mmu->recentFreedAddresses, 16));
 
+    mmu->sRAMMapped = gcvFALSE;
+
     /* Return the gckMMU object pointer. */
     *Mmu = mmu;
 
@@ -2855,7 +2857,7 @@ gckMMU_DumpRecentFreedAddress(
 gceSTATUS
 gckMMU_FillFlatMapping(
     IN gckMMU Mmu,
-    IN gctUINT32 PhysBase,
+    IN gctUINT64 PhysBase,
     IN gctSIZE_T Size
     )
 {
@@ -2876,7 +2878,7 @@ OnError:
 gceSTATUS
 gckMMU_IsFlatMapped(
     IN gckMMU Mmu,
-    OUT gctUINT32 Physical,
+    OUT gctUINT64 Physical,
     OUT gctBOOL *In
     )
 {
@@ -2915,74 +2917,126 @@ OnError:
 gceSTATUS
 gckMMU_SetupPerHardware(
     IN gckMMU Mmu,
-    IN gckHARDWARE Hardware
+    IN gckHARDWARE Hardware,
+    IN gckDEVICE Device
     )
 {
     gctBOOL needMapInternalSRAM = gcvFALSE;
-    gctPHYS_ADDR_T reservedBase;
-    gctUINT32 reservedSize;
+    gctPHYS_ADDR_T reservedBase = gcvINVALID_PHYSICAL_ADDRESS;
+    gctUINT32 reservedSize = 0;
     gctUINT i = 0;
+    gctUINT j = 0;
     gceSTATUS status;
+    gckKERNEL kernel = Hardware->kernel;
 
     gcmkHEADER_ARG("Mmu=0x%x Hardware=0x%x", Mmu, Hardware);
 
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
 
-    gcmkTRACE_ZONE(gcvLEVEL_INFO, _GC_OBJ_ZONE, "Attach core %d", Hardware->core);
-
-    reservedBase = Hardware->identity.sRAMBases[gcvSRAM_INTERNAL];
-    reservedSize = Hardware->identity.sRAMSizes[gcvSRAM_INTERNAL];
-    needMapInternalSRAM = reservedSize && (reservedBase != gcvINVALID_PHYSICAL_ADDRESS);
-
-    if (Hardware->mmuVersion != 0)
+    if (Hardware->mmuVersion == 0)
     {
-        if (needMapInternalSRAM)
+        gcmkONERROR(gcvSTATUS_OK);
+    }
+
+    if (!Mmu->sRAMMapped)
+    {
+        /* Map all the SRAMs in MMU table. */
+        for (i = 0; i < gcvCORE_COUNT; i++)
         {
-            gcmkPRINT("Galcore Info: MMU mapped core%d internal SRAM base=0x%llx size=0x%x",
-                Hardware->core,
-                reservedBase,
-                reservedSize
-                );
+            reservedBase = Device->sRAMBases[i][gcvSRAM_INTERNAL];
+            reservedSize = Device->sRAMSizes[i][gcvSRAM_INTERNAL];
+            needMapInternalSRAM = reservedSize && (reservedBase != gcvINVALID_PHYSICAL_ADDRESS);
 
-            /*
-             * Default gpu virtual base = 0.
-             * It can be specified if not conflict with existing mapping.
-             */
-            Hardware->options.sRAMBaseAddress[gcvSRAM_INTERNAL] = 0;
-
-            gcmkONERROR(_FillFlatMapping(
-                Mmu,
-                reservedBase,
-                reservedSize,
-                gcvTRUE,
-                gcvTRUE,
-                &Hardware->options.sRAMBaseAddress[gcvSRAM_INTERNAL]
-                ));
-        }
-
-        for (i = gcvSRAM_EXTERNAL0; i < gcvSRAM_COUNT; i++)
-        {
-            if (Hardware->identity.sRAMSizes[i] &&
-               (Hardware->identity.sRAMBases[i] != gcvINVALID_PHYSICAL_ADDRESS))
+            /* Map the internal SRAM. */
+            if (needMapInternalSRAM)
             {
-                gcmkPRINT("Galcore Info: MMU mapped core%d external SRAM[%d] base=0x%llx size=0x%x",
-                    Hardware->core,
+                gcmkPRINT("Galcore Info: MMU mapped core%d internal SRAM base=0x%llx size=0x%x",
                     i,
-                    Hardware->identity.sRAMBases[i],
-                    Hardware->identity.sRAMSizes[i]
+                    reservedBase,
+                    reservedSize
                     );
 
-                Hardware->options.sRAMBaseAddress[i] = 0;
+                /*
+                 * Default gpu virtual base = 0.
+                 * It can be specified if not conflict with existing mapping.
+                 */
+
+                Device->sRAMBaseAddresses[i][gcvSRAM_INTERNAL] = 0;
+
+                gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(
+                    Mmu->os,
+                    reservedBase,
+                    &reservedBase
+                    ));
 
                 gcmkONERROR(_FillFlatMapping(
                     Mmu,
-                    Hardware->identity.sRAMBases[i],
-                    Hardware->identity.sRAMSizes[i],
-                    gcvFALSE,
+                    reservedBase,
+                    reservedSize,
                     gcvTRUE,
-                    &Hardware->options.sRAMBaseAddress[i]
+                    gcvTRUE,
+                    &Device->sRAMBaseAddresses[i][gcvSRAM_INTERNAL]
                     ));
+
+                Device->sRAMBases[i][j] = reservedBase;
             }
+
+            /* Map all the axi SRAMs in MMU table. */
+            for (j = gcvSRAM_EXTERNAL0; j < gcvSRAM_COUNT; j++)
+            {
+                if (Device->sRAMSizes[i][j] &&
+                   (Device->sRAMBases[i][j] != gcvINVALID_PHYSICAL_ADDRESS))
+                {
+                    gcmkPRINT("Galcore Info: MMU mapped core %d SRAM[%d] base=0x%llx size=0x%x",
+                        i,
+                        j,
+                        Device->sRAMBases[i][j],
+                        Device->sRAMSizes[i][j]
+                        );
+
+                    Device->sRAMBaseAddresses[i][j] = 0;
+
+                    gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(
+                        Mmu->os,
+                        Device->sRAMBases[i][j],
+                        &Device->sRAMBases[i][j]
+                        ));
+
+                    gcmkONERROR(_FillFlatMapping(
+                        Mmu,
+                        Device->sRAMBases[i][j],
+                        Device->sRAMSizes[i][j],
+                        gcvFALSE,
+                        gcvTRUE,
+                        &Device->sRAMBaseAddresses[i][j]
+                        ));
+                }
+            }
+        }
+
+        Mmu->sRAMMapped = gcvTRUE;
+    }
+
+    /* Get per core SRAM hardware base address. */
+    for (i = 0; i < gcvSRAM_COUNT; i++)
+    {
+        if (Device->sRAMSizes[Hardware->core][i] &&
+           (Device->sRAMBases[Hardware->core][i] != gcvINVALID_PHYSICAL_ADDRESS))
+        {
+            kernel->sRAMBaseAddresses[i] = Hardware->options.sRAMBaseAddresses[i]
+                                         = Device->sRAMBaseAddresses[Hardware->core][i];
+
+            kernel->sRAMSizes[i] = Hardware->options.sRAMSizes[i]
+                                 = Device->sRAMSizes[Hardware->core][i];
+
+            Hardware->options.sRAMPhysicalBases[i] = Device->sRAMBases[Hardware->core][i];
+
+            gcmkPRINT("Galcore Info: MMU mapped core %d SRAM[%d] hardware address=0x%x size=0x%x",
+                Hardware->core,
+                i,
+                kernel->sRAMBaseAddresses[i],
+                kernel->sRAMSizes[i]
+                );
         }
     }
 

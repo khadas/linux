@@ -212,9 +212,9 @@ _DmaGetSGT(
 
     gceSTATUS status = gcvSTATUS_OK;
     gctSIZE_T offset = Offset & ~PAGE_MASK; /* Offset to the first page */
-    gctINT skipPages = Offset >> PAGE_SHIFT;     /* skipped pages */
-    gctINT numPages = (PAGE_ALIGN(Offset + Bytes) >> PAGE_SHIFT) - skipPages;
-    gctINT i;
+    gctSIZE_T skipPages = Offset >> PAGE_SHIFT;     /* skipped pages */
+    gctSIZE_T numPages = (PAGE_ALIGN(Offset + Bytes) >> PAGE_SHIFT) - skipPages;
+    gctSIZE_T i;
 
     gcmkASSERT(Offset + Bytes <= Mdl->numPages << PAGE_SHIFT);
 
@@ -384,7 +384,7 @@ _DmaMapUser(
                     0L,
                     Mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
-                    MAP_SHARED,
+                    MAP_SHARED | MAP_NORESERVE,
                     0);
 #else
     down_write(&current->mm->mmap_sem);

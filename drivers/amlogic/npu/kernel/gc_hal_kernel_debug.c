@@ -1119,7 +1119,7 @@ _DumpDataBuffer(
     {
         gctPOINTER data = gcvNULL;
         gctUINT32_PTR ptr;
-        gctUINT8_PTR ptrByte;
+        gctUINT8_PTR bytePtr;
         gctSIZE_T count, tailByteCount;
 
         length = maxLength < (Size - offset) ? maxLength : (Size - offset);
@@ -1177,42 +1177,58 @@ _DumpDataBuffer(
         {
         case 3:
             gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1,
-                        "  0x%08X 0x%08X 0x%08X\n",
+                        "  0x%08X 0x%08X 0x%08X",
                         ptr[0], ptr[1], ptr[2]);
-            gcmkDUMP_STRING(Os, buffer);
             break;
         case 2:
             gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1,
-                        "  0x%08X 0x%08X\n",
+                        "  0x%08X 0x%08X",
                         ptr[0], ptr[1]);
-            gcmkDUMP_STRING(Os, buffer);
             break;
         case 1:
-            gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1, "  0x%08X\n", ptr[0]);
-            gcmkDUMP_STRING(Os, buffer);
+            gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1, "  0x%08X", ptr[0]);
             break;
         }
 
-        ptrByte = (gctUINT8_PTR)ptr;
+        if (count > 0)
+        {
+            gcmkDUMP_STRING(Os, buffer);
+        }
+
+        bytePtr = (gctUINT8_PTR)(ptr + count);
+
+        if (!count && tailByteCount)
+        {
+            /* There is an extra space for the new line. */
+            gcmkDUMP_STRING(Os, " ");
+        }
+
         switch (tailByteCount)
         {
         case 3:
             gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1,
-                        "  0x00%02X%02X%02X\n",
-                        ptrByte[2], ptrByte[1], ptrByte[0]);
-            gcmkDUMP_STRING(Os, buffer);
+                        " 0x00%02X%02X%02X",
+                        bytePtr[2], bytePtr[1], bytePtr[0]);
             break;
         case 2:
             gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1,
-                        "  0x0000%02X%02X\n",
-                        ptrByte[1], ptrByte[0]);
-            gcmkDUMP_STRING(Os, buffer);
+                        " 0x0000%02X%02X",
+                        bytePtr[1], bytePtr[0]);
             break;
         case 1:
             gcmkSPRINTF(buffer, gcmSIZEOF(buffer) - 1,
-                        "  0x000000%02X\n", ptrByte[0]);
-            gcmkDUMP_STRING(Os, buffer);
+                        " 0x000000%02X", bytePtr[0]);
             break;
+        }
+
+        if (tailByteCount)
+        {
+            gcmkDUMP_STRING(Os, buffer);
+        }
+
+        if (count || tailByteCount)
+        {
+            gcmkDUMP_STRING(Os, "\n");
         }
 
         if (Type <= gcvDUMP_BUFFER_USER_TYPE_LAST && !needCopy)

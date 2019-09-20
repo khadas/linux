@@ -340,7 +340,7 @@ static gceSTATUS
 _Import(
     IN gckOS Os,
     IN gctPOINTER Memory,
-    IN gctUINT32 Physical,
+    IN gctPHYS_ADDR_T Physical,
     IN gctSIZE_T Size,
     IN struct um_desc * UserMemory
     )
@@ -354,11 +354,11 @@ _Import(
     gctSIZE_T extraPage;
     gctSIZE_T pageCount, i;
 
-    gcmkHEADER_ARG("Os=%p Memory=%p Physical=0x%x Size=%lu", Os, Memory, Physical, Size);
+    gcmkHEADER_ARG("Os=%p Memory=%p Physical=0x%llx Size=%lu", Os, Memory, Physical, Size);
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
-    gcmkVERIFY_ARGUMENT(Memory != gcvNULL || Physical != ~0U);
+    gcmkVERIFY_ARGUMENT(Memory != gcvNULL || Physical != ~0ULL);
     gcmkVERIFY_ARGUMENT(Size > 0);
 
     memory = (unsigned long)Memory;
@@ -528,8 +528,13 @@ static void release_physical_map(struct um_desc *um)
 static void release_page_map(struct um_desc *um)
 {
     int i;
+    dma_sync_sg_for_device(galcore_device,
+                    um->sgt.sgl, um->sgt.nents, DMA_TO_DEVICE);
 
-    dma_unmap_sg(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_TO_DEVICE);
+    dma_sync_sg_for_cpu(galcore_device,
+                    um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
+
+    dma_unmap_sg(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
     && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))

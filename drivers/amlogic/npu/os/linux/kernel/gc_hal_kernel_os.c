@@ -1346,7 +1346,7 @@ gckOS_AllocateNonPagedMemory(
     )
 {
     gctSIZE_T bytes;
-    gctINT numPages;
+    gctSIZE_T numPages;
     PLINUX_MDL mdl = gcvNULL;
     PLINUX_MDL_MAP mdlMap = gcvNULL;
     gctPOINTER addr;
@@ -1563,11 +1563,11 @@ _FindAllocator(
 gceSTATUS
 gckOS_RequestReservedMemory(
     gckOS Os,
-    unsigned long Start,
-    unsigned long Size,
+    gctPHYS_ADDR_T Start,
+    gctSIZE_T Size,
     const char * Name,
     gctBOOL Requested,
-    void ** MemoryHandle
+    gctPOINTER * MemoryHandle
     )
 {
     PLINUX_MDL mdl = gcvNULL;
@@ -1637,7 +1637,7 @@ OnError:
 void
 gckOS_ReleaseReservedMemory(
     gckOS Os,
-    void * MemoryHandle
+    gctPOINTER MemoryHandle
     )
 {
     gckALLOCATOR allocator;
@@ -1688,6 +1688,11 @@ gckOS_ReadRegisterEx(
     OUT gctUINT32 * Data
     )
 {
+    if (Address > Os->device->registerSizes[Core] - 1)
+    {
+        return gcvSTATUS_INVALID_ARGUMENT;
+    }
+
     if (in_irq())
     {
         uint32_t data;
@@ -1768,6 +1773,11 @@ _WriteRegisterEx(
     IN gctBOOL Dump
     )
 {
+    if (Address > Os->device->registerSizes[Core] - 1)
+    {
+        return gcvSTATUS_INVALID_ARGUMENT;
+    }
+
     if (in_irq())
     {
         spin_lock(&Os->registerAccessLock);
@@ -2293,8 +2303,8 @@ gckOS_MapPhysical(
             gctUINT32 offset = physical & ~PAGE_MASK;
             struct page ** pages;
             struct page * page;
-            gctUINT numPages;
-            gctINT i;
+            gctSIZE_T numPages;
+            gctSIZE_T i;
             pgprot_t pgprot;
 
             numPages = GetPageCount(PAGE_ALIGN(offset + Bytes), 0);
@@ -3059,12 +3069,21 @@ gckOS_GetTime(
     OUT gctUINT64_PTR Time
     )
 {
-    struct timeval tv;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+    struct timespec64 tv;
     gcmkHEADER();
 
     /* Return the time of day in microseconds. */
+    ktime_get_real_ts64(&tv);
+    *Time = (tv.tv_sec * 1000000ULL) + (tv.tv_nsec * 1000);
+#else
+    struct timeval tv;
+    gcmkHEADER();
+
+     /* Return the time of day in microseconds. */
     do_gettimeofday(&tv);
     *Time = (tv.tv_sec * 1000000ULL) + tv.tv_usec;
+#endif
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
@@ -3138,7 +3157,7 @@ gckOS_AllocatePagedMemory(
     OUT gctPHYS_ADDR * Physical
     )
 {
-    gctINT numPages;
+    gctSIZE_T numPages;
     PLINUX_MDL mdl = gcvNULL;
     gctSIZE_T bytes;
     gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
@@ -3880,7 +3899,11 @@ gckOS_WriteMemory(
     gcmkVERIFY_ARGUMENT(Address != gcvNULL);
 
     /* Write memory. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+    if (access_ok(Address, 4))
+#else
     if (access_ok(VERIFY_WRITE, Address, 4))
+#endif
     {
         /* User address. */
         if (put_user(Data, (gctUINT32*)Address))
@@ -3888,10 +3911,14 @@ gckOS_WriteMemory(
             gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
         }
     }
-    else
+    else if (virt_addr_valid(Address) || is_vmalloc_addr(Address))
     {
         /* Kernel address. */
         *(gctUINT32 *)Address = Data;
+    }
+    else
+    {
+        gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
     }
 
 OnError:
@@ -3913,7 +3940,11 @@ gckOS_ReadMappedPointer(
     gcmkVERIFY_ARGUMENT(Address != gcvNULL);
 
     /* Write memory. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+    if (access_ok(Address, 4))
+#else
     if (access_ok(VERIFY_READ, Address, 4))
+#endif
     {
         /* User address. */
         if (get_user(*Data, (gctUINT32*)Address))
@@ -6855,6 +6886,14 @@ gckOS_QueryOption(
     {
         memcpy(Value, device->args.sRAMBases, gcmSIZEOF(gctUINT64) * gcvSRAM_COUNT * gcvCORE_COUNT);
     }
+    else if (!strcmp(Option, "sRAMSizes"))
+    {
+        memcpy(Value, device->args.sRAMSizes, gcmSIZEOF(gctUINT32) * gcvSRAM_COUNT * gcvCORE_COUNT);
+    }
+    else if (!strcmp(Option, "sRAMMode"))
+    {
+        *Value = device->args.sRAMMode;
+    }
     else
     {
         status = gcvSTATUS_NOT_SUPPORTED;
@@ -6986,6 +7025,7 @@ gckOS_WrapMemory(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
     gcmkVERIFY_ARGUMENT(Physical != gcvNULL);
+    gcmkVERIFY_ARGUMENT(Desc != gcvNULL);
 
     mdl = _CreateMdl(Os);
     if (mdl == gcvNULL)
@@ -6995,6 +7035,14 @@ gckOS_WrapMemory(
 
     if (Desc->flag & gcvALLOC_FLAG_DMABUF)
     {
+        if (IS_ERR(gcmUINT64_TO_PTR(Desc->dmabuf)))
+        {
+            /* Won't enter here currently, the caller confirms the dmabuf is valid. */
+
+            gcmkPRINT("Wrap memory: invalid dmabuf.\n");
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
         desc.dmaBuf.dmabuf = gcmUINT64_TO_PTR(Desc->dmabuf);
 
 #if defined(CONFIG_DMA_SHARED_BUFFER)

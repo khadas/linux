@@ -84,7 +84,7 @@ struct _LINUX_MDL
 
     /* Size and covered page count. */
     size_t                  bytes;
-    gctINT                  numPages;
+    size_t                  numPages;
 
     gctBOOL                 contiguous;
     dma_addr_t              dmaHandle;

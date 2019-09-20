@@ -83,6 +83,8 @@ typedef struct _gcsMODULE_PARAMETERS
 
     /* SRAM. */
     gctPHYS_ADDR_T          sRAMBases[gcvCORE_COUNT][gcvSRAM_COUNT];
+    gctUINT32               sRAMSizes[gcvCORE_COUNT][gcvSRAM_COUNT];
+    gctUINT32               sRAMMode;
 
     gctPHYS_ADDR_T          baseAddress;
     gctSIZE_T               physSize;
@@ -231,7 +233,7 @@ typedef struct _gcsPLATFORM_OPERATIONS
     gceSTATUS
     (*getCPUPhysical)(
         IN gcsPLATFORM * Platform,
-        IN gctUINT32 GPUPhysical,
+        IN gctPHYS_ADDR_T GPUPhysical,
         OUT gctPHYS_ADDR_T * CPUPhysical
         );
 

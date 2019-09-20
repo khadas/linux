@@ -243,6 +243,7 @@ typedef gctUINT32               gctTRACE;
 #define gcvMAXUINT64            0xffffffffffffffff
 #define gcvMINUINT64            0x0
 #define gcvMAXUINTPTR_T         (~(gctUINTPTR_T)0)
+#define gcvMAXSIZE_T            ((gctSIZE_T)(-1))
 
 typedef float                   gctFLOAT;
 typedef signed int              gctFIXED_POINT;
@@ -484,6 +485,7 @@ typedef enum _gceSTATUS
     gcvSTATUS_DEVICE                =   -27,
     gcvSTATUS_NOT_MULTI_PIPE_ALIGNED =   -28,
     gcvSTATUS_OUT_OF_SAMPLER         =   -29,
+    gcvSTATUS_RESLUT_OVERFLOW       =   -30,
 
     /* Linker errors. */
     gcvSTATUS_GLOBAL_TYPE_MISMATCH              =   -1000,

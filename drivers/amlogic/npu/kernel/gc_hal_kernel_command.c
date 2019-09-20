@@ -1165,8 +1165,8 @@ _HandlePatchListSingle(
     gctPOINTER userPtr = gcvNULL;
     gctUINT32 index = 0;
     gctUINT32 count = 0;
-    gctUINT32 itemSize = _PatchItemSize[PatchList->type];
-    gctUINT32 batchCount = (gctUINT32)(sizeof(storage) / itemSize);
+    gctUINT32 itemSize = 0;
+    gctUINT32 batchCount = 0;
 
     static const PATCH_ITEM_HANDLER patchHandler[] =
     {
@@ -1179,6 +1179,16 @@ _HandlePatchListSingle(
 
     gcmkHEADER_ARG("Command=%p CommandBuffer=%p PatchList=%p type=%d",
                    Command, CommandBuffer, PatchList, PatchList->type);
+
+    if (PatchList->type >= gcmCOUNTOF(_PatchItemSize) || PatchList->type >= gcmCOUNTOF(patchHandler))
+    {
+        /* Exceeds buffer max size. */
+        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+    }
+
+    itemSize = _PatchItemSize[PatchList->type];
+
+    batchCount = (gctUINT32)(sizeof(storage) / itemSize);
 
     handler = patchHandler[PatchList->type];
 

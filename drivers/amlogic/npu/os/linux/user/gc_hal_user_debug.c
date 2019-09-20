@@ -740,7 +740,7 @@ _Print(
     if ((n <= 0) || (buffer[i + n - 1] != '\n'))
     {
         /* Append new-line. */
-        gcoOS_StrCatSafe(buffer, sizeof(buffer), "\n");
+        gcmSTRCAT(buffer, sizeof(buffer), "\n");
         buffer[sizeof(buffer) - 1] = '\0';
     }
 

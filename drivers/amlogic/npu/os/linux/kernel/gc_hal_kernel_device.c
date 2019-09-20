@@ -640,7 +640,7 @@ gc_version_show(struct seq_file *m, void *data)
     gckGALDEVICE device = node->device;
     gcsPLATFORM * platform = device->platform;
 
-    /*seq_printf(m, "%s built at %s\n",  gcvVERSION_STRING, HOST);*/
+    seq_printf(m, "%s built at %s\n",  gcvVERSION_STRING, HOST);
 
     if (platform->name)
     {
@@ -1269,7 +1269,7 @@ _SetupIsr(
      * Add by 1 here and subtract by 1 in isr to fix the issue.
      */
     ret = request_irq(
-        Device->irqLines[Core], handler, gcdIRQF_FLAG|0x04,
+        Device->irqLines[Core], handler, gcdIRQF_FLAG,
         isrNames[Core], (void *)(uintptr_t)(Core + 1)
         );
 
@@ -1785,14 +1785,14 @@ gceSTATUS
 gckGALDEVICE_Destroy(
     gckGALDEVICE Device)
 {
-    gctINT i;
+    gctINT i, j = 0;
     gckKERNEL kernel = gcvNULL;
 
     gcmkHEADER_ARG("Device=%p", Device);
 
     if (Device != gcvNULL)
     {
-        /* Grab the first availiable kernel */
+        /* Grab the first available kernel */
         for (i = 0; i < gcdMAX_GPU_COUNT; i++)
         {
             if (Device->kernels[i])
@@ -1818,6 +1818,39 @@ gckGALDEVICE_Destroy(
             {
                 gcmRELEASE_NAME(Device->contiguousPhysName);
                 Device->contiguousPhysName = 0;
+            }
+        }
+
+        /* Destroy per-core SRAM heap. */
+        if (Device->args.sRAMMode)
+        {
+            for (i = 0; i <= gcvCORE_3D_MAX; i++)
+            {
+                kernel = Device->kernels[i];
+
+                if (kernel && kernel->sRAMNonExclusive)
+                {
+                    for (j = gcvSRAM_EXTERNAL0; j < gcvSRAM_COUNT; j++)
+                    {
+                        if (kernel->sRAMPhysical[j] != gcvNULL)
+                        {
+                            /* Release reserved SRAM memory. */
+                            gckOS_ReleaseReservedMemory(
+                                Device->os,
+                                kernel->sRAMPhysical[j]
+                                );
+
+                            kernel->sRAMPhysical[j] = gcvNULL;
+                        }
+
+                        if (kernel->sRAMVideoMem[j] != gcvNULL)
+                        {
+                            /* Destroy the SRAM contiguous heap. */
+                            gcmkVERIFY_OK(gckVIDMEM_Destroy(kernel->sRAMVideoMem[j]));
+                            kernel->sRAMVideoMem[j] = gcvNULL;
+                        }
+                    }
+                }
             }
         }
 

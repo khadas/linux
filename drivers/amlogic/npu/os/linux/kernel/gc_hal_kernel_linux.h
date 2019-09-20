@@ -160,7 +160,7 @@
 #  define dma_fence_context_alloc(s)        fence_context_alloc(s)
 
 #endif
-
+int get_nna_status(struct platform_device *dev);
 extern struct device *galcore_device;
 
 /******************************************************************************\
@@ -311,23 +311,6 @@ gckOS_ImportAllocators(
 gceSTATUS
 gckOS_FreeAllocators(
     gckOS Os
-    );
-
-/* Reserved memory. */
-gceSTATUS
-gckOS_RequestReservedMemory(
-    gckOS Os,
-    unsigned long Start,
-    unsigned long Size,
-    const char * Name,
-    gctBOOL Requested,
-    void ** MemoryHandle
-    );
-
-void
-gckOS_ReleaseReservedMemory(
-    gckOS Os,
-    void * MemoryHandle
     );
 
 gceSTATUS

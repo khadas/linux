@@ -361,7 +361,7 @@ _DmabufMapUser(
                     0L,
                     Mdl->numPages << PAGE_SHIFT,
                     PROT_READ | PROT_WRITE,
-                    MAP_SHARED,
+                    MAP_SHARED | MAP_NORESERVE,
                     0);
 
     if (IS_ERR(userLogical))
@@ -371,7 +371,11 @@ _DmabufMapUser(
     userLogical += buf_desc->sgt->sgl->offset;
 
     /* To make sure the mapping is created. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+    if (access_ok(userLogical, 4))
+#else
     if (access_ok(VERIFY_READ, userLogical, 4))
+#endif
     {
         uint32_t mem;
         get_user(mem, (uint32_t *)userLogical);

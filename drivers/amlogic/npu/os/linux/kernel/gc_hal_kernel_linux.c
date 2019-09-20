@@ -169,6 +169,11 @@ gckKERNEL_GetVideoMemoryPool(
         videoMemory = device->contiguousVidMem;
         break;
 
+    case gcvPOOL_SRAM:
+        /* SRAM memory. */
+        videoMemory = Kernel->sRAMVideoMem[Kernel->sRAMIndex];
+        break;
+
     default:
         /* Unknown pool. */
         videoMemory = NULL;
@@ -331,6 +336,12 @@ gckKERNEL_MapVideoMemory(
         /* System memory. */
         physHandle = (PLINUX_MDL)device->contiguousPhysical;
         bytes = device->contiguousSize;
+        break;
+
+    case gcvPOOL_SRAM:
+        /* SRAM memory. */
+        physHandle = (PLINUX_MDL)Kernel->sRAMPhysical[Kernel->sRAMIndex];
+        bytes = Kernel->sRAMSizes[Kernel->sRAMIndex];
         break;
 
     default:

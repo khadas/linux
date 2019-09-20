@@ -256,6 +256,12 @@ struct _gckHARDWARE
     /* Head for hardware list in gckMMU. */
     gcsLISTHEAD                 mmuHead;
 
+    /* SRAM mode. */
+    gctUINT32                   sRAMNonExclusive;
+    gckVIDMEM                   sRAMVideoMem[gcvSRAM_COUNT];
+    gctPHYS_ADDR                sRAMPhysical[gcvSRAM_COUNT];
+    gctPOINTER                  sRAMLogical[gcvSRAM_COUNT];
+
     gctPOINTER                  featureDatabase;
     gctBOOL                     hasL2Cache;
 

@@ -144,6 +144,7 @@ typedef enum _gcePATCH_ID
     gcvPATCH_GLU4, /* gfx4.0 glu.*/
     gcvPATCH_MRVELBM20,
     gcvPATCH_OPENCV_ATOMIC,
+    gcvPATCH_OVX_CTS,
 
     gcvPATCH_COUNT
 } gcePATCH_ID;
@@ -228,6 +229,9 @@ typedef struct _gcsPLS
     /* Mutex to gurad CL FE compiler access. */
     gctPOINTER                  clFECompilerAccessLock;
 
+    /* Mutex to gurad VX context access. */
+    gctPOINTER                  vxContextGlobalLock;
+
     /* Global patchID to overwrite the detection */
     gcePATCH_ID                 patchID;
 
@@ -294,6 +298,12 @@ gcoOS_DetectProcessByEncryptedName(
 gceSTATUS
 gcoOS_DetectProgrameByEncryptedSymbols(
     IN gcsSYMBOLSLIST_PTR Symbols
+    );
+
+/* Get access to the process local storage. */
+gceSTATUS
+gcoHAL_GetPLS(
+    OUT gcsPLS_PTR * PLS
     );
 
 #ifdef __cplusplus

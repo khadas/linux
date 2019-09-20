@@ -166,6 +166,11 @@ reserved_mem_attach(
     struct reserved_mem *res;
     struct resource *region = NULL;
 
+    if (Desc == gcvNULL)
+    {
+        return gcvSTATUS_INVALID_ARGUMENT;
+    }
+
     res = kzalloc(sizeof(struct reserved_mem), GFP_KERNEL | gcdNOWARN);
 
     if (!res)
@@ -310,7 +315,7 @@ reserved_mem_map_user(
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
     userLogical = (gctPOINTER)vm_mmap(NULL, 0L, res->size,
-                PROT_READ | PROT_WRITE, MAP_SHARED, 0);
+                PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE, 0);
 #else
     down_write(&current->mm->mmap_sem);
     userLogical = (gctPOINTER)do_mmap_pgoff(NULL, 0L, res->size,

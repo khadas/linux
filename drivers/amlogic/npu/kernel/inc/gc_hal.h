@@ -75,15 +75,27 @@ extern "C" {
 \******************************************************************************/
 
 /* Alignment with a non-power of two value. */
-#define gcmALIGN_NP2(n, align) \
+#define gcmALIGN_NP2(n, align) (((n) + (align) - 1) - (((n) + (align) - 1) % (align)))
+
+#define gcmALIGN_NP2_SAFE(n, align)                                        \
 (\
-    ((n) + (align) - 1) - (((n) + (align) - 1) % (align)) \
+    (gcmALIGN_NP2((n) & ~0ULL, (align) & ~0ULL) ^ gcmALIGN_NP2(n, align)) ?   \
+        (n) : gcmALIGN_NP2(n, align)                                       \
 )
 
 /* Alignment with a power of two value. */
-#define gcmALIGN(n, align) \
+#define gcmALIGN(n, align) (((n) + ((align) - 1)) & ~((align) - 1))
+
+#define gcmALIGN_SAFE(n, align)                                        \
 (\
-    ((n) + ((align) - 1)) & ~((align) - 1) \
+    (gcmALIGN((n) & ~0ULL, (align) & ~0ULL) ^ gcmALIGN(n, align)) ?    \
+         (n) : gcmALIGN(n, align)                                      \
+)
+
+#define gcmALIGN_CHECK_OVERFLOW(n, align)                              \
+(\
+    (gcmALIGN((n) & ~0ULL, (align) & ~0ULL) ^ gcmALIGN(n, align)) ?    \
+         gcvSTATUS_RESLUT_OVERFLOW : gcvSTATUS_OK                      \
 )
 
 #define gcmALIGN_BASE(n, align) \
@@ -144,7 +156,7 @@ extern "C" {
 #define gcvINVALID_ADDRESS              ~0U
 #define gcvINVALID_VALUE                0xCCCCCCCC
 
-#define gcvINVALID_PHYSICAL_ADDRESS     ~0U
+#define gcvINVALID_PHYSICAL_ADDRESS     ~0ULL
 
 #define gcmGET_PRE_ROTATION(rotate) \
     ((rotate) & (~(gcvSURF_POST_FLIP_X | gcvSURF_POST_FLIP_Y)))
@@ -445,6 +457,23 @@ gckOS_FreeNonPagedMemory(
     IN gctPHYS_ADDR Physical,
     IN gctPOINTER Logical,
     IN gctSIZE_T Bytes
+    );
+
+/* Reserved memory. */
+gceSTATUS
+gckOS_RequestReservedMemory(
+    gckOS Os,
+    gctPHYS_ADDR_T Start,
+    gctSIZE_T Size,
+    const char * Name,
+    gctBOOL Requested,
+    gctPOINTER * MemoryHandle
+    );
+
+void
+gckOS_ReleaseReservedMemory(
+    gckOS Os,
+    gctPOINTER MemoryHandle
     );
 
 /* Get the number fo bytes per page. */
@@ -1756,6 +1785,7 @@ gckDVFS_Stop(
 gceSTATUS
 gckHARDWARE_Construct(
     IN gckOS Os,
+    IN gckDEVICE Device,
     IN gceCORE Core,
     OUT gckHARDWARE * Hardware
     );
@@ -2168,14 +2198,14 @@ gckMMU_DumpPageTableEntry(
 gceSTATUS
 gckMMU_FillFlatMapping(
     IN gckMMU Mmu,
-    IN gctUINT32 PhysBase,
+    IN gctUINT64 PhysBase,
     IN gctSIZE_T Size
     );
 
 gceSTATUS
 gckMMU_IsFlatMapped(
     IN gckMMU Mmu,
-    OUT gctUINT32 Physical,
+    OUT gctUINT64 Physical,
     OUT gctBOOL *In
     );
 
