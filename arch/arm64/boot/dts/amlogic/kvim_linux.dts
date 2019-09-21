@@ -669,12 +669,17 @@
 		reg-names = "ao_exit","ao";
 	};
 
-	sysled {
-		compatible = "amlogic, sysled";
-		dev_name = "sysled";
+	gpioleds {
+		compatible = "gpio-leds";
 		status = "okay";
-		led_gpio = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
-		led_active_low = <1>;
+
+		sys_led {
+			label="sys_led";
+			gpios=<&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
+			default-state ="on";
+			retain-state-suspended;
+			linux,default-trigger="default-on";
+		};
 	};
 
 	meson-fb {
