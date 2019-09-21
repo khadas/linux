@@ -208,6 +208,18 @@ static bool is_mcu_usb_pcie_switch_supported(void)
 		return 0;
 }
 
+static bool is_mcu_wol_supported(void)
+{
+	// WOL is supported for:
+	// 1. Khadas VIM2
+	// 2. Khadas VIM3
+	if ((KHADAS_BOARD_VIM2 == g_mcu_data->board) ||
+		(KHADAS_BOARD_VIM3 == g_mcu_data->board))
+		return 1;
+	else
+		return 0;
+}
+
 static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
 {
 	if (is_mcu_fan_control_supported()) {
@@ -503,21 +515,23 @@ static void create_mcu_attrs(void)
 {
 	int i;
 	printk("%s\n",__func__);
-	g_mcu_data->wol_class = class_create(THIS_MODULE, "wol");
-	if (IS_ERR(g_mcu_data->wol_class)) {
-		pr_err("create wol_class debug class fail\n");
-		return;
+	if (is_mcu_wol_supported()) {
+		g_mcu_data->wol_class = class_create(THIS_MODULE, "wol");
+		if (IS_ERR(g_mcu_data->wol_class)) {
+			pr_err("create wol_class debug class fail\n");
+			return;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
+			if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
+				pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
+		}
 	}
 
 	g_mcu_data->mcu_class = class_create(THIS_MODULE, "mcu");
 	if (IS_ERR(g_mcu_data->mcu_class)) {
 		pr_err("create mcu_class debug class fail\n");
 		return;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(wol_class_attrs); i++) {
-		if (class_create_file(g_mcu_data->wol_class, &wol_class_attrs[i]))
-			pr_err("create wol attribute %s fail\n", wol_class_attrs[i].attr.name);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mcu_class_attrs); i++) {
@@ -639,10 +653,12 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	printk("%s: board: %d, hwver: %d\n", __func__, (int)g_mcu_data->board, (int)g_mcu_data->hwver);
 
 	g_mcu_data->client = client;
-	ret = mcu_i2c_read_regs(client, MCU_BOOT_EN_WOL_REG, reg, 1);
-	if (ret < 0)
-		goto exit;
-	g_mcu_data->wol_enable = (int)reg[0];
+	if (is_mcu_wol_supported()) {
+		ret = mcu_i2c_read_regs(client, MCU_BOOT_EN_WOL_REG, reg, 1);
+		if (ret < 0)
+			goto exit;
+		g_mcu_data->wol_enable = (int)reg[0];
+	}
 
 	if (is_mcu_usb_pcie_switch_supported()) {
 		// Get USB PCIe Switch status
@@ -663,14 +679,16 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	create_mcu_attrs();
 	printk("%s,wol enable=%d\n",__func__ ,g_mcu_data->wol_enable);
 
-//	if (g_mcu_data->wol_enable == 3)
-//		mcu_enable_wol(g_mcu_data->wol_enable, false);
+	if (is_mcu_wol_supported()) {
+	//	if (g_mcu_data->wol_enable == 3)
+	//		mcu_enable_wol(g_mcu_data->wol_enable, false);
 
-	reg[0] = 0x01;
-	ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
-	if (ret < 0) {
-		printk("write mcu err\n");
-		goto  exit;
+		reg[0] = 0x01;
+		ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
+		if (ret < 0) {
+			printk("write mcu err\n");
+			goto  exit;
+		}
 	}
 	return 0;
 exit:
