@@ -58,6 +58,11 @@ enum mcu_fan_status {
 	MCU_FAN_STATUS_ENABLE,
 };
 
+enum mcu_usb_pcie_switch_mode {
+	MCU_USB_PCIE_SWITCH_MODE_USB3 = 0,
+	MCU_USB_PCIE_SWITCH_MODE_PCIE
+};
+
 enum khadas_board_hwver {
 	KHADAS_BOARD_HWVER_NONE = 0,
 	KHADAS_BOARD_HWVER_V11,
@@ -190,6 +195,16 @@ static int is_mcu_fan_control_supported(void)
 		else
 			return 0;
 	} else
+		return 0;
+}
+
+static bool is_mcu_usb_pcie_switch_supported(void)
+{
+	// MCU USB PCIe switch is supported for:
+	// 1. Khadas VIM3
+	if (KHADAS_BOARD_VIM3 == g_mcu_data->board)
+		return 1;
+	else
 		return 0;
 }
 
@@ -421,6 +436,9 @@ static ssize_t store_usb_pcie_switch_mode(struct class *cls, struct class_attrib
 	if (0 != mode && 1 != mode)
 		return -EINVAL;
 
+	if ((mode < MCU_USB_PCIE_SWITCH_MODE_USB3) || (mode > MCU_USB_PCIE_SWITCH_MODE_PCIE))
+		return -EINVAL;
+
 	g_mcu_data->usb_pcie_switch_mode = (u8)mode;
 	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_USB_PCIE_SWITCH_REG, &g_mcu_data->usb_pcie_switch_mode, 1);
 	if (ret < 0) {
@@ -476,12 +494,9 @@ static struct class_attribute fan_class_attrs[] = {
 	__ATTR(temp, 0644, show_fan_temp, NULL),
 };
 
-static struct class_attribute usb_pcie_switch_class_attrs[] = {
-	__ATTR(mode, 0644, show_usb_pcie_switch_mode, store_usb_pcie_switch_mode),
-};
-
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
+	__ATTR(usb_pcie_switch_mode, 0644, show_usb_pcie_switch_mode, store_usb_pcie_switch_mode),
 };
 
 static void create_mcu_attrs(void)
@@ -506,6 +521,10 @@ static void create_mcu_attrs(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mcu_class_attrs); i++) {
+		if (strstr(mcu_class_attrs[i].attr.name, "usb_pcie_switch_mode")) {
+			if (!is_mcu_usb_pcie_switch_supported())
+				continue;
+		}
 		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i]))
 			pr_err("create mcu attribute %s fail\n", mcu_class_attrs[i].attr.name);
 	}
@@ -522,20 +541,6 @@ static void create_mcu_attrs(void)
 				pr_err("create fan attribute %s fail\n", fan_class_attrs[i].attr.name);
 		}
 	}
-
-	if (KHADAS_BOARD_VIM3 == g_mcu_data->board) {
-		g_mcu_data->usb_pcie_switch_class = class_create(THIS_MODULE, "usb_pcie_switch");
-		if (IS_ERR(g_mcu_data->usb_pcie_switch_class)) {
-			pr_err("create usb_pcie_switch_class fail\n");
-			return;
-		}
-
-		for (i = 0; i < ARRAY_SIZE(usb_pcie_switch_class_attrs); i++) {
-			if (class_create_file(g_mcu_data->usb_pcie_switch_class, &usb_pcie_switch_class_attrs[i]))
-				pr_err("create mcu attribute %s fail\n", usb_pcie_switch_class_attrs[i].attr.name);
-		}
-	}
-
 }
 
 static int mcu_parse_dt(struct device *dev)
@@ -639,11 +644,13 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit;
 	g_mcu_data->wol_enable = (int)reg[0];
 
-	// Get USB PCIe Switch status
-	ret = mcu_i2c_read_regs(client, MCU_USB_PCIE_SWITCH_REG, reg, 1);
-	if (ret < 0)
-		goto exit;
-	g_mcu_data->usb_pcie_switch_mode = (u8)reg[0];
+	if (is_mcu_usb_pcie_switch_supported()) {
+		// Get USB PCIe Switch status
+		ret = mcu_i2c_read_regs(client, MCU_USB_PCIE_SWITCH_REG, reg, 1);
+		if (ret < 0)
+			goto exit;
+		g_mcu_data->usb_pcie_switch_mode = (u8)reg[0];
+	}
 
 	if (is_mcu_fan_control_supported()) {
 		g_mcu_data->fan_data.mode = MCU_FAN_MODE_AUTO;
