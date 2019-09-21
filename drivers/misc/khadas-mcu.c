@@ -255,7 +255,8 @@ static void fan_work_func(struct work_struct *_work)
 		int temp = -EINVAL;
 		struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
 
-		if (KHADAS_BOARD_VIM2 == g_mcu_data->board)
+		if ((KHADAS_BOARD_VIM1 == g_mcu_data->board) ||
+			(KHADAS_BOARD_VIM2 == g_mcu_data->board))
 			temp = get_cpu_temp();
 		else if (KHADAS_BOARD_VIM3 == g_mcu_data->board)
 			temp = meson_get_temperature();
@@ -390,7 +391,8 @@ static ssize_t show_fan_temp(struct class *cls,
 {
 	int temp = -EINVAL;
 
-	if (KHADAS_BOARD_VIM2 == g_mcu_data->board)
+	if ((KHADAS_BOARD_VIM1 == g_mcu_data->board) ||
+		(KHADAS_BOARD_VIM2 == g_mcu_data->board))
 		temp = get_cpu_temp();
 	else if (KHADAS_BOARD_VIM3 == g_mcu_data->board)
 		temp = meson_get_temperature();
