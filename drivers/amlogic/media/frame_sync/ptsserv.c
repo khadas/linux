@@ -441,7 +441,8 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 
 	if (likely((pTable->status == PTS_RUNNING) ||
 			   (pTable->status == PTS_LOADING))) {
-		struct pts_rec_s *rec;
+		struct pts_rec_s *rec = NULL;
+		struct pts_rec_s *rec_prev = NULL;
 
 		if (type == PTS_TYPE_VIDEO && pTable->first_checkin_pts == -1) {
 			pTable->first_checkin_pts = val;
@@ -495,6 +496,25 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 				list_entry(pTable->free_list.next,
 						   struct pts_rec_s, list);
 		}
+
+		if (!list_empty(&pTable->valid_list)) {
+			rec_prev = list_entry(
+			    pTable->valid_list.prev, struct pts_rec_s, list);
+			if (rec_prev->offset == pTable->last_checkin_offset) {
+				if (offset > pTable->last_checkin_offset)
+					rec_prev->size =
+					offset - pTable->last_checkin_offset;
+				else
+					rec_prev->size = 0;
+			}
+		}
+
+		if ((pTable->last_checkin_offset > 0)
+			&& (offset > pTable->last_checkin_offset))
+			rec->size =
+				offset - pTable->last_checkin_offset;
+		else
+			rec->size = rec_prev ? rec_prev->size : 0;
 
 		rec->offset = offset;
 		rec->val = val;
