@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/ptrace.h>
 #include <linux/math64.h>
+#include <uapi/linux/sched/types.h>
 #include <evl/sched.h>
 #include <evl/timer.h>
 #include <evl/wait.h>
