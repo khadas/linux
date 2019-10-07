@@ -2396,7 +2396,7 @@ static ssize_t stats_show(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	ktime_t period, exectime, account;
+	ktime_t period, exectime, account, total;
 	struct evl_thread *thread;
 	unsigned long flags;
 	struct evl_rq *rq;
@@ -2419,7 +2419,8 @@ static ssize_t stats_show(struct device *dev,
 		account = period;
 	}
 
-	thread->stat.lastperiod.total = thread->stat.account.total;
+	total = thread->stat.account.total;
+	thread->stat.lastperiod.total = total;
 	thread->stat.lastperiod.start = rq->last_account_switch;
 
 	xnlock_put_irqrestore(&nklock, flags);
@@ -2430,9 +2431,9 @@ static ssize_t stats_show(struct device *dev,
 			account >>= 16;
 		}
 
-		exectime = ns_to_ktime(ktime_to_ns(exectime) * 1000LL);
-		exectime = ktime_add_ns(exectime, ktime_to_ns(account) >> 1);
-		usage = ktime_divns(exectime, account);
+		exectime = ns_to_ktime(ktime_to_ns(exectime) * 1000LL +
+				ktime_to_ns(account) / 2);
+		usage = ktime_divns(exectime, ktime_to_ns(account));
 	} else
 		usage = 0;
 
@@ -2441,7 +2442,7 @@ static ssize_t stats_show(struct device *dev,
 		thread->stat.csw.counter,
 		thread->stat.sc.counter,
 		thread->stat.rwa.counter,
-		ktime_to_ns(thread->stat.account.total),
+		total,
 		usage);
 
 	evl_put_element(&thread->element);
