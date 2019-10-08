@@ -32,13 +32,12 @@ struct evl_mutex {
 	atomic_t *fastlock;
 	u32 *ceiling_ref;
 	struct evl_wait_channel wchan;
-	struct list_head wait_list;
 	struct list_head next_booster; /* thread->boosters */
 	struct list_head next_tracker;   /* thread->trackers */
 };
 
-#define evl_for_each_mutex_waiter(__pos, __mutex)			\
-	list_for_each_entry(__pos, &(__mutex)->wait_list, wait_next)
+#define evl_for_each_mutex_waiter(__pos, __mutex)	\
+	list_for_each_entry(__pos, &(__mutex)->wchan.wait_list, wait_next)
 
 void evl_init_mutex_pi(struct evl_mutex *mutex,
 		struct evl_clock *clock,
@@ -92,10 +91,10 @@ struct evl_kmutex {
 			.wprio = -1,					\
 			.ceiling_ref = NULL,				\
 			.clock = &evl_mono_clock,			\
-			.wait_list = LIST_HEAD_INIT((__name).mutex.wait_list), \
 			.wchan = {					\
 				.abort_wait = evl_abort_mutex_wait,	\
 				.reorder_wait = evl_reorder_mutex_wait,	\
+				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 			},						\
 		},							\

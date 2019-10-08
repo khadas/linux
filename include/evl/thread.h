@@ -46,6 +46,7 @@ struct evl_wait_channel {
 	void (*abort_wait)(struct evl_thread *thread,
 			struct evl_wait_channel *wchan);
 	void (*reorder_wait)(struct evl_thread *thread);
+	struct list_head wait_list;
 	hard_spinlock_t lock;
 };
 

@@ -103,8 +103,8 @@ static void adjust_boost(struct evl_thread *owner, struct evl_thread *target)
 
 	/*
 	 * CAUTION: we may have PI and PP-enabled mutexes among the
-	 * boosters, considering the leader of mutex->wait_list is
-	 * therefore NOT enough for determining the next boost
+	 * boosters, considering the leader of mutex->wchan.wait_list
+	 * is therefore NOT enough for determining the next boost
 	 * priority, since PP is tracked lazily on acquisition, not
 	 * immediately when a contention is detected. Check the head
 	 * of the booster list instead.
@@ -116,10 +116,10 @@ static void adjust_boost(struct evl_thread *owner, struct evl_thread *target)
 	if (mutex->flags & EVL_MUTEX_PP)
 		__ceil_owner_priority(owner, get_ceiling_value(mutex));
 	else {
-		if (EVL_WARN_ON(CORE, list_empty(&mutex->wait_list)))
+		if (EVL_WARN_ON(CORE, list_empty(&mutex->wchan.wait_list)))
 			return;
 		if (target == NULL)
-			target = list_first_entry(&mutex->wait_list,
+			target = list_first_entry(&mutex->wchan.wait_list,
 						struct evl_thread, wait_next);
 		inherit_thread_priority(owner, target);
 	}
@@ -343,9 +343,9 @@ static void init_mutex(struct evl_mutex *mutex,
 	mutex->wprio = -1;
 	mutex->ceiling_ref = ceiling_ref;
 	mutex->clock = clock;
-	INIT_LIST_HEAD(&mutex->wait_list);
 	mutex->wchan.abort_wait = evl_abort_mutex_wait;
 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
+	INIT_LIST_HEAD(&mutex->wchan.wait_list);
 	raw_spin_lock_init(&mutex->wchan.lock);
 }
 
@@ -373,10 +373,11 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	if (list_empty(&mutex->wait_list))
+	if (list_empty(&mutex->wchan.wait_list))
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
 	else {
-		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next)
+		list_for_each_entry_safe(waiter, tmp,
+					&mutex->wchan.wait_list, wait_next)
 			evl_wakeup_thread(waiter, T_PEND, reason);
 
 		if (mutex->flags & EVL_MUTEX_CLAIMED)
@@ -524,7 +525,7 @@ redo:
 			goto grab;
 		}
 
-		list_add_priff(curr, &mutex->wait_list, wprio, wait_next);
+		list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
 
 		if (mutex->flags & EVL_MUTEX_PI) {
 			raise_boost_flag(owner);
@@ -547,7 +548,7 @@ redo:
 			inherit_thread_priority(owner, curr);
 		}
 	} else
-		list_add_priff(curr, &mutex->wait_list, wprio, wait_next);
+		list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
 
 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 	evl_schedule();
@@ -577,7 +578,7 @@ redo:
 grab:
 	disable_inband_switch(curr);
 
-	if (!list_empty(&mutex->wait_list)) /* any waiters? */
+	if (!list_empty(&mutex->wchan.wait_list)) /* any waiters? */
 		currh = mutex_fast_claim(currh);
 
 	/* Set new ownership. */
@@ -603,13 +604,14 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	 * Our caller checked for contention locklessly, so we do have
 	 * to check again under lock in a different way.
 	 */
-	if (list_empty(&mutex->wait_list)) {
+	if (list_empty(&mutex->wchan.wait_list)) {
 		untrack_owner(mutex);
 		atomic_set(lockp, EVL_NO_HANDLE);
 		return;
 	}
 
-	n_owner = list_first_entry(&mutex->wait_list, struct evl_thread, wait_next);
+	n_owner = list_first_entry(&mutex->wchan.wait_list,
+				struct evl_thread, wait_next);
 	/*
 	 * We clear the wait channel early on - instead of waiting for
 	 * evl_wakeup_thread() to do so - because we want to hide
@@ -630,7 +632,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
 		clear_pi_boost(mutex, lastowner);
 
 	n_ownerh = get_owner_handle(fundle_of(n_owner), mutex);
-	if (!list_empty(&mutex->wait_list)) /* any waiters? */
+	if (!list_empty(&mutex->wchan.wait_list)) /* any waiters? */
 		n_ownerh = mutex_fast_claim(n_ownerh);
 
 	atomic_set(lockp, n_ownerh);
@@ -744,7 +746,7 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
 	 * from waiting on a mutex. Doing so may require to update a
 	 * PI chain.
 	 */
-	list_del(&thread->wait_next); /* mutex->wait_list */
+	list_del(&thread->wait_next); /* mutex->wchan.wait_list */
 
 	/*
 	 * Only a waiter leaving a PI chain triggers an update.
@@ -755,7 +757,7 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
 
 	owner = mutex->owner;
 
-	if (list_empty(&mutex->wait_list)) {
+	if (list_empty(&mutex->wchan.wait_list)) {
 		/* No more waiters: clear the PI boost. */
 		clear_pi_boost(mutex, owner);
 		return;
@@ -766,7 +768,7 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
 	 * left the wait list, then set its priority to the new
 	 * required minimum required to prevent priority inversion.
 	 */
-	target = list_first_entry(&mutex->wait_list,
+	target = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
 	mutex->wprio = target->wprio;
 	list_del(&mutex->next_booster);	/* owner->boosters */
@@ -786,7 +788,7 @@ void evl_reorder_mutex_wait(struct evl_thread *thread)
 	 * the PI chain if required.
 	 */
 	list_del(&thread->wait_next);
-	list_add_priff(thread, &mutex->wait_list, wprio, wait_next);
+	list_add_priff(thread, &mutex->wchan.wait_list, wprio, wait_next);
 
 	if (!(mutex->flags & EVL_MUTEX_PI))
 		return;
