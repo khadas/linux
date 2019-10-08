@@ -621,6 +621,12 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	return NULL; /* Never executed because of the idle class. */
 }
 
+/*
+ * CAUTION: curr->altsched.task may be unsynced and even stale if curr
+ * == &this_rq->root_thread, since the task logged by leave_inband()
+ * may not still be the current one. Use "current" for disambiguating
+ * if you need to refer to the underlying inband task.
+ */
 bool __evl_schedule(struct evl_rq *this_rq)
 {
 	bool switched, leaving_inband, inband_tail;
@@ -631,16 +637,21 @@ bool __evl_schedule(struct evl_rq *this_rq)
 
 	xnlock_get_irqsave(&nklock, flags);
 
-	curr = this_rq->curr;
 	/*
-	 * CAUTION: curr->altsched.task may be unsynced and even stale
-	 * if curr == &this_rq->root_thread, since the task logged by
-	 * leave_inband() may not still be the current one. Use
-	 * "current" for disambiguating if you need to refer to the
-	 * underlying inband task.
+	 * Check whether we have a pending priority ceiling request to
+	 * commit before putting the current thread to sleep.
+	 * evl_current() may differ from rq->curr only if rq->curr ==
+	 * &rq->root_thread. Testing T_USER eliminates this case since
+	 * a root thread never bears this bit.
 	 */
-	if (curr->state & T_USER)
-		evl_commit_monitor_ceiling();
+	curr = this_rq->curr;
+	if (curr->state & T_USER) {
+		if (curr->u_window->pp_pending != EVL_NO_HANDLE) {
+			xnlock_put_irqrestore(&nklock, flags);
+			__evl_commit_monitor_ceiling();
+			xnlock_get_irqsave(&nklock, flags);
+		}
+	}
 
 	switched = false;
 	if (!test_resched(this_rq))

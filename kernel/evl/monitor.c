@@ -97,6 +97,8 @@ void __evl_commit_monitor_ceiling(void)
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
 
+	no_ugly_lock();
+
 	/*
 	 * curr->u_window has to be valid since curr bears T_USER.  If
 	 * pp_pending is a bad handle, just skip ceiling.
