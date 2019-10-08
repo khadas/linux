@@ -233,20 +233,14 @@ static int enter_monitor(struct evl_monitor *gate,
 
 static int tryenter_monitor(struct evl_monitor *gate)
 {
-	unsigned long flags;
-	int ret;
-
 	no_ugly_lock();
 
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
 	evl_commit_monitor_ceiling();
-	xnlock_get_irqsave(&nklock, flags);
-	ret = evl_trylock_mutex(&gate->lock);
-	xnlock_put_irqrestore(&nklock, flags);
 
-	return ret;
+	return evl_trylock_mutex(&gate->lock);
 }
 
 /* nklock may be held, irqs off (NONE REQUIRED) */
