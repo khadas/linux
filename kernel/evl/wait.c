@@ -17,9 +17,9 @@ void evl_init_wait(struct evl_wait_queue *wq,
 {
 	wq->flags = flags;
 	wq->clock = clock;
-	INIT_LIST_HEAD(&wq->wait_list);
 	wq->wchan.abort_wait = evl_abort_wait;
 	wq->wchan.reorder_wait = evl_reorder_wait;
+	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	raw_spin_lock_init(&wq->wchan.lock);
 }
 EXPORT_SYMBOL_GPL(evl_init_wait);
@@ -44,9 +44,9 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
-		list_add_tail(&curr->wait_next, &wq->wait_list);
+		list_add_tail(&curr->wait_next, &wq->wchan.wait_list);
 	else
-		list_add_priff(curr, &wq->wait_list, wprio, wait_next);
+		list_add_priff(curr, &wq->wchan.wait_list, wprio, wait_next);
 
 	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
 }
@@ -58,11 +58,11 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 {
 	trace_evl_wake_up(wq);
 
-	if (list_empty(&wq->wait_list))
+	if (list_empty(&wq->wchan.wait_list))
 		waiter = NULL;
 	else {
 		if (waiter == NULL)
-			waiter = list_first_entry(&wq->wait_list,
+			waiter = list_first_entry(&wq->wchan.wait_list,
 						struct evl_thread, wait_next);
 		evl_wakeup_thread(waiter, T_PEND, 0);
 	}
@@ -84,7 +84,7 @@ void evl_reorder_wait(struct evl_thread *thread)
 
 	if (wq->flags & EVL_WAIT_PRIO) {
 		list_del(&thread->wait_next);
-		list_add_priff(thread, &wq->wait_list, wprio, wait_next);
+		list_add_priff(thread, &wq->wchan.wait_list, wprio, wait_next);
 	}
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);

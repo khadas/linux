@@ -24,31 +24,31 @@
 
 struct evl_wait_queue {
 	int flags;
-	struct list_head wait_list;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
-		.wait_list = LIST_HEAD_INIT((__name).wait_list), 	\
 		.clock = &evl_mono_clock,				\
 		.wchan = {						\
 			.abort_wait = evl_abort_wait,			\
 			.reorder_wait = evl_reorder_wait,		\
+			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 		},							\
 	}
 
-#define evl_head_waiter(__wq)				\
-	list_first_entry_or_null(&(__wq)->wait_list,	\
+#define evl_head_waiter(__wq)						\
+	list_first_entry_or_null(&(__wq)->wchan.wait_list,		\
 				struct evl_thread, wait_next)
 
-#define evl_for_each_waiter(__pos, __wq)	\
-	list_for_each_entry(__pos, &(__wq)->wait_list, wait_next)
+#define evl_for_each_waiter(__pos, __wq)				\
+	list_for_each_entry(__pos, &(__wq)->wchan.wait_list, wait_next)
 
-#define evl_for_each_waiter_safe(__pos, __tmp, __wq)		\
-	list_for_each_entry_safe(__pos, __tmp, &(__wq)->wait_list, wait_next)
+#define evl_for_each_waiter_safe(__pos, __tmp, __wq)			\
+	list_for_each_entry_safe(__pos, __tmp,				\
+				&(__wq)->wchan.wait_list, wait_next)
 
 #define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
 ({									\
@@ -111,13 +111,13 @@ void evl_add_wait_queue(struct evl_wait_queue *wq,
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
-	return !list_empty(&wq->wait_list);
+	return !list_empty(&wq->wchan.wait_list);
 }
 
 static inline
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
-	return list_first_entry_or_null(&wq->wait_list,
+	return list_first_entry_or_null(&wq->wchan.wait_list,
 					struct evl_thread, wait_next);
 }
 
@@ -144,7 +144,7 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 
 	trace_evl_flush_wait(wq);
 
-	list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next)
+	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next)
 		evl_wakeup_thread(waiter, T_PEND, reason);
 }
 
