@@ -92,7 +92,7 @@ out:
 	return ret;
 }
 
-void __evl_commit_monitor_ceiling(void)  /* nklock held, irqs off, OOB */
+void __evl_commit_monitor_ceiling(void)
 {
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
@@ -233,11 +233,13 @@ static int tryenter_monitor(struct evl_monitor *gate)
 	unsigned long flags;
 	int ret;
 
+	no_ugly_lock();
+
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
-	xnlock_get_irqsave(&nklock, flags);
 	evl_commit_monitor_ceiling();
+	xnlock_get_irqsave(&nklock, flags);
 	ret = evl_trylock_mutex(&gate->lock);
 	xnlock_put_irqrestore(&nklock, flags);
 
