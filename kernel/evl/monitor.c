@@ -186,8 +186,6 @@ static int __enter_monitor(struct evl_monitor *gate,
 	enum evl_tmode tmode;
 	int info;
 
-	evl_commit_monitor_ceiling();
-
 	if (req) {
 		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
 			return -EINVAL;
@@ -215,12 +213,15 @@ static int enter_monitor(struct evl_monitor *gate,
 	unsigned long flags;
 	int ret;
 
+	no_ugly_lock();
+
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
 	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
 		return -EDEADLK; /* Deny recursive locking. */
 
+	evl_commit_monitor_ceiling();
 	xnlock_get_irqsave(&nklock, flags);
 	ret = __enter_monitor(gate, req);
 	xnlock_put_irqrestore(&nklock, flags);
