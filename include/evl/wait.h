@@ -111,12 +111,14 @@ void evl_add_wait_queue(struct evl_wait_queue *wq,
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
+	requires_ugly_lock();
 	return !list_empty(&wq->wchan.wait_list);
 }
 
 static inline
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
+	requires_ugly_lock();
 	return list_first_entry_or_null(&wq->wchan.wait_list,
 					struct evl_thread, wait_next);
 }
@@ -142,6 +144,8 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
 
+	requires_ugly_lock();
+
 	trace_evl_flush_wait(wq);
 
 	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next)
@@ -162,6 +166,7 @@ static inline
 void evl_abort_wait(struct evl_thread *thread,
 		struct evl_wait_channel *wchan)
 {
+	requires_ugly_lock();
 	list_del(&thread->wait_next);
 }
 
