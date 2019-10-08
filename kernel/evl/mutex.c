@@ -858,9 +858,10 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 {
 	struct evl_thread *curr = evl_current();
 	atomic_t *lockp = mutex->fastlock;
+	unsigned long flags;
 	fundle_t oldh, h;
 
-	requires_ugly_lock();
+	xnlock_get_irqsave(&nklock, flags);
 
 	/*
 	 * For PP locks, userland does, in that order:
@@ -892,7 +893,7 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 	 */
 	if (!evl_is_mutex_owner(lockp, fundle_of(curr)) ||
 		(mutex->flags & EVL_MUTEX_CEILING))
-		return;
+		goto out;
 
 	ref_and_track_owner(mutex, curr);
 	ceil_owner_priority(mutex);
@@ -904,4 +905,6 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 		h = atomic_read(lockp);
 		oldh = atomic_cmpxchg(lockp, h, mutex_fast_ceil(h));
 	} while (oldh != h);
+out:
+	xnlock_put_irqrestore(&nklock, flags);
 }
