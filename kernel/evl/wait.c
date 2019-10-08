@@ -15,6 +15,7 @@
 void evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock, int flags)
 {
+	no_ugly_lock();
 	wq->flags = flags;
 	wq->clock = clock;
 	wq->wchan.abort_wait = evl_abort_wait;
@@ -26,6 +27,7 @@ EXPORT_SYMBOL_GPL(evl_init_wait);
 
 void evl_destroy_wait(struct evl_wait_queue *wq)
 {
+	no_ugly_lock();
 	evl_flush_wait(wq, T_RMID);
 	evl_schedule();
 }
@@ -36,6 +38,8 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 			enum evl_tmode timeout_mode)
 {
 	struct evl_thread *curr = evl_current();
+
+	requires_ugly_lock();
 
 	trace_evl_wait(wq);
 
@@ -56,6 +60,8 @@ EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter)
 {
+	requires_ugly_lock();
+
 	trace_evl_wake_up(wq);
 
 	if (list_empty(&wq->wchan.wait_list))
@@ -81,6 +87,8 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 void evl_reorder_wait(struct evl_thread *thread)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(thread->wchan);
+
+	requires_ugly_lock();
 
 	if (wq->flags & EVL_WAIT_PRIO) {
 		list_del(&thread->wait_next);

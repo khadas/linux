@@ -38,6 +38,8 @@ static inline void disable_inband_switch(struct evl_thread *curr)
 
 static inline bool enable_inband_switch(struct evl_thread *curr)
 {
+	no_ugly_lock();
+
 	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
 		return true;
 
@@ -51,8 +53,11 @@ static inline bool enable_inband_switch(struct evl_thread *curr)
 	return false;
 }
 
+/* nklock held, irqs off */
 static inline void raise_boost_flag(struct evl_thread *owner)
 {
+	requires_ugly_lock();
+
 	/* Backup the base priority at first boost only. */
 	if (!(owner->state & T_BOOST)) {
 		owner->bprio = owner->cprio;
@@ -60,10 +65,13 @@ static inline void raise_boost_flag(struct evl_thread *owner)
 	}
 }
 
+/* nklock held, irqs off */
 static void inherit_thread_priority(struct evl_thread *owner,
 				struct evl_thread *target)
 {
 	struct evl_wait_channel *wchan;
+
+	requires_ugly_lock();
 
 	if (owner->state & T_ZOMBIE)
 		return;
@@ -80,9 +88,12 @@ static void inherit_thread_priority(struct evl_thread *owner,
 		wchan->reorder_wait(owner);
 }
 
+/* nklock held, irqs off */
 static void __ceil_owner_priority(struct evl_thread *owner, int prio)
 {
 	struct evl_wait_channel *wchan;
+
+	requires_ugly_lock();
 
 	if (owner->state & T_ZOMBIE)
 		return;
@@ -97,10 +108,12 @@ static void __ceil_owner_priority(struct evl_thread *owner, int prio)
 		wchan->reorder_wait(owner);
 }
 
+/* nklock held, irqs off */
 static void adjust_boost(struct evl_thread *owner, struct evl_thread *target)
 {
 	struct evl_mutex *mutex;
 
+	requires_ugly_lock();
 	/*
 	 * CAUTION: we may have PI and PP-enabled mutexes among the
 	 * boosters, considering the leader of mutex->wchan.wait_list
@@ -125,11 +138,13 @@ static void adjust_boost(struct evl_thread *owner, struct evl_thread *target)
 	}
 }
 
+/* nklock held, irqs off */
 static void ceil_owner_priority(struct evl_mutex *mutex)
 {
 	struct evl_thread *owner = mutex->owner;
 	int wprio;
 
+	requires_ugly_lock();
 	/* PP ceiling values are implicitly based on the FIFO class. */
 	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
 				get_ceiling_value(mutex));
@@ -224,6 +239,8 @@ static inline  /* nklock held, irqs off */
 void set_current_owner_locked(struct evl_mutex *mutex,
 			struct evl_thread *owner)
 {
+	requires_ugly_lock();
+
 	/*
 	 * Update the owner information, and apply priority protection
 	 * for PP mutexes. We may only get there if owner is current,
@@ -240,6 +257,7 @@ void set_current_owner(struct evl_mutex *mutex,
 {
 	unsigned long flags;
 
+	no_ugly_lock();
 	xnlock_get_irqsave(&nklock, flags);
 	set_current_owner_locked(mutex, owner);
 	xnlock_put_irqrestore(&nklock, flags);
@@ -260,8 +278,11 @@ fundle_t get_owner_handle(fundle_t ownerh, struct evl_mutex *mutex)
 	return ownerh;
 }
 
+/* nklock held, irqs off */
 static void drop_booster(struct evl_mutex *mutex, struct evl_thread *owner)
 {
+	requires_ugly_lock();
+
 	list_del(&mutex->next_booster);	/* owner->boosters */
 
 	if (list_empty(&owner->boosters)) {
@@ -271,16 +292,20 @@ static void drop_booster(struct evl_mutex *mutex, struct evl_thread *owner)
 		adjust_boost(owner, NULL);
 }
 
+/* nklock held, irqs off */
 static inline void clear_pi_boost(struct evl_mutex *mutex,
 				struct evl_thread *owner)
-{	/* nklock held, irqs off */
+{
+	requires_ugly_lock();
 	mutex->flags &= ~EVL_MUTEX_CLAIMED;
 	drop_booster(mutex, owner);
 }
 
+/* nklock held, irqs off */
 static inline void clear_pp_boost(struct evl_mutex *mutex,
 				struct evl_thread *owner)
-{	/* nklock held, irqs off */
+{
+	requires_ugly_lock();
 	mutex->flags &= ~EVL_MUTEX_CEILING;
 	drop_booster(mutex, owner);
 }
@@ -288,10 +313,13 @@ static inline void clear_pp_boost(struct evl_mutex *mutex,
 /*
  * Detect when an out-of-band thread is about to sleep on a mutex
  * currently owned by another thread running in-band.
+ * nklock held, irqs off.
  */
 static void detect_inband_owner(struct evl_mutex *mutex,
 				struct evl_thread *waiter)
 {
+	requires_ugly_lock();
+
 	if (waiter->info & T_PIALERT) {
 		waiter->info &= ~T_PIALERT;
 		return;
@@ -317,6 +345,8 @@ void evl_detect_boost_drop(struct evl_thread *owner)
 	struct evl_mutex *mutex;
 	unsigned long flags;
 
+	no_ugly_lock();
+
 	xnlock_get_irqsave(&nklock, flags);
 
 	for_each_evl_booster(mutex, owner) {
@@ -336,6 +366,7 @@ static void init_mutex(struct evl_mutex *mutex,
 		struct evl_clock *clock, int flags,
 		atomic_t *fastlock, u32 *ceiling_ref)
 {
+	no_ugly_lock();
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
 	mutex->flags = flags & ~EVL_MUTEX_CLAIMED;
@@ -369,6 +400,7 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 	struct evl_thread *waiter, *tmp;
 	unsigned long flags;
 
+	no_ugly_lock();
 	trace_evl_mutex_flush(mutex);
 
 	xnlock_get_irqsave(&nklock, flags);
@@ -391,6 +423,8 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
 {
 	unsigned long flags;
 
+	no_ugly_lock();
+
 	trace_evl_mutex_destroy(mutex);
 	xnlock_get_irqsave(&nklock, flags);
 	untrack_owner(mutex);
@@ -406,6 +440,7 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
 	fundle_t h;
 
 	oob_context_only();
+	no_ugly_lock();
 
 	trace_evl_mutex_trylock(mutex);
 
@@ -432,6 +467,7 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
 	int ret;
 
 	oob_context_only();
+	no_ugly_lock();
 
 	currh = fundle_of(curr);
 	trace_evl_mutex_lock(mutex);
@@ -598,6 +634,8 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	fundle_t n_ownerh;
 	atomic_t *lockp;
 
+	requires_ugly_lock();
+
 	lockp = mutex->fastlock;
 
 	/*
@@ -645,6 +683,8 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	fundle_t currh, h;
 	atomic_t *lockp;
 
+	no_ugly_lock();
+
 	trace_evl_mutex_unlock(mutex);
 
 	if (!enable_inband_switch(curr))
@@ -686,6 +726,8 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
 {
 	struct evl_thread *curr = evl_current();
 	fundle_t currh = fundle_of(curr), h;
+
+	no_ugly_lock();
 
 	h = evl_get_index(atomic_read(mutex->fastlock));
 	if (EVL_WARN_ON_ONCE(CORE, h != currh))
@@ -741,6 +783,8 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
 	struct evl_mutex *mutex = wchan_to_mutex(wchan);
 	struct evl_thread *owner, *target;
 
+	requires_ugly_lock();
+
 	/*
 	 * Do all the necessary housekeeping chores to stop a thread
 	 * from waiting on a mutex. Doing so may require to update a
@@ -782,6 +826,8 @@ void evl_reorder_mutex_wait(struct evl_thread *thread)
 	struct evl_mutex *mutex = wchan_to_mutex(thread->wchan);
 	struct evl_thread *owner;
 
+	requires_ugly_lock();
+
 	/*
 	 * Update the position in the wait list of a thread waiting
 	 * for a lock. This routine propagates the change throughout
@@ -814,6 +860,8 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 	atomic_t *lockp = mutex->fastlock;
 	fundle_t oldh, h;
 
+	requires_ugly_lock();
+
 	/*
 	 * For PP locks, userland does, in that order:
 	 *
@@ -832,12 +880,9 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 	 * the lock as we schedule away, therefore no priority update
 	 * must take place.
 	 *
-	 * Hypothetical case: we might be called multiple times for
-	 * committing a lazy ceiling for the same mutex, e.g. if
-	 * userland is preempted in the middle of a recursive locking
-	 * sequence. Since this mutex implementation does not support
-	 * recursive locking on purpose, what has just been described
-	 * cannot happen yet though.
+	 * We might be called multiple times for committing a lazy
+	 * ceiling for the same mutex, e.g. if userland is preempted
+	 * in the middle of a recursive locking sequence.
 	 *
 	 * This would stem from the fact that userland has to update
 	 * ->pp_pending prior to trying to grab the lock atomically,
