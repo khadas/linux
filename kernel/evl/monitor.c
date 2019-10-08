@@ -180,13 +180,14 @@ static void wakeup_waiters(struct evl_monitor *event)
 			EVL_MONITOR_TARGETED);
 }
 
-/* nklock held, irqs off */
 static int __enter_monitor(struct evl_monitor *gate,
 			struct evl_monitor_lockreq *req)
 {
 	ktime_t timeout = EVL_INFINITE;
 	enum evl_tmode tmode;
 	int info;
+
+	no_ugly_lock();
 
 	if (req) {
 		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
@@ -212,8 +213,6 @@ static int enter_monitor(struct evl_monitor *gate,
 			struct evl_monitor_lockreq *req)
 {
 	struct evl_thread *curr = evl_current();
-	unsigned long flags;
-	int ret;
 
 	no_ugly_lock();
 
@@ -224,11 +223,8 @@ static int enter_monitor(struct evl_monitor *gate,
 		return -EDEADLK; /* Deny recursive locking. */
 
 	evl_commit_monitor_ceiling();
-	xnlock_get_irqsave(&nklock, flags);
-	ret = __enter_monitor(gate, req);
-	xnlock_put_irqrestore(&nklock, flags);
 
-	return ret;
+	return __enter_monitor(gate, req);
 }
 
 static int tryenter_monitor(struct evl_monitor *gate)
@@ -520,8 +516,11 @@ static int wait_monitor(struct file *filp,
 		op_ret = ret;
 	}
 
-	if (ret != -EIDRM)	/* Success or -ETIMEDOUT */
+	if (ret != -EIDRM) {	/* Success or -ETIMEDOUT */
+		xnlock_put_irqrestore(&nklock, flags);
 		ret = __enter_monitor(gate, NULL);
+		goto put;
+	}
 unlock:
 	xnlock_put_irqrestore(&nklock, flags);
 put:
