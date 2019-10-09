@@ -31,11 +31,24 @@
 #define EVL_WARN_ON_SMP(__subsys, __cond)  0
 #endif
 
-#define oob_context_only()	EVL_WARN_ON_ONCE(CORE, running_inband())
-#define inband_context_only()	EVL_WARN_ON_ONCE(CORE, !running_inband())
+#define oob_context_only()       EVL_WARN_ON_ONCE(CORE, running_inband())
+#define inband_context_only()    EVL_WARN_ON_ONCE(CORE, !running_inband())
+#ifdef CONFIG_SMP
+#define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, \
+				!(raw_spin_is_locked(__lock) && hard_irqs_disabled()))
+#else
+#define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
+#endif
+#define assert_evl_lock(__lock) assert_hard_lock(&(__lock)->_lock)
 
 /* TEMP: needed until we have gotten rid of the infamous nklock. */
-#define requires_ugly_lock()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
-#define no_ugly_lock()		WARN_ON_ONCE(xnlock_is_owner(&nklock))
+#ifdef CONFIG_SMP
+#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+#define no_ugly_lock()		EVL_WARN_ON_ONCE(CORE, xnlock_is_owner(&nklock))
+#else
+/* We have no debug support for the ugly lock in !SMP, check for the basics. */
+#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
+#define no_ugly_lock()		do { } while (0)
+#endif
 
 #endif /* !_EVL_ASSERT_H */
