@@ -57,12 +57,12 @@ struct evl_wait_queue {
 	no_ugly_lock();							\
 	evl_schedule();							\
 	__info = evl_current()->info;					\
-	if (__info & T_BREAK)						\
-		__ret = -EINTR;						\
+	if (__info & T_RMID)						\
+		__ret = -EIDRM;						\
 	else if (__info & T_TIMEO)					\
 		__ret = -ETIMEDOUT;					\
-	else if (__info & T_RMID)					\
-		__ret = -EIDRM;						\
+	else if (__info & T_BREAK)					\
+		__ret = -EINTR;						\
 	__ret;								\
 })
 
