@@ -54,6 +54,7 @@ struct evl_wait_queue {
 ({									\
 	int __ret = 0, __info;						\
 									\
+	no_ugly_lock();							\
 	evl_schedule();							\
 	__info = evl_current()->info;					\
 	if (__info & T_BREAK)						\
@@ -69,6 +70,7 @@ struct evl_wait_queue {
 ({									\
 	unsigned long __flags;						\
 									\
+	no_ugly_lock();							\
 	xnlock_get_irqsave(&nklock, __flags);				\
 	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
 	xnlock_put_irqrestore(&nklock, __flags);			\
@@ -82,6 +84,7 @@ struct evl_wait_queue {
 	int __ret = 0, __info = 0;					\
 	unsigned long __flags;						\
 									\
+	no_ugly_lock();							\
 	xnlock_get_irqsave(&nklock, __flags);				\
 	if (!(__cond)) {						\
 		if (timeout_nonblock(__timeout))			\
