@@ -177,7 +177,7 @@ static void boot_moniter_work(struct work_struct *work)
 }
 
 static const struct watchdog_info aml_wdt_info = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "aml Watchdog",
 };
 
