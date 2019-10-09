@@ -260,7 +260,6 @@ static int exit_monitor(struct evl_monitor *gate)
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *event, *n;
 	unsigned long flags;
-	LIST_HEAD(polled);
 
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
@@ -272,17 +271,10 @@ static int exit_monitor(struct evl_monitor *gate)
 		xnlock_get_irqsave(&nklock, flags);
 		state->flags &= ~EVL_MONITOR_SIGNALED;
 		list_for_each_entry_safe(event, n, &gate->events, next) {
-			if (event->state->flags & EVL_MONITOR_SIGNALED) {
+			if (event->state->flags & EVL_MONITOR_SIGNALED)
 				wakeup_waiters(event);
-				list_add(&event->next_poll, &polled);
-			}
 		}
 		xnlock_put_irqrestore(&nklock, flags);
-
-		/* Wake up threads polling the condition too. */
-		list_for_each_entry(event, &polled, next_poll)
-			evl_signal_poll_events(&event->poll_head,
-					POLLIN|POLLRDNORM);
 	}
 
 	__exit_monitor(gate, curr);
