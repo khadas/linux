@@ -239,10 +239,11 @@ static int tryenter_monitor(struct evl_monitor *gate)
 	return evl_trylock_mutex(&gate->lock);
 }
 
-/* nklock may be held, irqs off (NONE REQUIRED) */
 static void __exit_monitor(struct evl_monitor *gate,
 			struct evl_thread *curr)
 {
+	no_ugly_lock();
+
 	/*
 	 * If we are about to release the lock which is still pending
 	 * PP (i.e. we never got scheduled out while holding it),
@@ -445,6 +446,9 @@ static int wait_monitor(struct file *filp,
 		goto out;
 	}
 
+	timeout = timespec_to_ktime(req->timeout);
+	tmode = timeout ? EVL_ABS : EVL_REL;
+
 	if (req->gatefd < 0) {
 		ret = wait_monitor_ungated(filp, req, r_value);
 		*r_op_ret = ret;
@@ -483,40 +487,40 @@ static int wait_monitor(struct file *filp,
 		event->gate = gate;
 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
+		xnlock_put_irqrestore(&nklock, flags);
 		op_ret = -EBADFD;
-		goto unlock;
+		goto put;
 	}
 
+	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
 	curr->info &= ~T_SIGNAL; /* CAUTION: depends on nklock held ATM */
+
+	xnlock_put_irqrestore(&nklock, flags);
 
 	__exit_monitor(gate, curr);
 
 	/*
-	 * Wait on the event. If a break condition is raised such as
-	 * an inband signal pending, do not attempt to reacquire the
-	 * gate lock just yet as this might block indefinitely (in
-	 * theory) and we want the inband signal to be handled
-	 * asap. So exit to user mode, allowing any pending signal to
-	 * be handled during the transition, then expect userland to
-	 * issue UNWAIT to recover (or exit, whichever comes first).
+	 * Actually wait on the event. If a break condition is raised
+	 * such as an inband signal pending, do not attempt to
+	 * reacquire the gate lock just yet as this might block
+	 * indefinitely (in theory) and we want the inband signal to
+	 * be handled asap. So exit to user mode, allowing any pending
+	 * signal to be handled during the transition, then expect
+	 * userland to issue UNWAIT to recover (or exit, whichever
+	 * comes first).
 	 */
-	timeout = timespec_to_ktime(req->timeout);
-	tmode = timeout ? EVL_ABS : EVL_REL;
-	ret = evl_wait_timeout(&event->wait_queue, timeout, tmode);
+	ret = evl_wait_schedule();
 	if (ret) {
+		xnlock_get_irqsave(&nklock, flags);
 		untrack_event(event);
+		xnlock_put_irqrestore(&nklock, flags);
 		if (ret == -EINTR)
-			goto unlock;
+			goto put;
 		op_ret = ret;
 	}
 
-	if (ret != -EIDRM) {	/* Success or -ETIMEDOUT */
-		xnlock_put_irqrestore(&nklock, flags);
+	if (ret != -EIDRM)	/* Success or -ETIMEDOUT */
 		ret = __enter_monitor(gate, NULL);
-		goto put;
-	}
-unlock:
-	xnlock_put_irqrestore(&nklock, flags);
 put:
 	evl_put_file(efilp);
 out:

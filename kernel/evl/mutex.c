@@ -861,6 +861,8 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 	unsigned long flags;
 	fundle_t oldh, h;
 
+	no_ugly_lock();
+
 	xnlock_get_irqsave(&nklock, flags);
 
 	/*

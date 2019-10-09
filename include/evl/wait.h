@@ -50,14 +50,10 @@ struct evl_wait_queue {
 	list_for_each_entry_safe(__pos, __tmp,				\
 				&(__wq)->wchan.wait_list, wait_next)
 
-#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
+#define evl_wait_schedule()						\
 ({									\
 	int __ret = 0, __info;						\
-	unsigned long __flags;						\
 									\
-	xnlock_get_irqsave(&nklock, __flags);				\
-	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
-	xnlock_put_irqrestore(&nklock, __flags);			\
 	evl_schedule();							\
 	__info = evl_current()->info;					\
 	if (__info & T_BREAK)						\
@@ -67,6 +63,16 @@ struct evl_wait_queue {
 	else if (__info & T_RMID)					\
 		__ret = -EIDRM;						\
 	__ret;								\
+})
+
+#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
+({									\
+	unsigned long __flags;						\
+									\
+	xnlock_get_irqsave(&nklock, __flags);				\
+	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
+	xnlock_put_irqrestore(&nklock, __flags);			\
+	evl_wait_schedule();						\
 })
 
 #define evl_wait(__wq)	evl_wait_timeout(__wq, EVL_INFINITE, EVL_REL)
