@@ -38,6 +38,7 @@ struct evl_monitor {
 			struct evl_monitor *gate;
 			struct evl_poll_head poll_head;
 			struct list_head next; /* in ->events */
+			struct list_head next_poll;
 		};
 	};
 };
@@ -117,7 +118,6 @@ out:
 	curr->u_window->pp_pending = EVL_NO_HANDLE;
 }
 
-/* nklock held, irqs off (testing the wait_queue). */
 static void untrack_event(struct evl_monitor *event)
 {
 	/*
@@ -173,7 +173,7 @@ static void wakeup_waiters(struct evl_monitor *event)
 			evl_wake_up_head(&event->wait_queue);
 
 		untrack_event(event);
-	}
+	} /* Otherwise, spurious wakeup (fine, might happen). */
 
 	state->flags &= ~(EVL_MONITOR_SIGNALED|
 			EVL_MONITOR_BROADCAST|
@@ -274,13 +274,13 @@ static int exit_monitor(struct evl_monitor *gate)
 		list_for_each_entry_safe(event, n, &gate->events, next) {
 			if (event->state->flags & EVL_MONITOR_SIGNALED) {
 				wakeup_waiters(event);
-				list_add(&event->next, &polled);
+				list_add(&event->next_poll, &polled);
 			}
 		}
 		xnlock_put_irqrestore(&nklock, flags);
 
 		/* Wake up threads polling the condition too. */
-		list_for_each_entry(event, &polled, next)
+		list_for_each_entry(event, &polled, next_poll)
 			evl_signal_poll_events(&event->poll_head,
 					POLLIN|POLLRDNORM);
 	}
@@ -482,7 +482,9 @@ static int wait_monitor(struct file *filp,
 	/*
 	 * Track event monitors the gate protects. When multiple
 	 * threads issue concurrent wait requests on the same event
-	 * monitor, they must use the same gate to serialize.
+	 * monitor, they must use the same gate to serialize. Don't
+	 * trust userland for maintaining sane tracking info in
+	 * gate_offset, keep event->gate on the kernel side for this.
 	 */
 	if (event->gate == NULL) {
 		list_add_tail(&event->next, &gate->events);
