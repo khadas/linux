@@ -325,17 +325,21 @@ static int wait_monitor_ungated(struct file *filp,
 
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
-		xnlock_get_irqsave(&nklock, flags);
-		if (atomic_dec_return(&state->u.event.value) < 0) {
-			if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_NONBLOCK) {
+			if (atomic_dec_return(&state->u.event.value) < 0)
 				ret = -EAGAIN;
-			else
-				ret = evl_wait_timeout(&event->wait_queue,
+		} else {
+			xnlock_get_irqsave(&nklock, flags);
+			if (atomic_dec_return(&state->u.event.value) < 0) {
+				evl_add_wait_queue(&event->wait_queue,
 						timeout, tmode);
-			if (ret) /* Rollback decrement if failed. */
-				atomic_inc(&state->u.event.value);
+				xnlock_put_irqrestore(&nklock, flags);
+				ret = evl_wait_schedule();
+				if (ret) /* Rollback decrement if failed. */
+					atomic_inc(&state->u.event.value);
+			} else
+				xnlock_put_irqrestore(&nklock, flags);
 		}
-		xnlock_put_irqrestore(&nklock, flags);
 		break;
 	case EVL_EVENT_MASK:
 		if (filp->f_flags & O_NONBLOCK)
