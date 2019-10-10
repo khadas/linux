@@ -587,7 +587,9 @@ redo:
 		list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
 
 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
+	xnlock_put_irqrestore(&nklock, flags);
 	evl_schedule();
+	xnlock_get_irqsave(&nklock, flags);
 	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
 	curr->wwake = NULL;
 	curr->info &= ~T_WAKEN;
