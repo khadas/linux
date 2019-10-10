@@ -349,7 +349,7 @@ static int inbound_wait_output(struct xbuf_ring *ring, size_t len)
 	return evl_wait_flag(&xbuf->ibnd.o_event);
 }
 
-static void inbound_unblock_output(struct xbuf_ring *ring)
+static void inbound_unblock_output(struct xbuf_ring *ring) /* nklock held, irqs off */
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 	struct evl_thread *waiter;
@@ -361,7 +361,7 @@ static void inbound_unblock_output(struct xbuf_ring *ring)
 
 	wc = waiter->wait_data;
 	if (wc->len + ring->fillsz <= ring->bufsz)
-		evl_raise_flag_nosched(&xbuf->ibnd.o_event);
+		evl_raise_flag_locked(&xbuf->ibnd.o_event);
 }
 
 static bool inbound_output_contention(struct xbuf_ring *ring)
@@ -463,7 +463,7 @@ static void outbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsof
 
 	wc = waiter->wait_data;
 	if (wc->len <= ring->fillsz)
-		evl_raise_flag_nosched(&xbuf->obnd.i_event);
+		evl_raise_flag_locked(&xbuf->obnd.i_event);
 }
 
 static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
