@@ -238,16 +238,25 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 
 	wd->buf_ptr = wd->buf;
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	for (;;) {
+		xnlock_get_irqsave(&nklock, flags);
 		/*
 		 * No short or scattered writes: we should write the
 		 * entire message atomically or block.
 		 */
 		avail = ring->fillsz + ring->wrrsvd;
-		if (avail + len > ring->bufsz)
-			goto wait;
+		if (avail + len > ring->bufsz) {
+			xnlock_put_irqrestore(&nklock, flags);
+
+			if (f_flags & O_NONBLOCK)
+				return -EAGAIN;
+
+			ret = ring->wait_output(ring, len);
+			if (unlikely(ret))
+				return ret;
+
+			continue;
+		}
 
 		/* Reserve a write slot into the circular buffer. */
 		wroff = ring->wroff;
@@ -275,8 +284,8 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 			xnlock_get_irqsave(&nklock, flags);
 			if (xret) {
 				memset(ring->bufmem + wroff + n - xret, 0, xret);
-				ret = -EFAULT;
-				break;
+				xnlock_put_irqrestore(&nklock, flags);
+				return -EFAULT;
 			}
 
 			wd->buf_ptr += n;
@@ -293,23 +302,10 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 
 			ring->signal_input(ring);
 		}
-		goto out;
-	wait:
-		if (f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			break;
-		}
 
 		xnlock_put_irqrestore(&nklock, flags);
-
-		ret = ring->wait_output(ring, len);
-		if (unlikely(ret))
-			return ret;
-
-		xnlock_get_irqsave(&nklock, flags);
+		break;
 	}
-out:
-	xnlock_put_irqrestore(&nklock, flags);
 
 	evl_schedule();
 
@@ -331,7 +327,7 @@ static void resume_inband_reader(struct irq_work *work)
 	wake_up(&xbuf->ibnd.i_event);
 }
 
-static void inbound_signal_input(struct xbuf_ring *ring)
+static void inbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 
@@ -452,7 +448,7 @@ static int outbound_wait_input(struct xbuf_ring *ring, size_t len)
 	return evl_wait_flag(&xbuf->obnd.i_event);
 }
 
-static void outbound_signal_input(struct xbuf_ring *ring)
+static void outbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
 	struct evl_thread *waiter;
@@ -464,7 +460,7 @@ static void outbound_signal_input(struct xbuf_ring *ring)
 
 	wc = waiter->wait_data;
 	if (wc->len <= ring->fillsz)
-		evl_raise_flag(&xbuf->obnd.i_event); /* Implicit resched. */
+		evl_raise_flag_nosched(&xbuf->obnd.i_event);
 }
 
 static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
