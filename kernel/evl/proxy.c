@@ -98,9 +98,10 @@ static void relay_output(struct work_struct *work)
 
 	/* Give precedence to oob waiters for wakeups. */
 	if (count < ring->bufsz) {
-		evl_raise_flag(&out->oob_drained);
+		evl_raise_flag(&out->oob_drained); /* Reschedules. */
 		wake_up(&out->inband_drained);
-	}
+	} else
+		evl_schedule();	/* Covers evl_signal_poll_events() */
 }
 
 static void relay_output_irq(struct irq_work *work)

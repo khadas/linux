@@ -12,7 +12,6 @@
 #include <linux/list.h>
 #include <evl/lock.h>
 #include <evl/thread.h>
-#include <evl/wait.h>
 #include <evl/sched/queue.h>
 #include <evl/sched/weak.h>
 #include <evl/sched/quota.h>

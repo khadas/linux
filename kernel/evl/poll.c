@@ -60,7 +60,7 @@ void evl_poll_watch(struct evl_poll_head *head,
 	evl_spin_lock_irqsave(&head->lock, flags);
 	wpt->head = head;
 	wpt->events_received = 0;
-	wpt->unwatch = unwatch;
+	wpt->unwatch = unwatch;	/* must NOT reschedule. */
 	list_add(&wait->next, &head->watchpoints);
 	evl_spin_unlock_irqrestore(&head->lock, flags);
 }
@@ -466,6 +466,12 @@ static inline void clear_wait(void)
 	 * wpt->head->lock serializes with __evl_signal_poll_events().
 	 * Any watchpoint which does not bear the POLLNVAL bit is
 	 * monitoring a still valid file by construction.
+	 *
+	 * A watchpoint might no be attached to any poll head in case
+	 * oob_poll() is undefined for the device, or the related fd
+	 * is stale. Since only the caller may update the linkage of
+	 * its watchpoints, using list_empty() locklessly is safe
+	 * here.
 	 */
 	for (n = 0, wpt = curr->poll_context.table;
 	     n < curr->poll_context.nr; n++, wpt++) {

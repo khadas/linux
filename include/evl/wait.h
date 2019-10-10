@@ -56,7 +56,7 @@ struct evl_wait_queue {
 	unsigned long __flags;						\
 									\
 	no_ugly_lock();							\
-	xnlock_get_irqsave(&nklock, __flags);				\
+	evl_spin_lock_irqsave(&(__wq)->lock, __flags);			\
 	if (!(__cond)) {						\
 		if (timeout_nonblock(__timeout))			\
 			__ret = -EAGAIN;				\
@@ -64,14 +64,14 @@ struct evl_wait_queue {
 			do {						\
 				evl_add_wait_queue(__wq, __timeout,	\
 						__timeout_mode);	\
-				xnlock_put_irqrestore(&nklock, __flags); \
-				__ret = evl_wait_schedule();		\
+				evl_spin_unlock_irqrestore(&(__wq)->lock, __flags); \
+				__ret = evl_wait_schedule(__wq);	\
 				__bcast = evl_current()->info & T_BCAST; \
-				xnlock_get_irqsave(&nklock, __flags);	\
+				evl_spin_lock_irqsave(&(__wq)->lock, __flags); \
 			} while (!__ret && !__bcast && !(__cond));	\
 		}							\
 	}								\
-	xnlock_put_irqrestore(&nklock, __flags);			\
+	evl_spin_unlock_irqrestore(&(__wq)->lock, __flags);		\
 	__ret;								\
 })
 
@@ -82,25 +82,33 @@ void evl_add_wait_queue(struct evl_wait_queue *wq,
 			ktime_t timeout,
 			enum evl_tmode timeout_mode);
 
-int evl_wait_schedule(void);
+int evl_wait_schedule(struct evl_wait_queue *wq);
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
-	requires_ugly_lock();
+	assert_evl_lock(&wq->lock);
 	return !list_empty(&wq->wchan.wait_list);
 }
 
 static inline
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
-	requires_ugly_lock();
+	assert_evl_lock(&wq->lock);
 	return list_first_entry_or_null(&wq->wchan.wait_list,
 					struct evl_thread, wait_next);
 }
 
-void evl_init_wait(struct evl_wait_queue *wq,
+void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock,
-		int flags);
+		int flags,
+		const char *name,
+		struct lock_class_key *key);
+
+#define evl_init_wait(__wq, __clock, __flags)				\
+	do {								\
+		static struct lock_class_key __key;			\
+		__evl_init_wait(__wq, __clock, __flags, #__wq, &__key); \
+	} while (0)
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
 
