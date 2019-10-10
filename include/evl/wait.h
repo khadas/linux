@@ -26,13 +26,13 @@ struct evl_wait_queue {
 	int flags;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
-	hard_spinlock_t lock;
+	evl_spinlock_t lock;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
 		.clock = &evl_mono_clock,				\
-		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
+		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
 		.wchan = {						\
 			.abort_wait = evl_abort_wait,			\
 			.reorder_wait = evl_reorder_wait,		\
