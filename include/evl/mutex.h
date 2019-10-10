@@ -31,6 +31,7 @@ struct evl_mutex {
 	struct evl_clock *clock;
 	atomic_t *fastlock;
 	u32 *ceiling_ref;
+	hard_spinlock_t lock;
 	struct evl_wait_channel wchan;
 	struct list_head next_booster; /* thread->boosters */
 	struct list_head next_tracker;   /* thread->trackers */
@@ -91,11 +92,11 @@ struct evl_kmutex {
 			.wprio = -1,					\
 			.ceiling_ref = NULL,				\
 			.clock = &evl_mono_clock,			\
+			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock), \
 			.wchan = {					\
 				.abort_wait = evl_abort_mutex_wait,	\
 				.reorder_wait = evl_reorder_mutex_wait,	\
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
-				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 			},						\
 		},							\
 		.fastlock = ATOMIC_INIT(0),				\
