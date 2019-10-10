@@ -67,19 +67,6 @@ struct evl_wait_queue {
 	__ret;								\
 })
 
-#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
-({									\
-	unsigned long __flags;						\
-									\
-	no_ugly_lock();							\
-	xnlock_get_irqsave(&nklock, __flags);				\
-	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
-	xnlock_put_irqrestore(&nklock, __flags);			\
-	evl_wait_schedule();						\
-})
-
-#define evl_wait(__wq)	evl_wait_timeout(__wq, EVL_INFINITE, EVL_REL)
-
 #define evl_wait_event_timeout(__wq, __timeout, __timeout_mode, __cond)	\
 ({									\
 	int __ret = 0, __info = 0;					\
