@@ -30,8 +30,9 @@ struct evl_monitor {
 	    protocol : 4;
 	union {
 		struct {
-			struct evl_mutex lock;
+			struct evl_mutex mutex;
 			struct list_head events;
+			evl_spinlock_t lock;
 		};
 		struct {
 			struct evl_wait_queue wait_queue;
@@ -73,20 +74,20 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 		goto out;
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	/*
 	 * Current ought to hold the gate lock before calling us; if
 	 * not, we might race updating the state flags, possibly
 	 * loosing events. Too bad.
 	 */
 	if (target->wchan == &event->wait_queue.wchan) {
-		target->info |= T_SIGNAL;
+		xnlock_get_irqsave(&nklock, flags);
+		target->info |= T_SIGNAL; /* CAUTION: depends on nklock held ATM */
+		xnlock_put_irqrestore(&nklock, flags);
+		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
+		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 	}
-
-	xnlock_put_irqrestore(&nklock, flags);
 out:
 	evl_put_file(efilp);
 
@@ -111,14 +112,15 @@ void __evl_commit_monitor_ceiling(void)
 		goto out;
 
 	if (gate->protocol == EVL_GATE_PP)
-		evl_commit_mutex_ceiling(&gate->lock);
+		evl_commit_mutex_ceiling(&gate->mutex);
 
 	evl_put_element(&gate->element);
 out:
 	curr->u_window->pp_pending = EVL_NO_HANDLE;
 }
 
-static void untrack_event(struct evl_monitor *event)
+/* event->gate->lock and event->wait_queue.lock held, irqs off */
+static void __untrack_event(struct evl_monitor *event)
 {
 	/*
 	 * If no more waiter is pending on this event, have the gate
@@ -131,7 +133,19 @@ static void untrack_event(struct evl_monitor *event)
 	}
 }
 
-/* nklock held, irqs off */
+static void untrack_event(struct evl_monitor *event)
+{
+	struct evl_monitor *gate = event->gate;
+	unsigned long flags;
+
+	evl_spin_lock_irqsave(&gate->lock, flags);
+	evl_spin_lock(&event->wait_queue.lock);
+	__untrack_event(event);
+	evl_spin_unlock(&event->wait_queue.lock);
+	evl_spin_unlock_irqrestore(&gate->lock, flags);
+}
+
+/* event->gate->lock and event->wait_queue.lock held, irqs off */
 static void wakeup_waiters(struct evl_monitor *event)
 {
 	struct evl_monitor_state *state = event->state;
@@ -172,7 +186,7 @@ static void wakeup_waiters(struct evl_monitor *event)
 		} else
 			evl_wake_up_head(&event->wait_queue);
 
-		untrack_event(event);
+		__untrack_event(event);
 	} /* Otherwise, spurious wakeup (fine, might happen). */
 
 	state->flags &= ~(EVL_MONITOR_SIGNALED|
@@ -196,7 +210,7 @@ static int __enter_monitor(struct evl_monitor *gate,
 
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
-	return evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
+	return evl_lock_mutex_timeout(&gate->mutex, timeout, tmode);
 }
 
 static int enter_monitor(struct evl_monitor *gate,
@@ -209,7 +223,7 @@ static int enter_monitor(struct evl_monitor *gate,
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
-	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
+	if (evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr)))
 		return -EDEADLK; /* Deny recursive locking. */
 
 	evl_commit_monitor_ceiling();
@@ -226,7 +240,7 @@ static int tryenter_monitor(struct evl_monitor *gate)
 
 	evl_commit_monitor_ceiling();
 
-	return evl_trylock_mutex(&gate->lock);
+	return evl_trylock_mutex(&gate->mutex);
 }
 
 static void __exit_monitor(struct evl_monitor *gate,
@@ -242,7 +256,7 @@ static void __exit_monitor(struct evl_monitor *gate,
 	if (fundle_of(gate) == curr->u_window->pp_pending)
 		curr->u_window->pp_pending = EVL_NO_HANDLE;
 
-	__evl_unlock_mutex(&gate->lock);
+	__evl_unlock_mutex(&gate->mutex);
 }
 
 static int exit_monitor(struct evl_monitor *gate)
@@ -255,20 +269,32 @@ static int exit_monitor(struct evl_monitor *gate)
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
-	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
+	if (!evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr)))
 		return -EPERM;
 
-	if (state->flags & EVL_MONITOR_SIGNALED) {
-		xnlock_get_irqsave(&nklock, flags);
-		state->flags &= ~EVL_MONITOR_SIGNALED;
-		list_for_each_entry_safe(event, n, &gate->events, next) {
-			if (event->state->flags & EVL_MONITOR_SIGNALED)
-				wakeup_waiters(event);
-		}
-		xnlock_put_irqrestore(&nklock, flags);
-	}
+	/*
+	 * Locking order is gate lock first, depending event lock(s)
+	 * next.
+	 */
+	evl_spin_lock_irqsave(&gate->lock, flags);
 
 	__exit_monitor(gate, curr);
+
+	if (state->flags & EVL_MONITOR_SIGNALED) {
+		/*
+		 * gate.mutex is held by current, so we are covered
+		 * against races with userland manipulating the flags.
+		 */
+		state->flags &= ~EVL_MONITOR_SIGNALED;
+		list_for_each_entry_safe(event, n, &gate->events, next) {
+			evl_spin_lock(&event->wait_queue.lock);
+			if (event->state->flags & EVL_MONITOR_SIGNALED)
+				wakeup_waiters(event);
+			evl_spin_unlock(&event->wait_queue.lock);
+		}
+	}
+
+	evl_spin_unlock_irqrestore(&gate->lock, flags);
 
 	evl_schedule();
 
@@ -319,16 +345,18 @@ static int wait_monitor_ungated(struct file *filp,
 			if (atomic_dec_return(&state->u.event.value) < 0)
 				ret = -EAGAIN;
 		} else {
-			xnlock_get_irqsave(&nklock, flags);
+			evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 			if (atomic_dec_return(&state->u.event.value) < 0) {
 				evl_add_wait_queue(&event->wait_queue,
 						timeout, tmode);
-				xnlock_put_irqrestore(&nklock, flags);
-				ret = evl_wait_schedule();
+				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
+							flags);
+				ret = evl_wait_schedule(&event->wait_queue);
 				if (ret) /* Rollback decrement if failed. */
 					atomic_inc(&state->u.event.value);
 			} else
-				xnlock_put_irqrestore(&nklock, flags);
+				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
+							flags);
 		}
 		break;
 	case EVL_EVENT_MASK:
@@ -337,9 +365,11 @@ static int wait_monitor_ungated(struct file *filp,
 		ret = evl_wait_event_timeout(&event->wait_queue,
 					timeout, tmode,
 					test_event_mask(state, r_value));
-		if (!ret) /* POLLOUT if flags have been received. */
+		if (!ret) { /* POLLOUT if flags have been received. */
 			evl_signal_poll_events(&event->poll_head,
 					POLLOUT|POLLWRNORM);
+			evl_schedule();
+		}
 		break;
 	default:
 		ret = -EINVAL;	/* uh? brace for rollercoaster. */
@@ -378,30 +408,28 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	 * triggering a wakeup check and/or poll notification without
 	 * changing the event value.
 	 *
-	 * Also, we still serialize on the nklock until we can get rid
-	 * of it, using the per-waitqueue lock instead. In any case,
-	 * we have to serialize against the read side not to lose wake
-	 * up events.
+	 * In any case, we serialize against the read side not to lose
+	 * wake up events.
 	 */
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
 		if (!sigval)
 			break;
-		xnlock_get_irqsave(&nklock, flags);
+		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		if (atomic_inc_return(&state->u.event.value) <= 0) {
 			evl_wake_up_head(&event->wait_queue);
 			pollable = false;
 		}
-		xnlock_put_irqrestore(&nklock, flags);
+		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 		break;
 	case EVL_EVENT_MASK:
-		xnlock_get_irqsave(&nklock, flags);
+		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		val = set_event_mask(state, (int)sigval);
 		if (val)
 			evl_flush_wait_locked(&event->wait_queue, 0);
 		else
 			pollable = false;
-		xnlock_put_irqrestore(&nklock, flags);
+		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 		break;
 	default:
 		return -EINVAL;
@@ -462,12 +490,13 @@ static int wait_monitor(struct file *filp,
 	}
 
 	/* Make sure we actually passed the gate. */
-	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr))) {
+	if (!evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr))) {
 		op_ret = -EPERM;
 		goto put;
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
+	evl_spin_lock_irqsave(&gate->lock, flags);
+	evl_spin_lock(&event->wait_queue.lock);
 
 	/*
 	 * Track event monitors the gate protects. When multiple
@@ -481,17 +510,20 @@ static int wait_monitor(struct file *filp,
 		event->gate = gate;
 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
-		xnlock_put_irqrestore(&nklock, flags);
+		evl_spin_unlock(&event->wait_queue.lock);
+		evl_spin_unlock_irqrestore(&gate->lock, flags);
 		op_ret = -EBADFD;
 		goto put;
 	}
 
 	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
+
+	xnlock_get(&nklock);
 	curr->info &= ~T_SIGNAL; /* CAUTION: depends on nklock held ATM */
-
-	xnlock_put_irqrestore(&nklock, flags);
-
+	xnlock_put(&nklock);
+	evl_spin_unlock(&event->wait_queue.lock);
 	__exit_monitor(gate, curr);
+	evl_spin_unlock_irqrestore(&gate->lock, flags);
 
 	/*
 	 * Actually wait on the event. If a break condition is raised
@@ -503,11 +535,9 @@ static int wait_monitor(struct file *filp,
 	 * userland to issue UNWAIT to recover (or exit, whichever
 	 * comes first).
 	 */
-	ret = evl_wait_schedule();
+	ret = evl_wait_schedule(&event->wait_queue);
 	if (ret) {
-		xnlock_get_irqsave(&nklock, flags);
 		untrack_event(event);
-		xnlock_put_irqrestore(&nklock, flags);
 		if (ret == -EINTR)
 			goto put;
 		op_ret = ret;
@@ -707,7 +737,7 @@ static int monitor_release(struct inode *inode, struct file *filp)
 	if (mon->type == EVL_MONITOR_EVENT)
 		evl_flush_wait(&mon->wait_queue, T_RMID);
 	else
-		evl_flush_mutex(&mon->lock, T_RMID);
+		evl_flush_mutex(&mon->mutex, T_RMID);
 
 	return evl_release_element(inode, filp);
 }
@@ -789,17 +819,18 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		switch (attrs.protocol) {
 		case EVL_GATE_PP:
 			state->u.gate.ceiling = attrs.initval;
-			evl_init_mutex_pp(&mon->lock, clock,
+			evl_init_mutex_pp(&mon->mutex, clock,
 					&state->u.gate.owner,
 					&state->u.gate.ceiling);
 			INIT_LIST_HEAD(&mon->events);
 			break;
 		case EVL_GATE_PI:
-			evl_init_mutex_pi(&mon->lock, clock,
+			evl_init_mutex_pi(&mon->mutex, clock,
 					&state->u.gate.owner);
 			INIT_LIST_HEAD(&mon->events);
 			break;
 		}
+		evl_spin_lock_init(&mon->lock);
 		break;
 	case EVL_MONITOR_EVENT:
 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
@@ -844,13 +875,13 @@ static void monitor_factory_dispose(struct evl_element *e)
 		evl_put_clock(mon->wait_queue.clock);
 		evl_destroy_wait(&mon->wait_queue);
 		if (mon->gate) {
-			xnlock_get_irqsave(&nklock, flags);
+			evl_spin_lock_irqsave(&mon->gate->lock, flags);
 			list_del(&mon->next);
-			xnlock_put_irqrestore(&nklock, flags);
+			evl_spin_unlock_irqrestore(&mon->gate->lock, flags);
 		}
 	} else {
-		evl_put_clock(mon->lock.clock);
-		evl_destroy_mutex(&mon->lock);
+		evl_put_clock(mon->mutex.clock);
+		evl_destroy_mutex(&mon->mutex);
 	}
 
 	evl_free_chunk(&evl_shared_heap, mon->state);

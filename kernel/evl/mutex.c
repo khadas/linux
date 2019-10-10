@@ -459,8 +459,45 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
 }
 EXPORT_SYMBOL_GPL(evl_trylock_mutex);
 
+static int wait_mutex_schedule(void)
+{
+	struct evl_thread *curr = evl_current();
+	unsigned long flags;
+	int ret = 0, info;
+
+	/* FIXME: to be rebased on waitqueues. */
+
+	no_ugly_lock();
+
+	evl_schedule();
+
+	info = evl_current()->info;
+	if (info & T_RMID)
+		return -EIDRM;
+
+	if (info & (T_TIMEO|T_BREAK)) {
+		xnlock_get_irqsave(&nklock, flags);
+		if (!list_empty(&curr->wait_next)) {
+			list_del_init(&curr->wait_next);
+			if (info & T_TIMEO)
+				ret = -ETIMEDOUT;
+			else if (info & T_BREAK)
+				ret = -EINTR;
+		}
+		xnlock_put_irqrestore(&nklock, flags);
+	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
+		bool empty;
+		xnlock_get_irqsave(&nklock, flags);
+		empty = list_empty(&curr->wait_next);
+		xnlock_put_irqrestore(&nklock, flags);
+		EVL_WARN_ON_ONCE(CORE, !empty);
+	}
+
+	return ret;
+}
+
 /* nklock held, irqs off */
-static void finish_wait(struct evl_mutex *mutex)
+static void finish_mutex_wait(struct evl_mutex *mutex)
 {
 	struct evl_thread *owner, *target;
 
@@ -487,9 +524,9 @@ static void finish_wait(struct evl_mutex *mutex)
 	}
 
 	/*
-	 * Reorder the booster queue of the current owner after we
-	 * left the wait list, then set its priority to the new
-	 * required minimum required to prevent priority inversion.
+	 * Reorder the booster queue of current after we left the wait
+	 * list, then set its priority to the new required minimum
+	 * required to prevent priority inversion.
 	 */
 	target = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
@@ -630,9 +667,9 @@ redo:
 
 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 	xnlock_put_irqrestore(&nklock, flags);
-	ret = evl_wait_schedule();
+	ret = wait_mutex_schedule();
 	xnlock_get_irqsave(&nklock, flags);
-	finish_wait(mutex);
+	finish_mutex_wait(mutex);
 	curr->wwake = NULL;
 	curr->info &= ~T_WAKEN;
 

@@ -21,7 +21,7 @@ struct file;
 
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
-		lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
+		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
 	}
 
 struct evl_poll_head {

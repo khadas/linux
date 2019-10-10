@@ -96,8 +96,8 @@ struct evl_thread {
 	 *
 	 * - they require immediate priority ceiling (EVL_MUTEX_PP).
 	 *
-	 * This list is ordered by decreasing (weighted) thread
-	 * priorities.
+	 * This list is ordered by decreasing (weighted) priorities of
+	 * waiters.
 	 */
 	struct list_head boosters;
 

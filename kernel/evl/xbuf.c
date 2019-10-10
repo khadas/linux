@@ -34,12 +34,12 @@ struct xbuf_ring {
 	unsigned int wroff;
 	unsigned int wrrsvd;
 	int wrpending;
-	int (*wait_input)(struct xbuf_ring *ring, size_t len);
-	void (*signal_input)(struct xbuf_ring *ring);
+	unsigned long (*lock)(struct xbuf_ring *ring);
+	void (*unlock)(struct xbuf_ring *ring, unsigned long flags);
+	int (*wait_input)(struct xbuf_ring *ring, size_t len, size_t avail);
+	void (*signal_input)(struct xbuf_ring *ring, bool sigpoll);
 	int (*wait_output)(struct xbuf_ring *ring, size_t len);
-	void (*unblock_output)(struct xbuf_ring *ring);
-	bool (*in_output_contention)(struct xbuf_ring *ring);
-	void (*signal_pollable)(struct xbuf_ring *ring, int events);
+	void (*signal_output)(struct xbuf_ring *ring, bool sigpoll);
 };
 
 struct xbuf_inbound {		/* oob_write->read */
@@ -47,10 +47,11 @@ struct xbuf_inbound {		/* oob_write->read */
 	struct evl_flag o_event;
 	struct irq_work irq_work;
 	struct xbuf_ring ring;
+	evl_spinlock_t lock;
 };
 
 struct xbuf_outbound {		/* write->oob_read */
-	struct evl_flag i_event;
+	struct evl_wait_queue i_event;
 	struct wait_queue_head o_event;
 	struct irq_work irq_work;
 	struct xbuf_ring ring;
@@ -61,10 +62,6 @@ struct evl_xbuf {
 	struct xbuf_inbound ibnd;
 	struct xbuf_outbound obnd;
 	struct evl_poll_head poll_head;
-};
-
-struct xbuf_wait_data {
-	size_t len;
 };
 
 struct xbuf_rdesc {
@@ -111,6 +108,7 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
 	ssize_t len, ret, rbytes, n;
 	unsigned int rdoff, avail;
 	unsigned long flags;
+	bool sigpoll;
 	int xret;
 
 	len = rd->count;
@@ -123,7 +121,7 @@ retry:
 	rd->buf_ptr = rd->buf;
 
 	for (;;) {
-		xnlock_get_irqsave(&nklock, flags);
+		flags = ring->lock(ring);
 		/*
 		 * We should be able to read a complete message of the
 		 * requested length if O_NONBLOCK is clear. If set and
@@ -145,28 +143,15 @@ retry:
 					ret = -EINVAL;
 					break;
 				}
-				/*
-				 * Check whether writers are already
-				 * waiting for sending data, while we
-				 * are about to wait for receiving
-				 * some. In such a case, we have a
-				 * pathological use of the buffer due
-				 * to a miscalculated size. We must
-				 * allow for a short read to prevent a
-				 * deadlock.
-				 */
-				if (avail > 0 && ring->in_output_contention(ring)) {
-					xnlock_put_irqrestore(&nklock, flags);
-					len = avail;
-					goto retry;
-				}
-
-				xnlock_put_irqrestore(&nklock, flags);
-
-				ret = ring->wait_input(ring, len);
-				if (unlikely(ret))
+				ring->unlock(ring, flags);
+				ret = ring->wait_input(ring, len, avail);
+				if (unlikely(ret)) {
+					if (ret == -EAGAIN) {
+						len = avail;
+						goto retry;
+					}
 					return ret;
-
+				}
 				continue;
 			}
 		}
@@ -190,34 +175,29 @@ retry:
 			 * case: the non-copied portion of the message
 			 * is lost on bad write.
 			 */
-			xnlock_put_irqrestore(&nklock, flags);
+			ring->unlock(ring, flags);
 
 			xret = rd->xfer(rd, ring->bufmem + rdoff, n);
 			if (xret)
 				return -EFAULT;
 
-			xnlock_get_irqsave(&nklock, flags);
+			flags = ring->lock(ring);
 			rd->buf_ptr += n;
 			rbytes -= n;
 			rdoff = (rdoff + n) % ring->bufsz;
 		} while (rbytes > 0);
 
 		if (--ring->rdpending == 0) {
+			/* sigpoll := full -> non-full transition. */
+			sigpoll = ring->fillsz == ring->bufsz;
 			ring->fillsz -= ring->rdrsvd;
 			ring->rdrsvd = 0;
-			if (ring->fillsz == ring->bufsz)
-				/* -> writable */
-				ring->signal_pollable(ring, POLLOUT|POLLWRNORM);
-			/*
-			 * Wake up the thread heading the output wait queue if
-			 * we freed enough room to post its message.
-			 */
-			ring->unblock_output(ring);
+			ring->signal_output(ring, sigpoll);
 		}
 		break;
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
+	ring->unlock(ring, flags);
 
 	evl_schedule();
 
@@ -242,14 +222,14 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 	wd->buf_ptr = wd->buf;
 
 	for (;;) {
-		xnlock_get_irqsave(&nklock, flags);
+		flags = ring->lock(ring);
 		/*
 		 * No short or scattered writes: we should write the
 		 * entire message atomically or block.
 		 */
 		avail = ring->fillsz + ring->wrrsvd;
 		if (avail + len > ring->bufsz) {
-			xnlock_put_irqrestore(&nklock, flags);
+			ring->unlock(ring, flags);
 
 			if (f_flags & O_NONBLOCK)
 				return -EAGAIN;
@@ -282,12 +262,12 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 			 * write slot already: bluntly clear the
 			 * unavailable bytes on copy error.
 			 */
-			xnlock_put_irqrestore(&nklock, flags);
+			ring->unlock(ring, flags);
 			xret = wd->xfer(ring->bufmem + wroff, wd, n);
-			xnlock_get_irqsave(&nklock, flags);
+			flags = ring->lock(ring);
 			if (xret) {
 				memset(ring->bufmem + wroff + n - xret, 0, xret);
-				xnlock_put_irqrestore(&nklock, flags);
+				ring->unlock(ring, flags);
 				return -EFAULT;
 			}
 
@@ -299,14 +279,10 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 		if (--ring->wrpending == 0) {
 			ring->fillsz += ring->wrrsvd;
 			ring->wrrsvd = 0;
-			if (ring->fillsz == len)
-				/* -> readable */
-				ring->signal_pollable(ring, POLLIN|POLLRDNORM);
-
-			ring->signal_input(ring);
+			ring->signal_input(ring, ring->fillsz == len);
 		}
 
-		xnlock_put_irqrestore(&nklock, flags);
+		ring->unlock(ring, flags);
 		break;
 	}
 
@@ -315,12 +291,46 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 	return ret;
 }
 
-static int inbound_wait_input(struct xbuf_ring *ring, size_t len)
+static unsigned long inbound_lock(struct xbuf_ring *ring)
+{
+	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+	unsigned long flags;
+
+	evl_spin_lock_irqsave(&xbuf->ibnd.lock, flags);
+
+	return flags;
+}
+
+static void inbound_unlock(struct xbuf_ring *ring, unsigned long flags)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 
-	return wait_event_interruptible(xbuf->ibnd.i_event,
-					ring->fillsz >= len);
+	evl_spin_unlock_irqrestore(&xbuf->ibnd.lock, flags);
+}
+
+static int inbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
+{
+	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+	struct xbuf_inbound *ibnd = &xbuf->ibnd;
+	unsigned long flags;
+	bool o_blocked;
+
+	/*
+	 * Check whether writers are already waiting for sending data,
+	 * while we are about to wait for receiving some. In such a
+	 * case, we have a pathological use of the buffer due to a
+	 * miscalculated size. We must allow for a short read to
+	 * prevent a deadlock.
+	 */
+	if (avail > 0) {
+		evl_lock_flag(&ibnd->o_event, flags);
+		o_blocked = !!evl_wait_flag_head(&ibnd->o_event);
+		evl_unlock_flag(&ibnd->o_event, flags);
+		if (o_blocked)
+			return -EAGAIN;
+	}
+
+	return wait_event_interruptible(ibnd->i_event, ring->fillsz >= len);
 }
 
 static void resume_inband_reader(struct irq_work *work)
@@ -330,7 +340,8 @@ static void resume_inband_reader(struct irq_work *work)
 	wake_up(&xbuf->ibnd.i_event);
 }
 
-static void inbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
+/* ring locked, irqsoff */
+static void inbound_signal_input(struct xbuf_ring *ring, bool sigpoll)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 
@@ -340,43 +351,18 @@ static void inbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff
 static int inbound_wait_output(struct xbuf_ring *ring, size_t len)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
-	struct evl_thread *curr = evl_current();
-	struct xbuf_wait_data wait;
-
-	wait.len = len;
-	curr->wait_data = &wait;
 
 	return evl_wait_flag(&xbuf->ibnd.o_event);
 }
 
-static void inbound_unblock_output(struct xbuf_ring *ring) /* nklock held, irqs off */
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
-	struct evl_thread *waiter;
-	struct xbuf_wait_data *wc;
-
-	waiter = evl_wait_flag_head(&xbuf->ibnd.o_event);
-	if (waiter == NULL)
-		return;
-
-	wc = waiter->wait_data;
-	if (wc->len + ring->fillsz <= ring->bufsz)
-		evl_raise_flag_locked(&xbuf->ibnd.o_event);
-}
-
-static bool inbound_output_contention(struct xbuf_ring *ring)
+static void inbound_signal_output(struct xbuf_ring *ring, bool sigpoll)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 
-	return !!evl_wait_flag_head(&xbuf->ibnd.o_event);
-}
+	if (sigpoll)
+		evl_signal_poll_events(&xbuf->poll_head, POLLOUT|POLLWRNORM);
 
-static void inbound_signal_pollable(struct xbuf_ring *ring, int events)
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
-
-	if (events & POLLOUT)
-		evl_signal_poll_events(&xbuf->poll_head, events);
+	evl_raise_flag(&xbuf->ibnd.o_event);
 }
 
 static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
@@ -414,21 +400,27 @@ static long xbuf_ioctl(struct file *filp,
 static __poll_t xbuf_poll(struct file *filp, poll_table *wait)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
+	struct xbuf_outbound *obnd = &xbuf->obnd;
+	struct xbuf_inbound *ibnd = &xbuf->ibnd;
 	unsigned long flags;
 	__poll_t ready = 0;
 
-	poll_wait(filp, &xbuf->ibnd.i_event, wait);
-	poll_wait(filp, &xbuf->obnd.o_event, wait);
+	poll_wait(filp, &ibnd->i_event, wait);
+	poll_wait(filp, &obnd->o_event, wait);
 
-	xnlock_get_irqsave(&nklock, flags);
+	flags = ibnd->ring.lock(&ibnd->ring);
 
-	if (xbuf->ibnd.ring.fillsz > 0)
+	if (ibnd->ring.fillsz > 0)
 		ready |= POLLIN|POLLRDNORM;
 
-	if (xbuf->obnd.ring.fillsz < xbuf->obnd.ring.bufsz)
+	ibnd->ring.unlock(&ibnd->ring, flags);
+
+	flags = obnd->ring.lock(&obnd->ring);
+
+	if (obnd->ring.fillsz < obnd->ring.bufsz)
 		ready |= POLLOUT|POLLWRNORM;
 
-	xnlock_put_irqrestore(&nklock, flags);
+	obnd->ring.unlock(&obnd->ring, flags);
 
 	return ready;
 }
@@ -439,31 +431,43 @@ static long xbuf_oob_ioctl(struct file *filp,
 	return -ENOTTY;
 }
 
-static int outbound_wait_input(struct xbuf_ring *ring, size_t len)
+static unsigned long outbound_lock(struct xbuf_ring *ring)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-	struct evl_thread *curr = evl_current();
-	struct xbuf_wait_data wait;
+	unsigned long flags;
 
-	wait.len = len;
-	curr->wait_data = &wait;
+	evl_spin_lock_irqsave(&xbuf->obnd.i_event.lock, flags);
 
-	return evl_wait_flag(&xbuf->obnd.i_event);
+	return flags;
 }
 
-static void outbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
+static void outbound_unlock(struct xbuf_ring *ring, unsigned long flags)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-	struct evl_thread *waiter;
-	struct xbuf_wait_data *wc;
 
-	waiter = evl_wait_flag_head(&xbuf->obnd.i_event);
-	if (waiter == NULL)
-		return;
+	evl_spin_unlock_irqrestore(&xbuf->obnd.i_event.lock, flags);
+}
 
-	wc = waiter->wait_data;
-	if (wc->len <= ring->fillsz)
-		evl_raise_flag_locked(&xbuf->obnd.i_event);
+static int outbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
+{
+	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+	struct xbuf_outbound *obnd = &xbuf->obnd;
+
+	if (avail > 0 && wq_has_sleeper(&obnd->o_event))
+		return -EAGAIN;
+
+	return evl_wait_event(&obnd->i_event, ring->fillsz >= len);
+}
+
+/* obnd.i_event locked, irqsoff */
+static void outbound_signal_input(struct xbuf_ring *ring, bool sigpoll)
+{
+	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+
+	if (sigpoll)
+		evl_signal_poll_events(&xbuf->poll_head, POLLIN|POLLRDNORM);
+
+	evl_flush_wait_locked(&xbuf->obnd.i_event, 0);
 }
 
 static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
@@ -481,26 +485,11 @@ static void resume_inband_writer(struct irq_work *work)
 	wake_up(&xbuf->obnd.o_event);
 }
 
-static void outbound_unblock_output(struct xbuf_ring *ring)
+static void outbound_signal_output(struct xbuf_ring *ring, bool sigpoll)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
 
 	irq_work_queue(&xbuf->obnd.irq_work);
-}
-
-static bool outbound_output_contention(struct xbuf_ring *ring)
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-
-	return wq_has_sleeper(&xbuf->obnd.o_event);
-}
-
-static void outbound_signal_pollable(struct xbuf_ring *ring, int events)
-{
-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
-
-	if (events & POLLIN)
-		evl_signal_poll_events(&xbuf->poll_head, events);
 }
 
 static ssize_t xbuf_oob_read(struct file *filp,
@@ -533,20 +522,26 @@ static __poll_t xbuf_oob_poll(struct file *filp,
 			struct oob_poll_wait *wait)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
+	struct xbuf_outbound *obnd = &xbuf->obnd;
+	struct xbuf_inbound *ibnd = &xbuf->ibnd;
 	unsigned long flags;
 	__poll_t ready = 0;
 
 	evl_poll_watch(&xbuf->poll_head, wait, NULL);
 
-	xnlock_get_irqsave(&nklock, flags);
+	flags = obnd->ring.lock(&obnd->ring);
 
-	if (xbuf->obnd.ring.fillsz > 0)
+	if (obnd->ring.fillsz > 0)
 		ready |= POLLIN|POLLRDNORM;
 
-	if (xbuf->ibnd.ring.fillsz < xbuf->ibnd.ring.bufsz)
+	obnd->ring.unlock(&obnd->ring, flags);
+
+	flags = ibnd->ring.lock(&ibnd->ring);
+
+	if (ibnd->ring.fillsz < ibnd->ring.bufsz)
 		ready |= POLLOUT|POLLWRNORM;
 
-	xnlock_put_irqrestore(&nklock, flags);
+	ibnd->ring.unlock(&ibnd->ring, flags);
 
 	return ready;
 }
@@ -555,7 +550,7 @@ static int xbuf_release(struct inode *inode, struct file *filp)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 
-	evl_flush_flag(&xbuf->obnd.i_event, T_RMID);
+	evl_flush_wait(&xbuf->obnd.i_event, T_RMID);
 	evl_flush_flag(&xbuf->ibnd.o_event, T_RMID);
 
 	return evl_release_element(inode, filp);
@@ -671,28 +666,29 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 	/* Inbound traffic: oob_write() -> read(). */
 	init_waitqueue_head(&xbuf->ibnd.i_event);
 	evl_init_flag(&xbuf->ibnd.o_event);
+	evl_spin_lock_init(&xbuf->ibnd.lock);
 	init_irq_work(&xbuf->ibnd.irq_work, resume_inband_reader);
 	xbuf->ibnd.ring.bufmem = i_bufmem;
 	xbuf->ibnd.ring.bufsz = attrs.i_bufsz;
+	xbuf->ibnd.ring.lock = inbound_lock;
+	xbuf->ibnd.ring.unlock = inbound_unlock;
 	xbuf->ibnd.ring.wait_input = inbound_wait_input;
 	xbuf->ibnd.ring.signal_input = inbound_signal_input;
 	xbuf->ibnd.ring.wait_output = inbound_wait_output;
-	xbuf->ibnd.ring.unblock_output = inbound_unblock_output;
-	xbuf->ibnd.ring.in_output_contention = inbound_output_contention;
-	xbuf->ibnd.ring.signal_pollable = inbound_signal_pollable;
+	xbuf->ibnd.ring.signal_output = inbound_signal_output;
 
 	/* Outbound traffic: write() -> oob_read(). */
-	evl_init_flag(&xbuf->obnd.i_event);
+	evl_init_wait(&xbuf->obnd.i_event, &evl_mono_clock, EVL_WAIT_PRIO);
 	init_waitqueue_head(&xbuf->obnd.o_event);
 	init_irq_work(&xbuf->obnd.irq_work, resume_inband_writer);
 	xbuf->obnd.ring.bufmem = o_bufmem;
 	xbuf->obnd.ring.bufsz = attrs.o_bufsz;
+	xbuf->obnd.ring.lock = outbound_lock;
+	xbuf->obnd.ring.unlock = outbound_unlock;
 	xbuf->obnd.ring.wait_input = outbound_wait_input;
 	xbuf->obnd.ring.signal_input = outbound_signal_input;
 	xbuf->obnd.ring.wait_output = outbound_wait_output;
-	xbuf->obnd.ring.unblock_output = outbound_unblock_output;
-	xbuf->obnd.ring.in_output_contention = outbound_output_contention;
-	xbuf->obnd.ring.signal_pollable = outbound_signal_pollable;
+	xbuf->obnd.ring.signal_output = outbound_signal_output;
 
 	evl_init_poll_head(&xbuf->poll_head);
 
@@ -716,7 +712,7 @@ static void xbuf_factory_dispose(struct evl_element *e)
 
 	xbuf = container_of(e, struct evl_xbuf, element);
 
-	evl_destroy_flag(&xbuf->obnd.i_event);
+	evl_destroy_wait(&xbuf->obnd.i_event);
 	evl_destroy_flag(&xbuf->ibnd.o_event);
 	evl_destroy_element(&xbuf->element);
 	if (xbuf->ibnd.ring.bufmem)
