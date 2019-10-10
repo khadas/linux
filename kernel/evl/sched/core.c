@@ -633,6 +633,8 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	struct evl_thread *prev, *next, *curr;
 	unsigned long flags;
 
+	no_ugly_lock();
+
 	trace_evl_schedule(this_rq);
 
 	xnlock_get_irqsave(&nklock, flags);
