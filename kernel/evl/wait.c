@@ -18,7 +18,7 @@ void evl_init_wait(struct evl_wait_queue *wq,
 	no_ugly_lock();
 	wq->flags = flags;
 	wq->clock = clock;
-	raw_spin_lock_init(&wq->lock);
+	evl_spin_lock_init(&wq->lock);
 	wq->wchan.abort_wait = evl_abort_wait;
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);

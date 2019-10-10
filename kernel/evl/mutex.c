@@ -377,7 +377,7 @@ static void init_mutex(struct evl_mutex *mutex,
 	mutex->wchan.abort_wait = evl_abort_mutex_wait;
 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
-	raw_spin_lock_init(&mutex->lock);
+	evl_spin_lock_init(&mutex->lock);
 }
 
 void evl_init_mutex_pi(struct evl_mutex *mutex,
