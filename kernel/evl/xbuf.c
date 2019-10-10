@@ -122,9 +122,8 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
 retry:
 	rd->buf_ptr = rd->buf;
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	for (;;) {
+		xnlock_get_irqsave(&nklock, flags);
 		/*
 		 * We should be able to read a complete message of the
 		 * requested length if O_NONBLOCK is clear. If set and
@@ -135,13 +134,41 @@ retry:
 		 */
 		avail = ring->fillsz - ring->rdrsvd;
 		if (avail < len) {
-			if (!(f_flags & O_NONBLOCK))
-				goto wait;
-			if (avail == 0) {
-				ret = -EAGAIN;
-				break;
+			if (f_flags & O_NONBLOCK) {
+				if (avail == 0) {
+					ret = -EAGAIN;
+					break;
+				}
+				len = avail;
+			} else {
+				if (len > ring->bufsz) {
+					ret = -EINVAL;
+					break;
+				}
+				/*
+				 * Check whether writers are already
+				 * waiting for sending data, while we
+				 * are about to wait for receiving
+				 * some. In such a case, we have a
+				 * pathological use of the buffer due
+				 * to a miscalculated size. We must
+				 * allow for a short read to prevent a
+				 * deadlock.
+				 */
+				if (avail > 0 && ring->in_output_contention(ring)) {
+					xnlock_put_irqrestore(&nklock, flags);
+					len = avail;
+					goto retry;
+				}
+
+				xnlock_put_irqrestore(&nklock, flags);
+
+				ret = ring->wait_input(ring, len);
+				if (unlikely(ret))
+					return ret;
+
+				continue;
 			}
-			len = avail;
 		}
 
 		/* Reserve a read slot into the circular buffer. */
@@ -164,13 +191,12 @@ retry:
 			 * is lost on bad write.
 			 */
 			xnlock_put_irqrestore(&nklock, flags);
-			xret = rd->xfer(rd, ring->bufmem + rdoff, n);
-			xnlock_get_irqsave(&nklock, flags);
-			if (xret) {
-				ret = -EFAULT;
-				break;
-			}
 
+			xret = rd->xfer(rd, ring->bufmem + rdoff, n);
+			if (xret)
+				return -EFAULT;
+
+			xnlock_get_irqsave(&nklock, flags);
 			rd->buf_ptr += n;
 			rbytes -= n;
 			rdoff = (rdoff + n) % ring->bufsz;
@@ -188,32 +214,9 @@ retry:
 			 */
 			ring->unblock_output(ring);
 		}
-		goto out;
-	wait:
-		if (len > ring->bufsz)
-			return -EINVAL;
-		/*
-		 * Check whether writers are already waiting for
-		 * sending data, while we are about to wait for
-		 * receiving some. In such a case, we have a
-		 * pathological use of the buffer due to a
-		 * miscalculated size. We must allow for a short read
-		 * to prevent a deadlock.
-		 */
-		if (avail > 0 && ring->in_output_contention(ring)) {
-			len = avail;
-			goto retry;
-		}
-
-		xnlock_put_irqrestore(&nklock, flags);
-
-		ret = ring->wait_input(ring, len);
-		if (unlikely(ret))
-			return ret;
-
-		xnlock_get_irqsave(&nklock, flags);
+		break;
 	}
-out:
+
 	xnlock_put_irqrestore(&nklock, flags);
 
 	evl_schedule();
@@ -358,7 +361,7 @@ static void inbound_unblock_output(struct xbuf_ring *ring)
 
 	wc = waiter->wait_data;
 	if (wc->len + ring->fillsz <= ring->bufsz)
-		evl_raise_flag(&xbuf->ibnd.o_event); /* Implicit resched. */
+		evl_raise_flag_nosched(&xbuf->ibnd.o_event);
 }
 
 static bool inbound_output_contention(struct xbuf_ring *ring)
