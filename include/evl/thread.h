@@ -141,6 +141,7 @@ struct evl_thread {
 	 * global heap.
 	 */
 	struct evl_user_window *u_window;
+	struct list_head kill_next;
 };
 
 struct evl_kthread {
