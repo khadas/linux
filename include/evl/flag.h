@@ -62,13 +62,19 @@ struct evl_thread *evl_wait_flag_head(struct evl_flag *wf)
 	return evl_wait_head(&wf->wait);
 }
 
+static inline void evl_raise_flag_locked(struct evl_flag *wf)
+{
+	wf->raised = true;
+	evl_flush_wait_locked(&wf->wait, 0);
+}
+
 static inline void evl_raise_flag_nosched(struct evl_flag *wf)
 {
 	unsigned long flags;
 
+	/* no_ugly_lock() */
 	xnlock_get_irqsave(&nklock, flags);
-	wf->raised = true;
-	evl_flush_wait_locked(&wf->wait, 0);
+	evl_raise_flag_locked(wf);
 	xnlock_put_irqrestore(&nklock, flags);
 }
 
@@ -78,9 +84,19 @@ static inline void evl_raise_flag(struct evl_flag *wf)
 	evl_schedule();
 }
 
+static inline void evl_pulse_flag_locked(struct evl_flag *wf)
+{
+	evl_flush_wait_locked(&wf->wait, T_BCAST);
+}
+
 static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
 {
-	evl_flush_wait(&wf->wait, T_BCAST);
+	unsigned long flags;
+
+	no_ugly_lock();
+	xnlock_get_irqsave(&nklock, flags);
+	evl_pulse_flag_locked(wf);
+	xnlock_put_irqrestore(&nklock, flags);
 }
 
 static inline void evl_pulse_flag(struct evl_flag *wf)
@@ -89,9 +105,19 @@ static inline void evl_pulse_flag(struct evl_flag *wf)
 	evl_schedule();
 }
 
+static inline void evl_flush_flag_locked(struct evl_flag *wf, int reason)
+{
+	evl_flush_wait_locked(&wf->wait, reason);
+}
+
 static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
 {
-	evl_flush_wait(&wf->wait, reason);
+	unsigned long flags;
+
+	no_ugly_lock();
+	xnlock_get_irqsave(&nklock, flags);
+	evl_flush_flag_locked(wf, reason);
+	xnlock_put_irqrestore(&nklock, flags);
 }
 
 static inline void evl_flush_flag(struct evl_flag *wf, int reason)

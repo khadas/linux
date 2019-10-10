@@ -166,6 +166,7 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 {
 	unsigned long flags;
 
+	no_ugly_lock();
 	xnlock_get_irqsave(&nklock, flags);
 	evl_flush_wait_locked(wq, reason);
 	xnlock_put_irqrestore(&nklock, flags);
