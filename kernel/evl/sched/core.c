@@ -31,10 +31,6 @@ EXPORT_PER_CPU_SYMBOL_GPL(evl_runqueues);
 struct cpumask evl_cpu_affinity = CPU_MASK_ALL;
 EXPORT_SYMBOL_GPL(evl_cpu_affinity);
 
-LIST_HEAD(evl_thread_list);
-
-int evl_nrthreads;
-
 static struct evl_sched_class *evl_sched_highest;
 
 #define for_each_evl_sched_class(p)			\

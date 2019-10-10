@@ -41,6 +41,12 @@
 #include <asm/evl/syscall.h>
 #include <trace/events/evl.h>
 
+int evl_nrthreads;
+
+LIST_HEAD(evl_thread_list);
+
+static DEFINE_HARD_SPINLOCK(thread_list_lock);
+
 static DECLARE_WAIT_QUEUE_HEAD(join_all);
 
 static void inband_task_wakeup(struct irq_work *work);
@@ -60,14 +66,26 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
 	evl_wakeup_thread(thread, T_WAIT, T_TIMEO);
 }
 
-static inline void enlist_new_thread(struct evl_thread *thread)
-{				/* nklock held, irqs off */
+static inline void enqueue_new_thread(struct evl_thread *thread)
+{
 	unsigned long flags;
 
-	xnlock_get_irqsave(&nklock, flags);
+	raw_spin_lock_irqsave(&thread_list_lock, flags);
 	list_add_tail(&thread->next, &evl_thread_list);
 	evl_nrthreads++;
-	xnlock_put_irqrestore(&nklock, flags);
+	raw_spin_unlock_irqrestore(&thread_list_lock, flags);
+}
+
+static inline void dequeue_old_thread(struct evl_thread *thread)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&thread_list_lock, flags);
+	if (!list_empty(&thread->next)) {
+		list_del(&thread->next);
+		evl_nrthreads--;
+	}
+	raw_spin_unlock_irqrestore(&thread_list_lock, flags);
 }
 
 static inline void set_oob_threadinfo(struct evl_thread *thread)
@@ -268,10 +286,9 @@ static void do_cleanup_current(struct evl_thread *curr)
 		}
 	}
 
-	xnlock_get_irqsave(&nklock, flags);
+	dequeue_old_thread(curr);
 
-	list_del(&curr->next);
-	evl_nrthreads--;
+	xnlock_get_irqsave(&nklock, flags);
 
 	if (curr->state & T_READY) {
 		EVL_WARN_ON(CORE, (curr->state & EVL_THREAD_BLOCK_BITS));
@@ -354,7 +371,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
 	init_irq_work(&kthread->irq_work, wakeup_kthread_parent);
 	irq_work_queue(&kthread->irq_work);
 
-	enlist_new_thread(curr);
+	enqueue_new_thread(curr);
 	evl_hold_thread(curr, T_DORMANT);
 
 	return kthread->status;
@@ -1006,6 +1023,11 @@ void evl_cancel_thread(struct evl_thread *thread)
 
 	xnlock_get_irqsave(&nklock, flags);
 
+	if (thread->state & T_ZOMBIE) {
+		evl_spin_unlock_irqrestore(&thread->lock, flags);
+		return;
+	}
+
 	if (thread->info & T_CANCELD)
 		goto check_self_cancel;
 
@@ -1494,7 +1516,8 @@ EXPORT_SYMBOL_GPL(evl_call_mayday);
 int evl_killall(int mask)
 {
 	int nrkilled = 0, nrthreads, count;
-	struct evl_thread *t;
+	struct evl_thread *t, *n;
+	LIST_HEAD(kill_list);
 	unsigned long flags;
 	long ret;
 
@@ -1503,11 +1526,7 @@ int evl_killall(int mask)
 	if (evl_current())
 		return -EPERM;
 
-	/*
-	 * We may hold the core lock across calls to evl_cancel_thread()
-	 * provided that we won't self-cancel.
-	 */
-	xnlock_get_irqsave(&nklock, flags);
+	raw_spin_lock_irqsave(&thread_list_lock, flags);
 
 	nrthreads = evl_nrthreads;
 
@@ -1518,11 +1537,19 @@ int evl_killall(int mask)
 		if (EVL_DEBUG(CORE))
 			printk(EVL_INFO "terminating %s[%d]\n",
 				t->name, evl_get_inband_pid(t));
-		nrkilled++;
-		evl_cancel_thread(t);
+
+		evl_get_element(&t->element);
+		list_add(&t->kill_next, &kill_list);
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
+	raw_spin_unlock_irqrestore(&thread_list_lock, flags);
+
+	list_for_each_entry_safe(t, n, &kill_list, kill_next) {
+		list_del(&t->kill_next);
+		nrkilled++;
+		evl_cancel_thread(t);
+		evl_put_element(&t->element);
+	}
 
 	count = nrthreads - nrkilled;
 	if (EVL_DEBUG(CORE))
@@ -2209,10 +2236,10 @@ static int map_uthread_self(struct evl_thread *thread)
 
 	/*
 	 * A user-space thread is already started EVL-wise since we
-	 * have an underlying in-band context for it, so we can enlist
-	 * it now.
+	 * have an underlying in-band context for it, so we can
+	 * enqueue it now.
 	 */
-	enlist_new_thread(thread);
+	enqueue_new_thread(thread);
 	evl_release_thread(thread, T_DORMANT, 0);
 	evl_sync_uwindow(thread);
 
@@ -2225,19 +2252,9 @@ static int map_uthread_self(struct evl_thread *thread)
  */
 static void discard_unmapped_uthread(struct evl_thread *thread)
 {
-	unsigned long flags;
-
 	evl_destroy_timer(&thread->rtimer);
 	evl_destroy_timer(&thread->ptimer);
-
-	xnlock_get_irqsave(&nklock, flags);
-
-	if (!list_empty(&thread->next)) {
-		list_del(&thread->next);
-		evl_nrthreads--;
-	}
-
-	xnlock_put_irqrestore(&nklock, flags);
+	dequeue_old_thread(thread);
 
 	if (thread->u_window)
 		evl_free_chunk(&evl_shared_heap, thread->u_window);
