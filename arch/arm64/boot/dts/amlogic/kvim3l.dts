@@ -1109,8 +1109,13 @@
 	tdma: tdm@0 {
 		compatible = "amlogic, sm1-snd-tdma";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <0 1>;
-		dai-tdm-oe-lane-slot-mask-out = <1 0>;
+		dai-tdm-lane-slot-mask-in = <1 1>;
+		dai-tdm-oe-lane-slot-mask-out = <1 1>;
+		dai-format = "dsp_a";
+		dai-tdm-slot-tx-mask = <1>;
+		dai-tdm-slot-rx-mask = <1>;
+		dai-tdm-slot-num = <2>;
+		dai-tdm-slot-width = <16>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
@@ -1126,6 +1131,8 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		//dai-tdm-lane-slot-mask-in = <0 0 0 0 0 0 0 0>;
+		//dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkc CLKID_MPLL1
@@ -1134,8 +1141,8 @@
 		clock-names = "mclk", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
-
+		/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
+		pinctrl-0 = < &tdmout_b &tdmin_b>;
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
@@ -1240,7 +1247,7 @@
 
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins";
-		pinctrl-0 = <&spdifout /* &spdifin */>;
+		pinctrl-0 = <&spdifout>;/* bob remove &spdifin*/
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1391,9 +1398,9 @@
 		 */
 		datain_src = <4>;
 		datain_chnum = <4>;
-		datain_chmask = <0x3f>;
+		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 1 1 0>;
+		datain-lane-mask-in = <1 1 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1475,10 +1482,12 @@
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1491,7 +1500,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		status = "okay";
+		status = "disabled";
 	};
 }; /* end of audiobus */
 
@@ -1500,25 +1509,27 @@
 		mux { /* GPIOX_11, GPIOX_10, GPIOX_9 */
 			groups = "tdma_sclk",
 				"tdma_fs",
-				"tdma_dout0";
+				"tdma_dout0",
+				"tdma_dout1";
 			function = "tdma_out";
 		};
 	};
 
 	tdmin_a: tdmin_a {
 		mux { /* GPIOX_8 */
-			groups = "tdma_din1";
+			groups = "tdma_din0",
+					"tdma_din1";
 			function = "tdma_in";
 		};
 	};
 
-	tdmb_mclk: tdmb_mclk {
-		mux {
-			groups = "mclk0_a";
-			function = "mclk0";
-			drive-strength = <2>;
-		};
-	};
+	//tdmb_mclk: tdmb_mclk {
+	//	mux {
+	//		groups = "mclk0_a";
+	//		function = "mclk0";
+	//		drive-strength = <2>;
+	//	};
+	//};
 	tdmout_b: tdmout_b {
 		mux { /* GPIOA_1, GPIOA_2, GPIOA_3 */
 			groups = "tdmb_sclk",
@@ -1546,12 +1557,12 @@
 	};
 
 	tdmout_c:tdmout_c {
-		mux { /* GPIOA_12, GPIOA_13 */
+		mux { /* GPIOA_12, GPIOA_13, GPIOA_8, GPIOA_7*/
 			groups = "tdmc_sclk_a",
-				"tdmc_fs_a"
-				/*, "tdmc_dout0_a"
-				 *,	"tdmc_dout2"
-				 *, "tdmc_dout3"
+				"tdmc_fs_a",
+				"tdmc_dout0_a"
+				/*,	"tdmc_dout2",
+				 * "tdmc_dout3"
 				 */;
 			function = "tdmc_out";
 		};
@@ -1564,26 +1575,23 @@
 		};
 	};
 
-	spdifin: spdifin {
-		mux {/* GPIOH_5 */
-			groups = "spdif_in_h";
-			function = "spdif_in";
-		};
-	};
-
-	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
-			function = "spdif_out";
-		};
-	};
+	/* GPIOH_5 */
+	/* bob remove spdifin
+	 *spdifin: spdifin {
+	 *	mux {/* GPIOH_5
+	 *		groups = "spdif_in_h";
+	 *		function = "spdif_in";
+	 *	};
+	 *};
+	 */
 
 	pdmin: pdmin {
 		mux { /* GPIOA_5, GPIOA_6, GPIOA_8, GPIOA_9, GPIOA_7 */
 			groups = "pdm_din0_a",
-				"pdm_din1_a",
-				/*"pdm_din3_a",*/
-				"pdm_dclk_a";
+			"pdm_din1_a",
+			/*"pdm_din2_a",*/
+			/*"pdm_din3_a",*/
+			"pdm_dclk_a";
 			function = "pdm";
 		};
 	};
@@ -1624,6 +1632,15 @@
 
 
 }; /* end of pinctrl_periphs */
+
+&pinctrl_aobus {
+	spdifout: spdifout {
+		mux { /* GPIOAO_10 */
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
+};  /* end of pinctrl_aobus */
 
 &audio_data {
 	status = "okay";
