@@ -126,6 +126,12 @@ void evl_init_wait(struct evl_wait_queue *wq,
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
 
+void evl_flush_wait_locked(struct evl_wait_queue *wq,
+			int reason);
+
+void evl_flush_wait(struct evl_wait_queue *wq,
+		int reason);
+
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter);
 
@@ -135,38 +141,8 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 	return evl_wake_up(wq, NULL);
 }
 
-/* nklock held, irqs off */
-static __always_inline
-void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
-{
-	struct evl_thread *waiter, *tmp;
-
-	requires_ugly_lock();
-
-	trace_evl_flush_wait(wq);
-
-	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next)
-		evl_wakeup_thread(waiter, T_PEND, reason);
-}
-
-static __always_inline
-void evl_flush_wait(struct evl_wait_queue *wq, int reason)
-{
-	unsigned long flags;
-
-	no_ugly_lock();
-	xnlock_get_irqsave(&nklock, flags);
-	evl_flush_wait_locked(wq, reason);
-	xnlock_put_irqrestore(&nklock, flags);
-}
-
-static inline
 void evl_abort_wait(struct evl_thread *thread,
-		struct evl_wait_channel *wchan)
-{
-	requires_ugly_lock();
-	list_del(&thread->wait_next);
-}
+		struct evl_wait_channel *wchan);
 
 void evl_reorder_wait(struct evl_thread *thread);
 

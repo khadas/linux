@@ -540,7 +540,6 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 out:
 	xnlock_put_irqrestore(&nklock, flags);
 }
-EXPORT_SYMBOL_GPL(evl_sleep_on);
 
 bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 {
@@ -586,7 +585,6 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(evl_wakeup_thread);
 
 void evl_hold_thread(struct evl_thread *thread, int mask)
 {
