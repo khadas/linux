@@ -271,11 +271,7 @@ void evl_switch_inband(int cause);
 
 int evl_detach_self(void);
 
-void __evl_kick_thread(struct evl_thread *thread);
-
 void evl_kick_thread(struct evl_thread *thread);
-
-void __evl_demote_thread(struct evl_thread *thread);
 
 void evl_demote_thread(struct evl_thread *thread);
 
