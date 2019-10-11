@@ -77,10 +77,43 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 }
 EXPORT_SYMBOL_GPL(evl_wake_up);
 
+/* nklock held, irqs off */
+void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
+{
+	struct evl_thread *waiter, *tmp;
+
+	requires_ugly_lock();
+
+	trace_evl_flush_wait(wq);
+
+	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next)
+		evl_wakeup_thread(waiter, T_PEND, reason);
+}
+EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
+
+void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+{
+	unsigned long flags;
+
+	no_ugly_lock();
+	evl_spin_lock_irqsave(&wq->lock, flags);
+	evl_flush_wait_locked(wq, reason);
+	evl_spin_unlock_irqrestore(&wq->lock, flags);
+}
+EXPORT_SYMBOL_GPL(evl_flush_wait);
+
 static inline struct evl_wait_queue *
 wchan_to_wait_queue(struct evl_wait_channel *wchan)
 {
 	return container_of(wchan, struct evl_wait_queue, wchan);
+}
+
+/* nklock held, irqs off */
+void evl_abort_wait(struct evl_thread *thread,
+		struct evl_wait_channel *wchan)
+{
+	requires_ugly_lock();
+	list_del(&thread->wait_next);
 }
 
 /* nklock held, irqs off */
