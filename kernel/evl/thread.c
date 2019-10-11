@@ -1271,6 +1271,8 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 
 bool evl_unblock_thread(struct evl_thread *thread, int reason)
 {
+	no_ugly_lock();
+
 	trace_evl_unblock_thread(thread);
 
 	/*
@@ -1289,12 +1291,23 @@ bool evl_unblock_thread(struct evl_thread *thread, int reason)
 }
 EXPORT_SYMBOL_GPL(evl_unblock_thread);
 
-static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
+void evl_kick_thread(struct evl_thread *thread)
 {
-	bool ret = false;
+	struct task_struct *p = thread->altsched.task;
+	unsigned long flags;
 
+	no_ugly_lock();
+
+	if (thread->state & T_INBAND) /* nop? */
+		return;
+
+	/*
+	 * First, try to kick the thread out of any blocking syscall
+	 * EVL-wise. If that succeeds, then the thread will switch to
+	 * in-band context on its return path to user-space.
+	 */
 	if (evl_unblock_thread(thread, T_KICKED))
-		ret = true;
+		return;
 
 	/*
 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
@@ -1307,7 +1320,7 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 	 * Rationale: callers of evl_sleep_on() may assume that
 	 * receiving T_BREAK means that the awaited event was not
 	 * received. Therefore, in case only T_SUSP remains set for
-	 * the thread on entry to force_wakeup(), after T_PEND was
+	 * the thread on entry to evl_kick(), after T_PEND was
 	 * lifted earlier when the wait went to successful completion
 	 * (i.e. no timeout), then we want the kicked thread to know
 	 * that it did receive the requested resource, not finding
@@ -1318,6 +1331,8 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 	 * should act upon this case specifically.
 	 */
 	evl_release_thread(thread, T_SUSP|T_HALT, T_KICKED);
+
+	xnlock_get_irqsave(&nklock, flags);
 
 	/*
 	 * Tricky cases:
@@ -1341,24 +1356,6 @@ static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off *
 	if (thread->state & T_READY)
 		evl_force_thread(thread);
 
-	return ret;
-}
-
-void __evl_kick_thread(struct evl_thread *thread) /* nklock locked, irqs off */
-{
-	struct task_struct *p = thread->altsched.task;
-
-	if (thread->state & T_INBAND) /* nop? */
-		return;
-
-	/*
-	 * First, try to kick the thread out of any blocking syscall
-	 * EVL-wise. If that succeeds, then the thread will switch to
-	 * in-band context on its return path to user-space.
-	 */
-	if (force_wakeup(thread))
-		return;
-
 	/*
 	 * If that did not work out because the thread was not blocked
 	 * (i.e. T_PEND/T_DELAY) in a syscall, then force a mayday
@@ -1366,7 +1363,7 @@ void __evl_kick_thread(struct evl_thread *thread) /* nklock locked, irqs off */
 	 * signal, we only want to force it to switch to in-band
 	 * context asap.
 	 */
-	thread->info |= T_KICKED;
+	thread->info |= T_KICKED; /* Caution: requires nklock */
 
 	/*
 	 * We may send mayday signals to userland threads only.
@@ -1378,28 +1375,26 @@ void __evl_kick_thread(struct evl_thread *thread) /* nklock locked, irqs off */
 	 */
 	if ((thread->state & T_USER) && thread != this_evl_rq_thread())
 		dovetail_send_mayday(p);
-}
 
-void evl_kick_thread(struct evl_thread *thread)
-{
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-	__evl_kick_thread(thread);
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_kick_thread);
 
-void __evl_demote_thread(struct evl_thread *thread) /* nklock locked, irqs off */
+void evl_demote_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class;
 	union evl_sched_param param;
+	unsigned long flags;
+
+	no_ugly_lock();
 
 	/*
 	 * First we kick the thread out of oob context, and have it
 	 * resume execution immediately on the in-band stage.
 	 */
-	__evl_kick_thread(thread);
+	evl_kick_thread(thread);
+
+	xnlock_get_irqsave(&nklock, flags);
 
 	/*
 	 * Then we demote it, turning that thread into a non real-time
@@ -1411,14 +1406,7 @@ void __evl_demote_thread(struct evl_thread *thread) /* nklock locked, irqs off *
 	param.weak.prio = 0;
 	sched_class = &evl_sched_weak;
 	__evl_set_thread_schedparam(thread, sched_class, &param);
-}
 
-void evl_demote_thread(struct evl_thread *thread)
-{
-	unsigned long flags;
-
-	xnlock_get_irqsave(&nklock, flags);
-	__evl_demote_thread(thread);
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_demote_thread);
@@ -1887,15 +1875,15 @@ static void handle_sigwake_event(struct task_struct *p)
 			thread->state &= ~T_SSTEP;
 	}
 
+	xnlock_put_irqrestore(&nklock, flags);
+
 	/*
 	 * A thread running on the oob stage may not be picked by the
 	 * in-band scheduler as it bears the _TLF_OFFSTAGE flag. We
 	 * need to force that thread to switch to in-band context,
 	 * which will clear that flag.
 	 */
-	__evl_kick_thread(thread);
-
-	xnlock_put_irqrestore(&nklock, flags);
+	evl_kick_thread(thread);
 
 	evl_schedule();
 }
