@@ -541,14 +541,13 @@ out:
 	xnlock_put_irqrestore(&nklock, flags);
 }
 
-bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
-	bool ret = false;
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
-		return false;
+		return;
 
 	xnlock_get_irqsave(&nklock, flags);
 
@@ -570,7 +569,6 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 			abort_wait(thread);
 
 		thread->info |= info;
-		ret = true;
 
 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
 			evl_enqueue_thread(thread);
@@ -582,8 +580,6 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 	}
 
 	xnlock_put_irqrestore(&nklock, flags);
-
-	return ret;
 }
 
 void evl_hold_thread(struct evl_thread *thread, int mask)
@@ -1267,7 +1263,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	}
 }
 
-bool evl_unblock_thread(struct evl_thread *thread, int reason)
+void evl_unblock_thread(struct evl_thread *thread, int reason)
 {
 	no_ugly_lock();
 
@@ -1285,7 +1281,7 @@ bool evl_unblock_thread(struct evl_thread *thread, int reason)
 	 * evl_wakeup_thread() guarantees this by updating the info
 	 * bits only if any of the mask bits is set.
 	 */
-	return evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT, reason|T_BREAK);
+	evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT, reason|T_BREAK);
 }
 EXPORT_SYMBOL_GPL(evl_unblock_thread);
 
@@ -1299,13 +1295,7 @@ void evl_kick_thread(struct evl_thread *thread)
 	if (thread->state & T_INBAND) /* nop? */
 		return;
 
-	/*
-	 * First, try to kick the thread out of any blocking syscall
-	 * EVL-wise. If that succeeds, then the thread will switch to
-	 * in-band context on its return path to user-space.
-	 */
-	if (evl_unblock_thread(thread, T_KICKED))
-		return;
+	evl_unblock_thread(thread, T_KICKED);
 
 	/*
 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
