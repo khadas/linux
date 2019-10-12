@@ -96,9 +96,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 	unsigned long flags;
 
 	no_ugly_lock();
-	evl_spin_lock_irqsave(&wq->lock, flags);
+	xnlock_get_irqsave(&nklock, flags);
 	evl_flush_wait_locked(wq, reason);
-	evl_spin_unlock_irqrestore(&wq->lock, flags);
+	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait);
 
