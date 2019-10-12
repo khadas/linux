@@ -778,6 +778,41 @@ static int mmc_transfer(struct mmc_card *card, unsigned int dev_addr,
 	return ret;
 }
 
+/*write tuning para on emmc, the offset is 0x14400*/
+static int amlmmc_write_tuning_para(struct mmc_card *card,
+				    unsigned int dev_addr)
+{
+	unsigned int size;
+	struct amlsd_platform *pdata = mmc_priv(card->host);
+	struct aml_tuning_para *parameter = &pdata->para;
+	unsigned int *buf;
+	int para_size;
+	int blocks;
+
+	if (pdata->save_para == 0)
+		return 0;
+
+	if (parameter->update == 0)
+		return 0;
+	parameter->update = 0;
+
+	para_size = sizeof(struct aml_tuning_para);
+	blocks = (para_size - 1)  / 512 + 1;
+	size = blocks << card->csd.read_blkbits;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	memset(buf, 0, size);
+
+	memcpy(buf, parameter, sizeof(struct aml_tuning_para));
+
+	mmc_claim_host(card->host);
+	mmc_transfer(card, dev_addr, blocks, buf, 1);
+	mmc_release_host(card->host);
+
+	kfree(buf);
+	return 0;
+}
+
 int mmc_read_internal(struct mmc_card *card, unsigned int dev_addr,
 		unsigned int blocks, void *buf)
 {

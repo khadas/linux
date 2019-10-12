@@ -257,10 +257,40 @@ struct clock_lay_t {
 #define TODLY_MIN_NS	(2)
 #define TODLY_MAX_NS	(14)
 
+struct hs400_para {
+	unsigned int delay1;
+	unsigned int delay2;
+	unsigned int intf3;
+	unsigned int flag;
+};
+
+struct hs200_para {
+	unsigned int adjust;
+};
+
+struct hs_para {
+	unsigned int adjust;
+};
+
+struct aml_tuning_para {
+	unsigned int chip_id[4];
+	unsigned int magic;
+	unsigned int vddee;
+	struct hs400_para hs4[7];
+	struct hs200_para hs2;
+	struct hs_para hs;
+	unsigned int version;
+	unsigned int busmod;
+	unsigned int update;
+	int temperature;
+	long long checksum;
+};
+
 struct amlsd_platform {
 	struct amlsd_host *host;
 	struct mmc_host *mmc;
 	struct list_head sibling;
+	struct aml_tuning_para para;
 	u32 ocr_avail;
 	u32 port;
 #define	 PORT_SDIO_A	 0
@@ -281,6 +311,7 @@ struct amlsd_platform {
 	unsigned int card_capacity;
 	unsigned int tx_phase;
 	unsigned int tx_delay;
+	unsigned int save_para;
 	unsigned int co_phase;
 	unsigned int f_min;
 	unsigned int f_max;

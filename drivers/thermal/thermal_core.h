@@ -57,6 +57,9 @@ struct thermal_instance {
 int thermal_register_governor(struct thermal_governor *);
 void thermal_unregister_governor(struct thermal_governor *);
 
+#ifdef CONFIG_AMLOGIC_TEMP_SENSOR
+int thermal_get_temp_by_index(int id);
+#endif
 #ifdef CONFIG_THERMAL_GOV_STEP_WISE
 int thermal_gov_step_wise_register(void);
 void thermal_gov_step_wise_unregister(void);

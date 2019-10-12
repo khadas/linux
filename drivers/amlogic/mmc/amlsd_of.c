@@ -204,11 +204,13 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 		SD_PARSE_U32_PROP_DEC(child, "card_type",
 				prop, pdata->card_type);
 		SD_PARSE_U32_PROP_DEC(child, "tx_delay",
-						prop, pdata->tx_delay);
+				prop, pdata->tx_delay);
+		SD_PARSE_U32_PROP_DEC(child, "save_para",
+				      prop, pdata->save_para);
 		SD_PARSE_U32_PROP_DEC(child, "latest_dat",
-						prop, pdata->latest_dat);
+				prop, pdata->latest_dat);
 		SD_PARSE_U32_PROP_DEC(child, "co_phase",
-						prop, pdata->co_phase);
+				prop, pdata->co_phase);
 		if (aml_card_type_mmc(pdata)) {
 			/*tx_phase set default value first*/
 			SD_PARSE_U32_PROP_DEC(child, "tx_phase",
