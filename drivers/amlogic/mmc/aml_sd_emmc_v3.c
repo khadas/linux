@@ -43,6 +43,7 @@
 #include <linux/amlogic/aml_sd_emmc_internal.h>
 #include <linux/time.h>
 #include <linux/random.h>
+#include "../../thermal/thermal_core.h"
 
 int aml_fixdiv_calc(unsigned int *fixdiv, struct clock_lay_t *clk)
 {
@@ -717,6 +718,9 @@ static int aml_sd_emmc_cali_v3(struct mmc_host *mmc,
 		cmd.arg = MMC_RANDOM_OFFSET;
 	else if (!strcmp(pattern, MMC_DTB_NAME))
 		cmd.arg = MMC_DTB_OFFSET;
+	else if (!strcmp(pattern, MMC_TUNING_NAME))
+		cmd.arg = MMC_TUNING_OFFSET;
+
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	stop.opcode = MMC_STOP_TRANSMISSION;
@@ -1143,14 +1147,14 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 		for (j = 0; j < repeat_times; j++) {
 			if (send_status)
 				err = emmc_send_cmd(mmc,
-						MMC_SEND_STATUS,
-						1 << 16,
-						MMC_RSP_R1 | MMC_CMD_AC);
+					   MMC_SEND_STATUS,
+					   1 << 16,
+					   MMC_RSP_R1 | MMC_CMD_AC);
 			else
 				err = single_read_cmd_for_scan(mmc,
-					MMC_READ_SINGLE_BLOCK,
-					host->blk_test, 512, 1,
-					offset);
+					 MMC_READ_SINGLE_BLOCK,
+					 host->blk_test, 512, 1,
+					 offset);
 			if (!err)
 				str[i]++;
 			else
@@ -1313,6 +1317,8 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 		host->cmd_retune = 1;
 		host->find_win = 1;
 	}
+
+	gintf3->ds_sht_m = 0;
 	for (i = 0; i < 64; i++) {
 		host->is_tunning = 1;
 		err = emmc_test_bus(mmc);
@@ -1376,7 +1382,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 
 static void aml_emmc_hs400_general(struct mmc_host *mmc)
 {
-
 	update_all_line_eyetest(mmc);
 	emmc_ds_core_align(mmc);
 	update_all_line_eyetest(mmc);
@@ -2336,17 +2341,188 @@ int aml_mmc_execute_tuning_v3(struct mmc_host *mmc, u32 opcode)
 		readl(host->base + SD_EMMC_INTF3));
 	return err;
 }
+
+static long long _para_checksum_calc(struct aml_tuning_para *para)
+{
+	int i = 0;
+	int size = sizeof(struct aml_tuning_para) - 6 * sizeof(unsigned int);
+	unsigned int *buffer;
+	long long checksum = 0;
+
+	if (!para)
+		return 1;
+
+	size = size >> 2;
+	buffer = (unsigned int *)para;
+	while (i < size)
+		checksum += buffer[i++];
+
+	return checksum;
+}
+
+/*
+ * read tuning para from reserved partition
+ * and copy it to pdata->para
+ */
+int aml_read_tuning_para(struct mmc_host *mmc)
+{
+	int off, blk;
+	int ret;
+	int para_size;
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+
+	if (pdata->save_para == 0)
+		return 0;
+
+	para_size = sizeof(struct aml_tuning_para);
+	blk = (para_size - 1) / 512 + 1;
+	off = MMC_TUNING_OFFSET;
+
+	if (blk == 1)
+		ret = single_read_cmd_for_scan(mmc,
+					       MMC_READ_SINGLE_BLOCK,
+					       host->blk_test, 512,
+					       blk, off);
+	else
+		ret = aml_sd_emmc_cali_v3(mmc,
+					  MMC_READ_MULTIPLE_BLOCK,
+					  host->blk_test, 512, blk,
+					  MMC_TUNING_NAME);
+	if (ret) {
+		pr_info("read tuning parameter failed\n");
+		return ret;
+	}
+
+	memcpy(&pdata->para, host->blk_test, para_size);
+	return ret;
+}
+
+/*set para on controller register*/
+static void aml_set_tuning_para(struct mmc_host *mmc)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct aml_tuning_para *para = &pdata->para;
+	int temp_index;
+	u32 delay1, delay2, intf3;
+
+	temp_index = para->temperature / 10000;
+	delay1 = pdata->para.hs4[temp_index].delay1;
+	delay2 = pdata->para.hs4[temp_index].delay2;
+	intf3 = pdata->para.hs4[temp_index].intf3;
+
+	writel(delay1, host->base + SD_EMMC_DELAY1_V3);
+	writel(delay2, host->base + SD_EMMC_DELAY2_V3);
+	writel(intf3, host->base + SD_EMMC_INTF3);
+}
+
+/*save parameter on mmc_host pdata*/
+static void aml_save_tuning_para(struct mmc_host *mmc)
+{
+	unsigned int checksum;
+	int temp_index;
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct aml_tuning_para *para = &pdata->para;
+
+	u32 delay1 = readl(host->base + SD_EMMC_DELAY1_V3);
+	u32 delay2 = readl(host->base + SD_EMMC_DELAY2_V3);
+	u32 intf3 = readl(host->base + SD_EMMC_INTF3);
+
+	if (pdata->save_para == 0)
+		return;
+
+	temp_index = para->temperature / 10000;
+	if (para->temperature < 0 || temp_index > 6) {
+		para->update = 0;
+		return;
+	}
+
+	pdata->para.hs4[temp_index].delay1 = delay1;
+	pdata->para.hs4[temp_index].delay2 = delay2;
+	pdata->para.hs4[temp_index].intf3 = intf3;
+	pdata->para.hs4[temp_index].flag = 1;
+	pdata->para.magic = 0x00487e44; /*E~K\0*/
+	pdata->para.version = 1;
+
+	checksum = _para_checksum_calc(para);
+	pdata->para.checksum = checksum;
+}
+
+/*
+ * check if tuning parameter is exist
+ * check if temperature is in the 0~69
+ * check if the parameter has been tuning
+ *		under the current temperature
+ * check if the data had been broken by  checksum
+ *
+ * if all four condition above is yes, the tuning parameter
+ *		could be use directly
+ * otherwise retunning and save parameter
+ */
+static int aml_para_is_exist(struct mmc_host *mmc)
+{
+	int temperature;
+	int temp_index;
+	unsigned int checksum;
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct aml_tuning_para *para = &pdata->para;
+
+	if (pdata->save_para == 0)
+		return 0;
+
+	temperature = thermal_get_temp_by_index(0);
+	if (temperature == -1) {
+		para->update = 0;
+		pr_info("get temperature failed\n");
+		return 0;
+	}
+
+	pr_info("current temperature is %d\n", temperature);
+	temp_index = temperature  / 10000;
+	para->temperature = temperature;
+	para->update = 1;
+	/* temperature range is 0 ~ 69 */
+	if (temperature < 0 || temp_index > 6) {
+		pr_info("temperature is out of normal range\n");
+		return 0;
+	}
+
+	if (para->hs4[temp_index].flag == 0) {
+		pr_info("current temperature %d degree not tuning yet\n",
+			temperature / 1000);
+		return 0;
+	}
+
+	checksum = _para_checksum_calc(para);
+	if (checksum != para->checksum) {
+		pr_info("warning: checksum is not match\n");
+		return 0;
+	}
+	para->update = 0;
+
+	return 1;
+}
+
 int aml_post_hs400_timming(struct mmc_host *mmc)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
+
 	aml_sd_emmc_clktest(mmc);
+	if (aml_para_is_exist(mmc)) {
+		aml_set_tuning_para(mmc);
+		return 0;
+	}
 	if (host->data->chip_type == MMC_CHIP_G12B)
 		aml_emmc_hs400_Revb(mmc);
 	else if (host->data->chip_type >= MMC_CHIP_TL1)
 		aml_emmc_hs400_tl1(mmc);
 	else
 		aml_emmc_hs400_general(mmc);
+
+	aml_save_tuning_para(mmc);
 	return 0;
 }
 

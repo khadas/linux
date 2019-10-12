@@ -1164,6 +1164,9 @@ static int mmc_select_hs400(struct mmc_card *card)
 	err = mmc_switch_status(card);
 	if (err)
 		goto out_err;
+#ifdef CONFIG_AMLOGIC_MMC
+	aml_read_tuning_para(host);
+#endif
 
 	/* Switch card to DDR */
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
