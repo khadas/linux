@@ -566,7 +566,7 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 		if (mask & (T_DELAY|T_PEND))
 			evl_stop_timer(&thread->rtimer);
 
-		if (mask & T_PEND)
+		if (mask & T_PEND & oldstate)
 			abort_wait(thread);
 
 		thread->info |= info;
