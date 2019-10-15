@@ -118,10 +118,15 @@ out:
 /* nklock held, irqs off (testing the wait_queue). */
 static void untrack_event(struct evl_monitor *event)
 {
-	list_del(&event->next);
-	event->gate = NULL;
-	if (!evl_wait_active(&event->wait_queue))
+	/*
+	 * If no more waiter is pending on this event, have the gate
+	 * stop tracking it.
+	 */
+	if (!evl_wait_active(&event->wait_queue)) {
+		list_del(&event->next);
+		event->gate = NULL;
 		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
+	}
 }
 
 /* nklock held, irqs off */
