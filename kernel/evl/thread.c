@@ -711,8 +711,7 @@ void evl_switch_inband(int cause)
 	rq = curr->rq;
 	evl_set_resched(rq);
 	dovetail_leave_oob();
-	xnlock_clear_irqon(&nklock);
-	oob_irq_disable();	/* <= REQUIRED. */
+	xnlock_put(&nklock);
 	__evl_schedule(rq);
 	oob_irq_enable();
 	dovetail_resume_inband();
