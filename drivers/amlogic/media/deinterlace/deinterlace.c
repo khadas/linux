@@ -1619,7 +1619,11 @@ unsigned char is_bypass(vframe_t *vf_in)
 
 	if (bypass_all)
 		return 1;
-	if (di_pre_stru.cur_prog_flag)
+	if (di_pre_stru.cur_prog_flag &&
+	    (
+	     (di_pre_stru.cur_width > 1920) || (di_pre_stru.cur_height > 1080)
+	     || (di_pre_stru.cur_inp_type & VIDTYPE_VIU_444))
+	    )
 		return 1;
 
 	if ((di_pre_stru.cur_width < 16) || (di_pre_stru.cur_height < 16))
