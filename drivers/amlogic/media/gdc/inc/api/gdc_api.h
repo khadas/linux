@@ -19,7 +19,7 @@
 #define __GDC_API_H__
 
 #include <linux/of_address.h>
-#include <linux/dma-direction.h>
+#include <linux/amlogic/media/gdc/gdc.h>
 
 enum gdc_memtype_s {
 	AML_GDC_MEM_ION,
@@ -30,21 +30,6 @@ enum gdc_memtype_s {
 struct gdc_buf_cfg {
 	uint32_t type;
 	unsigned long len;
-};
-
-// each configuration addresses and size
-struct gdc_config_s {
-	uint32_t format;
-	uint32_t config_addr;   //gdc config address
-	uint32_t config_size;   //gdc config size in 32bit
-	uint32_t input_width;  //gdc input width resolution
-	uint32_t input_height; //gdc input height resolution
-	uint32_t input_y_stride; //gdc input y stride resolution
-	uint32_t input_c_stride; //gdc input uv stride
-	uint32_t output_width;  //gdc output width resolution
-	uint32_t output_height; //gdc output height resolution
-	uint32_t output_y_stride; //gdc output y stride
-	uint32_t output_c_stride; //gdc output uv stride
 };
 
 struct gdc_buffer_info {
@@ -154,67 +139,12 @@ enum {
 };
 
 enum {
-	NV12 = 1,
-	YV12,
-	Y_GREY,
-	YUV444_P,
-	RGB444_P,
-	FMT_MAX
-};
-
-enum {
 	EQUISOLID = 1,
 	CYLINDER,
 	EQUIDISTANT,
 	CUSTOM,
 	AFFINE,
 	FW_TYPE_MAX
-};
-
-struct gdc_dma_cfg {
-	int fd;
-	void *dev;
-	void *vaddr;
-	struct dma_buf *dbuf;
-	struct dma_buf_attachment *attach;
-	struct sg_table *sg;
-	enum dma_data_direction dir;
-};
-
-struct gdc_cmd_s {
-	uint32_t outplane;
-	//writing/reading to gdc base address, currently not read by api
-	uint32_t base_gdc;
-	 //array of gdc configuration and sizes
-	struct gdc_config_s gdc_config;
-	//update this index for new config
-	//int gdc_config_total;
-	//start memory to write gdc output framse
-	uint32_t buffer_addr;
-	//size of memory output frames to determine
-	//if it is enough and can do multiple write points
-	uint32_t buffer_size;
-	//current output address of gdc
-	uint32_t current_addr;
-	//output address for  u, v planes
-	union {
-		uint32_t uv_out_base_addr;
-		uint32_t u_out_base_addr;
-	};
-	uint32_t v_out_base_addr;
-
-	//set when expecting an interrupt from gdc
-	int32_t is_waiting_gdc;
-
-	//input address for y and u, v planes
-	uint32_t y_base_addr;
-	union {
-		uint32_t uv_base_addr;
-		uint32_t u_base_addr;
-	};
-	uint32_t v_base_addr;
-
-	unsigned char wait_done_flag;
 };
 
 /* path: "/vendor/lib/firmware/gdc/" */

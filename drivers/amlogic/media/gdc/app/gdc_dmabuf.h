@@ -21,7 +21,7 @@
 #include <linux/mm_types.h>
 #include <linux/mutex.h>
 #include <linux/dma-buf.h>
-
+#include <linux/amlogic/media/gdc/gdc.h>
 
 #define AML_MAX_DMABUF 32
 
@@ -52,17 +52,6 @@ struct aml_dma_buffer {
 	struct mutex lock;
 	struct aml_dma_buf_priv gd_buffer[AML_MAX_DMABUF];
 };
-
-struct aml_dma_cfg {
-	int fd;
-	void *dev;
-	void *vaddr;
-	struct dma_buf *dbuf;
-	struct dma_buf_attachment *attach;
-	struct sg_table *sg;
-	enum dma_data_direction dir;
-};
-
 
 void *gdc_dma_buffer_create(void);
 void gdc_dma_buffer_destroy(struct aml_dma_buffer *buffer);

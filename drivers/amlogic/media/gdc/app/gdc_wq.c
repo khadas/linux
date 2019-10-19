@@ -225,7 +225,7 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 		list_move_tail(&pitem->list, &wq->free_queue);
 		spin_unlock(&wq->lock);
 		/* if dma buf detach it */
-		for (i = 0; i < MAX_PLANE; i++) {
+		for (i = 0; i < GDC_MAX_PLANE; i++) {
 			if (pitem->dma_cfg.input_cfg[i].dma_used) {
 				gdc_dma_buffer_unmap_info(gdc_manager.buffer,
 					&pitem->dma_cfg.input_cfg[i].dma_cfg);
