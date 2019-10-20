@@ -478,8 +478,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 			}
 			curr->info &= ~(T_RMID|T_TIMEO);
 			curr->info |= T_BREAK;
-			xnlock_put_irqrestore(&nklock, flags);
-			return;
+			goto out;
 		}
 		curr->info &= ~EVL_THREAD_INFO_MASK;
 	}
@@ -495,6 +494,10 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 				evl_thread_rq(curr));
 		if (timeout_mode == EVL_REL)
 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
+		else if (timeout <= evl_read_clock(clock)) {
+			curr->info |= T_TIMEO;
+			goto out;
+		}
 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
 		curr->state |= T_DELAY;
 	} else if (!wchan) {
@@ -514,7 +517,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	}
 
 	evl_set_resched(rq);
-
+out:
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_sleep_on);
