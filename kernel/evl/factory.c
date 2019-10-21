@@ -85,6 +85,7 @@ void evl_get_element(struct evl_element *e)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&e->ref_lock, flags);
+	EVL_WARN_ON(CORE, e->refs == 0);
 	e->refs++;
 	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 }
@@ -102,10 +103,12 @@ int evl_open_element(struct inode *inode, struct file *filp)
 
 	raw_spin_lock_irqsave(&e->ref_lock, flags);
 
-	if (e->zombie)
+	if (e->zombie) {
 		ret = -ESTALE;
-	else
+	} else {
+		EVL_WARN_ON(CORE, e->refs == 0);
 		e->refs++;
+	}
 
 	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 
@@ -218,6 +221,8 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
 	 * element eventually.
 	 */
 	raw_spin_lock_irqsave(&e->ref_lock, flags);
+
+	EVL_WARN_ON(CORE, e->refs == 0);
 
 	if (--e->refs == 0) {
 		e->zombie = true;
@@ -553,8 +558,10 @@ __evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
 			raw_spin_lock(&e->ref_lock);
 			if (unlikely(e->zombie))
 				e = NULL;
-			else
+			else {
+				EVL_WARN_ON(CORE, e->refs == 0);
 				e->refs++;
+			}
 			raw_spin_unlock(&e->ref_lock);
 			raw_spin_unlock_irqrestore(&map->lock, flags);
 			return e;
