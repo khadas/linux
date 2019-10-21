@@ -222,14 +222,17 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
 	 */
 	raw_spin_lock_irqsave(&e->ref_lock, flags);
 
-	EVL_WARN_ON(CORE, e->refs == 0);
+	if (EVL_WARN_ON(CORE, e->refs == 0))
+		goto out;
 
 	if (--e->refs == 0) {
 		e->zombie = true;
 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 		put_element(e);
-	} else
-		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+		return;
+	}
+out:
+	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 }
 
 int evl_release_element(struct inode *inode, struct file *filp)
