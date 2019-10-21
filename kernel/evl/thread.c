@@ -189,6 +189,8 @@ int evl_init_thread(struct evl_thread *thread,
 
 	INIT_LIST_HEAD(&thread->next);
 	INIT_LIST_HEAD(&thread->boosters);
+	INIT_LIST_HEAD(&thread->trackers);
+	raw_spin_lock_init(&thread->tracking_lock);
 	init_completion(&thread->exited);
 
 	gravity = flags & T_USER ? EVL_TIMER_UGRAVITY : EVL_TIMER_KGRAVITY;
@@ -242,9 +244,14 @@ static void uninit_thread(struct evl_thread *thread)
 
 static void do_cleanup_current(struct evl_thread *curr)
 {
-	struct evl_mutex *mutex, *tmp;
 	struct cred *newcap;
 	unsigned long flags;
+
+	/*
+	 * Drop trackers first since this may alter the rq state for
+	 * current.
+	 */
+	evl_drop_tracking_mutexes(curr);
 
 	evl_unindex_element(&curr->element);
 
@@ -279,10 +286,6 @@ static void do_cleanup_current(struct evl_thread *curr)
 	 * nklock, despite @curr bears the zombie bit.
 	 */
 	curr->state |= T_ZOMBIE;
-
-	/* Release all contended mutexes owned by current. */
-	for_each_evl_booster_safe(mutex, tmp, curr)
-		__evl_unlock_mutex(mutex);
 
 	xnlock_put_irqrestore(&nklock, flags);
 

@@ -16,6 +16,7 @@
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <evl/list.h>
+#include <evl/lock.h>
 #include <evl/stat.h>
 #include <evl/timer.h>
 #include <evl/sched/param.h>
@@ -84,9 +85,14 @@ struct evl_thread {
 	struct list_head wait_next;	/* in wchan's wait_list */
 	struct list_head next;		/* evl_thread_list */
 
+	/* List of mutexes tracking this thread. */
+	struct list_head trackers;
+	hard_spinlock_t tracking_lock;
+
 	/*
-	 * List of mutexes owned by this thread causing a priority
-	 * boost due to one of the following reasons:
+	 * List of mutexes owned by this thread which specifically
+	 * cause a priority boost due to one of the following
+	 * reasons:
 	 *
 	 * - they are currently claimed by other thread(s) when
 	 * enforcing the priority inheritance protocol (EVL_MUTEX_PI).
@@ -146,10 +152,10 @@ struct evl_kthread {
 };
 
 #define for_each_evl_booster(__pos, __thread)			\
-	list_for_each_entry(__pos, &(__thread)->boosters, next)
+	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
 
-#define for_each_evl_booster_safe(__pos, __tmp, __thread)		\
-	list_for_each_entry_safe(__pos, __tmp, &(__thread)->boosters, next)
+#define for_each_evl_tracker_safe(__pos, __tmp, __thread)	\
+	list_for_each_entry_safe(__pos, __tmp, &(__thread)->trackers, next_tracker)
 
 static inline void evl_sync_uwindow(struct evl_thread *curr)
 {
