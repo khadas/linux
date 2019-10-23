@@ -278,8 +278,6 @@ void evl_demote_thread(struct evl_thread *thread);
 void evl_signal_thread(struct evl_thread *thread,
 		int sig, int arg);
 
-void evl_call_mayday(struct evl_thread *thread, int reason);
-
 #ifdef CONFIG_SMP
 void evl_migrate_thread(struct evl_thread *thread,
 			struct evl_rq *rq);

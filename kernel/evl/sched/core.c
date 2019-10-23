@@ -89,9 +89,13 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		return;
 
 	if (curr->state & T_USER) {
+		xnlock_get(&nklock);
+		curr->info |= T_KICKED;
+		xnlock_put(&nklock);
+		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_WATCHDOG);
+		dovetail_send_mayday(current);
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
 			"'%s' signaled\n", evl_rq_cpu(this_rq), curr->name);
-		evl_call_mayday(curr, SIGDEBUG_WATCHDOG);
 	} else {
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
 			"'%s' canceled\n", evl_rq_cpu(this_rq), curr->name);
@@ -99,7 +103,7 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		 * On behalf on an IRQ handler, evl_cancel_thread()
 		 * would go half way cancelling the preempted
 		 * thread. Therefore we manually raise T_KICKED to
-		 * cause the next blockig call to return early in
+		 * cause the next blocking call to return early in
 		 * T_BREAK condition, and T_CANCELD so that @curr
 		 * exits next time it invokes evl_test_cancel().
 		 */
