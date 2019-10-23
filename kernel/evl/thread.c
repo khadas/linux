@@ -1474,21 +1474,6 @@ static inline int commit_process_memory(void)
 
 #endif /* !CONFIG_MMU */
 
-/* nklock locked, irqs off */
-void evl_call_mayday(struct evl_thread *thread, int reason)
-{
-	struct task_struct *p = thread->altsched.task;
-
-	/* Mayday traps are available to userland threads only. */
-	if (EVL_WARN_ON(CORE, !(thread->state & T_USER)))
-		return;
-
-	thread->info |= T_KICKED;
-	evl_signal_thread(thread, SIGDEBUG, reason);
-	dovetail_send_mayday(p);
-}
-EXPORT_SYMBOL_GPL(evl_call_mayday);
-
 int evl_killall(int mask)
 {
 	int nrkilled = 0, nrthreads, count;
