@@ -39,9 +39,9 @@ int evl_trydown(struct evl_ksem *ksem)
 	unsigned long flags;
 	bool ret;
 
-	xnlock_get_irqsave(&nklock, flags);
+	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
 	ret = down_ksem(ksem);
-	xnlock_put_irqrestore(&nklock, flags);
+	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
 
 	return ret ? 0 : -EAGAIN;
 }
@@ -51,13 +51,12 @@ void evl_up(struct evl_ksem *ksem)
 {
 	unsigned long flags;
 
-	xnlock_get_irqsave(&nklock, flags);
+	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
 
 	if (!evl_wake_up_head(&ksem->wait))
 		ksem->value++;
 
-	xnlock_put_irqrestore(&nklock, flags);
-
+	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
 	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_up);
