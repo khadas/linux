@@ -19,7 +19,6 @@ void evl_init_wait(struct evl_wait_queue *wq,
 	wq->flags = flags;
 	wq->clock = clock;
 	evl_spin_lock_init(&wq->lock);
-	wq->wchan.abort_wait = evl_abort_wait;
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 }
@@ -70,6 +69,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 		if (waiter == NULL)
 			waiter = list_first_entry(&wq->wchan.wait_list,
 						struct evl_thread, wait_next);
+		list_del_init(&waiter->wait_next);
 		evl_wakeup_thread(waiter, T_PEND, 0);
 	}
 
@@ -86,8 +86,10 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 
 	trace_evl_flush_wait(wq);
 
-	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next)
+	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next) {
+		list_del_init(&waiter->wait_next);
 		evl_wakeup_thread(waiter, T_PEND, reason);
+	}
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
 
@@ -109,14 +111,6 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 }
 
 /* nklock held, irqs off */
-void evl_abort_wait(struct evl_thread *thread,
-		struct evl_wait_channel *wchan)
-{
-	requires_ugly_lock();
-	list_del(&thread->wait_next);
-}
-
-/* nklock held, irqs off */
 void evl_reorder_wait(struct evl_thread *thread)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(thread->wchan);
@@ -129,3 +123,70 @@ void evl_reorder_wait(struct evl_thread *thread)
 	}
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
+
+int evl_wait_schedule(void)
+{
+	struct evl_thread *curr = evl_current();
+	unsigned long flags;
+	int ret = 0, info;
+
+	no_ugly_lock();
+
+	evl_schedule();
+
+	/*
+	 * Upon return from schedule, we may or may not have been
+	 * unlinked from the wait channel, depending on whether we
+	 * actually resumed as a result of receiving a wakeup signal
+	 * from evl_wake_up() or evl_flush_wait(). The following logic
+	 * applies in order, depending on the information flags:
+	 *
+	 * - if T_RMID is set, evl_flush_wait() removed us from the
+	 * waitqueue before the wait channel got destroyed, and
+	 * therefore cannot be referred to anymore since it may be
+	 * stale: -EIDRM is returned.
+	 *
+	 * - if neither T_TIMEO or T_BREAK are set, we got a wakeup
+	 * and success is returned (zero). In addition, the caller may
+	 * need to check for T_BCAST if the signal is not paired with
+	 * a condition but works as a pulse instead.
+	 *
+	 * - otherwise, if any of T_TIMEO or T_BREAK is set:
+	 *
+	 *   + if we are still linked to the waitqueue, the wait was
+	 * aborted prior to receiving any wakeup so we translate the
+	 * information bit to the corresponding error status,
+	 * i.e. -ETIMEDOUT or -EINTR respectively.
+	 *
+	 *  + in the rare case where we have been unlinked and we also
+	 * got any of T_TIMEO|T_BREAK, then both the wakeup signal and
+	 * some abort condition have occurred simultaneously on
+	 * different cores, in which case we ignore the latter. In the
+	 * particular case of T_BREAK caused by
+	 * handle_sigwake_event(), T_KICKED will be detected on the
+	 * return path from the OOB syscall, yielding -ERESTARTSYS as
+	 * expected.
+	 */
+	info = evl_current()->info;
+	if (info & T_RMID)
+		return -EIDRM;
+
+	if (info & (T_TIMEO|T_BREAK)) {
+		xnlock_get_irqsave(&nklock, flags);
+		if (!list_empty(&curr->wait_next)) {
+			list_del_init(&curr->wait_next);
+			if (info & T_TIMEO)
+				ret = -ETIMEDOUT;
+			else if (info & T_BREAK)
+				ret = -EINTR;
+		}
+		xnlock_put_irqrestore(&nklock, flags);
+	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
+		xnlock_get_irqsave(&nklock, flags);
+		EVL_WARN_ON_ONCE(CORE, !list_empty(&curr->wait_next));
+		xnlock_put_irqrestore(&nklock, flags);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(evl_wait_schedule);

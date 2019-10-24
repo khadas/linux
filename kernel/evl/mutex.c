@@ -12,6 +12,7 @@
 #include <evl/thread.h>
 #include <evl/mutex.h>
 #include <evl/monitor.h>
+#include <evl/wait.h>
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>
 
@@ -374,7 +375,6 @@ static void init_mutex(struct evl_mutex *mutex,
 	mutex->wprio = -1;
 	mutex->ceiling_ref = ceiling_ref;
 	mutex->clock = clock;
-	mutex->wchan.abort_wait = evl_abort_mutex_wait;
 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
 	evl_spin_lock_init(&mutex->lock);
@@ -409,8 +409,10 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
 	else {
 		list_for_each_entry_safe(waiter, tmp,
-					&mutex->wchan.wait_list, wait_next)
+					&mutex->wchan.wait_list, wait_next) {
+			list_del_init(&waiter->wait_next);
 			evl_wakeup_thread(waiter, T_PEND, reason);
+		}
 
 		if (mutex->flags & EVL_MUTEX_CLAIMED)
 			clear_pi_boost(mutex, mutex->owner);
@@ -456,6 +458,46 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_trylock_mutex);
+
+/* nklock held, irqs off */
+static void finish_wait(struct evl_mutex *mutex)
+{
+	struct evl_thread *owner, *target;
+
+	/*
+	 * Do all the necessary housekeeping chores to stop current
+	 * from waiting on a mutex. Doing so may require to update a
+	 * PI chain.
+	 */
+	requires_ugly_lock();
+
+	/*
+	 * Only a waiter leaving a PI chain triggers an update.
+	 * NOTE: PP mutexes never bear the CLAIMED bit.
+	 */
+	if (!(mutex->flags & EVL_MUTEX_CLAIMED))
+		return;
+
+	owner = mutex->owner;
+
+	if (list_empty(&mutex->wchan.wait_list)) {
+		/* No more waiters: clear the PI boost. */
+		clear_pi_boost(mutex, owner);
+		return;
+	}
+
+	/*
+	 * Reorder the booster queue of the current owner after we
+	 * left the wait list, then set its priority to the new
+	 * required minimum required to prevent priority inversion.
+	 */
+	target = list_first_entry(&mutex->wchan.wait_list,
+				struct evl_thread, wait_next);
+	mutex->wprio = target->wprio;
+	list_del(&mutex->next_booster);	/* owner->boosters */
+	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+	adjust_boost(owner, target);
+}
 
 int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
 			enum evl_tmode timeout_mode)
@@ -520,7 +562,7 @@ redo:
 	if (owner == NULL) {
 		untrack_owner(mutex);
 		xnlock_put_irqrestore(&nklock, flags);
-		return T_RMID;
+		return -EIDRM;
 	}
 
 	/*
@@ -588,9 +630,9 @@ redo:
 
 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 	xnlock_put_irqrestore(&nklock, flags);
-	evl_schedule();
+	ret = evl_wait_schedule();
 	xnlock_get_irqsave(&nklock, flags);
-	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
+	finish_wait(mutex);
 	curr->wwake = NULL;
 	curr->info &= ~T_WAKEN;
 
@@ -610,7 +652,7 @@ redo:
 			xnlock_put_irqrestore(&nklock, flags);
 			goto redo;
 		}
-		ret = T_TIMEO;
+		ret = -ETIMEDOUT;
 		goto out;
 	}
 grab:
@@ -656,14 +698,12 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	 * We clear the wait channel early on - instead of waiting for
 	 * evl_wakeup_thread() to do so - because we want to hide
 	 * n_owner from the PI/PP adjustment which takes place over
-	 * set_current_owner_locked(). Because of that, we also have
-	 * to unlink the thread from the wait list manually since the
-	 * abort_wait() handler won't be called. NOTE: we do want
+	 * set_current_owner_locked(). NOTE: we do want
 	 * set_current_owner_locked() to run before
 	 * evl_wakeup_thread() is called.
 	 */
 	n_owner->wchan = NULL;
-	list_del(&n_owner->wait_next);
+	list_del_init(&n_owner->wait_next);
 	n_owner->wwake = &mutex->wchan;
 	set_current_owner_locked(mutex, n_owner);
 	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
@@ -776,50 +816,6 @@ static inline struct evl_mutex *
 wchan_to_mutex(struct evl_wait_channel *wchan)
 {
 	return container_of(wchan, struct evl_mutex, wchan);
-}
-
-/* nklock held, irqs off */
-void evl_abort_mutex_wait(struct evl_thread *thread,
-			struct evl_wait_channel *wchan)
-{
-	struct evl_mutex *mutex = wchan_to_mutex(wchan);
-	struct evl_thread *owner, *target;
-
-	requires_ugly_lock();
-
-	/*
-	 * Do all the necessary housekeeping chores to stop a thread
-	 * from waiting on a mutex. Doing so may require to update a
-	 * PI chain.
-	 */
-	list_del(&thread->wait_next); /* mutex->wchan.wait_list */
-
-	/*
-	 * Only a waiter leaving a PI chain triggers an update.
-	 * NOTE: PP mutexes never bear the CLAIMED bit.
-	 */
-	if (!(mutex->flags & EVL_MUTEX_CLAIMED))
-		return;
-
-	owner = mutex->owner;
-
-	if (list_empty(&mutex->wchan.wait_list)) {
-		/* No more waiters: clear the PI boost. */
-		clear_pi_boost(mutex, owner);
-		return;
-	}
-
-	/*
-	 * Reorder the booster queue of the current owner after we
-	 * left the wait list, then set its priority to the new
-	 * required minimum required to prevent priority inversion.
-	 */
-	target = list_first_entry(&mutex->wchan.wait_list,
-				struct evl_thread, wait_next);
-	mutex->wprio = target->wprio;
-	list_del(&mutex->next_booster);	/* owner->boosters */
-	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
-	adjust_boost(owner, target);
 }
 
 /* nklock held, irqs off */

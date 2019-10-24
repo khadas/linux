@@ -34,7 +34,6 @@ struct evl_wait_queue {
 		.clock = &evl_mono_clock,				\
 		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
 		.wchan = {						\
-			.abort_wait = evl_abort_wait,			\
 			.reorder_wait = evl_reorder_wait,		\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
 		},							\
@@ -51,25 +50,9 @@ struct evl_wait_queue {
 	list_for_each_entry_safe(__pos, __tmp,				\
 				&(__wq)->wchan.wait_list, wait_next)
 
-#define evl_wait_schedule()						\
-({									\
-	int __ret = 0, __info;						\
-									\
-	no_ugly_lock();							\
-	evl_schedule();							\
-	__info = evl_current()->info;					\
-	if (__info & T_RMID)						\
-		__ret = -EIDRM;						\
-	else if (__info & T_TIMEO)					\
-		__ret = -ETIMEDOUT;					\
-	else if (__info & T_BREAK)					\
-		__ret = -EINTR;						\
-	__ret;								\
-})
-
 #define evl_wait_event_timeout(__wq, __timeout, __timeout_mode, __cond)	\
 ({									\
-	int __ret = 0, __info = 0;					\
+	int __ret = 0, __bcast;						\
 	unsigned long __flags;						\
 									\
 	no_ugly_lock();							\
@@ -82,20 +65,13 @@ struct evl_wait_queue {
 				evl_add_wait_queue(__wq, __timeout,	\
 						__timeout_mode);	\
 				xnlock_put_irqrestore(&nklock, __flags); \
-				evl_schedule();				\
+				__ret = evl_wait_schedule();		\
+				__bcast = evl_current()->info & T_BCAST; \
 				xnlock_get_irqsave(&nklock, __flags);	\
-				__info = evl_current()->info;		\
-				__info &= EVL_THREAD_WAKE_MASK;		\
-			} while (!__info && !(__cond));			\
+			} while (!__ret && !__bcast && !(__cond));	\
 		}							\
 	}								\
 	xnlock_put_irqrestore(&nklock, __flags);			\
-	if (__info & T_BREAK)						\
-		__ret = -EINTR;						\
-	else if (__info & T_TIMEO)					\
-		__ret = -ETIMEDOUT;					\
-	else if (__info & T_RMID)					\
-		__ret = -EIDRM;						\
 	__ret;								\
 })
 
@@ -105,6 +81,8 @@ struct evl_wait_queue {
 void evl_add_wait_queue(struct evl_wait_queue *wq,
 			ktime_t timeout,
 			enum evl_tmode timeout_mode);
+
+int evl_wait_schedule(void);
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
@@ -140,9 +118,6 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 {
 	return evl_wake_up(wq, NULL);
 }
-
-void evl_abort_wait(struct evl_thread *thread,
-		struct evl_wait_channel *wchan);
 
 void evl_reorder_wait(struct evl_thread *thread);
 

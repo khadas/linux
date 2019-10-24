@@ -185,7 +185,6 @@ static int __enter_monitor(struct evl_monitor *gate,
 {
 	ktime_t timeout = EVL_INFINITE;
 	enum evl_tmode tmode;
-	int info;
 
 	no_ugly_lock();
 
@@ -196,17 +195,8 @@ static int __enter_monitor(struct evl_monitor *gate,
 	}
 
 	tmode = timeout ? EVL_ABS : EVL_REL;
-	info = evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
-	if (info & T_BREAK)
-		return -EINTR;
 
-	if (info & T_RMID)
-		return -EIDRM;
-
-	if (info & T_TIMEO)
-		return -ETIMEDOUT;
-
-	return 0;
+	return evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
 }
 
 static int enter_monitor(struct evl_monitor *gate,
