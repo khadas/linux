@@ -459,16 +459,6 @@ fail_element:
 }
 EXPORT_SYMBOL_GPL(__evl_run_kthread);
 
-static inline void abort_wait(struct evl_thread *thread)
-{
-	struct evl_wait_channel *wchan = thread->wchan;
-
-	if (wchan) {
-		thread->wchan = NULL;
-		wchan->abort_wait(thread, wchan);
-	}
-}
-
 void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan)
@@ -492,10 +482,6 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	 */
 	if (likely(!(oldstate & EVL_THREAD_BLOCK_BITS))) {
 		if (curr->info & T_KICKED) {
-			if (wchan) {
-				curr->wchan = wchan;
-				abort_wait(curr);
-			}
 			curr->info &= ~(T_RMID|T_TIMEO);
 			curr->info |= T_BREAK;
 			goto out;
@@ -566,8 +552,8 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 			evl_stop_timer(&thread->rtimer);
 
 		if (mask & T_PEND & oldstate)
-			abort_wait(thread);
-
+			thread->wchan = NULL;
+	
 		thread->info |= info;
 
 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {

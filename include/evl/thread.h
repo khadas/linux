@@ -28,7 +28,6 @@
 
 #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT)
 #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST)
-#define EVL_THREAD_WAKE_MASK	(T_RMID|T_TIMEO|T_BREAK|T_BCAST)
 
 struct evl_thread;
 struct evl_rq;
@@ -43,8 +42,6 @@ struct evl_init_thread_attr {
 };
 
 struct evl_wait_channel {
-	void (*abort_wait)(struct evl_thread *thread,
-			struct evl_wait_channel *wchan);
 	void (*reorder_wait)(struct evl_thread *thread);
 	struct list_head wait_list;
 };
