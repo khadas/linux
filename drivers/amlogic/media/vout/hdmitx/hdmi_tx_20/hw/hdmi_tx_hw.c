@@ -4907,8 +4907,12 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			hdmitx_hdcp_opr(1);
 			hdcp_start_timer(hdev);
 		}
-		if (argv == HDCP14_OFF)
+		if (argv == HDCP14_OFF) {
+			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);
+			usleep_range(1000, 2000);
+			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 6, 1);
 			hdmitx_hdcp_opr(4);
+		}
 		if (argv == HDCP22_ON) {
 			if (hdev->topo_info)
 				hdev->topo_info->hdcp_ver = 2;
