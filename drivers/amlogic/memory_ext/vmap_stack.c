@@ -179,12 +179,12 @@ unsigned long notrace pmd_check(unsigned long addr, unsigned long far)
 	pud_t *pud, *pud_k;
 	pmd_t *pmd, *pmd_k;
 
-	if (addr < TASK_SIZE)
+	if (far < TASK_SIZE)
 		return addr;
 
-	index = pgd_index(addr);
+	index = pgd_index(far);
 
-	pgd = cpu_get_pgd() + index;
+	pgd   = cpu_get_pgd() + index;
 	pgd_k = init_mm.pgd + index;
 
 	if (pgd_none(*pgd_k))
@@ -192,16 +192,16 @@ unsigned long notrace pmd_check(unsigned long addr, unsigned long far)
 	if (!pgd_present(*pgd))
 		set_pgd(pgd, *pgd_k);
 
-	pud = pud_offset(pgd, addr);
-	pud_k = pud_offset(pgd_k, addr);
+	pud   = pud_offset(pgd, far);
+	pud_k = pud_offset(pgd_k, far);
 
 	if (pud_none(*pud_k))
 		goto bad_area;
 	if (!pud_present(*pud))
 		set_pud(pud, *pud_k);
 
-	pmd = pmd_offset(pud, addr);
-	pmd_k = pmd_offset(pud_k, addr);
+	pmd   = pmd_offset(pud, far);
+	pmd_k = pmd_offset(pud_k, far);
 
 #ifdef CONFIG_ARM_LPAE
 	/*
@@ -217,7 +217,7 @@ unsigned long notrace pmd_check(unsigned long addr, unsigned long far)
 	 * pmd_none() check for the entry really corresponded to address, not
 	 * for the first of pair.
 	 */
-	index = (addr >> SECTION_SHIFT) & 1;
+	index = (far >> SECTION_SHIFT) & 1;
 #endif
 	if (pmd_none(pmd_k[index]))
 		goto bad_area;
