@@ -37,9 +37,6 @@ struct evl_mutex {
 	struct list_head next_tracker;   /* thread->trackers */
 };
 
-#define evl_for_each_mutex_waiter(__pos, __mutex)	\
-	list_for_each_entry(__pos, &(__mutex)->wchan.wait_list, wait_next)
-
 void evl_init_mutex_pi(struct evl_mutex *mutex,
 		struct evl_clock *clock,
 		atomic_t *fastlock);
@@ -74,7 +71,7 @@ void evl_detect_boost_drop(struct evl_thread *owner);
 
 void evl_reorder_mutex_wait(struct evl_thread *thread);
 
-void evl_drop_tracking_mutexes(struct evl_thread *thread);
+void evl_drop_tracking_mutexes(struct evl_thread *curr);
 
 struct evl_kmutex {
 	struct evl_mutex mutex;
@@ -104,7 +101,8 @@ struct evl_kmutex {
 static inline
 void evl_init_kmutex(struct evl_kmutex *kmutex)
 {
-	*kmutex = (struct evl_kmutex)EVL_KMUTEX_INITIALIZER(*kmutex);
+	atomic_set(&kmutex->fastlock, 0);
+	evl_init_mutex_pi(&kmutex->mutex, &evl_mono_clock, &kmutex->fastlock);
 }
 
 static inline
