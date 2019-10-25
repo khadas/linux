@@ -112,17 +112,22 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 	return container_of(wchan, struct evl_wait_queue, wchan);
 }
 
-/* wq->lock held, irqs off */
+/* thread->lock held, irqs off */
 void evl_reorder_wait(struct evl_thread *thread)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(thread->wchan);
 
-	assert_evl_lock(&wq->lock);
+	assert_evl_lock(&thread->lock);
+	no_ugly_lock();
+
+	evl_spin_lock(&wq->lock);
 
 	if (wq->flags & EVL_WAIT_PRIO) {
 		list_del(&thread->wait_next);
 		list_add_priff(thread, &wq->wchan.wait_list, wprio, wait_next);
 	}
+
+	evl_spin_unlock(&wq->lock);
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
 

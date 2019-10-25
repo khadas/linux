@@ -373,15 +373,17 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	return true;
 }
 
-/* thread->lock + nklock held, interrupts off. */
+/* thread->lock + target->lock held, irqs off */
 void evl_track_thread_policy(struct evl_thread *thread,
 			struct evl_thread *target)
 {
 	union evl_sched_param param;
 
 	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_evl_lock(&target->lock);
+	no_ugly_lock();
 
+	xnlock_get(&nklock);
 	/*
 	 * Inherit (or reset) the effective scheduling class and
 	 * priority of a thread. Unlike evl_set_thread_policy(), this
@@ -401,7 +403,7 @@ void evl_track_thread_policy(struct evl_thread *thread,
 		/*
 		 * Per SuSv2, resetting the base scheduling parameters
 		 * should not move the thread to the tail of its
-		 * priority group.
+		 * priority group. Go for POLA here.
 		 */
 		if (thread->state & T_READY)
 			evl_requeue_thread(thread);
@@ -417,13 +419,17 @@ void evl_track_thread_policy(struct evl_thread *thread,
 	trace_evl_thread_set_current_prio(thread);
 
 	evl_set_resched(thread->rq);
+
+	xnlock_put(&nklock);
 }
 
-/* thread->lock + nklock held, interrupts off. */
+/* thread->lock, irqs off */
 void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
 	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	no_ugly_lock();
+
+	xnlock_get(&nklock);
 
 	/*
 	 * Apply a PP boost by changing the effective priority of a
@@ -448,6 +454,8 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	trace_evl_thread_set_current_prio(thread);
 
 	evl_set_resched(thread->rq);
+
+	xnlock_put(&nklock);
 }
 
 /*
@@ -677,9 +685,6 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 	trace_evl_schedule(this_rq);
 
 	flags = oob_irq_save();
-	curr = this_rq->curr;
-	evl_spin_lock(&curr->lock);
-	xnlock_get(&nklock);
 
 	/*
 	 * Check whether we have a pending priority ceiling request to
@@ -688,15 +693,12 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 	 * &rq->root_thread. Testing T_USER eliminates this case since
 	 * a root thread never bears this bit.
 	 */
-	if (curr->state & T_USER) {
-		if (curr->u_window->pp_pending != EVL_NO_HANDLE) {
-			xnlock_put(&nklock);
-			evl_spin_unlock_irqrestore(&curr->lock, flags);
-			__evl_commit_monitor_ceiling();
-			evl_spin_lock_irqsave(&curr->lock, flags);
-			xnlock_get(&nklock);
-		}
-	}
+	curr = this_rq->curr;
+	if (curr->state & T_USER)
+		evl_commit_monitor_ceiling();
+
+	evl_spin_lock(&curr->lock);
+	xnlock_get(&nklock);
 
 	if (unlikely(!test_resched(this_rq))) {
 		xnlock_put(&nklock);
