@@ -38,12 +38,16 @@
 /*
  * Interrupt handling.
  */
-	.macro	irq_handler
 #ifdef CONFIG_AMLOGIC_VMAP
+	.macro	irq_handler, vmap=0
+	.if \vmap
 	mov	r8, sp			/* back up sp */
 	mov	r0, sp
 	bl	irq_stack_entry		/* switch IRQ stack */
 	mov	sp, r0
+	.endif
+#else
+	.macro	irq_handler
 #endif
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	ldr	r1, =handle_arch_irq
@@ -59,7 +63,9 @@
 #endif
 9997:
 #ifdef CONFIG_AMLOGIC_VMAP
+	.if \vmap
 	mov	sp, r8			/* switch stack back to task stack */
+	.endif
 #endif
 	.endm
 
@@ -226,7 +232,13 @@ ENDPROC(__und_invalid)
 	 * get fault task thread info
 	 */
 	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
+#ifdef CONFIG_AMLOGIC_KASAN32
+	/* FAR may be kasan shadow then nobody will handle it */
 	mrc	p15, 0, r1, c6, c0, 0		@ get FAR
+	bl	pmd_check
+#endif
+	/* sp may not access able when swith task */
+	mov	r1, r0
 	bl	pmd_check
 	mov	tsk, r0
 	mov 	tsk, tsk, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT
@@ -294,7 +306,11 @@ __dabt_svc:
 	sub	r0, #SVC_REGS_SIZE
 	mov	r1, sp
 	mov	r2, #SVC_REGS_SIZE
+#ifdef CONFIG_AMLOGIC_KASAN32
+	bl	__memcpy		/* copy back sp	*/
+#else
 	bl	memcpy			/* copy back sp	*/
+#endif
 	mov	sp, r0
 #else
 	svc_entry uaccess=0
@@ -309,7 +325,11 @@ ENDPROC(__dabt_svc)
 	.align	5
 __irq_svc:
 	svc_entry
+#ifdef CONFIG_AMLOGIC_VMAP
+	irq_handler vmap=1
+#else
 	irq_handler
+#endif
 
 #ifdef CONFIG_PREEMPT
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
