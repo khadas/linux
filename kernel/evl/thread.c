@@ -250,6 +250,8 @@ static void uninit_thread(struct evl_thread *thread)
 {
 	unsigned long flags;
 
+	no_ugly_lock();
+
 	evl_destroy_timer(&thread->rtimer);
 	evl_destroy_timer(&thread->ptimer);
 
@@ -264,6 +266,8 @@ static void do_cleanup_current(struct evl_thread *curr)
 {
 	struct cred *newcap;
 	unsigned long flags;
+
+	no_ugly_lock();
 
 	/*
 	 * Drop trackers first since this may alter the rq state for
@@ -468,6 +472,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	struct evl_rq *rq;
 
 	oob_context_only();
+	no_ugly_lock();
 
 	xnlock_get_irqsave(&nklock, flags);
 
@@ -532,6 +537,8 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
+	no_ugly_lock();
+
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
 		return;
 
@@ -572,6 +579,8 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
+
+	no_ugly_lock();
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_DORMANT)))
 		return;
@@ -628,6 +637,8 @@ void evl_release_thread(struct evl_thread *thread, int mask, int info)
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
 
+	no_ugly_lock();
+
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT)))
 		return;
 
@@ -667,7 +678,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(evl_release_thread);
 
-/* nklock held, irqs off */
 static void inband_task_wakeup(struct irq_work *work)
 {
 	struct evl_thread *thread;
@@ -832,6 +842,7 @@ EXPORT_SYMBOL_GPL(evl_switch_oob);
 void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 {
 	union evl_sched_param param = { .fifo = { .prio = priority } };
+
 	evl_set_thread_schedparam(&kthread->thread, &evl_sched_fifo, &param);
 	evl_schedule();
 }
@@ -998,6 +1009,8 @@ void evl_cancel_thread(struct evl_thread *thread)
 {
 	unsigned long flags;
 
+	no_ugly_lock();
+
 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
 		return;
 
@@ -1070,7 +1083,6 @@ int evl_detach_self(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(evl_detach_self);
 
 int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 {
@@ -1158,6 +1170,8 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 	unsigned long flags;
 	int ret;
 
+	no_ugly_lock();
+
 	xnlock_get_irqsave(&nklock, flags);
 	ret = __evl_set_thread_schedparam(thread, sched_class, sched_param);
 	xnlock_put_irqrestore(&nklock, flags);
@@ -1171,6 +1185,8 @@ int __evl_set_thread_schedparam(struct evl_thread *thread,
 				const union evl_sched_param *sched_param)
 {
 	int old_wprio, new_wprio, ret;
+
+	requires_ugly_lock();
 
 	old_wprio = thread->wprio;
 
@@ -1199,6 +1215,8 @@ int __evl_set_thread_schedparam(struct evl_thread *thread,
 
 void __evl_test_cancel(struct evl_thread *curr)
 {
+	no_ugly_lock();
+
 	/*
 	 * Just in case evl_test_cancel() is called from an IRQ
 	 * handler, in which case we may not take the exit path.
@@ -1224,6 +1242,8 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	struct task_struct *p = current;
 	struct sched_param param;
 	unsigned long flags;
+
+	no_ugly_lock();
 
 	/*
 	 * Test-set race for T_SCHEDP is ok, the propagation is meant
