@@ -1622,9 +1622,6 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 		xnarch_fault_notify(trapnr))
 		note_trap(curr, trapnr, regs, "switching in-band");
 
-	if (xnarch_fault_pf_p(trapnr))
-		evl_inc_counter(&curr->stat.pf);
-
 	/*
 	 * We received a trap on the oob stage, switch to in-band
 	 * before handling the exception.
