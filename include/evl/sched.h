@@ -119,8 +119,8 @@ struct evl_sched_class {
 	/*
 	 * Set base scheduling parameters. This routine is indirectly
 	 * called upon a change of base scheduling settings through
-	 * __evl_set_thread_schedparam() -> evl_set_thread_policy(),
-	 * exclusively.
+	 * evl_set_thread_schedparam_locked() ->
+	 * evl_set_thread_policy_locked(), exclusively.
 	 *
 	 * The scheduling class implementation should do the necessary
 	 * housekeeping to comply with the new settings.
@@ -346,6 +346,10 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread,
 
 void evl_putback_thread(struct evl_thread *thread);
 
+int evl_set_thread_policy_locked(struct evl_thread *thread,
+				struct evl_sched_class *sched_class,
+				const union evl_sched_param *p);
+
 int evl_set_thread_policy(struct evl_thread *thread,
 			  struct evl_sched_class *sched_class,
 			  const union evl_sched_param *p);
@@ -392,6 +396,9 @@ static inline void evl_sched_tick(struct evl_rq *rq)
 {
 	struct evl_thread *curr = rq->curr;
 	struct evl_sched_class *sched_class = curr->sched_class;
+
+	requires_ugly_lock();
+
 	/*
 	 * A thread that undergoes round-robin scheduling only
 	 * consumes its time slice when it runs within its own
@@ -412,6 +419,9 @@ int evl_check_schedparams(struct evl_sched_class *sched_class,
 {
 	int ret = 0;
 
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	if (sched_class->sched_chkparam)
 		ret = sched_class->sched_chkparam(thread, p);
 
@@ -424,6 +434,9 @@ int evl_declare_thread(struct evl_sched_class *sched_class,
 		       const union evl_sched_param *p)
 {
 	int ret;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	if (sched_class->sched_declare) {
 		ret = sched_class->sched_declare(thread, p);
@@ -446,6 +459,9 @@ static __always_inline void evl_enqueue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	/*
 	 * Enqueue for next pick: i.e. move to end of current priority
 	 * group (i.e. FIFO).
@@ -460,6 +476,9 @@ static __always_inline void evl_dequeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	/*
 	 * Pull from the runnable thread queue.
 	 */
@@ -472,6 +491,9 @@ static __always_inline void evl_dequeue_thread(struct evl_thread *thread)
 static __always_inline void evl_requeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	/*
 	 * Put back at same place: i.e. requeue to head of current
@@ -487,24 +509,36 @@ static inline
 bool evl_set_schedparam(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	return thread->base_class->sched_setparam(thread, p);
 }
 
 static inline void evl_get_schedparam(struct evl_thread *thread,
 				      union evl_sched_param *p)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	thread->sched_class->sched_getparam(thread, p);
 }
 
 static inline void evl_track_priority(struct evl_thread *thread,
 				      const union evl_sched_param *p)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	thread->sched_class->sched_trackprio(thread, p);
 	thread->wprio = evl_calc_weighted_prio(thread->sched_class, thread->cprio);
 }
 
 static inline void evl_ceil_priority(struct evl_thread *thread, int prio)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	thread->sched_class->sched_ceilprio(thread, prio);
 	thread->wprio = evl_calc_weighted_prio(thread->sched_class, thread->cprio);
 }
@@ -512,6 +546,9 @@ static inline void evl_ceil_priority(struct evl_thread *thread, int prio)
 static inline void evl_forget_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->base_class;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	--sched_class->nthreads;
 
@@ -522,6 +559,9 @@ static inline void evl_forget_thread(struct evl_thread *thread)
 static inline void evl_force_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->base_class;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	thread->info |= T_KICKED;
 

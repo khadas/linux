@@ -47,44 +47,18 @@ struct evl_wait_channel {
 };
 
 struct evl_thread {
-	struct evl_element element;
+	evl_spinlock_t lock;
 
-	__u32 state;		/* Thread state flags */
-	__u32 info;		/* Thread information flags */
-	__u32 local_info;	/* Local thread information flags */
-	struct dovetail_altsched_context altsched;
-
-	struct evl_rq *rq;		/* Run queue */
-	struct evl_sched_class *sched_class; /* Current scheduling class */
-	struct evl_sched_class *base_class; /* Base scheduling class */
-
-#ifdef CONFIG_EVL_SCHED_QUOTA
-	struct evl_quota_group *quota; /* Quota scheduling group. */
-	struct list_head quota_expired;
-	struct list_head quota_next;
-#endif
-#ifdef CONFIG_EVL_SCHED_TP
-	struct evl_tp_rq *tps;	  /* Current runqueue slot */
-	struct list_head tp_link; /* evl_rq->tp.threads */
-#endif
-	struct cpumask affinity;	/* Processor affinity. */
-
-	/* Base priority (before PI/PP boost) */
-	int bprio;
-	/* Current (effective) priority */
-	int cprio;
 	/*
-	 * Weighted priority (cprio + scheduling class weight).
+	 * Shared data, covered by ->lock.
 	 */
-	int wprio;
+	struct evl_rq *rq;
+	struct evl_sched_class *base_class;
+	struct evl_sched_class *sched_class; /* PI/PP sensitive. */
 
-	struct list_head rq_next;	/* evl_rq->policy.runqueue */
-	struct list_head wait_next;	/* in wchan's wait_list */
-	struct list_head next;		/* evl_thread_list */
-
-	/* List of mutexes tracking this thread. */
-	struct list_head trackers;
-	hard_spinlock_t tracking_lock;
+	int bprio;
+	int cprio; /* PI/PP sensitive. */
+	int wprio; /* cprio + scheduling class weight */
 
 	/*
 	 * List of mutexes owned by this thread which specifically
@@ -100,42 +74,64 @@ struct evl_thread {
 	 * waiters.
 	 */
 	struct list_head boosters;
+	struct evl_wait_channel *wchan;	/* Wait channel @thread pends on */
+	struct list_head wait_next;	/* in wchan->wait_list */
+	struct evl_wait_channel *wwake;	/* wchan that triggered wakeup */
 
-	struct evl_wait_channel *wchan;		/* Wchan the thread pends on */
-	struct evl_wait_channel *wwake;		/* Wchan the thread was resumed from */
-	atomic_t inband_disable_count;
+	struct evl_timer rtimer;  /* Resource timer */
+	struct evl_timer ptimer;  /* Periodic timer */
+	ktime_t rrperiod;  /* Round-robin period (ns) */
 
-	struct evl_timer rtimer;		/* Resource timer */
-	struct evl_timer ptimer;		/* Periodic timer */
+	/*
+	 * Shared data, covered by both thread->lock AND nklock.
+	 */
+	__u32 state;
+	__u32 info;
+#ifdef CONFIG_EVL_SCHED_QUOTA
+	struct evl_quota_group *quota;
+	struct list_head quota_expired; /* evl_rq->quota.expired */
+	struct list_head quota_next;	/* evl_rq->quota.members */
+#endif
+#ifdef CONFIG_EVL_SCHED_TP
+	struct evl_tp_rq *tps;
+	struct list_head tp_link;	/* evl_rq->tp.threads */
+#endif
+	struct list_head rq_next;	/* evl_rq->policy.runqueue */
 
-	ktime_t rrperiod;		/* Allotted round-robin period (ns) */
-
-	void *wait_data;		/* Active wait data. */
-
+	/*
+	 * Thread-local data the owner may modified locklessly.
+	 */
+	__u32 local_info;
+	void *wait_data;
 	struct {
 		struct evl_poll_watchpoint *table;
 		unsigned int generation;
 		int nr;
 	} poll_context;
-
+	atomic_t inband_disable_count;
 	struct {
 		struct evl_counter isw;	/* in-band switches */
 		struct evl_counter csw;	/* context switches */
 		struct evl_counter sc;	/* OOB syscalls */
 		struct evl_counter rwa;	/* remote wakeups */
-		struct evl_account account; /* Execution time accounting entity */
-		struct evl_account lastperiod; /* Interval marker for execution time reports */
+		struct evl_account account; /* exec time accounting */
+		struct evl_account lastperiod;
 	} stat;
+
+	/* Misc stuff. */
+
+	struct list_head trackers; /* Mutexes tracking @thread */
+	hard_spinlock_t tracking_lock;
+
+	struct list_head next;	/* in evl_thread_list */
+	struct dovetail_altsched_context altsched;
+	struct evl_element element;
+	struct cpumask affinity;
 
 	char *name;
 	struct completion exited;
 	struct irq_work inband_work;
 	kernel_cap_t raised_cap;
-
-	/*
-	 * Thread data visible from userland through a window on the
-	 * global heap.
-	 */
 	struct evl_user_window *u_window;
 	struct list_head kill_next;
 };
@@ -274,16 +270,7 @@ void evl_demote_thread(struct evl_thread *thread);
 void evl_signal_thread(struct evl_thread *thread,
 		int sig, int arg);
 
-#ifdef CONFIG_SMP
-void evl_migrate_thread(struct evl_thread *thread,
-			struct evl_rq *rq);
-#else
-static inline void evl_migrate_thread(struct evl_thread *thread,
-				struct evl_rq *rq)
-{ }
-#endif
-
-int __evl_set_thread_schedparam(struct evl_thread *thread,
+int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 				struct evl_sched_class *sched_class,
 				const union evl_sched_param *sched_param);
 
