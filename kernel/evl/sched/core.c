@@ -627,13 +627,17 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
  * may not still be the current one. Use "current" for disambiguating
  * if you need to refer to the underlying inband task.
  */
-bool __evl_schedule(struct evl_rq *this_rq)
+void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 {
-	bool switched, leaving_inband, inband_tail;
+	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_thread *prev, *next, *curr;
+	bool leaving_inband, inband_tail;
 	unsigned long flags;
 
 	no_ugly_lock();
+
+	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !oob_irqs_disabled()))
+		return;
 
 	trace_evl_schedule(this_rq);
 
@@ -655,7 +659,6 @@ bool __evl_schedule(struct evl_rq *this_rq)
 		}
 	}
 
-	switched = false;
 	if (!test_resched(this_rq))
 		goto out;
 
@@ -702,13 +705,9 @@ bool __evl_schedule(struct evl_rq *this_rq)
 	 *                               back from dovetail_context_switch()
 	 */
 	if (inband_tail)
-		return true;
-
-	switched = true;
+		return;
 out:
 	xnlock_put_irqrestore(&nklock, flags);
-
-	return switched;
 }
 EXPORT_SYMBOL_GPL(__evl_schedule);
 
