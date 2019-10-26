@@ -207,12 +207,12 @@ static void tp_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	 * cannot apply to a thread that moves to another CPU
 	 * anymore. So we upgrade that thread to the FIFO class when a
 	 * CPU migration occurs. A subsequent call to
-	 * __evl_set_thread_schedparam() may move it back to TP
+	 * evl_set_thread_schedparam_locked() may move it back to TP
 	 * scheduling, with a partition assignment that fits the
 	 * remote CPU's partition schedule.
 	 */
 	param.fifo.prio = thread->cprio;
-	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+	evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
 }
 
 static ssize_t tp_show(struct evl_thread *thread,
@@ -259,14 +259,14 @@ set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
 
 	/*
 	 * Move all TP threads on this scheduler to the FIFO class,
-	 * until we call __evl_set_thread_schedparam() for them again.
+	 * until we call evl_set_thread_schedparam_locked() for them again.
 	 */
 	if (list_empty(&tp->threads))
 		goto done;
 
 	list_for_each_entry_safe(thread, tmp, &tp->threads, tp_link) {
 		param.fifo.prio = thread->cprio;
-		__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+		evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
 	}
 done:
 	old_gps = tp->gps;
@@ -310,9 +310,9 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	if (cpu < 0 || !cpu_present(cpu) || !is_threading_cpu(cpu))
 		return -EINVAL;
 
-	xnlock_get_irqsave(&nklock, flags);
-
 	rq = evl_cpu_rq(cpu);
+
+	xnlock_get_irqsave(&nklock, flags);
 
 	switch (pt->op) {
 	case evl_install_tp:

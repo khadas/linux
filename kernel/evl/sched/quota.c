@@ -144,7 +144,7 @@ static inline void replenish_budget(struct evl_sched_quota *qs,
 		tg->run_budget = budget;
 }
 
-static void quota_refill_handler(struct evl_timer *timer) /* hard irqs off */
+static void quota_refill_handler(struct evl_timer *timer) /* oob stage stalled */
 {
 	struct evl_quota_group *tg;
 	struct evl_thread *thread, *tmp;
@@ -182,7 +182,7 @@ static void quota_refill_handler(struct evl_timer *timer) /* hard irqs off */
 	xnlock_put(&nklock);
 }
 
-static void quota_limit_handler(struct evl_timer *timer) /* hard irqs off */
+static void quota_limit_handler(struct evl_timer *timer) /* oob stage stalled */
 {
 	struct evl_rq *rq;
 
@@ -465,7 +465,7 @@ static void quota_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	 * the target thread to the FIFO class.
 	 */
 	param.fifo.prio = thread->cprio;
-	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+	evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
 }
 
 static ssize_t quota_show(struct evl_thread *thread,
@@ -529,7 +529,7 @@ static int quota_destroy_group(struct evl_quota_group *tg,
 		list_for_each_entry_safe(thread, tmp,
 					&tg->members, quota_next) {
 			param.fifo.prio = thread->cprio;
-			__evl_set_thread_schedparam(thread,
+			evl_set_thread_schedparam_locked(thread,
 						&evl_sched_fifo, &param);
 		}
 	}
@@ -653,8 +653,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		if (group == NULL)
 			return -ENOMEM;
 		tg = &group->quota;
-		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
+		xnlock_get_irqsave(&nklock, flags);
 		ret = quota_create_group(tg, rq, &quota_sum);
 		if (ret) {
 			xnlock_put_irqrestore(&nklock, flags);
@@ -665,8 +665,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		break;
 	case evl_quota_remove:
 	case evl_quota_force_remove:
-		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
+		xnlock_get_irqsave(&nklock, flags);
 		tg = find_quota_group(rq, pq->u.remove.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
@@ -683,8 +683,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		evl_free(group);
 		return 0;
 	case evl_quota_set:
-		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
+		xnlock_get_irqsave(&nklock, flags);
 		tg = find_quota_group(rq, pq->u.set.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
@@ -693,8 +693,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 				&quota_sum);
 		break;
 	case evl_quota_get:
-		xnlock_get_irqsave(&nklock, flags);
 		rq = evl_cpu_rq(cpu);
+		xnlock_get_irqsave(&nklock, flags);
 		tg = find_quota_group(rq, pq->u.get.tgid);
 		if (tg == NULL)
 			goto bad_tgid;

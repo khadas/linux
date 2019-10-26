@@ -72,7 +72,7 @@ static inline ktime_t get_watchdog_timeout(void)
 	return ns_to_ktime(wd_timeout_arg * 1000000000ULL);
 }
 
-static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
+static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 {
 	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_thread *curr = this_rq->curr;
@@ -89,9 +89,11 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		return;
 
 	if (curr->state & T_USER) {
+		evl_spin_lock(&curr->lock);
 		xnlock_get(&nklock);
 		curr->info |= T_KICKED;
 		xnlock_put(&nklock);
+		evl_spin_unlock(&curr->lock);
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_WATCHDOG);
 		dovetail_send_mayday(current);
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
@@ -107,9 +109,11 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
 		 * T_BREAK condition, and T_CANCELD so that @curr
 		 * exits next time it invokes evl_test_cancel().
 		 */
+		evl_spin_lock(&curr->lock);
 		xnlock_get(&nklock);
 		curr->info |= (T_KICKED|T_CANCELD);
 		xnlock_put(&nklock);
+		evl_spin_unlock(&curr->lock);
 	}
 }
 
@@ -220,9 +224,12 @@ EXPORT_SYMBOL(evl_enable_preempt);
 
 #endif /* CONFIG_EVL_DEBUG_CORE */
 
-/* nklock locked, interrupts off. */
+/* thread->lock + nklock locked, interrupts off. */
 void evl_putback_thread(struct evl_thread *thread)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	if (thread->state & T_READY)
 		evl_dequeue_thread(thread);
 	else
@@ -232,14 +239,17 @@ void evl_putback_thread(struct evl_thread *thread)
 	evl_set_resched(thread->rq);
 }
 
-/* nklock locked, interrupts off. */
-int evl_set_thread_policy(struct evl_thread *thread,
-			struct evl_sched_class *sched_class,
-			const union evl_sched_param *p)
+/* thread->lock + nklock held, interrupts off. */
+int evl_set_thread_policy_locked(struct evl_thread *thread,
+				struct evl_sched_class *sched_class,
+				const union evl_sched_param *p)
 {
 	struct evl_sched_class *orig_effective_class __maybe_unused;
 	bool effective;
 	int ret;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	/* Check parameters early on. */
 	ret = evl_check_schedparams(sched_class, thread, p);
@@ -317,12 +327,30 @@ int evl_set_thread_policy(struct evl_thread *thread,
 			sched_class != &evl_sched_idle);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(evl_set_thread_policy);
 
-/* nklock locked, interrupts off. */
+int evl_set_thread_policy(struct evl_thread *thread,
+			struct evl_sched_class *sched_class,
+			const union evl_sched_param *p)
+{
+	unsigned long flags;
+	int ret;
+
+	evl_spin_lock_irqsave(&thread->lock, flags);
+	xnlock_get(&nklock);
+	ret = evl_set_thread_policy_locked(thread, sched_class, p);
+	xnlock_put(&nklock);
+	evl_spin_unlock_irqrestore(&thread->lock, flags);
+
+	return ret;
+}
+
+/* thread->lock + nklock held, interrupts off. */
 bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 {
 	int wprio = evl_calc_weighted_prio(thread->base_class, prio);
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	thread->bprio = prio;
 	if (wprio == thread->wprio)
@@ -345,11 +373,14 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	return true;
 }
 
-/* nklock locked, interrupts off. */
+/* thread->lock + nklock held, interrupts off. */
 void evl_track_thread_policy(struct evl_thread *thread,
 			struct evl_thread *target)
 {
 	union evl_sched_param param;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	/*
 	 * Inherit (or reset) the effective scheduling class and
@@ -388,9 +419,12 @@ void evl_track_thread_policy(struct evl_thread *thread,
 	evl_set_resched(thread->rq);
 }
 
-/* nklock locked, interrupts off. */
+/* thread->lock + nklock held, interrupts off. */
 void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
+
 	/*
 	 * Apply a PP boost by changing the effective priority of a
 	 * thread, forcing it to the FIFO class. Like
@@ -416,9 +450,16 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	evl_set_resched(thread->rq);
 }
 
-static void migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
+/*
+ * thread->lock + nklock held, interrupts off. Thread may be blocked.
+ */
+void evl_migrate_rq(struct evl_thread *thread, struct evl_rq *rq)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
+	struct evl_rq *last_rq = thread->rq;
+
+	assert_evl_lock(&thread->lock);
+	requires_ugly_lock();
 
 	if (thread->state & T_READY) {
 		evl_dequeue_thread(thread);
@@ -432,20 +473,11 @@ static void migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
 	 * result of calling the per-class migration hook.
 	 */
 	thread->rq = rq;
-}
-
-/*
- * nklock locked, interrupts off. Thread may be blocked.
- */
-void evl_migrate_rq(struct evl_thread *thread, struct evl_rq *rq)
-{
-	struct evl_rq *last_rq = thread->rq;
-
-	migrate_thread(thread, rq);
 
 	if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
 		evl_requeue_thread(thread);
 		thread->state |= T_READY;
+		evl_set_resched(rq);
 		evl_set_resched(last_rq);
 	}
 }
@@ -570,6 +602,8 @@ static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
 static inline void set_thread_running(struct evl_rq *rq,
 				struct evl_thread *thread)
 {
+	requires_ugly_lock();
+
 	thread->state &= ~T_READY;
 	if (thread->state & T_RRB)
 		evl_start_timer(&rq->rrbtimer,
@@ -579,6 +613,7 @@ static inline void set_thread_running(struct evl_rq *rq,
 		evl_stop_timer(&rq->rrbtimer);
 }
 
+/* curr->lock + nklock held, irqs off. */
 static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 {
 	struct evl_sched_class *sched_class;
@@ -591,7 +626,7 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	 * preemption is allowed.
 	 */
 	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
-		if (evl_preempt_count() > 0) {
+		if (evl_preempt_count() > 1) { /* FIXME: seriously... */
 			evl_set_self_resched(rq);
 			return curr;
 		}
@@ -612,7 +647,7 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	 */
 	for_each_evl_sched_class(sched_class) {
 		thread = sched_class->sched_pick(rq);
-		if (thread) {
+		if (likely(thread)) {
 			set_thread_running(rq, thread);
 			return thread;
 		}
@@ -641,7 +676,10 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 
 	trace_evl_schedule(this_rq);
 
-	xnlock_get_irqsave(&nklock, flags);
+	flags = oob_irq_save();
+	curr = this_rq->curr;
+	evl_spin_lock(&curr->lock);
+	xnlock_get(&nklock);
 
 	/*
 	 * Check whether we have a pending priority ceiling request to
@@ -650,17 +688,21 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 	 * &rq->root_thread. Testing T_USER eliminates this case since
 	 * a root thread never bears this bit.
 	 */
-	curr = this_rq->curr;
 	if (curr->state & T_USER) {
 		if (curr->u_window->pp_pending != EVL_NO_HANDLE) {
-			xnlock_put_irqrestore(&nklock, flags);
+			xnlock_put(&nklock);
+			evl_spin_unlock_irqrestore(&curr->lock, flags);
 			__evl_commit_monitor_ceiling();
-			xnlock_get_irqsave(&nklock, flags);
+			evl_spin_lock_irqsave(&curr->lock, flags);
+			xnlock_get(&nklock);
 		}
 	}
 
-	if (!test_resched(this_rq))
-		goto out;
+	if (unlikely(!test_resched(this_rq))) {
+		xnlock_put(&nklock);
+		evl_spin_unlock_irqrestore(&curr->lock, flags);
+		return;
+	}
 
 	next = pick_next_thread(this_rq);
 	if (next == curr) {
@@ -670,7 +712,9 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 			if (this_rq->lflags & RQ_TDEFER)
 				evl_program_local_tick(&evl_mono_clock);
 		}
-		goto out;
+		xnlock_put(&nklock);
+		evl_spin_unlock_irqrestore(&curr->lock, flags);
+		return;
 	}
 
 	prev = curr;
@@ -691,6 +735,7 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 
 	evl_switch_account(this_rq, &next->stat.account);
 	evl_inc_counter(&next->stat.csw);
+	evl_spin_unlock(&prev->lock);
 	inband_tail = dovetail_context_switch(&prev->altsched,
 					&next->altsched, leaving_inband);
 	EVL_WARN_ON(CORE, this_evl_rq()->curr->state & EVL_THREAD_BLOCK_BITS);
@@ -706,7 +751,7 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 	 */
 	if (inband_tail)
 		return;
-out:
+
 	xnlock_put_irqrestore(&nklock, flags);
 }
 EXPORT_SYMBOL_GPL(__evl_schedule);

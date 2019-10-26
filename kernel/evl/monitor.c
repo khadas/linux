@@ -80,12 +80,14 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	 * loosing events. Too bad.
 	 */
 	if (target->wchan == &event->wait_queue.wchan) {
-		xnlock_get_irqsave(&nklock, flags);
-		target->info |= T_SIGNAL; /* CAUTION: depends on nklock held ATM */
-		xnlock_put_irqrestore(&nklock, flags);
 		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
+		evl_spin_lock(&target->lock);
+		xnlock_get(&nklock);
+		target->info |= T_SIGNAL;
+		xnlock_put(&nklock);
+		evl_spin_unlock(&target->lock);
 		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 	}
 out:
@@ -518,9 +520,11 @@ static int wait_monitor(struct file *filp,
 
 	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
 
+	evl_spin_lock(&curr->lock);
 	xnlock_get(&nklock);
-	curr->info &= ~T_SIGNAL; /* CAUTION: depends on nklock held ATM */
+	curr->info &= ~T_SIGNAL;
 	xnlock_put(&nklock);
+	evl_spin_unlock(&curr->lock);
 	evl_spin_unlock(&event->wait_queue.lock);
 	__exit_monitor(gate, curr);
 	evl_spin_unlock_irqrestore(&gate->lock, flags);
