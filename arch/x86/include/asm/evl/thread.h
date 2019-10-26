@@ -4,7 +4,6 @@
 
 #include <asm/traps.h>
 
-#define xnarch_fault_pf_p(__trapnr)	((__trapnr) == X86_TRAP_PF)
 #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
 					(__trapnr == X86_TRAP_DB ||	\
 						(__trapnr) == X86_TRAP_BP))
