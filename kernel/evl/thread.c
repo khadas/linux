@@ -51,14 +51,14 @@ static DECLARE_WAIT_QUEUE_HEAD(join_all);
 
 static void inband_task_wakeup(struct irq_work *work);
 
-static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
+static void timeout_handler(struct evl_timer *timer) /* oob stage stalled */
 {
 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
 
 	evl_wakeup_thread(thread, T_DELAY|T_PEND, T_TIMEO);
 }
 
-static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+static void periodic_handler(struct evl_timer *timer) /* oob stage stalled */
 {
 	struct evl_thread *thread =
 		container_of(timer, struct evl_thread, ptimer);
@@ -1128,8 +1128,11 @@ EXPORT_SYMBOL_GPL(evl_join_thread);
 
 #ifdef CONFIG_SMP
 
+/* nklocked, IRQs off */
 void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
-{				/* nklocked, IRQs off */
+{
+	requires_ugly_lock();
+
 	if (thread->rq == rq)
 		return;
 
@@ -1660,11 +1663,14 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
 }
 
-static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
+static bool affinity_ok(struct task_struct *p) /* oob stage stalled */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 	int cpu = task_cpu(p);
 	struct evl_rq *rq;
+	bool ret = true;
+
+	xnlock_get(&nklock);
 
 	/*
 	 * To maintain consistency between both the EVL and in-band
@@ -1694,12 +1700,13 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
 		 * it in evl_switch_oob().
 		 */
 		thread->info |= T_CANCELD;
-		return false;
+		ret = false;
+		goto out;
 	}
 
 	rq = evl_cpu_rq(cpu);
 	if (rq == thread->rq)
-		return true;
+		goto out;
 
 	/*
 	 * If the current thread moved to a supported out-of-band CPU,
@@ -1710,8 +1717,10 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
 		cpumask_set_cpu(cpu, &thread->affinity);
 
 	evl_migrate_thread(thread, rq);
+out:
+	xnlock_put(&nklock);
 
-	return true;
+	return ret;
 }
 
 #else /* !CONFIG_SMP */
@@ -1727,14 +1736,12 @@ static inline bool affinity_ok(struct task_struct *p)
 
 #endif /* CONFIG_SMP */
 
-void resume_oob_task(struct task_struct *p) /* hw IRQs off */
+void resume_oob_task(struct task_struct *p) /* oob stage stalled */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 
-	xnlock_get(&nklock);
 	if (affinity_ok(p))
 		evl_release_thread(thread, T_INBAND, 0);
-	xnlock_put(&nklock);
 
 	evl_schedule();
 }
