@@ -541,8 +541,6 @@ evl_find_sched_class(union evl_sched_param *param,
 		     const struct evl_sched_attrs *attrs,
 		     ktime_t *tslice_r);
 
-bool evl_sched_yield(void);
-
 int __init evl_init_sched(void);
 
 void __init evl_cleanup_sched(void);
