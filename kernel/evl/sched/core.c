@@ -776,16 +776,6 @@ evl_find_sched_class(union evl_sched_param *param,
 	return sched_class;
 }
 
-bool evl_sched_yield(void)
-{
-	struct evl_thread *curr = evl_current();
-
-	evl_release_thread(curr, 0, 0);
-
-	return evl_schedule();
-}
-EXPORT_SYMBOL_GPL(evl_sched_yield);
-
 #ifdef CONFIG_TRACING
 
 const char *evl_trace_sched_attrs(struct trace_seq *p,
