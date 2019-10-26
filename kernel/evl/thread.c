@@ -725,7 +725,7 @@ void evl_switch_inband(int cause)
 	evl_set_resched(rq);
 	dovetail_leave_oob();
 	xnlock_put(&nklock);
-	__evl_schedule(rq);
+	__evl_schedule();
 	oob_irq_enable();
 	dovetail_resume_inband();
 

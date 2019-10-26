@@ -256,9 +256,9 @@ static inline bool is_threading_cpu(int cpu)
 	for_each_online_cpu(cpu)	\
 		if (is_evl_cpu(cpu))
 
-bool __evl_schedule(struct evl_rq *this_rq);
+void __evl_schedule(void);
 
-static inline bool evl_schedule(void)
+static inline void evl_schedule(void)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
@@ -277,12 +277,14 @@ static inline bool evl_schedule(void)
 	 * an out-of-band interrupt, there is no coherence issue.
 	 */
 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
-		return false;
+		return;
 
-	if (running_oob())
-		return __evl_schedule(this_rq);
+	if (likely(running_oob())) {
+		__evl_schedule();
+		return;
+	}
 
-	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
+	run_oob_call((int (*)(void *))__evl_schedule, NULL);
 }
 
 static inline int evl_preempt_count(void)
