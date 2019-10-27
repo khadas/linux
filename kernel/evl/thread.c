@@ -1437,23 +1437,15 @@ void evl_demote_thread(struct evl_thread *thread)
 
 	no_ugly_lock();
 
-	/*
-	 * First we kick the thread out of oob context, and have it
-	 * resume execution immediately on the in-band stage.
-	 */
-	evl_kick_thread(thread);
-
-	/* FIXME: this is racy if @thread can preempt us, need irqs off. */
-
 	evl_spin_lock_irqsave(&thread->lock, flags);
 	xnlock_get(&nklock);
 
 	/*
-	 * Then we demote it, turning that thread into a non real-time
-	 * EVL thread, which still has access to EVL resources, but
-	 * won't compete for real-time scheduling anymore. In effect,
-	 * moving the thread to a weak scheduling class/priority will
-	 * prevent it from sticking back to OOB context.
+	 * First demote @thread to the weak class, which still has
+	 * access to EVL resources, but won't compete for real-time
+	 * scheduling anymore. This will prevent @thread from keeping
+	 * the CPU busy in out-of-band context once kicked out from
+	 * wait.
 	 */
 	param.weak.prio = 0;
 	sched_class = &evl_sched_weak;
@@ -1461,6 +1453,9 @@ void evl_demote_thread(struct evl_thread *thread)
 
 	xnlock_put(&nklock);
 	evl_spin_unlock_irqrestore(&thread->lock, flags);
+
+	/* Then unblock it from any wait state. */
+	evl_kick_thread(thread);
 }
 EXPORT_SYMBOL_GPL(evl_demote_thread);
 
