@@ -541,11 +541,10 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 				unsigned long sp_irq;
 
 				keep = 1;
-				sp_irq = (unsigned long)irq_stack[cpu];
-				addr = *((unsigned long *)(sp_irq +
-					THREAD_INFO_OFFSET - 8 -
-					sizeof(addr) - 12));
-				pt_regs = (struct pt_regs *)addr;
+				sp_irq   = (unsigned long)irq_stack[cpu];
+				addr     = *((unsigned long *)(sp_irq +
+					      THREAD_INFO_OFFSET - 8));
+				pt_regs  = (struct pt_regs *)addr;
 				frame.fp = pt_regs->ARM_fp;
 				frame.sp = pt_regs->ARM_sp;
 				frame.lr = pt_regs->ARM_lr;
