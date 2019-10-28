@@ -51,11 +51,7 @@
 #endif
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	ldr	r1, =handle_arch_irq
-#ifdef CONFIG_AMLOGIC_VMAP
-	mov	r0, r8
-#else
 	mov	r0, sp
-#endif
 	badr	lr, 9997f
 	ldr	pc, [r1]
 #else
@@ -416,10 +412,28 @@ ENDPROC(__und_svc)
 
 	.align	5
 __pabt_svc:
+#ifdef CONFIG_AMLOGIC_VMAP
+	svc_entry vmap=1	/* keep using abt stack */
+	/* re-build context for normal abort handler */
+	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
+	sub	r0, #SVC_REGS_SIZE
+	mov	r1, sp
+	mov	r2, #SVC_REGS_SIZE
+#ifdef CONFIG_AMLOGIC_KASAN32
+	bl	__memcpy		/* copy back sp	*/
+#else
+	bl	memcpy			/* copy back sp	*/
+#endif
+	mov	sp, r0
+	mov	r2, sp				@ regs
+	pabt_helper
+	svc_exit r5				@ return from exception
+#else
 	svc_entry
 	mov	r2, sp				@ regs
 	pabt_helper
 	svc_exit r5				@ return from exception
+#endif
  UNWIND(.fnend		)
 ENDPROC(__pabt_svc)
 

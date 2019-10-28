@@ -163,9 +163,9 @@ unsigned long notrace irq_stack_entry(unsigned long sp)
 		sp_irq = (unsigned long)dst - 8;
 		/*
 		 * save start addr of the interrupted task's context
-		 * minus an extra 12 to force base sp 16Bytes aligned
+		 * used to back trace stack call from irq
+		 * Note: sp_irq must be aligned to 16 bytes
 		 */
-		sp_irq = sp_irq - sizeof(sp) - 12;
 		*((unsigned long *)sp_irq) = sp;
 		return sp_irq;
 	}
