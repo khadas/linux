@@ -16,6 +16,8 @@ static void tp_schedule_next(struct evl_sched_tp *tp)
 	ktime_t t, now;
 	int p_next;
 
+	requires_ugly_lock();
+
 	for (;;) {
 		/*
 		 * Switch to the next partition. Time holes in a
@@ -59,6 +61,9 @@ static void tp_schedule_next(struct evl_sched_tp *tp)
 static void tp_tick_handler(struct evl_timer *timer)
 {
 	struct evl_sched_tp *tp = container_of(timer, struct evl_sched_tp, tf_timer);
+
+	xnlock_get(&nklock);
+
 	/*
 	 * Advance beginning date of time frame by a full period if we
 	 * are processing the last window.
@@ -67,6 +72,8 @@ static void tp_tick_handler(struct evl_timer *timer)
 		tp->tf_start = ktime_add(tp->tf_start, tp->gps->tf_duration);
 
 	tp_schedule_next(tp);
+
+	xnlock_put(&nklock);
 }
 
 static void tp_init(struct evl_rq *rq)
@@ -227,6 +234,8 @@ static void start_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_sched_tp *tp = &rq->tp;
 
+	requires_ugly_lock();
+
 	if (tp->gps == NULL)
 		return;
 
@@ -239,6 +248,8 @@ static void stop_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_sched_tp *tp = &rq->tp;
 
+	requires_ugly_lock();
+
 	if (tp->gps)
 		evl_stop_timer(&tp->tf_timer);
 }
@@ -250,6 +261,8 @@ set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
 	struct evl_thread *thread, *tmp;
 	struct evl_tp_schedule *old_gps;
 	union evl_sched_param param;
+
+	requires_ugly_lock();
 
 	if (EVL_WARN_ON(CORE, gps != NULL &&
 		(gps->pwin_nr <= 0 || gps->pwins[0].w_offset != 0)))
