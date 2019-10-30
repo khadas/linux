@@ -42,7 +42,10 @@ struct evl_init_thread_attr {
 };
 
 struct evl_wait_channel {
-	void (*reorder_wait)(struct evl_thread *thread);
+	int (*reorder_wait)(struct evl_thread *waiter,
+			struct evl_thread *originator);
+	int (*follow_depend)(struct evl_wait_channel *wchan,
+			struct evl_thread *originator);
 	struct list_head wait_list;
 };
 

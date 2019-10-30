@@ -69,7 +69,11 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 
 void evl_detect_boost_drop(struct evl_thread *owner);
 
-void evl_reorder_mutex_wait(struct evl_thread *thread);
+int evl_reorder_mutex_wait(struct evl_thread *waiter,
+			struct evl_thread *originator);
+
+int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
+			struct evl_thread *originator);
 
 void evl_drop_tracking_mutexes(struct evl_thread *curr);
 
@@ -89,6 +93,7 @@ struct evl_kmutex {
 			.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock), \
 			.wchan = {					\
 				.reorder_wait = evl_reorder_mutex_wait,	\
+				.follow_depend = evl_follow_mutex_depend, \
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
 			},						\
 		},							\
