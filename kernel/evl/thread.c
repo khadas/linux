@@ -1251,7 +1251,7 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 	 * round-robin effects).
 	 */
 	if (old_wprio != new_wprio && (thread->state & T_PEND))
-		thread->wchan->reorder_wait(thread);
+		thread->wchan->reorder_wait(thread, thread);
 
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */

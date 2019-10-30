@@ -21,6 +21,7 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 	wq->clock = clock;
 	evl_spin_lock_init(&wq->lock);
 	wq->wchan.reorder_wait = evl_reorder_wait;
+	wq->wchan.follow_depend = evl_follow_wait_depend;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	lockdep_set_class_and_name(&wq->lock._lock, key, name);
 }
@@ -113,23 +114,34 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 }
 
 /* thread->lock held, irqs off */
-void evl_reorder_wait(struct evl_thread *thread)
+int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 {
-	struct evl_wait_queue *wq = wchan_to_wait_queue(thread->wchan);
+	struct evl_wait_queue *wq = wchan_to_wait_queue(waiter->wchan);
 
-	assert_evl_lock(&thread->lock);
+	assert_evl_lock(&waiter->lock);
+	assert_evl_lock(&originator->lock);
 	no_ugly_lock();
 
 	evl_spin_lock(&wq->lock);
 
 	if (wq->flags & EVL_WAIT_PRIO) {
-		list_del(&thread->wait_next);
-		list_add_priff(thread, &wq->wchan.wait_list, wprio, wait_next);
+		list_del(&waiter->wait_next);
+		list_add_priff(waiter, &wq->wchan.wait_list, wprio, wait_next);
 	}
 
 	evl_spin_unlock(&wq->lock);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
+
+/* originator->lock held, irqs off */
+int evl_follow_wait_depend(struct evl_wait_channel *wchan,
+			struct evl_thread *originator)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(evl_follow_wait_depend);
 
 int evl_wait_schedule(struct evl_wait_queue *wq)
 {
