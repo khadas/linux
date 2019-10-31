@@ -925,7 +925,8 @@ static ssize_t state_show(struct device *dev,
 		fun = atomic_read(&state->u.gate.owner);
 		if (fun != EVL_NO_HANDLE)
 			owner = evl_get_element_by_fundle(&evl_thread_factory,
-							fun, struct evl_thread);
+							evl_get_index(fun),
+							struct evl_thread);
 		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
 			owner ? evl_get_inband_pid(owner) : -1,
 			state->u.gate.ceiling,
