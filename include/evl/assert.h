@@ -36,10 +36,18 @@
 #ifdef CONFIG_SMP
 #define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, \
 				!(raw_spin_is_locked(__lock) && hard_irqs_disabled()))
+#define assert_evl_lock(__lock) EVL_WARN_ON_ONCE(CORE, \
+				!(raw_spin_is_locked(&(__lock)->_lock) && oob_irqs_disabled()))
 #else
 #define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
+#define assert_evl_lock(__lock)  EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled())
 #endif
-#define assert_evl_lock(__lock) assert_hard_lock(&(__lock)->_lock)
+
+#define assert_thread_pinned(__thread)			\
+	do {						\
+		assert_evl_lock(&(__thread)->lock);	\
+		assert_evl_lock(&(__thread)->rq->lock);	\
+	} while (0)
 
 /* TEMP: needed until we have gotten rid of the infamous nklock. */
 #ifdef CONFIG_SMP

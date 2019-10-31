@@ -300,7 +300,7 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 	 * handler. This is a hint for the program_local_shot()
 	 * handler of the ticking clock.
 	 */
-	rq->lflags |= RQ_TIMER;
+	rq->local_flags |= RQ_TIMER;
 
 	now = evl_read_clock(clock);
 	while ((tn = evl_get_tqueue_head(tq)) != NULL) {
@@ -319,8 +319,8 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 		 * of the core tick interrupt.
 		 */
 		if (unlikely(timer == &rq->inband_timer)) {
-			rq->lflags |= RQ_TPROXY;
-			rq->lflags &= ~RQ_TDEFER;
+			rq->local_flags |= RQ_TPROXY;
+			rq->local_flags &= ~RQ_TDEFER;
 			continue;
 		}
 
@@ -339,7 +339,7 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
 		}
 	}
 
-	rq->lflags &= ~RQ_TIMER;
+	rq->local_flags &= ~RQ_TIMER;
 
 	evl_program_local_tick(clock);
 
@@ -364,7 +364,7 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 	 * evl_exit_irq(), so we may have to propagate the in-band
 	 * tick immediately only if the in-band context was preempted.
 	 */
-	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+	if ((this_rq->local_flags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
 		evl_notify_proxy_tick(this_rq);
 }
 
@@ -618,16 +618,33 @@ struct evl_timerfd {
 	bool ticked;
 };
 
+#ifdef CONFIG_SMP
+
+/* Pin @timer to the current thread rq. */
+static void pin_timer(struct evl_timer *timer)
+{
+	unsigned long flags = oob_irq_save();
+	struct evl_rq *this_rq = evl_current_rq();
+
+	if (this_rq != timer->rq)
+		evl_move_timer(timer, timer->clock, this_rq);
+
+	oob_irq_restore(flags);
+}
+
+#else
+
+static inline void pin_timer(struct evl_timer *timer)
+{ }
+
+#endif
+
 static int set_timerfd(struct evl_timerfd *timerfd,
 		const struct itimerspec *__restrict__ value,
 		struct itimerspec *__restrict__ ovalue)
 {
-	unsigned long flags;
-
 	get_timer_value(&timerfd->timer, ovalue);
-	xnlock_get_irqsave(&nklock, flags);
-	evl_set_timer_rq(&timerfd->timer, evl_current_rq());
-	xnlock_put_irqrestore(&nklock, flags);
+	pin_timer(&timerfd->timer);
 
 	return set_timer_value(&timerfd->timer, value);
 }

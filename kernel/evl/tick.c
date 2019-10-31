@@ -68,9 +68,9 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
 
 	rq = this_evl_rq();
 	evl_stop_timer(&rq->inband_timer);
-	rq->lflags |= RQ_TSTOPPED;
+	rq->local_flags |= RQ_TSTOPPED;
 
-	if (rq->lflags & RQ_IDLE) {
+	if (rq->local_flags & RQ_IDLE) {
 		real_dev = dev->real_device;
 		real_dev->set_state_oneshot_stopped(real_dev);
 	}
@@ -178,13 +178,13 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	 * will be done on exit anyway. Also exit if there is no
 	 * pending timer.
 	 */
-	if (this_rq->lflags & RQ_TIMER)
+	if (this_rq->local_flags & RQ_TIMER)
 		return;
 
 	tmb = evl_this_cpu_timers(clock);
 	tn = evl_get_tqueue_head(&tmb->q);
 	if (tn == NULL) {
-		this_rq->lflags |= RQ_IDLE;
+		this_rq->local_flags |= RQ_IDLE;
 		return;
 	}
 
@@ -206,14 +206,14 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	 * __evl_schedule()), or a timer with an earlier timeout date
 	 * is scheduled, whichever comes first.
 	 */
-	this_rq->lflags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
+	this_rq->local_flags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
 	timer = container_of(tn, struct evl_timer, node);
 	if (timer == &this_rq->inband_timer) {
 		if (evl_need_resched(this_rq) ||
 			!(this_rq->curr->state & T_ROOT)) {
 			tn = evl_get_tqueue_next(&tmb->q, tn);
 			if (tn) {
-				this_rq->lflags |= RQ_TDEFER;
+				this_rq->local_flags |= RQ_TDEFER;
 				timer = container_of(tn, struct evl_timer, node);
 			}
 		}

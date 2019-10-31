@@ -67,7 +67,11 @@ static void prepare_for_signal(struct task_struct *p,
 	 * 3 generic calls only).
 	 */
 
-	xnlock_get_irqsave(&nklock, flags);
+	/*
+	 * @curr == this_evl_rq()->curr over oob so no need to grab
+	 * @curr->lock.
+	 */
+	evl_spin_lock_irqsave(&curr->rq->lock, flags);
 
 	if (curr->info & T_KICKED) {
 		if (signal_pending(p)) {
@@ -79,7 +83,7 @@ static void prepare_for_signal(struct task_struct *p,
 		curr->info &= ~T_KICKED;
 	}
 
-	xnlock_put_irqrestore(&nklock, flags);
+	evl_spin_unlock_irqrestore(&curr->rq->lock, flags);
 
 	evl_test_cancel();
 

@@ -45,7 +45,7 @@ static inline void evl_notify_proxy_tick(struct evl_rq *this_rq)
 	 * previous set_next_ktime() request received from the kernel
 	 * we have carried out using our core timing services.
 	 */
-	this_rq->lflags &= ~RQ_TPROXY;
+	this_rq->local_flags &= ~RQ_TPROXY;
 	tick_notify_proxy();
 }
 

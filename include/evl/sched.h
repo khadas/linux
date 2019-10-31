@@ -19,19 +19,18 @@
 #include <evl/assert.h>
 #include <evl/init.h>
 
-/** Shared scheduler status bits **/
-
 /*
- * A rescheduling call is pending.
+ * Shared rq flags bits.
+ *
+ * A rescheduling operation is pending. May also be present in the
+ * private flags.
  */
 #define RQ_SCHED	0x10000000
 
 /**
- * Private scheduler flags (combined in test operations with shared
- * bits, must not conflict with them).
- */
-
-/*
+ * Private rq flags (combined in test operation with shared bits by
+ * evl_schedule(), care for any conflict).
+ *
  * Currently running in tick handler context.
  */
 #define RQ_TIMER	0x00010000
@@ -45,14 +44,13 @@
  */
 #define RQ_IRQ		0x00004000
 /*
- * Proxy tick is deferred, because we have more urgent real-time
- * duties to carry out first.
+ * Proxy tick is deferred, because we have more urgent out-of-band
+ * work to carry out first.
  */
 #define RQ_TDEFER	0x00002000
 /*
  * Idle state: there is no outstanding timer. We check this flag to
- * know whether we may allow the regular kernel to enter the CPU idle
- * state.
+ * know whether we may allow inband to enter the CPU idle state.
  */
 #define RQ_IDLE		0x00001000
 /*
@@ -65,13 +63,13 @@ struct evl_sched_fifo {
 };
 
 struct evl_rq {
-	unsigned long status;	/* Shared flags */
-	unsigned long lflags;	/* Private flags (lockless) */
+	evl_spinlock_t lock;
+
+	/*
+	 * Shared data, covered by ->lock.
+	 */
+	unsigned long flags;
 	struct evl_thread *curr;
-#ifdef CONFIG_SMP
-	int cpu;
-	struct cpumask resched;	/* CPUs pending resched */
-#endif
 	struct evl_sched_fifo fifo;
 	struct evl_sched_weak weak;
 #ifdef CONFIG_EVL_SCHED_QUOTA
@@ -80,18 +78,28 @@ struct evl_rq {
 #ifdef CONFIG_EVL_SCHED_TP
 	struct evl_sched_tp tp;
 #endif
-	struct evl_timer inband_timer;
-	struct evl_timer rrbtimer; /* Round-robin */
 	struct evl_thread root_thread;
-	char *proxy_timer_name;
-	char *rrb_timer_name;
-#ifdef CONFIG_EVL_WATCHDOG
-	struct evl_timer wdtimer;
-#endif
 #ifdef CONFIG_EVL_RUNSTATS
 	ktime_t last_account_switch;
 	struct evl_account *current_account;
 #endif
+
+	/*
+	 * runqueue-local data the owner may modify locklessly.
+	 */
+	unsigned long local_flags;
+#ifdef CONFIG_SMP
+	int cpu;
+	struct cpumask resched_cpus;
+#endif
+	struct evl_timer inband_timer;
+	struct evl_timer rrbtimer;
+#ifdef CONFIG_EVL_WATCHDOG
+	struct evl_timer wdtimer;
+#endif
+	/* Misc stuff. */
+	char *proxy_timer_name;
+	char *rrb_timer_name;
 };
 
 DECLARE_PER_CPU(struct evl_rq, evl_runqueues);
@@ -187,17 +195,17 @@ static inline struct evl_thread *this_evl_rq_thread(void)
 /* Test resched flag of given rq. */
 static inline int evl_need_resched(struct evl_rq *rq)
 {
-	return rq->status & RQ_SCHED;
+	return rq->flags & RQ_SCHED;
 }
 
-/* Set self resched flag for the current scheduler. */
+/* Set resched flag for the current rq. */
 static inline void evl_set_self_resched(struct evl_rq *rq)
 {
-	requires_ugly_lock();
-	rq->status |= RQ_SCHED;
+	assert_evl_lock(&rq->lock);
+	rq->flags |= RQ_SCHED;
 }
 
-/* Set resched flag for the given scheduler. */
+/* Set resched flag for the given rq. */
 #ifdef CONFIG_SMP
 
 static inline bool is_evl_cpu(int cpu)
@@ -214,12 +222,25 @@ static inline void evl_set_resched(struct evl_rq *rq)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
-	if (this_rq == rq)
-		this_rq->status |= RQ_SCHED;
-	else if (!evl_need_resched(rq)) {
-		cpumask_set_cpu(evl_rq_cpu(rq), &this_rq->resched);
-		rq->status |= RQ_SCHED;
-		this_rq->status |= RQ_SCHED;
+	assert_evl_lock(&rq->lock); /* Implies oob is stalled. */
+
+	if (this_rq == rq) {
+		this_rq->flags |= RQ_SCHED;
+	} else if (!evl_need_resched(rq)) {
+		rq->flags |= RQ_SCHED;
+		/*
+		 * The following updates change CPU-local data and oob
+		 * is stalled on the current CPU, so this is safe
+		 * despite that we don't hold this_rq->lock.
+		 *
+		 * NOTE: raising RQ_SCHED in the local_flags too
+		 * ensures that the current CPU will pass through
+		 * evl_schedule() to __evl_schedule() at the next
+		 * opportunity for sending the resched IPIs (see
+		 * test_resched()).
+		 */
+		this_rq->local_flags |= RQ_SCHED;
+		cpumask_set_cpu(evl_rq_cpu(rq), &this_rq->resched_cpus);
 	}
 }
 
@@ -227,6 +248,9 @@ static inline bool is_threading_cpu(int cpu)
 {
 	return !!cpumask_test_cpu(cpu, &evl_cpu_affinity);
 }
+
+void evl_migrate_thread(struct evl_thread *thread,
+			struct evl_rq *dst_rq);
 
 #else /* !CONFIG_SMP */
 
@@ -250,6 +274,11 @@ static inline bool is_threading_cpu(int cpu)
 	return true;
 }
 
+static inline
+void evl_migrate_thread(struct evl_thread *thread,
+			struct evl_rq *dst_rq)
+{ }
+
 #endif /* !CONFIG_SMP */
 
 #define for_each_evl_cpu(cpu)		\
@@ -263,11 +292,11 @@ static inline void evl_schedule(void)
 	struct evl_rq *this_rq = this_evl_rq();
 
 	/*
-	 * If we race here reading the scheduler state locklessly
-	 * because of a CPU migration, we must be running over the
-	 * in-band stage, in which case the call to __evl_schedule()
-	 * will be escalated to the oob stage where migration cannot
-	 * happen, ensuring safe access to the runqueue state.
+	 * If we race here reading the rq state locklessly because of
+	 * a CPU migration, we must be running over the in-band stage,
+	 * in which case the call to __evl_schedule() will be
+	 * escalated to the oob stage where migration cannot happen,
+	 * ensuring safe access to the runqueue state.
 	 *
 	 * Remote RQ_SCHED requests are paired with out-of-band IPIs
 	 * running on the oob stage by definition, so we can't miss
@@ -276,7 +305,7 @@ static inline void evl_schedule(void)
 	 * Finally, RQ_IRQ is always tested from the CPU which handled
 	 * an out-of-band interrupt, there is no coherence issue.
 	 */
-	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
+	if (((this_rq->flags|this_rq->local_flags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
 		return;
 
 	if (likely(running_oob())) {
@@ -286,6 +315,10 @@ static inline void evl_schedule(void)
 
 	run_oob_call((int (*)(void *))__evl_schedule, NULL);
 }
+
+int evl_switch_oob(void);
+
+void evl_switch_inband(int cause);
 
 static inline int evl_preempt_count(void)
 {
@@ -300,7 +333,7 @@ static inline void __evl_disable_preempt(void)
 static inline void __evl_enable_preempt(void)
 {
 	if (--dovetail_current_state()->preempt_count == 0 &&
-		!hard_irqs_disabled())
+		!oob_irqs_disabled())
 		evl_schedule();
 }
 
@@ -325,7 +358,7 @@ static inline void evl_enable_preempt(void)
 
 static inline bool evl_in_irq(void)
 {
-	return !!(this_evl_rq()->lflags & RQ_IRQ);
+	return !!(this_evl_rq()->local_flags & RQ_IRQ);
 }
 
 static inline bool evl_is_inband(void)
@@ -337,6 +370,21 @@ static inline bool evl_cannot_block(void)
 {
 	return evl_in_irq() || evl_is_inband();
 }
+
+#define evl_get_thread_rq(__thread, __flags)				\
+	({								\
+		struct evl_rq *__rq;					\
+		evl_spin_lock_irqsave(&(__thread)->lock, __flags);	\
+		__rq = (__thread)->rq;					\
+		evl_spin_lock(&__rq->lock);				\
+		__rq;							\
+	})
+
+#define evl_put_thread_rq(__thread, __rq, __flags)			\
+	do {								\
+		evl_spin_unlock(&(__rq)->lock);				\
+		evl_spin_unlock_irqrestore(&(__thread)->lock, __flags);	\
+	} while (0)
 
 bool evl_set_effective_thread_priority(struct evl_thread *thread,
 				       int prio);
@@ -359,9 +407,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
 
 void evl_protect_thread_priority(struct evl_thread *thread,
 				 int prio);
-
-void evl_migrate_rq(struct evl_thread *thread,
-		    struct evl_rq *rq);
 
 static inline
 void evl_rotate_rq(struct evl_rq *rq,
@@ -391,19 +436,18 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 	return ret;
 }
 
-/* nklock held, irqs off */
+/* rq->lock held, irqs off */
 static inline void evl_sched_tick(struct evl_rq *rq)
 {
 	struct evl_thread *curr = rq->curr;
 	struct evl_sched_class *sched_class = curr->sched_class;
 
-	requires_ugly_lock();
+	assert_evl_lock(&rq->lock);
 
 	/*
 	 * A thread that undergoes round-robin scheduling only
 	 * consumes its time slice when it runs within its own
-	 * scheduling class, which excludes temporary PI boosts, and
-	 * does not hold the scheduler lock.
+	 * scheduling class, which excludes temporary PI boosts.
 	 */
 	if (sched_class == curr->base_class &&
 	    sched_class->sched_tick &&
@@ -419,8 +463,7 @@ int evl_check_schedparams(struct evl_sched_class *sched_class,
 {
 	int ret = 0;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	if (sched_class->sched_chkparam)
 		ret = sched_class->sched_chkparam(thread, p);
@@ -435,8 +478,7 @@ int evl_declare_thread(struct evl_sched_class *sched_class,
 {
 	int ret;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	if (sched_class->sched_declare) {
 		ret = sched_class->sched_declare(thread, p);
@@ -459,8 +501,7 @@ static __always_inline void evl_enqueue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	/*
 	 * Enqueue for next pick: i.e. move to end of current priority
@@ -476,8 +517,7 @@ static __always_inline void evl_dequeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	/*
 	 * Pull from the runnable thread queue.
@@ -492,8 +532,7 @@ static __always_inline void evl_requeue_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	/*
 	 * Put back at same place: i.e. requeue to head of current
@@ -509,8 +548,7 @@ static inline
 bool evl_set_schedparam(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	return thread->base_class->sched_setparam(thread, p);
 }
@@ -518,8 +556,7 @@ bool evl_set_schedparam(struct evl_thread *thread,
 static inline void evl_get_schedparam(struct evl_thread *thread,
 				      union evl_sched_param *p)
 {
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	thread->sched_class->sched_getparam(thread, p);
 }
@@ -527,8 +564,7 @@ static inline void evl_get_schedparam(struct evl_thread *thread,
 static inline void evl_track_priority(struct evl_thread *thread,
 				      const union evl_sched_param *p)
 {
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	thread->sched_class->sched_trackprio(thread, p);
 	thread->wprio = evl_calc_weighted_prio(thread->sched_class, thread->cprio);
@@ -536,8 +572,7 @@ static inline void evl_track_priority(struct evl_thread *thread,
 
 static inline void evl_ceil_priority(struct evl_thread *thread, int prio)
 {
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	thread->sched_class->sched_ceilprio(thread, prio);
 	thread->wprio = evl_calc_weighted_prio(thread->sched_class, thread->cprio);
@@ -547,8 +582,7 @@ static inline void evl_forget_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->base_class;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	--sched_class->nthreads;
 
@@ -560,8 +594,7 @@ static inline void evl_force_thread(struct evl_thread *thread)
 {
 	struct evl_sched_class *sched_class = thread->base_class;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	thread->info |= T_KICKED;
 

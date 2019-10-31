@@ -9,20 +9,20 @@
 
 #include <evl/sched.h>
 
-/* hard IRQs off. */
+/* hard irqs off. */
 static inline void evl_enter_irq(void)
 {
 	struct evl_rq *rq = this_evl_rq();
 
-	rq->lflags |= RQ_IRQ;
+	rq->local_flags |= RQ_IRQ;
 }
 
-/* hard IRQs off. */
+/* hard irqs off. */
 static inline void evl_exit_irq(void)
 {
-	struct evl_rq *rq = this_evl_rq();
+	struct evl_rq *this_rq = this_evl_rq();
 
-	rq->lflags &= ~RQ_IRQ;
+	this_rq->local_flags &= ~RQ_IRQ;
 
 	/*
 	 * We are only interested in RQ_SCHED previously set by an OOB
@@ -33,7 +33,7 @@ static inline void evl_exit_irq(void)
 	 * CAUTION: Switching stages as a result of rescheduling may
 	 * re-enable irqs, shut them off before returning if so.
 	 */
-	if (rq->status & RQ_SCHED) {
+	if (evl_need_resched(this_rq)) {
 		evl_schedule();
 		if (!hard_irqs_disabled())
 			hard_local_irq_disable();
