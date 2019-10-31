@@ -612,7 +612,6 @@ static void quota_set_limit(struct evl_quota_group *tg,
 	 * group is currently running.
 	 */
 	evl_set_resched(tg->rq);
-	evl_schedule();
 }
 
 static struct evl_quota_group *
@@ -709,6 +708,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	iq->quota_peak = tg->quota_peak_percent;
 	xnlock_put_irqrestore(&nklock, flags);
 	iq->quota_sum = quota_sum;
+
+	evl_schedule();
 
 	return 0;
 bad_tgid:
