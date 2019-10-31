@@ -84,9 +84,9 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
 		evl_spin_lock(&target->lock);
-		xnlock_get(&nklock);
+		evl_spin_lock(&target->rq->lock);
 		target->info |= T_SIGNAL;
-		xnlock_put(&nklock);
+		evl_spin_unlock(&target->rq->lock);
 		evl_spin_unlock(&target->lock);
 		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 	}
@@ -169,12 +169,6 @@ static void wakeup_waiters(struct evl_monitor *event)
 	 * detected. Otherwise, and in presence of a targeted wake up
 	 * request, only the target thread(s) are woken up. Otherwise,
 	 * the thread heading the wait queue is readied.
-	 *
-	 * CAUTION: we must keep the wake up ops rescheduling-free, so
-	 * that low priority threads cannot preempt us before high
-	 * priority ones have been readied. For the moment, we are
-	 * covered by disabling IRQs when grabbing the nklock: be
-	 * careful when killing the latter.
 	 */
 	if (evl_wait_active(&event->wait_queue)) {
 		if (bcast)
@@ -521,9 +515,9 @@ static int wait_monitor(struct file *filp,
 	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
 
 	evl_spin_lock(&curr->lock);
-	xnlock_get(&nklock);
+	evl_spin_lock(&curr->rq->lock);
 	curr->info &= ~T_SIGNAL;
-	xnlock_put(&nklock);
+	evl_spin_unlock(&curr->rq->lock);
 	evl_spin_unlock(&curr->lock);
 	evl_spin_unlock(&event->wait_queue.lock);
 	__exit_monitor(gate, curr);

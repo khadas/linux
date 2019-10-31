@@ -86,7 +86,8 @@ struct evl_thread {
 	ktime_t rrperiod;  /* Round-robin period (ns) */
 
 	/*
-	 * Shared data, covered by both thread->lock AND nklock.
+	 * Shared data, covered by both thread->lock AND
+	 * thread->rq->lock.
 	 */
 	__u32 state;
 	__u32 info;
@@ -100,10 +101,12 @@ struct evl_thread {
 	struct list_head tp_link;	/* evl_rq->tp.threads */
 #endif
 	struct list_head rq_next;	/* evl_rq->policy.runqueue */
+	struct list_head next;		/* in evl_thread_list */
 
 	/*
-	 * Thread-local data the owner may modified locklessly.
+	 * Thread-local data the owner may modify locklessly.
 	 */
+	struct dovetail_altsched_context altsched;
 	__u32 local_info;
 	void *wait_data;
 	struct {
@@ -112,6 +115,7 @@ struct evl_thread {
 		int nr;
 	} poll_context;
 	atomic_t inband_disable_count;
+	struct irq_work inband_work;
 	struct {
 		struct evl_counter isw;	/* in-band switches */
 		struct evl_counter csw;	/* context switches */
@@ -120,23 +124,18 @@ struct evl_thread {
 		struct evl_account account; /* exec time accounting */
 		struct evl_account lastperiod;
 	} stat;
+	struct evl_user_window *u_window;
 
 	/* Misc stuff. */
 
 	struct list_head trackers; /* Mutexes tracking @thread */
 	hard_spinlock_t tracking_lock;
-
-	struct list_head next;	/* in evl_thread_list */
-	struct dovetail_altsched_context altsched;
 	struct evl_element element;
 	struct cpumask affinity;
-
-	char *name;
 	struct completion exited;
-	struct irq_work inband_work;
 	kernel_cap_t raised_cap;
-	struct evl_user_window *u_window;
 	struct list_head kill_next;
+	char *name;
 };
 
 struct evl_kthread {
@@ -183,6 +182,10 @@ void __evl_test_cancel(struct evl_thread *curr);
 
 void evl_discard_thread(struct evl_thread *thread);
 
+/*
+ * Might differ from this_evl_rq() if @current is running inband, and
+ * evl_migrate_thread() is pending until it switches back to oob.
+ */
 static inline struct evl_thread *evl_current(void)
 {
 	return dovetail_current_state()->thread;
@@ -259,10 +262,6 @@ int evl_join_thread(struct evl_thread *thread,
 
 void evl_get_thread_state(struct evl_thread *thread,
 			struct evl_thread_state *statebuf);
-
-int evl_switch_oob(void);
-
-void evl_switch_inband(int cause);
 
 int evl_detach_self(void);
 

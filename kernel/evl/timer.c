@@ -71,9 +71,11 @@ static inline void double_timer_base_lock(struct evl_timerbase *tb1,
 		raw_spin_lock(&tb1->lock);
 	else if (tb1 < tb2) {
 		raw_spin_lock(&tb1->lock);
+		/* FIXME: raw_spin_lock_nested for tb2? */
 		raw_spin_lock(&tb2->lock);
 	} else {
 		raw_spin_lock(&tb2->lock);
+		/* FIXME: raw_spin_lock_nested for tb1? */
 		raw_spin_lock(&tb1->lock);
 	}
 }
@@ -98,7 +100,7 @@ static bool timer_at_front(struct evl_timer *timer)
 	if (tn == &timer->node)
 		return true;
 
-	if (rq->lflags & RQ_TDEFER) {
+	if (rq->local_flags & RQ_TDEFER) {
 		tn = evl_get_tqueue_next(tq, tn);
 		if (tn == &timer->node)
 			return true;
@@ -116,7 +118,7 @@ static void program_timer(struct evl_timer *timer,
 	evl_enqueue_timer(timer, tq);
 
 	rq = evl_get_timer_rq(timer);
-	if (!(rq->lflags & RQ_TSTOPPED) && !timer_at_front(timer))
+	if (!(rq->local_flags & RQ_TSTOPPED) && !timer_at_front(timer))
 		return;
 
 	if (rq != this_evl_rq())
@@ -345,12 +347,14 @@ EXPORT_SYMBOL_GPL(evl_destroy_timer);
 
 /*
  * evl_move_timer - change the reference clock and/or the CPU
- *                     affinity of a timer
+ *                  affinity of a timer
  * @timer:      timer to modify
  * @clock:      reference clock
  * @rq:         runqueue to assign the timer to
+ *
+ * oob stage stalled on entry.
  */
-void evl_move_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+void evl_move_timer(struct evl_timer *timer,
 		struct evl_clock *clock, struct evl_rq *rq)
 {
 	struct evl_timerbase *old_base, *new_base;
@@ -358,7 +362,7 @@ void evl_move_timer(struct evl_timer *timer, /* nklocked, IRQs off */
 	unsigned long flags;
 	int cpu;
 
-	requires_ugly_lock();	/* XXX: why that? */
+	EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled());
 
 	trace_evl_timer_move(timer, clock, evl_rq_cpu(rq));
 

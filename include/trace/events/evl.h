@@ -217,34 +217,32 @@ DECLARE_EVENT_CLASS(evl_clock_ident,
 	TP_printk("name=%s", __get_str(name))
 );
 
-TRACE_EVENT(evl_schedule,
+DECLARE_EVENT_CLASS(evl_schedule_event,
 	TP_PROTO(struct evl_rq *rq),
 	TP_ARGS(rq),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, status)
+		__field(unsigned long, flags)
+		__field(unsigned long, local_flags)
 	),
 
 	TP_fast_assign(
-		__entry->status = rq->status;
+		__entry->flags = rq->flags;
+		__entry->local_flags = rq->local_flags;
 	),
 
-	TP_printk("status=%#lx", __entry->status)
+	TP_printk("flags=%#lx, local_flags=%#lx",
+		  __entry->flags, __entry->local_flags)
 );
 
-TRACE_EVENT(evl_schedule_remote,
+DEFINE_EVENT(evl_schedule_event, evl_schedule,
 	TP_PROTO(struct evl_rq *rq),
-	TP_ARGS(rq),
+	TP_ARGS(rq)
+);
 
-	TP_STRUCT__entry(
-		__field(unsigned long, status)
-	),
-
-	TP_fast_assign(
-		__entry->status = rq->status;
-	),
-
-	TP_printk("status=%#lx", __entry->status)
+DEFINE_EVENT(evl_schedule_event, evl_reschedule_ipi,
+	TP_PROTO(struct evl_rq *rq),
+	TP_ARGS(rq)
 );
 
 TRACE_EVENT(evl_switch_context,

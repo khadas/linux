@@ -319,15 +319,10 @@ static inline ktime_t evl_get_timer_expiry(struct evl_timer *timer)
 			evl_get_timer_gravity(timer));
 }
 
-/* no lock required. */
 ktime_t evl_get_timer_date(struct evl_timer *timer);
 
-/* no lock required. */
 ktime_t __evl_get_timer_delta(struct evl_timer *timer);
 
-ktime_t xntimer_get_interval(struct evl_timer *timer);
-
-/* no lock required. */
 static inline ktime_t evl_get_timer_delta(struct evl_timer *timer)
 {
 	if (!evl_timer_is_running(timer))
@@ -336,7 +331,6 @@ static inline ktime_t evl_get_timer_delta(struct evl_timer *timer)
 	return __evl_get_timer_delta(timer);
 }
 
-/* no lock required. */
 static inline
 ktime_t __evl_get_stopped_timer_delta(struct evl_timer *timer)
 {
@@ -382,13 +376,6 @@ void evl_move_timer(struct evl_timer *timer,
 
 #ifdef CONFIG_SMP
 
-static inline void evl_set_timer_rq(struct evl_timer *timer,
-				struct evl_rq *rq)
-{
-	if (rq != timer->rq)
-		evl_move_timer(timer, timer->clock, rq);
-}
-
 static inline void evl_prepare_timed_wait(struct evl_timer *timer,
 					struct evl_clock *clock,
 					struct evl_rq *rq)
@@ -405,10 +392,6 @@ static inline bool evl_timer_on_rq(struct evl_timer *timer,
 }
 
 #else /* ! CONFIG_SMP */
-
-static inline void evl_set_timer_rq(struct evl_timer *timer,
-				struct evl_rq *rq)
-{ }
 
 static inline void evl_prepare_timed_wait(struct evl_timer *timer,
 					struct evl_clock *clock,

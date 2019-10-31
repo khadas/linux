@@ -116,38 +116,6 @@ static inline void drop_u_cap(struct evl_thread *thread,
 	}
 }
 
-#ifdef CONFIG_SMP
-
-/* thread->lock + nklock held, IRQs off */
-void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
-{
-	requires_ugly_lock();
-	assert_evl_lock(&thread->lock);
-
-	if (thread->rq == rq)
-		return;
-
-	trace_evl_thread_migrate(thread, evl_rq_cpu(rq));
-	/*
-	 * Timer migration is postponed until the next timeout happens
-	 * for the periodic and rrb timers. The resource/periodic
-	 * timer will be moved to the right CPU next time
-	 * evl_prepare_timed_wait() is called for it (via
-	 * evl_sleep_on()).
-	 */
-	evl_migrate_rq(thread, rq);
-
-	evl_reset_account(&thread->stat.lastperiod);
-}
-
-#else
-
-static inline void evl_migrate_thread(struct evl_thread *thread,
-				struct evl_rq *rq)
-{ }
-
-#endif	/* CONFIG_SMP */
-
 static void pin_to_initial_cpu(struct evl_thread *thread)
 {
 	struct task_struct *p = current;
@@ -169,14 +137,12 @@ static void pin_to_initial_cpu(struct evl_thread *thread)
 	/*
 	 * @thread is still unstarted EVL-wise, we are in the process
 	 * of mapping the current in-band task to it. Therefore
-	 * evl_migrate_thread() can be called for pinning it on a
-	 * real-time CPU.
+	 * evl_migrate_thread() can be called for pinning it on an
+	 * out-of-band CPU.
 	 */
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
 	rq = evl_cpu_rq(cpu);
+	evl_spin_lock_irqsave(&thread->lock, flags);
 	evl_migrate_thread(thread, rq);
-	xnlock_put(&nklock);
 	evl_spin_unlock_irqrestore(&thread->lock, flags);
 }
 
@@ -284,17 +250,16 @@ EXPORT_SYMBOL_GPL(evl_init_thread);
 static void uninit_thread(struct evl_thread *thread)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
 	evl_destroy_timer(&thread->rtimer);
 	evl_destroy_timer(&thread->ptimer);
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	evl_forget_thread(thread);
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 
 	kfree(thread->name);
 }
@@ -303,6 +268,7 @@ static void do_cleanup_current(struct evl_thread *curr)
 {
 	struct cred *newcap;
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
@@ -329,8 +295,7 @@ static void do_cleanup_current(struct evl_thread *curr)
 
 	dequeue_old_thread(curr);
 
-	evl_spin_lock_irqsave(&curr->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(curr, flags);
 
 	if (curr->state & T_READY) {
 		EVL_WARN_ON(CORE, (curr->state & EVL_THREAD_BLOCK_BITS));
@@ -340,9 +305,7 @@ static void do_cleanup_current(struct evl_thread *curr)
 
 	curr->state |= T_ZOMBIE;
 
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
-
+	evl_put_thread_rq(curr, rq, flags);
 	uninit_thread(curr);
 }
 
@@ -506,13 +469,10 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 
 	oob_context_only();
 	no_ugly_lock();
-
-	evl_spin_lock_irqsave(&curr->lock, flags);
-	xnlock_get(&nklock);
-
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
 
-	rq = curr->rq;
+	rq = evl_get_thread_rq(curr, flags);
+
 	oldstate = curr->state;
 
 	/*
@@ -563,28 +523,24 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 
 	evl_set_resched(rq);
 out:
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
+	evl_put_thread_rq(curr, rq, flags);
 }
 
-/* thread->lock + nklock held, irqs off */
+/* thread->lock + thread->rq->lock held, irqs off */
 static void evl_wakeup_thread_locked(struct evl_thread *thread,
 				int mask, int info)
 {
+	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
-	struct evl_rq *rq;
 
 	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_evl_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
 		return;
 
-	xnlock_get(&nklock);
-
 	trace_evl_wakeup_thread(thread, mask, info);
 
-	rq = thread->rq;
 	oldstate = thread->state;
 	if (likely(oldstate & mask)) {
 		/* Clear T_DELAY along w/ T_PEND in state. */
@@ -609,19 +565,16 @@ static void evl_wakeup_thread_locked(struct evl_thread *thread,
 				evl_inc_counter(&thread->stat.rwa);
 		}
 	}
-
-	xnlock_put(&nklock);
 }
 
 void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	evl_wakeup_thread_locked(thread, mask, info);
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 
 void evl_hold_thread(struct evl_thread *thread, int mask)
@@ -634,12 +587,10 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_DORMANT)))
 		return;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
-
 	trace_evl_hold_thread(thread, mask);
 
-	rq = thread->rq;
+	rq = evl_get_thread_rq(thread, flags);
+
 	oldstate = thread->state;
 
 	/*
@@ -677,35 +628,31 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)))
 		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
  out:
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 
-/* thread->lock + nklock held, irqs off */
+/* thread->lock + thread->rq->lock held, irqs off */
 static void evl_release_thread_locked(struct evl_thread *thread,
 				int mask, int info)
 {
+	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
-	struct evl_rq *rq;
 
 	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_evl_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT)))
 		return;
 
-	xnlock_get(&nklock);
-
 	trace_evl_release_thread(thread, mask, info);
 
-	rq = thread->rq;
 	oldstate = thread->state;
 	if (oldstate & mask) {
 		thread->state &= ~mask;
 		thread->info |= info;
 
 		if (thread->state & EVL_THREAD_BLOCK_BITS)
-			goto out;
+			return;
 
 		if (unlikely((oldstate & mask) & T_HALT)) {
 			/* Requeue at head of priority group. */
@@ -723,19 +670,16 @@ ready:
 	evl_set_resched(rq);
 	if (rq != this_evl_rq())
 		evl_inc_counter(&thread->stat.rwa);
-out:
-	xnlock_put(&nklock);
 }
 
 void evl_release_thread(struct evl_thread *thread, int mask, int info)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	evl_release_thread_locked(thread, mask, info);
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 
 static void inband_task_wakeup(struct irq_work *work)
@@ -748,157 +692,6 @@ static void inband_task_wakeup(struct irq_work *work)
 	trace_evl_inband_wakeup(p);
 	wake_up_process(p);
 }
-
-void evl_switch_inband(int cause)
-{
-	struct evl_thread *curr = evl_current();
-	struct task_struct *p = current;
-	struct kernel_siginfo si;
-	struct evl_rq *rq;
-
-	oob_context_only();
-
-	trace_evl_switching_inband(cause);
-
-	/*
-	 * This is the only location where we may assert T_INBAND for
-	 * a thread. Basic assumption: we are the current thread on
-	 * this CPU running in OOB context.
-	 *
-	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
-	 * kernel is allowed to take interrupts again, so that
-	 * try_to_wake_up() does not block the wake up request for the
-	 * switching thread as a result of testing task_is_off_stage().
-	 */
-	oob_irq_disable();
-	evl_spin_lock(&curr->lock);
-	irq_work_queue(&curr->inband_work);
-	xnlock_get(&nklock);
-	if (curr->state & T_READY) {
-		evl_dequeue_thread(curr);
-		curr->state &= ~T_READY;
-	}
-	curr->info &= ~EVL_THREAD_INFO_MASK;
-	curr->state |= T_INBAND;
-	curr->local_info &= ~T_SYSRST;
-	rq = curr->rq;
-	evl_set_resched(rq);
-	dovetail_leave_oob();
-	xnlock_put(&nklock);
-	evl_spin_unlock(&curr->lock);
-	__evl_schedule();
-	oob_irq_enable();
-	dovetail_resume_inband();
-
-	/*
-	 * Basic sanity check after an expected transition to in-band
-	 * context.
-	 */
-	EVL_WARN(CORE, !running_inband(),
-		"evl_switch_inband() failed for thread %s[%d]",
-		curr->name, evl_get_inband_pid(curr));
-
-	/* Account for switch to in-band context. */
-	evl_inc_counter(&curr->stat.isw);
-
-	trace_evl_switched_inband(curr);
-
-	/*
-	 * When switching to in-band context, we check for propagating
-	 * the current EVL schedparams that might have been set for
-	 * current while running in OOB context.
-	 *
-	 * CAUTION: This obviously won't update the schedparams cached
-	 * by the glibc for the caller in user-space, but this is the
-	 * deal: we don't switch threads which issue
-	 * EVL_THRIOC_SET_SCHEDPARAM to in-band mode, but then only
-	 * the kernel side will be aware of the change, and glibc
-	 * might cache obsolete information.
-	 */
-	evl_propagate_schedparam_change(curr);
-
-	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
-		/*
-		 * Help debugging spurious stage switches by sending
-		 * SIGDEBUG. We are running inband on the context of
-		 * the receiver, so we may bypass evl_signal_thread()
-		 * for this.
-		 */
-		if (curr->state & T_WOSS) {
-			memset(&si, 0, sizeof(si));
-			si.si_signo = SIGDEBUG;
-			si.si_code = SI_QUEUE;
-			si.si_int = cause | sigdebug_marker;
-			send_sig_info(SIGDEBUG, &si, p);
-		}
-		/* May check for locking inconsistency too. */
-		if (curr->state & T_WOLI)
-			evl_detect_boost_drop(curr);
-	}
-
-	/* @curr is now running inband. */
-	evl_sync_uwindow(curr);
-}
-EXPORT_SYMBOL_GPL(evl_switch_inband);
-
-int evl_switch_oob(void)
-{
-	struct task_struct *p = current;
-	struct evl_thread *curr;
-	struct evl_rq *rq;
-	int ret;
-
-	inband_context_only();
-
-	curr = evl_current();
-	if (curr == NULL)
-		return -EPERM;
-
-	if (signal_pending(p))
-		return -ERESTARTSYS;
-
-	trace_evl_switching_oob(curr);
-
-	evl_clear_sync_uwindow(curr, T_INBAND);
-
-	ret = dovetail_leave_inband();
-	if (ret) {
-		evl_test_cancel();
-		evl_set_sync_uwindow(curr, T_INBAND);
-		return ret;
-	}
-
-	/*
-	 * The current task is now running on the out-of-band
-	 * execution stage. Hard irqs must be off, otherwise something
-	 * is really wrong in the Dovetail layer.
-	 */
-	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
-		hard_irqs_disabled();
-
-	rq = this_evl_rq();
-
-	xnlock_clear_irqon(&nklock);
-	evl_test_cancel();
-
-	trace_evl_switched_oob(curr);
-
-	/*
-	 * Recheck pending signals once again. As we block task
-	 * wakeups during the stage transition and handle_sigwake_event()
-	 * ignores signals until T_INBAND is cleared, any signal in
-	 * between is just silently queued up to here.
-	 */
-	if (signal_pending(p)) {
-		evl_switch_inband(!(curr->state & T_SSTEP) ?
-				SIGDEBUG_MIGRATE_SIGNAL:
-				SIGDEBUG_NONE);
-		return -ERESTARTSYS;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(evl_switch_oob);
 
 void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
 {
@@ -955,17 +748,13 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 			struct evl_clock *clock)
 {
 	struct evl_thread *curr = evl_current();
-	unsigned long flags;
 	ktime_t rem = 0;
 
 	evl_sleep_on(timeout, timeout_mode, clock, NULL);
 	evl_schedule();
 
-	if (curr->info & T_BREAK) {
-		xnlock_get_irqsave(&nklock, flags);
+	if (curr->info & T_BREAK)
 		rem = __evl_get_stopped_timer_delta(&curr->rtimer);
-		xnlock_put_irqrestore(&nklock, flags);
-	}
 
 	return rem;
 }
@@ -1069,18 +858,17 @@ EXPORT_SYMBOL_GPL(evl_wait_thread_period);
 void evl_cancel_thread(struct evl_thread *thread)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
 		return;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 
 	if (thread->state & T_ZOMBIE) {
-		xnlock_put(&nklock);
-		evl_spin_unlock_irqrestore(&thread->lock, flags);
+		evl_put_thread_rq(thread, rq, flags);
 		return;
 	}
 
@@ -1101,15 +889,13 @@ void evl_cancel_thread(struct evl_thread *thread)
 	 * the prep work.
 	 */
 	if ((thread->state & (T_DORMANT|T_INBAND)) == (T_DORMANT|T_INBAND)) {
-		xnlock_put(&nklock);
-		evl_spin_unlock_irqrestore(&thread->lock, flags);
-		evl_release_thread(thread, T_DORMANT, T_KICKED);
+		evl_release_thread_locked(thread, T_DORMANT, T_KICKED);
+		evl_put_thread_rq(thread, rq, flags);
 		goto out;
 	}
 
 check_self_cancel:
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 
 	if (evl_current() == thread) {
 		evl_test_cancel();
@@ -1154,6 +940,7 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 	struct evl_thread *curr = evl_current();
 	bool switched = false;
 	unsigned long flags;
+	struct evl_rq *rq;
 	int ret = 0;
 
 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
@@ -1162,29 +949,25 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 	if (thread == curr)
 		return -EDEADLK;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 
 	/*
 	 * We allow multiple callers to join @thread, this is purely a
 	 * synchronization mechanism with no resource collection.
 	 */
 	if (thread->info & T_DORMANT) {
-		xnlock_put(&nklock);
-		evl_spin_unlock_irqrestore(&thread->lock, flags);
+		evl_put_thread_rq(thread, rq, flags);
 		return 0;
 	}
 
 	trace_evl_thread_join(thread);
 
 	if (curr && !(curr->state & T_INBAND)) {
-		xnlock_put(&nklock);
-		evl_spin_unlock_irqrestore(&thread->lock, flags);
+		evl_put_thread_rq(thread, rq, flags);
 		evl_switch_inband(SIGDEBUG_NONE);
 		switched = true;
 	} else {
-		xnlock_put(&nklock);
-		evl_spin_unlock_irqrestore(&thread->lock, flags);
+		evl_put_thread_rq(thread, rq, flags);
 	}
 
 	/*
@@ -1213,15 +996,14 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 			const union evl_sched_param *sched_param)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 	int ret;
 
 	no_ugly_lock();
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	ret = evl_set_thread_schedparam_locked(thread, sched_class, sched_param);
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 
 	return ret;
 }
@@ -1233,8 +1015,7 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 {
 	int old_wprio, new_wprio, ret;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	old_wprio = thread->wprio;
 
@@ -1272,7 +1053,7 @@ void __evl_test_cancel(struct evl_thread *curr)
 	 * NOTE: curr->rq is stable from our POV and can't change
 	 * under our feet.
 	 */
-	if (curr->rq->lflags & RQ_IRQ)
+	if (curr->rq->local_flags & RQ_IRQ)
 		return;
 
 	if (!(curr->state & T_INBAND))
@@ -1290,6 +1071,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	struct task_struct *p = current;
 	struct sched_param param;
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
@@ -1300,9 +1082,8 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	 * is eventually handled. We just have to protect against a
 	 * set-clear race.
 	 */
-	evl_spin_lock_irqsave(&curr->lock, flags);
+	rq = evl_get_thread_rq(curr, flags);
 	kprio = curr->bprio;
-	xnlock_get(&nklock);
 	curr->info &= ~T_SCHEDP;
 
 	/*
@@ -1314,8 +1095,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	else if (kprio > EVL_FIFO_MAX_PRIO)
 		kprio = EVL_FIFO_MAX_PRIO;
 
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
+	evl_put_thread_rq(curr, rq, flags);
 
 	if (p->policy != kpolicy || (kprio > 0 && p->rt_priority != kprio)) {
 		param.sched_priority = kprio;
@@ -1350,11 +1130,11 @@ void evl_kick_thread(struct evl_thread *thread)
 {
 	struct task_struct *p = thread->altsched.task;
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 
 	if ((thread->info & T_KICKED) || (thread->state & T_INBAND))
 		goto out;
@@ -1424,8 +1204,7 @@ void evl_kick_thread(struct evl_thread *thread)
 	if ((thread->state & T_USER) && thread != this_evl_rq_thread())
 		dovetail_send_mayday(p);
 out:
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 EXPORT_SYMBOL_GPL(evl_kick_thread);
 
@@ -1434,11 +1213,11 @@ void evl_demote_thread(struct evl_thread *thread)
 	struct evl_sched_class *sched_class;
 	union evl_sched_param param;
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	no_ugly_lock();
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 
 	/*
 	 * First demote @thread to the weak class, which still has
@@ -1451,8 +1230,7 @@ void evl_demote_thread(struct evl_thread *thread)
 	sched_class = &evl_sched_weak;
 	evl_set_thread_schedparam_locked(thread, sched_class, &param);
 
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 
 	/* Then unblock it from any wait state. */
 	evl_kick_thread(thread);
@@ -1592,6 +1370,7 @@ int evl_update_mode(__u32 mask, bool set)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
+	struct evl_rq *rq;
 
 	if (curr == NULL)
 		return -EPERM;
@@ -1601,16 +1380,14 @@ int evl_update_mode(__u32 mask, bool set)
 
 	trace_evl_thread_update_mode(mask, set);
 
-	evl_spin_lock_irqsave(&curr->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(curr, flags);
 
 	if (set)
 		curr->state |= mask;
 	else
 		curr->state &= ~mask;
 
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
+	evl_put_thread_rq(curr, rq, flags);
 
 	return 0;
 }
@@ -1721,7 +1498,7 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 	 * migration call, because the latter always has to take place
 	 * on behalf of the target thread itself while running
 	 * in-band. Therefore, that thread needs to switch to in-band
-	 * context first, then move back to OOB, so that affinity_ok()
+	 * context first, then move back to OOB, so that check_cpu_affinity()
 	 * does the fixup work.
 	 *
 	 * We force this by sending a SIGEVL signal to the migrated
@@ -1733,90 +1510,13 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
 }
 
-static bool affinity_ok(struct task_struct *p) /* oob stage stalled */
-{
-	struct evl_thread *thread = evl_thread_from_task(p);
-	int cpu = task_cpu(p);
-	struct evl_rq *rq;
-	bool ret = true;
-
-	evl_spin_lock(&thread->lock);
-	xnlock_get(&nklock);
-
-	/*
-	 * To maintain consistency between both the EVL and in-band
-	 * schedulers, reflecting a thread migration to another CPU
-	 * into EVL's scheduler state must happen from in-band context
-	 * only, on behalf of the migrated thread itself once it runs
-	 * on the target CPU.
-	 *
-	 * This means that the EVL scheduler state regarding the CPU
-	 * information lags behind the in-band scheduler state until
-	 * the migrated thread switches back to OOB context
-	 * (i.e. task_cpu(p) !=
-	 * evl_rq_cpu(evl_thread_from_task(p)->rq)).  This is ok since
-	 * EVL will not schedule such thread until then.
-	 *
-	 * affinity_ok() detects when a EVL thread switching back to
-	 * OOB context did move to another CPU earlier while running
-	 * in-band. If so, do the fixups to reflect the change.
-	 */
-	if (!is_threading_cpu(cpu)) {
-		printk(EVL_WARNING "thread %s[%d] switched to non-rt CPU%d, aborted.\n",
-			thread->name, evl_get_inband_pid(thread), cpu);
-		/*
-		 * Can't call evl_cancel_thread() from a CPU migration
-		 * point, that would break. Since we are on the wakeup
-		 * path to OOB context, just raise T_CANCELD to catch
-		 * it in evl_switch_oob().
-		 */
-		thread->info |= T_CANCELD;
-		ret = false;
-		goto out;
-	}
-
-	rq = evl_cpu_rq(cpu);
-	if (rq == thread->rq)
-		goto out;
-
-	/*
-	 * If the current thread moved to a supported out-of-band CPU,
-	 * which is not part of its original affinity mask, assume
-	 * user wants to extend this mask.
-	 */
-	if (!cpumask_test_cpu(cpu, &thread->affinity))
-		cpumask_set_cpu(cpu, &thread->affinity);
-
-	evl_migrate_thread(thread, rq);
-out:
-	xnlock_put(&nklock);
-	evl_spin_unlock(&thread->lock);
-
-	return ret;
-}
-
 #else /* !CONFIG_SMP */
 
 static void handle_migration_event(struct dovetail_migration_data *d)
 {
 }
 
-static inline bool affinity_ok(struct task_struct *p)
-{
-	return true;
-}
-
 #endif /* CONFIG_SMP */
-
-void resume_oob_task(struct task_struct *p) /* oob stage stalled */
-{
-	struct evl_thread *thread = evl_thread_from_task(p);
-
-	if (affinity_ok(p))
-		evl_release_thread(thread, T_INBAND, 0);
-
-	evl_schedule();
-}
 
 static void handle_schedule_event(struct task_struct *next_task)
 {
@@ -1854,9 +1554,9 @@ static void handle_schedule_event(struct task_struct *next_task)
 				sigismember(&pending, SIGINT))
 				goto check;
 		}
-		xnlock_get(&nklock);
+		evl_spin_lock(&next->rq->lock);
 		next->state &= ~T_SSTEP;
-		xnlock_put(&nklock);
+		evl_spin_unlock(&next->rq->lock);
 		next->local_info |= T_HICCUP;
 	}
 	evl_spin_unlock_irqrestore(&next->lock, flags);
@@ -1912,9 +1612,9 @@ static void handle_sigwake_event(struct task_struct *p)
 		if (sigismember(&pending, SIGTRAP) ||
 			sigismember(&pending, SIGSTOP)
 			|| sigismember(&pending, SIGINT))
-			xnlock_get(&nklock);
+			evl_spin_lock(&thread->rq->lock);
 			thread->state &= ~T_SSTEP;
-			xnlock_put(&nklock);
+			evl_spin_unlock(&thread->rq->lock);
 	}
 
 	evl_spin_unlock_irqrestore(&thread->lock, flags);
@@ -1972,15 +1672,14 @@ void handle_inband_event(enum inband_event_type event, void *data)
 	}
 }
 
-/* thread->lock + nklock held, irqs off */
+/* thread->lock + thread->rq->lock held, irqs off */
 static int set_time_slice(struct evl_thread *thread, ktime_t quantum)
 {
-	struct evl_rq *rq;
+	struct evl_rq *rq = thread->rq;
 
 	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_evl_lock(&rq->lock);
 
-	rq = thread->rq;
 	thread->rrperiod = quantum;
 
 	if (!timeout_infinite(quantum)) {
@@ -2010,13 +1709,13 @@ static int set_sched_attrs(struct evl_thread *thread,
 	struct evl_sched_class *sched_class;
 	union evl_sched_param param;
 	unsigned long flags;
+	struct evl_rq *rq;
 	int ret = -EINVAL;
 	ktime_t tslice;
 
 	trace_evl_thread_setsched(thread, attrs);
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 
 	tslice = thread->rrperiod;
 	sched_class = evl_find_sched_class(&param, attrs, &tslice);
@@ -2029,8 +1728,7 @@ static int set_sched_attrs(struct evl_thread *thread,
 
 	ret = evl_set_thread_schedparam_locked(thread, sched_class, &param);
 out:
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 
 	evl_schedule();
 
@@ -2043,8 +1741,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 {
 	union evl_sched_param param;
 
-	assert_evl_lock(&thread->lock);
-	requires_ugly_lock();
+	assert_thread_pinned(thread);
 
 	attrs->sched_policy = sched_class->policy;
 
@@ -2081,23 +1778,22 @@ static void get_sched_attrs(struct evl_thread *thread,
 			struct evl_sched_attrs *attrs)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	/* Get the base scheduling attributes. */
 	attrs->sched_priority = thread->bprio;
 	__get_sched_attrs(thread->base_class, thread, attrs);
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 
 void evl_get_thread_state(struct evl_thread *thread,
 			struct evl_thread_state *statebuf)
 {
 	unsigned long flags;
+	struct evl_rq *rq;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
-	xnlock_get(&nklock);
+	rq = evl_get_thread_rq(thread, flags);
 	/* Get the effective scheduling attributes. */
 	statebuf->eattrs.sched_priority = thread->cprio;
 	__get_sched_attrs(thread->sched_class, thread, &statebuf->eattrs);
@@ -2109,8 +1805,7 @@ void evl_get_thread_state(struct evl_thread *thread,
 	statebuf->rwa = evl_get_counter(&thread->stat.rwa);
 	statebuf->xtime = ktime_to_ns(evl_get_account_total(
 					&thread->stat.account));
-	xnlock_put(&nklock);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	evl_put_thread_rq(thread, rq, flags);
 }
 EXPORT_SYMBOL_GPL(evl_get_thread_state);
 
