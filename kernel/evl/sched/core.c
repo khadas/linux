@@ -634,7 +634,7 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	 * preemption is allowed.
 	 */
 	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
-		if (evl_preempt_count() > 1) { /* FIXME: seriously... */
+		if (evl_preempt_count() > 0) {
 			evl_set_self_resched(rq);
 			return curr;
 		}
