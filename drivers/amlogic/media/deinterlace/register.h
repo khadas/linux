@@ -4352,6 +4352,12 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define MCDI_RO_COL_CFD_25                         ((0x2fc9))
 /* Bit 31: 0, ro_mcdi_col_cfd_25.     column cofidence value 25. initial = 0 */
 
+#define MCDI_RO_FLD_PD_22_PRE_CNT1                         ((0x2fca))
+#define MCDI_RO_FLD_PD_22_POR_CNT1                         ((0x2fcb))
+#define MCDI_RO_FLD_PD_22_FLT_CNT1                         ((0x2fcc))
+#define MCDI_RO_FLD_PD_22_PRE_CNT2                         ((0x2fcd))
+#define MCDI_RO_FLD_PD_22_POR_CNT2                         ((0x2fce))
+#define MCDI_RO_FLD_PD_22_FLT_CNT2                         ((0x2fcf))
 
 #define DIPD_COMB_CTRL0					0x2fd0
 /* Bit 31: 24, cmb_v_dif_min */

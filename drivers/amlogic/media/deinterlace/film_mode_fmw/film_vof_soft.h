@@ -81,9 +81,10 @@ struct sFlmDatSt {
 	int TCNm[HISCMBNUM];/* history: the number of combing-rows */
 
 	UINT32 *rROFrmDif02;
-
-	/* size of the image */
-	int iHeight;
+	UINT8 quit_cnt[4];
+	UINT8 enter_cnt[4];
+	UINT8 mcdi22_quit_cnt;
+	int iHeight;/* size of the image */
 	int iWidth;
 };
 
@@ -120,8 +121,9 @@ struct sFlmSftPar {
 	int cmb22_nocmb_num;
 	int flm22_en;
 	int flm32_en;
-	int flm22_force;
 	int flm22_flag;
+	int	flm22_force;
+	int	pd22224_en;
 	int flm22_avg_flag;
 	int flm2224_flag;
 	int flm22_comlev;
@@ -139,6 +141,12 @@ struct sFlmSftPar {
 
 	UINT32 sF32Dif02M0;	/* mpeg-4096, cvbs-8192 */
 	UINT32 sF32Dif02M1;	/* mpeg-4096, cvbs-8192 */
+	int quit_th;
+	int quit_th_en;
+	int enter_th;
+	int flm22_diff01_th;
+	int flm22_mcdi_min_th;
+	int flm22_max_th;
 	unsigned int field_count;
 	unsigned short width;
 	unsigned short height;
@@ -161,7 +169,7 @@ struct FlmDectRes {
 };
 
 UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar);
-int FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02);
+int FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02, int flm2224_cen);
 
 /*  */
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
