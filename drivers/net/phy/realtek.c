@@ -54,6 +54,8 @@ unsigned int external_rx_delay;
 unsigned int external_tx_delay;
 #endif
 
+extern int mcu_get_wol_status(void);
+
 static int __init init_wol_state(char *str)
 {
 	wol_enable = simple_strtol(str, NULL, 0);
@@ -70,7 +72,7 @@ static void enable_wol(int enable, bool is_shutdown)
 
 	if (NULL != g_phydev)
 	{
-		if (1 == enable)
+		if (1 == enable || 3 == enable)
 		{
 			int value;
 
@@ -233,6 +235,9 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
 
 	g_phydev = phydev;
+
+	if (3 == mcu_get_wol_status())
+		enable_wol(3, false);
 
 	/* restore to default page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);

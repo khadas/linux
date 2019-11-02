@@ -703,8 +703,8 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	printk("%s,wol enable=%d\n",__func__ ,g_mcu_data->wol_enable);
 
 	if (is_mcu_wol_supported()) {
-	//	if (g_mcu_data->wol_enable == 3)
-	//		mcu_enable_wol(g_mcu_data->wol_enable, false);
+		if (g_mcu_data->wol_enable == 3)
+			mcu_enable_wol(g_mcu_data->wol_enable, false);
 
 		reg[0] = 0x01;
 		ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
