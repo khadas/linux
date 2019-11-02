@@ -37,14 +37,26 @@ struct evl_mutex {
 	struct list_head next_tracker;   /* thread->trackers */
 };
 
-void evl_init_mutex_pi(struct evl_mutex *mutex,
-		struct evl_clock *clock,
-		atomic_t *fastlock);
-
-void evl_init_mutex_pp(struct evl_mutex *mutex,
+void __evl_init_mutex(struct evl_mutex *mutex,
 		struct evl_clock *clock,
 		atomic_t *fastlock,
 		u32 *ceiling_ref);
+
+#define evl_init_mutex_pi(__mutex, __clock, __fastlock)		\
+	do {							\
+		static struct lock_class_key __key;		\
+		__evl_init_mutex(__mutex, __clock, __fastlock, NULL);	\
+		lockdep_set_class_and_name(&(__mutex)->lock._lock, \
+					&__key, #__mutex);	   \
+	} while (0)
+
+#define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
+	do {								\
+		static struct lock_class_key __key;			\
+		__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling); \
+		lockdep_set_class_and_name(&(__mutex)->lock._lock, \
+					&__key, #__mutex);	   \
+	} while (0)
 
 void evl_destroy_mutex(struct evl_mutex *mutex);
 
