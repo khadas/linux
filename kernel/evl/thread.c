@@ -459,19 +459,19 @@ fail_element:
 }
 EXPORT_SYMBOL_GPL(__evl_run_kthread);
 
-void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+/* evl_current()->lock + evl_current()->rq->lock held, oob stalled. */
+void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan)
 {
 	struct evl_thread *curr = evl_current();
-	unsigned long oldstate, flags;
-	struct evl_rq *rq;
+	struct evl_rq *rq = curr->rq;
+	unsigned long oldstate;
 
-	oob_context_only();
-	no_ugly_lock();
+	assert_evl_lock(&curr->lock);
+	assert_evl_lock(&rq->lock);
+	
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
-
-	rq = evl_get_thread_rq(curr, flags);
 
 	oldstate = curr->state;
 
@@ -483,7 +483,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 		if (curr->info & T_KICKED) {
 			curr->info &= ~(T_RMID|T_TIMEO);
 			curr->info |= T_BREAK;
-			goto out;
+			return;
 		}
 		curr->info &= ~EVL_THREAD_INFO_MASK;
 	}
@@ -501,7 +501,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
 		else if (timeout <= evl_read_clock(clock)) {
 			curr->info |= T_TIMEO;
-			goto out;
+			return;
 		}
 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
 		curr->state |= T_DELAY;
@@ -522,7 +522,21 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	}
 
 	evl_set_resched(rq);
-out:
+}
+
+void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+		struct evl_clock *clock,
+		struct evl_wait_channel *wchan)
+{
+	struct evl_thread *curr = evl_current();
+	unsigned long flags;
+	struct evl_rq *rq;
+
+	oob_context_only();
+	no_ugly_lock();
+
+	rq = evl_get_thread_rq(curr, flags);
+	evl_sleep_on_locked(timeout, timeout_mode, clock, wchan);
 	evl_put_thread_rq(curr, rq, flags);
 }
 
