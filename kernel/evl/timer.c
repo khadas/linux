@@ -71,12 +71,10 @@ static inline void double_timer_base_lock(struct evl_timerbase *tb1,
 		raw_spin_lock(&tb1->lock);
 	else if (tb1 < tb2) {
 		raw_spin_lock(&tb1->lock);
-		/* FIXME: raw_spin_lock_nested for tb2? */
-		raw_spin_lock(&tb2->lock);
+		raw_spin_lock_nested(&tb2->lock, SINGLE_DEPTH_NESTING);
 	} else {
 		raw_spin_lock(&tb2->lock);
-		/* FIXME: raw_spin_lock_nested for tb1? */
-		raw_spin_lock(&tb1->lock);
+		raw_spin_lock_nested(&tb1->lock, SINGLE_DEPTH_NESTING);
 	}
 }
 
