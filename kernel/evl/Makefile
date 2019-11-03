@@ -8,7 +8,6 @@ evl-y :=		\
 	factory.o	\
 	file.o		\
 	init.o		\
-	lock.o		\
 	memory.o	\
 	monitor.o	\
 	mutex.o		\

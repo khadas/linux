@@ -101,8 +101,6 @@ void __evl_commit_monitor_ceiling(void)
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
 
-	no_ugly_lock();
-
 	/*
 	 * curr->u_window has to be valid since curr bears T_USER.  If
 	 * pp_pending is a bad handle, just skip ceiling.
@@ -196,8 +194,6 @@ static int __enter_monitor(struct evl_monitor *gate,
 	ktime_t timeout = EVL_INFINITE;
 	enum evl_tmode tmode;
 
-	no_ugly_lock();
-
 	if (req) {
 		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
 			return -EINVAL;
@@ -214,8 +210,6 @@ static int enter_monitor(struct evl_monitor *gate,
 {
 	struct evl_thread *curr = evl_current();
 
-	no_ugly_lock();
-
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
@@ -229,8 +223,6 @@ static int enter_monitor(struct evl_monitor *gate,
 
 static int tryenter_monitor(struct evl_monitor *gate)
 {
-	no_ugly_lock();
-
 	if (gate->type != EVL_MONITOR_GATE)
 		return -EINVAL;
 
@@ -242,8 +234,6 @@ static int tryenter_monitor(struct evl_monitor *gate)
 static void __exit_monitor(struct evl_monitor *gate,
 			struct evl_thread *curr)
 {
-	no_ugly_lock();
-
 	/*
 	 * If we are about to release the lock which is still pending
 	 * PP (i.e. we never got scheduled out while holding it),

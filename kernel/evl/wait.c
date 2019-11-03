@@ -16,7 +16,6 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock, int flags,
 		const char *name, struct lock_class_key *key)
 {
-	no_ugly_lock();
 	wq->flags = flags;
 	wq->clock = clock;
 	evl_spin_lock_init(&wq->lock);
@@ -29,7 +28,6 @@ EXPORT_SYMBOL_GPL(__evl_init_wait);
 
 void evl_destroy_wait(struct evl_wait_queue *wq)
 {
-	no_ugly_lock();
 	evl_flush_wait(wq, T_RMID);
 	evl_schedule();
 }
@@ -100,7 +98,6 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 {
 	unsigned long flags;
 
-	no_ugly_lock();
 	evl_spin_lock_irqsave(&wq->lock, flags);
 	evl_flush_wait_locked(wq, reason);
 	evl_spin_unlock_irqrestore(&wq->lock, flags);
@@ -120,7 +117,6 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 
 	assert_evl_lock(&waiter->lock);
 	assert_evl_lock(&originator->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&wq->lock);
 
@@ -148,8 +144,6 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	int ret = 0, info;
-
-	no_ugly_lock();
 
 	evl_schedule();
 

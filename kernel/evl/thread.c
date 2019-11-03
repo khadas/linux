@@ -252,8 +252,6 @@ static void uninit_thread(struct evl_thread *thread)
 	unsigned long flags;
 	struct evl_rq *rq;
 
-	no_ugly_lock();
-
 	evl_destroy_timer(&thread->rtimer);
 	evl_destroy_timer(&thread->ptimer);
 
@@ -269,8 +267,6 @@ static void do_cleanup_current(struct evl_thread *curr)
 	struct cred *newcap;
 	unsigned long flags;
 	struct evl_rq *rq;
-
-	no_ugly_lock();
 
 	/*
 	 * Drop trackers first since this may alter the rq state for
@@ -533,7 +529,6 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
 	struct evl_rq *rq;
 
 	oob_context_only();
-	no_ugly_lock();
 
 	rq = evl_get_thread_rq(curr, flags);
 	evl_sleep_on_locked(timeout, timeout_mode, clock, wchan);
@@ -595,8 +590,6 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 {
 	unsigned long oldstate, flags;
 	struct evl_rq *rq;
-
-	no_ugly_lock();
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_DORMANT)))
 		return;
@@ -874,8 +867,6 @@ void evl_cancel_thread(struct evl_thread *thread)
 	unsigned long flags;
 	struct evl_rq *rq;
 
-	no_ugly_lock();
-
 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
 		return;
 
@@ -1013,8 +1004,6 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 	struct evl_rq *rq;
 	int ret;
 
-	no_ugly_lock();
-
 	rq = evl_get_thread_rq(thread, flags);
 	ret = evl_set_thread_schedparam_locked(thread, sched_class, sched_param);
 	evl_put_thread_rq(thread, rq, flags);
@@ -1058,8 +1047,6 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 
 void __evl_test_cancel(struct evl_thread *curr)
 {
-	no_ugly_lock();
-
 	/*
 	 * Just in case evl_test_cancel() is called from an IRQ
 	 * handler, in which case we may not take the exit path.
@@ -1086,8 +1073,6 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 	struct sched_param param;
 	unsigned long flags;
 	struct evl_rq *rq;
-
-	no_ugly_lock();
 
 	/*
 	 * Test-set race for T_SCHEDP is ok, the propagation is meant
@@ -1120,8 +1105,6 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
 
 void evl_unblock_thread(struct evl_thread *thread, int reason)
 {
-	no_ugly_lock();
-
 	trace_evl_unblock_thread(thread);
 
 	/*
@@ -1145,8 +1128,6 @@ void evl_kick_thread(struct evl_thread *thread)
 	struct task_struct *p = thread->altsched.task;
 	unsigned long flags;
 	struct evl_rq *rq;
-
-	no_ugly_lock();
 
 	rq = evl_get_thread_rq(thread, flags);
 
@@ -1228,8 +1209,6 @@ void evl_demote_thread(struct evl_thread *thread)
 	union evl_sched_param param;
 	unsigned long flags;
 	struct evl_rq *rq;
-
-	no_ugly_lock();
 
 	rq = evl_get_thread_rq(thread, flags);
 

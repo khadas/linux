@@ -56,7 +56,6 @@ struct evl_wait_queue {
 	int __ret = 0, __bcast;						\
 	unsigned long __flags;						\
 									\
-	no_ugly_lock();							\
 	evl_spin_lock_irqsave(&(__wq)->lock, __flags);			\
 	if (!(__cond)) {						\
 		if (timeout_nonblock(__timeout))			\
