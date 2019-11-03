@@ -4,10 +4,9 @@
 
 #include <asm/traps.h>
 
-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
-					(__trapnr == X86_TRAP_DB ||	\
-						(__trapnr) == X86_TRAP_BP))
-
-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
+static inline bool evl_is_breakpoint(int trapnr)
+{
+	return trapnr == X86_TRAP_DB || trapnr == X86_TRAP_BP;
+}
 
 #endif /* !_EVL_X86_ASM_THREAD_H */

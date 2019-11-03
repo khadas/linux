@@ -2,10 +2,9 @@
 #ifndef _EVL_ARM64_ASM_THREAD_H
 #define _EVL_ARM64_ASM_THREAD_H
 
-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
-					 (__trapnr == ARM64_TRAP_DEBUG || \
-					  (__trapnr) == ARM64_TRAP_UNDI))
-
-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
+static inline bool evl_is_breakpoint(int trapnr)
+{
+	return trapnr == ARM64_TRAP_DEBUG || trapnr == ARM64_TRAP_UNDI;
+}
 
 #endif /* !_EVL_ARM64_ASM_THREAD_H */
