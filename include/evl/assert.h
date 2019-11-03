@@ -49,14 +49,4 @@
 		assert_evl_lock(&(__thread)->rq->lock);	\
 	} while (0)
 
-/* TEMP: needed until we have gotten rid of the infamous nklock. */
-#ifdef CONFIG_SMP
-#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
-#define no_ugly_lock()		EVL_WARN_ON_ONCE(CORE, xnlock_is_owner(&nklock))
-#else
-/* We have no debug support for the ugly lock in !SMP, check for the basics. */
-#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
-#define no_ugly_lock()		do { } while (0)
-#endif
-
 #endif /* !_EVL_ASSERT_H */

@@ -538,7 +538,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
 
 	assert_evl_lock(&thread->lock);
 	assert_evl_lock(&target->lock);
-	no_ugly_lock();
 
 	evl_double_rq_lock(thread->rq, target->rq);
 
@@ -585,7 +584,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
 void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
 	assert_evl_lock(&thread->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&thread->rq->lock);
 
@@ -853,8 +851,6 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 	struct evl_thread *prev, *next, *curr;
 	bool leaving_inband, inband_tail;
 	unsigned long flags;
-
-	no_ugly_lock();
 
 	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !oob_irqs_disabled()))
 		return;

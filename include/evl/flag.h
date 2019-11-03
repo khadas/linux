@@ -80,7 +80,6 @@ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
 {
 	unsigned long flags;
 
-	/* no_ugly_lock() */
 	evl_lock_flag(wf, flags);
 	evl_raise_flag_locked(wf);
 	evl_unlock_flag(wf, flags);
@@ -102,7 +101,6 @@ static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
 {
 	unsigned long flags;
 
-	no_ugly_lock();
 	evl_lock_flag(wf, flags);
 	evl_pulse_flag_locked(wf);
 	evl_unlock_flag(wf, flags);
@@ -124,7 +122,6 @@ static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
 {
 	unsigned long flags;
 
-	no_ugly_lock();
 	evl_lock_flag(wf, flags);
 	evl_flush_flag_locked(wf, reason);
 	evl_unlock_flag(wf, flags);

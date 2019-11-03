@@ -42,8 +42,6 @@ static inline void disable_inband_switch(struct evl_thread *curr)
 
 static inline bool enable_inband_switch(struct evl_thread *curr)
 {
-	no_ugly_lock();
-
 	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
 		return true;
 
@@ -61,7 +59,6 @@ static inline bool enable_inband_switch(struct evl_thread *curr)
 static void raise_boost_flag(struct evl_thread *owner)
 {
 	assert_evl_lock(&owner->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&owner->rq->lock);
 
@@ -84,7 +81,6 @@ static int inherit_thread_priority(struct evl_thread *owner,
 
 	assert_evl_lock(&owner->lock);
 	assert_evl_lock(&contender->lock);
-	no_ugly_lock();
 
 	/* Apply the scheduling policy of @contender to @owner */
 	evl_track_thread_policy(owner, contender);
@@ -145,7 +141,6 @@ static int adjust_boost(struct evl_thread *owner,
 	 */
 	assert_evl_lock(&owner->lock);
 	assert_evl_lock(&origin->lock);
-	no_ugly_lock();
 
 	/*
 	 * CAUTION: we may have PI and PP-enabled mutexes among the
@@ -204,7 +199,6 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 	int wprio;
 
 	assert_evl_lock(&mutex->lock);
-	no_ugly_lock();
 
 	/* PP ceiling values are implicitly based on the FIFO class. */
 	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
@@ -328,8 +322,6 @@ void set_current_owner(struct evl_mutex *mutex,
 {
 	unsigned long flags;
 
-	no_ugly_lock();
-
 	evl_spin_lock_irqsave(&mutex->lock, flags);
 	set_current_owner_locked(mutex, owner);
 	evl_spin_unlock_irqrestore(&mutex->lock, flags);
@@ -357,7 +349,6 @@ static void clear_boost_locked(struct evl_mutex *mutex,
 {
 	assert_evl_lock(&mutex->lock);
 	assert_evl_lock(&owner->lock);
-	no_ugly_lock();
 
 	mutex->flags &= ~flag;
 
@@ -377,7 +368,6 @@ static void clear_boost(struct evl_mutex *mutex,
 			int flag)
 {
 	assert_evl_lock(&mutex->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&owner->lock);
 	clear_boost_locked(mutex, owner, flag);
@@ -394,8 +384,6 @@ static void detect_inband_owner(struct evl_mutex *mutex,
 				struct evl_thread *curr)
 {
 	struct evl_thread *owner = mutex->owner;
-
-	no_ugly_lock();
 
 	/*
 	 * @curr == this_evl_rq()->curr so no need to grab
@@ -428,8 +416,6 @@ void evl_detect_boost_drop(struct evl_thread *owner)
 	struct evl_mutex *mutex;
 	unsigned long flags;
 
-	no_ugly_lock();
-
 	evl_spin_lock_irqsave(&owner->lock, flags);
 
 	/*
@@ -459,7 +445,6 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 {
 	int type = ceiling_ref ? EVL_MUTEX_PP : EVL_MUTEX_PI;
 
-	no_ugly_lock();
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
 	mutex->flags = type & ~EVL_MUTEX_CLAIMED;
@@ -499,8 +484,6 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 {
 	unsigned long flags;
 
-	no_ugly_lock();
-
 	trace_evl_mutex_flush(mutex);
 	evl_spin_lock_irqsave(&mutex->lock, flags);
 	flush_mutex_locked(mutex, reason);
@@ -510,8 +493,6 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
 void evl_destroy_mutex(struct evl_mutex *mutex)
 {
 	unsigned long flags;
-
-	no_ugly_lock();
 
 	trace_evl_mutex_destroy(mutex);
 	evl_spin_lock_irqsave(&mutex->lock, flags);
@@ -528,7 +509,6 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
 	fundle_t h;
 
 	oob_context_only();
-	no_ugly_lock();
 
 	trace_evl_mutex_trylock(mutex);
 
@@ -550,8 +530,6 @@ static int wait_mutex_schedule(struct evl_mutex *mutex)
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 	int ret = 0, info;
-
-	no_ugly_lock();
 
 	evl_schedule();
 
@@ -591,7 +569,6 @@ static void finish_mutex_wait(struct evl_mutex *mutex)
 	 * PI chain.
 	 */
 	assert_evl_lock(&mutex->lock);
-	no_ugly_lock();
 
 	/*
 	 * Only a waiter leaving a PI chain triggers an update.
@@ -652,7 +629,6 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
 	int ret;
 
 	oob_context_only();
-	no_ugly_lock();
 
 	currh = fundle_of(curr);
 	trace_evl_mutex_lock(mutex);
@@ -855,7 +831,6 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	fundle_t n_ownerh;
 
 	assert_evl_lock(&mutex->lock);
-	no_ugly_lock();
 
 	if (list_empty(&mutex->wchan.wait_list)) {
 		untrack_owner(mutex);
@@ -897,8 +872,6 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	unsigned long flags;
 	fundle_t currh, h;
 	atomic_t *lockp;
-
-	no_ugly_lock();
 
 	trace_evl_mutex_unlock(mutex);
 
@@ -946,7 +919,6 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
 	fundle_t currh = fundle_of(curr), h;
 
 	oob_context_only();
-	no_ugly_lock();
 
 	h = evl_get_index(atomic_read(mutex->fastlock));
 	if (EVL_WARN_ON_ONCE(CORE, h != currh))
@@ -962,8 +934,6 @@ void evl_drop_tracking_mutexes(struct evl_thread *curr)
 	struct evl_mutex *mutex;
 	unsigned long flags;
 	fundle_t h;
-
-	no_ugly_lock();
 
 	raw_spin_lock_irqsave(&curr->tracking_lock, flags);
 
@@ -1007,7 +977,6 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 
 	assert_evl_lock(&waiter->lock);
 	assert_evl_lock(&originator->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&mutex->lock);
 
@@ -1062,7 +1031,6 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
 	int ret = 0;
 
 	assert_evl_lock(&originator->lock);
-	no_ugly_lock();
 
 	evl_spin_lock(&mutex->lock);
 
@@ -1099,8 +1067,6 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 	atomic_t *lockp = mutex->fastlock;
 	unsigned long flags;
 	fundle_t oldh, h;
-
-	no_ugly_lock();
 
 	evl_spin_lock_irqsave(&mutex->lock, flags);
 
