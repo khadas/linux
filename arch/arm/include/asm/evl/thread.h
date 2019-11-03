@@ -5,10 +5,9 @@
 #ifndef _EVL_ARM_ASM_THREAD_H
 #define _EVL_ARM_ASM_THREAD_H
 
-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
-					 (__trapnr == ARM_TRAP_BREAK || \
-					  (__trapnr) == ARM_TRAP_UNDEFINSTR))
-
-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
+static inline bool evl_is_breakpoint(int trapnr)
+{
+	return trapnr == ARM_TRAP_BREAK || trapnr == ARM_TRAP_UNDEFINSTR;
+}
 
 #endif /* !_EVL_ARM_ASM_THREAD_H */

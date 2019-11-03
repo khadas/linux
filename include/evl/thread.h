@@ -15,6 +15,7 @@
 #include <linux/irq_work.h>
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
+#include <linux/ptrace.h>
 #include <evl/list.h>
 #include <evl/lock.h>
 #include <evl/stat.h>

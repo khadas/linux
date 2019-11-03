@@ -1424,10 +1424,11 @@ static inline void note_trap(struct evl_thread *curr,
 			(void *)instruction_pointer(regs));
 }
 
-/* hard irqs off. */
+/* oob stalled. */
 void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
+	bool is_bp = false;
 
 	oob_context_only();
 
@@ -1441,17 +1442,18 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 
 	trace_evl_thread_fault(trapnr, regs);
 
-	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) &&
-		xnarch_fault_notify(trapnr))
+	if (current->ptrace & PT_PTRACED)
+		is_bp = evl_is_breakpoint(trapnr);
+
+	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) && !is_bp)
 		note_trap(curr, trapnr, regs, "switching in-band");
 
 	/*
 	 * We received a trap on the oob stage, switch to in-band
-	 * before handling the exception.
+	 * before handling the exception. Don't emit SIGDEBUG if the
+	 * fault was caused by a debugger breakpoint.
 	 */
-	evl_switch_inband(xnarch_fault_notify(trapnr) ?
-			SIGDEBUG_MIGRATE_FAULT :
-			SIGDEBUG_NONE);
+	evl_switch_inband(is_bp ? SIGDEBUG_NONE : SIGDEBUG_MIGRATE_FAULT);
 
 	curr->local_info &= ~T_INFAULT;
 }
