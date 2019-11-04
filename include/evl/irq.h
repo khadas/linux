@@ -25,15 +25,10 @@ static inline void evl_exit_irq(void)
 	this_rq->local_flags &= ~RQ_IRQ;
 
 	/*
-	 * We are only interested in RQ_SCHED previously set by an OOB
-	 * handler on the current CPU, so there is no cache coherence
-	 * issue. Remote CPUs pair RQ_SCHED requests with an IPI, so
-	 * we don't care about missing them here.
-	 *
 	 * CAUTION: Switching stages as a result of rescheduling may
 	 * re-enable irqs, shut them off before returning if so.
 	 */
-	if (evl_need_resched(this_rq)) {
+	if ((this_rq->flags|this_rq->local_flags) & RQ_SCHED) {
 		evl_schedule();
 		if (!hard_irqs_disabled())
 			hard_local_irq_disable();
