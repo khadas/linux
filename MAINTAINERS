@@ -14883,3 +14883,11 @@ F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac202.dts
 F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac202_1g.dts
 F:  arch/arm64/configs/meson64_defconfig
 F:  drivers/amlogic/media/camera/gc2145_mipi.c
+
+AMLOGIC S805Y DTS
+M:  Luan Yuan <luan.yuan@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/gxl_p244_1g.dts
+F:  arch/arm/boot/dts/amlogic/gxl_p244_2g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p244_1g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p244_2g.dts
+
