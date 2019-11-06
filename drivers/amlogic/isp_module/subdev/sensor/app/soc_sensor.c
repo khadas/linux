@@ -481,6 +481,9 @@ static int32_t ir_cut_get_named_gpio(struct device_node *np)
         sensor_bp->ir_gname[i] = gname;
         LOG(LOG_ERR, "ir cut gpio name [%d] = %d\n", i, sensor_bp->ir_gname[i]);
      }
+
+	sensor_bp->ir_gname[0] = 1;
+
      return 0;
 }
 

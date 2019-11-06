@@ -272,10 +272,10 @@ static int32_t sensor_ir_cut_set( void *ctx, int32_t ir_cut_state )
 
 //ir_cut_GPIOZ_11, 0: open ir cut, 1: colse ir cut, 2: no operation
 
-   if (sensor_bp->ir_gname[0] <= 0) {
-       pr_err("get gpio id fail\n");
-       return 0;
-    }
+//   if (sensor_bp->ir_gname[0] <= 0) {
+//       pr_err("get gpio id fail\n");
+//       return 0;
+//    }
 
     if (ir_cut_state == 1)
         {
