@@ -1,0 +1,9 @@
+menu "Amlogic ISP Support"
+
+config AMLOGIC_ISP
+	tristate "amlogic ISP module"
+	default m
+	help
+	  Driver for ISP.
+
+endmenu

@@ -131,3 +131,4 @@ obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 
 obj-y   += media_modules/
 obj-$(CONFIG_AMLOGIC_NPU) += npu/
+obj-y	+= isp_module/
