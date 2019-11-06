@@ -593,7 +593,7 @@ void sensor_init_ov08a10( void **ctx, sensor_control_t *ctrl, void *sbp )
     udelay(30);
 #endif
 
-    ret = clk_am_enable(sensor_bp, "g12a_24m");
+    ret = clk_am_enable(sensor_bp, "gen_clk");
     if (ret < 0 )
         pr_err("set mclk fail\n");
     udelay(30);

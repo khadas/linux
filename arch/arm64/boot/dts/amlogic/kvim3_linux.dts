@@ -770,19 +770,18 @@
 
 	sensor: sensor {
 		compatible = "soc, sensor";
-		status = "disabled";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		status = "okay";
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
-		pinctrl-0=<&clk12_24_z_pins>;
-		clocks = <&clkc CLKID_24M>;
-		clock-names = "g12a_24m";
-		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		pinctrl-0=<&gen_clk_ee_ao>;
+		clocks = <&clkc CLKID_GEN_CLK>;
+		clock-names = "gen_clk";
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
-		status = "disabled";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		status = "okay";
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 }; /* end of / */
 
@@ -864,6 +863,16 @@
 		fan,trig_temp_level1 = <60>;
 		fan,trig_temp_level2 = <70>;
 		hwver = "VIM3.V11"; /* Will be updated in uboot. */
+	};
+
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
 	};
 };
 
@@ -1169,6 +1178,14 @@
 			pins = "GPIOAO_6";
 			function = "gpio_aobus";
 			output-low;
+		};
+	};
+
+	gen_clk_ee_ao: gen_clk_ee_ao {
+		mux {
+			groups="gen_clk_ee_ao";
+			function="gen_clk_ee_ao";
+			drive-strength = <3>;
 		};
 	};
 };  /* end of pinctrl_aobus */
