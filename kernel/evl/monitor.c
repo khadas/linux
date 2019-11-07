@@ -319,27 +319,35 @@ static int wait_monitor_ungated(struct file *filp,
 	struct evl_monitor_state *state = event->state;
 	enum evl_tmode tmode;
 	unsigned long flags;
+	int ret = 0, val;
 	ktime_t timeout;
-	int ret = 0;
+	atomic_t *at;
 
 	timeout = timespec_to_ktime(req->timeout);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
 	switch (event->protocol) {
 	case EVL_EVENT_COUNT:
+		at = &state->u.event.value;
 		if (filp->f_flags & O_NONBLOCK) {
-			if (atomic_dec_return(&state->u.event.value) < 0)
-				ret = -EAGAIN;
+			val = atomic_read(at);
+			/* atomic_dec_unless_zero_or_negative */
+			do {
+				if (unlikely(val <= 0)) {
+					ret = -EAGAIN;
+					break;
+				}
+			} while (!atomic_try_cmpxchg(at, &val, val - 1));
 		} else {
 			evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
-			if (atomic_dec_return(&state->u.event.value) < 0) {
+			if (atomic_dec_return(at) < 0) {
 				evl_add_wait_queue(&event->wait_queue,
 						timeout, tmode);
 				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
 							flags);
 				ret = evl_wait_schedule(&event->wait_queue);
 				if (ret) /* Rollback decrement if failed. */
-					atomic_inc(&state->u.event.value);
+					atomic_inc(at);
 			} else
 				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
 							flags);
