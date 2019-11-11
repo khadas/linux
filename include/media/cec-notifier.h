@@ -91,6 +91,14 @@ void cec_notifier_register(struct cec_notifier *n,
  */
 void cec_notifier_unregister(struct cec_notifier *n);
 
+/**
+ * cec_register_cec_notifier - register the notifier with the cec adapter.
+ * @adap: the CEC adapter
+ * @notifier: the CEC notifier
+ */
+void cec_register_cec_notifier(struct cec_adapter *adap,
+			       struct cec_notifier *notifier);
+
 #else
 static inline struct cec_notifier *cec_notifier_get(struct device *dev)
 {
@@ -111,6 +119,20 @@ static inline void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 {
 }
 
+static inline void cec_notifier_register(struct cec_notifier *n,
+			 struct cec_adapter *adap,
+			 void (*callback)(struct cec_adapter *adap, u16 pa))
+{
+}
+
+static inline void cec_notifier_unregister(struct cec_notifier *n)
+{
+}
+
+static inline void cec_register_cec_notifier(struct cec_adapter *adap,
+					     struct cec_notifier *notifier)
+{
+}
 #endif
 
 /**

@@ -2687,6 +2687,22 @@ F:	drivers/net/ieee802154/cc2520.c
 F:	include/linux/spi/cc2520.h
 F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
 
+CEC FRAMEWORK
+M:	Hans Verkuil <hans.verkuil@cisco.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Supported
+F:	Documentation/media/kapi/cec-core.rst
+F:	Documentation/media/uapi/cec
+F:	drivers/media/cec/
+F:	drivers/media/rc/keymaps/rc-cec.c
+F:	include/media/cec.h
+F:	include/media/cec-notifier.h
+F:	include/uapi/linux/cec.h
+F:	include/uapi/linux/cec-funcs.h
+F:	Documentation/devicetree/bindings/media/cec.txt
+
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -8683,6 +8699,13 @@ F:	include/linux/tracehook.h
 F:	include/uapi/linux/ptrace.h
 F:	kernel/ptrace.c
 
+PULSE8-CEC DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/pulse8-cec/*
+
 PVRUSB2 VIDEO4LINUX DRIVER
 M:	Mike Isely <isely@pobox.com>
 L:	pvrusb2@isely.net	(subscribers-only)
@@ -8920,6 +8943,13 @@ M:	Paul Mackerras <paulus@samba.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
+
+RAINSHADOW-CEC DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/rainshadow-cec/*
 
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project

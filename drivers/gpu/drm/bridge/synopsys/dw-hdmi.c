@@ -2556,6 +2556,7 @@ static void dw_hdmi_bridge_nop(struct drm_bridge *bridge)
 static enum drm_connector_status
 dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
+	enum drm_connector_status status;
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
 
@@ -2565,7 +2566,24 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
 
-	return hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	status = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+
+	if (status == connector_status_connected && hdmi->ddc) {
+		struct edid *edid = drm_get_edid(connector, hdmi->ddc);
+		if (edid) {
+			dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
+				edid->width_cm, edid->height_cm);
+
+			hdmi->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
+			hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
+			drm_mode_connector_update_edid_property(connector, edid);
+			cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
+			drm_edid_to_eld(connector, edid);
+			kfree(edid);
+		}
+	}
+
+	return status;
 }
 
 static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -2968,9 +2986,6 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 			dw_hdmi_update_phy_mask(hdmi);
 		}
 		mutex_unlock(&hdmi->mutex);
-		if (!(phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)))
-			cec_notifier_set_phys_addr(hdmi->cec_notifier,
-						   CEC_PHYS_ADDR_INVALID);
 	}
 
 	check_hdmi_irq(hdmi, intr_stat, phy_int_pol);

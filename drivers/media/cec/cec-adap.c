@@ -202,7 +202,10 @@ static void cec_queue_msg_fh(struct cec_fh *fh, const struct cec_msg *msg)
 {
 	static const struct cec_event ev_lost_msgs = {
 		.event = CEC_EVENT_LOST_MSGS,
-		.lost_msgs.lost_msgs = 1,
+		.flags = 0,
+		{
+			.lost_msgs = { 1 },
+		},
 	};
 	struct cec_msg_entry *entry;
 
@@ -1888,10 +1891,10 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		case 0x60:
 			if (msg->len == 2)
-				rc_keydown(adap->rc, RC_TYPE_CEC,
+				rc_keydown(adap->rc, RC_PROTO_CEC,
 					   msg->msg[2], 0);
 			else
-				rc_keydown(adap->rc, RC_TYPE_CEC,
+				rc_keydown(adap->rc, RC_PROTO_CEC,
 					   msg->msg[2] << 8 | msg->msg[3], 0);
 			break;
 		/*
@@ -1907,7 +1910,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		case 0x67: case 0x68: case 0x69: case 0x6a:
 			break;
 		default:
-			rc_keydown(adap->rc, RC_TYPE_CEC, msg->msg[2], 0);
+			rc_keydown(adap->rc, RC_PROTO_CEC, msg->msg[2], 0);
 			break;
 		}
 #endif
