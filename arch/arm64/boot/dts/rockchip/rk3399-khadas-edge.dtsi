@@ -910,7 +910,13 @@
 	status = "disabled";
 };
 
+&edp {
+	status = "disabled";
+};
+
 &hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
