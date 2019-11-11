@@ -381,9 +381,21 @@ void amcm_enable(void)
 
 void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
 {
+	int offset = 0x0;
+
+	/* p212 g12a and so on no related register lead to crash*/
+	/* so skip the function */
+	if (!(is_meson_tl1_cpu() || is_meson_txlx_cpu() ||
+	      is_meson_tm2_cpu() || is_meson_txl_cpu() ||
+	      is_meson_txhd_cpu()))
+		return;
+	/* add register offset */
+	if (is_meson_txlx_cpu() || is_meson_txl_cpu())
+		offset = 0xc00;
 	pr_amcm_dbg("\n[amcm..] pd fix lvl = %d\n", level);
-	WRITE_VPP_REG(sr0_dej_setting[level].addr,
-		(aml_read_vcbus(sr0_dej_setting[level].addr) &
+	WRITE_VPP_REG(
+		sr0_dej_setting[level].addr - offset,
+		(aml_read_vcbus(sr0_dej_setting[level].addr - offset) &
 		(~(sr0_dej_setting[level].mask))) |
 		(sr0_dej_setting[level].val & sr0_dej_setting[level].mask));
 }
