@@ -316,7 +316,7 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 
 	filp = fget(attrs.fd);
 	if (filp == NULL)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EBADF);
 
 	proxy = kzalloc(sizeof(*proxy), GFP_KERNEL);
 	if (proxy == NULL) {
