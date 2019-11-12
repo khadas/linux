@@ -58,7 +58,7 @@
 };
 
 &pcie0 {
-	ep-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>; /* GPIO1_A3 */
+//	ep-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>; /* GPIO1_A3 */
 	num-lanes = <4>;
 //  pinctrl-names = "default";
 //  pinctrl-0 = <&pcie_clkreqn_cpm>;
