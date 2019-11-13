@@ -18,19 +18,46 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-
-#define CEC_DRIVER_VERSION	"2019/6/13:early suspend not report pw status\n"
+#define CEC_DRIVER_VERSION	"2019/10/22: finetune ARB rising time\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
 
-#define CEC_EARLY_SUSPEND	(1 << 0)
-#define CEC_DEEP_SUSPEND	(1 << 1)
 #define CEC_PHY_PORT_NUM		4
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 
+enum cec_chip_ver {
+	CEC_CHIP_GXL = 0,
+	CEC_CHIP_GXM,
+	CEC_CHIP_TXL,
+	CEC_CHIP_TXLX,
+	CEC_CHIP_TXHD,
+	CEC_CHIP_G12A,
+	CEC_CHIP_G12B,
+	CEC_CHIP_SM1,
+	CEC_CHIP_TL1,
+	CEC_CHIP_TM2,
+};
+
+enum cecaver {
+	/*
+	 * first version, only support one logical addr
+	 * "0xf" broadcast addr is default on
+	 */
+	CECA_VER_0 = 0,
+
+	/*
+	 * support multi logical address, "0xf" broadcast
+	 * addr is default on
+	 */
+	CECA_VER_1 = 1,
+};
+
 enum cecbver {
-	/*first version*/
+	/* first version
+	 * support multi logical address, "0xf" broadcast
+	 * addr is default on
+	 */
 	CECB_VER_0 = 0,
 	/*ee to ao */
 	CECB_VER_1 = 1,
@@ -48,9 +75,13 @@ enum cecbver {
 #define L_1		1
 #define L_2		2
 #define L_3		3
+#define L_4		4
 
 #define CEC_A	0
 #define CEC_B	1
+
+#define ENABLE_ONE_CEC	1
+#define ENABLE_TWO_CEC	2
 
 /*
 #define CEC_FUNC_MASK			0
@@ -277,6 +308,11 @@ enum cecbver {
 #define RX_DONE                 2  /* Message has been received successfully */
 #define RX_ERROR                3  /* Message has been received with error */
 
+/*  AO CECA INT flag */
+#define AO_CEC_HOST_ACK			0x01
+#define AO_CEC_TX_INT			0x02
+#define AO_CEC_RX_INT			0x04
+
 #define TOP_HPD_PWR5V           0x002
 #define TOP_ARCTX_CNTL          0x010
 #define TOP_CLK_CNTL			0x001
@@ -485,7 +521,8 @@ extern uint32_t hdmirx_rd_dwc(uint16_t addr);
 extern void hdmirx_wr_dwc(uint16_t addr, uint32_t data);
 extern unsigned int rd_reg_hhi(unsigned int offset);
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
-
+extern int cec_set_dev_info(uint8_t dev_idx);
+int __attribute__((weak))cec_set_dev_info(uint8_t dev_idx);
 #else
 static inline unsigned long hdmirx_rd_top(unsigned long addr)
 {
@@ -532,12 +569,13 @@ void cec_irq_enable(bool enable);
 void aocec_irq_enable(bool enable);
 extern void dump_reg(void);
 #endif
-extern void cec_dump_info(void);
+extern void cec_status(void);
 extern void cec_hw_reset(unsigned int cec_sel);
 extern void cec_restore_logical_addr(unsigned int cec_sel,
 	unsigned int addr_en);
 extern void cec_logicaddr_add(unsigned int cec_sel, unsigned int l_add);
 extern void cec_clear_all_logical_addr(unsigned int cec_sel);
 extern int dump_cecrx_reg(char *b);
+extern void cec_ip_share_io(u32 share, u32 cec_ip);
 
 #endif	/* __AO_CEC_H__ */
