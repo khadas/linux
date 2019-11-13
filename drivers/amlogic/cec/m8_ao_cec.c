@@ -979,32 +979,32 @@ static void cec_rx_process(void)
 	case CEC_OC_SET_STREAM_PATH:
 		cec_set_stream_path(msg);
 		/* wake up if in early suspend */
-		if (cec_dev->cec_suspend == CEC_EARLY_SUSPEND)
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY)
 			cec_key_report(0);
 		break;
 
 	case CEC_OC_REQUEST_ACTIVE_SOURCE:
-		if (!cec_dev->cec_suspend)
+		if (cec_dev->cec_suspend == CEC_PW_POWER_ON)
 			cec_active_source_smp();
 		break;
 
 	case CEC_OC_GIVE_DEVICE_POWER_STATUS:
-		if (cec_dev->cec_suspend)
-			cec_report_power_status(initiator, POWER_STANDBY);
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY)
+			cec_report_power_status(initiator, CEC_PW_STANDBY);
 		else
-			cec_report_power_status(initiator, POWER_ON);
+			cec_report_power_status(initiator, CEC_PW_POWER_ON);
 		break;
 
 	case CEC_OC_USER_CONTROL_PRESSED:
 		/* wake up by key function */
-		if (cec_dev->cec_suspend == CEC_EARLY_SUSPEND) {
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY) {
 			if (msg[2] == 0x40 || msg[2] == 0x6d)
 				cec_key_report(0);
 		}
 		break;
 
 	case CEC_OC_MENU_REQUEST:
-		if (cec_dev->cec_suspend)
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY)
 			cec_menu_status_smp(initiator, DEVICE_MENU_INACTIVE);
 		else
 			cec_menu_status_smp(initiator, DEVICE_MENU_ACTIVE);
@@ -1353,7 +1353,7 @@ static ssize_t log_addr_store(struct class *cla, struct class_attribute *attr,
 	cec_logicaddr_set(val);
 	/* add by hal, to init some data structure */
 	cec_dev->my_log_addr = val;
-	cec_dev->power_status = POWER_ON;
+	cec_dev->power_status = CEC_PW_POWER_ON;
 
 	return count;
 }
@@ -1723,13 +1723,13 @@ static const struct file_operations hdmitx_cec_fops = {
 struct early_suspend aocec_suspend_handler;
 static void aocec_early_suspend(struct early_suspend *h)
 {
-	cec_dev->cec_suspend = CEC_EARLY_SUSPEND;
+	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
 }
 
 static void aocec_late_resume(struct early_suspend *h)
 {
-	cec_dev->cec_suspend = 0;
+	cec_dev->cec_suspend = CEC_PW_POWER_ON;
 	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
 
 }
@@ -1928,7 +1928,7 @@ static __exit int aml_cec_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int aml_cec_pm_prepare(struct device *dev)
 {
-	cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
+	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	CEC_INFO("%s, cec_suspend:%d\n", __func__, cec_dev->cec_suspend);
 	return 0;
 }
