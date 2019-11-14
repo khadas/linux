@@ -1009,6 +1009,10 @@ static unsigned int vf_keep_current_locked(
 		return 0;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+	ext_frame_capture_poll(1); /*pull  if have capture end frame */
+#endif
+
 	if (get_blackout_policy()) {
 		pr_info("keep exit is skip current\n");
 		return 0;
@@ -1220,6 +1224,10 @@ unsigned int vf_keep_pip_current_locked(
 		pr_info("flag: keep pip exit is skip current\n");
 		return 0;
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+	ext_frame_capture_poll(1); /*pull  if have capture end frame */
+#endif
 
 	if (get_blackout_pip_policy()) {
 		pr_info("policy: keep exit is skip current\n");

@@ -867,8 +867,8 @@ void dump_vframe(struct vframe_s *vf)
 		vf->left_eye.width, vf->left_eye.height,
 		vf->right_eye.start_x, vf->right_eye.start_y,
 		vf->right_eye.width, vf->right_eye.height);
-	pr_info("mode_3d_enable %d",
-		vf->mode_3d_enable);
+	pr_info("mode_3d_enable %d, use_cnt %d,",
+		vf->mode_3d_enable, atomic_read(&vf->use_cnt));
 	pr_info("early_process_fun 0x%p, process_fun 0x%p, private_data %p\n",
 		vf->early_process_fun,
 		vf->process_fun, vf->private_data);

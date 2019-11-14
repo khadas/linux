@@ -155,7 +155,7 @@ u32 get_videopip_enabled(void);
 struct device *get_video_device(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
-int ext_frame_capture_poll(struct vframe_s *vf);
+int ext_frame_capture_poll(int endflags);
 #endif
 
 extern u32 disp_canvas_index[2][6];

@@ -1216,13 +1216,6 @@
 			"clk_hevcb_mux";
 	};
 
-	amvideocap {
-		compatible = "amlogic, amvideocap";
-		dev_name = "amvideocap.0";
-		status = "okay";
-		max_size = <8>;//8M
-	};
-
 	vdec {
 		compatible = "amlogic, vdec";
 		dev_name = "vdec.0";

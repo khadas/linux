@@ -393,6 +393,7 @@ struct vframe_s {
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
 	long long ready_clock[5];/*ns*/
 	long long ready_clock_hist[2];/*ns*/
+	atomic_t use_cnt;
 	u32 frame_dirty;
 	/*
 	 *prog_proc_config:
