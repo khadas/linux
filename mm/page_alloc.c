@@ -2802,7 +2802,9 @@ retry:
 			goto retry;
 	}
 	WARN_ON(page && is_migrate_cma(get_pcppage_migratetype(page)));
-	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+	if (page)
+		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+
 	spin_unlock(&zone->lock);
 	return page;
 }
