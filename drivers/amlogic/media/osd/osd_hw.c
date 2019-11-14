@@ -94,6 +94,8 @@
 #define osd_tprintk(...)
 
 #define FREE_SCALE_MAX_WIDTH    1920
+#define WAIT_CNT_MAX            20
+
 struct hw_para_s osd_hw;
 static DEFINE_MUTEX(osd_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(osd_vsync_wq);
@@ -8514,7 +8516,8 @@ static int osd_setting_order(u32 output_index)
 	int line1;
 	int line2;
 	int active_begin_line;
-	u32 val;
+	int vinfo_height;
+	u32 val, wait_cnt = 0;
 
 	blending = &osd_blending;
 	blend_reg = &(blending->blend_reg);
@@ -8556,11 +8559,20 @@ static int osd_setting_order(u32 output_index)
 	active_begin_line = get_active_begin_line(VIU1);
 	line1 = get_enter_encp_line(VIU1);
 	/* if nearly vsync signal, wait vsync here */
-	if (line1 <= active_begin_line * line_threshold / 100) {
+	vinfo_height = osd_hw.field_out_en[output_index] ?
+		(osd_hw.vinfo_height[output_index] * 2) :
+		osd_hw.vinfo_height[output_index];
+	while (line1 >= vinfo_height + active_begin_line *
+			(100 - line_threshold) / 100 ||
+			line1 <= active_begin_line * line_threshold / 100) {
 		osd_log_dbg(MODULE_RENDER,
 			"enter osd_setting_order:encp line=%d\n",
 			line1);
-		osd_wait_vsync_hw_viu1();
+		/* 0.5ms */
+		usleep_range(500, 600);
+		wait_cnt++;
+		if (wait_cnt >= WAIT_CNT_MAX)
+			break;
 		line1 = get_enter_encp_line(VIU1);
 	}
 	spin_lock_irqsave(&osd_lock, lock_flags);
