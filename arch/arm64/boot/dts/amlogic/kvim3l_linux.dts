@@ -283,8 +283,17 @@
 	gpiomem {
 		compatible = "amlogic, gpiomem";
 		reg = <0x0 0xff634000 0x0 0x1000>;
+		dev_name = "gpiomem";
 		status = "okay";
 	};
+
+	gpiomem_ao {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xff800000 0x0 0x1000>;
+		dev_name = "gpiomem-ao";
+		status = "okay";
+	};
+
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";
