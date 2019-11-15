@@ -1740,6 +1740,10 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
 			if (signal_sdr) {
 				pr_info("hdmitx: Dolby VSIF, switching signal to SDR\n");
+				update_current_para(hdev);
+				pr_info("vic:%d, cd:%d, cs:%d, cr:%d\n",
+					hdev->para->vic, hdev->para->cd,
+					hdev->para->cs, hdev->para->cr);
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
 				hdev->hwop.cntlconfig(hdev,
