@@ -3836,6 +3836,31 @@ static ssize_t show_hpd_state(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_fake_plug(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d", hdmitx_device.hpd_state);
+}
+
+static ssize_t store_fake_plug(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	pr_info("hdmitx: fake plug %s\n", buf);
+
+	if (strncmp(buf, "1", 1) == 0)
+		hdev->hpd_state = 1;
+
+	if (strncmp(buf, "0", 1) == 0)
+		hdev->hpd_state = 0;
+
+	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
+			      hdev->hpd_state);
+
+	return count;
+}
 
 static ssize_t show_rhpd_state(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -3957,6 +3982,7 @@ static DEVICE_ATTR(hdcp_ver, 0444, show_hdcp_ver, NULL);
 static DEVICE_ATTR(hpd_state, 0444, show_hpd_state, NULL);
 static DEVICE_ATTR(rhpd_state, 0444, show_rhpd_state, NULL);
 static DEVICE_ATTR(max_exceed, 0444, show_max_exceed_state, NULL);
+static DEVICE_ATTR(fake_plug, 0664, show_fake_plug, store_fake_plug);
 static DEVICE_ATTR(hdmi_init, 0444, show_hdmi_init, NULL);
 static DEVICE_ATTR(ready, 0664, show_ready, store_ready);
 static DEVICE_ATTR(support_3d, 0444, show_support_3d, NULL);
@@ -5155,6 +5181,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_rhpd_state);
 	ret = device_create_file(dev, &dev_attr_max_exceed);
+	ret = device_create_file(dev, &dev_attr_fake_plug);
 	ret = device_create_file(dev, &dev_attr_hdmi_init);
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
@@ -5240,6 +5267,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_contenttype_cap);
 	device_remove_file(dev, &dev_attr_contenttype_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);
+	device_remove_file(dev, &dev_attr_fake_plug);
 	device_remove_file(dev, &dev_attr_rhpd_state);
 	device_remove_file(dev, &dev_attr_max_exceed);
 	device_remove_file(dev, &dev_attr_hdmi_init);
