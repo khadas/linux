@@ -16,9 +16,9 @@
 	do {								\
 		__u64 __vec[4] = { __val, 0, __val, 0 };		\
 		__u32 __ival = (__val);					\
-		unsigned int i;						\
+		unsigned int __i;					\
 									\
-		for (i = 0; i < 8; i++)					\
+		for (__i = 0; __i < 8; __i++)				\
 			__asm__ __volatile__("fildl %0":		\
 					/* no output */ :"m"(__ival));	\
 		if (__features & evl_x86_avx) {				\
@@ -50,13 +50,13 @@
 
 #define evl_check_fpregs(__features, __val, __bad)			\
 	({								\
-		unsigned int i, __result = __val;			\
+		unsigned int __i, __result = __val;			\
 		__u64 __vec[8][4];					\
 		__u32 __e[8];						\
 									\
-		for (i = 0; i < 8; i++)					\
+		for (__i = 0; __i < 8; __i++)				\
 			__asm__ __volatile__("fistpl %0":		\
-					"=m" (__e[7 - i]));		\
+					"=m" (__e[7 - __i]));		\
 		if (__features & evl_x86_avx) {				\
 			__asm__ __volatile__(				\
 				"vmovupd %%ymm0,%0;"			\
@@ -86,33 +86,33 @@
 				  "=m" (__vec[4][0]), "=m" (__vec[5][0]), \
 				  "=m" (__vec[6][0]), "=m" (__vec[7][0])); \
 		}							\
-		for (i = 0, __bad = -1; i < 8; i++) {			\
-			if (__e[i] != __val) {				\
-				__result = __e[i];			\
-				__bad = i;				\
+		for (__i = 0, __bad = -1; __i < 8; __i++) {		\
+			if (__e[__i] != __val) {			\
+				__result = __e[__i];			\
+				__bad = __i;				\
 				break;					\
 			}						\
 		}							\
 		if (__bad >= 0)						\
 			;						\
 		else if (__features & evl_x86_avx) {			\
-			for (i = 0; i < 8; i++) {			\
-				if (__vec[i][0] != __val) {		\
-					__result = __vec[i][0];		\
-					__bad = i + 8;			\
+			for (__i = 0; __i < 8; __i++) {			\
+				if (__vec[__i][0] != __val) {		\
+					__result = __vec[__i][0];	\
+					__bad = __i + 8;		\
 					break;				\
 				}					\
-				if (__vec[i][2] != __val) {		\
-					__result = __vec[i][2];		\
-					__bad = i + 8;			\
+				if (__vec[__i][2] != __val) {		\
+					__result = __vec[__i][2];	\
+					__bad = __i + 8;		\
 					break;				\
 				}					\
 			}						\
 		} else if (__features & evl_x86_xmm2) {			\
-			for (i = 0; i < 8; i++)				\
-				if (__vec[i][0] != __val) {		\
-					__result = __vec[i][0];		\
-					__bad = i + 8;			\
+			for (__i = 0; __i < 8; __i++)			\
+				if (__vec[__i][0] != __val) {		\
+					__result = __vec[__i][0];	\
+					__bad = __i + 8;		\
 					break;				\
 				}					\
 		}							\
