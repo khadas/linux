@@ -503,6 +503,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 #ifdef CALC_CACHED_TIME
 		pts_checkin_offset_calc_cached(offset, val, pTable);
 #endif
+		timestamp_clac_pts_latency(type, val);
 
 		list_move_tail(&rec->list, &pTable->valid_list);
 
@@ -566,7 +567,8 @@ int pts_checkin_wrptr(u8 type, u32 ptr, u32 val)
 	get_wrpage_offset(type, &page, &cur_offset);
 
 	page_no = (offset > cur_offset) ? (page - 1) : page;
-
+	if (type == PTS_TYPE_VIDEO)
+		val += tsync_get_vpts_adjust();
 	return pts_checkin_offset(type,
 			pts_table[type].buf_size * page_no + offset,
 			val);
