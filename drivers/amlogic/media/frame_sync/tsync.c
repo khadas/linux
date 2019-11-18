@@ -746,6 +746,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	switch (event) {
 	case VIDEO_START:
 		tsync_video_started = 1;
+		tsync_set_av_state(0, 2);
 
 	//set tsync mode to vmaster to avoid video block caused
 	// by avpts-diff too much
@@ -803,6 +804,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 
 	case VIDEO_STOP:
 		tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
+		tsync_set_av_state(0, 3);
 		timestamp_vpts_set(0);
 		timestamp_pcrscr_set(0);
 		timestamp_pcrscr_enable(0);
@@ -948,6 +950,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		break;
 	case AUDIO_START:
 		/* reset discontinue var */
+		tsync_set_av_state(1, AUDIO_START);
 		tsync_set_sync_adiscont(0);
 		tsync_set_sync_adiscont_diff(0);
 		tsync_set_sync_vdiscont(0);
@@ -1010,6 +1013,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		break;
 
 	case AUDIO_STOP:
+		tsync_set_av_state(1, AUDIO_STOP);
 		timestamp_apts_enable(0);
 		timestamp_apts_set(-1);
 		tsync_abreak = 0;
@@ -1201,6 +1205,11 @@ int tsync_set_apts(unsigned int pts)
 	/* ssize_t r; */
 	unsigned int oldpts = timestamp_apts_get();
 	int oldmod = tsync_mode;
+
+	if (tsync_mode == TSYNC_MODE_PCRMASTER) {
+		tsync_pcr_set_apts(pts);
+		return 0;
+	}
 
 	if (tsync_abreak)
 		tsync_abreak = 0;
