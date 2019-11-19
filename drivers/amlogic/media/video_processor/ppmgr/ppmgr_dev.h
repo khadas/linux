@@ -74,7 +74,6 @@ struct ppmgr_device_t {
 	struct platform_device *pdev;
 	unsigned int ppmgr_debug;
 	unsigned int debug_first_frame;
-	unsigned int debug_10bit_frame;
 	char dump_path[32];
 };
 
