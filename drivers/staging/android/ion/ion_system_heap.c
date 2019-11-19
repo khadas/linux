@@ -272,6 +272,9 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 							struct ion_system_heap,
 							heap);
 	int i;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int total_cached = 0;
+#endif
 	struct ion_page_pool *pool;
 
 	for (i = 0; i < NUM_ORDERS; i++) {
@@ -280,9 +283,16 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 		seq_printf(s, "%d order %u highmem pages uncached %lu total\n",
 			   pool->high_count, pool->order,
 			   (PAGE_SIZE << pool->order) * pool->high_count);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		total_cached += (PAGE_SIZE << pool->order) * pool->high_count;
+#endif
 		seq_printf(s, "%d order %u lowmem pages uncached %lu total\n",
 			   pool->low_count, pool->order,
 			   (PAGE_SIZE << pool->order) * pool->low_count);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		total_cached += (PAGE_SIZE << pool->order) * pool->low_count;
+#endif
+
 	}
 
 	for (i = 0; i < NUM_ORDERS; i++) {
@@ -291,10 +301,20 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 		seq_printf(s, "%d order %u highmem pages cached %lu total\n",
 			   pool->high_count, pool->order,
 			   (PAGE_SIZE << pool->order) * pool->high_count);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		total_cached += (PAGE_SIZE << pool->order) * pool->high_count;
+#endif
 		seq_printf(s, "%d order %u lowmem pages cached %lu total\n",
 			   pool->low_count, pool->order,
 			   (PAGE_SIZE << pool->order) * pool->low_count);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		total_cached += (PAGE_SIZE << pool->order) * pool->low_count;
+#endif
 	}
+#ifdef CONFIG_AMLOGIC_MODIFY
+	seq_puts(s, "----------------------------------------------------\n");
+	seq_printf(s, "%16s %16u\n", "total cached", total_cached);
+#endif
 	return 0;
 }
 
