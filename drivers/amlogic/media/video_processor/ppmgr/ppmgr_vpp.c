@@ -1217,12 +1217,6 @@ static void process_vf_rotate(struct vframe_s *vf,
 		pp_vf->dec_frame = vf;
 
 	if (vf->type & VIDTYPE_COMPRESS) {
-		if ((vf->bitdepth == (
-			BITDEPTH_Y10 |
-			BITDEPTH_U10 |
-			BITDEPTH_V10))
-			&& (!ppmgr_device.debug_10bit_frame))
-			pp_vf->dec_frame = vf;
 		if (vf->canvas0Addr != (u32)-1) {
 			canvas_copy(vf->canvas0Addr & 0xff,
 				ppmgr_src_canvas[0]);
