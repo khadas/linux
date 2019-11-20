@@ -466,7 +466,7 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 
 	assert_evl_lock(&curr->lock);
 	assert_evl_lock(&rq->lock);
-	
+
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
 
 	oldstate = curr->state;
@@ -1608,7 +1608,7 @@ static void handle_sigwake_event(struct task_struct *p)
 			sigismember(&pending, SIGSTOP)
 			|| sigismember(&pending, SIGINT))
 			evl_spin_lock(&thread->rq->lock);
-			thread->state &= ~T_SSTEP;
+			thread->state |= T_SSTEP;
 			evl_spin_unlock(&thread->rq->lock);
 	}
 
