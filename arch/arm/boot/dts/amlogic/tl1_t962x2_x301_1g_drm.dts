@@ -1365,7 +1365,7 @@
  *			max_req_size = <0x20000>;
  *			no_sduart = <1>;
  *			gpio_dat3 = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
- *			jtag_pin = <&gpio GPIOC_0 GPIO_ACTIVE_HIGH>;
+ *			jtag_pin = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
  *			gpio_cd = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
  *			card_type = <5>;
  *		};
