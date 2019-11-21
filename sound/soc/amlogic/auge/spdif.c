@@ -1686,8 +1686,12 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	ret = aml_spdif_parse_of(pdev);
 	if (ret)
 		return -EINVAL;
+
+	/* spdif out play zero data at uboot stage */
+	/*
 	if (aml_spdif->clk_cont)
 		spdifout_play_with_zerodata(aml_spdif->id, spdif_reenable);
+	*/
 
 	ret = devm_snd_soc_register_component(dev, &aml_spdif_component,
 		&aml_spdif_dai[aml_spdif->id], 1);
