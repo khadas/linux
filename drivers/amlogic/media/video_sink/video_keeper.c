@@ -790,18 +790,38 @@ static int alloc_keep_buffer(void)
 void try_free_keep_video(int flags)
 {
 	int free_scatter_keeper = flags & 0x1;
+	bool layer1_used = false;
+	bool layer2_used = false;
+
+	if (vd_layer[0].dispbuf_mapping
+		== &cur_dispbuf)
+		layer1_used = true;
+	else if (vd_layer[1].dispbuf_mapping
+		== &cur_dispbuf)
+		layer2_used = true;
 
 	if (keep_video_on || free_scatter_keeper) {
 		/*pr_info("disbled keep video before free keep buffer.\n");*/
 		keep_video_on = 0;
-		if (!get_video_enabled()) {
-			/*if not disable video,changed to 2 for */
-			if (get_video_debug_flags()) {
-				pr_info("disbled video for next before free keep buffer!\n");
+		if (layer1_used) {
+			if (!get_video_enabled()) {
+				pr_info("disabled amvideo on vd1 for next before free keep buffer!\n");
+				_video_set_disable(flags ?
+					VIDEO_DISABLE_NORMAL :
+					VIDEO_DISABLE_FORNEXT);
+			} else {
+				safe_switch_videolayer(0, false, false);
 			}
-			_video_set_disable(VIDEO_DISABLE_FORNEXT);
-		} else if (get_video_enabled()) {
-			safe_disble_videolayer();
+		}
+		if (layer2_used) {
+			if (!get_videopip_enabled()) {
+				pr_info("disabled amvideo on vd2 for next before free keep buffer!\n");
+				_videopip_set_disable(flags ?
+					VIDEO_DISABLE_NORMAL :
+					VIDEO_DISABLE_FORNEXT);
+			} else {
+				safe_switch_videolayer(1, false, false);
+			}
 		}
 	}
 	mutex_lock(&video_keeper_mutex);
@@ -815,21 +835,42 @@ EXPORT_SYMBOL(try_free_keep_video);
 void try_free_keep_videopip(int flags)
 {
 	int free_scatter_keeper = flags & 0x1;
+	bool layer1_used = false;
+	bool layer2_used = false;
+
+	if (vd_layer[0].dispbuf_mapping
+		== &cur_pipbuf)
+		layer1_used = true;
+	else if (vd_layer[1].dispbuf_mapping
+		== &cur_pipbuf)
+		layer2_used = true;
 
 	if (keep_video_pip_on || free_scatter_keeper) {
 		/*pr_info("disbled keep video before free keep buffer.\n");*/
 		keep_video_pip_on = 0;
-		if (!get_videopip_enabled()) {
-			/*if not disable video,changed to 2 for */
-			pr_info("disbled videopip for next before free keep buffer!\n");
-			_videopip_set_disable(VIDEO_DISABLE_FORNEXT);
-		} else if (get_videopip_enabled()) {
-			safe_disble_videolayer2();
+		if (layer1_used) {
+			if (!get_video_enabled()) {
+				pr_info("disabled pip on vd1 for next before free keep buffer!\n");
+				_video_set_disable(flags ?
+					VIDEO_DISABLE_NORMAL :
+					VIDEO_DISABLE_FORNEXT);
+			} else {
+				safe_switch_videolayer(0, false, false);
+			}
+		}
+		if (layer2_used) {
+			if (!get_videopip_enabled()) {
+				pr_info("disabled pip on vd2 for next before free keep buffer!\n");
+				_videopip_set_disable(flags ?
+					VIDEO_DISABLE_NORMAL :
+					VIDEO_DISABLE_FORNEXT);
+			} else {
+				safe_switch_videolayer(1, false, false);
+			}
 		}
 	}
 	mutex_lock(&video_keeper_mutex);
 	video_pip_keeper_new_frame_notify();
-	free_alloced_keep_buffer();
 	mutex_unlock(&video_keeper_mutex);
 }
 EXPORT_SYMBOL(try_free_keep_videopip);
@@ -990,6 +1031,15 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 	u32 cur_index;
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
+	bool layer1_used = false;
+	bool layer2_used = false;
+
+	if (vd_layer[0].dispbuf_mapping
+		== &cur_dispbuf)
+		layer1_used = true;
+	else if (vd_layer[1].dispbuf_mapping
+		== &cur_dispbuf)
+		layer2_used = true;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	if (codec_mm_video_tvp_enabled()) {
@@ -1003,8 +1053,18 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 		pr_info("keep exit is skip VIDTYPE_COMPRESS\n");
 		return 0;
 	}
-	cur_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 +
-		get_video_cur_dev()->viu_off);
+
+	if (!layer1_used && !layer2_used) {
+		/* No layer to display this path */
+		pr_info("keep exit because no layer to keep this buffer\n");
+		return -1;
+	}
+
+	if (layer1_used)
+		cur_index = get_layer_display_canvas(0);
+	else if (layer2_used)
+		cur_index = get_layer_display_canvas(1);
+
 	y_index = cur_index & 0xff;
 	u_index = (cur_index >> 8) & 0xff;
 	v_index = (cur_index >> 16) & 0xff;
@@ -1086,12 +1146,8 @@ static unsigned int vf_keep_current_locked(
 		return 0;
 	}
 
-	if (cur_dispbuf->source_type == VFRAME_SOURCE_TYPE_OSD) {
-		pr_info("keep exit is osd\n");
-		return 0;
-	}
-
-	if (get_video_debug_flags() & DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT) {
+	if (get_video_debug_flags() &
+		DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT) {
 		pr_info("keep exit is skip current\n");
 		return 0;
 	}
@@ -1105,11 +1161,17 @@ static unsigned int vf_keep_current_locked(
 		return 0;
 	}
 
+#if 1
+	if (cur_dispbuf->type & VIDTYPE_PRE_INTERLACE) {
+		pr_info("keep exit is di\n");
+		return 2;
+	}
+#else
 	if (VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) {
 		pr_info("keep exit is di\n");
 		return 0;
 	}
-
+#endif
 	if (cur_dispbuf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
 		pr_info("ppmgr use ge2d keep frame!\n");
 		ret = vf_ge2d_keep_frame_locked(cur_dispbuf);
@@ -1187,7 +1249,7 @@ unsigned int vf_keep_current(
 	return ret;
 }
 
-int __init video_keeper_init(void)
+int video_keeper_init(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 	/* video_frame_getmem(); */
@@ -1195,7 +1257,7 @@ int __init video_keeper_init(void)
 #endif
 	return 0;
 }
-void __exit video_keeper_exit(void)
+void video_keeper_exit(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 	ge2d_videotask_release();

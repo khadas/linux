@@ -124,6 +124,9 @@ extern int hub_port_debounce(struct usb_hub *hub, int port1,
 		bool must_be_connected);
 extern int usb_clear_port_feature(struct usb_device *hdev,
 		int port1, int feature);
+#ifdef CONFIG_AMLOGIC_USB2PHY
+void set_usb_phy_host_tuning(int port, int default_val);
+#endif
 
 static inline bool hub_is_port_power_switchable(struct usb_hub *hub)
 {

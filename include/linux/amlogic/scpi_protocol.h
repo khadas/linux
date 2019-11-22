@@ -69,9 +69,11 @@ enum scpi_std_cmd {
 	SCPI_CMD_WAKEUP_REASON_CLR = 0X31,
 	SCPI_CMD_GET_ETHERNET_CALC = 0x32,
 	SCPI_CMD_GET_CPUINFO = 0x33,
+	SCPI_CMD_INIT_DSP = 0x34,
 
 	SCPI_CMD_GET_CEC1		= 0xB4,
 	SCPI_CMD_GET_CEC2		= 0xB5,
+	SCPI_CMD_BL4_WAIT_UNLOCK	= 0xD6,
 	SCPI_CMD_COUNT
 };
 
@@ -110,4 +112,6 @@ int scpi_clr_wakeup_reason(void);
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec);
 u8  scpi_get_ethernet_calc(void);
 int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
+int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
+int scpi_unlock_bl40(void);
 #endif /*_SCPI_PROTOCOL_H_*/

@@ -263,7 +263,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 
 	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, &cma);
 	if (err) {
+	#ifndef CONFIG_AMLOGIC_MODIFY
 		pr_err("Reserved memory: unable to setup CMA region\n");
+	#endif
 		return err;
 	}
 	/* Architecture specific contiguous memory fixup. */
@@ -279,8 +281,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	rmem->ops = &rmem_cma_ops;
 	rmem->priv = cma;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_info("Reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
+#endif
 
 	return 0;
 }

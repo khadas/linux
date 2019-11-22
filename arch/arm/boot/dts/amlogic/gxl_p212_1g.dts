@@ -411,7 +411,8 @@
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0xc9410000 0x10000
 			0xc8834540 0x8
-			0xc8834558 0xc>;
+			0xc8834558 0xc
+			0xc1104408 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;
@@ -450,7 +451,7 @@
 				min_state = <500>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -465,9 +466,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -518,7 +516,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -943,6 +941,15 @@
 			sound-dai = <&pcm_codec>;
 		};
 	};
+
+	amlkaraoke {
+		compatible = "amlogic, aml_karaoke";
+		dev_name = "aml_karaoke";
+		status = "okay";
+		interrupts = <0 48 1>;
+		interrupt-names = "aml_karaoke";
+	};
+
 	/* END OF AUDIO board specific */
 	rdma{
 		compatible = "amlogic, meson, rdma";
@@ -1107,7 +1114,7 @@
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <17>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -1125,6 +1132,7 @@
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
 
 
 		keysn_0: key_0{
@@ -1215,8 +1223,50 @@
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
+		keysn_17:key_17{
+			key-name = "attestationdevidbox";// attest dev id box
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
 	};//End unifykey
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
 
+	//	fe0_mode = "external";
+	//	fe0_demod = "Atbm8881";
+	//	fe0_i2c_adap_id = <&i2c1>;
+	//	fe0_demod_i2c_addr = <0xc0>;
+	//	fe0_ts = <0>;
+	//	fe0_reset_value = <0>;
+	//	fe0_reset_gpio = <&gpio GPIODV_14 GPIO_ACTIVE_HIGH>;
+
+	//	ts0 = "parallel";
+	//	ts0_control = <0>;
+	//	ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 21 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+	//	pinctrl-names = "p_ts0", "s_ts0";
+	//	pinctrl-0 = <&dvb_p_ts0_pins>;
+	//	pinctrl-1 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_ASYNC_FIFO
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_HIU_IFACE>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
 };
 &efuse {
 	status = "ok";
@@ -1229,6 +1279,7 @@
 &audio_data{
 	status = "okay";
 };
+
 &spicc{
 	status = "disabled";
 	pinctrl-names = "spicc_pulldown","spicc_pullup";

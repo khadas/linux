@@ -40,7 +40,6 @@
 #include <crypto/sha.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
-#include <linux/amlogic/iomap.h>
 #include "aml-crypto-dma.h"
 
 /* SHA flags */
@@ -459,9 +458,7 @@ static int aml_sha_update_dma_stop(struct aml_sha_dev *dd)
 static int aml_sha_update_req(struct aml_sha_dev *dd, struct ahash_request *req)
 {
 	int err;
-#ifdef CRYPTO_DEBUG
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
-#endif
 
 	dbgp(1, "update_req: ctx: %p, total: %u, digcnt: 0x%llx 0x%llx\n",
 		ctx, ctx->total, ctx->digcnt[1], ctx->digcnt[0]);
@@ -474,9 +471,7 @@ static int aml_sha_update_req(struct aml_sha_dev *dd, struct ahash_request *req)
 static int aml_sha_final_req(struct aml_sha_dev *dd, struct ahash_request *req)
 {
 	int err = 0;
-#ifdef CRYPTO_DEBUG
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
-#endif
 
 	err = aml_sha_update_dma_slow(dd, req);
 
@@ -1092,7 +1087,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "sha1",
 				.cra_driver_name  = "aml-sha1",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
 				.cra_blocksize	  = SHA1_BLOCK_SIZE,
 				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
@@ -1118,7 +1113,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "sha256",
 				.cra_driver_name  = "aml-sha256",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
 				.cra_blocksize	  = SHA256_BLOCK_SIZE,
 				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
@@ -1144,7 +1139,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "sha224",
 				.cra_driver_name  = "aml-sha224",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
 				.cra_blocksize	  = SHA224_BLOCK_SIZE,
 				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
@@ -1171,7 +1166,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "hmac(sha1)",
 				.cra_driver_name  = "aml-hmac-sha1",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
 				.cra_blocksize	  = SHA1_BLOCK_SIZE,
@@ -1199,7 +1194,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "hmac(sha224)",
 				.cra_driver_name  = "aml-hmac-sha224",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
 				.cra_blocksize	  = SHA224_BLOCK_SIZE,
@@ -1227,7 +1222,7 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "hmac(sha256)",
 				.cra_driver_name  = "aml-hmac-sha256",
-				.cra_priority	  = 200,
+				.cra_priority	  = 150,
 				.cra_flags	  = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
 				.cra_blocksize	  = SHA256_BLOCK_SIZE,
@@ -1285,7 +1280,7 @@ static irqreturn_t aml_sha_irq(int irq, void *dev_id)
 
 	if (status) {
 		if (status == 0x1)
-			pr_err("irq overwrite\n");
+			dev_err(sha_dd->dev, "irq overwrite\n");
 		if (sha_dd->dma->dma_busy == DMA_FLAG_MAY_OCCUPY)
 			return IRQ_HANDLED;
 		if (sha_dd->flags & SHA_FLAGS_DMA_ACTIVE &&
@@ -1335,7 +1330,7 @@ static int aml_sha_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
 
-	sha_dd = kzalloc(sizeof(struct aml_sha_dev), GFP_KERNEL);
+	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha_dev), GFP_KERNEL);
 	if (sha_dd == NULL) {
 		err = -ENOMEM;
 		goto sha_dd_err;
@@ -1355,15 +1350,14 @@ static int aml_sha_probe(struct platform_device *pdev)
 					(unsigned long)sha_dd);
 
 	crypto_init_queue(&sha_dd->queue, AML_SHA_QUEUE_LENGTH);
-	err = request_irq(sha_dd->irq, aml_sha_irq, IRQF_SHARED, "aml-sha",
-						sha_dd);
+	err = devm_request_irq(dev, sha_dd->irq, aml_sha_irq, IRQF_SHARED,
+			"aml-sha", sha_dd);
 	if (err) {
 		dev_err(dev, "unable to request sha irq.\n");
 		goto res_err;
 	}
 
 	aml_sha_hw_init(sha_dd);
-
 
 	spin_lock(&aml_sha.lock);
 	list_add_tail(&sha_dd->list, &aml_sha.dev_list);
@@ -1381,12 +1375,8 @@ err_algs:
 	spin_lock(&aml_sha.lock);
 	list_del(&sha_dd->list);
 	spin_unlock(&aml_sha.lock);
-
-	free_irq(sha_dd->irq, sha_dd);
 res_err:
 	tasklet_kill(&sha_dd->done_task);
-	kfree(sha_dd);
-	sha_dd = NULL;
 sha_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1407,12 +1397,6 @@ static int aml_sha_remove(struct platform_device *pdev)
 	aml_sha_unregister_algs(sha_dd);
 
 	tasklet_kill(&sha_dd->done_task);
-
-	if (sha_dd->irq >= 0)
-		free_irq(sha_dd->irq, sha_dd);
-
-	kfree(sha_dd);
-	sha_dd = NULL;
 
 	return 0;
 }

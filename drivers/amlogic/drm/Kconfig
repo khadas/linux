@@ -1,15 +1,45 @@
+menuconfig AMLOGIC_DRM
+	bool "Amlogic drm support"
+	depends on AMLOGIC_DRIVER && DRM
+	default n
+	help
+		amlogic drm driver provide drm support on Amlogic
+		SOC chips.
+choice
+	prompt "meson drm driver type"
+	depends on AMLOGIC_DRM
+	default DRM_MESON
+
 config DRM_MESON
-	tristate "DRM Support for Amlogic Meson Display Controller"
+	tristate "DRM Support for Amlogic new Display Controller"
 	depends on DRM && OF && (ARM || ARM64)
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
 	select VIDEOMODE_HELPERS
 	select REGMAP_MMIO
+	help
+		amlogic new soc display controller
+		use the pipeline and modularized
+
+config DRM_MESON_V0
+	tristate "DRM Support for Amlogic old Display Controller"
+	depends on DRM && OF && (ARM || ARM64)
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	select VIDEOMODE_HELPERS
+	select REGMAP_MMIO
+	help
+		amlogic old soc display controller
+		use the osd driver
+endchoice
+
+if DRM_MESON
 
 config DRM_MESON_VPU
 	tristate "support drm vpu function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	help
 		add drm vpu support.
@@ -19,7 +49,7 @@ config DRM_MESON_VPU
 
 config DRM_MESON_HDMI
 	tristate "support drm hdmi function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	depends on AMLOGIC_HDMITX
 	help
@@ -30,7 +60,7 @@ config DRM_MESON_HDMI
 
 config DRM_MESON_PANEL
 	tristate "support drm panel function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	depends on AMLOGIC_LCD
 	select DRM_PANEL
@@ -43,7 +73,7 @@ config DRM_MESON_PANEL
 
 config DRM_MESON_USE_ION
 	bool "gem use ion to alloc/free graphic buffer."
-	default y
+	default n
 	depends on DRM_MESON
 	help
 		MESON DRM use CMA HELPER to manage framebuffer.
@@ -59,3 +89,10 @@ config DRM_MESON_EMULATE_FBDEV
 	depends on DRM_MESON && DRM_MESON_USE_ION
 	help
 		Emulate framebuffer device for device which need use fbdev api.
+endif
+
+if DRM_MESON_V0
+
+source "drivers/amlogic/drm/drm-v0/Kconfig"
+
+endif

@@ -472,7 +472,7 @@
 				min_state = <400>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "t82x";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -495,10 +495,7 @@
 		cpucore_cool1:cpucore_cool1 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
-		gpufreq_cool0:gpufreq_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpucore_cool0:gpucore_cool0 {
+gpucore_cool0:gpucore_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
@@ -556,7 +553,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&t82x_gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {

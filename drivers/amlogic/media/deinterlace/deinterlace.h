@@ -25,9 +25,8 @@
 #include <linux/clk.h>
 #include <linux/atomic.h>
 #include "deinterlace_hw.h"
-#include "pulldown_drv.h"
 #include "nr_drv.h"
-
+#include "../di_local/di_local.h"
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ		'i'
@@ -221,6 +220,29 @@ extern bool is_vsync_rdma_enable(void);
 #define TABLE_LEN_MAX 10000
 #define TABLE_FLG_END	(0xfffffffe)
 
+/******************************************
+ * patch for TV-10258 multiwave group issue
+ *****************************************/
+#define DI_PATCH_MOV_MAX_NUB	5
+
+struct di_patch_mov_d_s {
+	unsigned int val;
+	unsigned int mask;
+	bool	en;
+};
+
+struct di_patch_mov_s {
+	unsigned int reg_addr[DI_PATCH_MOV_MAX_NUB];
+	struct di_patch_mov_d_s	val_db[DI_PATCH_MOV_MAX_NUB];
+	struct di_patch_mov_d_s	val_pq[DI_PATCH_MOV_MAX_NUB];
+	int	mode;/*-1 : not set; 0: set from db, 1: set from pq*/
+	bool	en_support;
+	bool	update;
+	unsigned int nub;
+};
+
+bool di_patch_mov_db(unsigned int addr, unsigned int val);
+
 struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
@@ -255,6 +277,7 @@ struct di_dev_s {
 	struct page			*total_pages;
 	atomic_t			mem_flag;
 	struct dentry *dbg_root;	/*dbg_fs*/
+	struct di_patch_mov_s mov;
 };
 
 struct di_pre_stru_s {
@@ -300,7 +323,7 @@ struct di_pre_stru_s {
 	int	unreg_req_flag_irq;
 	int	unreg_req_flag_cnt;
 	int	reg_req_flag;
-	int	reg_req_flag_irq;
+	/*int	reg_req_flag_irq;*/
 	int	reg_req_flag_cnt;
 	int	reg_irq_busy;
 	int	force_unreg_req_flag;
@@ -373,6 +396,14 @@ struct di_pre_stru_s {
 	struct combing_status_s *mtn_status;
 	u64 afbc_rls_time;
 	bool wait_afbc;
+	/*****************/
+	bool retry_en;
+	unsigned int retry_index;
+	unsigned int retry_cnt;
+	/*****************/
+	bool combing_fix_en;
+	unsigned int comb_mode;
+	/*struct di_patch_mov_s mov;*/
 };
 
 struct di_post_stru_s {
@@ -454,6 +485,7 @@ u32 di_requeset_afbc(u32 onoff);
 extern bool di_wr_cue_int(void);
 extern int reg_cue_int_show(struct seq_file *seq, void *v);
 
+bool dil_attach_ext_api(const struct di_ext_ops *di_api);
 /*---------------------*/
 
 struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
@@ -469,4 +501,6 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
 
 #define pr_error(fmt, args ...)     pr_err("DI: " fmt, ## args)
 
+/******************************************/
+/*#define DI_KEEP_HIS	0*/
 #endif

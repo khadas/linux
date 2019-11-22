@@ -26,37 +26,38 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 #include <linux/amlogic/ramdump.h>
 #include <linux/amlogic/reboot.h>
 #include <linux/arm-smccc.h>
+#include <linux/of.h>
 #include <linux/highmem.h>
+#include <linux/syscalls.h>
+#include <linux/fs_struct.h>
+#include <linux/mount.h>
+#include <linux/namei.h>
+#include <linux/capability.h>
 #include <asm/cacheflush.h>
 
 static unsigned long ramdump_base	__initdata;
 static unsigned long ramdump_size	__initdata;
 static bool ramdump_disable		__initdata;
 
+#define WAIT_TIMEOUT		(40ULL * 1000 * 1000 * 1000)
+
 struct ramdump {
 	unsigned long		mem_base;
 	unsigned long		mem_size;
-	struct mutex		lock;
-	struct kobject		*kobj;
-	struct work_struct	clear_work;
+	unsigned long long	tick;
+	void			*mnt_buf;
+	const char		*storage_device;
+	struct delayed_work	work;
 	int			disable;
 };
 
 static struct ramdump *ram;
-
-static void meson_set_reboot_reason(int reboot_reason)
-{
-	struct arm_smccc_res smccc;
-
-	arm_smccc_smc(SET_REBOOT_REASON,
-		      reboot_reason, 0, 0, 0, 0, 0, 0, &smccc);
-	return;
-}
 
 static int __init early_ramdump_para(char *buf)
 {
@@ -84,93 +85,9 @@ static int __init early_ramdump_para(char *buf)
 			ramdump_disable = 1;
 		}
 	}
-	if (ramdump_disable)
-		meson_set_reboot_reason(MESON_NORMAL_BOOT);
-
 	return 0;
 }
 early_param("ramdump", early_ramdump_para);
-
-static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr,
-				char *buf, loff_t off, size_t count)
-{
-	void *p = NULL;
-#ifndef CONFIG_64BIT
-	struct page *page, *pages[1];
-#endif
-
-	if (!ram->mem_base || off >= ram->mem_size)
-		return 0;
-
-#ifndef CONFIG_64BIT
-	page = phys_to_page(ram->mem_base + off);
-	pages[0] = page;
-	p = vmap(pages, 1, VM_MAP, PAGE_KERNEL);
-	if (!p) {
-		pr_info("%s, map %lx, %d failed, page:%p, pfn:%lx\n",
-			__func__, (unsigned long)(ram->mem_base + off),
-			count, page, page_to_pfn(page));
-		return -EINVAL;
-	}
-#else
-	p = (void *)(ram->mem_base + off);
-#endif
-	if (off + count > ram->mem_size)
-		count = ram->mem_size - off;
-	mutex_lock(&ram->lock);
-	memcpy(buf, p, count);
-	mutex_unlock(&ram->lock);
-
-	/* debug when read end */
-	if (off + count >= ram->mem_size)
-		pr_info("%s, p=%p %p, off:%lli, c:%zi\n",
-			__func__, buf, p, off, count);
-#ifndef CONFIG_64BIT
-	vunmap(p);
-#endif
-	return count;
-}
-
-int ramdump_disabled(void)
-{
-	if (ram)
-		return ram->disable;
-	return 0;
-}
-EXPORT_SYMBOL(ramdump_disabled);
-
-static ssize_t ramdump_bin_write(struct file *filp,
-				 struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
-				 char *buf, loff_t off, size_t count)
-{
-	if (!ram->mem_size)
-		return -EINVAL;
-
-	if (ram->mem_base && !strncmp("reboot", buf, 6))
-		kernel_restart("RAM-DUMP finished\n");
-
-	if (!strncmp("disable", buf, 7)) {
-		ram->disable = 1;
-		meson_set_reboot_reason(MESON_NORMAL_BOOT);
-	}
-	if (!strncmp("enable", buf, 6)) {
-		ram->disable = 0;
-		meson_set_reboot_reason(MESON_KERNEL_PANIC);
-	}
-
-	return count;
-}
-
-static struct bin_attribute ramdump_attr = {
-	.attr = {
-		.name = "compmsg",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.read  = ramdump_bin_read,
-	.write = ramdump_bin_write,
-};
 
 /*
  * clear memory to avoid large amount of memory not used.
@@ -279,9 +196,242 @@ void ramdump_sync_data(void)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+static void free_reserved_highmem(unsigned long start, unsigned long end)
+{
+}
+#else
+static void free_reserved_highmem(unsigned long start, unsigned long end)
+{
+	for (; start < end; ) {
+		free_highmem_page(phys_to_page(start));
+		start += PAGE_SIZE;
+	}
+}
+#endif
+
+static void free_reserved_mem(unsigned long start, unsigned long size)
+{
+	unsigned long end = PAGE_ALIGN(start + size);
+	struct page *page, *epage;
+
+	page = phys_to_page(start);
+	if (PageHighMem(page)) {
+		free_reserved_highmem(start, end);
+	} else {
+		epage = phys_to_page(end);
+		if (!PageHighMem(epage)) {
+			free_reserved_area(__va(start),
+					   __va(end), 0, "ramdump");
+		} else {
+			/* reserved area cross zone */
+			struct zone *zone;
+			unsigned long bound;
+
+			zone  = page_zone(page);
+			bound = zone_end_pfn(zone);
+			free_reserved_area(__va(start),
+					   __va(bound << PAGE_SHIFT),
+					   0, "ramdump");
+			zone  = page_zone(epage);
+			bound = zone->zone_start_pfn;
+			free_reserved_highmem(bound << PAGE_SHIFT, end);
+		}
+	}
+}
+
+static int check_storage_mounted(char **root)
+{
+	int fd, cnt, ret = 0;
+	char mnt_dev[64] =  {}, *mnt_ptr, *root_dir;
+
+	fd = sys_open("/proc/mounts", O_RDONLY, 0);
+	if (!fd) {
+		pr_debug("%s, open mounts failed:%d\n", __func__, fd);
+		return -EINVAL;
+	}
+	cnt = sys_read(fd, ram->mnt_buf, PAGE_SIZE);
+	if (cnt < 0) {
+		pr_debug("%s, read mounts failed:%d\n", __func__, cnt);
+		ret = -ENODEV;
+		goto exit;
+	}
+	pr_debug("read:%d, %s\n", cnt, (char *)ram->mnt_buf);
+	sprintf(mnt_dev, "/dev/block/%s", ram->storage_device);
+	mnt_ptr = strstr((char *)ram->mnt_buf, mnt_dev);
+	if (mnt_ptr) {
+		pr_debug("%s, find %s in buffer, ptr:%p\n",
+			__func__, mnt_dev, mnt_ptr);
+		root_dir = strstr(mnt_ptr, " ");
+		root_dir++;
+		*root = root_dir;
+		pr_debug("mount:%s root:%s\n", mnt_ptr, root_dir);
+	} else
+		ret = -ENODEV;
+exit:
+	sys_close(fd);
+	return ret;
+}
+
+static size_t save_data(int fd)
+{
+	unsigned long saved = 0, off = 0, s = 0, e;
+	void *buffer;
+	int block = (1 << (PAGE_SHIFT + MAX_ORDER - 1)), wsize = 0, ret, i;
+	struct vm_struct *area;
+	struct page *page, **pages = NULL;
+
+	area = get_vm_area(block, VM_ALLOC);
+	if (!area) {
+		pr_err("%s, get vma failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	pages = kzalloc(sizeof(unsigned long) * MAX_ORDER_NR_PAGES, GFP_KERNEL);
+	if (!pages)
+		goto out;
+
+	buffer = area->addr;
+	while (saved < ram->mem_size) {
+		s = ram->mem_size - saved;
+		if (s >= block)
+			wsize = block;
+		else
+			wsize = s;
+
+		s = ram->mem_base + off;
+		e = s + PAGE_ALIGN(wsize);
+
+		page = phys_to_page(s);
+		for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
+			pages[i] = page;
+			page++;
+		}
+		ret = map_kernel_range_noflush((unsigned long)buffer,
+						PAGE_ALIGN(wsize),
+						PAGE_KERNEL,
+						pages);
+		if (!ret) {
+			pr_err("map page:%lx failed\n", page_to_pfn(page));
+			goto out;
+		}
+		ret = sys_write(fd, buffer, wsize);
+		if (ret != wsize) {
+			unmap_kernel_range((unsigned long)buffer,
+					   PAGE_ALIGN(wsize));
+			pr_err("%s, write failed\n", __func__);
+			goto out;
+		}
+		unmap_kernel_range((unsigned long)buffer, PAGE_ALIGN(wsize));
+		free_reserved_mem(s, PAGE_ALIGN(wsize));
+		saved += wsize;
+		off   += wsize;
+		pr_debug("%s, write %08lx, size:%08x, saved:%08lx, off:%lx\n",
+			__func__, s, wsize, saved, off);
+	}
+out:
+	free_vm_area(area);
+	kfree(pages);
+	pr_info("%s, write %08lx, size:%08x, saved:%08lx, off:%lx\n",
+		__func__, s, wsize, saved, off);
+	return saved;
+}
+
+#define OPEN_FLAGS	(O_WRONLY | O_CREAT | O_DSYNC | O_TRUNC)
+
+static void wait_to_save(struct work_struct *work)
+{
+	char *root;
+	int fd, ret = 0;
+	int need_reboot = 0;
+
+	if ((sched_clock() - ram->tick) >= WAIT_TIMEOUT) {
+		pr_err("can't find mounted device, free saved data\n");
+		need_reboot = 3;
+		goto exit;
+	}
+
+	if (!check_storage_mounted(&root)) {
+		char wname[64] = {}, *next_token;
+
+		/* write compressed data to storage device */
+		next_token = strstr(root, " ");
+		if (next_token)
+			*next_token = '\0';
+		sprintf(wname, "%s/crashdump-1.bin", root);
+		fd = sys_open(wname, OPEN_FLAGS, 0644);
+		if (fd < 0) {
+			pr_info("open %s failed:%d\n", wname, fd);
+			need_reboot = 3;
+			goto exit;
+		}
+		ret = save_data(fd);
+		if (ret != ram->mem_size) {
+			pr_err("write size %d not match %ld\n",
+				ret, ram->mem_size);
+		}
+		sys_fsync(fd);
+		sys_close(fd);
+		sys_sync();
+		need_reboot = 1;
+	} else
+		schedule_delayed_work(&ram->work, 500);
+
+exit:
+	/* Nomatter what happened, reboot must be done in this function */
+	if (need_reboot) {
+		if (need_reboot & 0x1)
+			kfree(ram->mnt_buf);
+		if (need_reboot & 0x02)
+			free_reserved_mem(ram->mem_base, ram->mem_size);
+		kernel_restart("RAM-DUMP finished");
+	}
+}
+
 static int __init ramdump_probe(struct platform_device *pdev)
 {
 	void __iomem *p = NULL;
+	struct device_node *np;
+	unsigned long dts_memory[2] = {0}, total_mem;
+	struct resource *res;
+	unsigned int dump_set;
+	int ret;
+	void __iomem *base;
+	const char *dev_name = NULL;
+
+	np = of_find_node_by_name(NULL, "memory");
+	if (!np)
+		return -EINVAL;
+
+#ifdef CONFIG_64BIT
+	ret = of_property_read_u64_array(np, "linux,usable-memory",
+					 (u64 *)&dts_memory, 2);
+	if (ret)
+		ret = of_property_read_u64_array(np, "reg",
+						 (u64 *)&dts_memory, 2);
+#else
+	ret = of_property_read_u32_array(np, "linux,usable-memory",
+					 (u32 *)&dts_memory, 2);
+	if (ret)
+		ret = of_property_read_u32_array(np, "reg",
+						 (u32 *)&dts_memory, 2);
+#endif
+	if (ret)
+		pr_info("can't get dts memory\n");
+	else
+		pr_info("MEMORY:[%lx+%lx]\n", dts_memory[0], dts_memory[1]);
+	of_node_put(np);
+
+	/*
+	 * memory in dts is [start_addr size] patten. For amlogic soc,
+	 * ddr address range is started from 0x0, usually start_addr in
+	 * dts should be started with 0x0, but some soc must reserve a
+	 * small framgment of memory at 0x0 for start up code. So start_addr
+	 * can be 0x100000/0x1000000. But we always using 0x0 to get real
+	 * DDR size for ramdump. So we using following formula to get total
+	 * DDR size.
+	 */
+	total_mem = dts_memory[0] + dts_memory[1];
 
 	ram = kzalloc(sizeof(struct ramdump), GFP_KERNEL);
 	if (!ram)
@@ -290,44 +440,53 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	if (ramdump_disable)
 		ram->disable = 1;
 
+	np  = pdev->dev.of_node;
+	ret = of_property_read_string(np, "store_device", &dev_name);
+	if (!ret) {
+		ram->storage_device = dev_name;
+		pr_info("%s, storage device:%s\n", __func__, dev_name);
+	}
+
 	if (!ramdump_base || !ramdump_size) {
 		pr_info("NO valid ramdump args:%lx %lx\n",
 			ramdump_base, ramdump_size);
 	} else {
-	#ifdef CONFIG_64BIT
-		p = ioremap_cache(ramdump_base, ramdump_size);
-		ram->mem_base = (unsigned long)p;
-		ram->mem_size = ramdump_size;
-	#else
 		ram->mem_base = ramdump_base;
 		ram->mem_size = ramdump_size;
-	#endif
 		pr_info("%s, mem_base:%p, %lx, size:%lx\n",
 			__func__, p, ramdump_base, ramdump_size);
 	}
-	ram->kobj = kobject_create_and_add("mdump", kernel_kobj);
-	if (!ram->kobj) {
-		pr_err("%s, create sysfs failed\n", __func__);
-		goto err;
-	}
-	ramdump_attr.size = ram->mem_size;
-	if (sysfs_create_bin_file(ram->kobj, &ramdump_attr)) {
-		pr_err("%s, create sysfs1 failed\n", __func__);
-		goto err1;
-	}
-	mutex_init(&ram->lock);
-	if (!ram->disable && !ram->mem_size) {
-		INIT_WORK(&ram->clear_work, lazy_clear_work);
-		schedule_work(&ram->clear_work);
+
+	if (!ram->disable) {
+		if (!ram->mem_base) {	/* No compressed data */
+			INIT_DELAYED_WORK(&ram->work, lazy_clear_work);
+		} else {		/* with compressed data */
+			INIT_DELAYED_WORK(&ram->work, wait_to_save);
+			ram->tick = sched_clock();
+			ram->mnt_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			WARN_ON(!ram->mnt_buf);
+		}
+		schedule_delayed_work(&ram->work, 1);
+		/* if ramdump is disabled in env, no need to set sticky reg */
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "PREG_STICKY_REG8");
+		if (res) {
+			base = devm_ioremap(&pdev->dev, res->start,
+					    res->end - res->start);
+			if (!base) {
+				pr_err("%s, map reg failed\n", __func__);
+				goto err;
+			}
+			dump_set = readl(base);
+			dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
+			dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
+			writel(dump_set, base);
+			pr_info("%s, set sticky to %x\n", __func__, dump_set);
+		}
 	}
 	return 0;
 
-err1:
-	kobject_put(ram->kobj);
 err:
-#ifdef CONFIG_64BIT
-	iounmap((void *)ram->mem_base);
-#endif
 	kfree(ram);
 
 	return -EINVAL;
@@ -335,11 +494,6 @@ err:
 
 static int ramdump_remove(struct platform_device *pdev)
 {
-	sysfs_remove_bin_file(ram->kobj, &ramdump_attr);
-#ifdef CONFIG_64BIT
-	iounmap((void *)ram->mem_base);
-#endif
-	kobject_put(ram->kobj);
 	kfree(ram);
 	return 0;
 }

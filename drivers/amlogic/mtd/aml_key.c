@@ -33,11 +33,18 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	uint8_t *key_ptr = NULL;
 	u32 keysize = 0;
 	size_t offset = 0;
+	int error = 0;
 	/*struct mtd_info *mtd = aml_chip->mtd;*/
 
 	if (aml_chip_key == NULL) {
 		pr_info("%s(): amlnf key not ready yet!",
 		__func__);
+		return -EFAULT;
+	}
+
+	if (buf == NULL) {
+		pr_info("%s, %d: key buf is NULL, pls check!",
+		__func__, __LINE__);
 		return -EFAULT;
 	}
 
@@ -58,11 +65,17 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	if (key_ptr == NULL)
 		return -ENOMEM;
 
-	aml_nand_read_key(aml_chip->mtd, offset, key_ptr);
+	error = aml_nand_read_key(aml_chip->mtd, offset, key_ptr);
+	if (error) {
+		pr_info("%s, %d, read key failed\n", __func__, __LINE__);
+		goto exit;
+	}
 	memcpy(buf, key_ptr, keysize);
-
+	//reset the memory addr data
+	memzero_explicit(key_ptr, aml_chip->keysize);
+exit:
 	kfree(key_ptr);
-	return 0;
+	return error;
 }
 
 /*
@@ -79,6 +92,12 @@ int32_t amlnf_key_write(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	if (aml_chip_key == NULL) {
 		pr_info("%s(): amlnf key not ready yet!",
 		__func__);
+		return -EFAULT;
+	}
+
+	if (buf == NULL) {
+		pr_info("%s, %d: key buf is NULL, pls check!",
+		__func__, __LINE__);
 		return -EFAULT;
 	}
 
@@ -101,6 +120,8 @@ int32_t amlnf_key_write(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	memset(key_ptr, 0, aml_chip->keysize);
 	memcpy(key_ptr, buf, keysize);
 	error = aml_nand_save_key(aml_chip->mtd, key_ptr);
+	//reset the memory addr data
+	memzero_explicit(key_ptr, aml_chip->keysize);
 
 	kfree(key_ptr);
 	return error;

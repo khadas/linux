@@ -188,7 +188,7 @@ void demod_dvbc_set_qam(unsigned int qam)
 	case 0: /*16qam*/
 		qam_write_reg(0x71, 0x000a2200);
 
-		if (is_ic_ver(IC_VER_TL1))
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 			qam_write_reg(0x72, 0xc2b0c49);
 		else
 			qam_write_reg(0x72, 0x0c2b04a9);
@@ -210,7 +210,7 @@ void demod_dvbc_set_qam(unsigned int qam)
 		qam_write_reg(0x7a, 0x0019a7ff);
 		qam_write_reg(0x7c, 0x00111222);
 
-		if (is_ic_ver(IC_VER_TL1))
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 			qam_write_reg(0x7d, 0x2020305);
 		else
 			qam_write_reg(0x7d, 0x05050505);
@@ -220,7 +220,7 @@ void demod_dvbc_set_qam(unsigned int qam)
 		qam_write_reg(0x94, 0x0c1a1a00);
 		break;
 	case 2:/*64qam*/
-		if (is_ic_ver(IC_VER_TL1)) {
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
 			qam_write_reg(0x9c, 0x2a132100);
 			qam_write_reg(0x57, 0x606060d);
 		}
@@ -234,14 +234,14 @@ void demod_dvbc_set_qam(unsigned int qam)
 		qam_write_reg(0x77, 0x00035068);
 		qam_write_reg(0x78, 0x000ab100);
 
-		if (is_ic_ver(IC_VER_TL1))
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 			qam_write_reg(0x7a, 0xba7ff);
 		else
 			qam_write_reg(0x7a, 0x002ba7ff);
 
 		qam_write_reg(0x7c, 0x00111222);
 
-		if (is_ic_ver(IC_VER_TL1))
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 			qam_write_reg(0x7d, 0x2020305);
 		else
 			qam_write_reg(0x7d, 0x05050505);
@@ -251,7 +251,7 @@ void demod_dvbc_set_qam(unsigned int qam)
 		qam_write_reg(0x94, 0x0c262600);
 		break;
 	case 4://256 QAM
-		if (is_ic_ver(IC_VER_TL1)) {
+		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
 			qam_write_reg(0x9c, 0x2a232100);
 			qam_write_reg(0x57, 0x606040d);
 		}
@@ -276,7 +276,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 
 	clk_freq = demod_sta->clk_freq;	/* kHz */
 	/*no use adc_freq = demod_sta->adc_freq;*/	/* kHz */
-	if (is_ic_ver(IC_VER_TL1))
+	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 		adc_freq  = demod_sta->adc_freq;
 	else
 		adc_freq  = get_adc_freq();/*24000*/;
@@ -302,7 +302,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	/* Sw disable demod */
 	qam_write_reg(0x7, qam_read_reg(0x7) | (1 << 0));
 
-	if (is_ic_ver(IC_VER_TL1))
+	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 		if (agc_mode == 1) {
 			qam_write_reg(0x25,
 				qam_read_reg(0x25) & ~(0x1 << 10));
@@ -360,7 +360,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	}
 	PR_DVBC("max_frq_off is %x,\n", max_frq_off);
 
-	if (is_ic_ver(IC_VER_TL1))
+	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 		qam_write_reg(0xc, 0x245cf450); //MODIFIED BY QIANCHENG
 	else
 		qam_write_reg(0xb, max_frq_off & 0x3fffffff);
@@ -408,7 +408,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	/* agc control */
 	/* dvbc_write_reg(QAM_BASE+0x094, 0x7f800d2c);// AGC_CTRL  ALPS tuner */
 	/* dvbc_write_reg(QAM_BASE+0x094, 0x7f80292c);     // Pilips Tuner */
-	if (!is_ic_ver(IC_VER_TL1)) {
+	if (!is_ic_ver(IC_VER_TL1) && !is_ic_ver(IC_VER_TM2)) {
 		if ((agc_mode & 1) == 0)
 			/* freeze if agc */
 			qam_write_reg(0x25,
@@ -438,7 +438,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	/* if Adjcent channel test, maybe it need change.*/
 	/*20121208 ad invert*/
 	/*rsj//qam_write_reg(0x28, 0x0603cd10);*/
-	if (!is_ic_ver(IC_VER_TL1))
+	if (!is_ic_ver(IC_VER_TL1) && !is_ic_ver(IC_VER_TM2))
 		qam_write_reg(0x28,
 		qam_read_reg(0x28) | (adc_format << 27));
 	/* AGC_RFGAIN_CTRL 0x0e020800 by raymond,*/
@@ -460,7 +460,8 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	qam_write_reg(0x34, 0x7fff << 3);
 
 	/*if (is_meson_txlx_cpu()) {*/
-	if (is_ic_ver(IC_VER_TXLX) || (is_ic_ver(IC_VER_TL1))) {
+	if (is_ic_ver(IC_VER_TXLX) || (is_ic_ver(IC_VER_TL1))
+		|| is_ic_ver(IC_VER_TM2)) {
 		/*my_tool setting j83b mode*/
 		qam_write_reg(0x7, 0x10f33);
 
@@ -494,14 +495,15 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	qam_write_reg(0x7, 0x10f23);
 	qam_write_reg(0x3a, 0x0);
 	qam_write_reg(0x7, 0x10f33);
+	/*enable fsm, sm start work, need wait some time(2ms) for AGC stable*/
 	qam_write_reg(0x3a, 0x4);
-/*auto track*/
-	/*      dvbc_set_auto_symtrack(); */
+	/*auto track*/
+	/*dvbc_set_auto_symtrack(); */
 }
 
 u32 dvbc_set_auto_symtrack(void)
 {
-	if (is_ic_ver(IC_VER_TL1))
+	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2))
 		return 0;
 
 	qam_write_reg(0xc, 0x245bf45c);	/*open track */
@@ -534,8 +536,6 @@ int dvbc_status(struct aml_demod_sta *demod_sta,
 	/*demod_sts->dat0 = dvbc_read_reg(QAM_BASE+0x28); */
 /*    demod_sts->dat0 = tuner_get_ch_power(demod_i2c);*/
 	demod_sts->dat1 = tuner_get_ch_power(fe);
-#if 1
-
 	ftmp = demod_sts->ch_sts;
 	PR_DVBC("[dvbc debug] ch_sts is %x\n", ftmp);
 	ftmp = demod_sts->ch_snr;
@@ -559,8 +559,6 @@ int dvbc_status(struct aml_demod_sta *demod_sta,
 	tmp = demod_sts->ch_pow;
 	PR_DVBC("power is %ddb\n", (tmp & 0xffff));
 
-#endif
-
 	return 0;
 }
 
@@ -582,7 +580,7 @@ void dvbc_init_reg_ext(void)
 	/*ary move from amlfrontend.c */
 	qam_write_reg(0x7, 0xf33);
 
-	if (is_ic_ver(IC_VER_TL1)) {
+	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
 		qam_write_reg(0x12, 0x50e1000);
 		qam_write_reg(0x30, 0x41f2f69);
 	}

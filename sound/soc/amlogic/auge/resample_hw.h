@@ -28,19 +28,35 @@ enum samplerate_index {
 	RATE_96K,
 	RATE_176K,
 	RATE_192K,
+	RATE_16K,
+	RATE_MAX,
 };
 
-extern void resample_enable(enum resample_idx id, bool enable);
-extern int resample_init(enum resample_idx id, int input_sr);
-extern int resample_disable(enum resample_idx id);
-extern int resample_set_hw_param(enum resample_idx id,
-		enum samplerate_index rate_index);
-extern void resample_src_select(int src);
-extern void resample_src_select_ab(enum resample_idx id, enum resample_src src);
-extern void resample_format_set(enum resample_idx id, int ch_num, int bits);
+#define DEFAULT_SPK_SAMPLERATE 48000
+#define DEFAULT_MIC_SAMPLERATE 16000
 
-extern int resample_ctrl_read(enum resample_idx id);
-extern void resample_ctrl_write(enum resample_idx id, int value);
+bool resample_get_status(enum resample_idx id);
+void resample_enable(enum resample_idx id, bool enable);
+int resample_init(enum resample_idx id, int input_sr);
+int resample_set_hw_param(enum resample_idx id,
+			  enum samplerate_index rate_index);
+void resample_src_select(int src);
+void resample_src_select_ab(enum resample_idx id, enum resample_src src);
+void resample_format_set(enum resample_idx id, int ch_num, int bits);
+int resample_ctrl_read(enum resample_idx id);
+void resample_ctrl_write(enum resample_idx id, int value);
 int resample_set_hw_pause_thd(enum resample_idx id, unsigned int thd);
+
+void new_resample_set_ram_coeff_aa(enum resample_idx id, int len,
+				   unsigned int *params);
+void new_resample_set_ram_coeff_sinc(enum resample_idx id, int len,
+				     unsigned int *params);
+void new_resample_init_param(enum resample_idx id);
+void new_resample_enable(enum resample_idx id, bool enable);
+void new_resampleA_set_format(enum resample_idx id, int source, int channel);
+void new_resampleB_set_format(enum resample_idx id, int output_sr);
+void new_resample_set_ratio(enum resample_idx id, int input_sr, int output_sr);
+bool new_resample_get_status(enum resample_idx id);
+void new_resample_src_select(enum resample_idx id, enum resample_src src);
 
 #endif

@@ -25,8 +25,13 @@
 
 #define IR_DATA_IS_VALID(data) (data & 0x8)
 #define IR_CONTROLLER_BUSY(x) ((x >> 7) & 0x1)
-
 #define CURSOR_MOVE_ACCELERATE {0, 2, 2, 4, 4, 6, 8, 10, 12, 14, 16, 18}
+/*bit 31: enable fifo mode
+ * bit 21-23: time out/level trigger interrupt
+ * bit 13-20: trigger interrupt when receive specified numbers of pulse
+ * bit 0-12: trigger interrupt when time out
+ */
+#define FIFO_REG_VAL ((1 << 31) | (7 << 21) | (80 << 13) | (5000 << 0))
 
 enum IR_CONTR_NUMBER {
 	MULTI_IR_ID = 0,
@@ -104,6 +109,8 @@ struct remote_chip {
 	struct remote_range reg_duration;
 	char *dev_name;
 	int protocol;
+	struct delayed_work ir_workqueue;
+	struct work_struct fifo_work;
 
 	dev_t chr_devno;
 	struct class  *chr_class;
@@ -167,23 +174,36 @@ enum {
 };
 
 enum remote_reg {
-	REG_LDR_ACTIVE = 0x00<<2,
-	REG_LDR_IDLE   = 0x01<<2,
-	REG_LDR_REPEAT = 0x02<<2,
-	REG_BIT_0      = 0x03<<2,
-	REG_REG0       = 0x04<<2,
-	REG_FRAME      = 0x05<<2,
-	REG_STATUS     = 0x06<<2,
-	REG_REG1       = 0x07<<2,
-	REG_REG2       = 0x08<<2,
-	REG_DURATN2    = 0x09<<2,
-	REG_DURATN3    = 0x0a<<2,
-	REG_FRAME1     = 0x0b<<2,
-	REG_STATUS1    = 0x0c<<2,
-	REG_STATUS2    = 0x0d<<2,
-	REG_REG3       = 0x0e<<2,
-	REG_FRAME_RSV0 = 0x0f<<2,
-	REG_FRAME_RSV1 = 0x10<<2
+	REG_LDR_ACTIVE		= 0x00 << 2,
+	REG_LDR_IDLE		= 0x01 << 2,
+	REG_LDR_REPEAT		= 0x02 << 2,
+	REG_BIT_0		= 0x03 << 2,
+	REG_REG0		= 0x04 << 2,
+	REG_FRAME		= 0x05 << 2,
+	REG_STATUS		= 0x06 << 2,
+	REG_REG1		= 0x07 << 2,
+	REG_REG2		= 0x08 << 2,
+	REG_DURATN2		= 0x09 << 2,
+	REG_DURATN3		= 0x0a << 2,
+	REG_FRAME1		= 0x0b << 2,
+	REG_STATUS1		= 0x0c << 2,
+	REG_STATUS2		= 0x0d << 2,
+	REG_REG3		= 0x0e << 2,
+	REG_FRAME_RSV0		= 0x0f << 2,
+	REG_FRAME_RSV1		= 0x10 << 2,
+	REG_IRQ_CTL		= 0x12 << 2,
+	REG_FIFO		= 0x13 << 2,
+	REG_WITH		= 0x14 << 2,
+	REG_REPEAT_DET		= 0x15 << 2,
+	REG_DEMOD_CNTL0		= 0x20 << 2,
+	REG_DEMOD_CNTL1		= 0x21 << 2,
+	REG_DEMOD_IIR_THD	= 0x22 << 2,
+	REG_DEMOD_THD0		= 0x23 << 2,
+	REG_DEMOD_THD1		= 0x24 << 2,
+	REG_DEMOD_SUM_CNT0	= 0x25 << 2,
+	REG_DEMOD_SUM_CNT1	= 0x26 << 2,
+	REG_DEMOD_CNT0		= 0x27 << 2,
+	REG_DEMOD_CNT1		= 0x28 << 2
 };
 
 int ir_register_default_config(struct remote_chip *chip, int type);
@@ -195,8 +215,14 @@ int remote_reg_read(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int *val);
 int remote_reg_write(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int val);
+int remote_reg_update_bits(struct remote_chip *chip, unsigned char id,
+	unsigned int reg, unsigned int mask, unsigned int val);
 int ir_scancode_sort(struct ir_map_tab *ir_map);
 struct ir_map_tab_list *seek_map_tab(struct remote_chip *chip, int custom_code);
+const struct aml_remote_reg_proto **ir_get_proto_reg(void);
 void ir_tab_free(struct ir_map_tab_list *ir_map_list);
-
+int remote_pulses_malloc(struct remote_chip *chip);
+void remote_pulses_free(struct remote_chip *chip);
+void demod_reset(struct remote_chip *chip);
+void demod_init(struct remote_chip *chip);
 #endif

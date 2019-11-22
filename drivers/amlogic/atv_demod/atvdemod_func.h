@@ -19,6 +19,9 @@
 #define __ATV_DEMOD_FUNC_H__
 
 struct v4l2_frontend;
+struct atv_demod_priv;
+
+#define AUIDO_CARRIER_POWER_MIN    150
 
 #define HHI_ATV_DMD_SYS_CLK_CNTL		0x10f3
 
@@ -27,6 +30,10 @@ extern int broad_std_except_pal_m;
 extern unsigned int aud_std;
 extern unsigned int aud_mode;
 extern bool audio_thd_en;
+extern bool aud_reinit;
+extern bool aud_mono_only;
+extern bool atv_audio_overmodulated_en;
+extern unsigned int non_std_en;
 
 enum broadcast_standard_e {
 	ATVDEMOD_STD_NTSC = 0,
@@ -64,18 +71,20 @@ extern void read_version_register(void);
 extern void check_communication_interface(void);
 extern void power_on_receiver(void);
 extern void atv_dmd_misc(void);
+void atv_dmd_ring_filter(bool on, int std);
 extern void configure_receiver(int Broadcast_Standard,
 			       unsigned int Tuner_IF_Frequency,
 			       int Tuner_Input_IF_inverted, int GDE_Curve,
 			       int sound_format);
 extern int atvdemod_clk_init(void);
-extern int atvdemod_init(void);
+extern int atvdemod_init(struct atv_demod_priv *priv);
 extern void atvdemod_uninit(void);
-extern void atv_dmd_set_std(void);
+extern void atv_dmd_set_std(unsigned long std);
 extern void retrieve_adc_power(int *adc_level);
 extern void retrieve_vpll_carrier_lock(int *lock);
 extern void retrieve_vpll_carrier_line_lock(int *lock);
-extern void retrieve_vpll_carrier_audio_power(int *power);
+extern void retrieve_vpll_carrier_audio_power(unsigned int *power,
+		unsigned int try_times);
 extern void retrieve_video_lock(int *lock);
 extern int retrieve_vpll_carrier_afc(void);
 
@@ -155,6 +164,7 @@ extern void atvdemod_mixer_tune(void);
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG	13
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I	14
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M    15
+#define AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC  16
 /* new add @20150813 end */
 
 /*GDE_Curve*/
@@ -203,7 +213,9 @@ extern void retrieve_frequency_offset(int *freq_offset);
 extern void retrieve_field_lock(int *lock);
 extern void set_atvdemod_scan_mode(int val);
 extern int atvauddemod_init(void);
+extern int amlfmt_aud_standard(int broad_std);
 extern void atvauddemod_set_outputmode(void);
+void atvdemod_horiz_freq_detection(void);
 
 /*from amldemod/amlfrontend.c*/
 extern int vdac_enable_check_dtv(void);

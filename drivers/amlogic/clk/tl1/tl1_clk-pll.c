@@ -55,6 +55,14 @@
 #define TL1_SYS_PLL_CNTL4 0x88770290
 #define TL1_SYS_PLL_CNTL5 0x39272000
 
+#define TL1_FIXED_PLL_CNTL0 0xD00104A6
+#define TL1_FIXED_PLL_CNTL1 0x3F15555
+#define TL1_FIXED_PLL_CNTL2 0x00000000
+#define TL1_FIXED_PLL_CNTL3 0x6A285C60
+#define TL1_FIXED_PLL_CNTL4 0x65771290
+#define TL1_FIXED_PLL_CNTL5 0x39272000
+#define TL1_FIXED_PLL_CNTL6 0x56540000
+#define TL1_FIXED_PLL_TST   0xA000004F
 
 #define TL1_GP0_PLL_CNTL1 0x00000000
 #define TL1_GP0_PLL_CNTL2 0x00000000
@@ -62,13 +70,27 @@
 #define TL1_GP0_PLL_CNTL4 0x33771290
 #define TL1_GP0_PLL_CNTL5 0x39272000
 
-#define TL1_HIFI_PLL_CNTL1 0x00000000
+#define TL1_HIFI_PLL_CNTL1 0x00007800
 #define TL1_HIFI_PLL_CNTL2 0x00000000
 #define TL1_HIFI_PLL_CNTL3 0x6a285c00
 #define TL1_HIFI_PLL_CNTL4 0x65771290
 #define TL1_HIFI_PLL_CNTL5 0x39272000
 
 #define TL1_PLL_CNTL6 0x56540000
+
+#define TM2_PCIE_PLL_CNTL0_0	0x280c0464
+#define TM2_PCIE_PLL_CNTL0_1	0x380c0464
+#define TM2_PCIE_PLL_CNTL0_2	0x3c0c0464
+#define TM2_PCIE_PLL_CNTL0_3	0x1c0c0464
+#define TM2_PCIE_PLL_CNTL0_4	0x140c04c8
+#define TM2_PCIE_PLL_CNTL1	0x30000000
+#define TM2_PCIE_PLL_CNTL2	0x00001100
+#define TM2_PCIE_PLL_CNTL2_	0x00001000
+#define TM2_PCIE_PLL_CNTL3	0x10058e00
+#define TM2_PCIE_PLL_CNTL4	0x000100c0
+#define TM2_PCIE_PLL_CNTL4_	0x008100c0
+#define TM2_PCIE_PLL_CNTL5	0x68000048
+#define TM2_PCIE_PLL_CNTL5_	0x68000068
 
 #define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
 
@@ -146,14 +168,26 @@ static long meson_tl1_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
 	const struct pll_rate_table *rate_table = pll->rate_table;
 	int i;
+	u64 ret_rate = 0;
 
 	for (i = 0; i < pll->rate_count; i++) {
-		if (rate <= rate_table[i].rate)
-			return rate_table[i].rate;
+		if (rate <= rate_table[i].rate) {
+			ret_rate = rate_table[i].rate;
+			if (!strcmp(clk_hw_get_name(hw), "sys_pll")
+				|| !strcmp(clk_hw_get_name(hw), "fixed_pll"))
+				do_div(ret_rate, 1000);
+
+			return ret_rate;
+		}
 	}
 
 	/* else return the smallest value */
-	return rate_table[0].rate;
+	ret_rate = rate_table[0].rate;
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll")
+		|| !strcmp(clk_hw_get_name(hw), "fixed_pll"))
+		do_div(ret_rate, 1000);
+
+	return ret_rate;
 }
 
 static const struct pll_rate_table *meson_tl1_get_pll_settings
@@ -197,9 +231,14 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 reg;
 	unsigned long flags = 0;
 	void *cntlbase;
+	int j = 10;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
+
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll")
+		|| !strcmp(clk_hw_get_name(hw), "fixed_pll"))
+		rate *= 1000;
 
 	old_rate = rate;
 
@@ -225,60 +264,117 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	cntlbase = pll->base + p->reg_off;
 
-
-	if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
-		writel((readl(cntlbase) | MESON_PLL_RESET)
-			& (~MESON_PLL_ENABLE), cntlbase);
-		writel(TL1_SYS_PLL_CNTL1,
-				cntlbase + (unsigned long)(1*4));
-		writel(TL1_SYS_PLL_CNTL2,
-				cntlbase + (unsigned long)(2*4));
-		writel(TL1_SYS_PLL_CNTL3,
-				cntlbase + (unsigned long)(3*4));
-		writel(TL1_SYS_PLL_CNTL4,
-				cntlbase + (unsigned long)(4*4));
-		writel(TL1_SYS_PLL_CNTL5,
-				cntlbase + (unsigned long)(5*4));
-		writel(TL1_PLL_CNTL6,
-				cntlbase + (unsigned long)(6*4));
-		udelay(10);
-	}  else if (!strcmp(clk_hw_get_name(hw), "gp0_pll")) {
-		writel((readl(cntlbase) | MESON_PLL_RESET)
-			& (~MESON_PLL_ENABLE), cntlbase);
-		writel(TL1_GP0_PLL_CNTL1,
-				cntlbase + (unsigned long)(1*4));
-		writel(TL1_GP0_PLL_CNTL2,
-				cntlbase + (unsigned long)(2*4));
-		writel(TL1_GP0_PLL_CNTL3,
-				cntlbase + (unsigned long)(3*4));
-		writel(TL1_GP0_PLL_CNTL4,
-				cntlbase + (unsigned long)(4*4));
-		writel(TL1_GP0_PLL_CNTL5,
-				cntlbase + (unsigned long)(5*4));
-		writel(TL1_PLL_CNTL6,
-				cntlbase + (unsigned long)(6*4));
-		udelay(10);
-	} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
-		writel((readl(cntlbase) | MESON_PLL_RESET)
-			& (~MESON_PLL_ENABLE), cntlbase);
-		writel(TL1_GP0_PLL_CNTL1,
-				cntlbase + (unsigned long)(1*4));
-		writel(TL1_GP0_PLL_CNTL2,
-				cntlbase + (unsigned long)(2*4));
-		writel(TL1_GP0_PLL_CNTL3,
-				cntlbase + (unsigned long)(3*4));
-		writel(TL1_GP0_PLL_CNTL4,
-				cntlbase + (unsigned long)(4*4));
-		writel(TL1_GP0_PLL_CNTL5,
-				cntlbase + (unsigned long)(5*4));
-		writel(TL1_PLL_CNTL6,
-				cntlbase + (unsigned long)(6*4));
-		udelay(10);
-	} else {
-		pr_err("%s: %s pll not found!!!\n",
-			__func__, clk_hw_get_name(hw));
-		return -EINVAL;
-	}
+	do {
+		if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
+			writel((readl(cntlbase) | MESON_PLL_RESET)
+				& (~MESON_PLL_ENABLE), cntlbase);
+			writel(TL1_SYS_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+			writel(TL1_SYS_PLL_CNTL2,
+			       cntlbase + (unsigned long)(2 * 4));
+			writel(TL1_SYS_PLL_CNTL3,
+			       cntlbase + (unsigned long)(3 * 4));
+			writel(TL1_SYS_PLL_CNTL4,
+			       cntlbase + (unsigned long)(4 * 4));
+			writel(TL1_SYS_PLL_CNTL5,
+			       cntlbase + (unsigned long)(5 * 4));
+			writel(TL1_PLL_CNTL6,
+			       cntlbase + (unsigned long)(6 * 4));
+			udelay(10);
+		}  else if (!strcmp(clk_hw_get_name(hw), "gp0_pll") ||
+			    !strcmp(clk_hw_get_name(hw), "gp1_pll")) {
+			writel((readl(cntlbase) | MESON_PLL_RESET)
+			       & (~MESON_PLL_ENABLE), cntlbase);
+			writel(TL1_GP0_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+			writel(TL1_GP0_PLL_CNTL2,
+			       cntlbase + (unsigned long)(2 * 4));
+			writel(TL1_GP0_PLL_CNTL3,
+			       cntlbase + (unsigned long)(3 * 4));
+			writel(TL1_GP0_PLL_CNTL4,
+			       cntlbase + (unsigned long)(4 * 4));
+			writel(TL1_GP0_PLL_CNTL5,
+			       cntlbase + (unsigned long)(5 * 4));
+			writel(TL1_PLL_CNTL6,
+			       cntlbase + (unsigned long)(6 * 4));
+			udelay(10);
+		} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
+			writel((readl(cntlbase) | MESON_PLL_RESET)
+			       & (~MESON_PLL_ENABLE), cntlbase);
+			writel(TL1_HIFI_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+			writel(TL1_HIFI_PLL_CNTL2,
+			       cntlbase + (unsigned long)(2 * 4));
+			writel(TL1_HIFI_PLL_CNTL3,
+			       cntlbase + (unsigned long)(3 * 4));
+			writel(TL1_HIFI_PLL_CNTL4,
+			       cntlbase + (unsigned long)(4 * 4));
+			writel(TL1_HIFI_PLL_CNTL5,
+			       cntlbase + (unsigned long)(5 * 4));
+			writel(TL1_PLL_CNTL6,
+			       cntlbase + (unsigned long)(6 * 4));
+			udelay(10);
+		} else if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+			writel(TM2_PCIE_PLL_CNTL0_0,
+			       cntlbase + (unsigned long)(0 * 4));
+			writel(TM2_PCIE_PLL_CNTL0_1,
+			       cntlbase + (unsigned long)(0 * 4));
+			writel(TM2_PCIE_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+			writel(TM2_PCIE_PLL_CNTL2,
+			       cntlbase + (unsigned long)(7 * 4));
+			writel(TM2_PCIE_PLL_CNTL3,
+			       cntlbase + (unsigned long)(8 * 4));
+			writel(TM2_PCIE_PLL_CNTL4,
+			       cntlbase + (unsigned long)(53 * 4));
+			writel(TM2_PCIE_PLL_CNTL5,
+			       cntlbase + (unsigned long)(54 * 4));
+			writel(TM2_PCIE_PLL_CNTL5_,
+			       cntlbase + (unsigned long)(54 * 4));
+			udelay(20);
+			writel(TM2_PCIE_PLL_CNTL4_,
+			       cntlbase + (unsigned long)(53 * 4));
+			udelay(10);
+			/*set pcie_apll_afc_start bit*/
+			writel(TM2_PCIE_PLL_CNTL0_2,
+			       cntlbase + (unsigned long)(0 * 4));
+			writel(TM2_PCIE_PLL_CNTL0_3,
+			       cntlbase + (unsigned long)(0 * 4));
+			udelay(20);
+			writel(TM2_PCIE_PLL_CNTL0_4,
+			       cntlbase + (unsigned long)(0 * 4));
+			writel(TM2_PCIE_PLL_CNTL2_,
+			       cntlbase + (unsigned long)(7 * 4));
+		} else if (!strcmp(clk_hw_get_name(hw), "fixed_pll")) {
+			writel((readl(cntlbase) | MESON_PLL_RESET)
+			       & (~MESON_PLL_ENABLE), cntlbase);
+			udelay(100);
+			writel(TL1_FIXED_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+			writel(TL1_FIXED_PLL_CNTL2,
+			       cntlbase + (unsigned long)(2 * 4));
+			writel(TL1_FIXED_PLL_CNTL3,
+			       cntlbase + (unsigned long)(3 * 4));
+			writel(TL1_FIXED_PLL_CNTL4,
+			       cntlbase + (unsigned long)(4 * 4));
+			writel(TL1_FIXED_PLL_CNTL5,
+			       cntlbase + (unsigned long)(5 * 4));
+			writel(TL1_FIXED_PLL_CNTL6,
+			       cntlbase + (unsigned long)(6 * 4));
+			udelay(10);
+		} else {
+			pr_err("%s: %s pll not found!!!\n",
+			       __func__, clk_hw_get_name(hw));
+			return -EINVAL;
+		}
+		/* waiting for 50us to check is locked or not */
+		udelay(50);
+		/* lock bit is in the cntlbase */
+		if (readl(cntlbase + (unsigned long)(0 * 4))
+		    & MESON_PLL_LOCK)
+			break;
+		j--;
+	} while (j);
 
 	reg = readl(pll->base + p->reg_off);
 
@@ -320,7 +416,6 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		reg = PARM_SET(p->width, p->shift, reg, tmp);
 		writel(reg, pll->base + p->reg_off);
 	}
-
 	p = &pll->n;
 
 	/* PLL reset */
@@ -366,8 +461,10 @@ static int meson_tl1_pll_enable(struct clk_hw *hw)
 	}
 
 	if (!strcmp(clk_hw_get_name(hw), "gp0_pll")
+		|| !strcmp(clk_hw_get_name(hw), "gp1_pll")
 		|| !strcmp(clk_hw_get_name(hw), "hifi_pll")
-		|| !strcmp(clk_hw_get_name(hw), "sys_pll")) {
+		|| !strcmp(clk_hw_get_name(hw), "sys_pll")
+		|| !strcmp(clk_hw_get_name(hw), "fixed_pll")) {
 		void *cntlbase = pll->base + p->reg_off;
 
 			if (readl(cntlbase + (unsigned long)(6*4))
@@ -375,7 +472,6 @@ static int meson_tl1_pll_enable(struct clk_hw *hw)
 				first_set = 0;
 
 	}
-
 	parent = clk_hw_get_parent(hw);
 
 	/*First init, just set minimal rate.*/
@@ -403,10 +499,16 @@ static void meson_tl1_pll_disable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
+	if (!strcmp(clk_hw_get_name(hw), "fixed_pll"))
+		pr_warn("Pay Attention, fixed pll will be disabled\n");
+
 	writel(readl(pll->base + p->reg_off) | (MESON_PLL_RESET),
 		pll->base + p->reg_off);
 	writel(readl(pll->base + p->reg_off) & (~MESON_PLL_ENABLE),
 		pll->base + p->reg_off);
+
+	if (!strcmp(clk_hw_get_name(hw), "pcie_pll"))
+		writel(0x60000000, pll->base + p->reg_off + 54 * 4);
 
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);

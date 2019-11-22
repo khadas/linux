@@ -53,7 +53,7 @@ struct pll_rate_table {
 	u16		n;
 	u16		od;
 	u16		od2;
-	u16		frac;
+	u32		frac;
 };
 
 struct fclk_rate_table {

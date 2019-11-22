@@ -155,10 +155,12 @@ uint32_t meson_secure_mem_flash_size(void)
 int32_t meson_secure_mem_ge2d_access(uint32_t msec)
 {
 	int ret = -1;
+	struct cpumask org_cpumask;
 
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 	ret = meson_smc_hal_api(TRUSTZONE_HAL_API_MEMCONFIG_GE2D, msec);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 
 	return ret;
 }
@@ -184,15 +186,17 @@ EXPORT_SYMBOL(meson_secure_jtag_apee);
 int meson_trustzone_efuse(void *arg)
 {
 	int ret;
+	struct cpumask org_cpumask;
 
 	if (!arg)
 		return -1;
 
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 
 	ret = meson_smc_hal_api(TRUSTZONE_HAL_API_EFUSE, __pa(arg));
 
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 
 	return ret;
 }

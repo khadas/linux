@@ -145,12 +145,17 @@ static int aml_pcm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct aml_pcm *pcm_p = dev_get_drvdata(dai->dev);
 
+	if (!pcm_p) {
+		pr_err("%s(), null ptr\n", __func__);
+		return -EINVAL;
+	}
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/* TODO */
-		if (pcm_p && pcm_p->pcm_mode) {
+		if (pcm_p->pcm_mode) {
 			pr_info("aiu pcm master stream %d enable\n\n",
 				substream->stream);
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -169,7 +174,7 @@ static int aml_pcm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (pcm_p && pcm_p->pcm_mode) {
+		if (pcm_p->pcm_mode) {
 			pr_info("aiu master pcm stream %d disable\n\n",
 				substream->stream);
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)

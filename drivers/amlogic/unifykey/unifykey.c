@@ -285,7 +285,8 @@ static int key_efuse_init(struct key_info_t *uk_info,
 static int key_efuse_write(char *keyname, unsigned char *keydata,
 		unsigned int datalen)
 {
-#if defined(CONFIG_ARM64) && defined(CONFIG_AMLOGIC_EFUSE)
+#if (defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)) \
+	&& defined(CONFIG_AMLOGIC_EFUSE)
 	char *title = keyname;
 	struct efusekey_info info;
 
@@ -308,7 +309,8 @@ static int key_efuse_write(char *keyname, unsigned char *keydata,
 static int key_efuse_read(char *keyname, unsigned char *keydata,
 		unsigned int datalen, unsigned int *reallen)
 {
-#if defined(CONFIG_ARM64) && defined(CONFIG_AMLOGIC_EFUSE)
+#if (defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)) \
+	&& defined(CONFIG_AMLOGIC_EFUSE)
 	char *title = keyname;
 	struct efusekey_info info;
 	int err = 0;
@@ -339,7 +341,8 @@ static int key_efuse_read(char *keyname, unsigned char *keydata,
 static int key_efuse_query(char *keyname, unsigned int *keystate)
 {
 	int err =  -EINVAL;
-#if defined(CONFIG_ARM64) && defined(CONFIG_AMLOGIC_EFUSE)
+#if (defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)) \
+	&& defined(CONFIG_AMLOGIC_EFUSE)
 	int i;
 	char *title = keyname;
 	struct efusekey_info info;
@@ -545,7 +548,8 @@ int key_unify_size(struct aml_unifykey_dev *ukdev,
 
 	if (unifykey->permit & KEY_M_PERMIT_READ) {
 		switch (unifykey->dev) {
-#if defined(CONFIG_ARM64) && defined(CONFIG_AMLOGIC_EFUSE)
+#if (defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)) \
+	&& defined(CONFIG_AMLOGIC_EFUSE)
 		case KEY_M_EFUSE:
 		{
 			struct efusekey_info info;

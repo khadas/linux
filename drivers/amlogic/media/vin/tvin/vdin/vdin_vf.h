@@ -128,6 +128,7 @@ struct vf_pool {
 	spinlock_t fz_lock;
 	unsigned int tmp_list_size;
 	struct list_head tmp_list;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	spinlock_t tmp_lock;
 	spinlock_t log_lock;
 	spinlock_t dv_lock;/*dolby vision lock*/
@@ -138,6 +139,7 @@ struct vf_pool {
 	struct isr_log_s isr_log;
 #endif
 	atomic_t buffer_cnt;
+	unsigned int low_latency;
 	unsigned int dv_buf_mem[VDIN_DV_MAX_NUM];
 	void *dv_buf_vmem[VDIN_DV_MAX_NUM];
 	unsigned int dv_buf_size[VDIN_DV_MAX_NUM];

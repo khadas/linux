@@ -37,8 +37,6 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
-#include <linux/amlogic/iomap.h>
-#include <linux/amlogic/cpu_version.h>
 #include "aml-crypto-dma.h"
 
 u32 swap_ulong32(u32 val)

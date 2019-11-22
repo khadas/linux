@@ -18,6 +18,7 @@
 /dts-v1/;
 
 #include "mesonaxg.dtsi"
+#include "mesonaxg_skt-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -160,7 +161,9 @@
 			compatible = "amlogic, gxbb-eth-dwmac";
 			status = "disable";
 			reg = <0x0 0xff3f0000 0x0 0x10000
-			0x0 0xff634540 0x0 0x8>;
+			0x0 0xff634540 0x0 0x8
+			0x0 0xff634558 0x0 0xc
+			0x0 0xffd01008 0x0 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;

@@ -15,9 +15,6 @@
 #ifdef CONFIG_CMA
 #include <linux/cma.h>
 #endif
-#ifdef CONFIG_AMLOGIC_VMAP
-#include <linux/amlogic/vmap_stack.h>
-#endif
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include "internal.h"
@@ -155,9 +152,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	show_val_kb(m, "CmaTotal:       ", totalcma_pages);
 	show_val_kb(m, "CmaFree:        ",
 		    global_page_state(NR_FREE_CMA_PAGES));
-#endif
-#ifdef CONFIG_AMLOGIC_VMAP
-	show_val_kb(m, "VmapStack:      ", get_vmap_stack_size());
 #endif
 
 	hugetlb_report_meminfo(m);

@@ -36,9 +36,9 @@ enum atsc_performance {
 };
 
 #define Lock	1
-#define UnLock	0
+#define UNLOCK	0
 #define Cfo_Ok	1
-#define Cfo_Fail 0
+#define CFO_FAIL 0
 #define Dagc_Open 1
 #define Dagc_Close 0
 #define Atsc_BandWidth	(6000)

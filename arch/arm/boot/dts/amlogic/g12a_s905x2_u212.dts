@@ -335,47 +335,109 @@
 		cma_mode = <1>;
 	};
 
-	/*dvb {
-	 *	compatible = "amlogic, dvb";
-	 *	dev_name = "dvb";
-	 *
-	 *	fe0_mode = "external";
-	 *	fe0_demod = "Atbm8881";
-	 *	fe0_i2c_adap_id = <&i2c2>;
-	 *	fe0_demod_i2c_addr = <0xc0>;
-	 *	fe0_ts = <1>;
-	 *	fe0_reset_value = <0>;
-	 *	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
-	 *
-	 *	ts1 = "parallel";
-	 *	ts1_control = <0>;
-	 *	ts1_invert = <0>;
-	 *	interrupts = <0 23 1
-	 *	0 5 1
-	 *	0 21 1
-	 *	0 19 1
-	 *	0 25 1
-	 *	0 18 1
-	 *	0 24 1>;
-	 *	interrupt-names = "demux0_irq",
-	 *	"demux1_irq",
-	 *	"demux2_irq",
-	 *	"dvr0_irq",
-	 *	"dvr1_irq",
-	 *	"dvrfill0_fill",
-	 *	"dvrfill1_flush";
-	 *	pinctrl-names = "p_ts1";
-	 *	pinctrl-0 = <&dvb_p_ts1_pins>;
-	 *	clocks = <&clkc CLKID_DEMUX
-	 *	&clkc CLKID_AHB_ARB0
-	 *	&clkc CLKID_DOS_PARSER>;
-	 *	clock-names = "demux", "ahbarb0", "parser_top";
-	 *};
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+
+	//	fe0_mode = "external";
+	//	fe0_demod = "Atbm8881";
+	//	fe0_i2c_adap_id = <&i2c2>;
+	//	fe0_demod_i2c_addr = <0xc0>;
+	//	fe0_ts = <1>;
+	//	fe0_reset_value = <0>;
+	//	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
+
+	//	ts1 = "parallel";
+	//	ts1_control = <0>;
+	//	ts1_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 21 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+	//	pinctrl-names = "p_ts1";
+	//	pinctrl-0 = <&dvb_p_ts1_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	/*this just for U212-D814(dual demod)*/
+	/* dvb {
+	 *   compatible = "amlogic, dvb";
+	 *   dev_name = "dvb";
+
+	 *   fe0_mode = "external";
+	 *   fe0_demod = "Si2168";
+	 *   fe0_i2c_adap_id = <&i2c2>;
+	 *   fe0_demod_i2c_addr = <0x64>;
+	 *   fe0_ts = <1>;
+	 *   fe0_reset_value = <0>;
+	 *   fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
+	 *   fe0_tuner0_i2c_addr = <0x61>;//dvb-t addr
+	 *   fe0_tuner1_i2c_addr = <0x62>;//dvb-s addr
+	 *   fe0_tuner0_code = <0x2151>;
+	 *   fe0_tuner1_code = <0xA2018>;
+
+	 *   ts1 = "parallel";
+	 *   ts1_control = <0>;
+	 *   ts1_invert = <0>;
+
+	 *   fe1_mode = "external";
+	 *   fe1_demod = "Si2168-1";
+	 *   fe1_i2c_adap_id = <&i2c2>;
+	 *   fe1_demod_i2c_addr = <0x67>;
+	 *   fe1_ts = <0>;
+	 *   fe1_reset_value = <0>;
+	 *   fe1_reset_gpio = <&gpio GPIOZ_0 GPIO_ACTIVE_HIGH>;
+	 *   fe1_tuner0_i2c_addr = <0x62>;//dvb-t addr
+	 *   fe1_tuner1_i2c_addr = <0x63>;//dvb-s addr
+	 *   fe1_tuner_code0 = <0x2151>;
+	 *   fe1_tuner_code1 = <0xA2018>;
+
+	 *   ts0 = "serial";
+	 *   ts0_control = <0x800>;
+	 *   ts0_invert = <0>;
+
+	 *   interrupts = <0 23 1
+	 *   0 5 1
+	 *   0 21 1
+	 *   0 19 1
+	 *   0 25 1
+	 *   0 18 1
+	 *   0 24 1>;
+	 *   interrupt-names = "demux0_irq",
+	 *   "demux1_irq",
+	 *   "demux2_irq",
+	 *   "dvr0_irq",
+	 *   "dvr1_irq",
+	 *   "dvrfill0_fill",
+	 *   "dvrfill1_flush";
+	 *   pinctrl-names = "s_ts0","p_ts1";
+	 *   pinctrl-0 = <&dvb_s_ts0_pins>;
+	 *   pinctrl-1 = <&dvb_p_ts1_pins>;
+
+	 *   clocks = <&clkc CLKID_DEMUX
+	 *   &clkc CLKID_AHB_ARB0
+	 *   &clkc CLKID_DOS_PARSER>;
+	 *   clock-names = "demux", "ahbarb0", "parser_top";
+	 * };
 	 */
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <16>;
+		unifykey-num = <17>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -392,6 +454,7 @@
 		unifykey-index-13= <&keysn_13>;
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
+		unifykey-index-16= <&keysn_16>;
 		keysn_0: key_0{
 			key-name = "usid";
 			key-device = "normal";
@@ -472,6 +535,11 @@
 		};
 		keysn_15:key_15{
 			key-name = "netflix_mgkid";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_16:key_16{
+			key-name = "attestationdevidbox";// attest dev id box
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
@@ -675,7 +743,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdif";
 			cpu {
 				sound-dai = <&aml_spdif>;
 				system-clock-frequency = <6144000>;
@@ -691,7 +759,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdif";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -832,6 +900,9 @@
 		status = "okay";
 };
 
+/*
+ * it's conflict with TSIN_B reset pin
+ */
 &i2c0 {
 	status = "okay";
 	pinctrl-names="default";
@@ -1252,8 +1323,6 @@
 			function = "pdm";
 		};
 	};
-
-
 }; /* end of pinctrl_periphs */
 &pinctrl_aobus {
 	/*gpiao_10*/
@@ -1263,6 +1332,17 @@
 	/*		function = "spdif_out_ao";*/
 	/*	};							  */
 	/*};							  */
+
+	/*dvb_s_ts0_pins: dvb_s_ts0_pins {*/
+	/*	tsin_a{                       */
+	/*		groups = "tsin_a_din0_ao",*/
+	/*		"tsin_a_clk_ao",          */
+	/*		"tsin_a_sop_ao",          */
+	/*		"tsin_a_valid_ao";        */
+	/*		function = "tsin_a_ao";   */
+	/*	};                            */
+	/*};                              */
+
 };  /* end of pinctrl_aobus */
 
 &audio_data {
@@ -1295,6 +1375,7 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
 };
+
 &ethmac {
 	status = "okay";
 	pinctrl-names = "internal_eth_pins", "internal_gpio_pins";

@@ -220,9 +220,10 @@ static ssize_t hdmirx_ext_video_mode_show(struct device *dev,
 	mode_str = __plat_get_video_mode_name(mode);
 
 	if (strcmp(mode_str, "invalid") != 0) {
-		if (strlen(mode_str) <
-			(sizeof(hdmi_mode_str) - strlen(hdmi_mode_str)))
-			strcat(hdmi_mode_str, mode_str);
+		if (strlen(mode_str) < sizeof(hdmi_mode_str))
+			if (strlen(mode_str) <
+				(sizeof(hdmi_mode_str) - strlen(hdmi_mode_str)))
+				strcat(hdmi_mode_str, mode_str);
 	} else {
 		if (strlen(mode_str) < sizeof(hdmi_mode_str))
 			strcpy(hdmi_mode_str, mode_str);

@@ -1124,21 +1124,13 @@ static void amlpmu_fix_setup_affinity(int irq)
  * on pmu interrupt generated cpu, @irq_num is valid
  * on other cpus(called by AML_PMU_IPI), @irq_num is -1
  */
-static int amlpmu_irq_fix(int irq_num)
+static void amlpmu_irq_fix(int irq_num)
 {
-	int i;
 	int cpu;
 	int cur_cpu;
 	int pmuirq_val;
 	int cluster_index = 0;
-	int fix_success = 0;
-	struct amlpmu_cpuinfo *ci;
 	struct amlpmu_context *ctx = &amlpmu_ctx;
-	struct call_single_data csd_stack;
-	int max_wait_cnt = ctx->max_wait_cnt;
-
-	csd_stack.func = amlpmu_handle_irq_ipi;
-	csd_stack.info = NULL;
 
 	cur_cpu = smp_processor_id();
 
@@ -1148,7 +1140,7 @@ static int amlpmu_irq_fix(int irq_num)
 		cluster_index = 1;
 	else {
 		pr_err("amlpmu_irq_fix() bad irq = %d\n", irq_num);
-		return fix_success;
+		return;
 	}
 
 	if (!cpumask_test_cpu(cur_cpu, &ctx->cpumasks[cluster_index])) {
@@ -1165,51 +1157,68 @@ static int amlpmu_irq_fix(int irq_num)
 			readl(ctx->regs[cluster_index]),
 			ctx->first_cpus[cluster_index],
 			*cpumask_bits(&ctx->cpumasks[cluster_index]));
+	/*
+	 * if pmuirq_val is zero means we can't get irq cpu info
+	 * from the register(eg: gxm clusterb), so we have to select another
+	 * cpu(next cpu) in cluster to try to handle this irq.
+	 */
+	if (!pmuirq_val) {
+		int next_cpu = -1;
 
-	for_each_cpu_and(cpu,
-			 &ctx->cpumasks[cluster_index],
-			 cpu_possible_mask) {
-		if (pmuirq_val & (1<<cpu)) {
-			if (cpu == cur_cpu) {
-				pr_info("ownercpu %d in pmuirq = 0x%x\n",
-						cur_cpu, pmuirq_val);
-				continue;
+		for_each_cpu_and(cpu,
+				&ctx->cpumasks[cluster_index],
+				cpu_online_mask) {
+			if (cpu > cur_cpu) {
+				next_cpu = cpu;
+				break;
 			}
-			pr_debug("fix pmu irq cpu %d, pmuirq = 0x%x\n",
-				cpu,
-				pmuirq_val);
-
-			ci = per_cpu_ptr(ctx->cpuinfo, cpu);
-			WRITE_ONCE(ci->fix_done, 0);
-			WRITE_ONCE(ci->fix_overflowed, 0);
-
-			csd_stack.flags = 0;
-			smp_call_function_single_async(cpu, &csd_stack);
-
-			for (i = 0; i < max_wait_cnt; i++) {
-				if (READ_ONCE(ci->fix_done))
-					break;
-
-				udelay(1);
-			}
-
-			if (i == ctx->max_wait_cnt) {
-				pr_err("wait for cpu %d done timeout\n",
-					   cpu);
-				//amlpmu_relax_timer_start(cpu);
-			}
-
-			if (READ_ONCE(ci->fix_overflowed))
-				fix_success++;
 		}
+
+		if (next_cpu == -1) {
+			for_each_cpu_and(cpu,
+					&ctx->cpumasks[cluster_index],
+					cpu_online_mask) {
+				if (cpu < cur_cpu) {
+					next_cpu = cpu;
+					break;
+				}
+			}
+		}
+
+		if (next_cpu != -1) {
+			if (irq_set_affinity(irq_num, cpumask_of(cpu)))
+				pr_err("irq_set_affin failed, irq=%d cpu=%d\n",
+					irq_num,
+					cpu);
+		} else
+			pr_err("can't find nextcpu\n");
+
+		return;
 	}
 
-	return fix_success;
+	/* fix irq from register info */
+	for_each_cpu_and(cpu,
+			 &ctx->cpumasks[cluster_index],
+			 cpu_online_mask) {
+		if (!(pmuirq_val & (1<<cpu)))
+			continue;
+
+		if (cpu == cur_cpu)
+			continue;
+
+		pr_debug("fix pmu irq cpu=%d, pmuirq=0x%x\n", cpu, pmuirq_val);
+
+		if (irq_set_affinity(irq_num, cpumask_of(cpu)))
+			pr_err("irq_set_affinity() failed, irq=%d cpu=%d\n",
+					irq_num,
+					cpu);
+
+		return;
+	}
 }
 
 static void amlpmu_update_stats(int irq_num,
-				int has_overflowed,
-				int fix_success)
+				int has_overflowed)
 {
 	int freq;
 	int i;
@@ -1219,21 +1228,6 @@ static void amlpmu_update_stats(int irq_num,
 	struct amlpmu_context *ctx = &amlpmu_ctx;
 
 	ci = this_cpu_ptr(ctx->cpuinfo);
-
-	if (!has_overflowed && !fix_success) {
-		pr_debug("empty_irq_cnt: %lu\n", ci->empty_irq_cnt);
-		ci->empty_irq_cnt++;
-		ci->empty_irq_time = time;
-	}
-
-	if (fix_success) {
-		/* send IPI success */
-		pr_debug("fix_irq_cnt: %lu, fix_success = %d\n",
-			ci->fix_irq_cnt,
-			fix_success);
-		ci->fix_irq_cnt++;
-		ci->fix_irq_time = time;
-	}
 
 	if (has_overflowed) {
 		ci->valid_irq_cnt++;
@@ -1273,32 +1267,6 @@ static void amlpmu_update_stats(int irq_num,
 	}
 
 	if (time_after(ci->valid_irq_time, ci->last_valid_irq_time + 2*HZ)) {
-		freq = ci->empty_irq_cnt - ci->last_empty_irq_cnt;
-		freq *= HZ;
-		freq /= (ci->empty_irq_time - ci->last_empty_irq_time);
-		pr_info("######## empty_irq_cnt: %lu - %lu = %lu, freq = %d\n",
-			ci->empty_irq_cnt,
-			ci->last_empty_irq_cnt,
-			ci->empty_irq_cnt - ci->last_empty_irq_cnt,
-			freq);
-
-		ci->last_empty_irq_cnt = ci->empty_irq_cnt;
-		ci->last_empty_irq_time = ci->empty_irq_time;
-
-
-		freq = ci->fix_irq_cnt - ci->last_fix_irq_cnt;
-		freq *= HZ;
-		freq /= (ci->fix_irq_time - ci->last_fix_irq_time);
-		pr_info("######## fix_irq_cnt: %lu - %lu = %lu, freq = %d\n",
-			ci->fix_irq_cnt,
-			ci->last_fix_irq_cnt,
-			ci->fix_irq_cnt - ci->last_fix_irq_cnt,
-			freq);
-
-		ci->last_fix_irq_cnt = ci->fix_irq_cnt;
-		ci->last_fix_irq_time = ci->fix_irq_time;
-
-
 		freq = ci->valid_irq_cnt - ci->last_valid_irq_cnt;
 		freq *= HZ;
 		freq /= (ci->valid_irq_time - ci->last_valid_irq_time);
@@ -1313,10 +1281,9 @@ static void amlpmu_update_stats(int irq_num,
 	}
 }
 
-int amlpmu_handle_irq(struct arm_pmu *cpu_pmu, int irq_num, int has_overflowed)
+void amlpmu_handle_irq(struct arm_pmu *cpu_pmu, int irq_num, int has_overflowed)
 {
 		int cpu;
-		int fix_success = 0;
 		struct amlpmu_cpuinfo *ci;
 		struct amlpmu_context *ctx = &amlpmu_ctx;
 
@@ -1331,43 +1298,20 @@ int amlpmu_handle_irq(struct arm_pmu *cpu_pmu, int irq_num, int has_overflowed)
 		 * if current cpu is not overflowed, it's possible some other
 		 * cpus caused the pmu interrupt.
 		 * so if current cpu is interrupt generated cpu(irq_num != -1),
-		 * call aml_pmu_fix() try to send IPI to other cpus and waiting
-		 * for fix_done.
+		 * call aml_pmu_fix() try to fix it.
 		 */
-		if (!has_overflowed && irq_num != -1)
-			fix_success = amlpmu_irq_fix(irq_num);
+		if (!has_overflowed)
+			amlpmu_irq_fix(irq_num);
 
 		/*
-		 * valid_irq, fix_irq and empty_irq status
+		 * valid_irq status
 		 * avg_delta time account to predict next interrupt time
 		 */
-		amlpmu_update_stats(irq_num, has_overflowed, fix_success);
+		amlpmu_update_stats(irq_num, has_overflowed);
 
-		/*
-		 * armv*pmu_getreset_flags() will clear interrupt. If current
-		 * interrupt is IPI fix(irq_num = -1), interrupt generated cpu
-		 * now is waiting for ci->fix_done=1(clear interrupt).
-		 * we must set ci->fix_done to 1 after amlpmu_stat_account(),
-		 * because interrupt generated cpu need this predict time info
-		 * to setup interrupt affinity.
-		 */
-		if (irq_num == -1) {
-			WRITE_ONCE(ci->fix_overflowed, has_overflowed);
-			/* fix_overflowed must before fix_done */
-			mb();
-			WRITE_ONCE(ci->fix_done, 1);
-		}
 
-		/* only interrupt generated cpu need setup affinity */
-		if (irq_num != -1)
+		if (has_overflowed)
 			amlpmu_fix_setup_affinity(irq_num);
-
-		/*
-		 * when a pmu interrupt generated, if current cpu is not
-		 * overflowed and some other cpus succeed in handling the
-		 * interrupt by IPIs return true.
-		 */
-		return !has_overflowed && fix_success;
 }
 
 static int amlpmu_init(struct platform_device *pdev, struct arm_pmu *pmu)

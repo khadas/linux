@@ -170,7 +170,9 @@
 	ethmac: ethernet@0xff3f0000 {
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0xff3f0000 0x10000
-			0xff634540 0x8>;
+			0xff634540 0x8
+			0xff634558 0xc
+			0xffd01008 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;

@@ -400,7 +400,8 @@
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0xc9410000 0x10000
 			0xc8834540 0x8
-			0xc8834558 0xc>;
+			0xc8834558 0xc
+			0xc1104408 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;

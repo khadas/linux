@@ -6600,7 +6600,15 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 		struct task_struct *task;
 		int count = 0;
 
+		/*
+		 * Fix for android.security.sts.Poc16_11#testPocCVE_2016_6753
+		 * We should not expose kernel address info to user space
+		 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+		seq_puts(seq, "css_set (____ptrval____)\n");
+#else
 		seq_printf(seq, "css_set %p\n", cset);
+#endif
 
 		list_for_each_entry(task, &cset->tasks, cg_list) {
 			if (count++ > MAX_TASKS_SHOWN_PER_CSS)

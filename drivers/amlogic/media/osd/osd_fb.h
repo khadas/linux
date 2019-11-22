@@ -67,6 +67,9 @@ struct fb_dmabuf_export {
 #define OSD_SECOND_GROUP_START 4
 #define OSD_END 7
 
+const struct color_bit_define_s *
+_find_color_format(struct fb_var_screeninfo *var);
+
 extern phys_addr_t get_fb_rmem_paddr(int index);
 extern void __iomem *get_fb_rmem_vaddr(int index);
 extern size_t get_fb_rmem_size(int index);

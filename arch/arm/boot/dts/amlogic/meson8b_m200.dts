@@ -631,7 +631,7 @@
 				"GPIOX_3",
 				"GPIOX_8",
 				"GPIOX_9";
-			function = "gpio";
+			function = "gpio_periphs";
 		};
 	};
 
@@ -653,7 +653,7 @@
 				"GPIOX_3",
 				"GPIOX_8",
 				"GPIOX_9";
-			function = "gpio";
+			function = "gpio_periphs";
 		};
 	};
 
@@ -676,7 +676,7 @@
 				"BOOT_7",
 				"BOOT_8",
 				"BOOT_10";
-			function = "gpio";
+			function = "gpio_periphs";
 		};
 
 	};
@@ -702,7 +702,7 @@
 				"BOOT_7",
 				"BOOT_8",
 				"BOOT_10";
-			function = "gpio";
+			function = "gpio_periphs";
 		};
 	};
 };

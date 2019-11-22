@@ -581,7 +581,6 @@ void demod_get_reg(struct aml_demod_reg *demod_reg);
 int demod_set_sys(struct aml_demod_sta *demod_sta,
 		  /*struct aml_demod_i2c *demod_i2c,*/
 		  struct aml_demod_sys *demod_sys);
-extern void demod_set_sys_atsc_v4(void);
 extern void set_j83b_filter_reg_v4(void);
 
 
@@ -811,8 +810,6 @@ extern unsigned int demod_read_reg_rlt(unsigned int addr);
 #endif
 extern void dvbc_write_reg(unsigned int addr, unsigned int data);
 extern unsigned int dvbc_read_reg(unsigned int addr);
-extern void dvbc_write_reg_v4(unsigned int addr, unsigned int data);
-extern unsigned int dvbc_read_reg_v4(unsigned int addr);
 extern void demod_write_reg(unsigned int addr, unsigned int data);
 extern unsigned int demod_read_reg(unsigned int addr);
 //extern void demod_init_mutex(void);
@@ -830,7 +827,7 @@ extern unsigned int reset_reg_read(unsigned int addr);
 extern void clocks_set_sys_defaults(unsigned char dvb_mode);
 extern void demod_set_demod_default(void);
 extern unsigned int demod_get_adc_clk(void);
-
+extern unsigned int demod_get_sys_clk(void);
 extern void debug_adc_pll(void);
 extern void debug_check_reg_val(unsigned int reg_mode, unsigned int reg);
 

@@ -1,0 +1,241 @@
+/*
+ * arch/arm64/boot/dts/amlogic/mesonsm1_drm.dtsi
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+#include <dt-bindings/display/meson-drm-ids.h>
+
+/ {
+	venc-cvbs {
+		status = "okay";
+		compatible = "amlogic, meson-sm1-cvbs";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			enc_cvbs_in: port@0 {
+				 #address-cells = <1>;
+				 #size-cells = <0>;
+				 reg = <0>;
+
+				 //venc_cvbs_in_vpu: endpoint@0 {
+				//	 reg = <0>;
+				//	 remote-endpoint = <&vpu_out_venc_cvbs>;
+				//};
+			};
+		};
+	};
+
+	drm_amhdmitx: drm-amhdmitx {
+		status = "disabled";
+		hdcp = "disabled";
+		compatible = "amlogic,drm-amhdmitx";
+		dev_name = "meson-amhdmitx";
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				hdmi_in_vpu: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vpu_out_hdmi>;
+				};
+			};
+		};
+	};
+
+	drm_lcd: drm-lcd {
+		status = "disabled";
+		compatible = "amlogic,drm-lcd";
+		dev_name = "meson-lcd";
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd_in_vpu: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vpu_out_lcd>;
+				};
+			};
+		};
+	};
+
+	drm_vpu: drm-vpu@0xff900000  {
+		status = "disabled";
+		compatible = "amlogic, meson-sm1-vpu";
+		memory-region = <&logo_reserved>;
+		reg = <0x0 0xff900000 0x0 0x40000>,
+			  <0x0 0xff63c000 0x0 0x2000>,
+			  <0x0 0xff638000 0x0 0x2000>;
+		reg-names = "base", "hhi", "dmc";
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 56 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "viu-vsync", "viu2-vsync";
+		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc";
+		dma-coherent;
+		vpu_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vpu_out_hdmi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmi_in_vpu>;
+			};
+			vpu_out_lcd: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lcd_in_vpu>;
+			};
+		};
+	};
+
+	drm_subsystem: drm-subsystem {
+		status = "okay";
+		compatible = "amlogic,drm-subsystem";
+		ports = <&vpu_out>;
+
+		vpu_topology: vpu_topology {
+			vpu_blocks {
+				osd1_block: block@0 {
+					id = /bits/ 8 <OSD1_BLOCK>;
+					index = /bits/ 8  <0>;
+					type = /bits/ 8  <0>;
+					block_name = "osd1_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &afbc_osd1_block>;
+				};
+				osd2_block: block@1 {
+					id = /bits/ 8  <OSD2_BLOCK>;
+					index = /bits/ 8  <1>;
+					type = /bits/ 8  <0>;
+					block_name = "osd2_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &afbc_osd2_block>;
+				};
+				osd3_block: block@2 {
+					id = /bits/ 8  <OSD3_BLOCK>;
+					index = /bits/ 8  <2>;
+					type = /bits/ 8  <0>;
+					block_name = "osd3_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &afbc_osd3_block>;
+				};
+				afbc_osd1_block: block@3 {
+					id = /bits/ 8  <AFBC_OSD1_BLOCK>;
+					index = /bits/ 8  <0>;
+					type = /bits/ 8  <1>;
+					block_name = "afbc_osd1_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &osd1_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &osd_blend_block>;
+				};
+				afbc_osd2_block: block@4 {
+					id = /bits/ 8  <AFBC_OSD2_BLOCK>;
+					index = /bits/ 8  <1>;
+					type = /bits/ 8  <1>;
+					block_name = "afbc_osd2_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &osd2_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &scaler_osd2_block>;
+				};
+				afbc_osd3_block: block@5 {
+					id = /bits/ 8  <AFBC_OSD3_BLOCK>;
+					index = /bits/ 8  <2>;
+					type = /bits/ 8  <1>;
+					block_name = "afbc_osd3_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &osd3_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &scaler_osd3_block>;
+				};
+				scaler_osd1_block: block@6 {
+					id = /bits/ 8  <SCALER_OSD1_BLOCK>;
+					index = /bits/ 8  <0>;
+					type = /bits/ 8  <2>;
+					block_name = "scaler_osd1_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &osd1_hdr_dolby_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &vpp_postblend_block>;
+				};
+				scaler_osd2_block: block@7 {
+					id = /bits/ 8  <SCALER_OSD2_BLOCK>;
+					index = /bits/ 8  <1>;
+					type = /bits/ 8  <2>;
+					block_name = "scaler_osd2_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &afbc_osd2_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <2 &osd_blend_block>;
+				};
+				scaler_osd3_block: block@8 {
+					id = /bits/ 8  <SCALER_OSD3_BLOCK>;
+					index = /bits/ 8  <2>;
+					type = /bits/ 8  <2>;
+					block_name = "scaler_osd3_block";
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &afbc_osd3_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <3 &osd_blend_block>;
+				};
+				osd_blend_block: block@9 {
+					id = /bits/ 8  <OSD_BLEND_BLOCK>;
+					block_name = "osd_blend_block";
+					type = /bits/ 8  <3>;
+					num_in_links = /bits/ 8  <0x3>;
+					in_links = <0 &afbc_osd1_block>,
+						<0 &scaler_osd2_block>,
+						<0 &scaler_osd3_block>;
+					num_out_links = /bits/ 8  <0x2>;
+					out_links = <0 &osd1_hdr_dolby_block>,
+						<1 &vpp_postblend_block>;
+				};
+				osd1_hdr_dolby_block: block@10 {
+					id = /bits/ 8  <OSD1_HDR_BLOCK>;
+					block_name = "osd1_hdr_dolby_block";
+					type = /bits/ 8  <4>;
+					num_in_links = /bits/ 8  <0x1>;
+					in_links = <0 &osd_blend_block>;
+					num_out_links = /bits/ 8  <0x1>;
+					out_links = <0 &scaler_osd1_block>;
+				};
+				vpp_postblend_block: block@12 {
+					id = /bits/ 8  <VPP_POSTBLEND_BLOCK>;
+					block_name = "vpp_postblend_block";
+					type = /bits/ 8  <6>;
+					num_in_links = /bits/ 8  <0x2>;
+					in_links = <0 &scaler_osd1_block>,
+						<1 &osd_blend_block>;
+					num_out_links = <0x0>;
+				};
+			};
+		};
+
+		vpu_hw_para: vpu_hw_para@0 {
+			osd_ver = /bits/ 8 <0x2>;
+			afbc_type = /bits/ 8 <0x2>;
+			has_deband = /bits/ 8 <0x1>;
+			has_lut = /bits/ 8 <0x1>;
+			has_rdma = /bits/ 8 <0x1>;
+			osd_fifo_len = /bits/ 8 <64>;
+			vpp_fifo_len = /bits/ 32 <0xfff>;
+		};
+	};
+};

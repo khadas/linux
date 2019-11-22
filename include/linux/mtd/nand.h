@@ -929,6 +929,7 @@ static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
 #define NAND_MFR_INTEL		0x89
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_DOSILICON	0xf8
+#define NAND_MFR_ZETTA		0xba
 
 /* add extra flash manufacturer ID Codes */
 #if defined(CONFIG_AMLOGIC_NAND) || defined(CONFIG_AMLOGIC_M8B_NAND)

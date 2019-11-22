@@ -105,6 +105,9 @@ static void cvbs_set_vid1_clk(unsigned int src_pll)
 	/* vclk: 27M */
 	/* [31:28]=0 enci_clk_sel, select vclk_div1 */
 	cvbs_out_hiu_setb(HHI_VID_CLK_DIV, 0, 28, 4);
+	/* [31:28]=0 vdac_clk_sel, select vclk_div1 */
+	/* [19]=0 disable atv_demod clk for vdac */
+	cvbs_out_hiu_setb(HHI_VIID_CLK_DIV, 0, 19, 1);
 	cvbs_out_hiu_setb(HHI_VIID_CLK_DIV, 0, 28, 4);
 	/* release vclk_div_reset and enable vclk_div */
 	cvbs_out_hiu_setb(HHI_VID_CLK_DIV, 1, VCLK_XD_EN, 2);
@@ -150,6 +153,9 @@ static void cvbs_set_vid2_clk(unsigned int src_pll)
 	/* vclk: 27M */
 	/* [31:28]=8 enci_clk_sel, select vclk2_div1 */
 	cvbs_out_hiu_setb(HHI_VID_CLK_DIV, 8, 28, 4);
+	/* [31:28]=8 vdac_clk_sel, select vclk2_div1 */
+	/* [19]=0 disable atv_demod clk for vdac */
+	cvbs_out_hiu_setb(HHI_VIID_CLK_DIV, 0, 19, 1);
 	cvbs_out_hiu_setb(HHI_VIID_CLK_DIV, 8, 28, 4);
 	/* release vclk2_div_reset and enable vclk2_div */
 	cvbs_out_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
@@ -214,8 +220,7 @@ void set_vmode_clk(void)
 		}
 		if (ret)
 			pr_info("[error]:hdmi_pll lock failed\n");
-	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1 ||
-		cvbs_cpu_type() == CVBS_CPU_TYPE_TM2) {
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1) {
 		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x202f04f7);
 		udelay(100);
 		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x302f04f7);
@@ -236,6 +241,29 @@ void set_vmode_clk(void)
 		ret = pll_wait_lock(HHI_TCON_PLL_CNTL0, 31);
 		if (ret)
 			pr_info("[error]:tl1 tcon_pll lock failed\n");
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TM2) {
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x202f04f7);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x302f04f7);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL1,	0x10110000);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL2,	0x00001108);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL3,	0x10051400);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL4,	0x010100c0);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL4,	0x038300c0);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x342f04f7);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x142f04f7);
+		udelay(100);
+		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL2,	0x00003008);
+		udelay(100);
+		ret = pll_wait_lock(HHI_TCON_PLL_CNTL0, 31);
+		if (ret)
+			pr_info("[error]:tl1 tcon_pll lock failed\n");
+		/* mux tcon pll */
+		cvbs_out_hiu_setb(HHI_LVDS_TX_PHY_CNTL1_TL1, 0, 29, 1);
 	} else {
 		pr_info("config eqafter gxl hdmi pll\n");
 		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4000027b);

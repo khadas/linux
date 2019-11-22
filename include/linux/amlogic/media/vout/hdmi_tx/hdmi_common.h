@@ -251,6 +251,16 @@ enum hdmi_vic {
 #define HDMI_4k2k_smpte_50_y420 HDMI_4096x2160p50_256x135_Y420
 #define HDMI_4k2k_smpte_60_y420 HDMI_4096x2160p60_256x135_Y420
 
+enum hdmi_phy_para {
+	HDMI_PHYPARA_6G = 1, /* 2160p60hz 444 8bit */
+	HDMI_PHYPARA_4p5G, /* 2160p50hz 420 12bit */
+	HDMI_PHYPARA_3p7G, /* 2160p30hz 444 10bit */
+	HDMI_PHYPARA_3G, /* 2160p24hz 444 8bit */
+	HDMI_PHYPARA_LT3G, /* 1080p60hz 444 12bit */
+	HDMI_PHYPARA_DEF = HDMI_PHYPARA_LT3G,
+	HDMI_PHYPARA_270M, /* 480p60hz 444 8bit */
+};
+
 enum hdmi_audio_fs;
 struct dtd;
 

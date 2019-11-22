@@ -260,7 +260,7 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 		ge2d_config_ex_mem = &(ge2d_para_config.para_config_memtype);
 
 		if (ge2d_para_config.para_config_memtype.ge2d_magic
-			== sizeof(struct config_para_ex_memtype_s)) {
+			== sizeof(struct compat_config_para_ex_memtype_s)) {
 			struct config_para_ex_ion_s *pge2d_config_ex;
 
 			uf_ex_mem =

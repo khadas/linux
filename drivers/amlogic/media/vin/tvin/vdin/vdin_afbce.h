@@ -315,5 +315,8 @@ extern void vdin_afbce_hw_enable(void);
 extern void vdin_afbce_hw_disable_rdma(struct vdin_dev_s *devp);
 extern void vdin_afbce_hw_enable_rdma(struct vdin_dev_s *devp);
 extern void vdin_afbce_soft_reset(void);
+extern void vdin_afbce_mode_init(struct vdin_dev_s *devp);
+extern void vdin_afbce_mode_update(struct vdin_dev_s *devp);
+bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp);
 #endif
 

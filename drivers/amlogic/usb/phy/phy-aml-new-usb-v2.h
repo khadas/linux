@@ -23,4 +23,4 @@
 extern int amlogic_new_usbphy_reset_v2(struct amlogic_usb_v2 *phy);
 extern int amlogic_new_usbphy_reset_phycfg_v2
 	(struct amlogic_usb_v2 *phy, int cnt);
-
+void set_usb_phy_host_tuning(int port, int default_val);

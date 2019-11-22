@@ -232,7 +232,7 @@ int meson_cooldev_min_update(struct platform_device *pdev, int index)
 
 	case COOL_DEV_TYPE_CPU_FREQ:
 		for_each_possible_cpu(cpu) {
-			if (mc_capable())
+			if (topology_physical_package_id(0) != -1)
 				c_id = topology_physical_package_id(cpu);
 			else
 				c_id = 0; /* force cluster 0 if no MC */
@@ -349,10 +349,12 @@ static int parse_cool_device(struct platform_device *pdev)
 		else
 			cool->gpupp = temp;
 
-		if (of_property_read_u32(child, "cluster_id", &temp))
-			pr_err("thermal: read cluster_id failed\n");
-		else
+		if (of_property_read_u32(child, "cluster_id", &temp)) {
+			pr_info("thermal: no cluster id, cpucore as one cooldev\n");
+			cool->cluster_id = CLUSTER_FLAG;
+		} else {
 			cool->cluster_id = temp;
+		}
 
 		if (of_property_read_string(child, "device_type", &str))
 			pr_err("thermal: read device_type failed\n");

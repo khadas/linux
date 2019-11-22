@@ -48,7 +48,8 @@ static int ob3350_hw_init_on(void)
 		ldim_drv->ldev_conf->en_gpio_on);
 	mdelay(2);
 
-	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->pwm_config));
+	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->ldim_pwm_config));
+	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->analog_pwm_config));
 	ldim_drv->pinmux_ctrl(1);
 	mdelay(20);
 
@@ -62,7 +63,8 @@ static int ob3350_hw_init_off(void)
 	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
 		ldim_drv->ldev_conf->en_gpio_off);
 	ldim_drv->pinmux_ctrl(0);
-	ldim_pwm_off(&(ldim_drv->ldev_conf->pwm_config));
+	ldim_pwm_off(&(ldim_drv->ldev_conf->ldim_pwm_config));
+	ldim_pwm_off(&(ldim_drv->ldev_conf->analog_pwm_config));
 
 	return 0;
 }
@@ -89,10 +91,20 @@ static int ob3350_smr(unsigned short *buf, unsigned char len)
 	level = buf[0];
 	val = dim_min + ((level * (dim_max - dim_min)) / LD_DATA_MAX);
 
-	ldim_drv->ldev_conf->pwm_config.pwm_duty = val;
-	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->pwm_config));
+	ldim_drv->ldev_conf->ldim_pwm_config.pwm_duty = val;
+	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->ldim_pwm_config));
 
 	return 0;
+}
+
+static void ob3350_dim_range_update(void)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct ldim_dev_config_s *ldim_dev;
+
+	ldim_dev = ldim_drv->ldev_conf;
+	ldim_dev->dim_max = ldim_dev->ldim_pwm_config.pwm_duty_max;
+	ldim_dev->dim_min = ldim_dev->ldim_pwm_config.pwm_duty_min;
 }
 
 static int ob3350_power_on(void)
@@ -138,7 +150,7 @@ static ssize_t ob3350_show(struct class *class,
 				ldim_drv->ldev_conf->en_gpio_off,
 				ldim_drv->ldev_conf->dim_max,
 				ldim_drv->ldev_conf->dim_min,
-				ldim_drv->ldev_conf->pwm_config.pwm_duty);
+				ldim_drv->ldev_conf->ldim_pwm_config.pwm_duty);
 	}
 
 	return ret;
@@ -151,6 +163,12 @@ static struct class_attribute ob3350_class_attrs[] = {
 
 static int ob3350_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 {
+	struct ldim_dev_config_s *ldim_dev = ldim_drv->ldev_conf;
+
+	ldim_dev->ldim_pwm_config.pwm_duty_max = ldim_dev->dim_max;
+	ldim_dev->ldim_pwm_config.pwm_duty_min = ldim_dev->dim_min;
+	ldim_dev->dim_range_update = ob3350_dim_range_update;
+
 	ldim_drv->device_power_on = ob3350_power_on;
 	ldim_drv->device_power_off = ob3350_power_off;
 	ldim_drv->device_bri_update = ob3350_smr;

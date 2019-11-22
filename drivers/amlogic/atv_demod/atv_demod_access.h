@@ -25,6 +25,8 @@ extern int amlatvdemod_reg_read(unsigned int reg, unsigned int *val);
 extern int amlatvdemod_reg_write(unsigned int reg, unsigned int val);
 extern int atvaudiodem_reg_read(unsigned int reg, unsigned int *val);
 extern int atvaudiodem_reg_write(unsigned int reg, unsigned int val);
+extern int atvaudio_ctrl_read(unsigned int *val);
+extern int atvaudio_ctrl_write(unsigned int val);
 extern int amlatvdemod_hiu_reg_read(unsigned int reg, unsigned int *val);
 extern int amlatvdemod_hiu_reg_write(unsigned int reg, unsigned int val);
 extern int amlatvdemod_periphs_reg_read(unsigned int reg, unsigned int *val);

@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/04/25"
+#define VDIN_VER "ver:2019-1118: 1080p 10bit afbc green screen"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -86,12 +86,16 @@
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002
 #define VDIN_BYPASS_VGA_CHECK           0x00000008
-#define VDIN_CANVAS_MAX_CNT				9
+#define VDIN_CANVAS_MAX_CNT	10
 
 /*values of vdin game mode process flag */
+/*enable*/
 #define VDIN_GAME_MODE_0                (1 << 0)
+/*delay 1 frame, vdin have one frame buffer delay*/
 #define VDIN_GAME_MODE_1                (1 << 1)
+/*delay 2 frame write, read at same buffer*/
 #define VDIN_GAME_MODE_2                (1 << 2)
+/*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (1 << 3)
 
 /*flag for flush vdin buff*/
@@ -102,12 +106,17 @@
 /* #define VDIN_DEBUG */
 
 /*vdin write mem color-depth support*/
-#define VDIN_WR_COLOR_DEPTH_8BIT	1
-#define VDIN_WR_COLOR_DEPTH_9BIT	(1 << 1)
-#define VDIN_WR_COLOR_DEPTH_10BIT	(1 << 2)
-#define VDIN_WR_COLOR_DEPTH_12BIT	(1 << 3)
-/*TXL new add*/
-#define VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE	(1 << 4)
+enum VDIN_WR_COLOR_DEPTHe {
+	VDIN_WR_COLOR_DEPTH_8BIT = 0x01,
+	VDIN_WR_COLOR_DEPTH_9BIT = 0x02,
+	VDIN_WR_COLOR_DEPTH_10BIT = 0x04,
+	VDIN_WR_COLOR_DEPTH_12BIT = 0x08,
+	/*TXL new add*/
+	VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE = 0x10,
+};
+
+#define VDIN_422_FULL_PK_EN			1
+#define VDIN_422_FULL_PK_DIS			0
 
 /* vdin afbce flag */
 #define VDIN_AFBCE_EN                   (1 << 0)
@@ -116,6 +125,74 @@
 #define VDIN_AFBCE_EN_1080P             (1 << 5)
 #define VDIN_AFBCE_EN_720P              (1 << 6)
 #define VDIN_AFBCE_EN_SMALL             (1 << 7)
+
+enum COLOR_DEEPS_CFGe {
+	COLOR_DEEPS_AUTO = 0,
+	COLOR_DEEPS_8BIT = 8,
+	COLOR_DEEPS_10BIT = 10,
+	COLOR_DEEPS_12BIT = 12,
+	COLOR_DEEPS_MANUAL = 0x100,
+};
+
+enum vdin_color_deeps_e {
+	VDIN_COLOR_DEEPS_8BIT = 8,
+	VDIN_COLOR_DEEPS_9BIT = 9,
+	VDIN_COLOR_DEEPS_10BIT = 10,
+	VDIN_COLOR_DEEPS_12BIT = 12,
+};
+
+/* *********************************************************************** */
+/* *** enum definitions ********************************************* */
+/* *********************************************************************** */
+/*
+ *YUV601:  SDTV BT.601            YCbCr (16~235, 16~240, 16~240)
+ *YUV601F: SDTV BT.601 Full_Range YCbCr ( 0~255,  0~255,  0~255)
+ *YUV709:  HDTV BT.709            YCbCr (16~235, 16~240, 16~240)
+ *YUV709F: HDTV BT.709 Full_Range YCbCr ( 0~255,  0~255,  0~255)
+ *RGBS:                       StudioRGB (16~235, 16~235, 16~235)
+ *RGB:                              RGB ( 0~255,  0~255,  0~255)
+ */
+enum vdin_matrix_csc_e {
+	VDIN_MATRIX_NULL = 0,
+	VDIN_MATRIX_XXX_YUV601_BLACK,/*1*/
+	VDIN_MATRIX_RGB_YUV601,
+	VDIN_MATRIX_GBR_YUV601,
+	VDIN_MATRIX_BRG_YUV601,
+	VDIN_MATRIX_YUV601_RGB,/*5*/
+	VDIN_MATRIX_YUV601_GBR,
+	VDIN_MATRIX_YUV601_BRG,
+	VDIN_MATRIX_RGB_YUV601F,
+	VDIN_MATRIX_YUV601F_RGB,/*9*/
+	VDIN_MATRIX_RGBS_YUV601,/*10*/
+	VDIN_MATRIX_YUV601_RGBS,
+	VDIN_MATRIX_RGBS_YUV601F,
+	VDIN_MATRIX_YUV601F_RGBS,
+	VDIN_MATRIX_YUV601F_YUV601,
+	VDIN_MATRIX_YUV601_YUV601F,/*15*/
+	VDIN_MATRIX_RGB_YUV709,
+	VDIN_MATRIX_YUV709_RGB,
+	VDIN_MATRIX_YUV709_GBR,
+	VDIN_MATRIX_YUV709_BRG,
+	VDIN_MATRIX_RGB_YUV709F,/*20*/
+	VDIN_MATRIX_YUV709F_RGB,
+	VDIN_MATRIX_RGBS_YUV709,
+	VDIN_MATRIX_YUV709_RGBS,
+	VDIN_MATRIX_RGBS_YUV709F,
+	VDIN_MATRIX_YUV709F_RGBS,/*25*/
+	VDIN_MATRIX_YUV709F_YUV709,
+	VDIN_MATRIX_YUV709_YUV709F,
+	VDIN_MATRIX_YUV601_YUV709,
+	VDIN_MATRIX_YUV709_YUV601,
+	VDIN_MATRIX_YUV601_YUV709F,/*30*/
+	VDIN_MATRIX_YUV709F_YUV601,
+	VDIN_MATRIX_YUV601F_YUV709,
+	VDIN_MATRIX_YUV709_YUV601F,
+	VDIN_MATRIX_YUV601F_YUV709F,
+	VDIN_MATRIX_YUV709F_YUV601F,/*35*/
+	VDIN_MATRIX_RGBS_RGB,
+	VDIN_MATRIX_RGB_RGBS,
+	VDIN_MATRIX_RGB2020_YUV2020,
+};
 
 static inline const char *vdin_fmt_convert_str(
 		enum vdin_format_convert_e fmt_cvt)
@@ -192,6 +269,9 @@ struct vdin_dv_s {
 	bool dv_config;
 	bool dv_crc_check;/*0:fail;1:ok*/
 	unsigned int dv_mem_alloced;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
+	bool low_latency;
+	bool de_scramble;
 };
 
 struct vdin_afbce_s {
@@ -238,8 +318,8 @@ struct vdin_dev_s {
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
-	unsigned int source_bitdepth;
-
+	enum vdin_color_deeps_e source_bitdepth;
+	enum vdin_matrix_csc_e csc_idx;
 	struct vf_entry *curr_wr_vfe;
 	struct vf_entry *last_wr_vfe;
 	unsigned int curr_field_type;
@@ -259,6 +339,8 @@ struct vdin_dev_s {
 
 	unsigned int h_active;
 	unsigned int v_active;
+	unsigned int h_active_org;/*vdin scaler in*/
+	unsigned int v_active_org;/*vdin scaler in*/
 	unsigned int canvas_h;
 	unsigned int canvas_w;
 	unsigned int canvas_active_w;
@@ -313,14 +395,14 @@ struct vdin_dev_s {
 	 *bit3:support 12bit
 	 *bit4:support yuv422 10bit full pack mode (from txl new add)
 	 */
-	unsigned int color_depth_support;
+	enum VDIN_WR_COLOR_DEPTHe color_depth_support;
 	/*color depth config
 	 *0:auto config as frontend
 	 *8:force config as 8bit
 	 *10:force config as 10bit
 	 *12:force config as 12bit
 	 */
-	unsigned int color_depth_config;
+	enum COLOR_DEEPS_CFGe color_depth_config;
 	/* new add from txl:color depth mode for 10bit
 	 *1: full pack mode;config 10bit as 10bit
 	 *0: config 10bit as 12bit
@@ -379,7 +461,6 @@ struct vdin_dev_s {
 	bool black_bar_enable;
 	bool hist_bar_enable;
 	unsigned int ignore_frames;
-	unsigned int recycle_frames;
 	/*use frame rate to cal duraton*/
 	unsigned int use_frame_rate;
 	unsigned int irq_cnt;
@@ -390,6 +471,10 @@ struct vdin_dev_s {
 	unsigned int vdin_dev_ssize;
 	wait_queue_head_t queue;
 	struct dentry *dbg_root;	/*dbg_fs*/
+
+	/*atv non-std signal,force drop the field if previous already dropped*/
+	unsigned int interlace_force_drop;
+	unsigned int skip_disp_md_check;
 };
 
 struct vdin_hist_s {
@@ -397,6 +482,7 @@ struct vdin_hist_s {
 	int width;
 	int height;
 	int ave;
+	unsigned short hist[64];
 };
 
 struct vdin_v4l2_param_s {
@@ -405,11 +491,11 @@ struct vdin_v4l2_param_s {
 	int fps;
 };
 
-extern unsigned int max_recycle_frame_cnt;
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
-
+extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
+extern unsigned int dv_de_scramble;
 
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);
@@ -449,6 +535,7 @@ extern void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 extern void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
 
 extern bool vlock_get_phlock_flag(void);
+u32 vlock_get_phase_en(void);
 
 extern struct vdin_dev_s *vdin_get_dev(unsigned int index);
 extern void vdin_mif_config_init(struct vdin_dev_s *devp);

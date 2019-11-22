@@ -146,6 +146,9 @@ int ioremap_page_range(unsigned long addr,
 	unsigned long start;
 	unsigned long next;
 	int err;
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	phys_addr_t phys_addr_save = phys_addr;
+#endif
 
 	BUG_ON(addr >= end);
 
@@ -163,7 +166,7 @@ int ioremap_page_range(unsigned long addr,
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
 	if (need_dump_iomap() && !is_normal_memory(prot))
 		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
-		       start, end, (unsigned long)phys_addr,
+		       start, end, (unsigned long)phys_addr_save,
 		       (unsigned long)pgprot_val(prot));
 #endif
 	return err;

@@ -52,6 +52,8 @@
 static unsigned long stack_shrink_jiffies;
 static unsigned char vmap_shrink_enable;
 static atomic_t vmap_stack_size;
+static atomic_t vmap_fault_count;
+static atomic_t vmap_pre_handle_count;
 static struct aml_vmap *avmap;
 
 #ifdef CONFIG_ARM64
@@ -445,7 +447,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 {
 	unsigned long sp = 0, addr;
 	struct page *page;
-	int cache;
+	int cache = 0;
 
 #ifdef CONFIG_ARM
 	sp = regs->ARM_sp;
@@ -453,6 +455,18 @@ static void check_sp_fault_again(struct pt_regs *regs)
 	sp = regs->sp;
 #endif
 	addr = sp - sizeof(*regs);
+
+	/*
+	 * When we handle vmap stack fault, we are in pre-allcated
+	 * per-cpu vmap stack. But if sp is near bottom of a page and we
+	 * return to normal handler, sp may down grow to another page
+	 * to cause a vmap fault again. So we need map next page for
+	 * stack before page-fault happen.
+	 *
+	 * But we need check sp is realy in vmap stack range.
+	 */
+	if (!is_vmap_addr(addr)) /* addr may in linear mapping */
+		return;
 
 	if (sp && ((addr & PAGE_MASK) != (sp & PAGE_MASK))) {
 		/*
@@ -477,6 +491,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 			mod_delayed_work(system_highpri_wq, &avmap->mwork, 0);
 
 		D("map page:%5lx for addr:%lx\n", page_to_pfn(page), addr);
+		atomic_inc(&vmap_pre_handle_count);
 	#if DEBUG
 		show_fault_stack(addr, regs);
 	#endif
@@ -557,6 +572,7 @@ int handle_vmap_fault(unsigned long addr, unsigned int esr,
 	if (cache <= (VMAP_CACHE_PAGE / 2))
 		mod_delayed_work(system_highpri_wq, &avmap->mwork, 0);
 
+	atomic_inc(&vmap_fault_count);
 	D("map page:%5lx for addr:%lx\n", page_to_pfn(page), addr);
 #if DEBUG
 	show_fault_stack(addr, regs);
@@ -584,6 +600,20 @@ static int shrink_vm_stack(unsigned long low, unsigned long high)
 		pages++;
 	}
 	return pages;
+}
+
+void arch_report_meminfo(struct seq_file *m)
+{
+	unsigned long kb = 1 << (PAGE_SHIFT - 10);
+	unsigned long tmp1, tmp2, tmp3;
+
+	tmp1 = kb * atomic_read(&vmap_stack_size);
+	tmp2 = kb * atomic_read(&vmap_fault_count);
+	tmp3 = kb * atomic_read(&vmap_pre_handle_count);
+
+	seq_printf(m, "VmapStack:      %8ld kB\n", tmp1);
+	seq_printf(m, "VmapFault:      %8ld kB\n", tmp2);
+	seq_printf(m, "VmapPfault:     %8ld kB\n", tmp3);
 }
 
 static unsigned long get_task_stack_floor(unsigned long sp)

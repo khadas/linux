@@ -45,6 +45,9 @@ struct data_cfg {
 
 	/* channel and mask in new ctrol register */
 	bool ch_ctrl_switch;
+
+	/* enable resample B for loopback*/
+	unsigned int resample_enable;
 };
 
 void tdminlb_set_clk(enum datalb_src lb_src,
@@ -69,5 +72,7 @@ extern void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
 extern void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
 
 extern void lb_enable(int id, bool enable);
+
+void lb_set_chnum_en(int id, bool en);
 
 #endif

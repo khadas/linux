@@ -40,7 +40,7 @@ static u32 omx_version = 3;
 static u32 vp_debug_flag;
 static bool no_render;/* default: false */
 static bool async_mode;/* default: false */
-static u32 video_early_threshold = 900; /* default: 900=>10ms */
+/*static u32 video_early_threshold = 900;  default: 900=>10ms */
 
 
 /* video freerun mode */
@@ -52,6 +52,8 @@ static u32 video_early_threshold = 900; /* default: 900=>10ms */
 #define M_PTS_SMOOTH_ADJUST 900
 #define DURATION_GCD 750
 
+static int duration_gcd = DURATION_GCD;
+
 static int omx_pts_interval_upper = 11000;
 static int omx_pts_interval_lower = -5500;
 #define DUR2PTS(x) ((x) - ((x) >> 4))
@@ -59,11 +61,39 @@ static int omx_pts_interval_lower = -5500;
 #define PRINT_ERROR			0X0
 #define PRINT_QUEUE_STATUS	0X0001
 #define PRINT_TIMESTAMP		0X0002
-#define PRINT_OTHER			0X0004
+#define PRINT_PATTERN		0X0004
+#define PRINT_OTHER			0X0008
+
 
 static struct videosync_dev *vp_dev;
 static uint show_first_frame_nosync;
+static uint max_delata_time;
+
 static u32 cur_omx_index;
+
+#define PTS_32_PATTERN_DETECT_RANGE 10
+#define PTS_22_PATTERN_DETECT_RANGE 10
+#define PTS_41_PATTERN_DETECT_RANGE 2
+#define PTS_32_PATTERN_DURATION 3750
+#define PTS_22_PATTERN_DURATION 3000
+
+enum video_refresh_pattern {
+	PTS_32_PATTERN = 0,
+	PTS_22_PATTERN,
+	PTS_41_PATTERN,
+	PTS_MAX_NUM_PATTERNS
+};
+
+static int pts_trace;
+static int pre_pts_trace;
+static bool pts_enforce_pulldown = true;
+static int pts_pattern[3] = {0, 0, 0};
+static int pts_pattern_enter_cnt[3] = {0, 0, 0};
+static int pts_pattern_exit_cnt[3] = {0, 0, 0};
+static int pts_log_enable[3] = {0, 0, 0};
+static int pts_escape_vsync = -1;
+static s32 vsync_pts_align = -DURATION_GCD / 2;
+static int pts_pattern_detected = -1;
 
 static int vp_print(char *name, int debug_flag, const char *fmt, ...)
 {
@@ -85,7 +115,7 @@ static int vp_print(char *name, int debug_flag, const char *fmt, ...)
 static u32 ts_pcrscr_get(struct videosync_s *dev_s)
 {
 	u32 sys_time = 0;
-	/*unsigned long flags;*/
+
 	sys_time = dev_s->system_time;
 	return sys_time;
 }
@@ -104,6 +134,166 @@ static void ts_pcrscr_enable(struct videosync_s *dev_s, u32 enable)
 static u32 ts_pcrscr_enable_state(struct videosync_s *dev_s)
 {
 	return dev_s->system_time_up;
+}
+
+static void log_vsync_video_pattern(int pattern)
+{
+	int factor1 = 0, factor2 = 0, pattern_range = 0;
+
+	if (pattern >= PTS_MAX_NUM_PATTERNS)
+		return;
+
+	if (pattern == PTS_32_PATTERN) {
+		factor1 = 3;
+		factor2 = 2;
+		pattern_range =  PTS_32_PATTERN_DETECT_RANGE;
+	} else if (pattern == PTS_22_PATTERN) {
+		factor1 = 2;
+		factor2 = 2;
+		pattern_range =  PTS_22_PATTERN_DETECT_RANGE;
+	} else if (pattern == PTS_41_PATTERN) {
+		pr_info("not support 41 pattern\n");
+		return;
+	}
+
+	/* update 3:2 or 2:2 mode detection */
+	if (((pre_pts_trace == factor1) && (pts_trace == factor2)) ||
+	    ((pre_pts_trace == factor2) && (pts_trace == factor1))) {
+		if (pts_pattern[pattern] < pattern_range) {
+			pts_pattern[pattern]++;
+			if (pts_pattern[pattern] == pattern_range) {
+				pts_pattern_enter_cnt[pattern]++;
+				pts_pattern_detected = pattern;
+				if (pts_log_enable[pattern])
+					pr_info("video %d:%d mode detected\n",
+						factor1, factor2);
+			}
+		}
+	} else if (pts_pattern[pattern] == pattern_range) {
+		pts_pattern[pattern] = 0;
+		pts_pattern_exit_cnt[pattern]++;
+		if (pts_log_enable[pattern])
+			pr_info("video %d:%d mode broken\n", factor1, factor2);
+	} else {
+		pts_pattern[pattern] = 0;
+	}
+}
+
+static void vsync_video_pattern(void)
+{
+	/*log_vsync_video_pattern(PTS_32_PATTERN);*/
+	log_vsync_video_pattern(PTS_22_PATTERN);
+	/*log_vsync_video_pattern(PTS_41_PATTERN);*/
+}
+
+static inline void vpts_perform_pulldown(
+	struct videosync_s *dev_s,
+	struct vframe_s *next_vf,
+	bool *expired)
+{
+	int pattern_range, expected_curr_interval;
+	int expected_prev_interval;
+	int next_vf_nextpts = 0;
+	int nextPts;
+
+	/* Dont do anything if we have invalid data */
+	if (!next_vf || !next_vf->pts)
+		return;
+	if (next_vf->next_vf_pts_valid)
+		next_vf_nextpts = next_vf->next_vf_pts;
+
+	switch (pts_pattern_detected) {
+	case PTS_32_PATTERN:
+		pattern_range = PTS_32_PATTERN_DETECT_RANGE;
+		switch (pre_pts_trace) {
+		case 3:
+			expected_prev_interval = 3;
+			expected_curr_interval = 2;
+			break;
+		case 2:
+			expected_prev_interval = 2;
+			expected_curr_interval = 3;
+			break;
+		default:
+			return;
+		}
+		if (!next_vf_nextpts)
+			next_vf_nextpts = next_vf->pts +
+				PTS_32_PATTERN_DURATION;
+		break;
+	case PTS_22_PATTERN:
+		if (pre_pts_trace != 2)
+			return;
+		pattern_range =  PTS_22_PATTERN_DETECT_RANGE;
+		expected_prev_interval = 2;
+		expected_curr_interval = 2;
+		if (!next_vf_nextpts)
+			next_vf_nextpts = next_vf->pts +
+				PTS_22_PATTERN_DURATION;
+		break;
+	case PTS_41_PATTERN:
+		/* TODO */
+	default:
+		return;
+	}
+
+	/* We do nothing if  we dont have enough data*/
+	if (pts_pattern[pts_pattern_detected] != pattern_range)
+		return;
+
+	if (*expired) {
+		if (pts_trace < expected_curr_interval) {
+			/* 2323232323..2233..2323, prev=2, curr=3,*/
+			/* check if next frame will toggle after 3 vsyncs */
+			/* 22222...22222 -> 222..2213(2)22...22 */
+			/* check if next frame will toggle after 3 vsyncs */
+			nextPts = ts_pcrscr_get(dev_s) + vsync_pts_align;
+
+			if (((int)(nextPts + (expected_prev_interval + 1) *
+				vsync_pts_inc - next_vf_nextpts) >= 0)) {
+				*expired = false;
+				if (pts_log_enable[PTS_32_PATTERN] ||
+				    pts_log_enable[PTS_22_PATTERN])
+					pr_info("hold frame for pattern: %d",
+						pts_pattern_detected);
+			}
+
+			/* here need to escape a vsync */
+			if (ts_pcrscr_get(dev_s) >
+				(next_vf->pts + vsync_pts_inc)) {
+				*expired = true;
+				pts_escape_vsync = 1;
+				if (pts_log_enable[PTS_32_PATTERN] ||
+				    pts_log_enable[PTS_22_PATTERN])
+					pr_info("escape a vsync pattern: %d",
+						pts_pattern_detected);
+			}
+		}
+	} else {
+		if (pts_trace == expected_curr_interval) {
+			/* 23232323..233223...2323 curr=2, prev=3 */
+			/* check if this frame will expire next vsyncs and */
+			/* next frame will expire after 3 vsyncs */
+			/* 22222...22222 -> 222..223122...22 */
+			/* check if this frame will expire next vsyncs and */
+			/* next frame will expire after 2 vsyncs */
+			int nextPts = ts_pcrscr_get(dev_s) + vsync_pts_align;
+
+			if (((int)(nextPts + vsync_pts_inc - next_vf->pts)
+				>= 0) &&
+			    ((int)(nextPts +
+			    vsync_pts_inc * (expected_prev_interval - 1)
+			    - next_vf_nextpts) < 0) &&
+			    ((int)(nextPts + expected_prev_interval *
+				vsync_pts_inc - next_vf_nextpts) >= 0)) {
+				*expired = true;
+				if (pts_log_enable[PTS_32_PATTERN] ||
+				    pts_log_enable[PTS_22_PATTERN])
+					pr_info("pull frame for pattern: %d",
+						pts_pattern_detected);
+			}
+		}
+	}
 }
 
 void videosync_pcrscr_update(s32 inc, u32 base)
@@ -127,9 +317,11 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 				system_time_scale_base = base;
 			}
 			if (dev_s->system_time_up) {
+				dev_s->time_update = sched_clock();
 				dev_s->system_time +=
 					div_u64_rem(90000ULL * inc, base, &r)
 					+ system_time_inc_adj;
+				vsync_pts_inc = 90000 * inc / base;
 				dev_s->system_time_scale_remainder += r;
 				if (dev_s->system_time_scale_remainder
 					>= system_time_scale_base) {
@@ -157,7 +349,7 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 					current_omx_pts,
 					diff);
 				ts_pcrscr_set(dev_s,
-					current_omx_pts + DURATION_GCD);
+					current_omx_pts + duration_gcd);
 			}
 		}
 	}
@@ -200,6 +392,29 @@ static void videosync_vf_put(struct vframe_s *vf, void *op_arg)
 	} else {
 		vp_print(dev_s->vf_receiver_name, 0,
 			"videosync_vf_put: NULL!\n");
+	}
+}
+
+void vsync_notify_videosync(void)
+{
+	int i = 0;
+	struct videosync_s *dev_s = NULL;
+	bool has_active = false;
+
+	if (!videosync_inited)
+		return;
+
+	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
+		dev_s = &vp_dev->video_prov[i];
+		if (dev_s && dev_s->active_state == VIDEOSYNC_ACTIVE) {
+			has_active = true;
+			break;
+		}
+	}
+	if (has_active) {
+		pts_trace++;
+		vp_dev->wakeup = 1;
+		wake_up_interruptible(&vp_dev->videosync_wait);
 	}
 }
 
@@ -701,10 +916,11 @@ static long videosync_ioctl(struct file *file,
 			if (dev_id < VIDEOSYNC_S_COUNT)
 				dev_s = &vp_dev->video_prov[dev_id];
 
-			if (dev_s != NULL && dev_s->mapped)
+			if (dev_s && dev_s->mapped) {
 				dev_s->show_first_frame_nosync = info[1];
-			pr_info("show_first_frame_nosync =%d\n",
-				dev_s->show_first_frame_nosync);
+				pr_info("show_first_frame_nosync =%d\n",
+					dev_s->show_first_frame_nosync);
+			}
 		}
 	}
 	break;
@@ -756,18 +972,35 @@ static void clear_ready_queue(struct videosync_s *dev_s)
 	}
 }
 
+static u64 func_div(u64 number, u32 divid)
+{
+	u64 tmp = number;
+
+	do_div(tmp, divid);
+	return tmp;
+}
+
 static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 			       struct vframe_s *next_vf,
-			       struct videosync_s *dev_s)
+			       struct videosync_s *dev_s,
+			       int toggled_cnt)
 
 {
-	u32 pts = next_vf->pts;
+	u32 pts;
 #ifdef VIDEO_PTS_CHASE
 	u32 vid_pts, scr_pts;
 #endif
 	u32 systime;
 	u32 adjust_pts, org_vpts;
+	unsigned long delta = 0;
+	int delta_32 = 0;
 	/*u32 dur_pts = 0;*/
+	bool expired;
+
+	if (!next_vf)
+		return false;
+
+	pts = next_vf->pts;
 
 	if (dev_s->freerun_mode == FREERUN_NODUR)
 		return true;
@@ -848,8 +1081,45 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 			dev_s->video_frame_repeat_count = 0;
 		}
 	}
+	delta = func_div(sched_clock() - dev_s->time_update, 1000);
+	delta_32 = delta * 90 / 1000;
+	if (delta_32 > max_delata_time)
+		max_delata_time = delta_32;
 
-	return (systime + video_early_threshold) > pts;
+	expired = (systime + vsync_pts_align) >= pts;
+
+	vp_print(dev_s->vf_receiver_name, PRINT_PATTERN,
+		 "expired=%d, valid=%d, next_pts=%d, cnt=%d, systime=%d, inc=%d\n",
+		 expired,
+		 next_vf->next_vf_pts_valid,
+		 next_vf->next_vf_pts,
+		 toggled_cnt,
+		 systime,
+		 vsync_pts_inc);
+
+	if (expired && next_vf->next_vf_pts_valid &&
+	    pts_enforce_pulldown &&
+	    next_vf->next_vf_pts &&
+	    (toggled_cnt > 0) &&
+	    ((int)(systime + vsync_pts_inc +
+	    vsync_pts_align - next_vf->next_vf_pts) < 0)) {
+		expired = false;
+		vp_print(dev_s->vf_receiver_name, PRINT_PATTERN,
+			 "force expired false\n");
+	} else if (!expired && next_vf->next_vf_pts_valid &&
+		pts_enforce_pulldown &&
+		next_vf->next_vf_pts &&
+		(toggled_cnt == 0) &&
+		((int)(systime + vsync_pts_inc +
+		vsync_pts_align - next_vf->next_vf_pts) >= 0)) {
+		expired = true;
+		vp_print(dev_s->vf_receiver_name, PRINT_PATTERN,
+			 "force expired true\n");
+	}
+
+	if (pts_enforce_pulldown)
+		vpts_perform_pulldown(dev_s, next_vf, &expired);
+	return expired;
 
 }
 
@@ -857,6 +1127,7 @@ void videosync_sync(struct videosync_s *dev_s)
 {
 	int ready_q_size = 0;
 	struct vframe_s *vf;
+	int expire_count = 0;
 
 	if (smooth_sync_enable) {
 		if (dev_s->video_frame_repeat_count)
@@ -866,7 +1137,7 @@ void videosync_sync(struct videosync_s *dev_s)
 	vf = vfq_peek(&dev_s->queued_q);
 
 	while (vf) {
-		if (omx_vpts_expire(dev_s->cur_dispbuf, vf, dev_s)
+		if (omx_vpts_expire(dev_s->cur_dispbuf, vf, dev_s, expire_count)
 			|| show_nosync) {
 
 			vf = vfq_pop(&dev_s->queued_q);
@@ -875,6 +1146,15 @@ void videosync_sync(struct videosync_s *dev_s)
 					if (vfq_level(&dev_s->ready_q) > 0)
 						clear_ready_queue(dev_s);
 				}
+
+				if (pts_escape_vsync == 1) {
+					pts_trace++;
+					pts_escape_vsync = 0;
+				}
+				vsync_video_pattern();
+				pre_pts_trace = pts_trace;
+				pts_trace = 0;
+				expire_count++;
 
 				vfq_push(&dev_s->ready_q, vf);
 				ready_q_size = vfq_level(&dev_s->ready_q);
@@ -923,7 +1203,7 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 			continue;
 		}
 
-		if (vf_peek(dev_s->vf_receiver_name)) {
+		while (vf_peek(dev_s->vf_receiver_name)) {
 			vf = vf_get(dev_s->vf_receiver_name);
 			if (vf) {
 				vfq_push(&dev_s->queued_q, vf);
@@ -935,9 +1215,6 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 					vf->index,
 					vfq_level(&dev_s->queued_q));
 			}
-		} else {
-			vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
-				"peek failed %d\n");
 		}
 	}
 
@@ -1006,6 +1283,8 @@ static int videosync_receiver_event_fun(int type, void *data,
 
 		if (dev_s->active_state == VIDEOSYNC_ACTIVE) {
 			dev_s->active_state = VIDEOSYNC_INACTIVE_REQ;
+			dev->wakeup = 1;
+			wake_up_interruptible(&dev->videosync_wait);
 			time_left = wait_for_completion_timeout(
 				&dev_s->inactive_done,
 				msecs_to_jiffies(100));
@@ -1043,6 +1322,10 @@ static int videosync_receiver_event_fun(int type, void *data,
 		complete(&dev->thread_active);
 		pr_info("videosync: reg %p, %s\n",
 			dev_s, dev_s->vf_receiver_name);
+		pts_trace = 0;
+		pts_pattern_detected = -1;
+		pre_pts_trace = 0;
+		pts_escape_vsync = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_VFRAME_READY) {
 
 	} else if (type == VFRAME_EVENT_PROVIDER_START) {
@@ -1149,6 +1432,10 @@ static void videosync_thread_tick(struct videosync_dev *dev)
 	if (!dev)
 		return;
 
+	wait_event_interruptible_timeout(dev->videosync_wait, dev->wakeup,
+					 msecs_to_jiffies(500));
+	dev->wakeup = 0;
+
 	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
 		dev_s = &dev->video_prov[i];
 		if (dev_s->active_state == VIDEOSYNC_INACTIVE_REQ) {
@@ -1165,7 +1452,6 @@ static void videosync_thread_tick(struct videosync_dev *dev)
 		spin_unlock_irqrestore(&dev->dev_s_num_slock, flags);
 		prepare_queued_queue(dev);
 		prepare_ready_queue(dev);
-		usleep_range(7000, 8000);
 	} else {
 		spin_unlock_irqrestore(&dev->dev_s_num_slock, flags);
 		vp_print(RECEIVER_NAME, PRINT_OTHER,
@@ -1248,6 +1534,8 @@ static int __init videosync_init(void)
 	}
 
 	init_completion(&vp_dev->thread_active);
+	vp_dev->wakeup = 0;
+	init_waitqueue_head(&vp_dev->videosync_wait);
 	vp_dev->kthread = kthread_run(videosync_thread, vp_dev, "videosync");
 	videosync_inited = true;
 	return ret;
@@ -1306,11 +1594,20 @@ module_param(no_render, bool, 0664);
 MODULE_PARM_DESC(async_mode, "\n async_mode\n");
 module_param(async_mode, bool, 0664);
 
-MODULE_PARM_DESC(video_early_threshold, "\n video_early_threshold\n");
-module_param(video_early_threshold, uint, 0664);
+MODULE_PARM_DESC(vsync_pts_align, "\n vsync_pts_align\n");
+module_param(vsync_pts_align, int, 0664);
 
 MODULE_PARM_DESC(cur_omx_index, "\n cur_omx_index\n");
 module_param(cur_omx_index, uint, 0664);
 
 MODULE_PARM_DESC(show_first_frame_nosync, "\n show_first_frame_nosync\n");
 module_param(show_first_frame_nosync, uint, 0664);
+
+MODULE_PARM_DESC(max_delata_time, "\n max_delata_time\n");
+module_param(max_delata_time, uint, 0664);
+
+MODULE_PARM_DESC(duration_gcd, "\n duration_gcd\n");
+module_param(duration_gcd, uint, 0664);
+
+module_param(pts_enforce_pulldown, bool, 0644);
+MODULE_PARM_DESC(pts_enforce_pulldown, "enforce video frame pulldown if needed");

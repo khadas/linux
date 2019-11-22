@@ -28,11 +28,25 @@
 #define K_FLAG_TAB_END			0xa0a05f5f
 
 
-enum dolbyvision_lenGth_e {
-	E_DV_LENGTH_4 = 0x04,
-	E_DV_LENGTH_5 = 0x05,
-	E_DV_LENGTH_24 = 0x18,
-	E_DV_LENGTH_27 = 0x1B
+#define IEEE_VSI14		0x000c03
+#define IEEE_DV15		0x00d046
+#define IEEE_VSI21		0xc45dd8
+#define IEEE_HDR10PLUS		0x90848b
+
+enum vsi_state_e {
+	E_VSI_NULL,
+	E_VSI_4K3D,
+	E_VSI_DV10,
+	E_VSI_DV15,
+	E_VSI_HDR10PLUS,
+	E_VSI_VSI21
+};
+
+enum pkt_length_e {
+	E_PKT_LENGTH_4 = 0x04,
+	E_PKT_LENGTH_5 = 0x05,
+	E_PKT_LENGTH_24 = 0x18,
+	E_PKT_LENGTH_27 = 0x1B
 };
 
 enum pkt_decode_type {
@@ -1004,7 +1018,7 @@ extern void rx_pkt_check_content(void);
 extern void rx_pkt_set_fifo_pri(uint32_t pri);
 extern uint32_t rx_pkt_get_fifo_pri(void);
 
-extern void rx_get_vsi_info(void);
+extern uint8_t rx_get_vsi_info(void);
 
 /*please ignore checksum byte*/
 extern void rx_pkt_get_audif_ex(void *pktinfo);

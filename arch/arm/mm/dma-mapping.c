@@ -800,7 +800,10 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	*handle = DMA_ERROR_CODE;
 	allowblock = gfpflags_allow_blocking(gfp);
 	cma = allowblock ? dev_get_cma_area(dev) : false;
-
+#ifdef CONFIG_AMLOGIC_CMA
+	if (!!(gfp & __GFP_BDEV))
+		cma = false;
+#endif
 	if (cma)
 		buf->allocator = &cma_allocator;
 	else if (nommu() || is_coherent)

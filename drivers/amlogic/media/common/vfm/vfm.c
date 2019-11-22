@@ -139,6 +139,8 @@ int vfm_map_remove(char *id)
 	int index;
 	int ret = 0;
 
+	if (IS_ERR_OR_NULL(id))
+		return -1;
 	if (!strcmp(id, "all")) {
 		for (i = 0; i < vfm_map_num; i++) {
 			if (vfm_map[i])
@@ -157,45 +159,56 @@ int vfm_map_add(char *id, char *name_chain)
 {
 	int i, j;
 	int ret = -1;
-	char *ptr, *token = NULL;
+	char *ptr = NULL, *token = NULL;
 	struct vfm_map_s *p;
 	int old_num = vfm_map_num;
 	unsigned long flags;
 	int add_ok = 0;
 	int cnt = 10;
+	ulong addr;
 
 	p = kmalloc(sizeof(struct vfm_map_s), GFP_KERNEL);
+
 	if (!p) {
 		pr_err("%s: Error, map no mem!!\n", __func__);
 		return -ENOMEM;
 	}
+	ptr = kstrdup(name_chain, GFP_KERNEL);
+	addr = (ulong)ptr;
+	if (!ptr) {
+		kfree(p);
+		return -ENOMEM;
+	}
+
 	memset(p, 0, sizeof(struct vfm_map_s));
-	if (strlen(id) >= sizeof(p->id)) {
-		memcpy(p->id, id, sizeof(p->id));
-		p->id[sizeof(p->id)-1] = '\0';
-	} else
+	if (strlen(id) >= VFM_NAME_LEN - 1) {
+		memcpy(p->id, id, VFM_NAME_LEN - 1);
+		p->id[VFM_NAME_LEN - 1] = '\0';
+	} else {
 		memcpy(p->id, id, strlen(id));
+	}
 	p->valid = 1;
-	ptr = name_chain;
 
 	do {
 		token = strsep(&ptr, "\n ");
-		if (token == NULL)
+		if (!token)
 			break;
 		if (*token == '\0')
 			continue;
-		if (strlen(token) >= sizeof(p->name[p->vfm_map_size])) {
+		if (p->vfm_map_size >= VFM_MAP_SIZE)
+			break;
+		if (strlen(token) >= VFM_NAME_LEN - 1) {
 			memcpy(p->name[p->vfm_map_size], token,
-				sizeof(p->name[p->vfm_map_size]));
-			p->name[p->vfm_map_size][
-				sizeof(p->name[p->vfm_map_size])-1] = '\0';
-		} else
+				VFM_NAME_LEN - 1);
+			p->name[p->vfm_map_size][VFM_NAME_LEN - 1] = '\0';
+		} else {
 			memcpy(p->name[p->vfm_map_size], token, strlen(token));
+		}
 		p->vfm_map_size++;
 	} while (token && cnt--);
 
 	cnt = 10; /*limit the cnt of retry to avoid the infinite loop*/
-
+	kfree((void *)addr);
 retry:
 	for (i = 0; i < vfm_map_num; i++) {
 		struct vfm_map_s *pi = vfm_map[i];
@@ -349,53 +362,53 @@ static void vfm_init(void)
 {
 #if ((defined CONFIG_AMLOGIC_POST_PROCESS_MANAGER) && \
 	(defined CONFIG_AMLOGIC_MEDIA_DEINTERLACE))
-	char def_id[] = "default";
+	char def_id[VFM_NAME_LEN] = "default";
 #ifndef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	char def_name_chain[] = "decoder ppmgr deinterlace amvideo";
 #else
 	char def_name_chain[] = "decoder amvideo";
 #endif
 #elif (defined CONFIG_AMLOGIC_POST_PROCESS_MANAGER)
-	char def_id[] = "default";
+	char def_id[VFM_NAME_LEN] = "default";
 	char def_name_chain[] = "decoder ppmgr amvideo";
 #elif (defined CONFIG_AMLOGIC_MEDIA_DEINTERLACE)
-	char def_id[] = "default";
+	char def_id[VFM_NAME_LEN] = "default";
 	char def_name_chain[] = "decoder deinterlace amvideo";
 #else /**/
-	char def_id[] = "default";
+	char def_id[VFM_NAME_LEN] = "default";
 	char def_name_chain[] = "decoder amvideo";
 #endif /**/
 #ifdef CONFIG_TVIN_VIUIN
-	char def_ext_id[] = "default_ext";
+	char def_ext_id[VFM_NAME_LEN] = "default_ext";
 	char def_ext_name_chain[] = "vdin amvideo2";
 #endif /**/
 #ifdef CONFIG_VDIN_MIPI
-	char def_mipi_id[] = "default_mipi";
+	char def_mipi_id[VFM_NAME_LEN] = "default_mipi";
 	char def_mipi_name_chain[] = "vdin mipi";
 #endif /**/
 #ifdef CONFIG_AMLOGIC_V4L_VIDEO2
-	char def_amlvideo2_id[] = "default_amlvideo2";
+	char def_amlvideo2_id[VFM_NAME_LEN] = "default_amlvideo2";
 	char def_amlvideo2_chain[] = "vdin1 amlvideo2.1";
 #endif /**/
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER
-	char tvpath_id[] = "tvpath";
+	char tvpath_id[VFM_NAME_LEN] = "tvpath";
 	char tvpath_chain[] = "vdin0 ppmgr deinterlace amvideo";
 #else
-	char tvpath_id[] = "tvpath";
+	char tvpath_id[VFM_NAME_LEN] = "tvpath";
 	char tvpath_chain[] = "vdin0 deinterlace amvideo";
 #endif
 #endif /**/
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	char def_dvbl_id[] = "dvblpath";
+	char def_dvbl_id[VFM_NAME_LEN] = "dvblpath";
 /*	char def_dvbl_chain[] = "dvbldec dvbl amvideo";*/
 	char def_dvbl_chain[] = "dvbldec amvideo";
 
-	char def_dvel_id[] = "dvelpath";
+	char def_dvel_id[VFM_NAME_LEN] = "dvelpath";
 	char def_dvel_chain[] = "dveldec dvel";
 #endif
 #if 1/*def CONFIG_AM_HDMIIN_DV*/
-	char def_dvhdmiin_id[] = "dvhdmiin";
+	char def_dvhdmiin_id[VFM_NAME_LEN] = "dvhdmiin";
 	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
 #endif
 	int i;
@@ -476,17 +489,20 @@ static inline struct vframe_s *vfm_vf_peek(
 
 static void vfm_dump_provider(const char *name)
 {
-	struct vframe_provider_s *prov = vf_get_provider_by_name(name);
+	struct vframe_provider_s *prov;
 	struct vframe_states states;
 	unsigned long flags;
 	struct vframe_s *vf;
 	char *buf, *pbuf;
 
-	if (!prov)
+	if (IS_ERR_OR_NULL(name))
+		return;
+	prov = vf_get_provider_by_name(name);
+	if (IS_ERR_OR_NULL(prov))
 		return;
 
 	buf = kzalloc(0x400, GFP_KERNEL);
-	if (buf == NULL)
+	if (!buf)
 		return;
 
 	pbuf = buf;
@@ -738,19 +754,23 @@ static long vfm_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	struct vfmctl *user_argp = (void __user *)arg;
 	struct vfmctl argp;
 
+	if (IS_ERR_OR_NULL(user_argp))
+		return -EINVAL;
 	memset(&argp, 0, sizeof(struct vfmctl));
 
 	switch (cmd) {
 	case VFM_IOCTL_CMD_SET:{
-		ret =
-		copy_from_user(argp.name, user_argp->name, sizeof(argp.name)-1);
-		ret |=
-		copy_from_user(argp.val, user_argp->val, sizeof(argp.val) - 1);
+		ret = copy_from_user(argp.name, user_argp->name,
+				     sizeof(argp.name) - 1);
+		argp.name[sizeof(argp.name) - 1] = '\0';
+		ret |= copy_from_user(argp.val, user_argp->val,
+				      sizeof(argp.val) - 1);
+		argp.val[sizeof(argp.val) - 1] = '\0';
 		if (ret)
 			ret = -EINVAL;
 		else
-		ret =
-		vfm_map_store(NULL, NULL, argp.val, sizeof(argp.val) - 1);
+			ret = vfm_map_store(NULL, NULL, argp.val,
+					    sizeof(argp.val) - 1);
 		}
 		break;
 	case VFM_IOCTL_CMD_GET:{
@@ -766,39 +786,46 @@ static long vfm_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 		break;
 	case VFM_IOCTL_CMD_ADD:{
-		ret =
-		copy_from_user(argp.name, user_argp->name, sizeof(argp.name)-1);
-		ret |=
-		copy_from_user(argp.val, user_argp->val, sizeof(argp.val) - 1);
+		ret = copy_from_user(argp.name, user_argp->name,
+				     sizeof(argp.name) - 1);
+		argp.name[sizeof(argp.name) - 1] = '\0';
+		ret |= copy_from_user(argp.val, user_argp->val,
+				      sizeof(argp.val) - 1);
+		argp.val[sizeof(argp.val) - 1] = '\0';
 		if (ret)
 			ret = -EINVAL;
 		else
-		ret = vfm_map_add(argp.name, argp.val);
+			ret = vfm_map_add(argp.name, argp.val);
 		}
 		break;
 	case VFM_IOCTL_CMD_RM:{
-		ret =
-		copy_from_user(argp.val, user_argp->val, sizeof(argp.val) - 1);
+		ret = copy_from_user(argp.val, user_argp->val,
+				     sizeof(argp.val) - 1);
+		argp.val[sizeof(argp.val) - 1] = '\0';
 		if (ret)
 			ret = -EINVAL;
 		else
-		ret = vfm_map_remove(argp.val);
+			ret = vfm_map_remove(argp.val);
 		}
 		break;
 	case VFM_IOCTL_CMD_DUMP:{
-		ret =
-		copy_from_user(argp.val, user_argp->val, sizeof(argp.val) - 1);
+		ret = copy_from_user(argp.val, user_argp->val,
+				     sizeof(argp.val) - 1);
+		argp.val[sizeof(argp.val) - 1] = '\0';
 		if (ret)
 			ret = -EINVAL;
-		vfm_dump_provider(argp.val);
+		else
+			vfm_dump_provider(argp.val);
 		}
 		break;
 	case VFM_IOCTL_CMD_ADDDUMMY:{
-		ret =
-		copy_from_user(argp.val, user_argp->val, sizeof(argp.val) - 1);
+		ret = copy_from_user(argp.val, user_argp->val,
+				     sizeof(argp.val) - 1);
+		argp.val[sizeof(argp.val) - 1] = '\0';
 		if (ret)
 			ret = -EINVAL;
-		add_dummy_receiver(argp.val);
+		else
+			add_dummy_receiver(argp.val);
 		}
 
 		break;

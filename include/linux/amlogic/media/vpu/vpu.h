@@ -60,7 +60,7 @@ enum vpu_mod_e {
 	VPU_VENCP,            /* reg1[21:20], common */
 	VPU_VENCL,            /* reg1[23:22], common */
 	VPU_VENCI,            /* reg1[25:24], common */
-	VPU_LS_STTS,          /* reg1[27:26], tl1 */
+	VPU_LC_STTS,          /* reg1[27:26], tl1 */
 	VPU_LDIM_STTS,        /* reg1[29:28], GXTVBB, GXL, TXL, TXLX */
 	VPU_TV_DEC_CVD2,      /* reg1[29:28] */
 	VPU_XVYCC_LUT,        /* reg1[31:30], GXTVBB, GXL, TXL, TXLX */
@@ -78,11 +78,15 @@ enum vpu_mod_e {
 	VPU_DS,               /* reg2[19:18], TL1 */
 	VPU_LUT3D,            /* reg2[21:20], G12B */
 	VPU_VIU2_OSD_ROT,     /* reg2[23:22], G12B */
+	VPU_DOLBY_S0,         /* reg2[27:26], TM2 */
+	VPU_DOLBY_S1,         /* reg2[29:28], TM2 */
 	VPU_RDMA,             /* reg2[31:30], G12A */
 
 	VPU_AXI_WR1,          /* reg4[1:0], TL1 */
 	VPU_AXI_WR0,          /* reg4[3:2], TL1 */
 	VPU_AFBCE,            /* reg4[5:4], TL1 */
+	VPU_VDIN_WR_MIF2,     /* reg4[7:6], TM2 */
+	VPU_DMA,              /* reg4[11:8], TM2 */
 
 	VPU_MOD_MAX,
 

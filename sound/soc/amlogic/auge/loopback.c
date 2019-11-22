@@ -23,12 +23,17 @@
 
 #include <sound/pcm_params.h>
 
+#include <linux/amlogic/pm.h>
+
 #include "loopback.h"
 #include "loopback_hw.h"
 #include "loopback_match_table.c"
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
 #include "pdm_hw.h"
+#include "resample.h"
+
+#include "vad.h"
 
 #define DRV_NAME "loopback"
 
@@ -586,7 +591,10 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 	datalb_cfg.type        = datalb_toddr_type;
 	datalb_cfg.m           = datalb_msb;
 	datalb_cfg.n           = datalb_lsb;
-	datalb_cfg.datalb_src  = p_loopback->datalb_src;
+	datalb_cfg.datalb_src  = 0; /* todo: tdmin_LB */
+	/* get resample B status */
+	datalb_cfg.resample_enable =
+		(unsigned int)get_resample_enable(RESAMPLE_B);
 
 	if (p_loopback->chipinfo) {
 		datain_cfg.ch_ctrl_switch = p_loopback->chipinfo->ch_ctrl;
@@ -645,6 +653,10 @@ static int loopback_dai_prepare(
 		unsigned int toddr_type;
 		struct toddr_fmt fmt;
 		unsigned int src;
+
+		if (vad_lb_is_running(p_loopback->id) &&
+		    pm_audio_is_suspend())
+			return 0;
 
 		if (p_loopback->id == 0)
 			src = LOOPBACK_A;
@@ -746,6 +758,15 @@ static int loopback_dai_trigger(
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			if (vad_lb_is_running(p_loopback->id) &&
+			    pm_audio_is_suspend()) {
+				pm_audio_set_suspend(false);
+				/* VAD switch to alsa buffer */
+				vad_update_buffer(0);
+				audio_toddr_irq_enable(p_loopback->tddr, true);
+				break;
+			}
+
 			dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
 
 			pdm_fifo_reset();
@@ -765,6 +786,14 @@ static int loopback_dai_trigger(
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
 			bool toddr_stopped = false;
+
+			if (vad_lb_is_running(p_loopback->id) &&
+			    pm_audio_is_suspend()) {
+				/* switch to VAD buffer */
+				vad_update_buffer(1);
+				audio_toddr_irq_enable(p_loopback->tddr, false);
+				break;
+			}
 
 			pdm_enable(0);
 
@@ -1472,6 +1501,45 @@ static int loopback_platform_probe(struct platform_device *pdev)
 		&loopback_platform_drv);
 }
 
+static int loopback_platform_suspend(
+	struct platform_device *pdev, pm_message_t state)
+{
+	struct loopback *p_loopback = dev_get_drvdata(&pdev->dev);
+
+	pr_info("%s\n", __func__);
+
+	/* whether in freeze */
+	if (is_pm_freeze_mode() &&
+	    vad_lb_is_running(p_loopback->id)) {
+		lb_set_chnum_en(p_loopback->id, true);
+		vad_lb_force_two_channel(true);
+
+		pr_info("%s, Entry in freeze, p_loopback:%p\n",
+			__func__, p_loopback);
+	}
+
+	return 0;
+}
+
+static int loopback_platform_resume(
+	struct platform_device *pdev)
+{
+	struct loopback *p_loopback = dev_get_drvdata(&pdev->dev);
+
+	pr_info("%s\n", __func__);
+
+	/* whether in freeze mode */
+	if (is_pm_freeze_mode() &&
+	    vad_lb_is_running(p_loopback->id)) {
+		pr_info("%s, Exist from freeze, p_loopback:%p\n",
+			__func__, p_loopback);
+		lb_set_chnum_en(p_loopback->id, false);
+		vad_lb_force_two_channel(false);
+	}
+
+	return 0;
+}
+
 static struct platform_driver loopback_platform_driver = {
 	.driver = {
 		.name           = DRV_NAME,
@@ -1479,6 +1547,8 @@ static struct platform_driver loopback_platform_driver = {
 		.of_match_table = of_match_ptr(loopback_device_id),
 	},
 	.probe  = loopback_platform_probe,
+	.suspend = loopback_platform_suspend,
+	.resume  = loopback_platform_resume,
 };
 module_platform_driver(loopback_platform_driver);
 

@@ -24,7 +24,7 @@
 #include "pdm_hw.h"
 #include "regs.h"
 #include "iomap.h"
-#include "pdm_hw_coeff.c"
+#include "pdm_hw_coeff.h"
 
 static DEFINE_SPINLOCK(pdm_lock);
 static unsigned long pdm_enable_cnt;

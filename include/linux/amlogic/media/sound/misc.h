@@ -75,6 +75,9 @@ extern int aml_get_hdmiin_audio_packet(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
+extern int get_hdmiin_audio_stable(void);
+extern int get_hdmi_sample_rate_index(void);
+
 #endif
 
 #endif

@@ -124,15 +124,10 @@
 			compatible = "amlogic, jtag";
 			status = "okay";
 			reg = <0xda004004 0x4>;
-			select = "apao"; /* disable apao apee */
-			jtagao-gpios = <&gpio_ao	GPIOAO_8	0
-					&gpio_ao	GPIOAO_9	0
-					&gpio_ao	GPIOAO_10	0
-					&gpio_ao	GPIOAO_11	0>;
-			jtagee-gpios = <&gpio		CARD_0		0
-					&gpio		CARD_1		0
-					&gpio		CARD_2		0
-					&gpio		CARD_3		0>;
+			select = "disable"; /* disable/apao/apee */
+			pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
+			pinctrl-0=<&jtag_apao_pins>;
+			pinctrl-1=<&jtag_apee_pins>;
 		};
 
 		securitykey {
@@ -623,6 +618,15 @@
 					bias-pull-up;
 				};
 			};
+			jtag_apee_pins:jtag_apee_pin {
+				mux {
+					groups = "CARD_0",
+					"CARD_1",
+					"CARD_2",
+					"CARD_3";
+					function = "gpio_periphs";
+				};
+			};
 		};
 		pinctrl_aobus: pinctrl@c8100084 {
 			compatible = "amlogic,meson8b-aobus-pinctrl";
@@ -679,6 +683,15 @@
 				mux {
 					groups = "spdif_out_2";
 					function = "spdif_2";
+				};
+			};
+			jtag_apao_pins:jtag_apao_pin {
+				mux {
+					groups = "GPIOAO_8",
+					"GPIOAO_9",
+					"GPIOAO_10",
+					"GPIOAO_11";
+					function = "gpio_aobus";
 				};
 			};
 		};

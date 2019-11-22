@@ -156,6 +156,46 @@ static struct reg_map reg_maps_g12a[] = {
 	},
 };
 
+/* For TM2 */
+static struct reg_map reg_maps_tm2[] = {
+	[CBUS_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xffd00000,
+		.size = 0x100000,
+	},
+	[PERIPHS_REG_IDX] = { /* PERIPHS */
+		.phy_addr = 0xff634400,
+		.size = 0x2000,
+	},
+	[VCBUS_REG_IDX] = { /* VPU */
+		.phy_addr = 0xff900000,
+		.size = 0x40000,
+	},
+	[AOBUS_REG_IDX] = { /* RTI */
+		.phy_addr = 0xff800000,
+		.size = 0x100000,
+	},
+	[HHI_REG_IDX] = { /* HIU */
+		.phy_addr = 0xff63c000,
+		.size = 0x2000,
+	},
+	[RESET_CBUS_REG_IDX] = { /* RESET */
+		.phy_addr = 0xffd00000,
+		.size = 0x1100,
+	},
+	[HDMITX_SEC_REG_IDX] = { /* HDMITX DWC LEVEL*/
+		.phy_addr = 0xff670000,
+		.size = 0x8000,
+	},
+	[HDMITX_REG_IDX] = { /* HDMITX TOP LEVEL*/
+		.phy_addr = 0xff678000,
+		.size = 0x4000,
+	},
+	[ELP_ESM_REG_IDX] = {
+		.phy_addr = 0xffe01000,
+		.size = 0x100,
+	},
+};
+
 static struct reg_map *map;
 
 void init_reg_map(unsigned int type)
@@ -167,6 +207,19 @@ void init_reg_map(unsigned int type)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 		map = reg_maps_g12a;
+		for (i = 0; i < REG_IDX_END; i++) {
+			map[i].p = ioremap(map[i].phy_addr, map[i].size);
+			if (!map[i].p) {
+				pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
+					map[i].phy_addr);
+			} else {
+				pr_info("hdmitx20: Mapped PHY: 0x%x\n",
+					map[i].phy_addr);
+			}
+		}
+		break;
+	case MESON_CPU_ID_TM2:
+		map = reg_maps_tm2;
 		for (i = 0; i < REG_IDX_END; i++) {
 			map[i].p = ioremap(map[i].phy_addr, map[i].size);
 			if (!map[i].p) {
@@ -254,6 +307,7 @@ unsigned int hd_read_reg(unsigned int addr)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 	default:
 		val = readl(TO_PMAP_ADDR(addr));
 		break;
@@ -304,6 +358,7 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 	default:
 		writel(val, TO_PMAP_ADDR(addr));
 		break;

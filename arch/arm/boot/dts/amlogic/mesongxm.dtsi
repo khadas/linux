@@ -212,7 +212,7 @@
 */
 			SYSTEM_SLEEP_0: system-sleep-0 {
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x1010000>;
+				arm,psci-suspend-param = <0x1020000>;
 				local-timer-stop;
 				entry-latency-us = <0x3fffffff>;
 				exit-latency-us = <0x40000000>;
@@ -242,15 +242,17 @@
 	};
 
 	arm_pmu {
-		compatible = "arm,cortex-a15-pmu";
-		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0xc8834680 0x4>;
-		cpumasks = <0xf>;
+		compatible = "arm,cortex-a7-pmu";
+		clusterb-enabled;
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xc8834680 0x4>,
+			<0xc8834740 0x4>;
+		cpumasks = <0xf 0xf0>;
 		/* default 10ms */
 		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		/* default 100000us */
+		max-wait-cnt = <100000>;
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -280,14 +282,21 @@
 	ram-dump {
 		compatible = "amlogic, ram_dump";
 		status = "okay";
+		reg = <0xC88345E0 4>;
+		reg-names = "PREG_STICKY_REG8";
+		store_device = "data";
 	};
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
+		select = "disable"; /* disable/apao/apee */
+		/* both sets of jtags for the GXM platform */
+		/* are in the ee domain, this is named apao */
+		/* just to match the jtag driver */
 		pinctrl-names = "jtag_apao_pins", "jtag_apee_pins";
-		pinctrl-0 = <&jtag_apao_pins>;
-		pinctrl-1 = <&jtag_apee_pins>;
+		pinctrl-0 = <&jtag_a_pins>;
+		pinctrl-1 = <&jtag_b_pins>;
 	};
 
 	psci {
@@ -624,6 +633,14 @@
 				clocks = <&clkc CLKID_I2C>;
 				clock-names = "clk_i2c";
 			};
+
+			irblaster: meson-irblaster@c0 {
+				compatible = "amlogic, aml_irblaster";
+				reg = <0xc0 0xc>,
+					<0x40 0x4>;
+				#irblaster-cells = <2>;
+				status = "disabled";
+			};
 		};
 
 		periphs: periphs@c8834000 {
@@ -644,6 +661,7 @@
 			clkc: clock-controller@0 {
 				compatible = "amlogic,gxl-clkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3db>;
 			};
 		};
@@ -729,6 +747,20 @@
 			function = "ee_cec";
 		};
 	};
+
+	irblaster_pins:irblaster_pin {
+		mux {
+			groups = "ir_out_ao7";
+			function = "ir_out";
+		};
+	};
+
+	irblaster_pins1:irblaster_pin1 {
+		mux {
+			groups = "ir_out_ao9";
+			function = "ir_out";
+		};
+	};
 }; /* end of pinctrl_aobus*/
 
 &pinctrl_periphs {
@@ -752,23 +784,23 @@
 		};
 	};
 
-	jtag_apao_pins:jtag_apao_pin {
+	jtag_a_pins:jtag_a_pin {
 		mux {
-			groups = "jtag_tdi_0",
-				"jtag_tdo_0",
-				"jtag_clk_0",
-				"jtag_tms_0";
-			function = "jtag";
+			groups = "GPIOH_6",
+				"GPIOH_7",
+				"GPIOH_8",
+				"GPIOH_9";
+			function = "gpio_periphs";
 		};
 	};
 
-	jtag_apee_pins:jtag_apee_pin {
+	jtag_b_pins:jtag_b_pin {
 		mux {
-			groups ="jtag_tdi_1",
-				"jtag_tdo_1",
-				"jtag_clk_1",
-				"jtag_tms_1";
-			function = "jtag";
+			groups = "CARD_0",
+				"CARD_1",
+				"CARD_2",
+				"CARD_3";
+			function = "gpio_periphs";
 		};
 	};
 

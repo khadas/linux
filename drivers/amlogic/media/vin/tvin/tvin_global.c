@@ -196,5 +196,39 @@ const char *tvin_trans_fmt_str(enum tvin_trans_fmt trans_fmt)
 EXPORT_SYMBOL(tvin_trans_fmt_str);
 
 
+const char *tvin_trans_color_range_str(
+	enum tvin_color_fmt_range_e color_range)
+{
+	switch (color_range) {
+	case TVIN_RGB_FULL:
+		return "TVIN_RGB_FULL";
+	case TVIN_RGB_LIMIT:
+		return "TVIN_RGB_LIMIT";
+	case TVIN_YUV_FULL:
+		return "TVIN_YUV_FULL";
+	case TVIN_YUV_LIMIT:
+		return "TVIN_YUV_LIMIT";
+	default:
+		return "TVIN_FMT_RANGE_NULL";
+	}
+}
+EXPORT_SYMBOL(tvin_trans_color_range_str);
+
+const char *tvin_trans_force_range_str(
+	enum tvin_force_color_range_e force_range)
+{
+	switch (force_range) {
+	case COLOR_RANGE_AUTO:
+		return "COLOR_RANGE_AUTO";
+	case COLOR_RANGE_FULL:
+		return "COLOR_RANGE_FULL";
+	case COLOR_RANGE_LIMIT:
+		return "COLOR_RANGE_LIMIT";
+	default:
+		return "COLOR_RANGE_NULL";
+	}
+}
+EXPORT_SYMBOL(tvin_trans_force_range_str);
+
 MODULE_LICENSE("GPL");
 

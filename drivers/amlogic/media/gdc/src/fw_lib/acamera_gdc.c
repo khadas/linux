@@ -29,7 +29,6 @@
 #include "system_log.h"
 #include "gdc_config.h"
 
-
 /**
  *   Configure the output gdc configuration address/size
  *
@@ -462,6 +461,7 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 	return 0;
 }
 
+#if 0
 /**
  *   This function gets the GDC output frame addresses
  *
@@ -507,7 +507,7 @@ int gdc_get_frame(struct gdc_cmd_s *gdc_cmd)
 	//spin_unlock_irqrestore(&gdev->slock, flags);
 	return 0;
 }
-
+#endif
 /**
  *   This function set the GDC power on/off
  *

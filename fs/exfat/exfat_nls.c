@@ -106,7 +106,7 @@ s32 nls_uniname_cmp(struct super_block *sb, u16 *a, u16 *b)
 	for (i = 0; i < MAX_NAME_LENGTH; i++, a++, b++) {
 		if (nls_upper(sb, *a) != nls_upper(sb, *b))
 			return 1;
-		if (*a == 0x0)
+		if ((*a == 0x0) || (*b == 0x0))
 			return 0;
 	}
 	return 0;

@@ -919,6 +919,9 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 {
 	mmc_claim_host(host);
 
+	if (host->wifi_down_f)
+		host->pm_flags |= MMC_PM_KEEP_POWER;
+
 	if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host))
 		sdio_disable_wide(host->card);
 
@@ -1235,9 +1238,13 @@ int sdio_reset_comm(struct mmc_card *card)
 	if ((card->cis.vendor == 588) || (card->cis.vendor == 890))
 		sdio_reset(host);
 
-	mmc_go_idle(host);
+	host->ios.power_mode = MMC_POWER_OFF;
 
 	mmc_set_clock(host, host->f_min);
+
+	host->ios.power_mode = MMC_POWER_UP;
+
+	mmc_go_idle(host);
 
 	err = mmc_send_io_op_cond(host, 0, &ocr);
 	if (err)

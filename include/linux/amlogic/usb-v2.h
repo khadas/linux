@@ -30,6 +30,8 @@
 
 int aml_new_usb_v2_register_notifier(struct notifier_block *nb);
 int aml_new_usb_v2_unregister_notifier(struct notifier_block *nb);
+int aml_new_otg_register_notifier(struct notifier_block *nb);
+int aml_new_otg_unregister_notifier(struct notifier_block *nb);
 
 struct u2p_aml_regs_v2 {
 	void __iomem	*u2p_r_v2[2];
@@ -64,7 +66,7 @@ union u2p_r1_v2 {
 };
 
 struct usb_aml_regs_v2 {
-	void __iomem	*usb_r_v2[6];
+	void __iomem	*usb_r_v2[8];
 };
 
 union usb_r0_v2 {
@@ -88,13 +90,10 @@ union usb_r1_v2 {
 	struct {
 		unsigned u3h_bigendian_gs:1;
 		unsigned u3h_pme_en:1;
-		unsigned u3h_hub_port_overcurrent:3;
-		unsigned reserved_1:2;
-		unsigned u3h_hub_port_perm_attach:3;
-		unsigned reserved_2:2;
-		unsigned u3h_host_u2_port_disable:2;
-		unsigned reserved_3:2;
-		unsigned u3h_host_u3_port_disable:1;
+		unsigned u3h_hub_port_overcurrent:5;
+		unsigned u3h_hub_port_perm_attach:5;
+		unsigned u3h_host_u2_port_disable:3;
+		unsigned u3h_host_u3_port_disable:2;
 		unsigned u3h_host_port_power_control_present:1;
 		unsigned u3h_host_msi_enable:1;
 		unsigned u3h_fladj_30mhz_reg:6;
@@ -122,7 +121,9 @@ union usb_r3_v2 {
 		unsigned p30_ssc_range:3;
 		unsigned p30_ssc_ref_clk_sel:9;
 		unsigned p30_ref_ssp_en:1;
-		unsigned reserved:18;
+		unsigned reserved:6;
+		unsigned p31_pcs_tx_deemph_3p5db:6;
+		unsigned p31_pcs_tx_deemph_6db:6;
 	} b;
 };
 
@@ -135,7 +136,11 @@ union usb_r4_v2 {
 		unsigned p21_SLEEPM0:1;
 		unsigned mem_pd:2;
 		unsigned p21_only:1;
-		unsigned reserved:27;
+		unsigned reserved:12;
+		unsigned p31_lane0_tx2rx_loopback:1;
+		unsigned p31_lane0_ext_pclk_req:1;
+		unsigned p31_pcs_rx_los_mask_val:10;
+		unsigned reserve:3;
 	} b;
 };
 
@@ -157,6 +162,22 @@ union usb_r5_v2 {
 	} b;
 };
 
+union usb_r7_v2 {
+	/** raw register data */
+	uint32_t d32;
+	/** register bits */
+	struct {
+		unsigned p31_ssc_en:1;
+		unsigned p31_ssc_range:3;
+		unsigned p31_ssc_ref_clk_sel:9;
+		unsigned p31_ref_ssp_en:1;
+		unsigned reserved:2;
+		unsigned p31_pcs_tx_deemph_6db:6;
+		unsigned reserve:3;
+		unsigned p31_pcs_tx_swing_full:7;
+	} b;
+};
+
 struct amlogic_usb_v2 {
 	struct usb_phy		phy;
 	struct device		*dev;
@@ -168,7 +189,14 @@ struct amlogic_usb_v2 {
 	void __iomem	*phy3_cfg_r2;
 	void __iomem	*phy3_cfg_r4;
 	void __iomem	*phy3_cfg_r5;
+	void __iomem	*phy31_cfg;
+	void __iomem	*phy31_cfg_r1;
+	void __iomem	*phy31_cfg_r2;
+	void __iomem	*phy31_cfg_r4;
+	void __iomem	*phy31_cfg_r5;
 	void __iomem	*usb2_phy_cfg;
+	void __iomem	*power_base;
+	void __iomem	*hhi_mem_pd_base;
 	u32 pll_setting[8];
 	int phy_cfg_state[4];
 	/* Set VBus Power though GPIO */
@@ -185,11 +213,22 @@ struct amlogic_usb_v2 {
 	u32 u2_hhi_mem_pd_mask;
 	u32 u2_ctrl_iso_shift;
 	u32 u2_hhi_mem_pd_shift;
-	u32 u3_ctrl_sleep_shift;
-	u32 u3_hhi_mem_pd_mask;
-	u32 u3_ctrl_iso_shift;
-	u32 u3_hhi_mem_pd_shift;
+	u32 u30_ctrl_sleep_shift;
+	u32 u30_hhi_mem_pd_mask;
+	u32 u30_ctrl_iso_shift;
+	u32 u30_hhi_mem_pd_shift;
+	u32 usb30_ctrl_rst_bit;
+	u32 u31_ctrl_sleep_shift;
+	u32 u31_hhi_mem_pd_mask;
+	u32 u31_ctrl_iso_shift;
+	u32 u31_hhi_mem_pd_shift;
+	u32 usb31_ctrl_rst_bit;
 	struct clk		*clk;
+	struct clk		*gate0_clk;
+	struct clk		*gate1_clk;
+	struct clk		*pcie_hcsl_en_clk;
+	u32 portconfig_31;
+	u32 portconfig_30;
 };
 
 union phy3_r1 {

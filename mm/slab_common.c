@@ -1044,9 +1044,7 @@ static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 		unsigned long used_pages = PAGE_ALIGN(size) / PAGE_SIZE;
 		unsigned long total_pages = 1 << order;
 		unsigned long saved = 0;
-	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
-		unsigned long fun;
-	#endif
+		unsigned long fun = 0;
 		int i;
 
 		/* record how many pages in first page*/

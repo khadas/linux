@@ -94,9 +94,87 @@ void dtmb_clk_set(unsigned int adc_clk)
 }
 #endif
 
+static void dtmb_24m_coeff(void)
+{
+	#if 0
+	dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0xf230ee02);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x0be241ed);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x0306031d);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET16, 0x051d191c);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET15, 0x171a0308);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET14, 0x0b071d);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET13, 0x3d333703);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET12, 0x33030f0a);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET11, 0x140f3c2f);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET10, 0x292d04);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET9, 0x041c177c);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET8, 0x247c5e64);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET7, 0x2b);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET6, 0xc8d104);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET5, 0x0431fc);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET4, 0x51);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET3, 0x392004);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET2, 0x372);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET1, 0x1187fc);
+	dtmb_write_reg(DTMB_FRONT_ACF_BYPASS,
+		((dtmb_read_reg(DTMB_FRONT_ACF_BYPASS) & ~0xffffff)
+		| 0x2af236));
+	#else
+	dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0xebd2530d);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x04dad364);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x181e0508);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET16, 0x080a031a);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET15, 0x0217161f);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET14, 0x000c0c);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET13, 0x0e3f3334);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET12, 0x2e330310);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET11, 0x08160f3c);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET10, 0x352731);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET9, 0x70101f11);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET8, 0x2d126b5c);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET7, 0x1f);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET6, 0xd4c8ef);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET5, 0x04e013);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET4, 0x46);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET3, 0x3883ee);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET2, 0x37e);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET1, 0x123013);
+	dtmb_write_reg(DTMB_FRONT_ACF_BYPASS,
+		((dtmb_read_reg(DTMB_FRONT_ACF_BYPASS) & ~0xffffff)
+		| 0x29922b));
+	#endif
+}
+
+static void dtmb_25m_coeff(void)
+{
+	dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0x242fde12);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x451dce);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x051f1a1b);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET16, 0x181c0307);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET15, 0x0809031b);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET14, 0x15161f);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET13, 0x060e0a3e);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET12, 0x06363038);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET11, 0x2d3e0f12);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET10, 0x133c2b);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET9, 0x5f700c1b);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET8, 0x23270b6a);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET7, 0x7e);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET6, 0xf3cbd4);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET5, 0x04f031);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET4, 0x29);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET3, 0x37f3cc);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET2, 0x396);
+	dtmb_write_reg(DTMB_FRONT_COEF_SET1, 0x131036);
+	dtmb_write_reg(DTMB_FRONT_ACF_BYPASS,
+		((dtmb_read_reg(DTMB_FRONT_ACF_BYPASS) & ~0xffffff)
+		| 0x274217));
+}
+
 void dtmb_all_reset(void)
 {
 	int temp_data = 0;
+	unsigned int reg_val;
 
 	if (is_ic_ver(IC_VER_TXL)) {
 		/*fix bug 139044: DTMB lost sync*/
@@ -139,20 +217,41 @@ void dtmb_all_reset(void)
 		/*fix agc problem,skip warm_up status*/
 		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
-		dtmb_clk_set(Adc_Clk_24M);
-	} else if (is_ic_ver(IC_VER_TL1)) {
-		if (demod_get_adc_clk() == Adc_Clk_24M) {
+		dtmb_clk_set(ADC_CLK_24M);
+	} else if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
+		if (demod_get_adc_clk() == ADC_CLK_24M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
 			dtmb_write_reg(0x5b << 2, 0x50a30a25);
+			dtmb_24m_coeff();
 		} else if (demod_get_adc_clk() == Adc_Clk_25M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x62c1a5);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x131a747d);
 			dtmb_write_reg(0x5b << 2, 0x4d6a0a25);
+			dtmb_25m_coeff();
 		}
 
-		//for timeshift issue(chuangcheng test)
-		dtmb_write_reg(0x4e << 2, 0x256cf604);
+		/*for timeshift mosaic issue
+		 *bit 30:ts_sync_sel,0=ts_sync,1=searched ts_sync
+		 */
+		dtmb_write_reg(DTMB_FRONT_4e_CONFIG, 0x656cf604);
+
+		/*delay fec lock & make fec lost faster
+		 *to prevent eq is confused by signal
+		 */
+		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x5480000);
+		/*reduce fec lost timeout*/
+		dtmb_write_reg(DTMB_FRONT_19_CONFIG, 0x30);
+
+		reg_val = dtmb_read_reg(DTMB_TOP_CTRL_TPS);
+		/* for Task 19:Switch mode and modulation parameters test
+		 * dtmb_spectrum: 0=normal, 1=inverted
+		 */
+		if (dtmb_spectrum == 0)
+			reg_val |= 0x4;
+		else if (dtmb_spectrum == 1)
+			reg_val &= ~0x4;
+		dtmb_write_reg(DTMB_TOP_CTRL_TPS, reg_val);
 	} else {
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);

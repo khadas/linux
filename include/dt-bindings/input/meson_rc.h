@@ -37,6 +37,8 @@
 #define     REMOTE_TYPE_XMP_1        0x03
 #define     REMOTE_TYPE_RC5          0x04
 #define     REMOTE_TYPE_RC6          0x05
+#define     REMOTE_TYPE_TOSHIBA      0x06
+#define     REMOTE_TYPE_RCA          0x08
 
 /*hardware decode one protocol by using legacy IR controller*/
 #define     REMOTE_TYPE_LEGACY_NEC  0xff
@@ -55,5 +57,8 @@
  *2. multi-format IR controller decode other protocol
  */
 #define REMOTE_TYPE_NEC_RC6  ((REMOTE_TYPE_LEGACY_NEC << 8) | REMOTE_TYPE_RC6)
-
+#define REMOTE_TYPE_NEC_RC5  ((REMOTE_TYPE_LEGACY_NEC << 8) | REMOTE_TYPE_RC5)
+#define REMOTE_TYPE_NEC_TOSHIBA  ((REMOTE_TYPE_LEGACY_NEC << 8) |	     \
+			REMOTE_TYPE_TOSHIBA)
+#define REMOTE_TYPE_NEC_RCA  ((REMOTE_TYPE_LEGACY_NEC << 8) | REMOTE_TYPE_RCA)
 #endif

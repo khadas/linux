@@ -62,6 +62,7 @@ extern void cm2_frame_size_patch(unsigned int width, unsigned int height);
 extern void cm2_frame_switch_patch(void);
 extern void cm_latch_process(void);
 extern int cm_load_reg(struct am_regs_s *arg);
+extern void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level);
 
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 /* #define WRITE_VPP_REG(x,val) */

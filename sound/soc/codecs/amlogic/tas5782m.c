@@ -133,7 +133,7 @@ static int tas5782m_ch2_vol_info(struct snd_kcontrol *kcontrol,
 static int tas5782m_ch1_mute_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type   = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->type   = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->access = SNDRV_CTL_ELEM_ACCESS_TLV_READ
 			| SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	uinfo->count  = 1;
@@ -148,7 +148,7 @@ static int tas5782m_ch1_mute_info(struct snd_kcontrol *kcontrol,
 static int tas5782m_ch2_mute_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type   = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->type   = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->access = SNDRV_CTL_ELEM_ACCESS_TLV_READ
 			| SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	uinfo->count  = 1;
@@ -361,14 +361,14 @@ static const struct snd_kcontrol_new tas5782m_snd_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name  = "Ch1 Mute",
+		.name  = "Ch1 Switch",
 		.info  = tas5782m_ch1_mute_info,
 		.get   = tas5782m_ch1_mute_get,
 		.put   = tas5782m_ch1_mute_set,
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name  = "Ch2 Mute",
+		.name  = "Ch2 Switch",
 		.info  = tas5782m_ch2_mute_info,
 		.get   = tas5782m_ch2_mute_get,
 		.put   = tas5782m_ch2_mute_set,
@@ -671,6 +671,11 @@ static void tas5782m_init_func(struct work_struct *p_work)
 	}
 
 	tas5782m_init_i2s_tdm_mode(codec, g_sample_bitsize);
+
+	tas5782m_set_mute(codec, tas5782m->Ch1_mute, tas5782m->Ch2_mute);
+
+	tas5782m_set_volume(codec, 255-tas5782m->Ch1_vol, 0);
+	tas5782m_set_volume(codec, 255-tas5782m->Ch2_vol, 1);
 }
 
 static int tas5782m_probe(struct snd_soc_codec *codec)
@@ -687,6 +692,11 @@ static int tas5782m_probe(struct snd_soc_codec *codec)
 
 	tas5782m = snd_soc_codec_get_drvdata(codec);
 	tas5782m->codec = codec;
+
+	tas5782m->Ch1_mute = 0;
+	tas5782m->Ch2_mute = 0;
+	tas5782m->Ch1_vol = 0;
+	tas5782m->Ch2_vol = 0;
 
 	INIT_WORK(&tas5782m->work, tas5782m_init_func);
 	schedule_work(&tas5782m->work);

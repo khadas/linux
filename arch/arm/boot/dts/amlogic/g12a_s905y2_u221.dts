@@ -591,7 +591,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -696,20 +696,18 @@
 			opp-hz = /bits/ 64 <1512000000>;
 			opp-microvolt = <831000>;
 		};
-/*
- *		opp08 {
- *		        opp-hz = /bits/ 64 <1608000000>;
- *		        opp-microvolt = <871000>;
- *		};
- *		opp09 {
- *		        opp-hz = /bits/ 64 <1704000000>;
- *		        opp-microvolt = <921000>;
- *		};
- *		opp10 {
- *		        opp-hz = /bits/ 64 <1800000000>;
- *		        opp-microvolt = <981000>;
- *		};
- */
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <871000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <921000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <981000>;
+		};
 	};
 
 	cpufreq-meson {
@@ -1170,7 +1168,7 @@
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <0>;
-	otg = <1>;
+	otg = <0>;
 	gpio-vbus-power = "GPIOH_6";
 	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
@@ -1178,7 +1176,7 @@
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
+	controller-type = <1>;
 };
 &ethmac {
 	status = "disabled";
@@ -1374,13 +1372,6 @@
 	status = "okay";
 };
 
-&gpu{
-	/*max gpu is 500MHz*/
-	tbl = <&dvfs285_cfg
-		&dvfs400_cfg
-		&dvfs500_cfg>;
-};
-
 &amhdmitx {
-	dongle_mode = <1>;
+	dongle_mode = <0>;
 };

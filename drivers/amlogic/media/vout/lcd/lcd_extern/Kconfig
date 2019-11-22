@@ -45,6 +45,16 @@ config AMLOGIC_LCD_EXTERN_I2C_ANX6345
 		through the i2c interface to write data to the LCD,
 		make its initialization
 
+config AMLOGIC_LCD_EXTERN_I2C_CS602
+	bool "lcd external i2c CS602 init driver"
+	default n
+	depends on AMLOGIC_LCD_EXTERN
+	help
+		Amlogic LCD external i2c_CS602 init driver support
+		Once the power on, according to the timing requirements,
+		through the i2c interface to write data to the LCD,
+		make its initialization
+
 config AMLOGIC_LCD_EXTERN_SPI_LD070WS2
 	bool "lcd external spi LD070WS2 init driver"
 	default n

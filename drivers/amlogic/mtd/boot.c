@@ -101,6 +101,7 @@ void __attribute__((unused)) nand_info_page_prepare(
 	struct nand_setup *p_nand_setup = NULL;
 	int each_boot_pages, boot_num, bbt_pages;
 	uint32_t pages_per_blk_shift, bbt_size;
+	uint32_t ddrp_start_block = 0;
 
 	pages_per_blk_shift = (chip->phys_erase_shift - chip->page_shift);
 	aml_chip_normal = mtd_to_nand_chip(nand_info[1]);
@@ -157,6 +158,12 @@ void __attribute__((unused)) nand_info_page_prepare(
 	p_ext_info->bbt_occupy_pages = bbt_pages;
 	p_ext_info->bbt_start_block =
 		(BOOT_TOTAL_PAGES >> pages_per_blk_shift) + NAND_GAP_BLOCK_NUM;
+	ddrp_start_block = aml_chip_normal->aml_nandddr_info->start_block;
+	p_nand_page0->ddrp_start_page =
+		(ddrp_start_block << pages_per_blk_shift)
+		+ aml_chip_normal->aml_nandddr_info->valid_node->phy_page_addr;
+	pr_info("ddrp_start_page = 0x%x ddr_start_block = 0x%x\n",
+		p_nand_page0->ddrp_start_page, ddrp_start_block);
 	/* fill descrete infos */
 	if (aml_chip->bl_mode) {
 		p_fip_info->version = 1;
@@ -657,13 +664,13 @@ WRITE_BAD_BLOCK:
 /* extra char device for bootloader */
 #define AML_CHAR_BOOT_DEV	(0)
 #if (AML_CHAR_BOOT_DEV)
-int erase_bootloader(struct mtd_info *mtd, int boot_num)
+int erase_bootloader(struct mtd_info *mtd, uint32_t boot_num)
 {
 	struct nand_chip *chip = mtd->priv;
 	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
 	int page, each_boot_pages, boot_copy_num;
 	int pages_per_block;
-	int start_page, end_page;
+	uint32_t start_page, end_page;
 	int status;
 
 	if (aml_chip->bl_mode)
@@ -810,6 +817,9 @@ static ssize_t uboot_read(struct file *file,
 	chip->select_chip(mtd, -1);
 	nand_release_device(mtd);
 	ret = copy_to_user(buf, data_buf, count);
+	if (ret)
+		count = -EFAULT;
+
 err_exit0:
 	vfree(data_buf);
 
@@ -851,6 +861,11 @@ static ssize_t uboot_write(struct file *file, const char __user *buf,
 	}
 
 	ret = copy_from_user(data_buf, buf, count);
+	if (ret) {
+		count = -EFAULT;
+		goto err_exit0;
+	}
+
 	addr = *ppos;
 	buffer = data_buf;
 	nand_get_device(mtd, FL_WRITING);
@@ -905,8 +920,9 @@ static int boot_ioctl(struct file *file, u_int cmd, u_long arg)
 	struct uboot_file_info *ufi = file->private_data;
 	struct mtd_info *mtd = ufi->mtd;
 	void __user *argp = (void __user *)arg;
-	int ret = 0, erase_boot_num = 0;
+	int ret = 0;
 	u_long size;
+	uint32_t erase_boot_num = 0;
 
 	pr_debug("boot_ioctl\n");
 
@@ -1002,7 +1018,7 @@ static long boot_compat_ioctl(struct file *file, uint32_t cmd,
 	}
 	case BOOT_ERASE_INFO32:
 	{
-		int erase_boot_num;
+		uint32_t erase_boot_num;
 
 		if (copy_from_user(&erase_boot_num, argp, sizeof(int)))
 			ret = -EFAULT;

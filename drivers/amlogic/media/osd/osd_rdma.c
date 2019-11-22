@@ -70,7 +70,7 @@ static void *table_vaddr;
 static u32 rdma_enable;
 static u32 item_count;
 static u32 rdma_debug;
-static u32 rdma_hdr_delay = 1;
+static u32 rdma_hdr_delay;
 static bool osd_rdma_init_flag;
 #define OSD_RDMA_UPDATE_RETRY_COUNT 100
 static unsigned int debug_rdma_status;
@@ -123,7 +123,7 @@ static inline void reset_rdma_table(void)
 	unsigned long flags;
 	u32 old_count;
 	u32 end_addr;
-	int i, j = 0;
+	int i, j = 0, k = 0, trace_num = 0;
 	struct rdma_table_item reset_item[2] = {
 		{
 			.addr = OSD_RDMA_FLAG_REG,
@@ -135,6 +135,10 @@ static inline void reset_rdma_table(void)
 		}
 	};
 
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
 	spin_lock_irqsave(&rdma_lock, flags);
 	if (!OSD_RDMA_STATUS_IS_REJECT) {
 		u32 val, mask;
@@ -178,10 +182,14 @@ static inline void reset_rdma_table(void)
 				osd_rdma_mem_cpy(
 					&rdma_temp_tbl[j], &request_item, 8);
 				j++;
-				pr_debug(
-					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
-					rdma_table[i].addr,
-					val, mask);
+
+				for (k = 0; k < trace_num; k++) {
+					if (osd_hw.rdma_trace_reg[k] & 0x10000)
+						pr_info(
+							"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
+							rdma_table[i].addr,
+							val, mask);
+				}
 				rdma_recovery_count++;
 			} else if ((iret < 0) && (i >= old_count)) {
 				request_item.addr =
@@ -191,14 +199,19 @@ static inline void reset_rdma_table(void)
 				osd_rdma_mem_cpy(
 					&rdma_temp_tbl[j], &request_item, 8);
 				j++;
-				pr_debug(
-					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
-					rdma_table[i].addr,
-					rdma_table[i].val,
-					mask);
-				pr_debug(
-					"recovery -- i:%d, item_count:%d, old_count:%d\n",
-					i, item_count, old_count);
+				for (k = 0; k < trace_num; k++) {
+					if (osd_hw.rdma_trace_reg[k] & 0x10000)
+						pr_info(
+							"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
+							rdma_table[i].addr,
+							rdma_table[i].val,
+							mask);
+						pr_info(
+							"recovery -- i:%d,item_count:%d,old_count:%d\n",
+							i,
+							item_count,
+							old_count);
+				}
 				rdma_recovery_count++;
 			}
 		}
@@ -388,10 +401,13 @@ static inline int wrtie_reg_internal(u32 addr, u32 val)
 	struct rdma_table_item request_item;
 	u32 rdma_en = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_set(addr, val);
+		return 0;
+
+	}
+	rdma_en = rdma_enable;
 
 	if (!rdma_en) {
 		osd_reg_write(addr, val);
@@ -439,10 +455,12 @@ u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 	unsigned long flags;
 	u32 rdma_en = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		val = viu2_osd_reg_read(addr);
+		return val;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en) {
 		spin_lock_irqsave(&rdma_lock, flags);
@@ -470,33 +488,48 @@ EXPORT_SYMBOL(VSYNCOSD_RD_MPEG_REG);
 
 int VSYNCOSD_WR_MPEG_REG(u32 addr, u32 val)
 {
-	int ret = 0;
-	u32 rdma_en = 0;
+	int ret = 0, k = 0;
+	u32 rdma_en = 0, trace_num = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_set(addr, val);
+		return ret;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en)
 		ret = update_table_item(addr, val, 0);
 	else
 		osd_reg_write(addr, val);
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
+	for (k = 0; k < trace_num; k++) {
+		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
+			pr_info("(%s), %04x=0x%08x, rdma_en=%d, ret=%d\n",
+				__func__,
+				addr, val,
+				rdma_en, ret);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(VSYNCOSD_WR_MPEG_REG);
 
 int VSYNCOSD_WR_MPEG_REG_BITS(u32 addr, u32 val, u32 start, u32 len)
 {
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	u32 rdma_en = 0;
+	u32 read_val;
+	u32 write_val;
+	int ret = 0, k = 0;
+	u32 rdma_en = 0, trace_num = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_set_bits(addr, val, start, len);
+		return ret;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en) {
 		read_val = VSYNCOSD_RD_MPEG_REG(addr);
@@ -505,21 +538,34 @@ int VSYNCOSD_WR_MPEG_REG_BITS(u32 addr, u32 val, u32 start, u32 len)
 		ret = update_table_item(addr, write_val, 0);
 	} else
 		osd_reg_set_bits(addr, val, start, len);
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
+	for (k = 0; k < trace_num; k++) {
+		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
+			pr_info("(%s), %04x=0x%08x, rdma_en=%d, ret=%d\n",
+				__func__,
+				addr, val,
+				rdma_en, ret);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(VSYNCOSD_WR_MPEG_REG_BITS);
 
 int VSYNCOSD_SET_MPEG_REG_MASK(u32 addr, u32 _mask)
 {
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	u32 rdma_en = 0;
+	u32 read_val = 0;
+	u32 write_val = 0;
+	int ret = 0, k = 0;
+	u32 rdma_en = 0, trace_num = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_set_mask(addr, _mask);
+		return ret;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en) {
 		read_val = VSYNCOSD_RD_MPEG_REG(addr);
@@ -527,21 +573,34 @@ int VSYNCOSD_SET_MPEG_REG_MASK(u32 addr, u32 _mask)
 		ret = update_table_item(addr, write_val, 0);
 	} else
 		osd_reg_set_mask(addr, _mask);
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
+	for (k = 0; k < trace_num; k++) {
+		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
+		pr_info("(%s) %04x=0x%08x->0x%08x, mask=0x%08x, rdma_en=%d, ret=%d\n",
+			__func__,
+			addr, read_val, write_val,
+			_mask, rdma_en, ret);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(VSYNCOSD_SET_MPEG_REG_MASK);
 
 int VSYNCOSD_CLR_MPEG_REG_MASK(u32 addr, u32 _mask)
 {
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	u32 rdma_en = 0;
+	u32 read_val = 0;
+	u32 write_val = 0;
+	int ret = 0, k = 0;
+	u32 rdma_en = 0, trace_num = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_clr_mask(addr, _mask);
+		return ret;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en) {
 		read_val = VSYNCOSD_RD_MPEG_REG(addr);
@@ -549,24 +608,48 @@ int VSYNCOSD_CLR_MPEG_REG_MASK(u32 addr, u32 _mask)
 		ret = update_table_item(addr, write_val, 0);
 	} else
 		osd_reg_clr_mask(addr, _mask);
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
+	for (k = 0; k < trace_num; k++) {
+		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
+		pr_info("(%s) %04x=0x%08x->0x%08x, mask=0x%08x, rdma_en=%d, ret=%d\n",
+			__func__,
+			addr, read_val, write_val,
+			_mask, rdma_en, ret);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(VSYNCOSD_CLR_MPEG_REG_MASK);
 
 int VSYNCOSD_IRQ_WR_MPEG_REG(u32 addr, u32 val)
 {
-	int ret = 0;
-	u32 rdma_en = 0;
+	int ret = 0, k = 0;
+	u32 rdma_en = 0, trace_num = 0;
 
-	if (!is_rdma_reg(addr))
-		rdma_en = 0;
-	else
-		rdma_en = rdma_enable;
+	if (!is_rdma_reg(addr)) {
+		/* need write at vsync, update table here */
+		viu2_osd_reg_set(addr, val);
+		return ret;
+	}
+	rdma_en = rdma_enable;
 
 	if (rdma_en)
 		ret = update_table_item(addr, val, 1);
 	else
 		osd_reg_write(addr, val);
+	if (osd_hw.rdma_trace_enable)
+		trace_num = osd_hw.rdma_trace_num;
+	else
+		trace_num = 0;
+	for (k = 0; k < trace_num; k++) {
+		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
+		pr_info("(%s), %04x=0x%08x, rdma_en=%d, ret=%d\n",
+			__func__,
+			addr, val,
+			rdma_en, ret);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(VSYNCOSD_IRQ_WR_MPEG_REG);
@@ -1086,6 +1169,7 @@ static int start_osd_rdma(char channel)
 	data32 &= ~(1 << inc_bit);
 	osd_reg_write(RDMA_ACCESS_AUTO, data32);
 #else
+#if 0 /*def LINE_INT_WORK_AROUND */
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12B &&
 		is_meson_rev_b()) {
 		set_reset_rdma_trigger_line();
@@ -1093,7 +1177,9 @@ static int start_osd_rdma(char channel)
 			RDMA_AUTO_START_MASK);
 		osd_hw.line_n_rdma = 1;
 
-	} else {
+	} else
+#endif
+	{
 		rdma_config(channel,
 			RDMA_TRIGGER_VSYNC_INPUT
 			| RDMA_AUTO_START_MASK);

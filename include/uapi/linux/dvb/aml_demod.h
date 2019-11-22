@@ -236,13 +236,5 @@ int cap_adc_data(struct aml_cap_data *cap);
 extern unsigned int get_symbol_rate(void);
 extern unsigned int get_ch_freq(void);
 extern unsigned int get_modu(void);
-extern void tuner_set_atsc_para(void);
-extern void tuner_set_dtmb_para(void);
-extern void tuner_set_qam_para(void);
-extern void tuner_config_atsc(void);
-extern void attach_tuner_demod(void);
-extern void tuner_set_freq(unsigned int freq);
-extern void tuner_config_dtmb(void);
-extern void tuner_config_qam(void);
 
 #endif				/* AML_DEMOD_H */

@@ -84,6 +84,8 @@
 #define V4L2_READ_STATUS     _IOR('V', 109, enum v4l2_status)
 #define V4L2_SET_PROPERTY    _IOWR('V', 110, struct v4l2_properties)
 #define V4L2_GET_PROPERTY    _IOWR('V', 111, struct v4l2_properties)
+#define V4L2_DETECT_TUNE     _IOR('V', 112, struct v4l2_tune_status)
+#define V4L2_DETECT_STANDARD _IO('V', 113)
 
 #define ANALOG_FLAG_ENABLE_AFC          0x00000001
 #define ANALOG_FLAG_MANUL_SCAN          0x00000011
@@ -92,18 +94,45 @@
 #define V4L2_TUNE                1
 #define V4L2_SOUND_SYS           2
 #define V4L2_SLOW_SEARCH_MODE    3
-
+#define V4L2_FREQUENCY           4
+#define V4L2_STD                 5
+#define V4L2_FINE_TUNE           6
+#define V4L2_SIF_OVER_MODULATION 7
+#define V4L2_TUNER_TYPE          8
+#define V4L2_TUNER_IF_FREQ       9
+#define V4L2_AFC                 10
 
 struct v4l2_frontend;
 
 struct v4l2_analog_parameters {
 	unsigned int frequency;
 	unsigned int audmode;
-	unsigned int soundsys; /*A2,BTSC,EIAJ,NICAM */
+
+	/* soundsys & 0xff0000: A2,BTSC,EIAJ,NICAM.
+	 * soundsys & 0xff00: signal input mode.
+	 * soundsys & 0xff: output mode.
+	 */
+	unsigned int soundsys;
+
+	/* std & 0xff000000: PAL/NTSC/SECAM.
+	 * std & 0x00ffffff: CVBS format.
+	 */
 	v4l2_std_id std;
-	unsigned int flag;
+	unsigned int flag; /* for search or play */
 	unsigned int afc_range;
 	unsigned int reserved;
+};
+
+struct v4l2_tune_status {
+	unsigned char lock; /* unlocked: 0, locked: 1 */
+	v4l2_std_id std;
+	unsigned int audmode;
+	int snr;
+	int afc; /* KHz */
+	union {
+		void *resrvred;
+		__u64 reserved1;
+	};
 };
 
 enum v4l2_status {
@@ -178,17 +207,25 @@ struct v4l2_adapter {
 	struct device *dev;
 
 	struct dvb_frontend fe;
-
-	struct i2c_client i2c;
-	unsigned int tuner_id;
 };
 
 struct v4l2_frontend_ops {
-	int (*set_property)(struct v4l2_frontend *fe,
+	int (*set_property)(struct v4l2_frontend *v4l2_fe,
 			struct v4l2_property *tvp);
-	int (*get_property)(struct v4l2_frontend *fe,
+	int (*get_property)(struct v4l2_frontend *v4l2_fe,
 			struct v4l2_property *tvp);
 
+	/* for signal one shot search, return lock status and afc value */
+	int (*tune)(struct v4l2_frontend *v4l2_fe,
+			struct v4l2_tune_status *status);
+
+	/* for auto standard detection */
+	int (*detect)(struct v4l2_frontend *v4l2_fe);
+
+	/*
+	 * These callbacks are for devices that implement their own
+	 * tuning algorithms, rather than a simple tune.
+	 */
 	enum v4l2_search (*search)(struct v4l2_frontend *v4l2_fe);
 };
 
@@ -196,8 +233,6 @@ struct v4l2_frontend {
 	struct device *dev;
 
 	struct dvb_frontend fe;
-	unsigned int tuner_id;
-	struct i2c_client i2c;
 
 	enum v4l2_tuner_type mode;
 
@@ -219,9 +254,6 @@ struct v4l2_atvdemod_device {
 	struct video_device *video_dev;
 
 	struct mutex lock;
-
-	struct i2c_client i2c;
-	unsigned int tuner_id;
 };
 
 int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe);

@@ -93,4 +93,37 @@ extern  void aml_write_hiubus(unsigned int reg, unsigned int val);
 
 extern  void aml_hiubus_update_bits(unsigned int reg,
 		unsigned int mask, unsigned int val);
+
+#include <linux/io.h>
+extern void __iomem *vpp_base;
+extern uint vpp_max;
+
+static inline int aml_reg_vcbus_invalid(unsigned int reg)
+{
+	return !(vpp_base && (vpp_max >= reg));
+}
+
+static inline int aml_read_vcbus_s(unsigned int reg)
+{
+	return readl((vpp_base + (reg << 2)));
+}
+
+static inline void aml_write_vcbus_s(unsigned int reg, unsigned int val)
+{
+	writel(val, (vpp_base + (reg << 2)));
+}
+
+static inline void aml_vcbus_update_bits_s(unsigned int reg, unsigned int value,
+					   unsigned int start, unsigned int len)
+{
+	unsigned int tmp, orig;
+	unsigned int mask = (((1L << len) - 1) << start);
+	int r = (reg << 2);
+
+	orig =  readl((vpp_base + r));
+	tmp = orig  & ~mask;
+	tmp |= (value << start) & mask;
+	writel(tmp, (vpp_base + r));
+}
+
 #endif

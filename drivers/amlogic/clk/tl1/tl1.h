@@ -50,13 +50,13 @@
 #define HHI_HIFI_PLL_CNTL6		0xec /* 0x3b offset in datasheet */
 #define HHI_HIFI_PLL_STS		0xf0 /* 0x3c offset in datasheet very*/
 
-#define HHI_GCLK_MPEG0			0x140 /* 0x50 offset in datasheet */
-#define HHI_GCLK_MPEG1			0x144 /* 0x51 offset in datasheet */
-#define HHI_GCLK_MPEG2			0x148 /* 0x52 offset in datasheet */
-#define HHI_GCLK_OTHER			0x150 /* 0x54 offset in datasheet */
+#define HHI_GCLK_MPEG0			0xc0 /* 0x30 offset in datasheet */
+#define HHI_GCLK_MPEG1			0xc4 /* 0x31 offset in datasheet */
+#define HHI_GCLK_MPEG2			0xc8 /* 0x32 offset in datasheet */
+#define HHI_GCLK_OTHER			0xd0 /* 0x34 offset in datasheet */
 
 #define HHI_GCLK_AO			0x154 /* 0x55 offset in datasheet */
-
+#define HHI_SYS_CPU_CLK_CNTL1		0x15C /* 0x57 offset in datasheet1 */
 #define HHI_VID_CLK_DIV			0x164 /* 0x59 offset in datasheet */
 #define HHI_SPICC_HCLK_CNTL		0x168 /* 0x5a offset in datasheet */
 
@@ -70,7 +70,7 @@
 #define HHI_MALI_CLK_CNTL		0x1b0 /* 0x6c offset in datasheet */
 #define HHI_VPU_CLKC_CNTL		0x1b4 /* 0x6d offset in datasheet1 */
 #define HHI_VPU_CLK_CNTL		0x1bC /* 0x6f offset in datasheet1 */
-#define HHI_AUDPLL_CLK_OUT_CNTL	0x1E0 /* 0x74 offset in datasheet1 */
+#define HHI_AUDPLL_CLK_OUT_CNTL		0x1E0 /* 0x74 offset in datasheet1 */
 #define HHI_VDEC_CLK_CNTL		0x1E0 /* 0x78 offset in datasheet1 */
 #define HHI_VDEC2_CLK_CNTL		0x1E4 /* 0x79 offset in datasheet1 */
 #define HHI_VDEC3_CLK_CNTL		0x1E8 /* 0x7a offset in datasheet1 */
@@ -80,6 +80,9 @@
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* 0x80 offset in datasheet1 */
 #define HHI_HDMIRX_AUD_CLK_CNTL		0x204 /* 0x81 offset in datasheet1 */
 #define HHI_VPU_CLKB_CNTL		0x20C /* 0x83 offset in datasheet1 */
+#define HHI_SYS_CPU_CLK_CNTL5		0x21C /* 0x87 offset in datasheet1 */
+#define HHI_SYS_CPU_CLK_CNTL6		0x220 /* 0x88 offset in datasheet1 */
+#define HHI_HDMIRX_METER_CLK_CNTL	0x234 /* 0x8d offset in datasheet1 */
 
 #define HHI_VDIN_MEAS_CLK_CNTL		0x250 /* 0x94 offset in datasheet1 */
 #define HHI_NAND_CLK_CNTL		0x25C /* 0x97 offset in datasheet1*/
@@ -114,6 +117,7 @@
 #define HHI_ADC_PLL_CNTL2		0x2AC /* 0xab offset in datasheet */
 #define HHI_ADC_PLL_CNTL3		0x2B0 /* 0xac offset in datasheet */
 #define HHI_ADC_PLL_CNTL4		0x2B4 /* 0xad offset in datasheet */
+#define HHI_HDMIRX_AXI_CLK_CNTL		0x2E0 /* 0xb8 offset in datasheet */
 
 #define HHI_SYS_PLL_CNTL0		0x2f4 /* 0xbd offset in datasheet */
 #define HHI_SYS_PLL_CNTL1		0x2f8 /* 0xbe offset in datasheet */
@@ -162,7 +166,9 @@ static const struct pll_rate_table tl1_pll_rate_table[] = {
 	PLL_RATE(1296000000ULL, 216, 1, 2), /*DCO=5184M*/
 	PLL_RATE(1302000000ULL, 217, 1, 2), /*DCO=5208M*/
 	PLL_RATE(1398000000ULL, 233, 1, 2), /*DCO=5592M*/
+	PLL_RATE(1404000000ULL, 234, 1, 2), /*DCO=5614M*/
 	PLL_RATE(1494000000ULL, 249, 1, 2), /*DCO=5976M*/
+	PLL_RATE(1500000000ULL, 125, 1, 1), /*DCO=3000M*/
 	PLL_RATE(1512000000ULL, 126, 1, 1), /*DCO=3024M*/
 	PLL_RATE(1608000000ULL, 134, 1, 1), /*DCO=3216M*/
 	PLL_RATE(1704000000ULL, 142, 1, 1), /*DCO=3408M*/
@@ -232,4 +238,7 @@ static const struct fclk_rate_table fclk_pll_rate_table[] = {
 	FCLK_PLL_RATE(1000000000, 1, 0, 0),
 };
 
+static const struct pll_rate_table tl1_hifi_pll_rate_table[] = {
+	PLL_RATE(666000000ULL,	222, 1, 3), /*DCO=5328M*/
+};
 #endif /* __TL1_H */

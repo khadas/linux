@@ -250,9 +250,6 @@ static const unsigned int uart_ao_a_rx_w7_pins[] = {GPIOW_7};
 static const unsigned int uart_ao_a_tx_w10_pins[] = {GPIOW_10};
 static const unsigned int uart_ao_a_rx_w11_pins[] = {GPIOW_11};
 
-static const unsigned int uart_ao_a_tx_c_pins[] = {GPIOC_3};
-static const unsigned int uart_ao_a_rx_c_pins[] = {GPIOC_2};
-
 /* iso7816 */
 static const unsigned int iso7816_clk_pins[] = {GPIODV_4};
 static const unsigned int iso7816_data_pins[] = {GPIODV_5};
@@ -302,12 +299,6 @@ static const unsigned int pwm_f_z_pins[] = {GPIOZ_10};
 /* pwm_vs */
 static const unsigned int pwm_vs_z5_pins[] = {GPIOZ_5};
 static const unsigned int pwm_vs_z6_pins[] = {GPIOZ_6};
-
-/* jtag_b */
-static const unsigned int jtag_b_tdo_pins[] = {GPIOC_0};
-static const unsigned int jtag_b_tdi_pins[] = {GPIOC_1};
-static const unsigned int jtag_b_clk_pins[] = {GPIOC_4};
-static const unsigned int jtag_b_tms_pins[] = {GPIOC_5};
 
 /* bt656 */
 static const unsigned int bt656_a_clk_pins[] = {GPIOH_2};
@@ -418,8 +409,10 @@ static const unsigned int pdm_din3_pins[] = {GPIOC_10};
 
 static const unsigned int pdm_dclk_z_pins[] = {GPIOZ_7};
 static const unsigned int pdm_din0_z_pins[] = {GPIOZ_8};
-static const unsigned int pdm_din1_z_pins[] = {GPIOZ_9};
-static const unsigned int pdm_din2_z_pins[] = {GPIOZ_10};
+static const unsigned int pdm_din1_z0_pins[] = {GPIOZ_0};
+static const unsigned int pdm_din1_z9_pins[] = {GPIOZ_9};
+static const unsigned int pdm_din2_z4_pins[] = {GPIOZ_4};
+static const unsigned int pdm_din2_z10_pins[] = {GPIOZ_10};
 
 /* spdif_in */
 static const unsigned int spdif_in_pins[] = {GPIODV_5};
@@ -668,13 +661,7 @@ static struct meson_pmx_group meson_tl1_periphs_groups[] = {
 	GROUP(uart_a_rx,	1),
 	GROUP(uart_a_cts,	1),
 	GROUP(uart_a_rts,	1),
-	GROUP(uart_ao_a_tx_c,	2),
-	GROUP(uart_ao_a_rx_c,	2),
 	GROUP(pwm_b_c,		1),
-	GROUP(jtag_b_tdo,	2),
-	GROUP(jtag_b_tdi,	2),
-	GROUP(jtag_b_clk,	2),
-	GROUP(jtag_b_tms,	2),
 	GROUP(tsout_clk,	4),
 	GROUP(tsout_sop,	4),
 	GROUP(tsout_valid,	4),
@@ -751,17 +738,17 @@ static struct meson_pmx_group meson_tl1_periphs_groups[] = {
 	GROUP(eth_link_led,	4),
 	GROUP(eth_act_led,	4),
 	GROUP(pwm_c_h,		4),
-	GROUP(bt656_a_vs,	2),
-	GROUP(bt656_a_hs,	2),
-	GROUP(bt656_a_clk,	2),
-	GROUP(bt656_a_din0,	2),
-	GROUP(bt656_a_din1,	2),
-	GROUP(bt656_a_din2,	2),
-	GROUP(bt656_a_din3,	2),
-	GROUP(bt656_a_din4,	2),
-	GROUP(bt656_a_din5,	2),
-	GROUP(bt656_a_din6,	2),
-	GROUP(bt656_a_din7,	2),
+	GROUP(bt656_a_vs,	3),
+	GROUP(bt656_a_hs,	3),
+	GROUP(bt656_a_clk,	3),
+	GROUP(bt656_a_din0,	3),
+	GROUP(bt656_a_din1,	3),
+	GROUP(bt656_a_din2,	3),
+	GROUP(bt656_a_din3,	3),
+	GROUP(bt656_a_din4,	3),
+	GROUP(bt656_a_din5,	3),
+	GROUP(bt656_a_din6,	3),
+	GROUP(bt656_a_din7,	3),
 	GROUP(tsin_b_valid,	4),
 	GROUP(tsin_b_sop,	4),
 	GROUP(tsin_b_din0,	4),
@@ -881,8 +868,10 @@ static struct meson_pmx_group meson_tl1_periphs_groups[] = {
 	GROUP(pwm_vs_z6,	3),
 	GROUP(pdm_dclk_z,	3),
 	GROUP(pdm_din0_z,	3),
-	GROUP(pdm_din1_z,	3),
-	GROUP(pdm_din2_z,	3),
+	GROUP(pdm_din1_z0,	2),
+	GROUP(pdm_din1_z9,	3),
+	GROUP(pdm_din2_z4,	2),
+	GROUP(pdm_din2_z10,	3),
 	GROUP(spdif_out_z,	1),
 	GROUP(mclk0_z,		1),
 	GROUP(mclk1_z,		1),
@@ -1168,7 +1157,6 @@ static const char * const uart_c_groups[] = {
 };
 
 static const char * const uart_ao_a_ee_groups[] = {
-	"uart_ao_a_rx_c", "uart_ao_a_tx_c",
 	"uart_ao_a_rx_w3", "uart_ao_a_tx_w2",
 	"uart_ao_a_rx_w7", "uart_ao_a_tx_w6",
 	"uart_ao_a_rx_w11", "uart_ao_a_tx_w10",
@@ -1212,10 +1200,6 @@ static const char * const pwm_f_groups[] = {
 
 static const char * const pwm_vs_groups[] = {
 	"pwm_vs_z5", "pwm_vs_z6",
-};
-
-static const char * const jtag_b_groups[] = {
-	"jtag_b_tdi", "jtag_b_tdo", "jtag_b_clk", "jtag_b_tms",
 };
 
 static const char * const tsout_groups[] = {
@@ -1277,7 +1261,8 @@ static const char * const hdmirx_c_groups[] = {
 static const char * const pdm_groups[] = {
 	"pdm_din0_c", "pdm_din1_c", "pdm_din2_c", "pdm_dclk_c",
 	"pdm_din3",
-	"pdm_din0_z", "pdm_din1_z", "pdm_din2_z", "pdm_dclk_z",
+	"pdm_din0_z", "pdm_din1_z0", "pdm_din1_z9", "pdm_din2_z4",
+	"pdm_din2_z10", "pdm_dclk_z",
 };
 
 static const char * const spdif_in_groups[] = {
@@ -1468,7 +1453,6 @@ static struct meson_pmx_func meson_tl1_periphs_functions[] = {
 	FUNCTION(pwm_e),
 	FUNCTION(pwm_f),
 	FUNCTION(pwm_vs),
-	FUNCTION(jtag_b),
 	FUNCTION(tsout),
 	FUNCTION(tcon),
 	FUNCTION(bt656),

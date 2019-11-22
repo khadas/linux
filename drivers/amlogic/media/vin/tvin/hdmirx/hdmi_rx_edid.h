@@ -17,20 +17,26 @@
 #ifndef _HDMI_RX_EDID_H_
 #define _HDMI_RX_EDID_H_
 
+#define EDID_EXT_BLK_OFF	128
 #define EDID_SIZE			256
 #define EDID_HDR_SIZE		7
 #define EDID_HDR_HEAD_LEN	4
 #define MAX_HDR_LUMI_LEN	3
 #define MAX_EDID_BUF_SIZE	512
 
-/* CEA861F Table 44~46 CEA data block tag code*/
+/* CTA-861G Table 54~57 CTA data block tag codes */
 /* tag code 0x0: reserved */
 #define AUDIO_TAG 0x1
 #define VIDEO_TAG 0x2
 #define VENDOR_TAG 0x3
+/* tag of HF-VSDB is the same as VSDB
+ * so add an offset(0xF0) for HF-VSDB
+ */
+#define HF_VSDB_OFFSET 0xF0
+#define HF_VENDOR_DB_TAG (VENDOR_TAG + HF_VSDB_OFFSET)
 #define SPEAKER_TAG 0x4
 /* VESA Display Transfer Characteristic Data Block */
-#define VESA_TAG 0x5
+#define VDTCDB_TAG 0x5
 /* tag code 0x6: reserved */
 #define USE_EXTENDED_TAG 0x7
 
@@ -38,22 +44,40 @@
 #define VCDB_TAG 0 /* video capability data block */
 #define VSVDB_TAG 1 /* Vendor-Specific Video Data Block */
 #define VDDDB_TAG 2 /* VESA Display Device Data Block */
-#define VVTDB_TAG 3 /* VESA Video Timing Block Extension */
-/* extend tag code 0x4: Reserved for HDMI Video Data Block*/
+#define VVTBE_TAG 3 /* VESA Video Timing Block Extension */
+/* extend tag code 0x4: Reserved for HDMI Video Data Block */
 #define CDB_TAG 5 /* Colorimetry Data Block */
-#define HDR_TAG 6 /* HDR Static Metadata Data Block */
-/* extend tag code 7-12: reserved */
+#define HDR_STATIC_TAG 6 /* HDR Static Metadata Data Block */
+#define HDR_DYNAMIC_TAG 7 /* HDR Dynamic Metadata Data Block */
+/* extend tag code 8-12: reserved */
 #define VFPDB_TAG 13 /* Video Format Preference Data Block */
 #define Y420VDB_TAG 14 /* YCBCR 4:2:0 Video Data Block */
 #define Y420CMDB_TAG 15 /* YCBCR 4:2:0 Capability Map Data Block */
-/* extend tag code 16: Reserved */
+/* extend tag code 16: Reserved for CTA Miscellaneous Audio Fields */
 #define VSADB_TAG 17 /* Vendor-Specific Audio Data Block */
-/* extend tag code 18~31: Reserved */
+/* extend tag code 18: Reserved for HDMI Audio Data Block */
+#define RCDB_TAG 19 /* Room Configuration Data Block */
+#define SLDB_TAG 20	/* Speaker Location Data Block */
+/* extend tag code 21~31: Reserved */
 #define IFDB_TAG 32 /* infoframe data block */
 #define HDMI_VIC420_OFFSET 0x100
 #define HDMI_3D_OFFSET 0x180
 #define HDMI_VESA_OFFSET 0x200
 
+/* eARC Rx Capabilities Data Structure version */
+#define CAP_DS_VER 0x1
+/* eARC Rx Capabilities Data Structure Maximum Length */
+#define EARC_CAP_DS_MAX_LENGTH	256
+/* eARC Rx Capability data structure End Marker */
+#define EARC_CAP_DS_END_MARKER 0x00
+#define EARC_CAP_BLOCK_MAX 3
+#define DATA_BLK_MAX_NUM 32
+#define TAG_MAX 0xFF
+/* data block max length(include head): 0x1F+1 */
+#define DB_LEN_MAX 32
+/* short audio descriptor length */
+#define SAD_LEN 3
+#define BLK_LENGTH(a) (a & 0x1F)
 
 enum edid_audio_format_e {
 	AUDIO_FORMAT_HEADER,
@@ -81,6 +105,16 @@ enum edid_tag_e {
 	EDID_TAG_HDR = ((0x7<<8)|6),
 };
 
+union bit_rate_u {
+	struct pcm_t {
+		unsigned char size_16bit:1;
+		unsigned char size_20bit:1;
+		unsigned char size_24bit:1;
+		unsigned char size_reserv:5;
+	} pcm;
+	unsigned char others;
+};
+
 struct edid_audio_block_t {
 	unsigned char max_channel:3;
 	unsigned char format_code:4;
@@ -94,15 +128,7 @@ struct edid_audio_block_t {
 	unsigned char freq_176_4khz:1;
 	unsigned char freq_192khz:1;
 	unsigned char freq_reserv:1;
-	union bit_rate_u {
-		struct pcm_t {
-			unsigned char size_16bit:1;
-			unsigned char size_20bit:1;
-			unsigned char size_24bit:1;
-			unsigned char size_reserv:5;
-		} pcm;
-		unsigned char others;
-	} bit_rate;
+	union bit_rate_u bit_rate;
 };
 
 struct edid_hdr_block_t {
@@ -129,6 +155,11 @@ enum edid_list_e {
 	EDID_LIST_NULL
 };
 
+enum edid_ver_e {
+	EDID_V14,
+	EDID_V20
+};
+
 struct detailed_timing_desc {
 	unsigned int pixel_clk;
 	unsigned int hactive;
@@ -151,6 +182,7 @@ struct audio_db_s {
 	struct edid_audio_block_t sad[15];
 };
 
+/* may need extend spker alloc from CTA-SPEC */
 /* speaker allocation data block: 3 bytes*/
 struct speaker_alloc_db_s {
 	unsigned char flw_frw:1;
@@ -358,38 +390,14 @@ struct dv_vsvdb_s {
 	uint8_t dm_minor_ver;
 };
 
-struct edid_info_s {
-	/* 8 */
-	unsigned char manufacturer_name[3];
-	/* 10 */
-	unsigned int product_code;
-	/* 12 */
-	unsigned int serial_number;
-	/* 16 */
-	unsigned char product_week;
-	unsigned int product_year;
-	unsigned char edid_version;
-	unsigned char edid_revision;
-	/* 54 + 18 * x */
-	struct detailed_timing_desc descriptor1;
-	struct detailed_timing_desc descriptor2;
-	/* 54 + 18 * x */
-	unsigned char monitor_name[13];
-	unsigned int max_sup_pixel_clk;
-	uint8_t extension_flag;
-	/* 127 */
-	unsigned char block0_chk_sum;
+struct cta_data_blk_info {
+	unsigned char cta_blk_index;
+	uint16_t tag_code;
+	unsigned char offset;
+	unsigned char blk_len;
+};
 
-	/* CEA extension */
-	/* CEA header */
-	unsigned char cea_tag;
-	unsigned char cea_revision;
-	unsigned char dtd_offset;
-	unsigned char underscan_sup:1;
-	unsigned char basic_aud_sup:1;
-	unsigned char ycc444_sup:1;
-	unsigned char ycc422_sup:1;
-	unsigned char native_dtd_num:4;
+struct cta_blk_parse_info {
 	/* audio data block */
 	struct video_db_s video_db;
 	/* audio data block */
@@ -425,6 +433,63 @@ struct edid_info_s {
 	bool contain_y420_cmdb;
 	unsigned char y420_all_vic;
 	unsigned char y420_cmdb_vic[31];
+
+	bool contain_vsadb;
+	unsigned int vsadb_ieee;
+	/* CTA-861-G 7.5.8 27-2-3 */
+	unsigned char vsadb_payload[22];
+
+	unsigned char data_blk_num;
+	struct cta_data_blk_info db_info[DATA_BLK_MAX_NUM];
+};
+
+/* CEA extension */
+struct cea_ext_parse_info {
+	/* CEA header */
+	unsigned char cea_tag;
+	unsigned char cea_revision;
+	unsigned char dtd_offset;
+	unsigned char underscan_sup:1;
+	unsigned char basic_aud_sup:1;
+	unsigned char ycc444_sup:1;
+	unsigned char ycc422_sup:1;
+	unsigned char native_dtd_num:4;
+
+	struct cta_blk_parse_info blk_parse_info;
+};
+
+struct edid_info_s {
+	/* 8 */
+	unsigned char manufacturer_name[3];
+	/* 10 */
+	unsigned int product_code;
+	/* 12 */
+	unsigned int serial_number;
+	/* 16 */
+	unsigned char product_week;
+	unsigned int product_year;
+	/* unsigned char edid_version; */
+	/* unsigned char edid_revision; */
+	/* 54 + 18 * x */
+	struct detailed_timing_desc descriptor1;
+	struct detailed_timing_desc descriptor2;
+	/* 54 + 18 * x */
+	unsigned char monitor_name[13];
+	unsigned int max_sup_pixel_clk;
+	uint8_t extension_flag;
+	/* 127 */
+	unsigned char block0_chk_sum;
+
+	struct cea_ext_parse_info cea_ext_info;
+
+	int free_size;
+	unsigned char total_free_size;
+	unsigned char dtd_size;
+};
+
+struct cta_blk_pair {
+	uint16_t tag_code;
+	char *blk_name;
 };
 
 struct edid_data_s {
@@ -432,6 +497,25 @@ struct edid_data_s {
 	unsigned int physical[4];
 	unsigned char phy_offset;
 	unsigned int checksum;
+};
+
+enum tx_hpd_event_e {
+	E_IDLE = 0,
+	E_EXE = 1,
+	E_RCV = 2,
+};
+
+struct cap_block_s {
+	unsigned char block_id;
+	unsigned char payload_len;
+	unsigned char offset;
+};
+
+struct earc_cap_ds {
+	unsigned char cap_ds_len;
+	unsigned char cap_ds_ver;
+	struct cap_block_s cap_block[EARC_CAP_BLOCK_MAX];
+	struct cta_blk_parse_info blk_parse_info;
 };
 
 enum hdmi_vic_e {
@@ -609,10 +693,21 @@ enum hdmi_vic_e {
 	HDMI_UNSUPPORT,
 };
 
+enum earc_cap_block_id {
+	EARC_CAP_BLOCK_ID_0 = 0,
+	EARC_CAP_BLOCK_ID_1 = 1,
+	EARC_CAP_BLOCK_ID_2 = 2,
+	EARC_CAP_BLOCK_ID_3 = 3
+};
+
 extern int edid_mode;
 extern int port_map;
 extern bool new_hdr_lum;
 extern bool atmos_edid_update_hpd_en;
+extern bool en_take_dtd_space;
+extern bool earc_cap_ds_update_hpd_en;
+extern unsigned char edid_temp[EDID_SIZE];
+
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff);
@@ -620,8 +715,24 @@ extern unsigned int hdmi_rx_top_edid_update(void);
 unsigned char rx_get_edid_index(void);
 unsigned char *rx_get_edid(int edid_index);
 void edid_parse_block0(uint8_t *p_edid, struct edid_info_s *edid_info);
-void edid_parse_cea_block(uint8_t *p_edid, struct edid_info_s *edid_info);
+void edid_parse_cea_ext_block(uint8_t *p_edid,
+	struct cea_ext_parse_info *blk_parse_info);
+void rx_edid_parse(uint8_t *p_edid, struct edid_info_s *edid_info);
 void rx_edid_parse_print(struct edid_info_s *edid_info);
+void rx_blk_index_print(struct cta_blk_parse_info *blk_info);
+int rx_edid_free_size(uint8_t *cur_edid, int size);
+unsigned char rx_edid_total_free_size(unsigned char *cur_edid,
+	unsigned int size);
+unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size);
+bool rx_set_earc_cap_ds(unsigned char *data, unsigned int len);
+void rx_prase_earc_capds_dbg(void);
+void edid_splice_earc_capds(unsigned char *p_edid,
+	unsigned char *earc_cap_ds, unsigned int len);
+void edid_splice_earc_capds_dbg(uint8_t *p_edid);
+void edid_splice_data_blk_dbg(uint8_t *p_edid, uint8_t idx);
+void edid_rm_db_by_tag(uint8_t *p_edid, uint16_t tagid);
+void edid_rm_db_by_idx(uint8_t *p_edid, uint8_t blk_idx);
+uint8_t *edid_tag_extract(uint8_t *p_edid, uint16_t tagid);
 void rx_modify_edid(unsigned char *buffer,
 				int len, unsigned char *addition);
 void rx_edid_update_audio_info(unsigned char *p_edid,

@@ -74,6 +74,8 @@ extern bool cma_page(struct page *page);
 extern unsigned long get_cma_allocated(void);
 extern unsigned long get_total_cmapages(void);
 extern spinlock_t cma_iso_lock;
+extern bool cma_first_wm_low;
+extern int cma_debug_level;
 extern int aml_cma_alloc_range(unsigned long start, unsigned long end);
 
 extern void aml_cma_free(unsigned long pfn, unsigned int nr_pages);
@@ -81,6 +83,7 @@ extern void aml_cma_free(unsigned long pfn, unsigned int nr_pages);
 extern unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 		struct list_head *page_list);
 
+extern void show_page(struct page *page);
 unsigned long
 isolate_freepages_range(struct compact_control *cc,
 			unsigned long start_pfn, unsigned long end_pfn);
@@ -91,4 +94,14 @@ isolate_migratepages_range(struct compact_control *cc,
 struct page *compaction_cma_alloc(struct page *migratepage,
 				  unsigned long data,
 				  int **result);
+
+#define cma_debug(l, p, format, args...)	\
+	{								\
+		if (l < cma_debug_level) {				\
+			show_page(p);					\
+			pr_info("%s, %d "format, __func__, __LINE__, ##args); \
+		}							\
+	}
+
+
 #endif /* __AMLOGIC_CMA_H__ */

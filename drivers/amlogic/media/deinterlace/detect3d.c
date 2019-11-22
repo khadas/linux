@@ -26,6 +26,7 @@
 #include "register_nr4.h"
 #include "detect3d.h"
 
+#include "di_pqa.h"
 /*******************Local defines**********************/
 #define DET3D_REG_NUM				9
 /* the number of total register */
@@ -442,3 +443,23 @@ MODULE_PARM_DESC(chessbd_vrate, "\n the chessboard 3d fmt vertical rate\n");
 module_param(det3d_debug, bool, 0644);
 MODULE_PARM_DESC(det3d_debug, "\n print the information of 3d detection\n");
 
+static const struct detect3d_op_s di_ops_3d = {
+	.det3d_config		= det3d_config,
+	.det3d_fmt_detect	= det3d_fmt_detect,
+	/*.module_para		= dim_seq_file_module_para_3d,*/
+};
+
+bool di_attach_ops_3d(const struct detect3d_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_ops_3d;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_3d);

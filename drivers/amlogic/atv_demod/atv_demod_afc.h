@@ -36,6 +36,10 @@
 
 #define AFC_BEST_LOCK 50
 
+#define AFC_DISABLE (0)
+#define AFC_ENABLE  (1)
+#define AFC_PAUSE   (2)
+
 struct atv_demod_afc {
 	struct work_struct work;
 	struct timer_list timer;
@@ -44,7 +48,7 @@ struct atv_demod_afc {
 
 	struct mutex mtx;
 
-	bool state;
+	int state;
 
 	int timer_delay_cnt;
 
@@ -60,6 +64,7 @@ struct atv_demod_afc {
 
 	void (*disable)(struct atv_demod_afc *afc);
 	void (*enable)(struct atv_demod_afc *afc);
+	void (*pause)(struct atv_demod_afc *afc);
 };
 
 extern void atv_demod_afc_init(struct atv_demod_afc *afc);

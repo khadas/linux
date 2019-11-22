@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/hw_random.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 
 #include <linux/device.h>
 #include <linux/init.h>
@@ -39,7 +40,6 @@
 #include <crypto/aes.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
-#include <linux/amlogic/iomap.h>
 #include <linux/of_platform.h>
 #include <crypto/skcipher.h>
 #include "aml-crypto-dma.h"
@@ -135,14 +135,18 @@ static struct aml_aes_drv aml_aes = {
 static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		uint32_t keylen, u32 *iv, uint8_t swap)
 {
+	struct device *dev = dd->dev;
 	struct dma_dsc *dsc = dd->descriptor;
-	uint32_t key_iv[12];
+	uint32_t *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	uint32_t *piv = key_iv + 8;
 	int32_t len = keylen;
 	dma_addr_t dma_addr_key = 0;
 	uint32_t i = 0;
 
-	memset(key_iv, 0, sizeof(key_iv));
+	if (!key_iv) {
+		dev_err(dev, "error allocating key_iv buffer\n");
+		return -EINVAL;
+	}
 	memcpy(key_iv, key, keylen);
 	if (iv) {
 		if (swap) {
@@ -153,17 +157,16 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		} else {
 			memcpy(piv, iv, 16);
 		}
-		len = 48; /* full key storage */
 	}
 
-	if (!len)
-		return -EPERM;
+	len = DMA_KEY_IV_BUF_SIZE; /* full key storage */
 
 	dma_addr_key = dma_map_single(dd->dev, key_iv,
-			sizeof(key_iv), DMA_TO_DEVICE);
+			DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(dd->dev, dma_addr_key)) {
-		dev_err(dd->dev, "error mapping dma_addr_key\n");
+		dev_err(dev, "error mapping dma_addr_key\n");
+		kfree(key_iv);
 		return -EINVAL;
 	}
 
@@ -189,8 +192,9 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		;
 	aml_write_crypto_reg(dd->status, 0xf);
 	dma_unmap_single(dd->dev, dma_addr_key,
-			sizeof(key_iv), DMA_TO_DEVICE);
+			DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
+	kfree(key_iv);
 	return 0;
 }
 
@@ -228,6 +232,7 @@ static size_t aml_aes_sg_copy(struct scatterlist **sg, size_t *offset,
 static size_t aml_aes_sg_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 		uint32_t *nents, size_t total)
 {
+	struct device *dev = dd->dev;
 	size_t count = 0;
 	size_t process = 0;
 	size_t count_total = 0;
@@ -253,14 +258,14 @@ static size_t aml_aes_sg_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	if (dd->in_sg != dd->out_sg) {
 		err = dma_map_sg(dd->dev, dd->in_sg, *nents, DMA_TO_DEVICE);
 		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
+			dev_err(dev, "dma_map_sg() error\n");
 			return 0;
 		}
 
 		err = dma_map_sg(dd->dev, dd->out_sg, *nents,
 				DMA_FROM_DEVICE);
 		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
+			dev_err(dev, "dma_map_sg() error\n");
 			dma_unmap_sg(dd->dev, dd->in_sg, *nents,
 					DMA_TO_DEVICE);
 			return 0;
@@ -269,7 +274,7 @@ static size_t aml_aes_sg_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 		err = dma_map_sg(dd->dev, dd->in_sg, *nents,
 				DMA_BIDIRECTIONAL);
 		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
+			dev_err(dev, "dma_map_sg() error\n");
 			return 0;
 		}
 		dma_sync_sg_for_device(dd->dev, dd->in_sg,
@@ -465,6 +470,7 @@ static int aml_aes_write_ctrl(struct aml_aes_dev *dd)
 static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 		struct ablkcipher_request *req)
 {
+	struct device *dev = dd->dev;
 	struct crypto_async_request *async_req, *backlog;
 	struct aml_aes_ctx *ctx;
 	struct aml_aes_reqctx *rctx;
@@ -516,7 +522,7 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 			(dd->flags & AES_FLAGS_CTR))
 			err = aml_aes_crypt_dma_start(dd);
 		else {
-			pr_err("size %zd is not multiple of %d",
+			dev_err(dev, "size %zd is not multiple of %d",
 					dd->total, AML_AES_DMA_THRESHOLD);
 			err = -EINVAL;
 		}
@@ -532,6 +538,7 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 
 static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 {
+	struct device *dev = dd->dev;
 	int err = -EINVAL;
 	size_t count;
 
@@ -567,7 +574,8 @@ static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 					dd->dma_size, 1);
 			if (count != dd->dma_size) {
 				err = -EINVAL;
-				pr_err("not all data converted: %zu\n", count);
+				dev_err(dev, "not all data converted: %zu\n",
+						count);
 			}
 			/* install IV for CBC */
 			if (dd->flags & AES_FLAGS_CBC) {
@@ -584,6 +592,7 @@ static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 
 static int aml_aes_buff_init(struct aml_aes_dev *dd)
 {
+	struct device *dev = dd->dev;
 	int err = -ENOMEM;
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
@@ -593,7 +602,7 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 	dd->buflen &= ~(AES_BLOCK_SIZE - 1);
 
 	if (!dd->buf_in || !dd->buf_out || !dd->descriptor) {
-		dev_err(dd->dev, "unable to alloc pages.\n");
+		dev_err(dev, "unable to alloc pages.\n");
 		goto err_alloc;
 	}
 
@@ -601,7 +610,7 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 	dd->dma_addr_in = dma_map_single(dd->dev, dd->buf_in,
 			dd->buflen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->dev, dd->dma_addr_in)) {
-		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
+		dev_err(dev, "dma %zd bytes error\n", dd->buflen);
 		err = -EINVAL;
 		goto err_map_in;
 	}
@@ -609,7 +618,7 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 	dd->dma_addr_out = dma_map_single(dd->dev, dd->buf_out,
 			dd->buflen, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dd->dev, dd->dma_addr_out)) {
-		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
+		dev_err(dev, "dma %zd bytes error\n", dd->buflen);
 		err = -EINVAL;
 		goto err_map_out;
 	}
@@ -618,7 +627,7 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 			PAGE_SIZE, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(dd->dev, dd->dma_descript_tab)) {
-		dev_err(dd->dev, "dma descriptor error\n");
+		dev_err(dev, "dma descriptor error\n");
 		err = -EINVAL;
 		goto err_map_descriptor;
 	}
@@ -638,7 +647,7 @@ err_map_in:
 	free_page((uintptr_t)dd->descriptor);
 err_alloc:
 	if (err)
-		pr_err("error: %d\n", err);
+		dev_err(dev, "error: %d\n", err);
 	return err;
 }
 
@@ -911,7 +920,6 @@ static struct crypto_alg aes_lite_algs[] = {
 		.cra_u.ablkcipher = {
 			.min_keysize	=    AES_MIN_KEY_SIZE,
 			.max_keysize	=    AES_MAX_KEY_SIZE,
-			.ivsize		=    AES_BLOCK_SIZE,
 			.setkey		=    aml_aes_lite_setkey,
 			.encrypt	=    aml_aes_ecb_encrypt,
 			.decrypt	=    aml_aes_ecb_decrypt,
@@ -997,6 +1005,7 @@ static void aml_aes_queue_task(unsigned long data)
 static void aml_aes_done_task(unsigned long data)
 {
 	struct aml_aes_dev *dd = (struct aml_aes_dev *) data;
+	struct device *dev = dd->dev;
 	int err;
 
 	err = aml_aes_crypt_dma_stop(dd);
@@ -1014,7 +1023,7 @@ static void aml_aes_done_task(unsigned long data)
 				dd->in_sg = sg_next(dd->in_sg);
 				dd->out_sg = sg_next(dd->out_sg);
 				if (!dd->in_sg || !dd->out_sg) {
-					pr_err("aml-aes: sg invalid\n");
+					dev_err(dev, "aml-aes: sg invalid\n");
 					err = -EINVAL;
 					break;
 				}
@@ -1034,11 +1043,12 @@ static void aml_aes_done_task(unsigned long data)
 static irqreturn_t aml_aes_irq(int irq, void *dev_id)
 {
 	struct aml_aes_dev *aes_dd = dev_id;
+	struct device *dev = aes_dd->dev;
 	uint8_t status = aml_read_crypto_reg(aes_dd->status);
 
 	if (status) {
 		if (status == 0x1)
-			pr_err("irq overwrite\n");
+			dev_err(dev, "irq overwrite\n");
 		if (aes_dd->dma->dma_busy == DMA_FLAG_MAY_OCCUPY)
 			return IRQ_HANDLED;
 		if ((aes_dd->flags & AES_FLAGS_DMA) &&
@@ -1079,7 +1089,7 @@ static int aml_aes_register_algs(struct aml_aes_dev *dd,
 
 err_aes_algs:
 	for (j = 0; j < i; j++)
-		crypto_unregister_alg(&aes_algs[j]);
+		crypto_unregister_alg(&(aes_info->algs[j]));
 
 	return err;
 }
@@ -1092,7 +1102,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 	int err = -EPERM;
 	const struct aml_aes_info *aes_info = NULL;
 
-	aes_dd = kzalloc(sizeof(struct aml_aes_dev), GFP_KERNEL);
+	aes_dd = devm_kzalloc(dev, sizeof(struct aml_aes_dev), GFP_KERNEL);
 	if (aes_dd == NULL) {
 		err = -ENOMEM;
 		goto aes_dd_err;
@@ -1100,9 +1110,8 @@ static int aml_aes_probe(struct platform_device *pdev)
 
 	match = of_match_device(aml_aes_dt_match, &pdev->dev);
 	if (!match) {
-		pr_err("%s: cannot find match dt\n", __func__);
+		dev_err(dev, "%s: cannot find match dt\n", __func__);
 		err = -EINVAL;
-		kfree(aes_dd);
 		goto aes_dd_err;
 	}
 	aes_info = match->data;
@@ -1121,8 +1130,8 @@ static int aml_aes_probe(struct platform_device *pdev)
 			(unsigned long)aes_dd);
 
 	crypto_init_queue(&aes_dd->queue, AML_AES_QUEUE_LENGTH);
-	err = request_irq(aes_dd->irq, aml_aes_irq, IRQF_SHARED, "aml-aes",
-			aes_dd);
+	err = devm_request_irq(dev, aes_dd->irq, aml_aes_irq, IRQF_SHARED,
+			"aml-aes", aes_dd);
 	if (err) {
 		dev_err(dev, "unable to request aes irq.\n");
 		goto aes_irq_err;
@@ -1154,13 +1163,9 @@ err_algs:
 	spin_unlock(&aml_aes.lock);
 	aml_aes_buff_cleanup(aes_dd);
 err_aes_buff:
-	free_irq(aes_dd->irq, aes_dd);
 aes_irq_err:
-
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
-	kfree(aes_dd);
-	aes_dd = NULL;
 aes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1169,6 +1174,7 @@ aes_dd_err:
 
 static int aml_aes_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	static struct aml_aes_dev *aes_dd;
 	const struct of_device_id *match;
 	const struct aml_aes_info *aes_info = NULL;
@@ -1178,7 +1184,7 @@ static int aml_aes_remove(struct platform_device *pdev)
 		return -ENODEV;
 	match = of_match_device(aml_aes_dt_match, &pdev->dev);
 	if (!match) {
-		pr_err("%s: cannot find match dt\n", __func__);
+		dev_err(dev, "%s: cannot find match dt\n", __func__);
 		return -EINVAL;
 	}
 	aes_info = match->data;
@@ -1190,12 +1196,6 @@ static int aml_aes_remove(struct platform_device *pdev)
 
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
-
-	if (aes_dd->irq > 0)
-		free_irq(aes_dd->irq, aes_dd);
-
-	kfree(aes_dd);
-	aes_dd = NULL;
 
 	return 0;
 }

@@ -707,7 +707,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -819,6 +819,7 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x7f800000";
+	osd_ver = /bits/ 8 <OSD_V1>;
 };
 
 &drm_amhdmitx {

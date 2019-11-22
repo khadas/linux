@@ -35,6 +35,8 @@ static void __iomem *sharemem_in_base;
 static void __iomem *sharemem_out_base;
 static long phy_in_base;
 static long phy_out_base;
+static unsigned long secmon_start_virt;
+
 #ifdef CONFIG_ARM64
 #define IN_SIZE	0x1000
 #else
@@ -55,6 +57,19 @@ static long get_sharemem_info(unsigned int function_id)
 }
 
 #define RESERVE_MEM_SIZE	0x300000
+
+int within_secmon_region(unsigned long addr)
+{
+	if (!secmon_start_virt)
+		return 0;
+
+	if ((addr >= secmon_start_virt) &&
+	    (addr <= (secmon_start_virt + RESERVE_MEM_SIZE)))
+		return 1;
+
+	return 0;
+}
+
 static int secmon_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -87,6 +102,7 @@ static int secmon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	pr_info("get page:%p, %lx\n", page, page_to_pfn(page));
+	secmon_start_virt = (unsigned long)page_to_virt(page);
 
 	if (pfn_valid(__phys_to_pfn(phy_in_base)))
 		sharemem_in_base = (void __iomem *)__phys_to_virt(phy_in_base);

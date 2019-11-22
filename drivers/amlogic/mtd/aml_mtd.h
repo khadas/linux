@@ -166,8 +166,8 @@ struct _nand_page0 {
 	struct _ext_info ext_info;
 	/* added for slc */
 	struct _fip_info fip_info;
+	uint32_t ddrp_start_page;
 };
-
 
 union nand_core_clk {
 	/*raw register data */
@@ -216,6 +216,7 @@ union nand_core_clk {
 #define NAND_ENV_BLOCK_NUM 8
 #define NAND_KEY_BLOCK_NUM 8
 #define NAND_DTB_BLOCK_NUM 4
+#define NAND_DDR_BLOCK_NUM 2
 
 #define AML_CHIP_NONE_RB	4
 #define AML_INTERLEAVING_MODE	8
@@ -283,6 +284,7 @@ union nand_core_clk {
 #define KEY_NAND_MAGIC	"nkey"
 #define SEC_NAND_MAGIC	"nsec"
 #define DTB_NAND_MAGIC  "ndtb"
+#define DDR_NAND_MAGIC  "nddr"
 #define NAND_SYS_PART_SIZE	0x8000000
 
 struct nand_menson_key {
@@ -559,6 +561,7 @@ struct aml_nand_chip {
 	struct aml_nandrsv_info_t *aml_nandenv_info;
 	struct aml_nandrsv_info_t *aml_nandkey_info;
 	struct aml_nandrsv_info_t *aml_nanddtb_info;
+	struct aml_nandrsv_info_t *aml_nandddr_info;
 	struct aml_nand_bch_desc *bch_desc;
 
 	/*golbal variable for retry support*/
@@ -826,6 +829,8 @@ int aml_nand_read_key(struct mtd_info *mtd, size_t offset, u_char *buf);
 
 int aml_nand_key_check(struct mtd_info *mtd);
 
+int aml_nand_ddr_check(struct mtd_info *mtd);
+
 /*int aml_nand_free_valid_env(struct mtd_info *mtd);*/
 
 int aml_nand_save_bbt(struct mtd_info *mtd, u_char *buf);
@@ -882,6 +887,9 @@ int m3_nand_boot_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 int boot_device_register(struct aml_nand_chip *aml_chip);
 int add_mtd_partitions(struct mtd_info *mtd,
 	const struct mtd_partition *part, int num);
+
+int nand_get_device(struct mtd_info *mtd, int new_state);
+void nand_release_device(struct mtd_info *mtd);
 
 #ifdef AML_NAND_UBOOT
 extern int get_partition_from_dts(unsigned char *buffer);

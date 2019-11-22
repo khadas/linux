@@ -1,0 +1,5 @@
+config AMLOGIC_IRCUT
+	tristate "Amlogic ircut support"
+	default n
+	help
+		select y to support ircut

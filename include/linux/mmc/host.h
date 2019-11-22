@@ -229,6 +229,7 @@ struct mmc_host {
 	unsigned int		f_init;
 #ifdef CONFIG_AMLOGIC_MMC
 	u8 first_init_flag;
+	int	wifi_down_f;
 #endif
 	u32			ocr_avail;
 	u32			ocr_avail_sdio;	/* SDIO-specific OCR */

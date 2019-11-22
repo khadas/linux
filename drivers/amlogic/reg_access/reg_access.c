@@ -53,7 +53,25 @@ int aml_reg_access(struct aml_ddev *indio_dev,
 	iounmap(vaddr);
 	return 0;
 }
+int aml_reg_access_16(struct aml_ddev *indio_dev,
+				 unsigned int reg, unsigned int writeval,
+				 unsigned int *readval)
+{
+	void __iomem *vaddr;
+
+	reg = round_down(reg, 0x2);
+
+	vaddr = ioremap(reg, 0x4);
+
+	if (readval)
+		*readval = readw(vaddr);
+	else
+		writew(writeval, vaddr);
+	iounmap(vaddr);
+	return 0;
+}
 static struct aml_ddev aml_dev;
+static struct aml_ddev aml_dev_16;
 static ssize_t paddr_read_file(struct file *file, char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
@@ -117,7 +135,6 @@ static const struct file_operations paddr_file_ops = {
 	.read		= paddr_read_file,
 	.write		= paddr_write_file,
 };
-
 
 static ssize_t dump_write_file(struct file *file, const char __user *userbuf,
 				   size_t count, loff_t *ppos)
@@ -189,9 +206,12 @@ static int __init aml_debug_init(void)
 		return -1;
 	}
 	aml_dev.debugfs_reg_access = aml_reg_access;
+	aml_dev_16.debugfs_reg_access = aml_reg_access_16;
 
 	debugfs_create_file("paddr", S_IFREG | 0440,
 			    debugfs_root, &aml_dev, &paddr_file_ops);
+	debugfs_create_file("paddr16", S_IFREG | 0440,
+			    debugfs_root, &aml_dev_16, &paddr_file_ops);
 	debugfs_create_file("dump", S_IFREG | 0440,
 			    debugfs_root, &aml_dev, &dump_file_ops);
 	return 0;

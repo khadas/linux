@@ -282,11 +282,18 @@
 	ram-dump {
 		compatible = "amlogic, ram_dump";
 		status = "okay";
+		reg = <0x0 0xFF6345E0 0x0 4>;
+		reg-names = "PREG_STICKY_REG8";
+		store_device = "data";
 	};
 
-	amlogic-jtag {
+	jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
+		select = "disable"; /* disable/apao/apee */
+		pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
+		pinctrl-0=<&jtag_apao_pins>;
+		pinctrl-1=<&jtag_apee_pins>;
 	};
 
 	vpu {
@@ -800,6 +807,7 @@
 			aoclkc: clock-controller@0 {
 				compatible = "amlogic,txlx-aoclkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x0 0x0 0x1000>;
 			};
 
@@ -833,14 +841,13 @@
 				status = "disabled";
 			};
 
-			meson-irblaster {
-				compatible = "amlogic, am_irblaster";
-				dev_name = "meson-irblaster";
-				status = "disable";
-				pinctrl-names = "default";
-				pinctrl-0 = <&irblaster_pins>;
+			irblaster: meson-irblaster@c0 {
+				compatible = "amlogic, aml_irblaster";
+				reg = <0x0 0xc0 0x0 0xc>,
+					<0x0 0x40 0x0 0x4>;
+				#irblaster-cells = <2>;
+				status = "disabled";
 			};
-
 
 			remote: rc@8040 {
 				compatible = "amlogic, aml_remote";
@@ -937,6 +944,13 @@
 		compatible = "amlogic, vdac-txlx";
 		status = "okay";
 	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		reg = <0x0 0xff634500 0x0 0x4>; /*RNG_USR_DATA*/
+		mem_size = <0x0 0x100000>;
+		status = "okay";
+	};
 }; /* end of / */
 
 &pinctrl_aobus {
@@ -1016,6 +1030,13 @@
 		};
 	};
 
+	irblaster_pins1:irblaster_pin1 {
+		mux {
+			groups = "remote_out_ao6";
+			function = "ir_out";
+		};
+	};
+
 	pwmleds_pins:pwmleds {
 
 		mux {
@@ -1037,6 +1058,16 @@
 		    groups = "i2c_sck_ao10",
 		    "i2c_sda_ao11";
 		    function = "i2c_ao";
+		};
+	};
+
+	jtag_apao_pins:jtag_apao_pin {
+		mux {
+			groups = "GPIOAO_3",
+			"GPIOAO_4",
+			"GPIOAO_5",
+			"GPIOAO_7";
+			function = "gpio_aobus";
 		};
 	};
 };
@@ -1377,6 +1408,16 @@
 		mux {
 			groups ="pwm_d_dv";
 			function = "pwm_d";
+		};
+	};
+
+	jtag_apee_pins:jtag_apee_pin {
+		mux {
+			groups = "GPIOC_0",
+			"GPIOC_1",
+			"GPIOC_2",
+			"GPIOC_3";
+			function = "gpio_periphs";
 		};
 	};
 };

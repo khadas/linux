@@ -164,12 +164,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
-
-		/*vbi reserved mem*/
-		vbi_reserved:linux,vbi {
-			compatible = "amlogic, vbi-mem";
-			size = <0x0 0x100000>;
-		};
 	};
 
 	amlogic_battery:dummy-battery {
@@ -231,7 +225,7 @@
 		reg = <0x0 0xff3f0000 0x0 0x10000
 			0x0 0xff634540 0x0 0x8
 			0x0 0xff634558 0x0 0xc
-			0x0 0xffd01084 0x0 0x4>;
+			0x0 0xffd01008 0x0 0x4>;
 		interrupts = <0 8 1
 				0 9 1>;
 
@@ -572,11 +566,9 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		memory-region = <&vbi_reserved>;
 		dev_name = "vbi";
 		status = "okay";
 		interrupts = <0 83 1>;
-		reserve-iomap = "true";
 	};
 
 	tvafe_avin_detect {
@@ -626,21 +618,15 @@
 	};
 
 	tuner: tuner {
+		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_name = "mxl661_tuner";
-		tuner_i2c_adap = <&i2c1>;
-		tuner_i2c_addr = <0x60>;
-		tuner_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(1)
-					 */
-		tuner_xtal_cap = <30>; /* when tuner_xtal_mode = 1, set 25 */
+		tuner0_i2c_addr = <0x61>;
+		tuner1_i2c_addr = <0x62>;
 	};
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "okay";
+		status = "disabled";
 		tuner = <&tuner>;
 		btsc_sap_mode = <1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
@@ -1210,8 +1196,9 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-spdif-codec";
 		pinctrl-names = "audio_spdif_out", "audio_spdif_out_mute";
-		pinctrl-0 = <&audio_spdif_out_pins>;
-		pinctrl-1 = <&audio_spdif_out_mute_pins>;
+		/* disable spdif pin mux temporary, enable it if necessary */
+		/*pinctrl-0 = <&audio_spdif_out_pins>;*/
+		/*pinctrl-1 = <&audio_spdif_out_mute_pins>;*/
 	};
 
 	pcm_codec: pcm_codec{
@@ -1338,12 +1325,17 @@
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
 		status = "okay";
-		fe0_mode = "internal";
-		fe0_tuner = <&tuner>;
-		/*"parallel","serial","disable"*/
-		ts2 = "parallel";
-		ts2_control = <0>;
-		ts2_invert = <0>;
+		fe0_mode = "external";
+		fe0_demod = "Si2168";
+		fe0_i2c_adap_id = <&i2c1>;
+		fe0_demod_i2c_addr = <0x64>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIODV_6 GPIO_ACTIVE_HIGH>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
 		interrupts = <0 23 1
 					0 5 1
 					0 53 1
@@ -1358,16 +1350,31 @@
 						"dvr1_irq",
 						"dvrfill0_fill",
 						"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
 		clocks = <&clkc CLKID_DEMUX
 			&clkc CLKID_ASYNC_FIFO
 			&clkc CLKID_AHB_ARB0
 			&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
+
+	dvbci {
+		compatible = "amlogic, dvbci";
+		dev_name = "dvbci";
+		io_type = <2>;//0:iobus,1:spi,2:cimax
+		cimax {
+			io_type = <1>;//0:spi,1:usb
+			usb {
+				rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-txlx";
 		dev_name = "aml_dtv_demod";
-		status = "okay";
+		status = "disabled";
 
 		//pinctrl-names="dtvdemod_agc";
 		//pinctrl-0=<&dtvdemod_agc>;
@@ -1388,28 +1395,6 @@
 		cma_flag = <1>;
 		cma_mem_size = <8>;
 		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-	};
-	dvbfe {
-		compatible = "amlogic, dvbfe";
-		dev_name = "dvbfe";
-		status = "disabled";
-		dtv_demod0 = "AMLDEMOD";
-		fe0_dtv_demod = <0>;
-		fe0_ts = <2>;
-		fe0_dev = <0>;
-		dtv_demod0_mem = <0>;
-		dtv_demod0_spectrum = <1>;
-		dtv_demod0_cma_flag = <1>;
-		dtv_demod0_cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-		tuner0 = "si2151_tuner";
-		tuner0_i2c_adap_id = <2>;
-		tuner0_i2c_addr = <0x60>;
-		//tuner0_reset_value = <0>;
-		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
-		fe0_tuner = <0>;
-		atv_demod0 = "aml_atv_demod";
-		fe0_atv_demod = <0>;
 	};
 
 	thermal-zones {
@@ -1554,7 +1539,7 @@
 	/*lcd_extern*/
 	lcd_extern_off_pins:lcd_extern_off_pin {
 		mux {
-			pins = "GPIOH_2",
+			groups = "GPIOH_2",
 				"GPIOH_3";
 			function = "gpio_periphs";
 			/*output-high;*/
@@ -1566,59 +1551,68 @@
 	/*backlight*/
 	bl_pwm_on_pins:bl_pwm_on_pin {
 		mux {
-			pins = "pwm_b";
+			groups = "pwm_b";
 			function = "pwm_b";
 		};
 	};
 	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z6";
+			groups = "pwm_vs_z6";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
-			pins = "GPIOZ_6";
+			groups = "GPIOZ_6";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
 	bl_pwm_combo_0_on_pins:bl_pwm_combo_0_on_pin {
 		mux {
-			pins = "pwm_b";
+			groups = "pwm_b";
 			function = "pwm_b";
 		};
 	};
 	bl_pwm_combo_1_on_pins:bl_pwm_combo_1_on_pin {
 		mux {
-			pins = "pwm_c_z";
+			groups = "pwm_c_z";
 			function = "pwm_c";
 		};
 	};
 	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z6";
+			groups = "pwm_vs_z6";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z7";
+			groups = "pwm_vs_z7";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
 		mux {
-			pins = "GPIOZ_6",
+			groups = "GPIOZ_6",
 				"GPIOZ_7";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		mux {
+			groups = "tsin_d0_a_dv",
+			"tsin_clk_a_dv",
+			"tsin_sop_a_dv",
+			"tsin_valid_a_dv";
+			function = "tsin_a";
+		};
+	};
 };
 
 &uart_A {
-	status = "okay";
+	status = "disabled";
 };
 
 &audio_data{

@@ -94,6 +94,12 @@
 #define AMSTREAM_IOC_CLEAR_VIDEOPIP _IOW((_A_M), 0x24, int)
 #define AMSTREAM_IOC_CLEAR_PIP_VBUF _IO((_A_M), 0x25)
 
+#define AMSTREAM_IOC_GET_DISPLAYPATH  _IOW((_A_M), 0x26, int)
+#define AMSTREAM_IOC_SET_DISPLAYPATH  _IOW((_A_M), 0x27, int)
+
+#define AMSTREAM_IOC_GET_PIP_DISPLAYPATH  _IOW((_A_M), 0x28, int)
+#define AMSTREAM_IOC_SET_PIP_DISPLAYPATH  _IOW((_A_M), 0x29, int)
+
 #define AMSTREAM_IOC_GLOBAL_GET_VIDEOPIP_OUTPUT  _IOR((_A_M), 0x2b, int)
 #define AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT  _IOW((_A_M), 0x2c, int)
 #define AMSTREAM_IOC_GET_VIDEOPIP_DISABLE  _IOR((_A_M), 0x2d, int)
@@ -224,6 +230,9 @@
 #define AMSTREAM_IOC_SET_PTR _IOW((_A_M), 0xc6, struct am_ioctl_parm_ptr)
 #define AMSTREAM_IOC_GET_AVINFO _IOR((_A_M), 0xc7, struct av_param_info_t)
 #define AMSTREAM_IOC_GET_QOSINFO _IOR((_A_M), 0xc8, struct av_param_qosinfo_t)
+
+#define AMSTREAM_IOC_SET_CRC _IOW((_A_M), 0xc9, struct usr_crc_info_t)
+#define AMSTREAM_IOC_GET_CRC_CMP_RESULT _IOWR((_A_M), 0xca, int)
 
 
 #define TRICKMODE_NONE       0x00
@@ -518,7 +527,12 @@ struct userdata_param_t {
 	struct userdata_meta_info_t meta_info; /*output*/
 };
 
-
+struct usr_crc_info_t {
+	u32 id;
+	u32 pic_num;
+	u32 y_crc;
+	u32 uv_crc;
+};
 
 /*******************************************************************
 * 0x100~~0x1FF : set cmd

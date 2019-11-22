@@ -1589,14 +1589,22 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	/* Queue a stop endpoint command, but only if this is
 	 * the first cancellation to be handled.
 	 */
+#ifdef CONFIG_AMLOGIC_USB
+	if (!(ep->ep_state & EP_STOP_CMD_PENDING)) {
+#else
 	if (!(ep->ep_state & EP_HALT_PENDING)) {
+#endif
 		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
 		if (!command) {
 			ret = -ENOMEM;
 			goto done;
 		}
+#ifdef CONFIG_AMLOGIC_USB
+		ep->ep_state |= EP_STOP_CMD_PENDING;
+#else
 		ep->ep_state |= EP_HALT_PENDING;
 		ep->stop_cmds_pending++;
+#endif
 		ep->stop_cmd_timer.expires = jiffies +
 			XHCI_STOP_EP_CMD_TIMEOUT * HZ;
 		add_timer(&ep->stop_cmd_timer);
@@ -1774,7 +1782,12 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 * process context, not interrupt context (or so documenation
 	 * for usb_set_interface() and usb_set_configuration() claim).
 	 */
+#ifdef CONFIG_AMLOGIC_CMA
+	if (xhci_endpoint_init(xhci, virt_dev, udev, ep,
+		 GFP_NOIO | __GFP_BDEV) < 0) {
+#else
 	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO) < 0) {
+#endif
 		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
 				__func__, ep->desc.bEndpointAddress);
 		return -ENOMEM;
@@ -3637,7 +3650,11 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* Stop any wayward timer functions (which may grab the lock) */
 	for (i = 0; i < 31; ++i) {
+#ifdef CONFIG_AMLOGIC_USB
+		virt_dev->eps[i].ep_state &= ~EP_STOP_CMD_PENDING;
+#else
 		virt_dev->eps[i].ep_state &= ~EP_HALT_PENDING;
+#endif
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 

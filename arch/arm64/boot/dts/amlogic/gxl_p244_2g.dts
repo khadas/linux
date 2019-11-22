@@ -76,7 +76,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7fc00000 0x0 0x400000>;
+			alloc-ranges = <0x0 0x7fc00000 0x0 0xc00000>;
 		};
 		//don't put other dts in front of logo_reserved
 
@@ -407,7 +407,8 @@
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0x0 0xc9410000 0x0 0x10000
 			0x0 0xc8834540 0x0 0x8
-			0x0 0xc8834558 0x0 0xc>;
+			0x0 0xc8834558 0x0 0xc
+			0x0 0xc1104408 0x0 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;
@@ -534,7 +535,7 @@
 				min_state = <500>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -549,9 +550,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -602,7 +600,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -781,7 +779,6 @@
 			"clk_ge2d_gate";
 	};
 
-
 	/* AUDIO MESON DEVICES */
 	i2s_dai: I2S {
 		#sound-dai-cells = <0>;
@@ -940,6 +937,15 @@
 			sound-dai = <&pcm_codec>;
 		};
 	};
+
+	amlkaraoke {
+		compatible = "amlogic, aml_karaoke";
+		dev_name = "aml_karaoke";
+		status = "okay";
+		interrupts = <0 48 1>;
+		interrupt-names = "aml_karaoke";
+	};
+
 	/* END OF AUDIO board specific */
 	rdma{
 		compatible = "amlogic, meson, rdma";
@@ -1213,6 +1219,7 @@
 		};
 	};//End unifykey
 };
+
 &efuse {
 	status = "ok";
 };

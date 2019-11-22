@@ -1554,7 +1554,8 @@ static bool is_dvbv3_delsys(u32 delsys)
 #ifdef CONFIG_AMLOGIC_MODIFY /* added by Amlogic 20180720 */
 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC) ||
-		 (delsys == SYS_DTMB);
+		 (delsys == SYS_DTMB) || (delsys == SYS_DVBS2) ||
+		 (delsys == SYS_DVBT2);
 #else
 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC);

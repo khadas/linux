@@ -33,11 +33,6 @@
 
 #ifdef CONFIG_MMU
 
-#ifdef CONFIG_AMLOGIC_VMAP
-/*
- * TASK_SIZE - the maximum size of a user space task.
- * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
- */
 #ifdef CONFIG_AMLOGIC_KASAN32
 /*
  * if open AMLOGIC_KASAN32, PAGE_OFFSET is set to 0xD0000000
@@ -45,18 +40,19 @@
  * can be 0xC0000000 and total 256mb space for vmalloc
  */
 #define VMALLOC_START		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_256M))
-#define TASK_SIZE		(VMALLOC_START - UL(SZ_128M))
 #define KMEM_END		(0xffa00000UL)
+#define TASK_SIZE		(VMALLOC_START - UL(SZ_128M))
 #else /* CONFIG_AMLOGIC_KASAN32 */
-#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_64M))
-#endif
-#else
 /*
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
+#ifdef CONFIG_AMLOGIC_VMAP
+#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_64M))
+#else
 #define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
 #endif /* CONFIG_AMLOGIC_VMAP */
+#endif
 #define TASK_UNMAPPED_BASE	ALIGN(TASK_SIZE / 3, SZ_16M)
 
 /*
@@ -64,17 +60,11 @@
  */
 #define TASK_SIZE_26		(UL(1) << 26)
 
-#ifdef CONFIG_AMLOGIC_VMAP
-#ifndef CONFIG_THUMB2_KERNEL
 #ifdef CONFIG_AMLOGIC_KASAN32
 #define MODULES_VADDR		(PAGE_OFFSET - SZ_16M + SZ_4M + SZ_2M)
-#else
+#elif defined(CONFIG_AMLOGIC_VMAP)
 #define MODULES_VADDR		(PAGE_OFFSET - SZ_64M)
-#endif /* CONFIG_AMLOGIC_KASAN32 */
 #else
-#define MODULES_VADDR		(PAGE_OFFSET - SZ_8M)
-#endif
-#else	/* CONFIG_AMLOGIC_VMAP */
 /*
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.

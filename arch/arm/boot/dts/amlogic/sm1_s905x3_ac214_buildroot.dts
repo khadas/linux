@@ -340,7 +340,7 @@
 		ts0_invert = <0>;
 		interrupts = <0 23 1
 		0 5 1
-		0 21 1
+		0 53 1
 		0 19 1
 		0 25 1
 		0 18 1
@@ -1339,30 +1339,6 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
-		status = "okay";
-	};
-
-	earc:earc {
-		compatible = "amlogic, sm1-snd-earc";
-		#sound-dai-cells = <0>;
-
-		clocks = <&clkaudio CLKID_AUDIO_GATE_EARCRX
-			&clkaudio CLKID_EARCRX_CMDC
-			&clkaudio CLKID_EARCRX_DMAC
-			&clkc CLKID_FCLK_DIV5
-			&clkc CLKID_FCLK_DIV3
-			>;
-		clock-names = "rx_gate",
-			"rx_cmdc",
-			"rx_dmac",
-			"rx_cmdc_srcpll",
-			"rx_dmac_srcpll";
-
-		interrupts = <
-			GIC_SPI 88 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 87 IRQ_TYPE_EDGE_RISING
-		>;
-		interrupt-names = "rx_cmdc", "rx_dmac";
 
 		status = "okay";
 	};
@@ -1532,13 +1508,16 @@
 
 		status = "disabled";
 	};
+
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1554,6 +1533,10 @@
 		status = "okay";
 	};
 }; /* end of audiobus */
+
+&earc {
+	status = "okay";
+};
 
 &pinctrl_periphs {
 	tdmout_a: tdmout_a {

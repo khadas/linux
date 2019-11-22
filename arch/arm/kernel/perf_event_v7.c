@@ -612,6 +612,49 @@ ARMV7_EVENT_ATTR(inst_spec, ARMV7_PERFCTR_INSTR_SPEC);
 ARMV7_EVENT_ATTR(ttbr_write_retired, ARMV7_PERFCTR_TTBR_WRITE);
 ARMV7_EVENT_ATTR(bus_cycles, ARMV7_PERFCTR_BUS_CYCLES);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* a53/a55 common events */
+ARMV7_EVENT_ATTR(a5x_stall_frontend_cache, 0xe1);
+ARMV7_EVENT_ATTR(a5x_stall_frontend_tlb, 0xe2);
+ARMV7_EVENT_ATTR(a5x_stall_frontend_pderr, 0xe3);
+ARMV7_EVENT_ATTR(a5x_stall_backend_ilock_agu, 0xe5);
+ARMV7_EVENT_ATTR(a5x_stall_backend_ilock_fpu, 0xe6);
+ARMV7_EVENT_ATTR(a5x_stall_backend_ld, 0xe7);
+ARMV7_EVENT_ATTR(a5x_stall_backend_st, 0xe8);
+ARMV7_EVENT_ATTR(a5x_l2d_cache, 0x16);
+ARMV7_EVENT_ATTR(a5x_l2d_cache_refill, 0x17);
+
+/* a55 events */
+ARMV7_EVENT_ATTR(a55_stall_frontend, 0x23);
+ARMV7_EVENT_ATTR(a55_stall_backend, 0x24);
+ARMV7_EVENT_ATTR(a55_stall_backend_ilock, 0xe4);
+ARMV7_EVENT_ATTR(a55_l1d_cache_refill_inner, 0x44);
+ARMV7_EVENT_ATTR(a55_l1d_cache_refill_outer, 0x45);
+ARMV7_EVENT_ATTR(a55_l1d_cache_refill_prefetch, 0xc2);
+ARMV7_EVENT_ATTR(a55_l2d_cache_refill_prefetch, 0xc1);
+ARMV7_EVENT_ATTR(a55_l3d_cache_refill_prefetch, 0xc0);
+ARMV7_EVENT_ATTR(a55_stall_backend_ld_cache, 0xe9);
+ARMV7_EVENT_ATTR(a55_stall_backend_ld_tlb, 0xea);
+ARMV7_EVENT_ATTR(a55_stall_backend_st_stb, 0xeb);
+ARMV7_EVENT_ATTR(a55_stall_backend_st_tlb, 0xec);
+ARMV7_EVENT_ATTR(a55_l1d_cache_rd, 0x40);
+ARMV7_EVENT_ATTR(a55_l1d_cache_wr, 0x41);
+ARMV7_EVENT_ATTR(a55_l1d_cache_refill_rd, 0x42);
+ARMV7_EVENT_ATTR(a55_l1d_cache_refill_wr, 0x43);
+ARMV7_EVENT_ATTR(a55_l2d_cache_rd, 0x50);
+ARMV7_EVENT_ATTR(a55_l2d_cache_wr, 0x51);
+ARMV7_EVENT_ATTR(a55_l2d_cache_refill_rd, 0x52);
+ARMV7_EVENT_ATTR(a55_l2d_cache_refill_wr, 0x53);
+ARMV7_EVENT_ATTR(a55_l3d_cache_rd, 0xa0);
+ARMV7_EVENT_ATTR(a55_l3d_cache_refill_rd, 0xa2);
+
+/* a53 events */
+ARMV7_EVENT_ATTR(a53_cache_refill_prefetch, 0xc2);
+ARMV7_EVENT_ATTR(a53_scu_snooped, 0xc8);
+ARMV7_EVENT_ATTR(a53_stall_backend_st_stb, 0xc7);
+ARMV7_EVENT_ATTR(a53_stall_frontend_other, 0xe0);
+#endif
+
 static struct attribute *armv7_pmuv2_event_attrs[] = {
 	&armv7_event_attr_sw_incr.attr.attr,
 	&armv7_event_attr_l1i_cache_refill.attr.attr,
@@ -643,6 +686,46 @@ static struct attribute *armv7_pmuv2_event_attrs[] = {
 	&armv7_event_attr_inst_spec.attr.attr,
 	&armv7_event_attr_ttbr_write_retired.attr.attr,
 	&armv7_event_attr_bus_cycles.attr.attr,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* a55/a53 common events */
+	&armv7_event_attr_a5x_stall_frontend_cache.attr.attr, //0xe1
+	&armv7_event_attr_a5x_stall_frontend_tlb.attr.attr, //0xe2
+	&armv7_event_attr_a5x_stall_frontend_pderr.attr.attr, //0xe3
+	&armv7_event_attr_a5x_stall_backend_ilock_agu.attr.attr, //0xe5
+	&armv7_event_attr_a5x_stall_backend_ilock_fpu.attr.attr, //0xe6
+	&armv7_event_attr_a5x_stall_backend_ld.attr.attr,  //0xe7
+	&armv7_event_attr_a5x_stall_backend_st.attr.attr,  //0xe8
+	&armv7_event_attr_a5x_l2d_cache.attr.attr, //0x16
+	&armv7_event_attr_a5x_l2d_cache_refill.attr.attr, //0x17
+	/* a55 events */
+	&armv7_event_attr_a55_stall_frontend.attr.attr, //0x23
+	&armv7_event_attr_a55_stall_backend.attr.attr,  //0x24
+	&armv7_event_attr_a55_stall_backend_ilock.attr.attr,  //0xe4
+	&armv7_event_attr_a55_stall_backend_ld_cache.attr.attr,  //0xe9
+	&armv7_event_attr_a55_stall_backend_ld_tlb.attr.attr,  //0xea
+	&armv7_event_attr_a55_stall_backend_st_stb.attr.attr,  //0xeb
+	&armv7_event_attr_a55_stall_backend_st_tlb.attr.attr,  //0xec
+	&armv7_event_attr_a55_l1d_cache_refill_inner.attr.attr,  //0x44
+	&armv7_event_attr_a55_l1d_cache_refill_outer.attr.attr,  //0x45
+	&armv7_event_attr_a55_l1d_cache_refill_prefetch.attr.attr,  //0xc2
+	&armv7_event_attr_a55_l2d_cache_refill_prefetch.attr.attr,  //0xc1
+	&armv7_event_attr_a55_l3d_cache_refill_prefetch.attr.attr,  //0xc0
+	&armv7_event_attr_a55_l1d_cache_rd.attr.attr, //0x40
+	&armv7_event_attr_a55_l1d_cache_wr.attr.attr, //0x41
+	&armv7_event_attr_a55_l1d_cache_refill_rd.attr.attr, //0x42
+	&armv7_event_attr_a55_l1d_cache_refill_wr.attr.attr, //0x43
+	&armv7_event_attr_a55_l2d_cache_rd.attr.attr, //0x50
+	&armv7_event_attr_a55_l2d_cache_wr.attr.attr, //0x51
+	&armv7_event_attr_a55_l2d_cache_refill_rd.attr.attr, //0x52
+	&armv7_event_attr_a55_l2d_cache_refill_wr.attr.attr, //0x53
+	&armv7_event_attr_a55_l3d_cache_rd.attr.attr, //0xa0
+	&armv7_event_attr_a55_l3d_cache_refill_rd.attr.attr, //0xa2
+	/* a53 events */
+	&armv7_event_attr_a53_cache_refill_prefetch.attr.attr, //0xc2
+	&armv7_event_attr_a53_scu_snooped.attr.attr, //0xc8
+	&armv7_event_attr_a53_stall_backend_st_stb.attr.attr, //0xc7
+	&armv7_event_attr_a53_stall_frontend_other.attr.attr, //0xe0
+#endif
 	NULL,
 };
 
@@ -951,13 +1034,6 @@ static void armv7pmu_disable_event(struct perf_event *event)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/perf/arm_pmu.h>
-
-static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev);
-
-void amlpmu_handle_irq_ipi(void *arg)
-{
-	armv7pmu_handle_irq(-1, amlpmu_ctx.pmu);
-}
 #endif
 
 static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
@@ -976,9 +1052,11 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	/* amlpmu have routed the interrupt successfully, return IRQ_HANDLED */
-	if (amlpmu_handle_irq(cpu_pmu,
-			      irq_num,
-			      armv7_pmnc_has_overflowed(pmnc)))
+	amlpmu_handle_irq(cpu_pmu,
+			irq_num,
+			armv7_pmnc_has_overflowed(pmnc));
+
+	if (!armv7_pmnc_has_overflowed(pmnc))
 		return IRQ_HANDLED;
 #else
 	/*

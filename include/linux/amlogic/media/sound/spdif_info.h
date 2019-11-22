@@ -29,6 +29,8 @@ struct iec958_chsts {
 	unsigned short chstat1_r;
 };
 
+bool spdifout_is_raw(void);
+
 extern bool spdif_is_4x_clk(void);
 
 extern void spdif_get_channel_status_info(struct iec958_chsts *chsts,

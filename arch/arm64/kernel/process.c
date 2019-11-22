@@ -62,6 +62,10 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/secmon.h>
+#endif
+
 /*
  * Function pointers to optional machine specific functions
  */
@@ -195,6 +199,27 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 	if (addr < PAGE_OFFSET || addr > -256UL)
 		return;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * Treating data in general purpose register as an address
+	 * and dereferencing it is quite a dangerous behaviour,
+	 * especially when it belongs to secure monotor region or
+	 * ioremap region(for arm64 vmalloc region is already filtered
+	 * out), which can lead to external abort on non-linefetch and
+	 * can not be protected by probe_kernel_address.
+	 * We need more strict filtering rules
+	 */
+
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * filter out secure monitor region
+	 */
+	if (addr <= (unsigned long)high_memory)
+		if (within_secmon_region(addr))
+			return;
+#endif
+#endif
+
 	printk("\n%s: %#lx:\n", name, addr);
 
 	/*
@@ -268,6 +293,23 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 		pr_cont("\n");
 	}
 }
+
+static void show_vmalloc_pfn(struct pt_regs *regs)
+{
+	int i;
+	struct page *page;
+
+	for (i = 0; i < 16; i++) {
+		if (is_vmalloc_or_module_addr((void *)regs->regs[i])) {
+			page = vmalloc_to_page((void *)regs->regs[i]);
+			if (!page)
+				continue;
+			pr_info("R%-2d : %016llx, PFN:%5lx\n",
+				i, regs->regs[i], page_to_pfn(page));
+		}
+	}
+
+}
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 static void show_extra_register_data(struct pt_regs *regs, int nbytes)
@@ -319,7 +361,7 @@ static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 	set_fs(fs);
 }
 
-static void show_vma(struct mm_struct *mm, unsigned long addr)
+void show_vma(struct mm_struct *mm, unsigned long addr)
 {
 	struct vm_area_struct *vma;
 	struct file *file;
@@ -443,6 +485,7 @@ void __show_regs(struct pt_regs *regs)
 		show_vma(current->mm, instruction_pointer(regs));
 		show_vma(current->mm, lr);
 	}
+	show_vmalloc_pfn(regs);
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 	printk("pc : [<%016llx>] lr : [<%016llx>] pstate: %08llx\n",
 	       regs->pc, lr, regs->pstate);

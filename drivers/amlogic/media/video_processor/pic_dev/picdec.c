@@ -271,60 +271,64 @@ static int render_frame(struct ge2d_context_s *context,
 	h_phase = (input->frame_width << 18) / dev->disp_width;
 	v_phase = (input->frame_height << 18) / dev->disp_height;
 	phase = max(h_phase, v_phase);
+
+	new_vf = &vfpool[fill_ptr];
+	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
+
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
 			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
 			dev->target_width = dev->disp_width;
 			dev->target_height = dev->disp_height;
 		}
+		new_vf->width  = dev->target_width;
+		new_vf->height = dev->target_height;
 		break;
 	case 1:
-		if ((input->frame_width >= ZOOM_WIDTH) &&
-			(input->frame_height >= ZOOM_HEIGHT)) {
-			if ((input->frame_width < dev->disp_width) &&
-			(input->frame_height < dev->disp_height)) {
-				dev->target_width = input->frame_width;
-				dev->target_height = input->frame_height;
-			} else {
-				dev->target_width = dev->disp_width;
-				dev->target_height = dev->disp_height;
-			}
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
+			dev->target_width = input->frame_width;
+			dev->target_height = input->frame_height;
 		} else {
 			dev->target_width = dev->disp_width;
 			dev->target_height = dev->disp_height;
 		}
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
 	case 2:
-		if ((phase <= (1 << 18)) && (phase >= (1 << 16))) {
+		if (phase >= (1 << 16)) { /* ratio >= 1/4 */
 			input->frame_width  =
 			(input->frame_width << 18) / phase;
 			input->frame_height =
 			(input->frame_height << 18) / phase;
-		} else if (phase < (1 << 16)) {
+		} else if (phase < (1 << 16)) { /* ratio < 1/4 */
 			input->frame_width  <<= 2;
 			input->frame_height <<= 2;
 		}
-		dev->target_width = dev->disp_width;
-		dev->target_height = dev->disp_height;
+		dev->target_width = input->frame_width;
+		dev->target_height = input->frame_height;
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
 	default:
 		dev->target_width  = dev->disp_width;
 		dev->target_height = dev->disp_height;
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
+
 	}
 	aml_pr_info(1, "p2p_mode :%d ----render buffer index is %d\n",
 		dev->p2p_mode, index);
 	aml_pr_info(1, "render target width: %d ; target height: %d\n",
 		dev->target_width, dev->target_height);
-	new_vf = &vfpool[fill_ptr];
-	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
-	new_vf->width =  dev->target_width;
-	new_vf->height = dev->target_height;
+
 	if (dev->output_format_mode)
 		new_vf->type =
 			VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
@@ -384,60 +388,63 @@ static int render_frame_block(void)
 	h_phase = (input->frame_width << 18) / dev->disp_width;
 	v_phase = (input->frame_height << 18) / dev->disp_height;
 	phase = max(h_phase, v_phase);
+
+	new_vf = &vfpool[fill_ptr];
+	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
+
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
-			dev->target_width  = input->frame_width;
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
+			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
-			dev->target_width  = dev->disp_width;
+			dev->target_width = dev->disp_width;
 			dev->target_height = dev->disp_height;
 		}
+		new_vf->width  = dev->target_width;
+		new_vf->height = dev->target_height;
 		break;
 	case 1:
-		if ((input->frame_width >=  ZOOM_WIDTH) &&
-			(input->frame_height >= ZOOM_HEIGHT)) {
-			if ((input->frame_width < dev->disp_width) &&
-			(input->frame_height < dev->disp_height)) {
-				dev->target_width  = input->frame_width;
-				dev->target_height = input->frame_height;
-			} else {
-				dev->target_width  = dev->disp_width;
-				dev->target_height = dev->disp_height;
-			}
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
+			dev->target_width = input->frame_width;
+			dev->target_height = input->frame_height;
 		} else {
-			dev->target_width  = dev->disp_width;
+			dev->target_width = dev->disp_width;
 			dev->target_height = dev->disp_height;
 		}
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
 	case 2:
-		if ((phase <= (1 << 18)) && (phase >= (1 << 16))) {
+		if (phase >= (1 << 16)) { /* ratio >= 1/4 */
 			input->frame_width  =
 			(input->frame_width << 18) / phase;
 			input->frame_height =
 			(input->frame_height << 18) / phase;
-		} else if (phase < (1 << 16)) {
+		} else if (phase < (1 << 16)) { /* ratio < 1/4 */
 			input->frame_width  <<= 2;
 			input->frame_height <<= 2;
 		}
-		dev->target_width = dev->disp_width;
-		dev->target_height = dev->disp_height;
+		dev->target_width = input->frame_width;
+		dev->target_height = input->frame_height;
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
 	default:
 		dev->target_width  = dev->disp_width;
 		dev->target_height = dev->disp_height;
+		new_vf->width  = dev->disp_width;
+		new_vf->height = dev->disp_height;
 		break;
 	}
 	aml_pr_info(1, "p2p_mode :%d ----render buffer index is %d\n",
 		dev->p2p_mode, index);
 	aml_pr_info(1, "render target width: %d ; target height: %d\n",
 		dev->target_width, dev->target_height);
-	new_vf = &vfpool[fill_ptr];
-	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
-	new_vf->width = picdec_device.target_width;
-	new_vf->height = picdec_device.target_height;
+
 	if (dev->output_format_mode)
 		new_vf->type =
 			VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
@@ -845,42 +852,6 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 	return 0;
 }
 
-static void rotate_adjust(int w_in, int h_in, int *w_out, int *h_out, int angle)
-{
-	int w = 0, h = 0, disp_w = 0, disp_h = 0;
-
-	disp_w = *w_out;
-	disp_h = *h_out;
-	if ((angle == 90) || (angle == 270)) {
-		if ((w_in < disp_h) && (h_in < disp_w)) {
-			w = h_in;
-			h = w_in;
-		} else {
-			h = min_t(int, w_in, disp_h);
-			w = h_in * h / w_in;
-			if (w > disp_w) {
-				h = (h * disp_w) / w;
-				w = disp_w;
-			}
-		}
-	} else {
-		if ((w_in < disp_w) && (h_in < disp_h)) {
-			w = w_in;
-			h = h_in;
-		} else {
-			if ((w_in * disp_h) > (disp_w * h_in)) {
-				w = disp_w;
-				h = disp_w * h_in / w_in;
-			} else {
-				h = disp_h;
-				w = disp_h * w_in / h_in;
-			}
-		}
-	}
-	*w_out = w;
-	*h_out = h;
-}
-
 static int copy_phybuf_to_file(ulong phys, u32 size,
 					   struct file *fp, loff_t pos)
 {
@@ -904,8 +875,6 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 	int src_canvas_id = picdec_canvas_table[2];
 	int canvas_width = (picdec_device.origin_width + 0x1f) & ~0x1f;
 	int canvas_height = (picdec_device.origin_height + 0xf) & ~0xf;
-	int frame_width = picdec_input.frame_width;
-	int frame_height = picdec_input.frame_height;
 	int dst_top, dst_left, dst_width, dst_height;
 	struct file *filp = NULL;
 	loff_t pos = 0;
@@ -1015,33 +984,16 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 	dst_left = 0;
 	dst_width =  picdec_device.target_width;
 	dst_height = picdec_device.target_height;
-	rotate_adjust(frame_width, frame_height, &dst_width, &dst_height,
-				  0);
 	dst_width  = (dst_width + 0x1) & ~0x1;
 	dst_height = (dst_height + 0x1) & ~0x1;
+
 	switch (picdec_device.p2p_mode) {
 	case 0:
 		dst_left = 0;
 		dst_top = 0;
-		vf->width  = dst_width;
-		vf->height = dst_height;
 		break;
 	case 1:
-		if ((picdec_input.frame_width >=  ZOOM_WIDTH) &&
-		(picdec_input.frame_height >= ZOOM_HEIGHT)) {
-			dst_left = 0;
-			dst_top = 0;
-			vf->width  = dst_width;
-			vf->height = dst_height;
-		} else {
-			dst_left = (picdec_device.disp_width - dst_width) >> 1;
-			dst_top = (picdec_device.disp_height - dst_height) >> 1;
-		}
-		break;
 	case 2:
-		dst_left = (picdec_device.disp_width - dst_width) >> 1;
-		dst_top = (picdec_device.disp_height - dst_height) >> 1;
-		break;
 	default:
 		dst_left = (picdec_device.disp_width - dst_width) >> 1;
 		dst_top = (picdec_device.disp_height - dst_height) >> 1;
@@ -1051,6 +1003,10 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 					picdec_device.origin_height,
 					dst_left, dst_top,
 					dst_width, dst_height);
+	aml_pr_info(1, "%dx%d -> (%d,%d) %dx%d, vframe--w:%d h:%d\n",
+		picdec_device.origin_width, picdec_device.origin_height,
+		dst_left, dst_top, dst_width, dst_height,
+		vf->width, vf->height);
 /*dump ge2d output buffer data. use this function should close selinux*/
 	if ((dump_file_flag) && (picdec_device.origin_width > 100)) {
 		if (picdec_device.output_format_mode) {

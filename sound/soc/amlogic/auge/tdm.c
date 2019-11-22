@@ -958,12 +958,6 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	if (p_tdm->chipinfo && (!p_tdm->chipinfo->no_mclkpad_ctrl)) {
-		ret = aml_tdm_set_clk_pad(p_tdm);
-		if (ret)
-			return ret;
-	}
-
 	/* Must enabe channel number for VAD */
 	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		&& (vad_tdm_is_running(p_tdm->id)))
@@ -1730,6 +1724,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (p_tdm->chipinfo && (!p_tdm->chipinfo->no_mclkpad_ctrl)) {
+		ret = aml_tdm_set_clk_pad(p_tdm);
+		if (ret)
+			dev_warn_once(&pdev->dev, "clk_pad set failed\n");
+	}
+
 	/* complete mclk for tdm */
 	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) == 0xa)
 		meson_clk_measure((1<<16) | 0x67);
@@ -1786,11 +1786,11 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 
 	/*mute default clk */
 	if (p_tdm->start_clk_enable == 1 && p_tdm->pin_ctl) {
-		struct pinctrl_state *state = NULL;
+		struct pinctrl_state *ps = NULL;
 
-		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
-		if (!IS_ERR_OR_NULL(state)) {
-			pinctrl_select_state(p_tdm->pin_ctl, state);
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			pinctrl_select_state(p_tdm->pin_ctl, ps);
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}

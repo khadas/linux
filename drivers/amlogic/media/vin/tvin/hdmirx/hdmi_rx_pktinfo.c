@@ -127,44 +127,44 @@ void rx_pkt_debug(void)
 {
 	uint32_t data32;
 
-	rx_pr("\npktinfo size=%d\n", sizeof(union pktinfo));
-	rx_pr("infoframe_st size=%d\n", sizeof(union infoframe_u));
-	rx_pr("fifo_rawdata_st size=%d\n", sizeof(struct fifo_rawdata_st));
-	rx_pr("vsi_infoframe_st size=%d\n", sizeof(struct vsi_infoframe_st));
-	rx_pr("avi_infoframe_st size=%d\n", sizeof(struct avi_infoframe_st));
-	rx_pr("spd_infoframe_st size=%d\n", sizeof(struct spd_infoframe_st));
-	rx_pr("aud_infoframe_st size=%d\n", sizeof(struct aud_infoframe_st));
-	rx_pr("ms_infoframe_st size=%d\n", sizeof(struct ms_infoframe_st));
-	rx_pr("vbi_infoframe_st size=%d\n", sizeof(struct vbi_infoframe_st));
-	rx_pr("drm_infoframe_st size=%d\n", sizeof(struct drm_infoframe_st));
+	rx_pr("\npktinfo size=%lu\n", sizeof(union pktinfo));
+	rx_pr("infoframe_st size=%lu\n", sizeof(union infoframe_u));
+	rx_pr("fifo_rawdata_st size=%lu\n", sizeof(struct fifo_rawdata_st));
+	rx_pr("vsi_infoframe_st size=%lu\n", sizeof(struct vsi_infoframe_st));
+	rx_pr("avi_infoframe_st size=%lu\n", sizeof(struct avi_infoframe_st));
+	rx_pr("spd_infoframe_st size=%lu\n", sizeof(struct spd_infoframe_st));
+	rx_pr("aud_infoframe_st size=%lu\n", sizeof(struct aud_infoframe_st));
+	rx_pr("ms_infoframe_st size=%lu\n", sizeof(struct ms_infoframe_st));
+	rx_pr("vbi_infoframe_st size=%lu\n", sizeof(struct vbi_infoframe_st));
+	rx_pr("drm_infoframe_st size=%lu\n", sizeof(struct drm_infoframe_st));
 
-	rx_pr("acr_pkt_st size=%d\n",
-				sizeof(struct acr_pkt_st));
-	rx_pr("aud_sample_pkt_st size=%d\n",
-				sizeof(struct aud_sample_pkt_st));
-	rx_pr("gcp_pkt_st size=%d\n", sizeof(struct gcp_pkt_st));
-	rx_pr("acp_pkt_st size=%d\n", sizeof(struct acp_pkt_st));
-	rx_pr("isrc_pkt_st size=%d\n", sizeof(struct isrc_pkt_st));
-	rx_pr("onebit_aud_pkt_st size=%d\n",
-				sizeof(struct obasmp_pkt_st));
-	rx_pr("dst_aud_pkt_st size=%d\n",
-				sizeof(struct dstaud_pkt_st));
-	rx_pr("hbr_aud_pkt_st size=%d\n",
-				sizeof(struct hbraud_pkt_st));
-	rx_pr("gamut_Meta_pkt_st size=%d\n",
-				sizeof(struct gamutmeta_pkt_st));
-	rx_pr("aud_3d_smppkt_st size=%d\n",
-				sizeof(struct a3dsmp_pkt_st));
-	rx_pr("oneb3d_smppkt_st size=%d\n",
-				sizeof(struct ob3d_smppkt_st));
-	rx_pr("aud_mtdata_pkt_st size=%d\n",
-				sizeof(struct audmtdata_pkt_st));
-	rx_pr("mulstr_audsamp_pkt_st size=%d\n",
-				sizeof(struct msaudsmp_pkt_st));
-	rx_pr("onebmtstr_smaud_pkt_st size=%d\n",
-				sizeof(struct obmaudsmp_pkt_st));
-	rx_pr("emp size=%d\n",
-				sizeof(struct emp_pkt_st));
+	rx_pr("acr_pkt_st size=%lu\n",
+	      sizeof(struct acr_pkt_st));
+	rx_pr("aud_sample_pkt_st size=%lu\n",
+	      sizeof(struct aud_sample_pkt_st));
+	rx_pr("gcp_pkt_st size=%lu\n", sizeof(struct gcp_pkt_st));
+	rx_pr("acp_pkt_st size=%lu\n", sizeof(struct acp_pkt_st));
+	rx_pr("isrc_pkt_st size=%lu\n", sizeof(struct isrc_pkt_st));
+	rx_pr("onebit_aud_pkt_st size=%lu\n",
+	      sizeof(struct obasmp_pkt_st));
+	rx_pr("dst_aud_pkt_st size=%lu\n",
+	      sizeof(struct dstaud_pkt_st));
+	rx_pr("hbr_aud_pkt_st size=%lu\n",
+	      sizeof(struct hbraud_pkt_st));
+	rx_pr("gamut_Meta_pkt_st size=%lu\n",
+	      sizeof(struct gamutmeta_pkt_st));
+	rx_pr("aud_3d_smppkt_st size=%lu\n",
+	      sizeof(struct a3dsmp_pkt_st));
+	rx_pr("oneb3d_smppkt_st size=%lu\n",
+	      sizeof(struct ob3d_smppkt_st));
+	rx_pr("aud_mtdata_pkt_st size=%lu\n",
+	      sizeof(struct audmtdata_pkt_st));
+	rx_pr("mulstr_audsamp_pkt_st size=%lu\n",
+	      sizeof(struct msaudsmp_pkt_st));
+	rx_pr("onebmtstr_smaud_pkt_st size=%lu\n",
+	      sizeof(struct obmaudsmp_pkt_st));
+	rx_pr("emp size=%lu\n",
+	      sizeof(struct emp_pkt_st));
 	memset(&rxpktsts, 0, sizeof(struct rxpkt_st));
 
 	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);
@@ -185,7 +185,7 @@ void rx_pkt_debug(void)
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC1));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC2));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GAMUT_META));
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_EMP));
 
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
@@ -201,105 +201,105 @@ void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 	case PKT_TYPE_INFOFRAME_VSI:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.vs_info; */
-			memcpy(&pkt_info, &rx_pkt.vs_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.vs_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_vsi_ex(&pkt_info);
 		break;
 	case PKT_TYPE_INFOFRAME_AVI:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.avi_info; */
-			memcpy(&pkt_info, &rx_pkt.avi_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.avi_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_avi_ex(&pkt_info);
 		break;
 	case PKT_TYPE_INFOFRAME_SPD:
 		/* srcbuff = &rx.spd_info; */
-		memcpy(&pkt_info, &rx_pkt.spd_info,
-			sizeof(struct pd_infoframe_s));
+		memcpy(pkt_info, &rx_pkt.spd_info,
+		       sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_INFOFRAME_AUD:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.aud_pktinfo; */
-			memcpy(&pkt_info, &rx_pkt.aud_pktinfo,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.aud_pktinfo,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_audif_ex(&pkt_info);
 		break;
 	case PKT_TYPE_INFOFRAME_MPEGSRC:
 		/* srcbuff = &rx.mpegs_info; */
-		memcpy(&pkt_info, &rx_pkt.mpegs_info,
-			sizeof(struct pd_infoframe_s));
+		memcpy(pkt_info, &rx_pkt.mpegs_info,
+		       sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_INFOFRAME_NVBI:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.ntscvbi_info; */
-			memcpy(&pkt_info, &rx_pkt.ntscvbi_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.ntscvbi_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_ntscvbi_ex(&pkt_info);
 		break;
 	case PKT_TYPE_INFOFRAME_DRM:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.drm_info; */
-			memcpy(&pkt_info, &rx_pkt.drm_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.drm_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_drm_ex(&pkt_info);
 		break;
 	case PKT_TYPE_ACR:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.acr_info; */
-			memcpy(&pkt_info, &rx_pkt.acr_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.acr_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_acr_ex(&pkt_info);
 		break;
 	case PKT_TYPE_GCP:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.gcp_info; */
-			memcpy(&pkt_info, &rx_pkt.gcp_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.gcp_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_gcp_ex(&pkt_info);
 		break;
 	case PKT_TYPE_ACP:
 		/* srcbuff = &rx.acp_info; */
-		memcpy(&pkt_info, &rx_pkt.acp_info,
-			sizeof(struct pd_infoframe_s));
+		memcpy(pkt_info, &rx_pkt.acp_info,
+		       sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_ISRC1:
 		/* srcbuff = &rx.isrc1_info; */
-		memcpy(&pkt_info, &rx_pkt.isrc1_info,
-			sizeof(struct pd_infoframe_s));
+		memcpy(pkt_info, &rx_pkt.isrc1_info,
+		       sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_ISRC2:
 		/* srcbuff = &rx.isrc2_info; */
-		memcpy(&pkt_info, &rx_pkt.isrc2_info,
-			sizeof(struct pd_infoframe_s));
+		memcpy(pkt_info, &rx_pkt.isrc2_info,
+		       sizeof(struct pd_infoframe_s));
 		break;
 	case PKT_TYPE_GAMUT_META:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.gameta_info; */
-			memcpy(&pkt_info, &rx_pkt.gameta_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.gameta_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_gmd_ex(&pkt_info);
 		break;
 	case PKT_TYPE_AUD_META:
 		if (rx_pkt_get_fifo_pri())
 			/* srcbuff = &rx.amp_info; */
-			memcpy(&pkt_info, &rx_pkt.amp_info,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, &rx_pkt.amp_info,
+			       sizeof(struct pd_infoframe_s));
 		else
 			rx_pkt_get_amp_ex(&pkt_info);
 		break;
 	default:
 		if (pd_fifo_buf != NULL)
 			/* srcbuff = pd_fifo_buf; */
-			memcpy(&pkt_info, &pd_fifo_buf,
-				sizeof(struct pd_infoframe_s));
+			memcpy(pkt_info, pd_fifo_buf,
+			       sizeof(struct pd_infoframe_s));
 		else
 			pr_err("err:pd_fifo_buf is empty\n");
 		break;
@@ -336,7 +336,7 @@ void rx_debug_pktinfo(char input[][20])
 {
 	uint32_t sts = 0;
 	uint32_t enable = 0;
-	long res = 0;
+	uint32_t res = 0;
 
 	if (strncmp(input[1], "debugfifo", 9) == 0) {
 		/*open all pkt interrupt source for debug*/
@@ -351,7 +351,7 @@ void rx_debug_pktinfo(char input[][20])
 			enable |= _BIT(30);/* DRC_RCV*/
 		else
 			enable |= _BIT(9);/* DRC_RCV*/
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			enable |= _BIT(9);/* EMP_RCV*/
 		enable |= _BIT(20);/* GMD_RCV */
 		enable |= _BIT(19);/* AIF_RCV */
@@ -367,7 +367,7 @@ void rx_debug_pktinfo(char input[][20])
 		rx_pkt_status();
 	else if (strncmp(input[1], "dump", 7) == 0) {
 		/*check input type*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			rx_pr("error input:fmt is 0xValue\n");
 		rx_pkt_dump(res);
 	} else if (strncmp(input[1], "irqdisable", 10) == 0) {
@@ -394,7 +394,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			sts = _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				sts = _BIT(9);
 			else
 				rx_pr("no emp function\n");
@@ -428,7 +428,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			enable |= _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				enable |= _BIT(9);
 			else
 				rx_pr("no emp function\n");
@@ -440,7 +440,7 @@ void rx_debug_pktinfo(char input[][20])
 		/*hdmirx_irq_open()*/
 	} else if (strncmp(input[1], "fifopkten", 9) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			return;
 		rx_pr("pkt ctl disable:0x%x", res);
 		/*check pkt enable ctl bit*/
@@ -455,7 +455,7 @@ void rx_debug_pktinfo(char input[][20])
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
 	} else if (strncmp(input[1], "fifopktdis", 10) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			return;
 		rx_pr("pkt ctl disable:0x%x", res);
 		/*check pkt enable ctl bit*/
@@ -470,14 +470,14 @@ void rx_debug_pktinfo(char input[][20])
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
 	} else if (strncmp(input[1], "contentchk", 10) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0) {
+		if (kstrtou32(input[2], 16, &res) < 0) {
 			rx_pr("error input:fmt is 0xXX\n");
 			return;
 		}
 		rx_pkt_content_chk_en(res);
 	} else if (strncmp(input[1], "pdfifopri", 9) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0) {
+		if (kstrtou32(input[2], 16, &res) < 0) {
 			rx_pr("error input:fmt is 0xXX\n");
 			return;
 		}
@@ -515,7 +515,7 @@ static void rx_pktdump_vsi(void *pdata)
 	rx_pr("ieee: 0x%x\n", pktdata->ieee);
 	rx_pr("3d vdfmt: 0x%x\n", pktdata->sbpkt.vsi.vdfmt);
 
-	if (pktdata->length == E_DV_LENGTH_24) {
+	if (pktdata->length == E_PKT_LENGTH_24) {
 		/*dobly version v0 pkt*/
 
 	} else {
@@ -1351,21 +1351,25 @@ static int vsi_handler(struct hdmi_rx_ctrl *ctx)
  *	stop: 0x05,0x04
  *
  */
-void rx_get_vsi_info(void)
+uint8_t rx_get_vsi_info(void)
 {
 	struct vsi_infoframe_st *pkt;
+	uint8_t ret = E_VSI_NULL;
 	unsigned int tmp;
 
 	pkt = (struct vsi_infoframe_st *)&(rx_pkt.vs_info);
-
 	rx.vs_info_details._3d_structure = 0;
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
-	rx.vs_info_details.dolby_timeout = 0xffff;
-	if ((pkt->length == E_DV_LENGTH_27) &&
-		(pkt->ieee == 0x00d046)) {
-		/* dolby1.5 */
+	/* rx.vs_info_details.dolby_timeout = 0xffff; */
+	switch (pkt->ieee) {
+	case IEEE_DV15:
+		/* dolbyvision 1.5 */
+		ret = E_VSI_DV15;
+		if (pkt->length != E_PKT_LENGTH_27)
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi dv15 length err\n");
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
 		rx.vs_info_details.dolby_vision = tmp ? true : false;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
@@ -1377,26 +1381,43 @@ void rx_get_vsi_info(void)
 				(pkt->sbpkt.payload.data[0] & 0xf00);
 			rx.vs_info_details.eff_tmax_pq = tmp;
 		}
-	} else if (pkt->ieee == 0x000c03) {
-		/* dobly10 */
-		if (pkt->length == E_DV_LENGTH_24) {
-			rx.vs_info_details.dolby_vision = true;
-			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
-				rx.vs_info_details.dolby_timeout =
-					dv_nopacket_timeout;
-		} else if ((pkt->length == E_DV_LENGTH_5) &&
-			(pkt->sbpkt.payload.data[0] & 0xffff)) {
-			rx.vs_info_details.dolby_vision = false;
-		} else if ((pkt->length == E_DV_LENGTH_4) &&
-			((pkt->sbpkt.payload.data[0] & 0xff) == 0)) {
-			rx.vs_info_details.dolby_vision = false;
-		}
-	} else if (pkt->ieee == 0xd85dc4) {
-		/*TODO:hdmi2.1 spec vsi packet*/
+		break;
+	case IEEE_VSI21:
+		/* hdmi2.1 */
+		ret = E_VSI_VSI21;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
 		rx.vs_info_details.allm_mode = tmp ? true : false;
-	} else {
-		/*3d VSI*/
+		break;
+	case IEEE_HDR10PLUS:
+		/* HDR10+ */
+		ret = E_VSI_HDR10PLUS;
+		if ((pkt->length != E_PKT_LENGTH_27) ||
+			(pkt->pkttype != 0x01) ||
+			(pkt->ver_st.version != 0x01) ||
+			(((pkt->sbpkt.payload.data[1] >> 6) & 0x03) != 0x01))
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi hdr10+ length err\n");
+		/* consider hdr10+ is true when IEEE matched */
+		rx.vs_info_details.hdr10plus = true;
+		break;
+	case IEEE_VSI14:
+		/* dolbyvision1.0 */
+		ret = E_VSI_4K3D;
+		if (pkt->length == E_PKT_LENGTH_24) {
+			rx.vs_info_details.dolby_vision = true;
+			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0) {
+				rx.vs_info_details.dolby_timeout =
+					dv_nopacket_timeout;
+				pkt->sbpkt.payload.data[0] = 0xffff;
+			}
+		} else if ((pkt->length == E_PKT_LENGTH_5) &&
+			(pkt->sbpkt.payload.data[0] & 0xffff)) {
+			rx.vs_info_details.dolby_vision = false;
+		} else if ((pkt->length == E_PKT_LENGTH_4) &&
+			((pkt->sbpkt.payload.data[0] & 0xff) == 0)) {
+			rx.vs_info_details.dolby_vision = false;
+		} else {
+		/* 3d VSI*/
 		if (pkt->sbpkt.vsi_3Dext.vdfmt == VSI_FORMAT_3D_FORMAT) {
 			rx.vs_info_details._3d_structure =
 				pkt->sbpkt.vsi_3Dext.threeD_st;
@@ -1409,6 +1430,11 @@ void rx_get_vsi_info(void)
 		}
 		rx.vs_info_details.dolby_vision = false;
 	}
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
 
 #if 0

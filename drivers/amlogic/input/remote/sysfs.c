@@ -43,16 +43,29 @@ static ssize_t protocol_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
+	const struct aml_remote_reg_proto **supported_proto =
+							ir_get_proto_reg();
+	int len;
 
 	if (ENABLE_LEGACY_IR(chip->protocol))
-		return sprintf(buf, "protocol=%s&%s (0x%x)\n",
+		len =  sprintf(buf, "current protocol = %s&%s (0x%x)\n",
 			chip->ir_contr[LEGACY_IR_ID].proto_name,
 			chip->ir_contr[MULTI_IR_ID].proto_name,
 			chip->protocol);
+	else
+		len =  sprintf(buf, "currnet protocol = %s (0x%x)\n",
+			       chip->ir_contr[MULTI_IR_ID].proto_name,
+			       chip->protocol);
 
-	return sprintf(buf, "protocol=%s (0x%x)\n",
-		chip->ir_contr[MULTI_IR_ID].proto_name,
-		chip->protocol);
+	len += sprintf(buf + len, "supported protocol:\n");
+
+	for ( ; (*supported_proto) != NULL ; ) {
+		len += sprintf(buf + len, "%s (0x%x)\n",
+		((*supported_proto)->name), ((*supported_proto)->protocol));
+		supported_proto++;
+	}
+
+	return len;
 }
 
 static ssize_t protocol_store(struct device *dev,
@@ -308,6 +321,171 @@ static ssize_t led_frq_store(struct device *dev,
 	return count;
 }
 
+static ssize_t ir_learning_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	struct remote_dev  *r_dev = chip->r_dev;
+
+	return sprintf(buf, "%d\n", r_dev->ir_learning_on);
+}
+
+static ssize_t ir_learning_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret = 0;
+	int val = 0;
+
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	struct remote_dev  *r_dev = chip->r_dev;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret != 0)
+		return -EINVAL;
+	if (r_dev->ir_learning_on == val)
+		return count;
+
+	disable_irq(chip->irqno);
+	mutex_lock(&chip->file_lock);
+	r_dev->ir_learning_on = !!val;
+	if (!!val) {
+		if (r_dev->demod_enable)
+			demod_reset(chip);
+
+		if (remote_pulses_malloc(chip) < 0) {
+			mutex_unlock(&chip->file_lock);
+			enable_irq(chip->irqno);
+			return -ENOMEM;
+		}
+		chip->set_register_config(chip, REMOTE_TYPE_RAW_NEC);
+		r_dev->protocol = chip->protocol;/*backup protocol*/
+		chip->protocol = REMOTE_TYPE_RAW_NEC;
+		irq_set_affinity(chip->irqno,
+				 cpumask_of(chip->irq_cpumask));
+	} else {
+		chip->protocol = r_dev->protocol;
+		chip->set_register_config(chip, chip->protocol);
+		remote_pulses_free(chip);
+		chip->r_dev->ir_learning_done = false;
+	}
+	mutex_unlock(&chip->file_lock);
+	enable_irq(chip->irqno);
+	return count;
+}
+
+static ssize_t learned_pulse_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	int len = 0;
+	int i = 0;
+
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	struct remote_dev  *r_dev = chip->r_dev;
+
+	if (!r_dev->pulses)
+		return len;
+
+	disable_irq(chip->irqno);
+	mutex_lock(&chip->file_lock);
+	for (i = 0; i < r_dev->pulses->len; i++)
+		len += sprintf(buf + len, "%lds",
+			       r_dev->pulses->pulse[i] & GENMASK(30, 0));
+
+	len += sprintf(buf + len, "\n");
+
+	remote_reg_update_bits(chip, MULTI_IR_ID, REG_REG1, BIT(15), BIT(15));
+
+	r_dev->ir_learning_done = false;
+
+	mutex_unlock(&chip->file_lock);
+	enable_irq(chip->irqno);
+
+	return len;
+}
+
+static ssize_t learned_pulse_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	struct remote_dev  *r_dev = chip->r_dev;
+
+	if (!r_dev->pulses)
+		return count;
+
+	disable_irq(chip->irqno);
+	mutex_lock(&chip->file_lock);
+	if (buf[0] == 'c') {
+		memset(r_dev->pulses, 0, sizeof(struct pulse_group) +
+		       r_dev->max_learned_pulse * sizeof(u32));
+		remote_reg_update_bits(chip, MULTI_IR_ID, REG_REG1, BIT(15),
+				       BIT(15));
+
+		r_dev->ir_learning_done = false;
+	}
+	mutex_unlock(&chip->file_lock);
+	enable_irq(chip->irqno);
+	return count;
+}
+
+static ssize_t sum_cnt0_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	int val = 0;
+	struct remote_chip *chip = dev_get_drvdata(dev);
+
+	remote_reg_read(chip, MULTI_IR_ID, REG_DEMOD_SUM_CNT0, &val);
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t sum_cnt1_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+
+	int val = 0;
+	struct remote_chip *chip = dev_get_drvdata(dev);
+
+	remote_reg_read(chip, MULTI_IR_ID, REG_DEMOD_SUM_CNT1, &val);
+
+	return sprintf(buf, "%d\n", val);
+
+}
+
+static ssize_t use_fifo_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct remote_chip *chip = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", chip->r_dev->use_fifo);
+}
+
+static ssize_t use_fifo_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int val = 0;
+	int len = 0;
+	struct remote_chip *chip = dev_get_drvdata(dev);
+
+	len = kstrtoint(buf, 0, &val);
+
+	if (len != 0) {
+		dev_err(chip->dev, "input parameter error\n");
+		return -EINVAL;
+	}
+
+	chip->r_dev->use_fifo = val;
+
+	return count;
+}
+
+DEVICE_ATTR_RW(use_fifo);
+DEVICE_ATTR_RO(sum_cnt0);
+DEVICE_ATTR_RO(sum_cnt1);
+DEVICE_ATTR_RW(learned_pulse);
+DEVICE_ATTR_RW(ir_learning);
 DEVICE_ATTR_RW(led_frq);
 DEVICE_ATTR_RW(led_blink);
 DEVICE_ATTR_RW(repeat_enable);
@@ -326,6 +504,11 @@ static struct attribute *remote_attrs[] = {
 	&dev_attr_debug_log.attr,
 	&dev_attr_led_blink.attr,
 	&dev_attr_led_frq.attr,
+	&dev_attr_ir_learning.attr,
+	&dev_attr_learned_pulse.attr,
+	&dev_attr_sum_cnt0.attr,
+	&dev_attr_sum_cnt1.attr,
+	&dev_attr_use_fifo.attr,
 	NULL,
 };
 
@@ -340,8 +523,11 @@ static struct class remote_class = {
 int ir_sys_device_attribute_init(struct remote_chip *chip)
 {
 	struct device *dev;
+	int err;
 
-	class_register(&remote_class);
+	err = class_register(&remote_class);
+	if (unlikely(err))
+		return err;
 
 	dev = device_create(&remote_class,  NULL,
 					chip->chr_devno, chip, chip->dev_name);

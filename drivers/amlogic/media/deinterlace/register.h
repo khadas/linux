@@ -180,6 +180,13 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define MCINFWR_Y						0x37f6
 #define MCINFWR_CTRL					0x37f7
 #define MCINFWR_CAN_SIZE				0x37f8
+
+/* from TM2 new added */
+/* DI HDR2 */
+#define DI_HDR2_HIST_CTRL				0x37ad
+#define DI_HDR2_HIST_H_START_END			0x37ae
+#define DI_HDR2_HIST_V_START_END			0x37af
+
 /* DI SCALE */
 #define DI_SCO_FIFO_CTRL				0x374e
 #define DI_SC_TOP_CTRL					0x374f

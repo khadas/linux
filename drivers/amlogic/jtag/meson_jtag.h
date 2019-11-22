@@ -27,6 +27,7 @@
 
 struct aml_jtag_dev {
 	struct platform_device *pdev;
+	struct pinctrl *jtag_pinctrl;
 	struct class cls;
 
 #ifdef CONFIG_MACH_MESON8B

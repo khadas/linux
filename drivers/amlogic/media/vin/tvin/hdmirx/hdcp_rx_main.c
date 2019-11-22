@@ -211,9 +211,15 @@ static struct esm_device *alloc_esm_slot(
 	/* Check if we have a matching device (same HPI base) */
 	for (i = 0; i < MAX_ESM_DEVICES; i++) {
 		struct esm_device *slot = &esm_devices[i];
-
-		if ((slot->allocated) && (info->hpi_base) ==
-			(slot->hpi_resource->start))
+		/* Modified for SWPL-15872:
+		 * when esm reboot,hpi_base will be the value defined
+		 * in driver dts,not be hpi_resource->start,and it will
+		 * not enter if(), and esm will use a new slot,
+		 * and cause esm init fail.
+		 */
+		/* if ((slot->allocated) && (info->hpi_base) == */
+		/*		(slot->hpi_resource->start)) */
+		if (slot->allocated)
 			return slot;
 	}
 
@@ -325,7 +331,8 @@ static long init(struct file *f, void __user *arg)
 		rc = alloc_dma_areas(esm, &info);
 		if (rc < 0)
 			goto err_free;
-
+		info.hpi_base =
+			reg_maps[MAP_ADDR_MODULE_HDMIRX_CAPB3].phy_addr;
 		hpi_mem = request_mem_region(info.hpi_base, 128, "esm-hpi");
 		if (!hpi_mem) {
 			rc = -EADDRNOTAVAIL;
@@ -353,6 +360,52 @@ err_free:
 	esm->allocated = 0;
 
 	return rc;
+}
+
+/*
+ * set_param - set kernel param to hdcp_rx22
+ * amlogic added
+ */
+static long set_param(struct esm_device *esm,
+	struct esm_ioc_param __user *arg)
+{
+	struct esm_ioc_param head;
+
+	memset(&head, 0, sizeof(head));
+	if (copy_from_user(&head, arg, sizeof(head)) != 0)
+		return -EFAULT;
+	esm_auth_fail_en = head.reauth;
+	esm_reset_flag = head.esm_reset;
+	hdcp22_stop_auth = head.auth_stop;
+	hdcp22_esm_reset2 = head.esm_reset2;
+	return 0;
+}
+
+/*
+ * get_param - hdcp_rx22 get param from kernel
+ * amlogic added
+ */
+static long get_param(struct esm_device *esm,
+	struct esm_ioc_param __user *arg)
+{
+	struct esm_ioc_param head;
+
+	head.hpd = hpd_to_esm;
+	head.video_stable = video_stable_to_esm;
+	head.pwr_sts = pwr_sts_to_esm;
+	head.log = enable_hdcp22_esm_log;
+	head.esm_reset = esm_reset_flag;
+	head.reauth = esm_auth_fail_en;
+	head.esm_err = 0;
+	head.auth_stop = hdcp22_stop_auth;
+	head.esm_reset2 = hdcp22_esm_reset2;
+	head.esm_kill = hdcp22_kill_esm;
+	head.reset_mode = esm_recovery_mode;
+
+	if (copy_to_user(arg, &head, sizeof(head)) != 0)
+		return -EFAULT;
+
+	return 0;
 }
 
 /* free_esm_slot - free_esm_slot*/
@@ -400,6 +453,10 @@ static long hld_ioctl(struct file *f,
 		return read_data(esm, data);
 	case ESM_IOC_MEMSET_DATA:
 		return set_data(esm, data);
+	case ESM_IOC_GET_PARAM:
+		return get_param(esm, data);
+	case ESM_IOC_SET_PARAM:
+		return set_param(esm, data);
 	}
 
 	return -ENOTTY;

@@ -101,69 +101,75 @@ static unsigned int CROSSOVER_COEFF[CROSSOVER_FILTER_SIZE] = {
 #define AED_MULTIBAND_DRC_BANDS  (3)
 #define AED_MULTIBAND_DRC_SIZE   (30)
 #define MULTIBAND_DRC_PARAM_BYTE (120) /*"0x%8.8x "*/
-/*RMS:5ms, ATTACK:2ms, RELEASE:20ms*/
+
 static unsigned int multiband_drc_coeff[AED_MULTIBAND_DRC_SIZE] = {
-	0x34ebb,   /* Low RMS coeff0 */
-	0x7cb145,  /* Low RMS coeff1 */
-	0x5188,    /* Low RELEASE coeff0 */
-	0x7fae78,  /* Low RELEASE coeff1 */
-	0x3263a,   /* Low ATTACK coeff0 */
-	0x7cd9c6,  /* Low ATTACK coeff1 */
-	0x0,	   /* Low THD0 coeff */
-	0x40000,   /* Low K0 coeff */
-	0x40000,   /* Low GAIN */
-	0x0,	   /* Low OFFSET coeff*/
+	/*RMS:5ms, ATTACK:10ms, RELEASE:100ms, THD: 0dB, K = 0*/
+	0x00012aa0,  /* Low RMS coeff0 */
+	0x007ed560,  /* Low RMS coeff1 */
+	0x00000eff,  /* Low RELEASE coeff0 */
+	0x007ff101,  /* Low RELEASE coeff1 */
+	0x000095a8,  /* Low ATTACK coeff0 */
+	0x007f6a58,  /* Low ATTACK coeff1 */
+	0x00000000,  /* Low THD0 coeff */
+	0x00000000,  /* Low K0 coeff */
+	0x00040000,  /* Low GAIN */
+	0x00000000,  /* Low OFFSET coeff*/
 
-	0x34ebb,   /* Mid RMS coeff0 */
-	0x7cb145,  /* Mid RMS coeff1 */
-	0x5188,    /* Mid RELEASE coeff0 */
-	0x7fae78,  /* Mid RELEASE coeff1 */
-	0x3263a,   /* Mid ATTACK coeff0 */
-	0x7cd9c6,  /* Mid ATTACK coeff1 */
-	0x0,	   /* Mid THD0 coeff */
-	0x40000,   /* Mid K0 coeff */
-	0x0,	   /* Mid OFFSET coeff*/
-	0x40000,   /* Mid GAIN */
+	/*RMS:2ms, ATTACK:5ms, RELEASE:100ms, THD: 0dB, K = 0*/
+	0x0002e578,  /* Mid RMS coeff0 */
+	0x007d1a88,  /* Mid RMS coeff1 */
+	0x00000eff,  /* Mid RELEASE coeff0 */
+	0x007ff101,  /* Mid RELEASE coeff1 */
+	0x00012aa0,  /* Mid ATTACK coeff0 */
+	0x007ed560,  /* Mid ATTACK coeff1 */
+	0x00000000,  /* Mid THD0 coeff */
+	0x00000000,  /* Mid K0 coeff */
+	0x00000000,  /* Mid OFFSET coeff*/
+	0x00040000,  /* Mid GAIN */
 
-	0x34ebb,   /* High RMS coeff0 */
-	0x7cb145,  /* High RMS coeff1 */
-	0x5188,    /* High RELEASE coeff0 */
-	0x7fae78,  /* High RELEASE coeff1 */
-	0x3263a,   /* High ATTACK coeff0 */
-	0x7cd9c6,  /* High ATTACK coeff1 */
-	0x0,	   /* High THD0 coeff */
-	0x40000,   /* High K0 coeff */
-	0x0,	   /* High OFFSET coeff*/
-	0x40000,   /* High GAIN */
+	/*RMS:1ms, ATTACK:1ms, RELEASE:100ms, THD: 0dB, K = 0*/
+	0x0005ba29,  /* High RMS coeff0 */
+	0x007a45d7,  /* High RMS coeff1 */
+	0x00000eff,  /* High RELEASE coeff0 */
+	0x007ff101,  /* High RELEASE coeff1 */
+	0x0005ba29,  /* High ATTACK coeff0 */
+	0x007a45d7,  /* High ATTACK coeff1 */
+	0x00000000,  /* High THD0 coeff */
+	0x00000000,  /* High K0 coeff */
+	0x00000000,  /* High OFFSET coeff*/
+	0x00040000,  /* High GAIN */
 };
 
 #define AED_FULLBAND_DRC_SIZE        (17)
 #define AED_FULLBAND_DRC_BYTES       (70)
 #define AED_FULLBAND_DRC_OFFSET      (6)
 #define AED_FULLBAND_DRC_GROUP_SIZE  (3)
-/*K0 = 0dB; THD0 = 0; K1 = 3.0; THD1 = -70dB*/
-/*RMS:5ms, ATTACK:2ms, RELEASE:20ms*/
+
+/*K0 = 0dB; THD0 = 0; K1 = 1.0; THD1 = -100dB*/
+/*ATTACK0:2ms, RELEASE0:20ms*/
+/*ATTACK1:100ms, RELEASE1:100ms*/
+/*RMS:1ms*/
 /*delay: 144 sample max:255*/
 static int fullband_drc_coeff[AED_FULLBAND_DRC_SIZE] = {
-	0x5188,		/* RELEASE_COEF00 */
-	0x7fae78,	/* RELEASE_COEF01 */
-	0x3263a,	/* ATTACK_COEF00 */
-	0x7cd9c6,	/* ATTACK_COEF01 */
-	0x0,		/* THD0 */
-	0x0,		/* K0 */
+	0x00004aea,	/* RELEASE_COEF00 */
+	0x007fb516,	/* RELEASE_COEF01 */
+	0x0002e578,	/* ATTACK_COEF00 */
+	0x007d1a88,	/* ATTACK_COEF01 */
+	0x00000000,	/* THD0 */
+	0x00000000,	/* K0 */
 
-	0x5188,		/* RELEASE_COEF10 */
-	0x7fae78,	/* RELEASE_COEF11 */
-	0x3263a,	/* ATTACK_COEF10 */
-	0x7cd9c6,	/* ATTACK_COEF11 */
-	0xdd000000,	/* THD1 */
-	0xc0000,	/* K2 */
+	0x00000eff,	/* RELEASE_COEF10 */
+	0x007ff101,	/* RELEASE_COEF11 */
+	0x00000eff,	/* ATTACK_COEF10 */
+	0x007ff101,	/* ATTACK_COEF11 */
+	0xce000000,	/* THD1 */
+	0x00040000,	/* K2 */
 
-	0x34ebb,	/* RMS coeff0 */
-	0x7cb145,	/* RMS coeff1 */
-	0x90,		/* Delay time*/
+	0x0005ba29,	/* RMS coeff0 */
+	0x007a45d7,	/* RMS coeff1 */
+	0x00000090,	/* Delay time*/
 	0xdd000000,	/* THD_OUT0 */
-	0x40000,	/* K1 */
+	0x00040000,	/* K1 */
 };
 
 #endif

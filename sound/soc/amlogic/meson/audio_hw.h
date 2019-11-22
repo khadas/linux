@@ -198,6 +198,9 @@ extern bool is_audin_lr_invert_check(void);
 extern bool is_audbuf_gate_rm(void);
 extern void chipset_set_spdif_pao(void);
 
+extern void atv_src_select(bool src);
+extern void atv_LR_swap(bool swap);
+
 extern unsigned int IEC958_mode_codec;
 extern unsigned int clk81;
 

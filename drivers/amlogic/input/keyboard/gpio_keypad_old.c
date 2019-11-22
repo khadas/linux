@@ -46,6 +46,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
 #include "../../../gpio/gpiolib.h"
+#include <linux/amlogic/scpi_protocol.h>
 
 #define OFFSET  24
 
@@ -462,6 +463,8 @@ static int gpio_key_resume(struct platform_device *dev)
 				break;
 			}
 		}
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr gipo key wakeup reason fail.\n");
 	}
 	return 0;
 }

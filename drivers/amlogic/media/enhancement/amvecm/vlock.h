@@ -23,9 +23,15 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/1/24"
+#define VLOCK_VER "Ref.2019/9/17:log level 3 enc mode not work properly"
 
 #define VLOCK_REG_NUM	33
+
+struct vdin_sts {
+	unsigned int lcnt_sts;
+	unsigned int com_sts0;
+	unsigned int com_sts1;
+};
 
 struct vlock_log_s {
 	unsigned int pll_m;
@@ -62,6 +68,7 @@ enum vlock_param_e {
 struct stvlock_sig_sts {
 	u32 fsm_sts;
 	u32 fsm_prests;
+	u32 fsm_pause;
 	u32 vf_sts;
 	u32 vmd_chg;
 	u32 frame_cnt_in;
@@ -70,9 +77,17 @@ struct stvlock_sig_sts {
 	u32 output_hz;
 	bool md_support;
 	u32 phlock_percent;
+	u32 phlock_sts;
+	u32 phlock_en;
+	u32 phlock_cnt;
+	u32 frqlock_sts;
+	/*u32 frqlock_stable_cnt;*/
+	u32 ss_sts;
+	u32 pll_mode_pause;
 	struct vecm_match_data_s *dtdata;
 	u32 val_frac;
 	u32 val_m;
+	struct vdin_sts vdinsts;
 };
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);
@@ -82,7 +97,6 @@ extern void vlock_reg_dump(void);
 extern void vlock_log_start(void);
 extern void vlock_log_stop(void);
 extern void vlock_log_print(void);
-extern int phase_lock_check(void);
 
 #define VLOCK_STATE_NULL 0
 #define VLOCK_STATE_ENABLE_STEP1_DONE 1
@@ -122,6 +136,9 @@ enum VLOCK_MD {
 #define IS_AUTO_PLL_MODE(md) (md & \
 					VLOCK_MODE_AUTO_PLL)
 
+#define IS_AUTO_ENC_MODE(md) (md & \
+							VLOCK_MODE_AUTO_ENC)
+
 #define IS_MANUAL_ENC_MODE(md) (md & \
 				VLOCK_MODE_MANUAL_ENC)
 
@@ -131,6 +148,19 @@ enum VLOCK_MD {
 #define IS_MANUAL_SOFTENC_MODE(md) (md & \
 				VLOCK_MODE_MANUAL_SOFT_ENC)
 
+
+enum vlock_pll_sel {
+	vlock_pll_sel_tcon = 0,
+	vlock_pll_sel_hdmi,
+	vlock_pll_sel_disable = 0xf,
+};
+
+
+#define VLOCK_START_CNT		50
+#define VLOCK_WORK_CNT	(VLOCK_START_CNT + 10)
+
+#define VLOCK_UPDATE_M_CNT	8
+#define VLOCK_UPDATE_F_CNT	4
 
 #define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
 
@@ -157,6 +187,8 @@ extern unsigned int vlock_en;
 extern unsigned int vecm_latch_flag;
 /*extern void __iomem *amvecm_hiu_reg_base;*/
 extern unsigned int probe_ok;
+extern u32 phase_en_after_frqlock;
+extern u32 vlock_ss_en;
 
 extern void lcd_ss_enable(bool flag);
 extern unsigned int lcd_ss_status(void);
@@ -177,4 +209,8 @@ extern void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 extern void vlock_set_en(bool en);
 extern void vlock_set_phase(u32 percent);
 extern void vlock_set_phase_en(u32 en);
+
+extern void lcd_vlock_m_update(unsigned int vlock_m);
+extern void lcd_vlock_farc_update(unsigned int vlock_farc);
+extern int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
 

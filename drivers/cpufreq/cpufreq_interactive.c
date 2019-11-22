@@ -466,8 +466,113 @@ exit:
 	spin_unlock_irqrestore(&icpu->target_freq_lock, flags);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/cpumask.h>
+
+#define FIRST_CLUSTER 0
+#define SECOND_CLUSTER 1
+#define MAX_CLUSTER 2
+
+static int cpufreq_hmp_boost_initialized;
+static int cpufreq_hmp_boost_enabled;
+static int cpu_to_cluster[NR_CPUS];
+static unsigned long cluster_boost_jiffies[MAX_CLUSTER];
+static int cluster_need_boost[MAX_CLUSTER];
+
+#define HMP_BOOST_THRESH_MS 20
+#define HMP_BOOST_PUSLE_DURATION 200000
+
+static void cpufreq_interactive_boost(struct interactive_tunables *tunables);
+
+static void cpufreq_hmp_boost(struct interactive_cpu *icpu)
+{
+	int cpu, cur_cluster, other_cluster;
+	struct interactive_tunables *tunnables;
+
+	if (!cpufreq_hmp_boost_enabled)
+		return;
+
+	cpu = smp_processor_id();
+	cur_cluster = cpu_to_cluster[cpu];
+
+	/*
+	 * MAX_CLUSTER default to 2,
+	 * cluster must be FIRST_CLUSTER or SECOND_CLUSTER,
+	 * we can get other cluster by !cur_cluster.
+	 */
+	other_cluster = !cur_cluster;
+
+	/* check whether need to boost other cluster or not */
+	if (icpu->ipolicy->policy->cur < icpu->ipolicy->policy->max) {
+		cluster_boost_jiffies[other_cluster] = 0;
+		cluster_need_boost[other_cluster] = 0;
+
+	} else if (!cluster_boost_jiffies[other_cluster]) {
+		cluster_boost_jiffies[other_cluster] = jiffies;
+
+	} else if (time_after(jiffies,
+		cluster_boost_jiffies[other_cluster] +
+		msecs_to_jiffies(HMP_BOOST_THRESH_MS))) {
+		cluster_need_boost[other_cluster] = 1;
+
+		pr_debug("try boost other cluster\n");
+	}
+
+	/* check whether need to boost ourselves or not */
+	if (!cluster_need_boost[cur_cluster])
+		return;
+
+	tunnables = icpu->ipolicy->tunables;
+
+	if (icpu->ipolicy->policy->cur < tunnables->hispeed_freq &&
+		!tunnables->boosted) {
+
+		pr_debug("do boost cluster\n");
+
+		tunnables->boostpulse_endtime =
+			ktime_to_us(ktime_get()) + HMP_BOOST_PUSLE_DURATION;
+		cpufreq_interactive_boost(tunnables);
+	}
+}
+
+void cpufreq_hmp_boost_start(struct cpumask *mask)
+{
+	int cpu;
+
+	/* we do hmp boost initialization only onetime */
+	if (cpufreq_hmp_boost_initialized)
+		return;
+
+	cpufreq_hmp_boost_initialized = 1;
+
+	pr_info("%s()\n", __func__);
+
+	/* there is only one cluster/policy in the system */
+	if (cpumask_equal(mask, cpu_possible_mask)) {
+		pr_info("no need to active hmp boost!\n");
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		cpu_to_cluster[cpu] = FIRST_CLUSTER;
+
+	for_each_cpu(cpu, mask)
+		cpu_to_cluster[cpu] = SECOND_CLUSTER;
+
+	for_each_possible_cpu(cpu)
+		pr_info("hmp boost cpu:%d cluster:%d\n",
+				cpu,
+				cpu_to_cluster[cpu]);
+
+	cpufreq_hmp_boost_enabled = 1;
+}
+#endif
+
 static void cpufreq_interactive_update(struct interactive_cpu *icpu)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	cpufreq_hmp_boost(icpu);
+#endif
 	eval_target_freq(icpu);
 	slack_timer_resched(icpu, smp_processor_id(), true);
 }
@@ -1298,6 +1403,10 @@ int cpufreq_interactive_start(struct cpufreq_policy *policy)
 	struct interactive_policy *ipolicy = policy->governor_data;
 	struct interactive_cpu *icpu;
 	unsigned int cpu;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+		cpufreq_hmp_boost_start(policy->cpus);
+#endif
 
 	for_each_cpu(cpu, policy->cpus) {
 		icpu = &per_cpu(interactive_cpu, cpu);

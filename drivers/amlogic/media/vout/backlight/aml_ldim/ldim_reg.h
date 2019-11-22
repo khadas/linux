@@ -23,8 +23,8 @@
 #define ASSIST_SPARE8_REG1			0x1f58
 
 /*gxtvbb new add*/
-#define LDIM_STTS_CTRL0				0x1ac1
 #define LDIM_STTS_GCLK_CTRL0			0x1ac0
+#define LDIM_STTS_CTRL0				0x1ac1
 #define LDIM_STTS_WIDTHM1_HEIGHTM1		0x1ac2
 #define LDIM_STTS_MATRIX_COEF00_01		0x1ac3
 #define LDIM_STTS_MATRIX_COEF02_10		0x1ac4

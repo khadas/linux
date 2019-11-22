@@ -54,12 +54,25 @@ static int write_to_fifo(struct aml_irblaster_dev *dev,
 		unsigned int hightime, unsigned int lowtime)
 {
 	unsigned int count_delay;
+	unsigned int high_ct, low_ct;
 	unsigned int cycle = 1000 / (dev->carrier_freqs / 1000);
 	uint32_t val;
 	int n = 0;
 	int tb[3] = {
 		1, 10, 100
 	};
+
+	/*
+	 *1. set mod_high_count = 13
+	 *2. set mod_low_count = 13
+	 *3. 60khz-8us, 38k-13us
+	 */
+	high_ct = cycle * dev->duty_cycle / 100;
+	low_ct = cycle - high_ct;
+	writel((BLASTER_MODULATION_LOW_COUNT(low_ct - 1) |
+		BLASTER_MODULATION_HIGH_COUNT(high_ct - 1)),
+			dev->reg_base + AO_IR_BLASTER_ADDR1);
+
 	/*
 	hightime: modulator signal.
 	MODULATOR_TB:
@@ -208,7 +221,7 @@ static int send(struct aml_irblaster_dev *dev, const char *buf, int len)
 	send_all_data(dev);
 	ret = wait_for_completion_interruptible_timeout(
 		&dev->blaster_completion, msecs_to_jiffies(sum_time / 1000));
-	if (ret)
+	if (!ret)
 		pr_err("failed to send all data\n");
 	return ret;
 }

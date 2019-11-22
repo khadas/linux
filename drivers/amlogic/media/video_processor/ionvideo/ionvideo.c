@@ -1266,11 +1266,32 @@ ion_video_class_attrs, };
 
 static int ionvideo_open(struct inode *inode, struct file *file)
 {
+	int *ion_id = kzalloc(sizeof(int), GFP_KERNEL);
+
+	if (ion_id != NULL) {
+		*ion_id = -1;
+		file->private_data = ion_id;
+		pr_info("%p: alloc space for storing ion_id\n", file);
+	}
+
 	return 0;
 }
 
 static int ionvideo_release(struct inode *inode, struct file *file)
 {
+	int *ion_id = file->private_data;
+
+	if (ion_id != NULL && (*ion_id) != -1) {
+		pr_info("%p: ion_id leak detected, release it: %d\n",
+			file, *ion_id);
+		ionvideo_release_map(*ion_id);
+	}
+
+	if (file->private_data != NULL)
+		kfree(file->private_data);
+
+	file->private_data = NULL;
+
 	return 0;
 }
 
@@ -1284,17 +1305,32 @@ static long ionvideo_ioctl(struct file *file,
 	switch (cmd) {
 	case IONVIDEO_IOCTL_ALLOC_ID:{
 			u32 ionvideo_id = 0;
+			int *a = (int *) file->private_data;
 
 			ret = ionvideo_alloc_map(&ionvideo_id);
+
+			if (a != NULL) {
+				*a = ionvideo_id;
+				pr_info("%p:allocated ion_id:%d\n", file, *a);
+			}
+
 			if (ret != 0)
 				break;
+
 			put_user(ionvideo_id, (u32 __user *)argp);
 		}
 		break;
 	case IONVIDEO_IOCTL_FREE_ID:{
 			u32 ionvideo_id;
-
+			int *a = (int *) file->private_data;
 			get_user(ionvideo_id, (u32 __user *)argp);
+
+			if (a != NULL) {
+				pr_info("%p: free ion_id:%d, priv_data:%d\n",
+					file, ionvideo_id, *a);
+				*a = -1;
+			}
+
 			ionvideo_release_map(ionvideo_id);
 		}
 		break;

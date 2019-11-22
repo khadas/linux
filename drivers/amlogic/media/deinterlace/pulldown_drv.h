@@ -17,8 +17,8 @@
 
 #ifndef _DI_PULLDOWN_H
 #define _DI_PULLDOWN_H
-#include "film_mode_fmw/film_vof_soft.h"
-#include "deinterlace_mtn.h"
+#include "../deinterlace/film_mode_fmw/film_vof_soft.h"
+#include "../deinterlace/deinterlace_mtn.h"
 
 #define MAX_VOF_WIN_NUM	4
 

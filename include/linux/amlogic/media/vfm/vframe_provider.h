@@ -52,6 +52,7 @@ struct provider_aux_req_s {
 	int aux_size;
 	int dv_enhance_exist;
 	int low_latency;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 };
 struct provider_disp_mode_req_s {
 	/*input*/

@@ -47,6 +47,10 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/secmon.h>
+#endif
+
 static const char *processor_modes[] __maybe_unused = {
   "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
   "UK8_26" , "UK9_26" , "UK10_26", "UK11_26", "UK12_26", "UK13_26", "UK14_26", "UK15_26",
@@ -118,6 +122,34 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 	 */
 	if (addr < PAGE_OFFSET || addr > -256UL)
 		return;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * Treating data in general purpose register as an address
+	 * and dereferencing it is quite a dangerous behaviour,
+	 * especially when it is an address belonging to secure
+	 * region or ioremap region, which can lead to external
+	 * abort on non-linefetch and can not be protected by
+	 * probe_kernel_address.
+	 * We need more strict filtering rules
+	 */
+
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * filter out secure monitor region
+	 */
+	if (addr <= (unsigned long)high_memory)
+		if (within_secmon_region(addr))
+			return;
+#endif
+
+	/*
+	 * filter out ioremap region
+	 */
+	if ((addr >= VMALLOC_START) && (addr <= VMALLOC_END))
+		if (!pfn_valid(vmalloc_to_pfn((void *)addr)))
+			return;
+#endif
 
 	printk("\n%s: %#lx:\n", name, addr);
 
@@ -350,6 +382,23 @@ done:
 		pr_cont("%s", name);
 	pr_cont("\n");
 }
+
+static void show_vmalloc_pfn(struct pt_regs *regs)
+{
+	int i;
+	struct page *page;
+
+	for (i = 0; i < 16; i++) {
+		if (is_vmalloc_or_module_addr((void *)regs->uregs[i])) {
+			page = vmalloc_to_page((void *)regs->uregs[i]);
+			if (!page)
+				continue;
+			pr_info("R%-2d : %08lx, PFN:%5lx\n",
+				i, regs->uregs[i], page_to_pfn(page));
+		}
+	}
+
+}
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 void __show_regs(struct pt_regs *regs)
@@ -407,6 +456,10 @@ void __show_regs(struct pt_regs *regs)
 	buf[2] = flags & PSR_C_BIT ? 'C' : 'c';
 	buf[3] = flags & PSR_V_BIT ? 'V' : 'v';
 	buf[4] = '\0';
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_vmalloc_pfn(regs);
+#endif
 
 #ifndef CONFIG_CPU_V7M
 	{

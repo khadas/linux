@@ -31,6 +31,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/dma-mapping.h>
 #include <linux/of_irq.h>
 
 /* #include <linux/mutex.h> */
@@ -60,33 +61,56 @@
 
 static dev_t vbi_id;
 static struct class *vbi_clsp;
-static unsigned char field_data_flag;
+static struct vbi_dev_s *vbi_dev_local;
+
+static struct resource vbi_memobj;
+#define VBI_MEM_NONE        0
+#define VBI_MEM_RESERVED    1
+#define VBI_MEM_MALLOC      2
+static unsigned int vbi_mem_flag;
+static char *vbi_pr_isr_buf, *vbi_pr_read_buf;
+#define VBI_PR_MAX    500
 
 /******debug********/
+#define VBI_DBG_INFO       (1 << 0)  /*important info*/
+#define VBI_DBG_INFO2      (1 << 1)
+#define VBI_DBG_ISR        (1 << 4)
+#define VBI_DBG_ISR2       (1 << 5)
+#define VBI_DBG_ISR3       (1 << 6)
+#define VBI_DBG_ISR4       (1 << 7)
+#define VBI_DBG_READ       (1 << 8)
+#define VBI_DBG_READ2      (1 << 9)
+#define VBI_DBG_READ3      (1 << 10)
+#define VBI_DBG_READ4      (1 << 11)
+#define VBI_DBG_TEST       (1 << 12)  /* teletext page201 error report */
+#define VBI_DBG_TEST2      (1 << 13)  /* teletext page201 data print */
 static unsigned int vbi_dbg_en;
-MODULE_PARM_DESC(vbi_dbg_en, "\n vbi_dbg_en\n");
-module_param(vbi_dbg_en, uint, 0664);
 
-static bool capture_print_en;
-MODULE_PARM_DESC(capture_print_en, "\n capture_print_en\n");
-module_param(capture_print_en, bool, 0664);
-
-static bool data_print_en;
-MODULE_PARM_DESC(data_print_en, "\n data_print_en\n");
-module_param(data_print_en, bool, 0664);
+#define VBI_DBG_CNT        100
+static unsigned int vbi_dbg_isr_cnt;
+static unsigned int vbi_dbg_read_cnt;
+static unsigned int vbi_dbg_print_cnt = VBI_DBG_CNT;
 
 static bool vbi_nonblock_en;
 MODULE_PARM_DESC(vbi_nonblock_en, "\n vbi_nonblock_en\n");
 module_param(vbi_nonblock_en, bool, 0664);
 
-/*cc will be delayed when interval larger than 2*/
-static unsigned int vbi_wakeup_interval = 2;
-MODULE_PARM_DESC(vbi_wakeup_interval, "\n vbi_wakeup_interval\n");
-module_param(vbi_wakeup_interval, uint, 0664);
+/*vbi will be delayed when interval larger than 2*/
+static unsigned int vbi_read_wakeup_interval = 2;
+MODULE_PARM_DESC(vbi_read_wakeup_interval, "\n vbi_read_wakeup_interval\n");
+module_param(vbi_read_wakeup_interval, uint, 0664);
 
 static unsigned int vcnt = 1;
-static unsigned int wakeup_cnt;
-static unsigned int init_cc_data_flag;
+static unsigned int vbi_read_wakeup_cnt;
+static unsigned int vbi_data_stable_flag;
+static unsigned int init_vbi_flag;
+static unsigned char field_data_flag;
+static unsigned int vbi_search_table_err_num;
+static unsigned int vbi_vcnt_search_retry;
+static unsigned int vbi_slicer_bypass;
+static unsigned int vbi_data_tt_check;
+
+#define VBI_VCNT_SEARCH_CNT_MAX     5
 
 static void vbi_hw_reset(struct vbi_dev_s *devp)
 {
@@ -96,6 +120,18 @@ static void vbi_hw_reset(struct vbi_dev_s *devp)
 	vcnt = 1;
 	devp->pac_addr = devp->pac_addr_start;
 	devp->current_pac_wptr = 0;
+}
+
+static void vbi_state_reset(struct vbi_dev_s *devp)
+{
+	devp->vs_delay = VBI_VS_DELAY;
+	devp->isr_cnt = 0;
+	devp->slicer->slicer_cnt = 0;
+	vcnt = 1;
+	vbi_read_wakeup_cnt = 0;
+	init_vbi_flag = 0;
+	vbi_data_stable_flag = 0;
+	field_data_flag = 0;
 }
 
 static void vbi_tt_start_code_set(struct vbi_dev_s *devp)
@@ -131,7 +167,7 @@ static void vbi_data_type_set(struct vbi_dev_s *devp)
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE24, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE25, vbi_data_type);
-	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE26, vbi_data_type);
+	/*W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE26, vbi_data_type);*/
 }
 
 static void vbi_dto_set(struct vbi_dev_s *devp)
@@ -295,14 +331,14 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 		total_buffer -= nbytes;\
 	} while (0)
 
-ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
+static ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
 {
 	ssize_t free;
 
 	free = rbuf->pread - rbuf->pwrite;
 	if (free <= 0) {
 		free += rbuf->size;
-		if (capture_print_en)
+		if (vbi_dbg_en & VBI_DBG_ISR3)
 			tvafe_pr_info("%s: pread: %6d pwrite: %6d\n",
 			__func__, rbuf->pread, rbuf->pwrite);
 	}
@@ -310,7 +346,7 @@ ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
 }
 
 
-ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
+static ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 		const struct vbi_data_s *buf, size_t len)
 {
 	size_t todo = len;
@@ -321,16 +357,17 @@ ssize_t vbi_ringbuffer_write(struct vbi_ringbuffer_s *rbuf,
 	split =
 	(rbuf->pwrite + len > rbuf->size) ? (rbuf->size - rbuf->pwrite) : 0;
 	if (split > 0) {
-		if (capture_print_en)
-			tvafe_pr_info("%s: pwrite: %6d\n",
-			__func__, rbuf->pwrite);
 		memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf, split);
 		todo -= split;
 		rbuf->pwrite = 0;
+		if (vbi_dbg_en & VBI_DBG_ISR2) {
+			tvafe_pr_info("%s: ringbuffer reach max, split size:%d, todo size:%d\n",
+				__func__, (int)split, (int)todo);
+		}
 	}
 	memcpy((char *)rbuf->data+rbuf->pwrite, (char *)buf+split, todo);
 	rbuf->pwrite = (rbuf->pwrite + todo) % rbuf->size;
-	if (capture_print_en)
+	if (vbi_dbg_en & VBI_DBG_ISR3)
 		tvafe_pr_info("%s: write finish return: %6Zd\n",
 			__func__, len);
 
@@ -344,13 +381,13 @@ static int vbi_buffer_write(struct vbi_ringbuffer_s *buf,
 	ssize_t free;
 
 	if (!len) {
-		if (capture_print_en)
+		if (vbi_dbg_en & VBI_DBG_INFO)
 			tvafe_pr_info("%s: buffer len is zero\n", __func__);
 		return 0;
 	}
 
 	if ((buf == NULL) || (buf->data == NULL)) {
-		if (capture_print_en)
+		if (vbi_dbg_en & VBI_DBG_INFO)
 			tvafe_pr_info("%s: buffer data pointer is zero\n",
 			__func__);
 		return 0;
@@ -358,9 +395,12 @@ static int vbi_buffer_write(struct vbi_ringbuffer_s *buf,
 
 	free = vbi_ringbuffer_free(buf);
 	if (len > free) {
-		if (capture_print_en)
-			tvafe_pr_info("%s: buffer overflow ,len: %6Zd, free: %6Zd\n",
-			__func__, len, free);
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: buffer overflow, len: %6d, free: %6d\n",
+				__func__, (int)len, (int)free);
+			tvafe_pr_info("%s: pread: %6d, pwrite: %6d, size: %6d\n",
+				__func__, buf->pread, buf->pwrite, buf->size);
+		}
 		return -EOVERFLOW;
 	}
 
@@ -373,25 +413,32 @@ static irqreturn_t vbi_isr(int irq, void *dev_id)
 	struct vbi_dev_s *devp = (struct vbi_dev_s *)dev_id;
 
 	spin_lock_irqsave(&devp->vbi_isr_lock, flags);
+	if (devp->vbi_start == false) {
+		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
+		return IRQ_HANDLED;
+	}
+
 	if (devp->vs_delay > 0) {
 		devp->vs_delay--;
 		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 		return IRQ_HANDLED;
 	}
-	if (devp->vbi_start == false) {
-		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
-		return IRQ_HANDLED;
-	}
-	if (devp->tasklet_enable)
-		tasklet_schedule(&devp->tsklt_slicer);
+
+	if (devp->isr_cnt++ >= 0xffffffff)
+		devp->isr_cnt = 0;
+
+	if (devp->slicer_enable)
+		schedule_work(&devp->slicer_work);
 	spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 	return IRQ_HANDLED;
 }
 
-void vbi_ringbuffer_flush(struct vbi_ringbuffer_s *rbuf)
+static void vbi_ringbuffer_flush(struct vbi_ringbuffer_s *rbuf)
 {
+	memset(rbuf->data, 0, rbuf->size);
 	rbuf->pread = rbuf->pwrite = 0;
 	rbuf->error = 0;
+	tvafe_pr_info("%s\n", __func__);
 }
 
 /*--------------------------mem data----------------------------
@@ -447,24 +494,33 @@ static int copy_vbi_to(unsigned char *table_start_addr,
  *  return 0x77's addr
  *-----------------------------------------------------------
  */
-unsigned char *search_table(unsigned char *table_start_addr,
+static unsigned char *search_table(unsigned char *table_start_addr,
 	unsigned char *search_point, unsigned char *table_end_addr,
 	unsigned char *search_content, unsigned char search_size,
-	unsigned int *len)
+	unsigned int *len, unsigned int flag)
 {
 	unsigned char cflag = 0;
 	unsigned int count = 0;
 	unsigned int table_size = table_end_addr - table_start_addr + 1;
 	unsigned char *p = search_point;
 
+	vbi_search_table_err_num = 0;
+
 	if (!table_start_addr || !search_point || !table_end_addr ||
 		!search_content || (search_size <= 0)) {
-		tvafe_pr_info("search_table point error\n");
+		tvafe_pr_info("%s: point error, flag=%d\n", __func__, flag);
+		vbi_search_table_err_num = 1;
 		return NULL;
-	} else if ((table_end_addr <= table_start_addr) ||
+	}
+	if ((table_end_addr <= table_start_addr) ||
 		(search_point > table_end_addr)) {
-		tvafe_pr_info("search_table add err: start=%p,search=%p,end=%p\n",
-			table_start_addr, search_point, table_end_addr);
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: addr err: vcnt=%d, start=%p,search=%p,end=%p,table_size=%d, flag=%d\n",
+				__func__, vcnt, table_start_addr,
+				search_point, table_end_addr,
+				table_size, flag);
+		}
+		vbi_search_table_err_num = 2;
 		return NULL;
 	}
 
@@ -473,6 +529,12 @@ unsigned char *search_table(unsigned char *table_start_addr,
 			cflag = 1;
 			memcpy((table_end_addr+1),
 				table_start_addr, search_size);
+			if (vbi_dbg_en & VBI_DBG_ISR3) {
+				tvafe_pr_info("%s: buffer reach max, vcnt=%d, start=%p,search=%p,end=%p,table_size=%d, copy_size=%d, flag=%d\n",
+					__func__, vcnt, table_start_addr,
+					search_point, table_end_addr,
+					table_size, search_size, flag);
+			}
 		} else if (p > table_end_addr) {
 			p = table_start_addr;
 		}
@@ -490,8 +552,115 @@ unsigned char *search_table(unsigned char *table_start_addr,
 		else
 			return p+search_size-1;
 	} else {
+		if (vbi_dbg_en & VBI_DBG_ISR2) {
+			tvafe_pr_info("%s: cannot find: vcnt=%d, start=%p,search=%p,end=%p, flag=%d, count=%d, table_size=%d\n",
+				__func__, vcnt, table_start_addr,
+				search_point, table_end_addr, flag,
+				count, table_size);
+		}
+		vbi_search_table_err_num = 3;
 		return NULL;
 	}
+}
+
+static unsigned char burst_data_vcnt[VBI_WRITE_BURST_BYTE] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+static unsigned char temp_data_vcnt[VBI_WRITE_BURST_BYTE] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+static unsigned char *search_table_for_vcnt(unsigned char *table_start_addr,
+	unsigned char *search_point, unsigned char *table_end_addr,
+	unsigned int vcnt_data, unsigned int *len)
+{
+	unsigned char vbi_head[3] = {0x00, 0xFF, 0xFF};
+	unsigned char cflag = 0;
+	unsigned int count = 0;
+	unsigned int table_size = table_end_addr - table_start_addr + 1;
+	unsigned char *p = search_point, *rp;
+	unsigned int done = 0;
+	unsigned int paddr;
+
+	vbi_search_table_err_num = 0;
+
+	if (!table_start_addr || !search_point || !table_end_addr) {
+		tvafe_pr_info("%s: point error\n", __func__);
+		vbi_search_table_err_num = 1;
+		return NULL;
+	}
+	if ((table_end_addr <= table_start_addr) ||
+		(search_point > table_end_addr)) {
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: addr err: vcnt=%d, start=%p,search=%p,end=%p,table_size=%d\n",
+				__func__, vcnt_data, table_start_addr,
+				search_point, table_end_addr,
+				table_size);
+		}
+		vbi_search_table_err_num = 2;
+		return NULL;
+	}
+
+	burst_data_vcnt[0] = vcnt_data & 0xff;
+	burst_data_vcnt[1] = (vcnt_data >> 8) & 0xff;
+	temp_data_vcnt[0] = (vcnt_data + 1) & 0xff;
+	temp_data_vcnt[1] = ((vcnt_data + 1) >> 8) & 0xff;
+	paddr = R_VBI_APB_REG(ACD_REG_43);
+
+	while (count++ < table_size) {
+		if (((p + VBI_WRITE_BURST_BYTE - 1) > table_end_addr) &&
+			(!cflag)) {
+			cflag = 1;
+			memcpy((table_end_addr+1),
+				table_start_addr, (VBI_WRITE_BURST_BYTE * 2));
+			if (vbi_dbg_en & VBI_DBG_INFO2) {
+				tvafe_pr_info("%s: mem reach max, vcnt=%d, start=%p,search=%p,end=%p,table_size=%d, copy_size=%d\n",
+					__func__, vcnt_data, table_start_addr,
+					search_point, table_end_addr,
+					table_size, VBI_WRITE_BURST_BYTE);
+			}
+		} else if (p > table_end_addr) {
+			p = table_start_addr;
+		}
+
+		if (!memcmp(p, burst_data_vcnt, VBI_WRITE_BURST_BYTE)) {
+			/* check vcnt is valid or not */
+			rp = p + VBI_WRITE_BURST_BYTE;
+			if (memcmp(rp, vbi_head, 3)) {
+				if (memcmp(rp, temp_data_vcnt,
+					VBI_WRITE_BURST_BYTE)) {
+					if (vbi_dbg_en & VBI_DBG_INFO2) {
+						tvafe_pr_info("%s: invalid vcnt=%d, start=%p,search=%p,end=%p, hw_paddr:0x%x, continue search\n",
+							__func__, vcnt_data,
+							table_start_addr,
+							p, table_end_addr,
+							paddr);
+					}
+					p++;
+					continue;
+				}
+			}
+			done = 1;
+			break;
+		}
+		p++;
+	}
+
+	*len = count + VBI_WRITE_BURST_BYTE - 1;
+	if (done == 0) {
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: cannot find: vcnt=%d, start=%p,search=%p,end=%p, count=%d, table_size=%d\n",
+				__func__, vcnt_data, table_start_addr,
+				search_point, table_end_addr,
+				count, table_size);
+		}
+		vbi_search_table_err_num = 3;
+		return NULL;
+	}
+
+	rp = p + VBI_WRITE_BURST_BYTE - 1;
+	if (rp > table_end_addr)
+		return (rp - table_end_addr + table_start_addr - 1);
+	return rp;
 }
 
 static void force_set_vcnt(unsigned char *rptr)
@@ -504,12 +673,16 @@ static void force_set_vcnt(unsigned char *rptr)
 	tvafe_pr_info("force set vcnt:0x%x\n", vcnt);
 }
 
+#define VBI_NEW_VCNT_SEARCH_MAX    8
+static unsigned char temp_new_search[VBI_WRITE_BURST_BYTE - 2] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
 static void set_vbi_new_vcnt(struct vbi_dev_s *devp, unsigned char *rptr)
 {
-	unsigned char *ret_addr;
+	unsigned char *ret_addr, *p;
 	unsigned int len, temp;
-	unsigned char burst_data_vcnt[3] = {0x0, 0xff, 0xff};
-	unsigned int tval;
+	unsigned char vbi_head[3] = {0x0, 0xff, 0xff};
+	unsigned int tval, search_max = 0;
 	unsigned char h_val, l_val;
 
 	temp = vcnt;
@@ -520,28 +693,48 @@ static void set_vbi_new_vcnt(struct vbi_dev_s *devp, unsigned char *rptr)
 		return;
 	}
 
-	ret_addr = search_table(devp->pac_addr_start, rptr,
-		devp->pac_addr_end, burst_data_vcnt,
-		3, &len);
+	p = rptr;
+vbi_new_vcnt_search:
+	ret_addr = search_table(devp->pac_addr_start, p,
+		devp->pac_addr_end, vbi_head, 3, &len, 0);
 	if (!ret_addr) {
-		force_set_vcnt(rptr);
+		force_set_vcnt(p);
 		return;
 	}
 
 	if (ret_addr - devp->pac_addr_start >= 18) {
+		if (memcmp((ret_addr - 16), temp_new_search,
+			(VBI_WRITE_BURST_BYTE - 2))) {
+			if (search_max++ > VBI_NEW_VCNT_SEARCH_MAX) {
+				tvafe_pr_info("error: vbi cannot find vcnt, offset_addr:%d\n",
+					(int)(ret_addr - devp->pac_addr_start));
+				return;
+			}
+			p = ret_addr + 1;
+			goto vbi_new_vcnt_search;
+		}
 		l_val = *(ret_addr - 18) & 0xff;
 		h_val = *(ret_addr - 17) & 0xff;
 	} else {
 		tval = ret_addr - devp->pac_addr_start;
-
+		if (memcmp(&devp->pac_addr_start[devp->mem_size - 16 + tval],
+			temp_new_search, (VBI_WRITE_BURST_BYTE - 2))) {
+			if (search_max++ > VBI_NEW_VCNT_SEARCH_MAX) {
+				tvafe_pr_info("error: vbi cannot find vcnt, offset_addr:%d\n",
+					(int)(ret_addr - devp->pac_addr_start));
+				return;
+			}
+			p = ret_addr + 1;
+			goto vbi_new_vcnt_search;
+		}
 		l_val = devp->pac_addr_start[devp->mem_size-18+tval] & 0xff;
 		h_val = devp->pac_addr_start[devp->mem_size-17+tval] & 0xff;
 	}
 
 	vcnt = (h_val << 8) | l_val;
-	tvafe_pr_info("pre vcnt=0x%x, current vcnt=0x%x\n", temp, vcnt);
 	if (vcnt > 0xffff)
 		vcnt = temp;
+	tvafe_pr_info("pre vcnt=0x%x, current vcnt=0x%x\n", temp, vcnt);
 }
 
 static unsigned char *search_vbi_new_addr(struct vbi_dev_s *devp)
@@ -559,35 +752,36 @@ static unsigned char *search_vbi_new_addr(struct vbi_dev_s *devp)
 	vaddr = devp->pac_addr_start + paddr - devp->mem_start;
 	temp = (unsigned long)vaddr;
 	vaddr = (unsigned char *)((temp >> 4) << 4);
-
-	tvafe_pr_info("vbi search new addr\n");
+	if (vbi_dbg_en & VBI_DBG_INFO) {
+		tvafe_pr_info("vbi search new addr:%p, addr_start:%p\n",
+			vaddr, devp->pac_addr_start);
+	}
 	return vaddr;
 }
 
-static int init_cc_data_sync(struct vbi_dev_s *devp)
+static int init_vbi_data_sync(struct vbi_dev_s *devp)
 {
-	static int flag;
 	static unsigned char *addr;
 
-	if (init_cc_data_flag)
+	if (vbi_data_stable_flag)
 		return 1;
 
-	if (flag == 0) {
+	if (init_vbi_flag == 0)
 		addr = search_vbi_new_addr(devp);
-		flag++;
-		return 0;
-	} else if (flag == 4) {
+
+	if (init_vbi_flag == 4) {
 		set_vbi_new_vcnt(devp, addr);
-		init_cc_data_flag = 1;
-		tvafe_pr_info("init cc data ok\n");
+		vbi_data_stable_flag = 1;
+		vbi_vcnt_search_retry = 0;
+		tvafe_pr_info("init vbi data ok\n");
 		return 1;
 	}
 
-	flag++;
+	init_vbi_flag++;
 	return 0;
 }
 
-static int check_if_sync_cc_data(struct vbi_dev_s *devp, unsigned char *addr)
+static int check_if_sync_vbi_data(struct vbi_dev_s *devp, unsigned char *addr)
 {
 	static unsigned char *new_addr;
 
@@ -599,10 +793,13 @@ static int check_if_sync_cc_data(struct vbi_dev_s *devp, unsigned char *addr)
 			field_data_flag = 0;
 			set_vbi_new_vcnt(devp, new_addr);
 		}
-		tvafe_pr_info("not find vbi data.\n");
+		if (vbi_dbg_en & VBI_DBG_INFO)
+			tvafe_pr_info("not find vbi data.\n");
 		return -1;
-	} else if (addr > devp->pac_addr_end) {
-		tvafe_pr_info("vbi ret_addr error.\n");
+	}
+	if (addr > devp->pac_addr_end) {
+		if (vbi_dbg_en & VBI_DBG_INFO)
+			tvafe_pr_info("vbi ret_addr error.\n");
 		return -1;
 	}
 
@@ -610,20 +807,132 @@ static int check_if_sync_cc_data(struct vbi_dev_s *devp, unsigned char *addr)
 	return 0;
 }
 
-static void vbi_slicer_task(unsigned long arg)
+static int check_vbi_data_valid(struct vbi_data_s *vbi_data)
 {
-	struct vbi_dev_s *devp = (struct vbi_dev_s *)arg;
+	unsigned int data_byte = 0;
+
+	if (vbi_data_tt_check == 0)
+		return 0;
+	if (vbi_data->vbi_type != 3) /* only check tt */
+		return 0;
+
+	switch (vbi_data->tt_sys) {
+	case VBI_SYS_TT_625A:
+		data_byte = VBI_PCNT_TT_625A;
+		break;
+	case VBI_SYS_TT_625B:
+		data_byte = VBI_PCNT_TT_625B;
+		break;
+	case VBI_SYS_TT_625C:
+		data_byte = VBI_PCNT_TT_625C;
+		break;
+	case VBI_SYS_TT_625D:
+		data_byte = VBI_PCNT_TT_625D;
+		break;
+	case VBI_SYS_TT_525B:
+		data_byte = VBI_PCNT_TT_525B;
+		break;
+	case VBI_SYS_TT_525C:
+		data_byte = VBI_PCNT_TT_525C;
+		break;
+	case VBI_SYS_TT_525D:
+		data_byte = VBI_PCNT_TT_525D;
+		break;
+	default:
+		break;
+	}
+
+	if (vbi_data->nbytes != data_byte) {
+		if (vbi_dbg_en & VBI_DBG_INFO2) {
+			tvafe_pr_info("%s: data check error: tt_sys=%d, data_byte=%d\n",
+				__func__, vbi_data->tt_sys, vbi_data->nbytes);
+		}
+		return -1;
+	}
+
+	return 0;
+}
+
+static unsigned char vbi_tt_test_p201_head[23][2] = {
+	{0x8c, 0x15}, /* line 1 */
+	{0x49, 0x02}, /* line 2 */
+	{0x8c, 0x02}, /* line 3 */
+	{0x49, 0x49}, /* line 4 */
+	{0x8c, 0x49}, /* line 5 */
+	{0x49, 0x5e}, /* line 6 */
+	{0x8c, 0x5e}, /* line 7 */
+	{0x49, 0x64}, /* line 8 */
+	{0x8c, 0x64}, /* line 9 */
+	{0x49, 0x73}, /* line 10 */
+	{0x8c, 0x73}, /* line 11 */
+	{0x49, 0x38}, /* line 12 */
+	{0x8c, 0x38}, /* line 13 */
+	{0x49, 0x2f}, /* line 14 */
+	{0x8c, 0x2f}, /* line 15 */
+	{0x49, 0xd0}, /* line 16 */
+	{0x8c, 0xd0}, /* line 17 */
+	{0x49, 0xc7}, /* line 18 */
+	{0x8c, 0xc7}, /* line 19 */
+	{0x49, 0x8c}, /* line 20 */
+	{0x8c, 0x8c}, /* line 21 */
+	{0x49, 0x9b}, /* line 22 */
+	{0x8c, 0x9b}, /* line 23 */
+};
+static void vbi_tt_raw_data_test(struct vbi_data_s *vbi_data)
+{
+	int i, j, n;
+
+	if (vbi_data->nbytes != 42)
+		return;
+	for (n = 0; n < 23; n++) {
+		if ((vbi_data->b[0] == vbi_tt_test_p201_head[n][0]) &&
+		(vbi_data->b[1] == vbi_tt_test_p201_head[n][1]) &&
+		(vbi_data->b[2] == 0x7f))
+			break;
+	}
+	if (n >= 23)
+		return;
+	j = 0;
+	for (i = 0; i < 40; i++) {
+		if (vbi_data->b[i+2] != 0x7f)
+			j++;
+	}
+	if (j > 0) {
+		pr_info("[vbi..]: vcnt:%d, page201 line:%d, error cnt:%d\n",
+			vcnt, (n + 1), j);
+	}
+	if (vbi_pr_isr_buf) {
+		if (vbi_dbg_en & VBI_DBG_TEST2) {
+			j = sprintf(vbi_pr_isr_buf,
+				"[vbi..]: vcnt:%d, page201 line:%d, data:",
+				vcnt, (n + 1));
+			for (i = 0; i < 42 ; i++) {
+				j += sprintf(vbi_pr_isr_buf + j,
+					"%02x ", vbi_data->b[i]);
+			}
+			pr_info("%s\n", vbi_pr_isr_buf);
+		}
+	}
+}
+
+static void vbi_slicer_work(struct work_struct *p_work)
+{
+	struct vbi_dev_s *devp = vbi_dev_local;
 	struct vbi_data_s vbi_data;
 	unsigned char rbyte = 0;
-	unsigned char i = 0;
+	unsigned int i = 0, j;
 	unsigned short pre_val = 0;
 	unsigned char *local_rptr = NULL;
-	unsigned char burst_data_vcnt[VBI_WRITE_BURST_BYTE] = {0};
 	unsigned char vbi_head[3] = {0x00, 0xFF, 0xFF};
 	unsigned char *rptr, *ret_addr, *vbi_addr;
-	unsigned int len, chlen, vbihlen, datalen;
-	int ret, ret_cpvbi, ret_sync;
+	unsigned int len = 0, chlen = 0, vbihlen, datalen;
+	int ret, data_save_flag = 0;
+	unsigned char *tmp;
+	unsigned char *vbi_addr_bak = NULL;
+	unsigned int vbihlen_bak = 0, chlen_bak = 0;
 
+	if (!devp)
+		return;
 	if (devp->vbi_start == false)
 		return;
 	if (tvafe_clk_status == false) {
@@ -631,128 +940,267 @@ static void vbi_slicer_task(unsigned long arg)
 		return;
 	}
 
-	ret = init_cc_data_sync(devp);
-	if (!ret)
+	if (devp->slicer->busy) {
+		if (vbi_dbg_en & VBI_DBG_INFO)
+			tvafe_pr_info("%s busy, exit\n", __func__);
 		return;
+	}
+	if (vbi_slicer_bypass) {
+		if (vbi_dbg_en & VBI_DBG_ISR2)
+			tvafe_pr_info("%s bypass, exit\n", __func__);
+		return;
+	}
 
+	mutex_lock(&devp->slicer->task_mutex);
+	devp->slicer->busy = 1;
+	if (devp->slicer->slicer_cnt++ >= 0xffffffff)
+		devp->slicer->slicer_cnt = 0;
+
+	tmp = (unsigned char *)&vbi_data;
+
+	ret = init_vbi_data_sync(devp);
+	if (!ret) {
+		devp->slicer->busy = 0;
+		mutex_unlock(&devp->slicer->task_mutex);
+		return;
+	}
+
+	if (++vbi_read_wakeup_cnt % vbi_read_wakeup_interval == 0)
+		vbi_read_wakeup_cnt = 0;
+
+	if (vbi_dbg_en & VBI_DBG_ISR3)
+		tvafe_pr_info("pac_addr:%p\n", devp->pac_addr);
 	if (devp->pac_addr > devp->pac_addr_end)
 		devp->pac_addr = devp->pac_addr_start;
 
 	rptr = devp->pac_addr;  /* backup package data pointer */
 
-	burst_data_vcnt[0] = vcnt&0xff;
-	burst_data_vcnt[1] = (vcnt >> 8)&0xff;
+	ret_addr = search_table_for_vcnt(devp->pac_addr_start, rptr,
+		devp->pac_addr_end, vcnt, &len);
+	if ((vbi_dbg_en & VBI_DBG_INFO) && (vbi_search_table_err_num == 2)) {
+		tvafe_pr_info("pac_start:%p, pac_addr:%p, offset:%d, ret_addr:%p, vcnt:%d, len:%d\n",
+			devp->pac_addr_start, devp->pac_addr,
+			(int)(devp->pac_addr - devp->pac_addr_start),
+			ret_addr, vcnt, len);
+	}
+	if (vbi_search_table_err_num == 3) {
+		if (vbi_vcnt_search_retry++ < VBI_VCNT_SEARCH_CNT_MAX)
+			goto vbi_slicer_work_exit;
+	}
+	if ((vbi_vcnt_search_retry > 0) &&
+		(vbi_vcnt_search_retry < VBI_VCNT_SEARCH_CNT_MAX))
+		tvafe_pr_info("%s: find vcnt:%d, retry_cnt:%d\n",
+			__func__, vcnt, vbi_vcnt_search_retry);
+	vbi_vcnt_search_retry = 0;
 
-	ret_addr = search_table(devp->pac_addr_start, rptr,
-		devp->pac_addr_end, burst_data_vcnt,
-		VBI_WRITE_BURST_BYTE, &len);
+	ret = check_if_sync_vbi_data(devp, ret_addr);
+	if (ret) {
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: check_if_sync_vbi_data failed, vcnt:%d\n",
+				__func__, vcnt);
+		}
+		goto vbi_slicer_work_next;
+	}
 
-	if (vcnt >= 0xffff)
-		vcnt = 1;
-	else
-		vcnt++;
-
-	ret_sync = check_if_sync_cc_data(devp, ret_addr);
-	if (ret_sync < 0)
-		return;
-
-	if ((len == VBI_WRITE_BURST_BYTE) ||
+	if ((len <= VBI_WRITE_BURST_BYTE) ||
 		(len > VBI_BUFF3_EA - VBI_BUFF2_EA)) {
-		if (ret_addr + 1 > devp->pac_addr_end)
-			devp->pac_addr = devp->pac_addr_start;
-		else
-			devp->pac_addr = ret_addr + 1;
-
-		return;
+		if (vbi_dbg_en & VBI_DBG_INFO2) {
+			tvafe_pr_info("%s: no vbi data, len %d, vcnt:%d\n",
+				__func__, len, vcnt);
+		}
+		goto vbi_slicer_work_next;
 	}
 
-	ret_cpvbi = copy_vbi_to(devp->pac_addr_start, devp->pac_addr_end,
-		devp->pac_addr_start + VBI_BUFF3_EA, rptr,
+	/* temp_addr_start = pac_addr_start + VBI_BUFF3_EA */
+	ret = copy_vbi_to(devp->pac_addr_start, devp->pac_addr_end,
+		devp->temp_addr_start, rptr,
 		(len - VBI_WRITE_BURST_BYTE));
-	if (ret_cpvbi < 0) {
-		if (ret_addr + 1 > devp->pac_addr_end)
-			devp->pac_addr = devp->pac_addr_start;
-		else
-			devp->pac_addr = ret_addr + 1;
-
-		return;
+	if (ret) {
+		if (vbi_dbg_en & VBI_DBG_INFO) {
+			tvafe_pr_info("%s: copy_vbi_to failed, vcnt:%d\n",
+				__func__, vcnt);
+		}
+		goto vbi_slicer_work_next;
 	}
 
-	local_rptr = devp->pac_addr_start + VBI_BUFF3_EA;
-	chlen = len;
-	while (chlen > 0) {
-		if (!devp->vbi_start || !tvafe_clk_status)
-			return;
-		if ((local_rptr > devp->pac_addr_start+
-			VBI_BUFF3_EA+VBI_BUFF3_SIZE-1)
-			|| (local_rptr < devp->pac_addr_start + VBI_BUFF3_EA))
-			goto err_exit;
+	local_rptr = devp->temp_addr_start;
+	datalen = sizeof(struct vbi_data_s);
+	while (chlen < len) {
+		if (!devp->vbi_start || !tvafe_clk_status) {
+			if (vbi_dbg_en & VBI_DBG_INFO)
+				tvafe_pr_info("%s: vbi stopped\n", __func__);
+			goto vbi_slicer_work_exit;
+		}
+		if ((local_rptr > devp->temp_addr_end)
+			|| (local_rptr < devp->temp_addr_start)) {
+			if (vbi_dbg_en & VBI_DBG_INFO) {
+				tvafe_pr_info("%s: local_rptr:%p invalid, vcnt:%d\n",
+					__func__, local_rptr, vcnt);
+			}
+			goto vbi_slicer_work_next;
+		}
 
 		vbi_addr = search_table(local_rptr, local_rptr,
-			devp->pac_addr_start+
-			VBI_BUFF3_EA+len-VBI_WRITE_BURST_BYTE,
-			vbi_head, 3, &vbihlen);
+		(devp->temp_addr_start + len - VBI_WRITE_BURST_BYTE - 1),
+			vbi_head, 3, &vbihlen, 2);
 		if (!vbi_addr) {
-			/*tvafe_pr_info("not find vbi buff data\n");*/
-			goto err_exit;
+			if ((vbi_search_table_err_num == 2) &&
+				(vbi_dbg_en & VBI_DBG_INFO)) {
+				tvafe_pr_info("%s: vbi data search table invalid, vcnt:%d, chlen:%d, len:%d, data_save_flag:%d, vbi_search_table_err_num=%d\n",
+					__func__, vcnt, chlen, len,
+					data_save_flag,
+					vbi_search_table_err_num);
+				tvafe_pr_info("%s: chlen_bak:%d, vbihlen_bak:%d, vbi_addr_bak:%p, mem_start=%p, mem_end=%p\n",
+					__func__, chlen_bak, vbihlen_bak,
+					vbi_addr_bak,
+					devp->pac_addr_start,
+					devp->pac_addr_end);
+				for (i = 0; i < (len-VBI_WRITE_BURST_BYTE);
+					i++) {
+					pr_info("***%d: 0x%p=0x%02x\n",
+						i, (devp->temp_addr_start + i),
+						*(devp->temp_addr_start + i));
+				}
+				for (i = 0; i < (len+3); i++) {
+					pr_info("**%d: 0x%p=0x%02x\n",
+						i, (devp->pac_addr + i),
+						*(devp->pac_addr + i));
+				}
+			}
+			goto vbi_slicer_work_next;
 		}
-		chlen -= (vbihlen + 3);
+		chlen += (vbihlen + 3);
 		local_rptr = vbi_addr + 1;
+		vbi_addr_bak = vbi_addr;
+		vbihlen_bak = vbihlen;
+
+		if ((local_rptr > devp->temp_addr_end)
+			|| (local_rptr < devp->temp_addr_start)) {
+			if (vbi_dbg_en & VBI_DBG_INFO) {
+				tvafe_pr_info("%s: local_rptr:%p invalid, vcnt:%d\n",
+					__func__, local_rptr, vcnt);
+			}
+			goto vbi_slicer_work_next;
+		}
 
 		/* vbi_type & field_id */
 		vbi_get_byte(local_rptr, rbyte);
-		chlen--;
+		chlen++;
 		vbi_data.vbi_type = (rbyte>>1) & 0x7;
 		vbi_data.field_id = rbyte & 1;
 		#if defined(VBI_TT_SUPPORT)
 		vbi_data.tt_sys = rbyte >> 5;
 		#endif
 		if (vbi_data.vbi_type > MAX_PACKET_TYPE) {
-			tvafe_pr_info("[vbi..]: unsupport vbi_type_id:%d\n",
-				vbi_data.vbi_type);
+			if (vbi_dbg_en & VBI_DBG_INFO) {
+				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, unsupport vbi_type_id:%d\n",
+					vcnt, chlen, vbi_data.vbi_type);
+			}
 			continue;
 		}
 		/* byte counter */
 		vbi_get_byte(local_rptr, rbyte);
-		chlen--;
+		chlen++;
 		vbi_data.nbytes = rbyte;
 		/* line number */
 		vbi_get_byte(local_rptr, rbyte);
-		chlen--;
+		chlen++;
 		pre_val = (u16)rbyte;
 		vbi_get_byte(local_rptr, rbyte);
-		chlen--;
+		chlen++;
 		pre_val |= ((u16)rbyte & 0x3) << 8;
 		vbi_data.line_num = pre_val;
+		if (vbi_dbg_en & VBI_DBG_ISR4)
+			vbi_data.line_num = vcnt;
 		/* data */
+		chlen += vbi_data.nbytes;
+		if (vbi_data.nbytes > VBI_DATA_BYTE_MAX) {
+			if (vbi_dbg_en & VBI_DBG_INFO) {
+				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, unsupport vbi_data_byte:%d\n",
+					vcnt, chlen, vbi_data.nbytes);
+			}
+			continue;
+		}
+		if (check_vbi_data_valid(&vbi_data)) {
+			local_rptr += vbi_data.nbytes;
+			if (vbi_dbg_en & VBI_DBG_INFO) {
+				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, invalid vbi_data type:%d, tt_sys:%d, byte:%d\n",
+					vcnt, chlen, vbi_data.vbi_type,
+					vbi_data.tt_sys, vbi_data.nbytes);
+			}
+			continue;
+		}
 		memcpy(&(vbi_data.b[0]), local_rptr, vbi_data.nbytes);
 		local_rptr += vbi_data.nbytes;
-		chlen -= vbi_data.nbytes;
 		/* capture data to vbi buffer */
-		datalen = sizeof(struct vbi_data_s);
 		vbi_buffer_write(&devp->slicer->buffer, &vbi_data, datalen);
+		data_save_flag = 1;
 		/* go to search next package */
-		if (data_print_en) {
-			tvafe_pr_info("[vbi..]: field_id:%d, line_num:%4d;",
-				vbi_data.field_id,
-				vbi_data.line_num);
-			for (i = 0; i < vbi_data.nbytes ; i++) {
-				if (i%16 == 0)
-					tvafe_pr_info("\n");
-				tvafe_pr_info("%2x ", vbi_data.b[i]);
+		if (vbi_dbg_en & VBI_DBG_TEST)
+			vbi_tt_raw_data_test(&vbi_data);
+		if (vbi_dbg_en & VBI_DBG_ISR4) {
+			if (vbi_pr_isr_buf) {
+				j = sprintf(vbi_pr_isr_buf,
+					"[vbi..]: chlen:%d, vcnt:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
+					chlen, vcnt,
+					vbi_data.field_id,
+					vbi_data.line_num,
+					vbi_data.nbytes);
+				for (i = 0; i < vbi_data.nbytes ; i++) {
+					if (i%16 == 0) {
+						j += sprintf(vbi_pr_isr_buf + j,
+							"\n    ");
+					}
+					j += sprintf(vbi_pr_isr_buf + j,
+						"0x%02x ", vbi_data.b[i]);
+				}
+				pr_info("%s\n", vbi_pr_isr_buf);
+
+				tvafe_pr_info("%s: vbi_dbg_isr_cnt %d\n",
+					__func__, vbi_dbg_isr_cnt);
+				if (vbi_dbg_isr_cnt++ >= vbi_dbg_print_cnt) {
+					vbi_dbg_en &= ~(VBI_DBG_ISR4);
+					vbi_dbg_isr_cnt = 0;
+					kfree(vbi_pr_isr_buf);
+					vbi_pr_isr_buf = NULL;
+				}
 			}
-			tvafe_pr_info("\n");
+		}
+
+		chlen_bak = chlen;
+	}
+
+vbi_slicer_work_next:
+	if (data_save_flag) {
+		if (vbi_dbg_en & VBI_DBG_ISR2)
+			tvafe_pr_info("[vbi..]: buffer pread:%d, pwrite=%d, vbi_read_wakeup_cnt:%d\n",
+				devp->slicer->buffer.pread,
+				devp->slicer->buffer.pwrite,
+				vbi_read_wakeup_cnt);
+		if ((devp->slicer->buffer.pread !=
+			devp->slicer->buffer.pwrite) &&
+			(vbi_read_wakeup_cnt == 0)) {
+			wake_up(&devp->slicer->buffer.queue);
+			if (vbi_dbg_en & VBI_DBG_ISR2)
+				tvafe_pr_info("[vbi..]: wake_up buffer polling\n");
 		}
 	}
 
-	if ((devp->slicer->buffer.pread != devp->slicer->buffer.pwrite) &&
-		(wakeup_cnt++ % vbi_wakeup_interval == 0))
-		wake_up(&devp->slicer->buffer.queue);
-err_exit:
-	if (ret_addr + 1 > devp->pac_addr_end)
-		devp->pac_addr = devp->pac_addr_start;
+	if (vcnt >= 0xffff)
+		vcnt = 1;
 	else
-		devp->pac_addr = ret_addr + 1;
+		vcnt++;
+
+	if (ret_addr) {
+		if (ret_addr + 1 > devp->pac_addr_end)
+			devp->pac_addr = devp->pac_addr_start;
+		else
+			devp->pac_addr = ret_addr + 1;
+	}
+
+vbi_slicer_work_exit:
+	devp->slicer->busy = 0;
+	mutex_unlock(&devp->slicer->task_mutex);
 
 	return;
 }
@@ -815,20 +1263,14 @@ static int vbi_slicer_free(struct vbi_dev_s *vbi_dev,
 static void vbi_ringbuffer_init(struct vbi_ringbuffer_s *rbuf,
 			void *data, size_t len)
 {
-	rbuf->pread = rbuf->pwrite = 0;
 	if (data == NULL)
 		rbuf->data = vmalloc(len*sizeof(struct vbi_data_s));
 	else
 		rbuf->data = data;
 	rbuf->size = len*sizeof(struct vbi_data_s);
 	rbuf->data_num = len;
-	rbuf->error = 0;
-}
 
-void vbi_ringbuffer_reset(struct vbi_ringbuffer_s *rbuf)
-{
-	rbuf->pread = rbuf->pwrite = 0;
-	rbuf->error = 0;
+	vbi_ringbuffer_flush(rbuf);
 }
 
 static int vbi_set_buffer_size(struct vbi_dev_s *dev,
@@ -847,6 +1289,11 @@ static int vbi_set_buffer_size(struct vbi_dev_s *dev,
 		tvafe_pr_info("%s: buffer size is 0!!!\n", __func__);
 		return -EINVAL;
 	}
+	if (size > VBI_DEFAULT_BUFFER_SIZE) {
+		tvafe_pr_info("%s: buffer size %d can't over %d\n",
+			      __func__, size, VBI_DEFAULT_BUFFER_SIZE);
+		return -EINVAL;
+	}
 	if (vbi_slicer->state >= VBI_STATE_GO) {
 		tvafe_pr_info("%s: vbi_slicer busy!!!\n", __func__);
 		return -EBUSY;
@@ -863,7 +1310,7 @@ static int vbi_set_buffer_size(struct vbi_dev_s *dev,
 	buf->size = size;
 
 	/* reset and not flush in case the buffer shrinks */
-	vbi_ringbuffer_reset(buf);
+	vbi_ringbuffer_flush(buf);
 	spin_unlock_irq(&dev->lock);
 
 	vfree(oldmem);
@@ -898,6 +1345,9 @@ static int vbi_slicer_start(struct vbi_dev_s *dev)
 
 	vbi_slicer_state_set(dev, VBI_STATE_GO);
 
+	tvafe_pr_info("[vbi..] %s: vbi data size: %d\n",
+		__func__, (int)sizeof(struct vbi_data_s));
+
 	return 0;
 }
 
@@ -913,7 +1363,7 @@ static int vbi_slicer_set(struct vbi_dev_s *vbi_dev,
 	return 0;/* vbi_slicer_start(vbi_dev); */
 }
 
-ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
+static ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
 {
 	ssize_t avail;
 
@@ -924,12 +1374,73 @@ ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
 	return avail;
 }
 
-int vbi_ringbuffer_empty(struct vbi_ringbuffer_s *rbuf)
+static int vbi_ringbuffer_empty(struct vbi_ringbuffer_s *rbuf)
 {
 	return (int)(rbuf->pread == rbuf->pwrite);
 }
 
-ssize_t vbi_ringbuffer_read_user(struct vbi_ringbuffer_s *rbuf,
+static void vbi_user_buffer_dump(u8 __user *buf, size_t len)
+{
+	unsigned char *data;
+	unsigned int i, j, chlen, datalen;
+	struct vbi_data_s vbi_data;
+
+	if (vbi_pr_read_buf) {
+		data = kcalloc(len, sizeof(char), GFP_KERNEL);
+		if (data == NULL) {
+			tvafe_pr_info("%s: data error\n", __func__);
+			return;
+		}
+		if (copy_from_user(data, buf, len)) {
+			tvafe_pr_info("%s: copy_from_user error\n", __func__);
+			kfree(data);
+			return;
+		}
+
+		datalen = sizeof(struct vbi_data_s);
+		chlen = 0;
+		while (chlen < len) {
+			if ((chlen + datalen) > len) {
+				tvafe_pr_info("%s: chlen:%d,datalen:%d,len:%d invalid\n",
+					__func__, chlen, datalen, (int)len);
+				break;
+			}
+			memcpy(&vbi_data, (data + chlen), datalen);
+			chlen += datalen;
+			if (vbi_data.vbi_type > MAX_PACKET_TYPE) {
+				tvafe_pr_info("[user..]: chlen:%d, line_num:%4d, unsupport vbi_type_id:%d\n",
+					chlen, vbi_data.line_num,
+					vbi_data.vbi_type);
+				continue;
+			}
+			if (vbi_data.nbytes > VBI_DATA_BYTE_MAX) {
+				tvafe_pr_info("[user..]: chlen:%d, line_num:%4d, unsupport vbi_data_byte:%d\n",
+					chlen, vbi_data.line_num,
+					vbi_data.nbytes);
+				continue;
+			}
+
+			j = sprintf(vbi_pr_read_buf,
+				"[user..]: chlen:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
+				chlen,
+				vbi_data.field_id,
+				vbi_data.line_num,
+				vbi_data.nbytes);
+			for (i = 0; i < vbi_data.nbytes ; i++) {
+				if (i%16 == 0) {
+					j += sprintf(vbi_pr_read_buf + j,
+						"\n    ");
+				}
+				j += sprintf(vbi_pr_read_buf + j, "0x%02x ",
+					vbi_data.b[i]);
+			}
+			pr_info("%s\n", vbi_pr_read_buf);
+		}
+		kfree(data);
+	}
+}
+
+static ssize_t vbi_ringbuffer_read_user(struct vbi_ringbuffer_s *rbuf,
 			u8 __user *buf, size_t len)
 {
 	size_t todo = len;
@@ -937,15 +1448,38 @@ ssize_t vbi_ringbuffer_read_user(struct vbi_ringbuffer_s *rbuf,
 
 	split = (rbuf->pread + len > rbuf->size) ? rbuf->size - rbuf->pread : 0;
 	if (split > 0) {
+		if (vbi_dbg_en & VBI_DBG_READ2) {
+			tvafe_pr_info("%s: user buffer0: %p\n",
+				__func__, buf);
+		}
 		if (copy_to_user(buf, (char *)rbuf->data+rbuf->pread, split))
 			return -EFAULT;
 		buf += split;
 		todo -= split;
 		rbuf->pread = 0;
+		if (vbi_dbg_en & VBI_DBG_READ2) {
+			tvafe_pr_info("%s: ringbuffer read max, split size=%d, todo size=%d\n",
+				__func__, (int)split, (int)todo);
+		}
+		if (vbi_dbg_en & VBI_DBG_READ2) {
+			tvafe_pr_info("%s: user buffer: %p\n",
+				__func__, buf);
+		}
 	}
 	if (copy_to_user(buf, (char *)rbuf->data+rbuf->pread, todo))
 		return -EFAULT;
 	rbuf->pread = (rbuf->pread + todo) % rbuf->size;
+	if (vbi_dbg_en & VBI_DBG_READ4) {
+		vbi_user_buffer_dump(buf, len);
+		tvafe_pr_info("%s: vbi_dbg_read_cnt %d, len %d\n",
+			__func__, vbi_dbg_read_cnt, (int)len);
+		if (vbi_dbg_read_cnt++ >= vbi_dbg_print_cnt) {
+			vbi_dbg_en &= ~(VBI_DBG_READ4);
+			vbi_dbg_read_cnt = 0;
+			kfree(vbi_pr_read_buf);
+			vbi_pr_read_buf = NULL;
+		}
+	}
 
 	return len;
 }
@@ -984,7 +1518,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 	if (tvafe_clk_status == false) {
 		ret = -EWOULDBLOCK;
 		vbi_ringbuffer_flush(src);
-		if (vbi_dbg_en)
+		if (vbi_dbg_en & VBI_DBG_READ)
 			tvafe_pr_info("[vbi..] %s: tvafe is closed.pread = %d;pwrite = %d\n",
 				__func__, src->pread, src->pwrite);
 		return ret;
@@ -992,11 +1526,11 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 	if (src->error) {
 		ret = src->error;
 		vbi_ringbuffer_flush(src);
-		if (vbi_dbg_en)
+		if (vbi_dbg_en & VBI_DBG_READ)
 			tvafe_pr_info("%s: read buffer error\n", __func__);
 		return ret;
 	}
-	if (vbi_dbg_en)
+	if (vbi_dbg_en & VBI_DBG_READ3)
 		tvafe_pr_info("%s:src->pread = %d;src->pwrite = %d\n",
 		__func__, src->pread, src->pwrite);
 
@@ -1009,7 +1543,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		tvafe_pr_info("%s: vbi_ringbuffer_read_user error\n",
 			__func__);
 	}
-	if (vbi_dbg_en)
+	if (vbi_dbg_en & VBI_DBG_READ3)
 		tvafe_pr_info("%s: counter:%Zx, return:%Zx\n",
 		__func__, count, ret);
 	return ret;
@@ -1028,8 +1562,7 @@ static ssize_t vbi_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	ret = vbi_buffer_read(&vbi_slicer->buffer,
-	file->f_flags & O_NONBLOCK,
-	buf, count, ppos);
+		file->f_flags & O_NONBLOCK, buf, count, ppos);
 
 	mutex_unlock(&vbi_slicer->mutex);
 
@@ -1049,13 +1582,12 @@ static int vbi_open(struct inode *inode, struct file *file)
 			__func__);
 		return -ERESTARTSYS;
 	}
-	tasklet_enable(&vbi_dev->tsklt_slicer);
 	vbi_ringbuffer_init(&vbi_dev->slicer->buffer, NULL,
 		VBI_DEFAULT_BUFFER_PACKAGE_NUM);
 	vbi_dev->slicer->type = VBI_TYPE_NULL;
 	vbi_slicer_state_set(vbi_dev, VBI_STATE_ALLOCATED);
 	/*disable data capture function*/
-	vbi_dev->tasklet_enable = false;
+	vbi_dev->slicer_enable = false;
 	vbi_dev->vbi_start = false;
 	/* request irq */
 	ret = request_irq(vbi_dev->vs_irq, vbi_isr, IRQF_SHARED,
@@ -1076,9 +1608,8 @@ static int vbi_release(struct inode *inode, struct file *file)
 	struct vbi_slicer_s *vbi_slicer = vbi_dev->slicer;
 	int ret = 0;
 
-	vbi_dev->tasklet_enable = false;
+	vbi_dev->slicer_enable = false;
 	vbi_dev->vbi_start = false;  /*disable data capture function*/
-	tasklet_disable(&vbi_dev->tsklt_slicer);
 	ret = vbi_slicer_free(vbi_dev, vbi_slicer);
 	/* free irq */
 	if (vbi_dev->irq_free_status == 1)
@@ -1133,9 +1664,10 @@ static long vbi_ioctl(struct file *file,
 			break;
 		}
 		/* enable data capture function */
-		vbi_dev->vs_delay = VBI_VS_DELAY;
+		vbi_state_reset(vbi_dev);
+
 		vbi_dev->vbi_start = true;
-		vbi_dev->tasklet_enable = true;
+		vbi_dev->slicer_enable = true;
 
 		mutex_unlock(&vbi_slicer->mutex);
 		mdelay(VBI_START_DELAY);
@@ -1151,17 +1683,17 @@ static long vbi_ioctl(struct file *file,
 			return -ERESTARTSYS;
 		}
 		/* disable data capture function */
-		vbi_dev->tasklet_enable = false;
+		vbi_dev->slicer_enable = false;
 		vbi_dev->vbi_start = false;
-		init_cc_data_flag = 0;
+		vbi_data_stable_flag = 0;
 		ret = vbi_slicer_stop(vbi_slicer);
 		if (tvafe_clk_status) {
-		/* manuel reset vbi */
-		/*W_VBI_APB_REG(ACD_REG_22, 0x82080000);*/
-		/* vbi reset release, vbi agent enable*/
-			/*W_VBI_APB_REG(ACD_REG_22, 0x06080000);*/
-		/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
-		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
+			/* manuel reset vbi */
+			/*W_VBI_APB_REG(ACD_REG_22, 0x82080000);*/
+			/* vbi reset release, vbi agent enable*/
+				/*W_VBI_APB_REG(ACD_REG_22, 0x06080000);*/
+			/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
+			W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 		}
 		mutex_unlock(&vbi_slicer->mutex);
 		tvafe_pr_info("%s: stop slicer state:%d\n",
@@ -1195,7 +1727,7 @@ static long vbi_ioctl(struct file *file,
 				__func__);
 		}
 		mutex_unlock(&vbi_slicer->mutex);
-		tvafe_pr_info("%s: set slicer type to %d ,state:%d\n",
+		tvafe_pr_info("%s: set slicer type to 0x%x, state:%d\n",
 			__func__, vbi_slicer->type, vbi_slicer->state);
 		break;
 
@@ -1210,9 +1742,16 @@ static long vbi_ioctl(struct file *file,
 			mutex_unlock(&vbi_slicer->mutex);
 			break;
 		}
+		if ((!buffer_size_t) ||
+		    (buffer_size_t > VBI_DEFAULT_BUFFER_SIZE)) {
+			mutex_unlock(&vbi_slicer->mutex);
+			tvafe_pr_info("%s: invalid buf size %d\n",
+				      __func__, buffer_size_t);
+			break;
+		}
 		ret = vbi_set_buffer_size(vbi_dev, buffer_size_t);
 		mutex_unlock(&vbi_slicer->mutex);
-		tvafe_pr_info("%s: set buf size to %d ,state:%d\n",
+		tvafe_pr_info("%s: set buf size to %d, state:%d\n",
 			__func__, vbi_slicer->buffer.size, vbi_slicer->state);
 		break;
 
@@ -1276,7 +1815,7 @@ static const struct file_operations vbi_fops = {
 	.poll    = vbi_poll,
 	/* ... */
 };
-static struct resource vbi_memobj;
+
 static void vbi_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -1299,8 +1838,12 @@ static void vbi_dump_mem(char *path, struct vbi_dev_s *devp)
 {
 	struct file *filp = NULL;
 	loff_t pos = 0;
-	void *buf = NULL;
 	mm_segment_t old_fs = get_fs();
+
+	if (!path) {
+		tvafe_pr_info("%s file path is null\n", __func__);
+		return;
+	}
 
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -1309,15 +1852,10 @@ static void vbi_dump_mem(char *path, struct vbi_dev_s *devp)
 		tvafe_pr_info("create %s error.\n", path);
 		return;
 	}
-	buf = phys_to_virt(devp->mem_start);
-	if (buf == NULL) {
-		tvafe_pr_info("buf is null!!!.\n");
-		return;
-	}
 
-	vfs_write(filp, buf, devp->mem_size, &pos);
+	vfs_write(filp, devp->pac_addr_start, devp->mem_size, &pos);
 	tvafe_pr_info("write buffer addr:0x%p size: %2u  to %s.\n",
-			buf, devp->mem_size, path);
+			devp->pac_addr_start, devp->mem_size, path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
@@ -1328,6 +1866,11 @@ static void vbi_dump_buf(char *path, struct vbi_dev_s *devp)
 	loff_t pos = 0;
 	void *buf = NULL;
 	mm_segment_t old_fs = get_fs();
+
+	if (!path) {
+		tvafe_pr_info("%s file path is null\n", __func__);
+		return;
+	}
 
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -1362,6 +1905,7 @@ static const char *vbi_debug_usage_str = {
 	"echo set_type val(x) > /sys/class/vbi/vbi/debug; set vbi type\n"
 	"echo open > /sys/class/vbi/vbi/debug; open vbi device\n"
 	"echo release > /sys/class/vbi/vbi/debug; release vbi device\n"
+	"echo dbg_en val(x) > /sys/class/vbi/vbi/debug; enable debug print\n"
 };
 
 static ssize_t vbi_show(struct device *dev,
@@ -1378,7 +1922,7 @@ static ssize_t vbi_store(struct device *dev,
 	struct vbi_dev_s *devp = dev_get_drvdata(dev);
 	struct vbi_slicer_s *vbi_slicer;
 	struct vbi_ringbuffer_s *vbi_buffer;
-	long val;
+	unsigned int val;
 	int ret = 0;
 
 	if (!buff || !devp)
@@ -1390,18 +1934,26 @@ static ssize_t vbi_store(struct device *dev,
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	vbi_parse_param(buf_orig, (char **)&parm);
 	if (!strncmp(parm[0], "dumpmem", strlen("dumpmem"))) {
+		if (!parm[1]) {
+			tvafe_pr_info("error: miss dump file name!\n");
+			goto vbi_store_exit;
+		}
 		vbi_dump_mem(parm[1], devp);
 		tvafe_pr_info("dump mem done!!\n");
 	} else if (!strncmp(parm[0], "dumpbuf", strlen("dumpbuf"))) {
+		if (!parm[1]) {
+			tvafe_pr_info("error: miss dump file name!\n");
+			goto vbi_store_exit;
+		}
 		vbi_dump_buf(parm[1], devp);
 		tvafe_pr_info("dump buf done!!\n");
 	} else if (!strncmp(parm[0], "status", strlen("status"))) {
 		tvafe_pr_info("vcnt:0x%x\n", vcnt);
 		tvafe_pr_info("mem_start:0x%x,mem_size:0x%x\n",
 			devp->mem_start, devp->mem_size);
-		tvafe_pr_info("vbi_start:%d,vbi_data_type:0x%x,vbi_start_code:0x%x,tasklet_enable:%d\n",
+		tvafe_pr_info("vbi_start:%d,vbi_data_type:0x%x,vbi_start_code:0x%x,slicer_enable:%d\n",
 			devp->vbi_start, devp->vbi_data_type,
-			devp->vbi_start_code, devp->tasklet_enable);
+			devp->vbi_start_code, devp->slicer_enable);
 		tvafe_pr_info("vbi_dto_cc:0x%x,vbi_dto_tt:0x%x\n",
 			devp->vbi_dto_cc, devp->vbi_dto_tt);
 		tvafe_pr_info("vbi_dto_wss:0x%x,vbi_dto_vps:0x%x\n",
@@ -1417,32 +1969,96 @@ static ssize_t vbi_store(struct device *dev,
 				vbi_buffer->size, vbi_buffer->data_num,
 				vbi_buffer->pread, vbi_buffer->pwrite,
 				vbi_buffer->data_wmode);
+		if (vbi_slicer)
+			tvafe_pr_info("isr_cnt:%d,slicer_cnt:%d\n",
+				      devp->isr_cnt, vbi_slicer->slicer_cnt);
+		tvafe_pr_info("drv_version:%s\n", VBI_DRV_VER);
 		tvafe_pr_info("dump satus done!!\n");
-	} else if (!strncmp(parm[0], "enable_tasklet",
-		strlen("enable_tasklet"))) {
-		if (kstrtol(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		devp->tasklet_enable = val;
-		tvafe_pr_info("tasklet_enable:%d\n", devp->tasklet_enable);
+	} else if (!strncmp(parm[0], "dbg_en", strlen("dbg_en"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &val) < 0)
+				goto vbi_store_err;
+			if (val & VBI_DBG_ISR4) {
+				vbi_dbg_isr_cnt = 0;
+				vbi_pr_isr_buf = kcalloc(VBI_PR_MAX,
+					sizeof(char), GFP_KERNEL);
+			} else if ((val & VBI_DBG_ISR4) == 0) {
+				if (val & VBI_DBG_TEST2) {
+					if (!vbi_pr_isr_buf) {
+						vbi_pr_isr_buf =
+						kcalloc(VBI_PR_MAX,
+							sizeof(char),
+							GFP_KERNEL);
+					}
+				} else if ((val & VBI_DBG_TEST2) == 0) {
+					kfree(vbi_pr_isr_buf);
+					vbi_pr_isr_buf = NULL;
+				}
+			}
+			if (val & VBI_DBG_READ4) {
+				vbi_dbg_read_cnt = 0;
+				vbi_pr_read_buf = kcalloc(VBI_PR_MAX,
+					sizeof(char), GFP_KERNEL);
+			}
+			vbi_dbg_en = val;
+		}
+		tvafe_pr_info("vbi_dbg_en:0x%x\n", vbi_dbg_en);
+	} else if (!strncmp(parm[0], "dbg_print_cnt",
+		strlen("dbg_print_cnt"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &vbi_dbg_print_cnt) < 0)
+				goto vbi_store_err;
+		}
+		tvafe_pr_info("vbi_dbg_print_cnt:%d\n", vbi_dbg_print_cnt);
+	} else if (!strncmp(parm[0], "tt_check", strlen("tt_check"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto vbi_store_err;
+			vbi_data_tt_check = val;
+		}
+		tvafe_pr_info("vbi_data_tt_check:%d\n", vbi_data_tt_check);
+	} else if (!strncmp(parm[0], "slicer_bypass",
+		strlen("slicer_bypass"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &vbi_slicer_bypass) < 0)
+				goto vbi_store_err;
+		}
+		tvafe_pr_info("vbi_slicer_bypass:%d\n", vbi_slicer_bypass);
+	} else if (!strncmp(parm[0], "slicer_enable",
+		strlen("slicer_enable"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto vbi_store_err;
+			devp->slicer_enable = val;
+		}
+		tvafe_pr_info("slicer_enable:%d\n", devp->slicer_enable);
 	} else if (!strncmp(parm[0], "data_wmode",
 		strlen("data_wmode"))) {
-		if (kstrtol(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		vbi_buffer->data_wmode = val;
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto vbi_store_err;
+			vbi_buffer->data_wmode = val;
+		}
 		tvafe_pr_info("data_wmode:%d\n", vbi_buffer->data_wmode);
 	} else if (!strncmp(parm[0], "start", strlen("start"))) {
+		W_APB_REG(ACD_REG_22, 0x07080000);
+		/* manuel reset vbi */
+		W_APB_REG(ACD_REG_22, 0x87080000);
+		W_APB_REG(ACD_REG_22, 0x04080000);
 		vbi_hw_init(devp);
 		vbi_slicer_start(devp);
+
+		vbi_state_reset(devp);
 		/* enable data capture function */
-		devp->tasklet_enable = true;
+		devp->slicer_enable = true;
 		devp->vbi_start = true;
-		devp->vs_delay = VBI_VS_DELAY;
 		tvafe_pr_info("start done!!!\n");
 	} else if (!strncmp(parm[0], "stop", strlen("stop"))) {
-		vbi_slicer_stop(vbi_slicer);
 		/* disable data capture function */
-		devp->tasklet_enable = false;
+		devp->slicer_enable = false;
 		devp->vbi_start = false;
+		vbi_data_stable_flag = 0;
+		vbi_slicer_stop(vbi_slicer);
 		/* manuel reset vbi */
 		/* vbi reset release, vbi agent enable*/
 		W_VBI_APB_REG(ACD_REG_22, 0x06080000);
@@ -1450,14 +2066,14 @@ static ssize_t vbi_store(struct device *dev,
 		tvafe_pr_info(" disable vbi function\n");
 		tvafe_pr_info("stop done!!!\n");
 	} else if (!strncmp(parm[0], "set_size", strlen("set_size"))) {
-		if (kstrtol(parm[1], 10, &val) < 0)
-			return -EINVAL;
-		vbi_set_buffer_size(devp, (unsigned int)val);
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto vbi_store_err;
+		vbi_set_buffer_size(devp, val);
 		tvafe_pr_info(" set buf size to %d\n",
 			vbi_slicer->buffer.size);
 	} else if (!strncmp(parm[0], "set_type", strlen("set_type"))) {
-		if (kstrtol(parm[1], 16, &val) < 0)
-			return -EINVAL;
+		if (kstrtouint(parm[1], 16, &val) < 0)
+			goto vbi_store_err;
 		vbi_slicer->type = val;
 		vbi_slicer_set(devp, vbi_slicer);
 		tvafe_pr_info(" set slicer type to %d\n",
@@ -1468,7 +2084,7 @@ static ssize_t vbi_store(struct device *dev,
 		devp->slicer->type = VBI_TYPE_NULL;
 		vbi_slicer_state_set(devp, VBI_STATE_ALLOCATED);
 		/*disable data capture function*/
-		devp->tasklet_enable = false;
+		devp->slicer_enable = false;
 		devp->vbi_start = false;
 		/* request irq */
 		ret = request_irq(devp->vs_irq, vbi_isr, IRQF_SHARED,
@@ -1479,7 +2095,7 @@ static ssize_t vbi_store(struct device *dev,
 		tvafe_pr_info(" open ok.\n");
 	} else if (!strncmp(parm[0], "release", strlen("release"))) {
 		ret = vbi_slicer_free(devp, vbi_slicer);
-		devp->tasklet_enable = false;
+		devp->slicer_enable = false;
 		devp->vbi_start = false;  /*disable data capture function*/
 		/* free irq */
 		if (devp->irq_free_status == 1)
@@ -1492,7 +2108,14 @@ static ssize_t vbi_store(struct device *dev,
 	} else {
 		tvafe_pr_info("[vbi..]unsupport cmd!!!\n");
 	}
+
+vbi_store_exit:
+	kfree(buf_orig);
 	return len;
+
+vbi_store_err:
+	kfree(buf_orig);
+	return -EINVAL;
 }
 
 static DEVICE_ATTR(debug, 0644, vbi_show, vbi_store);
@@ -1503,14 +2126,27 @@ static int vbi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct vbi_dev_s *vbi_dev;
 
+	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
+	if (ret < 0) {
+		tvafe_pr_err(": failed to allocate major number\n");
+		goto fail_alloc_cdev_region;
+	}
+
+	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
+	if (IS_ERR(vbi_clsp)) {
+		tvafe_pr_err(": can't get vbi_clsp\n");
+		goto fail_class_create;
+	}
+
 	/* allocate memory for the per-device structure */
 	vbi_dev = kzalloc(sizeof(struct vbi_dev_s), GFP_KERNEL);
 	if (!vbi_dev) {
 		ret = -ENOMEM;
 		goto fail_kzalloc_mem;
 	}
-		memset(vbi_dev, 0, sizeof(struct vbi_dev_s));
+	memset(vbi_dev, 0, sizeof(struct vbi_dev_s));
 	vbi_mem_start = 0;
+	vbi_dev_local = vbi_dev;
 
 	/* connect the file operations with cdev */
 	cdev_init(&vbi_dev->cdev, &vbi_fops);
@@ -1539,32 +2175,50 @@ static int vbi_probe(struct platform_device *pdev)
 	/* get device memory */
 	res = &vbi_memobj;
 	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret == 0)
-		tvafe_pr_info("\n vbi memory resource done.\n");
-	else
-		tvafe_pr_info("vbi: can't get memory resource\n");
-	vbi_dev->mem_start = res->start;
-	vbi_dev->mem_size = res->end - res->start + 1;
-	if (vbi_dev->mem_size > DECODER_VBI_SIZE)
+	if (ret == 0) {
+		vbi_mem_flag = VBI_MEM_RESERVED;
+		vbi_dev->mem_start = res->start;
+		vbi_dev->mem_size = res->end - res->start + 1;
+		if (vbi_dev->mem_size > DECODER_VBI_SIZE)
+			vbi_dev->mem_size = DECODER_VBI_SIZE;
+		tvafe_pr_info("vbi: reserved memory phy start_addr is:0x%x, size is:0x%x\n",
+				vbi_dev->mem_start, vbi_dev->mem_size);
+		/* remap the package vbi hardware address for our conversion */
+		vbi_dev->pac_addr_start = phys_to_virt(vbi_dev->mem_start);
+		/*ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size);*/
+		memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
+		if (vbi_dev->pac_addr_start == NULL) {
+			tvafe_pr_err(": ioremap error!!!\n");
+			goto fail_alloc_mem;
+		}
+	} else {
+		/*vbi memory alloc*/
+		tvafe_pr_info("vbi: alloc memory resource\n");
 		vbi_dev->mem_size = DECODER_VBI_SIZE;
-	tvafe_pr_info(": start_addr is:0x%x, size is:0x%x\n",
+		vbi_mem_flag = VBI_MEM_MALLOC;
+		vbi_dev->pac_addr_start = kzalloc(vbi_dev->mem_size,
+			GFP_KERNEL);
+		vbi_dev->mem_start = virt_to_phys(vbi_dev->pac_addr_start);
+		if (vbi_dev->pac_addr_start == NULL) {
+			tvafe_pr_err(": vbi mem malloc failed!!!\n");
+			goto fail_alloc_mem;
+		}
+		tvafe_pr_info("vbi: dma_alloc phy start_addr is:0x%x, size is:0x%x\n",
 			vbi_dev->mem_start, vbi_dev->mem_size);
+	}
 
-	/* remap the package vbi hardware address for our conversion */
-	vbi_dev->pac_addr_start = phys_to_virt(vbi_dev->mem_start);
-	/*ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size);*/
-	memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
 	vbi_dev->mem_size = vbi_dev->mem_size/2;
 	vbi_dev->mem_size >>= 4;
 	vbi_dev->mem_size <<= 4;
 	vbi_mem_start = vbi_dev->mem_start;
 	vbi_dev->pac_addr_end = vbi_dev->pac_addr_start + vbi_dev->mem_size - 1;
-	if (vbi_dev->pac_addr_start == NULL)
-		tvafe_pr_err(": ioremap error!!!\n");
-	else
-		tvafe_pr_info(": vbi_dev->pac_addr_start=0x%p, end:0x%p, size:0x%x .......\n",
-	vbi_dev->pac_addr_start, vbi_dev->pac_addr_end, vbi_dev->mem_size);
+	tvafe_pr_info(": vbi_dev->pac_addr_start=0x%p, end:0x%p, size:0x%x\n",
+		vbi_dev->pac_addr_start, vbi_dev->pac_addr_end,
+		vbi_dev->mem_size);
 	vbi_dev->pac_addr = vbi_dev->pac_addr_start;
+	/* temp buffer for vbi data parse */
+	vbi_dev->temp_addr_start = vbi_dev->pac_addr_start + VBI_BUFF3_EA;
+	vbi_dev->temp_addr_end = vbi_dev->temp_addr_start + VBI_BUFF3_SIZE - 1;
 
 	mutex_init(&vbi_dev->mutex);
 	spin_lock_init(&vbi_dev->lock);
@@ -1574,13 +2228,14 @@ static int vbi_probe(struct platform_device *pdev)
 	dev_set_drvdata(vbi_dev->dev, vbi_dev);
 	platform_set_drvdata(pdev, vbi_dev);
 
-	vbi_dev->tasklet_enable = false;
+	vbi_dev->slicer_enable = false;
 	vbi_dev->vbi_start = false;
 	/* Initialize tasklet */
-	tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
-				(unsigned long)vbi_dev);
+	/*tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
+	 *			(unsigned long)vbi_dev);
+	 */
+	INIT_WORK(&vbi_dev->slicer_work, vbi_slicer_work);
 
-	tasklet_disable(&vbi_dev->tsklt_slicer);
 	vbi_dev->vs_delay = VBI_VS_DELAY;
 
 	vbi_dev->slicer = vmalloc(sizeof(struct vbi_slicer_s));
@@ -1589,6 +2244,7 @@ static int vbi_probe(struct platform_device *pdev)
 		goto fail_alloc_mem;
 	}
 	mutex_init(&vbi_dev->slicer->mutex);
+	mutex_init(&vbi_dev->slicer->task_mutex);
 	init_waitqueue_head(&vbi_dev->slicer->buffer.queue);
 	spin_lock_init(&(vbi_dev->slicer->buffer.lock));
 	vbi_dev->slicer->buffer.data = NULL;
@@ -1619,6 +2275,10 @@ fail_add_cdev:
 	kfree(vbi_dev);
 fail_kzalloc_mem:
 	tvafe_pr_err(": failed to allocate memory for vbi device\n");
+	class_destroy(vbi_clsp);
+fail_class_create:
+	unregister_chrdev_region(vbi_id, 1);
+fail_alloc_cdev_region:
 	return ret;
 }
 
@@ -1628,11 +2288,17 @@ static int vbi_remove(struct platform_device *pdev)
 
 	vbi_dev = platform_get_drvdata(pdev);
 
+	mutex_destroy(&vbi_dev->slicer->task_mutex);
 	mutex_destroy(&vbi_dev->slicer->mutex);
 	mutex_destroy(&vbi_dev->mutex);
-	tasklet_kill(&vbi_dev->tsklt_slicer);
-	if (vbi_dev->pac_addr_start)
-		iounmap(vbi_dev->pac_addr_start);
+	/*tasklet_kill(&vbi_dev->tsklt_slicer);*/
+	cancel_work_sync(&vbi_dev->slicer_work);
+	if (vbi_dev->pac_addr_start) {
+		if (vbi_mem_flag == VBI_MEM_RESERVED)
+			iounmap(vbi_dev->pac_addr_start);
+		else if (vbi_mem_flag == VBI_MEM_MALLOC)
+			kfree(vbi_dev->pac_addr_start);
+	}
 	vfree(vbi_dev->slicer);
 	device_destroy(vbi_clsp, MKDEV(MAJOR(vbi_id), 0));
 	cdev_del(&vbi_dev->cdev);
@@ -1662,9 +2328,10 @@ static void vbi_drv_shutdown(struct platform_device *pdev)
 	struct vbi_dev_s *vbi_dev;
 
 	vbi_dev = platform_get_drvdata(pdev);
-	vbi_dev->tasklet_enable = false;
+	vbi_dev->slicer_enable = false;
 	vbi_dev->vbi_start = false;
-	tasklet_kill(&vbi_dev->tsklt_slicer);
+	/*tasklet_kill(&vbi_dev->tsklt_slicer);*/
+	cancel_work_sync(&vbi_dev->slicer_work);
 	if (vbi_dev->irq_free_status == 1)
 		free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
 	vbi_dev->irq_free_status = 0;
@@ -1697,40 +2364,21 @@ static int __init vbi_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
-	if (ret < 0) {
-		tvafe_pr_err(": failed to allocate major number\n");
-		goto fail_alloc_cdev_region;
-	}
-
-	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
-	if (IS_ERR(vbi_clsp)) {
-		tvafe_pr_err(": can't get vbi_clsp\n");
-		goto fail_class_create;
-	}
-
 	ret = platform_driver_register(&vbi_driver);
 	if (ret != 0) {
 		tvafe_pr_err("failed to register vbi module, error %d\n",
 			ret);
-		goto fail_pdrv_register;
 		return -ENODEV;
 	}
-	tvafe_pr_info("vbi: vbi_init.\n");
+	/*tvafe_pr_info("vbi: vbi_init.\n");*/
 	return 0;
-
-fail_pdrv_register:
-	class_destroy(vbi_clsp);
-fail_class_create:
-	unregister_chrdev_region(vbi_id, 1);
-fail_alloc_cdev_region:
-	return ret;
 }
 
 static void __exit vbi_exit(void)
 {
 	platform_driver_unregister(&vbi_driver);
 }
+
 static int vbi_mem_device_init(struct reserved_mem *rmem,
 		struct device *dev)
 {

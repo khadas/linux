@@ -161,12 +161,6 @@
 			alignment = <0x400000>;
 		};
 
-		/*vbi reserved mem*/
-		vbi_reserved:linux,vbi {
-			compatible = "amlogic, vbi-mem";
-			size = <0x100000>;
-			alloc-ranges = <0x1f800000 0x800000>;
-		};
 	};
 
 	/* for external keypad */
@@ -227,7 +221,7 @@
 		reg = <0xff3f0000 0x10000
 			0xff634540 0x8
 			0xff634558 0xc
-			0xffd01084 0x4>;
+			0xffd01008 0x4>;
 		interrupts = <0 8 1
 				0 9 1>;
 
@@ -567,11 +561,9 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		memory-region = <&vbi_reserved>;
 		dev_name = "vbi";
 		status = "okay";
 		interrupts = <0 83 1>;
-		reserve-iomap = "true";
 	};
 
 	tvafe_avin_detect {
@@ -625,13 +617,16 @@
 	};
 
 	tuner: tuner {
+		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_name = "si2151_tuner";
-		tuner_i2c_adap = <&i2c1>;
-		tuner_i2c_addr = <0x60>;
-		/* tuner_xtal = <0>; */ /* unuse for si2151 */
-		/* tuner_xtal_mode = <0>; */
-		/* tuner_xtal_cap = <0>; */
+		tuner_cur = <0>; /* default use tuner */
+		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner_name_0 = "si2151_tuner";
+		tuner_i2c_adap_0 = <&i2c1>;
+		tuner_i2c_addr_0 = <0x60>;
+		/* tuner_xtal_0 = <0>; */ /* unuse for si2151 */
+		/* tuner_xtal_mode_0 = <0>; */
+		/* tuner_xtal_cap_0 = <0>; */
 	};
 
 	atv-demod {
@@ -791,7 +786,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <21>;
+		unifykey-num = <22>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -813,6 +808,7 @@
 		unifykey-index-18 = <&keysn_18>;
 		unifykey-index-19 = <&keysn_19>;
 		unifykey-index-20 = <&keysn_20>;
+		unifykey-index-21 = <&keysn_21>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -924,12 +920,17 @@
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
+		keysn_21:key_21{
+			key-name = "attestationdevidbox";// attest dev id box
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
 	}; /* End unifykey */
 
 	cvbsout {
 		compatible = "amlogic, cvbsout-txlx";
 		dev_name = "cvbsout";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_VCLK2_ENCI
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1

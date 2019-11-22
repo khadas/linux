@@ -89,20 +89,18 @@ struct efuse_hal_api_arg {
 };
 
 extern struct efuseinfo_t efuseinfo[];
-#ifndef CONFIG_ARM64
+#if defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)
+ssize_t efuse_get_max(void);
+ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
+ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
+unsigned long efuse_amlogic_set(char *buf, size_t count);
+#else
 int efuse_getinfo_byTitle(unsigned char *name, struct efuseinfo_item_t *info);
 int check_if_efused(loff_t pos, size_t count);
 int efuse_read_item(char *buf, size_t count, loff_t *ppos);
 int efuse_write_item(char *buf, size_t count, loff_t *ppos);
 extern int efuse_active_version;
 extern struct clk *efuse_clk;
-#else
-
-ssize_t efuse_get_max(void);
-ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
-ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
-unsigned long efuse_amlogic_set(char *buf, size_t count);
-
 #endif
 
 #endif

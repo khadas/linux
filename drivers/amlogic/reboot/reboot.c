@@ -33,11 +33,8 @@
 #include <asm/compiler.h>
 #include <linux/kdebug.h>
 #include <linux/arm-smccc.h>
-#ifdef CONFIG_AMLOGIC_RAMDUMP
-#include <linux/amlogic/ramdump.h>
-#define RAMDUMP_REPLACE_MSG	"ramdump disabled, replase panic to normal\n"
-#endif /* CONFIG_AMLOGIC_RAMDUMP */
 
+static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
@@ -49,6 +46,8 @@ static u32 parse_reason(const char *cmd)
 		if (strcmp(cmd, "recovery") == 0 ||
 				strcmp(cmd, "factory_reset") == 0)
 			reboot_reason = MESON_FACTORY_RESET_REBOOT;
+		else if (strcmp(cmd, "cold_boot") == 0)
+			reboot_reason = MESON_COLD_REBOOT;
 		else if (strcmp(cmd, "update") == 0)
 			reboot_reason = MESON_UPDATE_REBOOT;
 		else if (strcmp(cmd, "fastboot") == 0)
@@ -69,18 +68,12 @@ static u32 parse_reason(const char *cmd)
 				strcmp(cmd, "quiescent,recovery") == 0 ||
 				strcmp(cmd, "quiescent,factory_reset") == 0)
 			reboot_reason = MESON_RECOVERY_QUIESCENT_REBOOT;
+		else if (strcmp(cmd, "ffv_reboot") == 0)
+			reboot_reason = MESON_FFV_REBOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0) {
-			#ifdef CONFIG_AMLOGIC_RAMDUMP
-				if (ramdump_disabled()) {
-					reboot_reason = MESON_NORMAL_BOOT;
-					pr_info(RAMDUMP_REPLACE_MSG);
-				} else
-					reboot_reason = MESON_KERNEL_PANIC;
-			#else
 				reboot_reason = MESON_KERNEL_PANIC;
-			#endif
 			}
 		}
 
@@ -138,10 +131,27 @@ static struct notifier_block panic_notifier = {
 	.notifier_call	= panic_notify,
 };
 
+ssize_t reboot_reason_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	unsigned int value, len;
+
+	if (!reboot_reason_vaddr)
+		return 0;
+	value = readl(reboot_reason_vaddr);
+	value = (value >> 12) & 0xf;
+	len = sprintf(buf, "%d\n", value);
+
+	return len;
+}
+
+DEVICE_ATTR(reboot_reason, 0444, reboot_reason_show, NULL);
+
 static int aml_restart_probe(struct platform_device *pdev)
 {
 	u32 id;
 	int ret;
+	u32 paddr = 0;
 
 	if (!of_property_read_u32(pdev->dev.of_node, "sys_reset", &id)) {
 		psci_function_id_restart = id;
@@ -153,8 +163,30 @@ static int aml_restart_probe(struct platform_device *pdev)
 		pm_power_off = do_aml_poweroff;
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "reboot_reason_addr", &paddr);
+	if (!ret) {
+		pr_debug("reboot_reason paddr: 0x%x\n", paddr);
+		reboot_reason_vaddr = ioremap(paddr, 0x4);
+		device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+	}
+
 	ret = register_die_notifier(&panic_notifier);
-	return ret;
+	if (ret != 0) {
+		pr_err("%s,register die notifier failed,ret =%d!\n",
+			__func__, ret);
+		return ret;
+	}
+
+	/* Register a call for panic conditions. */
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_notifier);
+	if (ret != 0) {
+		pr_err("%s,register panic notifier failed,ret =%d!\n",
+			__func__, ret);
+		return ret;
+	}
+	return 0;
 }
 
 static const struct of_device_id of_aml_restart_match[] = {

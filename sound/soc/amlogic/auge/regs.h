@@ -1161,5 +1161,38 @@ struct register_table {
 #define EARCTX_ANA_CTRL1                   0x006
 #define EARCTX_ANA_CTRL2                   0x007
 #define EARCTX_ANA_STAT0                   0x008
+/* new resample */
+#define AUDIO_RSAMP_CTRL0                  0x000
+#define AUDIO_RSAMP_CTRL1                  0x001
+#define AUDIO_RSAMP_CTRL2                  0x002
+#define AUDIO_RSAMP_PHSINIT                0x003
+#define AUDIO_RSAMP_PHSSTEP                0x004
+#define AUDIO_RSAMP_SHIFT                  0x005
+#define AUDIO_RSAMP_ADJ_CTRL0              0x006
+#define AUDIO_RSAMP_ADJ_CTRL1              0x007
+#define AUDIO_RSAMP_ADJ_SFT                0x008
+#define AUDIO_RSAMP_ADJ_IDET_LEN           0x009
+#define AUDIO_RSAMP_ADJ_FORCE              0x00a
+#define AUDIO_RSAMP_ADJ_KI_FORCE           0x00b
+#define AUDIO_RSAMP_RO_STATUS              0x010
+#define AUDIO_RSAMP_RO_ADJ_FREQ            0x011
+#define AUDIO_RSAMP_RO_ADJ_DIFF_BAK        0x012
+#define AUDIO_RSAMP_RO_ADJ_DIFF_DLT        0x013
+#define AUDIO_RSAMP_RO_ADJ_PHS_ERR         0x014
+#define AUDIO_RSAMP_RO_ADJ_KI_OUT          0x015
+#define AUDIO_RSAMP_RO_IN_CNT              0x016
+#define AUDIO_RSAMP_RO_OUT_CNT             0x017
+#define AUDIO_RSAMP_POST_COEF0             0x020
+#define AUDIO_RSAMP_POST_COEF1             0x021
+#define AUDIO_RSAMP_POST_COEF2             0x022
+#define AUDIO_RSAMP_POST_COEF3             0x023
+#define AUDIO_RSAMP_POST_COEF4             0x024
+#define AUDIO_RSAMP_AA_COEF_ADDR           0x030
+#define AUDIO_RSAMP_AA_COEF_DATA           0x031
+#define AUDIO_RSAMP_SINC_COEF_ADDR         0x040
+#define AUDIO_RSAMP_SINC_COEF_DATA         0x041
+
+/*HHI bus*/
+#define HHI_AUDIO_MEM_PD_REG0              0x045
 
 #endif

@@ -27,7 +27,10 @@ extern void audio_locker_set(int enable);
 extern int audio_locker_get(void);
 
 extern void fratv_enable(bool enable);
-extern void fratv_src_select(int src);
+
+extern void fratv_src_select(bool src);
+
+extern void fratv_LR_swap(bool swap);
 
 extern void cec_arc_enable(int src, bool enable);
 #endif

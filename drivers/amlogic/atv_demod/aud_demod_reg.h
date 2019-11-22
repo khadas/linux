@@ -18,6 +18,7 @@
 #ifndef __AUD_DEMOD_REG_H__
 #define __AUD_DEMOD_REG_H__
 
+#define TOP_GATE_CLK               0x001
 #define ADEC_CTRL                  0x010
 #define FREQ0_CTRL                 0x011
 #define FREQ1_CTRL                 0x012
@@ -42,6 +43,8 @@
 #define SAP_DET_THD                0x025
 #define MODE_DET_CNT_THD           0x026
 #define ADEC_RESET                 0x027
+#define BTSC_NICAM_GATE_CLK        0x028
+#define LR_GAIN_ADJ                0x029
 
 #define DDC_FIR_COEF0_0            0x030
 #define DDC_FIR_COEF0_1            0x031
@@ -215,6 +218,11 @@
 #define CARRIER_MAG_REPORT         0x0f6
 #define BTSC_AB_REPORT             0x0f7
 #define AUDIO_MODE_REPORT          0x0f8
+
+#define NICAM_CTRL_ENABLE          0x103
+#define NICAM_DDC_ROLLOFF          0x110
+#define NICAM_DAGC1                0x115
+#define NICAM_EQ_ERR_MODE          0x17c
 #define NICAM_LEVEL_REPORT         0x1a3
 #define NICAM_MODE_REPORT          0x1a4
 
@@ -226,8 +234,8 @@
 #define ADDR_BTSC_BYPASS_CTRL      (BTSC_BYPASS_CTRL)
 #define ADDR_EXPANDER_SPECTRAL_ADJ (EXPANDER_SPEC_ADJ)
 #define ADDR_EXPANDER_GAIN_ADJ     (EXPANDER_GAIN_ADJ)
-#define ADDR_LMR_ADJ               (LMR_GAIN_ADJ)
-#define ADDR_SAP_ADJ               (SAP_GAIN_ADJ)
+#define ADDR_LMR_GAIN_ADJ          (LMR_GAIN_ADJ)
+#define ADDR_SAP_GAIN_ADJ          (SAP_GAIN_ADJ)
 #define ADDR_LPR_GAIN_ADJ          (LPR_GAIN_ADJ)
 #define ADDR_STEREO_THRESHOLD      (BTSC_STEREO_THD)
 #define ADDR_LPR_COMP_CTRL         (DELAY_COMP_CRTL)
@@ -318,6 +326,11 @@
 #define AUDIO_STANDARD_INDIAN       0x0F
 #define AUDIO_STANDARD_BTSC_SA      0x10
 #define AUDIO_STANDARD_MONO_ONLY    0x11
+#define AUDIO_STANDARD_MONO_BG      0x12
+#define AUDIO_STANDARD_MONO_DK      0x13
+#define AUDIO_STANDARD_MONO_I       0x14
+#define AUDIO_STANDARD_MONO_M       0x15
+#define AUDIO_STANDARD_MONO_L       0x16
 
 #define AUDIO_OUTMODE_MONO          0
 #define AUDIO_OUTMODE_STEREO        1
@@ -349,6 +362,6 @@
 #define AUDIO_DEEM_75US             0
 #define AUDIO_DEEM_50US             1
 #define AUDIO_DEEM_J17              2
-
+#define AUDIO_DEEM_J17_2            3
 
 #endif /* __AUD_DEMOD_REG_H__ */

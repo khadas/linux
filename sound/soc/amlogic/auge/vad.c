@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/amlogic/vad_api.h>
 
-#include "vad_hw_coeff.c"
+#include "vad_hw_coeff.h"
 #include "vad_hw.h"
 #include "vad.h"
 
@@ -207,6 +207,21 @@ bool vad_pdm_is_running(void)
 	return false;
 }
 
+bool vad_lb_is_running(int lb_id)
+{
+	int vad_src = (lb_id == 0) ? VAD_SRC_LOOPBACK_A : VAD_SRC_LOOPBACK_B;
+
+	if (vad_is_enable() && vad_src_check(vad_src))
+		return true;
+
+	return false;
+}
+
+void vad_lb_force_two_channel(bool en)
+{
+	vad_set_two_channel_en(en);
+}
+
 static void vad_notify_user_space(struct vad *p_vad)
 {
 	pr_info("Notify to wake up user space\n");
@@ -252,9 +267,9 @@ static int vad_transfer_data_to_algorithm(
 	int rate, int channels, int bitdepth)
 {
 	int ret = 0;
+
 	/* TODO: for test */
 	if (vad_in_kernel_test) {
-
 		if (vad_wakeup_count < 50)
 			return 0;
 
@@ -308,7 +323,7 @@ static int vad_engine_check(struct vad *p_vad)
 
 	read_bytes = frame_count * chnum * bytes_per_sample;
 	if (bytes < read_bytes) {
-		pr_debug("%s line:%d, %d bytes, need more data\n",
+		pr_warn("%s line:%d, %d bytes, need more data\n",
 			__func__, __LINE__, bytes);
 		return 0;
 	}
@@ -350,6 +365,7 @@ static int vad_engine_check(struct vad *p_vad)
 	}
 
 #ifdef __VAD_DUMP_DATA__
+	set_fs(KERNEL_DS);
 	vfs_write(p_vad->fp, p_vad->buf, read_bytes, &p_vad->pos);
 #endif
 
@@ -417,6 +433,7 @@ static int vad_set_clks(struct vad *p_vad, bool enable)
 		/* enable clock gate */
 		ret = clk_prepare_enable(p_vad->gate);
 
+		clk_set_rate(p_vad->pll, 25000000);
 		/* enable clock */
 		ret = clk_prepare_enable(p_vad->pll);
 		if (ret) {
@@ -483,7 +500,6 @@ static int vad_init(struct vad *p_vad)
 	}
 	p_vad->fs = get_fs();
 	p_vad->pos = 0;
-	set_fs(KERNEL_DS);
 #endif
 
 	} else if (p_vad->level == LEVEL_USER)

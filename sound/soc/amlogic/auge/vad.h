@@ -36,6 +36,8 @@ extern int vad_transfer_chunk_data(unsigned long data, int frames);
 
 extern bool vad_tdm_is_running(int tdm_idx);
 extern bool vad_pdm_is_running(void);
+bool vad_lb_is_running(int lb_id);
+void vad_lb_force_two_channel(bool en);
 
 extern void vad_enable(bool enable);
 extern void vad_set_toddr_info(struct toddr *to);

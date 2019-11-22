@@ -140,7 +140,7 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
 {
 	struct cpucore_cooling_device *cpucore_device = cdev->devdata;
-	int set_max_num, id;
+	int set_max_num, id, i, core_num;
 
 	mutex_lock(&cooling_cpucore_lock);
 	if (cpucore_device->stop_flag) {
@@ -156,8 +156,24 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 		cpucore_device->cpucore_state = state;
 		set_max_num = cpucore_device->max_cpu_core_num - state;
 		id = cpucore_device->cluster_id;
-		pr_debug("set max cpu num=%d,state=%ld\n", set_max_num, state);
-		cpufreq_set_max_cpu_num(set_max_num, id);
+		if (id != CLUSTER_FLAG) {
+			pr_debug("set max cpu num=%d,state=%ld\n",
+				set_max_num, state);
+			cpufreq_set_max_cpu_num(set_max_num, id);
+		} else {
+			for (i = 0; i < MAX_CLUSTER; i++) {
+				pr_debug("%s, set max num: %d, cluster: %d\n",
+					__func__, set_max_num, i);
+				core_num = cpucore_device->core_num[i];
+				if (set_max_num < core_num) {
+					cpufreq_set_max_cpu_num(set_max_num, i);
+					set_max_num = 0;
+				} else {
+					set_max_num = set_max_num - core_num;
+					cpufreq_set_max_cpu_num(core_num, i);
+				}
+			}
+		}
 	}
 
 	return 0;
@@ -256,7 +272,7 @@ cpucore_cooling_register(struct device_node *np, int cluster_id)
 	struct thermal_cooling_device *cool_dev;
 	struct cpucore_cooling_device *cpucore_dev = NULL;
 	char dev_name[THERMAL_NAME_LENGTH];
-	int ret = 0, cpu;
+	int ret = 0, cpu, i;
 	int cores = 0;
 
 	cpucore_dev = kzalloc(sizeof(struct cpucore_cooling_device),
@@ -270,7 +286,8 @@ cpucore_cooling_register(struct device_node *np, int cluster_id)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (mc_capable()) {
+	if ((topology_physical_package_id(0) != -1)
+		&& (cluster_id != CLUSTER_FLAG)) {
 		for_each_possible_cpu(cpu) {
 			if (topology_physical_package_id(cpu) == cluster_id)
 				cores++;
@@ -283,6 +300,17 @@ cpucore_cooling_register(struct device_node *np, int cluster_id)
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpucore-%d",
 		 cpucore_dev->id);
 
+	if (cluster_id == CLUSTER_FLAG) {
+		for (i = MAX_CLUSTER - 1; i >= 0; i--) {
+			cores = 0;
+			for_each_possible_cpu(cpu) {
+				if (topology_physical_package_id(cpu) == i)
+					cores++;
+			}
+		cpucore_dev->core_num[i] = cores;
+		pr_info("%s, clutser[%d] core num:%d\n", __func__, i, cores);
+		}
+	}
 	cool_dev = thermal_of_cooling_device_register(np, dev_name, cpucore_dev,
 						      &cpucore_cooling_ops);
 	if (!cool_dev) {

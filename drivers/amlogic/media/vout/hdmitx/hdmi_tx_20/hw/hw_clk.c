@@ -67,18 +67,41 @@ void hdmitx_set_sys_clk(struct hdmitx_dev *hdev, unsigned char flag)
 
 	if (flag&2) {
 		hdmitx_set_top_pclk(hdev);
-		hdmitx_set_vclk2_encp(hdev);
+
+		hd_write_reg(P_HHI_GCLK_OTHER,
+			hd_read_reg(P_HHI_GCLK_OTHER)|(1<<17));
 	}
 }
 
-void hdmitx_set_vclk2_encp(struct hdmitx_dev *hdev)
+static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
 {
-	hd_write_reg(P_HHI_GCLK_OTHER,
-		hd_read_reg(P_HHI_GCLK_OTHER)|(1<<17));
+	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 0, 2, 1);
+
+#ifdef CONFIG_AMLOGIC_VPU
+	switch_vpu_clk_gate_vmod(VPU_VENCP, VPU_CLK_GATE_OFF);
+	switch_vpu_mem_pd_vmod(VPU_VENCP, VPU_MEM_POWER_DOWN);
+#endif
 }
 
-void hdmitx_disable_vclk2_enci(struct hdmitx_dev *hdev)
+static void hdmitx_enable_encp_clk(struct hdmitx_dev *hdev)
 {
+#ifdef CONFIG_AMLOGIC_VPU
+	switch_vpu_clk_gate_vmod(VPU_VENCP, VPU_CLK_GATE_ON);
+	switch_vpu_mem_pd_vmod(VPU_VENCP, VPU_MEM_POWER_ON);
+#endif
+
+	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 2, 1);
+}
+
+static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
+{
+	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 0, 0, 1);
+
+#ifdef CONFIG_AMLOGIC_VPU
+	switch_vpu_clk_gate_vmod(VPU_VENCI, VPU_CLK_GATE_OFF);
+	switch_vpu_mem_pd_vmod(VPU_VENCI, VPU_MEM_POWER_DOWN);
+#endif
+
 	if (hdev->hdmitx_clk_tree.venci_top_gate)
 		clk_disable_unprepare(hdev->hdmitx_clk_tree.venci_top_gate);
 
@@ -87,15 +110,9 @@ void hdmitx_disable_vclk2_enci(struct hdmitx_dev *hdev)
 
 	if (hdev->hdmitx_clk_tree.venci_1_gate)
 		clk_disable_unprepare(hdev->hdmitx_clk_tree.venci_1_gate);
-
-#ifdef CONFIG_AMLOGIC_VPU
-	switch_vpu_clk_gate_vmod(VPU_VENCI, VPU_CLK_GATE_OFF);
-	switch_vpu_mem_pd_vmod(VPU_VENCI, VPU_MEM_POWER_DOWN);
-#endif
-
 }
 
-void hdmitx_set_vclk2_enci(struct hdmitx_dev *hdev)
+static void hdmitx_enable_enci_clk(struct hdmitx_dev *hdev)
 {
 	if (hdev->hdmitx_clk_tree.venci_top_gate)
 		clk_prepare_enable(hdev->hdmitx_clk_tree.venci_top_gate);
@@ -111,6 +128,12 @@ void hdmitx_set_vclk2_enci(struct hdmitx_dev *hdev)
 	switch_vpu_mem_pd_vmod(VPU_VENCI, VPU_MEM_POWER_ON);
 #endif
 
+	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 0, 1);
+}
+
+static void hdmitx_disable_tx_pixel_clk(struct hdmitx_dev *hdev)
+{
+	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 0, 5, 1);
 }
 
 void hdmitx_set_cts_sys_clk(struct hdmitx_dev *hdev)
@@ -166,6 +189,7 @@ void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 	default:
 		hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 	break;
@@ -399,7 +423,7 @@ static void set_gxtvbb_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0x4, 28, 3);
 		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL));
-		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16);
+		/* hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16); */
 		break;
 	case 4324320:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800025a);
@@ -443,6 +467,7 @@ static void set_hpll_clk_out(unsigned int clk)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		set_g12a_hpll_clk_out(frac_rate, clk);
 		break;
 	default:
@@ -461,6 +486,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		set_hpll_sspll_g12a(vic);
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -507,6 +533,7 @@ static void set_hpll_od1(unsigned int div)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		set_hpll_od1_g12a(div);
 		break;
 	default:
@@ -546,6 +573,7 @@ static void set_hpll_od2(unsigned int div)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		set_hpll_od2_g12a(div);
 		break;
 	default:
@@ -586,6 +614,11 @@ static void set_hpll_od3(unsigned int div)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 		set_hpll_od3_g12a(div);
+		break;
+	case MESON_CPU_ID_TM2:
+		set_hpll_od3_g12a(div);
+		/* new added in TM2 */
+		hd_set_reg_bits(P_HHI_LVDS_TX_PHY_CNTL1, 1, 29, 1);
 		break;
 	default:
 		set_hpll_od3_gxl(div);
@@ -720,7 +753,6 @@ static void set_encp_div(unsigned int div)
 	if (div == -1)
 		return;
 	hd_set_reg_bits(P_HHI_VID_CLK_DIV, div, 24, 4);
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 2, 1);
 	hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 1, 19, 1);
 }
 
@@ -730,7 +762,6 @@ static void set_enci_div(unsigned int div)
 	if (div == -1)
 		return;
 	hd_set_reg_bits(P_HHI_VID_CLK_DIV, div, 28, 4);
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 0, 1);
 	hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 1, 19, 1);
 }
 
@@ -1069,8 +1100,14 @@ next:
 	pr_info("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
 	set_vid_clk_div(p_enc[j].vid_clk_div);
 	set_hdmi_tx_pixel_div(p_enc[j].hdmi_tx_pixel_div);
-	set_encp_div(p_enc[j].encp_div);
-	set_enci_div(p_enc[j].enci_div);
+
+	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI) {
+		set_enci_div(p_enc[j].enci_div);
+		hdmitx_enable_enci_clk(hdev);
+	} else {
+		set_encp_div(p_enc[j].encp_div);
+		hdmitx_enable_encp_clk(hdev);
+	}
 }
 
 static int likely_frac_rate_mode(char *m)
@@ -1104,5 +1141,17 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 	hdmitx_check_frac_rate(hdev);
 
 	hdmitx_set_clk_(hdev);
+}
+
+void hdmitx_disable_clk(struct hdmitx_dev *hdev)
+{
+	/* cts_encp/enci_clk */
+	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)
+		hdmitx_disable_enci_clk(hdev);
+	else
+		hdmitx_disable_encp_clk(hdev);
+
+	/* hdmi_tx_pixel_clk */
+	hdmitx_disable_tx_pixel_clk(hdev);
 }
 

@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -42,10 +43,8 @@
 #include <linux/of_platform.h>
 #include "aml-crypto-dma.h"
 
-int debug = 2;
-#ifdef CRYPTO_DEBUG
-module_param(debug, int, 0644);
-#endif
+static struct dentry *aml_dma_debug_dent;
+u32 debug = 3;
 
 void __iomem *cryptoreg;
 
@@ -78,6 +77,27 @@ MODULE_DEVICE_TABLE(of, aml_dma_dt_match);
 #define aml_aes_dt_match NULL
 #endif
 
+static int aml_dma_init_dbgfs(struct device *dev)
+{
+	struct dentry *file = NULL;
+
+	if (!aml_dma_debug_dent) {
+		aml_dma_debug_dent = debugfs_create_dir("aml_dma", NULL);
+		if (!aml_dma_debug_dent) {
+			dev_err(dev, "can not create debugfs directory\n");
+			return -ENOMEM;
+		}
+		file = debugfs_create_u32("debug", 0644,
+				aml_dma_debug_dent, &debug);
+		if (!file) {
+			dev_err(dev, "can not create entry in debugfs directory\n");
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+
 static int aml_dma_probe(struct platform_device *pdev)
 {
 	struct aml_dma_dev *dma_dd;
@@ -89,7 +109,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 	int err = -EPERM;
 	const struct meson_dma_data *priv_data;
 
-	dma_dd = kzalloc(sizeof(struct aml_dma_dev), GFP_KERNEL);
+	dma_dd = devm_kzalloc(dev, sizeof(struct aml_dma_dev), GFP_KERNEL);
 	if (dma_dd == NULL) {
 		err = -ENOMEM;
 		goto dma_err;
@@ -106,8 +126,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 		dev_err(dev, "error to get normal IORESOURCE_MEM.\n");
 		goto dma_err;
 	} else {
-		cryptoreg = ioremap(res_base->start,
-				resource_size(res_base));
+		cryptoreg = devm_ioremap_resource(dev, res_base);
 		if (!cryptoreg) {
 			dev_err(dev, "failed to remap crypto reg\n");
 			goto dma_err;
@@ -118,17 +137,21 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->irq = res_irq->start;
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
+
+	err = aml_dma_init_dbgfs(dev);
+	if (err)
+		goto dma_err;
+
 	dev_info(dev, "Aml dma\n");
 
 	err = of_platform_populate(np, NULL, NULL, dev);
-
 	if (err != 0)
-		iounmap(cryptoreg);
+		goto dma_err;
 
 	return err;
 
 dma_err:
-	kfree(dma_dd);
+	debugfs_remove_recursive(aml_dma_debug_dent);
 	dev_err(dev, "initialization failed.\n");
 
 	return err;
@@ -142,8 +165,7 @@ static int aml_dma_remove(struct platform_device *pdev)
 	if (!dma_dd)
 		return -ENODEV;
 
-	iounmap(cryptoreg);
-	kfree(dma_dd);
+	debugfs_remove_recursive(aml_dma_debug_dent);
 
 	return 0;
 }

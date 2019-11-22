@@ -17,6 +17,9 @@
 
 #ifndef __AML_LCD_TCON_H__
 #define __AML_LCD_TCON_H__
+#include <linux/dma-contiguous.h>
+#include <linux/dma-mapping.h>
+#include <linux/mm.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
 #define REG_LCD_TCON_MAX    0xffff
@@ -37,10 +40,37 @@ struct lcd_tcon_data_s {
 	unsigned int ctrl_timing_offset;
 	unsigned int ctrl_timing_cnt;
 
-	unsigned int axi_offset_addr;
+	unsigned int axi_mem_size;
+	unsigned int core_size;
+	unsigned int vac_size;
+	unsigned int vac_mem_offset;
+	unsigned int demura_set_size;
+	unsigned int demura_lut_size;
+	unsigned int demura_lut_mem_offset;
 	unsigned char *reg_table;
 
 	int (*tcon_enable)(struct lcd_config_s *pconf);
+};
+
+struct tcon_rmem_s {
+	unsigned char flag;
+	void *mem_vaddr;
+	unsigned char *core_mem_vaddr;
+	unsigned char *vac_mem_vaddr;
+	unsigned char *demura_set_vaddr;
+	unsigned char *demura_lut_vaddr;
+	phys_addr_t mem_paddr;
+	phys_addr_t core_mem_paddr;
+	phys_addr_t vac_mem_paddr;
+	phys_addr_t demura_set_paddr;
+	phys_addr_t demura_lut_paddr;
+	unsigned int mem_size;
+	unsigned int core_mem_size;
+	unsigned int vac_mem_size;
+	unsigned int demura_set_mem_size;
+	unsigned int demura_lut_mem_size;
+	unsigned int vac_valid;
+	unsigned int demura_valid;
 };
 
 /* **********************************
@@ -54,10 +84,12 @@ struct lcd_tcon_data_s {
 
 #define BIT_TOP_EN_TL1                   4
 
-#define REG_CORE_OD_TL1                  0x5c
-#define BIT_OD_EN_TL1                    6
+#define REG_CORE_OD_TL1                  0x247
+#define BIT_OD_EN_TL1                    0
 #define REG_CORE_CTRL_TIMING_BASE_TL1    0x1b
 #define CTRL_TIMING_OFFSET_TL1           12
 #define CTRL_TIMING_CNT_TL1              0
+#define TCON_VAC_SET_PARAM_NUM		 3
+#define TCON_VAC_LUT_PARAM_NUM		 256
 
 #endif

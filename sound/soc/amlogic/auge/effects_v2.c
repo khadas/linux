@@ -505,6 +505,10 @@ static const struct snd_kcontrol_new snd_effect_controls[] = {
 		AED_EQ_VOLUME, 16, 0x3FF, 1,
 		mixer_aed_read, mixer_aed_write,
 		master_vol_tlv),
+
+	SOC_SINGLE_EXT("AED Clip THD",
+		AED_CLIP_THD, 0, 0x7FFFFF, 0,
+		mixer_aed_read, mixer_aed_write),
 };
 
 int card_add_effect_v2_kcontrols(struct snd_soc_card *card)

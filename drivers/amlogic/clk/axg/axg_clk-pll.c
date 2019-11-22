@@ -176,7 +176,7 @@ static int meson_axg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	const struct pll_rate_table *rate_set;
 	unsigned long old_rate;
 	unsigned int tmp;
-	int ret = 0;
+	int ret = 0, j = 10;
 	u32 reg;
 	unsigned long flags = 0;
 
@@ -206,54 +206,62 @@ static int meson_axg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	if (!strcmp(clk_hw_get_name(hw), "gp0_pll")
-		|| !strcmp(clk_hw_get_name(hw), "hifi_pll")
-		|| !strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+	do {
 		void *cntlbase = pll->base + p->reg_off;
+		if (!strcmp(clk_hw_get_name(hw), "gp0_pll") ||
+		    !strcmp(clk_hw_get_name(hw), "hifi_pll") ||
+		    !strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+			if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+				writel(AXG_PCIE_PLL_CNTL,
+				       cntlbase + (unsigned long)(0 * 4));
+				writel(AXG_PCIE_PLL_CNTL1,
+				       cntlbase + (unsigned long)(1 * 4));
+				writel(AXG_PCIE_PLL_CNTL2,
+				       cntlbase + (unsigned long)(2 * 4));
+				writel(AXG_PCIE_PLL_CNTL3,
+				       cntlbase + (unsigned long)(3 * 4));
+				writel(AXG_PCIE_PLL_CNTL4,
+				       cntlbase + (unsigned long)(4 * 4));
+				writel(AXG_PCIE_PLL_CNTL5,
+				       cntlbase + (unsigned long)(5 * 4));
+				writel(AXG_PCIE_PLL_CNTL6,
+				       cntlbase + (unsigned long)(6 * 4));
+			} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
+				writel(AXG_HIFI_PLL_CNTL1,
+				       cntlbase + (unsigned long)(6 * 4));
+				writel(AXG_HIFI_PLL_CNTL2,
+				       cntlbase + (unsigned long)(1 * 4));
+				writel(AXG_HIFI_PLL_CNTL3,
+				       cntlbase + (unsigned long)(2 * 4));
+				writel(AXG_HIFI_PLL_CNTL4,
+				       cntlbase + (unsigned long)(3 * 4));
+				writel(AXG_HIFI_PLL_CNTL5,
+				       cntlbase + (unsigned long)(4 * 4));
+			} else {
+				writel(GXL_GP0_CNTL1,
+				       cntlbase + (unsigned long)(6 * 4));
+				writel(GXL_GP0_CNTL2,
+				       cntlbase + (unsigned long)(1 * 4));
+				writel(GXL_GP0_CNTL3,
+				       cntlbase + (unsigned long)(2 * 4));
+				writel(GXL_GP0_CNTL4,
+				       cntlbase + (unsigned long)(3 * 4));
+				writel(GXL_GP0_CNTL5,
+				       cntlbase + (unsigned long)(4 * 4));
+			}
 
-		if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
-			writel(AXG_PCIE_PLL_CNTL,
-					cntlbase + (unsigned long)(0*4));
-			writel(AXG_PCIE_PLL_CNTL1,
-					cntlbase + (unsigned long)(1*4));
-			writel(AXG_PCIE_PLL_CNTL2,
-					cntlbase + (unsigned long)(2*4));
-			writel(AXG_PCIE_PLL_CNTL3,
-					cntlbase + (unsigned long)(3*4));
-			writel(AXG_PCIE_PLL_CNTL4,
-					cntlbase + (unsigned long)(4*4));
-			writel(AXG_PCIE_PLL_CNTL5,
-					cntlbase + (unsigned long)(5*4));
-			writel(AXG_PCIE_PLL_CNTL6,
-					cntlbase + (unsigned long)(6*4));
-		} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
-			writel(AXG_HIFI_PLL_CNTL1,
-					cntlbase + (unsigned long)(6*4));
-			writel(AXG_HIFI_PLL_CNTL2,
-					cntlbase + (unsigned long)(1*4));
-			writel(AXG_HIFI_PLL_CNTL3,
-					cntlbase + (unsigned long)(2*4));
-			writel(AXG_HIFI_PLL_CNTL4,
-					cntlbase + (unsigned long)(3*4));
-			writel(AXG_HIFI_PLL_CNTL5,
-					cntlbase + (unsigned long)(4*4));
-		} else {
-			writel(GXL_GP0_CNTL1,
-					cntlbase + (unsigned long)(6*4));
-			writel(GXL_GP0_CNTL2,
-					cntlbase + (unsigned long)(1*4));
-			writel(GXL_GP0_CNTL3,
-					cntlbase + (unsigned long)(2*4));
-			writel(GXL_GP0_CNTL4,
-					cntlbase + (unsigned long)(3*4));
-			writel(GXL_GP0_CNTL5,
-					cntlbase + (unsigned long)(4*4));
+			reg = readl(pll->base + p->reg_off);
+			writel(((reg | (MESON_PLL_ENABLE)) &
+				(~MESON_PLL_RESET)), pll->base + p->reg_off);
 		}
-
-		reg = readl(pll->base + p->reg_off);
-		writel(((reg | (MESON_PLL_ENABLE)) &
-			(~MESON_PLL_RESET)), pll->base + p->reg_off);
-	}
+		/* waiting for 50us to check is locked or not */
+		udelay(50);
+		/* lock bit is in the cntlbase */
+		if (readl(cntlbase + (unsigned long)(0 * 4))
+		    & MESON_PLL_LOCK)
+			break;
+		j--;
+	} while (j);
 
 	reg = readl(pll->base + p->reg_off);
 

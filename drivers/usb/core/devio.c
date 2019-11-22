@@ -1388,6 +1388,10 @@ static int proc_setconfig(struct usb_dev_state *ps, void __user *arg)
 
 		for (i = 0; i < actconfig->desc.bNumInterfaces; ++i) {
 			if (usb_interface_claimed(actconfig->interface[i])) {
+	/*This print could cause usb cts test fail,since it could
+	 *delay the interrupt of the hub_event for usb_disconnect.
+	 */
+#ifndef CONFIG_AMLOGIC_USB
 				dev_warn(&ps->dev->dev,
 					"usbfs: interface %d claimed by %s "
 					"while '%s' sets config #%d\n",
@@ -1397,6 +1401,7 @@ static int proc_setconfig(struct usb_dev_state *ps, void __user *arg)
 					actconfig->interface[i]
 						->dev.driver->name,
 					current->comm, u);
+#endif
 				status = -EBUSY;
 				break;
 			}

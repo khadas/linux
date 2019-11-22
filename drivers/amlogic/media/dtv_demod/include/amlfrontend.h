@@ -29,8 +29,8 @@ struct amlfe_config {
 	int tuner_addr;
 };
 enum Gxtv_Demod_Tuner_If {
-	Si2176_5M_If = 5,
-	Si2176_6M_If = 6
+	SI2176_5M_IF = 5,
+	SI2176_6M_IF = 6
 };
 /* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
 enum Gxtv_Demod_Dvb_Mode {
@@ -54,7 +54,7 @@ enum demod_md {
 #define Adc_Clk_35M             35714	/* adc clk    dvbc */
 #define Demod_Clk_71M   71428	/* demod clk */
 
-#define Adc_Clk_24M             24000
+#define ADC_CLK_24M             24000
 #define Demod_Clk_72M       72000
 #define Demod_Clk_60M       60000
 
@@ -130,8 +130,9 @@ struct ss_reg_vt {
 #define IC_VER_GXLX	(0x03)
 #define IC_VER_TXHD	(0x04)
 #define IC_VER_TL1	(0x05)
+#define IC_VER_TM2	(0x06)
 
-#define IC_VER_NUB	(0x06)
+#define IC_VER_NUB	(0x07)
 
 
 /*-----------------------*/
@@ -284,7 +285,6 @@ extern struct amldtvdemod_device_s *dtvdd_devp;	/**/
 
 /*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
 int convert_snr(int in_snr);
-extern int vdac_enable_check_dtv(void);
 
 
 extern unsigned  int ats_thread_flg;

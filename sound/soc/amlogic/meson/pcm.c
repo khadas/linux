@@ -242,7 +242,9 @@ static int aml_pcm_timer_create(struct snd_pcm_substream *substream)
 	prtd->timer_period = 1;
 	prtd->timer.data = (unsigned long)substream;
 	prtd->timer.function = aml_pcm_timer_callback;
+	spin_lock(&prtd->lock);
 	prtd->running = 0;
+	spin_unlock(&prtd->lock);
 
 	return 0;
 }

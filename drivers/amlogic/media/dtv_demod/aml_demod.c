@@ -271,9 +271,8 @@ static long aml_demod_ioctl(struct file *file,
 	int strength = 0;
 	struct dvb_frontend *dvbfe;
 	struct aml_tuner_sys *tuner;
-	//struct aml_tuner_sys  tuner_para = {0};
+	struct aml_tuner_sys  tuner_para = {0};
 	struct aml_demod_reg  arg_t;
-	//static unsigned int tuner_attach_flg;
 
 	switch (cmd) {
 	case AML_DEMOD_GET_RSSI:
@@ -294,41 +293,30 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_SET_TUNER:
-		pr_dbg("Ioctl Demod Set Tuner.\n");
-		dvbfe = aml_get_fe();/*get_si2177_tuner();*/
-		#if 0
+		dvbfe = aml_get_fe();
+
+		if (dvbfe == NULL) {
+			PR_ERR("point fe is NULL\n");
+			return -EINVAL;
+		}
+
 		if (copy_from_user(&tuner_para, (void __user *)arg,
 			sizeof(struct aml_tuner_sys))) {
-			pr_dbg("copy error AML_DEMOD_SET_REG\n");
+			PR_ERR("copy error AML_DEMOD_SET_REG\n");
 		} else {
-			//pr_dbg("dvbfe = %p\n",dvbfe);
-			pr_dbg("tuner mode = %d\n", tuner_para.mode);
-			if (tuner_attach_flg == 0) {
-				attach_tuner_demod();
-				tuner_attach_flg = 1;
+			if (tuner_para.mode <= FE_ISDBT) {
+				PR_INFO("set tuner md = %d\n",
+					tuner_para.mode);
+				dvbfe->ops.info.type = tuner_para.mode;
+			} else {
+				PR_ERR("wrong md: %d\n", tuner_para.mode);
 			}
 
-			tuner_set_freq(tuner_para.ch_freq);
-
-			if (tuner_para.mode == FE_ATSC) {
-				tuner_config_atsc();
-				tuner_set_atsc_para();
-			} else if (tuner_para.mode == FE_DTMB) {
-				tuner_config_dtmb();
-				tuner_set_dtmb_para();
-			} else if (tuner_para.mode == FE_QAM) {
-				tuner_config_qam();
-				tuner_set_qam_para();
-			}
+			dvbfe->dtv_property_cache.frequency =
+				tuner_para.ch_freq;
+			dvbfe->ops.tuner_ops.set_config(dvbfe, NULL);
+			tuner_set_params(dvbfe);
 		}
-		#endif
-	#if 0 /*ary temp for my_tool:*/
-		if (dvbfe != NULL) {
-			pr_dbg("calling tuner ops\n");
-			if (dvbfe->ops.tuner_ops.set_params)
-				dvbfe->ops.tuner_ops.set_params(dvbfe);
-		}
-	#endif
 		break;
 
 	case AML_DEMOD_SET_SYS:

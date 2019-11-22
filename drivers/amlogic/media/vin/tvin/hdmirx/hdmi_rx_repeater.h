@@ -63,6 +63,7 @@ struct hdcp_hw_info_s {
 };
 
 extern int receive_edid_len;
+extern int tx_hpd_event;
 extern bool new_edid;
 extern int hdcp_array_len;
 extern int hdcp_len;

@@ -129,10 +129,12 @@ ssize_t dtb_read(struct file *file,
 		loff_t *ppos)
 {
 	u8 *dtb_ptr = NULL;
-	/*struct nand_flash *flash = &aml_chip_dtb->flash;*/
+	struct nand_chip *chip = &aml_chip_dtb->chip;
 	struct mtd_info *mtd = aml_chip_dtb->mtd;
 	ssize_t read_size = 0;
 	int ret = 0;
+	loff_t addr;
+	int chipnr;
 
 	if (*ppos == aml_chip_dtb->dtbsize)
 		return 0;
@@ -146,8 +148,10 @@ ssize_t dtb_read(struct file *file,
 	if (dtb_ptr == NULL)
 		return -ENOMEM;
 
-	/*not need nand_get_device here, mtd->_read_xx will done with it*/
-	/*nand_get_device(mtd, FL_READING);*/
+	addr = *ppos;
+	nand_get_device(mtd, FL_READING);
+	chipnr = (int)(addr >> chip->chip_shift);
+	chip->select_chip(mtd, chipnr);
 	ret = amlnf_dtb_read((u8 *)dtb_ptr, aml_chip_dtb->dtbsize);
 	if (ret) {
 		pr_info("%s: read failed:%d\n", __func__, ret);
@@ -161,10 +165,14 @@ ssize_t dtb_read(struct file *file,
 		read_size = count;
 
 	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
+	if (ret) {
+		read_size = -EFAULT;
+		goto exit;
+	}
 	*ppos += read_size;
 exit:
-	/*nand_release_device(mtd);*/
-	/* kfree(dtb_ptr); */
+	chip->select_chip(mtd, -1);
+	nand_release_device(mtd);
 	vfree(dtb_ptr);
 	return read_size;
 }
@@ -175,9 +183,11 @@ ssize_t dtb_write(struct file *file,
 {
 	u8 *dtb_ptr = NULL;
 	ssize_t write_size = 0;
-	/*struct nand_flash *flash = &aml_chip_dtb->flash;*/
-	struct mtd_info *mtd = aml_chip_dtb->mtd;
 	int ret = 0;
+	struct nand_chip *chip = &aml_chip_dtb->chip;
+	struct mtd_info *mtd = aml_chip_dtb->mtd;
+	loff_t addr;
+	int chipnr;
 
 	if (*ppos == aml_chip_dtb->dtbsize)
 		return 0;
@@ -191,8 +201,10 @@ ssize_t dtb_write(struct file *file,
 	if (dtb_ptr == NULL)
 		return -ENOMEM;
 
-	/*not need nand_get_device here, mtd->_read_xx will done with it*/
-	/*nand_get_device(mtd, FL_WRITING);*/
+	addr = *ppos;
+	nand_get_device(mtd, FL_WRITING);
+	chipnr = (int)(addr >> chip->chip_shift);
+	chip->select_chip(mtd, chipnr);
 	ret = amlnf_dtb_read((u8 *)dtb_ptr, aml_chip_dtb->dtbsize);
 	if (ret) {
 		pr_info("%s: read failed\n", __func__);
@@ -206,6 +218,10 @@ ssize_t dtb_write(struct file *file,
 		write_size = count;
 
 	ret = copy_from_user((dtb_ptr + *ppos), buf, write_size);
+	if (ret) {
+		write_size = -EFAULT;
+		goto exit;
+	}
 
 	ret = amlnf_dtb_save(dtb_ptr, aml_chip_dtb->dtbsize);
 	if (ret) {
@@ -216,8 +232,8 @@ ssize_t dtb_write(struct file *file,
 
 	*ppos += write_size;
 exit:
-	/*nand_release_device(mtd);*/
-	/* kfree(dtb_ptr); */
+	chip->select_chip(mtd, -1);
+	nand_release_device(mtd);
 	vfree(dtb_ptr);
 	return write_size;
 }

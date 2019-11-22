@@ -18,6 +18,8 @@
 #ifndef __AML_SND_IOMAP_H__
 #define __AML_SND_IOMAP_H__
 
+#include "ddr_mngr.h"
+
 enum{
 	IO_PDM_BUS = 0,
 	IO_AUDIO_BUS,
@@ -25,53 +27,45 @@ enum{
 	IO_EQDRC_BUS,
 	IO_RESET,
 	IO_VAD,
-	IO_EARCRX_CMDC,
-	IO_EARCRX_DMAC,
-	IO_EARCRX_TOP,
-
+	IO_RESAMPLEA,
+	IO_RESAMPLEB,
 	IO_MAX,
 };
 
-extern int aml_pdm_read(unsigned int reg);
-extern void aml_pdm_write(unsigned int reg, unsigned int val);
-extern void aml_pdm_update_bits(unsigned int reg,
-	unsigned int mask, unsigned int val);
+int aml_pdm_read(unsigned int reg);
+void aml_pdm_write(unsigned int reg, unsigned int val);
+void aml_pdm_update_bits(unsigned int reg, unsigned int mask,
+			 unsigned int val);
 
-extern int audiobus_read(unsigned int reg);
-extern void audiobus_write(unsigned int reg, unsigned int val);
-extern void audiobus_update_bits(unsigned int reg,
-	unsigned int mask, unsigned int val);
+int audiobus_read(unsigned int reg);
+void audiobus_write(unsigned int reg, unsigned int val);
+void audiobus_update_bits(unsigned int reg, unsigned int mask,
+			  unsigned int val);
 
-extern int audiolocker_read(unsigned int reg);
-extern void audiolocker_write(unsigned int reg, unsigned int val);
-extern void audiolocker_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
+int audiolocker_read(unsigned int reg);
+void audiolocker_write(unsigned int reg, unsigned int val);
+void audiolocker_update_bits(unsigned int reg, unsigned int mask,
+			     unsigned int val);
 
-extern int eqdrc_read(unsigned int reg);
-extern void eqdrc_write(unsigned int reg, unsigned int val);
-extern void eqdrc_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
+int eqdrc_read(unsigned int reg);
+void eqdrc_write(unsigned int reg, unsigned int val);
+void eqdrc_update_bits(unsigned int reg, unsigned int mask,
+		       unsigned int val);
 
-extern int audioreset_read(unsigned int reg);
-extern void audioreset_write(unsigned int reg, unsigned int val);
-extern void audioreset_update_bits(unsigned int reg,
-	unsigned int mask, unsigned int val);
+int audioreset_read(unsigned int reg);
+void audioreset_write(unsigned int reg, unsigned int val);
+void audioreset_update_bits(unsigned int reg, unsigned int mask,
+			    unsigned int val);
 
-extern int vad_read(unsigned int reg);
-extern void vad_write(unsigned int reg, unsigned int val);
-extern void vad_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
+int vad_read(unsigned int reg);
+void vad_write(unsigned int reg, unsigned int val);
+void vad_update_bits(unsigned int reg, unsigned int mask,
+		     unsigned int val);
 
-extern int earcrx_cmdc_read(unsigned int reg);
-extern void earcrx_cmdc_write(unsigned int reg, unsigned int val);
-extern void earcrx_cmdc_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
-extern int earcrx_dmac_read(unsigned int reg);
-extern void earcrx_dmac_write(unsigned int reg, unsigned int val);
-extern void earcrx_dmac_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
-extern int earcrx_top_read(unsigned int reg);
-extern void earcrx_top_write(unsigned int reg, unsigned int val);
-extern void earcrx_top_update_bits(unsigned int reg,
-		unsigned int mask, unsigned int val);
+unsigned int new_resample_read(enum resample_idx id, unsigned int reg);
+void new_resample_write(enum resample_idx id, unsigned int reg,
+			unsigned int val);
+void new_resample_update_bits(enum resample_idx id, unsigned int reg,
+			      unsigned int mask, unsigned int val);
+
 #endif

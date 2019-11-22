@@ -163,12 +163,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
-
-		/*vbi reserved mem*/
-		vbi_reserved:linux,vbi {
-			compatible = "amlogic, vbi-mem";
-			size = <0x0 0x100000>;
-		};
 	};
 
 	amlogic_battery:dummy-battery {
@@ -230,7 +224,7 @@
 		reg = <0x0 0xff3f0000 0x0 0x10000
 			0x0 0xff634540 0x0 0x8
 			0x0 0xff634558 0x0 0xc
-			0x0 0xffd01084 0x0 0x4>;
+			0x0 0xffd01008 0x0 0x4>;
 		interrupts = <0 8 1
 				0 9 1>;
 
@@ -571,11 +565,9 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		memory-region = <&vbi_reserved>;
 		dev_name = "vbi";
 		status = "okay";
 		interrupts = <0 83 1>;
-		reserve-iomap = "true";
 	};
 
 	tvafe_avin_detect {
@@ -625,16 +617,19 @@
 	};
 
 	tuner: tuner {
+		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_name = "mxl661_tuner";
-		tuner_i2c_adap = <&i2c1>;
-		tuner_i2c_addr = <0x60>;
-		tuner_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode = <0>;
+		tuner_cur = <0>; /* default use tuner */
+		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner_name_0 = "mxl661_tuner";
+		tuner_i2c_adap_0 = <&i2c1>;
+		tuner_i2c_addr_0 = <0x60>;
+		tuner_xtal_0 = <0>; /* 0: 16MHz, 1: 24MHz */
+		tuner_xtal_mode_0 = <0>;
 					/* NO_SHARE_XTAL(0)
 					 * SLAVE_XTAL_SHARE(1)
 					 */
-		tuner_xtal_cap = <30>; /* when tuner_xtal_mode = 1, set 25 */
+		tuner_xtal_cap_0 = <30>; /* when tuner_xtal_mode = 1, set 25 */
 	};
 
 	atv-demod {
@@ -1368,6 +1363,51 @@
 			&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
+	dvb_swdmx {
+		compatible = "amlogic, dvb-swdmx";
+		dev_name = "dvb_swdmx";
+		status = "okay";
+		cbus_base = <0x1800>;
+		asyncfifo0_reg_base = <0x2800>;
+		asyncfifo1_reg_base = <0x9800>;
+		asyncfifo2_reg_base = <0x2400>;
+		reset_base = <0x0400>;
+		parser_sub_ptr_base = <0x3800>;
+
+		ts_in_count = <3>;
+		s2p_count = <2>;
+		asyncfifo_count = <2>;
+
+		asyncfifo_buf_len = <0x80000>;
+
+		path_num = <2>;
+		path0_ts = <2>;/*0~2 for ts, 16 for hiu */
+		path0_dmx = <0>;
+		path0_asyncfifo = <0>;
+		path1_ts = <2>;
+		path1_dmx = <1>;
+		path1_asyncfifo = <1>;
+
+		/*dmxdev_num = <4>;*/
+
+		fe0_mode = "internal";
+		fe0_tuner = <&tuner>;
+		/*"parallel","serial","disable"*/
+		ts2 = "parallel";
+		ts2_control = <0>;
+		ts2_invert = <0>;
+		interrupts = <0 23 1
+					0 5 1
+					0 53 1>;
+		interrupt-names = "demux0_irq",
+						"demux1_irq",
+						"demux2_irq";
+		clocks = <&clkc CLKID_DEMUX
+			&clkc CLKID_ASYNC_FIFO
+			&clkc CLKID_AHB_ARB0
+			&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-txlx";
 		dev_name = "aml_dtv_demod";
@@ -1559,7 +1599,7 @@
 	/*lcd_extern*/
 	lcd_extern_off_pins:lcd_extern_off_pin {
 		mux {
-			pins = "GPIOH_2",
+			groups = "GPIOH_2",
 				"GPIOH_3";
 			function = "gpio_periphs";
 			/*output-high;*/
@@ -1571,50 +1611,50 @@
 	/*backlight*/
 	bl_pwm_on_pins:bl_pwm_on_pin {
 		mux {
-			pins = "pwm_b";
+			groups = "pwm_b";
 			function = "pwm_b";
 		};
 	};
 	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z6";
+			groups = "pwm_vs_z6";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
-			pins = "GPIOZ_6";
+			groups = "GPIOZ_6";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
 	bl_pwm_combo_0_on_pins:bl_pwm_combo_0_on_pin {
 		mux {
-			pins = "pwm_b";
+			groups = "pwm_b";
 			function = "pwm_b";
 		};
 	};
 	bl_pwm_combo_1_on_pins:bl_pwm_combo_1_on_pin {
 		mux {
-			pins = "pwm_c_z";
+			groups = "pwm_c_z";
 			function = "pwm_c";
 		};
 	};
 	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z6";
+			groups = "pwm_vs_z6";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
 		mux {
-			pins = "pwm_vs_z7";
+			groups = "pwm_vs_z7";
 			function = "pwm_vs";
 		};
 	};
 	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
 		mux {
-			pins = "GPIOZ_6",
+			groups = "GPIOZ_6",
 				"GPIOZ_7";
 			function = "gpio_periphs";
 			output-low;

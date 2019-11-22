@@ -14,6 +14,9 @@
  * more details.
  *
  */
+#define ADC_PLL_CNTL0_TL1	(0xb0 << 2)
+#define ADC_PLL_CNTL1_TL1	(0xb1 << 2)
+#define ADC_PLL_CNTL2_TL1	(0xb2 << 2)
 
 struct demod_debugfs_files_t {
 	const char *name;

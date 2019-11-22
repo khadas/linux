@@ -64,6 +64,7 @@
 #define VPU_DI_DIWR_MMC_CTRL 0x270c
 #define VPU_TVD3D_MMC_CTRL 0x2710
 #define VPU_TVDVBI_MMC_CTRL 0x2711
+#define VPU_SW_RESET 0x2720
 
 /* vpp */
 #define VPP_VDO_MEAS_CTRL 0x1da8
@@ -237,6 +238,9 @@
 #define VDIN_MATRIX_PRE_OFFSET2     ((0x1219))/* + 0xd0100000) */
 /* 12:0 lfifo_buf_size */
 #define VDIN_LFIFO_CTRL             ((0x121a))/* + 0xd0100000) */
+#define LFIFO_BUF_SIZE_BIT	0
+#define LFIFO_BUF_SIZE_WID	12
+
 #define VDIN_COM_GCLK_CTRL          ((0x121b))/* + 0xd0100000) */
 /* 12:0 VDIN input interface width minus 1,
  * before the window function, after the de decimation
@@ -626,32 +630,43 @@
 /* Bit 3:2 vshrk_clk2_ctrl */
 /* Bit 1:0 vshrk_clk1_ctrl */
 #define VDIN_COM_GCLK_CTRL2      ((0x1270))/* + 0xd0100000) */
-/* Bit 27 vshrk_en */
-/* Bit 26:25 vshrk_mode */
-/* Bit 24 vshrk_lpf_mode */
-/* Bit 23:0 vshrk_dummy */
+
+/* Bit 30 hshrk en(tm2 new add)
+ * Bit 27 vshrk_en
+ * Bit 26:25 vshrk_mode
+ * Bit 24 vshrk_lpf_mode
+ * Bit 23:0 vshrk_dummy
+ */
 #define VDIN_VSHRK_CTRL          ((0x1271))/* + 0xd0100000) */
+#define VDIN_VSHRK_EN_BIT	27
+#define VDIN_VSHRK_EN_WID	1
+#define VDIN_VSHRK_LPF_MODE_BIT	24
+#define VDIN_VSHRK_LPF_MODE_WID	1
+#define VDIN_VSHRK_MODE_BIT	25
+#define VDIN_VSHRK_MODE_WID	2
+#define VDIN_HSHRK_EN_BIT	30
+#define VDIN_HSHRK_EN_WID	1
+#define VDIN_VSHRK_DYMMY_BIT	0
+#define VDIN_VSHRK_DYMMY_WID	24
+
 #define VDIN_DNLP_HIST32         ((0x1272))/* + 0xd0100000) */
 /* Read only */
 /* Bit 7, vdi9 fifo overflow */
 /* Bit 5:0, vdi9_asfifo_cnt */
 #define VDIN_COM_STATUS3         ((0x1273))/* + 0xd0100000) */
 
-/* dolby vdin regs */
-#define VDIN_DOLBY_DSC_CTRL0                       0x1275
-/*((0x1275  << 2) + 0xff900000)*/
-#define VDIN_DOLBY_DSC_CTRL1                       0x1276
-#define VDIN_DOLBY_DSC_CTRL2                       0x1277
-#define VDIN_DOLBY_DSC_CTRL3                       0x1278
-#define VDIN_DOLBY_AXI_CTRL0                       0x1279
-#define VDIN_DOLBY_AXI_CTRL1                       0x127a
-#define VDIN_DOLBY_AXI_CTRL2                       0x127b
-#define VDIN_DOLBY_AXI_CTRL3                       0x127c
-#define VDIN_DOLBY_DSC_STATUS0                     0x127d
-#define VDIN_DOLBY_DSC_STATUS1                     0x127e
-#define VDIN_DOLBY_DSC_STATUS2                     0x127f
-#define VDIN_DOLBY_DSC_STATUS3                     0x121d
-
+#define VDIN_DOLBY_DSC_CTRL0	0x1275
+#define VDIN_DOLBY_DSC_CTRL1	0x1276
+#define VDIN_DOLBY_DSC_CTRL2	0x1277
+#define VDIN_DOLBY_DSC_CTRL3	0x1278
+#define VDIN_DOLBY_AXI_CTRL0	0x1279
+#define VDIN_DOLBY_AXI_CTRL1	0x127a
+#define VDIN_DOLBY_AXI_CTRL2	0x127b
+#define VDIN_DOLBY_AXI_CTRL3	0x127c
+#define VDIN_DOLBY_DSC_STATUS0	0x127d
+#define VDIN_DOLBY_DSC_STATUS1	0x127e
+#define VDIN_DOLBY_DSC_STATUS2	0x127f
+#define VDIN_DOLBY_DSC_STATUS3	0x121d
 
 /*g12a new add begin*/
 #define VDIN_HDR2_CTRL 0x1280
@@ -719,10 +734,72 @@
 
 #define VDIN_WRARB_REQEN_SLV       0x12c1
 
-/* #define VDIN_SCALE_COEF_IDX                        0x1200 */
-/* #define VDIN_SCALE_COEF                            0x1201 */
+/*tm2 new add begin*/
+#define VDIN_VSHRK_SIZE_M1	0x12d9
+#define VSHRK_IN_HSIZE_BIT	0
+#define VSHRK_IN_HSIZE_WID	13
+#define VSHRK_IN_VSIZE_BIT	16
+#define VSHRK_IN_VSIZE_WID	13
 
-/* #define VDIN_COM_CTRL0                             0x1202 */
+#define VDIN_HSK_CTRL	0x12ef
+#define HSK_MD_BIT	16
+#define HSK_MD_WID	7
+#define HSK_HSIZE_IN_BIT	0
+#define HSK_HSIZE_IN_WID	13
+
+#define HSK_COEF_0	0x12f0
+#define HSK_COEF_1	0x12f1
+#define HSK_COEF_2	0x12f2
+#define HSK_COEF_3	0x12f3
+#define HSK_COEF_4	0x12f4
+#define HSK_COEF_5	0x12f5
+#define HSK_COEF_6	0x12f6
+#define HSK_COEF_7	0x12f7
+#define HSK_COEF_8	0x12f8
+#define HSK_COEF_9	0x12f9
+#define HSK_COEF_10	0x12fa
+#define HSK_COEF_11	0x12fb
+#define HSK_COEF_12	0x12fc
+#define HSK_COEF_13	0x12fd
+#define HSK_COEF_14	0x12fe
+#define HSK_COEF_15	0x12ff
+
+#define VDIN2_WR_CTRL	0x4101
+#define VDIN2_WR_CVS_ADDR_BIT	0
+#define VDIN2_WR_CVS_ADDR_WID	8
+
+#define VDIN2_WR_CTRL2	0x4102
+#define VDIN2_WR_H_START_END	0x4103
+#define VDIN2_WR_V_START_END	0x4104
+
+/*[15:0] vdin reorder sel
+ *0:disable, 1:vdin0 normal, 2:vdin0 small, 3:vdin1 normal, 4:vdin1 small
+ */
+#define VDIN_TOP_DOUBLE_CTRL	0x410b
+#define VDIN_REORDER_SEL_WID	4
+/*[3:0] afbce sel*/
+#define AFBCE_OUT_SEL_BIT	0
+/*[7:4] wr mif 0 sel*/
+#define MIF0_OUT_SEL_BIT	4
+/*[11:8] wr mif 1 sel*/
+#define MIF1_OUT_SEL_BIT	8
+/*[15:12] wr mif 2 sel*/
+#define MIF2_OUT_SEL_BIT	12
+
+/*tm2 new add end*/
+
+/* dolby de-scramble scramble register */
+#define VDIN_DSC_CTRL		0x12d0
+#define VDIN_CFMT_CTRL		0x12d1
+#define VDIN_CFMT_W		0x12d2
+#define VDIN_SCB_CTRL0		0x12d3
+#define VDIN_SCB_CTRL1		0x12d4
+#define VDIN_DSC_HSIZE		0x12d5
+#define VDIN_DSC_DETUNNEL_SEL	0x12d6
+#define VDIN_DSC_TUNNEL_SEL	0x12d7
+
+#define VDIN_TOP_MISC		0x410d
+
 /* used by other modules,indicates that MPEG input.
  *0: mpeg source to NR directly,
  *1: mpeg source pass through here
@@ -1063,10 +1140,6 @@
 /* #define VDIN_MATRIX_PRE_OFFSET2                 0x1219 */
 #define MATRIX_PRE_OFFSET2_BIT          0
 #define MATRIX_PRE_OFFSET2_WID          11   /* s8.2 */
-
-/* #define VDIN_LFIFO_CTRL                         0x121a */
-#define LFIFO_BUF_SIZE_BIT              0
-#define LFIFO_BUF_SIZE_WID              12
 
 /* #define VDIN_COM_GCLK_CTRL                      0x121b */
 #define COM_GCLK_BLKBAR_BIT             14
@@ -1791,26 +1864,10 @@
 #define VDI6_ASFIFO_CTRL_BIT            0
 #define VDI6_ASFIFO_CTRL_WID            8
 
-#define VDIN_VSHRK_EN_BIT	27
-#define VDIN_VSHRK_EN_WID	1
-#define VDIN_VSHRK_LPF_MODE_BIT	24
-#define VDIN_VSHRK_LPF_MODE_WID	1
-#define VDIN_VSHRK_MODE_BIT	25
-#define VDIN_VSHRK_MODE_WID	2
-
 /* Bit 3:2 vshrk_clk2_ctrl */
 /* Bit 1:0 vshrk_clk1_ctrl */
 /* #define VDIN_COM_GCLK_CTRL2    ((0x1270  << 2) + 0xd0100000) */
-/* Bit 27 vshrk_en */
-/* Bit 26:25 vshrk_mode */
-/* Bit 24 vshrk_lpf_mode */
-/* Bit 23:0 vshrk_dummy */
-/* #define VDIN_VSHRK_CTRL    ((0x1271  << 2) + 0xd0100000) */
 /* #define VDIN_DNLP_HIST32    ((0x1272  << 2) + 0xd0100000) */
-/* Read only */
-/* Bit 7, vdi9 fifo overflow */
-/* Bit 5:0, vdi9_asfifo_cnt */
-/* #define VDIN_COM_STATUS3    ((0x1273  << 2) + 0xd0100000) */
 
 #define VDIN_FORCEGOLINE_EN_BIT		28
 #define VDIN_WRREQUEST_EN_BT		8

@@ -729,6 +729,7 @@ struct ge2d_manager_s {
 	int irq_num;
 	int ge2d_state;
 	int process_queue_state;
+	int probe;
 	struct platform_device *pdev;
 };
 

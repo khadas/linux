@@ -33,19 +33,21 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-#define RX_VER0 "ver.2019-01-22"
+
+#define RX_VER0 "ver.2019/11/18"
 /*
  *
  *
  *
  *
  */
-#define RX_VER1 "ver.2018/12/24"
+#define RX_VER1 "ver.2019/11/05"
 /*
  *
  *
+ *
  */
-#define RX_VER2 "ver.2018/10/30"
+#define RX_VER2 "ver.2019/11/18"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -56,10 +58,10 @@
 #define EQ_LOG		0x20
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
+#define EDID_LOG	0x100
 #define VSI_LOG		0x800
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
-
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
@@ -85,6 +87,7 @@ enum chip_id_e {
 	CHIP_ID_TXLX,
 	CHIP_ID_TXHD,
 	CHIP_ID_TL1,
+	CHIP_ID_TM2,
 };
 
 enum phy_ver_e {
@@ -117,6 +120,8 @@ struct hdmirx_dev_s {
 	struct clk *aud_out_clk;
 	struct clk *esm_clk;
 	struct clk *skp_clk;
+	struct clk *meter_clk;
+	struct clk *axi_clk;
 	const struct meson_hdmirx_data *data;
 };
 
@@ -268,9 +273,9 @@ struct rx_video_info {
 /*emp buffer config*/
 #define DUMP_MODE_EMP	0
 #define DUMP_MODE_TMDS	1
-#define TMDS_BUFFER_SIZE	0x1e00000 /*30M*/
+#define TMDS_BUFFER_SIZE	0x2000000 /*32M*/
 #define EMP_BUFFER_SIZE		0x200000	/*2M*/
-#define EMP_BUFF_MAC_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
+#define EMP_BUFF_MAX_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
 
@@ -321,6 +326,7 @@ struct vsi_info_s {
 	unsigned int dolby_timeout;
 	unsigned int eff_tmax_pq;
 	bool allm_mode;
+	bool hdr10plus;
 };
 
 #define CHANNEL_STATUS_SIZE   24
@@ -346,7 +352,7 @@ struct aud_info_s {
 	 *int down_mix_inhibit;
 	 *int level_shift_value;
 	 */
-
+	int aud_hbr_rcv;
 	int aud_packet_received;
 
 	/* channel status */
@@ -360,6 +366,7 @@ struct aud_info_s {
 	int real_channel_num;
 	int real_sample_size;
 	int real_sr;
+	u32 aud_clk;
 };
 
 struct phy_sts {
@@ -369,6 +376,11 @@ struct phy_sts {
 	uint32_t pll_rate;
 	uint32_t clk_rate;
 	uint32_t phy_bw;
+	uint32_t pll_bw;
+	uint32_t cablesel;
+	ulong timestap;
+	uint32_t err_sum;
+	uint32_t eq_data[256];
 };
 
 struct emp_buff {
@@ -378,11 +390,12 @@ struct emp_buff {
 	phys_addr_t p_addr_b;
 	/*void __iomem *v_addr_a;*/
 	/*void __iomem *v_addr_b;*/
-	void __iomem *storeA;
-	void __iomem *storeB;
+	void __iomem *store_a;
+	void __iomem *store_b;
 	void __iomem *ready;
-	unsigned int emppktcnt;
 	unsigned long irqcnt;
+	unsigned int emppktcnt;
+	unsigned int tmdspktcnt;
 };
 
 struct rx_s {
@@ -409,6 +422,7 @@ struct rx_s {
 	struct hdmi_rx_hdcp hdcp;
 	/*report hpd status to app*/
 	struct extcon_dev *rx_excton_rx22;
+	struct extcon_dev *rx_excton_open;
 
 	/* wrapper */
 	unsigned int state;
@@ -436,8 +450,11 @@ struct rx_s {
 	unsigned int pwr_sts;
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/
-	struct phy_sts physts;
+	struct phy_sts phy;
 	struct emp_buff empbuff;
+	uint32_t arc_port;
+	enum edid_ver_e edid_ver;
+	bool arc_5vsts;
 };
 
 struct _hdcp_ksv {
@@ -466,7 +483,7 @@ extern struct reg_map reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern void rx_tasklet_handler(unsigned long arg);
 extern void skip_frame(unsigned int cnt);
-
+extern int cec_set_dev_info(uint8_t dev_idx);
 
 /* reg */
 
@@ -500,6 +517,16 @@ extern int sm_pause;
 extern int suspend_pddq_sel;
 extern int disable_port_num;
 extern int disable_port_en;
+extern bool video_stable_to_esm;
+extern bool pwr_sts_to_esm;
+extern bool enable_hdcp22_esm_log;
+extern bool esm_reset_flag;
+extern bool esm_auth_fail_en;
+extern bool esm_error_flag;
+extern bool hdcp22_stop_auth;
+extern bool hdcp22_esm_reset2;
+extern int esm_recovery_mode;
+
 extern int rx_set_global_variable(const char *buf, int size);
 extern void rx_get_global_variable(const char *buf);
 extern int rx_pr(const char *fmt, ...);
@@ -510,7 +537,6 @@ extern bool is_aud_pll_error(void);
 extern int hdmirx_debug(const char *buf, int size);
 extern void dump_reg(void);
 extern void dump_edid_reg(void);
-extern void dump_state(unsigned char enable);
 extern void rx_debug_loadkey(void);
 extern void rx_debug_load22key(void);
 extern int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i);
@@ -536,7 +562,6 @@ extern unsigned int *pd_fifo_buf;
 
 /* for other modules */
 extern int External_Mute(int mute_flag);
-extern void vdac_enable(bool on, unsigned int module_sel);
 extern int rx_is_hdcp22_support(void);
 extern int hdmirx_get_connect_info(void);
 #endif

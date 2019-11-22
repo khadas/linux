@@ -53,6 +53,16 @@ struct ve_bext_s {
 	unsigned char slope2;
 };
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+#define DNLP_SCURV_LEN 65
+#define GAIN_VAR_LUT_LEN 49
+#define WEXT_GAIN_LEN 48
+#define ADP_THRD_LEN 33
+#define REG_BLK_BOOST_LEN 13
+#define REG_ADP_OFSET_LEN 20
+#define REG_MONO_PROT_LEN 6
+#define TREND_WHT_EXP_LUT_LEN 9
+#define DNLP_PARM_MAX_NUM 100
+#define DNLP_VPP_HIST_BIN_NUM 64
 struct ve_dnlp_s {
 	unsigned int      en;
 	unsigned int rt;    /* 0 ~ 255, */
@@ -71,17 +81,22 @@ struct vpp_hist_param_s {
 	unsigned int vpp_hist_pow;
 	unsigned int vpp_luma_sum;
 	unsigned int vpp_pixel_sum;
-	unsigned short vpp_histgram[64];
+	unsigned short vpp_histgram[DNLP_VPP_HIST_BIN_NUM];
 };
 struct ve_dnlp_curve_param_s {
-	unsigned int ve_dnlp_scurv_low[65];
-	unsigned int ve_dnlp_scurv_mid1[65];
-	unsigned int ve_dnlp_scurv_mid2[65];
-	unsigned int ve_dnlp_scurv_hgh1[65];
-	unsigned int ve_dnlp_scurv_hgh2[65];
-	unsigned int ve_gain_var_lut49[49];
-	unsigned int ve_wext_gain[48];
-	unsigned int param[100];
+	unsigned int ve_dnlp_scurv_low[DNLP_SCURV_LEN];
+	unsigned int ve_dnlp_scurv_mid1[DNLP_SCURV_LEN];
+	unsigned int ve_dnlp_scurv_mid2[DNLP_SCURV_LEN];
+	unsigned int ve_dnlp_scurv_hgh1[DNLP_SCURV_LEN];
+	unsigned int ve_dnlp_scurv_hgh2[DNLP_SCURV_LEN];
+	unsigned int ve_gain_var_lut49[GAIN_VAR_LUT_LEN];
+	unsigned int ve_wext_gain[WEXT_GAIN_LEN];
+	unsigned int ve_adp_thrd[ADP_THRD_LEN];
+	unsigned int ve_reg_blk_boost_12[REG_BLK_BOOST_LEN];
+	unsigned int ve_reg_adp_ofset_20[REG_ADP_OFSET_LEN];
+	unsigned int ve_reg_mono_protect[REG_MONO_PROT_LEN];
+	unsigned int ve_reg_trend_wht_expand_lut8[TREND_WHT_EXP_LUT_LEN];
+	unsigned int param[DNLP_PARM_MAX_NUM];
 };
 enum dnlp_param_e {
 	ve_dnlp_enable = 0,
@@ -141,6 +156,26 @@ enum dnlp_param_e {
 	ve_dnlp_scurv_hgh1_th,
 	ve_dnlp_scurv_hgh2_th,
 	ve_dnlp_mtdrate_adp_en,
+	ve_dnlp_clahe_method,
+	ve_dnlp_ble_en,
+	ve_dnlp_norm,
+	ve_dnlp_scn_chg_th,
+	ve_dnlp_step_th,
+	ve_dnlp_iir_step_mux,
+	ve_dnlp_single_bin_bw,
+	ve_dnlp_single_bin_method,
+	ve_dnlp_reg_max_slop_1st,
+	ve_dnlp_reg_max_slop_mid,
+	ve_dnlp_reg_max_slop_fin,
+	ve_dnlp_reg_min_slop_1st,
+	ve_dnlp_reg_min_slop_mid,
+	ve_dnlp_reg_min_slop_fin,
+	ve_dnlp_reg_trend_wht_expand_mode,
+	ve_dnlp_reg_trend_blk_expand_mode,
+	ve_dnlp_ve_hist_cur_gain,
+	ve_dnlp_ve_hist_cur_gain_precise,
+	ve_dnlp_reg_mono_binrang_st,
+	ve_dnlp_reg_mono_binrang_ed,
 	ve_dnlp_param_max,
 };
 enum dnlp_curve_e {
@@ -151,6 +186,11 @@ enum dnlp_curve_e {
 	ve_scurv_hgh2,
 	ve_curv_var_lut49,
 	ve_curv_wext_gain,
+	ve_adp_thrd = 1013,
+	ve_reg_blk_boost_12,
+	ve_reg_adp_ofset_20,
+	ve_reg_mono_protect,
+	ve_reg_trend_wht_expand_lut8,
 };
 #else
 struct ve_dnlp_s {
@@ -159,6 +199,24 @@ struct ve_dnlp_s {
 	unsigned char gamma[64];
 };
 #endif
+
+struct ve_lc_curve_parm_s {
+	unsigned int ve_lc_saturation[63];
+	unsigned int ve_lc_yminval_lmt[12];
+	unsigned int ve_lc_ypkbv_ymaxval_lmt[12];
+	unsigned int ve_lc_ypkbv_ratio[4];
+	unsigned int param[100];
+};
+
+enum lc_alg_param_e {
+	lc_dbg_parm0 = 0,
+	lc_dbg_parm1,
+	lc_dbg_parm2,
+	lc_dbg_parm3,
+	lc_dbg_parm4,
+	lc_dbg_parm_max,
+};
+
 struct ve_hsvs_s {
 	unsigned char en;
 	unsigned char peak_gain_h1;

@@ -306,6 +306,7 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
+
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
@@ -321,6 +322,7 @@
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};
+
 	vm0 {
 		compatible = "amlogic, vm";
 		memory-region = <&vm0_cma_reserved>;
@@ -1318,31 +1320,6 @@
 		status = "okay";
 	};
 
-	earc:earc {
-		compatible = "amlogic, sm1-snd-earc";
-		#sound-dai-cells = <0>;
-
-		clocks = <&clkaudio CLKID_AUDIO_GATE_EARCRX
-			&clkaudio CLKID_EARCRX_CMDC
-			&clkaudio CLKID_EARCRX_DMAC
-			&clkc CLKID_FCLK_DIV5
-			&clkc CLKID_FCLK_DIV3
-			>;
-		clock-names = "rx_gate",
-			"rx_cmdc",
-			"rx_dmac",
-			"rx_cmdc_srcpll",
-			"rx_dmac_srcpll";
-
-		interrupts = <
-			GIC_SPI 88 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 87 IRQ_TYPE_EDGE_RISING
-		>;
-		interrupt-names = "rx_cmdc", "rx_dmac";
-
-		status = "okay";
-	};
-
 	asrca: resample@0 {
 		compatible = "amlogic, sm1-resample";
 		clocks = <&clkc CLKID_MPLL3
@@ -1508,13 +1485,16 @@
 
 		status = "disabled";
 	};
+
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1527,9 +1507,14 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
+
 		status = "disabled";
 	};
 }; /* end of audiobus */
+
+&earc {
+	status = "okay";
+};
 
 &pinctrl_periphs {
 	tdmout_a: tdmout_a {
@@ -1761,8 +1746,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
@@ -1888,9 +1872,9 @@
 
 &gpu{
 	tbl =  <&dvfs285_cfg
-				&dvfs400_cfg
-				&dvfs500_cfg
-				&dvfs666_cfg
-				&dvfs800_cfg
-				&dvfs800_cfg>;
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 };

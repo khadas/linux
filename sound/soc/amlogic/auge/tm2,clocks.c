@@ -22,8 +22,6 @@
 #include "audio_clks.h"
 #include "regs.h"
 
-static spinlock_t aclk_lock;
-
 static const char *const mclk_parent_names[] = {
 	"mpll0", "mpll1", "mpll2", "mpll3", "hifi_pll",
 	"fclk_div3", "fclk_div4", "fclk_div5"};

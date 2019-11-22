@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -54,7 +69,7 @@ static int ad82584f_set_eq_drc(struct snd_soc_codec *codec);
 /* Power-up register defaults */
 static const
 struct reg_default ad82584f_reg_defaults[AD82584F_REGISTER_COUNT] = {
-	{0x00, 0x00},//##State_Control_1
+	{0x00, 0x04},//##State_Control_1
 	{0x01, 0x04},//##State_Control_2
 	{0x02, 0x30},//##State_Control_3
 	{0x03, 0x4e},//##Master_volume_control
@@ -192,7 +207,7 @@ struct reg_default ad82584f_reg_defaults[AD82584F_REGISTER_COUNT] = {
 };
 
 static const int m_reg_tab[AD82584F_REGISTER_COUNT][2] = {
-	{0x00, 0x00},//##State_Control_1
+	{0x00, 0x04},//##State_Control_1
 	{0x01, 0x04},//##State_Control_2
 	{0x02, 0x30},//##State_Control_3
 	{0x03, 0x4e},//##Master_volume_control
@@ -841,7 +856,7 @@ static int ad82584f_probe(struct snd_soc_codec *codec)
 {
 	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
 	struct ad82584f_platform_data *pdata = ad82584f->pdata;
-	int ret;
+	int ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ad82584f->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
@@ -851,12 +866,15 @@ static int ad82584f_probe(struct snd_soc_codec *codec)
 	register_early_suspend(&(ad82584f->early_suspend));
 #endif
 
-	ret = devm_gpio_request_one(codec->dev, pdata->reset_pin,
-					GPIOF_OUT_INIT_LOW,
-					"ad82584f-reset-pin");
-	if (ret < 0) {
-		dev_err(codec->dev, "ad82584f get gpio error!\n");
-		return -1;
+	if (pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(codec->dev, pdata->reset_pin,
+						GPIOF_OUT_INIT_LOW,
+						"ad82584f-reset-pin");
+
+		if (ret < 0) {
+			dev_err(codec->dev, "ad82584f get gpio error!\n");
+			return -1;
+		}
 	}
 
 	ad82584f_init(codec);

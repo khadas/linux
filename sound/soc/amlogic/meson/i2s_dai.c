@@ -48,6 +48,9 @@
 #include <linux/amlogic/media/sound/aout_notify.h>
 #include "spdif_dai.h"
 #include "dmic.h"
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+#include <linux/amlogic/media/sound/usb_karaoke.h>
+#endif
 
 static int i2s_clk_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -279,12 +282,34 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 			/* use the hw same sync for i2s/958 */
 			pr_debug("i2s/958 same source\n");
 		}
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+		aml_i2s_set_ch_r_info(runtime->channels, runtime->rate);
+		i2s_out_mix_init();
+#endif
 		if (runtime->channels == 8) {
-			pr_debug("8ch PCM output->notify HDMI\n");
-			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-				substream);
+			dev_info(substream->pcm->card->dev, "8ch PCM output->notify HDMI\n");
+			aout_notifier_call_chain(
+					AOUT_EVENT_IEC_60958_PCM,
+					substream);
 		}
 	}
+
+	return 0;
+}
+
+static int aml_dai_i2s_hw_free(
+		struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+	struct aml_runtime_data *prtd = substream->runtime->private_data;
+	struct audio_stream *s = &prtd->s;
+
+	if (s && s->device_type == AML_AUDIO_I2SOUT) {
+		i2s_out_mix_deinit();
+		aml_i2s_set_ch_r_info(0, 0);
+	}
+#endif
 	return 0;
 }
 
@@ -431,6 +456,7 @@ static struct snd_soc_dai_ops aml_dai_i2s_ops = {
 	.prepare    = aml_dai_i2s_prepare,
 	.trigger    = aml_dai_i2s_trigger,
 	.hw_params  = aml_dai_i2s_hw_params,
+	.hw_free    = aml_dai_i2s_hw_free,
 	.set_fmt    = aml_dai_set_i2s_fmt,
 	.set_sysclk = aml_dai_set_i2s_sysclk,
 };

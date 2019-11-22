@@ -170,7 +170,9 @@
 	ethmac: ethernet@0xff3f0000 {
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0x0 0xff3f0000 0x0 0x10000
-			0x0 0xff634540 0x0 0x8>;
+			0x0 0xff634540 0x0 0x8
+			0x0 0xff634558 0x0 0xc
+			0x0 0xffd01008 0x0 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;
@@ -1252,10 +1254,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <6>;
-		datain_chmask = <0x3f>;
+		datain_chnum = <8>;
+		datain_chmask = <0xff>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 1 1 0>;
+		datain-lane-mask-in = <1 1 1 1>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1272,10 +1274,10 @@
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
 		datalb_src = <2>;
-		datalb_chnum = <2>;
-		datalb_chmask = <0x3>;
+		datalb_chnum = <8>;
+		datalb_chmask = <0xff>;
 		/* config which data pin as loopback */
-		datalb-lane-mask-in = <1 0 0 0>;
+		datalb-lane-mask-in = <1 1 1 1>;
 
 		status = "okay";
 	};

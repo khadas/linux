@@ -3896,6 +3896,8 @@
 #define VBI_FIXGATE_EN_WID              1
 
 #define CVD2_REG_FA                     ((CVD_BASE_ADD+0xFA)<<2)
+#define UV_FILTER_TYPE_BIT              7
+#define UV_FILTER_TYPE_WID              1
 #define VLINES_SEL_BIT                  6
 #define VLINES_SEL_WID                  1
 #define UV_FILTER_BYPASS_BIT            5

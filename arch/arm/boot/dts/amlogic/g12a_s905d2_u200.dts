@@ -396,7 +396,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <17>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -414,6 +414,7 @@
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -500,6 +501,11 @@
 		};
 		keysn_16:key_16{
 			key-name = "netflix_mgkid";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_17:key_17{
+			key-name = "attestationdevidbox";// attest dev id box
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
@@ -706,7 +712,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdif";
 			cpu {
 				sound-dai = <&aml_spdif>;
 				system-clock-frequency = <6144000>;
@@ -722,7 +728,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdif";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -967,44 +973,32 @@
 }; /* end of / */
 
 &CPU0 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU1 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU2 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU3 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;

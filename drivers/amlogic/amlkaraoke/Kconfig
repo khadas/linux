@@ -1,0 +1,21 @@
+# AML Karaoke control drivers
+
+menuconfig AMLKARAOKE
+        bool "Amlogic karaoke Interface V1"
+        default y
+        help
+                Amlogic karaoke Interface V1, usb capture audio data, mix with i2s out directly.
+		---
+		---
+
+if	AMLKARAOKE
+
+config AMLOGIC_SND_USB_CAPTURE_DATA
+	tristate "USB Capture Audio Data In, for aml karaoke"
+	depends on AMLOGIC_SND_SOC_MESON
+	help
+		capture usb audio data into a ring buffer. The ring buffer data would be mixed with i2s out data.
+		Say 'Y' for aml karaoker driver.
+
+
+endif

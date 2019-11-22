@@ -37,6 +37,12 @@ struct power_ctrl {
 struct power_ctrl ctrl;
 static bool probe_done;
 
+bool is_support_power_ctrl(void)
+{
+	return probe_done;
+}
+EXPORT_SYMBOL(is_support_power_ctrl);
+
 int power_ctrl_sleep(bool power_on, unsigned int shift)
 {
 	unsigned int val;
@@ -62,6 +68,32 @@ int power_ctrl_sleep(bool power_on, unsigned int shift)
 }
 EXPORT_SYMBOL(power_ctrl_sleep);
 
+int power_ctrl_sleep_mask(bool power_on,
+			  unsigned int mask_val, unsigned int shift)
+{
+	unsigned int val;
+	unsigned long flags;
+
+	if (!probe_done)
+		return -ENXIO;
+
+	if (power_on) {
+		spin_lock_irqsave(&ctrl.sleep_lock, flags);
+		val = readl(ctrl.sleep_addr);
+		val = val & (~(mask_val << shift));
+		writel(val, ctrl.sleep_addr);
+		spin_unlock_irqrestore(&ctrl.sleep_lock, flags);
+	} else {
+		spin_lock_irqsave(&ctrl.sleep_lock, flags);
+		val = readl(ctrl.sleep_addr);
+		val = val | (mask_val << shift);
+		writel(val, ctrl.sleep_addr);
+		spin_unlock_irqrestore(&ctrl.sleep_lock, flags);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(power_ctrl_sleep_mask);
+
 int power_ctrl_iso(bool power_on, unsigned int shift)
 {
 	unsigned int val;
@@ -86,6 +118,32 @@ int power_ctrl_iso(bool power_on, unsigned int shift)
 	return 0;
 }
 EXPORT_SYMBOL(power_ctrl_iso);
+
+int power_ctrl_iso_mask(bool power_on,
+			unsigned int mask_val, unsigned int shift)
+{
+	unsigned int val;
+	unsigned long flags;
+
+	if (!probe_done)
+		return -ENXIO;
+
+	if (power_on) {
+		spin_lock_irqsave(&(ctrl.iso_lock), flags);
+		val = readl(ctrl.iso_addr);
+		val = val & (~(mask_val << shift));
+		writel(val, ctrl.iso_addr);
+		spin_unlock_irqrestore(&(ctrl.iso_lock), flags);
+	} else {
+		spin_lock_irqsave((&ctrl.iso_lock), flags);
+		val = readl(ctrl.iso_addr);
+		val = val | (mask_val << shift);
+		writel(val, ctrl.iso_addr);
+		spin_unlock_irqrestore(&(ctrl.iso_lock), flags);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(power_ctrl_iso_mask);
 
 int power_ctrl_mempd0(bool power_on, unsigned int mask_val, unsigned int shift)
 {

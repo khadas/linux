@@ -38,6 +38,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/slab.h>
+#include <linux/amlogic/pm.h>
 
 #define MESON_SAR_ADC_REG0					0x00
 	#define MESON_SAR_ADC_REG0_PANEL_DETECT			BIT(31)
@@ -110,8 +111,8 @@
 	#define MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK		GENMASK(11, 0)
 
 #define MESON_SAR_ADC_AUX_SW					0x1c
-	#define MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_MASK(_chan)	\
-					(GENMASK(10, 8) << (((_chan) - 2) * 2))
+	#define MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_SHIFT(_chan)	\
+					(8 + (((_chan) - 2) * 3))
 	#define MESON_SAR_ADC_AUX_SW_VREF_P_MUX			BIT(6)
 	#define MESON_SAR_ADC_AUX_SW_VREF_N_MUX			BIT(5)
 	#define MESON_SAR_ADC_AUX_SW_MODE_SEL			BIT(4)
@@ -174,6 +175,9 @@
  */
 #define MESON_SAR_ADC_REG11					0x2c
 	#define MESON_SAR_ADC_REG11_VREF_SEL			BIT(0)
+	#define MESON_SAR_ADC_REG11_EOC				BIT(1)
+	#define MESON_SAR_ADC_REG11_VREF_EN			BIT(5)
+	#define MESON_SAR_ADC_REG11_CMV_SEL			BIT(6)
 	#define MESON_SAR_ADC_REG11_BANDGAP_EN			BIT(13)
 	#define MESON_SAR_ADC_REG11_CHNL_REGS_EN		BIT(30)
 	#define MESON_SAR_ADC_REG11_FIFO_EN			BIT(31)
@@ -210,9 +214,7 @@
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
 				BIT(IIO_CHAN_INFO_AVERAGE_RAW) |	\
 				BIT(IIO_CHAN_INFO_PROCESSED),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
-				BIT(IIO_CHAN_INFO_CALIBBIAS) |		\
-				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.scan_type = {							\
 		.sign = 'u',						\
 		.storagebits = 16,					\
@@ -305,9 +307,15 @@ enum vref_select {
  *
  * @reg3_ring_counter_disable: to disable continuous ring counter.
  * gxl and later: 1; others(gxtvbb etc): 0
+ * @reg11_vref_en: g12a and later: 0; others(gxl etc): 1
+ * @reg11_cmv_sel: g12a and later: 0; others(gxl etc): 1
+ * @reg11_eoc:	g12a and later: 1; others(gxl etc): 0
  */
 struct meson_sar_adc_reg_diff {
 	bool		reg3_ring_counter_disable;
+	bool		reg11_vref_en;
+	bool		reg11_cmv_sel;
+	bool		reg11_eoc;
 };
 
 /*
@@ -316,6 +324,7 @@ struct meson_sar_adc_reg_diff {
  * @obt_temp_chan6: whether to read data of temp sensor by channel 6
  * @has_bl30_integration:
  * @vref_sel: txlx and later: VDDA; others(txl etc): calibration voltage
+ * @calib_enable: txlx and later: disable; others(txl etc): enable
  * @period_support: periodic sampling support
  * @has_chnl_regs: whether support for chnl[X] registers
  * @resolution: gxl and later: 12bit; others(gxtvbb etc): 10bit
@@ -326,10 +335,12 @@ struct meson_sar_adc_data {
 	bool			obt_temp_chan6;
 	bool			has_bl30_integration;
 	bool			vref_sel;
+	bool			calib_enable;
 	bool			period_support;
 	bool			has_chnl_regs;
 	unsigned int		resolution;
 	const char		*name;
+	const struct regmap_config *regmap_config;
 	struct meson_sar_adc_reg_diff regs_diff;
 };
 
@@ -351,11 +362,25 @@ struct meson_sar_adc_priv {
 	u8				*datum_buf;
 };
 
-static const struct regmap_config meson_sar_adc_regmap_config = {
+static const struct regmap_config meson_sar_adc_regmap_config_g12a = {
 	.reg_bits = 8,
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = MESON_SAR_ADC_CHNL67,
+};
+
+static const struct regmap_config meson_sar_adc_regmap_config_gxbb = {
+	.reg_bits = 8,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MESON_SAR_ADC_REG13,
+};
+
+static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
+	.reg_bits = 8,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MESON_SAR_ADC_DELTA_10,
 };
 
 static unsigned int meson_sar_adc_get_fifo_count(struct iio_dev *indio_dev)
@@ -430,7 +455,10 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 	fifo_val &= GENMASK(priv->data->resolution - 1, 0);
 
 	/* to fix the sample value by software */
-	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	if (priv->data->calib_enable)
+		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	else
+		*val = fifo_val;
 
 	return 0;
 }
@@ -471,7 +499,10 @@ static int meson_sar_adc_read_raw_sample_from_chnl(struct iio_dev *indio_dev,
 	fifo_val &= GENMASK(priv->data->resolution - 1, 0);
 
 	/* to fix the sample value by software */
-	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	if (priv->data->calib_enable)
+		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
+	else
+		*val = fifo_val;
 
 	return 0;
 }
@@ -529,7 +560,7 @@ static void meson_sar_adc_enable_channel(struct iio_dev *indio_dev,
 			   MESON_SAR_ADC_CHAN_LIST_MAX_INDEX_MASK, regval);
 
 	/* map channel index 0 to the channel which we want to read */
-	regval = chan->channel << MESON_SAR_ADC_CHAN_LIST_ENTRY_SHIFT(idx),
+	regval = chan->channel << MESON_SAR_ADC_CHAN_LIST_ENTRY_SHIFT(idx);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_LIST,
 			   MESON_SAR_ADC_CHAN_LIST_ENTRY_MASK(idx), regval);
 
@@ -589,6 +620,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 	mutex_lock(&indio_dev->mlock);
 
 	if (priv->data->has_bl30_integration) {
+again:
 		/* wait until BL30 releases it's lock (so we can use
 		 * the SAR ADC)
 		 */
@@ -606,10 +638,10 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 				   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
 		isb();
 		dsb(sy);
-		udelay(1);
+		udelay(5);
 		regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
 		if (val & MESON_SAR_ADC_DELAY_BL30_BUSY)
-			return -ETIMEDOUT;
+			goto again;
 	}
 
 	return 0;
@@ -619,10 +651,14 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
-	if (priv->data->has_bl30_integration)
+	if (priv->data->has_bl30_integration) {
 		/* allow BL30 to use the SAR ADC again */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
 				   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+		isb();
+		dsb(sy);
+		udelay(5);
+	}
 
 	mutex_unlock(&indio_dev->mlock);
 }
@@ -737,10 +773,16 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_FRACTIONAL_LOG2;
 
 	case IIO_CHAN_INFO_CALIBBIAS:
+		if (!priv->data->calib_enable)
+			return -EINVAL;
+
 		*val = priv->calibbias;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_CALIBSCALE:
+		if (!priv->data->calib_enable)
+			return -EINVAL;
+
 		*val = priv->calibscale / MILLION;
 		*val2 = priv->calibscale % MILLION;
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -835,6 +877,7 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int regval, ret;
+	int i;
 
 	/*
 	 * make sure we start at CH7 input since the other muxes are only used
@@ -895,6 +938,57 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 			MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
 			FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
 			priv->data->regs_diff.reg3_ring_counter_disable));
+
+	/*
+	 * set up the input channel muxes in MESON_SAR_ADC_CHAN_10_SW
+	 * (0 = SAR_ADC_CH0, 1 = SAR_ADC_CH1)
+	 */
+	regval = FIELD_PREP(MESON_SAR_ADC_CHAN_10_SW_CHAN0_MUX_SEL_MASK, 0);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_MUX_SEL_MASK,
+			   regval);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW);
+
+	regval = FIELD_PREP(MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK, 1);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK,
+			   regval);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW);
+	/*
+	 * set up the input channel muxes in MESON_SAR_ADC_AUX_SW
+	 * (2 = SAR_ADC_CH2, 3 = SAR_ADC_CH3, ...) and enable
+	 * MESON_SAR_ADC_AUX_SW_YP_DRIVE_SW and
+	 * MESON_SAR_ADC_AUX_SW_XP_DRIVE_SW like the vendor driver.
+	 */
+	regval = 0;
+	for (i = 2; i <= 7; i++)
+		regval |= i << MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_SHIFT(i);
+	regval |= MESON_SAR_ADC_AUX_SW_YP_DRIVE_SW;
+	regval |= MESON_SAR_ADC_AUX_SW_XP_DRIVE_SW;
+	ret = regmap_write(priv->regmap, MESON_SAR_ADC_AUX_SW, regval);
+	if (ret)
+		return ret;
+
+	/* must be set to <1> for g12a and later SoCs */
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_EOC,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_EOC,
+				      priv->data->regs_diff.reg11_eoc));
+
 	/* select the vref */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
 				MESON_SAR_ADC_REG11_VREF_SEL,
@@ -923,8 +1017,19 @@ static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
 	}
 
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_VREF_EN,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_VREF_EN,
+				      priv->data->regs_diff.reg11_vref_en));
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+			   MESON_SAR_ADC_REG11_CMV_SEL,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
+				      priv->data->regs_diff.reg11_cmv_sel));
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
 			   MESON_SAR_ADC_REG11_BANDGAP_EN,
 			   MESON_SAR_ADC_REG11_BANDGAP_EN);
+
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
 			   MESON_SAR_ADC_REG3_ADC_EN,
 			   MESON_SAR_ADC_REG3_ADC_EN);
@@ -1302,8 +1407,12 @@ struct meson_sar_adc_data meson_sar_adc_g12a_data = {
 	.vref_sel = VDDA_AS_VREF,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-g12a-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_g12a,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_LOW,
+		.reg11_cmv_sel = BIT_LOW,
+		.reg11_eoc = BIT_HIGH,
 	},
 };
 
@@ -1313,8 +1422,12 @@ struct meson_sar_adc_data meson_sar_adc_txlx_data = {
 	.vref_sel = VDDA_AS_VREF,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-txlx-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_HIGH,
+		.reg11_cmv_sel = BIT_HIGH,
+		.reg11_eoc = BIT_LOW,
 	},
 };
 
@@ -1324,8 +1437,12 @@ struct meson_sar_adc_data meson_sar_adc_axg_data = {
 	.vref_sel = VDDA_AS_VREF,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-axg-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_HIGH,
+		.reg11_cmv_sel = BIT_HIGH,
+		.reg11_eoc = BIT_LOW,
 	},
 };
 
@@ -1333,10 +1450,15 @@ struct meson_sar_adc_data meson_sar_adc_txl_data = {
 	.obt_temp_chan6 = false,
 	.has_bl30_integration = true,
 	.vref_sel = CALIB_VOL_AS_VREF,
+	.calib_enable = true,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-txl-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_HIGH,
+		.reg11_cmv_sel = BIT_HIGH,
+		.reg11_eoc = BIT_LOW,
 	},
 };
 
@@ -1344,10 +1466,15 @@ struct meson_sar_adc_data meson_sar_adc_gxl_data = {
 	.obt_temp_chan6 = false,
 	.has_bl30_integration = true,
 	.vref_sel = CALIB_VOL_AS_VREF,
+	.calib_enable = true,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-gxl-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_HIGH,
+		.reg11_cmv_sel = BIT_HIGH,
+		.reg11_eoc = BIT_LOW,
 	},
 };
 
@@ -1355,10 +1482,15 @@ struct meson_sar_adc_data meson_sar_adc_gxm_data = {
 	.obt_temp_chan6 = false,
 	.has_bl30_integration = true,
 	.vref_sel = CALIB_VOL_AS_VREF,
+	.calib_enable = true,
 	.resolution = SAR_ADC_12BIT,
 	.name = "meson-gxm-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_HIGH,
+		.reg11_vref_en = BIT_HIGH,
+		.reg11_cmv_sel = BIT_HIGH,
+		.reg11_eoc = BIT_LOW,
 	},
 };
 
@@ -1366,8 +1498,10 @@ struct meson_sar_adc_data meson_sar_adc_m8b_data = {
 	.obt_temp_chan6 = true,
 	.has_bl30_integration = true,
 	.vref_sel = CALIB_VOL_AS_VREF,
+	.calib_enable = true,
 	.resolution = SAR_ADC_10BIT,
 	.name = "meson-m8b-saradc",
+	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.regs_diff = {
 		.reg3_ring_counter_disable = BIT_LOW,
 	},
@@ -1407,8 +1541,10 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 	const struct of_device_id *match;
+	struct iio_chan_spec *chan;
 	int ret;
 	int irq;
+	int i;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev) {
@@ -1443,7 +1579,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					     &meson_sar_adc_regmap_config);
+					     priv->data->regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
@@ -1479,8 +1615,6 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
-
-	priv->calibscale = MILLION;
 
 	if (priv->data->period_support) {
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -1520,10 +1654,24 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = meson_sar_adc_calib(indio_dev);
-	if (ret)
-		dev_warn(&pdev->dev, "calibration failed\n");
+	if (priv->data->calib_enable) {
+		priv->calibscale = MILLION;
 
+		for (i = 0; i < indio_dev->num_channels; i++) {
+			chan = (struct iio_chan_spec *)indio_dev->channels + i;
+			if (chan->channel < 0)
+				continue;
+
+			chan->info_mask_shared_by_all =
+				BIT(IIO_CHAN_INFO_CALIBBIAS) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE);
+
+		}
+		ret = meson_sar_adc_calib(indio_dev);
+		if (ret)
+			dev_warn(&pdev->dev, "calibration failed\n");
+
+	}
 	platform_set_drvdata(pdev, indio_dev);
 
 	ret = iio_device_register(indio_dev);
@@ -1557,6 +1705,11 @@ static int __maybe_unused meson_sar_adc_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret;
 
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+	if (meson_adc_is_alive_freeze())
+		return 0;
+#endif
+
 	if (iio_buffer_enabled(indio_dev)) {
 		ret = meson_sar_adc_buffer_predisable(indio_dev);
 		if (ret)
@@ -1574,6 +1727,11 @@ static int __maybe_unused meson_sar_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret;
+
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+	if (meson_adc_is_alive_freeze())
+		return 0;
+#endif
 
 	ret = meson_sar_adc_hw_enable(indio_dev);
 	if (ret)

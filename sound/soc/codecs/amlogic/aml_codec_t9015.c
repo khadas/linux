@@ -64,7 +64,7 @@ static const struct reg_default t9015_init_list[] = {
 };
 
 static const struct reg_default t9015_init_list_V2[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B00F},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B03F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
 	{LINE_OUT_CONFIG, 0x00001111},
@@ -254,12 +254,14 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets_V2[] = {
 	SND_SOC_DAPM_OUTPUT("Lineout right P"),
 
 	/*DAC playback stream */
+	/*
 	SND_SOC_DAPM_DAC("Left DAC", "HIFI Playback",
 			 AUDIO_CONFIG_BLOCK_ENABLE,
 			 DACL_EN, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "HIFI Playback",
 			 AUDIO_CONFIG_BLOCK_ENABLE,
 			 DACR_EN, 0),
+	*/
 
 	/*DRV output */
 	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", SND_SOC_NOPM,

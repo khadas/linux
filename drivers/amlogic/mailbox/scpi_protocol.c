@@ -120,7 +120,10 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_SENSOR_CFG_BOUNDS,
 	SCPI_CMD_WAKEUP_REASON_GET,
 	SCPI_CMD_WAKEUP_REASON_CLR,
+	SCPI_CMD_INIT_DSP,
 };
+
+static int m4_cmds[] = {-1};
 
 static struct scpi_dvfs_info *scpi_opps[MAX_DVFS_DOMAINS];
 
@@ -139,11 +142,17 @@ static inline int scpi_to_linux_errno(int errno)
 
 static bool high_priority_chan_supported(int cmd)
 {
-	int idx;
+	unsigned int idx;
 
-	for (idx = 0; idx < ARRAY_SIZE(high_priority_cmds); idx++)
-		if (cmd == high_priority_cmds[idx])
-			return true;
+	if (num_scp_chans == CHANNEL_MAX) {
+		for (idx = 0; idx < ARRAY_SIZE(high_priority_cmds); idx++)
+			if (cmd == high_priority_cmds[idx])
+				return true;
+	} else {
+		for (idx = 0; idx < ARRAY_SIZE(m4_cmds); idx++)
+			if (cmd == m4_cmds[idx])
+				return true;
+	}
 	return false;
 }
 
@@ -556,6 +565,29 @@ int scpi_clr_wakeup_reason(void)
 }
 EXPORT_SYMBOL_GPL(scpi_clr_wakeup_reason);
 
+int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 id;
+		u32 addr;
+		u32 cfg0;
+	} buf;
+	buf.id = id;
+	buf.addr = addr;
+	buf.cfg0 = cfg0;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_INIT_DSP, buf, temp);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_init_dsp_cfg0);
+
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 {
 	struct scpi_data_buf sdata;
@@ -647,3 +679,21 @@ int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_get_cpuinfo);
+
+int scpi_unlock_bl40(void)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u8 temp = 0;
+
+	struct __packed {
+		u32 status;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_BL4_WAIT_UNLOCK, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_unlock_bl40);

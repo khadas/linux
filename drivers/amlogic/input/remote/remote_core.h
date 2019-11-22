@@ -58,7 +58,11 @@ enum raw_event_type {
 	RAW_STOP_EVENT   = (1 << 3),
 };
 
-
+struct pulse_group {
+	int len;
+	/*bit 0-30 durations, bit31: level*/
+	unsigned int pulse[0];
+};
 
 struct remote_raw_handle;
 struct remote_dev {
@@ -74,6 +78,19 @@ struct remote_dev {
 	unsigned long delay_on;
 	unsigned long delay_off;
 	int led_blink;
+
+	/*for ir learnning feature*/
+#define MAX_LEARNED_PULSE	256
+	/*ir learnning switch*/
+	u8 ir_learning_on;
+	u8 ir_learning_done;
+	u8 demod_enable;
+	u8 use_fifo;
+	u8 auto_report;
+	int max_learned_pulse;
+	int protocol;
+	struct timer_list learning_done;
+	struct pulse_group *pulses;
 
 	struct timer_list timer_keyup;
 	unsigned long keyup_jiffies;

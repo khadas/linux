@@ -37,56 +37,12 @@ enum vdin_output_mif_e {
 	VDIN_OUTPUT_TO_AFBCE = 1,
 };
 
-/* *********************************************************************** */
-/* *** enum definitions ********************************************* */
-/* *********************************************************************** */
-/*
- *YUV601:  SDTV BT.601            YCbCr (16~235, 16~240, 16~240)
- *YUV601F: SDTV BT.601 Full_Range YCbCr ( 0~255,  0~255,  0~255)
- *YUV709:  HDTV BT.709            YCbCr (16~235, 16~240, 16~240)
- *YUV709F: HDTV BT.709 Full_Range YCbCr ( 0~255,  0~255,  0~255)
- *RGBS:                       StudioRGB (16~235, 16~235, 16~235)
- *RGB:                              RGB ( 0~255,  0~255,  0~255)
- */
-enum vdin_matrix_csc_e {
-	VDIN_MATRIX_NULL = 0,
-	VDIN_MATRIX_XXX_YUV601_BLACK,
-	VDIN_MATRIX_RGB_YUV601,
-	VDIN_MATRIX_GBR_YUV601,
-	VDIN_MATRIX_BRG_YUV601,
-	VDIN_MATRIX_YUV601_RGB,
-	VDIN_MATRIX_YUV601_GBR,
-	VDIN_MATRIX_YUV601_BRG,
-	VDIN_MATRIX_RGB_YUV601F,
-	VDIN_MATRIX_YUV601F_RGB,
-	VDIN_MATRIX_RGBS_YUV601,
-	VDIN_MATRIX_YUV601_RGBS,
-	VDIN_MATRIX_RGBS_YUV601F,
-	VDIN_MATRIX_YUV601F_RGBS,
-	VDIN_MATRIX_YUV601F_YUV601,
-	VDIN_MATRIX_YUV601_YUV601F,
-	VDIN_MATRIX_RGB_YUV709,
-	VDIN_MATRIX_YUV709_RGB,
-	VDIN_MATRIX_YUV709_GBR,
-	VDIN_MATRIX_YUV709_BRG,
-	VDIN_MATRIX_RGB_YUV709F,
-	VDIN_MATRIX_YUV709F_RGB,
-	VDIN_MATRIX_RGBS_YUV709,
-	VDIN_MATRIX_YUV709_RGBS,
-	VDIN_MATRIX_RGBS_YUV709F,
-	VDIN_MATRIX_YUV709F_RGBS,
-	VDIN_MATRIX_YUV709F_YUV709,
-	VDIN_MATRIX_YUV709_YUV709F,
-	VDIN_MATRIX_YUV601_YUV709,
-	VDIN_MATRIX_YUV709_YUV601,
-	VDIN_MATRIX_YUV601_YUV709F,
-	VDIN_MATRIX_YUV709F_YUV601,
-	VDIN_MATRIX_YUV601F_YUV709,
-	VDIN_MATRIX_YUV709_YUV601F,
-	VDIN_MATRIX_YUV601F_YUV709F,
-	VDIN_MATRIX_YUV709F_YUV601F,
-	VDIN_MATRIX_RGBS_RGB,
-	VDIN_MATRIX_RGB_RGBS,
+enum wr_sel_vdin_e {
+	WR_SEL_DIS = 0,
+	WR_SEL_VDIN0_NOR = 1,
+	WR_SEL_VDIN0_SML = 2,
+	WR_SEL_VDIN1_NOR = 3,
+	WR_SEL_VDIN1_SML = 4,
 };
 
 /* *************************************************** */
@@ -136,13 +92,13 @@ extern enum vdin_format_convert_e vdin_get_format_convert_matrix1(
 		struct vdin_dev_s *devp);
 extern void vdin_set_prob_xy(unsigned int offset, unsigned int x,
 		unsigned int y, struct vdin_dev_s *devp);
-extern void vdin_get_prob_rgb(unsigned int offset, unsigned int *r,
+extern void vdin_prob_get_rgb(unsigned int offset, unsigned int *r,
 		unsigned int *g, unsigned int *b);
 extern void vdin_set_all_regs(struct vdin_dev_s *devp);
 extern void vdin_set_default_regmap(unsigned int offset);
 extern void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
-extern void vdin_hw_enable(unsigned int offset);
-extern void vdin_hw_disable(unsigned int offset);
+void vdin_hw_enable(struct vdin_dev_s *devp);
+void vdin_hw_disable(struct vdin_dev_s *devp);
 extern unsigned int vdin_get_field_type(unsigned int offset);
 extern int vdin_vsync_reset_mif(int index);
 extern bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
@@ -161,7 +117,7 @@ extern void vdin_set_canvas_id(struct vdin_dev_s *devp,
 extern unsigned int vdin_get_chma_canvas_id(unsigned int offset);
 extern void vdin_set_chma_canvas_id(struct vdin_dev_s *devp,
 		unsigned int rdma_enable, unsigned int canvas_id);
-extern void vdin_enable_module(unsigned int offset, bool enable);
+void vdin_enable_module(struct vdin_dev_s *devp, bool enable);
 extern void vdin_set_matrix(struct vdin_dev_s *devp);
 extern void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char no,
 		enum vdin_format_convert_e csc);
@@ -219,7 +175,22 @@ extern enum tvin_force_color_range_e color_range_force;
 
 extern void vdin_vlock_input_sel(unsigned int type,
 	enum vframe_source_type_e source_type);
-
+extern void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp);
+extern void vdin_check_hdmi_hdr(struct vdin_dev_s *devp);
+extern void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en);
+extern void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp);
+extern void vdin_prob_set_before_or_after_mat(unsigned int offset,
+		unsigned int x, struct vdin_dev_s *devp);
+extern void vdin_prob_get_yuv(unsigned int offset,
+		unsigned int *rgb_yuv0,	unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2);
+extern void vdin_prob_matrix_sel(unsigned int offset,
+		unsigned int sel, struct vdin_dev_s *devp);
+void vdin_change_matrix(unsigned int offset,
+			unsigned int matrix_csc);
+void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
+			       unsigned int  onoff);
 
 #endif
 

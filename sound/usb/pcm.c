@@ -1240,6 +1240,7 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_usb_substream *subs = &as->substream[direction];
+	int ret = 0;
 
 	subs->interface = -1;
 	subs->altset_idx = 0;
@@ -1253,7 +1254,28 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
 	subs->dsd_dop.channel = 0;
 	subs->dsd_dop.marker = 1;
 
-	return setup_hw_info(runtime, subs);
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = usb_audio_capture_init();
+		if (ret)
+			goto err;
+	}
+
+	ret = setup_hw_info(runtime, subs);
+
+	return ret;
+
+err:
+	snd_printdd(KERN_ERR "built-in mixer alloc usb buffer failed.\n");
+	if (direction == SNDRV_PCM_STREAM_CAPTURE)
+		usb_audio_capture_deinit();
+
+	ret = setup_hw_info(runtime, subs);
+#else
+	ret = setup_hw_info(runtime, subs);
+#endif
+
+	return ret;
 }
 
 static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
@@ -1272,6 +1294,11 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
 
 	subs->pcm_substream = NULL;
 	snd_usb_autosuspend(subs->stream->chip);
+
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+	if (direction == SNDRV_PCM_STREAM_CAPTURE)
+		usb_audio_capture_deinit();
+#endif
 
 	return 0;
 }
@@ -1336,6 +1363,9 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 		subs->last_frame_number &= 0xFF; /* keep 8 LSBs */
 
 		spin_unlock_irqrestore(&subs->lock, flags);
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+		retire_capture_usb(runtime, cp, bytes, oldptr, stride);
+#else
 		/* copy a data chunk */
 		if (oldptr + bytes > runtime->buffer_size * stride) {
 			unsigned int bytes1 =
@@ -1345,6 +1375,7 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 		} else {
 			memcpy(runtime->dma_area + oldptr, cp, bytes);
 		}
+#endif
 	}
 
 	if (period_elapsed)
@@ -1677,13 +1708,20 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 		err = start_endpoints(subs);
 		if (err < 0)
 			return err;
-
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+		err = usb_set_capture_status(true);
+#endif
 		subs->data_endpoint->retire_data_urb = retire_capture_urb;
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stop_endpoints(subs, false);
 		subs->running = 0;
+
+#ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
+		usb_set_capture_status(false);
+#endif
+
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		subs->data_endpoint->retire_data_urb = NULL;

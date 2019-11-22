@@ -22,6 +22,7 @@
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <linux/page-flags.h>
+#include <linux/slub_def.h>
 
 /*
  * bit map lay out for _ret_ip table
@@ -56,11 +57,70 @@ struct page;
 
 /* this struct should not larger than 32 bit */
 struct page_trace {
-	unsigned int ret_ip       :24;
-	unsigned int migrate_type : 3;
-	unsigned int module_flag  : 1;
-	unsigned int order        : 4;
+	union {
+		struct {
+			unsigned int ret_ip       :24;
+			unsigned int migrate_type : 3;
+			unsigned int module_flag  : 1;
+			unsigned int order        : 4;
+		};
+		unsigned int ip_data;
+	};
 };
+
+#ifdef CONFIG_AMLOGIC_SLAB_TRACE
+/*
+ * @entry:         rb tree for quick search/insert/delete
+ * @s_addr:        start address for this slab object
+ * @e_addr:        end address for this slab object
+ * @object_count:  how many objects in this slab obj
+ * @object_ip: a   array stores ip for each slab object
+ */
+struct slab_trace {
+	struct rb_node entry;
+	unsigned long s_addr;
+	unsigned long e_addr;
+	unsigned int object_count;
+	unsigned int *object_ip;
+};
+
+/*
+ * @trace_count:    how many slab_trace object we have used
+ * @total_obj_size: total object size according obj size
+ * @lock:           protection for rb tree update
+ * @list:           link to root list
+ * @root:           root for rb tree
+ */
+struct slab_trace_group {
+	unsigned long trace_count;
+	unsigned long total_obj_size;
+	unsigned int  object_size;
+	spinlock_t   lock;
+	struct list_head list;
+	struct kmem_cache *ip_cache;
+	struct rb_root root;
+};
+
+#define SLAB_STACK_DEP		7
+/*
+ * @hash: hash value for stack
+ * @entry: rb tree for quick search
+ * @stack: stack for object
+ */
+struct slab_stack {
+	unsigned int hash;
+	unsigned int use_cnt;
+	struct rb_node entry;
+	unsigned long stack[SLAB_STACK_DEP];
+};
+
+struct slab_stack_master {
+	int stack_cnt;
+	spinlock_t stack_lock;
+	struct kmem_cache *slab_stack_cache;
+	struct rb_root stack_root;
+};
+#endif
 
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 extern unsigned int cma_alloc_trace;
@@ -74,6 +134,18 @@ extern struct page_trace *find_page_base(struct page *page);
 extern unsigned long find_back_trace(void);
 extern unsigned long get_page_trace(struct page *page);
 extern void show_data(unsigned long addr, int nbytes, const char *name);
+extern int save_obj_stack(unsigned long *stack, int depth);
+#ifdef CONFIG_AMLOGIC_SLAB_TRACE
+extern int slab_trace_init(void);
+extern int slab_trace_add_page(struct page *page, int order,
+			       struct kmem_cache *s, gfp_t flags);
+extern int slab_trace_remove_page(struct page *page, int order,
+				  struct kmem_cache *s);
+extern int slab_trace_mark_object(void *object, unsigned long ip,
+				  struct kmem_cache *s);
+extern int slab_trace_remove_object(void *object, struct kmem_cache *s);
+extern int get_cache_max_order(struct kmem_cache *s);
+#endif
 #else
 static inline unsigned long unpack_ip(struct page_trace *trace)
 {
@@ -92,14 +164,48 @@ static inline struct page_trace *find_page_base(struct page *page)
 {
 	return NULL;
 }
-static unsigned long find_back_trace(void)
+static inline unsigned long find_back_trace(void)
+{
+	return 0;
+}
+static inline unsigned long get_page_trace(struct page *page)
+{
+	return 0;
+}
+static inline int slab_trace_init(void)
+{
+	return 0;
+}
+static inline int slab_trace_add_page(struct page *page, int order,
+				      struct kmem_cache *s, gfp_t flags)
+{
+	return 0;
+}
+static inline int slab_trace_remove_page(struct page *page, int order,
+					 struct kmem_cache *s)
+{
+	return 0;
+}
+static inline int slab_trace_mark_object(void *object, unsigned long ip,
+					 struct kmem_cache *s)
+{
+	return 0;
+}
+static inline int slab_trace_remove_object(void *object, struct kmem_cache *s)
+{
+	return 0;
+}
+static inline int get_cache_max_order(struct kmem_cache *s)
+{
+	return 0;
+}
+static inline int save_obj_stack(unsigned long *stack, int depth)
 {
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_AMLOGIC_SLUB_DEBUG
-#include <linux/slub_def.h>
 extern int aml_slub_check_object(struct kmem_cache *s, void *p, void *q);
 extern void aml_get_slub_trace(struct kmem_cache *s, struct page *page,
 				gfp_t flags, int order);

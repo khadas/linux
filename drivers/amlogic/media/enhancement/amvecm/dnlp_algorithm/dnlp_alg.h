@@ -76,6 +76,26 @@ struct param_for_dnlp_s {
 	unsigned int dnlp_scurv_hgh1_th;
 	unsigned int dnlp_scurv_hgh2_th;
 	unsigned int dnlp_mtdrate_adp_en;
+	unsigned int dnlp_clahe_method;
+	unsigned int dnlp_ble_en;
+	unsigned int dnlp_norm;
+	unsigned int dnlp_scn_chg_th;
+	unsigned int dnlp_step_th;
+	unsigned int dnlp_iir_step_mux;
+	unsigned int dnlp_single_bin_bw;
+	unsigned int dnlp_single_bin_method;
+	unsigned int dnlp_reg_max_slop_1st;
+	unsigned int dnlp_reg_max_slop_mid;
+	unsigned int dnlp_reg_max_slop_fin;
+	unsigned int dnlp_reg_min_slop_1st;
+	unsigned int dnlp_reg_min_slop_mid;
+	unsigned int dnlp_reg_min_slop_fin;
+	unsigned int dnlp_reg_trend_wht_expand_mode;
+	unsigned int dnlp_reg_trend_blk_expand_mode;
+	unsigned int dnlp_ve_hist_cur_gain;
+	unsigned int dnlp_ve_hist_cur_gain_precise;
+	unsigned int dnlp_reg_mono_binrang_st;
+	unsigned int dnlp_reg_mono_binrang_ed;
 };
 
 struct dnlp_alg_input_param_s {
@@ -89,6 +109,7 @@ struct dnlp_alg_input_param_s {
 
 struct dnlp_alg_output_param_s {
 	unsigned char *ve_dnlp_tgt;
+	unsigned int *ve_dnlp_tgt_10b;
 };
 
 struct dnlp_dbg_ro_param_s {
@@ -112,8 +133,12 @@ struct dnlp_dbg_rw_param_s {
 	int *dnlp_scurv_hgh2;
 	int *gain_var_lut49;
 	int *wext_gain;
+	int *adp_thrd;
+	int *reg_blk_boost_12;
+	int *reg_adp_ofset_20;
+	int *reg_mono_protect;
+	int *reg_trend_wht_expand_lut8;
 };
-
 struct dnlp_dbg_print_s {
 	int *dnlp_printk;
 };

@@ -139,16 +139,38 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
-	int other_file = global_node_page_state(NR_FILE_PAGES) -
-				global_node_page_state(NR_SHMEM) -
-				global_node_page_state(NR_UNEVICTABLE) -
-				total_swapcache_pages();
 #ifdef CONFIG_AMLOGIC_CMA
+	int other_file;
+	struct zone *z = NULL;
+	pg_data_t *pgdat;
 	int free_cma   = 0;
 	int file_cma   = 0;
 	int cma_forbid = 0;
+	int zfile      = 0;
+	int globle_file = global_node_page_state(NR_FILE_PAGES) -
+			  global_node_page_state(NR_SHMEM) -
+			  global_node_page_state(NR_UNEVICTABLE) -
+			  total_swapcache_pages();
 
-	if (cma_forbidden_mask(sc->gfp_mask) && !current_is_kswapd()) {
+	if (gfp_zone(sc->gfp_mask) == ZONE_NORMAL) {
+		/* using zone page state for more accurate */
+		pgdat = NODE_DATA(sc->nid);
+		z     = &pgdat->node_zones[ZONE_NORMAL];
+		if (managed_zone(z)) {
+			zfile = zone_page_state(z, NR_ZONE_INACTIVE_FILE) +
+				zone_page_state(z, NR_ZONE_ACTIVE_FILE);
+			other_file = zfile -
+				     global_node_page_state(NR_SHMEM) -
+				     zone_page_state(z, NR_ZONE_UNEVICTABLE) -
+				     total_swapcache_pages();
+		} else {
+			other_file = globle_file;
+		}
+	} else {
+		other_file = globle_file;
+	}
+	if (cma_forbidden_mask(sc->gfp_mask) &&
+	    (!current_is_kswapd() || cma_alloc_ref())) {
 		free_cma    = global_page_state(NR_FREE_CMA_PAGES);
 		file_cma    = global_page_state(NR_INACTIVE_FILE_CMA) +
 			      global_page_state(NR_ACTIVE_FILE_CMA);
@@ -156,6 +178,11 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		other_file -= file_cma;
 		cma_forbid  = 1;
 	}
+#else
+	int other_file = global_node_page_state(NR_FILE_PAGES) -
+				global_node_page_state(NR_SHMEM) -
+				global_node_page_state(NR_UNEVICTABLE) -
+				total_swapcache_pages();
 #endif /* CONFIG_AMLOGIC_CMA */
 
 	if (lowmem_adj_size < array_size)
@@ -254,6 +281,12 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		} else {
 			lowmem_deathpending_timeout = jiffies + HZ;
 		}
+		if (z)
+			pr_info("  zone:%s, file:%d, shmem:%ld, unevc:%ld, file_cma:%d\n",
+				z->name, zfile,
+				global_node_page_state(NR_SHMEM),
+				zone_page_state(z, NR_ZONE_UNEVICTABLE),
+				file_cma);
 	#else
 		lowmem_deathpending_timeout = jiffies + HZ;
 	#endif /* CONFIG_AMLOGIC_CMA */
