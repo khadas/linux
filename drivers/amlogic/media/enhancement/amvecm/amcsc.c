@@ -7550,6 +7550,18 @@ int amvecm_matrix_process(
 			       vd_path + 1);
 		}
 
+		/* gxl handle sdr_mode change bug fix. */
+		if ((vinfo->hdr_info.hdr_support & 0x4) &&
+		    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+		    vinfo->viu_color_fmt != COLOR_FMT_RGB444) {
+			if (sdr_mode != cur_sdr_mode) {
+				force_fake = true;
+				cur_sdr_mode = sdr_mode;
+				pr_csc(4, "vd%d: sdr_mode changed\n",
+				       vd_path + 1);
+			}
+		}
+
 		/* handle sdr_mode change */
 		if (is_video_layer_on(vd_path) &&
 		    (vinfo->hdr_info.hdr_support & 0x4) &&
