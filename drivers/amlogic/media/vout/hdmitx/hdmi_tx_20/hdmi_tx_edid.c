@@ -1855,7 +1855,7 @@ static int hdmitx_edid_search_IEEEOUI(char *buf)
 {
 	int i;
 
-	for (i = 0; i < 0x180; i++) {
+	for (i = 0; i < 0x180 - 2; i++) {
 		if ((buf[i] == 0x03) && (buf[i+1] == 0x0c) &&
 			(buf[i+2] == 0x00))
 			return 1;

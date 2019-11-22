@@ -4606,18 +4606,19 @@ static void hdmitx_fmt_attr(struct hdmitx_dev *hdev)
 	    (hdev->para->cs == COLORSPACE_RESERVED)) {
 		strcpy(hdev->fmt_attr, "default");
 	} else {
+		memset(hdev->fmt_attr, 0, sizeof(hdev->fmt_attr));
 		switch (hdev->para->cs) {
 		case COLORSPACE_RGB444:
-			memcpy(hdev->fmt_attr, "rgb,", 4);
+			memcpy(hdev->fmt_attr, "rgb,", 5);
 			break;
 		case COLORSPACE_YUV422:
-			memcpy(hdev->fmt_attr, "422,", 4);
+			memcpy(hdev->fmt_attr, "422,", 5);
 			break;
 		case COLORSPACE_YUV444:
-			memcpy(hdev->fmt_attr, "444,", 4);
+			memcpy(hdev->fmt_attr, "444,", 5);
 			break;
 		case COLORSPACE_YUV420:
-			memcpy(hdev->fmt_attr, "420,", 4);
+			memcpy(hdev->fmt_attr, "420,", 5);
 			break;
 		default:
 			break;
@@ -5458,8 +5459,10 @@ static void check_hdmiuboot_attr(char *token)
 	}
 	for (i = 0; cd[i] != NULL; i++) {
 		if (strstr(token, cd[i])) {
-			if (strlen(cd[i]) < (sizeof(attr) - strlen(attr)))
-				strncat(attr, cd[i], strlen(cd[i]));
+			if (strlen(cd[i]) < sizeof(attr))
+				if (strlen(cd[i]) <
+					(sizeof(attr) - strlen(attr)))
+					strncat(attr, cd[i], strlen(cd[i]));
 			strncpy(hdmitx_device.fmt_attr, attr,
 				sizeof(hdmitx_device.fmt_attr));
 			hdmitx_device.fmt_attr[15] = '\0';
