@@ -65,6 +65,8 @@ struct lcd_cdev_s {
 	struct device   *dev;
 };
 
+struct delayed_work lcd_restart_off_work;
+struct delayed_work lcd_restart_on_work;
 static struct lcd_cdev_s *lcd_cdev;
 
 static int lcd_vsync_cnt;
@@ -424,12 +426,33 @@ static void lcd_module_reset(void)
 	mutex_unlock(&lcd_vout_mutex);
 }
 
+static void lcd_restart_off_work_func(struct work_struct *_work)
+{
+       mutex_lock(&lcd_driver->power_mutex);
+       aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+       lcd_if_enable_retry(lcd_driver->lcd_config);
+       LCDPR("%s finished\n", __func__);
+       schedule_delayed_work(&lcd_restart_on_work, 20);
+       mutex_unlock(&lcd_driver->power_mutex);
+}
+
+static void lcd_restart_on_work_func(struct work_struct *_work)
+{
+       mutex_lock(&lcd_driver->power_mutex);
+       aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+       lcd_if_enable_retry(lcd_driver->lcd_config);
+       LCDPR("%s finished\n", __func__);
+       mutex_unlock(&lcd_driver->power_mutex);
+
+}
+
 static void lcd_resume_work(struct work_struct *p_work)
 {
 	mutex_lock(&lcd_driver->power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	lcd_if_enable_retry(lcd_driver->lcd_config);
 	LCDPR("%s finished\n", __func__);
+	schedule_delayed_work(&lcd_restart_off_work, 20);
 	mutex_unlock(&lcd_driver->power_mutex);
 }
 
@@ -1466,6 +1489,8 @@ static int lcd_probe(struct platform_device *pdev)
 		LCDERR("can't create lcd workqueue\n");
 
 	INIT_WORK(&(lcd_driver->lcd_resume_work), lcd_resume_work);
+	INIT_DELAYED_WORK(&lcd_restart_off_work, lcd_restart_off_work_func);
+	INIT_DELAYED_WORK(&lcd_restart_on_work, lcd_restart_on_work_func);
 
 	lcd_ioremap(pdev);
 	ret = lcd_config_probe(pdev);
