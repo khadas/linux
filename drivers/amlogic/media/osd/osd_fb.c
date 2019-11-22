@@ -634,7 +634,8 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		    var->transp.length, var->transp.offset);
 	fix->visual = color_format_pt->color_type;
 	/* adjust memory length. */
-	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
+	fix->line_length =
+		CANVAS_ALIGNED(var->xres_virtual * var->bits_per_pixel / 8);
 	osd_log_dbg(MODULE_BASE, "xvirtual=%d, bpp:%d, line_length=%d\n",
 		var->xres_virtual, var->bits_per_pixel, fix->line_length);
 
@@ -4371,7 +4372,7 @@ static int osd_probe(struct platform_device *pdev)
 				(fbdev->color->color_index > 16 ?
 				(fbdev->color->color_index > 24 ?
 				 4 : 3) : 2) : 1);
-		fix->line_length = var->xres_virtual * bpp;
+		fix->line_length = CANVAS_ALIGNED(var->xres_virtual * bpp);
 		fix->smem_start = fbdev->fb_mem_paddr;
 		fix->smem_len = fbdev->fb_len;
 		if (fb_alloc_cmap(&fbi->cmap, 16, 0) != 0) {

@@ -23,6 +23,7 @@
 #include "osd_sync.h"
 #include "osd_drm.h"
 
+#define CANVAS_ALIGNED(x) (((x) + 63) & ~63)
 #define MAX_HOLD_LINE     0x1f
 #define MIN_HOLD_LINE     0x04
 #define VIU1_DEFAULT_HOLD_LINE  0x08
