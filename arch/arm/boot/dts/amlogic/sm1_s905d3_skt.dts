@@ -1094,6 +1094,20 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_master_pins2>;
 	clock-frequency = <100000>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@0 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_LT8912";
+		reg = <0x48>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@1{
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_LT8912";
+		reg = <0x49>;
+		status = "okay";
+	};
 };
 
 &i2c3 {
@@ -1298,48 +1312,39 @@
 		status = "okay";
 	};
 
-	earc:earc {
-		compatible = "amlogic, sm1-snd-earc";
-		#sound-dai-cells = <0>;
-
-		clocks = <&clkaudio CLKID_AUDIO_GATE_EARCRX
-			&clkaudio CLKID_EARCRX_CMDC
-			&clkaudio CLKID_EARCRX_DMAC
-			&clkc CLKID_FCLK_DIV5
-			&clkc CLKID_FCLK_DIV3
-			>;
-		clock-names = "rx_gate",
-			"rx_cmdc",
-			"rx_dmac",
-			"rx_cmdc_srcpll",
-			"rx_dmac_srcpll";
-
-		interrupts = <
-			GIC_SPI 88 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 87 IRQ_TYPE_EDGE_RISING
-		>;
-		interrupt-names = "rx_cmdc", "rx_dmac";
-
-		status = "okay";
-	};
-
 	asrca: resample@0 {
-		compatible = "amlogic, sm1-resample";
-		clocks = <&clkc CLKID_MPLL3
-				&clkaudio CLKID_AUDIO_MCLK_F
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		compatible = "amlogic, sm1-resample-a";
+		clocks = <&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_MCLK_A
+			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
 		 *	TDMIN_C, 2
 		 *	SPDIFIN, 3
-		 *	PDMIN,  4
+		 *	PDMIN,   4
 		 *	NONE,
 		 *	TDMIN_LB, 6
 		 *	LOOPBACK, 7
 		 */
-		resample_module = <4>;
+
+		resample_module = <3>;
+
+		status = "okay";
+	};
+
+	asrcb: resample@1 {
+		compatible = "amlogic, sm1-resample-b";
+
+		clocks = <&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_F
+			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*this resample is only used for loopback_A.*/
+
 		status = "disabled";
 	};
 
@@ -1488,13 +1493,16 @@
 
 		status = "disabled";
 	};
+
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1507,9 +1515,14 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
+
 		status = "okay";
 	};
 }; /* end of audiobus */
+
+&earc {
+	status = "okay";
+};
 
 &pinctrl_periphs {
 	tdmout_a: tdmout_a {
@@ -1727,10 +1740,9 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/* "MMC_CAP2_HS400";*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
-		f_max = <200000000>;
+		f_max = <166666666>;
 	};
 };
 

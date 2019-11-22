@@ -249,7 +249,7 @@ static void cvbs_cntl_output(unsigned int open)
 		vdac_set_ctrl0_ctrl1(cntl0, cntl1);
 
 		/* must enable adc bandgap, the adc ref signal for demod */
-		vdac_enable(0, 0x8);
+		vdac_enable(0, VDAC_MODULE_CVBS_OUT);
 	} else if (open == 1) { /* open */
 
 		cntl0 = info->cvbs_data->cntl0_val;
@@ -259,7 +259,7 @@ static void cvbs_cntl_output(unsigned int open)
 		vdac_set_ctrl0_ctrl1(cntl0, cntl1);
 
 		/*vdac ctrl for cvbsout/rf signal,adc bandgap*/
-		vdac_enable(1, 0x8);
+		vdac_enable(1, VDAC_MODULE_CVBS_OUT);
 	}
 }
 

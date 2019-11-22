@@ -85,7 +85,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x8000000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -122,7 +122,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x5000000>;
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -624,7 +624,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec &ad82584f_62>;
+				&amlogic_codec &dummy_codec>;
 			};
 		};
 
@@ -789,7 +789,7 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 		pinctrl-names="default";
 		pinctrl-0=<&clk12_24_z_pins>;
 		clocks = <&clkc CLKID_24M>;
@@ -802,7 +802,7 @@
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 	};
 	ircut: ircut {
 		compatible = "amlogic, ircut";
@@ -881,7 +881,7 @@
 		compatible = "ESMT, ad82584f";
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
-		status = "okay";
+		status = "disabled";
 		reset_pin = <&gpio GPIOA_5 0>;
 	};
 

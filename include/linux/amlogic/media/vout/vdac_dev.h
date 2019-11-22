@@ -15,28 +15,19 @@
  *
  */
 
-#ifndef _VDAC_DEV_H_
-#define _VDAC_DEV_H_
+#ifndef _INC_VDAC_DEV_H_
+#define _INC_VDAC_DEV_H_
 
-enum vdac_cpu_type {
-	VDAC_CPU_GXTVBB = 0,
-	VDAC_CPU_GX_L_M = 1,
-	VDAC_CPU_TXL  = 2,
-	VDAC_CPU_TXLX  = 3,
-	VDAC_CPU_GXLX  = 4,
-	VDAC_CPU_TXHD = 5,
-	VDAC_CPU_G12AB = 6,
-	VDAC_CPU_TL1 = 7,
-	VDAC_CPU_SM1 = 8,
-	VDAC_CPU_TM2 = 9,
-	VDAC_CPU_MAX,
-};
-
-struct meson_vdac_data {
-	enum vdac_cpu_type cpu_id;
-	const char *name;
-};
+#define VDAC_MODULE_MASK      (0x1f)
+#define VDAC_MODULE_AVOUT_ATV (1 << 0) /*0x1*/
+#define VDAC_MODULE_DTV_DEMOD (1 << 1) /*0x2*/
+#define VDAC_MODULE_AVOUT_AV  (1 << 2) /*0x4*/
+#define VDAC_MODULE_CVBS_OUT  (1 << 3) /*0x8*/
+#define VDAC_MODULE_AUDIO_OUT (1 << 4) /*0x10*/
 
 extern void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1);
+extern void vdac_enable(bool on, unsigned int module_sel);
+extern int vdac_enable_check_dtv(void);
+extern int vdac_enable_check_cvbs(void);
 
 #endif

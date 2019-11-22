@@ -103,10 +103,12 @@ enum _cec_log_dev_addr_e {
 #define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
 #define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
 
-#define CEC_FAIL_NONE                   0
-#define CEC_FAIL_NACK                   1
-#define CEC_FAIL_BUSY                   2
-#define CEC_FAIL_OTHER                  3
+enum cec_tx_ret {
+	CEC_FAIL_NONE = 0,
+	CEC_FAIL_NACK = 1,
+	CEC_FAIL_BUSY = 2,
+	CEC_FAIL_OTHER = 3
+};
 
 enum hdmi_port_type {
 	HDMI_INPUT = 0,

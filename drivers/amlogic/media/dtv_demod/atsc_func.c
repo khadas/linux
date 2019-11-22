@@ -827,15 +827,14 @@ int cci_run(void)
 
 int cfo_run(void)
 {
-	int crRate0, crRate1, crRate2, crRate;
-	int Fcent, Fs;
-	int cfo_sta, cr_peak_sta;
-	int i, j;
+	int cr_rate0, cr_rate1, cr_rate2, cr_rate;
+	int f_cent = SI2176_5M_IF * 1000;/* if */
+	int fs = ADC_CLK_24M;/* crystal */
+	int cfo_sta = UNLOCK, cr_peak_sta = UNLOCK;
+	unsigned int i, j;
 	int sys_state;
-	int table_count;
 	int max_count;
 	int freq_table[] = {0, -50, 50, -100, 100, -150, 150};
-	int scan_range;
 	int Offset;
 	int detec_cfo_times = 3;
 
@@ -846,34 +845,35 @@ int cfo_run(void)
 		max_count = 5;
 	else
 		max_count = 7;
-	/*for field test do 3 times*/
+
+	/* for field test do 3 times */
 	if (field_test_version) {
 		max_count = 1;
 		detec_cfo_times = 20;
 	}
-	Fcent = Si2176_5M_If*1000;/*if*/
-	Fs = Adc_Clk_24M;/*crystal*/
-	cfo_sta = 0;
-	cr_peak_sta = 0;
-	table_count = 0;
-	scan_range = 10;
-	Offset = freq_table[table_count];
-	PR_ATSC("Fcent[%d], Fs[%d]\n", Fcent, Fs);
-	for (i = -(scan_range-1); i <= scan_range+1; i++) {
+
+	PR_ATSC("Fcent[%d], Fs[%d]\n", f_cent, fs);
+
+	for (i = 0; i < 7; i++) {
+		if (i > (max_count - 1))
+			return CFO_FAIL;
+
+		Offset = freq_table[i];
 		atsc_reset();
-		cfo_sta = UnLock;
-		cr_peak_sta = UnLock;
-		crRate = (1<<10)*(Fcent+Offset)/Fs;
-		crRate *= (1<<13);
-		crRate0 = crRate&0xff;
-		crRate1 = (crRate>>8)&0xff;
-		crRate2 = (crRate>>16)&0xff;
+		cfo_sta = UNLOCK;
+		cr_peak_sta = UNLOCK;
+		cr_rate = (1 << 10) * (f_cent + Offset) / fs;
+		cr_rate *= (1 << 13);
+		cr_rate0 = cr_rate & 0xff;
+		cr_rate1 = (cr_rate >> 8) & 0xff;
+		cr_rate2 = (cr_rate >> 16) & 0xff;
 		/*set ddc init*/
-		atsc_write_reg(0x70e, crRate0);
-		atsc_write_reg(0x70d, crRate1);
-		atsc_write_reg(0x70c, crRate2);
+		atsc_write_reg(0x70e, cr_rate0);
+		atsc_write_reg(0x70d, cr_rate1);
+		atsc_write_reg(0x70c, cr_rate2);
 		PR_ATSC("[autoscan]crRate is %x, Offset is %dkhz\n ",
-			crRate, Offset);
+			cr_rate, Offset);
+
 		/*detec cfo signal*/
 		for (j = 0; j < detec_cfo_times; j++) {
 			sys_state = read_atsc_fsm();
@@ -886,18 +886,18 @@ int cfo_run(void)
 			}
 			msleep(20);
 		}
-		PR_ATSC("fsm[%x]cfo_sta is %d\n",
-			read_atsc_fsm(), cfo_sta);
+		PR_ATSC("fsm[%x]cfo_sta is %d\n", read_atsc_fsm(), cfo_sta);
+
 		/*detec cr peak signal*/
 		if (cfo_sta == Lock) {
 			for (j = 0; j < cfo_times; j++) {
 				sys_state = read_atsc_fsm();
-				PR_ATSC("fsm[%x]in CR LOCK\n", read_atsc_fsm());
+				PR_ATSC("fsm[%x]in CR LOCK\n",
+					read_atsc_fsm());
 				/*sys_state = (sys_state >> 4) & 0x0f;*/
 				if (sys_state >= CR_Peak_Lock) {
 					cr_peak_sta = Lock;
-					PR_ATSC(
-					"fsm[%x][autoscan]cr peak lock\n",
+					PR_ATSC("fsm[0x%x]cr peak lock\n",
 						read_atsc_fsm());
 					break;
 				} else if (sys_state <= 20) {
@@ -906,13 +906,9 @@ int cfo_run(void)
 				}
 				msleep(20);
 			}
-		} else {
-			if (table_count >= (max_count-1))
-				break;
-			table_count++;
-			Offset = freq_table[table_count];
+		} else
 			continue;
-		}
+
 		/*reset*/
 		if (cr_peak_sta == Lock) {
 			/*atsc_reset();*/
@@ -920,17 +916,9 @@ int cfo_run(void)
 			read_atsc_fsm());
 			return Cfo_Ok;
 
-		} else {
-			if (table_count >= (max_count-1)) {
-				PR_ATSC("cfo not lock,will try again\n");
-				return Cfo_Fail;
-
-			}
-			table_count++;
-			Offset = freq_table[table_count];
-
 		}
 	}
+
 	return 0;
 }
 
@@ -1124,7 +1112,7 @@ void atsc_thread(void)
 		time_table[1] = (time[2] - time[1]);
 		PR_ATSC("fsm[%x][atsc_time]cfo done,cost %d ms,\n",
 			read_atsc_fsm(), time_table[1]);
-		if (ret == Cfo_Fail)
+		if (ret == CFO_FAIL)
 			return;
 		if (cci_enable)
 			ret = cci_run();

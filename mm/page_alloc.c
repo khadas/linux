@@ -931,7 +931,17 @@ done_merging:
 		}
 	}
 
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru,
+		      &zone->free_area[order].free_list[migratetype]);
+#else
 	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+#endif
 out:
 	zone->free_area[order].nr_free++;
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
@@ -2283,7 +2293,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
  */
 #ifdef CONFIG_AMLOGIC_CMA
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
-				int migratetype, gfp_t gfp_flags)
+				int migratetype, bool cma)
 #else
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
 				int migratetype)
@@ -2293,7 +2303,7 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
 
 #ifdef CONFIG_AMLOGIC_CMA
 	/* use CMA first */
-	if (migratetype == MIGRATE_MOVABLE && can_use_cma(gfp_flags)) {
+	if (migratetype == MIGRATE_MOVABLE && cma) {
 		page = __rmqueue_cma_fallback(zone, order);
 		if (page) {
 			trace_mm_page_alloc_zone_locked(page, order,
@@ -2333,7 +2343,9 @@ static struct page *rmqueue_no_cma(struct zone *zone, unsigned int order,
 		if (!page)
 			page = __rmqueue_fallback(zone, order, migratetype);
 	WARN_ON(page && is_migrate_cma(get_pcppage_migratetype(page)));
-	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+	if (page)
+		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+
 	spin_unlock(&zone->lock);
 	return page;
 }
@@ -2347,7 +2359,7 @@ static struct page *rmqueue_no_cma(struct zone *zone, unsigned int order,
 #ifdef CONFIG_AMLOGIC_CMA
 static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
-			int migratetype, bool cold, gfp_t flags)
+			int migratetype, bool cold, bool cma)
 #else
 static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
@@ -2359,7 +2371,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
 	#ifdef CONFIG_AMLOGIC_CMA
-		struct page *page = __rmqueue(zone, order, migratetype, flags);
+		struct page *page = __rmqueue(zone, order, migratetype, cma);
 	#else
 		struct page *page = __rmqueue(zone, order, migratetype);
 	#endif /* CONFIG_AMLOGIC_CMA */
@@ -2622,10 +2634,19 @@ void free_hot_cold_page(struct page *page, bool cold)
 	}
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#else
 	if (!cold)
 		list_add(&page->lru, &pcp->lists[migratetype]);
 	else
 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#endif
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
 		unsigned long batch = READ_ONCE(pcp->batch);
@@ -2768,6 +2789,9 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 	unsigned long flags;
 	struct page *page;
 	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+#ifdef CONFIG_AMLOGIC_CMA
+	bool cma = can_use_cma(gfp_flags);
+#endif
 
 	if (likely(order == 0)) {
 		struct per_cpu_pages *pcp;
@@ -2782,7 +2806,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 				pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, list,
 						migratetype, cold,
-						gfp_flags);
+						cma);
 			#else
 				pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, list,
@@ -2809,8 +2833,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 			 * For 2, we should replace with a cma page
 			 * before page is deleted from PCP list.
 			 */
-			if (!can_use_cma(gfp_flags) &&
-			    is_migrate_cma_page(page)) {
+			if (!cma && is_migrate_cma_page(page)) {
 				/* case 1 */
 				page = rmqueue_no_cma(zone, order, migratetype);
 				if (page)
@@ -2818,7 +2841,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 				goto failed;
 			} else if ((migratetype == MIGRATE_MOVABLE) &&
 			    (get_pcppage_migratetype(page) != MIGRATE_CMA) &&
-			    can_use_cma(gfp_flags)) {
+			    cma) {
 				struct page *tmp_page;
 
 				spin_lock(&zone->lock);
@@ -2859,7 +2882,7 @@ use_pcp:
 			if (!page)
 			#ifdef CONFIG_AMLOGIC_CMA
 				page = __rmqueue(zone, order,
-						 migratetype, gfp_flags);
+						 migratetype, cma);
 			#else
 				page = __rmqueue(zone, order, migratetype);
 			#endif /* CONFIG_AMLOGIC_CMA */
@@ -2996,9 +3019,7 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 
 #ifdef CONFIG_CMA
 	/* If allocation can't use CMA areas don't use free CMA pages */
-#ifndef CONFIG_AMLOGIC_CMA /* always sub cma pages to avoid wm all CMA */
 	if (!(alloc_flags & ALLOC_CMA))
-#endif
 		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
 #endif
 
@@ -3007,8 +3028,21 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 	 * are not met, then a high-order request also cannot go ahead
 	 * even if a suitable page happened to be free.
 	 */
+#ifdef CONFIG_AMLOGIC_CMA
+	if (free_pages <= min + z->lowmem_reserve[classzone_idx]) {
+		/* do not using cma until water mark is low */
+		if (unlikely(!cma_first_wm_low && free_pages > 0)) {
+			cma_first_wm_low = true;
+			pr_info("Now can use cma, free:%ld, wm:%ld\n",
+				free_pages,
+				min + z->lowmem_reserve[classzone_idx]);
+		}
+		return false;
+	}
+#else
 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
 		return false;
+#endif
 
 	/* If this is an order-0 request then the watermark is fine */
 	if (!order)
@@ -3161,6 +3195,12 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
 			BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 			if (alloc_flags & ALLOC_NO_WATERMARKS)
 				goto try_this_zone;
+
+		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+			/* alloc harder if under softirq */
+			if (in_serving_softirq() && (gfp_mask & __GFP_ATOMIC))
+				goto try_this_zone;
+		#endif
 
 			if (node_reclaim_mode == 0 ||
 			    !zone_allows_reclaim(ac->preferred_zoneref->zone, zone))
@@ -3971,15 +4011,22 @@ static inline void should_wakeup_kswap(gfp_t gfp_mask, int order,
 	unsigned long free_pages, free_cma = 0;
 	struct zoneref *z = ac->preferred_zoneref;
 	struct zone *zone;
+	unsigned long high_wm;
 
-	if (!(gfp_mask & __GFP_RECLAIM))	/* not allowed */
+	/*
+	 * 1, if flag not allow reclaim
+	 * 2, if with aotimic, we still need enable pre-wake up of
+	 *    kswap to avoid large amount memory request fail in very
+	 *    short time
+	 */
+	if (!(gfp_mask & __GFP_RECLAIM) && !(gfp_mask & __GFP_ATOMIC))
 		return;
 
 	for_next_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
 								ac->nodemask) {
 		free_pages = zone_page_state(zone, NR_FREE_PAGES);
 	#ifdef CONFIG_AMLOGIC_CMA
-		if (can_use_cma(gfp_mask))
+		if (!can_use_cma(gfp_mask))
 			free_cma = zone_page_state(zone, NR_FREE_CMA_PAGES);
 	#endif /* CONFIG_AMLOGIC_CMA */
 		free_pages -= free_cma;
@@ -3988,7 +4035,10 @@ static inline void should_wakeup_kswap(gfp_t gfp_mask, int order,
 		 * fast reclaim process and can avoid memory become too low
 		 * some times
 		 */
-		if (free_pages <= high_wmark_pages(zone))
+		high_wm = high_wmark_pages(zone);
+		if (gfp_mask & __GFP_HIGH) /* 1.5x if __GFP_HIGH */
+			high_wm = ((high_wm * 3) / 2);
+		if (free_pages <= high_wm)
 			wakeup_kswapd(zone, order, ac->high_zoneidx);
 	}
 }

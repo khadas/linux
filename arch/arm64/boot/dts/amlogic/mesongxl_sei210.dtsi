@@ -241,15 +241,13 @@
 	jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
-		select = "apao"; /* disable/apao/apee */
-		jtagao-gpios = <&gpio   GPIOH_6         0
-				&gpio   GPIOH_7         0
-				&gpio   GPIOH_8         0
-				&gpio   GPIOH_9         0>;
-		jtagee-gpios = <&gpio   CARD_0          0
-				&gpio   CARD_1          0
-				&gpio   CARD_2          0
-				&gpio   CARD_3          0>;
+		select = "disable"; /* disable/apao/apee */
+		/* both sets of jtags for the GXL platform */
+		/* are in the ee domain, this is named apao */
+		/* just to match the jtag driver */
+		pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
+		pinctrl-0=<&jtag_a_pins>;
+		pinctrl-1=<&jtag_b_pins>;
 	};
 
 	mailbox: mhu@c883c400 {
@@ -644,23 +642,23 @@
 		};
 	};
 
-	jtag_apao_pins:jtag_apao_pin {
+	jtag_a_pins:jtag_a_pin {
 		mux {
-			groups = "jtag_tdi_0",
-				"jtag_tdo_0",
-				"jtag_clk_0",
-				"jtag_tms_0";
-			function = "jtag";
+			groups = "GPIOH_6",
+				"GPIOH_7",
+				"GPIOH_8",
+				"GPIOH_9";
+			function = "gpio_periphs";
 		};
 	};
 
-	jtag_apee_pins:jtag_apee_pin {
+	jtag_b_pins:jtag_b_pin {
 		mux {
-			groups ="jtag_tdi_1",
-				"jtag_tdo_1",
-				"jtag_clk_1",
-				"jtag_tms_1";
-			function = "jtag";
+			groups = "CARD_0",
+				"CARD_1",
+				"CARD_2",
+				"CARD_3";
+			function = "gpio_periphs";
 		};
 	};
 

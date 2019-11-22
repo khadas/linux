@@ -24,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
+#define VBI_DRV_VER    "Ref.20190715"
+
 /* *************************************************** */
 /* *** macro definitions ***************************** */
 /* *************************************************** */
@@ -219,14 +221,14 @@ enum vbi_state_e {
 
 
 /**** structure definitions ******/
-
+#define VBI_DATA_BYTE_MAX    42
 struct vbi_data_s {
 	unsigned int vbi_type:8;
 	unsigned int field_id:8;
 	unsigned int tt_sys:8;/*tt*/
 	unsigned int nbytes:16;
 	unsigned int line_num:16;
-	unsigned char b[42];         /* 42 for TT-625B */
+	unsigned char b[VBI_DATA_BYTE_MAX];         /* 42 for TT-625B */
 };
 
 struct vbi_ringbuffer_s {
@@ -250,6 +252,9 @@ struct vbi_slicer_s {
 
 	struct vbi_ringbuffer_s buffer;
 	struct mutex mutex;
+	struct mutex task_mutex;
+	unsigned int busy;
+	unsigned int slicer_cnt;
 
 	unsigned int reserve;
 };
@@ -260,20 +265,23 @@ struct vbi_dev_s {
 	struct cdev cdev;
 	struct device *dev;
 
-	struct tasklet_struct tsklt_slicer;
+	/*struct tasklet_struct tsklt_slicer;*/
+	struct work_struct slicer_work;
 
 	char irq_name[12];
 	unsigned int vs_irq;
 	unsigned int irq_free_status;
 	spinlock_t vbi_isr_lock;
 
-    /* vbi memory */
+	/* vbi memory */
 	unsigned int mem_start;
 	unsigned int mem_size;
 
 	unsigned char *pac_addr;
 	unsigned char *pac_addr_start;
 	unsigned char *pac_addr_end;
+	unsigned char *temp_addr_start;
+	unsigned char *temp_addr_end;
 	unsigned int current_pac_wptr;
 	unsigned int vs_delay;
 	/* skip start frame vs for the vbi data is not ready so quickly */
@@ -288,7 +296,9 @@ struct vbi_dev_s {
 	struct mutex mutex;
 	spinlock_t lock;
 	struct timer_list timer;
-	bool tasklet_enable;
+	bool slicer_enable;
+
+	unsigned int isr_cnt;
 };
 
 /*1: tvafe clk enable;*/

@@ -205,7 +205,8 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	default:
 		break;
 	}
-	viuin_check_venc_line(devp);
+	/*no need check here, will timeout sometimes*/
+	/*viuin_check_venc_line(devp);*/
 	if (port == TVIN_PORT_VIU1_VIDEO) {
 		/* enable hsync for vdin loop */
 		wr_bits_viu(VIU_MISC_CTRL1, 1, 28, 1);
@@ -316,7 +317,8 @@ static void viuin_close(struct tvin_frontend_s *fe)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
-	viuin_check_venc_line(devp);
+	/*no need check here, will timeout sometimes*/
+	/*viuin_check_venc_line(devp);*/
 	memset(&devp->parm, 0, sizeof(struct vdin_parm_s));
 	/*close the venc to vdin path*/
 	if (open_cnt)

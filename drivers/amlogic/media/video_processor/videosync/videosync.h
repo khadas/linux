@@ -57,6 +57,8 @@ struct videosync_dev {
 	struct mutex vp_mutex;
 	spinlock_t dev_s_num_slock;
 	u32 active_dev_s_num;
+	wait_queue_head_t videosync_wait;
+	int wakeup;
 };
 extern bool omx_secret_mode;
 
@@ -140,6 +142,7 @@ struct videosync_s {
 	u32 zorder;
 	struct vframe_provider_s video_vf_prov;
 	char vf_provider_name[VIDEOSYNC_VF_NAME_SIZE];
+	long long time_update;
 };
 
 

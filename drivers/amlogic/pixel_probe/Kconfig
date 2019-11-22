@@ -1,0 +1,9 @@
+#
+# Amlogic pixel probe driver
+#
+config AMLOGIC_PIXEL_PROBE
+	bool "Amlogic pixel probe control"
+	default n
+	help
+		This is the Amlogic pixel probe driver
+		this config only ctrl in makefile

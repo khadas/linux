@@ -32,10 +32,15 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
 #include <linux/amlogic/bt_device.h>
+#include <linux/random.h>
 #ifdef CONFIG_AM_WIFI_SD_MMC
 #include <linux/amlogic/wifi_dt.h>
 #endif
 #include "../../gpio/gpiolib.h"
+
+#include <linux/interrupt.h>
+#include <linux/pm_wakeup.h>
+#include <linux/pm_wakeirq.h>
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -43,6 +48,48 @@ static struct early_suspend bt_early_suspend;
 #endif
 
 #define BT_RFKILL "bt_rfkill"
+
+char bt_addr[18] = "";
+static struct class *bt_addr_class;
+static ssize_t bt_addr_show(struct class *cls,
+	struct class_attribute *attr, char *_buf)
+{
+	char local_addr[6];
+
+	if (!_buf)
+		return -EINVAL;
+
+	if (strlen(bt_addr) == 0) {
+		local_addr[0] = 0x22;
+		local_addr[1] = 0x22;
+		local_addr[2] = prandom_u32();
+		local_addr[3] = prandom_u32();
+		local_addr[4] = prandom_u32();
+		local_addr[5] = prandom_u32();
+		sprintf(bt_addr, "%02x:%02x:%02x:%02x:%02x:%02x",
+		local_addr[0], local_addr[1], local_addr[2],
+		local_addr[3], local_addr[4], local_addr[5]);
+	}
+
+	return sprintf(_buf, "%s\n", bt_addr);
+}
+static ssize_t bt_addr_store(struct class *cls,
+	struct class_attribute *attr, const char __user *buf, size_t count)
+{
+	int ret = -EINVAL;
+
+	if (!buf)
+		return ret;
+
+	snprintf(bt_addr, sizeof(bt_addr), "%s", buf);
+
+	if (bt_addr[strlen(bt_addr)-1] == '\n')
+		bt_addr[strlen(bt_addr)-1] = '\0';
+
+	pr_info("bt_addr=%s\n", bt_addr);
+	return count;
+}
+static CLASS_ATTR(value, 0644, bt_addr_show, bt_addr_store);
 
 struct bt_dev_runtime_data {
 	struct rfkill *bt_rfk;
@@ -156,6 +203,12 @@ static void bt_device_on(struct bt_dev_data *pdata)
 	msleep(200);
 }
 
+/*The system calls this function when GPIOC_14 interrupt occurs*/
+static irqreturn_t bt_interrupt(int irq, void *dev_id)
+{
+	pr_info("freeze: test BT IRQ\n");
+	return IRQ_HANDLED;
+}
 static int bt_set_block(void *data, bool blocked)
 {
 	struct bt_dev_data *pdata = data;
@@ -189,12 +242,20 @@ static void bt_lateresume(struct early_suspend *h)
 static int bt_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	pr_info("bt suspend\n");
+	enable_irq(pdata->irqno_wakeup);
 
 	return 0;
 }
 
 static int bt_resume(struct platform_device *pdev)
 {
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	pr_info("bt resume\n");
+	disable_irq(pdata->irqno_wakeup);
 
 	return 0;
 }
@@ -245,6 +306,17 @@ static int bt_probe(struct platform_device *pdev)
 				"gpio_hostwake", 0, NULL);
 			pdata->gpio_hostwake = desc_to_gpio(desc);
 		}
+		/*gpio_btwakeup = BT_WAKE_HOST*/
+		ret = of_property_read_string(pdev->dev.of_node,
+			"gpio_btwakeup", &str);
+		if (ret) {
+			pr_warn("not get gpio_btwakeup\n");
+			pdata->gpio_btwakeup = 0;
+		} else {
+			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
+				"gpio_btwakeup", 0, NULL);
+			pdata->gpio_btwakeup = desc_to_gpio(desc);
+		}
 
 		prop = of_get_property(pdev->dev.of_node,
 		"power_low_level", NULL);
@@ -281,6 +353,9 @@ static int bt_probe(struct platform_device *pdev)
 #else
 	pdata = (struct bt_dev_data *)(pdev->dev.platform_data);
 #endif
+	bt_addr_class = class_create(THIS_MODULE, "bt_addr");
+	ret = class_create_file(bt_addr_class, &class_attr_value);
+
 	bt_device_init(pdata);
 	if (pdata->power_down_disable == 1) {
 		pdata->power_down_disable = 0;
@@ -325,6 +400,28 @@ static int bt_probe(struct platform_device *pdev)
 	bt_early_suspend.param = pdev;
 	register_early_suspend(&bt_early_suspend);
 #endif
+
+	platform_set_drvdata(pdev, pdata);
+
+	/*1.Set BT_WAKE_HOST to the input state;*/
+	/*2.Get interrupt number(irqno_wakeup).*/
+	pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
+
+	/*Register interrupt service function*/
+	ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
+			IRQF_TRIGGER_FALLING, "bt-irq", (void *)pdata);
+	if (ret < 0)
+		pr_err("request_irq error ret=%d\n", ret);
+
+	disable_irq(pdata->irqno_wakeup);
+
+	ret = device_init_wakeup(&pdev->dev, 1);
+	if (ret)
+		pr_err("device_init_wakeup failed: %d\n", ret);
+	/*Wake up the interrupt*/
+	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
+	if (ret)
+		pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
 
 	return 0;
 
@@ -402,3 +499,21 @@ module_exit(bt_exit);
 MODULE_DESCRIPTION("bt rfkill");
 MODULE_AUTHOR("");
 MODULE_LICENSE("GPL");
+
+/**************** bt mac *****************/
+
+static int __init mac_addr_set(char *line)
+{
+
+	if (line) {
+		pr_info("try to read bt mac from emmc key!\n");
+		strncpy(bt_addr, line, sizeof(bt_addr)-1);
+		bt_addr[sizeof(bt_addr)-1] = '\0';
+	}
+
+	return 1;
+}
+
+__setup("mac_bt=", mac_addr_set);
+
+

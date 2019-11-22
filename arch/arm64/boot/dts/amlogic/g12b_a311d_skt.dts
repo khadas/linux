@@ -154,7 +154,7 @@
 		galcore_reserved:linux,galcore {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -483,11 +483,11 @@
 	};
 	amlogic_codec:t9015{
 		#sound-dai-cells = <0>;
-		/*compatible = "amlogic, aml_codec_T9015";*/
+		compatible = "amlogic, aml_codec_T9015";
 		reg = <0x0 0xFF632000 0x0 0x2000>;
 		is_auge_used = <1>; /* meson or auge chipset used */
 		tdmout_index = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 	audio_effect:eqdrc{
 		/*eq_enable = <1>;*/
@@ -567,7 +567,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&dummy_codec &ad82584f_62>;
+				&amlogic_codec &ad82584f_62>;
 			};
 		};
 
@@ -784,7 +784,7 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 		pinctrl-names="default";
 		pinctrl-0=<&clk12_24_z_pins>;
 		clocks = <&clkc CLKID_24M>;
@@ -797,7 +797,7 @@
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 	};
 }; /* end of / */
 &i2c2 {
@@ -944,7 +944,7 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-		samesource_sel = <4>;
+		/* samesource_sel = <4>; */
 	};
 
 	aml_tdmc: tdmc {
@@ -1309,8 +1309,7 @@
 			 "MMC_CAP_HW_RESET",
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23";
-		caps2 = "MMC_CAP2_HS200";
-		/* "MMC_CAP2_HS400";*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};

@@ -431,7 +431,7 @@ const struct file_operations sw_sync_debugfs_fops = {
 	.compat_ioctl	= sw_sync_ioctl,
 };
 
-
+#if 0
 /*api for amlogic use.*/
 void *aml_sync_create_timeline(const char *tname)
 {
@@ -509,3 +509,4 @@ void aml_sync_put_fence(struct fence *fence)
 	fence_put(fence);
 }
 EXPORT_SYMBOL(aml_sync_put_fence);
+#endif

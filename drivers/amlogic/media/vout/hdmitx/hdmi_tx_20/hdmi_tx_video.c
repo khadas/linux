@@ -874,9 +874,9 @@ static void hdmi_tx_construct_avi_packet(
  * HDMI Identifier = HDMI_IEEEOUI 0x000c03
  * If not, treated as a DVI Device
  */
-static int is_dvi_device(struct rx_cap *pRXCap)
+static int is_dvi_device(struct rx_cap *prxcap)
 {
-	if (pRXCap->ieeeoui != HDMI_IEEEOUI)
+	if (prxcap->ieeeoui != HDMI_IEEEOUI)
 		return 1;
 	else
 		return 0;
@@ -896,7 +896,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 	for (i = 0; i < 32; i++)
 		AVI_DB[i] = 0;
 
-	vic = hdev->HWOp.GetState(hdev, STAT_VIDEO_VIC, 0);
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
 	pr_info(VID "already init VIC = %d  Now VIC = %d\n",
 		vic, VideoCode);
 	if ((vic != HDMI_Unknown) && (vic == VideoCode))
@@ -909,7 +909,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 		/* HDMI CT 7-24 Pixel Encoding
 		 * YCbCr to YCbCr Sink
 		 */
-		switch (hdev->RXCap.native_Mode & 0x30) {
+		switch (hdev->rxcap.native_Mode & 0x30) {
 		case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
 		case 0x30:
 			param->color = COLORSPACE_YUV444;
@@ -943,19 +943,19 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			pr_info("hdmitx: VESA only support RGB format\n");
 		}
 
-		if (hdev->HWOp.SetDispMode(hdev) >= 0) {
+		if (hdev->hwop.setdispmode(hdev) >= 0) {
 			/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
 			 * other VSDB, No GB or DI expected
 			 * TMDS_MODE[hdmi_config]
 			 * 0: DVI Mode	   1: HDMI Mode
 			 */
-			if (is_dvi_device(&hdev->RXCap)) {
+			if (is_dvi_device(&hdev->rxcap)) {
 				pr_info(VID "Sink is DVI device\n");
-				hdev->HWOp.CntlConfig(hdev,
+				hdev->hwop.cntlconfig(hdev,
 					CONF_HDMI_DVI_MODE, DVI_MODE);
 			} else {
 				pr_info(VID "Sink is HDMI device\n");
-				hdev->HWOp.CntlConfig(hdev,
+				hdev->hwop.cntlconfig(hdev,
 					CONF_HDMI_DVI_MODE, HDMI_MODE);
 			}
 			hdmi_tx_construct_avi_packet(param, (char *)AVI_DB);
@@ -971,27 +971,13 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			else
 				;
 
-			switch (hdev->RXCap.allm ? hdev->allm_mode : 0) {
-			case 1: /* game */
+			if (hdev->allm_mode) {
 				hdmitx_construct_vsif(hdev, VT_ALLM, 1, NULL);
-				hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_GAME);
-				break;
-			case 2: /* graphics */
-				hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_GRAPHICS);
-				break;
-			case 3: /* photo */
-				hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_PHOTO);
-				break;
-			case 4: /* cinema */
-				hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_CINEMA);
-				break;
-			default:
-				break;
+				hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+					SET_CT_OFF);
 			}
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				hdev->ct_mode);
 
 			ret = 0;
 		}
@@ -1013,12 +999,12 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	VEN_HB[2] = 0x5;
 
 	if (VideoCode == 0) {	   /* For non-4kx2k mode setting */
-		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
+		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, VEN_HB);
 		return;
 	}
 
-	if ((hdev->RXCap.dv_info.block_flag == CORRECT) ||
-		(hdev->dv_src_feature == 1)) {	   /* For dolby */
+	if ((hdev->rxcap.dv_info.block_flag == CORRECT) ||
+	    (hdev->dv_src_feature == 1)) {	   /* For dolby */
 		return;
 	}
 
@@ -1043,7 +1029,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 		VEN_DB[4] = 0x4;
 	} else
 		;
-	hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+	hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 }
 
 int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
@@ -1056,7 +1042,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 	VEN_HB[1] = 0x01;
 	VEN_HB[2] = 0x6;
 	if (type == T3D_DISABLE)
-		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, NULL, VEN_HB);
+		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, VEN_HB);
 	else {
 		for (i = 0; i < 0x6; i++)
 			VEN_DB[i] = 0;
@@ -1066,7 +1052,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 		VEN_DB[3] = 0x40;
 		VEN_DB[4] = type<<4;
 		VEN_DB[5] = param<<4;
-		hdev->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+		hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 	}
 	return 0;
 
@@ -1098,7 +1084,7 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 			(len > 16) ? 16 : len);
 	}
 	SPD_DB[24] = 0x1;
-	hdev->HWOp.SetPacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
+	hdev->hwop.setpacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
 }
 
 static void fill_hdmi4k_vsif_data(enum hdmi_vic vic, unsigned char *DB,
@@ -1168,6 +1154,6 @@ int hdmitx_construct_vsif(struct hdmitx_dev *hdev, enum vsif_type type,
 	DB[1] = GET_OUI_BYTE1(ieeeoui);
 	DB[2] = GET_OUI_BYTE2(ieeeoui);
 
-	hdev->HWOp.SetDataPacket(HDMI_PACKET_VEND, DB, HB);
+	hdev->hwop.setdatapacket(HDMI_PACKET_VEND, DB, HB);
 	return 1;
 }

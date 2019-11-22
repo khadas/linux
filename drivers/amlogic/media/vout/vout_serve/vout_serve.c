@@ -75,6 +75,14 @@ static char hdmimode[VMODE_NAME_LEN_MAX] = {
 static char cvbsmode[VMODE_NAME_LEN_MAX] = {
 	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
 };
+static char hdmichecksum[VMODE_NAME_LEN_MAX] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+static char invalidchecksum[VMODE_NAME_LEN_MAX] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+static char emptychecksum[VMODE_NAME_LEN_MAX] = {0};
+
 static enum vmode_e last_vmode = VMODE_MAX;
 static int tvout_monitor_flag = 1;
 static unsigned int tvout_monitor_timeout_cnt = 20;
@@ -353,20 +361,26 @@ static void set_vout_axis(char *para)
 {
 	static struct disp_rect_s disp_rect[OSD_COUNT];
 	/* char count = OSD_COUNT * 4; */
-	int *pt = &disp_rect[0].x;
+	int *pt;
 	int parsed[MAX_NUMBER_PARA] = {};
 
 	/* parse window para */
-	if (parse_para(para, 8, parsed) >= 4)
-		memcpy(pt, parsed, sizeof(struct disp_rect_s) * OSD_COUNT);
+	if (parse_para(para, 8, parsed) >= 4) {
+		pt = &disp_rect[0].x;
+		memcpy(pt, &parsed[0], sizeof(struct disp_rect_s));
+		pt = &disp_rect[1].x;
+		memcpy(pt, &parsed[4], sizeof(struct disp_rect_s));
+	}
 	/* if ((count >= 4) && (count < 8))
 	 *	disp_rect[1] = disp_rect[0];
 	 */
 
 	VOUTPR("osd0=> x:%d,y:%d,w:%d,h:%d\n"
 		"osd1=> x:%d,y:%d,w:%d,h:%d\n",
-			*pt, *(pt + 1), *(pt + 2), *(pt + 3),
-			*(pt + 4), *(pt + 5), *(pt + 6), *(pt + 7));
+			disp_rect[0].x, disp_rect[0].y,
+			disp_rect[0].w, disp_rect[0].h,
+			disp_rect[1].x, disp_rect[1].y,
+			disp_rect[1].w, disp_rect[1].h);
 	vout_notifier_call_chain(VOUT_EVENT_OSD_DISP_AXIS, &disp_rect[0]);
 }
 
@@ -503,14 +517,16 @@ static ssize_t vout_vinfo_show(struct class *class,
 		"    fr_adj_type:           %d\n"
 		"    video_clk:             %d\n"
 		"    viu_color_fmt:         %d\n"
-		"    viu_mux:               %d\n\n",
+		"    viu_mux:               %d\n"
+		"    3d_info:               %d\n\n",
 		info->name, info->mode,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->htotal, info->vtotal, info->fr_adj_type,
-		info->video_clk, info->viu_color_fmt, info->viu_mux);
+		info->video_clk, info->viu_color_fmt, info->viu_mux,
+		info->info_3d);
 	len += sprintf(buf+len, "master_display_info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
@@ -561,6 +577,7 @@ static ssize_t vout_vinfo_show(struct class *class,
 		info->hdr_info.hdr10plus_info.ieeeoui);
 	len += sprintf(buf+len, "    application_version: %x\n",
 		info->hdr_info.hdr10plus_info.application_version);
+
 	return len;
 }
 
@@ -878,14 +895,30 @@ static int refresh_tvout_mode(void)
 	enum vmode_e cur_vmode = VMODE_MAX;
 	char cur_mode_str[VMODE_NAME_LEN_MAX];
 	int hpd_state = 0;
+	struct vinfo_s *info = get_current_vinfo();
 
 	if (tvout_monitor_flag == 0)
 		return 0;
 
 	hpd_state = vout_get_hpd_state();
 	if (hpd_state) {
-		cur_vmode = validate_vmode(hdmimode);
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", hdmimode);
+		/* Vout will check the checksum of EDID of uboot and kernel.
+		 * If checksum is different. Vout will set null to display/mode.
+		 * When systemcontrol bootup, it will set the correct mode and
+		 * colorspace according to current EDID from kernel.
+		 */
+		if ((memcmp(hdmichecksum, info->hdmichecksum, 10)) &&
+			(memcmp(emptychecksum, info->hdmichecksum, 10)) &&
+			(memcmp(invalidchecksum, hdmichecksum, 10))) {
+			VOUTPR("hdmi crc is diff between uboot and kernel\n");
+			cur_vmode = validate_vmode("null");
+			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "null");
+
+		} else {
+			cur_vmode = validate_vmode(hdmimode);
+			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX,
+				"%s", hdmimode);
+		}
 	} else {
 		cur_vmode = validate_vmode(cvbsmode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
@@ -1191,6 +1224,15 @@ static int __init get_cvbs_mode(char *str)
 	return 0;
 }
 __setup("cvbsmode=", get_cvbs_mode);
+
+static int __init get_hdmi_checksum(char *str)
+{
+	snprintf(hdmichecksum, VMODE_NAME_LEN_MAX, "%s", str);
+
+	VOUTPR("get hdmi checksum: %s\n", hdmichecksum);
+	return 0;
+}
+__setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 MODULE_DESCRIPTION("VOUT Server Module");

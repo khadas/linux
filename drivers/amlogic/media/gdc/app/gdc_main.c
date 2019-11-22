@@ -22,22 +22,12 @@
 //gdc api functions
 #include "gdc_api.h"
 
-irqreturn_t interrupt_handler_next(int irq, void *param)
-{
-	//handle the start of frame with gdc_process
-	struct gdc_cmd_s *gdc_cmd = (struct gdc_cmd_s *)param;
-
-	gdc_get_frame(gdc_cmd);
-
-	return IRQ_HANDLED;
-}
-
 int gdc_run(struct gdc_cmd_s *g)
 {
 
 	gdc_stop(g);
 
-	gdc_log(LOG_INFO, "Done gdc load..\n");
+	gdc_log(LOG_DEBUG, "Done gdc load..\n");
 
 	//initialise the gdc by the first configuration
 	if (gdc_init(g) != 0) {
@@ -45,7 +35,7 @@ int gdc_run(struct gdc_cmd_s *g)
 		return -1;
 	}
 
-	gdc_log(LOG_INFO, "Done gdc config..\n");
+	gdc_log(LOG_DEBUG, "Done gdc config..\n");
 
 	switch (g->gdc_config.format) {
 	case NV12:

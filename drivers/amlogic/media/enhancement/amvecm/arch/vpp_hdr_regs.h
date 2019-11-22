@@ -96,6 +96,9 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD1_HDR2_PROC_WIN2                 0x383a
 #define VD1_HDR2_MATRIXI_EN_CTRL           0x383b
 #define VD1_HDR2_MATRIXO_EN_CTRL           0x383c
+#define VD1_HDR2_HIST_CTRL                 0x383d
+#define VD1_HDR2_HIST_H_START_END          0x383e
+#define VD1_HDR2_HIST_V_START_END          0x383f
 
 #define VD2_HDR2_CTRL                      0x3850
 #define VD2_HDR2_CLK_GATE                  0x3851
@@ -157,6 +160,9 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD2_HDR2_PROC_WIN2                 0x388a
 #define VD2_HDR2_MATRIXI_EN_CTRL           0x388b
 #define VD2_HDR2_MATRIXO_EN_CTRL           0x388c
+#define VD2_HDR2_HIST_CTRL                 0x388d
+#define VD2_HDR2_HIST_H_START_END          0x388e
+#define VD2_HDR2_HIST_V_START_END          0x388f
 
 #define OSD1_HDR2_CTRL                      0x38a0
 #define OSD1_HDR2_CLK_GATE                  0x38a1
@@ -218,6 +224,9 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define OSD1_HDR2_PROC_WIN2                 0x38da
 #define OSD1_HDR2_MATRIXI_EN_CTRL           0x38db
 #define OSD1_HDR2_MATRIXO_EN_CTRL           0x38dc
+#define OSD1_HDR2_HIST_CTRL                 0x38dd
+#define OSD1_HDR2_HIST_H_START_END          0x38de
+#define OSD1_HDR2_HIST_V_START_END          0x38df
 
 #define DI_HDR2_CTRL                      0x3770
 #define DI_HDR2_CLK_GATE                  0x3771
@@ -279,6 +288,9 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define DI_HDR2_PROC_WIN2                 0x37aa
 #define DI_HDR2_MATRIXI_EN_CTRL           0x37ab
 #define DI_HDR2_MATRIXO_EN_CTRL           0x37ac
+#define DI_HDR2_HIST_CTRL                 0x37ad
+#define DI_HDR2_HIST_H_START_END          0x37ae
+#define DI_HDR2_HIST_V_START_END          0x37af
 
 #define VDIN0_HDR2_CTRL                    0x1280
 #define VDIN0_HDR2_CLK_GATE                0x1281

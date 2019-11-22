@@ -572,14 +572,13 @@ static void tl1_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 	pr_info("%s\n", __func__);
 	/*reset audio codec register*/
 	tl1_acodec_reset(codec);
-	snd_soc_write(codec, ACODEC_0, 0xF000);
-	msleep(200);
-	snd_soc_write(codec, ACODEC_0, 0xB000);
+	tl1_acodec_start_up(codec);
 	tl1_acodec_reg_init(codec);
 
 	aml_acodec->codec = codec;
 	tl1_acodec_dai_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 }
+
 static int tl1_acodec_dai_mute_stream(struct snd_soc_dai *dai, int mute,
 				      int stream)
 {
@@ -700,8 +699,7 @@ static const struct regmap_config tl1_acodec_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = 0x1c,
-	.reg_defaults = tl1_acodec_init_list,
-	.num_reg_defaults = ARRAY_SIZE(tl1_acodec_init_list),
+	.num_reg_defaults_raw = ARRAY_SIZE(tl1_acodec_init_list),
 	.cache_type = REGCACHE_RBTREE,
 };
 

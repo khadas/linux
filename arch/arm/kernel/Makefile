@@ -96,3 +96,6 @@ endif
 obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
 
 extra-y := $(head-y) vmlinux.lds
+
+KASAN_SANITIZE_process.o := n
+KASAN_SANITIZE_unwind.o := n

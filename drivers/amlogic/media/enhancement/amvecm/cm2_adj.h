@@ -19,14 +19,17 @@
 #define __CM2_ADJ__
 
 
-enum eCM2ColorMd {
-	eCM2ColorMd_purple = 0,
-	eCM2ColorMd_red,
-	eCM2ColorMd_skin,
-	eCM2ColorMd_yellow,
-	eCM2ColorMd_green,
-	eCM2ColorMd_cyan,
-	eCM2ColorMd_blue,
+enum ecm2colormd {
+	ecm2colormd_purple = 0,
+	ecm2colormd_red,
+	ecm2colormd_skin,
+	ecm2colormd_yellow,
+	ecm2colormd_yellow_green,
+	ecm2colormd_green,
+	ecm2colormd_blue_green,
+	ecm2colormd_cyan,
+	ecm2colormd_blue,
+	ecm2colormd_max,
 };
 
 /*H00 ~ H31*/
@@ -48,11 +51,15 @@ enum eCM2ColorMd {
 #define CM2_ENH_COEF3_H02 0x113
 #define CM2_ENH_COEF4_H02 0x114
 
+void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode);
+void cm2_curve_update_hue(enum ecm2colormd colormode);
+void cm2_curve_update_luma(enum ecm2colormd colormode);
+void cm2_curve_update_sat(enum ecm2colormd colormode);
 
-extern void cm2_hue_by_hs(enum eCM2ColorMd colormode, int hue_val, int lpf_en);
-extern void cm2_hue(enum eCM2ColorMd colormode, int hue_val, int lpf_en);
-extern void cm2_luma(enum eCM2ColorMd colormode, int luma_val, int lpf_en);
-extern void cm2_sat(enum eCM2ColorMd colormode, int sat_val, int lpf_en);
+void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en);
+void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en);
+void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en);
+void cm2_sat(enum ecm2colormd colormode, int sat_val, int lpf_en);
 
 #endif
 

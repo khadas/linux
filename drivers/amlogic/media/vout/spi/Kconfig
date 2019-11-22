@@ -1,0 +1,13 @@
+#
+# Video output configuration
+#
+
+config AMLOGIC_LCD_SPI
+	bool "LCD SPI Module"
+	default n
+	help
+		Amlogic lcd spi driver support.this is based on
+		display driver as LCD.
+		lcd spi interface support:frame_post
+		This driver is based on display driver.
+

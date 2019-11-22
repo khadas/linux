@@ -42,6 +42,7 @@
 #include <linux/kobject.h>
 #include <../kernel/power/power.h>
 #include <linux/amlogic/scpi_protocol.h>
+#include "vad_power.h"
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
@@ -218,6 +219,8 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 {
 	struct device_node *cpu_node;
 	struct device_node *state_node;
+	struct pm_data *p_data;
+	struct device *dev = &pdev->dev;
 	int count = 0, ret;
 	u32 ver = psci_get_version();
 	u32 paddr = 0;
@@ -245,6 +248,14 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 		pr_info("system suspend level: %d\n", max_idle_lvl);
 		suspend_set_ops(&meson_gx_ops);
 	}
+
+	p_data = devm_kzalloc(&pdev->dev, sizeof(struct pm_data), GFP_KERNEL);
+	if (!p_data)
+		return -ENOMEM;
+	p_data->dev = dev;
+	dev_set_drvdata(dev, p_data);
+
+	vad_wakeup_power_init(pdev, p_data);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				"debug_reg", &paddr);
@@ -280,6 +291,23 @@ uniomap:
 	return -ENXIO;
 }
 
+int pm_suspend_noirq(struct device *dev)
+{
+	vad_wakeup_power_suspend(dev);
+	return 0;
+}
+
+int pm_resume_noirq(struct device *dev)
+{
+	vad_wakeup_power_resume(dev);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_pm_noirq_ops = {
+	.suspend_noirq = pm_suspend_noirq,
+	.resume_noirq = pm_resume_noirq,
+};
+
 static int meson_pm_remove(struct platform_device *pdev)
 {
 	return 0;
@@ -296,6 +324,7 @@ static struct platform_driver meson_pm_driver = {
 		   .name = "pm-meson",
 		   .owner = THIS_MODULE,
 		   .of_match_table = amlogic_pm_dt_match,
+		   .pm = &meson_pm_noirq_ops,
 		   },
 	.probe = meson_pm_probe,
 	.remove = meson_pm_remove,

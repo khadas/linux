@@ -152,6 +152,57 @@ struct __drm_connnectors_state {
 	struct drm_connector_state *state;
 };
 
+struct drm_private_obj;
+struct drm_private_state;
+
+/**
+ * struct drm_private_state_funcs - atomic state functions for private objects
+ *
+ * These hooks are used by atomic helpers to create, swap and destroy states of
+ * private objects. The structure itself is used as a vtable to identify the
+ * associated private object type. Each private object type that needs to be
+ * added to the atomic states is expected to have an implementation of these
+ * hooks and pass a pointer to it's drm_private_state_funcs struct to
+ * drm_atomic_get_private_obj_state().
+ */
+struct drm_private_state_funcs {
+	/**
+	 * @atomic_duplicate_state:
+	 *
+	 * Duplicate the current state of the private object and return it. It
+	 * is an error to call this before obj->state has been initialized.
+	 *
+	 * RETURNS:
+	 *
+	 * Duplicated atomic state or NULL when obj->state is not
+	 * initialized or allocation failed.
+	 */
+	struct drm_private_state *(*atomic_duplicate_state)(struct drm_private_obj *obj);
+
+	/**
+	 * @atomic_destroy_state:
+	 *
+	 * Frees the private object state created with @atomic_duplicate_state.
+	 */
+	void (*atomic_destroy_state)(struct drm_private_obj *obj,
+			struct drm_private_state *state);
+};
+
+struct drm_private_obj {
+	struct drm_private_state *state;
+
+	const struct drm_private_state_funcs *funcs;
+};
+
+struct drm_private_state {
+	struct drm_atomic_state *state;
+};
+
+struct __drm_private_objs_state {
+	struct drm_private_obj *ptr;
+	struct drm_private_state *state;
+};
+
 /**
  * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
@@ -162,6 +213,8 @@ struct __drm_connnectors_state {
  * @crtcs: pointer to array of CRTC pointers
  * @num_connector: size of the @connectors and @connector_states arrays
  * @connectors: pointer to array of structures with per-connector data
+ * @num_private_objs: size of the @private_objs array
+ * @private_objs: pointer to array of private object pointers
  * @acquire_ctx: acquire context for this atomic modeset state update
  */
 struct drm_atomic_state {
@@ -173,6 +226,8 @@ struct drm_atomic_state {
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;
 	struct __drm_connnectors_state *connectors;
+	int num_private_objs;
+	struct __drm_private_objs_state *private_objs;
 
 	struct drm_modeset_acquire_ctx *acquire_ctx;
 
@@ -219,6 +274,15 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 int drm_atomic_connector_set_property(struct drm_connector *connector,
 		struct drm_connector_state *state, struct drm_property *property,
 		uint64_t val);
+
+void drm_atomic_private_obj_init(struct drm_private_obj *obj,
+				 struct drm_private_state *state,
+				 const struct drm_private_state_funcs *funcs);
+void drm_atomic_private_obj_fini(struct drm_private_obj *obj);
+
+struct drm_private_state * __must_check
+drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
+		struct drm_private_obj *obj);
 
 /**
  * drm_atomic_get_existing_crtc_state - get crtc state, if it exists
@@ -361,6 +425,23 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 	     (plane_state) = (__state)->planes[__i].state, 1);		\
 	     (__i)++)							\
 		for_each_if (plane_state)
+
+/**
+ * for_each_private_obj - iterate over a specify type of private object
+ * @__state: &struct drm_atomic_state pointer
+ * @obj: private object iteration cursor
+ * @obj_state: private object state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This macro iterates over all private objects in an atomic update.
+ */
+#define for_each_private_obj(__state, obj, obj_state, __i)	\
+	for ((__i) = 0; \
+		(__i) < (__state)->num_private_objs && \
+		((obj) = (__state)->private_objs[__i].ptr, \
+		(obj_state) = (__state)->private_objs[__i].state, 1); \
+		(__i)++) \
+		for_each_if (obj)
 
 /**
  * drm_atomic_crtc_needs_modeset - compute combined modeset need

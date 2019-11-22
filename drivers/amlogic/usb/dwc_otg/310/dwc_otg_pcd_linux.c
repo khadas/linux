@@ -1304,10 +1304,14 @@ int pcd_init(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_USB3PHY
-	if (otg_dev->core_if->phy_interface == 1)
+	if (otg_dev->core_if->phy_interface == 1) {
 		aml_new_usb_register_notifier(&otg_dev->nb);
-	else
-		aml_new_usb_v2_register_notifier(&otg_dev->nb);
+	} else {
+		if (otg_dev->core_if->phy_otg == 1)
+			aml_new_otg_register_notifier(&otg_dev->nb);
+		else
+			aml_new_usb_v2_register_notifier(&otg_dev->nb);
+	}
 	otg_dev->nb.notifier_call = dwc_usb_change;
 #endif
 
@@ -1375,10 +1379,14 @@ void pcd_remove(struct platform_device *pdev)
 	free_wrapper(gadget_wrapper);
 	dwc_otg_pcd_remove(otg_dev->pcd);
 #ifdef CONFIG_AMLOGIC_USB3PHY
-	if (otg_dev->core_if->phy_interface == 1)
+	if (otg_dev->core_if->phy_interface == 1) {
 		aml_new_usb_unregister_notifier(&otg_dev->nb);
-	else
-		aml_new_usb_v2_unregister_notifier(&otg_dev->nb);
+	} else {
+		if (otg_dev->core_if->phy_otg == 1)
+			aml_new_otg_unregister_notifier(&otg_dev->nb);
+		else
+			aml_new_usb_v2_unregister_notifier(&otg_dev->nb);
+	}
 #endif
 	otg_dev->pcd = 0;
 }

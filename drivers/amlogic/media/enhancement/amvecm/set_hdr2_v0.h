@@ -16,6 +16,8 @@
  */
 
 #include <linux/types.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+#include "hdr/am_hdr10_plus_ootf.h"
 
 #ifndef MAX
 #define MAX(x1, x2) (double)(x1 > x2 ? x1 : x2)
@@ -50,42 +52,57 @@ int64_t FloatRev(int64_t iA);
 int64_t FloatCon(int64_t iA, int MOD);
 
 enum hdr_module_sel {
-	VD1_HDR = 0x1,
-	VD2_HDR = 0x2,
-	OSD1_HDR = 0x4,
-	VDIN0_HDR = 0x8,
-	VDIN1_HDR = 0x10,
-	DI_HDR = 0x20,
+	VD1_HDR = 1,
+	VD2_HDR = 2,
+	OSD1_HDR = 3,
+	VDIN0_HDR = 4,
+	VDIN1_HDR = 5,
+	DI_HDR = 6,
 	HDR_MAX
 };
 
 enum hdr_matrix_sel {
-	HDR_IN_MTX = 0x1,
-	HDR_GAMUT_MTX = 0x2,
-	HDR_OUT_MTX = 0x4,
+	HDR_IN_MTX = 1,
+	HDR_GAMUT_MTX = 2,
+	HDR_OUT_MTX = 3,
 	HDR_MTX_MAX
 };
 
 enum hdr_lut_sel {
-	HDR_EOTF_LUT = 0x1,
-	HDR_OOTF_LUT = 0x2,
-	HDR_OETF_LUT = 0x4,
-	HDR_CGAIN_LUT = 0x8,
+	HDR_EOTF_LUT = 1,
+	HDR_OOTF_LUT = 2,
+	HDR_OETF_LUT = 3,
+	HDR_CGAIN_LUT = 4,
 	HDR_LUT_MAX
 };
 
 enum hdr_process_sel {
-	HDR_BYPASS = 0x1,
-	HDR_SDR = 0x2,
-	SDR_HDR = 0x4,
-	HLG_BYPASS = 0x8,
-	HLG_SDR = 0x10,
-	HLG_HDR = 0x20,
-	SDR_HLG = 0X40,
-	HDRPLUS_SDR = 0x80,
+	HDR_BYPASS = 1,
+	HDR_SDR = 2,
+	SDR_HDR = 3,
+	HLG_BYPASS = 4,
+	HLG_SDR = 5,
+	HLG_HDR = 6,
+	SDR_HLG = 7,
+	SDR_IPT = 8,
+	HDR_IPT = 9,
+	HLG_IPT = 10,
+	HDR_HLG = 11,
+	RGB_YUV = 12,
+	RGB_HDR = 13,
+	RGB_HLG = 14,
+	HDR10P_SDR = 15,
 	HDR_p_MAX
 };
 
+enum hdr_hist_sel {
+	HIST_E_RGBMAX = 0,
+	HIST_E_LUMA = 1,
+	HIST_E_SAT = 2,
+	HIST_O_BEFORE = 4,
+	HIST_O_AFTER = 6,
+	HIST_MAX
+};
 
 #define MTX_ON  1
 #define MTX_OFF 0
@@ -101,13 +118,16 @@ enum hdr_process_sel {
 #define HDR2_OETF_LUT_SIZE 149
 #define HDR2_CGAIN_LUT_SIZE 65
 
+
+#define MTX_NUM_PARAM 16
 struct hdr_proc_mtx_param_s {
 	int mtx_only;
-	int mtx_in[15];
+	int mtx_in[MTX_NUM_PARAM];
 	int mtx_gamut[9];
-	int mtx_cgain[15];
-	int mtx_ogain[15];
-	int mtx_out[15];
+	int mtx_gamut_mode;
+	int mtx_cgain[MTX_NUM_PARAM];
+	int mtx_ogain[MTX_NUM_PARAM];
+	int mtx_out[MTX_NUM_PARAM];
 	int mtxi_pre_offset[3];
 	int mtxi_pos_offset[3];
 	int mtxo_pre_offset[3];
@@ -115,6 +135,10 @@ struct hdr_proc_mtx_param_s {
 	unsigned int mtx_on;
 	enum hdr_process_sel p_sel;
 };
+
+#define OO_BITS			12
+#define OO_GAIN_SHIFT	3
+#define OO_NOR			(OO_BITS - OO_GAIN_SHIFT)
 
 struct hdr_proc_lut_param_s {
 	int64_t eotf_lut[143];
@@ -124,14 +148,16 @@ struct hdr_proc_lut_param_s {
 	unsigned int lut_on;
 	unsigned int bitdepth;
 	unsigned int cgain_en;
+	unsigned int hist_en;
 };
 
 typedef int64_t(*MenuFun)(int64_t);
 void eotf_float_gen(int64_t *o_out, MenuFun eotf);
 void oetf_float_gen(int64_t *bin_e, MenuFun oetf);
 void nolinear_lut_gen(int64_t *bin_c, MenuFun cgain);
-extern void hdr_func(enum hdr_module_sel module_sel,
-	enum hdr_process_sel hdr_process_select);
+extern enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct vinfo_s *vinfo);
 /*G12A vpp matrix*/
 enum vpp_matrix_e {
 	VD1_MTX = 0x1,
@@ -169,14 +195,28 @@ extern void mtx_setting(enum vpp_matrix_e mtx_sel,
 	enum mtx_csc_e mtx_csc,
 	int mtx_on);
 
-#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-#define _VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)
-#define _VSYNC_RD_MPEG_REG(adr) READ_VCBUS_REG(adr)
-#define _VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-			WRITE_VCBUS_REG_BITS(adr, val, start, len)
-#else
-extern int _VSYNC_WR_MPEG_REG_BITS(u32 adr,
-			u32 val, u32 start, u32 len);
-extern u32 _VSYNC_RD_MPEG_REG(u32 adr);
-extern int _VSYNC_WR_MPEG_REG(u32 adr, u32 val);
-#endif
+unsigned int _log2(unsigned int value);
+int hdr10p_ebzcurve_update(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct hdr10pgen_param_s *hdr10pgen_param);
+enum hdr_process_sel hdr10p_func(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct vinfo_s *vinfo);
+extern void set_ootf_lut(
+	enum hdr_module_sel module_sel,
+	struct hdr_proc_lut_param_s *hdr_lut_param);
+extern struct hdr_proc_lut_param_s hdr_lut_param;
+extern int oo_y_lut_hdr_sdr_def[149];
+void hdr_highclip_by_luma(
+	struct vframe_master_display_colour_s *master_info);
+extern unsigned int hdr10_pr;
+extern unsigned int hdr10_clip_disable;
+extern unsigned int hdr10_force_clip;
+extern unsigned int hdr10_clip_luma;
+extern unsigned int hdr10_clip_margin;
+extern unsigned int hdr10_clip_mode;
+void get_hist(
+	enum hdr_module_sel module_sel,
+	enum hdr_hist_sel hist_sel);

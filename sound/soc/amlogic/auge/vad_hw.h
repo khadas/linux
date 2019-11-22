@@ -37,4 +37,7 @@ extern void vad_set_in(void);
 extern void vad_set_enable(bool enable);
 
 extern void vad_force_clk_to_oscin(bool force);
+
+void vad_set_two_channel_en(bool en);
+
 #endif

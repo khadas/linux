@@ -151,6 +151,26 @@ struct __extcon_info {
 		.id = EXTCON_SPDIFIN_AUDIOTYPE,
 		.name = "SPDIFIN-AUDIOTYPE",
 	},
+	[EXTCON_EARCRX_ATNDTYP_ARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCRX_ATNDTYP_ARC,
+		.name = "EARCRX-ARC",
+	},
+	[EXTCON_EARCRX_ATNDTYP_EARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCRX_ATNDTYP_EARC,
+		.name = "EARCRX-EARC",
+	},
+	[EXTCON_EARCTX_ATNDTYP_ARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCTX_ATNDTYP_ARC,
+		.name = "EARCTX-ARC",
+	},
+	[EXTCON_EARCTX_ATNDTYP_EARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCTX_ATNDTYP_EARC,
+		.name = "EARCTX-EARC",
+	},
 #endif
 	/* Display external connector */
 	[EXTCON_DISP_HDMI] = {

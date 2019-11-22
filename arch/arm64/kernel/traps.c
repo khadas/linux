@@ -98,18 +98,28 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 }
 
 #ifdef CONFIG_AMLOGIC_VMAP
-static void dump_backtrace_entry(unsigned long ip, unsigned long fp)
+static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
+				 unsigned long low)
 {
 	unsigned long fp_size = 0;
+	unsigned long high;
 
-	if (fp >= VMALLOC_START) {
+	high = low + THREAD_SIZE;
+
+	/*
+	 * Since the target process may be rescheduled again,
+	 * we have to add necessary validation checking for fp.
+	 * The checking condition is borrowed from unwind_frame
+	 */
+	if (on_irq_stack(fp, raw_smp_processor_id()) ||
+	    (fp >= low && fp <= high)) {
 		fp_size = *((unsigned long *)fp) - fp;
 		/* fp cross IRQ or vmap stack */
 		if (fp_size >= THREAD_SIZE)
 			fp_size = 0;
 	}
-	printk("[%016lx+%4ld][<%p>] %pS\n",
-		fp, fp_size, (void *) ip, (void *) ip);
+	pr_info("[%016lx+%4ld][<%016lx>] %pS\n",
+		fp, fp_size, (unsigned long)ip, (void *)ip);
 }
 #else
 static void dump_backtrace_entry(unsigned long where)
@@ -203,7 +213,8 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		/* skip until specified stack frame */
 		if (!skip) {
 		#ifdef CONFIG_AMLOGIC_VMAP
-			dump_backtrace_entry(where, frame.fp);
+			dump_backtrace_entry(where, frame.fp,
+					     (unsigned long)tsk->stack);
 		#else
 			dump_backtrace_entry(where);
 		#endif
@@ -217,7 +228,8 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 			 * instead.
 			 */
 		#ifdef CONFIG_AMLOGIC_VMAP
-			dump_backtrace_entry(regs->pc, frame.fp);
+			dump_backtrace_entry(regs->pc, frame.fp,
+					     (unsigned long)tsk->stack);
 		#else
 			dump_backtrace_entry(regs->pc);
 		#endif

@@ -36,6 +36,7 @@
 #include "amve_gamma_table.h"
 #include <linux/io.h>
 #include "dnlp_cal.h"
+#include "local_contrast.h"
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
@@ -46,6 +47,7 @@
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
 
 #define GAMMA_RETRY        1000
+unsigned int gamma_loadprotect_en = 1;
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -309,8 +311,8 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 
 	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
-	WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-				0, GAMMA_EN, 1);
+	if (gamma_loadprotect_en)
+		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
 
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
@@ -339,12 +341,14 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
 
-	if (viu_sel == 1) { /* viu1 vsync rdma */
-		VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
+	if (gamma_loadprotect_en) {
+		if (viu_sel == 1) { /* viu1 vsync rdma */
+			VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
 					       gamma_en, GAMMA_EN, 1);
-	} else { /* viu2 directly write, rdma todo */
-		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+		} else { /* viu2 directly write, rdma todo */
+			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
 					   gamma_en, GAMMA_EN, 1);
+		}
 	}
 
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
@@ -455,6 +459,19 @@ static int bypass_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* 20'/21'/22' */
 	0, 0, 0, /* offset */
 	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
+#define MTX_RS 0
+#define MTX_ENABLE 1
+#define MATRIX_3x3_COEF_SIZE 17
+static int matrix_yuv_bypass_coef[MATRIX_3x3_COEF_SIZE] = {
+	-64, -512, -512,
+	COEFF_NORM(1.0), COEFF_NORM(0), COEFF_NORM(0),
+	COEFF_NORM(0), COEFF_NORM(1.0), COEFF_NORM(0),
+	COEFF_NORM(0), COEFF_NORM(0), COEFF_NORM(1.0),
+	64, 512, 512,
+	MTX_RS,
+	MTX_ENABLE
 };
 
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
@@ -598,7 +615,8 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 			m[22], 5, 3);
 	} else {
 		/*for txlx and txhd, pre_offset and post_offset become 13 bit*/
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
+			is_meson_tm2_cpu()) {
 			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
 				((p->en << 31) & 0x80000000) |
 				((p->r_gain << 16) & 0x07ff0000) |
@@ -643,7 +661,7 @@ void ve_enable_dnlp(void)
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
-		else if (is_meson_tl1_cpu())
+		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			WRITE_VPP_REG_BITS(SHARP1_DNLP_EN, 1, 0, 1);
 		else
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
@@ -659,7 +677,7 @@ void ve_disable_dnlp(void)
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
-		else if (is_meson_tl1_cpu())
+		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			WRITE_VPP_REG_BITS(SHARP1_DNLP_EN, 0, 0, 1);
 		else
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
@@ -678,6 +696,7 @@ void ve_set_dnlp_2(void)
 	/* init tgt & lpf */
 	for (i = 0; i < 64; i++) {
 		ve_dnlp_tgt_copy[i] = i << 2;
+		ve_dnlp_tgt_10b_copy[i] = i << 4;
 		ve_dnlp_lpf[i] = (ulong)ve_dnlp_tgt_copy[i] << ve_dnlp_rt;
 	}
 	/* calculate dnlp reg data */
@@ -789,6 +808,14 @@ void ve_dnlp_latch_process(void)
 	}
 }
 
+void ve_lc_latch_process(void)
+{
+	if (vecm_latch_flag & FLAG_VE_LC_CURV) {
+		vecm_latch_flag &= ~FLAG_VE_LC_CURV;
+		lc_load_curve(&lc_curve_parm_load);
+	}
+}
+
 void ve_lcd_gamma_process(void)
 {
 	int viu_sel;
@@ -897,6 +924,11 @@ void ve_dnlp_param_update(void)
 void ve_new_dnlp_param_update(void)
 {
 	vecm_latch_flag |= FLAG_VE_NEW_DNLP;
+}
+
+void ve_lc_curve_update(void)
+{
+	vecm_latch_flag |= FLAG_VE_LC_CURV;
 }
 
 static void video_data_limitation(int *val)
@@ -1044,15 +1076,99 @@ void vpp_vd1_mtx_rgb_contrast(signed int cont_val, struct vframe_s *vf)
 	WRITE_VPP_REG(XVYCC_VD1_RGB_CTRST, vd1_contrast);
 }
 
+void vpp_contrast_adj_by_uv(int cont_u, int cont_v)
+{
+	unsigned int coef00 = 0;
+	unsigned int coef01 = 0;
+	unsigned int coef02 = 0;
+	unsigned int coef10 = 0;
+	unsigned int coef11 = 0;
+	unsigned int coef12 = 0;
+	unsigned int coef20 = 0;
+	unsigned int coef21 = 0;
+	unsigned int coef22 = 0;
+	unsigned int offst0 = 0;
+	unsigned int offst1 = 0;
+	unsigned int offst2 = 0;
+	unsigned int pre_offst0 = 0;
+	unsigned int pre_offst1 = 0;
+	unsigned int pre_offst2 = 0;
+	unsigned int rs = 0;
+	unsigned int en = 0;
+
+	coef00 = matrix_yuv_bypass_coef[3];
+	coef01 = matrix_yuv_bypass_coef[4];
+	coef02 = matrix_yuv_bypass_coef[5];
+	coef10 = matrix_yuv_bypass_coef[6];
+	coef11 = cont_u;
+	coef12 = matrix_yuv_bypass_coef[8];
+	coef20 = matrix_yuv_bypass_coef[9];
+	coef21 = matrix_yuv_bypass_coef[10];
+	coef22 = cont_v;
+	pre_offst0 = matrix_yuv_bypass_coef[0];
+	pre_offst1 = matrix_yuv_bypass_coef[1];
+	pre_offst2 = matrix_yuv_bypass_coef[2];
+	offst0 = matrix_yuv_bypass_coef[12];
+	offst1 = matrix_yuv_bypass_coef[13];
+	offst2 = matrix_yuv_bypass_coef[14];
+	rs = matrix_yuv_bypass_coef[15];
+	en = matrix_yuv_bypass_coef[16];
+
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_COEF00_01,
+		((coef00 & 0x1fff) << 16) | (coef01 & 0x1fff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_COEF02_10,
+		((coef02 & 0x1fff) << 16) | (coef10 & 0x1fff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_COEF11_12,
+		((coef11 & 0x1fff) << 16) | (coef12 & 0x1fff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_COEF20_21,
+		((coef20 & 0x1fff) << 16) | (coef21 & 0x1fff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_COEF22,
+		(coef22 & 0x1fff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_OFFSET0_1,
+		((offst0 & 0xfff) << 16) | (offst1 & 0xfff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_OFFSET2,
+		(offst2 & 0xfff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_PRE_OFFSET0_1,
+		((pre_offst0 & 0xfff) << 16) |
+		(pre_offst1 & 0xfff));
+	WRITE_VPP_REG(
+		VPP_VD1_MATRIX_PRE_OFFSET2,
+		(pre_offst2 & 0xfff));
+
+	WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_CLIP, rs, 5, 3);
+	WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_EN_CTRL, en, 0, 1);
+}
 /*for gxbbtv contrast adj in vadj1*/
 void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 {
 	unsigned int vd1_contrast;
 	unsigned int vdj1_ctl;
+	int contrast_uv;
+	int contrast_u;
+	int contrast_v;
 
 	if ((cont_val > 1023) || (cont_val < -1024))
 		return;
+	contrast_uv = cont_val + 1024;
 	cont_val = ((cont_val + 1024) >> 3);
+
+	if (contrast_uv < 1024) {
+		contrast_u = contrast_uv;
+		contrast_v = contrast_uv;
+	} else {
+		contrast_u = (0x600 - 0x400) * (contrast_uv - 0x400) / 0x400
+			+ 0x400;
+		contrast_v = contrast_uv;
+	}
+
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
 	if (is_meson_gxtvbb_cpu()) {
@@ -1068,6 +1184,8 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0x7ff00) |
 						(cont_val << 0);
 		WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_contrast);
+
+		vpp_contrast_adj_by_uv(contrast_u, contrast_v);
 		return;
 	} else if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x3ff00) |
@@ -1426,11 +1544,14 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 {
 	unsigned int height = 0;
 	unsigned int cur_overscan_timing = 0;
+	unsigned int cur_fmt;
+	unsigned int offset = TIMING_UHD + 1;/*av&atv*/
 
 	if (overscan_disable)
 		return;
 	if (is_dolby_vision_on())
 		return;
+
 	if (overscan_table[0].load_flag) {
 		height = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compHeight : vf->height;
@@ -1462,19 +1583,57 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
+	if (overscan_table[offset].load_flag) {
+		cur_fmt = vf->sig_fmt;
+		if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
+			cur_overscan_timing = TIMING_NTST_M;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_443)
+			cur_overscan_timing = TIMING_NTST_443;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+			cur_overscan_timing = TIMING_PAL_I;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_M)
+			cur_overscan_timing = TIMING_PAL_M;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_60)
+			cur_overscan_timing = TIMING_PAL_60;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_CN)
+			cur_overscan_timing = TIMING_PAL_CN;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_SECAM)
+			cur_overscan_timing = TIMING_SECAM;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_50)
+			cur_overscan_timing = TIMING_NTSC_50;
+		else
+			return;
+		overscan_timing = cur_overscan_timing;
+		overscan_screen_mode =
+			overscan_table[overscan_timing].screen_mode;
+		vf->pic_mode.AFD_enable =
+			overscan_table[overscan_timing].afd_enable;
+		vf->pic_mode.screen_mode = overscan_screen_mode;
+		vf->pic_mode.hs = overscan_table[overscan_timing].hs;
+		vf->pic_mode.he = overscan_table[overscan_timing].he;
+		vf->pic_mode.vs = overscan_table[overscan_timing].vs;
+		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+	}
 }
 
 void amvecm_reset_overscan(void)
 {
+	unsigned int offset = TIMING_UHD + 1;/*av&atv*/
+	enum ve_source_input_e source0;
+
+	source0 = overscan_table[0].source;
 	if (overscan_disable)
 		return;
 	if (overscan_timing != TIMING_MAX) {
 		overscan_timing = TIMING_MAX;
-		if ((overscan_table[0].source != SOURCE_DTV) &&
-			(overscan_table[0].source != SOURCE_MPEG)) {
+		if ((source0 != SOURCE_DTV) && (source0 != SOURCE_MPEG))
 			overscan_table[0].load_flag = 0;
+		else if (!atv_source_flg)
+			overscan_table[offset].load_flag = 0;
+		if ((source0 != SOURCE_DTV) && (source0 != SOURCE_MPEG)
+			&& !atv_source_flg)
 			overscan_screen_mode = 0xff;
-		}
 	}
 }
 
@@ -1647,4 +1806,49 @@ void dump_plut3d_reg_table(void)
 	}
 }
 
+void set_gamma_regs(int en, int sel)
+{
+	int i;
+	int *gamma_lut = NULL;
+
+	static int gamma_lut_default[66] =  {
+	0, 0, 0, 1, 2, 4, 6, 8, 11, 14, 17, 21, 26, 31,
+	36, 42, 49, 55, 63, 71, 79, 88, 98, 108, 118,
+	129, 141, 153, 166, 179, 193, 208, 223, 238,
+	255, 271, 289, 307, 325, 344, 364, 384, 405,
+	427, 449, 472, 495, 519, 544, 569, 595, 621,
+	649, 676, 705, 734, 763, 794, 825, 856, 888,
+	921, 955, 989, 1023, 0};
+
+	static int gamma_lut_straight[66] =  {
+	 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160,
+	 176, 192, 208, 224, 240, 256, 272, 288, 304, 320,
+	 336, 352, 368, 384, 400, 416, 432, 448, 464, 480,
+	 496, 512, 528, 544, 560, 576, 592, 608, 624, 640,
+	 656, 672, 688, 704, 720, 736, 752, 768, 784, 800,
+	 816, 832, 848, 864, 880, 896, 912, 928, 944, 960,
+	 976, 992, 1008, 1023, 0};
+
+	if (!sel)
+		gamma_lut = gamma_lut_default;
+	else
+		gamma_lut = gamma_lut_straight;
+
+	if (en) {
+		WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
+	}
+}
 

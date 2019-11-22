@@ -30,7 +30,7 @@
 
 /* need update the version when update firmware */
 #define ESM_VERSION	"2.4.84.11.D3"
-#define HDCP_RX22_VER "New FW T0905"
+#define HDCP_RX22_VER "HDCP2.2 RX0719"
 
 #define ESM_HL_DRIVER_SUCCESS                0
 #define ESM_HL_DRIVER_FAILED               (-1)
@@ -51,6 +51,8 @@ enum {
 	ESM_NR_MEMSET_DATA,
 	ESM_NR_READ_HPI,
 	ESM_NR_WRITE_HPI,
+	ESM_NR_GET_PARAM,
+	ESM_NR_SET_PARAM,
 	ESM_NR_MAX
 };
 
@@ -140,5 +142,27 @@ struct esm_ioc_data {
 struct esm_ioc_hpi_reg {
 	__u32 offset;
 	__u32 value;
+};
+
+/*
+ * to reduce cpu occupancy rate,use ioctl instead of sysfs
+ * amlogic added
+ */
+#define ESM_IOC_GET_PARAM _IOR('E', ESM_NR_GET_PARAM, struct esm_ioc_param)
+#define ESM_IOC_SET_PARAM _IOW('E', ESM_NR_SET_PARAM, struct esm_ioc_param)
+
+
+struct esm_ioc_param {
+	bool hpd;
+	bool video_stable;
+	bool pwr_sts;
+	bool log;
+	bool esm_reset;
+	bool reauth;
+	bool esm_err;
+	bool auth_stop;
+	bool esm_reset2;
+	bool esm_kill;
+	__u32 reset_mode;
 };
 #endif

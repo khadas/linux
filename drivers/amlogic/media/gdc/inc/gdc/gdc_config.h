@@ -26,56 +26,39 @@
 #include "system_gdc_io.h"
 #include "gdc_api.h"
 #include "gdc_dmabuf.h"
-struct gdc_cmd_s;
 
-struct gdc_manager_s {
-	struct aml_dma_buffer *buffer;
-	struct meson_gdc_dev_t *gdc_dev;
-};
+struct gdc_context_s;
 
 struct meson_gdc_dev_t {
 	struct platform_device *pdev;
-	void	*reg_base;
+	int irq;
 	struct clk	*clk_core;
 	struct clk	*clk_axi;
-	spinlock_t	slock;
-	struct mutex d_mutext;
-	struct completion d_com;
-	int	 irq;
 	struct miscdevice misc_dev;
 };
 
-struct gdc_dma_cfg_t {
-	struct aml_dma_cfg config_cfg;
-	struct aml_dma_cfg input_cfg_plane1;
-	struct aml_dma_cfg input_cfg_plane2;
-	struct aml_dma_cfg input_cfg_plane3;
-	struct aml_dma_cfg output_cfg_plane1;
-	struct aml_dma_cfg output_cfg_plane2;
-	struct aml_dma_cfg output_cfg_plane3;
+struct gdc_event_s {
+	struct completion d_com;
+	struct completion process_complete;
+	/* for queue switch and create destroy queue. */
+	spinlock_t sem_lock;
+	struct semaphore cmd_in_sem;
 };
 
-struct mgdc_fh_s {
-	struct list_head list;
-	wait_queue_head_t	irq_queue;
-	struct meson_gdc_dev_t *gdev;
-	char task_comm[32];
+struct gdc_manager_s {
 	struct ion_client   *ion_client;
-	struct gdc_cmd_s gdc_cmd;
-	uint32_t mmap_type;
-	dma_addr_t i_paddr;
-	dma_addr_t o_paddr;
-	dma_addr_t c_paddr;
-	void *i_kaddr;
-	void *o_kaddr;
-	void *c_kaddr;
-	unsigned long i_len;
-	unsigned long o_len;
-	unsigned long c_len;
-	struct gdc_dma_cfg y_dma_cfg;
-	struct gdc_dma_cfg uv_dma_cfg;
-	struct gdc_dma_cfg_t dma_cfg;
+	struct list_head process_queue;
+	struct gdc_context_s *current_wq;
+	struct gdc_context_s *last_wq;
+	struct task_struct *gdc_thread;
+	struct gdc_event_s event;
+	struct aml_dma_buffer *buffer;
+	int gdc_state;
+	int process_queue_state;//thread running flag
+	struct meson_gdc_dev_t *gdc_dev;
 };
+
+extern struct gdc_manager_s gdc_manager;
 
 irqreturn_t interrupt_handler_next(int irq, void *param);
 // ----------------------------------- //

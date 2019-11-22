@@ -57,7 +57,6 @@ static const struct sd_caps host_caps[] = {
 	SD_CAPS(MMC_CAP_CMD23, "MMC_CAP_CMD23"),
 	SD_CAPS(MMC_CAP_HW_RESET, "MMC_CAP_HW_RESET"),
 	SD_CAPS(MMC_CAP_AGGRESSIVE_PM, "MMC_CAP_AGGRESSIVE_PM"),
-	SD_CAPS(MMC_PM_KEEP_POWER, "MMC_PM_KEEP_POWER"),
 };
 
 static int amlsd_get_host_caps(struct device_node *of_node,
@@ -187,6 +186,8 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 				str, pdata->gpio_power);
 		SD_PARSE_U32_PROP_DEC(child, "calc_f",
 				prop, pdata->calc_f);
+		SD_PARSE_U32_PROP_DEC(child, "no_sduart",
+				prop, pdata->no_sduart);
 
 		SD_PARSE_U32_PROP_DEC(child, "gpio_cd_level",
 				prop, pdata->gpio_cd_level);

@@ -84,6 +84,6 @@ void ge2dgen_cb(struct ge2d_context_s *wq,
 
 void ge2dgen_const_color(struct ge2d_context_s *wq,
 	unsigned int color);
-
+void ge2dgen_disable_matrix(struct ge2d_context_s *wq);
 #endif
 

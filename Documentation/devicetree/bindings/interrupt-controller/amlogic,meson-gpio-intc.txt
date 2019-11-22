@@ -20,6 +20,7 @@ Required properties:
    “amlogic,meson-txl-gpio-intc” for TXL SoCs (T950, T952, T960, T962)
    “amlogic,meson-tl1-gpio-intc” for TL1 SoCs (T962X2)
    “amlogic,meson-sm1-gpio-intc” for SM1 SoCs (S905D3, S905X3, S905Y3)
+   “amlogic,meson-tm2-gpio-intc” for TM2 SoCs (T962X3, T962E2)
 - interrupt-parent : a phandle to the GIC the interrupts are routed to.
    Usually this is provided at the root level of the device tree as it is
    common to most of the SoC.

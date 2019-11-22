@@ -47,6 +47,7 @@
 #ifdef CONFIG_AMLOGIC_USB3PHY
 extern void aml_new_usb_init(void);
 extern void aml_new_usb_v2_init(void);
+extern void aml_new_otg_init(void);
 #endif
 
 /* Type declarations */

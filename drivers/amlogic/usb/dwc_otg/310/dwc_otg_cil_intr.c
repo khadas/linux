@@ -397,7 +397,8 @@ void w_conn_id_status_change(void *p)
 			if (++count > 10000)
 				break;
 		}
-		DWC_ASSERT(++count < 10000,
+		++count;
+		DWC_ASSERT(count < 10000,
 			   "Connection id status change timed out");
 		core_if->op_state = B_PERIPHERAL;
 		DWC_PRINTF("DEVICE mode\n");
@@ -418,7 +419,8 @@ host:
 			if (++count > 10000)
 				break;
 		}
-		DWC_ASSERT(++count < 10000,
+		++count;
+		DWC_ASSERT(count < 10000,
 			   "Connection id status change timed out");
 		core_if->op_state = A_HOST;
 		DWC_PRINTF("HOST mode\n");

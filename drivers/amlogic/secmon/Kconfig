@@ -1,6 +1,5 @@
 # Amlogic secure monitor driver
 
-
 config AMLOGIC_SEC
 	bool "Amlogic secure monitor driver support"
 	default n
@@ -9,4 +8,3 @@ config AMLOGIC_SEC
 		this config only ctrl in makefile
 		prepare share memory
 		etc
-

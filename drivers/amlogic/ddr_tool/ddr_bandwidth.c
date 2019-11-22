@@ -660,7 +660,7 @@ static void ddr_extcon_free(void)
  * to run, so add __ref to indicate it is okay to call __init function
  * ddr_find_port_desc
  */
-static int __ref ddr_bandwidth_probe(struct platform_device *pdev)
+static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 {
 	int r = 0;
 #ifdef CONFIG_OF
@@ -809,13 +809,13 @@ static struct platform_driver ddr_bandwidth_driver = {
 		.of_match_table = aml_ddr_bandwidth_dt_match,
 	#endif
 	},
-	.probe  = ddr_bandwidth_probe,
 	.remove = ddr_bandwidth_remove,
 };
 
 static int __init ddr_bandwidth_init(void)
 {
-	return platform_driver_register(&ddr_bandwidth_driver);
+	return platform_driver_probe(&ddr_bandwidth_driver,
+				     ddr_bandwidth_probe);
 }
 
 static void __exit ddr_bandwidth_exit(void)

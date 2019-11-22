@@ -2,10 +2,12 @@
 
 These are the HW cryptographic accelerators found on Amlogic products.
 
+*For S805 series and S905 series
+
 * Advanced Encryption Standard (AES)
 
 Required properties:
-- compatible : Should be "amlogic,aes" for aes-128/192/256 or "amlogic,aes_g12a_dma" for aes-128/256
+- compatible : Should be "amlogic,aes" for aes-128/192/256
 - dev_name : Should be "aml_aes"
 - interrupts: Should contain the IRQ line for the AES.
 - resets: Should contain the clock to enable the module
@@ -25,10 +27,10 @@ aml_aes{
 
 Required properties:
 - compatible : Should be "amlogic,des,tdes".
-- dev_name : Should be "aml_aes"
+- dev_name : Should be "aml_tdes"
 - interrupts: Should contain the IRQ line for the TDES.
 - resets: Should contain the clock to enable the module
-- reg:  Should contain the base address of regs
+- reg: Should contain the base address of regs
 
 Example:
 aml_tdes{
@@ -40,29 +42,16 @@ aml_tdes{
 		0x0 0xda832000 0x0 0xe4>;
 };
 
-* Secure Hash Algorithm (SHA1/SHA224/SHA256)
+********************************************************************************
 
-Required properties:
-- compatible : Should be "amlogic,sha".
-- dev_name : Should be "aml_sha"
-- interrupts: Should contain the IRQ line for the SHA.
-- resets: Should contain the clock to enable the module
-- reg:  Should contain the base address of regs
+* For S905X series and beyond
+* S905X series use gxl
+* T962X series use txlx
+* S905X2 series use g12a
 
-Example:
-aml_sha{
-	compatible = "amlogic,sha";
-	dev_name = "aml_sha";
-	interrupts = <0 36 1>;
-	resets = <&clock GCLK_IDX_BLK_MOV>;
-	reg = <0x0 0xc8832000 0x0 0x2c4
-		0x0 0xda832000 0x0 0xe4>;
-};
-
-* New DMA for GXL and beyond
 * Dma engine for crypto operations
 Required properties:
-- compatible : Should be "amlogic,aml_gxl_dma" or "amlogic,aml_txlx_dma".
+- compatible : Should be "amlogic,aml_gxl_dma" or "amlogic,aml_txlx_dma"
 - reg:  Should contain the base address of regs
 - interrupts: Should contain the IRQ line for DMA.
 
@@ -76,8 +65,9 @@ aml_dma {
 * Advanced Encryption Standard (AES)
 
 Required properties:
-- compatible : Should be "amlogic,aes".
-- dev_name : Should be "aml_aes"
+- compatible : Should be "amlogic,aes_dma" for aes-128/192/256
+				or "amlogic,aes_g12a_dma" for aes-128/256
+- dev_name : Should be "aml_aes_dma"
 
 Example:
 aml_aes{
@@ -89,8 +79,9 @@ aml_aes{
 * Triple Data Encryption Standard (Triple DES)
 
 Required properties:
-- compatible : Should be "amlogic,des,tdes".
-- dev_name : Should be "aml_aes"
+- compatible : Should be "amlogic,des_dma,tdes_dma" for gxl
+				or "amlogic,tdes_dma" for other series.
+- dev_name : Should be "aml_tdes_dma"
 
 Example:
 aml_tdes{
@@ -100,8 +91,8 @@ aml_tdes{
 * Secure Hash Algorithm (SHA1/SHA224/SHA256/HMAC)
 
 Required properties:
-- compatible : Should be "amlogic,sha".
-- dev_name : Should be "aml_sha"
+- compatible : Should be "amlogic,sha_dma".
+- dev_name : Should be "aml_sha_dma"
 
 Example:
 aml_sha{

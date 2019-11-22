@@ -172,7 +172,7 @@ static int tl1_aoclkc_probe(struct platform_device *pdev)
 	tl1_saradc_div.reg = aoclk_base + (unsigned long)tl1_saradc_div.reg;
 	tl1_saradc_gate.reg = aoclk_base + (unsigned long)tl1_saradc_gate.reg;
 
-	for (clkid = CLKID_AO_BASE; clkid < NR_CLKS; clkid++) {
+	for (clkid = CLKID_AO_BASE; clkid < CLKID_AO_END; clkid++) {
 		if (tl1_ao_clk_hws[clkid-CLKID_AO_BASE]) {
 			clks[clkid] = clk_register(NULL,
 			tl1_ao_clk_hws[clkid-CLKID_AO_BASE]);

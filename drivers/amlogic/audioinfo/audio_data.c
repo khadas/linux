@@ -101,12 +101,14 @@ int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
 int meson_trustzone_audio_info_get(struct efuse_hal_api_arg *arg)
 {
 	int ret;
+	struct cpumask org_cpumask;
 
 	if (!arg)
 		return -1;
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 	ret = meson_efuse_fn_smc_query_audioinfo(arg);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 	return ret;
 }
 

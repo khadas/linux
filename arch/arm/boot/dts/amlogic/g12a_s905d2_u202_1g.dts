@@ -307,6 +307,7 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
+
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
@@ -723,7 +724,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -1516,9 +1517,9 @@
 
 &gpu{
 	tbl =  <&dvfs285_cfg
-				&dvfs400_cfg
-				&dvfs500_cfg
-				&dvfs666_cfg
-				&dvfs800_cfg
-				&dvfs800_cfg>;
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 };

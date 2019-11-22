@@ -27,6 +27,7 @@
 #include "register_nr4.h"
 #include "nr_drv.h"
 #include "deinterlace.h"
+#include "di_pqa.h"
 
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
@@ -45,6 +46,8 @@ static unsigned int nr2_en = 0x1;
 module_param_named(nr2_en, nr2_en, uint, 0644);
 
 static bool nr_ctrl_reg;
+
+bool nr_demo_flag;
 
 int global_bs_calc_sw(int *pGbsVldCnt,
 			  int *pGbsVldFlg,
@@ -704,6 +707,8 @@ module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
 static bool cue_glb_mot_check_en = true;
 module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
 
+/* confirm with vlsi-liuyanling, cue_process_irq is no use */
+/* when CUE disable					*/
 static void cue_process_irq(void)
 {
 
@@ -729,13 +734,24 @@ static void cue_process_irq(void)
 	if (nr_param.frame_count == 5)
 		Wr_reg_bits(NR2_CUE_MODE, 7, 0, 4);
 }
-void cue_int(void)
+void cue_int(struct vframe_s *vf)
 {
 	/*confirm with vlsi-liuyanling, G12a cue must be disabled*/
 	if (is_meson_g12a_cpu()) {
 		cue_en = false;
 		cue_glb_mot_check_en = false;
+	} else if (vf && IS_VDIN_SRC(vf->source_type)) {
+	/*VLSI-yanling suggest close cue(422/444) except local play(420)*/
+		cue_en = false;
+		cue_glb_mot_check_en = false;
+	} else {
+		cue_en = true;
+		cue_glb_mot_check_en = true;
 	}
+	/*close cue when cue disable*/
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX) && !cue_en)
+		DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		if (cue_en)
 			Wr_reg_bits(NR2_CUE_MODE, 3, 10, 2);
@@ -744,10 +760,15 @@ void cue_int(void)
 static bool glb_fieldck_en = true;
 module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
 
+/* confirm with vlsi-liuyanling, cue_process_irq is no use */
+/* when CUE disable					*/
 void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff)
 {
 	struct CUE_PARM_s *pcue_parm = nr_param.pcue_parm;
 	unsigned int mask1, mask2;
+
+	if (!cue_glb_mot_check_en)
+		return;
 
 	//if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
@@ -852,7 +873,11 @@ void nr_process_in_irq(void)
 {
 	nr_param.frame_count++;
 	nr_ctrl_reg_load(nr_param.pnr_regs);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
+
+	/* confirm with vlsi-liuyanling, cue_process_irq is no use */
+	/* when CUE disable					*/
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX) &&
+	    cue_glb_mot_check_en)
 		cue_process_irq();
 	if (dnr_en)
 		dnr_process(&dnr_param);
@@ -1173,6 +1198,18 @@ static void nr_all_ctrl(bool enable)
 	DI_Wr_reg_bits(DNR_CTRL, value, 16, 1);
 
 }
+
+static void nr_demo_mode(bool enable)
+{
+	if (enable) {
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 6, 3);
+		nr_demo_flag = 1;
+	} else {
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 7, 6, 3);
+		nr_demo_flag = 0;
+	}
+}
+
 static ssize_t nr_dbg_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buff, size_t count)
@@ -1185,6 +1222,15 @@ static ssize_t nr_dbg_store(struct device *dev,
 		nr_all_ctrl(false);
 	else if (!strcmp(parm[0], "enable"))
 		nr_all_ctrl(true);
+	else if (!strcmp(parm[0], "demo")) {
+		if (!strcmp(parm[1], "enable")) {
+			nr_demo_mode(true);
+			pr_info("nr demo enable\n");
+		} else if (!strcmp(parm[1], "disable")) {
+			nr_demo_mode(false);
+			pr_info("nr demo disable\n");
+		}
+	}
 
 	kfree(buf_orig);
 	return count;
@@ -1343,3 +1389,31 @@ void nr_drv_init(struct device *dev)
 	else
 		dnr_dm_en = false;
 }
+
+static const struct nr_op_s di_ops_nr = {
+	.nr_hw_init		= nr_hw_init,
+	.nr_gate_control	= nr_gate_control,
+	.nr_drv_init		= nr_drv_init,
+	.nr_drv_uninit		= nr_drv_uninit,
+	.nr_process_in_irq	= nr_process_in_irq,
+	.nr_all_config		= nr_all_config,
+	.set_nr_ctrl_reg_table	= set_nr_ctrl_reg_table,
+	.cue_int		= cue_int,
+	.adaptive_cue_adjust	= adaptive_cue_adjust,
+	/*.module_para = dim_seq_file_module_para_nr,*/
+};
+
+bool di_attach_ops_nr(const struct nr_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_ops_nr;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_nr);

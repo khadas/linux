@@ -463,14 +463,11 @@ void aml_tdm_set_oe_v1(
 	struct aml_audio_controller *actrl,
 	int index, int force_oe, int oe_val)
 {
-	unsigned int reg, offset;
-
-	offset = EE_AUDIO_TDMOUT_B_CTRL0 - EE_AUDIO_TDMOUT_A_CTRL0;
-	reg = EE_AUDIO_TDMOUT_A_CTRL0 + offset * index;
-
 	if (force_oe) {
-		offset = EE_AUDIO_TDMOUT_B_CTRL2 - EE_AUDIO_TDMOUT_A_CTRL2;
-		reg = EE_AUDIO_TDMOUT_A_CTRL2 + offset * index;
+		unsigned int reg, offset;
+
+		offset = EE_AUDIO_TDMOUT_B_CTRL0 - EE_AUDIO_TDMOUT_A_CTRL0;
+		reg = EE_AUDIO_TDMOUT_A_CTRL0 + offset * index;
 
 		aml_audiobus_update_bits(actrl, reg, 0xf << 24, force_oe << 24);
 
@@ -484,9 +481,9 @@ void aml_tdm_set_oe_v2(
 	struct aml_audio_controller *actrl,
 	int index, int force_oe, int oe_val)
 {
-	unsigned int reg, offset;
-
 	if (force_oe) {
+		unsigned int reg, offset;
+
 		offset = EE_AUDIO_TDMOUT_B_CTRL2 - EE_AUDIO_TDMOUT_A_CTRL2;
 		reg = EE_AUDIO_TDMOUT_A_CTRL2 + offset * index;
 

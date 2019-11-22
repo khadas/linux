@@ -158,15 +158,8 @@ static DIV(hdmirx_modet_div, HHI_HDMIRX_CLK_CNTL, 16, 7, "hdmirx_modet_mux",
 static GATE(hdmirx_modet_gate, HHI_HDMIRX_CLK_CNTL, 24, "hdmirx_modet_div",
 			CLK_GET_RATE_NOCACHE);
 
-/*hdmirx audmeas clock*/
 PNAME(hdmirx_ref_parent_names) = { "fclk_div4",
 "fclk_div3", "fclk_div5", "fclk_div7" };
-static MUX(hdmirx_audmeas_mux, HHI_HDMIRX_AUD_CLK_CNTL, 0x3, 9,
-hdmirx_ref_parent_names, CLK_GET_RATE_NOCACHE);
-static DIV(hdmirx_audmeas_div, HHI_HDMIRX_AUD_CLK_CNTL, 0, 7,
-"hdmirx_audmeas_mux", CLK_GET_RATE_NOCACHE);
-static GATE(hdmirx_audmeas_gate, HHI_HDMIRX_AUD_CLK_CNTL, 8,
-"hdmirx_audmeas_div", CLK_GET_RATE_NOCACHE);
 /* hdmirx acr clock*/
 static MUX(hdmirx_acr_mux, HHI_HDMIRX_AUD_CLK_CNTL, 0x3, 25,
 hdmirx_ref_parent_names, CLK_GET_RATE_NOCACHE);
@@ -193,6 +186,24 @@ static DIV(hdcp22_esm_div, HHI_HDCP22_CLK_CNTL, 0, 7, "hdcp22_esm_mux",
 			CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED);
 static GATE(hdcp22_esm_gate, HHI_HDCP22_CLK_CNTL, 8, "hdcp22_esm_div",
 			CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED);
+
+PNAME(hdmirx_meter_parent_names) = { "xtal",
+"fclk_div4", "fclk_div3", "fclk_div5" };
+static MUX(hdmirx_meter_mux, HHI_HDMIRX_METER_CLK_CNTL, 0x3, 9,
+hdmirx_meter_parent_names, CLK_GET_RATE_NOCACHE);
+static DIV(hdmirx_meter_div, HHI_HDMIRX_METER_CLK_CNTL, 0, 7,
+"hdmirx_meter_mux", CLK_GET_RATE_NOCACHE);
+static GATE(hdmirx_meter_gate, HHI_HDMIRX_METER_CLK_CNTL, 8,
+"hdmirx_meter_div", CLK_GET_RATE_NOCACHE);
+
+PNAME(hdmirx_axi_parent_names) = { "xtal",
+"fclk_div4", "fclk_div3", "fclk_div5" };
+static MUX(hdmirx_axi_mux, HHI_HDMIRX_AXI_CLK_CNTL, 0x3, 9,
+hdmirx_axi_parent_names, CLK_GET_RATE_NOCACHE);
+static DIV(hdmirx_axi_div, HHI_HDMIRX_AXI_CLK_CNTL, 0, 7,
+"hdmirx_axi_mux", CLK_GET_RATE_NOCACHE);
+static GATE(hdmirx_axi_gate, HHI_HDMIRX_AXI_CLK_CNTL, 8,
+"hdmirx_axi_div", CLK_GET_RATE_NOCACHE);
 
 /*vdec clock*/
 /* cts_vdec_clk */
@@ -325,7 +336,7 @@ static struct clk_mux *tl1_media_clk_muxes[] = {
 	&vpu_clkb_tmp_mux,
 	&hdmirx_cfg_mux,
 	&hdmirx_modet_mux,
-	&hdmirx_audmeas_mux,
+	&hdmirx_meter_mux,
 	&hdmirx_acr_mux,
 	&hdcp22_skp_mux,
 	&hdcp22_esm_mux,
@@ -349,6 +360,7 @@ static struct clk_mux *tl1_media_clk_muxes[] = {
 	&tcon_pll_mux,
 	&cts_demod_mux,
 	&adc_extclk_in_mux,
+	&hdmirx_axi_mux,
 };
 
 /* for init div clocks reg base*/
@@ -362,7 +374,7 @@ static struct clk_divider *tl1_media_clk_divs[] = {
 	&vpu_clkb_div,
 	&hdmirx_cfg_div,
 	&hdmirx_modet_div,
-	&hdmirx_audmeas_div,
+	&hdmirx_meter_div,
 	&hdmirx_acr_div,
 	&hdcp22_skp_div,
 	&hdcp22_esm_div,
@@ -381,6 +393,7 @@ static struct clk_divider *tl1_media_clk_divs[] = {
 	&tcon_pll_div,
 	&cts_demod_div,
 	&adc_extclk_in_div,
+	&hdmirx_axi_div,
 };
 
 /* for init gate clocks reg base*/
@@ -395,7 +408,7 @@ static struct clk_gate *tl1_media_clk_gates[] = {
 	&vpu_clkb_gate,
 	&hdmirx_cfg_gate,
 	&hdmirx_modet_gate,
-	&hdmirx_audmeas_gate,
+	&hdmirx_meter_gate,
 	&hdmirx_acr_gate,
 	&hdcp22_skp_gate,
 	&hdcp22_esm_gate,
@@ -414,6 +427,7 @@ static struct clk_gate *tl1_media_clk_gates[] = {
 	&tcon_pll_gate,
 	&cts_demod_gate,
 	&adc_extclk_in_gate,
+	&hdmirx_axi_gate,
 };
 
 static struct meson_composite m_composite[] = {
@@ -423,9 +437,16 @@ static struct meson_composite m_composite[] = {
 	&vpu_clkb_tmp_gate.hw, 0
 	},/*vpu_clkb_tmp*/
 
+	/*
+	 * add CLK_SET_RATE_PARENT for vpu_clkb_composite clock
+	 * vpu_clkb_composite's rate can set to 285714281HZ/400MHZ
+	 * 500MHZ/667MHZ or less than them.
+	 * No one use the vpu_clkb_tmp_composite, So we can change
+	 * its rate to get the best rate for vpu_clkb_composite.
+	 */
 	{CLKID_VPU_CLKB_COMP, "vpu_clkb_composite",
 	vpu_clkb_nomux_parent_names, ARRAY_SIZE(vpu_clkb_nomux_parent_names),
-	NULL, &vpu_clkb_div.hw, &vpu_clkb_gate.hw, 0
+	NULL, &vpu_clkb_div.hw, &vpu_clkb_gate.hw, CLK_SET_RATE_PARENT
 	},/*vpu_clkb*/
 
 	{CLKID_VDIN_MEAS_COMP, "vdin_meas_composite",
@@ -447,13 +468,13 @@ static struct meson_composite m_composite[] = {
 	},
 
 	{CLKID_VAPB_P0_COMP, "vapb_p0_composite",
-	vpu_parent_names, ARRAY_SIZE(vpu_parent_names),
+	vapb_parent_names, ARRAY_SIZE(vapb_parent_names),
 	&vapb_p0_mux.hw, &vapb_p0_div.hw,
 	&vapb_p0_gate.hw, 0
 	},
 
 	{CLKID_VAPB_P1_COMP, "vapb_p1_composite",
-	vpu_parent_names, ARRAY_SIZE(vpu_parent_names),
+	vapb_parent_names, ARRAY_SIZE(vapb_parent_names),
 	&vapb_p1_mux.hw, &vapb_p1_div.hw,
 	&vapb_p1_gate.hw, 0
 	},
@@ -470,10 +491,16 @@ static struct meson_composite m_composite[] = {
 	&hdmirx_modet_gate.hw, 0
 	},
 
-	{CLKID_HDMIRX_AUDMEAS_COMP, "hdmirx_audmeas_composite",
-	hdmirx_ref_parent_names, ARRAY_SIZE(hdmirx_ref_parent_names),
-	&hdmirx_audmeas_mux.hw, &hdmirx_audmeas_div.hw,
-	&hdmirx_audmeas_gate.hw, 0
+	{CLKID_HDMIRX_METER_COMP, "hdmirx_meter_composite",
+	hdmirx_meter_parent_names, ARRAY_SIZE(hdmirx_meter_parent_names),
+	&hdmirx_meter_mux.hw, &hdmirx_meter_div.hw,
+	&hdmirx_meter_gate.hw, 0
+	},
+
+	{CLKID_HDMIRX_AXI_COMP, "hdmirx_axi_composite",
+	hdmirx_axi_parent_names, ARRAY_SIZE(hdmirx_axi_parent_names),
+	&hdmirx_axi_mux.hw, &hdmirx_axi_div.hw,
+	&hdmirx_axi_gate.hw, 0
 	},
 
 	{CLKID_HDMIRX_ACR_COMP, "hdmirx_acr_composite",
@@ -557,7 +584,7 @@ static struct meson_composite m_composite[] = {
 	{CLKID_TCON_PLL_COMP, "tcon_pll_composite",
 	tcon_pll_parent_names, ARRAY_SIZE(tcon_pll_parent_names),
 	&tcon_pll_mux.hw, &tcon_pll_div.hw,
-	&tcon_pll_gate.hw, 0
+	&tcon_pll_gate.hw, CLK_IGNORE_UNUSED
 	},
 
 	{CLKID_DEMOD_COMP, "demod_composite",
@@ -620,11 +647,11 @@ void meson_tl1_media_init(void)
 
 	clks[CLKID_VPU_MUX] = clk_register(NULL, &vpu_mux.hw);
 	WARN_ON(IS_ERR(clks[CLKID_VPU_MUX]));
-	clk_prepare_enable(clks[CLKID_VPU_MUX]);
+	/* clk_prepare_enable(clks[CLKID_VPU_MUX]); //do not enable*/
 
 	clks[CLKID_VAPB_MUX] = clk_register(NULL, &vapb_mux.hw);
 	WARN_ON(IS_ERR(clks[CLKID_VAPB_MUX]));
-	clk_prepare_enable(clks[CLKID_VAPB_MUX]);
+	/* clk_prepare_enable(clks[CLKID_VAPB_MUX]); //do not enable*/
 
 	clks[CLKID_GE2D_GATE] = clk_register(NULL, &ge2d_gate.hw);
 	WARN_ON(IS_ERR(clks[CLKID_GE2D_GATE]));

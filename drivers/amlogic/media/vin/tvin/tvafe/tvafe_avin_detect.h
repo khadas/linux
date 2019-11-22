@@ -104,6 +104,7 @@ enum tvafe_avin_status_e {
 enum tvafe_avin_channel_e {
 	TVAFE_AVIN_CHANNEL1 = 0,
 	TVAFE_AVIN_CHANNEL2 = 1,
+	TVAFE_AVIN_CHANNEL_MAX = 2,
 };
 
 struct tvafe_report_data_s {

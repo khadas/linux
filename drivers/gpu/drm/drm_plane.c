@@ -986,6 +986,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof(e->event);
 		e->event.user_data = page_flip->user_data;
+		e->event.crtc_id = crtc->base.id;
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);

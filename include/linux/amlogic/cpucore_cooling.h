@@ -20,6 +20,9 @@
 
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
+
+#define MAX_CLUSTER	2
+#define CLUSTER_FLAG    0xF
 struct cpucore_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
@@ -29,6 +32,7 @@ struct cpucore_cooling_device {
 	int max_cpu_core_num;
 	int cluster_id;
 	int stop_flag;
+	int core_num[MAX_CLUSTER];
 };
 #define CPU_STOP 0x80000000
 #ifdef CONFIG_AMLOGIC_CPUCORE_THERMAL

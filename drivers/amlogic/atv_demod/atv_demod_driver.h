@@ -23,19 +23,11 @@
 #include "drivers/media/dvb-core/dvb_frontend.h"
 #include "atv_demod_v4l2.h"
 
-struct aml_atvdemod_parameters {
 
-	struct analog_parameters param;
-
-	unsigned int soundsys;/* A2,BTSC/EIAJ/NICAM */
-	unsigned int lock_range;
-	unsigned int leap_step;
-
-	unsigned int afc_range;
-	unsigned int tuner_id;
-	unsigned int if_freq;
-	unsigned int if_inv;
-	unsigned int reserved;
+struct aml_tuner {
+	struct tuner_config cfg;
+	unsigned int i2c_adapter_id;
+	struct i2c_adapter *i2c_adp;
 };
 
 struct aml_atvdemod_device {
@@ -43,19 +35,15 @@ struct aml_atvdemod_device {
 	struct class cls;
 	struct device *dev;
 
-	unsigned int tuner_id;
-	unsigned int tuner_xtal;
-	unsigned int tuner_xtal_mode;
-	unsigned int tuner_xtal_cap;
-	unsigned int i2c_addr;
-	unsigned int i2c_adapter_id;
-	struct i2c_adapter *i2c_adp;
+	unsigned int tuner_num;
+	int tuner_cur;
+	struct aml_tuner *tuners;
 
 	unsigned int if_freq;
 	unsigned int if_inv;
 	u64 std;
 	unsigned int audmode;
-	unsigned int soundsys;
+	unsigned int sound_mode;
 	int fre_offset;
 
 	struct pinctrl *agc_pin;
@@ -65,11 +53,13 @@ struct aml_atvdemod_device {
 	bool analog_attached;
 	bool tuner_attached;
 
+	int irq;
+
 	void __iomem *demod_reg_base;
-	void __iomem *audio_reg_base;
+	void __iomem *audiodemod_reg_base;
 	void __iomem *hiu_reg_base;
 	void __iomem *periphs_reg_base;
-	void __iomem *audio_demod_reg_base;
+	void __iomem *audio_reg_base;
 
 	unsigned int reg_23cf; /* IIR filter */
 	int btsc_sap_mode; /*0: off 1:monitor 2:auto */
@@ -94,6 +84,7 @@ struct aml_atvdemod_device {
 
 extern struct aml_atvdemod_device *amlatvdemod_devp;
 
-extern int aml_attach_demod_tuner(struct aml_atvdemod_device *dev);
+extern int aml_attach_demod(struct aml_atvdemod_device *dev);
+extern int aml_attach_tuner(struct aml_atvdemod_device *dev);
 
 #endif /* __ATV_DEMOD_DRIVER_H__ */

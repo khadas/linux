@@ -27,44 +27,50 @@ extern unsigned int atvdemod_debug_en;
 #define pr_info(fmt, ...)\
 	do {\
 		if (1)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #undef pr_dbg
 #define pr_dbg(fmt, ...)\
 	do {\
 		if (atvdemod_debug_en & 0x01)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #undef pr_err
 #define pr_err(fmt, ...)\
 	do {\
 		if (1)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #undef pr_afc
 #define pr_afc(fmt, ...)\
 	do {\
 		if (atvdemod_debug_en & 0x02)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #undef pr_warn
 #define pr_warn(fmt, ...)\
 	do {\
 		if (1)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #undef pr_audio
 #define pr_audio(fmt, ...)\
 	do {\
 		if (atvdemod_debug_en & 0x04)\
-			printk(fmt, ##__VA_ARGS__);\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
+#undef pr_isr
+#define pr_isr(fmt, ...)\
+	do {\
+		if (atvdemod_debug_en & 0x08)\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
+	} while (0)
 
 #if defined(CONFIG_DEBUG_FS)
 #define AML_ATVDEMOD_DEBUGFS

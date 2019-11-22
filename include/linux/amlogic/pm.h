@@ -33,6 +33,9 @@
 #define ETH_PHY_WAKEUP      10
 extern unsigned int get_resume_method(void);
 extern unsigned int is_pm_freeze_mode(void);
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+bool meson_adc_is_alive_freeze(void);
+#endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 enum {
@@ -51,6 +54,8 @@ struct early_suspend {
 extern void register_early_suspend(struct early_suspend *handler);
 extern void unregister_early_suspend(struct early_suspend *handler);
 extern unsigned int lgcy_early_suspend_init(void);
+extern unsigned int is_pm_freeze_mode(void);
+
 
 #endif //CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 

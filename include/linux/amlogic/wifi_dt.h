@@ -19,6 +19,7 @@
 #define _wifi_dt_h_
 
 extern void sdio_reinit(void);
+void sdio_notify(int on);
 extern char *get_wifi_inf(void);
 
 void extern_wifi_set_enable(int is_on);

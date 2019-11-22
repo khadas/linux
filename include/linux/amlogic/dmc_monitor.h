@@ -36,7 +36,7 @@
 
 struct dmc_monitor;
 struct dmc_mon_ops {
-	void (*handle_irq)(struct dmc_monitor *mon);
+	void (*handle_irq)(struct dmc_monitor *mon, void *data);
 	int  (*set_montor)(struct dmc_monitor *mon);
 	void (*disable)(struct dmc_monitor *mon);
 	size_t (*dump_reg)(char *buf);

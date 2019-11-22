@@ -153,7 +153,7 @@
 		galcore_reserved:linux,galcore {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -162,7 +162,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1f000000>;
+			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -841,18 +841,20 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 		pinctrl-names="default";
 		pinctrl-0=<&clk12_24_z_pins>;
 		clocks = <&clkc CLKID_24M>;
 		clock-names = "g12a_24m";
 		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
+				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
 	};
 }; /* end of / */
 
@@ -1471,7 +1473,7 @@
 
 &usb3_phy_v2 {
 	status = "okay";
-	portnum = <0>;
+	portnum = <1>;
 	otg = <1>;
 	gpio-vbus-power = "GPIOH_6";
 	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
@@ -1499,7 +1501,7 @@
 
 &pcie_A {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	status = "disable";
 };
 
 &saradc {

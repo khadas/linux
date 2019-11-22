@@ -86,5 +86,10 @@ struct ir_sw_decode_para {
 #define REMOTE_IOC_SET_KEY_MAPPING_TAB   _IOW('I', 4, __u32)
 #define REMOTE_IOC_SET_SW_DECODE_PARA    _IOW('I', 5, __u32)
 #define REMOTE_IOC_GET_DATA_VERSION      _IOR('I', 121, __u32)
+#define REMOTE_IOC_SET_IR_LEARNING       _IOW('I', 6, __u32)
+#define REMOTE_IOC_GET_IR_LEARNING       _IOR('I', 7, __u32)
+#define REMOTE_IOC_GET_RAW_DATA          _IOR('I', 8, __u32)
+#define REMOTE_IOC_GET_SUM_CNT0          _IOR('I', 9, __u32)
+#define REMOTE_IOC_GET_SUM_CNT1          _IOR('I', 10, __u32)
 
 #endif

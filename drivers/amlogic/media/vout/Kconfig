@@ -20,6 +20,7 @@ source "drivers/amlogic/media/vout/hdmitx/Kconfig"
 source "drivers/amlogic/media/vout/lcd/Kconfig"
 source "drivers/amlogic/media/vout/backlight/Kconfig"
 source "drivers/amlogic/media/vout/vout_serve/Kconfig"
+source "drivers/amlogic/media/vout/spi/Kconfig"
 
 endif
 

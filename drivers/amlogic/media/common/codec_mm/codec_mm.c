@@ -800,6 +800,11 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 		return;
 
 	spin_lock_irqsave(&mgt->lock, flags);
+	if (!codec_mm_valid_mm_locked(mem)) {
+		pr_err("codec mm not valied!\n");
+		spin_unlock_irqrestore(&mgt->lock, flags);
+		return;
+	}
 	index = atomic_dec_return(&mem->use_cnt);
 	max_owner = mem->owner[index];
 	for (i = 0; i < index; i++) {

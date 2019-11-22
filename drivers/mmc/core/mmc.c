@@ -1184,7 +1184,7 @@ static int mmc_select_hs400(struct mmc_card *card)
 			pr_info("%s:use ds type0\n",
 				mmc_hostname(host));
 	/*3 -> type4 -> MMC_CAP_DRIVER_TYPED*/
-		} else if (ds & (1 << 3)) {
+		} else if (ds & (1 << 2)) {
 			raw_driver_strength &= ~(1 << 1);
 			pr_info("%s:use ds type4\n",
 				mmc_hostname(host));

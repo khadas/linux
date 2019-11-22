@@ -59,8 +59,7 @@ unsigned int hdcp_get_downstream_ver(void)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdev->HWOp.CntlDDC(hdev,
-		DDC_HDCP_22_LSTORE, 0) == 0)
+	if (hdev->hwop.cntlddc(hdev, DDC_HDCP_22_LSTORE, 0) == 0)
 		if (hdcp_rd_hdcp22_ver())
 			ret = 22;
 		else
@@ -95,10 +94,10 @@ static void _hdcp_do_work(struct work_struct *work)
 		container_of(work, struct hdmitx_dev, work_do_hdcp.work);
 
 	if (hdev->hdcp_mode == 2) {
-		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
+		/* hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 1); */
 		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
 	} else
-		hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 0);
+		hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 0);
 }
 
 void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev)
@@ -112,7 +111,7 @@ static int hdmitx_hdcp_task(void *data)
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
 	while (hdev->hpd_event != 0xff) {
-		hdmi_authenticated = hdev->HWOp.CntlDDC(hdev,
+		hdmi_authenticated = hdev->hwop.cntlddc(hdev,
 			DDC_HDCP_GET_AUTH, 0);
 		hdmitx_hdcp_status(hdmi_authenticated);
 		msleep_interruptible(200);

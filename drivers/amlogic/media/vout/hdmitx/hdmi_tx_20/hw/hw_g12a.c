@@ -411,7 +411,6 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 	return ret;
 }
 
-
 void set_hpll_sspll_g12a(enum hdmi_vic vic)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();

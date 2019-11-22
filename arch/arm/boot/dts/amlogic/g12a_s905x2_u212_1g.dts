@@ -333,58 +333,41 @@
 		cma_mode = <1>;
 	};
 
-	/*dvb {
-	 *	compatible = "amlogic, dvb";
-	 *	dev_name = "dvb";
-	 *
-	 *	fe0_mode = "external";
-	 *	fe0_demod = "Atbm8881";
-	 *	fe0_i2c_adap_id = <&i2c2>;
-	 *	fe0_demod_i2c_addr = <0xc0>;
-	 *	fe0_ts = <1>;
-	 *	fe0_reset_value = <0>;
-	 *	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
-	 *
-	 *	ts1 = "parallel";
-	 *	ts1_control = <0>;
-	 *	ts1_invert = <0>;
-	 *	interrupts = <0 23 1
-	 *	0 5 1
-	 *	0 21 1
-	 *	0 19 1
-	 *	0 25 1
-	 *	0 18 1
-	 *	0 24 1>;
-	 *	interrupt-names = "demux0_irq",
-	 *	"demux1_irq",
-	 *	"demux2_irq",
-	 *	"dvr0_irq",
-	 *	"dvr1_irq",
-	 *	"dvrfill0_fill",
-	 *	"dvrfill1_flush";
-	 *	pinctrl-names = "p_ts1";
-	 *	pinctrl-0 = <&dvb_p_ts1_pins>;
-	 *	clocks = <&clkc CLKID_DEMUX
-	 *	&clkc CLKID_AHB_ARB0
-	 *	&clkc CLKID_DOS_PARSER>;
-	 *	clock-names = "demux", "ahbarb0", "parser_top";
-	 *};
-	 */
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
 
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
+	//	fe0_mode = "external";
+	//	fe0_demod = "Atbm8881";
+	//	fe0_i2c_adap_id = <&i2c2>;
+	//	fe0_demod_i2c_addr = <0xc0>;
+	//	fe0_ts = <1>;
+	//	fe0_reset_value = <0>;
+	//	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
 
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
+	//	ts1 = "parallel";
+	//	ts1_control = <0>;
+	//	ts1_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 21 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+	//	pinctrl-names = "p_ts1";
+	//	pinctrl-0 = <&dvb_p_ts1_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
 	unifykey{
@@ -689,7 +672,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdif";
 			cpu {
 				sound-dai = <&aml_spdif>;
 				system-clock-frequency = <6144000>;
@@ -705,7 +688,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdif";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;

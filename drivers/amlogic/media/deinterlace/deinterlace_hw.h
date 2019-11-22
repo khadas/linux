@@ -18,7 +18,7 @@
 #ifndef _DI_HW_H
 #define _DI_HW_H
 #include <linux/amlogic/media/amvecm/amvecm.h>
-#include "pulldown_drv.h"
+#include "di_pqa.h"
 #include "nr_drv.h"
 
 /* if post size < 80, filter of ei can't work */
@@ -184,6 +184,7 @@ void di_post_switch_buffer(
 );
 void di_post_read_reverse_irq(bool reverse,
 	unsigned char mc_pre_flag, bool mc_enable);
+void di_hdr2_hist_init(void);
 void di_top_gate_control(bool top_en, bool mc_en);
 void di_pre_gate_control(bool enable, bool mc_enable);
 void di_post_gate_control(bool gate);

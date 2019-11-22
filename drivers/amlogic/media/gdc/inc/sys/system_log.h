@@ -20,14 +20,13 @@
 
 //changeable logs
 #include <linux/kernel.h>
-extern unsigned int gdc_log_level;
+extern int gdc_log_level;
 
 enum log_level_e {
-	LOG_NO_THING,
 	LOG_CRIT,
-	LOG_ERR = 0,
+	LOG_ERR,
+	LOG_INFO = 0,
 	LOG_WARNING,
-	LOG_INFO,
 	LOG_DEBUG,
 	LOG_MAX
 };

@@ -13,7 +13,9 @@
  * License or (at your optional) any later version of the license.
  */
 
+#ifndef CONFIG_AMLOGIC_MODIFY /* save print time */
 #define pr_fmt(fmt)	"OF: reserved mem: " fmt
+#endif
 
 #include <linux/err.h>
 #include <linux/of.h>
@@ -233,8 +235,16 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 			continue;
 
 		if (initfn(rmem) == 0) {
+		#ifdef CONFIG_AMLOGIC_MODIFY
+			pr_emerg("\t%08lx - %08lx, %8ld KB, %s\n",
+				 (unsigned long)rmem->base,
+				 (unsigned long)(rmem->base + rmem->size),
+				 (unsigned long)(rmem->size >> 10),
+				 rmem->name);
+		#else
 			pr_info("initialized node %s, compatible id %s\n",
 				rmem->name, compat);
+		#endif
 			return 0;
 		}
 	}

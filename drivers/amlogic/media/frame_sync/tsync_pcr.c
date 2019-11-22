@@ -1151,7 +1151,8 @@ static unsigned long tsync_pcr_check(void)
 	if ((!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_VPTS))
 		&& (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_PCR))
 		&& (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_APTS))) {
-		u64 cur_system_time = (jiffies * TIME_UNIT90K) / HZ;
+		u64 cur_system_time =
+			div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
 		if (cur_system_time - first_time_record < 270000) {
 		} else {
 			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
@@ -1291,7 +1292,7 @@ int tsync_pcr_start(void)
 		tsync_pcr_check_timer.function = tsync_pcr_check_timer_func;
 		tsync_pcr_check_timer.expires = (unsigned long)jiffies;
 
-		first_time_record = (jiffies * TIME_UNIT90K) / HZ;
+		first_time_record = div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
 		tsync_pcr_started = 1;
 		if ((tsdemux_pcrscr_valid_cb &&
 			tsdemux_pcrscr_valid_cb() == 0) ||

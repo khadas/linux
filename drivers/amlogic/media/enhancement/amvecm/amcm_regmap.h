@@ -1583,5 +1583,13 @@ struct am_regs_s sr1reg_hv_noscale = {
 	}
 };
 
+#define DEJAGGY_LEVEL 4
+/*0: weak,  1: middle,  2: strong, 3: from db*/
+struct am_reg_s sr0_dej_setting[DEJAGGY_LEVEL] = {
+	{REG_TYPE_VCBUS, SHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046},
+	{REG_TYPE_VCBUS, SHARP0_DEJ_ALPHA, 0x000000ff, 0x0000006c},
+	{REG_TYPE_VCBUS, SHARP0_DEJ_ALPHA, 0x000000ff, 0x000000ff},
+	{REG_TYPE_VCBUS, SHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046}
+};
 #endif
 

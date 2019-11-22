@@ -78,11 +78,15 @@ static char *vpu_mod_table[] = {
 	"ds",
 	"lut3d",
 	"viu2_osd_rotation",
+	"dolby_s0",
+	"dolby_s1",
 	"rdma",
 
 	"axi_wr1",
 	"axi_wr0",
 	"afbce",
+	"vdin_wr_mif2",
+	"dma",
 
 	"vpu_mod_max",
 

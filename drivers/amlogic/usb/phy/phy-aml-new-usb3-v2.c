@@ -146,6 +146,7 @@ static void cr_bus_addr(unsigned int addr)
 
 	phy_r4.b.phy_cr_data_in = addr;
 	writel(phy_r4.d32, g_phy_v2->phy3_cfg_r4);
+
 	phy_r4.b.phy_cr_cap_addr = 0;
 	writel(phy_r4.d32, g_phy_v2->phy3_cfg_r4);
 	phy_r4.b.phy_cr_cap_addr = 1;
@@ -312,7 +313,6 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 		p3_r2.b.phy_tx_vboost_lvl = 0x4;
 		writel(p3_r2.d32, phy->phy3_cfg_r2);
 		udelay(2);
-
 		/*
 		 * WORKAROUND: There is SSPHY suspend bug due to
 		 * which USB enumerates
@@ -487,8 +487,9 @@ static void power_switch_to_pcie(struct amlogic_usb_v2 *phy)
 {
 	u32 val;
 
-	power_ctrl_sleep(1, phy->u3_ctrl_sleep_shift);
-	power_ctrl_mempd0(1, phy->u3_hhi_mem_pd_mask, phy->u3_hhi_mem_pd_shift);
+	power_ctrl_sleep(1, phy->u30_ctrl_sleep_shift);
+	power_ctrl_mempd0(1, phy->u30_hhi_mem_pd_mask,
+			phy->u30_hhi_mem_pd_shift);
 	udelay(100);
 
 	val = readl((void __iomem *)
@@ -497,7 +498,7 @@ static void power_switch_to_pcie(struct amlogic_usb_v2 *phy)
 		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
 	udelay(100);
 
-	power_ctrl_iso(1, phy->u3_ctrl_iso_shift);
+	power_ctrl_iso(1, phy->u30_ctrl_iso_shift);
 
 	val = readl((void __iomem *)
 		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
@@ -695,10 +696,10 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
 		if (phy->pwr_ctl) {
-			phy->u3_ctrl_sleep_shift = u3_ctrl_sleep_shift;
-			phy->u3_hhi_mem_pd_shift = u3_hhi_mem_pd_shift;
-			phy->u3_hhi_mem_pd_mask = u3_hhi_mem_pd_mask;
-			phy->u3_ctrl_iso_shift = u3_ctrl_iso_shift;
+			phy->u30_ctrl_sleep_shift = u3_ctrl_sleep_shift;
+			phy->u30_hhi_mem_pd_shift = u3_hhi_mem_pd_shift;
+			phy->u30_hhi_mem_pd_mask = u3_hhi_mem_pd_mask;
+			phy->u30_ctrl_iso_shift = u3_ctrl_iso_shift;
 			phy->reset_regs = reset_base;
 			power_switch_to_pcie(phy);
 		}
@@ -718,7 +719,6 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 			ret = PTR_ERR(phy->clk);
 			return ret;
 		}
-
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
 	}
 

@@ -11,6 +11,7 @@ config AMLOGIC_PAGE_TRACE
 	bool "Amlogic trace for page allocate"
 	depends on AMLOGIC_MEMORY_EXTEND
 	depends on KALLSYMS
+	depends on !NUMA_BALANCING
 	default y
 	help
 		Amlogic page trace will record function address of caller for page
@@ -18,6 +19,17 @@ config AMLOGIC_PAGE_TRACE
 		information is stored in a pre-allocated memory block. And can be shown
 		with allocate page count information of each caller functions from
 		/proc/pagetrace
+
+config AMLOGIC_SLAB_TRACE
+	bool "Amlogic trace for slab usage"
+	depends on SLUB
+	depends on AMLOGIC_PAGE_TRACE
+	default y
+	help
+		Amlogic slab trace will record function address of caller for slab
+		allocate/free(kmalloc-xxxx only). trace information is stored in
+		a rb tree. And can be shown with allocate size information of
+		each caller functions from /proc/slabtrace
 
 config AMLOGIC_RAMDUMP
 	bool "Amlogic RAM DUMP support"
@@ -69,3 +81,13 @@ config AMLOGIC_SLUB_DEBUG
 	help
 		This option open trace debug for each slub objects. And will give
 		slub objdect allocator information when detected bad objects
+
+config AMLOGIC_WATCHPOINT
+	tristate "Amlogic point driver"
+	depends on HAVE_HW_BREAKPOINT
+	depends on AMLOGIC_MEMORY_EXTEND
+	default y
+	help
+		This driver export a debug sysfs in order
+		to using watch point function on ARMv8.
+		say y to enable Amlogic watch point driver

@@ -35,6 +35,8 @@
 #include "meson_mhu.h"
 
 struct device *the_scpi_device;
+u32 num_scp_chans;
+
 
 #define DRIVER_NAME		"meson_mhu"
 
@@ -59,15 +61,15 @@ struct device *the_scpi_device;
  * |  CPU_INTR_H_CLEAR  | 0x048 |  TX_CLEAR(H)  |
  * +--------------------+-------+---------------+
  */
-#define RX_OFFSET(chan)		(0x10 + (idx) * 0xc)
-#define RX_STATUS(chan)		(RX_OFFSET(chan) + 0x4)
-#define RX_SET(chan)			RX_OFFSET(chan)
-#define RX_CLEAR(chan)		(RX_OFFSET(chan) + 0x8)
+#define RX_OFFSET(chan)     (0x10 + (chan) * 0xc)
+#define RX_STATUS(chan)     (RX_OFFSET(chan) + 0x4)
+#define RX_SET(chan)        RX_OFFSET(chan)
+#define RX_CLEAR(chan)      (RX_OFFSET(chan) + 0x8)
 
-#define TX_OFFSET(chan)		(0x34 + (idx) * 0xc)
-#define TX_STATUS(chan)		(TX_OFFSET(chan) + 0x4)
-#define TX_SET(chan)			TX_OFFSET(chan)
-#define TX_CLEAR(chan)		(TX_OFFSET(chan) + 0x8)
+#define TX_OFFSET(chan)     (0x34 + (chan) * 0xc)
+#define TX_STATUS(chan)     (TX_OFFSET(chan) + 0x4)
+#define TX_SET(chan)        TX_OFFSET(chan)
+#define TX_CLEAR(chan)      (TX_OFFSET(chan) + 0x8)
 
 /*
  * +---------------+-------+----------------+
@@ -220,6 +222,11 @@ static int mhu_probe(struct platform_device *pdev)
 
 	ctlr->dev = dev;
 	platform_set_drvdata(pdev, ctlr);
+
+	num_scp_chans = 0;
+	of_property_read_u32(dev->of_node, "num-chans-to-scp", &num_scp_chans);
+	if (num_scp_chans == 0 || num_scp_chans > 2)
+		num_scp_chans = CHANNEL_MAX;
 
 	l = devm_kzalloc(dev, sizeof(*l) * CHANNEL_MAX, GFP_KERNEL);
 	if (!l)

@@ -18,6 +18,13 @@
 #ifndef AM_CSC_H
 #define AM_CSC_H
 
+extern uint debug_csc;
+#define pr_csc(lvl, fmt, args...)\
+	do {\
+		if (debug_csc & lvl)\
+			pr_info(fmt, ## args);\
+	} while (0)
+
 /* white balance value */
 extern void ve_ogo_param_update(void);
 extern struct tcon_rgb_ogo_s video_rgb_ogo;
@@ -75,6 +82,16 @@ enum mtx_en_e {
 	OSD1_MTX_EN
 };
 
+enum output_format_e {
+	UNKNOWN_FMT = 0,
+	BT709,
+	BT2020,
+	BT2020_PQ,
+	BT2020_PQ_DYNAMIC,
+	BT2020_HLG,
+	BT2100_IPT
+};
+
 #define POST_MTX_EN_MASK (1 << POST_MTX_EN)
 #define VD2_MTX_EN_MASK  (1 << VD2_MTX_EN)
 #define VD1_MTX_EN_MASK  (1 << VD1_MTX_EN)
@@ -83,6 +100,28 @@ enum mtx_en_e {
 
 #define HDR_SUPPORT		(1 << 2)
 #define HLG_SUPPORT		(1 << 3)
+
+bool is_vinfo_available(const struct vinfo_s *vinfo);
+int is_sink_cap_changed(const struct vinfo_s *vinfo,
+			int *p_current_hdr_cap,
+			int *p_current_sink_available);
+int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
+
+#define SIG_CS_CHG	0x01
+#define SIG_SRC_CHG	0x02
+#define SIG_PRI_INFO	0x04
+#define SIG_KNEE_FACTOR	0x08
+#define SIG_HDR_MODE	0x10
+#define SIG_HDR_SUPPORT	0x20
+#define SIG_WB_CHG	0x40
+#define SIG_HLG_MODE	0x80
+#define SIG_HLG_SUPPORT	0x100
+#define SIG_OP_CHG	0x200
+#define SIG_SRC_OUTPUT_CHG	0x400/*for box*/
+#define SIG_HDR10_PLUS_MODE	0x800
+#define SIG_COLORIMETRY_SUPPORT 0x1000
+#define SIG_OUTPUT_MODE_CHG	0x2000
+#define SIG_HDR_OOTF_CHG 0x4000
 
 #define LUT_289_SIZE	289
 extern unsigned int lut_289_mapping[LUT_289_SIZE];
@@ -97,16 +136,44 @@ extern uint hdr_flag;
 extern int video_rgb_ogo_xvy_mtx_latch;
 extern int video_rgb_ogo_xvy_mtx;
 extern int tx_op_color_primary;
-extern uint cur_csc_type;
+extern uint cur_csc_type[VD_PATH_MAX];
 
+int get_hdr_policy(void);
+enum output_format_e get_force_output(void);
+
+/* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
+extern uint hdr_process_mode[VD_PATH_MAX];
+extern uint cur_hdr_process_mode[VD_PATH_MAX];
+
+/* 0: bypass, 1:hdr10p->hdr, 2:hdr10p->sdr, 3:hdr10p->hlg */
+extern uint hdr10_plus_process_mode[VD_PATH_MAX];
+extern uint cur_hdr10_plus_process_mode[VD_PATH_MAX];
+
+/* 0: hlg->hlg, 1:hlg->sdr 2:hlg->hdr*/
+extern uint hlg_process_mode[VD_PATH_MAX];
+extern uint cur_hlg_process_mode[VD_PATH_MAX];
+
+/* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg */
+extern uint sdr_process_mode[VD_PATH_MAX];
+extern uint cur_sdr_process_mode[VD_PATH_MAX];
+
+/* 0: tx don't support hdr10+, 1: tx support hdr10+*/
+extern uint tx_hdr10_plus_support;
 
 extern int amvecm_matrix_process(
-	struct vframe_s *vf, struct vframe_s *vf_rpt, int flags);
+	struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
+	enum vd_path_e vd_path);
 extern int amvecm_hdr_dbg(u32 sel);
 
 extern u32 get_video_enabled(void);
-extern void get_hdr_source_type(void);
+extern u32 get_videopip_enabled(void);
 
+void set_video_mute(bool on);
+int get_video_mute(void);
+
+extern void get_hdr_source_type(void);
+extern void get_cur_vd_signal_type(enum vd_path_e vd_path);
+extern enum color_primary_e get_color_primary(void);
 /*hdr*/
 /*#define DBG_BUF_SIZE (1024)*/
 
@@ -125,6 +192,48 @@ struct hdr_data_t {
 extern void hdr_init(struct hdr_data_t *phdr_data);
 extern void hdr_exit(void);
 extern void hdr_set_cfg_osd_100(int val);
+extern void hdr_osd_off(void);
+extern void hdr_vd1_off(void);
+void hdr_vd2_off(void);
+extern bool is_video_layer_on(enum vd_path_e vd_path);
+
+#define HDR_MODULE_OFF		0
+#define HDR_MODULE_ON		1
+#define HDR_MODULE_BYPASS	2
+extern void set_hdr_module_status(enum vd_path_e vd_path, int status);
+extern int get_hdr_module_status(enum vd_path_e vd_path);
+extern int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
+
+#define PROC_BYPASS			0
+/* to backward compatible */
+#define PROC_MATCH			1
+#define PROC_OFF			4
+/* sdr */
+#define PROC_SDR_TO_HDR		1
+#define PROC_SDR_TO_HLG		2
+/* hdr */
+#define PROC_HDR_TO_SDR		1
+#define PROC_HDR_TO_HLG		2
+/* hlg */
+#define PROC_HLG_TO_SDR		1
+#define PROC_HLG_TO_HDR		2
+/* hdr+ */
+#define PROC_HDRP_TO_HDR	1
+#define PROC_HDRP_TO_SDR	2
+#define PROC_HDRP_TO_HLG	3
+
+extern uint get_hdr10_plus_pkt_delay(void);
+extern void update_hdr10_plus_pkt(bool enable,
+	void *hdr10plus_params,
+	void *send_info);
+extern void send_hdr10_plus_pkt(enum vd_path_e vd_path);
+
+#define HDRPLUS_PKT_UPDATE	2
+#define HDRPLUS_PKT_REPEAT	1
+#define HDRPLUS_PKT_IDLE	0
+
+void hdr10_plus_process_update(int force_source_lumin);
+extern int customer_hdr_clipping;
 
 #endif /* AM_CSC_H */
 

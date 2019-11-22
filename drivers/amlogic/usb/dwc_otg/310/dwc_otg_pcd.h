@@ -275,6 +275,7 @@ void dwc_otg_iso_buffer_done(dwc_otg_pcd_t *pcd, dwc_otg_pcd_ep_t *ep,
 
 extern void do_test_mode(void *data);
 extern int aml_new_usb_get_mode(void);
+extern int aml_new_otg_get_mode(void);
 #ifdef CONFIG_AMLOGIC_USB3PHY
 extern void set_usb_phy_device_tuning(int port, int default_val);
 #endif

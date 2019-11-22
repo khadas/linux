@@ -36,6 +36,8 @@ Required properties:
 	"amlogic,meson-g12a-spicc" on Amlogic G12A and compatible SoCs
 	"amlogic,meson-g12b-spicc", "amlogic,meson-g12a-spicc"
 				   on Amlogic G12B and compatible SoCs
+	"amlogic,meson-tl1-spicc", "amlogic,meson-g12a-spicc"
+				   on Amlogic TL1 and compatible SoCs
  - reg: physical base address and length of the controller registers
  - interrupts: The interrupt specifier
  - clock-names: Must contain "core"

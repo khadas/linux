@@ -246,6 +246,13 @@
 		};
 	};
 
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+	};
+
 	picdec_cma_reserved:linux,picdec {
 		compatible = "shared-dma-pool";
 		reusable;
@@ -258,13 +265,6 @@
 		compatible = "amlogic, picdec";
 		memory-region = <&picdec_cma_reserved>;
 		dev_name = "picdec";
-		status = "okay";
-	};
-
-	codec_mm {
-		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved>;
-		dev_name = "codec_mm";
 		status = "okay";
 	};
 
@@ -414,7 +414,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <17>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -432,6 +432,7 @@
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -518,6 +519,11 @@
 		};
 		keysn_16:key_16{
 			key-name = "netflix_mgkid";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_17:key_17{
+			key-name = "attestationdevidbox";// attest dev id box
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
@@ -1046,7 +1052,115 @@
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <970000>;
+		};
+	};
+
+	cpu_opp_table1: cpu_opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <810000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <820000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <860000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <900000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <910000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <910000>;
+		};
+	};
+
+	cpu_opp_table2: cpu_opp_table2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <810000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <820000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <860000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <860000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <860000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <860000>;
 		};
 	};
 
@@ -1058,6 +1172,38 @@
 	};
 
 }; /* end of / */
+
+&CPU0 {
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>;
+};
+
+&CPU1 {
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>;
+};
+
+&CPU2 {
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>;
+};
+
+&CPU3 {
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>;
+};
 
 &meson_fb {
 	status = "okay";
@@ -1307,48 +1453,39 @@
 		status = "okay";
 	};
 
-	earc:earc {
-		compatible = "amlogic, sm1-snd-earc";
-		#sound-dai-cells = <0>;
-
-		clocks = <&clkaudio CLKID_AUDIO_GATE_EARCRX
-			&clkaudio CLKID_EARCRX_CMDC
-			&clkaudio CLKID_EARCRX_DMAC
-			&clkc CLKID_FCLK_DIV5
-			&clkc CLKID_FCLK_DIV3
-			>;
-		clock-names = "rx_gate",
-			"rx_cmdc",
-			"rx_dmac",
-			"rx_cmdc_srcpll",
-			"rx_dmac_srcpll";
-
-		interrupts = <
-			GIC_SPI 88 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 87 IRQ_TYPE_EDGE_RISING
-		>;
-		interrupt-names = "rx_cmdc", "rx_dmac";
-
-		status = "okay";
-	};
-
 	asrca: resample@0 {
-		compatible = "amlogic, sm1-resample";
-		clocks = <&clkc CLKID_MPLL3
-				&clkaudio CLKID_AUDIO_MCLK_F
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		compatible = "amlogic, sm1-resample-a";
+		clocks = <&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_MCLK_A
+			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
 		 *	TDMIN_C, 2
 		 *	SPDIFIN, 3
-		 *	PDMIN,  4
+		 *	PDMIN,   4
 		 *	NONE,
 		 *	TDMIN_LB, 6
 		 *	LOOPBACK, 7
 		 */
-		resample_module = <4>;
+
+		resample_module = <3>;
+
+		status = "okay";
+	};
+
+	asrcb: resample@1 {
+		compatible = "amlogic, sm1-resample-b";
+
+		clocks = <&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_F
+			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*this resample is only used for loopback_A.*/
+
 		status = "disabled";
 	};
 
@@ -1519,6 +1656,10 @@
 		status = "okay";
 	};
 }; /* end of audiobus */
+
+&earc {
+	status = "okay";
+};
 
 &pinctrl_periphs {
 	tdmout_a: tdmout_a {
@@ -1736,8 +1877,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};

@@ -295,11 +295,19 @@ enum tvin_color_fmt_range_e {
 	TVIN_COLOR_FMT_RANGE_MAX,
 };
 
+const char *tvin_trans_color_range_str(
+	enum tvin_color_fmt_range_e color_range);
+
 enum tvin_force_color_range_e {
 	COLOR_RANGE_AUTO = 0,
 	COLOR_RANGE_FULL,
 	COLOR_RANGE_LIMIT,
+	COLOR_RANGE_NULL,
 };
+
+const char *tvin_trans_force_range_str(
+	enum tvin_force_color_range_e force_range);
+
 const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt);
 enum tvin_scan_mode_e {
 	TVIN_SCAN_MODE_NULL = 0,
@@ -314,6 +322,29 @@ struct tvin_info_s {
 	enum tvin_color_fmt_e cfmt;
 	unsigned int fps;
 	unsigned int is_dvi;
+	/*
+	 * bit 29: present_flag
+	 * bit 28-26: video_format
+	 * "component", "PAL", "NTSC", "SECAM",
+	 * "MAC", "unspecified"
+	 * bit 25: range "limited", "full_range"
+	 * bit 24: color_description_present_flag
+	 * bit 23-16: color_primaries
+	 * unknown", "bt709", "undef", "bt601",
+	 * "bt470m", "bt470bg", "smpte170m", "smpte240m",
+	 * "film", "bt2020"
+	 * bit 15-8: transfer_characteristic
+	 * "unknown", "bt709", "undef", "bt601",
+	 * "bt470m", "bt470bg", "smpte170m", "smpte240m",
+	 * "linear", "log100", "log316", "iec61966-2-4",
+	 * "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
+	 * "smpte-st-2084", "smpte-st-428"
+	 * bit 7-0: matrix_coefficient
+	 * "GBR", "bt709", "undef", "bt601",
+	 * "fcc", "bt470bg", "smpte170m", "smpte240m",
+	 * "YCgCo", "bt2020nc", "bt2020c"
+	 */
+	unsigned int signal_type;
 };
 
 struct tvin_frontend_info_s {
@@ -460,6 +491,7 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_S_AFE_CVBS_STD     _IOW(_TM_T, 0x1b, enum tvin_sig_fmt_e)
 #define TVIN_IOC_CALLMASTER_SET     _IOW(_TM_T, 0x1c, enum tvin_port_e)
 #define TVIN_IOC_CALLMASTER_GET	    _IO(_TM_T, 0x1d)
+#define TVIN_IOC_G_AFE_CVBS_STD     _IOW(_TM_T, 0x1e, enum tvin_sig_fmt_e)
 #define TVIN_IOC_LOAD_REG          _IOW(_TM_T, 0x20, struct am_regs_s)
 #define TVIN_IOC_S_AFE_SONWON     _IO(_TM_T, 0x22)
 #define TVIN_IOC_S_AFE_SONWOFF     _IO(_TM_T, 0x23)
@@ -467,17 +499,11 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_S_VDIN_V4L2START  _IOW(_TM_T, 0x25, struct vdin_v4l2_param_s)
 #define TVIN_IOC_S_VDIN_V4L2STOP   _IO(_TM_T, 0x26)
 #define TVIN_IOC_S_AFE_SONWCFG     _IOW(_TM_T, 0x27, unsigned int)
+#define TVIN_IOC_S_DV_DESCRAMBLE	_IOW(_TM_T, 0x28, unsigned int)
 
 /*
  *function defined applied for other driver
  */
-
-/*
- *adc pll ctl, atv demod & tvafe use the same adc module
- * module index: atv demod:0x01; tvafe:0x2
- */
-
-/* extern void adc_set_pll_cntl(bool on, unsigned int module_sel);*/
 
 struct dfe_adcpll_para {
 	unsigned int adcpllctl;
@@ -507,8 +533,24 @@ struct rx_audio_stat_s {
 	int aud_type;
 	/* indicate if audio fifo start threshold is crossed */
 	bool afifo_thres_pass;
+	/*
+	 * 0 [ch1 ch2]
+	 * 1,2,3 [ch1 ch2 ch3 ch4]
+	 * 4,8 [ch1 ch2 ch5 ch6]
+	 * 5,6,7,9,10,11 [ch1 ch2 ch3 ch4 ch5 ch6]
+	 * 12,16,24,28 [ch1 ch2 ch5 ch6 ch7 ch8]
+	 * 20 [ch1 ch2 ch7 ch8]
+	 * 21,22,23[ch1 ch2 ch3 ch4 ch7 ch8]
+	 * all others [all of 8ch]
+	 */
+	int aud_alloc;
 };
 
+extern void adc_pll_down(void);
+/*ADC_EN_ATV_DEMOD	0x1*/
+/*ADC_EN_TVAFE		0x2*/
+/*ADC_EN_DTV_DEMOD	0x4*/
+/*ADC_EN_DTV_DEMODPLL	0x8*/
 extern int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara);
 extern void tvafe_set_ddemod_default(void);/* add for dtv demod*/
 extern void rx_get_audio_status(struct rx_audio_stat_s *aud_sts);

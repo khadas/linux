@@ -46,13 +46,13 @@ struct mmc_host *sdio_host;
 
 static unsigned int log2i(unsigned int val)
 {
-	unsigned int ret = -1;
+	int ret = -1;
 
 	while (val != 0) {
 		val >>= 1;
 		ret++;
 	}
-	return ret;
+	return (ret == -1) ? 0 : ret;
 }
 
 #ifdef AML_CALIBRATION
@@ -596,7 +596,7 @@ u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 				break;
 			}
 		} else {
-			pr_err("Tuning transfer error: nmatch=%d tuning_err:0x%x\n",
+			pr_debug("Tuning transfer error: nmatch=%d tuning_err:0x%x\n",
 					nmatch, tuning_err);
 			break;
 		}
@@ -617,6 +617,8 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 	u32 vctrl;
 	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
 	u32 clk_rate = 1000000000, clock, clk_div, nmatch = 0;
+	u8 *adj_print = host->adj_win;
+	u32 len = 0;
 	int adj_delay = 0;
 	const u8 *blk_pattern = tuning_data->blk_pattern;
 	unsigned int blksz = tuning_data->blksz;
@@ -638,6 +640,8 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 	pr_info("%s: clk %d %s tuning start\n",
 		mmc_hostname(mmc), (ctrl->ddr ? (clock / 2) : clock),
 			(ctrl->ddr ? "DDR mode" : "SDR mode"));
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", pdata->pinname);
 	for (adj_delay = 0; adj_delay < clk_div; adj_delay++) {
 		adjust = readl(host->base + SD_EMMC_ADJUST);
 		gadjust->adj_delay = adj_delay;
@@ -656,7 +660,9 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 			if (curr_win_start < 0)
 				curr_win_start = adj_delay;
 			curr_win_size++;
-			pr_info("%s: rx_tuning_result[%d] = %d\n",
+			len += sprintf(adj_print + len,
+				"%d ", adj_delay);
+			pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(host->mmc), adj_delay, nmatch);
 		} else {
 			if (curr_win_start >= 0) {
@@ -675,6 +681,9 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 			}
 		}
 	}
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
+
 	/* last point is ok! */
 	if (curr_win_start >= 0) {
 		if (best_win_start < 0) {
@@ -3118,6 +3127,11 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_init_host;
 	}
+	host->adj_win = kzalloc(sizeof(u8) * ADJ_WIN_PRINT_MAXLEN, GFP_KERNEL);
+	if (host->adj_win == NULL) {
+		ret = -ENOMEM;
+		goto fail_init_host;
+	}
 
 	spin_lock_init(&host->mrq_lock);
 	mutex_init(&host->pinmux_lock);
@@ -3256,6 +3270,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		mmc->f_max = pdata->f_max;
 		mmc->max_current_180 = 300; /* 300 mA in 1.8V */
 		mmc->max_current_330 = 300; /* 300 mA in 3.3V */
+		pdata->signal_voltage = 0xff;
 
 		if (aml_card_type_sdio(pdata)) { /* if sdio_wifi */
 			/*	mmc->host_rescan_disable = true;*/
@@ -3338,6 +3353,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		if (ret)
 			dev_warn(mmc_dev(host->mmc),
 					"Unable to creat sysfs attributes\n");
+		ret = device_create_file(&pdev->dev, &dev_attr_emmc_cmd_window);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc),
+					"Unable to creat sysfs attributes\n");
 	}
 	return 0;
 
@@ -3349,6 +3368,7 @@ free_cali:
 	kfree(host->desc_bn);
 #endif
 	kfree(host->blk_test);
+	kfree(host->adj_win);
 fail_init_host:
 	kfree(host);
 	pr_err("%s() fail!\n", __func__);
@@ -3380,6 +3400,7 @@ static int meson_mmc_remove(struct platform_device *pdev)
 		clk_disable_unprepare(host->core_clk);
 
 	kfree(host->blk_test);
+	kfree(host->adj_win);
 	mmc_free_host(host->mmc);
 	kfree(pdata);
 	kfree(host);
@@ -3616,7 +3637,7 @@ static struct meson_mmc_data mmc_data_tl1 = {
 	.sdmmc.init.core_phase = 3,
 	.sdmmc.init.tx_phase = 0,
 	.sdmmc.init.rx_phase = 0,
-	.sdmmc.hs.core_phase = 1,
+	.sdmmc.hs.core_phase = 3,
 	.sdmmc.ddr.core_phase = 2,
 	.sdmmc.hs2.core_phase = 2,
 	.sdmmc.hs4.core_phase = 0,
@@ -3650,6 +3671,29 @@ static struct meson_mmc_data mmc_data_sm1 = {
 	.sdmmc.sdr104.core_phase = 2,
 	.sdmmc.sdr104.tx_phase = 0,
 };
+
+static struct meson_mmc_data mmc_data_tm2 = {
+	.chip_type = MMC_CHIP_TM2,
+	.port_a_base = 0xffe03000,
+	.port_b_base = 0xffe05000,
+	.port_c_base = 0xffe07000,
+	.pinmux_base = 0xff634400,
+	.clksrc_base = 0xff63c000,
+	.ds_pin_poll = 0x3a,
+	.ds_pin_poll_en = 0x48,
+	.ds_pin_poll_bit = 13,
+	.sdmmc.init.core_phase = 3,
+	.sdmmc.init.tx_phase = 0,
+	.sdmmc.init.rx_phase = 0,
+	.sdmmc.hs.core_phase = 3,
+	.sdmmc.ddr.core_phase = 2,
+	.sdmmc.hs2.core_phase = 2,
+	.sdmmc.hs4.core_phase = 0,
+	.sdmmc.hs4.tx_delay = 16,
+	.sdmmc.sd_hs.core_phase = 2,
+	.sdmmc.sdr104.core_phase = 2,
+};
+
 static const struct of_device_id meson_mmc_of_match[] = {
 	{
 		.compatible = "amlogic, meson-mmc-gxbb",
@@ -3706,6 +3750,10 @@ static const struct of_device_id meson_mmc_of_match[] = {
 	{
 		.compatible = "amlogic, meson-mmc-sm1",
 		.data = &mmc_data_sm1,
+	},
+	{
+		.compatible = "amlogic, meson-mmc-tm2",
+		.data = &mmc_data_tm2,
 	},
 
 	{}

@@ -786,6 +786,7 @@ extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 					       char topology[8]);
 extern void drm_mode_put_tile_group(struct drm_device *dev,
 				   struct drm_tile_group *tg);
+struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 
 /* Helpers */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,

@@ -177,9 +177,11 @@ enum {
 #define VPP_PHASECTL_INIRPTNUMT_BIT 5
 #define VPP_PHASECTL_INIRCVNUMT_BIT 0
 
+#define VPP_PPS_LAST_LINE_FIX_BIT     24
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19
+#define VPP_PPS_LAST_LINE_FIX      BIT(24)
 #define VPP_LINE_BUFFER_EN          (1 << 21)
 #define VPP_SC_PREHORZ_EN           (1 << 20)
 #define VPP_SC_PREVERT_EN           (1 << 19)
@@ -238,6 +240,13 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 }
 #endif
 
+/* 0: off, 1: vpp mute 2:dv mute */
+#define VIDEO_MUTE_OFF		0
+#define VIDEO_MUTE_ON_VPP	1
+#define VIDEO_MUTE_ON_DV	2
+void set_video_mute(bool on);
+int get_video_mute(void);
+
 int query_video_status(int type, int *value);
 u32 set_blackout_policy(int policy);
 u32 get_blackout_policy(void);
@@ -247,5 +256,8 @@ void set_video_angle(u32 s_value);
 u32 get_video_angle(void);
 extern unsigned int DI_POST_REG_RD(unsigned int addr);
 extern int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+void DI_POST_UPDATE_MC(void);
+
 extern void videosync_pcrscr_update(s32 inc, u32 base);
+void vsync_notify_videosync(void);
 #endif /* VIDEO_H */

@@ -151,12 +151,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
-
-		/*vbi reserved mem*/
-		vbi_reserved:linux,vbi {
-			compatible = "amlogic, vbi-mem";
-			size = <0x0 0x100000>;
-		};
 	};
 
 	/* for external keypad */
@@ -195,7 +189,7 @@
 		reg = <0x0 0xff3f0000 0x0 0x10000
 			0x0 0xff634540 0x0 0x8
 			0x0 0xff634558 0x0 0xc
-			0x0 0xffd01084 0x0 0x4>;
+			0x0 0xffd01008 0x0 0x4>;
 		interrupts = <0 8 1
 				0 9 1>;
 
@@ -609,11 +603,9 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		memory-region = <&vbi_reserved>;
 		dev_name = "vbi";
 		status = "okay";
 		interrupts = <0 83 1>;
-		reserve-iomap = "true";
 	};
 
 	tvafe_avin_detect {
@@ -668,13 +660,16 @@
 	};
 
 	tuner: tuner {
+		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_name = "si2151_tuner";
-		tuner_i2c_adap = <&i2c1>;
-		tuner_i2c_addr = <0x60>;
-		/* tuner_xtal = <0>; */ /* unuse for si2151 */
-		/* tuner_xtal_mode = <0>; */
-		/* tuner_xtal_cap = <0>; */
+		tuner_cur = <0>; /* default use tuner */
+		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner_name_0 = "si2151_tuner";
+		tuner_i2c_adap_0 = <&i2c1>;
+		tuner_i2c_addr_0 = <0x60>;
+		/* tuner_xtal_0 = <0>; */ /* unuse for si2151 */
+		/* tuner_xtal_mode_0 = <0>; */
+		/* tuner_xtal_cap_0 = <0>; */
 	};
 
 	atv-demod {

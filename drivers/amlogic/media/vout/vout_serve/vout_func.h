@@ -36,6 +36,7 @@
 #define VPU_VENCX_CLK_CTRL                         0x2785
 #define VPP_POSTBLEND_H_SIZE                       0x1d21
 #define VPP2_POSTBLEND_H_SIZE                      0x1921
+#define VPP_WRBAK_CTRL                             0x1df9
 
 struct vout_cdev_s {
 	dev_t         devno;

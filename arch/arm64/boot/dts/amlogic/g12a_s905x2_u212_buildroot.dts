@@ -18,6 +18,7 @@
 /dts-v1/;
 
 #include "mesong12a.dtsi"
+#include "mesong12a_drm.dtsi"
 
 / {
 	model = "Amlogic";
@@ -724,7 +725,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;

@@ -102,9 +102,9 @@ static void aml_dma_put(void *buf_priv)
 	buf->vaddr = NULL;
 	clear_dma_buffer((struct aml_dma_buffer *)buf->priv, buf->index);
 	put_device(buf->dev);
-	kfree(buf);
 	ge2d_log_dbg("ge2d free:aml_dma_buf=0x%p,buf->index=%d\n",
 		buf, buf->index);
+	kfree(buf);
 }
 
 static void *aml_dma_alloc(struct device *dev, unsigned long attrs,
@@ -129,6 +129,7 @@ static void *aml_dma_alloc(struct device *dev, unsigned long attrs,
 	if (cma_pages) {
 		paddr = page_to_phys(cma_pages);
 	} else {
+		kfree(buf);
 		pr_err("failed to alloc cma pages.\n");
 		return NULL;
 	}
@@ -148,13 +149,15 @@ static int aml_dma_mmap(void *buf_priv, struct vm_area_struct *vma)
 {
 	struct aml_dma_buf *buf = buf_priv;
 	unsigned long pfn = 0;
-	unsigned long vsize = vma->vm_end - vma->vm_start;
+	unsigned long vsize;
 	int ret = -1;
 
 	if (!buf || !vma) {
 		pr_err("No memory to map\n");
 		return -EINVAL;
 	}
+
+	vsize = vma->vm_end - vma->vm_start;
 
 	pfn = buf->dma_addr >> PAGE_SHIFT;
 	ret = remap_pfn_range(vma, vma->vm_start, pfn,
@@ -206,11 +209,6 @@ static int aml_dmabuf_ops_attach(struct dma_buf *dbuf, struct device *dev,
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		struct page *page = phys_to_page(phys);
 
-		if (!page) {
-			sg_free_table(sgt);
-			kfree(attach);
-			return -ENOMEM;
-		}
 		sg_set_page(sg, page, PAGE_SIZE, 0);
 		phys += PAGE_SIZE;
 	}

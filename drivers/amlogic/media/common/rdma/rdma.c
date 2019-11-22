@@ -254,8 +254,8 @@ static void line_n_int_rdma_irq(void *arg)
 		force_rdma_config[LINE_N_INT_RDMA] = 1;
 	else
 		force_rdma_config[LINE_N_INT_RDMA] = 0;
-	rdma_done[VSYNC_RDMA] = true;
-	irq_count[VSYNC_RDMA]++;
+	rdma_done[LINE_N_INT_RDMA] = true;
+	irq_count[LINE_N_INT_RDMA]++;
 }
 
 u32 VSYNC_RD_MPEG_REG(u32 adr)
@@ -428,8 +428,10 @@ static int  __init rdma_init(void)
 
 {
 	second_rdma_feature = 0;
+#if 0 /*def LINE_INT_WORK_AROUND */
 	if (is_meson_g12b_revb())
 		second_rdma_feature = 1;
+#endif
 
 	cur_enable[VSYNC_RDMA] = 0;
 	enable[VSYNC_RDMA] = 1;

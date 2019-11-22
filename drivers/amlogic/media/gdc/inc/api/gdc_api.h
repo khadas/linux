@@ -21,8 +21,6 @@
 #include <linux/of_address.h>
 #include <linux/dma-direction.h>
 
-extern struct gdc_manager_s gdc_manager;
-
 enum gdc_memtype_s {
 	AML_GDC_MEM_ION,
 	AML_GDC_MEM_DMABUF,
@@ -216,13 +214,7 @@ struct gdc_cmd_s {
 	};
 	uint32_t v_base_addr;
 
-	//when inititialised this callback will be called
-	//to update frame buffer addresses and offsets
-	void (*get_frame_buffer)(uint32_t y_base_addr,
-			uint32_t uv_base_addr,
-			uint32_t y_line_offset,
-			uint32_t uv_line_offset);
-	void *fh;
+	unsigned char wait_done_flag;
 };
 
 /* path: "/vendor/lib/firmware/gdc/" */

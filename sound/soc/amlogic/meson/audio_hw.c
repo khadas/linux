@@ -434,8 +434,10 @@ static void i2sin_fifo2_set_buf(u32 addr, u32 size, u32 src, u32 ch)
 	);
 
 	if (audio_in_source == 1) {
-		/* ATV from adec */
-		aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 7);
+		/* commented it, selected by atv demod,
+		 * select 0 for non standard signal.
+		 */
+		/*aml_audin_write(AUDIN_ATV_DEMOD_CTRL, 7);*/
 		aml_audin_update_bits(AUDIN_FIFO2_CTRL,
 				 (0x7 << AUDIN_FIFO_DIN_SEL),
 				 (ATV_ADEC << AUDIN_FIFO_DIN_SEL));
@@ -457,6 +459,22 @@ static void i2sin_fifo2_set_buf(u32 addr, u32 size, u32 src, u32 ch)
 		aml_audin_write(AUDIN_FIFO2_CTRL1, 0x0c);
 	}
 
+}
+
+/* source select
+ * 0: select from ATV;
+ * 1: select from ADEC;
+ */
+void atv_src_select(bool src)
+{
+	aml_audin_update_bits(AUDIN_ATV_DEMOD_CTRL,
+			0x3, (src ? 0x3 : 0x0));
+}
+
+void atv_LR_swap(bool swap)
+{
+	aml_audin_update_bits(AUDIN_ATV_DEMOD_CTRL,
+			0x1 << 2, swap << 2);
 }
 
 static void spdifin_reg_set(void)

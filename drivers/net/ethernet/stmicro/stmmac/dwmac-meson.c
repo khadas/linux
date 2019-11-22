@@ -248,6 +248,21 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	} else {
 		pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	if (res) {
+		addr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(addr)) {
+			dev_err(&pdev->dev, "Unable to map %d\n", __LINE__);
+			return NULL;
+		}
+
+		ee_reset_base = addr;
+		pr_info(" ee eth reset:Addr = %p\n", ee_reset_base);
+	} else {
+		ee_reset_base = NULL;
+		dev_err(&pdev->dev, "Unable to get resource(%d)\n", __LINE__);
+	}
 	pr_debug("Ethernet: pinmux setup ok\n");
 	return PREG_ETH_REG0;
 }
@@ -536,11 +551,11 @@ static int meson6_dwmac_resume(struct device *dev)
 	struct pinctrl *pin_ctrl;
 	struct pinctrl_state *turnon_tes = NULL;
 	pr_info("resuem inter = %d\n", is_internal_phy);
-	if ((is_internal_phy) && (support_mac_wol == 0)) {
-		if (ee_reset_base)
-			writel((1 << 11), (void __iomem	*)
-				(unsigned long)ee_reset_base);
+	if (ee_reset_base)
+		writel((1 << 11), (void __iomem	*)
+			(unsigned long)ee_reset_base);
 
+	if ((is_internal_phy) && (support_mac_wol == 0)) {
 		pin_ctrl = devm_pinctrl_get(dev);
 		if (IS_ERR_OR_NULL(pin_ctrl)) {
 			pr_info("pinctrl is null\n");

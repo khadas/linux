@@ -26,13 +26,13 @@
 #define DECODER_MOTION_BUFFER_4F_LENGTH     0x15a60
 /*motion is not use,only 3d-com need mem:1135x625x10bit/8 * 4 = 0x361ef8*/
 #define DECODER_VBI_ADDR_OFFSET             0x400000/*0x86000*/
-#define DECODER_VBI_SIZE                0x80000/*0x1000*/
+#define DECODER_VBI_SIZE                    0x80000/*0x1000*/
 #define DECODER_VBI_START_ADDR              0x0
 
 /* vbi start line: unit is hcount value */
 #define VBI_START_CC	0x54
 #define VBI_START_WSS	0x54
-#define VBI_START_TT	0x82
+#define VBI_START_TT	0x64
 #define VBI_START_VPS	0x82
 
 /* cvd2 function enable/disable defines*/
@@ -66,6 +66,11 @@
 enum tvafe_cvd2_state_e {
 	TVAFE_CVD2_STATE_INIT = 0,
 	TVAFE_CVD2_STATE_FIND,
+};
+
+enum tvafe_cvd2_shift_cnt_e {
+	TVAFE_CVD2_SHIFT_CNT_ATV = 0,
+	TVAFE_CVD2_SHIFT_CNT_AV,
 };
 
 /* ****************************************** */
@@ -117,6 +122,11 @@ struct tvafe_cvd2_lines_s {
 };
 #endif
 
+#define CVD2_AUTO_HS_DEFAULT    28
+#define CVD2_AUTO_HS_UNSTABLE   29
+#define CVD2_AUTO_HS_ADJ_DIR    30
+#define CVD2_AUTO_HS_ADJ_EN     31
+
 /* cvd2 signal information */
 struct tvafe_cvd2_info_s {
 	enum tvafe_cvd2_state_e state;
@@ -131,9 +141,17 @@ struct tvafe_cvd2_info_s {
 	unsigned short dgain[4];
 	unsigned short dgain_cnt;
 #endif
+	unsigned char snow_state[4]; /* 0:nosig, 1:stable */
 	unsigned int comb_check_cnt;
 	unsigned int fmt_shift_cnt;
+	unsigned short nonstd_cnt;
+	unsigned short nonstd_stable_cnt;
+	unsigned short nonstd_print_cnt;
+	bool scene_colorful;
+	bool nonstd_flag;
+	bool nonstd_flag_adv;
 	bool non_std_enable;
+	bool non_std_enable_tmp;
 	bool non_std_config;
 	bool non_std_worst;
 	bool adc_reload_en;
@@ -141,11 +159,15 @@ struct tvafe_cvd2_info_s {
 	bool vs_adj_en;
 	/*0:+;1:-*/
 	bool hs_adj_dir;
+	unsigned int auto_hs_flag;
 
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	struct tvafe_cvd2_lines_s vlines;
 #endif
 	unsigned int ntsc_switch_cnt;
+
+	unsigned int smr_cnt;
+	unsigned int isr_cnt;
 };
 
 /* CVD2 status list */
@@ -153,6 +175,7 @@ struct tvafe_cvd2_s {
 	struct tvafe_cvd2_hw_data_s hw_data[3];
 	struct tvafe_cvd2_hw_data_s hw;
 	struct tvafe_cvd2_info_s info;
+	struct tvafe_reg_table_s *pq_conf;
 	unsigned int fmt_loop_cnt;
 	unsigned char hw_data_cur;
 	enum tvin_port_e vd_port;
@@ -195,18 +218,21 @@ extern enum tvafe_cvbs_video_e tvafe_cvd2_get_lock_status(
 extern int tvafe_cvd2_get_atv_format(void);
 extern int tvafe_cvd2_get_hv_lock(void);
 extern void tvafe_cvd2_hold_rst(void);
-extern void tvafe_cvd2_set_reg8a(unsigned int v);
 extern void tvafe_snow_config(unsigned int onoff);
 extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void tvafe_snow_config_acd(void);
 extern void tvafe_snow_config_acd_resume(void);
 extern enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void);
-extern void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2);
 extern void cvd_vbi_mem_set(unsigned int offset, unsigned int size);
 extern void cvd_vbi_config(void);
 extern void tvafe_cvd2_rf_ntsc50_en(bool v);
+extern void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2);
 
 extern bool tvafe_snow_function_flag;
+extern bool reinit_scan;
+
+extern unsigned int try_fmt_max_atv;
+extern unsigned int try_fmt_max_av;
 
 #endif /* _TVAFE_CVD_H */
 

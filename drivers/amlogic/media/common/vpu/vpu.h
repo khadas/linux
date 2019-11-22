@@ -37,6 +37,7 @@ enum vpu_chip_e {
 	VPU_CHIP_G12B,
 	VPU_CHIP_TL1,
 	VPU_CHIP_SM1,
+	VPU_CHIP_TM2,
 	VPU_CHIP_MAX,
 };
 
@@ -89,6 +90,7 @@ struct vpu_data_s {
 
 	unsigned int module_init_table_cnt;
 	struct vpu_ctrl_s *module_init_table;
+	struct vpu_ctrl_s *hdmi_iso_pre_table;
 	struct vpu_ctrl_s *hdmi_iso_table;
 	struct vpu_reset_s *reset_table;
 };

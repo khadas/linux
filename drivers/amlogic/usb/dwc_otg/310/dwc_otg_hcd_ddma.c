@@ -1012,10 +1012,8 @@ stop_scan:
 		 */
 		if (halt_status == DWC_OTG_HC_XFER_STALL)
 			qh->data_toggle = DWC_OTG_HC_PID_DATA0;
-		else {
-			if (qtd)
-				dwc_otg_hcd_save_data_toggle(hc, hc_regs, qtd);
-		}
+		else
+			dwc_otg_hcd_save_data_toggle(hc, hc_regs, qtd);
 	}
 
 	if (halt_status == DWC_OTG_HC_XFER_COMPLETE) {

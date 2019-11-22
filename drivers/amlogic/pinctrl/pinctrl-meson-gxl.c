@@ -755,6 +755,7 @@ static const unsigned int ee_cec_pins[] = { GPIOAO_8 };
 /*i2s_out_ao*/
 static const unsigned int i2sout_ch23_ao8_pins[] = { GPIOAO_8 };
 static const unsigned int i2sout_ch45_ao9_pins[] = { GPIOAO_9 };
+static const unsigned int i2sout_ch67_tn_pins[] = { GPIO_TEST_N };
 
 /*spdif_out_ao*/
 static const unsigned int spdid_out_ao9_pins[] = { GPIOAO_9 };
@@ -793,13 +794,14 @@ static struct meson_pmx_group meson_gxl_aobus_groups[] = {
 	GROUP(ir_out_ao7,	0,	21),
 	GROUP(ao_cec,		0,	15),
 	GROUP(ee_cec,		0,	14),
-	GROUP(i2sout_ch23_ao8,	2,	0),
+	GROUP(i2sout_ch23_ao8,	1,	0),
 	GROUP(pwm_ao_a_ao8,	0,	17),
 	GROUP(ir_out_ao9,	0,	31),
 	GROUP(spdid_out_ao6,	0,	16),
 	GROUP(spdid_out_ao9,	0,	4),
-	GROUP(i2sout_ch45_ao9,	2,	1),
+	GROUP(i2sout_ch45_ao9,	1,	1),
 	GROUP(pwm_ao_b_ao9,	0,	3),
+	GROUP(i2sout_ch67_tn,	1,	2),
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -1093,6 +1095,7 @@ static const char * const pwm_ao_b_groups[] = {
 
 static const char * const i2s_out_ao_groups[] = {
 	"i2sout_ch23_ao8", "i2sout_ch45_ao9",
+	"i2sout_ch67_tn",
 };
 
 static const char * const spdif_out_ao_groups[] = {

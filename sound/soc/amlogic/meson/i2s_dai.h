@@ -28,4 +28,5 @@ struct aml_i2s {
 	int clk_data_pos;
 	unsigned long mclk;
 };
+
 #endif

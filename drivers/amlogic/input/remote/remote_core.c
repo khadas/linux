@@ -65,6 +65,8 @@ static void ir_do_keyup(struct remote_dev *dev)
 {
 	input_report_key(dev->input_device, dev->last_keycode, 0);
 	input_sync(dev->input_device);
+	if (dev->last_keycode == KEY_POWER)
+		pm_relax(dev->dev);
 	dev->keypressed = false;
 	dev->last_scancode = -1;
 	remote_dbg(dev->dev, "keyup!!\n");
@@ -145,7 +147,7 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 	if (status == REMOTE_NORMAL) {
 		keycode = dev->getkeycode(dev, scancode);
 		if (keycode == KEY_POWER)
-			pm_wakeup_event(dev->dev, 2000);
+			pm_stay_awake(dev->dev);
 		ir_do_keydown(dev, scancode, keycode);
 	}
 

@@ -9,7 +9,9 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#ifndef CONFIG_AMLOGIC_MODIFY /* save print time */
 #define pr_fmt(fmt)	"OF: fdt:" fmt
+#endif
 
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -605,8 +607,16 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 
 		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
+		#ifdef CONFIG_AMLOGIC_MODIFY
+			pr_emerg("\t%08lx - %08lx, %8ld KB, %s\n",
+				 (unsigned long)base,
+				 (unsigned long)(base + size),
+				 (unsigned long)(size >> 10),
+				 uname);
+		#else
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
+		#endif
 		else
 			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);

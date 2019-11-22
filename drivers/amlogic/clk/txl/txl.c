@@ -945,7 +945,6 @@ static void __init txl_clkc_init(struct device_node *np)
 		pr_err("%s: Unable to map clk base\n", __func__);
 		return;
 	}
-
 	/* Populate base address for PLLs */
 	for (i = 0; i < ARRAY_SIZE(txl_clk_plls); i++)
 	txl_clk_plls[i]->base = clk_base;
@@ -994,6 +993,7 @@ static void __init txl_clkc_init(struct device_node *np)
 
 	clk_data.clks = clks;
 	clk_data.clk_num = NR_CLKS;
+	clk_numbers = NR_CLKS;
 
 	/*register all clks*/
 	for (clkid = 0; clkid < CLOCK_GATE; clkid++) {
@@ -1005,7 +1005,7 @@ static void __init txl_clkc_init(struct device_node *np)
 
 	meson_txl_sdemmc_init();
 	meson_txl_media_init();
-	meson_init_gpu();
+	meson_txl_gpu_init();
 
 	parent_hw = clk_hw_get_parent(&txl_cpu_clk.mux.hw);
 	parent_clk = parent_hw->clk;

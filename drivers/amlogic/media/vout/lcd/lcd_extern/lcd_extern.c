@@ -1468,6 +1468,10 @@ static int lcd_extern_add_i2c(struct aml_lcd_extern_driver_s *ext_drv)
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_DLPC3439
 		ret = aml_lcd_extern_i2c_DLPC3439_probe(ext_drv);
 #endif
+	} else if (strcmp(ext_drv->config->name, "i2c_CS602") == 0) {
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
+		ret = aml_lcd_extern_i2c_CS602_probe(ext_drv);
+#endif
 	} else if (strcmp(ext_drv->config->name, "i2c_ANX6862_7911") == 0) {
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_ANX6862_7911
 		ret = aml_lcd_extern_i2c_ANX6862_7911_probe(ext_drv);
@@ -1920,9 +1924,10 @@ static ssize_t lcd_extern_debug_show(struct class *class,
 static ssize_t lcd_extern_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
-	unsigned int val[3], i;
+	unsigned int ret, i;
+	unsigned int val[3];
 	unsigned char reg, value;
+	unsigned char reg_buf[2];
 
 	if (lcd_ext_driver == NULL) {
 		pr_info("lcd_extern_driver is null\n");
@@ -1988,7 +1993,9 @@ static ssize_t lcd_extern_debug_store(struct class *class,
 			reg = (unsigned char)val[1];
 			value = (unsigned char)val[2];
 			if (lcd_ext_driver->reg_write) {
-				lcd_ext_driver->reg_write(reg, value);
+				reg_buf[0] = (unsigned char)val[1];
+				reg_buf[1] = (unsigned char)val[2];
+				lcd_ext_driver->reg_write(reg_buf, 2);
 				if (lcd_ext_driver->reg_read) {
 					lcd_ext_driver->reg_read(reg, &value);
 					pr_info(

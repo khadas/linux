@@ -110,8 +110,16 @@ static void v4l2_frontend_add_event(struct v4l2_frontend *v4l2_fe,
 	e = &events->events[events->eventw];
 	e->status = status;
 
-	memcpy(&e->parameters, &v4l2_fe->params,
-			sizeof(struct v4l2_analog_parameters));
+	/* memcpy(&e->parameters, &v4l2_fe->params,
+	 * sizeof(struct v4l2_analog_parameters));
+	 */
+	e->parameters.frequency = v4l2_fe->params.frequency;
+	e->parameters.audmode = v4l2_fe->params.audmode;
+	e->parameters.soundsys = v4l2_fe->params.soundsys;
+	e->parameters.std = v4l2_fe->params.std;
+	e->parameters.flag = v4l2_fe->params.flag;
+	e->parameters.afc_range = v4l2_fe->params.afc_range;
+	e->parameters.reserved = v4l2_fe->params.reserved;
 
 	events->eventw = wp;
 
@@ -333,8 +341,11 @@ static int v4l2_frontend_start(struct v4l2_frontend *v4l2_fe)
 
 static int v4l2_frontend_check_mode(struct v4l2_frontend *v4l2_fe)
 {
-	if (v4l2_fe->mode != V4L2_TUNER_ANALOG_TV)
+	if (v4l2_fe->mode != V4L2_TUNER_ANALOG_TV) {
+		pr_dbg("%s: not in analog TV mode [%d].\n",
+				__func__, v4l2_fe->mode);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -348,8 +359,6 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct v4l2_property tvp = { 0 };
-
-	pr_dbg("%s.\n", __func__);
 
 	if (v4l2_frontend_check_mode(v4l2_fe) < 0)
 		return -EINVAL;
@@ -375,17 +384,35 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	 * the user. FE_SET_FRONTEND triggers an initial frontend event
 	 * with status = 0, which copies output parameters to userspace.
 	 */
-	//dtv_property_legacy_params_sync_ex(fe, &fepriv->parameters_out);
-	memcpy(&v4l2_fe->params, params, sizeof(struct v4l2_analog_parameters));
+	/* memcpy(&v4l2_fe->params, params,
+	 * sizeof(struct v4l2_analog_parameters));
+	 */
+	v4l2_fe->params.frequency = params->frequency;
+	v4l2_fe->params.audmode = params->audmode;
+	v4l2_fe->params.soundsys = params->soundsys;
+	v4l2_fe->params.std = params->std;
+	v4l2_fe->params.flag = params->flag;
+	v4l2_fe->params.afc_range = params->afc_range;
+	v4l2_fe->params.reserved = params->reserved;
 
-	fepriv->state = V4L2FE_STATE_RETUNE;
+	pr_dbg("%s: params->flag 0x%x.\n", __func__, params->flag);
 
 	/* Request the search algorithm to search */
-	fepriv->algo_status |= V4L2_SEARCH_AGAIN;
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
+
+		if (v4l2_fe->params.afc_range == 0)
+			return 0;
+
+		fepriv->state = V4L2FE_STATE_RETUNE;
+
+		fepriv->algo_status |= V4L2_SEARCH_AGAIN;
+
 		/*dvb_frontend_add_event(fe, 0); */
 		v4l2_frontend_clear_events(v4l2_fe);
 		v4l2_frontend_wakeup(v4l2_fe);
+
+		fepriv->status = 0;
+
 	} else if (fe->ops.analog_ops.set_params) {
 		/* TODO:*/
 		p.frequency = params->frequency;
@@ -401,17 +428,25 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 		fe->ops.analog_ops.set_params(fe, &p);
 	}
 
-	fepriv->status = 0;
-
 	return 0;
 }
 
 static int v4l2_get_frontend(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_analog_parameters *p)
 {
-	pr_dbg("%s.\n", __func__);
+	if (v4l2_frontend_check_mode(v4l2_fe) < 0)
+		return -EINVAL;
 
-	memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));
+	/*memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));*/
+	p->frequency = v4l2_fe->params.frequency;
+	p->audmode = v4l2_fe->params.audmode;
+	p->soundsys = v4l2_fe->params.soundsys;
+	p->std = v4l2_fe->params.std;
+	p->flag = v4l2_fe->params.flag;
+	p->afc_range = v4l2_fe->params.afc_range;
+	p->reserved = v4l2_fe->params.reserved;
+
+	pr_dbg("%s: frequency %d.\n", __func__, p->frequency);
 
 	return 0;
 }
@@ -456,12 +491,39 @@ static int v4l2_frontend_read_status(struct v4l2_frontend *v4l2_fe,
 
 	if (!status)
 		return -1;
-#if 0
-	if (analog_ops->tuner_status)
-		analog_ops->tuner_status(&v4l2_fe->fe, status);
+
+	if (analog_ops->has_signal)
+		analog_ops->has_signal(&v4l2_fe->fe, (u16 *) status);
 	else if (tuner_ops->get_status)
-		tuner_ops->get_status(&v4l2_fe->fe, status);
-#endif
+		tuner_ops->get_status(&v4l2_fe->fe, (u32 *) status);
+
+	return ret;
+}
+
+static int v4l2_frontend_detect_tune(struct v4l2_frontend *v4l2_fe,
+		struct v4l2_tune_status *status)
+{
+	int ret = 0;
+
+	pr_dbg("%s.\n", __func__);
+
+	if (!status)
+		return -1;
+
+	if (v4l2_fe->ops.tune)
+		ret = v4l2_fe->ops.tune(v4l2_fe, status);
+
+	return ret;
+}
+
+static int v4l2_frontend_detect_standard(struct v4l2_frontend *v4l2_fe)
+{
+	int ret = 0;
+
+	pr_dbg("%s.\n", __func__);
+
+	if (v4l2_fe->ops.detect)
+		ret = v4l2_fe->ops.detect(v4l2_fe);
 
 	return ret;
 }
@@ -494,7 +556,7 @@ static unsigned int v4l2_frontend_poll(struct file *filp,
 	poll_wait(filp, &fepriv->events.wait_queue, pts);
 
 	if (fepriv->events.eventw != fepriv->events.eventr) {
-		pr_dbg("%s： POLLIN | POLLRDNORM | POLLPRI.\n", __func__);
+		pr_dbg("%s: POLLIN | POLLRDNORM | POLLPRI.\n", __func__);
 		return (POLLIN | POLLRDNORM | POLLPRI);
 	}
 
@@ -538,20 +600,79 @@ static int v4l2_property_process_set(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_property *tvp, struct file *file)
 {
 	int r = 0;
+#if 0
+	int i = 0;
+	int id = 0;
+#endif
+	struct v4l2_analog_parameters *params = &v4l2_fe->params;
 
 	v4l2_property_dump(v4l2_fe, true, tvp);
 
 	switch (tvp->cmd) {
 	case V4L2_TUNE:
+		v4l2_set_frontend(v4l2_fe, params);
 		break;
 	case V4L2_SOUND_SYS:
 	case V4L2_SLOW_SEARCH_MODE:
+	case V4L2_SIF_OVER_MODULATION:
 		/* Allow the frontend to override outgoing properties */
 		if (v4l2_fe->ops.set_property) {
 			r = v4l2_fe->ops.set_property(v4l2_fe, tvp);
 			if (r < 0)
 				return r;
 		}
+		break;
+	case V4L2_FREQUENCY:
+		params->frequency = tvp->data;
+		break;
+	case V4L2_STD:
+		/* std & 0xFF000000: color std */
+		/* std & 0x00FFFFFF: audio std */
+		if (tvp->data & 0xFF000000)
+			params->std = (tvp->data & 0xFF000000);
+		if (tvp->data & 0x00FFFFFF) {
+			params->audmode = params->std & 0xFFFFFF;
+			params->std = (tvp->data & 0xFF000000)
+					| (params->audmode);
+		}
+		break;
+	case V4L2_FINE_TUNE:
+		params->frequency += tvp->data;
+		break;
+	case V4L2_TUNER_TYPE:
+#if 0 /* This supports dynamically setting the tuner type */
+		for (i = 0; i < amlatvdemod_devp->tuner_num; ++i) {
+			if (amlatvdemod_devp->tuners[i].cfg.id == tvp->data) {
+				id = amlatvdemod_devp->tuners[i].cfg.id;
+				break;
+			}
+		}
+
+		if (id == 0) {
+			pr_err("%s: nonsupport tuner %d.\n",
+					__func__, tvp->data);
+			return -EINVAL;
+		}
+
+		if (amlatvdemod_devp->tuner_cur == i) {
+			pr_err("%s: the same tuner %d.\n",
+					__func__, i);
+			break;
+		}
+
+		if (amlatvdemod_devp->tuner_attached) {
+			if (v4l2_fe->fe.ops.tuner_ops.release)
+				v4l2_fe->fe.ops.tuner_ops.release(&v4l2_fe->fe);
+		}
+
+		if (aml_attach_tuner(amlatvdemod_devp) < 0) {
+			pr_err("%s: attach tuner %d error.\n",
+					__func__, id);
+			return -EINVAL;
+		}
+#endif
+		break;
+	case V4L2_TUNER_IF_FREQ:
 		break;
 	default:
 		return -EINVAL;
@@ -564,6 +685,8 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_property *tvp, struct file *file)
 {
 	int r = 0;
+	int i = 0;
+	struct v4l2_analog_parameters *params = &v4l2_fe->params;
 
 	switch (tvp->cmd) {
 	case V4L2_SOUND_SYS:
@@ -575,7 +698,35 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 				return r;
 		}
 		break;
+	case V4L2_FREQUENCY:
+		tvp->data = params->frequency;
+		break;
+	case V4L2_STD:
+		/* std & 0xFF000000: color std */
+		/* std & 0x00FFFFFF: audio std */
+		tvp->data = params->std;
+		break;
+	case V4L2_TUNER_TYPE:
+		i = amlatvdemod_devp->tuner_cur;
+		if (i < 0) {
+			pr_err("%s: Has not been set tuner type.\n", __func__);
+			tvp->data = 0;
+			return -EINVAL;
+		}
+		tvp->data = amlatvdemod_devp->tuners[i].cfg.id;
+		break;
+	case V4L2_TUNER_IF_FREQ:
+		tvp->data = amlatvdemod_devp->if_freq;
+		break;
+	case V4L2_AFC:
+	{
+		s32 afc = 0;
 
+		if (v4l2_fe->fe.ops.analog_ops.get_afc)
+			v4l2_fe->fe.ops.analog_ops.get_afc(&v4l2_fe->fe, &afc);
+		tvp->data = afc;
+	}
+		break;
 	default:
 		pr_dbg("%s: V4L2 property %d doesn't exist\n",
 				__func__, tvp->cmd);
@@ -587,7 +738,7 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 	return 0;
 }
 
-static int v4l2_frontend_ioctl_properties(struct file *filp,
+static long v4l2_frontend_ioctl_properties(struct file *filp,
 			unsigned int cmd, void *parg)
 {
 	struct v4l2_frontend *v4l2_fe = video_get_drvdata(video_devdata(filp));
@@ -679,7 +830,7 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 	if (fepriv->exit != V4L2_FE_NO_EXIT)
 		return -ENODEV;
 
-	if (cmd == V4L2_READ_STATUS || cmd == V4L2_GET_FRONTEND)
+	if (cmd == V4L2_READ_STATUS/* || cmd == V4L2_GET_FRONTEND */)
 		need_lock = 0;
 
 	if (need_lock)
@@ -697,7 +848,7 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 				(struct v4l2_analog_parameters *) arg);
 		break;
 
-	case V4L2_GET_FRONTEND:
+	case V4L2_GET_FRONTEND: /* 0x8028566a */
 		ret = v4l2_get_frontend(v4l2_fe,
 				(struct v4l2_analog_parameters *) arg);
 		break;
@@ -722,6 +873,15 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 		ret = v4l2_frontend_ioctl_properties(filp, cmd, arg);
 		break;
 
+	case V4L2_DETECT_TUNE: /* 0x80285670 */
+		ret = v4l2_frontend_detect_tune(v4l2_fe,
+				(struct v4l2_tune_status *) arg);
+		break;
+
+	case V4L2_DETECT_STANDARD: /* 0x5671 */
+		ret = v4l2_frontend_detect_standard(v4l2_fe);
+		break;
+
 	default:
 		pr_warn("%s: Unsupport cmd = 0x%x.\n", __func__, cmd);
 		break;
@@ -740,12 +900,20 @@ static int v4l2_frontend_open(struct file *filp)
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 
 	/* Because tuner ko insmod after demod, so need check */
-	if (!amlatvdemod_devp->tuner_attached
-			|| !amlatvdemod_devp->analog_attached) {
-		ret = aml_attach_demod_tuner(amlatvdemod_devp);
+	if (!amlatvdemod_devp->analog_attached) {
+		ret = aml_attach_demod(amlatvdemod_devp);
 		if (ret < 0) {
-			pr_err("%s: attach demod or tuner %d error.\n",
-					__func__, v4l2_fe->tuner_id);
+			pr_err("%s: line %d, error ret %d.\n",
+					__func__, __LINE__, ret);
+			return -EBUSY;
+		}
+	}
+
+	if (!amlatvdemod_devp->tuner_attached) {
+		ret = aml_attach_tuner(amlatvdemod_devp);
+		if (ret < 0) {
+			pr_err("%s: line %d, error ret %d.\n",
+					__func__, __LINE__, ret);
 			return -EBUSY;
 		}
 	}

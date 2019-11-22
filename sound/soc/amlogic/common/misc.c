@@ -199,15 +199,21 @@ const struct soc_enum hdmi_in_status_enum[] = {
 			hdmi_in_audio_packet)
 };
 
-int aml_get_hdmiin_audio_stable(
-	struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+int get_hdmiin_audio_stable(void)
 {
 	struct rx_audio_stat_s aud_sts;
 
 	rx_get_audio_status(&aud_sts);
+
+	return (aud_sts.aud_rcv_packet == 0) ? 0 : 1;
+}
+
+int aml_get_hdmiin_audio_stable(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
 	ucontrol->value.integer.value[0] =
-		(aud_sts.aud_rcv_packet == 0) ? 0 : 1;
+		get_hdmiin_audio_stable();
 
 	return 0;
 }

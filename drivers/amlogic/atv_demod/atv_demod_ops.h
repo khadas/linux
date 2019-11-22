@@ -24,6 +24,7 @@
 #include "atv_demod_driver.h"
 #include "atv_demod_afc.h"
 #include "atv_demod_monitor.h"
+#include "atv_demod_isr.h"
 
 
 #define AML_ATVDEMOD_UNINIT         0x0
@@ -41,14 +42,37 @@
 #define ATV_AFC_1_0MHZ   1000000
 #define ATV_AFC_2_0MHZ   2000000
 
+#define ATV_SECAM_LC_100MHZ 100000000
+
 #define ATVDEMOD_INTERVAL  (HZ / 100) /* 10ms, #define HZ 100 */
 
+#define AUTO_DETECT_COLOR (1 << 0)
+#define AUTO_DETECT_AUDIO (1 << 1)
 
-struct atv_demod_sound_system {
-	unsigned int broadcast_std;
-	unsigned int audio_std;
-	unsigned int input_mode;
-	unsigned int output_mode;
+struct atv_demod_sound {
+	unsigned int broadcast_std; /* PAL-I/BG/DK/M, NTSC-M */
+	unsigned int soundsys;      /* A2/BTSC/EIAJ/NICAM */
+	unsigned int input_mode;    /* Mono/Stereo/Dual/Sap */
+	unsigned int output_mode;   /* Mono/Stereo/Dual/Sap */
+	int sif_over_modulation;
+};
+
+struct atv_demod_parameters {
+
+	struct analog_parameters param;
+
+	bool secam_l;
+	bool secam_lc;
+
+	unsigned int last_frequency;
+	unsigned int lock_range;
+	unsigned int leap_step;
+
+	unsigned int afc_range;
+	unsigned int tuner_id;
+	unsigned int if_freq;
+	unsigned int if_inv;
+	unsigned int reserved;
 };
 
 struct atv_demod_priv {
@@ -57,12 +81,14 @@ struct atv_demod_priv {
 
 	bool standby;
 
-	struct aml_atvdemod_parameters atvdemod_param;
-	struct atv_demod_sound_system sound_sys;
+	struct atv_demod_parameters atvdemod_param;
+	struct atv_demod_sound atvdemod_sound;
 
 	struct atv_demod_afc afc;
 
 	struct atv_demod_monitor monitor;
+
+	struct atv_demod_isr isr;
 
 	int state;
 	bool scanning;

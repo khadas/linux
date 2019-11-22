@@ -71,6 +71,10 @@ extern int aml_lcd_extern_i2c_tc101_probe(
 extern int aml_lcd_extern_i2c_anx6345_probe(
 	struct aml_lcd_extern_driver_s *ext_drv);
 #endif
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
+extern int aml_lcd_extern_i2c_CS602_probe(
+	struct aml_lcd_extern_driver_s *ext_drv);
+#endif
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_SPI_LD070WS2
 extern int aml_lcd_extern_spi_LD070WS2_probe(
 	struct aml_lcd_extern_driver_s *ext_drv);

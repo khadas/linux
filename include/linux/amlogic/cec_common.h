@@ -183,10 +183,10 @@ enum hdmi_port_type {
 };
 
 enum cec_power_status_e {
-	POWER_ON = 0x00,
-	POWER_STANDBY,
-	TRANS_STANDBY_TO_ON,
-	TRANS_ON_TO_STANDBY,
+	CEC_PW_POWER_ON = 0x00,
+	CEC_PW_STANDBY,
+	CEC_PW_TRANS_STANDBY_TO_ON,
+	CEC_PW_TRANS_ON_TO_STANDBY,
 };
 
 enum cec_version_e {

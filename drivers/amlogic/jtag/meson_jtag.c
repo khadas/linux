@@ -96,10 +96,31 @@ static inline char *select_to_name(int select)
 		return "apao";
 	case AMLOGIC_JTAG_APEE:
 		return "apee";
+	case AMLOGIC_SWD_APAO:
+		return "swd_apao";
 	default:
 		return "disable";
 	}
 
+}
+static inline int name_to_select(const char *s)
+{
+	int select;
+
+	if (!strncmp(s, "disable", 7))
+		select = AMLOGIC_JTAG_DISABLE;
+	else if (!strncmp(s, "apao", 4))
+		select = AMLOGIC_JTAG_APAO;
+	else if (!strncmp(s, "apee", 4))
+		select = AMLOGIC_JTAG_APEE;
+	else if (!strncmp(s, "swd_apao", 8))
+		select = AMLOGIC_SWD_APAO;
+	else {
+		pr_err("unknown select: %s\n", s);
+		select = AMLOGIC_JTAG_DISABLE;
+	}
+
+	return select;
 }
 
 static void aml_jtag_option_parse(struct aml_jtag_dev *jdev, const char *s)
@@ -108,15 +129,7 @@ static void aml_jtag_option_parse(struct aml_jtag_dev *jdev, const char *s)
 	unsigned long value;
 	int ret;
 
-	if (!strncmp(s, "disable", 7))
-		jdev->select = AMLOGIC_JTAG_DISABLE;
-	else if (!strncmp(s, "apao", 4))
-		jdev->select = AMLOGIC_JTAG_APAO;
-	else if (!strncmp(s, "apee", 4))
-		jdev->select = AMLOGIC_JTAG_APEE;
-	else
-		pr_err("unknown select: %s", s);
-
+	jdev->select = name_to_select(s);
 	cluster = strchr(s, ',');
 	if (cluster != NULL) {
 		cluster++;
@@ -138,19 +151,10 @@ static int __init setup_jtag(char *p)
 	unsigned long value;
 	int ret;
 
+	if (!p)
+		return -EINVAL;
 	jtag_select_setup = true;
-
-	if (!strncmp(p, "disable", 7))
-		jtag_select = AMLOGIC_JTAG_DISABLE;
-	else if (!strncmp(p, "apao", 4))
-		jtag_select = AMLOGIC_JTAG_APAO;
-	else if (!strncmp(p, "apee", 4))
-		jtag_select = AMLOGIC_JTAG_APEE;
-	else
-		jtag_select = AMLOGIC_JTAG_DISABLE;
-
-	pr_info("jtag select %s\n", select_to_name(jtag_select));
-
+	jtag_select = name_to_select(p);
 	cluster = strchr(p, ',');
 	if (cluster != NULL) {
 		cluster++;
@@ -168,7 +172,7 @@ static int __init setup_jtag(char *p)
 }
 
 /*
- * jtag=[apao|apee]
+ * jtag=[apao|apee|swd_apao]
  * jtag=[apao|apee]{,[0|1]}
  *
  * [apao|apee]: jtag domain
@@ -176,106 +180,17 @@ static int __init setup_jtag(char *p)
  */
 __setup("jtag=", setup_jtag);
 
-
-/*
- * request gpios for jtag apao.
- *
- * @return: 0 success, other failed
- *
- */
-static int aml_jtag_apao_request_gpios(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
-	const unsigned int *gpios = jdev->ao_gpios;
-
-	int ngpio, i, ret;
-
-	ngpio = jdev->ao_ngpios;
-
-	for (i = 0; i < ngpio; i++) {
-		ret = devm_gpio_request(dev, gpios[i], "apao");
-		if (ret) {
-			pr_err("can't request gpio %d", gpios[i]);
-			return -ENOENT;
-		}
-		pr_info("request gpio %d  for apao\n", gpios[i]);
-	}
-
-	return 0;
-}
-
-static int aml_jtag_apao_free_gpios(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
-	const unsigned int *gpios = jdev->ao_gpios;
-
-	int ngpio, i;
-
-	ngpio = jdev->ao_ngpios;
-
-	for (i = 0; i < ngpio; i++)
-		devm_gpio_free(dev, gpios[i]);
-
-	return 0;
-}
-
-
-/*
- * request gpios for jtag apee.
- *
- * @return: 0 success, other failed
- *
- */
-static int aml_jtag_apee_request_gpios(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
-	const unsigned int *gpios = jdev->ee_gpios;
-
-	int ngpio, i, ret;
-
-	ngpio = jdev->ee_ngpios;
-
-	for (i = 0; i < ngpio; i++) {
-		ret = devm_gpio_request(dev, gpios[i], "apee");
-		if (ret) {
-			pr_err("can't request gpio %d", gpios[i]);
-			return -ENOENT;
-		}
-		pr_info("request gpio %d for apee\n", gpios[i]);
-	}
-
-	return 0;
-}
-
-static int aml_jtag_apee_free_gpios(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
-	const unsigned int *gpios = jdev->ee_gpios;
-
-	int ngpio, i;
-
-	ngpio = jdev->ee_ngpios;
-
-	for (i = 0; i < ngpio; i++)
-		devm_gpio_free(dev, gpios[i]);
-
-	return 0;
-}
-
-
 #ifdef CONFIG_MACH_MESON8B
 
 static int aml_jtag_select_tee(struct platform_device *pdev)
 {
 	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
 	uint32_t select = jdev->select;
+	struct cpumask org_cpumask;
 
-	pr_info("set state %u\n", select);
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
+	pr_info("meson8b select %s\n", select_to_name(jdev->select));
 	switch (select) {
 	case AMLOGIC_JTAG_DISABLE:
 		meson_secure_jtag_disable();
@@ -291,7 +206,7 @@ static int aml_jtag_select_tee(struct platform_device *pdev)
 		writel_relaxed(0x0, jdev->base);
 		break;
 	}
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 
 	return 0;
 }
@@ -309,7 +224,7 @@ static int aml_jtag_select_ree(struct platform_device *pdev)
 		pr_err("failed to iomap regs");
 		return -ENODEV;
 	}
-
+	pr_info("meson8b select %s\n", select_to_name(jdev->select));
 	switch (sel) {
 	case AMLOGIC_JTAG_DISABLE:
 		writel_relaxed(0x0, jdev->base);
@@ -353,6 +268,7 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 	struct arm_smccc_res res;
 
 	arm_smccc_smc(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res);
+
 	return res.a0;
 }
 
@@ -381,6 +297,7 @@ static int aml_jtag_select(struct platform_device *pdev)
 	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
 	unsigned int select = jdev->select;
 	unsigned int state = AMLOGIC_JTAG_STATE_OFF;
+	struct cpumask org_cpumask;
 
 	if (select != AMLOGIC_JTAG_DISABLE)
 		state = AMLOGIC_JTAG_STATE_ON;
@@ -388,54 +305,89 @@ static int aml_jtag_select(struct platform_device *pdev)
 	if (jdev->cluster != CLUSTER_DISABLE)
 		select |= jdev->cluster << CLUSTER_BIT;
 
-	pr_info("set state %u\n", select);
-
+	pr_info("select %s\n", select_to_name(select));
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 	aml_set_jtag_state(state, select);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 
 	return 0;
 }
 
 #endif
 
-static void aml_jtag_setup(struct aml_jtag_dev *jdev)
+static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 {
-	struct platform_device *pdev = jdev->pdev;
 	unsigned int old_select = jdev->old_select;
 	unsigned int select = jdev->select;
+	struct pinctrl_state *s;
+	int ret;
 
 	if (old_select == select)
-		return;
-
-	/* free gpios */
-	switch (old_select) {
-	case AMLOGIC_JTAG_APAO:
-		aml_jtag_apao_free_gpios(pdev);
-		break;
-	case AMLOGIC_JTAG_APEE:
-		aml_jtag_apee_free_gpios(pdev);
-		break;
-	default:
-		break;
+		return 0;
+	if (!jdev->jtag_pinctrl) {
+		jdev->jtag_pinctrl = devm_pinctrl_get(&jdev->pdev->dev);
+		if (IS_ERR_OR_NULL(jdev->jtag_pinctrl)) {
+			dev_err(&jdev->pdev->dev, "could not get pinctrl handle\n");
+			return -EINVAL;
+		}
 	}
-
-	/* free gpios */
+	/* set pinmux */
 	switch (select) {
 	case AMLOGIC_JTAG_APAO:
-		aml_jtag_apao_request_gpios(pdev);
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_apao_pins");
+		if (IS_ERR_OR_NULL(s)) {
+			dev_err(&jdev->pdev->dev,
+					"could not get jtag_apao_pins state\n");
+			return -EINVAL;
+		}
+		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
+		if (ret) {
+			dev_err(&jdev->pdev->dev, "failed to set pinctrl\n");
+			return -EINVAL;
+		}
 		break;
 	case AMLOGIC_JTAG_APEE:
-		aml_jtag_apee_request_gpios(pdev);
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_apee_pins");
+		if (IS_ERR_OR_NULL(s)) {
+			dev_err(&jdev->pdev->dev,
+					"could not get jtag_apee_pins state\n");
+			return -EINVAL;
+		}
+		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
+		if (ret) {
+			dev_err(&jdev->pdev->dev, "failed to set pinctrl\n");
+			return -EINVAL;
+		}
+		break;
+	case AMLOGIC_SWD_APAO:
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
+					 "jtag_swd_apao_pins");
+		if (IS_ERR_OR_NULL(s)) {
+			dev_err(&jdev->pdev->dev,
+					"could not get swd_apao_pins state\n");
+			return -EINVAL;
+		}
+		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
+		if (ret) {
+			dev_err(&jdev->pdev->dev, "failed to set pinctrl\n");
+			return -EINVAL;
+		}
 		break;
 	default:
+		if (old_select != AMLOGIC_JTAG_DISABLE) {
+			devm_pinctrl_put(jdev->jtag_pinctrl);
+			jdev->jtag_pinctrl = NULL;
+		}
 		break;
 	}
 
+	/* save to global */
+	global_select = jdev->select;
 	aml_jtag_select(jdev->pdev);
-
 	jdev->old_select = select;
 
+	return 0;
 }
 
 static ssize_t jtag_select_show(struct class *cls,
@@ -446,25 +398,25 @@ static ssize_t jtag_select_show(struct class *cls,
 	len += sprintf(buf + len, "current select: %s\n\n",
 			select_to_name(global_select));
 	len += sprintf(buf + len, "usage:\n");
-	len += sprintf(buf + len, "    echo [apao|apee] > select\n");
+	len += sprintf(buf + len, "    echo [apao|apee|swd_apao] > select\n");
 	len += sprintf(buf + len, "    echo [apao|apee]{,[0|1]} > select\n");
+
 	return len;
 }
-
 
 static ssize_t jtag_select_store(struct class *cls,
 			 struct class_attribute *attr,
 			 const char *buffer, size_t count)
 {
 	struct aml_jtag_dev *jdev;
+	int ret;
 
 	jdev = container_of(cls, struct aml_jtag_dev, cls);
 	aml_jtag_option_parse(jdev, buffer);
 
-	/* save to global */
-	global_select = jdev->select;
-
-	aml_jtag_setup(jdev);
+	ret = aml_jtag_setup(jdev);
+	if (ret < 0)
+		return ret;
 
 	return count;
 }
@@ -474,63 +426,13 @@ static struct class_attribute aml_jtag_attrs[] = {
 	__ATTR_NULL,
 };
 
-
 static int aml_jtag_dt_parse(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
 	const char *tmp;
-
-	int ao_ngpios, ee_ngpios;
-	unsigned int *ao_gpios, *ee_gpios;
-	int ret, i, gpio;
-
-
-	ao_ngpios = of_gpio_named_count(np, "jtagao-gpios");
-	if (ao_ngpios <= 0) {
-		pr_err("ao gpios not specified\n");
-		return -EINVAL;
-	}
-
-	ee_ngpios = of_gpio_named_count(np, "jtagee-gpios");
-	if (ee_ngpios <= 0) {
-		pr_err("ee gpios not specified\n");
-		return -EINVAL;
-	}
-
-	jdev->ao_ngpios = ao_ngpios;
-	jdev->ee_ngpios = ee_ngpios;
-
-	ao_gpios = devm_kzalloc(dev, sizeof(unsigned int) * ao_ngpios,
-				GFP_KERNEL);
-	ee_gpios = devm_kzalloc(dev, sizeof(unsigned int) * ee_ngpios,
-				GFP_KERNEL);
-	if (!ao_gpios || !ee_gpios) {
-		pr_err("failed to allocate memory for gpios\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < ao_ngpios; i++) {
-		gpio = of_get_named_gpio(dev->of_node, "jtagao-gpios", i);
-		if (!gpio_is_valid(gpio)) {
-			pr_err("gpio %d is not valid", gpio);
-			return -EINVAL;
-		}
-		ao_gpios[i] = gpio;
-	}
-
-	for (i = 0; i < ee_ngpios; i++) {
-		gpio = of_get_named_gpio(dev->of_node, "jtagee-gpios", i);
-		if (!gpio_is_valid(gpio)) {
-			pr_err("gpio %d is not valid", gpio);
-			return -EINVAL;
-		}
-		ee_gpios[i] = gpio;
-	}
-
-	jdev->ao_gpios = ao_gpios;
-	jdev->ee_gpios = ee_gpios;
+	int ret;
 
 	/* otherwise set select with dt */
 	ret = of_property_read_string(np, "select", &tmp);
@@ -538,21 +440,9 @@ static int aml_jtag_dt_parse(struct platform_device *pdev)
 		pr_err("select not configured\n");
 		return -EINVAL;
 	}
-	pr_info("select is configured %s\n", tmp);
-
-	if (!strcmp(tmp, "disable"))
-		jdev->select = AMLOGIC_JTAG_DISABLE;
-	else if (!strcmp(tmp, "apao"))
-		jdev->select = AMLOGIC_JTAG_APAO;
-	else if (!strcmp(tmp, "apee"))
-		jdev->select = AMLOGIC_JTAG_APEE;
-	else
-		pr_err("unknown select: %s", tmp);
-
+	jdev->select = name_to_select(tmp);
 	return 0;
 }
-
-
 
 static int aml_jtag_probe(struct platform_device *pdev)
 {
@@ -560,12 +450,12 @@ static int aml_jtag_probe(struct platform_device *pdev)
 	int ret;
 
 	/* kzalloc device */
-	jdev = kzalloc(sizeof(struct aml_jtag_dev), GFP_KERNEL);
+	jdev = devm_kzalloc(&pdev->dev,
+			    sizeof(struct aml_jtag_dev), GFP_KERNEL);
 
 	/* set driver data */
 	jdev->pdev = pdev;
 	platform_set_drvdata(pdev, jdev);
-
 	ret = aml_jtag_dt_parse(pdev);
 	if (ret)
 		return -EINVAL;
@@ -575,11 +465,7 @@ static int aml_jtag_probe(struct platform_device *pdev)
 	if (jtag_select_setup) {
 		jdev->select = jtag_select;
 		jdev->cluster = jtag_cluster;
-		pr_info("select is replaced by boot param\n");
 	}
-
-	/* save to global */
-	global_select = jdev->select;
 
 	/* create class attributes */
 	jdev->cls.name = AML_JTAG_NAME;
@@ -592,12 +478,14 @@ static int aml_jtag_probe(struct platform_device *pdev)
 	}
 
 	/* setup jtag */
-	aml_jtag_setup(jdev);
+	ret = aml_jtag_setup(jdev);
+	if (ret < 0) {
+		class_unregister(&jdev->cls);
+		return ret;
+	}
 
-	pr_info("module probed ok\n");
 	return 0;
 }
-
 
 static int __exit aml_jtag_remove(struct platform_device *pdev)
 {
@@ -605,12 +493,9 @@ static int __exit aml_jtag_remove(struct platform_device *pdev)
 
 	class_unregister(&jdev->cls);
 	platform_set_drvdata(pdev, NULL);
-	kfree(jdev);
 
-	pr_info("module removed ok\n");
 	return 0;
 }
-
 
 static const struct of_device_id aml_jtag_dt_match[] = {
 	{
@@ -618,7 +503,6 @@ static const struct of_device_id aml_jtag_dt_match[] = {
 	},
 	{},
 };
-
 
 static struct platform_driver aml_jtag_driver = {
 	.driver = {
@@ -630,10 +514,8 @@ static struct platform_driver aml_jtag_driver = {
 	.remove = __exit_p(aml_jtag_remove),
 };
 
-
 static int __init aml_jtag_init(void)
 {
-	pr_info("module init\n");
 	if (platform_driver_register(&aml_jtag_driver)) {
 		pr_err("failed to register driver\n");
 		return -ENODEV;
@@ -651,7 +533,6 @@ fs_initcall(aml_jtag_init);
 
 static void __exit aml_jtag_exit(void)
 {
-	pr_info("module exit\n");
 	platform_driver_unregister(&aml_jtag_driver);
 }
 

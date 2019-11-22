@@ -242,7 +242,8 @@ static int parse_para(const char *para, int para_num, int *result)
 	char *token = NULL;
 	char *params, *params_base;
 	int *out = result;
-	int len = 0, count = 0;
+	ssize_t len;
+	int count = 0;
 	int res = 0;
 	int ret = 0;
 
@@ -506,7 +507,7 @@ static ssize_t rect_write(struct class *cla, struct class_attribute *attr,
 	char *strp = (char *)buf;
 	char *endp = NULL;
 	int value_array[4];
-	static int buflen;
+	static ssize_t buflen;
 	static char *tokenlen;
 	int i;
 	long tmp;
@@ -570,7 +571,14 @@ static ssize_t dump_path_write(struct class *cla, struct class_attribute *attr,
 		PPMGRDRV_INFO("buf kstrdup failed\n");
 		return 0;
 	}
-	strcpy(ppmgr_device.dump_path, tmp);
+	if (strlen(tmp) >= sizeof(ppmgr_device.dump_path) - 1) {
+		memcpy(ppmgr_device.dump_path, tmp,
+		       sizeof(ppmgr_device.dump_path) - 1);
+		ppmgr_device.dump_path[
+			sizeof(ppmgr_device.dump_path) - 1] = '\0';
+	} else {
+		strcpy(ppmgr_device.dump_path, tmp);
+	}
 
 	return count;
 
@@ -606,7 +614,7 @@ static void set_disp_para(const char *para)
 static ssize_t disp_write(struct class *cla, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
-	int buflen;
+	ssize_t buflen;
 
 	buflen = strlen(buf);
 	if (buflen <= 0)
@@ -697,7 +705,7 @@ static ssize_t ppscaler_rect_write(struct class *cla,
 					struct class_attribute *attr,
 					const char *buf, size_t count)
 {
-	int buflen;
+	ssize_t buflen;
 
 	buflen = strlen(buf);
 	if (buflen <= 0)

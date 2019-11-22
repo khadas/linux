@@ -57,6 +57,7 @@ struct ve_regs_s {
 	unsigned int rsv:5;
 };
 
+extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 extern void ve_hist_gamma_reset(void);
 extern unsigned int ve_size;
@@ -111,6 +112,8 @@ extern void ve_lcd_gamma_process(void);
 extern void lvds_freq_process(void);
 extern void ve_dnlp_param_update(void);
 extern void ve_new_dnlp_param_update(void);
+extern void ve_lc_curve_update(void);
+extern void ve_lc_latch_process(void);
 extern void ve_ogo_param_update(void);
 extern void am_set_regmap(struct am_regs_s *p);
 extern void sharpness_process(struct vframe_s *vf);
@@ -167,6 +170,6 @@ extern void dump_plut3d_table(void);
 extern void dump_plut3d_reg_table(void);
 
 extern void amvecm_gamma_init(bool en);
-
+extern void set_gamma_regs(int en, int sel);
 #endif
 

@@ -124,6 +124,7 @@ extern void aml_fe_get_atvaudio_state(int *state);
 
 /* For attach tuner driver start*/
 enum tuner_type {
+	AM_TUNER_NONE = 0,
 	AM_TUNER_SI2176 = 1,
 	AM_TUNER_SI2196 = 2,
 	AM_TUNER_FQ1216 = 3,
@@ -137,6 +138,7 @@ enum tuner_type {
 	AM_TUNER_MXL608 = 11,
 	AM_TUNER_SI2159 = 12,
 	AM_TUNER_R842 = 13,
+	AM_TUNER_ATBM2040 = 14,
 };
 
 /* For configure different tuners */
@@ -158,6 +160,8 @@ extern struct dvb_frontend *si2159_attach(struct dvb_frontend *fe,
 extern struct dvb_frontend *r840_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
 extern struct dvb_frontend *r842_attach(struct dvb_frontend *fe,
+		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
+extern struct dvb_frontend *atbm2040_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
 /* For attach tuner driver end*/
 

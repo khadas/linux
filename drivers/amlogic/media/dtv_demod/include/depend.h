@@ -21,8 +21,6 @@
 #include <linux/device.h>	/**/
 
 
-extern void vdac_enable(bool on, unsigned int module_sel);
-
 /*dma_alloc_from_contiguous*/
 struct page *aml_dma_alloc_contiguous(struct device *dev, int count,
 						unsigned int order);

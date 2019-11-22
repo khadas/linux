@@ -61,6 +61,7 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state)
 	kfree(state->connectors);
 	kfree(state->crtcs);
 	kfree(state->planes);
+	kfree(state->private_objs);
 }
 EXPORT_SYMBOL(drm_atomic_state_default_release);
 
@@ -186,6 +187,20 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		state->planes[i].ptr = NULL;
 		state->planes[i].state = NULL;
 	}
+
+	for (i = 0; i < state->num_private_objs; i++) {
+		struct drm_private_obj *obj = state->private_objs[i].ptr;
+
+		if (!obj)
+			continue;
+
+		obj->funcs->atomic_destroy_state(obj,
+				state->private_objs[i].state);
+		state->private_objs[i].ptr = NULL;
+		state->private_objs[i].state = NULL;
+	}
+	state->num_private_objs = 0;
+
 }
 EXPORT_SYMBOL(drm_atomic_state_default_clear);
 
@@ -927,6 +942,93 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 }
 
 /**
+ * drm_atomic_private_obj_init - initialize private object
+ * @obj: private object
+ * @state: initial private object state
+ * @funcs: pointer to the struct of function pointers that identify the object
+ * type
+ *
+ * Initialize the private object, which can be embedded into any
+ * driver private object that needs its own atomic state.
+ */
+void
+drm_atomic_private_obj_init(struct drm_private_obj *obj,
+			    struct drm_private_state *state,
+			    const struct drm_private_state_funcs *funcs)
+{
+	memset(obj, 0, sizeof(*obj));
+
+	obj->state = state;
+	obj->funcs = funcs;
+}
+EXPORT_SYMBOL(drm_atomic_private_obj_init);
+
+/**
+ * drm_atomic_private_obj_fini - finalize private object
+ * @obj: private object
+ *
+ * Finalize the private object.
+ */
+void
+drm_atomic_private_obj_fini(struct drm_private_obj *obj)
+{
+	obj->funcs->atomic_destroy_state(obj, obj->state);
+}
+EXPORT_SYMBOL(drm_atomic_private_obj_fini);
+
+/**
+ * drm_atomic_get_private_obj_state - get private object state
+ * @state: global atomic state
+ * @obj: private object to get the state for
+ *
+ * This function returns the private object state for the given private object,
+ * allocating the state if needed. It does not grab any locks as the caller is
+ * expected to care of any required locking.
+ *
+ * RETURNS:
+ *
+ * Either the allocated state or the error code encoded into a pointer.
+ */
+struct drm_private_state *
+drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
+		struct drm_private_obj *obj)
+{
+	int index, num_objs, i;
+	size_t size;
+	struct __drm_private_objs_state *arr;
+	struct drm_private_state *obj_state;
+
+	for (i = 0; i < state->num_private_objs; i++)
+		if (obj == state->private_objs[i].ptr)
+			return state->private_objs[i].state;
+
+	num_objs = state->num_private_objs + 1;
+	size = sizeof(*state->private_objs) * num_objs;
+	arr = krealloc(state->private_objs, size, GFP_KERNEL);
+	if (!arr)
+		return ERR_PTR(-ENOMEM);
+
+	state->private_objs = arr;
+	index = state->num_private_objs;
+	memset(&state->private_objs[index], 0, sizeof(*state->private_objs));
+
+	obj_state = obj->funcs->atomic_duplicate_state(obj);
+	if (!obj_state)
+		return ERR_PTR(-ENOMEM);
+
+	state->private_objs[index].state = obj_state;
+	state->private_objs[index].ptr = obj;
+
+	state->num_private_objs = num_objs;
+
+	DRM_DEBUG_ATOMIC("Added new private object %p state %p to %p\n",
+		obj, obj_state, state);
+
+	return obj_state;
+}
+EXPORT_SYMBOL(drm_atomic_get_private_obj_state);
+
+/**
  * drm_atomic_get_connector_state - get connector state
  * @state: global atomic state object
  * @connector: connector to get state object for
@@ -1552,7 +1654,7 @@ EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, uint64_t user_data)
+		struct drm_crtc *crtc, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
 
@@ -1563,6 +1665,7 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = user_data;
+	e->event.crtc_id = crtc->base.id;
 
 	return e;
 }
@@ -1765,7 +1868,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT || fence_ptr) {
 			struct drm_pending_vblank_event *e;
 
-			e = create_vblank_event(dev, arg->user_data);
+			e = create_vblank_event(crtc, arg->user_data);
 			if (!e)
 				return -ENOMEM;
 

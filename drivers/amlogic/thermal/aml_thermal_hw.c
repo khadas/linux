@@ -162,7 +162,7 @@ int aml_thermal_min_update(struct thermal_cooling_device *cdev)
 
 	case COOL_DEV_TYPE_CPU_FREQ:
 		for_each_possible_cpu(cpu) {
-			if (mc_capable())
+			if (topology_physical_package_id(0) != -1)
 				c_id = topology_physical_package_id(cpu);
 			else
 				c_id = 0; /* force cluster 0 if no MC */
@@ -332,7 +332,7 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	}
 
 	for_each_possible_cpu(cpu) {
-		if (mc_capable())
+		if (topology_physical_package_id(0) != -1)
 			c_id = topology_physical_package_id(cpu);
 		else
 			c_id = CLUSTER_BIG;	/* Always cluster 0 if no mc */

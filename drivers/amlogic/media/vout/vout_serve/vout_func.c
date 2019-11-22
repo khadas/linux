@@ -22,11 +22,11 @@
 #include <linux/err.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 
 /* Local Headers */
 #include "vout_func.h"
+#include "vout_reg.h"
 
 static DEFINE_MUTEX(vout_mutex);
 
@@ -110,24 +110,6 @@ struct vout_module_s *vout_func_get_vout2_module(void)
 }
 EXPORT_SYMBOL(vout_func_get_vout2_module);
 #endif
-
-static unsigned int vout_func_vcbus_read(unsigned int _reg)
-{
-	return aml_read_vcbus(_reg);
-};
-
-static void vout_func_vcbus_write(unsigned int _reg, unsigned int _value)
-{
-	aml_write_vcbus(_reg, _value);
-};
-
-static void vout_func_vcbus_setb(unsigned int _reg, unsigned int _value,
-		unsigned int _start, unsigned int _len)
-{
-	vout_func_vcbus_write(_reg, ((vout_func_vcbus_read(_reg) &
-			~(((1L << (_len))-1) << (_start))) |
-			(((_value)&((1L<<(_len))-1)) << (_start))));
-}
 
 static inline int vout_func_check_state(int index, unsigned int state,
 		struct vout_server_s *p_server)
@@ -239,11 +221,11 @@ void vout_func_update_viu(int index)
 	}
 
 	if (mux_bit < 0xff) {
-		vout_func_vcbus_setb(VPU_VIU_VENC_MUX_CTRL,
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL,
 				mux_sel, mux_bit, 2);
 	}
 	if (clk_bit < 0xff)
-		vout_func_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
+		vout_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
 
 #if 0
 	VOUTPR("%s: %d, mux_sel=%d, clk_sel=%d\n",

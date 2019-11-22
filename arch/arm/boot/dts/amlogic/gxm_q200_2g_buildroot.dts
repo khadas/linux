@@ -393,7 +393,8 @@
 			compatible = "amlogic, gxbb-eth-dwmac";
 			reg = <0xc9410000 0x10000
 			0xc8834540 0x8
-			0xc8834558 0xc>;
+			0xc8834558 0xc
+			0xc1104408 0x4>;
 			interrupts = <0 8 1>;
 			pinctrl-names = "external_eth_pins";
 			pinctrl-0 = <&external_eth_pins>;
@@ -523,7 +524,7 @@
 				min_state = <400>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "t82x";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -544,9 +545,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool1:cpucore_cool1 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -607,7 +605,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&t82x_gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {

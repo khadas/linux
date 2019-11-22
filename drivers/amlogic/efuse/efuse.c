@@ -114,6 +114,7 @@ static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 				__func__, __LINE__);
 			return ret;
 		}
+		info.title[sizeof(info.title) - 1] = '\0';
 
 		if (efuse_getinfo_byTitle(info.title, &info) < 0)
 			return  -EFAULT;

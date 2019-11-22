@@ -23,6 +23,7 @@
 #include <linux/reset.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+ #include <linux/delay.h>
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -76,7 +77,7 @@
 #define SPICC_DMA_ENABLE		BIT(0)
 /* When txfifo_count<threshold, request a read(dma->txfifo) burst */
 #define SPICC_TXFIFO_THRESHOLD_MASK	GENMASK(5, 1)
-#define SPICC_TXFIFO_THRESHOLD_DEFAULT	4
+#define SPICC_TXFIFO_THRESHOLD_DEFAULT	10
 /* When rxfifo count>threshold, request a write(rxfifo->dma) burst */
 #define SPICC_RXFIFO_THRESHOLD_MASK	GENMASK(10, 6)
 #define SPICC_READ_BURST_MASK		GENMASK(14, 11)
@@ -124,6 +125,9 @@
 #define SPICC_DRADDR	0x20	/* Read Address of DMA */
 
 #define SPICC_DWADDR	0x24	/* Write Address of DMA */
+
+#define SPICC_LD_CNTL0	0x28
+#define SPICC_LD_CNTL1	0x2c
 
 #define SPICC_ENH_CTL0	0x38	/* Enhanced Feature 0 */
 #define SPICC_ENH_CS_PRE_DELAY_MASK	GENMASK(15, 0)
@@ -349,37 +353,35 @@ static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 	dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
 }
 
+#define DMA_BURST_MAX	0xffff
 static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc)
 {
-	unsigned int burst_len, thres;
-	unsigned int fifo_size = spicc->data->fifo_size;
+	unsigned int words, thres, count = 1;
 
-	burst_len = min_t(unsigned int,
-			  spicc->xfer_remain / spicc->bytes_per_word,
-			  fifo_size << 3);
-
-	thres = burst_len % fifo_size;
-	if (thres == 0)
-		thres = fifo_size;
-	else if (burst_len != thres) {
-		burst_len -= thres;
-		thres = fifo_size;
+	words = spicc->xfer_remain >> 3;
+	thres = spicc->data->fifo_size - SPICC_TXFIFO_THRESHOLD_DEFAULT;
+	for (; thres > 0; thres--) {
+		if (!(words % thres)) {
+			count = words / thres;
+			break;
+		}
 	}
+	if (count > DMA_BURST_MAX)
+		count = DMA_BURST_MAX;
 
 	/* Setup Xfer variables */
-	spicc->xfer_remain -= burst_len * spicc->bytes_per_word;
+	spicc->xfer_remain -= (thres * count) << 3;
+
+	/* Enable DMA write/read counter */
+	writel_relaxed(0x3 << 4, spicc->base + SPICC_LD_CNTL0);
 
 	/* Setup burst length */
-	writel_bits_relaxed(SPICC_BURSTLENGTH_MASK,
-			FIELD_PREP(SPICC_BURSTLENGTH_MASK,
-				burst_len - 1),
-			spicc->base + SPICC_CONREG);
+	writel_relaxed((count << 16) | count, spicc->base + SPICC_LD_CNTL1);
 
 	writel_relaxed(SPICC_DMA_ENABLE
 		| FIELD_PREP(SPICC_TXFIFO_THRESHOLD_MASK,
 			     SPICC_TXFIFO_THRESHOLD_DEFAULT)
-		| FIELD_PREP(SPICC_READ_BURST_MASK,
-			     fifo_size - SPICC_TXFIFO_THRESHOLD_DEFAULT)
+		| FIELD_PREP(SPICC_READ_BURST_MASK, thres - 1)
 		| FIELD_PREP(SPICC_RXFIFO_THRESHOLD_MASK, thres - 1)
 		| FIELD_PREP(SPICC_WRITE_BURST_MASK, thres - 1),
 		spicc->base + SPICC_DMAREG);
@@ -495,6 +497,7 @@ static void meson_spicc_setup_pio_burst(struct meson_spicc_device *spicc)
 static irqreturn_t meson_spicc_irq(int irq, void *data)
 {
 	struct meson_spicc_device *spicc = (void *) data;
+	int count = 0;
 
 	writel_bits_relaxed(SPICC_TC, SPICC_TC, spicc->base + SPICC_STATREG);
 
@@ -506,9 +509,17 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 		/* Disable all IRQs */
 		writel(0, spicc->base + SPICC_INTREG);
 		if (spicc->using_dma) {
-			spicc->using_dma = 0;
-			writel_bits_relaxed(SPICC_DMA_ENABLE, 0,
-					    spicc->base + SPICC_DMAREG);
+			udelay((spicc->speed_hz > 500000) ?
+				(200000000 / spicc->speed_hz) : 400);
+			while ((readl_relaxed(spicc->base + SPICC_STATREG)
+			       & SPICC_RR) && (++count < 1000))
+				;
+
+			writel_bits_relaxed(SPICC_TC, SPICC_TC,
+					    spicc->base + SPICC_STATREG);
+			//spicc->using_dma = 0;
+			writel_relaxed(0, spicc->base + SPICC_DMAREG);
+			writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
 			if (!spicc->message->is_dma_mapped)
 				meson_spicc_dma_unmap(spicc, spicc->xfer);
 		}
@@ -520,11 +531,12 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	/* Setup burst */
 	if (spicc->using_dma)
 		meson_spicc_setup_dma_burst(spicc);
-	else
+	else {
 		meson_spicc_setup_pio_burst(spicc);
-
-	/* Start burst */
-	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
+		/* Start burst */
+		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
+				    spicc->base + SPICC_CONREG);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -540,7 +552,7 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	conf = conf_orig = readl_relaxed(spicc->base + SPICC_CONREG);
 
 	/* Setup word width */
-	conf &= ~SPICC_BITLENGTH_MASK;
+	conf &= ~(SPICC_BITLENGTH_MASK | SPICC_SMC);
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK,
 			   (spicc->bytes_per_word << 3) - 1);
 
@@ -555,14 +567,16 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	meson_spicc_auto_io_delay(spicc);
 
 	spicc->using_dma = 0;
-	if ((xfer->bits_per_word == 64)
-	    && (spicc->message->is_dma_mapped
-		|| !meson_spicc_dma_map(spicc, xfer))) {
+	if (spicc->message->is_dma_mapped ||
+	    ((xfer->bits_per_word == 64) &&
+	     !meson_spicc_dma_map(spicc, xfer))) {
 		spicc->using_dma = 1;
 		writel_relaxed(xfer->tx_dma, spicc->base + SPICC_DRADDR);
 		writel_relaxed(xfer->rx_dma, spicc->base + SPICC_DWADDR);
 		writel_relaxed(xfer->speed_hz >> 25,
 			       spicc->base + SPICC_PERIODREG);
+		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
+				    spicc->base + SPICC_CONREG);
 	}
 	writel_relaxed(0, spicc->base + SPICC_DMAREG);
 }
@@ -585,6 +599,9 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	spicc->bytes_per_word =
 	   DIV_ROUND_UP(spicc->xfer->bits_per_word, 8);
 
+	if (spicc->message->is_dma_mapped)
+		spicc->bytes_per_word = 8;
+
 	if (xfer->len % spicc->bytes_per_word)
 		return -EINVAL;
 
@@ -592,16 +609,16 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	meson_spicc_setup_xfer(spicc, xfer);
 
 	/* Setup burst */
-	if (spicc->using_dma)
+	if (spicc->using_dma) {
 		meson_spicc_setup_dma_burst(spicc);
-	else
+		writel_relaxed(SPICC_TE_EN, spicc->base + SPICC_INTREG);
+	} else {
 		meson_spicc_setup_pio_burst(spicc);
-
-	/* Start burst */
-	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
-
-	/* Enable interrupts */
-	writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		/* Start burst */
+		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
+				    spicc->base + SPICC_CONREG);
+	}
 
 	return 1;
 }
@@ -819,7 +836,8 @@ static ssize_t store_test(
 	}
 
 test_end:
-	dev_info(dev, "test end @%d\n", (u32)clk_get_rate(spicc->clk));
+	dev_info(dev, "dma(%d) test end @%d\n", spicc->using_dma,
+		 (u32)clk_get_rate(spicc->clk));
 	kfree(kstr);
 	kfree(tx_buf);
 	kfree(rx_buf);

@@ -322,15 +322,12 @@ static int vidioc_g_parm(struct file *file, void *priv,
 				struct v4l2_streamparm *parms)
 {
 	struct vivi_dev *dev = video_drvdata(file);
-	struct v4l2_amlogic_parm *ap
-		= (struct v4l2_amlogic_parm *)&parms->parm.capture;
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	memset(ap, 0, sizeof(struct v4l2_amlogic_parm));
-	*ap = dev->am_parm;
-
+	memcpy(parms->parm.raw_data, (u8 *)&dev->am_parm,
+	       sizeof(struct v4l2_amlogic_parm));
 	return 0;
 }
 
@@ -675,7 +672,6 @@ static int amlvideo_open(struct file *file)
 {
 	struct vivi_dev *dev = video_drvdata(file);
 	struct vivi_fh *fh = NULL;
-	int retval = 0;
 	struct videobuf_res_privdata *res = NULL;
 	char *bstart = NULL;
 	unsigned int bsize = 0;
@@ -691,6 +687,7 @@ static int amlvideo_open(struct file *file)
 	}
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if ((res == NULL) || (dev->res != NULL)) {
+		kfree(res);
 		dev->users--;
 		mutex_unlock(&dev->mutex);
 		return -ENOMEM;
@@ -700,7 +697,7 @@ static int amlvideo_open(struct file *file)
 			kfree(res);
 			dev->users--;
 			mutex_unlock(&dev->mutex);
-			retval = -ENOMEM;
+			return -ENOMEM;
 		}
 	}
 	mutex_unlock(&dev->mutex);
@@ -962,8 +959,9 @@ static int __init amlvideo_create_instance(int inst)
 
 rel_vdev: video_device_release(vfd);
 unreg_dev: v4l2_device_unregister(&dev->v4l2_dev);
-free_dev: kfree(dev);
+free_dev:
 	dev->res = NULL;
+	kfree(dev);
 	return ret;
 }
 

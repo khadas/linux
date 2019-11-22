@@ -31,6 +31,7 @@
 #define MODULE_FENCE  (1 << 2)
 #define MODULE_BLEND  (1 << 3)
 #define MODULE_CURSOR (1 << 4)
+#define MODULE_VIU2   (1 << 5)
 
 extern unsigned int osd_log_level;
 extern unsigned int osd_log_module;

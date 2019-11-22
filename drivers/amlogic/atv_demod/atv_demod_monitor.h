@@ -23,6 +23,10 @@
 #include <linux/mutex.h>
 
 
+#define MONI_DISABLE (0)
+#define MONI_ENABLE  (1)
+#define MONI_PAUSE   (2)
+
 struct atv_demod_monitor {
 	struct work_struct work;
 	struct timer_list timer;
@@ -31,11 +35,14 @@ struct atv_demod_monitor {
 
 	struct mutex mtx;
 
-	bool state;
+	int state;
 	bool lock;
+
+	unsigned int lock_cnt;
 
 	void (*disable)(struct atv_demod_monitor *monitor);
 	void (*enable)(struct atv_demod_monitor *monitor);
+	void (*pause)(struct atv_demod_monitor *monitor);
 };
 
 extern void atv_demod_monitor_init(struct atv_demod_monitor *monitor);

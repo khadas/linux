@@ -473,6 +473,7 @@
 		status = "okay";
 		reg = <0xFF6345E0 4>;
 		reg-names = "PREG_STICKY_REG8";
+		store_device = "data";
 	};
 
 	jtag {
@@ -498,6 +499,11 @@
 		compatible = "amlogic, sm1-powerctrl";
 		reg = <0xff8000e8 0x10>,
 		      <0xff63c100 0x10>;
+	};
+
+	bl40: bl40 {
+		compatible = "amlogic, bl40-bootup";
+		status = "okay";
 	};
 
 	soc {
@@ -666,6 +672,7 @@
 			aoclkc: clock-controller@0 {
 				compatible = "amlogic,sm1-aoclkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3dc>;
 			};
 
@@ -784,10 +791,10 @@
 
 		audiobus: audiobus@0xFF660000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
-			reg = <0xFF660000 0x4000>;
+			reg = <0xFF660000 0x3000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0xFF660000 0x4000>;
+			ranges = <0x0 0xFF660000 0x3000>;
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sm1-audio-clocks";
 				#clock-cells = <1>;
@@ -813,6 +820,82 @@
 			};
 		};/* end of audiobus*/
 
+		/* eARC */
+		audio_earc: bus@ff663000 {
+			compatible = "simple-bus";
+			reg = <0xff663000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xff663000 0x1000>;
+
+			earc: earc@0 {
+				compatible = "amlogic, sm1-snd-earc";
+				#sound-dai-cells = <0>;
+
+				status = "disabled";
+
+				reg =
+					<0x800 0x400>,
+					<0xc00 0x200>,
+					<0xe00 0x200>;
+				reg-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_top";
+
+				clocks = < &clkaudio CLKID_EARCRX_CMDC
+					&clkaudio CLKID_EARCRX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_FCLK_DIV4
+					&clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL1
+					>;
+				clock-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_cmdc_srcpll",
+					"rx_dmac_srcpll";
+
+				interrupts = <
+					GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "earc_rx";
+			};
+		};
+
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<1>;
+			#size-cells=<1>;
+			ranges;
+			pdm_bus {
+				reg = <0xFF661000 0x400>;
+			};
+			audiobus_base {
+				reg = <0xFF660000 0x1000>;
+			};
+			audiolocker_base {
+				reg = <0xFF661400 0x400>;
+			};
+			eqdrc_base {
+				reg = <0xFF662000 0x1000>;
+			};
+			reset_base {
+				reg = <0xFFD01000 0x1000>;
+			};
+			vad_base {
+				reg = <0xFF661800 0x400>;
+			};
+			resampleA_base {
+				reg = <0xFF661c00 0x104>;
+			};
+			resampleB_base {
+				reg = <0xFF664000 0x104>;
+			};
+		};
 	}; /* end of soc*/
 
 	remote:rc@0xff808040 {
@@ -1107,15 +1190,15 @@
 		interrupts = <0 186 4>;
 		interrupt-names = "galcore";
 		reg = <0xff100000 0x800
-			/*reg base value:0xff100000 */
 			0xff000000 0x400000
-			/*Sram bse value:0xff000000*/
 			0xff63c118 0x0
 			0xff63c11c 0x0
-			/*0xff63c118,0xff63c11c :nanoq mem regs*/
 			0xffd01088 0x0
-			/*0xffd01088:reset reg*/
+			0xff63c1c8 0x0
 			>;
+		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
+			"NN_MEM1","NN_RESET","NN_CLK";
+		nn_power_version = <3>;
 		nn_efuse = <0xff63003c 0x20>;
 	};
 	aocec: aocec {
@@ -1131,6 +1214,7 @@
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <1>;
+		output = <1>;
 		ee_cec;
 		arc_port_mask = <0x2>;
 		interrupts = <0 203 1
@@ -1297,13 +1381,15 @@
 			0 32 1
 			0 43 1
 			0 44 1
-			0 45 1>;
+			0 45 1
+			0 72 1>;
 		interrupt-names = "vsync",
 			"demux",
 			"parser",
 			"mailbox_0",
 			"mailbox_1",
-			"mailbox_2";
+			"mailbox_2",
+			"parser_b";
 	};
 
 	vcodec_dec {
@@ -1425,7 +1511,8 @@
 			"sd_to_ao_uart_pins",
 			"ao_to_sd_uart_pins",
 			"sd_to_ao_jtag_pins",
-			"ao_to_sd_jtag_pins";
+			"ao_to_sd_jtag_pins",
+			"sd_all_pd_pins";
 
 		pinctrl-0 = <&sd_all_pins>;
 		pinctrl-1 = <&sd_clk_cmd_pins>;
@@ -1440,6 +1527,7 @@
 		pinctrl-7 = <&sd_all_pins &sd_to_ao_uart_pins>;
 		pinctrl-8 = <&sd_to_ao_uart_clr_pins
 			&ao_to_sd_uart_pins>;
+		pinctrl-9 = <&sd_all_pd_pins>;
 
 		clocks = <&clkc CLKID_SD_EMMC_B>,
 			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
@@ -1530,42 +1618,6 @@
 		fip_size = <0x200000>;
 		nand_clk_ctrl = <0xFFE07000>;
 		/*partions defined in dts */
-	};
-
-	/* Sound iomap */
-	aml_snd_iomap {
-		compatible = "amlogic, snd-iomap";
-		status = "okay";
-		#address-cells=<1>;
-		#size-cells=<1>;
-		ranges;
-		pdm_bus {
-			reg = <0xFF661000 0x400>;
-		};
-		audiobus_base {
-			reg = <0xFF660000 0x1000>;
-		};
-		audiolocker_base {
-			reg = <0xFF661400 0x400>;
-		};
-		eqdrc_base {
-			reg = <0xFF662000 0x1000>;
-		};
-		reset_base {
-			reg = <0xFFD01000 0x1000>;
-		};
-		vad_base {
-			reg = <0xFF661800 0x400>;
-		};
-		earcrx_cdmc_base {
-			reg = <0xFF663800 0x30>;
-		};
-		earcrx_dmac_base {
-			reg = <0xFF663C00 0x20>;
-		};
-		earcrx_top_base {
-			reg = <0xFF663E00 0x10>;
-		};
 	};
 
 	vddcpu0: pwmao_d-regulator {
@@ -1909,6 +1961,20 @@
 			bias-pull-up;
 			output-high;
 			drive-strength = <3>;
+		};
+	};
+
+	sd_all_pd_pins:sd_all_pd_pins {
+		mux {
+			groups = "GPIOC_0",
+				   "GPIOC_1",
+				   "GPIOC_2",
+				   "GPIOC_3",
+				   "GPIOC_4",
+				   "GPIOC_5";
+			function = "gpio_periphs";
+			bias-pull-down;
+			output-low;
 		};
 	};
 

@@ -2928,6 +2928,24 @@ struct vinfo_s *hdmi_get_valid_vinfo(char *mode)
 		/* the string of mode contains char NF */
 		memset(mode_, 0, sizeof(mode_));
 		strncpy(mode_, mode, sizeof(mode_));
+
+		/* skip "f", 1080fp60hz -> 1080p60hz for 3d */
+		mode_[31] = '\0';
+		if (strstr(mode_, "fp")) {
+			int i = 0;
+
+			for (; mode_[i]; i++) {
+				if ((mode_[i] == 'f') &&
+					(mode_[i + 1] == 'p')) {
+					do {
+						mode_[i] = mode_[i + 1];
+						i++;
+					} while (mode_[i]);
+					break;
+				}
+			}
+		}
+
 		for (i = 0; i < sizeof(mode_); i++)
 			if (mode_[i] == 10)
 				mode_[i] = 0;

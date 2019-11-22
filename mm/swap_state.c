@@ -318,7 +318,12 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * Get a new page to read into from swap.
 		 */
 		if (!new_page) {
+		#ifdef CONFIG_AMLOGIC_CMA
+			new_page = alloc_page_vma(gfp_mask | __GFP_BDEV,
+						  vma, addr);
+		#else
 			new_page = alloc_page_vma(gfp_mask, vma, addr);
+		#endif
 			if (!new_page)
 				break;		/* Out of memory */
 		}

@@ -61,6 +61,7 @@
 #include "osd_sync.h"
 #include "osd_io.h"
 #include "osd_rdma.h"
+#include "osd_virtual.h"
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
 
@@ -365,7 +366,7 @@ int int_viu2_vsync = -ENXIO;
 int int_rdma = INT_RDMA;
 struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static u32 fb_memsize[HW_OSD_COUNT + 1];
-struct page *osd_page[HW_OSD_COUNT + 1];
+static struct page *osd_page[HW_OSD_COUNT + 1];
 static phys_addr_t fb_rmem_paddr[OSD_COUNT];
 static void __iomem *fb_rmem_vaddr[OSD_COUNT];
 static size_t fb_rmem_size[OSD_COUNT];
@@ -473,7 +474,7 @@ static int osddev_setcolreg(unsigned int regno, u16 red, u16 green, u16 blue,
 	return 0;
 }
 
-static const struct color_bit_define_s *
+const struct color_bit_define_s *
 _find_color_format(struct fb_var_screeninfo *var)
 {
 	u32 upper_margin, lower_margin, i, level;
@@ -1163,7 +1164,7 @@ static int osd_compat_ioctl(struct fb_info *info,
 
 static int malloc_osd_memory(struct fb_info *info)
 {
-	int j;
+	int j = 0;
 	int ret = 0;
 	u32 fb_index;
 	int logo_index = -1;
@@ -1431,14 +1432,16 @@ static int malloc_osd_memory(struct fb_info *info)
 		if (fbdev->fb_mem_vaddr)
 			memset(fbdev->fb_mem_vaddr, 0x0, fbdev->fb_len);
 		if (osd_meson_dev.afbc_type && osd_get_afbc(fb_index)) {
-			for (j = 1; j < OSD_MAX_BUF_NUM; j++) {
-				osd_log_info(
-					"---------------clear fb%d memory %p\n",
-					fb_index,
-					fbdev->fb_mem_afbc_vaddr[j]);
-				memset(fbdev->fb_mem_afbc_vaddr[j],
-					0x0,
-					fbdev->fb_afbc_len[j]);
+			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
+				if (j > 0) {
+					osd_log_info(
+						"---------------clear fb%d memory %p\n",
+						fb_index,
+						fbdev->fb_mem_afbc_vaddr[j]);
+					memset(fbdev->fb_mem_afbc_vaddr[j],
+					       0x0,
+					       fbdev->fb_afbc_len[j]);
+				}
 			}
 		} else {
 			/* two case in one
@@ -1525,13 +1528,15 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long start;
 	u32 len;
 	int ret = 0;
+	static int mem_alloced;
 
 	if (!b_alloc_mem) {
 		/* alloc mem when osd_open */
-		if (info->screen_base == NULL) {
+		if (!mem_alloced) {
 			ret = malloc_osd_memory(info);
 			if (ret < 0)
 				return ret;
+			mem_alloced = 1;
 		}
 
 	}
@@ -1540,7 +1545,6 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
 	if (vma->vm_pgoff >= mmio_pgoff) {
 		if (info->var.accel_flags) {
-			mutex_unlock(&info->mm_lock);
 			return -EINVAL;
 		}
 
@@ -1548,7 +1552,6 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		start = info->fix.mmio_start;
 		len = info->fix.mmio_len;
 	}
-	mutex_unlock(&info->mm_lock);
 
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -1963,9 +1966,11 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
 		set_osd_logo_freescaler();
+#if 0 /*def LINE_INT_WORK_AROUND */
 		if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12B &&
 			is_meson_rev_b())
 			set_reset_rdma_trigger_line();
+#endif
 		if ((osd_meson_dev.osd_ver == OSD_NORMAL)
 			|| (osd_meson_dev.osd_ver == OSD_SIMPLE)
 			|| (osd_hw.hwc_enable[VIU1] == 0)) {
@@ -2963,6 +2968,8 @@ static ssize_t store_osd_reg(struct device *device,
 		reg_val = val;
 		osd_reg_write(reg_addr, reg_val);
 	}
+	kfree(buf_orig);
+	buf_orig = NULL;
 	return count;
 }
 
@@ -2970,9 +2977,10 @@ static ssize_t show_osd_display_debug(struct device *device,
 				struct device_attribute *attr,
 				char *buf)
 {
+	struct fb_info *fb_info = dev_get_drvdata(device);
 	u32 osd_display_debug_enable;
 
-	osd_get_display_debug(&osd_display_debug_enable);
+	osd_get_display_debug(fb_info->node, &osd_display_debug_enable);
 	return snprintf(buf, 40, "%d\n",
 		osd_display_debug_enable);
 }
@@ -2981,13 +2989,14 @@ static ssize_t store_osd_display_debug(struct device *device,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
+	struct fb_info *fb_info = dev_get_drvdata(device);
 	int res = 0;
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
 	if (ret < 0)
 		return -EINVAL;
-	osd_set_display_debug(res);
+	osd_set_display_debug(fb_info->node, res);
 
 	return count;
 }
@@ -3371,6 +3380,68 @@ static ssize_t store_osd_blend_bypass(
 	return count;
 }
 
+static ssize_t show_rdma_trace_enable(
+	struct device *device, struct device_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%x\n", osd_hw.rdma_trace_enable);
+}
+
+static ssize_t store_rdma_trace_enable(
+	struct device *device, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int trace_enable;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &trace_enable);
+	if (ret < 0)
+		return -EINVAL;
+	osd_hw.rdma_trace_enable = trace_enable;
+	return count;
+}
+
+static ssize_t show_rdma_trace_reg(
+	struct device *device, struct device_attribute *attr,
+	char *buf)
+{
+	int i;
+	char reg_info[16];
+	char *trace_info = NULL;
+
+	trace_info = kmalloc(osd_hw.rdma_trace_num * 16 + 1, GFP_KERNEL);
+	if (!trace_info)
+		return 0;
+	for (i = 0; i < osd_hw.rdma_trace_num; i++) {
+		sprintf(reg_info, "0x%x", osd_hw.rdma_trace_reg[i]);
+		strcat(trace_info, reg_info);
+		strcat(trace_info, " ");
+	}
+	i = snprintf(buf, PAGE_SIZE, "%s\n", trace_info);
+	kfree(trace_info);
+	trace_info = NULL;
+	return i;
+}
+
+static ssize_t store_rdma_trace_reg(
+	struct device *device, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[MAX_TRACE_NUM];
+	int i = 0, num = 0;
+
+	for (i  = 0; i < MAX_TRACE_NUM; i++)
+		osd_hw.rdma_trace_reg[i] = 0;
+	num = parse_para(buf, MAX_TRACE_NUM, parsed);
+	if (num <= MAX_TRACE_NUM) {
+		osd_hw.rdma_trace_num = num;
+		for (i  = 0; i < num; i++) {
+			osd_hw.rdma_trace_reg[i] = parsed[i];
+			pr_info("trace reg:0x%x\n", osd_hw.rdma_trace_reg[i]);
+		}
+	}
+	return count;
+}
 
 static inline  int str2lower(char *str)
 {
@@ -3588,6 +3659,10 @@ static struct device_attribute osd_attrs[] = {
 			show_osd_hold_line, store_osd_hold_line),
 	__ATTR(osd_blend_bypass, 0644,
 			show_osd_blend_bypass, store_osd_blend_bypass),
+	__ATTR(trace_enable, 0644,
+			show_rdma_trace_enable, store_rdma_trace_enable),
+	__ATTR(trace_reg, 0644,
+			show_rdma_trace_reg, store_rdma_trace_reg),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -3637,6 +3712,12 @@ static struct device_attribute osd_attrs_viu2[] = {
 			show_osd_rotate, store_osd_rotate),
 	__ATTR(osd_status, 0444,
 			show_osd_status, NULL),
+	__ATTR(osd_hwc_enable, 0644,
+			show_osd_hwc_enalbe, store_osd_hwc_enalbe),
+	__ATTR(osd_hold_line, 0644,
+			show_osd_hold_line, store_osd_hold_line),
+	__ATTR(osd_do_hwc, 0220,
+			NULL, store_do_hwc),
 };
 
 #ifdef CONFIG_PM
@@ -3981,12 +4062,28 @@ static struct osd_device_data_s osd_tm2 = {
 	.has_deband = 1,
 	.has_lut = 1,
 	.has_rdma = 1,
-	.has_dolby_vision = 0,
+	.has_dolby_vision = 1,
 	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
-	.osd0_sc_independ = 1,
+	.osd0_sc_independ = 0,
+};
+
+static struct osd_device_data_s osd_a1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_A1,
+	.osd_ver = OSD_NONE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 0,
+	.has_lut = 0,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -4043,6 +4140,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, meson-tm2",
 		.data = &osd_tm2,
 	},
+	{
+		.compatible = "amlogic, meson-a1",
+		.data = &osd_a1,
+	},
 	{},
 };
 
@@ -4083,6 +4184,10 @@ static int osd_probe(struct platform_device *pdev)
 			pr_err("%s NOT match\n", __func__);
 			return -ENODEV;
 		}
+	}
+	if (osd_meson_dev.osd_ver == OSD_NONE) {
+		amlfb_virtual_probe(pdev);
+		return 0;
 	}
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
@@ -4180,6 +4285,7 @@ static int osd_probe(struct platform_device *pdev)
 		prop_idx = of_read_ulong(prop, 1);
 	/* Todo: only osd0 */
 	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
+	prop_idx = 0;
 	prop = of_get_property(pdev->dev.of_node, "4k2k_fb", NULL);
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
@@ -4187,6 +4293,7 @@ static int osd_probe(struct platform_device *pdev)
 	/* get default display mode from dt */
 	ret = of_property_read_string(pdev->dev.of_node,
 		"display_mode_default", &str);
+	prop_idx = 0;
 	prop = of_get_property(pdev->dev.of_node, "pxp_mode", NULL);
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
@@ -4341,6 +4448,10 @@ static int osd_remove(struct platform_device *pdev)
 	osd_log_info("osd_remove.\n");
 	if (!pdev)
 		return -ENODEV;
+	if (osd_meson_dev.osd_ver == OSD_NONE) {
+		amlfb_virtual_remove(pdev);
+		return 0;
+	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&early_suspend);
 #endif
@@ -4384,6 +4495,8 @@ static int osd_remove(struct platform_device *pdev)
 
 static void osd_shutdown(struct platform_device *pdev)
 {
+	if (osd_meson_dev.osd_ver == OSD_NONE)
+		return;
 	if (!osd_shutdown_flag) {
 		osd_shutdown_flag = 1;
 		osd_shutdown_hw();

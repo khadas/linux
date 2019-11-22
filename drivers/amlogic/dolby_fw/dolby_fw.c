@@ -391,19 +391,41 @@ static int dolby_fw_critical_query(struct dolby_fw_args *info)
 	int ret = 0;
 	unsigned int size;
 
+	if (info->src_len != 0) {
+		if (info->src_len > DOLBY_FW_CRITICAL_MAX_SIZE) {
+			pr_err("%s:%d: critical query src length error!\n",
+					__func__, __LINE__);
+			ret = 0;
+			goto err;
+		}
+	}
+
 	sharemem_mutex_lock();
 
-	size = dolby_fw_smc_call(DOLBY_FW_CRITICAL_DATA_QUERY, 0, 0, 0);
+	if (info->src_len) {
+		ret = copy_from_user(sharemem_in_base,
+				(void *)(uintptr_t)info->src_addr,
+				info->src_len);
+		if (ret != 0) {
+			pr_err("%s:%d: copy critical src buffer fail!\n",
+					__func__, __LINE__);
+			ret = 0;
+			goto err1;
+		}
+	}
+
+	size = dolby_fw_smc_call(DOLBY_FW_CRITICAL_DATA_QUERY,
+			info->src_len, 0, 0);
 	if (!size) {
 		pr_err("%s:%d: query critical fail!\n",
 				__func__, __LINE__);
-		goto err;
+		goto err1;
 	}
 
 	if (info->dest_len < size || size > DOLBY_FW_CRITICAL_MAX_SIZE) {
 		pr_err("%s:%d: critical size error!\n",
 				__func__, __LINE__);
-		goto err;
+		goto err1;
 	}
 	ret = copy_to_user(
 				(void *)(uintptr_t)(info->dest_addr),
@@ -415,8 +437,9 @@ static int dolby_fw_critical_query(struct dolby_fw_args *info)
 	}
 	ret = size;
 
-err:
+err1:
 	sharemem_mutex_unlock();
+err:
 	return ret;
 }
 

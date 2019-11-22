@@ -107,6 +107,7 @@ struct meson_i2c {
 	int			count;
 	int			pos;
 	int			error;
+	int			retries;
 
 	spinlock_t		lock;
 	struct completion	done;
@@ -155,13 +156,31 @@ static void meson_i2c_write_tokens(struct meson_i2c *i2c)
 /*
  * Count = clk/freq  = H + L
  * Duty  = H/(H + L) = 1/2	-- duty 50%
+ * 1. register desription
+ * in I2C_CONTROL_REG , n = [28:29][21:12], control the high level time
+ *			n consists of 12bit, [21:12] is the low 10bit,
+ *			[28:29] is the bit 11 and 12.
+ * in I2C_SLAVE_ADDRESS, m = [27:16], control the low level time,
+ *			 bit 28 enable the function
+ *
+ * 2.I2C controller internal characteristic
  * H = n + delay
  * L = 2m
+ * (H:high clock counts equals n + 15 clocks which
+ *    cost by sampling and filtering
+ *  L:low clock counts equals m multiply by 2)
+ *
+ * 3.high level and low level relationship:
+ * H/L = (n + 15)/2m = 1/1
+ * H+L = 2m + n +15 = Count
+ * Count = 166M/freq = 166M/100k
  *
  * =>
  *
  * n = Count/2 - delay
  * m = Count/4
+ *
+ * n equals div_h, m equals div_l below
  * Standard Mode : 100k
  */
 static void meson_i2c_set_clk_div_std(struct meson_i2c *i2c)
@@ -318,6 +337,8 @@ static void meson_i2c_prepare_xfer(struct meson_i2c *i2c)
 
 	if (write)
 		meson_i2c_put_data(i2c, i2c->msg->buf + i2c->pos, i2c->count);
+
+	i2c->retries = 0;
 }
 
 static void meson_i2c_stop(struct meson_i2c *i2c)
@@ -340,7 +361,6 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 
 	spin_lock(&i2c->lock);
 
-	meson_i2c_reset_tokens(i2c);
 	ctrl = readl(i2c->regs + REG_CTRL);
 
 	dev_dbg(i2c->dev, "irq: state %d, pos %d, count %d, ctrl %08x\n",
@@ -354,12 +374,15 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 		 * condition.
 		 */
 		dev_dbg(i2c->dev, "error bit set\n");
-		i2c->error = -ENXIO;
-		i2c->state = STATE_IDLE;
-		complete(&i2c->done);
+		if (++i2c->retries >= i2c->adap.retries) {
+			i2c->error = -ENXIO;
+			i2c->state = STATE_IDLE;
+			complete(&i2c->done);
+		}
 		goto out;
 	}
 
+	meson_i2c_reset_tokens(i2c);
 	switch (i2c->state) {
 	case STATE_READ:
 		if (i2c->count > 0) {

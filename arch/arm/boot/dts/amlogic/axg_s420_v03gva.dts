@@ -315,14 +315,6 @@
 		pinctrl-0 = <&b_uart_pins>;
 	};
 
-	meson-irblaster {
-		compatible = "amlogic, am_irblaster";
-		dev_name = "meson-irblaster";
-		status = "disable";
-		pinctrl-names = "default";
-		pinctrl-0 = <&irblaster_pins>;
-	};
-
 	/* Sound iomap */
 	aml_snd_iomap {
 		compatible = "amlogic, snd-iomap";
@@ -668,13 +660,17 @@
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <6>;
+		unifykey-num = <11>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
 		unifykey-index-3 = <&keysn_3>;
 		unifykey-index-4 = <&keysn_4>;
 		unifykey-index-5 = <&keysn_5>;
+		unifykey-index-7 = <&keysn_7>;
+		unifykey-index-8 = <&keysn_8>;
+		unifykey-index-9 = <&keysn_9>;
+		unifykey-index-10 = <&keysn_10>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -705,6 +701,26 @@
 		};
 		keysn_5:key_5{
 			key-name = "deviceid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_7:key_7{
+			key-name = "lang";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_8:key_8{
+			key-name = "country";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_9:key_9{
+			key-name = "locale_lang";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_10:key_10{
+			key-name = "locale_region";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
@@ -1192,4 +1208,17 @@
 };
 &audio_data{
 	status = "okay";
+};
+
+&spicc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+//	cs-gpios = <&gpio GPIOH_20 0>;
+	spidev {
+		compatible = "rohm,dh2228fv";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <3340000>;
+	};
 };

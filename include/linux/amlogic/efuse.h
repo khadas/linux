@@ -18,7 +18,7 @@
 #ifndef __EFUSE_AMLOGIC_H
 #define __EFUSE_AMLOGIC_H
 
-#ifdef CONFIG_ARM64
+#if defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)
 struct efusekey_info {
 	char keyname[32];
 	unsigned int offset;

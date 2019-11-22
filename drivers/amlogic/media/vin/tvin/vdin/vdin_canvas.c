@@ -22,6 +22,7 @@
 #include <linux/cma.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
+#include <linux/delay.h>
 
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -60,12 +61,12 @@ MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 
 const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT] = {
 	{
-		38, 39, 40, 41, 42,
-		43, 44, 45, 46,
+		0x26, 0x27, 0x28, 0x29, 0x2a,
+		0x2b, 0x2c, 0x2d, 0x2e, 0x2f
 	},
 	{
-		47, 48, 49, 50, 51,
-		52, 53, 54, 55,
+		0x30, 0x31, 0x32, 0x33, 0x34,
+		0x35, 0x36, 0x37, 0x38, 0x39
 	},
 };
 
@@ -150,10 +151,10 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == 1))
+		(devp->color_depth_mode == VDIN_422_FULL_PK_EN))
 			devp->canvas_w = (max_buf_width * 5)/2;
 		else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == 0))
+			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS))
 			devp->canvas_w = max_buf_width *
 				VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
 		else
@@ -164,7 +165,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	devp->canvas_active_w = devp->canvas_w;
 	if (devp->force_yuv444_malloc == 1) {
 		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode != 1))
+			(devp->color_depth_mode != VDIN_422_FULL_PK_EN))
 			devp->canvas_w = devp->h_active *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
@@ -293,10 +294,10 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == 1))
+		(devp->color_depth_mode == VDIN_422_FULL_PK_EN))
 			devp->canvas_w = (devp->h_active * 5)/2;
 		else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == 0))
+			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS))
 			devp->canvas_w = devp->h_active *
 				VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
 		else
@@ -306,8 +307,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	/*backup before roundup*/
 	devp->canvas_active_w = devp->canvas_w;
 	if (devp->force_yuv444_malloc == 1) {
-		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode != 1))
+		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) /*&&*/
+			/*(devp->color_depth_mode != VDIN_422_FULL_PK_EN)*/)
 			devp->canvas_w = devp->h_active *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
@@ -335,7 +336,10 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	devp->vfmem_max_cnt = min(devp->vfmem_max_cnt, devp->canvas_max_num);
 
 	if (devp->set_canvas_manual == 1) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+			if (vdin_set_canvas_addr[i].dmabuff == 0)
+				break;
+
 			canvas_id =
 				vdin_canvas_ids[devp->index][i * canvas_step];
 			canvas_addr = vdin_set_canvas_addr[i].paddr;
@@ -422,15 +426,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = min_buf_num;
-	unsigned int i;
-	/*head_size:3840*2160*3*9/32*/
-	unsigned int afbce_head_size_byte = PAGE_SIZE * 1712;
-	/*afbce map_table need 218700 byte at most*/
-	unsigned int afbce_table_size_byte = PAGE_SIZE * 60;/*0.3M*/
+	unsigned int i, j;
+	unsigned int afbce_head_total_bytes;
+	unsigned int afbce_table_total_bytes;
 	unsigned long ref_paddr;
 	unsigned int mem_used;
-	unsigned int frame_head_size;
-	unsigned int mmu_used;
 
 	if (devp->rdma_enable)
 		max_buffer_num++;
@@ -452,8 +452,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->cma_mem_alloc);
 		return 0;
 	}
+
+	/*pixels*/
 	h_size = devp->h_active;
 	v_size = devp->v_active;
+
 	if (devp->canvas_config_mode == 1) {
 		h_size = max_buf_width;
 		v_size = max_buf_height;
@@ -465,8 +468,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG) ||
 		(devp->force_yuv444_malloc == 1)) {
-		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode != 1)) {
+		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)/* &&*/
+			/*(devp->color_depth_mode != VDIN_422_FULL_PK_EN)*/) {
 			h_size = roundup(h_size *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
@@ -496,11 +499,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == 1)) {
+		(devp->color_depth_mode == VDIN_422_FULL_PK_EN)) {
 			h_size = roundup((h_size * 5)/2, devp->canvas_align);
 			devp->canvas_alin_w = (h_size * 2) / 5;
 		} else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == 0)) {
+			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS)) {
 			h_size = roundup(h_size *
 				VDIN_YUV422_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
@@ -514,16 +517,27 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
 		}
 	}
+
+	/*1 frame bytes*/
 	mem_size = h_size * v_size;
+	/*for almost uncompressed pattern,garbage at bottom
+	 *1024x1658 is the worst case,each page wast 2160x3x256byte for 4096
+	 *since every block must not be separated by 2 pages
+	 *screen cap & v4l2 debug doesn't use afbce,no need inc mem
+	 */
+	if (!(devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
+	    (!(devp->flags & VDIN_FLAG_V4L2_DEBUG)))
+		mem_size += 1024 * 1658;
+
 	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) &&
 		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
 		mem_size = (mem_size * 3)/2;
 	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
-	devp->vfmem_size = (devp->vfmem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+	devp->vfmem_size = roundup(devp->vfmem_size, PAGE_SIZE);
 
 	if (devp->set_canvas_manual == 1) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
-			if (vdin_set_canvas_addr[i].dmabuff == NULL)
+			if (vdin_set_canvas_addr[i].dmabuff == 0)
 				break;
 
 			vdin_set_canvas_addr[i].paddr =
@@ -535,10 +549,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->vfmem_max_cnt = max_buffer_num;
 	}
 
-
+	/*total frames bytes*/
 	mem_size = PAGE_ALIGN(mem_size) * max_buffer_num +
 		dolby_size_byte * max_buffer_num;
-	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+	mem_size = roundup(mem_size, PAGE_SIZE);
 
 	if (mem_size > devp->cma_mem_size) {
 		mem_size = devp->cma_mem_size;
@@ -551,11 +565,44 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	else if (devp->index == 1)
 		strcpy(vdin_name, "vdin1");
 
+	/*allocate mem according to resolution
+	 *each block contains 32 * 4 pixels
+	 *one block associated to one header(4 bytes)
+	 *dolby has one page size, & each vframe aligned to page size
+	 *(((h(align 32 pixel) * v(4 pixel)) / (32 * 4)) * 4)  + dolby
+	 *total max_buffer_num
+	 */
+	afbce_head_total_bytes =  PAGE_ALIGN((roundup(devp->h_active, 32) *
+		roundup(devp->v_active, 4)) / 32 + dolby_size_byte);
+	afbce_head_total_bytes *= max_buffer_num;
+
+	/*((h * v * byte_per_pixel + dolby) / page_size) * 4(one address size)
+	 * total max_buffer_num
+	 */
+	afbce_table_total_bytes = PAGE_ALIGN
+		((devp->vfmem_size * 4) / PAGE_SIZE);
+	afbce_table_total_bytes *= max_buffer_num;
+
 	if (devp->cma_config_flag == 0x101) {
 		/* canvas or afbce paddr */
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->vfmem_start[i] = codec_mm_alloc_for_dma(vdin_name,
 				devp->vfmem_size/PAGE_SIZE, 0, flags);
+
+			/*add for 1g config, codec can't release mem in time*/
+			for (j = 0; j < 20; j++) {
+				if (devp->vfmem_start[i] == 0) {
+					msleep(50);
+					pr_err("alloc mem fail:50*%dms\n", j);
+					devp->vfmem_start[i] =
+						codec_mm_alloc_for_dma
+						(vdin_name,
+						devp->vfmem_size/PAGE_SIZE, 0,
+						flags);
+				} else
+					break;
+			}
+
 			if (devp->vfmem_start[i] == 0) {
 				pr_err("\nvdin%d buf[%d]codec alloc fail!!!\n",
 					devp->index, i);
@@ -570,13 +617,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->index, i,
 				devp->vfmem_start[i], devp->vfmem_size);
 		}
-		if (devp->afbce_info)
-			devp->afbce_info->frame_body_size = devp->vfmem_size;
+
 		devp->mem_size = mem_size;
 
 		if (devp->afbce_info) {
 			devp->afbce_info->head_paddr = codec_mm_alloc_for_dma(
-				vdin_name, afbce_head_size_byte/PAGE_SIZE,
+				vdin_name, afbce_head_total_bytes / PAGE_SIZE,
 				0, flags);
 			if (devp->afbce_info->head_paddr == 0) {
 				pr_err("\nvdin%d header codec alloc fail!!!\n",
@@ -585,7 +631,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				return 1;
 			}
 			devp->afbce_info->table_paddr = codec_mm_alloc_for_dma(
-				vdin_name, afbce_table_size_byte/PAGE_SIZE,
+				vdin_name, afbce_table_total_bytes / PAGE_SIZE,
 				0, flags);
 			if (devp->afbce_info->table_paddr == 0) {
 				pr_err("\nvdin%d table codec alloc fail!!!\n",
@@ -595,8 +641,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->cma_mem_alloc = 0;
 				return 1;
 			}
-			devp->afbce_info->head_size = afbce_head_size_byte;
-			devp->afbce_info->table_size = afbce_table_size_byte;
+			devp->afbce_info->frame_body_size = devp->vfmem_size;
+			devp->afbce_info->head_size = afbce_head_total_bytes;
+			devp->afbce_info->table_size = afbce_table_total_bytes;
 
 			pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
 				devp->index, devp->afbce_info->head_paddr,
@@ -703,34 +750,31 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	/* set afbce head paddr */
 	if (devp->afbce_info) {
-		/* 1 block = 32 * 4 pixle = 128 pixel */
-		/* there is a header in one block, a header has 4 bytes */
-		frame_head_size = (int)roundup(devp->vfmem_size, 128);
-		/*h_active * v_active / 128 * 4 = frame_head_size*/
-		frame_head_size = PAGE_ALIGN(frame_head_size / 32);
+		/*h_active align to 32 pixel, v_active align to 4 pixel*/
+		devp->afbce_info->frame_head_size =
+			PAGE_ALIGN((roundup(devp->h_active, 32) *
+			roundup(devp->v_active, 4)) / 32 + dolby_size_byte);
 
-		devp->afbce_info->frame_head_size = frame_head_size;
 
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->afbce_info->fm_head_paddr[i] =
 				devp->afbce_info->head_paddr +
-				(frame_head_size*i);
+				(devp->afbce_info->frame_head_size * i);
 
 			pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
 				devp->index, i,
 				devp->afbce_info->fm_head_paddr[i],
-				frame_head_size);
+				devp->afbce_info->frame_head_size);
 		}
 
 		/* set afbce table paddr */
-		mmu_used = devp->afbce_info->frame_body_size >> 12;
-		mmu_used = mmu_used * 4;
-		mmu_used = PAGE_ALIGN(mmu_used);
-		devp->afbce_info->frame_table_size = mmu_used;
+		devp->afbce_info->frame_table_size = PAGE_ALIGN
+			((devp->afbce_info->frame_body_size >> 12) * 4);
 
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->afbce_info->fm_table_paddr[i] =
-				devp->afbce_info->table_paddr + (mmu_used*i);
+				devp->afbce_info->table_paddr +
+				(devp->afbce_info->frame_table_size * i);
 
 			pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x\n",
 				devp->index, i,

@@ -34,6 +34,11 @@
 unsigned int IEC958_mode_codec;
 EXPORT_SYMBOL(IEC958_mode_codec);
 
+bool spdifout_is_raw(void)
+{
+	return (IEC958_mode_codec && IEC958_mode_codec != 9);
+}
+
 bool spdif_is_4x_clk(void)
 {
 	bool is_4x = false;

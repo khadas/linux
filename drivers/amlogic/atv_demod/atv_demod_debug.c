@@ -52,9 +52,12 @@
 	DEBUGFS_CREATE_NODE(aud_std, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(aud_mode, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(aud_auto, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(aud_reinit, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(aud_mono_only, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(over_threshold, 0640, dentry, u64)\
 	DEBUGFS_CREATE_NODE(input_amplitude, 0640, dentry, u64)\
 	DEBUGFS_CREATE_NODE(atvaudio_det_outputmode_en, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(audio_carrier_offset_det_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(audio_det_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(non_std_en, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_det_nonstd_en, 0640, dentry, bool)\
@@ -84,6 +87,7 @@
 	DEBUGFS_CREATE_NODE(atvdemod_timer_delay2, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_mixer_tune_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(atvdemod_overmodulated_en, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(atv_audio_overmodulated_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(audio_thd_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(pwm_kp, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_gain_val, 0640, dentry, u32)\
@@ -92,8 +96,15 @@
 	DEBUGFS_CREATE_NODE(audio_nicam_delay, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_a2_auto, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_a2_power_threshold, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(audio_a2_carrier_report, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_gain_shift, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_gain_lpr, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(audio_atv_ov, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(audio_atv_ov_flag, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(atvdemod_isr_en, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(atv_audio_overmodulated_cnt, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(support_secam_l, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(atvdemod_horiz_freq_det_en, 0640, dentry, bool)\
 }
 
 
@@ -110,6 +121,8 @@
 	DEBUGFS_CREATE_FILE(sum2_thd_h, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(sum2_thd_l, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(afc_default, 0640, dentry, fops, int)\
+	DEBUGFS_CREATE_FILE(snr_threshold, 0640, dentry, fops, int)\
+	DEBUGFS_CREATE_FILE(snr_val, 0640, dentry, fops, int)\
 }
 
 
@@ -125,6 +138,8 @@ DEBUGFS_DENTRY_DEFINE(sum1_thd_l);
 DEBUGFS_DENTRY_DEFINE(sum2_thd_h);
 DEBUGFS_DENTRY_DEFINE(sum2_thd_l);
 DEBUGFS_DENTRY_DEFINE(afc_default);
+DEBUGFS_DENTRY_DEFINE(snr_threshold);
+DEBUGFS_DENTRY_DEFINE(snr_val);
 
 struct dentry_value *debugfs_dentry[] = {
 	DEBUGFS_DENTRY_VALUE(non_std_thld_4c_h),
@@ -136,6 +151,8 @@ struct dentry_value *debugfs_dentry[] = {
 	DEBUGFS_DENTRY_VALUE(sum2_thd_h),
 	DEBUGFS_DENTRY_VALUE(sum2_thd_l),
 	DEBUGFS_DENTRY_VALUE(afc_default),
+	DEBUGFS_DENTRY_VALUE(snr_threshold),
+	DEBUGFS_DENTRY_VALUE(snr_val),
 };
 
 static int debugfs_open(struct inode *node, struct file *file)
@@ -176,11 +193,10 @@ static ssize_t debugfs_write(struct file *file, const char __user *userbuf,
 	char buf[20] = { 0 };
 	int len = ARRAY_SIZE(debugfs_dentry);
 
+	memset(buf, 0, sizeof(buf));
 	count = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
-
-	buf[count] = 0;
 
 	/*i = sscanf(buf, "%d", &val);*/
 	i = kstrtoint(buf, 0, &val);

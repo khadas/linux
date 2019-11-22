@@ -22,6 +22,7 @@
 #include "deinterlace_hw.h"
 #include "deinterlace_dbg.h"
 
+#include "di_pqa.h"
 static unsigned int field_diff_rate;
 
 static unsigned int flm22_sure_num = 100;
@@ -119,6 +120,7 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 	unsigned int flm22_surenum = flm22_sure_num;
 	int difflag = 2;
 	bool flm32 = false, flm22 = false, flmxx = false;
+	unsigned int pulldown_info;
 
 	read_pulldown_info(&glb_frame_mot_num,
 		&glb_field_mot_num);
@@ -335,7 +337,12 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 				res->regs[1].blend_mode = 0;
 			}
 		}
-	return 0;
+
+	pulldown_info = flm32 ? 1 : 0;
+	pulldown_info |= flm22 ? 0x02 : 0;
+	pulldown_info |= flmxx ? 0x04 : 0;
+
+	return pulldown_info;
 }
 
 unsigned char pulldown_init(unsigned short width, unsigned short height)
@@ -528,3 +535,26 @@ module_param_named(flm22_sure_num, flm22_sure_num, uint, 0644);
 module_param_named(flm22_glbpxlnum_rat, flm22_glbpxlnum_rat, uint, 0644);
 module_param_named(flag_di_weave, flag_di_weave, int, 0644);
 #endif
+static const struct pulldown_op_s di_pd_ops = {
+	.init		= pulldown_init,	/*call when size change*/
+	.detection	= pulldown_detection,	/*call after pre nrwrite*/
+	.vof_win_vshift	= pulldown_vof_win_vshift,	/*in post process*/
+	/*.module_para	= dim_seq_file_module_para_pulldown,*/	/*for debug*/
+	.prob		= pd_device_files_add,	/*prob*/
+	.remove		= pd_device_files_del,	/*remove*/
+};
+
+bool di_attach_ops_pulldown(const struct pulldown_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_pd_ops;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_pulldown);

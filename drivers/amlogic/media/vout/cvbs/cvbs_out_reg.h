@@ -151,6 +151,8 @@
 #define HHI_DIF_CSI_PHY_CNTL5                      0xdd
 #define HHI_LVDS_TX_PHY_CNTL0                      0xde
 #define HHI_LVDS_TX_PHY_CNTL1                      0xdf
+#define HHI_LVDS_TX_PHY_CNTL0_TL1                  0x9a
+#define HHI_LVDS_TX_PHY_CNTL1_TL1                  0x9b
 #define HHI_VID2_PLL_CNTL                          0xe0
 #define HHI_VID2_PLL_CNTL2                         0xe1
 #define HHI_VID2_PLL_CNTL3                         0xe2

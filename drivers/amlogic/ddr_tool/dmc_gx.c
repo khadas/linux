@@ -29,6 +29,7 @@
 #include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -80,13 +81,34 @@ static size_t gx_dmc_dump_reg(char *buf)
 	return sz;
 }
 
-static void check_violation(struct dmc_monitor *mon)
+static void show_violation_mem(unsigned long addr)
+{
+	struct page *page;
+	unsigned long *p, *q;
+
+	if (!pfn_valid(__phys_to_pfn(addr)))
+		return;
+
+	page = phys_to_page(addr);
+	p = kmap_atomic(page);
+	if (!p)
+		return;
+
+	q = p + ((addr & (PAGE_SIZE - 1)) / sizeof(*p));
+	pr_info(DMC_TAG "[%08lx]:%016lx, f:%8lx, m:%p, a:%ps\n",
+		(unsigned long)q, *q, page->flags & 0xffffffff,
+		page->mapping,
+		(void *)get_page_trace(page));
+	kunmap_atomic(p);
+}
+
+static void check_violation(struct dmc_monitor *mon, void *data)
 {
 	int i, port, subport;
 	unsigned long addr, status;
-	struct page *page;
-	unsigned long *p;
 	char id_str[4];
+	struct page *page;
+	struct page_trace *trace;
 
 	for (i = 1; i < 8; i += 2) {
 		status = dmc_rw(DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
@@ -103,20 +125,19 @@ static void check_violation(struct dmc_monitor *mon)
 			mon->same_page++;
 			continue;
 		}
+		/* ignore cma driver pages */
+		page = phys_to_page(addr);
+		trace = find_page_base(page);
+		if (!trace || trace->migrate_type == MIGRATE_CMA)
+			continue;
 
 		port = (status >> 10) & 0xf;
 		subport = (status >> 6) & 0xf;
-		pr_info(DMC_TAG", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld\n",
+		pr_info(DMC_TAG", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
 			addr, status, to_ports(port),
-			to_sub_ports(port, subport, id_str), mon->same_page);
-		if (pfn_valid(__phys_to_pfn(addr))) {
-			page = phys_to_page(addr);
-			p = (page_address(page) + (addr & (PAGE_SIZE - 1)));
-			pr_info(DMC_TAG" [%08lx]:%016lx, f:%8lx, m:%p, a:%pf\n",
-				addr, *p, page->flags & 0xffffffff,
-				page->mapping,
-				(void *)get_page_trace(page));
-		}
+			to_sub_ports(port, subport, id_str),
+			mon->same_page, data);
+		show_violation_mem(addr);
 		if (!port) /* dump stack for CPU write */
 			dump_stack();
 
@@ -126,17 +147,18 @@ static void check_violation(struct dmc_monitor *mon)
 	}
 }
 
-static void gx_dmc_mon_irq(struct dmc_monitor *mon)
+static void gx_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 {
 	unsigned long value;
 
 	value = dmc_rw(DMC_SEC_STATUS, 0, DMC_READ);
-	if (value & DMC_WRITE_VIOLATION)
-		check_violation(mon);
+	if (in_interrupt()) {
+		if (value & DMC_WRITE_VIOLATION)
+			check_violation(mon, data);
 
-	/* check irq flags just after IRQ handler */
-	if (in_interrupt())
+		/* check irq flags just after IRQ handler */
 		mod_delayed_work(system_wq, &mon->work, 0);
+	}
 	/* clear irq */
 	dmc_rw(DMC_SEC_STATUS, value, DMC_WRITE);
 }

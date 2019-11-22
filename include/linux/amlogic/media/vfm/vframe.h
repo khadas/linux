@@ -50,7 +50,11 @@
 #define VIDTYPE_NO_DW			0x4000000
 #define VIDTYPE_SUPPORT_COMPRESS	0x8000000
 #define VIDTYPE_PRE_DI_AFBC		0x10000000
+#define VIDTYPE_RGB_444			0x20000000
+#define VIDTYPE_V4L_EOS			0x80000000
 
+/* 2019-04-22 Suggestions from brian.zhu*/
+#define VIDTYPE_DI_PW			0x40000000
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
 #define DISP_RATIO_FORCE_FULL_STRETCH   0x20000000
@@ -109,10 +113,65 @@ struct vframe_hist_s {
 	unsigned char vpp_luma_max;
 	unsigned char vpp_luma_min;
 	unsigned short vpp_gamma[64];
+	unsigned int vpp_hue_gamma[32];
+	unsigned int vpp_sat_gamma[32];
 #ifdef AML_LOCAL_DIMMING
 	unsigned int ldim_max[100];
 #endif
 } /*vframe_hist_t */;
+
+struct tvin_hdr10p_data_s {
+	uint32_t vsif_hb;
+	uint32_t vsif_ieee_code;
+	struct pb4_st {
+		uint8_t rvd:1;
+		uint8_t max_lumin:5;
+		uint8_t app_ver:2;
+	} __packed pb4_st;
+	uint8_t average_maxrgb;
+	uint8_t distrib_valus0;
+	uint8_t distrib_valus1;
+	uint8_t distrib_valus2;
+	uint8_t distrib_valus3;
+	uint8_t distrib_valus4;
+	uint8_t distrib_valus5;
+	uint8_t distrib_valus6;
+	uint8_t distrib_valus7;
+	uint8_t distrib_valus8;
+	struct pb15_18_st {
+		uint32_t knee_point_x_9_6:4;
+		uint32_t num_bezier_curve_anchors:4;
+		uint32_t knee_point_y_9_8:2;
+		uint32_t knee_point_x_5_0:6;
+		uint32_t knee_point_y_7_0:8;
+		uint32_t bezier_curve_anchors0:8;
+	} __packed pb15_18_st;
+	uint8_t bezier_curve_anchors1;
+	uint8_t bezier_curve_anchors2;
+	uint8_t bezier_curve_anchors3;
+	uint8_t bezier_curve_anchors4;
+	uint8_t bezier_curve_anchors5;
+	uint8_t bezier_curve_anchors6;
+	uint8_t bezier_curve_anchors7;
+	uint8_t bezier_curve_anchors8;
+	struct pb27_st {
+		uint8_t rvd:6;
+		uint8_t no_delay_flag:1;
+		uint8_t overlay_flag:1;
+	} __packed pb27_st;
+} __packed;
+
+/*vdin dolby vsi info param*/
+struct tvin_dv_vsif_s {
+	uint8_t dobly_vision_signal:1;
+	uint8_t backlt_ctrl_MD_present:1;
+	uint8_t auxiliary_MD_present:1;
+	uint8_t eff_tmax_PQ_hi;
+	uint8_t eff_tmax_PQ_low;
+	uint8_t auxiliary_runmode;
+	uint8_t auxiliary_runversion;
+	uint8_t auxiliary_debug0;
+};
 
 /*
  * If bottom == 0 or right == 0, then all Blackbar information are invalid
@@ -164,55 +223,6 @@ struct vframe_master_display_colour_s {
 		content_light_level;
 }; /* master_display_colour_info_volume from SEI */
 
-struct vframe_hdr_plus_sei_s {
-	u16 present_flag;
-	u16 itu_t_t35_country_code;
-	u16 itu_t_t35_terminal_provider_code;
-	u16 itu_t_t35_terminal_provider_oriented_code;
-	u16 application_identifier;
-	u16 application_version;
-	/*num_windows max is 3*/
-	u16 num_windows;
-	/*windows xy*/
-	u16 window_upper_left_corner_x[3];
-	u16 window_upper_left_corner_y[3];
-	u16 window_lower_right_corner_x[3];
-	u16 window_lower_right_corner_y[3];
-	u16 center_of_ellipse_x[3];
-	u16 center_of_ellipse_y[3];
-	u16 rotation_angle[3];
-	u16 semimajor_axis_internal_ellipse[3];
-	u16 semimajor_axis_external_ellipse[3];
-	u16 semiminor_axis_external_ellipse[3];
-	u16 overlap_process_option[3];
-	/*target luminance*/
-	u32 tgt_sys_disp_max_lumi;
-	u16 tgt_sys_disp_act_pk_lumi_flag;
-	u16 num_rows_tgt_sys_disp_act_pk_lumi;
-	u16 num_cols_tgt_sys_disp_act_pk_lumi;
-	u16 tgt_sys_disp_act_pk_lumi[25][25];
-
-	/*num_windows max is 3, e.g maxscl[num_windows][i];*/
-	u32 maxscl[3][3];
-	u32 average_maxrgb[3];
-	u16 num_distribution_maxrgb_percentiles[3];
-	u16 distribution_maxrgb_percentages[3][15];
-	u32 distribution_maxrgb_percentiles[3][15];
-	u16 fraction_bright_pixels[3];
-
-	u16 mast_disp_act_pk_lumi_flag;
-	u16 num_rows_mast_disp_act_pk_lumi;
-	u16 num_cols_mast_disp_act_pk_lumi;
-	u16 mast_disp_act_pk_lumi[25][25];
-	/*num_windows max is 3, e.g knee_point_x[num_windows]*/
-	u16 tone_mapping_flag[3];
-	u16 knee_point_x[3];
-	u16 knee_point_y[3];
-	u16 num_bezier_curve_anchors[3];
-	u16 bezier_curve_anchors[3][15];
-	u16 color_saturation_mapping_flag[3];
-	u16 color_saturation_weight[3];
-};
 /* vframe properties */
 struct vframe_prop_s {
 	struct vframe_hist_s hist;
@@ -220,6 +230,7 @@ struct vframe_prop_s {
 	struct vframe_meas_s meas;
 	struct vframe_master_display_colour_s
 	 master_display_colour;
+	struct tvin_hdr10p_data_s hdr10p_data;
 } /*vframe_prop_t */;
 
 struct vdisplay_info_s {
@@ -417,6 +428,15 @@ struct vframe_s {
 
 	u32 sar_width;
 	u32 sar_height;
+	/*****************
+	 * di pulldown info
+	 * bit 3: interlace
+	 * bit 2: flmxx
+	 * bit 1: flm22
+	 * bit 0: flm32
+	 *****************/
+	u32 di_pulldown;
+	u32 di_gmv;
 } /*vframe_t */;
 
 #if 0

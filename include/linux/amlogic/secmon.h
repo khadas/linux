@@ -27,4 +27,6 @@ void sharemem_mutex_lock(void);
 void sharemem_mutex_unlock(void);
 void secmon_clear_cma_mmu(void);
 
+int within_secmon_region(unsigned long addr);
+
 #endif

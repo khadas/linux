@@ -33,6 +33,8 @@
 #include <drm/drm_modeset_helper.h>
 
 struct drm_atomic_state;
+struct drm_private_obj;
+struct drm_private_state;
 
 int drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state);
@@ -166,6 +168,8 @@ void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 				       u16 *red, u16 *green, u16 *blue,
 				       uint32_t size);
+void __drm_atomic_helper_private_obj_duplicate_state(struct drm_private_obj *obj,
+				struct drm_private_state *state);
 
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC

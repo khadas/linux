@@ -254,10 +254,14 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 */
 	if (!pgd_none(*pgd)) {
 		pud_t *pud = pud_offset(pgd, addr);
+#ifndef CONFIG_AMLOGIC_MODIFY
 		WARN_ON_ONCE(pud_bad(*pud));
+#endif
 		if (!pud_none(*pud) && !pud_bad(*pud)) {
 			pmd_t *pmd = pmd_offset(pud, addr);
+#ifndef CONFIG_AMLOGIC_MODIFY
 			WARN_ON_ONCE(pmd_bad(*pmd));
+#endif
 			if (!pmd_none(*pmd) && !pmd_bad(*pmd)) {
 				pte_t *ptep, pte;
 
@@ -355,6 +359,21 @@ static void __insert_vmap_area(struct vmap_area *va)
 static void purge_vmap_area_lazy(void);
 
 static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void dump_vmalloc(void)
+{
+	struct vmap_area *va, *next;
+
+	spin_lock(&vmap_area_lock);
+	list_for_each_entry_safe(va, next, &vmap_area_list, list) {
+		pr_info("%s, va:%lx-%lx, size:%08ld KB, alloc:%pf\n",
+			__func__, va->va_start, va->va_end,
+			(va->va_end - va->va_start) >> 10, va->vm->caller);
+	}
+	spin_unlock(&vmap_area_lock);
+}
+#endif
 
 /*
  * Allocate a region of KVA of the specified size and alignment, within the
@@ -492,6 +511,9 @@ overflow:
 		}
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	dump_vmalloc();
+#endif
 	if (printk_ratelimit())
 		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
 			size);

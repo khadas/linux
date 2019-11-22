@@ -667,8 +667,12 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 
 	pc->reg_gpio = meson_map_resource(pc, gpio_np, "gpio");
 	if (IS_ERR(pc->reg_gpio)) {
-		dev_err(pc->dev, "gpio registers not found\n");
-		return PTR_ERR(pc->reg_gpio);
+		if (PTR_ERR(pc->reg_gpio) == -ENOENT) {
+			pc->reg_gpio = pc->reg_mux;
+		} else {
+			dev_err(pc->dev, "gpio registers not found\n");
+			return PTR_ERR(pc->reg_gpio);
+		}
 	}
 
 	pc->reg_pull = meson_map_resource(pc, gpio_np, "pull");
@@ -696,7 +700,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	pc->reg_drive = meson_map_resource(pc, gpio_np, "drive-strength");
 	if (IS_ERR(pc->reg_drive)) {
 		if (PTR_ERR(pc->reg_drive) == -ENOENT)
-			pc->reg_drive = NULL;
+			pc->reg_drive = pc->reg_pullen;
 		else {
 			dev_err(pc->dev, "drive-strength registers not found\n");
 			return PTR_ERR(pc->reg_drive);

@@ -331,20 +331,22 @@ void sdio_reinit(void)
 }
 EXPORT_SYMBOL(sdio_reinit);
 
+void sdio_notify(int on)
+{
+	if (sdio_host) {
+		if (sdio_host->card) {
+			if (on)
+				sdio_host->wifi_down_f = 0;
+			else
+				sdio_host->wifi_down_f = 1;
+		}
+	}
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_notify);
+
 void of_amlsd_pwr_prepare(struct amlsd_platform *pdata)
 {
-}
-
-void of_amlsd_pwr_on(struct amlsd_platform *pdata)
-{
-	if (pdata->gpio_power)
-		gpio_set_value(pdata->gpio_power, pdata->power_level);
-}
-
-void of_amlsd_pwr_off(struct amlsd_platform *pdata)
-{
-	if (pdata->gpio_power)
-		gpio_set_value(pdata->gpio_power, !pdata->power_level);
 }
 
 #ifdef CARD_DETECT_IRQ
@@ -383,7 +385,8 @@ int of_amlsd_init(struct amlsd_platform *pdata)
 	}
 #endif
 	if (pdata->gpio_power) {
-		if (pdata->power_level) {
+		if (pdata->power_level &&
+		    !aml_card_type_non_sdio(pdata)) {
 			ret = gpio_request_one(pdata->gpio_power,
 					GPIOF_OUT_INIT_LOW, MODULE_NAME);
 			CHECK_RET(ret);
@@ -431,14 +434,14 @@ static struct pinctrl * __must_check aml_devm_pinctrl_get_select(
 	s = pinctrl_lookup_state(p, name);
 	if (IS_ERR(s)) {
 		pr_err("lookup %s fail\n", name);
-		devm_pinctrl_put(p);
+		aml_devm_pinctrl_put(host);
 		return ERR_CAST(s);
 	}
 
 	ret = pinctrl_select_state(p, s);
 	if (ret < 0) {
 		pr_err("select %s fail\n", name);
-		devm_pinctrl_put(p);
+		aml_devm_pinctrl_put(host);
 		return ERR_PTR(ret);
 	}
 	if ((host->mem->start == host->data->port_b_base)
@@ -474,6 +477,47 @@ static struct pinctrl * __must_check aml_devm_pinctrl_get_select(
 	return NULL;
 }
 #endif /* SD_EMMC_PIN_CTRL */
+
+#define sd3_pwr_dbg 1
+void of_amlsd_pwr_on(struct amlsd_platform *pdata)
+{
+#if sd3_pwr_dbg
+	struct pinctrl *p = NULL;
+	struct amlsd_host *host = pdata->host;
+#endif
+
+	if (pdata->gpio_power) {
+		gpio_set_value(pdata->gpio_power, pdata->power_level);
+#if sd3_pwr_dbg
+		if (aml_card_type_non_sdio(pdata)) {
+			mutex_lock(&host->pinmux_lock);
+			p = aml_devm_pinctrl_get_select(host, "sd_all_pins");
+			mutex_unlock(&host->pinmux_lock);
+		}
+#endif
+	}
+}
+
+void of_amlsd_pwr_off(struct amlsd_platform *pdata)
+{
+#if sd3_pwr_dbg
+	struct pinctrl *p = NULL;
+	struct amlsd_host *host = pdata->host;
+#endif
+
+	if (pdata->gpio_power) {
+		gpio_set_value(pdata->gpio_power, !pdata->power_level);
+
+#if sd3_pwr_dbg
+		if (aml_card_type_non_sdio(pdata)) {
+			mutex_lock(&host->pinmux_lock);
+			p = aml_devm_pinctrl_get_select(host, "sd_all_pd_pins");
+			mutex_unlock(&host->pinmux_lock);
+			mdelay(200);	//pull down need 200ms.
+		}
+#endif
+	}
+}
 
 void of_amlsd_xfer_pre(struct amlsd_platform *pdata)
 {
@@ -700,6 +744,9 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 	struct amlsd_host *host = pdata->host;
 	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
 
+	if (pdata->no_sduart)
+		return 0;
+
 	mutex_lock(&host->pinmux_lock);
 	pc = aml_devm_pinctrl_get_select(host, "sd_to_ao_uart_pins");
 
@@ -775,16 +822,22 @@ void jtag_set_state(unsigned int state, unsigned int select)
 
 void jtag_select_ao(void)
 {
+	struct cpumask org_cpumask;
+
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 	jtag_set_state(AMLOGIC_JTAG_STATE_ON, AMLOGIC_JTAG_APAO);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 }
 
 void jtag_select_sd(void)
 {
+	struct cpumask org_cpumask;
+
+	cpumask_copy(&org_cpumask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
 	jtag_set_state(AMLOGIC_JTAG_STATE_ON, AMLOGIC_JTAG_APEE);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
+	set_cpus_allowed_ptr(current, &org_cpumask);
 }
 #endif
 
@@ -892,8 +945,10 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 			}
 		} else {
 			pr_info("normal card in\n");
-			aml_uart_switch(pdata, 0);
-			aml_jtag_switch_ao(pdata);
+			if (!pdata->no_sduart) {
+				aml_uart_switch(pdata, 0);
+				aml_jtag_switch_ao(pdata);
+			}
 			if (host->data->chip_type == MMC_CHIP_G12A)
 				host->is_sduart = 0;
 			if (pdata->caps & MMC_CAP_4_BIT_DATA)
@@ -915,8 +970,10 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 			host->is_sduart = 0;
 		if (mmc && mmc->card)
 			mmc_card_set_removed(mmc->card);
-		aml_uart_switch(pdata, 0);
-		aml_jtag_switch_ao(pdata);
+		if (!pdata->no_sduart) {
+			aml_uart_switch(pdata, 0);
+			aml_jtag_switch_ao(pdata);
+		}
 		/* switch to 3.3V */
 		aml_sd_voltage_switch(mmc,
 				MMC_SIGNAL_VOLTAGE_330);

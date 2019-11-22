@@ -2156,12 +2156,24 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 		goto oom;
 
 	if (is_zero_pfn(pte_pfn(orig_pte))) {
+	#ifdef CONFIG_AMLOGIC_CMA
+		gfp_t tmp_flag = __GFP_MOVABLE | __GFP_BDEV;
+
+		new_page = __alloc_zeroed_user_highpage(tmp_flag, vma,
+							fe->address);
+	#else
 		new_page = alloc_zeroed_user_highpage_movable(vma, fe->address);
+	#endif
 		if (!new_page)
 			goto oom;
 	} else {
+	#ifdef CONFIG_AMLOGIC_CMA
+		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE | __GFP_BDEV,
+					  vma, fe->address);
+	#else
 		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
 				fe->address);
+	#endif
 		if (!new_page)
 			goto oom;
 		cow_user_page(new_page, old_page, fe->address, vma);

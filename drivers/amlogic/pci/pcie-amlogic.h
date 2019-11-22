@@ -166,6 +166,7 @@ struct pcie_phy {
 	u32 pcie_hhi_mem_pd_mask;
 	u32 pcie_ctrl_iso_shift;
 	u32 pcie_hhi_mem_pd_shift;
+	u32 pcie_ctrl_a_rst_bit;
 };
 
 

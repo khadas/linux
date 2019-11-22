@@ -31,3 +31,4 @@ struct mhu_data_buf {
 };
 
 extern struct device *the_scpi_device;
+extern u32 num_scp_chans;

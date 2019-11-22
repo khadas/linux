@@ -284,6 +284,18 @@
 	ram-dump {
 		compatible = "amlogic, ram_dump";
 		status = "okay";
+		reg = <0x0 0xFF6345E0 0x0 4>;
+		reg-names = "PREG_STICKY_REG8";
+		store_device = "data";
+	};
+
+	jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		select = "disable"; /* disable/apao/apee */
+		pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
+		pinctrl-0=<&jtag_apao_pins>;
+		pinctrl-1=<&jtag_apee_pins>;
 	};
 
 	pinctrl_aobus: pinctrl@ff800014{
@@ -461,6 +473,16 @@
 				clocks = <&clkc CLKID_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
+			};
+
+			irblaster: meson-irblaster@c0 {
+				compatible = "amlogic, aml_irblaster";
+				reg = <0x0 0xc0 0x0 0xc>,
+					<0x0 0x40 0x0 0x4>;
+				#irblaster-cells = <2>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&irblaster_pins>;
+				status = "disabled";
 			};
 		};/* end of aobus */
 
@@ -737,16 +759,6 @@
 		};
 	};
 
-	irblaster: meson-irblaster {
-		compatible = "amlogic, meson_irblaster";
-		reg = <0x0 0xff8000c0 0x0 0x10>,
-			<0x0 0xff800040 0x0 0x4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&irblaster_pins>;
-		interrupts = <0 198 1>;
-		status = "disabled";
-	};
-
 	saradc:saradc {
 		compatible = "amlogic,meson-axg-saradc";
 		status = "okay";
@@ -819,6 +831,12 @@
 	cpu_ver_name{
 		compatible = "amlogic, cpu-major-id-axg";
 	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		mem_size = <0x0 0x100000>;
+		status = "okay";
+	};
 };/* end of / */
 
 &pinctrl_aobus {
@@ -884,6 +902,15 @@
 		};
 	};
 
+	jtag_apao_pins:jtag_apao_pin {
+		mux {
+			groups = "jtag_ao_tdi",
+			"jtag_ao_tdo",
+			"jtag_ao_clk",
+			"jtag_ao_tms";
+			function = "jtag_ao";
+		};
+	};
 }; /* end of pinctrl_aobus */
 
 &pinctrl_periphs {
@@ -1145,5 +1172,14 @@
 		};
 	};
 
+	jtag_apee_pins:jtag_apee_pin {
+		mux {
+			groups = "jtag_tdo_x",
+			"jtag_tdi_x",
+			"jtag_clk_x",
+			"jtag_tms_x";
+			function = "jtag_ee";
+		};
+	};
 }; /* end of pinctrl_periphs */
 

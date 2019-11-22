@@ -90,6 +90,8 @@ obj-$(CONFIG_AMLOGIC_AMAUDIO2) += amaudio2/
 
 obj-$(CONFIG_AMLOGIC_AUDIO_INFO) += audioinfo/
 
+obj-$(CONFIG_AMLKARAOKE)		+= amlkaraoke/
+
 obj-$(CONFIG_AMLOGIC_SUSPEND)	+= pm/
 
 obj-$(CONFIG_AMLOGIC_LED)		+= led/
@@ -104,17 +106,19 @@ obj-$(CONFIG_AMLOGIC_BT_DEVICE)		+= bluetooth/
 
 obj-$(CONFIG_AMLOGIC_WIFI)      += wifi/
 
+obj-$(CONFIG_AMLOGIC_HIFI4DSP) += hifi4dsp/
+
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 
 obj-$(CONFIG_AMLOGIC_PCIE)      += pci/
 
-obj-$(CONFIG_AMLOGIC_IRBLASTER) += irblaster/
+obj-$(CONFIG_AMLOGIC_IRBLASTER_CORE) += irblaster/
 
 obj-$(CONFIG_AMLOGIC_IIO)       += iio/
 
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)       += ddr_tool/
 
-obj-$(CONFIG_DRM_MESON)	+= drm/
+obj-$(CONFIG_AMLOGIC_DRM)	+= drm/
 
 obj-$(CONFIG_AMLOGIC_M8B_SM) += secure_monitor/
 
@@ -135,3 +139,9 @@ obj-$(CONFIG_AMLOGIC_DEFENDKEY) += defendkey/
 obj-$(CONFIG_MTD_SPI_NOR) += spi-nor/
 
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
+
+obj-$(CONFIG_AMLOGIC_IRCUT) += ircut/
+
+obj-$(CONFIG_AMLOGIC_PIXEL_PROBE) += pixel_probe/
+
+obj-$(CONFIG_AMLOGIC_FIRMWARE) += firmware/

@@ -93,9 +93,19 @@ bool nmi_cpu_backtrace(struct pt_regs *regs)
 				cpu, instruction_pointer(regs));
 		} else {
 			pr_warn("NMI backtrace for cpu %d\n", cpu);
+			/*
+			 * two reasons for not calling show_regs here
+			 * 1. two many logs(100 lines per second) are
+			 *    introduced, which makes the wanted stack
+			 *    infos missed
+			 * 2. leads to potential external abort on
+			 *    non-linefetch issue
+			 */
+#ifndef CONFIG_AMLOGIC_MODIFY
 			if (regs)
 				show_regs(regs);
 			else
+#endif
 				dump_stack();
 		}
 		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));
