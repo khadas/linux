@@ -70,7 +70,7 @@ static void enable_wol(int enable, bool suspend)
 
 	if (NULL != g_phydev)
 	{
-		if (1 == enable)
+		if (enable & 0x01)
 		{
 			int value;
 
@@ -234,6 +234,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 
 	g_phydev = phydev;
 
+        if (wol_enable)
+            enable_wol(1, false);
 	/* restore to default page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 

@@ -741,7 +741,9 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ret = mcu_i2c_read_regs(client, MCU_WOL_REG, reg, 1);
 		if (ret < 0)
 			goto exit;
-		g_mcu_data->wol_enable = (int)reg[0];
+		g_mcu_data->wol_enable = (int)reg[0] & 0x01;
+		if (g_mcu_data->wol_enable)
+                    mcu_enable_wol(g_mcu_data->wol_enable, false);
 	}
 	if (is_support_pcie()) {
 		ret = mcu_i2c_read_regs(client, MCU_PORT_MODE_REG, reg, 1);
@@ -767,8 +769,6 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	create_mcu_attrs();
 	printk("%s,wol enable=%d\n",__func__ ,g_mcu_data->wol_enable);
 
-//	if (g_mcu_data->wol_enable == 3)
-//		mcu_enable_wol(g_mcu_data->wol_enable, false);
 	if (is_support_wol()) {
 		reg[0] = 0x01;
 		ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
