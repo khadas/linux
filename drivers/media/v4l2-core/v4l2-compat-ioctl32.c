@@ -495,7 +495,11 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 	    get_user(memory, &up->memory) ||
 	    put_user(memory, &kp->memory) ||
 	    get_user(length, &up->length) ||
-	    put_user(length, &kp->length))
+	    put_user(length, &kp->length) ||
+	assign_in_user(&kp->sequence, &up->sequence) ||
+	assign_in_user(&kp->reserved2, &up->reserved2) ||
+	assign_in_user(&kp->reserved, &up->reserved))
+
 		return -EFAULT;
 
 	if (V4L2_TYPE_IS_OUTPUT(type))

@@ -78,13 +78,20 @@
 #define TB_DETECT_BFF             2
 #define TB_DETECT_TBF             3
 
-#define VFRAME_FLAG_NO_DISCONTINUE      1
-#define VFRAME_FLAG_SWITCHING_FENSE     2
-#define VFRAME_FLAG_HIGH_BANDWIDTH	4
+#define VFRAME_FLAG_NO_DISCONTINUE		1
+#define VFRAME_FLAG_SWITCHING_FENSE		2
+#define VFRAME_FLAG_HIGH_BANDWIDTH		4
 #define VFRAME_FLAG_ERROR_RECOVERY		8
 #define VFRAME_FLAG_SYNCFRAME			0x10
-#define VFRAME_FLAG_GAME_MODE		0x20
+#define VFRAME_FLAG_GAME_MODE			0x20
+#define VFRAME_FLAG_VIDEO_COMPOSER		0x40
+#define VFRAME_FLAG_VIDEO_COMPOSER_BYPASS	0x80
+#define VFRAME_FLAG_COMPOSER_DONE		0x100
+#define VFRAME_FLAG_VIDEO_COMPOSER_DMA		0x200
+#define VFRAME_FLAG_VIDEO_LINEAR		0x400
 #define VFRAME_FLAG_EMPTY_FRAME_V4L		0x800
+#define VFRAME_FLAG_FAKE_FRAME			0x1000
+
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
@@ -316,6 +323,14 @@ struct vframe_pic_mode_s {
 #define BITDEPTH_MASK (BITDEPTH_YMASK | BITDEPTH_UMASK | BITDEPTH_VMASK)
 #define BITDEPTH_SAVING_MODE	0x1
 #define FULL_PACK_422_MODE		0x2
+
+struct codec_mm_box_s {
+	void    *mmu_box;
+	int     mmu_idx;
+	void    *bmmu_box;
+	int     bmmu_idx;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -439,6 +454,8 @@ struct vframe_s {
 	 *****************/
 	u32 di_pulldown;
 	u32 di_gmv;
+
+	struct codec_mm_box_s mm_box;
 } /*vframe_t */;
 
 #if 0

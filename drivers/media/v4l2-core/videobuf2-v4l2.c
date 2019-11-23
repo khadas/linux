@@ -436,6 +436,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 	} else {
 		/* Zero any output buffer flags as this is a capture buffer */
 		vbuf->flags &= ~V4L2_BUFFER_OUT_FLAGS;
+		vbuf->private = b->reserved2;
 	}
 
 	return 0;
