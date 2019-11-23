@@ -30,7 +30,7 @@
 #include "vfm.h"
 #include "vftrace.h"
 
-#define MAX_PROVIDER_NUM    32
+#define MAX_PROVIDER_NUM    64
 static struct vframe_provider_s *provider_table[MAX_PROVIDER_NUM];
 static atomic_t provider_used = ATOMIC_INIT(0);
 

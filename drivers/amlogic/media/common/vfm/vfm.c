@@ -49,7 +49,7 @@ static DEFINE_SPINLOCK(lock);
 #define CLS_NAME    "vfm"
 #define VFM_NAME_LEN    100
 #define VFM_MAP_SIZE    10
-#define VFM_MAP_COUNT   20
+#define VFM_MAP_COUNT   40
 static struct device *vfm_dev;
 struct vfm_map_s {
 	char id[VFM_NAME_LEN];

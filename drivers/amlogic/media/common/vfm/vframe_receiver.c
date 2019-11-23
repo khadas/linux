@@ -28,8 +28,9 @@
 /* Local headers */
 #include "vfm.h"
 
-#define MAX_RECEIVER_NUM    32
+#define MAX_RECEIVER_NUM    64
 struct vframe_receiver_s *receiver_table[MAX_RECEIVER_NUM];
+static DEFINE_MUTEX(mutex);
 
 int receiver_list(char *buf)
 {
@@ -160,11 +161,15 @@ int vf_reg_receiver(struct vframe_receiver_s *recv)
 
 	if (!recv)
 		return -1;
+
+	mutex_lock(&mutex);
 	for (i = 0; i < MAX_RECEIVER_NUM; i++) {
 		r = receiver_table[i];
 		if (r) {
-			if (!strcmp(r->name, recv->name))
+			if (!strcmp(r->name, recv->name)) {
+				mutex_unlock(&mutex);
 				return -1;
+			}
 		}
 	}
 	for (i = 0; i < MAX_RECEIVER_NUM; i++) {
@@ -173,6 +178,8 @@ int vf_reg_receiver(struct vframe_receiver_s *recv)
 			break;
 		}
 	}
+	mutex_unlock(&mutex);
+
 	return 0;
 }
 EXPORT_SYMBOL(vf_reg_receiver);
@@ -184,6 +191,8 @@ void vf_unreg_receiver(struct vframe_receiver_s *recv)
 
 	if (!recv)
 		return;
+
+	mutex_lock(&mutex);
 	for (i = 0; i < MAX_RECEIVER_NUM; i++) {
 		r = receiver_table[i];
 		if (r) {
@@ -193,5 +202,6 @@ void vf_unreg_receiver(struct vframe_receiver_s *recv)
 			}
 		}
 	}
+	mutex_unlock(&mutex);
 }
 EXPORT_SYMBOL(vf_unreg_receiver);
