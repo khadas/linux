@@ -147,13 +147,10 @@ static ssize_t mirror_read(struct class *cla, struct class_attribute *attr,
 
 static ssize_t mirror_write(struct class *cla,
 			    struct class_attribute *attr,
-			    const char *buf, size_t count)
-{
-	ssize_t size;
-	char *endp = "1";
+			    const char *buf, size_t count){
+	unsigned long endp;
 
-	camera_mirror_flag = kstrtoul(buf, 0, (unsigned long *)endp);
-	size = endp - buf;
+	camera_mirror_flag = kstrtoul(buf, 0, &endp);
 	return count;
 }
 
