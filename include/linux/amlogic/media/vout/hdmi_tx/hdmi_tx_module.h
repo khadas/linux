@@ -610,6 +610,8 @@ struct hdmitx_dev {
 #define STAT_AUDIO_CHANNEL      (CMD_STAT_OFFSET + 0x11)
 #define STAT_AUDIO_CLK_STABLE   (CMD_STAT_OFFSET + 0x12)
 #define STAT_AUDIO_PACK         (CMD_STAT_OFFSET + 0x13)
+#define STAT_HDR_TYPE		(CMD_STAT_OFFSET + 0x20)
+
 
 /* HDMI LOG */
 #define HDMI_LOG_HDCP           (1 << 0)
