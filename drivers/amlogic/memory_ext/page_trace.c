@@ -30,6 +30,12 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/amlogic/page_trace.h>
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 
@@ -1700,6 +1706,17 @@ void __init page_trace_mem_init(void)
 		pr_err("%s reserve memory failed\n", __func__);
 		return;
 	}
+#endif
+}
+
+void arch_report_meminfo(struct seq_file *m)
+{
+#ifdef CONFIG_AMLOGIC_CMA
+	seq_printf(m, "DriverCma:      %8ld kB\n",
+		   get_cma_allocated() * (1 << (PAGE_SHIFT - 10)));
+#endif
+#ifdef CONFIG_AMLOGIC_VMAP
+	vmap_report_meminfo(m);
 #endif
 }
 

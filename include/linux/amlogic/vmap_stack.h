@@ -18,6 +18,8 @@
 #ifndef __VMAP_STACK_H__
 #define __VMAP_STACK_H__
 
+#include <linux/seq_file.h>
+
 #define STACK_SHRINK_THRESHOLD		(PAGE_SIZE + 1024)
 #define STACK_SHRINK_SLEEP		(HZ)
 #ifdef CONFIG_64BIT
@@ -79,6 +81,7 @@ extern int   is_vmap_addr(unsigned long addr);
 extern void  aml_stack_free(struct task_struct *tsk);
 extern void *aml_stack_alloc(int node, struct task_struct *tsk);
 extern void  aml_account_task_stack(struct task_struct *tsk, int account);
+void vmap_report_meminfo(struct seq_file *m);
 #ifdef CONFIG_ARM
 extern int   on_irq_stack(unsigned long sp, int cpu);
 #endif

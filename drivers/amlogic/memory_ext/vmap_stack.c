@@ -602,7 +602,7 @@ static int shrink_vm_stack(unsigned long low, unsigned long high)
 	return pages;
 }
 
-void arch_report_meminfo(struct seq_file *m)
+void vmap_report_meminfo(struct seq_file *m)
 {
 	unsigned long kb = 1 << (PAGE_SHIFT - 10);
 	unsigned long tmp1, tmp2, tmp3;
