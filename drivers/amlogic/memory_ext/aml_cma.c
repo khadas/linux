@@ -817,7 +817,6 @@ static const struct file_operations cma_dbg_file_ops = {
 static int __init aml_cma_init(void)
 {
 	atomic_set(&cma_allocate, 0);
-	atomic_long_set(&nr_cma_allocated, 0);
 
 	dentry = proc_create("cma_debug", 0644, NULL, &cma_dbg_file_ops);
 	if (IS_ERR_OR_NULL(dentry)) {
