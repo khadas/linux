@@ -1323,6 +1323,17 @@ static void hdr_work_func(struct work_struct *work)
 			pr_info("%s[%d]\n", __func__, __LINE__); \
 	} while (0)
 
+/* Init DRM_DB[0] from Uboot status */
+static void init_drm_db0(struct hdmitx_dev *hdev, unsigned char *dat)
+{
+	static int once_flag = 1;
+
+	if (once_flag) {
+		once_flag = 0;
+		*dat = hdev->hwop.getstate(hdev, STAT_HDR_TYPE, 0);
+	}
+}
+
 #define GET_LOW8BIT(a)	((a) & 0xff)
 #define GET_HIGH8BIT(a)	(((a) >> 8) & 0xff)
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
@@ -1332,6 +1343,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	static unsigned char DRM_DB[26] = {0x0};
 
 	hdmi_debug();
+	init_drm_db0(hdev, &DRM_DB[0]);
 	if (hdr_status_pos == 4) {
 		/* zero hdr10+ VSIF being sent - disable it */
 		pr_info("hdmitx_set_drm_pkt: disable hdr10+ zero vsif\n");
@@ -4237,6 +4249,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
+	static int once_flag = 1;
 	mutex_lock(&getedid_mutex);
 	/* TODO hdmitx_edid_ram_buffer_clear(hdev); */
 	hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
@@ -4261,7 +4274,10 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		memset(dv, 0, sizeof(struct dv_info));
 		pr_info("clear dv_info\n");
 	}
-
+	if (once_flag) {
+		once_flag = 0;
+		edidinfo_attach_to_vinfo(hdev);
+	}
 	mutex_unlock(&getedid_mutex);
 }
 

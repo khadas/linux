@@ -5310,6 +5310,8 @@ static int hdmitx_get_state(struct hdmitx_dev *hdev, unsigned int cmd,
 		return (int)get_vic_from_pkt();
 	case STAT_VIDEO_CLK:
 		break;
+	case STAT_HDR_TYPE:
+		return hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 0xff;
 	default:
 		break;
 	}
