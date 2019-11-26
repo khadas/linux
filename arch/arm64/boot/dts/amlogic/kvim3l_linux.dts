@@ -44,6 +44,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
+		spi1 = &spicc1;
 	};
 
 //	memory@00000000 {
