@@ -7771,7 +7771,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		dolby_vision_wait_on = false;
 		dolby_vision_wait_init = false;
 		dolby_vision_on_in_uboot = 0;
-		last_dst_format = FORMAT_DOVI;
 	}
 
 	if ((!p_funcs_stb || !p_funcs_tv) && func) {
@@ -8194,6 +8193,7 @@ unsigned int dolby_vision_check_enable(void)
 				dolby_vision_mode = dv_mode;
 				dolby_vision_status = DV_PROCESS;
 				dolby_vision_ll_policy = DOLBY_VISION_LL_YUV422;
+				last_dst_format = FORMAT_DOVI;
 				pr_info("dovi enable in uboot and mode is LL 422\n");
 			} else if ((READ_VPP_DV_REG(DOLBY_CORE3_DIAG_CTRL)
 				& 0xff) == 0x3) {
@@ -8203,6 +8203,7 @@ unsigned int dolby_vision_check_enable(void)
 				dolby_vision_mode = dv_mode;
 				dolby_vision_status = DV_PROCESS;
 				dolby_vision_ll_policy = DOLBY_VISION_LL_RGB444;
+				last_dst_format = FORMAT_DOVI;
 				pr_info("dovi enable in uboot and mode is LL RGB\n");
 			} else {
 				if (READ_VPP_DV_REG(DOLBY_CORE3_REG_START + 1)
@@ -8214,6 +8215,7 @@ unsigned int dolby_vision_check_enable(void)
 					dolby_vision_mode = dv_mode;
 					dolby_vision_status = HDR_PROCESS;
 					pr_info("dovi enable in uboot and mode is HDR10\n");
+					last_dst_format = FORMAT_HDR10;
 				} else if (READ_VPP_DV_REG(DOLBY_CORE3_REG_START
 					+ 1) == 4) {
 					/*SDR mode*/
@@ -8222,6 +8224,7 @@ unsigned int dolby_vision_check_enable(void)
 					dolby_vision_mode = dv_mode;
 					dolby_vision_status = SDR_PROCESS;
 					pr_info("dovi enable in uboot and mode is SDR\n");
+					last_dst_format = FORMAT_SDR;
 				} else {
 					/*STANDARD RGB444 mode*/
 					dv_mode = dv_mode_table[2];
@@ -8230,6 +8233,7 @@ unsigned int dolby_vision_check_enable(void)
 					dolby_vision_status = DV_PROCESS;
 					dolby_vision_ll_policy =
 						DOLBY_VISION_LL_DISABLE;
+					last_dst_format = FORMAT_DOVI;
 					pr_info("dovi enable in uboot and mode is DV ST\n");
 				}
 			}
