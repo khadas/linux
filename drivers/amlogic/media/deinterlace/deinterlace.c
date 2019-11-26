@@ -1743,6 +1743,10 @@ unsigned char is_bypass(vframe_t *vf_in)
 		return 1;
 	if (vf_in && (vf_in->type & VIDTYPE_PIC))
 		return 1;
+	if ((is_meson_gxl_package_805X() || is_meson_gxl_package_805Y()) &&
+	    vf_in && is_progressive(vf_in))
+		return 1;
+
 #if 0
 	if (vf_in && (vf_in->type & VIDTYPE_COMPRESS))
 		return 1;
@@ -7007,6 +7011,10 @@ static void di_pre_size_change(unsigned short width,
 static bool need_bypass(struct vframe_s *vf)
 {
 	needbypass_flag = true;
+	if ((is_meson_gxl_package_805X() || is_meson_gxl_package_805Y()) &&
+	    is_progressive(vf))
+		return true;
+
 	if (vf->type & VIDTYPE_MVC)
 		return true;
 
