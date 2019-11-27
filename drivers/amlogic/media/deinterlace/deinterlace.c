@@ -9007,6 +9007,7 @@ static void di_clear_for_suspend(struct di_dev_s *di_devp)
 {
 	pr_info("%s\n", __func__);
 
+	atomic_set(&di_flag_unreg, 1);
 	di_unreg_process();/*have flag*/
 	if (di_pre_stru.unreg_req_flag_irq)
 		di_unreg_process_irq();
