@@ -2329,10 +2329,10 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf))
 		layer->dispbuf = NULL;
-	if (layer->dispbuf_mapping &&
-	    *layer->dispbuf_mapping &&
-	    is_local_vf(*layer->dispbuf_mapping)) {
-		*layer->dispbuf_mapping = NULL;
+	if (layer->dispbuf_mapping) {
+		if (*layer->dispbuf_mapping &&
+		    is_local_vf(*layer->dispbuf_mapping))
+			*layer->dispbuf_mapping = NULL;
 		layer->dispbuf_mapping = NULL;
 		layer->dispbuf = NULL;
 	}
@@ -2364,10 +2364,10 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf))
 		layer->dispbuf = NULL;
-	if (layer->dispbuf_mapping &&
-	    *layer->dispbuf_mapping &&
-	    is_local_vf(*layer->dispbuf_mapping)) {
-		*layer->dispbuf_mapping = NULL;
+	if (layer->dispbuf_mapping) {
+		if (*layer->dispbuf_mapping &&
+		    is_local_vf(*layer->dispbuf_mapping))
+			*layer->dispbuf_mapping = NULL;
 		layer->dispbuf_mapping = NULL;
 		layer->dispbuf = NULL;
 	}
