@@ -1163,10 +1163,30 @@ static int lcd_config_remove(struct device *dev)
 		LCDPR("invalid lcd mode\n");
 		break;
 	}
+	lcd_driver->lcd_info = NULL;
 
 	lcd_clk_config_remove();
 
 	return 0;
+}
+
+static void lcd_vout_server_remove(void)
+{
+	switch (lcd_driver->lcd_mode) {
+#ifdef CONFIG_AMLOGIC_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_vout_server_remove();
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_vout_server_remove();
+		break;
+#endif
+	default:
+		LCDPR("%s: invalid lcd mode\n", __func__);
+		break;
+	}
 }
 
 static void lcd_config_probe_delayed(struct work_struct *work)
@@ -1185,6 +1205,7 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 	LCDPR("key_init_flag=%d, i=%d\n", key_init_flag, i);
 
 	if (key_init_flag == 0) {
+		lcd_vout_server_remove();
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 		LCDERR("key is not ready, probe exit\n");
@@ -1193,6 +1214,7 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 
 	ret = lcd_mode_probe(lcd_driver->dev);
 	if (ret) {
+		lcd_vout_server_remove();
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 		LCDERR("probe exit\n");
@@ -1360,6 +1382,7 @@ static int lcd_config_probe(struct platform_device *pdev)
 	} else {
 		ret = lcd_mode_probe(lcd_driver->dev);
 		if (ret) {
+			lcd_vout_server_remove();
 			kfree(lcd_driver);
 			lcd_driver = NULL;
 			LCDERR("probe exit\n");
