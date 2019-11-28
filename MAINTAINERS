@@ -15203,3 +15203,19 @@ F:  arch/arm64/boot/dts/amlogic/tm2_t962x3_ab301_drm.dts
 F:  arch/arm64/boot/dts/amlogic/tm2_t962e2_ab311_drm.dts
 F:  arch/arm64/boot/dts/amlogic/mesontm2_drm.dtsi
 F:  arch/arm/boot/dts/amlogic/mesontm2_drm.dtsi
+
+AMLOGIC TM2 C4A SBR DTS
+M:  Bing Jiang <Bing.Jiang@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/partition_sbr_gva.dtsi
+F:  arch/arm/boot/dts/amlogic/tm2_t962e2_ab311_gva_sbr.dts
+F:  arch/arm64/boot/dts/amlogic/partition_sbr_gva.dtsi
+F:  arch/arm64/boot/dts/amlogic/tm2_t962e2_ab311_gva_sbr.dts
+
+AMLOGIC V4L HEADFILE
+M: Nanxin Qin <Nanxin.Qin@amlogic.com>
+F: include/linux/amlogic/media/video_sink/v4lvideo_ext.h
+
+AMLOGIC POWER DOMAIN DRIVER
+M:	Zhiqiang Liang <zhiqiang.liang@amlogic.com>
+F: 	drivers/amlogic/power/power_domain.c
+

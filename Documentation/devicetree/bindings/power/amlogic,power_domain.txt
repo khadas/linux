@@ -1,0 +1,32 @@
+Amlogic power domain controller
+==============================
+
+The Amlogic Meson SoCs embeds an internal Power domain controller.
+
+Power Domain
+----------------
+
+There are many power domains  controlled by this power controller.
+
+
+The bindings must respect the power domain bindings as described in the file
+power_domain.txt
+
+Device Tree Bindings:
+---------------------
+
+Required properties:
+- compatible:
+
+Example:
+-------
+
+pwrdm: power-domains {
+	compatible = "amlogic,tm2-power-domain";
+	status = "okay";
+};
+
+pwrdm: power-domains {
+	compatible = "amlogic,sm1-power-domain";
+	status = "okay";
+};
