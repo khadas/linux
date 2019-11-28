@@ -4120,7 +4120,8 @@ SET_FILTER:
 				new_frame = cur_pipbuf;
 			}
 		}
-		vd_layer[0].dispbuf_mapping = &cur_pipbuf;
+		if (new_frame || cur_pipbuf)
+			vd_layer[0].dispbuf_mapping = &cur_pipbuf;
 		cur_blackout = blackout_pip | force_blackout;
 	} else if (vd1_path_id != VFM_PATH_INVAILD) {
 		/* priamry display on VD1 */
@@ -4140,7 +4141,8 @@ SET_FILTER:
 				new_frame = cur_dispbuf;
 			}
 		}
-		vd_layer[0].dispbuf_mapping = &cur_dispbuf;
+		if (new_frame || cur_dispbuf)
+			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
 		cur_blackout = blackout | force_blackout;
 	} else {
 		cur_blackout = 1;
@@ -4237,7 +4239,8 @@ SET_FILTER:
 				new_frame2 = cur_dispbuf;
 			}
 		}
-		vd_layer[1].dispbuf_mapping = &cur_dispbuf;
+		if (new_frame2 || cur_dispbuf)
+			vd_layer[1].dispbuf_mapping = &cur_dispbuf;
 		cur_blackout = blackout | force_blackout;
 	} else if (vd2_path_id != VFM_PATH_INVAILD) {
 		/* pip display in VD2 */
@@ -4256,7 +4259,8 @@ SET_FILTER:
 				new_frame2 = cur_pipbuf;
 			}
 		}
-		vd_layer[1].dispbuf_mapping = &cur_pipbuf;
+		if (new_frame2 || cur_pipbuf)
+			vd_layer[1].dispbuf_mapping = &cur_pipbuf;
 		cur_blackout = blackout_pip | force_blackout;
 	} else {
 		cur_blackout = 1;
