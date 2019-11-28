@@ -479,11 +479,6 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		pos = pos->next;
 		list_move_tail(&pitem->list, &wq->free_queue);
 		spin_unlock(&wq->lock);
-		/* if block mode (cmd) */
-		if (block_mode) {
-			pitem->cmd.wait_done_flag = 0;
-			wake_up_interruptible(&wq->cmd_complete);
-		}
 		/* if dma buf detach it */
 		for (i = 0; i < MAX_PLANE; i++) {
 			if (pitem->config.src_dma_cfg[i].dma_used) {
@@ -504,6 +499,11 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				pitem->config.dst_dma_cfg[i].dma_used = 0;
 				kfree(pitem->config.dst_dma_cfg[i].dma_cfg);
 			}
+		}
+		/* if block mode (cmd) */
+		if (block_mode) {
+			pitem->cmd.wait_done_flag = 0;
+			wake_up_interruptible(&wq->cmd_complete);
 		}
 		pitem = (struct ge2d_queue_item_s *)pos;
 	} while (pos != head);

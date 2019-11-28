@@ -13547,10 +13547,10 @@ F: arch/arm/include/asm/kasan.h
 F: arch/arm/mm/kasan_init.c
 
 HDMITX OUTPUT DRIVER
-M:      Zongdong Jiao <zongdong.jiao@amlogic.com>
+M:  Zongdong Jiao <zongdong.jiao@amlogic.com>
 M:	Zhengrong Zhu <zhengrong.zhu@amlogic.com>
 S:	Maintained
-F:	drivers/amlogic/media/vout/hdmitx/*
+F:	drivers/amlogic/media/vout/hdmitx/
 F:	drivers/amlogic/media/vout/hdmitx/hdcp/*
 F:	include/linux/amlogic/media/vout/hdmi_tx/*
 F:	drivers/amlogic/esm/*
@@ -15218,4 +15218,3 @@ F: include/linux/amlogic/media/video_sink/v4lvideo_ext.h
 AMLOGIC POWER DOMAIN DRIVER
 M:	Zhiqiang Liang <zhiqiang.liang@amlogic.com>
 F: 	drivers/amlogic/power/power_domain.c
-
