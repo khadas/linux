@@ -10272,6 +10272,8 @@ void osd_resume_hw(void)
 			osd_hw.reg_status_save3);
 		osd_reg_write(VPU_MAFBC_SURFACE_CFG,
 			osd_hw.reg_status_save4);
+		for (i = 0; i < osd_hw.osd_meson_dev.osd_count; i++)
+			osd_hw.osd_afbcd[i].afbc_start = 0;
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	}
 	osd_log_info("osd_resumed\n");
