@@ -2379,10 +2379,10 @@ static int dvel_swap_frame(struct vframe_s *vf)
 
 		/* check if el available first */
 		if (!dvel_status) {
-			//safe_switch_videolayer(1, true, true);
 			dvel_changed = true;
 			dvel_size = new_dvel_w;
 			need_disable_vd2 = false;
+			safe_switch_videolayer(1, true, true);
 		}
 		/* check the el size */
 		if (dvel_size != new_dvel_w)
@@ -2392,7 +2392,6 @@ static int dvel_swap_frame(struct vframe_s *vf)
 			layer_info);
 		dvel_status = true;
 	} else if (dvel_status) {
-		//safe_switch_videolayer(1, false, true);
 		dvel_changed = true;
 		dvel_status = false;
 		dvel_size = 0;
@@ -4319,8 +4318,13 @@ SET_FILTER:
 		VD2_PATH);
 #endif
 
-	if (need_disable_vd2)
+	if (need_disable_vd2) {
 		safe_switch_videolayer(1, false, true);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		/* reset dvel statue when disable vd2 */
+		dvel_status = false;
+#endif
+	}
 
 	/* filter setting management */
 	frame_par_di_set = primary_render_frame(
