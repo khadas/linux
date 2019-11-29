@@ -155,7 +155,6 @@ static int ge2d_clk_config(bool enable)
 	return 0;
 }
 
-
 void ge2d_pwr_config(bool enable)
 {
 	int i, table_size;

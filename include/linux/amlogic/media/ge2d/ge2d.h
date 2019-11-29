@@ -1072,6 +1072,7 @@ enum {
 	GEN_PWR_SLEEP0,
 	GEN_PWR_ISO0,
 	MEM_PD_REG0,
+	PWR_DOMAIN_CTRL,
 };
 
 struct ge2d_ctrl_s {

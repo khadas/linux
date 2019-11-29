@@ -55,6 +55,7 @@
 #define MAX_GE2D_CLK 500000000
 #define HHI_MEM_PD_REG0 0x40
 #define RESET2_LEVEL    0x422
+#define GE2D_POWER_DOMAIN_CTRL
 
 struct ge2d_device_s {
 	char name[20];
@@ -1050,6 +1051,7 @@ static int ge2d_release(struct inode *inode, struct file *file)
 	return -1;
 }
 
+#ifndef GE2D_POWER_DOMAIN_CTRL
 static struct ge2d_ctrl_s default_poweron_ctrl[] = {
 			/* power up ge2d */
 			{GEN_PWR_SLEEP0, AO_RTI_GEN_PWR_SLEEP0, 0, 19, 1, 0},
@@ -1075,6 +1077,19 @@ static struct ge2d_ctrl_s default_poweroff_ctrl[] = {
 
 struct ge2d_power_table_s default_poweron_table = {5, default_poweron_ctrl};
 struct ge2d_power_table_s default_poweroff_table = {4, default_poweroff_ctrl};
+#else
+static struct ge2d_ctrl_s default_poweron_ctrl[] = {
+			/* power on */
+			{PWR_DOMAIN_CTRL, 0, 0, 0, 0, 0},
+		};
+static struct ge2d_ctrl_s default_poweroff_ctrl[] = {
+			/* power off */
+			{PWR_DOMAIN_CTRL, 0, 1, 0, 0, 0},
+		};
+
+struct ge2d_power_table_s default_poweron_table = {1, default_poweron_ctrl};
+struct ge2d_power_table_s default_poweroff_table = {1, default_poweroff_ctrl};
+#endif
 
 static struct ge2d_device_data_s ge2d_gxl = {
 	.ge2d_rate = 400000000,
@@ -1287,7 +1302,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	}
 	ret = of_reserved_mem_device_init(&(pdev->dev));
 	if (ret < 0)
-		ge2d_log_info("reserved mem init failed\n");
+		ge2d_log_info("reserved mem is not used\n");
 
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
