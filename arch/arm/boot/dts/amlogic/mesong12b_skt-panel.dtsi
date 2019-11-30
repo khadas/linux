@@ -59,10 +59,10 @@
 			model_name = "TS050";
 			interface = "mipi";
 			basic_setting = <1080 1920 /*h_active, v_active*/
-				1172 1935 /*h_period, v_period*/
+				1120 1933 /*h_period, v_period*/
 				8 /*lcd_bits*/
 				64 118>; /*screen_widht, screen_height*/
-			lcd_timing = <2 42 0 /*hs_width, hs_bp, hs_pol*/
+			lcd_timing = <2 23 0 /*hs_width, hs_bp, hs_pol*/
 				4 7 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
