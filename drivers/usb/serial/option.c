@@ -2010,6 +2010,10 @@ static int option_probe(struct usb_serial *serial,
 	    iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
 
+if (serial->dev->descriptor.idVendor == cpu_to_le16(0x2C7C)
+&& serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4)
+return -ENODEV;
+
 	/* Store the device flags so we can use them during attach. */
 	usb_set_serial_data(serial, (void *)device_flags);
 
