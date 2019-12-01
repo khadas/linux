@@ -426,9 +426,15 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		err = add_to_swap_cache(new_page, entry,
 					gfp_mask & GFP_RECLAIM_MASK);
 		if (likely(!err)) {
+			/* XXX: Move to lru_cache_add() when it supports new vs putback */
+			spin_lock_irq(&page_pgdat(new_page)->lru_lock);
+			lru_note_cost_page(new_page);
+			spin_unlock_irq(&page_pgdat(new_page)->lru_lock);
+
 			/* Initiate read into locked page */
 			SetPageWorkingset(new_page);
-			lru_cache_add_anon(new_page);
+			lru_cache_add(new_page);
+
 			*new_page_allocated = true;
 			return new_page;
 		}
