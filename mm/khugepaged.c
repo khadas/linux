@@ -1762,14 +1762,11 @@ xa_unlocked:
 		page_ref_add(new_page, HPAGE_PMD_NR - 1);
 		mem_cgroup_commit_charge(new_page, memcg, false, true);
 
-		if (is_shmem) {
+		if (is_shmem)
 			set_page_dirty(new_page);
-			lru_cache_add_anon(new_page);
-		} else {
-			lru_cache_add_file(new_page);
-		}
-		count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
+		lru_cache_add(new_page);
 
+		count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
 		/*
 		 * Remove pte page tables, so we can re-fault the page as huge.
 		 */
