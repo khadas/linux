@@ -753,7 +753,7 @@ static void ao_cecb_init(void)
 			reg = 0;
 			reg |= (0 << 6);/*curb_err_init*/
 			reg |= (0 << 5);/*en_chk_sbitlow*/
-			reg |= (0x15 << 0);/*rise_del_max*/
+			reg |= (CEC_B_ARB_TIME << 0);/*rise_del_max*/
 			hdmirx_cec_write(DWC_CEC_CTRL2, reg);
 		}
 
@@ -1210,7 +1210,7 @@ void cec_hw_reset(unsigned int cec_sel)
 			reg = 0;
 			reg |= (0 << 6);/*curb_err_init*/
 			reg |= (0 << 5);/*en_chk_sbitlow*/
-			reg |= (0x15 << 0);/*rise_del_max*/
+			reg |= (CEC_B_ARB_TIME << 0);/*rise_del_max*/
 			hdmirx_cec_write(DWC_CEC_CTRL2, reg);
 		}
 	} else {

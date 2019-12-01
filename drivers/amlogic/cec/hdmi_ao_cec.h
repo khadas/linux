@@ -83,6 +83,8 @@ enum cecbver {
 #define ENABLE_ONE_CEC	1
 #define ENABLE_TWO_CEC	2
 
+#define CEC_B_ARB_TIME 8
+
 #define CEC_MSG_BUFF_MAX	30
 
 /*
