@@ -104,7 +104,7 @@ CLEAR_MPEG_REG_MASK(VPP_MISC, \
 CLEAR_MPEG_REG_MASK(VPP_MISC, \
 VPP_VD1_PREBLEND)
 
-static int ass_index;
+static int ass_index = -1;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 static int backup_index = -1;
 static int backup_content_w = 0, backup_content_h;
@@ -1803,6 +1803,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	new_vf->source_type = VFRAME_SOURCE_TYPE_PPMGR;
 	if (dumpfirstframe != 2)
 		vfq_push(&q_ready, new_vf);
+
 	if (strstr(ppmgr_device.dump_path, "dst")
 		&& (dumpfirstframe == 2)) {
 		old_fs = get_fs();
@@ -1849,6 +1850,10 @@ static void process_vf_change(struct vframe_s *vf,
 	unsigned int temp_angle = 0;
 	unsigned int cur_angle = 0;
 	int ret = 0;
+
+	cur_angle = (ppmgr_device.videoangle + vf->orientation) % 4;
+	if ((cur_angle == 0) || ppmgr_device.bypass)
+		return;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	if (platform_type == PLATFORM_TV)
 		ret = ppmgr_buffer_init(1);
@@ -1870,7 +1875,6 @@ static void process_vf_change(struct vframe_s *vf,
 	temp_vf.type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
 			| VIDTYPE_VIU_FIELD;
 	temp_vf.canvas0Addr = temp_vf.canvas1Addr = ass_index;
-	cur_angle = (ppmgr_device.videoangle + vf->orientation) % 4;
 	temp_angle =
 			(cur_angle >= pp_vf->angle) ?
 			(cur_angle - pp_vf->angle) :
@@ -2966,6 +2970,17 @@ int ppmgr_buffer_uninit(void)
 		canvas_pool_map_free_canvas(ppmgr_src_canvas[2]);
 	ppmgr_src_canvas[2] = -1;
 
+	if (ass_index >= 0)
+		canvas_pool_map_free_canvas(ass_index);
+	ass_index = -1;
+
+#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
+	/*for hdmi output*/
+	if (backup_index >= 0)
+		canvas_pool_map_free_canvas(backup_index);
+	backup_index = -1;
+#endif
+
 	ppmgr_buffer_status = 0;
 	return 0;
 }
@@ -3155,13 +3170,22 @@ int ppmgr_buffer_init(int vout_mode)
 				CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_32X32);
 		}
-
-		ass_index = PPMGR_CANVAS_INDEX + VF_POOL_SIZE;
 		/*for rotate while pause status*/
+		if (ass_index < 0)
+			ass_index = canvas_pool_map_alloc_canvas(keep_owner);
+		if (ass_index < 0) {
+			PPMGRVPP_INFO("ass_index alloc failed\n");
+			return -1;
+		}
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-		backup_index = PPMGR_CANVAS_INDEX + VF_POOL_SIZE + 1;
 		/*for hdmi output*/
+		if (backup_index < 0)
+			backup_index = canvas_pool_map_alloc_canvas(keep_owner);
+		if (backup_index < 0) {
+			PPMGRVPP_INFO("backup_index alloc failed\n");
+			return -1;
+		}
 #endif
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
@@ -3175,36 +3199,6 @@ int ppmgr_buffer_init(int vout_mode)
 
 		Init3DBuff(PPMGR_CANVAS_INDEX + VF_POOL_SIZE + ASS_POOL_SIZE);
 #endif
-
-		canvas_config(PPMGR_DEINTERLACE_BUF_CANVAS,
-			(ulong)(buf_start
-			+ (VF_POOL_SIZE + ASS_POOL_SIZE) * decbuf_size
-			+ canvas_width * canvas_height * MASK_POOL_SIZE),
-			canvas_width, canvas_height,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-
-		canvas_config(PPMGR_DEINTERLACE_BUF_CANVAS + 1,
-			(ulong)(buf_start
-			+ (VF_POOL_SIZE + ASS_POOL_SIZE) * decbuf_size
-			+ canvas_width * canvas_height * MASK_POOL_SIZE
-			+ canvas_width * canvas_height), canvas_width >> 1,
-			canvas_height >> 1,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-
-		canvas_config(PPMGR_DEINTERLACE_BUF_CANVAS + 2,
-				(ulong)(buf_start
-				+ (VF_POOL_SIZE + ASS_POOL_SIZE) * decbuf_size
-				+ canvas_width * canvas_height * MASK_POOL_SIZE
-				+ (canvas_width * canvas_height * 5) / 4),
-				canvas_width >> 1, canvas_height >> 1,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-
-		canvas_config(PPMGR_DEINTERLACE_BUF_NV21_CANVAS,
-			(ulong)(buf_start
-			+ (VF_POOL_SIZE + ASS_POOL_SIZE) * decbuf_size
-			+ canvas_width * canvas_height * MASK_POOL_SIZE),
-			canvas_width * 3, canvas_height,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 	} else {
 
 		canvas_width = 1920;
