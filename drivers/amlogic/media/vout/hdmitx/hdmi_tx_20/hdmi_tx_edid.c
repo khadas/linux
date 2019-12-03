@@ -867,14 +867,9 @@ static void Edid_ParsingVendSpec(struct rx_cap *prxcap,
 	unsigned char *dat = buf;
 	unsigned char pos = 0;
 	unsigned int ieeeoui = 0;
+	u8 length = 0;
 
-	memset(dv, 0, sizeof(struct dv_info));
-	memset(hdr10_plus, 0, sizeof(struct hdr10_plus_info));
-
-	dv->block_flag = CORRECT;
-	dv->length = dat[pos] & 0x1f;
-	hdr10_plus->length = dat[pos] & 0x1f;
-	memcpy(dv->rawdata, dat, dv->length + 1);
+	length = dat[pos] & 0x1f;
 	pos++;
 
 	if (dat[pos] != 1) {
@@ -887,9 +882,12 @@ static void Edid_ParsingVendSpec(struct rx_cap *prxcap,
 	ieeeoui = dat[pos++];
 	ieeeoui += dat[pos++] << 8;
 	ieeeoui += dat[pos++] << 16;
+	pr_info("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
 
 /*HDR10+ use vsvdb*/
 	if (ieeeoui == HDR10_PLUS_IEEE_OUI) {
+		memset(hdr10_plus, 0, sizeof(struct hdr10_plus_info));
+		hdr10_plus->length = length;
 		hdr10_plus->ieeeoui = ieeeoui;
 		hdr10_plus->application_version = dat[pos] & 0x3;
 		pos++;
@@ -900,6 +898,12 @@ static void Edid_ParsingVendSpec(struct rx_cap *prxcap,
 		dv->block_flag = ERROR_OUI;
 		return;
 	}
+
+/* it is a Dovi block*/
+	memset(dv, 0, sizeof(struct dv_info));
+	dv->block_flag = CORRECT;
+	dv->length = length;
+	memcpy(dv->rawdata, dat, dv->length + 1);
 	dv->ieeeoui = ieeeoui;
 	dv->ver = (dat[pos] >> 5) & 0x7;
 	if ((dv->ver) > 2) {

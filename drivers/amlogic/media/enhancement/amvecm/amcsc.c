@@ -6651,10 +6651,21 @@ void update_hdr10_plus_pkt(bool enable,
 	} else {
 		if (!vdev)
 			return;
-		vdev->fresh_tx_hdr_pkt(
-			&cur_send_info);
-		vdev->fresh_tx_hdr10plus_pkt(0,
-			&cur_hdr10plus_params);
+		if ((get_dolby_vision_policy() ==
+		     DOLBY_VISION_FOLLOW_SINK) &&
+		    sink_support_hdr(vinfo) &&
+		    (!sink_support_dolby_vision(vinfo))) {
+			pr_csc(2, "update_hdr10_plus_pkt: DISABLE_VSIF\n");
+			vdev->fresh_tx_hdr10plus_pkt(
+				HDR10_PLUS_DISABLE_VSIF,
+				&cur_hdr10plus_params);
+		} else {
+			pr_csc(2, "update_hdr10_plus_pkt: ZERO_VSIF\n");
+			vdev->fresh_tx_hdr_pkt(send_info);
+			vdev->fresh_tx_hdr10plus_pkt(
+				HDR10_PLUS_ZERO_VSIF,
+				&cur_hdr10plus_params);
+		}
 		hdr10_plus_pkt_update = HDRPLUS_PKT_IDLE;
 		pr_csc(2, "update_hdr10_plus_pkt off\n");
 	}
