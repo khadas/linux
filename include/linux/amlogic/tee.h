@@ -22,5 +22,8 @@ extern bool tee_enabled(void);
 extern int is_secload_get(void);
 extern int tee_load_video_fw(uint32_t index, uint32_t vdec);
 extern int tee_load_video_fw_swap(uint32_t index, uint32_t vdec, bool is_swap);
+extern uint32_t tee_protect_tvp_mem(uint32_t start, uint32_t size,
+			uint32_t *handle);
+extern void tee_unprotect_tvp_mem(uint32_t handle);
 #endif /* __TEE_H__ */
 
