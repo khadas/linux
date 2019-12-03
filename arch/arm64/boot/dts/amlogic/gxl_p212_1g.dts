@@ -1100,8 +1100,8 @@
 		gamma_en = <0>;/*1:enabel ;0:disable*/
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
-		/*1:enabel osd lut 100 table;0:disable*/
-		cfg_en_osd_100 = <1>;
+		/*0:disable; 1:osd 100nit; 2:osd 200nit 3: osd 330 nit*/
+		cfg_en_osd_100 = <3>;
 		/*0: 709/601  1: bt2020*/
 		tx_op_color_primary = <0>;
 	};
