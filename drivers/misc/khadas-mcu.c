@@ -26,6 +26,9 @@
 /* Device registers */
 #define MCU_WOL_REG		0x21
 #define MCU_RST_REG             0x2c
+#define MCU_LAN_MAC_ID  0x6
+#define MCU_LAN_MAC_SWITCH  0x2d
+
 
 struct mcu_data {
 	struct i2c_client *client;
@@ -37,6 +40,9 @@ struct mcu_data *g_mcu_data;
 
 extern void set_test(int flag);
 extern void realtek_enable_wol(int enable, bool is_shutdown);
+extern int StringToHex(char *str, unsigned char *out, unsigned int *outlen);
+extern void HexToAscii(unsigned char *pHex, unsigned char *pAscii, int nLen);
+
 void mcu_enable_wol(int enable, bool is_shutdown)
 {
 	realtek_enable_wol(enable, is_shutdown);
@@ -173,10 +179,81 @@ static ssize_t show_wol_enable(struct class *cls,
 	return sprintf(buf, "%d\n", enable);
 }
 
+static ssize_t show_mac_addr(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr_Ascii[12]={0};
+	unsigned char addr[6]={0};
+	int i;
+	
+	for(i=0; i<=5; i++){
+		ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_LAN_MAC_ID+i, &addr[i], 1);
+		if (ret < 0) 
+			printk("%s: mac address failed (%d)",__func__, ret);
+		//printk("%s: mac address: %02x\n",__func__, addr[i]);
+	}
+	
+	HexToAscii(addr,addr_Ascii,6);
+	printk("mac address (%s)\n", addr_Ascii);
+
+	return sprintf(buf, "%s\n", addr_Ascii);
+}	
+
+static ssize_t store_mac_addr(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret;
+	char addr_Ascii[12]={0};
+	unsigned char addr[6]={0};
+	unsigned char pasd[1]={0};
+	int outlen = 0;
+	int i;
+	//81 1
+	//82 73 61 64 61 68 4B
+	//81 0
+
+	addr[0] = 1;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x81, addr, 1);
+	pasd[0] = 0x73;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	pasd[0] = 0x61;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	pasd[0] = 0x64;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	pasd[0] = 0x61;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	pasd[0] = 0x68;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	pasd[0] = 0x4B;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x82, pasd, 1);
+	addr[0] = 0;
+	mcu_i2c_write_regs(g_mcu_data->client, 0x81, addr, 1);
+	
+	sscanf(buf,"%s",addr_Ascii);
+
+	StringToHex(addr_Ascii,addr,&outlen);
+	printk("mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			addr[0], addr[1], addr[2],
+			addr[3], addr[4], addr[5]);
+	for(i=0; i<=5; i++){
+		ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_LAN_MAC_ID+i, &addr[i], 1);
+		if (ret < 0)
+			printk("%s: mac address failed (%d)\n",__func__, ret);
+	}
+	addr[0] = 1;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_LAN_MAC_SWITCH, addr, 1);
+	if (ret < 0)
+		printk("%s: mac address failed (%d)\n",__func__, ret);	
+
+	return count;
+}
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 	__ATTR(test, 0644, NULL, store_test),
 	__ATTR(rst_mcu, 0644, NULL, store_rst_mcu),
+	__ATTR(mac_addr, 0644, show_mac_addr, store_mac_addr),
 };
 
 static void create_mcu_attrs(void)
