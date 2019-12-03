@@ -63,6 +63,15 @@ static int disable_flag;
 #define TEE_SMC_FUNCID_UNPROTECT_TVP_MEM           0xE021
 #define TEE_SMC_UNPROTECT_TVP_MEM \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_TVP_MEM)
+
+#define TEE_SMC_FUNCID_PROTECT_MEM_BY_TYPE         0xE023
+#define TEE_SMC_PROTECT_MEM_BY_TYPE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_PROTECT_MEM_BY_TYPE)
+
+#define TEE_SMC_FUNCID_UNPROTECT_MEM_BY_TYPE       0xE024
+#define TEE_SMC_UNPROTECT_MEM_BY_TYPE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_MEM_BY_TYPE)
+
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -202,6 +211,24 @@ void tee_unprotect_tvp_mem(u32 handle)
 		      handle, 0, 0, 0, 0, 0, 0, &res);
 }
 EXPORT_SYMBOL(tee_unprotect_tvp_mem);
+
+u32 tee_protect_mem_by_type(u32 type,
+		u32 start, u32 size,
+		u32 *handle)
+{
+	struct arm_smccc_res res;
+
+	if (!handle)
+		return 0xFFFF0006;
+
+	arm_smccc_smc(TEE_SMC_PROTECT_MEM_BY_TYPE,
+			type, start, size, 0, 0, 0, 0, &res);
+
+	*handle = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_protect_mem_by_type);
 
 int tee_create_sysfs(void)
 {

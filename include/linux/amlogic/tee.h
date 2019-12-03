@@ -19,6 +19,12 @@
 #ifndef __TEE_H__
 #define __TEE_H__
 
+#define TEE_MEM_TYPE_GPU                                   0x6
+#define TEE_MEM_TYPE_VDIN                                  0x7
+#define TEE_MEM_TYPE_ENCODER                               0x8
+#define TEE_MEM_TYPE_GE2D                                  0x9
+#define TEE_MEM_TYPE_DEMUX                                 0xa
+
 bool tee_enabled(void);
 int is_secload_get(void);
 int tee_load_video_fw(u32 index, u32 vdec);
@@ -26,5 +32,8 @@ int tee_load_video_fw_swap(u32 index, u32 vdec, bool is_swap);
 u32 tee_protect_tvp_mem(u32 start, u32 size,
 			u32 *handle);
 void tee_unprotect_tvp_mem(u32 handle);
+u32 tee_protect_mem_by_type(u32 type,
+		u32 start, u32 size,
+		u32 *handle);
 #endif /* __TEE_H__ */
 
