@@ -1732,6 +1732,24 @@ static unsigned int osd_oetf_41_2084_mapping_290[OSD_OETF_LUT_SIZE] = {
 	 596
 };
 
+static unsigned int osd_eotf_33_709_mapping_330[EOTF_LUT_SIZE] = {
+	    0,     8,    37,    90,   169,   276,   412,   579,
+	  776,  1006,  1268,  1564,  1894,  2258,  2658,  3094,
+	 3566,  4075,  4621,  5204,  5826,  6486,  7185,  7923,
+	 8701,  9518, 10376, 11274, 12213, 13194, 14215, 15279,
+	16384
+};
+
+/* osd oetf lut: 2084 from baozheng */
+static unsigned int osd_oetf_41_2084_mapping_330[OSD_OETF_LUT_SIZE] = {
+	   0,  166,  207,  233,  254,  270,  284,  296,
+	 307,  366,  402,  429,  451,  469,  484,  498,
+	 509,  520,  530,  539,  547,  555,  562,  569,
+	 576,  582,  588,  593,  598,  603,  608,  613,
+	 617,  621,  625,  629,  633,  637,  640,  644,
+	 647
+};
+
 /* osd eotf lut: sdr->hlg */
 static unsigned int osd_eotf_33_sdr2hlg_mapping[EOTF_LUT_SIZE] = {
 	    0,   512,  1024,  1536,  2048,  2560,  3072,  3584,
@@ -4784,8 +4802,8 @@ static int hdr_process(
 		/* for OSD */
 		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
 			prepare_customer_matrix(
-				&master_info->primaries,
-				&master_info->white_point,
+				&bt2020_primaries,
+				&bt2020_white_point,
 				vinfo, &osd_m, 1);
 		need_adjust_contrast_saturation |= 1;
 	} else {
@@ -4823,11 +4841,18 @@ static int hdr_process(
 				osd_eotf_33_709_mapping_100, /* G */
 				osd_eotf_33_709_mapping_100, /* B */
 				CSC_ON);
-		} else if ((is_hdr_cfg_osd_100() == 2)) {
+		} else if (is_hdr_cfg_osd_100() == 2) {
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
 				osd_eotf_33_709_mapping_290, /* R */
 				osd_eotf_33_709_mapping_290, /* G */
 				osd_eotf_33_709_mapping_290, /* B */
+				CSC_ON);
+		} else if (is_hdr_cfg_osd_100() == 3) {
+			set_vpp_lut(
+				VPP_LUT_OSD_EOTF,
+				osd_eotf_33_709_mapping_330, /* R */
+				osd_eotf_33_709_mapping_330, /* G */
+				osd_eotf_33_709_mapping_330, /* B */
 				CSC_ON);
 		} else {
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -4862,6 +4887,13 @@ static int hdr_process(
 				osd_oetf_41_2084_mapping_290, /* R */
 				osd_oetf_41_2084_mapping_290, /* G */
 				osd_oetf_41_2084_mapping_290, /* B */
+				CSC_ON);
+		} else if (is_hdr_cfg_osd_100() == 3) {
+			set_vpp_lut(
+				VPP_LUT_OSD_OETF,
+				osd_oetf_41_2084_mapping_330, /* R */
+				osd_oetf_41_2084_mapping_330, /* G */
+				osd_oetf_41_2084_mapping_330, /* B */
 				CSC_ON);
 		} else {
 			set_vpp_lut(VPP_LUT_OSD_OETF,
@@ -5286,8 +5318,16 @@ static void bypass_hdr_process(
 						osd_eotf_33_709_mapping_290,
 						osd_eotf_33_709_mapping_290,
 						CSC_ON);
+				} else if (is_hdr_cfg_osd_100() == 3) {
+					set_vpp_lut(
+						VPP_LUT_OSD_EOTF,
+						osd_eotf_33_709_mapping_330,
+						osd_eotf_33_709_mapping_330,
+						osd_eotf_33_709_mapping_330,
+						CSC_ON);
 				} else {
-					set_vpp_lut(VPP_LUT_OSD_EOTF,
+					set_vpp_lut(
+						VPP_LUT_OSD_EOTF,
 						osd_eotf_33_709_mapping, /*R*/
 						osd_eotf_33_709_mapping, /*G*/
 						osd_eotf_33_709_mapping, /*B*/
@@ -5300,8 +5340,8 @@ static void bypass_hdr_process(
 					"\tMaster_display_colour available.\n");
 				print_primaries_info(master_info);
 				prepare_customer_matrix(
-					&master_info->primaries,
-					&master_info->white_point,
+					&bt2020_primaries,
+					&bt2020_white_point,
 					vinfo, &osd_m, 1);
 			} else {
 				pr_csc(1, "\tNo master_display_colour.\n");
@@ -5345,6 +5385,13 @@ static void bypass_hdr_process(
 						osd_oetf_41_2084_mapping_290,
 						osd_oetf_41_2084_mapping_290,
 						osd_oetf_41_2084_mapping_290,
+						CSC_ON);
+				} else if (is_hdr_cfg_osd_100() == 3) {
+					set_vpp_lut(
+						VPP_LUT_OSD_OETF,
+						osd_oetf_41_2084_mapping_330,
+						osd_oetf_41_2084_mapping_330,
+						osd_oetf_41_2084_mapping_330,
 						CSC_ON);
 				} else {
 					set_vpp_lut(VPP_LUT_OSD_OETF,
