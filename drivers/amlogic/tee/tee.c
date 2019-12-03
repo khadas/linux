@@ -56,6 +56,13 @@ static int disable_flag;
 #define TEE_SMC_LOAD_VIDEO_FW \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_LOAD_VIDEO_FW)
 
+#define TEE_SMC_FUNCID_PROTECT_TVP_MEM             0xE020
+#define TEE_SMC_PROTECT_TVP_MEM \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_PROTECT_TVP_MEM)
+
+#define TEE_SMC_FUNCID_UNPROTECT_TVP_MEM           0xE021
+#define TEE_SMC_UNPROTECT_TVP_MEM \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_TVP_MEM)
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -171,6 +178,31 @@ bool tee_enabled(void)
 	return false;
 }
 EXPORT_SYMBOL(tee_enabled);
+
+uint32_t tee_protect_tvp_mem(uint32_t start, uint32_t size, uint32_t *handle)
+{
+	struct arm_smccc_res res;
+
+	if (handle == NULL)
+		return 0xFFFF0006;
+
+	arm_smccc_smc(TEE_SMC_PROTECT_TVP_MEM,
+			start, size, 0, 0, 0, 0, 0, &res);
+
+	*handle = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_protect_tvp_mem);
+
+void tee_unprotect_tvp_mem(uint32_t handle)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_UNPROTECT_TVP_MEM,
+			handle, 0, 0, 0, 0, 0, 0, &res);
+}
+EXPORT_SYMBOL(tee_unprotect_tvp_mem);
 
 int tee_create_sysfs(void)
 {
