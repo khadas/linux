@@ -5129,7 +5129,7 @@ static int hdmitx_tmds_rxsense(void)
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL0, 1, 16, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 1, 23, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0, 24, 1);
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 7, 20, 3);
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 3, 20, 3);
 		ret = hd_read_reg(P_HHI_HDMI_PHY_CNTL2) & 0x1;
 		break;
 	case MESON_CPU_ID_GXBB:
