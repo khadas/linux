@@ -4275,7 +4275,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
-	static int once_flag = 1;
 	mutex_lock(&getedid_mutex);
 	/* TODO hdmitx_edid_ram_buffer_clear(hdev); */
 	hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
@@ -4299,10 +4298,6 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 
 		memset(dv, 0, sizeof(struct dv_info));
 		pr_info("clear dv_info\n");
-	}
-	if (once_flag) {
-		once_flag = 0;
-		edidinfo_attach_to_vinfo(hdev);
 	}
 	mutex_unlock(&getedid_mutex);
 }
@@ -4491,13 +4486,19 @@ static int hdmi_task_handle(void *data)
 		hdmitx_device, MISC_HPD_GPI_ST, 0));
 	hdmitx_device->hpd_state = hdmitx_extcon_hdmi->state;
 	hdmitx_notify_hpd(hdmitx_device->hpd_state);
+
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
-						hdmitx_device->hpd_state);
-	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
+		hdmitx_device->hpd_state);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx_edid_clear(hdmitx_device);
 	hdmitx_edid_ram_buffer_clear(hdmitx_device);
+	if (hdmitx_device->hpd_state) {
+		hdmitx_get_edid(hdmitx_device);
+		edidinfo_attach_to_vinfo(hdmitx_device);
+	}
+
+	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,
 		WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	INIT_DELAYED_WORK(&hdmitx_device->work_hpd_plugin,
