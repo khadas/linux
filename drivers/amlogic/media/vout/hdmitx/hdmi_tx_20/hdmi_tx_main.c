@@ -148,7 +148,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->hpd_lock = 1;
 	msleep(20);
 	phdmi->hwop.cntlmisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
-	mdelay(100);
+	usleep_range(10000, 10010);
 	pr_info(SYS "HDMITX: early suspend\n");
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
@@ -234,7 +234,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 
 	hdev->ready = 0;
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-	mdelay(100);
+	usleep_range(10000, 10010);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
