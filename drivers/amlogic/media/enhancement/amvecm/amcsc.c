@@ -388,6 +388,12 @@ int get_hdr_policy(void)
 }
 EXPORT_SYMBOL(get_hdr_policy);
 
+void set_cur_hdr_policy(uint policy)
+{
+	cur_hdr_policy = policy;
+}
+EXPORT_SYMBOL(set_cur_hdr_policy);
+
 enum output_format_e get_force_output(void)
 {
 	return force_output;
