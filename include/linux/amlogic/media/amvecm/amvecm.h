@@ -538,5 +538,6 @@ extern int am_meson_ctm_set(u32 index, struct drm_color_ctm *ctm);
 extern int am_meson_ctm_disable(void);
 
 extern void enable_osd1_mtx(unsigned int en);
+void set_cur_hdr_policy(uint policy);
 #endif /* AMVECM_H */
 

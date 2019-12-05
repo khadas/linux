@@ -139,6 +139,7 @@ extern int tx_op_color_primary;
 extern uint cur_csc_type[VD_PATH_MAX];
 
 int get_hdr_policy(void);
+void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
 
 /* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
