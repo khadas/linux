@@ -1870,10 +1870,6 @@
 	status = "disable";
 };
 
-&lcd {
-	clk_path = <1>;
-};
-
 &gpu{
 	tbl =  <&dvfs285_cfg
 				&dvfs400_cfg

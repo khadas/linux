@@ -21,6 +21,7 @@
 		dev_name = "lcd";
 		mode = "tablet";
 		status = "okay";
+		clk_path = <1>;
 		key_valid = <0>;
 		clocks = <&clkc CLKID_MIPI_DSI_HOST
 			&clkc CLKID_MIPI_DSI_PHY
