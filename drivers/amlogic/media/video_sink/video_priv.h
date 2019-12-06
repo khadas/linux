@@ -218,6 +218,7 @@ struct video_layer_s {
 	bool property_changed;
 	u8 force_config_cnt;
 	bool new_vpp_setting;
+	bool new_frame;
 	u32 vout_type;
 	bool bypass_pps;
 

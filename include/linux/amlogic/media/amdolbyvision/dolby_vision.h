@@ -66,8 +66,8 @@ int dolby_vision_wait_metadata(struct vframe_s *vf);
 int dolby_vision_pop_metadata(void);
 int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag);
 int dolby_vision_process(
-	struct vframe_s *rpt_vf, struct vframe_s *vf,
-	u32 display_size, u8 pps_state);
+	struct vframe_s *vf, u32 display_size,
+	u8 toggle_mode, u8 pps_state);
 void dolby_vision_init_receiver(void *pdev);
 void dolby_vision_vf_put(struct vframe_s *vf);
 struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf);
