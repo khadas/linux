@@ -7114,11 +7114,11 @@ static void bypass_pps_path(u8 pps_state)
 	}
 }
 
+/* toggle mode: 0: not toggle; 1: toggle frame; 2: use keep frame */
+/* pps_state 0: no change, 1: pps enable, 2: pps disable */
 int dolby_vision_process(
-	struct vframe_s *rpt_vf,
-	struct vframe_s *vf,
-	u32 display_size,
-	u8 pps_state) /* 0: no change, 1: pps enable, 2: pps disable */
+	struct vframe_s *vf, u32 display_size,
+	u8 toggle_mode, u8 pps_state)
 {
 	int src_chroma_format = 0;
 	u32 h_size = (display_size >> 16) & 0xffff;
@@ -7148,11 +7148,6 @@ int dolby_vision_process(
 				vf->compWidth : vf->width;
 			v_size = (vf->type & VIDTYPE_COMPRESS) ?
 				vf->compHeight : vf->height;
-		} else if (rpt_vf) {
-			h_size = (rpt_vf->type & VIDTYPE_COMPRESS) ?
-				rpt_vf->compWidth : rpt_vf->width;
-			v_size = (rpt_vf->type & VIDTYPE_COMPRESS) ?
-				rpt_vf->compHeight : rpt_vf->height;
 		} else {
 			h_size = 0;
 			v_size = 0;
@@ -7206,10 +7201,11 @@ int dolby_vision_process(
 				new_dovi_setting.video_height = 0xffff;
 			}
 		}
-		if (!vf && !sdr_delay) {
+		if ((!vf || (toggle_mode != 1)) && !sdr_delay) {
 			/* log to monitor if has dv toggles not needed */
 			/* !sdr_delay: except in transition from DV to SDR */
-			pr_dolby_dbg("NULL frame, hdr module %s, video %s\n",
+			pr_dolby_dbg("NULL/RPT frame %p, hdr module %s, video %s\n",
+				     vf,
 				     get_hdr_module_status(VD1_PATH)
 				     == HDR_MODULE_ON ? "on" : "off",
 				     get_video_enabled() ? "on" : "off");
@@ -7255,13 +7251,6 @@ int dolby_vision_process(
 	else if (video_status == 1)
 		video_turn_off = false;
 
-	if (video_turn_off &&
-	    get_hdr_module_status(VD1_PATH)
-	    != HDR_MODULE_ON) {
-		vf = NULL;
-		/* rpt_vf = NULL; */
-	}
-
 	if (dolby_vision_mode != dolby_vision_target_mode)
 		format_changed = 1;
 
@@ -7280,21 +7269,15 @@ int dolby_vision_process(
 	if (sink_changed || policy_changed || format_changed ||
 	    (video_status == 1) || (graphic_status & 2) ||
 	    (dolby_vision_flags & FLAG_FORCE_HDMI_PKT)) {
-		u8 toggle_mode;
-
-		pr_dolby_dbg("sink %s, cap 0x%x, video %s, osd %s, vf %p, rpt_vf %p\n",
+		pr_dolby_dbg("sink %s, cap 0x%x, video %s, osd %s, vf %p, toggle mode %d\n",
 			     current_sink_available ? "on" : "off",
 			     current_hdr_cap,
 			     video_turn_off ? "off" : "on",
 			     is_graphics_output_off() ? "off" : "on",
-			     vf, rpt_vf);
-		if (vf && (vf != rpt_vf))
-			toggle_mode = 1;
-		else
-			toggle_mode = 0;
-		if ((vf || rpt_vf) &&
+			     vf, toggle_mode);
+		if (vf &&
 		    !dolby_vision_parse_metadata(
-		    vf ? vf : rpt_vf, toggle_mode, false, false)) {
+		    vf, toggle_mode, false, false)) {
 			h_size = (display_size >> 16) & 0xffff;
 			v_size = display_size & 0xffff;
 			new_dovi_setting.video_width = h_size;
@@ -7303,7 +7286,7 @@ int dolby_vision_process(
 		}
 	}
 
-	if ((!vf && !rpt_vf && video_turn_off) ||
+	if ((!vf && video_turn_off) ||
 	    (video_status == -1)) {
 		if (dolby_vision_policy_process(&mode, FORMAT_SDR)) {
 			pr_dolby_dbg("Fake SDR, mode->%d\n", mode);
@@ -7337,8 +7320,6 @@ int dolby_vision_process(
 		if (dolby_vision_status != BYPASS_PROCESS) {
 			if (vinfo && !is_meson_tvmode() &&
 				!force_stb_mode) {
-				if (!vf && rpt_vf)
-					rpt_vf = vf;
 				if (vf && is_hdr10plus_frame(vf)) {
 					/* disable dolby immediately */
 					pr_info("Dolby bypass: HDR10+: Switched to SDR first\n");
@@ -8237,6 +8218,7 @@ unsigned int dolby_vision_check_enable(void)
 					pr_info("dovi enable in uboot and mode is DV ST\n");
 				}
 			}
+			dolby_vision_target_mode = dolby_vision_mode;
 		} else
 			pr_info("dovi disable in uboot\n");
 	}

@@ -4154,7 +4154,6 @@ s32 layer_swap_frame(
 	bool first_picture = false;
 	bool enable_layer = false;
 	bool frame_changed;
-	bool new_frame = false;
 	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
 	int ret = vppfilter_success;
@@ -4171,7 +4170,7 @@ s32 layer_swap_frame(
 
 	if (layer->dispbuf != vf) {
 		layer->new_vframe_count++;
-		new_frame = true;
+		layer->new_frame = true;
 		if (!layer->dispbuf ||
 		    (layer->new_vframe_count == 1) ||
 		    (is_local_vf(layer->dispbuf)))

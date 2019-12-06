@@ -2443,26 +2443,38 @@ static struct vframe_s *dvel_toggle_frame(
 
 static void dolby_vision_proc(
 	struct video_layer_s *layer,
-	struct vpp_frame_par_s *cur_frame_par,
-	struct vframe_s *toggle_vf)
+	struct vpp_frame_par_s *cur_frame_par)
 {
+#ifdef OLD_DV_FLOW
 	static struct vframe_s *cur_dv_vf;
+#endif
 	static u32 cur_frame_size;
+	struct vframe_s *disp_vf;
+	u8 toggle_mode;
 
 	if (is_dolby_vision_enable()) {
 		u32 frame_size = 0, h_size, v_size;
 		u8 pps_state = 0; /* pps no change */
 
+/* TODO: check if need */
+#ifdef OLD_DV_FLOW
 		/* force toggle when keeping frame after playing */
 		if (is_local_vf(layer->dispbuf) &&
-		    !toggle_vf &&
+		    !layer->new_frame &&
 		    is_dolby_vision_video_on() &&
 		    get_video_enabled()) {
-			toggle_vf = layer->dispbuf;
 			if (!dolby_vision_parse_metadata(
 				layer->dispbuf, 2, false, false))
 				dolby_vision_set_toggle_flag(1);
 		}
+#endif
+		disp_vf = layer->dispbuf;
+		if (layer->new_frame)
+			toggle_mode = 1; /* new frame */
+		else if (!disp_vf || is_local_vf(disp_vf))
+			toggle_mode = 2; /* keep frame */
+		else
+			toggle_mode = 0; /* pasue frame */
 
 		if (cur_frame_par) {
 			if (layer->new_vpp_setting) {
@@ -2499,34 +2511,28 @@ static void dolby_vision_proc(
 			v_size /=
 				(cur_frame_par->vscale_skip_count + 1);
 			frame_size = (h_size << 16) | v_size;
-		} else if (toggle_vf) {
-			h_size = (toggle_vf->type & VIDTYPE_COMPRESS) ?
-				toggle_vf->compWidth : toggle_vf->width;
-			v_size = (toggle_vf->type & VIDTYPE_COMPRESS) ?
-				toggle_vf->compHeight : toggle_vf->height;
+		} else if (disp_vf) {
+			h_size = (disp_vf->type & VIDTYPE_COMPRESS) ?
+				disp_vf->compWidth : disp_vf->width;
+			v_size = (disp_vf->type & VIDTYPE_COMPRESS) ?
+				disp_vf->compHeight : disp_vf->height;
 			frame_size = (h_size << 16) | v_size;
 		}
-		if (is_local_vf(layer->dispbuf)) {
-			if (get_video_enabled())
-				toggle_vf = layer->dispbuf;
-			else
-				toggle_vf = NULL;
-		}
-		/* trigger dv process once when stop playing */
-		/* because toggle_vf is not sync with video off */
-		if (cur_dv_vf && !toggle_vf)
-			dolby_vision_set_toggle_flag(1);
 
+#ifdef OLD_DV_FLOW
+		/* trigger dv process once when stop playing */
+		/* because disp_vf is not sync with video off */
+		if (cur_dv_vf && !disp_vf)
+			dolby_vision_set_toggle_flag(1);
+		cur_dv_vf = disp_vf;
+#endif
 		if (cur_frame_size != frame_size) {
 			cur_frame_size = frame_size;
-			if (!toggle_vf && get_video_enabled())
-				toggle_vf = layer->dispbuf;
 			dolby_vision_set_toggle_flag(1);
 		}
-		cur_dv_vf = toggle_vf;
 		dolby_vision_process(
-			layer->dispbuf, toggle_vf,
-			frame_size, pps_state);
+			disp_vf, frame_size,
+			toggle_mode, pps_state);
 		dolby_vision_update_setting();
 	}
 	return;
@@ -2781,9 +2787,7 @@ static void pip_swap_frame(struct vframe_s *vf)
 		layer->new_vpp_setting = false;
 }
 
-static s32 pip_render_frame(
-	struct video_layer_s *layer,
-	struct vframe_s *toggle_vf)
+static s32 pip_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
@@ -2982,9 +2986,7 @@ static void primary_swap_frame(
 	ATRACE_COUNTER(__func__,  0);
 }
 
-static s32 primary_render_frame(
-	struct video_layer_s *layer,
-	struct vframe_s *toggle_vf)
+static s32 primary_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	bool force_setting = false;
@@ -3007,7 +3009,7 @@ static s32 primary_render_frame(
 
 	/* dolby vision process for each vsync */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	dolby_vision_proc(layer, frame_par, toggle_vf);
+	dolby_vision_proc(layer, frame_par);
 #endif
 
 	/* process cur frame for each vsync */
@@ -4327,11 +4329,8 @@ SET_FILTER:
 	}
 
 	/* filter setting management */
-	frame_par_di_set = primary_render_frame(
-		&vd_layer[0], vd_layer[0].dispbuf);
-
-	pip_render_frame(
-		&vd_layer[1], vd_layer[1].dispbuf);
+	frame_par_di_set = primary_render_frame(&vd_layer[0]);
+	pip_render_frame(&vd_layer[1]);
 
 	if ((cur_vd1_path_id != vd1_path_id ||
 	     cur_vd2_path_id != vd2_path_id) &&
@@ -4356,6 +4355,10 @@ SET_FILTER:
 		vd_layer[0].enable_3d_mode = mode_3d_enable;
 	else
 		vd_layer[0].enable_3d_mode = mode_3d_disable;
+
+	/* all frames has been renderred, so reset new frame flag */
+	vd_layer[0].new_frame = false;
+	vd_layer[1].new_frame = false;
 
 	if (cur_dispbuf && cur_dispbuf->process_fun &&
 	    ((vd1_path_id == VFM_PATH_AMVIDEO) ||
