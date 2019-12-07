@@ -188,7 +188,7 @@
 		/* 1:gp0_pll vid2_clk */
 		/* 2:vid_pll vid1_clk */
 		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
+		clk_path = <2>;
 
 		/* performance: reg_address, reg_value */
 		/* sm1 */
@@ -558,7 +558,7 @@
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <0>;/*1:enabel ;0:disable*/
+		gamma_en = <1>;/*1:enabel ;0:disable*/
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
 		/*0: 709/601  1: bt2020*/
@@ -1047,7 +1047,7 @@
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <950000>;
+			opp-microvolt = <1000000>;
 		};
 	};
 
@@ -1104,7 +1104,8 @@
 		reg = <0x18>;
 		fan,trig_temp_level0 = <50>;
 		fan,trig_temp_level1 = <60>;
-		fan,trig_temp_level2 = <70>;
+		fan,trig_temp_level2 = <65>;
+		fan,trig_temp_level3 = <70>;
 		hwver = "VIM3.V11";
 	};
 
@@ -1531,7 +1532,7 @@
 
 	tdmin_a: tdmin_a {
 		mux { /* GPIOX_8 */
-			groups = "tdma_din1",
+			groups = "tdma_din1";
 			function = "tdma_in";
 		};
 	};
@@ -1857,4 +1858,13 @@
 
 &irblaster {
 	status = "disable";
+};
+
+&gpu{
+	tbl =  <&dvfs285_cfg
+				&dvfs400_cfg
+				&dvfs500_cfg
+				&dvfs666_cfg
+				&dvfs800_cfg
+				&dvfs800_cfg>;
 };
