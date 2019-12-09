@@ -402,10 +402,6 @@
 		pll-setting-8 = <0xe000c>;
 		version = <2>;
 		pwr-ctl = <1>;
-		u2-ctrl-sleep-shift = <17>;
-		u2-hhi-mem-pd-shift = <30>;
-		u2-hhi-mem-pd-mask = <0x3>;
-		u2-ctrl-iso-shift = <17>;
 	};
 
 	usb3_phy_v2: usb3phy@ffe09080 {
@@ -421,10 +417,6 @@
 		clocks = <&clkc CLKID_PCIE_PLL>;
 		clock-names = "pcie_refpll";
 		pwr-ctl = <1>;
-		u3-ctrl-sleep-shift = <18>;
-		u3-hhi-mem-pd-shift = <26>;
-		u3-hhi-mem-pd-mask = <0xf>;
-		u3-ctrl-iso-shift = <18>;
 	};
 
 	dwc2_a: dwc2_a@ff400000 {
@@ -1139,10 +1131,6 @@
 		pcie-phy-rst-bit = <14>;
 		pcie-ctrl-a-rst-bit = <12>;
 		pwr-ctl = <1>;
-		pcie-ctrl-sleep-shift = <18>;
-		pcie-hhi-mem-pd-shift = <26>;
-		pcie-hhi-mem-pd-mask = <0xf>;
-		pcie-ctrl-iso-shift = <18>;
 		status = "disabled";
 	};
 

@@ -446,10 +446,6 @@
 		pll-setting-8 = <0xe000c>;
 		version = <2>;
 		pwr-ctl = <1>;
-		u2-ctrl-sleep-shift = <17>;
-		u2-hhi-mem-pd-shift = <30>;
-		u2-hhi-mem-pd-mask = <0x3>;
-		u2-ctrl-iso-shift = <17>;
 	};
 
 	usb3_phy_v2: usb3phy@ffe09080 {
@@ -469,16 +465,6 @@
 				"pcie_refpll",
 				"pcie1_gate";
 		pwr-ctl = <1>;
-		u30-ctrl-sleep-shift = <18>;
-		u30-hhi-mem-pd-shift = <26>;
-		u30-hhi-mem-pd-mask = <0xf>;
-		u30-ctrl-iso-shift = <18>;
-		usb30-ctrl-a-rst-bit = <12>;
-		u31-ctrl-sleep-shift = <20>;
-		u31-hhi-mem-pd-shift = <4>;
-		u31-hhi-mem-pd-mask = <0xf>;
-		u31-ctrl-iso-shift = <20>;
-		usb31-ctrl-a-rst-bit = <28>;
 	};
 
 	usb_otg: usbotg@ffe09080 {
@@ -1337,10 +1323,6 @@
 		pcie-phy-rst-bit = <14>;
 		pcie-ctrl-a-rst-bit = <12>;
 		pwr-ctl = <1>;
-		pcie-ctrl-sleep-shift = <18>;
-		pcie-hhi-mem-pd-shift = <26>;
-		pcie-hhi-mem-pd-mask = <0xf>;
-		pcie-ctrl-iso-shift = <18>;
 		status = "disabled";
 	};
 
@@ -1366,7 +1348,7 @@
 			0x82000000 0xfA700000 0x0 0xfA700000 0 0x1900000>;
 			/* non-prefetchable memory */
 		num-lanes = <1>;
-		pcie-num = <1>;
+		pcie-num = <2>;
 
 		clocks = <&clkc CLKID_PCIE1_GATE
 			&clkc CLKID_PCIE1
@@ -1380,10 +1362,6 @@
 		pcie-phy-rst-bit = <29>;
 		pcie-ctrl-a-rst-bit = <28>;
 		pwr-ctl = <1>;
-		pcie-ctrl-sleep-shift = <20>;
-		pcie-hhi-mem-pd-shift = <4>;
-		pcie-hhi-mem-pd-mask = <0xf>;
-		pcie-ctrl-iso-shift = <20>;
 		status = "disabled";
 	};
 	galcore {
