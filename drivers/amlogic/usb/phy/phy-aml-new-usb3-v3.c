@@ -32,7 +32,8 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
-#include <linux/amlogic/power_ctrl.h>
+#include <linux/amlogic/power_domain.h>
+#include <dt-bindings/power/amlogic,pd.h>
 #include "phy-aml-new-usb-v2.h"
 
 #define HOST_MODE	0
@@ -518,59 +519,12 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 
 static void power_switch_to_pcie(struct amlogic_usb_v2 *phy)
 {
-	u32 val;
+	if (phy->portconfig_30)
+		power_domain_switch(PM_PCIE0, PWR_ON);
 
-	if (phy->portconfig_30) {
-		power_ctrl_sleep(1, phy->u30_ctrl_sleep_shift);
-		power_ctrl_mempd0(1, phy->u30_hhi_mem_pd_mask,
-				phy->u30_hhi_mem_pd_shift);
-		udelay(100);
+	if (phy->portconfig_31)
+		power_domain_switch(PM_PCIE1, PWR_ON);
 
-		val = readl((void __iomem *)
-			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-		writel((val & (~(0x1 << phy->usb30_ctrl_rst_bit))),
-			(void __iomem *)((unsigned long)phy->reset_regs +
-			(0x20 * 4 - 0x8)));
-
-		udelay(100);
-
-		power_ctrl_iso(1, phy->u30_ctrl_iso_shift);
-
-		val = readl((void __iomem *)
-			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-
-		writel((val | (0x1 << phy->usb30_ctrl_rst_bit)),
-			(void __iomem	*)((unsigned long)phy->reset_regs +
-			(0x20 * 4 - 0x8)));
-
-		udelay(100);
-	}
-
-	if (phy->portconfig_31) {
-		power_ctrl_sleep(1, phy->u31_ctrl_sleep_shift);
-		power_ctrl_mempd0(1, phy->u31_hhi_mem_pd_mask,
-			phy->u31_hhi_mem_pd_shift);
-		udelay(100);
-
-		val = readl((void __iomem *)
-			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-		writel((val & (~(0x1 << phy->usb31_ctrl_rst_bit))),
-			(void __iomem *)((unsigned long)phy->reset_regs +
-			(0x20 * 4 - 0x8)));
-
-		udelay(100);
-
-		power_ctrl_iso(1, phy->u31_ctrl_iso_shift);
-
-		val = readl((void __iomem *)
-			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-
-		writel((val | (0x1 << phy->usb31_ctrl_rst_bit)),
-			(void __iomem	*)((unsigned long)phy->reset_regs +
-			(0x20 * 4 - 0x8)));
-
-		udelay(100);
-	}
 }
 
 static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
@@ -594,16 +548,6 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	int retval;
 	int ret;
 	u32 pwr_ctl = 0;
-	u32 u30_ctrl_sleep_shift = 0;
-	u32 u30_hhi_mem_pd_shift = 0;
-	u32 u30_hhi_mem_pd_mask = 0;
-	u32 u30_ctrl_iso_shift = 0;
-	u32 usb30_ctrl_rst_bit = 0;
-	u32 u31_ctrl_sleep_shift = 0;
-	u32 u31_hhi_mem_pd_shift = 0;
-	u32 u31_hhi_mem_pd_mask = 0;
-	u32 u31_ctrl_iso_shift = 0;
-	u32 usb31_ctrl_rst_bit = 0;
 	u32 portconfig_30 = 0;
 	u32 portconfig_31 = 0;
 	unsigned long rate;
@@ -659,94 +603,21 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	else
 		pwr_ctl = 0;
 
-	if (pwr_ctl) {
-		retval = of_property_read_u32(dev->of_node,
-				"reset-reg", &reset_mem);
-		if (retval < 0)
-			return -EINVAL;
+	retval = of_property_read_u32(dev->of_node, "reset-reg", &reset_mem);
+	if (retval < 0)
+		return -EINVAL;
 
-		retval = of_property_read_u32
-				(dev->of_node, "reset-reg-size",
-					&reset_mem_size);
-		if (retval < 0)
-			return -EINVAL;
+	retval = of_property_read_u32
+			(dev->of_node, "reset-reg-size",
+				&reset_mem_size);
+	if (retval < 0)
+		return -EINVAL;
 
-		reset_base = devm_ioremap_nocache
+	reset_base = devm_ioremap_nocache
 				(&(pdev->dev), (resource_size_t)reset_mem,
 				(unsigned long)reset_mem_size);
-		if (!reset_base)
-			return -ENOMEM;
-
-		prop = of_get_property(dev->of_node,
-			"u30-ctrl-sleep-shift", NULL);
-		if (prop)
-			u30_ctrl_sleep_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u30-hhi-mem-pd-shift", NULL);
-		if (prop)
-			u30_hhi_mem_pd_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u30-hhi-mem-pd-mask", NULL);
-		if (prop)
-			u30_hhi_mem_pd_mask = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u30-ctrl-iso-shift", NULL);
-		if (prop)
-			u30_ctrl_iso_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"usb30-ctrl-a-rst-bit", NULL);
-		if (prop)
-			usb30_ctrl_rst_bit = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u31-ctrl-sleep-shift", NULL);
-		if (prop)
-			u31_ctrl_sleep_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u31-hhi-mem-pd-shift", NULL);
-		if (prop)
-			u31_hhi_mem_pd_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u31-hhi-mem-pd-mask", NULL);
-		if (prop)
-			u31_hhi_mem_pd_mask = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"u31-ctrl-iso-shift", NULL);
-		if (prop)
-			u31_ctrl_iso_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-			"usb31-ctrl-a-rst-bit", NULL);
-		if (prop)
-			usb31_ctrl_rst_bit = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-	}
+	if (!reset_base)
+		return -ENOMEM;
 
 	prop = of_get_property(dev->of_node,
 			"portconfig-30", NULL);
@@ -797,21 +668,11 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	phy->phy.type		= USB_PHY_TYPE_USB3;
 	phy->phy.flags		= AML_USB3_PHY_DISABLE;
 	phy->pwr_ctl = pwr_ctl;
+	phy->reset_regs = reset_base;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
 		if (phy->pwr_ctl) {
-			phy->u30_ctrl_sleep_shift = u30_ctrl_sleep_shift;
-			phy->u30_hhi_mem_pd_shift = u30_hhi_mem_pd_shift;
-			phy->u30_hhi_mem_pd_mask = u30_hhi_mem_pd_mask;
-			phy->u30_ctrl_iso_shift = u30_ctrl_iso_shift;
-			phy->reset_regs = reset_base;
-			phy->usb30_ctrl_rst_bit = usb30_ctrl_rst_bit;
-			phy->u31_ctrl_sleep_shift = u31_ctrl_sleep_shift;
-			phy->u31_hhi_mem_pd_shift = u31_hhi_mem_pd_shift;
-			phy->u31_hhi_mem_pd_mask = u31_hhi_mem_pd_mask;
-			phy->u31_ctrl_iso_shift = u31_ctrl_iso_shift;
-			phy->usb31_ctrl_rst_bit = usb31_ctrl_rst_bit;
 			power_switch_to_pcie(phy);
 			udelay(100);
 		}
