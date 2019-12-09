@@ -400,8 +400,10 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 		if (!show_direction)
 			mode = 0;
 	} else if (attr == &dev_attr_edge.attr) {
+#ifndef CONFIG_AMLOGIC_MODIFY
 		if (gpiod_to_irq(desc) < 0)
 			mode = 0;
+#endif
 		if (!show_direction && test_bit(FLAG_IS_OUT, &desc->flags))
 			mode = 0;
 	}
