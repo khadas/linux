@@ -614,19 +614,19 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 static void ge2d_keeplastframe_block(int cur_index, int format)
 {
 	u32 y_index, u_index, v_index;
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u32 y_index2, u_index2, v_index2;
 #endif
 
 	video_module_lock();
 
-#if 0 /*def CONFIG_VSYNC_RDMA*/
-	y_index = disp_canvas_index[0][0];
-	y_index2 = disp_canvas_index[1][0];
-	u_index = disp_canvas_index[0][1];
-	u_index2 = disp_canvas_index[1][1];
-	v_index = disp_canvas_index[0][2];
-	v_index2 = disp_canvas_index[1][2];
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	y_index = vd_layer[0].canvas_tbl[0][0];
+	y_index2 = vd_layer[0].canvas_tbl[1][0];
+	u_index = vd_layer[0].canvas_tbl[0][1];
+	u_index2 = vd_layer[0].canvas_tbl[1][1];
+	v_index = vd_layer[0].canvas_tbl[0][2];
+	v_index2 = vd_layer[0].canvas_tbl[1][2];
 #else
 	/*
 	 *cur_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 +
@@ -642,12 +642,20 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		pr_info("GE2D_FORMAT_S24_YUV444\n");
 		ge2d_store_frame_S_YUV444(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
+		pr_info("y_index: [0x%x],y_index2: [0x%x]\n",
+			y_index, y_index2);
+#endif
+		pr_info("cur_index: [0x%x],keep_y_addr: [0x%lx]\n",
+			cur_index, keep_y_addr);
+
 		break;
 	case GE2D_FORMAT_M24_YUV444:
 		pr_info("GE2D_FORMAT_M24_YUV444\n");
 		ge2d_store_frame_YUV444(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 #endif
 		break;
@@ -656,7 +664,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		ge2d_store_frame_NV21(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
 #endif
@@ -667,7 +675,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
 		canvas_update_addr(v_index, keep_phy_addr(keep_v_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
 		canvas_update_addr(v_index2, keep_phy_addr(keep_v_addr));
@@ -1029,7 +1037,7 @@ void video_pip_keeper_new_frame_notify(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 {
-	u32 cur_index;
+	u32 cur_index = 0;
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
 	bool layer1_used = false;
