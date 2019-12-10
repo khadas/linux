@@ -596,7 +596,7 @@ static void async_completed(struct urb *urb)
 	const struct cred *cred = NULL;
 	unsigned long flags;
 	sigval_t addr;
-	int signr, errno;
+	int signr, errno = 0;
 
 	spin_lock_irqsave(&ps->lock, flags);
 	list_move_tail(&as->asynclist, &ps->async_completed);

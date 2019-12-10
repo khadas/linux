@@ -1,0 +1,16 @@
+config AMLOGIC_MODIFY
+	bool "Amlogic modify for kernel code"
+	default n
+	help
+		This option is set up for AMLOGIC modify of standard
+		kernel source code. All modify of kernel standard code
+		should be wrapped by this config
+
+config AMLOGIC_ARMV8_AARCH64
+	bool "AARCH64 kernel support for Amlogic ARMv8 Soc"
+	depends on AMLOGIC_MODIFY || COMPILE_TEST
+	default n
+	help
+	  aarch32 and aarch64 kernels are supported for armv8 socs.
+	  enable this config to select 64 bit kernel.
+	  Select Y if doult.
