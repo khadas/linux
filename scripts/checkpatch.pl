@@ -54,7 +54,7 @@ my $configuration_file = ".checkpatch.conf";
 my $max_line_length = 80;
 my $ignore_perl_version = 0;
 my $minimum_perl_version = 5.10.0;
-my $min_conf_desc_length = 4;
+my $min_conf_desc_length = 2;
 my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
 my $codespellfile = "/usr/share/codespell/dictionary.txt";
@@ -2569,9 +2569,9 @@ sub process {
 				$commit_log_lines++;	#could be a $signature
 			}
 		} elsif ($has_commit_log && $commit_log_lines < 2) {
-			WARN("COMMIT_MESSAGE",
-			     "Missing commit description - Add an appropriate one\n");
-			$commit_log_lines = 2;	#warn only once
+			#WARN("COMMIT_MESSAGE",
+			#    "Missing commit description - Add an appropriate one\n");
+			#$commit_log_lines = 2;	#warn only once
 		}
 
 # Check if the commit log has what seems like a diff which can confuse patch
@@ -2663,8 +2663,8 @@ sub process {
 			my ($email_name, $email_address, $comment) = parse_email($email);
 			my $suggested_email = format_email(($email_name, $email_address));
 			if ($suggested_email eq "") {
-				ERROR("BAD_SIGN_OFF",
-				      "Unrecognized email address: '$email'\n" . $herecurr);
+				#ERROR("BAD_SIGN_OFF",
+				#      "Unrecognized email address: '$email'\n" . $herecurr);
 			} else {
 				my $dequoted = $suggested_email;
 				$dequoted =~ s/^"//;
@@ -2718,8 +2718,8 @@ sub process {
 
 # Check for unwanted Gerrit info
 		if ($in_commit_log && $line =~ /^\s*change-id:/i) {
-			ERROR("GERRIT_CHANGE_ID",
-			      "Remove Gerrit Change-Id's before submitting upstream.\n" . $herecurr);
+			#ERROR("GERRIT_CHANGE_ID",
+			#      "Remove Gerrit Change-Id's before submitting upstream.\n" . $herecurr);
 		}
 
 # Check if the commit log is in a possible stack dump
@@ -2822,8 +2822,8 @@ sub process {
 		      (defined($1) || defined($2))))) {
 			$is_patch = 1;
 			$reported_maintainer_file = 1;
-			WARN("FILE_PATH_CHANGES",
-			     "added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
+			#WARN("FILE_PATH_CHANGES",
+			#     "added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
 		}
 
 # Check for wrappage within a valid hunk of the file
