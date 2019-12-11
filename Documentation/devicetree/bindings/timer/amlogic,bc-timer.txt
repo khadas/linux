@@ -1,0 +1,34 @@
+Amlogic broadcast timer
+
+A meson SoC timer used for broadcast.
+
+Required properties:
+
+- compatible : should be "amlogic,bc-timer".
+- reg : register of the timer
+- timer_name : name of the meson timer used for broadcast.
+- clockevent-rating : variable to rate clock event devices
+- clockevent-shift : nanoseconds to cycles divisor (power of two)
+- clockevent-features :  features, should be CLOCK_EVT_FEAT_PERIODIC(0x1) |
+                         CLOCK_EVT_FEAT_ONESHOT(0x2) |
+			 CLOCK_EVT_FEAT_DYNIRQ(0x20).
+- interrupts : interrupt of the timer
+- bit_enable : enable bit of control register
+- bit_mode : mode bit of control register
+- bit_resolution : resolution bit of control register
+
+Example:
+
+timer_bc {
+	compatible = "amloigc,bc-timer";
+	reg =   <0xffd0f190 0x8>;
+	timer_name = "Meson TimerF";
+	clockevent-rating=<300>;
+	clockevent-shift=<20>;
+	clockevent-features=<0x23>;
+	interrupts = <0 60 1>;
+	bit_enable=<16>;
+	bit_mode=<12>;
+	bit_resolution=<0>;
+};
+

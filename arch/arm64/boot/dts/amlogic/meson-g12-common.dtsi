@@ -2304,6 +2304,18 @@
 				clock-names = "xtal", "pclk", "baud";
 				status = "disabled";
 			};
+			timer_bc: timer_F@f190{
+				compatible = "amlogic,bc-timer";
+				reg= <0x0 0xf190 0x0 0x8>;
+				timer_name = "Meson TimerF";
+				clockevent-rating=<300>;
+				clockevent-shift=<20>;
+				clockevent-features=<0x23>;
+				interrupts = <0 60 1>;
+				bit_enable=<16>;
+				bit_mode=<12>;
+				bit_resolution=<0>;
+			};
 		};
 
 		sd_emmc_a: sd@ffe03000 {

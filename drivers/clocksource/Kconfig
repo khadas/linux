@@ -695,5 +695,15 @@ config INGENIC_TIMER
 	select IRQ_DOMAIN
 	help
 	  Support for the timer/counter unit of the Ingenic JZ SoCs.
+config AMLOGIC_BC_TIMER
+        tristate "meson broadcast timer support"
+        default n
+        select CLKSRC_OF if OF
+        help
+          This is broadcast timer driver for amlogic timer
+	  as clockevent.
+
+	  If not select and system have no other broadcast timer,
+	  system may not be able to enter NO_HZ mode.
 
 endmenu
