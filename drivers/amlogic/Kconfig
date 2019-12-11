@@ -14,3 +14,29 @@ config AMLOGIC_ARMV8_AARCH64
 	  aarch32 and aarch64 kernels are supported for armv8 socs.
 	  enable this config to select 64 bit kernel.
 	  Select Y if doult.
+config AMLOGIC_DRIVER
+	bool "Amlogic Peripheral drivers"
+	depends on AMLOGIC_MODIFY
+	default n
+	help
+		this option is provided for control amlogic
+		drivers, if you want to use amlogic driver
+		please open it.
+		Note: All amlogic driver should be placed in
+		this directory
+
+config AMLOGIC_ALLYESCONFIG
+	bool "Amlogic compile config option"
+	default n
+	help
+		This option is set up for masking frame size
+		limit in drivers/Makefile file. When we compile
+		kernel with --allyesconfig, we not limit the
+		frame size.
+
+if AMLOGIC_DRIVER
+menu "Amlogic Device Drivers"
+# Please add folders in alphabetical order
+source "drivers/amlogic/cpu_hotplug/Kconfig"
+endmenu
+endif
