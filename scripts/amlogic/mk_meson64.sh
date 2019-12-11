@@ -24,7 +24,7 @@ JLEVEL=12
 
 ARCH=arm64
 
-GCC_PATH=/opt/gcc-linaro-6.3.1-2017.02-x86_64_aarch64-linux-gnu/bin
+GCC_PATH=/opt/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin/
 export PATH=$GCC_PATH:$PATH
 export CROSS_COMPILE=aarch64-linux-gnu-
 
