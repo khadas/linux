@@ -111,6 +111,10 @@ static int __ion_add_cma_heap(struct cma *cma, void *data)
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
 	cma_heap->heap.name = cma_get_name(cma);
 
+#ifdef CONFIG_AMLOGIC_ION
+	if (!meson_ion_cma_heap_match(cma_heap->heap.name))
+		goto out;
+#endif
 	ret = ion_device_add_heap(&cma_heap->heap);
 	if (ret)
 		goto out;

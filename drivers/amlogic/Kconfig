@@ -38,5 +38,6 @@ if AMLOGIC_DRIVER
 menu "Amlogic Device Drivers"
 # Please add folders in alphabetical order
 source "drivers/amlogic/cpu_hotplug/Kconfig"
+source "drivers/amlogic/media/Kconfig"
 endmenu
 endif

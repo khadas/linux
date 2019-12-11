@@ -1,0 +1,9 @@
+menu "ION support"
+
+config AMLOGIC_ION
+	tristate "ION memory management support"
+	depends on ION
+	default n
+	help
+		Select to enable "Amlogic ion device support.
+endmenu

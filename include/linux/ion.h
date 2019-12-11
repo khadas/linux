@@ -300,6 +300,10 @@ struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
  */
 int ion_free(struct ion_buffer *buffer);
 
+#ifdef CONFIG_AMLOGIC_ION
+int meson_ion_cma_heap_match(const char *name);
+#endif
+
 #else
 
 static inline int __ion_device_add_heap(struct ion_heap *heap,
@@ -368,6 +372,5 @@ static inline int ion_free(struct ion_buffer *buffer)
 {
 	return 0;
 }
-
 #endif /* CONFIG_ION */
 #endif /* _ION_KERNEL_H */
