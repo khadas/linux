@@ -75,7 +75,13 @@
 			reg = <0x0 0x05000000 0x0 0x300000>;
 			no-map;
 		};
-
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x0 0x07400000 0x0 0x00100000>;
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+		};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
