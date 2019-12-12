@@ -11,8 +11,8 @@
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
 
 / {
-	compatible = "seirobotics,sei610", "amlogic,sm1";
-	model = "SEI Robotics SEI610";
+	compatible = "amlogic,sm1";
+	model = "AML AC213";
 
 	aliases {
 		serial0 = &uart_AO;
