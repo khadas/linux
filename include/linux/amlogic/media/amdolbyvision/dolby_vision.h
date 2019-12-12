@@ -79,16 +79,6 @@ void dolby_vision_update_pq_config(
 	char *pq_config_buf);
 int dolby_vision_update_setting(void);
 bool is_dolby_vision_stb_mode(void);
-bool is_meson_g12(void);
-bool is_meson_gxm(void);
-bool is_meson_box(void);
-bool is_meson_txlx(void);
-bool is_meson_txlx_tvmode(void);
-bool is_meson_txlx_stbmode(void);
-bool is_meson_tm2(void);
-bool is_meson_tm2_tvmode(void);
-bool is_meson_tm2_stbmode(void);
-bool is_meson_tvmode(void);
 void tv_dolby_vision_crc_clear(int flag);
 char *tv_dolby_vision_get_crc(u32 *len);
 void tv_dolby_vision_insert_crc(bool print);

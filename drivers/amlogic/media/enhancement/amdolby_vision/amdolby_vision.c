@@ -1052,14 +1052,7 @@ MODULE_PARM_DESC(debug_dolby_frame, "\n debug_dolby_frame\n");
 #define dump_enable \
 	((debug_dolby_frame >= 0xffff) || \
 	(debug_dolby_frame + 1 == frame_count))
-static int is_graphics_output_off(void)
-{
-	if (is_meson_g12() || is_meson_tm2_stbmode())
-		return !(READ_VPP_REG(OSD1_BLEND_SRC_CTRL) & (0xf<<8))
-		&& !(READ_VPP_REG(OSD2_BLEND_SRC_CTRL) & (0xf<<8));
-	else
-		return (!(READ_VPP_REG(VPP_MISC) & (1<<12)));
-}
+
 #define single_step_enable \
 	(((debug_dolby_frame >= 0xffff) || \
 	((debug_dolby_frame + 1) == frame_count)) && \
@@ -1130,14 +1123,15 @@ static bool tv_mode;
 static bool mel_mode;
 
 #define MAX_PARAM   8
-bool is_meson_gxm(void)
+static bool is_meson_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
 		return true;
 	else
 		return false;
 }
-bool is_meson_g12(void)
+
+static bool is_meson_g12(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_G12)
 		return true;
@@ -1145,7 +1139,7 @@ bool is_meson_g12(void)
 		return false;
 }
 
-bool is_meson_box(void)
+static bool is_meson_box(void)
 {
 	if (is_meson_gxm() || is_meson_g12())
 		return true;
@@ -1153,7 +1147,7 @@ bool is_meson_box(void)
 		return false;
 }
 
-bool is_meson_txlx(void)
+static bool is_meson_txlx(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_TXLX)
 		return true;
@@ -1161,21 +1155,23 @@ bool is_meson_txlx(void)
 		return false;
 }
 
-bool is_meson_txlx_tvmode(void)
+static bool is_meson_txlx_tvmode(void)
 {
 	if ((is_meson_txlx()) && (tv_mode == 1))
 		return true;
 	else
 		return false;
 }
-bool is_meson_txlx_stbmode(void)
+
+static bool is_meson_txlx_stbmode(void)
 {
 	if ((is_meson_txlx()) && (tv_mode == 0))
 		return true;
 	else
 		return false;
 }
-bool is_meson_tm2(void)
+
+static bool is_meson_tm2(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_TM2)
 		return true;
@@ -1183,7 +1179,7 @@ bool is_meson_tm2(void)
 		return false;
 }
 
-bool is_meson_tm2_tvmode(void)
+static bool is_meson_tm2_tvmode(void)
 {
 	if ((is_meson_tm2()) && (tv_mode == 1))
 		return true;
@@ -1191,7 +1187,7 @@ bool is_meson_tm2_tvmode(void)
 		return false;
 }
 
-bool is_meson_tm2_stbmode(void)
+static bool is_meson_tm2_stbmode(void)
 {
 	if ((is_meson_tm2()) && (tv_mode == 0))
 		return true;
@@ -1199,13 +1195,22 @@ bool is_meson_tm2_stbmode(void)
 		return false;
 }
 
-bool is_meson_tvmode(void)
+static bool is_meson_tvmode(void)
 {
 	if (is_meson_tm2_tvmode() ||
 		is_meson_txlx_tvmode())
 		return true;
 	else
 		return false;
+}
+
+static int is_graphics_output_off(void)
+{
+	if (is_meson_g12() || is_meson_tm2_stbmode())
+		return !(READ_VPP_REG(OSD1_BLEND_SRC_CTRL) & (0xf << 8)) &&
+		!(READ_VPP_REG(OSD2_BLEND_SRC_CTRL) & (0xf << 8));
+	else
+		return (!(READ_VPP_REG(VPP_MISC) & (1 << 12)));
 }
 
 static u32 CORE1_BASE;
@@ -1881,7 +1886,7 @@ int dolby_vision_update_setting(void)
 		size = 8 * STB_DMA_TBL_SIZE;
 		memcpy(dma_vaddr, dma_data, size);
 	}
-	if (size && (debug_dolby & 0x8)) {
+	if (size && (debug_dolby & 0x800)) {
 		p = (uint64_t *)dma_vaddr;
 		pr_info("dma size = %d\n", STB_DMA_TBL_SIZE);
 		for (i = 0; i < size / 8; i += 2)
@@ -5933,8 +5938,9 @@ static void calculate_panel_max_pq(
 			max_lin = (max_lin / 100) * 100 + 500;
 			max_pq = L2PQ_500_4000[(max_lin - 500) / 100];
 		}
-		pr_dolby_dbg("panel max lumin changed from %d(%d) to %d(%d)\n",
-			tv_max_lin, tv_max_pq, max_lin, max_pq);
+		if (debug_dolby & 2)
+			pr_dolby_dbg("panel max lumin changed from %d(%d) to %d(%d)\n",
+				     tv_max_lin, tv_max_pq, max_lin, max_pq);
 		tv_max_lin = max_lin;
 		tv_max_pq = max_pq;
 		config->max_lin =
@@ -7269,12 +7275,13 @@ int dolby_vision_process(
 	if (sink_changed || policy_changed || format_changed ||
 	    (video_status == 1) || (graphic_status & 2) ||
 	    (dolby_vision_flags & FLAG_FORCE_HDMI_PKT)) {
-		pr_dolby_dbg("sink %s, cap 0x%x, video %s, osd %s, vf %p, toggle mode %d\n",
-			     current_sink_available ? "on" : "off",
-			     current_hdr_cap,
-			     video_turn_off ? "off" : "on",
-			     is_graphics_output_off() ? "off" : "on",
-			     vf, toggle_mode);
+		if (debug_dolby & 1)
+			pr_dolby_dbg("sink %s,cap 0x%x,video %s,osd %s,vf %p,toggle %d\n",
+				     current_sink_available ? "on" : "off",
+				     current_hdr_cap,
+				     video_turn_off ? "off" : "on",
+				     is_graphics_output_off() ? "off" : "on",
+				     vf, toggle_mode);
 		if (vf &&
 		    !dolby_vision_parse_metadata(
 		    vf, toggle_mode, false, false)) {
