@@ -2306,10 +2306,9 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 		VSYNC_WR_MPEG_REG(
 			VD1_BLEND_SRC_CTRL + misc_off, 0);
 
-#ifdef DV_FUNCTION
 	if (is_dolby_vision_enable()) {
-		if (is_meson_txlx_stbmode() ||
-		    is_meson_gxm())
+		if (is_meson_txlx_cpu() ||
+		    is_meson_gxm_cpu())
 			VSYNC_WR_MPEG_REG_BITS(
 				VIU_MISC_CTRL1 + misc_off,
 				3, 16, 2); /* bypass core1 */
@@ -2318,7 +2317,7 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 				DOLBY_PATH_CTRL + misc_off,
 				3, 0, 2);
 	}
-#endif
+
 	/*auto disable sr when video off*/
 	if (!is_meson_txl_cpu() &&
 	    !is_meson_txlx_cpu()) {

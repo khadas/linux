@@ -2303,8 +2303,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
-	if ((module_sel == OSD1_HDR)
-	&& (is_meson_g12() || is_meson_sm1_cpu() || is_meson_tl1_cpu())) {
+	if ((module_sel == OSD1_HDR) &&
+	    (is_meson_g12a_cpu() ||
+	     is_meson_g12b_cpu() ||
+	     is_meson_sm1_cpu() ||
+	     is_meson_tl1_cpu())) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WR_MPEG_REG(
 			VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
@@ -2934,7 +2937,8 @@ enum hdr_process_sel hdr10p_func(
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
 	if ((module_sel == OSD1_HDR) &&
-	    (is_meson_g12() ||
+	    (is_meson_g12a_cpu() ||
+	     is_meson_g12b_cpu() ||
 	     is_meson_sm1_cpu() ||
 	     is_meson_tl1_cpu())) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
