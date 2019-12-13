@@ -20,11 +20,7 @@
  */
 static inline bool has_vpu_prot(void)
 {
-	if (is_meson_g9tv_cpu() || is_meson_mtvd_cpu() || is_meson_m8b_cpu())
-		return 0;
-	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		return 1;
-	return 0;
+	return 1;
 }
 
 /*
@@ -40,24 +36,13 @@ static inline bool has_vdec2(void)
 
 static inline bool has_hevc_vdec(void)
 {
-/*
- *#ifndef CONFIG_AM_VDEC_H265
- *	return 0;
- *#endif
- */
 	/*only tvd not have hevc,when later than m8 */
-	if (is_meson_mtvd_cpu())
-		return 0;
-	else if (get_cpu_type() > MESON_CPU_MAJOR_ID_M8)
-		return 1;
-	return 0;
+	return 1;
 }
 
 static inline bool has_hdec(void)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		return 1;
-	return 0;
+	return 1;
 }
 
 #endif /* AMPORTS_CONFIG_HHH */

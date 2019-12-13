@@ -1383,8 +1383,8 @@
 				#size-cells = <2>;
 				ranges = <0x0 0x0 0x0 0x38000 0x0 0x400>;
 
-				canvas: video-lut@48 {
-					compatible = "amlogic,canvas";
+				canvas: video-lut@00 {
+					compatible = "amlogic, meson, canvas";
 					reg = <0x0 0x48 0x0 0x14>;
 				};
 			};
@@ -2170,7 +2170,6 @@
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			amlogic,canvas = <&canvas>;
 
 			/* CVBS VDAC output port */
 			cvbs_vdac_port: port@0 {
