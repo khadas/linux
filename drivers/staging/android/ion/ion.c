@@ -433,6 +433,9 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
 			continue;
+		if (len < SZ_256K && heap->id == ION_HEAP_TYPE_CUSTOM &&
+			heap_id_mask == -1)
+			continue;
 		buffer = ion_buffer_create(heap, dev, len, align, flags);
 		if (!IS_ERR(buffer))
 			break;
