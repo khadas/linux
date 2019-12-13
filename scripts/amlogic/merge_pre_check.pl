@@ -268,7 +268,7 @@ my $err_msg_p = "\nCommit Pre check failed. Total $err_cnt errors.\n";
 
 
 #Check meson_defconfig
-#check_defconfig();
+check_defconfig();
 
 #check_module_param
 check_module_param();

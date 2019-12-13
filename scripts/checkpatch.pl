@@ -6030,8 +6030,8 @@ sub process {
 						if (!defined($stat_real)) {
 							$stat_real = get_stat_real($linenr, $lc);
 						}
-						WARN("VSPRINTF_SPECIFIER_PX",
-						     "Using vsprintf specifier '\%px' potentially exposes the kernel memory layout, if you don't really need the address please consider using '\%p'.\n" . "$here\n$stat_real\n");
+						#WARN("VSPRINTF_SPECIFIER_PX",
+						#     "Using vsprintf specifier '\%px' potentially exposes the kernel memory layout, if you don't really need the address please consider using '\%p'.\n" . "$here\n$stat_real\n");
 					}
 				}
 				if ($bad_specifier ne "") {
