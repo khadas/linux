@@ -2,3 +2,4 @@
 source "drivers/amlogic/media/common/canvas/Kconfig"
 source "drivers/amlogic/media/common/ion_dev/Kconfig"
 source "drivers/amlogic/media/common/vpu/Kconfig"
+source "drivers/amlogic/media/common/rdma/Kconfig"

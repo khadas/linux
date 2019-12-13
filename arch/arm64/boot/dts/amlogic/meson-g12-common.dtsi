@@ -2434,6 +2434,13 @@
 		};
 	};
 
+	rdma{
+		compatible = "amlogic, meson, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "rdma";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13

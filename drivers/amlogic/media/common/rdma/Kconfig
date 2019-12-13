@@ -1,0 +1,27 @@
+#
+# RDMA management driver configuration
+#
+
+menu "RDMA management driver"
+
+config AMLOGIC_MEDIA_RDMA
+	bool "Amlogic RDMA management driver"
+	default n
+	help
+		This option is used to configure Amlogic drivers
+		of the multimedia RDMA management module,
+		it as the basis for drivers of the multimedia,
+		mainly on the operation of the RDMA.
+		Select to enable RDMA management driver.
+
+config AMLOGIC_MEDIA_VSYNC_RDMA
+	bool "Amlogic RDMA VSYNC"
+	depends on AMLOGIC_MEDIA_RDMA
+	default n
+	help
+		This option is used to configure Amlogic drivers
+		of the multimedia RDMA VSYNC function,
+		it as the basis for drivers of the multimedia,
+		mainly on the operation of the RDMA.
+		Select to enable RDMA VSYNC.
+endmenu

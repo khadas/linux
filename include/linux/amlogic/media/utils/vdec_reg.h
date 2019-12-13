@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/registers/register_ops.h>
+#include <linux/amlogic/media/registers/register_map.h>
 
 #define READ_DMCREG(r) aml_read_dmcbus(r)
 #define WRITE_DMCREG(r, val) aml_write_dmcbus(r, val)
