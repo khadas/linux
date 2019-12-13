@@ -2708,7 +2708,7 @@ static struct clk_regmap g12a_vpu_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 

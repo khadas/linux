@@ -156,9 +156,10 @@
 				hdmi_tx_venc_port: port@0 {
 					reg = <0>;
 
-					hdmi_tx_in: endpoint {
+					/*hdmi_tx_in: endpoint {
 						remote-endpoint = <&hdmi_tx_out>;
 					};
+					*/
 				};
 
 				/* TMDS Output */
@@ -2161,7 +2162,7 @@
 				status = "disabled";
 			};
 		};
-
+#if 0
 		vpu: vpu@ff900000 {
 			compatible = "amlogic,meson-g12a-vpu";
 			reg = <0x0 0xff900000 0x0 0x100000>,
@@ -2185,7 +2186,7 @@
 				};
 			};
 		};
-
+#endif
 		gic: interrupt-controller@ffc01000 {
 			compatible = "arm,gic-400";
 			reg = <0x0 0xffc01000 0 0x1000>,

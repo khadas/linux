@@ -136,6 +136,27 @@
 			    "dmcbus",
 			    "efusebus";
 	};
+	vpu: vpu {
+		compatible = "amlogic, vpu-sm1";
+		status = "okay";
+		reg =	<0x0 0xff63c100 0x0 0x100    /* hiu */
+			0x0 0xff900000 0x0 0x50000 /* vcbus */
+			0x0 0xffd01080 0x0 0x20    /* cbus */
+			0x0 0xff8000e8 0x0 0x2>;   /* aobus */
+		clocks = <&clkc CLKID_VAPB_SEL>,
+			<&clkc CLKID_VPU_INTR>,
+			<&clkc CLKID_VPU_0>,
+			<&clkc CLKID_VPU_1>,
+			<&clkc CLKID_VPU>;
+		clock-names =	"vapb_clk",
+				"vpu_intr_gate",
+				"vpu_clk0",
+				"vpu_clk1",
+				"vpu_clk";
+		clk_level = <7>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
+	};
 };
 
 &cecb_AO {
@@ -159,10 +180,11 @@
 	compatible = "amlogic,meson-sm1-pwrc";
 };
 
+/*
 &vpu {
 	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
 };
-
+*/
 &usb {
 	power-domains = <&pwrc PWRC_SM1_USB_ID>;
 };
