@@ -36,7 +36,7 @@ struct evl_sched_class;
 struct evl_poll_watchpoint;
 
 struct evl_init_thread_attr {
-	struct cpumask affinity;
+	const struct cpumask *affinity;
 	int flags;
 	struct evl_sched_class *sched_class;
 	union evl_sched_param sched_param;
@@ -323,8 +323,8 @@ int __evl_run_kthread(struct evl_kthread *kthread);
 			__fmt, ##__args)
 
 #define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __priority,	\
-			__fmt, __args...)				\
-	_evl_run_kthread(__kthread, *cpumask_of(__cpu), __fn, __priority, \
+			       __fmt, __args...)			\
+	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
 			__fmt, ##__args)
 
 static inline void evl_cancel_kthread(struct evl_kthread *kthread)
