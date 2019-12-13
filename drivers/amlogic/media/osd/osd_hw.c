@@ -1530,6 +1530,9 @@ static int osd_wait_buf_ready_combine(struct layer_fence_map_s *layer_map)
 	if (layer_map->in_fd <= 0)
 		return -1;
 	buf_ready_fence = layer_map->in_fence;
+	if (buf_ready_fence == NULL) {
+		return -1;/* no fence ,output directly. */
+	}
 	ret = osd_wait_fenceobj(buf_ready_fence, 4000);
 	if (ret < 0)
 		osd_log_err("osd%d: Sync Fence wait error:%d\n",
