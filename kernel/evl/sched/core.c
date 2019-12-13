@@ -187,7 +187,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 * reschedule from evl_exit_irq() later on is harmless.
 	 */
 	iattr.flags = T_ROOT;
-	iattr.affinity = *cpumask_of(cpu);
+	iattr.affinity = cpumask_of(cpu);
 	iattr.sched_class = &evl_sched_idle;
 	iattr.sched_param.idle.prio = EVL_IDLE_PRIO;
 	evl_init_thread(&rq->root_thread, &iattr, rq, name_fmt, cpu);

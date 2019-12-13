@@ -172,7 +172,7 @@ int evl_init_thread(struct evl_thread *thread,
 	if (!rq) {
 		if (!alloc_cpumask_var(&affinity, GFP_KERNEL))
 			return -ENOMEM;
-		cpumask_and(affinity, &iattr->affinity, &evl_cpu_affinity);
+		cpumask_and(affinity, iattr->affinity, &evl_cpu_affinity);
 		if (!cpumask_empty(affinity))
 			rq = evl_cpu_rq(cpumask_first(affinity));
 		free_cpumask_var(affinity);
@@ -186,7 +186,7 @@ int evl_init_thread(struct evl_thread *thread,
 	if (thread->name == NULL)
 		return -ENOMEM;
 
-	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
+	cpumask_and(&thread->affinity, iattr->affinity, &evl_cpu_affinity);
 	thread->rq = rq;
 	thread->state = flags;
 	thread->info = 0;
@@ -2018,7 +2018,7 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	}
 
 	iattr.flags = T_USER;
-	iattr.affinity = CPU_MASK_ALL;
+	iattr.affinity = cpu_possible_mask;
 	iattr.sched_class = &evl_sched_weak;
 	iattr.sched_param.weak.prio = 0;
 	ret = evl_init_thread(curr, &iattr, NULL, "%s", name);
