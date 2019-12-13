@@ -12,6 +12,13 @@ menuconfig ARCH_MESON
 	select COMMON_CLK
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
+	select COMMON_CLK_G12A
+	select PINCTRL
+        select PINCTRL_MESON
+        select COMMON_CLK_GXBB
+        select COMMON_CLK_AXG
+        select COMMON_CLK_G12A
+        select MESON_IRQ_GPIO
 
 if ARCH_MESON
 
@@ -26,5 +33,13 @@ config MACH_MESON8
 	select MESON6_TIMER
 	select COMMON_CLK_MESON8B
 	select MESON_IRQ_GPIO
+
+config AMLOGIC_ARMV8_AARCH32
+	bool "AARCH32 kernel support for Amlogic ARMv8 Soc"
+	default n
+	help
+	  32 bit kernel support for amlogic armv8 SoC.
+
+	  choose y if you wanna kerenl working in ARMv8 AARCH32 mode
 
 endif

@@ -66,6 +66,9 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 					 (1 << pll->frac.width));
 	}
 
+	if (n == 0)
+		return 0;
+
 	return DIV_ROUND_UP_ULL(rate, n);
 }
 

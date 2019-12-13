@@ -50,7 +50,7 @@ config PINCTRL_MESON_AXG_PMX
 
 config PINCTRL_MESON_G12A
 	bool "Meson g12a Soc pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || AMLOGIC_ARMV8_AARCH32
 	select PINCTRL_MESON_AXG_PMX
 	default y
 
