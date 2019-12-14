@@ -1,0 +1,26 @@
+#
+# GE2D Module
+#
+
+menu "Amlogic GE2D Module"
+
+config  AMLOGIC_MEDIA_GE2D
+	tristate "Amlogic GE2D Module"
+	default n
+	help
+		This option is used to configure Amlogic drivers
+		of the GE2d module, it as the basis for drivers of
+		the multimedia, mainly on the operation of GE2D.
+		Select to enable GE2D graphic 2D engine.
+
+config	AMLOGIC_MEDIA_GE2D_MORE_SECURITY
+	bool "Amlogic GE2D not use physical addr"
+	default n
+	depends on AMLOGIC_MEDIA_GE2D
+	help
+		This option is used to configure Amlogic drivers
+		of the GE2d module, it as the basis for drivers of
+		the multimedia, mainly on the operation of GE2D.
+		Select to enable GE2D not use physical addr.
+
+endmenu
