@@ -1,0 +1,36 @@
+menuconfig AMLOGIC_POWER_SUPPLY
+	tristate "Amlogic power supply class support"
+	default n
+	help
+	  Say Y here to enable power supply class support. This allows
+	  power supply (batteries, AC, USB) monitoring by userspace
+	  via sysfs and uevent (if available) and/or APM kernel interface
+	  (if selected below).
+	  If unsure, say no.
+
+if AMLOGIC_POWER_SUPPLY
+
+config AMLOGIC_CHARGER_PMIC6
+	tristate "Amlogic PMIC Charger Support"
+	depends on AMLOGIC_MFD
+	depends on AMLOGIC_MFD_PMIC6
+	default n
+	help
+          Say Y here to enable support for the power management unit
+	  provided by the Amlogic PMIC6.
+	  If unsure, say no.
+	  This driver can also be built as a module. If so, the module will be
+	  called pmic6-charger.
+
+config AMLOGIC_BATTERY_PMIC6
+	tristate "Amlogic PMIC Fuel Gauge Support"
+	depends on AMLOGIC_MFD
+	depends on AMLOGIC_MFD_PMIC6
+	default n
+	help
+          Say Y here to enable support for the power management unit
+	  provided by the Fuel Gauge driver for the Amlogic PMIC.
+	  If unsure, say no.
+	  This driver can also be built as a module. If so, the module will be
+	  called pmic6-battery.
+endif

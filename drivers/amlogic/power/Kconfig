@@ -1,0 +1,10 @@
+config AMLOGIC_POWER
+	bool "Amloigc power related driver support"
+	default n
+	help
+		this config enables to use amlogic power management driver
+		Say y here if you want power related driver(pmu/dvfs) support
+
+if AMLOGIC_POWER
+source "drivers/amlogic/power/supply/Kconfig"
+endif
