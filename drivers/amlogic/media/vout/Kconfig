@@ -1,0 +1,22 @@
+#
+# Amlogic vout driver configuration
+#
+
+menu "Amlogic Vout Driver Support"
+
+config AMLOGIC_VOUT
+	bool "Amlogic Vout Driver"
+	default n
+	help
+		Amlogic Video output module support.
+		Vout module includes HDMI-TX, CVBS, PANEL(LCD, backlight) etc.
+		Also provide display mode service for all the display modules.
+		Amlogic Video output module support.
+		Vout module includes HDMI-TX, CVBS, PANEL(LCD, backlight) etc.
+		Also provide display mode service for all the display modules.
+
+if AMLOGIC_VOUT
+source "drivers/amlogic/media/vout/vout_serve/Kconfig"
+endif
+
+endmenu

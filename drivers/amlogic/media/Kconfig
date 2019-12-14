@@ -50,5 +50,8 @@ if AMLOGIC_MEDIA_COMMON
 source "drivers/amlogic/media/common/Kconfig"
 endif
 
+if AMLOGIC_MEDIA_DRIVERS
+source "drivers/amlogic/media/vout/Kconfig"
+endif
 endmenu
 

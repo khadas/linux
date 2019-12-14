@@ -141,7 +141,19 @@
 		reg = <0x0 0xff8000e8 0x0 0x10>,
 		<0x0 0xff63c100 0x0 0x10>;
 	};
+	vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+	};
 
+	vout2 {
+		compatible = "amlogic, vout2";
+		status = "okay";
+		clocks = <&clkc CLKID_VPU_CLKC_P0>,
+			<&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc0",
+			"vpu_clkc";
+	};
 	vpu: vpu {
 		compatible = "amlogic, vpu-sm1";
 		status = "okay";
