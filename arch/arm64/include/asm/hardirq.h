@@ -13,7 +13,11 @@
 #include <asm/kvm_arm.h>
 #include <asm/sysreg.h>
 
+#if defined(CONFIG_AMLOGIC_FREERTOS) || defined(CONFIG_AMLOGIC_CPUIDLE)
+#define NR_IPI	8
+#else
 #define NR_IPI	7
+#endif
 
 typedef struct {
 	unsigned int __softirq_pending;

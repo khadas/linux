@@ -50,6 +50,9 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/virt.h>
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+#include <linux/amlogic/aml_cpuidle.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
@@ -73,7 +76,12 @@ enum ipi_msg_type {
 	IPI_CPU_CRASH_STOP,
 	IPI_TIMER,
 	IPI_IRQ_WORK,
-	IPI_WAKEUP
+	IPI_WAKEUP,
+
+	IPI_SHARE_FUNC = 7,
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+	IPI_SUSPEND_NOTIFIER = 7,
+#endif
 };
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -773,6 +781,9 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_TIMER, "Timer broadcast interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
 	S(IPI_WAKEUP, "CPU wake-up interrupts"),
+#if defined(CONFIG_AMLOGIC_FREERTOS) || defined(CONFIG_AMLOGIC_CPUIDLE)
+	S(IPI_SHARE_FUNC, "CPU share func interrupts"),
+#endif
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
@@ -828,6 +839,13 @@ void arch_irq_work_raise(void)
 {
 	if (__smp_cross_call)
 		smp_cross_call(cpumask_of(smp_processor_id()), IPI_IRQ_WORK);
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+void arch_suspend_notifier(const struct cpumask *mask)
+{
+	smp_cross_call(mask, IPI_SUSPEND_NOTIFIER);
 }
 #endif
 
@@ -934,6 +952,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		WARN_ONCE(!acpi_parking_protocol_valid(cpu),
 			  "CPU%u: Wake-up IPI outside the ACPI parking protocol\n",
 			  cpu);
+		break;
+#endif
+
+#if defined(CONFIG_AMLOGIC_CPUIDLE)
+	case IPI_SHARE_FUNC:
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+		aml_suspend_power_handler();
+#endif
 		break;
 #endif
 

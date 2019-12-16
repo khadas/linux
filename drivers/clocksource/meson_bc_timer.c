@@ -21,6 +21,7 @@
 #ifdef CONFIG_AMLOGIC_CPUIDLE
 #include <linux/amlogic/aml_cpuidle.h>
 #endif
+#include <linux/amlogic/cpu_version.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)   KBUILD_MODNAME ": " fmt
@@ -70,9 +71,11 @@ static int meson_set_next_event(unsigned long evt,
 {
 	struct meson_clock *clk =  &bc_clock;
 
-	if ((evt & 0xffff) <= 80) {
-		/*pr_info("timer counter is too small!\n");*/
-		return -1;
+	if (is_meson_a1_cpu() || is_meson_c1_cpu()) {
+		if ((evt & 0xffff) <= 80) {
+			/*pr_info("timer counter is too small!\n");*/
+			return -1;
+		}
 	}
 	/* use a big number to clear previous trigger cleanly */
 	aml_set_reg32_mask(clk->reg + 4, evt & 0xffff);

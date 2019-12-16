@@ -21,8 +21,11 @@
 #define MESON_CPU_MAJOR_ID_G12A		0x28
 #define MESON_CPU_MAJOR_ID_G12B		0x29
 #define MESON_CPU_MAJOR_ID_SM1          0x2B
+#define MESON_CPU_MAJOR_ID_A1			0x2C
 
 #define MESON_CPU_MAJOR_ID_TL1		0x2E
+
+#define MESON_CPU_MAJOR_ID_C1		0x30
 
 #define MESON_CPU_VERSION_LVL_MAJOR	0
 #define MESON_CPU_VERSION_LVL_MINOR	1
@@ -174,6 +177,16 @@ static inline bool is_meson_sm1_cpu(void)
 static inline bool is_meson_tl1_cpu(void)
 {
 	return get_cpu_type() == MESON_CPU_MAJOR_ID_TL1;
+}
+
+static inline bool is_meson_a1_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_A1;
+}
+
+static inline bool is_meson_c1_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_C1;
 }
 
 static inline bool cpu_after_eq(unsigned int id)

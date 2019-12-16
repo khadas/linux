@@ -27,6 +27,11 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+#include <linux/cpumask.h>
+#include <linux/amlogic/aml_cpuidle.h>
+#endif
+
 /*
  * While a 64-bit OS can make calls with SMC32 calling conventions, for some
  * calls it is necessary to use SMC64 to pass or return 64-bit values.
@@ -158,6 +163,11 @@ static int psci_cpu_suspend(u32 state, unsigned long entry_point)
 {
 	int err;
 	u32 fn;
+
+#ifdef CONFIG_AMLOGIC_CPUIDLE
+	if (is_aml_cpuidle_enabled())
+		arch_suspend_notifier(cpumask_of(0));
+#endif
 
 	fn = psci_function_id[PSCI_FN_CPU_SUSPEND];
 	err = invoke_psci_fn(fn, state, entry_point, 0);

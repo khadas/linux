@@ -1,0 +1,7 @@
+config AMLOGIC_CPUIDLE
+	bool "Amlogic Board cpuidle"
+	default n
+    help
+		This is the Amlogic
+		Board cpuidle
+		driver.
