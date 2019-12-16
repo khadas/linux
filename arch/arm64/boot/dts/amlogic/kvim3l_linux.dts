@@ -582,9 +582,14 @@
 	};
 
 	/* Audio Related start */
-	dummy_codec:dummy{
+	spdif_codec:spdif_dummy{
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
+		status = "okay";
+	};
+	dummy_codec:dummy{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
 		status = "okay";
 	};
 	amlogic_codec:t9015{
@@ -606,14 +611,16 @@
 
 		aml-audio-card,dai-link@0 {
 			mclk-fs = <128>;
-			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-spdif";
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-spdifb";
 			cpu {
-				sound-dai = <&spdifa>;
+				sound-dai = <&spdifb>;
 				system-clock-frequency = <6144000>;
 			};
 			codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&spdif_codec>;
 			};
 		};
 
@@ -707,23 +714,20 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec  &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
 		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
-			continuous-clock;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-spdifb";
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-spdif";
 			cpu {
-				sound-dai = <&spdifb>;
+				sound-dai = <&spdifa>;
 				system-clock-frequency = <6144000>;
 			};
 			codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&spdif_codec>;
 			};
 		};
 
@@ -1134,6 +1138,7 @@
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
+
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -1226,8 +1231,10 @@
 				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-		pinctrl-names = "spdif_pins";
+		pinctrl-names = "spdif_pins",
+						"spdif_pins_mute";
 		pinctrl-0 = <&spdifout>;/* bob remove &spdifin*/
+		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1439,10 +1446,12 @@
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1581,6 +1590,12 @@
 		mux { /* GPIOAO_10 */
 			groups = "spdif_out_ao";
 			function = "spdif_out_ao";
+		};
+	};
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* gpiao_10 */
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
 		};
 	};
 
