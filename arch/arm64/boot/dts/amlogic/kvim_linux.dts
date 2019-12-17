@@ -822,8 +822,10 @@
 	spdif_codec: spdif_codec{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-spdif-codec";
-		pinctrl-names = "audio_spdif";
+		pinctrl-names = "audio_spdif_out",
+						"audio_spdif_out_mute";
 		pinctrl-0 = <&audio_spdif_pins>;
+		pinctrl-1 = <&audio_spdif_out_mute_pins>;
 	};
 	pcm_codec: pcm_codec{
 		#sound-dai-cells = <0>;
@@ -1138,6 +1140,16 @@
 		};
 	};//End unifykey
 };
+
+&pinctrl_periphs{
+	audio_spdif_out_mute_pins: audio_spdif_out_mute_pins {
+		mux { /* gpioh_4 */
+			groups = "GPIOH_4";
+			function = "gpio_periphs";
+		};
+	};
+};
+
 &efuse {
 	status = "ok";
 };
