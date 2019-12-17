@@ -5105,4 +5105,12 @@ static struct platform_driver g12a_driver = {
 	},
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(g12a_driver);
+#else
+static int g12a_clkc_init(void)
+{
+	return platform_driver_register(&g12a_driver);
+}
+arch_initcall_sync(g12a_clkc_init);
+#endif
