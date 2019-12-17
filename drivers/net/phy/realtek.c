@@ -107,7 +107,8 @@ static void enable_wol(int enable, bool is_shutdown)
 
 void realtek_enable_wol(int enable, bool is_shutdown)
 {
-	enable_wol(enable, is_shutdown);
+	wol_enable = enable & 0x01;
+	support_external_phy_wol = wol_enable;
 }
 
 static int rtl821x_ack_interrupt(struct phy_device *phydev)
