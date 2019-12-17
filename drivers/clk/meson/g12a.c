@@ -3862,6 +3862,630 @@ static struct clk_regmap g12a_ts = {
 	},
 };
 
+/*
+ * media clocks
+ */
+
+/* cts_vdec_clk */
+static const struct clk_parent_data g12a_dec_parent_hws[] = {
+	{ .hw = &g12a_fclk_div2p5.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+	{ .hw = &g12a_hifi_pll.hw },
+	{ .hw = &g12a_gp0_pll.hw },
+	{ .fw_name = "xtal", },
+};
+
+static struct clk_regmap g12a_vdec_p1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdec_p1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_dec_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_dec_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_vdec_p1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdec_p1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vdec_p1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vdec_p1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdec_p1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vdec_p1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+/* cts_hcodec_clk */
+static struct clk_regmap g12a_hcodec_p0_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hcodec_p0_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_dec_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_dec_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_hcodec_p0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hcodec_p0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hcodec_p0_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_hcodec_p0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hcodec_p0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hcodec_p0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_hcodec_p1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hcodec_p1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_dec_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_dec_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_hcodec_p1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hcodec_p1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hcodec_p1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_hcodec_p1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hcodec_p1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hcodec_p1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_hcodec_mux_parent_hws[] = {
+	{ .hw = &g12a_hcodec_p0.hw },
+	{ .hw = &g12a_hcodec_p1.hw },
+};
+
+static struct clk_regmap g12a_hcodec_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.mask = 0x1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hcodec_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_hcodec_mux_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_hcodec_mux_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+/* cts_hevcb_clk */
+
+static struct clk_regmap g12a_hevc_p1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevc_p1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_dec_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_dec_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_hevc_p1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevc_p1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hevc_p1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_hevc_p1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hevc_p1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hevc_p1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+/* cts_hevcf_clk */
+
+static struct clk_regmap g12a_hevcf_p1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_p1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_dec_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_dec_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_hevcf_p1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_p1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hevcf_p1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_hevcf_p1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hevcf_p1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_hevcf_p1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+/* vpu_clkb_tmp */
+
+/* cts_vpu_clkc */
+static const char * const vpu_clkc_parent_names[] = { "fclk_div4",
+	"fclk_div3", "fclk_div5", "fclk_div7", "mpll1", "vid_pll",
+	"mpll2",  "gp0_pll"};
+
+static struct clk_regmap g12a_vpu_clkc_p0_mux  = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkc_p0_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = vpu_clkc_parent_names,
+		.num_parents = ARRAY_SIZE(vpu_clkc_parent_names),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkc_p0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkc_p0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkc_p0_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkc_p0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_clkc_p0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkc_p0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+/* cts_vpu_clk */
+
+static const struct clk_parent_data vpu_parent_hws[] = {
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+	{ .fw_name = "mp1l0", },
+	{ .hw = &g12a_vid_pll.hw },
+	{ .hw = &g12a_hifi_pll.hw },
+	{ .hw = &g12a_gp0_pll.hw },
+};
+
+static struct clk_regmap g12a_vpu_clkc_p1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkc_p1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(vpu_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkc_p1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkc_p1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkc_p1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkc_p1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_clkc_p1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkc_p1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_vpu_mux_parent_hws[] = {
+	{ .hw = &g12a_vpu_clkc_p0.hw },
+	{ .hw = &g12a_vpu_clkc_p1.hw },
+};
+
+static struct clk_regmap g12a_vpu_clkc_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLKC_CNTL,
+		.mask = 0x1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkc_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_vpu_mux_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_vpu_mux_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_meas_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_vid_pll.hw },
+	{ .hw = &g12a_gp0_pll.hw },
+	{ .hw = &g12a_fclk_div2.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+};
+
+static struct clk_regmap g12a_dsi_meas_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 21,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dsi_meas_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_meas_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_meas_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_dsi_meas_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.shift = 12,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dsi_meas_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_dsi_meas_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_dsi_meas = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.bit_idx = 20,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dsi_meas",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_dsi_meas_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_vdec_mux_parent_hws[] = {
+	{ .hw = &g12a_vdec_1.hw },
+	{ .hw = &g12a_vdec_p1.hw },
+};
+
+static struct clk_regmap g12a_vdec_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC3_CLK_CNTL,
+		.mask = 0x1,
+		.shift = 15,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdec_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_vdec_mux_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_vdec_mux_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_hevc_mux_parent_hws[] = {
+	{ .hw = &g12a_vdec_hevc.hw },
+	{ .hw = &g12a_hevc_p1.hw },
+};
+
+static struct clk_regmap g12a_hevc_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.mask = 0x1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevc_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_hevc_mux_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_hevc_mux_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data g12a_hevcf_mux_parent_hws[] = {
+	{ .hw = &g12a_vdec_hevcf.hw },
+	{ .hw = &g12a_hevcf_p1.hw },
+};
+
+static struct clk_regmap g12a_hevcf_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC4_CLK_CNTL,
+		.mask = 0x1,
+		.shift = 15,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_hevcf_mux_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_hevcf_mux_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data vpu_clkb_tmp_parent_hws[] = {
+	{ .hw = &g12a_vpu.hw },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+};
+
+static struct clk_regmap g12a_vpu_clkb_tmp_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLKB_CNTL,
+		.mask = 0x3,
+		.shift = 20,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkb_tmp_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = vpu_clkb_tmp_parent_hws,
+		.num_parents = ARRAY_SIZE(vpu_clkb_tmp_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkb_tmp_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLKB_CNTL,
+		.shift = 16,
+		.width = 4,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkb_tmp_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkb_tmp_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkb_tmp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLKB_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_clkb_tmp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkb_tmp_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkb_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLKB_CNTL,
+		.shift = 0,
+		.width = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_clkb_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkb_tmp.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_vpu_clkb = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLKB_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_clkb",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_vpu_clkb_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &g12a_clk81.hw)
 
@@ -4642,6 +5266,40 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_CPU1_CLK]		= &sm1_cpu1_clk.hw,
 		[CLKID_CPU2_CLK]		= &sm1_cpu2_clk.hw,
 		[CLKID_CPU3_CLK]		= &sm1_cpu3_clk.hw,
+		[CLKID_DSI_MEAS_MUX]		= &g12a_dsi_meas_mux.hw,
+		[CLKID_DSI_MEAS_DIV]		= &g12a_dsi_meas_div.hw,
+		[CLKID_DSI_MEAS]		= &g12a_dsi_meas.hw,
+		[CLKID_VDEC_P1_MUX]		= &g12a_vdec_p1_mux.hw,
+		[CLKID_VDEC_P1_DIV]		= &g12a_vdec_p1_div.hw,
+		[CLKID_VDEC_P1]			= &g12a_vdec_p1.hw,
+		[CLKID_VDEC_MUX]		= &g12a_vdec_mux.hw,
+		[CLKID_HCODEC_P0_MUX]		= &g12a_hcodec_p0_mux.hw,
+		[CLKID_HCODEC_P0_DIV]		= &g12a_hcodec_p0_div.hw,
+		[CLKID_HCODEC_P0]		= &g12a_hcodec_p0.hw,
+		[CLKID_HCODEC_P1_MUX]		= &g12a_hcodec_p1_mux.hw,
+		[CLKID_HCODEC_P1_DIV]		= &g12a_hcodec_p1_div.hw,
+		[CLKID_HCODEC_P1]		= &g12a_hcodec_p1.hw,
+		[CLKID_HCODEC_MUX]		= &g12a_hcodec_mux.hw,
+		[CLKID_HEVC_P1_MUX]		= &g12a_hevc_p1_mux.hw,
+		[CLKID_HEVC_P1_DIV]		= &g12a_hevc_p1_div.hw,
+		[CLKID_HEVC_P1]			= &g12a_hevc_p1.hw,
+		[CLKID_HEVC_MUX]		= &g12a_hevc_mux.hw,
+		[CLKID_HEVCF_P1_MUX]		= &g12a_hevcf_p1_mux.hw,
+		[CLKID_HEVCF_P1_DIV]		= &g12a_hevcf_p1_div.hw,
+		[CLKID_HEVCF_P1]		= &g12a_hevcf_p1.hw,
+		[CLKID_HEVCF_MUX]		= &g12a_hevcf_mux.hw,
+		[CLKID_VPU_CLKB_TMP_MUX]	= &g12a_vpu_clkb_tmp_mux.hw,
+		[CLKID_VPU_CLKB_TMP_DIV]	= &g12a_vpu_clkb_tmp_div.hw,
+		[CLKID_VPU_CLKB_TMP]		= &g12a_vpu_clkb_tmp.hw,
+		[CLKID_VPU_CLKB_DIV]		= &g12a_vpu_clkb_div.hw,
+		[CLKID_VPU_CLKB]		= &g12a_vpu_clkb.hw,
+		[CLKID_VPU_CLKC_P0_MUX]		= &g12a_vpu_clkc_p0_mux.hw,
+		[CLKID_VPU_CLKC_P0_DIV]		= &g12a_vpu_clkc_p0_div.hw,
+		[CLKID_VPU_CLKC_P0]		= &g12a_vpu_clkc_p0.hw,
+		[CLKID_VPU_CLKC_P1_MUX]		= &g12a_vpu_clkc_p1_mux.hw,
+		[CLKID_VPU_CLKC_P1_DIV]		= &g12a_vpu_clkc_p1_div.hw,
+		[CLKID_VPU_CLKC_P1]		= &g12a_vpu_clkc_p1.hw,
+		[CLKID_VPU_CLKC_MUX]		= &g12a_vpu_clkc_mux.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -4876,6 +5534,40 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&sm1_cpu1_clk,
 	&sm1_cpu2_clk,
 	&sm1_cpu3_clk,
+	&g12a_dsi_meas_mux,
+	&g12a_dsi_meas_div,
+	&g12a_dsi_meas,
+	&g12a_vdec_p1_mux,
+	&g12a_vdec_p1_div,
+	&g12a_vdec_p1,
+	&g12a_vdec_mux,
+	&g12a_hcodec_p0_mux,
+	&g12a_hcodec_p0_div,
+	&g12a_hcodec_p0,
+	&g12a_hcodec_p1_mux,
+	&g12a_hcodec_p1_div,
+	&g12a_hcodec_p1,
+	&g12a_hcodec_mux,
+	&g12a_hevc_p1_mux,
+	&g12a_hevc_p1_div,
+	&g12a_hevc_p1,
+	&g12a_hevc_mux,
+	&g12a_hevcf_p1_mux,
+	&g12a_hevcf_p1_div,
+	&g12a_hevcf_p1,
+	&g12a_hevcf_mux,
+	&g12a_vpu_clkb_tmp_mux,
+	&g12a_vpu_clkb_tmp_div,
+	&g12a_vpu_clkb_tmp,
+	&g12a_vpu_clkb_div,
+	&g12a_vpu_clkb,
+	&g12a_vpu_clkc_p0_mux,
+	&g12a_vpu_clkc_p0_div,
+	&g12a_vpu_clkc_p0,
+	&g12a_vpu_clkc_p1_mux,
+	&g12a_vpu_clkc_p1_div,
+	&g12a_vpu_clkc_p1,
+	&g12a_vpu_clkc_mux,
 };
 
 static const struct reg_sequence g12a_init_regs[] = {
