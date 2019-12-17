@@ -1,0 +1,10 @@
+#
+# Amlogic defendkey device configuration
+#
+
+config AMLOGIC_DEFENDKEY
+	tristate "Amlogic defendkey driver support"
+	default n
+	help
+		amlogic defendkey device driver
+		not choose by default
