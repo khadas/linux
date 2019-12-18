@@ -1,0 +1,33 @@
+Amlogic DDR bandwidth drvier
+
+This driver is used to measure DDR bandwidth, it can measure total
+bandwidth of DDR, also can configure port in each channel and get
+detailed bandwidth for each channel.
+
+Required properties for the root node:
+ - compatible: one of "amlogic,ddr-bandwidth-m8b"
+		      "amlogic,ddr-bandwidth-gx"
+		      "amlogic,ddr-bandwidth-gxl"
+		      "amlogic,ddr-bandwidth-gxm"
+		      "amlogic,ddr-bandwidth-gxlx"
+		      "amlogic,ddr-bandwidth-axg"
+		      "amlogic,ddr-bandwidth-g12a"
+		      "amlogic,ddr-bandwidth-g12b"
+		      "amlogic,ddr-bandwidth-txl"
+		      "amlogic,ddr-bandwidth-txlx"
+		      "amlogic,ddr-bandwidth-txhd"
+		      "amlogic,ddr-bandwidth-tl1"
+		      "amlogic,ddr-bandwidth-a1"
+		      "amlogic,ddr-bandwidth-c1"
+ - reg: address and size of registers controlling bandwidth function
+
+Example:
+
+	ddr_bandwidth {
+		compatible = "amlogic,ddr-bandwidth-g12a";
+		status = "okay";
+		reg = <0xff638000 0x100
+		       0xff638c00 0x100>;
+		interrupts = <0 52 1>;
+		interrupt-names = "ddr_bandwidth";
+	};

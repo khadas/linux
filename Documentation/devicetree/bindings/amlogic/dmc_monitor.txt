@@ -1,0 +1,27 @@
+Amlogic DMC PROT drvier
+
+This driver can be used to configure DMC PROT function. It can help
+to catch hardware DMA caused memory pollution problems
+
+Required properties for the root node:
+ - compatible: one of "amlogic,dmc_monitor-gxl"
+		      "amlogic,dmc_monitor-gxm"
+		      "amlogic,dmc_monitor-gxlx"
+		      "amlogic,dmc_monitor-axg"
+		      "amlogic,dmc_monitor-g12a"
+		      "amlogic,dmc_monitor-sm1"
+		      "amlogic,dmc_monitor-g12b"
+		      "amlogic,dmc_monitor-txl"
+		      "amlogic,dmc_monitor-txlx"
+		      "amlogic,dmc_monitor-txhd"
+		      "amlogic,dmc_monitor-tl1"
+		      "amlogic,dmc_monitor-c1"
+
+Example:
+
+	dmc_monitor {
+		compatible = "amlogic,dmc_monitor-g12a";
+		status = "okay";
+		reg_base = <0xff639000>;
+		interrupts = <0 51 1>;
+	};
