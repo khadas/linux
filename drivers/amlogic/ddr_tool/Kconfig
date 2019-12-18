@@ -1,0 +1,104 @@
+config AMLOGIC_DDR_TOOL
+	tristate "Meson cpu ddr tool"
+	depends on AMLOGIC_DRIVER
+	default n
+	help
+		This config add some debug tools for DDR, including test ddr
+		bandwidth, ddr window and other configs.
+		For more information.
+		Please see folllowing configs
+
+config AMLOGIC_DDR_BANDWIDTH
+	tristate "Meson ddr bandwidth"
+	default n
+	depends on AMLOGIC_DDR_TOOL
+	help
+		This config enables ddr bandwidth measure.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+config AMLOGIC_DDR_BANDWIDTH_GXL
+	tristate "Meson ddr bandwidth for GXL"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for GXL.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+config AMLOGIC_DDR_BANDWIDTH_GX
+	tristate "Meson ddr bandwidth for GX"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for GX.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+config AMLOGIC_DDR_BANDWIDTH_G12
+	tristate "Meson ddr bandwidth for G12"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for G12.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+config AMLOGIC_DDR_BANDWIDTH_A1
+	tristate "Meson ddr bandwidth for A1"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for A1.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+config AMLOGIC_DMC_MONITOR
+	tristate "Amlogic dmc monitor"
+	depends on AMLOGIC_DDR_TOOL
+	default n
+	help
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
+config AMLOGIC_DMC_MONITOR_G12
+	tristate "Amlogic dmc monitor for G12"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for g12 chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
+config AMLOGIC_DMC_MONITOR_GX
+	tristate "Amlogic dmc monitor for GX"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for gx chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
+config AMLOGIC_DMC_MONITOR_C1
+	tristate "Amlogic dmc monitor for C1"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for c1 chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
+
