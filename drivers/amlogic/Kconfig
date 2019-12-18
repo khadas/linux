@@ -47,6 +47,8 @@ source "drivers/amlogic/defendkey/Kconfig"
 
 source "drivers/amlogic/ddr_tool/Kconfig"
 
+source "drivers/amlogic/crypto/Kconfig"
+
 source "drivers/amlogic/media/Kconfig"
 source "drivers/amlogic/power/Kconfig"
 endmenu
