@@ -666,13 +666,19 @@ static unsigned int small_local_mtn = 70;
 module_param(small_local_mtn, uint, 0644);
 MODULE_PARM_DESC(small_local_mtn, "small_local_mtn");
 
+static unsigned int small_local_mtn1 = 30;
+module_param(small_local_mtn1, uint, 0644);
+MODULE_PARM_DESC(small_local_mtn1, "small_local_mtn1");
+
 unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel,
 	unsigned int frame_diff_avg)
 {
 	int istp = 0, idats = 0, idatm = 0, idatr = 0;
 	unsigned int rst = 0;
 
-	if (frame_diff_avg < small_local_mtn)
+	if (
+		(frame_diff_avg < small_local_mtn) &&
+		(frame_diff_avg > small_local_mtn1))
 		rst = combing_very_motion_setting[9];
 	else if (dlvel == 0) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
@@ -914,9 +920,16 @@ int adaptive_combing_fixing(
 		combing_cnt = combing_cnt + 1;
 	else
 		combing_cnt = 0;
-	if (glb_mot[0] < combing_diff_min && glb_mot[1] > combing_diff_max &&
-		combing_cnt <= combing_cnt_thd)
-		glb_mot[0] = glb_mot[1];
+	if (
+		is_meson_txhd_cpu() ||
+		is_meson_tl1_cpu() ||
+		is_meson_tm2_cpu()) {
+		if (
+			glb_mot[0] < combing_diff_min &&
+			glb_mot[1] > combing_diff_max &&
+			combing_cnt <= combing_cnt_thd)
+			glb_mot[0] = glb_mot[1];
+	}
 	glb_mot_avg5 =
 		(glb_mot[0] + glb_mot[1] + glb_mot[2] + glb_mot[3] +
 		 glb_mot[4]) / 5;
