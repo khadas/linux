@@ -785,7 +785,32 @@ void ion_client_destroy(struct ion_client *client)
 						     node);
 		ion_handle_destroy(&handle->ref);
 	}
+#ifdef CONFIG_AMLOGIC_MODIFY
+/*
+ *  There exits deadlock between ion_client_destroy
+ *  and ion_debug_heap_show.
+ *  ion_client_destroy will take debugfs_mutex and then
+ *  call debugfs_remove_recursive, which will wait for
+ *  the finish of debugfs_srcu's GP.
+ *  sys_read will enter debugfs_srcu'critical section,
+ *  then ion_debug_heap_show will try to get debugfs_mutex.
+ *  At last, deadlock occurs.
+ */
 
+	mutex_unlock(&debugfs_mutex);
+	idr_destroy(&client->idr);
+
+	down_write(&dev->lock);
+	if (client->task)
+		put_task_struct(client->task);
+	rb_erase(&client->node, &dev->clients);
+	debugfs_remove_recursive(client->debug_root);
+	up_write(&dev->lock);
+
+	kfree(client->display_name);
+	kfree(client->name);
+	kfree(client);
+#else
 	idr_destroy(&client->idr);
 
 	down_write(&dev->lock);
@@ -799,6 +824,7 @@ void ion_client_destroy(struct ion_client *client)
 	kfree(client->name);
 	kfree(client);
 	mutex_unlock(&debugfs_mutex);
+#endif
 }
 EXPORT_SYMBOL(ion_client_destroy);
 
@@ -1318,29 +1344,10 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 	struct rb_node *n;
 	size_t total_size = 0;
 	size_t total_orphaned_size = 0;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	mutex_lock(&debugfs_mutex);
-	mutex_lock(&dev->buffer_lock);
-	seq_puts(s, "All allocated buffers listed:\n");
-	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
-		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
-						     node);
-		if (buffer->heap->id != heap->id)
-			continue;
-		seq_printf(s, "%s %p %8s %u %8s %zu %8s %d %8s %d\n",
-			   "buf=", buffer,
-			   "heap_id=", heap->id,
-			   "size=", buffer->size,
-			   "kmap=", buffer->kmap_cnt,
-			   "dmap=", buffer->dmap_cnt);
-	}
-	seq_puts(s, "----------------------------------------------------\n");
-	mutex_unlock(&dev->buffer_lock);
-#else
+
 	seq_printf(s, "%16s %16s %16s\n", "client", "pid", "size");
 	seq_puts(s, "----------------------------------------------------\n");
 	mutex_lock(&debugfs_mutex);
-#endif
 	for (n = rb_first(&dev->clients); n; n = rb_next(n)) {
 		struct ion_client *client = rb_entry(n, struct ion_client,
 						     node);
@@ -1376,16 +1383,28 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 		}
 	}
 	mutex_unlock(&debugfs_mutex);
-
-	seq_puts(s, "----------------------------------------------------\n");
 #endif
+	seq_puts(s, "----------------------------------------------------\n");
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	seq_puts(s, "All allocated buffers listed:\n");
+#else
 	seq_puts(s, "orphaned allocations (info is from last known client):\n");
+#endif
 	mutex_lock(&dev->buffer_lock);
 	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
 		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
 						     node);
 		if (buffer->heap->id != heap->id)
 			continue;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		seq_printf(s, "%s %p %8s %u %8s %zu %8s %d %8s %d\n",
+			   "buf=", buffer,
+			   "heap_id=", heap->id,
+			   "size=", buffer->size,
+			   "kmap=", buffer->kmap_cnt,
+			   "dmap=", buffer->dmap_cnt);
+#endif
 		total_size += buffer->size;
 		if (!buffer->handle_count) {
 			seq_printf(s, "%16s %16u %16zu %d %d\n",
