@@ -8,5 +8,6 @@ obj-$(CONFIG_AMLOGIC_EFUSE)             += efuse/
 obj-$(CONFIG_AMLOGIC_DEFENDKEY)		+= defendkey/
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)		+= ddr_tool/
 obj-$(CONFIG_AMLOGIC_CRYPTO)		+= crypto/
+obj-$(CONFIG_AMLOGIC_AUTO_CAPTURE)	+= free_reserved/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENABLE)	+= media/
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/

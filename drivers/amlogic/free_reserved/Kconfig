@@ -1,0 +1,9 @@
+# Amlogic free reserved memory
+
+config AMLOGIC_AUTO_CAPTURE
+	bool "Amlogic camera auto capture"
+	default n
+	help
+		This option is used to configure Amlogic camera auto capture.
+		User space would use a block of reserved memory to save captured camera,
+		then free this reserved memory after using it.

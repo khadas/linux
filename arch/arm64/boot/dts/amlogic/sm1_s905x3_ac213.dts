@@ -176,6 +176,18 @@
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 		};
+		autocap_reserved:linux,autocap_reserved {
+			compatible = "amlogic, aml_autocap_memory";
+			status = "disabled";
+			//size = <0x0 0x4000000>;
+			//alloc-ranges = <0x0 0x40000000 0x0 0x25800000>;
+		};
+	};
+
+	free_reserved {
+		compatible = "amlogic, free_reserved";
+		memory-region = <&autocap_reserved>;
+		status = "disabled";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
