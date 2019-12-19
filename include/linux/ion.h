@@ -302,6 +302,8 @@ int ion_free(struct ion_buffer *buffer);
 
 #ifdef CONFIG_AMLOGIC_ION
 int meson_ion_cma_heap_match(const char *name);
+void meson_ion_cma_heap_id_set(unsigned int id);
+struct device *meson_ion_get_dev(void);
 #endif
 
 #else
