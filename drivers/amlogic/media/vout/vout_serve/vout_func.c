@@ -198,6 +198,14 @@ void vout_func_update_viu(int index)
 	}
 	p_server = p_module->curr_vout_server;
 
+#if 0
+	VOUTPR("%s: before: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
+		__func__, VPU_VIU_VENC_MUX_CTRL,
+		vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL),
+		VPU_VENCX_CLK_CTRL,
+		vout_vcbus_read(VPU_VENCX_CLK_CTRL));
+#endif
+
 	if (p_server) {
 		if (p_server->op.get_vinfo)
 			vinfo = p_server->op.get_vinfo();
@@ -228,8 +236,13 @@ void vout_func_update_viu(int index)
 		vout_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
 
 #if 0
-	VOUTPR("%s: %d, mux_sel=%d, clk_sel=%d\n",
-		__func__, index, mux_sel, clk_sel);
+	VOUTPR("%s: %d, mux_sel=%d, mux_bit=%d, clk_sel=%d clk_bit=%d\n",
+		__func__, index, mux_sel, mux_bit, clk_sel, clk_bit);
+	VOUTPR("%s: after: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
+		__func__, VPU_VIU_VENC_MUX_CTRL,
+		vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL),
+		VPU_VENCX_CLK_CTRL,
+		vout_vcbus_read(VPU_VENCX_CLK_CTRL));
 #endif
 	mutex_unlock(&vout_mutex);
 }

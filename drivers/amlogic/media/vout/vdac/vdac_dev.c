@@ -461,6 +461,23 @@ void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
 	}
 }
 
+unsigned int vdac_get_reg_addr(unsigned int index)
+{
+	unsigned int reg;
+
+	if (!s_vdac_data) {
+		pr_err("\n%s: s_vdac_data NULL\n", __func__);
+		return 0xffffffff;
+	}
+
+	if (index)
+		reg = s_vdac_data->reg_cntl1;
+	else
+		reg = s_vdac_data->reg_cntl0;
+
+	return reg;
+}
+
 int vdac_enable_check_dtv(void)
 {
 	return (pri_flag & VDAC_MODULE_DTV_DEMOD) ? 1 : 0;
