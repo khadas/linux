@@ -1,0 +1,29 @@
+Amlogic Unifykey
+
+Required properties:
+ - compatible: must be "amlogic,unifykey"
+
+ - status: should be "okay" or "disabled"
+
+ - key_n: propertity defination of each key, which contains key-name, key-device and key-permit
+	 	key-name could be any ascii string within 48 bytes
+		key-device must be one of "normal", "secure", "efuse"
+		key-permit must be the combination of "read", "write" and "del"
+
+Examples:
+
+	unifykey {
+		compatible = "amlogic,unifykey";
+		status = "okay";
+
+		key_0{
+			key-name = "usid";
+			key-device = "normal";
+			key-permit = "read", "write", "del";
+		};
+		key_1{
+			key-name = "mac";
+			key-device = "normal";
+			key-permit = "read", "write", "del";
+		};
+	};
