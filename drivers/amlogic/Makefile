@@ -11,5 +11,6 @@ obj-$(CONFIG_AMLOGIC_CRYPTO)		+= crypto/
 obj-$(CONFIG_AMLOGIC_AUTO_CAPTURE)	+= free_reserved/
 obj-$(CONFIG_AMLOGIC_MHU_MBOX)		+= mailbox/
 obj-$(CONFIG_AMLOGIC_REG_ACCESS)	+= reg_access/
+obj-$(CONFIG_AMLOGIC_UNIFYKEY)		+= unifykey/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENABLE)	+= media/
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
