@@ -174,21 +174,7 @@ void set_vmode_clk(void)
 
 	pr_info("set_vmode_clk start\n");
 	mutex_lock(&setclk_mutex);
-	if (cvbs_cpu_type() == CVBS_CPU_TYPE_GXTVBB) {
-		pr_info("config gxtvbb hdmi pll\n");
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800023d);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404380);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
-		cvbs_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800023d);
-		ret = pll_wait_lock(HHI_HDMI_PLL_CNTL, 31);
-		if (ret)
-			pr_info("[error]: hdmi_pll lock failed\n");
-		cvbs_out_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-		udelay(5);
-	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_G12A ||
+	if (cvbs_cpu_type() == CVBS_CPU_TYPE_G12A ||
 			cvbs_cpu_type() == CVBS_CPU_TYPE_G12B ||
 			cvbs_cpu_type() == CVBS_CPU_TYPE_SM1) {
 		if (cvbs_clk_path & 0x1) {

@@ -37,23 +37,20 @@
 #define VOUT_IOC_CC_CLOSE          _IO(_TM_V, 0x02)
 #define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_CCparm_s)
 
-#define print_info(fmt, args...) pr_info(fmt, ##args)
-
 struct reg_s {
 	unsigned int reg;
 	unsigned int val;
 };
 
 enum cvbs_cpu_type {
-	CVBS_CPU_TYPE_GXTVBB = 0,
-	CVBS_CPU_TYPE_GXL    = 1,
-	CVBS_CPU_TYPE_GXM    = 2,
-	CVBS_CPU_TYPE_TXLX   = 3,
-	CVBS_CPU_TYPE_G12A   = 4,
-	CVBS_CPU_TYPE_G12B   = 5,
-	CVBS_CPU_TYPE_TL1    = 6,
-	CVBS_CPU_TYPE_SM1	 = 7,
-	CVBS_CPU_TYPE_TM2	 = 8,
+	CVBS_CPU_TYPE_GXL    = 0,
+	CVBS_CPU_TYPE_GXM    = 1,
+	CVBS_CPU_TYPE_TXLX   = 2,
+	CVBS_CPU_TYPE_G12A   = 3,
+	CVBS_CPU_TYPE_G12B   = 4,
+	CVBS_CPU_TYPE_TL1    = 5,
+	CVBS_CPU_TYPE_SM1    = 6,
+	CVBS_CPU_TYPE_TM2    = 7,
 };
 
 struct meson_cvbsout_data {
@@ -63,19 +60,20 @@ struct meson_cvbsout_data {
 };
 
 #define CVBS_PERFORMANCE_CNT_MAX    20
-struct cvbs_config_s {
-	unsigned int performance_reg_cnt;
-	struct reg_s *performance_reg_table;
+struct performance_config_s {
+	unsigned int reg_cnt;
+	struct reg_s *reg_table;
 };
 
-struct disp_module_info_s {
+struct cvbs_drv_s {
 	struct vinfo_s *vinfo;
 	struct cdev   *cdev;
 	dev_t         devno;
 	struct class  *base_class;
 	struct device *dev;
 	struct meson_cvbsout_data *cvbs_data;
-	struct cvbs_config_s cvbs_conf;
+	struct performance_config_s perf_conf_pal;
+	struct performance_config_s perf_conf_ntsc;
 	struct delayed_work dv_dwork;
 	bool dwork_flag;
 
