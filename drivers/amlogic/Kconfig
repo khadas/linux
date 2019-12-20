@@ -53,6 +53,8 @@ source "drivers/amlogic/free_reserved/Kconfig"
 
 source "drivers/amlogic/mailbox/Kconfig"
 
+source "drivers/amlogic/reg_access/Kconfig"
+
 source "drivers/amlogic/media/Kconfig"
 source "drivers/amlogic/power/Kconfig"
 endmenu
