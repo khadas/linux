@@ -27,6 +27,7 @@
 #define MCU_WOL_REG		0x21
 #define MCU_RST_REG             0x2c
 #define MCU_LAN_MAC_ID  0x6
+#define MCU_AGEING_TEST	0x35
 #define MCU_LAN_MAC_SWITCH  0x2d
 
 
@@ -37,7 +38,7 @@ struct mcu_data {
 };
 
 struct mcu_data *g_mcu_data;
-
+int ageing_test_flag = 0;
 extern void set_test(int flag);
 extern void realtek_enable_wol(int enable, bool is_shutdown);
 extern int StringToHex(char *str, unsigned char *out, unsigned int *outlen);
@@ -249,11 +250,45 @@ static ssize_t store_mac_addr(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t show_ageing_test(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr[1]={0};
+	
+	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_AGEING_TEST, addr, 1);
+	if (ret < 0) 
+		printk("%s: AGEING_TEST failed (%d)",__func__, ret);
+	
+	return sprintf(buf, "%d\n", addr[0]);
+}	
+
+static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int enable;
+	
+	if (kstrtoint(buf, 0, &enable))
+		return -EINVAL;
+	reg[0] = enable;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_AGEING_TEST, reg, 1);
+	if (ret < 0) {
+		printk("ageing_test state err\n");
+		return ret;
+	}
+	printk("ageing_test state: %d\n", enable);
+	ageing_test_flag = 1;
+	return count;
+}
+
 static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 	__ATTR(test, 0644, NULL, store_test),
 	__ATTR(rst_mcu, 0644, NULL, store_rst_mcu),
 	__ATTR(mac_addr, 0644, show_mac_addr, store_mac_addr),
+	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),	
 };
 
 static void create_mcu_attrs(void)
