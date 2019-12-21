@@ -184,11 +184,12 @@ static int rk_remotectl_parse_ir_keys(struct platform_device *pdev)
 }
 
 
-
+extern int ageing_test_flag;
 static void rk_pwm_remotectl_do_something(unsigned long  data)
 {
 	struct rkxx_remotectl_drvdata *ddata;
-
+	if(ageing_test_flag)
+		return;
 	ddata = (struct rkxx_remotectl_drvdata *)data;
 	switch (ddata->state) {
 	case RMC_IDLE: {
