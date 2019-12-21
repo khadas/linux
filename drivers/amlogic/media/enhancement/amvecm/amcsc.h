@@ -207,7 +207,7 @@ extern int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 
 #define PROC_BYPASS			0
 /* to backward compatible */
-#define PROC_MATCH			1
+#define PROC_MATCH			5
 #define PROC_OFF			4
 /* sdr */
 #define PROC_SDR_TO_HDR		1
