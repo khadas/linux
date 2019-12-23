@@ -17,6 +17,7 @@ config AMLOGIC_VOUT
 
 if AMLOGIC_VOUT
 source "drivers/amlogic/media/vout/vout_serve/Kconfig"
+source "drivers/amlogic/media/vout/hdmitx/Kconfig"
 endif
 
 endmenu

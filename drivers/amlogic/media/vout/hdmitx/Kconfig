@@ -1,0 +1,13 @@
+#
+# HDMITX
+#
+menu "Amlogic HDMITX Module"
+
+config AMLOGIC_HDMITX
+	bool "AMLOGIC HDMITX driver"
+	default n
+	help
+	This option is used to configure Amlogic drivers
+        of the hdmi tx output
+
+endmenu

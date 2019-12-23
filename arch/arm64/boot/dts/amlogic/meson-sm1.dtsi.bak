@@ -238,13 +238,13 @@
 		status = "okay";
 		vend-data = <&vend_data>;
 		pinctrl-names="default", "hdmitx_i2c";
-		pinctrl-0=<&hdmitx_hpd_pins &hdmitx_ddc_pins>;
-		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_sda_h_pins>;
+		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
+		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_master_pins1>;
 		clocks = <&clkc CLKID_VCLK2_ENCI
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1
 			&clkc CLKID_VAPB_SEL
-			&clkc CLKID_VPU>;
+			&clkc CLKID_VPU_MUX>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
@@ -258,18 +258,27 @@
 		 * 10:G12A 11:G12B 12:SM1
 		 */
 		ic_type = <12>;
-		reg =	<0x0 0xffd00000 0x0 0x100000>,
-			<0x0 0xff900000 0x0 0x40000>,
-			<0x0 0xff63c000 0x0 0x2000>,
-			<0x0 0xff600000 0x0 0x8000>,
-			<0x0 0xff608000 0x0 0x4000>,
-			<0x0 0xffe01000 0x0 0x100>;
-		reg-names = "cbus",
-			    "vcbus",
-			    "hiubus",
-			    "hdmitxsec",
-			    "hdmitx",
-			    "esm";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		cbus_base {
+			reg = <0xffd00000 0x100000>;
+		};
+		vcbus_base {
+			reg = <0xff900000 0x40000>;
+		};
+		hiu_base {
+			reg = <0xff63c000 0x2000>;
+		};
+		hdmitx_sec_base {
+			reg = <0xff600000 0x8000>;
+		};
+		hdmitx_base {
+			reg = <0xff608000 0x4000>;
+		};
+		esm_base {
+			reg = <0xffe01000 0x100>;
+		};
 
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */

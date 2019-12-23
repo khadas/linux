@@ -286,6 +286,13 @@
 						};
 					};
 
+					hdmitx_hpd_gpio: hdmitx_hpd_gpio {
+						mux {
+							groups = "GPIOH_1";
+							on = "gpio_periphs";
+							bias-disable;
+						};
+					};
 
 					i2c0_sda_c_pins: i2c0-sda-c {
 						mux {
