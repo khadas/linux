@@ -655,6 +655,7 @@
 
 &dmc {
 	status = "okay";
+	center-supply = <&vdd_center>;
 	system-status-freq = <
 		/*system status         freq(KHz)*/
 		SYS_STATUS_NORMAL       856000
@@ -668,6 +669,11 @@
 		SYS_STATUS_DUALVIEW     856000
 		SYS_STATUS_ISP          856000
 	>;
+	vop-pn-msch-readlatency = <
+	/* plane_number readlatency */
+		0 0x20
+		4 0x20
+	>;	
     vop-bw-dmc-freq = <
     /* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
             0       577      416000
