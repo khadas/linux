@@ -1019,7 +1019,7 @@
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins",
 				"spdif_pins_mute";
-		pinctrl-0 = <&spdifout &spdifin>;
+		pinctrl-0 = <&spdifout>;
 		pinctrl-1 = <&spdifout_a_mute>;
 		status = "okay";
 	};
