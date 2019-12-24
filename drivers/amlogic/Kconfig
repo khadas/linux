@@ -57,6 +57,8 @@ source "drivers/amlogic/reg_access/Kconfig"
 
 source "drivers/amlogic/unifykey/Kconfig"
 
+source "drivers/amlogic/pm/Kconfig"
+
 source "drivers/amlogic/media/Kconfig"
 source "drivers/amlogic/power/Kconfig"
 endmenu
