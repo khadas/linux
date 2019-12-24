@@ -61,5 +61,7 @@ source "drivers/amlogic/pm/Kconfig"
 
 source "drivers/amlogic/media/Kconfig"
 source "drivers/amlogic/power/Kconfig"
+
+source "drivers/amlogic/pinctrl/Kconfig"
 endmenu
 endif
