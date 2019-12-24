@@ -2545,7 +2545,6 @@
 			"eth_rxd2_rgmii",
 			"eth_rxd3_rgmii",
 			"eth_rgmii_tx_clk",
-			"eth_txen",
 			"eth_txd0",
 			"eth_txd1",
 			"eth_txd2_rgmii",
