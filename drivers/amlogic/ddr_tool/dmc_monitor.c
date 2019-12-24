@@ -388,7 +388,7 @@ static int dmc_monitor_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id dmc_monitor_match[] __initconst = {
+static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-gxl",
 		.data = (void *)DMC_TYPE_GXL,	/* chip id */

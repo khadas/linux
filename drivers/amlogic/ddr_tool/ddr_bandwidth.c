@@ -791,7 +791,7 @@ static int ddr_bandwidth_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id aml_ddr_bandwidth_dt_match[] __initconst = {
+static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-m8b",
 		.data = (void *)DMC_TYPE_M8B,	/* chip id */
