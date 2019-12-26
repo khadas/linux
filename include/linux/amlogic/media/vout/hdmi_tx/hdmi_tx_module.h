@@ -646,6 +646,7 @@ extern int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	int buffer_len);
 bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	struct hdmi_format_para *para);
+const char *hdmitx_edid_vic_tab_map_string(enum hdmi_vic vic);
 extern const char *hdmitx_edid_vic_to_string(enum hdmi_vic vic);
 extern void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 

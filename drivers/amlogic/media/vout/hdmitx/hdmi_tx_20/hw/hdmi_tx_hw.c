@@ -2318,7 +2318,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 {
 	int i;
 	int pkt_data_len = 0;
-	unsigned int IEEECode = 0;
+	unsigned int ieee_code = 0;
 
 	switch (type) {
 	case HDMI_PACKET_AVI:
@@ -2340,13 +2340,13 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID2, DB[2]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, HB[2]);
-		IEEECode = DB[0] | DB[1] << 8 | DB[2] << 16;
-		if ((IEEECode == HDMI_IEEEOUI) && (DB[3] == 0x20)) {
+		ieee_code = DB[0] | DB[1] << 8 | DB[2] << 16;
+		if ((ieee_code == HDMI_IEEEOUI) && (DB[3] == 0x20)) {
 			/* set HDMI VIC */
 			hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
 		}
-		if ((IEEECode == HDMI_IEEEOUI) && (DB[3] == 0x40)) {
+		if ((ieee_code == HDMI_IEEEOUI) && (DB[3] == 0x40)) {
 			/* 3D VSI */
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
@@ -2355,7 +2355,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 			else
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 6);
 		}
-		if ((IEEECode == DOVI_IEEEOUI) && (HB[2] == 0x1b)) {
+		if ((ieee_code == DOVI_IEEEOUI) && (HB[2] == 0x1b)) {
 			/*set dolby vsif data information*/
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
@@ -2364,7 +2364,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD5, DB[8]);
 		}
 		/*set hdr 10+ vsif data information*/
-		if (IEEECode == HDR10PLUS_IEEEOUI) {
+		if (ieee_code == HDR10PLUS_IEEEOUI) {
 			for (i = 0; i < 23; i++)
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1 + i,
 					DB[4 + i]);
@@ -4348,7 +4348,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf+6, 16, &adr);
 		ret = kstrtoul(buf+i+1, 16, &value);
 		return;
-	} else if (tmpbuf[0] == 'v') {
+	} else if ((tmpbuf[0] == 'v') &&
+			   (strncmp(tmpbuf, "vsif_info", 9) != 0)) {
 		hdmitx_print_info(hdev, 1);
 		return;
 	} else if (tmpbuf[0] == 'w') {
@@ -4453,6 +4454,12 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		return;
 	} else if (strncmp(tmpbuf, "gcp_info", 8) == 0) {
 		hdmitx_dump_gcp();
+		return;
+	} else if (strncmp(tmpbuf, "drm_info", 8) == 0) {
+		hdmitx_dump_drm_reg();
+		return;
+	} else if (strncmp(tmpbuf, "vsif_info", 9) == 0) {
+		hdmitx_dump_vsif_reg();
 		return;
 	}
 }

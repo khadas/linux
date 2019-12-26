@@ -175,6 +175,19 @@ struct dv_vsif_para {
 	} vers;
 };
 
+struct vsif_debug_save {
+	enum eotf_type type;
+	enum mode_type tunnel_mode;
+	struct dv_vsif_para data;
+	bool signal_sdr;
+};
+
+struct emp_debug_save {
+	unsigned char data[128];
+	unsigned int type;
+	unsigned int size;
+};
+
 /* Dolby Version support information from EDID*/
 /* Refer to DV Spec version2.9 page26 to page39*/
 enum block_type {
