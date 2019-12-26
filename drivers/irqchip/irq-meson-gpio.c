@@ -70,6 +70,13 @@ static const struct meson_gpio_irq_params sm1_params = {
 	.support_edge_both = true,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_gpio_irq_params tm2_params = {
+	.nr_hwirq = 104,
+	.support_edge_both = true,
+};
+#endif
+
 static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson8-gpio-intc", .data = &meson8_params },
 	{ .compatible = "amlogic,meson8b-gpio-intc", .data = &meson8b_params },
@@ -78,6 +85,9 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson-axg-gpio-intc", .data = &axg_params },
 	{ .compatible = "amlogic,meson-g12a-gpio-intc", .data = &axg_params },
 	{ .compatible = "amlogic,meson-sm1-gpio-intc", .data = &sm1_params },
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{ .compatible = "amlogic,meson-tm2-gpio-intc", .data = &tm2_params },
+#endif
 	{ }
 };
 

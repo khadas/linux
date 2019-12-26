@@ -130,6 +130,9 @@ struct meson_pinctrl {
 	struct regmap *reg_gpio;
 	struct regmap *reg_ds;
 	struct gpio_chip chip;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct device_node *of_irq;
+#endif
 	struct device_node *of_node;
 };
 
