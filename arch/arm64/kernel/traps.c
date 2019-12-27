@@ -156,11 +156,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	if (!tsk)
 		tsk = current;
 
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (!tsk)
-		tsk = current;
-
 	if (!try_get_task_stack(tsk))
 		return;
 
@@ -172,6 +167,11 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
 	else
 		irq_stack_ptr = 0;
+
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (!tsk)
+		tsk = current;
 
 	if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);

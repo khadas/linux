@@ -220,8 +220,8 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 		BUG();
 	}
 
-	DMERR("%s: %s block %llu is corrupted", v->data_dev->name, type_str,
-		block);
+	DMERR_LIMIT("%s: %s block %llu is corrupted", v->data_dev->name,
+		    type_str, block);
 
 	if (v->corrupted_errs == DM_VERITY_MAX_CORRUPTED_ERRS)
 		DMERR("%s: reached maximum errors", v->data_dev->name);
@@ -529,7 +529,6 @@ static void verity_prefetch_io(struct work_struct *work)
 		container_of(work, struct dm_verity_prefetch_work, work);
 	struct dm_verity *v = pw->v;
 	int i;
-	sector_t prefetch_size;
 
 	for (i = v->levels - 2; i >= 0; i--) {
 		sector_t hash_block_start;
@@ -552,14 +551,8 @@ static void verity_prefetch_io(struct work_struct *work)
 				hash_block_end = v->hash_blocks - 1;
 		}
 no_prefetch_cluster:
-		// for emmc, it is more efficient to send bigger read
-		prefetch_size = max((sector_t)CONFIG_DM_VERITY_HASH_PREFETCH_MIN_SIZE,
-			hash_block_end - hash_block_start + 1);
-		if ((hash_block_start + prefetch_size) >= (v->hash_start + v->hash_blocks)) {
-			prefetch_size = hash_block_end - hash_block_start + 1;
-		}
 		dm_bufio_prefetch(v->bufio, hash_block_start,
-				  prefetch_size);
+				  hash_block_end - hash_block_start + 1);
 	}
 
 	kfree(pw);

@@ -33,11 +33,11 @@
 #define ARM64_HAS_NO_HW_PREFETCH		8
 #define ARM64_HAS_UAO				9
 #define ARM64_ALT_PAN_NOT_UAO			10
-
-#define ARM64_WORKAROUND_CAVIUM_27456		11
-#define ARM64_HAS_VIRT_HOST_EXTN		12
+#define ARM64_HAS_VIRT_HOST_EXTN		11
+#define ARM64_WORKAROUND_CAVIUM_27456		12
 #define ARM64_HAS_32BIT_EL0			13
 #define ARM64_UNMAP_KERNEL_AT_EL0		23
+
 #define ARM64_NCAPS				24
 
 #ifndef __ASSEMBLY__
@@ -46,9 +46,10 @@
 
 /* CPU feature register tracking */
 enum ftr_type {
-	FTR_EXACT,	/* Use a predefined safe value */
-	FTR_LOWER_SAFE,	/* Smaller value is safe */
-	FTR_HIGHER_SAFE,/* Bigger value is safe */
+	FTR_EXACT,			/* Use a predefined safe value */
+	FTR_LOWER_SAFE,			/* Smaller value is safe */
+	FTR_HIGHER_SAFE,		/* Bigger value is safe */
+	FTR_HIGHER_OR_ZERO_SAFE,	/* Bigger value is safe, but 0 is biggest */
 };
 
 #define FTR_STRICT	true	/* SANITY check strict matching required */

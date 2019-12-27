@@ -9863,6 +9863,13 @@ F:	arch/arm/mach-s3c24xx/mach-bast.c
 F:	arch/arm/mach-s3c24xx/bast-ide.c
 F:	arch/arm/mach-s3c24xx/bast-irq.c
 
+SIPHASH PRF ROUTINES
+M:	Jason A. Donenfeld <Jason@zx2c4.com>
+S:	Maintained
+F:	lib/siphash.c
+F:	lib/test_siphash.c
+F:	include/linux/siphash.h
+
 TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
 M:	Kevin Hilman <khilman@deeprootsystems.com>
@@ -11496,6 +11503,19 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/v4l2-core/videobuf2-*
 F:	include/media/videobuf2-*
+
+VIRTIO AND VHOST VSOCK DRIVER
+M:	Stefan Hajnoczi <stefanha@redhat.com>
+L:	kvm@vger.kernel.org
+L:	virtualization@lists.linux-foundation.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	include/linux/virtio_vsock.h
+F:	include/uapi/linux/virtio_vsock.h
+F:	net/vmw_vsock/virtio_transport_common.c
+F:	net/vmw_vsock/virtio_transport.c
+F:	drivers/vhost/vsock.c
+F:	drivers/vhost/vsock.h
 
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>

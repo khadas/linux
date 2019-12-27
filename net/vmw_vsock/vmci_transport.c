@@ -1680,6 +1680,8 @@ static void vmci_transport_destruct(struct vsock_sock *vsk)
 
 static void vmci_transport_release(struct vsock_sock *vsk)
 {
+	vsock_remove_sock(vsk);
+
 	if (!vmci_handle_is_invalid(vmci_trans(vsk)->dg_handle)) {
 		vmci_datagram_destroy_handle(vmci_trans(vsk)->dg_handle);
 		vmci_trans(vsk)->dg_handle = VMCI_INVALID_HANDLE;
@@ -1771,11 +1773,8 @@ static int vmci_transport_dgram_dequeue(struct vsock_sock *vsk,
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
 	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
-	if (err)
-		return err;
-
 	if (!skb)
-		return -EAGAIN;
+		return err;
 
 	dg = (struct vmci_datagram *)skb->data;
 	if (!dg)
@@ -2090,7 +2089,7 @@ static u32 vmci_transport_get_local_cid(void)
 	return vmci_get_context_id();
 }
 
-static struct vsock_transport vmci_transport = {
+static const struct vsock_transport vmci_transport = {
 	.init = vmci_transport_socket_init,
 	.destruct = vmci_transport_destruct,
 	.release = vmci_transport_release,
@@ -2190,7 +2189,7 @@ module_exit(vmci_transport_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMCI transport for Virtual Sockets");
-MODULE_VERSION("1.0.3.0-k");
+MODULE_VERSION("1.0.4.0-k");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("vmware_vsock");
 MODULE_ALIAS_NETPROTO(PF_VSOCK);
