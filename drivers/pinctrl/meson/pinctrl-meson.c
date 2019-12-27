@@ -243,11 +243,19 @@ static int meson_pinconf_set_output_drive(struct meson_pinctrl *pc,
 {
 	int ret;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	ret = meson_pinconf_set_output(pc, pin, true);
 	if (ret)
 		return ret;
 
 	return meson_pinconf_set_drive(pc, pin, high);
+#else
+	ret = meson_pinconf_set_drive(pc, pin, high);
+	if (ret)
+		return ret;
+
+	return meson_pinconf_set_output(pc, pin, true);
+#endif
 }
 
 static int meson_pinconf_disable_bias(struct meson_pinctrl *pc,
