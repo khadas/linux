@@ -247,7 +247,7 @@ static int nflagch4_th = 0;
 module_param(nflagch4_th,  int, 0644);
 MODULE_PARM_DESC(nflagch4_th, "nflagch4_th");
 
-static int nflagch5_th = 0;
+static int nflagch5_th = 1;
 module_param(nflagch5_th,  int, 0644);
 MODULE_PARM_DESC(nflagch5_th, "nflagch5_th");
 
