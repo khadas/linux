@@ -213,17 +213,6 @@ static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 	return 0;
 }
 
-static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
-					       bool on)
-{
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
-
-	if (rgb->panel)
-		drm_panel_loader_protect(rgb->panel, on);
-
-	return 0;
-}
-
 static const
 struct drm_encoder_helper_funcs rockchip_rgb_encoder_helper_funcs = {
 	.enable = rockchip_rgb_encoder_enable,
