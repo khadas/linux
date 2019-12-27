@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include "firmware_avb_Q.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <14>;
+		part-0 = <&logo>;
+		part-1 = <&recovery>;
+		part-2 = <&tee>;
+		part-3 = <&misc>;
+		part-4 = <&dtbo>;
+		part-5 = <&cri_data>;
+		part-6 = <&param>;
+		part-7 = <&boot>;
+		part-8 = <&rsv>;
+		part-9 = <&metadata>;
+		part-10 = <&vbmeta>;
+		part-11 = <&super>;
+		part-12 = <&cache>;
+		part-13 = <&data>;
+
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x400000>;
+			mask = <1>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		dtbo:dtbo{
+			pname = "dtbo";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <2>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		vbmeta:vbmeta{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		super:super
+		{
+			pname = "super";
+			size = <0x0 0x78000000>;
+			mask = <1>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x32000000>;
+			mask = <2>;
+		};
+		data:data
+		{
+			pname = "data";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */
