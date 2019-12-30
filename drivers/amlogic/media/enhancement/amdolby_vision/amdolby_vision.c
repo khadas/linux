@@ -7282,6 +7282,9 @@ int dolby_vision_process(
 				     video_turn_off ? "off" : "on",
 				     is_graphics_output_off() ? "off" : "on",
 				     vf, toggle_mode);
+		/* do not toggle a new el vf */
+		if (toggle_mode == 1)
+			toggle_mode = 0;
 		if (vf &&
 		    !dolby_vision_parse_metadata(
 		    vf, toggle_mode, false, false)) {
