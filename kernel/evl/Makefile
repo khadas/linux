@@ -1,7 +1,5 @@
 obj-$(CONFIG_EVL) += evl.o sched/
 
-ccflags-y += -Ikernel
-
 evl-y :=		\
 	clock.o		\
 	control.o	\
