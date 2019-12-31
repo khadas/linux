@@ -210,6 +210,7 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 	ssize_t len, ret, wbytes, n;
 	unsigned int wroff, avail;
 	unsigned long flags;
+	bool sigpoll;
 	int xret;
 
 	len = wd->count;
@@ -277,9 +278,10 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 		} while (wbytes > 0);
 
 		if (--ring->wrpending == 0) {
+			sigpoll = ring->fillsz == 0;
 			ring->fillsz += ring->wrrsvd;
 			ring->wrrsvd = 0;
-			ring->signal_input(ring, ring->fillsz == len);
+			ring->signal_input(ring, sigpoll);
 		}
 
 		ring->unlock(ring, flags);
