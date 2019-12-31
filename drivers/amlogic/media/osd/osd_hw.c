@@ -8514,7 +8514,6 @@ static int osd_setting_order(u32 output_index)
 	struct layer_blend_reg_s *blend_reg;
 	struct hw_osd_blending_s *blending;
 	u32 osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
-	bool update = false;
 	int line1;
 	int line2;
 	int active_begin_line;
@@ -8619,13 +8618,12 @@ static int osd_setting_order(u32 output_index)
 			osd_hw.reg[DISP_GEOMETRY].update_func(i);
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(i);
 			osd_hw.reg[DISP_OSD_REVERSE].update_func(i);
+			osd_set_scan_mode(i);
 			osd_hw.reg[OSD_FREESCALE_COEF].update_func(i);
-			if (update || osd_update_window_axis) {
-				osd_set_scan_mode(i);
-				osd_update_window_axis = false;
-			}
 			osd_hw.reg[DISP_FREESCALE_ENABLE]
 				.update_func(i);
+			if (osd_update_window_axis)
+				osd_update_window_axis = false;
 			if (osd_hw.premult_en[i] && !osd_hw.blend_bypass)
 				VSYNCOSD_WR_MPEG_REG_BITS(
 				osd_reg->osd_mali_unpack_ctrl, 0x1, 28, 1);
