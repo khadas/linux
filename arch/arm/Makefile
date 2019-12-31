@@ -239,10 +239,6 @@ TEXT_OFFSET := $(textofs-y)
 
 export	TEXT_OFFSET GZFLAGS MMUEXT
 
-ifeq ($(CONFIG_EVL),y)
-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
-endif
-
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= $(patsubst %,arch/arm/mach-%/,$(machine-y))
 # For cleaning
