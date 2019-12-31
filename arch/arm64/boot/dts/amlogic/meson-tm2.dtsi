@@ -49,4 +49,20 @@
 			compatible = "cache";
 		};
 	};
+
+	ddr_bandwidth {
+		compatible = "amlogic,ddr-bandwidth-g12a";
+		status = "okay";
+		reg = <0x0 0xff638000 0x0 0x100
+			0x0 0xff638c00 0x0 0x100>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ddr_bandwidth";
+	};
+
+	dmc_monitor {
+		compatible = "amlogic,dmc_monitor-sm1";
+		status = "okay";
+		reg_base = <0xff639000>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
+	};
 };
