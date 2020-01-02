@@ -636,6 +636,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.set = meson_gpio_set;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	pc->chip.to_irq = meson_gpio_to_irq;
+	pc->chip.set_config = gpiochip_generic_config;
 #endif
 	pc->chip.base = -1;
 	pc->chip.ngpio = pc->data->num_pins;

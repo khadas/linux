@@ -3198,6 +3198,51 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 }
 EXPORT_SYMBOL_GPL(gpiod_set_transitory);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/**
+ * gpiod_set_pull - enable pull-down/up for the gpio, or disable.
+ * @desc: descriptor of the GPIO for which to set pull
+ * @value: value to set
+ *
+ * Returns:
+ * 0 on success, %-ENOTSUPP if the controller doesn't support setting the
+ * pull.
+ */
+int gpiod_set_pull(struct gpio_desc *desc, unsigned int value)
+{
+	struct gpio_chip	*chip;
+	unsigned long		config;
+	enum pin_config_param	mode;
+
+	VALIDATE_DESC(desc);
+	chip = desc->gdev->chip;
+	if (!chip || !chip->set_config) {
+		gpiod_dbg(desc,
+			  "%s: missing set() or set_config() operations\n",
+			  __func__);
+		return -ENOTSUPP;
+	}
+
+	switch (value) {
+	case GPIOD_PULL_DIS:
+		mode = PIN_CONFIG_BIAS_DISABLE;
+		break;
+	case GPIOD_PULL_DOWN:
+		mode = PIN_CONFIG_BIAS_PULL_DOWN;
+		break;
+	case GPIOD_PULL_UP:
+		mode = PIN_CONFIG_BIAS_PULL_UP;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+	config = PIN_CONF_PACKED(mode, 0);
+
+	return chip->set_config(chip, gpio_chip_hwgpio(desc), config);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_pull);
+#endif
+
 /**
  * gpiod_is_active_low - test whether a GPIO is active-low or not
  * @desc: the gpio descriptor to test
