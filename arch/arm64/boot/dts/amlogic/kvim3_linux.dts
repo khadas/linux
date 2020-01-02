@@ -844,6 +844,8 @@
 
 &pwm_ef {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_f_pins2>;
 };
 
 &pwm_AO_cd {
