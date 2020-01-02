@@ -351,6 +351,9 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 
 		switch (param) {
 		case PIN_CONFIG_DRIVE_STRENGTH_UA:
+#ifdef CONFIG_AMLOGIC_MODIFY
+		case PIN_CONFIG_INPUT_ENABLE:
+#endif
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		case PIN_CONFIG_OUTPUT:
 			arg = pinconf_to_config_argument(configs[i]);
@@ -379,6 +382,11 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT:
 			ret = meson_pinconf_set_output_drive(pc, pin, arg);
 			break;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		case PIN_CONFIG_INPUT_ENABLE:
+			ret = meson_pinconf_set_output(pc, pin, !arg);
+			break;
+#endif
 		default:
 			ret = -ENOTSUPP;
 		}
