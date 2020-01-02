@@ -1148,6 +1148,13 @@
 			function = "gpio_periphs";
 		};
 	};
+
+	pwm_f_pin: pwm_f_pin {
+		mux {
+			groups = "pwm_f_clk1";
+			function = "pwm_f";
+		};
+	};
 };
 
 &efuse {
@@ -1156,6 +1163,8 @@
 
 &pwm_ef {
 	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&pwm_f_pin>;
 };
 
 &audio_data{
