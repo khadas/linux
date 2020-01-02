@@ -1343,6 +1343,17 @@ static int lcd_config_probe(struct platform_device *pdev)
 		LCDPR("detect lcd_auto_test: %d\n", lcd_driver->lcd_auto_test);
 	}
 
+	ret = of_property_read_u32(lcd_driver->dev->of_node,
+				   "resume_type", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get resume_type\n");
+		lcd_driver->lcd_resume_type = 1; /* default workqueue */
+	} else {
+		lcd_driver->lcd_resume_type = (unsigned char)val;
+		LCDPR("detect resume_type: %d\n", lcd_driver->lcd_resume_type);
+	}
+
 	lcd_driver->res_vsync_irq = platform_get_resource_byname(pdev,
 		IORESOURCE_IRQ, "vsync");
 	lcd_driver->res_vsync2_irq = platform_get_resource_byname(pdev,
@@ -1358,7 +1369,6 @@ static int lcd_config_probe(struct platform_device *pdev)
 	lcd_driver->lcd_test_flag = 0;
 	lcd_driver->lcd_mute_state = 0;
 	lcd_driver->lcd_mute_flag = 0;
-	lcd_driver->lcd_resume_type = 1; /* default workqueue */
 	lcd_driver->fr_mode = 0;
 	lcd_driver->viu_sel = LCD_VIU_SEL_NONE;
 	lcd_driver->vsync_none_timer_flag = 0;
