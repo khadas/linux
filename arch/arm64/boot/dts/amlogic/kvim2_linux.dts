@@ -1201,10 +1201,23 @@
 			function = "gpio_periphs";
 		};
 	};
+
+	pwm_d_pin: pwm_d_pin {
+		mux {
+			groups = "pwm_d";
+			function = "pwm_d";
+		};
+	};
 };
 
 &efuse {
 	status = "ok";
+};
+
+&pwm_cd {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&pwm_d_pin>;
 };
 
 &pwm_ef {
