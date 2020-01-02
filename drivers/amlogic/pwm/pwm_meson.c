@@ -476,7 +476,7 @@ static const char * const pwm_gx_ee_parent_names[] = {
 };
 
 static const char * const pwm_gx_ao_parent_names[] = {
-	"clk81", "xtal", "null", "null"
+	"xtal", "clk81", "null", "null"
 };
 
 static const struct meson_pwm_data pwm_g12a_ee_data = {

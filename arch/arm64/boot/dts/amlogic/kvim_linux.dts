@@ -1157,8 +1157,23 @@
 	};
 };
 
+&pinctrl_aobus {
+	pwm_ao_a_pin: pwm_ao_a_pin {
+		mux {
+			groups = "pwm_ao_a_ao3";
+			function = "pwm_ao_a";
+		};
+	};
+};
+
 &efuse {
 	status = "ok";
+};
+
+&pwm_aoab {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&pwm_ao_a_pin>;
 };
 
 &pwm_ef {
