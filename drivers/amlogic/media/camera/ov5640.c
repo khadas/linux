@@ -314,6 +314,15 @@ static struct v4l2_queryctrl ov5640_qctrl[] = {
 		.step          = 1,
 		.default_value = (1000 << 16) | 1000,
 		.flags         = V4L2_CTRL_FLAG_SLIDER,
+	}, {
+		.id            = V4L2_CID_SCENE_MODE,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "test mode",
+		.minimum       = 0,
+		.maximum       = 8,
+		.step          = 1,
+		.default_value = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}
 };
 
@@ -2014,6 +2023,24 @@ static int set_focus_zone(struct ov5640_device *dev, int value)
 	return ret;
 }
 
+static int set_camera_pattern(struct ov5640_device *dev, int value)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
+	unsigned int temp = 0;
+
+	temp = i2c_get_byte(client, 0x503d);
+	if (value == 0)
+		temp &= 0x7f;
+	else
+		temp |= 0x80;
+	if ((i2c_put_byte(client, 0x503d, temp)) < 0) {
+		pr_info("fail in set sensor color bar\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 unsigned char v4l_2_ov5640(int val)
 {
 	int ret = val / 0x20;
@@ -2161,10 +2188,17 @@ static int ov5640_setting(struct ov5640_device *dev, int PROP_ID, int value)
 		}
 		break;
 	case V4L2_CID_FOCUS_ABSOLUTE:
-		if (ov5640_qctrl[12].default_value != value) {
-			ov5640_qctrl[12].default_value = value;
+		if (ov5640_qctrl[13].default_value != value) {
+			ov5640_qctrl[13].default_value = value;
 			dprintk(dev, 3, "set camera focus zone =%d\n", value);
 			set_focus_zone(dev, value);
+		}
+		break;
+	case V4L2_CID_SCENE_MODE:
+		if (ov5640_qctrl[14].default_value != value) {
+			ov5640_qctrl[14].default_value = value;
+			dprintk(dev, 3, "set camera test pattern =%d\n", value);
+			set_camera_pattern(dev, value);
 		}
 		break;
 	default:
