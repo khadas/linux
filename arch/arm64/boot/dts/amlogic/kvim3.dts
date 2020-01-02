@@ -151,23 +151,23 @@
 		galcore_reserved:linux,galcore {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x1000000>;
-			alignment = <0x400000>;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
 		isp_cma_reserved:linux,isp_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x06800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x06800000>;
+			alignment = <0x0 0x400000>;
 		};
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x01800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x01800000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 	galcore {
@@ -783,21 +783,18 @@
 
 	sensor: sensor {
 		compatible = "soc, sensor";
-		status = "disabled";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		status = "okay";
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
-		pinctrl-0=<&clk12_24_z_pins>;
-		clocks = <&clkc CLKID_24M>;
-		clock-names = "g12a_24m";
-		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
-				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+		pinctrl-0=<&gen_clk_ee_ao>;
+		clocks = <&clkc CLKID_GEN_CLK>;
+		clock-names = "gen_clk";
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 }; /* end of / */
 
@@ -1237,6 +1234,14 @@
 			pins = "GPIOAO_6";
 			function = "gpio_aobus";
 			output-low;
+		};
+	};
+
+	gen_clk_ee_ao: gen_clk_ee_ao {
+		mux {
+			groups="gen_clk_ee_ao";
+			function="gen_clk_ee_ao";
+			drive-strength = <3>;
 		};
 	};
 };  /* end of pinctrl_aobus */
