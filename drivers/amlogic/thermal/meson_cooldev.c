@@ -152,6 +152,8 @@ static int meson_set_min_status(struct thermal_cooling_device *cdev,
 				for (i = 0; i < tzd->trips; i++)
 					thermal_set_upper(tzd,
 							cdev, i, min_state);
+			thermal_zone_device_update(tzd,
+						   THERMAL_EVENT_UNSPECIFIED);
 				err = 1;
 			}
 		}

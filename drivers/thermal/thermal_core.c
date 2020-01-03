@@ -484,6 +484,8 @@ static bool can_notify(struct thermal_zone_device *tz,
 			 tz->temperature, hyst, trip_temp, tz->hot_step);
 		return true;
 	}
+	if (tz->hot_step != 0)
+		return true;
 	return false;
 }
 #endif
