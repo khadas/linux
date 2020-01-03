@@ -701,8 +701,8 @@
             timing0: timing0 {
                 clock-frequency = <120000000>;
                 hactive = <1088>; /* default 1080, but afbdc must 16 align */
-                hfront-porch = <104>;
-                hback-porch = <127>;
+                hfront-porch = <24>;
+                hback-porch = <23>;
                 hsync-len = <4>; /////
                 vactive = <1920>;
                 vfront-porch = <4>;
