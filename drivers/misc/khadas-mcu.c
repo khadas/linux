@@ -34,6 +34,7 @@
 #define MCU_VERSION_H_REG       0x12
 #define MCU_VERSION_L_REG       0x13
 #define MCU_FAN_FLAG_REG        0x8a
+#define MCU_AGEING_TEST	0x35
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -114,6 +115,7 @@ struct mcu_data {
 };
 
 struct mcu_data *g_mcu_data;
+int ageing_test_flag = 0;
 
 extern void send_power_key(int state);
 extern void realtek_enable_wol(int enable, bool suspend);
@@ -604,9 +606,42 @@ static ssize_t store_portmode(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t show_ageing_test(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr[1]={0};
+
+	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_AGEING_TEST, addr, 1);
+	if (ret < 0)
+		printk("%s: AGEING_TEST failed (%d)",__func__, ret);
+	return sprintf(buf, "%d\n", addr[0]);
+}	
+
+static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int enable;
+
+	if (kstrtoint(buf, 0, &enable))
+		return -EINVAL;
+	reg[0] = enable;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_AGEING_TEST, reg, 1);
+	if (ret < 0) {
+		printk("ageing_test state err\n");
+		return ret;
+	}
+	printk("ageing_test state: %d\n", enable);
+	ageing_test_flag = 1;
+	return count;
+}
+
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(rst, 0644, NULL, store_rst_mcu),
 	__ATTR(portmode, 0644, show_portmode, store_portmode),
+	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
 };
 
 static struct class_attribute wol_class_attrs[] = {
