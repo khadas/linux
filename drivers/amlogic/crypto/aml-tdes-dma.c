@@ -537,6 +537,16 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 				dev_err(dev, "not all data converted: %zu\n",
 					count);
 			}
+			/* install IV for CBC */
+			if (dd->flags & TDES_FLAGS_CBC) {
+				if (dd->flags & TDES_FLAGS_ENCRYPT) {
+					memcpy(dd->req->info, dd->buf_out +
+					       dd->dma_size - 8, 8);
+				} else {
+					memcpy(dd->req->info, dd->buf_in +
+					       dd->dma_size - 8, 8);
+				}
+			}
 		}
 		dd->flags &= ~TDES_FLAGS_DMA;
 	}

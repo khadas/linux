@@ -537,6 +537,21 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 	return ret;
 }
 
+/* Increment 128-bit counter */
+static void aml_aes_ctr_update_iv(unsigned char *val, unsigned int value)
+{
+	int i;
+
+	while (value > 0) {
+		for (i = 15; i >= 0; i--) {
+			val[i] = (val[i] + 1) & 0xff;
+			if (val[i])
+				break;
+		}
+		value--;
+	}
+}
+
 static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 {
 	struct device *dev = dd->dev;
@@ -584,8 +599,19 @@ static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 			}
 			/* install IV for CBC */
 			if (dd->flags & AES_FLAGS_CBC) {
-				memcpy(dd->req->info, dd->buf_out +
-				       dd->dma_size - 16, 16);
+				if (dd->flags & AES_FLAGS_ENCRYPT) {
+					memcpy(dd->req->info, dd->buf_out +
+					       dd->dma_size - 16, 16);
+				} else {
+					memcpy(dd->req->info, dd->buf_in +
+					       dd->dma_size - 16, 16);
+				}
+			} else if (dd->flags & AES_FLAGS_CTR) {
+				u32 dma_nblock =
+					(dd->dma_size + AES_BLOCK_SIZE - 1)
+					/ AES_BLOCK_SIZE;
+				aml_aes_ctr_update_iv(dd->req->info,
+						      dma_nblock);
 			}
 		}
 		dd->flags &= ~AES_FLAGS_DMA;
