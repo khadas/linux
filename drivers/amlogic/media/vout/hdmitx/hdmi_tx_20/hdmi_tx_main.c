@@ -4995,6 +4995,21 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	return 0;
 }
 
+unsigned int hdmitx_check_edid_all_zeros(unsigned char *buf)
+{
+	unsigned int i = 0, j = 0;
+	unsigned int chksum = 0;
+
+	for (j = 0; j < EDID_MAX_BLOCK; j++) {
+		chksum = 0;
+		for (i = 0; i < 128; i++)
+			chksum += buf[i + j * 128];
+		if (chksum != 0)
+			return 0;
+	}
+	return 1;
+}
+
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
 	mutex_lock(&getedid_mutex);
@@ -5004,13 +5019,24 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 	/* start reading edid frist time */
 	hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 	hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 0);
+	if (hdmitx_check_edid_all_zeros(hdev->EDID_buf)) {
+		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
+		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
+		hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 0);
+	}
 	/* If EDID is not correct at first time, then retry */
 	if (!check_dvi_hdmi_edid_valid(hdev->EDID_buf)) {
 		msleep(100);
 		/* start reading edid second time */
 		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 		hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 1);
+		if (hdmitx_check_edid_all_zeros(hdev->EDID_buf1)) {
+			hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
+			hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
+			hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 1);
+		}
 	}
+
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
 	hdmitx_edid_buf_compare_print(hdev);
