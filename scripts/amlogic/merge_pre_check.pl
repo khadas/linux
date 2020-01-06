@@ -93,7 +93,7 @@ sub check_msg_49_2
 	{
 		$err_cnt += 5;
 		$err_msg .= "	module: message [n/m]\n\n";
-		$err_msg .= "	PD#XXXX\n\n";
+		$err_msg .= "	PD#SWPL-XXXX\n\n";
 		$err_msg .= "	Problem:\n	detailed description\n\n";
 		$err_msg .= "	Solution:\n	detailed description\n\n";
 		$err_msg .= "	Verify:\n	detailed description\n\n";
@@ -117,10 +117,10 @@ sub check_msg_49_2
 		$err_msg .= "	$err_cnt: Should be no 'kernel' in kernel commit message\n";
 	}
 
-	if( $str[++ $i] !~ /^PD\#.+(\d)$/ )
+	if( $str[++ $i] !~ /^PD\#SWPL-.+(\d)$/ )
 	{
 		$err_cnt += 1;
-		$err_msg .= "	$err_cnt: PD#XXXX\n";
+		$err_msg .= "	$err_cnt: PD#SWPL-XXXX\n";
 
 	}
 
