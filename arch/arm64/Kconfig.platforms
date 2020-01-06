@@ -137,6 +137,7 @@ config ARCH_MESON
 	select COMMON_CLK_GXBB
 	select COMMON_CLK_AXG
 	select COMMON_CLK_G12A
+	select COMMON_CLK_TM2
 	select MESON_IRQ_GPIO
 	help
 	  This enables support for the arm64 based Amlogic SoCs
