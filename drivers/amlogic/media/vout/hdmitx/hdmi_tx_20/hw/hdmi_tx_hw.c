@@ -4864,6 +4864,14 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 		else
 			hdmitx_getediddata(hdev->EDID_buf1, hdev->tmp_edid_buf);
 		break;
+	case DDC_GLITCH_FILTER_RESET:
+		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);
+		/*keep reseting DDC for some time*/
+		usleep_range(1000, 2000);
+		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 6, 1);
+		/*wait recover for reseting DDC*/
+		usleep_range(1000, 2000);
+		break;
 	case DDC_PIN_MUX_OP:
 		if (argv == PIN_MUX)
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
