@@ -11,6 +11,14 @@
 #include <linux/of.h>
 #include <linux/time64.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/scpi_protocol.h>
+/*
+ * Seconds sinc epoch time
+ */
+static unsigned long long vrtc_init_date;
+#endif
+
 struct meson_vrtc_data {
 	void __iomem *io_alarm;
 	struct rtc_device *rtc;
@@ -21,13 +29,38 @@ struct meson_vrtc_data {
 static int meson_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct timespec64 time;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u32 vrtc_val;
+#endif
 
 	dev_dbg(dev, "%s\n", __func__);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ktime_get_boottime_ts64(&time);
+	if (scpi_get_vrtc(&vrtc_val) == 0)
+		time.tv_sec += vrtc_val;
+#else
 	ktime_get_raw_ts64(&time);
+#endif
 	rtc_time64_to_tm(time.tv_sec, tm);
 
 	return 0;
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_vrtc_set_time(struct device *dev, struct rtc_time *tm)
+{
+	unsigned long time;
+	struct timespec64 boot_time;
+	u32 vrtc_val;
+
+	rtc_tm_to_time(tm, &time);
+	ktime_get_boottime_ts64(&boot_time);
+	vrtc_val = time - boot_time.tv_sec;
+
+	scpi_set_vrtc(vrtc_val);
+	return 0;
+}
+#endif
 
 static void meson_vrtc_set_wakeup_time(struct meson_vrtc_data *vrtc,
 				       unsigned long time)
@@ -58,6 +91,9 @@ static int meson_vrtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static const struct rtc_class_ops meson_vrtc_ops = {
 	.read_time = meson_vrtc_read_time,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.set_time = meson_vrtc_set_time,
+#endif
 	.set_alarm = meson_vrtc_set_alarm,
 	.alarm_irq_enable = meson_vrtc_alarm_irq_enable,
 };
@@ -66,6 +102,9 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 {
 	struct meson_vrtc_data *vrtc;
 	int ret;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u32 vrtc_val;
+#endif
 
 	vrtc = devm_kzalloc(&pdev->dev, sizeof(*vrtc), GFP_KERNEL);
 	if (!vrtc)
@@ -87,6 +126,13 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	ret = rtc_register_device(vrtc->rtc);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (scpi_get_vrtc(&vrtc_val) == 0)
+		vrtc_init_date = vrtc_val;
+	else
+		vrtc_init_date = 0;
+#endif
 
 	return 0;
 }
@@ -134,6 +180,16 @@ static int __maybe_unused meson_vrtc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(meson_vrtc_pm_ops,
 			 meson_vrtc_suspend, meson_vrtc_resume);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_vrtc_shutdown(struct platform_device *pdev)
+{
+	struct timespec64 now;
+
+	ktime_get_real_ts64(&now);
+	scpi_set_vrtc(now.tv_sec);
+}
+#endif
+
 static const struct of_device_id meson_vrtc_dt_match[] = {
 	{ .compatible = "amlogic,meson-vrtc"},
 	{},
@@ -147,6 +203,9 @@ static struct platform_driver meson_vrtc_driver = {
 		.of_match_table = meson_vrtc_dt_match,
 		.pm = &meson_vrtc_pm_ops,
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.shutdown = meson_vrtc_shutdown,
+#endif
 };
 
 module_platform_driver(meson_vrtc_driver);
