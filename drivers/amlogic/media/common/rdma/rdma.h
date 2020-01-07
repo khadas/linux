@@ -6,8 +6,9 @@
 #ifndef RDMA_VSYNC_H_
 #define RDMA_VSYNC_H_
 enum {
-	VSYNC_RDMA,
+	VSYNC_RDMA,      /* for write */
 	LINE_N_INT_RDMA,
+	VSYNC_RDMA_READ, /* for read */
 };
 
 void vsync_rdma_config(void);
@@ -20,6 +21,7 @@ int rdma_watchdog_setting(int flag);
 int rdma_init2(void);
 struct rdma_op_s *get_rdma_ops(int rdma_type);
 void set_rdma_handle(int rdma_type, int handle);
+int get_rdma_handle(int rdma_type);
 
 int rdma_init(void);
 void rdma_exit(void);

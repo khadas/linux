@@ -18,6 +18,11 @@ struct rdma_op_s {
 #define RDMA_TRIGGER_DEBUG2      0x102
 #define RDMA_AUTO_START_MASK     0x80000
 
+/* rdma write: bit[20] = 0
+ * rdma read:  bit[20] = 1
+ */
+#define RDMA_READ_MASK 0x100000
+
 enum rdma_ver_e {
 	RDMA_VER_1,
 	RDMA_VER_2,
@@ -58,4 +63,8 @@ int rdma_write_reg(int handle, u32 adr, u32 val);
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len);
 
 int rdma_clear(int handle);
+
+s32 rdma_add_read_reg(int handle, u32 adr);
+
+u32 *rdma_get_read_back_addr(int handle);
 #endif
