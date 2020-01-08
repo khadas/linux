@@ -2345,6 +2345,16 @@
 				clock-names = "xtal", "pclk", "baud";
 				status = "disabled";
 			};
+
+			watchdog@0xf0d0 {
+				compatible = "amlogic,meson-gxbb-wdt";
+				status = "okay";
+				/* 0:userspace, 1:kernel */
+				amlogic,feed_watchdog_mode = <1>;
+				reg = <0xf0d0 0x10>;
+				clocks = <&xtal>;
+			};
+
 			timer_bc: timer_F@f190{
 				compatible = "amlogic,bc-timer";
 				reg= <0xf190 0x8>;
