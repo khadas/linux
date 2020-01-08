@@ -14,7 +14,11 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define DEFAULT_TIMEOUT 60      /* seconds */
+#else
 #define DEFAULT_TIMEOUT	30	/* seconds */
+#endif
 
 #define GXBB_WDT_CTRL_REG			0x0
 #define GXBB_WDT_TCNT_REG			0x8
@@ -33,6 +37,9 @@ struct meson_gxbb_wdt {
 	void __iomem *reg_base;
 	struct watchdog_device wdt_dev;
 	struct clk *clk;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int feed_watchdog_mode;
+#endif
 };
 
 static int meson_gxbb_wdt_start(struct watchdog_device *wdt_dev)
@@ -110,8 +117,14 @@ static int __maybe_unused meson_gxbb_wdt_resume(struct device *dev)
 {
 	struct meson_gxbb_wdt *data = dev_get_drvdata(dev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev))
+		meson_gxbb_wdt_start(&data->wdt_dev);
+#else
 	if (watchdog_active(&data->wdt_dev))
 		meson_gxbb_wdt_start(&data->wdt_dev);
+#endif
 
 	return 0;
 }
@@ -120,8 +133,14 @@ static int __maybe_unused meson_gxbb_wdt_suspend(struct device *dev)
 {
 	struct meson_gxbb_wdt *data = dev_get_drvdata(dev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev))
+		meson_gxbb_wdt_stop(&data->wdt_dev);
+#else
 	if (watchdog_active(&data->wdt_dev))
 		meson_gxbb_wdt_stop(&data->wdt_dev);
+#endif
 
 	return 0;
 }
@@ -185,6 +204,20 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 		data->reg_base + GXBB_WDT_CTRL_REG);
 
 	meson_gxbb_wdt_set_timeout(&data->wdt_dev, data->wdt_dev.timeout);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "amlogic,feed_watchdog_mode",
+				   &data->feed_watchdog_mode);
+	if (ret)
+		data->feed_watchdog_mode = 1;
+	if (data->feed_watchdog_mode == 1) {
+		set_bit(WDOG_HW_RUNNING, &data->wdt_dev.status);
+		meson_gxbb_wdt_start(&data->wdt_dev);
+	}
+	dev_info(&pdev->dev, "feeding watchdog mode: [%s]\n",
+		 data->feed_watchdog_mode ? "kernel" : "userspace");
+#endif
 
 	watchdog_stop_on_reboot(&data->wdt_dev);
 	return devm_watchdog_register_device(dev, &data->wdt_dev);

@@ -528,8 +528,13 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (watchdog_active(wdd) || watchdog_kernel_feeding(wdd))
+		return sprintf(buf, "active\n");
+#else
 	if (watchdog_active(wdd))
 		return sprintf(buf, "active\n");
+#endif
 
 	return sprintf(buf, "inactive\n");
 }
@@ -816,6 +821,16 @@ static int watchdog_open(struct inode *inode, struct file *file)
 		wd_data = container_of(inode->i_cdev, struct watchdog_core_data,
 				       cdev);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * The userspace feeding is not unallowed after the kernel
+	 * feeding mode is enabled, because it will cause the kernel
+	 * feeding is disabled automatically.
+	 */
+	if (watchdog_kernel_feeding(wd_data->wdd))
+		return -EBUSY;
+#endif
+
 	/* the watchdog is single open! */
 	if (test_and_set_bit(_WDOG_DEV_OPEN, &wd_data->status))
 		return -EBUSY;
@@ -1018,8 +1033,15 @@ static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 	if (watchdog_hw_running(wdd)) {
 		__module_get(wdd->ops->owner);
 		kref_get(&wd_data->kref);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (handle_boot_enabled) {
+			set_bit(WDOG_KERNEL_FEEDING, &wdd->status);
+			hrtimer_start(&wd_data->timer, 0, HRTIMER_MODE_REL);
+		}
+#else
 		if (handle_boot_enabled)
 			hrtimer_start(&wd_data->timer, 0, HRTIMER_MODE_REL);
+#endif
 		else
 			pr_info("watchdog%d running and kernel based pre-userspace handler disabled\n",
 				wdd->id);

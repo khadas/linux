@@ -116,6 +116,9 @@ struct watchdog_device {
 #define WDOG_STOP_ON_REBOOT	2	/* Should be stopped on reboot */
 #define WDOG_HW_RUNNING		3	/* True if HW watchdog running */
 #define WDOG_STOP_ON_UNREGISTER	4	/* Should be stopped on unregister */
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define WDOG_KERNEL_FEEDING	5	/* True if kernel feed watchdog */
+#endif
 	struct list_head deferred;
 };
 
@@ -127,6 +130,16 @@ static inline bool watchdog_active(struct watchdog_device *wdd)
 {
 	return test_bit(WDOG_ACTIVE, &wdd->status);
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* Use the following function to check whether or not the watchdog feed
+ * mode is kernel
+ */
+static inline bool watchdog_kernel_feeding(struct watchdog_device *wdd)
+{
+	return test_bit(WDOG_KERNEL_FEEDING, &wdd->status);
+}
+#endif
 
 /*
  * Use the following function to check whether or not the hardware watchdog
