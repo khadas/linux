@@ -256,6 +256,31 @@
 	clock-latency = <50000>;
 };
 
+/*open this comment for ext phy
+ *&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		reg = <0>;
+		max-speed = <1000>;
+
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+		reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+					GPIO_OPEN_DRAIN)>;
+
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+&ethmac {
+	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&external_phy>;
+	amlogic,tx-delay-ns = <2>;
+};
+*/
+
 &ethmac {
 	status = "okay";
 	phy-handle = <&internal_ephy>;
