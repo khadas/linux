@@ -18,6 +18,8 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
+		tsensor0 = &p_tsensor;
+		tsensor1 = &d_tsensor;
 	};
 
 	chosen {

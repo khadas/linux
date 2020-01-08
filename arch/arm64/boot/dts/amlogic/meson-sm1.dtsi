@@ -423,6 +423,94 @@
 		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
+
+	p_tsensor: p_tsensor@ff634800 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xff634800 0x0 0x50>,
+			<0x0 0xff800268 0x0 0x4>;
+		cal_type = <0x1>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
+		clock-names = "ts_comp";
+		#thermal-sensor-cells = <1>;
+	};
+
+	d_tsensor: d_tsensor@ff634c00 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xff634c00 0x0 0x50>,
+			<0x0 0xff800230 0x0 0x4>;
+		cal_type = <0x1>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
+		clock-names = "ts_comp";
+		#thermal-sensor-cells = <1>;
+	};
+
+	thermal-zones {
+		p_thermal: p_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			sustainable-power = <1460>;
+			thermal-sensors = <&p_tsensor 0>;
+			trips {
+				pswitch_on: trip-point@0 {
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				pcontrol: trip-point@1 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				phot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				pcritical: trip-point@3 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		d_thermal: d_thermal {
+			polling-delay = <2000>;
+			polling-delay-passive = <250>;
+			sustainable-power = <1460>;
+			thermal-sensors = <&d_tsensor 1>;
+			trips {
+				dswitch_on: trip-point@0 {
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				dcontrol: trip-point@1 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				dhot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				dcritical: trip-point@3 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+	};
 };
 
 &cecb_AO {
