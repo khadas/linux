@@ -454,3 +454,8 @@
 &usb {
 	power-domains = <&pwrc PWRC_SM1_USB_ID>;
 };
+
+&gpio_intc {
+	compatible = "amlogic,meson-sm1-gpio-intc",
+		     "amlogic,meson-gpio-intc";
+};
