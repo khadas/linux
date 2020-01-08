@@ -1346,12 +1346,16 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	static unsigned char DRM_DB[26] = {0x0};
 
 	hdmi_debug();
-	memcpy(&drm_config_data, data, sizeof(struct master_display_info_s));
-
+	if (data)
+		memcpy(&drm_config_data, data,
+		       sizeof(struct master_display_info_s));
+	else
+		memset(&drm_config_data, 0,
+		       sizeof(struct master_display_info_s));
 	if (hsty_drm_config_loc > 7)
 		hsty_drm_config_loc = 0;
 	memcpy(&hsty_drm_config_data[hsty_drm_config_loc++],
-	       data, sizeof(struct master_display_info_s));
+	       &drm_config_data, sizeof(struct master_display_info_s));
 	if (hsty_drm_config_num < 8)
 		hsty_drm_config_num++;
 	else
@@ -1567,7 +1571,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	static uint8_t ltmode = -1;
 
 	hdmi_debug();
-	memcpy(&vsif_debug_info.data, data, sizeof(struct dv_vsif_para));
+	if (data == NULL)
+		memcpy(&vsif_debug_info.data, &para,
+		       sizeof(struct dv_vsif_para));
+	else
+		memcpy(&vsif_debug_info.data, data,
+		       sizeof(struct dv_vsif_para));
 	vsif_debug_info.type = type;
 	vsif_debug_info.tunnel_mode = tunnel_mode;
 	vsif_debug_info.signal_sdr = signal_sdr;
@@ -1812,11 +1821,16 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 
 	hdmi_debug();
 
-	memcpy(&hdr10p_config_data, data, sizeof(struct hdr10plus_para));
+	if (data)
+		memcpy(&hdr10p_config_data, data,
+		       sizeof(struct hdr10plus_para));
+	else
+		memset(&hdr10p_config_data, 0,
+		       sizeof(struct hdr10plus_para));
 	if (hsty_hdr10p_config_loc > 7)
 		hsty_hdr10p_config_loc = 0;
 	memcpy(&hsty_hdr10p_config_data[hsty_hdr10p_config_loc++],
-	       data, sizeof(struct hdr10plus_para));
+	       &hdr10p_config_data, sizeof(struct hdr10plus_para));
 	if (hsty_hdr10p_config_num < 8)
 		hsty_hdr10p_config_num++;
 	else
@@ -1910,6 +1924,11 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 
 	hdmi_debug();
 
+	if (!data) {
+		pr_info("the data is null\n");
+		return;
+	}
+
 	emp_config_data.type = type;
 	emp_config_data.size = size;
 	if (size <= 128)
@@ -1922,10 +1941,6 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 		return;
 	}
 
-	if (!data) {
-		pr_info("the data is null\n");
-		return;
-	}
 	if (size <= 21) {
 		number = 1;
 		remainder = size;
