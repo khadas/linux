@@ -1061,7 +1061,7 @@
 		compatible = "edt,edt-ft5336", "ft5x06";
 		reg = <0x38>;
 		interrupt_pin = <&gpio GPIOA_5 GPIO_ACTIVE_HIGH>;
-		reset_pin = <6>;
+		reset-gpios = <&gpio_expander 6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -1072,9 +1072,11 @@
 	pinctrl-0=<&ao_i2c_master_pins1>;
 	clock-frequency = <400000>; /* default 100k */
 
-	khadas-tca6408{
-		compatible = "khadas-tca6408";
+	gpio_expander: gpio-controller@20 {
+		compatible = "ti,tca6408";
 		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
 		status = "okay";
 	};
 
@@ -1754,6 +1756,10 @@
 
 &lcd {
 	clk_path = <1>;
+
+	lcd_cpu-gpios = <&gpio_expander 0 GPIO_ACTIVE_HIGH
+					&gpio_expander 1 GPIO_ACTIVE_HIGH>;
+	lcd_cpu_gpio_names = "GPIO_EXPANDER_0","GPIO_EXPANDER_1";
 };
 
 &gpu{

@@ -57,7 +57,6 @@ obj-$(CONFIG_PANEL)             += panel.o
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
 
-obj-$(CONFIG_KHADAS_TCA6408)	+= khadas_tca6408.o
 obj-$(CONFIG_KHADAS_FAN) += khadas-fan.o
 obj-$(CONFIG_KHADAS_MCU) += khadas-mcu.o
 

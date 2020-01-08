@@ -42,7 +42,6 @@
 #include <linux/of_irq.h>
 #include "../../gpio/gpiolib.h"
 #include <linux/gpio.h>
-#include <linux/khadas_tca6408.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
@@ -884,7 +883,6 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 }
 
 
-extern int tca6408_output_set_value(u8 value, u8 mask);
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
@@ -917,7 +915,15 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	tsdata->num_x = chip_data->x_resolution;
 	tsdata->num_y = chip_data->y_resolution;
 
-	tca6408_output_set_value(TCA_TP_RST_MASK, TCA_TP_RST_MASK);
+	tsdata->reset_gpio = devm_gpiod_get_optional(&client->dev,
+							"reset", GPIOD_OUT_LOW);
+
+	if (IS_ERR(tsdata->reset_gpio)) {
+		error = PTR_ERR(tsdata->reset_gpio);
+		if (error != -EPROBE_DEFER)
+			dev_err(&client->dev, "error getting reset gpio: %d\n", error);
+		return error;
+	}
 
 	tsdata->wake_gpio = devm_gpiod_get_optional(&client->dev,
 						    "wake", GPIOD_OUT_LOW);
@@ -933,10 +939,12 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		gpiod_set_value_cansleep(tsdata->wake_gpio, 1);
 	}
 
-	usleep_range(5000, 6000);
-	tca6408_output_set_value((0<<6), (1<<6));
-	msleep(300);
-	tca6408_output_set_value((1<<6), (1<<6));
+	if (tsdata->reset_gpio) {
+		usleep_range(5000, 6000);
+		gpiod_set_value_cansleep(tsdata->reset_gpio, 0);
+		msleep(300);
+		gpiod_set_value_cansleep(tsdata->reset_gpio, 1);
+	}
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input) {

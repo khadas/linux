@@ -52,7 +52,7 @@
 				&gpio GPIOZ_8 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOZ_9","GPIOZ_8";
 */
-		lcd_expander_gpio_names = "LCD_RESET","LCD_EN";
+		lcd_expander_gpio_names = "LCD_RESET","LCD_EN"; /* for u-boot */
 
 		lcd_0{
 			model_name = "TS050";
