@@ -1872,7 +1872,19 @@ static struct i2c_driver rt5651_i2c_driver = {
 	.remove   = rt5651_i2c_remove,
 	.id_table = rt5651_i2c_id,
 };
-module_i2c_driver(rt5651_i2c_driver);
+
+//module_i2c_driver(rt5651_i2c_driver);
+static int __init rt5651_codec_init(void)
+{
+	return  i2c_add_driver(&rt5651_i2c_driver);
+}
+static void __exit rt5651_codec_exit(void)
+{
+	return i2c_del_driver(&rt5651_i2c_driver);
+}
+late_initcall_sync(rt5651_codec_init);
+
+module_exit(rt5651_codec_exit);
 
 MODULE_DESCRIPTION("ASoC RT5651 driver");
 MODULE_AUTHOR("Bard Liao <bardliao@realtek.com>");
