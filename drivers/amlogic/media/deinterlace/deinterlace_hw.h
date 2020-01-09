@@ -202,6 +202,7 @@ void pulldown_vof_win_config(struct pulldown_detected_s *wins);
 void di_load_regs(struct di_pq_parm_s *di_pq_ptr);
 void pre_frame_reset_g12(unsigned char madi_en, unsigned char mcdi_en);
 void pre_frame_reset(void);
+void di_hpre_gl_sw(bool on);
 void di_interrupt_ctrl(unsigned char ma_en,
 	unsigned char det3d_en, unsigned char nrds_en,
 	unsigned char post_wr, unsigned char mc_en);
