@@ -13,6 +13,9 @@
 #include <dt-bindings/reset/amlogic,meson-axg-audio-arb.h>
 #include <dt-bindings/reset/amlogic,meson-g12a-audio-reset.h>
 #include <dt-bindings/reset/amlogic,meson-g12a-reset.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/input/meson_ir.h>
+#include "meson-ir-map.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -2173,10 +2176,14 @@
 			};
 
 			ir: ir@8000 {
-				compatible = "amlogic,meson-gxbb-ir";
-				reg = <0x0 0x8000 0x0 0x20>;
+				compatible = "amlogic, meson-ir";
+				reg = <0x0 0x8040 0x0 0xA4>,
+				      <0x0 0x8000 0x0 0x20>;
+				status = "disable";
+				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
-				status = "disabled";
+				map = <&custom_maps>;
+				max_frame_time = <200>;
 			};
 
 			saradc: adc@9000 {
