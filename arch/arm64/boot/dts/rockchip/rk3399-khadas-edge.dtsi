@@ -454,6 +454,12 @@
 	mali-supply = <&vdd_gpu>;
 };
 
+&i2c2 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+};
+
 &i2c4 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <168>;
