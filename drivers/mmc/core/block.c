@@ -44,7 +44,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
-
+#include <linux/mmc/emmc_partitions.h>
 #include <linux/uaccess.h>
 
 #include "queue.h"
@@ -2937,6 +2937,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	if (mmc_add_disk(md))
 		goto out;
+#ifdef CONFIG_MMC_MESON_GX
+	aml_emmc_partition_ops(card, md->disk);
+#endif
 
 	list_for_each_entry(part_md, &md->part, part) {
 		if (mmc_add_disk(part_md))

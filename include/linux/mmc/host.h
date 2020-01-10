@@ -284,6 +284,9 @@ struct mmc_host {
 #ifdef CONFIG_PM_SLEEP
 	struct notifier_block	pm_notify;
 #endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u8			first_init_flag;
+#endif
 	u32			max_current_330;
 	u32			max_current_300;
 	u32			max_current_180;

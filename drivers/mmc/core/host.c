@@ -22,7 +22,9 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/slot-gpio.h>
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/aml_sd.h>
+#endif
 #include "core.h"
 #include "host.h"
 #include "slot-gpio.h"
@@ -161,6 +163,15 @@ static void mmc_retune_timer(struct timer_list *t)
 	mmc_retune_needed(host);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void aml_dts_u32_read(struct device *dev,
+			     const char *propname,
+			     u32 *val, u32 def_val)
+{
+	if (device_property_read_u32(dev, propname, val))
+		*val = def_val;
+}
+#endif
 /**
  *	mmc_of_parse() - parse host's device-tree node
  *	@host: host whose node should be parsed.
@@ -173,6 +184,9 @@ static void mmc_retune_timer(struct timer_list *t)
 int mmc_of_parse(struct mmc_host *host)
 {
 	struct device *dev = host->parent;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct meson_host *mmc = mmc_priv(host);
+#endif
 	u32 bus_width, drv_type, cd_debounce_delay_ms;
 	int ret;
 	bool cd_cap_invert, cd_gpio_invert = false;
@@ -221,6 +235,9 @@ int mmc_of_parse(struct mmc_host *host)
 	/* Parse Card Detection */
 	if (device_property_read_bool(dev, "non-removable")) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		mmc->card_insert = 1;
+#endif
 	} else {
 		cd_cap_invert = device_property_read_bool(dev, "cd-inverted");
 
@@ -339,7 +356,29 @@ int mmc_of_parse(struct mmc_host *host)
 
 	device_property_read_u32(dev, "post-power-on-delay-ms",
 				 &host->ios.power_delay_ms);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	aml_dts_u32_read(dev, "init_core_phase",
+			 &mmc->sdmmc.init.core_phase, 2);
+	aml_dts_u32_read(dev, "init_tx_phase",
+			 &mmc->sdmmc.init.tx_phase, 0);
+	aml_dts_u32_read(dev, "hs2_core_phase",
+			 &mmc->sdmmc.hs2.core_phase, 2);
+	aml_dts_u32_read(dev, "hs2_tx_phase",
+			 &mmc->sdmmc.hs2.tx_phase, 0);
+	aml_dts_u32_read(dev, "hs4_core_phase",
+			 &mmc->sdmmc.hs4.core_phase, 0);
+	aml_dts_u32_read(dev, "hs4_tx_phase",
+			 &mmc->sdmmc.hs4.tx_phase, 0);
+	aml_dts_u32_read(dev, "hs4_tx_delay",
+			 &mmc->sdmmc.hs4.tx_delay, 16);
+	if (device_property_read_bool(dev, "fixadj_have_hole"))
+		mmc->fixadj_have_hole = 1;
 
+	if (device_property_read_bool(dev, "mmc_debug_flag"))
+		mmc->debug_flag = 0;
+	else
+		mmc->debug_flag = 1;
+#endif
 	return mmc_pwrseq_alloc(host);
 }
 

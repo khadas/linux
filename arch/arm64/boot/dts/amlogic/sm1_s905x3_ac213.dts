@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-sm1.dtsi"
+#include "partition_mbox_normal.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
@@ -363,13 +364,13 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	sd-uhs-sdr50;
+//	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
 	non-removable;
 	disable-wp;
 
-	mmc-pwrseq = <&sdio_pwrseq>;
+//	mmc-pwrseq = <&sdio_pwrseq>;
 
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddio_ao1v8>;
@@ -406,8 +407,8 @@
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
+	//mmc-ddr-1_8v;
+//	mmc-hs200-1_8v;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;

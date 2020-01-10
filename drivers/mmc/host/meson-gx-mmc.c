@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/io.h>
@@ -27,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/bitfield.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/aml_sd.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
@@ -45,6 +47,8 @@
 #define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
 #define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
 #define   CLK_V3_ALWAYS_ON BIT(28)
+#define   CFG_IRQ_SDIO_SLEEP BIT(29)
+#define   CFG_IRQ_SDIO_SLEEP_DS BIT(30)
 
 #define   CLK_TX_DELAY_MASK(h)		(h->data->tx_delay_mask)
 #define   CLK_RX_DELAY_MASK(h)		(h->data->rx_delay_mask)
@@ -59,8 +63,11 @@
 #define SD_EMMC_DELAY1 0x4
 #define SD_EMMC_DELAY2 0x8
 #define SD_EMMC_V3_ADJUST 0xc
+#define   CFG_ADJUST_ENABLE BIT(13)
+#define   CLK_ADJUST_DELAY GENMASK(21, 16)
 
 #define SD_EMMC_CALOUT 0x10
+#define SD_EMMC_INTF3 0x38
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
@@ -131,50 +138,6 @@
 
 #define MUX_CLK_NUM_PARENTS 2
 
-struct meson_mmc_data {
-	unsigned int tx_delay_mask;
-	unsigned int rx_delay_mask;
-	unsigned int always_on;
-	unsigned int adjust;
-};
-
-struct sd_emmc_desc {
-	u32 cmd_cfg;
-	u32 cmd_arg;
-	u32 cmd_data;
-	u32 cmd_resp;
-};
-
-struct meson_host {
-	struct	device		*dev;
-	struct	meson_mmc_data *data;
-	struct	mmc_host	*mmc;
-	struct	mmc_command	*cmd;
-
-	void __iomem *regs;
-	struct clk *core_clk;
-	struct clk *mux_clk;
-	struct clk *mmc_clk;
-	unsigned long req_rate;
-	bool ddr;
-
-	bool dram_access_quirk;
-
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *pins_default;
-	struct pinctrl_state *pins_clk_gate;
-
-	unsigned int bounce_buf_size;
-	void *bounce_buf;
-	dma_addr_t bounce_dma_addr;
-	struct sd_emmc_desc *descs;
-	dma_addr_t descs_dma_addr;
-
-	int irq;
-
-	bool vqmmc_enabled;
-};
-
 #define CMD_CFG_LENGTH_MASK GENMASK(8, 0)
 #define CMD_CFG_BLOCK_MODE BIT(9)
 #define CMD_CFG_R1B BIT(10)
@@ -197,6 +160,10 @@ struct meson_host {
 #define CMD_DATA_SRAM BIT(0)
 #define CMD_RESP_MASK GENMASK(31, 1)
 #define CMD_RESP_SRAM BIT(0)
+#define EMMC_SDIO_CLOCK_FELD    0Xffff
+#define CALI_HS_50M_ADJUST      0
+
+static struct mmc_host *sdio_host;
 
 static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 {
@@ -244,8 +211,9 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	 * chain mode only. So let's fall back to bounce buffer mode
 	 * for command SD_IO_RW_EXTENDED.
 	 */
-	if (mrq->cmd->opcode == SD_IO_RW_EXTENDED)
-		return;
+	/*if (mrq->cmd->opcode == SD_IO_RW_EXTENDED)
+	 *	return;
+	 */
 
 	for_each_sg(data->sg, sg, data->sg_len, i)
 		/* check for 8 byte alignment */
@@ -333,6 +301,17 @@ static void meson_mmc_clk_ungate(struct meson_host *host)
 	cfg = readl(host->regs + SD_EMMC_CFG);
 	cfg &= ~CFG_STOP_CLOCK;
 	writel(cfg, host->regs + SD_EMMC_CFG);
+}
+
+static void meson_mmc_set_phase_delay(struct meson_host *host, u32 mask,
+				      unsigned int phase)
+{
+	u32 val;
+
+	val = readl(host->regs);
+	val &= ~mask;
+	val |= phase << __ffs(mask);
+	writel(val, host->regs);
 }
 
 static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
@@ -566,14 +545,32 @@ static int meson_mmc_prepare_ios_clock(struct meson_host *host,
 static void meson_mmc_check_resampling(struct meson_host *host,
 				       struct mmc_ios *ios)
 {
+	struct mmc_phase *mmc_phase_set;
+	unsigned int val;
+
 	switch (ios->timing) {
-	case MMC_TIMING_LEGACY:
 	case MMC_TIMING_MMC_HS:
 	case MMC_TIMING_SD_HS:
+		val = readl(host->regs + host->data->adjust);
+		val |= CFG_ADJUST_ENABLE;
+		val &= ~CLK_ADJUST_DELAY;
+		val |= CALI_HS_50M_ADJUST << __ffs(CLK_ADJUST_DELAY);
+		writel(val, host->regs + host->data->adjust);
+		mmc_phase_set = &host->sdmmc.init;
+		break;
 	case MMC_TIMING_MMC_DDR52:
 		meson_mmc_disable_resampling(host);
+		mmc_phase_set = &host->sdmmc.init;
 		break;
+	default:
+		mmc_phase_set = &host->sdmmc.init;
 	}
+	meson_mmc_set_phase_delay(host, CLK_CORE_PHASE_MASK,
+				  mmc_phase_set->core_phase);
+	meson_mmc_set_phase_delay(host, CLK_TX_PHASE_MASK,
+				  mmc_phase_set->tx_phase);
+	meson_mmc_set_phase_delay(host, CLK_TX_DELAY_MASK(host),
+				  mmc_phase_set->tx_delay);
 }
 
 static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -648,12 +645,29 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	dev_dbg(host->dev, "SD_EMMC_CFG:  0x%08x\n", val);
 }
 
+static void aml_sd_emmc_check_sdio_irq(struct meson_host *host)
+{
+	u32 vstat = readl(host->regs + SD_EMMC_STATUS);
+
+	if (host->sdio_irqen) {
+		if (((vstat & IRQ_SDIO) || (!(vstat & (1 << 17)))) &&
+		    host->mmc->sdio_irq_thread &&
+		    (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
+			/* pr_info("signalling irq 0x%x\n", vstat); */
+			mmc_signal_sdio_irq(host->mmc);
+		}
+	}
+}
+
 static void meson_mmc_request_done(struct mmc_host *mmc,
 				   struct mmc_request *mrq)
 {
 	struct meson_host *host = mmc_priv(mmc);
 
 	host->cmd = NULL;
+	if (host->needs_pre_post_req)
+		meson_mmc_post_req(mmc, mrq, 0);
+	aml_sd_emmc_check_sdio_irq(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -737,6 +751,63 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg)
 	writel(start, host->regs + SD_EMMC_START);
 }
 
+static int aml_cmd_invalid(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	mrq->cmd->error = -EINVAL;
+	mmc_request_done(mmc, mrq);
+
+	return -EINVAL;
+}
+
+int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 opcode, arg;
+
+	opcode = mrq->cmd->opcode;
+	arg = mrq->cmd->arg;
+	/* CMD3 means the first time initialized flow is running */
+	if (opcode == 3)
+		mmc->first_init_flag = false;
+
+	if (mmc->caps & MMC_CAP_NONREMOVABLE) { /* nonremovable device */
+		if (mmc->first_init_flag) { /* init for the first time */
+				/* for 8189ETV needs ssdio reset when starts */
+			if (aml_card_type_sdio(host)) {
+				/* if (opcode == SD_IO_RW_DIRECT
+				 * || opcode == SD_IO_RW_EXTENDED
+				 * || opcode == SD_SEND_IF_COND)
+				 * return aml_cmd_invalid(mmc, mrq);
+				 */
+				return 0;
+			} else if (aml_card_type_mmc(host)) {
+				if (opcode == SD_IO_SEND_OP_COND ||
+				    opcode == SD_IO_RW_DIRECT ||
+				    opcode == SD_IO_RW_EXTENDED ||
+				    opcode == SD_SEND_IF_COND ||
+				    opcode == MMC_APP_CMD)
+					return aml_cmd_invalid(mmc, mrq);
+			} else if (aml_card_type_sd(host) ||
+				   aml_card_type_non_sdio(host)) {
+				if (opcode == SD_IO_SEND_OP_COND ||
+				    opcode == SD_IO_RW_DIRECT ||
+				    opcode == SD_IO_RW_EXTENDED)
+					return aml_cmd_invalid(mmc, mrq);
+			}
+		}
+	} else { /* removable device */
+		/* filter cmd 5/52/53 for a non-sdio device */
+		if (!aml_card_type_sdio(host) &&
+		    !aml_card_type_unknown(host)) {
+			if (opcode == SD_IO_SEND_OP_COND ||
+			    opcode == SD_IO_RW_DIRECT ||
+			    opcode == SD_IO_RW_EXTENDED)
+				return aml_cmd_invalid(mmc, mrq);
+		}
+	}
+	return 0;
+}
+
 static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -803,25 +874,50 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	bool needs_pre_post_req = mrq->data &&
+
+	if (aml_check_unsupport_cmd(mmc, mrq))
+		return;
+	host->needs_pre_post_req = mrq->data &&
 			!(mrq->data->host_cookie & SD_EMMC_PRE_REQ_DONE);
 
-	if (needs_pre_post_req) {
+	if (host->needs_pre_post_req) {
 		meson_mmc_get_transfer_mode(mmc, mrq);
 		if (!meson_mmc_desc_chain_mode(mrq->data))
-			needs_pre_post_req = false;
+			host->needs_pre_post_req = false;
 	}
 
-	if (needs_pre_post_req)
+	if (host->needs_pre_post_req)
 		meson_mmc_pre_req(mmc, mrq);
 
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
 
 	meson_mmc_start_cmd(mmc, mrq->sbc ?: mrq->cmd);
+}
 
-	if (needs_pre_post_req)
-		meson_mmc_post_req(mmc, mrq, 0);
+static void aml_sd_emmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 vclkc = 0, virqc = 0;
+
+	host->sdio_irqen = enable;
+
+	virqc = readl(host->regs + SD_EMMC_IRQ_EN);
+	virqc &= ~IRQ_SDIO;
+	if (enable)
+		virqc |= IRQ_SDIO;
+	writel(virqc, host->regs + SD_EMMC_IRQ_EN);
+
+	if (!host->irq_sdio_sleep) {
+		vclkc = readl(host->regs + SD_EMMC_CLOCK);
+		vclkc |= CFG_IRQ_SDIO_SLEEP;
+		vclkc &= ~CFG_IRQ_SDIO_SLEEP_DS;
+		writel(vclkc, host->regs + SD_EMMC_CLOCK);
+		host->irq_sdio_sleep = 1;
+	}
+
+	/* check if irq already occurred */
+	aml_sd_emmc_check_sdio_irq(host);
 }
 
 static void meson_mmc_read_resp(struct mmc_host *mmc, struct mmc_command *cmd)
@@ -846,35 +942,71 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	u32 irq_en, status, raw_status;
 	irqreturn_t ret = IRQ_NONE;
 
+	if (WARN_ON(!host))
+		return IRQ_NONE;
+
 	irq_en = readl(host->regs + SD_EMMC_IRQ_EN);
 	raw_status = readl(host->regs + SD_EMMC_STATUS);
 	status = raw_status & irq_en;
 
-	if (!status) {
-		dev_dbg(host->dev,
-			"Unexpected IRQ! irq_en 0x%08x - status 0x%08x\n",
-			 irq_en, raw_status);
-		return IRQ_NONE;
+	if (status & IRQ_SDIO) {
+		if (host->mmc->sdio_irq_thread &&
+		    (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
+			mmc_signal_sdio_irq(host->mmc);
+			if (!(status & 0x3fff))
+				return IRQ_HANDLED;
+		}
+	} else if (!(status & 0x3fff)) {
+		return IRQ_HANDLED;
 	}
-
-	if (WARN_ON(!host) || WARN_ON(!host->cmd))
-		return IRQ_NONE;
-
-	/* ack all raised interrupts */
-	writel(status, host->regs + SD_EMMC_STATUS);
 
 	cmd = host->cmd;
 	data = cmd->data;
+	if (WARN_ON(!host->cmd)) {
+		dev_err(host->dev, "host->cmd is NULL.\n");
+		return IRQ_HANDLED;
+	}
+
 	cmd->error = 0;
 	if (status & IRQ_CRC_ERR) {
-		dev_dbg(host->dev, "CRC Error - status 0x%08x\n", status);
+		dev_err(host->dev, "%d [0x%x], CRC[0x%04x]\n",
+			cmd->opcode, cmd->arg, status);
+		if (host->debug_flag) {
+			dev_notice(host->dev, "clktree : 0x%x,host_clock: 0x%x\n",
+				   readl(host->clk_tree_base),
+				   readl(host->regs));
+			dev_notice(host->dev, "adjust: 0x%x,cfg: 0x%x,intf3: 0x%x\n",
+				   readl(host->regs + SD_EMMC_V3_ADJUST),
+				   readl(host->regs + SD_EMMC_CFG),
+				   readl(host->regs + SD_EMMC_INTF3));
+			dev_notice(host->dev, "delay1: 0x%x,delay2: 0x%x\n",
+				   readl(host->regs + SD_EMMC_DELAY1),
+				   readl(host->regs + SD_EMMC_DELAY2));
+			dev_notice(host->dev, "pinmux: 0x%x\n",
+				   readl(host->pin_mux_base));
+		}
 		cmd->error = -EILSEQ;
 		ret = IRQ_WAKE_THREAD;
 		goto out;
 	}
 
 	if (status & IRQ_TIMEOUTS) {
-		dev_dbg(host->dev, "Timeout - status 0x%08x\n", status);
+		dev_err(host->dev, "%d [0x%x], TIMEOUT[0x%04x]\n",
+			cmd->opcode, cmd->arg, status);
+		if (host->debug_flag) {
+			dev_notice(host->dev, "clktree : 0x%x,host_clock: 0x%x\n",
+				   readl(host->clk_tree_base),
+				   readl(host->regs));
+			dev_notice(host->dev, "adjust: 0x%x,cfg: 0x%x,intf3: 0x%x\n",
+				   readl(host->regs + SD_EMMC_V3_ADJUST),
+				   readl(host->regs + SD_EMMC_CFG),
+				   readl(host->regs + SD_EMMC_INTF3));
+			dev_notice(host->dev, "delay1: 0x%x,delay2: 0x%x\n",
+				   readl(host->regs + SD_EMMC_DELAY1),
+				   readl(host->regs + SD_EMMC_DELAY2));
+			dev_notice(host->dev, "pinmux: 0x%x\n",
+				   readl(host->pin_mux_base));
+		}
 		cmd->error = -ETIMEDOUT;
 		ret = IRQ_WAKE_THREAD;
 		goto out;
@@ -898,6 +1030,8 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	}
 
 out:
+	/* ack all raised interrupts */
+	writel(0x7fff, host->regs + SD_EMMC_STATUS);
 	if (cmd->error) {
 		/* Stop desc in case of errors */
 		u32 start = readl(host->regs + SD_EMMC_START);
@@ -995,9 +1129,14 @@ static void meson_mmc_cfg_init(struct meson_host *host)
 static int meson_mmc_card_busy(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	u32 regval;
+	u32 regval, val;
 
 	regval = readl(host->regs + SD_EMMC_STATUS);
+	if (!aml_card_type_mmc(host)) {
+		val = readl(host->regs + SD_EMMC_CFG);
+		val |= CFG_AUTO_CLK;
+		writel(val, host->regs + SD_EMMC_CFG);
+	}
 
 	/* We are only interrested in lines 0 to 3, so mask the other ones */
 	return !(FIELD_GET(STATUS_DATI, regval) & 0xf);
@@ -1024,9 +1163,49 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	return -EINVAL;
 }
 
+static void sdio_rescan(struct mmc_host *mmc)
+{
+	int ret;
+
+	mmc->rescan_entered = 0;
+/*	mmc->host_rescan_disable = false;*/
+	mmc_detect_change(mmc, 0);
+	/* start the delayed_work */
+	ret = flush_work(&mmc->detect.work);
+	/* wait for the delayed_work to finish */
+	if (!ret)
+		pr_info("Error: delayed_work mmc_rescan() already idle!\n");
+}
+
+void sdio_reinit(void)
+{
+	if (sdio_host) {
+		if (sdio_host->card)
+			sdio_reset_comm(sdio_host->card);
+		else
+			sdio_rescan(sdio_host);
+	} else {
+		pr_info("Error: sdio_host is NULL\n");
+	}
+
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_reinit);
+
+/*this function tells wifi is using sd(sdiob) or sdio(sdioa)*/
+const char *get_wifi_inf(void)
+{
+	if (sdio_host)
+		return mmc_hostname(sdio_host);
+	else
+		return "sdio";
+}
+EXPORT_SYMBOL(get_wifi_inf);
+
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
+	.enable_sdio_irq = aml_sd_emmc_enable_sdio_irq,
 	.get_cd         = meson_mmc_get_cd,
 	.pre_req	= meson_mmc_pre_req,
 	.post_req	= meson_mmc_post_req,
@@ -1041,6 +1220,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	struct meson_host *host;
 	struct mmc_host *mmc;
 	int ret;
+	u32 val;
 
 	mmc = mmc_alloc_host(sizeof(struct meson_host), &pdev->dev);
 	if (!mmc)
@@ -1057,8 +1237,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	/* Get regulators and the supported OCR mask */
 	host->vqmmc_enabled = false;
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret)
+	if (ret) {
+		dev_warn(&pdev->dev, "power regulator get failed!\n");
 		goto free_host;
+	}
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
@@ -1066,6 +1248,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
 		goto free_host;
 	}
+
+	device_property_read_u32(&pdev->dev, "card_type",
+				 &host->card_type);
 
 	host->data = (struct meson_mmc_data *)
 		of_device_get_match_data(&pdev->dev);
@@ -1086,6 +1271,27 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	host->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->regs)) {
 		ret = PTR_ERR(host->regs);
+		goto free_host;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	host->clk_tree_base = ioremap(res->start, resource_size(res));
+	if (IS_ERR(host->clk_tree_base)) {
+		ret = PTR_ERR(host->clk_tree_base);
+		goto free_host;
+	}
+
+	val = readl(host->clk_tree_base);
+	if (aml_card_type_non_sdio(host))
+		val &= EMMC_SDIO_CLOCK_FELD;
+	else
+		val &= ~EMMC_SDIO_CLOCK_FELD;
+	writel(val, host->clk_tree_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	host->pin_mux_base = ioremap(res->start, resource_size(res));
+	if (IS_ERR(host->pin_mux_base)) {
+		ret = PTR_ERR(host->pin_mux_base);
 		goto free_host;
 	}
 
@@ -1148,8 +1354,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				   dev_name(&pdev->dev), host);
 	if (ret)
 		goto err_init_clk;
-
-	mmc->caps |= MMC_CAP_CMD23;
+	if (aml_card_type_mmc(host))
+		mmc->caps |= MMC_CAP_CMD23;
 	if (host->dram_access_quirk) {
 		/* Limit to the available sram memory */
 		mmc->max_segs = SD_EMMC_SRAM_DATA_BUF_LEN / mmc->max_blk_size;
@@ -1200,9 +1406,21 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		goto err_bounce_buf;
 	}
 
+	if (aml_card_type_sdio(host)) {
+		/* do NOT run mmc_rescan for the first time */
+		mmc->rescan_entered = 1;
+	} else {
+		mmc->rescan_entered = 0;
+	}
+
 	mmc->ops = &meson_mmc_ops;
 	mmc_add_host(mmc);
 
+	if (aml_card_type_sdio(host)) {/* if sdio_wifi */
+		sdio_host = mmc;
+	}
+
+	dev_notice(host->dev, "host probe success!\n");
 	return 0;
 
 err_bounce_buf:
@@ -1217,6 +1435,7 @@ err_core_clk:
 	clk_disable_unprepare(host->core_clk);
 free_host:
 	mmc_free_host(mmc);
+	dev_notice(host->dev, "host probe failed!\n");
 	return ret;
 }
 

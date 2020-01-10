@@ -2164,7 +2164,9 @@ EXPORT_SYMBOL(mmc_sw_reset);
 static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	host->first_init_flag = 1;
+#endif
 	pr_debug("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
 

@@ -1631,6 +1631,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	host->first_init_flag = 0;
+#endif
+
 	if (!oldcard) {
 		/*
 		 * Fetch CSD from card.
