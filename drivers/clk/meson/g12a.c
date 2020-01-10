@@ -5568,6 +5568,9 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&g12a_vpu_clkc_p1_div,
 	&g12a_vpu_clkc_p1,
 	&g12a_vpu_clkc_mux,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	&g12a_uart2,
+#endif
 };
 
 static const struct reg_sequence g12a_init_regs[] = {
