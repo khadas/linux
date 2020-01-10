@@ -13,6 +13,7 @@ obj-$(CONFIG_AMLOGIC_MHU_MBOX)		+= mailbox/
 obj-$(CONFIG_AMLOGIC_REG_ACCESS)	+= reg_access/
 obj-$(CONFIG_AMLOGIC_UNIFYKEY)		+= unifykey/
 obj-$(CONFIG_AMLOGIC_SUSPEND)		+= pm/
+obj-$(CONFIG_AMLOGIC_PCIE)		+= pci/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENABLE)	+= media/
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 obj-$(CONFIG_AMLOGIC_PINCTRL)		+= pinctrl/

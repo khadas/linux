@@ -60,6 +60,7 @@ source "drivers/amlogic/unifykey/Kconfig"
 source "drivers/amlogic/pm/Kconfig"
 
 source "drivers/amlogic/media/Kconfig"
+source "drivers/amlogic/pci/Kconfig"
 source "drivers/amlogic/power/Kconfig"
 
 source "drivers/amlogic/pinctrl/Kconfig"

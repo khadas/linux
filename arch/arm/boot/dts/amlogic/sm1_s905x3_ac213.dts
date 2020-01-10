@@ -444,3 +444,8 @@
 	status = "okay";
 	dr_mode = "otg";
 };
+
+&pcie {
+	status = "disable";
+	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+};

@@ -2463,6 +2463,49 @@
 					       <800000000>,
 					       <0>; /* Do Nothing */
 		};
+
+		pcie: pcie@fc000000 {
+			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
+			reg = <0xfc000000 0x400000
+				0xff648000 0x2000
+				0xfc400000 0x200000
+				0xff646000 0x2000
+				0xffd01080 0x10>;
+			reg-names = "elbi", "cfg", "config", "phy",
+				"reset";
+			interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>;
+			#interrupt-cells = <1>;
+			bus-range = <0x0 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 223 IRQ_TYPE_EDGE_RISING>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0 0xfc600000 0x0 0x100000
+				/* downstream I/O */
+				0x82000000 0 0xfc700000 0xfc700000 0 0x1900000>;
+				/* non-prefetchable memory */
+			num-lanes = <1>;
+			pcie-num = <1>;
+
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_PCIE_COMB
+				&clkc CLKID_PCIE_PHY>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy";
+			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
+			gpio-type = <2>;
+			pcie-apb-rst-bit = <15>;
+			pcie-phy-rst-bit = <14>;
+			pcie-ctrl-a-rst-bit = <12>;
+			pwr-ctl = <1>;
+			pcie-ctrl-sleep-shift = <18>;
+			pcie-hhi-mem-pd-shift = <26>;
+			pcie-hhi-mem-pd-mask = <0xf>;
+			pcie-ctrl-iso-shift = <18>;
+			status = "disabled";
+		};
 	};
 
 	rdma{
