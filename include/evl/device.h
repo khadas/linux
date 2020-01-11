@@ -4,8 +4,8 @@
  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_DEVICES_H
-#define _EVL_DEVICES_H
+#ifndef _EVL_DEVICE_H
+#define _EVL_DEVICE_H
 
 #ifdef CONFIG_EVL
 
@@ -29,4 +29,4 @@ static inline bool evl_enabled(void)
 	return IS_ENABLED(CONFIG_EVL);
 }
 
-#endif /* !_EVL_DEVICES_H */
+#endif /* !_EVL_DEVICE_H */
