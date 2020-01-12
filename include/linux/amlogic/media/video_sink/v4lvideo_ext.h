@@ -31,6 +31,9 @@ struct file_private_data {
 	int keep_id;
 	int keep_head_id;
 	struct file *file;
+	ulong v4l_dev_handle;
+	ulong v4l_inst_handle;
+	u32 v4l_inst_id;
 };
 
 struct v4l_data_t {
