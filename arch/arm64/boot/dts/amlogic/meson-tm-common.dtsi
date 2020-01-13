@@ -509,6 +509,24 @@
 						bias-disable;
 					};
 				};
+
+				jtag_a_pins: jtag_a_pin {
+					mux {
+						groups = "jtag_a_tdi",
+							 "jtag_a_tdo",
+							 "jtag_a_clk",
+							 "jtag_a_tms";
+						function = "jtag_a";
+					};
+				};
+
+				swd_a_pins: swd_a_pin {
+					mux {
+						groups = "swclk",
+							 "swdio";
+						function = "sw";
+					};
+				};
 			};
 		};
 
@@ -658,5 +676,14 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "xtal";
 		#clock-cells = <0>;
+	};
+
+	jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		select = "disable"; /* disable/jtag_a/swd_a */
+		pinctrl-names="jtag_a_pins", "swd_a_pins";
+		pinctrl-0=<&jtag_a_pins>;
+		pinctrl-1=<&swd_a_pins>;
 	};
 };
