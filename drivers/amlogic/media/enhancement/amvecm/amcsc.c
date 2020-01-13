@@ -7736,6 +7736,8 @@ int amvecm_matrix_process(
 			}
 
 			if (send_fake_frame) {
+				memset(&fake_vframe, 0x0,
+					sizeof(struct vframe_s));
 				fake_vframe.source_type =
 					VFRAME_SOURCE_TYPE_OTHERS;
 				fake_vframe.signal_type = 0;
