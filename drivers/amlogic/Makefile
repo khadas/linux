@@ -25,3 +25,4 @@ obj-$(CONFIG_AMLOGIC_INPUT)		+= input/
 obj-$(CONFIG_AMLOGIC_DEBUG)		+= debug/
 obj-$(CONFIG_PWM_MESON)			+= pwm/
 obj-$(CONFIG_AMLOGIC_WIFI)      += wifi/
+obj-$(CONFIG_AMLOGIC_JTAG_MESON)	+= jtag/
