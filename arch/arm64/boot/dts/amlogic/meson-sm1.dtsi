@@ -543,7 +543,7 @@
 	compatible = "amlogic, amlogic-pcie-v2";
 };
 
-&usb {
+&usb0 {
 	power-domains = <&pwrc PWRC_SM1_USB_ID>;
 };
 

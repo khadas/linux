@@ -229,6 +229,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
+#ifdef CONFIG_AMLOGIC_USB
+	set_bit(HCD_FLAG_DWC3, &hcd->flags);
+#endif
+
 	xhci = hcd_to_xhci(hcd);
 
 	/*

@@ -1,0 +1,40 @@
+* Amlogic Meson GXL and GXM USB3 PHY and OTG detection binding
+
+Required properties:
+- compatible:	Should be "amlogic,meson-gxl-usb3-phy"
+- #phys-cells:	must be 0 (see phy-bindings.txt in this directory)
+- reg:		The base address and length of the registers
+- interrupts:	the interrupt specifier for the OTG detection
+- clocks:	phandles to the clocks for
+		- the USB3 PHY
+		- and peripheral mode/OTG detection
+- clock-names:	must contain "phy" and "peripheral"
+- resets:	phandle to the reset lines for:
+		- the USB3 PHY and
+		- peripheral mode/OTG detection
+- reset-names:	must contain "phy" and "peripheral"
+
+Optional properties:
+- phy-supply:	see phy-bindings.txt in this directory
+
+
+Example:
+	usb3_phy_v2: usb3phy@ffe09080 {
+			compatible = "amlogic,amlogic-new-usb3-v2";
+			status = "disable";
+			clocks = <&clkc CLKID_PCIE_PLL>;
+			clock-names = "pcie_refpll";
+			#phy-cells = <0>;
+			reg = <0x0 0xffe09080 0x0 0x20
+					0x0 0xffd01008 0x0 0x100>;
+			phy-reg = <0xff646000>;
+			phy-reg-size = <0x2000>;
+			usb2-phy-reg = <0xffe09000>;
+			usb2-phy-reg-size = <0x80>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			pwr-ctl = <1>;
+			u3-ctrl-sleep-shift = <18>;
+			u3-hhi-mem-pd-shift = <26>;
+			u3-hhi-mem-pd-mask = <0xf>;
+			u3-ctrl-iso-shift = <18>;
+		};

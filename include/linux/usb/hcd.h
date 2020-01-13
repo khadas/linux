@@ -125,6 +125,11 @@ struct usb_hcd {
 #define HCD_FLAG_DEAD			6	/* controller has died? */
 #define HCD_FLAG_INTF_AUTHORIZED	7	/* authorize interfaces? */
 
+#ifdef CONFIG_AMLOGIC_USB
+#define HCD_FLAG_DWC_OTG		28  /* dwc_otg controller */
+#define HCD_FLAG_DWC3			27  /* dwc3 controller */
+#endif
+
 	/* The flags can be tested using these macros; they are likely to
 	 * be slightly faster than test_bit().
 	 */

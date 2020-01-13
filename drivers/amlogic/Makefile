@@ -17,6 +17,7 @@ obj-$(CONFIG_AMLOGIC_PCIE)		+= pci/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENABLE)	+= media/
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 obj-$(CONFIG_AMLOGIC_PINCTRL)		+= pinctrl/
+obj-$(CONFIG_AMLOGIC_USB)               += usb/
 obj-$(CONFIG_AMLOGIC_THERMAL)		+= thermal/
 obj-$(CONFIG_AMLOGIC_CLK_DEBUG)		+= clk_debug/
 obj-$(CONFIG_AMLOGIC_INPUT)		+= input/

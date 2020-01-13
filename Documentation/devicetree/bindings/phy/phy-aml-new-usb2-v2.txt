@@ -1,0 +1,48 @@
+* Amlogic Meson GXL and GXM USB2 PHY binding
+
+Required properties:
+- compatible:	Should be "amlogic,meson-gxl-usb2-phy"
+- reg:		The base address and length of the registers
+- #phys-cells:	must be 0 (see phy-bindings.txt in this directory)
+
+Optional properties:
+- clocks:	a phandle to the clock of this PHY
+- clock-names:	must be "phy"
+- resets:	a phandle to the reset line of this PHY
+- reset-names:	must be "phy"
+- phy-supply:	see phy-bindings.txt in this directory
+
+
+Example:
+	usb2_phy_v2: usb2phy@ffe09000 {
+			compatible = "amlogic,amlogic-new-usb2-v2";
+			status = "disable";
+			#phy-cells = <0>;
+			reg = <0x0 0xffe09000 0x0 0x80
+				0x0 0xffd01008 0x0 0x100
+				0x0 0xff636000 0x0 0x2000
+				0x0 0xff63a000 0x0 0x2000>;
+			resets = <&reset RESET_USB>,
+					<&reset RESET_USB_PHY20>,
+					<&reset RESET_USB_PHY21>;
+			reset-names = "usb", "phy20", "phy21";
+			clocks = <&xtal>;
+			clock-names = "xtal";
+			pll-setting-1 = <0x09400414>;
+			pll-setting-2 = <0x927E0000>;
+			pll-setting-3 = <0xac5f69e5>;
+			pll-setting-4 = <0xfe18>;
+			pll-setting-5 = <0x8000fff>;
+			pll-setting-6 = <0x78000>;
+			pll-setting-7 = <0xe0004>;
+			pll-setting-8 = <0xe000c>;
+			version = <2>;
+			pwr-ctl = <1>;
+			u2-ctrl-sleep-shift = <17>;
+			u2-hhi-mem-pd-shift = <30>;
+			u2-hhi-mem-pd-mask = <0x3>;
+			u2-ctrl-iso-shift = <17>;
+			phy20-reset-level-bit = <16>;
+			phy21-reset-level-bit = <17>;
+			usb-reset-bit = <2>;
+		};

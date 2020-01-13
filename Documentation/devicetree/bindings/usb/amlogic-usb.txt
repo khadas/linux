@@ -1,0 +1,43 @@
+mlogic Meson DWC3 USB SoC controller
+
+Required properties:
+- compatible:   depending on the SoC this should contain one of:
+                        * amlogic,meson-axg-dwc3
+                        * amlogic,meson-gxl-dwc3
+- clocks:       a handle for the "USB general" clock
+- clock-names:  must be "usb_general"
+- resets:       a handle for the shared "USB OTG" reset line
+- reset-names:  must be "usb_otg"
+
+Required child node:
+A child node must exist to represent the core DWC3 IP block. The name of
+the node is not important. The content of the node is defined in dwc3.txt.
+
+PHY documentation is provided in the following places:
+- Documentation/devicetree/bindings/phy/phy-aml-new-usb2-v2.txt
+- Documentation/devicetree/bindings/phy/phy-aml-new-usb3-v2.txt
+Example device nodes:
+usb0: usb@ff500000 {
+			compatible = "amlogic,meson-g12a-dwc3";
+			status = "disable";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			clocks = <&clkc CLKID_USB>;
+			clock-names = "usb_general";
+			resets = <&reset RESET_USB>;
+
+			dwc3: dwc3@ff500000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xff500000 0x0 0x100000>;
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				dr_mode = "host";
+				maximum-speed = "high-speed";
+				snps,dis_u2_susphy_quirk;
+				snps,quirk-frame-length-adjustment;
+				usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
+				clocks = <&clkc CLKID_USB>;
+				clock-names = "usb_general";
+			};
+		};
