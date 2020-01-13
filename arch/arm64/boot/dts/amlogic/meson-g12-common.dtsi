@@ -1373,6 +1373,16 @@
 						};
 					};
 
+					jtag_b_pins: jtag_b_pin {
+						mux {
+							groups = "jtag_b_tdi",
+								 "jtag_b_tdo",
+								 "jtag_b_clk",
+								 "jtag_b_tms";
+							function = "jtag_b";
+						};
+					};
+
 					spicc0_pins_x: spicc0_pins_x {
 						mux {
 							groups = "spi0_mosi_x",
@@ -2150,6 +2160,16 @@
 							bias-disable;
 						};
 					};
+
+					jtag_a_pins: jtag_a_pin {
+						mux {
+							groups = "jtag_a_tdi",
+								 "jtag_a_tdo",
+								 "jtag_a_clk",
+								 "jtag_a_tms";
+							function = "jtag_a";
+						};
+					};
 				};
 			};
 
@@ -2694,4 +2714,13 @@
 		#clock-cells = <0>;
 	};
 
+	jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		/* disable/jtag_a/jtag_b */
+		select = "disable";
+		pinctrl-names="jtag_a_pins", "jtag_b_pins";
+		pinctrl-0=<&jtag_a_pins>;
+		pinctrl-1=<&jtag_b_pins>;
+	};
 };
