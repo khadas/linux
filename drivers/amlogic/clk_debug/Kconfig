@@ -1,0 +1,7 @@
+# Amlogic CLK DEBUG
+
+config AMLOGIC_CLK_DEBUG
+	tristate "Amlogic Meson SoC Clock Debug Driver"
+	help
+	  Say yes to support of debugging online a set of SoC clocks
+	  from the debugfs interface.
