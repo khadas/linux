@@ -62,14 +62,15 @@ static const char *policy_str[3] = {
 	"force_output"
 };
 
-static const char *input_str[7] = {
+static const char *input_str[8] = {
 	"NONE",
 	"HDR",
 	"HDR+",
 	"DOVI",
 	"PRIME",
 	"HLG",
-	"SDR"
+	"SDR",
+	"MVC",
 };
 
 /* output_format_e */
