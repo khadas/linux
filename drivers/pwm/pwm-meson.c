@@ -45,6 +45,10 @@
 
 #define REG_PWM_A		0x0
 #define REG_PWM_B		0x4
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define REG_PWM_A2		0x14
+#define REG_PWM_B2		0x18
+#endif
 #define PWM_LOW_MASK		GENMASK(15, 0)
 #define PWM_HIGH_MASK		GENMASK(31, 16)
 
@@ -59,8 +63,15 @@
 #define MISC_CLK_SEL_MASK	0x3
 #define MISC_B_EN		BIT(1)
 #define MISC_A_EN		BIT(0)
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define MISC_A2_EN		BIT(25)
+#define MISC_B2_EN		BIT(24)
+#endif
 
 #define MESON_NUM_PWMS		2
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define MESON_DOUBLE_NUM_PWMS	4
+#endif
 
 static struct meson_pwm_channel_data {
 	u8		reg_offset;
@@ -68,7 +79,11 @@ static struct meson_pwm_channel_data {
 	u8		clk_div_shift;
 	u32		clk_en_mask;
 	u32		pwm_en_mask;
+#ifdef CONFIG_AMLOGIC_MODIFY
+} meson_pwm_per_channel_data[] = {
+#else
 } meson_pwm_per_channel_data[MESON_NUM_PWMS] = {
+#endif
 	{
 		.reg_offset	= REG_PWM_A,
 		.clk_sel_shift	= MISC_A_CLK_SEL_SHIFT,
@@ -82,7 +97,23 @@ static struct meson_pwm_channel_data {
 		.clk_div_shift	= MISC_B_CLK_DIV_SHIFT,
 		.clk_en_mask	= MISC_B_CLK_EN,
 		.pwm_en_mask	= MISC_B_EN,
-	}
+	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.reg_offset	= REG_PWM_A2,
+		.clk_sel_shift	= MISC_A_CLK_SEL_SHIFT,
+		.clk_div_shift	= MISC_A_CLK_DIV_SHIFT,
+		.clk_en_mask	= MISC_A_CLK_EN,
+		.pwm_en_mask	= MISC_A2_EN,
+	},
+	{
+		.reg_offset	= REG_PWM_B2,
+		.clk_sel_shift	= MISC_B_CLK_SEL_SHIFT,
+		.clk_div_shift	= MISC_B_CLK_DIV_SHIFT,
+		.clk_en_mask	= MISC_B_CLK_EN,
+		.pwm_en_mask	= MISC_B2_EN,
+	},
+#endif
 };
 
 struct meson_pwm_channel {
@@ -98,12 +129,20 @@ struct meson_pwm_channel {
 struct meson_pwm_data {
 	const char * const *parent_names;
 	unsigned int num_parents;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	bool double_channel;
+#endif
+
 };
 
 struct meson_pwm {
 	struct pwm_chip chip;
 	const struct meson_pwm_data *data;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct meson_pwm_channel channels[MESON_DOUBLE_NUM_PWMS];
+#else
 	struct meson_pwm_channel channels[MESON_NUM_PWMS];
+#endif
 	void __iomem *base;
 	/*
 	 * Protects register (write) access to the REG_MISC_AB register
@@ -383,6 +422,9 @@ static const char * const pwm_meson8b_parent_names[] = {
 static const struct meson_pwm_data pwm_meson8b_data = {
 	.parent_names = pwm_meson8b_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_meson8b_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = false,
+#endif
 };
 
 static const char * const pwm_gxbb_parent_names[] = {
@@ -392,6 +434,9 @@ static const char * const pwm_gxbb_parent_names[] = {
 static const struct meson_pwm_data pwm_gxbb_data = {
 	.parent_names = pwm_gxbb_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_gxbb_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = false,
+#endif
 };
 
 /*
@@ -405,6 +450,9 @@ static const char * const pwm_gxbb_ao_parent_names[] = {
 static const struct meson_pwm_data pwm_gxbb_ao_data = {
 	.parent_names = pwm_gxbb_ao_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_gxbb_ao_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = false,
+#endif
 };
 
 static const char * const pwm_axg_ee_parent_names[] = {
@@ -414,6 +462,9 @@ static const char * const pwm_axg_ee_parent_names[] = {
 static const struct meson_pwm_data pwm_axg_ee_data = {
 	.parent_names = pwm_axg_ee_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_axg_ee_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = true,
+#endif
 };
 
 static const char * const pwm_axg_ao_parent_names[] = {
@@ -423,6 +474,9 @@ static const char * const pwm_axg_ao_parent_names[] = {
 static const struct meson_pwm_data pwm_axg_ao_data = {
 	.parent_names = pwm_axg_ao_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_axg_ao_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = true,
+#endif
 };
 
 static const char * const pwm_g12a_ao_ab_parent_names[] = {
@@ -432,6 +486,9 @@ static const char * const pwm_g12a_ao_ab_parent_names[] = {
 static const struct meson_pwm_data pwm_g12a_ao_ab_data = {
 	.parent_names = pwm_g12a_ao_ab_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ao_ab_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = true,
+#endif
 };
 
 static const char * const pwm_g12a_ao_cd_parent_names[] = {
@@ -441,6 +498,9 @@ static const char * const pwm_g12a_ao_cd_parent_names[] = {
 static const struct meson_pwm_data pwm_g12a_ao_cd_data = {
 	.parent_names = pwm_g12a_ao_cd_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ao_cd_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = true,
+#endif
 };
 
 static const char * const pwm_g12a_ee_parent_names[] = {
@@ -450,6 +510,9 @@ static const char * const pwm_g12a_ee_parent_names[] = {
 static const struct meson_pwm_data pwm_g12a_ee_data = {
 	.parent_names = pwm_g12a_ee_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ee_parent_names),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.double_channel = true,
+#endif
 };
 
 static const struct of_device_id meson_pwm_matches[] = {
@@ -553,7 +616,11 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
 	meson->chip.base = -1;
+#ifndef CONFIG_AMLOGIC_MODIFY
 	meson->chip.npwm = MESON_NUM_PWMS;
+#else
+	meson->chip.npwm = MESON_DOUBLE_NUM_PWMS;
+#endif
 	meson->chip.of_xlate = of_pwm_xlate_with_flags;
 	meson->chip.of_pwm_n_cells = 3;
 
