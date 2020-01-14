@@ -68,7 +68,7 @@ static ssize_t aml_atvdemod_store(struct class *class,
 	unsigned long tmp = 0, data = 0;
 	struct aml_atvdemod_device *dev =
 			container_of(class, struct aml_atvdemod_device, cls);
-	/*struct atv_demod_priv *priv = dev->v4l2_fe.fe.analog_demod_priv;*/
+	struct atv_demod_priv *priv = dev->v4l2_fe.fe.analog_demod_priv;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
@@ -312,23 +312,41 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		pr_info("audio_set std %d\n", std);
 	} else if (!strncmp(parm[0], "atvdemod_status", 15)) {
 		struct v4l2_analog_parameters *p = &dev->v4l2_fe.params;
+		int vpll_lock = 0;
+		int line_lock = 0;
 
-		pr_info("[atvdemod] afc_range: %d\n", p->afc_range);
-		pr_info("[atvdemod] frequency: %d\n", p->frequency);
-		pr_info("[atvdemod] soundsys: %d\n", p->soundsys);
-		pr_info("[atvdemod] std: 0x%x (%s %s)\n",
+		if (priv->state == ATVDEMOD_STATE_WORK) {
+			retrieve_vpll_carrier_lock(&vpll_lock);
+			pr_info("vpp lock: %s.\n",
+				vpll_lock == 0 ? "Locked" : "Unlocked");
+
+			retrieve_vpll_carrier_line_lock(&line_lock);
+			pr_info("line lock: %s.\n",
+				line_lock == 0 ? "Locked" : "Unlocked");
+
+			data_afc = retrieve_vpll_carrier_afc();
+			pr_info("afc: %d Khz.\n", data_afc);
+
+			data_snr_avg = atvdemod_get_snr_val();
+			pr_info("snr: %d.\n", data_snr_avg);
+		}
+
+		pr_info("[params] afc_range: %d\n", p->afc_range);
+		pr_info("[params] frequency: %d\n", p->frequency);
+		pr_info("[params] soundsys: %d\n", p->soundsys);
+		pr_info("[params] std: 0x%x (%s %s)\n",
 				(unsigned int) dev->std,
 				v4l2_std_to_str((0xff000000 & dev->std)),
 				v4l2_std_to_str((0xffffff & dev->std)));
-		pr_info("[atvdemod] audmode: 0x%x\n", dev->audmode);
-		pr_info("[atvdemod] flag: %d\n", p->flag);
-		pr_info("[atvdemod] tuner_cur: %d\n", dev->tuner_cur);
-		pr_info("[atvdemod] tuner_id: %d\n",
+		pr_info("[params] audmode: 0x%x\n", dev->audmode);
+		pr_info("[params] flag: %d\n", p->flag);
+		pr_info("[params] tuner_cur: %d\n", dev->tuner_cur);
+		pr_info("[params] tuner_id: %d\n",
 				dev->tuners[dev->tuner_cur].cfg.id);
-		pr_info("[atvdemod] if_freq: %d\n", dev->if_freq);
-		pr_info("[atvdemod] if_inv: %d\n", dev->if_inv);
-		pr_info("[atvdemod] fre_offset: %d\n", dev->fre_offset);
-		pr_info("[atvdemod] version: %s.\n", AMLATVDEMOD_VER);
+		pr_info("[params] if_freq: %d\n", dev->if_freq);
+		pr_info("[params] if_inv: %d\n", dev->if_inv);
+		pr_info("[params] fre_offset: %d\n", dev->fre_offset);
+		pr_info("version: %s.\n", AMLATVDEMOD_VER);
 	} else if (!strncmp(parm[0], "attach_tuner", 12)) {
 		int tuner_id = 0;
 

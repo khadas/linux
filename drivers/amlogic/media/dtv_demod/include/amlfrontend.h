@@ -217,11 +217,6 @@ struct poll_machie_s {
 
 
 };
-struct amlfe_exp_config {
-	/*config by aml_fe ?*/
-	/* */
-	int set_mode;
-};
 
 struct amldtvdemod_device_s {
 

@@ -1,14 +1,18 @@
 /*
- * amlogic atv demod driver
+ * include/linux/amlogic/aml_atvdemod.h
  *
- * Author: nengwen.chen <nengwen.chen@amlogic.com>
- *
- *
- * Copyright (C) 2018 Amlogic Inc.
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #ifndef __AML_ATVDEMOD_H__
@@ -16,6 +20,8 @@
 
 #include <linux/i2c.h>
 #include <uapi/linux/videodev2.h>
+
+#include <linux/amlogic/aml_demod_common.h>
 
 /*COLOR MODULATION TYPE*/
 #define V4L2_COLOR_STD_PAL    ((v4l2_std_id) 0x04000000)
@@ -122,35 +128,6 @@ static inline const char *v4l2_std_to_str(v4l2_std_id std)
 /* For audio driver get atv audio state */
 extern void aml_fe_get_atvaudio_state(int *state);
 
-/* For attach tuner driver start*/
-enum tuner_type {
-	AM_TUNER_NONE = 0,
-	AM_TUNER_SI2176 = 1,
-	AM_TUNER_SI2196 = 2,
-	AM_TUNER_FQ1216 = 3,
-	AM_TUNER_HTM = 4,
-	AM_TUNER_CTC703 = 5,
-	AM_TUNER_SI2177 = 6,
-	AM_TUNER_R840 = 7,
-	AM_TUNER_SI2157 = 8,
-	AM_TUNER_SI2151 = 9,
-	AM_TUNER_MXL661 = 10,
-	AM_TUNER_MXL608 = 11,
-	AM_TUNER_SI2159 = 12,
-	AM_TUNER_R842 = 13,
-	AM_TUNER_ATBM2040 = 14,
-};
-
-/* For configure different tuners */
-/* It can add fields as extensions */
-struct tuner_config {
-	u8 id;
-	u8 i2c_addr;
-	u8 xtal; /* 0: 16MHz, 1: 24MHz, 3: 27MHz */
-	u8 xtal_cap;
-	u8 xtal_mode;
-};
-
 extern struct dvb_frontend *mxl661_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
 extern struct dvb_frontend *si2151_attach(struct dvb_frontend *fe,
@@ -163,6 +140,8 @@ extern struct dvb_frontend *r842_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
 extern struct dvb_frontend *atbm2040_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
-/* For attach tuner driver end*/
+extern struct dvb_frontend *atbm253_attach(struct dvb_frontend *fe,
+		struct i2c_adapter *i2c_adap, struct tuner_config *cfg);
+/* For attach tuner driver end */
 
 #endif /* __AML_ATVDEMOD_H__ */
