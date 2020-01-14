@@ -405,6 +405,7 @@ static int aml_tdm_prepare(struct snd_pcm_substream *substream)
 				&& (p_tdm->samesource_sel >= 0)
 				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
 					p_tdm->samesource_sel))
+				&& (runtime->channels > 2)
 				&& p_tdm->en_share)
 				aml_spdif_out_reset(p_tdm->samesource_sel - 3,
 						offset);
