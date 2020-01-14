@@ -43,12 +43,12 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/pwm-meson.h>
+#else
 #define REG_PWM_A		0x0
 #define REG_PWM_B		0x4
-#ifdef CONFIG_AMLOGIC_MODIFY
-#define REG_PWM_A2		0x14
-#define REG_PWM_B2		0x18
-#endif
+
 #define PWM_LOW_MASK		GENMASK(15, 0)
 #define PWM_HIGH_MASK		GENMASK(31, 16)
 
@@ -63,14 +63,35 @@
 #define MISC_CLK_SEL_MASK	0x3
 #define MISC_B_EN		BIT(1)
 #define MISC_A_EN		BIT(0)
-#ifdef CONFIG_AMLOGIC_MODIFY
-#define MISC_A2_EN		BIT(25)
-#define MISC_B2_EN		BIT(24)
-#endif
 
 #define MESON_NUM_PWMS		2
-#ifdef CONFIG_AMLOGIC_MODIFY
-#define MESON_DOUBLE_NUM_PWMS	4
+
+struct meson_pwm_channel {
+	unsigned int hi;
+	unsigned int lo;
+	u8 pre_div;
+
+	struct clk *clk_parent;
+	struct clk_mux mux;
+	struct clk *clk;
+};
+
+struct meson_pwm_data {
+	const char * const *parent_names;
+	unsigned int num_parents;
+};
+
+struct meson_pwm {
+	struct pwm_chip chip;
+	const struct meson_pwm_data *data;
+	struct meson_pwm_channel channels[MESON_NUM_PWMS];
+	void __iomem *base;
+	/*
+	 * Protects register (write) access to the REG_MISC_AB register
+	 * that is shared between the two PWMs.
+	 */
+	spinlock_t lock;
+};
 #endif
 
 static struct meson_pwm_channel_data {
@@ -116,42 +137,11 @@ static struct meson_pwm_channel_data {
 #endif
 };
 
-struct meson_pwm_channel {
-	unsigned int hi;
-	unsigned int lo;
-	u8 pre_div;
-
-	struct clk *clk_parent;
-	struct clk_mux mux;
-	struct clk *clk;
-};
-
-struct meson_pwm_data {
-	const char * const *parent_names;
-	unsigned int num_parents;
 #ifdef CONFIG_AMLOGIC_MODIFY
-	bool double_channel;
-#endif
-
-};
-
-struct meson_pwm {
-	struct pwm_chip chip;
-	const struct meson_pwm_data *data;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	struct meson_pwm_channel channels[MESON_DOUBLE_NUM_PWMS];
+struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 #else
-	struct meson_pwm_channel channels[MESON_NUM_PWMS];
-#endif
-	void __iomem *base;
-	/*
-	 * Protects register (write) access to the REG_MISC_AB register
-	 * that is shared between the two PWMs.
-	 */
-	spinlock_t lock;
-};
-
 static inline struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
+#endif
 {
 	return container_of(chip, struct meson_pwm, chip);
 }
@@ -597,6 +587,14 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct regmap_config meson_pwm_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+#endif
+
 static int meson_pwm_probe(struct platform_device *pdev)
 {
 	struct meson_pwm *meson;
@@ -612,6 +610,14 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(meson->base))
 		return PTR_ERR(meson->base);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	meson_pwm_regmap_config.max_register = resource_size(regs) - 4;
+	meson_pwm_regmap_config.name = devm_kasprintf(&pdev->dev,
+						      GFP_KERNEL, "%s", "pwm");
+	meson->regmap_base = devm_regmap_init_mmio(&pdev->dev,
+						   meson->base,
+						   &meson_pwm_regmap_config);
+#endif
 	spin_lock_init(&meson->lock);
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
@@ -637,6 +643,11 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, meson);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*for constant,blinks functions*/
+	if (meson->data->double_channel)
+		meson_pwm_sysfs_init(&pdev->dev);
+#endif
 
 	return 0;
 }
@@ -644,7 +655,10 @@ static int meson_pwm_probe(struct platform_device *pdev)
 static int meson_pwm_remove(struct platform_device *pdev)
 {
 	struct meson_pwm *meson = platform_get_drvdata(pdev);
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson->data->double_channel)
+		meson_pwm_sysfs_exit(&pdev->dev);
+#endif
 	return pwmchip_remove(&meson->chip);
 }
 
