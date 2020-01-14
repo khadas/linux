@@ -89,7 +89,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x40000000>;
+		reg = <0x0 0x80000000>;
 	};
 
 	ao_5v: regulator-ao_5v {
