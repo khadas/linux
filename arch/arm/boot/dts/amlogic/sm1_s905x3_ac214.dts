@@ -352,13 +352,14 @@
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
-		dtv_demod0 = "cxd2856";
-		dtv_demod0_i2c_adap = <&i2c3>;
-		dtv_demod0_i2c_addr = <0xD8>;
-		dtv_demod0_reset_value = <0>;
-		dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
-		dtv_demod0_ant_poweron_value = <0>;
-		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		fe0_mode = "external";
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 
 		fe0_dtv_demod = <0>;
 		fe0_ts  = <0>;

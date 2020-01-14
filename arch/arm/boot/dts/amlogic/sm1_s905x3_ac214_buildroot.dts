@@ -333,7 +333,8 @@
 		fe0_ts = <0>;
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
-		dtv_demod0_ant_poweron_value = <0>;
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;

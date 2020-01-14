@@ -24,12 +24,6 @@
 #include "atv_demod_v4l2.h"
 
 
-struct aml_tuner {
-	struct tuner_config cfg;
-	unsigned int i2c_adapter_id;
-	struct i2c_adapter *i2c_adp;
-};
-
 struct aml_atvdemod_device {
 	char *name;
 	struct class cls;

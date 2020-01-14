@@ -57,6 +57,7 @@
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
+#include <linux/amlogic/aml_dtvdemod.h>
 
 
 MODULE_PARM_DESC(debug_aml, "\n\t\t Enable frontend debug information");
@@ -4925,7 +4926,7 @@ static struct dvb_frontend_ops aml_dtvdm_tm2_ops = {
 
 };
 
-struct dvb_frontend *aml_dtvdm_attach(const struct amlfe_exp_config *config)
+struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 {
 	int ic_version = get_ic_ver();
 
