@@ -559,7 +559,7 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 	unsigned int data32 = 0;
 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x7);
+	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x67);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x13);
 	/* Enable skpclk to HDCP2.2 IP */
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 7, 1);
