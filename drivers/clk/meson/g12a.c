@@ -1590,9 +1590,11 @@ static struct clk_regmap g12b_cpub_clk_trace = {
 	},
 };
 
-static const struct pll_mult_range g12a_gp0_pll_mult_range = {
-	.min = 55,
-	.max = 255,
+static const struct pll_params_table g12a_gp0_pll_table[] = {
+	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M */
+	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
+	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
+	{0, 0},
 };
 
 /*
@@ -1639,7 +1641,7 @@ static struct clk_regmap g12a_gp0_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &g12a_gp0_pll_mult_range,
+		.table = g12a_gp0_pll_table,
 		.init_regs = g12a_gp0_init_regs,
 		.init_count = ARRAY_SIZE(g12a_gp0_init_regs),
 	},
@@ -1735,6 +1737,11 @@ static struct clk_regmap sm1_gp1_pll = {
 	},
 };
 
+static const struct pll_mult_range g12a_hifi_pll_mult_range = {
+	.min = 55,
+	.max = 255,
+};
+
 /*
  * Internal hifi pll emulation configuration parameters
  */
@@ -1779,7 +1786,7 @@ static struct clk_regmap g12a_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &g12a_gp0_pll_mult_range,
+		.range = &g12a_hifi_pll_mult_range,
 		.init_regs = g12a_hifi_init_regs,
 		.init_count = ARRAY_SIZE(g12a_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
@@ -3703,11 +3710,16 @@ static struct clk_regmap g12a_hdmi = {
 /*
  * The MALI IP is clocked by two identical clocks (mali_0 and mali_1)
  * muxed by a glitch-free switch.
+ *
+ * CLK_SET_RATE_PARENT is added for mali_0_sel clock
+ * 1.gp0 pll only support the 846M, avoid other rate 500/400M from it
+ * 2.hifi pll is used for other module, skip it, avoid some rate from it
  */
+static u32 mux_table_mali[] = { 0, 1, 3, 4, 5, 6, 7 };
+
 static const struct clk_parent_data g12a_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &g12a_gp0_pll.hw },
-	{ .hw = &g12a_hifi_pll.hw },
 	{ .hw = &g12a_fclk_div2p5.hw },
 	{ .hw = &g12a_fclk_div3.hw },
 	{ .hw = &g12a_fclk_div4.hw },
@@ -3720,13 +3732,14 @@ static struct clk_regmap g12a_mali_0_sel = {
 		.offset = HHI_MALI_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 9,
+		.table = mux_table_mali,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_0_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = g12a_mali_0_1_parent_data,
 		.num_parents = 8,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3743,7 +3756,7 @@ static struct clk_regmap g12a_mali_0_div = {
 			&g12a_mali_0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3768,13 +3781,14 @@ static struct clk_regmap g12a_mali_1_sel = {
 		.offset = HHI_MALI_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 25,
+		.table = mux_table_mali,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_1_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = g12a_mali_0_1_parent_data,
 		.num_parents = 8,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3791,7 +3805,7 @@ static struct clk_regmap g12a_mali_1_div = {
 			&g12a_mali_1_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3827,7 +3841,7 @@ static struct clk_regmap g12a_mali = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_mali_parent_hws,
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
