@@ -390,6 +390,11 @@ static const unsigned int tcon_aging_pins[] = {GPIODV_2};
 static const unsigned int tcon_flicker_pins[] = {GPIODV_4};
 static const unsigned int tcon_sfc_h2_pins[] = {GPIOH_2};
 static const unsigned int tcon_sfc_h16_pins[] = {GPIOH_16};
+/* only for revb */
+static const unsigned int tcon_slv_sda_w_pins[] = {GPIOW_6};
+static const unsigned int tcon_slv_sck_w_pins[] = {GPIOW_7};
+static const unsigned int tcon_spi_mi_h17_pins[] = {GPIOH_17};
+static const unsigned int tcon_spi_mo_h18_pins[] = {GPIOH_18};
 
 /* hdmirx_a */
 static const unsigned int hdmirx_a_hpd_pins[] = {GPIOW_0};
@@ -544,6 +549,8 @@ static const unsigned int gen_clk_ee_h21_pins[] = {GPIOH_21};
 /* vx1 */
 static const unsigned int vx1_htpdn_pins[] = {GPIOH_15};
 static const unsigned int vx1_lockn_pins[] = {GPIOH_16};
+/* only for revb */
+static const unsigned int vx1_htpdn_h21_pins[] = {GPIOH_21};
 
 /* atv */
 static const unsigned int atv_if_agc_dv_pins[] = {GPIODV_2};
@@ -873,6 +880,10 @@ static struct meson_pmx_group meson_tm2_periphs_groups[] = {
 	GROUP(tdma_dout7_h,	6),
 	GROUP(atv_if_agc_h,	7),
 	GROUP(remote_in,	7),
+	/* only for revb */
+	GROUP(tcon_spi_mi_h17,	7),
+	GROUP(tcon_spi_mo_h18,	7),
+	GROUP(vx1_htpdn_h21,	3),
 
 	/* bank GPIODV */
 	GROUP(i2c0_sda_dv,	1),
@@ -996,6 +1007,10 @@ static struct meson_pmx_group meson_tm2_periphs_groups[] = {
 	GROUP(uart_ao_a_rx_w7,	2),
 	GROUP(uart_ao_a_tx_w10,	2),
 	GROUP(uart_ao_a_rx_w11,	2),
+	/* only for revb */
+	GROUP(tcon_slv_sda_w,   3),
+	GROUP(tcon_slv_sck_w,   3),
+
 };
 
 /* uart_ao_a */
@@ -1353,6 +1368,10 @@ static const char * const tcon_groups[] = {
 	"tcon_spi_clk", "tcon_spi_ss", "tcon_slv_sda",
 	"tcon_slv_sck", "tcon_aging", "tcon_flicker",
 	"tcon_sfc_h2", "tcon_sfc_h16",
+	/* only for revb */
+	"tcon_slv_sda_w", "tcon_slv_sck_w", "tcon_spi_mi_h17",
+	"tcon_spi_mo_h18",
+
 };
 
 static const char * const bt656_groups[] = {
@@ -1478,6 +1497,8 @@ static const char * const gen_clk_ee_groups[] = {
 
 static const char * const vx1_groups[] = {
 	"vx1_htpdn", "vx1_lockn",
+	/* only for revb */
+	"vx1_htpdn_h21",
 };
 
 static const char * const atv_groups[] = {
