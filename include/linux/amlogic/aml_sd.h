@@ -113,6 +113,7 @@ struct meson_host {
 	char is_tuning;
 	unsigned int delay_cell;
 	bool needs_pre_post_req;
+	int sd_sdio_switch_volat_done;
 	int irq_sdio_sleep;
 	int sdio_irqen;
 	unsigned int emmc_boot_base;

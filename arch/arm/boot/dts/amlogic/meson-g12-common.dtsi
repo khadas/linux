@@ -2379,8 +2379,8 @@
 		sd_emmc_a: sd@ffe03000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0xffe03000 0x800>,
-				<0xfe634264 0x20>,
-				<0xff6346cc 0x20>;
+				<0xff63c264 0x4>,
+				<0xff6346cc 0x4>;
 			interrupts = <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_A>,
@@ -2397,8 +2397,8 @@
 		sd_emmc_b: sd@ffe05000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0xffe05000 0x800>,
-				<0xfe634264 0x20>,
-				<0xff6346e4 0x20>;
+				<0xff63c264 0x4>,
+				<0xff6346e4 0x4>;
 			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_B>,
@@ -2413,8 +2413,8 @@
 		sd_emmc_c: mmc@ffe07000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0xffe07000 0x800>,
-				<0xfe63425c 0x20>,
-				<0xff6346c0 0x20>;
+				<0xff63c25c 0x4>,
+				<0xff6346c0 0x4>;
 			interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_C>,

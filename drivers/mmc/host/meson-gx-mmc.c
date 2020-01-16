@@ -67,7 +67,24 @@
 #define   CLK_ADJUST_DELAY GENMASK(21, 16)
 
 #define SD_EMMC_CALOUT 0x10
+#define SD_EMMC_ADJ_IDX_LOG 0x20
+#define SD_EMMC_CLKTEST_LOG 0x24
+#define   CLKTEST_TIMES_MASK GENMASK(30, 0)
+#define   CLKTEST_DONE BIT(31)
+#define SD_EMMC_CLKTEST_OUT 0x28
+#define SD_EMMC_EYETEST_LOG 0x2c
+#define   EYETEST_TIMES_MASK GENMASK(30, 0)
+#define   EYETEST_DONE BIT(31)
+#define SD_EMMC_EYETEST_OUT0 0x30
+#define SD_EMMC_EYETEST_OUT1 0x34
 #define SD_EMMC_INTF3 0x38
+#define   CLKTEST_EXP_MASK GENMASK(4, 0)
+#define   CLKTEST_ON_M BIT(5)
+#define   EYETEST_EXP_MASK GENMASK(10, 6)
+#define   EYETEST_ON BIT(11)
+#define   DS_SHT_M_MASK GENMASK(17, 12)
+#define   DS_SHT_EXP_MASK GENMASK(21, 18)
+#define   SD_INTF3 BIT(22)
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
@@ -162,7 +179,9 @@
 #define CMD_RESP_SRAM BIT(0)
 #define EMMC_SDIO_CLOCK_FELD    0Xffff
 #define CALI_HS_50M_ADJUST      0
-
+#define ERROR   1
+#define FIXED   2
+#define RETUNING        3
 static struct mmc_host *sdio_host;
 
 static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
@@ -468,59 +487,390 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	return clk_prepare_enable(host->mmc_clk);
 }
 
-static void meson_mmc_disable_resampling(struct meson_host *host)
-{
-	unsigned int val = readl(host->regs + host->data->adjust);
-
-	val &= ~ADJUST_ADJ_EN;
-	writel(val, host->regs + host->data->adjust);
-}
-
-static void meson_mmc_reset_resampling(struct meson_host *host)
-{
-	unsigned int val;
-
-	meson_mmc_disable_resampling(host);
-
-	val = readl(host->regs + host->data->adjust);
-	val &= ~ADJUST_ADJ_DELAY_MASK;
-	writel(val, host->regs + host->data->adjust);
-}
-
-static int meson_mmc_resampling_tuning(struct mmc_host *mmc, u32 opcode)
+static unsigned int aml_sd_emmc_clktest(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	unsigned int val, dly, max_dly, i;
-	int ret;
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+	u32 clktest = 0, delay_cell = 0, clktest_log = 0, count = 0;
+	u32 vcfg = readl(host->regs + SD_EMMC_CFG);
+	int i = 0;
+	unsigned int cycle = 0;
 
-	/* Resampling is done using the source clock */
-	max_dly = DIV_ROUND_UP(clk_get_rate(host->mux_clk),
-			       clk_get_rate(host->mmc_clk));
+	writel(0, (host->regs + SD_EMMC_V3_ADJUST));
+	cycle = (1000000000 / mmc->actual_clock) * 1000;
+	vcfg &= ~(1 << 23);
+	writel(vcfg, host->regs + SD_EMMC_CFG);
+	writel(0, host->regs + SD_EMMC_DELAY1);
+	writel(0, host->regs + SD_EMMC_DELAY2);
+	intf3 &= ~CLKTEST_EXP_MASK;
+	intf3 |= 8 << __ffs(CLKTEST_EXP_MASK);
+	intf3 |= CLKTEST_ON_M;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	clktest_log = readl(host->regs + SD_EMMC_CLKTEST_LOG);
+	clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+	while (!(clktest_log & 0x80000000)) {
+		mdelay(1);
+		i++;
+		clktest_log = readl(host->regs + SD_EMMC_CLKTEST_LOG);
+		clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+		if (i > 4) {
+			pr_warn("[%s] [%d] emmc clktest error\n",
+				__func__, __LINE__);
+			break;
+		}
+	}
+	if (clktest_log & 0x80000000) {
+		clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+		count = clktest / (1 << 8);
+		if (vcfg & 0x4)
+			delay_cell = ((cycle / 2) / count);
+		else
+			delay_cell = (cycle / count);
+	}
+	pr_info("%s [%d] clktest : %u, delay_cell: %d, count: %u\n",
+		__func__, __LINE__, clktest, delay_cell, count);
+	intf3 = readl(host->regs + SD_EMMC_INTF3);
+	intf3 &= ~CLKTEST_ON_M;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	vcfg = readl(host->regs + SD_EMMC_CFG);
+	vcfg |= (1 << 23);
+	writel(vcfg, host->regs + SD_EMMC_CFG);
+	host->delay_cell = delay_cell;
+	return count;
+}
 
-	val = readl(host->regs + host->data->adjust);
-	val |= ADJUST_ADJ_EN;
-	writel(val, host->regs + host->data->adjust);
+static int meson_mmc_set_adjust(struct mmc_host *mmc, u32 value)
+{
+	u32 val;
+	struct meson_host *host = mmc_priv(mmc);
 
-	if (mmc->doing_retune)
-		dly = FIELD_GET(ADJUST_ADJ_DELAY_MASK, val) + 1;
-	else
-		dly = 0;
+	val = readl(host->regs + SD_EMMC_V3_ADJUST);
+	val &= ~CLK_ADJUST_DELAY;
+	val &= ~CFG_ADJUST_ENABLE;
+	val |= CFG_ADJUST_ENABLE;
+	val |= value << __ffs(CLK_ADJUST_DELAY);
 
-	for (i = 0; i < max_dly; i++) {
-		val &= ~ADJUST_ADJ_DELAY_MASK;
-		val |= FIELD_PREP(ADJUST_ADJ_DELAY_MASK, (dly + i) % max_dly);
-		writel(val, host->regs + host->data->adjust);
+	writel(val, host->regs + SD_EMMC_V3_ADJUST);
+	return 0;
+}
 
-		ret = mmc_send_tuning(mmc, opcode, NULL);
-		if (!ret) {
-			dev_dbg(mmc_dev(mmc), "resampling delay: %u\n",
-				(dly + i) % max_dly);
-			return 0;
+static void meson_mmc_set_delay(struct mmc_host *mmc, u32 delay)
+{
+	u32 val;
+	u32 onedelay1 = 1 + BIT(6) + BIT(12) + BIT(18) + BIT(24);
+	u32 onedelay2 = 1 + BIT(6) + BIT(12) + BIT(24);
+	struct meson_host *host = mmc_priv(mmc);
+
+	val = delay * onedelay1;
+	writel(val, host->regs + SD_EMMC_DELAY1);
+	val = delay * onedelay2;
+	writel(val, host->regs + SD_EMMC_DELAY2);
+}
+
+int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
+{
+	int tuning_err = 0;
+	int n, nmatch;
+	/* try ntries */
+	for (n = 0, nmatch = 0; n < 40; n++) {
+		tuning_err = mmc_send_tuning(mmc, opcode, NULL);
+		if (!tuning_err)
+			nmatch++;
+		else
+			break;
+	}
+	return nmatch;
+}
+
+static int meson_mmc_delay_tuning(struct mmc_host *mmc, u32 delay,
+				  u32 value, u32 opcode)
+{
+	int ret = 0;
+	struct meson_host *host = mmc_priv(mmc);
+	u8 clk_div = readl(host->regs + SD_EMMC_CLOCK) & CLK_DIV_MASK;
+
+	value = value % clk_div;
+	meson_mmc_set_adjust(mmc, value);
+	meson_mmc_set_delay(mmc, delay);
+	ret = meson_mmc_tuning_transfer(mmc, opcode);
+
+	return ret;
+}
+
+static void meson_mmc_shift_map(unsigned long *map,
+				unsigned long shift, u8 clk_div)
+{
+	unsigned long left[1];
+	unsigned long right[1];
+
+	/*
+	 * shift the bitmap right and reintroduce the dropped bits on the left
+	 * of the bitmap
+	 */
+	bitmap_shift_right(right, map, shift, clk_div);
+	bitmap_shift_left(left, map, clk_div - shift,
+			  clk_div);
+	bitmap_or(map, left, right, clk_div);
+}
+
+static void meson_mmc_find_next_region(unsigned long *map,
+				       unsigned long *start,
+				       unsigned long *stop,
+				       u8 clk_div)
+{
+	*start = find_next_bit(map, clk_div, *start);
+	*stop = find_next_zero_bit(map, clk_div, *start);
+}
+
+static void meson_mmc_find_next_zero_region(unsigned long *map,
+					    unsigned long *start,
+					    unsigned long *stop,
+					    u8 clk_div)
+{
+	*start = find_next_zero_bit(map, clk_div, *start);
+	*stop = find_next_bit(map, clk_div, *start);
+}
+
+static int meson_mmc_is_hole(struct mmc_host *mmc, u32 delay,
+			     u8 adjust, u32 opcode)
+{
+	int ret1, ret2, ret = 0;
+
+	ret1 = meson_mmc_delay_tuning(mmc, delay, adjust, opcode);
+	ret2 = meson_mmc_delay_tuning(mmc, delay + 1, adjust, opcode);
+	if (ret1 == 40 && ret2 == 40)
+		ret = 1;
+
+	return ret;
+}
+
+static int meson_mmc_get_nok_point(struct meson_host *host,
+				   unsigned long *test, u8 clk_div,
+				   u32 opcode, u32 delay)
+{
+	unsigned long shift, stop, start = 0;
+	struct mmc_host *mmc = host->mmc;
+	int ret = 0, index = 0;
+
+	shift = find_first_bit(test, clk_div);
+	if (shift)
+		meson_mmc_shift_map(test, shift, clk_div);
+
+	while (start < clk_div) {
+		meson_mmc_find_next_zero_region(test, &start, &stop, clk_div);
+		host->hole[index].start = start + shift;
+		host->hole[index].size = stop - start;
+		if (host->debug_flag)
+			dev_notice(host->dev, "hole start:%u,hole size:%u\n",
+				   host->hole[index].start,
+				   host->hole[index].size);
+		start = stop;
+		index++;
+		if (find_next_zero_bit(test, clk_div, start) >= clk_div)
+			break;
+	}
+	switch (index) {
+	case 1:
+		if (host->hole[0].size == 1) {
+			ret = meson_mmc_is_hole(mmc, delay,
+						host->hole[0].start + 1,
+						opcode);
+			if (ret) {
+				host->fix_hole = host->hole[0].start;
+				return RETUNING;
+			}
+		} else if (clk_div - host->hole[0].size == 2) {
+			ret = meson_mmc_is_hole(mmc, delay,
+						host->hole[0].start + 1,
+						opcode);
+			if (ret) {
+				host->fix_hole = host->hole[0].start;
+				return FIXED;
+			}
+			ret = meson_mmc_is_hole(mmc, delay,
+						host->hole[0].start +
+						host->hole[0].size,
+						opcode);
+			if (ret) {
+				host->fix_hole = host->hole[0].start +
+					host->hole[0].size - 1;
+				return FIXED;
+			}
+		}
+		return FIXED;
+	case 2:
+		if (host->hole[0].size == 1) {
+			ret = meson_mmc_is_hole(mmc, delay,
+						host->hole[0].start + 1,
+						opcode);
+			if (ret) {
+				host->fix_hole = host->hole[0].start;
+				return FIXED;
+			}
+		}
+		if (host->hole[1].size == 1) {
+			ret = meson_mmc_is_hole(mmc, delay,
+						host->hole[0].start + 1,
+						opcode);
+			if (ret) {
+				host->fix_hole = host->hole[1].start;
+				return FIXED;
+			}
+		}
+		return ERROR;
+	default:
+		return ERROR;
+	}
+}
+
+static int meson_mmc_find_tuning_point(unsigned long *test, u8 clk_div)
+{
+	unsigned long shift, stop, offset = 0, start = 0, size = 0;
+
+	shift = find_first_zero_bit(test, clk_div);
+	if (shift != 0)
+		meson_mmc_shift_map(test, shift, clk_div);
+
+	while (start < clk_div) {
+		meson_mmc_find_next_region(test, &start, &stop, clk_div);
+
+		if ((stop - start) > size) {
+			offset = start;
+			size = stop - start;
+		}
+
+		start = stop;
+	}
+	pr_info("shift=%lu size=%lu\n", shift, size);
+	/* Get the center point of the region */
+	offset += (size / 2);
+
+	/* Shift the result back */
+	offset = (offset + shift) % clk_div;
+
+	return offset;
+}
+
+static int meson_mmc_clk_phase_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	int point, ret, need_fix_hole = 1;
+	u32 val, old_dly1, old_dly2, delay_count = 0, print_val;
+	u8 clk_div, delay = 0;
+	unsigned long test[1], fix_test[1];
+	struct meson_host *host = mmc_priv(mmc);
+
+	old_dly1 = readl(host->regs + SD_EMMC_DELAY1);
+	old_dly2 = readl(host->regs + SD_EMMC_DELAY2);
+	if (host->fixadj_have_hole) {
+		aml_sd_emmc_clktest(mmc);
+		delay_count = 1000 / host->delay_cell;
+	}
+	host->fix_hole = 0xff;
+tuning:
+	print_val = 0;
+	clk_div = readl(host->regs + SD_EMMC_CLOCK) & CLK_DIV_MASK;
+	bitmap_zero(test, clk_div);
+
+	/* Explore tuning points */
+	for (point = 0; point < clk_div; point++) {
+		meson_mmc_set_adjust(mmc, point);
+		ret = meson_mmc_tuning_transfer(mmc, opcode);
+		if (ret == 40) {
+			set_bit(point, test);
+			print_val |= 1 << (4 * point);
 		}
 	}
 
-	meson_mmc_reset_resampling(host);
-	return -EIO;
+	if (host->fix_hole != 0xff) {
+		set_bit(host->fix_hole, test);
+		print_val |= 1 << (4 * host->fix_hole);
+	}
+
+	dev_notice(host->dev, "tuning result:%6x\n", print_val);
+
+	if (bitmap_full(test, clk_div)) {
+		dev_warn(host->dev,
+			 "All the point tuning success,data1 add delay%d,continue tuning ...\n",
+			 delay + 1);
+		val = readl(host->regs + SD_EMMC_DELAY1);
+		delay = (val >> 0x6) & 0x3F;
+		if (++delay > 0x3F) {
+			dev_err(host->dev, "Have no delay can add,tuning failed!\n");
+			return -EINVAL;
+		}
+		meson_mmc_set_delay(mmc, delay);
+		need_fix_hole = 0;
+		goto tuning; /* All points are good so point 0 will do */
+	} else if (bitmap_empty(test, clk_div)) {
+		dev_warn(host->dev, "All point tuning failed!\n");
+		return -EINVAL;/* No successful tuning point */
+	}
+
+	if (host->fixadj_have_hole && need_fix_hole) {
+		if (host->debug_flag)
+			dev_notice(host->dev, "hs200/sdr104 need fix fixadj hole\n");
+		fix_test[0] = test[0];
+		ret = meson_mmc_get_nok_point(host, fix_test, clk_div,
+					      opcode, delay_count);
+
+		switch (ret) {
+		case RETUNING:
+			if (host->debug_flag)
+				dev_notice(host->dev, "Need retuning\n");
+			need_fix_hole = 0;
+			goto tuning;
+		case FIXED:
+			if (host->debug_flag)
+				dev_notice(host->dev, "hole fixed!\n");
+			if (host->fix_hole != 0xff) {
+				dev_notice(host->dev, "find the hole,the hole is %u\n",
+					   host->fix_hole);
+				set_bit(host->fix_hole, test);
+			}
+			break;
+		case ERROR:
+			dev_warn(host->dev, "tuning failed!\n");
+			return -EINVAL;
+		}
+	}
+
+	/* Find the optimal tuning point and apply it */
+	pr_info("delay=%u\n", delay);
+	point = meson_mmc_find_tuning_point(test, clk_div);
+	if (point < 0) {
+		dev_err(host->dev,
+			"The best fix adjust point is %d,tuning failed!\n",
+			point);
+		return point; /* tuning failed */
+	}
+
+	dev_notice(host->dev, "Tuning success! The best point is %d, clock is %ld\n",
+		   point, clk_get_rate(host->mmc_clk));
+
+	if (point == host->fix_hole) {
+		if (host->debug_flag)
+			dev_notice(host->dev, "%d is a hole,>>point:%d,delay:%u\n",
+				   point, point + 1, delay_count);
+		meson_mmc_set_adjust(mmc, point + 1);
+		meson_mmc_set_delay(mmc, delay_count);
+	} else {
+		writel(old_dly1, host->regs + SD_EMMC_DELAY1);
+		writel(old_dly2, host->regs + SD_EMMC_DELAY2);
+		meson_mmc_set_adjust(mmc, point);
+	}
+	return 0;
+}
+
+static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	int err = 0;
+
+	host->is_tuning = 1;
+	err = meson_mmc_clk_phase_tuning(mmc, opcode);
+	host->is_tuning = 0;
+
+	return err;
 }
 
 static int meson_mmc_prepare_ios_clock(struct meson_host *host,
@@ -559,7 +909,6 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	case MMC_TIMING_MMC_DDR52:
-		meson_mmc_disable_resampling(host);
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	default:
@@ -812,7 +1161,7 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	struct mmc_data *data = cmd->data;
-	u32 cmd_cfg = 0, cmd_data = 0;
+	u32 val, cmd_cfg = 0, cmd_data = 0;
 	unsigned int xfer_bytes = 0;
 
 	/* Setup descriptors */
@@ -825,6 +1174,12 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 	cmd_cfg |= CMD_CFG_ERROR; /* stop in case of error */
 
 	meson_mmc_set_response_bits(cmd, &cmd_cfg);
+
+	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
+		val = readl(host->regs + SD_EMMC_CFG);
+		val &= ~CFG_AUTO_CLK;
+		writel(val, host->regs + SD_EMMC_CFG);
+	}
 
 	/* data? */
 	if (data) {
@@ -969,9 +1324,10 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 
 	cmd->error = 0;
 	if (status & IRQ_CRC_ERR) {
-		dev_err(host->dev, "%d [0x%x], CRC[0x%04x]\n",
-			cmd->opcode, cmd->arg, status);
-		if (host->debug_flag) {
+		if (!host->is_tuning)
+			dev_err(host->dev, "%d [0x%x], CRC[0x%04x]\n",
+				cmd->opcode, cmd->arg, status);
+		if (host->debug_flag && !host->is_tuning) {
 			dev_notice(host->dev, "clktree : 0x%x,host_clock: 0x%x\n",
 				   readl(host->clk_tree_base),
 				   readl(host->regs));
@@ -991,9 +1347,10 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	}
 
 	if (status & IRQ_TIMEOUTS) {
-		dev_err(host->dev, "%d [0x%x], TIMEOUT[0x%04x]\n",
-			cmd->opcode, cmd->arg, status);
-		if (host->debug_flag) {
+		if (!host->is_tuning)
+			dev_err(host->dev, "%d [0x%x], TIMEOUT[0x%04x]\n",
+				cmd->opcode, cmd->arg, status);
+		if (host->debug_flag && !host->is_tuning) {
 			dev_notice(host->dev, "clktree : 0x%x,host_clock: 0x%x\n",
 				   readl(host->clk_tree_base),
 				   readl(host->regs));
@@ -1132,10 +1489,11 @@ static int meson_mmc_card_busy(struct mmc_host *mmc)
 	u32 regval, val;
 
 	regval = readl(host->regs + SD_EMMC_STATUS);
-	if (!aml_card_type_mmc(host)) {
+	if (!aml_card_type_mmc(host) && host->sd_sdio_switch_volat_done) {
 		val = readl(host->regs + SD_EMMC_CFG);
 		val |= CFG_AUTO_CLK;
 		writel(val, host->regs + SD_EMMC_CFG);
+		host->sd_sdio_switch_volat_done = 0;
 	}
 
 	/* We are only interrested in lines 0 to 3, so mask the other ones */
@@ -1144,6 +1502,9 @@ static int meson_mmc_card_busy(struct mmc_host *mmc)
 
 static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	struct meson_host *host = mmc_priv(mmc);
+	int err;
+
 	/* vqmmc regulator is available */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		/*
@@ -1153,7 +1514,12 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * to 1.8v. Please make sure the regulator framework is aware
 		 * of your own regulator constraints
 		 */
-		return mmc_regulator_set_vqmmc(mmc, ios);
+		err = mmc_regulator_set_vqmmc(mmc, ios);
+
+		if (!err && ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+			host->sd_sdio_switch_volat_done = 1;
+
+		return err;
 	}
 
 	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
@@ -1209,7 +1575,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.get_cd         = meson_mmc_get_cd,
 	.pre_req	= meson_mmc_pre_req,
 	.post_req	= meson_mmc_post_req,
-	.execute_tuning = meson_mmc_resampling_tuning,
+	.execute_tuning = meson_mmc_execute_tuning,
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
