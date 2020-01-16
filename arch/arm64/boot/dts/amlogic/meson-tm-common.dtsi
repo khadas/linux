@@ -3,6 +3,8 @@
  * Copyright (c) 2018 Amlogic, Inc. All rights reserved.
  */
 
+#include <dt-bindings/clock/tm2-clkc.h>
+#include <dt-bindings/clock/tm2-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -127,6 +129,21 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xff800000 0x0 0x100000>;
 
+		rti: sys-ctrl@0 {
+			compatible = "amlogic,meson-gx-ao-sysctrl",
+					"simple-mfd", "syscon";
+			reg = <0x0 0x0 0x0 0x100>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0x0 0x0 0x100>;
+
+			clkc_AO: clock-controller {
+				compatible = "amlogic,meson-tm2-aoclkc";
+				#clock-cells = <1>;
+				clocks = <&xtal>, <&clkc CLKID_CLK81>;
+				clock-names = "xtal", "mpeg-clk";
+			};
+
 			ao_pinctrl: pinctrl@14 {
 				compatible = "amlogic,meson-tm2-aobus-pinctrl";
 				#address-cells = <2>;
@@ -153,6 +170,7 @@
 					};
 				};
 			};
+		};
 
 			uart_AO: serial@3000 {
 				compatible = "amlogic,meson-gx-uart",
