@@ -507,8 +507,10 @@ static void vd1_path_select(
 				/* Vd1_afbc0_mem_sel */
 				(afbc ? 1 : 0),
 				22, 1);
-		if ((glayer_info[0].display_path_id
-		     != VFM_PATH_PIP) &&
+		if (((glayer_info[0].display_path_id
+		      == VFM_PATH_AMVIDEO) ||
+		     (glayer_info[0].display_path_id
+		      == VFM_PATH_DEF)) &&
 		    is_di_post_on()) {
 			/* check di_vpp_out_en bit */
 			VSYNC_WR_MPEG_REG_BITS(
@@ -523,9 +525,7 @@ static void vd1_path_select(
 				20, 2);
 		}
 	} else {
-		if ((glayer_info[0].display_path_id
-		     != VFM_PATH_PIP) &&
-		    is_di_post_on())
+		if (!is_di_post_on())
 			VSYNC_WR_MPEG_REG_BITS(
 				VIU_MISC_CTRL0 + misc_off,
 				0, 16, 3);
