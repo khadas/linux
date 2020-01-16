@@ -670,6 +670,28 @@ static struct platform_driver meson_pwm_driver = {
 	.probe = meson_pwm_probe,
 	.remove = meson_pwm_remove,
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int __init meson_pwm_init(void)
+{
+	const struct of_device_id *match_id;
+	int ret;
+
+	match_id = meson_pwm_matches;
+	meson_pwm_driver.driver.of_match_table = match_id;
+	ret = platform_driver_register(&meson_pwm_driver);
+	return ret;
+}
+
+static void __exit meson_pwm_exit(void)
+{
+	platform_driver_unregister(&meson_pwm_driver);
+}
+fs_initcall_sync(meson_pwm_init);
+#else
+module_exit(meson_pwm_exit);
+#endif
+
 module_platform_driver(meson_pwm_driver);
 
 MODULE_DESCRIPTION("Amlogic Meson PWM Generator driver");
