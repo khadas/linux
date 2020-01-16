@@ -12,6 +12,7 @@ evl-y :=		\
 	poll.o		\
 	proxy.o		\
 	sem.o		\
+	stax.o		\
 	syscall.o	\
 	thread.o	\
 	tick.o		\
