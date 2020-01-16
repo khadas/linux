@@ -2603,6 +2603,7 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 	*index = co->index;
 	return p->tty_driver;
 }
+EXPORT_SYMBOL_GPL(uart_console_device);
 
 static ssize_t uart_get_attr_uartclk(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2834,6 +2835,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
+	tty_port_link_device(port, drv->tty_driver, uport->line);
 	uart_configure_port(drv, state, uport);
 
 	port->console = uart_console(uport);
