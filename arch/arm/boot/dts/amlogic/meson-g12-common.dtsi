@@ -1432,20 +1432,12 @@
 						compatible = "amlogic,meson-g12a-pwrc";
 						#power-domain-cells = <1>;
 						amlogic,ao-sysctrl = <&rti>;
-						resets = <&reset RESET_VIU>,
-							 <&reset RESET_VENC>,
-							 <&reset RESET_VCBUS>,
-							 <&reset RESET_BT656>,
-							 <&reset RESET_RDMA>,
-							 <&reset RESET_VENCI>,
-							 <&reset RESET_VENCP>,
-							 <&reset RESET_VDAC>,
-							 <&reset RESET_VDI6>,
-							 <&reset RESET_VENCL>,
-							 <&reset RESET_VID_LOCK>;
-						reset-names = "viu", "venc", "vcbus", "bt656",
-							      "rdma", "venci", "vencp", "vdac",
-							      "vdi6", "vencl", "vid_lock";
+						dos,ctrl = <0xff62fcc0>;
+						vpu,reset = <&vpu_pd_rst>;
+						nn,reset = <&nn_pd_rst>;
+						usb,reset = <&usb_pd_rst>;
+						pcie,reset = <&pcie_pd_rst>;
+						ge2d,reset = <&ge2d_pd_rst>;
 						clocks = <&clkc CLKID_VPU>,
 							 <&clkc CLKID_VAPB>;
 						clock-names = "vpu", "vapb";
@@ -1475,6 +1467,49 @@
 								       <0>; /* Do Nothing */
 					};
 				};
+			};
+
+			vpu_pd_rst: vpu_rst {
+				resets = <&reset RESET_VIU>,
+					 <&reset RESET_VENC>,
+					 <&reset RESET_VCBUS>,
+					 <&reset RESET_BT656>,
+					 <&reset RESET_RDMA>,
+					 <&reset RESET_VENCI>,
+					 <&reset RESET_VENCP>,
+					 <&reset RESET_VDAC>,
+					 <&reset RESET_VDI6>,
+					 <&reset RESET_VENCL>,
+					 <&reset RESET_VID_LOCK>;
+				reset-names = "viu", "venc", "vcbus", "bt656",
+					"rdma", "venci", "vencp", "vdac",
+					"vdi6", "vencl", "vid_lock";
+			};
+
+			nn_pd_rst: nn_rst {
+				resets = <&reset RESET_NN_PIPELINE0>,
+					<&reset RESET_NN>,
+					<&reset RESET_NN_PIPELINE1>;
+				reset-names = "nn_pipeline0", "nn",
+					"nn_pipeline1";
+			};
+
+			usb_pd_rst: usb_rst {
+				resets = <&reset RESET_USB>;
+				reset-names = "usb";
+			};
+
+			pcie_pd_rst: pcie_rst {
+				resets = <&reset RESET_PCIE_CTRL_A>,
+					<&reset RESET_PCIE_PHY>,
+					<&reset RESET_PCIE_APB>;
+				reset-names = "pcie_ctrl_a", "pcie_phy",
+					"pcie_apb";
+			};
+
+			ge2d_pd_rst: ge2d_rst {
+				resets = <&reset RESET_GE2D>;
+				reset-names = "ge2d";
 			};
 
 			pdm: audio-controller@40000 {

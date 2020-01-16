@@ -366,7 +366,7 @@ static int phy_g12a_usb3_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_clk_ref;
 
-	priv->reset = devm_reset_control_array_get(dev, false, false);
+	priv->reset = devm_reset_control_array_get(dev, true, false);
 	if (IS_ERR(priv->reset))
 		return PTR_ERR(priv->reset);
 

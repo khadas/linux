@@ -106,6 +106,8 @@ void aml_new_usb_v2_init(void)
 	reg_addr = (unsigned long)g_phy_v2->usb2_phy_cfg;
 	if (g_phy_v2->otg == 2) {
 		id_gpio_status = gpiod_get_value(g_phy_v2->idgpiodesc);
+		//printk(KERN_ERR"<%s>id_gpio_status = %d\n",
+			 //  __func__, id_gpio_status);
 
 		if (id_gpio_status == 1) {
 			amlogic_new_set_vbus_power(g_phy_v2, 1);
@@ -118,6 +120,8 @@ void aml_new_usb_v2_init(void)
 		}
 	} else {
 		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+		//printk(KERN_ERR"<%s><%u>id=%u\n",
+		//	   __func__, __LINE__, r5.b.iddig_curr);
 		if (r5.b.iddig_curr == 0) {
 			amlogic_new_set_vbus_power(g_phy_v2, 1);
 			aml_new_usb_notifier_call(0);
@@ -257,14 +261,12 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	int i = 0;
 	u32 data = 0;
 
-	//aml_new_usb_v2_init();
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
 			clk_prepare_enable(phy->clk);
 		phy->suspend_flag = 0;
-		//return 0;
+		return 0;
 	}
-	printk(KERN_ERR"%s,%u\n", __func__, __LINE__);
 
 	for (i = 0; i < 6; i++) {
 		usb_new_aml_regs_v2.usb_r_v2[i] = (void __iomem *)
@@ -283,7 +285,6 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 
 	/* config usb3 phy */
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
-		printk(KERN_ERR"%s,%u\n", __func__, __LINE__);
 		r3.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[3]);
 		r3.b.p30_ssc_en = 1;
 		r3.b.p30_ssc_range = 2;
@@ -367,7 +368,6 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 		p3_r1.b.phy_los_level = 0x9;
 		writel(p3_r1.d32, phy->phy3_cfg_r1);
 	}
-	aml_new_usb_v2_init();
 
 	return 0;
 }
@@ -429,7 +429,6 @@ static void amlogic_gxl_work(struct work_struct *work)
 	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 
 	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-
 	if (r5.b.iddig_curr == 0) {
 		amlogic_new_set_vbus_power(phy, 1);
 		aml_new_usb_notifier_call(0);
@@ -598,7 +597,6 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	u32 u3_hhi_mem_pd_mask = 0;
 	u32 u3_ctrl_iso_shift = 0;
 
-	printk(KERN_ERR"%s,%u\n", __func__, __LINE__);
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
 		gpio_vbus_power_pin = 1;
@@ -796,23 +794,15 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 
+	pm_runtime_enable(phy->dev);
 
 	g_phy_v2 = phy;
-
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
 
 	return 0;
 }
 
 static int amlogic_new_usb3_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-
-	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
-	pm_runtime_set_suspended(dev);
 	return 0;
 }
 
@@ -830,21 +820,7 @@ static int amlogic_new_usb3_runtime_resume(struct device *dev)
 	return ret;
 }
 
-static int amlogic_new_usb3_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int amlogic_new_usb3_resume(struct device *dev)
-{
-	struct amlogic_usb_v2 *priv = dev_get_drvdata(dev);
-
-	return 0;
-}
-
-
 static const struct dev_pm_ops amlogic_new_usb3_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(amlogic_new_usb3_suspend, amlogic_new_usb3_resume)
 	SET_RUNTIME_PM_OPS(amlogic_new_usb3_runtime_suspend,
 		amlogic_new_usb3_runtime_resume,
 		NULL)

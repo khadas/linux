@@ -134,21 +134,10 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	devm_add_action_or_reset(dev,
 				 (void(*)(void *))clk_disable_unprepare,
 				 simple->clks[0]);
-	
+
 	if (ret)
 		goto err_resetc_assert;
-#if 1
-	simple->resets = devm_reset_control_get(dev, NULL);
-	if (IS_ERR(simple->resets)) {
-		ret = PTR_ERR(simple->resets);
-		dev_err(dev, "failed to get device reset, err=%d\n", ret);
-		return ret;
-	}
 
-	ret = reset_control_reset(simple->resets);
-	if (ret)
-		return ret;
-#endif
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
 		for (i = 0; i < simple->num_clocks; i++) {
@@ -231,20 +220,20 @@ static int __maybe_unused dwc3_of_simple_runtime_resume(struct device *dev)
 
 static int __maybe_unused dwc3_of_simple_suspend(struct device *dev)
 {
-	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
+	//struct dwc3_of_simple *simple = dev_get_drvdata(dev);
 
-	if (simple->need_reset)
-		reset_control_assert(simple->resets);
+	//if (simple->need_reset)
+		//reset_control_assert(simple->resets);
 
 	return 0;
 }
 
 static int __maybe_unused dwc3_of_simple_resume(struct device *dev)
 {
-	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
+	//struct dwc3_of_simple *simple = dev_get_drvdata(dev);
 
-	if (simple->need_reset)
-		reset_control_deassert(simple->resets);
+	//if (simple->need_reset)
+		//reset_control_deassert(simple->resets);
 
 	return 0;
 }

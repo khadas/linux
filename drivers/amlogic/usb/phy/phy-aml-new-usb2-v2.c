@@ -17,8 +17,6 @@
 #include <linux/amlogic/power_ctrl.h>
 #include <linux/amlogic/usb-v2.h>
 #include <linux/amlogic/usbtype.h>
-#include <linux/reset.h>
-
 #include "phy-aml-new-usb-v2.h"
 
 struct amlogic_usb_v2	*g_phy2_v2;
@@ -124,20 +122,10 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 	struct u2p_aml_regs_v2 u2p_aml_regs;
 	union u2p_r0_v2 reg0;
 	union u2p_r1_v2 reg1;
-	u32 val, ret;
+	u32 val;
 	u32 temp = 0;
 	u32 portnum = phy->portnum;
 	size_t mask = 0;
-
-	ret = reset_control_reset(phy->phy20_reset);
-	if (ret)
-		return ret;
-
-	ret = reset_control_reset(phy->phy21_reset);
-	if (ret)
-		return ret;
-
-	udelay(1000);
 
 	mask = (size_t)phy->reset_regs & 0xf;
 
@@ -145,9 +133,6 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
 			clk_prepare_enable(phy->clk);
 	}
-///hehe debug
-	if (phy->suspend_flag)
-		phy->suspend_flag = 0;
 
 	for (i = 0; i < portnum; i++)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
@@ -299,9 +284,8 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
 	u32 usb_reset_bit = 2;
 	u32 otg_phy_index = 1;
-	u32 val, ret;
+	u32 val;
 	u32 usbclk_div = 0;
-	
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -431,6 +415,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
+
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-1", &(pll_setting[0]));
 	if (retval < 0)
@@ -504,7 +489,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	}
 
 	/**USB PHY CLOCK ENABLE**/
-	phy->clk = devm_clk_get(dev, "xtal");
+	phy->clk = devm_clk_get(dev, "usb_phy");
 	if (!IS_ERR(phy->clk)) {
 		retval = clk_prepare_enable(phy->clk);
 		if (retval) {
@@ -514,22 +499,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 		}
 		phy->phy.flags = AML_USB2_PHY_ENABLE;
 	}
-	
-	phy->phy20_reset = devm_reset_control_get_exclusive(dev, "phy20");
-	if (IS_ERR(phy->phy20_reset))
-		return PTR_ERR(phy->phy20_reset);
-
-	ret = reset_control_deassert(phy->phy20_reset);
-	if (ret)
-		return ret;
-
-	phy->phy21_reset = devm_reset_control_get_exclusive(dev, "phy21");
-	if (IS_ERR(phy->phy21_reset))
-		return PTR_ERR(phy->phy21_reset);
-
-	ret = reset_control_deassert(phy->phy21_reset);
-	if (ret)
-		return ret;
 
 	if (pwr_ctl) {
 		phy->u2_ctrl_sleep_shift = u2_ctrl_sleep_shift;
@@ -544,21 +513,15 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 
-	g_phy2_v2 = phy;
+	pm_runtime_enable(phy->dev);
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	g_phy2_v2 = phy;
 
 	return 0;
 }
 
 static int amlogic_new_usb2_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
-	pm_runtime_set_suspended(dev);
 	return 0;
 }
 
@@ -572,23 +535,11 @@ static int amlogic_new_usb2_runtime_suspend(struct device *dev)
 static int amlogic_new_usb2_runtime_resume(struct device *dev)
 {
 	unsigned int ret = 0;
+
 	return ret;
 }
 
-static int amlogic_new_usb2_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int amlogic_new_usb2_resume(struct device *dev)
-{
-	struct amlogic_usb_v2 *priv = dev_get_drvdata(dev);
-
-	return 0;
-}
-
 static const struct dev_pm_ops amlogic_new_usb2_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(amlogic_new_usb2_suspend, amlogic_new_usb2_resume)
 	SET_RUNTIME_PM_OPS(amlogic_new_usb2_runtime_suspend,
 		amlogic_new_usb2_runtime_resume,
 		NULL)
