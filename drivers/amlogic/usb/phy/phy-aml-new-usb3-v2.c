@@ -448,6 +448,11 @@ static irqreturn_t amlogic_botg_detect_irq(int irq, void *dev)
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)dev;
 	union usb_r5_v2 r5 = {.d32 = 0};
 
+	if (!usb_new_aml_regs_v2.usb_r_v2[5]) {
+		pr_err("This otg port maybe type-A port!\n");
+		return IRQ_HANDLED;
+	}
+
 	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
 	r5.b.usb_iddig_irq = 0;
 	writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
