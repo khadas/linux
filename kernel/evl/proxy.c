@@ -292,8 +292,8 @@ static struct evl_element *
 proxy_factory_build(struct evl_factory *fac, const char *name,
 		void __user *u_attrs, u32 *state_offp)
 {
+	struct workqueue_struct *wq = NULL;
 	struct evl_proxy_attrs attrs;
-	struct workqueue_struct *wq;
 	struct evl_proxy *proxy;
 	struct proxy_out *out;
 	void *bufmem = NULL;
@@ -337,12 +337,11 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 			ret = -ENOMEM;
 			goto fail_bufmem;
 		}
-	}
-
-	wq = create_singlethread_workqueue(name);
-	if (!wq) {
-		ret = -ENOMEM;
-		goto fail_wq;
+		wq = create_singlethread_workqueue(name);
+		if (!wq) {
+			ret = -ENOMEM;
+			goto fail_wq;
+		}
 	}
 
 	ret = evl_init_element(&proxy->element, &evl_proxy_factory);
@@ -366,7 +365,8 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 	return &proxy->element;
 
 fail_element:
-	destroy_workqueue(wq);
+	if (wq)
+		destroy_workqueue(wq);
 fail_wq:
 	if (bufmem)
 		kfree(bufmem);
@@ -385,9 +385,11 @@ static void proxy_factory_dispose(struct evl_element *e)
 
 	proxy = container_of(e, struct evl_proxy, element);
 	out = &proxy->output;
-	irq_work_sync(&out->irq_work);
-	cancel_work_sync(&out->work);
-	destroy_workqueue(out->wq);
+	if (out->wq) {
+		irq_work_sync(&out->irq_work);
+		cancel_work_sync(&out->work);
+		destroy_workqueue(out->wq);
+	}
 	fput(proxy->filp);
 	evl_destroy_flag(&out->oob_drained);
 	evl_unindex_element(&proxy->element);
