@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Derived from Xenomai Cobalt, https://xenomai.org/
- * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
+ * Copyright (C) 2005-2020 Philippe Gerum  <rpm@xenomai.org>
  * Copyright (C) 2005 Gilles Chanteperdrix  <gilles.chanteperdrix@xenomai.org>
  */
 
@@ -90,6 +90,49 @@ static void prepare_for_signal(struct task_struct *p,
 	evl_switch_inband(cause);
 }
 
+/*
+ * Detecting __NR_clock_gettime here means that we are actually
+ * handling a fallback syscall for clock_gettime() from the vDSO,
+ * which failed performing a direct access to the clocksource.
+ * Therefore, such fallback is part of (very) slow path
+ * which is going to involve a switch to in-band mode unless we
+ * end up providing clock_gettime() directly from here.
+ */
+static __always_inline
+bool handle_vdso_fallback(int nr, struct pt_regs *regs)
+{
+	struct timespec __user *u_ts;
+	struct evl_clock *clock;
+	int clock_id, ret = 0;
+	struct timespec ts;
+
+	switch (nr) {
+	case __NR_clock_gettime:
+		clock_id = (int)oob_arg1(regs);
+		switch (clock_id) {
+		case CLOCK_MONOTONIC:
+			clock = &evl_mono_clock;
+			break;
+		case CLOCK_REALTIME:
+			clock = &evl_realtime_clock;
+			break;
+		default:
+			return false;
+		}
+		u_ts = (struct timespec __user *)oob_arg2(regs);
+		ts = ktime_to_timespec(evl_read_clock(clock));
+		if (raw_copy_to_user(u_ts, &ts, sizeof(ts)))
+			ret = -EFAULT;
+		break;
+	default:
+		return false;
+	}
+
+	set_oob_retval(regs, ret);
+
+	return true;
+}
+
 static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
@@ -153,6 +196,8 @@ do_inband:
 	 * the pipeline.
 	 */
 	if (inband_syscall_nr(regs, &nr)) {
+		if (handle_vdso_fallback(nr, regs))
+			return SYSCALL_STOP;
 		evl_switch_inband(SIGDEBUG_MIGRATE_SYSCALL);
 		return SYSCALL_PROPAGATE;
 	}
@@ -323,17 +368,17 @@ static int EVL_ni(void)
 
 #define __syshand__(__name)	((evl_syshand)(EVL_ ## __name))
 
-#define __EVL_CALL_ENTRIES			\
+#define __EVL_CALL_ENTRIES		\
 	__EVL_CALL_ENTRY(read)		\
-		__EVL_CALL_ENTRY(write)	\
-		__EVL_CALL_ENTRY(ioctl)
+	__EVL_CALL_ENTRY(write)		\
+	__EVL_CALL_ENTRY(ioctl)
 
 #define __EVL_NI	__syshand__(ni)
 
-#define __EVL_CALL_NI					\
+#define __EVL_CALL_NI			\
 	[0 ... __NR_EVL_SYSCALLS-1] = __EVL_NI,
 
-#define __EVL_CALL_ENTRY(__name)				\
+#define __EVL_CALL_ENTRY(__name)	\
 	[sys_evl_ ## __name] = __syshand__(__name),
 
 static const evl_syshand evl_syscalls[] = {
