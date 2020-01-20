@@ -1684,6 +1684,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				(blockbuf[offset + 1] == 0x5d) &&
 				(blockbuf[offset + 2] == 0xc4)) {
 				prxcap->hf_ieeeoui = HF_IEEEOUI;
+				prxcap->hdmi2ver = 0;
 				prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
 				prxcap->scdc_present =
 					!!(blockbuf[offset + 5] & (1 << 7));
@@ -1695,8 +1696,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 						    &blockbuf[offset]);
 				if (count > 7) {
 					unsigned char b7 = blockbuf[offset + 7];
-
 					prxcap->allm = !!(b7 & (1 << 1));
+					prxcap->hdmi2ver = 1;
 				}
 			}
 
@@ -1790,7 +1791,12 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 		Edid_DTD_parsing(prxcap, &blockbuf[blockbuf[2] + i * 18]);
 	if (vfpdb_offset)
 		Edid_ParsingVFPDB(prxcap, vfpdb_offset);
-
+	if ((prxcap->hdmi2ver == 1) &&
+	    (prxcap->dv_info.ver == 2) &&
+	    (prxcap->dv_info.sup_yuv422_12bit == 1))
+		prxcap->dv_info.dv_emp_cap = 1;
+	else
+		prxcap->dv_info.dv_emp_cap = 0;
 	return 0;
 }
 

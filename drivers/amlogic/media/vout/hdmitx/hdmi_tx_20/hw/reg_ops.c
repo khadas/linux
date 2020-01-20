@@ -522,7 +522,7 @@ void hdmitx_poll_reg(unsigned int addr, unsigned int val, unsigned long timeout)
 }
 EXPORT_SYMBOL(hdmitx_poll_reg);
 
-void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
+unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 	unsigned int mask)
 {
 	unsigned long rd_data;
@@ -533,6 +533,8 @@ void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 			(unsigned int)addr, (unsigned int)rd_data);
 		pr_info(REG "Error: HDMITX-DWC exp_data=0x%02x mask=0x%02x\n",
 			(unsigned int)exp_data, (unsigned int)mask);
+		return 1;
 	}
+	return 0;
 }
 EXPORT_SYMBOL(hdmitx_rd_check_reg);

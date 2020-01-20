@@ -160,6 +160,7 @@ enum mode_type {
 struct dv_vsif_para {
 	uint8_t ver; /* 0 or 1 or 2*/
 	uint8_t length;/*ver1: 15 or 12*/
+	uint8_t ver2_l11_flag;
 	union {
 		struct {
 			uint8_t low_latency:1;
@@ -172,6 +173,23 @@ struct dv_vsif_para {
 			uint8_t auxiliary_runversion;
 			uint8_t auxiliary_debug0;
 		} ver2;
+		struct {
+			uint8_t low_latency:1;
+			uint8_t dobly_vision_signal:1;
+			uint8_t backlt_ctrl_MD_present:1;
+			uint8_t auxiliary_MD_present:1;
+			uint8_t eff_tmax_PQ_hi;
+			uint8_t eff_tmax_PQ_low;
+			uint8_t auxiliary_runmode;
+			uint8_t auxiliary_runversion;
+			uint8_t auxiliary_debug0;
+			uint8_t content_type;
+			uint8_t content_sub_type;
+			uint8_t crf;
+			uint8_t intended_white_point;
+			uint8_t l11_byte2;
+			uint8_t l11_byte3;
+		} ver2_l11;
 	} vers;
 };
 
@@ -210,6 +228,7 @@ struct dv_info {
 	uint8_t sup_2160p60hz:1;
 	/* if as 0, then support 2160p30hz */
 	uint8_t sup_global_dimming:1;
+	uint8_t dv_emp_cap:1;
 	uint16_t Rx;
 	uint16_t Ry;
 	uint16_t Gx;
@@ -244,6 +263,13 @@ struct vout_device_s {
 	void  (*fresh_tx_emp_pkt)(unsigned char *data, unsigned int type,
 	unsigned int size);
 };
+
+extern int send_dv_emp(enum eotf_type type,
+	enum mode_type tunnel_mode,
+	struct dv_vsif_para *vsif_data,
+	unsigned char *p_vsem,
+	int vsem_len,
+	bool signal_sdr);
 
 struct vinfo_base_s {
 	enum vmode_e mode;

@@ -1,7 +1,7 @@
 obj-$(CONFIG_AMLOGIC_HDMITX)		+= hdmitx20.o
 
 hdmitx20-objs := hdmi_tx_main.o hdmi_tx_video.o hdmi_tx_audio.o hdmi_tx_edid.o \
-		 hdmi_tx_audio.o hdmi_tx_hdcp.o hdmi_tx_scdc.o \
+		 hdmi_tx_audio.o hdmi_tx_hdcp.o hdmi_tx_scdc.o dv_emp_vsem.o \
 
 obj-$(CONFIG_AMLOGIC_HDMITX) += hw/
 

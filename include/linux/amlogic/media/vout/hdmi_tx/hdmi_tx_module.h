@@ -127,6 +127,7 @@ struct rx_cap {
 	unsigned int hdr_sup_eotf_smpte_st_2084:1;
 	unsigned int hdr_sup_eotf_hlg:1;
 	unsigned int hdr_sup_SMD_type1:1;
+	unsigned int hdmi2ver;
 	unsigned char hdr_lum_max;
 	unsigned char hdr_lum_avg;
 	unsigned char hdr_lum_min;
@@ -871,6 +872,9 @@ extern void hdmitx_poll_reg(unsigned int addr, unsigned int val,
 extern void hdmitx_set_reg_bits(unsigned int addr, unsigned int value,
 	unsigned int offset, unsigned int len);
 extern unsigned int hdmitx_rd_reg(unsigned int addr);
-extern void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
+extern unsigned int hdmitx_rd_check_reg(unsigned int addr,
+	unsigned int exp_data,
 	unsigned int mask);
+extern void vsem_init_cfg(struct hdmitx_dev *hdev);
+
 #endif
