@@ -40,6 +40,7 @@ struct proxy_out {		/* oob_write->write */
 	hard_spinlock_t lock;
 	struct evl_poll_head poll_head;
 	struct proxy_ring ring;
+	struct workqueue_struct *wq;
 };
 
 struct evl_proxy {
@@ -109,7 +110,7 @@ static void relay_output_irq(struct irq_work *work)
 	struct evl_proxy *proxy;
 
 	proxy = container_of(work, struct evl_proxy, output.irq_work);
-	schedule_work(&proxy->output.work);
+	queue_work(proxy->output.wq, &proxy->output.work);
 }
 
 static bool can_write_buffer(struct proxy_out *out, size_t size)
@@ -292,6 +293,7 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 		void __user *u_attrs, u32 *state_offp)
 {
 	struct evl_proxy_attrs attrs;
+	struct workqueue_struct *wq;
 	struct evl_proxy *proxy;
 	struct proxy_out *out;
 	void *bufmem = NULL;
@@ -337,12 +339,19 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 		}
 	}
 
+	wq = create_singlethread_workqueue(name);
+	if (!wq) {
+		ret = -ENOMEM;
+		goto fail_wq;
+	}
+
 	ret = evl_init_element(&proxy->element, &evl_proxy_factory);
 	if (ret)
 		goto fail_element;
 
 	proxy->filp = filp;
 	out = &proxy->output;
+	out->wq = wq;
 	out->ring.bufmem = bufmem;
 	out->ring.bufsz = bufsz;
 	out->ring.granularity = attrs.granularity;
@@ -357,7 +366,10 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 	return &proxy->element;
 
 fail_element:
-	kfree(bufmem);
+	destroy_workqueue(wq);
+fail_wq:
+	if (bufmem)
+		kfree(bufmem);
 fail_bufmem:
 	kfree(proxy);
 fail_proxy:
@@ -375,6 +387,7 @@ static void proxy_factory_dispose(struct evl_element *e)
 	out = &proxy->output;
 	irq_work_sync(&out->irq_work);
 	cancel_work_sync(&out->work);
+	destroy_workqueue(out->wq);
 	fput(proxy->filp);
 	evl_destroy_flag(&out->oob_drained);
 	evl_unindex_element(&proxy->element);
