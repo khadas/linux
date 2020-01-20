@@ -72,7 +72,7 @@ static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
-static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
+void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
 	tunnel_mode, struct dv_vsif_para *data, bool switch_to_sdr);
 static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	struct hdr10plus_para *data);
@@ -1537,7 +1537,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 }
 
-static void update_current_para(struct hdmitx_dev *hdev)
+void update_current_para(struct hdmitx_dev *hdev)
 {
 	struct vinfo_s *info = NULL;
 	unsigned char mode[32];
@@ -1558,7 +1558,7 @@ static void update_current_para(struct hdmitx_dev *hdev)
 struct vsif_debug_save vsif_debug_info;
 struct vsif_debug_save hsty_vsif_config_data[8];
 unsigned int hsty_vsif_config_loc, hsty_vsif_config_num;
-static void hdmitx_set_vsif_pkt(enum eotf_type type,
+void hdmitx_set_vsif_pkt(enum eotf_type type,
 	enum mode_type tunnel_mode, struct dv_vsif_para *data, bool signal_sdr)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
@@ -1720,16 +1720,34 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		VEN_DB2[0] = 0x46;
 		VEN_DB2[1] = 0xd0;
 		VEN_DB2[2] = 0x00;
-		VEN_DB2[3] = (data->vers.ver2.low_latency) |
-			(data->vers.ver2.dobly_vision_signal << 1);
-		VEN_DB2[4] = (data->vers.ver2.eff_tmax_PQ_hi)
-			| (data->vers.ver2.auxiliary_MD_present << 6)
-			| (data->vers.ver2.backlt_ctrl_MD_present << 7);
-		VEN_DB2[5] = data->vers.ver2.eff_tmax_PQ_low;
-		VEN_DB2[6] = data->vers.ver2.auxiliary_runmode;
-		VEN_DB2[7] = data->vers.ver2.auxiliary_runversion;
-		VEN_DB2[8] = data->vers.ver2.auxiliary_debug0;
-
+		if (data->ver2_l11_flag == 1) {
+		        VEN_DB2[3] = (data->vers.ver2_l11.low_latency) |
+				(data->vers.ver2_l11.dobly_vision_signal << 1);
+		        VEN_DB2[4] = (data->vers.ver2_l11.eff_tmax_PQ_hi)
+				| (data->vers.ver2_l11.auxiliary_MD_present << 6)
+				| (data->vers.ver2_l11.backlt_ctrl_MD_present << 7)
+				| 0x20; /*L11_MD_Present*/
+			VEN_DB2[5] = data->vers.ver2_l11.eff_tmax_PQ_low;
+			VEN_DB2[6] = data->vers.ver2_l11.auxiliary_runmode;
+			VEN_DB2[7] = data->vers.ver2_l11.auxiliary_runversion;
+			VEN_DB2[8] = data->vers.ver2_l11.auxiliary_debug0;
+			VEN_DB2[9] = (data->vers.ver2_l11.content_type)
+				| (data->vers.ver2_l11.content_sub_type << 4);
+			VEN_DB2[10] = (data->vers.ver2_l11.intended_white_point)
+				| (data->vers.ver2_l11.crf << 4);
+			VEN_DB2[11] = data->vers.ver2_l11.l11_byte2;
+			VEN_DB2[12] = data->vers.ver2_l11.l11_byte3;
+		} else {
+			VEN_DB2[3] = (data->vers.ver2.low_latency) |
+				(data->vers.ver2.dobly_vision_signal << 1);
+			VEN_DB2[4] = (data->vers.ver2.eff_tmax_PQ_hi)
+				| (data->vers.ver2.auxiliary_MD_present << 6)
+				| (data->vers.ver2.backlt_ctrl_MD_present << 7);
+			VEN_DB2[5] = data->vers.ver2.eff_tmax_PQ_low;
+			VEN_DB2[6] = data->vers.ver2.auxiliary_runmode;
+			VEN_DB2[7] = data->vers.ver2.auxiliary_runversion;
+			VEN_DB2[8] = data->vers.ver2.auxiliary_debug0;
+		}
 		/*Dolby Vision standard case*/
 		if (type == EOTF_T_DOLBYVISION) {
 			/*first disable drm package*/
@@ -3208,6 +3226,8 @@ static ssize_t _show_dv_cap(struct device *dev,
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"EMP: %d\n", dv->dv_emp_cap);
 	pos += snprintf(buf + pos, PAGE_SIZE, "VSVDB: ");
 	for (i = 0; i < (dv->length + 1); i++)
 		pos += snprintf(buf+pos, PAGE_SIZE, "%02x",
@@ -5900,6 +5920,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 	hdmitx_device.nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&hdmitx_device.nb);
+	vsem_init_cfg(&hdmitx_device);
 
 	HDMITX_Meson_Init(&hdmitx_device);
 
