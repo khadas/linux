@@ -1461,6 +1461,10 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	unsigned int *ep_state;
 	struct urb_priv	*urb_priv;
 	int num_tds;
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_ctrlrequest *setup;
+#endif
+
 
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep,
 					true, true, __func__) <= 0)
@@ -1538,8 +1542,36 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	switch (usb_endpoint_type(&urb->ep->desc)) {
 
 	case USB_ENDPOINT_XFER_CONTROL:
-		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
-					 slot_id, ep_index);
+#ifdef CONFIG_AMLOGIC_USB
+		setup = (struct usb_ctrlrequest *)urb->setup_packet;
+		if (setup->bRequestType == 0x80 &&
+		    setup->bRequest == 0x06 &&
+		    setup->wValue == 0x0100 &&
+		    setup->wIndex != 0x0) {
+			if (((setup->wIndex >> 8) & 0xff) == 7) {
+				setup->wIndex = 0;
+				spin_unlock_irqrestore(&xhci->lock, flags);
+				ret = xhci_test_single_step(xhci,
+							    GFP_ATOMIC, urb,
+							    slot_id,
+							    ep_index, 1);
+				spin_lock_irqsave(&xhci->lock, flags);
+			} else if (((setup->wIndex >> 8) & 0xff) == 8) {
+				setup->wIndex = 0;
+				spin_unlock_irqrestore(&xhci->lock, flags);
+				ret = xhci_test_single_step(xhci,
+							    GFP_ATOMIC, urb,
+							    slot_id,
+							    ep_index, 2);
+				spin_lock_irqsave(&xhci->lock, flags);
+			}
+		} else {
+#endif
+			ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
+						 slot_id, ep_index);
+#ifdef CONFIG_AMLOGIC_USB
+		}
+#endif
 		break;
 	case USB_ENDPOINT_XFER_BULK:
 		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
@@ -3897,7 +3929,11 @@ int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)
 	u32 state;
 	int ret = 0;
 
+#ifdef CONFIG_AMLOGIC_USB
+	command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
+#else
 	command = xhci_alloc_command(xhci, false, GFP_KERNEL);
+#endif
 	if (!command)
 		return -ENOMEM;
 

@@ -297,6 +297,11 @@ static int xhci_plat_probe(struct platform_device *pdev)
 					 &xhci->imod_interval);
 	}
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (device_property_read_bool(&pdev->dev, "super_speed_support"))
+		xhci->quirks |= XHCI_AML_SUPER_SPEED_SUPPORT;
+#endif
+
 	hcd->usb_phy = devm_usb_get_phy_by_phandle(sysdev, "usb-phy", 0);
 	if (IS_ERR(hcd->usb_phy)) {
 		ret = PTR_ERR(hcd->usb_phy);

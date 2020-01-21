@@ -146,6 +146,14 @@ enum ffs_setup_state {
 	FFS_SETUP_CANCELLED
 };
 
+#ifdef CONFIG_AMLOGIC_USB
+#define FFS_BUFFER_MAX	100
+struct ffs_data_buffer {
+	char *data_ep;
+	int data_state;
+};
+#endif
+
 struct ffs_data {
 	struct usb_gadget		*gadget;
 
@@ -285,6 +293,10 @@ struct ffs_data {
 	 * destroyed by ffs_epfiles_destroy().
 	 */
 	struct ffs_epfile		*epfiles;
+#ifdef CONFIG_AMLOGIC_USB
+		char *data_ep0;
+		struct ffs_data_buffer buffer[FFS_BUFFER_MAX];
+#endif
 };
 
 

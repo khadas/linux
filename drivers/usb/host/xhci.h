@@ -431,6 +431,9 @@ struct xhci_op_regs {
 /* USB3 Protocol PORTLI  Port Link Information */
 #define PORT_RX_LANES(p)	(((p) >> 16) & 0xf)
 #define PORT_TX_LANES(p)	(((p) >> 20) & 0xf)
+#ifdef CONFIG_AMLOGIC_USB
+#define PORT_TEST_MODE_SHIFT	28
+#endif
 
 /* USB2 Protocol PORTHLPMC */
 #define PORT_HIRDM(p)((p) & 3)
@@ -1867,6 +1870,9 @@ struct xhci_hcd {
 #define XHCI_DEFAULT_PM_RUNTIME_ALLOW	BIT_ULL(33)
 #define XHCI_RESET_PLL_ON_DISCONNECT	BIT_ULL(34)
 #define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
+#ifdef CONFIG_AMLOGIC_USB
+#define XHCI_AML_SUPER_SPEED_SUPPORT   BIT_ULL(29)
+#endif
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -2674,5 +2680,13 @@ static inline const char *xhci_decode_ep_context(u32 info, u32 info2, u64 deq,
 
 	return str;
 }
+
+#ifdef CONFIG_AMLOGIC_USB
+//int xhci_start(struct xhci_hcd *xhci);
+int xhci_test_single_step(struct xhci_hcd *xhci, gfp_t mem_flags,
+			  struct urb *urb, int slot_id,
+			  unsigned int ep_index, int testflag);
+//extern void set_usb_phy_host_tuning(int port, int default_val);
+#endif
 
 #endif /* __LINUX_XHCI_HCD_H */

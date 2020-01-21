@@ -2321,6 +2321,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		       "Found %u USB 2.0 ports and %u USB 3.0 ports.",
 		       xhci->usb2_rhub.num_ports, xhci->usb3_rhub.num_ports);
 
+#ifdef CONFIG_AMLOGIC_USB
+	if ((xhci->quirks & XHCI_AML_SUPER_SPEED_SUPPORT) == 0)
+		xhci->usb3_rhub.num_ports = 0;
+#endif
+
 	/* Place limits on the number of roothub ports so that the hub
 	 * descriptors aren't longer than the USB core will allocate.
 	 */

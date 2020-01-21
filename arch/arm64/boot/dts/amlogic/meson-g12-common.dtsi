@@ -2516,6 +2516,9 @@
 				usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
 				clocks = <&clkc CLKID_USB>;
 				clock-names = "usb_general";
+				usb5v-supply = <&ao_5v>;
+				usb3v3-supply = <&vddao_3v3>;
+				usb1v8-supply = <&vddio_ao1v8>;
 			};
 		};
 

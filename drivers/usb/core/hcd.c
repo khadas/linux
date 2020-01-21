@@ -1209,8 +1209,16 @@ int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 		if (tmp == &urb->urb_list)
 			break;
 	}
-	if (tmp != &urb->urb_list)
-		return -EIDRM;
+
+#ifdef CONFIG_AMLOGIC_USB
+			if (!(HCD_DWC_OTG(hcd))) {
+				if (tmp != &urb->urb_list)
+					return -EIDRM;
+			}
+#else
+			if (tmp != &urb->urb_list)
+				return -EIDRM;
+#endif
 
 	/* Any status except -EINPROGRESS means something already started to
 	 * unlink this URB from the hardware.  So there's no more work to do.
@@ -1635,6 +1643,9 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
 	struct usb_anchor *anchor = urb->anchor;
 	int status = urb->unlinked;
+#ifndef CONFIG_AMLOGIC_USB
+	unsigned long flags;
+#endif
 
 	urb->hcpriv = NULL;
 	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
@@ -1651,7 +1662,23 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 
 	/* pass ownership to the completion handler */
 	urb->status = status;
+	/*
+	 * We disable local IRQs here avoid possible deadlock because
+	 * drivers may call spin_lock() to hold lock which might be
+	 * acquired in one hard interrupt handler.
+	 *
+	 * The local_irq_save()/local_irq_restore() around complete()
+	 * will be removed if current USB drivers have been cleaned up
+	 * and no one may trigger the above deadlock situation when
+	 * running complete() in tasklet.
+	 */
+#ifndef CONFIG_AMLOGIC_USB
+	local_irq_save(flags);
+#endif
 	urb->complete(urb);
+#ifndef CONFIG_AMLOGIC_USB
+	local_irq_restore(flags);
+#endif
 
 	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
@@ -2126,6 +2153,13 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	} else {
 		clear_bit(HCD_FLAG_RH_RUNNING, &hcd->flags);
 		hcd->state = HC_STATE_QUIESCING;
+#ifdef CONFIG_AMLOGIC_USB
+		if (PMSG_IS_AUTO(msg))
+			hcd->flags |= (1 << 31);
+		if (PMSG_IS_FREEZE(msg) | PMSG_IS_THAW(msg) |
+			PMSG_IS_RESTORE(msg))
+			hcd->flags |= (1 << 30);
+#endif
 		status = hcd->driver->bus_suspend(hcd);
 	}
 	if (status == 0) {
@@ -2186,6 +2220,14 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 		return 0;
 
 	hcd->state = HC_STATE_RESUMING;
+#ifdef CONFIG_AMLOGIC_USB
+	if (PMSG_IS_AUTO(msg))
+		hcd->flags |= (1 << 31);
+	if (PMSG_IS_FREEZE(msg) | PMSG_IS_THAW(msg) |
+		PMSG_IS_RESTORE(msg))
+		hcd->flags |= (1 << 30);
+#endif
+
 	status = hcd->driver->bus_resume(hcd);
 	clear_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 	if (status == 0)

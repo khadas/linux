@@ -32,6 +32,10 @@
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
 
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/amlogic/usbtype.h>
+#endif
+
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -929,6 +933,13 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	if (ret)
 		goto err0;
 
+#ifdef CONFIG_AMLOGIC_USB
+	reg = dwc3_readl(dwc->regs, DWC3_GUCTL1);
+	reg |= DWC3_GUCTL_NAKPERENHHS;
+	reg |= DWC3_GUCTL_PARKMODEDISABLESS;
+	dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
+#endif
+
 	if (!dwc->ulpi_ready) {
 		ret = dwc3_core_ulpi_init(dwc);
 		if (ret)
@@ -1130,6 +1141,13 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 			return ret;
 		}
 	}
+
+#ifdef CONFIG_AMLOGIC_USB
+	dwc->super_speed_support = 0;
+	if (dwc->usb3_phy)
+		if (dwc->usb3_phy->flags == AML_USB3_PHY_ENABLE)
+			dwc->super_speed_support = 1;
+#endif
 
 	dwc->usb3_generic_phy = devm_phy_get(dev, "usb3-phy");
 	if (IS_ERR(dwc->usb3_generic_phy)) {
@@ -1403,6 +1421,11 @@ static int dwc3_probe(struct platform_device *pdev)
 	int			ret;
 
 	void __iomem		*regs;
+#ifdef CONFIG_AMLOGIC_USB
+	struct regulator *usb_regulator_ao1v8;
+	struct regulator *usb_regulator_ao3v3;
+	struct regulator *usb_regulator_vcc5v;
+#endif
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
@@ -1467,6 +1490,57 @@ static int dwc3_probe(struct platform_device *pdev)
 	ret = clk_bulk_prepare_enable(dwc->num_clks, dwc->clks);
 	if (ret)
 		goto assert_reset;
+
+#ifdef CONFIG_AMLOGIC_USB
+	usb_regulator_ao1v8 = devm_regulator_get(dev, "usb1v8");
+	if (IS_ERR(usb_regulator_ao1v8)) {
+		dev_err(&pdev->dev, "failed  in regulator usb1v8 getting %ld\n",
+			PTR_ERR(usb_regulator_ao1v8));
+		ret = PTR_ERR(usb_regulator_ao1v8);
+		goto disable_clks;
+	}
+
+	ret = regulator_enable(usb_regulator_ao1v8);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"regulator usb1v8 enable failed:   %d\n", ret);
+		goto disable_clks;
+	}
+
+	usb_regulator_ao3v3 = devm_regulator_get(dev, "usb3v3");
+	if (IS_ERR(usb_regulator_ao3v3)) {
+		dev_err(&pdev->dev, "failed  in regulator usb3v3 getting %ld\n",
+			PTR_ERR(usb_regulator_ao3v3));
+		ret = PTR_ERR(usb_regulator_ao3v3);
+		goto put_regulator_ao1v8;
+	}
+
+	ret = regulator_enable(usb_regulator_ao3v3);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"regulator usb3v3 enable failed:   %d\n", ret);
+		goto put_regulator_ao1v8;
+	}
+
+	usb_regulator_vcc5v = devm_regulator_get(dev, "usb5v");
+	if (IS_ERR(usb_regulator_vcc5v)) {
+		dev_err(&pdev->dev, "failed  in regulator usb5v getting %ld\n",
+			PTR_ERR(usb_regulator_vcc5v));
+		ret = PTR_ERR(usb_regulator_vcc5v);
+		goto put_regulator_ao3v3;
+	}
+
+	ret = regulator_enable(usb_regulator_vcc5v);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"regulator usb5v enable failed:   %d\n", ret);
+		goto put_regulator_ao3v3;
+	}
+
+	dwc->usb_regulator_ao1v8	= usb_regulator_ao1v8;
+	dwc->usb_regulator_ao3v3	= usb_regulator_ao3v3;
+	dwc->usb_regulator_vcc5v	= usb_regulator_vcc5v;
+#endif
 
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
@@ -1539,6 +1613,13 @@ err1:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+#ifdef CONFIG_AMLOGIC_USB
+	regulator_disable(dwc->usb_regulator_vcc5v);
+put_regulator_ao3v3:
+	regulator_disable(dwc->usb_regulator_ao3v3);
+put_regulator_ao1v8:
+	regulator_disable(dwc->usb_regulator_ao1v8);
+#endif
 disable_clks:
 	clk_bulk_disable_unprepare(dwc->num_clks, dwc->clks);
 assert_reset:
