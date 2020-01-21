@@ -16,6 +16,7 @@
 #include <evl/thread.h>
 #include <evl/flag.h>
 #include <evl/file.h>
+#include <evl/stax.h>
 #include <asm/evl/fptest.h>
 #include <uapi/evl/devices/hectic.h>
 
@@ -49,6 +50,7 @@ struct rtswitch_context {
 
 	struct rtswitch_task *utask;
 	struct irq_work wake_utask;
+	struct evl_stax stax;
 	struct evl_file efile;
 };
 
@@ -537,6 +539,14 @@ static long hectic_ioctl(struct file *filp, unsigned int cmd,
 		u_lerr = (typeof(u_lerr))arg;
 		return copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
 			-EFAULT : 0;
+
+	case EVL_HECIOC_LOCK_STAX:
+		return evl_lock_stax(&ctx->stax);
+
+	case EVL_HECIOC_UNLOCK_STAX:
+		evl_unlock_stax(&ctx->stax);
+		return 0;
+
 	default:
 		return -ENOTTY;
 	}
@@ -570,6 +580,13 @@ static long hectic_oob_ioctl(struct file *filp, unsigned int cmd,
 		return raw_copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
 			-EFAULT : 0;
 
+	case EVL_HECIOC_LOCK_STAX:
+		return evl_lock_stax(&ctx->stax);
+
+	case EVL_HECIOC_UNLOCK_STAX:
+		evl_unlock_stax(&ctx->stax);
+		return 0;
+
 	default:
 		return -ENOTTY;
 	}
@@ -599,6 +616,7 @@ static int hectic_open(struct inode *inode, struct file *filp)
 
 	init_irq_work(&ctx->wake_utask, rtswitch_utask_waker);
 	evl_init_timer(&ctx->wake_up_delay, timed_wake_up);
+	evl_init_stax(&ctx->stax);
 
 	filp->private_data = ctx;
 
@@ -610,6 +628,7 @@ static int hectic_release(struct inode *inode, struct file *filp)
 	struct rtswitch_context *ctx = filp->private_data;
 	unsigned int i;
 
+	evl_destroy_stax(&ctx->stax);
 	evl_destroy_timer(&ctx->wake_up_delay);
 
 	if (ctx->tasks) {
