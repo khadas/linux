@@ -1,13 +1,24 @@
 menu "Out-of-band device drivers"
 
 config EVL_LATMUS
-	bool "Latency calibration and measurement"
+	bool "Timer latency calibration and measurement"
 	depends on EVL
 	default y
+	help
+	  This driver supports the latmus application for
+	  determining the best gravity values for the EVL core
+	  clock, and measuring the response time to timer events.
+	  If in doubt, say 'Y'.
 
 config EVL_HECTIC
 	bool "OOB context switching validator"
 	depends on EVL
 	default y
+	help
+	  This driver provides kernel support mainly to the
+	  hectic application, which validates the out-of-band
+	  context switching machinery. It is also required
+	  for running some tests from the EVL test suite.
+	  If in doubt, say 'Y'.
 
 endmenu
