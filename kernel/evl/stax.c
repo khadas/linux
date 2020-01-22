@@ -34,6 +34,15 @@ void evl_destroy_stax(struct evl_stax *stax)
 	evl_destroy_wait(&stax->oob_wait);
 }
 
+static inline bool oob_may_access(int gateval)
+{
+	/*
+	 * Out-of-band threads may access as long as no in-band thread
+	 * holds the stax.
+	 */
+	return !(gateval & STAX_INBAND_BIT);
+}
+
 static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 {
 	int old, new, prev, ret = 0;
@@ -58,16 +67,16 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 			goto out;
 	} while (!(prev & STAX_CLAIMED_BIT));
 
-	evl_add_wait_queue(&stax->oob_wait, EVL_INFINITE, EVL_REL);
+	do {
+		if (oob_may_access(atomic_read(&stax->gate)))
+			break;
+		evl_add_wait_queue(&stax->oob_wait, EVL_INFINITE, EVL_REL);
+		evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+		ret = evl_wait_schedule(&stax->oob_wait);
+		evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+	} while (!ret);
 
-	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
-
-	ret = evl_wait_schedule(&stax->oob_wait);
-	if (!ret)
-		return 0;
-
-	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
-
+	/* Clear the claim bit if nobody contends anymore. */
 	if (!evl_wait_active(&stax->oob_wait)) {
 		prev = atomic_read(&stax->gate);
 		do {
@@ -84,7 +93,7 @@ out:
 
 static int lock_from_oob(struct evl_stax *stax, bool wait)
 {
-	int old, prev, ret;
+	int old, prev, ret = 0;
 
 	for (;;) {
 		/*
@@ -100,25 +109,29 @@ static int lock_from_oob(struct evl_stax *stax, bool wait)
 		 * Retry if the section is still clear for entry from
 		 * oob.
 		 */
-		if (!(prev & STAX_INBAND_BIT))
+		if (oob_may_access(prev))
 			continue;
-		if (!wait)
-			return -EAGAIN;
+		if (!wait) {
+			ret = -EAGAIN;
+			break;
+		}
 		ret = claim_stax_from_oob(stax, prev);
 		if (ret)
 			break;
 	}
 
-	return 0;
+	return ret;
 }
 
-static inline bool inband_can_access(int gateval)
+static inline bool inband_may_access(int gateval)
 {
 	/*
-	 * The section is clear for entry by inband if the gate mask
-	 * is either zero, or STAX_INBAND_BIT is set.
+	 * The section is clear for entry by inband if the concurrency
+	 * value is either zero, or STAX_INBAND_BIT is set in the gate
+	 * mask.
 	 */
-	return !gateval || !!(gateval & STAX_INBAND_BIT);
+	return !(gateval & STAX_CONCURRENCY_MASK) ||
+		!!(gateval & STAX_INBAND_BIT);
 }
 
 static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
@@ -155,15 +168,10 @@ static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
 	} while (!(prev & STAX_CLAIMED_BIT));
 
 	for (;;) {
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
 		if (list_empty(&wq_entry.entry))
 			__add_wait_queue(&stax->inband_wait, &wq_entry);
 
-		if (inband_can_access(atomic_read(&stax->gate)))
+		if (inband_may_access(atomic_read(&stax->gate)))
 			break;
 
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -172,11 +180,16 @@ static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
 		schedule();
 		spin_lock_irqsave(&stax->inband_wait.lock, ib_flags);
 		evl_spin_lock_irqsave(&stax->oob_wait.lock, oob_flags);
+
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
 	}
 
 	list_del(&wq_entry.entry);
 
-	if (ret && !waitqueue_active(&stax->inband_wait)) {
+	if (!waitqueue_active(&stax->inband_wait)) {
 		prev = atomic_read(&stax->gate);
 		do {
 			old = prev;
@@ -193,7 +206,7 @@ out:
 
 static int lock_from_inband(struct evl_stax *stax, bool wait)
 {
-	int old, prev, new, ret;
+	int old, prev, new, ret = 0;
 
 	for (;;) {
 		old = atomic_read(&stax->gate);
@@ -201,13 +214,12 @@ static int lock_from_inband(struct evl_stax *stax, bool wait)
 		 * If oob currently owns the stax, we have
 		 * STAX_INBAND_BIT clear and at least one thread is
 		 * counted in the concurrency value.  Adding
-		 * STAX_INBAND_BIT to the non-zero old value ensures
-		 * cmpxchg() fails if oob currently owns the section.
+		 * STAX_INBAND_BIT to the non-zero concurrency value
+		 * ensures cmpxchg() fails if oob currently owns the
+		 * section.
 		 */
-		if (old) {
-			EVL_WARN_ON(CORE, old == STAX_CLAIMED_BIT);
+		if (old & STAX_CONCURRENCY_MASK)
 			old |= STAX_INBAND_BIT;
-		}
 		/* Keep the claim bit in arithmetics. */
 		new = ((old & ~STAX_INBAND_BIT) + 1) | STAX_INBAND_BIT;
 		prev = atomic_cmpxchg(&stax->gate, old, new);
@@ -217,16 +229,18 @@ static int lock_from_inband(struct evl_stax *stax, bool wait)
 		 * Retry if the section is still clear for entry from
 		 * inband.
 		 */
-		if (inband_can_access(prev))
+		if (inband_may_access(prev))
 			continue;
-		if (!wait)
-			return -EAGAIN;
+		if (!wait) {
+			ret = -EAGAIN;
+			break;
+		}
 		ret = claim_stax_from_inband(stax, prev);
 		if (ret)
-			return ret;
+			break;
 	}
 
-	return 0;
+	return ret;
 }
 
 int evl_lock_stax(struct evl_stax *stax)
@@ -266,8 +280,9 @@ static void unlock_from_oob(struct evl_stax *stax)
 	unsigned long flags;
 	int old, prev, new;
 
-	/* Try the fast path: non-contented (unclaimed by inband). */
+	/* Try the fast path: non-contended (unclaimed by inband). */
 	prev = atomic_read(&stax->gate);
+
 	while (!(prev & STAX_CLAIMED_BIT)) {
 		old = prev;
 		if (unlikely(!oob_unlock_sane(old)))
@@ -290,19 +305,17 @@ static void unlock_from_oob(struct evl_stax *stax)
 		old = prev;
 		new = old - 1;
 		if (unlikely(!oob_unlock_sane(old)))
-			break;	/* new cannot be zero here. */
-		if (!(new & STAX_CONCURRENCY_MASK))
-			new &= ~STAX_CLAIMED_BIT;
+			break;
 		prev = atomic_cmpxchg(&stax->gate, old, new);
 	} while (prev != old);
 
 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
-	if (!new)
+	if (!(new & STAX_CONCURRENCY_MASK))
 		irq_work_queue(&stax->irq_work);
 }
 
-static bool inband_unlock_sane(int gateval)
+static inline bool inband_unlock_sane(int gateval)
 {
 	return !EVL_WARN_ON(CORE,
 			!(gateval & STAX_CONCURRENCY_MASK) ||
@@ -314,8 +327,9 @@ static void unlock_from_inband(struct evl_stax *stax)
 	unsigned long flags;
 	int old, prev, new;
 
-	/* Try the fast path: non-contented (unclaimed by oob). */
+	/* Try the fast path: non-contended (unclaimed by oob). */
 	prev = atomic_read(&stax->gate);
+
 	while (!(prev & STAX_CLAIMED_BIT)) {
 		old = prev;
 		if (unlikely(!inband_unlock_sane(old)))
@@ -323,8 +337,8 @@ static void unlock_from_inband(struct evl_stax *stax)
 		/* Force slow path if claimed. */
 		old &= ~STAX_CLAIMED_BIT;
 		new = (old & ~STAX_INBAND_BIT) - 1;
-		if (!(new & STAX_CONCURRENCY_MASK))
-			new &= ~STAX_INBAND_BIT;
+		if (new & STAX_CONCURRENCY_MASK)
+			new |= STAX_INBAND_BIT;
 		prev = atomic_cmpxchg(&stax->gate, old, new);
 		if (prev == old)
 			return;
@@ -341,12 +355,12 @@ static void unlock_from_inband(struct evl_stax *stax)
 		if (!inband_unlock_sane(old))
 			goto out;
 		new = (old & ~STAX_INBAND_BIT) - 1;
-		if (!(new & STAX_CONCURRENCY_MASK))
-			new &= ~(STAX_INBAND_BIT|STAX_CLAIMED_BIT);
+		if (new & STAX_CONCURRENCY_MASK)
+			new |= STAX_INBAND_BIT;
 		prev = atomic_cmpxchg(&stax->gate, old, new);
 	} while (prev != old);
 
-	if (!new)
+	if (!(new & STAX_CONCURRENCY_MASK))
 		evl_flush_wait_locked(&stax->oob_wait, 0);
 out:
 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
