@@ -18,6 +18,7 @@ evl-y :=		\
 	tick.o		\
 	timer.o		\
 	wait.o		\
+	work.o		\
 	xbuf.o
 
 evl-$(CONFIG_FTRACE) +=	trace.o

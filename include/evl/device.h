@@ -15,6 +15,7 @@
 #include <evl/wait.h>
 #include <evl/poll.h>
 #include <evl/stax.h>
+#include <evl/work.h>
 
 #else  /* !CONFIG_EVL */
 
