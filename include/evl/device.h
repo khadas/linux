@@ -14,6 +14,7 @@
 #include <evl/mutex.h>
 #include <evl/wait.h>
 #include <evl/poll.h>
+#include <evl/stax.h>
 
 #else  /* !CONFIG_EVL */
 
