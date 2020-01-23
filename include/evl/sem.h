@@ -25,6 +25,7 @@ struct evl_ksem {
 
 static inline void evl_init_ksem(struct evl_ksem *ksem, unsigned int value)
 {
+	ksem->value = value;
 	evl_init_wait(&ksem->wait, &evl_mono_clock, EVL_WAIT_PRIO);
 }
 

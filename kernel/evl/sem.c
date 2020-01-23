@@ -29,8 +29,7 @@ EXPORT_SYMBOL_GPL(evl_down_timeout);
 
 int evl_down(struct evl_ksem *ksem)
 {
-	return evl_wait_event_timeout(&ksem->wait, EVL_INFINITE,
-				EVL_REL, down_ksem(ksem));
+	return evl_wait_event(&ksem->wait, down_ksem(ksem));
 }
 EXPORT_SYMBOL_GPL(evl_down);
 
@@ -52,10 +51,8 @@ void evl_up(struct evl_ksem *ksem)
 	unsigned long flags;
 
 	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
-
-	if (!evl_wake_up_head(&ksem->wait))
-		ksem->value++;
-
+	ksem->value++;
+	evl_wake_up_head(&ksem->wait);
 	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
 	evl_schedule();
 }
