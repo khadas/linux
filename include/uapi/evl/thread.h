@@ -32,6 +32,7 @@
 #define T_USER    0x00004000 /*< Userland thread */
 #define T_WOSS    0x00008000 /*< Warn on stage switch (SIGDEBUG) */
 #define T_WOLI    0x00010000 /*< Warn on locking inconsistency (SIGDEBUG)  */
+#define T_WOSX    0x00020000 /*< Warn on stage exclusion (SIGDEBUG)  */
 
 /* Information flags (shared) */
 
@@ -46,6 +47,7 @@
 #define T_SCHEDP  0x00000100 /*< schedparam propagation is pending */
 #define T_BCAST   0x00000200 /*< Woken up upon resource broadcast */
 #define T_SIGNAL  0x00000400 /*< Event monitor signaled */
+#define T_SXALERT 0x00000800 /*< Stage exclusion alert (SIGDEBUG sent) */
 
 /* Local information flags (private to current thread) */
 

@@ -1368,7 +1368,7 @@ int evl_update_mode(__u32 mask, bool set)
 	if (curr == NULL)
 		return -EPERM;
 
-	if (mask & ~(T_WOSS|T_WOLI))
+	if (mask & ~(T_WOSS|T_WOLI|T_WOSX))
 		return -EINVAL;
 
 	trace_evl_thread_update_mode(mask, set);

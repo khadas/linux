@@ -45,8 +45,10 @@ static inline bool oob_may_access(int gateval)
 
 static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 {
+	struct evl_thread *curr = evl_current();
 	int old, new, prev, ret = 0;
 	unsigned long flags;
+	bool notify = false;
 
 	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
 
@@ -66,6 +68,9 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 		if (!(prev & STAX_INBAND_BIT))
 			goto out;
 	} while (!(prev & STAX_CLAIMED_BIT));
+
+	if (curr->state & T_WOSX)
+		notify = true;
 
 	do {
 		if (oob_may_access(atomic_read(&stax->gate)))
@@ -87,6 +92,9 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 	}
 out:
 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+
+	if (notify)
+		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_STAGE_LOCKED);
 
 	return ret;
 }
