@@ -1554,9 +1554,10 @@ static void handle_schedule_event(struct task_struct *next_task)
 		evl_spin_unlock(&next->rq->lock);
 		next->local_info |= T_HICCUP;
 	}
-	evl_spin_unlock_irqrestore(&next->lock, flags);
 
 check:
+	evl_spin_unlock_irqrestore(&next->lock, flags);
+
 	/*
 	 * Do basic sanity checks on the incoming thread state.
 	 * NOTE: we allow ptraced threads to run shortly in order to
