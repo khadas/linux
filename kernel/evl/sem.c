@@ -57,3 +57,15 @@ void evl_up(struct evl_ksem *ksem)
 	evl_schedule();
 }
 EXPORT_SYMBOL_GPL(evl_up);
+
+void evl_broadcast(struct evl_ksem *ksem)
+{
+	unsigned long flags;
+
+	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
+	ksem->value = 0;
+	evl_flush_wait_locked(&ksem->wait, T_BCAST);
+	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
+	evl_schedule();
+}
+EXPORT_SYMBOL_GPL(evl_broadcast);

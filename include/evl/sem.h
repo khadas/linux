@@ -43,9 +43,4 @@ int evl_trydown(struct evl_ksem *ksem);
 
 void evl_up(struct evl_ksem *ksem);
 
-static inline void evl_broadcast_ksem(struct evl_ksem *ksem)
-{
-	evl_flush_wait(&ksem->wait, T_BCAST);
-}
-
 #endif /* !_EVL_SEM_H */
