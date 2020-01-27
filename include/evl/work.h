@@ -9,7 +9,7 @@
 
 #include <linux/irq_work.h>
 #include <linux/workqueue.h>
-#include <evl/sem.h>
+#include <evl/flag.h>
 
 struct evl_work {
 	struct irq_work irq_work;
@@ -20,7 +20,7 @@ struct evl_work {
 
 struct evl_sync_work {
 	struct evl_work work;
-	struct evl_ksem done;
+	struct evl_flag done;
 	int result;
 };
 

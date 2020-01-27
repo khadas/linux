@@ -20,7 +20,7 @@ static void do_wq_work_sync(struct work_struct *wq_work)
 
 	sync_work = container_of(wq_work, struct evl_sync_work, work.wq_work);
 	sync_work->result = sync_work->work.handler(sync_work);
-	evl_up(&sync_work->done);
+	evl_raise_flag(&sync_work->done);
 }
 
 static void do_irq_work(struct irq_work *irq_work)
@@ -47,7 +47,7 @@ void evl_init_sync_work(struct evl_sync_work *sync_work,
 	init_irq_work(&work->irq_work, do_irq_work);
 	INIT_WORK(&work->wq_work, do_wq_work_sync);
 	work->handler = (typeof(work->handler))handler;
-	evl_init_ksem(&sync_work->done, 0);
+	evl_init_flag(&sync_work->done);
 }
 
 void evl_call_inband_from(struct evl_work *work,
@@ -72,5 +72,5 @@ int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
 
 	evl_call_inband_from(work, wq);
 
-	return evl_down(&sync_work->done) ?: sync_work->result;
+	return evl_wait_flag(&sync_work->done) ?: sync_work->result;
 }
