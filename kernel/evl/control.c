@@ -10,6 +10,7 @@
 #include <evl/memory.h>
 #include <evl/thread.h>
 #include <evl/factory.h>
+#include <evl/flag.h>
 #include <evl/tick.h>
 #include <evl/sched.h>
 #include <evl/control.h>
@@ -251,6 +252,34 @@ static long control_common_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+static int control_open(struct inode *inode, struct file *filp)
+{
+	struct oob_mm_state *oob_mm = dovetail_mm_state();
+	int ret = 0;
+
+	/*
+	 * Opening the control device is a strong hint that we are
+	 * about to host EVL threads in the current process, so this
+	 * makes sense to allocate the resources we'll need to
+	 * maintain them here. The in-band kernel has no way to figure
+	 * out when initializing the oob context for a new mm might be
+	 * relevant, so this has to be done on demand based on some
+	 * information only EVL has. This is the reason why there is
+	 * no initialization call for the oob_mm state defined in the
+	 * Dovetail interface, the in-band kernel would not know when
+	 * to call it.
+	 */
+
+	if (!oob_mm)	/* Userland only. */
+		return -EPERM;
+
+	/* The control device might be opened multiple times. */
+	if (!test_and_set_bit(EVL_MM_INIT_BIT, &oob_mm->flags))
+		ret = activate_oob_mm_state(oob_mm);
+
+	return ret;
+}
+
 static long control_oob_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
@@ -291,6 +320,7 @@ static int control_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 static const struct file_operations control_fops = {
+	.open		=	control_open,
 	.oob_ioctl	=	control_oob_ioctl,
 	.unlocked_ioctl	=	control_ioctl,
 	.mmap		=	control_mmap,

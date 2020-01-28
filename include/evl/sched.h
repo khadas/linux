@@ -10,6 +10,7 @@
 
 #include <linux/percpu.h>
 #include <linux/list.h>
+#include <linux/irq_pipeline.h>
 #include <evl/lock.h>
 #include <evl/thread.h>
 #include <evl/sched/queue.h>
@@ -280,6 +281,8 @@ void evl_migrate_thread(struct evl_thread *thread,
 { }
 
 #endif /* !CONFIG_SMP */
+
+void evl_start_ptsync(struct evl_thread *stopper);
 
 #define for_each_evl_cpu(cpu)		\
 	for_each_online_cpu(cpu)	\

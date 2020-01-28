@@ -23,6 +23,7 @@
 #include <evl/tick.h>
 #include <evl/monitor.h>
 #include <evl/mutex.h>
+#include <evl/flag.h>
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>
 
@@ -728,8 +729,7 @@ static inline void set_next_running(struct evl_rq *rq,
 		evl_stop_timer(&rq->rrbtimer);
 }
 
-/* rq->curr->lock + rq->lock held, irqs off. */
-static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+static struct evl_thread *__pick_next_thread(struct evl_rq *rq)
 {
 	struct evl_sched_class *sched_class;
 	struct evl_thread *curr = rq->curr;
@@ -763,13 +763,49 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	 */
 	for_each_evl_sched_class(sched_class) {
 		next = sched_class->sched_pick(rq);
-		if (likely(next)) {
-			set_next_running(rq, next);
+		if (likely(next))
 			return next;
-		}
 	}
 
 	return NULL; /* NOT REACHED (idle class). */
+}
+
+/* rq->curr->lock + rq->lock held, irqs off. */
+static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+{
+	struct oob_mm_state *oob_mm;
+	struct evl_thread *next;
+
+	for (;;) {
+		next = __pick_next_thread(rq);
+		oob_mm = next->oob_mm;
+		if (unlikely(!oob_mm)) /* Includes the root thread. */
+			break;
+		/*
+		 * Obey any pending request for a ptsync freeze.
+		 * Either we freeze @next before a sigwake event lifts
+		 * T_PTSYNC, setting T_PTSTOP, or after in which case
+		 * we already have T_PTSTOP set so we don't have to
+		 * raise T_PTSYNC. The basic assumption is that we
+		 * should get SIGSTOP/SIGTRAP for any thread involved.
+		 */
+		if (likely(!test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags)))
+			break;	/* Fast and most likely path. */
+		if (next->info & (T_PTSTOP|T_PTSIG|T_KICKED))
+			break;
+		/*
+		 * NOTE: We hold next->rq->lock by construction, so
+		 * changing next->state is ok despite that we don't
+		 * hold next->lock. This properly serializes with
+		 * evl_kick_thread() which might raise T_PTSTOP.
+		 */
+		next->state |= T_PTSYNC;
+		next->state &= ~T_READY;
+	}
+
+	set_next_running(rq, next);
+
+	return next;
 }
 
 static inline void prepare_rq_switch(struct evl_rq *this_rq,
@@ -924,10 +960,44 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 }
 EXPORT_SYMBOL_GPL(__evl_schedule);
 
+/* this_rq->lock held, oob stage stalled. */
+static void start_ptsync_locked(struct evl_thread *stopper,
+				struct evl_rq *this_rq)
+{
+	struct oob_mm_state *oob_mm = stopper->oob_mm;
+
+	if (!test_and_set_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags)) {
+#ifdef CONFIG_SMP
+		cpumask_copy(&this_rq->resched_cpus, &evl_oob_cpus);
+		cpumask_clear_cpu(raw_smp_processor_id(), &this_rq->resched_cpus);
+#endif
+		evl_set_self_resched(this_rq);
+	}
+}
+
+void evl_start_ptsync(struct evl_thread *stopper)
+{
+	struct evl_rq *this_rq;
+	unsigned long flags;
+
+	if (EVL_WARN_ON(CORE, !(stopper->state & T_USER)))
+		return;
+
+	flags = oob_irq_save();
+	this_rq = this_evl_rq();
+	evl_spin_lock(&this_rq->lock);
+	start_ptsync_locked(stopper, this_rq);
+	evl_spin_unlock_irqrestore(&this_rq->lock, flags);
+}
+
 void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 
+	/*
+	 * If T_PTSTOP is set, pick_next_thread() is not allowed to
+	 * freeze @thread while in flight to the out-of-band stage.
+	 */
 	if (check_cpu_affinity(p))
 		evl_release_thread(thread, T_INBAND, 0);
 
@@ -936,20 +1006,20 @@ void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
 
 int evl_switch_oob(void)
 {
+	struct evl_thread *curr = evl_current();
 	struct task_struct *p = current;
-	struct evl_thread *curr;
+	unsigned long flags;
 	int ret;
 
 	inband_context_only();
 
-	curr = evl_current();
 	if (curr == NULL)
 		return -EPERM;
 
 	if (signal_pending(p))
 		return -ERESTARTSYS;
 
-	trace_evl_switching_oob(curr);
+	trace_evl_switch_oob(curr);
 
 	evl_clear_sync_uwindow(curr, T_INBAND);
 
@@ -968,21 +1038,23 @@ int evl_switch_oob(void)
 	 */
 	oob_context_only();
 	finish_rq_switch_from_inband();
+
 	evl_test_cancel();
 
 	trace_evl_switched_oob(curr);
 
 	/*
-	 * Recheck pending signals once again. As we block task
-	 * wakeups during the stage transition and handle_sigwake_event()
-	 * ignores signals until T_INBAND is cleared, any signal in
-	 * between is just silently queued up to here.
+	 * Since handle_sigwake_event()->evl_kick_thread() won't set
+	 * T_KICKED unless T_INBAND is cleared, a signal received
+	 * during the stage transition process might have gone
+	 * unnoticed. Recheck for signals here and raise T_KICKED if
+	 * some are pending, so that we switch back in-band asap for
+	 * handling them.
 	 */
 	if (signal_pending(p)) {
-		evl_switch_inband(!(curr->state & T_SSTEP) ?
-				SIGDEBUG_MIGRATE_SIGNAL:
-				SIGDEBUG_NONE);
-		return -ERESTARTSYS;
+		evl_spin_lock_irqsave(&curr->rq->lock, flags);
+		curr->info |= T_KICKED;
+		evl_spin_unlock_irqrestore(&curr->rq->lock, flags);
 	}
 
 	return 0;
@@ -994,39 +1066,65 @@ void evl_switch_inband(int cause)
 	struct evl_thread *curr = evl_current();
 	struct task_struct *p = current;
 	struct kernel_siginfo si;
-	struct evl_rq *rq;
+	struct evl_rq *this_rq;
+	bool notify;
 
 	oob_context_only();
 
-	trace_evl_switching_inband(cause);
+	trace_evl_switch_inband(cause);
 
 	/*
 	 * This is the only location where we may assert T_INBAND for
 	 * a thread. Basic assumption: switching to the inband stage
 	 * only applies to the current thread running out-of-band on
-	 * this CPU.
-	 *
-	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
-	 * kernel is allowed to take interrupts again, so that
-	 * try_to_wake_up() does not block the wake up request for the
-	 * switching thread as a result of testing task_is_off_stage().
+	 * this CPU. See caveat about dovetail_leave_oob() below.
 	 */
 	oob_irq_disable();
 	irq_work_queue(&curr->inband_work);
+
 	evl_spin_lock(&curr->lock);
-	rq = curr->rq;
-	evl_spin_lock(&rq->lock);
+	this_rq = curr->rq;
+	evl_spin_lock(&this_rq->lock);
+
 	if (curr->state & T_READY) {
 		evl_dequeue_thread(curr);
 		curr->state &= ~T_READY;
 	}
-	curr->info &= ~EVL_THREAD_INFO_MASK;
+
 	curr->state |= T_INBAND;
 	curr->local_info &= ~T_SYSRST;
-	evl_set_resched(rq);
-	evl_spin_unlock(&rq->lock);
+	notify = curr->state & T_USER && cause > SIGDEBUG_NONE;
+
+	/*
+	 * If we are initiating the ptsync sequence on breakpoint or
+	 * SIGSTOP/SIGINT is pending, do not send SIGDEBUG since
+	 * switching in-band is ok.
+	 */
+	if (cause == SIGDEBUG_TRAP) {
+		curr->info |= T_PTSTOP;
+		curr->info &= ~T_PTJOIN;
+		start_ptsync_locked(curr, this_rq);
+	} else if (curr->info & T_PTSIG) {
+		curr->info &= ~T_PTSIG;
+		notify = false;
+	}
+
+	curr->info &= ~EVL_THREAD_INFO_MASK;
+
+	evl_set_resched(this_rq);
+
+	evl_spin_unlock(&this_rq->lock);
 	evl_spin_unlock(&curr->lock);
+
+	/*
+	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
+	 * kernel is allowed to take interrupts again, so that
+	 * try_to_wake_up() does not block the wake up request for the
+	 * switching thread as a result of testing
+	 * task_is_off_stage().
+	 */
 	dovetail_leave_oob();
+
 	__evl_schedule();
 	/*
 	 * this_rq()->lock was released when the root thread resumed
@@ -1062,7 +1160,7 @@ void evl_switch_inband(int cause)
 	 */
 	evl_propagate_schedparam_change(curr);
 
-	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
+	if (notify) {
 		/*
 		 * Help debugging spurious stage switches by sending
 		 * SIGDEBUG. We are running inband on the context of

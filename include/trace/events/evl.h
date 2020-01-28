@@ -487,7 +487,7 @@ DEFINE_EVENT(curr_thread_event, evl_watchdog_signal,
 	TP_ARGS(curr)
 );
 
-DEFINE_EVENT(curr_thread_event, evl_switching_oob,
+DEFINE_EVENT(curr_thread_event, evl_switch_oob,
 	TP_PROTO(struct evl_thread *curr),
 	TP_ARGS(curr)
 );
@@ -499,12 +499,18 @@ DEFINE_EVENT(curr_thread_event, evl_switched_oob,
 
 #define evl_print_switch_cause(cause)					\
 	__print_symbolic(cause,						\
-			 { SIGDEBUG_NONE,		"undefined" },	\
-			 { SIGDEBUG_MIGRATE_SIGNAL,	"signal" },	\
-			 { SIGDEBUG_MIGRATE_SYSCALL,	"syscall" },	\
-			 { SIGDEBUG_MIGRATE_FAULT,	"fault" })
+			{ SIGDEBUG_TRAP,		"breakpoint trap" }, \
+			{ SIGDEBUG_NONE,		"undefined" },	\
+			{ SIGDEBUG_MIGRATE_SIGNAL,	"signal" },	\
+			{ SIGDEBUG_MIGRATE_SYSCALL,	"syscall" },	\
+			{ SIGDEBUG_MIGRATE_FAULT,	"fault" },	\
+			{ SIGDEBUG_MIGRATE_PRIOINV,     "priority inversion" }, \
+			{ SIGDEBUG_WATCHDOG,		"watchdog" },	\
+			{ SIGDEBUG_MUTEX_IMBALANCE,     "mutex imbalance" }, \
+			{ SIGDEBUG_MUTEX_SLEEP,         "mutex sleep" }, \
+			{ SIGDEBUG_STAGE_LOCKED,        "stage exclusion" } )
 
-TRACE_EVENT(evl_switching_inband,
+TRACE_EVENT(evl_switch_inband,
 	TP_PROTO(int cause),
 	TP_ARGS(cause),
 

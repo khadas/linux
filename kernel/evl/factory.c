@@ -19,6 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/hashtable.h>
 #include <linux/stringhash.h>
+#include <linux/dovetail.h>
 #include <evl/assert.h>
 #include <evl/file.h>
 #include <evl/control.h>
@@ -83,11 +84,12 @@ void evl_destroy_element(struct evl_element *e)
 void evl_get_element(struct evl_element *e)
 {
 	unsigned long flags;
+	int old_refs;
 
 	raw_spin_lock_irqsave(&e->ref_lock, flags);
-	EVL_WARN_ON(CORE, e->refs == 0);
-	e->refs++;
+	old_refs = e->refs++;
 	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+	EVL_WARN_ON(CORE, old_refs == 0);
 }
 
 int evl_open_element(struct inode *inode, struct file *filp)
@@ -268,6 +270,7 @@ static struct device *create_device(dev_t rdev, struct evl_factory *fac,
 	dev->groups = fac->attrs;
 	dev->release = release_device;
 	dev_set_drvdata(dev, drvdata);
+
 	ret = dev_set_name(dev, "%s", name);
 	if (ret)
 		goto fail;
