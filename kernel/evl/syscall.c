@@ -57,7 +57,6 @@ static void prepare_for_signal(struct task_struct *p,
 			struct evl_thread *curr,
 			struct pt_regs *regs)
 {
-	int cause = SIGDEBUG_NONE;
 	unsigned long flags;
 
 	/*
@@ -69,15 +68,21 @@ static void prepare_for_signal(struct task_struct *p,
 
 	/*
 	 * @curr == this_evl_rq()->curr over oob so no need to grab
-	 * @curr->lock.
+	 * @curr->lock (i.e. @curr cannot go away under out feet).
 	 */
 	evl_spin_lock_irqsave(&curr->rq->lock, flags);
 
+	/*
+	 * We are called from out-of-band mode only to act upon a
+	 * pending signal receipt. We may observe signal_pending(p)
+	 * which implies that T_KICKED was set too
+	 * (handle_sigwake_event()), or T_KICKED alone which means
+	 * that we have been unblocked from a wait for some other
+	 * reason.
+	 */
 	if (curr->info & T_KICKED) {
 		if (signal_pending(p)) {
 			set_oob_error(regs, -ERESTARTSYS);
-			if (!(curr->state & T_SSTEP))
-				cause = SIGDEBUG_MIGRATE_SIGNAL;
 			curr->info &= ~T_BREAK;
 		}
 		curr->info &= ~T_KICKED;
@@ -87,7 +92,7 @@ static void prepare_for_signal(struct task_struct *p,
 
 	evl_test_cancel();
 
-	evl_switch_inband(cause);
+	evl_switch_inband(SIGDEBUG_MIGRATE_SIGNAL);
 }
 
 /*
@@ -241,7 +246,14 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	trace_evl_inband_sysentry(nr);
 
 	ret = evl_switch_oob();
-	if (ret) {
+	/*
+	 * -ERESTARTSYS might be received if switching oob was blocked
+	 * by a pending signal, otherwise -EINTR might be received
+	 * upon signal detection after the transition to oob context,
+	 * in which case the common logic applies (i.e. based on
+	 * T_KICKED and/or signal_pending()).
+	 */
+	if (ret == -ERESTARTSYS) {
 		set_oob_error(regs, ret);
 		goto done;
 	}
@@ -250,14 +262,16 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 
 	if (!evl_is_inband()) {
 		p = current;
-		if (signal_pending(p))
+		if (signal_pending(p) || (curr->info & T_KICKED))
 			prepare_for_signal(p, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
 			evl_switch_inband(SIGDEBUG_NONE);
 	}
 done:
-	curr->local_info &= ~T_HICCUP;
+	if (curr->local_info & T_IGNOVR)
+		curr->local_info &= ~T_IGNOVR;
+
 	evl_inc_counter(&curr->stat.sc);
 	evl_sync_uwindow(curr);
 

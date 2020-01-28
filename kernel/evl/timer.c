@@ -449,7 +449,7 @@ done:
 	 * the caller.
 	 */
 	thread = evl_current();
-	if (thread->local_info & T_HICCUP)
+	if (thread->local_info & T_IGNOVR)
 		return 0;
 
 	return overruns;

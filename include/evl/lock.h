@@ -6,7 +6,7 @@
 #ifndef _EVL_LOCK_H
 #define _EVL_LOCK_H
 
-#include <linux/irq_pipeline.h>
+#include <linux/spinlock.h>
 
 /*
  * The spinlock API used in the EVL core, which preserves Dovetail's

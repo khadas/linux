@@ -27,8 +27,18 @@
 #include <uapi/evl/sched.h>
 #include <asm/evl/thread.h>
 
-#define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT)
+/* All bits which may cause an EVL thread to block in oob context. */
+#define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT|T_PTSYNC)
+/* Information bits an EVL thread may receive from a blocking op. */
 #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST)
+
+/*
+ * These are special internal values of SIGDEBUG causes which are
+ * never sent to user-space, but specifically handled by
+ * evl_switch_inband().
+ */
+#define SIGDEBUG_NONE   0
+#define SIGDEBUG_TRAP  -1
 
 struct evl_thread;
 struct evl_rq;
@@ -54,7 +64,7 @@ struct evl_thread {
 	evl_spinlock_t lock;
 
 	/*
-	 * Shared data, covered by ->lock.
+	 * Shared thread-specific data, covered by ->lock.
 	 */
 	struct evl_rq *rq;
 	struct evl_sched_class *base_class;
@@ -84,11 +94,18 @@ struct evl_thread {
 
 	struct evl_timer rtimer;  /* Resource timer */
 	struct evl_timer ptimer;  /* Periodic timer */
-	ktime_t rrperiod;  /* Round-robin period (ns) */
+	ktime_t rrperiod;	  /* Round-robin period (ns) */
 
 	/*
-	 * Shared data, covered by both thread->lock AND
-	 * thread->rq->lock.
+	 * Shared scheduler-specific data covered by both thread->lock
+	 * AND thread->rq->lock. For such data, the first lock
+	 * protects against the thread moving to a different rq, it
+	 * may be omitted if the target cannot be subject to such
+	 * migration (i.e. @thread == evl_this_rq()->curr, which
+	 * implies that we are out-of-band and thus cannot trigger
+	 * evl_migrate_thread()). The second one serializes with the
+	 * scheduler core and must ALWAYS be taken for accessing this
+	 * data.
 	 */
 	__u32 state;
 	__u32 info;
@@ -105,7 +122,8 @@ struct evl_thread {
 	struct list_head next;		/* in evl_thread_list */
 
 	/*
-	 * Thread-local data the owner may modify locklessly.
+	 * Thread-local data only the owner may modify, therefore it
+	 * may do so locklessly.
 	 */
 	struct dovetail_altsched_context altsched;
 	__u32 local_info;
@@ -136,6 +154,8 @@ struct evl_thread {
 	struct completion exited;
 	kernel_cap_t raised_cap;
 	struct list_head kill_next;
+	struct oob_mm_state *oob_mm; /* Mostly RO. */
+	struct list_head ptsync_next; /* covered by oob_mm->lock. */
 	char *name;
 };
 
@@ -270,7 +290,8 @@ void evl_get_thread_state(struct evl_thread *thread,
 
 int evl_detach_self(void);
 
-void evl_kick_thread(struct evl_thread *thread);
+void evl_kick_thread(struct evl_thread *thread,
+		int info);
 
 void evl_demote_thread(struct evl_thread *thread);
 
@@ -342,5 +363,7 @@ void evl_set_kthread_priority(struct evl_kthread *thread,
 			int priority);
 
 pid_t evl_get_inband_pid(struct evl_thread *thread);
+
+int activate_oob_mm_state(struct oob_mm_state *p);
 
 #endif /* !_EVL_THREAD_H */
