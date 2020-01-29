@@ -21,7 +21,7 @@
 #include <evl/control.h>
 #include <trace/events/evl.h>
 
-static DEFINE_PER_CPU(struct clock_proxy_device *, proxy_tick_device);
+static DEFINE_PER_CPU(struct clock_proxy_device *, proxy_device);
 
 static int proxy_set_next_ktime(ktime_t expires,
 				struct clock_event_device *proxy_dev)
@@ -101,7 +101,7 @@ static void setup_proxy(struct clock_proxy_device *dev)
 	if (proxy_dev->set_state_oneshot_stopped)
 		proxy_dev->set_state_oneshot_stopped = proxy_set_oneshot_stopped;
 
-	__this_cpu_write(proxy_tick_device, dev);
+	__this_cpu_write(proxy_device, dev);
 }
 
 int evl_enable_tick(void)
@@ -162,7 +162,7 @@ void evl_disable_tick(void)
 /* per-cpu timer queue locked. */
 void evl_program_proxy_tick(struct evl_clock *clock)
 {
-	struct clock_proxy_device *dev = __this_cpu_read(proxy_tick_device);
+	struct clock_proxy_device *dev = __this_cpu_read(proxy_device);
 	struct clock_event_device *real_dev = dev->real_device;
 	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_timerbase *tmb;
