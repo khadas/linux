@@ -22,11 +22,6 @@ void evl_init_thread_state(struct oob_thread_state *p)
 
 struct oob_thread_state { };
 
-static inline
-void evl_init_thread_state(struct oob_thread_state *p)
-{
-}
-
 #endif	/* !CONFIG_EVL */
 
 #endif /* !_ASM_GENERIC_EVL_THREAD_INFO_H */
