@@ -43,5 +43,6 @@ extern int ppmgr_register(void);
 extern int start_tb_task(void);
 extern void stop_tb_task(void);
 extern void get_tb_detect_status(void);
+void ppmgr_vf_peek_dec_debug(void);
 
 #endif /* _PPMGR_PRI_INCLUDE__ */
