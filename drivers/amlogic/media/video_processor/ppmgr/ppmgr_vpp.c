@@ -111,6 +111,7 @@ static int backup_content_w = 0, backup_content_h;
 static int scaler_x, scaler_y, scaler_w, scaler_h;
 static int scale_clear_count;
 static int scaler_pos_changed;
+
 /* extern bool get_scaler_pos_reset(void); */
 /* extern void set_scaler_pos_reset(bool flag); */
 /* extern u32 amvideo_get_scaler_mode(void); */
@@ -241,9 +242,14 @@ static struct vframe_s *ppmgr_vf_peek(void *op_arg)
 
 static struct vframe_s *ppmgr_vf_get(void *op_arg)
 {
+	struct vframe_s *vf;
+
 	if (ppmgr_blocking)
 		return NULL;
-	return vfq_pop(&q_ready);
+	vf = vfq_pop(&q_ready);
+	if (vf)
+		ppmgr_device.get_count++;
+	return vf;
 }
 
 /*recycle vframe belongs to amvideo*/
@@ -286,16 +292,20 @@ static void ppmgr_vf_put(struct vframe_s *vf, void *op_arg)
 	int index;
 	struct ppframe_s *pp_vf = to_ppframe(vf);
 
-	if (ppmgr_blocking)
+	if (ppmgr_blocking) {
+		pr_info("ppmgr_vf_put ppmgr_blocking is 1\n");
 		return;
-
+	}
+	ppmgr_device.put_count++;
 	i = vfq_level(&q_free);
 
 	while (i > 0) {
 		index = (q_free.rp + i - 1) % (q_free.size);
 		vf_local = to_ppframe(q_free.pool[index]);
-		if (vf_local->index == pp_vf->index)
+		if (vf_local->index == pp_vf->index) {
+			pr_err("ppmgr put error1 %d\n", pp_vf->index);
 			return;
+		}
 
 		i--;
 	}
@@ -303,8 +313,10 @@ static void ppmgr_vf_put(struct vframe_s *vf, void *op_arg)
 	while (i > 0) {
 		index = (q_ready.rp + i - 1) % (q_ready.size);
 		vf_local = to_ppframe(q_ready.pool[index]);
-		if (vf_local->index == pp_vf->index)
+		if (vf_local->index == pp_vf->index) {
+			pr_err("ppmgr put error2 %d\n", pp_vf->index);
 			return;
+		}
 
 		i--;
 	}
@@ -635,7 +647,12 @@ void vf_local_init(void)
 #endif
 	vfq_init(&q_free, VF_POOL_SIZE + 1, &vfp_pool_free[0]);
 	vfq_init(&q_ready, VF_POOL_SIZE + 1, &vfp_pool_ready[0]);
+	ppmgr_device.get_count = 0;
+	ppmgr_device.put_count = 0;
+	ppmgr_device.get_dec_count = 0;
+	ppmgr_device.put_dec_count = 0;
 
+	pr_info("ppmgr local_init\n");
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		vfp_pool[i].index = i;
 		vfp_pool[i].dec_frame = NULL;
@@ -752,6 +769,8 @@ static inline struct vframe_s *ppmgr_vf_peek_dec(void)
 
 static inline struct vframe_s *ppmgr_vf_get_dec(void)
 {
+	struct vframe_s *vf;
+
 #if 0
 
 	struct vframe_provider_s *vfp;
@@ -763,7 +782,10 @@ static inline struct vframe_s *ppmgr_vf_get_dec(void)
 	vf = vfp->ops->get(vfp->op_arg);
 	return vf;
 #else
-	return vf_get(RECEIVER_NAME);
+	vf = vf_get(RECEIVER_NAME);
+	if (vf)
+		ppmgr_device.get_dec_count++;
+	return vf;
 #endif
 
 }
@@ -780,6 +802,8 @@ void ppmgr_vf_put_dec(struct vframe_s *vf)
 	vfp->ops->put(vf, vfp->op_arg);
 #else
 	vf_put(vf, RECEIVER_NAME);
+	ppmgr_device.put_dec_count++;
+
 #endif
 }
 
@@ -1189,10 +1213,15 @@ static void process_vf_rotate(struct vframe_s *vf,
 	rect_h = max(rect_h, 64);
 #endif
 
+	if (ppmgr_device.debug_ppmgr_flag)
+		pr_info("ppmgr:rotate\n");
+
 	new_vf = vfq_pop(&q_free);
 
-	if (unlikely((!new_vf) || (!vf)))
+	if (unlikely((!new_vf) || (!vf))) {
+		pr_info("ppmgr:rotate null, %p, %p\n", new_vf, vf);
 		return;
+	}
 
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 
@@ -2392,6 +2421,14 @@ static struct task_struct *task;
 /* extern struct vframe_s *get_cur_dispbuf(void); */
 /* extern enum platform_type_t get_platform_type(void); */
 
+void ppmgr_vf_peek_dec_debug(void)
+{
+	struct vframe_s *vf;
+
+	vf = ppmgr_vf_peek_dec();
+	PPMGRVPP_INFO("peek vf=%p\n", vf);
+}
+
 static int ppmgr_task(void *data)
 {
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
@@ -2421,8 +2458,16 @@ static int ppmgr_task(void *data)
 	while (down_interruptible(&thread_sem) == 0) {
 		struct vframe_s *vf = NULL;
 
-		if (kthread_should_stop() || ppmgr_quit_flag)
+		if (ppmgr_device.debug_ppmgr_flag)
+			PPMGRVPP_INFO("task_1, dec %p, free %d, avail %d\n",
+				      ppmgr_vf_peek_dec(),
+				      vfq_level(&q_free),
+				      vfq_level(&q_ready));
+
+		if (kthread_should_stop() || ppmgr_quit_flag) {
+			PPMGRVPP_INFO("task: quit\n");
 			break;
+		}
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 		if (get_scaler_pos_reset()) {
@@ -2891,14 +2936,23 @@ SKIP_DETECT:
 			}
 		}
 			/***recycle buffer to decoder***/
-			vf_local_init();
-			vf_light_unreg_provider(&ppmgr_vf_prov);
+			PPMGRVPP_WARN("ppmgr rebuild light-unregister_1\n");
+			vf_unreg_provider(&ppmgr_vf_prov);
 			msleep(30);
-			vf_light_reg_provider(&ppmgr_vf_prov);
+			vf_reg_provider(&ppmgr_vf_prov);
+			vf_local_init();
 			ppmgr_blocking = false;
 			up(&thread_sem);
-			PPMGRVPP_WARN("ppmgr rebuild from light-unregister\n");
+			PPMGRVPP_WARN("ppmgr rebuild light-unregister_2\n");
+			PPMGRVPP_WARN("ppmgr, reset, free %d, avail %d\n",
+				      vfq_level(&q_free),
+				      vfq_level(&q_ready));
 		}
+		if (ppmgr_device.debug_ppmgr_flag)
+			PPMGRVPP_WARN("ppmgr, dec %p, free %d, avail %d\n",
+				      ppmgr_vf_peek_dec(),
+				      vfq_level(&q_free),
+				      vfq_level(&q_ready));
 
 #ifdef DDD
 		PPMGRVPP_WARN("process paused, dec %p, free %d, avail %d\n",
