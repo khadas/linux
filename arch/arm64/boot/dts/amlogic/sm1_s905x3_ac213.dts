@@ -60,6 +60,7 @@
 		};
 	};
 
+/*
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -70,7 +71,7 @@
 			};
 		};
 	};
-
+*/
 	leds {
 		compatible = "gpio-leds";
 
@@ -189,8 +190,17 @@
 	};
 
 	reserved-memory {
-		/* TEE Reserved Memory */
-		bl32_reserved: bl32@5000000 {
+		secmon_reserved:linux,secmon {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+		};
+
+		secos_reserved:linux,secos {
+			status = "disable";
+			compatible = "amlogic, aml_secos_memory";
 			reg = <0x0 0x05300000 0x0 0x2000000>;
 			no-map;
 		};
@@ -209,18 +219,6 @@
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 		};
-		autocap_reserved:linux,autocap_reserved {
-			compatible = "amlogic, aml_autocap_memory";
-			status = "disabled";
-			//size = <0x0 0x4000000>;
-			//alloc-ranges = <0x0 0x40000000 0x0 0x25800000>;
-		};
-	};
-
-	free_reserved {
-		compatible = "amlogic, free_reserved";
-		memory-region = <&autocap_reserved>;
-		status = "disabled";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -238,6 +236,7 @@
 	};
 };
 
+/*
 &cec_AO {
 	pinctrl-0 = <&cec_ao_a_h_pins>;
 	pinctrl-names = "default";
@@ -251,6 +250,7 @@
 	status = "okay";
 	hdmi-phandle = <&hdmi_tx>;
 };
+*/
 
 &cpu0 {
 	cpu-supply = <&vddcpu>;
@@ -320,6 +320,7 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+/*
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmitx_hpd_pins>, <&hdmitx_ddc_pins>;
@@ -331,6 +332,7 @@
 		remote-endpoint = <&hdmi_connector_in>;
 	};
 };
+*/
 
 &i2c3 {
 	status = "okay";

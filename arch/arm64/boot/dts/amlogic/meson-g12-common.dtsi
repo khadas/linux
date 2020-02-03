@@ -77,11 +77,6 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* 3 MiB reserved for ARM Trusted Firmware (BL31) */
-		secmon_reserved: secmon@5000000 {
-			reg = <0x0 0x05000000 0x0 0x300000>;
-			no-map;
-		};
 		ramoops@0x07400000 {
 			compatible = "ramoops";
 			reg = <0x0 0x07400000 0x0 0x00100000>;
@@ -98,8 +93,10 @@
 		};
 	};
 
-	sm: secure-monitor {
+	secmon {
 		compatible = "amlogic,meson-gxbb-sm";
+		memory-region = <&secmon_reserved>;
+		reserve_mem_size = <0x00300000>;
 	};
 
 	soc {
@@ -138,6 +135,7 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xff600000 0x0 0x200000>;
 
+#if 0
 			hdmi_tx: hdmi-tx@0 {
 				compatible = "amlogic,meson-g12a-dw-hdmi";
 				reg = <0x0 0x0 0x0 0x10000>;
@@ -170,7 +168,7 @@
 					reg = <1>;
 				};
 			};
-
+#endif
 			apb_efuse: bus@30000 {
 				compatible = "simple-bus";
 				reg = <0x0 0x30000 0x0 0x2000>;
@@ -1379,14 +1377,22 @@
 
 			dmc: bus@38000 {
 				compatible = "simple-bus";
-				reg = <0x0 0x38000 0x0 0x400>;
+				reg = <0x0 0x38000 0x0 0xd00>;
 				#address-cells = <2>;
 				#size-cells = <2>;
-				ranges = <0x0 0x0 0x0 0x38000 0x0 0x400>;
+				ranges = <0x0 0x0 0x0 0x38000 0x0 0xd00>;
 
 				canvas: video-lut@00 {
 					compatible = "amlogic, meson, canvas";
 					reg = <0x0 0x48 0x0 0x14>;
+				};
+
+				ddr_bandwidth: bandwidth@00 {
+					compatible = "amlogic,ddr-bandwidth-g12a";
+					reg = <0x0 0x0 0x0 0x100
+						0x0 0xc00 0x0 0x100>;
+					interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
+					interrupt-names = "ddr_bandwidth";
 				};
 			};
 
@@ -1825,7 +1831,7 @@
 		aml_dma: aml_dma@ff63e000 {
 			compatible = "amlogic,aml_txlx_dma";
 			reg = <0x0 0xff63e000 0x0 0x48>;
-			interrupts = <0 180 1>;
+			interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING>;
 
 			aml_aes {
 				compatible = "amlogic,aes_g12a_dma";
@@ -2121,7 +2127,7 @@
 				compatible = "amlogic,meson-vrtc";
 				reg = <0x0 0x000a8 0x0 0x4>;
 			};
-
+/*
 			cec_AO: cec@100 {
 				compatible = "amlogic,meson-gx-ao-cec";
 				reg = <0x0 0x00100 0x0 0x14>;
@@ -2130,6 +2136,7 @@
 				clock-names = "core";
 				status = "disabled";
 			};
+*/
 
 			sec_AO: ao-secure@140 {
 				compatible = "amlogic,meson-gx-ao-secure", "syscon";
@@ -2137,6 +2144,7 @@
 				amlogic,has-chip-id;
 			};
 
+/*
 			cecb_AO: cec@280 {
 				compatible = "amlogic,meson-g12a-ao-cec";
 				reg = <0x0 0x00280 0x0 0x1c>;
@@ -2145,7 +2153,7 @@
 				clock-names = "oscin";
 				status = "disabled";
 			};
-
+*/
 			pwm_AO_cd: pwm@2000 {
 				compatible = "amlogic,meson-g12a-ao-pwm-cd";
 				reg = <0x0 0x2000 0x0 0x20>;
@@ -2385,7 +2393,7 @@
 				clockevent-rating=<300>;
 				clockevent-shift=<20>;
 				clockevent-features=<0x23>;
-				interrupts = <0 60 1>;
+				interrupts = <GIC_SPI 60 IRQ_TYPE_EDGE_RISING>;
 				bit_enable=<16>;
 				bit_mode=<12>;
 				bit_resolution=<0>;
