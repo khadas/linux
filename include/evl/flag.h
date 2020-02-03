@@ -128,4 +128,9 @@ static inline void evl_pulse_flag(struct evl_flag *wf)
 	evl_flush_flag(wf, T_BCAST);
 }
 
+static inline void evl_clear_flag(struct evl_flag *wf)
+{
+	wf->raised = false;
+}
+
 #endif /* _EVL_FLAG_H */
