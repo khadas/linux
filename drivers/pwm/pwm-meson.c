@@ -257,6 +257,18 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 #endif
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * duty_cycle equal 0% and 100%,constant should be enabled,
+	 * high and low count will not incease one;
+	 * otherwise, high and low count increase one.
+	 */
+	if (duty == period || duty == 0)
+		pwm_constant_enable(meson, pwm->hwpwm);
+	else
+		pwm_constant_disable(meson, pwm->hwpwm);
+#endif
+
 	return 0;
 }
 
