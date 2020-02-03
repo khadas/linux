@@ -245,8 +245,16 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 			duty, pre_div, duty_cnt);
 
 		channel->pre_div = pre_div;
+#ifndef CONFIG_AMLOGIC_MODIFY
 		channel->hi = duty_cnt;
 		channel->lo = cnt - duty_cnt;
+#else
+		if (duty_cnt == 0)
+			duty_cnt++;
+
+		channel->hi = duty_cnt - 1;
+		channel->lo = cnt - duty_cnt - 1;
+#endif
 	}
 
 	return 0;
