@@ -92,27 +92,6 @@ static inline void evl_raise_flag(struct evl_flag *wf)
 }
 
 /* wf->wait.lock held, irqs off */
-static inline void evl_pulse_flag_locked(struct evl_flag *wf)
-{
-	evl_flush_wait_locked(&wf->wait, T_BCAST);
-}
-
-static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
-{
-	unsigned long flags;
-
-	evl_lock_flag(wf, flags);
-	evl_pulse_flag_locked(wf);
-	evl_unlock_flag(wf, flags);
-}
-
-static inline void evl_pulse_flag(struct evl_flag *wf)
-{
-	evl_pulse_flag_nosched(wf);
-	evl_schedule();
-}
-
-/* wf->wait.lock held, irqs off */
 static inline void evl_flush_flag_locked(struct evl_flag *wf, int reason)
 {
 	evl_flush_wait_locked(&wf->wait, reason);
@@ -131,6 +110,22 @@ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
 {
 	evl_flush_flag_nosched(wf, reason);
 	evl_schedule();
+}
+
+/* wf->wait.lock held, irqs off */
+static inline void evl_pulse_flag_locked(struct evl_flag *wf)
+{
+	evl_flush_flag_locked(wf, T_BCAST);
+}
+
+static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
+{
+	evl_flush_flag_nosched(wf, T_BCAST);
+}
+
+static inline void evl_pulse_flag(struct evl_flag *wf)
+{
+	evl_flush_flag(wf, T_BCAST);
 }
 
 #endif /* _EVL_FLAG_H */
