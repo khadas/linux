@@ -4224,6 +4224,7 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_vpu_clkc_p1_div,
 	&tm2_vpu_clkc_p1,
 	&tm2_vpu_clkc_mux,
+	&tm2_ddr,
 	&tm2_dos,
 	&tm2_eth_phy,
 	&tm2_isa,
@@ -4266,7 +4267,7 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_usb1_to_ddr,
 	&tm2_mmc_pclk,
 	&tm2_uart2,
-	&tm2_ts,
+	&tm2_clk81_ts,
 	&tm2_vpu_intr,
 	&tm2_demod_comb,
 	&tm2_gic,/*gate2 end*/
