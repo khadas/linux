@@ -285,6 +285,29 @@ enum vframe_disp_mode_e {
 	VFRAME_DISP_MODE_OK,
 };
 
+enum vframe_signal_fmt_e {
+	VFRAME_SIGNAL_FMT_INVALID = -1,
+	VFRAME_SIGNAL_FMT_SDR = 0,
+	VFRAME_SIGNAL_FMT_HDR10 = 1,
+	VFRAME_SIGNAL_FMT_HDR10PLUS = 2,
+	VFRAME_SIGNAL_FMT_HDR10PRIME = 3,
+	VFRAME_SIGNAL_FMT_HLG = 4,
+	VFRAME_SIGNAL_FMT_DOVI = 5,
+	VFRAME_SIGNAL_FMT_DOVI_LL = 6,
+	VFRAME_SIGNAL_FMT_MVC = 7
+};
+
+#define SEI_MAGIC_CODE 0x53656920 /* SEI */
+
+/* signal format and sei data */
+struct vframe_src_fmt_s {
+	enum vframe_signal_fmt_e fmt;
+	u32 sei_magic_code;
+	void *sei_ptr;
+	u32 sei_size;
+	bool dual_layer;
+};
+
 enum pic_mode_provider_e {
 	PIC_MODE_PROVIDER_DB = 0,
 	PIC_MODE_PROVIDER_WSS,
@@ -334,16 +357,6 @@ struct codec_mm_box_s {
 	int     bmmu_idx;
 };
 
-struct vsif_info {
-	void *addr;
-	unsigned int size;
-};
-
-struct emp_info {
-	void *addr;
-	unsigned int size;
-};
-
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -379,35 +392,38 @@ struct vframe_s {
 	u32 compHeight;
 	u32 ratio_control;
 	u32 bitdepth;
-
-	/*
-	 * bit 30: is_dv
-	 * bit 29: present_flag
-	 * bit 28-26: video_format
-	 *	"component", "PAL", "NTSC", "SECAM", "MAC", "unspecified"
-	 * bit 25: range "limited", "full_range"
-	 * bit 24: color_description_present_flag
-	 * bit 23-16: color_primaries
-	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
-	 *	"smpte170m", "smpte240m", "film", "bt2020"
-	 * bit 15-8: transfer_characteristic
-	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
-	 *	"smpte170m", "smpte240m", "linear", "log100", "log316",
-	 *	"iec61966-2-4", "bt1361e", "iec61966-2-1", "bt2020-10",
-	 *	"bt2020-12", "smpte-st-2084", "smpte-st-428"
-	 * bit 7-0: matrix_coefficient
-	 *	"GBR", "bt709", "undef", "bt601", "fcc", "bt470bg",
-	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
-	 */
 	u32 signal_type;
+/*
+ *	   bit 29: present_flag
+ *	   bit 28-26: video_format
+ *	   "component", "PAL", "NTSC", "SECAM",
+ *	   "MAC", "unspecified"
+ *	   bit 25: range "limited", "full_range"
+ *	   bit 24: color_description_present_flag
+ *	   bit 23-16: color_primaries
+ *	   "unknown", "bt709", "undef", "bt601",
+ *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
+ *	   "film", "bt2020"
+ *	   bit 15-8: transfer_characteristic
+ *	   "unknown", "bt709", "undef", "bt601",
+ *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
+ *	   "linear", "log100", "log316", "iec61966-2-4",
+ *	   "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
+ *	   "smpte-st-2084", "smpte-st-428"
+ *	   bit 7-0: matrix_coefficient
+ *	   "GBR", "bt709", "undef", "bt601",
+ *	   "fcc", "bt470bg", "smpte170m", "smpte240m",
+ *	   "YCgCo", "bt2020nc", "bt2020c"
+ */
 	u32 orientation;
 	u32 video_angle;
 	enum vframe_source_type_e source_type;
 	enum vframe_secam_phase_e phase;
 	enum vframe_source_mode_e source_mode;
-#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	enum tvin_sig_fmt_e sig_fmt;
 	enum tvin_trans_fmt trans_fmt;
+	struct tvafe_vga_parm_s vga_parm;
 #endif
 	struct vframe_view_s left_eye;
 	struct vframe_view_s right_eye;
@@ -423,15 +439,14 @@ struct vframe_s {
 	/* vframe properties */
 	struct vframe_prop_s prop;
 	struct list_head list;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
-	struct tvafe_vga_parm_s vga_parm;
-#endif
-	/* pixel aspect ratio */
+/* pixel aspect ratio */
 	enum pixel_aspect_ratio_e pixel_ratio;
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
 	long long ready_clock[5];/*ns*/
 	long long ready_clock_hist[2];/*ns*/
 	atomic_t use_cnt;
+
+	atomic_t use_cnt_pip;
 	u32 frame_dirty;
 	/*
 	 *prog_proc_config:
@@ -465,17 +480,29 @@ struct vframe_s {
 	u32 di_pulldown;
 	u32 di_gmv;
 
+	u32 axis[4];
+	u32 crop[4];
+	u32 zorder;
+	u32 repeat_count[2];
+	struct file *file_vf;
+	bool rendered;
+
 	struct codec_mm_box_s mm_box;
-	struct vsif_info vsif;
-	struct emp_info emp;
+
+	/* signal format and sei data */
+	struct vframe_src_fmt_s src_fmt;
 } /*vframe_t */;
 
-#ifdef DDD
-struct vframe_prop_s *vdin_get_vframe_prop(u32 index);
-#endif
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
 
 u8 is_vpp_postblend(void);
 
 void pause_video(unsigned char pause_flag);
+s32 update_vframe_src_fmt(struct vframe_s *vf,
+			  void *sei,
+			  u32 size,
+			  bool dual_layer);
+void *get_sei_from_src_fmt(struct vframe_s *vf, u32 *sei_size);
+enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf);
+s32 clear_vframe_src_fmt(struct vframe_s *vf);
 #endif /* VFRAME_H */

@@ -13,6 +13,7 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
+ *
  */
 
 #ifndef VFRAME_RECEIVER_H
@@ -65,7 +66,6 @@ void vf_receiver_init(struct vframe_receiver_s *recv,
 		      const struct vframe_receiver_op_s *ops,
 		      void *op_arg);
 void vf_receiver_free(struct vframe_receiver_s *recv);
-
 int vf_reg_receiver(struct vframe_receiver_s *recv);
 void vf_unreg_receiver(struct vframe_receiver_s *recv);
 
