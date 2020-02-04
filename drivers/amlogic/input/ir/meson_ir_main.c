@@ -397,6 +397,12 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 	for (index = 0; index < chip->custom_num; index++) {
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
 		phandle = of_get_property(custom_maps, propname, NULL);
+		/* propname is never used just use to find phandle once
+		 * To avoid kmemleak warning, should be freed
+		 */
+		kfree(propname);
+		propname = NULL;
+
 		if (!phandle) {
 			dev_err(chip->dev, "can't find match map%d\n", index);
 			return -ENODATA;
