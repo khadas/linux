@@ -469,6 +469,12 @@
 	dr_mode = "otg";
 };
 
+&aml_wifi{
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+};
+
 &pcie {
 	status = "disable";
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
