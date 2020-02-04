@@ -144,7 +144,7 @@
 #define CLKID_CPU2_CLK				254
 #define CLKID_CPU3_CLK				255
 /* Media clocks */
-#define MEDIA_BASE			(CLKID_CPU3_CLK + 1)
+#define MEDIA_BASE				(CLKID_CPU3_CLK + 1)
 #define CLKID_DSI_MEAS_MUX			(MEDIA_BASE + 0)
 #define CLKID_DSI_MEAS_DIV			(MEDIA_BASE + 1)
 #define CLKID_DSI_MEAS				(MEDIA_BASE + 2)
@@ -179,7 +179,15 @@
 #define CLKID_VPU_CLKC_P1_DIV			(MEDIA_BASE + 31)
 #define CLKID_VPU_CLKC_P1			(MEDIA_BASE + 32)
 #define CLKID_VPU_CLKC_MUX			(MEDIA_BASE + 33)
+/*misc clocks*/
+#define MISC_BASE				(MEDIA_BASE + 34)
+#define CLKID_SPICC0_MUX			(MISC_BASE + 0)
+#define CLKID_SPICC0_DIV			(MISC_BASE + 1)
+#define CLKID_SPICC0_GATE			(MISC_BASE + 2)
+#define CLKID_SPICC1_MUX			(MISC_BASE + 3)
+#define CLKID_SPICC1_DIV			(MISC_BASE + 4)
+#define CLKID_SPICC1_GATE			(MISC_BASE + 5)
 
-#define CLKID_END			(MEDIA_BASE + 34)
+#define CLKID_END				(MISC_BASE + 6)
 
 #endif /* __G12A_CLKC_H */
