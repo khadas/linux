@@ -5,20 +5,20 @@
 
 #include <linux/amlogic/media/registers/register_ops.h>
 #include <linux/amlogic/media/registers/register_map.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/utils/log.h>
 static struct chip_register_ops m8_ops[] __initdata = {
-	{IO_DOS_BUS, 0, aml_read_dosbus, aml_write_dosbus},
-	{IO_VC_BUS, 0, aml_read_vcbus, aml_write_vcbus},
-	{IO_C_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_HHI_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_AO_BUS, 0, aml_read_aobus, aml_write_aobus},
-	{IO_VPP_BUS, 0, aml_read_vcbus, aml_write_vcbus},
-	{IO_PARSER_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_AIU_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_DEMUX_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_RESET_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_EFUSE_BUS, 0, aml_read_efusebus, aml_write_efusebus},
+	{IO_DOS_BUS, 0, codecio_read_dosbus, codecio_write_dosbus},
+	{IO_VC_BUS, 0, codecio_read_vcbus, codecio_write_vcbus},
+	{IO_C_BUS, 0, codecio_read_cbus, codecio_write_cbus},
+	{IO_HHI_BUS, 0, codecio_read_cbus, codecio_write_cbus},
+	{IO_AO_BUS, 0, codecio_read_aobus, codecio_write_aobus},
+	{IO_VPP_BUS, 0, codecio_read_vcbus, codecio_write_vcbus},
+	{IO_PARSER_BUS, 0, codecio_read_parsbus, codecio_write_parsbus},
+	{IO_AIU_BUS, 0, codecio_read_aiubus, codecio_write_aiubus},
+	{IO_DEMUX_BUS, 0, codecio_read_demuxbus, codecio_write_demuxbus},
+	{IO_RESET_BUS, 0, codecio_read_resetbus, codecio_write_resetbus},
+	{IO_EFUSE_BUS, 0, codecio_read_efusebus, codecio_write_efusebus},
 };
 
 static struct chip_register_ops ex_gx_ops[] __initdata = {
@@ -29,8 +29,8 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 	 *on Gxbb.
 	 *will changed later..
 	 */
-	{IO_HHI_BUS, -0x1000, aml_read_hiubus, aml_write_hiubus},
-	{IO_DMC_BUS, 0, aml_read_dmcbus, aml_write_dmcbus},
+	{IO_HHI_BUS, -0x1000, codecio_read_hiubus, codecio_write_hiubus},
+	{IO_DMC_BUS, 0, codecio_read_dmcbus, codecio_write_dmcbus},
 };
 
 static int __init vdec_reg_ops_init(void)

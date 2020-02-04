@@ -282,7 +282,7 @@
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-g12a, codec-io";
+		compatible = "amlogic, meson-sm1, codec-io";
 		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
