@@ -160,5 +160,6 @@ struct device *v4l_get_dev_from_codec_mm(void);
 struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
 	unsigned int addr, unsigned int size, unsigned int index);
 void v4l_freebufs_back_to_codec_mm(const char *owner, struct codec_mm_s *mem);
+void codec_mm_memset(ulong phys, u32 val, u32 size);
 
 #endif

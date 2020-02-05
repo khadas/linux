@@ -75,6 +75,9 @@
 #define RESERVE_MM_ALIGNED_2N	17
 
 #define RES_MEM_FLAGS_HAVE_MAPED 0x4
+
+#define MAP_RANGE (SZ_1M)
+
 static int dump_mem_infos(void *buf, int size);
 static int dump_free_mem_infos(void *buf, int size);
 
@@ -280,6 +283,15 @@ static ulong codec_mm_search_phy_addr(char *vaddr)
 	spin_lock_irqsave(&mgt->lock, flags);
 
 	list_for_each_entry(mem, &mgt->mem_list, list) {
+		/*
+		 * If work on the fast play mode that is allocate a lot of
+		 * memory from CMA, It will be a reserve memory and add to the
+		 * codec_mm list, but this area can't be used for search vaddr
+		 * thus the node of codec_mm list must be ignored.
+		 */
+		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
+			continue;
+
 		if (vaddr - mem->vbuffer >= 0 &&
 			vaddr - mem->vbuffer < mem->buffer_size) {
 
@@ -308,6 +320,15 @@ static void *codec_mm_search_vaddr(unsigned long phy_addr)
 	spin_lock_irqsave(&mgt->lock, flags);
 
 	list_for_each_entry(mem, &mgt->mem_list, list) {
+		/*
+		 * If work on the fast play mode that is allocate a lot of
+		 * memory from CMA, It will be a reserve memory and add to the
+		 * codec_mm list, but this area can't be used for search vaddr
+		 * thus the node of codec_mm list must be ignored.
+		 */
+		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
+			continue;
+
 		if (phy_addr >= mem->phy_addr &&
 			phy_addr < mem->phy_addr + mem->buffer_size) {
 
@@ -358,13 +379,42 @@ u8 *codec_mm_vmap(ulong addr, u32 size)
 	kfree(pages);
 
 	if (debug_mode & 0x20) {
-		pr_info("[HIGH-MEM-MAP] %s, pa(%lx) to va(%p), size: %d\n",
-			__func__, page_start, vaddr, npages << PAGE_SHIFT);
+		pr_info("[HIGH-MEM-MAP] %s, pa(%lx) to va(%lx), size: %d\n",
+			__func__, page_start, (ulong)vaddr,
+			npages << PAGE_SHIFT);
 	}
 
 	return vaddr + offset;
 }
 EXPORT_SYMBOL(codec_mm_vmap);
+
+void codec_mm_memset(ulong phys, u32 val, u32 size)
+{
+	void *ptr = NULL;
+	struct page *page = phys_to_page(phys);
+	int i, len;
+
+	/*any data lurking in the kernel direct-mapped region is invalidated.*/
+	if (!PageHighMem(page)) {
+		ptr = page_address(page);
+		codec_mm_dma_flush(ptr, size, DMA_FROM_DEVICE);
+		return;
+	}
+
+	/* memset highmem area */
+	for (i = 0; i < size; i += MAP_RANGE) {
+		len = ((size - i) > MAP_RANGE) ? MAP_RANGE : size - i;
+		ptr = codec_mm_vmap(phys + i, len);
+		if (!ptr) {
+			pr_err("%s,vmap the page failed.\n", __func__);
+			return;
+		}
+		memset(ptr, val, len);
+		codec_mm_dma_flush(ptr, len, DMA_TO_DEVICE);
+		codec_mm_unmap_phyaddr(ptr);
+	}
+}
+EXPORT_SYMBOL(codec_mm_memset);
 
 void codec_mm_unmap_phyaddr(u8 *vaddr)
 {
@@ -387,7 +437,8 @@ static void *codec_mm_map_phyaddr(struct codec_mm_s *mem)
 	vaddr = codec_mm_vmap(phys, size);
 	/*vaddr = ioremap_nocache(phy_addr, size);*/
 
-	mem->flags |= CODEC_MM_FLAGS_FOR_PHYS_VMAPED;
+	if (vaddr)
+		mem->flags |= CODEC_MM_FLAGS_FOR_PHYS_VMAPED;
 
 	return vaddr;
 }
@@ -523,10 +574,13 @@ static int codec_mm_alloc_in(
 					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES;
 				if (mem->mem_handle) {
 					/*no vaddr for TVP MEMORY */
-					mem->vbuffer = NULL;
 					mem->phy_addr =
 						(unsigned long)mem->mem_handle;
 					mem->buffer_size = aligned_buffer_size;
+					mem->vbuffer = (mem->flags &
+						CODEC_MM_FLAGS_CPU) ?
+						codec_mm_map_phyaddr(mem) :
+						NULL;
 					break;
 				}
 			}
@@ -642,6 +696,9 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 		free_pages((unsigned long)mem->mem_handle,
 			get_order(mem->buffer_size));
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES) {
+		if (mem->flags & CODEC_MM_FLAGS_FOR_PHYS_VMAPED)
+			codec_mm_unmap_phyaddr(mem->vbuffer);
+
 		codec_mm_extpool_free(
 			(struct gen_pool *)mem->from_ext,
 			mem->mem_handle,
