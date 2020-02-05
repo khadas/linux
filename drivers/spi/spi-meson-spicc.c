@@ -14,6 +14,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/of_device.h>
+#include <linux/clk-provider.h>
+#include <linux/dma-mapping.h>
+#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
+#endif
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
@@ -32,9 +40,18 @@
  * - CS management is dumb, and goes UP between every burst, so is really a
  *   "Data Valid" signal than a Chip Select, GPIO link should be used instead
  *   to have a CS go down over the full transfer
+ * G12 change list:
+ * - add a independent async clk for divider to raise the speed rate
+ * - incapable of half-full and overflow interrupts because of the async clk
+ * - burst max change from 16 to 15 because of the async clk
+ * DMA support:
+ * - use bits_per_word of xfer to distinguish what mode the protocol driver
+     requested, 64 indicates DMA mode while the others indicate PIO.
  */
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 #define SPICC_MAX_FREQ	30000000
+#endif
 #define SPICC_MAX_BURST	128
 
 /* Register Map */
@@ -57,6 +74,10 @@
 #define SPICC_DRCTL_LOWLEVEL	2
 #define SPICC_CS_MASK		GENMASK(13, 12)
 #define SPICC_DATARATE_MASK	GENMASK(18, 16)
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define SPICC_DATARATE_SHIFT 16
+#define SPICC_DATARATE_WIDTH 3
+#endif
 #define SPICC_DATARATE_DIV4	0
 #define SPICC_DATARATE_DIV8	1
 #define SPICC_DATARATE_DIV16	2
@@ -101,6 +122,26 @@
 #define SPICC_TXCNT_MASK	GENMASK(4, 0)	/* TX FIFO Counter */
 #define SPICC_RXCNT_MASK	GENMASK(9, 5)	/* RX FIFO Counter */
 #define SPICC_SMSTATUS_MASK	GENMASK(12, 10)	/* State Machine Status */
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define SPICC_LBC		BIT(14) /* Loop Back Control */
+#define SPICC_SWAP		BIT(15) /* RX FIFO Data Swap */
+#define SPICC_MO_DELAY_MASK	GENMASK(17, 16) /* Master Output Delay */
+#define SPICC_MO_NO_DELAY	0
+#define SPICC_MO_DELAY_1_CYCLE	1
+#define SPICC_MO_DELAY_2_CYCLE	2
+#define SPICC_MO_DELAY_3_CYCLE	3
+#define SPICC_MI_DELAY_MASK	GENMASK(19, 18) /* Master Input Delay */
+#define SPICC_MI_NO_DELAY	0
+#define SPICC_MI_DELAY_1_CYCLE	1
+#define SPICC_MI_DELAY_2_CYCLE	2
+#define SPICC_MI_DELAY_3_CYCLE	3
+#define SPICC_MI_CAP_DELAY_MASK	GENMASK(21, 20) /* Master Capture Delay */
+#define SPICC_CAP_AHEAD_2_CYCLE	0
+#define SPICC_CAP_AHEAD_1_CYCLE	1
+#define SPICC_CAP_NO_DELAY	2
+#define SPICC_CAP_DELAY_1_CYCLE	3
+#define SPICC_FIFORST_MASK	GENMASK(23, 22) /* FIFO Softreset */
+#else
 #define SPICC_LBC_RO		BIT(13)	/* Loop Back Control Read-Only */
 #define SPICC_LBC_W1		BIT(14) /* Loop Back Control Write-Only */
 #define SPICC_SWAP_RO		BIT(14) /* RX FIFO Data Swap Read-Only */
@@ -109,22 +150,58 @@
 #define SPICC_DLYCTL_W1_MASK	GENMASK(21, 16) /* Delay Control Write-Only */
 #define SPICC_FIFORST_RO_MASK	GENMASK(22, 21) /* FIFO Softreset Read-Only */
 #define SPICC_FIFORST_W1_MASK	GENMASK(23, 22) /* FIFO Softreset Write-Only */
+#endif
 
 #define SPICC_DRADDR	0x20	/* Read Address of DMA */
 
 #define SPICC_DWADDR	0x24	/* Write Address of DMA */
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define SPICC_ENH_CTL0	0x38	/* Enhanced Feature */
+#define SPICC_ENH_CLK_CS_DELAY_MASK	GENMASK(15, 0)
+#define SPICC_ENH_DATARATE_MASK		GENMASK(23, 16)
+#define SPICC_ENH_DATARATE_SHIFT	16
+#define SPICC_ENH_DATARATE_WIDTH	8
+#define SPICC_ENH_DATARATE_EN		BIT(24)
+#define SPICC_ENH_MOSI_OEN		BIT(25)
+#define SPICC_ENH_CLK_OEN		BIT(26)
+#define SPICC_ENH_CS_OEN		BIT(27)
+#define SPICC_ENH_CLK_CS_DELAY_EN	BIT(28)
+#define SPICC_ENH_MAIN_CLK_AO		BIT(29)
+#endif
+
 #define writel_bits_relaxed(mask, val, addr) \
 	writel_relaxed((readl_relaxed(addr) & ~(mask)) | (val), addr)
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int SPICC_BURST_MAX = 16;
+#else
 #define SPICC_BURST_MAX	16
+#endif
 #define SPICC_FIFO_HALF 10
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct meson_spicc_data {
+	unsigned int			max_speed_hz;
+	bool				has_linear_div;
+	bool				has_oen;
+	bool				has_async_clk;
+};
+#endif
 
 struct meson_spicc_device {
 	struct spi_master		*master;
 	struct platform_device		*pdev;
 	void __iomem			*base;
 	struct clk			*core;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct clk			*async_clk;
+	struct clk			*clk;
+	const struct meson_spicc_data	*data;
+	unsigned int			speed_hz;
+	struct				class cls;
+	bool				using_dma;
+#endif
 	struct spi_message		*message;
 	struct spi_transfer		*xfer;
 	u8				*tx_buf;
@@ -138,6 +215,144 @@ struct meson_spicc_device {
 	bool				is_burst_end;
 	bool				is_last_burst;
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_spicc_runtime_suspend(struct device *dev);
+static int meson_spicc_runtime_resume(struct device *dev);
+
+static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
+{
+	u32 div, hz;
+	u32 mi_delay, cap_delay;
+	u32 conf;
+
+	if (spicc->data->has_linear_div) {
+		div = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+		div &= SPICC_ENH_DATARATE_MASK;
+		div >>= SPICC_ENH_DATARATE_SHIFT;
+		div++;
+		div <<= 1;
+	} else {
+		div = readl_relaxed(spicc->base + SPICC_CONREG);
+		div &= SPICC_DATARATE_MASK;
+		div >>= SPICC_DATARATE_SHIFT;
+		div += 2;
+		div = 1 << div;
+	}
+
+	mi_delay = SPICC_MI_NO_DELAY;
+	cap_delay = SPICC_CAP_AHEAD_2_CYCLE;
+	hz = clk_get_rate(spicc->clk);
+
+	if (spicc->message->spi->mode & SPI_LOOP)
+		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
+	else if (hz >= 100000000)
+		cap_delay = SPICC_CAP_DELAY_1_CYCLE;
+	else if (hz >= 80000000)
+		cap_delay = SPICC_CAP_NO_DELAY;
+	else if (hz >= 40000000)
+		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
+	else if (div >= 16)
+		mi_delay = SPICC_MI_DELAY_3_CYCLE;
+	else if (div >= 8)
+		mi_delay = SPICC_MI_DELAY_2_CYCLE;
+	else if (div >= 6)
+		mi_delay = SPICC_MI_DELAY_1_CYCLE;
+
+	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
+	conf &= ~(SPICC_MO_DELAY_MASK | SPICC_MI_DELAY_MASK
+		  | SPICC_MI_CAP_DELAY_MASK);
+	conf |= FIELD_PREP(SPICC_MI_DELAY_MASK, mi_delay);
+	conf |= FIELD_PREP(SPICC_MI_CAP_DELAY_MASK, cap_delay);
+	writel_relaxed(conf, spicc->base + SPICC_TESTREG);
+}
+
+static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
+			       struct spi_transfer *t)
+{
+	struct device *dev = spicc->master->dev.parent;
+
+	t->tx_dma = dma_map_single(dev, (void *)t->tx_buf, t->len,
+				   DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, t->tx_dma)) {
+		dev_err(dev, "tx_dma map failed\n");
+		return -ENOMEM;
+	}
+
+	t->rx_dma = dma_map_single(dev, t->rx_buf, t->len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, t->rx_dma)) {
+		dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
+		dev_err(dev, "rx_dma map failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
+				  struct spi_transfer *t)
+{
+	struct device *dev = spicc->master->dev.parent;
+
+	dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
+}
+
+static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc)
+{
+	unsigned int dma, burst_len, thres;
+
+	burst_len = min_t(unsigned int,
+			  spicc->xfer_remain / spicc->bytes_per_word,
+			  SPICC_BURST_MAX << 3);
+
+	thres = burst_len % SPICC_BURST_MAX;
+	if (thres == 0) {
+		thres = SPICC_BURST_MAX;
+	} else if (burst_len != thres) {
+		burst_len -= thres;
+		thres = SPICC_BURST_MAX;
+	}
+
+	/* Setup Xfer variables */
+	spicc->xfer_remain -= burst_len * spicc->bytes_per_word;
+
+	/* Setup burst length */
+	writel_bits_relaxed(SPICC_BURSTLENGTH_MASK,
+			    FIELD_PREP(SPICC_BURSTLENGTH_MASK,
+				       burst_len - 1),
+			    spicc->base + SPICC_CONREG);
+
+	dma = SPICC_DMA_ENABLE;
+	dma |= FIELD_PREP(SPICC_TXFIFO_THRESHOLD_MASK, 4);
+	dma |= FIELD_PREP(SPICC_READ_BURST_MASK, SPICC_BURST_MAX - 4);
+	dma |= FIELD_PREP(SPICC_RXFIFO_THRESHOLD_MASK, thres - 1);
+	dma |= FIELD_PREP(SPICC_WRITE_BURST_MASK, thres - 1);
+	writel_relaxed(dma, spicc->base + SPICC_DMAREG);
+}
+
+static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
+{
+	writel_bits_relaxed(SPICC_TC, SPICC_TC, spicc->base + SPICC_STATREG);
+
+	if (!spicc->xfer_remain) {
+		/* Disable all IRQs */
+		writel_relaxed(0, spicc->base + SPICC_INTREG);
+		writel_relaxed(0, spicc->base + SPICC_DMAREG);
+		if (!spicc->message->is_dma_mapped)
+			meson_spicc_dma_unmap(spicc, spicc->xfer);
+		spi_finalize_current_transfer(spicc->master);
+		spicc->using_dma = 0;
+		return;
+	}
+
+	/* Setup burst */
+	meson_spicc_setup_dma_burst(spicc);
+
+	/* Start burst */
+	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
+}
+#endif
 
 static inline bool meson_spicc_txfull(struct meson_spicc_device *spicc)
 {
@@ -205,7 +420,16 @@ static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 static inline u32 meson_spicc_setup_rx_irq(struct meson_spicc_device *spicc,
 					   u32 irq_ctrl)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (spicc->using_dma) {
+		irq_ctrl |= SPICC_TC_EN;
+		return irq_ctrl;
+	}
+	/* SoCs has async-clk is incapable of half-full interrupt */
+	if (spicc->rx_remain > SPICC_FIFO_HALF && !spicc->data->has_async_clk)
+#else
 	if (spicc->rx_remain > SPICC_FIFO_HALF)
+#endif
 		irq_ctrl |= SPICC_RH_EN;
 	else
 		irq_ctrl |= SPICC_RR_EN;
@@ -243,6 +467,13 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	u32 stat = readl_relaxed(spicc->base + SPICC_STATREG) & ctrl;
 
 	ctrl &= ~(SPICC_RH_EN | SPICC_RR_EN);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (spicc->using_dma) {
+		meson_spicc_dma_irq(spicc);
+		return IRQ_HANDLED;
+	}
+#endif
 
 	/* Empty RX FIFO */
 	meson_spicc_rx(spicc);
@@ -298,6 +529,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static u32 meson_spicc_setup_speed(struct meson_spicc_device *spicc, u32 conf,
 				   u32 speed)
 {
@@ -331,6 +563,7 @@ static u32 meson_spicc_setup_speed(struct meson_spicc_device *spicc, u32 conf,
 
 	return conf;
 }
+#endif
 
 static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 				   struct spi_transfer *xfer)
@@ -340,9 +573,10 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	/* Read original configuration */
 	conf = conf_orig = readl_relaxed(spicc->base + SPICC_CONREG);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	/* Select closest divider */
 	conf = meson_spicc_setup_speed(spicc, conf, xfer->speed_hz);
-
+#endif
 	/* Setup word width */
 	conf &= ~SPICC_BITLENGTH_MASK;
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK,
@@ -351,6 +585,21 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	/* Ignore if unchanged */
 	if (conf != conf_orig)
 		writel_relaxed(conf, spicc->base + SPICC_CONREG);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (spicc->speed_hz != xfer->speed_hz) {
+		spicc->speed_hz = xfer->speed_hz;
+		if (clk_set_rate(spicc->clk, xfer->speed_hz)) {
+			dev_err(&spicc->pdev->dev, "set clk rate failed\n");
+			return;
+		}
+		meson_spicc_auto_io_delay(spicc);
+	}
+
+	/* Reset tx/rx-fifo maybe there are some residues left by DMA */
+	writel_bits_relaxed(SPICC_FIFORST_MASK, SPICC_FIFORST_MASK,
+			    spicc->base + SPICC_TESTREG);
+#endif
 }
 
 static int meson_spicc_transfer_one(struct spi_master *master,
@@ -376,11 +625,30 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	/* Setup transfer parameters */
 	meson_spicc_setup_xfer(spicc, xfer);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	spicc->using_dma = 0;
+	writel_relaxed(0, spicc->base + SPICC_DMAREG);
+	if (xfer->bits_per_word == 64 && (spicc->message->is_dma_mapped ||
+					  !meson_spicc_dma_map(spicc, xfer))) {
+		spicc->using_dma = 1;
+		writel_relaxed(xfer->tx_dma, spicc->base + SPICC_DRADDR);
+		writel_relaxed(xfer->rx_dma, spicc->base + SPICC_DWADDR);
+		writel_relaxed(xfer->speed_hz >> 25,
+			       spicc->base + SPICC_PERIODREG);
+		meson_spicc_setup_dma_burst(spicc);
+	} else {
+		burst_len = min_t(unsigned int,
+				  spicc->xfer_remain / spicc->bytes_per_word,
+				  SPICC_BURST_MAX);
+		meson_spicc_setup_burst(spicc, burst_len);
+	}
+#else
 	burst_len = min_t(unsigned int,
 			  spicc->xfer_remain / spicc->bytes_per_word,
 			  SPICC_BURST_MAX);
 
 	meson_spicc_setup_burst(spicc, burst_len);
+#endif
 
 	irq = meson_spicc_setup_rx_irq(spicc, irq);
 
@@ -403,9 +671,20 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 	/* Store current message */
 	spicc->message = message;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
+	conf &= ~SPICC_LBC;
+	if (spi->mode & SPI_LOOP)
+		conf |= SPICC_LBC;
+	writel_relaxed(conf, spicc->base + SPICC_TESTREG);
+
+	conf = readl_relaxed(spicc->base + SPICC_CONREG);
+	conf &= ~(SPICC_CS_MASK | SPICC_BITLENGTH_MASK);
+#else
 	/* Enable Master */
 	conf |= SPICC_ENABLE;
 	conf |= SPICC_MODE_MASTER;
+#endif
 
 	/* SMC = 0 */
 
@@ -457,8 +736,10 @@ static int meson_spicc_unprepare_transfer(struct spi_master *master)
 	/* Disable all IRQs */
 	writel(0, spicc->base + SPICC_INTREG);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	/* Disable controller */
 	writel_bits_relaxed(SPICC_ENABLE, 0, spicc->base + SPICC_CONREG);
+#endif
 
 	device_reset_optional(&spicc->pdev->dev);
 
@@ -482,7 +763,14 @@ static int meson_spicc_setup(struct spi_device *spi)
 			dev_err(&spi->dev, "failed to request cs gpio\n");
 			return ret;
 		}
+#ifndef CONFIG_AMLOGIC_MODIFY
 	}
+#else
+	} else {
+		dev_err(&spi->dev, "cs gpio invalid\n");
+		return 0;
+	}
+#endif
 
 out_gpio:
 	ret = gpio_direction_output(spi->cs_gpio,
@@ -498,6 +786,303 @@ static void meson_spicc_cleanup(struct spi_device *spi)
 
 	spi->controller_state = NULL;
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_spicc_clk_enable(struct meson_spicc_device *spicc)
+{
+	int ret;
+
+	ret = clk_prepare_enable(spicc->core);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(spicc->clk);
+	if (ret)
+		return ret;
+
+	if (spicc->data->has_async_clk) {
+		ret = clk_prepare_enable(spicc->async_clk);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void meson_spicc_clk_disable(struct meson_spicc_device *spicc)
+{
+	if (!IS_ERR_OR_NULL(spicc->core))
+		clk_disable_unprepare(spicc->core);
+
+	if (!IS_ERR_OR_NULL(spicc->clk))
+		clk_disable_unprepare(spicc->clk);
+
+	if (spicc->data->has_async_clk && !IS_ERR_OR_NULL(spicc->async_clk))
+		clk_disable_unprepare(spicc->async_clk);
+}
+
+static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
+{
+	/* For GX/AXG, all registers except CONREG are unavailable if
+	 * SPICC_ENABLE is 0, which will be also reset to default value
+	 * if it changed from 1 to 0.
+	 * Set master mode and enable controller ahead of others here,
+	 * and never disable them.
+	 */
+	writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
+		       spicc->base + SPICC_CONREG);
+
+	if (spicc->data->has_oen)
+		writel_relaxed(readl_relaxed(spicc->base + SPICC_ENH_CTL0) |
+			       SPICC_ENH_MOSI_OEN | SPICC_ENH_CLK_OEN |
+			       SPICC_ENH_CS_OEN, spicc->base + SPICC_ENH_CTL0);
+
+	/* Disable all IRQs */
+	writel_relaxed(0, spicc->base + SPICC_INTREG);
+
+	return 0;
+}
+
+#define TEST_PARAM_NUM 5
+static ssize_t test_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+	unsigned int cs_gpio, speed, mode, bits_per_word, num;
+	u8 *tx_buf, *rx_buf;
+	unsigned long value;
+	char *kstr, *str_temp, *token;
+	int i, ret;
+	struct spi_transfer t;
+	struct spi_message m;
+
+	if (sscanf(buf, "%d%d%x%d%d", &cs_gpio, &speed,
+		   &mode, &bits_per_word, &num) != TEST_PARAM_NUM) {
+		dev_err(dev, "error format\n");
+		return count;
+	}
+
+	kstr = kstrdup(buf, GFP_KERNEL);
+	tx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
+	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
+	if (IS_ERR(kstr) || IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
+		dev_err(dev, "failed to alloc tx rx buffer\n");
+		return count;
+	}
+
+	str_temp = kstr;
+	/* pass over "cs_gpio speed mode bits_per_word num" */
+	for (i = 0; i < TEST_PARAM_NUM; i++)
+		strsep(&str_temp, ", ");
+
+	/* filled tx buffer with user data */
+	for (i = 0; i < num; i++) {
+		token = strsep(&str_temp, ", ");
+		if (token == 0 || kstrtoul(token, 16, &value))
+			break;
+		tx_buf[i] = (u8)(value & 0xff);
+	}
+
+	/* set first tx data default 1 if no any user data */
+	if (i == 0) {
+		tx_buf[0] = 0x1;
+		i++;
+	}
+
+	/* filled next buffer incrementally if user data not enough */
+	for (; i < num; i++)
+		tx_buf[i] = tx_buf[i - 1] + 1;
+
+	spi_message_init(&m);
+	m.spi = spi_alloc_device(spicc->master);
+	if (IS_ERR_OR_NULL(m.spi)) {
+		dev_err(dev, "spi alloc failed\n");
+		goto test_end;
+	}
+
+	m.spi->cs_gpio = (cs_gpio > 0) ? cs_gpio : -ENOENT;
+	m.spi->max_speed_hz = speed;
+	m.spi->mode = mode & 0xffff;
+	m.spi->bits_per_word = bits_per_word;
+	if (spi_setup(m.spi)) {
+		dev_err(dev, "setup failed\n");
+		goto test_end;
+	}
+
+	memset(&t, 0, sizeof(t));
+	t.tx_buf = (void *)tx_buf;
+	t.rx_buf = (void *)rx_buf;
+	t.len = num;
+	spi_message_add_tail(&t, &m);
+	ret = spi_sync(m.spi, &m);
+	if (!ret && (mode & (SPI_LOOP | (1 << 16)))) {
+		ret = 0;
+		for (i = 0; i < num; i++) {
+			if (tx_buf[i] != rx_buf[i]) {
+				ret++;
+				pr_info("[%d]: 0x%x, 0x%x\n",
+					i, tx_buf[i], rx_buf[i]);
+			}
+		}
+		dev_info(dev, "total %d, failed %d\n", num, ret);
+	}
+	dev_info(dev, "test end @%d\n", (u32)clk_get_rate(spicc->clk));
+
+test_end:
+	spi_dev_put(m.spi);
+	kfree(kstr);
+	kfree(tx_buf);
+	kfree(rx_buf);
+	return count;
+}
+
+static DEVICE_ATTR_WO(test);
+
+/*
+ * The Clock Mux
+ *            x-----------------x   x---------------x    x------\
+ *        |---| 0) fixed factor |---| 1) power2 div |----|      |
+ *        |   x-----------------x   x---------------x    |      |
+ * src ---|                                              |5) mux|-- out
+ *        |   x-----------------x   x---------------x    |      |
+ *        |---| 2) fixed factor |---| 3) linear div |----|      |
+ *            x-----------------x   x---------------x    x------/
+ *
+ * Clk path for GX series:
+ *    src = core clk
+ *    src -> 0 -> 1 -> out
+ *
+ * Clk path for AXG series:
+ *    src = core clk
+ *    src -> 0 -> 1 -> 5 -> out
+ *    src -> 2 -> 3 -> 5 -> out
+ *
+ * Clk path for G12 series:
+ *    src = async clk
+ *    src -> 0 -> 1 -> 5 -> out
+ *    src -> 2 -> 3 -> 5 -> out
+ */
+
+static struct clk *
+meson_spicc_divider_clk_get(struct meson_spicc_device *spicc, bool is_linear)
+{
+	struct device *dev = &spicc->pdev->dev;
+	struct clk_init_data init;
+	struct clk_fixed_factor *ff;
+	struct clk_divider *div;
+	struct clk *clk;
+	const char *parent_names[1];
+	char name[32], *which;
+
+	ff = devm_kzalloc(dev, sizeof(*ff) + sizeof(*div), GFP_KERNEL);
+	if (!ff)
+		return ERR_PTR(-ENOMEM);
+	div = (struct clk_divider *)&ff[1];
+
+	if (is_linear) {
+		which = "linear";
+		ff->mult = 1;
+		ff->div = 2;
+		div->reg = spicc->base + SPICC_ENH_CTL0;
+		div->shift = SPICC_ENH_DATARATE_SHIFT;
+		div->width = SPICC_ENH_DATARATE_WIDTH;
+		div->flags = CLK_DIVIDER_ROUND_CLOSEST;
+//		if (spicc->data->has_async_clk)
+//			div->flags |= CLK_DIVIDER_PROHIBIT_ZERO;
+	} else {
+		which = "power2";
+		ff->mult = 1;
+		ff->div = 4;
+		div->reg = spicc->base + SPICC_CONREG;
+		div->shift = SPICC_DATARATE_SHIFT;
+		div->width = SPICC_DATARATE_WIDTH;
+		div->flags = CLK_DIVIDER_ROUND_CLOSEST
+			     | CLK_DIVIDER_POWER_OF_TWO;
+	}
+
+	/* Register clk-fixed-factor */
+	clk = spicc->data->has_async_clk ? spicc->async_clk : spicc->core;
+	parent_names[0] = __clk_get_name(clk);
+	snprintf(name, sizeof(name), "%s_%s_ff", dev_name(dev), which);
+	init.name = name;
+	init.ops = &clk_fixed_factor_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = parent_names;
+	init.num_parents = 1;
+	ff->hw.init = &init;
+	clk = devm_clk_register(dev, &ff->hw);
+	if (IS_ERR_OR_NULL(clk))
+		return clk;
+
+	/* Register clk-divider, which parent the clk-fixed-factor */
+	parent_names[0] = __clk_get_name(clk);
+	snprintf(name, sizeof(name), "%s_%s_div", dev_name(dev), which);
+	init.name = name;
+	init.ops = &clk_divider_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = parent_names;
+	init.num_parents = 1;
+	div->hw.init = &init;
+	clk = devm_clk_register(dev, &div->hw);
+
+	return clk;
+}
+
+static struct clk *
+meson_spicc_mux_clk_get(struct meson_spicc_device *spicc,
+			const char * const *parent_names)
+{
+	struct device *dev = &spicc->pdev->dev;
+	struct clk_init_data init;
+	struct clk_mux *mux;
+	struct clk *clk;
+	char name[32];
+
+	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	if (!mux)
+		return ERR_PTR(-ENOMEM);
+
+	snprintf(name, sizeof(name), "%s_mux", dev_name(dev));
+	init.name = name;
+	init.ops = &clk_mux_ops;
+	init.parent_names = parent_names;
+	init.num_parents = 2;
+	init.flags = CLK_SET_RATE_PARENT;
+
+	mux->mask = 0x1;
+	mux->shift = 24;
+	mux->reg = spicc->base + SPICC_ENH_CTL0;
+	mux->hw.init = &init;
+	clk = devm_clk_register(dev, &mux->hw);
+
+	return clk;
+}
+
+static struct clk *meson_spicc_clk_get(struct meson_spicc_device *spicc)
+{
+	struct clk *clk;
+	const char *parent_names[2];
+
+	/* Get power-of-two divider clk */
+	clk = meson_spicc_divider_clk_get(spicc, 0);
+	if (!IS_ERR_OR_NULL(clk) && spicc->data->has_linear_div) {
+		/* Set power-of-two as the 1st parent */
+		parent_names[0] = __clk_get_name(clk);
+
+		/* Get linear divider clk */
+		clk = meson_spicc_divider_clk_get(spicc, 1);
+		if (!IS_ERR_OR_NULL(clk)) {
+			/* Set linear as the 2nd parent */
+			parent_names[1] = __clk_get_name(clk);
+
+			/* Get mux clk */
+			clk = meson_spicc_mux_clk_get(spicc, parent_names);
+		}
+	}
+
+	return clk;
+}
+#endif
 
 static int meson_spicc_probe(struct platform_device *pdev)
 {
@@ -517,14 +1102,21 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, spicc);
 
 	spicc->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(spicc->base)) {
+	if (IS_ERR_OR_NULL(spicc->base)) {
 		dev_err(&pdev->dev, "io resource mapping failed\n");
 		ret = PTR_ERR(spicc->base);
 		goto out_master;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	spicc->data = (const struct meson_spicc_data *)
+		of_device_get_match_data(&pdev->dev);
+
+	meson_spicc_hw_init(spicc);
+#else
 	/* Disable all IRQs */
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
+#endif
 
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
@@ -535,7 +1127,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	}
 
 	spicc->core = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(spicc->core)) {
+	if (IS_ERR_OR_NULL(spicc->core)) {
 		dev_err(&pdev->dev, "core clock request failed\n");
 		ret = PTR_ERR(spicc->core);
 		goto out_master;
@@ -548,15 +1140,58 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	}
 	rate = clk_get_rate(spicc->core);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (spicc->data->has_async_clk) {
+		/* SoCs has async-clk is incapable of using full burst */
+		SPICC_BURST_MAX = 15;
+
+		spicc->async_clk = devm_clk_get(&pdev->dev, "async");
+		if (IS_ERR_OR_NULL(spicc->async_clk)) {
+			dev_err(&pdev->dev, "async clock request failed\n");
+			ret = PTR_ERR(spicc->async_clk);
+			goto out_clk_1;
+		}
+
+		ret = clk_prepare_enable(spicc->async_clk);
+		if (ret) {
+			dev_err(&pdev->dev, "async clock enable failed\n");
+			goto out_clk_1;
+		}
+	}
+
+	spicc->clk = meson_spicc_clk_get(spicc);
+	if (IS_ERR_OR_NULL(spicc->clk)) {
+		dev_err(&pdev->dev, "divider clock get failed\n");
+		ret = PTR_ERR(spicc->clk);
+		goto out_clk_2;
+	}
+
+	ret = clk_prepare_enable(spicc->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "divider clock enable failed\n");
+		goto out_clk_2;
+	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_test);
+	if (ret) {
+		dev_err(&pdev->dev, "Create test attribute failed\n");
+		goto out_clk_3;
+	}
+#endif
+
 	device_reset_optional(&pdev->dev);
 
 	master->num_chipselect = 4;
 	master->dev.of_node = pdev->dev.of_node;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
+#else
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) |
 				     SPI_BPW_MASK(24) |
 				     SPI_BPW_MASK(16) |
 				     SPI_BPW_MASK(8);
+#endif
 	master->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX);
 	master->min_speed_hz = rate >> 9;
 	master->setup = meson_spicc_setup;
@@ -564,12 +1199,19 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	master->prepare_message = meson_spicc_prepare_message;
 	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 	master->transfer_one = meson_spicc_transfer_one;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	master->auto_runtime_pm = true;
+#endif
 
 	/* Setup max rate according to the Meson GX datasheet */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	master->max_speed_hz = spicc->data->max_speed_hz;
+#else
 	if ((rate >> 2) > SPICC_MAX_FREQ)
 		master->max_speed_hz = SPICC_MAX_FREQ;
 	else
 		master->max_speed_hz = rate >> 2;
+#endif
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
@@ -577,9 +1219,21 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		goto out_clk;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	pm_runtime_enable(&pdev->dev);
+#endif
 	return 0;
 
 out_clk:
+#ifdef CONFIG_AMLOGIC_MODIFY
+	device_remove_file(&pdev->dev, &dev_attr_test);
+out_clk_3:
+	clk_disable_unprepare(spicc->clk);
+out_clk_2:
+	if (spicc->data->has_async_clk)
+		clk_disable_unprepare(spicc->async_clk);
+out_clk_1:
+#endif
 	clk_disable_unprepare(spicc->core);
 
 out_master:
@@ -596,13 +1250,94 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	writel(0, spicc->base + SPICC_CONREG);
 
 	clk_disable_unprepare(spicc->core);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (spicc->data->has_async_clk)
+		clk_disable_unprepare(spicc->async_clk);
+	clk_disable_unprepare(spicc->clk);
+	device_remove_file(&pdev->dev, &dev_attr_test);
+#endif
 
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_PM_SLEEP
+static int meson_spicc_suspend(struct device *dev)
+{
+	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+
+	return spi_master_suspend(spicc->master);
+}
+
+static int meson_spicc_resume(struct device *dev)
+{
+	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+
+	return spi_master_resume(spicc->master);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static int meson_spicc_runtime_suspend(struct device *dev)
+{
+	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+
+	meson_spicc_clk_disable(spicc);
+
+	return 0;
+}
+
+static int meson_spicc_runtime_resume(struct device *dev)
+{
+	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+
+	meson_spicc_hw_init(spicc);
+
+	return meson_spicc_clk_enable(spicc);
+}
+
+static const struct dev_pm_ops meson_spicc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_spicc_suspend, meson_spicc_resume)
+	SET_RUNTIME_PM_OPS(meson_spicc_runtime_suspend,
+			   meson_spicc_runtime_resume,
+			   NULL)
+};
+
+static const struct meson_spicc_data meson_spicc_gx_data = {
+	.max_speed_hz = 30000000,
+};
+
+static const struct meson_spicc_data meson_spicc_axg_data = {
+	.max_speed_hz = 80000000,
+	.has_linear_div = true,
+	.has_oen = true,
+};
+
+static const struct meson_spicc_data meson_spicc_g12_data = {
+	.max_speed_hz = 124000000,
+	.has_linear_div = true,
+	.has_oen = true,
+	.has_async_clk = true,
+};
+#endif
+
 static const struct of_device_id meson_spicc_of_match[] = {
-	{ .compatible = "amlogic,meson-gx-spicc", },
-	{ .compatible = "amlogic,meson-axg-spicc", },
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.compatible = "amlogic,meson-gx-spicc",
+		.data = &meson_spicc_gx_data,
+	},
+	{
+		.compatible = "amlogic,meson-axg-spicc",
+		.data = &meson_spicc_axg_data,
+	},
+	{
+		.compatible = "amlogic,meson-g12-spicc",
+		.data = &meson_spicc_g12_data,
+	},
+#else
+	.compatible = "amlogic,meson-gx-spicc",
+	.compatible = "amlogic,meson-axg-spicc"
+#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, meson_spicc_of_match);
@@ -613,6 +1348,9 @@ static struct platform_driver meson_spicc_driver = {
 	.driver  = {
 		.name = "meson-spicc",
 		.of_match_table = of_match_ptr(meson_spicc_of_match),
+#ifdef CONFIG_AMLOGIC_MODIFY
+		.pm = &meson_spicc_pm_ops,
+#endif
 	},
 };
 

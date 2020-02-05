@@ -25,6 +25,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
+		spi1 = &spicc0;
+		spi2 = &spicc1;
 	};
 
 	chosen {
@@ -481,4 +483,18 @@
 &pcie {
 	status = "disable";
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+};
+
+&spicc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_x>;
+	cs-gpios = <&gpio GPIOX_10 0>;
+};
+
+&spicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins>;
+	cs-gpios = <&gpio GPIOH_6 0>;
 };
