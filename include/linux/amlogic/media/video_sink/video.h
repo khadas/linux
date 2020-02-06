@@ -259,5 +259,6 @@ extern int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
 
 extern void videosync_pcrscr_update(s32 inc, u32 base);
+extern void videosync_pcrscr_inc(s32 inc);
 void vsync_notify_videosync(void);
 #endif /* VIDEO_H */
