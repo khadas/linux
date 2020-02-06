@@ -1,0 +1,17 @@
+#
+# Amlogic picture decoder device configuration
+#
+
+menu "Amlogic picture decoder support"
+
+config AMLOGIC_PIC_DEC
+		tristate "Amlogic picture decoder"
+		default n
+		select AM_PTSSERVER
+		help
+			This option is used to configure Amlogic driver
+			for picture decoder.
+			Select to enable picture decoder.
+			Disable by default.
+
+endmenu

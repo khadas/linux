@@ -136,6 +136,11 @@
 		status = "okay";
 		fr_auto_policy = <0>;
 	};
+
+	picdec {
+		compatible = "amlogic, picdec";
+		status = "okay";
+	};
 };
 
 /* Exposed via the on-board USB to Serial FT232RL IC */

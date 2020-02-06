@@ -464,6 +464,11 @@
 			};
 		};
 	};
+
+	picdec {
+		compatible = "amlogic, picdec";
+		status = "okay";
+	};
 };
 
 /*

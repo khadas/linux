@@ -1,3 +1,4 @@
 obj-$(CONFIG_AMLOGIC_POST_PROCESS_MANAGER) += ppmgr/
 obj-$(CONFIG_AMLOGIC_MEDIA_UTILS) += utils/
 obj-$(CONFIG_AMLOGIC_VIDEOSYNC) += videosync/
+obj-$(CONFIG_AMLOGIC_PIC_DEC) += pic_dev/
