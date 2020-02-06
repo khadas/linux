@@ -75,6 +75,15 @@ extern bool omx_secret_mode;
 	_IOW(VIDEOSYNC_IOC_MAGIC, 0x07, unsigned int)
 #define VIDEOSYNC_IOC_SET_FIRST_FRAME_NOSYNC \
 	_IOR(VIDEOSYNC_IOC_MAGIC, 0x08, unsigned int)
+#define VIDEOSYNC_IOC_SET_VPAUSE \
+	_IOW(VIDEOSYNC_IOC_MAGIC, 0x09, unsigned int)
+#define VIDEOSYNC_IOC_SET_VMASTER \
+	_IOW(VIDEOSYNC_IOC_MAGIC, 0x0a, unsigned int)
+#define VIDEOSYNC_IOC_GET_VPTS \
+	_IOR(VIDEOSYNC_IOC_MAGIC, 0x0b, unsigned int)
+#define VIDEOSYNC_IOC_GET_PCRSCR \
+	_IOR(VIDEOSYNC_IOC_MAGIC, 0x0c, unsigned int)
+
 
 #define VIDEOSYNC_S_VF_RECEIVER_NAME_SIZE 32
 #define VIDEOSYNC_S_POOL_SIZE 16
@@ -134,6 +143,11 @@ struct videosync_s {
 	u32 video_frame_repeat_count;
 	u32 freerun_mode;
 	u32 first_frame_toggled;
+	u32 first_frame_vpts;
+	u32 first_frame_queued;
+	u32 video_started;
+	u32 vmaster_mode;
+	u32 get_vpts;
 	u32 get_frame_count;
 	u32 put_frame_count;
 	void *op_arg;

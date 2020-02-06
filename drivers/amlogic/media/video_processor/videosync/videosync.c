@@ -337,19 +337,67 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 			}
 
 			/*check if need to correct pcr by omx_pts*/
-			current_omx_pts = dev_s->omx_pts;
-			diff = dev_s->system_time - current_omx_pts;
+			if (!dev_s->vmaster_mode) {
+				current_omx_pts = dev_s->omx_pts;
+				diff = dev_s->system_time - current_omx_pts;
 
-			if ((diff - omx_pts_interval_upper) > 0
-				|| (diff - omx_pts_interval_lower) < 0) {
-				vp_print(dev_s->vf_receiver_name,
-					PRINT_TIMESTAMP,
-					"sys_time=%u, omx_pts=%u, diff=%d\n",
-					dev_s->system_time,
-					current_omx_pts,
-					diff);
-				ts_pcrscr_set(dev_s,
-					current_omx_pts + duration_gcd);
+				if ((diff - omx_pts_interval_upper) > 0
+					|| (diff - omx_pts_interval_lower)
+					< 0) {
+					vp_print(dev_s->vf_receiver_name,
+						PRINT_TIMESTAMP,
+						"sys_time=%u, omx_pts=%u, diff=%d\n",
+						dev_s->system_time,
+						current_omx_pts,
+						diff);
+					ts_pcrscr_set(dev_s,
+						current_omx_pts + duration_gcd);
+				}
+			}
+		}
+	}
+}
+
+void videosync_pcrscr_inc(s32 inc)
+{
+	int i = 0;
+	/*unsigned long flags;*/
+	struct videosync_s *dev_s;
+	u32 current_omx_pts;
+	int diff;
+
+	if (!videosync_inited)
+		return;
+	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
+		dev_s = &vp_dev->video_prov[i];
+		if (dev_s && dev_s->active_state == VIDEOSYNC_ACTIVE) {
+			if (dev_s->system_time_up) {
+				dev_s->system_time += inc + system_time_inc_adj;
+
+				vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
+				"update sys_time %u, system_time_inc_adj %d, inc %d\n",
+				dev_s->system_time,
+				system_time_inc_adj,
+				inc);
+			}
+
+			/*check if need to correct pcr by omx_pts*/
+			if (!dev_s->vmaster_mode) {
+				current_omx_pts = dev_s->omx_pts;
+				diff = dev_s->system_time - current_omx_pts;
+
+				if ((diff - omx_pts_interval_upper) > 0
+					|| (diff - omx_pts_interval_lower)
+					< 0) {
+					vp_print(dev_s->vf_receiver_name,
+						PRINT_TIMESTAMP,
+						"sys_time=%u, omx_pts=%u, diff=%d\n",
+						dev_s->system_time,
+						current_omx_pts,
+						diff);
+					ts_pcrscr_set(dev_s,
+						current_omx_pts + duration_gcd);
+				}
 			}
 		}
 	}
@@ -378,6 +426,7 @@ static struct vframe_s *videosync_vf_get(void *op_arg)
 	if (vf) {
 		dev_s->cur_dispbuf = vf;
 		dev_s->first_frame_toggled = 1;
+		dev_s->get_vpts = vf->pts;
 	}
 	return vf;
 }
@@ -924,6 +973,88 @@ static long videosync_ioctl(struct file *file,
 		}
 	}
 	break;
+	case VIDEOSYNC_IOC_SET_VPAUSE: {
+		u32 info[2];
+		struct videosync_s *dev_s = NULL;
+		u32 dev_id;
+
+		if (copy_from_user(info, argp, sizeof(info)) == 0) {
+			dev_id = info[0];
+			if (dev_id < VIDEOSYNC_S_COUNT)
+				dev_s = &vp_dev->video_prov[dev_id];
+
+			if (dev_s && dev_s->mapped) {
+				pr_info("set vpause:%d\n", info[1]);
+				ts_pcrscr_enable(dev_s, !info[1]);
+				if (!info[1]) {
+					dev_s->video_started = 1;
+					if (dev_s->first_frame_queued)
+						ts_pcrscr_set(dev_s,
+						dev_s->first_frame_vpts);
+				} else {
+					dev_s->video_started = 0;
+				}
+			}
+		}
+	}
+	break;
+	case VIDEOSYNC_IOC_SET_VMASTER: {
+		u32 info[2];
+		struct videosync_s *dev_s = NULL;
+		u32 dev_id;
+
+		if (copy_from_user(info, argp, sizeof(info)) == 0) {
+			dev_id = info[0];
+			if (dev_id < VIDEOSYNC_S_COUNT)
+				dev_s = &vp_dev->video_prov[dev_id];
+
+			if (dev_s && dev_s->mapped) {
+				pr_info("set vmaster:%d\n", info[1]);
+				dev_s->vmaster_mode = info[1];
+			}
+		}
+	}
+	break;
+	case VIDEOSYNC_IOC_GET_VPTS: {
+		u32 info[2];
+		struct videosync_s *dev_s = NULL;
+		u32 dev_id;
+
+		if (copy_from_user(info, argp, sizeof(info)) == 0) {
+			dev_id = info[0];
+			if (dev_id < VIDEOSYNC_S_COUNT)
+				dev_s = &vp_dev->video_prov[dev_id];
+
+			if (dev_s && dev_s->mapped) {
+				info[1] = dev_s->get_vpts;
+				if (copy_to_user(argp, &info[0],
+					sizeof(info)) != 0)
+					ret = -EFAULT;
+			} else
+			ret = -EFAULT;
+		}
+	}
+	break;
+	case VIDEOSYNC_IOC_GET_PCRSCR: {
+		u32 info[2];
+		struct videosync_s *dev_s = NULL;
+		u32 dev_id;
+
+		if (copy_from_user(info, argp, sizeof(info)) == 0) {
+			dev_id = info[0];
+			if (dev_id < VIDEOSYNC_S_COUNT)
+				dev_s = &vp_dev->video_prov[dev_id];
+
+			if (dev_s && dev_s->mapped) {
+				info[1] = ts_pcrscr_get(dev_s);
+				if (copy_to_user(argp, &info[0],
+					sizeof(info)) != 0)
+					ret = -EFAULT;
+			} else
+			ret = -EFAULT;
+		}
+	}
+	break;
 	default:
 		pr_info("ioctl invalid cmd 0x%x\n", cmd);
 		return -EINVAL;
@@ -1039,13 +1170,16 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 			"discontinue, systime = %u, next_vf->pts = %u\n",
 			systime, next_vf->pts);
 		return true;
-	} else if ((dev_s->omx_pts + omx_pts_interval_upper < next_vf->pts)
+	} else if ((!dev_s->vmaster_mode)
+			&& (dev_s->omx_pts + omx_pts_interval_upper
+			< next_vf->pts)
 			&& (dev_s->omx_pts_set_index >= next_vf->omx_index)) {
-		pr_info("videosync, omx_pts=%d omx_pts_set_index=%d pts=%d omx_index=%d\n",
+		pr_info("videosync, omx_pts=%d omx_pts_set_index=%d pts=%d omx_index=%d pcr=%d\n",
 					dev_s->omx_pts,
 					dev_s->omx_pts_set_index,
 					next_vf->pts,
-					next_vf->omx_index);
+					next_vf->omx_index,
+					ts_pcrscr_get(dev_s));
 		return true;
 	}
 
@@ -1086,13 +1220,13 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 	if (delta_32 > max_delata_time)
 		max_delata_time = delta_32;
 
-	expired = (systime + vsync_pts_align) >= pts;
+	expired = (int)(systime + vsync_pts_align - pts) >= 0;
 
 	vp_print(dev_s->vf_receiver_name, PRINT_PATTERN,
 		 "expired=%d, valid=%d, next_pts=%d, cnt=%d, systime=%d, inc=%d\n",
 		 expired,
 		 next_vf->next_vf_pts_valid,
-		 next_vf->next_vf_pts,
+		 next_vf->pts,
 		 toggled_cnt,
 		 systime,
 		 vsync_pts_inc);
@@ -1206,6 +1340,14 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 		while (vf_peek(dev_s->vf_receiver_name)) {
 			vf = vf_get(dev_s->vf_receiver_name);
 			if (vf) {
+				if (!dev_s->first_frame_queued) {
+					dev_s->first_frame_queued = 1;
+					dev_s->first_frame_vpts = vf->pts;
+					if (dev_s->video_started) {
+						ts_pcrscr_set(dev_s,
+						dev_s->first_frame_vpts);
+					}
+				}
 				vfq_push(&dev_s->queued_q, vf);
 				dev_s->get_frame_count++;
 				vp_print(dev_s->vf_receiver_name,
@@ -1308,6 +1450,7 @@ static int videosync_receiver_event_fun(int type, void *data,
 		dev_s->active_state = VIDEOSYNC_ACTIVE;
 		dev_s->omx_check_previous_session = true;
 		dev_s->omx_pts_set_index = 0;
+		dev_s->mapped = true;
 
 		spin_lock_irqsave(&dev->dev_s_num_slock, flags);
 		++dev->active_dev_s_num;
@@ -1326,6 +1469,10 @@ static int videosync_receiver_event_fun(int type, void *data,
 		pts_pattern_detected = -1;
 		pre_pts_trace = 0;
 		pts_escape_vsync = 0;
+		dev_s->first_frame_queued = 0;
+		dev_s->first_frame_vpts = 0;
+		dev_s->vmaster_mode = 0;
+		dev_s->video_started = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_VFRAME_READY) {
 
 	} else if (type == VFRAME_EVENT_PROVIDER_START) {

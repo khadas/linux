@@ -3481,9 +3481,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			/*vsync_pts_inc_adj, vsync_pts_inc); */
 			timestamp_pcrscr_inc(vsync_pts_inc_adj);
 			timestamp_apts_inc(vsync_pts_inc_adj);
+			videosync_pcrscr_inc(vsync_pts_inc_adj);
 		} else {
 			timestamp_pcrscr_inc(vsync_pts_inc + 1);
 			timestamp_apts_inc(vsync_pts_inc + 1);
+			videosync_pcrscr_inc(vsync_pts_inc + 1);
 		}
 	} else {
 		if (vsync_slow_factor == 0) {
@@ -3503,9 +3505,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 			timestamp_pcrscr_inc(inc);
 			timestamp_apts_inc(inc);
+			videosync_pcrscr_inc(inc);
 		} else {
 			timestamp_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
 			timestamp_apts_inc(vsync_pts_inc / vsync_slow_factor);
+			videosync_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
 		}
 	}
 	if (omx_secret_mode == true) {
