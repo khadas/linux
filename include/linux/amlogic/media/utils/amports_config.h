@@ -7,7 +7,7 @@
 #define AMPORTS_CONFIG_HHH
 #include <linux/kconfig.h>
 #include <linux/amlogic/cpu_version.h>
-
+#include <linux/amlogic/media/old_cpu_version.h>
 /*
  *value seem:
  *arch\arm\plat-meson\include\plat\cpu.h

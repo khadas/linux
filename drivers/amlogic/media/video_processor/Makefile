@@ -1,0 +1,1 @@
+obj-$(CONFIG_AMLOGIC_POST_PROCESS_MANAGER) += ppmgr/

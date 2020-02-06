@@ -221,6 +221,32 @@
 			size = <0x8000000>;
 			alignment = <0x400000>;
 		};
+
+		/*  POST PROCESS MANAGER */
+		ppmgr_reserved:linux,ppmgr {
+			compatible = "shared-dma-pool";
+			size = <0x0>;
+		};
+
+		autocap_reserved:linux,autocap_reserved {
+			compatible = "amlogic, aml_autocap_memory";
+			status = "disabled";
+			//size = <0x4000000>;
+			//alloc-ranges = <0x40000000 0x25800000>;
+		};
+	};
+
+	free_reserved {
+		compatible = "amlogic, free_reserved";
+		memory-region = <&autocap_reserved>;
+		status = "disabled";
+	};
+
+	ppmgr {
+		compatible = "amlogic, ppmgr";
+		memory-region = <&ppmgr_reserved>;
+		dev_name = "ppmgr";
+		status = "okay";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {

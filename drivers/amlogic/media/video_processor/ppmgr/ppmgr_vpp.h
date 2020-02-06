@@ -1,0 +1,43 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * drivers/amlogic/media/video_processor/ppmgr/ppmgr_vpp.h
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+#ifndef _PPMGR_TV_H_
+#define _PPMGR_TV_H_
+
+void vf_ppmgr_unreg_provider(void);
+void vf_ppmgr_reset(int type);
+void ppmgr_vf_put_dec(struct vframe_s *vf);
+
+#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
+bool get_scaler_pos_reset(void);
+void set_scaler_pos_reset(bool flag);
+u32 amvideo_get_scaler_mode(void);
+u32 amvideo_get_scaler_para(int *x, int *y, int *w, int *h, u32 *ratio);
+#endif
+
+enum ppmgr_source_type {
+	DECODER_8BIT_NORMAL = 0,
+	DECODER_8BIT_BOTTOM,
+	DECODER_8BIT_TOP,
+	DECODER_10BIT_NORMAL,
+	DECODER_10BIT_BOTTOM,
+	DECODER_10BIT_TOP,
+	VDIN_8BIT_NORMAL,
+	VDIN_10BIT_NORMAL,
+};
+#endif
