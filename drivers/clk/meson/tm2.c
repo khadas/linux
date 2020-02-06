@@ -3713,6 +3713,113 @@ static struct clk_regmap tm2_spicc_1 = {
 	},
 };
 
+static const struct clk_parent_data tm2_spicc_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &tm2_clk81.hw },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div2.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+	{ .hw = &tm2_fclk_div7.hw },
+	{ .hw = &tm2_gp0_pll.hw },
+};
+
+static struct clk_regmap tm2_spicc0_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc0_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_spicc_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_spicc_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap tm2_spicc0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.shift = 0,
+		.width = 6,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_spicc0_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_spicc0_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.bit_idx = 6,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "spicc0_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_spicc0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_spicc1_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 23,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc1_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_spicc_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_spicc_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap tm2_spicc1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.shift = 16,
+		.width = 6,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_spicc1_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_spicc1_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SPICC_CLK_CNTL,
+		.bit_idx = 22,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "spicc1_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_spicc1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &tm2_clk81.hw)
 
@@ -4057,6 +4164,12 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_VPU_CLKC_P1_DIV]		= &tm2_vpu_clkc_p1_div.hw,
 		[CLKID_VPU_CLKC_P1]		= &tm2_vpu_clkc_p1.hw,
 		[CLKID_VPU_CLKC_MUX]		= &tm2_vpu_clkc_mux.hw,
+		[CLKID_SPICC0_MUX]		= &tm2_spicc0_mux.hw,
+		[CLKID_SPICC0_DIV]		= &tm2_spicc0_div.hw,
+		[CLKID_SPICC0_GATE]		= &tm2_spicc0_gate.hw,
+		[CLKID_SPICC1_MUX]		= &tm2_spicc1_mux.hw,
+		[CLKID_SPICC1_DIV]		= &tm2_spicc1_div.hw,
+		[CLKID_SPICC1_GATE]		= &tm2_spicc1_gate.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -4299,6 +4412,12 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_hdmirx_axi_pclk,
 	&tm2_dspb,
 	&tm2_dspa,
+	&tm2_spicc0_mux,
+	&tm2_spicc0_div,
+	&tm2_spicc0_gate,
+	&tm2_spicc1_mux,
+	&tm2_spicc1_div,
+	&tm2_spicc1_gate,
 };
 
 static const struct reg_sequence tm2_init_regs[] = {
