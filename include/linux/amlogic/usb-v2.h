@@ -175,15 +175,6 @@ struct amlogic_usb_v2 {
 	int portnum;
 	int suspend_flag;
 	int phy_version;
-	int pwr_ctl;
-	u32 u2_ctrl_sleep_shift;
-	u32 u2_hhi_mem_pd_mask;
-	u32 u2_ctrl_iso_shift;
-	u32 u2_hhi_mem_pd_shift;
-	u32 u3_ctrl_sleep_shift;
-	u32 u3_hhi_mem_pd_mask;
-	u32 u3_ctrl_iso_shift;
-	u32 u3_hhi_mem_pd_shift;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER];
 	u32 usb_reset_bit;
 	u32 otg_phy_index;

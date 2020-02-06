@@ -144,7 +144,7 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vddao_3v3>;
 		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
-		enable-active-low;
+		enable-active-high;
 		regulator-always-on;
 	};
 
@@ -469,9 +469,25 @@
 	pinctrl-names = "default";
 };
 
-&usb {
+&dwc2_a {
 	status = "okay";
-	dr_mode = "otg";
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <1>;
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb2_phy_v2 {
+	status = "okay";
+	portnum = <2>;
+};
+
+&usb3_phy_v2 {
+	status = "okay";
+	portnum = <1>;
+	otg = <0>;
 };
 
 &aml_wifi{

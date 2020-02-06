@@ -510,30 +510,6 @@ static bool device_is_available(const struct device_node *device)
 	return false;
 }
 
-static void power_switch_to_pcie(struct amlogic_usb_v2 *phy)
-{
-	u32 val;
-
-	power_ctrl_sleep(1, phy->u3_ctrl_sleep_shift);
-	power_ctrl_mempd0(1, phy->u3_hhi_mem_pd_mask,
-			  phy->u3_hhi_mem_pd_shift);
-	usleep_range(100 - 1, 100);
-
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	writel((val & (~(0x1 << 12))), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	usleep_range(100 - 1, 100);
-
-	power_ctrl_iso(1, phy->u3_ctrl_iso_shift);
-
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	writel((val | (0x1 << 12)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	usleep_range(100 - 1, 100);
-}
-
 static int phy_aml_id_pin_config(struct platform_device *pdev,
 				 struct amlogic_usb_v2 *phy)
 {
@@ -572,10 +548,10 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	struct amlogic_usb_v2			*phy;
 	struct device *dev = &pdev->dev;
 	struct resource *phy_mem;
-	struct resource *reset_mem;
+	//struct resource *reset_mem;
 	void __iomem	*phy_base;
 	void __iomem *phy3_base;
-	void __iomem	*reset_base = NULL;
+	//void __iomem	*reset_base = NULL;
 	unsigned int phy3_mem;
 	unsigned int phy3_mem_size = 0;
 	void __iomem *usb2_phy_base;
@@ -591,11 +567,6 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	int otg = 0;
 	int ret;
 	struct device_node *tsi_pci;
-	u32 pwr_ctl = 0;
-	u32 u3_ctrl_sleep_shift = 0;
-	u32 u3_hhi_mem_pd_shift = 0;
-	u32 u3_hhi_mem_pd_mask = 0;
-	u32 u3_ctrl_iso_shift = 0;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -644,50 +615,6 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 				(unsigned long)phy3_mem_size);
 	if (!phy3_base)
 		return -ENOMEM;
-
-	prop = of_get_property(dev->of_node, "pwr-ctl", NULL);
-	if (prop)
-		pwr_ctl = of_read_ulong(prop, 1);
-	else
-		pwr_ctl = 0;
-
-	if (pwr_ctl) {
-		reset_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (reset_mem) {
-			reset_base = ioremap(reset_mem->start,
-					     resource_size(reset_mem));
-			if (IS_ERR(reset_base))
-				return PTR_ERR(reset_base);
-		}
-
-		prop = of_get_property(dev->of_node,
-				       "u3-ctrl-sleep-shift", NULL);
-		if (prop)
-			u3_ctrl_sleep_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u3-hhi-mem-pd-shift", NULL);
-		if (prop)
-			u3_hhi_mem_pd_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u3-hhi-mem-pd-mask", NULL);
-		if (prop)
-			u3_hhi_mem_pd_mask = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u3-ctrl-iso-shift", NULL);
-		if (prop)
-			u3_ctrl_iso_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-	}
 
 	retval = of_property_read_u32
 				(dev->of_node, "usb2-phy-reg", &usb2_phy_mem);
@@ -755,19 +682,10 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	phy->phy.flags		= AML_USB3_PHY_DISABLE;
 	phy->vbus_power_pin = gpio_vbus_power_pin;
 	phy->usb_gpio_desc = usb_gd;
-	phy->pwr_ctl = pwr_ctl;
 	phy->otg = otg;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
-		if (phy->pwr_ctl) {
-			phy->u3_ctrl_sleep_shift = u3_ctrl_sleep_shift;
-			phy->u3_hhi_mem_pd_shift = u3_hhi_mem_pd_shift;
-			phy->u3_hhi_mem_pd_mask = u3_hhi_mem_pd_mask;
-			phy->u3_ctrl_iso_shift = u3_ctrl_iso_shift;
-			phy->reset_regs = reset_base;
-			power_switch_to_pcie(phy);
-		}
 		writel((readl(phy->phy3_cfg) | (3<<5)), phy->phy3_cfg);
 		udelay(100);
 

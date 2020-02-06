@@ -232,31 +232,6 @@ static void amlogic_new_usb2phy_shutdown(struct usb_phy *x)
 	phy->suspend_flag = 1;
 }
 
-void power_switch_to_usb(struct amlogic_usb_v2	*phy)
-{
-	/* Powerup usb_comb */
-	u32 val;
-	size_t mask = 0;
-
-	mask = (size_t)phy->reset_regs & 0xf;
-
-	power_ctrl_sleep(1, phy->u2_ctrl_sleep_shift);
-	power_ctrl_mempd0(1, phy->u2_hhi_mem_pd_mask, phy->u2_hhi_mem_pd_shift);
-	usleep_range(100 - 1, 100);
-
-	val = readl(phy->reset_regs + (0x21 * 4 - mask));
-	val &= ~(0x1 << phy->usb_reset_bit);
-	writel(val, phy->reset_regs + (0x21 * 4 - mask));
-
-	usleep_range(100 - 1, 100);
-	power_ctrl_iso(1, phy->u2_ctrl_iso_shift);
-
-	val = readl(phy->reset_regs + (0x21 * 4 - mask));
-	val |= 0x1 << phy->usb_reset_bit;
-	writel(val, phy->reset_regs + (0x21 * 4 - mask));
-	usleep_range(100 - 1, 100);
-}
-
 static int amlogic_new_usb2_probe(struct platform_device *pdev)
 {
 	struct amlogic_usb_v2			*phy;
@@ -276,11 +251,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	int i = 0;
 	int retval;
 	u32 pll_setting[8];
-	u32 pwr_ctl = 0;
-	u32 u2_ctrl_sleep_shift = 0;
-	u32 u2_hhi_mem_pd_shift = 0;
-	u32 u2_hhi_mem_pd_mask = 0;
-	u32 u2_ctrl_iso_shift = 0;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
 	u32 usb_reset_bit = 2;
 	u32 otg_phy_index = 1;
@@ -358,42 +328,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 				}
 			}
 		}
-	}
-
-	prop = of_get_property(dev->of_node, "pwr-ctl", NULL);
-	if (prop)
-		pwr_ctl = of_read_ulong(prop, 1);
-	else
-		pwr_ctl = 0;
-
-	if (pwr_ctl) {
-		prop = of_get_property(dev->of_node,
-				       "u2-ctrl-sleep-shift", NULL);
-		if (prop)
-			u2_ctrl_sleep_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u2-hhi-mem-pd-shift", NULL);
-		if (prop)
-			u2_hhi_mem_pd_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u2-hhi-mem-pd-mask", NULL);
-		if (prop)
-			u2_hhi_mem_pd_mask = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
-
-		prop = of_get_property(dev->of_node,
-				       "u2-ctrl-iso-shift", NULL);
-		if (prop)
-			u2_ctrl_iso_shift = of_read_ulong(prop, 1);
-		else
-			pwr_ctl = 0;
 	}
 
 	for (i = 0; i < portnum; i++) {
@@ -479,7 +413,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->pll_setting[7] = pll_setting[7];
 	phy->suspend_flag = 0;
 	phy->phy_version = phy_version;
-	phy->pwr_ctl = pwr_ctl;
 	phy->otg_phy_index = otg_phy_index;
 	for (i = 0; i < portnum; i++) {
 		phy->phy_cfg[i] = phy_cfg_base[i];
@@ -500,13 +433,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 		phy->phy.flags = AML_USB2_PHY_ENABLE;
 	}
 
-	if (pwr_ctl) {
-		phy->u2_ctrl_sleep_shift = u2_ctrl_sleep_shift;
-		phy->u2_hhi_mem_pd_shift = u2_hhi_mem_pd_shift;
-		phy->u2_hhi_mem_pd_mask = u2_hhi_mem_pd_mask;
-		phy->u2_ctrl_iso_shift = u2_ctrl_iso_shift;
-		power_switch_to_usb(phy);
-	}
 	phy->usb_reset_bit = usb_reset_bit;
 
 	usb_add_phy_dev(&phy->phy);
