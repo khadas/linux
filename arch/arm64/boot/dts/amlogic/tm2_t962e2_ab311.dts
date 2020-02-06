@@ -18,6 +18,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
+		spi1 = &spicc0;
+		spi2 = &spicc1;
 	};
 
 	chosen {
@@ -100,4 +102,18 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_input_ao_pins>;
+};
+
+&spicc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_h>;
+	cs-gpios = <&gpio GPIOH_20 0>;
+};
+
+&spicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins_c>;
+	cs-gpios = <&gpio GPIOC_3 0>;
 };

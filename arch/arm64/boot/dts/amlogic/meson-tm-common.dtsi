@@ -375,6 +375,56 @@
 							output-low;
 						};
 					};
+
+					spicc0_pins_c: spicc0_pins_c {
+						mux {
+							groups = "spi0_mosi_c",
+								 "spi0_miso_c",
+								 "spi0_clk_c";
+							function = "spi0";
+							drive-strength = <2>;
+						};
+					};
+
+					spicc0_pins_h: spicc0_pins_h {
+						mux {
+							groups = "spi0_mosi_h",
+								 "spi0_miso_h",
+								 "spi0_clk_h";
+							function = "spi0";
+							drive-strength = <2>;
+						};
+					};
+
+					spicc1_pins_c: spicc1_pins_c {
+						mux {
+							groups = "spi1_mosi_c",
+								 "spi1_miso_c",
+								 "spi1_clk_c";
+							function = "spi1";
+							drive-strength = <2>;
+						};
+					};
+
+					spicc1_pins_h: spicc1_pins_h {
+						mux {
+							groups = "spi1_mosi_h",
+								 "spi1_miso_h",
+								 "spi1_clk_h";
+							function = "spi1";
+							drive-strength = <2>;
+						};
+					};
+
+					spicc1_pins_dv: spicc1_pins_dv {
+						mux {
+							groups = "spi1_mosi_dv",
+								 "spi1_miso_dv",
+								 "spi1_clk_dv";
+							function = "spi1";
+							drive-strength = <2>;
+						};
+					};
 				};
 			};
 
@@ -630,6 +680,30 @@
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_I2C>;
 				clock-frequency = <100000>;
+			};
+
+			spicc0: spi@13000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x13000 0x0 0x44>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "core", "async";
+				clocks = <&clkc CLKID_SPICC0>,
+					 <&clkc CLKID_SPICC0_GATE>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			spicc1: spi@15000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x15000 0x0 0x44>;
+				interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "core", "async";
+				clocks = <&clkc CLKID_SPICC1>,
+					 <&clkc CLKID_SPICC1_GATE>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
 			};
 
 			gpio_intc: interrupt-controller@f080 {
