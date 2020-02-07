@@ -180,6 +180,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 EXPORT_SYMBOL(hdmitx_ddc_hw_op);
 
 static int hdcp_topo_st = -1;
+static int hdcp22_susflag;
 int hdmitx_hdcp_opr(unsigned int val)
 {
 	struct arm_smccc_res res;
@@ -228,6 +229,10 @@ int hdmitx_hdcp_opr(unsigned int val)
 	if (val == 0xe) { /* HDCP22_GET_TOPO */
 		arm_smccc_smc(0x82000084, 0, 0, 0, 0, 0, 0, 0, &res);
 		return (unsigned int)((res.a0)&0xffffffff);
+	}
+	if (val == 0xf) { /* HDCP22_SET_SUSFLAG */
+		arm_smccc_smc(0x8200008a, hdcp22_susflag,
+			0, 0, 0, 0, 0, 0, &res);
 	}
 	return -1;
 }
@@ -560,6 +565,7 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x67);
+	hdmitx_wr_reg(HDMITX_TOP_DISABLE_NULL, 0x7); /* disable NULL pkt */
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x13);
 	/* Enable skpclk to HDCP2.2 IP */
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 7, 1);
@@ -5251,6 +5257,16 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		edid_read_head_8bytes();
 		hdmi_hwi_init(hdev);
 		mdelay(5);
+		break;
+	case MISC_SUSFLAG:
+		if (argv == 1) {
+			hdcp22_susflag = 1;
+			hdmitx_hdcp_opr(0xf);
+		}
+		if (argv == 0) {
+			hdcp22_susflag = 0;
+			hdmitx_hdcp_opr(0xf);
+		}
 		break;
 	default:
 		break;

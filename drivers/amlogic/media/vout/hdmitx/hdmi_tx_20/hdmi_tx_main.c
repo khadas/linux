@@ -146,10 +146,11 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 
 	phdmi->ready = 0;
 	phdmi->hpd_lock = 1;
-	msleep(20);
+	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
+	usleep_range(10000, 10010);
 	phdmi->hwop.cntlmisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
-	pr_info(SYS "HDMITX: early suspend\n");
+	pr_info(SYS "HDMITX: Early Suspend\n");
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 	phdmi->cur_VIC = HDMI_Unknown;
@@ -223,7 +224,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
-	pr_info(SYS "late resume\n");
+	phdmi->hwop.cntlmisc(phdmi, MISC_SUSFLAG, 0);
+	pr_info(SYS "HDMITX: Late Resume\n");
 }
 
 /* Set avmute_set signal to HDMIRX */
