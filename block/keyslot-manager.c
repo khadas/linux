@@ -66,6 +66,11 @@ struct keyslot_manager {
 	struct keyslot slots[];
 };
 
+static inline bool keyslot_manager_is_passthrough(struct keyslot_manager *ksm)
+{
+	return ksm->num_slots == 0;
+}
+
 /**
  * keyslot_manager_create() - Create a keyslot manager
  * @num_slots: The number of key slots to manage.
@@ -168,6 +173,7 @@ static int find_keyslot(struct keyslot_manager *ksm,
 	hlist_for_each_entry(slotp, head, hash_node) {
 		if (slotp->key.hash == key->hash &&
 		    slotp->key.crypto_mode == key->crypto_mode &&
+		    slotp->key.size == key->size &&
 		    slotp->key.data_unit_size == key->data_unit_size &&
 		    !crypto_memneq(slotp->key.raw, key->raw, key->size))
 			return slotp - ksm->slots;
@@ -209,6 +215,9 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 	int slot;
 	int err;
 	struct keyslot *idle_slot;
+
+	if (keyslot_manager_is_passthrough(ksm))
+		return 0;
 
 	down_read(&ksm->lock);
 	slot = find_and_grab_keyslot(ksm, key);
@@ -275,6 +284,9 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
  */
 void keyslot_manager_get_slot(struct keyslot_manager *ksm, unsigned int slot)
 {
+	if (keyslot_manager_is_passthrough(ksm))
+		return;
+
 	if (WARN_ON(slot >= ksm->num_slots))
 		return;
 
@@ -291,6 +303,9 @@ void keyslot_manager_get_slot(struct keyslot_manager *ksm, unsigned int slot)
 void keyslot_manager_put_slot(struct keyslot_manager *ksm, unsigned int slot)
 {
 	unsigned long flags;
+
+	if (keyslot_manager_is_passthrough(ksm))
+		return;
 
 	if (WARN_ON(slot >= ksm->num_slots))
 		return;
@@ -351,6 +366,16 @@ int keyslot_manager_evict_key(struct keyslot_manager *ksm,
 	int err;
 	struct keyslot *slotp;
 
+	if (keyslot_manager_is_passthrough(ksm)) {
+		if (ksm->ksm_ll_ops.keyslot_evict) {
+			down_write(&ksm->lock);
+			err = ksm->ksm_ll_ops.keyslot_evict(ksm, key, -1);
+			up_write(&ksm->lock);
+			return err;
+		}
+		return 0;
+	}
+
 	down_write(&ksm->lock);
 	slot = find_keyslot(ksm, key);
 	if (slot < 0) {
@@ -388,6 +413,9 @@ void keyslot_manager_reprogram_all_keys(struct keyslot_manager *ksm)
 {
 	unsigned int slot;
 
+	if (WARN_ON(keyslot_manager_is_passthrough(ksm)))
+		return;
+
 	down_write(&ksm->lock);
 	for (slot = 0; slot < ksm->num_slots; slot++) {
 		const struct keyslot *slotp = &ksm->slots[slot];
@@ -424,3 +452,108 @@ void keyslot_manager_destroy(struct keyslot_manager *ksm)
 	}
 }
 EXPORT_SYMBOL_GPL(keyslot_manager_destroy);
+
+/**
+ * keyslot_manager_create_passthrough() - Create a passthrough keyslot manager
+ * @ksm_ll_ops: The struct keyslot_mgmt_ll_ops
+ * @crypto_mode_supported: Bitmasks for supported encryption modes
+ * @ll_priv_data: Private data passed as is to the functions in ksm_ll_ops.
+ *
+ * Allocate memory for and initialize a passthrough keyslot manager.
+ * Called by e.g. storage drivers to set up a keyslot manager in their
+ * request_queue, when the storage driver wants to manage its keys by itself.
+ * This is useful for inline encryption hardware that don't have a small fixed
+ * number of keyslots, and for layered devices.
+ *
+ * See keyslot_manager_create() for more details about the parameters.
+ *
+ * Context: This function may sleep
+ * Return: Pointer to constructed keyslot manager or NULL on error.
+ */
+struct keyslot_manager *keyslot_manager_create_passthrough(
+	const struct keyslot_mgmt_ll_ops *ksm_ll_ops,
+	const unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX],
+	void *ll_priv_data)
+{
+	struct keyslot_manager *ksm;
+
+	ksm = kzalloc(sizeof(*ksm), GFP_KERNEL);
+	if (!ksm)
+		return NULL;
+
+	ksm->ksm_ll_ops = *ksm_ll_ops;
+	memcpy(ksm->crypto_mode_supported, crypto_mode_supported,
+	       sizeof(ksm->crypto_mode_supported));
+	ksm->ll_priv_data = ll_priv_data;
+
+	init_rwsem(&ksm->lock);
+
+	return ksm;
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_create_passthrough);
+
+/**
+ * keyslot_manager_intersect_modes() - restrict supported modes by child device
+ * @parent: The keyslot manager for parent device
+ * @child: The keyslot manager for child device, or NULL
+ *
+ * Clear any crypto mode support bits in @parent that aren't set in @child.
+ * If @child is NULL, then all parent bits are cleared.
+ *
+ * Only use this when setting up the keyslot manager for a layered device,
+ * before it's been exposed yet.
+ */
+void keyslot_manager_intersect_modes(struct keyslot_manager *parent,
+				     const struct keyslot_manager *child)
+{
+	if (child) {
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(child->crypto_mode_supported); i++) {
+			parent->crypto_mode_supported[i] &=
+				child->crypto_mode_supported[i];
+		}
+	} else {
+		memset(parent->crypto_mode_supported, 0,
+		       sizeof(parent->crypto_mode_supported));
+	}
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_intersect_modes);
+
+/**
+ * keyslot_manager_derive_raw_secret() - Derive software secret from wrapped key
+ * @ksm: The keyslot manager
+ * @wrapped_key: The wrapped key
+ * @wrapped_key_size: Size of the wrapped key in bytes
+ * @secret: (output) the software secret
+ * @secret_size: (output) the number of secret bytes to derive
+ *
+ * Given a hardware-wrapped key, ask the hardware to derive a secret which
+ * software can use for cryptographic tasks other than inline encryption.  The
+ * derived secret is guaranteed to be cryptographically isolated from the key
+ * with which any inline encryption with this wrapped key would actually be
+ * done.  I.e., both will be derived from the unwrapped key.
+ *
+ * Return: 0 on success, -EOPNOTSUPP if hardware-wrapped keys are unsupported,
+ *	   or another -errno code.
+ */
+int keyslot_manager_derive_raw_secret(struct keyslot_manager *ksm,
+				      const u8 *wrapped_key,
+				      unsigned int wrapped_key_size,
+				      u8 *secret, unsigned int secret_size)
+{
+	int err;
+
+	down_write(&ksm->lock);
+	if (ksm->ksm_ll_ops.derive_raw_secret) {
+		err = ksm->ksm_ll_ops.derive_raw_secret(ksm, wrapped_key,
+							wrapped_key_size,
+							secret, secret_size);
+	} else {
+		err = -EOPNOTSUPP;
+	}
+	up_write(&ksm->lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_derive_raw_secret);

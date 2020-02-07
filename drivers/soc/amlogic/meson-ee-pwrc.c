@@ -409,6 +409,7 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 				     unsigned int count)
 {
 	struct device_node *np = NULL;
+	int ret;
 
 	dom->pwrc = pwrc;
 	dom->num_rstc = dom->desc.reset_names_count;
@@ -426,6 +427,12 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 		np = of_parse_phandle(pdev->dev.of_node, "ge2d,reset", 0);
 
 	if (dom->num_rstc) {
+		int count = reset_control_get_count(&pdev->dev);
+
+		if (count != dom->num_rstc)
+			dev_warn(&pdev->dev, "Invalid resets count %d for domain %s\n",
+				 count, dom->desc.name);
+
 		dom->rstc = of_reset_control_array_get(np, true, false, true);
 		if (IS_ERR(dom->rstc))
 			return PTR_ERR(dom->rstc);
@@ -460,15 +467,21 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
          * prepare/enable counters won't be in sync.
          */
 	if (dom->num_clks && dom->desc.get_power && !dom->desc.get_power(dom)) {
-		int ret = clk_bulk_prepare_enable(dom->num_clks, dom->clks);
+		ret = clk_bulk_prepare_enable(dom->num_clks, dom->clks);
 		if (ret)
 			return ret;
 
-		pm_genpd_init(&dom->base, &pm_domain_always_on_gov, false);
-	} else
-		pm_genpd_init(&dom->base, NULL,
-			      (dom->desc.get_power ?
-			       dom->desc.get_power(dom) : true));
+		ret = pm_genpd_init(&dom->base, &pm_domain_always_on_gov,
+				    false);
+		if (ret)
+			return ret;
+	} else {
+		ret = pm_genpd_init(&dom->base, NULL,
+				    (dom->desc.get_power ?
+				     dom->desc.get_power(dom) : true));
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -549,9 +562,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 		pwrc->xlate.domains[i] = &dom->base;
 	}
 
-	of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
-
-	return 0;
+	return of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
 }
 
 static void meson_ee_pwrc_shutdown(struct platform_device *pdev)

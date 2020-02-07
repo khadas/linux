@@ -256,7 +256,8 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 				      __le32_to_cpu(resp->n_channels),
 				      resp->channels,
 				      __le16_to_cpu(resp->mcc),
-				      __le16_to_cpu(resp->geo_info));
+				      __le16_to_cpu(resp->geo_info),
+				      __le16_to_cpu(resp->cap));
 	/* Store the return source id */
 	src_id = resp->source_id;
 	kfree(resp);
@@ -742,6 +743,20 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	return ret;
 }
 
+static void iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
+			   struct ieee80211_sta *sta)
+{
+	if (likely(sta)) {
+		if (likely(iwl_mvm_tx_skb_sta(mvm, skb, sta) == 0))
+			return;
+	} else {
+		if (likely(iwl_mvm_tx_skb_non_sta(mvm, skb) == 0))
+			return;
+	}
+
+	ieee80211_free_txskb(mvm->hw, skb);
+}
+
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_control *control,
 			   struct sk_buff *skb)
@@ -785,14 +800,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (sta) {
-		if (iwl_mvm_tx_skb(mvm, skb, sta))
-			goto drop;
-		return;
-	}
-
-	if (iwl_mvm_tx_skb_non_sta(mvm, skb))
-		goto drop;
+	iwl_mvm_tx_skb(mvm, skb, sta);
 	return;
  drop:
 	ieee80211_free_txskb(hw, skb);
@@ -842,10 +850,7 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 				break;
 			}
 
-			if (!txq->sta)
-				iwl_mvm_tx_skb_non_sta(mvm, skb);
-			else
-				iwl_mvm_tx_skb(mvm, skb, txq->sta);
+			iwl_mvm_tx_skb(mvm, skb, txq->sta);
 		}
 	} while (atomic_dec_return(&mvmtxq->tx_request));
 	rcu_read_unlock();

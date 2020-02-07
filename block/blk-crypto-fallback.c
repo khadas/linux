@@ -193,6 +193,8 @@ static struct bio *blk_crypto_clone_bio(struct bio *bio_src)
 	bio_clone_blkg_association(bio, bio_src);
 	blkcg_bio_issue_init(bio);
 
+	bio_clone_skip_dm_default_key(bio, bio_src);
+
 	return bio;
 }
 
@@ -557,6 +559,7 @@ out:
 	mutex_unlock(&tfms_init_lock);
 	return err;
 }
+EXPORT_SYMBOL_GPL(blk_crypto_start_using_mode);
 
 int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key)
 {
@@ -569,7 +572,7 @@ int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
-	if (WARN_ON_ONCE(!tfms_inited[bc->bc_key->crypto_mode])) {
+	if (!tfms_inited[bc->bc_key->crypto_mode]) {
 		bio->bi_status = BLK_STS_IOERR;
 		return -EIO;
 	}

@@ -15,6 +15,7 @@
 #include <linux/blk-crypto.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
+#include <linux/keyslot-manager.h>
 
 #include "fscrypt_private.h"
 
@@ -48,6 +49,7 @@ void fscrypt_select_encryption_impl(struct fscrypt_info *ci)
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				     const u8 *raw_key,
+				     unsigned int raw_key_size,
 				     const struct fscrypt_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
@@ -74,8 +76,11 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	else
 		sb->s_cop->get_devices(sb, blk_key->devs);
 
-	err = blk_crypto_init_key(&blk_key->base, raw_key, crypto_mode,
-				  sb->s_blocksize);
+	BUILD_BUG_ON(FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE >
+		     BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE);
+
+	err = blk_crypto_init_key(&blk_key->base, raw_key, raw_key_size,
+				  crypto_mode, sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
 		goto fail;
@@ -130,6 +135,22 @@ void fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key)
 		}
 		kzfree(blk_key);
 	}
+}
+
+int fscrypt_derive_raw_secret(struct super_block *sb,
+			      const u8 *wrapped_key,
+			      unsigned int wrapped_key_size,
+			      u8 *raw_secret, unsigned int raw_secret_size)
+{
+	struct request_queue *q;
+
+	q = sb->s_bdev->bd_queue;
+	if (!q->ksm)
+		return -EOPNOTSUPP;
+
+	return keyslot_manager_derive_raw_secret(q->ksm,
+						 wrapped_key, wrapped_key_size,
+						 raw_secret, raw_secret_size);
 }
 
 /**
@@ -193,12 +214,17 @@ static void fscrypt_generate_dun(const struct fscrypt_info *ci, u64 lblk_num,
  * otherwise fscrypt_mergeable_bio() won't work as intended.
  *
  * The encryption context will be freed automatically when the bio is freed.
+ *
+ * This function also handles setting bi_skip_dm_default_key when needed.
  */
 void fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 			       u64 first_lblk, gfp_t gfp_mask)
 {
 	const struct fscrypt_info *ci = inode->i_crypt_info;
 	u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE];
+
+	if (fscrypt_inode_should_skip_dm_default_key(inode))
+		bio_set_skip_dm_default_key(bio);
 
 	if (!fscrypt_inode_uses_inline_crypto(inode))
 		return;
@@ -269,6 +295,9 @@ EXPORT_SYMBOL_GPL(fscrypt_set_bio_crypt_ctx_bh);
  *
  * fscrypt_set_bio_crypt_ctx() must have already been called on the bio.
  *
+ * This function also returns false if the next part of the I/O would need to
+ * have a different value for the bi_skip_dm_default_key flag.
+ *
  * Return: true iff the I/O is mergeable
  */
 bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
@@ -278,6 +307,9 @@ bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 	u64 next_dun[BLK_CRYPTO_DUN_ARRAY_SIZE];
 
 	if (!!bc != fscrypt_inode_uses_inline_crypto(inode))
+		return false;
+	if (bio_should_skip_dm_default_key(bio) !=
+	    fscrypt_inode_should_skip_dm_default_key(inode))
 		return false;
 	if (!bc)
 		return true;
@@ -312,7 +344,8 @@ bool fscrypt_mergeable_bio_bh(struct bio *bio,
 	u64 next_lblk;
 
 	if (!bh_get_inode_and_lblk_num(next_bh, &inode, &next_lblk))
-		return !bio->bi_crypt_context;
+		return !bio->bi_crypt_context &&
+		       !bio_should_skip_dm_default_key(bio);
 
 	return fscrypt_mergeable_bio(bio, inode, next_lblk);
 }
