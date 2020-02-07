@@ -107,6 +107,7 @@ void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev)
 
 static int hdmitx_hdcp_task(void *data)
 {
+	static int auth_trigger;
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
@@ -114,6 +115,11 @@ static int hdmitx_hdcp_task(void *data)
 		hdmi_authenticated = hdev->hwop.cntlddc(hdev,
 			DDC_HDCP_GET_AUTH, 0);
 		hdmitx_hdcp_status(hdmi_authenticated);
+		if (auth_trigger != hdmi_authenticated) {
+			auth_trigger = hdmi_authenticated;
+			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
+				auth_trigger);
+		}
 		msleep_interruptible(200);
 	}
 
