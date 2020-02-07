@@ -154,10 +154,28 @@
  * GXBB and newer.
  */
 #define MESON_SAR_ADC_REG11					0x2c
+#ifdef CONFIG_AMLOGIC_MODIFY
+	#define MESON_SAR_ADC_REG11_VREF_SEL			BIT(0)
+#endif
 	#define MESON_SAR_ADC_REG11_BANDGAP_EN			BIT(13)
 
 #define MESON_SAR_ADC_REG13					0x34
 	#define MESON_SAR_ADC_REG13_12BIT_CALIBRATION_MASK	GENMASK(13, 8)
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* NOTE: the registers below is introduced first on G12A platform */
+#define MESON_SAR_ADC_CHNLX_BASE                                0x38
+#define MESON_SAR_ADC_CHNLX_SAMPLE_VALUE_SHIFT(_chan)		\
+					((_chan) * 16)
+#define MESON_SAR_ADC_CHNLX_ID_SHIFT(_chan)			\
+					(12 + (_chan) * 16)
+#define MESON_SAR_ADC_CHNLX_VALID_SHIFT(_chan)			\
+					(15 + (_chan) * 16)
+#define MESON_SAR_ADC_CHNL01                                    0x38
+#define MESON_SAR_ADC_CHNL23                                    0x3c
+#define MESON_SAR_ADC_CHNL45                                    0x40
+#define MESON_SAR_ADC_CHNL67                                    0x44
+#endif
 
 #define MESON_SAR_ADC_MAX_FIFO_SIZE				32
 #define MESON_SAR_ADC_TIMEOUT					100 /* ms */
@@ -248,6 +266,27 @@ enum meson_sar_adc_chan7_mux_sel {
 	CHAN7_MUX_CH7_INPUT = 0x7,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+enum meson_sar_adc_vref_sel {
+	CALIB_VOL_AS_VREF = 0,
+	VDDA_AS_VREF = 1,
+};
+#endif
+
+/* struct meson_sar_adc_param - describe the differences of different platform
+ *
+ * @has_bl30_integration: g12a and later SoCs don not use saradc to sample
+ * internal temp sensor in bl30
+ *
+ * @resolution: gxl and later: 12bit; others(gxtvbb etc): 10bit
+ *
+ * @vref_is_optional: txlx and later SoCs support VDDA or Calibration Voltage
+ * as vref, but others support only Calibration Voltage
+ *
+ * @disable_ring_counter: gxl and later SoCs write 1 to disable continuous ring
+ * counter, but others write 0
+ *
+ */
 struct meson_sar_adc_param {
 	bool					has_bl30_integration;
 	unsigned long				clock_rate;
@@ -257,6 +296,10 @@ struct meson_sar_adc_param {
 	u8					temperature_trimming_bits;
 	unsigned int				temperature_multiplier;
 	unsigned int				temperature_divider;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	bool					vref_is_optional;
+	bool					disable_ring_counter;
+#endif
 };
 
 struct meson_sar_adc_data {
@@ -283,6 +326,15 @@ struct meson_sar_adc_priv {
 	u8					temperature_sensor_coefficient;
 	u16					temperature_sensor_adc_val;
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct regmap_config meson_sar_adc_regmap_config_g12a = {
+	.reg_bits = 8,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MESON_SAR_ADC_CHNL67,
+};
+#endif
 
 static const struct regmap_config meson_sar_adc_regmap_config_gxbb = {
 	.reg_bits = 8,
@@ -369,6 +421,8 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 
 	fifo_val = FIELD_GET(MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK, regval);
 	fifo_val &= GENMASK(priv->param->resolution - 1, 0);
+
+	/* to fix the sample value by software */
 	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
 
 	return 0;
@@ -892,6 +946,23 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 				   MESON_SAR_ADC_DELTA_10_TS_REVE0, 0);
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* disable internal ring counter */
+	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
+			    priv->param->disable_ring_counter);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
+			   regval);
+
+	/* to select the VDDA if the vref is optional */
+	regval = FIELD_PREP(MESON_SAR_ADC_REG11_VREF_SEL, VDDA_AS_VREF);
+	if (priv->param->vref_is_optional) {
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_VREF_SEL, regval);
+	}
+#endif
+
 	ret = clk_set_parent(priv->adc_sel_clk, priv->clkin);
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
@@ -1071,7 +1142,12 @@ static const struct iio_info meson_sar_adc_iio_info = {
 	.read_raw = meson_sar_adc_iio_info_read_raw,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static
+const struct meson_sar_adc_param meson_sar_adc_meson8_param __initconst = {
+#else
 static const struct meson_sar_adc_param meson_sar_adc_meson8_param = {
+#endif
 	.has_bl30_integration = false,
 	.clock_rate = 1150000,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
@@ -1082,7 +1158,12 @@ static const struct meson_sar_adc_param meson_sar_adc_meson8_param = {
 	.temperature_divider = 1024 * 10 * 85,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static
+const struct meson_sar_adc_param meson_sar_adc_meson8b_param __initconst = {
+#else
 static const struct meson_sar_adc_param meson_sar_adc_meson8b_param = {
+#endif
 	.has_bl30_integration = false,
 	.clock_rate = 1150000,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
@@ -1093,7 +1174,11 @@ static const struct meson_sar_adc_param meson_sar_adc_meson8b_param = {
 	.temperature_divider = 32,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_param meson_sar_adc_gxbb_param __initconst = {
+#else
 static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
+#endif
 	.has_bl30_integration = true,
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
@@ -1101,53 +1186,125 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 	.resolution = 10,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_param meson_sar_adc_gxl_param __initconst = {
+#else
 static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
+#endif
 	.has_bl30_integration = true,
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.disable_ring_counter = 1,
+#endif
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
+	.has_bl30_integration = true,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
+	.resolution = 12,
+	.vref_is_optional = true,
+	.disable_ring_counter = 1,
+};
+
+static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
+	.has_bl30_integration = false,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_g12a,
+	.resolution = 12,
+	.vref_is_optional = true,
+	.disable_ring_counter = 1,
+};
+#endif
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_meson8_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
+#endif
 	.param = &meson_sar_adc_meson8_param,
 	.name = "meson-meson8-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static
+const struct meson_sar_adc_data meson_sar_adc_meson8b_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_meson8b_data = {
+#endif
 	.param = &meson_sar_adc_meson8b_param,
 	.name = "meson-meson8b-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static
+const struct meson_sar_adc_data meson_sar_adc_meson8m2_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_meson8m2_data = {
+#endif
 	.param = &meson_sar_adc_meson8b_param,
 	.name = "meson-meson8m2-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_gxbb_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
+#endif
 	.param = &meson_sar_adc_gxbb_param,
 	.name = "meson-gxbb-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_gxl_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_gxl_data = {
+#endif
 	.param = &meson_sar_adc_gxl_param,
 	.name = "meson-gxl-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_gxm_data __initconst = {
+#else
 static const struct meson_sar_adc_data meson_sar_adc_gxm_data = {
+#endif
 	.param = &meson_sar_adc_gxl_param,
 	.name = "meson-gxm-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_axg_data __initconst = {
+	.param = &meson_sar_adc_txlx_param,
+#else
 static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
 	.param = &meson_sar_adc_gxl_param,
+#endif
 	.name = "meson-axg-saradc",
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_g12a_data __initconst = {
+	.param = &meson_sar_adc_g12a_param,
+#else
 static const struct meson_sar_adc_data meson_sar_adc_g12a_data = {
 	.param = &meson_sar_adc_gxl_param,
+#endif
 	.name = "meson-g12a-saradc",
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_sar_adc_data meson_sar_adc_txlx_data __initconst = {
+	.param = &meson_sar_adc_txlx_param,
+	.name = "meson-txlx-saradc",
+};
+#endif
 
 static const struct of_device_id meson_sar_adc_of_match[] = {
 	{
@@ -1178,11 +1335,21 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 		.compatible = "amlogic,meson-g12a-saradc",
 		.data = &meson_sar_adc_g12a_data,
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.compatible = "amlogic,meson-txlx-saradc",
+		.data = &meson_sar_adc_txlx_data,
+	},
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, meson_sar_adc_of_match);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int __init meson_sar_adc_probe(struct platform_device *pdev)
+#else
 static int meson_sar_adc_probe(struct platform_device *pdev)
+#endif
 {
 	const struct meson_sar_adc_data *match_data;
 	struct meson_sar_adc_priv *priv;
@@ -1190,7 +1357,9 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 	int irq, ret;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct meson_sar_adc_param *match_param;
+#endif
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
@@ -1206,7 +1375,18 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	match_param = devm_kzalloc(&pdev->dev, sizeof(*match_param),
+				   GFP_KERNEL);
+	if (!match_param)
+		return -ENOMEM;
+
+	memcpy(match_param, match_data->param, sizeof(*match_param));
+
+	priv->param = match_param;
+#else
 	priv->param = match_data->param;
+#endif
 
 	indio_dev->name = match_data->name;
 	indio_dev->dev.parent = &pdev->dev;
@@ -1349,7 +1529,9 @@ static SIMPLE_DEV_PM_OPS(meson_sar_adc_pm_ops,
 			 meson_sar_adc_suspend, meson_sar_adc_resume);
 
 static struct platform_driver meson_sar_adc_driver = {
+#ifndef CONFIG_AMLOGIC_MODIFY
 	.probe		= meson_sar_adc_probe,
+#endif
 	.remove		= meson_sar_adc_remove,
 	.driver		= {
 		.name	= "meson-saradc",
@@ -1358,7 +1540,11 @@ static struct platform_driver meson_sar_adc_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+module_platform_driver_probe(meson_sar_adc_driver, meson_sar_adc_probe);
+#else
 module_platform_driver(meson_sar_adc_driver);
+#endif
 
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
 MODULE_DESCRIPTION("Amlogic Meson SAR ADC driver");
