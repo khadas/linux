@@ -1,0 +1,18 @@
+#
+# Amlogic video frame queue configuration
+#
+
+menu "Video frame queue Support"
+
+config AMLOGIC_MEDIA_UTILS
+		tristate "Amlogic video frame queue support"
+		select VIDEOBUF_GEN
+		depends on AMLOGIC_MEDIA_GE2D
+		default n
+		help
+			This module provides common interface
+			like video frame queue and etc
+			Such as using vfq_full interface and so on
+			good luck
+
+endmenu

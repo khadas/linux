@@ -787,9 +787,13 @@ void set_trickmode_I_frame(u32 trickmode);
 u32 get_post_canvas(void);
 #else
 static inline void set_vsync_pts_inc_mode(int inc) { return; }
+#ifdef CONFIG_AMLOGIC_MEDIA_VFM
 static inline int query_video_status(int type, int *value) { return 0; }
+#endif
 static inline void set_trickmode_I_frame(u32 trickmode) { return; }
+#ifdef CONFIG_AMLOGIC_MEDIA_VFM
 static inline u32 get_post_canvas(void) { return 0; }
+#endif
 #endif
 
 #endif /* AMSTREAM_H */

@@ -1,0 +1,14 @@
+menu "Amlogic videosync support"
+
+config AMLOGIC_VIDEOSYNC
+	tristate "amlogic videosync device support"
+	select VIDEO_DEV
+	default n
+
+	help
+		This module provides Amlogic videosync support
+		select to enable video sync to player
+		enabled by default
+		good luck
+
+endmenu

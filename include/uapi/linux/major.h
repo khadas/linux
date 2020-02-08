@@ -177,4 +177,19 @@
 #define BLOCK_EXT_MAJOR		259
 #define SCSI_OSD_MAJOR		260	/* open-osd's OSD scsi device */
 
+/* Amlogic extension */
+#define AML_BASE	        (270)
+#define AMSTREAM_MAJOR      (0 + (AML_BASE))
+#define AUDIODSP_MAJOR      (2 + (AML_BASE))
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define FIRMWARE_MAJOR      (3 + (AML_BASE))
+#endif
+#define AMVIDEO_MAJOR       (9 + (AML_BASE))
+#define AMAUDIO_MAJOR       (11 + (AML_BASE))
+#define AMVIDEO2_MAJOR      (12 + (AML_BASE))
+#define AMAUDIO2_MAJOR      (13 + (AML_BASE))
+#define VFM_MAJOR           (14 + (AML_BASE))
+#define IONVIDEO_MAJOR      (15 + (AML_BASE))
+#define VAD_MAJOR           (16 + (AML_BASE))
+#define VIDEOSYNC_MAJOR     (17 + (AML_BASE))
 #endif
