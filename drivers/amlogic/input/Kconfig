@@ -11,4 +11,5 @@ if AMLOGIC_INPUT
 
 source "drivers/amlogic/input/ir/Kconfig"
 
+source "drivers/amlogic/input/keyboard/Kconfig"
 endif
