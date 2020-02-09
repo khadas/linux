@@ -336,6 +336,7 @@ int codecio_read_dmcbus(unsigned int reg)
 		return val;
 	}
 }
+EXPORT_SYMBOL(codecio_read_dmcbus);
 
 void codecio_write_dmcbus(unsigned int reg, unsigned int val)
 {
@@ -349,6 +350,7 @@ void codecio_write_dmcbus(unsigned int reg, unsigned int val)
 		return;
 	}
 }
+EXPORT_SYMBOL(codecio_write_dmcbus);
 
 int codecio_read_parsbus(unsigned int reg)
 {
@@ -677,11 +679,49 @@ void aml_dmcbus_update_bits(unsigned int reg,
 }
 EXPORT_SYMBOL(aml_dmcbus_update_bits);
 
+int aml_read_dosbus(unsigned int reg)
+{
+	int ret, val;
+
+	ret = aml_reg_read(CODECIO_DOSBUS_BASE, reg << 2, &val);
+	if (ret) {
+		pr_err("read cbus reg %x error %d\n", reg, ret);
+		return -1;
+	} else {
+		return val;
+	}
+}
+EXPORT_SYMBOL(aml_read_dosbus);
+
+void aml_write_dosbus(unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	ret = aml_reg_write(CODECIO_DOSBUS_BASE, reg << 2, val);
+	if (ret)
+		pr_err("write cbus reg %x error %d\n", reg, ret);
+}
+EXPORT_SYMBOL(aml_write_dosbus);
+
+void aml_dosbus_update_bits(unsigned int reg,
+			    unsigned int mask, unsigned int val)
+{
+	int ret;
+
+	ret = aml_regmap_update_bits(CODECIO_DOSBUS_BASE,
+				     reg << 2, mask, val);
+	if (ret)
+		pr_err("write cbus reg %x error %d\n", reg, ret);
+}
+EXPORT_SYMBOL(aml_dosbus_update_bits);
+
+
 /* end of aml_read_xxx/ aml_write_xxx apis*/
 static int __init codec_io_probe(struct platform_device *pdev)
 {
 	int i = 0;
 	struct resource res;
+	void __iomem *base;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -728,6 +768,14 @@ static int __init codec_io_probe(struct platform_device *pdev)
 				 (unsigned long)res.start,
 				 (int)resource_size(&res));
 		}
+		base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
+		if (IS_ERR(base))
+			return -ENOMEM;
+
+		codecio_reg_map[i] = base;
+		pr_info("codec map io source 0x%lx,size=%d to 0x%lx\n",
+		       (unsigned long)res.start, (int)resource_size(&res),
+		       (unsigned long)codecio_reg_map[i]);
 	}
 	pr_info("%s success. %d mapped\n", __func__, i);
 	return 0;

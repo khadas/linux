@@ -1332,7 +1332,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 #endif
 	    ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0 ||
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
-	    vtsync_vpts_discontinuity_margin() <= 90000)) {
+	    tsync_vpts_discontinuity_margin() <= 90000)) {
 #else
 	    0)) {
 #endif

@@ -1,0 +1,9 @@
+#
+# frame sync configuration
+#
+
+config AMLOGIC_MEDIA_FRAME_SYNC
+        bool "Amlogic frame sync Support"
+        default n
+        help
+                Select to enable frame sync support

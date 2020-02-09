@@ -244,6 +244,23 @@
 			size = <0x0>;
 		};
 
+		codec_mm_cma:linux,codec_mm_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* ion_codec_mm max can alloc size 80M*/
+			size = <0x0 0x13400000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
+
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
+			//no-map;
+		};
+
 		autocap_reserved:linux,autocap_reserved {
 			compatible = "amlogic, aml_autocap_memory";
 			status = "disabled";
@@ -272,6 +289,12 @@
 		clock-names = "ext_clock";
 	};
 
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+	};
 	wifi32k: wifi32k {
 		compatible = "pwm-clock";
 		#clock-cells = <0>;

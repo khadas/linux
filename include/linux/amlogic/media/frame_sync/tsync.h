@@ -1,0 +1,158 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef TSYNC_H
+#define TSYNC_H
+
+#define TIME_UNIT90K    (90000)
+#define VIDEO_HOLD_THRESHOLD        (TIME_UNIT90K * 3)
+#define VIDEO_HOLD_SLOWSYNC_THRESHOLD        (TIME_UNIT90K / 10)
+#define AV_DISCONTINUE_THREDHOLD_MIN    (TIME_UNIT90K * 3)
+#define AV_DISCONTINUE_THREDHOLD_MAX    (TIME_UNIT90K * 60)
+
+enum avevent_e {
+	VIDEO_START,
+	VIDEO_PAUSE,
+	VIDEO_STOP,
+	VIDEO_TSTAMP_DISCONTINUITY,
+	AUDIO_START,
+	AUDIO_PAUSE,
+	AUDIO_RESUME,
+	AUDIO_STOP,
+	AUDIO_TSTAMP_DISCONTINUITY,
+	AUDIO_PRE_START,
+	AUDIO_WAIT
+};
+
+enum tsync_mode_e {
+	TSYNC_MODE_VMASTER,
+	TSYNC_MODE_AMASTER,
+	TSYNC_MODE_PCRMASTER,
+};
+
+enum tysnc_func_type_e {
+	TSYNC_PCRSCR_VALID,
+	TSYNC_PCRSCR_GET,
+	TSYNC_FIRST_PCRSCR_GET,
+	TSYNC_PCRAUDIO_VALID,
+	TSYNC_PCRVIDEO_VALID,
+	TSYNC_BUF_BY_BYTE,
+	TSYNC_STBUF_LEVEL,
+	TSYNC_STBUF_SPACE,
+	TSYNC_STBUF_SIZE,
+	TSYNC_FUNC_TYPE_MAX,
+};
+
+//bool disable_slow_sync;
+
+typedef u8 (*pfun_tsdemux_pcrscr_valid)(void);
+//pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
+
+typedef u32 (*pfun_tsdemux_pcrscr_get)(void);
+//pfun_tsdemux_pcrscr_get tsdemux_pcrscr_get_cb;
+
+typedef u32 (*pfun_tsdemux_first_pcrscr_get)(void);
+//pfun_tsdemux_first_pcrscr_get tsdemux_first_pcrscr_get_cb;
+
+typedef u8 (*pfun_tsdemux_pcraudio_valid)(void);
+//pfun_tsdemux_pcraudio_valid tsdemux_pcraudio_valid_cb;
+
+typedef u8 (*pfun_tsdemux_pcrvideo_valid)(void);
+//pfun_tsdemux_pcrvideo_valid tsdemux_pcrvideo_valid_cb;
+
+typedef struct stream_buf_s *(*pfun_get_buf_by_type)(u32 type);
+//pfun_get_buf_by_type get_buf_by_type_cb;
+
+typedef u32 (*pfun_stbuf_level)(struct stream_buf_s *buf);
+//pfun_stbuf_level stbuf_level_cb;
+
+typedef u32 (*pfun_stbuf_space)(struct stream_buf_s *buf);
+//pfun_stbuf_space stbuf_space_cb;
+
+typedef u32 (*pfun_stbuf_size)(struct stream_buf_s *buf);
+//pfun_stbuf_size stbuf_size_cb;
+
+int register_tsync_callbackfunc(enum tysnc_func_type_e ntype, void *pfunc);
+
+#ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
+void set_timestamp_inc_factor(u32 factor);
+#endif
+
+#ifdef CALC_CACHED_TIME
+int pts_cached_time(u8 type);
+#endif
+
+void tsync_avevent_locked(enum avevent_e event, u32 param);
+
+void tsync_mode_reinit(void);
+
+void tsync_avevent(enum avevent_e event, u32 param);
+
+void tsync_audio_break(int audio_break);
+
+void tsync_trick_mode(int trick_mode);
+
+void tsync_set_avthresh(unsigned int av_thresh);
+
+void tsync_set_syncthresh(unsigned int sync_thresh);
+
+void tsync_set_dec_reset(void);
+
+void tsync_set_enable(int enable);
+
+int tsync_get_mode(void);
+
+int tsync_get_sync_adiscont(void);
+
+int tsync_get_sync_vdiscont(void);
+
+void tsync_set_sync_adiscont(int syncdiscont);
+
+void tsync_set_sync_vdiscont(int syncdiscont);
+
+u32 tsync_get_sync_adiscont_diff(void);
+
+u32 tsync_get_sync_vdiscont_diff(void);
+
+void tsync_set_sync_adiscont_diff(u32 discontinue_diff);
+
+void tsync_set_sync_vdiscont_diff(u32 discontinue_diff);
+int tsync_set_apts(unsigned int pts);
+
+void tsync_init(void);
+
+void tsync_set_automute_on(int automute_on);
+
+int tsync_get_debug_pts_checkin(void);
+
+int tsync_get_debug_pts_checkout(void);
+
+int tsync_get_debug_vpts(void);
+
+int tsync_get_debug_apts(void);
+int tsync_get_av_threshold_min(void);
+
+int tsync_get_av_threshold_max(void);
+
+int tsync_set_av_threshold_min(int min);
+
+int tsync_set_av_threshold_max(int max);
+
+static inline u32 tsync_vpts_discontinuity_margin(void)
+{
+	return tsync_get_av_threshold_min();
+}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+int get_vsync_pts_inc_mode(void);
+void set_pts_realign(void);
+#else
+static inline int get_vsync_pts_inc_mode(void) { return 0; }
+static inline void set_pts_realign(void) { return; }
+#endif
+
+u32 timestamp_get_pcrlatency(void);
+bool tsync_check_vpts_discontinuity(unsigned int vpts);
+#endif /* TSYNC_H */

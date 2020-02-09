@@ -29,7 +29,8 @@ static inline bool has_vpu_prot(void)
  */
 static inline bool has_vdec2(void)
 {
-	if (is_meson_mtvd_cpu() || is_meson_m8_cpu())
+	/*if (is_meson_mtvd_cpu() || is_meson_m8_cpu())*/
+	if (is_meson_tl1_cpu() || is_meson_m8b_cpu())
 		return 1;
 	return 0;
 }

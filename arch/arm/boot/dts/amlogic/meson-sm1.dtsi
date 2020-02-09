@@ -264,6 +264,56 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		dev_name = "mesonstream";
+		status = "okay";
+		clocks = <&clkc CLKID_PARSER
+			&clkc CLKID_DEMUX
+			&clkc CLKID_AHB_ARB0
+			&clkc CLKID_DOS
+			&clkc CLKID_CLK81
+			&clkc CLKID_VDEC_MUX
+			&clkc CLKID_HCODEC_MUX
+			&clkc CLKID_HEVC_MUX
+			&clkc CLKID_HEVCF_MUX>;
+		clock-names = "parser_top",
+			"demux",
+			"ahbarb0",
+			"vdec",
+			"clk_81",
+			"clk_vdec_mux",
+			"clk_hcodec_mux",
+			"clk_hevc_mux",
+			"clk_hevcb_mux";
+	};
+
+	vdec {
+		compatible = "amlogic, vdec";
+		dev_name = "vdec.0";
+		status = "okay";
+		interrupts = <0 3 1
+			0 23 1
+			0 32 1
+			0 43 1
+			0 44 1
+			0 45 1
+			0 72 1>;
+		interrupt-names = "vsync",
+			"demux",
+			"parser",
+			"mailbox_0",
+			"mailbox_1",
+			"mailbox_2",
+			"parser_b";
+	};
+
+	vcodec_dec {
+		compatible = "amlogic, vcodec-dec";
+		dev_name = "aml-vcodec-dec";
+		status = "okay";
+	};
+
 	mailbox: mhu@ff63c400 {
 		compatible = "amlogic, meson_mhu";
 		reg = <0xff63c400 0x4c>,   /* MHU registers */
