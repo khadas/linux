@@ -10,7 +10,6 @@
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <linux/page-flags.h>
-//#include <linux/slub_def.h>
 
 /*
  * bit map lay out for _ret_ip table

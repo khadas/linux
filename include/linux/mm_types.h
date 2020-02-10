@@ -66,8 +66,18 @@ struct mem_cgroup;
 #endif
 
 struct page {
+#if defined(CONFIG_AMLOGIC_PAGE_TRACE) && defined(CONFIG_64BIT)
+	union {
+		unsigned long flags;
+		struct {
+			unsigned int s_flags;
+			unsigned int trace;
+		};
+	};
+#else
 	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 	/*
 	 * Five words (20/40 bytes) are available in this union.
 	 * WARNING: bit 0 of the first word is used for PageTail(). That

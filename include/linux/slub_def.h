@@ -8,6 +8,9 @@
  * (C) 2007 SGI, Christoph Lameter
  */
 #include <linux/kobject.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 enum stat_item {
 	ALLOC_FASTPATH,		/* Allocation from cpu slab */

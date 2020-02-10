@@ -1,0 +1,84 @@
+menuconfig AMLOGIC_MEMORY_EXTEND
+	bool "AMLOGIC memory extend support"
+	depends on AMLOGIC_DRIVER
+	depends on AMLOGIC_MODIFY
+	default y
+	help
+		Amlogic memory extend is drivers which extend for memory management
+		functions, can be used for memory debug or other features.
+
+config AMLOGIC_PAGE_TRACE
+	bool "Amlogic trace for page allocate"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on KALLSYMS
+	depends on !NUMA_BALANCING
+	default y
+	help
+		Amlogic page trace will record function address of caller for page
+		allocate/free, according with allocate flags and order. trace
+		information is stored in a pre-allocated memory block. And can be shown
+		with allocate page count information of each caller functions from
+		/proc/pagetrace
+
+config AMLOGIC_SLAB_TRACE
+	bool "Amlogic trace for slab usage"
+	depends on SLUB
+	depends on AMLOGIC_PAGE_TRACE
+	default n
+	help
+		Amlogic slab trace will record function address of caller for slab
+		allocate/free(kmalloc-xxxx only). trace information is stored in
+		a rb tree. And can be shown with allocate size information of
+		each caller functions from /proc/slabtrace
+
+config AMLOGIC_RAMDUMP
+	bool "Amlogic RAM DUMP support"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on PANIC_TIMEOUT != 0
+	default n
+	help
+		RAM dump support for amlogic platform, when system is rebooted
+		after panic/watch dog reboot, you may need this option to save
+		whole ram to /data/ partition. Which can be used for analyze
+		crash reason.
+
+config AMLOGIC_CMA
+	bool "Amlogic CMA change"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on CMA
+	default n
+	help
+		Amlogic CMA optimization for cma alloc/free problems
+		Including policy change of CMA usage
+
+config AMLOGIC_KASAN32
+	bool "Amlogic KASAN support for 32bit kernel"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on KASAN
+	depends on !64BIT
+	default n
+	help
+		Amlogic implementation for KASAN on 32bit ARM kernel.
+		Which can help to debug memory of use-after-free,
+		out-of-bounds and other problems. This config will
+		change memory layout.
+
+config AMLOGIC_VMAP
+	bool "Amlogic kernel stack"
+	depends on AMLOGIC_MEMORY_EXTEND
+	default n
+	help
+		This config is used to enable amlogic kernel stack
+		usage optimization with vmalloc. It depends on
+		AMLOGIC_MEMORY_EXTEND. This config only opened
+		on 64 bit platform.
+
+config AMLOGIC_WATCHPOINT
+	tristate "Amlogic point driver"
+	depends on HAVE_HW_BREAKPOINT
+	depends on AMLOGIC_MEMORY_EXTEND
+	default n
+	help
+		This driver export a debug sysfs in order
+		to using watch point function on ARMv8.
+		say y to enable Amlogic watch point driver

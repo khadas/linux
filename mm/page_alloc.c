@@ -68,6 +68,9 @@
 #include <linux/lockdep.h>
 #include <linux/nmi.h>
 #include <linux/psi.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -1195,6 +1198,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
 		kernel_map_pages(page, 1 << order, 0);
 
 	kasan_free_nondeferred_pages(page, order);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	reset_page_trace(page, order);
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 
 	return true;
 }
@@ -4784,6 +4790,9 @@ out:
 	}
 
 	trace_mm_page_alloc(page, order, alloc_mask, ac.migratetype);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	set_page_trace(page, order, gfp_mask, NULL);
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 
 	return page;
 }
