@@ -4345,8 +4345,10 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 	}
 	if (port_dev->child && set_state)
 		usb_set_device_state(port_dev->child, USB_STATE_NOTATTACHED);
+#ifndef CONFIG_AMLOGIC_USB
 	if (ret && ret != -ENODEV)
 		dev_err(&port_dev->dev, "cannot disable (err = %d)\n", ret);
+#endif
 	return ret;
 }
 

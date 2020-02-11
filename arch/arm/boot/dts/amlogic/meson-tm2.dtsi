@@ -220,3 +220,14 @@
 		interrupt-names = "vsync";
 	};
 };
+
+/*
+ *&usb2_phy_v2 {
+ *	power-domains = <&pwrc PWRC_SM1_USB_ID>;
+ *};
+ *
+ *&usb3_phy_v2 {
+ *	power-domains = <&pwrc PWRC_SM1_PCIE_ID>;
+ *};
+ */
+

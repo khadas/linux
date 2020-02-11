@@ -39,6 +39,8 @@
 #include "dwc_otg_cfi.h"
 #endif
 
+#include <linux/amlogic/usb-v2.h>
+
 #ifdef DWC_UTE_PER_IO
 extern void complete_xiso_ep(dwc_otg_pcd_ep_t *ep);
 #endif
@@ -1063,13 +1065,30 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *pcd)
 #ifdef CONFIG_AMLOGIC_USB3PHY
 	if (GET_CORE_IF(pcd)->phy_interface != 1) {
 		speed = get_device_speed(GET_CORE_IF(pcd));
-		if (speed != USB_SPEED_HIGH) {
-			gintsts.d32 = 0;
-			gintsts.b.enumdone = 1;
-			DWC_WRITE_REG32(&GET_CORE_IF(pcd)->
-				core_global_regs->gintsts, gintsts.d32);
-			DWC_DEBUGPL(DBG_PCD, "false speed emun\n");
-			return 1;
+		if (GET_CORE_IF(pcd)->phy_otg == 1) {
+			if (speed != USB_SPEED_HIGH &&
+			    aml_new_otg_get_mode() != 1) {
+				gintsts.d32 = 0;
+				gintsts.b.enumdone = 1;
+				DWC_WRITE_REG32(&GET_CORE_IF(pcd)->
+					core_global_regs->gintsts,
+					gintsts.d32);
+				DWC_DEBUGPL(DBG_PCD,
+					    "false speed emun\n");
+				return 1;
+			}
+		} else {
+			if (speed != USB_SPEED_HIGH &&
+			    aml_new_usb_get_mode() != 1) {
+				gintsts.d32 = 0;
+				gintsts.b.enumdone = 1;
+				DWC_WRITE_REG32(&GET_CORE_IF(pcd)->
+					core_global_regs->gintsts,
+						gintsts.d32);
+				DWC_DEBUGPL(DBG_PCD,
+					    "false speed emun\n");
+				return 1;
+			}
 		}
 
 		set_usb_phy_device_tuning(1, 0);

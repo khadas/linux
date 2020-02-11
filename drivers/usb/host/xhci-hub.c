@@ -1385,8 +1385,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* Can't set port link state above '3' (U3) */
 			if (link_state > USB_SS_PORT_LS_U3) {
+#ifndef CONFIG_AMLOGIC_USB
 				xhci_warn(xhci, "Cannot set port %d link state %d\n",
 					 wIndex, link_state);
+#endif
 				goto error;
 			}
 			if (link_state == USB_SS_PORT_LS_U3) {

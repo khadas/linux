@@ -211,3 +211,30 @@
 	repeater_tx = <0x0>;
 };
 
+&usb0 {
+	status = "disable";
+};
+
+&usb2_phy_v2 {
+	status = "disable";
+	portnum = <3>;
+};
+
+&usb3_phy_v2 {
+	status = "disable";
+	portnum = <0>;
+	portconfig-30 = <0>;
+	portconfig-31 = <0>;
+};
+
+&usb_otg {
+	status = "disable";
+	otg = <0>;
+};
+
+&dwc2_a {
+	status = "disable";
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <1>;
+};
+
