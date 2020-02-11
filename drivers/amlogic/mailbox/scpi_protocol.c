@@ -91,7 +91,7 @@ struct scpi_data_buf {
 	struct completion complete;
 };
 
-static int scp_high_prio_cmds[] = {
+static int high_priority_cmds[] = {
 	SCPI_CMD_GET_CSS_PWR_STATE,
 	SCPI_CMD_CFG_PWR_STATE_STAT,
 	SCPI_CMD_GET_PWR_STATE_STAT,
@@ -108,10 +108,12 @@ static int scp_high_prio_cmds[] = {
 	SCPI_CMD_SENSOR_CFG_BOUNDS,
 	SCPI_CMD_WAKEUP_REASON_GET,
 	SCPI_CMD_WAKEUP_REASON_CLR,
+	SCPI_CMD_INIT_DSP,
 };
 
-static int m4_send_cmds[] = {
-	SCPI_CMD_SCPI_READY,
+static int bl4_cmds[] = {
+	SCPI_CMD_BL4_SEND,
+	SCPI_CMD_BL4_LISTEN,
 };
 
 static struct scpi_dvfs_info *scpi_opps[MAX_DVFS_DOMAINS];
@@ -129,20 +131,17 @@ static inline int scpi_to_linux_errno(int errno)
 	return -EIO;
 }
 
-static bool chans_select(int cmd)
+static bool high_priority_chan_supported(int cmd)
 {
-	int idx;
-	int size;
+	unsigned int idx;
 
-	if (!m4_chan_spt) {
-		size = ARRAY_SIZE(scp_high_prio_cmds);
-		for (idx = 0; idx < size; idx++)
-			if (cmd == scp_high_prio_cmds[idx])
+	if (num_scp_chans == CHANNEL_MAX) {
+		for (idx = 0; idx < ARRAY_SIZE(high_priority_cmds); idx++)
+			if (cmd == high_priority_cmds[idx])
 				return true;
 	} else {
-		size = ARRAY_SIZE(m4_send_cmds);
-		for (idx = 0; idx < size; idx++)
-			if (cmd == m4_send_cmds[idx])
+		for (idx = 0; idx < ARRAY_SIZE(bl4_cmds); idx++)
+			if (cmd == bl4_cmds[idx])
 				return true;
 	}
 	return false;
@@ -156,17 +155,28 @@ static void scpi_rx_callback(struct mbox_client *cl, void *msg)
 	complete(&scpi_buf->complete);
 }
 
-static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool sel_chan)
+static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 {
 	struct mbox_chan *chan;
 	struct mbox_client cl = {0};
 	struct mhu_data_buf *data = scpi_buf->data;
 	u32 status;
+	int chan_idx;
 
 	cl.dev = the_scpi_device;
 	cl.rx_callback = scpi_rx_callback;
 
-	chan = mbox_request_channel(&cl, sel_chan);
+	/* use to find send mbox index */
+	if (send_listen_chans) {
+		chan_idx = 31 - __builtin_clz(send_listen_chans);
+		if (!high_priority)
+			chan_idx = 31 - __builtin_clz(send_listen_chans
+						      ^ BIT(chan_idx));
+	} else {
+		chan_idx = high_priority;
+	}
+
+	chan = mbox_request_channel(&cl, chan_idx);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
@@ -178,7 +188,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool sel_chan)
 
 	wait_for_completion(&scpi_buf->complete);
 	status = *(u32 *)(data->rx_buf); /* read first word */
-	pr_err("Status %x\n", status);
+
 free_channel:
 	mbox_free_channel(chan);
 
@@ -216,17 +226,21 @@ do {						\
 static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 {
 	struct mhu_data_buf *data;
-	bool sel_chan;
+	bool high_priority;
 
 	if (!scpi_buf || !scpi_buf->data)
 		return -EINVAL;
 	data = scpi_buf->data;
-	sel_chan = chans_select(data->cmd);
-	data->cmd = PACK_SCPI_CMD(data->cmd, scpi_buf->client_id,
-				  data->tx_size);
+	high_priority = high_priority_chan_supported(data->cmd);
+	if (!high_priority || num_scp_chans == CHANNEL_MAX) {
+		data->cmd = PACK_SCPI_CMD(data->cmd, scpi_buf->client_id,
+					  data->tx_size);
+	} else if (high_priority && (num_scp_chans != CHANNEL_MAX)) {
+		data->cmd = data->tx_size;
+	}
 	data->cl_data = scpi_buf;
 
-	return send_scpi_cmd(scpi_buf, sel_chan);
+	return send_scpi_cmd(scpi_buf, high_priority);
 }
 
 unsigned long scpi_clk_get_val(u16 clk_id)
@@ -460,7 +474,7 @@ int scpi_send_usr_data(u32 client_id, u32 *val, u32 size)
 		return -EPERM;
 
 	SCPI_SETUP_DBUF_SIZE(sdata, mdata, client_id, SCPI_CMD_SET_USR_DATA,
-			     val, size, &buf, sizeof(buf));
+			val, size, &buf, sizeof(buf));
 	ret = scpi_execute_cmd(&sdata);
 
 	return ret;
@@ -559,6 +573,29 @@ int scpi_clr_wakeup_reason(void)
 }
 EXPORT_SYMBOL_GPL(scpi_clr_wakeup_reason);
 
+int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 id;
+		u32 addr;
+		u32 cfg0;
+	} buf;
+	buf.id = id;
+	buf.addr = addr;
+	buf.cfg0 = cfg0;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_INIT_DSP, buf, temp);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_init_dsp_cfg0);
+
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 {
 	struct scpi_data_buf sdata;
@@ -579,6 +616,21 @@ int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 }
 EXPORT_SYMBOL_GPL(scpi_get_cec_val);
 
+int scpi_set_cec_val(enum scpi_std_cmd index, u32 cec_data)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	int status;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			index, cec_data, status);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_set_cec_val);
+
 u8 scpi_get_ethernet_calc(void)
 {
 	struct scpi_data_buf sdata;
@@ -591,16 +643,14 @@ u8 scpi_get_ethernet_calc(void)
 	} buf;
 
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
-			SCPI_CMD_GET_ETHERNET_CALC, temp, buf);
-	if (scpi_execute_cmd(&sdata)) {
-		pr_err("eth_calc %u\n", buf.eth_calc);
-		return -EPERM;
-	}
+		SCPI_CMD_GET_ETHERNET_CALC, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return 0;
 	return buf.eth_calc;
 }
 EXPORT_SYMBOL_GPL(scpi_get_ethernet_calc);
 
-int scpi_get_cpuinfo(enum scpi_get_cpuinfo_type type, u32 *freq, u32 *vol)
+int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 {
 	struct scpi_data_buf sdata;
 	struct mhu_data_buf mdata;
@@ -613,7 +663,7 @@ int scpi_get_cpuinfo(enum scpi_get_cpuinfo_type type, u32 *freq, u32 *vol)
 	} buf;
 
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
-			SCPI_CMD_GET_CPUINFO, index, buf);
+		SCPI_CMD_GET_CPUINFO, index, buf);
 	if (scpi_execute_cmd(&sdata))
 		return -EPERM;
 
@@ -651,3 +701,32 @@ int scpi_get_cpuinfo(enum scpi_get_cpuinfo_type type, u32 *freq, u32 *vol)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_get_cpuinfo);
+
+int scpi_unlock_bl40(void)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u8 temp = 0;
+
+	struct __packed {
+		u32 status;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_BL4_WAIT_UNLOCK, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_unlock_bl40);
+
+int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+
+	SCPI_SETUP_DBUF_SIZE(sdata, mdata, SCPI_CL_NONE,
+			     cmd, bl40_buf->buf, bl40_buf->size,
+			     bl40_buf->buf, sizeof(bl40_buf->buf));
+	return scpi_execute_cmd(&sdata);
+}

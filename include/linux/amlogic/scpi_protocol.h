@@ -57,14 +57,27 @@ enum scpi_std_cmd {
 	SCPI_CMD_WAKEUP_REASON_CLR = 0X31,
 	SCPI_CMD_GET_ETHERNET_CALC = 0x32,
 	SCPI_CMD_GET_CPUINFO = 0x33,
+	SCPI_CMD_INIT_DSP = 0x34,
 
 	SCPI_CMD_GET_CEC1		= 0xB4,
 	SCPI_CMD_GET_CEC2		= 0xB5,
 	SCPI_CMD_SEND_DSP_DATA		= 0xB6,
+	SCPI_CMD_SET_CEC1		= 0xB7,
+	SCPI_CMD_SET_CEC2		= 0xB8,
+	SCPI_CMD_GET_CEC_REASON		= 0xB9,
+	SCPI_CMD_SET_CEC_REASON		= 0xBA,
+	SCPI_CMD_BL4_WAIT_UNLOCK	= 0xD6,
+	SCPI_CMD_BL4_SEND		= 0xD7,
+	SCPI_CMD_BL4_LISTEN		= 0xD8,
 	SCPI_CMD_COUNT
 };
 
-enum scpi_get_cpuinfo_type {
+enum scpi_req_cmd {
+	SCPI_REQ_INVALID		= 0x00,
+	SCPI_REQ_COUNT
+};
+
+enum scpi_get_pfm_type {
 	SCPI_CPUINFO_CLUSTER0,
 	SCPI_CPUINFO_CLUSTER1,
 	SCPI_CPUINFO_VERSION,
@@ -83,6 +96,11 @@ struct scpi_dvfs_info {
 	struct scpi_opp_entry *opp;
 } __packed;
 
+struct bl40_msg_buf {
+	int size;
+	char buf[512];
+} __packed;
+
 unsigned long scpi_clk_get_val(u16 clk_id);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate);
 int scpi_dvfs_get_idx(u8 domain);
@@ -97,6 +115,12 @@ int scpi_get_ring_value(unsigned char *val);
 int scpi_get_wakeup_reason(u32 *wakeup_reason);
 int scpi_clr_wakeup_reason(void);
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec);
+int scpi_set_cec_val(enum scpi_std_cmd index, u32 cec_data);
 u8  scpi_get_ethernet_calc(void);
-int scpi_get_cpuinfo(enum scpi_get_cpuinfo_type type, u32 *freq, u32 *vol);
+int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
+int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
+int scpi_unlock_bl40(void);
+int scpi_send_dsp_cmd(void *data, int size, bool to_dspa, int cmd, int taskid);
+int scpi_req_handle(void *p, u32 size, u32 cmd);
+int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf);
 #endif /*_SCPI_PROTOCOL_H_*/

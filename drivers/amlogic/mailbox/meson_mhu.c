@@ -19,11 +19,19 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/mailbox_client.h>
 
 #include "meson_mhu.h"
+#include "../firmware/bl40_module.h"
 
 struct device *the_scpi_device;
+u32 num_scp_chans;
+u32 send_listen_chans;
+u32 isr_send;
+u32 isr_m4;
+
 #define DRIVER_NAME		"meson_mhu"
+#define MHU_BUFFER_SIZE		0x100
 /*
  * +--------------------+-------+---------------+
  * |  Hardware Register | Offset|  Driver View  |
@@ -45,15 +53,15 @@ struct device *the_scpi_device;
  * |  CPU_INTR_H_CLEAR  | 0x048 |  TX_CLEAR(H)  |
  * +--------------------+-------+---------------+
  */
-#define RX_OFFSET(chan)         (0x10 + (chan) * 0xc)
-#define RX_STATUS(chan)         (RX_OFFSET(chan) + 0x4)
-#define RX_SET(chan)            RX_OFFSET(chan)
-#define RX_CLEAR(chan)          (RX_OFFSET(chan) + 0x8)
+#define RX_OFFSET(chan)     (0x10 + (chan) * 0xc)
+#define RX_STATUS(chan)     (RX_OFFSET(chan) + 0x4)
+#define RX_SET(chan)        RX_OFFSET(chan)
+#define RX_CLEAR(chan)      (RX_OFFSET(chan) + 0x8)
 
-#define TX_OFFSET(chan)         (0x34 + (chan) * 0xc)
-#define TX_STATUS(chan)         (TX_OFFSET(chan) + 0x4)
-#define TX_SET(chan)            TX_OFFSET(chan)
-#define TX_CLEAR(chan)          (TX_OFFSET(chan) + 0x8)
+#define TX_OFFSET(chan)     (0x34 + (chan) * 0xc)
+#define TX_STATUS(chan)     (TX_OFFSET(chan) + 0x4)
+#define TX_SET(chan)        TX_OFFSET(chan)
+#define TX_CLEAR(chan)      (TX_OFFSET(chan) + 0x8)
 
 /*
  * +---------------+-------+----------------+
@@ -66,14 +74,10 @@ struct device *the_scpi_device;
  * |  AP->SCP High | 0x600 |  TX_PAYLOAD(H) |
  * +---------------+-------+----------------+
  */
-#define PAYLOAD_MAX_SIZE        0x200
-#define PAYLOAD_OFFSET          0x400
-#define RX_PAYLOAD(chan)        ((chan) * PAYLOAD_OFFSET)
-#define TX_PAYLOAD(chan)        ((chan) * PAYLOAD_OFFSET + PAYLOAD_MAX_SIZE)
-#define ACK_OK                  1
-#define MHU_BUFFER_SIZE         512
-
-bool m4_chan_spt;
+#define PAYLOAD_MAX_SIZE	0x200
+#define PAYLOAD_OFFSET		0x400
+#define RX_PAYLOAD(chan)	((chan) * PAYLOAD_OFFSET)
+#define TX_PAYLOAD(chan)	((chan) * PAYLOAD_OFFSET + PAYLOAD_MAX_SIZE)
 
 struct mhu_chan {
 	int index;
@@ -88,32 +92,16 @@ struct mhu_ctlr {
 	void __iomem *payload_base;
 	struct mbox_controller mbox_con;
 	struct mhu_chan *channels;
-	bool m4_chan;
-	bool full_duplex;
 };
 
-/*
- * mbox_chan_report
- * Report receive data
- */
-static void mbox_chan_report(u32 status, void *msg)
+void bl40_rx_callback(struct mbox_client *cl, void *msg)
 {
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 
-	switch (status) {
-	case 1:
-		break;
-	default:
-		if (data->rx_buf)
-			memset(data->rx_buf, 0, data->rx_size);
-		break;
-	};
+	pr_debug("call %s\n", __func__);
+	bl40_rx_msg(data->rx_buf, data->rx_size);
 }
 
-/**
- * mbox_handler
- * AP receive interrupt handler
- */
 static irqreturn_t mbox_handler(int irq, void *p)
 {
 	struct mbox_chan *link = (struct mbox_chan *)p;
@@ -123,58 +111,57 @@ static irqreturn_t mbox_handler(int irq, void *p)
 	void __iomem *payload = ctlr->payload_base;
 	int idx = chan->index;
 	struct mhu_data_buf *data;
-	u32 status = readl(mbox_base + RX_STATUS(idx));
-	int mem_idx = chan->index;
+	u32 status = 0;
+	u32 is_send_isr = BIT(idx) & isr_send;
+	u32 is_send_chan = BIT(idx) & send_listen_chans;
 
-	if (ctlr->m4_chan)
-		mem_idx = mem_idx ^ 1;
+	if (isr_m4) {
+		if (BIT(idx) & isr_m4)
+			idx = 1;
+		else
+			idx = 0;
+	}
 
+	if (is_send_isr)
+		status = 1;
+	else
+		status = readl(mbox_base + RX_STATUS(idx));
+
+	pr_debug("isr %d idx %x sts %x\n", irq, idx, status);
 	if (status && irq == chan->rx_irq) {
 		data = chan->data;
-		if (!data)
+		if (!data) {
+			pr_err("data is null\n");
 			return IRQ_NONE; /* spurious */
-		if (data->rx_buf)
-			memcpy(data->rx_buf,
-			       payload + RX_PAYLOAD(mem_idx), data->rx_size);
-
-		if (!ctlr->full_duplex) {
-			chan->data = NULL;
-			mbox_chan_received_data(link, data);
-		} else {
-			mbox_chan_report(status, data);
 		}
-		writel(~0, mbox_base + RX_CLEAR(idx));
-	}
+		if (data->rx_buf) {
+			if (is_send_isr) {
+				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
+				       data->rx_size);
+			} else {
+				/*
+				 * idx = 1 & to scp chans = 1
+				 * is mailbox to m4, need to get size
+				 * to m3 only low no need to get size
+				 * idx = 1 & to scp chans = 2
+				 * is mailbox no to m4,that mailbox chan
+				 * low high all to m3, no need get size
+				 */
+				if (idx && num_scp_chans != CHANNEL_MAX)
+					data->rx_size =
+					readl(mbox_base + RX_STATUS(idx));
 
-	return IRQ_HANDLED;
-}
-
-/**
- * mbox_send_isr_handler
- * AP send interrupt handler
- */
-static irqreturn_t mbox_send_isr_handler(int irq, void *p)
-{
-	struct mbox_chan *link = (struct mbox_chan *)p;
-	struct mhu_chan *chan = link->con_priv;
-	struct mhu_ctlr *ctlr = chan->ctlr;
-	void __iomem *payload = ctlr->payload_base;
-	struct mhu_data_buf *data;
-	int mem_idx = chan->index;
-
-	if (ctlr->m4_chan)
-		mem_idx = mem_idx ^ 1;
-
-	if (irq == chan->rx_irq) {
-		data = chan->data;
-		if (!data)
-			return IRQ_NONE; /* spurious */
-		if (data->rx_buf)
-			memcpy(data->rx_buf,
-			       payload + TX_PAYLOAD(mem_idx), data->rx_size);
-		chan->data = NULL;
+				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
+				       data->rx_size);
+			}
+		}
 		mbox_chan_received_data(link, data);
+		if (!is_send_isr)
+			writel(~0, mbox_base + RX_CLEAR(idx));
+		if (is_send_chan)
+			chan->data = NULL;
 	}
+
 	return IRQ_HANDLED;
 }
 
@@ -186,17 +173,22 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 	void __iomem *payload = ctlr->payload_base;
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	int idx = chan->index;
-	int mem_idx = chan->index;
+	u8 datatmp[512] = {0};
 
 	if (!data)
 		return -EINVAL;
-	if (ctlr->m4_chan)
-		mem_idx = mem_idx ^ 1;
 
 	chan->data = data;
+	if (isr_m4) {
+		if (BIT(idx) & isr_m4)
+			idx = 1;
+		else
+			idx = 0;
+	}
+	memcpy(datatmp, data->tx_buf, data->tx_size);
 	if (data->tx_buf)
-		memcpy(payload + TX_PAYLOAD(mem_idx),
-		       data->tx_buf, data->tx_size);
+		memcpy(payload + TX_PAYLOAD(idx), datatmp, data->tx_size);
+
 	writel(data->cmd, mbox_base + TX_SET(idx));
 
 	return 0;
@@ -205,20 +197,10 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 static int mhu_startup(struct mbox_chan *link)
 {
 	struct mhu_chan *chan = link->con_priv;
-	struct mhu_ctlr *ctlr = chan->ctlr;
 	int err, mbox_irq = chan->rx_irq;
 
-	if (!ctlr->full_duplex) {
-		pr_err("IRQ Request %d\n", mbox_irq);
-		err = request_threaded_irq(mbox_irq, mbox_handler,
-					   NULL, IRQF_ONESHOT,
-					   DRIVER_NAME, link);
-	} else {
-		err = request_threaded_irq(mbox_irq,
-					   mbox_send_isr_handler,
-					   NULL, IRQF_ONESHOT,
-					   DRIVER_NAME, link);
-	}
+	err = request_threaded_irq(mbox_irq, mbox_handler, NULL, IRQF_ONESHOT,
+				   DRIVER_NAME, link);
 	return err;
 }
 
@@ -254,9 +236,10 @@ static int mhu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mbox_chan *l;
 	struct resource *res;
-	int idx;
-	int mbox_chan_nums;
-	int err;
+	struct mbox_client *cl;
+	int idx, err;
+	u32 mbox_chans = 0;
+	int bit_chans = 0;
 	static const char * const channel_names[] = {
 		CHANNEL_LOW_PRIORITY,
 		CHANNEL_HIGH_PRIORITY
@@ -289,45 +272,34 @@ static int mhu_probe(struct platform_device *pdev)
 	ctlr->dev = dev;
 	platform_set_drvdata(pdev, ctlr);
 
-	/**
-	 * mbox channels,
-	 * if device tree not have this item, use CHANNEL_MAX
-	 */
-	mbox_chan_nums = 0;
-	of_property_read_u32(dev->of_node,
-			     "mbox_channel_nums", &mbox_chan_nums);
-	if (!mbox_chan_nums)
-		mbox_chan_nums = CHANNEL_MAX;
+	num_scp_chans = 0;
+	of_property_read_u32(dev->of_node, "num-chans-to-scp", &num_scp_chans);
+	if (num_scp_chans == 0 || num_scp_chans > 2)
+		num_scp_chans = CHANNEL_MAX;
+	send_listen_chans = 0;
+	of_property_read_u32(dev->of_node, "send-isr-bits", &send_listen_chans);
+	of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
+	of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
 
-	l = devm_kzalloc(dev, sizeof(*l) * mbox_chan_nums, GFP_KERNEL);
+	of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
+	if (!mbox_chans)
+		mbox_chans = CHANNEL_MAX;
+	l = devm_kzalloc(dev, sizeof(*l) * mbox_chans, GFP_KERNEL);
 	if (!l)
 		return -ENOMEM;
 
 	ctlr->channels = devm_kzalloc(dev,
-				      sizeof(struct mhu_chan) * mbox_chan_nums,
+				      sizeof(struct mhu_chan) * mbox_chans,
 				      GFP_KERNEL);
 	if (!ctlr->channels)
 		return -ENOMEM;
-
 	ctlr->mbox_con.chans = l;
-	ctlr->mbox_con.num_chans = mbox_chan_nums;
+	ctlr->mbox_con.num_chans = mbox_chans;
 	ctlr->mbox_con.txdone_irq = true;
 	ctlr->mbox_con.ops = &mhu_ops;
 	ctlr->mbox_con.dev = dev;
-	ctlr->m4_chan = false;
-	/**
-	 * support-chans-to-m4 to ensure if support send data to m4
-	 * support-full-duplex to ensure if support duplex mailbox communication
-	 */
-	ctlr->m4_chan = of_property_read_bool(dev->of_node,
-					      "support-chans-to-m4");
-	m4_chan_spt = ctlr->m4_chan;
 
-	ctlr->full_duplex = false;
-	ctlr->full_duplex = of_property_read_bool(dev->of_node,
-						  "support-full-duplex");
-
-	for (idx = 0; idx < mbox_chan_nums; idx++) {
+	for (idx = 0; idx < mbox_chans; idx++) {
 		chan = &ctlr->channels[idx];
 		chan->index = idx;
 		chan->ctlr = ctlr;
@@ -339,6 +311,7 @@ static int mhu_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 		l[idx].con_priv = chan;
+		bit_chans |= BIT(idx);
 	}
 
 	if (mbox_controller_register(&ctlr->mbox_con)) {
@@ -347,42 +320,53 @@ static int mhu_probe(struct platform_device *pdev)
 	}
 
 	the_scpi_device = dev;
-	/**
-	 * Support full duplex
-	 * Listen receive interrupt
-	 */
-	if (ctlr->full_duplex) {
-		for (idx = CHANNEL_MAX; idx < mbox_chan_nums; idx++) {
-			chan =  &ctlr->channels[idx];
-			chan->index = idx % CHANNEL_MAX;
-			chan->data = devm_kzalloc(dev,
-						  sizeof(struct mhu_data_buf),
+
+	if (!send_listen_chans)
+		goto probe_done;
+
+	for (idx = 0; idx < mbox_chans; idx++) {
+		if (BIT(idx) & send_listen_chans)
+			continue;
+		cl = devm_kzalloc(dev, sizeof(struct mbox_client),
+				  GFP_KERNEL);
+		cl->dev = dev;
+		cl->rx_callback = bl40_rx_callback;
+		l[idx].cl = cl;
+		chan =  &ctlr->channels[idx];
+		chan->data = devm_kzalloc(dev,
+					  sizeof(struct mhu_data_buf),
+					  GFP_KERNEL);
+		chan->data->rx_buf = devm_kzalloc(dev,
+						  MHU_BUFFER_SIZE,
 						  GFP_KERNEL);
-			chan->data->rx_buf = devm_kzalloc(dev,
-							  MHU_BUFFER_SIZE,
-							  GFP_KERNEL);
-			if (!chan->data->rx_buf)
-				return -ENOMEM;
-			chan->data->rx_size = MHU_BUFFER_SIZE;
-			err = request_threaded_irq(chan->rx_irq, mbox_handler,
-						   NULL, IRQF_ONESHOT,
-						   DRIVER_NAME, &l[idx]);
-			if (err) {
-				dev_err(dev, "request irq error\n");
-				return err;
-			}
+		if (!chan->data->rx_buf)
+			return -ENOMEM;
+		chan->data->rx_size = MHU_BUFFER_SIZE;
+		err = request_threaded_irq(chan->rx_irq, mbox_handler,
+					   NULL, IRQF_ONESHOT, DRIVER_NAME,
+					   &l[idx]);
+		if (err) {
+			dev_err(dev, "request irq error\n");
+			return err;
 		}
 	}
+probe_done:
 	return 0;
 }
 
 static int mhu_remove(struct platform_device *pdev)
 {
 	struct mhu_ctlr *ctlr = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 
 	mbox_controller_unregister(&ctlr->mbox_con);
+	devm_kfree(dev, ctlr->mbox_con.chans);
+
+	devm_iounmap(dev, ctlr->payload_base);
+	devm_iounmap(dev, ctlr->mbox_base);
 
 	platform_set_drvdata(pdev, NULL);
+	devm_kfree(dev, ctlr);
 	return 0;
 }
 

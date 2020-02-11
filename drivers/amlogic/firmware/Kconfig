@@ -1,0 +1,12 @@
+# firmware configuration
+#
+menu "AMLOGIC firmware boot"
+
+config AMLOGIC_FIRMWARE
+	bool "firmware bootup support"
+	default n
+	help
+		firmware bootup support.
+                If you want this support, you should say Y here.
+
+endmenu
