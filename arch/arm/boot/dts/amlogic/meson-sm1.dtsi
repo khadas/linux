@@ -266,13 +266,19 @@
 
 	mailbox: mhu@ff63c400 {
 		compatible = "amlogic, meson_mhu";
-		reg = <0xff63c400 0x4c>,   /*MHU registers*/
-			<0xfffe7000 0x800>;   /*Payload area*/
-		interrupts = <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,   /*low isr*/
-				<GIC_SPI 210 IRQ_TYPE_EDGE_RISING>; /*high isr*/
+		reg = <0xff63c400 0x4c>,   /* MHU registers */
+		      <0xfffe7000 0x800>;   /* Payload area */
+		interrupts = <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>, /* cm3 low*/
+			     <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>, /* cm4 rx */
+			     <GIC_SPI 213 IRQ_TYPE_EDGE_RISING>;   /* cm4 tx */
 		#mbox-cells = <1>;
-		mbox-names = "cpu_to_scp_low", "cpu_to_scp_high";
-		mboxes = <&mailbox 0 &mailbox 1>;
+		mbox-names = "cpu_to_scp_low", "bl4_to_cpu", "cpu_to_bl4";
+		mboxes = <&mailbox 0 &mailbox 1 &mailbox 2>;
+		num-chans-to-scp = <1>;  /*number of chans to send m3*/
+		send-isr-bits = <5>;     /*BIT(idx) of isr listen when ap send*/
+		ack-isr-bits = <4>;      /*BIT(idx) of ack isr*/
+		m4-isr-bits = <6>;       /*BIT(idx) of m4 isr*/
+		mbox-chans = <3>;        /*chan number*/
 	};
 
 	codec_io: codec_io {
