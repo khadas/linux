@@ -135,7 +135,38 @@ static const struct __extcon_info {
 		.id = EXTCON_JACK_SPDIF_OUT,
 		.name = "SPDIF-OUT",
 	},
-
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+	[EXTCON_SPDIFIN_SAMPLERATE] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_SPDIFIN_SAMPLERATE,
+		.name = "SPDIFIN-SAMPLERATE",
+	},
+	[EXTCON_SPDIFIN_AUDIOTYPE] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_SPDIFIN_AUDIOTYPE,
+		.name = "SPDIFIN-AUDIOTYPE",
+	},
+	[EXTCON_EARCRX_ATNDTYP_ARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCRX_ATNDTYP_ARC,
+		.name = "EARCRX-ARC",
+	},
+	[EXTCON_EARCRX_ATNDTYP_EARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCRX_ATNDTYP_EARC,
+		.name = "EARCRX-EARC",
+	},
+	[EXTCON_EARCTX_ATNDTYP_ARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCTX_ATNDTYP_ARC,
+		.name = "EARCTX-ARC",
+	},
+	[EXTCON_EARCTX_ATNDTYP_EARC] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_EARCTX_ATNDTYP_EARC,
+		.name = "EARCTX-EARC",
+	},
+#endif
 	/* Display external connector */
 	[EXTCON_DISP_HDMI] = {
 		.type = EXTCON_TYPE_DISP,
