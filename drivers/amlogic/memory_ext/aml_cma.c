@@ -31,6 +31,7 @@
 #include <linux/page-isolation.h>
 #include <linux/spinlock_types.h>
 #include <linux/amlogic/aml_cma.h>
+#include <linux/sched/signal.h>
 #include <linux/hugetlb.h>
 #include <linux/proc_fs.h>
 #include <asm/system_misc.h>
@@ -166,7 +167,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("%s alloc page:%lx, count:%ld, func:%ps\n", __func__,
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
-		set_page_trace(page, 0, __GFP_BDEV, (void *)fun);
+		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
 		page++;
 	}
 }
@@ -219,8 +220,7 @@ static unsigned long get_align_pfn_high(unsigned long pfn)
 				pageblock_nr_pages));
 }
 
-static struct page *get_migrate_page(struct page *page, unsigned long private,
-				     int **resultp)
+static struct page *get_migrate_page(struct page *page, unsigned long private)
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	struct page *new = NULL;
@@ -302,7 +302,7 @@ static int aml_alloc_contig_migrate_range(struct compact_control *cc,
 		cc->nr_migratepages -= nr_reclaimed;
 
 		ret = migrate_pages(&cc->migratepages, get_migrate_page,
-				    NULL, 0, cc->mode, MR_CMA);
+				    NULL, 0, cc->mode, MR_CONTIG_RANGE);
 	}
 	if (ret < 0) {
 		putback_movable_pages(&cc->migratepages);
@@ -322,8 +322,10 @@ static int cma_boost_work_func(void *cma_data)
 		.nr_migratepages = 0,
 		.order = -1,
 		.mode = MIGRATE_SYNC,
-		.page_type = COMPACT_CMA,
 		.ignore_skip_hint = true,
+		.no_set_skip_hint = true,
+		.gfp_mask = GFP_KERNEL,
+		.page_type = COMPACT_CMA,
 	};
 
 	c_work  = (struct cma_pcp *)cma_data;
@@ -470,8 +472,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 
 static int __aml_check_pageblock_isolate(unsigned long pfn,
 					 unsigned long end_pfn,
-					 bool skip_hwpoisoned_pages,
-					 struct list_head *list)
+					 bool skip_hwpoisoned_pages)
 {
 	struct page *page;
 
@@ -507,12 +508,15 @@ check_page_valid(unsigned long pfn, unsigned long nr_pages)
 {
 	int i;
 
-	for (i = 0; i < nr_pages; i++)
-		if (pfn_valid_within(pfn + i))
-			break;
-	if (unlikely(i == nr_pages))
-		return NULL;
-	return pfn_to_page(pfn + i);
+	for (i = 0; i < nr_pages; i++) {
+		struct page *page;
+
+		page = pfn_to_online_page(pfn + i);
+		if (!page)
+			continue;
+		return page;
+	}
+	return NULL;
 }
 
 int aml_check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
@@ -521,7 +525,6 @@ int aml_check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long pfn, flags;
 	struct page *page;
 	struct zone *zone;
-	struct list_head free_list;
 
 	/*
 	 * Note: pageblock_nr_pages != MAX_ORDER. Then, chunks of free pages
@@ -538,19 +541,12 @@ int aml_check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 		return -EBUSY;
 	/* Check all pages are free or marked as ISOLATED */
 	zone = page_zone(page);
-	INIT_LIST_HEAD(&free_list);
 	spin_lock_irqsave(&zone->lock, flags);
 	pfn = __aml_check_pageblock_isolate(start_pfn, end_pfn,
-					    skip_hwpoisoned_pages,
-					    &free_list);
+					    skip_hwpoisoned_pages);
 	spin_unlock_irqrestore(&zone->lock, flags);
 
 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
-
-	free_hot_cold_page_list(&free_list, 1);
-	/* page may in kswap ? */
-	if (pfn < end_pfn && zone->zone_pgdat)
-		wake_up_interruptible(&zone->zone_pgdat->kswapd_wait);
 
 	return pfn < end_pfn ? -EBUSY : 0;
 }
@@ -567,9 +563,10 @@ int aml_cma_alloc_range(unsigned long start, unsigned long end)
 		.order = -1,
 		.zone = page_zone(pfn_to_page(start)),
 		.mode = MIGRATE_SYNC,
-		.page_type = COMPACT_CMA,
 		.ignore_skip_hint = true,
-		.contended = false,
+		.no_set_skip_hint = true,
+		.gfp_mask = GFP_KERNEL,
+		.page_type = COMPACT_CMA,
 	};
 	INIT_LIST_HEAD(&cc.migratepages);
 
@@ -577,7 +574,7 @@ int aml_cma_alloc_range(unsigned long start, unsigned long end)
 	ret = start_isolate_page_range(get_align_pfn_low(start),
 				       get_align_pfn_high(end), MIGRATE_CMA,
 				       false);
-	if (ret) {
+	if (ret < 0) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
 		return ret;
 	}
@@ -643,12 +640,7 @@ try_again:
 	/* Grab isolated pages from freelists. */
 	outer_end = isolate_freepages_range(&cc, outer_start, end);
 	if (!outer_end) {
-		if (cc.contended) {
-			ret = -EINTR;
-			pr_info("cma_alloc [%lx-%lx] aborted\n", start, end);
-		} else {
-			ret = -EBUSY;
-		}
+		ret = -EBUSY;
 		cma_debug(1, NULL, "iso free range(%lx, %lx) failed\n",
 			  outer_start, end);
 		goto done;
@@ -734,15 +726,15 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages)
 }
 EXPORT_SYMBOL(aml_cma_free);
 
-static int cma_vma_show(struct page *page, struct vm_area_struct *vma,
-			unsigned long addr, void *arg)
+static bool cma_vma_show(struct page *page, struct vm_area_struct *vma,
+			 unsigned long addr, void *arg)
 {
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	struct mm_struct *mm = vma->vm_mm;
 
 	show_vma(mm, addr);
 #endif
-	return SWAP_AGAIN;
+	return true; /* keep loop */
 }
 
 void rmap_walk_vma(struct page *page)
@@ -771,8 +763,8 @@ void show_page(struct page *page)
 #endif
 	if (page->mapping && !((unsigned long)page->mapping & 0x3))
 		map_flag = page->mapping->flags;
-	pr_info("page:%lx, map:%p, mf:%lx, pf:%lx, m:%d, c:%d, f:%ps\n",
-		page_to_pfn(page), page->mapping, map_flag,
+	pr_info("page:%lx, map:%lx, mf:%lx, pf:%lx, m:%d, c:%d, f:%ps\n",
+		page_to_pfn(page), (unsigned long)page->mapping, map_flag,
 		page->flags & 0xffffffff,
 		page_mapcount(page), page_count(page),
 		(void *)trace);
@@ -817,6 +809,7 @@ static const struct file_operations cma_dbg_file_ops = {
 static int __init aml_cma_init(void)
 {
 	atomic_set(&cma_allocate, 0);
+	atomic_long_set(&nr_cma_allocated, 0);
 
 	dentry = proc_create("cma_debug", 0644, NULL, &cma_dbg_file_ops);
 	if (IS_ERR_OR_NULL(dentry)) {

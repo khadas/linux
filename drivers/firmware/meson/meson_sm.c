@@ -290,6 +290,7 @@ static const struct of_device_id meson_sm_ids[] = {
 static int __init secmon_cma_setup(struct platform_device *pdev)
 {
 	struct page *page;
+	unsigned int clear[2] = {};
 	int size;
 	struct device_node *np = pdev->dev.of_node;
 
@@ -298,6 +299,10 @@ static int __init secmon_cma_setup(struct platform_device *pdev)
 
 	pr_info("reserve_mem_size:0x%x\n", size);
 
+	/* need clear mmu for A73 core */
+	if (!of_property_read_u32_array(np, "clear_range", clear, 2))
+		pr_info("clear_range:%x %x\n", clear[0], clear[1]);
+
 	page = dma_alloc_from_contiguous(&pdev->dev, size >> PAGE_SHIFT, 0, 0);
 	if (!page) {
 		pr_err("%s, alloc page failed\n", __func__);
@@ -305,6 +310,11 @@ static int __init secmon_cma_setup(struct platform_device *pdev)
 	}
 	pr_info("%s, get page:%lx\n", __func__, page_to_pfn(page));
 
+	if (clear[0]) {
+		size = clear[1] / PAGE_SIZE;
+		page = phys_to_page(clear[0]);
+		cma_mmu_op(page, size, 0);
+	}
 	return 0;
 }
 #endif

@@ -1126,6 +1126,14 @@ const char * const vmstat_text[] = {
 	"nr_zspages",
 #endif
 	"nr_free_cma",
+#ifdef CONFIG_AMLOGIC_CMA
+	"nr_inactive_anon_cma",
+	"nr_active_anon_cma",
+	"nr_inactive_file_cma",
+	"nr_active_file_cma",
+	"nr_unevictable_cma",
+	"nr_isolated_cma",
+#endif
 
 	/* enum numa_stat_item counters */
 #ifdef CONFIG_NUMA

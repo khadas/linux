@@ -13,6 +13,9 @@ struct cma {
 	spinlock_t mem_head_lock;
 #endif
 	const char *name;
+#ifdef CONFIG_AMLOGIC_CMA	/* clear kernel space mapping after driver it */
+	int clear_map;
+#endif
 };
 
 extern struct cma cma_areas[MAX_CMA_AREAS];

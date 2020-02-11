@@ -37,4 +37,9 @@ extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
 
 extern int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data);
+#ifdef CONFIG_AMLOGIC_CMA
+void cma_init_clear(struct cma *cma, bool clear);
+int setup_cma_full_pagemap(struct cma *cma);
+int cma_mmu_op(struct page *page, int count, bool set);
+#endif
 #endif

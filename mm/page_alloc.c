@@ -71,6 +71,9 @@
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 #include <linux/amlogic/page_trace.h>
 #endif
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -5277,6 +5280,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+	#ifdef CONFIG_AMLOGIC_CMA
+		" [cma] driver:%lu anon:%lu file:%lu isolate:%lu total:%lu\n"
+	#endif /* CONFIG_AMLOGIC_CMA */
 		" free:%lu free_pcp:%lu free_cma:%lu\n",
 		global_node_page_state(NR_ACTIVE_ANON),
 		global_node_page_state(NR_INACTIVE_ANON),
@@ -5294,6 +5300,15 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		global_node_page_state(NR_SHMEM),
 		global_zone_page_state(NR_PAGETABLE),
 		global_zone_page_state(NR_BOUNCE),
+	#ifdef CONFIG_AMLOGIC_CMA
+		get_cma_allocated(),
+		global_zone_page_state(NR_INACTIVE_ANON_CMA) +
+		global_zone_page_state(NR_ACTIVE_ANON_CMA),
+		global_zone_page_state(NR_INACTIVE_FILE_CMA) +
+		global_zone_page_state(NR_ACTIVE_FILE_CMA),
+		global_zone_page_state(NR_CMA_ISOLATED),
+		totalcma_pages,
+	#endif /* CONFIG_AMLOGIC_CMA */
 		global_zone_page_state(NR_FREE_PAGES),
 		free_pcp,
 		global_zone_page_state(NR_FREE_CMA_PAGES));

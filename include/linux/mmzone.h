@@ -209,6 +209,14 @@ enum zone_stat_item {
 	NR_ZSPAGES,		/* allocated in zsmalloc */
 #endif
 	NR_FREE_CMA_PAGES,
+#ifdef CONFIG_AMLOGIC_CMA
+	NR_INACTIVE_ANON_CMA,	/* must match order of LRU_[IN]ACTIVE */
+	NR_ACTIVE_ANON_CMA,
+	NR_INACTIVE_FILE_CMA,
+	NR_ACTIVE_FILE_CMA,
+	NR_UNEVICTABLE_FILE_CMA,
+	NR_CMA_ISOLATED,	/* cma isolate */
+#endif /* CONFIG_AMLOGIC_CMA */
 	NR_VM_ZONE_STAT_ITEMS };
 
 enum node_stat_item {

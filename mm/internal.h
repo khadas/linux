@@ -167,6 +167,9 @@ extern int user_min_free_kbytes;
 
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
 
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#else
 /*
  * in mm/compaction.c
  */
@@ -220,6 +223,7 @@ isolate_freepages_range(struct compact_control *cc,
 unsigned long
 isolate_migratepages_range(struct compact_control *cc,
 			   unsigned long low_pfn, unsigned long end_pfn);
+#endif /* CONFIG_AMLOGIC_CMA */
 int find_suitable_fallback(struct free_area *area, unsigned int order,
 			int migratetype, bool only_stealable, bool *can_steal);
 
