@@ -64,7 +64,7 @@ static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
 static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
-	tunnel_mode, struct dv_vsif_para *data);
+	tunnel_mode, struct dv_vsif_para *data, bool signal_sdr);
 static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 				     struct hdr10plus_para *data);
 static void hdmitx_set_emp_pkt(unsigned char *data,
@@ -1397,9 +1397,28 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		schedule_work(&hdev->work_hdr);
 }
 
+static void update_current_para(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *info = NULL;
+	unsigned char mode[32];
+
+	info = hdmitx_get_current_vinfo();
+	if (!info)
+		return;
+
+	memset(mode, 0, sizeof(mode));
+	strncpy(mode, info->name, sizeof(mode) - 1);
+	if (strstr(hdev->fmt_attr, "420")) {
+		if (!strstr(mode, "420"))
+			strncat(mode, "420", sizeof(mode) - strlen("420") - 1);
+	}
+	hdev->para = hdmi_get_fmt_name(mode, hdev->fmt_attr);
+}
+
 static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				enum mode_type tunnel_mode,
-				struct dv_vsif_para *data)
+				struct dv_vsif_para *data,
+				bool signal_sdr)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	struct dv_vsif_para para = {0};
@@ -1497,14 +1516,18 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			else
 				hdev->hwop.setpacket(HDMI_PACKET_VEND,
 						     NULL, NULL);
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_Q01, RGB_RANGE_LIM);
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_YQ01, YCC_RANGE_LIM);
-			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				CLR_AVI_BT2020);/*BT709*/
+			if (signal_sdr) {
+				pr_info("hdmitx: H14b VSIF, switching signal to SDR\n");
+				update_current_para(hdev);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_Q01, RGB_RANGE_LIM);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_YQ01, YCC_RANGE_LIM);
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					CLR_AVI_BT2020);/*BT709*/
+			}
 		}
 	}
 	/*ver1_12  with low_latency = 1 and ver2 use Dolby VSIF*/
@@ -1606,24 +1629,24 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			}
 		} else {
 		/*SDR case*/
-			if (hdmi_vic_4k_flag) {
-				VEN_DB1[0] = 0x03;
-				VEN_DB1[1] = 0x0c;
-				VEN_DB1[2] = 0x00;
-				hdev->hwop.setpacket(HDMI_PACKET_VEND,
-						     VEN_DB2, VEN_HB);
-			} else {
-				hdev->hwop.setpacket(HDMI_PACKET_VEND,
-						     NULL, NULL);
+			pr_info("hdmitx: Dolby VSIF, VEN_DB2[3]) = %d\n",
+				VEN_DB2[3]);
+			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			if (signal_sdr) {
+				pr_info("hdmitx: Dolby VSIF, switching signal to SDR\n");
+				update_current_para(hdev);
+				pr_info("vic:%d, cd:%d, cs:%d, cr:%d\n",
+					hdev->para->vic, hdev->para->cd,
+					hdev->para->cs, hdev->para->cr);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_Q01, RGB_RANGE_DEFAULT);
+				hdev->hwop.cntlconfig(hdev,
+					CONF_AVI_YQ01, YCC_RANGE_LIM);
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					CLR_AVI_BT2020);/*BT709*/
 			}
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_Q01, RGB_RANGE_LIM);
-			hdev->hwop.cntlconfig(hdev,
-				CONF_AVI_YQ01, YCC_RANGE_LIM);
-			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				CLR_AVI_BT2020);/*BT709*/
 		}
 	}
 }
@@ -2061,7 +2084,7 @@ static ssize_t config_store(struct device *dev,
 		data.features = 0x00091200;
 		hdmitx_set_drm_pkt(&data);
 	} else if (strncmp(buf, "vsif", 4) == 0) {
-		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL);
+		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL, true);
 	} else if (strncmp(buf, "emp", 3) == 0) {
 		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_G12A)
 			hdmitx_set_emp_pkt(NULL, 1, 1);
@@ -3960,7 +3983,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	}
 	/*after plugout, DV mode can't be supported*/
-	hdmitx_set_vsif_pkt(0, 0, NULL);
+	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
