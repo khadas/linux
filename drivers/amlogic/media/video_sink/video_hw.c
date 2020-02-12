@@ -907,11 +907,15 @@ static void vd1_set_dcu(
 	if (type & VIDTYPE_VIU_NV21)
 		VSYNC_WR_MPEG_REG_BITS(
 			VD1_IF0_GEN_REG2 +
-			vd_off, 1, 0, 1);
+			vd_off, 1, 0, 2);
+	else if (type & VIDTYPE_VIU_NV12)
+		VSYNC_WR_MPEG_REG_BITS(
+			VD1_IF0_GEN_REG2 +
+			vd_off, 2, 0, 2);
 	else
 		VSYNC_WR_MPEG_REG_BITS(
 			VD1_IF0_GEN_REG2 +
-			vd_off, 0, 0, 1);
+			vd_off, 0, 0, 2);
 
 	/* FIXME: don't use glayer_info[0].reverse */
 	if (glayer_info[0].reverse) {
@@ -941,6 +945,7 @@ static void vd1_set_dcu(
 		if (is_crop_left_odd(frame_par)) {
 			if (!(type & VIDTYPE_PRE_INTERLACE) &&
 			    ((type & VIDTYPE_VIU_NV21) ||
+			     (type & VIDTYPE_VIU_NV12) ||
 			     (type & VIDTYPE_VIU_422)))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
@@ -1302,11 +1307,15 @@ static void vd2_set_dcu(
 	if (type & VIDTYPE_VIU_NV21)
 		VSYNC_WR_MPEG_REG_BITS(
 			VD2_IF0_GEN_REG2 +
-			vd_off, 1, 0, 1);
+			vd_off, 1, 0, 2);
+	else if (type & VIDTYPE_VIU_NV12)
+		VSYNC_WR_MPEG_REG_BITS(
+			VD2_IF0_GEN_REG2 +
+			vd_off, 2, 0, 2);
 	else
 		VSYNC_WR_MPEG_REG_BITS(
 			VD2_IF0_GEN_REG2 +
-			vd_off, 0, 0, 1);
+			vd_off, 0, 0, 2);
 
 	/* FIXME: don't use glayer_info[1].reverse */
 	if (glayer_info[1].reverse)
@@ -1328,6 +1337,7 @@ static void vd2_set_dcu(
 		if (is_crop_left_odd(frame_par)) {
 			if (!(type & VIDTYPE_PRE_INTERLACE) &&
 			    ((type & VIDTYPE_VIU_NV21) ||
+			     (type & VIDTYPE_VIU_NV12) ||
 			     (type & VIDTYPE_VIU_422)))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
