@@ -1024,9 +1024,9 @@ void evl_switch_inband(int cause)
 	curr->state |= T_INBAND;
 	curr->local_info &= ~T_SYSRST;
 	evl_set_resched(rq);
-	dovetail_leave_oob();
 	evl_spin_unlock(&rq->lock);
 	evl_spin_unlock(&curr->lock);
+	dovetail_leave_oob();
 	__evl_schedule();
 	/*
 	 * this_rq()->lock was released when the root thread resumed
