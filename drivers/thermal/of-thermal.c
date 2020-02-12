@@ -392,6 +392,48 @@ static int of_thermal_get_crit_temp(struct thermal_zone_device *tz,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int of_thermal_notify(struct thermal_zone_device *tz, int trip,
+			     enum thermal_trip_type type)
+{
+	struct thermal_instance *instance;
+	struct thermal_cooling_device *cdev;
+	int ret = 0, hyst = 0, trip_temp;
+
+	if (type != THERMAL_TRIP_HOT)
+		return ret;
+
+	tz->ops->get_trip_hyst(tz, trip, &hyst);
+	if (tz->temperature < 0)
+		return ret;
+
+	tz->ops->get_trip_temp(tz, trip, &trip_temp);
+
+	/* increase each hyst step */
+	if (tz->temperature >= (trip_temp + tz->hot_step * hyst)) {
+		tz->hot_step++;
+		dev_info(&tz->device,
+			 "temp:%d increase, hyst:%d, trip_temp:%d, hot:%x\n",
+			 tz->temperature, hyst, trip_temp, tz->hot_step);
+	}
+	/* reserve a step gap */
+	if (tz->temperature <= (trip_temp + (tz->hot_step - 2) * hyst) &&
+	    tz->hot_step) {
+		tz->hot_step--;
+		dev_info(&tz->device,
+			 "temp:%d decrease, hyst:%d, trip_temp:%d, hot:%x\n",
+			 tz->temperature, hyst, trip_temp, tz->hot_step);
+	}
+
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		cdev = instance->cdev;
+		if (cdev->ops && cdev->ops->notify_state)
+			ret += cdev->ops->notify_state(cdev, tz, type);
+	}
+	return ret;
+}
+#endif
+
 static struct thermal_zone_device_ops of_thermal_ops = {
 	.get_mode = of_thermal_get_mode,
 	.set_mode = of_thermal_set_mode,
@@ -405,6 +447,9 @@ static struct thermal_zone_device_ops of_thermal_ops = {
 
 	.bind = of_thermal_bind,
 	.unbind = of_thermal_unbind,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.notify = of_thermal_notify,
+#endif
 };
 
 /***   sensor API   ***/

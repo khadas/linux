@@ -125,6 +125,11 @@ struct thermal_cooling_device_ops {
 			   struct thermal_zone_device *, unsigned long, u32 *);
 	int (*power2state)(struct thermal_cooling_device *,
 			   struct thermal_zone_device *, u32, unsigned long *);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int (*notify_state)(struct thermal_cooling_device*,
+			    struct thermal_zone_device*,
+			    enum thermal_trip_type);
+#endif
 };
 
 struct thermal_cooling_device {
@@ -205,6 +210,9 @@ struct thermal_zone_device {
 	int last_temperature;
 	int emul_temperature;
 	int passive;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int hot_step;
+#endif
 	int prev_low_trip;
 	int prev_high_trip;
 	unsigned int forced_passive;
