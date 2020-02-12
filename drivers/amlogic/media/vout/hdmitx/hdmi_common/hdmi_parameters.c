@@ -2803,6 +2803,7 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 	char *lname;
 	enum hdmi_vic vic = HDMI_Unknown;
 	struct hdmi_format_para *para = &fmt_para_non_hdmi_fmt;
+	unsigned int copy_len;
 
 	if (!name)
 		return para;
@@ -2823,7 +2824,10 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 		sizeof(struct hdmi_format_para *))) {
 		para = all_fmt_paras[i];
 		memset(&para->ext_name[0], 0, sizeof(para->ext_name));
-		memcpy(&para->ext_name[0], name, sizeof(para->ext_name));
+		copy_len = strlen(name);
+		if (copy_len >= sizeof(para->ext_name))
+			copy_len = sizeof(para->ext_name) - 1;
+		memcpy(&para->ext_name[0], name, copy_len);
 		hdmi_parse_attr(para, name);
 		hdmi_parse_attr(para, attr);
 	} else {
