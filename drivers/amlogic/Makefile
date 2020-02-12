@@ -28,3 +28,5 @@ obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND)	+= memory_ext/
 obj-$(CONFIG_AMLOGIC_WIFI)      += wifi/
 obj-$(CONFIG_AMLOGIC_JTAG_MESON)	+= jtag/
 obj-$(CONFIG_AMLOGIC_UART)              += uart/
+obj-$(CONFIG_AMLOGIC_CEC)		+= cec/
+

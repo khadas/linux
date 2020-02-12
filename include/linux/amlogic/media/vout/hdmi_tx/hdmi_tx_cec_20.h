@@ -11,8 +11,8 @@
 #include "hdmi_info_global.h"
 #include "hdmi_tx_module.h"
 
-#define CEC0_LOG_ADDR 4 /* MBX logical address */
-#define TV_CEC_INTERVAL     (HZ * 3)
+#define CEC0_LOG_ADDR		4 /* MBX logical address */
+#define TV_CEC_INTERVAL		(HZ * 3)
 
 #define CEC_VERSION     "v1.3"
 #define _RX_DATA_BUF_SIZE_ 16
@@ -88,11 +88,15 @@ enum _cec_log_dev_addr_e {
 #define CEC_IOC_SET_AUTO_DEVICE_OFF     _IOW(CEC_IOC_MAGIC, 0x0F, uint32_t)
 #define CEC_IOC_GET_BOOT_ADDR           _IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
 #define CEC_IOC_GET_BOOT_REASON         _IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
+#define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
+#define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
 
-#define CEC_FAIL_NONE                   0
-#define CEC_FAIL_NACK                   1
-#define CEC_FAIL_BUSY                   2
-#define CEC_FAIL_OTHER                  3
+enum cec_tx_ret {
+	CEC_FAIL_NONE		= 0,
+	CEC_FAIL_NACK		= 1,
+	CEC_FAIL_BUSY		= 2,
+	CEC_FAIL_OTHER		= 3,
+};
 
 enum hdmi_port_type {
 	HDMI_INPUT = 0,
@@ -203,10 +207,10 @@ enum cec_node_status_e {
 };
 
 enum cec_power_status_e {
-	POWER_ON = 0x00,
-	POWER_STANDBY,
-	TRANS_STANDBY_TO_ON,
-	TRANS_ON_TO_STANDBY,
+	CEC_PW_POWER_ON = 0x00,
+	CEC_PW_STANDBY,
+	CEC_PW_TRANS_STANDBY_TO_ON,
+	CEC_PW_TRANS_ON_TO_STANDBY,
 };
 
 enum status_req_mode_e {
