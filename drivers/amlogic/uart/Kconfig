@@ -1,0 +1,35 @@
+#
+# Amlogic driver configuration
+#
+
+config AMLOGIC_UART
+	tristate "Serial support"
+	select SERIAL_CORE
+	default n
+    help
+	Add support for the Amlogic serial port.
+	this config only ctrl in makefile
+	this config do not in meson_uart.c
+	this config add
+
+config AMLOGIC_SERIAL_MESON_CONSOLE
+	bool "Console on Amlogic Serial port"
+	depends on AMLOGIC_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default n
+	help
+		Support for running a console on the Amlogic serial
+		this config is only
+		used in meson_uart.c
+		so so
+
+config AMLOGIC_PRINTK_NOBLOCK_MODE
+    bool "printk with no block"
+    select AMLOGIC_SERIAL_MESON_CONSOLE
+    default n
+    help
+        printk with no block
+        push tx data to internal buffer first
+        default size of internal buffer is 128K
+        when enabled, new_printk_enabled=1
