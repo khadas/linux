@@ -98,7 +98,18 @@ extern int page_group_by_mobility_disabled;
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	unsigned long		free_mt[MIGRATE_TYPES];
+#endif
 };
+
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+void count_free_migrate(struct free_area *area, struct page *page,
+			struct list_head *list, int op);
+#define FREE_LIST_ADD	0
+#define FREE_LIST_RM	1
+#define FREE_LIST_MOVE	2
+#endif
 
 /* Used for pages not on another list */
 static inline void add_to_free_area(struct page *page, struct free_area *area,
@@ -106,6 +117,10 @@ static inline void add_to_free_area(struct page *page, struct free_area *area,
 {
 	list_add(&page->lru, &area->free_list[migratetype]);
 	area->nr_free++;
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	count_free_migrate(area, page,
+			   &area->free_list[migratetype], FREE_LIST_ADD);
+#endif
 }
 
 /* Used for pages not on another list */
@@ -114,6 +129,10 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
 {
 	list_add_tail(&page->lru, &area->free_list[migratetype]);
 	area->nr_free++;
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	count_free_migrate(area, page,
+			   &area->free_list[migratetype], FREE_LIST_ADD);
+#endif
 }
 
 #ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
@@ -133,6 +152,10 @@ static inline void move_to_free_area(struct page *page, struct free_area *area,
 			     int migratetype)
 {
 	list_move(&page->lru, &area->free_list[migratetype]);
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	count_free_migrate(area, page,
+			   &area->free_list[migratetype], FREE_LIST_MOVE);
+#endif
 }
 
 static inline struct page *get_page_from_free_area(struct free_area *area,
@@ -149,6 +172,10 @@ static inline void del_page_from_free_area(struct page *page,
 	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 	area->nr_free--;
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	count_free_migrate(area, page,
+			   NULL, FREE_LIST_RM);
+#endif
 }
 
 static inline bool free_area_empty(struct free_area *area, int migratetype)

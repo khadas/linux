@@ -5431,6 +5431,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		unsigned int order;
 		unsigned long nr[MAX_ORDER], flags, total = 0;
 		unsigned char types[MAX_ORDER];
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		unsigned long free_mt[MIGRATE_TYPES] = {0};
+	#endif
 
 		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
 			continue;
@@ -5447,6 +5450,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 
 			types[order] = 0;
 			for (type = 0; type < MIGRATE_TYPES; type++) {
+			#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+				free_mt[type] += (area->free_mt[type] << order);
+			#endif
 				if (!free_area_empty(area, type))
 					types[order] |= 1 << type;
 			}
@@ -5459,6 +5465,12 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 				show_migration_types(types[order]);
 		}
 		printk(KERN_CONT "= %lukB\n", K(total));
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		for (order = 0; order < MIGRATE_TYPES; order++) {
+			pr_info("Free_%s:%ld\n", migratetype_names[order],
+				free_mt[order]);
+		}
+	#endif
 	}
 
 	hugetlb_show_meminfo();
@@ -8696,3 +8708,38 @@ bool set_hwpoison_free_buddy_page(struct page *page)
 	return hwpoisoned;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+void count_free_migrate(struct free_area *area, struct page *page,
+			struct list_head *list, int op)
+{
+	int page_mt = -1;
+	int list_mt = -1;
+
+	page_mt = get_pcppage_migratetype(page);
+	if (list)
+		list_mt = ((void *)list - (void *)area) / (sizeof(*list));
+
+	switch (op) {
+	case FREE_LIST_ADD:
+		WARN_ON(list_mt == -1);
+		set_pcppage_migratetype(page, list_mt);
+		area->free_mt[list_mt]++;
+		break;
+
+	case FREE_LIST_MOVE:
+		WARN_ON(list_mt == -1);
+		set_pcppage_migratetype(page, list_mt);
+		area->free_mt[list_mt]++;
+		area->free_mt[page_mt]--;
+		break;
+
+	case FREE_LIST_RM:
+		area->free_mt[page_mt]--;
+		break;
+
+	default:
+		break;
+	}
+}
+#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND*/
