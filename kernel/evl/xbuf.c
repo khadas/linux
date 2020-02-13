@@ -732,6 +732,8 @@ static ssize_t rings_show(struct device *dev,
 	ssize_t ret;
 
 	xbuf = evl_get_element_by_dev(dev, struct evl_xbuf);
+	if (xbuf == NULL)
+		return -EIO;
 
 	ret = snprintf(buf, PAGE_SIZE, "%zu %zu %zu %zu\n",
 		xbuf->ibnd.ring.fillsz,

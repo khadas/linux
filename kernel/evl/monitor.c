@@ -896,6 +896,9 @@ static ssize_t state_show(struct device *dev,
 	fundle_t fun;
 
 	mon = evl_get_element_by_dev(dev, struct evl_monitor);
+	if (mon == NULL)
+		return -EIO;
+
 	state = mon->state;
 
 	if (mon->type == EVL_MONITOR_EVENT) {
