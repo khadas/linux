@@ -1,0 +1,15 @@
+#
+# Amlogic video_composer device configuration
+#
+
+menu "Amlogic video_composer support"
+
+config AMLOGIC_VIDEO_COMPOSER
+	tristate "Amlogic video_composer device support"
+	select VIDEO_DEV
+	default n
+
+	help
+		Select to enable "Amlogic video_composer device support.
+
+endmenu
