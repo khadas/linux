@@ -93,4 +93,11 @@
 			    "dmcbus",
 			    "efusebus";
 	};
+
+	rdma {
+		compatible = "amlogic, meson-tl1, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "rdma";
+	};
 };
