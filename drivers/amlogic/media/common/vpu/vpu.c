@@ -398,22 +398,17 @@ int vpu_vmod_clk_release(unsigned int vmod)
 	return ret;
 }
 
-void vpu_vmod_mem_pd_switch(unsigned int vmod, int flag)
+static int vpu_vmod_mem_pd_switch(unsigned int vmod, int flag)
 {
-	unsigned long flags = 0;
 	unsigned int _val, _reg, _bit, _len;
 	struct vpu_ctrl_s *table;
 	int i = 0, ret = 0, done = 0;
 
 	ret = vpu_chip_valid_check();
 	if (ret)
-		return;
-	if (vmod >= VPU_MOD_MAX) {
-		VPUERR("%s: invalid vpu mod: %d\n", __func__, vmod);
-		return;
-	}
-
-	spin_lock_irqsave(&vpu_mem_lock, flags);
+		return -1;
+	if (vmod >= VPU_MOD_MAX)
+		return -1;
 
 	table = vpu_conf.data->mem_pd_table;
 	while (i < VPU_MEM_PD_CNT_MAX) {
@@ -437,10 +432,9 @@ void vpu_vmod_mem_pd_switch(unsigned int vmod, int flag)
 		i++;
 	}
 
-	spin_unlock_irqrestore(&vpu_mem_lock, flags);
-
 	if (done == 0)
-		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vmod);
+		return -1;
+	return 0;
 }
 
 static int vpu_vmod_mem_pd_get(unsigned int vmod)
@@ -482,22 +476,17 @@ static int vpu_vmod_mem_pd_get(unsigned int vmod)
 		return VPU_MEM_POWER_DOWN;
 }
 
-static void vpu_vmod_clk_gate_switch(unsigned int vmod, int flag)
+static int vpu_vmod_clk_gate_switch(unsigned int vmod, int flag)
 {
 	unsigned int _val, _reg, _bit, _len;
 	struct vpu_ctrl_s *table;
 	int i = 0, ret = 0, done = 0;
-	unsigned long flags = 0;
 
 	ret = vpu_chip_valid_check();
 	if (ret)
-		return;
-	if (vmod >= VPU_MAX) {
-		VPUERR("%s: invalid vpu mod: %d\n", __func__, vmod);
-		return;
-	}
-
-	spin_lock_irqsave(&vpu_clk_gate_lock, flags);
+		return -1;
+	if (vmod >= VPU_MAX)
+		return -1;
 
 	table = vpu_conf.data->clk_gate_table;
 	while (i < VPU_CLK_GATE_CNT_MAX) {
@@ -521,17 +510,9 @@ static void vpu_vmod_clk_gate_switch(unsigned int vmod, int flag)
 		i++;
 	}
 
-	spin_unlock_irqrestore(&vpu_clk_gate_lock, flags);
-
 	if (done == 0)
-		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vmod);
-	if (vpu_debug_print_flag) {
-		VPUPR("%s: %s %s\n",
-		      __func__,
-		      vpu_mod_table[vmod],
-		      ((flag == VPU_CLK_GATE_ON) ? "ON" : "OFF"));
-		dump_stack();
-	}
+		return -1;
+	return 0;
 }
 
 /* *********************************************** */
@@ -814,13 +795,24 @@ int vpu_dev_clk_release(struct vpu_dev_s *vpu_dev)
  */
 void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
 {
+	unsigned long flags = 0;
+	int ret;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return;
 	}
 
-	mutex_lock(&vpu_dev_mutex);
-	vpu_vmod_mem_pd_switch(vpu_dev->dev_id, VPU_MEM_POWER_ON);
+	if (vpu_dev->dev_id >= VPU_MOD_MAX) {
+		VPUERR("%s: invalid vpu mod: %d\n", __func__, vpu_dev->dev_id);
+		return;
+	}
+
+	spin_lock_irqsave(&vpu_mem_lock, flags);
+	ret = vpu_vmod_mem_pd_switch(vpu_dev->dev_id, VPU_MEM_POWER_ON);
+	spin_unlock_irqrestore(&vpu_mem_lock, flags);
+	if (ret)
+		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vpu_dev->dev_id);
 
 	if (vpu_debug_print_flag) {
 		VPUPR("%s: %s in %s\n",
@@ -829,7 +821,6 @@ void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
 		      vpu_dev->owner_name);
 		dump_stack();
 	}
-	mutex_unlock(&vpu_dev_mutex);
 }
 
 /*
@@ -845,13 +836,24 @@ void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
  */
 void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev)
 {
+	unsigned long flags = 0;
+	int ret;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return;
 	}
 
-	mutex_lock(&vpu_dev_mutex);
-	vpu_vmod_mem_pd_switch(vpu_dev->dev_id, VPU_MEM_POWER_DOWN);
+	if (vpu_dev->dev_id >= VPU_MOD_MAX) {
+		VPUERR("%s: invalid vpu mod: %d\n", __func__, vpu_dev->dev_id);
+		return;
+	}
+
+	spin_lock_irqsave(&vpu_mem_lock, flags);
+	ret = vpu_vmod_mem_pd_switch(vpu_dev->dev_id, VPU_MEM_POWER_DOWN);
+	spin_unlock_irqrestore(&vpu_mem_lock, flags);
+	if (ret)
+		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vpu_dev->dev_id);
 
 	if (vpu_debug_print_flag) {
 		VPUPR("%s: %s in %s\n",
@@ -860,7 +862,6 @@ void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev)
 		      vpu_dev->owner_name);
 		dump_stack();
 	}
-	mutex_unlock(&vpu_dev_mutex);
 }
 
 /*
@@ -906,13 +907,24 @@ int vpu_dev_mem_pd_get(struct vpu_dev_s *vpu_dev)
  */
 void vpu_dev_clk_gate_on(struct vpu_dev_s *vpu_dev)
 {
+	unsigned long flags = 0;
+	int ret;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return;
 	}
 
-	mutex_lock(&vpu_dev_mutex);
-	vpu_vmod_clk_gate_switch(vpu_dev->dev_id, VPU_CLK_GATE_ON);
+	if (vpu_dev->dev_id >= VPU_MAX) {
+		VPUERR("%s: invalid vpu mod: %d\n", __func__, vpu_dev->dev_id);
+		return;
+	}
+
+	spin_lock_irqsave(&vpu_clk_gate_lock, flags);
+	ret = vpu_vmod_clk_gate_switch(vpu_dev->dev_id, VPU_CLK_GATE_ON);
+	spin_unlock_irqrestore(&vpu_clk_gate_lock, flags);
+	if (ret)
+		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vpu_dev->dev_id);
 
 	if (vpu_debug_print_flag) {
 		VPUPR("%s: %s in %s\n",
@@ -921,7 +933,6 @@ void vpu_dev_clk_gate_on(struct vpu_dev_s *vpu_dev)
 		      vpu_dev->owner_name);
 		dump_stack();
 	}
-	mutex_unlock(&vpu_dev_mutex);
 }
 
 /*
@@ -937,13 +948,24 @@ void vpu_dev_clk_gate_on(struct vpu_dev_s *vpu_dev)
  */
 void vpu_dev_clk_gate_off(struct vpu_dev_s *vpu_dev)
 {
+	unsigned long flags = 0;
+	int ret;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return;
 	}
 
-	mutex_lock(&vpu_dev_mutex);
-	vpu_vmod_clk_gate_switch(vpu_dev->dev_id, VPU_CLK_GATE_OFF);
+	if (vpu_dev->dev_id >= VPU_MAX) {
+		VPUERR("%s: invalid vpu mod: %d\n", __func__, vpu_dev->dev_id);
+		return;
+	}
+
+	spin_lock_irqsave(&vpu_clk_gate_lock, flags);
+	ret = vpu_vmod_clk_gate_switch(vpu_dev->dev_id, VPU_CLK_GATE_OFF);
+	spin_unlock_irqrestore(&vpu_clk_gate_lock, flags);
+	if (ret)
+		VPUPR("%s: unsupport vpu mod: %d\n", __func__, vpu_dev->dev_id);
 
 	if (vpu_debug_print_flag) {
 		VPUPR("%s: %s in %s\n",
@@ -952,7 +974,6 @@ void vpu_dev_clk_gate_off(struct vpu_dev_s *vpu_dev)
 		      vpu_dev->owner_name);
 		dump_stack();
 	}
-	mutex_unlock(&vpu_dev_mutex);
 }
 
 /* *********************************************** */
@@ -1071,6 +1092,7 @@ static ssize_t vpu_clk_debug(struct class *class, struct class_attribute *attr,
 static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 			     const char *buf, size_t count)
 {
+	unsigned long flags = 0;
 	unsigned int tmp[2], val;
 	unsigned int _reg0, _reg1, _reg2, _reg3, _reg4;
 	int ret = 0, i;
@@ -1101,7 +1123,15 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 			VPUPR("switch_vpu_mem_pd: %s %s\n",
 			      vpu_mod_table[tmp[0]],
 			      (tmp[1] ? "DOWN" : "ON"));
-			vpu_vmod_mem_pd_switch(tmp[0], tmp[1]);
+			if (tmp[0] >= VPU_MOD_MAX) {
+				VPUERR("invalid vpu mod: %d\n", tmp[0]);
+				return count;
+			}
+			spin_lock_irqsave(&vpu_mem_lock, flags);
+			ret = vpu_vmod_mem_pd_switch(tmp[0], tmp[1]);
+			spin_unlock_irqrestore(&vpu_mem_lock, flags);
+			if (ret)
+				VPUPR("unsupport vpu mod: %d\n", tmp[0]);
 		} else {
 			VPUERR("invalid parameters\n");
 		}
@@ -1128,6 +1158,7 @@ static ssize_t vpu_clk_gate_debug(struct class *class,
 				  struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
+	unsigned long flags = 0;
 	unsigned int tmp[2];
 	unsigned int _reg = 0;
 	struct vpu_ctrl_s *table;
@@ -1156,7 +1187,15 @@ static ssize_t vpu_clk_gate_debug(struct class *class,
 			tmp[1] = (tmp[1] == VPU_CLK_GATE_ON) ? 1 : 0;
 			VPUPR("switch_vpu_clk_gate: %s %s\n",
 			      vpu_mod_table[tmp[0]], (tmp[1] ? "ON" : "OFF"));
-			vpu_vmod_clk_gate_switch(tmp[0], tmp[1]);
+			if (tmp[0] >= VPU_MAX) {
+				VPUERR("invalid vpu mod: %d\n", tmp[0]);
+				return count;
+			}
+			spin_lock_irqsave(&vpu_clk_gate_lock, flags);
+			ret = vpu_vmod_clk_gate_switch(tmp[0], tmp[1]);
+			spin_unlock_irqrestore(&vpu_clk_gate_lock, flags);
+			if (ret)
+				VPUPR("unsupport vpu mod: %d\n", tmp[0]);
 		} else {
 			VPUERR("invalid parameters\n");
 		}
