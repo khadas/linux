@@ -140,4 +140,50 @@
 		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
 		clock-names = "vpu_clkc";
 	};
+
+	amhdmitx: amhdmitx{
+		compatible = "amlogic, amhdmitx-sm1";
+		dev_name = "amhdmitx";
+		status = "disabled";
+		vend-data = <&vend_data>;
+		pinctrl-names="default", "hdmitx_i2c";
+		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
+		pinctrl-1=<&hdmitx_hpd_gpio>;
+		clocks = <&clkc CLKID_VCLK2_ENCI
+			&clkc CLKID_VCLK2_VENCI0
+			&clkc CLKID_VCLK2_VENCI1
+			&clkc CLKID_VAPB_SEL
+			&clkc CLKID_VPU>;
+		clock-names = "venci_top_gate",
+			"venci_0_gate",
+			"venci_1_gate",
+			"hdmi_vapb_clk",
+			"hdmi_vpu_clk";
+		interrupts = <0 7 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "hdmitx_hpd";
+		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
+		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
+		 * 5:TXL   6:TXLX 7:AXG    8:GXLX 9:TXHD
+		 * 10:G12A 11:G12B 12:SM1  13:TM2
+		 */
+		ic_type = <13>;
+		reg =	<0x0 0xffd00000 0x0 0x100000>,
+			<0x0 0xff900000 0x0 0x40000>,
+			<0x0 0xff63c000 0x0 0x2000>,
+			<0x0 0xff670000 0x0 0x8000>,
+			<0x0 0xff678000 0x0 0x4000>,
+			<0x0 0xffe01000 0x0 0x100>;
+		reg-names = "cbus",
+			    "vcbus",
+			    "hiubus",
+			    "hdmitxsec",
+			    "hdmitx",
+			    "esm";
+		vend_data: vend_data{ /* Should modified by Customer */
+			vendor_name = "Amlogic"; /* Max Chars: 8 */
+			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */
+			/* standards.ieee.org/develop/regauth/oui/oui.txt */
+			vendor_id = <0x000000>;
+		};
+	};
 };
