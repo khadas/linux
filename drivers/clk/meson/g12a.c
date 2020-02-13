@@ -2471,7 +2471,7 @@ static const struct clk_parent_data g12a_sd_emmc_clk0_parent_data[] = {
 	{ .hw = &g12a_fclk_div2.hw },
 	{ .hw = &g12a_fclk_div3.hw },
 	{ .hw = &g12a_fclk_div5.hw },
-	{ .hw = &g12a_fclk_div7.hw },
+	{ .hw = &g12a_fclk_div2p5.hw },
 	/*
 	 * Following these parent clocks, we should also have had mpll2, mpll3
 	 * and gp0_pll but these clocks are too precious to be used here. All
@@ -2509,7 +2509,6 @@ static struct clk_regmap g12a_sd_emmc_a_clk0_div = {
 			&g12a_sd_emmc_a_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2525,7 +2524,6 @@ static struct clk_regmap g12a_sd_emmc_a_clk0 = {
 			&g12a_sd_emmc_a_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2558,7 +2556,6 @@ static struct clk_regmap g12a_sd_emmc_b_clk0_div = {
 			&g12a_sd_emmc_b_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2574,7 +2571,6 @@ static struct clk_regmap g12a_sd_emmc_b_clk0 = {
 			&g12a_sd_emmc_b_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2607,7 +2603,6 @@ static struct clk_regmap g12a_sd_emmc_c_clk0_div = {
 			&g12a_sd_emmc_c_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2623,7 +2618,6 @@ static struct clk_regmap g12a_sd_emmc_c_clk0 = {
 			&g12a_sd_emmc_c_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 

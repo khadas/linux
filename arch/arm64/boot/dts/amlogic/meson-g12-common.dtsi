@@ -2515,9 +2515,12 @@
 			interrupts = <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_CLK0_SEL>,
 				 <&clkc CLKID_SD_EMMC_A_CLK0>,
+				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
-			clock-names = "core", "clkin0", "clkin1";
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <3>;
 			mmc_debug_flag;
 			cap-sdio-irq;
@@ -2533,9 +2536,12 @@
 			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_CLK0_SEL>,
 				 <&clkc CLKID_SD_EMMC_B_CLK0>,
+				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
-			clock-names = "core", "clkin0", "clkin1";
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <5>;
 			mmc_debug_flag;
 			resets = <&reset RESET_SD_EMMC_B>;
@@ -2549,9 +2555,13 @@
 			interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_CLK0_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK0>,
-				 <&clkc CLKID_FCLK_DIV2>;
-			clock-names = "core", "clkin0", "clkin1";
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2P5>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			mmc_debug_flag;
 			resets = <&reset RESET_SD_EMMC_C>;

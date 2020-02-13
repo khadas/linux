@@ -215,6 +215,7 @@ EXPORT_SYMBOL(mmc_request_done);
 
 static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
+#ifndef CONFIG_MMC_MESON_GX
 	int err;
 
 	/* Assumes host controller has been runtime resumed by mmc_claim_host */
@@ -224,7 +225,7 @@ static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		mmc_request_done(host, mrq);
 		return;
 	}
-
+#endif
 	/*
 	 * For sdio rw commands we must wait for card busy otherwise some
 	 * sdio devices won't work properly.

@@ -29,6 +29,11 @@
 #include <linux/bitfield.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/aml_sd.h>
+#include <linux/delay.h>
+#include "../core/core.h"
+#include <linux/time.h>
+#include <linux/random.h>
+#include <linux/sched/clock.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
@@ -63,8 +68,13 @@
 #define SD_EMMC_DELAY1 0x4
 #define SD_EMMC_DELAY2 0x8
 #define SD_EMMC_V3_ADJUST 0xc
-#define   CFG_ADJUST_ENABLE BIT(13)
-#define   CLK_ADJUST_DELAY GENMASK(21, 16)
+#define	  CALI_SEL_MASK GENMASK(11, 8)
+#define	  CALI_ENABLE BIT(12)
+#define	  CFG_ADJUST_ENABLE BIT(13)
+#define	  CALI_RISE BIT(14)
+#define	  DS_ENABLE BIT(15)
+#define	  CLK_ADJUST_DELAY GENMASK(21, 16)
+#define	  ADJ_AUTO BIT(22)
 
 #define SD_EMMC_CALOUT 0x10
 #define SD_EMMC_ADJ_IDX_LOG 0x20
@@ -124,6 +134,7 @@
 #define   IRQ_END_OF_CHAIN BIT(13)
 #define   IRQ_RESP_STATUS BIT(14)
 #define   IRQ_SDIO BIT(15)
+#define   CFG_CMD_SETUP BIT(17)
 #define   IRQ_EN_MASK \
 	(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN | IRQ_RESP_STATUS |\
 	 IRQ_SDIO)
@@ -181,6 +192,22 @@
 #define CALI_HS_50M_ADJUST      0
 #define ERROR   1
 #define FIXED   2
+#define		SZ_1M			0x00100000
+#define	MMC_PATTERN_NAME		"pattern"
+#define	MMC_PATTERN_OFFSET		((SZ_1M * (36 + 3)) / 512)
+#define	MMC_MAGIC_NAME			"magic"
+#define	MMC_MAGIC_OFFSET		((SZ_1M * (36 + 6)) / 512)
+#define	MMC_RANDOM_NAME			"random"
+#define	MMC_RANDOM_OFFSET		((SZ_1M * (36 + 7)) / 512)
+#define	MMC_DTB_NAME			"dtb"
+#define	MMC_DTB_OFFSET			((SZ_1M * (36 + 4)) / 512)
+#define CALI_BLK_CNT	80
+#define CALI_HS_50M_ADJUST	0
+#define EMMC_SDIO_CLOCK_FELD	0Xffff
+#define MMC_PM_TIMEOUT	(2000)
+#define ERROR	1
+#define FIXED	2
+#define RETUNING	3
 #define RETUNING        3
 static struct mmc_host *sdio_host;
 
@@ -194,17 +221,6 @@ static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 	timeout = roundup_pow_of_two(timeout);
 
 	return min(timeout, 32768U); /* max. 2^15 ms */
-}
-
-static struct mmc_command *meson_mmc_get_next_command(struct mmc_command *cmd)
-{
-	if (cmd->opcode == MMC_SET_BLOCK_COUNT && !cmd->error)
-		return cmd->mrq->cmd;
-	else if (mmc_op_multi(cmd->opcode) &&
-		 (!cmd->mrq->sbc || cmd->error || cmd->data->error))
-		return cmd->mrq->stop;
-	else
-		return NULL;
 }
 
 static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
@@ -356,6 +372,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 	/* Stop the clock during rate change to avoid glitches */
 	cfg = readl(host->regs + SD_EMMC_CFG);
 	cfg |= CFG_STOP_CLOCK;
+	cfg &= ~CFG_AUTO_CLK;
 	writel(cfg, host->regs + SD_EMMC_CFG);
 
 	if (ddr) {
@@ -368,6 +385,22 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 	writel(cfg, host->regs + SD_EMMC_CFG);
 	host->ddr = ddr;
 
+	if (rate <= 24000000) {
+		ret = clk_set_parent(host->mux[0], host->clk[0]);
+		if (ret) {
+			dev_err(host->dev, "SET 24M parent error!\n");
+			return ret;
+		}
+	} else {
+		if (rate > 200000000)
+			ret = clk_set_parent(host->mux[0], host->clk[2]);
+		else
+			ret = clk_set_parent(host->mux[0], host->clk[1]);
+		if (ret) {
+			dev_err(host->dev, "SET 1188M parent error!\n");
+			return ret;
+		}
+	}
 	ret = clk_set_rate(host->mmc_clk, rate);
 	if (ret) {
 		dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
@@ -402,11 +435,9 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 static int meson_mmc_clk_init(struct meson_host *host)
 {
 	struct clk_init_data init;
-	struct clk_mux *mux;
 	struct clk_divider *div;
-	char clk_name[32];
+	char clk_name[32], name[16];
 	int i, ret = 0;
-	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
 	const char *clk_parent[1];
 	u32 clk_reg;
 
@@ -418,42 +449,19 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	clk_reg |= FIELD_PREP(CLK_RX_PHASE_MASK, CLK_PHASE_0);
 	writel(clk_reg, host->regs + SD_EMMC_CLOCK);
 
-	/* get the mux parents */
-	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
-		struct clk *clk;
-		char name[16];
-
-		snprintf(name, sizeof(name), "clkin%d", i);
-		clk = devm_clk_get(host->dev, name);
-		if (IS_ERR(clk)) {
-			if (clk != ERR_PTR(-EPROBE_DEFER))
-				dev_err(host->dev, "Missing clock %s\n", name);
-			return PTR_ERR(clk);
-		}
-
-		mux_parent_names[i] = __clk_get_name(clk);
+	for (i = 0; i < 2; i++) {
+		snprintf(name, sizeof(name), "mux%d", i);
+		host->mux[i] = devm_clk_get(host->dev, name);
 	}
 
-	/* create the mux */
-	mux = devm_kzalloc(host->dev, sizeof(*mux), GFP_KERNEL);
-	if (!mux)
-		return -ENOMEM;
-
-	snprintf(clk_name, sizeof(clk_name), "%s#mux", dev_name(host->dev));
-	init.name = clk_name;
-	init.ops = &clk_mux_ops;
-	init.flags = 0;
-	init.parent_names = mux_parent_names;
-	init.num_parents = MUX_CLK_NUM_PARENTS;
-
-	mux->reg = host->regs + SD_EMMC_CLOCK;
-	mux->shift = __ffs(CLK_SRC_MASK);
-	mux->mask = CLK_SRC_MASK >> mux->shift;
-	mux->hw.init = &init;
-
-	host->mux_clk = devm_clk_register(host->dev, &mux->hw);
-	if (WARN_ON(IS_ERR(host->mux_clk)))
-		return PTR_ERR(host->mux_clk);
+	for (i = 0; i < 3; i++) {
+		snprintf(name, sizeof(name), "clkin%d", i);
+		host->clk[i] = devm_clk_get(host->dev, name);
+		if (IS_ERR(host->clk[i])) {
+			dev_err(host->dev, "Missing clock %s\n", name);
+			host->clk[i] = NULL;
+		}
+	}
 
 	/* create the divider */
 	div = devm_kzalloc(host->dev, sizeof(*div), GFP_KERNEL);
@@ -464,7 +472,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	init.name = clk_name;
 	init.ops = &clk_divider_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	clk_parent[0] = __clk_get_name(host->mux_clk);
+	clk_parent[0] = __clk_get_name(host->mux[1]);
 	init.parent_names = clk_parent;
 	init.num_parents = 1;
 
@@ -478,6 +486,11 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	if (WARN_ON(IS_ERR(host->mmc_clk)))
 		return PTR_ERR(host->mmc_clk);
 
+	ret = clk_set_parent(host->mux[0], host->clk[0]);
+	if (ret) {
+		dev_err(host->dev, "Set 24m parent error\n");
+		return ret;
+	}
 	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
 	host->mmc->f_min = clk_round_rate(host->mmc_clk, 400000);
 	ret = clk_set_rate(host->mmc_clk, host->mmc->f_min);
@@ -861,18 +874,6 @@ tuning:
 	return 0;
 }
 
-static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
-{
-	struct meson_host *host = mmc_priv(mmc);
-	int err = 0;
-
-	host->is_tuning = 1;
-	err = meson_mmc_clk_phase_tuning(mmc, opcode);
-	host->is_tuning = 0;
-
-	return err;
-}
-
 static int meson_mmc_prepare_ios_clock(struct meson_host *host,
 				       struct mmc_ios *ios)
 {
@@ -881,6 +882,7 @@ static int meson_mmc_prepare_ios_clock(struct meson_host *host,
 	switch (ios->timing) {
 	case MMC_TIMING_MMC_DDR52:
 	case MMC_TIMING_UHS_DDR50:
+	case MMC_TIMING_MMC_HS400:
 		ddr = true;
 		break;
 
@@ -898,7 +900,23 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 	struct mmc_phase *mmc_phase_set;
 	unsigned int val;
 
+	writel(0, host->regs + SD_EMMC_DELAY1);
+	writel(0, host->regs + SD_EMMC_DELAY2);
+	writel(0, host->regs + SD_EMMC_INTF3);
+	writel(0, host->regs + SD_EMMC_V3_ADJUST);
 	switch (ios->timing) {
+	case MMC_TIMING_MMC_HS400:
+		val = readl(host->regs + SD_EMMC_V3_ADJUST);
+		val |= DS_ENABLE;
+		writel(val, host->regs + SD_EMMC_V3_ADJUST);
+		val = readl(host->regs + SD_EMMC_IRQ_EN);
+		val |= CFG_CMD_SETUP;
+		writel(val, host->regs + SD_EMMC_IRQ_EN);
+		val = readl(host->regs + SD_EMMC_INTF3);
+		val |= SD_INTF3;
+		writel(val, host->regs + SD_EMMC_INTF3);
+		mmc_phase_set = &host->sdmmc.hs4;
+		break;
 	case MMC_TIMING_MMC_HS:
 	case MMC_TIMING_SD_HS:
 		val = readl(host->regs + host->data->adjust);
@@ -1062,14 +1080,15 @@ static void meson_mmc_set_response_bits(struct mmc_command *cmd, u32 *cmd_cfg)
 	}
 }
 
-static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg)
+static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
+					  struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	struct sd_emmc_desc *desc = host->descs;
 	struct mmc_data *data = host->cmd->data;
 	struct scatterlist *sg;
 	u32 start;
-	int i;
+	int i, j = 0;
 
 	if (data->flags & MMC_DATA_WRITE)
 		cmd_cfg |= CMD_CFG_DATA_WR;
@@ -1079,21 +1098,49 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg)
 		meson_mmc_set_blksz(mmc, data->blksz);
 	}
 
+	if (mmc_op_multi(cmd->opcode) && cmd->mrq->sbc) {
+		desc[j].cmd_cfg = 0;
+		desc[j].cmd_cfg |= FIELD_PREP(CMD_CFG_CMD_INDEX_MASK,
+					      MMC_SET_BLOCK_COUNT);
+		desc[j].cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
+		desc[j].cmd_cfg |= CMD_CFG_OWNER;
+		desc[j].cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc[j].cmd_arg = cmd->mrq->sbc->arg;
+		desc[j].cmd_resp = 0;
+		desc[j].cmd_data = 0;
+		j++;
+	}
+
 	for_each_sg(data->sg, sg, data->sg_count, i) {
 		unsigned int len = sg_dma_len(sg);
 
 		if (data->blocks > 1)
 			len /= data->blksz;
 
-		desc[i].cmd_cfg = cmd_cfg;
-		desc[i].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, len);
+		desc[i + j].cmd_cfg = cmd_cfg;
+		desc[i + j].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, len);
 		if (i > 0)
-			desc[i].cmd_cfg |= CMD_CFG_NO_CMD;
-		desc[i].cmd_arg = host->cmd->arg;
-		desc[i].cmd_resp = 0;
-		desc[i].cmd_data = sg_dma_address(sg);
+			desc[i + j].cmd_cfg |= CMD_CFG_NO_CMD;
+		desc[i + j].cmd_arg = host->cmd->arg;
+		desc[i + j].cmd_resp = 0;
+		desc[i + j].cmd_data = sg_dma_address(sg);
 	}
-	desc[data->sg_count - 1].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
+
+	if (mmc_op_multi(cmd->opcode) && !cmd->mrq->sbc) {
+		desc[data->sg_count].cmd_cfg = 0;
+		desc[data->sg_count].cmd_cfg |=
+			FIELD_PREP(CMD_CFG_CMD_INDEX_MASK,
+				   MMC_STOP_TRANSMISSION);
+		desc[data->sg_count].cmd_cfg |=
+			FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
+		desc[data->sg_count].cmd_cfg |= CMD_CFG_OWNER;
+		desc[data->sg_count].cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc[data->sg_count].cmd_resp = 0;
+		desc[data->sg_count].cmd_data = 0;
+		j++;
+	}
+
+	desc[data->sg_count + j - 1].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
 
 	dma_wmb(); /* ensure descriptor is written before kicked */
 	start = host->descs_dma_addr | START_DESC_BUSY;
@@ -1189,7 +1236,7 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 				      ilog2(meson_mmc_get_timeout_msecs(data)));
 
 		if (meson_mmc_desc_chain_mode(data)) {
-			meson_mmc_desc_chain_transfer(mmc, cmd_cfg);
+			meson_mmc_desc_chain_transfer(mmc, cmd_cfg, cmd);
 			return;
 		}
 
@@ -1247,7 +1294,608 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
 
-	meson_mmc_start_cmd(mmc, mrq->sbc ?: mrq->cmd);
+	meson_mmc_start_cmd(mmc, mrq->cmd);
+}
+
+static int aml_sd_emmc_cali_v3(struct mmc_host *mmc,
+			       u8 opcode, u8 *blk_test, u32 blksz,
+			       u32 blocks, u8 *pattern)
+{
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_command stop = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+
+	cmd.opcode = opcode;
+	if (!strcmp(pattern, MMC_PATTERN_NAME))
+		cmd.arg = MMC_PATTERN_OFFSET;
+	else if (!strcmp(pattern, MMC_MAGIC_NAME))
+		cmd.arg = MMC_MAGIC_OFFSET;
+	else if (!strcmp(pattern, MMC_RANDOM_NAME))
+		cmd.arg = MMC_RANDOM_OFFSET;
+	else if (!strcmp(pattern, MMC_DTB_NAME))
+		cmd.arg = MMC_DTB_OFFSET;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	stop.opcode = MMC_STOP_TRANSMISSION;
+	stop.arg = 0;
+	stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+	data.blksz = blksz;
+	data.blocks = blocks;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+	data.timeout_ns = 10000000;
+	memset(blk_test, 0, blksz * data.blocks);
+	sg_init_one(&sg, blk_test, blksz * data.blocks);
+	mrq.cmd = &cmd;
+	mrq.stop = &stop;
+	mrq.data = &data;
+	mmc_wait_for_req(mmc, &mrq);
+	return data.error | cmd.error;
+}
+
+static int emmc_send_cmd(struct mmc_host *mmc, u32 opcode,
+			 u32 arg, unsigned int flags)
+{
+	struct mmc_command cmd = {0};
+	u32 err = 0;
+
+	cmd.opcode = opcode;
+	cmd.arg = arg;
+	cmd.flags = flags;
+	err = mmc_wait_for_cmd(mmc, &cmd, 0);
+	if (err) {
+		pr_debug("[%s][%d] cmd:0x%x send error\n",
+			 __func__, __LINE__, cmd.opcode);
+		return err;
+	}
+	return err;
+}
+
+static int aml_sd_emmc_cmd_v3(struct mmc_host *mmc)
+{
+	int i;
+
+	emmc_send_cmd(mmc, MMC_SEND_STATUS,
+		      1 << 16, MMC_RSP_R1 | MMC_CMD_AC);
+	emmc_send_cmd(mmc, MMC_SELECT_CARD,
+		      0, MMC_RSP_NONE | MMC_CMD_AC);
+	for (i = 0; i < 2; i++)
+		emmc_send_cmd(mmc, MMC_SEND_CID,
+			      1 << 16, MMC_RSP_R2 | MMC_CMD_BCR);
+	emmc_send_cmd(mmc, MMC_SELECT_CARD,
+		      1 << 16, MMC_RSP_R1 | MMC_CMD_AC);
+	return 0;
+}
+
+static int emmc_eyetest_log(struct mmc_host *mmc, u32 line_x)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 adjust = readl(host->regs + SD_EMMC_V3_ADJUST);
+	u32 eyetest_log = 0;
+	u32 eyetest_out0 = 0, eyetest_out1 = 0;
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+	int retry = 3;
+	u64 tmp = 0;
+	u32 blksz = 512;
+
+	pr_debug("delay1: 0x%x , delay2: 0x%x, line_x: %d\n",
+		 readl(host->regs + SD_EMMC_DELAY1),
+		 readl(host->regs + SD_EMMC_DELAY2), line_x);
+	adjust |= CALI_ENABLE;
+	adjust &= ~CALI_SEL_MASK;
+	adjust |= line_x << __ffs(CALI_SEL_MASK);
+	writel(adjust, host->regs + SD_EMMC_V3_ADJUST);
+	if (line_x < 9) {
+		intf3 &= ~EYETEST_EXP_MASK;
+		intf3 |= 7 << __ffs(EYETEST_EXP_MASK);
+	} else {
+		intf3 &= ~EYETEST_EXP_MASK;
+		intf3 |= 3 << __ffs(EYETEST_EXP_MASK);
+	}
+RETRY:
+	intf3 |= EYETEST_ON;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	udelay(5);
+	if (line_x < 9)
+		aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+				    host->blk_test, blksz,
+				    40, MMC_PATTERN_NAME);
+	else
+		aml_sd_emmc_cmd_v3(mmc);
+	udelay(1);
+	eyetest_log = readl(host->regs + SD_EMMC_EYETEST_LOG);
+	if (!(eyetest_log & EYETEST_DONE)) {
+		pr_debug("testing eyetest times:0x%x,out:0x%x,0x%x,line:%d\n",
+			 readl(host->regs + SD_EMMC_EYETEST_LOG),
+			 eyetest_out0, eyetest_out1, line_x);
+		intf3 &= ~EYETEST_ON;
+		writel(intf3, host->regs + SD_EMMC_INTF3);
+		retry--;
+		if (retry == 0) {
+			pr_debug("[%s][%d] retry eyetest failed-line:%d\n",
+				 __func__, __LINE__, line_x);
+			return 1;
+		}
+		goto RETRY;
+	}
+	eyetest_out0 = readl(host->regs + SD_EMMC_EYETEST_OUT0);
+	eyetest_out1 = readl(host->regs + SD_EMMC_EYETEST_OUT1);
+	intf3 &= ~EYETEST_ON;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	writel(0, host->regs + SD_EMMC_V3_ADJUST);
+	host->align[line_x] = ((tmp | eyetest_out1) << 32) | eyetest_out0;
+	pr_debug("d1:0x%x,d2:0x%x,u64eyet:0x%016llx,l_x:%d\n",
+		 readl(host->regs + SD_EMMC_DELAY1),
+		 readl(host->regs + SD_EMMC_DELAY2),
+		 host->align[line_x], line_x);
+	return 0;
+}
+
+static int single_read_scan(struct mmc_host *mmc, u8 opcode,
+			    u8 *blk_test, u32 blksz,
+			    u32 blocks, u32 offset)
+{
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+
+	cmd.opcode = opcode;
+	cmd.arg = offset;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	data.blksz = blksz;
+	data.blocks = blocks;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+	data.timeout_ns = 4000000;
+	memset(blk_test, 0, blksz * data.blocks);
+	sg_init_one(&sg, blk_test, blksz * data.blocks);
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+	mmc_wait_for_req(mmc, &mrq);
+	return data.error | cmd.error;
+}
+
+static void emmc_show_cmd_window(char *str, int repeat_times)
+{
+	int pre_status = 0;
+	int status = 0;
+	int single = 0;
+	int start = 0;
+	int i;
+
+	pr_info(">>>>>>>>>>>>>>scan command window>>>>>>>>>>>>>>>\n");
+	for (i = 0; i < 64; i++) {
+		if (str[i] == repeat_times)
+			status = 1;
+		else
+			status = -1;
+		if (i != 0 && pre_status != status) {
+			if (pre_status == 1 && single == 1)
+				pr_info(">>cmd delay [ 0x%x ] is ok\n",
+					i - 1);
+			else if (pre_status == 1 && single != 1)
+				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is ok\n",
+					start, i - 1);
+			else if (pre_status != 1 &&	 single == 1)
+				pr_info(">>cmd delay [ 0x%x ] is nok\n",
+					i - 1);
+			else if (pre_status != 1 && single != 1)
+				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is nok\n",
+					start, i - 1);
+			start = i;
+			single = 1;
+		} else {
+			single++;
+		}
+		if (i == 63) {
+			if (status == 1 && pre_status == 1)
+				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is ok\n",
+					start, i);
+			else if (status != 1 && pre_status == -1)
+				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is nok\n",
+					start, i);
+			else if (status == 1 && pre_status != 1)
+				pr_info(">>cmd delay [ 0x%x ] is ok\n", i);
+			else if (status != 1 && pre_status == 1)
+				pr_info(">>cmd delay [ 0x%x ] is nok\n", i);
+		}
+		pre_status = status;
+	}
+	pr_info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+}
+
+static u32 emmc_search_cmd_delay(char *str, int repeat_times)
+{
+	int best_start = -1, best_size = -1;
+	int cur_start = -1, cur_size = 0;
+	u32 cmd_delay;
+	int i;
+
+	for (i = 0; i < 64; i++) {
+		if (str[i] == repeat_times) {
+			cur_size += 1;
+			if (cur_start == -1)
+				cur_start = i;
+		} else {
+			cur_size = 0;
+			cur_start = -1;
+		}
+		if (cur_size > best_size) {
+			best_size = cur_size;
+			best_start = cur_start;
+		}
+	}
+	cmd_delay =	 (best_start + best_size / 2) << 24;
+	pr_info("best_start 0x%x, best_size %d\n",
+		best_start, best_size);
+	return cmd_delay;
+}
+
+static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 cmd_delay = 0;
+	u32 delay2_bak = delay2;
+	u32 i, j, err;
+	int repeat_times = 100;
+	char str[64] = {0};
+	long long before_time;
+	long long after_time;
+	u32 capacity = 8 * SZ_1M;
+	u32 offset;
+
+	delay2 &= ~(0xff << 24);
+	host->cmd_retune = 0;
+	host->is_tuning = 1;
+	before_time = sched_clock();
+	for (i = 0; i < 64; i++) {
+		writel(delay2, host->regs + SD_EMMC_DELAY2);
+		offset = (u32)(get_random_long() % capacity);
+		for (j = 0; j < repeat_times; j++) {
+			if (send_status)
+				err = emmc_send_cmd(mmc, MMC_SEND_STATUS,
+						    1 << 16,
+						    MMC_RSP_R1 | MMC_CMD_AC);
+			else
+				err = single_read_scan(mmc,
+						       MMC_READ_SINGLE_BLOCK,
+						       host->blk_test, 512, 1,
+						       offset);
+			if (!err)
+				str[i]++;
+			else
+				break;
+		}
+			pr_debug("delay2: 0x%x, send cmd %d times success %d times, is ok\n",
+				 delay2, repeat_times, str[i]);
+			delay2 += (1 << 24);
+	}
+	after_time = sched_clock();
+	host->is_tuning = 0;
+	host->cmd_retune = 1;
+	pr_info("scan time distance: %llu ns\n", after_time - before_time);
+	writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
+	cmd_delay = emmc_search_cmd_delay(str, repeat_times);
+	if (!send_status)
+		emmc_show_cmd_window(str, repeat_times);
+	return cmd_delay;
+}
+
+ssize_t emmc_scan_cmd_win(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+
+	mmc_claim_host(mmc);
+	scan_emmc_cmd_win(mmc, 1);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
+}
+
+static void update_all_line_eyetest(struct mmc_host *mmc)
+{
+	int line_x;
+
+	for (line_x = 0; line_x < 10; line_x++) {
+		if (line_x == 8 && !(mmc->caps2 & MMC_CAP2_HS400_1_8V))
+			continue;
+		emmc_eyetest_log(mmc, line_x);
+	}
+}
+
+ssize_t emmc_eyetest_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+
+	mmc_claim_host(mmc);
+	update_all_line_eyetest(mmc);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc all lines eyetest.\n");
+}
+
+ssize_t emmc_clktest_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+	u32 clktest = 0, delay_cell = 0, clktest_log = 0, count = 0;
+	u32 vcfg = readl(host->regs + SD_EMMC_CFG);
+	int i = 0;
+	unsigned int cycle = 0;
+
+	writel(0, (host->regs + SD_EMMC_V3_ADJUST));
+	cycle = (1000000000 / mmc->actual_clock) * 1000;
+	vcfg &= ~(1 << 23);
+	writel(vcfg, host->regs + SD_EMMC_CFG);
+	intf3 &= ~CLKTEST_EXP_MASK;
+	intf3 |= 8 << __ffs(CLKTEST_EXP_MASK);
+	intf3 |= CLKTEST_ON_M;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	clktest_log = readl(host->regs + SD_EMMC_CLKTEST_LOG);
+	clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+	while (!(clktest_log & 0x80000000)) {
+		udelay(1);
+		i++;
+		clktest_log = readl(host->regs + SD_EMMC_CLKTEST_LOG);
+		clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+		if (i > 4000) {
+			pr_warn("[%s] [%d] emmc clktest error\n",
+				__func__, __LINE__);
+			break;
+		}
+	}
+	if (clktest_log & 0x80000000) {
+		clktest = readl(host->regs + SD_EMMC_CLKTEST_OUT);
+		count = clktest / (1 << 8);
+		if (vcfg & 0x4)
+			delay_cell = ((cycle / 2) / count);
+		else
+			delay_cell = (cycle / count);
+	}
+	pr_info("%s [%d] clktest : %u, delay_cell: %d, count: %u\n",
+		__func__, __LINE__, clktest, delay_cell, count);
+	intf3 = readl(host->regs + SD_EMMC_INTF3);
+	intf3 &= ~CLKTEST_ON_M;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	vcfg = readl(host->regs + SD_EMMC_CFG);
+	vcfg |= (1 << 23);
+	writel(vcfg, host->regs + SD_EMMC_CFG);
+	return count;
+}
+
+static unsigned int tl1_emmc_line_timing(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay1 = 0, delay2 = 0, count = 12;
+
+	delay1 = (count << 0) | (count << 6) | (count << 12) |
+		(count << 18) | (count << 24);
+	delay2 = (count << 0) | (count << 6) | (count << 12) |
+		(host->cmd_c << 24);
+	writel(delay1, host->regs + SD_EMMC_DELAY1);
+	writel(delay2, host->regs + SD_EMMC_DELAY2);
+	pr_info("[%s], delay1: 0x%x, delay2: 0x%x\n",
+		__func__, readl(host->regs + SD_EMMC_DELAY1),
+		readl(host->regs + SD_EMMC_DELAY2));
+	return 0;
+}
+
+static int emmc_test_bus(struct mmc_host *mmc)
+{
+	int err = 0;
+	u32 blksz = 512;
+	struct meson_host *host = mmc_priv(mmc);
+
+	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+				  host->blk_test, blksz, 40, MMC_PATTERN_NAME);
+	if (err)
+		return err;
+	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+				  host->blk_test, blksz, 80, MMC_RANDOM_NAME);
+	if (err)
+		return err;
+	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+				  host->blk_test, blksz, 40, MMC_MAGIC_NAME);
+	if (err)
+		return err;
+	return err;
+}
+
+static int emmc_ds_manual_sht(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 val, intf3 = readl(host->regs + SD_EMMC_INTF3);
+	int i, err = 0;
+	int match[64];
+	int best_start = -1, best_size = -1;
+	int cur_start = -1, cur_size = 0;
+
+	host->cmd_retune = 1;
+	for (i = 0; i < 64; i++) {
+		host->is_tuning = 1;
+		err = emmc_test_bus(mmc);
+		host->is_tuning = 0;
+		pr_debug("intf3: 0x%x, err[%d]: %d\n",
+			 readl(host->regs + SD_EMMC_INTF3), i, err);
+		if (!err)
+			match[i] = 0;
+		else
+			match[i] = -1;
+		val = intf3 & DS_SHT_M_MASK;
+		val += 1 << __ffs(DS_SHT_M_MASK);
+		intf3 &= ~DS_SHT_M_MASK;
+		intf3 |= val;
+		writel(intf3, host->regs + SD_EMMC_INTF3);
+	}
+	for (i = 0; i < 64; i++) {
+		if (match[i] == 0) {
+			if (cur_start < 0)
+				cur_start = i;
+			cur_size++;
+		} else {
+			if (cur_start >= 0) {
+				if (best_start < 0) {
+					best_start = cur_start;
+					best_size = cur_size;
+				} else {
+					if (best_size < cur_size) {
+						best_start = cur_start;
+						best_size = cur_size;
+					}
+				}
+				cur_start = -1;
+				cur_size = 0;
+			}
+		}
+	}
+	if (cur_start >= 0) {
+		if (best_start < 0) {
+			best_start = cur_start;
+			best_size = cur_size;
+		} else if (best_size < cur_size) {
+			best_start = cur_start;
+			best_size = cur_size;
+		}
+		cur_start = -1;
+		cur_size = -1;
+	}
+	intf3 &= ~DS_SHT_M_MASK;
+	intf3 &= ~DS_SHT_EXP_MASK;
+	intf3 |= (best_start + best_size / 2) << __ffs(DS_SHT_M_MASK);
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	pr_info("ds_sht:%lu, window:%d, intf3:0x%x, clock:0x%x",
+		intf3 & DS_SHT_M_MASK, best_size,
+		readl(host->regs + SD_EMMC_INTF3),
+		readl(host->regs + SD_EMMC_CLOCK));
+	pr_info("adjust:0x%x\n", readl(host->regs + SD_EMMC_V3_ADJUST));
+	return 0;
+}
+
+static int emmc_data_alignment(struct mmc_host *mmc, int best_size)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay1 = readl(host->regs + SD_EMMC_DELAY1);
+	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+	u32 delay1_bak = delay1;
+	u32 delay2_bak = delay2;
+	u32 intf3_bak = intf3;
+	int line_x, i, err = 0, win_new, blksz = 512;
+	u32 d[8];
+
+	host->is_tuning = 1;
+	intf3 &= ~DS_SHT_M_MASK;
+	intf3 |= (host->win_start + 4) << __ffs(DS_SHT_M_MASK);
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	for (line_x = 0; line_x < 8; line_x++) {
+		for (i = 0; i < 20; i++) {
+			if (line_x < 5) {
+				delay1 += (1 << 6 * line_x);
+				writel(delay1, host->regs + SD_EMMC_DELAY1);
+			} else {
+				delay2 += (1 << 6 * (line_x - 5));
+				writel(delay2, host->regs + SD_EMMC_DELAY2);
+			}
+			err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+						  host->blk_test, blksz, 40,
+						  MMC_PATTERN_NAME);
+			if (err) {
+				pr_info("[%s]adjust line_x[%d]:%d\n",
+					__func__, line_x, i);
+				d[line_x] = i;
+				delay1 = delay1_bak;
+				delay2 = delay2_bak;
+				writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
+				writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
+				break;
+			}
+		}
+		if (i == 20) {
+			pr_info("[%s][%d] return set default value",
+				__func__, __LINE__);
+			writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
+			writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
+			writel(intf3_bak, host->regs + SD_EMMC_INTF3);
+			host->is_tuning = 0;
+			return -1;
+		}
+	}
+	delay1 += (d[0] << 0) | (d[1] << 6) | (d[2] << 12) |
+		(d[3] << 18) | (d[4] << 24);
+	delay2 += (d[5] << 0) | (d[6] << 6) | (d[7] << 12);
+	writel(delay1, host->regs + SD_EMMC_DELAY1);
+	writel(delay2, host->regs + SD_EMMC_DELAY2);
+	pr_info("delay1:0x%x, delay2:0x%x\n",
+		readl(host->regs + SD_EMMC_DELAY1),
+		readl(host->regs + SD_EMMC_DELAY2));
+	intf3 &= ~DS_SHT_M_MASK;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	win_new = emmc_ds_manual_sht(mmc);
+	if (win_new < best_size) {
+		pr_info("[%s][%d] win_new:%d < win_old:%d,set default!",
+			__func__, __LINE__, win_new, best_size);
+		writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
+		writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
+		writel(intf3_bak, host->regs + SD_EMMC_INTF3);
+		pr_info("intf3:0x%x, delay1:0x%x, delay2:0x%x\n",
+			readl(host->regs + SD_EMMC_INTF3),
+			readl(host->regs + SD_EMMC_DELAY1),
+			readl(host->regs + SD_EMMC_DELAY2));
+	}
+	host->is_tuning = 0;
+	return 0;
+}
+
+static void set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 cmd_delay = 0;
+
+	delay2 &= ~(0xff << 24);
+	cmd_delay = scan_emmc_cmd_win(mmc, send_status);
+	delay2 |= cmd_delay;
+	writel(delay2, host->regs + SD_EMMC_DELAY2);
+}
+
+static void __attribute__((unused)) aml_emmc_hs400_revb(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay2 = 0;
+	int win_size = 0;
+
+	delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	delay2 += (host->cmd_c << 24);
+	writel(delay2, host->regs + SD_EMMC_DELAY2);
+	pr_info("[%s], delay1: 0x%x, delay2: 0x%x\n",
+		__func__, readl(host->regs + SD_EMMC_DELAY1),
+		readl(host->regs + SD_EMMC_DELAY2));
+	win_size = emmc_ds_manual_sht(mmc);
+	emmc_data_alignment(mmc, win_size);
+	set_emmc_cmd_delay(mmc, 0);
+}
+
+static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
+{
+	tl1_emmc_line_timing(mmc);
+	set_emmc_cmd_delay(mmc, 1);
+	emmc_ds_manual_sht(mmc);
+	set_emmc_cmd_delay(mmc, 0);
+}
+
+static void aml_post_hs400_timming(struct mmc_host *mmc)
+{
+	aml_sd_emmc_clktest(mmc);
+	aml_emmc_hs400_tl1(mmc);
 }
 
 static void aml_sd_emmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1379,8 +2027,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (status & (IRQ_END_OF_CHAIN | IRQ_RESP_STATUS)) {
 		if (data && !cmd->error)
 			data->bytes_xfered = data->blksz * data->blocks;
-		if (meson_mmc_bounce_buf_read(data) ||
-		    meson_mmc_get_next_command(cmd))
+		if (meson_mmc_bounce_buf_read(data))
 			ret = IRQ_WAKE_THREAD;
 		else
 			ret = IRQ_HANDLED;
@@ -1423,7 +2070,7 @@ static int meson_mmc_wait_desc_stop(struct meson_host *host)
 static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 {
 	struct meson_host *host = dev_id;
-	struct mmc_command *next_cmd, *cmd = host->cmd;
+	struct mmc_command *cmd = host->cmd;
 	struct mmc_data *data;
 	unsigned int xfer_bytes;
 
@@ -1445,11 +2092,7 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 				    host->bounce_buf, xfer_bytes);
 	}
 
-	next_cmd = meson_mmc_get_next_command(cmd);
-	if (next_cmd)
-		meson_mmc_start_cmd(host->mmc, next_cmd);
-	else
-		meson_mmc_request_done(host->mmc, cmd->mrq);
+	meson_mmc_request_done(host->mmc, cmd->mrq);
 
 	return IRQ_HANDLED;
 }
@@ -1529,6 +2172,121 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	return -EINVAL;
 }
 
+int aml_emmc_hs200_tl1(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 vclkc = readl(host->regs + SD_EMMC_CLOCK);
+	struct para_e *para = &host->sdmmc;
+	u32 clk_bak = 0;
+	u32 delay2 = 0, count = 0;
+	int i, j, txdelay, err = 0;
+	int retry_times = 0;
+
+	aml_sd_emmc_clktest(mmc);
+	clk_bak = vclkc;
+	vclkc &= ~CLK_TX_PHASE_MASK;
+	vclkc &= ~CLK_CORE_PHASE_MASK;
+	vclkc &= ~CLK_V3_TX_DELAY_MASK;
+	vclkc |= para->hs4.tx_phase << __ffs(CLK_TX_PHASE_MASK);
+	vclkc |= para->hs4.core_phase << __ffs(CLK_CORE_PHASE_MASK);
+	vclkc |= para->hs4.tx_delay << __ffs(CLK_V3_TX_DELAY_MASK);
+	txdelay = para->hs4.tx_delay;
+
+	writel(vclkc, host->regs + SD_EMMC_CLOCK);
+	pr_info("[%s][%d] clk config:0x%x\n",
+		__func__, __LINE__, readl(host->regs + SD_EMMC_CLOCK));
+
+	for (i = 0; i < 63; i++) {
+		retry_times = 0;
+		delay2 += (1 << 24);
+		writel(delay2, host->regs + SD_EMMC_DELAY2);
+retry:
+		err = emmc_eyetest_log(mmc, 9);
+		if (err)
+			continue;
+
+		count = __ffs(host->align[9]);
+		if ((count >= 14 && count <= 20) ||
+		    (count >= 48 && count <= 54)) {
+			if (retry_times != 3) {
+				retry_times++;
+				goto retry;
+			} else {
+				break;
+			}
+		}
+	}
+	if (i == 63) {
+		for (j = 0; j < 6; j++) {
+			txdelay++;
+			vclkc &= ~CLK_V3_TX_DELAY_MASK;
+			vclkc |= para->hs4.tx_delay <<
+				__ffs(CLK_V3_TX_DELAY_MASK);
+			pr_info("modify tx delay to %d\n", txdelay);
+			writel(vclkc, host->regs + SD_EMMC_CLOCK);
+			err = emmc_eyetest_log(mmc, 9);
+			if (err)
+				continue;
+			count = __ffs(host->align[9]);
+			if ((count >= 14 && count <= 20) ||
+			    (count >= 48 && count <= 54))
+				break;
+		}
+	}
+
+	host->cmd_c = (delay2 >> 24);
+	pr_info("cmd->u64eyet:0x%016llx\n", host->align[9]);
+	writel(0, host->regs + SD_EMMC_DELAY2);
+	writel(clk_bak, host->regs + SD_EMMC_CLOCK);
+
+	delay2 = 0;
+	for (i = 0; i < 63; i++) {
+		retry_times = 0;
+		delay2 += (1 << 24);
+		writel(delay2, host->regs + SD_EMMC_DELAY2);
+retry1:
+		err = emmc_eyetest_log(mmc, 9);
+		if (err)
+			continue;
+
+		count = __ffs(host->align[9]);
+		if (count >= 8 && count <= 56) {
+			if (retry_times != 3) {
+				retry_times++;
+				goto retry1;
+			} else {
+				break;
+			}
+		}
+	}
+
+	pr_info("[%s][%d] clk config:0x%x\n",
+		__func__, __LINE__, readl(host->regs + SD_EMMC_CLOCK));
+	return 0;
+}
+
+static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	int err = 0;
+	u32 intf3 = 0;
+
+	host->is_tuning = 1;
+	if (!(mmc->caps2 & MMC_CAP2_HS400_1_8V)) {
+		err = meson_mmc_clk_phase_tuning(mmc, opcode);
+	} else {
+		intf3 = readl(host->regs + SD_EMMC_INTF3);
+		intf3 |= (1 << 22);
+		writel(intf3, (host->regs + SD_EMMC_INTF3));
+		aml_emmc_hs200_tl1(mmc);
+		err = 0;
+	}
+
+	host->is_tuning = 0;
+
+	return err;
+}
+
 static void sdio_rescan(struct mmc_host *mmc)
 {
 	int ret;
@@ -1576,6 +2334,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.pre_req	= meson_mmc_pre_req,
 	.post_req	= meson_mmc_post_req,
 	.execute_tuning = meson_mmc_execute_tuning,
+	.hs400_complete = aml_post_hs400_timming,
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
@@ -1739,7 +2498,6 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	 * From the different datasheets, it is not even clear if this mode
 	 * is officially supported by any of the SoCs
 	 */
-	mmc->caps2 &= ~MMC_CAP2_HS400;
 
 	if (host->dram_access_quirk) {
 		/*
@@ -1786,6 +2544,13 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		sdio_host = mmc;
 	}
 
+	host->blk_test = devm_kzalloc(host->dev,
+				      512 * CALI_BLK_CNT, GFP_KERNEL);
+
+	if (!host->blk_test) {
+		ret = -ENOMEM;
+		goto err_bounce_buf;
+	}
 	dev_notice(host->dev, "host probe success!\n");
 	return 0;
 

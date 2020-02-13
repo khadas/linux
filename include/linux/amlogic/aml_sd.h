@@ -89,8 +89,10 @@ struct meson_host {
 	void __iomem *clk_tree_base;
 	struct clk *core_clk;
 	struct clk *tx_clk;
-	struct clk *mux_clk;
 	struct clk *mmc_clk;
+	struct clk *mux[2];
+	struct clk *mux1_in;
+	struct clk *clk[3];
 	unsigned long req_rate;
 	bool ddr;
 
@@ -126,6 +128,11 @@ struct meson_host {
 	u8 fixadj_have_hole;
 	struct meson_mmc_hole hole[3];
 	u8 fix_hole;
+	u64 align[10];
+	char cmd_retune;
+	unsigned int win_start;
+	u8 *blk_test;
+	unsigned int cmd_c;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
