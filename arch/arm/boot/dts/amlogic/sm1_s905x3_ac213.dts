@@ -98,10 +98,17 @@
 			gpios = <&gpio GPIOC_7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
 			default-state = "off";
 		};
+
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	pwmleds {
 		compatible = "pwm-leds";
+		status = "disabled";
 
 		power {
 			label = "sei610:red:power";
