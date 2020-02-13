@@ -43,14 +43,31 @@
 #ifdef CONFIG_AMLOGIC_LCD_SPI
 #include "../vout/spi/lcd_spi_api.h"
 #endif
+#ifdef CONFIG_AMLOGIC_PERIPHERAL_LCD
+#include <linux/amlogic/media/vout/peripheral_lcd.h>
+#endif
 #include "osd_log.h"
 #include "osd_fb.h"
 #include "osd_virtual.h"
+
+#define SOFTWARE_VSYNC
+
+#ifdef CONFIG_AMLOGIC_PERIPHERAL_LCD
+#undef HW_VSYNC
+#define SOFTWARE_VSYNC
+#endif
+
+#ifdef CONFIG_AMLOGIC_LCD_SPI
+/* #define SPI_DEBUG */
+#undef SOFTWARE_VSYNC
+#define HW_VSYNC
+#endif
 
 #define DEFAULT_FPS   (HZ / 25)
 static size_t fb_memsize;
 static __u32 var_screeninfo[5];
 static bool b_reserved_mem;
+static int ready_post;
 static int start_post;
 static struct fb_virtual_dev_s *fb_vir_dev;
 static struct virt_fb_para_s virt_fb;
@@ -93,6 +110,16 @@ static struct fb_fix_screeninfo fb_def_fix = {
 	.accel      = FB_ACCEL_NONE,
 };
 
+#ifdef SPI_DEBUG
+static int spi_write_min;
+module_param(spi_write_min, int, 0664);
+MODULE_PARM_DESC(spi_write_min, "spi_write_min");
+
+static int spi_write_max;
+module_param(spi_write_max, int, 0664);
+MODULE_PARM_DESC(spi_write_max, "spi_write_max");
+#endif
+
 static void lcd_init(void)
 {
 	/* set gamma */
@@ -108,23 +135,6 @@ static void lcd_enable(int blank)
 {
 }
 
-static void lcd_post_frame(u32 addr, u32 size)
-{
-	unsigned char *fb_data;
-
-	start_post = 1;
-	/* frame post*/
-	fb_data = virt_fb.screen_base_vaddr + addr;
-	#ifdef CONFIG_AMLOGIC_LCD_SPI
-	frame_post(fb_data, size);
-	#endif
-	/* gen complete signal*/
-	complete(&fb_vir_dev->post_com);
-	/*start_post = 0; */
-	osd_log_dbg(MODULE_BASE, "%s:=>addr 0x%x, size=%d\n",
-		    __func__, addr, size);
-}
-
 static void fb_get_fps(u32 index, u32 *osd_fps)
 {
 	*osd_fps = virt_fb.osd_fps;
@@ -133,6 +143,7 @@ static void fb_get_fps(u32 index, u32 *osd_fps)
 static void fb_set_fps(u32 index, u32 osd_fps_start)
 {
 	static int stime, etime;
+	int osd_fps;
 
 	virt_fb.osd_fps_start = osd_fps_start;
 	if (osd_fps_start) {
@@ -142,10 +153,10 @@ static void fb_set_fps(u32 index, u32 osd_fps_start)
 	} else {
 		/* stop to calc fps */
 		etime = ktime_to_us(ktime_get());
-		virt_fb.osd_fps =
+		osd_fps =
 			(virt_fb.osd_fps * 1000000)
 			/ (etime - stime);
-		osd_log_info("osd fps:=%d\n", virt_fb.osd_fps);
+		osd_log_info("osd fps:=%d\n", osd_fps);
 	}
 }
 
@@ -312,13 +323,12 @@ static int virt_osd_check_fbsize(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+#ifdef SOFTWARE_VSYNC
 s64 virt_osd_wait_vsync_event(void)
 {
 	int ret;
 	unsigned long timeout;
 	ktime_t stime;
-
-	stime = ktime_get();
 
 	timeout = msecs_to_jiffies(2000);
 	/* waiting for 1s. */
@@ -326,6 +336,7 @@ s64 virt_osd_wait_vsync_event(void)
 					  timeout);
 	if (ret == 0)
 		pr_err("software vsync timeout\n");
+	stime = ktime_get();
 	osd_log_dbg(MODULE_BASE, "%s\n", __func__);
 
 	return stime;
@@ -337,6 +348,52 @@ static void sw_vsync_timer_func(struct timer_list *t)
 
 	/* gen complete signal*/
 	complete(&fbdev->timer_com);
+}
+
+static void lcd_post_frame(u32 addr)
+{
+	unsigned char *fb_data;
+#ifdef CONFIG_AMLOGIC_PERIPHERAL_LCD
+	struct peripheral_lcd_driver_s *peripheral_lcd_driver =
+		peripheral_lcd_get_driver();
+#endif
+
+#ifdef SPI_DEBUG
+	int stime, etime, time_write;
+	static int cnt;
+
+	stime = ktime_to_us(ktime_get());
+#endif
+
+	start_post = 1;
+	/* frame post*/
+	fb_data = virt_fb.screen_base_vaddr + addr;
+
+#ifdef CONFIG_AMLOGIC_PERIPHERAL_LCD
+	if (!peripheral_lcd_driver)
+		return;
+	peripheral_lcd_driver->frame_post(fb_data,
+		0, virt_fb.xres, 0, virt_fb.yres);
+#endif
+
+#ifdef SPI_DEBUG
+	etime = ktime_to_us(ktime_get());
+	time_write = etime - stime;
+	cnt++;
+	if (cnt == 1) {
+		spi_write_min = time_write;
+		spi_write_max = time_write;
+	}
+	if (time_write < spi_write_min)
+		spi_write_min = time_write;
+	if (time_write > spi_write_max)
+		spi_write_max = time_write;
+#endif
+	/* gen complete signal*/
+	complete(&fb_vir_dev->post_com);
+	/*start_post = 0; */
+	osd_log_dbg(MODULE_BASE, "%s:=>addr 0x%x\n",
+		    __func__, addr);
 }
 
 static int fb_monitor_thread(void *data)
@@ -370,6 +427,101 @@ static int fb_monitor_thread(void *data)
 	osd_log_info("exit %s\n", __func__);
 	return 0;
 }
+
+int te_cb(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef HW_VSYNC
+s64 virt_osd_wait_vsync_event(void)
+{
+	int ret;
+	unsigned long timeout;
+	ktime_t stime;
+
+	timeout = msecs_to_jiffies(2000);
+	/* waiting for 1s. */
+	ret = wait_for_completion_timeout(&fb_vir_dev->fb_com,
+					  timeout);
+	if (ret == 0)
+		pr_err("software vsync timeout\n");
+	stime = ktime_get();
+	osd_log_dbg(MODULE_BASE, "%s\n", __func__);
+
+	return stime;
+}
+
+static void lcd_post_frame(u32 addr)
+{
+	unsigned char *fb_data;
+#ifdef SPI_DEBUG
+	int stime, etime, time_write;
+	static int cnt;
+
+	stime = ktime_to_us(ktime_get());
+#endif
+	/* frame post*/
+	fb_data = virt_fb.screen_base_vaddr + addr;
+
+#if defined(CONFIG_AMLOGIC_LCD_SPI) || defined(CONFIG_AMLOGIC_PERIPHERAL_LCD)
+	struct peripheral_lcd_driver_s *peripheral_lcd_driver =
+		peripheral_lcd_get_driver();
+
+	if (!peripheral_lcd_driver)
+		return;
+	start_post = 1;
+	frame_post(fb_data, 0, virt_fb.xres, 0, virt_fb.yres);
+	start_post = 0;
+#endif
+
+#ifdef SPI_DEBUG
+	etime = ktime_to_us(ktime_get());
+	time_write = etime - stime;
+	cnt++;
+	if (cnt == 1) {
+		spi_write_min = time_write;
+		spi_write_max = time_write;
+	}
+	if (time_write < spi_write_min)
+		spi_write_min = time_write;
+	if (time_write > spi_write_max)
+		spi_write_max = time_write;
+#endif
+	osd_log_dbg(MODULE_BASE, "%s:=>addr 0x%x\n",
+		    __func__, addr);
+}
+
+static int fb_monitor_thread(void *data)
+{
+	struct fb_virtual_dev_s *fbdev = fb_vir_dev;
+
+	osd_log_info("fb monitor start\n");
+	ready_post = 0;
+	while (fbdev->fb_monitor_run) {
+		/* waiting for 1s. */
+		wait_for_completion(&fb_vir_dev->post_com);
+		/* call frame_post*/
+		lcd_post_frame(virt_fb.offset);
+		/* gen complete signal*/
+		complete(&fbdev->fb_com);
+	}
+	osd_log_info("exit %s\n", __func__);
+	return 0;
+}
+
+int te_cb(void)
+{
+	if (ready_post && start_post == 0) {
+		/* gen complete signal*/
+		complete(&fb_vir_dev->post_com);
+		ready_post = 0;
+	}
+	return 0;
+}
+#endif
+EXPORT_SYMBOL(te_cb);
 
 static int virt_fb_start_monitor(void)
 {
@@ -450,7 +602,7 @@ static int malloc_fb_memory(struct fb_info *info)
 	struct platform_device *pdev = NULL;
 	phys_addr_t base = 0;
 	unsigned long size = 0;
-	unsigned long fb_memsize_total  = 0;
+	size_t fb_memsize_total  = 0;
 	struct cma *cma = NULL;
 
 	static void __iomem *fb_rmem_vaddr;
@@ -508,10 +660,10 @@ static int malloc_fb_memory(struct fb_info *info)
 			return -ENOMEM;
 		}
 		if (meson_ion_share_fd_to_phys(ion_fd, &fb_rmem_paddr,
-					       &fb_memsize))
+					       &fb_memsize_total))
 			osd_log_err("fd_to_phys failed\n");
 		fb_rmem_vaddr = aml_map_phyaddr_to_virt(fb_rmem_paddr,
-							fb_memsize);
+							fb_memsize_total);
 		dev_notice(&pdev->dev,
 			   "fd=%d\n", ion_fd);
 		dev_notice(&pdev->dev,
@@ -548,6 +700,8 @@ static int malloc_fb_memory(struct fb_info *info)
 	virt_fb.screen_size = stride * var->yres;
 	virt_fb.offset = 0;
 	virt_fb.stride = stride;
+	virt_fb.xres = var->xres;
+	virt_fb.yres = var->yres;
 	if (virt_osd_check_fbsize(var, info))
 		return -ENOMEM;
 	/* clear osd buffer */
@@ -589,7 +743,6 @@ static int virt_osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
 	if (vma->vm_pgoff >= mmio_pgoff) {
 		if (info->var.accel_flags) {
-			mutex_unlock(&info->mm_lock);
 			return -EINVAL;
 		}
 
@@ -597,7 +750,6 @@ static int virt_osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		start = info->fix.mmio_start;
 		len = info->fix.mmio_len;
 	}
-	mutex_unlock(&info->mm_lock);
 
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -630,14 +782,19 @@ static int virt_osd_pan_display(struct fb_var_screeninfo *var,
 			virt_fb.osd_fps++;
 		stride = var->xres * (var->bits_per_pixel >> 3);
 		offset = stride * virt_fb.pandata.y_start;
+		virt_fb.offset = offset;
 		size = stride * var->yres;
+		virt_fb.size = size;
+		ready_post = 1;
 		osd_log_dbg(MODULE_BASE, "offset[%d-%d]x[%d-%d]y[%d-%d]\n",
 			    var->xoffset, var->yoffset,
 			    virt_fb.pandata.x_start,
 			    virt_fb.pandata.x_end,
 			    virt_fb.pandata.y_start,
 			    virt_fb.pandata.y_end);
-		lcd_post_frame(offset, size);
+#ifdef SOFTWARE_VSYNC
+		lcd_post_frame(offset);
+#endif
 	}
 	return 0;
 }
@@ -667,7 +824,7 @@ static int virt_osd_ioctl(struct fb_info *info,
 			  unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	u32 blank;
+	u32 blank = 0;
 	int ret = 0;
 	s32 vsync_timestamp;
 
@@ -755,10 +912,12 @@ int amlfb_virtual_probe(struct platform_device *pdev)
 	osd_log_info("fb_memsize=0x%zx\n", fb_memsize);
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret != 0)
+	if (ret != 0) {
 		osd_log_err("failed to init reserved memory\n");
-	else
+		b_reserved_mem = false;
+	} else {
 		b_reserved_mem = true;
+	}
 	/* register frame buffer memory */
 	fbi = framebuffer_alloc(sizeof(struct fb_virtual_dev_s),
 				&pdev->dev);
@@ -836,14 +995,18 @@ int amlfb_virtual_probe(struct platform_device *pdev)
 
 	init_completion(&fbdev->fb_com);
 	init_completion(&fbdev->post_com);
+#ifdef SOFTWARE_VSYNC
 	init_completion(&fbdev->timer_com);
+#endif
 	lcd_init();
 	virt_fb_start_monitor();
+	#ifdef SOFTWARE_VSYNC
 	/* add timer to simulate software vsync */
 	timer_setup(&fbdev->timer, sw_vsync_timer_func, 0);
 	fbdev->timer.function = sw_vsync_timer_func;
 	fbdev->timer.expires = jiffies + DEFAULT_FPS;
 	add_timer(&fbdev->timer);
+	#endif
 	osd_log_info("virtual osd probe OK\n");
 	return 0;
 failed2:

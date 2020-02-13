@@ -19,6 +19,7 @@
 #define MODULE_FENCE  BIT(2)
 #define MODULE_BLEND  BIT(3)
 #define MODULE_CURSOR BIT(4)
+#define MODULE_VIU2   BIT(5)
 
 extern unsigned int osd_log_level;
 extern unsigned int osd_log_module;
