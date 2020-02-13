@@ -123,6 +123,12 @@
 			no-map;
 		};
 	};
+
+	vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+		fr_auto_policy = <0>;
+	};
 };
 
 /* Exposed via the on-board USB to Serial FT232RL IC */
