@@ -118,8 +118,8 @@ __evl_get_element_by_fundle(struct evl_factory *fac,
 #define evl_get_element_by_dev(__dev, __type)				\
 	({								\
 		struct evl_element *__e = dev_get_drvdata(__dev);	\
-		evl_get_element(__e);					\
-		container_of(__e, __type, element);			\
+		__e ? ({ evl_get_element(__e);				\
+			container_of(__e, __type, element); }) : NULL;	\
 	})
 
 void evl_put_element(struct evl_element *e);

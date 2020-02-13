@@ -2095,7 +2095,11 @@ static ssize_t state_show(struct device *dev,
 	ssize_t ret;
 
 	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
+
 	ret = snprintf(buf, PAGE_SIZE, "%#x\n", thread->state);
+
 	evl_put_element(&thread->element);
 
 	return ret;
@@ -2113,6 +2117,8 @@ static ssize_t sched_show(struct device *dev,
 	ssize_t ret, _ret;
 
 	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
 
 	evl_spin_lock_irqsave(&thread->lock, flags);
 
@@ -2157,6 +2163,8 @@ static ssize_t stats_show(struct device *dev,
 	int usage;
 
 	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
 
 	evl_spin_lock_irqsave(&thread->lock, flags);
 
@@ -2224,8 +2232,12 @@ static ssize_t timeout_show(struct device *dev,
 	ssize_t ret;
 
 	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
+
 	ret = snprintf(buf, PAGE_SIZE, "%Lu\n",
 		ktime_to_ns(evl_get_thread_timeout(thread)));
+
 	evl_put_element(&thread->element);
 
 	return ret;
@@ -2240,7 +2252,11 @@ static ssize_t pid_show(struct device *dev,
 	ssize_t ret;
 
 	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
+
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", evl_get_inband_pid(thread));
+
 	evl_put_element(&thread->element);
 
 	return ret;
