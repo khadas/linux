@@ -116,6 +116,12 @@
 			    "efusebus";
 	};
 
+	power_ctrl: power_ctrl@ff8000e8 {
+		compatible = "amlogic, sm1-powerctrl";
+		reg = <0x0 0xff8000e8 0x0 0x10>,
+		<0x0 0xff63c100 0x0 0x10>;
+	};
+
 	rdma {
 		compatible = "amlogic, meson-tl1, rdma";
 		status = "okay";
@@ -185,5 +191,19 @@
 			/* standards.ieee.org/develop/regauth/oui/oui.txt */
 			vendor_id = <0x000000>;
 		};
+	};
+
+	ge2d: ge2d {
+		compatible = "amlogic, ge2d-sm1";
+		status = "okay";
+		interrupts = <GIC_SPI 146 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ge2d";
+		clocks = <&clkc CLKID_VAPB_SEL>,
+			<&clkc CLKID_G2D>,
+			<&clkc CLKID_VAPB>;
+		clock-names = "clk_vapb_0",
+			"clk_ge2d",
+			"clk_ge2d_gate";
+		reg = <0x0 0xff940000 0x0 0x10000>;
 	};
 };
