@@ -40,7 +40,7 @@ static DEFINE_SPINLOCK(lock);
 #define CLS_NAME    "vfm"
 #define VFM_NAME_LEN    100
 #define VFM_MAP_SIZE    10
-#define VFM_MAP_COUNT   20
+#define VFM_MAP_COUNT   40
 static struct device *vfm_dev;
 struct vfm_map_s {
 	char id[VFM_NAME_LEN];
@@ -379,9 +379,9 @@ static void vfm_init(void)
 	char def_mipi_id[VFM_NAME_LEN] = "default_mipi";
 	char def_mipi_name_chain[] = "vdin mipi";
 #endif /**/
-#ifdef CONFIG_AMLOGIC_VIDEO_CAPTURE
-	char def_videocapture_id[VFM_NAME_LEN] = "default_videocapture";
-	char def_videocapture_chain[] = "vdin1 videocapture.1";
+#ifdef CONFIG_AMLOGIC_V4L_VIDEO2
+	char def_amlvideo2_id[VFM_NAME_LEN] = "default_amlvideo2";
+	char def_amlvideo2_chain[] = "vdin1 amlvideo2.1";
 #endif /**/
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER
@@ -414,8 +414,8 @@ static void vfm_init(void)
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
 	vfm_map_add(tvpath_id, tvpath_chain);
 #endif /**/
-#ifdef CONFIG_AMLOGIC_VIDEO_CAPTURE
-	vfm_map_add(def_videocapture_id, def_videocapture_chain);
+#ifdef CONFIG_AMLOGIC_V4L_VIDEO2
+	vfm_map_add(def_amlvideo2_id, def_amlvideo2_chain);
 #endif /**/
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	vfm_map_add(def_dvbl_id, def_dvbl_chain);
@@ -475,7 +475,7 @@ static inline struct vframe_s *vfm_vf_peek(struct vframe_provider_s *vfp)
 	return vfp->ops->peek(vfp->op_arg);
 }
 
-static void vfm_dump_provider(const char *name)
+void vfm_dump_one(const char *name)
 {
 	struct vframe_provider_s *prov;
 	struct vframe_states states;
@@ -495,6 +495,7 @@ static void vfm_dump_provider(const char *name)
 
 	pbuf = buf;
 
+	pr_info("\n --- dumping provider %s---\n", name);
 	if (!vfm_vf_get_states(prov, &states)) {
 		pr_info("vframe_pool_size=%d\n",
 			states.vf_pool_size);
@@ -549,6 +550,15 @@ static void vfm_dump_provider(const char *name)
 	vftrace_dump_trace_infos(prov->traceput);
 
 	kfree(buf);
+}
+EXPORT_SYMBOL(vfm_dump_one);
+
+static void vfm_dump_provider(const char *name)
+{
+	if (strcasecmp(name, "all") == 0 || name[0] == '\0')
+		dump_all_provider(vfm_dump_one);
+	else
+		vfm_dump_one(name);
 }
 
 #define VFM_CMD_ADD 1
@@ -899,7 +909,7 @@ static long vfm_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case VFM_IOCTL_CMD_GET:{
 	/*
 	 *overflow bug, need fixed.
-	 *vfm_map_show(NULL, NULL, argp.val);
+	 *map_show(NULL, NULL, argp.val);
 	 *ret = copy_to_user(user_argp->val, argp.val, sizeof(argp.val));
 	 *if (ret != 0)
 	 *	return -EIO;

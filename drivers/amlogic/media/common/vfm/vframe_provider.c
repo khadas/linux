@@ -19,7 +19,7 @@
 #include "vfm.h"
 #include "vftrace.h"
 
-#define MAX_PROVIDER_NUM    32
+#define MAX_PROVIDER_NUM    64
 static struct vframe_provider_s *provider_table[MAX_PROVIDER_NUM];
 static atomic_t provider_used = ATOMIC_INIT(0);
 
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(vf_get_provider);
 #ifdef NO_CHEKC_PROVIDER_USE
 static inline int use_provider(struct vframe_provider_s *prov)
 {
-	return prov;
+	return prov ? 1 : 0;
 }
 
 static inline void unuse_provider(struct vframe_provider_s *prov)
@@ -531,3 +531,28 @@ int vf_get_states_by_name(const char *receiver_name,
 	return vf_get_states(vfp, states);
 }
 EXPORT_SYMBOL(vf_get_states_by_name);
+
+void dump_all_provider(void (*callback)(const char *name))
+{
+	struct vframe_provider_s *p = NULL;
+	int len = 0;
+	int i;
+	char *bufs[MAX_PROVIDER_NUM] = {0};
+
+	TABLE_LOCK();
+	for (i = 0; i < MAX_PROVIDER_NUM; i++) {
+		p = provider_table[i];
+		if (p)
+			bufs[len++] = kstrdup(p->name, GFP_KERNEL);
+	}
+	TABLE_UNLOCK();
+
+	providers_lock();
+	for (i = 0; i < len; i++) {
+		callback(bufs[i]);
+		kfree(bufs[i]);
+	}
+	providers_unlock();
+}
+EXPORT_SYMBOL(dump_all_provider);
+
