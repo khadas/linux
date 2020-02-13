@@ -376,6 +376,60 @@
 						};
 					};
 
+					uart_a_pins: uart-a {
+						mux {
+							groups = "uart_a_tx",
+								 "uart_a_rx";
+							function = "uart_a";
+							bias-disable;
+						};
+					};
+
+					uart_a_cts_rts_pins: uart-a-cts-rts {
+						mux {
+							groups = "uart_a_cts",
+								 "uart_a_rts";
+							function = "uart_a";
+							bias-disable;
+						};
+					};
+
+					uart_b_pins: uart-b {
+						mux {
+							groups = "uart_b_tx",
+								 "uart_b_rx";
+							function = "uart_b";
+							bias-disable;
+						};
+					};
+
+					uart_b_cts_rts_pins: uart-b-cts-rts {
+						mux {
+							groups = "uart_b_cts",
+								 "uart_b_rts";
+							function = "uart_b";
+							bias-disable;
+						};
+					};
+
+					uart_c_pins: uart-c {
+						mux {
+							groups = "uart_c_tx",
+								 "uart_c_rx";
+							function = "uart_c";
+							bias-disable;
+						};
+					};
+
+					uart_c_cts_rts_pins: uart-c-cts-rts {
+						mux {
+							groups = "uart_c_cts",
+								 "uart_c_rts";
+							function = "uart_c";
+							bias-disable;
+						};
+					};
+
 					spicc0_pins_c: spicc0_pins_c {
 						mux {
 							groups = "spi0_mosi_c",
@@ -552,6 +606,51 @@
 					};
 				};
 
+				uart_ao_a_pins: uart-a-ao {
+					mux {
+						groups = "uart_ao_a_tx",
+							 "uart_ao_a_rx";
+						function = "uart_ao_a";
+						bias-disable;
+					};
+				};
+
+				uart_ao_a_cts_rts_pins: uart-ao-a-cts-rts {
+					mux {
+						groups = "uart_ao_a_cts",
+							 "uart_ao_a_rts";
+						function = "uart_ao_a";
+						bias-disable;
+					};
+				};
+
+				uart_ao_b_pins0: uart-ao_b0 {
+					mux {
+						groups = "uart_ao_b_tx_2",
+							 "uart_ao_b_rx_3";
+						function = "uart_ao_b";
+						bias-disable;
+					};
+				};
+
+				uart_ao_b_pins1: uart-ao_b1 {
+					mux {
+						groups = "uart_ao_b_tx_8",
+							 "uart_ao_b_rx_9";
+						function = "uart_ao_b";
+						bias-disable;
+					};
+				};
+
+				uart_ao_b_cts_rts_pins: uart-ao-b-cts-rts {
+					mux {
+						groups = "uart_ao_b_cts",
+							 "uart_ao_b_rts";
+						function = "uart_ao_b";
+						bias-disable;
+					};
+				};
+
 				remote_input_ao_pins: remote-input-ao {
 					mux {
 						groups = "remote_input_ao";
@@ -581,12 +680,23 @@
 		};
 
 			uart_AO: serial@3000 {
-				compatible = "amlogic,meson-gx-uart",
-					     "amlogic,meson-ao-uart";
+				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x3000 0x0 0x18>;
 				interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
-				clocks = <&xtal>, <&xtal>, <&xtal>;
-				clock-names = "xtal", "pclk", "baud";
+				clocks = <&xtal>, <&clkc_AO CLKID_AO_UART>;
+				clock-names = "clk_uart", "clk_gate";
+				fifosize = <64>;
+				xtal_tick_en = <2>;
+				status = "disabled";
+			};
+
+			uart_AO_B: serial@4000 {
+				compatible = "amlogic,meson-uart";
+				reg = <0x0 0x4000 0x0 0x18>;
+				interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&xtal>, <&clkc_AO CLKID_AO_UART2>;
+				clock-names = "clk_uart", "clk_gate";
+				fifosize = <64>;
 				status = "disabled";
 			};
 
@@ -680,6 +790,36 @@
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_I2C>;
 				clock-frequency = <100000>;
+			};
+
+			uart_A: serial@24000 {
+				compatible = "amlogic,meson-uart";
+				reg = <0x0 0x24000 0x0 0x18>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+				clocks = <&xtal>, <&clkc CLKID_UART0>;
+				clock-names = "clk_uart", "clk_gate";
+				fifosize = <128>;
+			};
+
+			uart_B: serial@23000 {
+				compatible = "amlogic,meson-uart";
+				reg = <0x0 0x23000 0x0 0x18>;
+				interrupts = <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+				clocks = <&xtal>, <&clkc CLKID_UART1>;
+				clock-names = "clk_uart", "clk_gate";
+				fifosize = <64>;
+			};
+
+			uart_C: serial@22000 {
+				compatible = "amlogic,meson-uart";
+				reg = <0x0 0x22000 0x0 0x18>;
+				interrupts = <GIC_SPI 93 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+				clocks = <&xtal>, <&clkc CLKID_UART2>;
+				clock-names = "clk_uart", "clk_gate";
+				fifosize = <64>;
 			};
 
 			spicc0: spi@13000 {
