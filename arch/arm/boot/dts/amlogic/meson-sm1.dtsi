@@ -21,6 +21,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -29,6 +30,7 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -37,6 +39,7 @@
 			reg = <0x2>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -45,6 +48,7 @@
 			reg = <0x3>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			#cooling-cells = <2>;
 		};
 
 		l2: l2-cache0 {
@@ -534,6 +538,21 @@
 		#thermal-sensor-cells = <1>;
 	};
 
+	meson_cooldev: meson-cooldev@0 {
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		cooling_devices {
+			cpucore_cool_cluster0 {
+				cluster_id = <0>;
+				device_type = "cpucore";
+				node_name = "cpucore0";
+			};
+		};
+		cpucore0:cpucore0 {
+			#cooling-cells = <2>;
+		};
+	};
+
 	thermal-zones {
 		p_thermal: p_thermal {
 			polling-delay = <1000>;
@@ -560,6 +579,13 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				cpucore_cooling_map{
+					trip = <&pcontrol>;
+					cooling-device = <&cpucore0 0 3>;
+					contribution = <1024>;
 				};
 			};
 		};
