@@ -71,6 +71,13 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
 		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 
 	ppmgr {

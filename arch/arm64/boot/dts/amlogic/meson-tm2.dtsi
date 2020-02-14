@@ -66,6 +66,11 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_cma_reserved>;
+	};
+
 	vpu {
 		compatible = "amlogic, vpu-tm2";
 		status = "okay";
