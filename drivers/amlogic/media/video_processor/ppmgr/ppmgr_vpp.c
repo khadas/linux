@@ -1836,7 +1836,7 @@ static void process_vf_change(struct vframe_s *vf,
 			      struct ge2d_context_s *context,
 			      struct config_para_ex_s *ge2d_config)
 {
-	struct vframe_s temp_vf;
+	static struct vframe_s temp_vf;
 	struct ppframe_s *pp_vf = to_ppframe(vf);
 	struct canvas_s cs0, cs1, cs2, cd;
 	int interlace_mode;

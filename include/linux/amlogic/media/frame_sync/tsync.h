@@ -140,6 +140,9 @@ int tsync_set_av_threshold_min(int min);
 
 int tsync_set_av_threshold_max(int max);
 
+int tsync_set_tunnel_mode(int mode);
+
+int tsync_get_tunnel_mode(void);
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
 	return tsync_get_av_threshold_min();

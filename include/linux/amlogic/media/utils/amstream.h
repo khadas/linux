@@ -86,6 +86,11 @@
 #define AMSTREAM_IOC_CLEAR_VIDEOPIP	          _IOW((_A_M), 0x24, int)
 #define AMSTREAM_IOC_CLEAR_PIP_VBUF               _IO((_A_M), 0x25)
 
+#define AMSTREAM_IOC_GET_DISPLAYPATH  _IOW((_A_M), 0x26, int)
+#define AMSTREAM_IOC_SET_DISPLAYPATH  _IOW((_A_M), 0x27, int)
+
+#define AMSTREAM_IOC_GET_PIP_DISPLAYPATH  _IOW((_A_M), 0x28, int)
+#define AMSTREAM_IOC_SET_PIP_DISPLAYPATH  _IOW((_A_M), 0x29, int)
 #define AMSTREAM_IOC_GLOBAL_GET_VIDEOPIP_OUTPUT   _IOR((_A_M), 0x2b, int)
 #define AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT   _IOW((_A_M), 0x2c, int)
 #define AMSTREAM_IOC_GET_VIDEOPIP_DISABLE         _IOR((_A_M), 0x2d, int)
@@ -200,6 +205,7 @@
 #define AMSTREAM_IOC_GET_OMX_VERSION              _IOW((_A_M), 0xb1, int)
 #define AMSTREAM_IOC_GET_OMX_INFO                 _IOR((_A_M), 0xb2, u32)
 #define AMSTREAM_IOC_SET_HDR_INFO                 _IOW((_A_M), 0xb3, int)
+#define AMSTREAM_IOC_SET_TUNNEL_MODE _IOR(_A_M, 0xbd, unsigned int)
 #define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED      _IOR(_A_M, 0xbe, u32)
 #define AMSTREAM_IOC_SET_VIDEOPEEK                _IOW(_A_M, 0xbf, u32)
 
@@ -219,6 +225,8 @@
 #define AMSTREAM_IOC_SET_PTR      _IOW((_A_M), 0xc6, struct am_ioctl_parm_ptr)
 #define AMSTREAM_IOC_GET_AVINFO   _IOR((_A_M), 0xc7, struct av_param_info_t)
 #define AMSTREAM_IOC_GET_QOSINFO  _IOR((_A_M), 0xc8, struct av_param_qosinfo_t)
+#define AMSTREAM_IOC_SET_CRC _IOW((_A_M), 0xc9, struct usr_crc_info_t)
+#define AMSTREAM_IOC_GET_CRC_CMP_RESULT _IOWR((_A_M), 0xca, int)
 
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
@@ -262,6 +270,8 @@ enum FRAME_BASE_VIDEO_PATH {
 	FRAME_BASE_PATH_AMVIDEO2,
 	FRAME_BASE_PATH_V4L_VIDEO,
 	FRAME_BASE_PATH_TUNNEL_MODE,
+	FRAME_BASE_PATH_V4L_OSD,
+	FRAME_BASE_PATH_DI_V4LVIDEO,
 	FRAME_BASE_PATH_MAX
 };
 

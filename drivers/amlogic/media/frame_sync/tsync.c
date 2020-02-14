@@ -1158,6 +1158,18 @@ int tsync_set_startsync_mode(int mode)
 }
 EXPORT_SYMBOL(tsync_set_startsync_mode);
 
+int tsync_set_tunnel_mode(int mode)
+{
+	return 0;
+}
+EXPORT_SYMBOL(tsync_set_tunnel_mode);
+
+int tsync_get_tunnel_mode(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(tsync_get_tunnel_mode);
+
 bool tsync_check_vpts_discontinuity(unsigned int vpts)
 {
 	unsigned int systemtime;
