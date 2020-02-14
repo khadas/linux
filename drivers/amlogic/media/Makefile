@@ -6,3 +6,4 @@ obj-$(CONFIG_AMLOGIC_MEDIA_VIDEO_PROCESSOR)	+=	video_processor/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT) += enhancement/
 obj-$(CONFIG_AMLOGIC_MEDIA_FRAME_SYNC)	+=	frame_sync/
 obj-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/
+obj-$(CONFIG_AMLOGIC_MEDIA_VIN)		+=	vin/
