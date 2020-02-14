@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/regmap.h>
+#include <linux/amlogic/clk_measure.h>
 
 static DEFINE_MUTEX(measure_lock);
 
@@ -47,6 +48,8 @@ struct meson_msr {
 
 #define CLK_MSR_ID(__id, __name) \
 	[__id] = {.id = __id, .name = __name,}
+
+static struct meson_msr *glo_meson_msr;
 
 static struct meson_msr_id clk_msr_m8[CLK_MSR_MAX] = {
 	CLK_MSR_ID(0, "ring_osc_out_ee0"),
@@ -709,6 +712,17 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 				     duration);
 }
 
+int meson_clk_measure(unsigned int id)
+{
+	struct meson_msr_id *clk_msr_id = NULL;
+
+	clk_msr_id->priv = glo_meson_msr;
+	clk_msr_id->id = id;
+
+	return meson_measure_id(clk_msr_id, DIV_MAX);
+}
+EXPORT_SYMBOL_GPL(meson_clk_measure);
+
 static int meson_measure_best_id(struct meson_msr_id *clk_msr_id,
 				    unsigned int *precision)
 {
@@ -814,6 +828,8 @@ static int meson_msr_probe(struct platform_device *pdev)
 
 	debugfs_create_file("measure_summary", 0444, root,
 			    priv->msr_table, &clk_msr_summary_fops);
+
+	glo_meson_msr = priv;
 
 	for (i = 0 ; i < CLK_MSR_MAX ; ++i) {
 		if (!priv->msr_table[i].name)
