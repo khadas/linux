@@ -137,6 +137,7 @@
 #define CLKID_MALI_1				174
 #define CLKID_MALI				175
 #define CLKID_MPLL_50M				177
+#define CLKID_CPU_CLK_DYN                       186
 #define CLKID_CPU_CLK				187
 #define CLKID_PCIE_PLL				201
 #define CLKID_VDEC_1				204

@@ -1,0 +1,9 @@
+config AMLOGIC_MESON_CPUFREQ
+	bool  "MESON based CPUfreq driver"
+	default n
+        help
+          This adds the CPUfreq driver support for ARM big.LITTLE platforms
+          using MESON dt for CPU power management.
+
+          This driver uses meson cpufreq driver to interact with the
+          firmware providing the CPU DVFS functionality.
