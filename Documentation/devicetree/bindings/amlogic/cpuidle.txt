@@ -1,0 +1,16 @@
+Amlogic Cpuidle
+
+Required properties:
+ - compatible: must be "amlogic,cpuidle"
+
+ - suspend_power: do suspend power command, should be "0x8200009E"
+
+ - resume_power: do resume power command, should be "0x8200009F"
+
+Examples:
+
+	aml_cpuidle{
+		compatible = "amlogic,cpuidle";
+		suspend_power = <0x8200009E>;
+		resume_power = <0x8200009F>;
+	};
