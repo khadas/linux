@@ -438,7 +438,7 @@ static int __init configs_init_devices(void)
 		mnode->class_dev = device_create(config_dev_class, NULL,
 						 MKDEV(config_major, i), NULL,
 						 mnode->dev_name);
-		if (mnode->class_dev) {
+		if (IS_ERR(mnode->class_dev)) {
 			pr_err("device_create %s failed\n", mnode->dev_name);
 			r = -1;
 			goto error2;
@@ -446,6 +446,8 @@ static int __init configs_init_devices(void)
 	}
 	return 0;
 error2:
+	for (; i >= 0; i--)
+		device_destroy(config_dev_class, MKDEV(config_major, i));
 	unregister_chrdev(config_major, MODULE_NAME);
 error1:
 	class_destroy(&media_configs_class);

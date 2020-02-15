@@ -1515,6 +1515,7 @@ inline int codec_mm_scatter_map_del_locked(struct codec_mm_scatter_mgt *smgt,
 	return 0;
 }
 
+static
 int codec_mm_scatter_valid_locked(struct codec_mm_scatter_mgt *smgt,
 				  struct codec_mm_scatter *mms)
 {
@@ -1529,7 +1530,6 @@ int codec_mm_scatter_valid_locked(struct codec_mm_scatter_mgt *smgt,
 	}
 	return valid;
 }
-EXPORT_SYMBOL(codec_mm_scatter_valid_locked);
 
 /*free scatter's all */
 static

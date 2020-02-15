@@ -318,7 +318,6 @@ configs_get_node_path_end_node(struct mconfig_node *root_node, const char *path)
 	}
 	return node;
 }
-EXPORT_SYMBOL(configs_get_node_path_end_node);
 
 int configs_register_path_node(const char *path,
 			       struct mconfig_node *new_node)
