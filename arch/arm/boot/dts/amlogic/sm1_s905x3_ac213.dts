@@ -484,6 +484,46 @@
 		compatible = "amlogic, picdec";
 		status = "okay";
 	};
+
+	cvbsout {
+		compatible = "amlogic, cvbsout-sm1";
+		status = "okay";
+		clocks = <&clkc CLKID_VCLK2_ENCI
+			&clkc CLKID_VCLK2_VENCI0
+			&clkc CLKID_VCLK2_VENCI1
+			&clkc CLKID_DAC_CLK>;
+		clock-names = "venci_top_gate",
+			"venci_0_gate",
+			"venci_1_gate",
+			"vdac_clk_gate";
+		/* clk path */
+		/* 0:vid_pll vid2_clk */
+		/* 1:gp0_pll vid2_clk */
+		/* 2:vid_pll vid1_clk */
+		/* 3:gp0_pll vid1_clk */
+		clk_path = <0>;
+
+		/* performance: reg_address, reg_value */
+		/* tm2 */
+		performance = <0x1bf0  0x9
+			0x1b56  0x333
+			0x1b12  0x8080
+			0x1b05  0xfd
+			0x1c59  0xf850
+			0xffff  0x0>; /* ending flag */
+		performance_sarft = <0x1bf0  0x9
+			0x1b56  0x333
+			0x1b12  0x0
+			0x1b05  0x9
+			0x1c59  0xfc48
+			0xffff  0x0>; /* ending flag */
+		performance_revB_telecom = <0x1bf0  0x9
+			0x1b56  0x546
+			0x1b12  0x8080
+			0x1b05  0x9
+			0x1c59  0xf850
+			0xffff  0x0>; /* ending flag */
+	};
 };
 
 /*

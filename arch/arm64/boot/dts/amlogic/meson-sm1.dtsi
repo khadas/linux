@@ -665,6 +665,11 @@
 		       0x0 0xFF634400 0x0 0x26>;
 		reg-names = "ao_exit","ao","periphs";
 	};
+
+	vdac: vdac {
+		compatible = "amlogic, vdac-sm1";
+		status = "okay";
+	};
 };
 
 &soc {

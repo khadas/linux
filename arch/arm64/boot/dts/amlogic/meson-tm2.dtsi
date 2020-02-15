@@ -219,6 +219,11 @@
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
+
+	vdac: vdac {
+		compatible = "amlogic, vdac-tm2";
+		status = "okay";
+	};
 };
 
 /*
