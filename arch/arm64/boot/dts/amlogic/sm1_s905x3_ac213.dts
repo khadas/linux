@@ -308,6 +308,12 @@
 		clock-frequency = <32768>;
 		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
 	};
+	amdolby_vision {
+		compatible = "amlogic, dolby_vision_sm1";
+		dev_name = "aml_amdolby_vision_driver";
+		status = "okay";
+		tv_mode = <0>;/*1:enabel ;0:disable*/
+	};
 
 	auge_sound {
 		compatible = "amlogic, sound-card";

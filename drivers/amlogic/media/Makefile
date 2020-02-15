@@ -3,4 +3,5 @@ obj-$(CONFIG_AMLOGIC_MEDIA_VIDEO)	+=	video_sink/
 obj-$(CONFIG_AMLOGIC_MEDIA_FB)	+=  osd/
 obj-$(CONFIG_AMLOGIC_VOUT)		+=	vout/
 obj-$(CONFIG_AMLOGIC_MEDIA_VIDEO_PROCESSOR)	+=	video_processor/
+obj-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT) += enhancement/
 obj-$(CONFIG_AMLOGIC_MEDIA_FRAME_SYNC)	+=	frame_sync/

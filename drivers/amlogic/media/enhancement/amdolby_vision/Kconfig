@@ -1,0 +1,16 @@
+#
+# AMLOGIC amdolby_vision devices configuration
+#
+
+comment "Amlogic amdolby_vision Drivers"
+
+menu "Amlogic amdolby_vision Driver"
+
+config AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+        tristate "Amlogic amdolby_vision driver"
+        default n
+        help
+        	Select to enable amlogic amdolby_vision support
+                "Amlogic amdolby_vision module init"
+
+endmenu

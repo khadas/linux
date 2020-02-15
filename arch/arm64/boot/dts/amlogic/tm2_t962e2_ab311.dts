@@ -109,6 +109,12 @@
 		dev_name = "ppmgr";
 		status = "okay";
 	};
+	amdolby_vision {
+		compatible = "amlogic, dolby_vision_tm2";
+		dev_name = "aml_amdolby_vision_driver";
+		status = "okay";
+		tv_mode = <0>;/*1:enabel ;0:disable*/
+	};
 
 	emmc_1v8: regulator-emmc_1v8 {
 		compatible = "regulator-fixed";

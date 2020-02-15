@@ -9878,8 +9878,10 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 		/* to workaround pkt cleaned during hotplug */
 		if (is_dolby_vision_enable())
 			dolby_vision_set_toggle_flag(2);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		else
 			set_cur_hdr_policy(0xff);
+#endif
 #endif
 		break;
 	case VOUT_EVENT_OSD_PREBLEND_ENABLE:

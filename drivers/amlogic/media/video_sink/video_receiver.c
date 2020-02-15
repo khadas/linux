@@ -330,6 +330,9 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	enum vframe_signal_fmt_e fmt;
+#endif
 
 	if (!ins) {
 		pr_err("%s error, empty ins\n", __func__);
@@ -338,8 +341,6 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 
 	vf = common_vf_peek(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	enum vframe_signal_fmt_e fmt;
-
 	if (glayer_info[0].display_path_id == ins->path_id &&
 	    is_dolby_vision_enable()) {
 		struct provider_aux_req_s req;
