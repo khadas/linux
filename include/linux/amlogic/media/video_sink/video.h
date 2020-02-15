@@ -260,7 +260,8 @@ unsigned int DI_POST_REG_RD(unsigned int addr);
 int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
 void vsync_notify_video_composer(void);
-
+int _video_set_disable(u32 val);
+int _videopip_set_disable(u32 val);
 void video_set_global_output(u32 index, u32 val);
 u32 video_get_layer_capability(void);
 void set_video_crop_ext(int layer_index, int *p);

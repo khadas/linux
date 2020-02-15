@@ -9776,7 +9776,6 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       path_select_show,
 	       path_select_store),
-	__ATTR_NULL
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -9784,7 +9783,6 @@ static struct class_attribute amvideo_poll_class_attrs[] = {
 	__ATTR_RO(frame_height),
 	__ATTR_RO(vframe_states),
 	__ATTR_RO(video_state),
-	__ATTR_NULL
 };
 
 static struct class *amvideo_class;
