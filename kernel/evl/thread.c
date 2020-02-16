@@ -1228,14 +1228,16 @@ void evl_kick_thread(struct evl_thread *thread, int info)
 	 * context, whatever this entails internally for the
 	 * implementation.
 	 *
-	 * - if the thread was merely running on the CPU, it won't
-	 * bear the T_READY bit at this point: force a mayday trap by
-	 * raising T_KICKED manually in this case.
+	 * - if the thread is running on the CPU, raising T_KICKED is
+	 * enough to force a switch to in-band context on the next
+	 * return to user.
 	 */
-	if (thread->state & T_READY)
+	thread->info |= T_KICKED;
+
+	if (thread->state & T_READY) {
 		evl_force_thread(thread);
-	else
-		thread->info |= T_KICKED;
+		evl_set_resched(thread->rq);
+	}
 
 	if (info)
 		thread->info |= info;
