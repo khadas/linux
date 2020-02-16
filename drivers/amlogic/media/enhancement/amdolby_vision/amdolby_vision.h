@@ -656,7 +656,7 @@ int unregister_dv_functions(void);
 #define VSYNC_WR_MPEG_REG(adr, val) WRITE_VPP_REG(adr, val)
 #define VSYNC_RD_MPEG_REG(adr) READ_VPP_REG(adr)
 #define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-	WRITE_VPP_REG_BITS(adr, val, start, len)s
+	WRITE_VPP_REG_BITS(adr, val, start, len)
 #else
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 u32 VSYNC_RD_MPEG_REG(u32 adr);
