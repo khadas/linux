@@ -1799,6 +1799,13 @@ static void handle_retuser_event(void)
 	struct evl_thread *curr = evl_current();
 	int ret;
 
+	if (!(curr->state & T_PTRACE))
+		return;
+
+	/*
+	 * We have to switch oob in order to complete ptrace_sync()
+	 * since we might have to wait there.
+	 */
 	ret = evl_switch_oob();
 	if (ret) {
 		/* Ask for retry until we succeed. */
@@ -1806,13 +1813,15 @@ static void handle_retuser_event(void)
 		return;
 	}
 
-	if (curr->state & T_PTRACE) {
-		ret = ptrace_sync();
-		if (ret)
-			dovetail_request_ucall(current);
+	ret = ptrace_sync();
+	if (ret)
+		dovetail_request_ucall(current);
 
-		evl_schedule();
-	}
+	evl_schedule();
+
+	if ((curr->state & T_WEAK) &&
+		atomic_read(&curr->inband_disable_count) == 0)
+		evl_switch_inband(SIGDEBUG_NONE);
 }
 
 static void handle_cleanup_event(struct mm_struct *mm)
