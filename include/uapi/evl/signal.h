@@ -9,14 +9,6 @@
 #ifndef _EVL_UAPI_SIGNAL_H
 #define _EVL_UAPI_SIGNAL_H
 
-#define SIGEVL				SIGWINCH
-#define sigevl_action(code)		((code) & 0xff)
-#define sigevl_arg(code)		(((code) >> 8) & 0xff)
-#define sigevl_int(action, arg)		((action) | ((arg) << 8))
-
-/* SIGEVL action codes. */
-#define SIGEVL_ACTION_HOME		1
-
 #define SIGDEBUG			SIGXCPU
 #define sigdebug_code(si)		((si)->si_value.sival_int)
 #define sigdebug_cause(si)		(sigdebug_code(si) & 0xff)
