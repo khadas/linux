@@ -599,12 +599,8 @@ static inline void evl_force_thread(struct evl_thread *thread)
 
 	assert_thread_pinned(thread);
 
-	thread->info |= T_KICKED;
-
 	if (sched_class->sched_kick)
 		sched_class->sched_kick(thread);
-
-	evl_set_resched(thread->rq);
 }
 
 struct evl_sched_group {
