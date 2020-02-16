@@ -68,7 +68,6 @@
 #include "../common/vfm/vfm.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
-#include "video_receiver.h"
 #endif
 #include "video_receiver.h"
 struct video_layer_s vd_layer[MAX_VD_LAYER];
@@ -101,10 +100,10 @@ static int vpu_mem_power_off_count;
 static struct vpu_dev_s *vd1_vpu_dev;
 static struct vpu_dev_s *afbc_vpu_dev;
 static struct vpu_dev_s *di_post_vpu_dev;
-static struct vpu_dev_s *vd1_sacle_vpu_dev;
+static struct vpu_dev_s *vd1_scale_vpu_dev;
 static struct vpu_dev_s *vd2_vpu_dev;
 static struct vpu_dev_s *afbc_vpu_dev;
-static struct vpu_dev_s *vd2_sacle_vpu_dev;
+static struct vpu_dev_s *vd2_scale_vpu_dev;
 
 #define VPU_VD1_CLK_SWITCH(level) \
 	do { \
@@ -142,7 +141,7 @@ static struct vpu_dev_s *vd2_sacle_vpu_dev;
 		vpu_dev_mem_power_on(afbc_vpu_dev); \
 		vpu_dev_mem_power_on(di_post_vpu_dev); \
 		if (!legacy_vpp) \
-			vpu_dev_mem_power_on(vd1_sacle_vpu_dev); \
+			vpu_dev_mem_power_on(vd1_scale_vpu_dev); \
 	} while (0)
 #else
 #define VD1_MEM_POWER_ON() \
@@ -154,7 +153,7 @@ static struct vpu_dev_s *vd2_sacle_vpu_dev;
 		vpu_dev_mem_power_on(vd1_vpu_dev); \
 		vpu_dev_mem_power_on(afbc_vpu_dev); \
 		if (!legacy_vpp) \
-			vpu_dev_mem_power_on(vd1_sacle_vpu_dev); \
+			vpu_dev_mem_power_on(vd1_scale_vpu_dev); \
 	} while (0)
 #endif
 #define VD2_MEM_POWER_ON() \
@@ -166,7 +165,7 @@ static struct vpu_dev_s *vd2_sacle_vpu_dev;
 		vpu_dev_mem_power_on(vd2_vpu_dev); \
 		vpu_dev_mem_power_on(afbc_vpu_dev); \
 		if (!legacy_vpp) \
-			vpu_dev_mem_power_on(vd2_sacle_vpu_dev); \
+			vpu_dev_mem_power_on(vd2_scale_vpu_dev); \
 	} while (0)
 
 #define VD1_MEM_POWER_OFF() \
@@ -929,9 +928,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	} else {
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
-			if (!(type & VIDTYPE_PRE_INTERLACE) &&
-			    ((type & VIDTYPE_VIU_NV21) ||
-			     (type & VIDTYPE_VIU_422)))
+			if ((type & VIDTYPE_VIU_NV21) ||
+			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
 		if (is_dolby_vision_on())
@@ -1327,9 +1325,8 @@ static void vd2_set_dcu(struct video_layer_s *layer,
 	} else {
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
-			if (!(type & VIDTYPE_PRE_INTERLACE) &&
-			    ((type & VIDTYPE_VIU_NV21) ||
-			     (type & VIDTYPE_VIU_422)))
+			if ((type & VIDTYPE_VIU_NV21) ||
+			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
 		if (is_dolby_vision_on())
@@ -4668,7 +4665,7 @@ static void do_vpu_delay_work(struct work_struct *work)
 				vpu_dev_mem_power_down(di_post_vpu_dev);
 				if (!legacy_vpp)
 					vpu_dev_mem_power_down
-					(vd1_sacle_vpu_dev);
+					(vd1_scale_vpu_dev);
 			}
 
 			if ((vpu_delay_work_flag &
@@ -4680,7 +4677,7 @@ static void do_vpu_delay_work(struct work_struct *work)
 				vpu_dev_mem_power_down(afbc_vpu_dev);
 				if (!legacy_vpp)
 					vpu_dev_mem_power_down
-					(vd2_sacle_vpu_dev);
+					(vd2_scale_vpu_dev);
 			}
 		}
 	}
@@ -4770,10 +4767,10 @@ int video_hw_init(void)
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
 	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC, "VD1_AFBC");
 	di_post_vpu_dev = vpu_dev_register(VPU_DI_POST, "DI_POST");
-	vd1_sacle_vpu_dev = vpu_dev_register(VPU_VD1_SCALE, "VD1_SCALE");
+	vd1_scale_vpu_dev = vpu_dev_register(VPU_VD1_SCALE, "VD1_SCALE");
 	vd2_vpu_dev = vpu_dev_register(VPU_VIU_VD2, "VD2");
 	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC1, "VD2_AFBC");
-	vd2_sacle_vpu_dev = vpu_dev_register(VPU_VD2_SCALE, "VD2_SCALE");
+	vd2_scale_vpu_dev = vpu_dev_register(VPU_VD2_SCALE, "VD2_SCALE");
 	arb_vpu_dev = vpu_dev_register(VPU_VPU_ARB, "ARB");
 	vpu_dev_mem_power_on(arb_vpu_dev);
 
