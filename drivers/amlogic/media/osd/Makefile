@@ -5,5 +5,7 @@ fb-objs += osd_drm.o
 fb-objs += osd_rdma.o
 fb-objs += osd_virtual.o
 
+obj-$(CONFIG_INSTABOOT) += osd_progressbar.o
+
 ccflags-y += -I$(srctree)/drivers/amlogic/media/common/ion_dev/
 ccflags-y += -I$(srctree)/drivers/staging/android/
