@@ -640,13 +640,13 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
 	 * RQ_SCHED on the target runqueue.
 	 *
 	 * If the target thread runs in-band in userland on a remote
-	 * CPU, force it back to OOB context by sending it a
-	 * SIGEVL_ACTION_HOME request.
+	 * CPU, request it to call us back next time it transitions
+	 * from kernel to user mode.
 	 */
 	if (likely(thread == rq->curr))
 		evl_set_resched(rq);
 	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) == (T_INBAND|T_USER)))
-		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
+		dovetail_request_ucall(thread->altsched.task);
  out:
 	evl_put_thread_rq(thread, rq, flags);
 }
@@ -1052,8 +1052,8 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */
-	if (thread->state & T_INBAND)
-		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
+	if ((thread->state & (T_INBAND|T_USER)) == (T_INBAND|T_USER))
+		dovetail_request_ucall(thread->altsched.task);
 
 	return ret;
 }
@@ -1297,7 +1297,7 @@ static void inband_task_signal(struct irq_work *work)
 	signo = req->signo;
 	trace_evl_inband_signal(p, signo);
 
-	if (signo == SIGEVL || signo == SIGDEBUG) {
+	if (signo == SIGDEBUG) {
 		memset(&si, '\0', sizeof(si));
 		si.si_signo = signo;
 		si.si_code = SI_QUEUE;
@@ -1568,16 +1568,16 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 	 * migration call, because the latter always has to take place
 	 * on behalf of the target thread itself while running
 	 * in-band. Therefore, that thread needs to switch to in-band
-	 * context first, then move back to OOB, so that check_cpu_affinity()
-	 * does the fixup work.
-	 *
-	 * We force this by sending a SIGEVL signal to the migrated
-	 * thread, asking it to switch back to OOB context from the
-	 * handler, at which point the interrupted syscall may be
-	 * restarted.
+	 * context first, so that check_cpu_affinity() may do the
+	 * fixup at the next transition to OOB. We expedite such
+	 * transition for user threads by requesting them to call back
+	 * asap via the RETUSER event.
 	 */
-	if (thread->state & (EVL_THREAD_BLOCK_BITS & ~T_INBAND))
-		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
+	if (thread->state & (EVL_THREAD_BLOCK_BITS & ~T_INBAND)) {
+		evl_kick_thread(thread, 0);
+		if (thread->state & T_USER)
+			dovetail_request_ucall(thread->altsched.task);
+	}
 #endif
 }
 
@@ -1799,19 +1799,15 @@ static void handle_retuser_event(void)
 	struct evl_thread *curr = evl_current();
 	int ret;
 
-	if (!(curr->state & T_PTRACE))
-		return;
-
-	/*
-	 * We have to switch oob in order to complete ptrace_sync()
-	 * since we might have to wait there.
-	 */
 	ret = evl_switch_oob();
 	if (ret) {
 		/* Ask for retry until we succeed. */
 		dovetail_request_ucall(current);
 		return;
 	}
+
+	if (!(curr->state & T_PTRACE))
+		return;
 
 	ret = ptrace_sync();
 	if (ret)
