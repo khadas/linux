@@ -12,10 +12,13 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
 #include "card.h"
+#include "effects.h"
 
 #define DPCM_SELECTABLE 1
 
@@ -328,20 +331,24 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	//pr_info("%s... %d line, cpus name %s\n",
-	//	__func__, __LINE__, dai_link->cpus->dai_name);
-	//pr_info("%s... %d line, codecs name %s\n",
-	//	__func__, __LINE__, dai_link->codecs->dai_name);
+	/* sync with android audio hal, what's the link used for. */
+	of_property_read_string(node, "suffix-name", &dai_props->suffix_name);
 
-	ret = asoc_simple_set_dailink_name(dev, dai_link,
-					   "%s-%s",
-					   dai_link->cpus->dai_name,
-					   dai_link->codecs->dai_name);
-	if (ret < 0) {
-		//pr_info("%s... %d line, dai name %s\n",
-		//	__func__, __LINE__, dai_link->name);
-		goto dai_link_of_err;
+	if (dai_props->suffix_name) {
+		ret = asoc_simple_set_dailink_name(dev, dai_link,
+						   "%s-%s-%s",
+						   dai_link->cpus->dai_name,
+						   dai_link->codecs->dai_name,
+						   dai_props->suffix_name);
+	} else {
+		ret = asoc_simple_set_dailink_name(dev, dai_link,
+						   "%s-%s",
+						   dai_link->cpus->dai_name,
+						   dai_link->codecs->dai_name);
 	}
+
+	if (ret < 0)
+		goto dai_link_of_err;
 
 	dai_link->ops = &simple_ops;
 	dai_link->init = asoc_simple_dai_init;
@@ -628,6 +635,102 @@ static int simple_soc_probe(struct snd_soc_card *card)
 	return 0;
 }
 
+static int card_suspend_pre(struct snd_soc_card *card)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
+
+	gpiod_direction_output(priv->pa_gpio, 0);
+
+	return 0;
+}
+
+static int card_resume_post(struct snd_soc_card *card)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
+
+	gpiod_direction_output(priv->pa_gpio, 1);
+
+	return 0;
+}
+
+static int spk_mute_set(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct asoc_simple_priv *priv =
+			snd_soc_card_get_drvdata(card);
+	bool mute = ucontrol->value.integer.value[0];
+
+	if (priv->pa_gpio) {
+		gpiod_set_value(priv->pa_gpio, !mute);
+		pr_info("spk_mute_set: mute flag = %d\n", mute);
+	}
+
+	return 0;
+}
+
+static int spk_mute_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct asoc_simple_priv *priv =
+		snd_soc_card_get_drvdata(card);
+
+	if (priv->pa_gpio) {
+		ucontrol->value.integer.value[0] =
+			!gpiod_get_value(priv->pa_gpio);
+	}
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new card_controls[] = {
+	SOC_SINGLE_BOOL_EXT("SPK mute", 0,
+			    spk_mute_get,
+			    spk_mute_set),
+};
+
+static int aml_card_parse_gpios(struct device_node *node,
+				struct asoc_simple_priv *priv)
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_card *soc_card = &priv->snd_card;
+	int ret;
+
+	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->pa_gpio)) {
+		ret = PTR_ERR(priv->pa_gpio);
+		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
+		return ret;
+	}
+
+	if (!priv->pa_gpio) {
+		dev_info(dev, "no amplifier gpio is set");
+		return 0;
+	}
+
+	gpiod_direction_output(priv->pa_gpio, 1);
+
+	snd_soc_add_card_controls(soc_card, card_controls,
+				  ARRAY_SIZE(card_controls));
+
+	return 0;
+}
+
+static void aml_init_work(struct work_struct *init_work)
+{
+	struct asoc_simple_priv *priv = NULL;
+	struct device *dev = NULL;
+	struct device_node *np = NULL;
+
+	pr_info("%s()\n", __func__);
+	priv = container_of(init_work,
+			    struct asoc_simple_priv, init_work);
+	dev = simple_priv_to_dev(priv);
+	np = dev->of_node;
+	aml_card_parse_gpios(np, priv);
+}
+
 static int asoc_simple_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
@@ -646,6 +749,8 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	card->owner		= THIS_MODULE;
 	card->dev		= dev;
 	card->probe		= simple_soc_probe;
+	card->suspend_pre	= card_suspend_pre;
+	card->resume_post	= card_resume_post;
 
 	memset(&li, 0, sizeof(li));
 	simple_get_dais_count(priv, &li);
@@ -719,6 +824,23 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0)
 		goto err;
+
+	/* Add controls */
+	ret = aml_card_add_controls(&priv->snd_card);
+	if (ret < 0) {
+		dev_err(dev, "failed to register mixer kcontrols\n");
+		goto err;
+	}
+
+	if (priv->chipinfo && priv->chipinfo->eqdrc_fn) {
+		pr_info("eq/drc v1 function enable\n");
+		ret = card_add_effects_init(&priv->snd_card);
+		if (ret < 0)
+			pr_warn_once("Failed to add audio effects v1 controls\n");
+	}
+
+	INIT_WORK(&priv->init_work, aml_init_work);
+	schedule_work(&priv->init_work);
 
 	return 0;
 err:

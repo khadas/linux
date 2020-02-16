@@ -37,6 +37,15 @@ struct asoc_simple_jack {
 	struct snd_soc_jack_gpio gpio;
 };
 
+struct aml_chipset_info {
+	/* INT address separated from start address for ddr */
+	bool ddr_addr_separated;
+	/* two spdif out ? */
+	bool spdif_b;
+	/* eq/drc function */
+	bool eqdrc_fn;
+};
+
 struct asoc_simple_priv {
 	struct snd_soc_card snd_card;
 	struct simple_dai_props {
@@ -48,6 +57,10 @@ struct asoc_simple_priv {
 		struct asoc_simple_data adata;
 		struct snd_soc_codec_conf *codec_conf;
 		unsigned int mclk_fs;
+		/* sync with android audio hal,
+		 * dai link is used for which output,
+		 */
+		const char *suffix_name;
 	} *dai_props;
 	struct asoc_simple_jack hp_jack;
 	struct asoc_simple_jack mic_jack;
@@ -55,6 +68,9 @@ struct asoc_simple_priv {
 	struct asoc_simple_dai *dais;
 	struct snd_soc_codec_conf *codec_conf;
 	struct gpio_desc *pa_gpio;
+	struct work_struct work;
+	struct work_struct init_work;
+	struct aml_chipset_info *chipinfo;
 };
 
 #define simple_priv_to_card(priv)	(&(priv)->snd_card)
@@ -106,11 +122,10 @@ int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	asoc_simple_parse_dai(node, (dai_link)->platforms, NULL)
 
 #define asoc_simple_parse_tdm(np, dai)			\
-	struct asoc_simple_dai *s_dai = &(dai); \
-	snd_soc_of_parse_tdm_slot(np,	s_dai->tx_slot_mask, \
-				  s_dai->rx_slot_mask, \
-				  s_dai->slots, \
-				  s_dai->slot_width)
+	snd_soc_of_parse_tdm_slot(np, &(dai)->tx_slot_mask, \
+				  &(dai)->rx_slot_mask, \
+				  &(dai)->slots, \
+				  &(dai)->slot_width)
 
 void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link);
 void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
@@ -208,5 +223,7 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 #else
 #define  asoc_simple_debug_info(priv)
 #endif /* DEBUG */
+
+int aml_card_add_controls(struct snd_soc_card *card);
 
 #endif /* __SIMPLE_CARD_UTILS_H */

@@ -13,6 +13,7 @@
 #include <linux/of_graph.h>
 #include <sound/jack.h>
 
+#include "audio_utils.h"
 #include "card_utils.h"
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
@@ -605,6 +606,19 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_init_priv);
+
+int aml_card_add_controls(struct snd_soc_card *card)
+{
+	int ret;
+
+	ret = snd_card_add_kcontrols(card);
+	if (ret < 0) {
+		pr_info("failed register kcontrols\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

@@ -972,7 +972,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	ret = snd_soc_of_get_slot_mask(node, "lane-mask-in",
 				       &p_pdm->lane_mask_in);
-	if (ret < 0) {
+	if (!ret) {
 		pr_warn("default set lane_mask_in as all lanes.\n");
 		p_pdm->lane_mask_in = 0xf;
 	}
