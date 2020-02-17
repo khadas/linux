@@ -65,11 +65,11 @@ enum core3_switch_type {
 
 /*! @brief Output CSC configuration.*/
 # pragma pack(push, 1)
-struct TGT_out_csc_cfg {
-	s32   lms2_rgb_mat[3][3]; /**<@brief  LMS to RGB matrix */
-	s32   lms2_rgb_mat_scale;  /**<@brief  LMS 2 RGB matrix scale */
-	u8   white_point[3];    /**<@brief  White point */
-	u8   white_point_scale;  /**<@brief  White point scale */
+struct TgtOutCscCfg {
+	s32   lms2RgbMat[3][3]; /**<@brief  LMS to RGB matrix */
+	s32   lms2RgbMatScale;  /**<@brief  LMS 2 RGB matrix scale */
+	u8   whitePoint[3];    /**<@brief  White point */
+	u8   whitePointScale;  /**<@brief  White point scale */
 	s32   reserved[3];
 };
 
@@ -77,29 +77,29 @@ struct TGT_out_csc_cfg {
 
 /*! @brief Global dimming configuration.*/
 # pragma pack(push, 1)
-struct TGT_gd_cfg {
-	s32   gd_enable;
-	u32  gd_w_min;
-	u32  gd_w_max;
-	u32  gd_w_mm;
-	u32  gd_w_dynrng_sqrt;
-	u32  gd_weightmean;
-	u32  gd_weightstd;
-	u32  gd_delaymilli_sec_hdmi;
-	s32   gd_rgb2_yuv_ext;
-	s32   gd_m33_rgb2_yuv[3][3];
-	s32   gd_m33_rgb2_yuv_scale2p;
-	s32   gd_rgb2_yuv_off_ext;
-	s32   gd_V3_rgb2_yuv_off[3];
-	u32  gd_up_bound;
-	u32  gd_low_bound;
-	u32  last_max_pq;
-	u16  gd_w_min_pq;
-	u16  gd_w_max_pq;
-	u16  gd_w_mm_pq;
-	u16  gd_trigger_period;
-	u32  gd_trigger_lin_thresh;
-	u32  gd_delay_milli_sec_ott;
+struct TgtGDCfg {
+	s32   gdEnable;
+	u32  gdWMin;
+	u32  gdWMax;
+	u32  gdWMm;
+	u32  gdWDynRngSqrt;
+	u32  gdWeightMean;
+	u32  gdWeightStd;
+	u32  gdDelayMilliSec_hdmi;
+	s32   gdRgb2YuvExt;
+	s32   gdM33Rgb2Yuv[3][3];
+	s32   gdM33Rgb2YuvScale2P;
+	s32   gdRgb2YuvOffExt;
+	s32   gdV3Rgb2YuvOff[3];
+	u32  gdUpBound;
+	u32  gdLowBound;
+	u32  lastMaxPq;
+	u16  gdWMinPq;
+	u16  gdWMaxPq;
+	u16  gdWMmPq;
+	u16  gdTriggerPeriod;
+	u32  gdTriggerLinThresh;
+	u32  gdDelayMilliSec_ott;
 #ifdef V1_5
 	u32  reserved[6];
 #else
@@ -111,50 +111,50 @@ struct TGT_gd_cfg {
 
 /*! @defgroup general Enumerations and data structures*/
 # pragma pack(push, 1)
-struct TARGET_display_config {
+struct TargetDisplayConfig {
 	u16 gain;
 	u16 offset;
 	u16 gamma;         /**<@brief  Gamma */
 	u16 eotf;
-	u16 bit_depth;      /**<@brief  Bit Depth */
-	u16 range_spec;
-	u16 diag_size;      /**<@brief  Diagonal Size */
-	u16 max_pq;
-	u16 min_pq;
-	u16 ms_weight;
-	u16 ms_edge_weight;
-	s16  min_pq_bias;
-	s16  mid_pq_bias;
-	s16  max_pq_bias;
-	s16  trim_slope_bias;
-	s16  trim_offset_bias;
-	s16  trim_power_bias;
-	s16  ms_weight_bias;
+	u16 bitDepth;      /**<@brief  Bit Depth */
+	u16 rangeSpec;
+	u16 diagSize;      /**<@brief  Diagonal Size */
+	u16 maxPq;
+	u16 minPq;
+	u16 mSWeight;
+	u16 mSEdgeWeight;
+	s16  minPQBias;
+	s16  midPQBias;
+	s16  maxPQBias;
+	s16  trimSlopeBias;
+	s16  trimOffsetBias;
+	s16  trimPowerBias;
+	s16  msWeightBias;
 	s16  brightness;         /**<@brief  Brighness */
 	s16  contrast;           /**<@brief  Contrast */
-	s16  chroma_weight_bias;
-	s16  saturation_gain_bias;
-	u16 chroma_weight;
-	u16 saturation_gain;
-	u16 cross_talk;
-	u16 tuning_mode;
-	s16 reserved0;
-	s16 dbg_exec_params_print_period;
-	s16 dbg_dm_md_print_period;
-	s16 dbg_dm_cfg_print_period;
-	u16 max_pq_dupli;
-	u16 min_pq_dupli;
-	s32 key_weight;
-	s32 intensity_vector_weight;
-	s32 chroma_vector_weight;
-	s16 chip_fpga_lowcomplex;
-	s16 mid_pq_bias_lut[TUNING_LUT_ENTRIES];
-	s16 saturation_gain_bias_lut[TUNING_LUT_ENTRIES];
-	s16 chroma_weight_bias_lut[TUNING_LUT_ENTRIES];
-	s16 slope_bias_lut[TUNING_LUT_ENTRIES];
-	s16 offset_bias_lut[TUNING_LUT_ENTRIES];
-	s16 backlight_bias_lut[TUNING_LUT_ENTRIES];
-	struct TGT_gd_cfg gd_config;
+	s16  chromaWeightBias;
+	s16  saturationGainBias;
+	u16 chromaWeight;
+	u16 saturationGain;
+	u16 crossTalk;
+	u16 tuningMode;
+	s16  reserved0;
+	s16  dbgExecParamsPrintPeriod;
+	s16  dbgDmMdPrintPeriod;
+	s16  dbgDmCfgPrintPeriod;
+	u16 maxPq_dupli;
+	u16 minPq_dupli;
+	s32  keyWeight;
+	s32  intensityVectorWeight;
+	s32  chromaVectorWeight;
+	s16  chip_fpga_lowcomplex;
+	s16  midPQBiasLut[TUNING_LUT_ENTRIES];
+	s16  saturationGainBiasLut[TUNING_LUT_ENTRIES];
+	s16  chromaWeightBiasLut[TUNING_LUT_ENTRIES];
+	s16  slopeBiasLut[TUNING_LUT_ENTRIES];
+	s16  offsetBiasLut[TUNING_LUT_ENTRIES];
+	s16  backlightBiasLut[TUNING_LUT_ENTRIES];
+	struct TgtGDCfg gdConfig;
 #ifdef V1_5
 	u8  vsvdb[7];
 	u8  reserved1[5];
@@ -164,16 +164,16 @@ struct TARGET_display_config {
 	s16  backlight_scaler;
 	s32  min_lin_dupli;
 	s32  max_lin_dupli;
-	struct TGT_out_csc_cfg ocsc_config;
+	struct TgtOutCscCfg ocscConfig;
 #ifdef V1_5
 	s16  reserved2;
 #else
 	s16  reserved00;
 #endif
-	s16  brightness_preservation;
-	s32  iintensity_vector_weight;
-	s32  ichroma_vector_weight;
-	s16  isaturation_gain_bias;
+	s16  brightnessPreservation;
+	s32  iintensityVectorWeight;
+	s32  ichromaVectorWeight;
+	s16  isaturationGainBias;
 	s16  chip_12b_ocsc;
 	s16  chip_512_tonecurve;
 	s16  chip_nolvl5;
@@ -189,7 +189,7 @@ struct pq_config_s {
 	unsigned char gd_gm_lut_max[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
 	unsigned char pq2gamma[sizeof(s32) * PQ2G_LUT_SIZE];
 	unsigned char backlight_lut[BACLIGHT_LUT_SIZE];
-	struct TARGET_display_config target_display_config;
+	struct TargetDisplayConfig target_display_config;
 };
 
 enum input_mode_e {
@@ -198,9 +198,9 @@ enum input_mode_e {
 };
 
 struct ui_menu_params_s {
-	u16 u16_back_light_ui_val;
-	u16 u16_brightness_ui_val;
-	u16 u16_contrast_ui_val;
+	u16 u16BackLightUIVal;
+	u16 u16BrightnessUIVal;
+	u16 u16ContrastUIVal;
 };
 
 enum signal_format_e {
@@ -246,96 +246,96 @@ struct run_mode_s {
 
 struct composer_register_ipcore_s {
 	/* offset 0xc8 */
-	u32 COMPOSER_mode;
-	u32 VDR_resolution;
-	u32 BIT_depth;
-	u32 COEFFICIENT_log2_denominator;
-	u32 BL_num_pivots_y;
-	u32 BL_pivot[5];
-	u32 BL_order;
-	u32 BL_coefficient_y[8][3];
-	u32 EL_NLQ_offset_y;
-	u32 EL_coefficient_y[3];
-	u32 MAPPING_IDC_u;
-	u32 BL_num_pivots_u;
-	u32 BL_pivot_U[3];
-	u32 BL_order_U;
-	u32 BL_coefficient_U[4][3];
-	u32 MMR_coefficient_U[22][2];
-	u32 MMR_order_u;
-	u32 EL_NLQ_offset_u;
-	u32 EL_coefficient_u[3];
-	u32 MAPPING_idc_v;
-	u32 BL_num_pivots_v;
-	u32 BL_pivot_v[3];
-	u32 BL_order_v;
-	u32 BL_coefficient_v[4][3];
-	u32 MMR_coefficient_v[22][2];
-	u32 MMR_order_v;
-	u32 EL_NLQ_offset_v;
-	u32 EL_coefficient_v[3];
+	u32 Composer_Mode;
+	u32 VDR_Resolution;
+	u32 Bit_Depth;
+	u32 Coefficient_Log2_Denominator;
+	u32 BL_Num_Pivots_Y;
+	u32 BL_Pivot[5];
+	u32 BL_Order;
+	u32 BL_Coefficient_Y[8][3];
+	u32 EL_NLQ_Offset_Y;
+	u32 EL_Coefficient_Y[3];
+	u32 Mapping_IDC_U;
+	u32 BL_Num_Pivots_U;
+	u32 BL_Pivot_U[3];
+	u32 BL_Order_U;
+	u32 BL_Coefficient_U[4][3];
+	u32 MMR_Coefficient_U[22][2];
+	u32 MMR_Order_U;
+	u32 EL_NLQ_Offset_U;
+	u32 EL_Coefficient_U[3];
+	u32 Mapping_IDC_V;
+	u32 BL_Num_Pivots_V;
+	u32 BL_Pivot_V[3];
+	u32 BL_Order_V;
+	u32 BL_Coefficient_V[4][3];
+	u32 MMR_Coefficient_V[22][2];
+	u32 MMR_Order_V;
+	u32 EL_NLQ_Offset_V;
+	u32 EL_Coefficient_V[3];
 };
 
 /** @brief DM registers for IPCORE 1 */
 struct dm_register_ipcore_1_s {
-	u32 SRANGE;
-	u32 SRANGE_inverse;
-	u32 FRAME_format_1;
-	u32 FRAME_format_2;
-	u32 FRAME_pixel_def;
-	u32 Y2RGB_coefficient_1;
-	u32 Y2RGB_coefficient_2;
-	u32 Y2RGB_coefficient_3;
-	u32 Y2RGB_coefficient_4;
-	u32 Y2RGB_coefficient_5;
-	u32 Y2RGB_offset_1;
-	u32 Y2RGB_offset_2;
-	u32 Y2RGB_offset_3;
+	u32 SRange;
+	u32 Srange_Inverse;
+	u32 Frame_Format_1;
+	u32 Frame_Format_2;
+	u32 Frame_Pixel_Def;
+	u32 Y2RGB_Coefficient_1;
+	u32 Y2RGB_Coefficient_2;
+	u32 Y2RGB_Coefficient_3;
+	u32 Y2RGB_Coefficient_4;
+	u32 Y2RGB_Coefficient_5;
+	u32 Y2RGB_Offset_1;
+	u32 Y2RGB_Offset_2;
+	u32 Y2RGB_Offset_3;
 	u32 EOTF;
 /*	u32 Sparam_1;*/
 /*	u32 Sparam_2;*/
 /*	u32 Sgamma; */
-	u32 A2B_coefficient_1;
-	u32 A2B_coefficient_2;
-	u32 A2B_coefficient_3;
-	u32 A2B_coefficient_4;
-	u32 A2B_coefficient_5;
-	u32 C2D_coefficient_1;
-	u32 C2D_coefficient_2;
-	u32 C2D_coefficient_3;
-	u32 C2D_coefficient_4;
-	u32 C2D_coefficient_5;
-	u32 C2D_offset;
-	u32 ACTIVE_area_left_top;
-	u32 ACTIVE_area_bottom_right;
+	u32 A2B_Coefficient_1;
+	u32 A2B_Coefficient_2;
+	u32 A2B_Coefficient_3;
+	u32 A2B_Coefficient_4;
+	u32 A2B_Coefficient_5;
+	u32 C2D_Coefficient_1;
+	u32 C2D_Coefficient_2;
+	u32 C2D_Coefficient_3;
+	u32 C2D_Coefficient_4;
+	u32 C2D_Coefficient_5;
+	u32 C2D_Offset;
+	u32 Active_area_left_top;
+	u32 Active_area_bottom_right;
 };
 
 /** @brief DM registers for IPCORE 2 */
 struct dm_register_ipcore_2_s {
-	u32 SRANGE;
-	u32 SRANGE_inverse;
-	u32 Y2RGB_coefficient_1;
-	u32 Y2RGB_coefficient_2;
-	u32 Y2RGB_coefficient_3;
-	u32 Y2RGB_coefficient_4;
-	u32 Y2RGB_coefficient_5;
-	u32 Y2RGB_offset_1;
-	u32 Y2RGB_offset_2;
-	u32 Y2RGB_offset_3;
-	u32 FRAME_format;
+	u32 SRange;
+	u32 Srange_Inverse;
+	u32 Y2RGB_Coefficient_1;
+	u32 Y2RGB_Coefficient_2;
+	u32 Y2RGB_Coefficient_3;
+	u32 Y2RGB_Coefficient_4;
+	u32 Y2RGB_Coefficient_5;
+	u32 Y2RGB_Offset_1;
+	u32 Y2RGB_Offset_2;
+	u32 Y2RGB_Offset_3;
+	u32 Frame_Format;
 	u32 EOTF;
-	u32 A2B_coefficient_1;
-	u32 A2B_coefficient_2;
-	u32 A2B_coefficient_3;
-	u32 A2B_coefficient_4;
-	u32 A2B_coefficient_5;
-	u32 C2D_coefficient_1;
-	u32 C2D_coefficient_2;
-	u32 C2D_coefficient_3;
-	u32 C2D_coefficient_4;
-	u32 C2D_coefficient_5;
-	u32 C2D_offset;
-	u32 VDR_resolution;
+	u32 A2B_Coefficient_1;
+	u32 A2B_Coefficient_2;
+	u32 A2B_Coefficient_3;
+	u32 A2B_Coefficient_4;
+	u32 A2B_Coefficient_5;
+	u32 C2D_Coefficient_1;
+	u32 C2D_Coefficient_2;
+	u32 C2D_Coefficient_3;
+	u32 C2D_Coefficient_4;
+	u32 C2D_Coefficient_5;
+	u32 C2D_Offset;
+	u32 VDR_Resolution;
 };
 
 /** @brief DM registers for IPCORE 3 */
@@ -345,19 +345,19 @@ struct dm_register_ipcore_3_s {
 	u32 D2C_coefficient_3;
 	u32 D2C_coefficient_4;
 	u32 D2C_coefficient_5;
-	u32 B2A_coefficient_1;
-	u32 B2A_coefficient_2;
-	u32 B2A_coefficient_3;
-	u32 B2A_coefficient_4;
-	u32 B2A_coefficient_5;
-	u32 EOTF_param_1;
-	u32 EOTF_param_2;
-	u32 IPT_scale;
-	u32 IPT_offset_1;
-	u32 IPT_offset_2;
-	u32 IPT_offset_3;
-	u32 OUTPUT_range_1;
-	u32 OUTPUT_range_2;
+	u32 B2A_Coefficient_1;
+	u32 B2A_Coefficient_2;
+	u32 B2A_Coefficient_3;
+	u32 B2A_Coefficient_4;
+	u32 B2A_Coefficient_5;
+	u32 Eotf_param_1;
+	u32 Eotf_param_2;
+	u32 IPT_Scale;
+	u32 IPT_Offset_1;
+	u32 IPT_Offset_2;
+	u32 IPT_Offset_3;
+	u32 Output_range_1;
+	u32 Output_range_2;
 	u32 RGB2YUV_coefficient_register1;
 	u32 RGB2YUV_coefficient_register2;
 	u32 RGB2YUV_coefficient_register3;
@@ -370,10 +370,10 @@ struct dm_register_ipcore_3_s {
 
 /** @brief DM luts for IPCORE 1 and 2 */
 struct dm_lut_ipcore_s {
-	u32 tm_lut_i[64 * 4];
-	u32 tm_lut_s[64 * 4];
-	u32 sm_lut_i[64 * 4];
-	u32 sm_lut_s[64 * 4];
+	u32 TmLutI[64 * 4];
+	u32 TmLutS[64 * 4];
+	u32 SmLutI[64 * 4];
+	u32 SmLutS[64 * 4];
 	u32 G2L[DEF_G2L_LUT_SIZE];
 };
 

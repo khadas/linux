@@ -449,7 +449,7 @@ MODULE_PARM_DESC(panel_max_lumin, "\n panel_max_lumin\n");
 
 #ifdef V1_5
 
-struct TARGET_display_config def_tgt_display_cfg = {
+struct TargetDisplayConfig def_tgt_display_cfg = {
 	4095, /* gain */
 	0, /* offset */
 	39322, /* gamma */
@@ -647,7 +647,7 @@ struct TARGET_display_config def_tgt_display_cfg = {
 	{0, 0, 0, 0, 0, 0, 0, 0} /* padding[8] */
 };
 
-struct TARGET_display_config def_tgt_display_cfg_ll = {
+struct TargetDisplayConfig def_tgt_display_cfg_ll = {
 	4095, /* gain */
 	0, /* offset */
 	39322, /* gamma */
@@ -846,7 +846,7 @@ struct TARGET_display_config def_tgt_display_cfg_ll = {
 };
 
 #else
-struct TARGET_display_config def_tgt_display_cfg = {
+struct TargetDisplayConfig def_tgt_display_cfg = {
 	2048, /* gain */
 	4095, /* offset */
 	39322, /* gamma */
@@ -4296,25 +4296,25 @@ static void dump_setting
 
 	if ((debug_flag & 0x20) && dump_enable) {
 		pr_info("\ncore1lut\n");
-		p = (u32 *)&setting->dm_lut1.tm_lut_i;
+		p = (u32 *)&setting->dm_lut1.TmLutI;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut1.tm_lut_s;
+		p = (u32 *)&setting->dm_lut1.TmLutS;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut1.sm_lut_i;
+		p = (u32 *)&setting->dm_lut1.SmLutI;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut1.sm_lut_s;
+		p = (u32 *)&setting->dm_lut1.SmLutS;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
@@ -4347,25 +4347,25 @@ static void dump_setting
 
 	if ((debug_flag & 0x20) && dump_enable && !is_graphics_output_off()) {
 		pr_info("\ncore2lut\n");
-		p = (u32 *)&setting->dm_lut2.tm_lut_i;
+		p = (u32 *)&setting->dm_lut2.TmLutI;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut2.tm_lut_s;
+		p = (u32 *)&setting->dm_lut2.TmLutS;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut2.sm_lut_i;
+		p = (u32 *)&setting->dm_lut2.SmLutI;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
 			 p[i * 4 + 3], p[i * 4 + 2], p[i * 4 + 1], p[i * 4]);
 		pr_info("\n");
-		p = (u32 *)&setting->dm_lut2.sm_lut_s;
+		p = (u32 *)&setting->dm_lut2.SmLutS;
 		for (i = 0; i < 64; i++)
 			pr_info
 			("%08x, %08x, %08x, %08x\n",
@@ -4467,7 +4467,6 @@ static int is_policy_changed(void)
 	int ret = 0;
 
 	if (last_dolby_vision_policy != dolby_vision_policy) {
-		/* handle policy change */
 		pr_dolby_dbg("policy changed %d->%d\n",
 			     last_dolby_vision_policy,
 			     dolby_vision_policy);
@@ -6003,7 +6002,7 @@ static int is_video_output_off(struct vframe_s *vf)
 
 static void calculate_panel_max_pq
 	(const struct vinfo_s *vinfo,
-	 struct TARGET_display_config *config)
+	 struct TargetDisplayConfig *config)
 {
 	u32 max_lin = tv_max_lin;
 	u16 max_pq = tv_max_pq;
@@ -6035,8 +6034,8 @@ static void calculate_panel_max_pq
 		tv_max_pq = max_pq;
 		config->max_lin = tv_max_lin << 18;
 		config->max_lin_dupli = tv_max_lin << 18;
-		config->max_pq = tv_max_pq;
-		config->max_pq_dupli = tv_max_pq;
+		config->maxPq = tv_max_pq;
+		config->maxPq_dupli = tv_max_pq;
 	}
 }
 
@@ -6539,27 +6538,27 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		tv_dovi_setting->video_width = w << 16;
 		tv_dovi_setting->video_height = h << 16;
 		((struct pq_config_s *)
-			pq_config_fake)->target_display_config.tuning_mode =
+			pq_config_fake)->target_display_config.tuningMode =
 			dolby_vision_tuning_mode;
 		if (dolby_vision_flags & FLAG_DISABLE_COMPOSER) {
 			((struct pq_config_s *)pq_config_fake)
-				->target_display_config.tuning_mode |=
+				->target_display_config.tuningMode |=
 				TUNINGMODE_EL_FORCEDDISABLE;
 			el_halfsize_flag = 0;
 		} else {
 			((struct pq_config_s *)pq_config_fake)
-				->target_display_config.tuning_mode &=
+				->target_display_config.tuningMode &=
 				(~TUNINGMODE_EL_FORCEDDISABLE);
 		}
 #ifdef V1_5
 		/* disable global dimming */
 		if (dolby_vision_flags & FLAG_CERTIFICAION)
 			((struct pq_config_s *)pq_config_fake)
-				->target_display_config.tuning_mode &=
+				->target_display_config.tuningMode &=
 				(~TUNINGMODE_EXTLEVEL4_DISABLE);
 		else
 			((struct pq_config_s *)pq_config_fake)
-				->target_display_config.tuning_mode |=
+				->target_display_config.tuningMode |=
 				TUNINGMODE_EXTLEVEL4_DISABLE;
 
 		if (src_format != tv_dovi_setting->src_format) {
