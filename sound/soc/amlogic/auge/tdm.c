@@ -1610,7 +1610,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
 	/*mute default clk */
-	if (p_tdm->start_clk_enable == 1 && p_tdm->pin_ctl) {
+	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
 		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
@@ -1629,7 +1629,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
 	/*set default clk for output*/
-	if (p_tdm->start_clk_enable == 1 && p_tdm->pin_ctl) {
+	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *state = NULL;
 
 		aml_set_default_tdm_clk(p_tdm);
@@ -1644,10 +1644,6 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static void aml_tdm_platform_shutdown(struct platform_device *pdev)
-{
-}
-
 struct platform_driver aml_tdm_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -1656,7 +1652,6 @@ struct platform_driver aml_tdm_driver = {
 	.probe	 = aml_tdm_platform_probe,
 	.suspend = aml_tdm_platform_suspend,
 	.resume  = aml_tdm_platform_resume,
-	.shutdown = aml_tdm_platform_shutdown,
 };
 module_platform_driver(aml_tdm_driver);
 
