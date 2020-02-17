@@ -568,6 +568,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 
 static void meson_ee_pwrc_shutdown(struct platform_device *pdev)
 {
+#if 0
 	struct meson_ee_pwrc *pwrc = platform_get_drvdata(pdev);
 	int i;
 
@@ -577,6 +578,7 @@ static void meson_ee_pwrc_shutdown(struct platform_device *pdev)
 		if (dom->desc.get_power && !dom->desc.get_power(dom))
 			meson_ee_pwrc_off(&dom->base);
 	}
+#endif
 }
 
 static struct meson_ee_pwrc_domain_data meson_ee_g12a_pwrc_data = {
