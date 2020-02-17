@@ -7713,6 +7713,14 @@ bool for_dolby_vision_certification(void)
 }
 EXPORT_SYMBOL(for_dolby_vision_certification);
 
+bool for_dolby_vision_video_effect(void)
+{
+	return is_dolby_vision_on() &&
+		dolby_vision_flags & FLAG_BYPASS_VPP;
+}
+EXPORT_SYMBOL(for_dolby_vision_video_effect);
+
+
 void dolby_vision_set_toggle_flag(int flag)
 {
 	if (flag) {

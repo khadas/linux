@@ -5,6 +5,28 @@
 
 #ifndef CODECIO_REGISTER_MAP_H
 #define CODECIO_REGISTER_MAP_H
+
+#include <linux/io.h>
+
+struct codecio_device_data_s {
+	int cpu_id;
+};
+
+enum {
+	CODECIO_CBUS_BASE = 0,
+	CODECIO_DOSBUS_BASE,
+	CODECIO_HIUBUS_BASE,
+	CODECIO_AOBUS_BASE,
+	CODECIO_VCBUS_BASE,
+	CODECIO_DMCBUS_BASE,
+	CODECIO_EFUSE_BASE,
+	CODECIO_BUS_MAX,
+};
+
+extern void __iomem *vpp_base;
+extern void __iomem *hiu_base;
+extern uint codecio_reg_start[CODECIO_BUS_MAX];
+
 int codecio_read_cbus(unsigned int reg);
 void codecio_write_cbus(unsigned int reg, unsigned int val);
 int codecio_read_dosbus(unsigned int reg);

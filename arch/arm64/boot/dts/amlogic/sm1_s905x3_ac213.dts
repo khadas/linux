@@ -289,6 +289,15 @@
 		status = "okay";
 	};
 
+	amlvecm {
+		compatible = "amlogic, vecm";
+		dev_name = "aml_vecm";
+		status = "okay";
+		gamma_en = <0>;/*1:enabel ;0:disable*/
+		wb_en = <0>;/*1:enabel ;0:disable*/
+		cm_en = <0>;/*1:enabel ;0:disable*/
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>;

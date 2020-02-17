@@ -139,6 +139,9 @@ enum mode_type {
 
 #define DV_IEEE_OUI	0x00D046
 #define HDR10_PLUS_IEEE_OUI	0x90848B
+#define HDR10_PLUS_DISABLE_VSIF 0
+#define HDR10_PLUS_ENABLE_VSIF  1
+#define HDR10_PLUS_ZERO_VSIF    2
 
 /* Dolby Version VSIF  parameter*/
 struct dv_vsif_para {

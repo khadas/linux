@@ -19,25 +19,10 @@
 #ifndef __SOC_IO_H
 #define __SOC_IO_H
 
-enum{
-	IO_CBUS_BASE = 0,
-	IO_APB_BUS_BASE,
-	IO_AOBUS_BASE,
-	IO_VAPB_BUS_BASE,
-	IO_HIUBUS_BASE,
-	IO_BUS_MAX,
-};
-
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/io.h>
-extern void __iomem *vpp_base;
-extern uint vpp_max;
 
-static inline int aml_reg_vcbus_invalid(unsigned int reg)
-{
-	return !(vpp_base && (vpp_max >= reg));
-}
-
+/* vpp simple io */
 static inline int aml_read_vcbus_s(unsigned int reg)
 {
 	return readl((vpp_base + (reg << 2)));
@@ -48,8 +33,10 @@ static inline void aml_write_vcbus_s(unsigned int reg, unsigned int val)
 	writel(val, (vpp_base + (reg << 2)));
 }
 
-static inline void aml_vcbus_update_bits_s(unsigned int reg, unsigned int value,
-					   unsigned int start, unsigned int len)
+static inline void aml_vcbus_update_bits_s(unsigned int reg,
+					   unsigned int value,
+					   unsigned int start,
+					   unsigned int len)
 {
 	unsigned int tmp, orig;
 	unsigned int mask = (((1L << len) - 1) << start);
@@ -59,6 +46,33 @@ static inline void aml_vcbus_update_bits_s(unsigned int reg, unsigned int value,
 	tmp = orig  & ~mask;
 	tmp |= (value << start) & mask;
 	writel(tmp, (vpp_base + r));
+}
+
+/* hiu simple io */
+static inline int aml_read_hiubus_s(unsigned int reg)
+{
+	return readl((hiu_base + (reg << 2)));
+}
+
+static inline void aml_write_hiubus_s(unsigned int reg,
+				      unsigned int val)
+{
+	writel(val, (hiu_base + (reg << 2)));
+}
+
+static inline void aml_hiubus_update_bits_s(unsigned int reg,
+					    unsigned int value,
+					    unsigned int start,
+					    unsigned int len)
+{
+	unsigned int tmp, orig;
+	unsigned int mask = (((1L << len) - 1) << start);
+	int r = (reg << 2);
+
+	orig =  readl((hiu_base + r));
+	tmp = orig  & ~mask;
+	tmp |= (value << start) & mask;
+	writel(tmp, (hiu_base + r));
 }
 
 #endif

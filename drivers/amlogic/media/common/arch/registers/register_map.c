@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/utils/log.h>
-#include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/cpu_version.h>
 
 static u32 regs_cmd_debug;
 
@@ -65,9 +65,6 @@ static struct codecio_device_data_s codecio_tl1 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_TL1,
 };
 
-static struct codecio_device_data_s codecio_c1 = {
-	.cpu_id = MESON_CPU_MAJOR_ID_C1,
-};
 
 static struct codecio_device_data_s codecio_sm1 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_SM1,
@@ -124,10 +121,6 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.data = &codecio_tl1,
 	},
 	{
-		.compatible = "amlogic, meson-c1, codec-io",
-		.data = &codecio_c1,
-	},
-	{
 		.compatible = "amlogic, meson-sm1, codec-io",
 		.data = &codecio_sm1,
 	},
@@ -138,18 +131,10 @@ static const struct of_device_id codec_io_dt_match[] = {
 	{},
 };
 
-enum {
-	CODECIO_CBUS_BASE = 0,
-	CODECIO_DOSBUS_BASE,
-	CODECIO_HIUBUS_BASE,
-	CODECIO_AOBUS_BASE,
-	CODECIO_VCBUS_BASE,
-	CODECIO_DMCBUS_BASE,
-	CODECIO_EFUSE_BASE,
-	CODECIO_BUS_MAX,
-};
-
 static void __iomem *codecio_reg_map[CODECIO_BUS_MAX];
+uint codecio_reg_start[CODECIO_BUS_MAX];
+void __iomem *vpp_base;
+void __iomem *hiu_base;
 
 static int codecio_reg_read(u32 bus_type, unsigned int reg, unsigned int *val)
 {
@@ -754,6 +739,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 		if (res.start != 0) {
 			codecio_reg_map[i] =
 				ioremap(res.start, resource_size(&res));
+			codecio_reg_start[i] = res.start;
 			if (!codecio_reg_map[i]) {
 				pr_err("cannot map codec_io registers\n");
 				return -ENOMEM;
@@ -764,6 +750,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 				 (unsigned long)codecio_reg_map[i]);
 		} else {
 			codecio_reg_map[i] = 0;
+			codecio_reg_start[i] = 0;
 			pr_debug("ignore io source start %lx,size=%d\n",
 				 (unsigned long)res.start,
 				 (int)resource_size(&res));
@@ -773,6 +760,11 @@ static int __init codec_io_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		codecio_reg_map[i] = base;
+		if (i == CODECIO_HIUBUS_BASE)
+			hiu_base = codecio_reg_map[i];
+		if (i == CODECIO_VCBUS_BASE)
+			vpp_base = codecio_reg_map[i];
+
 		pr_info("codec map io source 0x%lx,size=%d to 0x%lx\n",
 		       (unsigned long)res.start, (int)resource_size(&res),
 		       (unsigned long)codecio_reg_map[i]);
