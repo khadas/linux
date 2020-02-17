@@ -79,5 +79,7 @@ source "drivers/amlogic/cec/Kconfig"
 
 source "drivers/amlogic/uart/Kconfig"
 source "drivers/amlogic/reboot/Kconfig"
+source "drivers/amlogic/smartcard/Kconfig"
+
 endmenu
 endif

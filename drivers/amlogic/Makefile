@@ -30,3 +30,4 @@ obj-$(CONFIG_AMLOGIC_UART)              += uart/
 obj-$(CONFIG_AMLOGIC_CEC)		+= cec/
 obj-$(CONFIG_AMLOGIC_BT_DEVICE) += bluetooth/
 obj-$(CONFIG_AMLOGIC_GX_REBOOT)		+= reboot/
+obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard/
