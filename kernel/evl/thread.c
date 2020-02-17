@@ -1575,6 +1575,7 @@ static void handle_migration_event(struct dovetail_migration_data *d)
 	 */
 	if (thread->state & (EVL_THREAD_BLOCK_BITS & ~T_INBAND)) {
 		evl_kick_thread(thread, 0);
+		evl_schedule();
 		if (thread->state & T_USER)
 			dovetail_request_ucall(thread->altsched.task);
 	}
