@@ -4346,6 +4346,68 @@ static struct clk_regmap g12a_dsi_meas = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* cts_vdin_meas_clk */
+static const struct clk_parent_data sm1_vdin_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_vid_pll.hw },
+	{ .hw = &g12a_gp0_pll.hw },
+	{ .hw = &g12a_fclk_div2.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+};
+
+static struct clk_regmap sm1_vdin_meas_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdin_meas_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = sm1_vdin_parent_hws,
+		.num_parents = ARRAY_SIZE(sm1_vdin_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap sm1_vdin_meas_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdin_meas_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vdin_meas_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap sm1_vdin_meas_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdin_meas_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vdin_meas_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+#endif
+
 static const struct clk_parent_data g12a_vdec_mux_parent_hws[] = {
 	{ .hw = &g12a_vdec_1.hw },
 	{ .hw = &g12a_vdec_p1.hw },
@@ -5433,6 +5495,11 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_SPICC1_MUX]		= &g12a_spicc1_mux.hw,
 		[CLKID_SPICC1_DIV]		= &g12a_spicc1_div.hw,
 		[CLKID_SPICC1_GATE]		= &g12a_spicc1_gate.hw,
+#ifdef CONFIG_AMLOGIC_MODIFY
+		[CLKID_VDIN_MEAS_MUX]		= &sm1_vdin_meas_mux.hw,
+		[CLKID_VDIN_MEAS_DIV]		= &sm1_vdin_meas_div.hw,
+		[CLKID_VDIN_MEAS_GATE]		= &sm1_vdin_meas_gate.hw,
+#endif
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5709,6 +5776,9 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&g12a_spicc1_mux,
 	&g12a_spicc1_div,
 	&g12a_spicc1_gate,
+	&sm1_vdin_meas_mux,
+	&sm1_vdin_meas_div,
+	&sm1_vdin_meas_gate,
 #endif
 };
 
