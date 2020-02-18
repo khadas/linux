@@ -225,7 +225,7 @@ u32 index2canvas(u32 index)
 	return ppmgr_canvas_tab[index];
 }
 
-static bool is_valid_ppframe(struct ppframe_s *pp_vf)
+static inline bool is_valid_ppframe(struct ppframe_s *pp_vf)
 {
 	return (pp_vf >= &vfp_pool[0] &&
 		pp_vf <= &vfp_pool[VF_POOL_SIZE - 1]);
@@ -2537,13 +2537,11 @@ static int ppmgr_task(void *data)
 					first_frame_type;
 				reset_tb = 1;
 				/* keep old invert */
-				if (ppmgr_device.tb_detect & 0xe) {
-					PPMGRVPP_INFO("tb interlace change, ");
-					PPMGRVPP_INFO("old: %d, ", last_type);
-					PPMGRVPP_INFO("new: %d, invert: %d\n",
-						      first_frame_type,
-						      cur_invert);
-				}
+				if (ppmgr_device.tb_detect & 0xe)
+					pr_info("PPMGRVPP: info: tb interlace seq change, old: %d, new: %d, invert: %d\n",
+						last_type,
+						first_frame_type,
+						cur_invert);
 			} else if (last_type == 0 &&
 				   (vf->type & VIDTYPE_TYPEMASK) != 0) {
 				/* prog -> interlace changed */
@@ -2552,13 +2550,9 @@ static int ppmgr_task(void *data)
 				tb_first_frame_type =
 					first_frame_type;
 				reset_tb = 1;
-				if (ppmgr_device.tb_detect & 0xe) {
-					PPMGRVPP_INFO("tb prog -> interlace,");
-					PPMGRVPP_INFO(" new type: %d,",
-						      first_frame_type);
-					PPMGRVPP_INFO(" invert: %d\n",
-						      cur_invert);
-				}
+				if (ppmgr_device.tb_detect & 0xe)
+					pr_info("PPMGRVPP: info: tb prog -> interlace, new type: %d, invert: %d\n",
+						first_frame_type, cur_invert);
 				/* not invert */
 				cur_invert = 0;
 			} else if ((last_width != vf->width ||
@@ -2571,21 +2565,15 @@ static int ppmgr_task(void *data)
 					first_frame_type;
 				reset_tb = 1;
 				/* keep old invert */
-				if (ppmgr_device.tb_detect & 0xe) {
-					PPMGRVPP_INFO("tb size change: ");
-					PPMGRVPP_INFO("new type: %d,",
-						      first_frame_type);
-					PPMGRVPP_INFO(" invert: %d\n",
-						      cur_invert);
-				}
+				if (ppmgr_device.tb_detect & 0xe)
+					pr_info("PPMGRVPP: info: tb size change new type: %d, invert: %d\n",
+						first_frame_type, cur_invert);
 			} else if (last_type != 0 &&
 				   (vf->type & VIDTYPE_TYPEMASK) == 0) {
 				/* interlace -> prog changed */
-				if (ppmgr_device.tb_detect & 0xe) {
-					PPMGRVPP_INFO("tb interlace -> prog,");
-					PPMGRVPP_INFO("invert: %d\n",
-						      cur_invert);
-				}
+				if (ppmgr_device.tb_detect & 0xe)
+					pr_info("PPMGRVPP: info: tb interlace -> prog, invert: %d\n",
+						cur_invert);
 				/* not invert */
 				cur_invert = 0;
 			}
@@ -2669,25 +2657,19 @@ static int ppmgr_task(void *data)
 					vf->type |= cur_invert <<
 						TB_DETECT_MASK_BIT;
 					if (old_invert != cur_invert &&
-					    (ppmgr_device.tb_detect & 0xe)) {
-						PPMGRVPP_INFO("tb flag:");
-						PPMGRVPP_INFO("%d->%d, ",
-							      tb_last_flag,
-							      tbf_flag);
-						PPMGRVPP_INFO("invert: %d->%d",
-							      old_invert,
-							      cur_invert);
-					} else if (tb_last_flag
-						   != tbf_flag &&
-						   (ppmgr_device.tb_detect
-						   & 0xc)) {
-						PPMGRVPP_INFO("tb detect flag");
-						PPMGRVPP_INFO("%d->%d,",
-							      tb_last_flag,
-							      tbf_flag);
-						PPMGRVPP_INFO(" invert: %d\n",
-							      cur_invert);
-					}
+					    (ppmgr_device.tb_detect & 0xe))
+						pr_info("PPMGRVPP: info: tb detect flag: %d->%d, invert: %d->%d\n",
+							tb_last_flag,
+							tbf_flag,
+							old_invert,
+							cur_invert);
+					else if (tb_last_flag != tbf_flag &&
+						 (ppmgr_device.tb_detect
+						  & 0xc))
+						pr_info("PPMGRVPP: info: tb detect flag %d->%d, invert: %d\n",
+							tb_last_flag,
+							tbf_flag,
+							cur_invert);
 					tb_last_flag = tbf_flag;
 					atomic_set(&tb_detect_flag,
 						   TB_DETECT_NC);
@@ -2696,10 +2678,8 @@ static int ppmgr_task(void *data)
 				    last_type != first_frame_type) {
 					skip_picture++;
 					atomic_set(&tb_skip_flag, 1);
-					if (ppmgr_device.tb_detect & 0xc) {
-						PPMGRVPP_INFO("tb skip case1");
-						PPMGRVPP_INFO("\n");
-					}
+					if (ppmgr_device.tb_detect & 0xc)
+						pr_info("PPMGRVPP: info: tb detect skip case1\n");
 					goto SKIP_DETECT;
 				}
 				if (tb_buff_wptr < tb_buffer_len &&
@@ -2708,10 +2688,8 @@ static int ppmgr_task(void *data)
 								   &ge2d_config
 								   );
 				} else {
-					if (ppmgr_device.tb_detect & 0xc) {
-						PPMGRVPP_INFO("tb skip case2");
-						PPMGRVPP_INFO("\n");
-					}
+					if (ppmgr_device.tb_detect & 0xc)
+						pr_info("PPMGRVPP: info: tb detect skip case2\n");
 					atomic_set(&tb_skip_flag, 1);
 					skip_picture++;
 				}
@@ -2987,8 +2965,7 @@ int ppmgr_buffer_init(int vout_mode)
 		if (vout_mode == 0) {
 			ppmgr_device.vinfo = get_current_vinfo();
 			if (IS_ERR_OR_NULL(ppmgr_device.vinfo)) {
-				PPMGRVPP_ERR("failed to get vinfo!");
-				PPMGRVPP_ERR(" Try to MAKE one!\n");
+				pr_info("PPMGRVPP: info: failed to get_currnt_vinfo! Try to MAKE one!");
 				ppmgr_device.vinfo = &vinfo;
 			}
 

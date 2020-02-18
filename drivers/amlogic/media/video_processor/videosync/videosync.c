@@ -125,7 +125,7 @@ static void ts_pcrscr_set(struct videosync_s *dev_s, u32 pts)
 {
 	dev_s->system_time = pts;
 	vp_print(dev_s->vf_receiver_name, PRINT_TIMESTAMP,
-		 "ts pcrscr set sys_time %d\n", dev_s->system_time);
+		 "%s sys_time %u\n", __func__, dev_s->system_time);
 }
 
 static void ts_pcrscr_enable(struct videosync_s *dev_s, u32 enable)
@@ -331,13 +331,9 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 						system_time_scale_base;
 				}
 				vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
-					 "update sys_time %d,",
-					 dev_s->system_time);
-				vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
-					 "system_time_scale_base %d\n",
-					 system_time_scale_base);
-				vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
-					 "inc %d\n", inc);
+					 "update sys_time %u, system_time_scale_base %d, inc %d\n",
+					 dev_s->system_time,
+					 system_time_scale_base, inc);
 			}
 
 			/*check if need to correct pcr by omx_pts*/
@@ -954,7 +950,7 @@ int videosync_alloc_map(int *inst)
 		if (dev_s->inst >= 0  && !dev_s->mapped) {
 			dev_s->mapped = true;
 			*inst = dev_s->inst;
-			pr_info("videosync alloc map %d OK\n", dev_s->inst);
+			pr_info("%s %d OK\n", __func__, dev_s->inst);
 			mutex_unlock(&vp_dev->vp_mutex);
 			return 0;
 		}
@@ -1457,13 +1453,8 @@ void videosync_sync(struct videosync_s *dev_s)
 				ready_q_size = vfq_level(&dev_s->ready_q);
 				vp_print(dev_s->vf_receiver_name,
 					 PRINT_QUEUE_STATUS,
-					 "add pts %d index 0x%x to ready_q ",
-					 vf->pts, vf->index);
-				vp_print(dev_s->vf_receiver_name,
-					 PRINT_QUEUE_STATUS,
-					 "size %d\n",
-					 ready_q_size);
-
+					 "add pts %u index 0x%x to ready_q, size %d\n",
+					 vf->pts, vf->index, ready_q_size);
 #ifdef CONFIG_AMLOGIC_MEDIA_VFM
 			vf_notify_receiver(dev_s->vf_provider_name,
 					   VFRAME_EVENT_PROVIDER_VFRAME_READY,
@@ -1512,12 +1503,8 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 				dev_s->get_frame_count++;
 				vp_print(dev_s->vf_receiver_name,
 					 PRINT_QUEUE_STATUS,
-					 "add pts %d index 0x%x to queued_q, ",
-					 vf->pts,
-					 vf->index);
-				vp_print(dev_s->vf_receiver_name,
-					 PRINT_QUEUE_STATUS,
-					 "size %d\n",
+					 "add pts %u index 0x%x to queued_q, size %d\n",
+					 vf->pts, vf->index,
 					 vfq_level(&dev_s->queued_q));
 			}
 		}
