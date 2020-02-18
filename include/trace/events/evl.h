@@ -808,11 +808,11 @@ DEFINE_EVENT(evl_clock_timespec, evl_clock_settime,
 );
 
 TRACE_EVENT(evl_clock_adjtime,
-	TP_PROTO(struct evl_clock *clock, struct timex *tx),
+	TP_PROTO(struct evl_clock *clock, struct __kernel_timex *tx),
 	TP_ARGS(clock, tx),
 
 	TP_STRUCT__entry(
-		__field(struct timex *, tx)
+		__field(struct __kernel_timex *, tx)
 		__string(name, clock->name)
 	),
 
