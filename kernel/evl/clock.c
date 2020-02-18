@@ -12,6 +12,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/tick.h>
+#include <linux/timex.h>
 #include <linux/kconfig.h>
 #include <linux/clocksource.h>
 #include <linux/bitmap.h>
@@ -562,9 +563,9 @@ static int set_clock_time(struct evl_clock *clock,
 }
 
 static int adjust_clock_time(struct evl_clock *clock,
-			struct timex __user *u_tx)
+			struct __kernel_timex __user *u_tx)
 {
-	struct timex tx;
+	struct __kernel_timex tx;
 	int ret;
 
 	ret = raw_copy_from_user(&tx, u_tx, sizeof(tx));
@@ -841,7 +842,7 @@ static long clock_common_ioctl(struct evl_clock *clock,
 		break;
 	case EVL_CLKIOC_ADJ_TIME:
 		ret = adjust_clock_time(clock,
-					(struct timex __user *)arg);
+					(struct __kernel_timex __user *)arg);
 		break;
 	default:
 		ret = -ENOTTY;

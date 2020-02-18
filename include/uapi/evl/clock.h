@@ -16,6 +16,12 @@
 
 #define EVL_CLOCK_IOCBASE	'c'
 
+#ifndef __KERNEL__		/* Eeek. */
+#define __user_timex  timex
+#else
+#define __user_timex  __kernel_timex
+#endif
+
 struct evl_clock_sleepreq {
 	struct timespec timeout;
 };
@@ -24,7 +30,7 @@ struct evl_clock_sleepreq {
 #define EVL_CLKIOC_GET_RES	_IOR(EVL_CLOCK_IOCBASE, 1, struct timespec)
 #define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct timespec)
 #define EVL_CLKIOC_SET_TIME	_IOR(EVL_CLOCK_IOCBASE, 3, struct timespec)
-#define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct timex)
+#define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct __user_timex)
 #define EVL_CLKIOC_NEW_TIMER	_IO(EVL_CLOCK_IOCBASE, 5)
 
 /* Set operation flag for timers. */

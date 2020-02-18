@@ -21,6 +21,7 @@
 struct evl_rq;
 struct evl_timerbase;
 struct clock_event_device;
+struct __kernel_timex;
 
 struct evl_clock_gravity {
 	ktime_t irq;
@@ -48,7 +49,7 @@ struct evl_clock {
 		void (*reset_gravity)(struct evl_clock *clock);
 		void (*adjust)(struct evl_clock *clock);
 		int (*adjust_time)(struct evl_clock *clock,
-				struct timex *tx);
+				struct __kernel_timex *tx);
 	} ops;
 	struct evl_timerbase *timerdata;
 	struct evl_clock *master;
@@ -148,7 +149,8 @@ static inline void evl_reset_clock_gravity(struct evl_clock *clock)
 #define evl_get_clock_gravity(__clock, __type)  ((__clock)->gravity.__type)
 
 static inline
-int evl_clock_adjust_time(struct evl_clock *clock, struct timex *tx)
+int evl_clock_adjust_time(struct evl_clock *clock,
+			  struct __kernel_timex *tx)
 {
 	if (clock->ops.adjust_time)
 		return clock->ops.adjust_time(clock, tx);
