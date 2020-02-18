@@ -2970,6 +2970,159 @@ static struct clk_regmap g12a_vdec_hevc = {
 	},
 };
 
+/* wave_aclk */
+static const struct clk_parent_data g12a_wave_parent_data[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+	{ .hw = &g12a_mpll2.hw },
+	{ .hw = &g12a_mpll3.hw },
+	{ .hw = &g12a_gp0_pll.hw },
+};
+
+static struct clk_regmap g12a_wave_a_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_WAVE420L_CLK_CNTL2,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_a_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_wave_parent_data,
+		.num_parents = ARRAY_SIZE(g12a_wave_parent_data),
+	},
+};
+
+static struct clk_regmap g12a_wave_a_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_WAVE420L_CLK_CNTL2,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_a_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_a_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_wave_aclk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_WAVE420L_CLK_CNTL2,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_aclk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_a_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_wave_b_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_b_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_wave_parent_data,
+		.num_parents = ARRAY_SIZE(g12a_wave_parent_data),
+	},
+};
+
+static struct clk_regmap g12a_wave_b_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_b_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_b_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_wave_bclk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_bclk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_b_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_wave_c_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_c_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_wave_parent_data,
+		.num_parents = ARRAY_SIZE(g12a_wave_parent_data),
+	},
+};
+
+static struct clk_regmap g12a_wave_c_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_c_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_c_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_wave_cclk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_WAVE420L_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_cclk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_wave_c_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* VAPB Clock */
 
 static const struct clk_hw *g12a_vapb_parent_hws[] = {
@@ -4966,6 +5119,15 @@ static struct clk_hw_onecell_data g12a_hw_onecell_data = {
 		[CLKID_SPICC1_MUX]		= &g12a_spicc1_mux.hw,
 		[CLKID_SPICC1_DIV]		= &g12a_spicc1_div.hw,
 		[CLKID_SPICC1_GATE]		= &g12a_spicc1_gate.hw,
+		[CLKID_WAVE_A_SEL]		= &g12a_wave_a_sel.hw,
+		[CLKID_WAVE_A_DIV]		= &g12a_wave_a_div.hw,
+		[CLKID_WAVE_A_CLK]		= &g12a_wave_aclk.hw,
+		[CLKID_WAVE_B_SEL]		= &g12a_wave_b_sel.hw,
+		[CLKID_WAVE_B_DIV]		= &g12a_wave_b_div.hw,
+		[CLKID_WAVE_B_CLK]		= &g12a_wave_bclk.hw,
+		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
+		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
+		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5221,6 +5383,15 @@ static struct clk_hw_onecell_data g12b_hw_onecell_data = {
 		[CLKID_SPICC1_MUX]		= &g12a_spicc1_mux.hw,
 		[CLKID_SPICC1_DIV]		= &g12a_spicc1_div.hw,
 		[CLKID_SPICC1_GATE]		= &g12a_spicc1_gate.hw,
+		[CLKID_WAVE_A_SEL]		= &g12a_wave_a_sel.hw,
+		[CLKID_WAVE_A_DIV]		= &g12a_wave_a_div.hw,
+		[CLKID_WAVE_A_CLK]		= &g12a_wave_aclk.hw,
+		[CLKID_WAVE_B_SEL]		= &g12a_wave_b_sel.hw,
+		[CLKID_WAVE_B_DIV]		= &g12a_wave_b_div.hw,
+		[CLKID_WAVE_B_CLK]		= &g12a_wave_bclk.hw,
+		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
+		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
+		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5495,6 +5666,15 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_SPICC1_MUX]		= &g12a_spicc1_mux.hw,
 		[CLKID_SPICC1_DIV]		= &g12a_spicc1_div.hw,
 		[CLKID_SPICC1_GATE]		= &g12a_spicc1_gate.hw,
+		[CLKID_WAVE_A_SEL]		= &g12a_wave_a_sel.hw,
+		[CLKID_WAVE_A_DIV]		= &g12a_wave_a_div.hw,
+		[CLKID_WAVE_A_CLK]		= &g12a_wave_aclk.hw,
+		[CLKID_WAVE_B_SEL]		= &g12a_wave_b_sel.hw,
+		[CLKID_WAVE_B_DIV]		= &g12a_wave_b_div.hw,
+		[CLKID_WAVE_B_CLK]		= &g12a_wave_bclk.hw,
+		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
+		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
+		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
 #ifdef CONFIG_AMLOGIC_MODIFY
 		[CLKID_VDIN_MEAS_MUX]		= &sm1_vdin_meas_mux.hw,
 		[CLKID_VDIN_MEAS_DIV]		= &sm1_vdin_meas_div.hw,
@@ -5768,6 +5948,15 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&g12a_vpu_clkc_p1_div,
 	&g12a_vpu_clkc_p1,
 	&g12a_vpu_clkc_mux,
+	&g12a_wave_a_sel,
+	&g12a_wave_a_div,
+	&g12a_wave_aclk,
+	&g12a_wave_b_sel,
+	&g12a_wave_b_div,
+	&g12a_wave_bclk,
+	&g12a_wave_c_sel,
+	&g12a_wave_c_div,
+	&g12a_wave_cclk,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	&g12a_uart2,
 	&g12a_spicc0_mux,
