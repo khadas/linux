@@ -5755,33 +5755,35 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
 
-	if (sei && size &&
-	    vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID) {
+	if (vf->type & VIDTYPE_MVC) {
+		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
+	} else if (sei && size) {
 		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 		}
-	} else if (((signal_transfer_characteristic == 14) ||
-	     (signal_transfer_characteristic == 18)) &&
-	    (signal_color_primaries == 9)) {
-		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
-	} else if ((signal_transfer_characteristic == 0x30) &&
-		     ((signal_color_primaries == 9) ||
-		      (signal_color_primaries == 2))) {
-		if (check_media_sei(sei, size, HDR10P))
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PLUS;
-		else /* TODO: if need switch to HDR10 */
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-	} else if ((signal_transfer_characteristic == 16) &&
-		     ((signal_color_primaries == 9) ||
-		      (signal_color_primaries == 2))) {
-		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-	} else if (vf->type & VIDTYPE_MVC) {
-		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
 	}
 
-	if (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID)
-		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
+	if (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID) {
+		if ((signal_transfer_characteristic == 14 ||
+		     signal_transfer_characteristic == 18) &&
+		    signal_color_primaries == 9) {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
+		} else if ((signal_transfer_characteristic == 0x30) &&
+			     ((signal_color_primaries == 9) ||
+			      (signal_color_primaries == 2))) {
+			if (check_media_sei(sei, size, HDR10P))
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PLUS;
+			else /* TODO: if need switch to HDR10 */
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		} else if ((signal_transfer_characteristic == 16) &&
+			     ((signal_color_primaries == 9) ||
+			      (signal_color_primaries == 2))) {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		} else {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
+		}
+	}
 	return 0;
 }
 EXPORT_SYMBOL(update_vframe_src_fmt);
