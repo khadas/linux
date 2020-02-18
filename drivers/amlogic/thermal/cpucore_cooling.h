@@ -20,7 +20,6 @@ struct cpucore_cooling_device {
 };
 
 #define CPU_STOP 0x80000000
-#ifdef CONFIG_AMLOGIC_CPUCORE_THERMAL
 
 /**
  * cpucore_cooling_register - function to create cpucore cooling device.
@@ -34,17 +33,6 @@ struct thermal_cooling_device *cpucore_cooling_register(struct device_node *np,
  * @cdev: thermal cooling device pointer.
  */
 void cpucore_cooling_unregister(struct thermal_cooling_device *cdev);
-#else
-static inline struct thermal_cooling_device *
-cpucore_cooling_register(struct device_node *np, int cluster_id)
-{
-	return NULL;
-}
-
-static inline
-void cpucore_cooling_unregister(struct thermal_cooling_device *cdev)
-{
-}
-#endif
+extern struct platform_driver meson_tsensor_driver;
 
 #endif /* __CPU_COOLING_H__ */

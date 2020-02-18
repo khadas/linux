@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/printk.h>
@@ -10,7 +11,7 @@
 #include <linux/of.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu_cooling.h>
-#include <linux/amlogic/cpucore_cooling.h>
+#include "cpucore_cooling.h"
 #include <linux/amlogic/gpucore_cooling.h>
 #include <linux/amlogic/gpu_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
@@ -218,6 +219,24 @@ static struct platform_driver meson_cooldev_platdrv = {
 
 static int __init meson_cooldev_platdrv_init(void)
 {
+	int ret;
+
+	ret = platform_driver_register(&(meson_tsensor_driver));
+	if (ret)
+		return ret;
 	return platform_driver_register(&(meson_cooldev_platdrv));
 }
+
+static __exit void meson_cooldev_platdrv_exit(void)
+{
+	platform_driver_unregister(&meson_cooldev_platdrv);
+	platform_driver_unregister(&meson_tsensor_driver);
+}
+
 late_initcall(meson_cooldev_platdrv_init);
+module_exit(meson_cooldev_platdrv_exit);
+
+MODULE_DESCRIPTION("MESON Tsensor Driver");
+MODULE_AUTHOR("Huan Biao <huan.biao@amlogic.com>");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:meson-tsensor");

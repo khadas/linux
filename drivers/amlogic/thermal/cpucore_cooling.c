@@ -9,7 +9,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
-#include <linux/amlogic/cpucore_cooling.h>
+#include "cpucore_cooling.h"
 #include <linux/amlogic/cpu_hotplug.h>
 #include <linux/cpumask.h>
 #include <linux/amlogic/meson_cooldev.h>

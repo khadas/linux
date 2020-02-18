@@ -16,7 +16,7 @@ config AMLOGIC_THERMAL
 		If you want this support, you should say Y here.
 
 config AMLOGIC_COOLDEV
-	tristate "Amlogic cooling devices Support"
+	bool "Amlogic cooling devices Support"
 	depends on AMLOGIC_THERMAL
 	default n
 	help
@@ -27,7 +27,7 @@ config AMLOGIC_COOLDEV
 		If you want this support, you should say Y here.
 
 config AMLOGIC_CPUCORE_THERMAL
-	tristate "generic cpu core cooling support"
+	bool "generic cpu core cooling support"
 	depends on AMLOGIC_COOLDEV
 	default n
 	help

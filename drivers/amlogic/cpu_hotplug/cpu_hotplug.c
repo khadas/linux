@@ -99,6 +99,7 @@ void cpufreq_set_max_cpu_num(unsigned int num, unsigned int cluster)
 
 	mutex_unlock(&hpg.mutex);
 }
+EXPORT_SYMBOL(cpufreq_set_max_cpu_num);
 
 static int find_idlest_cpumask_cpu(unsigned int cluster)
 {

@@ -813,7 +813,7 @@ static const struct dev_pm_ops meson_tsensor_pm_ops = {
 			   meson_tsensor_runtime_resume, NULL)
 };
 
-static struct platform_driver meson_tsensor_driver = {
+struct platform_driver meson_tsensor_driver = {
 	.driver = {
 		.name   = "meson-tsensor",
 		.pm     = &meson_tsensor_pm_ops,
@@ -822,9 +822,3 @@ static struct platform_driver meson_tsensor_driver = {
 	.probe	= meson_tsensor_probe,
 	.remove	= meson_tsensor_remove,
 };
-module_platform_driver(meson_tsensor_driver);
-
-MODULE_DESCRIPTION("MESON Tsensor Driver");
-MODULE_AUTHOR("Huan Biao <huan.biao@amlogic.com>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:meson-tsensor");
