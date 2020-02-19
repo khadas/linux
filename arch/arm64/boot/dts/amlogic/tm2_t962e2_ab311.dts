@@ -329,28 +329,28 @@
 };
 
 &usb0 {
-	status = "disable";
+	status = "okay";
 };
 
 &usb2_phy_v2 {
-	status = "disable";
+	status = "okay";
 	portnum = <3>;
 };
 
 &usb3_phy_v2 {
-	status = "disable";
+	status = "okay";
 	portnum = <0>;
 	portconfig-30 = <0>;
 	portconfig-31 = <0>;
 };
 
 &usb_otg {
-	status = "disable";
+	status = "okay";
 	otg = <0>;
 };
 
 &dwc2_a {
-	status = "disable";
+	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
 };
