@@ -211,6 +211,16 @@
 	repeater_tx = <0x0>;
 };
 
+&pcie_A {
+	reset-gpio = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+	status = "disable";
+};
+
+&pcie_B {
+	/* ab311 only pcie a, no pcie b */
+	status = "disable";
+};
+
 &usb0 {
 	status = "disable";
 };
@@ -237,4 +247,3 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
 };
-
