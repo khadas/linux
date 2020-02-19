@@ -7,6 +7,7 @@
 
 #include "meson-sm1.dtsi"
 #include "partition_mbox_normal.dtsi"
+#include "mesonsm1_skt-panel.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
