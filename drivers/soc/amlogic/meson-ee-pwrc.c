@@ -245,7 +245,7 @@ static struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
 				    pwrc_ee_get_power, 3, PWRC_SM1_NNA_ID, 0),
 	[PWRC_SM1_USB_ID]  = TOP_PD("USB", &sm1_pwrc_usb, sm1_pwrc_mem_usb,
 				    pwrc_ee_get_power, 1, PWRC_SM1_USB_ID,
-				    GENPD_FLAG_ALWAYS_ON),
+				    0),
 	[PWRC_SM1_PCIE_ID] = TOP_PD("PCI", &sm1_pwrc_pci, sm1_pwrc_mem_pcie,
 				    pwrc_ee_get_power, 3, PWRC_SM1_PCIE_ID,
 				    0),
@@ -308,7 +308,8 @@ static int meson_ee_pwrc_off(struct generic_pm_domain *domain)
 		container_of(domain, struct meson_ee_pwrc_domain, base);
 	int i, ret;
 
-	if (pwrc_domain->desc.domain_id == PWRC_SM1_PCIE_ID)
+	if (!strcmp(pwrc_domain->desc.name, "USB") ||
+	    !strcmp(pwrc_domain->desc.name, "PCI"))
 		return 0;
 
 	ret = reset_control_deassert(pwrc_domain->rstc);
@@ -361,6 +362,12 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 	struct meson_ee_pwrc_domain *pwrc_domain =
 		container_of(domain, struct meson_ee_pwrc_domain, base);
 	int i, ret;
+
+	if (!strcmp(pwrc_domain->desc.name, "USB") ||
+	    !strcmp(pwrc_domain->desc.name, "PCI")) {
+		if (!pwrc_domain->desc.get_power(pwrc_domain))
+			return 0;
+	}
 
 	ret = reset_control_deassert(pwrc_domain->rstc);
 	if (ret)
