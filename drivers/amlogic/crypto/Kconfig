@@ -2,14 +2,14 @@
 menu "Amlogic Crypto Support"
 
 config AMLOGIC_CRYPTO
-  bool "amlogic HW CRYPTO module"
+	bool "amlogic HW CRYPTO module"
 	depends on CRYPTO_ALGAPI
 	depends on CRYPTO_BLKCIPHER
 	depends on CRYPTO_HASH
 	default n
 
 config AMLOGIC_CRYPTO_DMA
-  bool "amlogic HW CRYPTO module based on DMA"
+	tristate "amlogic HW CRYPTO module based on DMA"
 	depends on AMLOGIC_CRYPTO
 	default n
 	help

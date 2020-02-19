@@ -1,5 +1,4 @@
-obj-$(CONFIG_AMLOGIC_CRYPTO_DMA) 				+= aml-cryp-dma.o
-aml-cryp-dma-objs:= aml-dma.o aml-crypto-dma.o
-obj-$(CONFIG_AMLOGIC_CRYPTO_DMA) 				+= aml-aes-dma.o
-obj-$(CONFIG_AMLOGIC_CRYPTO_DMA) 				+= aml-tdes-dma.o
-obj-$(CONFIG_AMLOGIC_CRYPTO_DMA) 				+= aml-sha-dma.o
+MODULE_NAME = aml_crypto_dma
+
+obj-$(CONFIG_AMLOGIC_CRYPTO_DMA) += $(MODULE_NAME).o
+$(MODULE_NAME)-objs = aml-dma.o aml-crypto-dma.o aml-aes-dma.o aml-tdes-dma.o aml-sha-dma.o

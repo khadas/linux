@@ -1273,8 +1273,12 @@ static struct platform_driver aml_aes_driver = {
 	},
 };
 
-module_platform_driver(aml_aes_driver);
+int aml_aes_driver_init(void)
+{
+	return platform_driver_register(&aml_aes_driver);
+}
 
-MODULE_DESCRIPTION("Aml AES hw acceleration support.");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("matthew.shyu <matthew.shyu@amlogic.com>");
+void aml_aes_driver_exit(void)
+{
+	platform_driver_unregister(&aml_aes_driver);
+}

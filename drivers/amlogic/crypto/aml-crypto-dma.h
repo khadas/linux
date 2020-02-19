@@ -131,3 +131,12 @@ extern int debug;
 	} while (0)
 
 #endif
+
+int aml_sha_driver_init(void);
+void aml_sha_driver_exit(void);
+
+int aml_tdes_driver_init(void);
+void aml_tdes_driver_exit(void);
+
+int aml_aes_driver_init(void);
+void aml_aes_driver_exit(void);

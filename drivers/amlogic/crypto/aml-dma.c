@@ -169,7 +169,47 @@ static struct platform_driver aml_dma_driver = {
 	},
 };
 
-module_platform_driver(aml_dma_driver);
+static int __init aml_dma_driver_init(void)
+{
+	int ret;
+
+	ret = aml_sha_driver_init();
+	if (ret)
+		return ret;
+
+	ret = aml_tdes_driver_init();
+	if (ret) {
+		aml_sha_driver_exit();
+		return ret;
+	}
+
+	ret = aml_aes_driver_init();
+	if (ret) {
+		aml_sha_driver_exit();
+		aml_tdes_driver_exit();
+		return ret;
+	}
+
+	ret = platform_driver_register(&aml_dma_driver);
+	if (ret) {
+		aml_sha_driver_exit();
+		aml_tdes_driver_exit();
+		aml_aes_driver_exit();
+	}
+
+	return ret;
+}
+module_init(aml_dma_driver_init);
+
+static void __exit aml_dma_driver_exit(void)
+{
+	aml_sha_driver_exit();
+	aml_tdes_driver_exit();
+	aml_aes_driver_exit();
+
+	platform_driver_unregister(&aml_dma_driver);
+}
+module_exit(aml_dma_driver_exit);
 
 MODULE_DESCRIPTION("Aml crypto DMA support.");
 MODULE_LICENSE("GPL v2");

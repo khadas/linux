@@ -1213,8 +1213,12 @@ static struct platform_driver aml_tdes_driver = {
 	},
 };
 
-module_platform_driver(aml_tdes_driver);
+int aml_tdes_driver_init(void)
+{
+	return platform_driver_register(&aml_tdes_driver);
+}
 
-MODULE_DESCRIPTION("Aml TDES hw acceleration support.");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("matthew.shyu <matthew.shyu@amlogic.com>");
+void aml_tdes_driver_exit(void)
+{
+	platform_driver_unregister(&aml_tdes_driver);
+}

@@ -1438,8 +1438,12 @@ static struct platform_driver aml_sha_driver = {
 	},
 };
 
-module_platform_driver(aml_sha_driver);
+int aml_sha_driver_init(void)
+{
+	return platform_driver_register(&aml_sha_driver);
+}
 
-MODULE_DESCRIPTION("Aml SHA (1/256/224) hw acceleration support.");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("matthew.shyu <matthew.shyu@amlogic.com>");
+void aml_sha_driver_exit(void)
+{
+	platform_driver_unregister(&aml_sha_driver);
+}
