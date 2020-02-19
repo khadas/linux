@@ -19,10 +19,14 @@
 #include <linux/amlogic/media/frame_sync/tsync_pcr.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
+#include <linux/amlogic/major.h>
+#include <linux/err.h>
+#include <linux/uaccess.h>
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* TODO: for stream buffer register bit define only */
 /* #endif */
+#define TSYNC_DEVICE_NAME   "tsync"
 
 #if !defined(CONFIG_PREEMPT)
 #define CONFIG_AM_TIMESYNC_LOG
@@ -122,6 +126,7 @@ static const char * const tsync_mode_str[] = {
 	"vmaster", "amaster", "pcrmaster"
 };
 
+static struct device *tsync_dev;
 static DEFINE_SPINLOCK(lock);
 static enum tsync_mode_e tsync_mode = TSYNC_MODE_AMASTER;
 static enum tsync_stat_e tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
@@ -201,6 +206,7 @@ static int tsync_dec_reset_flag;
 static int tsync_dec_reset_video_start;
 static int tsync_automute_on;
 static int tsync_video_started;
+static int is_tunnel_mode;
 
 static int debug_pts_checkin;
 static int debug_pts_checkout;
@@ -328,7 +334,7 @@ static void tsync_pcr_recover_timer_real(void)
 	spin_unlock_irqrestore(&lock, flags);
 }
 
-static void tsync_pcr_recover_timer_func(struct timer_list *t)
+static void tsync_pcr_recover_timer_func(struct timer_list *arg)
 {
 	tsync_pcr_recover_timer_real();
 	tsync_pcr_recover_timer.expires = jiffies + PCR_CHECK_INTERVAL;
@@ -360,7 +366,7 @@ static int tsync_mode_switch(int mode, unsigned long diff_pts, int jump_pts)
 	("%c-discontinue,pcr=%d,vpts=%d,apts=%d,diff_pts=%lu,jump_Pts=%d\n",
 	 mode, timestamp_pcrscr_get(), timestamp_vpts_get(),
 	 timestamp_apts_get(), diff_pts, jump_pts);
-	if (!tsync_enable) {
+	if (!tsync_enable || !timestamp_apts_started()) {
 		if (tsync_mode != TSYNC_MODE_VMASTER)
 			tsync_mode = TSYNC_MODE_VMASTER;
 		tsync_av_mode = TSYNC_STATE_S;
@@ -455,9 +461,9 @@ static int tsync_mode_switch(int mode, unsigned long diff_pts, int jump_pts)
 	return 0;
 }
 
-static void tsync_state_switch_timer_fun(struct timer_list *t)
+static void tsync_state_switch_timer_fun(struct timer_list *arg)
 {
-	if (!vpause_flag && !apause_flag) {
+	if (!vpause_flag && !apause_flag && timestamp_apts_started()) {
 		if (tsync_av_mode == TSYNC_STATE_D ||
 		    tsync_av_mode == TSYNC_STATE_A) {
 			if (tsync_av_dynamic_timeout_ms < jiffies_ms) {
@@ -506,6 +512,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	switch (event) {
 	case VIDEO_START:
 		tsync_video_started = 1;
+		tsync_set_av_state(0, 2);
 
 	//set tsync mode to vmaster to avoid video block caused
 	// by avpts-diff too much
@@ -554,7 +561,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 				set_pts_realign();
 			}
 		}
-		if (/*tsync_mode == TSYNC_MODE_VMASTER && */ !vpause_flag)
+		if (!vpause_flag && !tsync_get_tunnel_mode())
 			timestamp_pcrscr_enable(1);
 
 		if (!timestamp_firstvpts_get() && param)
@@ -563,7 +570,9 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 
 	case VIDEO_STOP:
 		tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
+		tsync_set_av_state(0, 3);
 		timestamp_vpts_set(0);
+		timestamp_pcrscr_set(0);
 		timestamp_pcrscr_enable(0);
 		timestamp_firstvpts_set(0);
 		tsync_video_started = 0;
@@ -587,7 +596,8 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		unsigned int oldpts = timestamp_vpts_get();
 		int oldmod = tsync_mode;
 
-		if (tsync_mode == TSYNC_MODE_VMASTER)
+		if (tsync_mode == TSYNC_MODE_VMASTER &&
+		    timestamp_apts_started())
 			t = timestamp_apts_get();
 		else
 			t = timestamp_pcrscr_get();
@@ -708,6 +718,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		break;
 	case AUDIO_START:
 		/* reset discontinue var */
+		tsync_set_av_state(1, AUDIO_START);
 		tsync_set_sync_adiscont(0);
 		tsync_set_sync_adiscont_diff(0);
 		tsync_set_sync_vdiscont(0);
@@ -770,6 +781,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		break;
 
 	case AUDIO_STOP:
+		tsync_set_av_state(1, AUDIO_STOP);
 		timestamp_apts_enable(0);
 		timestamp_apts_set(-1);
 		tsync_abreak = 0;
@@ -840,12 +852,19 @@ EXPORT_SYMBOL(tsync_avevent_locked);
 void tsync_avevent(enum avevent_e event, u32 param)
 {
 	ulong flags;
+	ulong fiq_flag;
 
 	amlog_level(LOG_LEVEL_INFO, "[%s]event:%d, param %d\n",
 		    __func__, event, param);
 	spin_lock_irqsave(&lock, flags);
 
+	raw_local_save_flags(fiq_flag);
+
+	local_fiq_disable();
+
 	tsync_avevent_locked(event, param);
+
+	raw_local_irq_restore(fiq_flag);
 
 	spin_unlock_irqrestore(&lock, flags);
 }
@@ -958,6 +977,11 @@ int tsync_set_apts(unsigned int pts)
 	/* ssize_t r; */
 	unsigned int oldpts = timestamp_apts_get();
 	int oldmod = tsync_mode;
+
+	if (tsync_mode == TSYNC_MODE_PCRMASTER) {
+		tsync_pcr_set_apts(pts);
+		return 0;
+	}
 
 	if (tsync_abreak)
 		tsync_abreak = 0;
@@ -1160,13 +1184,13 @@ EXPORT_SYMBOL(tsync_set_startsync_mode);
 
 int tsync_set_tunnel_mode(int mode)
 {
-	return 0;
+	return is_tunnel_mode = mode;
 }
 EXPORT_SYMBOL(tsync_set_tunnel_mode);
 
 int tsync_get_tunnel_mode(void)
 {
-	return 0;
+	return is_tunnel_mode;
 }
 EXPORT_SYMBOL(tsync_get_tunnel_mode);
 
@@ -1696,6 +1720,26 @@ static ssize_t startsync_mode_show(struct class *class,
 	return sprintf(buf, "0x%x\n", tsync_get_startsync_mode());
 }
 
+static ssize_t latency_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", timestamp_get_pcrlatency());
+}
+
+static ssize_t latency_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t size)
+{
+	unsigned int latency = 0;
+	ssize_t r;
+
+	r = kstrtoint(buf, 0, &latency);
+	if (r != 0)
+		return -EINVAL;
+	timestamp_set_pcrlatency(latency);
+	return size;
+}
+
 static ssize_t apts_lookup_show(struct class *class,
 				struct class_attribute *attrr, char *buf)
 {
@@ -1766,6 +1810,7 @@ static CLASS_ATTR_RO(checkin_firstvpts);
 static CLASS_ATTR_RW(apts_lookup);
 static CLASS_ATTR_RO(demux_pcr);
 static CLASS_ATTR_RO(checkin_firstapts);
+static CLASS_ATTR_RW(latency);
 
 static struct attribute *tsync_class_attrs[] = {
 	&class_attr_pts_video.attr,
@@ -1794,6 +1839,7 @@ static struct attribute *tsync_class_attrs[] = {
 	&class_attr_apts_lookup.attr,
 	&class_attr_demux_pcr.attr,
 	&class_attr_checkin_firstapts.attr,
+	&class_attr_latency.attr,
 	NULL
 };
 
@@ -1955,6 +2001,76 @@ static struct mconfig tsync_configs[] = {
 	MC_FUN_ID("checkin_firstvpts", tsync_show_fun, NULL, 21),
 };
 
+static int tsync_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int tsync_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+	case TSYNC_IOC_SET_TUNNEL_MODE:{
+		u32 tunnel_mode;
+
+		if (copy_from_user(&tunnel_mode,
+				   argp, sizeof(is_tunnel_mode)) == 0)
+			tsync_set_tunnel_mode(tunnel_mode);
+		else
+			ret = -EFAULT;
+		break;
+	}
+	case TSYNC_IOC_SET_VIDEO_PEEK:
+		set_video_peek();
+		break;
+
+	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
+		put_user(get_first_frame_toggled(), (u32 __user *)argp);
+		break;
+
+	default:
+		pr_info("invalid cmd:%d\n", cmd);
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long tsync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+
+	switch (cmd) {
+	case TSYNC_IOC_SET_TUNNEL_MODE:
+	case TSYNC_IOC_SET_VIDEO_PEEK:
+	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
+		return tsync_ioctl(file, cmd, arg);
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+#endif
+
+static const struct file_operations tsync_fops = {
+	.owner = THIS_MODULE,
+	.open = tsync_open,
+	.release = tsync_release,
+	.unlocked_ioctl = tsync_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = tsync_compat_ioctl,
+#endif
+};
+
 static int __init tsync_module_init(void)
 {
 	int r;
@@ -1964,6 +2080,21 @@ static int __init tsync_module_init(void)
 	if (r) {
 		amlog_level(LOG_LEVEL_ERROR, "tsync class create fail.\n");
 		return r;
+	}
+
+	/* create tsync device */
+	r = register_chrdev(TSYNC_MAJOR, "tsync", &tsync_fops);
+	if (r < 0) {
+		pr_info("Can't register major for tsync\n");
+		goto err2;
+	}
+
+	tsync_dev = device_create(&tsync_class, NULL, MKDEV(TSYNC_MAJOR, 0),
+				  NULL, TSYNC_DEVICE_NAME);
+
+	if (IS_ERR(tsync_dev)) {
+		amlog_level(LOG_LEVEL_ERROR, "Can't create tsync_dev device\n");
+		goto err1;
 	}
 
 	/* init audio pts to -1, others to 0 */
@@ -1983,17 +2114,27 @@ static int __init tsync_module_init(void)
 
 	REG_PATH_CONFIGS("media.tsync", tsync_configs);
 	return 0;
+
+err1:
+	unregister_chrdev(TSYNC_MAJOR, "tsync");
+err2:
+	class_unregister(&tsync_class);
+
+	return 0;
 }
 
 static void __exit tsync_module_exit(void)
 {
 		del_timer_sync(&tsync_pcr_recover_timer);
-
+	device_destroy(&tsync_class, MKDEV(TSYNC_MAJOR, 0));
+	unregister_chrdev(TSYNC_MAJOR, "tsync");
 	class_unregister(&tsync_class);
 }
 
 module_init(tsync_module_init);
 module_exit(tsync_module_exit);
+MODULE_PARM_DESC(is_tunnel_mode, "\n is_tunnel_mode\n");
+module_param(is_tunnel_mode, uint, 0664);
 MODULE_DESCRIPTION("AMLOGIC time sync management driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

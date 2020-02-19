@@ -12,6 +12,12 @@
 #define AV_DISCONTINUE_THREDHOLD_MIN    (TIME_UNIT90K * 3)
 #define AV_DISCONTINUE_THREDHOLD_MAX    (TIME_UNIT90K * 60)
 
+#define TSYNC_IOC_MAGIC 'T'
+#define TSYNC_IOC_SET_TUNNEL_MODE  _IOW(TSYNC_IOC_MAGIC, 0x00, int)
+#define TSYNC_IOC_SET_VIDEO_PEEK _IOW(TSYNC_IOC_MAGIC, 0x01, int)
+
+#define TSYNC_IOC_GET_FIRST_FRAME_TOGGLED _IOR(TSYNC_IOC_MAGIC, 0x20, int)
+
 enum avevent_e {
 	VIDEO_START,
 	VIDEO_PAUSE,
@@ -84,6 +90,8 @@ void set_timestamp_inc_factor(u32 factor);
 int pts_cached_time(u8 type);
 #endif
 
+int get_vsync_pts_inc_mode(void);
+
 void tsync_avevent_locked(enum avevent_e event, u32 param);
 
 void tsync_mode_reinit(void);
@@ -140,9 +148,23 @@ int tsync_set_av_threshold_min(int min);
 
 int tsync_set_av_threshold_max(int max);
 
+void set_pts_realign(void);
+
 int tsync_set_tunnel_mode(int mode);
 
 int tsync_get_tunnel_mode(void);
+
+void timestamp_set_pcrlatency(u32 latency);
+u32 timestamp_get_pcrlatency(void);
+bool tsync_check_vpts_discontinuity(unsigned int vpts);
+void timestamp_clac_pts_latency(u8 type, u32 pts);
+u32 timestamp_get_pts_latency(u8 type);
+void timestamp_clean_pts_latency(u8 type);
+int tsync_get_vpts_adjust(void);
+void set_video_peek(void);
+u32 get_first_frame_toggled(void);
+void tsync_set_av_state(u8 type, int state);
+
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
 	return tsync_get_av_threshold_min();

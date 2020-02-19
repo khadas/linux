@@ -9,9 +9,6 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include<linux/printk.h>
-#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
-#include <trace/events/meson_atrace.h>
-#endif
 
 #ifndef INFO_PREFIX
 #define INFO_PREFIX "codec_mm"
@@ -44,8 +41,5 @@ void dma_clear_buffer(struct page *page, size_t size);
 u32 codec_mm_get_sc_debug_mode(void);
 u32 codec_mm_get_keep_debug_mode(void);
 
-#ifndef CONFIG_AMLOGIC_DEBUG_ATRACE
-static inline void ATRACE_COUNTER(const char *name, int val) { return; }
-#endif
 
 #endif /**/

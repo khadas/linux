@@ -58,6 +58,7 @@ struct pts_table_s {
 	unsigned long buf_start;
 	u32 buf_size;
 	int first_checkin_pts;
+	u64 first_checkin_pts_us64;
 	int first_lookup_ok;
 	int first_lookup_is_fail;	/*1: first lookup fail;*/
 					   /*0: first lookup success */
@@ -425,7 +426,8 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 
 	if (likely(p_table->status == PTS_RUNNING ||
 		   p_table->status == PTS_LOADING)) {
-		struct pts_rec_s *rec;
+		struct pts_rec_s *rec = NULL;
+		struct pts_rec_s *rec_prev = NULL;
 
 		if (type == PTS_TYPE_VIDEO &&
 		    p_table->first_checkin_pts == -1) {
@@ -478,6 +480,25 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 					   struct pts_rec_s, list);
 		}
 
+		if (!list_empty(&p_table->valid_list)) {
+			rec_prev = list_entry(p_table->valid_list.prev,
+					      struct pts_rec_s, list);
+			if (rec_prev->offset == p_table->last_checkin_offset) {
+				if (offset > p_table->last_checkin_offset)
+					rec_prev->size =
+					offset - p_table->last_checkin_offset;
+				else
+					rec_prev->size = 0;
+			}
+		}
+
+		if (p_table->last_checkin_offset > 0 &&
+		    offset > p_table->last_checkin_offset)
+			rec->size =
+				offset - p_table->last_checkin_offset;
+		else
+			rec->size = rec_prev ? rec_prev->size : 0;
+
 		rec->offset = offset;
 		rec->val = val;
 		rec->pts_us64 = us64;
@@ -485,6 +506,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 #ifdef CALC_CACHED_TIME
 		pts_checkin_offset_calc_cached(offset, val, p_table);
 #endif
+		timestamp_clac_pts_latency(type, val);
 
 		list_move_tail(&rec->list, &p_table->valid_list);
 
@@ -497,7 +519,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 			if (tsync_get_debug_apts() && type == PTS_TYPE_AUDIO)
 				pr_info("init apts[%d] at 0x%x\n", type, val);
 
-			if (type == PTS_TYPE_VIDEO)
+			if (type == PTS_TYPE_VIDEO && !tsync_get_tunnel_mode())
 				timestamp_vpts_set(val);
 			else if (type == PTS_TYPE_AUDIO)
 				timestamp_apts_set(val);
@@ -548,7 +570,8 @@ int pts_checkin_wrptr(u8 type, u32 ptr, u32 val)
 	get_wrpage_offset(type, &page, &cur_offset);
 
 	page_no = (offset > cur_offset) ? (page - 1) : page;
-
+	if (type == PTS_TYPE_VIDEO)
+		val += tsync_get_vpts_adjust();
 	return pts_checkin_offset(type,
 			pts_table[type].buf_size * page_no + offset,
 			val);
@@ -902,7 +925,7 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 			 */
 			if (!p_table->first_lookup_ok) {
 				*val = p_table->first_checkin_pts;
-				*us64 = (u64)(*val) << 32;
+				*us64 = p_table->first_checkin_pts_us64;
 				p_table->first_lookup_ok = 1;
 				p_table->first_lookup_is_fail = 1;
 

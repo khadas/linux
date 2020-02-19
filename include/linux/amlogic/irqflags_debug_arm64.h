@@ -51,6 +51,9 @@ static inline void arch_local_irq_disable(void)
 		: "memory");
 }
 
+#define local_fiq_enable()	asm("msr	daifclr, #1" : : : "memory")
+#define local_fiq_disable()	asm("msr	daifset, #1" : : : "memory")
+
 /*
  * Save the current interrupt enable state.
  */

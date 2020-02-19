@@ -101,6 +101,7 @@ struct codec_mm_s {
 	int mem_id;
 	int next_bit;
 	struct list_head list;
+	u32 tvp_handle;
 };
 
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size, int align2n,

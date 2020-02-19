@@ -31,6 +31,8 @@ static u32 first_apts;
 static u32 pcrscr_lantcy = 200 * 90;
 static u32 video_pts;
 static u32 audio_pts;
+static u32 last_apts_gap;
+static u32 last_vpts_gap;
 
 static u32 system_time_scale_base = 1;
 static u32 system_time_scale_remainder;
@@ -118,17 +120,22 @@ EXPORT_SYMBOL(timestamp_apts_started);
 
 u32 timestamp_pcrscr_get(void)
 {
-	if (tsync_get_mode() == TSYNC_MODE_AMASTER)
+	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER)
 		return system_time;
 
 	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb()) {
 		if (tsync_pcr_demux_pcr_used() == 0) {
 			return system_time;
 		} else {
-			if (tsdemux_pcrscr_get_cb)
-				return tsdemux_pcrscr_get_cb() - pcrscr_lantcy;
-			else
+			if (tsdemux_pcrscr_get_cb) {
+				if (tsdemux_pcrscr_get_cb() > pcrscr_lantcy)
+					return
+					tsdemux_pcrscr_get_cb() - pcrscr_lantcy;
+				else
+					return 0;
+			} else {
 				return system_time;
+			}
 		}
 	} else {
 		return system_time;
@@ -136,11 +143,114 @@ u32 timestamp_pcrscr_get(void)
 }
 EXPORT_SYMBOL(timestamp_pcrscr_get);
 
+void timestamp_set_pcrlatency(u32 latency)
+{
+	if (latency < 500 * 90)
+		pcrscr_lantcy = latency;
+	else
+		pcrscr_lantcy = 500 * 90;
+}
+EXPORT_SYMBOL(timestamp_set_pcrlatency);
+
 u32 timestamp_get_pcrlatency(void)
 {
 	return pcrscr_lantcy;
 }
 EXPORT_SYMBOL(timestamp_get_pcrlatency);
+void timestamp_clac_pts_latency(u8 type, u32 pts)
+{
+	u32 demux_pcr = 0;
+	u32 t1, t2, pts_diff;
+
+	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER)
+		return;
+	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() &&
+	    tsync_pcr_demux_pcr_used()) {
+		if (tsdemux_pcrscr_get_cb)
+			demux_pcr = tsdemux_pcrscr_get_cb();
+		else
+			return;
+		if (demux_pcr == 0 ||
+		    demux_pcr == 0xffffffff) {
+			last_apts_gap = 0;
+			last_vpts_gap = 0;
+			return;
+		}
+		if (type == 0) {
+			if (demux_pcr > pts) {
+				last_vpts_gap = 0;
+				return;
+			}
+			pts_diff = pts - demux_pcr;
+			if (pts_diff > 500 * 90)
+				return;
+			t1 = ((last_vpts_gap >> 16) & 0xff);
+			if (t1 > 5)
+				t1 = 0;
+			t2 = (last_vpts_gap & 0xffff);
+			if (t2 == 0) {
+				last_vpts_gap = pts_diff;
+				return;
+			}
+			if (abs(t2 - pts_diff) < 30 * 90) {
+				last_vpts_gap = t2;
+				return;
+			}
+			t1++;
+			if (t1 >= 5)
+				last_vpts_gap = pts_diff;
+			else
+				last_vpts_gap = ((t1 << 16) | t2);
+		} else if (type == 1) {
+			if (demux_pcr > pts) {
+				last_apts_gap = 0;
+				return;
+			}
+			pts_diff = pts - demux_pcr;
+			if (pts_diff > 500 * 90)
+				return;
+			t1 = ((last_apts_gap >> 16) & 0xff);
+			if (t1 > 5)
+				t1 = 0;
+			t2 = (last_apts_gap & 0xffff);
+			if (t2 == 0) {
+				last_apts_gap = pts_diff;
+				return;
+			}
+			if (abs(t2 - pts_diff) < 30 * 90) {
+				last_apts_gap = t2;
+				return;
+			}
+			t1++;
+			if (t1 >= 5)
+				last_apts_gap = pts_diff;
+			else
+				last_apts_gap = ((t1 << 16) | t2);
+		}
+	} else {
+		last_apts_gap = 0;
+		last_vpts_gap = 0;
+	}
+}
+EXPORT_SYMBOL(timestamp_clac_pts_latency);
+u32 timestamp_get_pts_latency(u8 type)
+{
+	if (type == 0)
+		return (last_vpts_gap & 0xffff);
+	else if (type == 1)
+		return (last_apts_gap & 0xffff);
+	return 0;
+}
+EXPORT_SYMBOL(timestamp_get_pts_latency);
+
+void timestamp_clean_pts_latency(u8 type)
+{
+	if (type == 0)
+		last_vpts_gap = 0;
+	else if (type == 1)
+		last_apts_gap = 0;
+}
+EXPORT_SYMBOL(timestamp_clean_pts_latency);
 
 u32 timestamp_tsdemux_pcr_get(void)
 {
@@ -176,6 +286,7 @@ void timestamp_checkin_firstvpts_set(u32 pts)
 {
 	first_checkin_vpts = pts;
 	pr_info("video first checkin pts = %x\n", first_checkin_vpts);
+	timestamp_clean_pts_latency(0);
 }
 EXPORT_SYMBOL(timestamp_checkin_firstvpts_set);
 
@@ -183,6 +294,7 @@ void timestamp_checkin_firstapts_set(u32 pts)
 {
 	first_checkin_apts = pts;
 	pr_info("audio first checkin pts =%x\n", first_checkin_apts);
+	timestamp_clean_pts_latency(1);
 }
 EXPORT_SYMBOL(timestamp_checkin_firstapts_set);
 
@@ -215,7 +327,7 @@ void timestamp_pcrscr_inc(s32 inc)
 {
 	if (system_time_up) {
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
-		inc = inc * timestamp_inc_factor / PLL_FACTOR;
+		inc = inc * (s32)timestamp_inc_factor / PLL_FACTOR;
 #endif
 		system_time += inc + system_time_inc_adj;
 		ATRACE_COUNTER("PCRSCR",  system_time);

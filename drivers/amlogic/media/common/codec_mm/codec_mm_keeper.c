@@ -18,7 +18,7 @@
 #include "codec_mm_scatter_priv.h"
 
 #define KEEP_NAME "keeper"
-#define MAX_KEEP_FRAME 16
+#define MAX_KEEP_FRAME 64
 #define START_KEEP_ID 0x9
 #define MAX_KEEP_ID    (INT_MAX - 1)
 
@@ -227,13 +227,10 @@ int codec_mm_keeper_dump_info(void *buf, int size)
 {
 	struct codec_mm_keeper_mgr *mgr = get_codec_mm_keeper_mgr();
 	char *pbuf = buf;
-	char *sbuf = vzalloc(512);
+	char sbuf[512];
 	int tsize = 0;
 	int s;
 	int i;
-
-	if (!sbuf)
-		return 0;
 
 	if (!pbuf)
 		pbuf = sbuf;
@@ -260,7 +257,6 @@ int codec_mm_keeper_dump_info(void *buf, int size)
 	if (!buf)
 		pr_info("%s", sbuf);
 
-	vfree(sbuf);
 	return tsize;
 }
 
