@@ -6,7 +6,6 @@
 #ifndef __PLAT_MESON_CPU_H
 #define __PLAT_MESON_CPU_H
 
-#ifdef CONFIG_AMLOGIC_CPU_VERSION
 #define MESON_CPU_MAJOR_ID_M8B		0x1B
 #define MESON_CPU_MAJOR_ID_GXBB		0x1F
 #define MESON_CPU_MAJOR_ID_GXTVBB	0x20
@@ -215,6 +214,5 @@ static inline bool is_meson_rev_c(void)
 	return (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) == 0xC);
 }
 
-#endif
 
 #endif
