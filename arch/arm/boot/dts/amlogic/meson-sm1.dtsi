@@ -356,6 +356,27 @@
 		<0xff63c100 0x10>;
 	};
 
+	hevc_enc{
+		#address-cells=<2>;
+		#size-cells=<2>;
+		compatible = "amlogic, HevcEnc";
+		//memory-region = <&hevc_enc_reserved>;
+		dev_name = "HevcEnc";
+		status = "okay";
+		interrupts = <GIC_SPI 187 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wave420l_irq";
+		ranges;
+		clocks = <&clkc CLKID_WAVE_A_CLK
+			&clkc CLKID_WAVE_B_CLK
+			&clkc CLKID_WAVE_C_CLK>;
+		clock-names = "wave_clk_a",
+			"wave_clk_b",
+			"wave_clk_c";
+		io_reg_base{
+			reg = <0x0 0xff610000 0x0 0x4000>;
+		};
+	};
+
 	ge2d {
 		compatible = "amlogic, ge2d-sm1";
 		dev_name = "ge2d";
