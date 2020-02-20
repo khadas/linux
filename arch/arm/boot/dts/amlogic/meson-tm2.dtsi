@@ -312,6 +312,15 @@
 	};
 };
 
+&gpu{
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
+};
+
 /*
  *&usb2_phy_v2 {
  *	power-domains = <&pwrc PWRC_SM1_USB_ID>;
@@ -321,4 +330,3 @@
  *	power-domains = <&pwrc PWRC_SM1_PCIE_ID>;
  *};
  */
-
