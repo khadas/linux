@@ -488,8 +488,8 @@ int ge2d_dma_buffer_export(struct aml_dma_buffer *buffer,
 		return ret;
 	}
 
-	ge2d_log_dbg("buffer %d,exported as %d descriptor\n",
-		     index, ret);
+	ge2d_log_dbg("buffer %d,exported as %d descriptor, aml_dma_buf(buf)=%p, dmabuf=%p\n",
+		     index, ret, buf, dbuf);
 	buffer->gd_buffer[index].fd = ret;
 	buffer->gd_buffer[index].dbuf = dbuf;
 	ge2d_exp_buf->fd = ret;

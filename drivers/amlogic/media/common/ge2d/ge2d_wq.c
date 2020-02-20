@@ -1111,7 +1111,7 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 			struct ge2d_dma_cfg_s *cfg = NULL;
 			struct aml_dma_cfg *dma_cfg = NULL;
 
-			cfg = ge2d_wq_get_dma_cfg(context, data_type, 0);
+			cfg = ge2d_wq_get_dma_cfg(context, data_type, i);
 			if (!cfg)
 				return -1;
 			cfg->dma_used = 1;
