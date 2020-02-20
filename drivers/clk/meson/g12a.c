@@ -4021,7 +4021,7 @@ static struct clk_regmap g12a_mali_0_sel = {
 		.name = "mali_0_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = g12a_mali_0_1_parent_data,
-		.num_parents = 8,
+		.num_parents = ARRAY_SIZE(g12a_mali_0_1_parent_data),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -4070,7 +4070,7 @@ static struct clk_regmap g12a_mali_1_sel = {
 		.name = "mali_1_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = g12a_mali_0_1_parent_data,
-		.num_parents = 8,
+		.num_parents = ARRAY_SIZE(g12a_mali_0_1_parent_data),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
