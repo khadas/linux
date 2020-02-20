@@ -12,14 +12,14 @@ choice
 	default AMLOGIC_AO_CEC
 
 config AMLOGIC_AO_CEC
-	bool "HDMI AO cec driver support for gx/gxl/gxm/txl/txlx"
+	tristate "HDMI AO cec driver support for gx/gxl/gxm/txl/txlx"
 	depends on AMLOGIC_CEC
 	help
 		HDMI cec driver provide cec support for gx/gxl/gxm/txl/txlx chips
 		select if your chip belongs
 
 config AMLOGIC_M8B_CEC
-	bool "HDMI CEC driver support for m8/m8b"
+	tristate "HDMI CEC driver support for m8/m8b"
 	depends on MACH_MESON8B && AMLOGIC_CEC
 	help
 		HDMI CEC driver support for m8/m8b chips

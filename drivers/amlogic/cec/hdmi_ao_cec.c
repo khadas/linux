@@ -3563,6 +3563,17 @@ static void cec_node_val_init(void)
 	cec_dev->cec_info.open_count.counter = 0;
 }
 
+static int __of_irq_count(struct device_node *dev)
+{
+	struct of_phandle_args irq;
+	int nr = 0;
+
+	while (of_irq_parse_one(dev, nr, &irq) == 0)
+		nr++;
+
+	return nr;
+}
+
 static int aml_cec_probe(struct platform_device *pdev)
 {
 	struct device *cdev;
@@ -3838,7 +3849,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_hw_reset(ee_cec);
 	}
 
-	if (of_irq_count(node) > 1) {
+	if (__of_irq_count(node) > 1) {
 		/* need enable two irq */
 		cec_dev->irq_cecb = of_irq_get(node, 0);/*cecb int*/
 		cec_dev->irq_ceca = of_irq_get(node, 1);/*ceca int*/
@@ -3847,7 +3858,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->irq_ceca = cec_dev->irq_cecb;
 	}
 
-	pr_info("irq cnt:%d, a:%d, b%d\n", of_irq_count(node),
+	pr_info("irq cnt:%d, a:%d, b%d\n", __of_irq_count(node),
 		cec_dev->irq_ceca, cec_dev->irq_cecb);
 	if (of_get_property(node, "interrupt-names", NULL)) {
 		if (of_property_count_strings(node, "interrupt-names") > 1) {

@@ -635,7 +635,6 @@ int __attribute__((weak))hdmirx_get_connect_info(void)
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_AO_CEC
 unsigned int aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
 void cecb_irq_handle(void);
@@ -645,7 +644,7 @@ void cec_arbit_bit_time_set(unsigned int bit_set,
 void cec_irq_enable(bool enable);
 void aocec_irq_enable(bool enable);
 void dump_reg(void);
-#endif
+
 void cec_status(void);
 void cec_hw_reset(unsigned int cec_sel);
 void cec_restore_logical_addr(unsigned int cec_sel,
