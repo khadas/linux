@@ -859,11 +859,10 @@ static void Edid_ParsingSpeakerDATABlock(struct hdmitx_info *info,
 	}
 }
 
-static void Edid_ParsingVendSpec(struct rx_cap *prxcap,
-				 unsigned char *buf)
+static void _Edid_ParsingVendSpec(struct dv_info *dv,
+				  struct hdr10_plus_info *hdr10_plus,
+				  unsigned char *buf)
 {
-	struct dv_info *dv = &prxcap->dv_info;
-	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr10plus_info;
 	unsigned char *dat = buf;
 	unsigned char pos = 0;
 	unsigned int ieeeoui = 0;
@@ -1039,6 +1038,22 @@ static void Edid_ParsingVendSpec(struct rx_cap *prxcap,
 
 	if (pos > (dv->length + 1))
 		pr_info("hdmitx: edid: maybe invalid dv%d data\n", dv->ver);
+}
+
+static void Edid_ParsingVendSpec(struct hdmitx_dev *hdev,
+				 struct rx_cap *prxcap,
+				 unsigned char *buf)
+{
+	struct dv_info *dv = &prxcap->dv_info;
+	struct dv_info *dv2 = &prxcap->dv_info2;
+	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr10plus_info;
+
+	if (hdev->hdr_priority) { /* skip dv_info parsing */
+		_Edid_ParsingVendSpec(dv2, hdr10_plus, buf);
+		return;
+	}
+	_Edid_ParsingVendSpec(dv, hdr10_plus, buf);
+	_Edid_ParsingVendSpec(dv2, hdr10_plus, buf);
 }
 
 /* ----------------------------------------------------------- */
@@ -1555,7 +1570,7 @@ static void get_ilatency(struct rx_cap *prxcap, unsigned char *val)
 		prxcap->i_aLatency = val[1] * 2 - 1;
 }
 
-static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
+static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	unsigned char *blockbuf)
 {
 	unsigned char offset, end;
@@ -1563,7 +1578,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	unsigned char tag;
 	int i, tmp, idx;
 	unsigned char *vfpdb_offset = NULL;
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdev->rxcap;
 	unsigned int aud_flag = 0;
 
 	if (blockbuf[0] != 0x02)
@@ -1574,7 +1589,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 
 	prxcap->native_VIC = 0xff;
 
-	Edid_Y420CMDB_Reset(&(hdmitx_device->hdmi_info));
+	Edid_Y420CMDB_Reset(&(hdev->hdmi_info));
 
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
@@ -1676,7 +1691,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 					!!(blockbuf[offset + 5] & (1 << 6));
 				prxcap->lte_340mcsc_scramble =
 					!!(blockbuf[offset + 5] & (1 << 3));
-				set_vsdb_dc_420_cap(&hdmitx_device->rxcap,
+				set_vsdb_dc_420_cap(&hdev->rxcap,
 						    &blockbuf[offset]);
 				if (count > 7) {
 					unsigned char b7 = blockbuf[offset + 7];
@@ -1709,8 +1724,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				switch (ext_tag) {
 				case EXTENSION_VENDOR_SPECIFIC:
 					t = &blockbuf[offset];
-					if (!hdmitx_device->hdr_priority)
-						Edid_ParsingVendSpec(prxcap, t);
+					Edid_ParsingVendSpec(hdev, prxcap, t);
 					break;
 				case EXTENSION_COLORMETRY_TAG:
 					prxcap->colorimetry_data =
@@ -1740,7 +1754,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 					break;
 				case EXTENSION_Y420_CMDB_TAG:
 					Edid_ParsingY420CMDBBlock(
-						&(hdmitx_device->hdmi_info),
+						&(hdev->hdmi_info),
 						&blockbuf[offset]);
 					break;
 				default:
@@ -1766,10 +1780,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	}
 
 	if (aud_flag == 0)
-		hdmitx_edid_set_default_aud(hdmitx_device);
+		hdmitx_edid_set_default_aud(hdev);
 
-	Edid_Y420CMDB_PostProcess(hdmitx_device);
-	hdmitx_device->vic_count = prxcap->VIC_count;
+	Edid_Y420CMDB_PostProcess(hdev);
+	hdev->vic_count = prxcap->VIC_count;
 
 	idx = blockbuf[3] & 0xf;
 	for (i = 0; i < idx; i++)

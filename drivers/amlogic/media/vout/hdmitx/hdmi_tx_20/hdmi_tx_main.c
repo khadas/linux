@@ -2796,6 +2796,7 @@ static ssize_t show_dc_cap(struct device *dev,
 	int pos = 0;
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
 	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
+	const struct dv_info *dv2 = &hdmitx_device.rxcap.dv_info2;
 
 #if 0
 	if (prxcap->dc_48bit_420)
@@ -2830,9 +2831,11 @@ static ssize_t show_dc_cap(struct device *dev,
 	}
 next444:
 	if (prxcap->dc_y444) {
-		if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2))
+		if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2) ||
+		    (dv2->sup_10b_12b_444 == 0x2))
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
-		if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1)) {
+		if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1) ||
+		    (dv2->sup_10b_12b_444 == 0x1)) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
 		}
@@ -2840,7 +2843,8 @@ next444:
 		if (prxcap->dc_48bit)
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,16bit\n");
 #endif
-		if ((prxcap->dc_36bit) || (dv->sup_yuv422_12bit))
+		if ((prxcap->dc_36bit) || (dv->sup_yuv422_12bit) ||
+		    (dv2->sup_yuv422_12bit))
 			pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
 		if (prxcap->dc_30bit) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
@@ -2858,9 +2862,11 @@ nextrgb:
 	if (prxcap->dc_48bit)
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,16bit\n");
 #endif
-	if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2))
+	if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2) ||
+	    (dv2->sup_10b_12b_444 == 0x2))
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
-	if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1))
+	if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1) ||
+	    (dv2->sup_10b_12b_444 == 0x1))
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
 	return pos;
@@ -3102,14 +3108,15 @@ static ssize_t show_hdr_cap(struct device *dev,
 	return pos;
 }
 
-static ssize_t show_dv_cap(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t _show_dv_cap(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf,
+			    const struct dv_info *dv)
 {
 	int pos = 0;
 	int i;
-	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
 
-	if (dv->ieeeoui != DV_IEEE_OUI || hdmitx_device.hdr_priority) {
+	if (dv->ieeeoui != DV_IEEE_OUI) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"The Rx don't support DolbyVision\n");
 		return pos;
@@ -3205,6 +3212,28 @@ static ssize_t show_dv_cap(struct device *dev,
 		dv->rawdata[i]);
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 	return pos;
+}
+
+static ssize_t show_dv_cap(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
+
+	if (dv->ieeeoui != DV_IEEE_OUI || hdmitx_device.hdr_priority) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"The Rx don't support DolbyVision\n");
+		return pos;
+	}
+	return _show_dv_cap(dev, attr, buf, dv);
+}
+
+static ssize_t show_dv_cap2(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	const struct dv_info *dv2 = &hdmitx_device.rxcap.dv_info2;
+
+	return _show_dv_cap(dev, attr, buf, dv2);
 }
 
 static ssize_t show_aud_ch(struct device *dev,
@@ -4600,6 +4629,7 @@ static DEVICE_ATTR(aud_cap, 0444, show_aud_cap, NULL);
 static DEVICE_ATTR(hdmi_hdr_status, 0444, show_hdmi_hdr_status, NULL);
 static DEVICE_ATTR(hdr_cap, 0444, show_hdr_cap, NULL);
 static DEVICE_ATTR(dv_cap, 0444, show_dv_cap, NULL);
+static DEVICE_ATTR(dv_cap2, 0444, show_dv_cap2, NULL);
 static DEVICE_ATTR(dc_cap, 0444, show_dc_cap, NULL);
 static DEVICE_ATTR(valid_mode, 0664, show_valid_mode, store_valid_mode);
 static DEVICE_ATTR(allm_cap, 0444, show_allm_cap, NULL);
@@ -5818,6 +5848,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_hdr_status);
 	ret = device_create_file(dev, &dev_attr_hdr_cap);
 	ret = device_create_file(dev, &dev_attr_dv_cap);
+	ret = device_create_file(dev, &dev_attr_dv_cap2);
 	ret = device_create_file(dev, &dev_attr_aud_ch);
 	ret = device_create_file(dev, &dev_attr_avmute);
 	ret = device_create_file(dev, &dev_attr_swap);
@@ -5930,6 +5961,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hdr_cap);
 	device_remove_file(dev, &dev_attr_dv_cap);
+	device_remove_file(dev, &dev_attr_dv_cap2);
 	device_remove_file(dev, &dev_attr_dc_cap);
 	device_remove_file(dev, &dev_attr_valid_mode);
 	device_remove_file(dev, &dev_attr_allm_cap);
