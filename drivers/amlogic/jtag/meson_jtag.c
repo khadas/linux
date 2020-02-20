@@ -175,7 +175,7 @@ static void aml_jtag_option_parse(const char *s,
 	*jtag_cluster = (int)cluster;
 }
 
-static int __init setup_jtag(char *p)
+static int setup_jtag(char *p)
 {
 	if (!p)
 		return -EINVAL;
@@ -195,7 +195,23 @@ static int __init setup_jtag(char *p)
  * [jtag_a|jtag_b]: jtag_type
  * [0|1]: cluster index
  */
-__setup("jtag=", setup_jtag);
+static char *jtag_mode = "";
+
+static int set_jtag_mode(const char *val, const struct kernel_param *kp)
+{
+	param_set_charp(val, kp);
+
+	return setup_jtag(jtag_mode);
+}
+
+static const struct kernel_param_ops setup_jtag_ops = {
+	.set = set_jtag_mode,
+	.get = param_get_charp,
+};
+
+module_param_cb(jtag, &setup_jtag_ops, &jtag_mode, 0644);
+MODULE_PARM_DESC(jtag, "jtag mode");
+
 
 #ifdef CONFIG_MACH_MESON8B
 
@@ -593,19 +609,17 @@ static int __init aml_jtag_init(void)
 {
 	return platform_driver_register(&aml_jtag_driver);
 }
-
 /* Jtag will be setuped before device_initcall that most driver used.
  * But jtag should be after pinmux.
  * That means we must use some initcall between arch_initcall
  * and device_initcall.
  */
-fs_initcall(aml_jtag_init);
+module_init(aml_jtag_init);
 
 static void __exit aml_jtag_exit(void)
 {
 	platform_driver_unregister(&aml_jtag_driver);
 }
-
 module_exit(aml_jtag_exit);
 
 MODULE_DESCRIPTION("Meson JTAG Driver");

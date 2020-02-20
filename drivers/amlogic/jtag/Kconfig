@@ -14,7 +14,7 @@ menuconfig AMLOGIC_JTAG
 if AMLOGIC_JTAG
 
 config	AMLOGIC_JTAG_MESON
-	bool "meson jtag setup driver"
+	tristate "meson jtag setup driver"
 	default n
 	help
 		This option enables support jtag setup.
