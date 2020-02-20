@@ -22,3 +22,6 @@ extern struct device *the_scpi_device;
 extern struct device *dsp_scpi_device;
 extern u32 num_scp_chans;
 extern u32 send_listen_chans;
+
+int mhu_dsp_init(void);
+void mhu_dsp_exit(void);

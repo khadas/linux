@@ -387,12 +387,25 @@ static struct platform_driver mhu_driver = {
 
 static int __init mhu_init(void)
 {
-	return platform_driver_register(&mhu_driver);
+	int ret;
+
+	ret = mhu_dsp_init();
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&mhu_driver);
+	if (ret) {
+		mhu_dsp_exit();
+		return ret;
+	}
+
+	return ret;
 }
-core_initcall(mhu_init);
+module_init(mhu_init);
 
 static void __exit mhu_exit(void)
 {
+	mhu_dsp_exit();
 	platform_driver_unregister(&mhu_driver);
 }
 module_exit(mhu_exit);

@@ -578,18 +578,12 @@ static struct platform_driver mhu_driver = {
 	},
 };
 
-static int __init mhu_init(void)
+int mhu_dsp_init(void)
 {
 	return platform_driver_register(&mhu_driver);
 }
-core_initcall(mhu_init);
 
-static void __exit mhu_exit(void)
+void mhu_dsp_exit(void)
 {
 	platform_driver_unregister(&mhu_driver);
 }
-module_exit(mhu_exit);
-
-MODULE_AUTHOR("shunzhou jiang <shunzhou.jiang@amlogic.com>");
-MODULE_DESCRIPTION("MESON MHU mailbox dsp driver");
-MODULE_LICENSE("GPL");
