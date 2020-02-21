@@ -63,6 +63,7 @@ int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len)
 
 	return 0;
 }
+EXPORT_SYMBOL(meson_ion_share_fd_to_phys);
 
 /*return:1:match,0:unmatch*/
 int meson_ion_cma_heap_match(const char *name)
