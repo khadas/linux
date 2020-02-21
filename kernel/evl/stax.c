@@ -93,8 +93,10 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 out:
 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
-	if (notify)
+	if (notify) {
 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_STAGE_LOCKED);
+		evl_kick_thread(curr, 0);
+	}
 
 	return ret;
 }
