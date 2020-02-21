@@ -70,6 +70,8 @@ source "drivers/amlogic/clk_debug/Kconfig"
 source "drivers/amlogic/debug/Kconfig"
 source "drivers/amlogic/input/Kconfig"
 
+source "drivers/amlogic/tee/Kconfig"
+
 source "drivers/amlogic/memory_ext/Kconfig"
 
 source "drivers/amlogic/bluetooth/Kconfig"

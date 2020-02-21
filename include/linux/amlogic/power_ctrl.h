@@ -7,6 +7,7 @@
 #define _POWER_CTRL_H_
 #include <linux/types.h>
 
+bool is_support_power_ctrl(void);
 int power_ctrl_sleep(bool power_on, unsigned int shift);
 int power_ctrl_sleep_mask(bool power_on,
 			  unsigned int mask_val, unsigned int shift);

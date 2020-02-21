@@ -23,6 +23,7 @@ obj-$(CONFIG_AMLOGIC_CLK_DEBUG)		+= clk_debug/
 obj-$(CONFIG_AMLOGIC_INPUT)		+= input/
 obj-$(CONFIG_AMLOGIC_DEBUG)		+= debug/
 obj-$(CONFIG_PWM_MESON)			+= pwm/
+obj-$(CONFIG_AMLOGIC_TEE)		+= tee/
 obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND)	+= memory_ext/
 obj-$(CONFIG_AMLOGIC_WIFI)      += wifi/
 obj-$(CONFIG_AMLOGIC_JTAG_MESON)	+= jtag/

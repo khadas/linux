@@ -10,9 +10,9 @@
 #include <linux/amlogic/media/utils/vformat.h>
 #include <linux/amlogic/media/utils/aformat.h>
 
-#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+//#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 #include <trace/events/meson_atrace.h>
-#endif
+//#endif
 
 #ifdef __KERNEL__
 #define PORT_FLAG_IN_USE    0x0001
@@ -227,6 +227,7 @@
 #define AMSTREAM_IOC_GET_QOSINFO  _IOR((_A_M), 0xc8, struct av_param_qosinfo_t)
 #define AMSTREAM_IOC_SET_CRC _IOW((_A_M), 0xc9, struct usr_crc_info_t)
 #define AMSTREAM_IOC_GET_CRC_CMP_RESULT _IOWR((_A_M), 0xca, int)
+#define AMSTREAM_IOC_GET_MVDECINFO _IOR((_A_M), 0xcb, int)
 
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
@@ -302,6 +303,9 @@ struct buf_status {
 #define DECODER_FATAL_ERROR_NO_MEM		(0x400 << 16)
 
 #define DECODER_ERROR_MASK	(0xffff << 16)
+/* The total slot number for fifo_buf */
+#define NUM_FRAME_VDEC  128  //This must be 2^n
+#define QOS_FRAME_NUM 4
 
 enum E_ASPECT_RATIO {
 	ASPECT_RATIO_4_3,
@@ -488,6 +492,13 @@ struct userdata_param_t {
 	struct userdata_meta_info_t meta_info; /*output*/
 };
 
+struct usr_crc_info_t {
+	u32 id;
+	u32 pic_num;
+	u32 y_crc;
+	u32 uv_crc;
+};
+
 /*******************************************************************
  * 0x100~~0x1FF : set cmd
  * 0x200~~0x2FF : set ex cmd
@@ -665,10 +676,10 @@ struct am_ioctl_parm_ptr {
 };
 
 struct vframe_qos_s {
-	int num;
-	int type;
-	int size;
-	int pts;
+	u32 num;
+	u32 type;
+	u32 size;
+	u32 pts;
 	int max_qp;
 	int avg_qp;
 	int min_qp;
@@ -681,13 +692,51 @@ struct vframe_qos_s {
 	int decode_buffer;
 } /*vframe_qos */;
 
+struct vframe_comm_s {
+	int vdec_id;
+	char vdec_name[16];
+	u32 vdec_type;
+};
+
+struct vframe_counter_s {
+	struct vframe_qos_s qos;
+	u32  decode_time_cost;/*us*/
+	u32 frame_width;
+	u32 frame_height;
+	u32 frame_rate;
+	u32 bit_depth_luma;//original bit_rate;
+	u32 frame_dur;
+	u32 bit_depth_chroma;//original frame_data;
+	u32 error_count;
+	u32 status;
+	u32 frame_count;
+	u32 error_frame_count;
+	u32 drop_frame_count;
+	u64 total_data;//this member must be 8 bytes alignment
+	u32 double_write_mode;//original samp_cnt;
+	u32 offset;
+	u32 ratio_control;
+	u32 vf_type;
+	u32 signal_type;
+	u32 pts;
+	u64 pts_us64;
+};
+
+struct vdec_frames_s {
+	u64 hw_decode_start;
+	u64 hw_decode_time;
+	u32 frame_size;
+	u32 rd;
+	u32 wr;
+	struct vframe_comm_s comm;
+	struct vframe_counter_s fifo_buf[NUM_FRAME_VDEC];
+};
 enum FRAME_FORMAT {
 	FRAME_FORMAT_UNKNOWN,
 	FRAME_FORMAT_PROGRESS,
 	FRAME_FORMAT_INTERLACE,
 };
 
-#define QOS_FRAME_NUM 60
 struct av_info_t {
 	/*auido info*/
 	int sample_rate;
@@ -723,10 +772,29 @@ struct av_param_qosinfo_t {
 	struct vframe_qos_s vframe_qos[QOS_FRAME_NUM];
 };
 
-#define SUPPORT_VDEC_NUM	(20)
+/*This is a versioning structure, the key member is the struct_size.
+ *In the 1st version it is not used,but will have its role in fureture.
+ *https://bytes.com/topic/c/answers/811125-struct-versioning
+ */
+struct av_param_mvdec_t {
+	int vdec_id;
+
+	/*This member is used for versioning this structure.
+	 *When passed from userspace, its value must be
+	 *sizeof(struct av_param_mvdec_t)
+	 */
+	int struct_size;
+
+	int slots;
+
+	struct vframe_comm_s comm;
+	struct vframe_counter_s minfo[QOS_FRAME_NUM];
+};
+
+#define SUPPORT_VDEC_NUM	(64)
 int vcodec_profile_register(const struct codec_profile_t *vdec_profile);
 ssize_t vcodec_profile_read(char *buf);
-
+bool is_support_profile(char *name);
 #ifdef __KERNEL__
 #include <linux/interrupt.h>
 
@@ -786,9 +854,9 @@ struct tcon_rgb_ogo_s {
 	int b_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
 } /*tcon_rgb_ogo_t */;
 
-#ifndef CONFIG_AMLOGIC_DEBUG_ATRACE
-static inline void ATRACE_COUNTER(const char *name, int val) { return; }
-#endif
+//#ifndef CONFIG_AMLOGIC_DEBUG_ATRACE
+//static inline void ATRACE_COUNTER(const char *name, int val) { return; }
+//#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 void set_vsync_pts_inc_mode(int inc);
