@@ -687,12 +687,12 @@ static void __exit meson_pwm_exit(void)
 {
 	platform_driver_unregister(&meson_pwm_driver);
 }
-fs_initcall_sync(meson_pwm_init);
-#else
-module_exit(meson_pwm_exit);
-#endif
 
+fs_initcall_sync(meson_pwm_init);
+module_exit(meson_pwm_exit);
+#else
 module_platform_driver(meson_pwm_driver);
+#endif
 
 MODULE_DESCRIPTION("Amlogic Meson PWM Generator driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
