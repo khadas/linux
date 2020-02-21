@@ -22,6 +22,9 @@
 #include <linux/amlogic/aml_cpuidle.h>
 #endif
 #include <linux/amlogic/cpu_version.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/of_platform.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)   KBUILD_MODNAME ": " fmt
@@ -257,4 +260,33 @@ static int __init meson_bc_timer_init(struct device_node *np)
 	return 0;
 }
 
+#if !defined(MODULE)
 TIMER_OF_DECLARE(meson_bc_timer, "amlogic,bc-timer", meson_bc_timer_init);
+#else
+static int bc_timer_probe(struct platform_device *pdev)
+{
+	return meson_bc_timer_init(pdev->dev.of_node);
+}
+
+static const struct of_device_id bc_timer_dt_match[] = {
+	{
+		.compatible = "amlogic,bc-timer",
+	},
+	{},
+};
+
+static struct platform_driver bc_timer_driver = {
+	.driver = {
+		.name = "meson-bc-timer",
+		.owner = THIS_MODULE,
+		.of_match_table = bc_timer_dt_match,
+	},
+	.probe = bc_timer_probe,
+};
+
+module_platform_driver(bc_timer_driver);
+
+MODULE_DESCRIPTION("Meson broadcast timer Driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Amlogic, Inc.");
+#endif
