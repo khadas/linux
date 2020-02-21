@@ -586,7 +586,7 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 	}
 
 	chip->irq_cpumask = 1;
-	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
+	irq_set_affinity_hint(chip->irqno, cpumask_of(chip->irq_cpumask));
 
 	tasklet.data = (unsigned long)chip;
 	tasklet_enable(&tasklet);
@@ -728,7 +728,7 @@ static int meson_ir_resume(struct device *dev)
 	}
 #endif
 
-	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
+	irq_set_affinity_hint(chip->irqno, cpumask_of(chip->irq_cpumask));
 	enable_irq(chip->irqno);
 	return 0;
 }
@@ -767,7 +767,24 @@ static struct platform_driver meson_ir_driver = {
 	},
 };
 
-module_platform_driver(meson_ir_driver);
+static int __init meson_ir_driver_init(void)
+{
+	int ret;
+
+	ret = meson_ir_xmp_decode_init();
+	if (ret)
+		return ret;
+
+	return platform_driver_register(&meson_ir_driver);
+}
+module_init(meson_ir_driver_init);
+
+static void __exit meson_ir_driver_exit(void)
+{
+	meson_ir_xmp_decode_exit();
+	platform_driver_unregister(&meson_ir_driver);
+}
+module_exit(meson_ir_driver_exit);
 
 MODULE_AUTHOR("AMLOGIC");
 MODULE_DESCRIPTION("AMLOGIC IR DRIVER");

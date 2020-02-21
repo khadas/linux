@@ -183,4 +183,7 @@ struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
 void meson_ir_tab_free(struct meson_ir_map_tab_list *ir_map_list);
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip);
 void meson_ir_pulses_free(struct meson_ir_chip *chip);
+
+int meson_ir_xmp_decode_init(void);
+void meson_ir_xmp_decode_exit(void);
 #endif

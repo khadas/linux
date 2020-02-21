@@ -206,7 +206,7 @@ static struct meson_ir_raw_handler xmp_handler = {
 	.decode		= meson_ir_xmp_decode,
 };
 
-static int __init meson_ir_xmp_decode_init(void)
+int meson_ir_xmp_decode_init(void)
 {
 	struct xmp_dec *xdec = kzalloc(sizeof(*xdec), GFP_KERNEL);
 
@@ -219,16 +219,9 @@ static int __init meson_ir_xmp_decode_init(void)
 	return 0;
 }
 
-static void __exit meson_ir_xmp_decode_exit(void)
+void meson_ir_xmp_decode_exit(void)
 {
 	meson_ir_raw_handler_unregister(&xmp_handler);
 	if (!xmp_handler.data)
 		kfree(xmp_handler.data);
 }
-
-module_init(meson_ir_xmp_decode_init);
-module_exit(meson_ir_xmp_decode_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("XMP IR PROTOCOL DECODER");
