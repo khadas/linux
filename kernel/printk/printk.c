@@ -376,6 +376,9 @@ struct printk_log {
 #ifdef CONFIG_PRINTK_CALLER
 	u32 caller_id;            /* thread id or processor id */
 #endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int cpu;
+#endif
 }
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 __packed __aligned(4)
@@ -419,6 +422,9 @@ DEFINE_RAW_SPINLOCK(logbuf_lock);
 
 #ifdef CONFIG_PRINTK
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int curr_cpu;
+#endif
 /* the next printk record to read by syslog(READ) or /proc/kmsg */
 static u64 syslog_seq;
 static u32 syslog_idx;
@@ -645,6 +651,9 @@ static int log_store(u32 caller_id, int facility, int level,
 	msg->facility = facility;
 	msg->level = level & 7;
 	msg->flags = flags & 0x1f;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	msg->cpu = smp_processor_id();
+#endif
 	if (ts_nsec > 0)
 		msg->ts_nsec = ts_nsec;
 	else
@@ -1268,8 +1277,13 @@ static size_t print_time(u64 ts, char *buf)
 {
 	unsigned long rem_nsec = do_div(ts, 1000000000);
 
+#if defined(CONFIG_SMP) && defined(CONFIG_AMLOGIC_DRIVER)
+	return sprintf(buf, "[%5lu.%06lu@%d] ",
+		       (unsigned long)ts, rem_nsec / 1000, curr_cpu);
+#else
 	return sprintf(buf, "[%5lu.%06lu]",
 		       (unsigned long)ts, rem_nsec / 1000);
+#endif
 }
 
 #ifdef CONFIG_PRINTK_CALLER
@@ -1295,6 +1309,10 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog,
 
 	if (time)
 		len += print_time(msg->ts_nsec, buf + len);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	curr_cpu = msg->cpu;
+#endif
 
 	len += print_caller(msg->caller_id, buf + len);
 
