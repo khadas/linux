@@ -356,6 +356,16 @@
 		<0xff63c100 0x10>;
 	};
 
+	amvenc_avc{
+		compatible = "amlogic, amvenc_avc";
+		dev_name = "amvenc_avc";
+		status = "okay";
+		clocks = <&clkc CLKID_HCODEC_P0>;
+		clock-names = "hcodec_p0";
+		interrupts = <GIC_SPI 45 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "mailbox_2";
+	};
+
 	hevc_enc{
 		#address-cells=<2>;
 		#size-cells=<2>;
