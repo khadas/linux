@@ -298,6 +298,11 @@ static struct clk_regmap g12a_fclk_div2 = {
 			&g12a_fclk_div2_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on CPU clock, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -2121,13 +2126,13 @@ static struct clk_regmap g12a_fclk_div7 = {
 };
 
 static struct clk_fixed_factor g12a_fclk_div2p5_div = {
-	.mult = 1,
+	.mult = 2,
 	.div = 5,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2p5_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&g12a_fixed_pll_dco.hw
+			&g12a_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -2145,6 +2150,9 @@ static struct clk_regmap g12a_fclk_div2p5 = {
 			&g12a_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
+		/* NO system bus is woring on it
+		 * NO CLK_IS_CRITICAL here.
+		 */
 	},
 };
 
