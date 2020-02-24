@@ -38,6 +38,7 @@ void evl_init_work(struct evl_work *work,
 	INIT_WORK(&work->wq_work, do_wq_work);
 	work->handler = (typeof(work->handler))handler;
 }
+EXPORT_SYMBOL_GPL(evl_init_work);
 
 void evl_init_sync_work(struct evl_sync_work *sync_work,
 			int (*handler)(struct evl_sync_work *sync_work))
@@ -49,6 +50,7 @@ void evl_init_sync_work(struct evl_sync_work *sync_work,
 	work->handler = (typeof(work->handler))handler;
 	evl_init_flag(&sync_work->done);
 }
+EXPORT_SYMBOL_GPL(evl_init_sync_work);
 
 void evl_call_inband_from(struct evl_work *work,
 			struct workqueue_struct *wq)
@@ -56,6 +58,7 @@ void evl_call_inband_from(struct evl_work *work,
 	work->wq = wq;
 	irq_work_queue(&work->irq_work);
 }
+EXPORT_SYMBOL_GPL(evl_call_inband_from);
 
 int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
 			struct workqueue_struct *wq)
@@ -74,3 +77,4 @@ int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
 
 	return evl_wait_flag(&sync_work->done) ?: sync_work->result;
 }
+EXPORT_SYMBOL_GPL(evl_call_inband_sync_from);
