@@ -28,11 +28,13 @@ void evl_init_stax(struct evl_stax *stax)
 	init_waitqueue_head(&stax->inband_wait);
 	init_irq_work(&stax->irq_work, wakeup_inband_waiters);
 }
+EXPORT_SYMBOL_GPL(evl_init_stax);
 
 void evl_destroy_stax(struct evl_stax *stax)
 {
 	evl_destroy_wait(&stax->oob_wait);
 }
+EXPORT_SYMBOL_GPL(evl_destroy_stax);
 
 static inline bool oob_may_access(int gateval)
 {
@@ -262,6 +264,7 @@ int evl_lock_stax(struct evl_stax *stax)
 
 	return lock_from_oob(stax, true);
 }
+EXPORT_SYMBOL_GPL(evl_lock_stax);
 
 int evl_trylock_stax(struct evl_stax *stax)
 {
@@ -270,6 +273,7 @@ int evl_trylock_stax(struct evl_stax *stax)
 
 	return lock_from_oob(stax, false);
 }
+EXPORT_SYMBOL_GPL(evl_trylock_stax);
 
 static void wakeup_inband_waiters(struct irq_work *work)
 {
@@ -387,3 +391,4 @@ void evl_unlock_stax(struct evl_stax *stax)
 	else
 		unlock_from_oob(stax);
 }
+EXPORT_SYMBOL_GPL(evl_unlock_stax);
