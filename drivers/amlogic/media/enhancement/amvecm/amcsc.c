@@ -4121,8 +4121,7 @@ void get_hdr_source_type(void)
 	else if ((signal_transfer_characteristic == 0x30)
 		&& (signal_color_primaries == 9))
 		hdr_source_type = HDR10PLUS_SOURCE;
-	else if ((signal_transfer_characteristic == 16)
-		|| (signal_color_primaries == 9))
+	else if (signal_transfer_characteristic == 16)
 		hdr_source_type = HDR10_SOURCE;
 	else
 		hdr_source_type = SDR_SOURCE;
@@ -6517,9 +6516,7 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path)
 			return HDRTYPE_HDR10PLUS;
 		else
 			return HDRTYPE_HDR10;
-	} else if (
-		(signal_transfer_characteristic == 16) ||
-		(signal_color_primaries == 9))
+	} else if (signal_transfer_characteristic == 16)
 		return HDRTYPE_HDR10;
 	else
 		return HDRTYPE_SDR;
