@@ -655,7 +655,7 @@ __setup("kernelkey_enable=", kernel_keypad_enable_setup);
 
 #endif
 
-module_init(meson_adc_kp_init);
+late_initcall(meson_adc_kp_init);
 module_exit(meson_adc_kp_exit);
 MODULE_AUTHOR("Amlogic");
 MODULE_DESCRIPTION("ADC Keypad Driver");

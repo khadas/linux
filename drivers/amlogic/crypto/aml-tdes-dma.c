@@ -1213,7 +1213,7 @@ static struct platform_driver aml_tdes_driver = {
 	},
 };
 
-int aml_tdes_driver_init(void)
+int __init aml_tdes_driver_init(void)
 {
 	return platform_driver_register(&aml_tdes_driver);
 }

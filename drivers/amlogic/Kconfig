@@ -43,8 +43,6 @@ source "drivers/amlogic/cpu_hotplug/Kconfig"
 
 source "drivers/amlogic/cpuidle/Kconfig"
 
-source "drivers/amlogic/cpu_version/Kconfig"
-
 source "drivers/amlogic/efuse/Kconfig"
 
 source "drivers/amlogic/defendkey/Kconfig"

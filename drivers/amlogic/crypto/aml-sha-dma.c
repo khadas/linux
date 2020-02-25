@@ -1438,7 +1438,7 @@ static struct platform_driver aml_sha_driver = {
 	},
 };
 
-int aml_sha_driver_init(void)
+int __init aml_sha_driver_init(void)
 {
 	return platform_driver_register(&aml_sha_driver);
 }

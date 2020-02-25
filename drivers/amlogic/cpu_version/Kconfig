@@ -1,5 +1,0 @@
-menuconfig AMLOGIC_CPU_VERSION
-    tristate "Amlogic cpu version support"
-    default n
-    help
-      This is the Amlogic CPU version interface driver

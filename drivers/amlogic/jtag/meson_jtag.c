@@ -614,7 +614,7 @@ static int __init aml_jtag_init(void)
  * That means we must use some initcall between arch_initcall
  * and device_initcall.
  */
-module_init(aml_jtag_init);
+fs_initcall(aml_jtag_init);
 
 static void __exit aml_jtag_exit(void)
 {

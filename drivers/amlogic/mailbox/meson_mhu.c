@@ -401,7 +401,7 @@ static int __init mhu_init(void)
 
 	return ret;
 }
-module_init(mhu_init);
+core_initcall(mhu_init);
 
 static void __exit mhu_exit(void)
 {
