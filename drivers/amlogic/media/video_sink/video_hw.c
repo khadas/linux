@@ -840,14 +840,15 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		DI_POST_WR_REG_BITS
 		(DI_IF1_GEN_REG3,
 		(bit_mode & 0x3), 8, 2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		DI_POST_WR_REG_BITS
-			(DI_IF2_GEN_REG3,
-			(bit_mode & 0x3), 8, 2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-		DI_POST_WR_REG_BITS
-			(DI_IF0_GEN_REG3,
-			(bit_mode & 0x3), 8, 2);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			DI_POST_WR_REG_BITS
+				(DI_IF2_GEN_REG3,
+				(bit_mode & 0x3), 8, 2);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+			DI_POST_WR_REG_BITS
+				(DI_IF0_GEN_REG3,
+				(bit_mode & 0x3), 8, 2);
+	}
 #endif
 	if (glayer_info[0].need_no_compress ||
 	    (vf->type & VIDTYPE_PRE_DI_AFBC)) {
