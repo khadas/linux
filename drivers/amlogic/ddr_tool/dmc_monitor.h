@@ -88,4 +88,18 @@ extern struct dmc_mon_ops g12_dmc_mon_ops;
 extern struct dmc_mon_ops c1_dmc_mon_ops;
 #endif
 
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+int __init dmc_monitor_init(void);
+void dmc_monitor_exit(void);
+#else
+static int dmc_monitor_init(void)
+{
+	return 0;
+}
+
+void dmc_monitor_exit(void)
+{
+}
+#endif
+
 #endif /* __DMC_MONITOR_H__ */

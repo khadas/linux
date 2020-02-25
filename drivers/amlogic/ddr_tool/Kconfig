@@ -9,7 +9,7 @@ config AMLOGIC_DDR_TOOL
 		Please see folllowing configs
 
 config AMLOGIC_DDR_BANDWIDTH
-	tristate "Meson ddr bandwidth"
+	bool "Meson ddr bandwidth"
 	default n
 	depends on AMLOGIC_DDR_TOOL
 	help
@@ -19,7 +19,7 @@ config AMLOGIC_DDR_BANDWIDTH
 		ddr DVFS/devfreq system.
 
 config AMLOGIC_DDR_BANDWIDTH_GXL
-	tristate "Meson ddr bandwidth for GXL"
+	bool "Meson ddr bandwidth for GXL"
 	default n
 	depends on AMLOGIC_DDR_BANDWIDTH
 	help
@@ -29,7 +29,7 @@ config AMLOGIC_DDR_BANDWIDTH_GXL
 		ddr DVFS/devfreq system.
 
 config AMLOGIC_DDR_BANDWIDTH_GX
-	tristate "Meson ddr bandwidth for GX"
+	bool "Meson ddr bandwidth for GX"
 	default n
 	depends on AMLOGIC_DDR_BANDWIDTH
 	help
@@ -39,7 +39,7 @@ config AMLOGIC_DDR_BANDWIDTH_GX
 		ddr DVFS/devfreq system.
 
 config AMLOGIC_DDR_BANDWIDTH_G12
-	tristate "Meson ddr bandwidth for G12"
+	bool "Meson ddr bandwidth for G12"
 	default n
 	depends on AMLOGIC_DDR_BANDWIDTH
 	help
@@ -49,7 +49,7 @@ config AMLOGIC_DDR_BANDWIDTH_G12
 		ddr DVFS/devfreq system.
 
 config AMLOGIC_DDR_BANDWIDTH_A1
-	tristate "Meson ddr bandwidth for A1"
+	bool "Meson ddr bandwidth for A1"
 	default n
 	depends on AMLOGIC_DDR_BANDWIDTH
 	help
@@ -59,7 +59,7 @@ config AMLOGIC_DDR_BANDWIDTH_A1
 		ddr DVFS/devfreq system.
 
 config AMLOGIC_DMC_MONITOR
-	tristate "Amlogic dmc monitor"
+	bool "Amlogic dmc monitor"
 	depends on AMLOGIC_DDR_TOOL
 	default n
 	help
@@ -69,7 +69,7 @@ config AMLOGIC_DMC_MONITOR
 		will generated and can help to debug memory pollution.
 
 config AMLOGIC_DMC_MONITOR_G12
-	tristate "Amlogic dmc monitor for G12"
+	bool "Amlogic dmc monitor for G12"
 	depends on AMLOGIC_DMC_MONITOR
 	default n
 	help
@@ -80,7 +80,7 @@ config AMLOGIC_DMC_MONITOR_G12
 		will generated and can help to debug memory pollution.
 
 config AMLOGIC_DMC_MONITOR_GX
-	tristate "Amlogic dmc monitor for GX"
+	bool "Amlogic dmc monitor for GX"
 	depends on AMLOGIC_DMC_MONITOR
 	default n
 	help
@@ -91,7 +91,7 @@ config AMLOGIC_DMC_MONITOR_GX
 		will generated and can help to debug memory pollution.
 
 config AMLOGIC_DMC_MONITOR_C1
-	tristate "Amlogic dmc monitor for C1"
+	bool "Amlogic dmc monitor for C1"
 	depends on AMLOGIC_DMC_MONITOR
 	default n
 	help

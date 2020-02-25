@@ -14,7 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/amlogic/ddr_bandwidth.h>
+#include "ddr_bandwidth.h"
 #include <linux/io.h>
 #include <linux/slab.h>
 

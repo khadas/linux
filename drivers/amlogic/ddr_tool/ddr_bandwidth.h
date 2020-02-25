@@ -18,7 +18,7 @@
 #define DMC_QOS_IRQ			BIT(30)
 #define MAX_CHANNEL			4
 
-#include <linux/amlogic/ddr_port.h>
+#include "ddr_port.h"
 /*
  * register offset for chips before g12
  */
@@ -172,12 +172,19 @@ extern struct ddr_bandwidth_ops gxl_ddr_bw_ops;
 extern struct ddr_bandwidth_ops a1_ddr_bw_ops;
 #endif
 
-#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH
 unsigned int aml_get_ddr_usage(void);
+
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH
+int __init ddr_bandwidth_init(void);
+void ddr_bandwidth_exit(void);
 #else
-static inline unsigned int aml_get_ddr_usage(void)
+static int ddr_bandwidth_init(void)
 {
 	return 0;
+}
+
+static void ddr_bandwidth_exit(void)
+{
 }
 #endif
 

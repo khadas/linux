@@ -25,8 +25,8 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/page_trace.h>
-#include <linux/amlogic/dmc_monitor.h>
-#include <linux/amlogic/ddr_port.h>
+#include "ddr_port.h"
+#include "dmc_monitor.h"
 
 #define DMC_PROT0_RANGE		((0x00a0  << 2))
 #define DMC_PROT0_CTRL		((0x00a1  << 2))

@@ -15,11 +15,11 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/amlogic/ddr_bandwidth.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/amlogic/dmc.h>
 #include <linux/sched/clock.h>
+#include "ddr_bandwidth.h"
+#include "dmc.h"
 
 static struct ddr_bandwidth *aml_db;
 
@@ -860,11 +860,10 @@ static struct platform_driver ddr_bandwidth_driver = {
 	.remove = ddr_bandwidth_remove,
 };
 
-static int __init ddr_bandwidth_init(void)
+int __init ddr_bandwidth_init(void)
 {
 #ifdef CONFIG_OF
 	const struct of_device_id *match_id;
-
 	match_id = aml_ddr_bandwidth_dt_match;
 	ddr_bandwidth_driver.driver.of_match_table = match_id;
 #endif
@@ -873,11 +872,8 @@ static int __init ddr_bandwidth_init(void)
 				     ddr_bandwidth_probe);
 }
 
-static void __exit ddr_bandwidth_exit(void)
+void ddr_bandwidth_exit(void)
 {
 	platform_driver_unregister(&ddr_bandwidth_driver);
 }
 
-subsys_initcall(ddr_bandwidth_init);
-module_exit(ddr_bandwidth_exit);
-MODULE_LICENSE("GPL v2");

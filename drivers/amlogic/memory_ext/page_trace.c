@@ -587,6 +587,7 @@ struct page_trace *find_page_base(struct page *page)
 	return NULL;
 }
 #endif
+EXPORT_SYMBOL_GPL(find_page_base);
 
 unsigned long get_page_trace(struct page *page)
 {
@@ -598,6 +599,7 @@ unsigned long get_page_trace(struct page *page)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(get_page_trace);
 
 #ifndef CONFIG_64BIT
 static void __init set_init_page_trace(struct page *page, int order, gfp_t flag)

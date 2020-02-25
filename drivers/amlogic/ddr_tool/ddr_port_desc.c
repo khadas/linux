@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/amlogic/ddr_port.h>
+#include "ddr_port.h"
 
 /*
  * NOTE:

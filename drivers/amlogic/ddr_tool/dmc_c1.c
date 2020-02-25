@@ -25,8 +25,8 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/page_trace.h>
-#include <linux/amlogic/dmc_monitor.h>
-#include <linux/amlogic/ddr_port.h>
+#include "ddr_port.h"
+#include "dmc_monitor.h"
 
 #define DMC_PROT0_STA		((0x00a3  << 2))
 #define DMC_PROT0_EDA		((0x00a4  << 2))
