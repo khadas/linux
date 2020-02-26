@@ -98,8 +98,13 @@ enum output_format_e {
 #define XVY_MTX_EN_MASK  (1 << XVY_MTX_EN)
 #define OSD1_MTX_EN_MASK (1 << OSD1_MTX_EN)
 
+#define SDR_SUPPORT		(1 << 1)
 #define HDR_SUPPORT		(1 << 2)
 #define HLG_SUPPORT		(1 << 3)
+#define HDRP_SUPPORT	(1 << 4)
+#define BT2020_SUPPORT	(1 << 5)
+#define DV_SUPPORT_SHF	(6)
+#define DV_SUPPORT		(3 << DV_SUPPORT_SHF)
 
 bool is_vinfo_available(const struct vinfo_s *vinfo);
 int is_sink_cap_changed(const struct vinfo_s *vinfo,
@@ -235,6 +240,10 @@ extern void send_hdr10_plus_pkt(enum vd_path_e vd_path);
 
 void hdr10_plus_process_update(int force_source_lumin);
 extern int customer_hdr_clipping;
+
+/* api to get sink capability */
+uint32_t sink_dv_support(const struct vinfo_s *vinfo);
+uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 
 #endif /* AM_CSC_H */
 
