@@ -145,6 +145,7 @@ static inline struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct meson_pwm, chip);
 }
+EXPORT_SYMBOL(to_meson_pwm);
 
 static int meson_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {

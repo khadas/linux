@@ -844,7 +844,11 @@ MODULE_DESCRIPTION("wifi device tree driver");
 u8 WIFI_MAC[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 char wifi_mac[32] = {0};
 char *wifimac;
+#ifdef MODULE
+module_param(wifimac, charp, 0644);
+#else
 core_param(wifimac, wifimac, charp, 0644);
+#endif
 static unsigned char chartonum(char c)
 {
 	if (c >= '0' && c <= '9')
@@ -856,7 +860,7 @@ static unsigned char chartonum(char c)
 	return 0;
 }
 
-static int __init mac_addr_set(char *line)
+static int mac_addr_set(char *line)
 {
 	unsigned char mac[6];
 	int i = 0;
@@ -879,7 +883,26 @@ static int __init mac_addr_set(char *line)
 	return 1;
 }
 
+#ifdef MODULE
+static char *mac_addr = "";
+
+static int set_mac_addr(const char *val, const struct kernel_param *kp)
+{
+	param_set_charp(val, kp);
+
+	return mac_addr_set(mac_addr);
+}
+
+static const struct kernel_param_ops mac_addr_ops = {
+	.set = set_mac_addr,
+	.get = param_get_charp,
+};
+
+module_param_cb(mac_addr, &mac_addr_ops, &mac_addr, 0644);
+MODULE_PARM_DESC(mac_addr, "mac addr");
+#else
 __setup("mac_wifi=", mac_addr_set);
+#endif
 
 u8 *wifi_get_mac(void)
 {
