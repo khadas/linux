@@ -1141,3 +1141,4 @@ static struct platform_driver amlogic_pcie_driver = {
 	.probe = amlogic_pcie_probe,
 };
 builtin_platform_driver(amlogic_pcie_driver);
+MODULE_LICENSE("GPL v2");

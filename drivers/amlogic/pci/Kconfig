@@ -1,5 +1,5 @@
 menuconfig AMLOGIC_PCIE
-	bool "Amlogic pcie"
+	tristate "Amlogic pcie"
 	default n
 	help
 	This selects support for the Amlogic PCIE Host Controller
