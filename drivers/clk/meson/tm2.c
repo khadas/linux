@@ -94,6 +94,34 @@ static const struct pll_mult_range tm2_sys_pll_mult_range = {
 	.max = 250,
 };
 
+static const struct clk_ops meson_pll_clk_no_ops = {};
+
+/*
+ * the sys pll DCO value should be 3G~6G,
+ * otherwise the sys pll can not lock.
+ * od is for 32 bit.
+ */
+
+#ifdef CONFIG_ARM
+static const struct pll_params_table tm2_sys_pll_params_table[] = {
+	PLL_PARAMS(168, 1, 2), /*DCO=4032M OD=1008M*/
+	PLL_PARAMS(184, 1, 2), /*DCO=4416M OD=1104M*/
+	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(216, 1, 2), /*DCO=5184M OD=1296M*/
+	PLL_PARAMS(233, 1, 2), /*DCO=5592M OD=1398M*/
+	PLL_PARAMS(249, 1, 2), /*DCO=5976M OD=1494M*/
+	PLL_PARAMS(126, 1, 1), /*DCO=3024M OD=1512M*/
+	PLL_PARAMS(134, 1, 1), /*DCO=3216M OD=1608M*/
+	PLL_PARAMS(142, 1, 1), /*DCO=3408M OD=1704M*/
+	PLL_PARAMS(150, 1, 1), /*DCO=3600M OD=1800M*/
+	PLL_PARAMS(158, 1, 1), /*DCO=3792M OD=1896M*/
+	PLL_PARAMS(159, 1, 1), /*DCO=3816M OD=1908*/
+	PLL_PARAMS(160, 1, 1), /*DCO=3840M OD=1920M*/
+	PLL_PARAMS(168, 1, 1), /*DCO=4032M OD=2016M*/
+	{ /* sentinel */ },
+};
+#endif
+
 static struct clk_regmap tm2_sys_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -111,6 +139,15 @@ static struct clk_regmap tm2_sys_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
+#ifdef CONFIG_ARM
+		/* od for 32bit */
+		.od = {
+			.reg_off = HHI_SYS_PLL_CNTL0,
+			.shift	 = 16,
+			.width	 = 3,
+		},
+		.table = tm2_sys_pll_params_table,
+#endif
 		.l = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
 			.shift   = 31,
@@ -135,6 +172,41 @@ static struct clk_regmap tm2_sys_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+/*
+ * If DCO frequency is greater than 2.1G in 32bit,it will
+ * overflow due to the callback .round_rate returns
+ *  long (-2147483648 ~ +2147483647).
+ * The OD output value is under 2G, For 32bit, the dco and
+ * od should be described together to avoid overflow.
+ * Beside, I have tried another methods but failed.
+ * 1) change the freq unit to kHZ, it will crash (fixed xtal
+ *   = 24000) and it will influences clock users.
+ * 2) change the return value for .round_rate, a greater many
+ *   code will be modified, related to whole CCF.
+ * 3) dco pll using kHZ, other clock using HZ, when calculate pll
+ *    it will be a lot of mass because of unit deferentces.
+ *
+ * Keep Consistent with 64bit, creat a Virtual clock for sys pll
+ */
+static struct clk_regmap tm2_sys_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "sys_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_sys_pll_dco.hw
+		},
+		.num_parents = 1,
+		/*
+		 * sys pll is used by cpu clock , it is initialized
+		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
+		 * prevent the system hang up which will be called
+		 * by clk_disable_unused
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+#else
 static struct clk_regmap tm2_sys_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_SYS_PLL_CNTL0,
@@ -152,6 +224,7 @@ static struct clk_regmap tm2_sys_pll = {
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 static struct clk_regmap tm2_sys_pll_div16_en = {
 	.data = &(struct clk_regmap_gate_data){
@@ -351,12 +424,21 @@ static struct clk_regmap tm2_fclk_div2p5 = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static const struct pll_params_table tm2_gp0_pll_table[] = {
+	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
+	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
+	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
+	{ /* sentinel */  },
+};
+#else
 static const struct pll_params_table tm2_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M*/
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
 	{0, 0},
 };
+#endif
 
 /*
  * Internal gp0 pll emulation configuration parameters
@@ -387,6 +469,14 @@ static struct clk_regmap tm2_gp0_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL0,
+			.shift	 = 16,
+			.width	 = 3,
+		},
+#endif
 		.frac = {
 			.reg_off = HHI_GP0_PLL_CNTL1,
 			.shift   = 0,
@@ -416,6 +506,19 @@ static struct clk_regmap tm2_gp0_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap tm2_gp0_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "gp0_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_gp0_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
 static struct clk_regmap tm2_gp0_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_GP0_PLL_CNTL0,
@@ -434,6 +537,7 @@ static struct clk_regmap tm2_gp0_pll = {
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 static const struct pll_mult_range tm2_gp1_pll_mult_range = {
 	.min = 128,
@@ -601,11 +705,18 @@ static const struct reg_sequence tm2_pcie_pll_init_regs[] = {
 	{ .reg = HHI_PCIE_PLL_CNTL2,	.def = 0x00001000 },
 };
 
+#ifdef CONFIG_ARM64
 /* Keep a single entry table for recalc/round_rate() ops */
 static const struct pll_params_table tm2_pcie_pll_table[] = {
 	PLL_PARAMS(200, 1),
 	{0, 0},
 };
+#else
+static const struct pll_params_table tm2_pcie_pll_table[] = {
+	PLL_PARAMS(200, 1, 0),
+	{0, 0, 0},
+};
+#endif
 
 static struct clk_regmap tm2_pcie_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
