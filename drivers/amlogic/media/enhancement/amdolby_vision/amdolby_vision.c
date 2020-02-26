@@ -4277,45 +4277,19 @@ EXPORT_SYMBOL(dolby_vision_dump_setting);
 
 static int sink_support_dolby_vision(const struct vinfo_s *vinfo)
 {
-	if (!vinfo || !vinfo->vout_device || !vinfo->vout_device->dv_info)
-		return 0;
-	if (vinfo->vout_device->dv_info->ieeeoui != 0x00d046)
-		return 0;
-	if (vinfo->vout_device->dv_info->block_flag != CORRECT)
-		return 0;
 	if (dolby_vision_flags & FLAG_DISABLE_DOVI_OUT)
 		return 0;
-	/* for sink not support 60 dovi */
-	if ((strstr(vinfo->name, "2160p60hz") != NULL) ||
-		(strstr(vinfo->name, "2160p50hz") != NULL)) {
-		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
-			return 0;
-	}
-	/* for interlace output */
-	if (vinfo->height != vinfo->field_height)
-		return 0;
-	return 1;
+	return (sink_hdr_support(vinfo) & DV_SUPPORT) >> DV_SUPPORT_SHF;
 }
 
 static int sink_support_hdr(const struct vinfo_s *vinfo)
 {
-#define HDR_SUPPORT (1 << 2)
-	if (!vinfo)
-		return 0;
-	if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
-		return 1;
-	return 0;
+	return sink_hdr_support(vinfo) & HDR_SUPPORT;
 }
 
 static int sink_support_hdr10_plus(const struct vinfo_s *vinfo)
 {
-	if (vinfo && (vinfo->hdr_info.hdr10plus_info.ieeeoui
-			== 0x90848B) &&
-		(vinfo->hdr_info.hdr10plus_info.application_version
-			== 1))
-		return 1;
-
-	return 0;
+	return sink_hdr_support(vinfo) & HDRP_SUPPORT;
 }
 
 static int current_hdr_cap = -1; /* should set when probe */
@@ -6602,7 +6576,7 @@ int dolby_vision_parse_metadata(
 						* 10000 / (127 * 127);
 				}
 			}
-		} else if (vinfo->hdr_info.hdr_support & 4) {
+		} else if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
 			if (vinfo->hdr_info.lumi_max) {
 				/* Luminance value = 50 * (2 ^ (CV/32)) */
 				graphic_max =

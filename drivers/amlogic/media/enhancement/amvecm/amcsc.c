@@ -355,7 +355,7 @@ static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
-/* when cur_hdr_policy == 2 && dovi disable */
+/* when get_hdr_policy() == 0 */
 /* enum output_format_e */
 /*	BT709 = 1,				*/
 /*	BT2020 = 2,				*/
@@ -364,7 +364,7 @@ MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 /*	BT2020_HLG = 5,			*/
 /*	BT2100_IPT = 6			*/
 /* BT2020 = 2: 2020 + gamma not support in hdmi now */
-static uint force_output = 1; /* BT709 */
+static uint force_output; /* 0: no force */
 module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
@@ -3801,6 +3801,83 @@ int hdr10_primaries_changed(
 	return flag;
 }
 
+uint32_t sink_dv_support(const struct vinfo_s *vinfo)
+{
+	if (!vinfo || !vinfo->vout_device || !vinfo->vout_device->dv_info)
+		return 0;
+	if (vinfo->vout_device->dv_info->ieeeoui != 0x00d046)
+		return 0;
+	if (vinfo->vout_device->dv_info->block_flag != CORRECT)
+		return 0;
+	/* for sink not support 60 dovi */
+	if ((strstr(vinfo->name, "2160p60hz") != NULL) ||
+		(strstr(vinfo->name, "2160p50hz") != NULL)) {
+		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
+			return 0;
+	}
+	/* for interlace output */
+	if (vinfo->height != vinfo->field_height)
+		return 0;
+	if (vinfo->vout_device->dv_info->ver == 2) {
+		if (vinfo->vout_device->dv_info->Interface <= 1)
+			return 2; /* LL only */
+		else
+			return 3; /* STD & LL */
+	} else if (vinfo->vout_device->dv_info->low_latency)
+		return 3; /* STD & LL */
+	return 1; /* STD only */
+}
+EXPORT_SYMBOL(sink_dv_support);
+
+uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
+{
+	uint32_t hdr_cap = 0;
+	uint32_t dv_cap = 0;
+
+	/* when policy == follow sink(0) or force output (2) */
+	/* use force_output */
+	if ((get_force_output() != 0)
+	&& (get_hdr_policy() != 1)) {
+		switch (get_force_output()) {
+		case BT709:
+			break;
+		case BT2020:
+			hdr_cap |= BT2020_SUPPORT;
+			break;
+		case BT2020_PQ:
+			hdr_cap |= HDR_SUPPORT;
+			break;
+		case BT2020_PQ_DYNAMIC:
+			hdr_cap |= HDRP_SUPPORT;
+			break;
+		case BT2020_HLG:
+			hdr_cap |= HLG_SUPPORT;
+			break;
+		case BT2100_IPT:
+			hdr_cap |= DV_SUPPORT;
+		default:
+			break;
+		}
+	} else if (vinfo) {
+		if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
+			hdr_cap |= HDR_SUPPORT;
+		if (vinfo->hdr_info.hdr_support & HLG_SUPPORT)
+			hdr_cap |= HLG_SUPPORT;
+		if ((vinfo->hdr_info.hdr10plus_info.ieeeoui
+		== HDR_PLUS_IEEE_OUI) &&
+		(vinfo->hdr_info.hdr10plus_info.application_version
+		== 1))
+			hdr_cap |= HDRP_SUPPORT;
+		if (vinfo->hdr_info.colorimetry_support & 0xe0)
+			hdr_cap |= BT2020_SUPPORT;
+		dv_cap = sink_dv_support(vinfo);
+		if (dv_cap)
+			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
+	}
+	return hdr_cap;
+}
+EXPORT_SYMBOL(sink_hdr_support);
+
 int signal_type_changed(struct vframe_s *vf,
 	struct vinfo_s *vinfo, enum vd_path_e vd_path)
 {
@@ -5279,7 +5356,8 @@ static void bypass_hdr_process(
 		else
 			hdr_func(VD2_HDR, HDR_BYPASS, vinfo);
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			((vinfo->hdr_info.hdr_support & 0xc) &&
+			((sink_hdr_support(vinfo) &
+			(HDR_SUPPORT | HLG_SUPPORT)) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			if (get_hdr_type() & HLG_FLAG)
 				hdr_func(OSD1_HDR, SDR_HLG, vinfo);
@@ -5300,7 +5378,7 @@ static void bypass_hdr_process(
 		/* WRITE_VPP_REG_BITS*/
 		/*(VIU_OSD1_BLK0_CFG_W0,0, 7, 1);*/
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			((vinfo->hdr_info.hdr_support & 0x4) &&
+			((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
@@ -5650,7 +5728,7 @@ static void set_bt2020csc_process(
 		/* WRITE_VPP_REG_BITS*/
 		/*(VIU_OSD1_BLK0_CFG_W0,0, 7, 1);*/
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			((vinfo->hdr_info.hdr_support & 0x4) &&
+			((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
@@ -5960,7 +6038,7 @@ static void hlg_hdr_process(
 		/* WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0, */
 		/* 0, 7, 1); */
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-			((vinfo->hdr_info.hdr_support & 0x4) &&
+			((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
@@ -6357,31 +6435,25 @@ static int vpp_eye_protection_process(
 static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 {
 	/*check if hdmitx support hdr10+*/
-	if ((vinfo->hdr_info.hdr10plus_info.ieeeoui
-			== HDR_PLUS_IEEE_OUI) &&
-		(vinfo->hdr_info.hdr10plus_info.application_version
-			== 1))
-		tx_hdr10_plus_support = 1;
-	else
-		tx_hdr10_plus_support = 0;
+	tx_hdr10_plus_support = sink_hdr_support(vinfo) & HDRP_SUPPORT;
 
 	/* check hdr support info from Tx or Panel */
 	if (hdr_mode == 2) { /* auto */
 		/*hdr_support & bit2 is hdr10*/
 		/*hdr_support & bit3 is hlg*/
-		if ((vinfo->hdr_info.hdr_support & HDR_SUPPORT) &&
-			(vinfo->hdr_info.hdr_support & HLG_SUPPORT)) {
+		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
+			(sink_hdr_support(vinfo) & HLG_SUPPORT)) {
 			hdr_process_mode[vd_path] = PROC_BYPASS; /* hdr->hdr*/
 			hlg_process_mode[vd_path] = PROC_BYPASS; /* hlg->hlg*/
-		} else if ((vinfo->hdr_info.hdr_support & HDR_SUPPORT) &&
-			!(vinfo->hdr_info.hdr_support & HLG_SUPPORT)) {
+		} else if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
+			!(sink_hdr_support(vinfo) & HLG_SUPPORT)) {
 			hdr_process_mode[vd_path] = PROC_BYPASS; /* hdr->hdr*/
 			if (force_pure_hlg[vd_path])
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 			else  /* hlg->hdr10*/
 				hlg_process_mode[vd_path] = PROC_MATCH;
-		} else if (!(vinfo->hdr_info.hdr_support & HDR_SUPPORT) &&
-			(vinfo->hdr_info.hdr_support & HLG_SUPPORT)) {
+		} else if (!(sink_hdr_support(vinfo) & HDR_SUPPORT) &&
+			(sink_hdr_support(vinfo) & HLG_SUPPORT)) {
 			hdr_process_mode[vd_path] = PROC_MATCH;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 		} else {
@@ -6398,11 +6470,11 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 		hlg_process_mode[vd_path] = PROC_MATCH;
 		hdr10_plus_process_mode[vd_path] = PROC_MATCH;
 	} else {
-		if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
+		if (sink_hdr_support(vinfo) & HDR_SUPPORT)
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 		else
 			hdr_process_mode[vd_path] = PROC_MATCH;
-		if ((vinfo->hdr_info.hdr_support & HLG_SUPPORT) ||
+		if ((sink_hdr_support(vinfo) & HLG_SUPPORT) ||
 		(force_pure_hlg[vd_path]))
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 		else
@@ -6414,7 +6486,7 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 	}
 
 	if (sdr_mode == 2) { /* auto */
-		if ((vinfo->hdr_info.hdr_support & 0x4) &&
+		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
 		 (vinfo->viu_color_fmt != COLOR_FMT_RGB444)))
 			/*box sdr->hdr*/
@@ -6434,34 +6506,21 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 
 static int sink_support_dolby_vision(const struct vinfo_s *vinfo)
 {
-	if (!vinfo || !vinfo->vout_device || !vinfo->vout_device->dv_info)
-		return 0;
-	if (vinfo->vout_device->dv_info->ieeeoui != 0x00d046)
-		return 0;
-	if (vinfo->vout_device->dv_info->block_flag != CORRECT)
-		return 0;
-	if (strstr(vinfo->name, "2160p60hz") ||
-	    strstr(vinfo->name, "2160p50hz")) {
-		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
-			return 0;
-	}
-	return 1;
+	if (sink_hdr_support(vinfo) & DV_SUPPORT)
+		return 1;
+	return 0;
 }
 
 static int sink_support_hdr(const struct vinfo_s *vinfo)
 {
-	if (!vinfo)
-		return 0;
-	if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
+	if (sink_hdr_support(vinfo) & HDR_SUPPORT)
 		return 1;
 	return 0;
 }
 
 static int sink_support_hlg(const struct vinfo_s *vinfo)
 {
-	if (!vinfo)
-		return 0;
-	if (vinfo->hdr_info.hdr_support & HLG_SUPPORT)
+	if (sink_hdr_support(vinfo) & HLG_SUPPORT)
 		return 1;
 	return 0;
 }
@@ -6473,11 +6532,9 @@ static int sink_support_hdr10_plus(const struct vinfo_s *vinfo)
 	    ((get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TM2)))
 		return 1;
+
 	/* hdmi */
-	if ((vinfo->hdr_info.hdr10plus_info.ieeeoui
-			== 0x90848B) &&
-		(vinfo->hdr_info.hdr10plus_info.application_version
-			== 1))
+	if (sink_hdr_support(vinfo) & HDRP_SUPPORT)
 		return 1;
 
 	return 0;
@@ -6732,7 +6789,8 @@ static void hdr_tx_pkt_cb(
 		vdev = vinfo->vout_device;
 
 	if ((vinfo->viu_color_fmt != COLOR_FMT_RGB444) &&
-		((vinfo->hdr_info.hdr_support & 0xc) ||
+		((sink_hdr_support(vinfo) &
+		(HDR_SUPPORT | HLG_SUPPORT)) ||
 		(signal_change_flag & SIG_HDR_SUPPORT) ||
 		(signal_change_flag & SIG_HLG_SUPPORT) ||
 		/*hdr10 plus*/
@@ -6914,8 +6972,8 @@ static void hdr_tx_pkt_cb(
 		} else {
 			/* sdr source send normal info*/
 			/* use the features to discribe source info */
-			if (((vinfo->hdr_info.hdr_support & HDR_SUPPORT) |
-				(vinfo->hdr_info.hdr_support & HLG_SUPPORT)) &&
+			if (((sink_hdr_support(vinfo) & HDR_SUPPORT) ||
+				(sink_hdr_support(vinfo) & HLG_SUPPORT)) &&
 				(csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 				tx_op_color_primary)
 				send_info.features =
@@ -7106,9 +7164,9 @@ static void video_process(
 			sdr_hdr_process(csc_type, vinfo, p, vd_path);
 		else {
 			/* for gxtvbb and gxl HDR bypass process */
-			if (((vinfo->hdr_info.hdr_support &
+			if (((sink_hdr_support(vinfo) &
 				HDR_SUPPORT) ||
-				(vinfo->hdr_info.hdr_support &
+				(sink_hdr_support(vinfo) &
 				HLG_SUPPORT)) &&
 				(csc_type <
 				VPP_MATRIX_BT2020YUV_BT2020RGB)
@@ -7612,7 +7670,7 @@ int amvecm_matrix_process(
 		}
 
 		/* gxl handle sdr_mode change bug fix. */
-		if ((vinfo->hdr_info.hdr_support & 0x4) &&
+		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
 		    vinfo->viu_color_fmt != COLOR_FMT_RGB444) {
 			if (sdr_mode != cur_sdr_mode) {
@@ -7625,7 +7683,7 @@ int amvecm_matrix_process(
 
 		/* handle sdr_mode change */
 		if (is_video_layer_on(vd_path) &&
-		    (vinfo->hdr_info.hdr_support & 0x4) &&
+		    (sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    ((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
 		     (vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
