@@ -100,10 +100,10 @@ sub check_msg_49_2
 		return -1;
 	}
 
-	if( $msg !~ /Merge\s/ && $msg =~ /4.19/ )
+	if( $msg !~ /Merge\s/ && $msg =~ /5\.4/ )
 	{
 		$err_cnt += 1;
-		$err_msg .= "	$err_cnt: this branch is 4.19, all changes here are for 4.19. No「4.19」in commit message please\n";
+		$err_msg .= "	$err_cnt: this branch is 5.4, all changes here are for 5.4. No「5.4」in commit message please\n";
 	}
 
 	if( $str[$i] !~ /^([\w-]+:\s){1,2}.+(\s)\[[\d]+\/[\d]+\]$/ )
