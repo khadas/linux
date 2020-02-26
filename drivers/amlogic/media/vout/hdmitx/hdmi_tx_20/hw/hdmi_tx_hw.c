@@ -704,7 +704,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->rhpd_state = 0;
 		earc_hdmitx_hpdst(0);
 		queue_delayed_work(hdev->hdmi_wq,
-			&hdev->work_hpd_plugout, HZ / 50);
+			&hdev->work_hpd_plugout, 0);
 	}
 	/* internal interrupt */
 	if (dat_top & (1 << 0)) {
