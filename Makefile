@@ -1306,8 +1306,13 @@ endif
 
 ifneq ($(dtstree),)
 
+ifdef CONFIG_AMLOGIC_MODIFY
+%.dtb: include/config/kernel.release scripts_dtc
+	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@
+else
 %.dtb: include/config/kernel.release scripts_dtc
 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
+endif
 
 PHONY += dtbs dtbs_install dt_binding_check
 dtbs dtbs_check: include/config/kernel.release scripts_dtc
