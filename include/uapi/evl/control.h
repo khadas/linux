@@ -10,12 +10,21 @@
 #include <linux/types.h>
 #include <uapi/evl/sched.h>
 
-#define EVL_ABI_LEVEL  17
+/* Earliest ABI level we support. */
+#define EVL_ABI_BASE   18
+/*
+ * Current/latest ABI level we support. We may decouple the base and
+ * current ABI levels by providing backward compatibility from the
+ * latter to the former. CAUTION: a litteral value is required for the
+ * current ABI definition (scripts reading this may be naive).
+ */
+#define EVL_ABI_LEVEL  18
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 
 struct evl_core_info {
-	__u32 abi_level;
+	__u32 abi_base;
+	__u32 abi_current;
 	__u32 fpu_features;
 	__u64 shm_size;
 };
