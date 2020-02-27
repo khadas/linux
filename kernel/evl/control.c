@@ -294,7 +294,8 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case EVL_CTLIOC_GET_COREINFO:
-		info.abi_level = EVL_ABI_LEVEL;
+		info.abi_base = EVL_ABI_BASE;
+		info.abi_current = EVL_ABI_LEVEL;
 		info.fpu_features = evl_detect_fpu();
 		info.shm_size = evl_shm_size;
 		ret = raw_copy_to_user((struct evl_core_info __user *)arg,
