@@ -35,8 +35,10 @@
 #include "emmc_key.h"
 #include <linux/dma-contiguous.h>
 #define DTB_NAME	"dtb"
+#define DDR_NAME	"ddr_parameter"
 #define	SZ_1M	0x00100000
 #define		MMC_DTB_PART_OFFSET		(40*SZ_1M)
+#define		DDR_PARAMETER_OFFSET		(8*SZ_1M)
 #define		EMMC_BLOCK_SIZE		(0x100)
 #define		MAX_EMMC_BLOCK_SIZE		(128*1024)
 
@@ -91,6 +93,10 @@ static dev_t amlmmc_dtb_no;
 struct cdev amlmmc_dtb;
 struct device *dtb_dev;
 struct class *amlmmc_dtb_class;
+static dev_t amlmmc_ddr_no;
+struct cdev amlmmc_ddr;
+struct device *ddr_dev;
+struct class *amlmmc_ddr_class;
 struct mmc_card *card_dtb;
 static struct aml_dtb_info dtb_infos = {{0, 0}, {0, 0} };
 struct mmc_partitions_fmt *pt_fmt;
@@ -121,13 +127,11 @@ static int _verify_dtb_checksum(struct aml_dtb_rsv *dtb)
 	return !(checksum == dtb->checksum);
 }
 
-static int _dtb_write(struct mmc_card *mmc,
-				int blk, unsigned char *buf)
+static int _amlmmc_write(struct mmc_card *mmc,
+		      int blk, unsigned char *buf, int cnt)
 {
 	int ret = 0;
 	unsigned char *src = NULL;
-	int bit = mmc->csd.read_blkbits;
-	int cnt = CONFIG_DTB_SIZE >> bit;
 
 	src = (unsigned char *)buf;
 
@@ -148,13 +152,11 @@ static int _dtb_write(struct mmc_card *mmc,
 	return ret;
 }
 
-static int _dtb_read(struct mmc_card *mmc,
-				int blk, unsigned char *buf)
+static int _amlmmc_read(struct mmc_card *mmc,
+		     int blk, unsigned char *buf, int cnt)
 {
 	int ret = 0;
 	unsigned char *dst = NULL;
-	int bit = mmc->csd.read_blkbits;
-	int cnt = CONFIG_DTB_SIZE >> bit;
 
 	dst = (unsigned char *)buf;
 	mmc_claim_host(mmc->host);
@@ -181,6 +183,7 @@ static int _dtb_init(struct mmc_card *mmc)
 	int cpy = 1, valid = 0;
 	int bit = mmc->csd.read_blkbits;
 	int blk;
+	int cnt = CONFIG_DTB_SIZE >> bit;
 
 	dtb = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
 	if (!dtb)
@@ -191,7 +194,7 @@ static int _dtb_init(struct mmc_card *mmc)
 		blk = ((get_reserve_partition_off_from_tbl()
 					+ DTB_RESERVE_OFFSET) >> bit)
 			+ cpy * DTB_BLK_CNT;
-		if (_dtb_read(mmc, blk, (unsigned char *)dtb)) {
+		if (_amlmmc_read(mmc, blk, (unsigned char *)dtb, cnt)) {
 			pr_err("%s: block # %#x ERROR!\n",
 					__func__, blk);
 		} else {
@@ -219,6 +222,7 @@ int amlmmc_dtb_write(struct mmc_card *mmc,
 	int cpy, valid;
 	struct aml_dtb_rsv *dtb = (struct aml_dtb_rsv *) buf;
 	struct aml_dtb_info *info = &dtb_infos;
+	int cnt = CONFIG_DTB_SIZE >> bit;
 
 	if (len > CONFIG_DTB_SIZE) {
 		pr_err("%s dtb data len too much", __func__);
@@ -253,7 +257,7 @@ int amlmmc_dtb_write(struct mmc_card *mmc,
 		blk = ((get_reserve_partition_off_from_tbl()
 					+ DTB_RESERVE_OFFSET) >> bit)
 			+ cpy * DTB_BLK_CNT;
-		ret |= _dtb_write(mmc, blk, buf);
+		ret |= _amlmmc_write(mmc, blk, buf, cnt);
 	}
 
 	return ret;
@@ -300,8 +304,14 @@ int amlmmc_dtb_read(struct mmc_card *card,
 	return ret;
 }
 static CLASS_ATTR(emmcdtb, 0644, NULL, NULL);
+static CLASS_ATTR(emmcddr, 0644, NULL, NULL);
 
 int mmc_dtb_open(struct inode *node, struct file *file)
+{
+	return 0;
+}
+
+int mmc_ddr_parameter_open(struct inode *node, struct file *file)
 {
 	return 0;
 }
@@ -338,6 +348,51 @@ ssize_t mmc_dtb_read(struct file *file,
 	}
 	if ((*ppos + count) > CONFIG_DTB_SIZE)
 		read_size = CONFIG_DTB_SIZE - *ppos;
+	else
+		read_size = count;
+	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
+	*ppos += read_size;
+
+exit:
+	mmc_release_host(card_dtb->host);
+	kfree(dtb_ptr);
+	return read_size;
+}
+
+ssize_t mmc_ddr_parameter_read(struct file *file,
+		char __user *buf,
+		size_t count,
+		loff_t *ppos)
+{
+	unsigned char *dtb_ptr = NULL;
+	ssize_t read_size = 0;
+	int bit = card_dtb->csd.read_blkbits;
+	int ret = 0;
+	int cnt = CONFIG_DDR_PARAMETER_SIZE >> bit;
+	int blk = ((get_reserve_partition_off_from_tbl()
+			+ DDR_PARAMETER_OFFSET) >> bit);
+
+	if (*ppos == CONFIG_DDR_PARAMETER_SIZE)
+		return 0;
+
+	if (*ppos >= CONFIG_DDR_PARAMETER_SIZE) {
+		pr_err("%s: out of space!", __func__);
+		return -EFAULT;
+	}
+
+	dtb_ptr = kmalloc(CONFIG_DDR_PARAMETER_SIZE, GFP_KERNEL);
+	if (!dtb_ptr)
+		return -ENOMEM;
+
+	mmc_claim_host(card_dtb->host);
+	ret = _amlmmc_read(card_dtb, blk, (unsigned char *)dtb_ptr, cnt);
+	if (ret) {
+		pr_err("%s: read failed:%d", __func__, ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+	if ((*ppos + count) > CONFIG_DDR_PARAMETER_SIZE)
+		read_size = CONFIG_DDR_PARAMETER_SIZE - *ppos;
 	else
 		read_size = count;
 	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
@@ -392,7 +447,59 @@ exit:
 	return write_size;
 }
 
+ssize_t mmc_ddr_parameter_write(struct file *file,
+		const char __user *buf,
+		size_t count, loff_t *ppos)
+{
+	unsigned char *dtb_ptr = NULL;
+	ssize_t write_size = 0;
+	int bit = card_dtb->csd.read_blkbits;
+	int ret = 0;
+	int cnt = CONFIG_DDR_PARAMETER_SIZE >> bit;
+	int blk = ((get_reserve_partition_off_from_tbl()
+			+ DDR_PARAMETER_OFFSET) >> bit);
+
+	if (*ppos == CONFIG_DDR_PARAMETER_SIZE)
+		return 0;
+	if (*ppos >= CONFIG_DDR_PARAMETER_SIZE) {
+		pr_err("%s: out of space!", __func__);
+		return -EFAULT;
+	}
+
+	dtb_ptr = kmalloc(CONFIG_DDR_PARAMETER_SIZE, GFP_KERNEL);
+	if (!dtb_ptr)
+		return -ENOMEM;
+
+	mmc_claim_host(card_dtb->host);
+
+	if ((*ppos + count) > CONFIG_DDR_PARAMETER_SIZE)
+		write_size = CONFIG_DDR_PARAMETER_SIZE - *ppos;
+	else
+		write_size = count;
+
+	ret = copy_from_user((dtb_ptr + *ppos), buf, write_size);
+
+	ret = _amlmmc_write(card_dtb, blk, (unsigned char *)dtb_ptr, cnt);
+	if (ret) {
+		pr_err("%s: write dtb failed", __func__);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	*ppos += write_size;
+exit:
+	mmc_release_host(card_dtb->host);
+	kfree(dtb_ptr);
+	return write_size;
+}
+
 long mmc_dtb_ioctl(struct file *file, unsigned int cmd, unsigned long args)
+{
+	return 0;
+}
+
+long mmc_ddr_parameter_ioctl(struct file *file,
+			     unsigned int cmd, unsigned long args)
 {
 	return 0;
 }
@@ -402,6 +509,13 @@ static const struct file_operations dtb_ops = {
 	.read = mmc_dtb_read,
 	.write = mmc_dtb_write,
 	.unlocked_ioctl = mmc_dtb_ioctl,
+};
+
+static const struct file_operations ddr_parameter_ops = {
+	.open = mmc_ddr_parameter_open,
+	.read = mmc_ddr_parameter_read,
+	.write = mmc_ddr_parameter_write,
+	.unlocked_ioctl = mmc_ddr_parameter_ioctl,
 };
 
 int amlmmc_dtb_init(struct mmc_card *card)
@@ -464,6 +578,68 @@ exit_err2:
 	cdev_del(&amlmmc_dtb);
 exit_err1:
 	unregister_chrdev_region(amlmmc_dtb_no, 1);
+exit_err:
+	return ret;
+}
+
+int amlmmc_ddr_init(struct mmc_card *card)
+{
+	int ret = 0;
+
+	pr_info("%s: register ddr_parameter chardev", __func__);
+
+	ret = alloc_chrdev_region(&amlmmc_ddr_no, 0, 1, DDR_NAME);
+	if (ret < 0) {
+		pr_err("alloc ddr parameter dev_t no failed");
+		ret = -1;
+		goto exit_err;
+	}
+
+	cdev_init(&amlmmc_ddr, &ddr_parameter_ops);
+	amlmmc_ddr.owner = THIS_MODULE;
+	ret = cdev_add(&amlmmc_ddr, amlmmc_ddr_no, 1);
+	if (ret) {
+		pr_err("ddr parameter dev add failed");
+		ret = -1;
+		goto exit_err1;
+	}
+
+	amlmmc_ddr_class = class_create(THIS_MODULE, DDR_NAME);
+	if (IS_ERR(amlmmc_ddr_class)) {
+		pr_err("ddr parameter dev add failed");
+		ret = -1;
+		goto exit_err2;
+	}
+
+	ret = class_create_file(amlmmc_ddr_class, &class_attr_emmcddr);
+	if (ret) {
+		pr_err("ddr parameter dev add failed");
+		ret = -1;
+		goto exit_err2;
+	}
+
+	ddr_dev = device_create(amlmmc_ddr_class,
+			NULL,
+			amlmmc_ddr_no,
+			NULL,
+			DDR_NAME);
+	if (IS_ERR(ddr_dev)) {
+		pr_err("ddr parameter dev add failed");
+		ret = -1;
+		goto exit_err3;
+	}
+
+	pr_info("%s: register ddr parameter chardev OK", __func__);
+
+	return ret;
+
+exit_err3:
+	class_remove_file(amlmmc_ddr_class, &class_attr_emmcddr);
+	class_destroy(amlmmc_ddr_class);
+exit_err2:
+	cdev_del(&amlmmc_ddr);
+exit_err1:
+	unregister_chrdev_region(amlmmc_ddr_no, 1);
 exit_err:
 	return ret;
 }
@@ -1199,6 +1375,8 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		goto out;
 	}
 	amlmmc_dtb_init(card);
+	amlmmc_ddr_init(card);
+	amlmmc_write_tuning_para(card, MMC_TUNING_OFFSET);
 
 	aml_store_class = class_create(THIS_MODULE, "aml_store");
 	if (IS_ERR(aml_store_class)) {
