@@ -548,6 +548,11 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
+	aml_bt: aml_bt {
+		compatible = "amlogic, aml-bt";
+		status = "okay";
+	};
+
 	aml_wifi: aml_wifi {
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";

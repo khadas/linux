@@ -899,15 +899,15 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 
-	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		max-speed = <2000000>;
-		clocks = <&wifi32k>;
-		clock-names = "lpo";
-		vbat-supply = <&vddao_3v3>;
-		vddio-supply = <&vddio_ao1v8>;
-	};
+	//bluetooth {
+	//	compatible = "brcm,bcm43438-bt";
+	//	shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
+	//	max-speed = <2000000>;
+	//	clocks = <&wifi32k>;
+	//	clock-names = "lpo";
+	//	vbat-supply = <&vddao_3v3>;
+	//	vddio-supply = <&vddio_ao1v8>;
+	//};
 };
 
 /* Exposed via the on-board USB to Serial FT232RL IC */
@@ -942,6 +942,12 @@
 	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
 
 &pcie {
