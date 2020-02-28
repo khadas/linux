@@ -90,7 +90,6 @@ struct hdr10_plus_info {
 struct hdr_info {
 /* RX EDID hdr support types */
 	u32 hdr_support;
-	unsigned char rawdata[7];
 /*
  *dynamic_info[0] expresses type1's parameters certainly
  *dynamic_info[1] expresses type2's parameters certainly
@@ -161,19 +160,6 @@ struct dv_vsif_para {
 			u8 auxiliary_debug0;
 		} ver2;
 	} vers;
-};
-
-struct vsif_debug_save {
-	enum eotf_type type;
-	enum mode_type tunnel_mode;
-	struct dv_vsif_para data;
-	bool signal_sdr;
-};
-
-struct emp_debug_save {
-	unsigned char data[128];
-	unsigned int type;
-	unsigned int size;
 };
 
 /* Dolby Version support information from EDID*/
@@ -274,7 +260,6 @@ struct vinfo_s {
 	u32 video_clk;
 	u32 htotal;
 	u32 vtotal;
-	unsigned char hdmichecksum[10];
 	enum vinfo_3d_e info_3d;
 	enum vout_fr_adj_type_e fr_adj_type;
 	enum color_fmt_e viu_color_fmt;

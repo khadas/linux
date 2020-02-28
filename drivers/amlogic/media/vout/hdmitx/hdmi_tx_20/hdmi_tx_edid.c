@@ -79,23 +79,7 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
 
-static int xtochar(int num, unsigned char *checksum)
-{
-	if (((edid_checkvalue[num]  >> 4) & 0xf) <= 9)
-		checksum[0] = ((edid_checkvalue[num]  >> 4) & 0xf) + '0';
-	else
-		checksum[0] = ((edid_checkvalue[num]  >> 4) & 0xf) - 10 + 'a';
-
-	if ((edid_checkvalue[num] & 0xf) <= 9)
-		checksum[1] = (edid_checkvalue[num] & 0xf) + '0';
-	else
-		checksum[1] = (edid_checkvalue[num] & 0xf) - 10 + 'a';
-
-	return 0;
-}
-
-static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt,
-				 struct rx_cap *rxcap)
+static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
 {
 	unsigned int i, length, max;
 
@@ -109,12 +93,6 @@ static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt,
 
 	for (i = 0; i < max; i++)
 		edid_checkvalue[i] = *(buf + (i + 1) * 128 - 1);
-
-	rxcap->chksum[0] = '0';
-	rxcap->chksum[1] = 'x';
-
-	for (i = 0; i < 4; i++)
-		xtochar(i, &rxcap->chksum[2 * i + 2]);
 }
 
 static int edid_decodeheader(struct hdmitx_info *info, unsigned char *buff)
@@ -394,21 +372,23 @@ int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 	}
 
 	set_vsdb_phy_addr(hdev, &info->vsdb_phy_addr, &buff[blockaddr]);
-	if ((check_fbc_special(&hdev->EDID_buf[0])) ||
-	    (check_fbc_special(&hdev->EDID_buf1[0])))
-		rx_edid_physical_addr(0, 0, 0, 0);
-	else
-		rx_edid_physical_addr(info->vsdb_phy_addr.a,
-				      info->vsdb_phy_addr.b,
-				      info->vsdb_phy_addr.c,
-				      info->vsdb_phy_addr.d);
+	if (hdev->repeater_tx) {
+		if ((check_fbc_special(&hdev->EDID_buf[0])) ||
+		    (check_fbc_special(&hdev->EDID_buf1[0])))
+			rx_edid_physical_addr(0, 0, 0, 0);
+		else
+			rx_edid_physical_addr(info->vsdb_phy_addr.a,
+					      info->vsdb_phy_addr.b,
+					      info->vsdb_phy_addr.c,
+					      info->vsdb_phy_addr.d);
+	}
 
 	if (temp_addr >= VSpecificBoundary) {
 		ret = -1;
 	} else {
-		if (buff[blockaddr + 1] != GET_OUI_BYTE0(HDMI_IEEEOUI) ||
-		    buff[blockaddr + 2] != GET_OUI_BYTE1(HDMI_IEEEOUI) ||
-		    buff[blockaddr + 3] != GET_OUI_BYTE2(HDMI_IEEEOUI))
+		if (buff[blockaddr + 1] != 0x03 ||
+		    buff[blockaddr + 2] != 0x0C ||
+		    buff[blockaddr + 3] != 0x0)
 			ret = -1;
 	}
 	return ret;
@@ -851,16 +831,22 @@ static void edid_parsingspeakerdatablock(struct hdmitx_info *info,
 	}
 }
 
-static void _edid_parsingvendspec(struct dv_info *dv,
-				  struct hdr10_plus_info *hdr10_plus,
+static void edid_parsingvendspec(struct rx_cap *prxcap,
 				 unsigned char *buf)
 {
+	struct dv_info *dv = &prxcap->dv_info;
+	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr10plus_info;
 	unsigned char *dat = buf;
 	unsigned char pos = 0;
 	unsigned int ieeeoui = 0;
-	u8 length = 0;
 
-	length = dat[pos] & 0x1f;
+	memset(dv, 0, sizeof(struct dv_info));
+	memset(hdr10_plus, 0, sizeof(struct hdr10_plus_info));
+
+	dv->block_flag = CORRECT;
+	dv->length = dat[pos] & 0x1f;
+	hdr10_plus->length = dat[pos] & 0x1f;
+	memcpy(dv->rawdata, dat, dv->length + 1);
 	pos++;
 
 	if (dat[pos] != 1) {
@@ -873,12 +859,9 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 	ieeeoui = dat[pos++];
 	ieeeoui += dat[pos++] << 8;
 	ieeeoui += dat[pos++] << 16;
-	pr_info("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
 
 /*HDR10+ use vsvdb*/
 	if (ieeeoui == HDR10_PLUS_IEEE_OUI) {
-		memset(hdr10_plus, 0, sizeof(struct hdr10_plus_info));
-		hdr10_plus->length = length;
 		hdr10_plus->ieeeoui = ieeeoui;
 		hdr10_plus->application_version = dat[pos] & 0x3;
 		pos++;
@@ -889,12 +872,6 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 		dv->block_flag = ERROR_OUI;
 		return;
 	}
-
-/* it is a Dovi block*/
-	memset(dv, 0, sizeof(struct dv_info));
-	dv->block_flag = CORRECT;
-	dv->length = length;
-	memcpy(dv->rawdata, dat, dv->length + 1);
 	dv->ieeeoui = ieeeoui;
 	dv->ver = (dat[pos] >> 5) & 0x7;
 	if (dv->ver > 2) {
@@ -936,8 +913,6 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 			dv->dm_major_ver = dat[pos] >> 4;
 			dv->dm_minor_ver = dat[pos] & 0xf;
 			pos++;
-			pr_info("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
-				dv->length, dv->sup_2160p60hz);
 		} else {
 			dv->block_flag = ERROR_LENGTH;
 		}
@@ -968,8 +943,6 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 			pos++;
 			dv->Rx = 0xA0 | (dat[pos] >> 3);
 			pos++;
-			pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d, low_latency=%d\n",
-				dv->length, dv->sup_2160p60hz, dv->low_latency);
 		} else if (dv->length == 0x0E) {
 			dv->dm_version = (dat[pos] >> 2) & 0x7;
 			dv->sup_yuv422_12bit = dat[pos] & 0x1;
@@ -987,19 +960,12 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 			dv->Gy = dat[pos++];
 			dv->Bx = dat[pos++];
 			dv->By = dat[pos++];
-			pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
-				dv->length, dv->sup_2160p60hz);
 		} else {
 			dv->block_flag = ERROR_LENGTH;
 		}
 	}
 	if (dv->ver == 2) {
-		/* v2 VSVDB length could be greater than 0xB
-		 * and should not be treated as unrecognized
-		 * block. Instead, we should parse it as a regular
-		 * v2 VSVDB using just the remaining 11 bytes here
-		 */
-		if (dv->length >= 0x0B) {
+		if (dv->length == 0x0B) {
 			dv->sup_2160p60hz = 0x1;/*default*/
 			dv->dm_version = (dat[pos] >> 2) & 0x7;
 			dv->sup_yuv422_12bit = dat[pos] & 0x1;
@@ -1024,31 +990,13 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 			dv->Ry = 0x40  | (dat[pos] >> 3);
 			dv->By = 0x08  | (dat[pos] & 0x7);
 			pos++;
-			pr_info("v2 VSVDB: len=%d, sup_2160p60hz=%d, Interface=%d\n",
-				dv->length, dv->sup_2160p60hz, dv->Interface);
 		} else {
 			dv->block_flag = ERROR_LENGTH;
 		}
 	}
 
-	if (pos > (dv->length + 1))
+	if (pos > dv->length)
 		pr_info("hdmitx: edid: maybe invalid dv%d data\n", dv->ver);
-}
-
-static void edid_parsingvendspec(struct hdmitx_dev *hdev,
-				 struct rx_cap *prxcap,
-				 unsigned char *buf)
-{
-	struct dv_info *dv = &prxcap->dv_info;
-	struct dv_info *dv2 = &prxcap->dv_info2;
-	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr10plus_info;
-
-	if (hdev->hdr_priority) { /* skip dv_info parsing */
-		_edid_parsingvendspec(dv2, hdr10_plus, buf);
-		return;
-	}
-	_edid_parsingvendspec(dv, hdr10_plus, buf);
-	_edid_parsingvendspec(dv2, hdr10_plus, buf);
 }
 
 /* ----------------------------------------------------------- */
@@ -1105,8 +1053,6 @@ static int edid_parsedrmsb(struct rx_cap *prxcap,
 
 	tag = (buf[pos] >> 5) & 0x7;
 	data_end = (buf[pos] & 0x1f);
-	memset(prxcap->hdr_rawdata, 0, 7);
-	memcpy(prxcap->hdr_rawdata, buf, data_end + 1);
 	pos++;
 	ext_tag = buf[pos];
 	if (tag != HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG ||
@@ -1275,7 +1221,7 @@ INVALID_Y420CMDB:
 
 static int edid_y420cmdb_fill_all_vic(struct hdmitx_dev *hdmitx_device)
 {
-	struct rx_cap *rxcap = &hdmitx_device->rxcap;
+	struct rx_cap *rxcap = &hdmitx_device->RXCap;
 	struct hdmitx_info *info = &hdmitx_device->hdmi_info;
 	unsigned int count = rxcap->VIC_count;
 	unsigned int a, b;
@@ -1302,7 +1248,7 @@ static int edid_y420cmdb_fill_all_vic(struct hdmitx_dev *hdmitx_device)
 static int edid_y420cmdb_postprocess(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned int i = 0, j = 0, valid = 0;
-	struct rx_cap *rxcap = &hdmitx_device->rxcap;
+	struct rx_cap *rxcap = &hdmitx_device->RXCap;
 	struct hdmitx_info *info = &hdmitx_device->hdmi_info;
 	unsigned char *p = NULL;
 
@@ -1344,7 +1290,7 @@ int edid_parsingceadb(struct hdmitx_dev *hdmitx_device,
 	int temp_addr;
 	int len;
 	struct hdmitx_info *info = &hdmitx_device->hdmi_info;
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 
 	/* Byte number offset d where Detailed Timing data begins */
 	D = buff[2];
@@ -1582,7 +1528,7 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 {
 	int idx = 0, tmp = 0;
 
-	prxcap->ieeeoui = HDMI_IEEEOUI;
+	prxcap->IEEEOUI = 0x000c03;
 	prxcap->ColorDeepSupport =
 	(count > 5) ? blockbuf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
@@ -1626,7 +1572,7 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 	}
 }
 
-static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
+static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				   unsigned char *blockbuf)
 {
 	unsigned char offset, end;
@@ -1634,7 +1580,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	unsigned char tag;
 	int i, tmp, idx;
 	unsigned char *vfpdb_offset = NULL;
-	struct rx_cap *prxcap = &hdev->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 	unsigned int aud_flag = 0;
 
 	if (blockbuf[0] != 0x02)
@@ -1646,7 +1592,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->native_VIC = 0xff;
 	prxcap->AUD_count = 0;
 
-	edid_y420cmdb_reset(&hdev->hdmi_info);
+	edid_y420cmdb_reset(&hdmitx_device->hdmi_info);
 
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
@@ -1695,7 +1641,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
 				(blockbuf[offset + 2] == 0xc4)) {
-				prxcap->hf_ieeeoui = HF_IEEEOUI;
+				prxcap->HF_IEEEOUI = 0xd85dc4;
 				prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
 				prxcap->scdc_present =
 					!!(blockbuf[offset + 5] & (1 << 7));
@@ -1703,7 +1649,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 					!!(blockbuf[offset + 5] & (1 << 6));
 				prxcap->lte_340mcsc_scramble =
 					!!(blockbuf[offset + 5] & (1 << 3));
-				set_vsdb_dc_420_cap(&hdev->rxcap,
+				set_vsdb_dc_420_cap(&hdmitx_device->RXCap,
 						    &blockbuf[offset]);
 			}
 
@@ -1728,7 +1674,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				ext_tag = blockbuf[offset + 1];
 				switch (ext_tag) {
 				case EXTENSION_VENDOR_SPECIFIC:
-					edid_parsingvendspec(hdev, prxcap,
+					edid_parsingvendspec(prxcap,
 							     &blockbuf[offset]);
 					break;
 				case EXTENSION_COLORMETRY_TAG:
@@ -1759,7 +1705,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 							    &blockbuf[offset]);
 					break;
 				case EXTENSION_Y420_CMDB_TAG:
-					edid_parsingy420cmdb(hdev,
+					edid_parsingy420cmdb(hdmitx_device,
 							     &blockbuf[offset]);
 					break;
 				default:
@@ -1785,10 +1731,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	}
 
 	if (aud_flag == 0)
-		hdmitx_edid_set_default_aud(hdev);
+		hdmitx_edid_set_default_aud(hdmitx_device);
 
-	edid_y420cmdb_postprocess(hdev);
-	hdev->vic_count = prxcap->VIC_count;
+	edid_y420cmdb_postprocess(hdmitx_device);
+	hdmitx_device->vic_count = prxcap->VIC_count;
 
 	idx = blockbuf[3] & 0xf;
 	for (i = 0; i < idx; i++)
@@ -1801,7 +1747,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 {
-	struct rx_cap *prxcap = &hdev->rxcap;
+	struct rx_cap *prxcap = &hdev->RXCap;
 
 	/* if AUD_count not equal to 0, no need default value */
 	if (prxcap->AUD_count)
@@ -1811,13 +1757,13 @@ static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 	prxcap->RxAudioCap[0].audio_format_code = 1; /* PCM */
 	prxcap->RxAudioCap[0].channel_num_max = 1; /* 2ch */
 	prxcap->RxAudioCap[0].freq_cc = 7; /* 32/44.1/48 kHz */
-	prxcap->RxAudioCap[0].cc3 = 1; /* 16bit */
+	prxcap->RxAudioCap[0].cc3 = 7; /* 16/20/24 bit */
 }
 
 /* add default VICs for DVI case */
 static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 
 	prxcap->VIC_count = 0x3;
 	prxcap->VIC[0] = HDMI_720x480p60_16x9;
@@ -2009,17 +1955,16 @@ static int edid_zero_data(unsigned char *buf)
 
 static void dump_dtd_info(struct dtd *t)
 {
-	if (0) {
-		pr_info(EDID "%s[%d]\n", __func__, __LINE__);
-		pr_info(EDID "pixel_clock: %d\n", t->pixel_clock);
-		pr_info(EDID "h_active: %d\n", t->h_active);
-		pr_info(EDID "v_active: %d\n", t->v_active);
-		pr_info(EDID "v_blank: %d\n", t->v_blank);
-		pr_info(EDID "h_sync_offset: %d\n", t->h_sync_offset);
-		pr_info(EDID "h_sync: %d\n", t->h_sync);
-		pr_info(EDID "v_sync_offset: %d\n", t->v_sync_offset);
-		pr_info(EDID "v_sync: %d\n", t->v_sync);
-	}
+	pr_info(EDID "%s[%d]\n", __func__, __LINE__);
+	pr_info(EDID "pixel_clock: %d\n", t->pixel_clock);
+	pr_info(EDID "h_active: %d\n", t->h_active);
+	pr_info(EDID "h_blank: %d\n", t->h_blank);
+	pr_info(EDID "v_active: %d\n", t->v_active);
+	pr_info(EDID "v_blank: %d\n", t->v_blank);
+	pr_info(EDID "h_sync_offset: %d\n", t->h_sync_offset);
+	pr_info(EDID "h_sync: %d\n", t->h_sync);
+	pr_info(EDID "v_sync_offset: %d\n", t->v_sync_offset);
+	pr_info(EDID "v_sync: %d\n", t->v_sync);
 }
 
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data)
@@ -2073,49 +2018,54 @@ next:
 	}
 }
 
-static void edid_check_pcm_declare(struct rx_cap *prxcap)
+static void hdrinfo_to_vinfo(struct vinfo_s *info, struct rx_cap *prxcap)
 {
-	int idx_pcm = 0;
-	int i;
-
-	if (!prxcap->AUD_count)
-		return;
-
-	/* Try to find more than 1 PCMs, RxAudioCap[0] is always basic audio */
-	for (i = 1; i < prxcap->AUD_count; i++) {
-		if (prxcap->RxAudioCap[i].audio_format_code ==
-			prxcap->RxAudioCap[0].audio_format_code) {
-			idx_pcm = i;
-			break;
+	unsigned int  k, l;
+	/*static hdr*/
+	info->hdr_info.hdr_support =
+		(prxcap->hdr_sup_eotf_sdr << 0) |
+		(prxcap->hdr_sup_eotf_hdr << 1) |
+		(prxcap->hdr_sup_eotf_smpte_st_2084 << 2) |
+		(prxcap->hdr_sup_eotf_hlg << 3);
+	/*dynamic hdr*/
+	for (l = 0; l < 4; l++) {
+		if (prxcap->hdr_dynamic_info[l].type == 0) {
+			memset(&info->hdr_info.dynamic_info[l],
+			       0, sizeof(struct hdr_dynamic));
+			continue;
+		}
+		info->hdr_info.dynamic_info[l].type =
+			prxcap->hdr_dynamic_info[l].type;
+		info->hdr_info.dynamic_info[l].of_len =
+			prxcap->hdr_dynamic_info[l].hd_len - 3;
+		info->hdr_info.dynamic_info[l].support_flags =
+			prxcap->hdr_dynamic_info[l].support_flags;
+		for (k = 0; k < (prxcap->hdr_dynamic_info[l].hd_len - 3); k++) {
+			info->hdr_info.dynamic_info[l].optional_fields[k] =
+				prxcap->hdr_dynamic_info[l].optional_fields[k];
 		}
 	}
+	/*hdr 10+*/
+	memcpy(&info->hdr_info.hdr10plus_info,
+	       &prxcap->hdr10plus_info, sizeof(struct hdr10_plus_info));
 
-	/* Remove basic audio */
-	if (idx_pcm) {
-		for (i = 0; i < prxcap->AUD_count - 1; i++)
-			memcpy(&prxcap->RxAudioCap[i],
-			       &prxcap->RxAudioCap[i + 1],
-			       sizeof(struct rx_audiocap));
-		/* Clear the last audio declaration */
-		memset(&prxcap->RxAudioCap[i], 0, sizeof(struct rx_audiocap));
-		prxcap->AUD_count--;
-	}
+	info->hdr_info.colorimetry_support =
+		prxcap->colorimetry_data;
+	info->hdr_info.lumi_max = prxcap->hdr_lum_max;
+	info->hdr_info.lumi_avg = prxcap->hdr_lum_avg;
+	info->hdr_info.lumi_min = prxcap->hdr_lum_min;
+	pr_info(EDID "update rx hdr info %x at edid parsing\n",
+		info->hdr_info.hdr_support);
 }
 
-static bool is_4k60_supported(struct rx_cap *prxcap)
+static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
 {
-	int i = 0;
-
-	if (!prxcap)
-		return false;
-
-	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
-		if (((prxcap->VIC[i] & 0xff) == HDMI_3840x2160p50_16x9) ||
-		    ((prxcap->VIC[i] & 0xff) == HDMI_3840x2160p60_16x9)) {
-			return true;
-		}
-	}
-	return false;
+	if (!info || !rx)
+		return;
+	info->rx_latency.vLatency = rx->vLatency;
+	info->rx_latency.aLatency = rx->aLatency;
+	info->rx_latency.i_vLatency = rx->i_vLatency;
+	info->rx_latency.i_aLatency = rx->i_aLatency;
 }
 
 static void edid_descriptor_pmt(struct rx_cap *prxcap,
@@ -2209,64 +2159,6 @@ static void edid_cvt_timing(struct rx_cap *prxcap, unsigned char *data)
 	}
 }
 
-static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
-{
-	struct rx_cap *prxcap = &hdev->rxcap;
-	unsigned int max_tmds_clk = 0;
-
-	if (dv->ieeeoui == DV_IEEE_OUI && dv->ver <= 2) {
-		/* check max tmds rate to determine if 4k60 DV can truly be
-		 * supported.
-		 */
-		if (prxcap->Max_TMDS_Clock2) {
-			max_tmds_clk = prxcap->Max_TMDS_Clock2 * 5;
-		} else {
-			/* Default min is 74.25 / 5 */
-			if (prxcap->Max_TMDS_Clock1 < 0xf)
-				prxcap->Max_TMDS_Clock1 = 0x1e;
-			max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
-		}
-		if (dv->ver == 0)
-			dv->sup_2160p60hz = dv->sup_2160p60hz &&
-						(max_tmds_clk >= 594);
-
-		if (dv->ver == 1 && dv->length == 0xB) {
-			if (dv->low_latency == 0x00) {
-				/*standard mode */
-				dv->sup_2160p60hz = dv->sup_2160p60hz &&
-							(max_tmds_clk >= 594);
-			} else if (dv->low_latency == 0x01) {
-				/* both standard and LL are supported. 4k60 LL
-				 * DV support should/can be determined using
-				 * video formats supported inthe E-EDID as flag
-				 * sup_2160p60hz might not be set.
-				 */
-				if ((dv->sup_2160p60hz ||
-				     is_4k60_supported(prxcap)) &&
-				    max_tmds_clk >= 594)
-					dv->sup_2160p60hz = 1;
-				else
-					dv->sup_2160p60hz = 0;
-			}
-		}
-
-		if (dv->ver == 1 && dv->length == 0xE)
-			dv->sup_2160p60hz = dv->sup_2160p60hz &&
-						(max_tmds_clk >= 594);
-
-		if (dv->ver == 2) {
-			/* 4k60 DV support should be determined using video
-			 * formats supported in the EEDID as flag sup_2160p60hz
-			 * is not applicable for VSVDB V2.
-			 */
-			if (is_4k60_supported(prxcap) && max_tmds_clk >= 594)
-				dv->sup_2160p60hz = 1;
-			else
-				dv->sup_2160p60hz = 0;
-		}
-	}
-}
-
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char checksum;
@@ -2275,8 +2167,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	unsigned char *EDID_buf;
 	int i, j, ret_val;
 	int idx[4];
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
-	struct dv_info *dv = &hdmitx_device->rxcap.dv_info;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
+	struct vinfo_s *info = NULL;
 
 	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf)) {
 		EDID_buf = hdmitx_device->EDID_buf;
@@ -2306,24 +2198,24 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (checksum != 0)
 		pr_info(EDID "PLUGIN_DVI_OUT\n");
 
-	edid_parsingidmanufacturername(&hdmitx_device->rxcap, &EDID_buf[8]);
-	edid_parsingidproductcode(&hdmitx_device->rxcap, &EDID_buf[0x0A]);
-	edid_parsingidserialnumber(&hdmitx_device->rxcap, &EDID_buf[0x0C]);
+	edid_parsingidmanufacturername(&hdmitx_device->RXCap, &EDID_buf[8]);
+	edid_parsingidproductcode(&hdmitx_device->RXCap, &EDID_buf[0x0A]);
+	edid_parsingidserialnumber(&hdmitx_device->RXCap, &EDID_buf[0x0C]);
 
-	edid_establishedtimings(&hdmitx_device->rxcap, &EDID_buf[0x23]);
-	edid_standardtiming(&hdmitx_device->rxcap, &EDID_buf[0x26], 8);
+	edid_establishedtimings(&hdmitx_device->RXCap, &EDID_buf[0x23]);
+	edid_standardtiming(&hdmitx_device->RXCap, &EDID_buf[0x26], 8);
 
-	edid_manufacturedateparse(&hdmitx_device->rxcap, &EDID_buf[16]);
+	edid_manufacturedateparse(&hdmitx_device->RXCap, &EDID_buf[16]);
 
-	edid_versionparse(&hdmitx_device->rxcap, &EDID_buf[18]);
+	edid_versionparse(&hdmitx_device->RXCap, &EDID_buf[18]);
 
-	Edid_PhyscialSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
+	Edid_PhyscialSizeParse(&hdmitx_device->RXCap, &EDID_buf[21]);
 
 	edid_decodestandardtiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
 	edid_parseceatiming(4, 0x36, &EDID_buf[0]);
 
 	blockcount = EDID_buf[0x7E];
-	hdmitx_device->rxcap.blk0_chksum = EDID_buf[0x7F];
+	hdmitx_device->RXCap.blk0_chksum = EDID_buf[0x7F];
 
 	if (blockcount == 0) {
 		pr_info(EDID "EDID BlockCount=0\n");
@@ -2342,24 +2234,24 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		pr_info(EDID "edid blk0 checksum:%d ext_flag:%d\n",
 			checksum, EDID_buf[0x7e]);
 		if ((checksum & 0xff) == 0)
-			hdmitx_device->rxcap.ieeeoui = 0;
+			hdmitx_device->RXCap.IEEEOUI = 0;
 		else
-			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
+			hdmitx_device->RXCap.IEEEOUI = 0x0c03;
 		if (zero_numbers > 120)
-			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
+			hdmitx_device->RXCap.IEEEOUI = 0x0c03;
 
 		return 0; /* do nothing. */
 	}
 
 	/* Note: some DVI monitor have more than 1 block */
 	if (blockcount == 1 && EDID_buf[0x81] == 1) {
-		hdmitx_device->rxcap.ieeeoui = 0;
-		hdmitx_device->rxcap.VIC_count = 0x3;
-		hdmitx_device->rxcap.VIC[0] = HDMI_720x480p60_16x9;
-		hdmitx_device->rxcap.VIC[1] = HDMI_1280x720p60_16x9;
-		hdmitx_device->rxcap.VIC[2] = HDMI_1920x1080p60_16x9;
-		hdmitx_device->rxcap.native_VIC = HDMI_720x480p60_16x9;
-		hdmitx_device->vic_count = hdmitx_device->rxcap.VIC_count;
+		hdmitx_device->RXCap.IEEEOUI = 0;
+		hdmitx_device->RXCap.VIC_count = 0x3;
+		hdmitx_device->RXCap.VIC[0] = HDMI_720x480p60_16x9;
+		hdmitx_device->RXCap.VIC[1] = HDMI_1280x720p60_16x9;
+		hdmitx_device->RXCap.VIC[2] = HDMI_1920x1080p60_16x9;
+		hdmitx_device->RXCap.native_VIC = HDMI_720x480p60_16x9;
+		hdmitx_device->vic_count = hdmitx_device->RXCap.VIC_count;
 		pr_info(EDID "set default vic\n");
 		return 0;
 	} else if (blockcount > EDID_MAX_BLOCK) {
@@ -2394,12 +2286,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_edid_block_parse(hdmitx_device, &EDID_buf[i * 128]);
 	}
 
-	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */
-	dv = &prxcap->dv_info;
-	check_dv_truly_support(hdmitx_device, dv);
-	dv = &prxcap->dv_info2;
-	check_dv_truly_support(hdmitx_device, dv);
-	edid_check_pcm_declare(&hdmitx_device->rxcap);
 /*
  * Because DTDs are not able to represent some Video Formats, which can be
  * represented as SVDs and might be preferred by Sinks, the first DTD in the
@@ -2455,55 +2341,52 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 
 	if (hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->IEEEOUI = 0x0c03;
 		pr_info(EDID "find IEEEOUT\n");
 	} else {
-		prxcap->ieeeoui = 0x0;
+		prxcap->IEEEOUI = 0x0;
 		pr_info(EDID "not find IEEEOUT\n");
 	}
 
-	if (prxcap->ieeeoui != HDMI_IEEEOUI || prxcap->ieeeoui == 0x0 ||
+	if (prxcap->IEEEOUI != 0x0c03 || prxcap->IEEEOUI == 0x0 ||
 	    prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(hdmitx_device);
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
 	if (edid_check_valid(&EDID_buf[0]) &&
-		!hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
-		prxcap->ieeeoui = 0x0;
+	    !hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
+		prxcap->IEEEOUI = 0x0;
 		pr_info(EDID "sink is DVI device\n");
 	} else {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->IEEEOUI = 0x0c03;
 	}
 	if (edid_zero_data(EDID_buf))
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->IEEEOUI = 0x0c03;
 
-	if (!prxcap->AUD_count && !prxcap->ieeeoui)
+	if (!prxcap->AUD_count && !prxcap->IEEEOUI)
 		hdmitx_edid_set_default_aud(hdmitx_device);
 
-	edid_save_checkvalue(EDID_buf, blockcount + 1, prxcap);
+	edid_save_checkvalue(EDID_buf, blockcount + 1);
 
 	i = hdmitx_edid_dump(hdmitx_device, (char *)(hdmitx_device->tmp_buf),
 			     HDMI_TMP_BUF_SIZE);
 	hdmitx_device->tmp_buf[i] = 0;
 
 	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->IEEEOUI = 0x0c03;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");
 	}
-	dv = &prxcap->dv_info;
-	/* if sup_2160p60hz of dv or dv2 is true, check the MAX_TMDS*/
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
-		}
-	}
-	dv = &prxcap->dv_info2;
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
+	/* update RX HDR information */
+	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	info = get_current_vinfo();
+	#endif
+	if (info) {
+		if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
+		      (strncmp(info->name, "576cvbs", 7) == 0) ||
+		      (strncmp(info->name, "null", 4) == 0))) {
+			hdrinfo_to_vinfo(info, prxcap);
+			rxlatency_to_vinfo(info, prxcap);
 		}
 	}
 	return 0;
@@ -2630,29 +2513,6 @@ const char *hdmitx_edid_vic_to_string(enum hdmi_vic vic)
 	return disp_str;
 }
 
-static bool is_rx_support_y420(struct hdmitx_dev *hdev)
-{
-	enum hdmi_vic vic = HDMI_UNKNOWN;
-
-	vic = hdmitx_edid_get_VIC(hdev, "2160p60hz420", 0);
-	if (vic != HDMI_UNKNOWN)
-		return 1;
-
-	vic = hdmitx_edid_get_VIC(hdev, "2160p50hz420", 0);
-	if (vic != HDMI_UNKNOWN)
-		return 1;
-
-	vic = hdmitx_edid_get_VIC(hdev, "smpte60hz420", 0);
-	if (vic != HDMI_UNKNOWN)
-		return 1;
-
-	vic = hdmitx_edid_get_VIC(hdev, "smpte50hz420", 0);
-	if (vic != HDMI_UNKNOWN)
-		return 1;
-
-	return 0;
-}
-
 /* For some TV's EDID, there maybe exist some information ambiguous.
  * Such as EDID declears support 2160p60hz(Y444 8bit), but no valid
  * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
@@ -2662,7 +2522,6 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 {
 	bool valid = 0;
 	struct rx_cap *prxcap = NULL;
-	const struct dv_info *dv = &hdev->rxcap.dv_info;
 	unsigned int rx_max_tmds_clk = 0;
 	unsigned int calc_tmds_clk = 0;
 	int i = 0;
@@ -2699,10 +2558,10 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		break;
 	}
 
-	prxcap = &hdev->rxcap;
+	prxcap = &hdev->RXCap;
 
 	/* DVI case, only 8bit */
-	if (prxcap->ieeeoui != HDMI_IEEEOUI) {
+	if (prxcap->IEEEOUI != 0x0c03) {
 		if (para->cd != COLORDEPTH_24B)
 			return 0;
 	}
@@ -2757,11 +2616,9 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		/* Rx may not support Y444 */
 		if (!(prxcap->native_Mode & (1 << 5)))
 			return 0;
-		if (prxcap->dc_y444 && (prxcap->dc_30bit ||
-					dv->sup_10b_12b_444 == 0x1))
+		if (prxcap->dc_y444 && prxcap->dc_30bit)
 			rx_y444_max_dc = COLORDEPTH_30B;
-		if (prxcap->dc_y444 && (prxcap->dc_36bit ||
-					dv->sup_10b_12b_444 == 0x2))
+		if (prxcap->dc_y444 && prxcap->dc_36bit)
 			rx_y444_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_y444_max_dc)
 			valid = 1;
@@ -2775,8 +2632,7 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			return 0;
 		if (prxcap->dc_y444 && prxcap->dc_30bit)
 			rx_y422_max_dc = COLORDEPTH_30B;
-		if (prxcap->dc_y444 && (prxcap->dc_36bit ||
-					dv->sup_yuv422_12bit))
+		if (prxcap->dc_y444 && prxcap->dc_36bit)
 			rx_y422_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_y422_max_dc)
 			valid = 1;
@@ -2786,9 +2642,9 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 	if (para->cs == COLORSPACE_RGB444) {
 		/* Always assume RX supports RGB444 */
-		if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
+		if (prxcap->dc_30bit)
 			rx_rgb_max_dc = COLORDEPTH_30B;
-		if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
+		if (prxcap->dc_36bit)
 			rx_rgb_max_dc = COLORDEPTH_36B;
 		if (para->cd <= rx_rgb_max_dc)
 			valid = 1;
@@ -2797,8 +2653,6 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		return valid;
 	}
 	if (para->cs == COLORSPACE_YUV420) {
-		if (!is_rx_support_y420(hdev))
-			return 0;
 		if (prxcap->dc_30bit_420)
 			rx_y420_max_dc = COLORDEPTH_30B;
 		if (prxcap->dc_36bit_420)
@@ -2819,7 +2673,7 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 				  const char *disp_mode,
 				  char force_flag)
 {
-	struct rx_cap *prxcap = &hdev->rxcap;
+	struct rx_cap *prxcap = &hdev->RXCap;
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
 
@@ -2838,7 +2692,7 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 
 const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device)
 {
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 
 	return hdmitx_edid_vic_to_string(prxcap->native_VIC);
 }
@@ -2862,16 +2716,22 @@ void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device)
 void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 {
 	char tmp[2] = {0};
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 
 	memset(prxcap, 0, sizeof(struct rx_cap));
 
 	/* Note: in most cases, we think that rx is tv and the default
 	 * IEEEOUI is HDMI Identifier
 	 */
-	prxcap->ieeeoui = HDMI_IEEEOUI;
+	prxcap->IEEEOUI = 0x000c03;
 
 	hdmitx_device->vic_count = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.a = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.b = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.c = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.d = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.valid = 0;
+	memset(&vsdb_local, 0, sizeof(struct vsdb_phyaddr));
 	memset(&hdmitx_device->EDID_hash[0], 0,
 	       sizeof(hdmitx_device->EDID_hash));
 	hdmitx_device->edid_parsing = 0;
@@ -2975,7 +2835,7 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		     int buffer_len)
 {
 	int i, pos = 0;
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	struct rx_cap *prxcap = &hdmitx_device->RXCap;
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"Rx Manufacturer Name: %s\n", prxcap->IDManufacturerName);
@@ -3043,23 +2903,19 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Speaker Allocation: %x\n", prxcap->RxSpeakerAllocation);
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"Vendor: 0x%x ( %s device)\n",
-		prxcap->ieeeoui, (prxcap->ieeeoui) ? "HDMI" : "DVI");
+		prxcap->IEEEOUI, (prxcap->IEEEOUI) ? "HDMI" : "DVI");
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"MaxTMDSClock1 %d MHz\n", prxcap->Max_TMDS_Clock1 * 5);
 
-	if (prxcap->hf_ieeeoui) {
+	if (prxcap->HF_IEEEOUI) {
 		pos +=
 		snprintf(buffer + pos,
 			 buffer_len - pos, "Vendor2: 0x%x\n",
-			prxcap->hf_ieeeoui);
+			 prxcap->HF_IEEEOUI);
 		pos += snprintf(buffer + pos, buffer_len - pos,
 			"MaxTMDSClock2 %d MHz\n", prxcap->Max_TMDS_Clock2 * 5);
 	}
-
-	if (prxcap->allm)
-		pos += snprintf(buffer + pos, buffer_len - pos, "ALLM: %x\n",
-				prxcap->allm);
 
 	pos += snprintf(buffer + pos, buffer_len - pos, "vLatency: ");
 	if (prxcap->vLatency == LATENCY_INVALID_UNKNOWN)

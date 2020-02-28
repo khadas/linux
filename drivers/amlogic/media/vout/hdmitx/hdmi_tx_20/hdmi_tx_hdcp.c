@@ -82,7 +82,7 @@ static void _hdcp_do_work(struct work_struct *work)
 		container_of(work, struct hdmitx_dev, work_do_hdcp.work);
 
 	if (hdev->hdcp_mode == 2) {
-		/* hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 1); */
+		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
 		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
 	} else {
 		hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 0);
@@ -96,7 +96,6 @@ void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev)
 
 static int hdmitx_hdcp_task(void *data)
 {
-	static int auth_trigger;
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
@@ -104,11 +103,6 @@ static int hdmitx_hdcp_task(void *data)
 		hdmi_authenticated = hdev->hwop.cntlddc(hdev,
 			DDC_HDCP_GET_AUTH, 0);
 		hdmitx_hdcp_status(hdmi_authenticated);
-		if (auth_trigger != hdmi_authenticated) {
-			auth_trigger = hdmi_authenticated;
-			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
-				auth_trigger);
-		}
 		msleep_interruptible(200);
 	}
 
@@ -129,14 +123,6 @@ int hdmitx_hdcp_init(void)
 				      "kthread_hdcp");
 
 	return 0;
-}
-
-static void __exit hdmitx_hdcp_exit(void)
-{
-	struct hdmitx_dev *hdev = get_hdmitx_device();
-
-	if (hdev)
-		cancel_delayed_work_sync(&hdev->work_do_hdcp);
 }
 
 MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");

@@ -181,7 +181,6 @@ static void set_hpll_clk_out(unsigned int clk)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
-	case MESON_CPU_ID_TM2:
 		set_g12a_hpll_clk_out(frac_rate, clk);
 		break;
 	default:
@@ -200,7 +199,6 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
-	case MESON_CPU_ID_TM2:
 		set_hpll_sspll_g12a(vic);
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -247,7 +245,6 @@ static void set_hpll_od1(unsigned int div)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
-	case MESON_CPU_ID_TM2:
 		set_hpll_od1_g12a(div);
 		break;
 	default:
@@ -287,7 +284,6 @@ static void set_hpll_od2(unsigned int div)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
-	case MESON_CPU_ID_TM2:
 		set_hpll_od2_g12a(div);
 		break;
 	default:
@@ -328,11 +324,6 @@ static void set_hpll_od3(unsigned int div)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 		set_hpll_od3_g12a(div);
-		break;
-	case MESON_CPU_ID_TM2:
-		set_hpll_od3_g12a(div);
-		/* new added in TM2 */
-		hd_set_reg_bits(P_HHI_LVDS_TX_PHY_CNTL1, 1, 29, 1);
 		break;
 	default:
 		set_hpll_od3_gxl(div);
@@ -600,9 +591,6 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMIV_2560x1600p60hz,
 	  HDMI_VIC_END},
 		3485000, 1, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
-	{{HDMIV_3440x1440p60hz,
-	  HDMI_VIC_END},
-		3197500, 1, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
 };
 
 /* For colordepth 10bits */

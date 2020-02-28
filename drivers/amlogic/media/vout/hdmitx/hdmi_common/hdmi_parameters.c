@@ -2571,53 +2571,6 @@ static struct hdmi_format_para fmt_para_vesa_2560x1600p60_8x5 = {
 	},
 };
 
-static struct hdmi_format_para fmt_para_vesa_3440x1440p60_43x18 = {
-	.vic = HDMIV_3440x1440p60hz,
-	.name = "3440x1440p60hz",
-	.pixel_repetition_factor = 0,
-	.progress_mode = 1,
-	.scrambler_en = 0,
-	.tmds_clk_div40 = 0,
-	.tmds_clk = 319750,
-	.timing = {
-		.pixel_freq = 319750,
-		.h_freq = 88819,
-		.v_freq = 59973,
-		.vsync_polarity = 1, /* +VSync */
-		.hsync_polarity = 1, /* +HSync */
-		.h_active = 3440,
-		.h_total = 3600,
-		.h_blank = 160,
-		.h_front = 48,
-		.h_sync = 32,
-		.h_back = 80,
-		.v_active = 1440,
-		.v_total = 1481,
-		.v_blank = 41,
-		.v_front = 3,
-		.v_sync = 10,
-		.v_back = 28,
-		.v_sync_ln = 1,
-	},
-	.hdmitx_vinfo = {
-		.name = "3440x1440p60hz",
-		.mode = VMODE_HDMI,
-		.width = 3440,
-		.height = 1440,
-		.field_height = 1440,
-		.aspect_ratio_num = 43,
-		.aspect_ratio_den = 18,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk = 319750000,
-		.htotal = 3600,
-		.vtotal = 1481,
-		.fr_adj_type = VOUT_FR_ADJ_HDMI,
-		.viu_color_fmt = COLOR_FMT_YUV444,
-		.viu_mux = VIU_MUX_ENCP,
-	},
-};
-
 static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_3840x2160p60_16x9,
 	&fmt_para_3840x2160p50_16x9,
@@ -2671,7 +2624,6 @@ static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_vesa_1920x1200p60_8x5,
 	&fmt_para_vesa_2160x1200p90_9x5,
 	&fmt_para_vesa_2560x1600p60_8x5,
-	&fmt_para_vesa_3440x1440p60_43x18,
 	&fmt_para_null_hdmi_fmt,
 	&fmt_para_non_hdmi_fmt,
 	NULL,
@@ -2888,71 +2840,6 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 	return para;
 }
 
-static struct hdmi_format_para tst_para;
-static inline void copy_para(struct hdmi_format_para *des,
-			     struct hdmi_format_para *src)
-{
-	if (!des || !src)
-		return;
-	memcpy(des, src, sizeof(struct hdmi_format_para));
-}
-
-struct hdmi_format_para *hdmi_tst_fmt_name(char const *name, char const *attr)
-{
-	int i;
-	char *lname;
-	enum hdmi_vic vic = HDMI_UNKNOWN;
-
-	copy_para(&tst_para, &fmt_para_non_hdmi_fmt);
-	if (!name)
-		return &tst_para;
-
-	for (i = 0; all_fmt_paras[i]; i++) {
-		lname = all_fmt_paras[i]->name;
-		if (lname && (strncmp(name, lname, strlen(lname)) == 0)) {
-			vic = all_fmt_paras[i]->vic;
-			break;
-		}
-		lname = all_fmt_paras[i]->sname;
-		if (lname && (strncmp(name, lname, strlen(lname)) == 0)) {
-			vic = all_fmt_paras[i]->vic;
-			break;
-		}
-	}
-	if (vic != HDMI_UNKNOWN && (i != sizeof(all_fmt_paras) /
-		sizeof(struct hdmi_format_para *))) {
-		copy_para(&tst_para, all_fmt_paras[i]);
-		memset(&tst_para.ext_name[0], 0, sizeof(tst_para.ext_name));
-		memcpy(&tst_para.ext_name[0], name, sizeof(tst_para.ext_name));
-		hdmi_parse_attr(&tst_para, name);
-		hdmi_parse_attr(&tst_para, attr);
-	} else {
-		copy_para(&tst_para, &fmt_para_non_hdmi_fmt);
-		hdmi_parse_attr(&tst_para, name);
-		hdmi_parse_attr(&tst_para, attr);
-	}
-	if (strstr(name, "420"))
-		tst_para.cs = COLORSPACE_YUV420;
-
-	/* only 2160p60/50hz smpte60/50hz have Y420 mode */
-	if (tst_para.cs == COLORSPACE_YUV420) {
-		switch ((tst_para.vic) & 0xff) {
-		case HDMI_3840x2160p50_16x9:
-		case HDMI_3840x2160p60_16x9:
-		case HDMI_4096x2160p50_256x135:
-		case HDMI_4096x2160p60_256x135:
-		case HDMI_3840x2160p50_64x27:
-		case HDMI_3840x2160p60_64x27:
-			break;
-		default:
-			copy_para(&tst_para, &fmt_para_non_hdmi_fmt);
-			break;
-		}
-	}
-
-	return &tst_para;
-}
-
 struct vinfo_s *hdmi_get_valid_vinfo(char *mode)
 {
 	int i;
@@ -2963,24 +2850,6 @@ struct vinfo_s *hdmi_get_valid_vinfo(char *mode)
 		/* the string of mode contains char NF */
 		memset(mode_, 0, sizeof(mode_));
 		strncpy(mode_, mode, sizeof(mode_));
-
-		/* skip "f", 1080fp60hz -> 1080p60hz for 3d */
-		mode_[31] = '\0';
-		if (strstr(mode_, "fp")) {
-			int i = 0;
-
-			for (; mode_[i]; i++) {
-				if (mode_[i] == 'f' &&
-				    mode_[i + 1] == 'p') {
-					do {
-						mode_[i] = mode_[i + 1];
-						i++;
-					} while (mode_[i]);
-					break;
-				}
-			}
-		}
-
 		for (i = 0; i < sizeof(mode_); i++)
 			if (mode_[i] == 10)
 				mode_[i] = 0;
@@ -3528,24 +3397,5 @@ unsigned int hdmi_get_csc_coef(unsigned int input_format,
 	*coef_length = 0;
 
 	return 1;
-}
-
-bool is_hdmi14_4k(enum hdmi_vic vic)
-{
-	bool ret = 0;
-
-	switch (vic) {
-	case HDMI_3840x2160p24_16x9:
-	case HDMI_3840x2160p25_16x9:
-	case HDMI_3840x2160p30_16x9:
-	case HDMI_4096x2160p24_256x135:
-		ret = 1;
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-
-	return ret;
 }
 
