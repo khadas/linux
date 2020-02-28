@@ -49,8 +49,8 @@ static const struct reg_s tvregs_720p[] = {
 	{P_ENCP_VIDEO_VSPULS_ELINE, 8},
 	{P_ENCP_VIDEO_HAVON_BEGIN, 260},
 	{P_ENCP_VIDEO_HAVON_END, 1539},
-	{P_ENCP_VIDEO_VAVON_BLINE, 15},
-	{P_ENCP_VIDEO_VAVON_ELINE, 744},
+	{P_ENCP_VIDEO_VAVON_BLINE, 29},
+	{P_ENCP_VIDEO_VAVON_ELINE, 749},
 	{P_ENCP_VIDEO_HSO_BEGIN, 0},
 	{P_ENCP_VIDEO_HSO_END, 168},
 	{P_ENCP_VIDEO_VSO_BEGIN, 168},
@@ -58,7 +58,6 @@ static const struct reg_s tvregs_720p[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0},
 	{P_ENCP_VIDEO_VSO_ELINE, 5},
 	{P_ENCP_VIDEO_MAX_LNCNT, 749},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -93,7 +92,6 @@ static const struct reg_s tvregs_720p_50hz[] = {
 	{P_ENCP_VIDEO_MODE_ADV, 0x0018},
 	{P_ENCP_VIDEO_SYNC_MODE, 0x407},
 	{P_ENCP_VIDEO_YC_DLY, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -124,7 +122,6 @@ static const struct reg_s tvregs_480i[] = {
 	{P_ENCI_VFIFO2VD_LINE_TOP_END, 0x102,},
 	{P_ENCI_VFIFO2VD_LINE_BOT_START, 0x13,},
 	{P_ENCI_VFIFO2VD_LINE_BOT_END, 0x103,},
-	{P_ENCP_VIDEO_EN, 0},
 	{P_ENCI_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
@@ -164,7 +161,6 @@ static const struct reg_s tvregs_480p[] = {
 	{P_ENCP_DACSEL_0, 0x3102},
 	{P_ENCP_DACSEL_1, 0x0054},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -199,7 +195,6 @@ static const struct reg_s tvregs_576i[] = {
 	{P_ENCI_VFIFO2VD_LINE_TOP_END, 0x0136},
 	{P_ENCI_VFIFO2VD_LINE_BOT_START, 0x0017},
 	{P_ENCI_VFIFO2VD_LINE_BOT_END, 0x0137},
-	{P_ENCP_VIDEO_EN, 0},
 	{P_ENCI_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
@@ -237,7 +232,6 @@ static const struct reg_s tvregs_576p[] = {
 	{P_ENCP_VIDEO_SY_VAL, 8},
 	{P_ENCP_VIDEO_SY2_VAL, 0x1d8},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -276,7 +270,6 @@ static const struct reg_s tvregs_1080i[] = {
 	{P_ENCP_VIDEO_MODE_ADV, 0x0018},
 	{P_ENCP_VIDEO_SYNC_MODE, 0x207},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -311,7 +304,6 @@ static const struct reg_s tvregs_1080i_50hz[] = {
 	{P_ENCP_VIDEO_MODE_ADV, 0x0018},
 	{P_ENCP_VIDEO_SYNC_MODE, 0x7},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -334,8 +326,8 @@ static const struct reg_s tvregs_1080p[] = {
 	{P_ENCP_VIDEO_VSPULS_ELINE, 4},
 	{P_ENCP_VIDEO_HAVON_BEGIN, 148},
 	{P_ENCP_VIDEO_HAVON_END, 2067},
-	{P_ENCP_VIDEO_VAVON_BLINE, 41},
-	{P_ENCP_VIDEO_VAVON_ELINE, 1120},
+	{P_ENCP_VIDEO_VAVON_BLINE, 42},
+	{P_ENCP_VIDEO_VAVON_ELINE, 1121},
 	{P_ENCP_VIDEO_HSO_BEGIN, 44},
 	{P_ENCP_VIDEO_HSO_END, 2156},
 	{P_ENCP_VIDEO_VSO_BEGIN, 2100},
@@ -345,41 +337,6 @@ static const struct reg_s tvregs_1080p[] = {
 	{P_ENCP_VIDEO_MAX_LNCNT, 1124},
 	{P_VENC_VIDEO_PROG_MODE, 0x100},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
-	{MREG_END_MARKER, 0},
-};
-
-static const struct reg_s tvregs_1080p_30hz[] = {
-	{P_ENCP_VIDEO_EN, 0},
-	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_FILT_CTRL, 0x1052},
-	{P_VENC_DVI_SETTING, 0x0001},
-	{P_ENCP_VIDEO_MODE, 0x4040},
-	{P_ENCP_VIDEO_MODE_ADV, 0x0018},
-	{P_ENCP_VIDEO_YFP1_HTIME, 140},
-	{P_ENCP_VIDEO_YFP2_HTIME, 2060},
-	{P_ENCP_VIDEO_MAX_PXCNT, 2199},
-	{P_ENCP_VIDEO_HSPULS_BEGIN, 2156},
-	{P_ENCP_VIDEO_HSPULS_END, 44},
-	{P_ENCP_VIDEO_HSPULS_SWITCH, 44},
-	{P_ENCP_VIDEO_VSPULS_BEGIN, 140},
-	{P_ENCP_VIDEO_VSPULS_END, 2059},
-	{P_ENCP_VIDEO_VSPULS_BLINE, 0},
-	{P_ENCP_VIDEO_VSPULS_ELINE, 4},
-	{P_ENCP_VIDEO_HAVON_BEGIN, 148},
-	{P_ENCP_VIDEO_HAVON_END, 2067},
-	{P_ENCP_VIDEO_VAVON_BLINE, 41},
-	{P_ENCP_VIDEO_VAVON_ELINE, 1120},
-	{P_ENCP_VIDEO_HSO_BEGIN, 44},
-	{P_ENCP_VIDEO_HSO_END, 2156},
-	{P_ENCP_VIDEO_VSO_BEGIN, 2100},
-	{P_ENCP_VIDEO_VSO_END, 2164},
-	{P_ENCP_VIDEO_VSO_BLINE, 0},
-	{P_ENCP_VIDEO_VSO_ELINE, 5},
-	{P_ENCP_VIDEO_MAX_LNCNT, 1124},
-	{P_VENC_VIDEO_PROG_MODE, 0x100},
-	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -417,7 +374,6 @@ static const struct reg_s tvregs_1080p_50hz[] = {
 	{P_ENCP_VIDEO_YC_DLY, 0},
 	{P_ENCP_VIDEO_RGB_CTRL, 2},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -456,7 +412,6 @@ static const struct reg_s tvregs_1080p_24hz[] = {
 	{P_ENCP_VIDEO_YC_DLY, 0},
 	{P_ENCP_VIDEO_RGB_CTRL, 2},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -487,7 +442,6 @@ static const struct reg_s tvregs_4k2k_30hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 53},
 	{P_ENCP_VIDEO_MAX_LNCNT, 2249},
 	{P_ENCP_VIDEO_FILT_CTRL, 0x1000},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -519,7 +473,6 @@ static const struct reg_s tvregs_4k2k_25hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 53},
 	{P_ENCP_VIDEO_MAX_LNCNT, 2249},
 	{P_ENCP_VIDEO_FILT_CTRL, 0x1000},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -551,7 +504,6 @@ static const struct reg_s tvregs_4k2k_24hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 53},
 	{P_ENCP_VIDEO_MAX_LNCNT, 2249},
 	{P_ENCP_VIDEO_FILT_CTRL, 0x1000},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -583,7 +535,6 @@ static const struct reg_s tvregs_4k2k_smpte[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 53},
 	{P_ENCP_VIDEO_MAX_LNCNT, 2249},
 	{P_ENCP_VIDEO_FILT_CTRL, 0x1000},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -605,7 +556,6 @@ static const struct reg_s tvregs_4k2k_smpte_25hz[] = {
 	{P_ENCP_VIDEO_VSO_END, 0x32,},
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0xA,},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -627,7 +577,6 @@ static const struct reg_s tvregs_4k2k_smpte_30hz[] = {
 	{P_ENCP_VIDEO_VSO_END, 0x32,},
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0xA,},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -649,7 +598,6 @@ static const struct reg_s tvregs_4k2k_smpte_50hz[] = {
 	{P_ENCP_VIDEO_VSO_END, 0x32,},
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0xA,},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -671,7 +619,6 @@ static const struct reg_s tvregs_4k2k_smpte_60hz[] = {
 	{P_ENCP_VIDEO_VSO_END, 0x32,},
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0xA,},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -711,7 +658,6 @@ static const struct reg_s tvregs_2560x1080p50hz[] = {
 	{P_ENCP_VIDEO_RGB_CTRL, 2},
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -750,7 +696,6 @@ static const struct reg_s tvregs_2560x1080p60hz[] = {
 	{P_ENCP_VIDEO_RGB_CTRL, 2},
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -773,7 +718,6 @@ static const struct reg_s tvregs_vesa_640x480p60hz[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0x2,},
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -797,7 +741,6 @@ static const struct reg_s tvregs_vesa_800x600p60hz[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0x4,},
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -821,7 +764,6 @@ static const struct reg_s tvregs_vesa_800x480p60hz[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0},
 	{P_ENCP_VIDEO_VSO_ELINE, 0x7},
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -845,7 +787,6 @@ static const struct reg_s tvregs_vesa_852x480p60hz[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0x2,},/*2//ver sync time*/
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -869,7 +810,6 @@ static const struct reg_s tvregs_vesa_854x480p60hz[] = {
 	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
 	{P_ENCP_VIDEO_VSO_ELINE, 0x2,},/*2//ver sync time*/
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -895,7 +835,6 @@ static const struct reg_s tvregs_vesa_1024x600p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x6,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -921,7 +860,6 @@ static const struct reg_s tvregs_vesa_1024x768p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x6,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -947,7 +885,6 @@ static const struct reg_s tvregs_vesa_1152x864p75hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x3,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -977,7 +914,6 @@ static const struct reg_s tvregs_vesa_1280x768p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1003,7 +939,6 @@ static const struct reg_s tvregs_vesa_1280x800p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1029,7 +964,6 @@ static const struct reg_s tvregs_vesa_1280x960p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1055,7 +989,6 @@ static const struct reg_s tvregs_vesa_1280x1024p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1081,7 +1014,6 @@ static const struct reg_s tvregs_vesa_1360x768p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x6,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1108,7 +1040,6 @@ static const struct reg_s tvregs_vesa_1366x768p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x3,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1135,7 +1066,6 @@ static const struct reg_s tvregs_vesa_1400x1050p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x4,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1162,7 +1092,6 @@ static const struct reg_s tvregs_vesa_1440x900p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x6,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1189,7 +1118,6 @@ static const struct reg_s tvregs_vesa_1440x2560p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x4,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1216,7 +1144,6 @@ static const struct reg_s tvregs_vesa_1600x900p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x3,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1243,7 +1170,6 @@ static const struct reg_s tvregs_vesa_1600x1200p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x3,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1269,7 +1195,6 @@ static const struct reg_s tvregs_vesa_1680x1050p60hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x6,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1,},
 	{P_ENCI_VIDEO_EN, 0,},
 	{MREG_END_MARKER, 0}
 };
@@ -1296,7 +1221,6 @@ static const struct reg_s tvregs_vesa_1920x1200p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1320,7 +1244,6 @@ static const struct reg_s tvregs_vesa_2160x1200p90hz[] = {
 	{P_ENCP_VIDEO_VSO_ELINE, 0x3,},
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
-	{P_ENCP_VIDEO_EN, 1},
 	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0},
 };
@@ -1347,7 +1270,31 @@ static const struct reg_s tvregs_vesa_2560x1600p60hz[] = {
 
 	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0}
+};
+
+static const struct reg_s tvregs_vesa_3440x1440p60hz[] = {
+	{P_ENCP_VIDEO_EN, 0,},
+	{P_ENCI_VIDEO_EN, 0,},
+	{P_VENC_VDAC_SETTING, 0xff,},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0xE0F,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x5C8,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0x70,},
+	{P_ENCP_VIDEO_HAVON_END, 0xDDF,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x26,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x5C5,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x20,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0xA,},
+
+	{P_VPU_VIU_VENC_MUX_CTRL, 0xA},
+	{P_ENCI_VIDEO_EN, 0},
 	{MREG_END_MARKER, 0}
 };
 
@@ -1355,9 +1302,6 @@ static const struct reg_s tvregs_vesa_2560x1080p60hz[] = {
 };
 
 static const struct reg_s tvregs_vesa_2560x1440p60hz[] = {
-};
-
-static const struct reg_s tvregs_vesa_3440x1440p60hz[] = {
 };
 
 struct vic_tvregs_set {
@@ -1382,7 +1326,7 @@ static struct vic_tvregs_set tvregstab[] = {
 	{HDMI_1920x1080i50_16x9, tvregs_1080i_50hz},
 	{HDMI_1920x1080p50_16x9, tvregs_1080p_50hz},
 	{HDMI_1920x1080p25_16x9, tvregs_1080p_50hz},
-	{HDMI_1920x1080p30_16x9, tvregs_1080p_30hz},
+	{HDMI_1920x1080p30_16x9, tvregs_1080p},
 	{HDMI_1920x1080p24_16x9, tvregs_1080p_24hz},
 	{HDMI_3840x2160p30_16x9, tvregs_4k2k_30hz},
 	{HDMI_3840x2160p25_16x9, tvregs_4k2k_25hz},
@@ -1424,6 +1368,7 @@ static struct vic_tvregs_set tvregstab[] = {
 	{HDMIV_1920x1200p60hz, tvregs_vesa_1920x1200p60hz},
 	{HDMIV_2160x1200p90hz, tvregs_vesa_2160x1200p90hz},
 	{HDMIV_2560x1600p60hz, tvregs_vesa_2560x1600p60hz},
+	{HDMIV_3440x1440p60hz, tvregs_vesa_3440x1440p60hz},
 };
 
 /*
@@ -1435,7 +1380,7 @@ static const struct reg_s tvregs_3dfp_1080p60[] = {
 
 	{P_ENCP_VIDEO_MODE, 0x4040,},
 	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
-	{P_ENCP_VIDEO_MAX_PXCNT, 0x897,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0xABD,},
 	{P_ENCP_VIDEO_MAX_LNCNT, 0x8C9,},
 	{P_ENCP_VIDEO_HAVON_BEGIN, 0xC0,},
 	{P_ENCP_VIDEO_HAVON_END, 0x83F,},
@@ -1465,7 +1410,6 @@ static const struct reg_s tvregs_3dfp_1080p60[] = {
 	{P_ENCP_DE_V_END_ODD, 0x0,},
 
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -1505,7 +1449,6 @@ static const struct reg_s tvregs_3dfp_1080p24[] = {
 	{P_ENCP_DE_V_END_ODD, 0x0,},
 
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -1515,7 +1458,7 @@ static const struct reg_s tvregs_3dfp_1080p50[] = {
 
 	{P_ENCP_VIDEO_MODE, 0x4040,},
 	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
-	{P_ENCP_VIDEO_MAX_PXCNT, 0xA4F,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0xABD,},
 	{P_ENCP_VIDEO_MAX_LNCNT, 0x8C9,},
 	{P_ENCP_VIDEO_HAVON_BEGIN, 0xC0,},
 	{P_ENCP_VIDEO_HAVON_END, 0x83F,},
@@ -1545,7 +1488,6 @@ static const struct reg_s tvregs_3dfp_1080p50[] = {
 	{P_ENCP_DE_V_END_ODD, 0x0,},
 
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -1585,7 +1527,6 @@ static const struct reg_s tvregs_3dfp_720p50[] = {
 	{P_ENCP_DE_V_END_ODD, 0x0,},
 
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
@@ -1625,7 +1566,6 @@ static const struct reg_s tvregs_3dfp_720p60[] = {
 	{P_ENCP_DE_V_END_ODD, 0x0,},
 
 	{P_ENCI_VIDEO_EN, 0},
-	{P_ENCP_VIDEO_EN, 1},
 	{MREG_END_MARKER, 0},
 };
 
