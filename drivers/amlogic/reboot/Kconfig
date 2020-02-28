@@ -1,0 +1,6 @@
+# Amlogic POWER OFF
+config AMLOGIC_GX_REBOOT
+	tristate "Amlogic reboot gx"
+	default n
+    help
+		This is the Amlogic GX reboot driver.

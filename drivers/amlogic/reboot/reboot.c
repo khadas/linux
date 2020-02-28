@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
+#include <linux/reboot.h>
+
+#include <asm/system_misc.h>
+
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/reboot.h>
+//#include <asm/compiler.h>
+#include <linux/kdebug.h>
+#include <linux/arm-smccc.h>
+
+static void __iomem *reboot_reason_vaddr;
+static u32 psci_function_id_restart;
+static u32 psci_function_id_poweroff;
+static char *kernel_panic;
+static u32 parse_reason(const char *cmd)
+{
+	u32 reboot_reason = MESON_NORMAL_BOOT;
+
+	if (cmd) {
+		if (strcmp(cmd, "recovery") == 0 ||
+		    strcmp(cmd, "factory_reset") == 0)
+			reboot_reason = MESON_FACTORY_RESET_REBOOT;
+		else if (strcmp(cmd, "cold_boot") == 0)
+			reboot_reason = MESON_COLD_REBOOT;
+		else if (strcmp(cmd, "update") == 0)
+			reboot_reason = MESON_UPDATE_REBOOT;
+		else if (strcmp(cmd, "fastboot") == 0)
+			reboot_reason = MESON_FASTBOOT_REBOOT;
+		else if (strcmp(cmd, "bootloader") == 0)
+			reboot_reason = MESON_BOOTLOADER_REBOOT;
+		else if (strcmp(cmd, "rpmbp") == 0)
+			reboot_reason = MESON_RPMBP_REBOOT;
+		else if (strcmp(cmd, "report_crash") == 0)
+			reboot_reason = MESON_CRASH_REBOOT;
+		else if (strcmp(cmd, "uboot_suspend") == 0)
+			reboot_reason = MESON_UBOOT_SUSPEND;
+		else if (strcmp(cmd, "quiescent") == 0 ||
+			 strcmp(cmd, ",quiescent") == 0)
+			reboot_reason = MESON_QUIESCENT_REBOOT;
+		else if (strcmp(cmd, "recovery,quiescent") == 0 ||
+			 strcmp(cmd, "factory_reset,quiescent") == 0 ||
+			 strcmp(cmd, "quiescent,recovery") == 0 ||
+			 strcmp(cmd, "quiescent,factory_reset") == 0)
+			reboot_reason = MESON_RECOVERY_QUIESCENT_REBOOT;
+		else if (strcmp(cmd, "ffv_reboot") == 0)
+			reboot_reason = MESON_FFV_REBOOT;
+	} else {
+		if (kernel_panic) {
+			if (strcmp(kernel_panic, "kernel_panic") == 0)
+				reboot_reason = MESON_KERNEL_PANIC;
+		}
+	}
+
+	pr_info("reboot reason %d\n", reboot_reason);
+	return reboot_reason;
+}
+
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc((unsigned long)function_id,
+		      (unsigned long)arg0,
+		      (unsigned long)arg1,
+		      (unsigned long)arg2,
+		      0, 0, 0, 0, &res);
+	return res.a0;
+}
+
+void meson_smc_restart(u64 function_id, u64 reboot_reason)
+{
+	__invoke_psci_fn_smc(function_id,
+			     reboot_reason, 0, 0);
+}
+
+void meson_common_restart(char mode, const char *cmd)
+{
+	u32 reboot_reason = parse_reason(cmd);
+
+	if (psci_function_id_restart)
+		meson_smc_restart((u64)psci_function_id_restart,
+				  (u64)reboot_reason);
+}
+
+static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
+			  void *cmd)
+{
+	meson_common_restart(reboot_mode, cmd);
+
+	return NOTIFY_DONE;
+}
+
+static void do_aml_poweroff(void)
+{
+	/* TODO: Add poweroff capability */
+	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
+	__invoke_psci_fn_smc(psci_function_id_poweroff,
+			     0, 0, 0);
+}
+
+static int panic_notify(struct notifier_block *self,
+			unsigned long cmd, void *ptr)
+{
+	kernel_panic = "kernel_panic";
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_notifier = {
+	.notifier_call	= panic_notify,
+};
+
+ssize_t reboot_reason_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	unsigned int value, len;
+
+	if (!reboot_reason_vaddr)
+		return 0;
+	value = readl(reboot_reason_vaddr);
+	value = (value >> 12) & 0xf;
+	len = sprintf(buf, "%d\n", value);
+
+	return len;
+}
+
+static DEVICE_ATTR_RO(reboot_reason);
+
+static struct notifier_block aml_restart_nb = {
+	.notifier_call = do_aml_restart,
+	.priority = 130,
+};
+
+static int aml_restart_probe(struct platform_device *pdev)
+{
+	u32 id;
+	int ret;
+	u32 paddr = 0;
+
+	if (!of_property_read_u32(pdev->dev.of_node, "sys_reset", &id)) {
+		psci_function_id_restart = id;
+		register_restart_handler(&aml_restart_nb);
+	}
+
+	if (!of_property_read_u32(pdev->dev.of_node, "sys_poweroff", &id)) {
+		psci_function_id_poweroff = id;
+		pm_power_off = do_aml_poweroff;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "reboot_reason_addr", &paddr);
+	if (!ret) {
+		pr_debug("reboot_reason paddr: 0x%x\n", paddr);
+		reboot_reason_vaddr = ioremap(paddr, 0x4);
+		device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+	}
+
+	ret = register_die_notifier(&panic_notifier);
+	if (ret != 0) {
+		pr_err("%s,register die notifier failed,ret =%d!\n",
+		       __func__, ret);
+		return ret;
+	}
+
+	/* Register a call for panic conditions. */
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+					     &panic_notifier);
+	if (ret != 0) {
+		pr_err("%s,register panic notifier failed,ret =%d!\n",
+		       __func__, ret);
+		return ret;
+	}
+	return 0;
+}
+
+static const struct of_device_id of_aml_restart_match[] = {
+	{ .compatible = "aml, reboot", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_aml_restart_match);
+
+static struct platform_driver aml_restart_driver = {
+	.probe = aml_restart_probe,
+	.driver = {
+		.name = "aml-restart",
+		.of_match_table = of_match_ptr(of_aml_restart_match),
+	},
+};
+
+module_platform_driver(aml_restart_driver);
+
+MODULE_LICENSE("GPL");

@@ -82,5 +82,6 @@ source "drivers/amlogic/jtag/Kconfig"
 source "drivers/amlogic/cec/Kconfig"
 
 source "drivers/amlogic/uart/Kconfig"
+source "drivers/amlogic/reboot/Kconfig"
 endmenu
 endif

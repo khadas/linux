@@ -375,6 +375,12 @@
 		<0x0 0xff63c100 0x0 0x10>;
 	};
 
+	aml_reboot{
+		compatible = "aml, reboot";
+		sys_reset = <0x84000009>;
+		sys_poweroff = <0x84000008>;
+	};
+
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		dev_name = "amvenc_avc";
