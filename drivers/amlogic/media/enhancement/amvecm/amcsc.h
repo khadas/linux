@@ -200,7 +200,8 @@ extern void hdr_exit(void);
 extern void hdr_set_cfg_osd_100(int val);
 extern void hdr_osd_off(void);
 extern void hdr_vd1_off(void);
-void hdr_vd2_off(void);
+extern void hdr_vd2_off(void);
+extern void hdr_vd1_iptmap(void);
 extern bool is_video_layer_on(enum vd_path_e vd_path);
 
 #define HDR_MODULE_OFF		0

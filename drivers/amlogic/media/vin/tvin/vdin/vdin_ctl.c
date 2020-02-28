@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "vdin_ctl.h"
@@ -2831,7 +2832,8 @@ void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp)
 		return;
 
 	if ((devp->dv.dv_flag) && is_dolby_vision_enable()
-		&& (devp->dv.low_latency)
+		&& !(is_dolby_vision_stb_mode()	&& is_meson_tm2_cpu())
+		/*&& (devp->dv.low_latency)*/
 		&& (devp->prop.color_format == TVIN_YUV422)) {
 		offset = devp->addr_offset;
 		/*channel map*/

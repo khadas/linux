@@ -1087,6 +1087,17 @@ static int bypass_coeff[MTX_NUM_PARAM] = {
 	0
 };
 
+int full2lmt_pre[3]	= {-0, -512, -512};
+int full2lmt_pos[3]	= {0, 512, 512};
+static int full2lmt_coeff[MTX_NUM_PARAM] = {
+	1024, 0, 0,
+	0, 512, 0,
+	0, 0, 512,
+	0, 0, 0,
+	0, 0, 0,
+	0
+};
+
 unsigned int _log2(unsigned int value)
 {
 	unsigned int ret;
@@ -2373,7 +2384,23 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 #else
 	/*lut parameters*/
-	if (hdr_process_select == RGB_YUV) {
+	if (hdr_process_select == IPT_MAP) {
+		mtx_only_mode = true;
+		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
+			hdr_lut_param.oetf_lut[i] =	oe_y_lut_bypass[i];
+			hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
+			if (i < HDR2_EOTF_LUT_SIZE)
+				hdr_lut_param.eotf_lut[i] =
+					eo_y_lut_bypass[i];
+			if (i < HDR2_CGAIN_LUT_SIZE)
+				hdr_lut_param.cgain_lut[i] =
+					cgain_lut_bypass[i] - 1;
+		}
+		hdr_lut_param.bitdepth = bit_depth;
+		hdr_lut_param.lut_on = LUT_OFF;
+		hdr_lut_param.cgain_en = LUT_OFF;
+		hdr_lut_param.hist_en = LUT_OFF;
+	} else if (hdr_process_select == RGB_YUV) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i] =	oe_y_lut_bypass[i];
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
@@ -2628,7 +2655,32 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			rgb2yuvpos[i];
 	}
 
-	if (hdr_process_select == RGB_YUV) {
+	if (hdr_process_select == IPT_MAP) {
+		hdr_mtx_param.mtx_gamut_mode = 1;
+		if (mtx_only_mode) {
+			hdr_mtx_param.mtx_only = MTX_ONLY;
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = full2lmt_coeff[i];
+				hdr_mtx_param.mtx_cgain[i] = bypass_coeff[i];
+				hdr_mtx_param.mtx_ogain[i] = bypass_coeff[i];
+				hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] =
+						gamut_bypass[i];
+				if (i < 3) {
+					hdr_mtx_param.mtxi_pre_offset[i] =
+						full2lmt_pre[i];
+					hdr_mtx_param.mtxi_pos_offset[i] =
+						full2lmt_pos[i];
+					hdr_mtx_param.mtxo_pre_offset[i] =
+						bypass_pre[i];
+					hdr_mtx_param.mtxo_pos_offset[i] =
+						bypass_pos[i];
+				}
+			}
+			hdr_mtx_param.mtx_on = MTX_OFF;
+		}
+	} else if (hdr_process_select == RGB_YUV) {
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		if (mtx_only_mode) {
 			hdr_mtx_param.mtx_only = MTX_ONLY;

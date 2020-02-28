@@ -92,6 +92,12 @@ enum hdr_process_sel {
 	RGB_HDR = 13,
 	RGB_HLG = 14,
 	HDR10P_SDR = 15,
+	SDR_GMT_CONVERT = 16,
+	RGB_YUVF = 17,
+	SDR_RGB_GMT_CONV = 18,
+	SRGB_YUVF = 19,
+	SDR_SRGB_GMT_CONV = 20,
+	IPT_MAP = 21,
 	HDR_p_MAX
 };
 

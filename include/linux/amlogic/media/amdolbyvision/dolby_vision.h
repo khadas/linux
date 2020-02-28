@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 
 #define DOLBY_VISION_OUTPUT_MODE_IPT			0
 #define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL		1
@@ -98,7 +99,7 @@ void tv_dolby_vision_el_info(void);
 int enable_rgb_to_yuv_matrix_for_dvll(
 	int32_t on, uint32_t *coeff_orig, uint32_t bits);
 
-bool is_dovi_frame(struct vframe_s *vf);
+int is_dovi_frame(struct vframe_s *vf);
 void update_graphic_width_height(unsigned int width, unsigned int height);
 int get_dolby_vision_policy(void);
 void set_dolby_vision_policy(int policy);
