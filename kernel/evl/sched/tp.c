@@ -369,12 +369,14 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	it->nr_windows = gps->pwin_nr;
 	for (n = 0, pp = p = it->windows, pw = w = gps->pwins;
 	     n < gps->pwin_nr; pp = p, p++, pw = w, w++, n++) {
-		p->offset = ktime_to_timespec(w->w_offset);
-		pp->duration = ktime_to_timespec(ktime_sub(w->w_offset, pw->w_offset));
+		p->offset = ktime_to_u_timespec(w->w_offset);
+		pp->duration = ktime_to_u_timespec(
+				     ktime_sub(w->w_offset, pw->w_offset));
 		p->ptid = w->w_part;
 	}
 
-	pp->duration = ktime_to_timespec(ktime_sub(gps->tf_duration, pw->w_offset));
+	pp->duration = ktime_to_u_timespec(
+		     ktime_sub(gps->tf_duration, pw->w_offset));
 
 	put_tp_schedule(gps);
 
@@ -394,11 +396,11 @@ install_schedule:
 		 * be defined using windows assigned to the pseudo
 		 * partition #-1.
 		 */
-		offset = timespec_to_ktime(p->offset);
+		offset = u_timespec_to_ktime(p->offset);
 		if (offset != next_offset)
 			goto fail;
 
-		duration = timespec_to_ktime(p->duration);
+		duration = u_timespec_to_ktime(p->duration);
 		if (duration <= 0)
 			goto fail;
 

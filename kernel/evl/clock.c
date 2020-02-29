@@ -474,27 +474,11 @@ static long restart_clock_sleep(struct restart_block *param)
 }
 
 static int clock_sleep(struct evl_clock *clock,
-		struct evl_clock_sleepreq __user *u_req)
+		struct timespec64 ts64)
 {
-	struct evl_clock_sleepreq req = {
-		.timeout = {
-			.tv_sec = 0, .tv_nsec = 0
-		},
-	};
 	struct evl_thread *curr = evl_current();
 	struct restart_block *restart;
 	ktime_t timeout, rem;
-	int ret;
-
-	ret = raw_copy_from_user(&req, u_req, sizeof(req));
-	if (ret)
-		return -EFAULT;
-
-	if (req.timeout.tv_sec < 0)
-		return -EINVAL;
-
-	if ((unsigned long)req.timeout.tv_nsec >= ONE_BILLION)
-		return -EINVAL;
 
 	if (curr->local_info & T_SYSRST) {
 		curr->local_info &= ~T_SYSRST;
@@ -503,7 +487,7 @@ static int clock_sleep(struct evl_clock *clock,
 			return -EINTR;
 		timeout = restart->nanosleep.expires;
 	} else
-		timeout = timespec_to_ktime(req.timeout);
+		timeout = timespec64_to_ktime(ts64);
 
 	rem = evl_delay_thread(timeout, EVL_ABS, clock);
 	if (!rem)
@@ -520,76 +504,45 @@ static int clock_sleep(struct evl_clock *clock,
 	return -EINTR;
 }
 
-static int get_clock_resolution(struct evl_clock *clock,
-				struct timespec __user *u_res)
+static void get_clock_resolution(struct evl_clock *clock,
+				struct timespec64 *res)
 {
-	struct timespec res;
+	*res = ktime_to_timespec64(evl_get_clock_resolution(clock));
 
-	res = ktime_to_timespec(evl_get_clock_resolution(clock));
-
-	trace_evl_clock_getres(clock, &res);
-
-	return raw_copy_to_user(u_res, &res, sizeof(res)) ? -EFAULT : 0;
+	trace_evl_clock_getres(clock, res);
 }
 
-static int get_clock_time(struct evl_clock *clock,
-			struct timespec __user *u_ts)
+static void get_clock_time(struct evl_clock *clock,
+			struct timespec64 *ts)
 {
-	struct timespec ts;
+	*ts = ktime_to_timespec64(evl_read_clock(clock));
 
-	ts = ktime_to_timespec(evl_read_clock(clock));
-
-	trace_evl_clock_gettime(clock, &ts);
-
-	return raw_copy_to_user(u_ts, &ts, sizeof(ts)) ? -EFAULT : 0;
+	trace_evl_clock_gettime(clock, ts);
 }
 
 static int set_clock_time(struct evl_clock *clock,
-			struct timespec __user *u_ts)
+			struct timespec64 ts)
 {
-	struct timespec ts;
-	int ret;
-
-	ret = raw_copy_from_user(&ts, u_ts, sizeof(ts));
-	if (ret)
-		return -EFAULT;
-
-	if ((unsigned long)ts.tv_nsec >= ONE_BILLION)
-		return -EINVAL;
-
 	trace_evl_clock_settime(clock, &ts);
 
 	return evl_set_clock_time(clock, &ts);
 }
 
-static int adjust_clock_time(struct evl_clock *clock,
-			struct __kernel_timex __user *u_tx)
-{
-	struct __kernel_timex tx;
-	int ret;
-
-	ret = raw_copy_from_user(&tx, u_tx, sizeof(tx));
-	if (ret)
-		return -EFAULT;
-
-	return evl_clock_adjust_time(clock, &tx);
-}
-
 static void get_timer_value(struct evl_timer *__restrict__ timer,
-			struct itimerspec *__restrict__ value)
+			struct itimerspec64 *__restrict__ value)
 {
-	value->it_interval = ktime_to_timespec(timer->interval);
+	value->it_interval = ktime_to_timespec64(timer->interval);
 
 	if (!evl_timer_is_running(timer)) {
 		value->it_value.tv_sec = 0;
 		value->it_value.tv_nsec = 0;
 	} else
 		value->it_value =
-			ktime_to_timespec(evl_get_timer_delta(timer));
+			ktime_to_timespec64(evl_get_timer_delta(timer));
 }
 
 static int set_timer_value(struct evl_timer *__restrict__ timer,
-			const struct itimerspec *__restrict__ value)
+			const struct itimerspec64 *__restrict__ value)
 {
 	ktime_t start, period;
 
@@ -598,14 +551,8 @@ static int set_timer_value(struct evl_timer *__restrict__ timer,
 		return 0;
 	}
 
-	if ((unsigned long)value->it_value.tv_nsec >= ONE_BILLION ||
-		((unsigned long)value->it_interval.tv_nsec >= ONE_BILLION &&
-			(value->it_value.tv_sec != 0 ||
-				value->it_value.tv_nsec != 0)))
-		return -EINVAL;
-
-	period = timespec_to_ktime(value->it_interval);
-	start = timespec_to_ktime(value->it_value);
+	period = timespec64_to_ktime(value->it_interval);
+	start = timespec64_to_ktime(value->it_value);
 	evl_start_timer(timer, start, period);
 
 	return 0;
@@ -641,8 +588,8 @@ static inline void pin_timer(struct evl_timer *timer)
 #endif
 
 static int set_timerfd(struct evl_timerfd *timerfd,
-		const struct itimerspec *__restrict__ value,
-		struct itimerspec *__restrict__ ovalue)
+		const struct itimerspec64 *__restrict__ value,
+		struct itimerspec64 *__restrict__ ovalue)
 {
 	get_timer_value(&timerfd->timer, ovalue);
 	pin_timer(&timerfd->timer);
@@ -674,9 +621,9 @@ static long timerfd_common_ioctl(struct file *filp,
 				unsigned int cmd, unsigned long arg)
 {
 	struct evl_timerfd *timerfd = filp->private_data;
+	struct __evl_itimerspec uits, uoits, __user *u_uits;
 	struct evl_timerfd_setreq sreq, __user *u_sreq;
-	struct evl_timerfd_getreq greq, __user *u_greq;
-	struct itimerspec value, ovalue;
+	struct itimerspec64 its, oits;
 	long ret = 0;
 
 	switch (cmd) {
@@ -686,23 +633,30 @@ static long timerfd_common_ioctl(struct file *filp,
 		ret = raw_copy_from_user(&sreq, u_sreq, sizeof(sreq));
 		if (ret)
 			return -EFAULT;
-		ret = raw_copy_from_user(&value, sreq.value, sizeof(value));
+		ret = raw_copy_from_user(&uits, sreq.value, sizeof(uits));
 		if (ret)
 			return -EFAULT;
-		ret = set_timerfd(timerfd, &value, &ovalue);
+		if ((unsigned long)uits.it_value.tv_nsec >= ONE_BILLION ||
+			((unsigned long)uits.it_interval.tv_nsec >= ONE_BILLION &&
+				(uits.it_value.tv_sec != 0 ||
+					uits.it_value.tv_nsec != 0)))
+			return -EINVAL;
+		its = u_itimerspec_to_itimerspec64(uits);
+		ret = set_timerfd(timerfd, &its, &oits);
 		if (ret)
 			return ret;
-		if (sreq.ovalue &&
-			raw_copy_to_user(sreq.ovalue, &ovalue, sizeof(ovalue)))
-			return -EFAULT;
+		if (sreq.ovalue) {
+			uoits = itimerspec64_to_u_itimerspec(oits);
+			u_uits = (typeof(u_uits))sreq.ovalue;
+			if (raw_copy_to_user(u_uits, &uoits, sizeof(uoits)))
+				return -EFAULT;
+		}
 		break;
 	case EVL_TFDIOC_GET:
-		u_greq = (typeof(u_greq))arg;
-		ret = raw_copy_from_user(&greq, u_greq, sizeof(greq));
-		if (ret)
-			return -EFAULT;
-		get_timer_value(&timerfd->timer, &value);
-		if (raw_copy_to_user(greq.value, &value, sizeof(value)))
+		get_timer_value(&timerfd->timer, &its);
+		uits = itimerspec64_to_u_itimerspec(its);
+		u_uits = (typeof(u_uits))arg;
+		if (raw_copy_to_user(u_uits, &uits, sizeof(uits)))
 			return -EFAULT;
 		break;
 	default:
@@ -825,24 +779,34 @@ fail_open:
 static long clock_common_ioctl(struct evl_clock *clock,
 			unsigned int cmd, unsigned long arg)
 {
+	struct __evl_timespec uts, __user *u_uts;
+	struct timespec64 ts64;
 	int ret;
 
 	switch (cmd) {
 	case EVL_CLKIOC_GET_RES:
-		ret = get_clock_resolution(clock,
-					(struct timespec __user *)arg);
+		get_clock_resolution(clock, &ts64);
+		uts = timespec64_to_u_timespec(ts64);
+		u_uts = (typeof(u_uts))arg;
+		ret = raw_copy_to_user(u_uts, &uts,
+				sizeof(*u_uts)) ? -EFAULT : 0;
 		break;
 	case EVL_CLKIOC_GET_TIME:
-		ret = get_clock_time(clock,
-				(struct timespec __user *)arg);
+		get_clock_time(clock, &ts64);
+		uts = timespec64_to_u_timespec(ts64);
+		u_uts = (typeof(u_uts))arg;
+		ret = raw_copy_to_user(u_uts, &uts,
+				sizeof(uts)) ? -EFAULT : 0;
 		break;
 	case EVL_CLKIOC_SET_TIME:
-		ret = set_clock_time(clock,
-				(struct timespec __user *)arg);
-		break;
-	case EVL_CLKIOC_ADJ_TIME:
-		ret = adjust_clock_time(clock,
-					(struct __kernel_timex __user *)arg);
+		u_uts = (typeof(u_uts))arg;
+		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
+		if (ret)
+			return -EFAULT;
+		if ((unsigned long)uts.tv_nsec >= ONE_BILLION)
+			return -EINVAL;
+		ts64 = u_timespec_to_timespec64(uts);
+		ret = set_clock_time(clock, ts64);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -855,12 +819,29 @@ static long clock_oob_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
 	struct evl_clock *clock = element_of(filp, struct evl_clock);
+	struct __evl_timespec __user *u_uts;
+	struct __evl_timespec uts = {
+		.tv_sec = 0,
+		.tv_nsec = 0,
+	};
 	int ret;
 
 	switch (cmd) {
 	case EVL_CLKIOC_SLEEP:
-		ret = clock_sleep(clock,
-				(struct evl_clock_sleepreq __user *)arg);
+		u_uts = (typeof(u_uts))arg;
+		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
+		if (ret)
+			return -EFAULT;
+		if (uts.tv_sec < 0)
+			return -EINVAL;
+		/*
+		 * CAUTION: the user-provided type is wider than our
+		 * internal type, we need to check ranges prior to
+		 * converting to timespec64.
+		 */
+		if ((unsigned long)uts.tv_nsec >= ONE_BILLION)
+			return -EINVAL;
+		ret = clock_sleep(clock, u_timespec_to_timespec64(uts));
 		break;
 	default:
 		ret = clock_common_ioctl(clock, cmd, arg);

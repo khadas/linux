@@ -11,14 +11,14 @@
 #include <uapi/evl/sched.h>
 
 /* Earliest ABI level we support. */
-#define EVL_ABI_BASE   18
+#define EVL_ABI_BASE   19
 /*
  * Current/latest ABI level we support. We may decouple the base and
  * current ABI levels by providing backward compatibility from the
  * latter to the former. CAUTION: a litteral value is required for the
  * current ABI definition (scripts reading this may be naive).
  */
-#define EVL_ABI_LEVEL  18
+#define EVL_ABI_LEVEL  19
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 

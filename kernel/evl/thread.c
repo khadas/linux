@@ -1955,7 +1955,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
 	if (sched_class == &evl_sched_fifo) {
 		if (thread->state & T_RRB) {
 			attrs->sched_rr_quantum =
-				ktime_to_timespec(thread->rrperiod);
+				ktime_to_u_timespec(thread->rrperiod);
 			attrs->sched_policy = SCHED_RR;
 		}
 		goto out;
