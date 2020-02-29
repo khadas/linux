@@ -1,0 +1,127 @@
+#! /bin/sh
+# SPDX-License-Identifier: MIT
+
+usage() {
+   echo >&2 "usage: $(basename $1) [-r <rev>][--git-dir <dir>][-s][-h] <object>"
+}
+
+args=$(getopt -n $(basename $0) -l 'git-dir:' -o 'r:sh' -- "$@")
+if [ $? -ne 0 ]; then
+   usage $0
+   exit 1
+fi
+
+object=HEAD
+help=false
+abi=rev
+addlog=
+git_dir=.git
+
+set -- $args
+for opt in "$@"
+do
+case "$opt" in
+   --git-dir) git_dir=$(eval echo $2);
+       shift
+       shift;;
+   -r) s=$(eval echo $2);
+       abirev=$(expr "$s" : '\([0-9]\+\)')
+       if test ! "$s" = "$abirev"; then
+	   echo >&2 "$0: invalid ABI revision number ($s)"
+	   exit 2
+       fi
+       shift
+       shift;;
+   -s) addlog=y
+       shift;;
+   -h) help=true;
+       shift;;
+   --) shift; break;;
+   esac
+done
+
+if test x$help = xtrue; then
+   usage $0
+   echo >&2
+   echo >&2 "Look for ABI definition/prereq in either linux-evl/libevl trees:"
+   echo >&2 "  - at position if <object> is a commit SHA-1 hash"
+   echo >&2 "  - in the commit history if <object> matches a refname"
+   echo >&2
+   echo >&2 "The output is of the form:"
+   echo >&2 "    <start> <range> <revision>  [<shortlog>]"
+   echo >&2
+   echo >&2 "where <start> is the commit implementing the ABI revision"
+   echo >&2 "      <range> is the span of the ABI revision"
+   echo >&2 "      <revision> is the ABI revision number"
+   echo >&2 "      [<shortlog]> is the subject line for <start>"
+   echo >&2
+   echo >&2 "Use -r <rev> to look for a particular ABI revision"
+   echo >&2 "    -s to add the shortlog to the output"
+   echo >&2 "    --git-dir <dir> sets the path to the repository"
+   echo >&2
+   echo >&2 "# Retrieve all ABI definitions from linux-evl evl/master:"
+   echo >&2 "\$ git evlabi evl/master"
+   echo >&2
+   echo >&2 "# Retrieve start of ABI 12 into linux-evl evl/next:"
+   echo >&2 "\$ git evlabi -r 12 evl/next"
+   echo >&2
+   echo >&2 "# Look up for ABI prereq at HEAD of libevl master:"
+   echo >&2 "\$ git evlabi"
+   echo >&2
+   exit 0
+fi
+
+if test "$1" = "--"; then
+   shift
+fi
+
+if test $# -gt 0; then
+   if test $# -gt 1; then
+      usage $0
+      exit 1
+   fi   
+   object=$(eval echo $1)
+fi
+
+GIT="git --git-dir=$git_dir"
+
+scan_history() {
+    sym=$1
+    file=$2
+    end=$($GIT rev-parse --abbrev-ref $object)
+    depth=
+    if test -z "$end"; then
+       end=$object
+       depth=-1
+    fi
+    end=$($GIT rev-parse --short $end)
+    reflist=$($GIT log $depth -G $sym --pretty=tformat:'%h %s' $object -- $file | \
+    while read hash shortlog
+    do
+	rev=$($GIT show -1 -p --pretty=tformat: $hash -- $file|\
+		  grep "^\+#define $sym"|\
+		  sed -e "s,^\+#define $sym[ 	]*\([0-9]\+\).*$,\1,")
+	test -z "$rev" && continue
+	start=$($GIT rev-parse --short $hash^)
+	echo $hash $start..$end "$(printf "%3d  " $rev)${addlog:+$shortlog}"
+	end=$($GIT rev-parse --short $start)
+    done)
+    if test -n "$abirev"; then
+    	 echo "$reflist" | grep -w "[a-f0-9]\+ [a-f0-9]\+\.\.[a-f0-9]\+[ ]\+$abirev[^ ]*"
+    else
+	 echo "$reflist"
+    fi
+}
+
+if $GIT rev-parse -q --no-revs --verify $object:include/uapi/evl/control.h; then
+    result=$(scan_history EVL_ABI_LEVEL include/uapi/evl/control.h)
+    test -n "$result" && echo "$result"
+elif $GIT rev-parse -q --no-revs --verify $object:include/evl/evl.h; then
+    result=$(scan_history EVL_KABI_PREREQ include/evl/evl.h)
+    test -n "$result" && echo "$result"
+else
+   echo "cannot parse - either tree or $object is wrong"
+   exit 1
+fi
+
+exit 0
