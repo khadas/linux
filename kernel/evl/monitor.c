@@ -189,16 +189,13 @@ static void wakeup_waiters(struct evl_monitor *event)
 }
 
 static int __enter_monitor(struct evl_monitor *gate,
-			struct evl_monitor_lockreq *req)
+			   struct timespec64 *ts64)
 {
 	ktime_t timeout = EVL_INFINITE;
 	enum evl_tmode tmode;
 
-	if (req) {
-		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
-			return -EINVAL;
-		timeout = timespec_to_ktime(req->timeout);
-	}
+	if (ts64)
+		timeout = timespec64_to_ktime(*ts64);
 
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
@@ -206,7 +203,7 @@ static int __enter_monitor(struct evl_monitor *gate,
 }
 
 static int enter_monitor(struct evl_monitor *gate,
-			struct evl_monitor_lockreq *req)
+			 struct timespec64 *ts64)
 {
 	struct evl_thread *curr = evl_current();
 
@@ -218,7 +215,7 @@ static int enter_monitor(struct evl_monitor *gate,
 
 	evl_commit_monitor_ceiling();
 
-	return __enter_monitor(gate, req);
+	return __enter_monitor(gate, ts64);
 }
 
 static int tryenter_monitor(struct evl_monitor *gate)
@@ -313,6 +310,7 @@ static inline bool test_event_mask(struct evl_monitor_state *state,
  */
 static int wait_monitor_ungated(struct file *filp,
 				struct evl_monitor_waitreq *req,
+				struct timespec64 *ts64,
 				s32 *r_value)
 {
 	struct evl_monitor *event = element_of(filp, struct evl_monitor);
@@ -323,7 +321,7 @@ static int wait_monitor_ungated(struct file *filp,
 	ktime_t timeout;
 	atomic_t *at;
 
-	timeout = timespec_to_ktime(req->timeout);
+	timeout = timespec64_to_ktime(*ts64);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
 	switch (event->protocol) {
@@ -440,6 +438,7 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 
 static int wait_monitor(struct file *filp,
 			struct evl_monitor_waitreq *req,
+			struct timespec64 *ts64,
 			s32 *r_op_ret,
 			s32 *r_value)
 {
@@ -457,16 +456,11 @@ static int wait_monitor(struct file *filp,
 		goto out;
 	}
 
-	if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION) {
-		op_ret = -EINVAL;
-		goto out;
-	}
-
-	timeout = timespec_to_ktime(req->timeout);
+	timeout = timespec64_to_ktime(*ts64);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
 	if (req->gatefd < 0) {
-		ret = wait_monitor_ungated(filp, req, r_value);
+		ret = wait_monitor_ungated(filp, req, ts64, r_value);
 		*r_op_ret = ret;
 		return ret;
 	}
@@ -616,7 +610,12 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 	struct evl_monitor_unwaitreq uwreq, __user *u_uwreq;
 	struct evl_monitor_waitreq wreq, __user *u_wreq;
-	struct evl_monitor_lockreq lreq, __user *u_lreq;
+	struct __evl_timespec __user *u_uts;
+	struct __evl_timespec uts = {
+		.tv_sec = 0,
+		.tv_nsec = 0,
+	};
+	struct timespec64 ts64;
 	s32 op_ret, value = 0;
 	long ret;
 
@@ -625,7 +624,14 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		ret = wait_monitor(filp, &wreq, &op_ret, &value);
+		u_uts = (typeof(u_uts))wreq.timeout;
+		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
+		if (ret)
+			return -EFAULT;
+		if ((unsigned long)uts.tv_nsec >= ONE_BILLION)
+			return -EINVAL;
+		ts64 = u_timespec_to_timespec64(uts);
+		ret = wait_monitor(filp, &wreq, &ts64, &op_ret, &value);
 		raw_put_user(op_ret, &u_wreq->status);
 		if (!ret && !op_ret)
 			raw_put_user(value, &u_wreq->value);
@@ -642,11 +648,14 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case EVL_MONIOC_ENTER:
-		u_lreq = (typeof(u_lreq))arg;
-		ret = raw_copy_from_user(&lreq, u_lreq, sizeof(lreq));
+		u_uts = (typeof(u_uts))arg;
+		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
 		if (ret)
 			return -EFAULT;
-		ret = enter_monitor(mon, &lreq);
+		if ((unsigned long)uts.tv_nsec >= ONE_BILLION)
+			return -EINVAL;
+		ts64 = u_timespec_to_timespec64(uts);
+		ret = enter_monitor(mon, &ts64);
 		break;
 	case EVL_MONIOC_TRYENTER:
 		ret = tryenter_monitor(mon);

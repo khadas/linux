@@ -28,4 +28,20 @@ static inline fundle_t evl_get_index(fundle_t handle)
 	return handle & ~EVL_HANDLE_INDEX_MASK;
 }
 
+/*
+ * Y2038 safety. Match the kernel ABI definitions of __kernel_timespec
+ * and __kernel_itimerspec.
+ */
+typedef long long __evl_time64_t;
+
+struct __evl_timespec {
+	__evl_time64_t tv_sec;
+	long long      tv_nsec;
+};
+
+struct __evl_itimerspec {
+	struct __evl_timespec it_interval;
+	struct __evl_timespec it_value;
+};
+
 #endif /* !_EVL_UAPI_TYPES_H */

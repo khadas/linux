@@ -16,6 +16,4 @@ struct evl_xbuf_attrs {
 	__u32 o_bufsz;
 };
 
-#define EVL_XBUF_IOCBASE	'x'
-
 #endif /* !_EVL_UAPI_XBUF_H */

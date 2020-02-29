@@ -8,7 +8,7 @@
 #ifndef _EVL_UAPI_SCHED_H
 #define _EVL_UAPI_SCHED_H
 
-#include <linux/types.h>
+#include <uapi/evl/types.h>
 
 #define EVL_CPU_OOB      (1 << 0)
 #define EVL_CPU_ISOL     (1 << 1)
@@ -19,7 +19,7 @@
 #define sched_rr_quantum	sched_u.rr.__sched_rr_quantum
 
 struct __sched_rr_param {
-	struct timespec __sched_rr_quantum;
+	struct __evl_timespec __sched_rr_quantum;
 };
 
 #define SCHED_QUOTA		44
@@ -78,8 +78,8 @@ struct evl_tp_ctlparam {
 	} op;
 	int nr_windows;
 	struct __sched_tp_window {
-		struct timespec offset;
-		struct timespec duration;
+		struct __evl_timespec offset;
+		struct __evl_timespec duration;
 		int ptid;
 	} windows[0];
 };

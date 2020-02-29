@@ -52,12 +52,8 @@ struct evl_monitor_state {
 	} u;
 };
 
-struct evl_monitor_lockreq {
-	struct timespec timeout;
-};
-
 struct evl_monitor_waitreq {
-	struct timespec timeout;
+	struct __evl_timespec *timeout;
 	__s32 gatefd;
 	__s32 status;
 	__s32 value;
@@ -75,7 +71,7 @@ struct evl_monitor_binding {
 
 #define EVL_MONITOR_IOCBASE	'm'
 
-#define EVL_MONIOC_ENTER	_IOW(EVL_MONITOR_IOCBASE, 0, struct evl_monitor_lockreq)
+#define EVL_MONIOC_ENTER	_IOW(EVL_MONITOR_IOCBASE, 0, struct __evl_timespec)
 #define EVL_MONIOC_TRYENTER	_IO(EVL_MONITOR_IOCBASE, 1)
 #define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 2)
 #define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)

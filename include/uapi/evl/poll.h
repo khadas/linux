@@ -7,7 +7,7 @@
 #ifndef _EVL_UAPI_POLL_H
 #define _EVL_UAPI_POLL_H
 
-#include <linux/types.h>
+#include <uapi/evl/types.h>
 
 #define EVL_POLL_DEV		"poll"
 
@@ -29,7 +29,7 @@ struct evl_poll_event {
 };
 
 struct evl_poll_waitreq {
-	struct timespec timeout;
+	struct __evl_timespec *timeout;
 	struct evl_poll_event *pollset;
 	int nrset;
 };

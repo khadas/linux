@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/unistd.h>
 #include <linux/sched.h>
 #include <linux/dovetail.h>
 #include <linux/kconfig.h>
@@ -96,44 +97,65 @@ static void prepare_for_signal(struct task_struct *p,
 }
 
 /*
- * Detecting __NR_clock_gettime here means that we are actually
- * handling a fallback syscall for clock_gettime() from the vDSO,
- * which failed performing a direct access to the clocksource.
- * Therefore, such fallback is part of (very) slow path
- * which is going to involve a switch to in-band mode unless we
- * end up providing clock_gettime() directly from here.
+ * Intercepting __NR_clock_gettime (or __NR_clock_gettime64 on 32bit
+ * archs) here means that we are handling a fallback syscall for
+ * clock_gettime*() from the vDSO, which failed performing a direct
+ * access to the clocksource.  Such fallback would involve a switch to
+ * in-band mode unless we provide the service directly from here,
+ * which is not optimal but still correct.
  */
 static __always_inline
 bool handle_vdso_fallback(int nr, struct pt_regs *regs)
 {
-	struct timespec __user *u_ts;
+	struct __kernel_old_timespec __user *u_old_ts;
+	struct __kernel_timespec uts, __user *u_uts;
+	struct __kernel_old_timespec old_ts;
 	struct evl_clock *clock;
+	struct timespec64 ts64;
 	int clock_id, ret = 0;
-	struct timespec ts;
 
-	switch (nr) {
-	case __NR_clock_gettime:
-		clock_id = (int)oob_arg1(regs);
-		switch (clock_id) {
-		case CLOCK_MONOTONIC:
-			clock = &evl_mono_clock;
-			break;
-		case CLOCK_REALTIME:
-			clock = &evl_realtime_clock;
-			break;
-		default:
-			return false;
-		}
-		u_ts = (struct timespec __user *)oob_arg2(regs);
-		ts = ktime_to_timespec(evl_read_clock(clock));
-		if (raw_copy_to_user(u_ts, &ts, sizeof(ts)))
-			ret = -EFAULT;
+#define is_clock_gettime(__nr) ((__nr) == __NR_clock_gettime)
+#ifndef __NR_clock_gettime64
+#define is_clock_gettime64(__nr)  0
+#else
+#define is_clock_gettime64(__nr) ((__nr) == __NR_clock_gettime64)
+#endif
+
+	if (!is_clock_gettime(nr) && !is_clock_gettime64(nr))
+		return false;
+
+	clock_id = (int)oob_arg1(regs);
+	switch (clock_id) {
+	case CLOCK_MONOTONIC:
+		clock = &evl_mono_clock;
+		break;
+	case CLOCK_REALTIME:
+		clock = &evl_realtime_clock;
 		break;
 	default:
 		return false;
 	}
 
+	ts64 = ktime_to_timespec64(evl_read_clock(clock));
+
+	if (is_clock_gettime(nr)) {
+		old_ts.tv_sec = (__kernel_old_time_t)ts64.tv_sec;
+		old_ts.tv_nsec = ts64.tv_nsec;
+		u_old_ts = (struct __kernel_old_timespec __user *)oob_arg2(regs);
+		if (raw_copy_to_user(u_old_ts, &old_ts, sizeof(old_ts)))
+			ret = -EFAULT;
+	} else if (is_clock_gettime64(nr)) {
+		uts.tv_sec = ts64.tv_sec;
+		uts.tv_nsec = ts64.tv_nsec;
+		u_uts = (struct __kernel_timespec __user *)oob_arg2(regs);
+		if (raw_copy_to_user(u_uts, &uts, sizeof(uts)))
+			ret = -EFAULT;
+	}
+
 	set_oob_retval(regs, ret);
+
+#undef is_clock_gettime
+#undef is_clock_gettime64
 
 	return true;
 }

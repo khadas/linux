@@ -1212,7 +1212,7 @@ evl_find_sched_class(union evl_sched_param *param,
 		break;
 	case SCHED_RR:
 		/* if unspecified, use current one. */
-		tslice = timespec_to_ktime(attrs->sched_rr_quantum);
+		tslice = u_timespec_to_ktime(attrs->sched_rr_quantum);
 		if (timeout_infinite(tslice) && tslice_r)
 			tslice = *tslice_r;
 		/* fall-through */

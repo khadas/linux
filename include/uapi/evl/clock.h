@@ -7,6 +7,8 @@
 #ifndef _EVL_UAPI_CLOCK_H
 #define _EVL_UAPI_CLOCK_H
 
+#include <uapi/evl/types.h>
+
 #define EVL_CLOCK_MONOTONIC_DEV		"monotonic"
 #define EVL_CLOCK_REALTIME_DEV		"realtime"
 #define EVL_CLOCK_DEV			"clock"
@@ -16,38 +18,20 @@
 
 #define EVL_CLOCK_IOCBASE	'c'
 
-#ifndef __KERNEL__		/* Eeek. */
-#define __user_timex  timex
-#else
-#define __user_timex  __kernel_timex
-#endif
-
-struct evl_clock_sleepreq {
-	struct timespec timeout;
-};
-
-#define EVL_CLKIOC_SLEEP	_IOWR(EVL_CLOCK_IOCBASE, 0, struct evl_clock_sleepreq)
-#define EVL_CLKIOC_GET_RES	_IOR(EVL_CLOCK_IOCBASE, 1, struct timespec)
-#define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct timespec)
-#define EVL_CLKIOC_SET_TIME	_IOR(EVL_CLOCK_IOCBASE, 3, struct timespec)
-#define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct __user_timex)
+#define EVL_CLKIOC_SLEEP	_IOW(EVL_CLOCK_IOCBASE, 0, struct __evl_timespec)
+#define EVL_CLKIOC_GET_RES	_IOR(EVL_CLOCK_IOCBASE, 1, struct __evl_timespec)
+#define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct __evl_timespec)
+#define EVL_CLKIOC_SET_TIME	_IOW(EVL_CLOCK_IOCBASE, 3, struct __evl_timespec)
 #define EVL_CLKIOC_NEW_TIMER	_IO(EVL_CLOCK_IOCBASE, 5)
 
-/* Set operation flag for timers. */
-#define EVL_TIMERFD_ABSTIME  0x1
-
 struct evl_timerfd_setreq {
-	struct itimerspec *value;
-	struct itimerspec *ovalue;
-};
-
-struct evl_timerfd_getreq {
-	struct itimerspec *value;
+	struct __evl_itimerspec *value;
+	struct __evl_itimerspec *ovalue;
 };
 
 #define EVL_TIMERFD_IOCBASE	't'
 
-#define EVL_TFDIOC_SET	_IOWR(EVL_TIMERFD_IOCBASE, 0, struct evl_timerfd_setreq)
-#define EVL_TFDIOC_GET	_IOR(EVL_TIMERFD_IOCBASE, 1, struct evl_timerfd_getreq)
+#define EVL_TFDIOC_SET	 _IOWR(EVL_TIMERFD_IOCBASE, 0, struct evl_timerfd_setreq)
+#define EVL_TFDIOC_GET	 _IOR(EVL_TIMERFD_IOCBASE, 1, struct __evl_itimerspec)
 
 #endif /* !_EVL_UAPI_CLOCK_H */

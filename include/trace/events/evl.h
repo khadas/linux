@@ -186,7 +186,7 @@ DECLARE_EVENT_CLASS(evl_sched_attrs,
 );
 
 DECLARE_EVENT_CLASS(evl_clock_timespec,
-	TP_PROTO(struct evl_clock *clock, const struct timespec *val),
+	TP_PROTO(struct evl_clock *clock, const struct timespec64 *val),
 	TP_ARGS(clock, val),
 
 	TP_STRUCT__entry(
@@ -199,7 +199,7 @@ DECLARE_EVENT_CLASS(evl_clock_timespec,
 		__assign_str(name, clock->name);
 	),
 
-	TP_printk("clock=%s timeval=(%ld.%09ld)",
+	TP_printk("clock=%s timeval=(%lld.%09lld)",
 		  __get_str(name),
 		  __timespec_args(val)
 	)
@@ -727,8 +727,8 @@ DEFINE_EVENT(mutex_event, evl_mutex_flush,
 );
 
 #define __timespec_fields(__name)				\
-	__field(__kernel_time_t, tv_sec_##__name)		\
-	__field(long, tv_nsec_##__name)
+	__field(__kernel_time64_t, tv_sec_##__name)		\
+	__field(long long, tv_nsec_##__name)
 
 #define __assign_timespec(__to, __from)				\
 	do {							\
@@ -793,17 +793,17 @@ TRACE_EVENT(evl_thread_update_mode,
 );
 
 DEFINE_EVENT(evl_clock_timespec, evl_clock_getres,
-	TP_PROTO(struct evl_clock *clock, const struct timespec *res),
+	TP_PROTO(struct evl_clock *clock, const struct timespec64 *res),
 	TP_ARGS(clock, res)
 );
 
 DEFINE_EVENT(evl_clock_timespec, evl_clock_gettime,
-	TP_PROTO(struct evl_clock *clock, const struct timespec *time),
+	TP_PROTO(struct evl_clock *clock, const struct timespec64 *time),
 	TP_ARGS(clock, time)
 );
 
 DEFINE_EVENT(evl_clock_timespec, evl_clock_settime,
-	TP_PROTO(struct evl_clock *clock, const struct timespec *time),
+	TP_PROTO(struct evl_clock *clock, const struct timespec64 *time),
 	TP_ARGS(clock, time)
 );
 
