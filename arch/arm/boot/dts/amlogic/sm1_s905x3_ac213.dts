@@ -665,6 +665,38 @@
 		status = "okay";
 	};
 
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "ok";
+
+		dmx = <&demux>;
+		key_endia = <1>;
+		add_s2p2 = <1>;
+		add_ts_in = <1>;
+		add_asyncfifo = <1>;
+
+		fe0_mode = "external";
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
 	vdin@0 {
 		compatible = "amlogic, vdin";
 		/*memory-region = <&vdin0_cma_reserved>;*/
@@ -1070,4 +1102,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_6 0>;
+};
+
+&ao_pinctrl {
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups =  "tsin_ao_asop",
+				"tsin_ao_a_valid",
+				"tsin_ao_aclk",
+				"tsin_ao_adin0";
+			function = "tsin_ao_a";
+		};
+	};
 };

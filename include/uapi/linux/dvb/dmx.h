@@ -178,6 +178,9 @@ struct dmx_sct_filter_params {
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+#define DMX_USE_SWFILTER    0x100
+#endif
 };
 
 /**
