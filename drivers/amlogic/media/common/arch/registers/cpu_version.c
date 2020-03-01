@@ -69,7 +69,7 @@ static int __init meson_cpu_version_init(void)
 	);
 	return 0;
 }
-module_init(meson_cpu_version_init);
+early_initcall(meson_cpu_version_init);
 
 static void __exit meson_cpu_version_exit(void)
 {
