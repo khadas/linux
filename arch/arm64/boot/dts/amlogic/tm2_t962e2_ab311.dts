@@ -51,9 +51,19 @@
 		regulator-max-microvolt = <12000000>;
 		regulator-always-on;
 	};
+
 	reserved-memory {
-		/* TEE Reserved Memory */
-		bl32_reserved: bl32@5000000 {
+		secmon_reserved:linux,secmon {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+		};
+
+		secos_reserved:linux,secos {
+			status = "disable";
+			compatible = "amlogic, aml_secos_memory";
 			reg = <0x0 0x05300000 0x0 0x2000000>;
 			no-map;
 		};

@@ -29,11 +29,6 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* 3 MiB reserved for ARM Trusted Firmware (BL31) */
-		secmon_reserved: secmon@5000000 {
-			reg = <0x0 0x05000000 0x0 0x300000>;
-			no-map;
-		};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -43,8 +38,10 @@
 		};
 	};
 
-	sm: secure-monitor {
+	secmon {
 		compatible = "amlogic,meson-gxbb-sm";
+		memory-region = <&secmon_reserved>;
+		reserve_mem_size = <0x00300000>;
 	};
 
 	soc {
