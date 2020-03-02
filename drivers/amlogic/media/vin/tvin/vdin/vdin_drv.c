@@ -1037,7 +1037,6 @@ static void get_tvin_canvas_info(int *start, int *num)
 	*start = vdin_canvas_ids[0][0];
 	*num = vdin_devp[0]->canvas_max_num;
 }
-EXPORT_SYMBOL(get_tvin_canvas_info);
 
 static int vdin_ioctl_fe(int no, struct fe_arg_s *parm)
 {

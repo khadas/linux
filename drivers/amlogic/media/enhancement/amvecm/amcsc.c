@@ -3558,7 +3558,7 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 {
 	int i, j;
 
-	if (!p->present_flag & 1) {
+	if (!p->present_flag) {
 		pr_csc(1, "\tmaster display color not available");
 		return;
 	}
@@ -4576,7 +4576,7 @@ static void hdr_process_pq_enable(int enable)
 static void vpp_lut_curve_set(enum vpp_lut_sel_e lut_sel,
 			      struct vinfo_s *vinfo)
 {
-	unsigned int *ptable;
+	unsigned int *ptable = NULL;
 
 	if (lut_sel == VPP_LUT_EOTF) {
 		/* eotf lut 2048 */
@@ -7220,7 +7220,7 @@ static void video_process(struct vframe_s *vf,
 					    MATRIX_YUV709F_RGB, MTX_ON);
 			else
 				mtx_setting(POST2_MTX,
-					    csc_type, MTX_ON);
+					    (enum mtx_csc_e)csc_type, MTX_ON);
 		}
 	}
 

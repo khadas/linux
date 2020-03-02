@@ -1,5 +1,3 @@
-KBUILD_CFLAGS += -Wframe-larger-than=640
-
 ge2d-objs = bitblt.o \
 	fillrect.o \
 	ge2d_hw.o \

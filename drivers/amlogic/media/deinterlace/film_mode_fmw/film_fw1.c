@@ -844,7 +844,6 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		nFlgChk4 =  nDif02[HISDIFNUM - 1] - nDif02[HISDIFNUM - 6];
 		if (nFlgChk4 < 0)
 			nFlgChk4 = -nFlgChk4;
-		nFlgChk4 = nFlgChk4;
 		nMean = (nDif02[HISDIFNUM - 1] + nDif01[HISDIFNUM - 6]) / 2;
 		nFlgChk4 = nflagch4_ratio * nFlgChk4 / nMean;
 	} else {

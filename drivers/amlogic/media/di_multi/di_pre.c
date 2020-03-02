@@ -179,7 +179,7 @@ void dpre_init(void)
 {/*reg:*/
 	struct di_hpre_s  *pre = get_hw_pre();
 
-	pre->pre_st = EDI_PRE_ST_IDLE;
+	pre->pre_st = (enum EDI_PRE_ST4)EDI_PRE_ST_IDLE;
 
 	/*timer out*/
 	di_tout_int(&pre->tout, 40);	/*ms*/

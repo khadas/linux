@@ -134,7 +134,7 @@ static const char * const T9015_out_lp_txt[] = {
 	"None", "LOLP_SEL_DACL", "LOLP_SEL_DACL_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(T9015_out_lp_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(T9015_out_lp_enum, LINE_OUT_CONFIG,
 	LOLP_SEL_DACL, T9015_out_lp_txt);
 
 static const struct snd_kcontrol_new line_out_lp_mux =
@@ -145,7 +145,7 @@ static const char * const T9015_out_ln_txt[] = {
 	"None", "LOLN_SEL_DACL_INV", "LOLN_SEL_DACL"
 };
 
-static const SOC_ENUM_SINGLE_DECL(T9015_out_ln_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(T9015_out_ln_enum, LINE_OUT_CONFIG,
 				  LOLN_SEL_DACL_INV, T9015_out_ln_txt);
 
 static const struct snd_kcontrol_new line_out_ln_mux =
@@ -156,7 +156,7 @@ static const char * const T9015_out_rp_txt[] = {
 	"None", "LORP_SEL_DACR", "LORP_SEL_DACR_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(T9015_out_rp_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(T9015_out_rp_enum, LINE_OUT_CONFIG,
 				  LORP_SEL_DACR, T9015_out_rp_txt);
 
 static const struct snd_kcontrol_new line_out_rp_mux =
@@ -167,7 +167,7 @@ static const char * const T9015_out_rn_txt[] = {
 	"None", "LORN_SEL_DACR_INV", "LORN_SEL_DACR"
 };
 
-static const SOC_ENUM_SINGLE_DECL(T9015_out_rn_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(T9015_out_rn_enum, LINE_OUT_CONFIG,
 				  LORN_SEL_DACR_INV, T9015_out_rn_txt);
 
 static const struct snd_kcontrol_new line_out_rn_mux =

@@ -712,8 +712,7 @@ static int mmc_read_partition_tbl(struct mmc_card *card,
 	} else {
 		if (strncmp(pt_fmt->magic, MMC_PARTITIONS_MAGIC,
 			    sizeof(pt_fmt->magic)) != 0) {
-			pr_info("magic error: %s\n",
-				(pt_fmt->magic) ? pt_fmt->magic : "NULL");
+			pr_info("magic error: %s\n", pt_fmt->magic);
 		} else if ((pt_fmt->part_num < 0) ||
 			    (pt_fmt->part_num > MAX_MMC_PART_NUM)) {
 			pr_info("partition number error: %d\n",

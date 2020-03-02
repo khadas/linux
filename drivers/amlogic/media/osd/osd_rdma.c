@@ -71,7 +71,7 @@ void *memcpy(void *dest, const void *src, size_t len);
 
 static int osd_rdma_init(void);
 
-#ifdef CONFIG_ARM64
+#if defined(CONFIG_ARM64) && !defined(__clang__)
 static inline void osd_rdma_mem_cpy(struct rdma_table_item *dst,
 				    struct rdma_table_item *src, u32 len)
 {
