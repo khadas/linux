@@ -101,37 +101,24 @@ void cpufreq_set_max_cpu_num(unsigned int num, unsigned int cluster)
 }
 EXPORT_SYMBOL(cpufreq_set_max_cpu_num);
 
-static int find_idlest_cpumask_cpu(unsigned int cluster)
+static int find_online_cpu(unsigned int cluster)
 {
-	unsigned int load, min_load = UINT_MAX;
-	int least_loaded_cpu = -1;
-	int shallowest_cpu = -1;
 	int cpu;
-	struct rq *rq = NULL;
 
 	for_each_cpu_and(cpu, &hpg.cpumask[cluster], cpu_online_mask) {
 		if (cpu == cpumask_first(&hpg.cpumask[cluster]))
 			continue;
 
-		if (available_idle_cpu(cpu)) {
-			shallowest_cpu = cpu;
-		} else if (shallowest_cpu == -1) {
-			rq = cpu_rq(cpu);
-			load = rq->nr_running;
-			if (load < min_load) {
-				min_load = load;
-				least_loaded_cpu = cpu;
-			}
-		}
+		return cpu;
 	}
 
-	return shallowest_cpu != -1 ? shallowest_cpu : least_loaded_cpu;
+	return -1;
 }
 
 static void set_hotplug_online(unsigned int cluster)
 {
 	unsigned int cpu, online;
-	int ret;
+	struct device *dev;
 
 	for_each_cpu(cpu, &hpg.cpumask[cluster]) {
 		if (cpu_online(cpu))
@@ -141,24 +128,32 @@ static void set_hotplug_online(unsigned int cluster)
 		if (online >= hpg.max_num[cluster])
 			break;
 
-		ret = device_online(get_cpu_device(cpu));
+		dev = get_cpu_device(cpu);
+		cpu_up(cpu);
+		kobject_uevent(&dev->kobj, KOBJ_ONLINE);
+		dev->offline = false;
 	}
 }
 
 static void set_hotplug_offline(unsigned int cluster)
 {
 	unsigned int target, online, min, max;
-	int ret;
+	struct device *dev;
 
 	online = cpu_num_online(cluster);
 	min = hpg.min_num[cluster];
 	max = hpg.max_num[cluster];
 
 	while (online > min && (online > max)) {
-		target = find_idlest_cpumask_cpu(cluster);
+		target = find_online_cpu(cluster);
 		if (target == -1)
 			break;
-		ret = device_offline(get_cpu_device(target));
+
+		dev = get_cpu_device(target);
+		cpu_down(target);
+		kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
+		dev->offline = true;
+
 		online = cpu_num_online(cluster);
 		min = hpg.min_num[cluster];
 		max = hpg.max_num[cluster];
@@ -228,7 +223,7 @@ static ssize_t store_hotplug_max_cpus(struct kobject *kobj,
 
 define_one_global_rw(hotplug_max_cpus);
 
-static int __init cpu_hotplug_init(void)
+int cpu_hotplug_init(void)
 {
 	int err;
 
@@ -245,12 +240,3 @@ static int __init cpu_hotplug_init(void)
 
 	return 0;
 }
-
-static void __exit cpu_hotplug_exit(void)
-{
-}
-
-MODULE_DESCRIPTION("amlogic cpu hotplug");
-
-module_init(cpu_hotplug_init);
-module_exit(cpu_hotplug_exit);

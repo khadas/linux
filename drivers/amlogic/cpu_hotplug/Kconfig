@@ -1,9 +1,0 @@
-config	AMLOGIC_CPU_HOTPLUG
-	tristate "Amlogic cpu hotplug"
-	depends on HOTPLUG_CPU
-	default n
-	help
-	  say y to enable Amlogic cpu hotplug for IPA.Now the cpu can be
-	  controlled by calling API. If you want to shut down one CPU,it
-	  will choose one of the idlest CPU to shut down.
-

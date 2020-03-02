@@ -39,8 +39,6 @@ menu "Amlogic Device Drivers"
 # Please add folders in alphabetical order
 source "drivers/amlogic/cpufreq/Kconfig"
 
-source "drivers/amlogic/cpu_hotplug/Kconfig"
-
 source "drivers/amlogic/cpuidle/Kconfig"
 
 source "drivers/amlogic/efuse/Kconfig"

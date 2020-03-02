@@ -221,6 +221,8 @@ static int __init meson_cooldev_platdrv_init(void)
 {
 	int ret;
 
+	cpu_hotplug_init();
+
 	ret = platform_driver_register(&(meson_tsensor_driver));
 	if (ret)
 		return ret;
