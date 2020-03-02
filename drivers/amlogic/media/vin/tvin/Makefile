@@ -9,3 +9,4 @@ tvin_common-objs += tvin_global.o
 
 obj-$(CONFIG_AMLOGIC_MEDIA_VDIN)		+= vdin/
 obj-$(CONFIG_AMLOGIC_MEDIA_VIUIN)		+= vdin/
+obj-$(CONFIG_AMLOGIC_MEDIA_TVIN_BT656)          += bt656/

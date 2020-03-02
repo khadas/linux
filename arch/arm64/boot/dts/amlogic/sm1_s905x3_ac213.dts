@@ -733,6 +733,22 @@
 		 */
 		tv_bit_mode = <0x15>;
 	};
+
+	amvdec_656in {
+		/*bt656 gpio conflict with i2c0*/
+		compatible = "amlogic, bt656in-sm1";
+		status = "disabled";
+		reg = <0x0 0xffe02000 0x0 0x7c>;
+		clocks = <&clkc CLKID_BT656_GATE>,
+			<&clkc CLKID_BT656>;
+		clock-names = "cts_bt656_clk1",
+			"clk_gate_bt656";
+		/* bt656in1, bt656in2 */
+		bt656in1 {
+		bt656_id = <1>;
+		status = "disabled";
+		};
+	};
 };
 
 /*
