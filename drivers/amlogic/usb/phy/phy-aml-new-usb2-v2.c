@@ -132,6 +132,7 @@ void set_usb_phy_host_low_reset(int port)
 
 void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
+	u32 val;
 	/* TO DO set usb  PLL */
 	writel((0x30000000 | (phy->pll_setting[0])), reg + 0x40);
 	writel(phy->pll_setting[1], reg + 0x44);
@@ -139,27 +140,28 @@ void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	udelay(100);
 	writel((0x10000000 | (phy->pll_setting[0])), reg + 0x40);
 
+	/**write 0x0c must write 0x78000 to 0x34**/
+	writel(TUNING_DISCONNECT_THRESHOLD, reg + 0xC);
 	/* PHY Tune */
 	if (g_phy2_v2) {
-		if (g_phy2_v2->phy_version == 2) {
-		/**g12b revB don't need set 0x10 ,0x38 and 0x34**/
+		if (g_phy2_v2->phy_version) {
+		/**tl1 g12b revB don't need set 0x10 ,0x38 and 0x34**/
 			writel(phy->pll_setting[3], reg + 0x50);
 			writel(0x2a, reg + 0x54);
-			writel(0x70000, reg + 0x34);
+
+			val = readl(reg + 0x08);
+			val &= 0xfff;
+			writel(val | readl(reg + 0x10), reg + 0x10);
+
+			writel(0x78000, reg + 0x34);
 		} else {
 			writel(phy->pll_setting[3], reg + 0x50);
 			writel(phy->pll_setting[4], reg + 0x10);
 			writel(0, reg + 0x38);
 			writel(phy->pll_setting[5], reg + 0x34);
 		}
-	} else {
-		writel(phy->pll_setting[3], reg + 0x50);
-		writel(phy->pll_setting[4], reg + 0x10);
-		writel(0, reg + 0x38);
-		writel(phy->pll_setting[5], reg + 0x34);
 	}
 
-	writel(TUNING_DISCONNECT_THRESHOLD, reg + 0xC);
 }
 
 static int amlogic_new_usb2_init(struct usb_phy *x)
