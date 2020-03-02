@@ -1699,7 +1699,7 @@ static int __init videosync_create_instance(int inst)
 	return 0;
 }
 
-static void __init videosync_destroy_instance(int inst)
+static void videosync_destroy_instance(int inst)
 {
 	pr_info("videosync destroy instance %s\n",
 		vp_dev->video_prov[inst].vf_receiver_name);

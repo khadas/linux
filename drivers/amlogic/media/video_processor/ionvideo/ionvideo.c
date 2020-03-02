@@ -861,7 +861,7 @@ static const struct vframe_receiver_op_s video_vf_receiver = {
 	.event_cb = video_receiver_event_fun
 };
 
-static int __init ionvideo_create_instance(int inst)
+static int ionvideo_create_instance(int inst)
 {
 	struct ionvideo_dev *dev;
 	struct video_device *vfd;
