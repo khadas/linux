@@ -40,6 +40,30 @@
 #ifdef P_HHI_HDMI_PLL_CNTL_I
 #undef P_HHI_HDMI_PLL_CNTL_I
 #endif
+#ifdef WAIT_FOR_PLL_LOCKED
+#undef WAIT_FOR_PLL_LOCKED
+#endif
+
+#define WAIT_FOR_PLL_LOCKED(_reg) \
+	do { \
+		unsigned int st = 0; \
+		unsigned int reg = 0; \
+		int cnt = 10; \
+		reg = _reg; \
+		while (cnt--) { \
+			usleep_range(40, 50); \
+			st = (((hd_read_reg(reg) >> 30) & 0x3) == 3); \
+			if (st) \
+				break; \
+			else { \
+				/* reset hpll */ \
+				hd_set_reg_bits(reg, 1, 29, 1); \
+				hd_set_reg_bits(reg, 0, 29, 1); \
+			} \
+		} \
+		if (cnt < 9) \
+			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+	} while (0)
 
 #define P_HHI_HDMI_PLL_CNTL HHI_REG_ADDR(0xc8)
 #define P_HHI_HDMI_PLL_CNTL0 P_HHI_HDMI_PLL_CNTL
@@ -50,26 +74,6 @@
 #define P_HHI_HDMI_PLL_CNTL5 HHI_REG_ADDR(0xcd)
 #define P_HHI_HDMI_PLL_CNTL6 HHI_REG_ADDR(0xce)
 #define P_HHI_HDMI_PLL_STS HHI_REG_ADDR(0xcf)
-
-static void WAIT_FOR_PLL_LOCKED(unsigned int reg)
-{
-	unsigned int st = 0;
-	int cnt = 10;
-
-	while (cnt--) {
-		usleep_range(49, 51);
-		st = (((hd_read_reg(reg) >> 30) & 0x3) == 3);
-		if (!st) {
-			/* reset hpll */
-			hd_set_reg_bits(reg, 1, 29, 1);
-			hd_set_reg_bits(reg, 0, 29, 1);
-		} else {
-			break;
-		}
-	}
-	if (cnt < 9)
-		pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);
-}
 
 /*
  * When VCO outputs 6.0 GHz, if VCO unlock with default v1
@@ -151,10 +155,46 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 	return ret; /* return hpll locked status */
 }
 
+static inline int is_dongle_mode(struct hdmitx_dev *hdev)
+{
+	return hdev->dongle_mode &&
+		(hdev->para->cs == COLORSPACE_YUV422 ||
+		hdev->para->cd == COLORDEPTH_24B) &&
+		(hdev->cur_VIC == HDMI_1280x720p50_16x9 ||
+		 hdev->cur_VIC == HDMI_1280x720p60_16x9 ||
+		 hdev->cur_VIC == HDMI_1920x1080i60_16x9 ||
+		 hdev->cur_VIC == HDMI_1920x1080i50_16x9 ||
+		 hdev->cur_VIC == HDMI_1920x1080p60_16x9 ||
+		 hdev->cur_VIC == HDMI_1920x1080p50_16x9);
+}
+
+static void set_hpll_hclk_dongle_5940m(void)
+{
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x0b3a04f7);
+	hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 0x3, 28, 2);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL1, 0x10000);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00100140);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x2a295c00);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x65771290);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x39272000);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x50540000);
+	pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
+	hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 0x0, 29, 1);
+	pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
+	WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL0);
+	pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
+}
+
 void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 {
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
 	switch (clk) {
 	case 5940000:
+		if (is_dongle_mode(hdev)) {
+			set_hpll_hclk_dongle_5940m();
+			break;
+		}
 		if (set_hpll_hclk_v1(0xf7, frac_rate ? 0x8148 : 0x10000))
 			break;
 		if (set_hpll_hclk_v2(0x7b, 0x18000))
@@ -261,6 +301,18 @@ void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 		break;
+	case 3197500:
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x3b000485);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL1, 0x00007555);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00000000);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0a691c00);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x33771290);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x39270000);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x50540000);
+		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
+		break;
 	case 2970000:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x3b00047b);
 		if (frac_rate)
@@ -336,6 +388,8 @@ void set_hpll_od3_g12a(unsigned int div)
 
 void set_hpll_sspll_g12a(enum hdmi_vic vic)
 {
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
 	switch (vic) {
 	case HDMI_1920x1080p60_16x9:
 	case HDMI_1920x1080p50_16x9:
@@ -352,6 +406,8 @@ void set_hpll_sspll_g12a(enum hdmi_vic vic)
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 1, 8, 1);
 		/* 2: 1000ppm  1: 500ppm */
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 2, 4, 4);
+		if (hdev->dongle_mode)
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 4, 4, 4);
 		/* bit[15] hdmi_dpll_sdmnc_en */
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0, 15, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 0, 29, 1);
