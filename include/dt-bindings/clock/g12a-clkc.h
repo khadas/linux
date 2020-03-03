@@ -207,7 +207,10 @@
 #define CLKID_SPICC1_MUX			(MISC_BASE + 3)
 #define CLKID_SPICC1_DIV			(MISC_BASE + 4)
 #define CLKID_SPICC1_GATE			(MISC_BASE + 5)
+#define CLKID_BT656_MUX				(MISC_BASE + 6)
+#define CLKID_BT656_DIV				(MISC_BASE + 7)
+#define CLKID_BT656_GATE			(MISC_BASE + 8)
 
-#define CLKID_END				(MISC_BASE + 6)
+#define CLKID_END				(MISC_BASE + 9)
 
 #endif /* __G12A_CLKC_H */

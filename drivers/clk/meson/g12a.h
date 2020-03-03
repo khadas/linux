@@ -126,6 +126,7 @@
 #define HHI_SYS1_PLL_CNTL4		0x390
 #define HHI_SYS1_PLL_CNTL5		0x394
 #define HHI_SYS1_PLL_CNTL6		0x398
+#define HHI_BT656_CLK_CNTL		0x3d4  /* 0xf5 offset in datasheet1 */
 
 /*
  * CLKID index values

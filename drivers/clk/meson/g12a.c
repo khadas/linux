@@ -4952,6 +4952,62 @@ static struct clk_regmap g12a_spicc1_gate = {
 	},
 };
 
+/*cts_bt656*/
+static const struct clk_parent_data g12a_bt656_parent_hws[] = {
+	{ .hw = &g12a_fclk_div2.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+};
+
+static struct clk_regmap g12a_bt656_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_BT656_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "bt656_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = g12a_bt656_parent_hws,
+		.num_parents = ARRAY_SIZE(g12a_bt656_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap g12a_bt656_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_BT656_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "bt656_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_bt656_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap g12a_bt656_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_BT656_CLK_CNTL,
+		.bit_idx = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "bt656_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&g12a_bt656_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &g12a_clk81.hw)
 
@@ -5264,6 +5320,9 @@ static struct clk_hw_onecell_data g12a_hw_onecell_data = {
 		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
 		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
 		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
+		[CLKID_BT656_MUX]		= &g12a_bt656_mux.hw,
+		[CLKID_BT656_DIV]		= &g12a_bt656_div.hw,
+		[CLKID_BT656_GATE]		= &g12a_bt656_gate.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5528,6 +5587,9 @@ static struct clk_hw_onecell_data g12b_hw_onecell_data = {
 		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
 		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
 		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
+		[CLKID_BT656_MUX]		= &g12a_bt656_mux.hw,
+		[CLKID_BT656_DIV]		= &g12a_bt656_div.hw,
+		[CLKID_BT656_GATE]		= &g12a_bt656_gate.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5811,6 +5873,9 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_WAVE_C_SEL]		= &g12a_wave_c_sel.hw,
 		[CLKID_WAVE_C_DIV]		= &g12a_wave_c_div.hw,
 		[CLKID_WAVE_C_CLK]		= &g12a_wave_cclk.hw,
+		[CLKID_BT656_MUX]		= &g12a_bt656_mux.hw,
+		[CLKID_BT656_DIV]		= &g12a_bt656_div.hw,
+		[CLKID_BT656_GATE]		= &g12a_bt656_gate.hw,
 #ifdef CONFIG_AMLOGIC_MODIFY
 		[CLKID_VDIN_MEAS_MUX]		= &sm1_vdin_meas_mux.hw,
 		[CLKID_VDIN_MEAS_DIV]		= &sm1_vdin_meas_div.hw,
@@ -6104,6 +6169,9 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&sm1_vdin_meas_mux,
 	&sm1_vdin_meas_div,
 	&sm1_vdin_meas_gate,
+	&g12a_bt656_mux,
+	&g12a_bt656_div,
+	&g12a_bt656_gate,
 #endif
 };
 
