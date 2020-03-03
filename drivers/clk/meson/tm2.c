@@ -279,6 +279,11 @@ static struct clk_regmap tm2_fclk_div2 = {
 			&tm2_fclk_div2_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on CPU clock, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -341,6 +346,11 @@ static struct clk_regmap tm2_fclk_div4 = {
 			&tm2_fclk_div4_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -367,6 +377,11 @@ static struct clk_regmap tm2_fclk_div5 = {
 			&tm2_fclk_div5_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -393,6 +408,11 @@ static struct clk_regmap tm2_fclk_div7 = {
 			&tm2_fclk_div7_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -421,6 +441,11 @@ static struct clk_regmap tm2_fclk_div2p5 = {
 			&tm2_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -2511,7 +2536,7 @@ static struct clk_regmap tm2_mali_0_sel = {
 		.name = "mali_0_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_mali_0_1_parent_data,
-		.num_parents = 8,
+		.num_parents = ARRAY_SIZE(tm2_mali_0_1_parent_data),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -2560,7 +2585,7 @@ static struct clk_regmap tm2_mali_1_sel = {
 		.name = "mali_1_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_mali_0_1_parent_data,
-		.num_parents = 8,
+		.num_parents = ARRAY_SIZE(tm2_mali_0_1_parent_data),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };

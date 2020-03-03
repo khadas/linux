@@ -2181,6 +2181,11 @@ static struct clk_regmap g12a_fclk_div4 = {
 			&g12a_fclk_div4_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -2207,6 +2212,11 @@ static struct clk_regmap g12a_fclk_div5 = {
 			&g12a_fclk_div5_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -2233,6 +2243,11 @@ static struct clk_regmap g12a_fclk_div7 = {
 			&g12a_fclk_div7_div.hw
 		},
 		.num_parents = 1,
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -2261,9 +2276,11 @@ static struct clk_regmap g12a_fclk_div2p5 = {
 			&g12a_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
-		/* NO system bus is woring on it
-		 * NO CLK_IS_CRITICAL here.
+		/*
+		 * This clock feeds on GPU, it should be set
+		 * by the platform to operate correctly.
 		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
