@@ -5,14 +5,13 @@
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/
 obj-$(CONFIG_CPU_FREQ)			+= cpufreq/
 obj-$(CONFIG_MMC_MESON_GX)		+= mmc/
-obj-$(CONFIG_AMLOGIC_EFUSE)             += efuse/
+obj-$(CONFIG_AMLOGIC_EFUSE_UNIFYKEY)    += efuse_unifykey/
 obj-$(CONFIG_AMLOGIC_DEFENDKEY)		+= defendkey/
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)		+= ddr_tool/
 obj-$(CONFIG_AMLOGIC_CRYPTO_DMA)	+= crypto/
 obj-$(CONFIG_AMLOGIC_AUTO_CAPTURE)	+= free_reserved/
 obj-$(CONFIG_AMLOGIC_MHU_MBOX)		+= mailbox/
 obj-$(CONFIG_AMLOGIC_REG_ACCESS)	+= reg_access/
-obj-$(CONFIG_AMLOGIC_UNIFYKEY)		+= unifykey/
 obj-$(CONFIG_AMLOGIC_SUSPEND)		+= pm/
 obj-$(CONFIG_AMLOGIC_PCIE)		+= pci/
 obj-$(CONFIG_AMLOGIC_MEDIA_ENABLE)	+= media/

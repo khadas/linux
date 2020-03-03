@@ -375,6 +375,7 @@ exit:
 	return -EPERM;
 #endif
 }
+EXPORT_SYMBOL(efuse_user_attr_store);
 
 ssize_t efuse_user_attr_show(char *name, char *buf)
 {
@@ -883,8 +884,12 @@ static struct platform_driver efuse_driver = {
 	},
 };
 
-module_platform_driver(efuse_driver);
+int __init aml_efuse_init(void)
+{
+	return platform_driver_register(&efuse_driver);
+}
 
-MODULE_DESCRIPTION("Amlogic efuse driver");
-MODULE_LICENSE("GPL");
-
+void aml_efuse_exit(void)
+{
+	platform_driver_unregister(&efuse_driver);
+}

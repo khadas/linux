@@ -71,5 +71,17 @@ struct aml_uk_dev {
 int uk_dt_create(struct platform_device *pdev);
 int uk_dt_release(struct platform_device *pdev);
 
-#endif
+#ifdef CONFIG_AMLOGIC_UNIFYKEY
+int __init aml_unifykeys_init(void);
+void __exit aml_unifykeys_exit(void);
+#else
+static int __init aml_unifykeys_init(void)
+{
+	return 0;
+}
 
+static void aml_unifykeys_exit(void)
+{
+}
+#endif
+#endif

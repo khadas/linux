@@ -75,6 +75,7 @@ int register_unifykey_types(struct unifykey_type *uk_type)
 
 	return 0;
 }
+EXPORT_SYMBOL(register_unifykey_types);
 
 /**
  *1.init

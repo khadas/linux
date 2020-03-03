@@ -1,0 +1,23 @@
+#
+# Amlogic efuse&unifykey device configuration
+#
+config AMLOGIC_EFUSE_UNIFYKEY
+	tristate "Amlogic EUSE and UNIFYKEY support"
+	default y
+	help
+	    amlogic EFUSE and UNIFYKEY glue driver
+	    choose by default
+
+config AMLOGIC_EFUSE
+	bool "Amlogic EFUSE driver support"
+	default n
+	help
+	    amlogic EFUSE device driver
+	    not choose by default
+
+config AMLOGIC_UNIFYKEY
+	bool "Amlogic unifykey driver support"
+	default n
+	help
+	    platform independent part of unifykey driver
+	    not choose by default

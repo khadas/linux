@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/amlogic/efuse.h>
+#include <linux/kallsyms.h>
 #include "efuse.h"
 
 static DEFINE_MUTEX(efuse_lock);

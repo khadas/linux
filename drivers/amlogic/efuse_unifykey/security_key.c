@@ -9,6 +9,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/kallsyms.h>
 #include "security_key.h"
 
 #undef pr_fmt

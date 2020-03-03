@@ -1350,19 +1350,13 @@ static struct platform_driver unifykey_platform_driver = {
 	},
 };
 
-static int __init aml_unifykeys_init(void)
+int __init aml_unifykeys_init(void)
 {
 	return platform_driver_probe(&unifykey_platform_driver,
 				    aml_unifykeys_probe);
 }
 
-static void __exit aml_unifykeys_exit(void)
+void aml_unifykeys_exit(void)
 {
 	platform_driver_unregister(&unifykey_platform_driver);
 }
-
-module_init(aml_unifykeys_init);
-module_exit(aml_unifykeys_exit);
-
-MODULE_DESCRIPTION("Amlogic unifykey management driver");
-MODULE_LICENSE("GPL");

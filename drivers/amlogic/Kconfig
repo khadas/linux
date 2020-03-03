@@ -41,7 +41,7 @@ source "drivers/amlogic/cpufreq/Kconfig"
 
 source "drivers/amlogic/cpuidle/Kconfig"
 
-source "drivers/amlogic/efuse/Kconfig"
+source "drivers/amlogic/efuse_unifykey/Kconfig"
 
 source "drivers/amlogic/defendkey/Kconfig"
 
@@ -54,8 +54,6 @@ source "drivers/amlogic/free_reserved/Kconfig"
 source "drivers/amlogic/mailbox/Kconfig"
 
 source "drivers/amlogic/reg_access/Kconfig"
-
-source "drivers/amlogic/unifykey/Kconfig"
 
 source "drivers/amlogic/pm/Kconfig"
 

@@ -60,4 +60,17 @@ ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
 unsigned long efuse_amlogic_set(char *buf, size_t count);
 
+#ifdef CONFIG_AMLOGIC_EFUSE
+int __init aml_efuse_init(void);
+void aml_efuse_exit(void);
+#else
+static int __init aml_efuse_init(void)
+{
+	return 0;
+}
+
+static void aml_efuse_exit(void)
+{
+}
+#endif
 #endif
