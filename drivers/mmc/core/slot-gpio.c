@@ -24,6 +24,11 @@ struct mmc_gpio {
 	char *ro_label;
 	char *cd_label;
 	u32 cd_debounce_delay_ms;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	bool cd_data1;
+	struct gpio_desc *data1_gpio;
+	irqreturn_t (*cd_gpio_irq)(int irq, void *dev_id);
+#endif
 };
 
 static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
@@ -112,10 +117,22 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 	if (irq >= 0) {
 		if (!ctx->cd_gpio_isr)
 			ctx->cd_gpio_isr = mmc_gpio_cd_irqt;
-		ret = devm_request_threaded_irq(host->parent, irq,
-			NULL, ctx->cd_gpio_isr,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			ctx->cd_label, host);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (!ctx->data1_gpio)
+			ret = devm_request_threaded_irq(host->parent, irq,
+							NULL, ctx->cd_gpio_isr,
+							IRQF_TRIGGER_RISING |
+							IRQF_TRIGGER_FALLING |
+							IRQF_ONESHOT,
+							ctx->cd_label, host);
+		else
+#endif
+			ret = devm_request_threaded_irq(host->parent, irq,
+							NULL, ctx->cd_gpio_irq,
+							IRQF_TRIGGER_RISING |
+							IRQF_TRIGGER_FALLING |
+							IRQF_ONESHOT,
+							ctx->cd_label, host);
 		if (ret < 0)
 			irq = ret;
 	}

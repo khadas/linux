@@ -33,6 +33,7 @@
 #include "../core/core.h"
 #include <linux/time.h>
 #include <linux/random.h>
+#include <linux/gpio/consumer.h>
 #include <linux/sched/clock.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
@@ -208,7 +209,23 @@
 #define ERROR	1
 #define FIXED	2
 #define RETUNING	3
-#define RETUNING        3
+#define	DATA3_PINMUX_MASK GENMASK(15, 12)
+
+struct mmc_gpio {
+	struct gpio_desc *ro_gpio;
+	struct gpio_desc *cd_gpio;
+	bool override_cd_active_level;
+	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
+	char *ro_label;
+	char *cd_label;
+	u32 cd_debounce_delay_ms;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	bool cd_data1;
+	struct gpio_desc *data1_gpio;
+	irqreturn_t (*cd_gpio_irq)(int irq, void *dev_id);
+#endif
+};
+
 static struct mmc_host *sdio_host;
 
 static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
@@ -2103,12 +2120,21 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
  */
 static int meson_mmc_get_cd(struct mmc_host *mmc)
 {
+	struct meson_host *host = mmc_priv(mmc);
+	struct mmc_gpio *ctx = mmc->slot.handler_priv;
+	int cansleep;
 	int status = mmc_gpio_get_cd(mmc);
 
 	if (status == -ENOSYS)
 		return 1; /* assume present */
+	if (host->is_uart) {
+		cansleep = gpiod_cansleep(ctx->data1_gpio);
+		status = cansleep ?
+			gpiod_get_value_cansleep(ctx->data1_gpio) :
+			gpiod_get_value(ctx->data1_gpio);
+	}
 
-	return status;
+	return !status;
 }
 
 static void meson_mmc_cfg_init(struct meson_host *host)
@@ -2326,6 +2352,175 @@ const char *get_wifi_inf(void)
 }
 EXPORT_SYMBOL(get_wifi_inf);
 
+static struct pinctrl * __must_check aml_pinctrl_select(struct meson_host *host,
+							const char *name)
+{
+	struct pinctrl *p = host->pinctrl;
+	struct pinctrl_state *s;
+	int ret;
+
+	if (!p)
+		dev_err(host->dev, "%s NULL POINT!!\n", __func__);
+
+	s = pinctrl_lookup_state(p, name);
+	if (IS_ERR(s)) {
+		pr_err("lookup %s fail\n", name);
+		devm_pinctrl_put(p);
+		return ERR_CAST(s);
+	}
+
+	ret = pinctrl_select_state(p, s);
+	if (ret < 0) {
+		pr_err("select %s fail\n", name);
+		devm_pinctrl_put(p);
+		return ERR_PTR(ret);
+	}
+	return p;
+}
+
+static int aml_uart_switch(struct meson_host *host, bool on)
+{
+	struct pinctrl *pc;
+	char *name[2] = {
+		"sd_to_ao_uart_pins",
+		"ao_to_sd_uart_pins",
+	};
+
+	pc = aml_pinctrl_select(host, name[on]);
+	return on;
+}
+
+static int aml_is_sduart(struct meson_host *host)
+{
+	int in = 0, i;
+	int high_cnt = 0, low_cnt = 0;
+	u32 vstat = 0;
+
+	if (host->is_uart)
+		return 0;
+	if (!host->sd_uart_init) {
+		aml_uart_switch(host, 0);
+	} else {
+		in = (readl(host->pin_mux_base) & DATA3_PINMUX_MASK) >>
+			__ffs(DATA3_PINMUX_MASK);
+		if (in == 2)
+			return 1;
+		else
+			return 0;
+	}
+	for (i = 0; ; i++) {
+		mdelay(1);
+		vstat = readl(host->regs + SD_EMMC_STATUS) & 0xffffffff;
+		if (vstat & 0x80000) {
+			high_cnt++;
+			low_cnt = 0;
+		} else {
+			low_cnt++;
+			high_cnt = 0;
+		}
+		if (high_cnt > 100 || low_cnt > 100)
+			break;
+	}
+	if (low_cnt > 100)
+		in = 1;
+	return in;
+}
+
+static int aml_is_card_insert(struct mmc_gpio *ctx)
+{
+	int ret = 0, in_count = 0, out_count = 0, i;
+
+	if (ctx->cd_gpio) {
+		for (i = 0; i < 200; i++) {
+			ret = gpiod_get_value(ctx->cd_gpio);
+			if (ret)
+				out_count++;
+			in_count++;
+			if (out_count > 100 || in_count > 100)
+				break;
+		}
+		if (out_count > 100)
+			ret = 1;
+		else if (in_count > 100)
+			ret = 0;
+	}
+//        if (ctx->override_cd_active_level)
+  //              ret = !ret; /* reverse, so ---- 0: no inserted  1: inserted */
+
+	return ret;
+}
+
+int meson_mmc_cd_detect(struct mmc_host *mmc)
+{
+	int gpio_val, val, ret;
+	struct meson_host *host = mmc_priv(mmc);
+	struct mmc_gpio *ctx = mmc->slot.handler_priv;
+
+	gpio_val = aml_is_card_insert(ctx);
+	dev_notice(host->dev, "card %s\n", gpio_val ? "OUT" : "IN");
+	mmc->trigger_card_event = true;
+	if (!gpio_val) {//card insert
+		if (host->card_insert)
+			return 0;
+		host->card_insert = 1;
+		val = aml_is_sduart(host);
+		dev_notice(host->dev, " %s insert\n", val ? "UART" : "SDCARD");
+		if (val) {//uart insert
+			host->is_uart = 1;
+			aml_uart_switch(host, 1);
+			mmc->caps &= ~MMC_CAP_4_BIT_DATA;
+			host->pins_default = pinctrl_lookup_state(host->pinctrl,
+								  "sd_1bit_pins");
+			if (IS_ERR(host->pins_default)) {
+				ret = PTR_ERR(host->pins_default);
+				return ret;
+			}
+			ctx->cd_data1 = 1;
+			ctx->data1_gpio = devm_gpiod_get_index(mmc->parent,
+							       "dat1", 0,
+							       GPIOD_IN);
+			if (IS_ERR(ctx->data1_gpio))
+				return PTR_ERR(ctx->data1_gpio);
+			ret = devm_request_threaded_irq(mmc->parent,
+							host->cd_irq,
+							NULL, ctx->cd_gpio_isr,
+							IRQF_TRIGGER_RISING |
+							IRQF_TRIGGER_FALLING |
+							IRQF_ONESHOT,
+							"sdcard_data1", mmc);
+			if (ret < 0)
+				dev_err(host->dev, "data1 request irq error\n");
+		} else {//sdcard insert
+			aml_uart_switch(host, 0);
+			mmc->caps |= MMC_CAP_4_BIT_DATA;
+			host->pins_default = pinctrl_lookup_state(host->pinctrl,
+								  "sd_default");
+		}
+	} else {//card out
+		if (!host->card_insert)
+			return 0;
+		if (host->is_uart) {
+			host->is_uart = 0;
+			devm_free_irq(mmc->parent, host->cd_irq, mmc);
+			devm_gpiod_put(mmc->parent, ctx->data1_gpio);
+		}
+		ctx->cd_data1 = 0;
+		host->card_insert = 0;
+		aml_uart_switch(host, 0);
+	}
+	if (!host->is_uart)
+		mmc_detect_change(mmc, msecs_to_jiffies(200));
+	return 0;
+}
+
+static irqreturn_t meson_mmc_cd_detect_irq(int irq, void *dev_id)
+{
+	struct mmc_host *mmc = dev_id;
+
+	meson_mmc_cd_detect(mmc);
+	return IRQ_HANDLED;
+}
+
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
@@ -2432,8 +2627,12 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		goto free_host;
 	}
 
-	host->pins_default = pinctrl_lookup_state(host->pinctrl,
-						  PINCTRL_STATE_DEFAULT);
+	if (aml_card_type_non_sdio(host))
+		host->pins_default = pinctrl_lookup_state(host->pinctrl,
+							  "sd_1bit_pins");
+	else
+		host->pins_default = pinctrl_lookup_state(host->pinctrl,
+							  "default");
 	if (IS_ERR(host->pins_default)) {
 		ret = PTR_ERR(host->pins_default);
 		goto free_host;
@@ -2537,8 +2736,31 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		mmc->rescan_entered = 0;
 	}
 
+	if (aml_card_type_non_sdio(host)) {
+		struct mmc_gpio *ctx = mmc->slot.handler_priv;
+
+		ctx->data1_gpio = devm_gpiod_get_index(mmc->parent, "dat1", 0,
+						       GPIOD_IN);
+		if (IS_ERR(ctx->data1_gpio)) {
+			host->pins_default = pinctrl_lookup_state(host->pinctrl,
+								  "sd_default");
+		} else {
+			host->cd_irq = gpiod_to_irq(ctx->data1_gpio);
+			host->sd_uart_init = 1;
+			ctx->cd_gpio_irq = meson_mmc_cd_detect_irq;
+		}
+	}
+
 	mmc->ops = &meson_mmc_ops;
 	mmc_add_host(mmc);
+
+	if (aml_card_type_non_sdio(host) && host->sd_uart_init) {
+		struct mmc_gpio *ctx = mmc->slot.handler_priv;
+
+		devm_gpiod_put(mmc->parent, ctx->data1_gpio);
+		meson_mmc_cd_detect(mmc);
+		host->sd_uart_init = 0;
+	}
 
 	if (aml_card_type_sdio(host)) {/* if sdio_wifi */
 		sdio_host = mmc;

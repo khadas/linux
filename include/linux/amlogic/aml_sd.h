@@ -133,6 +133,10 @@ struct meson_host {
 	unsigned int win_start;
 	u8 *blk_test;
 	unsigned int cmd_c;
+	int cd_irq;
+	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
+	int is_uart;
+	int sd_uart_init;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
