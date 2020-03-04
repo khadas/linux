@@ -326,3 +326,8 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
 };
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddao_1v8>;
+};

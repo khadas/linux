@@ -375,3 +375,7 @@
 	controller-type = <1>;
 };
 
+&saradc {
+	status = "okay";
+	vref-supply = <&vddao_1v8>;
+};

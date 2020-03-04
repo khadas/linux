@@ -945,6 +945,22 @@
 				map = <&custom_maps>;
 				max_frame_time = <200>;
 			};
+
+			saradc: adc@9000 {
+				compatible = "amlogic,meson-g12a-saradc",
+					   "amlogic,meson-saradc";
+				status = "disabled";
+				#io-channel-cells = <1>;
+				clocks = <&xtal>,
+				    <&clkc_AO CLKID_AO_SAR_ADC>,
+				    <&clkc_AO CLKID_AO_SAR_ADC_CLK>,
+				    <&clkc_AO CLKID_AO_SAR_ADC_SEL>;
+				clock-names = "clkin", "core",
+				    "adc_clk", "adc_sel";
+				interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>;
+				reg = <0x9000 0x48>;
+			};
+
 		};
 
 		gic: interrupt-controller@ffc01000 {
