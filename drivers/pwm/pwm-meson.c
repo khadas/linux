@@ -539,6 +539,20 @@ static const struct of_device_id meson_pwm_matches[] = {
 		.compatible = "amlogic,meson-g12a-ao-pwm-cd",
 		.data = &pwm_g12a_ao_cd_data
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.compatible = "amlogic,meson-tm2-ee-pwm",
+		.data = &pwm_g12a_ee_data
+	},
+	{
+		.compatible = "amlogic,meson-tm2-ao-pwm-ab",
+		.data = &pwm_g12a_ao_ab_data
+	},
+	{
+		.compatible = "amlogic,meson-tm2-ao-pwm-cd",
+		.data = &pwm_g12a_ao_cd_data
+	},
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, meson_pwm_matches);
@@ -690,10 +704,10 @@ static void __exit meson_pwm_exit(void)
 }
 
 fs_initcall_sync(meson_pwm_init);
-module_exit(meson_pwm_exit);
 #else
 module_platform_driver(meson_pwm_driver);
 #endif
+module_exit(meson_pwm_exit);
 
 MODULE_DESCRIPTION("Amlogic Meson PWM Generator driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");

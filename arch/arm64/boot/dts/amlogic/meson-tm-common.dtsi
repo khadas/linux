@@ -11,6 +11,8 @@
 #include <dt-bindings/gpio/meson-tm2-gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 
@@ -374,6 +376,86 @@
 						};
 					};
 
+					pwm_a_pins: pwm-a {
+						mux {
+							groups = "pwm_a";
+							function = "pwm_a";
+							bias-disable;
+						};
+					};
+
+					pwm_b_c_pins: pwm-b-c {
+						mux {
+							groups = "pwm_b_c";
+							function = "pwm_b";
+							bias-disable;
+						};
+					};
+
+					pwm_b_z_pins: pwm-b-z {
+						mux {
+							groups = "pwm_b_z";
+							function = "pwm_b";
+							bias-disable;
+						};
+					};
+
+					pwm_c_dv_pins: pwm-c-dv {
+						mux {
+							groups = "pwm_c_dv";
+							function = "pwm_c";
+							bias-disable;
+						};
+					};
+
+					pwm_c_h_pins: pwm-c-h {
+						mux {
+							groups = "pwm_c_h";
+							function = "pwm_c";
+							bias-disable;
+						};
+					};
+
+					pwm_c_z_pins: pwm-c-z {
+						mux {
+							groups = "pwm_c_z";
+							function = "pwm_c";
+							bias-disable;
+						};
+					};
+
+					pwm_d_dv_pins: pwm-d-dv {
+						mux {
+							groups = "pwm_d_dv";
+							function = "pwm_d";
+							bias-disable;
+						};
+					};
+
+					pwm_d_z_pins: pwm-d-z {
+						mux {
+							groups = "pwm_d_z";
+							function = "pwm_d";
+							bias-disable;
+						};
+					};
+
+					pwm_e_dv_pins: pwm-e-dv {
+						mux {
+							groups = "pwm_e_dv";
+							function = "pwm_e";
+							bias-disable;
+						};
+					};
+
+					pwm_f_dv_pins: pwm-f-dv {
+						mux {
+							groups = "pwm_f_dv";
+							function = "pwm_f";
+							bias-disable;
+						};
+					};
+
 					uart_a_pins: uart-a {
 						mux {
 							groups = "uart_a_tx",
@@ -630,6 +712,93 @@
 					};
 				};
 
+				pwm_ao_a_pins: pwm-ao-a {
+					mux {
+						groups = "pwm_ao_a";
+						function = "pwm_ao_a";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_a_hiz_pins: pwm-ao-a-hiz {
+					mux {
+						groups = "pwm_ao_a_hiz";
+						function = "pwm_ao_a";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_b_pins: pwm-ao-b {
+					mux {
+						groups = "pwm_ao_b";
+						function = "pwm_ao_b";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_c_4_pins: pwm-ao-c-4 {
+					mux {
+						groups = "pwm_ao_c_4";
+						function = "pwm_ao_c";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_c_6_pins: pwm-ao-c-6 {
+					mux {
+						groups = "pwm_ao_c_6";
+						function = "pwm_ao_c";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_c_hiz_4_pins: pwm-ao-c-hiz-4 {
+					mux {
+						groups = "pwm_ao_c_hiz_4";
+						function = "pwm_ao_c";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_c_hiz_7_pins: pwm-ao-c-hiz-7 {
+					mux {
+						groups = "pwm_ao_c_hiz_7";
+						function = "pwm_ao_c";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_d_5_pins: pwm-ao-d-5 {
+					mux {
+						groups = "pwm_ao_d_5";
+						function = "pwm_ao_d";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_d_9_pins: pwm-ao-d-9 {
+					mux {
+						groups = "pwm_ao_d_9";
+						function = "pwm_ao_d";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_d_10_pins: pwm-ao-d-10 {
+					mux {
+						groups = "pwm_ao_d_10";
+						function = "pwm_ao_d";
+						bias-disable;
+					};
+				};
+
+				pwm_ao_d_e_pins: pwm-ao-d-e {
+					mux {
+						groups = "pwm_ao_d_e";
+						function = "pwm_ao_d";
+					};
+				};
+
 				uart_ao_a_pins: uart-a-ao {
 					mux {
 						groups = "uart_ao_a_tx",
@@ -703,6 +872,21 @@
 			};
 		};
 
+			pwm_AO_cd: pwm@2000 {
+				compatible = "amlogic,meson-tm2-ao-pwm-cd";
+				reg = <0x0 0x2000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
+				status = "disabled";
+			};
+
 			uart_AO: serial@3000 {
 				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x3000 0x0 0x18>;
@@ -734,6 +918,21 @@
 				#size-cells = <2>;
 				clocks = <&clkc CLKID_I2C>;
 				clock-frequency = <100000>;
+			};
+
+			pwm_AO_ab: pwm@7000 {
+				compatible = "amlogic,meson-tm2-ao-pwm-ab";
+				reg = <0x0 0x7000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
+				status = "disabled";
 			};
 
 			ir: ir@8040 {
@@ -768,24 +967,57 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xffd00000 0x0 0x100000>;
 
-			i2c0: i2c@1f000 {
-				compatible = "amlogic,meson-i2c";
+			pwm_ef: pwm@19000 {
+				compatible = "amlogic,meson-tm2-ee-pwm";
+				reg = <0x0 0x19000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
-				reg = <0x0 0x1f000 0x0 0x20>;
-				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 91 IRQ_TYPE_EDGE_RISING>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
-				clock-frequency = <100000>;
 			};
 
-			i2c1: i2c@1e000 {
+			pwm_cd: pwm@1a000 {
+				compatible = "amlogic,meson-tm2-ee-pwm";
+				reg = <0x0 0x1a000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
+				status = "disabled";
+			};
+
+			pwm_ab: pwm@1b000 {
+				compatible = "amlogic,meson-tm2-ee-pwm";
+				reg = <0x0 0x1b000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
+				status = "disabled";
+			};
+
+			i2c3: i2c@1c000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
-				reg = <0x0 0x1e000 0x0 0x20>;
-				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 92 IRQ_TYPE_EDGE_RISING>;
+				reg = <0x0 0x1c000 0x0 0x20>;
+				interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 95 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_I2C>;
@@ -804,12 +1036,24 @@
 				clock-frequency = <100000>;
 			};
 
-			i2c3: i2c@1c000 {
+			i2c1: i2c@1e000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
-				reg = <0x0 0x1c000 0x0 0x20>;
-				interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 95 IRQ_TYPE_EDGE_RISING>;
+				reg = <0x0 0x1e000 0x0 0x20>;
+				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 92 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clkc CLKID_I2C>;
+				clock-frequency = <100000>;
+			};
+
+			i2c0: i2c@1f000 {
+				compatible = "amlogic,meson-i2c";
+				status = "disabled";
+				reg = <0x0 0x1f000 0x0 0x20>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 91 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_I2C>;
