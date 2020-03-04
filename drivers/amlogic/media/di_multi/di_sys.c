@@ -751,6 +751,10 @@ static const struct di_meson_data  data_sm1 = {
 	.name = "dim_sm1",
 };
 
+static const struct di_meson_data  data_tm2 = {
+	.name = "dim_tm2",
+};
+
 /* #ifdef CONFIG_USE_OF */
 static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 	/*{ .compatible = "amlogic, deinterlace", },*/
@@ -760,6 +764,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_sm1,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-tm2",
+		.data = &data_tm2,
 	}, {}
 };
 #endif
