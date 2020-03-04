@@ -2110,11 +2110,7 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_sar_adc_of_match);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static int __init meson_sar_adc_probe(struct platform_device *pdev)
-#else
 static int meson_sar_adc_probe(struct platform_device *pdev)
-#endif
 {
 	const struct meson_sar_adc_data *match_data;
 	struct meson_sar_adc_priv *priv;
@@ -2483,9 +2479,7 @@ static void meson_sar_adc_shutdown(struct platform_device *pdev)
 #endif
 
 static struct platform_driver meson_sar_adc_driver = {
-#ifndef CONFIG_AMLOGIC_MODIFY
 	.probe		= meson_sar_adc_probe,
-#endif
 	.remove		= meson_sar_adc_remove,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.shutdown	= meson_sar_adc_shutdown,
@@ -2497,11 +2491,20 @@ static struct platform_driver meson_sar_adc_driver = {
 	},
 };
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-module_platform_driver_probe(meson_sar_adc_driver, meson_sar_adc_probe);
-#else
+/*
+ * Because the kernel supports device link feature, it will cause
+ * the consumer driver(saradc) probe to be deferred if the supplier
+ * driver(regulator) is not ready. In general, module_platform_driver_probe
+ * is used to non-hotplug driver, it causes the drv->probe will be set to NULL,
+ * even the driver is unregistered.
+ *
+ * If the saradc driver is registered before the regulator driver,
+ * although the deferred mechanism will find the saradc driver again after
+ * regulator driver is registered at late_initcall stage,  the saradc's
+ * drv->probe is NULL, nothing will be called for saradc driver. So the saradc
+ * driver registration failed.
+ */
 module_platform_driver(meson_sar_adc_driver);
-#endif
 
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
 MODULE_DESCRIPTION("Amlogic Meson SAR ADC driver");
