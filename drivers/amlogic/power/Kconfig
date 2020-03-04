@@ -1,5 +1,5 @@
 config AMLOGIC_POWER
-	bool "Amloigc power related driver support"
+	tristate "Amloigc power related driver support"
 	default n
 	help
 		this config enables to use amlogic power management driver

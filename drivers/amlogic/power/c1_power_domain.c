@@ -8,6 +8,7 @@
 #include <linux/pm_domain.h>
 #include <linux/amlogic/pwr_ctrl.h>
 #include <dt-bindings/power/c1-pd.h>
+#include <linux/kallsyms.h>
 
 struct c1_pm_domain {
 	struct generic_pm_domain base;
@@ -145,6 +146,15 @@ static int c1_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct c1_pm_domain *pd;
+#ifdef MODULE
+	struct dev_power_governor *aon_gov;
+
+	aon_gov = (void *)kallsyms_lookup_name("pm_domain_always_on_gov");
+	if (!aon_gov) {
+		pr_err("can't find symbol: pm_domain_always_on_gov\n");
+		return -EINVAL;
+	}
+#endif
 
 	for (i = 0; i < c1_pd_onecell_data.num_domains; i++) {
 		/* array might be sparse */
@@ -154,8 +164,13 @@ static int c1_pd_probe(struct platform_device *pdev)
 		/* Initialize based on pd_status */
 		pd = to_c1_pm_domain(c1_pd_onecell_data.domains[i]);
 		if (pd->base.flags & GENPD_FLAG_ALWAYS_ON)
+#ifdef MODULE
+			pm_genpd_init(c1_pd_onecell_data.domains[i],
+				      aon_gov, pd->pd_status);
+#else
 			pm_genpd_init(c1_pd_onecell_data.domains[i],
 				      &pm_domain_always_on_gov, pd->pd_status);
+#endif
 		else
 			pm_genpd_init(c1_pd_onecell_data.domains[i],
 				      NULL, pd->pd_status);
@@ -189,8 +204,20 @@ static struct platform_driver c1_pd_driver = {
 	},
 };
 
+#ifdef MODULE
+int __init c1_pd_init(void)
+{
+	return platform_driver_register(&c1_pd_driver);
+}
+
+void c1_pd_exit(void)
+{
+	platform_driver_register(&c1_pd_driver);
+}
+#else
 static int c1_pd_init(void)
 {
 	return platform_driver_register(&c1_pd_driver);
 }
 arch_initcall_sync(c1_pd_init);
+#endif

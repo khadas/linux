@@ -214,8 +214,15 @@ static int __init amlogic_powerctrl_init(void)
 {
 	return platform_driver_register(&amlogic_powerctrl_driver);
 }
+
+static void __exit amlogic_powerctrl_exit(void)
+{
+	platform_driver_unregister(&amlogic_powerctrl_driver);
+}
+
 arch_initcall(amlogic_powerctrl_init);
+module_exit(amlogic_powerctrl_exit);
 
 MODULE_AUTHOR("shunzhou jiang<shunzhou.jiang@shunzhou.jiang.com");
 MODULE_DESCRIPTION("SM1 power ctrl driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
