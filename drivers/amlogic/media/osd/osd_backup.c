@@ -764,14 +764,12 @@ static void recovery_regs_init_g12a(void)
 	gRecovery[i].table =
 		(struct reg_item *)&osd12_recovery_table_g12a[0];
 
-	if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == DEV_OSD3) {
-		i++;
-		gRecovery[i].base_addr = VIU_OSD3_CTRL_STAT;
-		gRecovery[i].size = sizeof(osd3_recovery_table_g12a)
-			/ sizeof(struct reg_item);
-		gRecovery[i].table =
-			(struct reg_item *)&osd3_recovery_table_g12a[0];
-	}
+	i++;
+	gRecovery[i].base_addr = VIU_OSD3_CTRL_STAT;
+	gRecovery[i].size = sizeof(osd3_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_recovery_table_g12a[0];
 
 	i++;
 	gRecovery[i].base_addr = VPP_OSD_VSC_PHASE_STEP;
@@ -787,14 +785,12 @@ static void recovery_regs_init_g12a(void)
 	gRecovery[i].table =
 		(struct reg_item *)&osd2_sc_recovery_table_g12a[0];
 
-	if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == DEV_OSD3) {
-		i++;
-		gRecovery[i].base_addr = OSD34_SCALE_COEF_IDX;
-		gRecovery[i].size = sizeof(osd3_sc_recovery_table_g12a)
-			/ sizeof(struct reg_item);
-		gRecovery[i].table =
-			(struct reg_item *)&osd3_sc_recovery_table_g12a[0];
-	}
+	i++;
+	gRecovery[i].base_addr = OSD34_SCALE_COEF_IDX;
+	gRecovery[i].size = sizeof(osd3_sc_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_sc_recovery_table_g12a[0];
 
 	i++;
 	gRecovery[i].base_addr = VPU_MAFBC_BLOCK_ID;
