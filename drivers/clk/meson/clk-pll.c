@@ -453,6 +453,13 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 
 	/* Enable the pll */
 	meson_parm_write(clk->map, &pll->en, 1);
+	/*
+	 * Make the PLL more stable, if not,
+	 * It will probably lock failed (GP0 PLL)
+	 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	udelay(50);
+#endif
 
 	/* Take the pll out reset */
 	meson_parm_write(clk->map, &pll->rst, 0);
@@ -515,9 +522,19 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		meson_parm_write(clk->map, &pll->frac, frac);
 	}
 
+	/*
+	 * The PLL should set together requied by the
+	 * PLL sequence.
+	 * This scenes will cause PLL lock failed
+	 *  clk_set_rate(pll);
+	 *  wait for a long time, several seconds
+	 *  clk_prepare_enable(pll);
+	 */
 	/* If the pll is stopped, bail out now */
+#ifndef CONFIG_AMLOGIC_MODIFY
 	if (!enabled)
 		return 0;
+#endif
 
 	if (meson_clk_pll_enable(hw)) {
 		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
