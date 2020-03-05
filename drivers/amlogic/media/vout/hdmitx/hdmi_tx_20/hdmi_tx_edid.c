@@ -1748,6 +1748,85 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 	}
 }
 
+/* force_vsvdb */
+/*  0: no force, use TV's */
+/*  1~n: use preset vsvdb 0~n-1 */
+/*  255: use current vsvdb_data */
+/*       update by module param vsvdb_data */
+static unsigned int force_vsvdb;
+static unsigned int vsvdb_size = 12;
+static unsigned char vsvdb_data[32] = {
+	0xeb, 0x01, 0x46, 0xd0, 0x00, 0x45, 0x0b, 0x90,
+	0x86, 0x60, 0x76, 0x8f, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+#define PRESET_VSVDB_COUNT 4
+static unsigned char tv_vsvdb[PRESET_VSVDB_COUNT][32] = {
+	/* source-led */
+	{
+		0xeb, 0x01, 0x46, 0xd0,
+		0x00, 0x45, 0x0b, 0x90,
+		0x86, 0x60, 0x76, 0x8f
+	},
+	/* sink-led */
+	{
+		0xee, 0x01, 0x46, 0xd0,
+		0x00, 0x24, 0x0f, 0x8b,
+		0xa8, 0x53, 0x4b, 0x9d,
+		0x27, 0x0b, 0x00
+	},
+	/* sink-led & source-led */
+	{
+		0xeb, 0x01, 0x46, 0xd0,
+		0x00, 0x44, 0x4f, 0x42,
+		0x8c, 0x46, 0x56, 0x8e
+	},
+	/* hdr10+ */
+	{
+		0xe5, 0x01, 0x8b, 0x84,
+		0x90, 0x01
+	}
+};
+
+module_param(force_vsvdb, uint, 0664);
+MODULE_PARM_DESC(force_vsvdb, "\n force_vsvdb\n");
+module_param_array(vsvdb_data, byte, &vsvdb_size, 0664);
+MODULE_PARM_DESC(vsvdb_data, "\n vsvdb data\n");
+
+/* force_hdr */
+/*  0: no force, use TV's */
+/*  1~n: use preset drm 0~n-1 */
+/*  255: use current drm_data */
+/*       update by module param drm_data */
+static unsigned int force_hdr;
+static unsigned int drm_size = 4;
+static unsigned char drm_data[8] = {
+	0xe3, 0x06, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x00
+};
+
+#define PRESET_DRM_COUNT 3
+static unsigned char tv_drm[PRESET_DRM_COUNT][32] = {
+	/* hdr10 + hlg */
+	{
+		0xe3, 0x06, 0x0d, 0x01
+	},
+	/* hdr10 */
+	{
+		0xe3, 0x06, 0x05, 0x01
+	},
+	/* hlg */
+	{
+		0xe3, 0x06, 0x09, 0x01
+	}
+};
+
+module_param(force_hdr, uint, 0664);
+MODULE_PARM_DESC(force_hdr, "\n force_drm\n");
+module_param_array(drm_data, byte, &drm_size, 0664);
+MODULE_PARM_DESC(drm_data, "\n drm data\n");
+
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				   unsigned char *blockbuf)
 {
@@ -1923,6 +2002,23 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 		default:
 			break;
 		}
+	}
+
+	if (force_vsvdb) {
+		if (force_vsvdb <= PRESET_VSVDB_COUNT) {
+			vsvdb_size = (tv_vsvdb[force_vsvdb - 1][0] & 0x1f) + 1;
+			memcpy(vsvdb_data, tv_vsvdb[force_vsvdb - 1],
+				vsvdb_size);
+		}
+		edid_parsingvendspec(hdev, prxcap, vsvdb_data);
+	}
+	if (force_hdr) {
+		if (force_hdr <= PRESET_DRM_COUNT) {
+			drm_size = (tv_drm[force_hdr - 1][0] & 0x1f) + 1;
+			memcpy(drm_data, tv_drm[force_hdr - 1],
+				drm_size);
+		}
+		edid_parsedrmsb(prxcap, drm_data);
 	}
 
 	if (aud_flag == 0)
