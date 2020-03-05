@@ -67,6 +67,7 @@ void blend(struct ge2d_context_s *wq,
 	}
 
 	ge2d_cmd_cfg->wait_done_flag   = 1;
+	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
 	ge2d_wq_add_work(wq);
 }
@@ -137,6 +138,7 @@ void blend_noblk(struct ge2d_context_s *wq,
 	}
 
 	ge2d_cmd_cfg->wait_done_flag = 0;
+	ge2d_cmd_cfg->cmd_op         = IS_BLEND;
 
 	ge2d_wq_add_work(wq);
 }
@@ -203,6 +205,7 @@ void blend_noalpha(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_SET;
 
 	ge2d_cmd_cfg->wait_done_flag   = 1;
+	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
 	ge2d_wq_add_work(wq);
 }
@@ -270,6 +273,7 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_SET;
 
 	ge2d_cmd_cfg->wait_done_flag   = 0;
+	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
 	ge2d_wq_add_work(wq);
 }

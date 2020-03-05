@@ -124,10 +124,14 @@ enum ge2d_memtype_s {
 #define MATRIX_BT_STANDARD              BIT(4)
 #define MATRIX_BT_601                   (0 << 4)
 #define MATRIX_BT_709                   BIT(4)
+#define MATRIX_CUSTOM                   BIT(5)
+#define STRIDE_CUSTOM                   BIT(6)
 
 #define GE2D_FORMAT_BT_STANDARD         BIT(28)
 #define GE2D_FORMAT_BT601               (0 << 28)
 #define GE2D_FORMAT_BT709               BIT(28)
+#define GE2D_MATRIX_CUSTOM              BIT(29)
+#define GE2D_STRIDE_CUSTOM              BIT(30)
 
 #define GE2D_ENDIAN_SHIFT	24
 #define GE2D_ENDIAN_MASK            (0x1 << GE2D_ENDIAN_SHIFT)
@@ -353,6 +357,11 @@ enum ge2d_memtype_s {
 #define	UPDATE_SCALE_COEF   0x20
 #define	UPDATE_ALL          0x3f
 
+#define IS_FILLRECT         0x1
+#define IS_BLEND            0x2
+#define IS_STRETCHBLIT      0x4
+#define IS_BLIT             0x8
+
 struct rectangle_s {
 	int x;   /* X coordinate of its top-left point */
 	int y;   /* Y coordinate of its top-left point */
@@ -506,8 +515,12 @@ struct ge2d_dp_gen_s {
 	unsigned int      antiflick_alpha_filter_n3[4];
 	unsigned int      antiflick_alpha_filter_th[3];
 	/* matrix related */
-	unsigned char     use_matrix_default;
-	unsigned char     conv_matrix_en;
+	unsigned char     use_matrix_default;         /* src1 matrix */
+	unsigned char     use_matrix_default_src2;    /* src2_matrix */
+	unsigned char     use_matrix_default_dst;     /* dst  matrix */
+	unsigned char     conv_matrix_en;             /* src1 matrix enable */
+	unsigned char     conv_matrix_en_src2;        /* src2 matrix enable */
+	unsigned char     conv_matrix_en_dst;         /* dst  matrix enable */
 	unsigned char     matrix_sat_in_en;
 	unsigned char     matrix_minus_16_ctrl; /* 3bit */
 	unsigned char     matrix_sign_ctrl;     /* 3bit */
@@ -610,6 +623,7 @@ struct ge2d_cmd_s {
 	unsigned char    release_flag;
 	unsigned char    wait_done_flag;
 	unsigned char    hang_flag;
+	unsigned char    cmd_op;
 };
 
 struct ge2d_canvas_cfg_s {
@@ -623,6 +637,32 @@ struct ge2d_canvas_cfg_s {
 struct ge2d_dma_cfg_s {
 	int dma_used;
 	void *dma_cfg;
+};
+
+struct ge2d_matrix_s {
+	unsigned int pre_offset0;
+	unsigned int pre_offset1;
+	unsigned int pre_offset2;
+	unsigned int coef0;
+	unsigned int coef1;
+	unsigned int coef2;
+	unsigned int coef3;
+	unsigned int coef4;
+	unsigned int coef5;
+	unsigned int coef6;
+	unsigned int coef7;
+	unsigned int coef8;
+	unsigned int offset0;
+	unsigned int offset1;
+	unsigned int offset2;
+	/* input y/cb/cr saturation enable */
+	unsigned char sat_in_en;
+};
+
+struct ge2d_stride_s {
+	unsigned int src1_stride[MAX_PLANE];
+	unsigned int src2_stride[MAX_PLANE];
+	unsigned int dst_stride[MAX_PLANE];
 };
 
 struct ge2d_config_s {
@@ -641,6 +681,7 @@ struct ge2d_config_s {
 	struct ge2d_dma_cfg_s src_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s src2_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s dst_dma_cfg[MAX_PLANE];
+	struct ge2d_matrix_s matrix_custom;
 };
 
 struct ge2d_dma_buf_s {
@@ -700,7 +741,9 @@ struct ge2d_event_s {
 	struct completion process_complete;
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
-	struct semaphore cmd_in_sem;
+	struct completion cmd_in_com;
+	/* for destroy context */
+	struct mutex destroy_lock;
 };
 
 struct ge2d_manager_s {
@@ -1001,10 +1044,14 @@ struct compat_config_para_ex_ion_s {
 struct config_para_ex_memtype_s {
 	int ge2d_magic;
 	struct config_para_ex_ion_s _ge2d_config_ex;
-	/* memtype*/
+	/* memtype */
 	unsigned int src1_mem_alloc_type;
 	unsigned int src2_mem_alloc_type;
 	unsigned int dst_mem_alloc_type;
+	/* for customized matrix */
+	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct config_ge2d_para_ex_s {
@@ -1018,10 +1065,14 @@ struct config_ge2d_para_ex_s {
 struct compat_config_para_ex_memtype_s {
 	int ge2d_magic;
 	struct compat_config_para_ex_ion_s _ge2d_config_ex;
-	/* memtype*/
+	/* memtype */
 	unsigned int src1_mem_alloc_type;
 	unsigned int src2_mem_alloc_type;
 	unsigned int dst_mem_alloc_type;
+	/* for customized matrix */
+	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct compat_config_ge2d_para_ex_s {
@@ -1082,6 +1133,8 @@ struct ge2d_device_data_s {
 	struct ge2d_power_table_s *poweron_table;
 	struct ge2d_power_table_s *poweroff_table;
 	int chip_type;
+	unsigned int adv_matrix;
+	unsigned int src2_repeat;
 };
 
 extern struct ge2d_device_data_s ge2d_meson_dev;
@@ -1134,8 +1187,9 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
 void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg);
-void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg);
-void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg);
+void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
+			   struct ge2d_cmd_s *cmd);
+void ge2d_set_dp_gen(struct ge2d_config_s *config);
 void ge2d_set_cmd(struct ge2d_cmd_s *cfg);
 void ge2d_wait_done(void);
 void ge2d_set_src1_scale_coef(unsigned int v_filt_type,

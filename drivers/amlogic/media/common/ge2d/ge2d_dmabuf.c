@@ -503,12 +503,11 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 	struct dma_buf *dbuf = NULL;
 	struct dma_buf_attachment *d_att = NULL;
 	struct sg_table *sg = NULL;
-	void *vaddr = NULL;
 	struct device *dev = NULL;
 	enum dma_data_direction dir;
 
 	if (!cfg || cfg->fd < 0 || !cfg->dev) {
-		pr_err("error input param");
+		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
 	}
 	fd = cfg->fd;
@@ -539,20 +538,11 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 		goto access_err;
 	}
 
-	vaddr = dma_buf_vmap(dbuf);
-	if (!vaddr) {
-		pr_err("failed to vmap dma buf");
-		goto vmap_err;
-	}
 	cfg->dbuf = dbuf;
 	cfg->attach = d_att;
-	cfg->vaddr = vaddr;
 	cfg->sg = sg;
 	ge2d_log_dbg("%s, dbuf=0x%p\n", __func__, dbuf);
 	return ret;
-
-vmap_err:
-	dma_buf_end_cpu_access(dbuf, dir);
 
 access_err:
 	dma_buf_unmap_attachment(d_att, sg, dir);
@@ -603,7 +593,7 @@ int ge2d_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 	int ret = -1;
 
 	if (!cfg || cfg->fd < 0) {
-		pr_err("error input param");
+		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
 	}
 	ret = ge2d_dma_buffer_get_phys_internal(buffer, cfg, addr);
@@ -629,7 +619,7 @@ int ge2d_dma_buffer_unmap_info(struct aml_dma_buffer *buffer,
 	int i, found = 0;
 
 	if (!cfg || cfg->fd < 0) {
-		pr_err("error input param");
+		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
 	}
 	for (i = 0; i < AML_MAX_DMABUF; i++) {
@@ -651,25 +641,21 @@ void ge2d_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	struct dma_buf *dbuf = NULL;
 	struct dma_buf_attachment *d_att = NULL;
 	struct sg_table *sg = NULL;
-	void *vaddr = NULL;
 	struct device *dev = NULL;
 	enum dma_data_direction dir;
 
 	if (!cfg || cfg->fd < 0 || !cfg->dev ||
-	    !cfg->dbuf || !cfg->vaddr ||
-	    !cfg->attach || !cfg->sg) {
-		pr_err("Error input param");
+	    !cfg->dbuf || !cfg->attach ||
+	    !cfg->sg) {
+		pr_err("%s: error input param\n", __func__);
 		return;
 	}
 	fd = cfg->fd;
 	dev = cfg->dev;
 	dir = cfg->dir;
 	dbuf = cfg->dbuf;
-	vaddr = cfg->vaddr;
 	d_att = cfg->attach;
 	sg = cfg->sg;
-
-	dma_buf_vunmap(dbuf, vaddr);
 
 	dma_buf_end_cpu_access(dbuf, dir);
 
@@ -694,7 +680,7 @@ void ge2d_dma_buffer_dma_flush(struct device *dev, int fd)
 	}
 	buf = dmabuf->priv;
 	if (!buf) {
-		pr_err("error input param");
+		pr_err("%s: error input param\n", __func__);
 		return;
 	}
 	if (buf->size > 0 && buf->dev == dev)
@@ -716,7 +702,7 @@ void ge2d_dma_buffer_cache_flush(struct device *dev, int fd)
 	}
 	buf = dmabuf->priv;
 	if (!buf) {
-		pr_err("error input param");
+		pr_err("%s: error input param\n", __func__);
 		return;
 	}
 	if (buf->size > 0 && buf->dev == dev)

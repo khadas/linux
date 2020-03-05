@@ -40,8 +40,8 @@ static void _fillrect(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->color_logic_op   = LOGIC_OPERATION_COPY;
 	ge2d_cmd_cfg->alpha_blend_mode = OPERATION_LOGIC;
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_COPY;
-	ge2d_cmd_cfg->wait_done_flag   = 1;
-	ge2dgen_disable_matrix(wq);
+	ge2d_cmd_cfg->wait_done_flag   = blk;
+	ge2d_cmd_cfg->cmd_op           = IS_FILLRECT;
 
 	ge2d_wq_add_work(wq);
 }

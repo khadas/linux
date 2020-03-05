@@ -205,7 +205,7 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 				    unsigned int cmd, unsigned long args)
 {
 	struct config_para_ex_memtype_s *ge2d_config_ex_mem;
-	struct config_ge2d_para_ex_s ge2d_para_config;
+	struct config_ge2d_para_ex_s *ge2d_para_config;
 	int ret = 0;
 #ifdef CONFIG_COMPAT
 	struct compat_config_para_ex_memtype_s __user *uf_ex_mem;
@@ -215,22 +215,25 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 #endif
 	void __user *argp = (void __user *)args;
 
-	memset(&ge2d_para_config, 0, sizeof(struct config_ge2d_para_ex_s));
+	ge2d_para_config = kzalloc(sizeof(*ge2d_para_config), GFP_KERNEL);
+	if (!ge2d_para_config)
+		return -ENOMEM;
+
 	switch (cmd) {
 	case GE2D_CONFIG_EX_MEM:
-		ret = copy_from_user(&ge2d_para_config, argp,
+		ret = copy_from_user(ge2d_para_config, argp,
 				     sizeof(struct config_ge2d_para_ex_s));
-		ge2d_config_ex_mem = &ge2d_para_config.para_config_memtype;
+		ge2d_config_ex_mem = &ge2d_para_config->para_config_memtype;
 		ret = ge2d_context_config_ex_mem(context, ge2d_config_ex_mem);
 		break;
 #ifdef CONFIG_COMPAT
 	case GE2D_CONFIG_EX32_MEM:
 		uf_ge2d_para = (struct compat_config_ge2d_para_ex_s *)argp;
-		r |= get_user(ge2d_para_config.para_config_memtype.ge2d_magic,
+		r |= get_user(ge2d_para_config->para_config_memtype.ge2d_magic,
 			&uf_ge2d_para->para_config_memtype.ge2d_magic);
-		ge2d_config_ex_mem = &ge2d_para_config.para_config_memtype;
+		ge2d_config_ex_mem = &ge2d_para_config->para_config_memtype;
 
-		if (ge2d_para_config.para_config_memtype.ge2d_magic
+		if (ge2d_para_config->para_config_memtype.ge2d_magic
 			== sizeof(struct compat_config_para_ex_memtype_s)) {
 			struct config_para_ex_ion_s *pge2d_config_ex;
 
@@ -381,12 +384,18 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 		}
 		if (r) {
 			pr_err("GE2D_CONFIG_EX32 get parameter failed .\n");
-			return -EFAULT;
+			ret = -EFAULT;
+			goto release;
 		}
 		ret = ge2d_context_config_ex_mem(context, ge2d_config_ex_mem);
 		break;
 #endif
 	}
+#ifdef CONFIG_COMPAT
+release:
+#endif
+	kfree(ge2d_para_config);
+
 	return ret;
 }
 
@@ -1164,6 +1173,36 @@ static struct ge2d_device_data_s ge2d_c1 = {
 	.chip_type = MESON_CPU_MAJOR_ID_C1,
 };
 
+static struct ge2d_device_data_s ge2d_c2 = {
+	.ge2d_rate = 400000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &smc_poweron_table,
+	.poweroff_table = &smc_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_C2,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+};
+
+static struct ge2d_device_data_s ge2d_sc2 = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 0,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &smc_poweron_table,
+	.poweroff_table = &smc_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_SC2,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1196,6 +1235,14 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-c1",
 		.data = &ge2d_c1,
+	},
+	{
+		.compatible = "amlogic, ge2d-c2",
+		.data = &ge2d_c2,
+	},
+	{
+		.compatible = "amlogic, ge2d-sc2",
+		.data = &ge2d_sc2,
 	},
 	{},
 };

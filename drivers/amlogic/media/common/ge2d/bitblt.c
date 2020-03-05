@@ -34,6 +34,7 @@ static void _bitblt(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_blend_mode = OPERATION_LOGIC;
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_COPY;
 	ge2d_cmd_cfg->wait_done_flag   = block;
+	ge2d_cmd_cfg->cmd_op           = IS_BLIT;
 
 	ge2d_wq_add_work(wq);
 }
@@ -71,6 +72,7 @@ static void _bitblt_noalpha(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_blend_mode = OPERATION_LOGIC;
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_SET;
 	ge2d_cmd_cfg->wait_done_flag   = block;
+	ge2d_cmd_cfg->cmd_op           = IS_BLIT;
 
 	ge2d_wq_add_work(wq);
 }
