@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/uaccess.h>
+#include <linux/amlogic/clk_measure.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "clk-debug: " fmt
@@ -51,6 +52,29 @@ static ssize_t parent_write(struct file *file, const char __user *buffer,
 	} else {
 		pr_err("try: echo clk_name > clk,echo clk_name > parent\n");
 	}
+
+	return count;
+}
+
+static ssize_t measure_write(struct file *file, const char __user *buffer,
+			     size_t count, loff_t *ppos)
+{
+	int ret;
+	char input[5];
+	unsigned int id, rate;
+
+	count = min_t(size_t, count, (sizeof(input) - 1));
+	if (copy_from_user(input, buffer, count))
+		return -EFAULT;
+
+	input[count] = '\0';
+
+	ret = kstrtouint(input, 0, &id);
+	if (ret)
+		return -EINVAL;
+
+	rate = meson_clk_measure(id);
+	pr_info("Measure the index %u clock,its rate = %u\n", id, rate);
 
 	return count;
 }
@@ -193,6 +217,11 @@ static const struct file_operations parent_file_ops = {
 	.write		= parent_write,
 };
 
+static const struct file_operations measure_file_ops = {
+	.open		= simple_open,
+	.write		= measure_write,
+};
+
 static const struct file_operations enable_file_ops = {
 	.open		= simple_open,
 	.read		= enable_read,
@@ -220,6 +249,7 @@ static int __init clk_debug_init(void)
 	debugfs_create_file("rate", 0600, root, NULL, &rate_file_ops);
 	debugfs_create_file("enable", 0600, root, NULL, &enable_file_ops);
 	debugfs_create_file("parent", 0200, root, NULL, &parent_file_ops);
+	debugfs_create_file("measure", 0200, root, NULL, &measure_file_ops);
 
 	return 0;
 }

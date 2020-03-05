@@ -14,11 +14,6 @@
 
 static DEFINE_MUTEX(measure_lock);
 
-#define MSR_CLK_DUTY		0x0
-#define MSR_CLK_REG0		0x4
-#define MSR_CLK_REG1		0x8
-#define MSR_CLK_REG2		0xc
-
 #define MSR_DURATION		GENMASK(15, 0)
 #define MSR_ENABLE		BIT(16)
 #define MSR_CONT		BIT(17) /* continuous measurement */
@@ -41,9 +36,17 @@ struct meson_msr_id {
 	const char *name;
 };
 
+struct meson_msr_data {
+	struct meson_msr_id *msr_table;
+	unsigned int duty_offset;
+	unsigned int reg0_offset;
+	unsigned int reg1_offset;
+	unsigned int reg2_offset;
+};
+
 struct meson_msr {
 	struct regmap *regmap;
-	struct meson_msr_id msr_table[CLK_MSR_MAX];
+	struct meson_msr_data *data;
 };
 
 #define CLK_MSR_ID(__id, __name) \
@@ -51,6 +54,7 @@ struct meson_msr {
 
 static struct meson_msr *glo_meson_msr;
 
+#ifdef CONFIG_ARM
 static struct meson_msr_id clk_msr_m8[CLK_MSR_MAX] = {
 	CLK_MSR_ID(0, "ring_osc_out_ee0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee1"),
@@ -99,6 +103,7 @@ static struct meson_msr_id clk_msr_m8[CLK_MSR_MAX] = {
 	CLK_MSR_ID(62, "vid2_pll"),
 	CLK_MSR_ID(63, "mipi_csi_cfg"),
 };
+#endif
 
 static struct meson_msr_id clk_msr_gx[CLK_MSR_MAX] = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
@@ -675,22 +680,22 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 	if (ret)
 		return ret;
 
-	regmap_write(priv->regmap, MSR_CLK_REG0, 0);
+	regmap_write(priv->regmap, priv->data->reg0_offset, 0);
 
 	/* Set measurement duration */
-	regmap_update_bits(priv->regmap, MSR_CLK_REG0, MSR_DURATION,
+	regmap_update_bits(priv->regmap, priv->data->reg0_offset, MSR_DURATION,
 			   FIELD_PREP(MSR_DURATION, duration - 1));
 
 	/* Set ID */
-	regmap_update_bits(priv->regmap, MSR_CLK_REG0, MSR_CLK_SRC,
+	regmap_update_bits(priv->regmap, priv->data->reg0_offset, MSR_CLK_SRC,
 			   FIELD_PREP(MSR_CLK_SRC, clk_msr_id->id));
 
 	/* Enable & Start */
-	regmap_update_bits(priv->regmap, MSR_CLK_REG0,
+	regmap_update_bits(priv->regmap, priv->data->reg0_offset,
 			   MSR_RUN | MSR_ENABLE,
 			   MSR_RUN | MSR_ENABLE);
 
-	ret = regmap_read_poll_timeout(priv->regmap, MSR_CLK_REG0,
+	ret = regmap_read_poll_timeout(priv->regmap, priv->data->reg0_offset,
 				       val, !(val & MSR_BUSY), 10, 10000);
 	if (ret) {
 		mutex_unlock(&measure_lock);
@@ -698,10 +703,11 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 	}
 
 	/* Disable */
-	regmap_update_bits(priv->regmap, MSR_CLK_REG0, MSR_ENABLE, 0);
+	regmap_update_bits(priv->regmap, priv->data->reg0_offset,
+			   MSR_ENABLE, 0);
 
 	/* Get the value in multiple of gate time counts */
-	regmap_read(priv->regmap, MSR_CLK_REG2, &val);
+	regmap_read(priv->regmap, priv->data->reg2_offset, &val);
 
 	mutex_unlock(&measure_lock);
 
@@ -711,17 +717,6 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 	return DIV_ROUND_CLOSEST_ULL((val & MSR_VAL_MASK) * 1000000ULL,
 				     duration);
 }
-
-int meson_clk_measure(unsigned int id)
-{
-	struct meson_msr_id *clk_msr_id = NULL;
-
-	clk_msr_id->priv = glo_meson_msr;
-	clk_msr_id->id = id;
-
-	return meson_measure_id(clk_msr_id, DIV_MAX);
-}
-EXPORT_SYMBOL_GPL(meson_clk_measure);
 
 static int meson_measure_best_id(struct meson_msr_id *clk_msr_id,
 				    unsigned int *precision)
@@ -740,6 +735,24 @@ static int meson_measure_best_id(struct meson_msr_id *clk_msr_id,
 
 	return ret;
 }
+
+int meson_clk_measure(unsigned int id)
+{
+	struct meson_msr_id *clk_msr_id = NULL;
+	unsigned int precision = 0;
+	int val;
+
+	clk_msr_id = &glo_meson_msr->data->msr_table[id];
+
+	val = meson_measure_best_id(clk_msr_id, &precision);
+	if (val < 0) {
+		pr_err("measure failed\n");
+		return val;
+	}
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(meson_clk_measure);
 
 static int clk_msr_show(struct seq_file *s, void *data)
 {
@@ -782,16 +795,14 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_msr_summary);
 
-static const struct regmap_config meson_clk_msr_regmap_config = {
+static struct regmap_config meson_clk_msr_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = MSR_CLK_REG2,
 };
 
 static int meson_msr_probe(struct platform_device *pdev)
 {
-	const struct meson_msr_id *match_data;
 	struct meson_msr *priv;
 	struct resource *res;
 	struct dentry *root, *clks;
@@ -803,13 +814,11 @@ static int meson_msr_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	match_data = device_get_match_data(&pdev->dev);
-	if (!match_data) {
+	priv->data = (struct meson_msr_data *)device_get_match_data(&pdev->dev);
+	if (!priv->data) {
 		dev_err(&pdev->dev, "failed to get match data\n");
 		return -ENODEV;
 	}
-
-	memcpy(priv->msr_table, match_data, sizeof(priv->msr_table));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -817,6 +826,8 @@ static int meson_msr_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "io resource mapping failed\n");
 		return PTR_ERR(base);
 	}
+
+	meson_clk_msr_regmap_config.max_register = priv->data->reg2_offset;
 
 	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					     &meson_clk_msr_regmap_config);
@@ -827,52 +838,107 @@ static int meson_msr_probe(struct platform_device *pdev)
 	clks = debugfs_create_dir("clks", root);
 
 	debugfs_create_file("measure_summary", 0444, root,
-			    priv->msr_table, &clk_msr_summary_fops);
+			    priv->data->msr_table, &clk_msr_summary_fops);
 
 	glo_meson_msr = priv;
 
 	for (i = 0 ; i < CLK_MSR_MAX ; ++i) {
-		if (!priv->msr_table[i].name)
+		if (!priv->data->msr_table[i].name)
 			continue;
 
-		priv->msr_table[i].priv = priv;
+		priv->data->msr_table[i].priv = priv;
 
-		debugfs_create_file(priv->msr_table[i].name, 0444, clks,
-				    &priv->msr_table[i], &clk_msr_fops);
+		debugfs_create_file(priv->data->msr_table[i].name, 0444, clks,
+				    &priv->data->msr_table[i], &clk_msr_fops);
 	}
 
 	return 0;
 }
 
+static const struct meson_msr_data meson_gx_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_gx,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+
+#ifdef CONFIG_ARM
+static const struct meson_msr_data meson_m8_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_m8,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+#endif
+
+static const struct meson_msr_data meson_axg_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_axg,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+
+static const struct meson_msr_data meson_g12a_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_g12a,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+
+static const struct meson_msr_data meson_sm1_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_sm1,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+
+static const struct meson_msr_data meson_tm2_data = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_tm2,
+	.duty_offset = 0x0,
+	.reg0_offset = 0x4,
+	.reg1_offset = 0x8,
+	.reg2_offset = 0xc,
+};
+
 static const struct of_device_id meson_msr_match_table[] = {
 	{
 		.compatible = "amlogic,meson-gx-clk-measure",
-		.data = (void *)clk_msr_gx,
+		.data = &meson_gx_data,
 	},
+#ifdef CONFIG_ARM
 	{
 		.compatible = "amlogic,meson8-clk-measure",
-		.data = (void *)clk_msr_m8,
+		.data = &meson_m8_data,
 	},
 	{
 		.compatible = "amlogic,meson8b-clk-measure",
-		.data = (void *)clk_msr_m8,
+		.data = &meson_m8_data,
 	},
+#endif
 	{
 		.compatible = "amlogic,meson-axg-clk-measure",
-		.data = (void *)clk_msr_axg,
+		.data = &meson_axg_data,
 	},
 	{
 		.compatible = "amlogic,meson-g12a-clk-measure",
-		.data = (void *)clk_msr_g12a,
+		.data = &meson_g12a_data,
 	},
+
 	{
 		.compatible = "amlogic,meson-sm1-clk-measure",
-		.data = (void *)clk_msr_sm1,
+		.data = &meson_sm1_data,
 	},
+
 	{
 		.compatible = "amlogic,meson-tm2-clk-measure",
-		.data = (void *)clk_msr_tm2,
+		.data = &meson_tm2_data,
 	},
+
 	{ /* sentinel */ }
 };
 
