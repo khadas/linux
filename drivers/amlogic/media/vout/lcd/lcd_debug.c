@@ -3405,6 +3405,50 @@ static ssize_t lcd_debug_print_store(struct class *class,
 	return count;
 }
 
+static ssize_t lcd_debug_vinfo_show(struct class *class,
+				    struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vinfo_s *info;
+	ssize_t len = 0;
+
+	if (!lcd_drv->lcd_info) {
+		len = sprintf(buf, "error: no lcd_info exist\n");
+		return len;
+	}
+	info = lcd_drv->lcd_info;
+
+	len = sprintf(buf, "lcd vinfo:\n"
+		      "    lcd_mode:              %s\n"
+		      "    name:                  %s\n"
+		      "    mode:                  %d\n"
+		      "    width:                 %d\n"
+		      "    height:                %d\n"
+		      "    field_height:          %d\n"
+		      "    aspect_ratio_num:      %d\n"
+		      "    aspect_ratio_den:      %d\n"
+		      "    sync_duration_num:     %d\n"
+		      "    sync_duration_den:     %d\n"
+		      "    screen_real_width:     %d\n"
+		      "    screen_real_height:    %d\n"
+		      "    htotal:                %d\n"
+		      "    vtotal:                %d\n"
+		      "    fr_adj_type:           %d\n"
+		      "    video_clk:             %d\n"
+		      "    viu_color_fmt:         %d\n"
+		      "    viu_mux:               %d\n\n",
+		      lcd_mode_mode_to_str(lcd_drv->lcd_mode),
+		      info->name, info->mode,
+		      info->width, info->height, info->field_height,
+		      info->aspect_ratio_num, info->aspect_ratio_den,
+		      info->sync_duration_num, info->sync_duration_den,
+		      info->screen_real_width, info->screen_real_height,
+		      info->htotal, info->vtotal, info->fr_adj_type,
+		      info->video_clk, info->viu_color_fmt, info->viu_mux);
+
+	return len;
+}
+
 static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(help,        0444, lcd_debug_common_help, NULL),
 	__ATTR(debug,       0644, lcd_debug_show, lcd_debug_store),
@@ -3434,6 +3478,7 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(dump,        0644,
 		lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
+	__ATTR(vinfo,       0644, lcd_debug_vinfo_show, NULL),
 };
 
 static const char *lcd_ttl_debug_usage_str = {
