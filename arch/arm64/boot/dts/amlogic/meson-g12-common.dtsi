@@ -29,6 +29,12 @@
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved>;
 	};
+
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
 	tdmif_a: audio-controller-0 {
 		compatible = "amlogic,axg-tdm-iface";
 		#sound-dai-cells = <0>;

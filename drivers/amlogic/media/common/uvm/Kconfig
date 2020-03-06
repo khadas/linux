@@ -1,0 +1,12 @@
+#
+# uvm configuration
+#
+
+
+menuconfig AMLOGIC_UVM
+	bool "Amlogic unified video memory management"
+	default n
+	help
+	  say y to enable Amlogic unified video memory management.
+	  The uvm driver is based on the ion driver.
+
