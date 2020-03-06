@@ -648,7 +648,6 @@ static int aml_pdm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-
 static int aml_pdm_hw_params(
 	struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -682,10 +681,20 @@ static int aml_pdm_prepare(
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		struct toddr *to = p_pdm->tddr;
 		unsigned int start_addr, end_addr, int_addr;
+		unsigned int period, threshold;
 
 		start_addr = runtime->dma_addr;
-		end_addr = start_addr + runtime->dma_bytes - 8;
-		int_addr = frames_to_bytes(runtime, runtime->period_size) / 8;
+		end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
+		period   = frames_to_bytes(runtime, runtime->period_size);
+		int_addr = period / FIFO_BURST;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, p_pdm->tddr->fifo_depth);
+		threshold /= 2;
+		aml_toddr_set_fifos(to, threshold);
 
 		aml_toddr_set_buf(to, start_addr, end_addr);
 		aml_toddr_set_intrpt(to, int_addr);
@@ -880,7 +889,6 @@ static int aml_pdm_dai_prepare(
 		fmt.rate      = runtime->rate;
 		aml_toddr_select_src(to, PDMIN);
 		aml_toddr_set_format(to, &fmt);
-		aml_toddr_set_fifos(to, 0x40);
 
 		/* force pdm sysclk to 24m */
 		if (p_pdm->isLowPower) {

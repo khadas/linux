@@ -31,14 +31,22 @@
 #define MEMIF_INT_FIFO_DEPTH        BIT(5)
 #define MEMIF_INT_MASK              GENMASK(7, 0)
 
-#define TODDR_FIFO_CNT                    GENMASK(19, 8)
-#define FRDDR_FIFO_CNT                    GENMASK(17, 8)
+#define TODDR_FIFO_CNT              GENMASK(19, 8)
+#define FRDDR_FIFO_CNT              GENMASK(17, 8)
+
+#define FIFO_BURST                  8
+#define FIFO_DEPTH_32K              0x8000
+#define FIFO_DEPTH_2K               0x800
+#define FIFO_DEPTH_1K               0x400
+#define FIFO_DEPTH_512              0x200
 
 enum ddr_num {
 	DDR_A,
 	DDR_B,
 	DDR_C,
 	DDR_D,
+	DDR_E,
+	DDR_MAX,
 };
 
 enum ddr_types {
@@ -117,6 +125,12 @@ struct toddr_fmt {
 	unsigned int rate;
 };
 
+struct fifo_info {
+	unsigned int idx;
+	/* bytes */
+	unsigned int depth;
+};
+
 struct ddr_chipinfo {
 	/* INT and Start address is same or separated */
 	bool int_start_same_addr;
@@ -152,6 +166,8 @@ struct ddr_chipinfo {
 	 * 4: 4 toddr, tl1
 	 */
 	int fifo_num;
+	const struct fifo_info *toddr_info;
+	const struct fifo_info *frddr_info;
 
 	/* power detect or VAD
 	 * 0: disabled
@@ -174,9 +190,11 @@ struct toddr {
 
 	unsigned int start_addr;
 	unsigned int end_addr;
+	unsigned int threshold;
 
 	enum toddr_src src;
 	unsigned int fifo_id;
+	unsigned int fifo_depth;
 
 	int is_lb; /* check whether for loopback */
 	int irq;
@@ -222,6 +240,7 @@ struct frddr {
 	struct aml_audio_controller *actrl;
 	unsigned int reg_base;
 	enum ddr_num fifo_id;
+	unsigned int fifo_depth;
 
 	unsigned int channels;
 	unsigned int msb;
@@ -258,8 +277,7 @@ unsigned int aml_toddr_get_position(struct toddr *to);
 unsigned int aml_toddr_get_addr(struct toddr *to, enum status_sel sel);
 void aml_toddr_select_src(struct toddr *to, enum toddr_src);
 void aml_toddr_enable(struct toddr *to, bool enable);
-void aml_toddr_set_fifos(struct toddr *to, unsigned int thresh);
-void aml_toddr_update_fifos_rd_th(struct toddr *to, int th);
+void aml_toddr_set_fifos(struct toddr *to, unsigned int threshold);
 void aml_toddr_force_finish(struct toddr *to);
 void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt);
 
@@ -302,7 +320,7 @@ extern void aml_frddr_select_dst_ss(struct frddr *fr,
 int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel);
 
 void aml_frddr_set_fifos(struct frddr *fr,
-		unsigned int depth, unsigned int thresh);
+		unsigned int depth, unsigned int threshold);
 unsigned int aml_frddr_get_fifo_id(struct frddr *fr);
 void aml_frddr_set_format(struct frddr *fr,
 	unsigned int chnum,

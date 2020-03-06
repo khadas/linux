@@ -202,13 +202,23 @@ static int loopback_prepare(struct snd_pcm_substream *ss)
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
+	unsigned int period, threshold;
 
 	start_addr = runtime->dma_addr;
-	end_addr = start_addr + runtime->dma_bytes - 8;
-	int_addr = frames_to_bytes(runtime, runtime->period_size) / 8;
+	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
+	period	 = frames_to_bytes(runtime, runtime->period_size);
+	int_addr = period / FIFO_BURST;
 
 	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		struct toddr *to = p_loopback->tddr;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, to->fifo_depth);
+		threshold /= 2;
+		aml_toddr_set_fifos(to, threshold);
 
 		aml_toddr_set_buf(to, start_addr, end_addr);
 		aml_toddr_set_intrpt(to, int_addr);
@@ -693,7 +703,6 @@ static int loopback_dai_prepare(
 
 		aml_toddr_select_src(to, src);
 		aml_toddr_set_format(to, &fmt);
-		aml_toddr_set_fifos(to, 0x40);
 
 		switch (p_loopback->datain_src) {
 		case DATAIN_TDMA:

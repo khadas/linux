@@ -393,18 +393,37 @@ static int earc_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct earc *p_earc = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
+	unsigned int period, threshold;
 
 	start_addr = runtime->dma_addr;
-	end_addr = start_addr + runtime->dma_bytes - 8;
-	int_addr = frames_to_bytes(runtime, runtime->period_size) / 8;
+	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
+	period	 = frames_to_bytes(runtime, runtime->period_size);
+	int_addr = period / FIFO_BURST;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_earc->fddr;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, fr->fifo_depth);
+		threshold /= 2;
+		/* Use all the fifo */
+		aml_frddr_set_fifos(fr, fr->fifo_depth, threshold);
 
 		aml_frddr_set_buf(fr, start_addr, end_addr);
 		aml_frddr_set_intrpt(fr, int_addr);
 	} else {
 		struct toddr *to = p_earc->tddr;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, to->fifo_depth);
+		threshold /= 2;
+		aml_toddr_set_fifos(to, threshold);
 
 		aml_toddr_set_buf(to, start_addr, end_addr);
 		aml_toddr_set_intrpt(to, int_addr);
@@ -539,7 +558,6 @@ static int earc_dai_prepare(
 				     bit_depth - 1,
 				     frddr_type);
 		aml_frddr_select_dst(fr, dst);
-		aml_frddr_set_fifos(fr, 0x40, 0x20);
 
 		earctx_dmac_init(p_earc->tx_top_map, p_earc->tx_dmac_map);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
@@ -590,7 +608,6 @@ static int earc_dai_prepare(
 
 		aml_toddr_select_src(to, src);
 		aml_toddr_set_format(to, &fmt);
-		aml_toddr_set_fifos(to, 0x40);
 
 		earcrx_dmac_init(p_earc->rx_top_map, p_earc->rx_dmac_map);
 		earcrx_arc_init(p_earc->rx_dmac_map);
