@@ -21,6 +21,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			dynamic-power-coefficient = <125>;
 			#cooling-cells = <2>;
 		};
 
@@ -30,6 +31,7 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			dynamic-power-coefficient = <125>;
 			#cooling-cells = <2>;
 		};
 
@@ -39,6 +41,7 @@
 			reg = <0x2>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			dynamic-power-coefficient = <125>;
 			#cooling-cells = <2>;
 		};
 
@@ -48,6 +51,7 @@
 			reg = <0x3>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			dynamic-power-coefficient = <125>;
 			#cooling-cells = <2>;
 		};
 
@@ -610,7 +614,7 @@
 		p_thermal: p_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1460>;
+			sustainable-power = <1410>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {
@@ -635,6 +639,11 @@
 				};
 			};
 			cooling-maps {
+				cpufreq_cooling_map{
+					trip = <&pcontrol>;
+					cooling-device = <&cpu0 0 11>;
+					contribution = <1024>;
+				};
 				cpucore_cooling_map{
 					trip = <&pcontrol>;
 					cooling-device = <&cpucore0 0 3>;
@@ -646,7 +655,7 @@
 		d_thermal: d_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <250>;
-			sustainable-power = <1460>;
+			sustainable-power = <1410>;
 			thermal-sensors = <&d_tsensor 1>;
 			trips {
 				dswitch_on: trip-point@0 {
