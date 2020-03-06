@@ -117,7 +117,7 @@ if $GIT rev-parse -q --no-revs --verify $object:include/uapi/evl/control.h; then
     result=$(scan_history EVL_ABI_LEVEL include/uapi/evl/control.h)
     test -n "$result" && echo "$result"
 elif $GIT rev-parse -q --no-revs --verify $object:include/evl/evl.h; then
-    result=$(scan_history EVL_KABI_PREREQ include/evl/evl.h)
+    result=$(scan_history EVL_ABI_PREREQ include/evl/evl.h)
     test -n "$result" && echo "$result"
 else
    echo "cannot parse - either tree or $object is wrong"
