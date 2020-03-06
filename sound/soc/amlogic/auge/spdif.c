@@ -954,18 +954,37 @@ static int aml_spdif_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_spdif *p_spdif = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
+	unsigned int period, threshold;
 
 	start_addr = runtime->dma_addr;
-	end_addr = start_addr + runtime->dma_bytes - 8;
-	int_addr = frames_to_bytes(runtime, runtime->period_size) / 8;
+	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
+	period	 = frames_to_bytes(runtime, runtime->period_size);
+	int_addr = period / FIFO_BURST;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_spdif->fddr;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, fr->fifo_depth);
+		threshold /= 2;
+		/* Use all the fifo */
+		aml_frddr_set_fifos(fr, fr->fifo_depth, threshold);
 
 		aml_frddr_set_buf(fr, start_addr, end_addr);
 		aml_frddr_set_intrpt(fr, int_addr);
 	} else {
 		struct toddr *to = p_spdif->tddr;
+
+		/*
+		 * Contrast minimum of period and fifo depth,
+		 * and set the value as half.
+		 */
+		threshold = min(period, to->fifo_depth);
+		threshold /= 2;
+		aml_toddr_set_fifos(to, threshold);
 
 		aml_toddr_set_buf(to, start_addr, end_addr);
 		aml_toddr_set_intrpt(to, int_addr);
@@ -1231,7 +1250,6 @@ static int aml_dai_spdif_prepare(
 			bit_depth - 1,
 			spdifout_get_frddr_type(bit_depth));
 		aml_frddr_select_dst(fr, dst);
-		aml_frddr_set_fifos(fr, 0x40, 0x20);
 
 		/* check channel status info, and set them */
 		spdif_get_channel_status_info(&chsts, runtime->rate);
@@ -1283,7 +1301,6 @@ static int aml_dai_spdif_prepare(
 		fmt.rate       = runtime->rate;
 		aml_toddr_select_src(to, SPDIFIN);
 		aml_toddr_set_format(to, &fmt);
-		aml_toddr_set_fifos(to, 0x40);
 #ifdef __SPDIFIN_INSERT_CHNUM__
 		aml_toddr_insert_chanum(to);
 #endif
