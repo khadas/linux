@@ -1,5 +1,9 @@
-obj-$(CONFIG_AMLOGIC_VOUT_SERVE)	+= vout_serve/
-obj-$(CONFIG_AMLOGIC_HDMITX)		+= hdmitx/
-obj-$(CONFIG_AMLOGIC_CVBS_OUTPUT)       += cvbs/
-obj-$(CONFIG_AMLOGIC_VDAC)              += vdac/
-obj-$(CONFIG_AMLOGIC_LCD)		+= lcd/
+include drivers/amlogic/media/vout/vout_serve/Makefile
+
+include drivers/amlogic/media/vout/hdmitx/Makefile
+
+include drivers/amlogic/media/vout/cvbs/Makefile
+
+include drivers/amlogic/media/vout/vdac/Makefile
+
+include drivers/amlogic/media/vout/lcd/Makefile

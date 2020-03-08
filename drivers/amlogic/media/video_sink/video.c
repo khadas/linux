@@ -5101,7 +5101,7 @@ static void vsync_fiq_up(void)
 
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
-		irq_set_affinity(INT_VIU_VSYNC, cpumask_of(1));
+		irq_set_affinity_hint(INT_VIU_VSYNC, cpumask_of(1));
 #endif
 #endif
 }
@@ -9832,6 +9832,7 @@ static int video_attr_create(void)
 	return ret;
 }
 
+#ifndef MODULE
 #ifdef TV_REVERSE
 static int __init vpp_axis_reverse(char *str)
 {
@@ -9847,6 +9848,7 @@ static int __init vpp_axis_reverse(char *str)
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
+#endif
 #endif
 
 struct vframe_s *get_cur_dispbuf(void)
@@ -10100,7 +10102,7 @@ static struct platform_driver amvideom_driver = {
 	},
 };
 
-static int __init video_init(void)
+int __init video_init(void)
 {
 	int r = 0;
 	/*
@@ -10275,7 +10277,7 @@ static int __init video_init(void)
 	return r;
 }
 
-static void __exit video_exit(void)
+void __exit video_exit(void)
 {
 	video_debugfs_exit();
 	vf_unreg_receiver(&video_vf_recv);
@@ -10319,11 +10321,10 @@ module_param(video_3d_format, uint, 0664);
 
 #endif
 
-MODULE_PARM_DESC(vsync_enter_line_max, "\n vsync_enter_line_max\n");
-module_param(vsync_enter_line_max, uint, 0664);
+module_param_named(video_vsync_enter_line_max,
+		   vsync_enter_line_max, uint, 0664);
 
-MODULE_PARM_DESC(vsync_exit_line_max, "\n vsync_exit_line_max\n");
-module_param(vsync_exit_line_max, uint, 0664);
+module_param_named(video_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 MODULE_PARM_DESC(vsync_rdma_line_max, "\n vsync_rdma_line_max\n");
@@ -10344,8 +10345,12 @@ MODULE_PARM_DESC(step_flag, "\n step_flag\n");
 
 /*arch_initcall(video_early_init);*/
 
+#ifndef MODULE
 module_init(video_init);
+#endif
+#ifndef MODULE
 module_exit(video_exit);
+#endif
 
 MODULE_PARM_DESC(smooth_sync_enable, "\n smooth_sync_enable\n");
 module_param(smooth_sync_enable, uint, 0664);
@@ -10440,6 +10445,6 @@ module_param(toggle_count, uint, 0664);
 MODULE_PARM_DESC(stop_update, "\n stop_update\n");
 module_param(stop_update, uint, 0664);
 
-MODULE_DESCRIPTION("AMLOGIC video output driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC video output driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

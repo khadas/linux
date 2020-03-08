@@ -613,10 +613,10 @@ module_param(enable_vd_zorder, uint, 0664);
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 static int line_threshold = 90;
-MODULE_PARM_DESC(vsync_enter_line_max, "\n vsync_enter_line_max\n");
-module_param(vsync_enter_line_max, uint, 0664);
-MODULE_PARM_DESC(vsync_exit_line_max, "\n vsync_exit_line_max\n");
-module_param(vsync_exit_line_max, uint, 0664);
+module_param_named(osd_vsync_enter_line_max, vsync_enter_line_max, uint, 0664);
+
+module_param_named(osd_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
+
 MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
 module_param(line_threshold, uint, 0664);
 

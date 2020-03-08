@@ -74,9 +74,8 @@ static inline u32 dur2pts(u32 duration)
 
 #define DUR2PTS_RM(x) ((x) & 0xf)
 
-MODULE_DESCRIPTION("pass a frame of amlogic video codec device  to user in style of v4l2");
-MODULE_AUTHOR("amlogic-sh");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("amlogic-sh");
+//MODULE_LICENSE("GPL");
 /* static u32 vpts_remainder; */
 static unsigned int video_nr_base = 10;
 static unsigned int video_nr_base_second = 23;
@@ -968,7 +967,7 @@ free_dev:
  *will succeed. This is limited to the maximum number of devices that
  *videodev supports, which is equal to VIDEO_NUM_DEVICES.
  */
-static int __init amlvideo_init(void)
+int __init amlvideo_init(void)
 {
 	int ret = 0, i;
 
@@ -1005,11 +1004,13 @@ static int __init amlvideo_init(void)
 	return ret;
 }
 
-static void __exit amlvideo_exit(void)
+void __exit amlvideo_exit(void)
 {
 	/*vf_unreg_receiver(&video_vf_recv);*/
 	amlvideo_release();
 }
 
+#ifndef MODULE
 module_init(amlvideo_init);
 module_exit(amlvideo_exit);
+#endif

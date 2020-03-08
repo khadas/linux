@@ -146,7 +146,7 @@ static struct i2c_driver aml_bl_extern_i2c_driver = {
 	},
 };
 
-static int __init aml_bl_extern_i2c_init(void)
+int __init aml_bl_extern_i2c_init(void)
 {
 	int ret;
 
@@ -161,15 +161,17 @@ static int __init aml_bl_extern_i2c_init(void)
 	return ret;
 }
 
-static void __exit aml_bl_extern_i2c_exit(void)
+void __exit aml_bl_extern_i2c_exit(void)
 {
 	i2c_del_driver(&aml_bl_extern_i2c_driver);
 }
 
+#ifndef MODULE
 module_init(aml_bl_extern_i2c_init);
 module_exit(aml_bl_extern_i2c_exit);
+#endif
 
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("bl extern driver");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("AMLOGIC");
+//MODULE_DESCRIPTION("bl extern driver");
+//MODULE_LICENSE("GPL");
 

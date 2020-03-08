@@ -2634,6 +2634,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	return 0;
 }
 
+#ifndef MODULE
 static int __init phlock_phase_config(char *str)
 {
 	unsigned char *ptr = str;
@@ -2647,6 +2648,7 @@ static int __init phlock_phase_config(char *str)
 	return 0;
 }
 __setup("video_reverse=", phlock_phase_config);
+#endif
 
 /*video lock end*/
 

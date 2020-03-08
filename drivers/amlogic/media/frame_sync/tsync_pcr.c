@@ -139,8 +139,8 @@ static int tsync_pcr_vpause_flag;
 static int tsync_pcr_apause_flag;
 static int tsync_pcr_vstart_flag;
 static int tsync_pcr_astart_flag;
-static u8 tsync_pcr_inited_flag;
-static u8 tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
+u8 tsync_pcr_inited_flag;
+u8 tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
 static u32 tsync_pcr_freerun_mode;
 
 static s64 tsync_pcr_stream_delta;
@@ -1968,13 +1968,3 @@ void tsync_pcr_exit(void)
 	pr_info("[%s]exit success.\n", __func__);
 }
 EXPORT_SYMBOL(tsync_pcr_exit);
-
-/*
- *module_init(tsync_pcr_init);
- *module_exit(tsync_pcr_exit);
- *
- *MODULE_DESCRIPTION
- *("AMLOGIC time sync management driver of referrence by pcrscr");
- *MODULE_LICENSE("GPL");
- *MODULE_AUTHOR("le yang <le.yang@amlogic.com>");
- */

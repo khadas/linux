@@ -53,7 +53,7 @@ DEFINE_DI_EVENT(dim_pst_get2x);
 #ifdef MARK_HIS
 #undef TRACE_INCLUDE_PATH
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/amlogic/media/di_multi
 #define TRACE_INCLUDE_FILE deinterlace_trace
 #include <trace/define_trace.h>
 #endif

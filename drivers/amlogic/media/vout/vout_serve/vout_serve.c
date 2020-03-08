@@ -988,19 +988,22 @@ static struct platform_driver vout_driver = {
 	},
 };
 
-static int __init vout_init_module(void)
+int __init vout_init_module(void)
 {
 	return platform_driver_register(&vout_driver);
 }
 
-static __exit void vout_exit_module(void)
+__exit void vout_exit_module(void)
 {
 	platform_driver_unregister(&vout_driver);
 }
 
+#ifndef MODULE
 subsys_initcall_sync(vout_init_module);
 module_exit(vout_exit_module);
+#endif
 
+#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1091,7 +1094,8 @@ static int __init get_cvbs_mode(char *str)
 	return 0;
 }
 __setup("cvbsmode=", get_cvbs_mode);
+#endif
 
-MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
-MODULE_DESCRIPTION("VOUT Server Module");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
+//MODULE_DESCRIPTION("VOUT Server Module");
+//MODULE_LICENSE("GPL");

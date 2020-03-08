@@ -28,7 +28,7 @@ unsigned char get_meson_cpu_version(int level)
 }
 EXPORT_SYMBOL(get_meson_cpu_version);
 
-static int __init meson_cpu_version_init(void)
+int __init meson_cpu_version_init(void)
 {
 	struct device_node *np;
 	unsigned int socinfo;
@@ -69,13 +69,19 @@ static int __init meson_cpu_version_init(void)
 	);
 	return 0;
 }
-early_initcall(meson_cpu_version_init);
 
-static void __exit meson_cpu_version_exit(void)
+#ifndef MODULE
+early_initcall(meson_cpu_version_init);
+#endif
+
+void __exit meson_cpu_version_exit(void)
 {
 }
-module_exit(meson_cpu_version_exit);
 
-MODULE_AUTHOR("Jianxin Pan<jianxin.pan@amlogic.com>");
-MODULE_DESCRIPTION("cpu version driver");
-MODULE_LICENSE("GPL");
+#ifndef MODULE
+module_exit(meson_cpu_version_exit);
+#endif
+
+//MODULE_AUTHOR("Jianxin Pan<jianxin.pan@amlogic.com>");
+//MODULE_DESCRIPTION("cpu version driver");
+//MODULE_LICENSE("GPL");

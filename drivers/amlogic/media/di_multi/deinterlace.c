@@ -74,6 +74,13 @@
 #endif
 #define ENABLE_SPIN_LOCK_ALWAYS
 
+#undef module_param
+#define module_param(x...)
+#undef module_param_named
+#define module_param_named(x...)
+#undef module_param_array
+#define module_param_array(x...)
+
 static DEFINE_SPINLOCK(di_lock2);
 
 #define di_lock_irqfiq_save(irq_flag) \
@@ -8182,7 +8189,7 @@ int dim_seq_file_module_para_di(struct seq_file *seq)
 }
 
 #ifdef MARK_HIS /*move to di_sys.c*/
-MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("4.0.0");
+//MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("4.0.0");
 #endif

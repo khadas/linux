@@ -356,7 +356,7 @@ static int ldim_pwm_vs_update(void)
 }
 
 #define EXT_LEN_MAX   500
-static void ldim_dev_init_table_dynamic_size_print(struct ldim_dev_config_s
+void ldim_dev_init_table_dynamic_size_print(struct ldim_dev_config_s
 						   *econf, int flag)
 {
 	int i, j, k, max_len;
@@ -436,7 +436,7 @@ init_table_dynamic_print_next:
 	kfree(str);
 }
 
-static void ldim_dev_init_table_fixed_size_print(struct ldim_dev_config_s
+void ldim_dev_init_table_fixed_size_print(struct ldim_dev_config_s
 						 *econf, int flag)
 {
 	int i, j, k, max_len;
@@ -755,7 +755,7 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 	return ret;
 }
 
-static int ldim_dev_init_table_dynamic_size_load_dts(struct device_node
+int ldim_dev_init_table_dynamic_size_load_dts(struct device_node
 						     *of_node,
 						     struct ldim_dev_config_s
 						     *ldconf, int flag)
@@ -842,9 +842,9 @@ init_table_dynamic_dts_next:
 	return 0;
 }
 
-static int ldim_dev_init_table_fixed_size_load_dts(struct device_node *of_node,
-						   struct ldim_dev_config_s
-						   *ldconf, int flag)
+int ldim_dev_init_table_fixed_size_load_dts(struct device_node *of_node,
+					    struct ldim_dev_config_s *ldconf,
+					    int flag)
 {
 	unsigned char cmd_size;
 	int i = 0, j, val, max_len, step = 0, ret = 0;
@@ -1790,7 +1790,7 @@ static struct platform_driver ldim_dev_platform_driver = {
 	.remove  = __exit_p(ldim_dev_remove),
 };
 
-static int __init ldim_dev_init(void)
+int __init ldim_dev_init(void)
 {
 	if (platform_driver_register(&ldim_dev_platform_driver)) {
 		LDIMPR("failed to register ldim_dev driver module\n");
@@ -1799,15 +1799,17 @@ static int __init ldim_dev_init(void)
 	return 0;
 }
 
-static void __exit ldim_dev_exit(void)
+void __exit ldim_dev_exit(void)
 {
 	platform_driver_unregister(&ldim_dev_platform_driver);
 }
 
+#ifndef MODULE
 late_initcall(ldim_dev_init);
 module_exit(ldim_dev_exit);
+#endif
 
-MODULE_DESCRIPTION("LDIM device Driver for LCD Backlight");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Amlogic, Inc.");
+//MODULE_DESCRIPTION("LDIM device Driver for LCD Backlight");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Amlogic, Inc.");
 

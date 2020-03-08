@@ -192,7 +192,6 @@ struct class_attribute class_CVBS_attr_wss = __ATTR(wss, 0644,
 
 static void cvbs_config_vdac(unsigned int flag, unsigned int cfg);
 static void cvbs_cntl_output(unsigned int open);
-static void cvbs_performance_config(unsigned int index);
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
 static void cvbs_performance_enhancement(enum cvbs_mode_e mode);
 #endif
@@ -265,10 +264,12 @@ static void cvbs_cntl_output(unsigned int open)
 
 /* 0xff for none config from uboot */
 static unsigned int cvbs_performance_index = 0xff;
+#ifndef MODULE
 static void cvbs_performance_config(unsigned int index)
 {
 	cvbs_performance_index = index;
 }
+#endif
 
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
 static void cvbs_performance_enhancement(enum cvbs_mode_e mode)
@@ -1622,7 +1623,7 @@ static struct platform_driver cvbsout_driver = {
 	},
 };
 
-static int __init cvbs_init_module(void)
+int __init cvbs_init_module(void)
 {
 	/* cvbs_log_info("%s module init\n", __func__); */
 	if (platform_driver_register(&cvbsout_driver)) {
@@ -1632,12 +1633,13 @@ static int __init cvbs_init_module(void)
 	return 0;
 }
 
-static __exit void cvbs_exit_module(void)
+__exit void cvbs_exit_module(void)
 {
 	/* cvbs_log_info("%s module exit\n", __func__); */
 	platform_driver_unregister(&cvbsout_driver);
 }
 
+#ifndef MODULE
 static int __init vdac_config_bootargs_setup(char *line)
 {
 	unsigned long cfg = 0x0;
@@ -1662,10 +1664,13 @@ static int __init cvbs_performance_setup(char *line)
 	return 0;
 }
 __setup("cvbsdrv=", cvbs_performance_setup);
+#endif
 
+#ifndef MODULE
 subsys_initcall(cvbs_init_module);
 module_exit(cvbs_exit_module);
+#endif
 
-MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
-MODULE_DESCRIPTION("TV Output Module");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
+//MODULE_DESCRIPTION("TV Output Module");
+//MODULE_LICENSE("GPL");

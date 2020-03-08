@@ -2,22 +2,21 @@
 # AMLOGIC VE & CM.
 #
 
-obj-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += am_vecm.o
-am_vecm-objs := amve.o
-am_vecm-objs += amcm.o
-am_vecm-objs += amcsc.o
-am_vecm-objs += amcsc_pip.o
-am_vecm-objs += amvecm.o
-am_vecm-objs += keystone_correction.o
-am_vecm-objs += bitdepth.o
-am_vecm-objs += set_hdr2_v0.o
-am_vecm-objs += dnlp_cal.o
-am_vecm-objs += cm2_adj.o
-am_vecm-objs += pattern_detection.o
-am_vecm-objs += vlock.o
-am_vecm-objs += hdr/am_hdr10_plus.o
-am_vecm-objs += local_contrast.o
-am_vecm-objs += amvecm_drm.o
-am_vecm-objs += hdr/am_hdr10_plus_ootf.o
-am_vecm-objs += hdr/gamut_convert.o
-am_vecm-objs += hdr/am_hdr10_tm.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amve.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amcm.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amcsc.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amcsc_pip.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amvecm.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/keystone_correction.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/bitdepth.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/set_hdr2_v0.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/dnlp_cal.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/cm2_adj.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/pattern_detection.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/vlock.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr10_plus.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/local_contrast.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amvecm_drm.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr10_plus_ootf.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/gamut_convert.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr10_tm.o

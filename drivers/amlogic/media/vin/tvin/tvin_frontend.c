@@ -148,7 +148,7 @@ static ssize_t frontend_names_show(struct class *cls,
 
 static CLASS_ATTR_RO(frontend_names);
 
-static int __init tvin_common_init(void)
+int __init tvin_common_init(void)
 {
 	int ret = 0;
 
@@ -162,12 +162,16 @@ static int __init tvin_common_init(void)
 	return ret;
 }
 
-static void __exit tvin_common_exit(void)
+void __exit tvin_common_exit(void)
 {
 	class_remove_file(tvcom_clsp, &class_attr_frontend_names);
 	class_destroy(tvcom_clsp);
 }
+
+#ifndef MODULE
 module_init(tvin_common_init);
 module_exit(tvin_common_exit);
-MODULE_LICENSE("GPL");
+#endif
+
+//MODULE_LICENSE("GPL");
 

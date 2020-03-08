@@ -1239,8 +1239,7 @@ struct platform_driver ppmgr_drv = {
 	}
 };
 
-static int __init
-ppmgr_init_module(void)
+int __init ppmgr_init_module(void)
 {
 	int err;
 
@@ -1253,19 +1252,20 @@ ppmgr_init_module(void)
 	return err;
 }
 
-static void __exit
-ppmgr_remove_module(void)
+void __exit ppmgr_remove_module(void)
 {
 	platform_device_put(ppmgr_dev0);
 	platform_driver_unregister(&ppmgr_drv);
 	amlog_level(LOG_LEVEL_HIGH, "ppmgr module removed.\n");
 }
 
+#ifndef MODULE
 module_init(ppmgr_init_module);
 module_exit(ppmgr_remove_module);
+#endif
 
 RESERVEDMEM_OF_DECLARE(ppmgr, "amlogic, idev-mem", ppmgr_mem_setup);
-MODULE_DESCRIPTION("AMLOGIC  ppmgr driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("aml-sh <kasin.li@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC  ppmgr driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("aml-sh <kasin.li@amlogic.com>");
 

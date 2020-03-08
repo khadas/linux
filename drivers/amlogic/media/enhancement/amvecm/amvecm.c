@@ -225,6 +225,7 @@ static int wb_init_bypass_coef[24] = {
 	0, 0, 0  /* mode, right_shift, clip_en */
 };
 
+#ifndef MODULE
 /* vpp brightness/contrast/saturation/hue */
 static int __init amvecm_load_pq_val(char *str)
 {
@@ -260,6 +261,7 @@ static int __init amvecm_load_pq_val(char *str)
 	return 0;
 }
 __setup("pq=", amvecm_load_pq_val);
+#endif
 
 static int amvecm_set_contrast2(int val)
 {
@@ -3730,8 +3732,11 @@ static ssize_t set_hdr_289lut_store(struct class *cls,
 	hdr289lut = kmalloc(289 * sizeof(unsigned short), GFP_KERNEL);
 
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
-	if (!buf_orig)
+	if (!buf_orig) {
+		kfree(buf_orig);
 		return -ENOMEM;
+	}
+
 	ps = buf_orig;
 	strcat(deliml, delim2);
 	while (1) {
@@ -4125,8 +4130,11 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 		return 0;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	if (!buf_orig)
+	if (!buf_orig) {
+		kfree(stemp);
 		return -ENOMEM;
+	}
+
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!strncmp(parm[0], "hdr_dbg", 7)) {
@@ -6704,8 +6712,10 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		return 0;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	if (!buf_orig)
+	if (!buf_orig) {
+		kfree(stemp);
 		return -ENOMEM;
+	}
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!strcmp(parm[0], "lc")) {
@@ -7769,7 +7779,7 @@ static struct platform_driver aml_vecm_driver = {
 
 };
 
-static int __init aml_vecm_init(void)
+int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
@@ -7783,17 +7793,19 @@ static int __init aml_vecm_init(void)
 	return 0;
 }
 
-static void __exit aml_vecm_exit(void)
+void __exit aml_vecm_exit(void)
 {
 	pr_info("%s:module exit\n", __func__);
 	/*iounmap(amvecm_hiu_reg_base);*/
 	platform_driver_unregister(&aml_vecm_driver);
 }
 
+#ifndef MODULE
 module_init(aml_vecm_init);
 module_exit(aml_vecm_exit);
+#endif
 
-MODULE_VERSION(AMVECM_VER);
-MODULE_DESCRIPTION("AMLOGIC amvecm driver");
-MODULE_LICENSE("GPL");
+//MODULE_VERSION(AMVECM_VER);
+//MODULE_DESCRIPTION("AMLOGIC amvecm driver");
+//MODULE_LICENSE("GPL");
 

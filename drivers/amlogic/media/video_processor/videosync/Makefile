@@ -1,3 +1,3 @@
-asflags-y=-mfloat-abi=softfp -mfpu=neon
+asflags-y += -mfloat-abi=softfp -mfpu=neon
 
-obj-$(CONFIG_AMLOGIC_VIDEOSYNC) += videosync.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VIDEOSYNC) += video_processor/videosync/videosync.o

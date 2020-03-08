@@ -229,5 +229,5 @@ const char *tvin_trans_force_range_str(enum tvin_force_color_range_e
 }
 EXPORT_SYMBOL(tvin_trans_force_range_str);
 
-MODULE_LICENSE("GPL");
+//MODULE_LICENSE("GPL");
 

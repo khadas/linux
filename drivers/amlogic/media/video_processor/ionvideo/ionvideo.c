@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#undef DEBUG
 #define DEBUG
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -1394,7 +1395,7 @@ static struct platform_driver ionvideo_drv = {
 	}
 };
 
-static int __init ionvideo_init(void)
+int __init ionvideo_init(void)
 {
 	if (platform_driver_register(&ionvideo_drv)) {
 		pr_err("Failed to register ionvideo driver\n");
@@ -1403,15 +1404,17 @@ static int __init ionvideo_init(void)
 	return 0;
 }
 
-static void __exit ionvideo_exit(void)
+void __exit ionvideo_exit(void)
 {
 	platform_driver_unregister(&ionvideo_drv);
 }
 
-MODULE_DESCRIPTION("Video Technology Magazine Ion Video Capture Board");
-MODULE_AUTHOR("Amlogic, Shuai Cao<shuai.cao@amlogic.com>");
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(IONVIDEO_VERSION);
+//MODULE_DESCRIPTION("Video Technology Magazine Ion Video Capture Board");
+//MODULE_AUTHOR("Amlogic, Shuai Cao<shuai.cao@amlogic.com>");
+//MODULE_LICENSE("Dual BSD/GPL");
+//MODULE_VERSION(IONVIDEO_VERSION);
 
+#ifndef MODULE
 module_init(ionvideo_init);
 module_exit(ionvideo_exit);
+#endif

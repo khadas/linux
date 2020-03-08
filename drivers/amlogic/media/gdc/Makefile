@@ -1,17 +1,11 @@
-MODULE_NAME := gdc
-FW_SRC := src/fw_lib/acamera_gdc.c \
-	src/platform/system_gdc_io.c \
-	app/gdc_main.c \
-	app/gdc_module.c \
-	app/gdc_dmabuf.c \
-	app/gdc_wq.c
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/src/fw_lib/acamera_gdc.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/src/platform/system_gdc_io.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/app/gdc_main.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/app/gdc_module.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/app/gdc_dmabuf.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_GDC) += gdc/app/gdc_wq.o
 
-FW_SRC_OBJ := $(FW_SRC:.c=.o)
-
-obj-$(CONFIG_AMLOGIC_MEDIA_GDC) += $(MODULE_NAME).o
-$(MODULE_NAME)-objs := $(FW_SRC_OBJ)
-
-PWD=$(srctree)/$(src)
+PWD=$(srctree)/drivers/amlogic/media/gdc
 ccflags-y +=-I$(PWD)/app -I$(PWD)/inc
 ccflags-y +=-I$(PWD)/inc/api -I$(PWD)/inc/gdc -I$(PWD)/inc/sys
 ccflags-y +=-I$(PWD)/src/platform -I$(PWD)/src/fw_lib

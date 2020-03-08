@@ -2071,7 +2071,7 @@ static const struct file_operations tsync_fops = {
 #endif
 };
 
-static int __init tsync_module_init(void)
+int __init tsync_module_init(void)
 {
 	int r;
 
@@ -2123,7 +2123,7 @@ err2:
 	return 0;
 }
 
-static void __exit tsync_module_exit(void)
+void __exit tsync_module_exit(void)
 {
 		del_timer_sync(&tsync_pcr_recover_timer);
 	device_destroy(&tsync_class, MKDEV(TSYNC_MAJOR, 0));
@@ -2131,10 +2131,13 @@ static void __exit tsync_module_exit(void)
 	class_unregister(&tsync_class);
 }
 
+#ifndef MODULE
 module_init(tsync_module_init);
 module_exit(tsync_module_exit);
+#endif
+
 MODULE_PARM_DESC(is_tunnel_mode, "\n is_tunnel_mode\n");
 module_param(is_tunnel_mode, uint, 0664);
-MODULE_DESCRIPTION("AMLOGIC time sync management driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC time sync management driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

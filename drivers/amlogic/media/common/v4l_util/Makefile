@@ -2,4 +2,4 @@
 # Makefile for V4L UTIL
 #
 
-obj-$(CONFIG_AMLOGIC_VIDEOBUF_RESOURCE)	+= videobuf-res.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VIDEOBUF_RESOURCE) += common/v4l_util/videobuf-res.o

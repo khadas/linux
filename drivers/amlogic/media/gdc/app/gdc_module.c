@@ -2086,6 +2086,20 @@ static struct platform_driver gdc_platform_driver = {
 	.remove	= gdc_platform_remove,
 };
 
-module_platform_driver(gdc_platform_driver);
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Amlogic Multimedia");
+int __init gdc_driver_init(void)
+{
+	return platform_driver_register(&gdc_platform_driver);
+}
+
+void gdc_driver_exit(void)
+{
+	platform_driver_unregister(&gdc_platform_driver);
+}
+
+#ifndef MODULE
+module_init(gdc_driver_init);
+module_exit(gdc_driver_exit);
+#endif
+
+//MODULE_LICENSE("GPL v2");
+//MODULE_AUTHOR("Amlogic Multimedia");

@@ -2209,5 +2209,5 @@ const unsigned char cvd_yc_reg_0x18_0x1f[TVIN_SIG_FMT_CVBS_NTSC_50 -
 };
 EXPORT_SYMBOL(cvd_yc_reg_0x18_0x1f);
 
-MODULE_LICENSE("GPL");
+//MODULE_LICENSE("GPL");
 

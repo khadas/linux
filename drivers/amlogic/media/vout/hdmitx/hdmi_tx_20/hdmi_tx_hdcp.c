@@ -131,7 +131,7 @@ int hdmitx_hdcp_init(void)
 	return 0;
 }
 
-static void __exit hdmitx_hdcp_exit(void)
+void __exit hdmitx_hdcp_exit(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 

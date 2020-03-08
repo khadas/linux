@@ -3512,6 +3512,7 @@ static inline int install_osd_reverse_info(struct osd_info_s *init_osd_info,
 	return 0;
 }
 
+#ifndef MODULE
 static int __init osd_info_setup(char *str)
 {
 	char	*ptr = str;
@@ -3544,6 +3545,8 @@ static int __init osd_info_setup(char *str)
 }
 
 __setup("osd_reverse=", osd_info_setup);
+#endif
+
 static struct device_attribute osd_attrs[] = {
 	__ATTR(scale, 0664,
 	       show_scale, store_scale),
@@ -4586,7 +4589,7 @@ static struct platform_driver osd_driver = {
 	},
 };
 
-static int __init osd_init_module(void)
+int __init osd_init_module(void)
 {
 	char *option;
 	int r;
@@ -4605,14 +4608,16 @@ static int __init osd_init_module(void)
 	return 0;
 }
 
-static void __exit osd_exit_module(void)
+void __exit osd_exit_module(void)
 {
 	platform_driver_unregister(&osd_driver);
 }
 
+#ifndef MODULE
 subsys_initcall_sync(osd_init_module);
 module_exit(osd_exit_module);
+#endif
 
-MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
-MODULE_DESCRIPTION("OSD Module");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
+//MODULE_DESCRIPTION("OSD Module");
+//MODULE_LICENSE("GPL");

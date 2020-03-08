@@ -35,6 +35,15 @@ endmenu
 
 menu "Amlogic multimedia configuration"
 
+config AMLOGIC_MEDIA_MODULE
+	tristate "Amlgoic Multimedia compile support"
+	default y
+	help
+		media module compile support
+		select y for built-in
+		select m for ko
+		select n for disable
+
 config AMLOGIC_MEDIA_ENABLE
 	bool "Amlgoic Multimedia Support"
 	default n

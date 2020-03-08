@@ -410,7 +410,7 @@ static const struct file_operations configs_fops = {
 #endif
 };
 
-static int __init configs_init_devices(void)
+int __init configs_init_devices(void)
 {
 	int i;
 	int num = sizeof(mediaconfig_nodes) / sizeof(struct mediaconfig_node);
@@ -453,9 +453,12 @@ error1:
 	class_destroy(&media_configs_class);
 	return r;
 }
-module_init(configs_init_devices);
 
-static int __init media_configs_system_init(void)
+#ifndef MODULE
+module_init(configs_init_devices);
+#endif
+
+int __init media_configs_system_init(void)
 {
 	int i;
 	int num = sizeof(mediaconfig_nodes) / sizeof(struct mediaconfig_node);
@@ -480,7 +483,9 @@ static int __init media_configs_system_init(void)
 	return 0;
 }
 
+#ifndef MODULE
 arch_initcall(media_configs_system_init);
-MODULE_DESCRIPTION("AMLOGIC config modules driver");
-MODULE_LICENSE("GPL");
+#endif
+//MODULE_DESCRIPTION("AMLOGIC config modules driver");
+//MODULE_LICENSE("GPL");
 

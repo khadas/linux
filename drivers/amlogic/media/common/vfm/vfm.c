@@ -988,7 +988,7 @@ static const struct file_operations vfm_fops = {
 	.poll = NULL,
 };
 
-static int __init vfm_class_init(void)
+int __init vfm_class_init(void)
 {
 	int error;
 
@@ -1014,15 +1014,17 @@ static int __init vfm_class_init(void)
 	return error;
 }
 
-static void __exit vfm_class_exit(void)
+void __exit vfm_class_exit(void)
 {
 	class_unregister(&vfm_class);
 	unregister_chrdev(VFM_MAJOR, DEV_NAME);
 }
 
+#ifndef MODULE
 fs_initcall(vfm_class_init);
 module_exit(vfm_class_exit);
+#endif
 
-MODULE_DESCRIPTION("Amlogic video frame manager driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Bobby Yang <bo.yang@amlogic.com>");
+//MODULE_DESCRIPTION("Amlogic video frame manager driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Bobby Yang <bo.yang@amlogic.com>");

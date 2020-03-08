@@ -732,7 +732,7 @@ static struct platform_driver aml_vdac_driver = {
 	.shutdown   = amvdac_drv_shutdown,
 };
 
-static int __init aml_vdac_init(void)
+int __init aml_vdac_init(void)
 {
 	s_vdac_data = NULL;
 
@@ -744,14 +744,16 @@ static int __init aml_vdac_init(void)
 	return 0;
 }
 
-static void __exit aml_vdac_exit(void)
+void __exit aml_vdac_exit(void)
 {
 	platform_driver_unregister(&aml_vdac_driver);
 }
 
+#ifndef MODULE
 subsys_initcall(aml_vdac_init);
 module_exit(aml_vdac_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC vdac driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Frank Zhao <frank.zhao@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC vdac driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Frank Zhao <frank.zhao@amlogic.com>");

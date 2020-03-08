@@ -1,2 +1,2 @@
-obj-y += registers/
-obj-y += clk/
+include drivers/amlogic/media/common/arch/registers/Makefile
+include drivers/amlogic/media/common/arch/clk/Makefile

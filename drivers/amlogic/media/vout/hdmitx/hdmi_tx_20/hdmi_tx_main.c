@@ -6215,7 +6215,7 @@ static struct platform_driver amhdmitx_driver = {
 	}
 };
 
-static int  __init amhdmitx_init(void)
+int  __init amhdmitx_init(void)
 {
 	if (init_flag & INIT_FLAG_NOT_LOAD)
 		return 0;
@@ -6223,7 +6223,7 @@ static int  __init amhdmitx_init(void)
 	return platform_driver_register(&amhdmitx_driver);
 }
 
-static void __exit amhdmitx_exit(void)
+void __exit amhdmitx_exit(void)
 {
 	pr_info(SYS "%s...\n", __func__);
 	cancel_delayed_work_sync(&hdmitx_device.work_do_hdcp);
@@ -6231,13 +6231,16 @@ static void __exit amhdmitx_exit(void)
 	platform_driver_unregister(&amhdmitx_driver);
 }
 
+#ifndef MODULE
 subsys_initcall(amhdmitx_init);
 module_exit(amhdmitx_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC HDMI TX driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
+//MODULE_DESCRIPTION("AMLOGIC HDMI TX driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("1.0.0");
 
+#ifndef MODULE
 /* besides characters defined in separator, '\"' are used as separator;
  * and any characters in '\"' will not act as separator
  */
@@ -6381,6 +6384,7 @@ static int __init hdmitx_boot_hdr_priority(char *str)
 }
 
 __setup("hdr_priority=", hdmitx_boot_hdr_priority);
+#endif
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);

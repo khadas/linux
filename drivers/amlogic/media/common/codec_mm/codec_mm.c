@@ -2360,7 +2360,7 @@ static struct platform_driver codec_mm_driver = {
 		}
 };
 
-static int __init codec_mm_module_init(void)
+int __init codec_mm_module_init(void)
 {
 	pr_err("%s\n", __func__);
 
@@ -2372,9 +2372,11 @@ static int __init codec_mm_module_init(void)
 	return 0;
 }
 
+#ifndef MODULE
 arch_initcall(codec_mm_module_init);
-MODULE_DESCRIPTION("AMLOGIC amports mem  driver");
-MODULE_LICENSE("GPL");
+#endif
+//MODULE_DESCRIPTION("AMLOGIC amports mem  driver");
+//MODULE_LICENSE("GPL");
 
 static int codec_mm_reserved_init(struct reserved_mem *rmem, struct device *dev)
 {

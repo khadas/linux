@@ -3585,10 +3585,10 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	vdin_clk_onoff(vdevp, true);
 
 	if (vdevp->irq) {
-		if (!irq_can_set_affinity(vdevp->irq))
-			return -EIO;
+	//	if (!irq_can_set_affinity(vdevp->irq))
+	//		return -EIO;
 		if (cpumask_intersects(&vdinirq_mask, cpu_online_mask))
-			irq_set_affinity(vdevp->irq, &vdinirq_mask);
+			irq_set_affinity_hint(vdevp->irq, &vdinirq_mask);
 	}
 	vdevp->flags &= (~VDIN_FLAG_SUSPEND);
 	pr_info("%s ok.\n", __func__);
@@ -3671,7 +3671,7 @@ static struct platform_driver vdin_driver = {
 
 /* extern int vdin_reg_v4l2(struct vdin_v4l2_ops_s *v4l2_ops); */
 /* extern void vdin_unreg_v4l2(void); */
-static int __init vdin_drv_init(void)
+int __init vdin_drv_init(void)
 {
 	int ret = 0;
 
@@ -3715,7 +3715,7 @@ fail_alloc_cdev_region:
 	return ret;
 }
 
-static void __exit vdin_drv_exit(void)
+void __exit vdin_drv_exit(void)
 {
 	vdin_unreg_v4l2();
 #ifdef DEBUG_SUPPORT
@@ -3756,6 +3756,7 @@ static int __init vdin_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
+#ifndef MODULE
 static int __init vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -3766,14 +3767,17 @@ static int __init vdin_get_video_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
+#endif
 
+#ifndef MODULE
 module_init(vdin_drv_init);
 module_exit(vdin_drv_exit);
+#endif
 
 RESERVEDMEM_OF_DECLARE(vdin, "amlogic, vdin_memory", vdin_mem_setup);
 
-MODULE_VERSION(VDIN_VER);
+//MODULE_VERSION(VDIN_VER);
 
-MODULE_DESCRIPTION("AMLOGIC VDIN Driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Xu Lin <lin.xu@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC VDIN Driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Xu Lin <lin.xu@amlogic.com>");

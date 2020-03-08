@@ -2404,7 +2404,7 @@ static struct platform_driver video_composer_driver = {
 	}
 };
 
-static int __init video_composer_module_init(void)
+int __init video_composer_module_init(void)
 {
 	pr_err("video_composer_module_init_1\n");
 
@@ -2415,15 +2415,17 @@ static int __init video_composer_module_init(void)
 	return 0;
 }
 
-static void __exit video_composer_module_exit(void)
+void __exit video_composer_module_exit(void)
 {
 	platform_driver_unregister(&video_composer_driver);
 }
 
-MODULE_DESCRIPTION("Video Technology Magazine video composer Capture Boad");
-MODULE_AUTHOR("Amlogic, Jintao Xu<jintao.xu@amlogic.com>");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(VIDEO_COMPOSER_VERSION);
+//MODULE_DESCRIPTION("Video Technology Magazine video composer Capture Boad");
+//MODULE_AUTHOR("Amlogic, Jintao Xu<jintao.xu@amlogic.com>");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION(VIDEO_COMPOSER_VERSION);
 
+#ifndef MODULE
 module_init(video_composer_module_init);
 module_exit(video_composer_module_exit);
+#endif

@@ -563,5 +563,5 @@ static void __exit meson_uvm_exit(void)
 
 module_init(meson_uvm_init);
 module_exit(meson_uvm_exit);
-MODULE_DESCRIPTION("AMLOGIC unified video memory management driver");
-MODULE_LICENSE("GPL");
+//MODULE_DESCRIPTION("AMLOGIC unified video memory management driver");
+//MODULE_LICENSE("GPL");

@@ -3370,7 +3370,7 @@ static const struct of_device_id bl_dt_match_table[] = {
 };
 #endif
 
-static void aml_bl_init_status_update(void)
+void aml_bl_init_status_update(void)
 {
 	unsigned int state;
 
@@ -3546,7 +3546,7 @@ static struct platform_driver aml_bl_driver = {
 #endif
 };
 
-static int __init aml_bl_init(void)
+int __init aml_bl_init(void)
 {
 	if (platform_driver_register(&aml_bl_driver)) {
 		BLPR("failed to register bl driver module\n");
@@ -3555,13 +3555,15 @@ static int __init aml_bl_init(void)
 	return 0;
 }
 
-static void __exit aml_bl_exit(void)
+void __exit aml_bl_exit(void)
 {
 	platform_driver_unregister(&aml_bl_driver);
 }
 
+#ifndef MODULE
 late_initcall(aml_bl_init);
 module_exit(aml_bl_exit);
+#endif
 
 static int __init aml_bl_boot_para_setup(char *s)
 {
@@ -3597,6 +3599,6 @@ static int __init aml_bl_level_setup(char *str)
 }
 __setup("bl_level=", aml_bl_level_setup);
 
-MODULE_DESCRIPTION("AML Backlight Driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Amlogic, Inc.");
+//MODULE_DESCRIPTION("AML Backlight Driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Amlogic, Inc.");

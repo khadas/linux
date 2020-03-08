@@ -781,7 +781,7 @@ static struct platform_driver codec_io_platform_driver = {
 		},
 };
 
-static int __init codec_io_init(void)
+int __init codec_io_init(void)
 {
 	int ret;
 
@@ -798,4 +798,6 @@ static int __init codec_io_init(void)
 module_param(regs_cmd_debug, uint, 0664);
 MODULE_PARM_DESC(regs_cmd_debug, "\n register commands sequence debug.\n");
 
+#ifndef MODULE
 arch_initcall_sync(codec_io_init);
+#endif

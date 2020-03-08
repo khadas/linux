@@ -19,6 +19,7 @@
 #ifndef OSD_LOG_H
 #define OSD_LOG_H
 
+#undef DEBUG
 #define DEBUG
 #ifdef DEBUG
 #define  AMLOG   1

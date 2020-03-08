@@ -16,9 +16,9 @@
 #include <linux/ion.h>
 #include "dev_ion.h"
 
-MODULE_DESCRIPTION("AMLOGIC ION driver");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Amlogic SH");
+//MODULE_DESCRIPTION("AMLOGIC ION driver");
+//MODULE_LICENSE("GPL v2");
+//MODULE_AUTHOR("Amlogic SH");
 
 #define DION_ERROR(fmt, args ...)	pr_err("ion_dev: " fmt, ## args)
 #define DION_INFO(fmt, args ...)	pr_info("ion_dev: " fmt, ## args)
@@ -146,15 +146,17 @@ static struct platform_driver ion_driver = {
 	}
 };
 
-static int __init ion_init(void)
+int __init ion_init(void)
 {
 	return platform_driver_register(&ion_driver);
 }
 
-static void __exit ion_exit(void)
+void __exit ion_exit(void)
 {
 	platform_driver_unregister(&ion_driver);
 }
 
+#ifndef MODULE
 fs_initcall(ion_init);
 module_exit(ion_exit);
+#endif

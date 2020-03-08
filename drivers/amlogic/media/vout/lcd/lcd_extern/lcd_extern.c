@@ -2113,7 +2113,7 @@ static struct platform_driver aml_lcd_extern_driver = {
 	},
 };
 
-static int __init aml_lcd_extern_init(void)
+int __init aml_lcd_extern_init(void)
 {
 	int ret;
 
@@ -2128,15 +2128,17 @@ static int __init aml_lcd_extern_init(void)
 	return ret;
 }
 
-static void __exit aml_lcd_extern_exit(void)
+void __exit aml_lcd_extern_exit(void)
 {
 	platform_driver_unregister(&aml_lcd_extern_driver);
 }
 
+#ifndef MODULE
 late_initcall(aml_lcd_extern_init);
 module_exit(aml_lcd_extern_exit);
+#endif
 
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("LCD extern driver");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("AMLOGIC");
+//MODULE_DESCRIPTION("LCD extern driver");
+//MODULE_LICENSE("GPL");
 

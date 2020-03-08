@@ -1160,7 +1160,7 @@ static struct platform_driver di_driver = {
 	}
 };
 
-static int __init dim_module_init(void)
+int __init dim_module_init(void)
 {
 	int ret = 0;
 
@@ -1176,16 +1176,18 @@ static int __init dim_module_init(void)
 	return 0;
 }
 
-static void __exit dim_module_exit(void)
+void __exit dim_module_exit(void)
 {
 	platform_driver_unregister(&di_driver);
 	PR_INF("%s: ok.\n", __func__);
 }
 
+#ifndef MODULE
 module_init(dim_module_init);
 module_exit(dim_module_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC MULTI-DI driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("4.0.0");
+//MODULE_DESCRIPTION("AMLOGIC MULTI-DI driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("4.0.0");
 

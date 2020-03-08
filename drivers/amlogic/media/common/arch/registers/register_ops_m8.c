@@ -33,7 +33,7 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 	{IO_DMC_BUS, 0, codecio_read_dmcbus, codecio_write_dmcbus},
 };
 
-static int __init vdec_reg_ops_init(void)
+int __init vdec_reg_ops_init(void)
 {
 	int  i = 0;
 
@@ -86,4 +86,6 @@ static int __init vdec_reg_ops_init(void)
 	return 0;
 }
 
+#ifndef MODULE
 arch_initcall_sync(vdec_reg_ops_init);
+#endif

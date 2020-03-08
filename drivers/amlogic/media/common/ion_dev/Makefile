@@ -7,6 +7,4 @@
 #
 ccflags-y += -I$(srctree)/drivers/staging/android
 
-amlIonDr-objs := dev_ion.o
-
-obj-$(CONFIG_AMLOGIC_ION) += amlIonDr.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_ION) += common/ion_dev/dev_ion.o

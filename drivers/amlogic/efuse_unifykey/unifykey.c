@@ -47,6 +47,7 @@ void  *get_ukdev(void)
 {
 	return ukdev_global;
 }
+EXPORT_SYMBOL(get_ukdev);
 
 static struct key_item_t *uk_find_item_by_name(struct list_head *list,
 					       char *name)

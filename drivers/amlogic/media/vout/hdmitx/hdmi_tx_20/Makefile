@@ -1,7 +1,9 @@
-obj-$(CONFIG_AMLOGIC_HDMITX)		+= hdmitx20.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_main.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_video.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_audio.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_edid.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_audio.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_hdcp.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hdmi_tx_scdc.o
 
-hdmitx20-objs := hdmi_tx_main.o hdmi_tx_video.o hdmi_tx_audio.o hdmi_tx_edid.o \
-		 hdmi_tx_audio.o hdmi_tx_hdcp.o hdmi_tx_scdc.o \
-
-obj-$(CONFIG_AMLOGIC_HDMITX) += hw/
-
+include drivers/amlogic/media/vout/hdmitx/hdmi_tx_20/hw/Makefile

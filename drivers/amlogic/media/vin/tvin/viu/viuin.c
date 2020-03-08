@@ -487,7 +487,7 @@ static struct platform_driver viuin_driver = {
 
 static struct platform_device *viuin_device;
 
-static int __init viuin_init_module(void)
+int __init viuin_init_module(void)
 {
 	pr_info("[viuin..]%s viuin module init\n", __func__);
 	viuin_device = platform_device_alloc(DEVICE_NAME, 0);
@@ -513,15 +513,18 @@ static int __init viuin_init_module(void)
 	return 0;
 }
 
-static void __exit viuin_exit_module(void)
+void __exit viuin_exit_module(void)
 {
 	pr_info("[viuin..]%s viuin module remove.\n", __func__);
 	platform_driver_unregister(&viuin_driver);
 	platform_device_unregister(viuin_device);
 }
 
+#ifndef MODULE
 module_init(viuin_init_module);
 module_exit(viuin_exit_module);
-MODULE_DESCRIPTION("AMLOGIC viu input driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("3.0.0");
+#endif
+
+//MODULE_DESCRIPTION("AMLOGIC viu input driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("3.0.0");

@@ -1085,7 +1085,7 @@ static void lcd_vsync_irq_remove(void)
 	}
 }
 
-static void lcd_init_vout(void)
+void lcd_init_vout(void)
 {
 	switch (lcd_driver->lcd_mode) {
 #ifdef CONFIG_AMLOGIC_LCD_TV
@@ -1540,7 +1540,7 @@ static struct platform_driver lcd_platform_driver = {
 	},
 };
 
-static int __init lcd_init(void)
+int __init lcd_init(void)
 {
 	if (platform_driver_register(&lcd_platform_driver)) {
 		LCDERR("failed to register lcd driver module\n");
@@ -1550,14 +1550,17 @@ static int __init lcd_init(void)
 	return 0;
 }
 
-static void __exit lcd_exit(void)
+void __exit lcd_exit(void)
 {
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
+#ifndef MODULE
 subsys_initcall(lcd_init);
 module_exit(lcd_exit);
+#endif
 
+#ifndef MODULE
 static int __init lcd_panel_type_para_setup(char *str)
 {
 	if (str)
@@ -1567,7 +1570,8 @@ static int __init lcd_panel_type_para_setup(char *str)
 	return 0;
 }
 __setup("panel_type=", lcd_panel_type_para_setup);
+#endif
 
-MODULE_DESCRIPTION("Meson LCD Panel Driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Amlogic, Inc.");
+//MODULE_DESCRIPTION("Meson LCD Panel Driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Amlogic, Inc.");

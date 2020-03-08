@@ -1,2 +1,2 @@
-obj-y	+= hdmi_tx_hw.o reg_ops.o enc_cfg_hw.o hdmi_tx_ddc.o checksha.o
-obj-y	+= hw_gxbb.o hw_gxtvbb.o hw_gxl.o hw_txlx.o hw_clk.o hw_g12a.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_hw.o vout/hdmitx/hdmi_tx_20/hw/reg_ops.o vout/hdmitx/hdmi_tx_20/hw/enc_cfg_hw.o vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_ddc.o vout/hdmitx/hdmi_tx_20/hw/checksha.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hw_gxbb.o vout/hdmitx/hdmi_tx_20/hw/hw_gxtvbb.o vout/hdmitx/hdmi_tx_20/hw/hw_gxl.o vout/hdmitx/hdmi_tx_20/hw/hw_txlx.o vout/hdmitx/hdmi_tx_20/hw/hw_clk.o vout/hdmitx/hdmi_tx_20/hw/hw_g12a.o

@@ -16,6 +16,7 @@
  *
  */
 
+#undef DEBUG
 #define DEBUG
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -1827,7 +1828,7 @@ static const struct file_operations v4lvideo_fops = {
 	.poll = NULL,
 };
 
-static int __init v4lvideo_init(void)
+int __init v4lvideo_init(void)
 {
 	int ret = -1, i;
 	struct device *devp;
@@ -1880,7 +1881,7 @@ error1:
 	return ret;
 }
 
-static void __exit v4lvideo_exit(void)
+void __exit v4lvideo_exit(void)
 {
 	v4lvideo_v4l2_release();
 	device_destroy(&v4lvideo_class, MKDEV(V4LVIDEO_MAJOR, 0));
@@ -1888,10 +1889,12 @@ static void __exit v4lvideo_exit(void)
 	class_unregister(&v4lvideo_class);
 }
 
-MODULE_DESCRIPTION("Video Technology Magazine V4l Video Capture Board");
-MODULE_AUTHOR("Amlogic, Jintao Xu<jintao.xu@amlogic.com>");
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(V4LVIDEO_VERSION);
+//MODULE_DESCRIPTION("Video Technology Magazine V4l Video Capture Board");
+//MODULE_AUTHOR("Amlogic, Jintao Xu<jintao.xu@amlogic.com>");
+//MODULE_LICENSE("Dual BSD/GPL");
+//MODULE_VERSION(V4LVIDEO_VERSION);
 
+#ifndef MODULE
 module_init(v4lvideo_init);
 module_exit(v4lvideo_exit);
+#endif

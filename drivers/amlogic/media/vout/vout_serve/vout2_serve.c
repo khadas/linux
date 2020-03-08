@@ -881,19 +881,21 @@ static struct platform_driver vout2_driver = {
 	},
 };
 
-static int __init vout2_init_module(void)
+int __init vout2_init_module(void)
 {
 	return platform_driver_register(&vout2_driver);
 }
 
-static __exit void vout2_exit_module(void)
+__exit void vout2_exit_module(void)
 {
 	platform_driver_unregister(&vout2_driver);
 }
 
+#ifndef MODULE
 module_init(vout2_init_module);
 module_exit(vout2_exit_module);
+#endif
 
-MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
-MODULE_DESCRIPTION("VOUT2 Server Module");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
+//MODULE_DESCRIPTION("VOUT2 Server Module");
+//MODULE_LICENSE("GPL");

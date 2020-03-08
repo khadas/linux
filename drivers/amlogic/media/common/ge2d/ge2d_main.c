@@ -1406,16 +1406,18 @@ static int remove_ge2d_device(void)
 	return  0;
 }
 
-static int __init ge2d_init_module(void)
+int __init ge2d_init_module(void)
 {
 	return platform_driver_register(&ge2d_driver);
 }
 
-static void __exit ge2d_remove_module(void)
+void __exit ge2d_remove_module(void)
 {
 	platform_driver_unregister(&ge2d_driver);
 	ge2d_log_info("%s\n", __func__);
 }
 
+#ifndef MODULE
 module_init(ge2d_init_module);
 module_exit(ge2d_remove_module);
+#endif

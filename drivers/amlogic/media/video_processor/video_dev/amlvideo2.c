@@ -111,9 +111,8 @@ KERNEL_VERSION(\
 
 #define CANVAS_WIDTH_ALIGN 32
 
-MODULE_DESCRIPTION("pass a frame of amlogic video2 codec device  to user in style of v4l2");
-MODULE_AUTHOR("amlogic-sh");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("amlogic-sh");
+//MODULE_LICENSE("GPL");
 static unsigned int video_nr = 11;
 
 static unsigned int debug;
@@ -122,8 +121,7 @@ static unsigned int debug;
 static unsigned int mirror_value;
 
 static unsigned int vid_limit = 32;
-module_param(vid_limit, uint, 0644);
-MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
+module_param_named(video2_vid_limit, vid_limit, uint, 0644);
 
 static unsigned int amlvideo2_dbg_en;
 module_param(amlvideo2_dbg_en, uint, 0664);
@@ -6279,7 +6277,7 @@ static struct platform_driver amlvideo2_drv = {
 .driver = {.name = "amlvideo2", .owner = THIS_MODULE, .of_match_table =
 amlvideo2_dt_match, } };
 
-static int __init amlvideo2_init(void)
+int __init amlvideo2_init(void)
 {
 	/* amlog_level(LOG_LEVEL_HIGH,"amlvideo2_init\n"); */
 	if (platform_driver_register(&amlvideo2_drv)) {
@@ -6290,7 +6288,7 @@ static int __init amlvideo2_init(void)
 	return 0;
 }
 
-static void __exit amlvideo2_exit(void)
+void __exit amlvideo2_exit(void)
 {
 	platform_driver_unregister(&amlvideo2_drv);
 	/* amlog_level(LOG_LEVEL_HIGH,"amlvideo2 module removed.\n"); */
@@ -6298,5 +6296,7 @@ static void __exit amlvideo2_exit(void)
 
 RESERVEDMEM_OF_DECLARE(amlvideo2, "amlogic, amlvideo2_memory",
 		       amlvideo2_mem_setup);
+#ifndef MODULE
 module_init(amlvideo2_init);
 module_exit(amlvideo2_exit);
+#endif

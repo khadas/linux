@@ -56,19 +56,20 @@
 #include "di_pps.h"
 #include "di_pqa.h"
 
-#define CREATE_TRACE_POINTS
-#include "deinterlace_trace.h"
-
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 /*2018-07-18 -----------*/
-
+/*
 #undef TRACE_INCLUDE_PATH
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE deinterlace_trace
 #include <trace/define_trace.h>
+*/
+
+#define CREATE_TRACE_POINTS
+#include "deinterlace_trace.h"
 
 #ifdef DET3D
 #include "detect3d.h"
@@ -744,6 +745,8 @@ store_dbg(struct device *dev,
 	kfree(buf_orig);
 	return count;
 }
+
+#ifndef MODULE
 static int __init di_read_canvas_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -760,6 +763,8 @@ static int __init di_read_canvas_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", di_read_canvas_reverse);
+#endif
+
 static unsigned int di_debug_flag;/* enable rdma even di bypassed */
 static unsigned char *di_log_buf;
 static unsigned int di_log_wr_pos;
@@ -9085,7 +9090,7 @@ static struct platform_driver di_driver = {
 	}
 };
 
-static int __init di_module_init(void)
+int __init di_module_init(void)
 {
 	int ret = 0;
 
@@ -9120,7 +9125,7 @@ fail_alloc_cdev_region:
 #endif
 }
 
-static void __exit di_module_exit(void)
+void __exit di_module_exit(void)
 {
 #if 0	/*move to remove*/
 	class_destroy(di_clsp);
@@ -9130,13 +9135,15 @@ static void __exit di_module_exit(void)
 	platform_driver_unregister(&di_driver);
 }
 
+#ifndef MODULE
 module_init(di_module_init);
 module_exit(di_module_exit);
+#endif
 
 module_param_named(bypass_all, bypass_all, int, 0664);
 module_param_named(bypass_3d, bypass_3d, int, 0664);
 module_param_named(bypass_trick_mode, bypass_trick_mode, int, 0664);
-module_param_named(invert_top_bot, invert_top_bot, int, 0664);
+module_param_named(di_invert_top_bot, invert_top_bot, int, 0664);
 module_param_named(skip_top_bot, skip_top_bot, int, 0664);
 module_param_named(force_width, force_width, int, 0664);
 module_param_named(force_height, force_height, int, 0664);
@@ -9234,8 +9241,8 @@ module_param_named(pldn_dly, pldn_dly, uint, 0644);
 module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
 module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
 module_param_named(bypass_pre, bypass_pre, int, 0664);
-module_param_named(frame_count, frame_count, int, 0664);
+module_param_named(di_frame_count, frame_count, int, 0664);
 #endif
-MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("4.0.0");
+//MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("4.0.0");

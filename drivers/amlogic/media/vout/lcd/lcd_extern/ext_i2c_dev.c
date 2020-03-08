@@ -183,7 +183,7 @@ static struct i2c_driver lcd_extern_i2c_dev_driver = {
 	},
 };
 
-static int __init aml_lcd_extern_i2c_dev_init(void)
+int __init aml_lcd_extern_i2c_dev_init(void)
 {
 	int ret;
 
@@ -201,15 +201,17 @@ static int __init aml_lcd_extern_i2c_dev_init(void)
 	return ret;
 }
 
-static void __exit aml_lcd_extern_i2c_dev_exit(void)
+void __exit aml_lcd_extern_i2c_dev_exit(void)
 {
 	i2c_del_driver(&lcd_extern_i2c_dev_driver);
 }
 
+#ifndef MODULE
 module_init(aml_lcd_extern_i2c_dev_init);
 module_exit(aml_lcd_extern_i2c_dev_exit);
+#endif
 
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("lcd extern i2c device driver");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("AMLOGIC");
+//MODULE_DESCRIPTION("lcd extern i2c device driver");
+//MODULE_LICENSE("GPL");
 

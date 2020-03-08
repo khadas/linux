@@ -1,2 +1,2 @@
-obj-$(CONFIG_AMLOGIC_VPU)	+= vpu.o vpu_reg.o vpu_power_init.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu.o common/vpu/vpu_reg.o common/vpu/vpu_power_init.o
 

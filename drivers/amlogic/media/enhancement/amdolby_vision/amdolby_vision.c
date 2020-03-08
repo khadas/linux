@@ -8652,6 +8652,7 @@ static struct platform_driver aml_amdolby_vision_driver = {
 	.remove = __exit_p(amdolby_vision_remove),
 };
 
+#ifndef MODULE
 static int __init get_dolby_uboot_status(char *str)
 {
 	char uboot_dolby_status[DV_NAME_LEN_MAX] = {0};
@@ -8664,8 +8665,9 @@ static int __init get_dolby_uboot_status(char *str)
 	return 0;
 }
 __setup("dolby_vision_on=", get_dolby_uboot_status);
+#endif
 
-static int __init amdolby_vision_init(void)
+int __init amdolby_vision_init(void)
 {
 	pr_info("%s:module init\n", __func__);
 
@@ -8676,15 +8678,17 @@ static int __init amdolby_vision_init(void)
 	return 0;
 }
 
-static void __exit amdolby_vision_exit(void)
+void __exit amdolby_vision_exit(void)
 {
 	pr_info("%s:module exit\n", __func__);
 	platform_driver_unregister(&aml_amdolby_vision_driver);
 }
 
+#ifndef MODULE
 module_init(amdolby_vision_init);
 module_exit(amdolby_vision_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC amdolby_vision driver");
-MODULE_LICENSE("GPL");
+//MODULE_DESCRIPTION("AMLOGIC amdolby_vision driver");
+//MODULE_LICENSE("GPL");
 

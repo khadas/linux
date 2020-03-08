@@ -353,6 +353,6 @@ void videobuf_res_free(struct videobuf_queue *q,
 }
 EXPORT_SYMBOL_GPL(videobuf_res_free);
 
-MODULE_DESCRIPTION("helper module to manage video4linux resource buffers");
-MODULE_AUTHOR("Amlogic");
-MODULE_LICENSE("GPL");
+//MODULE_DESCRIPTION("helper module to manage video4linux resource buffers");
+//MODULE_AUTHOR("Amlogic");
+//MODULE_LICENSE("GPL");

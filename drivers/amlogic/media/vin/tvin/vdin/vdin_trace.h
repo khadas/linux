@@ -54,7 +54,7 @@ DEFINE_VDIN_EVENT(vdin_afbc);
 #include "vdin_trace.h"
 #undef TRACE_INCLUDE_PATH
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/amlogic/media/vin/tvin/vdin
 #define TRACE_INCLUDE_FILE vdin_trace
 #include <trace/define_trace.h>
 

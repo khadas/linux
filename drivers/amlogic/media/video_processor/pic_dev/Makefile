@@ -2,4 +2,4 @@
 # Makefile for the amlogic picture decoder device driver.
 #
 
-obj-$(CONFIG_AMLOGIC_PIC_DEC) += picdec.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_PIC_DEC) += video_processor/pic_dev/picdec.o

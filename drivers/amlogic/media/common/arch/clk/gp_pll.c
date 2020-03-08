@@ -137,11 +137,13 @@ static int gp_pll_thread(void *data)
 	return 0;
 }
 
-static int __init gp_pll_init(void)
+int __init gp_pll_init(void)
 {
 	kthread_run(gp_pll_thread, NULL, "gp_pll");
 
 	return 0;
 }
 
+#ifndef MODULE
 fs_initcall(gp_pll_init);
+#endif

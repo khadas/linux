@@ -1,1 +1,1 @@
-obj-$(CONFIG_AMLOGIC_MEDIA_TVIN)	+=	tvin/
+include drivers/amlogic/media/vin/tvin/Makefile

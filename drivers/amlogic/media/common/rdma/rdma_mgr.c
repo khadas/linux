@@ -1433,19 +1433,21 @@ static struct platform_driver rdma_driver = {
 	},
 };
 
-static int __init amrdma_init(void)
+int __init amrdma_init(void)
 {
 	return platform_driver_probe(&rdma_driver, rdma_probe);
 }
 
-static void __exit amrdma_exit(void)
+void __exit amrdma_exit(void)
 {
 	platform_driver_unregister(&rdma_driver);
 }
 
+#ifndef MODULE
 subsys_initcall(amrdma_init);
 module_exit(amrdma_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC RDMA management driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Rain Zhang <rain.zhang@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC RDMA management driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Rain Zhang <rain.zhang@amlogic.com>");

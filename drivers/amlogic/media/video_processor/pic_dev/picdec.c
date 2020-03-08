@@ -65,6 +65,7 @@ do {					\
 		pr_info(fmt, ## arg);	\
 } while (0)
 
+#undef DEBUG
 #define DEBUG
 #ifdef DEBUG
 #define  AMLOG   1
@@ -2138,7 +2139,7 @@ static struct mconfig jpeg_configs[] = {
 
 static struct mconfig_node jpeg_node;
 
-static int __init picdec_init_module(void)
+int __init picdec_init_module(void)
 {
 	int err;
 
@@ -2153,17 +2154,19 @@ static int __init picdec_init_module(void)
 	return err;
 }
 
-static void __exit picdec_remove_module(void)
+void __exit picdec_remove_module(void)
 {
 	platform_driver_unregister(&picdec_drv);
 	amlog_level(LOG_LEVEL_HIGH, "picdec module removed.\n");
 }
 
+#ifndef MODULE
 module_init(picdec_init_module);
 module_exit(picdec_remove_module);
+#endif
 
 RESERVEDMEM_OF_DECLARE(picdec, "amlogic, picdec_memory", picdec_mem_setup);
 
-MODULE_DESCRIPTION("Amlogic picture decoder driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Simon Zheng <simon.zheng@amlogic.com>");
+//MODULE_DESCRIPTION("Amlogic picture decoder driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Simon Zheng <simon.zheng@amlogic.com>");

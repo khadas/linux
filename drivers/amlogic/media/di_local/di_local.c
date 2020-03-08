@@ -165,8 +165,8 @@ EXPORT_SYMBOL(dil_get_flg);
  * reserved mem for di *
  **************************************/
 
-static int __init rmem_dil_init(struct reserved_mem *rmem,
-				struct device *dev)
+int __init rmem_dil_init(struct reserved_mem *rmem,
+			 struct device *dev)
 {
 	struct dil_dev_s *devp = dev_get_drvdata(dev);
 
@@ -292,8 +292,7 @@ static struct platform_driver dev_driver_tab = {
 
 };
 
-#ifdef MARK_HIS
-int dil_init(void)
+int __init dil_init(void)
 {
 	PR_INF("%s.\n", __func__);
 	if (platform_driver_register(&dev_driver_tab)) {
@@ -304,35 +303,17 @@ int dil_init(void)
 	return 0;
 }
 
-void dil_exit(void)
-{
-	platform_driver_unregister(&dev_driver_tab);
-	PR_INF("%s: ok.\n", __func__);
-}
-#else
-static int __init dil_init(void)
-{
-	PR_INF("%s.\n", __func__);
-	if (platform_driver_register(&dev_driver_tab)) {
-		PR_ERR("%s: can't register\n", __func__);
-		return -ENODEV;
-	}
-	PR_INF("%s ok.\n", __func__);
-	return 0;
-}
-
-static void __exit dil_exit(void)
+void __exit dil_exit(void)
 {
 	platform_driver_unregister(&dev_driver_tab);
 	PR_INF("%s: ok.\n", __func__);
 }
 
+#ifndef MODULE
 module_init(dil_init);
 module_exit(dil_exit);
-
-MODULE_DESCRIPTION("AMLOGIC DI_LOCAL driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("4.0.0");
-
 #endif
 
+//MODULE_DESCRIPTION("AMLOGIC DI_LOCAL driver");
+//MODULE_LICENSE("GPL");
+//MODULE_VERSION("4.0.0");

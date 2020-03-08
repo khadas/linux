@@ -16,6 +16,7 @@
  *
  */
 
+#undef DEBUG
 #define DEBUG
 
 #include "videosync.h"
@@ -32,7 +33,7 @@
 #define RECEIVER_NAME "videosync"
 #define PROVIDER_NAME "videosync"
 
-static bool videosync_inited;/*false*/
+bool videosync_inited;/*false*/
 static bool show_nosync;/*false*/
 static bool smooth_sync_enable;
 static int enable_video_discontinue_report = 1;
@@ -1000,13 +1001,13 @@ static int videosync_open(struct inode *inode, struct file *file)
 
 	pr_info("videosync open\n");
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(priv)) {
-		pr_err("kzalloc videosync_priv_s failed!");
-	} else {
-		priv->vp_id = -1;
-		priv->dev_s = NULL;
-		file->private_data = priv;
-	}
+	if (!priv)
+		return -ENOMEM;
+
+	priv->vp_id = -1;
+	priv->dev_s = NULL;
+	file->private_data = priv;
+
 	return 0;
 }
 
@@ -1772,7 +1773,7 @@ static int videosync_thread(void *data)
 	return 0;
 }
 
-static int __init videosync_init(void)
+int __init videosync_init(void)
 {
 	int ret = -1, i;
 	struct device *devp;
@@ -1833,7 +1834,7 @@ error1:
 	return ret;
 }
 
-static void __exit videosync_exit(void)
+void __exit videosync_exit(void)
 {
 	int i, ret;
 
@@ -1860,5 +1861,7 @@ static void __exit videosync_exit(void)
 	class_unregister(&videosync_class);
 }
 
+#ifndef MODULE
 module_init(videosync_init);
 module_exit(videosync_exit);
+#endif

@@ -1809,18 +1809,20 @@ static struct platform_driver vpu_driver = {
 #endif
 };
 
-static int __init vpu_init(void)
+int __init vpu_init(void)
 {
 	return platform_driver_register(&vpu_driver);
 }
 
-static void __exit vpu_exit(void)
+void __exit vpu_exit(void)
 {
 	platform_driver_unregister(&vpu_driver);
 }
 
+#ifndef MODULE
 arch_initcall_sync(vpu_init);
 module_exit(vpu_exit);
+#endif
 
-MODULE_DESCRIPTION("meson vpu driver");
-MODULE_LICENSE("GPL v2");
+//MODULE_DESCRIPTION("meson vpu driver");
+//MODULE_LICENSE("GPL v2");
