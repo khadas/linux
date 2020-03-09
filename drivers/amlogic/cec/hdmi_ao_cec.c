@@ -63,7 +63,7 @@
 #include "hdmi_ao_cec.h"
 
 
-#define CEC_FRAME_DELAY		msecs_to_jiffies(400)
+/*#define CEC_FRAME_DELAY		msecs_to_jiffies(400)*/
 #define CEC_DEV_NAME		"cec"
 
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
@@ -1510,7 +1510,7 @@ static int check_confilct(void)
 {
 	int i;
 
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < CEC_CHK_BUS_CNT; i++) {
 		/*
 		 * sleep 20ms and using hrtimer to check cec line every 1ms
 		 */
@@ -1522,7 +1522,7 @@ static int check_confilct(void)
 			break;
 		CEC_INFO("line busy:%d\n", cec_line_cnt);
 	}
-	if (i >= 200)
+	if (i >= CEC_CHK_BUS_CNT)
 		return -EBUSY;
 	else
 		return 0;
