@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 usage() {
-   echo >&2 "usage: $(basename $1) [-r <rev>][--git-dir <dir>][-s][-h] <object>"
+   echo >&2 "usage: $(basename $1) [-r <rev>][--git-dir <dir>][-s][-h] [<object>]"
 }
 
 args=$(getopt -n $(basename $0) -l 'git-dir:' -o 'r:sh' -- "$@")
@@ -50,10 +50,11 @@ if test x$help = xtrue; then
    echo >&2 "The output is of the form:"
    echo >&2 "    <start> <range> <revision>  [<shortlog>]"
    echo >&2
-   echo >&2 "where <start> is the commit implementing the ABI revision"
+   echo >&2 "where <start> is the predecessor of the earliest commit"
+   echo >&2 "              implementing/requesting the ABI revision"
    echo >&2 "      <range> is the span of the ABI revision"
    echo >&2 "      <revision> is the ABI revision number"
-   echo >&2 "      [<shortlog]> is the subject line for <start>"
+   echo >&2 "      <shortlog> is the subject line describing <start>"
    echo >&2
    echo >&2 "Use -r <rev> to look for a particular ABI revision"
    echo >&2 "    -s to add the shortlog to the output"
