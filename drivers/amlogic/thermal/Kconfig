@@ -37,4 +37,26 @@ config AMLOGIC_CPUCORE_THERMAL
 
 		If you want this support, you should say Y here.
 
+config AMLOGIC_GPU_THERMAL
+	tristate "generic gpu cooling support"
+	depends on AMLOGIC_COOLDEV
+	default n
+	help
+		This implements the generic gpu cooling mechanism through frequency reduction
+		This will be useful for platformas using the generic thermal interface
+		and not the ACPI interface.
+
+		If you want this support, you should say Y here.
+
+config AMLOGIC_GPUCORE_THERMAL
+	tristate "generic gpu core cooling support"
+	depends on AMLOGIC_COOLDEV
+	default n
+	help
+		This implements the generic gpu cooling mechanism through reduce gpu core numbers.
+		This will be useful for platforms using the generic thermal interface
+		and not the ACPI interface.
+
+		If you want this support, you should say Y here.
+
 endmenu
