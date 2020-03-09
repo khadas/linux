@@ -604,6 +604,11 @@
 				device_type = "cpucore";
 				node_name = "cpucore0";
 			};
+			gpufreq_cool {
+				dyn_coeff = <215>;
+				device_type = "gpufreq";
+				node_name = "bifrost";
+			};
 		};
 		cpucore0:cpucore0 {
 			#cooling-cells = <2>;
@@ -647,6 +652,11 @@
 				cpucore_cooling_map{
 					trip = <&pcontrol>;
 					cooling-device = <&cpucore0 0 3>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 			};
