@@ -13,6 +13,8 @@
 #include <dt-bindings/reset/amlogic,meson-axg-audio-arb.h>
 #include <dt-bindings/reset/amlogic,meson-g12a-audio-reset.h>
 #include <dt-bindings/reset/amlogic,meson-g12a-reset.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include "meson-ir-map.dtsi"
@@ -2238,6 +2240,14 @@
 				compatible = "amlogic,meson-g12a-ao-pwm-cd";
 				reg = <0x0 0x2000 0x0 0x20>;
 				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
 			};
 
@@ -2276,6 +2286,14 @@
 				compatible = "amlogic,meson-g12a-ao-pwm-ab";
 				reg = <0x0 0x7000 0x0 0x20>;
 				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
 			};
 
@@ -2369,6 +2387,14 @@
 				compatible = "amlogic,meson-g12a-ee-pwm";
 				reg = <0x0 0x19000 0x0 0x20>;
 				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
 			};
 
@@ -2376,6 +2402,14 @@
 				compatible = "amlogic,meson-g12a-ee-pwm";
 				reg = <0x0 0x1a000 0x0 0x20>;
 				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
 			};
 
@@ -2383,6 +2417,14 @@
 				compatible = "amlogic,meson-g12a-ee-pwm";
 				reg = <0x0 0x1b000 0x0 0x20>;
 				#pwm-cells = <3>;
+				clocks = <&xtal>,
+					 <&xtal>,
+					 <&xtal>,
+					 <&xtal>;
+				clock-names = "clkin0",
+					      "clkin1",
+					      "clkin2",
+					      "clkin3";
 				status = "disabled";
 			};
 

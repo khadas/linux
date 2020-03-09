@@ -847,6 +847,45 @@
 	clock-latency = <50000>;
 };
 
+&vddcpu {
+	pwms = <&pwm_AO_cd MESON_PWM_1 1250 0>;
+	regulator-min-microvolt = <720000>;
+	regulator-max-microvolt = <1020000>;
+	max-duty-cycle = <1250>;
+	/* Voltage Duty-Cycle */
+	voltage-table = <1020000 0>,
+		<1010000 4>,
+		<1000000 8>,
+		<990000 11>,
+		<980000 14>,
+		<970000 17>,
+		<960000 20>,
+		<950000 24>,
+		<940000 27>,
+		<930000 31>,
+		<920000 35>,
+		<910000 38>,
+		<900000 42>,
+		<890000 45>,
+		<880000 48>,
+		<870000 52>,
+		<860000 56>,
+		<850000 59>,
+		<840000 63>,
+		<830000 65>,
+		<820000 67>,
+		<810000 70>,
+		<800000 74>,
+		<790000 78>,
+		<780000 80>,
+		<770000 84>,
+		<760000 88>,
+		<750000 92>,
+		<740000 95>,
+		<730000 98>,
+		<720000 100>;
+};
+
 /* open this comment for ext phy
  *&ext_mdio {
 	external_phy: ethernet-phy@0 {
@@ -915,26 +954,18 @@
 
 &pwm_AO_ab {
 	status = "okay";
-	pinctrl-0 = <&pwm_ao_a_pins>;
-	pinctrl-names = "default";
-	clocks = <&xtal>;
-	clock-names = "clkin0";
 };
 
 &pwm_AO_cd {
 	pinctrl-0 = <&pwm_ao_d_e_pins>;
 	pinctrl-names = "default";
-	clocks = <&xtal>;
-	clock-names = "clkin1";
 	status = "okay";
 };
 
 &pwm_ef {
-	status = "okay";
 	pinctrl-0 = <&pwm_e_pins>;
 	pinctrl-names = "default";
-	clocks = <&xtal>;
-	clock-names = "clkin0";
+	status = "okay";
 };
 
 &saradc {

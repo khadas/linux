@@ -238,12 +238,53 @@ static ssize_t output_type_show(struct device *child,
 	return snprintf(buf, PAGE_SIZE, "%s\n", output_type);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+/*
+ * This interface is added to facilitate debugging the voltage-
+ * table in pwm regulator, which can output different percentages
+ * of waveforms in a fixed pwm cycle.
+ * example:
+ * echo 50 100 > sys/class/pwm/pwmchipx/pwmx/relative_duty
+ * output 50% duty pwm
+ */
+static ssize_t relative_duty_store(struct device *child,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct pwm_export *export = child_to_pwm_export(child);
+	struct pwm_device *pwm = export->pwm;
+	struct pwm_state state = pwm->state;
+	int scale, dutycycle, ret;
+
+	ret = sscanf(buf, "%d %d", &dutycycle, &scale);
+	if (ret != 2) {
+		pr_err("Can't parse addr and scale,dutycycle:[dutycycle scale]\n");
+		return -EINVAL;
+	}
+
+	if (!scale || dutycycle > scale) {
+		pr_err("parameter error\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&export->lock);
+	pwm_set_relative_duty_cycle(&state, dutycycle, scale);
+	ret = pwm_apply_state(pwm, &state);
+	mutex_unlock(&export->lock);
+
+	return ret ? : size;
+}
+#endif
+
 static DEVICE_ATTR_RW(period);
 static DEVICE_ATTR_RW(duty_cycle);
 static DEVICE_ATTR_RW(enable);
 static DEVICE_ATTR_RW(polarity);
 static DEVICE_ATTR_RO(capture);
 static DEVICE_ATTR_RO(output_type);
+#ifdef CONFIG_AMLOGIC_MODIFY
+static DEVICE_ATTR_WO(relative_duty);
+#endif
 
 static struct attribute *pwm_attrs[] = {
 	&dev_attr_period.attr,
@@ -252,6 +293,9 @@ static struct attribute *pwm_attrs[] = {
 	&dev_attr_polarity.attr,
 	&dev_attr_capture.attr,
 	&dev_attr_output_type.attr,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	&dev_attr_relative_duty.attr,
+#endif
 	NULL
 };
 ATTRIBUTE_GROUPS(pwm);
