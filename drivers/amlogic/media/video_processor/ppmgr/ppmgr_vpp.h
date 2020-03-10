@@ -72,6 +72,7 @@ enum ppmgr_source_type {
 	VDIN_10BIT_NORMAL,
 };
 
+extern u32 omx_cur_session;
 
 #endif
 

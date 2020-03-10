@@ -2938,7 +2938,8 @@ SKIP_DETECT:
 			/***recycle buffer to decoder***/
 			PPMGRVPP_WARN("ppmgr rebuild light-unregister_1\n");
 			vf_unreg_provider(&ppmgr_vf_prov);
-			msleep(30);
+			omx_cur_session = 0xffffffff;
+			usleep_range(4000, 5000);
 			vf_reg_provider(&ppmgr_vf_prov);
 			vf_local_init();
 			ppmgr_blocking = false;
