@@ -310,15 +310,12 @@ int handle_pipelined_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	return do_oob_syscall(stage, regs);
 }
 
-int handle_oob_syscall(struct pt_regs *regs)
+void handle_oob_syscall(struct pt_regs *regs)
 {
 	int ret;
 
 	ret = do_oob_syscall(&oob_stage, regs);
-	if (EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE))
-		ret = SYSCALL_STOP;
-
-	return ret;
+	EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE);
 }
 
 static EVL_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
