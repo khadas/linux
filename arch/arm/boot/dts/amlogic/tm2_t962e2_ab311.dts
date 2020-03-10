@@ -17,6 +17,7 @@
 		serial2 = &uart_B;
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
+		ethernet0 = &ethmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -260,6 +261,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins_c>;
 	cs-gpios = <&gpio GPIOC_3 0>;
+};
+
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
 };
 
 &fb {

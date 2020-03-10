@@ -52,6 +52,29 @@
 		#size-cells = <2>;
 		ranges;
 
+		ethmac: ethernet@ff3f0000 {
+			compatible = "amlogic,meson-axg-dwmac",
+				     "snps,dwmac-3.70a",
+				     "snps,dwmac";
+			reg = <0x0 0xff3f0000 0x0 0x10000>,
+			      <0x0 0xff634540 0x0 0x8>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			clocks = <&clkc CLKID_ETH_CORE>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_MPLL2>;
+			clock-names = "stmmaceth", "clkin0", "clkin1";
+			rx-fifo-depth = <4096>;
+			tx-fifo-depth = <2048>;
+			status = "disabled";
+
+			mdio0: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,dwmac-mdio";
+			};
+		};
+
 		apb: bus@ff600000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xff600000 0x0 0x200000>;
@@ -608,6 +631,38 @@
 					};
 				};
 			};
+
+			eth_phy: mdio-multiplexer@4c000 {
+				compatible = "amlogic,g12a-mdio-mux";
+				reg = <0x0 0x4c000 0x0 0xa4>;
+				clocks = <&clkc CLKID_ETH_PHY>,
+					 <&xtal>,
+					 <&clkc CLKID_MPLL_50M>;
+				clock-names = "pclk", "clkin0", "clkin1";
+				mdio-parent-bus = <&mdio0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ext_mdio: mdio@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				int_mdio: mdio@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					internal_ephy: ethernet_phy@8 {
+						compatible = "ethernet-phy-id0180.3301",
+							     "ethernet-phy-ieee802.3-c22";
+						interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+						reg = <8>;
+						max-speed = <100>;
+					};
+				};
+			};
 		};
 
 		aobus: bus@ff800000 {
@@ -1144,6 +1199,45 @@
 				#interrupt-cells = <2>;
 				amlogic,channel-interrupts =
 						<64 65 66 67 68 69 70 71>;
+			};
+
+			eth_leds_pins: eth-leds {
+				mux {
+					groups = "eth_link_led",
+						 "eth_act_led";
+					function = "eth";
+					bias-disable;
+				};
+			};
+
+			eth_pins: eth {
+				mux {
+					groups = "eth_mdio",
+						 "eth_mdc",
+						 "eth_rgmii_rx_clk",
+						 "eth_rx_dv",
+						 "eth_rxd0",
+						 "eth_rxd1",
+						 "eth_txen",
+						 "eth_txd0",
+						 "eth_txd1";
+					function = "eth";
+					drive-strength-microamp = <4000>;
+					bias-disable;
+				};
+			};
+
+			eth_rgmii_pins: eth-rgmii {
+				mux {
+					groups = "eth_rxd2_rgmii",
+						 "eth_rxd3_rgmii",
+						 "eth_rgmii_tx_clk",
+						 "eth_txd2_rgmii",
+						 "eth_txd3_rgmii";
+					function = "eth";
+					drive-strength-microamp = <4000>;
+					bias-disable;
+				};
 			};
 
 			watchdog@0xf0d0 {

@@ -17,6 +17,7 @@
 		serial2 = &uart_B;
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
+		ethernet0 = &ethmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -282,6 +283,12 @@
 /* Exposed via the on-board USB to Serial FT232RL IC */
 &uart_AO {
 	status = "okay";
+};
+
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
 };
 
 &ir {
