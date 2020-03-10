@@ -270,7 +270,7 @@ static int32_t sensor_ir_cut_set( void *ctx, int32_t ir_cut_state )
     LOG( LOG_ERR, "ir_cut_state = %d", ir_cut_state);
     LOG( LOG_INFO, "entry ir cut" );
 
-//ir_cut_GPIOZ_11, 0: open ir cut, 1: colse ir cut, 2: no operation
+//ir_cut, 0: close ir cut, 1: open ir cut, 2: no operation
 
    if (sensor_bp->ir_gname[0] <= 0) {
        pr_err("get gpio id fail\n");
@@ -279,13 +279,13 @@ static int32_t sensor_ir_cut_set( void *ctx, int32_t ir_cut_state )
 
     if (ir_cut_state == 1)
         {
-            ret = pwr_ir_cut_enable(sensor_bp, sensor_bp->ir_gname[0], 0);
+            ret = pwr_ir_cut_enable(sensor_bp, sensor_bp->ir_gname[0], 1);
             if (ret < 0 )
             pr_err("set power fail\n");
         }
     else if(ir_cut_state == 0)
         {
-            ret = pwr_ir_cut_enable(sensor_bp, sensor_bp->ir_gname[0], 1);
+            ret = pwr_ir_cut_enable(sensor_bp, sensor_bp->ir_gname[0], 0);
             if (ret < 0 )
             pr_err("set power fail\n");
         }
