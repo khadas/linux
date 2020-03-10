@@ -126,7 +126,7 @@ static int omx_pts_dv_lower = OMX_PTS_DV_DEFAULT_LOWER;
 static int omx_pts_set_from_hwc_count;
 static int omx_pts_set_from_hwc_count_begin;
 static bool omx_check_previous_session;
-static u32 omx_cur_session = 0xffffffff;
+u32 omx_cur_session = 0xffffffff;
 static int drop_frame_count;
 #define OMX_MAX_COUNT_RESET_SYSTEMTIME 2
 #define OMX_MAX_COUNT_RESET_SYSTEMTIME_BEGIN 10
@@ -4808,6 +4808,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_unlock(&omx_mutex);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider(1);
+		omx_cur_session = 0xffffffff;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
 		video_vf_light_unreg_provider(0);
 	else if (type == VFRAME_EVENT_PROVIDER_REG) {
