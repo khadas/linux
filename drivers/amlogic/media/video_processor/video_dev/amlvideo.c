@@ -913,7 +913,7 @@ static int __init amlvideo_create_instance(int inst)
 	/* //////////////////////////////////////// */
 	/* vfd->v4l2_dev = &dev->v4l2_dev; */
 	/* //////////////////////////////////////// */
-	ret = video_register_device(vfd, VFL_TYPE_SUBDEV,
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER,
 				    dev->amlvideo_v4l_num);
 
 	if (ret < 0)
