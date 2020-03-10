@@ -677,9 +677,9 @@
 		add_asyncfifo = <1>;
 
 		fe0_mode = "external";
-		fe0_demod = "cxd2856";
+		fe0_demod = "Avl6762";
 		fe0_i2c_adap_id = <&i2c3>;
-		fe0_demod_i2c_addr = <0xD8>;
+		fe0_demod_i2c_addr = <0x14>;
 		fe0_ts = <0>;
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
@@ -942,6 +942,7 @@
 	status = "okay";
 	pinctrl-0 = <&i2c3_sda_a_pins>, <&i2c3_sck_a_pins>;
 	pinctrl-names = "default";
+	clock-frequency = <300000>; /* default 100k */
 };
 
 &ir {
