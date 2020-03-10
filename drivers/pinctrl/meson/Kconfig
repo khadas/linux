@@ -16,25 +16,25 @@ config PINCTRL_MESON8
 	bool "Meson 8 SoC pinctrl driver"
 	depends on ARM
 	select PINCTRL_MESON8_PMX
-	default y
+	default n
 
 config PINCTRL_MESON8B
 	bool "Meson 8b SoC pinctrl driver"
 	depends on ARM
 	select PINCTRL_MESON8_PMX
-	default y
+	default n
 
 config PINCTRL_MESON_GXBB
 	bool "Meson gxbb SoC pinctrl driver"
 	depends on ARM64
 	select PINCTRL_MESON8_PMX
-	default y
+	default n
 
 config PINCTRL_MESON_GXL
 	bool "Meson gxl SoC pinctrl driver"
 	depends on ARM64
 	select PINCTRL_MESON8_PMX
-	default y
+	default n
 
 config PINCTRL_MESON8_PMX
 	bool
@@ -43,7 +43,7 @@ config PINCTRL_MESON_AXG
 	bool "Meson axg Soc pinctrl driver"
 	depends on ARM64
 	select PINCTRL_MESON_AXG_PMX
-	default y
+	default n
 
 config PINCTRL_MESON_AXG_PMX
 	bool
@@ -52,12 +52,12 @@ config PINCTRL_MESON_G12A
 	bool "Meson g12a Soc pinctrl driver"
 	depends on ARM64 || AMLOGIC_ARMV8_AARCH32
 	select PINCTRL_MESON_AXG_PMX
-	default y
+	default n
 
 config PINCTRL_MESON_A1
 	bool "Meson a1 Soc pinctrl driver"
 	depends on ARM64
 	select PINCTRL_MESON_AXG_PMX
-	default y
+	default n
 
 endif

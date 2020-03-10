@@ -2,7 +2,7 @@ menuconfig AMLOGIC_MEMORY_EXTEND
 	bool "AMLOGIC memory extend support"
 	depends on AMLOGIC_DRIVER
 	depends on AMLOGIC_MODIFY
-	default y
+	default n
 	help
 		Amlogic memory extend is drivers which extend for memory management
 		functions, can be used for memory debug or other features.
@@ -12,7 +12,7 @@ config AMLOGIC_PAGE_TRACE
 	depends on AMLOGIC_MEMORY_EXTEND
 	depends on KALLSYMS
 	depends on !NUMA_BALANCING
-	default y
+	default n
 	help
 		Amlogic page trace will record function address of caller for page
 		allocate/free, according with allocate flags and order. trace
@@ -46,7 +46,7 @@ config AMLOGIC_CMA
 	bool "Amlogic CMA change"
 	depends on AMLOGIC_MEMORY_EXTEND
 	depends on CMA
-	default y
+	default n
 	help
 		Amlogic CMA optimization for cma alloc/free problems
 		Including policy change of CMA usage

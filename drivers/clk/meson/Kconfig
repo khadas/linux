@@ -94,7 +94,7 @@ config COMMON_CLK_AXG_AUDIO
 	  aka axg, Say Y if you want audio subsystem to work.
 
 config COMMON_CLK_G12A
-	bool
+	bool "Meson G12A clock controller"
 	depends on ARCH_MESON
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_DUALDIV
@@ -110,7 +110,7 @@ config COMMON_CLK_G12A
 	  devices, aka g12a. Say Y if you want peripherals to work.
 
 config COMMON_CLK_TM2
-	bool
+	bool "Meson TM2 clock controller"
 	depends on ARCH_MESON
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_DUALDIV

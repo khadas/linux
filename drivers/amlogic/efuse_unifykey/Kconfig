@@ -3,7 +3,7 @@
 #
 config AMLOGIC_EFUSE_UNIFYKEY
 	tristate "Amlogic EUSE and UNIFYKEY support"
-	default y
+	default n
 	help
 	    amlogic EFUSE and UNIFYKEY glue driver
 	    choose by default

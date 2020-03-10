@@ -96,7 +96,7 @@ config DWMAC_MEDIATEK
 
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
-	default ARCH_MESON
+	default n
 	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	help
 	  Support for Ethernet controller on Amlogic Meson SoCs.

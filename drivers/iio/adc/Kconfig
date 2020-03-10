@@ -622,7 +622,7 @@ config MEN_Z188_ADC
 
 config MESON_SARADC
 	tristate "Amlogic Meson SAR ADC driver"
-	default ARCH_MESON
+	default n
 	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	select REGMAP_MMIO
 	help
