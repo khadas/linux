@@ -142,6 +142,7 @@ enum color_index_e {
 #define OSD_ZORDER           BIT(2)
 #define OSD_PRIMARY          BIT(3)
 #define OSD_FREESCALE        BIT(4)
+#define OSD_AFBC             BIT(5)
 #define OSD_VIU2             BIT(29)
 #define OSD_VIU1             BIT(30)
 #define OSD_LAYER_ENABLE     BIT(31)
