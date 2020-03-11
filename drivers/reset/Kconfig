@@ -82,6 +82,13 @@ config RESET_MESON
 	help
 	  This enables the reset driver for Amlogic Meson SoCs.
 
+config AMLOGIC_RESET_MESON_DOS
+	tristate "Meson Dos Reset Driver"
+	default n
+	help
+		This enables the dos reset driver for Amlogic Meson SoCs.
+		The DOS reset belong to multimedia modules.
+
 config RESET_MESON_AUDIO_ARB
 	tristate "Meson Audio Memory Arbiter Reset Driver"
 	depends on ARCH_MESON || COMPILE_TEST

@@ -365,6 +365,13 @@
 			    "efusebus";
 	};
 
+	codec_dos_reset: reset-controller@ff620000 {
+		compatible = "amlogic,meson-sm1-dos-reset";
+		status = "okay";
+		reg = <0x0 0xff620000 0x0 0x10000>;
+		#reset-cells = <1>;
+	};
+
 	meson-amvideom {
 		compatible = "amlogic, amvideom";
 		dev_name = "amvideom";
