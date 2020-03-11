@@ -1,4 +1,4 @@
-MODULE_NAME = aml_malibox
+MODULE_NAME = aml_mailbox
 
 obj-$(CONFIG_AMLOGIC_MHU_MBOX) = $(MODULE_NAME).o
 

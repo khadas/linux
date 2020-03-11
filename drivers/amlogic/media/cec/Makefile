@@ -1,0 +1,2 @@
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_AO_CEC)  += cec/hdmi_ao_cec.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_M8B_CEC) += cec/m8_ao_cec.o

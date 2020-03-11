@@ -125,6 +125,7 @@ static int __init media_main_init(void)
 	call_sub_init(amlvideo2_init);
 	call_sub_init(dil_init);
 	call_sub_init(aml_bl_extern_init);
+	call_sub_init(cec_init);
 	call_sub_init(gdc_driver_init);
 	call_sub_init(aml_lcd_extern_init);
 	call_sub_init(ldim_dev_init);

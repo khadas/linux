@@ -687,26 +687,6 @@ static void ao_cecb_init(void)
 void eecec_irq_enable(bool enable)
 {
 /* move cpu_type to  /media, 5.4 support sm1 and later*/
-#if 0
-	if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) {
-		if (enable) {
-			hdmirx_cec_write(DWC_AUD_CEC_IEN_SET,
-					 EE_CEC_IRQ_EN_MASK);
-		} else {
-			hdmirx_cec_write(DWC_AUD_CEC_ICLR,
-					 (~(hdmirx_cec_read(DWC_AUD_CEC_IEN)) |
-					 EE_CEC_IRQ_EN_MASK));
-			hdmirx_cec_write(DWC_AUD_CEC_IEN_SET,
-					 hdmirx_cec_read(DWC_AUD_CEC_IEN) &
-							 ~EE_CEC_IRQ_EN_MASK);
-			hdmirx_cec_write(DWC_AUD_CEC_IEN_CLR,
-					 (~(hdmirx_cec_read(DWC_AUD_CEC_IEN)) |
-					 EE_CEC_IRQ_EN_MASK));
-		}
-		CEC_INFO("cecb enable:int mask:0x%x\n",
-			 hdmirx_cec_read(DWC_AUD_CEC_IEN));
-	} else
-#endif
 	{
 		if (enable)
 			writel(CECB_IRQ_EN_MASK,
@@ -2231,16 +2211,6 @@ static void cec_task(struct work_struct *work)
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
 		/*in internal hdmi rx, for avoid msg lose*/
-#if 0 /* move cpu_type to media, 5.4 support sm1 or later*/
-		if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX &&
-		    cec_cfg == CEC_FUNC_CFG_ALL) {
-			if (cec_late_check_rx_buffer()) {
-				/*msg in*/
-				mod_delayed_work(cec_dev->cec_thread, dwork, 0);
-				return;
-			}
-		}
-#endif
 	}
 	/*triger next process*/
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
@@ -4170,7 +4140,7 @@ static struct platform_driver aml_cec_driver = {
 	.remove = aml_cec_remove,
 };
 
-static int __init cec_init(void)
+int __init cec_init(void)
 {
 	int ret;
 
@@ -4178,12 +4148,14 @@ static int __init cec_init(void)
 	return ret;
 }
 
-static void __exit cec_uninit(void)
+void __exit cec_uninit(void)
 {
 	platform_driver_unregister(&aml_cec_driver);
 }
 
+#ifndef MODULE
 module_init(cec_init);
 module_exit(cec_uninit);
 MODULE_DESCRIPTION("AMLOGIC HDMI TX CEC driver");
 MODULE_LICENSE("GPL");
+#endif
