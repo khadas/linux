@@ -993,6 +993,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			pr_info("VIDEO_START! param=%x cur_pcr=%x\n", param,
 				   timestamp_pcrscr_get());
 		}
+		if (!timestamp_firstvpts_get() && param)
+			timestamp_firstvpts_set(param);
 		tsync_set_av_state(0, 2);
 		/*tsync_pcr_inited_mode = INIT_MODE_VIDEO;*/
 		tsync_pcr_vstart_flag = 1;
