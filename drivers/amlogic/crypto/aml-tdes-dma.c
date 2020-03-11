@@ -123,6 +123,8 @@ static struct aml_tdes_drv aml_tdes = {
 	.lock = __SPIN_LOCK_UNLOCKED(aml_tdes.lock),
 };
 
+static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd);
+
 static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 			   u32 *key, u32 keylen, u32 *iv)
 {
@@ -132,8 +134,9 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	u32 *piv = key_iv + 8;
 	u32 len = keylen;
 	dma_addr_t dma_addr_key;
+#if DMA_IRQ_MODE
 	u32 i = 0;
-
+#endif
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
@@ -164,12 +167,17 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 
 	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
 				   PAGE_SIZE, DMA_TO_DEVICE);
+#if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	aml_dma_debug(dsc, i, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
 	aml_write_crypto_reg(dd->status, 0xf);
+#else
+	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+			     1, DMA_FLAG_TDES_IN_USE);
+#endif
 	dma_unmap_single(dd->dev, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -316,14 +324,18 @@ static int aml_tdes_hw_init(struct aml_tdes_dev *dd)
 
 static void aml_tdes_finish_req(struct aml_tdes_dev *dd, int err)
 {
+#if DMA_IRQ_MODE
 	struct ablkcipher_request *req = dd->req;
+#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->flags &= ~TDES_FLAGS_BUSY;
 	dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
+#if DMA_IRQ_MODE
 	req->base.complete(&req->base, err);
+#endif
 }
 
 static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
@@ -331,8 +343,9 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 {
 	u32 op_mode = OP_MODE_ECB;
 	u32 i = 0;
+#if DMA_IRQ_MODE
 	unsigned long flags;
-
+#endif
 	if (dd->flags & TDES_FLAGS_CBC)
 		op_mode = OP_MODE_CBC;
 
@@ -353,14 +366,23 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
 
 	/* Start DMA transfer */
+#if DMA_IRQ_MODE
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->dma->dma_busy |= DMA_FLAG_TDES_IN_USE;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
 
 	dd->flags |= TDES_FLAGS_DMA;
+
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	return -EINPROGRESS;
+#else
+	dd->flags |= TDES_FLAGS_DMA;
+	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+			     1, DMA_FLAG_TDES_IN_USE);
+	aml_tdes_crypt_dma_stop(dd);
+	return 0;
+#endif
 }
 
 static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
@@ -440,12 +462,14 @@ static int aml_tdes_write_ctrl(struct aml_tdes_dev *dd)
 static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 				 struct ablkcipher_request *req)
 {
+#if DMA_IRQ_MODE
 	struct crypto_async_request *async_req, *backlog;
+#endif
 	struct aml_tdes_ctx *ctx;
 	struct aml_tdes_reqctx *rctx;
-	unsigned long flags;
 	int err, ret = 0;
-
+#if DMA_IRQ_MODE
+	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	if (req)
 		ret = ablkcipher_enqueue_request(&dd->queue, req);
@@ -472,7 +496,7 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 		backlog->complete(backlog, -EINPROGRESS);
 
 	req = ablkcipher_request_cast(async_req);
-
+#endif
 	/* assign new request to device */
 	dd->req = req;
 	dd->total = req->nbytes;
@@ -489,16 +513,28 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 	ctx->dd = dd;
 
 	err = aml_tdes_write_ctrl(dd);
-	if (!err)
-		err = aml_tdes_crypt_dma_start(dd);
-
+	if (!err) {
+		do {
+			err = aml_tdes_crypt_dma_start(dd);
+		} while (!err && dd->total);
+	}
 	if (err != -EINPROGRESS) {
 		/* tdes_task will not finish it, so do it here */
 		aml_tdes_finish_req(dd, err);
+#if DMA_IRQ_MODE
 		tasklet_schedule(&dd->queue_task);
+#endif
 	}
 
 	return ret;
+}
+
+int aml_tdes_process(struct ablkcipher_request *req)
+{
+	struct aml_tdes_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct aml_tdes_dev *dd = tctx->dd;
+
+	return aml_tdes_handle_queue(dd, req);
 }
 
 static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
@@ -681,7 +717,11 @@ static int aml_tdes_crypt(struct ablkcipher_request *req, unsigned long mode)
 			return err;
 		}
 	}
+#if DMA_IRQ_MODE
 	return aml_tdes_handle_queue(dd, req);
+#else
+	return aml_dma_crypto_enqueue_req(dd->dma, &req->base);
+#endif
 }
 
 static int aml_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -954,6 +994,7 @@ static struct crypto_alg tdes_lite_algs[] = {
 	}
 };
 
+#if DMA_IRQ_MODE
 static void aml_tdes_queue_task(unsigned long data)
 {
 	struct aml_tdes_dev *dd = (struct aml_tdes_dev *)data;
@@ -1022,7 +1063,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 
 	return IRQ_NONE;
 }
-
+#endif
 static void aml_tdes_unregister_algs(struct aml_tdes_dev *dd,
 				     const struct aml_tdes_info *tdes_info)
 {
@@ -1108,6 +1149,7 @@ static int aml_tdes_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&tdes_dd->list);
 
+#if DMA_IRQ_MODE
 	tasklet_init(&tdes_dd->done_task, aml_tdes_done_task,
 		     (unsigned long)tdes_dd);
 	tasklet_init(&tdes_dd->queue_task, aml_tdes_queue_task,
@@ -1120,7 +1162,7 @@ static int aml_tdes_probe(struct platform_device *pdev)
 		dev_err(dev, "unable to request tdes irq.\n");
 		goto tdes_irq_err;
 	}
-
+#endif
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
@@ -1162,9 +1204,11 @@ err_algs:
 err_tdes_buff:
 err_tdes_pm:
 	pm_runtime_disable(dev);
+#if DMA_IRQ_MODE
 tdes_irq_err:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
+#endif
 tdes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 

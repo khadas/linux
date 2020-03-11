@@ -13,6 +13,7 @@
 #include <linux/hw_random.h>
 #include <linux/platform_device.h>
 
+#include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -30,7 +31,14 @@
 #include <crypto/internal/hash.h>
 #include <linux/of_platform.h>
 #include "aml-crypto-dma.h"
+#include "aml-sha-dma.h"
+#include "aml-aes-dma.h"
+#include "aml-tdes-dma.h"
 
+#define ENABLE_SHA	(1)
+#define ENABLE_AES	(1)
+#define ENABLE_TDES	(1)
+#define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
 int debug = 2;
 
@@ -87,6 +95,54 @@ static int aml_dma_init_dbgfs(struct device *dev)
 	return 0;
 }
 
+static int aml_dma_queue_manage(void *data)
+{
+	struct aml_dma_dev *dev = (struct aml_dma_dev *)data;
+	struct crypto_async_request *async_req;
+	struct crypto_async_request *backlog;
+	int ret = 0;
+
+	do {
+		__set_current_state(TASK_INTERRUPTIBLE);
+
+		mutex_lock(&dev->queue_mutex);
+		backlog = crypto_get_backlog(&dev->queue);
+		async_req = crypto_dequeue_request(&dev->queue);
+		mutex_unlock(&dev->queue_mutex);
+
+		if (backlog)
+			backlog->complete(backlog, -EINPROGRESS);
+
+		if (async_req) {
+			__set_current_state(TASK_RUNNING);
+			if (crypto_tfm_alg_type(async_req->tfm) ==
+			    CRYPTO_ALG_TYPE_AHASH) {
+				struct ahash_request *req =
+					ahash_request_cast(async_req);
+				ret = aml_sha_process(req);
+				aml_sha_finish_req(req, ret);
+			} else {
+				struct ablkcipher_request *req =
+				ablkcipher_request_cast(async_req);
+				const char *driver_name =
+				crypto_tfm_alg_driver_name(async_req->tfm);
+
+				if (strstr(driver_name, "aes"))
+					ret = aml_aes_process(req);
+				else if (strstr(driver_name, "tdes"))
+					ret = aml_tdes_process(req);
+				else
+					ret = -EINVAL;
+			}
+			async_req->complete(async_req, ret);
+			continue;
+		}
+		schedule();
+	} while (!kthread_should_stop());
+
+	return 0;
+}
+
 static int aml_dma_probe(struct platform_device *pdev)
 {
 	struct aml_dma_dev *dma_dd;
@@ -126,7 +182,19 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->irq = res_irq->start;
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
-
+#if DMA_IRQ_MODE
+	tasklet_init(&dma_dd->worker_task, dma_worker_task,
+		     (unsigned long)aes_dd);
+#else
+	crypto_init_queue(&dma_dd->queue, AML_DMA_QUEUE_LENGTH);
+	mutex_init(&dma_dd->queue_mutex);
+	dma_dd->kthread = kthread_run(aml_dma_queue_manage,
+				      dma_dd, "aml_crypto");
+	if (IS_ERR(dma_dd->kthread)) {
+		err = PTR_ERR(dma_dd->kthread);
+		goto dma_err;
+	}
+#endif
 	err = aml_dma_init_dbgfs(dev);
 	if (err)
 		goto dma_err;
@@ -140,6 +208,10 @@ static int aml_dma_probe(struct platform_device *pdev)
 	return err;
 
 dma_err:
+#if !DMA_IRQ_MODE
+	if (dma_dd && dma_dd->kthread)
+		kthread_stop(dma_dd->kthread);
+#endif
 	debugfs_remove_recursive(aml_dma_debug_dent);
 	dev_err(dev, "initialization failed.\n");
 
@@ -153,7 +225,9 @@ static int aml_dma_remove(struct platform_device *pdev)
 	dma_dd = platform_get_drvdata(pdev);
 	if (!dma_dd)
 		return -ENODEV;
-
+#if !DMA_IRQ_MODE
+	kthread_stop(dma_dd->kthread);
+#endif
 	debugfs_remove_recursive(aml_dma_debug_dent);
 
 	return 0;
@@ -172,41 +246,55 @@ static struct platform_driver aml_dma_driver = {
 static int __init aml_dma_driver_init(void)
 {
 	int ret;
-
+#if ENABLE_SHA
 	ret = aml_sha_driver_init();
 	if (ret)
-		return ret;
-
+		goto sha_init_failed;
+#endif
+#if ENABLE_TDES
 	ret = aml_tdes_driver_init();
-	if (ret) {
-		aml_sha_driver_exit();
-		return ret;
-	}
-
+	if (ret)
+		goto tdes_init_failed;
+#endif
+#if ENABLE_AES
 	ret = aml_aes_driver_init();
-	if (ret) {
-		aml_sha_driver_exit();
-		aml_tdes_driver_exit();
-		return ret;
-	}
-
+	if (ret)
+		goto aes_init_failed;
+#endif
 	ret = platform_driver_register(&aml_dma_driver);
-	if (ret) {
-		aml_sha_driver_exit();
-		aml_tdes_driver_exit();
-		aml_aes_driver_exit();
-	}
+	if (ret)
+		goto plat_init_failed;
 
+	return ret;
+
+plat_init_failed:
+#if ENABLE_AES
+aes_init_failed:
+	aml_aes_driver_exit();
+#endif
+#if ENABLE_TDES
+tdes_init_failed:
+	aml_tdes_driver_exit();
+#endif
+#if ENABLE_SHA
+sha_init_failed:
+	aml_sha_driver_exit();
+#endif
 	return ret;
 }
 module_init(aml_dma_driver_init);
 
 static void __exit aml_dma_driver_exit(void)
 {
+#if ENABLE_SHA
 	aml_sha_driver_exit();
+#endif
+#if ENABLE_TDES
 	aml_tdes_driver_exit();
+#endif
+#if ENABLE_AES
 	aml_aes_driver_exit();
-
+#endif
 	platform_driver_unregister(&aml_dma_driver);
 }
 module_exit(aml_dma_driver_exit);

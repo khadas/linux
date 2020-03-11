@@ -125,6 +125,8 @@ static struct aml_aes_drv aml_aes = {
 	.lock = __SPIN_LOCK_UNLOCKED(aml_aes.lock),
 };
 
+static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd);
+
 static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 			  u32 keylen, u32 *iv, u8 swap)
 {
@@ -134,8 +136,9 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 
 	s32 len = keylen;
 	dma_addr_t dma_addr_key = 0;
+#if DMA_IRQ_MODE
 	u32 i = 0;
-
+#endif
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
@@ -175,12 +178,17 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 
 	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
 				   PAGE_SIZE, DMA_TO_DEVICE);
+#if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	aml_dma_debug(dsc, i, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
 	aml_write_crypto_reg(dd->status, 0xf);
+#else
+	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+			     1, DMA_FLAG_AES_IN_USE);
+#endif
 	dma_unmap_single(dd->dev, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -327,14 +335,18 @@ static int aml_aes_hw_init(struct aml_aes_dev *dd)
 
 static void aml_aes_finish_req(struct aml_aes_dev *dd, s32 err)
 {
+#if DMA_IRQ_MODE
 	struct ablkcipher_request *req = dd->req;
+#endif
 	unsigned long flags;
 
 	dd->flags &= ~AES_FLAGS_BUSY;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
+#if DMA_IRQ_MODE
 	req->base.complete(&req->base, err);
+#endif
 }
 
 static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
@@ -342,8 +354,9 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 {
 	u32 op_mode = OP_MODE_ECB;
 	u32 i = 0;
+#if DMA_IRQ_MODE
 	unsigned long flags;
-
+#endif
 	if (dd->flags & AES_FLAGS_CBC)
 		op_mode = OP_MODE_CBC;
 	else if (dd->flags & AES_FLAGS_CTR)
@@ -366,6 +379,7 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
 
 	/* Start DMA transfer */
+#if DMA_IRQ_MODE
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->dma->dma_busy |= DMA_FLAG_AES_IN_USE;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
@@ -373,6 +387,14 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	dd->flags |= AES_FLAGS_DMA;
 	aml_write_crypto_reg(dd->thread, dd->dma_descript_tab | 2);
 	return -EINPROGRESS;
+#else
+	dd->flags |= AES_FLAGS_DMA;
+	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+			     1, DMA_FLAG_AES_IN_USE);
+	aml_aes_crypt_dma_stop(dd);
+	return 0;
+#endif
+
 }
 
 static int aml_aes_crypt_dma_start(struct aml_aes_dev *dd)
@@ -469,12 +491,14 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 				struct ablkcipher_request *req)
 {
 	struct device *dev = dd->dev;
+#if DMA_IRQ_MODE
 	struct crypto_async_request *async_req, *backlog;
+#endif
 	struct aml_aes_ctx *ctx;
 	struct aml_aes_reqctx *rctx;
-	unsigned long flags;
 	s32 err, ret = 0;
-
+#if DMA_IRQ_MODE
+	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	if (req)
 		ret = ablkcipher_enqueue_request(&dd->queue, req);
@@ -501,7 +525,7 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 		backlog->complete(backlog, -EINPROGRESS);
 
 	req = ablkcipher_request_cast(async_req);
-
+#endif
 	/* assign new request to device */
 	dd->req = req;
 	dd->total = req->nbytes;
@@ -521,7 +545,9 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 	if (!err) {
 		if (dd->total % AML_AES_DMA_THRESHOLD == 0 ||
 		    (dd->flags & AES_FLAGS_CTR)) {
-			err = aml_aes_crypt_dma_start(dd);
+			do {
+				err = aml_aes_crypt_dma_start(dd);
+			} while (!err && dd->total);
 		} else {
 			dev_err(dev, "size %zd is not multiple of %d",
 				dd->total, AML_AES_DMA_THRESHOLD);
@@ -531,10 +557,20 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 	if (err != -EINPROGRESS) {
 		/* aes_task will not finish it, so do it here */
 		aml_aes_finish_req(dd, err);
+#if DMA_IRQ_MODE
 		tasklet_schedule(&dd->queue_task);
+#endif
 	}
 
 	return ret;
+}
+
+int aml_aes_process(struct ablkcipher_request *req)
+{
+	struct aml_aes_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct aml_aes_dev *dd = tctx->dd;
+
+	return aml_aes_handle_queue(dd, req);
 }
 
 /* Increment 128-bit counter */
@@ -747,8 +783,11 @@ static int aml_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 			return ret;
 		}
 	}
-
+#if DMA_IRQ_MODE
 	return aml_aes_handle_queue(dd, req);
+#else
+	return aml_dma_crypto_enqueue_req(dd->dma, &req->base);
+#endif
 }
 
 static int aml_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -1034,6 +1073,7 @@ static const struct of_device_id aml_aes_dt_match[] = {
 #define aml_aes_dt_match NULL
 #endif
 
+#if DMA_IRQ_MODE
 static void aml_aes_queue_task(unsigned long data)
 {
 	struct aml_aes_dev *dd = (struct aml_aes_dev *)data;
@@ -1103,6 +1143,7 @@ static irqreturn_t aml_aes_irq(int irq, void *dev_id)
 
 	return IRQ_NONE;
 }
+#endif
 
 static void aml_aes_unregister_algs(struct aml_aes_dev *dd,
 				    const struct aml_aes_info *aes_info)
@@ -1171,6 +1212,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&aes_dd->list);
 
+#if DMA_IRQ_MODE
 	tasklet_init(&aes_dd->done_task, aml_aes_done_task,
 		     (unsigned long)aes_dd);
 	tasklet_init(&aes_dd->queue_task, aml_aes_queue_task,
@@ -1183,7 +1225,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 		dev_err(dev, "unable to request aes irq.\n");
 		goto aes_irq_err;
 	}
-
+#endif
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
@@ -1225,9 +1267,11 @@ err_algs:
 err_aes_buff:
 err_aes_pm:
 	pm_runtime_disable(dev);
+#if DMA_IRQ_MODE
 aes_irq_err:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
+#endif
 aes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1255,10 +1299,10 @@ static int aml_aes_remove(struct platform_device *pdev)
 	spin_unlock(&aml_aes.lock);
 
 	aml_aes_unregister_algs(aes_dd, aes_info);
-
+#if DMA_IRQ_MODE
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
-
+#endif
 	pm_runtime_disable(aes_dd->dev);
 	return 0;
 }

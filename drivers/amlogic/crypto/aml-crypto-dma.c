@@ -27,6 +27,8 @@
 #include <crypto/internal/hash.h>
 #include "aml-crypto-dma.h"
 
+#define DEBUG				(0)
+
 u32 swap_ulong32(u32 val)
 {
 	u32 res = 0;
@@ -99,3 +101,67 @@ void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 	dbgp(0, "end %s\n", msg);
 }
 EXPORT_SYMBOL_GPL(aml_dma_debug);
+
+void aml_dma_do_hw_crypto(struct aml_dma_dev *dd, dma_addr_t dsc,
+			  u8 polling, u8 dma_flags)
+{
+	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
+	dd->dma_busy |= dma_flags;
+	aml_write_crypto_reg(dd->thread, (uintptr_t)dsc | 2);
+	if (polling) {
+		while (aml_read_crypto_reg(dd->status) == 0)
+			;
+		aml_write_crypto_reg(dd->status, 0xf);
+		dd->dma_busy &= ~dma_flags;
+	}
+	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
+}
+EXPORT_SYMBOL_GPL(aml_dma_do_hw_crypto);
+
+void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags)
+{
+	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
+	aml_write_crypto_reg(dd->status, 0xf);
+	dd->dma_busy &= ~dma_flags;
+	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
+}
+EXPORT_SYMBOL_GPL(aml_dma_finish_hw_crypto);
+
+int aml_dma_crypto_enqueue_req(struct aml_dma_dev *dd,
+			       struct crypto_async_request *req)
+{
+	s32 ret = 0;
+
+	mutex_lock(&dd->queue_mutex);
+	ret = crypto_enqueue_request(&dd->queue, req);
+	mutex_unlock(&dd->queue_mutex);
+	wake_up_process(dd->kthread);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(aml_dma_crypto_enqueue_req);
+
+#if DEBUG
+void dump_buf(const s8 *name, u8 *buf, const s32 length)
+{
+	s32 i = 0;
+	s32 j = length;
+
+	pr_err("\nstart dump(%s, %d)================\n", name, length);
+	while (j >= 8) {
+		pr_err("%#02x ~ %#02x:\n", i, i + 7);
+		pr_err("%#02x, %#02x, %#02x, %#02x, %#02x, %#02x, %#02x, %#02x\n",
+		       buf[i], buf[i + 1], buf[i + 2], buf[i + 3],
+		       buf[i + 4], buf[i + 5], buf[i + 6], buf[i + 7]);
+		i += 8;
+		j -= 8;
+	};
+
+	while (j > 0) {
+		pr_err("%#02x ", buf[i]);
+		j--;
+		i++;
+	};
+	pr_err("\nend dump(%s, %d)================\n", name, length);
+}
+#endif

@@ -6,10 +6,11 @@
 #ifndef _AML_CRYPTO_H_
 #define _AML_CRYPTO_H_
 #include <linux/io.h>
+#include <crypto/hash.h>
 
  /* Reserved 4096 bytes and table is 12 bytes each */
 #define MAX_NUM_TABLES 341
-
+#define DMA_IRQ_MODE	(0)
 enum GXL_DMA_REG_OFFSETS {
 	GXL_DMA_T0   = 0x00,
 	GXL_DMA_T1   = 0x01,
@@ -110,6 +111,11 @@ struct aml_dma_dev {
 	u32 status;
 	int	irq;
 	u8 dma_busy;
+	unsigned long irq_flags;
+	struct task_struct *kthread;
+	struct crypto_queue	queue;
+	/* mutex to protect queue */
+	struct mutex		queue_mutex;
 };
 
 u32 swap_ulong32(u32 val);
@@ -117,6 +123,14 @@ void aml_write_crypto_reg(u32 addr, u32 data);
 u32 aml_read_crypto_reg(u32 addr);
 void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 		   u32 thread, u32 status);
+
+void aml_dma_do_hw_crypto(struct aml_dma_dev *dd, dma_addr_t dsc,
+			  u8 pooling, u8 dma_flags);
+void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags);
+
+/* queue utilities */
+int aml_dma_crypto_enqueue_req(struct aml_dma_dev *dd,
+			       struct crypto_async_request *req);
 
 u32 get_dma_t0_offset(void);
 u32 get_dma_sts0_offset(void);
