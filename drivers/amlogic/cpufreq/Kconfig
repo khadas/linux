@@ -1,5 +1,5 @@
 config AMLOGIC_MESON_CPUFREQ
-	bool  "MESON based CPUfreq driver"
+	tristate  "MESON based CPUfreq driver"
 	default n
         help
           This adds the CPUfreq driver support for ARM big.LITTLE platforms
