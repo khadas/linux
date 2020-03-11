@@ -4006,26 +4006,30 @@ void osd_set_hold_line(u32 index, int hold_line)
 int osd_get_capbility(u32 index)
 {
 	u32 capbility = 0;
+	u32 afbc = osd_hw.osd_meson_dev.afbc_type;
 
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		if (index == OSD1)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE
 				| OSD_UBOOT_LOGO | OSD_ZORDER | OSD_VIU1
-				| OSD_PRIMARY;
+				| OSD_PRIMARY | (afbc ? OSD_AFBC : 0);
 		else if (index < osd_hw.osd_meson_dev.viu1_osd_count)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE |
-				OSD_ZORDER | OSD_VIU1;
+				OSD_ZORDER | OSD_VIU1 |
+				(afbc ? OSD_AFBC : 0);
 		else if (index == osd_hw.osd_meson_dev.viu2_index)
 			capbility |= OSD_LAYER_ENABLE | OSD_VIU2;
 	} else if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
 		if (index == OSD1)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE
-				| OSD_VIU1;
+				| OSD_VIU1 | (afbc ? OSD_AFBC : 0);
 		else if (index == OSD2)
 			capbility |= OSD_LAYER_ENABLE |
 				OSD_HW_CURSOR | OSD_FREESCALE
-				| OSD_UBOOT_LOGO | OSD_VIU1;
+				| OSD_UBOOT_LOGO | OSD_VIU1 |
+				(afbc ? OSD_AFBC : 0);
 	}
+
 	return capbility;
 }
 
