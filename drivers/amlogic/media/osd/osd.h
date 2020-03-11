@@ -151,9 +151,10 @@ enum color_index_e {
 #define MALI_AFBC_SPLIT_ON   1
 #define OSD_HW_CURSOR           (1 << 0)
 #define OSD_UBOOT_LOGO          (1 << 1)
-#define OSD_ZORDER			(1 << 2)
-#define OSD_PRIMARY		(1 << 3)
-#define OSD_FREESCALE		(1 << 4)
+#define OSD_ZORDER              (1 << 2)
+#define OSD_PRIMARY             (1 << 3)
+#define OSD_FREESCALE           (1 << 4)
+#define OSD_AFBC                (1 << 5)
 #define OSD_VIU2                (1 << 29)
 #define OSD_VIU1                (1 << 30)
 #define OSD_LAYER_ENABLE        (1 << 31)
