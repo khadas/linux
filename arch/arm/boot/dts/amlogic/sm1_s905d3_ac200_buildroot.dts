@@ -1053,7 +1053,6 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
 
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
 		 * 0: tdmout_a;
@@ -1087,7 +1086,6 @@
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		status = "okay";
 	};
