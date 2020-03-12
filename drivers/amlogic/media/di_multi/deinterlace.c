@@ -1865,8 +1865,8 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 						di_buf_size * i + nr_size +
 						mtn_size + count_size
 						+ mv_size;
-				if (cfgeq(mem_flg, EDI_MEM_M_REV) ||
-				    cfgeq(mem_flg, EDI_MEM_M_CMA_ALL))
+				if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) ||
+				    cfgeq(MEM_FLAG, EDI_MEM_M_CMA_ALL))
 					dim_mcinfo_v_alloc(di_buf,
 							   mm->cfg.mcinfo_size);
 				}
@@ -1886,9 +1886,9 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		}
 	}
 
-	if (cfgeq(mem_flg, EDI_MEM_M_CMA)	||
-	    cfgeq(mem_flg, EDI_MEM_M_CODEC_A)	||
-	    cfgeq(mem_flg, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
 		dip_wq_cma_run(channel, true);
 	}
 
@@ -1983,10 +1983,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 			PR_ERR("%s:%d:post buf is null\n", __func__, i);
 		}
 	}
-	if (cfgeq(mem_flg, EDI_MEM_M_REV) && de_devp->nrds_enable) {
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable) {
 		nrds_mem = di_post_mem + mm->cfg.num_post * di_post_buf_size;
 		/*mm-0705 ppost->di_post_num * di_post_buf_size;*/
-		dim_nr_ds_buf_init(cfgg(mem_flg), nrds_mem,
+		dim_nr_ds_buf_init(cfgg(MEM_FLAG), nrds_mem,
 				   &de_devp->pdev->dev);
 	}
 	return 0;
@@ -2369,8 +2369,8 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 		ppost->de_post_process_done = 0;
 		ppost->post_wr_cnt = 0;
 	}
-	if (cfgeq(mem_flg, EDI_MEM_M_REV) && de_devp->nrds_enable) {
-		dim_nr_ds_buf_uninit(cfgg(mem_flg),
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable) {
+		dim_nr_ds_buf_uninit(cfgg(MEM_FLAG),
 				     &de_devp->pdev->dev);
 	}
 }
@@ -2476,7 +2476,7 @@ static void dump_state(unsigned int channel)
 	pr_info("buffer_size=%d, mem_flag=%s, cma_flag=%d\n",
 		/*atomic_read(&de_devp->mem_flag)*/
 		mm->cfg.size_local, di_cma_dbg_get_st_name(channel),
-		cfgg(mem_flg));
+		cfgg(MEM_FLAG));
 	keep_buf = ppost->keep_buf;
 	pr_info("used_post_buf_index %d(0x%p),",
 		IS_ERR_OR_NULL(keep_buf) ?
@@ -5522,7 +5522,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		    is_meson_tl1_cpu()		||
 		    is_meson_tm2_cpu()		||
 		    is_meson_sm1_cpu()) {
-			if (di_cfg_top_get(EDI_CFG_ref_2)	&&
+			if (di_cfg_top_get(EDI_CFG_REF_2)	&&
 			    mc_pre_flag				&&
 			    dimp_get(edi_mp_post_wr_en)) { /*OTT-3210*/
 				dbg_once("mc_old=%d\n", mc_pre_flag);
@@ -6582,9 +6582,9 @@ void di_unreg_variable(unsigned int channel)
 	recovery_flag = 0;
 	ppre->cur_prog_flag = 0;
 
-	if (cfgeq(mem_flg, EDI_MEM_M_CMA)	||
-	    cfgeq(mem_flg, EDI_MEM_M_CODEC_A)	||
-	    cfgeq(mem_flg, EDI_MEM_M_CODEC_B))
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B))
 		dip_wq_cma_run(channel, false);
 
 	sum_g_clear(channel);
@@ -7058,7 +7058,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 
 		dim_print("%s: vframe come => di_init_buf\n", __func__);
 
-		if (cfgeq(mem_flg, EDI_MEM_M_REV) && !de_devp->mem_flg)
+		if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && !de_devp->mem_flg)
 			dim_rev_mem_check();
 
 		/*(is_progressive(vframe) && (prog_proc_config & 0x10)) {*/
@@ -8073,7 +8073,6 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 	int ret = 0;
 	unsigned int tmp_clk[2] = {0, 0};
 	struct clk *vpu_clk = NULL;
-	struct clk *clkb_tmp_comp = NULL;
 
 	vpu_clk = clk_get(dev, "vpu_mux");
 	if (IS_ERR(vpu_clk))
@@ -8094,24 +8093,9 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 		pdev->clkb_max_rate);
 	#ifdef CLK_TREE_SUPPORT
 	pdev->vpu_clkb = clk_get(dev, "vpu_clkb");
-	if (is_meson_tl1_cpu()) {
-		clkb_tmp_comp = clk_get(dev, "vpu_clkb_tmp");
-		if (IS_ERR(clkb_tmp_comp)) {
-			PR_ERR("clkb_tmp error\n");
-		} else {
-			/*ary: this make clk from 500 to 666?*/
-			if (!IS_ERR(vpu_clk))
-				clk_set_parent(clkb_tmp_comp, vpu_clk);
-		}
-	}
 
-	if (IS_ERR(pdev->vpu_clkb)) {
+	if (IS_ERR(pdev->vpu_clkb))
 		PR_ERR("%s: get vpu clkb gate error.\n", __func__);
-	} else {
-		clk_set_rate(pdev->vpu_clkb, pdev->clkb_min_rate);
-		pr_info("get clkb rate:%ld\n", clk_get_rate(pdev->vpu_clkb));
-	}
-
 	#endif
 }
 

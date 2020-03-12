@@ -34,15 +34,15 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/* cfg for top */
 	[EDI_CFG_BEGIN]  = {"cfg top begin ", EDI_CFG_BEGIN, 0,
 			K_DI_CFG_T_FLG_NONE},
-	[EDI_CFG_mem_flg]  = {"flag_cma", EDI_CFG_mem_flg,
+	[EDI_CFG_MEM_FLAG]  = {"flag_cma", EDI_CFG_MEM_FLAG,
 				EDI_MEM_M_CMA,
 				K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_first_bypass]  = {"first_bypass",
-				EDI_CFG_first_bypass,
+	[EDI_CFG_FIRST_BYPASS]  = {"first_bypass",
+				EDI_CFG_FIRST_BYPASS,
 				0,
 				K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_ref_2]  = {"ref_2",
-		EDI_CFG_ref_2, 0, K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_REF_2]  = {"ref_2",
+		EDI_CFG_REF_2, 0, K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
 			EDI_CFG_KEEP_CLEAR_AUTO,
 			0,
@@ -1559,7 +1559,7 @@ void dip_chst_process_reg(unsigned int ch)
 		break;
 	case EDI_TOP_STATE_REG_STEP2:/*now no change to do*/
 		if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-			if (di_cfg_top_get(EDI_CFG_first_bypass)) {
+			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
 				if (get_sum_g(ch) == 0)
 					dim_bypass_first_frame(ch);
 				else
@@ -1619,7 +1619,7 @@ void dip_chst_process_ch(void)
 		switch (chst) {
 		case EDI_TOP_STATE_REG_STEP2:
 			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-				if (di_cfg_top_get(EDI_CFG_first_bypass)) {
+				if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
 					if (get_sum_g(ch) == 0)
 						dim_bypass_first_frame(ch);
 					else
@@ -1677,17 +1677,6 @@ bool dip_chst_change_2unreg(void)
 	}
 	return ret;
 }
-
-#ifdef MARK_HIS
-void di_reg_flg_check(void)
-{
-	int ch;
-	unsigned int chst;
-
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++)
-		chst = dip_chst_get(ch);
-}
-#endif
 
 void dip_hw_process(void)
 {

@@ -903,7 +903,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "buffer_size=%d, mem_flag=%s, cma_flag=%d\n",
 		   mm->cfg.size_local,
 		   di_cma_dbg_get_st_name(channel),
-		   cfgg(mem_flg));
+		   cfgg(MEM_FLAG));
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?

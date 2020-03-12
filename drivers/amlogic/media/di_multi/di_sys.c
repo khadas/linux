@@ -216,15 +216,15 @@ unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 	struct dim_mm_s omm;
 	bool ret;
 
-	ret = dim_mm_alloc(cfgg(mem_flg),
+	ret = dim_mm_alloc(cfgg(MEM_FLAG),
 			   mmt->mem_size >> PAGE_SHIFT,
 			   &omm);
 	if (!ret) /*failed*/
 		return 0;
 	mmt->mem_start = omm.addr;
 	mmt->total_pages = omm.ppage;
-	if (cfgnq(mem_flg, EDI_MEM_M_REV) && de_devp->nrds_enable)
-		dim_nr_ds_buf_init(cfgg(mem_flg), 0, &de_devp->pdev->dev);
+	if (cfgnq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable)
+		dim_nr_ds_buf_init(cfgg(MEM_FLAG), 0, &de_devp->pdev->dev);
 	return 1;
 }
 
@@ -238,7 +238,7 @@ static bool dim_cma_release_total(void)
 		PR_ERR("%s:mmt is null\n", __func__);
 		return lret;
 	}
-	ret = dim_mm_release(cfgg(mem_flg), mmt->total_pages,
+	ret = dim_mm_release(cfgg(MEM_FLAG), mmt->total_pages,
 			     mmt->mem_size >> PAGE_SHIFT,
 			     mmt->mem_start);
 	if (ret) {
@@ -269,7 +269,7 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			       __func__, buf_p->index, buf_p->pages);
 			continue;
 		}
-		aret = dim_mm_alloc(cfgg(mem_flg),
+		aret = dim_mm_alloc(cfgg(MEM_FLAG),
 				    mm->cfg.size_local >> PAGE_SHIFT,
 			&omm);
 		if (!aret) {
@@ -309,8 +309,8 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	}
 	PR_INF("%s:ch[%d] num_local[%d]:[%d]\n", __func__,
 	       channel, mm->sts.num_local, alloc_cnt);
-	if (cfgnq(mem_flg, EDI_MEM_M_REV) && de_devp->nrds_enable)
-		dim_nr_ds_buf_init(cfgg(mem_flg), 0, &de_devp->pdev->dev);
+	if (cfgnq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable)
+		dim_nr_ds_buf_init(cfgg(MEM_FLAG), 0, &de_devp->pdev->dev);
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
 	PR_INF("%s:ch[%d] use %u ms(%u~%u)\n",
@@ -342,7 +342,7 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 					buf_p->index, buf_p->pages);
 				continue;
 			}
-			aret = dim_mm_alloc(cfgg(mem_flg),
+			aret = dim_mm_alloc(cfgg(MEM_FLAG),
 					    mm->cfg.size_post >> PAGE_SHIFT,
 					&omm);
 			if (!aret) {
@@ -387,7 +387,7 @@ static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
 		if (ii >= USED_LOCAL_BUF_MAX &&
 		    buf_p->pages) {
 			dim_mcinfo_v_release(buf_p);
-			ret = dim_mm_release(cfgg(mem_flg),
+			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     buf_p->pages,
 					     mm->cfg.size_local >> PAGE_SHIFT,
 					     buf_p->nr_adr);
@@ -408,7 +408,7 @@ static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
 		}
 	}
 	if (de_devp->nrds_enable)
-		dim_nr_ds_buf_uninit(cfgg(mem_flg), &de_devp->pdev->dev);
+		dim_nr_ds_buf_uninit(cfgg(MEM_FLAG), &de_devp->pdev->dev);
 	if (mm->sts.num_local < 0 || mm->sts.num_post < 0)
 		PR_ERR("%s:mm:nub_local=%d,nub_post=%d\n",
 		       __func__,
@@ -442,7 +442,7 @@ static void dpst_cma_release(struct di_dev_s *devp, unsigned int ch)
 				       __func__, i);
 				continue;
 			}
-			ret = dim_mm_release(cfgg(mem_flg),
+			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     buf_p->pages,
 					     mm->cfg.size_post >> PAGE_SHIFT,
 					     buf_p->nr_adr);
@@ -528,7 +528,7 @@ bool dim_rev_mem_check(void)
 		PR_ERR("%s:mmt\n", __func__);
 		return false;
 	}
-	if (cfgeq(mem_flg, EDI_MEM_M_REV) && di_devp->mem_flg)
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && di_devp->mem_flg)
 		return true;
 	PR_INF("%s\n", __func__);
 	dil_get_rev_mem(&rmstart, &rmsize);
@@ -565,15 +565,15 @@ static void dim_mem_remove(void)
 
 static void dim_mem_prob(void)
 {
-	unsigned int mem_flg = cfgg(mem_flg);
+	unsigned int mem_flg = cfgg(MEM_FLAG);
 	struct di_dev_s *di_devp = get_dim_de_devp();
 	struct dim_mm_t_s *mmt = dim_mmt_get();
 
 	if (mem_flg >= EDI_MEM_M_MAX) {
-		cfgs(mem_flg, EDI_MEM_M_CMA);
+		cfgs(MEM_FLAG, EDI_MEM_M_CMA);
 		PR_ERR("%s:mem_flg overflow[%d], set to def\n",
 		       __func__, mem_flg);
-		mem_flg = cfgg(mem_flg);
+		mem_flg = cfgg(MEM_FLAG);
 	}
 	switch (mem_flg) {
 	case EDI_MEM_M_REV:
@@ -601,7 +601,7 @@ static void dim_mem_prob(void)
 		if (mmt->mem_size <= 0x800000) {/*need check??*/
 			mmt->mem_size = 0x2800000;
 			if (mem_flg != EDI_MEM_M_CODEC_A)
-				cfgs(mem_flg, EDI_MEM_M_CODEC_B);
+				cfgs(MEM_FLAG, EDI_MEM_M_CODEC_B);
 		}
 		break;
 #endif

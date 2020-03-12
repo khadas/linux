@@ -1350,7 +1350,7 @@ void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 	if (mcvecrd_mif->blend_en) {
 		DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL,
 				  dimp_get(edi_mp_mcen_mode), 0, 2);
-		if (!di_cfg_top_get(EDI_CFG_ref_2)) {
+		if (!di_cfg_top_get(EDI_CFG_REF_2)) {
 			/*(!dimp_get(edi_mp_post_wr_en)) {*/
 			DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL, 1, 11, 1);
 			DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL, 3, 18, 2);

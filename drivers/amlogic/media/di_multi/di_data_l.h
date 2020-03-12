@@ -19,10 +19,10 @@
 
 #define TABLE_FLG_END	(0xfffffffe)
 #define TABLE_LEN_MAX	(1000)
-/* #define F_IN(x, a, b)	(((x) > (a)) && ((x) < (b))) */
-/* #define COM_M(m, a, b)	(((a) & (m)) == ((b) & (m))) */
+#define F_IN(x, a, b)	(((x) > (a)) && ((x) < (b)))
+#define COM_M(m, a, b)	(((a) & (m)) == ((b) & (m)))
 #define COM_MV(a, m, v)	(((a) & (m)) == (v))
-/* #define COM_ME(a, m)	(((a) & (m)) == (m)) */
+#define COM_ME(a, m)	(((a) & (m)) == (m))
 
 #define DI_BIT0		0x00000001
 #define DI_BIT1		0x00000002
@@ -88,9 +88,9 @@ enum EDI_MEM_M {
 enum EDI_CFG_TOP_IDX {
 	/* cfg for top */
 	EDI_CFG_BEGIN,
-	EDI_CFG_mem_flg,
-	EDI_CFG_first_bypass,
-	EDI_CFG_ref_2,
+	EDI_CFG_MEM_FLAG,
+	EDI_CFG_FIRST_BYPASS,
+	EDI_CFG_REF_2,
 	EDI_CFG_KEEP_CLEAR_AUTO,
 	EDI_CFG_END,
 

@@ -491,11 +491,6 @@ struct di_buf_s *di_que_peek(unsigned int ch, enum QUE_TYPE qtype)
 	return di_buf;
 }
 
-unsigned int F_IN(unsigned int type, unsigned int min, unsigned int max)
-{
-	return (((type) > (min)) && ((type) < (max)));
-}
-
 bool di_que_type_2_new(unsigned int q_type, enum QUE_TYPE *nqtype)
 {
 	if (!F_IN(q_type, QUEUE_NEW_THD_MIN, QUEUE_NEW_THD_MAX))

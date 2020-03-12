@@ -24,16 +24,6 @@
 #include "nr_downscale.h"
 #include "register.h"
 
-unsigned int COM_ME(unsigned int type, unsigned int src)
-{
-	return (((type) & (src)) == (type));
-}
-
-unsigned int COM_M(unsigned int mask, unsigned int a_vc, unsigned int b_vl)
-{
-	return (((a_vc) & (mask)) == ((b_vl) & (mask)));
-}
-
 /****************************************
  * 1. copy curr to last
  * 2. set curr
