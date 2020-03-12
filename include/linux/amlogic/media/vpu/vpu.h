@@ -53,6 +53,7 @@ enum vpu_mod_e {
 	VPU_DOLBY0,           /* reg1[9:8], TXLX */
 	VPU_DOLBY1A,          /* reg1[11:10], TXLX */
 	VPU_DOLBY1B,          /* reg1[13:12], TXLX */
+	VPU_DOLBY2,
 	VPU_VPU_ARB,          /* reg1[15:14], GXBB, GXTVBB, GXL, TXLX */
 	VPU_AFBC_DEC,         /* reg1[17:16], GXBB, GXTVBB, TXL, TXLX */
 	VPU_OSD_AFBCD,        /* reg1[19:18], TXLX */
