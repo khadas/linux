@@ -921,6 +921,9 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 	writel(0, host->regs + SD_EMMC_DELAY2);
 	writel(0, host->regs + SD_EMMC_INTF3);
 	writel(0, host->regs + SD_EMMC_V3_ADJUST);
+	val = readl(host->regs + SD_EMMC_IRQ_EN);
+	val &= ~CFG_CMD_SETUP;
+	writel(val, host->regs + SD_EMMC_IRQ_EN);
 	switch (ios->timing) {
 	case MMC_TIMING_MMC_HS400:
 		val = readl(host->regs + SD_EMMC_V3_ADJUST);
@@ -2000,6 +2003,8 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 				   readl(host->regs + SD_EMMC_V3_ADJUST),
 				   readl(host->regs + SD_EMMC_CFG),
 				   readl(host->regs + SD_EMMC_INTF3));
+			dev_notice(host->dev, "irq_en: 0x%x\n",
+				   readl(host->regs + 0x4c));
 			dev_notice(host->dev, "delay1: 0x%x,delay2: 0x%x\n",
 				   readl(host->regs + SD_EMMC_DELAY1),
 				   readl(host->regs + SD_EMMC_DELAY2));
@@ -2028,6 +2033,8 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 				   readl(host->regs + SD_EMMC_DELAY2));
 			dev_notice(host->dev, "pinmux: 0x%x\n",
 				   readl(host->pin_mux_base));
+			dev_notice(host->dev, "irq_en: 0x%x\n",
+				   readl(host->regs + 0x4c));
 		}
 		cmd->error = -ETIMEDOUT;
 		ret = IRQ_WAKE_THREAD;
@@ -2357,10 +2364,12 @@ static struct pinctrl * __must_check aml_pinctrl_select(struct meson_host *host,
 {
 	struct pinctrl *p = host->pinctrl;
 	struct pinctrl_state *s;
-	int ret;
+	int ret = 1;
 
-	if (!p)
+	if (!p) {
 		dev_err(host->dev, "%s NULL POINT!!\n", __func__);
+		return ERR_PTR(ret);
+	}
 
 	s = pinctrl_lookup_state(p, name);
 	if (IS_ERR(s)) {
