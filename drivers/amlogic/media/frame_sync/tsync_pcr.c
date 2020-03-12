@@ -380,6 +380,7 @@ u32 tsync_pcr_get_ref_pcr(void)
 	u32 ref_pcr = 0;
 	uint64_t audio_cache_pts = 0;
 	uint64_t video_cache_pts = 0;
+	uint64_t pts_cache_tmp = 0;
 	int audio_cache_ms = 0;
 	int video_cache_ms = 0;
 	int diff = 0;
@@ -393,21 +394,25 @@ u32 tsync_pcr_get_ref_pcr(void)
 		first_apts = first_checkin_apts;
 	if (!first_vpts)
 		first_vpts = first_checkin_vpts;
-
+	/*Use the firs output vpts to calc buffer cache and init pcr*/
+	if (tsync_pcr_vstart_flag == 1) {
+		first_vpts = tsync_pcr_first_video_frame_pts;
+		pr_info("Video Start, first vpts:0x%x\n", first_vpts);
+	}
 	cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 	cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
 	video_cache_pts = cur_checkin_vpts - first_vpts;
 	audio_cache_pts = cur_checkin_apts - first_apts;
 	if ((first_apts == 0) && (cur_checkin_apts == 0xffffffff))
 		audio_cache_pts = 0;
+	pts_cache_tmp = audio_cache_pts;
 #ifdef CONFIG_64BIT
 	audio_cache_ms = audio_cache_pts / 90;
 	video_cache_ms = video_cache_pts / 90;
 #else
-	do_div(audio_cache_pts, 90);
-	do_div(video_cache_pts, 90);
-	audio_cache_ms = audio_cache_pts;
-	video_cache_ms = video_cache_pts;
+	audio_cache_ms = do_div(pts_cache_tmp, 90);
+	pts_cache_tmp = video_cache_pts;
+	video_cache_ms = do_div(pts_cache_tmp, 90);
 #endif
 
 	pr_info("get_ref_pcr:apts(%x,%x,%x,cache:%dms),vpts(%x,%x,%x,cache:%dms)\n",
@@ -990,9 +995,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		}
 		tsync_set_av_state(0, 2);
 		/*tsync_pcr_inited_mode = INIT_MODE_VIDEO;*/
-		tsync_pcr_pcrscr_set();
-
 		tsync_pcr_vstart_flag = 1;
+		tsync_pcr_pcrscr_set();
 		break;
 
 	case VIDEO_STOP:
