@@ -342,6 +342,18 @@
 		compatible = "amlogic, vdac-tm2";
 		status = "okay";
 	};
+
+	mailbox: mhu@ff63c400 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu";
+		reg = <0x0 0xff63c400 0x0 0x4c>,   /* MHU registers */
+		      <0 0xfffdf000 0x0 0x800>;   /* Payload area */
+		interrupts = <0 209 1>,   /* low priority interrupt */
+			     <0 210 1>;   /* high priority interrupt */
+		#mbox-cells = <1>;
+		mbox-names = "cpu_to_scp_low", "cpu_to_scp_high";
+		mboxes = <&mailbox 0 &mailbox 1>;
+	};
 };
 
 &gpu{

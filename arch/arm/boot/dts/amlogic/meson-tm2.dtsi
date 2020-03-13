@@ -310,6 +310,18 @@
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
+
+	mailbox: mhu@ff63c400 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu";
+		g = <0xff63c400 0x4c>,   /* MHU registers */
+		    <0xfffdf000 0x800>;   /* Payload area */
+		interrupts = <0 209 1>,   /* low priority interrupt */
+			     <0 210 1>;   /* high priority interrupt */
+		#mbox-cells = <1>;
+		mbox-names = "cpu_to_scp_low", "cpu_to_scp_high";
+		mboxes = <&mailbox 0 &mailbox 1>;
+	};
 };
 
 &gpu{
