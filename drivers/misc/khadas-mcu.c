@@ -255,7 +255,14 @@ static bool is_vim1_or_vim2(void)
 static bool is_duty_control_version(void)
 {
 	int cpu_type = get_cpu_type();
-	if ((cpu_type == MESON_CPU_MAJOR_ID_G12B) || (cpu_type == MESON_CPU_MAJOR_ID_SM1 || MESON_CPU_MAJOR_ID_G12A)) {
+	if ((cpu_type == MESON_CPU_MAJOR_ID_G12B) || (cpu_type == MESON_CPU_MAJOR_ID_SM1 || MESON_CPU_MAJOR_ID_GXL)) {
+		if(cpu_type == MESON_CPU_MAJOR_ID_GXL) {
+			if (g_mcu_data->version == 0xff01) {
+				return false;
+			} else {
+				return true;
+			}
+		}
 		if (g_mcu_data->version >= 0x03)
 		return true;
 	}
