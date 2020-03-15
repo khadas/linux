@@ -119,7 +119,7 @@ static const struct file_operations vad_fops = {
 	.compat_ioctl   = vad_ioctl_compat,
 };
 
-static int __init vad_init(void)
+int __init vad_dev_init(void)
 {
 	struct device *vad_dev;
 	struct class *p_vad_class;
@@ -158,10 +158,13 @@ err0:
 	return ret;
 }
 
-static void __exit vad_exit(void)
+void __exit vad_dev_exit(void)
 {
 	unregister_chrdev(VAD_MAJOR, DRV_NAME);
 }
 
-module_init(vad_init);
-module_exit(vad_exit);
+#ifndef MODULE
+module_init(vad_dev_init);
+module_exit(vad_dev_exit);
+#endif
+

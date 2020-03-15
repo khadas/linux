@@ -1362,9 +1362,22 @@ static struct platform_driver loopback_platform_driver = {
 	},
 	.probe  = loopback_platform_probe,
 };
-module_platform_driver(loopback_platform_driver);
 
+int __init loopback_init(void)
+{
+	return platform_driver_register(&(loopback_platform_driver));
+}
+
+void __exit loopback_exit(void)
+{
+	platform_driver_unregister(&loopback_platform_driver);
+}
+
+#ifndef MODULE
+module_init(loopback_init);
+module_exit(loopback_exit);
 MODULE_AUTHOR("AMLogic, Inc.");
 MODULE_DESCRIPTION("Amlogic Loopback driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+#endif

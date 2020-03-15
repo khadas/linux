@@ -233,10 +233,10 @@ static int of_parse_tdm_lane_slot_in(struct device_node *np,
 				     unsigned int *lane_mask)
 {
 	if (lane_mask)
-		return -EINVAL;
-	return snd_soc_of_get_slot_mask(np,
-					"dai-tdm-lane-slot-mask-in",
-					lane_mask);
+		return snd_soc_of_get_slot_mask(np,
+			"dai-tdm-lane-slot-mask-in", lane_mask);
+
+	return -EINVAL;
 }
 
 static int of_parse_tdm_lane_slot_out(struct device_node *np,
@@ -1653,10 +1653,23 @@ struct platform_driver aml_tdm_driver = {
 	.suspend = aml_tdm_platform_suspend,
 	.resume  = aml_tdm_platform_resume,
 };
-module_platform_driver(aml_tdm_driver);
 
+int __init tdm_init(void)
+{
+	return platform_driver_register(&aml_tdm_driver);
+}
+
+void __exit tdm_exit(void)
+{
+	platform_driver_unregister(&aml_tdm_driver);
+}
+
+#ifndef MODULE
+module_init(tdm_init);
+module_exit(tdm_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic TDM ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, aml_tdm_device_id);
+#endif

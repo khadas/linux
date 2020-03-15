@@ -10,6 +10,8 @@ ARCH=arm64 ./scripts/kconfig/merge_config.sh arch/arm64/configs/meson64_gki_defc
 make ARCH=arm64 Image -j12
 make ARCH=arm64 dtbs -j12
 make ARCH=arm64 modules -j12
+
+#exit 0;
 rm -rfv ${INSTALL_MOD_PATH}
 mkdir -p ${INSTALL_MOD_PATH}/target
 make modules_install

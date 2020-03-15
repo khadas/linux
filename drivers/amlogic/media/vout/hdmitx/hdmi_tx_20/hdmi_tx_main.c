@@ -2357,11 +2357,13 @@ void hdmitx_ext_set_audio_output(int enable)
 {
 	hdmitx_audio_mute_op(enable);
 }
+EXPORT_SYMBOL_GPL(hdmitx_ext_set_audio_output);
 
 int hdmitx_ext_get_audio_status(void)
 {
 	return !!hdmitx_device.tx_aud_cfg;
 }
+EXPORT_SYMBOL_GPL(hdmitx_ext_get_audio_status);
 
 void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
 {

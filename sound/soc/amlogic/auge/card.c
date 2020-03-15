@@ -332,7 +332,9 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 		goto dai_link_of_err;
 
 	/* sync with android audio hal, what's the link used for. */
-	of_property_read_string(node, "suffix-name", &dai_props->suffix_name);
+	if (of_property_read_string(node, "suffix-name",
+				    &dai_props->suffix_name))
+		pr_info("%s get suffix-name failed\n", __func__);
 
 	if (dai_props->suffix_name) {
 		ret = asoc_simple_set_dailink_name(dev, dai_link,
@@ -654,7 +656,7 @@ static int card_resume_post(struct snd_soc_card *card)
 }
 
 static int spk_mute_set(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct asoc_simple_priv *priv =
@@ -875,9 +877,21 @@ static struct platform_driver asoc_simple_card = {
 	.remove = asoc_simple_remove,
 };
 
-module_platform_driver(asoc_simple_card);
+int __init asoc_simple_init(void)
+{
+	return platform_driver_register(&asoc_simple_card);
+}
 
+void __exit asoc_simple_exit(void)
+{
+	platform_driver_unregister(&asoc_simple_card);
+}
+
+#ifndef MODULE
+module_init(asoc_simple_init);
+module_exit(asoc_simple_exit);
 MODULE_ALIAS("platform:asoc-simple-card");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ASoC Simple Sound Card");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+#endif

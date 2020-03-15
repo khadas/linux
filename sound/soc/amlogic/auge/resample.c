@@ -699,4 +699,18 @@ static struct platform_driver resample_platform_driver = {
 	},
 	.probe  = resample_platform_probe,
 };
-module_platform_driver(resample_platform_driver);
+
+int __init resample_drv_init(void)
+{
+	return platform_driver_register(&resample_platform_driver);
+}
+
+void __exit resample_drv_exit(void)
+{
+	platform_driver_unregister(&resample_platform_driver);
+}
+
+#ifndef MODULE
+module_init(resample_drv_init);
+module_exit(resample_drv_exit);
+#endif

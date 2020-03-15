@@ -946,10 +946,23 @@ struct platform_driver extn_driver = {
 	},
 	.probe = extn_platform_probe,
 };
-module_platform_driver(extn_driver);
 
+int __init extn_init(void)
+{
+	return platform_driver_register(&(extn_driver));
+}
+
+void __exit extn_exit(void)
+{
+	platform_driver_unregister(&extn_driver);
+}
+
+#ifndef MODULE
+module_init(extn_init);
+module_exit(extn_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic External Input/Output ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("Platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, extn_device_id);
+#endif

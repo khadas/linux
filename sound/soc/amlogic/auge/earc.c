@@ -1539,14 +1539,22 @@ struct platform_driver earc_driver = {
 	.probe = earc_platform_probe,
 };
 
-static int __init earc_init(void)
+int __init earc_init(void)
 {
 	return platform_driver_register(&earc_driver);
 }
-arch_initcall_sync(earc_init);
 
+void __exit earc_exit(void)
+{
+	platform_driver_unregister(&earc_driver);
+}
+
+#ifndef MODULE
+arch_initcall_sync(earc_init);
+module_exit(earc_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic eARC/ARC TX/RX ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("Platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, earc_device_id);
+#endif

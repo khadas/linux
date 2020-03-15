@@ -245,9 +245,22 @@ struct platform_driver aml_pwrdet = {
 	.suspend = aml_pwrdet_platform_suspend,
 	.resume  = aml_pwrdet_platform_resume,
 };
-module_platform_driver(aml_pwrdet);
 
+int __init pwrdet_init(void)
+{
+	return platform_driver_register(&aml_pwrdet);
+}
+
+void __exit pwrdet_exit(void)
+{
+	platform_driver_unregister(&aml_pwrdet);
+}
+
+#ifndef MODULE
+module_init(pwrdet_init);
+module_exit(pwrdet_exit);
 /* Module information */
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("ALSA Soc Aml Audio Power detect");
 MODULE_LICENSE("GPL v2");
+#endif

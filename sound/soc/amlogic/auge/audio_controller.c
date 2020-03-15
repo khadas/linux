@@ -131,10 +131,23 @@ static struct platform_driver aml_audio_controller_driver = {
 	},
 	.probe = aml_audio_controller_probe,
 };
-module_platform_driver(aml_audio_controller_driver);
 
+int __init audio_controller_init(void)
+{
+	return platform_driver_register(&aml_audio_controller_driver);
+}
+
+void __exit audio_controller_exit(void)
+{
+	platform_driver_unregister(&aml_audio_controller_driver);
+}
+
+#ifndef MODULE
+module_init(audio_controller_init);
+module_exit(audio_controller_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic audio controller ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, amlogic_audio_controller_of_match);
+#endif

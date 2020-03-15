@@ -93,15 +93,19 @@ static struct platform_driver audio_clocks_driver = {
 
 int __init audio_clocks_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&audio_clocks_driver);
-
-	return ret;
+	return platform_driver_register(&audio_clocks_driver);
 }
-core_initcall(audio_clocks_init);
 
+void __exit audio_clocks_exit(void)
+{
+	platform_driver_unregister(&audio_clocks_driver);
+}
+
+#ifndef MODULE
+core_initcall(audio_clocks_init);
+module_exit(audio_clocks_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic audio clocks ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+#endif

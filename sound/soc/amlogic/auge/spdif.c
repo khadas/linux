@@ -1518,10 +1518,23 @@ struct platform_driver aml_spdif_driver = {
 	.resume  = aml_spdif_platform_resume,
 	.shutdown = aml_spdif_platform_shutdown,
 };
-module_platform_driver(aml_spdif_driver);
 
+int __init spdif_init(void)
+{
+	return platform_driver_register(&aml_spdif_driver);
+}
+
+void __exit spdif_exit(void)
+{
+	platform_driver_unregister(&aml_spdif_driver);
+}
+
+#ifndef MODULE
+module_init(spdif_init);
+module_exit(spdif_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic S/PDIF ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, aml_spdif_device_id);
+#endif

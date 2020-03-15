@@ -1003,10 +1003,22 @@ struct platform_driver vad_driver = {
 	//.resume  = vad_platform_resume,
 };
 
-module_platform_driver(vad_driver);
+int __init vad_drv_init(void)
+{
+	return platform_driver_register(&vad_driver);
+}
 
+void __exit vad_drv_exit(void)
+{
+	platform_driver_unregister(&vad_driver);
+}
+
+#ifndef MODULE
+module_init(vad_drv_init);
+module_exit(vad_drv_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic Voice Activity Detection ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("Platform:" DRV_NAME);
 MODULE_DEVICE_TABLE(of, vad_device_id);
+#endif

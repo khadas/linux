@@ -9,7 +9,7 @@ menuconfig AMLOGIC_SND_SOC_CODECS
 #if AMLOGIC_SND_SOC_CODECS
 
 config AMLOGIC_SND_CODEC_DUMMY_CODEC
-	bool "Amlogic Audio dummy codec"
+	tristate "Amlogic Audio dummy codec"
 	depends on AMLOGIC_SND_SOC_CODECS
 	default n
 	help
@@ -19,7 +19,7 @@ config AMLOGIC_SND_CODEC_DUMMY_CODEC
 		this codec is internal
 
 config AMLOGIC_SND_CODEC_PCM2BT
-	bool "Amlogic Audio pcm2bt codec"
+	tristate "Amlogic Audio pcm2bt codec"
 	depends on AMLOGIC_SND_SOC_CODECS
 	default n
 	help
@@ -29,17 +29,17 @@ config AMLOGIC_SND_CODEC_PCM2BT
 		this codec is internal
 
 config AMLOGIC_SND_CODEC_PDM_DUMMY_CODEC
-        bool "Amlogic Audio pdm dummy codec"
-        depends on AMLOGIC_SND_SOC_CODECS
+	tristate "Amlogic Audio pdm dummy codec"
+	depends on AMLOGIC_SND_SOC_CODECS
 	default n
-        help
-                Amlogic Audio pdm codec,
-                pdm dummy codec,
-                pdm dummy codec,
-                this codec is internal
+	help
+		Amlogic Audio pdm codec,
+		pdm dummy codec,
+		pdm dummy codec,
+		this codec is internal
 
 config AMLOGIC_SND_CODEC_AMLT9015
-	bool "Amlogic Audio AMLT9015 codec"
+	tristate "Amlogic Audio AMLT9015 codec"
 	depends on AMLOGIC_SND_SOC_CODECS
 	default n
 	help
@@ -49,28 +49,28 @@ config AMLOGIC_SND_CODEC_AMLT9015
 		this codec is internal
 
 config AMLOGIC_SND_CODEC_AMLT9015S
-        bool "Amlogic Audio AMLT9015S codec"
-        depends on AMLOGIC_SND_SOC_CODECS
-        default n
-        help
-                Amlogic Audio codec,
-                AMLT9015S codec,
-                AMLT9015S codec,
-                this codec is internal
+	tristate "Amlogic Audio AMLT9015S codec"
+	depends on AMLOGIC_SND_SOC_CODECS
+	default n
+	help
+		Amlogic Audio codec,
+		AMLT9015S codec,
+		AMLT9015S codec,
+		this codec is internal
 
 config AMLOGIC_SND_SOC_TAS5805
-	bool "Texas Instruments TAS5805 amplifier"
+	tristate "Texas Instruments TAS5805 amplifier"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
 	help
 		Enable support for Texas Instruments TAS5805 CODEC.
 		Select this if your TAS5805 is connected via an I2C bus.
-                Enable support for Texas Instruments TAS5805 CODEC.
-                Select this if your TAS5805 is connected via an I2C bus.
+		Enable support for Texas Instruments TAS5805 CODEC.
+		Select this if your TAS5805 is connected via an I2C bus.
 
 config AMLOGIC_SND_CODEC_TXLX_ACODEC
-	bool "Amlogic Audio txlx acodec"
+	tristate "Amlogic Audio txlx acodec"
 	depends on AMLOGIC_SND_SOC_CODECS
 	default n
 	help
@@ -80,7 +80,7 @@ config AMLOGIC_SND_CODEC_TXLX_ACODEC
 		this codec is internal
 
 config AMLOGIC_SND_CODEC_TL1_ACODEC
-	bool "Amlogic Audio tl1 acodec"
+	tristate "Amlogic Audio tl1 acodec"
 	depends on AMLOGIC_SND_SOC_CODECS
 	default n
 	help
@@ -93,7 +93,7 @@ config AMLOGIC_SND_CODEC_TL1_ACODEC
 # Amlogic add codecs
 
 config AMLOGIC_SND_SOC_TAS5782M
-	bool "Texas Instruments TAS5782M amplifier"
+	tristate "Texas Instruments TAS5782M amplifier"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -104,7 +104,7 @@ config AMLOGIC_SND_SOC_TAS5782M
 		Select this if your TAS5782M is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_TAS5707
-	bool "Texas Instruments TAS5707 amplifier"
+	tristate "Texas Instruments TAS5707 amplifier"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -115,7 +115,7 @@ config AMLOGIC_SND_SOC_TAS5707
                 Select this if your TAS5707 is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_TLV320ADC3101
-	bool "Texas Instruments TLV320ADC3101"
+	tristate "Texas Instruments TLV320ADC3101"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -126,7 +126,7 @@ config AMLOGIC_SND_SOC_TLV320ADC3101
 		Select this if your TLV320ADC3101 is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_PCM186X
-	bool "Texas Instruments PCM186X "
+	tristate "Texas Instruments PCM186X "
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -137,7 +137,7 @@ config AMLOGIC_SND_SOC_PCM186X
 		Select this if your PCM186X is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_SSM3525
-	bool "Analog Devices SSM3525 "
+	tristate "Analog Devices SSM3525 "
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -148,7 +148,7 @@ config AMLOGIC_SND_SOC_SSM3525
 		Select this if your SSM3525 is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_SSM3515
-	bool "Analog Devices SSM3515 "
+	tristate "Analog Devices SSM3515 "
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -159,7 +159,7 @@ config AMLOGIC_SND_SOC_SSM3515
 		Select this if SSM3515 is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_TAS575X
-	bool "Texas Instruments TAS575X"
+	tristate "Texas Instruments TAS575X"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -170,7 +170,7 @@ config AMLOGIC_SND_SOC_TAS575X
 		Select this if your TAS575X is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_ES7243
-	bool "EVEREST SEMI ES7243"
+	tristate "EVEREST SEMI ES7243"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n
@@ -181,16 +181,16 @@ config AMLOGIC_SND_SOC_ES7243
 		Select this if your ES7243 is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_AD82584F
-		bool "ESMT AD82584F"
-		depends on AMLOGIC_SND_SOC_CODECS
-		depends on I2C
-		default n
-		help
+	tristate "ESMT AD82584F"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
 		Enable Support for ESMT AD82584f CODEC.
 		Select this if your AD82584F is connected via an I2C bus.
 
 config AMLOGIC_SND_SOC_CS42528
-	bool "Cirrus Logic CS42528"
+	tristate "Cirrus Logic CS42528"
 	depends on AMLOGIC_SND_SOC_CODECS
 	depends on I2C
 	default n

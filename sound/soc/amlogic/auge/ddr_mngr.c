@@ -1678,10 +1678,22 @@ struct platform_driver aml_audio_ddr_manager = {
 	},
 	.probe   = aml_ddr_mngr_platform_probe,
 };
-module_platform_driver(aml_audio_ddr_manager);
 
+int __init audio_ddr_init(void)
+{
+	return platform_driver_register(&(aml_audio_ddr_manager));
+}
+
+void __exit audio_ddr_exit(void)
+{
+	platform_driver_unregister(&aml_audio_ddr_manager);
+}
+
+#ifndef MODULE
+module_init(audio_ddr_init);
+module_exit(audio_ddr_exit);
 /* Module information */
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("ALSA Soc Aml Audio DDR Manager");
 MODULE_LICENSE("GPL v2");
-
+#endif

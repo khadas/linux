@@ -333,4 +333,18 @@ static struct platform_driver audiolocker_platform_driver = {
 	},
 	.probe  = audiolocker_platform_probe,
 };
-module_platform_driver(audiolocker_platform_driver);
+
+int __init audio_locker_init(void)
+{
+	return platform_driver_register(&(audiolocker_platform_driver));
+}
+
+void __exit audio_locker_exit(void)
+{
+	platform_driver_unregister(&audiolocker_platform_driver);
+}
+
+#ifndef MODULE
+module_init(audio_locker_init);
+module_exit(audio_locker_exit);
+#endif

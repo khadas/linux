@@ -1026,9 +1026,22 @@ struct platform_driver aml_pdm_driver = {
 	.probe   = aml_pdm_platform_probe,
 	.remove  = aml_pdm_platform_remove,
 };
-module_platform_driver(aml_pdm_driver);
 
+int __init pdm_init(void)
+{
+	return platform_driver_register(&(aml_pdm_driver));
+}
+
+void __exit pdm_exit(void)
+{
+	platform_driver_unregister(&aml_pdm_driver);
+}
+
+#ifndef MODULE
+module_init(pdm_init);
+module_exit(pdm_exit);
 MODULE_AUTHOR("AMLogic, Inc.");
 MODULE_DESCRIPTION("Amlogic PDM ASoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+#endif

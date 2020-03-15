@@ -1,4 +1,4 @@
-obj-y += notify.o \
-	spdif_info.o \
-	misc.o \
-	iomapres.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/notify.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/spdif_info.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/misc.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/iomapres.o

@@ -688,9 +688,22 @@ static struct platform_driver effect_platform_driver = {
 	},
 	.probe  = effect_platform_probe,
 };
-module_platform_driver(effect_platform_driver);
 
+int __init effect_platform_init(void)
+{
+	return platform_driver_register(&(effect_platform_driver));
+}
+
+void __exit effect_platform_exit(void)
+{
+	platform_driver_unregister(&effect_platform_driver);
+}
+
+#ifndef MODULE
+module_init(effect_platform_init);
+module_exit(effect_platform_exit);
 MODULE_AUTHOR("AMLogic, Inc.");
 MODULE_DESCRIPTION("Amlogic Audio Effects driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+#endif
