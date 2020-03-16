@@ -32,3 +32,4 @@ obj-$(CONFIG_AMLOGIC_CEC)		+= cec/
 obj-$(CONFIG_AMLOGIC_BT_DEVICE) += bluetooth/
 obj-$(CONFIG_AMLOGIC_GX_REBOOT)		+= reboot/
 obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard/
+obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/

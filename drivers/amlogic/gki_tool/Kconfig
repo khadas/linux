@@ -1,0 +1,7 @@
+config AMLOGIC_GKI_TOOL
+	tristate "Meson gki tool"
+	depends on AMLOGIC_DRIVER
+	default n
+	help
+		provide common tools for GKI ko,
+		including __setup...
