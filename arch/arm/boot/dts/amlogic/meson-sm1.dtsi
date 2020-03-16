@@ -616,7 +616,7 @@
 	};
 
 	thermal-zones {
-		p_thermal: p_thermal {
+		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			sustainable-power = <1410>;
@@ -662,7 +662,7 @@
 			};
 		};
 
-		d_thermal: d_thermal {
+		ddr_thermal: ddr_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <250>;
 			sustainable-power = <1410>;
