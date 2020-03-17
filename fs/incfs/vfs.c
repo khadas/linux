@@ -72,6 +72,8 @@ static void evict_inode(struct inode *inode);
 
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags);
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size);
 
 static int show_options(struct seq_file *, struct dentry *);
@@ -167,9 +169,18 @@ static int incfs_handler_getxattr(const struct xattr_handler *xh,
 	return incfs_getxattr(d, name, buffer, size);
 }
 
+static int incfs_handler_setxattr(const struct xattr_handler *xh,
+				  struct dentry *d, struct inode *inode,
+				  const char *name, const void *buffer,
+				  size_t size, int flags)
+{
+	return incfs_setxattr(d, name, buffer, size, flags);
+}
+
 static const struct xattr_handler incfs_xattr_handler = {
 	.prefix = "",	/* AKA all attributes */
 	.get = incfs_handler_getxattr,
+	.set = incfs_handler_setxattr,
 };
 
 static const struct xattr_handler *incfs_xattr_ops[] = {
@@ -348,7 +359,6 @@ static int inode_set(struct inode *inode, void *opaque)
 		struct dentry *backing_dentry = search->backing_dentry;
 		struct inode *backing_inode = d_inode(backing_dentry);
 
-		inode_init_owner(inode, NULL, backing_inode->i_mode);
 		fsstack_copy_attr_all(inode, backing_inode);
 		if (S_ISREG(inode->i_mode)) {
 			u64 size = read_size_attr(backing_dentry);
@@ -380,6 +390,7 @@ static int inode_set(struct inode *inode, void *opaque)
 			pr_warn("incfs: ino conflict with backing FS %ld\n",
 				backing_inode->i_ino);
 		}
+
 		return 0;
 	} else if (search->ino == INCFS_PENDING_READS_INODE) {
 		/* It's an inode for .pending_reads pseudo file. */
@@ -1138,6 +1149,27 @@ static int validate_name(char *file_name)
 	return 0;
 }
 
+static int chmod(struct dentry *dentry, umode_t mode)
+{
+	struct inode *inode = dentry->d_inode;
+	struct inode *delegated_inode = NULL;
+	struct iattr newattrs;
+	int error;
+
+retry_deleg:
+	inode_lock(inode);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
+	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
+	error = notify_change(dentry, &newattrs, &delegated_inode);
+	inode_unlock(inode);
+	if (delegated_inode) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry_deleg;
+	}
+	return error;
+}
+
 static long ioctl_create_file(struct mount_info *mi,
 			struct incfs_new_file_args __user *usr_args)
 {
@@ -1238,8 +1270,8 @@ static long ioctl_create_file(struct mount_info *mi,
 	/* Creating a file in the .index dir. */
 	index_dir_inode = d_inode(mi->mi_index_dir);
 	inode_lock_nested(index_dir_inode, I_MUTEX_PARENT);
-	error = vfs_create(index_dir_inode, index_file_dentry,
-			args.mode, true);
+	error = vfs_create(index_dir_inode, index_file_dentry, args.mode | 0222,
+			   true);
 	inode_unlock(index_dir_inode);
 
 	if (error)
@@ -1247,6 +1279,12 @@ static long ioctl_create_file(struct mount_info *mi,
 	if (!d_really_is_positive(index_file_dentry)) {
 		error = -EINVAL;
 		goto out;
+	}
+
+	error = chmod(index_file_dentry, args.mode | 0222);
+	if (error) {
+		pr_debug("incfs: chmod err: %d\n", error);
+		goto delete_index_file;
 	}
 
 	/* Save the file's ID as an xattr for easy fetching in future. */
@@ -1539,7 +1577,7 @@ static int dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	inode_lock_nested(dir_node->n_backing_inode, I_MUTEX_PARENT);
-	err = vfs_mkdir(dir_node->n_backing_inode, backing_dentry, mode);
+	err = vfs_mkdir(dir_node->n_backing_inode, backing_dentry, mode | 0222);
 	inode_unlock(dir_node->n_backing_inode);
 	if (!err) {
 		struct inode *inode = NULL;
@@ -2019,11 +2057,74 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size)
 {
 	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	char *stored_value;
+	size_t stored_size;
 
-	if (!di || !di->backing_path.dentry)
+	if (di && di->backing_path.dentry)
+		return vfs_getxattr(di->backing_path.dentry, name, value, size);
+
+	if (strcmp(name, "security.selinux"))
 		return -ENODATA;
 
-	return vfs_getxattr(di->backing_path.dentry, name, value, size);
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = mi->pending_read_xattr;
+		stored_size = mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = mi->log_xattr;
+		stored_size = mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	if (!stored_value)
+		return -ENODATA;
+
+	if (stored_size > size)
+		return -E2BIG;
+
+	memcpy(value, stored_value, stored_size);
+	return stored_size;
+
+}
+
+
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags)
+{
+	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	void **stored_value;
+	size_t *stored_size;
+
+	if (di && di->backing_path.dentry)
+		return vfs_setxattr(di->backing_path.dentry, name, value, size,
+				    flags);
+
+	if (strcmp(name, "security.selinux"))
+		return -ENODATA;
+
+	if (size > INCFS_MAX_FILE_ATTR_SIZE)
+		return -E2BIG;
+
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = &mi->pending_read_xattr;
+		stored_size = &mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = &mi->log_xattr;
+		stored_size = &mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	kfree (*stored_value);
+	*stored_value = kzalloc(size, GFP_NOFS);
+	if (!*stored_value)
+		return -ENOMEM;
+
+	memcpy(*stored_value, value, size);
+	*stored_size = size;
+	return 0;
 }
 
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size)

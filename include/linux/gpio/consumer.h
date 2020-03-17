@@ -171,6 +171,8 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
 int gpiod_set_pull(struct gpio_desc *desc, unsigned int value);
 #endif
 
+void gpiod_toggle_active_low(struct gpio_desc *desc);
+
 int gpiod_is_active_low(const struct gpio_desc *desc);
 int gpiod_cansleep(const struct gpio_desc *desc);
 
@@ -499,6 +501,12 @@ static inline int gpiod_set_pull(struct gpio_desc *desc, unsigned int value)
 	return -EINVAL;
 }
 #endif
+
+static inline void gpiod_toggle_active_low(struct gpio_desc *desc)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(desc);
+}
 
 static inline int gpiod_is_active_low(const struct gpio_desc *desc)
 {

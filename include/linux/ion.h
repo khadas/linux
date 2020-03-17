@@ -315,6 +315,21 @@ void meson_ion_cma_heap_id_set(unsigned int id);
 struct device *meson_ion_get_dev(void);
 #endif
 
+/**
+ * ion_query_heaps_kernel - Returns information about available heaps to
+ * in-kernel clients.
+ *
+ * @hdata:             pointer to array of struct ion_heap_data.
+ * @size:             size of @hdata array.
+ *
+ * Returns the number of available heaps and populates @hdata with information
+ * regarding the same. When invoked with @size as 0, the function with return
+ * the number of available heaps without modifying @hdata. When the number of
+ * available heaps is higher than @size, @size is returned instead of the
+ * actual number of available heaps.
+ */
+
+size_t ion_query_heaps_kernel(struct ion_heap_data *hdata, size_t size);
 #else
 
 static inline int __ion_device_add_heap(struct ion_heap *heap,
@@ -382,6 +397,12 @@ static inline struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
 }
 
 static inline int ion_free(struct ion_buffer *buffer)
+{
+	return 0;
+}
+
+static inline size_t ion_query_heaps_kernel(struct ion_heap_data *hdata,
+					 size_t size)
 {
 	return 0;
 }
