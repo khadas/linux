@@ -1013,9 +1013,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_set_av_state(0, 3);
 		tsync_pcr_vpause_flag = 0;
 		tsync_pcr_vstart_flag = 0;
-		tsync_pcr_inited_flag = 0;
 		wait_pcr_count = 0;
-
+		pr_info("not clear init flag when video stop\n");
 		pr_info("wait_pcr_count = 0\n");
 		tsync_pcr_tsdemuxpcr_discontinue = 0;
 		tsync_pcr_discontinue_point = 0;
