@@ -1662,7 +1662,9 @@ static unsigned char is_source_change(vframe_t *vframe)
 	(((di_pre_stru.cur_inp_type & VFRAME_FORMAT_MASK) !=
 	(vframe->type & VFRAME_FORMAT_MASK)) &&
 	(!is_handle_prog_frame_as_interlace(vframe))) ||
-	(di_pre_stru.cur_source_type != vframe->source_type)) {
+	(di_pre_stru.cur_source_type != vframe->source_type) ||
+	((di_pre_stru.cur_inp_type & VIDTYPE_INTERLACE_TOP) !=
+	 (vframe->type & VIDTYPE_INTERLACE_TOP))) {
 		/* video format changed */
 		return 1;
 	} else if (
@@ -7379,6 +7381,7 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 					&di_post_stru);
 			}
 			ddbg_mod_save(eDI_DBG_MOD_PRE_TIMEOUT, 0, 0);
+			di_hpre_gl_sw(false);
 			enable_di_pre_mif(false, mcpre_en);
 			if (de_devp->nrds_enable)
 				nr_ds_hw_ctrl(false);
