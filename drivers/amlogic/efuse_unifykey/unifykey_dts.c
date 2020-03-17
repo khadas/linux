@@ -99,13 +99,17 @@ static int uk_item_create(struct platform_device *pdev, int *num)
 
 int uk_dt_create(struct platform_device *pdev)
 {
-	int			key_num;
+	int			key_num, ret;
 	struct aml_uk_dev *ukdev = platform_get_drvdata(pdev);
 
 	ukdev->uk_info.encrypt_type = -1;
 	/* do not care whether unifykey-encrypt really exists*/
-	of_property_read_u32(pdev->dev.of_node, "unifykey-encrypt",
-			     &ukdev->uk_info.encrypt_type);
+	ret = of_property_read_u32(pdev->dev.of_node, "unifykey-encrypt",
+				   &ukdev->uk_info.encrypt_type);
+	if (ret < 0) {
+		pr_err("failed to get unifykey-encrypt\n");
+		return -1;
+	}
 
 	if (!(ukdev->uk_info.key_flag)) {
 		uk_item_create(pdev, &key_num);

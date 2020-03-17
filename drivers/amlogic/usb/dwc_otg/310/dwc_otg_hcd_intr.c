@@ -651,6 +651,9 @@ void dwc_otg_hcd_save_data_toggle(dwc_hc_t *hc,
 	hctsiz_data_t hctsiz;
 	hctsiz.d32 = DWC_READ_REG32(&hc_regs->hctsiz);
 
+	if (!qtd)
+		return;
+
 	if (hc->ep_type != DWC_OTG_EP_TYPE_CONTROL) {
 		dwc_otg_qh_t *qh = hc->qh;
 		if (hctsiz.b.pid == DWC_HCTSIZ_DATA0)

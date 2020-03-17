@@ -240,6 +240,7 @@ static int mhu_probe(struct platform_device *pdev)
 	int idx, err;
 	u32 mbox_chans = 0;
 	int bit_chans = 0;
+	int ret;
 	static const char * const channel_names[] = {
 		CHANNEL_LOW_PRIORITY,
 		CHANNEL_HIGH_PRIORITY
@@ -273,15 +274,37 @@ static int mhu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctlr);
 
 	num_scp_chans = 0;
-	of_property_read_u32(dev->of_node, "num-chans-to-scp", &num_scp_chans);
+	ret = of_property_read_u32(dev->of_node, "num-chans-to-scp",
+				   &num_scp_chans);
+	if (ret) {
+		dev_err(dev, "failed to num-chans-to-scp\n");
+		return -EINVAL;
+	}
 	if (num_scp_chans == 0 || num_scp_chans > 2)
 		num_scp_chans = CHANNEL_MAX;
 	send_listen_chans = 0;
-	of_property_read_u32(dev->of_node, "send-isr-bits", &send_listen_chans);
-	of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
-	of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
+	ret = of_property_read_u32(dev->of_node, "send-isr-bits",
+				   &send_listen_chans);
+	if (ret) {
+		dev_err(dev, "failed to send-isr-bits\n");
+		return -EINVAL;
+	}
+	ret = of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
+	if (ret) {
+		dev_err(dev, "failed to ack-isr-bits\n");
+		return -EINVAL;
+	}
+	ret = of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
+	if (ret) {
+		dev_err(dev, "failed to m4-isr-bits\n");
+		return -EINVAL;
+	}
 
-	of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
+	ret = of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
+	if (ret) {
+		dev_err(dev, "failed to mbox-chans\n");
+		return -EINVAL;
+	}
 	if (!mbox_chans)
 		mbox_chans = CHANNEL_MAX;
 	l = devm_kzalloc(dev, sizeof(*l) * mbox_chans, GFP_KERNEL);

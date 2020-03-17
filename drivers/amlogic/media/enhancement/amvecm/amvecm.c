@@ -2134,8 +2134,10 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 		return 0;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	if (!buf_orig)
+	if (!buf_orig) {
+		kfree(stemp);
 		return -ENOMEM;
+	}
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!dnlp_insmod_ok) {
@@ -3733,10 +3735,9 @@ static ssize_t set_hdr_289lut_store(struct class *cls,
 
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	if (!buf_orig) {
-		kfree(buf_orig);
+		kfree(hdr289lut);
 		return -ENOMEM;
 	}
-
 	ps = buf_orig;
 	strcat(deliml, delim2);
 	while (1) {

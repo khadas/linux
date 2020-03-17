@@ -1993,7 +1993,6 @@ static int codec_mm_scatter_info_dump_in(struct codec_mm_scatter_mgt *smgt,
 	if (!buf)
 		INFO_LOG("%s", sbuf);
 
-	vfree(sbuf);
 	return tsize;
 }
 EXPORT_SYMBOL(codec_mm_scatter_info_dump);

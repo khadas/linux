@@ -403,8 +403,12 @@ static int init_char_cdev(struct device *dev)
 	int nr_minor = 0;
 	int i = 0;
 
-	of_property_read_u32(dev->of_node,
-			     "nr-dsp", &nr_minor);
+	err = of_property_read_u32(dev->of_node,
+				   "nr-dsp", &nr_minor);
+	if (err) {
+		dev_err(dev, "failed to nr-dsp\n");
+		return -EINVAL;
+	}
 	if (nr_minor == 0 || nr_minor > NR_DSP)
 		nr_minor = NR_DSP;
 
@@ -482,8 +486,12 @@ static int mhu_dsp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mhu_ctrl);
 
 	num_chans = 0;
-	of_property_read_u32(dev->of_node,
-			     "mbox-nums", &num_chans);
+	err = of_property_read_u32(dev->of_node,
+				   "mbox-nums", &num_chans);
+	if (err) {
+		dev_err(dev, "failed to mbox-nums\n");
+		return -EINVAL;
+	}
 	if (!num_chans)
 		num_chans = CHANNEL_MAX;
 	mbox_chans = devm_kzalloc(dev,
