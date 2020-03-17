@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/tm2-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/amlogic,meson-tm2-reset.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-tm2-gpio.h>
 #include <dt-bindings/input/input.h>
@@ -1095,6 +1096,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xffd00000 0x100000>;
+
+			reset: reset-controller@1004 {
+				compatible = "amlogic,meson-axg-reset";
+				reg = <0x1004 0x9c>;
+				#reset-cells = <1>;
+			};
 
 			pwm_ef: pwm@19000 {
 				compatible = "amlogic,meson-tm2-ee-pwm";
