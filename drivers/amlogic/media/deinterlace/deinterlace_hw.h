@@ -79,8 +79,6 @@ struct DI_MIF_s {
 	unsigned		canvas0_addr0:8;
 	unsigned		canvas0_addr1:8;
 	unsigned		canvas0_addr2:8;
-	/* canvas_w: for input not 64 align*/
-	unsigned int	canvas_w;
 };
 
 struct DI_SIM_MIF_s {
