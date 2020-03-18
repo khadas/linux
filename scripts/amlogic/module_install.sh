@@ -31,3 +31,4 @@ insmod arm_scpi.ko
 insmod scpi_pm_domain.ko
 insmod meson_saradc.ko
 insmod adc_keypad.ko
+insmod meson-cpufreq.ko

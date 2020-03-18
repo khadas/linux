@@ -126,8 +126,7 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 			return ret;
 		}
 
-		if (__clk_is_enabled(high_freq_clk_p) &&
-		    __clk_get_enable_count(high_freq_clk_p) != 0)
+		if (__clk_is_enabled(high_freq_clk_p))
 			clk_disable_unprepare(high_freq_clk_p);
 	}
 
@@ -378,7 +377,7 @@ static int meson_cpufreq_transition_notifier(struct notifier_block *nb,
 		if (freq->new > DSU_LOW_RATE) {
 			pr_debug("%s:dsu clk switch parent to dsu pre!\n",
 				 __func__);
-			if (__clk_get_enable_count(dsu_pre_parent) == 0) {
+			if (!__clk_is_enabled(dsu_pre_parent)) {
 				ret = clk_prepare_enable(dsu_pre_parent);
 				if (ret) {
 					pr_err("%s: CPU%d gp1 pll enable failed,ret = %d\n",
@@ -410,7 +409,7 @@ static int meson_cpufreq_transition_notifier(struct notifier_block *nb,
 			pr_debug("%s:dsu clk switch parent to cpu!\n",
 				 __func__);
 			ret = clk_set_parent(dsu_clk, dsu_cpu_parent);
-			if (__clk_get_enable_count(dsu_pre_parent) >= 1)
+			if (__clk_is_enabled(dsu_pre_parent))
 				clk_disable_unprepare(dsu_pre_parent);
 		}
 
@@ -435,6 +434,109 @@ static void get_cluster_cores(unsigned int cpuid, struct cpumask *dstp)
 			topology_physical_package_id(cpu))
 			cpumask_set_cpu(cpu, dstp);
 	}
+}
+
+static int
+aml_cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
+				    struct cpufreq_frequency_table *table)
+{
+	struct cpufreq_frequency_table *pos;
+	unsigned int min_freq = ~0;
+	unsigned int max_freq = 0;
+	unsigned int freq;
+
+	cpufreq_for_each_valid_entry(pos, table) {
+		freq = pos->frequency;
+
+		if (!cpufreq_boost_enabled() &&
+		    (pos->flags & CPUFREQ_BOOST_FREQ))
+			continue;
+
+		pr_debug("table entry %u: %u kHz\n", (int)(pos - table), freq);
+		if (freq < min_freq)
+			min_freq = freq;
+		if (freq > max_freq)
+			max_freq = freq;
+	}
+
+	policy->min = min_freq;
+	policy->cpuinfo.min_freq = min_freq;
+	policy->max = max_freq;
+	policy->cpuinfo.max_freq = max_freq;
+
+	if (policy->min == ~0)
+		return -EINVAL;
+	else
+		return 0;
+}
+
+static int set_freq_table_sorted(struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
+	struct cpufreq_frequency_table *prev = NULL;
+	int ascending = 0;
+
+	policy->freq_table_sorted = CPUFREQ_TABLE_UNSORTED;
+
+	cpufreq_for_each_valid_entry(pos, table) {
+		if (!prev) {
+			prev = pos;
+			continue;
+		}
+
+		if (pos->frequency == prev->frequency) {
+			pr_warn("Duplicate freq-table entries: %u\n",
+				pos->frequency);
+			return -EINVAL;
+		}
+
+		/* Frequency increased from prev to pos */
+		if (pos->frequency > prev->frequency) {
+			/* But frequency was decreasing earlier */
+			if (ascending < 0) {
+				pr_debug("Freq table is unsorted\n");
+				return 0;
+			}
+
+			ascending++;
+		} else {
+			/* Frequency decreased from prev to pos */
+
+			/* But frequency was increasing earlier */
+			if (ascending > 0) {
+				pr_debug("Freq table is unsorted\n");
+				return 0;
+			}
+
+			ascending--;
+		}
+
+		prev = pos;
+	}
+
+	if (ascending > 0)
+		policy->freq_table_sorted = CPUFREQ_TABLE_SORTED_ASCENDING;
+	else
+		policy->freq_table_sorted = CPUFREQ_TABLE_SORTED_DESCENDING;
+
+	pr_debug("Freq table is sorted in %s order\n",
+		 ascending > 0 ? "ascending" : "descending");
+
+	return 0;
+}
+
+static int aml_cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
+{
+	int ret;
+
+	if (!policy->freq_table)
+		return 0;
+
+	ret = aml_cpufreq_frequency_table_cpuinfo(policy, policy->freq_table);
+	if (ret)
+		return ret;
+
+	return set_freq_table_sorted(policy);
 }
 
 /* CPU initialization */
@@ -560,7 +662,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 	policy->freq_table = freq_table[cur_cluster];
-	ret = cpufreq_table_validate_and_sort(policy);
+	ret = aml_cpufreq_table_validate_and_sort(policy);
 	if (ret) {
 		dev_err(cpu_dev, "CPU %d, cluster: %d invalid freq table\n",
 			policy->cpu, cur_cluster);
