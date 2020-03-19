@@ -365,7 +365,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <16>;
+		unifykey-num = <17>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -382,6 +382,7 @@
 		unifykey-index-13= <&keysn_13>;
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
+		unifykey-index-16= <&keysn_16>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -464,6 +465,11 @@
 		keysn_15:key_15{
 			key-name = "netflix_mgkid";
 			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_16:key_16{
+			key-name = "eth_exphy_para";
+			key-device = "normal";
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
@@ -1418,8 +1424,11 @@
 	status = "okay";
 	pinctrl-names = "external_eth_pins";
 	pinctrl-0 = <&external_eth_pins>;
-	mc_val = <0x1621>;
+	mc_val = <0x1629>;
 
+	cali_val = <0x60000>;
+	rx_delay = <1>;
+	auto_cali_idx = <0>;
 	internal_phy=<0>;
 };
 
