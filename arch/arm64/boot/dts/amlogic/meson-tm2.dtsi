@@ -365,6 +365,10 @@
 		&dvfs800_cfg>;
 };
 
+&pwrc {
+	compatible = "amlogic,meson-tm2-pwrc";
+};
+
 /*
  *&usb2_phy_v2 {
  *	power-domains = <&pwrc PWRC_SM1_USB_ID>;

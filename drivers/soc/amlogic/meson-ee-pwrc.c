@@ -14,8 +14,10 @@
 #include <linux/reset-controller.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/ctype.h>
 #include <dt-bindings/power/meson-g12a-power.h>
 #include <dt-bindings/power/meson-sm1-power.h>
+#include <dt-bindings/power/meson-tm2-power.h>
 
 /* AO Offsets */
 
@@ -33,6 +35,11 @@
 #define HHI_NANOQ_MEM_PD_REG0		(0x46 << 2)
 #define HHI_NANOQ_MEM_PD_REG1		(0x47 << 2)
 #define HHI_VPU_MEM_PD_REG2		(0x4d << 2)
+#define TM2_HHI_VPU_MEM_PD_REG3		(0x4e << 2)
+#define TM2_HHI_VPU_MEM_PD_REG4		(0x4c << 2)
+#define HHI_DEMOD_MEM_PD_REG	(0x043 << 2)
+#define HHI_DSP_MEM_PD_REG0		(0x044 << 2)
+
 #define DOS_MEM_PD_VDEC			(0x0 << 2)
 #define DOS_MEM_PD_HCODEC		(0x2 << 2)
 #define DOS_MEM_PD_HEVC			(0x2 << 2)
@@ -96,6 +103,28 @@ static struct meson_ee_pwrc_top_domain sm1_pwrc_vdec = SM1_EE_PD(1);
 static struct meson_ee_pwrc_top_domain sm1_pwrc_hcodec = SM1_EE_PD(0);
 static struct meson_ee_pwrc_top_domain sm1_pwrc_hevc = SM1_EE_PD(2);
 static struct meson_ee_pwrc_top_domain sm1_pwrc_wave420l = SM1_EE_PD(3);
+
+#define TM2_EE_PD(__bit)					\
+	{							\
+		.sleep_reg = AO_RTI_GEN_PWR_SLEEP0,		\
+		.sleep_mask = BIT(__bit),			\
+		.iso_reg = AO_RTI_GEN_PWR_ISO0,			\
+		.iso_mask = BIT(__bit),				\
+	}
+
+static struct meson_ee_pwrc_top_domain tm2_pwrc_vpu = TM2_EE_PD(8);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_nna = TM2_EE_PD(16);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_usb = TM2_EE_PD(17);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_pciea = TM2_EE_PD(18);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_ge2d = TM2_EE_PD(19);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_vdec = TM2_EE_PD(1);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_hcodec = TM2_EE_PD(0);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_hevc = TM2_EE_PD(2);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_wave420l = TM2_EE_PD(3);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_pcieb = TM2_EE_PD(20);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_dspa = TM2_EE_PD(21);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_dspb = TM2_EE_PD(22);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_demod = TM2_EE_PD(23);
 
 /* Memory PD Domains */
 
@@ -199,6 +228,81 @@ static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_wave420l[] = {
 	{ DOS_MEM_PD_WAVE420L, GENMASK(31, 0) },
 };
 
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_vpu[] = {
+	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
+	VPU_MEMPD(HHI_VPU_MEM_PD_REG1),
+	VPU_MEMPD(HHI_VPU_MEM_PD_REG2),
+	VPU_MEMPD(TM2_HHI_VPU_MEM_PD_REG3),
+	VPU_MEMPD(TM2_HHI_VPU_MEM_PD_REG4),
+	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_nna[] = {
+	{ HHI_NANOQ_MEM_PD_REG0, GENMASK(31, 0) },
+	{ HHI_NANOQ_MEM_PD_REG1, GENMASK(31, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_usb[] = {
+	{ HHI_MEM_PD_REG0, GENMASK(31, 30) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_pciea[] = {
+	{ HHI_MEM_PD_REG0, GENMASK(29, 26) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_ge2d[] = {
+	{ HHI_MEM_PD_REG0, GENMASK(25, 18) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_audio[] = {
+	{ HHI_MEM_PD_REG0, GENMASK(5, 4) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(1, 0) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(3, 2) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(5, 4) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(7, 6) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(13, 12) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(15, 14) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(17, 16) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(19, 18) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(21, 20) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(23, 22) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(25, 24) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(27, 26) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_vdec[] = {
+	{ DOS_MEM_PD_VDEC, GENMASK(31, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_hcodec[] = {
+	{ DOS_MEM_PD_HCODEC, GENMASK(31, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_hevc[] = {
+	{ DOS_MEM_PD_HEVC, GENMASK(31, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_wave420l[] = {
+	{ DOS_MEM_PD_WAVE420L, GENMASK(31, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_pcieb[] = {
+	{ HHI_MEM_PD_REG0, GENMASK(7, 4) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_dspa[] = {
+	{ HHI_DSP_MEM_PD_REG0, GENMASK(15, 0) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_dspb[] = {
+	{ HHI_DSP_MEM_PD_REG0, GENMASK(31, 16) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_demod[] = {
+	{ HHI_DEMOD_MEM_PD_REG, GENMASK(11, 0) },
+	{ HHI_DEMOD_MEM_PD_REG, BIT(13) },
+};
+
 #define VPU_PD(__name, __top_pd, __mem, __get_power, __resets,		\
 		__clks, __dom_id)					\
 	{								\
@@ -246,7 +350,7 @@ static struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
 	[PWRC_SM1_USB_ID]  = TOP_PD("USB", &sm1_pwrc_usb, sm1_pwrc_mem_usb,
 				    pwrc_ee_get_power, 1, PWRC_SM1_USB_ID,
 				    0),
-	[PWRC_SM1_PCIE_ID] = TOP_PD("PCI", &sm1_pwrc_pci, sm1_pwrc_mem_pcie,
+	[PWRC_SM1_PCIE_ID] = TOP_PD("PCIE", &sm1_pwrc_pci, sm1_pwrc_mem_pcie,
 				    pwrc_ee_get_power, 3, PWRC_SM1_PCIE_ID,
 				    0),
 	[PWRC_SM1_GE2D_ID] = TOP_PD("GE2D", &sm1_pwrc_ge2d, sm1_pwrc_mem_ge2d,
@@ -265,6 +369,47 @@ static struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
 	[PWRC_SM1_WAVE420L_ID] = TOP_PD("WAVE420L", &sm1_pwrc_wave420l,
 				sm1_pwrc_mem_wave420l, pwrc_ee_get_power,
 				0, PWRC_SM1_WAVE420L_ID, 0),
+};
+
+static struct meson_ee_pwrc_domain_desc tm2_pwrc_domains[] = {
+	[PWRC_TM2_VPU_ID]  = VPU_PD("VPU", &tm2_pwrc_vpu, tm2_pwrc_mem_vpu,
+				    pwrc_ee_get_power, 11, 2, PWRC_TM2_VPU_ID),
+	[PWRC_TM2_NNA_ID]  = TOP_PD("NNA", &tm2_pwrc_nna, tm2_pwrc_mem_nna,
+				    pwrc_ee_get_power, 1, PWRC_TM2_NNA_ID, 0),
+	[PWRC_TM2_USB_ID]  = TOP_PD("USB", &tm2_pwrc_usb, tm2_pwrc_mem_usb,
+				    pwrc_ee_get_power, 1, PWRC_TM2_USB_ID,
+				    0),
+	[PWRC_TM2_PCIE_ID] = TOP_PD("PCIEA", &tm2_pwrc_pciea, tm2_pwrc_mem_pciea,
+				    pwrc_ee_get_power, 3, PWRC_TM2_PCIE_ID,
+				    0),
+	[PWRC_TM2_GE2D_ID] = TOP_PD("GE2D", &tm2_pwrc_ge2d, tm2_pwrc_mem_ge2d,
+				    pwrc_ee_get_power, 1, PWRC_TM2_GE2D_ID, 0),
+	[PWRC_TM2_AUDIO_ID] = MEM_PD("AUDIO", tm2_pwrc_mem_audio,
+				     PWRC_TM2_AUDIO_ID, 0),
+	[PWRC_TM2_ETH_ID] = MEM_PD("ETH", g12a_pwrc_mem_eth, PWRC_TM2_ETH_ID,
+					0),
+	[PWRC_TM2_VDEC_ID] = TOP_PD("VDEC", &tm2_pwrc_vdec, tm2_pwrc_mem_vdec,
+				pwrc_ee_get_power, 0, PWRC_TM2_VDEC_ID, 0),
+	[PWRC_TM2_HCODEC_ID] = TOP_PD("HCODEC", &tm2_pwrc_hcodec,
+				      tm2_pwrc_mem_hcodec, pwrc_ee_get_power,
+				      0, PWRC_TM2_HCODEC_ID, 0),
+	[PWRC_TM2_HEVC_ID] = TOP_PD("HEVC", &tm2_pwrc_hevc, tm2_pwrc_mem_hevc,
+				pwrc_ee_get_power, 0, PWRC_TM2_HEVC_ID, 0),
+	[PWRC_TM2_WAVE420L_ID] = TOP_PD("WAVE420L", &tm2_pwrc_wave420l,
+				tm2_pwrc_mem_wave420l, pwrc_ee_get_power,
+				0, PWRC_TM2_WAVE420L_ID, 0),
+	[PWRC_TM2_PCIE1_ID] = TOP_PD("PCIEB", &tm2_pwrc_pcieb,
+				tm2_pwrc_mem_pcieb, pwrc_ee_get_power,
+				3, PWRC_TM2_PCIE1_ID, 0),
+	[PWRC_TM2_DSPA_ID] = TOP_PD("DSPA", &tm2_pwrc_dspa,
+				tm2_pwrc_mem_dspa, pwrc_ee_get_power,
+				2, PWRC_TM2_DSPA_ID, 0),
+	[PWRC_TM2_DSPB_ID] = TOP_PD("DSPB", &tm2_pwrc_dspb,
+				tm2_pwrc_mem_dspb, pwrc_ee_get_power,
+				2, PWRC_TM2_DSPB_ID, 0),
+	[PWRC_TM2_DEMOD_ID] = TOP_PD("DEMOD", &tm2_pwrc_demod,
+				tm2_pwrc_mem_demod, pwrc_ee_get_power,
+				1, PWRC_TM2_DEMOD_ID, 0),
 };
 
 static const struct regmap_config dos_regmap_config = {
@@ -309,7 +454,9 @@ static int meson_ee_pwrc_off(struct generic_pm_domain *domain)
 	int i, ret;
 
 	if (!strcmp(pwrc_domain->desc.name, "USB") ||
-	    !strcmp(pwrc_domain->desc.name, "PCI"))
+	    !strcmp(pwrc_domain->desc.name, "PCIE") ||
+	    !strcmp(pwrc_domain->desc.name, "PCIEA") ||
+	    !strcmp(pwrc_domain->desc.name, "PCIEB"))
 		return 0;
 
 	ret = reset_control_deassert(pwrc_domain->rstc);
@@ -364,7 +511,9 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 	int i, ret;
 
 	if (!strcmp(pwrc_domain->desc.name, "USB") ||
-	    !strcmp(pwrc_domain->desc.name, "PCI")) {
+	    !strcmp(pwrc_domain->desc.name, "PCIE") ||
+	    !strcmp(pwrc_domain->desc.name, "PCIEA") ||
+	    !strcmp(pwrc_domain->desc.name, "PCIEB")) {
 		if (!pwrc_domain->desc.get_power(pwrc_domain))
 			return 0;
 	}
@@ -412,33 +561,23 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 
 static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 				     struct meson_ee_pwrc *pwrc,
-				     struct meson_ee_pwrc_domain *dom,
-				     unsigned int count)
+				     struct meson_ee_pwrc_domain *dom)
 {
 	struct device_node *np = NULL;
 	int ret;
+	char buf[16] = {0};
+	int i;
 
 	dom->pwrc = pwrc;
 	dom->num_rstc = dom->desc.reset_names_count;
 	dom->num_clks = dom->desc.clk_names_count;
 
-	if (count == PWRC_SM1_VPU_ID)
-		np = of_parse_phandle(pdev->dev.of_node, "vpu,reset", 0);
-	if (count == PWRC_SM1_NNA_ID)
-		np = of_parse_phandle(pdev->dev.of_node, "nn,reset", 0);
-	if (count == PWRC_SM1_USB_ID)
-		np = of_parse_phandle(pdev->dev.of_node, "usb,reset", 0);
-	if (count == PWRC_SM1_PCIE_ID)
-		np = of_parse_phandle(pdev->dev.of_node, "pcie,reset", 0);
-	if (count == PWRC_SM1_GE2D_ID)
-		np = of_parse_phandle(pdev->dev.of_node, "ge2d,reset", 0);
-
 	if (dom->num_rstc) {
-		int count = reset_control_get_count(&pdev->dev);
+		for (i = 0; i < strlen(dom->desc.name); i++)
+			buf[i] = tolower(*(dom->desc.name + i));
 
-		if (count != dom->num_rstc)
-			dev_warn(&pdev->dev, "Invalid resets count %d for domain %s\n",
-				 count, dom->desc.name);
+		sprintf(buf, "%s,%s", buf, "reset");
+		np = of_parse_phandle(pdev->dev.of_node, buf, 0);
 
 		dom->rstc = of_reset_control_array_get(np, true, false, true);
 		if (IS_ERR(dom->rstc))
@@ -563,7 +702,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 
 		memcpy(&dom->desc, &match->domains[i], sizeof(dom->desc));
 
-		ret = meson_ee_pwrc_init_domain(pdev, pwrc, dom, i);
+		ret = meson_ee_pwrc_init_domain(pdev, pwrc, dom);
 		if (ret)
 			return ret;
 
@@ -598,6 +737,11 @@ static struct meson_ee_pwrc_domain_data meson_ee_sm1_pwrc_data = {
 	.domains = sm1_pwrc_domains,
 };
 
+static struct meson_ee_pwrc_domain_data meson_ee_tm2_pwrc_data = {
+	.count = ARRAY_SIZE(tm2_pwrc_domains),
+	.domains = tm2_pwrc_domains,
+};
+
 static const struct of_device_id meson_ee_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,meson-g12a-pwrc",
@@ -606,6 +750,10 @@ static const struct of_device_id meson_ee_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,meson-sm1-pwrc",
 		.data = &meson_ee_sm1_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,meson-tm2-pwrc",
+		.data = &meson_ee_tm2_pwrc_data,
 	},
 	{ /* sentinel */ }
 };

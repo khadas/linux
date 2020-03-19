@@ -1802,7 +1802,7 @@
 			amlogic,ao-sysctrl = <&rti>;
 			amlogic,hhi-sysctrl = <&hhi>;
 			vpu,reset = <&vpu_pd_rst>;
-			nn,reset = <&nn_pd_rst>;
+			nna,reset = <&nn_pd_rst>;
 			usb,reset = <&usb_pd_rst>;
 			pcie,reset = <&pcie_pd_rst>;
 			ge2d,reset = <&ge2d_pd_rst>;

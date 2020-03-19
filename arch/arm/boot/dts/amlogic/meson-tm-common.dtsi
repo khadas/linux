@@ -718,6 +718,117 @@
 			};
 		};
 
+		pwrc: power-controller {
+			compatible = "amlogic,meson-g12a-pwrc";
+			reg = <0x0 0xff62fcc0 0x0 0x40>;
+			reg-names = "dos";
+			#power-domain-cells = <1>;
+			amlogic,ao-sysctrl = <&rti>;
+			amlogic,hhi-sysctrl = <&hhi>;
+			vpu,reset = <&vpu_pd_rst>;
+			nna,reset = <&nn_pd_rst>;
+			usb,reset = <&usb_pd_rst>;
+			pciea,reset = <&pciea_pd_rst>;
+			ge2d,reset = <&ge2d_pd_rst>;
+			pcieb,reset = <&pcieb_pd_rst>;
+			dspa,reset = <&dspa_pd_rst>;
+			dspb,reset = <&dspb_pd_rst>;
+			demod,reset = <&demod_pd_rst>;
+			clocks = <&clkc CLKID_VPU>,
+				 <&clkc CLKID_VAPB>;
+			clock-names = "vpu", "vapb";
+			/*
+			 * VPU clocking is provided by two identical clock paths
+			 * VPU_0 and VPU_1 muxed to a single clock by a glitch
+			 * free mux to safely change frequency while running.
+			 * Same for VAPB but with a final gate after the glitch
+			 * free mux.
+			 */
+			assigned-clocks = <&clkc CLKID_VPU_0_SEL>,
+					  <&clkc CLKID_VPU_0>,
+					  <&clkc CLKID_VPU>, /* Glitchfreemux*/
+					  <&clkc CLKID_VAPB_0_SEL>,
+					  <&clkc CLKID_VAPB_0>,
+					  <&clkc CLKID_VAPB_SEL>; /* Glitch */
+			assigned-clock-parents = <&clkc CLKID_FCLK_DIV3>,
+						 <0>, /* Do Nothing */
+						 <&clkc CLKID_VPU_0>,
+						 <&clkc CLKID_FCLK_DIV4>,
+						 <0>, /* Do Nothing */
+						 <&clkc CLKID_VAPB_0>;
+			assigned-clock-rates = <0>, /* Do Nothing */
+						   <0>,
+						   <0>, /* Do Nothing */
+						   <0>, /* Do Nothing */
+						   <0>,
+						   <0>; /* Do Nothing */
+		};
+
+		vpu_pd_rst: vpu_rst {
+			resets = <&reset RESET_VIU>,
+				 <&reset RESET_VENC>,
+				 <&reset RESET_VCBUS>,
+				 <&reset RESET_BT656>,
+				 <&reset RESET_RDMA>,
+				 <&reset RESET_VENCI>,
+				 <&reset RESET_VENCP>,
+				 <&reset RESET_VDAC>,
+				 <&reset RESET_VDI6>,
+				 <&reset RESET_VENCL>,
+				 <&reset RESET_VPU_VID_LOCK>;
+			reset-names = "viu", "venc", "vcbus", "bt656",
+				"rdma", "venci", "vencp", "vdac",
+				"vdi6", "vencl", "vid_lock";
+		};
+
+		nn_pd_rst: nn_rst {
+			resets = <&reset RESET_VIPNANOG>;
+			reset-names = "vipanaog";
+		};
+
+		usb_pd_rst: usb_rst {
+			resets = <&reset RESET_USB>;
+			reset-names = "usb";
+		};
+
+		pciea_pd_rst: pcie_rst {
+			resets = <&reset RESET_PCIE_CTRL_A>,
+				<&reset RESET_PCIE_PHY>,
+				<&reset RESET_PCIE_APB>;
+			reset-names = "pcie_ctrl_a", "pcie_phy",
+				"pcie_apb";
+		};
+
+		ge2d_pd_rst: ge2d_rst {
+			resets = <&reset RESET_GE2D>;
+			reset-names = "ge2d";
+		};
+
+		pcieb_pd_rst: pcieb_rst {
+			resets = <&reset RESET_PCIE1_A>,
+				<&reset RESET_PCIE1_PHY>,
+				<&reset RESET_PCIE1_APB>;
+			reset-names = "pcie1_ctrl_a", "pcie1_phy",
+				"pcie1_apb";
+		};
+
+		dspa_pd_rst: dspa_rst {
+			resets = <&reset RESET_DSPA>,
+				<&reset RESET_DSPA_DBG>;
+			reset-names = "dspa", "dspa_dbg";
+		};
+
+		dspb_pd_rst: dspb_rst {
+			resets = <&reset RESET_DSPB>,
+				<&reset RESET_DSPB_DBG>;
+			reset-names = "dspb", "dspb_dbg";
+		};
+
+		demod_pd_rst: demod_rst {
+			resets = <&reset RESET_DEMOD>;
+			reset-names = "demod";
+		};
+
 		aobus: bus@ff800000 {
 			compatible = "simple-bus";
 			reg = <0xff800000 0x100000>;
