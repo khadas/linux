@@ -3947,6 +3947,8 @@ static bool is_vframe_changed(
 	    ((cur_vf->bufWidth != new_vf->bufWidth) ||
 	     (cur_vf->width != new_vf->width) ||
 	     (cur_vf->height != new_vf->height) ||
+	     (cur_vf->sar_width != new_vf->sar_width) ||
+	     (cur_vf->sar_height != new_vf->sar_height) ||
 	     (cur_vf->bitdepth != new_vf->bitdepth) ||
 	     (cur_vf->trans_fmt != new_vf->trans_fmt) ||
 	     (cur_vf->ratio_control != new_vf->ratio_control) ||
