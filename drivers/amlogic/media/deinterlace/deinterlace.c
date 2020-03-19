@@ -3323,7 +3323,6 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 		else
 			di_mif->set_separate_en = 1;
 
-
 		if (is_progressive(di_buf->vframe) &&
 		    (di_pre_stru.prog_proc_type)) {
 			di_mif->src_field_mode = 0;
@@ -3340,12 +3339,9 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 			di_mif->chroma_y_start0 = 0;
 			di_mif->chroma_y_end0 =
 				(di_buf->vframe->height + 1) / 2 - 1;
-		} else if ((di_buf->vframe->type & VIDTYPE_INTERLACE) &&
-				(di_buf->vframe->type & VIDTYPE_VIU_FIELD)) {
-			if (di_pre_stru.cur_inp_type  & VIDTYPE_INTERLACE)
-				di_mif->src_prog = 0;
-			else
-				di_mif->src_prog = force_prog ? 1 : 0;
+		} else if ((di_pre_stru.cur_inp_type & VIDTYPE_INTERLACE) &&
+			   (di_pre_stru.cur_inp_type & VIDTYPE_VIU_FIELD)) {
+			di_mif->src_prog = 0;
 			di_mif->src_field_mode = 0;
 			di_mif->output_field_num = 0; /* top */
 			di_mif->luma_x_start0 = 0;
