@@ -4255,6 +4255,7 @@ static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "simple-panel",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "ampire,am-1280800n3tzqw-t00h",
 		.data = &ampire_am_1280800n3tzqw_t00h,
@@ -4645,6 +4646,7 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "yes-optoelectronics,ytc700tlag-05-201c",
 		.data = &yes_optoelectronics_ytc700tlag_05_201c,
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* Must be the last entry */
 		.compatible = "panel-dpi",
@@ -5020,6 +5022,7 @@ static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "simple-panel-dsi",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
@@ -5041,6 +5044,7 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "osddisplays,osd101t2045-53ts",
 		.data = &osd101t2045_53ts
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* sentinel */
 	}
