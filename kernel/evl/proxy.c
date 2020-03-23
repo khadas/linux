@@ -387,7 +387,6 @@ static void proxy_factory_dispose(struct evl_element *e)
 	out = &proxy->output;
 	if (out->wq) {
 		irq_work_sync(&out->irq_work);
-		cancel_work_sync(&out->work);
 		destroy_workqueue(out->wq);
 	}
 	fput(proxy->filp);
