@@ -278,7 +278,7 @@
 }
 #endif
 
-static const struct iio_chan_spec meson_sar_adc_iio_channels[] = {
+static struct iio_chan_spec meson_sar_adc_iio_channels[] = {
 	MESON_SAR_ADC_CHAN(0),
 	MESON_SAR_ADC_CHAN(1),
 	MESON_SAR_ADC_CHAN(2),
@@ -290,7 +290,7 @@ static const struct iio_chan_spec meson_sar_adc_iio_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
-static const struct iio_chan_spec meson_sar_adc_and_temp_iio_channels[] = {
+static struct iio_chan_spec meson_sar_adc_and_temp_iio_channels[] = {
 	MESON_SAR_ADC_CHAN(0),
 	MESON_SAR_ADC_CHAN(1),
 	MESON_SAR_ADC_CHAN(2),

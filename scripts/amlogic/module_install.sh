@@ -29,4 +29,5 @@ insmod rtc-meson-vrtc.ko
 insmod arm_scpi.ko
 #arm_scpi.ko
 insmod scpi_pm_domain.ko
+insmod meson_saradc.ko
 insmod adc_keypad.ko
