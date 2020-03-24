@@ -106,10 +106,8 @@ int uk_dt_create(struct platform_device *pdev)
 	/* do not care whether unifykey-encrypt really exists*/
 	ret = of_property_read_u32(pdev->dev.of_node, "unifykey-encrypt",
 				   &ukdev->uk_info.encrypt_type);
-	if (ret < 0) {
-		pr_err("failed to get unifykey-encrypt\n");
-		return -1;
-	}
+	if (ret < 0)
+		pr_info("no unifykey-encrypt property\n");
 
 	if (!(ukdev->uk_info.key_flag)) {
 		uk_item_create(pdev, &key_num);
