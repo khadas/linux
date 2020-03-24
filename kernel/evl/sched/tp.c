@@ -314,7 +314,7 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	struct evl_tp_ctlparam *pt = &ctlp->tp;
 	ktime_t offset, duration, next_offset;
 	struct evl_tp_schedule *gps, *ogps;
-	struct __sched_tp_window *p, *pp;
+	struct __evl_tp_window *p, *pp;
 	struct evl_tp_window *w, *pw;
 	struct evl_tp_ctlinfo *it;
 	unsigned long flags;

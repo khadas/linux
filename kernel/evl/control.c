@@ -100,7 +100,7 @@ static int stop_services(void)
 
 #ifdef CONFIG_EVL_SCHED_QUOTA
 
-static int do_quota_control(struct evl_sched_ctlreq *ctl)
+static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 {
 	union evl_sched_ctlparam param, __user *u_ctlp;
 	union evl_sched_ctlinfo info, __user *u_infp;
@@ -127,7 +127,7 @@ static int do_quota_control(struct evl_sched_ctlreq *ctl)
 
 #else
 
-static int do_quota_control(struct evl_sched_ctlreq *ctl)
+static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 {
 	return -EINVAL;
 }
@@ -136,7 +136,7 @@ static int do_quota_control(struct evl_sched_ctlreq *ctl)
 
 #ifdef CONFIG_EVL_SCHED_TP
 
-static int do_tp_control(struct evl_sched_ctlreq *ctl)
+static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 {
 	union evl_sched_ctlinfo *info = NULL, __user *u_infp;
 	union evl_sched_ctlparam param, __user *u_ctlp;
@@ -177,14 +177,14 @@ out:
 
 #else
 
-static int do_tp_control(struct evl_sched_ctlreq *ctl)
+static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 {
 	return -EINVAL;
 }
 
 #endif
 
-static int do_sched_control(struct evl_sched_ctlreq *ctl)
+static int do_sched_control(const struct evl_sched_ctlreq *ctl)
 {
 	int ret;
 
