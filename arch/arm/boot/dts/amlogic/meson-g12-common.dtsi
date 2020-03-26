@@ -19,6 +19,7 @@
 #include <dt-bindings/input/meson_ir.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
+#include <dt-bindings/reset/amlogic,meson-dos-reset.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -1806,6 +1807,10 @@
 			usb,reset = <&usb_pd_rst>;
 			pcie,reset = <&pcie_pd_rst>;
 			ge2d,reset = <&ge2d_pd_rst>;
+			vdec,reset = <&vdec_pd_rst>;
+			hcodec,reset = <&hcodec_pd_rst>;
+			hevc,reset = <&hevc_pd_rst>;
+			wave420l,reset = <&wave420l_pd_rst>;
 			clocks = <&clkc CLKID_VPU>,
 				 <&clkc CLKID_VAPB>;
 			clock-names = "vpu", "vapb";
@@ -1876,6 +1881,90 @@
 		ge2d_pd_rst: ge2d_rst {
 			resets = <&reset RESET_GE2D>;
 			reset-names = "ge2d";
+		};
+
+		vdec_pd_rst: vdec_rst {
+			resets = <&codec_dos_reset RESET0_VDEC1_RESERVED0>,
+				<&codec_dos_reset RESET0_VDEC1_TOP_LEVEL>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_CBUS>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_VLD0>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_VLD1>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_VLD2>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_IQIDCT>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_MC>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_DBLK>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_PIC_DC>,
+				<&codec_dos_reset RESET0_VDEC1_MDEC_PSCALE>,
+				<&codec_dos_reset RESET0_VDEC1_VCPU_MCPU>,
+				<&codec_dos_reset RESET0_VDEC1_VCPU_CCPU>;
+			reset-names = "vdec_res0", "vdec_level", "vdec_cbus",
+				"vdec_vld0","vdec_vld1", "vdec_vld2",
+				"vdec_iqidct", "vdec_mc","vdec_dblk",
+				"vdec_dc", "vdec_pscale", "vdec_mcpu",
+				"vdec_ccpu";
+		};
+
+		hcodec_pd_rst: hcodec_rst {
+			resets = <&codec_dos_reset RESET1_HCODEC_RESERVED0>,
+				<&codec_dos_reset RESET1_HCODEC_RESERVED1>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_CBUS>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_VLD0>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_VLD1>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_VLD2>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_IQIDCT>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_MC>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_DBLK>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_PIC_DC>,
+				<&codec_dos_reset RESET1_HCODEC_HDEC_PSCALE>,
+				<&codec_dos_reset RESET1_HCODEC_VCPU_MCPU>,
+				<&codec_dos_reset RESET1_HCODEC_VCPU_CCPU>,
+				<&codec_dos_reset RESET1_HCODEC_MMC_PRE_ARB>,
+				<&codec_dos_reset RESET1_HCODEC_RESERVED2>,
+				<&codec_dos_reset RESET1_HCODEC_RESERVED3>;
+			reset-names = "hcodec_res0", "hcodec_res1",
+				"hcodec_cbus", "hcodec_vld0", "hcodec_vld1",
+				"hcodec_vld2", "hcodec_iqidc", "hcodec_mc",
+				"hcodec_dblk", "hcodec_dc", "hcodec_pscale",
+				"hcodec_mcpu", "hcodec_ccpu", "hcodec_prearb",
+				"hcodec_res2", "hcodec_res3";
+		};
+
+		hevc_pd_rst: hevc_rst {
+			resets = <&codec_dos_reset RESET3_BIT2>,
+				<&codec_dos_reset RESET3_BIT3>,
+				<&codec_dos_reset RESET3_BIT4>,
+				<&codec_dos_reset RESET3_BIT5>,
+				<&codec_dos_reset RESET3_BIT6>,
+				<&codec_dos_reset RESET3_BIT7>,
+				<&codec_dos_reset RESET3_BIT8>,
+				<&codec_dos_reset RESET3_BIT9>,
+				<&codec_dos_reset RESET3_BIT10>,
+				<&codec_dos_reset RESET3_BIT11>,
+				<&codec_dos_reset RESET3_BIT12>,
+				<&codec_dos_reset RESET3_BIT13>,
+				<&codec_dos_reset RESET3_BIT14>,
+				<&codec_dos_reset RESET3_BIT15>,
+				<&codec_dos_reset RESET3_BIT16>,
+				<&codec_dos_reset RESET3_BIT17>,
+				<&codec_dos_reset RESET3_BIT18>,
+				<&codec_dos_reset RESET3_BIT19>,
+				<&codec_dos_reset RESET3_BIT24>;
+			reset-names = "hevc_bit2", "hevc_bit3", "hevc_bit4",
+				"hevc_bit5","hevc_bit6", "hevc_bit7",
+				"hevc_bit8", "hevc_bit9", "hevc_bit10",
+				"hevc_bit11", "hevc_bit12", "hevc_bit13",
+				"hevc_bit14", "hevc_bit15", "hevc_bit16",
+				"hevc_bit17", "hevc_bit18", "hevc_bit19",
+				"hevc_bit24";
+		};
+
+		wave420l_pd_rst: wave420l_rst {
+			resets = <&codec_dos_reset RESET4_BIT8>,
+				<&codec_dos_reset RESET4_BIT9>,
+				<&codec_dos_reset RESET4_BIT10>,
+				<&codec_dos_reset RESET4_BIT11>;
+			reset-names = "wave_bit8", "wave_bit9", "wave_bit10",
+				"wave_bit11";
 		};
 
 		aml_dma: aml_dma@ff63e000 {

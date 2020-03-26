@@ -360,15 +360,15 @@ static struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
 	[PWRC_SM1_ETH_ID] = MEM_PD("ETH", g12a_pwrc_mem_eth, PWRC_SM1_ETH_ID,
 					0),
 	[PWRC_SM1_VDEC_ID] = TOP_PD("VDEC", &sm1_pwrc_vdec, sm1_pwrc_mem_vdec,
-				pwrc_ee_get_power, 0, PWRC_SM1_VDEC_ID, 0),
+				pwrc_ee_get_power, 13, PWRC_SM1_VDEC_ID, 0),
 	[PWRC_SM1_HCODEC_ID] = TOP_PD("HCODEC", &sm1_pwrc_hcodec,
 				      sm1_pwrc_mem_hcodec, pwrc_ee_get_power,
-				      0, PWRC_SM1_HCODEC_ID, 0),
+				      16, PWRC_SM1_HCODEC_ID, 0),
 	[PWRC_SM1_HEVC_ID] = TOP_PD("HEVC", &sm1_pwrc_hevc, sm1_pwrc_mem_hevc,
-				pwrc_ee_get_power, 0, PWRC_SM1_HEVC_ID, 0),
+				pwrc_ee_get_power, 19, PWRC_SM1_HEVC_ID, 0),
 	[PWRC_SM1_WAVE420L_ID] = TOP_PD("WAVE420L", &sm1_pwrc_wave420l,
 				sm1_pwrc_mem_wave420l, pwrc_ee_get_power,
-				0, PWRC_SM1_WAVE420L_ID, 0),
+				4, PWRC_SM1_WAVE420L_ID, 0),
 };
 
 static struct meson_ee_pwrc_domain_desc tm2_pwrc_domains[] = {
@@ -669,7 +669,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 	if (!dos_res)
 		return -ENOMEM;
 
-	base = devm_ioremap_resource(&pdev->dev, dos_res);
+	base = devm_ioremap(&pdev->dev, dos_res->start, resource_size(dos_res));
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
