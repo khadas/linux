@@ -237,6 +237,7 @@
 
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
+#define TRICKMODE_I_HEVC     0x07
 #define TRICKMODE_FFFB       0x02
 
 #define TRICK_STAT_DONE     0x01
