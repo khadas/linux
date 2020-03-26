@@ -19,6 +19,7 @@
 #include <evl/factory.h>
 #include <evl/syscall.h>
 #include <evl/poll.h>
+#include <evl/uaccess.h>
 #include <asm/evl/syscall.h>
 #include <uapi/evl/monitor.h>
 #include <trace/events/evl.h>
@@ -624,7 +625,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		u_uts = (typeof(u_uts))wreq.timeout;
+		u_uts = evl_valptr64(wreq.timeout_ptr, struct __evl_timespec);
 		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
 		if (ret)
 			return -EFAULT;
@@ -753,6 +754,10 @@ static const struct file_operations monitor_fops = {
 	.unlocked_ioctl	= monitor_ioctl,
 	.oob_ioctl	= monitor_oob_ioctl,
 	.oob_poll	= monitor_oob_poll,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl = compat_ptr_oob_ioctl,
+#endif
 };
 
 static struct evl_element *

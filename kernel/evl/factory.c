@@ -25,6 +25,7 @@
 #include <evl/control.h>
 #include <evl/syscall.h>
 #include <evl/factory.h>
+#include <evl/uaccess.h>
 #include <uapi/evl/factory.h>
 
 static struct class *evl_class;
@@ -375,6 +376,7 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	struct filename *devname = NULL;
 	__u32 val, state_offset = -1U;
 	struct evl_factory *fac;
+	void __user *u_attrs;
 	char tmpbuf[16];
 	int ret;
 
@@ -392,15 +394,16 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	if (ret)
 		return -EFAULT;
 
-	if (req.name) {
-		devname = getname(req.name);
+	if (req.name_ptr) {
+		devname = getname(evl_valptr64(req.name_ptr, const char));
 		if (IS_ERR(devname))
 			return PTR_ERR(devname);
 	}
 
 	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
+	u_attrs = evl_valptr64(req.attrs_ptr, void);
 	e = fac->build(fac, devname ? devname->name : NULL,
-		req.attrs, &state_offset);
+		u_attrs, &state_offset);
 	if (IS_ERR(e)) {
 		if (devname)
 			putname(devname);
@@ -466,6 +469,9 @@ static const struct file_operations clone_fops = {
 	.open		= open_clone_device,
 	.release	= release_clone_device,
 	.unlocked_ioctl	= ioctl_clone_device,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+#endif
 };
 
 static int index_element_at(struct evl_element *e, fundle_t fundle)

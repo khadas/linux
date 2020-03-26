@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/dovetail.h>
 #include <linux/kconfig.h>
+#include <linux/nospec.h>
 #include <linux/atomic.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/signal.h>
@@ -27,24 +28,111 @@
 #include <uapi/evl/syscall.h>
 #include <asm/evl/syscall.h>
 
-#define EVL_SYSCALL(__name, __args)	\
+#define EVL_SYSCALL(__name, __args)		\
 	long EVL_ ## __name __args
 
-#define SYSCALL_PROPAGATE   0
-#define SYSCALL_STOP        1
+static EVL_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
+{
+	struct evl_file *efilp = evl_get_file(fd);
+	struct file *filp;
+	ssize_t ret;
+
+	if (efilp == NULL)
+		return -EBADF;
+
+	filp = efilp->filp;
+	if (!(filp->f_mode & FMODE_READ)) {
+		ret = -EBADF;
+		goto out;
+	}
+
+	if (filp->f_op->oob_read == NULL) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = filp->f_op->oob_read(filp, u_buf, size);
+out:
+	evl_put_file(efilp);
+
+	return ret;
+}
+
+static EVL_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+{
+	struct evl_file *efilp = evl_get_file(fd);
+	struct file *filp;
+	ssize_t ret;
+
+	if (efilp == NULL)
+		return -EBADF;
+
+	filp = efilp->filp;
+	if (!(filp->f_mode & FMODE_WRITE)) {
+		ret = -EBADF;
+		goto out;
+	}
+
+	if (filp->f_op->oob_write == NULL) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = filp->f_op->oob_write(filp, u_buf, size);
+out:
+	evl_put_file(efilp);
+
+	return ret;
+}
+
+static EVL_SYSCALL(ioctl, (int fd, unsigned int request, unsigned long arg))
+{
+	struct evl_file *efilp = evl_get_file(fd);
+	long ret = -ENOTTY;
+	struct file *filp;
+
+	if (efilp == NULL)
+		return -EBADF;
+
+	filp = efilp->filp;
+
+	if (unlikely(is_compat_oob_call())) {
+		if (filp->f_op->compat_oob_ioctl)
+			ret = filp->f_op->compat_oob_ioctl(filp, request, arg);
+	} else  if (filp->f_op->oob_ioctl) {
+		ret = filp->f_op->oob_ioctl(filp, request, arg);
+	}
+
+	if (ret == -ENOIOCTLCMD)
+		ret = -ENOTTY;
+
+	evl_put_file(efilp);
+
+	return ret;
+}
 
 typedef long (*evl_syshand)(unsigned long arg1, unsigned long arg2,
 			unsigned long arg3, unsigned long arg4,
 			unsigned long arg5);
 
-static const evl_syshand evl_syscalls[__NR_EVL_SYSCALLS];
+#define __EVL_CALL_ENTRY(__name)  \
+	[sys_evl_ ## __name] = ((evl_syshand)(EVL_ ## __name))
 
-static inline void do_oob_request(int nr, struct pt_regs *regs)
+static const evl_syshand evl_systbl[] = {
+	   __EVL_CALL_ENTRY(read),
+	   __EVL_CALL_ENTRY(write),
+	   __EVL_CALL_ENTRY(ioctl),
+};
+
+#define SYSCALL_PROPAGATE   0
+#define SYSCALL_STOP        1
+
+static inline void invoke_syscall(unsigned int nr, struct pt_regs *regs)
 {
 	evl_syshand handler;
 	long ret;
 
-	handler = evl_syscalls[nr];
+	handler = evl_systbl[array_index_nospec(nr, ARRAY_SIZE(evl_systbl))];
 	ret = handler(oob_arg1(regs),
 		oob_arg2(regs),
 		oob_arg3(regs),
@@ -180,7 +268,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		return SYSCALL_STOP;
 	}
 
-	if (nr >= ARRAY_SIZE(evl_syscalls))
+	if (nr >= ARRAY_SIZE(evl_systbl))
 		goto bad_syscall;
 
 	/*
@@ -193,7 +281,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 
 	trace_evl_oob_sysentry(nr);
 
-	do_oob_request(nr, regs);
+	invoke_syscall(nr, regs);
 
 	/* Syscall might have switched in-band, recheck. */
 	if (!evl_is_inband()) {
@@ -218,9 +306,14 @@ do_inband:
 		return SYSCALL_PROPAGATE;
 
 	/*
-	 * If this is a legit in-band syscall issued from OOB context,
-	 * switch to in-band mode before propagating the syscall down
-	 * the pipeline.
+	 * We don't want to trigger a stage switch whenever the
+	 * current request issued from the out-of-band stage is not a
+	 * valid in-band syscall, but rather deliver -ENOSYS directly
+	 * instead.  Otherwise, switch to in-band mode before
+	 * propagating the syscall down the pipeline. CAUTION:
+	 * inband_syscall_nr(regs, &nr) is valid only if
+	 * !is_oob_syscall(regs), which we checked earlier in
+	 * do_oob_syscall().
 	 */
 	if (inband_syscall_nr(regs, &nr)) {
 		if (handle_vdso_fallback(nr, regs))
@@ -243,6 +336,16 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	struct task_struct *p;
 	unsigned int nr;
 	int ret;
+
+	/*
+	 * Some architectures may use special out-of-bound syscall
+	 * numbers which escape Dovetail's range check, e.g. when
+	 * handling aarch32 syscalls over an aarch64 kernel. When so,
+	 * assume this is an in-band syscall which we need to
+	 * propagate downstream to the common handler.
+	 */
+	if (curr == NULL)
+		return SYSCALL_PROPAGATE;
 
 	/*
 	 * Catch cancellation requests pending for threads undergoing
@@ -280,7 +383,7 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		goto done;
 	}
 
-	do_oob_request(nr, regs);
+	invoke_syscall(nr, regs);
 
 	if (!evl_is_inband()) {
 		p = current;
@@ -317,104 +420,3 @@ void handle_oob_syscall(struct pt_regs *regs)
 	ret = do_oob_syscall(&oob_stage, regs);
 	EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE);
 }
-
-static EVL_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
-{
-	struct evl_file *efilp = evl_get_file(fd);
-	struct file *filp;
-	ssize_t ret;
-
-	if (efilp == NULL)
-		return -EBADF;
-
-	filp = efilp->filp;
-	if (!(filp->f_mode & FMODE_READ)) {
-		ret = -EBADF;
-		goto out;
-	}
-
-	if (filp->f_op->oob_read == NULL) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = filp->f_op->oob_read(filp, u_buf, size);
-out:
-	evl_put_file(efilp);
-
-	return ret;
-}
-
-static EVL_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
-{
-	struct evl_file *efilp = evl_get_file(fd);
-	struct file *filp;
-	ssize_t ret;
-
-	if (efilp == NULL)
-		return -EBADF;
-
-	filp = efilp->filp;
-	if (!(filp->f_mode & FMODE_WRITE)) {
-		ret = -EBADF;
-		goto out;
-	}
-
-	if (filp->f_op->oob_write == NULL) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = filp->f_op->oob_write(filp, u_buf, size);
-out:
-	evl_put_file(efilp);
-
-	return ret;
-}
-
-static EVL_SYSCALL(ioctl, (int fd, unsigned int request, unsigned long arg))
-{
-	struct evl_file *efilp = evl_get_file(fd);
-	struct file *filp;
-	long ret;
-
-	if (efilp == NULL)
-		return -EBADF;
-
-	filp = efilp->filp;
-	if (filp->f_op->oob_ioctl) {
-		ret = filp->f_op->oob_ioctl(filp, request, arg);
-		if (ret == -ENOIOCTLCMD)
-			ret = -ENOTTY;
-	} else
-		ret = -ENOTTY;
-
-	evl_put_file(efilp);
-
-	return ret;
-}
-
-static int EVL_ni(void)
-{
-	return -ENOSYS;
-}
-
-#define __syshand__(__name)	((evl_syshand)(EVL_ ## __name))
-
-#define __EVL_CALL_ENTRIES		\
-	__EVL_CALL_ENTRY(read)		\
-	__EVL_CALL_ENTRY(write)		\
-	__EVL_CALL_ENTRY(ioctl)
-
-#define __EVL_NI	__syshand__(ni)
-
-#define __EVL_CALL_NI			\
-	[0 ... __NR_EVL_SYSCALLS-1] = __EVL_NI,
-
-#define __EVL_CALL_ENTRY(__name)	\
-	[sys_evl_ ## __name] = __syshand__(__name),
-
-static const evl_syshand evl_syscalls[] = {
-	__EVL_CALL_NI
-	__EVL_CALL_ENTRIES
-};

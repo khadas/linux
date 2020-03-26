@@ -18,6 +18,7 @@
 #include <evl/sched.h>
 #include <evl/flag.h>
 #include <evl/mutex.h>
+#include <evl/uaccess.h>
 #include <asm/evl/syscall.h>
 
 struct poll_group {
@@ -507,7 +508,10 @@ int wait_events(struct file *filp,
 
 	evl_init_flag(&waiter.flag);
 
-	count = collect_events(group, wreq->pollset, wreq->nrset, &waiter.flag);
+	count = collect_events(group,
+			       evl_valptr64(wreq->pollset_ptr,
+					    struct evl_poll_event),
+			       wreq->nrset, &waiter.flag);
 	if (count > 0 || (count == -EFAULT || count == -EBADF))
 		goto unwait;
 	if (count < 0)
@@ -531,8 +535,10 @@ int wait_events(struct file *filp,
 
 	count = ret;
 	if (count == 0)	/* Re-collect events after successful wait. */
-		count = collect_events(group, wreq->pollset,
-				wreq->nrset, NULL);
+		count = collect_events(group,
+			       evl_valptr64(wreq->pollset_ptr,
+					    struct evl_poll_event),
+			       wreq->nrset, NULL);
 unwait:
 	clear_wait();
 out:
@@ -620,7 +626,7 @@ static long poll_oob_ioctl(struct file *filp, unsigned int cmd,
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
 			return -EFAULT;
-		u_uts = (typeof(u_uts))wreq.timeout;
+		u_uts = evl_valptr64(wreq.timeout_ptr, struct __evl_timespec);
 		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
 		if (ret)
 			return -EFAULT;
@@ -645,6 +651,9 @@ static const struct file_operations poll_fops = {
 	.open		= poll_open,
 	.release	= poll_release,
 	.oob_ioctl	= poll_oob_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 struct evl_factory evl_poll_factory = {

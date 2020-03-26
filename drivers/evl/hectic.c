@@ -661,6 +661,10 @@ static const struct file_operations hectic_fops = {
 	.release	= hectic_release,
 	.unlocked_ioctl	= hectic_ioctl,
 	.oob_ioctl	= hectic_oob_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 static dev_t hectic_devt;

@@ -14,6 +14,7 @@
 #include <evl/tick.h>
 #include <evl/sched.h>
 #include <evl/control.h>
+#include <evl/uaccess.h>
 #include <asm/evl/syscall.h>
 #include <asm/evl/fptest.h>
 #include <uapi/evl/control.h>
@@ -106,17 +107,17 @@ static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 	union evl_sched_ctlinfo info, __user *u_infp;
 	int ret;
 
-	u_ctlp = (typeof(u_ctlp))ctl->param;
+	u_ctlp = evl_valptr64(ctl->param_ptr, union evl_sched_ctlparam);
 	ret = raw_copy_from_user(&param.quota, &u_ctlp->quota,
 				sizeof(param.quota));
 	if (ret)
 		return -EFAULT;
 
 	ret = evl_sched_quota.sched_control(ctl->cpu, &param, &info);
-	if (ret || ctl->info == NULL)
+	if (ret || !ctl->info_ptr)
 		return ret;
 
-	u_infp = (typeof(u_infp))ctl->info;
+	u_infp = evl_valptr64(ctl->info_ptr, union evl_sched_ctlinfo);
 	ret = raw_copy_to_user(&u_infp->quota, &info.quota,
 			sizeof(info.quota));
 	if (ret)
@@ -143,12 +144,12 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 	size_t len;
 	int ret;
 
-	u_ctlp = (typeof(u_ctlp))ctl->param;
+	u_ctlp = evl_valptr64(ctl->param_ptr, union evl_sched_ctlparam);
 	ret = raw_copy_from_user(&param.tp, &u_ctlp->tp, sizeof(param.tp));
 	if (ret)
 		return -EFAULT;
 
-	if (ctl->info) {
+	if (ctl->info_ptr) {
 		/* Quick check to prevent creepy memalloc. */
 		if (param.tp.nr_windows > CONFIG_EVL_SCHED_TP_NR_PART)
 			return -EINVAL;
@@ -163,7 +164,7 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 	if (ret || info == NULL)
 		goto out;
 
-	u_infp = (typeof(u_infp))ctl->info;
+	u_infp = evl_valptr64(ctl->info_ptr, union evl_sched_ctlinfo);
 	len = evl_tp_paramlen(&info->tp);
 	ret = raw_copy_to_user(&u_infp->tp, &info->tp, len);
 	if (ret)
@@ -219,14 +220,14 @@ static int do_cpu_state(struct evl_cpu_state *cpst)
 	if (!housekeeping_cpu(cpu, HK_FLAG_DOMAIN))
 		state |= EVL_CPU_ISOL;
 
-	return raw_copy_to_user(cpst->state, &state, sizeof(state)) ?
-		-EFAULT : 0;
+	return raw_copy_to_user_ptr64(cpst->state_ptr, &state,
+				      sizeof(state)) ? -EFAULT : 0;
 }
 
 static long control_common_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
 {
-	struct evl_cpu_state cpst = { .state = 0 }, __user *u_cpst;
+	struct evl_cpu_state cpst = { .state_ptr = 0 }, __user *u_cpst;
 	struct evl_sched_ctlreq ctl, __user *u_ctl;
 	long ret;
 
@@ -298,8 +299,8 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 		info.abi_current = EVL_ABI_LEVEL;
 		info.fpu_features = evl_detect_fpu();
 		info.shm_size = evl_shm_size;
-		ret = raw_copy_to_user((struct evl_core_info __user *)arg,
-				&info, sizeof(info)) ? -EFAULT : 0;
+		ret = copy_to_user((struct evl_core_info __user *)arg,
+				   &info, sizeof(info)) ? -EFAULT : 0;
 		break;
 	default:
 		ret = control_common_ioctl(filp, cmd, arg);
@@ -325,6 +326,10 @@ static const struct file_operations control_fops = {
 	.oob_ioctl	=	control_oob_ioctl,
 	.unlocked_ioctl	=	control_ioctl,
 	.mmap		=	control_mmap,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 static const char *state_labels[] = {

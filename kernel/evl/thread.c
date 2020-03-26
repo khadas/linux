@@ -2127,6 +2127,10 @@ static const struct file_operations thread_fops = {
 	.release	= evl_release_element,
 	.unlocked_ioctl	= thread_ioctl,
 	.oob_ioctl	= thread_oob_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 static int map_uthread_self(struct evl_thread *thread)
