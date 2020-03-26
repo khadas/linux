@@ -11,14 +11,14 @@
 #include <uapi/evl/sched.h>
 
 /* Earliest ABI level we support. */
-#define EVL_ABI_BASE   19
+#define EVL_ABI_BASE   20
 /*
  * Current/latest ABI level we support. We may decouple the base and
  * current ABI levels by providing backward compatibility from the
  * latter to the former. CAUTION: a litteral value is required for the
  * current ABI definition (scripts reading this may be naive).
  */
-#define EVL_ABI_LEVEL  19
+#define EVL_ABI_LEVEL  20
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 
@@ -31,7 +31,7 @@ struct evl_core_info {
 
 struct evl_cpu_state {
 	__u32 cpu;
-	__u32 *state;
+	__u64 state_ptr;	/* (__u32 *state) */
 };
 
 #define EVL_CONTROL_IOCBASE	'C'

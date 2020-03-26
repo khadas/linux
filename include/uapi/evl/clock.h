@@ -25,8 +25,8 @@
 #define EVL_CLKIOC_NEW_TIMER	_IO(EVL_CLOCK_IOCBASE, 5)
 
 struct evl_timerfd_setreq {
-	struct __evl_itimerspec *value;
-	struct __evl_itimerspec *ovalue;
+	__u64 value_ptr;       /* (struct __evl_itimerspec *value) */
+	__u64 ovalue_ptr;      /* (struct __evl_itimerspec *ovalue) */
 };
 
 #define EVL_TIMERFD_IOCBASE	't'

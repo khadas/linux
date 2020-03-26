@@ -44,13 +44,13 @@ struct latmus_measurement {
 };
 
 struct latmus_measurement_result {
-	struct latmus_measurement *last;
-	__s32 *histogram;
+	__u64 last_ptr;		/* (struct latmus_measurement *last) */
+	__u64 histogram_ptr;	/* (__s32 *histogram) */
 	__u32 len;
 };
 
 struct latmus_result {
-	void *data;
+	__u64 data_ptr;		/* (void *data) */
 	__u32 len;
 };
 

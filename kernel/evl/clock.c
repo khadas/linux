@@ -32,6 +32,7 @@
 #include <evl/control.h>
 #include <evl/file.h>
 #include <evl/irq.h>
+#include <evl/uaccess.h>
 #include <asm/evl/syscall.h>
 #include <uapi/evl/clock.h>
 #include <trace/events/evl.h>
@@ -629,11 +630,11 @@ static long timerfd_common_ioctl(struct file *filp,
 	switch (cmd) {
 	case EVL_TFDIOC_SET:
 		u_sreq = (typeof(u_sreq))arg;
-		sreq.ovalue = NULL;
+		sreq.ovalue_ptr = 0;
 		ret = raw_copy_from_user(&sreq, u_sreq, sizeof(sreq));
 		if (ret)
 			return -EFAULT;
-		ret = raw_copy_from_user(&uits, sreq.value, sizeof(uits));
+		ret = raw_copy_from_user_ptr64(&uits, sreq.value_ptr, sizeof(uits));
 		if (ret)
 			return -EFAULT;
 		if ((unsigned long)uits.it_value.tv_nsec >= ONE_BILLION ||
@@ -645,9 +646,10 @@ static long timerfd_common_ioctl(struct file *filp,
 		ret = set_timerfd(timerfd, &its, &oits);
 		if (ret)
 			return ret;
-		if (sreq.ovalue) {
+		if (sreq.ovalue_ptr) {
 			uoits = itimerspec64_to_u_itimerspec(oits);
-			u_uits = (typeof(u_uits))sreq.ovalue;
+			u_uits = evl_valptr64(sreq.ovalue_ptr,
+					      struct __evl_itimerspec);
 			if (raw_copy_to_user(u_uits, &uoits, sizeof(uoits)))
 				return -EFAULT;
 		}
@@ -724,6 +726,10 @@ static const struct file_operations timerfd_fops = {
 	.oob_read	= timerfd_oob_read,
 	.oob_poll	= timerfd_oob_poll,
 	.unlocked_ioctl	= timerfd_common_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 static int new_timerfd(struct evl_clock *clock)
@@ -877,6 +883,10 @@ static const struct file_operations clock_fops = {
 	.release	= evl_release_element,
 	.unlocked_ioctl	= clock_ioctl,
 	.oob_ioctl	= clock_oob_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 /*

@@ -80,6 +80,10 @@ static const struct file_operations trace_fops = {
 	.write		=	trace_write,
 	.oob_ioctl	=	trace_oob_ioctl,
 	.oob_write	=	trace_oob_write,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl  =	compat_ptr_ioctl,
+	.compat_oob_ioctl  =	compat_ptr_oob_ioctl,
+#endif
 };
 
 struct evl_factory evl_trace_factory = {

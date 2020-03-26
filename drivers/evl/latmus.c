@@ -14,12 +14,12 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#include <linux/uaccess.h>
 #include <evl/file.h>
 #include <evl/flag.h>
 #include <evl/clock.h>
 #include <evl/thread.h>
 #include <evl/xbuf.h>
+#include <evl/uaccess.h>
 #include <uapi/evl/devices/latmus.h>
 #include <trace/events/evl.h>
 
@@ -779,7 +779,7 @@ static int run_tuning(struct latmus_runner *runner,
 
 	gravity = runner->get_gravity(runner);
 
-	if (raw_copy_to_user(result->data, &gravity, sizeof(gravity)))
+	if (raw_copy_to_user_ptr64(result->data_ptr, &gravity, sizeof(gravity)))
 		return -EFAULT;
 
 	return 0;
@@ -817,7 +817,7 @@ static int run_measurement(struct latmus_runner *runner,
 	if (result->len != sizeof(mr))
 		return -EINVAL;
 
-	if (raw_copy_from_user(&mr, result->data, sizeof(mr)))
+	if (raw_copy_from_user_ptr64(&mr, result->data_ptr, sizeof(mr)))
 		return -EFAULT;
 
 	ret = measure_continously(runner);
@@ -833,7 +833,7 @@ static int run_measurement(struct latmus_runner *runner,
 	last.sum_lat = state->sum;
 	last.overruns = state->overruns;
 	last.samples = state->cur_samples;
-	if (raw_copy_to_user(mr.last, &last, sizeof(last)))
+	if (raw_copy_to_user_ptr64(mr.last_ptr, &last, sizeof(last)))
 		return -EFAULT;
 
 	if (runner->histogram) {
@@ -841,7 +841,8 @@ static int run_measurement(struct latmus_runner *runner,
 		if (len > mr.len)
 			len = result->len;
 		if (len > 0 &&
-		    raw_copy_to_user(mr.histogram, runner->histogram, len))
+		    raw_copy_to_user_ptr64(mr.histogram_ptr,
+					   runner->histogram, len))
 			return -EFAULT;
 	}
 
@@ -1020,6 +1021,10 @@ static const struct file_operations latmus_fops = {
 	.release	= latmus_release,
 	.unlocked_ioctl	= latmus_ioctl,
 	.oob_ioctl	= latmus_oob_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 static dev_t latmus_devt;

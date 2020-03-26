@@ -18,8 +18,8 @@ struct evl_element_ids {
 };
 
 struct evl_clone_req {
-	const char *name;
-	void *attrs;
+	__u64 name_ptr;		/* (const char *name) */
+	__u64 attrs_ptr;	/* (void *attrs) */
 	struct evl_element_ids eids;
 };
 

@@ -569,6 +569,10 @@ static const struct file_operations xbuf_fops = {
 	.oob_read	= xbuf_oob_read,
 	.oob_write	= xbuf_oob_write,
 	.oob_poll	= xbuf_oob_poll,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
+#endif
 };
 
 struct evl_xbuf *evl_get_xbuf(int efd, struct evl_file **efilpp)

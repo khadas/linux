@@ -121,8 +121,8 @@ union evl_sched_ctlinfo {
 struct evl_sched_ctlreq {
 	int policy;
 	int cpu;
-	const union evl_sched_ctlparam *param;
-	union evl_sched_ctlinfo *info;
+	__u64 param_ptr; /* (const union evl_sched_ctlparam *param) */
+	__u64 info_ptr;	 /* (union evl_sched_ctlinfo *info) */
 };
 
 #endif /* !_EVL_UAPI_SCHED_H */
