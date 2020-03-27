@@ -245,7 +245,7 @@ static struct clk_mux sm1_dsu_pre_src_clk_mux0 = {
 		.parent_names = (const char *[]){ "xtal", "fclk_div2",
 				"fclk_div3", "gp1_pll" },
 		.num_parents = 4,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -267,7 +267,7 @@ static struct clk_mux sm1_dsu_pre_src_clk_mux1 = {
 static struct clk_divider sm1_dsu_clk_div0 = {
 	.reg = (void *)HHI_SYS_CPU_CLK_CNTL5,
 	.shift = 4,
-	.width = 5,
+	.width = 6,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_div0",
@@ -281,7 +281,7 @@ static struct clk_divider sm1_dsu_clk_div0 = {
 static struct clk_divider sm1_dsu_clk_div1 = {
 	.reg = (void *)HHI_SYS_CPU_CLK_CNTL5,
 	.shift = 20,
-	.width = 5,
+	.width = 6,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_div1",
@@ -303,7 +303,7 @@ static struct clk_mux sm1_dsu_pre_clk_mux0 = {
 		.parent_names = (const char *[]){ "dsu_pre_src0",
 						"dsu_clk_div0",},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -318,7 +318,7 @@ static struct clk_mux sm1_dsu_pre_clk_mux1 = {
 		.parent_names = (const char *[]){ "dsu_pre_src1",
 						"dsu_clk_div1",},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -363,7 +363,6 @@ static struct clk_mux sm1_dsu_clk = {
 		.parent_names = (const char *[]){ "cpu_clk",
 						"dsu_pre_clk",},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -436,14 +435,16 @@ static int sm1_dsu_mux_clk_notifier_cb(struct notifier_block *nb,
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
-		/* switch to sm1_dsu_fixed_sel1, set it to 1G (default 24M) */
-		ret = clk_set_rate(sm1_dsu_pre_clk_mux1.hw.clk, 1000000000);
-		if (ret < 0)
-			return ret;
 		parent_clk = sm1_dsu_pre_clk_mux1.hw.clk;
+		if (strcmp(current->comm, "cfinteractive"))
+			pr_debug("PRE The curent process commond: \"%s\", the pid ：%i\n",
+				current->comm, current->pid);
 		break;
 	case POST_RATE_CHANGE:
 		parent_clk = sm1_dsu_pre_clk_mux0.hw.clk;
+		if (strcmp(current->comm, "cfinteractive"))
+			pr_debug("POST The curent process commond：\"%s\", the pid ：%i\n",
+				current->comm, current->pid);
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -467,6 +468,7 @@ static struct sm1_nb_data sm1_dsu_nb_data = {
 static void __init sm1_clkc_init(struct device_node *np)
 {
 	int ret = 0, clkid, i;
+	struct clk *fclk_div2;
 
 	if (!clk_base)
 		clk_base = of_iomap(np, 0);
@@ -538,7 +540,6 @@ static void __init sm1_clkc_init(struct device_node *np)
 	/*
 	 * register all clks
 	 */
-
 	for (clkid = 0; clkid < ARRAY_SIZE(sm1_clk_hws); clkid++) {
 		if (sm1_clk_hws[clkid]) {
 			clks[clkid + CLKID_SM1_ADD_BASE]
@@ -601,6 +602,20 @@ static void __init sm1_clkc_init(struct device_node *np)
 	if (IS_ERR(clks[CLKID_CSI_ADAPT_CLK_COMP]))
 		panic("%s: %d register cts_csi_adapt_clk_composite error\n",
 			__func__, __LINE__);
+
+	/* set tl1_dsu_fixed_sel1 to 1G (default 24M) */
+	fclk_div2 = of_clk_get_by_name(np, "clkin0");
+	if (IS_ERR(fclk_div2)) {
+		pr_err("faied to get clkin0\n");
+		return;
+	}
+
+	ret = clk_set_parent(sm1_dsu_pre_src_clk_mux1.hw.clk, fclk_div2);
+	if (ret < 0) {
+		pr_err("%s: failed to set parent for tl1_dsu_fixed_source_sel1\n",
+		__func__);
+		return;
+	}
 
 	if (of_property_read_bool(np, "own-dsu-clk")) {
 		/*
