@@ -355,6 +355,20 @@ static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
+static int __init boot_hdr_policy(char *str)
+{
+	if (strncmp("1", str, 1) == 0) {
+		hdr_policy = 1; //follow source
+		pr_info("boot hdr_policy: 1\n");
+	} else if (strncmp("0", str, 1) == 0) {
+		hdr_policy = 0; //follow sink
+		pr_info("boot hdr_policy: 0\n");
+	}
+	return 0;
+}
+
+__setup("hdr_policy=", boot_hdr_policy);
+
 /* when get_hdr_policy() == 0 */
 /* enum output_format_e */
 /*	BT709 = 1,				*/
