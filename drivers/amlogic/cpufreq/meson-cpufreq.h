@@ -29,8 +29,6 @@
 #define HIGH_FREQ_CLK_PARENT	"high_freq_clk_parent"
 #define DSU_CLK		"dsu_clk"
 #define DSU_PRE_PARENT "dsu_pre_parent"
-#define to_meson_dvfs_cpu_nb(_nb) container_of(_nb,	\
-		struct meson_cpufreq_driver_data, freq_transition)
 
 static struct clk *clk[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
@@ -71,7 +69,6 @@ struct meson_cpufreq_driver_data {
 	struct clk *low_freq_clk_p;
 	struct clk *clk_dsu;
 	struct clk *clk_dsu_pre;
-	struct notifier_block freq_transition;
 };
 
 static struct mutex cluster_lock[MAX_CLUSTERS];

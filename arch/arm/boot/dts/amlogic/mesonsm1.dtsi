@@ -781,6 +781,8 @@
 				#clock-cells = <1>;
 				reg = <0x0 0x3dc>;
 				own-dsu-clk;
+				clocks = <&clkc CLKID_FCLK_DIV2>;
+				clock-names = "clkin0";
 			};
 		};/* end of hiubus*/
 
