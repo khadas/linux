@@ -61,24 +61,28 @@ static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
 
 static LIST_HEAD(group_list);
 
-static inline int group_is_active(struct evl_quota_group *tg)
+static inline bool thread_on_quota(struct evl_thread *thread,
+				struct evl_quota_group *tg)
 {
-	struct evl_thread *curr = tg->rq->curr;
+	/*
+	 * Check whether @thread is running on some CPU, and belongs
+	 * to quota group @tg.
+	 */
+	return thread->quota == tg &&
+		!(thread->state & (T_READY|EVL_THREAD_BLOCK_BITS));
+}
 
+static inline bool group_is_active(struct evl_quota_group *tg)
+{
 	if (tg->nr_active)
-		return 1;
+		return true;
 
 	/*
-	 * Check whether the current thread belongs to the group, and
-	 * is still in running state (T_READY denotes a thread linked
-	 * to the runqueue, in which case tg->nr_active already
-	 * accounts for it).
+	 * T_READY set for @thread would mean that it is linked to the
+	 * runqueue, in which case tg->nr_active already accounted for
+	 * it.
 	 */
-	if (curr->quota == tg &&
-		(curr->state & (T_READY|EVL_THREAD_BLOCK_BITS)) == 0)
-		return 1;
-
-	return 0;
+	return thread_on_quota(tg->rq->curr, tg);
 }
 
 static inline void replenish_budget(struct evl_sched_quota *qs,
@@ -171,7 +175,8 @@ static void quota_refill_handler(struct evl_timer *timer) /* oob stage stalled *
 		 * The expiry queue is FIFO to keep ordering right
 		 * among expired threads.
 		 */
-		list_for_each_entry_safe_reverse(thread, tmp, &tg->expired, quota_expired) {
+		list_for_each_entry_safe_reverse(thread, tmp,
+						&tg->expired, quota_expired) {
 			list_del_init(&thread->quota_expired);
 			evl_add_schedq(&rq->fifo.runnable, thread);
 		}
@@ -549,12 +554,14 @@ static void quota_set_limit(struct evl_quota_group *tg,
 			int quota_percent, int quota_peak_percent,
 			int *quota_sum_r)
 {
-	struct evl_sched_quota *qs = &tg->rq->quota;
+	struct evl_rq *rq = tg->rq;
+	struct evl_thread *thread, *tmp, *curr = rq->curr;
+	struct evl_sched_quota *qs = &rq->quota;
 	ktime_t now, elapsed, consumed;
 	ktime_t old_quota = tg->quota;
 	u64 n;
 
-	assert_evl_lock(&tg->rq->lock);
+	assert_evl_lock(&rq->lock);
 
 	if (quota_percent < 0 || quota_percent > 100) { /* Quota off. */
 		quota_percent = 100;
@@ -580,7 +587,7 @@ static void quota_set_limit(struct evl_quota_group *tg,
 	tg->quota_percent = quota_percent;
 	tg->quota_peak_percent = quota_peak_percent;
 
-	if (group_is_active(tg)) {
+	if (thread_on_quota(curr, tg)) {
 		now = evl_read_clock(&evl_mono_clock);
 
 		elapsed = now - tg->run_start;
@@ -607,11 +614,19 @@ static void quota_set_limit(struct evl_quota_group *tg,
 
 	*quota_sum_r = quota_sum_all(qs);
 
+	if (tg->run_budget > 0) {
+		list_for_each_entry_safe_reverse(thread, tmp, &tg->expired,
+						quota_expired) {
+			list_del_init(&thread->quota_expired);
+			evl_add_schedq(&rq->fifo.runnable, thread);
+		}
+	}
+
 	/*
 	 * Apply the new budget immediately, in case a member of this
 	 * group is currently running.
 	 */
-	evl_set_resched(tg->rq);
+	evl_set_resched(rq);
 }
 
 static struct evl_quota_group *
