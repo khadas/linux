@@ -401,10 +401,14 @@ u32 tsync_pcr_get_ref_pcr(void)
 	}
 	cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 	cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
+
 	video_cache_pts = cur_checkin_vpts - first_vpts;
 	audio_cache_pts = cur_checkin_apts - first_apts;
 	if ((first_apts == 0) && (cur_checkin_apts == 0xffffffff))
 		audio_cache_pts = 0;
+	if ((first_vpts == 0) && (cur_checkin_vpts == 0xffffffff))
+		video_cache_pts = 0;
+
 	pts_cache_tmp = audio_cache_pts;
 #ifdef CONFIG_64BIT
 	audio_cache_ms = audio_cache_pts / 90;
@@ -435,6 +439,8 @@ u32 tsync_pcr_get_ref_pcr(void)
 		ref_pcr = min(first_apts, first_vpts);
 		if ((first_apts == 0) && (cur_checkin_apts == 0xffffffff))
 			ref_pcr = first_vpts;
+		if ((first_vpts == 0) && (cur_checkin_vpts == 0xffffffff))
+			ref_pcr = first_apts;
 	}
 	pr_info("return ref_pcr = 0x%x\n", ref_pcr);
 	return ref_pcr;
@@ -1167,6 +1173,7 @@ static unsigned long tsync_pcr_check(void)
 	int64_t last_checkin_minpts = 0;
 	u32 cur_apts = 0;
 	u32 cur_vpts = 0;
+	bool video_pid_valid = false;
 
 	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER
 		|| tsync_pcr_freerun_mode == 1)
@@ -1179,6 +1186,8 @@ static unsigned long tsync_pcr_check(void)
 			tysnc_pcr_systime_diff =
 			tsdemux_pcrscr_get_cb()-tsync_pcr_first_systime;
 	}
+
+	video_pid_valid = tsdemux_pcrvideo_valid_cb();
 
 	tsync_pcr_check_checinpts();
 	if (tsdemux_pcrscr_get_cb)
@@ -1256,9 +1265,15 @@ static unsigned long tsync_pcr_check(void)
 		&& (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_APTS))) {
 		u64 cur_system_time =
 			div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
-		if (cur_system_time - first_time_record < 270000) {
+		if ((cur_system_time - first_time_record) < 270000
+			&& video_pid_valid) {
 		} else {
-			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
+			pr_info("%s, video_pid_valid=%d\n",
+				__func__, video_pid_valid);
+			if (video_pid_valid)
+				tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
+			else
+				tsync_pcr_inited_mode = INIT_PRIORITY_AUDIO;
 			tsync_pcr_pcrscr_set();
 		}
 		return res;
@@ -1437,6 +1452,9 @@ void tsync_pcr_stop(void)
 	tsync_pcr_started = 0;
 	tsync_audio_state = 0;
 	tsync_video_state = 0;
+	timestamp_checkin_firstvpts_set(0);
+	timestamp_checkin_firstapts_set(0);
+	timestamp_apts_set(0);
 	timestamp_vpts_set(0);
 	timestamp_pcrscr_set(0);
 }
