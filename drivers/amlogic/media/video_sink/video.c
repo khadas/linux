@@ -343,6 +343,7 @@ const char video_dev_id[] = "amvideo-dev";
 
 static u32 stop_update;
 
+static u32 pts_rollback_threshold = 20;
 #ifdef CONFIG_PM
 struct video_pm_state_s {
 	int event;
@@ -357,6 +358,7 @@ struct video_pm_state_s {
 #define PTS_THROTTLE
 /* #define PTS_TRACE_DEBUG */
 /* #define PTS_TRACE_START */
+#define PTS_ROLLBACK
 
 #ifdef PTS_TRACE_DEBUG
 static int pts_trace_his[16];
@@ -2148,6 +2150,19 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		((int)(timestamp_pcrscr_get() + vsync_pts_inc +
 		vsync_pts_align - next_vf->next_vf_pts) >= 0)) {
 		expired = true;
+	}
+#endif
+
+#ifdef PTS_ROLLBACK
+	if (show_first_frame_nosync == 0 &&
+		show_first_picture == 0 &&
+		expired == false &&
+		tsync_get_mode() == TSYNC_MODE_AMASTER &&
+		first_frame_toggled == 1 &&
+		systime < pts &&
+		(pts - systime) > pts_rollback_threshold * 90000) {
+		expired = true;
+		pr_info("pts roll back and force toggle, pts:%x\n", pts);
 	}
 #endif
 
@@ -9699,6 +9714,9 @@ module_param(toggle_count, uint, 0664);
 
 MODULE_PARM_DESC(stop_update, "\n stop_update\n");
 module_param(stop_update, uint, 0664);
+
+MODULE_PARM_DESC(pts_rollback_threshold, "\n pts_rollback_threshold\n");
+module_param(pts_rollback_threshold, uint, 0664);
 
 MODULE_DESCRIPTION("AMLOGIC video output driver");
 MODULE_LICENSE("GPL");
