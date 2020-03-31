@@ -1502,7 +1502,7 @@ static inline void note_trap(struct evl_thread *curr,
 }
 
 /* oob stalled. */
-void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
 	bool is_bp = false;
@@ -1530,8 +1530,28 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
 	 * before handling the exception.
 	 */
 	evl_switch_inband(is_bp ? SIGDEBUG_TRAP : SIGDEBUG_MIGRATE_FAULT);
+}
+
+/* hard irqs on. */
+void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
+{
+	struct evl_thread *curr = evl_current();
 
 	curr->local_info &= ~T_INFAULT;
+
+	/*
+	 * Switch back to the oob stage only after recovering from a
+	 * trap in kernel space, which ensures a consistent execution
+	 * state, e.g. if the current task is holding an EVL mutex or
+	 * stax. If the trap occurred in user space, we can leave it
+	 * to the common lazy stage switching strategy since the
+	 * syscall barrier is there to reinstate the proper stage if
+	 * need be.
+	 */
+	if (!user_mode(regs) && !evl_is_breakpoint(trapnr)) {
+		evl_switch_oob();
+		note_trap(curr, trapnr, regs, "resuming out-of-band");
+	}
 }
 
 void handle_oob_mayday(struct pt_regs *regs)
