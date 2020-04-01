@@ -654,7 +654,11 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	int ret;
 	struct binderfs_info *info;
 	struct inode *inode = NULL;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct binderfs_device device_info = { {0} };
+#else
 	struct binderfs_device device_info = { 0 };
+#endif
 	const char *name;
 	size_t len;
 

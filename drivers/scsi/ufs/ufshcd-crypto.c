@@ -159,7 +159,11 @@ out:
 
 static void ufshcd_clear_keyslot(struct ufs_hba *hba, int slot)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	union ufs_crypto_cfg_entry cfg = { {0} };
+#else
 	union ufs_crypto_cfg_entry cfg = { 0 };
+#endif
 	int err;
 
 	err = ufshcd_program_key(hba, &cfg, slot);
