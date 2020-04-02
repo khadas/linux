@@ -619,6 +619,7 @@ static int hectic_open(struct inode *inode, struct file *filp)
 	evl_init_stax(&ctx->stax);
 
 	filp->private_data = ctx;
+	stream_open(inode, filp);
 
 	return 0;
 }

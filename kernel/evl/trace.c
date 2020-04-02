@@ -76,12 +76,13 @@ ssize_t trace_write(struct file *filp,
 }
 
 static const struct file_operations trace_fops = {
+	.open		= 	stream_open,
 	.unlocked_ioctl	=	trace_ioctl,
 	.write		=	trace_write,
 	.oob_ioctl	=	trace_oob_ioctl,
 	.oob_write	=	trace_oob_write,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl  =	compat_ptr_ioctl,
+	.compat_ioctl	=	compat_ptr_ioctl,
 	.compat_oob_ioctl  =	compat_ptr_oob_ioctl,
 #endif
 };

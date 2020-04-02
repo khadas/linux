@@ -568,6 +568,7 @@ static int poll_open(struct inode *inode, struct file *filp)
 	evl_init_kmutex(&group->item_lock);
 	evl_spin_lock_init(&group->wait_lock);
 	filp->private_data = group;
+	stream_open(inode, filp);
 
 	return ret;
 }

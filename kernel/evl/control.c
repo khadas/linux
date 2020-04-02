@@ -278,6 +278,8 @@ static int control_open(struct inode *inode, struct file *filp)
 	if (!test_and_set_bit(EVL_MM_INIT_BIT, &oob_mm->flags))
 		ret = activate_oob_mm_state(oob_mm);
 
+	stream_open(inode, filp);
+
 	return ret;
 }
 
