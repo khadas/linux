@@ -132,6 +132,7 @@ int evl_open_element(struct inode *inode, struct file *filp)
 
 	fbind->element = e;
 	filp->private_data = fbind;
+	stream_open(inode, filp);
 
 	return 0;
 }
@@ -461,6 +462,7 @@ static int open_clone_device(struct inode *inode, struct file *filp)
 	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
 	fac->kuid = inode->i_uid;
 	fac->kgid = inode->i_gid;
+	stream_open(inode, filp);
 
 	return 0;
 }

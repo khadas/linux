@@ -721,6 +721,7 @@ static int timerfd_release(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations timerfd_fops = {
+	.open		= stream_open,
 	.release	= timerfd_release,
 	.oob_ioctl	= timerfd_common_ioctl,
 	.oob_read	= timerfd_oob_read,

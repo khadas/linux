@@ -992,6 +992,7 @@ static int latmus_open(struct inode *inode, struct file *filp)
 		kfree(ls);
 
 	filp->private_data = ls;
+	stream_open(inode, filp);
 
 	return ret;
 }
