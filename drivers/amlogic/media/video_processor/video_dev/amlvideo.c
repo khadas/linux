@@ -266,7 +266,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		if (vf_get_receiver(dev->vf_provider_name)) {
 			struct vframe_receiver_s *aaa = vf_get_receiver
 					(dev->vf_provider_name);
-			AMLVIDEO_DBG("aaa->name=%s", aaa->name);
+			if (aaa)
+				AMLVIDEO_DBG("aaa->name=%s", aaa->name);
 			if (dev->inst == 0)
 				omx_secret_mode = true;
 			vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,

@@ -22,7 +22,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-//#include <linux/amlogic/clk_measure.h>
+#include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
 
 #include <linux/amlogic/media/sound/aout_notify.h>
@@ -167,7 +167,7 @@ static int tdmin_clk_get(struct snd_kcontrol *kcontrol,
 	int clk = 0;
 	int value;
 
-	//clk = meson_clk_measure(70);
+	clk = meson_clk_measure(70);
 	if (clk >= 11000000)
 		value = 3;
 	else if (clk >= 6000000)
