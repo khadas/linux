@@ -18,7 +18,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/03/16:reduece no msg in sleep time\n"
+#define CEC_DRIVER_VERSION     "2020/04/02: read reg cause recursive call"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)
 #define CEC_CHK_BUS_CNT		20
