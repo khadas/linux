@@ -35,6 +35,7 @@
 #define MCU_VERSION_L_REG       0x13
 #define MCU_FAN_FLAG_REG        0x8a
 #define MCU_AGEING_TEST	        0x38
+#define MCU_ETHERNET_MODE_REG   0x39
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -87,6 +88,11 @@ enum khadas_fan_hwver {
 enum khadas_portmode {
 	KHADAS_PORT_MODE_USB3 = 0,
 	KHADAS_PORT_MODE_PCIE
+};
+
+enum khadas_ethernet_mode {
+        KHADAS_ETHERNET_MODE_INTERNAL = 0,
+        KHADAS_ETHERNET_MODE_M2X
 };
 
 struct khadas_fan_data {
@@ -583,6 +589,38 @@ static ssize_t store_rst_mcu(struct class *cls, struct class_attribute *attr,
 
 }
 
+static ssize_t show_ethernet_mode(struct class *cls,
+			struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char mode[1]={0};
+
+	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_ETHERNET_MODE_REG, mode, 1);
+	if (ret < 0)
+		printk("%s: failed (%d)",__func__, ret);
+	return sprintf(buf, "%d\n", mode[0]);
+}
+
+static ssize_t store_ethernet_mode(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	if ((mode < KHADAS_ETHERNET_MODE_INTERNAL) || (mode > KHADAS_ETHERNET_MODE_M2X))
+		return -EINVAL;
+
+	reg[0] = mode;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_ETHERNET_MODE_REG, reg, 1);
+	if (ret < 0)
+		printk("write mcu ethernet mode err\n");
+	return count;
+}
+
 static ssize_t show_portmode(struct class *cls,
 			struct class_attribute *attr, char *buf)
 {
@@ -649,6 +687,7 @@ static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(rst, 0644, NULL, store_rst_mcu),
 	__ATTR(portmode, 0644, show_portmode, store_portmode),
 	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
+	__ATTR(ethernet_mode, 0644, show_ethernet_mode, store_ethernet_mode),
 };
 
 static struct class_attribute wol_class_attrs[] = {
