@@ -22,6 +22,7 @@ int __init resample_drv_init(void);
 int __init spdif_init(void);
 int __init tdm_init(void);
 int __init vad_drv_init(void);
+int __init vad_dev_init(void);
 
 void __exit vad_dev_exit(void);
 void __exit vad_drv_exit(void);

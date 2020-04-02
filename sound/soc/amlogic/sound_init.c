@@ -29,7 +29,7 @@
 
 #define call_sub_exit(func) { \
 	func(); \
-	pr_info("call %s() ret=%d\n", #func, ret); \
+	pr_info("call %s()\n", #func); \
 }
 
 static int __init sound_soc_init(void)
@@ -45,12 +45,14 @@ static int __init sound_soc_init(void)
 	call_sub_init(audio_locker_init);
 	call_sub_init(loopback_init);
 	call_sub_init(pdm_init);
-	call_sub_init(pwrdet_init);
+	/*call_sub_init(pwrdet_init);*/
 	call_sub_init(resample_drv_init);
 	call_sub_init(spdif_init);
 	call_sub_init(tdm_init);
 	call_sub_init(vad_drv_init);
 	call_sub_init(vad_dev_init);
+
+	return 0;
 }
 
 static __exit void sound_soc_exit(void)
@@ -60,7 +62,7 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(tdm_exit);
 	call_sub_exit(spdif_exit);
 	call_sub_exit(resample_drv_exit);
-	call_sub_exit(pwrdet_exit);
+	/*call_sub_exit(pwrdet_exit);*/
 	call_sub_exit(pdm_exit);
 	call_sub_exit(loopback_exit);
 	call_sub_exit(audio_locker_exit);
