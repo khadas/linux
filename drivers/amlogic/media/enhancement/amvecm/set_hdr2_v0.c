@@ -2428,7 +2428,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_lut_param.eotf_lut[i] =	eo_y_lut_sdr[i];
 			if (i < HDR2_CGAIN_LUT_SIZE)
 				hdr_lut_param.cgain_lut[i] =
-					cgain_lut0[i] - 1;
+					cgain_lut_bypass[i] - 1;
 		}
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.lut_on = LUT_ON;
