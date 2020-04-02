@@ -318,6 +318,12 @@
 			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2";
+		power-domains = <&pwrc PWRC_SM1_VDEC_ID>,
+			<&pwrc PWRC_SM1_HCODEC_ID>,
+			<&pwrc PWRC_SM1_HEVC_ID>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hcodec",
+			"pwrc-hevc";
 	};
 
 	vcodec_dec {

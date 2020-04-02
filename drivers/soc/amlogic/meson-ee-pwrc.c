@@ -39,16 +39,16 @@
 #define HHI_VPU_MEM_PD_REG2		(0x4d << 2)
 #define TM2_HHI_VPU_MEM_PD_REG3		(0x4e << 2)
 #define TM2_HHI_VPU_MEM_PD_REG4		(0x4c << 2)
-#define HHI_DEMOD_MEM_PD_REG	(0x043 << 2)
+#define HHI_DEMOD_MEM_PD_REG		(0x043 << 2)
 #define HHI_DSP_MEM_PD_REG0		(0x044 << 2)
 
 #define DOS_MEM_PD_VDEC			(0x0 << 2)
 #define DOS_MEM_PD_HCODEC		(0x2 << 2)
-#define DOS_MEM_PD_HEVC			(0x2 << 2)
+#define DOS_MEM_PD_HEVC			(0x3 << 2)
 #define DOS_MEM_PD_WAVE420L		(0x9 << 2)
 
-#define DOS_START_ID		7
-#define DOS_END_ID		10
+#define DOS_START_ID			7
+#define DOS_END_ID			10
 
 struct meson_ee_pwrc;
 struct meson_ee_pwrc_domain;

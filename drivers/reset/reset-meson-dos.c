@@ -57,7 +57,7 @@ static int meson_dos_reset_status(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	vaddr = data->base + (map[index] << 2) + offset;
+	vaddr = data->base + (map[index] << 2);
 	val = readl(vaddr);
 
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -77,12 +77,12 @@ static int meson_dos_reset_switch(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	vaddr = data->base + (map[index] << 2) + offset;
+	vaddr = data->base + (map[index] << 2);
 	val = readl(vaddr);
 
-	pr_debug("%s, ID: %d, va: %p, bit: %d, [%s]\n",
-		__func__, index, vaddr, offset,
-		assert ? "ON" : "OFF");
+	pr_debug("%s, ID: %d, va: %px, bit: %d, [%s]\n",
+		 __func__, index, vaddr, offset,
+		 assert ? "ON" : "OFF");
 
 	if (assert)
 		writel(val | BIT(offset), vaddr);
