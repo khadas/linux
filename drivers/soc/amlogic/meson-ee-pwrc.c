@@ -576,7 +576,7 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 		for (i = 0; i < strlen(dom->desc.name); i++)
 			buf[i] = tolower(*(dom->desc.name + i));
 
-		sprintf(buf, "%s,%s", buf, "reset");
+		strcat(buf, ",reset");
 		np = of_parse_phandle(pdev->dev.of_node, buf, 0);
 
 		dom->rstc = of_reset_control_array_get(np, true, false, true);
