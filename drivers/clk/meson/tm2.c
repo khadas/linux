@@ -4041,6 +4041,12 @@ static MESON_GATE(tm2_hdmirx_axi_pclk, HHI_GCLK_MPEG2, 12);
 static MESON_GATE(tm2_dspb, HHI_GCLK_MPEG2, 26);
 static MESON_GATE(tm2_dspa, HHI_GCLK_MPEG2, 27);
 
+static MESON_GATE(tm2_dma,		HHI_GCLK_SP_MPEG, 0);
+static MESON_GATE(tm2_efuse,		HHI_GCLK_SP_MPEG, 1);
+static MESON_GATE(tm2_rom_boot,		HHI_GCLK_SP_MPEG, 2);
+static MESON_GATE(tm2_reset_sec,	HHI_GCLK_SP_MPEG, 3);
+static MESON_GATE(tm2_sec_ahb_apb3,	HHI_GCLK_SP_MPEG, 4);
+
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 	.hws = {
@@ -4138,6 +4144,11 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_HDMITX_AXI_PCLK]		= &tm2_hdmirx_axi_pclk.hw,
 		[CLKID_DSPB]			= &tm2_dspb.hw,
 		[CLKID_DSPA]			= &tm2_dspa.hw,
+		[CLKID_DMA]			= &tm2_dma.hw,
+		[CLKID_EFUSE]			= &tm2_efuse.hw,
+		[CLKID_ROM_BOOT]		= &tm2_rom_boot.hw,
+		[CLKID_RESET_SEC]		= &tm2_reset_sec.hw,
+		[CLKID_SEC_APH_APB3]		= &tm2_sec_ahb_apb3.hw,
 		[CLKID_SD_EMMC_B_CLK0_SEL]	= &tm2_sd_emmc_b_clk0_sel.hw,
 		[CLKID_SD_EMMC_B_CLK0_DIV]	= &tm2_sd_emmc_b_clk0_div.hw,
 		[CLKID_SD_EMMC_B_CLK0]		= &tm2_sd_emmc_b_clk0.hw,
@@ -4548,6 +4559,11 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_hdmirx_axi_pclk,
 	&tm2_dspb,
 	&tm2_dspa,
+	&tm2_dma,
+	&tm2_efuse,
+	&tm2_rom_boot,
+	&tm2_reset_sec,
+	&tm2_sec_ahb_apb3,
 	&tm2_spicc0_mux,
 	&tm2_spicc0_div,
 	&tm2_spicc0_gate,

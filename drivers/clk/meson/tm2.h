@@ -64,7 +64,7 @@
 #define HHI_GCLK_MPEG2			0xc8 /* 0x32 offset in datasheet */
 #define HHI_GCLK_OTHER			0xd0 /* 0x34 offset in datasheet */
 
-#define HHI_GCLK_AO			0x154 /* 0x55 offset in datasheet */
+#define HHI_GCLK_SP_MPEG		0x154 /* 0x55 offset in datasheet */
 #define HHI_SYS_CPU_CLK_CNTL1		0x15C /* 0x57 offset in datasheet1 */
 #define HHI_VID_CLK_DIV			0x164 /* 0x59 offset in datasheet */
 #define HHI_SPICC_HCLK_CNTL		0x168 /* 0x5a offset in datasheet */
