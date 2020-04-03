@@ -1363,9 +1363,8 @@ int dsi_write_cmd(unsigned char *payload)
 	unsigned char cmd_size;
 #ifdef DSI_CMD_READ_VALID
 	int k = 0, n = 0;
-	int cnt = 200;
-	unsigned char *rd_data = NULL;
-	unsigned char *str = NULL;
+	unsigned char rd_data[100];
+	unsigned char str[200];
 	int len;
 
 #endif
@@ -1472,20 +1471,6 @@ int dsi_write_cmd(unsigned char *payload)
 				dsi_set_max_return_pkt_size(&dsi_cmd_req);
 				break;
 #ifdef DSI_CMD_READ_VALID
-			rd_data = kmalloc_array
-				(cnt, sizeof(unsigned char), GFP_KERNEL);
-			if (!rd_data) {
-				LCDERR("%s: rd_data error\n", __func__);
-				return 0;
-			}
-
-			str = kmalloc_array
-				(cnt, sizeof(unsigned char), GFP_KERNEL);
-			if (!str) {
-				LCDERR("%s: str error\n", __func__);
-				return 0;
-			}
-				break;
 			case DT_GEN_RD_0:
 			case DT_GEN_RD_1:
 			case DT_GEN_RD_2:
@@ -1524,8 +1509,6 @@ int dsi_write_cmd(unsigned char *payload)
 						       rd_data[k]);
 				}
 				pr_info("  %s\n", str);
-				kfree(rd_data);
-				kfree(str);
 				break;
 #endif
 			default:
