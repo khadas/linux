@@ -168,7 +168,7 @@ static struct clock_event_device meson_clockevent = {
 	.tick_resume = meson_clkevt_resume,
 };
 
-static int __init meson_bc_timer_init(struct device_node *np)
+static int meson_bc_timer_init(struct device_node *np)
 {
 	struct meson_clock *mclk = &bc_clock;
 	int irq;

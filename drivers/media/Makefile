@@ -7,8 +7,9 @@
 # I2C drivers should come before other drivers, otherwise they'll fail
 # when compiled as builtin drivers
 #
-obj-y += i2c/ tuners/
-obj-$(CONFIG_DVB_CORE)  += dvb-frontends/
+obj-y += i2c/
+#tuners/
+#obj-$(CONFIG_DVB_CORE)  += dvb-frontends/
 
 #
 # Now, let's link-in the media controller core

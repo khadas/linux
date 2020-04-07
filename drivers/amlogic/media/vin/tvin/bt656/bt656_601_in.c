@@ -1440,7 +1440,7 @@ static struct platform_driver amvdec_656in_driver = {
 	}
 };
 
-static int __init amvdec_656in_init_module(void)
+int amvdec_656in_init_module(void)
 {
 	int ret = 0;
 
@@ -1453,13 +1453,15 @@ static int __init amvdec_656in_init_module(void)
 	return 0;
 }
 
-static void __exit amvdec_656in_exit_module(void)
+void amvdec_656in_exit_module(void)
 {
 	platform_driver_unregister(&amvdec_656in_driver);
 }
 
+#ifndef MODULE
 module_init(amvdec_656in_init_module);
 module_exit(amvdec_656in_exit_module);
+#endif
 
 //MODULE_DESCRIPTION("AMLOGIC BT656_601 input driver");
 //MODULE_LICENSE("GPL");

@@ -150,13 +150,14 @@ int emmc_key_init(struct mmc_card *card)
 	uk_type->ops = &ops;
 	uk_type->ops->read = emmc_key_read;
 	uk_type->ops->write = emmc_key_write;
-
+/*
 	if (register_unifykey_types(uk_type)) {
 		err = -EINVAL;
 		pr_info("%s:%d,emmc key check fail\n", __func__, __LINE__);
 		goto exit_err1;
 	}
 	pr_info("emmc key: %s:%d ok.\n", __func__, __LINE__);
+*/
 exit_err1:
 	kfree(uk_type);
 exit_err:
