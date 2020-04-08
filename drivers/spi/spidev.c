@@ -25,7 +25,8 @@
 #include <linux/spi/spidev.h>
 
 #include <linux/uaccess.h>
-
+#include <uapi/evl/devices/spidev.h>
+#include <evl/device.h>
 
 /*
  * This supports access to SPI devices using normal userspace I/O calls.
@@ -79,6 +80,15 @@ struct spidev_data {
 	u8			*tx_buffer;
 	u8			*rx_buffer;
 	u32			speed_hz;
+#ifdef CONFIG_SPI_SPIDEV_OOB
+	struct {
+		struct evl_file	efile;
+		struct spi_oob_transfer xfer;
+		struct evl_flag flag;
+		struct evl_ksem sem;
+		bool enabled;
+	} oob;
+#endif
 };
 
 static LIST_HEAD(device_list);
@@ -351,6 +361,138 @@ spidev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_ioc,
 	return memdup_user(u_ioc, tmp);
 }
 
+#ifdef CONFIG_SPI_SPIDEV_OOB
+
+static void oob_transfer_done(void *arg) /* oob stage, hardirqs off */
+{
+	struct spidev_data *spidev;
+
+	spidev = container_of(arg, struct spidev_data, oob.xfer);
+	evl_pulse_flag(&spidev->oob.flag);
+}
+
+static int enable_oob_mode(struct spidev_data *spidev,
+			struct spi_ioc_oob_setup __user *u_ioc)
+{
+	struct spi_oob_transfer *xfer = &spidev->oob.xfer;
+	__u32 tx_offset, rx_offset, iobuf_len;
+	struct spi_ioc_oob_setup oob_setup;
+	int ret;
+
+	ret = evl_trydown(&spidev->oob.sem);
+	if (ret)
+		return ret;
+
+	if (spidev->oob.enabled) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = copy_from_user(&oob_setup, u_ioc, sizeof(oob_setup));
+	if (ret)
+		goto out;
+
+	xfer->setup.frame_len = oob_setup.frame_len;
+	xfer->setup.speed_hz = oob_setup.speed_hz;
+	xfer->setup.bits_per_word = oob_setup.bits_per_word;
+	xfer->setup.xfer_done = oob_transfer_done;
+	ret = spi_prepare_oob_transfer(spidev->spi, xfer);
+	if (ret)
+		goto out;
+
+	tx_offset = (__u32)spi_get_oob_txoff(xfer);
+	put_user(tx_offset, &u_ioc->tx_offset);
+	rx_offset = (__u32)spi_get_oob_rxoff(xfer);
+	put_user(rx_offset, &u_ioc->rx_offset);
+	iobuf_len = (__u32)spi_get_oob_iolen(xfer);
+	put_user(iobuf_len, &u_ioc->iobuf_len);
+
+	evl_clear_flag(&spidev->oob.flag);
+	spi_start_oob_transfer(xfer);
+	spidev->oob.enabled = true;
+out:
+	evl_up(&spidev->oob.sem);
+
+	return ret;
+}
+
+static int disable_oob_mode(struct spidev_data *spidev)
+{
+	int ret;
+
+	ret = evl_trydown(&spidev->oob.sem);
+	if (ret)
+		return ret;
+
+	if (spidev->oob.enabled) {
+		spi_terminate_oob_transfer(&spidev->oob.xfer);
+		spidev->oob.enabled = false;
+	}
+
+	evl_up(&spidev->oob.sem);
+
+	return 0;
+}
+
+static int run_oob_transfer(struct spidev_data *spidev) /* oob stage */
+{
+	int ret;
+
+	ret = evl_down(&spidev->oob.sem);
+	if (ret)
+		return ret;
+
+	if (!spidev->oob.enabled) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	ret = spi_pulse_oob_transfer(&spidev->oob.xfer);
+	if (ret)
+		goto out;
+
+	ret = evl_wait_flag(&spidev->oob.flag);
+out:
+	evl_up(&spidev->oob.sem);
+
+	return ret;
+}
+
+static long
+spidev_oob_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct spidev_data *spidev = filp->private_data;
+	long ret;
+
+	switch (cmd) {
+	case SPI_IOC_RUN_OOB_XFER:
+		ret = run_oob_transfer(spidev);
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
+static int spidev_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct spidev_data *spidev = filp->private_data;
+	int ret;
+
+	mutex_lock(&spidev->buf_lock);
+
+	if (!spidev->oob.enabled)
+		ret = -ENXIO;
+	else
+		ret = spi_mmap_oob_transfer(vma, &spidev->oob.xfer);
+
+	mutex_unlock(&spidev->buf_lock);
+
+	return ret;
+}
+#endif
+
 static long
 spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -492,6 +634,18 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		spi->max_speed_hz = save;
 		break;
 	}
+
+#ifdef CONFIG_SPI_SPIDEV_OOB
+	case SPI_IOC_ENABLE_OOB_MODE:
+		retval = enable_oob_mode(spidev,
+				(struct spi_ioc_oob_setup __user *)arg);
+		break;
+
+	case SPI_IOC_DISABLE_OOB_MODE:
+		retval = disable_oob_mode(spidev);
+		break;
+#endif
+
 	default:
 		/* segmented and/or full-duplex I/O request */
 		/* Check message and copy into scratch area */
@@ -584,6 +738,42 @@ spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #define spidev_compat_ioctl NULL
 #endif /* CONFIG_COMPAT */
 
+#ifdef CONFIG_SPI_SPIDEV_OOB
+static int init_oob_state(struct spidev_data *spidev,
+			struct file *filp)
+{
+	evl_init_flag(&spidev->oob.flag);
+	evl_init_ksem(&spidev->oob.sem, 1);
+
+	return evl_open_file(&spidev->oob.efile, filp);
+}
+
+static void release_oob_state(struct spidev_data *spidev)
+{
+	/*
+	 * First, delete wait objects to unblocks waiters
+	 * if any.
+	 */
+	evl_destroy_flag(&spidev->oob.flag);
+	evl_destroy_ksem(&spidev->oob.sem);
+	/*
+	 * Releasing the EVL file waits for any unblocked waiter to
+	 * leave the oob call before returning.
+	 */
+	evl_release_file(&spidev->oob.efile);
+	disable_oob_mode(spidev);
+}
+#else
+static inline int init_oob_state(struct spidev_data*spidev,
+				struct file *filp)
+{
+	return 0;
+}
+
+static void release_oob_state(struct spidev_data *spidev)
+{ }
+#endif
+
 static int spidev_open(struct inode *inode, struct file *filp)
 {
 	struct spidev_data	*spidev = NULL, *iter;
@@ -620,6 +810,10 @@ static int spidev_open(struct inode *inode, struct file *filp)
 		}
 	}
 
+	status = init_oob_state(spidev, filp);
+	if (status)
+		goto err_init_oob;
+
 	spidev->users++;
 	filp->private_data = spidev;
 	stream_open(inode, filp);
@@ -627,6 +821,9 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	mutex_unlock(&device_list_lock);
 	return 0;
 
+err_init_oob:
+	kfree(spidev->rx_buffer);
+	spidev->rx_buffer = NULL;
 err_alloc_rx_buf:
 	kfree(spidev->tx_buffer);
 	spidev->tx_buffer = NULL;
@@ -640,8 +837,9 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	struct spidev_data	*spidev;
 	int			dofree;
 
-	mutex_lock(&device_list_lock);
 	spidev = filp->private_data;
+	release_oob_state(spidev);
+	mutex_lock(&device_list_lock);
 	filp->private_data = NULL;
 
 	mutex_lock(&spidev->spi_lock);
@@ -685,6 +883,11 @@ static const struct file_operations spidev_fops = {
 	.compat_ioctl = spidev_compat_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
+#ifdef CONFIG_SPI_SPIDEV_OOB
+	.mmap	        =	spidev_mmap,
+	.oob_ioctl        =	spidev_oob_ioctl,
+	.compat_oob_ioctl =	compat_ptr_oob_ioctl,
+#endif
 };
 
 /*-------------------------------------------------------------------------*/
