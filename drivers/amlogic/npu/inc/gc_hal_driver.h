@@ -92,6 +92,7 @@ typedef enum _gceHAL_COMMAND_CODES
     gcvHAL_READ_PROFILER_REGISTER_SETTING,
     gcvHAL_READ_ALL_PROFILE_REGISTERS_PART1,
     gcvHAL_READ_ALL_PROFILE_REGISTERS_PART2,
+
     /* Query process database info when debug trace and proflie. */
     gcvHAL_DATABASE,
 
@@ -104,7 +105,6 @@ typedef enum _gceHAL_COMMAND_CODES
     /*************** Common end ***************/
 
     /*************** GPU only ***************/
-
     /* Register operations, 2D only. */
     gcvHAL_READ_REGISTER,
     gcvHAL_WRITE_REGISTER,
@@ -115,6 +115,9 @@ typedef enum _gceHAL_COMMAND_CODES
 
     /* Read frame database, 3D only. */
     gcvHAL_GET_FRAME_INFO,
+
+    /* Set video memory meta data. */
+    gcvHAL_SET_VIDEO_MEMORY_METADATA,
 
     /* Query command buffer, VG only. */
     gcvHAL_QUERY_COMMAND_BUFFER,
@@ -136,6 +139,8 @@ typedef enum _gceHAL_COMMAND_CODES
     gcvHAL_NAME_VIDEO_MEMORY,
     gcvHAL_IMPORT_VIDEO_MEMORY,
 
+    /* Mutex Operation. */
+    gcvHAL_DEVICE_MUTEX,
     /*************** GPU only end ***************/
 
     /*************** DEC only ***************/
@@ -159,6 +164,7 @@ typedef enum _gceHAL_COMMAND_CODES
 
     /* Vsimulator only. */
     gcvHAL_UPDATE_DEBUG_CALLBACK,
+    gcvHAL_CONFIG_CTX_FRAMEWORK,
 
     /* Non paged memory management backup compatibility, windows, qnx. */
     gcvHAL_ALLOCATE_NON_PAGED_MEMORY,
@@ -173,7 +179,7 @@ typedef enum _gceHAL_COMMAND_CODES
     gcvHAL_SET_IDLE,
     gcvHAL_RESET,
 
-    /* Command commit done. */
+    /* Command commit done, kernel event only. */
     gcvHAL_COMMIT_DONE,
 
     /* Get video memory file description. */
@@ -272,6 +278,14 @@ typedef struct _gcsHAL_QUERY_VIDEO_MEMORY
 }
 gcsHAL_QUERY_VIDEO_MEMORY;
 
+enum
+{
+    /* GPU can't issue more that 32bit physical address */
+    gcvPLATFORM_FLAG_LIMIT_4G_ADDRESS = 1 << 0,
+
+    gcvPLATFORM_FLAG_IMX_MM           = 1 << 1,
+};
+
 /* gcvHAL_QUERY_CHIP_IDENTITY */
 typedef struct _gcsHAL_QUERY_CHIP_IDENTITY * gcsHAL_QUERY_CHIP_IDENTITY_PTR;
 typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
@@ -347,8 +361,10 @@ typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
     gctUINT32                   customerID;
 
     /* CPU view physical address and size of SRAMs. */
-    gctUINT64                   sRAMBases[gcvSRAM_COUNT];
-    gctUINT32                   sRAMSizes[gcvSRAM_COUNT];
+    gctUINT64                   sRAMBases[gcvSRAM_INTER_COUNT];
+    gctUINT32                   sRAMSizes[gcvSRAM_INTER_COUNT];
+
+    gctUINT64                   platformFlagBits;
 }
 gcsHAL_QUERY_CHIP_IDENTITY;
 
@@ -369,15 +385,22 @@ typedef struct _gcsHAL_QUERY_CHIP_OPTIONS
     gctUINT32                   uscAttribCacheRatio;
     gctUINT32                   userClusterMask;
 
-    /* GPU/VIP virtual address of SRAMs. */
-    gctUINT32                   sRAMBaseAddresses[gcvSRAM_COUNT];
-    /* SRAMs size. */
-    gctUINT32                   sRAMSizes[gcvSRAM_COUNT];
-    /* GPU/VIP view physical address of SRAMs. */
-    gctPHYS_ADDR_T              sRAMPhysicalBases[gcvSRAM_COUNT];
+    /* Internal SRAM. */
+    gctUINT32                   sRAMGPUVirtAddrs[gcvSRAM_INTER_COUNT];
+    gctUINT32                   sRAMSizes[gcvSRAM_INTER_COUNT];
+    gctUINT32                   sRAMCount;
+
+    /* External SRAM. */
+    gctPHYS_ADDR_T              extSRAMCPUPhysAddrs[gcvSRAM_EXT_COUNT];
+    gctPHYS_ADDR_T              extSRAMGPUPhysAddrs[gcvSRAM_EXT_COUNT];
+    gctUINT32                   extSRAMGPUVirtAddrs[gcvSRAM_EXT_COUNT];
+    gctUINT32                   extSRAMGPUPhysNames[gcvSRAM_EXT_COUNT];
+    gctUINT32                   extSRAMSizes[gcvSRAM_EXT_COUNT];
+    gctUINT32                   extSRAMCount;
 
     gceSECURE_MODE              secureMode;
-
+    gctBOOL                     enableNNTPParallel;
+    gctUINT                     enableSwtilingPhase1;
 }
 gcsHAL_QUERY_CHIP_OPTIONS;
 
@@ -441,6 +464,11 @@ typedef struct _gcsHAL_ALLOCATE_LINEAR_VIDEO_MEMORY
 
     /* Memory pool to allocate from. */
     IN OUT gctUINT32            pool;
+
+    /* Internal SRAM index. */
+    IN gctINT32                 sRAMIndex;
+    /* External SRAM index. */
+    IN gctINT32                 extSRAMIndex;
 
     /* Allocated video memory. */
     OUT gctUINT32               node;
@@ -723,6 +751,8 @@ typedef struct _gcsHAL_COMMIT
     gcsHAL_SUBCOMMIT            subCommit;
 
     gctBOOL                     shared;
+
+    gctBOOL                     contextSwitched;
 
     /* Commit stamp of this commit. */
     OUT gctUINT64               commitStamp;
@@ -1086,6 +1116,23 @@ typedef struct _gcsHAL_GET_GRAPHIC_BUFFER_FD
 }
 gcsHAL_GET_GRAPHIC_BUFFER_FD;
 
+typedef struct _gcsHAL_VIDEO_MEMORY_METADATA
+{
+    /* Allocated video memory. */
+    IN gctUINT32            node;
+
+    IN gctUINT32            readback;
+
+    INOUT gctINT32          ts_fd;
+    INOUT gctUINT32         fc_enabled;
+    INOUT gctUINT32         fc_value;
+    INOUT gctUINT32         fc_value_upper;
+
+    INOUT gctUINT32         compressed;
+    INOUT gctUINT32         compress_format;
+}
+gcsHAL_VIDEO_MEMORY_METADATA;
+
 /* gcvHAL_GET_VIDEO_MEMORY_FD. */
 typedef struct _gcsHAL_GET_VIDEO_MEMORY_FD
 {
@@ -1109,6 +1156,14 @@ typedef struct _gcsHAL_WAIT_FENCE
     IN gctUINT32                timeOut;
 }
 gcsHAL_WAIT_FENCE;
+
+/* gcvHAL_DEVICE_MUTEX: */
+typedef struct _gcsHAL_DEVICE_MUTEX
+{
+    /* Lock or Release device mutex. */
+    gctBOOL                     isMutexLocked;
+}
+gcsHAL_DEVICE_MUTEX;
 
 
 #if gcdDEC_ENABLE_AHB
@@ -1176,6 +1231,9 @@ typedef struct _gcsHAL_INTERFACE
 
     /* Ignore information from TSL when doing IO control */
     gctBOOL                     ignoreTLS;
+
+    /* The mutext already acquired */
+    IN gctBOOL                  commitMutex;
 
     /* Union of command structures. */
     union _u
@@ -1261,11 +1319,15 @@ typedef struct _gcsHAL_INTERFACE
         gcsHAL_WAIT_NATIVE_FENCE            WaitNativeFence;
         gcsHAL_SHBUF                        ShBuf;
         gcsHAL_GET_GRAPHIC_BUFFER_FD        GetGraphicBufferFd;
+        gcsHAL_VIDEO_MEMORY_METADATA        SetVidMemMetadata;
         gcsHAL_GET_VIDEO_MEMORY_FD          GetVideoMemoryFd;
 
         gcsHAL_DESTROY_MMU                  DestroyMmu;
 
         gcsHAL_WAIT_FENCE                   WaitFence;
+
+        /* gcvHAL_DEVICE_MUTEX: */
+        gcsHAL_DEVICE_MUTEX                 DeviceMutex;
 
 
 #if gcdDEC_ENABLE_AHB

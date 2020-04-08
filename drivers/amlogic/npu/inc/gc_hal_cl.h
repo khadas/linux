@@ -726,12 +726,12 @@ gcoCL_SetSignal(
 **
 **  INPUT:
 **
-**      gcsPROGRAM_STATE ProgramState
-**          Program state.
+**      gcsPROGRAM_STATE *ProgramState
+**          Program state pointer.
 */
 gceSTATUS
 gcoCL_LoadKernel(
-    IN gcsPROGRAM_STATE ProgramState
+    IN gcsPROGRAM_STATE *ProgramState
     );
 
 gceSTATUS
@@ -743,7 +743,8 @@ gcoCL_InvokeKernel(
     IN size_t       LocalWorkSize[3],
     IN gctUINT      ValueOrder,
     IN gctBOOL      BarrierUsed,
-    IN gctUINT32    MemoryAccessFlag
+    IN gctUINT32    MemoryAccessFlag,
+    IN gctBOOL      bDual16
     );
 
 gceSTATUS

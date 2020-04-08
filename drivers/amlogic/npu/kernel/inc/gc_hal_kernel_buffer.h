@@ -250,13 +250,6 @@ struct _gcoCMDBUF
     gctUINT64                   lastReserve;
     gctUINT32                   lastOffset;
 
-#if gcdSECURE_USER
-    /* Hint array for the current command buffer. */
-    gctUINT                     hintArraySize;
-    gctUINT64                   hintArray;
-    gctUINT64                   hintArrayTail;
-#endif
-
     /* Last load state command location and hardware address. */
     gctUINT64                   lastLoadStatePtr;
     gctUINT32                   lastLoadStateAddress;

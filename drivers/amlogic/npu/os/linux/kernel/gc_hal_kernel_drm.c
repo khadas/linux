@@ -58,13 +58,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <linux/dma-buf.h>
-#include <linux/component.h>
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_drm.h"
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
-#error "Vivante DRM is NOT supportted on linux kernel early than 3.8.0"
-#endif
 
 #define _GC_OBJ_ZONE    gcvZONE_KERNEL
 
@@ -77,6 +72,7 @@ struct viv_gem_object {
 
     uint32_t              node_handle;
     gckVIDMEM_NODE        node_object;
+    gctBOOL               cacheable;
 };
 
 struct dma_buf *viv_gem_prime_export(struct drm_device *drm,
@@ -90,7 +86,7 @@ struct dma_buf *viv_gem_prime_export(struct drm_device *drm,
     if (gal_dev)
     {
         gckKERNEL kernel = gal_dev->device->map[gal_dev->device->defaultHwType].kernels[0];
-        gcmkVERIFY_OK(gckVIDMEM_NODE_Export(kernel, viv_obj->node_handle, flags,
+        gcmkVERIFY_OK(gckVIDMEM_NODE_Export(kernel, viv_obj->node_object, flags,
                                             (gctPOINTER*)&dmabuf, gcvNULL));
     }
 
@@ -172,6 +168,7 @@ static int viv_ioctl_gem_create(struct drm_device *drm, void *data,
     gckVIDMEM_NODE nodeObject;
     gctUINT32 flags = gcvALLOC_FLAG_DMABUF_EXPORTABLE;
     gceSTATUS status = gcvSTATUS_OK;
+    gctUINT64 alignSize = PAGE_ALIGN(args->size);
 
     gal_dev = (gckGALDEVICE)drm->dev_private;
     if (!gal_dev)
@@ -195,7 +192,7 @@ static int viv_ioctl_gem_create(struct drm_device *drm, void *data,
     gckOS_ZeroMemory(&iface, sizeof(iface));
     iface.command = gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY;
     iface.hardwareType = gal_dev->device->defaultHwType;
-    iface.u.AllocateLinearVideoMemory.bytes = PAGE_ALIGN(args->size);
+    iface.u.AllocateLinearVideoMemory.bytes = alignSize;
     iface.u.AllocateLinearVideoMemory.alignment = 256;
     iface.u.AllocateLinearVideoMemory.type = gcvVIDMEM_TYPE_GENERIC;
     iface.u.AllocateLinearVideoMemory.flag = flags;
@@ -208,12 +205,13 @@ static int viv_ioctl_gem_create(struct drm_device *drm, void *data,
 
     /* ioctl output */
     gem_obj = kzalloc(sizeof(struct viv_gem_object), GFP_KERNEL);
-    drm_gem_private_object_init(drm, gem_obj, (size_t)iface.u.AllocateLinearVideoMemory.bytes);
+    drm_gem_private_object_init(drm, gem_obj, (size_t)alignSize);
     ret = drm_gem_handle_create(file, gem_obj, &args->handle);
 
     viv_obj = container_of(gem_obj, struct viv_gem_object, base);
     viv_obj->node_handle = iface.u.AllocateLinearVideoMemory.node;
     viv_obj->node_object = nodeObject;
+    viv_obj->cacheable = flags & gcvALLOC_FLAG_CACHEABLE;
 
     /* drop reference from allocate - handle holds it now */
     drm_gem_object_unreference_unlocked(gem_obj);
@@ -552,6 +550,16 @@ static int viv_ioctl_gem_attach_aux(struct drm_device *drm, void *data,
     {
         struct viv_gem_object *viv_ts_obj;
         gckKERNEL kernel = gal_dev->device->map[gal_dev->device->defaultHwType].kernels[0];
+        gcsHAL_INTERFACE iface;
+        gctBOOL is128BTILE = gckHARDWARE_IsFeatureAvailable(kernel->hardware , gcvFEATURE_128BTILE);
+        gctBOOL is2BitPerTile = is128BTILE ? gcvFALSE : gckHARDWARE_IsFeatureAvailable(kernel->hardware , gcvFEATURE_TILE_STATUS_2BITS);
+        gctBOOL isCompressionDEC400 = gckHARDWARE_IsFeatureAvailable(kernel->hardware , gcvFEATURE_COMPRESSION_DEC400);
+        gctPOINTER entry = gcvNULL;
+        gckVIDMEM_NODE ObjNode = gcvNULL;
+        gctUINT32 processID = 0;
+        gctUINT32 tileStatusFiller = (isCompressionDEC400 || ((kernel->hardware->identity.chipModel == gcv500) && (kernel->hardware->identity.chipRevision > 2)))
+                                  ? 0xFFFFFFFF
+                                  : is2BitPerTile ? 0x55555555 : 0x11111111;
 
         gem_ts_obj = drm_gem_object_lookup(file, args->ts_handle);
         if (!gem_ts_obj)
@@ -562,6 +570,38 @@ static int viv_ioctl_gem_attach_aux(struct drm_device *drm, void *data,
 
         gcmkONERROR(gckVIDMEM_NODE_Reference(kernel, viv_ts_obj->node_object));
         nodeObj->tsNode = viv_ts_obj->node_object;
+
+        /* Fill tile status node with tileStatusFiller value first time to avoid GPU hang. */
+        /* Lock tile status node. */
+        gckOS_ZeroMemory(&iface, sizeof(iface));
+        iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
+        iface.hardwareType = gal_dev->device->defaultHwType;
+        iface.u.LockVideoMemory.node = viv_ts_obj->node_handle;
+        iface.u.LockVideoMemory.cacheable = viv_ts_obj->cacheable;
+        gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
+
+        gcmkONERROR(gckOS_GetProcessID(&processID));
+        gcmkONERROR(gckVIDMEM_HANDLE_Lookup(kernel, processID, viv_ts_obj->node_handle, &ObjNode));
+        gcmkONERROR(gckVIDMEM_NODE_LockCPU(kernel, ObjNode, gcvFALSE, gcvFALSE, &entry));
+
+        /* Fill tile status node with tileStatusFiller. */
+        memset(entry , tileStatusFiller , (__u64)gem_ts_obj->size);
+        gcmkONERROR(gckVIDMEM_NODE_UnlockCPU(kernel, ObjNode, 0, gcvFALSE));
+
+        /* UnLock tile status node. */
+        memset(&iface, 0, sizeof(iface));
+        iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
+        iface.hardwareType = gal_dev->device->defaultHwType;
+        iface.u.UnlockVideoMemory.node = (gctUINT64)viv_ts_obj->node_handle;
+        iface.u.UnlockVideoMemory.type = gcvSURF_TYPE_UNKNOWN;
+        gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
+
+        memset(&iface, 0, sizeof(iface));
+        iface.command = gcvHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY;
+        iface.hardwareType = gal_dev->device->defaultHwType;
+        iface.u.BottomHalfUnlockVideoMemory.node = (gctUINT64)viv_ts_obj->node_handle;
+        iface.u.BottomHalfUnlockVideoMemory.type = gcvSURF_TYPE_UNKNOWN;
+        gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
     }
 
 OnError:
@@ -723,7 +763,9 @@ static const struct file_operations viv_drm_fops = {
     .open               = drm_open,
     .release            = drm_release,
     .unlocked_ioctl     = drm_ioctl,
+#ifdef CONFIG_COMPAT
     .compat_ioctl       = drm_compat_ioctl,
+#endif
     .poll               = drm_poll,
     .read               = drm_read,
     .llseek             = no_llseek,
@@ -752,43 +794,20 @@ static struct drm_driver viv_drm_driver = {
     .minor              = 0,
 };
 
-#if USE_LINUX_PCIE
-int gpu_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-void gpu_remove(struct pci_dev *pdev);
-#else
-int gpu_probe(struct platform_device *pdev);
-int gpu_remove(struct platform_device *pdev);
-#endif
-
-static int viv_drm_bind(struct device *dev)
+int viv_drm_probe(struct device *dev)
 {
-    int ret;
+    int ret = 0;
     gceSTATUS status = gcvSTATUS_OK;
     gckGALDEVICE gal_dev = gcvNULL;
     struct drm_device *drm = gcvNULL;
 
-    ret = component_bind_all(dev, 0);
-    if (ret)
-    {
-        gcmkONERROR(gcvSTATUS_GENERIC_IO);
-    }
-
-#if USE_LINUX_PCIE
-    ret = gpu_probe(to_pci_dev(dev), gcvNULL);
-#else
-    ret = gpu_probe(to_platform_device(dev));
-#endif
-    if (ret)
-    {
-        gcmkONERROR(gcvSTATUS_GENERIC_IO);
-    }
-
-    gal_dev = (gckGALDEVICE)platform_get_drvdata(to_platform_device(dev));
+    gal_dev = (gckGALDEVICE)dev_get_drvdata(dev);
     if (!gal_dev)
     {
         ret = -ENODEV;
         gcmkONERROR(gcvSTATUS_INVALID_OBJECT);
     }
+
     drm = drm_dev_alloc(&viv_drm_driver, dev);
     if (IS_ERR(drm))
     {
@@ -812,13 +831,12 @@ OnError:
         {
             drm_dev_unref(drm);
         }
-        component_unbind_all(dev, 0);
         printk(KERN_ERR "galcore: Failed to setup drm device.\n");
     }
     return ret;
 }
 
-static void viv_drm_unbind(struct device *dev)
+int viv_drm_remove(struct device *dev)
 {
     gckGALDEVICE gal_dev = (gckGALDEVICE)dev_get_drvdata(dev);
 
@@ -830,66 +848,7 @@ static void viv_drm_unbind(struct device *dev)
         drm_dev_unref(drm);
     }
 
-#if USE_LINUX_PCIE
-    gpu_remove(to_pci_dev(dev));
-#else
-    gpu_remove(to_platform_device(dev));
-#endif
-
-    component_unbind_all(dev, 0);
-}
-
-static const struct component_master_ops viv_master_ops =
-{
-    .bind   = viv_drm_bind,
-    .unbind = viv_drm_unbind,
-};
-
-static int viv_compare_of(struct device *dev, void *data)
-{
-    struct device_node *np = data;
-
-    return dev->of_node == np;
-}
-
-int viv_drm_probe (
-#if USE_LINUX_PCIE
-    struct pci_dev *pdev,
-    const struct pci_device_id *ent
-#else
-    struct platform_device *pdev
-#endif
-    )
-{
-    int i = 0;
-    struct component_match *match = NULL;
-    struct device_node * node = pdev->dev.of_node;
-    struct device_node *core_node;
-
-    /* Below code snippet shall be moved to gc_hal_kernel_platform_imx6.c */
-    while ((core_node = of_parse_phandle(node, "cores", i++)) != NULL) {
-        if (of_device_is_available(core_node)) {
-            component_match_add(&pdev->dev, &match, viv_compare_of, core_node);
-        }
-
-        of_node_put(core_node);
-    }
-    /* Above code snippet shall be moved to gc_hal_kernel_platform_imx6.c */
-
-    return component_master_add_with_match(&pdev->dev, &viv_master_ops, match);
-}
-
-#if USE_LINUX_PCIE
-void viv_drm_remove(struct pci_dev *pdev)
-#else
-int  viv_drm_remove(struct platform_device *pdev)
-#endif
-{
-    component_master_del(&pdev->dev, &viv_master_ops);
-
-#if !USE_LINUX_PCIE
     return 0;
-#endif
 }
 
 #endif

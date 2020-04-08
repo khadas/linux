@@ -99,6 +99,7 @@ typedef enum _gceCHIPMODEL
     gcv6400 = 0x6400,
     gcv7000 = 0x7000,
     gcv7400 = 0x7400,
+    gcv8000 = 0x8000,
 }
 gceCHIPMODEL;
 
@@ -191,7 +192,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_SUPERTILED_TEXTURE,
     gcvFEATURE_2D_NO_COLORBRUSH_INDEX8,
     gcvFEATURE_RS_YUV_TARGET,
-    gcvFEATURE_2D_FC_SOURCE,/* For tilestatus compression feature*/
+    gcvFEATURE_2D_FC_SOURCE, /* For tilestatus compression feature*/
     gcvFEATURE_2D_CC_NOAA_SOURCE,
     gcvFEATURE_PE_DITHER_FIX,
     gcvFEATURE_2D_YUV_SEPARATE_STRIDE,
@@ -497,7 +498,6 @@ typedef enum _gceFEATURE
     gcvFEATURE_SH_HALF_DEPENDENCY_FIX,
     gcvFEATURE_FE_BASEINSTANCE,
     gcvFEATURE_FE_COMPUREINDIRECT_SKIP_UNIFORM,
-    gcvFEATURE_FE_DRAW_DIRECT,
     gcvFEATURE_SH_CLOCK_GATE_FIX,
     gcvFEATURE_GPIPE_CLOCK_GATE_FIX,
     gcvFEATURE_TP_ENGINE,
@@ -533,6 +533,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_NN_BRICK_MODE,
     gcvFEATURE_NN_BORDER_MODE,
     gcvFEATURE_NN_FP16_ALU,
+    gcvFEATURE_NN_BF16_ALU,
     gcvFEATURE_NN_INT16_ALU,
     gcvFEATURE_NN_ZDP3,
     gcvFEATURE_NN_ZDP6,
@@ -552,7 +553,6 @@ typedef enum _gceFEATURE
     gcvFEATURE_NN_STRIDE_SUPPORT,
     gcvFEATURE_NN_XYDP6,
     gcvFEATURE_NN_XYDP0,
-    gcvFEATURE_IMAGE_LS_NO_FULLMASK_FIX,
     gcvFEATURE_TP_REORDER_FIX,
     gcvFEATURE_NN_CONV1x1_PERF_FIX,
     gcvFEATURE_NN_CACHELINE_MODE_PERF_FIX,
@@ -567,15 +567,40 @@ typedef enum _gceFEATURE
     gcvFEATURE_NN_ASYNC_COPY_PERF_FIX,
     gcvFEATURE_OCB_COUNTER,
     gcvFEATURE_NN_ZXDP3_KERNEL_READ_CONFLICT_FIX,
+    gcvFEATURE_NN_FULLCACHE_KERNEL_INTERLEAVE_FIX,
+    gcvFEATURE_DR_JD_DIFF_CONDITION_FOR_CACHELINE_MODE_PRE_FIX,
+    gcvFEATURE_USC_BOTTLENECK_FIX,
+    gcvFEATURE_OCB_REMAP_PHYSICAL_ADDRESS,
+    gcvFEATURE_NN_SLICE_PADDING_TO_64BYTE_ALIGN,
+    gcvFEATURE_NN_DW_1x1_CONV_MERGE,
+    gcvFEATURE_TP_REORDER_LAYER_SUSPEND_FIX,
+    gcvFEATURE_KERNEL_VIP_SRAM_READ_BW_LIMITATION_FIX,
+    gcvFEATURE_IMG_POP_PIPELINE_PAUSE_FIX,
+    gcvFEATURE_NN_SLOW_OUTPUT,
+    gcvFEATURE_NO_NARROW_POST_PROCESS_PIPE,
+    gcvFEATURE_TP_NN_PROBE,
+    gcvFEATURE_TP_23BITS_POST_MULTIPLIER,
+    gcvFEATURE_NN_TRANSPOSE,
+
+    gcvFEATURE_IMAGE_LS_NO_FULLMASK_FIX,
+    gcvFEATURE_BLT_YUV_OUTPUT,
+    gcvFEATURE_PE_TILE_CACHE_FLUSH_FIX,
+    gcvFEATURE_SH_ROBUSTNESS_FIX,
     gcvFEATURE_USC_ATOMIC_FIX2,
+    gcvFEATURE_MULTIVIEW_RENDER,
+    gcvFEATURE_FE_DRAW_DIRECT,
+    gcvFEATURE_TX_VKBORDER_MODE,
+    gcvFEATURE_TX_UNNORMALIZED_COORD,
     gcvFEATURE_VG_IMAGE_16K,
     gcvFEATURE_MULTICORE_CONFIG,
+    gcvFEATURE_PA_LINECLIP_FIX,
     gcvFEATURE_NN_ENGINE,
     gcvFEATURE_NN_ASYNC_COPY_MERGE_FIX,
     gcvFEATURE_NN_CONVOUT_FIFO_DEPTH_FIX,
     gcvFEATURE_NN_SMALLBATCH_PHASE1,
     gcvFEATURE_TP_SMALLBATCH_PHASE1,
     gcvFEATURE_VIP_SCALER,
+    gcvFEATURE_TX_8bit_UVFrac_ROUNDING_FIX,
     gcvFEATURE_NN_REQ_SLOWARBITRATION_FIX,
     gcvFEATUER_IMAGE_PARTIAL_CACHE,
     gcvFEATURE_FULLCACHE_KERNELHEAD_FIX,
@@ -592,7 +617,15 @@ typedef enum _gceFEATURE
     gcvFEATURE_COEF_DELTA_CORD_OVERFLOW_ZRL_8BIT_FIX,
     gcvFEATURE_XY_OFFSET_LIMITATION_FIX,
     gcvFEATURE_USC_INVALIDATE_CACHE_LINE_FIX,
+    gcvFEATURE_LOW_EFFICIENCY_OF_ID_WRITE_IMGBUF_FIX,
+    gcvFEATURE_KERNEL_PER_CORE_LESS_THAN_THIRD_COEF_BUFF_DEPTH_FIX,
+    gcvFEATURE_NN_PER_CHANNEL_POST_MULTIPLY,
+    gcvFEATURE_NN_NO_Z_LOCATION_OFFSET,
+    gcvFEATURE_NN_PRELU,
+    gcvFEATURE_NN_KERNEL_SIZE_WASTE_IN_PARTIAL_MODE_FIX,
+    gcvFEATURE_INCORRECT_WR_REQ_TO_USC_BETWEEN_REORDER_AND_NORMAL_LAYER_FIX,
     gcvFEATURE_VIP_DEC400,
+    gcvFEATURE_MAX_POINTSIZE_CLAMP,
     gcvFEATURE_2D_FAST_CLEAR, /* For tilestatus Fast Clear feature*/
 
     /* Insert features above this comment only. */
@@ -629,6 +662,7 @@ typedef enum _gceOPTION
     gcvOPTION_FBO_PREFER_MEM = 54,
     gcvOPTION_GPU_TEX_UPLOAD = 55,
     gcvOPTION_GPU_BUFOBJ_UPLOAD = 56,
+    gcvOPTION_NO_Y_INVERT = 60,
 
     /* OCL option */
     gcvOPTION_OCL_ASYNC_BLT = 200,
@@ -643,8 +677,8 @@ typedef enum _gceOPTION
     gcvOPTION_OVX_ENABLE_NN_ZDP6,
     gcvOPTION_OVX_ENABLE_NN_STRIDE,
     gcvOPTION_OVX_USE_MULTI_DEVICES,
+    gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_256B,
 #endif
-
     /* Insert option above this comment only */
     gcvOPTION_COUNT                     /* Not a OPTION*/
 }
@@ -757,6 +791,7 @@ typedef enum _gceSURF_TYPE
     gcvSURF_NO_HZ                   = 0x100000,
     gcvSURF_3D                      = 0x200000, /* It's 3d surface */
     gcvSURF_DMABUF_EXPORTABLE       = 0x400000, /* master node can be exported as dma-buf fd */
+    gcvSURF_CACHE_MODE_128          = 0x800000,
 
     gcvSURF_TEXTURE_LINEAR               = gcvSURF_TEXTURE
                                          | gcvSURF_LINEAR,
@@ -1014,6 +1049,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_L16,
     gcvSURF_L32,
     gcvSURF_L1,
+    gcvSURF_L8_RAW,
 
     /* Alpha/Luminance formats. */
     gcvSURF_A4L4                = 900,
@@ -1022,6 +1058,10 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_A4L12,
     gcvSURF_A12L12,
     gcvSURF_A16L16,
+
+    gcvSURF_A8L8_1_A8R8G8B8,
+
+    gcvSURF_A8L8_RAW,
 
     /* Bump formats. */
     gcvSURF_L6V5U5              = 1000,
@@ -1671,9 +1711,10 @@ gceFILTER_PASS_TYPE;
 /* Endian hints. */
 typedef enum _gceENDIAN_HINT
 {
-    gcvENDIAN_NO_SWAP = 0,
-    gcvENDIAN_SWAP_WORD,
-    gcvENDIAN_SWAP_DWORD
+    gcvENDIAN_NO_SWAP    = 0,
+    gcvENDIAN_SWAP_WORD  = 1,
+    gcvENDIAN_SWAP_DWORD = 2,
+    gcvENDIAN_SWAP_QWORD = 3,
 }
 gceENDIAN_HINT;
 
@@ -2176,14 +2217,23 @@ typedef enum _gceMCFE_CHANNEL_TYPE
 }
 gceMCFE_CHANNEL_TYPE;
 
-typedef enum _gceSRAM
+typedef enum _gceSRAM_INTERNAL
 {
-    gcvSRAM_INTERNAL  = 0,
-    gcvSRAM_EXTERNAL0 = 1,
-    gcvSRAM_EXTERNAL1 = 2,
-    gcvSRAM_COUNT
+    gcvSRAM_INTERNAL0 = 0,
+    gcvSRAM_INTERNAL1,
+
+    gcvSRAM_INTER_COUNT
 }
-gceSRAM;
+gceSRAM_INTERNAL;
+
+typedef enum _gceSRAM_EXTERNAL
+{
+    gcvSRAM_EXTERNAL0 = 0,
+    gcvSRAM_EXTERNAL1,
+
+    gcvSRAM_EXT_COUNT
+}
+gceSRAM_EXTERNAL;
 
 typedef enum _gceFLATMAP_FLAG
 {
@@ -2191,6 +2241,22 @@ typedef enum _gceFLATMAP_FLAG
     gcvFLATMAP_SHIFT,
 }
 gceFLATMAP_FLAG;
+
+typedef enum _gcePAGE_TYPE
+{
+    gcvPAGE_TYPE_1M,
+    gcvPAGE_TYPE_4K,
+}
+gcePAGE_TYPE;
+
+typedef enum _gceAREA_TYPE
+{
+    gcvAREA_TYPE_UNKNOWN = 0,
+    gcvAREA_TYPE_FLATMAP,
+    gcvAREA_TYPE_1M,
+    gcvAREA_TYPE_4K,
+}
+gceAREA_TYPE;
 
 /* Video memory alloation type. */
 typedef enum _gceVIDMEM_TYPE
@@ -2250,6 +2316,12 @@ gceVIDMEM_TYPE;
 #define gcvALLOC_FLAG_EXTERNAL_MEMORY       0x00004000
 /* Import linux reserved memory. */
 #define gcvALLOC_FLAG_LINUX_RESERVED_MEM    0x00008000
+
+/* 1M pages unit allocation. */
+#define gcvALLOC_FLAG_1M_PAGES              0x00010000
+
+/* Non 1M pages unit allocation. */
+#define gcvALLOC_FLAG_4K_PAGES              0x00020000
 
 /* Real allocation happens when GPU page fault. */
 #define gcvALLOC_FLAG_ALLOC_ON_FAULT        0x01000000

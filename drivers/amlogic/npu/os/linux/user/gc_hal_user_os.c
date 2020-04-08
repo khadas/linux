@@ -562,96 +562,6 @@ OnError:
     return status;
 }
 
-static gceSTATUS
-_MapMemory(
-    IN gctUINT32 PhysName,
-    IN gctSIZE_T NumberOfBytes,
-    OUT gctPOINTER * Logical
-    )
-{
-    gceSTATUS status;
-    gcsHAL_INTERFACE iface;
-
-    gcmHEADER_ARG("PhysName=0x%x NumberOfBytes=%lu", PhysName, NumberOfBytes);
-
-    /* Verify the arguments. */
-    gcmDEBUG_VERIFY_ARGUMENT(NumberOfBytes > 0);
-    gcmDEBUG_VERIFY_ARGUMENT(Logical != gcvNULL);
-
-    /* Call kernel API to unmap the memory. */
-    iface.ignoreTLS    = gcvTRUE;
-    iface.hardwareType = gcPLS.hal->defaultHwType,
-    iface.coreIndex    = 0;
-
-    iface.command              = gcvHAL_MAP_MEMORY;
-    iface.u.MapMemory.physName = PhysName;
-    iface.u.MapMemory.bytes    = NumberOfBytes;
-
-    gcmONERROR(gcoOS_DeviceControl(
-        gcvNULL,
-        IOCTL_GCHAL_INTERFACE,
-        &iface, gcmSIZEOF(iface),
-        &iface, gcmSIZEOF(iface)
-        ));
-
-    /* Return logical address. */
-    *Logical = gcmUINT64_TO_PTR(iface.u.MapMemory.logical);
-
-    /* Success. */
-    gcmFOOTER_ARG("*Logical=0x%x", *Logical);
-    return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
-    gcmFOOTER();
-    return status;
-}
-
-static gceSTATUS
-_UnmapMemory(
-    IN gctUINT32 PhysName,
-    IN gctSIZE_T NumberOfBytes,
-    IN gctPOINTER Logical
-    )
-{
-    gceSTATUS status;
-    gcsHAL_INTERFACE iface;
-
-    gcmHEADER_ARG("PhysName=0x%x NumberOfBytes=%lu Logical=0x%x",
-                  PhysName, NumberOfBytes, Logical);
-
-    /* Verify the arguments. */
-    gcmDEBUG_VERIFY_ARGUMENT(NumberOfBytes > 0);
-    gcmDEBUG_VERIFY_ARGUMENT(Logical != gcvNULL);
-
-    /* Call kernel API to unmap the memory. */
-    iface.ignoreTLS    = gcvTRUE;
-    iface.hardwareType = gcPLS.hal ? gcPLS.hal->defaultHwType
-                                   : gcvHARDWARE_2D;
-    iface.coreIndex    = 0;
-
-    iface.command                = gcvHAL_UNMAP_MEMORY;
-    iface.u.UnmapMemory.physName = PhysName;
-    iface.u.UnmapMemory.bytes    = NumberOfBytes;
-    iface.u.UnmapMemory.logical  = gcmPTR_TO_UINT64(Logical);
-
-    gcmONERROR(gcoOS_DeviceControl(
-        gcvNULL,
-        IOCTL_GCHAL_INTERFACE,
-        &iface, sizeof(iface),
-        &iface, sizeof(iface)
-        ));
-
-    /* Success. */
-    gcmFOOTER_NO();
-    return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
-    gcmFOOTER();
-    return status;
-}
-
 static void
 _OpenGalLib(
     gcsTLS_PTR TLS
@@ -716,7 +626,8 @@ _OpenGalLib(
                 break;
             }
 
-            strncpy(envPath, path, len);
+            memset(envPath, 0, len);
+            memcpy(envPath, path, len);
             oneEnvPath = strtok_r(envPath, ":", &saveptr);
 
             while (oneEnvPath != NULL)
@@ -801,39 +712,6 @@ _PLSDestructor(
     {
         gcPLS.destructor(&gcPLS);
         gcPLS.destructor = gcvNULL;
-    }
-
-    if (gcPLS.contiguousLogical != gcvNULL)
-    {
-        gcmVERIFY_OK(_UnmapMemory(
-            gcPLS.contiguousPhysName,
-            gcPLS.contiguousSize,
-            gcPLS.contiguousLogical
-            ));
-
-        gcPLS.contiguousLogical = gcvNULL;
-    }
-
-    if (gcPLS.externalLogical != gcvNULL)
-    {
-        gcmVERIFY_OK(_UnmapMemory(
-            gcPLS.externalPhysName,
-            gcPLS.externalSize,
-            gcPLS.externalLogical
-            ));
-
-        gcPLS.externalLogical = gcvNULL;
-    }
-
-    if (gcPLS.internalLogical != gcvNULL)
-    {
-        gcmVERIFY_OK(_UnmapMemory(
-            gcPLS.internalPhysName,
-            gcPLS.internalSize,
-            gcPLS.internalLogical
-            ));
-
-        gcPLS.internalLogical = gcvNULL;
     }
 
 #if gcdDUMP_2D
@@ -1087,10 +965,8 @@ _ModuleConstructor(
 #endif
 
     gcmFOOTER_ARG(
-        "gcPLS.os=0x%08X, gcPLS.hal=0x%08X"
-        " internal=0x%08X external=0x%08X contiguous=0x%08X",
-        gcPLS.os, gcPLS.hal,
-        gcPLS.internalLogical, gcPLS.externalLogical, gcPLS.contiguousLogical
+        "gcPLS.os=0x%08X, gcPLS.hal=0x%08X",
+        gcPLS.os, gcPLS.hal
         );
 
     return status;
@@ -1224,36 +1100,6 @@ _OpenDevice(
         &gcPLS.contiguousPhysName,
         &gcPLS.contiguousSize
         ));
-
-    /* Map internal video memory. */
-    if (gcPLS.internalSize != 0)
-    {
-        gcmONERROR(_MapMemory(
-             gcPLS.internalPhysName,
-             gcPLS.internalSize,
-            &gcPLS.internalLogical
-            ));
-    }
-
-    /* Map external video memory. */
-    if (gcPLS.externalSize != 0)
-    {
-        gcmONERROR(_MapMemory(
-             gcPLS.externalPhysName,
-             gcPLS.externalSize,
-            &gcPLS.externalLogical
-            ));
-    }
-
-    /* Map contiguous video memory. */
-    if (gcPLS.contiguousSize != 0)
-    {
-        gcmONERROR(_MapMemory(
-             gcPLS.contiguousPhysName,
-             gcPLS.contiguousSize,
-            &gcPLS.contiguousLogical
-            ));
-    }
 
     /* make sure this instruction is at last */
     gcPLS.bDeviceOpen = gcvTRUE;
@@ -2431,7 +2277,6 @@ gcoOS_AllocateMemory(
 #if VIVANTE_PROFILER_SYSTEM_MEMORY
     if (gcPLS.bMemoryProfile)
     {
-        gcmONERROR(gcmCHECK_ADD_OVERFLOW(Bytes, VP_MALLOC_OFFSET));
         memory = malloc(Bytes + VP_MALLOC_OFFSET);
     }
     else
@@ -2491,11 +2336,12 @@ gcoOS_AllocateMemory(
     return gcvSTATUS_OK;
 
 OnError:
-    if(memory)
+#if VIVANTE_PROFILER_SYSTEM_MEMORY
+    if (memory)
     {
         free(memory);
-        memory = gcvNULL;
     }
+#endif
 
     /* Return the status. */
     gcmFOOTER();
@@ -3245,7 +3091,6 @@ gcoOS_Read(
     OUT gctSIZE_T * ByteRead
     )
 {
-    gceSTATUS status = gcvSTATUS_OK;
     size_t byteRead;
 
     gcmHEADER_ARG("File=0x%x ByteCount=%lu Data=0x%x",
@@ -3259,31 +3104,23 @@ gcoOS_Read(
     /* Read the data from the file. */
     byteRead = fread(Data, 1, ByteCount, (FILE *) File);
 
-    if (byteRead != ByteCount)
-    {
-        if (ferror((FILE *) File))
-        {
-            status = gcvSTATUS_GENERIC_IO;
-            clearerr((FILE *) File);
-        }
-        else if (feof((FILE *) File))
-        {
-            status = gcvSTATUS_DATA_TOO_LARGE;
-            clearerr((FILE *) File);
-        }
-        else
-        {
-            status = gcvSTATUS_GENERIC_IO;
-        }
-    }
-
     if (ByteRead != gcvNULL)
     {
         *ByteRead = (gctSIZE_T) byteRead;
     }
 
-    gcmFOOTER_ARG("status=%d", status);
-    return status;
+    if (byteRead == ByteCount || ((byteRead < ByteCount) && fseek((FILE *)File, 0, SEEK_END) == 0))
+    {
+        /* Success. */
+        gcmFOOTER_NO();
+        return gcvSTATUS_OK;
+    }
+    else
+    {
+        /* Error */
+        gcmFOOTER_NO();
+        return gcvSTATUS_GENERIC_IO;
+    }
 }
 
 /*******************************************************************************
@@ -3318,7 +3155,6 @@ gcoOS_Write(
     IN gctCONST_POINTER Data
     )
 {
-    gceSTATUS status = gcvSTATUS_OK;
     size_t byteWritten;
 
     gcmHEADER_ARG("File=0x%x ByteCount=%lu Data=0x%x",
@@ -3332,25 +3168,18 @@ gcoOS_Write(
     /* Write the data to the file. */
     byteWritten = fwrite(Data, 1, ByteCount, (FILE *) File);
 
-    if (byteWritten != ByteCount)
+    if (byteWritten == ByteCount)
     {
-        if (ferror((FILE *) File))
-        {
-            status = gcvSTATUS_GENERIC_IO;
-            clearerr((FILE *) File);
-        }
-        else if (feof((FILE *) File))
-        {
-            clearerr((FILE *) File);
-        }
-        else
-        {
-            status = gcvSTATUS_GENERIC_IO;
-        }
+        /* Success. */
+        gcmFOOTER_NO();
+        return gcvSTATUS_OK;
     }
-
-    gcmFOOTER_ARG("status=%d", status);
-    return status;
+    else
+    {
+        /* Error */
+        gcmFOOTER_ARG("status=%d", gcvSTATUS_GENERIC_IO);
+        return gcvSTATUS_GENERIC_IO;
+    }
 }
 
 /* Flush data to a file. */
@@ -3493,7 +3322,7 @@ gcoOS_LockFile(
 
     err = flock(fileno((FILE *)File), flags);
 
-    if (err == -1)
+    if (err)
     {
         if (errno == EWOULDBLOCK)
         {
@@ -4571,7 +4400,7 @@ gcoOS_StrCatSafe(
     IN gctCONST_STRING Source
     )
 {
-    gctSIZE_T end = 0, src = 0;
+    gctSIZE_T n;
 
     gcmHEADER_ARG("Destination=0x%x DestinationSize=%lu Source=0x%x",
                   Destination, DestinationSize, Source);
@@ -4580,31 +4409,30 @@ gcoOS_StrCatSafe(
     gcmDEBUG_VERIFY_ARGUMENT(Destination != gcvNULL);
     gcmDEBUG_VERIFY_ARGUMENT(Source != gcvNULL);
 
-    /* go to the end of destination */
-    while (Destination[end] != '\0')
+    /* Find the end of the destination. */
+#ifdef __USE_XOPEN2K8
+    n = (gctSIZE_T)strnlen(Destination, DestinationSize);
+#else
+    n = (gctSIZE_T)strlen(Destination);
+#endif
+    if (n + 1 < DestinationSize)
     {
-        end++;
-        if (end > DestinationSize)
-        {
-            return gcvSTATUS_INVALID_ARGUMENT;
-        }
-    }
+        /* Append the string but don't overflow the destination buffer. */
+        strncpy(Destination + n, Source, DestinationSize - n - 1);
 
-    /* if dest is enough to append source */
-    while (Source[src] != '\0')
+        /* Put this there in case the strncpy overflows. */
+        Destination[DestinationSize - 1] = '\0';
+
+        /* Success. */
+        gcmFOOTER_NO();
+        return gcvSTATUS_OK;
+    }
+    else
     {
-        src++;
-        if (src > DestinationSize - end - 1)
-        {
-            return gcvSTATUS_INVALID_ARGUMENT;
-        }
+        /* Failure */
+        gcmFOOTER_NO();
+        return gcvSTATUS_DATA_TOO_LARGE;
     }
-
-    /* Append the string but don't overflow the destination buffer. */
-    strncpy(&Destination[end], Source, DestinationSize - end);
-
-    gcmFOOTER_NO();
-    return gcvSTATUS_OK;
 }
 
 /*******************************************************************************
@@ -5135,10 +4963,10 @@ gcoOS_LoadLibrary(
                 ));
 
             /* Copy the library name to the temporary string buffer. */
-            strncpy(library, Library, length + 3 + 1);
+            strncpy(library, Library, length + 1);
 
             /* Append the ".so" to the temporary string buffer. */
-            strncat(library, ".so", length + 3 + 1);
+            strncat(library, ".so", 3 + 1);
 
             /* Replace the library name. */
             Library = library;
@@ -7346,6 +7174,8 @@ gcoOS_CPUPhysicalToGPUPhysical(
 void
 gcoOS_RecordAllocation(void)
 {
+#if VIVANTE_PROFILER_SYSTEM_MEMORY
+
 #if gcdGC355_MEM_PRINT
     gcoOS os;
     if (gcPLS.os != gcvNULL)
@@ -7356,12 +7186,16 @@ gcoOS_RecordAllocation(void)
         os->oneRecording = 1;
     }
 #endif
+
+#endif
 }
 
 gctINT32
 gcoOS_EndRecordAllocation(void)
 {
     gctINT32   result = 0;
+#if VIVANTE_PROFILER_SYSTEM_MEMORY
+
 #if gcdGC355_MEM_PRINT
     gcoOS os;
 
@@ -7379,12 +7213,16 @@ gcoOS_EndRecordAllocation(void)
     }
 
 #endif
+
+#endif
     return result;
 }
 
 void
 gcoOS_AddRecordAllocation(gctSIZE_T Size)
 {
+#if VIVANTE_PROFILER_SYSTEM_MEMORY
+
 #if gcdGC355_MEM_PRINT
     gcoOS os;
 
@@ -7397,6 +7235,8 @@ gcoOS_AddRecordAllocation(gctSIZE_T Size)
             os->oneSize += (gctINT32)Size;
         }
     }
+#endif
+
 #endif
 }
 

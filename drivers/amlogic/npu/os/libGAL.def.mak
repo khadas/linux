@@ -99,12 +99,9 @@ EXPORTS
     gcoOS_Send
     gcoOS_WaitForSend
     gcoOS_SetDebugFile
-    gcoOS_ReplaceDebugFile
     gcoOS_SetDebugLevel
-    gcoOS_SetDebugLevelZone
     gcoOS_SetDebugShaderFiles
     gcoOS_SetDebugZone
-    gcoOS_SetDebugZones
     gcoOS_SetDriverTLS
     gcoOS_SetPLSValue
     gcoOS_SetPos
@@ -250,6 +247,7 @@ EXPORTS
     gcoHAL_QueryCluster
     gcoHAL_QueryChipFeature
     gcoHAL_QueryChipIdentity
+    gcoHAL_QueryChipIdentityEx
     gcoHAL_QueryChipLimits
     gcoHAL_QueryPowerManagementState
     gcoHAL_QueryTiled
@@ -343,6 +341,7 @@ EXPORTS
     gcoSURF_WrapSurface
     gcoSURF_GetInfo
     gcoSURF_QueryHints
+    gcoSURF_UpdateMetadata
 
 !IF "$(VIVANTE_ENABLE_3D)_$(VIVANTE_ENABLE_VG)" != "0_0"
 ;   Both 3D & VG have these functions.
@@ -377,14 +376,14 @@ EXPORTS
     gcoSURF_GetFence
     gcoSURF_WaitFence
     gcoSURF_AlignResolveRect
- 	gcoSURF_DrawBlit
+    gcoSURF_DrawBlit
     gcsSURF_NODE_Construct
     gcsSURF_NODE_Destroy
-	gcsSURF_NODE_Lock
-	gcsSURF_NODE_Unlock
+    gcsSURF_NODE_Lock
+    gcsSURF_NODE_Unlock
     gcsSURF_NODE_GetHardwareAddress
     gcsSURF_NODE_SetHardwareAddress
-	gcsSURF_NODE_GetHWAddress
+    gcsSURF_NODE_GetHWAddress
 
     gcoSURF_FlushTileStatus
     gcoSURF_AppendTileStatus
@@ -765,10 +764,10 @@ EXPORTS
 	gcoVX_QueryHWChipInfo
     gcoVX_FlushCache
     gcoVX_AllocateMemoryEx
+    gcoVX_AllocateMemoryExAddAllocflag
     gcoVX_FreeMemoryEx
     gcoVX_GetMemorySize
     gcoVX_ZeroMemorySize
-    gcoVX_GetHWConfigGpuCount
     gcoVX_SwitchContext
     gcoVX_RestoreContext
     gcoVX_WaitNNEvent
@@ -780,8 +779,9 @@ EXPORTS
     gcoVX_VerifyHardware
     gcoVX_GetEvisNoInstFeatureCap
     gcoVX_QueryDeviceCount
-	gcoVX_CaptureInitState
-
+    gcoVX_QueryCoreCount
+    gcoVX_QueryMultiCore
+    gcoVX_CaptureInitState
 
 !IF "$(VSIMULATOR_DEBUG)" == "1"
     gcoOS_UpdateSimulatorCallback

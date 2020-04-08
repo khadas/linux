@@ -244,10 +244,10 @@ _DmabufAttach(
         npages += (sg_dma_len(s) + PAGE_SIZE - 1) / PAGE_SIZE;
     }
 
-    /* Allocate page arrary. */
+    /* Allocate page array. */
     gcmkONERROR(gckOS_Allocate(os, npages * gcmSIZEOF(*pagearray), (gctPOINTER *)&pagearray));
 
-    /* Fill page arrary. */
+    /* Fill page array. */
     for_each_sg(sgt->sgl, s, sgt->orig_nents, i)
     {
         for (j = 0; j < (sg_dma_len(s) + PAGE_SIZE - 1) / PAGE_SIZE; j++)
@@ -277,8 +277,7 @@ _DmabufAttach(
 
     Mdl->priv = buf_desc;
 
-    /* Always treat it as a non-contigous buffer. */
-    Mdl->contiguous = gcvFALSE;
+    Mdl->contiguous = (sgt->nents == 1) ? gcvTRUE : gcvFALSE;
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;

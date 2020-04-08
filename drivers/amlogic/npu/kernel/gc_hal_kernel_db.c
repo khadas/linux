@@ -646,53 +646,6 @@ gckKERNEL_CreateProcessDB(
     gcmkASSERT(database->handleDatabaseMutex == gcvNULL);
     gcmkONERROR(gckOS_CreateMutex(Kernel->os, &database->handleDatabaseMutex));
 
-#if gcdSECURE_USER
-    {
-        gctINT idx;
-        gcskSECURE_CACHE * cache = &database->cache;
-
-        /* Setup the linked list of cache nodes. */
-        for (idx = 1; idx <= gcdSECURE_CACHE_SLOTS; ++idx)
-        {
-            cache->cache[idx].logical = gcvNULL;
-
-#if gcdSECURE_CACHE_METHOD != gcdSECURE_CACHE_TABLE
-            cache->cache[idx].prev = &cache->cache[idx - 1];
-            cache->cache[idx].next = &cache->cache[idx + 1];
-#   endif
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-            cache->cache[idx].nextHash = gcvNULL;
-            cache->cache[idx].prevHash = gcvNULL;
-#   endif
-        }
-
-#if gcdSECURE_CACHE_METHOD != gcdSECURE_CACHE_TABLE
-        /* Setup the head and tail of the cache. */
-        cache->cache[0].next    = &cache->cache[1];
-        cache->cache[0].prev    = &cache->cache[gcdSECURE_CACHE_SLOTS];
-        cache->cache[0].logical = gcvNULL;
-
-        /* Fix up the head and tail pointers. */
-        cache->cache[0].next->prev = &cache->cache[0];
-        cache->cache[0].prev->next = &cache->cache[0];
-#   endif
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-        /* Zero out the hash table. */
-        for (idx = 0; idx < gcmCOUNTOF(cache->hash); ++idx)
-        {
-            cache->hash[idx].logical  = gcvNULL;
-            cache->hash[idx].nextHash = gcvNULL;
-        }
-#   endif
-
-        /* Initialize cache index. */
-        cache->cacheIndex = gcvNULL;
-        cache->cacheFree  = 1;
-        cache->cacheStamp = 0;
-    }
-#endif
-
     /* Insert the database into the hash. */
     database->next = Kernel->db->db[slot];
     Kernel->db->db[slot] = database;
@@ -1552,58 +1505,6 @@ OnError:
     gcmkFOOTER();
     return status;
 }
-
-#if gcdSECURE_USER
-/*******************************************************************************
-**  gckKERNEL_GetProcessDBCache
-**
-**  Get teh secure cache from a process database.
-**
-**  INPUT:
-**
-**      gckKERNEL Kernel
-**          Pointer to a gckKERNEL object.
-**
-**      gctUINT32 ProcessID
-**          Process ID used to identify the database.
-**
-**  OUTPUT:
-**
-**      gcskSECURE_CACHE_PTR * Cache
-**          Pointer to a variable that receives the secure cache pointer.
-*/
-gceSTATUS
-gckKERNEL_GetProcessDBCache(
-    IN gckKERNEL Kernel,
-    IN gctUINT32 ProcessID,
-    OUT gcskSECURE_CACHE_PTR * Cache
-    )
-{
-    gceSTATUS status;
-    gcsDATABASE_PTR database;
-
-    gcmkHEADER_ARG("Kernel=0x%x ProcessID=%d", Kernel, ProcessID);
-
-    /* Verify the arguments. */
-    gcmkVERIFY_OBJECT(Kernel, gcvOBJ_KERNEL);
-    gcmkVERIFY_ARGUMENT(Cache != gcvNULL);
-
-    /* Find the database. */
-    gcmkONERROR(gckKERNEL_FindDatabase(Kernel, ProcessID, gcvFALSE, &database));
-
-    /* Return the pointer to the cache. */
-    *Cache = &database->cache;
-
-    /* Success. */
-    gcmkFOOTER_ARG("*Cache=0x%x", *Cache);
-    return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
-    gcmkFOOTER();
-    return status;
-}
-#endif
 
 gceSTATUS
 gckKERNEL_DumpProcessDB(

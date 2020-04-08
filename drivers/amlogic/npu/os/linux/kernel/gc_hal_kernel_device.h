@@ -86,6 +86,12 @@ typedef struct _gckGALDEVICE
     gctPOINTER          externalLogical;
     gckVIDMEM           externalVidMem;
 
+    /* Shared external SRAMs. */
+    gctPHYS_ADDR_T      extSRAMBases[gcvSRAM_EXT_COUNT];
+    gctSIZE_T           extSRAMSizes[gcvSRAM_EXT_COUNT];
+    gctPHYS_ADDR        extSRAMPhysical[gcvSRAM_EXT_COUNT];
+    gckVIDMEM           extSRAMVidMem[gcvSRAM_EXT_COUNT];
+
     gctPHYS_ADDR_T      contiguousBase;
     gctSIZE_T           contiguousSize;
     gctPHYS_ADDR        contiguousPhysical;
@@ -150,13 +156,9 @@ typedef struct _gcsHAL_PRIVATE_DATA
      * closes it.
      */
     gctUINT32           pidOpen;
+    gctBOOL             isLocked;
 }
 gcsHAL_PRIVATE_DATA, * gcsHAL_PRIVATE_DATA_PTR;
-
-gceSTATUS
-gckGALDEVICE_QueryFrequency(
-    IN gckGALDEVICE Device
-    );
 
 gceSTATUS
 gckGALDEVICE_Start(

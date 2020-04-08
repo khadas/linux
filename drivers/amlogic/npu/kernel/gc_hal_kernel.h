@@ -60,8 +60,8 @@
 #include "gc_hal_kernel_hardware.h"
 #include "gc_hal_kernel_hardware_fe.h"
 #include "gc_hal_driver.h"
-
 #include "gc_hal_kernel_mutex.h"
+#include "gc_hal_metadata.h"
 
 
 #if gcdSECURITY || gcdENABLE_TRUST_APPLICATION
@@ -193,6 +193,10 @@ extern "C" {
 #define gcdMMU_STLB_WRITEABLE       0x00000004
 
 #endif
+
+#define gcd1M_PAGE_SIZE (1 << 20)
+#define gcd1M_PAGE_SHIFT 20
+
 /*******************************************************************************
 ***** Stuck Dump Level ********************************************************/
 
@@ -213,66 +217,10 @@ extern "C" {
 #define gcvSTUCK_DUMP_ALL_COMMAND   4
 
 /*******************************************************************************
-***** Process Secure Cache ****************************************************/
-
-#define gcdSECURE_CACHE_LRU         1
-#define gcdSECURE_CACHE_LINEAR      2
-#define gcdSECURE_CACHE_HASH        3
-#define gcdSECURE_CACHE_TABLE       4
+***** Page table **************************************************************/
 
 #define gcvPAGE_TABLE_DIRTY_BIT_OTHER   (1 << 0)
 #define gcvPAGE_TABLE_DIRTY_BIT_FE      (1 << 1)
-
-
-typedef struct _gcskLOGICAL_CACHE * gcskLOGICAL_CACHE_PTR;
-typedef struct _gcskLOGICAL_CACHE   gcskLOGICAL_CACHE;
-struct _gcskLOGICAL_CACHE
-{
-    /* Logical address. */
-    gctPOINTER                      logical;
-
-    /* DMAable address. */
-    gctUINT32                       dma;
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-    /* Pointer to the previous and next hash tables. */
-    gcskLOGICAL_CACHE_PTR           nextHash;
-    gcskLOGICAL_CACHE_PTR           prevHash;
-#endif
-
-#if gcdSECURE_CACHE_METHOD != gcdSECURE_CACHE_TABLE
-    /* Pointer to the previous and next slot. */
-    gcskLOGICAL_CACHE_PTR           next;
-    gcskLOGICAL_CACHE_PTR           prev;
-#endif
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_LINEAR
-    /* Time stamp. */
-    gctUINT64                       stamp;
-#endif
-};
-
-typedef struct _gcskSECURE_CACHE * gcskSECURE_CACHE_PTR;
-typedef struct _gcskSECURE_CACHE
-{
-    /* Cache memory. */
-    gcskLOGICAL_CACHE               cache[1 + gcdSECURE_CACHE_SLOTS];
-
-    /* Last known index for LINEAR mode. */
-    gcskLOGICAL_CACHE_PTR           cacheIndex;
-
-    /* Current free slot for LINEAR mode. */
-    gctUINT32                       cacheFree;
-
-    /* Time stamp for LINEAR mode. */
-    gctUINT64                       cacheStamp;
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-    /* Hash table for HASH mode. */
-    gcskLOGICAL_CACHE              hash[256];
-#endif
-}
-gcskSECURE_CACHE;
 
 /*******************************************************************************
 ***** Process Database Management *********************************************/
@@ -350,11 +298,6 @@ typedef struct _gcsDATABASE
 
     /* Pointer to database. */
     gcsDATABASE_RECORD_PTR              list[48];
-
-#if gcdSECURE_USER
-    /* Secure cache. */
-    gcskSECURE_CACHE                    cache;
-#endif
 
     gctPOINTER                          handleDatabase;
     gctPOINTER                          handleDatabaseMutex;
@@ -458,19 +401,13 @@ gckKERNEL_FindHandleDatbase(
 gceSTATUS
 gckMMU_GetPageEntry(
     IN gckMMU Mmu,
+    IN gcePAGE_TYPE PageType,
     IN gctUINT32 Address,
     IN gctUINT32_PTR *PageTable
     );
 
 gceSTATUS
-gckMMU_FreePagesEx(
-    IN gckMMU Mmu,
-    IN gctUINT32 Address,
-    IN gctSIZE_T PageCount
-    );
-
-gceSTATUS
-gckMMU_SetupPerHardware(
+gckMMU_SetupSRAM(
     IN gckMMU Mmu,
     IN gckHARDWARE Hardware,
     IN gckDEVICE Device
@@ -537,16 +474,6 @@ gckKERNEL_DeleteName(
     IN gckKERNEL Kernel,
     IN gctUINT32 Name
     );
-
-#if gcdSECURE_USER
-/* Get secure cache from the process database. */
-gceSTATUS
-gckKERNEL_GetProcessDBCache(
-    IN gckKERNEL Kernel,
-    IN gctUINT32 ProcessID,
-    OUT gcskSECURE_CACHE_PTR * Cache
-    );
-#endif
 
 /*******************************************************************************
 ********* Timer Management ****************************************************/
@@ -678,18 +605,25 @@ struct _gckKERNEL
     gctUINT32                   restoreAddress;
     gctINT32                    restoreMask;
 
+    gckVIDMEM_BLOCK             vidMemBlock;
+    gctPOINTER                  vidMemBlockMutex;
+
     gctUINT32                   contiguousBaseAddress;
     gctUINT32                   externalBaseAddress;
     gctUINT32                   internalBaseAddress;
 
+    /* External shared SRAM. */
+    gctUINT32                   extSRAMBaseAddresses[gcvSRAM_EXT_COUNT];
+    gctUINT32                   extSRAMIndex;
+
     /* Per core SRAM description. */
     gctUINT32                   sRAMIndex;
-    gckVIDMEM                   sRAMVideoMem[gcvSRAM_COUNT];
-    gctPHYS_ADDR                sRAMPhysical[gcvSRAM_COUNT];
-    gctUINT32                   sRAMBaseAddresses[gcvSRAM_COUNT];
-    gctUINT32                   sRAMSizes[gcvSRAM_COUNT];
-    /* SRAM mode. */
-    gctUINT32                   sRAMNonExclusive;
+    gckVIDMEM                   sRAMVidMem[gcvSRAM_INTER_COUNT];
+    gctPHYS_ADDR                sRAMPhysical[gcvSRAM_INTER_COUNT];
+    gctUINT32                   sRAMBaseAddresses[gcvSRAM_INTER_COUNT];
+    gctUINT32                   sRAMSizes[gcvSRAM_INTER_COUNT];
+    gctBOOL                     sRAMPhysFaked[gcvSRAM_INTER_COUNT];
+    gctUINT64                   sRAMLoopMode;
 };
 
 struct _FrequencyHistory
@@ -901,13 +835,6 @@ struct _gckCOMMAND
 
     /* Kernel process ID. */
     gctUINT32                   kernelProcessID;
-
-#if gcdSECURE_USER
-    /* Hint array copy buffer. */
-    gctBOOL                     hintArrayAllocated;
-    gctUINT                     hintArraySize;
-    gctUINT32_PTR               hintArray;
-#endif
 
 #if gcdRECORD_COMMAND
     gckRECORDER                 recorder;
@@ -1215,6 +1142,9 @@ typedef union _gcuVIDMEM_NODE
         /* Locked counter. */
         gctINT32                lockeds[gcvHARDWARE_NUM_TYPES];
 
+        /* MMU page size type */
+        gcePAGE_TYPE            pageType;
+
         gceVIDMEM_TYPE          type;
 
         /* Secure GPU virtual address. */
@@ -1223,6 +1153,39 @@ typedef union _gcuVIDMEM_NODE
         gctBOOL                 onFault;
     }
     Virtual;
+
+    struct _gcsVIDMEM_NODE_VIRTUAL_CHUNK
+    {
+        /* Owner of this chunk */
+        gckVIDMEM_BLOCK         parent;
+
+        /* Pointer to gckKERNEL object. */
+        gckKERNEL               kernel;
+
+        /* Dual-linked list of chunk. */
+        gcuVIDMEM_NODE_PTR      next;
+        gcuVIDMEM_NODE_PTR      prev;
+
+        /* Dual linked list of free chunk. */
+        gcuVIDMEM_NODE_PTR      nextFree;
+        gcuVIDMEM_NODE_PTR      prevFree;
+
+        /* Information for this chunk. */
+        gctSIZE_T               offset;
+        gctUINT32               addresses[gcvHARDWARE_NUM_TYPES];
+        gctINT32                lockeds[gcvHARDWARE_NUM_TYPES];
+        gctSIZE_T               bytes;
+
+        /* Mapped user logical */
+        gctPOINTER              logical;
+
+        /* Kernel virtual address. */
+        gctPOINTER              kvaddr;
+
+        /* Locked counter. */
+    }
+    VirtualChunk;
+
 }
 gcuVIDMEM_NODE;
 
@@ -1260,8 +1223,55 @@ struct _gckVIDMEM
     gctPOINTER                  mutex;
 };
 
+/* gckVIDMEM_BLOCK object. */
+typedef struct _gcsVIDMEM_BLOCK
+{
+    /* Object. */
+    gcsOBJECT                   object;
+
+    /* Pointer to gckOS object. */
+    gckOS                       os;
+
+    /* linked list of nodes. */
+    gckVIDMEM_BLOCK             next;
+
+    /* Contiguously allocated? */
+    gctBOOL                     contiguous;
+
+    /* Customer private handle */
+    gctUINT32                   gid;
+
+    /* mdl record pointer... a kmalloc address. Process agnostic. */
+    gctPHYS_ADDR                physical;
+
+    /* Information for this video memory virtual block. */
+    gctSIZE_T                   bytes;
+    gctSIZE_T                   freeBytes;
+
+    /* 1M page count. */
+    gctUINT32                   pageCount;
+
+    /* Gpu virtual base of this video memory heap. */
+    gctUINT32                   addresses[gcvHARDWARE_NUM_TYPES];
+    gctPOINTER                  pageTables[gcvHARDWARE_NUM_TYPES];
+
+    /* TODO: */
+    gceVIDMEM_TYPE              type;
+
+    /* Virtual chunk. */
+    gcuVIDMEM_NODE              node;
+
+    gctPOINTER                  mutex;
+
+    gctBOOL                     secure;
+    gctBOOL                     onFault;
+}
+gcsVIDMEM_BLOCK;
+
 typedef struct _gcsVIDMEM_NODE
 {
+    _VIV_VIDMEM_METADATA        metadata;
+
     /* Pointer to gcuVIDMEM_NODE. */
     gcuVIDMEM_NODE_PTR          node;
 
@@ -1363,9 +1373,25 @@ typedef struct _gcsDEVICE
     /* Same hardware type shares one MMU. */
     gckMMU                      mmus[gcvHARDWARE_NUM_TYPES];
 
-    gctUINT64                   sRAMBases[gcvCORE_COUNT][gcvSRAM_COUNT];
-    gctUINT32                   sRAMSizes[gcvCORE_COUNT][gcvSRAM_COUNT];
-    gctUINT32                   sRAMBaseAddresses[gcvCORE_COUNT][gcvSRAM_COUNT];
+    /* Physical address of internal SRAMs. */
+    gctUINT64                   sRAMBases[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+    /* Internal SRAMs' size. */
+    gctUINT32                   sRAMSizes[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+    /* GPU/VIP virtual address of internal SRAMs. */
+    gctUINT32                   sRAMBaseAddresses[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+    gctBOOL                     sRAMPhysFaked[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+
+    /* Physical address of external SRAMs. */
+    gctUINT64                   extSRAMBases[gcvSRAM_EXT_COUNT];
+    /* External SRAMs' size. */
+    gctUINT32                   extSRAMSizes[gcvSRAM_EXT_COUNT];
+    /* GPU/VIP virtual address of external SRAMs. */
+    gctUINT32                   extSRAMBaseAddresses[gcvSRAM_EXT_COUNT];
+    /* MDL. */
+    gctPHYS_ADDR                extSRAMPhysical[gcvSRAM_EXT_COUNT];
+
+    /* Show SRAM mapping info or not. */
+    gctUINT                     showSRAMMapInfo;
 
     /* Mutex to make sure stuck dump for multiple cores doesn't interleave. */
     gctPOINTER                  stuckDumpMutex;
@@ -1446,6 +1472,16 @@ gckVIDMEM_NODE_AllocateLinear(
 
 gceSTATUS
 gckVIDMEM_NODE_AllocateVirtual(
+    IN gckKERNEL Kernel,
+    IN gcePOOL Pool,
+    IN gceVIDMEM_TYPE Type,
+    IN gctUINT32 Flag,
+    IN OUT gctSIZE_T * Bytes,
+    OUT gckVIDMEM_NODE * NodeObject
+    );
+
+gceSTATUS
+gckVIDMEM_NODE_AllocateVirtualChunk(
     IN gckKERNEL Kernel,
     IN gcePOOL Pool,
     IN gceVIDMEM_TYPE Type,
@@ -1638,6 +1674,8 @@ typedef struct _gcsADDRESS_AREA
     gctUINT32                   heapList;
     gctBOOL                     freeNodes;
 
+    gceAREA_TYPE                areaType;
+
     gctUINT32                   mappingStart;
     gctUINT32                   mappingEnd;
 
@@ -1691,7 +1729,8 @@ struct _gckMMU
 
     struct _gckQUEUE            recentFreedAddresses;
 
-    gcsADDRESS_AREA             dynamicArea;
+    gcsADDRESS_AREA             dynamicArea1M;
+    gcsADDRESS_AREA             dynamicArea4K;
     gcsADDRESS_AREA             secureArea;
 
     gctBOOL                     dynamicAreaSetuped;
@@ -1767,23 +1806,6 @@ gckKERNEL_AttachProcessEx(
     IN gctBOOL Attach,
     IN gctUINT32 PID
     );
-
-#if gcdSECURE_USER
-gceSTATUS
-gckKERNEL_MapLogicalToPhysical(
-    IN gckKERNEL Kernel,
-    IN gcskSECURE_CACHE_PTR Cache,
-    IN OUT gctPOINTER * Data
-    );
-
-gceSTATUS
-gckKERNEL_FlushTranslationCache(
-    IN gckKERNEL Kernel,
-    IN gcskSECURE_CACHE_PTR Cache,
-    IN gctPOINTER Logical,
-    IN gctSIZE_T Bytes
-    );
-#endif
 
 gceSTATUS
 gckKERNEL_AllocateVideoMemory(
@@ -2146,7 +2168,8 @@ gckCOMMAND_Commit(
     IN gcsHAL_SUBCOMMIT * SubCommit,
     IN gctUINT32 ProcessId,
     IN gctBOOL Shared,
-    OUT gctUINT64_PTR CommitStamp
+    OUT gctUINT64_PTR CommitStamp,
+    INOUT gctBOOL *contextSwitched
     );
 
 /* Reserve space in the command buffer. */

@@ -136,6 +136,7 @@ typedef enum _gcePATCH_ID
     gcvPATCH_SILICONSTUDIOGPUMARK,
     gcvPATCH_LEANBACKSCROLLING,
     gcvPATCH_ANTUTU6X, /* Antutu 6.x */
+    gcvPATCH_ANTUTU3DBench,
     gcvPATCH_CAR_CHASE,
     gcvPATCH_ANDROID_BROWSER,
     gcvPATCH_COMPUTBENCH_CL, /* ComputBench 1.5 */
@@ -144,7 +145,13 @@ typedef enum _gcePATCH_ID
     gcvPATCH_GLU4, /* gfx4.0 glu.*/
     gcvPATCH_MRVELBM20,
     gcvPATCH_OPENCV_ATOMIC,
+    gcvPATCH_WESTON,
+    gcvPATCH_SKIA_SKQP,
+    gcvPATCH_SASCHAWILLEMS,
+    gcvPATCH_NATIVEHARDWARE_CTS,
+    gcvPATCH_ANDROID_PHOTOS,
     gcvPATCH_OVX_CTS,
+    gcvPATCH_DEQP_VK,
 
     gcvPATCH_COUNT
 } gcePATCH_ID;

@@ -56,9 +56,7 @@
 #ifndef __VIVNATE_DRM_H__
 #define __VIVNATE_DRM_H__
 
-#if !defined(__KERNEL__)
 #include <drm.h>
-#endif
 
 #if defined(__cplusplus)
 extern "C" {

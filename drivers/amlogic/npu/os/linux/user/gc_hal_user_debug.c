@@ -151,44 +151,27 @@
 
 static gceSTATUS _lastError  = gcvSTATUS_OK;
 static gctUINT32 _debugLevel = gcvLEVEL_ERROR;
-static gctUINT32 _debugZones[16] =
-{
-    /*Others*/  gcvZONE_NONE,
-    /* HAL  */  gcvZONE_NONE,
-    /* EGL value scope 0x3FF*/          gcvZONE_NONE,
-    /* ES11 value scope 0x3FFFFF */     gcvZONE_NONE,
-    /* ES2/3 */ gcvZONE_NONE,
-    /* VG11 value scope 0xfFF*/         gcvZONE_NONE,
-    /* GL   */  gcvZONE_NONE,
-    /* DFB  */  gcvZONE_NONE,
-    /* GDI  */  gcvZONE_NONE,
-    /* D3D  */  gcvZONE_NONE,
-    /* CL   */  gcvZONE_NONE,
-    /* VX   */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE
-};
 
-static gctBOOL _dumpAPIZones[16] =
+#define gcdZONE_ARRAY_SIZE  16
+
+static gctUINT32 _debugZones[gcdZONE_ARRAY_SIZE] =
 {
-    /*Others*/  gcvFALSE,
-    /* HAL  */  gcvFALSE,
-    /* EGL  */  gcvFALSE,
-    /* ES11 */  gcvFALSE,
-    /* ES20 */  gcvFALSE,
-    /* VG11 */  gcvFALSE,
-    /* GL   */  gcvFALSE,
-    /* DFB  */  gcvFALSE,
-    /* GDI  */  gcvFALSE,
-    /* D3D  */  gcvFALSE,
-    /* CL   */  gcvFALSE,
-    /* VX   */  gcvFALSE,
-    /* ---- */  gcvFALSE,
-    /* ---- */  gcvFALSE,
-    /* ---- */  gcvFALSE,
-    /* ---- */  gcvFALSE
+    /* Subzones of HAL User */        gcdZONE_NONE,
+    /* Subzones of EGL API  */        gcdZONE_NONE,
+    /* Subzones of ES11 API */        gcdZONE_NONE,
+    /* Subzones of ES30 API */        gcdZONE_NONE,
+    /* Subzones of GL40 API */        gcdZONE_NONE,
+    /* Subzones of VG3D API */        gcdZONE_NONE,
+    /* Subzones of CL API   */        gcdZONE_NONE,
+    /* Subzones of VX API   */        gcdZONE_NONE,
+    /* Subzones of VG API   */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE,
+    /* -------------------- */        gcdZONE_NONE
 };
 
 
@@ -218,21 +201,21 @@ static gctBOOL _dumpAPIZones[16] =
 static gctUINT32 _systraceZones[16] =
 {
     /*Others*/  SYSTRACE_HAL_ZONES_EN | SYSTRACE_COMPILER_ZONE_EN,
-    /* HAL  */  gcvZONE_NONE,
-    /* EGL  */  gcvZONE_NONE,
-    /* ES11 */  gcvZONE_NONE,
-    /* ES20 */  gcvZONE_NONE,
-    /* VG11 */  gcvZONE_NONE,
-    /* GL   */  gcvZONE_NONE,
-    /* DFB  */  gcvZONE_NONE,
-    /* GDI  */  gcvZONE_NONE,
-    /* D3D  */  gcvZONE_NONE,
-    /* CL   */  gcvZONE_NONE,
-    /* VX   */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE,
-    /* ---- */  gcvZONE_NONE
+    /* HAL  */  gcdZONE_NONE,
+    /* EGL  */  gcdZONE_NONE,
+    /* ES11 */  gcdZONE_NONE,
+    /* ES20 */  gcdZONE_NONE,
+    /* VG11 */  gcdZONE_NONE,
+    /* GL   */  gcdZONE_NONE,
+    /* DFB  */  gcdZONE_NONE,
+    /* GDI  */  gcdZONE_NONE,
+    /* D3D  */  gcdZONE_NONE,
+    /* CL   */  gcdZONE_NONE,
+    /* VX   */  gcdZONE_NONE,
+    /* ---- */  gcdZONE_NONE,
+    /* ---- */  gcdZONE_NONE,
+    /* ---- */  gcdZONE_NONE,
+    /* ---- */  gcdZONE_NONE
 };
 
 /* Specify enabled API zones for systrace. */
@@ -735,12 +718,16 @@ _Print(
 
     /* Print message to buffer. */
     n = gcmVSPRINTF(buffer + i, sizeof(buffer) - i, Message, Arguments);
+    if (n > (int)sizeof(buffer) - i)
+    {
+        n = (int)sizeof(buffer) - i;
+    }
     buffer[sizeof(buffer) - 1] = '\0';
 
     if ((n <= 0) || (buffer[i + n - 1] != '\n'))
     {
         /* Append new-line. */
-        gcmSTRCAT(buffer, sizeof(buffer), "\n");
+        gcmSTRCAT(buffer, strlen("\n"), "\n\n");
         buffer[sizeof(buffer) - 1] = '\0';
     }
 
@@ -955,10 +942,6 @@ gcoOS_DebugTrace(
 **
 **      Nothing.
 */
-static void _DumpAPI(
-    IN gctUINT32 Level,
-    IN gctUINT32 Zone
-    );
 void
 gcoOS_DebugTraceZone(
     IN gctUINT32 Level,
@@ -967,10 +950,9 @@ gcoOS_DebugTraceZone(
     ...
     )
 {
-    if(Message != gcvNULL && Message[0] == '+') _DumpAPI(Level,Zone);
     /* Verify that the debug level and zone are valid. */
     if ((Level > _debugLevel)
-    ||  !(_debugZones[gcmZONE_GET_API(Zone)] & Zone & gcdZONE_MASK)
+    ||  !(_debugZones[gcmZONE_GET_API(Zone)] & Zone & gcdZONE_ALL)
     )
     {
         return;
@@ -1083,33 +1065,9 @@ gcoOS_GetDebugLevel(
 
 /*******************************************************************************
 **
-**  gcoOS_SetDebugZone
-**
-**  Set the debug zone.
-**
-**  INPUT:
-**
-**      gctUINT32 Zone
-**          New debug zone.
-**
-**  OUTPUT:
-**
-**      Nothing.
-*/
-
-void
-gcoOS_SetDebugZone(
-    IN gctUINT32 Zone
-    )
-{
-    _debugZones[gcmZONE_GET_API(Zone)] = Zone;
-}
-
-/*******************************************************************************
-**
 **  gcoOS_GetDebugZone
 **
-**  Get the current debug zone.
+**  Get current subzones of a debug API.
 **
 **  INPUT:
 **
@@ -1132,17 +1090,14 @@ gcoOS_GetDebugZone(
 
 /*******************************************************************************
 **
-**  gcoOS_SetDebugLevelZone
+**  gcoOS_SetDebugZone
 **
-**  Set the debug level and zone.
+**  Set a debug zone.
 **
 **  INPUT:
 **
-**      gctUINT32 Level
-**          New debug level.
-**
 **      gctUINT32 Zone
-**          New debug zone.
+**          A debug zone listed in gc_hal_debug_zones.h
 **
 **  OUTPUT:
 **
@@ -1150,50 +1105,28 @@ gcoOS_GetDebugZone(
 */
 
 void
-gcoOS_SetDebugLevelZone(
-    IN gctUINT32 Level,
+gcoOS_SetDebugZone(
     IN gctUINT32 Zone
     )
 {
-    _debugLevel                        = Level;
-    _debugZones[gcmZONE_GET_API(Zone)] = Zone;
-}
+    gctUINT32 _api = gcmZONE_GET_API(Zone);
+    gctUINT32 i;
 
-/*******************************************************************************
-**
-**  gcoOS_SetDebugZones
-**
-**  Enable or disable debug zones.
-**
-**  INPUT:
-**
-**      gctUINT32 Zones
-**          Debug zones to enable or disable.
-**
-**      gctBOOL Enable
-**          Set to gcvTRUE to enable the zones (or the Zones with the current
-**          zones) or gcvFALSE to disable the specified Zones.
-**
-**  OUTPUT:
-**
-**      Nothing.
-*/
-
-void
-gcoOS_SetDebugZones(
-    IN gctUINT32 Zones,
-    IN gctBOOL Enable
-    )
-{
-    if (Enable)
+    /* Zone is gcdZONE_NONE or gcdZONE_ALL */
+    if (Zone == gcdZONE_NONE || Zone == gcdZONE_ALL)
     {
-        /* Enable the zones. */
-        _debugZones[gcmZONE_GET_API(Zones)] |= Zones;
+        for(i = 0; i < gcdZONE_ARRAY_SIZE; i++)
+            _debugZones[i] = Zone;
     }
+    /* Zone is API Zone */
+    else if (gcmZONE_GET_SUBZONES(Zone) == 0)
+    {
+        _debugZones[_api] = gcdZONE_ALL;
+    }
+    /* Zone is Subzone */
     else
     {
-        /* Disable the zones. */
-        _debugZones[gcmZONE_GET_API(Zones)] &= ~Zones;
+        _debugZones[_api] |= Zone;
     }
 }
 
@@ -1228,9 +1161,6 @@ gcoOS_Verify(
 **  Open or close the debug file.
 **
 **  INPUT:
-**
-**      gcoOS Os
-**          Pointer to gcoOS object.
 **
 **      gctCONST_STRING FileName
 **          Name of debug file to open or gcvNULL to close the current debug
@@ -1791,6 +1721,7 @@ gcoOS_StackPop(
         /* Pop arguments from the stack. */
         gcsSTACK_FRAME* frame = &traceStack->frames[--traceStack->level];
 
+
         /* Check for function mismatch. */
         if (frame->identity != Identity)
         {
@@ -1866,70 +1797,6 @@ gcoOS_StackDump(
 
                 gcmPRINT("    (%s)", buffer);
             }
-        }
-    }
-}
-
-
-/*******************************************************************************
-**  _DumpAPI
-**
-**  Send a leveled and zoned message to the debugger.
-**
-**  INPUT:
-**
-**      gctUINT32 Level
-**          Debug level for message.
-**
-**      gctUINT32 Zone
-**          Debug zone for message.
-**
-**  OUTPUT:
-**
-**      Nothing.
-*/
-
-static void
-_DumpAPI(
-    IN gctUINT32 Level,
-    IN gctUINT32 Zone
-    )
-{
-    gcsTRACE_STACK * traceStack;
-    /* Verify that the debug level and zone are valid. */
-    if ((Level > _debugLevel)
-    ||  !(_dumpAPIZones[gcmZONE_GET_API(Zone)])
-    )
-    {
-        return;
-    }
-
-    /* Find our stack. */
-    traceStack = _FindStack();
-
-    if (traceStack == gcvNULL)
-    {
-        return;
-    }
-
-    if (traceStack->level > gcvDUMP_API_DEPTH || traceStack->level<=0)
-    {
-        return;
-    }
-    else
-    {
-        gcsSTACK_FRAME* frame = &traceStack->frames[traceStack->level-1];
-
-        gcmPRINT("  [%d] %s(%d)", traceStack->level, frame->function, frame->line);
-        if (frame->text != gcvNULL)
-        {
-            char buffer[192] = "";
-            gctUINT offset = 0;
-            gctPOINTER pointer = (gctPOINTER) frame->arguments;
-
-                gcoOS_PrintStrVSafe(buffer, gcmSIZEOF(buffer),
-                                    &offset, frame->text, *(gctARGUMENTS *) &pointer);
-            gcmPRINT("    (%s)", buffer);
         }
     }
 }

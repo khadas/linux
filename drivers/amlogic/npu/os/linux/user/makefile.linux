@@ -87,17 +87,19 @@ endif
 # Module rules.
 
 $(TARGET_MODULE): $(OBJECTS)
-	$(AR) -r -c $@ $(OBJECTS)
+	@echo "  ARCHIVE \033[1m$(notdir $@)\033[0m"
+	@$(AR) -r -c $@ $(OBJECTS)
 ifneq ($(USE_ARMCC), 1)
-	$(RANLIB) $@
+	@$(RANLIB) $@
 endif
 
 ################################################################################
 # Object rules.
 
 $(OBJ_DIR)/%.o: %.c
+	@echo "  COMPILE $(abspath $<)"
 	@mkdir -p $(OBJ_DIR)
-	$(CC) -c $(CFLAGS) -MMD -o $@ $<
+	@$(CC) -c $(CFLAGS) -MMD -o $@ $<
 
 vpath %.c platform/default
 vpath %.c platform/$(soc_vendor)

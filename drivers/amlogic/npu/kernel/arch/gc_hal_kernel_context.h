@@ -173,11 +173,6 @@ struct _gckCONTEXT
 
     gctUINT32                   pipeSelectBytes;
 
-    /* Hint array. */
-#if gcdSECURE_USER
-    gctBOOL_PTR                 hint;
-#endif
-
     gcsPROFILER_COUNTERS_PART1    latestProfiler_part1;
     gcsPROFILER_COUNTERS_PART1    histroyProfiler_part1;
     gcsPROFILER_COUNTERS_PART1    preProfiler_part1;

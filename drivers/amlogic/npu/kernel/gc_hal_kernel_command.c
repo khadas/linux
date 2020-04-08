@@ -234,132 +234,6 @@ OnError:
     return status;
 }
 
-#if gcdSECURE_USER
-static gceSTATUS
-_ProcessHints(
-    IN gckCOMMAND Command,
-    IN gctUINT32 ProcessID,
-    IN gcoCMDBUF CommandBuffer
-    )
-{
-    gceSTATUS status = gcvSTATUS_OK;
-    gckKERNEL kernel;
-    gctBOOL needCopy = gcvFALSE;
-    gcskSECURE_CACHE_PTR cache;
-    gctUINT8_PTR commandBufferLogical;
-    gctUINT8_PTR hintedData;
-    gctUINT32_PTR hintArray;
-    gctUINT i, hintCount;
-
-    gcmkHEADER_ARG(
-        "Command=0x%08X ProcessID=%d CommandBuffer=0x%08X",
-        Command, ProcessID, CommandBuffer
-        );
-
-    /* Verify the arguments. */
-    gcmkVERIFY_OBJECT(Command, gcvOBJ_COMMAND);
-
-    /* Reset state array pointer. */
-    hintArray = gcvNULL;
-
-    /* Get the kernel object. */
-    kernel = Command->kernel;
-
-    /* Get the cache form the database. */
-    gcmkONERROR(gckKERNEL_GetProcessDBCache(kernel, ProcessID, &cache));
-
-    /* Determine the start of the command buffer. */
-    commandBufferLogical
-        = (gctUINT8_PTR) CommandBuffer->logical
-        +                CommandBuffer->startOffset;
-
-    /* Determine the number of records in the state array. */
-    hintCount = CommandBuffer->hintArrayTail - CommandBuffer->hintArray;
-
-    /* Check wehther we need to copy the structures or not. */
-    gcmkONERROR(gckOS_QueryNeedCopy(Command->os, ProcessID, &needCopy));
-
-    /* Get access to the state array. */
-    if (needCopy)
-    {
-        gctUINT copySize;
-
-        if (Command->hintArrayAllocated &&
-            (Command->hintArraySize < CommandBuffer->hintArraySize))
-        {
-            gcmkONERROR(gcmkOS_SAFE_FREE(Command->os, gcmUINT64_TO_PTR(Command->hintArray)));
-            Command->hintArraySize = gcvFALSE;
-        }
-
-        if (!Command->hintArrayAllocated)
-        {
-            gctPOINTER pointer = gcvNULL;
-
-            gcmkONERROR(gckOS_Allocate(
-                Command->os,
-                CommandBuffer->hintArraySize,
-                &pointer
-                ));
-
-            Command->hintArray          = gcmPTR_TO_UINT64(pointer);
-            Command->hintArrayAllocated = gcvTRUE;
-            Command->hintArraySize      = CommandBuffer->hintArraySize;
-        }
-
-        hintArray = gcmUINT64_TO_PTR(Command->hintArray);
-        copySize   = hintCount * gcmSIZEOF(gctUINT32);
-
-        gcmkONERROR(gckOS_CopyFromUserData(
-            Command->os,
-            hintArray,
-            gcmUINT64_TO_PTR(CommandBuffer->hintArray),
-            copySize
-            ));
-    }
-    else
-    {
-        gctPOINTER pointer = gcvNULL;
-
-        gcmkONERROR(gckOS_MapUserPointer(
-            Command->os,
-            gcmUINT64_TO_PTR(CommandBuffer->hintArray),
-            CommandBuffer->hintArraySize,
-            &pointer
-            ));
-
-        hintArray = pointer;
-    }
-
-    /* Scan through the buffer. */
-    for (i = 0; i < hintCount; i += 1)
-    {
-        /* Determine the location of the hinted data. */
-        hintedData = commandBufferLogical + hintArray[i];
-
-        /* Map handle into physical address. */
-        gcmkONERROR(gckKERNEL_MapLogicalToPhysical(
-            kernel, cache, (gctPOINTER) hintedData
-            ));
-    }
-
-OnError:
-    /* Get access to the state array. */
-    if (!needCopy && (hintArray != gcvNULL))
-    {
-        gcmkVERIFY_OK(gckOS_UnmapUserPointer(
-            Command->os,
-            gcmUINT64_TO_PTR(CommandBuffer->hintArray),
-            CommandBuffer->hintArraySize,
-            hintArray
-            ));
-    }
-
-    /* Return the status. */
-    gcmkFOOTER();
-    return status;
-}
-#endif
-
 static gceSTATUS
 _CheckFlushMMU(
     IN gckCOMMAND Command,
@@ -925,7 +799,7 @@ _CheckFlushMcfeMMU(
     gcmkONERROR(gckMCFE_WaitSemaphore(Hardware, buffer, id, &bytes));
 
     /* Execute flush mmu and send semaphores. */
-    gckCOMMAND_ExecuteMultiChannel(Command, 0, 0, reqBytes);
+    gcmkONERROR(gckCOMMAND_ExecuteMultiChannel(Command, 0, 0, reqBytes));
 
     /* Need sync from system channel. */
     Command->syncChannel[0] = ~1ull;
@@ -1752,15 +1626,6 @@ gckCOMMAND_Destroy(
         gcmkVERIFY_OK(gckOS_AtomDestroy(Command->os, Command->atomCommit));
     }
 
-#if gcdSECURE_USER
-    /* Free state array. */
-    if (Command->hintArrayAllocated)
-    {
-        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Command->os, gcmUINT64_TO_PTR(Command->hintArray)));
-        Command->hintArrayAllocated = gcvFALSE;
-    }
-#endif
-
 #if gcdRECORD_COMMAND
     gckRECORDER_Destory(Command->os, Command->recorder);
 #endif
@@ -2309,7 +2174,8 @@ _CommitWaitLinkOnce(
     IN gcsHAL_COMMAND_LOCATION * CommandBuffer,
     IN gcsSTATE_DELTA_PTR StateDelta,
     IN gctUINT32 ProcessID,
-    IN gctBOOL Shared
+    IN gctBOOL Shared,
+    INOUT gctBOOL *contextSwitched
     )
 {
     gceSTATUS status;
@@ -2390,15 +2256,23 @@ _CommitWaitLinkOnce(
                          + CommandBuffer->startOffset;
 
 #ifdef __QNXNTO__
-    userCommandBufferLogical = (gctPOINTER) commandBufferLogical;
+    gcmkONERROR(gckVIDMEM_HANDLE_Lookup(
+        Command->kernel,
+        ProcessID,
+        CommandBuffer->videoMemNode,
+        &commandBufferVideoMem
+        ));
 
-    gcmkONERROR(gckOS_MapUserPointer(
-        Command->os,
-        userCommandBufferLogical,
-        0,
-        (gctPOINTER *)&commandBufferLogical));
+    gcmkONERROR(gckVIDMEM_NODE_LockCPU(
+        Command->kernel,
+        commandBufferVideoMem,
+        gcvFALSE,
+        gcvFALSE,
+        &userCommandBufferLogical
+        ));
 
-    userCommandBufferLogicalMapped = gcvTRUE;
+    commandBufferLogical = (gctUINT8_PTR)userCommandBufferLogical + CommandBuffer->startOffset;
+    userCommandBufferLogicalMapped =gcvTRUE;
 #endif
 
     commandBufferSize = CommandBuffer->size;
@@ -2573,6 +2447,11 @@ _CommitWaitLinkOnce(
         /* Update the current context. */
         Command->currContext = Context;
 
+        if (contextSwitched)
+        {
+            *contextSwitched = gcvTRUE;
+        }
+
 #if gcdDUMP_IN_KERNEL
         contextDumpLogical = entryLogical;
 #endif
@@ -2633,11 +2512,6 @@ _CommitWaitLinkOnce(
     }
 
     (void)entryLogical;
-
-#if gcdSECURE_USER
-    /* Process user hints. */
-    gcmkONERROR(_ProcessHints(Command, ProcessID, CommandBuffer));
-#endif
 
     /* Determine the location to jump to for the command buffer being
     ** scheduled. */
@@ -2977,15 +2851,16 @@ _CommitWaitLinkOnce(
     }
 
 #ifdef __QNXNTO__
-    if (userCommandBufferLogicalMapped)
+    if(userCommandBufferLogicalMapped)
     {
-        gcmkVERIFY_OK(gckOS_UnmapUserPointer(
-            Command->os,
-            userCommandBufferLogical,
-            0,
-            commandBufferLogical));
+        gcmkVERIFY_OK(gckVIDMEM_NODE_UnlockCPU(
+            Command->kernel,
+            commandBufferVideoMem,
+            ProcessID,
+            gcvFALSE
+            ));
 
-        userCommandBufferLogicalMapped = gcvFALSE;
+        userCommandBufferLogicalMapped =gcvFALSE;
     }
 #endif
 
@@ -3174,6 +3049,7 @@ OnError:
 static gceSTATUS
 _CommitMultiChannelOnce(
     IN gckCOMMAND Command,
+    IN gckCONTEXT Context,
     IN gcsHAL_COMMAND_LOCATION * CommandBuffer
     )
 {
@@ -3251,6 +3127,8 @@ _CommitMultiChannelOnce(
             ));
     }
 
+    Command->currContext = Context;
+
     gckOS_AcquireMutex(Command->os, Command->mutexQueue, gcvINFINITE);
     acquired = gcvTRUE;
 
@@ -3327,8 +3205,8 @@ OnError:
 **          Current process ID.
 **
 **  OUTPUT:
-**
-**      Nothing.
+**      gctBOOL *contextSwitched
+**          pass context Switch flag to upper
 */
 gceSTATUS
 gckCOMMAND_Commit(
@@ -3336,7 +3214,8 @@ gckCOMMAND_Commit(
     IN gcsHAL_SUBCOMMIT * SubCommit,
     IN gctUINT32 ProcessId,
     IN gctBOOL Shared,
-    OUT gctUINT64_PTR CommitStamp
+    OUT gctUINT64_PTR CommitStamp,
+    INOUT gctBOOL *contextSwitched
     )
 {
     gceSTATUS status;
@@ -3405,11 +3284,12 @@ gckCOMMAND_Commit(
                                          cmdLoc,
                                          delta,
                                          ProcessId,
-                                         Shared);
+                                         Shared,
+                                         contextSwitched);
         }
         else if (Command->feType == gcvHW_FE_MULTI_CHANNEL)
         {
-            status = _CommitMultiChannelOnce(Command, cmdLoc);
+            status = _CommitMultiChannelOnce(Command, context, cmdLoc);
         }
         else
         {
@@ -4220,13 +4100,44 @@ gckCOMMAND_Attach(
     IN gctUINT32 ProcessID
     )
 {
+    gctUINT32 allocationSize;
+    gctPOINTER pointer;
+    gceSTATUS status;
+
     if (Command->feType == gcvHW_FE_WAIT_LINK)
     {
-        return _AttachWaitLinkFECommand(Command,
+        status = _AttachWaitLinkFECommand(Command,
                                         Context,
                                         MaxState,
                                         NumStates,
                                         ProcessID);
+    }
+    else if (Command->feType == gcvHW_FE_MULTI_CHANNEL)
+    {
+        /*
+         * For mcfe, we only allocate context which is used to
+         * store profile counters.
+         */
+        allocationSize = gcmSIZEOF(struct _gckCONTEXT);
+
+        /* Allocate the object. */
+        gckOS_Allocate(Command->os, allocationSize, &pointer);
+        if (!pointer)
+        {
+            return gcvSTATUS_OUT_OF_MEMORY;
+        }
+        *Context = pointer;
+        /* Reset the entire object. */
+        gckOS_ZeroMemory(*Context, allocationSize);
+
+        /* Initialize the gckCONTEXT object. */
+        (*Context)->object.type = gcvOBJ_CONTEXT;
+        (*Context)->os          = Command->os;
+        (*Context)->hardware    = Command->kernel->hardware;
+        *MaxState  = 0;
+        *NumStates = 0;
+
+        status = gcvSTATUS_OK;
     }
     else
     {
@@ -4235,8 +4146,10 @@ gckCOMMAND_Attach(
         *MaxState  = 0;
         *NumStates = 0;
 
-        return gcvSTATUS_OK;
+        status = gcvSTATUS_OK;
     }
+
+    return status;
 }
 #endif
 
@@ -4318,6 +4231,11 @@ gckCOMMAND_Detach(
     if (Command->feType == gcvHW_FE_WAIT_LINK)
     {
         return _DetachWaitLinkFECommand(Command, Context);
+    }
+    else if (Command->feType == gcvHW_FE_MULTI_CHANNEL)
+    {
+        gcmkOS_SAFE_FREE(Context->os, Context);
+        return gcvSTATUS_OK;
     }
     else
     {
@@ -4453,7 +4371,7 @@ gckCOMMAND_DumpExecutingBuffer(
         gpuAddress &= 0xfffff000;
 
         /* Dump max 4096 bytes. */
-        bytes = (bytes - offset) > 1024 ? 1024 : (bytes - offset);
+        bytes = (bytes - offset) > 4096 ? 4096 : (bytes - offset);
 
         /* Kernel address of page where stall point stay. */
         entryDump = (gctUINT8_PTR)entryDump + offset;

@@ -74,7 +74,11 @@
 #  include <linux/modversions.h>
 #endif
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4,7,0)
+    #include <linux/uaccess.h>
+#else
+    #include <asm/uaccess.h>
+#endif
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 #include <linux/clk.h>
@@ -160,38 +164,15 @@
 #  define dma_fence_context_alloc(s)        fence_context_alloc(s)
 
 #endif
-int get_nna_status(struct platform_device *dev);
+
+gceSTATUS get_nna_status(struct platform_device *dev);
+
 extern struct device *galcore_device;
 
 /******************************************************************************\
 ********************************** Structures **********************************
 \******************************************************************************/
 typedef struct _gcsIOMMU * gckIOMMU;
-
-#if gcdSECURE_USER
-typedef struct _gcsUSER_MAPPING * gcsUSER_MAPPING_PTR;
-typedef struct _gcsUSER_MAPPING
-{
-    /* Pointer to next mapping structure. */
-    gcsUSER_MAPPING_PTR         next;
-
-    /* Physical address of this mapping. */
-    gctUINT32                   physical;
-
-    /* Logical address of this mapping. */
-    gctPOINTER                  logical;
-
-    /* Number of bytes of this mapping. */
-    gctSIZE_T                   bytes;
-
-    /* Starting address of this mapping. */
-    gctINT8_PTR                 start;
-
-    /* Ending address of this mapping. */
-    gctINT8_PTR                 end;
-}
-gcsUSER_MAPPING;
-#endif
 
 typedef struct _gcsINTEGER_DB * gcsINTEGER_DB_PTR;
 typedef struct _gcsINTEGER_DB
@@ -220,14 +201,10 @@ struct _gckOS
     /* Signal management. */
 
     /* Lock. */
-    struct mutex                signalMutex;
+    spinlock_t                  signalLock;
 
     /* signal id database. */
     gcsINTEGER_DB               signalDB;
-
-#if gcdSECURE_USER
-    gcsUSER_MAPPING_PTR         userMap;
-#endif
 
     /* workqueue for os timer. */
     struct workqueue_struct *   workqueue;

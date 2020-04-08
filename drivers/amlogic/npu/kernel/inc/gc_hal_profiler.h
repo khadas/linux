@@ -594,7 +594,9 @@ extern "C" {
 #define VPNC_HIIDLECYCLES                (VPNG_HI + 16)
 #define VPNC_HIREAD8BYTE                 (VPNG_HI + 17)
 #define VPNC_HIWRITE8BYTE                (VPNG_HI + 18)
-#define VPNC_HI_COUNT                    VPNC_HIWRITE8BYTE - VPNG_HI
+#define VPNC_HIOCBREAD16BYTE             (VPNG_HI + 19)
+#define VPNC_HIOCBWRITE16BYTE            (VPNG_HI + 20)
+#define VPNC_HI_COUNT                    VPNC_HIOCBWRITE16BYTE - VPNG_HI
 
 /* HW: L2 Counters. */
 #define VPNC_L2AXI0READREQCOUNT          (VPNG_L2 + 1)
@@ -681,6 +683,12 @@ extern "C" {
 #define DEFAULT_PROFILE_FILE_NAME   "vprofiler.vpd"
 #endif
 
+#define VPHEADER_VERSION "VP20"
+
+#define VPFILETYPE_GL "10"
+
+#define VPFILETYPE_CL "00"
+
 #if gcdENDIAN_BIG
 #define BIG_ENDIAN_TRANS_INT(x) ((gctUINT32)(\
         (((gctUINT32)(x) & (gctUINT32)0x000000FFUL) << 24) | \
@@ -764,19 +772,19 @@ extern "C" {
 #define gcmGET_COUNTER(counter, counterId) \
     do \
     { \
-        if ((gctUINT32)*(memory + (counterId + offset) * clusterMaxID) == 0xdeaddead) \
+        if (*(memory + (counterId + offset) * (1 << clusterIDWidth)) == 0xdeaddead) \
         { \
             counter = 0xdeaddead; \
         } \
         else \
         { \
             gctUINT32 i; \
-            gctUINT64_PTR Memory = memory; \
+            gctUINT32_PTR Memory = memory; \
             counter = 0; \
-            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * clusterMaxID; \
-            for (i = 0; i < (gctUINT32)clusterMaxID; i++) \
+            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * (1 << clusterIDWidth); \
+            for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
-                counter += (gctUINT32)*(Memory + (counterId + offset) * clusterMaxID + i); \
+                counter += *(Memory + (counterId + offset) * (1 << clusterIDWidth) + i); \
             } \
         } \
     } \
@@ -785,19 +793,19 @@ extern "C" {
 #define gcmGET_LATENCY_COUNTER(minLatency, maxLatency, counterId) \
     do \
     { \
-        if ((gctUINT32)*(memory + (counterId + offset) * clusterMaxID) == 0xdeaddead) \
+        if (*(memory + (counterId + offset) * (1 << clusterIDWidth)) == 0xdeaddead) \
         { \
             minLatency = maxLatency = 0xdeaddead; \
         } \
         else \
         { \
             gctUINT32 i; \
-            gctUINT64_PTR Memory = memory; \
-            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * clusterMaxID; \
-            for (i = 0; i < (gctUINT32)clusterMaxID; i++) \
+            gctUINT32_PTR Memory = memory; \
+            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * (1 << clusterIDWidth); \
+            for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
-                maxLatency += (((gctUINT32)*(Memory + (counterId + offset) * clusterMaxID + i) & 0xfff000) >> 12); \
-                minLatency += ((gctUINT32)*(Memory + (counterId + offset) * clusterMaxID + i) & 0x000fff); \
+                maxLatency += ((*(Memory + (counterId + offset) * (1 << clusterIDWidth) + i) & 0xfff000) >> 12); \
+                minLatency += (*(Memory + (counterId + offset) * (1 << clusterIDWidth) + i) & 0x000fff); \
                 if (minLatency == 4095) \
                     minLatency = 0; \
             } \

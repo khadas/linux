@@ -414,52 +414,6 @@ This define enables the use of VM for gckCommand and fence buffers.
 #ifndef gcdGC355_VGMMU_MEMORY_SIZE_KB
 #   define gcdGC355_VGMMU_MEMORY_SIZE_KB   32
 #endif
-/*
-    gcdSECURE_USER
-
-        Use logical addresses instead of physical addresses in user land.  In
-        this case a hint table is created for both command buffers and context
-        buffers, and that hint table will be used to patch up those buffers in
-        the kernel when they are ready to submit.
-*/
-#ifndef gcdSECURE_USER
-#   define gcdSECURE_USER                       0
-#endif
-
-/*
-    gcdSECURE_CACHE_SLOTS
-
-        Number of slots in the logical to DMA address cache table.  Each time a
-        logical address needs to be translated into a DMA address for the GPU,
-        this cache will be walked.  The replacement scheme is LRU.
-*/
-#ifndef gcdSECURE_CACHE_SLOTS
-#   define gcdSECURE_CACHE_SLOTS                1024
-#endif
-
-/*
-    gcdSECURE_CACHE_METHOD
-
-        Replacement scheme used for Secure Cache.  The following options are
-        available:
-
-            gcdSECURE_CACHE_LRU
-                A standard LRU cache.
-
-            gcdSECURE_CACHE_LINEAR
-                A linear walker with the idea that an application will always
-                render the scene in a similar way, so the next entry in the
-                cache should be a hit most of the time.
-
-            gcdSECURE_CACHE_HASH
-                A 256-entry hash table.
-
-            gcdSECURE_CACHE_TABLE
-                A simple cache but with potential of a lot of cache replacement.
-*/
-#ifndef gcdSECURE_CACHE_METHOD
-#   define gcdSECURE_CACHE_METHOD               gcdSECURE_CACHE_HASH
-#endif
 
 /*
     gcdREGISTER_READ_FROM_USER
@@ -469,7 +423,7 @@ This define enables the use of VM for gckCommand and fence buffers.
         should only be in debug or development drops.
 */
 #ifndef gcdREGISTER_READ_FROM_USER
-#   define gcdREGISTER_READ_FROM_USER           0
+#   define gcdREGISTER_READ_FROM_USER           1
 #endif
 
 #ifndef gcdREGISTER_WRITE_FROM_USER
@@ -517,7 +471,7 @@ This define enables the use of VM for gckCommand and fence buffers.
 #if gcdFPGA_BUILD
 #   define gcdGPU_TIMEOUT                   2000000
 #else
-#   define gcdGPU_TIMEOUT                   20000
+#   define gcdGPU_TIMEOUT                   40000
 #endif
 #endif
 
@@ -766,6 +720,19 @@ This define enables the use of VM for gckCommand and fence buffers.
 #ifndef gcdSMALL_BLOCK_SIZE
 #   define gcdSMALL_BLOCK_SIZE                  4096
 #   define gcdRATIO_FOR_SMALL_MEMORY            32
+#endif
+
+/*
+    gcdENABLE_GPU_1M_PAGE
+        When non-zero, GPU page size will be 1M until the pool is out of memory
+        and low-level to 4K pages. When zero, it uses 4k GPU pages.
+*/
+#ifndef gcdENABLE_GPU_1M_PAGE
+#if !gcdSECURITY && defined(LINUX)
+#   define gcdENABLE_GPU_1M_PAGE                1
+#else
+#   define gcdENABLE_GPU_1M_PAGE                0
+#endif
 #endif
 
 /*
@@ -1026,7 +993,7 @@ This define enables the use of VM for gckCommand and fence buffers.
  */
 
 #ifndef gcdINTERRUPT_STATISTIC
-#if defined(LINUX) || defined(__QNXNTO__) || defined(UNDER_CE)
+#if defined(LINUX) || defined(__QNXNTO__) || defined(UNDER_CE) || defined(__VXWORKS__)
 #   define gcdINTERRUPT_STATISTIC               1
 #else
 #   define gcdINTERRUPT_STATISTIC               0
@@ -1368,12 +1335,24 @@ VIV:gcdUSE_MMU_EXCEPTION
 
 #endif
 
+#define gcdHAL_TEST 1
+#define gcdUSE_ZWP_SYNCHRONIZATION 1
+
 /*
     gcdUSE_SINGLE_CONTEXT
         When enabled, will enable single context.
  */
 #ifndef gcdUSE_SINGLE_CONTEXT
 #   define gcdUSE_SINGLE_CONTEXT                   0
+#endif
+
+/*
+    gcdKERNEL_QUERY_PERFORMANCE_COUNTER_V8
+        When enabled, will enable query new performance counter of V8.0 in kernel
+        space.
+ */
+#ifndef gcdKERNEL_QUERY_PERFORMANCE_COUNTER_V8
+#   define gcdKERNEL_QUERY_PERFORMANCE_COUNTER_V8  0
 #endif
 
 #endif /* __gc_hal_options_h_ */

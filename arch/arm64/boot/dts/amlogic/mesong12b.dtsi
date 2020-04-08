@@ -1036,6 +1036,7 @@
 			>;
 		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
 			"NN_MEM1","NN_RESET","NN_CLK";
+		nn_power_version = <2>;
 		nn_efuse = <0xff63003c 0x20>;
 	};
 

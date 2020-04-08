@@ -61,8 +61,6 @@
 extern "C" {
 #endif
 
-#define gcdPOWER_MANAGEMENT_REFINEMENT  1
-
 #define EVENT_ID_INVALIDATE_PIPE    29
 
 typedef enum {
@@ -192,14 +190,11 @@ struct _gckHARDWARE
 
     /* Chip status */
     gctPOINTER                  powerMutex;
-#if !gcdPOWER_MANAGEMENT_REFINEMENT
-    gctUINT32                   powerProcess;
-    gctUINT32                   powerThread;
-#endif
     gceCHIPPOWERSTATE           chipPowerState;
     gctBOOL                     clockState;
     gctBOOL                     powerState;
     gctPOINTER                  globalSemaphore;
+    gctBOOL                     isLastPowerGlobal;
 
     /* Wait Link FE only. */
     gctUINT32                   lastWaitLink;
@@ -207,17 +202,8 @@ struct _gckHARDWARE
 
     gctUINT32                   mmuVersion;
 
-#if gcdPOWER_MANAGEMENT_REFINEMENT
     gceCHIPPOWERSTATE           nextPowerState;
     gctPOINTER                  powerStateTimer;
-
-#else
-#if gcdPOWEROFF_TIMEOUT
-    gctUINT32                   powerOffTime;
-    gctUINT32                   powerOffTimeout;
-    gctPOINTER                  powerOffTimer;
-#endif
-#endif
 
 #if gcdENABLE_FSCALE_VAL_ADJUST
     gctUINT32                   powerOnFscaleVal;
@@ -256,11 +242,9 @@ struct _gckHARDWARE
     /* Head for hardware list in gckMMU. */
     gcsLISTHEAD                 mmuHead;
 
-    /* SRAM mode. */
-    gctUINT32                   sRAMNonExclusive;
-    gckVIDMEM                   sRAMVideoMem[gcvSRAM_COUNT];
-    gctPHYS_ADDR                sRAMPhysical[gcvSRAM_COUNT];
-    gctPOINTER                  sRAMLogical[gcvSRAM_COUNT];
+    /* Internal SRAMs info. */
+    gckVIDMEM                   sRAMVidMem[gcvSRAM_INTER_COUNT];
+    gctPHYS_ADDR                sRAMPhysical[gcvSRAM_INTER_COUNT];
 
     gctPOINTER                  featureDatabase;
     gctBOOL                     hasL2Cache;

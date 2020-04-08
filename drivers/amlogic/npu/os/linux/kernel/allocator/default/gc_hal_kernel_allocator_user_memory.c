@@ -59,6 +59,7 @@
 
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/cache.h>
 
 #define _GC_OBJ_ZONE gcvZONE_ALLOCATOR
 
@@ -129,6 +130,12 @@ static int import_page_map(struct um_desc *um,
     int i;
     int result;
     struct page **pages;
+
+    if ((addr & (cache_line_size() - 1)) || (size & (cache_line_size() - 1)))
+    {
+        /* Not cpu cacheline size aligned, can not support. */
+        return -EINVAL;
+    }
 
     pages = kzalloc(page_count * sizeof(void *), GFP_KERNEL | gcdNOWARN);
     if (!pages)
@@ -216,9 +223,9 @@ error:
     kfree(um->sgt.sgl);
 #endif
 
-    if (um->pages)
+    if (pages)
     {
-        kfree(um->pages);
+        kfree(pages);
     }
     return result;
 }
@@ -461,6 +468,47 @@ _Import(
     else if (result < 0)
     {
         gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
+    }
+
+    if(Os->device->platform->flagBits & gcvPLATFORM_FLAG_LIMIT_4G_ADDRESS )
+    {
+        gctPHYS_ADDR_T addr;
+
+        if (Physical != gcvINVALID_PHYSICAL_ADDRESS)
+        {
+            if(Physical > 0xFFFFFFFFu || Physical + Size > 0xFFFFFFFFu )
+            {
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+            }
+        }
+        else if (vm_flags & VM_PFNMAP)
+        {
+            for(i = 0; i < pageCount; i++)
+            {
+                addr =  UserMemory->pfns[i] << PAGE_SHIFT;
+                if( addr > 0xFFFFFFFFu)
+                {
+                    kfree(UserMemory->pfns);
+                    UserMemory->pfns = gcvNULL;
+                    kfree(UserMemory->refs) ;
+                    UserMemory->refs = gcvNULL;
+                    gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+                }
+            }
+        }
+        else
+        {
+            for (i = 0; i< pageCount; i++)
+            {
+                addr = page_to_phys(UserMemory->pages[i]);
+                if(addr > 0xFFFFFFFFu )
+                {
+                    kfree(UserMemory->pages);
+                    UserMemory->pages = gcvNULL;
+                    gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+                }
+            }
+        }
     }
 
     UserMemory->vm_flags = vm_flags;

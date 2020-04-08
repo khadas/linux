@@ -102,6 +102,8 @@ struct _LINUX_MDL
     uint                    gid;
 
     struct list_head        link;
+
+    gctBOOL                 pageUnit1M;
 };
 
 extern PLINUX_MDL_MAP

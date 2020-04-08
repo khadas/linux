@@ -128,6 +128,7 @@ gctCONST_STRING _DispatchText[] =
     gcmDEFINE2TEXT(gcvHAL_SET_DEBUG_LEVEL_ZONE),
     gcmDEFINE2TEXT(gcvHAL_DEBUG_DUMP),
     gcmDEFINE2TEXT(gcvHAL_UPDATE_DEBUG_CALLBACK),
+    gcmDEFINE2TEXT(gcvHAL_CONFIG_CTX_FRAMEWORK),
     gcmDEFINE2TEXT(gcvHAL_DUMP_GPU_STATE),
     gcmDEFINE2TEXT(gcvHAL_DUMP_EVENT),
     gcmDEFINE2TEXT(gcvHAL_DUMP_GPU_PROFILE),
@@ -142,9 +143,11 @@ gctCONST_STRING _DispatchText[] =
     gcmDEFINE2TEXT(gcvHAL_WAIT_NATIVE_FENCE),
     gcmDEFINE2TEXT(gcvHAL_SHBUF),
     gcmDEFINE2TEXT(gcvHAL_GET_GRAPHIC_BUFFER_FD),
+    gcmDEFINE2TEXT(gcvHAL_SET_VIDEO_MEMORY_METADATA),
     gcmDEFINE2TEXT(gcvHAL_GET_VIDEO_MEMORY_FD),
     gcmDEFINE2TEXT(gcvHAL_DESTROY_MMU),
     gcmDEFINE2TEXT(gcvHAL_WAIT_FENCE),
+    gcmDEFINE2TEXT(gcvHAL_DEVICE_MUTEX),
     gcmDEFINE2TEXT(gcvHAL_DEC200_TEST),
     gcmDEFINE2TEXT(gcvHAL_DEC300_READ),
     gcmDEFINE2TEXT(gcvHAL_DEC300_WRITE),
@@ -476,6 +479,8 @@ gckKERNEL_Construct(
         kernel->timers[i].stopTime = 0;
     }
 
+    gcmkONERROR(gckOS_CreateMutex(Os, &kernel->vidMemBlockMutex));
+
     /* Save context. */
     kernel->context = Context;
 
@@ -500,6 +505,9 @@ gckKERNEL_Construct(
         _SetRecovery(kernel, recovery, stuckDump);
     }
 
+    status = gckOS_QueryOption(Os, "sRAMLoopMode", &data);
+    kernel->sRAMLoopMode = (status == gcvSTATUS_OK) ? data : 0;
+
     /* Need the kernel reference before gckKERNEL_Construct() completes.
        gckOS_MapPagesEx() is called to map kernel virtual command buffers. */
     *Kernel = kernel;
@@ -512,12 +520,14 @@ gckKERNEL_Construct(
         /* Set pointer to gckKERNEL object in gckHARDWARE object. */
         kernel->hardware->kernel = kernel;
 
-        kernel->sRAMNonExclusive = kernel->hardware->sRAMNonExclusive;
+        kernel->sRAMIndex = 0;
+        kernel->extSRAMIndex = 0;
 
-        for (i = gcvSRAM_EXTERNAL0; i < gcvSRAM_COUNT; i++)
+        for (i = gcvSRAM_INTERNAL0; i < gcvSRAM_INTER_COUNT; i++)
         {
-            kernel->sRAMVideoMem[i] = kernel->hardware->sRAMVideoMem[i];
-            kernel->sRAMPhysical[i] = kernel->hardware->sRAMPhysical[i];
+            kernel->sRAMVidMem[i]    = kernel->hardware->sRAMVidMem[i];
+            kernel->sRAMPhysical[i]  = kernel->hardware->sRAMPhysical[i];
+            kernel->sRAMPhysFaked[i] = gcvFALSE;
         }
 
         kernel->timeOut = kernel->hardware->type == gcvHARDWARE_2D
@@ -551,7 +561,7 @@ gckKERNEL_Construct(
         }
 
         gcmkONERROR(
-            gckMMU_SetupPerHardware(kernel->mmu, kernel->hardware, kernel->device));
+            gckMMU_SetupSRAM(kernel->mmu, kernel->hardware, kernel->device));
 
         if (kernel->hardware->mmuVersion && !kernel->mmu->dynamicAreaSetuped)
         {
@@ -561,14 +571,17 @@ gckKERNEL_Construct(
             kernel->mmu->dynamicAreaSetuped = gcvTRUE;
         }
 
-        /* Flush MTLB table. */
-        gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-            kernel,
-            kernel->mmu->mtlbVideoMem,
-            0,
-            kernel->mmu->mtlbLogical,
-            kernel->mmu->mtlbSize
-            ));
+        if (kernel->hardware->mmuVersion > 0)
+        {
+            /* Flush MTLB table. */
+            gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+                kernel,
+                kernel->mmu->mtlbVideoMem,
+                0,
+                kernel->mmu->mtlbLogical,
+                kernel->mmu->mtlbSize
+                ));
+        }
 #endif
 
         kernel->contiguousBaseAddress = kernel->mmu->contiguousBaseAddress;
@@ -780,6 +793,8 @@ gckKERNEL_Destroy(
         gcmkVERIFY_OK(gckOS_AtomDestroy(Kernel->os, Kernel->atomClients));
     }
 
+    gcmkVERIFY_OK(gckOS_DeleteMutex(Kernel->os, Kernel->vidMemBlockMutex));
+
     /* Destroy the database. */
     if (Kernel->dbCreated)
     {
@@ -930,9 +945,9 @@ gckKERNEL_AllocateVideoMemory(
     gctBOOL cacheable = gcvFALSE;
     gctBOOL secure = gcvFALSE;
     gctBOOL fastPools = gcvFALSE;
+    gctBOOL virtualPool4K = gcvFALSE;
     gctBOOL hasFastPools = gcvFALSE;
     gctSIZE_T bytes = *Bytes;
-    gctUINT32 sRAMIndex = 1;
 
     gcmkHEADER_ARG("Kernel=%p *Pool=%d *Bytes=%lu Alignment=%lu Type=%d",
                    Kernel, *Pool, *Bytes, Alignment, Type);
@@ -948,6 +963,12 @@ gckKERNEL_AllocateVideoMemory(
     {
         fastPools = gcvTRUE;
         Flag &= ~gcvALLOC_FLAG_FAST_POOLS;
+    }
+
+    if (Flag & gcvALLOC_FLAG_4K_PAGES)
+    {
+        virtualPool4K = gcvTRUE;
+        Flag &= ~gcvALLOC_FLAG_4K_PAGES;
     }
 
 #if gcdALLOC_ON_FAULT
@@ -1029,6 +1050,25 @@ AllocateMemory:
             }
             else
 #endif
+#if gcdENABLE_GPU_1M_PAGE
+            if (!virtualPool4K && Kernel->core != gcvCORE_VG && Kernel->hardware->mmuVersion)
+            {
+                /* Create a gckVIDMEM_NODE from contiguous memory. */
+                status = gckVIDMEM_NODE_AllocateVirtualChunk(
+                            Kernel,
+                            pool,
+                            Type,
+                            Flag | gcvALLOC_FLAG_CONTIGUOUS,
+                            &bytes,
+                            &nodeObject);
+
+                if (gcmIS_SUCCESS(status))
+                {
+                    /* Memory allocated. */
+                    break;
+                }
+            }
+#endif
             {
                 /* Create a gckVIDMEM_NODE from contiguous memory. */
                 status = gckVIDMEM_NODE_AllocateVirtual(
@@ -1051,6 +1091,26 @@ AllocateMemory:
                 break;
             }
 
+#if gcdENABLE_GPU_1M_PAGE
+            /* Try non-contiguous virtual chunk. */
+            if (!virtualPool4K && Kernel->hardware->mmuVersion && Kernel->core != gcvCORE_VG)
+            {
+                /* Create a gckVIDMEM_NODE from contiguous memory. */
+                status = gckVIDMEM_NODE_AllocateVirtualChunk(
+                            Kernel,
+                            pool,
+                            Type,
+                            Flag | gcvALLOC_FLAG_NON_CONTIGUOUS,
+                            &bytes,
+                            &nodeObject);
+
+                if (gcmIS_SUCCESS(status))
+                {
+                    /* Memory allocated. */
+                    break;
+                }
+            }
+#endif
             /* Try non-contiguous virtual. */
             /* Create a gckVIDMEM_NODE for virtual memory. */
             gcmkONERROR(
@@ -1066,9 +1126,13 @@ AllocateMemory:
         /* gcvPOOL_SYSTEM/gcvPOOL_SRAM can't be cacheable. */
         else if (cacheable == gcvFALSE && secure == gcvFALSE)
         {
-            /* Get pointer to gckVIDMEM object for pool. */
-            Kernel->sRAMIndex = sRAMIndex;
+#ifdef EMULATOR
+            /* Cmodel only support 1 SRAM currently. */
+            Kernel->sRAMIndex = 0;
+            Kernel->extSRAMIndex = 0;
+#endif
 
+            /* Get pointer to gckVIDMEM object for pool. */
             status = gckKERNEL_GetVideoMemoryPool(Kernel, pool, &videoMemory);
 
             if (gcmIS_SUCCESS(status))
@@ -1094,7 +1158,9 @@ AllocateMemory:
                                                            pool,
                                                            Type,
                                                            Alignment,
-                                                           (pool == gcvPOOL_SYSTEM || pool == gcvPOOL_SRAM),
+                                                           (pool == gcvPOOL_SYSTEM ||
+                                                            pool == gcvPOOL_INTERNAL_SRAM ||
+                                                            pool == gcvPOOL_EXTERNAL_SRAM),
                                                            &bytes,
                                                            &nodeObject);
                 }
@@ -1116,10 +1182,10 @@ AllocateMemory:
         else
         if (pool == gcvPOOL_LOCAL_EXTERNAL)
         {
-            if (Kernel->sRAMNonExclusive)
+            if (Kernel->sRAMLoopMode)
             {
-                /* Advance to SRAM memory. */
-                pool = gcvPOOL_SRAM;
+                /* Advance to Internal SRAM memory block. */
+                pool = gcvPOOL_INTERNAL_SRAM;
             }
             else
             {
@@ -1129,11 +1195,11 @@ AllocateMemory:
         }
 
         else
-        if (pool == gcvPOOL_SRAM)
+        if (pool == gcvPOOL_INTERNAL_SRAM)
         {
-            if (sRAMIndex < gcvSRAM_COUNT - 1)
+            if (Kernel->sRAMIndex < gcvSRAM_INTER_COUNT - 1 && !Kernel->sRAMPhysFaked[Kernel->sRAMIndex])
             {
-                sRAMIndex++;
+                Kernel->sRAMIndex++;
                 loopCount++;
             }
             else
@@ -1227,6 +1293,16 @@ _AllocateLinearMemory(
                    Kernel, pool, bytes, alignment, type);
 
     gcmkVERIFY_ARGUMENT(bytes != 0);
+
+    if (Interface->u.AllocateLinearVideoMemory.sRAMIndex >= 0)
+    {
+        Kernel->sRAMIndex = Interface->u.AllocateLinearVideoMemory.sRAMIndex;
+    }
+
+    if (Interface->u.AllocateLinearVideoMemory.extSRAMIndex >= 0)
+    {
+        Kernel->extSRAMIndex = Interface->u.AllocateLinearVideoMemory.extSRAMIndex;
+    }
 
     /* Allocate video memory node. */
     gcmkONERROR(
@@ -1418,11 +1494,6 @@ _LockVideoMemory(
     Interface->u.LockVideoMemory.physicalAddress = physical;
     Interface->u.LockVideoMemory.gid = gid;
 
-#if gcdSECURE_USER
-    /* Return logical address as physical address. */
-    Interface->u.LockVideoMemory.address = (gctUINT32)(gctUINTPTR_T)logical;
-#endif
-
     gcmkONERROR(
         gckKERNEL_AddProcessDB(Kernel,
                                ProcessID,
@@ -1496,6 +1567,7 @@ _UnlockVideoMemory(
     gceSTATUS status;
     gckVIDMEM_NODE nodeObject;
     gcuVIDMEM_NODE_PTR node;
+    gckVIDMEM_BLOCK vidMemBlock = gcvNULL;
     gctSIZE_T bytes;
 
     gcmkHEADER_ARG("Kernel=%p ProcessID=%d",
@@ -1526,8 +1598,21 @@ _UnlockVideoMemory(
     /* Leave deref handle and deref node in later operation. */
 
     node = nodeObject->node;
-    bytes = (node->VidMem.parent->object.type == gcvOBJ_VIDMEM)
-          ? node->VidMem.bytes : node->Virtual.bytes;
+
+    vidMemBlock = node->VirtualChunk.parent;
+
+    if (node->VidMem.parent->object.type == gcvOBJ_VIDMEM)
+    {
+        bytes = node->VidMem.bytes;
+    }
+    else if (vidMemBlock && vidMemBlock->object.type == gcvOBJ_VIDMEM_BLOCK)
+    {
+        bytes = node->VirtualChunk.bytes;
+    }
+    else
+    {
+        bytes = node->Virtual.bytes;
+    }
 
     Interface->u.UnlockVideoMemory.pool  = nodeObject->pool;
     Interface->u.UnlockVideoMemory.bytes = bytes;
@@ -1757,6 +1842,111 @@ OnError:
     return status;
 }
 
+/*******************************************************************************
+**
+**  gckKERNEL_SetVidMemMetadata
+**
+**  Set/Get metadata to/from gckVIDMEM_NODE object.
+**
+**  INPUT:
+**
+**      gckKERNEL Kernel
+**          Pointer to an gckKERNEL object.
+**
+**      gctUINT32 ProcessID
+**          ProcessID of current process.
+**
+**  INOUT:
+**
+**      gcsHAL_INTERFACE * Interface
+**          Pointer to a interface structure
+*/
+#if defined(CONFIG_DMA_SHARED_BUFFER)
+#include <linux/dma-buf.h>
+
+gceSTATUS
+_SetVidMemMetadata(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 ProcessID,
+    INOUT gcsHAL_INTERFACE * Interface
+    )
+{
+    gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
+    gckVIDMEM_NODE nodeObj = gcvNULL;
+
+    gcmkHEADER_ARG("Kernel=%p ProcessID=%d", Kernel, ProcessID);
+
+    gcmkONERROR(gckVIDMEM_HANDLE_Lookup(Kernel, ProcessID, Interface->u.SetVidMemMetadata.node, &nodeObj));
+
+    if (Interface->u.SetVidMemMetadata.readback)
+    {
+        Interface->u.SetVidMemMetadata.ts_fd            = nodeObj->metadata.ts_fd;
+        Interface->u.SetVidMemMetadata.fc_enabled       = nodeObj->metadata.fc_enabled;
+        Interface->u.SetVidMemMetadata.fc_value         = nodeObj->metadata.fc_value;
+        Interface->u.SetVidMemMetadata.fc_value_upper   = nodeObj->metadata.fc_value_upper;
+        Interface->u.SetVidMemMetadata.compressed       = nodeObj->metadata.compressed;
+        Interface->u.SetVidMemMetadata.compress_format  = nodeObj->metadata.compress_format;
+    }
+    else
+    {
+#ifdef gcdANDROID
+        if (nodeObj->metadata.ts_address == 0 && nodeObj->tsNode != NULL)
+        {
+            gctUINT32 PhysicalAddress = 0;
+
+            /* Lock for GPU address. */
+            gcmkONERROR(gckVIDMEM_NODE_Lock(Kernel, nodeObj->tsNode, &PhysicalAddress));
+
+            nodeObj->metadata.ts_address = (
+                    PhysicalAddress + Kernel->hardware->baseAddress);
+
+            gcmkONERROR(gckVIDMEM_NODE_Unlock(Kernel, nodeObj->tsNode, ProcessID, gcvNULL));
+        }
+#else
+        nodeObj->metadata.ts_fd             = Interface->u.SetVidMemMetadata.ts_fd;
+
+        if (nodeObj->metadata.ts_fd >= 0)
+        {
+            nodeObj->metadata.ts_dma_buf    = dma_buf_get(nodeObj->metadata.ts_fd);
+
+            if (IS_ERR(nodeObj->metadata.ts_dma_buf))
+            {
+                gcmkONERROR(gcvSTATUS_NOT_FOUND);
+            }
+
+            dma_buf_put(nodeObj->metadata.ts_dma_buf);
+        }
+        else
+        {
+            nodeObj->metadata.ts_dma_buf    = NULL;
+        }
+#endif
+
+        nodeObj->metadata.fc_enabled        = Interface->u.SetVidMemMetadata.fc_enabled;
+        nodeObj->metadata.fc_value          = Interface->u.SetVidMemMetadata.fc_value;
+        nodeObj->metadata.fc_value_upper    = Interface->u.SetVidMemMetadata.fc_value_upper;
+        nodeObj->metadata.compressed        = Interface->u.SetVidMemMetadata.compressed;
+        nodeObj->metadata.compress_format   = Interface->u.SetVidMemMetadata.compress_format;
+    }
+
+OnError:
+    gcmkFOOTER();
+    return status;
+}
+
+#else
+
+gceSTATUS
+_SetVidMemMetadata(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 ProcessID,
+    INOUT gcsHAL_INTERFACE * Interface
+    )
+{
+    gcmkFATAL("The kernel did NOT support CONFIG_DMA_SHARED_BUFFER");
+    return gcvSTATUS_NOT_SUPPORTED;
+}
+#endif
 
 static gceSTATUS
 _GetVideoMemoryFd(
@@ -1861,12 +2051,12 @@ gckKERNEL_ConfigPowerManagement(
 
     gcmkHEADER();
 
-    gcmkONERROR(gckHARDWARE_SetPowerManagement(Kernel->hardware, enable));
+    gcmkONERROR(gckHARDWARE_EnablePowerManagement(Kernel->hardware, enable));
 
     if (enable == gcvFALSE)
     {
         gcmkONERROR(
-            gckHARDWARE_SetPowerManagementState(Kernel->hardware, gcvPOWER_ON));
+            gckHARDWARE_SetPowerState(Kernel->hardware, gcvPOWER_ON));
     }
 
     gcmkFOOTER_NO();
@@ -1891,6 +2081,8 @@ gckKERNEL_CacheOperation(
     gceSTATUS status;
     gckVIDMEM_NODE nodeObject = gcvNULL;
     gcuVIDMEM_NODE_PTR node = gcvNULL;
+    gckVIDMEM_BLOCK vidMemBlock = gcvNULL;
+    gctSIZE_T offset = 0;
     void *memHandle;
 
     gcmkHEADER_ARG("Kernel=%p pid=%u Node=%u op=%d Logical=%p Bytes=0x%lx",
@@ -1902,6 +2094,8 @@ gckKERNEL_CacheOperation(
                                         &nodeObject));
 
     node = nodeObject->node;
+
+    vidMemBlock = node->VirtualChunk.parent;
 
     if (node->VidMem.parent->object.type == gcvOBJ_VIDMEM)
     {
@@ -1916,6 +2110,11 @@ gckKERNEL_CacheOperation(
         gcmkFOOTER_NO();
         return gcvSTATUS_OK;
     }
+    else if (vidMemBlock && vidMemBlock->object.type == gcvOBJ_VIDMEM_BLOCK)
+    {
+        memHandle = vidMemBlock->physical;
+        offset = node->VirtualChunk.offset;
+    }
     else
     {
         memHandle = node->Virtual.physical;
@@ -1928,7 +2127,7 @@ gckKERNEL_CacheOperation(
         status = gckOS_CacheFlush(Kernel->os,
                                   ProcessID,
                                   memHandle,
-                                  0,
+                                  offset,
                                   Logical,
                                   Bytes);
         break;
@@ -1937,7 +2136,7 @@ gckKERNEL_CacheOperation(
         status = gckOS_CacheClean(Kernel->os,
                                   ProcessID,
                                   memHandle,
-                                  0,
+                                  offset,
                                   Logical,
                                   Bytes);
         break;
@@ -1946,7 +2145,7 @@ gckKERNEL_CacheOperation(
         status = gckOS_CacheInvalidate(Kernel->os,
                                        ProcessID,
                                        memHandle,
-                                       0,
+                                       offset,
                                        Logical,
                                        Bytes);
         break;
@@ -2137,7 +2336,8 @@ _Commit(
                                        subCommit,
                                        ProcessId,
                                        Commit->shared,
-                                       &Commit->commitStamp);
+                                       &Commit->commitStamp,
+                                       &Commit->contextSwitched);
 
             if (status != gcvSTATUS_INTERRUPTED)
             {
@@ -2430,10 +2630,6 @@ gckKERNEL_Dispatch(
 #endif
     gckKERNEL kernel = Kernel;
     gctUINT32 processID;
-#if gcdSECURE_USER
-    gcskSECURE_CACHE_PTR cache;
-    gctPOINTER logical;
-#endif
 #if !USE_NEW_LINUX_SIGNAL
     gctSIGNAL   signal;
 #endif
@@ -2461,10 +2657,6 @@ gckKERNEL_Dispatch(
 
     /* Get the current process ID. */
     gcmkONERROR(gckOS_GetProcessID(&processID));
-
-#if gcdSECURE_USER
-    gcmkONERROR(gckKERNEL_GetProcessDBCache(Kernel, processID, &cache));
-#endif
 
     /* Dispatch on command. */
     switch (Interface->command)
@@ -2579,14 +2771,6 @@ gckKERNEL_Dispatch(
                                      gcmUINT64_TO_PTR(Interface->u.FreeNonPagedMemory.logical),
                                      (gctSIZE_T) Interface->u.FreeNonPagedMemory.bytes));
 
-#if gcdSECURE_USER
-        gcmkVERIFY_OK(gckKERNEL_FlushTranslationCache(
-            Kernel,
-            cache,
-            gcmUINT64_TO_PTR(Interface->u.FreeNonPagedMemory.logical),
-            (gctSIZE_T) Interface->u.FreeNonPagedMemory.bytes));
-#endif
-
         gcmRELEASE_NAME(Interface->u.FreeNonPagedMemory.physName);
         break;
 
@@ -2620,12 +2804,15 @@ gckKERNEL_Dispatch(
         break;
 
     case gcvHAL_EVENT_COMMIT:
-        gcmkONERROR(gckOS_AcquireMutex(Kernel->os,
-            Kernel->device->commitMutex,
-            gcvINFINITE
-            ));
+        if (!Interface->commitMutex)
+        {
+            gcmkONERROR(gckOS_AcquireMutex(Kernel->os,
+                Kernel->device->commitMutex,
+                gcvINFINITE
+                ));
 
-        commitMutexAcquired = gcvTRUE;
+            commitMutexAcquired = gcvTRUE;
+        }
         /* Commit an event queue. */
         if (Interface->engine == gcvENGINE_BLT)
         {
@@ -2643,17 +2830,22 @@ gckKERNEL_Dispatch(
                 Kernel->eventObj, gcmUINT64_TO_PTR(Interface->u.Event.queue), gcvFALSE));
         }
 
-        gcmkONERROR(gckOS_ReleaseMutex(Kernel->os, Kernel->device->commitMutex));
-        commitMutexAcquired = gcvFALSE;
+        if (!Interface->commitMutex)
+        {
+            gcmkONERROR(gckOS_ReleaseMutex(Kernel->os, Kernel->device->commitMutex));
+            commitMutexAcquired = gcvFALSE;
+        }
         break;
 
     case gcvHAL_COMMIT:
-        gcmkONERROR(gckOS_AcquireMutex(Kernel->os,
-            Device->commitMutex,
-            gcvINFINITE
-            ));
-
-        commitMutexAcquired = gcvTRUE;
+        if (!Interface->commitMutex)
+        {
+            gcmkONERROR(gckOS_AcquireMutex(Kernel->os,
+                Device->commitMutex,
+                gcvINFINITE
+                ));
+            commitMutexAcquired = gcvTRUE;
+        }
 
         gcmkONERROR(_Commit(Device,
                             Kernel->hardware->type,
@@ -2661,8 +2853,11 @@ gckKERNEL_Dispatch(
                             processID,
                             &Interface->u.Commit));
 
-        gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Device->commitMutex));
-        commitMutexAcquired = gcvFALSE;
+        if (!Interface->commitMutex)
+        {
+            gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Device->commitMutex));
+            commitMutexAcquired = gcvFALSE;
+        }
         break;
 
 #if !USE_NEW_LINUX_SIGNAL
@@ -2749,9 +2944,8 @@ gckKERNEL_Dispatch(
     case gcvHAL_SET_POWER_MANAGEMENT_STATE:
         /* Set the power management state. */
         gcmkONERROR(
-            gckHARDWARE_SetPowerManagementState(
-                Kernel->hardware,
-                Interface->u.SetPowerManagement.state));
+            gckHARDWARE_SetPowerState(Kernel->hardware,
+                                      Interface->u.SetPowerManagement.state));
         break;
 
     case gcvHAL_QUERY_POWER_MANAGEMENT_STATE:
@@ -2759,7 +2953,7 @@ gckKERNEL_Dispatch(
         Interface->u.QueryPowerManagement.isIdle = gcvFALSE;
 
         /* Query the power management state. */
-        gcmkONERROR(gckHARDWARE_QueryPowerManagementState(
+        gcmkONERROR(gckHARDWARE_QueryPowerState(
             Kernel->hardware,
             &Interface->u.QueryPowerManagement.state));
 
@@ -2776,7 +2970,7 @@ gckKERNEL_Dispatch(
 
             gcmkONERROR(gckOS_AcquireMutex(Kernel->os, Kernel->hardware->powerMutex, gcvINFINITE));
             powerMutexAcquired = gcvTRUE;
-            gcmkONERROR(gckHARDWARE_QueryPowerManagementState(Kernel->hardware,
+            gcmkONERROR(gckHARDWARE_QueryPowerState(Kernel->hardware,
                                                               &power));
             if (power == gcvPOWER_ON)
             {
@@ -2810,7 +3004,7 @@ gckKERNEL_Dispatch(
 
             gcmkONERROR(gckOS_AcquireMutex(Kernel->os, Kernel->hardware->powerMutex, gcvINFINITE));
             powerMutexAcquired = gcvTRUE;
-            gcmkONERROR(gckHARDWARE_QueryPowerManagementState(Kernel->hardware,
+            gcmkONERROR(gckHARDWARE_QueryPowerState(Kernel->hardware,
                                                                   &power));
             if (power == gcvPOWER_ON)
             {
@@ -2922,7 +3116,7 @@ gckKERNEL_Dispatch(
 
             _DumpDriverConfigure(Kernel);
 
-            gcmkONERROR(gckHARDWARE_QueryPowerManagementState(
+            gcmkONERROR(gckHARDWARE_QueryPowerState(
                 Kernel->hardware,
                 &power
                 ));
@@ -3122,6 +3316,10 @@ gckKERNEL_Dispatch(
         gcmkONERROR(_ImportVideoMemory(Kernel, processID, Interface));
         break;
 
+    case gcvHAL_SET_VIDEO_MEMORY_METADATA:
+        gcmkONERROR(_SetVidMemMetadata(Kernel, processID, Interface));
+        break;
+
     case gcvHAL_GET_VIDEO_MEMORY_FD:
         gcmkONERROR(_GetVideoMemoryFd(Kernel, processID, Interface));
         break;
@@ -3276,6 +3474,20 @@ gckKERNEL_Dispatch(
 
     case gcvHAL_WAIT_FENCE:
         gcmkONERROR(_WaitFence(Kernel, processID, Interface));
+        break;
+
+    case gcvHAL_DEVICE_MUTEX:
+        if (Interface->u.DeviceMutex.isMutexLocked)
+        {
+            gcmkONERROR(gckOS_AcquireMutex(Kernel->os,
+                Kernel->device->commitMutex,
+                gcvINFINITE
+                ));
+        }
+        else
+        {
+            gcmkONERROR(gckOS_ReleaseMutex(Kernel->os, Kernel->device->commitMutex));
+        }
         break;
 
 #if gcdDEC_ENABLE_AHB
@@ -3508,509 +3720,6 @@ OnError:
     return status;
 }
 
-#if gcdSECURE_USER
-gceSTATUS
-gckKERNEL_MapLogicalToPhysical(
-    IN gckKERNEL Kernel,
-    IN gcskSECURE_CACHE_PTR Cache,
-    IN OUT gctPOINTER * Data
-    )
-{
-    gceSTATUS status;
-    static gctBOOL baseAddressValid = gcvFALSE;
-    static gctUINT32 baseAddress;
-    gctBOOL needBase;
-    gcskLOGICAL_CACHE_PTR slot;
-
-    gcmkHEADER_ARG("Kernel=0x%x Cache=0x%x *Data=0x%x",
-                   Kernel, Cache, gcmOPT_POINTER(Data));
-
-    /* Verify the arguments. */
-    gcmkVERIFY_OBJECT(Kernel, gcvOBJ_KERNEL);
-
-    if (!baseAddressValid)
-    {
-        /* Get base address. */
-        gcmkONERROR(gckHARDWARE_GetBaseAddress(Kernel->hardware, &baseAddress));
-
-        baseAddressValid = gcvTRUE;
-    }
-
-    /* Does this state load need a base address? */
-    gcmkONERROR(gckHARDWARE_NeedBaseAddress(Kernel->hardware,
-                                            ((gctUINT32_PTR) Data)[-1],
-                                            &needBase));
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_LRU
-    {
-        gcskLOGICAL_CACHE_PTR next;
-        gctINT i;
-
-        /* Walk all used cache slots. */
-        for (i = 1, slot = Cache->cache[0].next, next = gcvNULL;
-             (i <= gcdSECURE_CACHE_SLOTS) && (slot->logical != gcvNULL);
-             ++i, slot = slot->next
-        )
-        {
-            if (slot->logical == *Data)
-            {
-                /* Bail out. */
-                next = slot;
-                break;
-            }
-        }
-
-        /* See if we had a miss. */
-        if (next == gcvNULL)
-        {
-            /* Use the tail of the cache. */
-            slot = Cache->cache[0].prev;
-
-            /* Initialize the cache line. */
-            slot->logical = *Data;
-
-            /* Map the logical address to a DMA address. */
-            gcmkONERROR(
-                gckOS_GetPhysicalAddress(Kernel->os, *Data, &slot->dma));
-
-            gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(Kernel->os, slot->dma, &slot->dma));
-        }
-
-        /* Move slot to head of list. */
-        if (slot != Cache->cache[0].next)
-        {
-            /* Unlink. */
-            slot->prev->next = slot->next;
-            slot->next->prev = slot->prev;
-
-            /* Move to head of chain. */
-            slot->prev       = &Cache->cache[0];
-            slot->next       = Cache->cache[0].next;
-            slot->prev->next = slot;
-            slot->next->prev = slot;
-        }
-    }
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_LINEAR
-    {
-        gctINT i;
-        gcskLOGICAL_CACHE_PTR next = gcvNULL;
-        gcskLOGICAL_CACHE_PTR oldestSlot = gcvNULL;
-        slot = gcvNULL;
-
-        if (Cache->cacheIndex != gcvNULL)
-        {
-            /* Walk the cache forwards. */
-            for (i = 1, slot = Cache->cacheIndex;
-                 (i <= gcdSECURE_CACHE_SLOTS) && (slot->logical != gcvNULL);
-                 ++i, slot = slot->next)
-            {
-                if (slot->logical == *Data)
-                {
-                    /* Bail out. */
-                    next = slot;
-                    break;
-                }
-
-                /* Determine age of this slot. */
-                if ((oldestSlot       == gcvNULL)
-                ||  (oldestSlot->stamp > slot->stamp)
-                )
-                {
-                    oldestSlot = slot;
-                }
-            }
-
-            if (next == gcvNULL)
-            {
-                /* Walk the cache backwards. */
-                for (slot = Cache->cacheIndex->prev;
-                     (i <= gcdSECURE_CACHE_SLOTS) && (slot->logical != gcvNULL);
-                     ++i, slot = slot->prev)
-                {
-                    if (slot->logical == *Data)
-                    {
-                        /* Bail out. */
-                        next = slot;
-                        break;
-                    }
-
-                    /* Determine age of this slot. */
-                    if ((oldestSlot       == gcvNULL)
-                    ||  (oldestSlot->stamp > slot->stamp)
-                    )
-                    {
-                        oldestSlot = slot;
-                    }
-                }
-            }
-        }
-
-        /* See if we had a miss. */
-        if (next == gcvNULL)
-        {
-            if (Cache->cacheFree != 0)
-            {
-                slot = &Cache->cache[Cache->cacheFree];
-                gcmkASSERT(slot->logical == gcvNULL);
-
-                ++ Cache->cacheFree;
-                if (Cache->cacheFree >= gcmCOUNTOF(Cache->cache))
-                {
-                    Cache->cacheFree = 0;
-                }
-            }
-            else
-            {
-                /* Use the oldest cache slot. */
-                gcmkASSERT(oldestSlot != gcvNULL);
-                slot = oldestSlot;
-
-                /* Unlink from the chain. */
-                slot->prev->next = slot->next;
-                slot->next->prev = slot->prev;
-
-                /* Append to the end. */
-                slot->prev       = Cache->cache[0].prev;
-                slot->next       = &Cache->cache[0];
-                slot->prev->next = slot;
-                slot->next->prev = slot;
-            }
-
-            /* Initialize the cache line. */
-            slot->logical = *Data;
-
-            /* Map the logical address to a DMA address. */
-            gcmkONERROR(
-                gckOS_GetPhysicalAddress(Kernel->os, *Data, &slot->dma));
-
-            gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(Kernel->os, slot->dma, &slot->dma));
-        }
-
-        /* Save time stamp. */
-        slot->stamp = ++ Cache->cacheStamp;
-
-        /* Save current slot for next lookup. */
-        Cache->cacheIndex = slot;
-    }
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-    {
-        gctINT i;
-        gctUINT32 data = gcmPTR2INT32(*Data);
-        gctUINT32 key, index;
-        gcskLOGICAL_CACHE_PTR hash;
-
-        /* Generate a hash key. */
-        key   = (data >> 24) + (data >> 16) + (data >> 8) + data;
-        index = key % gcmCOUNTOF(Cache->hash);
-
-        /* Get the hash entry. */
-        hash = &Cache->hash[index];
-
-        for (slot = hash->nextHash, i = 0;
-             (slot != gcvNULL) && (i < gcdSECURE_CACHE_SLOTS);
-             slot = slot->nextHash, ++i
-        )
-        {
-            if (slot->logical == (*Data))
-            {
-                break;
-            }
-        }
-
-        if (slot == gcvNULL)
-        {
-            /* Grab from the tail of the cache. */
-            slot = Cache->cache[0].prev;
-
-            /* Unlink slot from any hash table it is part of. */
-            if (slot->prevHash != gcvNULL)
-            {
-                slot->prevHash->nextHash = slot->nextHash;
-            }
-            if (slot->nextHash != gcvNULL)
-            {
-                slot->nextHash->prevHash = slot->prevHash;
-            }
-
-            /* Initialize the cache line. */
-            slot->logical = *Data;
-
-            /* Map the logical address to a DMA address. */
-            gcmkONERROR(
-                gckOS_GetPhysicalAddress(Kernel->os, *Data, &slot->dma));
-
-            gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(Kernel->os, slot->dma, &slot->dma));
-
-            if (hash->nextHash != gcvNULL)
-            {
-                gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_KERNEL,
-                               "Hash Collision: logical=0x%x key=0x%08x",
-                               *Data, key);
-            }
-
-            /* Insert the slot at the head of the hash list. */
-            slot->nextHash     = hash->nextHash;
-            if (slot->nextHash != gcvNULL)
-            {
-                slot->nextHash->prevHash = slot;
-            }
-            slot->prevHash     = hash;
-            hash->nextHash     = slot;
-        }
-
-        /* Move slot to head of list. */
-        if (slot != Cache->cache[0].next)
-        {
-            /* Unlink. */
-            slot->prev->next = slot->next;
-            slot->next->prev = slot->prev;
-
-            /* Move to head of chain. */
-            slot->prev       = &Cache->cache[0];
-            slot->next       = Cache->cache[0].next;
-            slot->prev->next = slot;
-            slot->next->prev = slot;
-        }
-    }
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_TABLE
-    {
-        gctUINT32 index = (gcmPTR2INT32(*Data) % gcdSECURE_CACHE_SLOTS) + 1;
-
-        /* Get cache slot. */
-        slot = &Cache->cache[index];
-
-        /* Check for cache miss. */
-        if (slot->logical != *Data)
-        {
-            /* Initialize the cache line. */
-            slot->logical = *Data;
-
-            /* Map the logical address to a DMA address. */
-            gcmkONERROR(
-                gckOS_GetPhysicalAddress(Kernel->os, *Data, &slot->dma));
-
-            gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(Kernel->os, slot->dma, &slot->dma));
-        }
-    }
-#endif
-
-    /* Return DMA address. */
-    *Data = gcmINT2PTR(slot->dma + (needBase ? baseAddress : 0));
-
-    /* Success. */
-    gcmkFOOTER_ARG("*Data=0x%08x", *Data);
-    return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
-    gcmkFOOTER();
-    return status;
-}
-
-gceSTATUS
-gckKERNEL_FlushTranslationCache(
-    IN gckKERNEL Kernel,
-    IN gcskSECURE_CACHE_PTR Cache,
-    IN gctPOINTER Logical,
-    IN gctSIZE_T Bytes
-    )
-{
-    gctINT i;
-    gcskLOGICAL_CACHE_PTR slot;
-    gctUINT8_PTR ptr;
-
-    gcmkHEADER_ARG("Kernel=0x%x Cache=0x%x Logical=0x%x Bytes=%lu",
-                   Kernel, Cache, Logical, Bytes);
-
-    /* Do we need to flush the entire cache? */
-    if (Logical == gcvNULL)
-    {
-        /* Clear all cache slots. */
-        for (i = 1; i <= gcdSECURE_CACHE_SLOTS; ++i)
-        {
-            Cache->cache[i].logical  = gcvNULL;
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-            Cache->cache[i].nextHash = gcvNULL;
-            Cache->cache[i].prevHash = gcvNULL;
-#endif
-}
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-        /* Zero the hash table. */
-        for (i = 0; i < gcmCOUNTOF(Cache->hash); ++i)
-        {
-            Cache->hash[i].nextHash = gcvNULL;
-        }
-#endif
-
-        /* Reset the cache functionality. */
-        Cache->cacheIndex = gcvNULL;
-        Cache->cacheFree  = 1;
-        Cache->cacheStamp = 0;
-    }
-
-    else
-    {
-        gctUINT8_PTR low  = (gctUINT8_PTR) Logical;
-        gctUINT8_PTR high = low + Bytes;
-
-#if gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_LRU
-        gcskLOGICAL_CACHE_PTR next;
-
-        /* Walk all used cache slots. */
-        for (i = 1, slot = Cache->cache[0].next;
-             (i <= gcdSECURE_CACHE_SLOTS) && (slot->logical != gcvNULL);
-             ++i, slot = next
-        )
-        {
-            /* Save pointer to next slot. */
-            next = slot->next;
-
-            /* Test if this slot falls within the range to flush. */
-            ptr = (gctUINT8_PTR) slot->logical;
-            if ((ptr >= low) && (ptr < high))
-            {
-                /* Unlink slot. */
-                slot->prev->next = slot->next;
-                slot->next->prev = slot->prev;
-
-                /* Append slot to tail of cache. */
-                slot->prev       = Cache->cache[0].prev;
-                slot->next       = &Cache->cache[0];
-                slot->prev->next = slot;
-                slot->next->prev = slot;
-
-                /* Mark slot as empty. */
-                slot->logical = gcvNULL;
-            }
-        }
-
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_LINEAR
-        gcskLOGICAL_CACHE_PTR next;
-
-        for (i = 1, slot = Cache->cache[0].next;
-             (i <= gcdSECURE_CACHE_SLOTS) && (slot->logical != gcvNULL);
-             ++i, slot = next)
-        {
-            /* Save pointer to next slot. */
-            next = slot->next;
-
-            /* Test if this slot falls within the range to flush. */
-            ptr = (gctUINT8_PTR) slot->logical;
-            if ((ptr >= low) && (ptr < high))
-            {
-                /* Test if this slot is the current slot. */
-                if (slot == Cache->cacheIndex)
-                {
-                    /* Move to next or previous slot. */
-                    Cache->cacheIndex = (slot->next->logical != gcvNULL)
-                                      ? slot->next
-                                      : (slot->prev->logical != gcvNULL)
-                                      ? slot->prev
-                                      : gcvNULL;
-                }
-
-                /* Unlink slot from cache. */
-                slot->prev->next = slot->next;
-                slot->next->prev = slot->prev;
-
-                /* Insert slot to head of cache. */
-                slot->prev       = &Cache->cache[0];
-                slot->next       = Cache->cache[0].next;
-                slot->prev->next = slot;
-                slot->next->prev = slot;
-
-                /* Mark slot as empty. */
-                slot->logical = gcvNULL;
-                slot->stamp   = 0;
-            }
-        }
-
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_HASH
-        gctINT j;
-        gcskLOGICAL_CACHE_PTR hash, next;
-
-        /* Walk all hash tables. */
-        for (i = 0, hash = Cache->hash;
-             i < gcmCOUNTOF(Cache->hash);
-             ++i, ++hash)
-        {
-            /* Walk all slots in the hash. */
-            for (j = 0, slot = hash->nextHash;
-                 (j < gcdSECURE_CACHE_SLOTS) && (slot != gcvNULL);
-                 ++j, slot = next)
-            {
-                /* Save pointer to next slot. */
-                next = slot->next;
-
-                /* Test if this slot falls within the range to flush. */
-                ptr = (gctUINT8_PTR) slot->logical;
-                if ((ptr >= low) && (ptr < high))
-                {
-                    /* Unlink slot from hash table. */
-                    if (slot->prevHash == hash)
-                    {
-                        hash->nextHash = slot->nextHash;
-                    }
-                    else
-                    {
-                        slot->prevHash->nextHash = slot->nextHash;
-                    }
-
-                    if (slot->nextHash != gcvNULL)
-                    {
-                        slot->nextHash->prevHash = slot->prevHash;
-                    }
-
-                    /* Unlink slot from cache. */
-                    slot->prev->next = slot->next;
-                    slot->next->prev = slot->prev;
-
-                    /* Append slot to tail of cache. */
-                    slot->prev       = Cache->cache[0].prev;
-                    slot->next       = &Cache->cache[0];
-                    slot->prev->next = slot;
-                    slot->next->prev = slot;
-
-                    /* Mark slot as empty. */
-                    slot->logical  = gcvNULL;
-                    slot->prevHash = gcvNULL;
-                    slot->nextHash = gcvNULL;
-                }
-            }
-        }
-
-#elif gcdSECURE_CACHE_METHOD == gcdSECURE_CACHE_TABLE
-        gctUINT32 index;
-
-        /* Loop while inside the range. */
-        for (i = 1; (low < high) && (i <= gcdSECURE_CACHE_SLOTS); ++i)
-        {
-            /* Get index into cache for this range. */
-            index = (gcmPTR2INT32(low) % gcdSECURE_CACHE_SLOTS) + 1;
-            slot  = &Cache->cache[index];
-
-            /* Test if this slot falls within the range to flush. */
-            ptr = (gctUINT8_PTR) slot->logical;
-            if ((ptr >= low) && (ptr < high))
-            {
-                /* Remove entry from cache. */
-                slot->logical = gcvNULL;
-            }
-
-            /* Next block. */
-            low += gcdSECURE_CACHE_SLOTS;
-        }
-#endif
-    }
-
-    /* Success. */
-    gcmkFOOTER_NO();
-    return gcvSTATUS_OK;
-}
-#endif
-
 /*******************************************************************************
 **
 **  gckKERNEL_Recovery
@@ -4034,10 +3743,6 @@ gckKERNEL_Recovery(
     gceSTATUS status;
     gckEVENT eventObj;
     gckHARDWARE hardware;
-#if gcdSECURE_USER
-    gctUINT32 processID;
-    gcskSECURE_CACHE_PTR cache;
-#endif
     gctUINT32 mask = 0;
     gctUINT32 i = 0, count = 0;
 #if gcdINTERRUPT_STATISTIC
@@ -4056,13 +3761,6 @@ gckKERNEL_Recovery(
     /* Grab gckHARDWARE object. */
     hardware = Kernel->hardware;
     gcmkVERIFY_OBJECT(hardware, gcvOBJ_HARDWARE);
-
-#if gcdSECURE_USER
-    /* Flush the secure mapping cache. */
-    gcmkONERROR(gckOS_GetProcessID(&processID));
-    gcmkONERROR(gckKERNEL_GetProcessDBCache(Kernel, processID, &cache));
-    gcmkONERROR(gckKERNEL_FlushTranslationCache(Kernel, cache, gcvNULL, 0));
-#endif
 
     if (Kernel->stuckDump == gcvSTUCK_DUMP_NONE)
     {
@@ -4521,6 +4219,7 @@ gckKERNEL_AllocateIntegerId(
     gctUINT32 pos;
     gctUINT32 n, i;
     gckOS os = database->os;
+    gctPOINTER * table = gcvNULL;
 
     gcmkHEADER_ARG("Database=%p Pointer=%p", Database, Pointer);
 
@@ -4528,7 +4227,6 @@ gckKERNEL_AllocateIntegerId(
 
     if (database->freeCount < 1)
     {
-        gctPOINTER * table = gcvNULL;
         gctUINT32 * bitmap = gcvNULL;
         gctUINT32 expand;
         gctUINT32 capacity;
@@ -4602,6 +4300,11 @@ gckKERNEL_AllocateIntegerId(
     return gcvSTATUS_OK;
 
 OnError:
+    if (table)
+    {
+        gckOS_Free(os, table);
+    }
+
     gcmkVERIFY_OK(gckOS_ReleaseMutex(os, database->mutex));
 
     gcmkFOOTER();
@@ -5402,12 +5105,20 @@ gckDEVICE_Construct(
     {
         device->coreInfoArray[i].type = gcvHARDWARE_INVALID;
 
-        /* Initialize device SRAM. */
-        for (j = 0; j < gcvSRAM_COUNT; j++)
+        /* Initialize internal SRAM. */
+        for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
         {
             device->sRAMBases[i][j] = gcvINVALID_PHYSICAL_ADDRESS;
             device->sRAMSizes[i][j] = 0;
+            device->sRAMPhysFaked[i][j] = gcvFALSE;
         }
+    }
+
+    /* Initialize external SRAM. */
+    for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
+    {
+        device->extSRAMBases[i] = gcvINVALID_PHYSICAL_ADDRESS;
+        device->extSRAMSizes[i] = 0;
     }
 
     device->defaultHwType = gcvHARDWARE_INVALID;
@@ -5416,6 +5127,7 @@ gckDEVICE_Construct(
     gcmkONERROR(gckOS_CreateMutex(Os, &device->commitMutex));
 
     device->os = Os;
+    device->showSRAMMapInfo = 0;
 
     *Device = device;
 
@@ -5801,17 +5513,16 @@ gckKERNEL_MapInTrustApplicaiton(
     return gcvSTATUS_OK;
 
 OnError:
-    if(physicalArrayLogical != gcvNULL)
+    if (physicalArrayLogical != gcvNULL)
+    {
         gcmkVERIFY_OK(gckOS_Free(
             Kernel->os,
             (gctPOINTER)physicalArrayLogical
             ));
+    }
+
     gcmkFOOTER();
     return status;
 }
 #endif
-
-/*******************************************************************************
-***** Test Code ****************************************************************
-*******************************************************************************/
 

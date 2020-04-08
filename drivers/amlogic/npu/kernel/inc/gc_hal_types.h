@@ -68,6 +68,14 @@
 #   include "linux/types.h"
 #elif defined(UNDER_CE)
 #include <crtdefs.h>
+typedef signed char        int8_t;
+typedef short              int16_t;
+typedef int                int32_t;
+typedef long long          int64_t;
+typedef unsigned char      uint8_t;
+typedef unsigned short     uint16_t;
+typedef unsigned int       uint32_t;
+typedef unsigned long long uint64_t;
 #elif defined(_MSC_VER) && (_MSC_VER <= 1500)
 #include <crtdefs.h>
 #include "vadefs.h"
@@ -135,6 +143,7 @@ extern "C" {
 #else
 #   error "gcmINLINE: Platform could not be determined"
 #endif
+
 
 /* Possible debug flags. */
 #define gcdDEBUG_NONE           0
@@ -263,6 +272,8 @@ typedef void *                  gctPOINTER;
 typedef const void *            gctCONST_POINTER;
 
 typedef char                    gctCHAR;
+typedef signed char             gctSIGNED_CHAR;
+typedef unsigned char           gctUNSIGNED_CHAR;
 typedef char *                  gctSTRING;
 typedef const char *            gctCONST_STRING;
 
@@ -485,7 +496,6 @@ typedef enum _gceSTATUS
     gcvSTATUS_DEVICE                =   -27,
     gcvSTATUS_NOT_MULTI_PIPE_ALIGNED =   -28,
     gcvSTATUS_OUT_OF_SAMPLER         =   -29,
-    gcvSTATUS_RESLUT_OVERFLOW       =   -30,
 
     /* Linker errors. */
     gcvSTATUS_GLOBAL_TYPE_MISMATCH              =   -1000,
@@ -861,7 +871,8 @@ gceSTATUS;
 **
 **      Return a value with all bytes in the 32 bit argument swapped.
 */
-#if defined(__GNUC__) && !defined(__KERNEL__)
+#if !defined(__KERNEL__) && defined(__GNUC__) && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__ >= 40300) \
+   && !defined(__VXWORKS__)
 #  define gcmBSWAP32(x)     __builtin_bswap32(x)
 #else
 #  define gcmBSWAP32(x) ((gctUINT32)(\
@@ -998,8 +1009,9 @@ typedef enum _gceTRACEMODE
     gcvTRACEMODE_NONE     = 0,
     gcvTRACEMODE_FULL     = 1,
     gcvTRACEMODE_LOGGER   = 2,
-    gcvTRACEMODE_PRE      = 3,
-    gcvTRACEMODE_POST     = 4,
+    gcvTRACEMODE_ALLZONE  = 3,
+    gcvTRACEMODE_PRE      = 4,
+    gcvTRACEMODE_POST     = 5,
 } gceTRACEMODE;
 
 typedef struct _gcsLISTHEAD * gcsLISTHEAD_PTR;

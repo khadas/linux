@@ -349,7 +349,10 @@ struct dma_fence * viv_fence_create(struct viv_sync_timeline *timeline,
 
     if (!signal->done) {
         signal->fence = (struct dma_fence*)fence;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,68)
         dma_fence_get((struct dma_fence*)fence);
+#endif
     }
 
     spin_unlock(&signal->lock);

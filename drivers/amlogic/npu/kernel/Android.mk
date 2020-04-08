@@ -16,18 +16,28 @@ include $(LOCAL_PATH)/../../Android.mk.def
 
 ifeq ($(VIVANTE_ENABLE_VSIMULATOR),0)
 
+
 #
 # galcore.ko
 #
 include $(CLEAR_VARS)
-.PHONY: KBUILD
 
+GALCORE_OUT := $(TARGET_OUT_INTERMEDIATES)/GALCORE_OBJ
 GALCORE := \
-	$(LOCAL_PATH)/../../galcore.ko
+	$(GALCORE_OUT)/galcore.ko
 
-$(GALCORE):   KBUILD
+KERNELENVSH := $(GALCORE_OUT)/kernelenv.sh
+$(KERNELENVSH):
+	rm -rf $(KERNELENVSH)
+	echo 'export KERNEL_DIR=$(KERNEL_DIR)' > $(KERNELENVSH)
+	echo 'export CROSS_COMPILE=$(CROSS_COMPILE)' >> $(KERNELENVSH)
+	echo 'export ARCH_TYPE=$(ARCH_TYPE)' >> $(KERNELENVSH)
+
+GALCORE_LOCAL_PATH := $(LOCAL_PATH)
+
+$(GALCORE): $(KERNELENVSH)
 	@cd $(AQROOT)
-	@$(MAKE) -f Kbuild -C $(AQROOT) \
+	source $(KERNELENVSH); $(MAKE) -f Kbuild -C $(AQROOT) \
 		AQROOT=$(abspath $(AQROOT)) \
 		AQARCH=$(abspath $(AQARCH)) \
 		AQVGARCH=$(abspath $(AQVGARCH)) \
@@ -36,10 +46,11 @@ $(GALCORE):   KBUILD
 		VIVANTE_ENABLE_DRM=$(DRM_GRALLOC) \
 		VIVANTE_ENABLE_2D=$(VIVANTE_ENABLE_2D) \
 		VIVANTE_ENABLE_3D=$(VIVANTE_ENABLE_3D) \
-		VIVANTE_ENABLE_VG=$(VIVANTE_ENABLE_VG)
+		VIVANTE_ENABLE_VG=$(VIVANTE_ENABLE_VG); \
+		cp $(GALCORE_LOCAL_PATH)/../../galcore.ko $(GALCORE)
 
-LOCAL_SRC_FILES := \
-	../../galcore.ko
+LOCAL_PREBUILT_MODULE_FILE := \
+	$(GALCORE)
 
 LOCAL_GENERATED_SOURCES := \
 	$(AQREG) \
@@ -99,6 +110,10 @@ LOCAL_MODULE_TAGS    := optional
 
 LOCAL_PRELINK_MODULE := false
 
+ifeq ($(PLATFORM_VENDOR),1)
+LOCAL_VENDOR_MODULE  := true
+endif
 include $(BUILD_STATIC_LIBRARY)
 
 endif
+

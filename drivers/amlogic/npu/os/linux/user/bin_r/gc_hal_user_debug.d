@@ -1,12 +1,12 @@
 bin_r/gc_hal_user_debug.o: gc_hal_user_debug.c gc_hal_user_linux.h \
  /home/nick/code/fenix/nanoq/hal/user/gc_hal_user.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal.h \
- /home/nick/code/fenix/nanoq/hal/inc/gc_hal_rename.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_types.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_version.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_options.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_enum.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_base.h \
+ /home/nick/code/fenix/nanoq/hal/inc/gc_hal_debug_zones.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_profiler.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_driver.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_statistics.h \
@@ -21,13 +21,13 @@ bin_r/gc_hal_user_debug.o: gc_hal_user_debug.c gc_hal_user_linux.h \
  /home/nick/code/fenix/nanoq/hal/os/linux/user/gc_hal_user_os_atomic.h \
  /home/nick/code/fenix/nanoq/hal/os/linux/user/gc_hal_user_debug.h \
  /home/nick/code/fenix/nanoq/hal/inc/gc_hal_engine.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_interface.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/gc_vsc_precomp.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/old_impl/gc_vsc_old_drvi_interface.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/old_impl/gc_vsc_old_gcsl.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_lib_link.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_shader_priv_mapping.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_shader_profile.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_program_profile.h \
- /home/nick/code/fenix/nanoq/compiler/libVSC/include/drvi/gc_vsc_drvi_kernel_profile.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_interface.h \
+ /home/nick/code/fenix/nanoq/hal/inc/gc_vsc_precomp.h \
+ /home/nick/code/fenix/nanoq/hal/inc/old_impl/gc_vsc_old_drvi_interface.h \
+ /home/nick/code/fenix/nanoq/hal/inc/old_impl/gc_vsc_old_gcsl.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_lib_link.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_shader_priv_mapping.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_shader_profile.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_program_profile.h \
+ /home/nick/code/fenix/nanoq/hal/inc/drvi/gc_vsc_drvi_kernel_profile.h \
  /home/nick/code/fenix/nanoq/hal/user/gc_hal_user_shader.h

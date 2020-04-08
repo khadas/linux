@@ -770,6 +770,7 @@ gctaHARDWARE_PrepareFunctions(
     gctUINT32 mmuBytes;
     gctUINT32 endBytes = 8;
     gctUINT8_PTR logical;
+    gctPHYS_ADDR_T physical;
 
     gcmkHEADER();
 
@@ -798,8 +799,10 @@ gctaHARDWARE_PrepareFunctions(
     gcmkONERROR(gctaOS_GetPhysicalAddress(
         Hardware->ta->os,
         Hardware->functionLogical,
-        (gctPHYS_ADDR_T *)&Hardware->functionAddress
+        &physical
         ));
+
+    gcmkSAFECASTPHYSADDRT(Hardware->functionAddress, physical);
 
     function = &Hardware->functions[0];
 

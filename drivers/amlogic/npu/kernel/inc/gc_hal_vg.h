@@ -61,7 +61,6 @@ extern "C" {
 #endif
 
 
-#include "gc_hal_rename.h"
 #include "gc_hal_types.h"
 #include "gc_hal_enum.h"
 #include "gc_hal_base.h"

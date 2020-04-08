@@ -58,13 +58,13 @@
 
 #define gcvVERSION_MAJOR        6
 
-#define gcvVERSION_MINOR        3
+#define gcvVERSION_MINOR        4
 
-#define gcvVERSION_PATCH        3
+#define gcvVERSION_PATCH        0
 
-#define gcvVERSION_BUILD     210826
+#define gcvVERSION_BUILD     229426
 
-#define gcvVERSION_STRING    "6.3.3.4.210826"
+#define gcvVERSION_STRING    "6.4.0.3.229426"
 
 #endif /* __gc_hal_version_h_ */
 
