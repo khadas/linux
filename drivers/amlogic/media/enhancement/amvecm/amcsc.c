@@ -4619,11 +4619,13 @@ static void vpp_lut_curve_set(enum vpp_lut_sel_e lut_sel,
 		}
 	}
 
-	set_vpp_lut(lut_sel,
-		    ptable,
-		    ptable,
-		    ptable,
-		    CSC_ON);
+	if (lut_sel == VPP_LUT_EOTF ||
+	    lut_sel == VPP_LUT_OETF)
+		set_vpp_lut(lut_sel,
+			    ptable,
+			    ptable,
+			    ptable,
+			    CSC_ON);
 }
 
 static int hdr10p_process(struct vinfo_s *vinfo,
