@@ -1241,6 +1241,10 @@ config SPI_SPIDEV
 	help
 	  This supports user mode SPI protocol drivers.
 
+config SPI_SPIDEV_OOB
+        bool "Enable out-of-band SPI transactions"
+	depends on SPI_SPIDEV && EVL
+
 config SPI_LOOPBACK_TEST
 	tristate "spi loopback test framework support"
 	depends on m
