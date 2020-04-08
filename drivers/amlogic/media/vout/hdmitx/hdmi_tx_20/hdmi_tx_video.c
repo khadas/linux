@@ -1072,7 +1072,6 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 		return;
 	}
 	if (vend_data->vendor_name) {
-		len = strlen(vend_data->vendor_name);
 		strncpy(&SPD_DB[0], vend_data->vendor_name, sizeof(SPD_DB));
 	}
 	if (vend_data->product_desc) {
