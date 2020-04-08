@@ -289,13 +289,10 @@ static int ge2d_paint_dst(struct ge2d_context_s *context,
 
 		if ((dst_paint_position[2] > dst_cd.width)
 				|| (dst_paint_position[3] > dst_cd.height)) {
-			ppmgr2_printk(0, "error: id %d,width %d,height %d, ",
-					dst_canvas_id,
-					dst_cd.width,
-					dst_cd.height);
-			ppmgr2_printk(0, "dst_width %d,dst_height %d\n",
-					dst_paint_position[2],
-					dst_paint_position[3]);
+			pr_info("ppmgr2-dev: error: id %d,width %d,height %d, ",
+				dst_canvas_id, dst_cd.width, dst_cd.height);
+			pr_info("ppmgr2-dev: dst_width %d,dst_height %d\n",
+				dst_paint_position[2], dst_paint_position[3]);
 			ppmgr2_printk(1, "error case : dst addr:%p\n",
 					(void *)dst_cd.addr);
 			return -1;
@@ -385,20 +382,28 @@ int ppmgr2_init(struct ppmgr2_device *ppd)
 
 int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 {
-	int canvas_width = ppd->dst_buffer_width;
-	int canvas_height = ppd->dst_buffer_height;
-	void *phy_addr;
+	int canvas_width;
+	int canvas_height;
+	void *phy_addr = NULL;
 
-	if (!ppd->phy_addr) {
-		ppmgr2_printk(1, "NULL physical address!\n");
+	if (IS_ERR_OR_NULL(ppd)) {
+		ppmgr2_printk(1, "ppd is NULL or error\n");
+		return -1;
+	}
+
+	canvas_width = ppd->dst_buffer_width;
+	canvas_height = ppd->dst_buffer_height;
+
+	if (index >= PPMGR2_MAX_CANVAS) {
+		pr_info("ppmgr2-dev: canvas index too large! %d>=%d\n",
+			index, PPMGR2_MAX_CANVAS);
 		return -1;
 	}
 
 	phy_addr = ppd->phy_addr[index];
 
-	if (index >= PPMGR2_MAX_CANVAS) {
-		ppmgr2_printk(0, "canvas index too large! %d>=%d\n", index,
-				PPMGR2_MAX_CANVAS);
+	if (IS_ERR_OR_NULL(phy_addr)) {
+		ppmgr2_printk(1, "NULL physical address!\n");
 		return -1;
 	}
 
