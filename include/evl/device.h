@@ -16,6 +16,7 @@
 #include <evl/poll.h>
 #include <evl/stax.h>
 #include <evl/work.h>
+#include <evl/sem.h>
 
 #else  /* !CONFIG_EVL */
 
