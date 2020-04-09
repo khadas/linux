@@ -95,7 +95,7 @@ struct cec_wakeup_t {
 
 /* global struct for tx and rx */
 struct ao_cec_dev {
-	bool proble_finish;
+	bool probe_finish;
 	unsigned long dev_type;
 	struct device_node *node;
 	unsigned int port_num;	/*total input hdmi port number*/
@@ -170,6 +170,8 @@ static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
 static unsigned int  new_msg;
 
+static bool ceca_err_flag;
+
 /*static bool wake_ok = 1;*/
 static bool ee_cec;
 static bool pin_status;
@@ -235,8 +237,8 @@ unsigned int waiting_aocec_free(unsigned int r)
 	while (readl(cec_dev->cec_reg + r) & (1<<23)) {
 		if (cnt++ >= 3500) {
 			pr_info("waiting aocec %x free time out %d\n", r, cnt);
-			if (cec_dev->proble_finish)
-				cec_hw_reset(CEC_A);
+			/*if (cec_dev->probe_finish)*/
+			/*	cec_hw_reset(CEC_A);*/
 			ret = false;
 			break;
 		}
@@ -251,7 +253,7 @@ unsigned int waiting_aocec_free(unsigned int r)
 		while (readl(cec_dev->cec_reg + r) & (1<<23)) {\
 			if (cnt++ == 3500) { \
 				pr_info("waiting aocec %x free time out\n", r);\
-				if (cec_dev->proble_finish) \
+				if (cec_dev->probe_finish) \
 					cec_hw_reset(CEC_A);\
 				break;\
 			} \
@@ -278,6 +280,7 @@ unsigned int aocec_rd_reg(unsigned long addr)
 	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
 		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+		ceca_err_flag = 1;
 		return 0;
 	}
 	data32 = 0;
@@ -288,6 +291,7 @@ unsigned int aocec_rd_reg(unsigned long addr)
 
 	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
 		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+		ceca_err_flag = 1;
 		return 0;
 	}
 	data32 = ((readl(cec_dev->cec_reg + AO_CEC_RW_REG)) >> 24) & 0xff;
@@ -303,6 +307,7 @@ void aocec_wr_reg(unsigned long addr, unsigned long data)
 	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
 		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+		ceca_err_flag = 1;
 		return;
 	}
 	data32 = 0;
@@ -2330,6 +2335,11 @@ static void cec_task(struct work_struct *work)
 			}
 		}
 	}
+
+
+	if (ceca_err_flag && cec_dev->probe_finish)
+		cec_hw_reset(CEC_A);
+
 	/*triger next process*/
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
@@ -3652,7 +3662,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_dev->tx_dev   = get_hdmitx_device();
 	cec_dev->cpu_type = get_cpu_type();
 	cec_dev->node = pdev->dev.of_node;
-	cec_dev->proble_finish = false;
+	cec_dev->probe_finish = false;
 	phy_addr_test = 0;
 	CEC_ERR("cec driver date:%s\n", CEC_DRIVER_VERSION);
 	cec_dbg_init();
@@ -4002,7 +4012,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	cec_irq_enable(true);
 	CEC_ERR("%s success end\n", __func__);
-	cec_dev->proble_finish = true;
+	cec_dev->probe_finish = true;
 	return 0;
 
 tag_cec_msg_alloc_err:
