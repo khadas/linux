@@ -146,6 +146,7 @@
 #define CLKID_TS				212
 #define CLKID_CPUB_CLK				224
 #define CLKID_GP1_PLL				243
+#define CLKID_DSU_CLK_FINAL			251
 #define CLKID_DSU_CLK				252
 #define CLKID_CPU1_CLK				253
 #define CLKID_CPU2_CLK				254

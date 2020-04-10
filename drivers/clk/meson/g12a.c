@@ -774,7 +774,7 @@ static struct clk_regmap sm1_dsu_clk_premux0 = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_dyn0_sel",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_data = (const struct clk_parent_data []) {
 			{ .fw_name = "xtal", },
 			{ .hw = &g12a_fclk_div2.hw },
@@ -782,6 +782,7 @@ static struct clk_regmap sm1_dsu_clk_premux0 = {
 			{ .hw = &sm1_gp1_pll.hw },
 		},
 		.num_parents = 4,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -794,7 +795,7 @@ static struct clk_regmap sm1_dsu_clk_premux1 = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_dyn1_sel",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_data = (const struct clk_parent_data []) {
 			{ .fw_name = "xtal", },
 			{ .hw = &g12a_fclk_div2.hw },
@@ -802,6 +803,7 @@ static struct clk_regmap sm1_dsu_clk_premux1 = {
 			{ .hw = &sm1_gp1_pll.hw },
 		},
 		.num_parents = 4,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -819,6 +821,7 @@ static struct clk_regmap sm1_dsu_clk_mux0_div = {
 			&sm1_dsu_clk_premux0.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -831,12 +834,13 @@ static struct clk_regmap sm1_dsu_clk_postmux0 = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_dyn0",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&sm1_dsu_clk_premux0.hw,
 			&sm1_dsu_clk_mux0_div.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -854,6 +858,7 @@ static struct clk_regmap sm1_dsu_clk_mux1_div = {
 			&sm1_dsu_clk_premux1.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -866,12 +871,13 @@ static struct clk_regmap sm1_dsu_clk_postmux1 = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_dyn1",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&sm1_dsu_clk_premux1.hw,
 			&sm1_dsu_clk_mux1_div.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -884,12 +890,13 @@ static struct clk_regmap sm1_dsu_clk_dyn = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_dyn",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&sm1_dsu_clk_postmux0.hw,
 			&sm1_dsu_clk_postmux1.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -902,12 +909,13 @@ static struct clk_regmap sm1_dsu_final_clk = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk_final",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&sm1_dsu_clk_dyn.hw,
 			&g12a_sys_pll.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -1192,6 +1200,48 @@ static struct g12a_sys_pll_nb_data g12b_cpub_clk_sys_pll_nb_data = {
 	.cpu_clk = &g12b_cpub_clk.hw,
 	.cpu_clk_dyn = &g12b_cpub_clk_dyn.hw,
 	.nb.notifier_call = g12a_sys_pll_notifier_cb,
+};
+
+/* sm1 dsu notify */
+struct sm1_dsu_clk_postmux_nb_data {
+	struct notifier_block nb;
+	struct clk_hw *dsu_clk_dyn;
+	struct clk_hw *dsu_clk_postmux0;
+	struct clk_hw *dsu_clk_postmux1;
+};
+
+static int sm1_dsu_clk_postmux_notifier_cb(struct notifier_block *nb,
+					   unsigned long event, void *data)
+{
+	struct sm1_dsu_clk_postmux_nb_data *nb_data =
+		container_of(nb, struct sm1_dsu_clk_postmux_nb_data, nb);
+	int ret = 0;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		ret = clk_hw_set_parent(nb_data->dsu_clk_dyn,
+					nb_data->dsu_clk_postmux1);
+		if (ret)
+			return notifier_from_errno(ret);
+		udelay(100);
+		return NOTIFY_OK;
+	case POST_RATE_CHANGE:
+		ret = clk_hw_set_parent(nb_data->dsu_clk_dyn,
+					nb_data->dsu_clk_postmux0);
+		if (ret)
+			return notifier_from_errno(ret);
+		udelay(100);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct sm1_dsu_clk_postmux_nb_data sm1_dsu_clk_postmux0_nb_data = {
+	.dsu_clk_dyn = &sm1_dsu_clk_dyn.hw,
+	.dsu_clk_postmux0 = &sm1_dsu_clk_postmux0.hw,
+	.dsu_clk_postmux1 = &sm1_dsu_clk_postmux1.hw,
+	.nb.notifier_call = sm1_dsu_clk_postmux_notifier_cb,
 };
 
 static struct clk_regmap g12a_cpu_clk_div16_en = {
@@ -6330,6 +6380,49 @@ static int meson_g12a_dvfs_setup(struct platform_device *pdev)
 	return 0;
 }
 
+static int meson_sm1_dvfs_setup(struct platform_device *pdev)
+{
+	struct clk_hw **hws = sm1_hw_onecell_data.hws;
+	int ret;
+
+	ret = meson_g12a_dvfs_setup_common(pdev, hws);
+	if (ret)
+		return ret;
+
+	/* Setup clock notifier for cpu_clk mux */
+	ret = clk_notifier_register(g12a_cpu_clk.hw.clk, &g12a_cpu_clk_mux_nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register cpu_clk notifier\n");
+		return ret;
+	}
+
+	/* Setup clock notifier for sys_pll */
+	ret = clk_notifier_register(g12a_sys_pll.hw.clk,
+				    &g12a_sys_pll_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
+		return ret;
+	}
+
+	/* Setup clock notifier for dsu */
+	/* set sm1_dsu_clk_premux1 parent to fclk_div2 1G */
+	ret = clk_set_parent(sm1_dsu_clk_premux1.hw.clk,
+			     g12a_fclk_div2.hw.clk);
+	if (ret < 0) {
+		pr_err("%s: failed to set dsu parent\n", __func__);
+		return ret;
+	}
+
+	ret = clk_notifier_register(sm1_dsu_clk_postmux0.hw.clk,
+				    &sm1_dsu_clk_postmux0_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register dsu notifier\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 struct meson_g12a_data {
 	const struct meson_eeclkc_data eeclkc_data;
 	int (*dvfs_setup)(struct platform_device *pdev);
@@ -6384,7 +6477,7 @@ static const struct meson_g12a_data sm1_clkc_data = {
 		.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
 		.hw_onecell_data = &sm1_hw_onecell_data,
 	},
-	.dvfs_setup = meson_g12a_dvfs_setup,
+	.dvfs_setup = meson_sm1_dvfs_setup,
 };
 
 static const struct of_device_id clkc_match_table[] = {
