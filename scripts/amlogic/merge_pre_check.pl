@@ -89,6 +89,11 @@ sub check_msg_49_2
 	my $i = 0;
 	my $len = @str;
 
+	if( $msg =~ /^Revert\s/ )
+	{
+		return 0;
+	}
+
 	if( $len < 4 )
 	{
 		$err_cnt += 5;
