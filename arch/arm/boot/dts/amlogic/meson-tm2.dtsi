@@ -364,6 +364,13 @@
 			size = <16>;
 		};
 	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		reg=<0xff800228 0x4>;
+		mem_size = <0x100000>;
+		status = "okay";
+	};
 };
 
 &gpu{
