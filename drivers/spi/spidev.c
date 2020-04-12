@@ -413,7 +413,7 @@ static int enable_oob_mode(struct spidev_data *spidev,
 out:
 	evl_up(&spidev->oob.sem);
 
-	return ret;
+	return ret == -ENOTSUPP ? -EOPNOTSUPP : ret;
 }
 
 static int disable_oob_mode(struct spidev_data *spidev)
