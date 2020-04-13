@@ -49,7 +49,7 @@ config MESON_EE_PM_DOMAINS
 	  Generic Power Domains.
 
 config MESON_MX_SOCINFO
-	bool "Amlogic Meson MX SoC Information driver"
+	tristate "Amlogic Meson MX SoC Information driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	default n
 	select SOC_BUS

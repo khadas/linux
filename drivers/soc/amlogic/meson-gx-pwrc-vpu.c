@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -14,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/kallsyms.h>
 
 /* AO Offsets */
 
@@ -277,6 +279,15 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	struct clk *vapb_clk;
 	bool powered_off;
 	int ret;
+#ifdef MODULE
+	struct dev_power_governor *aon_gov;
+
+	aon_gov = (void *)kallsyms_lookup_name("pm_domain_always_on_gov");
+	if (!aon_gov) {
+		pr_err("can't find symbol: pm_domain_always_on_gov\n");
+		return -EINVAL;
+	}
+#endif
 
 	vpu_pd_match = of_device_get_match_data(&pdev->dev);
 	if (!vpu_pd_match) {
@@ -339,8 +350,13 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+#ifdef MODULE
+	pm_genpd_init(&vpu_pd->genpd, aon_gov,
+		      powered_off);
+#else
 	pm_genpd_init(&vpu_pd->genpd, &pm_domain_always_on_gov,
 		      powered_off);
+#endif
 
 	return of_genpd_add_provider_simple(pdev->dev.of_node,
 					    &vpu_pd->genpd);
@@ -374,3 +390,4 @@ static struct platform_driver meson_gx_pwrc_vpu_driver = {
 	},
 };
 builtin_platform_driver(meson_gx_pwrc_vpu_driver);
+MODULE_LICENSE("GPL v2");

@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -128,7 +129,6 @@ static int __init meson_gx_socinfo_init(void)
 	struct device_node *np;
 	struct regmap *regmap;
 	unsigned int socinfo;
-	struct device *dev;
 	int ret;
 
 	/* look up for chipid node */
@@ -191,15 +191,30 @@ static int __init meson_gx_socinfo_init(void)
 		kfree(soc_dev_attr);
 		return PTR_ERR(soc_dev);
 	}
-	dev = soc_device_to_device(soc_dev);
 
-	dev_info(dev, "Amlogic Meson %s Revision %x:%x (%x:%x) Detected\n",
-			soc_dev_attr->soc_id,
-			socinfo_to_major(socinfo),
-			socinfo_to_minor(socinfo),
-			socinfo_to_pack(socinfo),
-			socinfo_to_misc(socinfo));
+	pr_info("Amlogic Meson %s Revision %x:%x (%x:%x) Detected\n",
+		soc_dev_attr->soc_id,
+		socinfo_to_major(socinfo),
+		socinfo_to_minor(socinfo),
+		socinfo_to_pack(socinfo),
+		socinfo_to_misc(socinfo));
 
 	return 0;
 }
+
+#ifndef MODULE
 device_initcall(meson_gx_socinfo_init);
+#else
+static int __init meson_gx_socinfo_init_wrap(void)
+{
+	meson_gx_socinfo_init();
+
+	return 0;
+}
+static void __exit meson_gx_socinfo_exit(void)
+{
+}
+module_init(meson_gx_socinfo_init_wrap);
+module_exit(meson_gx_socinfo_exit);
+MODULE_LICENSE("GPL v2");
+#endif

@@ -4,6 +4,8 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 
+#include <linux/module.h>
+#include <linux/kallsyms.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -567,6 +569,15 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 	int ret;
 	char buf[16] = {0};
 	int i;
+#ifdef MODULE
+	struct dev_power_governor *aon_gov;
+
+	aon_gov = (void *)kallsyms_lookup_name("pm_domain_always_on_gov");
+	if (!aon_gov) {
+		pr_err("can't find symbol: pm_domain_always_on_gov\n");
+		return -EINVAL;
+	}
+#endif
 
 	dom->pwrc = pwrc;
 	dom->num_rstc = dom->desc.reset_names_count;
@@ -616,9 +627,13 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 		ret = clk_bulk_prepare_enable(dom->num_clks, dom->clks);
 		if (ret)
 			return ret;
-
+#ifdef MODULE
+		ret = pm_genpd_init(&dom->base, aon_gov,
+				    false);
+#else
 		ret = pm_genpd_init(&dom->base, &pm_domain_always_on_gov,
 				    false);
+#endif
 		if (ret)
 			return ret;
 	} else {
@@ -767,3 +782,4 @@ static struct platform_driver meson_ee_pwrc_driver = {
 	},
 };
 builtin_platform_driver(meson_ee_pwrc_driver);
+MODULE_LICENSE("GPL v2");

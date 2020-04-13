@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -167,9 +168,26 @@ static int __init meson_mx_socinfo_init(void)
 		return PTR_ERR(soc_dev);
 	}
 
-	dev_info(soc_device_to_device(soc_dev), "Amlogic %s %s detected\n",
-		 soc_dev_attr->soc_id, soc_dev_attr->revision);
+	pr_info("Amlogic %s %s detected\n",
+		soc_dev_attr->soc_id,
+		soc_dev_attr->revision);
 
 	return 0;
 }
+
+#ifndef MODULE
 device_initcall(meson_mx_socinfo_init);
+#else
+static int __init meson_mx_socinfo_init_wrap(void)
+{
+	meson_mx_socinfo_init();
+
+	return 0;
+}
+static void __exit meson_mx_socinfo_exit(void)
+{
+}
+module_init(meson_mx_socinfo_init_wrap);
+module_exit(meson_mx_socinfo_exit);
+MODULE_LICENSE("GPL v2");
+#endif

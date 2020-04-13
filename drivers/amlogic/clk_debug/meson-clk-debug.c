@@ -9,10 +9,28 @@
 #include <linux/clk-provider.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/clk_measure.h>
+#include <linux/kallsyms.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "clk-debug: " fmt
 static struct clk *debug_clk;
+
+#ifdef MODULE
+struct clk *__clk_lookup(const char *name)
+{
+	static struct clk* (*func)(const char *name);
+
+	if (!func)
+		func = (void *)kallsyms_lookup_name(__func__);
+
+	if (!func) {
+		pr_err("can't find symbol: %s\n", __func__);
+		return NULL;
+	}
+
+	return func(name);
+}
+#endif
 
 static ssize_t parent_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
@@ -257,5 +275,5 @@ static int __init clk_debug_init(void)
 late_initcall_sync(clk_debug_init);
 
 MODULE_DESCRIPTION("Amlogic meson clock debug driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("jian hu <jian.hu@amlogic.com>");

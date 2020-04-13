@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/regmap.h>
 #include <linux/amlogic/clk_measure.h>
+#include <linux/module.h>
 
 static DEFINE_MUTEX(measure_lock);
 
@@ -950,3 +951,5 @@ static struct platform_driver meson_msr_driver = {
 	},
 };
 builtin_platform_driver(meson_msr_driver);
+
+MODULE_LICENSE("GPL v2");
