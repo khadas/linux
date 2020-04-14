@@ -5162,7 +5162,6 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hwop.cntlddc(hdev, DDC_HDCP_MUX_INIT, 1);
 	hdev->hwop.cntlddc(hdev, DDC_HDCP_OP, HDCP14_OFF);
 	mutex_lock(&setclk_mutex);
-	hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	pr_info(SYS "plugout\n");
