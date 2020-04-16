@@ -347,12 +347,34 @@
 		status = "okay";
 		compatible = "amlogic, meson_mhu";
 		reg = <0x0 0xff63c400 0x0 0x4c>,   /* MHU registers */
-		      <0 0xfffdf000 0x0 0x800>;   /* Payload area */
+			<0x0 0xfffdf000 0x0 0x800>;   /* Payload area */
 		interrupts = <0 209 1>,   /* low priority interrupt */
-			     <0 210 1>;   /* high priority interrupt */
+			<0 210 1>;   /* high priority interrupt */
 		#mbox-cells = <1>;
 		mbox-names = "cpu_to_scp_low", "cpu_to_scp_high";
 		mboxes = <&mailbox 0 &mailbox 1>;
+	};
+
+	mailbox_dsp: mhu@ff680150 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_dsp";
+		reg = <0x0 0xff680150 0x0 0x84>,   /* MHU registers */
+		      <0x0 0xff690150 0x0 0x84>,
+		      <0x0 0xfffdc800 0x0 0x800>;   /* Payload area */
+		interrupts = <0 242 1>,   /* DSPA Receive */
+			     <0 244 1>,   /* DSPA Send */
+			     <0 246 1>,   /* DSPB Receive */
+			     <0 248 1>;   /* DSPB Send */
+		mbox-names = "dspa_to_ap",
+			     "ap_to_dspa",
+			     "dspb_to_ap",
+			     "ap_to_dspb";
+		#mbox-cells = <1>;
+		mboxes = <&mailbox_dsp 0>,
+			 <&mailbox_dsp 1>,
+			 <&mailbox_dsp 2>,
+			 <&mailbox_dsp 3>;
+		mbox-nums = <4>;
 	};
 
 	efuse: efuse {

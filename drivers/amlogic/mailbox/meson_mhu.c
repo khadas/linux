@@ -1,6 +1,18 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/mailbox/meson_mhu.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -136,23 +148,22 @@ static irqreturn_t mbox_handler(int irq, void *p)
 		}
 		if (data->rx_buf) {
 			if (is_send_isr) {
-				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
-				       data->rx_size);
+				memcpy_fromio(data->rx_buf,
+					      payload + TX_PAYLOAD(idx),
+					      data->rx_size);
 			} else {
-				/*
-				 * idx = 1 & to scp chans = 1
-				 * is mailbox to m4, need to get size
-				 * to m3 only low no need to get size
-				 * idx = 1 & to scp chans = 2
-				 * is mailbox no to m4,that mailbox chan
-				 * low high all to m3, no need get size
-				 */
+			/*
+			 * idx = 1 & to scp chans = 1 mailbox to m4
+			 * need to get size, to m3 only low no need to get size
+			 * idx = 1 & to scp chans = 2 mailbox no to m4
+			 * mailbox chan low high all to m3, no need get size
+			 */
 				if (idx && num_scp_chans != CHANNEL_MAX)
 					data->rx_size =
-					readl(mbox_base + RX_STATUS(idx));
-
-				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
-				       data->rx_size);
+				readl(mbox_base + RX_STATUS(idx));
+				memcpy_fromio(data->rx_buf,
+					      payload + RX_PAYLOAD(idx),
+					      data->rx_size);
 			}
 		}
 		mbox_chan_received_data(link, data);
@@ -173,7 +184,6 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 	void __iomem *payload = ctlr->payload_base;
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	int idx = chan->index;
-	u8 datatmp[512] = {0};
 
 	if (!data)
 		return -EINVAL;
@@ -185,9 +195,13 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 		else
 			idx = 0;
 	}
-	memcpy(datatmp, data->tx_buf, data->tx_size);
-	if (data->tx_buf)
-		memcpy(payload + TX_PAYLOAD(idx), datatmp, data->tx_size);
+
+	if (data->tx_buf) {
+		memset_io(payload + TX_PAYLOAD(idx),
+			  0, data->tx_size);
+		memcpy_toio(payload + TX_PAYLOAD(idx),
+			    data->tx_buf, data->tx_size);
+	}
 
 	writel(data->cmd, mbox_base + TX_SET(idx));
 
@@ -200,7 +214,7 @@ static int mhu_startup(struct mbox_chan *link)
 	int err, mbox_irq = chan->rx_irq;
 
 	err = request_threaded_irq(mbox_irq, mbox_handler, NULL, IRQF_ONESHOT,
-				   DRIVER_NAME, link);
+			DRIVER_NAME, link);
 	return err;
 }
 
@@ -240,7 +254,6 @@ static int mhu_probe(struct platform_device *pdev)
 	int idx, err;
 	u32 mbox_chans = 0;
 	int bit_chans = 0;
-	int ret;
 	static const char * const channel_names[] = {
 		CHANNEL_LOW_PRIORITY,
 		CHANNEL_HIGH_PRIORITY
@@ -274,37 +287,15 @@ static int mhu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctlr);
 
 	num_scp_chans = 0;
-	ret = of_property_read_u32(dev->of_node, "num-chans-to-scp",
-				   &num_scp_chans);
-	if (ret) {
-		dev_err(dev, "failed to num-chans-to-scp\n");
-		return -EINVAL;
-	}
+	of_property_read_u32(dev->of_node, "num-chans-to-scp", &num_scp_chans);
 	if (num_scp_chans == 0 || num_scp_chans > 2)
 		num_scp_chans = CHANNEL_MAX;
 	send_listen_chans = 0;
-	ret = of_property_read_u32(dev->of_node, "send-isr-bits",
-				   &send_listen_chans);
-	if (ret) {
-		dev_err(dev, "failed to send-isr-bits\n");
-		return -EINVAL;
-	}
-	ret = of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
-	if (ret) {
-		dev_err(dev, "failed to ack-isr-bits\n");
-		return -EINVAL;
-	}
-	ret = of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
-	if (ret) {
-		dev_err(dev, "failed to m4-isr-bits\n");
-		return -EINVAL;
-	}
+	of_property_read_u32(dev->of_node, "send-isr-bits", &send_listen_chans);
+	of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
+	of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
 
-	ret = of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
-	if (ret) {
-		dev_err(dev, "failed to mbox-chans\n");
-		return -EINVAL;
-	}
+	of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
 	if (!mbox_chans)
 		mbox_chans = CHANNEL_MAX;
 	l = devm_kzalloc(dev, sizeof(*l) * mbox_chans, GFP_KERNEL);
@@ -410,25 +401,12 @@ static struct platform_driver mhu_driver = {
 
 static int __init mhu_init(void)
 {
-	int ret;
-
-	ret = mhu_dsp_init();
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&mhu_driver);
-	if (ret) {
-		mhu_dsp_exit();
-		return ret;
-	}
-
-	return ret;
+	return platform_driver_register(&mhu_driver);
 }
 core_initcall(mhu_init);
 
 static void __exit mhu_exit(void)
 {
-	mhu_dsp_exit();
 	platform_driver_unregister(&mhu_driver);
 }
 module_exit(mhu_exit);
