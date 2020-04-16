@@ -1202,11 +1202,11 @@ evl_find_sched_class(union evl_sched_param *param,
 	switch (policy) {
 	case SCHED_NORMAL:
 		if (prio)
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		/* fall-through */
 	case SCHED_WEAK:
 		if (prio < EVL_WEAK_MIN_PRIO ||	prio > EVL_WEAK_MAX_PRIO)
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		param->weak.prio = prio;
 		sched_class = &evl_sched_weak;
 		break;
@@ -1223,24 +1223,28 @@ evl_find_sched_class(union evl_sched_param *param,
 		 * must be in the [FIFO_MIN..FIFO_MAX] range.
 		 */
 		if (prio < EVL_FIFO_MIN_PRIO ||	prio > EVL_FIFO_MAX_PRIO)
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		break;
-#ifdef CONFIG_EVL_SCHED_QUOTA
 	case SCHED_QUOTA:
+#ifdef CONFIG_EVL_SCHED_QUOTA
 		param->quota.prio = attrs->sched_priority;
 		param->quota.tgid = attrs->sched_quota_group;
 		sched_class = &evl_sched_quota;
 		break;
+#else
+		return ERR_PTR(-EOPNOTSUPP);
 #endif
-#ifdef CONFIG_EVL_SCHED_TP
 	case SCHED_TP:
+#ifdef CONFIG_EVL_SCHED_TP
 		param->tp.prio = attrs->sched_priority;
 		param->tp.ptid = attrs->sched_tp_partition;
 		sched_class = &evl_sched_tp;
 		break;
+#else
+		return ERR_PTR(-EOPNOTSUPP);
 #endif
 	default:
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	*tslice_r = tslice;
