@@ -19,42 +19,39 @@ static void tp_schedule_next(struct evl_sched_tp *tp)
 	rq = container_of(tp, struct evl_rq, tp);
 	assert_evl_lock(&rq->lock);
 
+	/*
+	 * Switch to the next partition. Time holes in a global time
+	 * frame are defined as partition windows assigned to part#
+	 * -1, in which case the (always empty) idle queue will be
+	 * polled for runnable threads.  Therefore, we may assume that
+	 * a window begins immediately after the previous one ends,
+	 * which simplifies the implementation a lot.
+	 */
+	w = &tp->gps->pwins[tp->wnext];
+	p_next = w->w_part;
+	tp->tps = p_next < 0 ? &tp->idle : &tp->partitions[p_next];
+
+	/* Schedule tick to advance to the next window. */
+	tp->wnext = (tp->wnext + 1) % tp->gps->pwin_nr;
+	w = &tp->gps->pwins[tp->wnext];
+	t = ktime_add(tp->tf_start, w->w_offset);
+
+	/*
+	 * If we are late, make sure to remain within the bounds of a
+	 * valid time frame before advancing to the next
+	 * window. Otherwise, fix up by advancing to the next time
+	 * frame immediately.
+	 */
 	for (;;) {
-		/*
-		 * Switch to the next partition. Time holes in a
-		 * global time frame are defined as partition windows
-		 * assigned to part# -1, in which case the (always
-		 * empty) idle queue will be polled for runnable
-		 * threads.  Therefore, we may assume that a window
-		 * begins immediately after the previous one ends,
-		 * which simplifies the implementation a lot.
-		 */
-		w = &tp->gps->pwins[tp->wnext];
-		p_next = w->w_part;
-		tp->tps = p_next < 0 ? &tp->idle : &tp->partitions[p_next];
-
-		/* Schedule tick to advance to the next window. */
-		tp->wnext = (tp->wnext + 1) % tp->gps->pwin_nr;
-		w = &tp->gps->pwins[tp->wnext];
-		t = ktime_add(tp->tf_start, w->w_offset);
-
-		/*
-		 * If we are late, make sure to remain within the
-		 * bounds of a valid time frame before advancing to
-		 * the next window. Otherwise, fix up by advancing to
-		 * the next time frame immediately.
-		 */
 		now = evl_read_clock(&evl_mono_clock);
-		if (ktime_compare(now, t) > 0) {
-			t = ktime_add(tp->tf_start, tp->gps->tf_duration);
-			if (ktime_compare(now, t) > 0) {
-				tp->tf_start = t;
-				tp->wnext = 0;
-			}
-		}
-		evl_start_timer(&tp->tf_timer, t, EVL_INFINITE);
+		if (ktime_compare(now, t) <= 0)
+			break;
+		t = ktime_add(tp->tf_start, tp->gps->tf_duration);
+		tp->tf_start = t;
+		tp->wnext = 0;
 	}
 
+	evl_start_timer(&tp->tf_timer, t, EVL_INFINITE);
 	evl_set_resched(rq);
 }
 
