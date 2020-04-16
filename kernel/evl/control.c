@@ -139,39 +139,60 @@ static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 
 static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 {
+	union evl_sched_ctlparam _param, *param = &_param, __user *u_ctlp;
 	union evl_sched_ctlinfo *info = NULL, __user *u_infp;
-	union evl_sched_ctlparam param, __user *u_ctlp;
+	ssize_t ret;
 	size_t len;
-	int ret;
 
 	u_ctlp = evl_valptr64(ctl->param_ptr, union evl_sched_ctlparam);
-	ret = raw_copy_from_user(&param.tp, &u_ctlp->tp, sizeof(param.tp));
+	ret = raw_copy_from_user(&_param.tp, &u_ctlp->tp, sizeof(_param.tp));
 	if (ret)
 		return -EFAULT;
 
-	if (ctl->info_ptr) {
-		/* Quick check to prevent creepy memalloc. */
-		if (param.tp.nr_windows > CONFIG_EVL_SCHED_TP_NR_PART)
-			return -EINVAL;
+	/* Check now to prevent creepy memalloc down the road. */
+	if ((_param.tp.op == evl_tp_install || _param.tp.op == evl_tp_get) &&
+		(_param.tp.nr_windows <= 0 ||
+		_param.tp.nr_windows > CONFIG_EVL_SCHED_TP_NR_PART))
+		return -EINVAL;
 
-		len = evl_tp_paramlen(param.tp.nr_windows);
-		info = evl_alloc(len);
-		if (info == NULL)
+	if (_param.tp.op == evl_tp_install) {
+		len = evl_tp_paramlen(_param.tp.nr_windows);
+		param = evl_alloc(len);
+		if (param == NULL)
 			return -ENOMEM;
+		ret = raw_copy_from_user(&param->tp, &u_ctlp->tp, len);
+		if (ret)
+			goto out;
 	}
 
-	ret = evl_sched_tp.sched_control(ctl->cpu, &param, info);
-	if (ret || info == NULL)
-		goto out;
+	if (ctl->info_ptr) {
+		len = evl_tp_infolen(param->tp.nr_windows);
+		/*
+		 * No need to zalloc, only the updated portion of the
+		 * info buffer is going to be returned.
+		 */
+		info = evl_alloc(len);
+		if (info == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
 
-	u_infp = evl_valptr64(ctl->info_ptr, union evl_sched_ctlinfo);
-	len = evl_tp_paramlen(info->tp.nr_windows);
-	ret = raw_copy_to_user(&u_infp->tp, &info->tp, len);
-	if (ret)
-		ret = -EFAULT;
-out:
-	if (info)
+	ret = evl_sched_tp.sched_control(ctl->cpu, param, info);
+
+	if (info) {
+		if (ret > 0) {
+			u_infp = evl_valptr64(ctl->info_ptr,
+					union evl_sched_ctlinfo);
+			ret = raw_copy_to_user(&u_infp->tp, &info->tp, ret);
+			if (ret)
+				ret = -EFAULT;
+		}
 		evl_free(info);
+	}
+out:
+	if (param != &_param)
+		evl_free(param);
 
 	return ret;
 }
