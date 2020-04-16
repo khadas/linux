@@ -695,7 +695,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		list_del(&group->next);
 		evl_spin_unlock_irqrestore(&rq->lock, flags);
 		evl_free(group);
-		return 0;
+		goto done;
 	case evl_quota_set:
 		rq = evl_cpu_rq(cpu);
 		evl_spin_lock_irqsave(&rq->lock, flags);
@@ -723,7 +723,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	iq->quota_peak = tg->quota_peak_percent;
 	evl_spin_unlock_irqrestore(&rq->lock, flags);
 	iq->quota_sum = quota_sum;
-
+done:
 	evl_schedule();
 
 	return 0;
