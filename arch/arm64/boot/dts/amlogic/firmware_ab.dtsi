@@ -1,8 +1,11 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2017-2017 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
  */
-
 / {
 	firmware {
 		android {
@@ -19,7 +22,7 @@
 				dev = "system";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,avb=vbmeta,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey";
 				};
 
 			vendor {
@@ -27,21 +30,28 @@
 				dev = "vendor";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
 				};
 			odm {
 				compatible = "android,odm";
 				dev = "odm";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,logical,first_stage_mount";
 				};
 			product {
 				compatible = "android,product";
 				dev = "product";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,logical,first_stage_mount";
+				};
+			metadata {
+				compatible = "android,metadata";
+				dev = "/dev/block/metadata";
+				type = "ext4";
+				mnt_flags = "noatime,nosuid,nodev,nodelalloc,nomblk_io_submit,errors=panic";
+				fsmgr_flags = "wait,slotselect,check,formattable,first_stage_mount";
 				};
 			};
 		};
