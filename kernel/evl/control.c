@@ -130,7 +130,7 @@ static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 
 static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 {
-	return -EINVAL;
+	return -EOPNOTSUPP;
 }
 
 #endif
@@ -180,7 +180,7 @@ out:
 
 static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 {
-	return -EINVAL;
+	return -EOPNOTSUPP;
 }
 
 #endif

@@ -1935,8 +1935,8 @@ static int set_sched_attrs(struct evl_thread *thread,
 	union evl_sched_param param;
 	unsigned long flags;
 	struct evl_rq *rq;
-	int ret = -EINVAL;
 	ktime_t tslice;
+	int ret;
 
 	trace_evl_thread_setsched(thread, attrs);
 
@@ -1944,8 +1944,10 @@ static int set_sched_attrs(struct evl_thread *thread,
 
 	tslice = thread->rrperiod;
 	sched_class = evl_find_sched_class(&param, attrs, &tslice);
-	if (sched_class == NULL)
+	if (IS_ERR(sched_class)) {
+		ret = PTR_ERR(sched_class);
 		goto out;
+	}
 
 	ret = set_time_slice(thread, tslice);
 	if (ret)
