@@ -95,8 +95,9 @@ struct evl_tp_ctlinfo {
 	struct __evl_tp_window windows[0];
 };
 
-#define evl_tp_paramlen(__p)	\
-	(sizeof(*__p) + (__p)->nr_windows * sizeof((__p)->windows))
+#define evl_tp_paramlen(__nr_windows)		\
+	(sizeof(struct evl_tp_ctlparam) +	\
+		__nr_windows * sizeof(struct __evl_tp_window))
 
 struct evl_sched_attrs {
 	int sched_policy;
