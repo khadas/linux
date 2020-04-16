@@ -154,7 +154,7 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 		if (param.tp.nr_windows > CONFIG_EVL_SCHED_TP_NR_PART)
 			return -EINVAL;
 
-		len = evl_tp_paramlen(&param.tp);
+		len = evl_tp_paramlen(param.tp.nr_windows);
 		info = evl_alloc(len);
 		if (info == NULL)
 			return -ENOMEM;
@@ -165,7 +165,7 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 		goto out;
 
 	u_infp = evl_valptr64(ctl->info_ptr, union evl_sched_ctlinfo);
-	len = evl_tp_paramlen(&info->tp);
+	len = evl_tp_paramlen(info->tp.nr_windows);
 	ret = raw_copy_to_user(&u_infp->tp, &info->tp, len);
 	if (ret)
 		ret = -EFAULT;
