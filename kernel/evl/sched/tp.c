@@ -416,8 +416,8 @@ install_schedule:
 	atomic_set(&gps->refcount, 1);
 	gps->pwin_nr = n;
 	gps->tf_duration = next_offset;
-switch_schedule:
 	evl_spin_lock_irqsave(&rq->lock, flags);
+switch_schedule:
 	ogps = set_tp_schedule(rq, gps);
 	evl_spin_unlock_irqrestore(&rq->lock, flags);
 
