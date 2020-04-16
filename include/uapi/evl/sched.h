@@ -77,11 +77,11 @@ struct __evl_tp_window {
 };
 
 enum evl_tp_ctlop {
-	evl_install_tp,
-	evl_uninstall_tp,
-	evl_start_tp,
-	evl_stop_tp,
-	evl_get_tp,
+	evl_tp_install,
+	evl_tp_uninstall,
+	evl_tp_start,
+	evl_tp_stop,
+	evl_tp_get,
 };
 
 struct evl_tp_ctlparam {
