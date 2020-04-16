@@ -329,22 +329,22 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	evl_spin_lock_irqsave(&rq->lock, flags);
 
 	switch (pt->op) {
-	case evl_install_tp:
+	case evl_tp_install:
 		if (pt->nr_windows > 0)
 			goto install_schedule;
 		/* fall-through. */
-	case evl_uninstall_tp:
+	case evl_tp_uninstall:
 		gps = NULL;
 		goto switch_schedule;
-	case evl_start_tp:
+	case evl_tp_start:
 		start_tp_schedule(rq);
 		evl_spin_unlock_irqrestore(&rq->lock, flags);
 		return 0;
-	case evl_stop_tp:
+	case evl_tp_stop:
 		stop_tp_schedule(rq);
 		evl_spin_unlock_irqrestore(&rq->lock, flags);
 		return 0;
-	case evl_get_tp:
+	case evl_tp_get:
 		break;
 	default:
 		return -EINVAL;
