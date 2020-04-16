@@ -294,6 +294,8 @@ get_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_tp_schedule *gps = rq->tp.gps;
 
+	assert_evl_lock(&rq->lock);
+
 	if (gps == NULL)
 		return NULL;
 
@@ -308,7 +310,7 @@ static void put_tp_schedule(struct evl_tp_schedule *gps)
 		evl_free(gps);
 }
 
-static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
+static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 		union evl_sched_ctlinfo *infp)
 {
 	struct evl_tp_ctlparam *pt = &ctlp->tp;
@@ -319,7 +321,7 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	struct evl_tp_ctlinfo *it;
 	unsigned long flags;
 	struct evl_rq *rq;
-	int n;
+	int n, nr_windows;
 
 	if (cpu < 0 || !cpu_present(cpu) || !is_threading_cpu(cpu))
 		return -EINVAL;
@@ -353,7 +355,7 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	gps = get_tp_schedule(rq);
 	evl_spin_unlock_irqrestore(&rq->lock, flags);
 	if (gps == NULL)
-		return 0;
+		goto done;
 
 	if (infp == NULL) {
 		put_tp_schedule(gps);
@@ -361,14 +363,11 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	}
 
 	it = &infp->tp;
-	if (it->nr_windows < gps->pwin_nr) {
-		put_tp_schedule(gps);
-		return -ENOSPC;
-	}
+	nr_windows = min(pt->nr_windows, gps->pwin_nr);
+	it->nr_windows = gps->pwin_nr; /* Actual count is returned. */
 
-	it->nr_windows = gps->pwin_nr;
 	for (n = 0, pp = p = it->windows, pw = w = gps->pwins;
-	     n < gps->pwin_nr; pp = p, p++, pw = w, w++, n++) {
+	     n < nr_windows; pp = p, p++, pw = w, w++, n++) {
 		p->offset = ktime_to_u_timespec(w->w_offset);
 		pp->duration = ktime_to_u_timespec(
 				     ktime_sub(w->w_offset, pw->w_offset));
@@ -380,7 +379,7 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 
 	put_tp_schedule(gps);
 
-	return 0;
+	return evl_tp_infolen(nr_windows);
 
 install_schedule:
 	evl_spin_unlock_irqrestore(&rq->lock, flags);
@@ -405,8 +404,9 @@ install_schedule:
 			goto fail;
 
 		if (p->ptid < -1 ||
-		    p->ptid >= CONFIG_EVL_SCHED_TP_NR_PART)
+			p->ptid >= CONFIG_EVL_SCHED_TP_NR_PART) {
 			goto fail;
+		}
 
 		w->w_offset = next_offset;
 		w->w_part = p->ptid;

@@ -647,7 +647,7 @@ find_quota_group(struct evl_rq *rq, int tgid)
 	return NULL;
 }
 
-static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
+static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 			union evl_sched_ctlinfo *infp)
 {
 	struct evl_quota_ctlparam *pq = &ctlp->quota;
@@ -726,7 +726,7 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 done:
 	evl_schedule();
 
-	return 0;
+	return sizeof(*iq);
 bad_tgid:
 	evl_spin_unlock_irqrestore(&rq->lock, flags);
 

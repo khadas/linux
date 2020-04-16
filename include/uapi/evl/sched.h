@@ -90,13 +90,17 @@ struct evl_tp_ctlparam {
 	struct __evl_tp_window windows[0];
 };
 
+#define evl_tp_paramlen(__nr_windows)		\
+	(sizeof(struct evl_tp_ctlparam) +	\
+		__nr_windows * sizeof(struct __evl_tp_window))
+
 struct evl_tp_ctlinfo {
 	int nr_windows;
 	struct __evl_tp_window windows[0];
 };
 
-#define evl_tp_paramlen(__nr_windows)		\
-	(sizeof(struct evl_tp_ctlparam) +	\
+#define evl_tp_infolen(__nr_windows)		\
+	(sizeof(struct evl_tp_ctlinfo) +	\
 		__nr_windows * sizeof(struct __evl_tp_window))
 
 struct evl_sched_attrs {
