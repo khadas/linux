@@ -339,11 +339,11 @@ static int tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_tp_start:
 		start_tp_schedule(rq);
 		evl_spin_unlock_irqrestore(&rq->lock, flags);
-		return 0;
+		goto done;
 	case evl_tp_stop:
 		stop_tp_schedule(rq);
 		evl_spin_unlock_irqrestore(&rq->lock, flags);
-		return 0;
+		goto done;
 	case evl_tp_get:
 		break;
 	default:
@@ -423,6 +423,8 @@ switch_schedule:
 
 	if (ogps)
 		put_tp_schedule(ogps);
+done:
+	evl_schedule();
 
 	return 0;
 fail:
