@@ -593,7 +593,9 @@ static int set_timerfd(struct evl_timerfd *timerfd,
 		struct itimerspec64 *__restrict__ ovalue)
 {
 	get_timer_value(&timerfd->timer, ovalue);
-	pin_timer(&timerfd->timer);
+
+	if (evl_current())
+		pin_timer(&timerfd->timer);
 
 	return set_timer_value(&timerfd->timer, value);
 }
