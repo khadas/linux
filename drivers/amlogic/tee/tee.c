@@ -52,7 +52,11 @@ static int disable_flag;
 #define TEE_SMC_CALL_GET_OS_REVISION \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_GET_OS_REVISION)
 
-#define TEE_SMC_FUNCID_LOAD_VIDEO_FW 15
+#define TEE_SMC_FUNCID_CONFIG_DEVICE_SECURE        14
+#define TEE_SMC_CONFIG_DEVICE_SECURE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_CONFIG_DEVICE_SECURE)
+
+#define TEE_SMC_FUNCID_LOAD_VIDEO_FW               15
 #define TEE_SMC_LOAD_VIDEO_FW \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_LOAD_VIDEO_FW)
 
@@ -68,9 +72,9 @@ static int disable_flag;
 #define TEE_SMC_PROTECT_MEM_BY_TYPE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_PROTECT_MEM_BY_TYPE)
 
-#define TEE_SMC_FUNCID_UNPROTECT_MEM_BY_TYPE       0xE024
-#define TEE_SMC_UNPROTECT_MEM_BY_TYPE \
-	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_MEM_BY_TYPE)
+#define TEE_SMC_FUNCID_UNPROTECT_MEM               0xE024
+#define TEE_SMC_UNPROTECT_MEM \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_MEM)
 
 static struct class *tee_sys_class;
 
@@ -230,6 +234,26 @@ uint32_t tee_protect_mem_by_type(uint32_t type,
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_protect_mem_by_type);
+
+void tee_unprotect_mem(uint32_t handle)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_UNPROTECT_MEM,
+			handle, 0, 0, 0, 0, 0, 0, &res);
+}
+EXPORT_SYMBOL(tee_unprotect_mem);
+
+int tee_config_device_state(int dev_id, int secure)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_CONFIG_DEVICE_SECURE,
+			dev_id, secure, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_config_device_state);
 
 int tee_create_sysfs(void)
 {
