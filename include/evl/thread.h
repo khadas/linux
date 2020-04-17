@@ -316,10 +316,10 @@ static inline void evl_propagate_schedparam_change(struct evl_thread *curr)
 		__evl_propagate_schedparam_change(curr);
 }
 
-int __evl_run_kthread(struct evl_kthread *kthread);
+int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 
 #define _evl_run_kthread(__kthread, __affinity, __fn, __priority,	\
-			__fmt, __args...)				\
+			 __clone_flags, __fmt, __args...)		\
 	({								\
 		int __ret;						\
 		struct evl_init_thread_attr __iattr = {			\
@@ -334,19 +334,19 @@ int __evl_run_kthread(struct evl_kthread *kthread);
 		__ret = evl_init_thread(&(__kthread)->thread, &__iattr,	\
 					NULL, __fmt, ##__args);		\
 		if (!__ret)						\
-			__ret = __evl_run_kthread(__kthread);		\
+			__ret = __evl_run_kthread(__kthread, __clone_flags); \
 		__ret;							\
 	})
 
 #define evl_run_kthread(__kthread, __fn, __priority,			\
-			__fmt, __args...)				\
+			__clone_flags, __fmt, __args...)		\
 	_evl_run_kthread(__kthread, CPU_MASK_ALL, __fn, __priority,	\
-			__fmt, ##__args)
+			__clone_flags, __fmt, ##__args)
 
 #define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __priority,	\
-			       __fmt, __args...)			\
+			       __clone_flags, __fmt, __args...)		\
 	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
-			__fmt, ##__args)
+			__clone_flags, __fmt, ##__args)
 
 static inline void evl_cancel_kthread(struct evl_kthread *kthread)
 {

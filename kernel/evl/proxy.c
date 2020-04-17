@@ -290,7 +290,7 @@ static const struct file_operations proxy_fops = {
 
 static struct evl_element *
 proxy_factory_build(struct evl_factory *fac, const char *name,
-		void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct workqueue_struct *wq = NULL;
 	struct evl_proxy_attrs attrs;
@@ -344,7 +344,8 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 		}
 	}
 
-	ret = evl_init_element(&proxy->element, &evl_proxy_factory);
+	ret = evl_init_element(&proxy->element,
+			&evl_proxy_factory, clone_flags);
 	if (ret)
 		goto fail_element;
 

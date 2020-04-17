@@ -425,17 +425,18 @@ static int kthread_trampoline(void *arg)
 	return 0;
 }
 
-int __evl_run_kthread(struct evl_kthread *kthread)
+int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags)
 {
 	struct evl_thread *thread = &kthread->thread;
 	struct task_struct *p;
 	int ret;
 
-	ret = evl_init_element(&thread->element, &evl_thread_factory);
+	ret = evl_init_element(&thread->element,
+			&evl_thread_factory, clone_flags);
 	if (ret)
 		goto fail_element;
 
-	ret = evl_create_element_device(&thread->element,
+	ret = evl_create_core_element_device(&thread->element,
 					&evl_thread_factory,
 					thread->name);
 	if (ret)
@@ -2234,7 +2235,7 @@ static void discard_unmapped_uthread(struct evl_thread *thread)
 
 static struct evl_element *
 thread_factory_build(struct evl_factory *fac, const char *name,
-		void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct task_struct *tsk = current;
 	struct evl_init_thread_attr iattr;
@@ -2252,7 +2253,8 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	if (curr == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ret = evl_init_element(&curr->element, &evl_thread_factory);
+	ret = evl_init_element(&curr->element,
+			&evl_thread_factory, clone_flags);
 	if (ret) {
 		kfree(curr);
 		return ERR_PTR(ret);

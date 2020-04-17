@@ -442,10 +442,11 @@ static int rtswitch_create_kthread(struct rtswitch_context *ctx,
 	task = &ctx->tasks[ptask->index];
 	task->ctx = ctx;
 	err = evl_run_kthread_on_cpu(&task->kthread, ctx->cpu,
-				     rtswitch_kthread, 1,
-				     "rtk%d@%u:%d",
-				     ptask->index, ctx->cpu,
-				     task_pid_nr(current));
+				rtswitch_kthread, 1,
+				EVL_CLONE_PUBLIC,
+				"rtk%d@%u:%d",
+				ptask->index, ctx->cpu,
+				task_pid_nr(current));
 	/*
 	 * On error, clear the flag bits in order to avoid calling
 	 * evl_cancel_kthread() for an invalid thread in
