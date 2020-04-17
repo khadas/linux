@@ -226,6 +226,39 @@ static const char * const ceca_reg_name3[] = {
 	"STAT_1_2"
 };
 
+#if 1
+unsigned int waiting_aocec_free(unsigned int r)
+{
+	unsigned int cnt = 0;
+	int ret = true;
+
+	while (readl(cec_dev->cec_reg + r) & (1<<23)) {
+		if (cnt++ >= 3500) {
+			pr_info("waiting aocec %x free time out %d\n", r, cnt);
+			if (cec_dev->proble_finish)
+				cec_hw_reset(CEC_A);
+			ret = false;
+			break;
+		}
+	}
+
+	return ret;
+}
+#else
+#define waiting_aocec_free(r) \
+	do {\
+		unsigned long cnt = 0;\
+		while (readl(cec_dev->cec_reg + r) & (1<<23)) {\
+			if (cnt++ == 3500) { \
+				pr_info("waiting aocec %x free time out\n", r);\
+				if (cec_dev->proble_finish) \
+					cec_hw_reset(CEC_A);\
+				break;\
+			} \
+		} \
+	} while (0)
+#endif
+
 static void cec_set_reg_bits(unsigned int addr, unsigned int value,
 	unsigned int offset, unsigned int len)
 {
@@ -237,52 +270,26 @@ static void cec_set_reg_bits(unsigned int addr, unsigned int value,
 	writel(data32, cec_dev->cec_reg + addr);
 }
 
-unsigned int waiting_aocec_free(unsigned int r)
-{
-	unsigned int cnt = 0;
-	int ret = true;
-
-	while (readl(cec_dev->cec_reg + r) & (1<<23)) {
-		if (cnt++ >= 3500) {
-			pr_info("waiting aocec %x free time out %d\n", r, cnt);
-			if (cec_dev->proble_finish) {
-				/*reset cec b*/
-				writel(0x1, cec_dev->cec_reg + AO_CEC_GEN_CNTL);
-				/* Enable gated clock (Normal mode). */
-				cec_set_reg_bits(AO_CEC_GEN_CNTL, 1, 1, 1);
-				/* Release SW reset */
-				udelay(100);
-				cec_set_reg_bits(AO_CEC_GEN_CNTL, 0, 0, 1);
-				udelay(100);
-			}
-			/*re check cec hw module internal bus is busy*/
-			if (readl(cec_dev->cec_reg + r) & (1<<23))
-				ret = false;
-			else
-				ret = true;
-			break;
-		}
-	}
-
-	return ret;
-}
-
 unsigned int aocec_rd_reg(unsigned long addr)
 {
 	unsigned int data32;
 	unsigned long flags;
 
+	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
+		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
 		return 0;
 	}
-
-	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	data32 = 0;
 	data32 |= 0 << 16; /* [16]	 cec_reg_wr */
 	data32 |= 0 << 8; /* [15:8]   cec_reg_wrdata */
 	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
 	writel(data32, cec_dev->cec_reg + AO_CEC_RW_REG);
 
+	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
+		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
+		return 0;
+	}
 	data32 = ((readl(cec_dev->cec_reg + AO_CEC_RW_REG)) >> 24) & 0xff;
 	spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
 	return data32;
@@ -293,11 +300,11 @@ void aocec_wr_reg(unsigned long addr, unsigned long data)
 	unsigned long data32;
 	unsigned long flags;
 
+	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	if (!waiting_aocec_free(AO_CEC_RW_REG)) {
-		/*spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);*/
+		spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
 		return;
 	}
-	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
 	data32 = 0;
 	data32 |= 1 << 16; /* [16]	 cec_reg_wr */
 	data32 |= data << 8; /* [15:8]   cec_reg_wrdata */
