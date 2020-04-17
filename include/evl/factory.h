@@ -21,6 +21,7 @@
 #include <linux/hashtable.h>
 #include <evl/file.h>
 #include <uapi/evl/types.h>
+#include <uapi/evl/factory.h>
 
 #define element_of(__filp, __type)					\
 	({								\
@@ -44,6 +45,7 @@ struct evl_factory {
 	struct evl_element *(*build)(struct evl_factory *fac,
 				const char *name,
 				void __user *u_attrs,
+				int clone_flags,
 				u32 *state_offp);
 	void (*dispose)(struct evl_element *e);
 	const struct attribute_group **attrs;
@@ -78,10 +80,15 @@ struct evl_element {
 	bool zombie;
 	hard_spinlock_t ref_lock;
 	fundle_t fundle;
+	int clone_flags;
 	struct rb_node index_node;
 	struct irq_work irq_work;
 	struct work_struct work;
 	struct hlist_node hash;
+	struct {
+		struct file *filp;
+		int efd;
+	} fpriv;
 };
 
 static inline const char *
@@ -94,7 +101,8 @@ evl_element_name(struct evl_element *e)
 }
 
 int evl_init_element(struct evl_element *e,
-		struct evl_factory *fac);
+		struct evl_factory *fac,
+		int clone_flags);
 
 void evl_destroy_element(struct evl_element *e);
 
@@ -122,6 +130,16 @@ __evl_get_element_by_fundle(struct evl_factory *fac,
 			container_of(__e, __type, element); }) : NULL;	\
 	})
 
+static inline bool evl_element_is_public(struct evl_element *e)
+{
+	return !!(e->clone_flags & EVL_CLONE_PUBLIC);
+}
+
+static inline bool evl_element_is_core(struct evl_element *e)
+{
+	return !!(e->clone_flags & EVL_CLONE_CORE);
+}
+
 void evl_put_element(struct evl_element *e);
 
 int evl_open_element(struct inode *inode,
@@ -130,9 +148,9 @@ int evl_open_element(struct inode *inode,
 int evl_release_element(struct inode *inode,
 			struct file *filp);
 
-int evl_create_element_device(struct evl_element *e,
-			struct evl_factory *fac,
-			const char *name);
+int evl_create_core_element_device(struct evl_element *e,
+				struct evl_factory *fac,
+				const char *name);
 
 void evl_remove_element_device(struct evl_element *e);
 

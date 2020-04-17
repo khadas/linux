@@ -19,6 +19,8 @@
 #include <linux/uaccess.h>
 #include <linux/hashtable.h>
 #include <linux/stringhash.h>
+#include <linux/anon_inodes.h>
+#include <linux/file.h>
 #include <linux/dovetail.h>
 #include <evl/assert.h>
 #include <evl/file.h>
@@ -51,7 +53,8 @@ static struct evl_factory *factories[] = {
 
 static dev_t factory_rdev;
 
-int evl_init_element(struct evl_element *e, struct evl_factory *fac)
+int evl_init_element(struct evl_element *e,
+		struct evl_factory *fac, int clone_flags)
 {
 	int minor;
 
@@ -67,9 +70,13 @@ int evl_init_element(struct evl_element *e, struct evl_factory *fac)
 	e->factory = fac;
 	e->minor = minor;
 	e->refs = 1;
+	e->dev = NULL;
+	e->fpriv.filp = NULL;
+	e->fpriv.efd = -1;
 	e->zombie = false;
 	e->fundle = EVL_NO_HANDLE;
 	e->devname = NULL;
+	e->clone_flags = clone_flags;
 	raw_spin_lock_init(&e->ref_lock);
 
 	return 0;
@@ -93,9 +100,40 @@ void evl_get_element(struct evl_element *e)
 	EVL_WARN_ON(CORE, old_refs == 0);
 }
 
-int evl_open_element(struct inode *inode, struct file *filp)
+static int bind_file_to_element(struct file *filp, struct evl_element *e)
 {
 	struct evl_file_binding *fbind;
+	int ret;
+
+	fbind = kmalloc(sizeof(*fbind), GFP_KERNEL);
+	if (fbind == NULL)
+		return -ENOMEM;
+
+	ret = evl_open_file(&fbind->efile, filp);
+	if (ret) {
+		kfree(fbind);
+		return ret;
+	}
+
+	fbind->element = e;
+	filp->private_data = fbind;
+
+	return 0;
+}
+
+static struct evl_element *unbind_file_from_element(struct file *filp)
+{
+	struct evl_file_binding *fbind = filp->private_data;
+	struct evl_element *e = fbind->element;
+
+	evl_release_file(&fbind->efile);
+	kfree(fbind);
+
+	return e;
+}
+
+int evl_open_element(struct inode *inode, struct file *filp)
+{
 	struct evl_element *e;
 	unsigned long flags;
 	int ret = 0;
@@ -120,26 +158,28 @@ int evl_open_element(struct inode *inode, struct file *filp)
 	if (ret)
 		return ret;
 
-	fbind = kmalloc(sizeof(*fbind), GFP_KERNEL);
-	if (fbind == NULL)
-		return -ENOMEM;
-
-	ret = evl_open_file(&fbind->efile, filp);
+	ret = bind_file_to_element(filp, e);
 	if (ret) {
-		kfree(fbind);
+		evl_put_element(e);
 		return ret;
 	}
 
-	fbind->element = e;
-	filp->private_data = fbind;
 	stream_open(inode, filp);
 
 	return 0;
 }
 
-static void __put_element(struct evl_element *e)
+static void __do_put_element(struct evl_element *e)
 {
 	struct evl_factory *fac = e->factory;
+
+	/*
+	 * We might get there device-less if create_element_device()
+	 * failed installing a file descriptor for a private
+	 * element. Go to disposal immediately if so.
+	 */
+	if (unlikely(!e->dev))
+		goto dispose;
 
 	/*
 	 * e->minor won't be free for use until evl_destroy_element()
@@ -151,47 +191,50 @@ static void __put_element(struct evl_element *e)
 	 * Serialize with evl_open_element().
 	 */
 	synchronize_rcu();
+
 	/*
 	 * CAUTION: the disposal handler should delay the release of
 	 * e's container at the next rcu idle period via kfree_rcu(),
 	 * because the embedded e->cdev is still needed ahead for
-	 * completing the file release process (see __fput()).
+	 * completing the file release process of public elements (see
+	 * __fput()).
 	 */
+dispose:
 	fac->dispose(e);
 }
 
-static void put_element_work(struct work_struct *work)
+static void do_put_element_work(struct work_struct *work)
 {
 	struct evl_element *e;
 
 	e = container_of(work, struct evl_element, work);
-	__put_element(e);
+	__do_put_element(e);
 }
 
-static void put_element_irq(struct irq_work *work)
+static void do_put_element_irq(struct irq_work *work)
 {
 	struct evl_element *e;
 
 	e = container_of(work, struct evl_element, irq_work);
-	INIT_WORK(&e->work, put_element_work);
+	INIT_WORK(&e->work, do_put_element_work);
 	schedule_work(&e->work);
 }
 
-static void put_element(struct evl_element *e)
+static void do_put_element(struct evl_element *e)
 {
 	/*
 	 * These trampolines may look like a bit cheesy but we have no
 	 * choice but offloading the disposal to an in-band task
 	 * context. In (the rare) case the last ref. to an element was
 	 * dropped from OOB(-protected) context, we need to go via an
-	 * irq_work->workqueue chain in order to run __put_element()
-	 * eventually.
+	 * irq_work->workqueue chain in order to run
+	 * __do_put_element() eventually.
 	 */
 	if (unlikely(running_oob() || oob_irqs_disabled())) {
-		init_irq_work(&e->irq_work, put_element_irq);
+		init_irq_work(&e->irq_work, do_put_element_irq);
 		irq_work_queue(&e->irq_work);
 	} else
-		__put_element(e);
+		__do_put_element(e);
 }
 
 void evl_put_element(struct evl_element *e) /* in-band or OOB */
@@ -218,8 +261,8 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
 	 * referencing stale @ent memory by a read-side RCU
 	 * section. Meanwhile we wait for all read-sides to complete
 	 * after calling cdev_del().  Once cdev_del() returns, the
-	 * device cannot be opened anymore, without affecting the
-	 * files that might still be opened on this device though.
+	 * device cannot be opened anymore, which does not affect the
+	 * files that might still be active on this device though.
 	 *
 	 * In the c) case, the last file release will dispose of the
 	 * element eventually.
@@ -232,7 +275,7 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
 	if (--e->refs == 0) {
 		e->zombie = true;
 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
-		put_element(e);
+		do_put_element(e);
 		return;
 	}
 out:
@@ -241,23 +284,21 @@ out:
 
 int evl_release_element(struct inode *inode, struct file *filp)
 {
-	struct evl_file_binding *fbind = filp->private_data;
-	struct evl_element *e = fbind->element;
+	struct evl_element *e;
 
-	evl_release_file(&fbind->efile);
-	kfree(fbind);
+	e = unbind_file_from_element(filp);
 	evl_put_element(e);
 
 	return 0;
 }
 
-static void release_device(struct device *dev)
+static void release_sys_device(struct device *dev)
 {
 	kfree(dev);
 }
 
-static struct device *create_device(dev_t rdev, struct evl_factory *fac,
-				void *drvdata, const char *name)
+static struct device *create_sys_device(dev_t rdev, struct evl_factory *fac,
+					void *drvdata, const char *name)
 {
 	struct device *dev;
 	int ret;
@@ -270,7 +311,7 @@ static struct device *create_device(dev_t rdev, struct evl_factory *fac,
 	dev->class = fac->class;
 	dev->type = &fac->type;
 	dev->groups = fac->attrs;
-	dev->release = release_device;
+	dev->release = release_sys_device;
 	dev_set_drvdata(dev, drvdata);
 
 	ret = dev_set_name(dev, "%s", name);
@@ -284,12 +325,94 @@ static struct device *create_device(dev_t rdev, struct evl_factory *fac,
 	return dev;
 
 fail:
-	put_device(dev); /* ->release_device() */
+	put_device(dev); /* ->release_sys_device() */
 
 	return ERR_PTR(ret);
 }
 
-static int create_named_element_device(struct evl_element *e,
+static struct file_operations dummy_fops = {
+	.owner = THIS_MODULE,
+};
+
+static int do_element_visibility(struct evl_element *e,
+				struct evl_factory *fac,
+				dev_t *rdev)
+{
+	struct file *filp;
+	int ret, efd;
+
+	if (EVL_WARN_ON(CORE, !evl_element_is_core(e) && !current->mm))
+		e->clone_flags |= EVL_CLONE_CORE;
+
+	/*
+	 * Unlike a private one, a publically visible element exports
+	 * a cdev in the /dev/evl hierarchy so that any process can
+	 * see it.  Both types are backed by a kernel device object so
+	 * that we can export their state to userland via /sysfs.
+	 */
+
+	if (evl_element_is_public(e)) {
+		*rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
+		cdev_init(&e->cdev, fac->fops);
+		return cdev_add(&e->cdev, *rdev, 1);
+	}
+
+	*rdev = MKDEV(0, e->minor);
+
+	if (evl_element_is_core(e))
+		return 0;
+
+	/*
+	 * Create a private user element, passing the real fops so
+	 * that FMODE_CAN_READ/WRITE are set accordingly by the vfs.
+	 */
+	filp = anon_inode_getfile(evl_element_name(e), fac->fops,
+				NULL, O_RDWR);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		return ret;
+	}
+
+	/*
+	 * Now switch to dummy fops temporarily, until calling
+	 * evl_release_element() is safe for filp, meaning once
+	 * bind_file_to_element() has returned successfully.
+	 */
+	replace_fops(filp, &dummy_fops);
+
+	/*
+	 * There will be no open() call for this new private element
+	 * since we have no associated cdev, bind it to the anon file
+	 * immediately.
+	 */
+	ret = bind_file_to_element(filp, e);
+	if (ret) {
+		filp_close(filp, current->files);
+		/*
+		 * evl_release_element() was not called: do a manual
+		 * disposal.
+		 */
+		fac->dispose(e);
+		return ret;
+	}
+
+	/* Back to the real fops for this element class. */
+	replace_fops(filp, fac->fops);
+
+	efd = get_unused_fd_flags(O_RDWR|O_CLOEXEC);
+	if (efd < 0) {
+		filp_close(filp, current->files);
+		ret = efd;
+		return ret;
+	}
+
+	e->fpriv.filp = filp;
+	e->fpriv.efd = efd;
+
+	return 0;
+}
+
+static int create_element_device(struct evl_element *e,
 				struct evl_factory *fac)
 {
 	struct evl_element *n;
@@ -299,11 +422,12 @@ static int create_named_element_device(struct evl_element *e,
 	int ret;
 
 	/*
-	 * Do a quick hash check on the new device name, to make sure
+	 * Do a quick hash check on the new element name, to make sure
 	 * device_register() won't trigger a kernel log splash because
 	 * of a naming conflict.
 	 */
 	hlen = hashlen_string("EVL", e->devname->name);
+
 	mutex_lock(&fac->hash_lock);
 
 	hash_for_each_possible(fac->name_hash, n, hash, hlen)
@@ -316,25 +440,39 @@ static int create_named_element_device(struct evl_element *e,
 
 	mutex_unlock(&fac->hash_lock);
 
-	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
-	cdev_init(&e->cdev, fac->fops);
-	ret = cdev_add(&e->cdev, rdev, 1);
+	ret = do_element_visibility(e, fac, &rdev);
 	if (ret)
-		goto fail_cdev;
+		goto fail_visibility;
 
-	dev = create_device(rdev, fac, e, evl_element_name(e));
+	dev = create_sys_device(rdev, fac, e, evl_element_name(e));
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
-		goto fail_dev;
+		goto fail_device;
+	}
+
+	/*
+	 * Install fd on a private user element file only when we
+	 * cannot fail creating the device anymore. First take a
+	 * reference then install fd (which is a membar).
+	 */
+	if (!evl_element_is_public(e) && !evl_element_is_core(e)) {
+		e->refs++;
+		fd_install(e->fpriv.efd, e->fpriv.filp);
 	}
 
 	e->dev = dev;
 
 	return 0;
 
-fail_dev:
-	cdev_del(&e->cdev);
-fail_cdev:
+fail_device:
+	if (evl_element_is_public(e)) {
+		cdev_del(&e->cdev);
+	} else if (!evl_element_is_core(e)) {
+		put_unused_fd(e->fpriv.efd);
+		filp_close(e->fpriv.filp, current->files);
+	}
+
+fail_visibility:
 	mutex_lock(&fac->hash_lock);
 	hash_del(&e->hash);
 	mutex_unlock(&fac->hash_lock);
@@ -342,9 +480,9 @@ fail_cdev:
 	return ret;
 }
 
-int evl_create_element_device(struct evl_element *e,
-			struct evl_factory *fac,
-			const char *name)
+int evl_create_core_element_device(struct evl_element *e,
+				struct evl_factory *fac,
+				const char *name)
 {
 	struct filename *devname;
 
@@ -352,9 +490,10 @@ int evl_create_element_device(struct evl_element *e,
 	if (devname == NULL)
 		return PTR_ERR(devname);
 
+	e->clone_flags |= EVL_CLONE_CORE;
 	e->devname = devname;
 
-	return create_named_element_device(e, fac);
+	return create_element_device(e, fac);
 }
 
 void evl_remove_element_device(struct evl_element *e)
@@ -363,7 +502,10 @@ void evl_remove_element_device(struct evl_element *e)
 	struct device *dev = e->dev;
 
 	device_unregister(dev);
-	cdev_del(&e->cdev);
+
+	if (evl_element_is_public(e))
+		cdev_del(&e->cdev);
+
 	mutex_lock(&fac->hash_lock);
 	hash_del(&e->hash);
 	mutex_unlock(&fac->hash_lock);
@@ -395,16 +537,20 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	if (ret)
 		return -EFAULT;
 
+	if (req.clone_flags & ~EVL_CLONE_MASK)
+		return -EINVAL;
+
 	if (req.name_ptr) {
 		devname = getname(evl_valptr64(req.name_ptr, const char));
 		if (IS_ERR(devname))
 			return PTR_ERR(devname);
-	}
+	} else if (req.clone_flags & EVL_CLONE_PUBLIC)
+		return -EINVAL;
 
 	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
 	u_attrs = evl_valptr64(req.attrs_ptr, void);
 	e = fac->build(fac, devname ? devname->name : NULL,
-		u_attrs, &state_offset);
+		u_attrs, req.clone_flags, &state_offset);
 	if (IS_ERR(e)) {
 		if (devname)
 			putname(devname);
@@ -428,19 +574,27 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	filp->private_data = e;
 	barrier();
 
-	ret = create_named_element_device(e, fac);
+	ret = create_element_device(e, fac);
 	if (ret) {
 		/* release_clone_device() must skip cleanup. */
 		filp->private_data = NULL;
-		fac->dispose(e);
+		/*
+		 * If we failed to create a private element,
+		 * evl_release_element() did run via filp_close(), so
+		 * the disposal has taken place already.
+		 */
+		if (req.clone_flags & EVL_CLONE_PUBLIC)
+			fac->dispose(e);
 		return ret;
 	}
 
 	val = e->minor;
-	ret |= put_user(val, &u_req->eids.minor) ? -EFAULT : 0;
+	ret |= put_user(val, &u_req->eids.minor);
 	val = e->fundle;
-	ret |= put_user(val, &u_req->eids.fundle) ? -EFAULT : 0;
-	ret |= put_user(state_offset, &u_req->eids.state_offset) ? -EFAULT : 0;
+	ret |= put_user(val, &u_req->eids.fundle);
+	ret |= put_user(state_offset, &u_req->eids.state_offset);
+	val = e->fpriv.efd;
+	ret |= put_user(val, &u_req->efd);
 
 	return ret ? -EFAULT : 0;
 }
@@ -675,7 +829,7 @@ static int create_factory(struct evl_factory *fac, dev_t rdev)
 		if (ret)
 			goto fail_cdev;
 
-		dev = create_device(rdev, fac, NULL, idevname);
+		dev = create_sys_device(rdev, fac, NULL, idevname);
 		if (IS_ERR(dev))
 			goto fail_dev;
 	}

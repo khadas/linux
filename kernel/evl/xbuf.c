@@ -628,7 +628,7 @@ EXPORT_SYMBOL_GPL(evl_write_xbuf);
 
 static struct evl_element *
 xbuf_factory_build(struct evl_factory *fac, const char *name,
-		void __user *u_attrs, u32 *state_offp)
+		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	void *i_bufmem = NULL, *o_bufmem = NULL;
 	struct evl_xbuf_attrs attrs;
@@ -665,7 +665,8 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 		}
 	}
 
-	ret = evl_init_element(&xbuf->element, &evl_xbuf_factory);
+	ret = evl_init_element(&xbuf->element,
+			&evl_xbuf_factory, clone_flags);
 	if (ret)
 		goto fail_element;
 

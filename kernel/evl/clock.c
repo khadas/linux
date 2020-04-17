@@ -34,6 +34,7 @@
 #include <evl/irq.h>
 #include <evl/uaccess.h>
 #include <asm/evl/syscall.h>
+#include <uapi/evl/factory.h>
 #include <uapi/evl/clock.h>
 #include <trace/events/evl.h>
 
@@ -153,12 +154,12 @@ void inband_clock_was_set(void)
 	mutex_unlock(&clocklist_lock);
 }
 
-static int init_clock(struct evl_clock *clock,
-		struct evl_clock *master)
+static int init_clock(struct evl_clock *clock, struct evl_clock *master)
 {
 	int ret;
 
-	ret = evl_init_element(&clock->element, &evl_clock_factory);
+	ret = evl_init_element(&clock->element, &evl_clock_factory,
+			clock->flags & EVL_CLONE_PUBLIC);
 	if (ret)
 		return ret;
 
@@ -169,7 +170,7 @@ static int init_clock(struct evl_clock *clock,
 	 * usable. Make sure all inits have been completed before this
 	 * point.
 	 */
-	ret = evl_create_element_device(&clock->element,
+	ret = evl_create_core_element_device(&clock->element,
 					&evl_clock_factory,
 					clock->name);
 	if (ret) {
@@ -1084,6 +1085,7 @@ static void adjust_realtime_clock(struct evl_clock *clock)
 struct evl_clock evl_mono_clock = {
 	.name = EVL_CLOCK_MONOTONIC_DEV,
 	.resolution = 1,	/* nanosecond. */
+	.flags = EVL_CLONE_PUBLIC,
 	.ops = {
 		.read = read_mono_clock,
 		.read_cycles = read_mono_clock_cycles,
@@ -1100,6 +1102,7 @@ EXPORT_SYMBOL_GPL(evl_mono_clock);
 struct evl_clock evl_realtime_clock = {
 	.name = EVL_CLOCK_REALTIME_DEV,
 	.resolution = 1,	/* nanosecond. */
+	.flags = EVL_CLONE_PUBLIC,
 	.ops = {
 		.read = read_realtime_clock,
 		.read_cycles = read_realtime_clock_cycles,
@@ -1121,8 +1124,7 @@ int __init evl_clock_init(void)
 	if (ret)
 		return ret;
 
-	ret = evl_init_slave_clock(&evl_realtime_clock,
-				&evl_mono_clock);
+	ret = evl_init_slave_clock(&evl_realtime_clock,	&evl_mono_clock);
 	if (ret)
 		evl_put_element(&evl_mono_clock.element);
 

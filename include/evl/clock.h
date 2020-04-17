@@ -30,12 +30,10 @@ struct evl_clock_gravity {
 };
 
 struct evl_clock {
-	/* (ns) */
 	ktime_t resolution;
-	/* Anticipation values for timer shots. */
 	struct evl_clock_gravity gravity;
-	/* Clock name. */
 	const char *name;
+	int flags;
 	struct {
 		ktime_t (*read)(struct evl_clock *clock);
 		u64 (*read_cycles)(struct evl_clock *clock);
@@ -51,11 +49,9 @@ struct evl_clock {
 	} ops;
 	struct evl_timerbase *timerdata;
 	struct evl_clock *master;
-	/* Offset from master clock. */
-	ktime_t offset;
+	ktime_t offset;	/* from master clock. */
 #ifdef CONFIG_SMP
-	/* CPU affinity of clock beat. */
-	struct cpumask affinity;
+	struct cpumask affinity; /* which CPU this clock beats on. */
 #endif
 	struct list_head next;
 	struct evl_element element;

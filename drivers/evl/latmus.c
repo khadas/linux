@@ -409,9 +409,11 @@ create_kthread_runner(int priority, int cpu)
 	evl_init_flag(&k_runner->barrier);
 
 	ret = evl_run_kthread_on_cpu(&k_runner->kthread, cpu,
-				     kthread_handler,
-				     priority, "latmus-klat:%d",
-				     task_pid_nr(current));
+				kthread_handler,
+				priority,
+				EVL_CLONE_PUBLIC,
+				"latmus-klat:%d",
+				task_pid_nr(current));
 	if (ret) {
 		kfree(k_runner);
 		return ERR_PTR(ret);

@@ -17,10 +17,18 @@ struct evl_element_ids {
 	__u32 state_offset;
 };
 
+#define EVL_CLONE_PUBLIC  (1 << 16)
+#define EVL_CLONE_PRIVATE (0 << 16)
+#define EVL_CLONE_CORE    (1 << 31)
+#define EVL_CLONE_MASK    ((__u32)-1 << 16)
+
 struct evl_clone_req {
 	__u64 name_ptr;		/* (const char *name) */
 	__u64 attrs_ptr;	/* (void *attrs) */
+	__u32 clone_flags;
+	/* Output on success: */
 	struct evl_element_ids eids;
+	__u32 efd;
 };
 
 #define EVL_IOC_CLONE	_IOWR(EVL_FACTORY_IOCBASE, 0, struct evl_clone_req)
