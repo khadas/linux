@@ -29,7 +29,10 @@ static DEFINE_MUTEX(measure_lock);
 #define DIV_STEP		32
 #define DIV_MAX			640
 
-#define CLK_MSR_MAX		128
+/*
+ * According to Datasheet, The max clk measure num
+ * is 256, not 128, remove it
+ */
 
 struct meson_msr_id {
 	struct meson_msr *priv;
@@ -39,6 +42,7 @@ struct meson_msr_id {
 
 struct meson_msr_data {
 	struct meson_msr_id *msr_table;
+	unsigned int table_size;
 	unsigned int duty_offset;
 	unsigned int reg0_offset;
 	unsigned int reg1_offset;
@@ -54,9 +58,9 @@ struct meson_msr {
 	[__id] = {.id = __id, .name = __name,}
 
 static struct meson_msr *glo_meson_msr;
+static unsigned int measure_num;
 
-#ifdef CONFIG_ARM
-static struct meson_msr_id clk_msr_m8[CLK_MSR_MAX] = {
+static struct meson_msr_id clk_msr_m8[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee1"),
 	CLK_MSR_ID(2, "ring_osc_out_ee2"),
@@ -104,9 +108,8 @@ static struct meson_msr_id clk_msr_m8[CLK_MSR_MAX] = {
 	CLK_MSR_ID(62, "vid2_pll"),
 	CLK_MSR_ID(63, "mipi_csi_cfg"),
 };
-#endif
 
-static struct meson_msr_id clk_msr_gx[CLK_MSR_MAX] = {
+static struct meson_msr_id clk_msr_gx[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee_1"),
 	CLK_MSR_ID(2, "ring_osc_out_ee_2"),
@@ -176,7 +179,7 @@ static struct meson_msr_id clk_msr_gx[CLK_MSR_MAX] = {
 	CLK_MSR_ID(82, "ge2d"),
 };
 
-static struct meson_msr_id clk_msr_axg[CLK_MSR_MAX] = {
+static struct meson_msr_id clk_msr_axg[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee_1"),
 	CLK_MSR_ID(2, "ring_osc_out_ee_2"),
@@ -250,7 +253,7 @@ static struct meson_msr_id clk_msr_axg[CLK_MSR_MAX] = {
 	CLK_MSR_ID(109, "audio_locker_in"),
 };
 
-static struct meson_msr_id clk_msr_g12a[CLK_MSR_MAX] = {
+static struct meson_msr_id clk_msr_g12a[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee_1"),
 	CLK_MSR_ID(2, "ring_osc_out_ee_2"),
@@ -366,7 +369,7 @@ static struct meson_msr_id clk_msr_g12a[CLK_MSR_MAX] = {
 	CLK_MSR_ID(122, "audio_pdm_dclk"),
 };
 
-static struct meson_msr_id clk_msr_sm1[CLK_MSR_MAX] = {
+static struct meson_msr_id clk_msr_sm1[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee_1"),
 	CLK_MSR_ID(2, "ring_osc_out_ee_2"),
@@ -496,7 +499,7 @@ static struct meson_msr_id clk_msr_sm1[CLK_MSR_MAX] = {
 	CLK_MSR_ID(127, "csi2_data"),
 };
 
-static struct meson_msr_id clk_msr_tm2[255] = {
+static struct meson_msr_id clk_msr_tm2[] __initdata = {
 	CLK_MSR_ID(0, "am_ring_osc_clk_out_ee[0]"),
 	CLK_MSR_ID(1, "am_ring_osc_clk_out_ee[1]"),
 	CLK_MSR_ID(2, "am_ring_osc_clk_out_ee[2]"),
@@ -780,7 +783,7 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 	seq_puts(s, "  clock                     rate    precision\n");
 	seq_puts(s, "---------------------------------------------\n");
 
-	for (i = 0 ; i < CLK_MSR_MAX ; ++i) {
+	for (i = 0 ; i < measure_num; ++i) {
 		if (!msr_table[i].name)
 			continue;
 
@@ -809,6 +812,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	struct dentry *root, *clks;
 	void __iomem *base;
 	int i;
+	struct meson_msr_id *table;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct meson_msr),
 			    GFP_KERNEL);
@@ -820,6 +824,13 @@ static int meson_msr_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get match data\n");
 		return -ENODEV;
 	}
+	table = devm_kzalloc(&pdev->dev,
+			     priv->data->table_size * sizeof(*table),
+			     GFP_KERNEL);
+	memcpy(table, priv->data->msr_table,
+	       priv->data->table_size * sizeof(*table));
+	priv->data->msr_table = table;
+	measure_num = priv->data->table_size;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -843,7 +854,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 
 	glo_meson_msr = priv;
 
-	for (i = 0 ; i < CLK_MSR_MAX ; ++i) {
+	for (i = 0 ; i < priv->data->table_size; ++i) {
 		if (!priv->data->msr_table[i].name)
 			continue;
 
@@ -858,24 +869,25 @@ static int meson_msr_probe(struct platform_device *pdev)
 
 static const struct meson_msr_data meson_gx_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_gx,
+	.table_size = ARRAY_SIZE(clk_msr_gx),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
 	.reg2_offset = 0xc,
 };
 
-#ifdef CONFIG_ARM
 static const struct meson_msr_data meson_m8_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_m8,
+	.table_size = ARRAY_SIZE(clk_msr_m8),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
 	.reg2_offset = 0xc,
 };
-#endif
 
 static const struct meson_msr_data meson_axg_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_axg,
+	.table_size = ARRAY_SIZE(clk_msr_axg),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
@@ -884,6 +896,7 @@ static const struct meson_msr_data meson_axg_data = {
 
 static const struct meson_msr_data meson_g12a_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_g12a,
+	.table_size = ARRAY_SIZE(clk_msr_g12a),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
@@ -892,6 +905,7 @@ static const struct meson_msr_data meson_g12a_data = {
 
 static const struct meson_msr_data meson_sm1_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_sm1,
+	.table_size = ARRAY_SIZE(clk_msr_sm1),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
@@ -900,6 +914,7 @@ static const struct meson_msr_data meson_sm1_data = {
 
 static const struct meson_msr_data meson_tm2_data = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_tm2,
+	.table_size = ARRAY_SIZE(clk_msr_tm2),
 	.duty_offset = 0x0,
 	.reg0_offset = 0x4,
 	.reg1_offset = 0x8,
@@ -911,7 +926,6 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson-gx-clk-measure",
 		.data = &meson_gx_data,
 	},
-#ifdef CONFIG_ARM
 	{
 		.compatible = "amlogic,meson8-clk-measure",
 		.data = &meson_m8_data,
@@ -920,7 +934,6 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson8b-clk-measure",
 		.data = &meson_m8_data,
 	},
-#endif
 	{
 		.compatible = "amlogic,meson-axg-clk-measure",
 		.data = &meson_axg_data,
