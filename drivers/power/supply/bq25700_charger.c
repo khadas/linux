@@ -31,14 +31,15 @@
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/rk_keys.h>
 
-static int dbg_enable;
+static int dbg_enable = 1;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DBG(args...) \
 	do { \
 		if (dbg_enable) { \
-			pr_info(args); \
+			pr_info("bq25703: "args); \
 		} \
 	} while (0)
 
@@ -46,7 +47,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define BQ25700_MANUFACTURER		"Texas Instruments"
 #define BQ25700_ID			0x59
-#define BQ25703_ID			0x58
+#define BQ25703_ID			0x78
 
 #define DEFAULT_INPUTVOL		((5000 - 1280) * 1000)
 #define MAX_INPUTVOLTAGE		24000000
@@ -522,9 +523,9 @@ static const union {
 	/* range tables */
 	[TBL_ICHG] =	{ .rt = {0,	  8128000, 64000} },
 	/* uV */
-	[TBL_CHGMAX] = { .rt = {0, 19200000, 16000} },
+	[TBL_CHGMAX] = { .rt = {0, 12032000, 16000} },
 	/* uV  max charge voltage*/
-	[TBL_INPUTVOL] = { .rt = {3200000, 19520000, 64000} },
+	[TBL_INPUTVOL] = { .rt = {3200000, 12032000, 64000} },
 	/* uV  input charge voltage*/
 	[TBL_INPUTCUR] = {.rt = {0, 6350000, 50000} },
 	/*uA input current*/
@@ -1248,6 +1249,11 @@ static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 
 	if (bq25700_field_read(charger, AC_STAT)) {
 		irq_flag = IRQF_TRIGGER_LOW;
+		bq25700_field_write(charger, INPUT_CURRENT, charger->init_data.input_current_cdp);
+		bq25700_field_write(charger, CHARGE_CURRENT, charger->init_data.ichg);
+		bq25700_get_chip_state(charger, &state);
+		charger->state = state;
+		power_supply_changed(charger->supply_charger);
 	} else {
 		irq_flag = IRQF_TRIGGER_HIGH;
 		bq25700_field_write(charger, INPUT_CURRENT,
