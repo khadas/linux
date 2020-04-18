@@ -831,6 +831,11 @@ static void panel_simple_shutdown(struct device *dev)
 
 	if (panel->prepared) {
 		gpiod_direction_output(panel->reset_gpio, 1);
+		panel_simple_sleep(panel->desc->delay.reset);
+		gpiod_direction_output(panel->reset_gpio, 0);
+		msleep(panel->desc->delay.reset);
+		gpiod_direction_output(panel->reset_gpio, 1);
+		msleep(panel->desc->delay.reset);
 		gpiod_direction_output(panel->enable_gpio, 0);
 		panel_simple_regulator_disable(panel);
 	}
