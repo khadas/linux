@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/platform_device.h>
 #include <linux/iio/events.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/sysfs.h>
@@ -102,6 +103,7 @@
 #define APDS9960_MAX_ALS_THRES_VAL	0xffff
 #define APDS9960_MAX_INT_TIME_IN_US	1000000
 
+extern int get_board_type(void);
 enum apds9960_als_channel_idx {
 	IDX_ALS_CLEAR, IDX_ALS_RED, IDX_ALS_GREEN, IDX_ALS_BLUE,
 };
@@ -788,12 +790,13 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 	int ret, status;
 
 	ret = regmap_read(data->regmap, APDS9960_REG_STATUS, &status);
+
 	if (ret < 0) {
 		dev_err(&data->client->dev, "irq status reg read failed\n");
 		return IRQ_HANDLED;
 	}
 
-	if ((status & APDS9960_REG_STATUS_ALS_INT) && data->als_int) {
+	if ((status & APDS9960_REG_STATUS_ALS_INT)) {
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_INTENSITY, 0,
 						    IIO_EV_TYPE_THRESH,
@@ -802,7 +805,7 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 		regmap_write(data->regmap, APDS9960_REG_CICLEAR, 1);
 	}
 
-	if ((status & APDS9960_REG_STATUS_PS_INT) && data->pxs_int) {
+	if ((status & APDS9960_REG_STATUS_PS_INT)) {
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 0,
 						    IIO_EV_TYPE_THRESH,
@@ -811,8 +814,9 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 		regmap_write(data->regmap, APDS9960_REG_PICLEAR, 1);
 	}
 
-	if (status & APDS9960_REG_STATUS_GINT)
+	if (status & APDS9960_REG_STATUS_GINT) {
 		apds9960_read_gesture_fifo(data);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -990,7 +994,13 @@ static int apds9960_probe(struct i2c_client *client,
 	struct apds9960_data *data;
 	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
-	int ret;
+	int ret, type;
+
+	type = get_board_type();
+	if (type == KHADAS_EDGE)
+		return -1;
+
+	printk("%s ...\n", __func__);
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -1061,7 +1071,9 @@ static int apds9960_probe(struct i2c_client *client,
 	if (ret)
 		goto error_power_down;
 
-	apds9960_set_power_state(data, false);
+	apds9960_set_power_state(data, true);
+
+	printk("%s done!\n", __func__);
 
 	return 0;
 
