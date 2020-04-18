@@ -530,7 +530,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 			dev_err(panel->dev, "failed to send exit cmds seq\n");
 	}
 
-	gpiod_direction_output(p->reset_gpio, 1);
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	gpiod_direction_output(p->enable_gpio, 0);
 
@@ -569,6 +569,9 @@ static int panel_simple_prepare(struct drm_panel *panel)
 		panel_simple_sleep(p->desc->delay.reset);
 
 	gpiod_direction_output(p->reset_gpio, 0);
+	msleep(p->desc->delay.reset);
+	gpiod_direction_output(p->reset_gpio, 1);
+	msleep(p->desc->delay.reset);
 
 	if (p->desc->delay.init)
 		panel_simple_sleep(p->desc->delay.init);
