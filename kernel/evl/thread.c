@@ -1403,33 +1403,6 @@ int evl_killall(int mask)
 }
 EXPORT_SYMBOL_GPL(evl_killall);
 
-int evl_update_mode(__u32 mask, bool set)
-{
-	struct evl_thread *curr = evl_current();
-	unsigned long flags;
-	struct evl_rq *rq;
-
-	if (curr == NULL)
-		return -EPERM;
-
-	if (mask & ~(T_WOSS|T_WOLI|T_WOSX))
-		return -EINVAL;
-
-	trace_evl_thread_update_mode(mask, set);
-
-	rq = evl_get_thread_rq(curr, flags);
-
-	if (set)
-		curr->state |= mask;
-	else
-		curr->state &= ~mask;
-
-	evl_put_thread_rq(curr, rq, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(evl_update_mode);
-
 pid_t evl_get_inband_pid(struct evl_thread *thread)
 {
 	if (thread->state & (T_ROOT|T_DORMANT|T_ZOMBIE))
@@ -1958,8 +1931,6 @@ static int set_sched_attrs(struct evl_thread *thread,
 out:
 	evl_put_thread_rq(thread, rq, flags);
 
-	evl_schedule();
-
 	return ret;
 }
 
@@ -2037,17 +2008,45 @@ void evl_get_thread_state(struct evl_thread *thread,
 }
 EXPORT_SYMBOL_GPL(evl_get_thread_state);
 
+static int update_mode(struct evl_thread *thread, __u32 mask,
+		__u32 *oldmask, bool set)
+{
+	unsigned long flags;
+	struct evl_rq *rq;
+
+	if (mask & ~(T_WOSS|T_WOLI|T_WOSX))
+		return -EINVAL;
+
+	trace_evl_thread_update_mode(thread, mask, set);
+
+	rq = evl_get_thread_rq(thread, flags);
+
+	*oldmask = thread->state & (T_WOSS|T_WOLI|T_WOSX);
+
+	if (likely(mask)) {
+		if (set)
+			thread->state |= mask;
+		else
+			thread->state &= ~mask;
+	}
+
+	evl_put_thread_rq(thread, rq, flags);
+
+	return 0;
+}
+
 static long thread_common_ioctl(struct evl_thread *thread,
 				unsigned int cmd, unsigned long arg)
 {
 	struct evl_thread_state statebuf;
 	struct evl_sched_attrs attrs;
-	long ret;
+	__u32 mask, oldmask;
+	long ret = 0;
 
 	switch (cmd) {
 	case EVL_THRIOC_SET_SCHEDPARAM:
 		ret = raw_copy_from_user(&attrs,
-					(struct evl_sched_attrs *)arg, sizeof(attrs));
+				(struct evl_sched_attrs *)arg, sizeof(attrs));
 		if (ret)
 			return -EFAULT;
 		ret = set_sched_attrs(thread, &attrs);
@@ -2066,9 +2065,30 @@ static long thread_common_ioctl(struct evl_thread *thread,
 		if (ret)
 			return -EFAULT;
 		break;
+	case EVL_THRIOC_SET_MODE:
+	case EVL_THRIOC_CLEAR_MODE:
+		ret = raw_get_user(mask, (__u32 *)arg);
+		if (ret)
+			return -EFAULT;
+		ret = update_mode(thread, mask, &oldmask,
+				cmd == EVL_THRIOC_SET_MODE);
+		if (ret)
+			return ret;
+		ret = raw_put_user(oldmask, (__u32 *)arg);
+		if (ret)
+			return -EFAULT;
+		break;
+	case EVL_THRIOC_UNBLOCK:
+		evl_unblock_thread(thread, 0);
+		break;
+	case EVL_THRIOC_DEMOTE:
+		evl_demote_thread(thread);
+		break;
 	default:
 		ret = -ENOTTY;
 	}
+
+	evl_schedule();
 
 	return ret;
 }
@@ -2079,7 +2099,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 	struct evl_thread *curr = evl_current();
 	long ret = -EPERM;
-	__u32 monfd, mask;
+	__u32 monfd;
 
 	if (thread->state & T_ZOMBIE)
 		return -ESTALE;
@@ -2101,14 +2121,10 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		ret = evl_signal_monitor_targeted(thread, monfd);
 		break;
-	case EVL_THRIOC_SET_MODE:
-	case EVL_THRIOC_CLEAR_MODE:
-		if (thread == curr) {
-			ret = raw_get_user(mask, (__u32 *)arg);
-			if (ret)
-				return -EFAULT;
-			ret = evl_update_mode(mask, cmd == EVL_THRIOC_SET_MODE);
-		}
+	case EVL_THRIOC_YIELD:
+		evl_release_thread(curr, 0, 0);
+		evl_schedule();
+		ret = 0;
 		break;
 	default:
 		ret = thread_common_ioctl(thread, cmd, arg);

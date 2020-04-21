@@ -777,17 +777,20 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
 		{T_WOLI, "woli"})
 
 TRACE_EVENT(evl_thread_update_mode,
-	TP_PROTO(int mode, bool set),
-	TP_ARGS(mode, set),
+	TP_PROTO(struct evl_thread *thread, int mode, bool set),
+	TP_ARGS(thread, mode, set),
 	TP_STRUCT__entry(
+		__field(struct evl_thread *, thread)
 		__field(int, mode)
 		__field(bool, set)
 	),
 	TP_fast_assign(
+		__entry->thread = thread;
 		__entry->mode = mode;
 		__entry->set = set;
 	),
-	TP_printk("%s %#x(%s)",
+	TP_printk("thread=%s %s %#x(%s)",
+		  evl_element_name(&__entry->thread->element),
 		  __entry->set ? "set" : "clear",
 		  __entry->mode, evl_print_thread_mode(__entry->mode))
 );
