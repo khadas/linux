@@ -18,7 +18,7 @@
  * latter to the former. CAUTION: a litteral value is required for the
  * current ABI definition (scripts reading this may be naive).
  */
-#define EVL_ABI_LEVEL  21
+#define EVL_ABI_LEVEL  22
 
 #define EVL_CONTROL_DEV  "/dev/evl/control"
 
