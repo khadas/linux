@@ -124,6 +124,15 @@ static const evl_syshand evl_systbl[] = {
 	   __EVL_CALL_ENTRY(ioctl),
 };
 
+#define __EVL_CALL_NAME(__name)  \
+	[sys_evl_ ## __name] = #__name
+
+static const char *evl_sysnames[] = {
+	   __EVL_CALL_NAME(read),
+	   __EVL_CALL_NAME(write),
+	   __EVL_CALL_NAME(ioctl),
+};
+
 #define SYSCALL_PROPAGATE   0
 #define SYSCALL_STOP        1
 
@@ -258,18 +267,18 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		goto do_inband;
 
 	nr = oob_syscall_nr(regs);
+	if (nr >= ARRAY_SIZE(evl_systbl))
+		goto bad_syscall;
+
 	curr = evl_current();
 	if (curr == NULL || !cap_raised(current_cap(), CAP_SYS_NICE)) {
 		if (EVL_DEBUG(CORE))
 			printk(EVL_WARNING
-				"OOB syscall <%d> denied to %s[%d]\n",
-				nr, current->comm, task_pid_nr(current));
+				"syscall <oob_%s> denied to %s[%d]\n",
+				evl_sysnames[nr], current->comm, task_pid_nr(current));
 		set_oob_error(regs, -EPERM);
 		return SYSCALL_STOP;
 	}
-
-	if (nr >= ARRAY_SIZE(evl_systbl))
-		goto bad_syscall;
 
 	/*
 	 * If the syscall originates from in-band context, hand it
@@ -323,7 +332,7 @@ do_inband:
 	}
 
 bad_syscall:
-	printk(EVL_WARNING "bad OOB syscall <%#x>\n", nr);
+	printk(EVL_WARNING "invalid out-of-band syscall <%#x>\n", nr);
 
 	set_oob_error(regs, -ENOSYS);
 
