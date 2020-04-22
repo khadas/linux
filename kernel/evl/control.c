@@ -114,8 +114,11 @@ static int do_quota_control(const struct evl_sched_ctlreq *ctl)
 		return -EFAULT;
 
 	ret = evl_sched_quota.sched_control(ctl->cpu, &param, &info);
-	if (ret || !ctl->info_ptr)
+	if (ret < 0)
 		return ret;
+
+	if (!ctl->info_ptr)
+		return 0;
 
 	u_infp = evl_valptr64(ctl->info_ptr, union evl_sched_ctlinfo);
 	ret = raw_copy_to_user(&u_infp->quota, &info.quota,
@@ -142,7 +145,7 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 	union evl_sched_ctlparam _param, *param = &_param, __user *u_ctlp;
 	union evl_sched_ctlinfo *info = NULL, __user *u_infp;
 	ssize_t ret;
-	size_t len;
+	ssize_t len;
 
 	u_ctlp = evl_valptr64(ctl->param_ptr, union evl_sched_ctlparam);
 	ret = raw_copy_from_user(&_param.tp, &u_ctlp->tp, sizeof(_param.tp));
@@ -178,19 +181,23 @@ static int do_tp_control(const struct evl_sched_ctlreq *ctl)
 		}
 	}
 
-	ret = evl_sched_tp.sched_control(ctl->cpu, param, info);
+	len = evl_sched_tp.sched_control(ctl->cpu, param, info);
+	if (len < 0) {
+		ret = len;
+		goto out;
+	}
 
-	if (info) {
-		if (ret > 0) {
-			u_infp = evl_valptr64(ctl->info_ptr,
-					union evl_sched_ctlinfo);
-			ret = raw_copy_to_user(&u_infp->tp, &info->tp, ret);
-			if (ret)
-				ret = -EFAULT;
-		}
-		evl_free(info);
+	if (info && len > 0) {
+		u_infp = evl_valptr64(ctl->info_ptr,
+				union evl_sched_ctlinfo);
+		ret = raw_copy_to_user(&u_infp->tp, &info->tp, len);
+		if (ret)
+			ret = -EFAULT;
 	}
 out:
+	if (info)
+		evl_free(info);
+
 	if (param != &_param)
 		evl_free(param);
 
