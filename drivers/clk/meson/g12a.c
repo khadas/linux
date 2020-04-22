@@ -2946,22 +2946,28 @@ static struct clk_regmap g12a_vpu = {
 
 /* VDEC clocks */
 
+static u32 mux_table_vdec[] = { 0, 1, 2, 3, 4};
+
 static const struct clk_hw *g12a_vdec_parent_hws[] = {
 	&g12a_fclk_div2p5.hw,
 	&g12a_fclk_div3.hw,
 	&g12a_fclk_div4.hw,
 	&g12a_fclk_div5.hw,
 	&g12a_fclk_div7.hw,
-	&g12a_hifi_pll.hw,
-	&g12a_gp0_pll.hw,
 };
 
+/*
+ * Due to add CLK_SET_RATE_PARENT flag, when set vdec clock rate,
+ * It will probably change hifi pll rate, avoid change hifi pll
+ * and gp0 pll rate, using mux table instead.
+ */
 static struct clk_regmap g12a_vdec_1_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_VDEC_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 9,
 		.flags = CLK_MUX_ROUND_CLOSEST,
+		.table = mux_table_vdec,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vdec_1_sel",
@@ -3012,6 +3018,7 @@ static struct clk_regmap g12a_vdec_hevcf_sel = {
 		.mask = 0x7,
 		.shift = 9,
 		.flags = CLK_MUX_ROUND_CLOSEST,
+		.table = mux_table_vdec,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vdec_hevcf_sel",
@@ -3062,6 +3069,7 @@ static struct clk_regmap g12a_vdec_hevc_sel = {
 		.mask = 0x7,
 		.shift = 25,
 		.flags = CLK_MUX_ROUND_CLOSEST,
+		.table = mux_table_vdec,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vdec_hevc_sel",
