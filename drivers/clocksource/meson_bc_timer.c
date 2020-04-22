@@ -18,9 +18,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/arm-smccc.h>
-#ifdef CONFIG_AMLOGIC_CPUIDLE
-#include <linux/amlogic/aml_cpuidle.h>
-#endif
 #include <linux/amlogic/cpu_version.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -44,6 +41,7 @@ struct meson_clock {
 	int	bit_enable;
 	int	bit_mode;
 	int	bit_resolution;
+	int min_delta_ns;
 	void __iomem *reg;
 	unsigned int init_flag;
 };
@@ -74,8 +72,8 @@ static int meson_set_next_event(unsigned long evt,
 {
 	struct meson_clock *clk =  &bc_clock;
 
-	if (is_meson_a1_cpu() || is_meson_c1_cpu()) {
-		if ((evt & 0xffff) <= 80) {
+	if (clk->min_delta_ns != 1) {
+		if ((evt & 0xffff) <= 50) {
 			/*pr_info("timer counter is too small!\n");*/
 			return -1;
 		}
@@ -153,9 +151,7 @@ static irqreturn_t meson_timer_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	evt->event_handler(evt);
-#ifdef CONFIG_AMLOGIC_CPUIDLE
-	do_aml_resume_power();
-#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -220,6 +216,7 @@ static int meson_bc_timer_init(struct device_node *np)
 
 	/* A1/C1 min delta change to 10, default is 1*/
 	of_property_read_u32(np, "min_delta_ns", &min_delta_ns);
+	mclk->min_delta_ns = min_delta_ns;
 
 	mclk->reg = of_iomap(np, 0);
 	if (!mclk->reg) {
@@ -244,7 +241,6 @@ static int meson_bc_timer_init(struct device_node *np)
 	meson_clockevent.min_delta_ns =
 		clockevent_delta2ns(min_delta_ns, &meson_clockevent);
 	meson_clockevent.irq = irq;
-	clockevents_register_device(&meson_clockevent);
 
 	ret = request_irq(irq,
 			  meson_timer_interrupt,
@@ -256,6 +252,8 @@ static int meson_bc_timer_init(struct device_node *np)
 		iounmap(mclk->reg);
 		return -1;
 	}
+
+	clockevents_register_device(&meson_clockevent);
 
 	return 0;
 }
