@@ -21,11 +21,13 @@ struct evl_poll_ctlreq {
 	__u32 action;
 	__u32 fd;
 	__u32 events;
+	union evl_value pollval;
 };
 
 struct evl_poll_event {
 	__u32 fd;
 	__u32 events;
+	union evl_value pollval;
 };
 
 struct evl_poll_waitreq {

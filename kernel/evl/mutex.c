@@ -50,7 +50,7 @@ static inline bool enable_inband_switch(struct evl_thread *curr)
 
 	atomic_set(&curr->inband_disable_count, 0);
 	if (curr->state & T_WOLI)
-		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_IMBALANCE);
+		evl_notify_thread(curr, EVL_HMDIAG_LKIMBALANCE, evl_nil);
 
 	return false;
 }
@@ -396,7 +396,7 @@ static void detect_inband_owner(struct evl_mutex *mutex,
 	} else if (owner->state & T_INBAND) {
 		curr->info |= T_PIALERT;
 		evl_spin_unlock(&curr->rq->lock);
-		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MIGRATE_PRIOINV);
+		evl_notify_thread(curr, EVL_HMDIAG_LKDEPEND, evl_nil);
 		return;
 	}
 
@@ -404,39 +404,38 @@ static void detect_inband_owner(struct evl_mutex *mutex,
 }
 
 /*
- * Detect when a thread is about to switch in-band while holding a
- * mutex which is causing an active PI or PP boost. Since this would
- * cause a priority inversion, any thread waiting for this mutex
- * bearing the T_WOLI bit receives a SIGDEBUG notification in this
- * case.
+ * Detect when current is about to switch in-band while holding a
+ * mutex which is causing an active PI or PP boost. Since such a
+ * dependency on in-band would cause a priority inversion for the
+ * waiter(s), the latter is sent a HM notification if T_WOLI is set.
  */
-void evl_detect_boost_drop(struct evl_thread *owner)
+void evl_detect_boost_drop(void)
 {
+	struct evl_thread *curr = evl_current();
 	struct evl_thread *waiter;
 	struct evl_mutex *mutex;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&owner->lock, flags);
+	evl_spin_lock_irqsave(&curr->lock, flags);
 
 	/*
 	 * Iterate over waiters of each mutex we got boosted for due
 	 * to PI/PP.
 	 */
-	for_each_evl_booster(mutex, owner) {
+	for_each_evl_booster(mutex, curr) {
 		evl_spin_lock(&mutex->lock);
 		for_each_evl_mutex_waiter(waiter, mutex) {
-			if (waiter->state & T_WOLI) {
-				evl_spin_lock(&waiter->rq->lock);
-				waiter->info |= T_PIALERT;
-				evl_spin_unlock(&waiter->rq->lock);
-				evl_signal_thread(waiter, SIGDEBUG,
-						SIGDEBUG_MIGRATE_PRIOINV);
-			}
+			if (!(waiter->state & T_WOLI))
+				continue;
+			evl_spin_lock(&waiter->rq->lock);
+			waiter->info |= T_PIALERT;
+			evl_spin_unlock(&waiter->rq->lock);
+			evl_notify_thread(waiter, EVL_HMDIAG_LKDEPEND, evl_nil);
 		}
 		evl_spin_unlock(&mutex->lock);
 	}
 
-	evl_spin_unlock_irqrestore(&owner->lock, flags);
+	evl_spin_unlock_irqrestore(&curr->lock, flags);
 }
 
 void __evl_init_mutex(struct evl_mutex *mutex,
@@ -675,7 +674,7 @@ redo:
 		h = oldh;
 	} while (!fast_mutex_is_claimed(h));
 
-	owner = evl_get_element_by_fundle(&evl_thread_factory,
+	owner = evl_get_factory_element_by_fundle(&evl_thread_factory,
 					evl_get_index(h),
 					struct evl_thread);
 	/*
@@ -711,9 +710,10 @@ redo:
 		track_owner(mutex, owner);
 	else
 		/*
-		 * evl_get_element_by_fundle() got us an extraneous
-		 * reference on @owner which an earlier call to
-		 * track_owner() already obtained, drop the former.
+		 * evl_get_factory_element_by_fundle() got us an
+		 * extraneous reference on @owner which an earlier
+		 * call to track_owner() already obtained, drop the
+		 * former.
 		 */
 		evl_put_element(&owner->element);
 

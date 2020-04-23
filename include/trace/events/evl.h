@@ -293,7 +293,7 @@ TRACE_EVENT(evl_init_thread,
 	TP_fast_assign(
 		__entry->thread = thread;
 		__assign_str(thread_name, thread->name);
-		__entry->flags = iattr->flags;
+		__entry->flags = iattr->flags | (iattr->observable ? T_OBSERV : 0);
 		__assign_str(class_name, iattr->sched_class->name);
 		__entry->cprio = thread->cprio;
 		__entry->status = status;
@@ -497,18 +497,18 @@ DEFINE_EVENT(curr_thread_event, evl_switched_oob,
 	TP_ARGS(curr)
 );
 
-#define evl_print_switch_cause(cause)					\
-	__print_symbolic(cause,						\
-			{ SIGDEBUG_TRAP,		"breakpoint trap" }, \
-			{ SIGDEBUG_NONE,		"undefined" },	\
-			{ SIGDEBUG_MIGRATE_SIGNAL,	"signal" },	\
-			{ SIGDEBUG_MIGRATE_SYSCALL,	"syscall" },	\
-			{ SIGDEBUG_MIGRATE_FAULT,	"fault" },	\
-			{ SIGDEBUG_MIGRATE_PRIOINV,     "priority inversion" }, \
-			{ SIGDEBUG_WATCHDOG,		"watchdog" },	\
-			{ SIGDEBUG_MUTEX_IMBALANCE,     "mutex imbalance" }, \
-			{ SIGDEBUG_MUTEX_SLEEP,         "mutex sleep" }, \
-			{ SIGDEBUG_STAGE_LOCKED,        "stage exclusion" } )
+#define evl_print_switch_cause(cause)						\
+	__print_symbolic(cause,							\
+			{ EVL_HMDIAG_TRAP,		"breakpoint trap" },	\
+			{ EVL_HMDIAG_NONE,		"undefined" },		\
+			{ EVL_HMDIAG_SIGDEMOTE,		"in-band signal" }, 	\
+			{ EVL_HMDIAG_SYSDEMOTE,		"in-band syscall" },	\
+			{ EVL_HMDIAG_EXDEMOTE,		"processor exception" },\
+			{ EVL_HMDIAG_WATCHDOG,		"watchdog" },		\
+			{ EVL_HMDIAG_LKDEPEND,		"lock dependency" },	\
+			{ EVL_HMDIAG_LKIMBALANCE,	"lock imbalance" },	\
+			{ EVL_HMDIAG_LKSLEEP,		"sleep holding lock" },	\
+			{ EVL_HMDIAG_STAGEX,		"stage exclusion" } )
 
 TRACE_EVENT(evl_switch_inband,
 	TP_PROTO(int cause),
@@ -579,23 +579,26 @@ TRACE_EVENT(evl_inband_wakeup,
 );
 
 TRACE_EVENT(evl_inband_signal,
-	TP_PROTO(struct task_struct *task, int sig),
-	TP_ARGS(task, sig),
+	TP_PROTO(struct evl_thread *thread, int sig, int sigval),
+	TP_ARGS(thread, sig, sigval),
 
 	TP_STRUCT__entry(
-		__field(pid_t, pid)
-		__array(char, comm, TASK_COMM_LEN)
+		__field(struct evl_thread *, thread)
 		__field(int, sig)
+		__field(int, sigval)
 	),
 
 	TP_fast_assign(
-		__entry->pid = task_pid_nr(task);
+		__entry->thread = thread;
 		__entry->sig = sig;
-		memcpy(__entry->comm, task->comm, TASK_COMM_LEN);
+		__entry->sigval = sigval;
 	),
 
-	TP_printk("pid=%d comm=%s sig=%d",
-		  __entry->pid, __entry->comm, __entry->sig)
+	/* Caller holds a reference on @thread, memory cannot be stale. */
+	TP_printk("thread=%s pid=%d sig=%d sigval=%d",
+		evl_element_name(&__entry->thread->element),
+		evl_get_inband_pid(__entry->thread),
+		__entry->sig, __entry->sigval)
 );
 
 DEFINE_EVENT(timer_event, evl_timer_stop,

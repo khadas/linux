@@ -41,6 +41,7 @@ struct evl_poll_watchpoint {
 	unsigned int fd;
 	int events_polled;
 	int events_received;
+	union evl_value pollval;
 	struct oob_poll_wait wait;
 	struct evl_flag *flag;
 	struct file *filp;

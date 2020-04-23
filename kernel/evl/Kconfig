@@ -103,6 +103,21 @@ config EVL_NR_PROXIES
 	be alive concurrently in the system for user-space
 	applications.
 
+config EVL_NR_OBSERVABLES
+	int "Maximum number of observables"
+	range 1 16384
+	default 64
+	help
+
+	This value gives the maximum number of observable elements
+	which can live concurrently in the EVL core. Observables
+	enable the observer design pattern, in which any number of
+	observer threads can be notified of updates to any number of
+	observable subjects, in a loosely coupled fashion. An EVL
+	thread is in and of itself an observable which can be
+	monitored for events; observables attached to threads are not
+	accounted for in this value.
+
 endmenu
 
 menu "Pre-calibrated latency"
@@ -189,13 +204,13 @@ config EVL_WATCHDOG
 	default y
 	help
 	  This option activates a watchdog aimed at detecting runaway
-	  EVL threads. If enabled, the watchdog triggers after a
-	  given period of uninterrupted out-of-band activity has elapsed
-	  without Linux interaction in the meantime.
+	  EVL threads. If enabled, the watchdog triggers after a given
+	  period of uninterrupted out-of-band activity has elapsed
+	  without in-band interaction in the meantime.
 
-	  In such an event, the current thread is moved out the
-	  out-of-band context, receiving a SIGDEBUG signal from the
-	  Linux kernel immediately after.
+	  In such an event, the thread preempted by the watchdog timer
+	  is kicked out the out-of-band context, and immediately
+	  receives a SIGDEBUG signal from the kernel.
 
 	  The timeout value of the watchdog can be set using the
 	  EVL_WATCHDOG_TIMEOUT parameter.

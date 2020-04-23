@@ -639,6 +639,9 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 	if (ret)
 		return ERR_PTR(-EFAULT);
 
+	if (clone_flags & ~EVL_CLONE_PUBLIC)
+		return ERR_PTR(-EINVAL);
+
 	/* LART */
 	if ((attrs.i_bufsz == 0 && attrs.o_bufsz == 0) ||
 		order_base_2(attrs.i_bufsz) > 30 ||

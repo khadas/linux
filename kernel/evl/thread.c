@@ -39,8 +39,13 @@
 #include <evl/mutex.h>
 #include <evl/poll.h>
 #include <evl/flag.h>
+#include <evl/factory.h>
+#include <evl/observable.h>
 #include <asm/evl/syscall.h>
 #include <trace/events/evl.h>
+
+#define EVL_THREAD_CLONE_FLAGS	\
+	(EVL_CLONE_PUBLIC|EVL_CLONE_OBSERVABLE|EVL_CLONE_MASTER)
 
 int evl_nrthreads;
 
@@ -49,6 +54,8 @@ LIST_HEAD(evl_thread_list);
 static DEFINE_HARD_SPINLOCK(thread_list_lock);
 
 static DECLARE_WAIT_QUEUE_HEAD(join_all);
+
+static const struct file_operations thread_fops;
 
 static void inband_task_wakeup(struct irq_work *work);
 
@@ -171,6 +178,9 @@ int evl_init_thread(struct evl_thread *thread,
 	if ((flags & T_USER) && IS_ENABLED(CONFIG_EVL_DEBUG_WOLI))
 		flags |= T_WOLI;
 
+	if (iattr->observable)
+		flags |= T_OBSERV;
+
 	/*
 	 * If no rq was given, pick an initial CPU for the new thread
 	 * which is part of its affinity mask, and therefore also part
@@ -207,6 +217,7 @@ int evl_init_thread(struct evl_thread *thread,
 	thread->wwake = NULL;
 	thread->wait_data = NULL;
 	thread->u_window = NULL;
+	thread->observable = iattr->observable;
 	atomic_set(&thread->inband_disable_count, 0);
 	memset(&thread->poll_context, 0, sizeof(thread->poll_context));
 	memset(&thread->stat, 0, sizeof(thread->stat));
@@ -278,13 +289,17 @@ static void do_cleanup_current(struct evl_thread *curr)
 	unsigned long flags;
 	struct evl_rq *rq;
 
+	/* Kick out all subscribers. */
+	if (curr->observable)
+		evl_flush_observable(curr->observable);
+
 	/*
 	 * Drop trackers first since this may alter the rq state for
 	 * current.
 	 */
 	evl_drop_tracking_mutexes(curr);
 
-	evl_unindex_element(&curr->element);
+	evl_unindex_factory_element(&curr->element);
 
 	if (curr->state & T_USER) {
 		evl_free_chunk(&evl_shared_heap, curr->u_window);
@@ -448,7 +463,7 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags)
 		goto fail_spawn;
 	}
 
-	evl_index_element(&thread->element);
+	evl_index_factory_element(&thread->element);
 	wait_for_completion(&kthread->done);
 	if (kthread->status)
 		return kthread->status;
@@ -983,7 +998,7 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
 
 	if (curr && !(curr->state & T_INBAND)) {
 		evl_put_thread_rq(thread, rq, flags);
-		evl_switch_inband(SIGDEBUG_NONE);
+		evl_switch_inband(EVL_HMDIAG_NONE);
 		switched = true;
 	} else {
 		evl_put_thread_rq(thread, rq, flags);
@@ -1072,7 +1087,7 @@ void __evl_test_cancel(struct evl_thread *curr)
 		return;
 
 	if (!(curr->state & T_INBAND))
-		evl_switch_inband(SIGDEBUG_NONE);
+		evl_switch_inband(EVL_HMDIAG_NONE);
 
 	do_exit(0);
 	/* ... won't return ... */
@@ -1274,59 +1289,79 @@ void evl_demote_thread(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_demote_thread);
 
-struct inband_signal {
-	fundle_t fundle;
+struct sig_irqwork_data {
+	struct evl_thread *thread;
 	int signo, sigval;
 	struct irq_work work;
 };
 
-static void inband_task_signal(struct irq_work *work)
+static void do_inband_signal(struct evl_thread *thread, int signo, int sigval)
 {
-	struct evl_thread *thread;
-	struct inband_signal *req;
+	struct task_struct *p = thread->altsched.task;
 	struct kernel_siginfo si;
-	struct task_struct *p;
-	int signo;
 
-	req = container_of(work, struct inband_signal, work);
-	thread = evl_get_element_by_fundle(&evl_thread_factory,
-					req->fundle, struct evl_thread);
-	if (thread == NULL)
-		goto done;
-
-	p = thread->altsched.task;
-	signo = req->signo;
-	trace_evl_inband_signal(p, signo);
+	trace_evl_inband_signal(thread, signo, sigval);
 
 	if (signo == SIGDEBUG) {
 		memset(&si, '\0', sizeof(si));
 		si.si_signo = signo;
 		si.si_code = SI_QUEUE;
-		si.si_int = req->sigval;
+		si.si_int = sigval;
 		send_sig_info(signo, &si, p);
 	} else
 		send_sig(signo, p, 1);
+}
 
-	evl_put_element(&thread->element);
-done:
-	evl_free(req);
+static void sig_irqwork(struct irq_work *work)
+{
+	struct sig_irqwork_data *sigd;
+
+	sigd = container_of(work, struct sig_irqwork_data, work);
+	do_inband_signal(sigd->thread, sigd->signo, sigd->sigval);
+	evl_put_element(&sigd->thread->element);
+	evl_free(sigd);
 }
 
 void evl_signal_thread(struct evl_thread *thread, int sig, int arg)
 {
-	struct inband_signal *req;
+	struct sig_irqwork_data *sigd;
 
 	if (EVL_WARN_ON(CORE, !(thread->state & T_USER)))
 		return;
 
-	req = evl_alloc(sizeof(*req));
-	init_irq_work(&req->work, inband_task_signal);
-	req->fundle = fundle_of(thread);
-	req->signo = sig;
-	req->sigval = sig == SIGDEBUG ? arg | sigdebug_marker : arg;
-	irq_work_queue(&req->work);
+	if (running_inband()) {
+		do_inband_signal(thread, sig, arg);
+		return;
+	}
+
+	sigd = evl_alloc(sizeof(*sigd));
+	init_irq_work(&sigd->work, sig_irqwork);
+	sigd->thread = thread;
+	sigd->signo = sig;
+	sigd->sigval = sig == SIGDEBUG ? arg | sigdebug_marker : arg;
+
+	evl_get_element(&thread->element);
+	/* Cannot fail, irq_work is local to this call. */
+	irq_work_queue(&sigd->work);
 }
 EXPORT_SYMBOL_GPL(evl_signal_thread);
+
+void evl_notify_thread(struct evl_thread *thread,
+		int tag, union evl_value details)
+{
+	if (thread->state & T_HMSIG)
+		evl_signal_thread(thread, SIGDEBUG, tag);
+
+	if (thread->state & T_HMOBS) {
+		if (!evl_send_observable(thread->observable, tag, details))
+			printk_ratelimited(EVL_WARNING
+				"%s[%d] could not receive HM event #%d",
+				evl_element_name(&thread->element),
+					evl_get_inband_pid(thread),
+					tag);
+	}
+}
+EXPORT_SYMBOL_GPL(evl_notify_thread);
 
 #ifdef CONFIG_MMU
 
@@ -1503,7 +1538,7 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 	 * We received a trap on the oob stage, switch to in-band
 	 * before handling the exception.
 	 */
-	evl_switch_inband(is_bp ? SIGDEBUG_TRAP : SIGDEBUG_MIGRATE_FAULT);
+	evl_switch_inband(is_bp ? EVL_HMDIAG_TRAP : EVL_HMDIAG_EXDEMOTE);
 }
 
 /* hard irqs on. */
@@ -1541,7 +1576,7 @@ void handle_oob_mayday(struct pt_regs *regs)
 	 * syscall. Filter this case out.
 	 */
 	if (!(curr->state & T_INBAND))
-		evl_switch_inband(SIGDEBUG_NONE);
+		evl_switch_inband(EVL_HMDIAG_NONE);
 }
 
 static void handle_migration_event(struct dovetail_migration_data *d)
@@ -1812,7 +1847,7 @@ static void handle_retuser_event(void)
 
 	if ((curr->state & T_WEAK) &&
 		atomic_read(&curr->inband_disable_count) == 0)
-		evl_switch_inband(SIGDEBUG_NONE);
+		evl_switch_inband(EVL_HMDIAG_NONE);
 }
 
 static void handle_cleanup_event(struct mm_struct *mm)
@@ -1848,7 +1883,9 @@ void handle_inband_event(enum inband_event_type event, void *data)
 		handle_sigwake_event(data);
 		break;
 	case INBAND_TASK_EXIT:
-		put_current_thread();
+		evl_drop_subscriptions(evl_get_subscriber());
+		if (evl_current())
+			put_current_thread();
 		break;
 	case INBAND_TASK_MIGRATION:
 		handle_migration_event(data);
@@ -2014,20 +2051,34 @@ static int update_mode(struct evl_thread *thread, __u32 mask,
 	unsigned long flags;
 	struct evl_rq *rq;
 
-	if (mask & ~(T_WOSS|T_WOLI|T_WOSX))
+	trace_evl_thread_update_mode(thread, mask, set);
+
+	if (mask & ~EVL_THREAD_MODE_BITS)
 		return -EINVAL;
 
-	trace_evl_thread_update_mode(thread, mask, set);
+	if (set) {
+		/* T_HMOBS requires observability of @thread. */
+		if (mask & T_HMOBS && thread->observable == NULL)
+			return -EINVAL;
+		/* Default to T_HMSIG if not specified. */
+		if (!(mask & (T_HMSIG|T_HMOBS)))
+			mask |= T_HMSIG;
+	}
 
 	rq = evl_get_thread_rq(thread, flags);
 
-	*oldmask = thread->state & (T_WOSS|T_WOLI|T_WOSX);
+	*oldmask = thread->state & EVL_THREAD_MODE_BITS;
 
 	if (likely(mask)) {
-		if (set)
+		if (set) {
 			thread->state |= mask;
-		else
+		} else {
 			thread->state &= ~mask;
+			if (!(thread->state & (T_WOSS|T_WOLI|T_WOSX)))
+				thread->state &= ~(T_HMSIG|T_HMOBS);
+			else if (!(thread->state & (T_HMSIG|T_HMOBS)))
+				thread->state &= ~(T_WOSS|T_WOLI|T_WOSX);
+		}
 	}
 
 	evl_put_thread_rq(thread, rq, flags);
@@ -2111,7 +2162,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case EVL_THRIOC_SWITCH_INBAND:
 		if (thread == curr) {
-			evl_switch_inband(SIGDEBUG_NONE);
+			evl_switch_inband(EVL_HMDIAG_NONE);
 			ret = 0;
 		}
 		break;
@@ -2154,11 +2205,71 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
 	case EVL_THRIOC_JOIN:
 		ret = evl_join_thread(thread, false);
 		break;
+	case EVL_OBSIOC_SUBSCRIBE:
+	case EVL_OBSIOC_UNSUBSCRIBE:
+		if (thread->observable)
+			ret = evl_ioctl_observable(thread->observable,
+						cmd, arg);
+		break;
 	default:
 		ret = thread_common_ioctl(thread, cmd, arg);
 	}
 
 	return ret;
+}
+
+static ssize_t thread_oob_read(struct file *filp,
+			char __user *u_buf, size_t count)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_read_observable(thread->observable, u_buf, count,
+				!(filp->f_flags & O_NONBLOCK));
+}
+
+static ssize_t thread_oob_write(struct file *filp,
+			const char __user *u_buf, size_t count)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_write_observable(thread->observable, u_buf, count);
+}
+
+static __poll_t thread_oob_poll(struct file *filp,
+				struct oob_poll_wait *wait)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_oob_poll_observable(thread->observable, wait);
+}
+
+static ssize_t thread_write(struct file *filp, const char __user *u_buf,
+			size_t count, loff_t *ppos)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_write_observable(thread->observable, u_buf, count);
+}
+
+static ssize_t thread_read(struct file *filp, char __user *u_buf,
+			size_t count, loff_t *ppos)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_read_observable(thread->observable, u_buf, count,
+				!(filp->f_flags & O_NONBLOCK));
+}
+
+static __poll_t thread_poll(struct file *filp, poll_table *pt)
+{
+	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	return evl_poll_observable(thread->observable, filp, pt);
+}
+
+bool evl_is_thread_file(struct file *filp)
+{
+	return filp->f_op == &thread_fops;
 }
 
 static const struct file_operations thread_fops = {
@@ -2170,6 +2281,13 @@ static const struct file_operations thread_fops = {
 	.compat_ioctl   = compat_ptr_ioctl,
 	.compat_oob_ioctl  = compat_ptr_oob_ioctl,
 #endif
+	/* For observability. */
+	.oob_read	= thread_oob_read,
+	.oob_write	= thread_oob_write,
+	.oob_poll	= thread_oob_poll,
+	.read		= thread_read,
+	.write		= thread_write,
+	.poll		= thread_poll,
 };
 
 static int map_uthread_self(struct evl_thread *thread)
@@ -2236,6 +2354,7 @@ static int map_uthread_self(struct evl_thread *thread)
 /*
  * Deconstruct a thread we just failed to map over a userland task.
  * Since the former must be dormant, it can't be part of any runqueue.
+ * The caller is in charge of freeing @thread.
  */
 static void discard_unmapped_uthread(struct evl_thread *thread)
 {
@@ -2245,14 +2364,13 @@ static void discard_unmapped_uthread(struct evl_thread *thread)
 
 	if (thread->u_window)
 		evl_free_chunk(&evl_shared_heap, thread->u_window);
-
-	kfree(thread);
 }
 
 static struct evl_element *
 thread_factory_build(struct evl_factory *fac, const char *name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
+	struct evl_observable *observable = NULL;
 	struct task_struct *tsk = current;
 	struct evl_init_thread_attr iattr;
 	struct evl_thread *curr;
@@ -2260,6 +2378,9 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 
 	if (evl_current())
 		return ERR_PTR(-EBUSY);
+
+	if (clone_flags & ~EVL_THREAD_CLONE_FLAGS)
+		return ERR_PTR(-EINVAL);
 
 	/* @current must open the control device first. */
 	if (!test_bit(EVL_MM_ACTIVE_BIT, &dovetail_mm_state()->flags))
@@ -2271,31 +2392,49 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 
 	ret = evl_init_element(&curr->element,
 			&evl_thread_factory, clone_flags);
-	if (ret) {
-		kfree(curr);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto fail_element;
 
 	iattr.flags = T_USER;
+
+	if (clone_flags & EVL_CLONE_OBSERVABLE) {
+		/*
+		 * Accessing the observable is done via the thread
+		 * element (if public), so clear the public flag for
+		 * the observable itself.
+		 */
+		observable = evl_alloc_observable(
+			clone_flags & ~EVL_CLONE_PUBLIC);
+		if (IS_ERR(observable)) {
+			ret = PTR_ERR(observable);
+			goto fail_observable;
+		}
+		ret = evl_create_core_element_device(
+			&observable->element,
+			&evl_observable_factory,
+			name);
+		if (ret)
+			goto fail_observable_dev;
+		observable = observable;
+	} else if (clone_flags & EVL_CLONE_MASTER) {
+		ret = -EINVAL;
+		goto fail_observable;
+	}
+
 	iattr.affinity = cpu_possible_mask;
+	iattr.observable = observable;
 	iattr.sched_class = &evl_sched_weak;
 	iattr.sched_param.weak.prio = 0;
 	ret = evl_init_thread(curr, &iattr, NULL, "%s", name);
-	if (ret) {
-		evl_destroy_element(&curr->element);
-		kfree(curr);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto fail_thread;
 
 	ret = map_uthread_self(curr);
-	if (ret) {
-		evl_destroy_element(&curr->element);
-		discard_unmapped_uthread(curr);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto fail_map;
 
 	*state_offp = evl_shared_offset(curr->u_window);
-	evl_index_element(&curr->element);
+	evl_index_factory_element(&curr->element);
 
 	/*
 	 * Unlike most elements, a thread may exist in absence of any
@@ -2311,6 +2450,19 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	tsk->comm[sizeof(tsk->comm) - 1] = '\0';
 
 	return &curr->element;
+
+fail_map:
+	discard_unmapped_uthread(curr);
+fail_thread:
+	if (observable)
+fail_observable_dev:
+		evl_put_element(&observable->element); /* ->dispose() */
+fail_observable:
+	evl_destroy_element(&curr->element);
+fail_element:
+	kfree(curr);
+
+	return ERR_PTR(ret);
 }
 
 static void thread_factory_dispose(struct evl_element *e)
@@ -2330,6 +2482,8 @@ static void thread_factory_dispose(struct evl_element *e)
 	 * and no more reachable, so we can wakeup joiners if any.
 	 */
 	if (likely(state & T_ZOMBIE)) {
+		if (thread->observable)
+			evl_put_element(&thread->observable->element);
 		evl_destroy_element(&thread->element);
 		complete_all(&thread->exited);	 /* evl_join_thread() */
 		if (waitqueue_active(&join_all)) /* evl_killall() */
@@ -2337,6 +2491,8 @@ static void thread_factory_dispose(struct evl_element *e)
 	} else {
 		if (EVL_WARN_ON(CORE, evl_current() != thread))
 			return;
+		if (thread->observable)
+			evl_put_element(&thread->observable->element);
 		cleanup_current_thread();
 		evl_destroy_element(&thread->element);
 	}
@@ -2521,12 +2677,33 @@ static ssize_t pid_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(pid);
 
+static ssize_t observable_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	struct evl_thread *thread;
+	ssize_t ret;
+
+	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		evl_element_is_observable(&thread->element));
+
+	evl_put_element(&thread->element);
+
+	return ret;
+}
+static DEVICE_ATTR_RO(observable);
+
 static struct attribute *thread_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_sched.attr,
 	&dev_attr_timeout.attr,
 	&dev_attr_stats.attr,
 	&dev_attr_pid.attr,
+	&dev_attr_observable.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(thread);

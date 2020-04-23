@@ -38,6 +38,12 @@ struct evl_element;
 
 #define EVL_DEVHASH_BITS	8
 
+struct evl_index {
+	struct rb_root root;
+	hard_spinlock_t lock;
+	fundle_t generator;
+};
+
 struct evl_factory {
 	const char *name;
 	const struct file_operations *fops;
@@ -59,11 +65,7 @@ struct evl_factory {
 		kuid_t kuid;
 		kgid_t kgid;
 		unsigned long *minor_map;
-		struct evl_index {
-			struct rb_root root;
-			hard_spinlock_t lock;
-			fundle_t generator;
-		} index;
+		struct evl_index index;
 		DECLARE_HASHTABLE(name_hash, EVL_DEVHASH_BITS);
 		struct mutex hash_lock;
 	}; /* Internal. */
@@ -109,14 +111,20 @@ void evl_destroy_element(struct evl_element *e);
 void evl_get_element(struct evl_element *e);
 
 struct evl_element *
-__evl_get_element_by_fundle(struct evl_factory *fac,
+__evl_get_element_by_fundle(struct evl_index *map,
 			fundle_t fundle);
 
-#define evl_get_element_by_fundle(__fac, __fundle, __type)		\
+#define evl_get_element_by_fundle(__map, __fundle, __type)		\
 	({								\
 		struct evl_element *__e;				\
-		__e = __evl_get_element_by_fundle(__fac, __fundle);	\
+		__e = __evl_get_element_by_fundle(__map, __fundle);	\
 		__e ? container_of(__e, __type, element) : NULL;	\
+	})
+
+#define evl_get_factory_element_by_fundle(__fac, __fundle, __type)	\
+	({								\
+		struct evl_index *__map = &(__fac)->index;		\
+		evl_get_element_by_fundle(__map, __fundle, __type);	\
 	})
 
 /*
@@ -135,9 +143,14 @@ static inline bool evl_element_is_public(struct evl_element *e)
 	return !!(e->clone_flags & EVL_CLONE_PUBLIC);
 }
 
-static inline bool evl_element_is_core(struct evl_element *e)
+static inline bool evl_element_has_coredev(struct evl_element *e)
 {
-	return !!(e->clone_flags & EVL_CLONE_CORE);
+	return !!(e->clone_flags & EVL_CLONE_COREDEV);
+}
+
+static inline bool evl_element_is_observable(struct evl_element *e)
+{
+	return !!(e->clone_flags & EVL_CLONE_OBSERVABLE);
 }
 
 void evl_put_element(struct evl_element *e);
@@ -154,12 +167,21 @@ int evl_create_core_element_device(struct evl_element *e,
 
 void evl_remove_element_device(struct evl_element *e);
 
-void evl_index_element(struct evl_element *e);
+void evl_index_element(struct evl_index *map,
+		struct evl_element *e);
 
-int evl_index_element_at(struct evl_element *e,
-			fundle_t fundle);
+static inline void evl_index_factory_element(struct evl_element *e)
+{
+	evl_index_element(&e->factory->index, e);
+}
 
-void evl_unindex_element(struct evl_element *e);
+void evl_unindex_element(struct evl_index *map,
+			struct evl_element *e);
+
+static inline void evl_unindex_factory_element(struct evl_element *e)
+{
+	evl_unindex_element(&e->factory->index, e);
+}
 
 int evl_early_init_factories(void);
 
@@ -177,5 +199,6 @@ extern struct evl_factory evl_thread_factory;
 extern struct evl_factory evl_trace_factory;
 extern struct evl_factory evl_xbuf_factory;
 extern struct evl_factory evl_proxy_factory;
+extern struct evl_factory evl_observable_factory;
 
 #endif /* !_EVL_FACTORY_H */

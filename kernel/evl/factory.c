@@ -43,6 +43,7 @@ static struct evl_factory *factories[] = {
 	&evl_poll_factory,
 	&evl_xbuf_factory,
 	&evl_proxy_factory,
+	&evl_observable_factory,
 #ifdef CONFIG_FTRACE
 	&evl_trace_factory,
 #endif
@@ -187,6 +188,7 @@ static void __do_put_element(struct evl_element *e)
 	 * reusing it too early.
 	 */
 	evl_remove_element_device(e);
+
 	/*
 	 * Serialize with evl_open_element().
 	 */
@@ -341,8 +343,8 @@ static int do_element_visibility(struct evl_element *e,
 	struct file *filp;
 	int ret, efd;
 
-	if (EVL_WARN_ON(CORE, !evl_element_is_core(e) && !current->mm))
-		e->clone_flags |= EVL_CLONE_CORE;
+	if (EVL_WARN_ON(CORE, !evl_element_has_coredev(e) && !current->mm))
+		e->clone_flags |= EVL_CLONE_COREDEV;
 
 	/*
 	 * Unlike a private one, a publically visible element exports
@@ -359,7 +361,7 @@ static int do_element_visibility(struct evl_element *e,
 
 	*rdev = MKDEV(0, e->minor);
 
-	if (evl_element_is_core(e))
+	if (evl_element_has_coredev(e))
 		return 0;
 
 	/*
@@ -455,7 +457,7 @@ static int create_element_device(struct evl_element *e,
 	 * cannot fail creating the device anymore. First take a
 	 * reference then install fd (which is a membar).
 	 */
-	if (!evl_element_is_public(e) && !evl_element_is_core(e)) {
+	if (!evl_element_is_public(e) && !evl_element_has_coredev(e)) {
 		e->refs++;
 		fd_install(e->fpriv.efd, e->fpriv.filp);
 	}
@@ -467,7 +469,7 @@ static int create_element_device(struct evl_element *e,
 fail_device:
 	if (evl_element_is_public(e)) {
 		cdev_del(&e->cdev);
-	} else if (!evl_element_is_core(e)) {
+	} else if (!evl_element_has_coredev(e)) {
 		put_unused_fd(e->fpriv.efd);
 		filp_close(e->fpriv.filp, current->files);
 	}
@@ -490,7 +492,7 @@ int evl_create_core_element_device(struct evl_element *e,
 	if (devname == NULL)
 		return PTR_ERR(devname);
 
-	e->clone_flags |= EVL_CLONE_CORE;
+	e->clone_flags |= EVL_CLONE_COREDEV;
 	e->devname = devname;
 
 	return create_element_device(e, fac);
@@ -537,9 +539,6 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	if (ret)
 		return -EFAULT;
 
-	if (req.clone_flags & ~EVL_CLONE_MASK)
-		return -EINVAL;
-
 	if (req.name_ptr) {
 		devname = getname(evl_valptr64(req.name_ptr, const char));
 		if (IS_ERR(devname))
@@ -547,8 +546,8 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	} else if (req.clone_flags & EVL_CLONE_PUBLIC)
 		return -EINVAL;
 
-	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
 	u_attrs = evl_valptr64(req.attrs_ptr, void);
+	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
 	e = fac->build(fac, devname ? devname->name : NULL,
 		u_attrs, req.clone_flags, &state_offset);
 	if (IS_ERR(e)) {
@@ -630,9 +629,9 @@ static const struct file_operations clone_fops = {
 #endif
 };
 
-static int index_element_at(struct evl_element *e, fundle_t fundle)
+static int index_element_at(struct evl_index *map,
+			struct evl_element *e, fundle_t fundle)
 {
-	struct evl_index *map = &e->factory->index;
 	struct rb_node **rbp, *parent;
 	struct evl_element *tmp;
 
@@ -656,22 +655,8 @@ static int index_element_at(struct evl_element *e, fundle_t fundle)
 	return 0;
 }
 
-int evl_index_element_at(struct evl_element *e, fundle_t fundle)
+void evl_index_element(struct evl_index *map, struct evl_element *e)
 {
-	struct evl_index *map = &e->factory->index;
-	unsigned long flags;
-	int ret;
-
-	raw_spin_lock_irqsave(&map->lock, flags);
-	ret = index_element_at(e, fundle);
-	raw_spin_unlock_irqrestore(&map->lock, flags);
-
-	return ret;
-}
-
-void evl_index_element(struct evl_element *e)
-{
-	struct evl_index *map = &e->factory->index;
 	fundle_t fundle, guard = 0;
 	unsigned long flags;
 	int ret;
@@ -689,15 +674,14 @@ void evl_index_element(struct evl_element *e)
 		if (!fundle)		/* Exclude EVL_NO_HANDLE */
 			fundle = map->generator = 1;
 
-		ret = index_element_at(e, fundle);
+		ret = index_element_at(map, e, fundle);
 
 		raw_spin_unlock_irqrestore(&map->lock, flags);
 	} while (ret);
 }
 
-void evl_unindex_element(struct evl_element *e)
+void evl_unindex_element(struct evl_index *map, struct evl_element *e)
 {
-	struct evl_index *map = &e->factory->index;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&map->lock, flags);
@@ -706,9 +690,8 @@ void evl_unindex_element(struct evl_element *e)
 }
 
 struct evl_element *
-__evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
+__evl_get_element_by_fundle(struct evl_index *map, fundle_t fundle)
 {
-	struct evl_index *map = &fac->index;
 	struct evl_element *e;
 	unsigned long flags;
 	struct rb_node *rb;

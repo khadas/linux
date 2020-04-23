@@ -45,7 +45,7 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 
 	if ((curr->state & T_WOLI) &&
 		atomic_read(&curr->inband_disable_count) > 0)
-		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
+		evl_notify_thread(curr, EVL_HMDIAG_LKSLEEP, evl_nil);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
 		list_add_tail(&curr->wait_next, &wq->wchan.wait_list);
@@ -205,3 +205,11 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(evl_wait_schedule);
+
+struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
+{
+	assert_evl_lock(&wq->lock);
+	return list_first_entry_or_null(&wq->wchan.wait_list,
+					struct evl_thread, wait_next);
+}
+EXPORT_SYMBOL_GPL(evl_wait_head);

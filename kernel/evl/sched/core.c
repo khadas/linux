@@ -96,7 +96,7 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 		curr->info |= T_KICKED;
 		evl_spin_unlock(&this_rq->lock);
 		evl_spin_unlock(&curr->lock);
-		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_WATCHDOG);
+		evl_notify_thread(curr, EVL_HMDIAG_WATCHDOG, evl_nil);
 		dovetail_send_mayday(current);
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
 			"'%s' signaled\n", evl_rq_cpu(this_rq), curr->name);
@@ -189,6 +189,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 */
 	iattr.flags = T_ROOT;
 	iattr.affinity = cpumask_of(cpu);
+	iattr.observable = NULL;
 	iattr.sched_class = &evl_sched_idle;
 	iattr.sched_param.idle.prio = EVL_IDLE_PRIO;
 	evl_init_thread(&rq->root_thread, &iattr, rq, name_fmt, cpu);
@@ -1064,8 +1065,6 @@ EXPORT_SYMBOL_GPL(evl_switch_oob);
 void evl_switch_inband(int cause)
 {
 	struct evl_thread *curr = evl_current();
-	struct task_struct *p = current;
-	struct kernel_siginfo si;
 	struct evl_rq *this_rq;
 	bool notify;
 
@@ -1093,14 +1092,14 @@ void evl_switch_inband(int cause)
 
 	curr->state |= T_INBAND;
 	curr->local_info &= ~T_SYSRST;
-	notify = curr->state & T_USER && cause > SIGDEBUG_NONE;
+	notify = curr->state & T_USER && cause > EVL_HMDIAG_NONE;
 
 	/*
 	 * If we are initiating the ptsync sequence on breakpoint or
-	 * SIGSTOP/SIGINT is pending, do not send SIGDEBUG since
-	 * switching in-band is ok.
+	 * SIGSTOP/SIGINT is pending, do not send any HM notification
+	 * since switching in-band is ok.
 	 */
-	if (cause == SIGDEBUG_TRAP) {
+	if (cause == EVL_HMDIAG_TRAP) {
 		curr->info |= T_PTSTOP;
 		curr->info &= ~T_PTJOIN;
 		start_ptsync_locked(curr, this_rq);
@@ -1163,20 +1162,14 @@ void evl_switch_inband(int cause)
 	if (notify) {
 		/*
 		 * Help debugging spurious stage switches by sending
-		 * SIGDEBUG. We are running inband on the context of
-		 * the receiver, so we may bypass evl_signal_thread()
-		 * for this.
+		 * an HM event.
 		 */
-		if (curr->state & T_WOSS) {
-			memset(&si, 0, sizeof(si));
-			si.si_signo = SIGDEBUG;
-			si.si_code = SI_QUEUE;
-			si.si_int = cause | sigdebug_marker;
-			send_sig_info(SIGDEBUG, &si, p);
-		}
+		if (curr->state & T_WOSS)
+			evl_notify_thread(curr, cause, evl_nil);
+
 		/* May check for locking inconsistency too. */
 		if (curr->state & T_WOLI)
-			evl_detect_boost_drop(curr);
+			evl_detect_boost_drop();
 	}
 
 	/* @curr is now running inband. */
