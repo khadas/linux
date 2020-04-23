@@ -31,33 +31,30 @@
 #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT|T_PTSYNC)
 /* Information bits an EVL thread may receive from a blocking op. */
 #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST)
+/* Mode bits configurable via EVL_THRIOC_SET/CLEAR_MODE. */
+#define EVL_THREAD_MODE_BITS	(T_WOSS|T_WOLI|T_WOSX|T_HMSIG|T_HMOBS)
 
 /*
- * These are special internal values of SIGDEBUG causes which are
- * never sent to user-space, but specifically handled by
- * evl_switch_inband().
+ * These are special internal values of HM diags which are never sent
+ * to user-space, but specifically handled by evl_switch_inband().
  */
-#define SIGDEBUG_NONE   0
-#define SIGDEBUG_TRAP  -1
+#define EVL_HMDIAG_NONE   0
+#define EVL_HMDIAG_TRAP  -1
 
 struct evl_thread;
 struct evl_rq;
 struct evl_sched_class;
 struct evl_poll_watchpoint;
+struct evl_wait_channel;
+struct evl_observable;
+struct file;
 
 struct evl_init_thread_attr {
 	const struct cpumask *affinity;
+	struct evl_observable *observable;
 	int flags;
 	struct evl_sched_class *sched_class;
 	union evl_sched_param sched_param;
-};
-
-struct evl_wait_channel {
-	int (*reorder_wait)(struct evl_thread *waiter,
-			struct evl_thread *originator);
-	int (*follow_depend)(struct evl_wait_channel *wchan,
-			struct evl_thread *originator);
-	struct list_head wait_list;
 };
 
 struct evl_thread {
@@ -154,8 +151,9 @@ struct evl_thread {
 	struct completion exited;
 	kernel_cap_t raised_cap;
 	struct list_head kill_next;
-	struct oob_mm_state *oob_mm; /* Mostly RO. */
-	struct list_head ptsync_next; /* covered by oob_mm->lock. */
+	struct oob_mm_state *oob_mm;	/* Mostly RO. */
+	struct list_head ptsync_next;	/* covered by oob_mm->lock. */
+	struct evl_observable *observable;
 	char *name;
 };
 
@@ -237,6 +235,16 @@ static inline void evl_test_cancel(void)
 		__evl_test_cancel(curr);
 }
 
+static inline struct evl_subscriber *evl_get_subscriber(void)
+{
+	return dovetail_current_state()->subscriber;
+}
+
+static inline void evl_set_subscriber(struct evl_subscriber *sbr)
+{
+	dovetail_current_state()->subscriber = sbr;
+}
+
 ktime_t evl_get_thread_timeout(struct evl_thread *thread);
 
 ktime_t evl_get_thread_period(struct evl_thread *thread);
@@ -283,7 +291,10 @@ int evl_wait_thread_period(unsigned long *overruns_r);
 void evl_cancel_thread(struct evl_thread *thread);
 
 int evl_join_thread(struct evl_thread *thread,
-		bool uninterruptible);
+		    bool uninterruptible);
+
+void evl_notify_thread(struct evl_thread *thread,
+		       int tag, union evl_value details);
 
 void evl_get_thread_state(struct evl_thread *thread,
 			struct evl_thread_state *statebuf);
@@ -308,6 +319,8 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 
 int evl_killall(int mask);
 
+bool evl_is_thread_file(struct file *filp);
+
 void __evl_propagate_schedparam_change(struct evl_thread *curr);
 
 static inline void evl_propagate_schedparam_change(struct evl_thread *curr)
@@ -325,6 +338,7 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 		struct evl_init_thread_attr __iattr = {			\
 			.flags = 0,					\
 			.affinity = __affinity,				\
+			.observable = NULL,				\
 			.sched_class = &evl_sched_fifo,			\
 			.sched_param.fifo.prio = __priority,		\
 		};							\

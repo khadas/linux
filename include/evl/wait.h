@@ -11,16 +11,23 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include <evl/lock.h>
 #include <evl/list.h>
 #include <evl/timer.h>
 #include <evl/clock.h>
-#include <evl/thread.h>
-#include <evl/sched.h>
 #include <trace/events/evl.h>
 #include <uapi/evl/thread.h>
 
 #define EVL_WAIT_FIFO    0
 #define EVL_WAIT_PRIO    BIT(0)
+
+struct evl_wait_channel {
+	int (*reorder_wait)(struct evl_thread *waiter,
+			struct evl_thread *originator);
+	int (*follow_depend)(struct evl_wait_channel *wchan,
+			struct evl_thread *originator);
+	struct list_head wait_list;
+};
 
 struct evl_wait_queue {
 	int flags;
@@ -90,14 +97,6 @@ static inline bool evl_wait_active(struct evl_wait_queue *wq)
 	return !list_empty(&wq->wchan.wait_list);
 }
 
-static inline
-struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
-{
-	assert_evl_lock(&wq->lock);
-	return list_first_entry_or_null(&wq->wchan.wait_list,
-					struct evl_thread, wait_next);
-}
-
 void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock,
 		int flags,
@@ -111,6 +110,8 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 	} while (0)
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
+
+struct evl_thread *evl_wait_head(struct evl_wait_queue *wq);
 
 void evl_flush_wait_locked(struct evl_wait_queue *wq,
 			int reason);

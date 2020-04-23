@@ -35,6 +35,7 @@ struct poll_group {
 struct poll_item {
 	unsigned int fd;
 	int events_polled;
+	union evl_value pollval;
 	struct rb_node rb;	    /* in group->item_index */
 	struct list_head next;	    /* in group->item_list */
 };
@@ -189,6 +190,7 @@ static int add_item(struct file *filp, struct poll_group *group,
 	item->fd = creq->fd;
 	events = creq->events & ~POLLNVAL;
 	item->events_polled = events | POLLERR | POLLHUP;
+	item->pollval = creq->pollval;
 
 	efilp = evl_get_file(creq->fd);
 	if (efilp == NULL) {
@@ -317,6 +319,7 @@ int mod_item(struct poll_group *group,
 	}
 
 	item->events_polled = events | POLLERR | POLLHUP;
+	item->pollval = creq->pollval;
 	new_generation(group);
 
 	evl_unlock_kmutex(&group->item_lock);
@@ -405,6 +408,7 @@ static int collect_events(struct poll_group *group,
 	list_for_each_entry(item, &group->item_list, next) {
 		wpt->fd = item->fd;
 		wpt->events_polled = item->events_polled;
+		wpt->pollval = item->pollval;
 		wpt++;
 	}
 
@@ -431,6 +435,7 @@ collect:
 		ready &= wpt->events_polled | POLLNVAL;
 		if (ready) {
 			ev.fd = wpt->fd;
+			ev.pollval = wpt->pollval;
 			ev.events = ready;
 			ret = raw_copy_to_user(u_set, &ev, sizeof(ev));
 			if (ret)

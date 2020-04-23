@@ -315,6 +315,9 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 	size_t bufsz;
 	int ret;
 
+	if (clone_flags & ~EVL_CLONE_PUBLIC)
+		return ERR_PTR(-EINVAL);
+
 	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
 	if (ret)
 		return ERR_PTR(-EFAULT);
@@ -374,7 +377,7 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 	evl_init_poll_head(&out->poll_head);
 	evl_init_flag(&out->oob_drained);
 	init_waitqueue_head(&out->inband_drained);
-	evl_index_element(&proxy->element);
+	evl_index_factory_element(&proxy->element);
 	mutex_init(&out->worker_lock);
 
 	return &proxy->element;
@@ -406,7 +409,7 @@ static void proxy_factory_dispose(struct evl_element *e)
 	}
 	fput(proxy->filp);
 	evl_destroy_flag(&out->oob_drained);
-	evl_unindex_element(&proxy->element);
+	evl_unindex_factory_element(&proxy->element);
 	evl_destroy_element(&proxy->element);
 
 	if (out->ring.bufmem)

@@ -106,9 +106,9 @@ void __evl_commit_monitor_ceiling(void)
 	 * curr->u_window has to be valid since curr bears T_USER.  If
 	 * pp_pending is a bad handle, just skip ceiling.
 	 */
-	gate = evl_get_element_by_fundle(&evl_monitor_factory,
-					curr->u_window->pp_pending,
-					struct evl_monitor);
+	gate = evl_get_factory_element_by_fundle(&evl_monitor_factory,
+						curr->u_window->pp_pending,
+						struct evl_monitor);
 	if (gate == NULL)
 		goto out;
 
@@ -770,6 +770,9 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	struct evl_clock *clock;
 	int ret;
 
+	if (clone_flags & ~EVL_CLONE_PUBLIC)
+		return ERR_PTR(-EINVAL);
+
 	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
 	if (ret)
 		return ERR_PTR(-EFAULT);
@@ -859,7 +862,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 	mon->protocol = attrs.protocol;
 	mon->state = state;
 	*state_offp = evl_shared_offset(state);
-	evl_index_element(&mon->element);
+	evl_index_factory_element(&mon->element);
 
 	return &mon->element;
 
@@ -880,7 +883,7 @@ static void monitor_factory_dispose(struct evl_element *e)
 
 	mon = container_of(e, struct evl_monitor, element);
 
-	evl_unindex_element(&mon->element);
+	evl_unindex_factory_element(&mon->element);
 
 	if (mon->type == EVL_MONITOR_EVENT) {
 		evl_put_clock(mon->wait_queue.clock);
@@ -934,9 +937,9 @@ static ssize_t state_show(struct device *dev,
 	} else {
 		fun = atomic_read(&state->u.gate.owner);
 		if (fun != EVL_NO_HANDLE)
-			owner = evl_get_element_by_fundle(&evl_thread_factory,
-							evl_get_index(fun),
-							struct evl_thread);
+			owner = evl_get_factory_element_by_fundle(&evl_thread_factory,
+						evl_get_index(fun),
+						struct evl_thread);
 		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
 			owner ? evl_get_inband_pid(owner) : -1,
 			state->u.gate.ceiling,

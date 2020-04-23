@@ -190,7 +190,7 @@ static void prepare_for_signal(struct task_struct *p,
 
 	evl_test_cancel();
 
-	evl_switch_inband(SIGDEBUG_MIGRATE_SIGNAL);
+	evl_switch_inband(EVL_HMDIAG_SIGDEMOTE);
 }
 
 /*
@@ -299,7 +299,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 			prepare_for_signal(p, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
-			evl_switch_inband(SIGDEBUG_NONE);
+			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
 
 	/* Update the stats and user visible info. */
@@ -327,7 +327,7 @@ do_inband:
 	if (inband_syscall_nr(regs, &nr)) {
 		if (handle_vdso_fallback(nr, regs))
 			return SYSCALL_STOP;
-		evl_switch_inband(SIGDEBUG_MIGRATE_SYSCALL);
+		evl_switch_inband(EVL_HMDIAG_SYSDEMOTE);
 		return SYSCALL_PROPAGATE;
 	}
 
@@ -400,7 +400,7 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 			prepare_for_signal(p, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
-			evl_switch_inband(SIGDEBUG_NONE);
+			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
 done:
 	if (curr->local_info & T_IGNOVR)

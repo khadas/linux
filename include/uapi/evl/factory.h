@@ -17,10 +17,14 @@ struct evl_element_ids {
 	__u32 state_offset;
 };
 
-#define EVL_CLONE_PUBLIC  (1 << 16)
-#define EVL_CLONE_PRIVATE (0 << 16)
-#define EVL_CLONE_CORE    (1 << 31)
-#define EVL_CLONE_MASK    ((__u32)-1 << 16)
+/* The core only uses bits 16-31, rest is available to libevl. */
+#define EVL_CLONE_PUBLIC	(1 << 16)
+#define EVL_CLONE_PRIVATE	(0 << 16)
+#define EVL_CLONE_OBSERVABLE	(1 << 17)
+#define EVL_CLONE_NONBLOCK	(1 << 18)
+#define EVL_CLONE_MASTER	(1 << 19)
+#define EVL_CLONE_COREDEV	(1 << 31)
+#define EVL_CLONE_MASK		(((__u32)-1 << 16) & ~EVL_CLONE_COREDEV)
 
 struct evl_clone_req {
 	__u64 name_ptr;		/* (const char *name) */

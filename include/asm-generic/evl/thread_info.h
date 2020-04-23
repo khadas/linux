@@ -5,9 +5,11 @@
 #ifdef CONFIG_EVL
 
 struct evl_thread;
+struct evl_subscriber;
 
 struct oob_thread_state {
 	struct evl_thread *thread;
+	struct evl_subscriber *subscriber;
 	int preempt_count;
 };
 
@@ -15,6 +17,7 @@ static inline
 void evl_init_thread_state(struct oob_thread_state *p)
 {
 	p->thread = NULL;
+	p->subscriber = NULL;
 	p->preempt_count = 0;
 }
 

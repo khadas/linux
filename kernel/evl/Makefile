@@ -9,6 +9,7 @@ evl-y :=		\
 	memory.o	\
 	monitor.o	\
 	mutex.o		\
+	observable.o	\
 	poll.o		\
 	proxy.o		\
 	sem.o		\

@@ -44,4 +44,14 @@ struct __evl_itimerspec {
 	struct __evl_timespec it_value;
 };
 
+union evl_value {
+	__s32 val;
+	__s64 lval;
+	void *ptr;
+};
+
+#define evl_intval(__val)	((union evl_value){ .lval = (__val) })
+#define evl_ptrval(__ptr)	((union evl_value){ .ptr = (__ptr) })
+#define evl_nil			evl_intval(0)
+
 #endif /* !_EVL_UAPI_TYPES_H */

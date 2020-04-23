@@ -6,6 +6,7 @@
  * Stage exclusion lock implementation (aka STAX).
  */
 
+#include <evl/sched.h>
 #include <evl/stax.h>
 
 /* Gate marker for in-band activity. */
@@ -96,7 +97,7 @@ out:
 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
 	if (notify) {
-		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_STAGE_LOCKED);
+		evl_notify_thread(curr, EVL_HMDIAG_STAGEX, evl_nil);
 		evl_kick_thread(curr, 0);
 	}
 
