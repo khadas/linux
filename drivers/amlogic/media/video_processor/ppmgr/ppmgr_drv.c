@@ -1906,6 +1906,8 @@ int init_ppmgr_device(void)
 	ppmgr_device.put_count = 0;
 	ppmgr_device.get_dec_count = 0;
 	ppmgr_device.put_dec_count = 0;
+	sema_init(&ppmgr_device.ppmgr_sem, 1);
+	sema_init(&ppmgr_device.tb_sem, 1);
 
 	PPMGRDRV_INFO("ppmgr_dev major:%d\n", ret);
 

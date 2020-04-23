@@ -38,7 +38,7 @@
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
-#include <linux/semaphore.h>
+//#include <linux/semaphore.h>
 #include <linux/sched/rt.h>
 #include "ppmgr_log.h"
 #include "ppmgr_pri.h"
@@ -137,7 +137,7 @@ static struct buf_status_s buf_status[VF_POOL_SIZE];
 
 struct vfq_s q_ready, q_free;
 static int display_mode_change = VF_POOL_SIZE;
-static struct semaphore thread_sem;
+//static struct semaphore thread_sem;
 static DEFINE_MUTEX(ppmgr_mutex);
 static bool ppmgr_quit_flag;
 
@@ -162,7 +162,7 @@ static DEFINE_MUTEX(tb_mutex);
 static struct tb_buf_s detect_buf[TB_DETECT_BUFFER_MAX_SIZE];
 static struct task_struct *tb_detect_task;
 static int tb_task_running;
-static struct semaphore tb_sem;
+//static struct semaphore tb_sem;
 static atomic_t detect_status;
 static atomic_t tb_detect_flag;
 static u8 tb_detect_last_flag;
@@ -493,14 +493,14 @@ static int ppmgr_event_cb(int type, void *data, void *private_data)
 		PPMGRVPP_WARN("video put, avail=%d, free=%d\n",
 			vfq_level(&q_ready), vfq_level(&q_free));
 #endif
-		up(&thread_sem);
+		up(&ppmgr_device.ppmgr_sem);
 	}
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 	if (type & VFRAME_EVENT_RECEIVER_POS_CHANGED) {
 		if (task_running) {
 			scaler_pos_changed = 1;
 			/*printk("--ppmgr: get pos changed msg.\n");*/
-			up(&thread_sem);
+			up(&ppmgr_device.ppmgr_sem);
 		}
 	}
 #endif
@@ -516,14 +516,14 @@ static int ppmgr_event_cb(int type, void *data, void *private_data)
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 				if (!amvideo_get_scaler_mode()) {
 					still_picture_notify = 1;
-					up(&thread_sem);
+					up(&ppmgr_device.ppmgr_sem);
 				}
 #else
 				still_picture_notify = 1;
-				up(&thread_sem);
+				up(&ppmgr_device.ppmgr_sem);
 #endif
 			} else {
-				up(&thread_sem);
+				up(&ppmgr_device.ppmgr_sem);
 			}
 		}
 	}
@@ -586,7 +586,7 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 		PPMGRVPP_WARN("dec put, avail=%d, free=%d\n",
 			vfq_level(&q_ready), vfq_level(&q_free));
 #endif
-		up(&thread_sem);
+		up(&ppmgr_device.ppmgr_sem);
 		break;
 	case VFRAME_EVENT_PROVIDER_QUREY_STATE:
 		ppmgr_vf_states(&states, NULL);
@@ -603,6 +603,7 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 #ifdef DDD
 		PPMGRVPP_WARN("register now\n");
 #endif
+		up(&ppmgr_device.ppmgr_sem);
 		vf_ppmgr_reg_provider();
 		vf_notify_receiver(
 				PROVIDER_NAME,
@@ -663,7 +664,7 @@ void vf_local_init(void)
 		buf_status[i].index = ppmgr_canvas_tab[i];
 		buf_status[i].dirty = 1;
 	}
-	sema_init(&thread_sem, 1);
+	//up(&ppmgr_device.ppmgr_sem);
 }
 
 static const struct vframe_provider_s *dec_vfp;
@@ -722,7 +723,7 @@ void vf_ppmgr_reset(int type)
 
 		ppmgr_blocking = true;
 		ppmgr_reset_type = type;
-		up(&thread_sem);
+		up(&ppmgr_device.ppmgr_sem);
 
 		last_reset_time = current_reset_time;
 	}
@@ -1879,7 +1880,7 @@ static void process_vf_change(struct vframe_s *vf,
 		struct ge2d_context_s *context,
 		struct config_para_ex_s *ge2d_config)
 {
-	struct vframe_s temp_vf;
+	static struct vframe_s temp_vf;
 	struct ppframe_s *pp_vf = to_ppframe(vf);
 	struct canvas_s cs0, cs1, cs2, cd;
 	int interlace_mode;
@@ -2455,7 +2456,7 @@ static int ppmgr_task(void *data)
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	Reset3Dclear();
 #endif
-	while (down_interruptible(&thread_sem) == 0) {
+	while (down_interruptible(&ppmgr_device.ppmgr_sem) == 0) {
 		struct vframe_s *vf = NULL;
 
 		if (ppmgr_device.debug_ppmgr_flag)
@@ -2506,7 +2507,7 @@ static int ppmgr_task(void *data)
 				vf = vfq_peek(&q_ready);
 			}
 
-			up(&thread_sem);
+			up(&ppmgr_device.ppmgr_sem);
 			continue;
 		}
 #endif
@@ -2537,7 +2538,7 @@ static int ppmgr_task(void *data)
 			}
 			vfq_lookup_end(&q_ready);
 			/* EnableVideoLayer(); */
-			up(&thread_sem);
+			up(&ppmgr_device.ppmgr_sem);
 			continue;
 		}
 
@@ -2878,7 +2879,7 @@ static int ppmgr_task(void *data)
 							&detect_status,
 							tb_running);
 					if (tb_buff_wptr >= 5)
-						up(&tb_sem);
+						up(&ppmgr_device.tb_sem);
 				}
 			} else {
 				reset_tb = 1;
@@ -2943,7 +2944,7 @@ SKIP_DETECT:
 			vf_reg_provider(&ppmgr_vf_prov);
 			vf_local_init();
 			ppmgr_blocking = false;
-			up(&thread_sem);
+			up(&ppmgr_device.ppmgr_sem);
 			PPMGRVPP_WARN("ppmgr rebuild light-unregister_2\n");
 			PPMGRVPP_WARN("ppmgr, reset, free %d, avail %d\n",
 				      vfq_level(&q_free),
@@ -3303,7 +3304,7 @@ int ppmgr_buffer_init(int vout_mode)
 	ppmgr_inited = true;
 	ppmgr_reset_type = 0;
 	set_buff_change(0);
-	sema_init(&thread_sem, 1);
+	//up(&ppmgr_device.ppmgr_sem);
 	return 0;
 
 }
@@ -3345,7 +3346,7 @@ void stop_ppmgr_task(void)
 	if (!IS_ERR_OR_NULL(task)) {
 		/* send_sig(SIGTERM, task, 1); */
 		ppmgr_quit_flag = true;
-		up(&thread_sem);
+		up(&ppmgr_device.ppmgr_sem);
 		kthread_stop(task);
 		ppmgr_quit_flag = false;
 		task = NULL;
@@ -3479,9 +3480,6 @@ static int tb_buffer_uninit(void)
 
 static void tb_detect_init(void)
 {
-	int val = 0;
-
-	sema_init(&tb_sem, val);
 	memset(detect_buf, 0, sizeof(detect_buf));
 	atomic_set(&detect_status, tb_idle);
 	atomic_set(&tb_detect_flag, TB_DETECT_NC);
@@ -3524,7 +3522,7 @@ static int tb_task(void *data)
 	if (gfunc)
 		gfunc->stats_init(tb_reg, TB_DETECT_H, TB_DETECT_W);
 	allow_signal(SIGTERM);
-	while (down_interruptible(&tb_sem) == 0) {
+	while (down_interruptible(&ppmgr_device.tb_sem) == 0) {
 		if (kthread_should_stop() || tb_quit_flag)
 			break;
 		if (tb_buff_rptr == 0) {
@@ -3634,15 +3632,13 @@ int start_tb_task(void)
 
 void stop_tb_task(void)
 {
-	int val = 0;
-
 	if (!IS_ERR_OR_NULL(tb_detect_task)) {
 		tb_quit_flag = true;
-		up(&tb_sem);
+		up(&ppmgr_device.tb_sem);
 		/* send_sig(SIGTERM, tb_detect_task, 1); */
 		kthread_stop(tb_detect_task);
 		tb_quit_flag = false;
-		sema_init(&tb_sem, val);
+		//sema_init(&tb_sem, val);
 		tb_detect_task = NULL;
 	}
 	tb_task_running = 0;

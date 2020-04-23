@@ -18,6 +18,8 @@
 #ifndef PPMGR_DEV_INCLUDE_H
 #define PPMGR_DEV_INCLUDE_H
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/semaphore.h>
+
 struct ppmgr_device_t {
 	struct class *cla;
 	struct device *dev;
@@ -81,6 +83,8 @@ struct ppmgr_device_t {
 	unsigned int put_dec_count;
 	unsigned int peek_dec;
 	char dump_path[32];
+	struct semaphore ppmgr_sem;
+	struct semaphore tb_sem;
 };
 
 struct ppmgr_dev_reg_s {
