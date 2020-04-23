@@ -2541,6 +2541,11 @@ static bool hdmitx_limited_1080p(void)
 		return 0;
 }
 
+static bool hdmitx_limited_hdcp14(void)
+{
+	return hdmitx_limited_1080p();
+}
+
 /**/
 static ssize_t show_disp_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -3639,7 +3644,8 @@ static ssize_t show_hdcp_lstore(struct device *dev,
 					       DDC_HDCP_14_LSTORE, 0))
 			hdmitx_device.lstore += 1;
 		if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
-					       DDC_HDCP_22_LSTORE, 0))
+					       DDC_HDCP_22_LSTORE, 0) &&
+		    !hdmitx_limited_hdcp14())
 			hdmitx_device.lstore += 2;
 	}
 	if ((hdmitx_device.lstore & 0x3) == 0x3) {
