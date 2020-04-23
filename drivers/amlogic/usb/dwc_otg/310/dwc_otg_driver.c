@@ -243,7 +243,7 @@ module_param_named(otg_device, force_device_mode,
 		bool, S_IRUGO | S_IWUSR);
 
 static char otg_mode_string[2] = "0";
-static int __init force_otg_mode(char *s)
+__maybe_unused static int __init force_otg_mode(char *s)
 {
 	if (s != NULL)
 		sprintf(otg_mode_string, "%s", s);

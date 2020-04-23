@@ -20,7 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
-#include "phy-aml-new-usb-v2.h"
+#include "../phy/phy-aml-new-usb-v2.h"
 
 #define HOST_MODE	0
 #define DEVICE_MODE	1

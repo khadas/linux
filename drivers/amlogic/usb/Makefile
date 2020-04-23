@@ -1,2 +1,5 @@
 obj-$(CONFIG_AMLOGIC_USB_DWC_OTG_HCD)	+= dwc_otg/310/
-obj-$(CONFIG_AMLOGIC_USBPHY) 		+= phy/
+obj-$(CONFIG_AMLOGIC_USB2PHY) 		+= usb2phy/
+obj-$(CONFIG_AMLOGIC_USB3PHY) 		+= usb3v2phy/
+obj-$(CONFIG_AMLOGIC_USB3PHY) 		+= usb3v3phy/
+obj-$(CONFIG_AMLOGIC_USB3PHY) 		+= usbotg/

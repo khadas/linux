@@ -12,7 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/amlogic/usb-v2.h>
-#include "phy-aml-new-usb-v2.h"
+#include "../phy/phy-aml-new-usb-v2.h"
 
 int amlogic_new_usbphy_reset_v2(struct amlogic_usb_v2 *phy)
 {
