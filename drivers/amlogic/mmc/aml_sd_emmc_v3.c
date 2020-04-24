@@ -2362,6 +2362,57 @@ ssize_t emmc_scan_cmd_win(struct device *dev,
 	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
 }
 
+static void scan_emmc_tx_win(struct mmc_host *mmc)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	u32 vclk = readl(host->base + SD_EMMC_CLOCK_V3);
+	u32 clk_bak = vclk;
+	struct sd_emmc_clock_v3 *clkc = (struct sd_emmc_clock_v3 *)&(vclk);
+	u32 i, j, err;
+	int repeat_times = 100;
+	char str[64] = {0};
+
+	aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+				host->blk_test, 512, 40, MMC_PATTERN_NAME);
+	host->cmd_retune = 0;
+	host->is_tunning = 1;
+	for (i = clkc->tx_delay; i < 64; i++) {
+		aml_emmc_hs400_tl1(mmc);
+		for (j = 0; j < repeat_times; j++) {
+			err = mmc_write_internal(mmc->card, MMC_PATTERN_OFFSET,
+					40, host->blk_test);
+			if (!err)
+				str[i]++;
+			else
+				break;
+		}
+		clkc->tx_delay += 1;
+		writel(vclk, host->base + SD_EMMC_CLOCK_V3);
+		pr_debug("tx_delay: 0x%x, send cmd %d times success %d times, is ok\n",
+				clkc->tx_delay, repeat_times, str[i]);
+	}
+	host->is_tunning = 0;
+	host->cmd_retune = 1;
+
+	writel(clk_bak, host->base + SD_EMMC_CLOCK_V3);
+	emmc_search_cmd_delay(str, repeat_times);
+	pr_info(">>>>>>>>>>>>>>>>>>>>this is tx window>>>>>>>>>>>>>>>>>>>>>>\n");
+	emmc_show_cmd_window(str, repeat_times);
+}
+
+ssize_t emmc_scan_tx_win(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct amlsd_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+
+	mmc_claim_host(mmc);
+	scan_emmc_tx_win(mmc);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
+}
+
 ssize_t emmc_eyetest_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
