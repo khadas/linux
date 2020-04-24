@@ -3357,6 +3357,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		if (ret)
 			dev_warn(mmc_dev(host->mmc),
 					"Unable to creat sysfs attributes\n");
+		ret = device_create_file(&pdev->dev, &dev_attr_emmc_tx_window);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc),
+					"Unable to creat sysfs attributes\n");
 	}
 	return 0;
 
