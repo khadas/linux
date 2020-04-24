@@ -120,6 +120,15 @@ static inline int ion_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_UVM
+int meson_uvm_init(void);
+#else
+static inline int meson_uvm_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VFM
 int vfm_class_init(void);
 #else

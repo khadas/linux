@@ -13,6 +13,8 @@ include drivers/amlogic/media/common/rdma/Makefile
 
 include drivers/amlogic/media/common/codec_mm/Makefile
 
+include drivers/amlogic/media/common/uvm/Makefile
+
 include drivers/amlogic/media/common/vfm/Makefile
 
 include drivers/amlogic/media/common/v4l_util/Makefile

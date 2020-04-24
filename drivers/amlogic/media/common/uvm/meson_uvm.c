@@ -51,7 +51,7 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 	file_private_data = buffer->file_private_data;
 	vf = &file_private_data->vf;
 
-	if ((vf->type & VIDTYPE_COMPRESS))
+	if (vf && (vf->type & VIDTYPE_COMPRESS))
 		heap_type = ION_HEAP_TYPE_SYSTEM;
 	else
 		heap_type = ION_HEAP_TYPE_DMA;
@@ -551,17 +551,19 @@ static struct platform_driver meson_uvm_driver = {
 	.remove = meson_uvm_remove,
 };
 
-static int __init meson_uvm_init(void)
+int __init meson_uvm_init(void)
 {
 	return platform_driver_register(&meson_uvm_driver);
 }
 
-static void __exit meson_uvm_exit(void)
+void __exit meson_uvm_exit(void)
 {
 	platform_driver_unregister(&meson_uvm_driver);
 }
 
+#ifndef MODULE
 module_init(meson_uvm_init);
 module_exit(meson_uvm_exit);
+#endif
 //MODULE_DESCRIPTION("AMLOGIC unified video memory management driver");
 //MODULE_LICENSE("GPL");

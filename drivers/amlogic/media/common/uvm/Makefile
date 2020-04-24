@@ -4,5 +4,5 @@
 
 ccflags-y += -Idrivers/staging/android/
 
-obj-$(CONFIG_AMLOGIC_UVM)		+= meson_uvm.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM)		+= common/uvm/meson_uvm.o
 
