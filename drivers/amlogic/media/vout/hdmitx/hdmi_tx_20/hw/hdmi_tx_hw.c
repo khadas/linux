@@ -4173,6 +4173,9 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
 		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 		return;
+	} else if (strncmp(tmpbuf, "i2creactive", 11) == 0) {
+		hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
+		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
 			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 1, 3, 1);
@@ -4928,12 +4931,8 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			hdmitx_hdcp_opr(1);
 			hdcp_start_timer(hdev);
 		}
-		if (argv == HDCP14_OFF) {
-			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);
-			usleep_range(1000, 2000);
-			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 6, 1);
+		if (argv == HDCP14_OFF)
 			hdmitx_hdcp_opr(4);
-		}
 		if (argv == HDCP22_ON) {
 			if (hdev->topo_info)
 				hdev->topo_info->hdcp_ver = 2;
