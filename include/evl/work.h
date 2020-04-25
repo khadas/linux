@@ -11,11 +11,14 @@
 #include <linux/workqueue.h>
 #include <evl/flag.h>
 
+struct evl_element;
+
 struct evl_work {
 	struct irq_work irq_work;
 	struct work_struct wq_work;
 	struct workqueue_struct *wq;
 	int (*handler)(void *arg);
+	struct evl_element *element;
 };
 
 struct evl_sync_work {
@@ -26,6 +29,10 @@ struct evl_sync_work {
 
 void evl_init_work(struct evl_work *work,
 		   void (*handler)(struct evl_work *work));
+
+void evl_init_work_safe(struct evl_work *work,
+			void (*handler)(struct evl_work *work),
+			struct evl_element *element);
 
 void evl_init_sync_work(struct evl_sync_work *sync_work,
 			int (*handler)(struct evl_sync_work *sync_work));
@@ -41,6 +48,7 @@ static inline void evl_call_inband(struct evl_work *work)
 static inline
 void evl_flush_work(struct evl_work *work)
 {
+	irq_work_sync(&work->irq_work);
 	flush_work(&work->wq_work);
 }
 
