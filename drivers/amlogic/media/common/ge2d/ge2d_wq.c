@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/tee.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
@@ -419,6 +420,10 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 
 	do {
 		cfg = &pitem->config;
+		ge2d_log_dbg("secure mode:%d\n", cfg->mem_sec);
+		#ifdef CONFIG_AMLOGIC_TEE
+		tee_config_device_state(DMC_DEV_ID_GE2D, cfg->mem_sec);
+		#endif
 		ge2d_set_canvas(cfg);
 		mask = 0x1;
 		while (cfg->update_flag && mask <= UPDATE_SCALE_COEF) {
@@ -1634,6 +1639,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	context->config.mem_sec = ge2d_config->mem_sec;
 
 	return  0;
 }
