@@ -720,7 +720,7 @@
 
 		pwrc: power-controller {
 			compatible = "amlogic,meson-g12a-pwrc";
-			reg = <0x0 0xff62fcc0 0x0 0x40>;
+			reg = <0xff62fcc0 0x40>;
 			reg-names = "dos";
 			#power-domain-cells = <1>;
 			amlogic,ao-sysctrl = <&rti>;
