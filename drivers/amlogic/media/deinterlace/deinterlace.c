@@ -76,6 +76,8 @@
 #endif
 #define ENABLE_SPIN_LOCK_ALWAYS
 
+#include <linux/amlogic/gki_module.h>
+
 #define DEVICE_NAME		"deinterlace"
 #define CLASS_NAME		"deinterlace"
 
@@ -746,8 +748,7 @@ store_dbg(struct device *dev,
 	return count;
 }
 
-#ifndef MODULE
-static int __init di_read_canvas_reverse(char *str)
+static int di_read_canvas_reverse(char *str)
 {
 	unsigned char *ptr = str;
 
@@ -763,7 +764,6 @@ static int __init di_read_canvas_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", di_read_canvas_reverse);
-#endif
 
 static unsigned int di_debug_flag;/* enable rdma even di bypassed */
 static unsigned char *di_log_buf;

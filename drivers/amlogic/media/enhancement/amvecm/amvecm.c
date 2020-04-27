@@ -76,6 +76,8 @@
 #include "arch/vpp_hdr_regs.h"
 #include "set_hdr2_v0.h"
 
+#include <linux/amlogic/gki_module.h>
+
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
 		if (debug_amvecm)\
@@ -225,9 +227,8 @@ static int wb_init_bypass_coef[24] = {
 	0, 0, 0  /* mode, right_shift, clip_en */
 };
 
-#ifndef MODULE
 /* vpp brightness/contrast/saturation/hue */
-static int __init amvecm_load_pq_val(char *str)
+static int amvecm_load_pq_val(char *str)
 {
 	int i = 0, err = 0;
 	char *tk = NULL, *tmp[4];
@@ -261,7 +262,6 @@ static int __init amvecm_load_pq_val(char *str)
 	return 0;
 }
 __setup("pq=", amvecm_load_pq_val);
-#endif
 
 static int amvecm_set_contrast2(int val)
 {

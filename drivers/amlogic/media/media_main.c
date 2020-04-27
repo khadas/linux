@@ -23,6 +23,8 @@
 #include <linux/mm.h>
 #include "media_main.h"
 
+#include <linux/amlogic/gki_module.h>
+
 #define PROTO(x...) x
 #define ARGS(x...) x
 #define KALLSYMS_FUNC_DEFRET(ret_type, name, args_proto, args) \
@@ -89,6 +91,7 @@ static int __init media_main_init(void)
 {
 	pr_info("### %s() start\n", __func__);
 
+	call_sub_init(meson_cpu_version_init);
 	call_sub_init(media_configs_system_init);
 	call_sub_init(codec_mm_module_init);
 	call_sub_init(codec_io_init);
@@ -106,7 +109,6 @@ static int __init media_main_init(void)
 	call_sub_init(ion_init);
 	call_sub_init(meson_uvm_init);
 	call_sub_init(vfm_class_init);
-	call_sub_init(meson_cpu_version_init);
 	call_sub_init(ge2d_init_module);
 	call_sub_init(configs_init_devices);
 	call_sub_init(video_init);
@@ -125,6 +127,8 @@ static int __init media_main_init(void)
 	call_sub_init(amlvideo_init);
 	call_sub_init(amlvideo2_init);
 	call_sub_init(dil_init);
+	call_sub_init(di_module_init);
+	call_sub_init(dim_module_init);
 	call_sub_init(aml_bl_extern_init);
 	call_sub_init(cec_init);
 	call_sub_init(gdc_driver_init);

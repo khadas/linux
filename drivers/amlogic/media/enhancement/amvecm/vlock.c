@@ -35,6 +35,8 @@
 #include "amvecm_vlock_regmap.h"
 #include "amcm.h"
 
+#include <linux/amlogic/gki_module.h>
+
 /* video lock */
 /* 0:off;
  * 1:auto enc;		VLOCK_MODE_AUTO_ENC
@@ -2634,8 +2636,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	return 0;
 }
 
-#ifndef MODULE
-static int __init phlock_phase_config(char *str)
+static int phlock_phase_config(char *str)
 {
 	unsigned char *ptr = str;
 
@@ -2648,7 +2649,6 @@ static int __init phlock_phase_config(char *str)
 	return 0;
 }
 __setup("video_reverse=", phlock_phase_config);
-#endif
 
 /*video lock end*/
 

@@ -51,7 +51,7 @@ static inline unsigned long gki_symbol_value(const struct kernel_symbol *sym)
 void __module_init_hook(struct module *m);
 
 #define module_init_hook(initfn)      \
-	int init_module(void) \
+	int __init init_module(void) \
 	{       \
 		__module_init_hook(THIS_MODULE); \
 		return initfn();     \

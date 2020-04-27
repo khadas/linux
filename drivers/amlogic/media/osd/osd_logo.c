@@ -18,6 +18,8 @@
 #include "osd_log.h"
 #include "osd.h"
 
+#include <linux/amlogic/gki_module.h>
+
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -28,7 +30,6 @@ struct para_pair_s {
 	int value;
 };
 
-#ifndef MODULE
 static struct para_pair_s logo_args[] = {
 	{"osd0", LOGO_DEV_OSD0},
 	{"osd1", LOGO_DEV_OSD1},
@@ -36,7 +37,6 @@ static struct para_pair_s logo_args[] = {
 	{"debug", LOGO_DEBUG},
 	{"loaded", LOGO_LOADED},
 };
-#endif
 
 struct logo_info_s {
 	int index;
@@ -54,7 +54,6 @@ struct logo_info_s {
 	.fb_height = 1080,
 };
 
-#ifndef MODULE
 static int get_value_by_name(char *name, struct para_pair_s *pair, u32 cnt)
 {
 	u32 i = 0;
@@ -112,7 +111,7 @@ static int str2lower(char *str)
 	return 0;
 }
 
-static int __init logo_setup(char *str)
+static int logo_setup(char *str)
 {
 	char *ptr = str;
 	char sep[2];
@@ -149,7 +148,7 @@ static int __init logo_setup(char *str)
 	return 0;
 }
 
-static int __init get_logo_width(char *str)
+static int get_logo_width(char *str)
 {
 	int ret;
 
@@ -158,7 +157,7 @@ static int __init get_logo_width(char *str)
 	return 0;
 }
 
-static int __init get_logo_height(char *str)
+static int get_logo_height(char *str)
 {
 	int ret;
 
@@ -166,7 +165,6 @@ static int __init get_logo_height(char *str)
 	pr_info("logo_info.fb_height=%d\n", logo_info.fb_height);
 	return 0;
 }
-#endif
 
 int set_osd_logo_freescaler(void)
 {
@@ -251,13 +249,11 @@ void set_logo_loaded(void)
 	logo_info.loaded = 0;
 }
 
-#ifndef MODULE
 __setup("logo=", logo_setup);
 
 __setup("fb_width=", get_logo_width);
 
 __setup("fb_height=", get_logo_height);
-#endif
 
 int logo_work_init(void)
 {

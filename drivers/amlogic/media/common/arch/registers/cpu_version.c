@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
- #define pr_fmt(fmt) "CPU version: " fmt
+ #define pr_fmt(fmt) "cpu_version: " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -19,9 +19,16 @@
 #define AO_SEC_SD_CFG8		0xe0
 #define AO_SEC_SOCINFO_OFFSET	AO_SEC_SD_CFG8
 static unsigned char cpu_version[MESON_CPU_VERSION_LVL_MAX + 1];
+static int init_done;
 
 unsigned char get_meson_cpu_version(int level)
 {
+	if (!init_done) {
+		pr_err("too early call get_meson_cpu_version()\n");
+		dump_stack();
+		return -1;
+	}
+
 	if (level >= 0 && level <= MESON_CPU_VERSION_LVL_MAX)
 		return cpu_version[level];
 	return 0;
@@ -67,6 +74,8 @@ int __init meson_cpu_version_init(void)
 		cpu_version[MESON_CPU_VERSION_LVL_PACK],
 		cpu_version[MESON_CPU_VERSION_LVL_MISC]
 	);
+
+	init_done = 1;
 	return 0;
 }
 

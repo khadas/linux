@@ -39,6 +39,8 @@ static struct early_suspend early_suspend;
 static int early_suspend_flag;
 #endif
 
+#include <linux/amlogic/gki_module.h>
+
 #define VOUT_CDEV_NAME  "display"
 #define VOUT_CLASS_NAME "display"
 #define MAX_NUMBER_PARA 10
@@ -1003,7 +1005,6 @@ subsys_initcall_sync(vout_init_module);
 module_exit(vout_exit_module);
 #endif
 
-#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1042,7 +1043,7 @@ static void vout_init_mode_parse(char *str)
 	VOUTPR("%s\n", str);
 }
 
-static int __init get_vout_init_mode(char *str)
+static int get_vout_init_mode(char *str)
 {
 	char *ptr = str;
 	char sep[2];
@@ -1077,7 +1078,7 @@ static int __init get_vout_init_mode(char *str)
 }
 __setup("vout=", get_vout_init_mode);
 
-static int __init get_hdmi_mode(char *str)
+static int get_hdmi_mode(char *str)
 {
 	snprintf(hdmimode, VMODE_NAME_LEN_MAX, "%s", str);
 
@@ -1086,7 +1087,7 @@ static int __init get_hdmi_mode(char *str)
 }
 __setup("hdmimode=", get_hdmi_mode);
 
-static int __init get_cvbs_mode(char *str)
+static int get_cvbs_mode(char *str)
 {
 	snprintf(cvbsmode, VMODE_NAME_LEN_MAX, "%s", str);
 
@@ -1094,7 +1095,6 @@ static int __init get_cvbs_mode(char *str)
 	return 0;
 }
 __setup("cvbsmode=", get_cvbs_mode);
-#endif
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT Server Module");

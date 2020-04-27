@@ -103,6 +103,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/math64.h>
 #include "video_receiver.h"
 
+#include <linux/amlogic/gki_module.h>
+
 static int get_count;
 static int get_count_pip;
 
@@ -9832,9 +9834,8 @@ static int video_attr_create(void)
 	return ret;
 }
 
-#ifndef MODULE
 #ifdef TV_REVERSE
-static int __init vpp_axis_reverse(char *str)
+static int vpp_axis_reverse(char *str)
 {
 	unsigned char *ptr = str;
 
@@ -9848,7 +9849,6 @@ static int __init vpp_axis_reverse(char *str)
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
-#endif
 #endif
 
 struct vframe_s *get_cur_dispbuf(void)

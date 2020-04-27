@@ -35,6 +35,8 @@
 
 #include "aml_bl_reg.h"
 
+#include <linux/amlogic/gki_module.h>
+
 /* #define AML_BACKLIGHT_DEBUG */
 unsigned int bl_debug_print_flag;
 
@@ -3565,7 +3567,7 @@ late_initcall(aml_bl_init);
 module_exit(aml_bl_exit);
 #endif
 
-static int __init aml_bl_boot_para_setup(char *s)
+static int aml_bl_boot_para_setup(char *s)
 {
 	char bl_off_policy_str[10] = "none";
 
@@ -3586,7 +3588,7 @@ static int __init aml_bl_boot_para_setup(char *s)
 }
 __setup("bl_off=", aml_bl_boot_para_setup);
 
-static int __init aml_bl_level_setup(char *str)
+static int aml_bl_level_setup(char *str)
 {
 	int ret = 0;
 

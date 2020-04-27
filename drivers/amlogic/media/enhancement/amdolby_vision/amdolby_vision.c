@@ -65,6 +65,8 @@
 #include <linux/vmalloc.h>
 #include <linux/arm-smccc.h>
 
+#include <linux/amlogic/gki_module.h>
+
 DEFINE_SPINLOCK(dovi_lock);
 
 static const struct dolby_vision_func_s *p_funcs_stb;
@@ -8652,8 +8654,7 @@ static struct platform_driver aml_amdolby_vision_driver = {
 	.remove = __exit_p(amdolby_vision_remove),
 };
 
-#ifndef MODULE
-static int __init get_dolby_uboot_status(char *str)
+static int get_dolby_uboot_status(char *str)
 {
 	char uboot_dolby_status[DV_NAME_LEN_MAX] = {0};
 
@@ -8665,7 +8666,6 @@ static int __init get_dolby_uboot_status(char *str)
 	return 0;
 }
 __setup("dolby_vision_on=", get_dolby_uboot_status);
-#endif
 
 int __init amdolby_vision_init(void)
 {

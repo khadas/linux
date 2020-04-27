@@ -42,6 +42,8 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
 
+#include <linux/amlogic/gki_module.h>
+
 #define LCD_CDEV_NAME  "lcd"
 
 unsigned char lcd_debug_print_flag;
@@ -1560,8 +1562,7 @@ subsys_initcall(lcd_init);
 module_exit(lcd_exit);
 #endif
 
-#ifndef MODULE
-static int __init lcd_panel_type_para_setup(char *str)
+static int lcd_panel_type_para_setup(char *str)
 {
 	if (str)
 		sprintf(lcd_propname, "%s", str);
@@ -1570,7 +1571,6 @@ static int __init lcd_panel_type_para_setup(char *str)
 	return 0;
 }
 __setup("panel_type=", lcd_panel_type_para_setup);
-#endif
 
 //MODULE_DESCRIPTION("Meson LCD Panel Driver");
 //MODULE_LICENSE("GPL");

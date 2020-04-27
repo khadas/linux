@@ -48,6 +48,8 @@
 #include "osd_io.h"
 #include "osd_virtual.h"
 
+#include <linux/amlogic/gki_module.h>
+
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
 
@@ -3512,8 +3514,7 @@ static inline int install_osd_reverse_info(struct osd_info_s *init_osd_info,
 	return 0;
 }
 
-#ifndef MODULE
-static int __init osd_info_setup(char *str)
+static int osd_info_setup(char *str)
 {
 	char	*ptr = str;
 	char	sep[2];
@@ -3545,7 +3546,6 @@ static int __init osd_info_setup(char *str)
 }
 
 __setup("osd_reverse=", osd_info_setup);
-#endif
 
 static struct device_attribute osd_attrs[] = {
 	__ATTR(scale, 0664,

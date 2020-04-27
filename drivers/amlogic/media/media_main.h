@@ -333,8 +333,20 @@ static inline int aml_bl_init(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 int dil_init(void);
+int di_module_init(void);
+int dim_module_init(void);
 #else
 static inline int dil_init(void)
+{
+	return 0;
+}
+
+static inline int di_module_init(void)
+{
+	return 0;
+}
+
+static inline int dim_module_init(void)
 {
 	return 0;
 }

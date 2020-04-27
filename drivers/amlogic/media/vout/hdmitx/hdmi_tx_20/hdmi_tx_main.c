@@ -53,6 +53,8 @@
 #include "hw/reg_ops.h"
 #include "hdmi_tx_hdcp.h"
 
+#include <linux/amlogic/gki_module.h>
+
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
@@ -6242,7 +6244,6 @@ module_exit(amhdmitx_exit);
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("1.0.0");
 
-#ifndef MODULE
 /* besides characters defined in separator, '\"' are used as separator;
  * and any characters in '\"' will not act as separator
  */
@@ -6334,7 +6335,7 @@ static void check_hdmiuboot_attr(char *token)
 	}
 }
 
-static  int __init hdmitx_boot_para_setup(char *s)
+static int hdmitx_boot_para_setup(char *s)
 {
 	char separator[] = {' ', ',', ';', 0x0};
 	char *token;
@@ -6362,7 +6363,7 @@ static  int __init hdmitx_boot_para_setup(char *s)
 
 __setup("hdmitx=", hdmitx_boot_para_setup);
 
-static int __init hdmitx_boot_frac_rate(char *str)
+static int hdmitx_boot_frac_rate(char *str)
 {
 	if (strncmp("0", str, 1) == 0)
 		hdmitx_device.frac_rate_policy = 0;
@@ -6376,7 +6377,7 @@ static int __init hdmitx_boot_frac_rate(char *str)
 
 __setup("frac_rate_policy=", hdmitx_boot_frac_rate);
 
-static int __init hdmitx_boot_hdr_priority(char *str)
+static int hdmitx_boot_hdr_priority(char *str)
 {
 	if (strncmp("1", str, 1) == 0) {
 		hdmitx_device.hdr_priority = 1;
@@ -6386,7 +6387,6 @@ static int __init hdmitx_boot_hdr_priority(char *str)
 }
 
 __setup("hdr_priority=", hdmitx_boot_hdr_priority);
-#endif
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);

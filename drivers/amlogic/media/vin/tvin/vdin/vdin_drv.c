@@ -72,6 +72,8 @@
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
 
+#include <linux/amlogic/gki_module.h>
+
 #define VDIN_DRV_NAME		"vdin"
 #define VDIN_DEV_NAME		"vdin"
 #define VDIN_CLS_NAME		"vdin"
@@ -3756,8 +3758,7 @@ static int __init vdin_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-#ifndef MODULE
-static int __init vdin_get_video_reverse(char *str)
+static int vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
 
@@ -3767,7 +3768,6 @@ static int __init vdin_get_video_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
-#endif
 
 #ifndef MODULE
 module_init(vdin_drv_init);

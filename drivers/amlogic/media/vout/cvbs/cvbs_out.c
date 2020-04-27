@@ -61,6 +61,8 @@
 #include "wss.h"
 #endif
 
+#include <linux/amlogic/gki_module.h>
+
 static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_480CVBS*/
 		.name              = "480cvbs",
@@ -264,12 +266,10 @@ static void cvbs_cntl_output(unsigned int open)
 
 /* 0xff for none config from uboot */
 static unsigned int cvbs_performance_index = 0xff;
-#ifndef MODULE
 static void cvbs_performance_config(unsigned int index)
 {
 	cvbs_performance_index = index;
 }
-#endif
 
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
 static void cvbs_performance_enhancement(enum cvbs_mode_e mode)
@@ -1639,8 +1639,7 @@ __exit void cvbs_exit_module(void)
 	platform_driver_unregister(&cvbsout_driver);
 }
 
-#ifndef MODULE
-static int __init vdac_config_bootargs_setup(char *line)
+static int vdac_config_bootargs_setup(char *line)
 {
 	unsigned long cfg = 0x0;
 	int ret = 0;
@@ -1653,7 +1652,7 @@ static int __init vdac_config_bootargs_setup(char *line)
 
 __setup("vdaccfg=", vdac_config_bootargs_setup);
 
-static int __init cvbs_performance_setup(char *line)
+static int cvbs_performance_setup(char *line)
 {
 	unsigned long cfg = 0x0;
 	int ret = 0;
@@ -1664,7 +1663,6 @@ static int __init cvbs_performance_setup(char *line)
 	return 0;
 }
 __setup("cvbsdrv=", cvbs_performance_setup);
-#endif
 
 #ifndef MODULE
 subsys_initcall(cvbs_init_module);
