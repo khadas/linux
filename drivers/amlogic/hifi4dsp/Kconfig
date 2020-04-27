@@ -1,0 +1,13 @@
+# audio hifi4dsp  configuration
+#
+#menu "AMLOGIC HiFi4DSP process"
+
+config AMLOGIC_HIFI4DSP
+	tristate "hifi4dsp control support"
+	default n
+	help
+		This is the Amlogic
+		kernel load dsp driver
+		support the amlogic hifi4dsp;
+
+#endmenu

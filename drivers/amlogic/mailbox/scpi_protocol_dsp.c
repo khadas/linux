@@ -43,6 +43,9 @@ static int scpi_linux_errmap[SCPI_ERR_MAX] = {
 	-ENOMEM, -EINVAL, -EOPNOTSUPP, -EIO,
 };
 
+struct hifi4syslog hifi4logbuffer[2];
+EXPORT_SYMBOL(hifi4logbuffer);
+
 static inline int scpi_to_linux_errno(int errno)
 {
 	if (errno >= SCPI_SUCCESS && errno < SCPI_ERR_MAX)
@@ -139,3 +142,65 @@ int scpi_send_dsp_data(void *data, int size, bool to_dspa)
 	return buf.status;
 }
 EXPORT_SYMBOL_GPL(scpi_send_dsp_data);
+
+int scpi_send_dsp_cmd(void *data, int size, bool to_dspa,
+		      int cmd, int taskid)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	int client_id = 0;
+
+	struct __packed {
+		u32 status;
+	} buf;
+
+	struct txbuf {
+		u64 taskid;
+		char data[240];
+	} txbuf;
+
+	if (!to_dspa)
+		client_id = 3;
+	else
+		client_id = 1;
+
+	txbuf.taskid = taskid;
+	size = size > sizeof(txbuf.data) ? sizeof(txbuf.data) : size;
+	memcpy(txbuf.data, data, size);
+
+	SCPI_SETUP_DBUF_SIZE(sdata, mdata, client_id,
+			     cmd, (void *)&txbuf,
+			sizeof(txbuf), &buf, sizeof(buf));
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+	return buf.status;
+}
+EXPORT_SYMBOL_GPL(scpi_send_dsp_cmd);
+
+int scpi_req_handle(void *p, u32 size, u32 cmd, int dspid)
+{
+	int ret = 0;
+	struct hifi4syslog *phifilogbuf = NULL;
+
+	if (!p)
+		return 0;
+
+	switch (cmd) {
+	case SCPI_REQ_INVALID:
+		break;
+	case SCPI_CMD_HIFI4SYSTLOG:
+		phifilogbuf = (struct hifi4syslog *)p;
+		strcpy(hifi4logbuffer[dspid].syslogstate,
+		       phifilogbuf->syslogstate);
+		hifi4logbuffer[dspid].logbaseaddr = phifilogbuf->logbaseaddr;
+		hifi4logbuffer[dspid].syslogsize = phifilogbuf->syslogsize;
+		hifi4logbuffer[dspid].loghead = phifilogbuf->loghead;
+		hifi4logbuffer[dspid].logtail = phifilogbuf->logtail;
+		ret = 1;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+

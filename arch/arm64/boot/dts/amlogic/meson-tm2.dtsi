@@ -5,6 +5,8 @@
  */
 
 #include "meson-tm-common.dtsi"
+#include <dt-bindings/clock/tm2-clkc.h>
+#include <dt-bindings/power/meson-tm2-power.h>
 
 / {
 	compatible = "amlogic,tm2";
@@ -423,6 +425,24 @@
 		compatible = "amlogic, defendkey";
 		reg=<0x0 0xff800228 0x0 0x4>;
 		mem_size = <0x100000>;
+		status = "okay";
+	};
+
+	hifi4dsp: hifi4dsp {
+		compatible = "amlogic, hifi4dsp";
+		memory-region = <&dsp_fw_reserved>;
+		reg = <0 0xff680000 0 0x114>,   /*dspa base address*/
+			<0 0xff690000 0 0x114>;   /*dspb base address*/
+		reg-names = "dspa_top_reg", "dspb_top_reg";
+		clocks = <&clkc CLKID_DSPA_MUX>, <&clkc CLKID_DSPB_MUX>;
+		clock-names = "dspa_clk", "dspb_clk";
+		dsp-cnt = <2>;
+		dspaoffset = <0>;
+		dspboffset = <0x800000>;
+		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
+		boot_sram_addr = <0xfff00000>;
+		boot_sram_size = <0x80000>;
+		power-domains = <&pwrc PWRC_TM2_DSPA_ID>;
 		status = "okay";
 	};
 };

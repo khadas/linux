@@ -59,6 +59,9 @@ enum scpi_std_cmd {
 	SCPI_CMD_GET_CPUINFO = 0x33,
 	SCPI_CMD_INIT_DSP = 0x34,
 
+	SCPI_CMD_HIFI4LOGCTL		= 0x50,
+	SCPI_CMD_HIFI4SYSTLOG		= 0x51,
+
 	SCPI_CMD_GET_CEC1		= 0xB4,
 	SCPI_CMD_GET_CEC2		= 0xB5,
 	SCPI_CMD_SEND_DSP_DATA		= 0xB6,
@@ -101,6 +104,15 @@ struct bl40_msg_buf {
 	char buf[512];
 } __packed;
 
+struct hifi4syslog {
+	char syslogstate[4];
+	u32 logbaseaddr;
+	u32 syslogsize;
+	u32 loghead;
+	u32 logtail;
+} __packed;
+extern struct hifi4syslog hifi4logbuffer[2];
+
 unsigned long scpi_clk_get_val(u16 clk_id);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate);
 int scpi_dvfs_get_idx(u8 domain);
@@ -121,6 +133,7 @@ int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
 int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
 int scpi_unlock_bl40(void);
 int scpi_send_dsp_cmd(void *data, int size, bool to_dspa, int cmd, int taskid);
-int scpi_req_handle(void *p, u32 size, u32 cmd);
+int scpi_req_handle(void *p, u32 size, u32 cmd, int dspid);
 int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf);
+
 #endif /*_SCPI_PROTOCOL_H_*/

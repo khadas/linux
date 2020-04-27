@@ -39,14 +39,6 @@
 			console-size = <0x8000>;
 			ftrace-size = <0x40000>;
 		};
-
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x10000000>;
-			alignment = <0x400000>;
-			linux,cma-default;
-		};
 	};
 
 	secmon {

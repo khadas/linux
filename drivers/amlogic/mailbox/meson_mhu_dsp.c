@@ -23,8 +23,9 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/list.h>
+#include <linux/amlogic/scpi_protocol.h>
 
-#include "meson_mhu.h"
 #include "meson_mhu_dsp.h"
 
 struct device *dsp_scpi_device;
@@ -36,10 +37,24 @@ static char *dsp_name[] = {
 	"dspb_dev",
 };
 
+struct dsp_mbox {
+	int dsp_id;
+	int channel_id;
+	struct mutex mutex;/*mbox lock*/
+	struct list_head dsp_list;
+	dev_t dsp_no;
+	struct cdev dsp_cdev;
+	struct device *dsp_dev;
+	char dsp_name[32];
+};
+
 /* for list */
-spinlock_t lock;
+spinlock_t dsp_lock;/*for mbox_list*/
 static LIST_HEAD(mbox_list);
 static DEFINE_MUTEX(chan_mutex);
+
+static struct list_head dsp_devs = LIST_HEAD_INIT(dsp_devs);
+static struct class *dsp_class;
 
 enum USR_CMD {
 	MBOX_USER_CMD = 0x1001,
@@ -49,7 +64,7 @@ enum USR_CMD {
  * mbox_chan_report
  * Report receive data
  */
-static void mbox_chan_report(u32 status, void *msg)
+static void mbox_chan_report(u32 status, void *msg, int idx)
 {
 	struct mhu_data_buf *data_buf = (struct mhu_data_buf *)msg;
 	struct mbox_message *message;
@@ -58,12 +73,16 @@ static void mbox_chan_report(u32 status, void *msg)
 	unsigned long flags;
 	struct mbox_data *mbox_data =
 		(struct mbox_data *)(data_buf->rx_buf);
+	struct mbox_data_sync *mbox_data_sync =
+		(struct mbox_data_sync *)(data_buf->rx_buf);
 	struct device *dev = dsp_scpi_device;
+	u32 mbuf_size, ret;
+	int dspid;
 
-	spin_lock_irqsave(&lock, flags);
+	spin_lock_irqsave(&dsp_lock, flags);
 	if (list_empty(&mbox_list)) {
-		spin_unlock_irqrestore(&lock, flags);
-		return;
+		spin_unlock_irqrestore(&dsp_lock, flags);
+		goto dsp_req;
 	}
 
 	list_for_each(list, &mbox_list) {
@@ -77,7 +96,7 @@ static void mbox_chan_report(u32 status, void *msg)
 			       mbox_data->data,
 			       (status >> SIZE_SHIFT) & SIZE_MASK);
 			complete(&message->complete);
-			spin_unlock_irqrestore(&lock, flags);
+			spin_unlock_irqrestore(&dsp_lock, flags);
 			return;
 		} else if (!listen_msg &&
 				(status & CMD_MASK) == message->cmd) {
@@ -85,7 +104,7 @@ static void mbox_chan_report(u32 status, void *msg)
 		}
 	}
 
-	spin_unlock_irqrestore(&lock, flags);
+	spin_unlock_irqrestore(&dsp_lock, flags);
 	if (listen_msg) {
 		dev_dbg(dev, "listen cmd\n");
 		memcpy(listen_msg->data,
@@ -95,13 +114,22 @@ static void mbox_chan_report(u32 status, void *msg)
 		return;
 	}
 
-	/* Use for cmd judge */
-	switch (status & CMD_MASK) {
-	case MBOX_USER_CMD:
-		break;
-	default:
-		break;
-	};
+dsp_req:
+	mbuf_size = (status >> SIZE_SHIFT) & SIZE_MASK;
+
+	if (BIT(idx) & 0xC)
+		dspid = 0x1;
+	else
+		dspid = 0x0;
+
+	if (ASYNC_CMD == ((status >> SYNC_SHIFT) & SYNC_MASK))
+		ret = scpi_req_handle(mbox_data->data, mbuf_size,
+				      status & CMD_MASK, dspid);
+	else
+		ret = scpi_req_handle(mbox_data_sync->data, mbuf_size,
+				      status & CMD_MASK, dspid);
+	if (!ret)
+		dev_err(dev, "scpi request error cmd:%d\n", status & CMD_MASK);
 }
 
 static irqreturn_t mbox_dsp_handler(int irq, void *p)
@@ -134,7 +162,7 @@ static irqreturn_t mbox_dsp_handler(int irq, void *p)
 			memcpy_fromio(data->rx_buf,
 				      payload + RX_PAYLOAD(idx),
 				      data->rx_size);
-			mbox_chan_report(status, data);
+			mbox_chan_report(status, data, idx);
 			memset(data->rx_buf, 0, data->rx_size);
 		}
 		writel(~0, mbox_base + RX_OFFSET_CLR);
@@ -165,6 +193,7 @@ static int mhu_transfer_data(struct mbox_chan *link, void *msg)
 		mbox_base = mbox_dspa_base;
 
 	chan->data = data;
+
 	if (data->tx_buf) {
 		memset_io(payload + TX_PAYLOAD(idx),
 			  0, MHU_BUFFER_SIZE);
@@ -259,14 +288,11 @@ static ssize_t mbox_message_write(struct file *filp,
 	unsigned long flags;
 	int cmd;
 	struct device *dev = dsp_scpi_device;
-	struct inode *inode = filp->f_inode;
 	int chan_index = 1;
-	struct device *dsp_dev = &mbox_cdev.dsp_dev[0];
+	struct dsp_mbox *dsp_mbox_dev = filp->private_data;
 
-	if (inode->i_rdev == mbox_cdev.dsp_dev[1].devt) {
+	if (dsp_mbox_dev->dsp_id == 1)
 		chan_index = 3;
-		dsp_dev = &mbox_cdev.dsp_dev[1];
-	}
 
 	if (count > MBOX_ALLOWED_SIZE) {
 		dev_err(dev,
@@ -286,13 +312,14 @@ static ssize_t mbox_message_write(struct file *filp,
 		goto err_probe1;
 	}
 
-	ret = copy_from_user(mbox_data.data, userbuf + 4, count - 4);
+	ret = copy_from_user(mbox_data.data, userbuf + MBOX_USER_CMD_LEN,
+			     count - MBOX_USER_CMD_LEN);
 	if (ret) {
 		ret = -EFAULT;
 		goto err_probe2;
 	}
 
-	ret = copy_from_user((char *)&cmd, userbuf, 4);
+	ret = copy_from_user((char *)&cmd, userbuf, MBOX_USER_CMD_LEN);
 	if (ret) {
 		ret = -EFAULT;
 		goto err_probe2;
@@ -301,9 +328,9 @@ static ssize_t mbox_message_write(struct file *filp,
 	mbox_msg->cmd = cmd & CMD_MASK;
 	init_completion(&mbox_msg->complete);
 	mbox_msg->task = current;
-	spin_lock_irqsave(&lock, flags);
+	spin_lock_irqsave(&dsp_lock, flags);
 	list_add_tail(&mbox_msg->list, &mbox_list);
-	spin_unlock_irqrestore(&lock, flags);
+	spin_unlock_irqrestore(&dsp_lock, flags);
 
 	/*Listen data not send data to hifi*/
 	if (cmd & LISTEN_DATA) {
@@ -314,7 +341,7 @@ static ssize_t mbox_message_write(struct file *filp,
 	mbox_data.complete = (unsigned long)(&mbox_msg->complete);
 	dev_dbg(dev, "%s %lx\n", __func__, (unsigned long)mbox_data.complete);
 	data_buf.tx_buf = (void *)&mbox_data;
-	data_buf.tx_size = count - 4 + sizeof(mbox_data) - MBOX_TX_SIZE;
+	data_buf.tx_size = count -  MBOX_USER_CMD_LEN + MBOX_COMPLETE_LEN;
 	data_buf.cmd = (mbox_msg->cmd)
 		       | ((data_buf.tx_size & SIZE_MASK) << SIZE_SHIFT)
 		       | ASYNC_OR_SYNC(1);
@@ -322,17 +349,17 @@ static ssize_t mbox_message_write(struct file *filp,
 	cl.dev = dev;
 	cl.tx_block = true;
 	cl.tx_tout = 2000;
-	mutex_lock(&dsp_dev->mutex);
+	mutex_lock(&dsp_mbox_dev->mutex);
 	chan = mbox_request_channel(&cl, chan_index);
 	if (IS_ERR(chan)) {
-		mutex_unlock(&dsp_dev->mutex);
+		mutex_unlock(&dsp_mbox_dev->mutex);
 		dev_err(dev, "Failed Req Chan\n");
 		ret = PTR_ERR(chan);
 		goto err_probe3;
 	}
 	ret = mbox_send_message(chan, (void *)(&data_buf));
 	mbox_free_channel(chan);
-	mutex_unlock(&dsp_dev->mutex);
+	mutex_unlock(&dsp_mbox_dev->mutex);
 	if (ret < 0) {
 		dev_err(dev, "Failed to send message via mailbox %d\n", ret);
 	} else {
@@ -340,9 +367,9 @@ static ssize_t mbox_message_write(struct file *filp,
 		return count;
 	}
 err_probe3:
-	spin_lock_irqsave(&lock, flags);
+	spin_lock_irqsave(&dsp_lock, flags);
 	list_del(&mbox_msg->list);
-	spin_unlock_irqrestore(&lock, flags);
+	spin_unlock_irqrestore(&dsp_lock, flags);
 err_probe2:
 	kfree(mbox_msg->data);
 err_probe1:
@@ -360,15 +387,15 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	unsigned long flags;
 	struct device *dev = dsp_scpi_device;
 
-	spin_lock_irqsave(&lock, flags);
+	spin_lock_irqsave(&dsp_lock, flags);
 	if (list_empty(&mbox_list)) {
-		spin_unlock_irqrestore(&lock, flags);
+		spin_unlock_irqrestore(&dsp_lock, flags);
 		return -ENXIO;
 	}
 	list_for_each(list, &mbox_list) {
 		msg = list_entry(list, struct mbox_message, list);
 		if (msg->task == current) {
-			spin_unlock_irqrestore(&lock, flags);
+			spin_unlock_irqrestore(&dsp_lock, flags);
 			wait_for_completion(&msg->complete);
 			dev_dbg(dev, "Wait end %s\n", msg->data);
 			break;
@@ -376,68 +403,112 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	}
 	if (list == &mbox_list) {
 		dev_err(dev, "List is null or not find data\n");
-		spin_unlock_irqrestore(&lock, flags);
+		spin_unlock_irqrestore(&dsp_lock, flags);
 		return -ENXIO;
 	}
 	*ppos = 0;
 	ret = simple_read_from_buffer(userbuf, count, ppos,
 				      msg->data, MBOX_TX_SIZE);
 
-	spin_lock_irqsave(&lock, flags);
+	spin_lock_irqsave(&dsp_lock, flags);
 	list_del(list);
-	spin_unlock_irqrestore(&lock, flags);
+	spin_unlock_irqrestore(&dsp_lock, flags);
 	kfree(msg->data);
 	kfree(msg);
 	return ret;
 }
 
+static int mbox_message_open(struct inode *inode, struct file *filp)
+{
+	struct cdev *cdev = inode->i_cdev;
+	struct dsp_mbox *dev = container_of(cdev, struct dsp_mbox, dsp_cdev);
+
+	filp->private_data = dev;
+	return 0;
+}
+
 static const struct file_operations mbox_message_ops = {
 	.write	= mbox_message_write,
 	.read	= mbox_message_read,
-	.open	= simple_open,
+	.open	= mbox_message_open,
 };
+
+static void dsp_cleanup_devs(void)
+{
+	struct dsp_mbox *cur, *n;
+
+	list_for_each_entry_safe(cur, n, &dsp_devs, dsp_list) {
+		if (cur->dsp_dev) {
+			cdev_del(&cur->dsp_cdev);
+			device_del(cur->dsp_dev);
+		}
+		list_del(&cur->dsp_list);
+		kfree(cur);
+	}
+}
 
 static int init_char_cdev(struct device *dev)
 {
-	int err;
+	int err = 0;
 	int nr_minor = 0;
 	int i = 0;
+	dev_t dsp_dev;
+	int dsp_major;
 
 	err = of_property_read_u32(dev->of_node,
 				   "nr-dsp", &nr_minor);
-	if (err) {
-		dev_err(dev, "failed to nr-dsp\n");
-		return -EINVAL;
-	}
-	if (nr_minor == 0 || nr_minor > NR_DSP)
+	if (err || nr_minor == 0 || nr_minor > NR_DSP)
 		nr_minor = NR_DSP;
 
-	err = alloc_chrdev_region(&mbox_cdev.dsp_no, 0, nr_minor, DRIVER_NAME);
+	dsp_class = class_create(THIS_MODULE, "dsp_mbox");
+	if (IS_ERR(dsp_class))
+		goto err;
+
+	err = alloc_chrdev_region(&dsp_dev, 0, nr_minor, DRIVER_NAME);
 	if (err < 0) {
 		dev_err(dev, "%s dsp alloc dev_t number failed\n", __func__);
 		err = -1;
-		goto err2;
+		goto class_err;
 	}
 
+	dsp_major = MAJOR(dsp_dev);
 	for (i = 0; i < nr_minor; i++) {
-		mbox_cdev.dsp_dev[i].init_name = dsp_name[i];
-		cdev_init(&mbox_cdev.dsp_cdev[i], &mbox_message_ops);
-		mbox_cdev.dsp_cdev[i].owner = THIS_MODULE;
-		mbox_cdev.dsp_dev[i].devt = MKDEV(MAJOR(mbox_cdev.dsp_no), i);
-		device_initialize(&mbox_cdev.dsp_dev[i]);
-		err = cdev_device_add(&mbox_cdev.dsp_cdev[i],
-				      &mbox_cdev.dsp_dev[i]);
-		if (err < 0) {
-			dev_err(dev, "%s: could not add character device\n",
-				mbox_cdev.dsp_dev[i].init_name);
-			goto err1;
+		struct dsp_mbox *cur =
+			kzalloc(sizeof(struct dsp_mbox), GFP_KERNEL);
+		if (!cur) {
+			dev_err(dev, "mbox unable to alloc dev\n");
+			goto out_err;
 		}
+
+		cur->dsp_id = i;
+		cur->channel_id = i * 2 + 1;
+		cur->dsp_no = MKDEV(dsp_major, i);
+		mutex_init(&cur->mutex);
+		snprintf(cur->dsp_name, 32, dsp_name[i]);
+
+		cdev_init(&cur->dsp_cdev, &mbox_message_ops);
+		err = cdev_add(&cur->dsp_cdev, cur->dsp_no, 1);
+		if (err) {
+			dev_err(dev, "mbox fail to add cdev\n");
+			goto out_err;
+		}
+
+		cur->dsp_dev =
+			device_create(dsp_class, NULL, cur->dsp_no,
+				      cur, "%s", cur->dsp_name);
+		if (IS_ERR(cur->dsp_dev)) {
+			dev_err(dev, "mbox fail to create device\n");
+			goto out_err;
+		}
+		list_add_tail(&cur->dsp_list, &dsp_devs);
 	}
 	return 0;
-err1:
-	put_device(&mbox_cdev.dsp_dev[0]);
-	put_device(&mbox_cdev.dsp_dev[1]);
-err2:
+out_err:
+	dsp_cleanup_devs();
+	unregister_chrdev_region(dsp_dev, nr_minor);
+class_err:
+	class_destroy(dsp_class);
+err:
 	return err;
 }
 
@@ -486,12 +557,8 @@ static int mhu_dsp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mhu_ctrl);
 
 	num_chans = 0;
-	err = of_property_read_u32(dev->of_node,
-				   "mbox-nums", &num_chans);
-	if (err) {
-		dev_err(dev, "failed to mbox-nums\n");
-		return -EINVAL;
-	}
+	of_property_read_u32(dev->of_node,
+			     "mbox-nums", &num_chans);
 	if (!num_chans)
 		num_chans = CHANNEL_MAX;
 	mbox_chans = devm_kzalloc(dev,
@@ -554,9 +621,10 @@ static int mhu_dsp_probe(struct platform_device *pdev)
 
 	err = init_char_cdev(dev);
 	if (err < 0) {
-		pr_info("init cdev fail\n");
+		dev_err(dev, "init cdev fail\n");
 		return err;
 	}
+
 	pr_info("dsp mailbox init done\n");
 	return 0;
 }
@@ -601,4 +669,3 @@ module_exit(mhu_exit);
 MODULE_AUTHOR("shunzhou jiang <shunzhou.jiang@amlogic.com>");
 MODULE_DESCRIPTION("MESON MHU mailbox dsp driver");
 MODULE_LICENSE("GPL");
-
