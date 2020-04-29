@@ -106,7 +106,7 @@ config DWMAC_MESON
 	  Meson8, Meson8b and GXBB SoCs.
 
 config AMLOGIC_ETH_PRIVE
-	tristate "Amlogic private ethernet code"
+	bool "Amlogic private ethernet code"
 	default n
 	depends on OF
 	help
