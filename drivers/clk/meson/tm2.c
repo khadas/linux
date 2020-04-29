@@ -4000,7 +4000,7 @@ static struct clk_regmap tm2_dspa_a_div = {
 
 static struct clk_regmap tm2_dspa_a_gate = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = HHI_SPICC_CLK_CNTL,
+		.offset = HHI_DSP_CLK_CNTL,
 		.bit_idx = 7,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -4047,7 +4047,7 @@ static struct clk_regmap tm2_dspa_b_div = {
 
 static struct clk_regmap tm2_dspa_b_gate = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = HHI_SPICC_CLK_CNTL,
+		.offset = HHI_DSP_CLK_CNTL,
 		.bit_idx = 7,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -4112,7 +4112,7 @@ static struct clk_regmap tm2_dspb_a_div = {
 
 static struct clk_regmap tm2_dspb_a_gate = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = HHI_SPICC_CLK_CNTL,
+		.offset = HHI_DSP_CLK_CNTL,
 		.bit_idx = 23,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -4159,7 +4159,7 @@ static struct clk_regmap tm2_dspb_b_div = {
 
 static struct clk_regmap tm2_dspb_b_gate = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = HHI_SPICC_CLK_CNTL,
+		.offset = HHI_DSP_CLK_CNTL,
 		.bit_idx = 23,
 	},
 	.hw.init = &(struct clk_init_data){
