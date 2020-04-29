@@ -3097,8 +3097,10 @@ static int ov5640_open(struct file *file)
 	}
 	mutex_unlock(&dev->mutex);
 
-	if (retval)
+	if (retval) {
+		kfree(fh);
 		return retval;
+	}
 
 #ifdef CONFIG_HAS_WAKELOCK
 	wake_lock(&(dev->wake_lock));
