@@ -47,6 +47,9 @@
 #define DOS_MEM_PD_HEVC			(0x2 << 2)
 #define DOS_MEM_PD_WAVE420L		(0x9 << 2)
 
+#define DOS_START_ID		7
+#define DOS_END_ID		10
+
 struct meson_ee_pwrc;
 struct meson_ee_pwrc_domain;
 
@@ -476,7 +479,8 @@ static int meson_ee_pwrc_off(struct generic_pm_domain *domain)
 				   pwrc_domain->desc.top_pd->iso_mask);
 	udelay(20);
 
-	if (pwrc_domain->desc.domain_id >= PWRC_SM1_VDEC_ID) {
+	if (pwrc_domain->desc.domain_id >= DOS_START_ID &&
+	    pwrc_domain->desc.domain_id <= DOS_END_ID) {
 		for (i = 0 ; i < pwrc_domain->desc.mem_pd_count ; ++i)
 			regmap_update_bits(pwrc_domain->pwrc->regmap_dos,
 					   pwrc_domain->desc.mem_pd[i].reg,
@@ -530,7 +534,8 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 				   pwrc_domain->desc.top_pd->sleep_mask, 0);
 	udelay(20);
 
-	if (pwrc_domain->desc.domain_id >= PWRC_SM1_VDEC_ID) {
+	if (pwrc_domain->desc.domain_id >= DOS_START_ID &&
+	    pwrc_domain->desc.domain_id <= DOS_END_ID) {
 		for (i = 0 ; i < pwrc_domain->desc.mem_pd_count ; ++i)
 			regmap_update_bits(pwrc_domain->pwrc->regmap_dos,
 					   pwrc_domain->desc.mem_pd[i].reg,
