@@ -5232,6 +5232,63 @@ int tv_audio_support(int type, struct rx_cap *prxcap)
 	return audio_check;
 }
 
+static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
+{
+	struct hdmi_format_para *para1 = NULL;
+	struct hdmi_format_para *para2 = NULL;
+	unsigned int act_clk = 0;
+
+	if (!hdev)
+		return 0;
+
+	pr_info("hdmitx: get vic %d cscd %s\n", hdev->cur_VIC, hdev->fmt_attr);
+
+	para1 = hdmi_get_fmt_paras(hdev->cur_VIC);
+	if (!para1) {
+		pr_info("%s[%d]\n", __func__, __LINE__);
+		return 0;
+	}
+	pr_info("hdmitx: mode name %s\n", para1->name);
+	para2 = hdmi_tst_fmt_name(para1->name, hdev->fmt_attr);
+	if (!para2) {
+		pr_info("%s[%d]\n", __func__, __LINE__);
+		return 0;
+	}
+	pr_info("hdmitx: tmds clock %d\n", para2->tmds_clk / 1000);
+	act_clk = para2->tmds_clk / 1000;
+	if (para2->cs == COLORSPACE_YUV420)
+		act_clk = act_clk / 2;
+	if (para2->cs != COLORSPACE_YUV422) {
+		switch (para2->cd) {
+		case COLORDEPTH_30B:
+			act_clk = act_clk * 5 / 4;
+			break;
+		case COLORDEPTH_36B:
+			act_clk = act_clk * 3 / 2;
+			break;
+		case COLORDEPTH_48B:
+			act_clk = act_clk * 2;
+			break;
+		case COLORDEPTH_24B:
+		default:
+			act_clk = act_clk * 1;
+			break;
+		}
+	}
+	pr_info("hdmitx: act clock: %d\n", act_clk);
+
+	if (act_clk > 340)
+		return 1;
+
+	return 0;
+}
+
+static void hdmitx_resend_div40(struct hdmitx_dev *hdev)
+{
+	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 1);
+	hdev->div40 = 1;
+}
+
 static int hdmi_task_handle(void *data)
 {
 	struct vinfo_s *info = NULL;
@@ -5273,6 +5330,9 @@ static int hdmi_task_handle(void *data)
 	INIT_DELAYED_WORK(&hdmitx_device->work_cedst, hdmitx_cedst_process);
 
 	hdmitx_device->tx_aud_cfg = 1; /* default audio configure is on */
+	/* When bootup mbox and TV simutanously, TV may not handle SCDC/DIV40 */
+	if (hdmitx_device->hpd_state && is_cur_tmds_div40(hdmitx_device))
+		hdmitx_resend_div40(hdmitx_device);
 
 	/*Direct Rander Management use another irq*/
 	if (hdmitx_device->drm_feature == 0)
