@@ -420,6 +420,8 @@ struct vframe_s {
 	 * used by memory owner.
 	 */
 	void *mem_handle;
+	/* in secure·memory */
+	int mem_sec;
 	/*for MMU H265/VP9 compress header*/
 	void *mem_head_handle;
 	struct vframe_pic_mode_s pic_mode;

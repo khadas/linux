@@ -34,7 +34,7 @@ extern void set_ppmgr_buf_info(unsigned int start, unsigned int size);
 extern void get_ppmgr_buf_info(unsigned int *start, unsigned int *size);
 
 /*  ppmgr buffer op. */
-extern int ppmgr_buffer_init(int vout_mode);
+extern int ppmgr_buffer_init(int vout_mode, int secure_mode);
 extern int ppmgr_buffer_uninit(void);
 extern void vf_ppmgr_reset(int type);
 extern int ppmgr_register(void);

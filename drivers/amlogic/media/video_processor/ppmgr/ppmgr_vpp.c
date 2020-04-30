@@ -1300,11 +1300,11 @@ static void process_vf_rotate(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	platform_type = get_platform_type();
 	if (platform_type == PLATFORM_TV)
-		ret = ppmgr_buffer_init(1);
+		ret = ppmgr_buffer_init(1, vf->mem_sec);
 	else
-		ret = ppmgr_buffer_init(0);
+		ret = ppmgr_buffer_init(0, vf->mem_sec);
 #else
-	ret = ppmgr_buffer_init(0);
+	ret = ppmgr_buffer_init(0, vf->mem_sec);
 #endif
 	if (ret < 0) {
 		pp_vf->dec_frame = vf;
@@ -1329,6 +1329,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 #endif
 
 	new_vf->duration_pulldown = vf->duration_pulldown;
+	new_vf->mem_sec = vf->mem_sec;
 	new_vf->pts = vf->pts;
 	new_vf->pts_us64 = vf->pts_us64;
 	new_vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
@@ -1444,6 +1445,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_para.left = 0;
 		ge2d_config->dst_para.width = new_vf->width;
 		ge2d_config->dst_para.height = new_vf->height;
+		ge2d_config->mem_sec = vf->mem_sec;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 			PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -1571,6 +1573,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_para.left = 0;
 		ge2d_config->dst_para.width = new_vf->width;
 		ge2d_config->dst_para.height = new_vf->height;
+		ge2d_config->mem_sec = vf->mem_sec;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 			PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -1724,6 +1727,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_para.y_rev = 0;
 		ge2d_config->dst_xy_swap = 0;
 	}
+	ge2d_config->mem_sec = vf->mem_sec;
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		PPMGRVPP_ERR("++ge2d configing error.\n");
 		vfq_push(&q_free, new_vf);
@@ -1893,11 +1897,11 @@ static void process_vf_change(struct vframe_s *vf,
 		return;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	if (platform_type == PLATFORM_TV)
-		ret = ppmgr_buffer_init(1);
+		ret = ppmgr_buffer_init(1, vf->mem_sec);
 	else
-		ret = ppmgr_buffer_init(0);
+		ret = ppmgr_buffer_init(0, vf->mem_sec);
 #else
-	ret = ppmgr_buffer_init(0);
+	ret = ppmgr_buffer_init(0, vf->mem_sec);
 #endif
 	if (ret < 0)
 		return;
@@ -1992,6 +1996,7 @@ static void process_vf_change(struct vframe_s *vf,
 	ge2d_config->dst_para.left = 0;
 	ge2d_config->dst_para.width = temp_vf.width;
 	ge2d_config->dst_para.height = temp_vf.height;
+	ge2d_config->mem_sec = vf->mem_sec;
 
 	if (temp_angle == 1) {
 		ge2d_config->dst_xy_swap = 1;
@@ -2072,6 +2077,7 @@ static void process_vf_change(struct vframe_s *vf,
 	ge2d_config->dst_para.left = 0;
 	ge2d_config->dst_para.width = vf->width;
 	ge2d_config->dst_para.height = vf->height;
+	ge2d_config->mem_sec = vf->mem_sec;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -2107,11 +2113,11 @@ static int process_vf_adjust(struct vframe_s *vf,
 	unsigned int cur_angle = pp_vf->angle;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	if (platform_type == PLATFORM_TV)
-		ret = ppmgr_buffer_init(1);
+		ret = ppmgr_buffer_init(1, vf->mem_sec);
 	else
-		ret = ppmgr_buffer_init(0);
+		ret = ppmgr_buffer_init(0, vf->mem_sec);
 #else
-	ret = ppmgr_buffer_init(0);
+	ret = ppmgr_buffer_init(0, vf->mem_sec);
 #endif
 	if (ret < 0)
 		return -1;
@@ -2203,6 +2209,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.left = 0;
 	ge2d_config->dst_para.width = ppmgr_device.disp_width;
 	ge2d_config->dst_para.height = ppmgr_device.disp_height;
+	ge2d_config->mem_sec = vf->mem_sec;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -2262,6 +2269,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.left = 0;
 	ge2d_config->dst_para.width = ppmgr_device.disp_width;
 	ge2d_config->dst_para.height = ppmgr_device.disp_height;
+	ge2d_config->mem_sec = vf->mem_sec;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -2389,6 +2397,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.left = 0;
 	ge2d_config->dst_para.width = vf->width;
 	ge2d_config->dst_para.height = vf->height;
+	ge2d_config->mem_sec = vf->mem_sec;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		PPMGRVPP_ERR("++ge2d configing error.\n");
@@ -2663,7 +2672,8 @@ static int ppmgr_task(void *data)
 				VFRAME_SOURCE_TYPE_OTHERS)
 				goto SKIP_DETECT;
 			if ((vf->width * vf->height)
-				>= (3840 * 2160)) {          //4k do not detect
+				> (1920 * 1088)) {
+				// greater than (1920 * 1088), do not detect
 				goto SKIP_DETECT;
 			}
 			if (first_frame) {
@@ -3048,17 +3058,22 @@ int ppmgr_buffer_uninit(void)
 	return 0;
 }
 
-int ppmgr_buffer_init(int vout_mode)
+int ppmgr_buffer_init(int vout_mode, int secure_mode)
 {
 	int i, j;
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size;
 	unsigned int buf_start;
 	int buf_size;
+	int mem_sec_flag;
+	int flags;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
-	/* int flags = CODEC_MM_FLAGS_DMA; */
-	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 	const char *keep_owner = "ppmgr_scr";
+
+	mem_sec_flag = secure_mode == 1 ? CODEC_MM_FLAGS_TVP :
+					  CODEC_MM_FLAGS_CMA_CLEAR;
+	/* int flags = CODEC_MM_FLAGS_DMA; */
+	flags = CODEC_MM_FLAGS_DMA | mem_sec_flag;
 
 	switch (ppmgr_buffer_status) {
 	case 0:/*not config*/
