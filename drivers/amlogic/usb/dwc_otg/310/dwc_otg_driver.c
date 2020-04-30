@@ -79,6 +79,8 @@
 #include <linux/amlogic/usb-v2.h>
 #endif
 
+#include <linux/amlogic/gki_module.h>
+
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
 
@@ -243,7 +245,7 @@ module_param_named(otg_device, force_device_mode,
 		bool, S_IRUGO | S_IWUSR);
 
 static char otg_mode_string[2] = "0";
-__maybe_unused static int __init force_otg_mode(char *s)
+static int force_otg_mode(char *s)
 {
 	if (s != NULL)
 		sprintf(otg_mode_string, "%s", s);

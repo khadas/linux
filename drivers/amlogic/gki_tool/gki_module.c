@@ -19,7 +19,7 @@
 #include <linux/amlogic/gki_module.h>
 #include "gki_tool.h"
 
-static char cmdline[4096];
+static char cmdline[8192];
 
 static void parse_option(char *cmdline, const char *option,
 			 int (*fn)(char *str))
@@ -75,7 +75,7 @@ void __module_init_hook(struct module *m)
 		if (s->magic1 == GKI_MODULE_SETUP_MAGIC1 &&
 		    s->magic2 == GKI_MODULE_SETUP_MAGIC2) {
 			if (gki_tool_debug)
-				pr_info("setup: %s/%px (early=%d)\n",
+				pr_info("setup: %s%pS (early=%d)\n",
 					s->str, s->fn, s->early);
 
 			parse_option(cmdline, s->str, s->fn);

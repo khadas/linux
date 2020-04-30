@@ -3937,6 +3937,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Get rid of temporary copy. */
 	free_copy(info);
 
+	pr_info("load module: %s\n", mod->name);
 	/* Done! */
 	trace_module_load(mod);
 
