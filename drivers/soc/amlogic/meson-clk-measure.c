@@ -813,6 +813,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int i;
 	struct meson_msr_id *table;
+	struct meson_msr_data *msr_data;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct meson_msr),
 			    GFP_KERNEL);
@@ -831,6 +832,14 @@ static int meson_msr_probe(struct platform_device *pdev)
 	       priv->data->table_size * sizeof(*table));
 	priv->data->msr_table = table;
 	measure_num = priv->data->table_size;
+
+	/* alloc space for measure data, store the platform data */
+	msr_data = devm_kzalloc(&pdev->dev, sizeof(struct meson_msr_data),
+				GFP_KERNEL);
+	if (!msr_data)
+		return -ENOMEM;
+	memcpy(msr_data, priv->data, sizeof(struct meson_msr_data));
+	priv->data = msr_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -867,7 +876,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct meson_msr_data meson_gx_data = {
+static struct meson_msr_data meson_gx_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_gx,
 	.table_size = ARRAY_SIZE(clk_msr_gx),
 	.duty_offset = 0x0,
@@ -876,7 +885,7 @@ static const struct meson_msr_data meson_gx_data = {
 	.reg2_offset = 0xc,
 };
 
-static const struct meson_msr_data meson_m8_data = {
+static struct meson_msr_data meson_m8_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_m8,
 	.table_size = ARRAY_SIZE(clk_msr_m8),
 	.duty_offset = 0x0,
@@ -885,7 +894,7 @@ static const struct meson_msr_data meson_m8_data = {
 	.reg2_offset = 0xc,
 };
 
-static const struct meson_msr_data meson_axg_data = {
+static struct meson_msr_data meson_axg_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_axg,
 	.table_size = ARRAY_SIZE(clk_msr_axg),
 	.duty_offset = 0x0,
@@ -894,7 +903,7 @@ static const struct meson_msr_data meson_axg_data = {
 	.reg2_offset = 0xc,
 };
 
-static const struct meson_msr_data meson_g12a_data = {
+static struct meson_msr_data meson_g12a_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_g12a,
 	.table_size = ARRAY_SIZE(clk_msr_g12a),
 	.duty_offset = 0x0,
@@ -903,7 +912,7 @@ static const struct meson_msr_data meson_g12a_data = {
 	.reg2_offset = 0xc,
 };
 
-static const struct meson_msr_data meson_sm1_data = {
+static struct meson_msr_data meson_sm1_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_sm1,
 	.table_size = ARRAY_SIZE(clk_msr_sm1),
 	.duty_offset = 0x0,
@@ -912,7 +921,7 @@ static const struct meson_msr_data meson_sm1_data = {
 	.reg2_offset = 0xc,
 };
 
-static const struct meson_msr_data meson_tm2_data = {
+static struct meson_msr_data meson_tm2_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_tm2,
 	.table_size = ARRAY_SIZE(clk_msr_tm2),
 	.duty_offset = 0x0,
