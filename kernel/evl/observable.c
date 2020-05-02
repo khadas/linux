@@ -940,10 +940,9 @@ static __poll_t poll_observable(struct evl_observable *observable)
 	if (sbr == NULL)
 		return POLLERR;
 
-	if (!evl_element_is_observable(&observable->element))
-		return POLLERR;
-
 	observer = find_observer(&sbr->subscriptions, fundle_of(observable));
+	if (observer == NULL)
+		return POLLERR;
 
 	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
