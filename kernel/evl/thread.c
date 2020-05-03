@@ -2223,6 +2223,9 @@ static ssize_t thread_oob_read(struct file *filp,
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 
+	if (thread->observable == NULL)
+		return -EPERM;
+
 	return evl_read_observable(thread->observable, u_buf, count,
 				!(filp->f_flags & O_NONBLOCK));
 }
@@ -2232,6 +2235,9 @@ static ssize_t thread_oob_write(struct file *filp,
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 
+	if (thread->observable == NULL)
+		return -EPERM;
+
 	return evl_write_observable(thread->observable, u_buf, count);
 }
 
@@ -2239,6 +2245,9 @@ static __poll_t thread_oob_poll(struct file *filp,
 				struct oob_poll_wait *wait)
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	if (thread->observable == NULL)
+		return POLLERR;
 
 	return evl_oob_poll_observable(thread->observable, wait);
 }
@@ -2248,6 +2257,9 @@ static ssize_t thread_write(struct file *filp, const char __user *u_buf,
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 
+	if (thread->observable == NULL)
+		return -EPERM;
+
 	return evl_write_observable(thread->observable, u_buf, count);
 }
 
@@ -2256,6 +2268,9 @@ static ssize_t thread_read(struct file *filp, char __user *u_buf,
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
 
+	if (thread->observable == NULL)
+		return -EPERM;
+
 	return evl_read_observable(thread->observable, u_buf, count,
 				!(filp->f_flags & O_NONBLOCK));
 }
@@ -2263,6 +2278,9 @@ static ssize_t thread_read(struct file *filp, char __user *u_buf,
 static __poll_t thread_poll(struct file *filp, poll_table *pt)
 {
 	struct evl_thread *thread = element_of(filp, struct evl_thread);
+
+	if (thread->observable == NULL)
+		return POLLERR;
 
 	return evl_poll_observable(thread->observable, filp, pt);
 }
