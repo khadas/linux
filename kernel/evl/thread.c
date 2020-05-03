@@ -2385,7 +2385,7 @@ static void discard_unmapped_uthread(struct evl_thread *thread)
 }
 
 static struct evl_element *
-thread_factory_build(struct evl_factory *fac, const char *name,
+thread_factory_build(struct evl_factory *fac, const char __user *u_name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct evl_observable *observable = NULL;
@@ -2408,8 +2408,8 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	if (curr == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ret = evl_init_element(&curr->element,
-			&evl_thread_factory, clone_flags);
+	ret = evl_init_user_element(&curr->element, &evl_thread_factory,
+				u_name, clone_flags);
 	if (ret)
 		goto fail_element;
 
@@ -2422,15 +2422,19 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 		 * the observable itself.
 		 */
 		observable = evl_alloc_observable(
-			clone_flags & ~EVL_CLONE_PUBLIC);
+			u_name, clone_flags & ~EVL_CLONE_PUBLIC);
 		if (IS_ERR(observable)) {
 			ret = PTR_ERR(observable);
 			goto fail_observable;
 		}
+		/*
+		 * Element name was already set from user input by
+		 * evl_alloc_observable(). evl_create_core_element_device()
+		 * is told to skip name assignment (NULL name).
+		 */
 		ret = evl_create_core_element_device(
 			&observable->element,
-			&evl_observable_factory,
-			name);
+			&evl_observable_factory, NULL);
 		if (ret)
 			goto fail_observable_dev;
 		observable = observable;
@@ -2443,7 +2447,8 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	iattr.observable = observable;
 	iattr.sched_class = &evl_sched_weak;
 	iattr.sched_param.weak.prio = 0;
-	ret = evl_init_thread(curr, &iattr, NULL, "%s", name);
+	ret = evl_init_thread(curr, &iattr, NULL, "%s",
+			evl_element_name(&curr->element));
 	if (ret)
 		goto fail_thread;
 
@@ -2464,7 +2469,8 @@ thread_factory_build(struct evl_factory *fac, const char *name,
 	 */
 	evl_get_element(&curr->element);
 
-	strncpy(tsk->comm, name, sizeof(tsk->comm));
+	strncpy(tsk->comm, evl_element_name(&curr->element),
+		sizeof(tsk->comm));
 	tsk->comm[sizeof(tsk->comm) - 1] = '\0';
 
 	return &curr->element;

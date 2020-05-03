@@ -303,7 +303,7 @@ static const struct file_operations proxy_fops = {
 };
 
 static struct evl_element *
-proxy_factory_build(struct evl_factory *fac, const char *name,
+proxy_factory_build(struct evl_factory *fac, const char __user *u_name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct workqueue_struct *wq = NULL;
@@ -343,6 +343,11 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 		goto fail_proxy;
 	}
 
+	ret = evl_init_user_element(&proxy->element,
+				&evl_proxy_factory, u_name, clone_flags);
+	if (ret)
+		goto fail_element;
+
 	/*
 	 * Buffer size is optional as we may need the mapping facility
 	 * only, without any provision for writing to the proxied
@@ -354,17 +359,13 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 			ret = -ENOMEM;
 			goto fail_bufmem;
 		}
-		wq = create_singlethread_workqueue(name);
-		if (!wq) {
+		wq = create_singlethread_workqueue(
+			evl_element_name(&proxy->element));
+		if (wq == NULL) {
 			ret = -ENOMEM;
 			goto fail_wq;
 		}
 	}
-
-	ret = evl_init_element(&proxy->element,
-			&evl_proxy_factory, clone_flags);
-	if (ret)
-		goto fail_element;
 
 	proxy->filp = filp;
 	out = &proxy->output;
@@ -382,13 +383,11 @@ proxy_factory_build(struct evl_factory *fac, const char *name,
 
 	return &proxy->element;
 
-fail_element:
-	if (wq)
-		destroy_workqueue(wq);
 fail_wq:
-	if (bufmem)
-		kfree(bufmem);
+	kfree(bufmem);
 fail_bufmem:
+	evl_destroy_element(&proxy->element);
+fail_element:
 	kfree(proxy);
 fail_proxy:
 	fput(filp);

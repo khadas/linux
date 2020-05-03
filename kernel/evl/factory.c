@@ -83,6 +83,37 @@ int evl_init_element(struct evl_element *e,
 	return 0;
 }
 
+int evl_init_user_element(struct evl_element *e,
+			struct evl_factory *fac,
+			const char __user *u_name,
+			int clone_flags)
+{
+	struct filename *devname;
+	char tmpbuf[32];
+	int ret;
+
+	ret = evl_init_element(e, fac, clone_flags);
+	if (ret)
+		return ret;
+
+	if (u_name) {
+		devname = getname(u_name);
+	} else {
+		snprintf(tmpbuf, sizeof(tmpbuf), "%s%%%d",
+			fac->name, e->minor);
+		devname = getname_kernel(tmpbuf);
+	}
+
+	if (IS_ERR(devname)) {
+		evl_destroy_element(e);
+		return PTR_ERR(devname);
+	}
+
+	e->devname = devname;
+
+	return 0;
+}
+
 void evl_destroy_element(struct evl_element *e)
 {
 	clear_bit(e->minor, e->factory->minor_map);
@@ -488,12 +519,14 @@ int evl_create_core_element_device(struct evl_element *e,
 {
 	struct filename *devname;
 
-	devname = getname_kernel(name);
-	if (devname == NULL)
-		return PTR_ERR(devname);
+	if (name) {
+		devname = getname_kernel(name);
+		if (devname == NULL)
+			return PTR_ERR(devname);
+		e->devname = devname;
+	}
 
 	e->clone_flags |= EVL_CLONE_COREDEV;
-	e->devname = devname;
 
 	return create_element_device(e, fac);
 }
@@ -518,11 +551,10 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 {
 	struct evl_element *e = filp->private_data;
 	struct evl_clone_req req, __user *u_req;
-	struct filename *devname = NULL;
 	__u32 val, state_offset = -1U;
+	const char __user *u_name;
 	struct evl_factory *fac;
 	void __user *u_attrs;
-	char tmpbuf[16];
 	int ret;
 
 	if (cmd != EVL_IOC_CLONE)
@@ -539,35 +571,15 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 	if (ret)
 		return -EFAULT;
 
-	if (req.name_ptr) {
-		devname = getname(evl_valptr64(req.name_ptr, const char));
-		if (IS_ERR(devname))
-			return PTR_ERR(devname);
-	} else if (req.clone_flags & EVL_CLONE_PUBLIC)
+	u_name = evl_valptr64(req.name_ptr, const char);
+	if (u_name == NULL && req.clone_flags & EVL_CLONE_PUBLIC)
 		return -EINVAL;
 
 	u_attrs = evl_valptr64(req.attrs_ptr, void);
 	fac = container_of(filp->f_inode->i_cdev, struct evl_factory, cdev);
-	e = fac->build(fac, devname ? devname->name : NULL,
-		u_attrs, req.clone_flags, &state_offset);
-	if (IS_ERR(e)) {
-		if (devname)
-			putname(devname);
+	e = fac->build(fac, u_name, u_attrs, req.clone_flags, &state_offset);
+	if (IS_ERR(e))
 		return PTR_ERR(e);
-	}
-
-	if (!devname) {
-		/* If no name specified, default to device minor. */
-		snprintf(tmpbuf, sizeof(tmpbuf), "%d", e->minor);
-		devname = getname_kernel(tmpbuf);
-		if (IS_ERR(devname)) {
-			fac->dispose(e);
-			return PTR_ERR(devname);
-		}
-	}
-
-	/* The device name is valid throughout the element's lifetime. */
-	e->devname = devname;
 
 	/* This must be set before the device appears. */
 	filp->private_data = e;

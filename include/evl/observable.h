@@ -34,7 +34,8 @@ struct evl_observable {
 
 void evl_drop_subscriptions(struct evl_subscriber *subscriber);
 
-struct evl_observable *evl_alloc_observable(int clone_flags);
+struct evl_observable *evl_alloc_observable(const char __user *u_name,
+					int clone_flags);
 
 void evl_flush_observable(struct evl_observable *observable);
 
