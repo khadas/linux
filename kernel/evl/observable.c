@@ -1078,7 +1078,8 @@ static const struct file_operations observable_fops = {
 #endif
 };
 
-struct evl_observable *evl_alloc_observable(int clone_flags)
+struct evl_observable *evl_alloc_observable(const char __user *u_name,
+					int clone_flags)
 {
 	struct evl_observable *observable;
 	int ret;
@@ -1087,9 +1088,9 @@ struct evl_observable *evl_alloc_observable(int clone_flags)
 	if (observable == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ret = evl_init_element(&observable->element,
-			&evl_observable_factory,
-			clone_flags | EVL_CLONE_OBSERVABLE);
+	ret = evl_init_user_element(&observable->element,
+				&evl_observable_factory, u_name,
+				clone_flags | EVL_CLONE_OBSERVABLE);
 	if (ret) {
 		kfree(observable);
 		return ERR_PTR(ret);
@@ -1109,7 +1110,7 @@ struct evl_observable *evl_alloc_observable(int clone_flags)
 }
 
 static struct evl_element *
-observable_factory_build(struct evl_factory *fac, const char *name,
+observable_factory_build(struct evl_factory *fac, const char __user *u_name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct evl_observable *observable;
@@ -1117,7 +1118,7 @@ observable_factory_build(struct evl_factory *fac, const char *name,
 	if (clone_flags & ~EVL_OBSERVABLE_CLONE_FLAGS)
 		return ERR_PTR(-EINVAL);
 
-	observable = evl_alloc_observable(clone_flags);
+	observable = evl_alloc_observable(u_name, clone_flags);
 	if (IS_ERR(observable))
 		return ERR_PTR(PTR_ERR(observable));
 

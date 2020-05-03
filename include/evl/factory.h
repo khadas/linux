@@ -49,7 +49,7 @@ struct evl_factory {
 	const struct file_operations *fops;
 	unsigned int nrdev;
 	struct evl_element *(*build)(struct evl_factory *fac,
-				const char *name,
+				const char __user *u_name,
 				void __user *u_attrs,
 				int clone_flags,
 				u32 *state_offp);
@@ -105,6 +105,11 @@ evl_element_name(struct evl_element *e)
 int evl_init_element(struct evl_element *e,
 		struct evl_factory *fac,
 		int clone_flags);
+
+int evl_init_user_element(struct evl_element *e,
+			struct evl_factory *fac,
+			const char __user *u_name,
+			int clone_flags);
 
 void evl_destroy_element(struct evl_element *e);
 

@@ -627,7 +627,7 @@ ssize_t evl_write_xbuf(struct evl_xbuf *xbuf, const void *buf,
 EXPORT_SYMBOL_GPL(evl_write_xbuf);
 
 static struct evl_element *
-xbuf_factory_build(struct evl_factory *fac, const char *name,
+xbuf_factory_build(struct evl_factory *fac, const char __user *u_name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	void *i_bufmem = NULL, *o_bufmem = NULL;
@@ -668,8 +668,8 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
 		}
 	}
 
-	ret = evl_init_element(&xbuf->element,
-			&evl_xbuf_factory, clone_flags);
+	ret = evl_init_user_element(&xbuf->element, &evl_xbuf_factory,
+				u_name, clone_flags);
 	if (ret)
 		goto fail_element;
 

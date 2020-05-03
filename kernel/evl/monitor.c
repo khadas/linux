@@ -761,7 +761,7 @@ static const struct file_operations monitor_fops = {
 };
 
 static struct evl_element *
-monitor_factory_build(struct evl_factory *fac, const char *name,
+monitor_factory_build(struct evl_factory *fac, const char __user *u_name,
 		void __user *u_attrs, int clone_flags, u32 *state_offp)
 {
 	struct evl_monitor_state *state;
@@ -817,8 +817,8 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
 		goto fail_alloc;
 	}
 
-	ret = evl_init_element(&mon->element, &evl_monitor_factory,
-			clone_flags);
+	ret = evl_init_user_element(&mon->element, &evl_monitor_factory,
+				u_name, clone_flags);
 	if (ret)
 		goto fail_element;
 
