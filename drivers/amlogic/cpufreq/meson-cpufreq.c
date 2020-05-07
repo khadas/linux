@@ -80,7 +80,7 @@ static int meson_dsufreq_adjust(struct meson_cpufreq_driver_data *cpufreq_data,
 		if (freq->new > low_dsu_rate) {
 			pr_debug("%s:dsu clk switch parent to dsu pre!\n",
 				 __func__);
-			if (__clk_get_enable_count(dsu_pre_parent) == 0) {
+			if (!__clk_is_enabled(dsu_pre_parent)) {
 				ret = clk_prepare_enable(dsu_pre_parent);
 				if (ret) {
 					pr_err("%s: CPU%d gp1 pll enable failed,ret = %d\n",
@@ -113,7 +113,7 @@ static int meson_dsufreq_adjust(struct meson_cpufreq_driver_data *cpufreq_data,
 			pr_debug("%s:dsu clk switch parent to cpu!\n",
 				 __func__);
 			ret = clk_set_parent(dsu_clk, dsu_cpu_parent);
-			if (__clk_get_enable_count(dsu_pre_parent) >= 1)
+			if (__clk_is_enabled(dsu_pre_parent))
 				clk_disable_unprepare(dsu_pre_parent);
 		}
 
