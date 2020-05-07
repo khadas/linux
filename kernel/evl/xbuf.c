@@ -178,10 +178,12 @@ retry:
 			ring->unlock(ring, flags);
 
 			xret = rd->xfer(rd, ring->bufmem + rdoff, n);
-			if (xret)
-				return -EFAULT;
-
 			flags = ring->lock(ring);
+			if (xret) {
+				ret = -EFAULT;
+				break;
+			}
+
 			rd->buf_ptr += n;
 			rbytes -= n;
 			rdoff = (rdoff + n) % ring->bufsz;
@@ -268,8 +270,8 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
 			flags = ring->lock(ring);
 			if (xret) {
 				memset(ring->bufmem + wroff + n - xret, 0, xret);
-				ring->unlock(ring, flags);
-				return -EFAULT;
+				ret = -EFAULT;
+				break;
 			}
 
 			wd->buf_ptr += n;
