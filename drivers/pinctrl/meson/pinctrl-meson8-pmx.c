@@ -103,3 +103,4 @@ const struct pinmux_ops meson8_pmx_ops = {
 	.strict = true,
 #endif
 };
+EXPORT_SYMBOL(meson8_pmx_ops);

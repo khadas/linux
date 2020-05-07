@@ -1,5 +1,6 @@
 #!/bin/sh
 
+insmod aml_pinctrl.ko
 insmod aml_mailbox.ko
 #insmod aml_power.ko
 insmod meson_jtag.ko

@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
+#include "pinctrl-module-init.h"
 
 static const struct pinctrl_pin_desc meson_g12a_periphs_pins[] = {
 	MESON_PIN(GPIOZ_0),
@@ -1569,9 +1570,17 @@ static struct platform_driver meson_g12a_pinctrl_driver = {
 #ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(meson_g12a_pinctrl_driver);
 #else
+#ifndef MODULE
 static int __init meson_g12a_pinctrl_init(void)
 {
 	return platform_driver_register(&meson_g12a_pinctrl_driver);
 }
 arch_initcall(meson_g12a_pinctrl_init);
+
+#else
+int __init meson_g12a_pinctrl_init(void)
+{
+	return platform_driver_register(&meson_g12a_pinctrl_driver);
+}
+#endif
 #endif

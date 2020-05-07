@@ -1,4 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+config AMLOGIC_PINCTRL_MODULE
+	tristate "support pinctrl build option"
+	select PINCTRL_MESON
+	default y
+	help
+		amlogic pinctrl driver compile option
+		select y for built-in
+		select m for ko
+		select n for disable
+
 menuconfig PINCTRL_MESON
 	bool "Amlogic SoC pinctrl drivers"
 	depends on ARCH_MESON
@@ -60,4 +71,9 @@ config PINCTRL_MESON_A1
 	select PINCTRL_MESON_AXG_PMX
 	default n
 
+config PINCTRL_MESON_TM2
+	bool "Meson tm2 Soc pinctrl driver"
+	depends on ARM64 || AMLOGIC_ARMV8_AARCH32
+	select PINCTRL_MESON_AXG_PMX
+	default n
 endif

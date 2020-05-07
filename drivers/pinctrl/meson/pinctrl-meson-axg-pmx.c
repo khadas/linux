@@ -119,3 +119,4 @@ const struct pinmux_ops meson_axg_pmx_ops = {
 	.strict = true,
 #endif
 };
+EXPORT_SYMBOL(meson_axg_pmx_ops);

@@ -4,8 +4,9 @@
  */
 
 #include <dt-bindings/gpio/meson-tm2-gpio.h>
-#include "../../pinctrl/meson/pinctrl-meson.h"
-#include "../../pinctrl/meson/pinctrl-meson-axg-pmx.h"
+#include "pinctrl-meson.h"
+#include "pinctrl-meson-axg-pmx.h"
+#include "pinctrl-module-init.h"
 
 static const struct pinctrl_pin_desc meson_tm2_periphs_pins[] = {
 	MESON_PIN(GPIOZ_0),
@@ -1802,6 +1803,7 @@ static struct platform_driver meson_tm2_pinctrl_driver = {
 	},
 };
 
+#ifndef MODULE
 static int __init tm2_pmx_init(void)
 {
 	meson_tm2_pinctrl_driver.driver.of_match_table =
@@ -1809,3 +1811,12 @@ static int __init tm2_pmx_init(void)
 	return platform_driver_register(&meson_tm2_pinctrl_driver);
 }
 arch_initcall(tm2_pmx_init);
+
+#else
+int __init meson_tm2_pinctrl_init(void)
+{
+	meson_tm2_pinctrl_driver.driver.of_match_table =
+			meson_tm2_pinctrl_dt_match;
+	return platform_driver_register(&meson_tm2_pinctrl_driver);
+}
+#endif
