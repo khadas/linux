@@ -103,12 +103,12 @@ static int aml_dma_queue_manage(void *data)
 	int ret = 0;
 
 	do {
-		__set_current_state(TASK_INTERRUPTIBLE);
-
 		mutex_lock(&dev->queue_mutex);
 		backlog = crypto_get_backlog(&dev->queue);
 		async_req = crypto_dequeue_request(&dev->queue);
 		mutex_unlock(&dev->queue_mutex);
+
+		__set_current_state(TASK_INTERRUPTIBLE);
 
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
