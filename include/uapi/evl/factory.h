@@ -23,6 +23,8 @@ struct evl_element_ids {
 #define EVL_CLONE_OBSERVABLE	(1 << 17)
 #define EVL_CLONE_NONBLOCK	(1 << 18)
 #define EVL_CLONE_MASTER	(1 << 19)
+#define EVL_CLONE_INPUT		(1 << 20)
+#define EVL_CLONE_OUTPUT	(1 << 21)
 #define EVL_CLONE_COREDEV	(1 << 31)
 #define EVL_CLONE_MASK		(((__u32)-1 << 16) & ~EVL_CLONE_COREDEV)
 
