@@ -338,11 +338,11 @@ retry:
 			if (in->on_error)
 				return in->on_error;
 
-			if (!(filp->f_flags & O_NONBLOCK) &&
-				avail > 0 && ring->granularity <= avail) {
-				len = ring->granularity > 1 ?
-					ring->granularity : avail;
-				goto retry;
+			if (avail > 0 && filp->f_flags & O_NONBLOCK) {
+				/* granularity may not be ^2. */
+				len = rounddown(avail, ring->granularity ?: 1);
+				if (len)
+					goto retry;
 			}
 
 			return -EAGAIN;
