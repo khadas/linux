@@ -447,6 +447,7 @@ static __poll_t proxy_oob_poll(struct file *filp,
 	struct proxy_ring *oring = &proxy->output.ring;
 	struct proxy_ring *iring = &proxy->input.ring;
 	__poll_t ret = 0;
+	int peek;
 
 	if (!(proxy_is_readable(proxy) || proxy_is_writable(proxy)))
 		return POLLERR;
@@ -457,8 +458,19 @@ static __poll_t proxy_oob_poll(struct file *filp,
 		atomic_read(&oring->fillsz) < oring->bufsz)
 		ret = POLLOUT|POLLWRNORM;
 
-	if (proxy_is_readable(proxy) && atomic_read(&iring->fillsz) > 0)
-		ret |= POLLIN|POLLRDNORM;
+	/*
+	 * If the input ring is empty, kick the worker to perform a
+	 * readahead as a last resort.
+	 */
+	if (proxy_is_readable(proxy)) {
+		if (atomic_read(&iring->fillsz) > 0)
+			ret |= POLLIN|POLLRDNORM;
+		else if (atomic_read(&proxy->input.reqsz) == 0) {
+			peek = iring->granularity ?: 1;
+			atomic_add(peek, &proxy->input.reqsz);
+			evl_call_inband_from(&iring->relay_work, iring->wq);
+		}
+	}
 
 	return ret;
 }
