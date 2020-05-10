@@ -314,8 +314,7 @@ static ssize_t do_proxy_read(struct file *filp,
 	char __user *u_ptr;
 	int xret;
 
-	if (count == 0)
-		return 0;
+	/* count may not be zero. */
 
 	if (count > ring->bufsz)
 		return -EFBIG;
@@ -335,9 +334,6 @@ retry:
 		if (avail < len) {
 			raw_spin_unlock_irqrestore(&ring->lock, flags);
 
-			if (in->on_error)
-				return in->on_error;
-
 			if (avail > 0 && filp->f_flags & O_NONBLOCK) {
 				/* granularity may not be ^2. */
 				len = rounddown(avail, ring->granularity ?: 1);
@@ -345,7 +341,16 @@ retry:
 					goto retry;
 			}
 
-			return -EAGAIN;
+			if (in->on_error)
+				return in->on_error;
+
+			/*
+			 * Zero return means 'wait then try again' to
+			 * the caller. Should the worker get -EAGAIN
+			 * as non-blocking mode was set for the target
+			 * file, on_error would reflect this.
+			 */
+			return 0;
 		}
 
 		rdoff = ring->rdoff;
@@ -419,9 +424,12 @@ static ssize_t proxy_oob_read(struct file *filp,
 	if (!proxy_is_readable(proxy))
 		return -ENXIO;
 
+	if (count == 0)
+		return 0;
+
 	for (;;) {
 		ret = do_proxy_read(filp, u_buf, count);
-		if (ret != -EAGAIN || filp->f_flags & O_NONBLOCK)
+		if (ret || filp->f_flags & O_NONBLOCK)
 			break;
 		if (!request_done) {
 			atomic_add(count, &in->reqsz);
@@ -507,9 +515,12 @@ static ssize_t proxy_read(struct file *filp,
 	if (!proxy_is_readable(proxy))
 		return -ENXIO;
 
+	if (count == 0)
+		return 0;
+
 	for (;;) {
 		ret = do_proxy_read(filp, u_buf, count);
-		if (ret != -EAGAIN || filp->f_flags & O_NONBLOCK)
+		if (ret || filp->f_flags & O_NONBLOCK)
 			break;
 		if (!request_done) {
 			atomic_add(count, &in->reqsz);
