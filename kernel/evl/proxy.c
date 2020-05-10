@@ -84,7 +84,7 @@ static void relay_output(struct evl_proxy *proxy)
 	rdoff = ring->rdoff;
 
 	ppos = NULL;
-	if (!(filp->f_mode & FMODE_STREAM)) {
+	if (filp->f_mode & FMODE_ATOMIC_POS) {
 		mutex_lock(&filp->f_pos_lock);
 		ppos = &pos;
 		pos = filp->f_pos;
@@ -242,7 +242,7 @@ static void relay_input(struct evl_proxy *proxy)
 	wroff = ring->wroff;
 
 	ppos = NULL;
-	if (!(filp->f_mode & FMODE_STREAM)) {
+	if (filp->f_mode & FMODE_ATOMIC_POS) {
 		mutex_lock(&filp->f_pos_lock);
 		ppos = &pos;
 		pos = filp->f_pos;
