@@ -533,6 +533,10 @@ static __poll_t proxy_poll(struct file *filp, poll_table *wait)
 		poll_wait(filp, &iring->inband_wait, wait);
 		if (atomic_read(&iring->fillsz) > 0)
 			ret |= POLLIN|POLLRDNORM;
+		else if (proxy->filp->f_op->poll) {
+			ret = proxy->filp->f_op->poll(proxy->filp, wait);
+			ret &= POLLIN|POLLRDNORM;
+		}
 	}
 
 	return ret;
