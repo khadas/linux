@@ -52,6 +52,13 @@ void evl_flush_work(struct evl_work *work)
 	flush_work(&work->wq_work);
 }
 
+static inline
+void evl_cancel_work(struct evl_work *work)
+{
+	irq_work_sync(&work->irq_work);
+	cancel_work_sync(&work->wq_work);
+}
+
 int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
 			struct workqueue_struct *wq);
 
