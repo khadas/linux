@@ -872,10 +872,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		HIFI4DSP_PRNT("kzalloc for p_dsp_miscdev error\n");
 		goto miscdev_malloc_error;
 	}
-	if (!&p_dsp_miscdev->dsp_miscdev)
-		pr_info("register dsp _p_dsp_miscdev->dsp_miscdev alloc error\n");
-	else
-		pr_info("register dsp _p_dsp_miscdev->dsp_miscdev alloc success");
 
 	/*init hifi4dsp_priv*/
 	priv = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_priv),
@@ -926,10 +922,9 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	cma_pages =
-	dma_alloc_from_contiguous(&pdev->dev,
-				  PAGE_ALIGN(hifi4_rmem.size) >> PAGE_SHIFT,
-				  0, false);
+	cma_pages = cma_alloc(dev_get_cma_area(&pdev->dev),
+			      PAGE_ALIGN(hifi4_rmem.size) >> PAGE_SHIFT,
+			      0, false);
 	if (cma_pages)
 		hifi4_rmem.base = page_to_phys(cma_pages);
 	else
