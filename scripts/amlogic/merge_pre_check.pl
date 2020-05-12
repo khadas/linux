@@ -136,7 +136,7 @@ sub check_msg_49_2
 	}
 
 	$i += 1;
-	while( $str[$i] !~ /^Solution:[\n].+/ && $str[$i] !~ /^Change-Id:/ && $str[$i] !~ /^Verify:[\n].+/ )
+	while( $str[$i] !~ /^Solution:[\n].+/ && $str[$i] !~ /^Change-Id:/ && $str[$i] !~ /^Verify:[\n].+/ && ($i + 1) < $len )
 	{
 		$i = $i + 1;
 	}
@@ -154,7 +154,7 @@ sub check_msg_49_2
 		return -1;
 	}
 
-	while( $str[$i] !~ /^Verify:[\n].+/ && $str[$i] !~ /^Change-Id:/ )
+	while( $str[$i] !~ /^Verify:[\n].+/ && $str[$i] !~ /^Change-Id:/ && ($i + 1) < $len )
 	{
 		$i += 1;
 	}
