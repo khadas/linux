@@ -790,6 +790,8 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
 	struct device_node *np;
+	struct regulator *cpu_reg;
+	struct clk *cpu_clk;
 	unsigned int cpu = 0;
 	int ret, i;
 
@@ -807,6 +809,26 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 		pr_err("failed to find cpu node\n");
 		of_node_put(np);
 		return -ENODEV;
+	}
+
+	cpu_clk = of_clk_get_by_name(np, CORE_CLK);
+	ret = PTR_ERR_OR_ZERO(cpu_clk);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			pr_debug("cpu clock not ready, retry!\n");
+		else
+			pr_debug("failed to get clock:%d!\n", ret);
+		return ret;
+	}
+
+	cpu_reg = devm_regulator_get(cpu_dev, CORE_SUPPLY);
+	ret = PTR_ERR_OR_ZERO(cpu_reg);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			pr_debug("cpu regulator not ready, retry!\n");
+		else
+			pr_debug("failed to get cpu regulator:%d!\n", ret);
+		return ret;
 	}
 
 	ret = cpufreq_register_driver(&meson_cpufreq_driver);
