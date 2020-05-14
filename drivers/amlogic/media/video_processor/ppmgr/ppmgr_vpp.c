@@ -52,6 +52,7 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 /*#include "../display/osd/osd_reg.h"*/
 #include "../../osd/osd_reg.h"
+#include "../../common/vfm/vfm.h"
 #include "ppmgr_vpp.h"
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-mapping.h>
@@ -185,6 +186,7 @@ static int tb_buffer_init(void);
 static int tb_buffer_uninit(void);
 #endif
 static s32 ppmgr_src_canvas[3] = {-1, -1, -1};
+static bool need_data_notify;
 static int dumpfirstframe;
 static int count_scr;
 static int count_dst;
@@ -652,7 +654,7 @@ void vf_local_init(void)
 	ppmgr_device.put_count = 0;
 	ppmgr_device.get_dec_count = 0;
 	ppmgr_device.put_dec_count = 0;
-
+	need_data_notify = true;
 	pr_info("ppmgr local_init\n");
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		vfp_pool[i].index = i;
@@ -837,7 +839,7 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 		input_height = vf->height * 2;
 	else
 		input_height = vf->height;
-	if (ppmgr_device.ppmgr_debug) {
+	if (ppmgr_device.ppmgr_debug & 1) {
 		PPMGRVPP_INFO("disp_width: %d, disp_height: %d\n",
 			disp_w, disp_h);
 		PPMGRVPP_INFO("input_width: %d, input_height: %d\n",
@@ -874,7 +876,7 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 				h = disp_h;
 			}
 		}
-		if (ppmgr_device.ppmgr_debug)
+		if (ppmgr_device.ppmgr_debug & 1)
 			PPMGRVPP_INFO("width: %d, height: %d, ar: %d\n",
 				w, h, ar);
 		new_vf->ratio_control = DISP_RATIO_PORTRAIT_MODE;
@@ -1171,6 +1173,29 @@ static int copy_phybuf_to_file(ulong phys, u32 size,
 	return 0;
 }
 
+/*
+ * 1: yuv
+ * 0: afbc
+ */
+static void notify_data(u32 format)
+{
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name)
+		vf_notify_provider_by_name(provider_name,
+					   VFRAME_EVENT_RECEIVER_NEED_NO_COMP,
+					   (void *)&format);
+	if (ppmgr_device.ppmgr_debug & 1)
+		PPMGRVPP_INFO("%s provider_name: %s, data: %d\n",
+			      __func__, provider_name, format);
+}
+
 static void process_vf_rotate(struct vframe_s *vf,
 		struct ge2d_context_s *context,
 		struct config_para_ex_s *ge2d_config)
@@ -1229,6 +1254,8 @@ static void process_vf_rotate(struct vframe_s *vf,
 		return;
 	}
 
+	memset(new_vf, 0, sizeof(struct vframe_s));
+
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 
 	pp_vf = to_ppframe(new_vf);
@@ -1255,6 +1282,8 @@ static void process_vf_rotate(struct vframe_s *vf,
 	if (mode)
 		pp_vf->dec_frame = NULL;
 #endif
+	if (ppmgr_device.ppmgr_debug & 4)
+		need_data_notify = true;
 
 	if (vf->type & VIDTYPE_MVC)
 		pp_vf->dec_frame = vf;
@@ -1263,6 +1292,14 @@ static void process_vf_rotate(struct vframe_s *vf,
 		pp_vf->dec_frame = vf;
 
 	if (vf->type & VIDTYPE_COMPRESS) {
+		if ((cur_angle != 0) && (vf->type & VIDTYPE_NO_DW)) {
+			vf->type &= ~VIDTYPE_SUPPORT_COMPRESS;
+			if (need_data_notify) {
+				need_data_notify = false;
+				notify_data(1);
+				PPMGRVPP_INFO("notify need yuv data\n");
+			}
+		}
 		if (vf->canvas0Addr != (u32)-1) {
 			canvas_copy(vf->canvas0Addr & 0xff,
 				ppmgr_src_canvas[0]);
@@ -1293,7 +1330,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 		} else {
 			pp_vf->dec_frame = vf;
-			if (ppmgr_device.ppmgr_debug)
+			if (ppmgr_device.ppmgr_debug & 1)
 				PPMGRVPP_INFO("vframe is compress!\n");
 		}
 		if (dumpfirstframe == 1)
