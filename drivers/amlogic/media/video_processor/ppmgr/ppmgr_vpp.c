@@ -2629,6 +2629,8 @@ static int ppmgr_task(void *data)
 			vf = ppmgr_vf_get_dec();
 			if (!vf)
 				break;
+			if (ppmgr_secure_debug)
+				vf->mem_sec = ppmgr_secure_mode;
 			if (vf && ppmgr_device.started) {
 				if (!(vf->type
 					& (VIDTYPE_VIU_422

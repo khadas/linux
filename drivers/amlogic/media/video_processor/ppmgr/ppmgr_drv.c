@@ -65,6 +65,8 @@ static bool scaler_pos_reset;
 #endif
 
 static struct ppmgr_dev_reg_s ppmgr_dev_reg;
+int ppmgr_secure_debug;
+int ppmgr_secure_mode;
 
 enum platform_type_t get_platform_type(void)
 {
@@ -1069,6 +1071,29 @@ static ssize_t tb_status_read(struct class *cla,
 	return snprintf(buf, 80, "#################\n");
 }
 
+static ssize_t secure_mode_read(struct class *cla,
+				struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "secure_debug is %d secure_mode is %d\n",
+		ppmgr_secure_debug, ppmgr_secure_mode);
+}
+
+static ssize_t secure_mode_write(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (parse_para(buf, 2, parsed) == 2) {
+		ppmgr_secure_debug = parsed[0];
+		ppmgr_secure_mode = parsed[1];
+	} else {
+		PPMGRDRV_ERR("echo <secure_debug> <secure_mode> > secure_mode");
+		return -1;
+	}
+	return count;
+}
+
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 static ssize_t _3dmode_read(
 	struct class *cla, struct class_attribute *attr, char *buf)
@@ -1674,6 +1699,10 @@ __ATTR(orientation,
 		0644,
 		tb_status_read,
 		NULL),
+	__ATTR(secure_mode,
+	       0644,
+	       secure_mode_read,
+	       secure_mode_write),
 	__ATTR_NULL };
 
 static struct class ppmgr_class = {.name = PPMGR_CLASS_NAME, .class_attrs =

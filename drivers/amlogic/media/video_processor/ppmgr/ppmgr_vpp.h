@@ -73,6 +73,8 @@ enum ppmgr_source_type {
 };
 
 extern u32 omx_cur_session;
+extern int ppmgr_secure_debug;
+extern int ppmgr_secure_mode;
 
 #endif
 
