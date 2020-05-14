@@ -134,10 +134,10 @@ static inline int ion_init(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_UVM
-int meson_uvm_init(void);
+#ifdef CONFIG_AMLOGIC_UVM_CORE
+int mua_init(void);
 #else
-static inline int meson_uvm_init(void)
+static inline int mua_init(void)
 {
 	return 0;
 }

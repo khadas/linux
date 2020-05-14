@@ -1,12 +1,20 @@
 #
-# uvm configuration
+# uvm core configuration
 #
 
 
-menuconfig AMLOGIC_UVM
+menuconfig AMLOGIC_UVM_CORE
 	bool "Amlogic unified video memory management"
 	default n
 	help
 	  say y to enable Amlogic unified video memory management.
-	  The uvm driver is based on the ion driver.
+	  The uvm core is dmabuf wrap vframe framework.
+
+menuconfig AMLOGIC_UVM_ALLOCATOR
+	bool "Amlogic uvm allocator device driver"
+	default n
+	select AMLOGIC_UVM_CORE
+	help
+	  say y to enable amlogic uvm allocator device driver.
+	  gralloc will call it to allocate dmabuf fd.
 

@@ -82,7 +82,7 @@ static int __init media_main_init(void)
 	call_sub_init(aml_vdac_init);
 	call_sub_init(gp_pll_init);
 	call_sub_init(ion_init);
-	call_sub_init(meson_uvm_init);
+	call_sub_init(mua_init);
 	call_sub_init(vfm_class_init);
 	call_sub_init(ge2d_init_module);
 	call_sub_init(configs_init_devices);
