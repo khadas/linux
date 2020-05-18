@@ -14,6 +14,11 @@
 #include <asm/cacheflush.h>
 #include <asm/set_memory.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned int cfi_no_warn = 1;
+core_param(cfi_no_warn, cfi_no_warn, uint, 0644);
+#endif
+
 /* Compiler-defined handler names */
 #ifdef CONFIG_CFI_PERMISSIVE
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail
@@ -25,6 +30,10 @@
 
 static inline void handle_cfi_failure(void *ptr)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (cfi_no_warn)
+		return;
+#endif
 	if (IS_ENABLED(CONFIG_CFI_PERMISSIVE))
 		WARN_RATELIMIT(1, "CFI failure (target: %pS):\n", ptr);
 	else

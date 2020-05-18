@@ -151,7 +151,6 @@ CONFIG_WATCHDOG_SYSFS=y
 CONFIG_WQ_WATCHDOG=y
 
 CONFIG_PWRSEQ_EMMC=y
-# CONFIG_CFI_CLANG is not set
 CONFIG_CFI_PERMISSIVE=y
 
 ############Amlogic Basic#####################
