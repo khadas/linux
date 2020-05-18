@@ -207,11 +207,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
-	/*close vpu clk*/
-	if (phdmi->hdmitx_clk_tree.hdmi_clk_vapb)
-		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vapb);
-	if (phdmi->hdmitx_clk_tree.hdmi_clk_vpu)
-		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vpu);
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
@@ -228,13 +223,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmitx_get_current_vinfo();
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
-
-	/*open vpu clk*/
-	if (!phdmi->hdmitx_clk_tree.hdmi_clk_vapb)
-		clk_prepare_enable(phdmi->hdmitx_clk_tree.hdmi_clk_vapb);
-
-	if (!phdmi->hdmitx_clk_tree.hdmi_clk_vpu)
-		clk_prepare_enable(phdmi->hdmitx_clk_tree.hdmi_clk_vpu);
 
 	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
 		phdmi->hwop.cntlmisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
