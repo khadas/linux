@@ -648,6 +648,26 @@ void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
 
 void v4l2_m2m_request_queue(struct media_request *req);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_V4L_DEC
+/*
+ * v4l2_m2m_job_pause() - paused the schedule of data which from the job queue.
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+void v4l2_m2m_job_pause(struct v4l2_m2m_dev *m2m_dev,
+			struct v4l2_m2m_ctx *m2m_ctx);
+
+ /*
+  * v4l2_m2m_job_resume() - resumed the schedule of data which from the job que.
+  *
+  * @m2m_dev: opaque pointer to the internal data to handle M2M context
+  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+  */
+void v4l2_m2m_job_resume(struct v4l2_m2m_dev *m2m_dev,
+			 struct v4l2_m2m_ctx *m2m_ctx);
+#endif
+
 /* v4l2 ioctl helpers */
 
 int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,

@@ -85,6 +85,16 @@ config AMLOGIC_MEDIA_MULTI_DEC
 		is required, the feature supports decoding
 		at the same time.
 
+config AMLOGIC_MEDIA_V4L_DEC
+	bool "enable amlogic v4l decode module."
+	depends on AMLOGIC_MEDIA_DRIVERS
+	default n
+	help
+		Support v4L protocol based decoding components.
+		Decoding is done by AmLogic hardware, and if you
+		need to support this feature, you need to enable
+		this configuration item.
+
 if AMLOGIC_MEDIA_COMMON
 source "drivers/amlogic/media/common/Kconfig"
 endif
