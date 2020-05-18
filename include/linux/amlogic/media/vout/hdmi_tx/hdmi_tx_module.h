@@ -489,6 +489,34 @@ struct hdmitx_dev {
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 };
 
+struct hdmitx_report {
+	int hpd_state;
+	int audio;
+	int pwr;
+	int hdr;
+	int rxsense;
+	int hdcp;
+	int cedst;
+};
+
+enum {
+	HDMI_REPORT_HPD,
+	HDMI_REPORT_AUD,
+	HDMI_REPORT_PWR,
+	HDMI_REPORT_HDR,
+	HDMI_REPORT_RXSN,
+	HDMI_REPORT_HDCP,
+	HDMI_REPORT_CEDST
+};
+
+#define HDMI_REPORT_IOC_HPD    _IOR('R', HDMI_REPORT_HPD, int)
+#define HDMI_REPORT_IOC_AUD    _IOR('R', HDMI_REPORT_AUD, int)
+#define HDMI_REPORT_IOC_PWR    _IOR('R', HDMI_REPORT_PWR, int)
+#define HDMI_REPORT_IOC_HDR    _IOR('R', HDMI_REPORT_HDR, int)
+#define HDMI_REPORT_IOC_RXSN   _IOR('R', HDMI_REPORT_RXSN, int)
+#define HDMI_REPORT_IOC_HDCP   _IOR('R', HDMI_REPORT_HDCP, int)
+#define HDMI_REPORT_IOC_CEDST  _IOR('R', HDMI_REPORT_CEDST, int)
+
 #define CMD_DDC_OFFSET          (0x10 << 24)
 #define CMD_STATUS_OFFSET       (0x11 << 24)
 #define CMD_PACKET_OFFSET       (0x12 << 24)

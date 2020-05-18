@@ -36,7 +36,7 @@
 #include "../../../../drivers/extcon/extcon.h"
 #include <linux/extcon-provider.h>
 #include <linux/i2c.h>
-
+#include <linux/miscdevice.h>
 //#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -130,6 +130,8 @@ static struct hdmitx_dev hdmitx_device = {
 	.frac_rate_policy = 1,
 };
 
+static struct hdmitx_report hdmitx_status;
+
 static const struct dv_info dv_dummy;
 static int log_level;
 
@@ -201,6 +203,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
+	hdmitx_status.pwr = 0;
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
@@ -255,10 +258,11 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 			      hdmitx_device.hpd_state);
+	hdmitx_status.pwr = 1;
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
 			      hdmitx_device.hpd_state);
-
+	hdmitx_status.audio = hdmitx_device.hpd_state;
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
@@ -1296,11 +1300,13 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	    hdev->hdmi_current_hdr_mode != 0) {
 		/* SDR -> HDR*/
 		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
+		hdmitx_status.hdr = 1;
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 1);
 	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
 			(hdev->hdmi_current_hdr_mode == 0)) {
 		/* HDR -> SDR*/
 		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
+		hdmitx_status.hdr = 0;
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 0);
 	}
 }
@@ -4047,7 +4053,7 @@ static ssize_t fake_plug_store(struct device *dev,
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 			      hdev->hpd_state);
-
+	hdmitx_status.hpd_state = hdev->hpd_state;
 	return count;
 }
 
@@ -5121,6 +5127,7 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 		struct hdmitx_dev, work_rxsense);
 
 	sense = hdev->hwop.cntlmisc(hdev, MISC_TMDS_RXSENSE, 0);
+	hdmitx_status.rxsense = sense;
 	extcon_set_state_sync(hdmitx_extcon_rxsense, EXTCON_DISP_HDMI, sense);
 	queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, HZ);
 }
@@ -5133,6 +5140,7 @@ static void hdmitx_cedst_process(struct work_struct *work)
 
 	ced = hdev->hwop.cntlmisc(hdev, MISC_TMDS_CEDST, 0);
 	/* firstly send as 0, then real ced, A trigger signal */
+	hdmitx_status.cedst = ced;
 	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, 0);
 	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, ced);
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
@@ -5191,6 +5199,8 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdev->hpd_state = 1;
 	hdmitx_notify_hpd(hdev->hpd_state);
 
+	hdmitx_status.hpd_state = 1;
+	hdmitx_status.audio = 1;
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
 	/* Should be started at end of output */
@@ -5218,6 +5228,7 @@ static void hdmitx_aud_hpd_plug_handler(struct work_struct *work)
 
 	st = hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	pr_info("%s state:%d\n", __func__, st);
+	hdmitx_status.audio = st;
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, st);
 }
 
@@ -5265,6 +5276,8 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_status.hpd_state = 0;
+	hdmitx_status.audio = 0;
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
 	mutex_unlock(&setclk_mutex);
@@ -5490,6 +5503,7 @@ void hdmitx_event_notify(unsigned long state, void *arg)
 
 void hdmitx_hdcp_status(int hdmi_authenticated)
 {
+	hdmitx_status.hdcp = hdmi_authenticated;
 	extcon_set_state_sync(hdmitx_extcon_hdcp, EXTCON_DISP_HDMI,
 			      hdmi_authenticated);
 }
@@ -5920,6 +5934,100 @@ void amhdmitx_vpu_dev_regiter(struct hdmitx_dev *hdev)
 	vpu_dev_register(VPU_VENCI, DEVICE_NAME);
 }
 
+static long hdmitx_report_ioctl(struct file *f, unsigned int cmd,
+				unsigned long arg)
+{
+	int rtn_val;
+	unsigned int out_size;
+	unsigned long check_size;
+
+	out_size = _IOC_SIZE(cmd);
+	switch (cmd) {
+	case HDMI_REPORT_IOC_HPD:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.hpd_state,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_AUD:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.audio,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_PWR:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.pwr,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_HDR:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.hdr,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_RXSN:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.rxsense,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_HDCP:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.hdcp,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	case HDMI_REPORT_IOC_CEDST:
+		check_size = copy_to_user((void __user *)arg,
+					  (void *)&hdmitx_status.cedst,
+					  out_size);
+		if (check_size == out_size)
+			rtn_val = 0;
+		else
+			rtn_val = -1;
+		break;
+	default:
+		pr_info("HDMI Report command WRONG\n");
+		rtn_val = -EPERM;
+	}
+
+	return rtn_val;
+}
+
+static const struct file_operations hdmitx_report_file_operations = {
+	.unlocked_ioctl = hdmitx_report_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hdmitx_report_ioctl,
+#endif
+	.owner = THIS_MODULE,
+};
+
+static struct miscdevice hdmitx_report_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "hdmitx_report",
+	.fops = &hdmitx_report_file_operations,
+};
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -5938,6 +6046,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	amhdmitx_vpu_dev_regiter(hdev);
 
+	misc_register(&hdmitx_report_device);
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);
 	cdev_init(&hdev->cdev, &amhdmitx_fops);
@@ -6053,6 +6162,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 							  MISC_HPD_GPI_ST, 0);
 	hdmitx_device.hpd_state = hdmitx_extcon_hdmi->state;
 	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_status.pwr = hdev->hpd_state;
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      hdev->hpd_state);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
@@ -6178,6 +6288,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	class_destroy(hdmitx_class);
 
 	unregister_chrdev_region(hdmitx_device.hdmitx_id, HDMI_TX_COUNT);
+	misc_deregister(&hdmitx_report_device);
 	return 0;
 }
 
