@@ -54,6 +54,7 @@
 #include <linux/amlogic/media/old_cpu_version.h>
 #include "common/vm.h"
 #include "ov5640_firmware.h"
+#include "common/cam_expbuf.h"
 
 #define OV5640_CAMERA_MODULE_NAME   "ov5640"
 
@@ -2999,6 +3000,20 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
+static int vidioc_expbuf(struct file *file, void *priv,
+			 struct v4l2_exportbuffer *ex_buf)
+{
+	struct ov5640_fh  *fh = priv;
+	struct videobuf_queue *q = &fh->vb_vidq;
+	struct videobuf_buffer *vb = q->bufs[ex_buf->index];
+
+	ex_buf->fd = vb_expbuf(vb, ex_buf->flags);
+	if (ex_buf->fd < 0)
+		return ex_buf->fd;
+
+	return 0;
+}
+
 static int ov5640_open(struct file *file)
 {
 	struct ov5640_device *dev = video_drvdata(file);
@@ -3216,6 +3231,7 @@ static const struct v4l2_ioctl_ops ov5640_ioctl_ops = {
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 	.vidioc_g_parm = vidioc_g_parm,
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
+	.vidioc_expbuf = vidioc_expbuf,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
