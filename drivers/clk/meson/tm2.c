@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include "clk-mpll.h"
 #include "clk-pll.h"
 #include "clk-regmap.h"
@@ -22,6 +23,7 @@
 #include "vid-pll-div.h"
 #include "meson-eeclk.h"
 #include "tm2.h"
+#include "clkcs_init.h"
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
@@ -4842,7 +4844,6 @@ static const struct reg_sequence tm2_init_regs[] = {
 static int meson_tm2_dvfs_setup_common(struct platform_device *pdev,
 					struct clk_hw **hws)
 {
-	const char *notifier_clk_name;
 	struct clk *notifier_clk;
 	struct clk_hw *xtal;
 	int ret;
@@ -4851,8 +4852,7 @@ static int meson_tm2_dvfs_setup_common(struct platform_device *pdev,
 
 	/* Setup clock notifier for cpu_clk_postmux0 */
 	tm2_cpu_clk_postmux0_nb_data.xtal = xtal;
-	notifier_clk_name = clk_hw_get_name(&tm2_cpu_clk_postmux0.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
+	notifier_clk = tm2_cpu_clk_postmux0.hw.clk;
 	ret = clk_notifier_register(notifier_clk,
 				    &tm2_cpu_clk_postmux0_nb_data.nb);
 	if (ret) {
@@ -4861,8 +4861,7 @@ static int meson_tm2_dvfs_setup_common(struct platform_device *pdev,
 	}
 
 	/* Setup clock notifier for cpu_clk_dyn mux */
-	notifier_clk_name = clk_hw_get_name(&tm2_cpu_clk_dyn.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
+	notifier_clk = tm2_cpu_clk_dyn.hw.clk;
 	ret = clk_notifier_register(notifier_clk, &tm2_cpu_clk_mux_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register the cpu_clk_dyn notifier\n");
@@ -4875,7 +4874,6 @@ static int meson_tm2_dvfs_setup_common(struct platform_device *pdev,
 static int meson_tm2_dvfs_setup(struct platform_device *pdev)
 {
 	struct clk_hw **hws = tm2_hw_onecell_data.hws;
-	const char *notifier_clk_name;
 	struct clk *notifier_clk;
 	int ret;
 
@@ -4884,8 +4882,7 @@ static int meson_tm2_dvfs_setup(struct platform_device *pdev)
 		return ret;
 
 	/* Setup clock notifier for cpu_clk mux */
-	notifier_clk_name = clk_hw_get_name(&tm2_cpu_clk.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
+	notifier_clk = tm2_cpu_clk.hw.clk;
 	ret = clk_notifier_register(notifier_clk, &tm2_cpu_clk_mux_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register the cpu_clk notifier\n");
@@ -4893,8 +4890,7 @@ static int meson_tm2_dvfs_setup(struct platform_device *pdev)
 	}
 
 	/* Setup clock notifier for sys_pll */
-	notifier_clk_name = clk_hw_get_name(&tm2_sys_pll.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
+	notifier_clk = tm2_sys_pll.hw.clk;
 	ret = clk_notifier_register(notifier_clk, &tm2_sys_pll_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register the sys_pll notifier\n");
@@ -4959,9 +4955,18 @@ static struct platform_driver tm2_driver = {
 	},
 };
 
+#ifndef MODULE
 static int tm2_clkc_init(void)
 {
 	return platform_driver_register(&tm2_driver);
 }
 
 arch_initcall_sync(tm2_clkc_init);
+#else
+int __init meson_tm2_clkc_init(void)
+{
+	return platform_driver_register(&tm2_driver);
+}
+#endif
+
+MODULE_LICENSE("GPL v2");

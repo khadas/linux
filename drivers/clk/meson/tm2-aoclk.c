@@ -7,11 +7,13 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include "meson-aoclk.h"
 #include "tm2-aoclk.h"
 
 #include "clk-regmap.h"
 #include "clk-dualdiv.h"
+#include "clkcs_init.h"
 
 /*
  * AO Configuration Clock registers offsets
@@ -440,7 +442,7 @@ static const struct of_device_id tm2_aoclkc_aoclkc_match_table[] = {
 	{ }
 };
 
-static struct platform_driver tm2_aoclkc_aoclkc_driver = {
+static struct platform_driver tm2_aoclkc_driver = {
 	.probe		= meson_aoclkc_probe,
 	.driver		= {
 		.name	= "tm2-aoclkc",
@@ -448,9 +450,18 @@ static struct platform_driver tm2_aoclkc_aoclkc_driver = {
 	},
 };
 
-static int tm2_clkc_init(void)
+#ifndef MODULE
+static int tm2_aoclkc_init(void)
 {
-	return platform_driver_register(&tm2_aoclkc_aoclkc_driver);
+	return platform_driver_register(&tm2_aoclkc_driver);
 }
 
-arch_initcall_sync(tm2_clkc_init);
+arch_initcall_sync(tm2_aoclkc_init);
+#else
+int __init meson_tm2_aoclkc_init(void)
+{
+	return platform_driver_register(&tm2_aoclkc_driver);
+}
+#endif
+
+MODULE_LICENSE("GPL v2");

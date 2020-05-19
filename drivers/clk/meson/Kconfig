@@ -124,3 +124,9 @@ config COMMON_CLK_TM2
 	help
 	  Support for the clock controller on Amlogic T962E2 and T962X3
 	  devices, aka tm2. Say Y if you want peripherals to work.
+
+config MESON_CLKC_MODULE
+	tristate "Meson SoC clock controllers"
+	default y
+	help
+		support for all clock controllers to one ko
