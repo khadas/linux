@@ -18,23 +18,6 @@
 #include "efuse.h"
 #include "unifykey.h"
 
-#ifdef MODULE
-int valid_phys_addr_range(phys_addr_t addr, size_t size)
-{
-	static int (*func)(phys_addr_t addr, size_t size);
-
-	if (!func)
-		func = (void *)kallsyms_lookup_name(__func__);
-
-	if (!func) {
-		pr_err("can't find symbol: %s\n", __func__);
-		return -EINVAL;
-	}
-
-	return func(addr, size);
-}
-#endif
-
 static int __init efuse_unifykey_init(void)
 {
 	int ret;

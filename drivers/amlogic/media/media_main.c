@@ -49,36 +49,10 @@ KALLSYMS_FUNC_DEFRET(unsigned long,
 		     PROTO(const struct cma *cma),
 		     ARGS(cma));
 
-KALLSYMS_FUNC_DEFRET(struct page *,
-		     dma_alloc_from_contiguous,
-		     PROTO(struct device *dev, size_t count, unsigned int align,
-			   bool no_warn),
-		     ARGS(dev, count, align, no_warn));
-
-KALLSYMS_FUNC_DEFRET(int,
-		     cma_mmu_op,
-		     PROTO(struct page *page, int count, bool set),
-		     ARGS(page, count, set));
-
-KALLSYMS_FUNC_DEFRET(struct extcon_dev *,
-		     extcon_dev_allocate,
-		     PROTO(const unsigned int *supported_cable),
-		     ARGS(supported_cable));
-
-KALLSYMS_FUNC_DEFRET(bool,
-		     dma_release_from_contiguous,
-		     PROTO(struct device *dev, struct page *pages, int count),
-		     ARGS(dev, pages, count));
-
 KALLSYMS_FUNC_DEFRET(int,
 		     is_vmalloc_or_module_addr,
 		     PROTO(const void *x),
 		     ARGS(x));
-
-KALLSYMS_FUNC_DEFRET(const void *,
-		     of_get_flat_dt_prop,
-		     PROTO(unsigned long node, const char *name, int *size),
-		     ARGS(node, name, size));
 
 #define call_sub_init(func) \
 { \

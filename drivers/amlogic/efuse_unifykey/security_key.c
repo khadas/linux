@@ -261,7 +261,7 @@ int __init security_key_init(struct platform_device *pdev)
 	 * mem locates at lowmem region, so its
 	 * okay to call phys_to_virt directly
 	 */
-	if (valid_phys_addr_range(phy_in, share_mem->size)) {
+	if (pfn_valid(__phys_to_pfn(phy_in))) {
 		share_mem->in = (void __iomem *)phys_to_virt(phy_in);
 		share_mem->out = (void __iomem *)phys_to_virt(phy_out);
 		share_mem->block = (void __iomem *)phys_to_virt(phy_block);

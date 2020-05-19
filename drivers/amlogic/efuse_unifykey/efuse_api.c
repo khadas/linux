@@ -52,7 +52,7 @@ static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	if (arg->cmd == EFUSE_HAL_API_WRITE) {
 		phy_in_base = get_sharemem_info(efuse_cmd.mem_in_base_cmd);
 
-		if (!valid_phys_addr_range(phy_in_base, size))
+		if (!pfn_valid(__phys_to_pfn(phy_in_base)))
 			sharemem_in_base = ioremap_nocache(phy_in_base, size);
 		else
 			sharemem_in_base = phys_to_virt(phy_in_base);
@@ -68,12 +68,12 @@ static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	*retcnt = res.a0;
 
 	if (arg->cmd == EFUSE_HAL_API_WRITE) {
-		if (!valid_phys_addr_range(phy_in_base, size))
+		if (!pfn_valid(__phys_to_pfn(phy_in_base)))
 			iounmap(sharemem_in_base);
 	} else if ((arg->cmd == EFUSE_HAL_API_READ) && (ret != 0)) {
 		phy_out_base = get_sharemem_info(efuse_cmd.mem_out_base_cmd);
 
-		if (!valid_phys_addr_range(phy_out_base, ret))
+		if (!pfn_valid(__phys_to_pfn(phy_out_base)))
 			sharemem_out_base = ioremap_nocache(phy_out_base, ret);
 		else
 			sharemem_out_base = phys_to_virt(phy_out_base);
@@ -81,7 +81,7 @@ static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 		memcpy((void *)arg->buffer,
 		       (const void *)sharemem_out_base, ret);
 
-		if (!valid_phys_addr_range(phy_out_base, ret))
+		if (!pfn_valid(__phys_to_pfn(phy_out_base)))
 			iounmap(sharemem_out_base);
 	}
 
@@ -125,7 +125,7 @@ static unsigned long efuse_data_process(unsigned long type,
 	phy_in_base = get_sharemem_info(efuse_cmd.mem_in_base_cmd);
 	page = pfn_to_page(phy_in_base >> PAGE_SHIFT);
 
-	if (!valid_phys_addr_range(phy_in_base, length))
+	if (!pfn_valid(__phys_to_pfn(phy_in_base)))
 		sharemem_in_base = ioremap_nocache(phy_in_base, length);
 	else
 		sharemem_in_base = phys_to_virt(phy_in_base);
@@ -144,7 +144,7 @@ static unsigned long efuse_data_process(unsigned long type,
 			      0, 0, 0, &res);
 	} while (0);
 
-	if (!valid_phys_addr_range(phy_in_base, length))
+	if (!pfn_valid(__phys_to_pfn(phy_in_base)))
 		iounmap(sharemem_in_base);
 
 	mutex_unlock(&efuse_lock);

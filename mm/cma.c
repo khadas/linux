@@ -168,6 +168,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(cma_mmu_op);
 #endif
 phys_addr_t cma_get_base(const struct cma *cma)
 {

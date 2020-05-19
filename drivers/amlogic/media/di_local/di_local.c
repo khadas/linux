@@ -173,7 +173,7 @@ int __init rmem_dil_init(struct reserved_mem *rmem,
 	if (devp) {
 		devp->mem_start = rmem->base;
 		devp->mem_size = rmem->size;
-		if (!of_get_flat_dt_prop(rmem->fdt_node, "no-map", NULL))
+		if (pfn_valid(__phys_to_pfn(devp->mem_start)))
 			devp->flg_map = 1;
 
 #ifdef MARK_HIS

@@ -4531,7 +4531,7 @@ exit:
 static int __init
 rmem_fb_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	if (!of_get_flat_dt_prop(rmem->fdt_node, "no-map", NULL)) {
+	if (pfn_valid(__phys_to_pfn(rmem->mem_start)))  {
 		fb_map_flag = true;
 		osd_log_info("memory mapped[can free]\n");
 	} else {

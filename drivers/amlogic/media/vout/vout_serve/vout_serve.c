@@ -885,7 +885,7 @@ static void aml_vout_extcon_register(struct platform_device *pdev)
 	int ret;
 
 	/*set display mode*/
-	edev = extcon_dev_allocate(vout_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, vout_cable);
 	if (IS_ERR(edev)) {
 		VOUTERR("failed to allocate vout extcon setmode\n");
 		return;

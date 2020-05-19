@@ -5514,7 +5514,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	int ret;
 
 	/*hdmitx extcon hdmi*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate hdmitx extcon hdmi\n");
 		return;
@@ -5531,7 +5531,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_hdmi = edev;
 
 	/*hdmitx extcon audio*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate hdmitx extcon audio\n");
 		return;
@@ -5549,7 +5549,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_audio = edev;
 
 	/*hdmitx extcon power*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate hdmitx extcon power\n");
 		return;
@@ -5567,7 +5567,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_power = edev;
 
 	/*hdmitx extcon hdr*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate hdmitx extcon hdr\n");
 		return;
@@ -5585,7 +5585,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_hdr = edev;
 
 	/*hdmitx extcon CED */
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate extcon cedst\n");
 		return;
@@ -5602,7 +5602,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_cedst = edev;
 
 	/*hdmitx extcon rxsense*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate extcon rxsense\n");
 		return;
@@ -5619,7 +5619,7 @@ void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
 	hdmitx_extcon_rxsense = edev;
 
 	/*hdmitx extcon hdcp*/
-	edev = extcon_dev_allocate(hdmi_cable);
+	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
 	if (IS_ERR(edev)) {
 		pr_info(SYS "failed to allocate extcon hdcp\n");
 		return;
