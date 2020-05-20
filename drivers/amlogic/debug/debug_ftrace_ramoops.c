@@ -74,8 +74,8 @@ void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
 
 	do_div(time, 1000);
-	sec = (unsigned long)time / 1000000;
-	us = (unsigned long)time % 1000000;
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
 	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%ps <- %pS>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
 		   record_name[rec->flag],
@@ -168,8 +168,8 @@ static void notrace __pstore_io_rw_dump(struct pstore_ftrace_record *rec)
 	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
 
 	do_div(time, 1000);
-	sec = (unsigned long)time / 1000000;
-	us = (unsigned long)time % 1000000;
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
 	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%pS <- %pS>\n",
 		sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
 		record_name[rec->flag], rec->val1,
