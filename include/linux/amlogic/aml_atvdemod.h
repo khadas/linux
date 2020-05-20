@@ -116,27 +116,4 @@ static inline const char *v4l2_std_to_str(v4l2_std_id std)
 /* For audio driver get atv audio state */
 void aml_fe_get_atvaudio_state(int *state);
 
-struct dvb_frontend *mxl661_attach(struct dvb_frontend *fe,
-				   struct i2c_adapter *i2c_adap,
-				   struct tuner_config *cfg);
-struct dvb_frontend *si2151_attach(struct dvb_frontend *fe,
-				   struct i2c_adapter *i2c_adap,
-				   struct tuner_config *cfg);
-struct dvb_frontend *si2159_attach(struct dvb_frontend *fe,
-				   struct i2c_adapter *i2c_adap,
-				   struct tuner_config *cfg);
-struct dvb_frontend *r840_attach(struct dvb_frontend *fe,
-				 struct i2c_adapter *i2c_adap,
-				 struct tuner_config *cfg);
-struct dvb_frontend *r842_attach(struct dvb_frontend *fe,
-				 struct i2c_adapter *i2c_adap,
-				 struct tuner_config *cfg);
-struct dvb_frontend *atbm2040_attach(struct dvb_frontend *fe,
-				     struct i2c_adapter *i2c_adap,
-					 struct tuner_config *cfg);
-struct dvb_frontend *atbm253_attach(struct dvb_frontend *fe,
-				    struct i2c_adapter *i2c_adap,
-					struct tuner_config *cfg);
-/* For attach tuner driver end */
-
 #endif /* __AML_ATVDEMOD_H__ */
