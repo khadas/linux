@@ -1837,7 +1837,7 @@ static long amvecm_ioctl(struct file *file,
 			/*saturation_hue_post*/
 			int sat_post, hue_post, sat_hue_post;
 
-			sat_hue_post = vdj_mode_s.saturation_hue;
+			sat_hue_post = vdj_mode_s.saturation_hue_post;
 			sat_post = (((sat_hue_post >> 16) & 0xffff) / 2) - 128;
 			hue_post = sat_hue_post & 0xffff;
 			if (hue_post >= 0 && hue_post <= 150)
