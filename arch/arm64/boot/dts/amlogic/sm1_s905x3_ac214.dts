@@ -660,27 +660,36 @@
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
-		status = "ok";
-
-		dmx = <&demux>;
-		key_endia = <1>;
-		add_s2p2 = <1>;
-		add_ts_in = <1>;
-		add_asyncfifo = <1>;
-
+		status = "okay";
 		fe0_mode = "external";
-		fe0_demod = "Avl6762";
+		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c3>;
-		fe0_demod_i2c_addr = <0x14>;
-		fe0_ts = <0>;
+		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+		fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
 		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 		clocks = <&clkc CLKID_DEMUX
