@@ -1340,7 +1340,11 @@ static int check_version(const struct load_info *info,
 bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
 	       info->name, symname);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	return 1;
+#else
 	return 0;
+#endif
 }
 
 static inline int check_modstruct_version(const struct load_info *info,
