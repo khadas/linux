@@ -1532,14 +1532,77 @@ static void lcd_screen_black(void)
 	lcd_mute_setting(1);
 }
 
-static unsigned int lcd_prbs_flag;
-static unsigned int lcd_prbs_cnt;
-static void aml_lcd_prbs_test(unsigned int s)
+#define CLK_CHK_MAX    2000000  /*Hz*/
+static unsigned int lcd_prbs_performed;
+static unsigned int lcd_prbs_flag, lcd_prbs_err, lcd_prbs_cnt;
+static unsigned long lcd_clk9_check_std = 121000000;
+static unsigned long lcd_clk55_check_std = 121000000;
+static unsigned long lcd_clk129_check_std = 42000000;
+
+static unsigned long lcd_abs(unsigned long a, unsigned long b)
+{
+	unsigned long val;
+
+	if (a >= b)
+		val = a - b;
+	else
+		val = b - a;
+
+	return val;
+}
+
+static int lcd_lvds_clk_check(unsigned int cnt)
+{
+	unsigned long clk_check, temp;
+
+	clk_check = meson_clk_measure(9);
+	if (clk_check != lcd_clk9_check_std) {
+		temp = lcd_abs(clk_check, lcd_clk9_check_std);
+		if (temp >= CLK_CHK_MAX) {
+			if (lcd_debug_print_flag == 6) {
+				LCDERR("lcd encl clkmsr error %ld, cnt:%d\n",
+				       clk_check, cnt);
+			}
+			return -1;
+		}
+	}
+
+	clk_check = meson_clk_measure(55);
+	if (clk_check != lcd_clk55_check_std) {
+		temp = lcd_abs(clk_check, lcd_clk55_check_std);
+		if (temp >= CLK_CHK_MAX) {
+			if (lcd_debug_print_flag == 6) {
+				LCDERR("lcd vid_div clkmsr error %ld, cnt:%d\n",
+				       clk_check, cnt);
+			}
+			return -1;
+		}
+	}
+
+	clk_check = meson_clk_measure(129);
+	if (clk_check != lcd_clk129_check_std) {
+		temp = lcd_abs(clk_check, lcd_clk129_check_std);
+		if (temp >= CLK_CHK_MAX) {
+			if (lcd_debug_print_flag == 6) {
+				LCDERR("lcd fifo clkmsr error %ld, cnt:%d\n",
+				       clk_check, cnt);
+			}
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void aml_lcd_prbs_test(unsigned int s, unsigned int mode_flag)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config();
+	unsigned int lcd_prbs_mode;
 	unsigned int reg0, reg1;
-	unsigned int val1, val2, cnt = 0, timeout;
-	int i, ret;
+	unsigned int val1, val2, timeout;
+	unsigned int clk_err_cnt = 0;
+	int i, j, ret;
 
 	switch (lcd_drv->data->chip_type) {
 	case LCD_CHIP_GXL:
@@ -1548,8 +1611,8 @@ static void aml_lcd_prbs_test(unsigned int s)
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_G12B:
 	case LCD_CHIP_SM1:
-		LCDERR("not support\n");
-		return;
+		LCDERR("%s: not support\n", __func__);
+		goto lcd_prbs_test_end;
 	case LCD_CHIP_TXL:
 	case LCD_CHIP_TXLX:
 		reg0 = HHI_LVDS_TX_PHY_CNTL0;
@@ -1561,52 +1624,123 @@ static void aml_lcd_prbs_test(unsigned int s)
 		break;
 	}
 
-	lcd_hiu_write(reg0, 0xfff20c4);
-	lcd_hiu_setb(reg0, 1, 12, 1);
-	val1 = lcd_hiu_getb(reg1, 12, 12);
-
 	s = (s > 1800) ? 1800 : s;
 	timeout = s * 200;
-	while (lcd_prbs_flag) {
-		if (s > 1) { /* when s=1, means always run */
-			if (cnt++ >= timeout)
-				break;
+
+	for (i = 0; i < LCD_PRBS_MODE_MAX; i++) {
+		if ((mode_flag & (1 << i)) == 0)
+			continue;
+
+		lcd_prbs_cnt = 0;
+		lcd_prbs_err = 0;
+		lcd_prbs_mode = (1 << i);
+		if (cconf->data->prbs_clk_config) {
+			cconf->data->prbs_clk_config(lcd_prbs_mode);
+		} else {
+			LCDERR("%s: prbs_clk_config is null\n", __func__);
+			goto lcd_prbs_test_end;
 		}
-		usleep_range(5000, 5001);
-		ret = 1;
-		for (i = 0; i < 5; i++) {
-			val2 = lcd_hiu_getb(reg1, 12, 12);
-			if (val2 != val1) {
-				ret = 0;
-				break;
+		msleep(20);
+
+		lcd_hiu_write(reg0, 0x000000c0);
+		lcd_hiu_setb(reg0, 0xfff, 16, 12);
+		lcd_hiu_setb(reg0, 1, 2, 1);
+		lcd_hiu_write(reg1, 0x41000000);
+		lcd_hiu_setb(reg1, 1, 31, 1);
+
+		lcd_hiu_write(reg0, 0xfff20c4);
+		lcd_hiu_setb(reg0, 1, 12, 1);
+		val1 = lcd_hiu_getb(reg1, 12, 12);
+
+		while (lcd_prbs_flag) {
+			if (s > 1) { /* when s=1, means always run */
+				if (lcd_prbs_cnt++ >= timeout)
+					break;
 			}
+			usleep_range(5000, 5001);
+			ret = 1;
+			for (j = 0; j < 5; j++) {
+				val2 = lcd_hiu_getb(reg1, 12, 12);
+				if (val2 != val1) {
+					ret = 0;
+					break;
+				}
+			}
+			if (ret) {
+				LCDERR(
+				"lcd prbs check error 1, val:0x%03x, cnt:%d\n",
+				       val2, lcd_prbs_cnt);
+				goto lcd_prbs_test_err;
+			}
+			val1 = val2;
+			if (lcd_hiu_getb(reg1, 0, 12)) {
+				LCDERR("lcd prbs check error 2, cnt:%d\n",
+				       lcd_prbs_cnt);
+				goto lcd_prbs_test_err;
+			}
+
+			if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
+				if (lcd_lvds_clk_check(lcd_prbs_cnt))
+					clk_err_cnt++;
+				else
+					clk_err_cnt = 0;
+				if (clk_err_cnt >= 10) {
+					LCDERR(
+				"lvds prbs check error 3(clkmsr), cnt: %d\n",
+					       lcd_prbs_cnt);
+					goto lcd_prbs_test_err;
+				}
+			}
+
+			if (lcd_prbs_cnt >= 0xffffffff)
+				lcd_prbs_cnt = 0;
+			else
+				lcd_prbs_cnt++;
 		}
-		if (ret) {
-			LCDERR("lcd prbs check error 1, val:0x%03x, cnt:%d\n",
-			       val2, lcd_prbs_cnt);
-			return;
+
+		lcd_hiu_write(reg0, 0);
+		lcd_hiu_write(reg1, 0);
+
+		if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
+			lcd_prbs_performed |= LCD_PRBS_MODE_LVDS;
+			lcd_prbs_err &= ~(LCD_PRBS_MODE_LVDS);
+			LCDPR("lcd lvds prbs check ok\n");
+		} else if (lcd_prbs_mode == LCD_PRBS_MODE_VX1) {
+			lcd_prbs_performed |= LCD_PRBS_MODE_VX1;
+			lcd_prbs_err &= ~(LCD_PRBS_MODE_VX1);
+			LCDPR("lcd vx1 prbs check ok\n");
+		} else {
+			LCDPR("lcd prbs check: unsupport mode\n");
 		}
-		val1 = val2;
-		if (lcd_hiu_getb(reg1, 0, 12)) {
-			LCDERR("lcd prbs check error 2, cnt:%d\n",
-			       lcd_prbs_cnt);
-			return;
+		continue;
+
+lcd_prbs_test_err:
+		if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
+			lcd_prbs_performed |= LCD_PRBS_MODE_LVDS;
+			lcd_prbs_err |= LCD_PRBS_MODE_LVDS;
+		} else if (lcd_prbs_mode == LCD_PRBS_MODE_VX1) {
+			lcd_prbs_performed |= LCD_PRBS_MODE_VX1;
+			lcd_prbs_err |= LCD_PRBS_MODE_VX1;
 		}
-		if (lcd_prbs_cnt >= 0xffffffff)
-			lcd_prbs_cnt = 0;
-		else
-			lcd_prbs_cnt++;
 	}
 
+lcd_prbs_test_end:
 	lcd_prbs_cnt = 0;
-	LCDPR("lcd prbs check ok\n");
+	lcd_prbs_flag = 0;
 }
 
 static ssize_t lcd_debug_prbs_show(struct class *class,
 				   struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "lcd prbs flag: %d, cnt: %d\n",
-		       lcd_prbs_flag, lcd_prbs_cnt);
+	return sprintf(buf,
+		       "lvds prbs performed: %d, error: %d\n"
+		       "vx1 prbs performed: %d, error: %d\n"
+		       "lcd prbs flag: %d\n",
+		       (lcd_prbs_performed & LCD_PRBS_MODE_LVDS) ? 1 : 0,
+		       (lcd_prbs_err & LCD_PRBS_MODE_LVDS) ? 1 : 0,
+		       (lcd_prbs_performed & LCD_PRBS_MODE_VX1) ? 1 : 0,
+		       (lcd_prbs_err & LCD_PRBS_MODE_VX1) ? 1 : 0,
+		       lcd_prbs_flag);
 }
 
 static ssize_t lcd_debug_prbs_store(struct class *class,
@@ -1614,13 +1748,38 @@ static ssize_t lcd_debug_prbs_store(struct class *class,
 				    const char *buf, size_t count)
 {
 	int ret = 0;
-	unsigned int temp = 1;
+	unsigned int temp;
+	unsigned int prbs_mode_flag;
 
-	ret = kstrtouint(buf, 10, &temp);
-	if (ret) {
-		LCDERR("invalid data\n");
-		return -EINVAL;
+	switch (buf[0]) {
+	case 'v': /* vx1 */
+		ret = sscanf(buf, "vx1 %d", &temp);
+		if (ret) {
+			prbs_mode_flag = LCD_PRBS_MODE_VX1;
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
+		break;
+	case 'l': /* lvds */
+		ret = sscanf(buf, "lvds %d", &temp);
+		if (ret) {
+			prbs_mode_flag = LCD_PRBS_MODE_LVDS;
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		prbs_mode_flag = LCD_PRBS_MODE_LVDS | LCD_PRBS_MODE_VX1;
+		ret = kstrtouint(buf, 10, &temp);
+		if (ret) {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
+		break;
 	}
+
 	if (temp) {
 		if (lcd_prbs_flag) {
 			LCDPR("lcd prbs check is already running\n");
@@ -1628,7 +1787,7 @@ static ssize_t lcd_debug_prbs_store(struct class *class,
 		}
 		lcd_prbs_cnt = 0;
 		lcd_prbs_flag = 1;
-		aml_lcd_prbs_test(temp);
+		aml_lcd_prbs_test(temp, prbs_mode_flag);
 	} else {
 		if (lcd_prbs_flag == 0) {
 			LCDPR("lcd prbs check is already stopped\n");
