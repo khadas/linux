@@ -36,7 +36,7 @@
 		};
 		recovery:recovery{
 			pname = "recovery";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
 		tee:tee{
@@ -88,7 +88,7 @@
 		boot:boot
 		{
 			pname = "boot";
-			size = <0x0 0x1000000>;
+			size = <0x0 0x1800000>;
 			mask = <1>;
 		};
 		vendor_boot:vendor_boot
