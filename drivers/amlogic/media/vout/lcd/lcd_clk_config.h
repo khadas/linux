@@ -45,6 +45,9 @@ struct lcd_clk_ctrl_s {
 	unsigned int len;
 };
 
+#define LCD_PRBS_MODE_LVDS    BIT(0)
+#define LCD_PRBS_MODE_VX1     BIT(1)
+#define LCD_PRBS_MODE_MAX     2
 struct lcd_clk_data_s {
 	/* clk path node parameters */
 	unsigned int pll_od_fb;
@@ -87,6 +90,7 @@ struct lcd_clk_data_s {
 	void (*clktree_probe)(void);
 	void (*clktree_remove)(void);
 	void (*clk_config_init_print)(void);
+	void (*prbs_clk_config)(unsigned int prbs_mode);
 	int (*clk_config_print)(char *buf, int offset);
 };
 
