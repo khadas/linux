@@ -152,6 +152,7 @@ CONFIG_WQ_WATCHDOG=y
 
 CONFIG_PWRSEQ_EMMC=y
 CONFIG_CFI_PERMISSIVE=y
+CONFIG_PSTORE_PMSG=y
 
 ############Amlogic Basic#####################
 #basic
