@@ -5351,67 +5351,124 @@ int get_video_mute(void)
 }
 EXPORT_SYMBOL(get_video_mute);
 
-static void check_video_mute(void)
+static inline bool is_tv_panel(void)
+{
+	const struct vinfo_s *vinfo = get_current_vinfo();
+	/*panel*/
+	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444 &&
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_TM2 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
+		return true;
+	else
+		return false;
+}
+
+static inline void mute_vpp(void)
 {
 	u32 black_val;
 	u8 vpp_index = VPP0;
 
-	if (is_meson_tl1_cpu())
-		black_val = (0x0 << 20) | (0x0 << 10) | 0; /* RGB */
-	else
-		black_val =
-			(0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+	/*black_val = (0x0 << 20) | (0x0 << 10) | 0;*/ /* RGB */
+	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 
+	if (is_tv_panel()) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_VD1_CLIP_MISC0,
+			black_val);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_VD1_CLIP_MISC1,
+			black_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	} else {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_CLIP_MISC0,
+			black_val);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_CLIP_MISC1,
+			black_val);
+		WRITE_VCBUS_REG(VPP_CLIP_MISC0, black_val);
+		WRITE_VCBUS_REG(VPP_CLIP_MISC1, black_val);
+	}
+}
+
+static inline void unmute_vpp(void)
+{
+	u8 vpp_index = VPP0;
+
+	if (is_tv_panel()) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_VD1_CLIP_MISC0,
+			(0x3ff << 20) |
+			(0x3ff << 10) |
+			0x3ff);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_VD1_CLIP_MISC1,
+			(0x0 << 20) |
+			(0x0 << 10) | 0x0);
+	} else {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_CLIP_MISC0,
+			(0x3ff << 20) |
+			(0x3ff << 10) |
+			0x3ff);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_CLIP_MISC1,
+			(0x0 << 20) |
+			(0x0 << 10) | 0x0);
+	}
+}
+
+static void check_video_mute(void)
+{
 	if (video_mute_on) {
 		if (is_dolby_vision_on()) {
-			/* core 3 black */
-			if (video_mute_status != VIDEO_MUTE_ON_DV) {
-				dolby_vision_set_toggle_flag(1);
-				pr_info("DOLBY: %s: VIDEO_MUTE_ON_DV\n",
-					__func__);
+			if (is_tv_panel()) {
+				/*tv mode, mute vpp*/
+				if (video_mute_status != VIDEO_MUTE_ON_VPP) {
+					/* vpp black */
+					mute_vpp();
+					pr_info("DV: %s: VIDEO_MUTE_ON_VPP\n", __func__);
+				}
+				video_mute_status = VIDEO_MUTE_ON_VPP;
+			} else {
+				/* core 3 black */
+				if (video_mute_status != VIDEO_MUTE_ON_DV) {
+					dolby_vision_set_toggle_flag(1);
+					pr_info("DOLBY: %s: VIDEO_MUTE_ON_DV\n", __func__);
+				}
+				video_mute_status = VIDEO_MUTE_ON_DV;
 			}
-			video_mute_status = VIDEO_MUTE_ON_DV;
 		} else {
 			if (video_mute_status != VIDEO_MUTE_ON_VPP) {
-				/* vpp black */
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_CLIP_MISC0,
-					black_val);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_CLIP_MISC1,
-					black_val);
-				WRITE_VCBUS_REG
-					(VPP_CLIP_MISC0,
-					black_val);
-				WRITE_VCBUS_REG
-					(VPP_CLIP_MISC1,
-					black_val);
-				pr_info("DOLBY: %s: VIDEO_MUTE_ON_VPP\n",
-					__func__);
+				mute_vpp();
+				pr_info("DOLBY: %s: VIDEO_MUTE_ON_VPP\n", __func__);
 			}
 			video_mute_status = VIDEO_MUTE_ON_VPP;
 		}
 	} else {
 		if (is_dolby_vision_on()) {
-			if (video_mute_status != VIDEO_MUTE_OFF) {
-				dolby_vision_set_toggle_flag(2);
-				pr_info("DOLBY: %s: VIDEO_MUTE_OFF dv on\n",
-					__func__);
+			if (is_tv_panel()) {
+				/*tv mode, unmute vpp*/
+				if (video_mute_status != VIDEO_MUTE_OFF) {
+					unmute_vpp();
+					pr_info("DV: %s: VIDEO_MUTE_OFF dv off\n", __func__);
+				}
+				video_mute_status = VIDEO_MUTE_OFF;
+			} else {
+				if (video_mute_status != VIDEO_MUTE_OFF) {
+					dolby_vision_set_toggle_flag(2);
+					pr_info("DOLBY: %s: VIDEO_MUTE_OFF dv off\n", __func__);
+				}
+				video_mute_status = VIDEO_MUTE_OFF;
 			}
-			video_mute_status = VIDEO_MUTE_OFF;
 		} else {
 			if (video_mute_status != VIDEO_MUTE_OFF) {
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_CLIP_MISC0,
-					(0x3ff << 20) |
-					(0x3ff << 10) |
-					0x3ff);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_CLIP_MISC1,
-					(0x0 << 20) |
-					(0x0 << 10) | 0x0);
-				pr_info("DOLBY: %s: VIDEO_MUTE_OFF dv off\n",
-					__func__);
+				unmute_vpp();
+				pr_info("DOLBY: %s: VIDEO_MUTE_OFF vpp\n", __func__);
 			}
 			video_mute_status = VIDEO_MUTE_OFF;
 		}
