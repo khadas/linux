@@ -402,6 +402,11 @@ static u32 vdin_frame_skip_cnt;
 MODULE_PARM_DESC(vdin_frame_skip_cnt, "\n vdin_frame_skip_cnt\n");
 module_param(vdin_frame_skip_cnt, uint, 0664);
 
+static u32 vdin_err_crc_cnt;
+MODULE_PARM_DESC(vdin_err_crc_cnt, "\n vdin_err_crc_cnt\n");
+module_param(vdin_err_crc_cnt, uint, 0664);
+#define ERR_CRC_COUNT 6
+
 static unsigned int video_3d_format;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 static unsigned int mvc_flag;
@@ -3659,8 +3664,10 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 	}
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
 		pr_info("video %p disp_mode %d\n", vf, req.disp_mode);
+
 	if (video_vf_put(vf) < 0)
 		check_dispbuf(vf, true);
+
 	return true;
 }
 
@@ -3827,6 +3834,73 @@ static int dvel_swap_frame(struct vframe_s *vf)
 		need_disable_vd2 = true;
 	}
 	return ret;
+}
+
+/*SDK test: check metadata crc*/
+/*frame crc error ---> drop err frame and repeat last frame*/
+/*err count >= 6 ---> mute*/
+static inline bool dv_vf_crc_check(struct vframe_s *vf)
+{
+	bool crc_err = false;
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
+			      !strcmp(provider_name, "vdin0"))) {
+		if (!vf->dv_crc_sts) {
+			/*drop err crc frame*/
+			vdin_err_crc_cnt++;
+			if (debug_flag & DEBUG_FLAG_HDMI_DV_CRC)
+				pr_info("vdin_err_crc_cnt %d\n",
+					vdin_err_crc_cnt);
+
+			/*need set video vpts when drop frame*/
+			if (cur_dispbuf != vf) {
+				if (vf->pts != 0) {
+					amlog_mask(LOG_MASK_TIMESTAMP,
+						   "vpts to vf->pts:0x%x,scr:0x%x,abs_scr: 0x%x\n",
+					vf->pts, timestamp_pcrscr_get(),
+					READ_MPEG_REG(SCR_HIU));
+					timestamp_vpts_set(vf->pts);
+				} else if (cur_dispbuf) {
+					amlog_mask(LOG_MASK_TIMESTAMP,
+						   "vpts inc:0x%x,scr: 0x%x, abs_scr: 0x%x\n",
+					timestamp_vpts_get() +
+					DUR2PTS(cur_dispbuf->duration),
+					timestamp_pcrscr_get(),
+					READ_MPEG_REG(SCR_HIU));
+					timestamp_vpts_inc(DUR2PTS(cur_dispbuf->duration));
+
+					vpts_remainder +=
+					DUR2PTS_RM(cur_dispbuf->duration);
+					if (vpts_remainder >= 0xf) {
+						vpts_remainder -= 0xf;
+						timestamp_vpts_inc(-1);
+					}
+				}
+			}
+			if (video_vf_put(vf) < 0)
+				check_dispbuf(vf, true);
+			crc_err = true;
+		} else {
+			vdin_err_crc_cnt = 0;
+		}
+
+	} else {
+		vdin_err_crc_cnt = 0;
+	}
+
+	/*mute when err crc > = 6*/
+	if (vdin_err_crc_cnt >= ERR_CRC_COUNT)
+		set_video_mute(true);
+	else
+		set_video_mute(false);
+	return crc_err;
 }
 
 struct vframe_s *dvel_toggle_frame(struct vframe_s *vf, bool new_frame)
@@ -6382,7 +6456,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				video_3d_format = vf->trans_fmt;
 #endif
 			}
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			/*check metadata crc*/
+			if (vf &&
+			    (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+			    vf->source_type == VFRAME_SOURCE_TYPE_CVBS) &&
+				dv_vf_crc_check(vf)) {
+				break; // not render err crc frame
+			}
+#endif
 			path0_new_frame = vsync_toggle_frame(vf, __LINE__);
 			/* The v4l2 capture needs a empty vframe to flush */
 			if (has_receive_dummy_vframe())
@@ -8430,6 +8512,7 @@ static void video_vf_unreg_provider(void)
 
 	time_setomxpts = 0;
 	time_setomxpts_last = 0;
+	vdin_err_crc_cnt = 0;
 
 #ifdef PTS_LOGGING
 	{
