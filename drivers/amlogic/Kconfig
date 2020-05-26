@@ -82,5 +82,8 @@ source "drivers/amlogic/reboot/Kconfig"
 source "drivers/amlogic/smartcard/Kconfig"
 source "drivers/amlogic/gki_tool/Kconfig"
 source "drivers/amlogic/hifi4dsp/Kconfig"
+
+source "drivers/amlogic/dvb/Kconfig"
+
 endmenu
 endif

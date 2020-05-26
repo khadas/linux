@@ -32,3 +32,4 @@ obj-$(CONFIG_AMLOGIC_GX_REBOOT)		+= reboot/
 obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard/
 obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/
 obj-$(CONFIG_AMLOGIC_HIFI4DSP)          += hifi4dsp/
+obj-$(CONFIG_AMLOGIC_DVB_COMPAT)        += dvb/
