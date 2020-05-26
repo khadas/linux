@@ -180,7 +180,7 @@ config EVL_DEBUG_CORE
 	bool "Core runtime assertions"
 	help
 	  This option activates various assertions inside the EVL
-	  core. This option has limited overhead.
+	  core. This option has moderate overhead.
 
 config EVL_DEBUG_MEMORY
 	bool "Memory checks"
