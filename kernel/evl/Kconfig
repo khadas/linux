@@ -190,7 +190,7 @@ config EVL_DEBUG_MEMORY
 	  heaps.
 
 config EVL_DEBUG_WOLI
-	bool "Enable locking consistency checks"
+	bool "Default enable locking consistency checks"
 	help
 	  This option enables a set of consistency checks by default
 	  for every new EVL thread for detecting wrong mutex-based
