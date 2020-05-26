@@ -1252,7 +1252,7 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 			sensor->fops.release = gsensor_dev_release;
 
 			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-			sensor->miscdev.name = "mma8452_daemon";
+			sensor->miscdev.name = "gsensor";
 			sensor->miscdev.fops = &sensor->fops;
 		} else {
 			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
