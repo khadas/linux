@@ -974,11 +974,11 @@ static void stmmac_clear_descriptors(struct stmmac_priv *priv)
 		if (priv->extend_desc)
 			priv->hw->desc->init_rx_desc(&priv->dma_erx[i].basic,
 						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1));
+						     (i == DMA_RX_SIZE - 1), priv->dma_buf_sz);
 		else
 			priv->hw->desc->init_rx_desc(&priv->dma_rx[i],
 						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1));
+						     (i == DMA_RX_SIZE - 1), priv->dma_buf_sz);
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
 			priv->hw->desc->init_tx_desc(&priv->dma_etx[i].basic,
@@ -2519,7 +2519,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 		wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0);
+			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0, priv->dma_buf_sz);
 		else
 			priv->hw->desc->set_rx_owner(p);
 
@@ -2539,8 +2539,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
  */
 static int stmmac_rx(struct stmmac_priv *priv, int limit)
 {
-	unsigned int entry = priv->cur_rx;
-	unsigned int next_entry;
+	unsigned int next_entry = priv->cur_rx;
 	unsigned int count = 0;
 	int coe = priv->hw->rx_csum;
 
@@ -2556,9 +2555,11 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 		priv->hw->desc->display_ring(rx_head, DMA_RX_SIZE, true);
 	}
 	while (count < limit) {
-		int status;
+		int entry, status;
 		struct dma_desc *p;
 		struct dma_desc *np;
+
+		entry = next_entry;
 
 		if (priv->extend_desc)
 			p = (struct dma_desc *)(priv->dma_erx + entry);
@@ -2624,7 +2625,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				       priv->dev->name, frame_len,
 				       priv->dma_buf_sz);
 				priv->dev->stats.rx_length_errors++;
-				break;
+				continue;
 			}
 
 			/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
@@ -2655,7 +2656,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 						dev_warn(priv->device,
 							 "packet dropped\n");
 					priv->dev->stats.rx_dropped++;
-					break;
+					continue;
 				}
 
 				dma_sync_single_for_cpu(priv->device,
@@ -2678,7 +2679,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 					pr_err("%s: Inconsistent Rx chain\n",
 					       priv->dev->name);
 					priv->dev->stats.rx_dropped++;
-					break;
+					continue;
 				}
 				prefetch(skb->data - NET_IP_ALIGN);
 				priv->rx_skbuff[entry] = NULL;
@@ -2712,7 +2713,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
 		}
-		entry = next_entry;
 	}
 
 	stmmac_rx_refill(priv);
