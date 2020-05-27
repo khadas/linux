@@ -147,14 +147,17 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	}
 
 	clk_configs->m250_mux.reg = dwmac->regs + PRG_ETH0;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	clk_configs->m250_mux.shift = PRG_ETH0_CLK_M250_SEL_SHIFT;
 	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK;
-#ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel",
 					 &mux_parent_names[0],
 					 1, &clk_mux_ops,
 					 &clk_configs->m250_mux.hw);
 #else
+	clk_configs->m250_mux.shift = __ffs(PRG_ETH0_CLK_M250_SEL_MASK);
+	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK >>
+				     clk_configs->m250_mux.shift;
 	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel", mux_parent_names,
 					 MUX_CLK_NUM_PARENTS, &clk_mux_ops,
 					 &clk_configs->m250_mux.hw);
