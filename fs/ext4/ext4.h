@@ -1519,7 +1519,7 @@ struct ext4_sb_info {
 
 	/* Encryption support */
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	u8 key_prefix[EXT4_KEY_DESC_PREFIX_SIZE];
+	u8 key_prefix[FS_KEY_DESC_PREFIX_SIZE];
 	u8 key_prefix_size;
 #endif
 };
