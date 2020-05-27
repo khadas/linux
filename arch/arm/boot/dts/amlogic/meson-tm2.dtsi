@@ -410,7 +410,9 @@
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
 		boot_sram_addr = <0xfff00000>;
 		boot_sram_size = <0x80000>;
-		power-domains = <&pwrc PWRC_TM2_DSPA_ID>;
+		power-domains = <&pwrc PWRC_TM2_DSPA_ID>,
+				<&pwrc PWRC_TM2_DSPB_ID>;
+		power-domain-names = "dspa", "dspb";
 		status = "okay";
 	};
 };

@@ -777,6 +777,35 @@ static struct hifi4dsp_pdata dsp_pdatas[] = {/*ARRAY_SIZE(dsp_pdatas)*/
 	},
 };
 
+static int hifi4dsp_attach_pd(struct device *dev, int dsp_cnt)
+{
+	struct hifi4dsp_dsp *dsp = dev_get_drvdata(dev);
+	struct device_link *link;
+	char *pd_name[2] = {"dspa", "dspb"};
+	int i;
+
+	if (dev->pm_domain)
+		return -1;
+	for (i = 0; i < dsp_cnt; i++) {
+		dsp += i;
+		dsp->pd_dsp = dev_pm_domain_attach_by_name(dev, pd_name[i]);
+		if (IS_ERR(dsp->pd_dsp))
+			return PTR_ERR(dsp->pd_dsp);
+		if (!dsp->pd_dsp)
+			return -1;
+		link = device_link_add(dev, dsp->pd_dsp,
+				       DL_FLAG_STATELESS |
+				       DL_FLAG_PM_RUNTIME |
+				       DL_FLAG_RPM_ACTIVE);
+		if (!link) {
+			dev_err(dev, "Failed to add device_link to %s pd.\n",
+				pd_name[i]);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int hifi4dsp_platform_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -931,6 +960,10 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err3;
 	pr_info("cma alloc hifi4 mem region success!\n");
 
+	platform_set_drvdata(pdev, dsp);
+	ret = hifi4dsp_attach_pd(&pdev->dev, dsp_cnt);
+	if (ret < 0)
+		goto err3;
 	/*init hifi4 syslog*/
 	create_hifi4_syslog();
 	mutex_init(&hifi4dsp_flock);
@@ -1042,8 +1075,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		//p_dsp_miscdev->priv = priv;
 
 		dev_set_drvdata(priv->dev, priv);
-		pm_runtime_enable(priv->dev);
-		pm_runtime_put_sync_suspend(priv->dev);
+		pm_runtime_put_sync_suspend(dsp->pd_dsp);
 		pr_info("register dsp-%d done\n", id);
 	}
 	pr_info("%s done\n", __func__);

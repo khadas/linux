@@ -123,7 +123,7 @@ static void soc_dsp_power_switch(int dsp_id, int pwr_cntl)
 
 static void soc_dsp_powerdomain_switch(int dsp_id, bool pwr_cntl)
 {
-	struct device *dev = hifi4dsp_p[dsp_id]->dev;
+	struct device *dev = hifi4dsp_p[dsp_id]->dsp->pd_dsp;
 
 	if (pwr_cntl)
 		pm_runtime_get_sync(dev);

@@ -464,13 +464,19 @@ static int meson_ee_pwrc_off(struct generic_pm_domain *domain)
 	    !strcmp(pwrc_domain->desc.name, "PCIEB"))
 		return 0;
 
-	ret = reset_control_deassert(pwrc_domain->rstc);
-	if (ret)
-		return ret;
-
-	ret = reset_control_assert(pwrc_domain->rstc);
-	if (ret)
-		return ret;
+	if (!strcmp(pwrc_domain->desc.name, "DSPA") ||
+	    !strcmp(pwrc_domain->desc.name, "DSPB")) {
+		ret = reset_control_assert(pwrc_domain->rstc);
+		if (ret)
+			return ret;
+	} else {
+		ret = reset_control_deassert(pwrc_domain->rstc);
+		if (ret)
+			return ret;
+		ret = reset_control_assert(pwrc_domain->rstc);
+		if (ret)
+			return ret;
+	}
 
 	if (pwrc_domain->desc.top_pd)
 		regmap_update_bits(pwrc_domain->pwrc->regmap_ao,
