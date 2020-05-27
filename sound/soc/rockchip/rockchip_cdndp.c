@@ -68,25 +68,6 @@ static int rockchip_sound_cdndp_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_jack cdn_dp_card_jack;
-
-static int rockchip_sound_cdndp_init(struct snd_soc_pcm_runtime *runtime)
-{
-	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_codec *codec = runtime->codec;
-	int ret;
-
-	/* enable jack detection */
-	ret = snd_soc_card_jack_new(card, "DP Jack", SND_JACK_LINEOUT,
-				    &cdn_dp_card_jack, NULL, 0);
-	if (ret) {
-		dev_err(card->dev, "Can't create DP Jack %d\n", ret);
-		return ret;
-	}
-
-	return hdmi_codec_set_jack_detect(codec, &cdn_dp_card_jack);
-}
-
 static struct snd_soc_ops rockchip_sound_cdndp_ops = {
 	.hw_params = rockchip_sound_cdndp_hw_params,
 };
@@ -95,7 +76,6 @@ static struct snd_soc_dai_link cdndp_dailink = {
 	.name = "DP",
 	.stream_name = "DP PCM",
 	.codec_dai_name = "spdif-hifi",
-	.init = rockchip_sound_cdndp_init,
 	.ops = &rockchip_sound_cdndp_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
