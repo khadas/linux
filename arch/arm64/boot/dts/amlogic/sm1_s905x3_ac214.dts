@@ -57,18 +57,6 @@
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
-	adc_keypad {
-		compatible = "amlogic, adc_keypad";
-		status = "okay";
-		key_name = "vol-", "vol+", "enter";
-		key_num = <3>;
-		io-channels = <&saradc 2>;
-		io-channel-names = "key-chan-2";
-		key_chan = <2 2 2>;
-		key_code = <114 115 28>;
-		key_val = <143 266 389>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
-	};
 /*
 	hdmi-connector {
 		compatible = "hdmi-connector";
