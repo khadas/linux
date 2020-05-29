@@ -88,8 +88,8 @@
 #define PROVIDER_NAME   "ppmgr"
 
 #define MM_ALLOC_SIZE SZ_16M
-#define MAX_WIDTH  960
-#define MAX_HEIGHT 736
+#define MAX_WIDTH  1024
+#define MAX_HEIGHT 576
 #define THREAD_INTERRUPT 0
 #define THREAD_RUNNING 1
 #define INTERLACE_DROP_MODE 1
@@ -1342,6 +1342,27 @@ static void process_vf_rotate(struct vframe_s *vf,
 		vfq_push(&q_ready, new_vf);
 		return;
 	}
+
+	if (!(ppmgr_device.ppmgr_debug & 8)) {
+		if (vf->width > vf->height) {
+			if (cur_angle % 2) {
+				ppmgr_device.disp_width = MAX_HEIGHT;
+				ppmgr_device.disp_height = MAX_WIDTH;
+			} else {
+				ppmgr_device.disp_width = MAX_WIDTH;
+				ppmgr_device.disp_height = MAX_HEIGHT;
+			}
+		} else {
+			if (cur_angle % 2) {
+				ppmgr_device.disp_width = MAX_WIDTH;
+				ppmgr_device.disp_height = MAX_HEIGHT;
+			} else {
+				ppmgr_device.disp_width = MAX_HEIGHT;
+				ppmgr_device.disp_height = MAX_WIDTH;
+			}
+		}
+	}
+
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	platform_type = get_platform_type();
 	if (platform_type == PLATFORM_TV)
@@ -1441,6 +1462,17 @@ static void process_vf_rotate(struct vframe_s *vf,
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		if (buf_status[i].index == new_vf->canvas0Addr)
 			break;
+	}
+
+	if (i != VF_POOL_SIZE) {
+		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
+		if (cd.width != new_vf->width * 3)
+			canvas_config(PPMGR_CANVAS_INDEX + i,
+				      cd.addr,
+				      new_vf->width * 3,
+				      new_vf->height,
+				      CANVAS_ADDR_NOWRAP,
+				      CANVAS_BLKMODE_32X32);
 	}
 
 	if (buf_status[i].dirty == 1) {
