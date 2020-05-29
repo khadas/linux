@@ -44,6 +44,7 @@
 #include <linux/gpio.h>
 #include <linux/khadas-tca6408.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
@@ -1096,20 +1097,18 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 
 static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(client->irq);
-
 	return 0;
 }
 
 static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 
-	if (device_may_wakeup(dev))
-		disable_irq_wake(client->irq);
+	if (get_resume_method() == TP_WAKEUP) {
+		send_power_key(1);
+		send_power_key(0);
+		if (scpi_clr_wakeup_reason())
+			printk("clr wakeup reason fail.\n");
+	}
 
 	return 0;
 }
