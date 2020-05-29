@@ -209,6 +209,29 @@ int rtl8211f_resume(struct phy_device *phydev)
 {
 	int value;
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	u16 reg;
+	/*switch page d08*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
+	reg = phy_read(phydev, 0x15);
+	if (external_rx_delay) {
+		/*add 2ns delay for rx*/
+		phy_write(phydev, 0x15, reg | 0x8);
+	} else {
+		/*del 2ns rx*/
+		phy_write(phydev, 0x15, reg & 0xfff7);
+	}
+
+	if (external_tx_delay) {
+		reg = phy_read(phydev, 0x11);
+		phy_write(phydev, 0x11, reg | 0x100);
+	} else {
+		reg = phy_read(phydev, 0x11);
+		reg &= ~RTL8211F_TX_DELAY;
+		phy_write(phydev, 0x11, reg);
+	}
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
+#endif
 	if (support_external_phy_wol) {
 		mutex_lock(&phydev->lock);
 
