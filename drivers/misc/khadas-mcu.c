@@ -23,6 +23,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/khadas-hwver.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 
 
@@ -891,6 +892,8 @@ static int khadas_fan_resume(struct device *dev)
 	if (get_resume_method() == WOL_WAKEUP) {
 		send_power_key(1);
 		send_power_key(0);
+		if (scpi_clr_wakeup_reason())
+			printk("clr wakeup reason fail.\n");
 	}
 	return 0;
 }
