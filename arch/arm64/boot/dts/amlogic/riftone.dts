@@ -355,6 +355,7 @@
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
+		status = "disabled";
 	};
 
 	ionvideo {
@@ -455,7 +456,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <17>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -473,6 +474,7 @@
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -562,6 +564,11 @@
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
+		keysn_17:key_17{
+            key-name = "eth_exphy_para";
+            key-device = "normal";
+            key-permit = "read","write","del";
+        };
 	};//End unifykey
 
 	efusekey:efusekey{
@@ -1120,7 +1127,7 @@
 };
 
 &i2c0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_master_pins2>;
 	clock-frequency = <400000>;
@@ -1154,7 +1161,7 @@
  */
 
 &i2c3 {
-	status = "ok";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
@@ -1736,11 +1743,15 @@
 };
 &ethmac {
 	status = "okay";
-	pinctrl-names = "internal_eth_pins";
-	pinctrl-0 = <&internal_eth_pins>;
-	mc_val = <0x4be04>;
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1629>;
 
-	internal_phy=<1>;
+	cali_val = <0x60000>;
+	rx_delay = <1>;
+	auto_cali_idx = <0>;
+	internal_phy=<0>;
+	rst_pin-gpios = <&gpio GPIOZ_13 GPIO_ACTIVE_LOW>;
 };
 
 &uart_A {
