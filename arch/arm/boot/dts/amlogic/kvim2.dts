@@ -495,6 +495,11 @@
 		key-gpios = <&gpio_ao  GPIOAO_2  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+	
+	khadas-hwver {
+		compatible = "khadas-hwver";
+		status = "okay";
+	};
 
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
