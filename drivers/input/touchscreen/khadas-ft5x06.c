@@ -43,6 +43,7 @@
 #include "../../gpio/gpiolib.h"
 #include <linux/gpio.h>
 #include <linux/khadas-tca6408.h>
+#include <linux/amlogic/pm.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
@@ -81,6 +82,13 @@
 				x = y;\
 				y = z; \
 } while (0)
+
+extern void send_power_key(int state);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static struct early_suspend suspend_handler;
+static int is_early_suspend = 0;
+static int hasReport = 0;
+#endif
 
 enum edt_ver {
 	M06,
@@ -277,6 +285,13 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 		input_report_abs(tsdata->input, ABS_MT_POSITION_X, x);
 		input_report_abs(tsdata->input, ABS_MT_POSITION_Y, y);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+		if (is_early_suspend && !hasReport) {
+			send_power_key(1);
+			send_power_key(0);
+			hasReport = 1;
+		}
+#endif
 	}
 
 	input_mt_report_pointer_emulation(tsdata->input, true);
@@ -904,6 +919,22 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static void edt_ft5x06_early_suspend(struct early_suspend *h)
+{
+	is_early_suspend = 1;
+	hasReport = 0;
+
+}
+
+static void edt_ft5x06_late_resume(struct early_suspend *h)
+{
+	is_early_suspend = 0;
+	hasReport = 1;
+}
+
+#endif
+
 
 extern int tca6408_output_set_value(u8 value, u8 mask);
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
@@ -1039,6 +1070,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		tsdata->wake_gpio ? desc_to_gpio(tsdata->wake_gpio) : -1,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	suspend_handler.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 19;
+	suspend_handler.suspend = edt_ft5x06_early_suspend;
+	suspend_handler.resume = edt_ft5x06_late_resume;
+	suspend_handler.param = &client;
+	register_early_suspend(&suspend_handler);
+#endif
 	return 0;
 
 err_remove_attrs:
