@@ -14,6 +14,8 @@
 #define EVL_LAT_IRQ   0
 #define EVL_LAT_KERN  1
 #define EVL_LAT_USER  2
+#define EVL_LAT_SIRQ  3
+#define EVL_LAT_LAST  EVL_LAT_SIRQ
 
 struct latmus_setup {
 	__u32 type;

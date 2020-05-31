@@ -44,6 +44,7 @@ struct tuning_score {
 
 struct runner_state {
 	ktime_t ideal;
+	int offset;
 	int min_lat;
 	int max_lat;
 	int allmax_lat;
@@ -105,6 +106,13 @@ struct uthread_runner {
 	struct latmus_runner runner;
 };
 
+struct sirq_runner {
+	int sirq;
+	struct sirq_runner * __percpu *sirq_percpu;
+	struct evl_timer timer;
+	struct latmus_runner runner;
+};
+
 struct latmus_state {
 	struct evl_file efile;
 	struct latmus_runner *runner;
@@ -155,7 +163,7 @@ static int add_measurement_sample(struct latmus_runner *runner,
 {
 	struct runner_state *state = &runner->state;
 	ktime_t period = runner->period;
-	int delta, cell;
+	int delta, cell, offset_delta;
 
 	/* Skip samples in warmup time. */
 	if (runner->warmup_samples < runner->warmup_limit) {
@@ -165,24 +173,25 @@ static int add_measurement_sample(struct latmus_runner *runner,
 	}
 
 	delta = (int)ktime_to_ns(ktime_sub(timestamp, state->ideal));
-	if (delta < state->min_lat)
-		state->min_lat = delta;
-	if (delta > state->max_lat)
-		state->max_lat = delta;
-	if (delta > state->allmax_lat) {
-		state->allmax_lat = delta;
-		trace_evl_latspot(delta);
+	offset_delta = delta - state->offset;
+	if (offset_delta < state->min_lat)
+		state->min_lat = offset_delta;
+	if (offset_delta > state->max_lat)
+		state->max_lat = offset_delta;
+	if (offset_delta > state->allmax_lat) {
+		state->allmax_lat = offset_delta;
+		trace_evl_latspot(offset_delta);
 		trace_evl_trigger("latmus");
 	}
 
 	if (runner->histogram) {
-		cell = (delta < 0 ? -delta : delta) / 1000; /* us */
+		cell = (offset_delta < 0 ? -offset_delta : offset_delta) / 1000; /* us */
 		if (cell >= runner->hcells)
 			cell = runner->hcells - 1;
 		runner->histogram[cell]++;
 	}
 
-	state->sum += delta;
+	state->sum += offset_delta;
 	state->ideal = ktime_add(state->ideal, period);
 
 	while (delta > 0 &&
@@ -304,6 +313,109 @@ static struct latmus_runner *create_irq_runner(int cpu)
 	evl_init_timer_on_cpu(&irq_runner->timer, cpu, latmus_irq_handler);
 
 	return &irq_runner->runner;
+}
+
+static irqreturn_t latmus_sirq_handler(int sirq, void *dev_id)
+{
+	struct sirq_runner * __percpu *self_percpu = dev_id;
+	struct sirq_runner *sirq_runner = *self_percpu;
+	ktime_t now;
+
+	now = evl_read_clock(&evl_mono_clock);
+	if (sirq_runner->runner.add_sample(&sirq_runner->runner, now))
+		evl_stop_timer(&sirq_runner->timer);
+
+	return IRQ_HANDLED;
+}
+
+static void latmus_sirq_timer_handler(struct evl_timer *timer) /* hard irqs off */
+{
+	struct sirq_runner *sirq_runner;
+	struct runner_state *state;
+	ktime_t now;
+
+	now = evl_read_clock(&evl_mono_clock);
+	sirq_runner = container_of(timer, struct sirq_runner, timer);
+	state = &sirq_runner->runner.state;
+	state->offset = (int)ktime_to_ns(ktime_sub(now, state->ideal));
+	irq_post_inband(sirq_runner->sirq);
+}
+
+static void destroy_sirq_runner(struct latmus_runner *runner)
+{
+	struct sirq_runner *sirq_runner;
+
+	sirq_runner = container_of(runner, struct sirq_runner, runner);
+	evl_destroy_timer(&sirq_runner->timer);
+	free_percpu_irq(sirq_runner->sirq, sirq_runner->sirq_percpu);
+	free_percpu(sirq_runner->sirq_percpu);
+	irq_dispose_mapping(sirq_runner->sirq);
+	destroy_runner_base(runner);
+	kfree(sirq_runner);
+}
+
+static int start_sirq_runner(struct latmus_runner *runner,
+			ktime_t start_time)
+{
+	struct sirq_runner *sirq_runner;
+
+	sirq_runner = container_of(runner, struct sirq_runner, runner);
+
+	evl_start_timer(&sirq_runner->timer, start_time, runner->period);
+
+	return 0;
+}
+
+static struct latmus_runner *create_sirq_runner(int cpu)
+{
+	struct sirq_runner * __percpu *sirq_percpu;
+	struct sirq_runner *sirq_runner;
+	int sirq, ret, _cpu;
+
+	sirq_percpu = alloc_percpu(struct sirq_runner *);
+	if (sirq_percpu == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	sirq_runner = kzalloc(sizeof(*sirq_runner), GFP_KERNEL);
+	if (sirq_runner == NULL) {
+		free_percpu(sirq_percpu);
+		return NULL;
+	}
+
+	sirq = irq_create_direct_mapping(synthetic_irq_domain);
+	if (sirq == 0) {
+		free_percpu(sirq_percpu);
+		kfree(sirq_runner);
+		return ERR_PTR(-EAGAIN);
+	}
+
+	sirq_runner->runner = (struct latmus_runner){
+		.name = "sirqhand",
+		.destroy = destroy_sirq_runner,
+		.start = start_sirq_runner,
+	};
+	sirq_runner->sirq = sirq;
+	sirq_runner->sirq_percpu = sirq_percpu;
+	init_runner_base(&sirq_runner->runner);
+	evl_init_timer_on_cpu(&sirq_runner->timer, cpu,
+			latmus_sirq_timer_handler);
+
+	for_each_possible_cpu(_cpu)
+		*per_cpu_ptr(sirq_percpu, _cpu) = sirq_runner;
+
+	ret = __request_percpu_irq(sirq, latmus_sirq_handler,
+				IRQF_NO_THREAD,
+				"latmus sirq",
+				sirq_percpu);
+	if (ret) {
+		evl_destroy_timer(&sirq_runner->timer);
+		irq_dispose_mapping(sirq);
+		free_percpu(sirq_percpu);
+		kfree(sirq_runner);
+		return ERR_PTR(ret);
+	}
+
+	return &sirq_runner->runner;
 }
 
 void kthread_handler(struct evl_kthread *kthread)
@@ -650,6 +762,7 @@ static int measure_continously(struct latmus_runner *runner)
 	state->overruns = 0;
 	state->cur_samples = 0;
 	state->ideal = ktime_add(evl_read_clock(&evl_mono_clock), period);
+	state->offset = 0;	/* for SIRQ latency only. */
 
 	ret = runner->start(runner, state->ideal);
 	if (ret)
@@ -870,6 +983,13 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 	struct latmus_runner *runner;
 	int ret;
 
+	if (copy_from_user(&setup_data, (struct latmus_setup __user *)arg,
+			   sizeof(setup_data)))
+		return -EFAULT;
+
+	if (setup_data.type == EVL_LAT_SIRQ && cmd != EVL_LATIOC_MEASURE)
+		return -EINVAL;
+
 	switch (cmd) {
 	case EVL_LATIOC_RESET:
 		evl_reset_clock_gravity(&evl_mono_clock);
@@ -887,10 +1007,6 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 	default:
 		return -ENOTTY;
 	}
-
-	if (copy_from_user(&setup_data, (struct latmus_setup __user *)arg,
-			   sizeof(setup_data)))
-		return -EFAULT;
 
 	if (setup_data.period <= 0 ||
 	    setup_data.period > ONE_BILLION)
@@ -921,6 +1037,9 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case EVL_LAT_USER:
 		runner = create_uthread_runner(setup_data.cpu);
+		break;
+	case EVL_LAT_SIRQ:
+		runner = create_sirq_runner(setup_data.cpu);
 		break;
 	default:
 		return -EINVAL;
