@@ -3685,8 +3685,10 @@ void osd_switch_free_scale(u32 pre_index, u32 pre_enable,
 		if (next_index == OSD1 &&
 		    osd_hw.osd_afbcd[next_index].enable &&
 		    next_enable) {
-			osd_reg_write(VIU_SW_RESET, 0x80000000);
-			osd_reg_write(VIU_SW_RESET, 0);
+			if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
+				osd_reg_write(VIU_SW_RESET, 0x80000000);
+				osd_reg_write(VIU_SW_RESET, 0);
+			}
 			osd_afbc_dec_enable = 0;
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(next_index);
 		}
@@ -3699,14 +3701,15 @@ void osd_switch_free_scale(u32 pre_index, u32 pre_enable,
 			osd_hw.reg[DISP_FREESCALE_ENABLE]
 				.update_func(pre_index);
 			osd_hw.reg[OSD_ENABLE].update_func(pre_index);
+			osd_hw.reg[OSD_COLOR_MODE].update_func(next_index);
+			if (next_scale)
+				osd_hw.reg[OSD_FREESCALE_COEF]
+				.update_func(next_index);
+			osd_hw.reg[DISP_GEOMETRY].update_func(next_index);
+			osd_hw.reg[DISP_FREESCALE_ENABLE]
+				.update_func(next_index);
+			osd_hw.reg[OSD_ENABLE].update_func(next_index);
 		}
-		osd_hw.reg[OSD_COLOR_MODE].update_func(next_index);
-		if (next_scale)
-			osd_hw.reg[OSD_FREESCALE_COEF].update_func(next_index);
-		osd_hw.reg[DISP_GEOMETRY].update_func(next_index);
-		osd_hw.reg[DISP_FREESCALE_ENABLE].update_func(next_index);
-		osd_hw.reg[OSD_ENABLE].update_func(next_index);
-
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 		osd_wait_vsync_hw(next_index);
 	} else {
@@ -9474,6 +9477,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		for (idx = 0; idx < osd_hw.osd_meson_dev.viu1_osd_count; idx++)
 			osd_reg_write(hw_osd_reg_array[idx].osd_ctrl_stat,
 				      data32);
+		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
+			osd_setting_default_hwc();
 	}
 	if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 		osd_vpp_misc =
@@ -9563,7 +9568,6 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		}
 		osd_set_basic_urgent(true);
 		osd_set_two_ports(true);
-		osd_setting_default_hwc();
 	}
 	/* disable deband as default */
 	if (osd_hw.osd_meson_dev.has_deband)
