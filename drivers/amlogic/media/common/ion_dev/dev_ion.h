@@ -15,6 +15,15 @@
 
 #define ION_IOC_MESON_PHYS_ADDR             8
 
+struct ion_cma_heap {
+	struct ion_heap heap;
+	struct cma *cma;
+
+	bool is_added;
+	int max_can_alloc_size;
+	int alloced_size;
+};
+
 struct meson_phys_data {
 	int handle;
 	unsigned int phys_addr;
@@ -33,5 +42,8 @@ int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len);
 void meson_ion_buffer_to_phys(struct ion_buffer *buffer,
 			      phys_addr_t *addr, size_t *len);
 unsigned int meson_ion_cma_heap_id_get(void);
+
+extern struct ion_heap_ops codec_mm_heap_ops;
+extern struct ion_heap_ops ion_cma_ops;
 
 #endif

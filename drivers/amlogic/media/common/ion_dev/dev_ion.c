@@ -13,6 +13,7 @@
 #include <linux/uaccess.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-buf.h>
+#include <linux/cma.h>
 #include <linux/ion.h>
 #include "dev_ion.h"
 
@@ -24,9 +25,30 @@
 #define DION_INFO(fmt, args ...)	pr_info("ion_dev: " fmt, ## args)
 #define DION_DEBUG(fmt, args ...)	pr_debug("ion_dev: " fmt, ## args)
 
-static const char *ion_rmem_name;
-static unsigned int ion_heap_id;
+#define MESON_MAX_ION_HEAP 8
+
+static struct heap_type_desc {
+	char *name;
+	int heap_type;
+	struct ion_heap_ops *ops;
+	unsigned long flags;
+} meson_heap_descs[] = {
+	{
+		.name = "codec_mm_cma",
+		.heap_type = ION_HEAP_TYPE_CUSTOM,
+		.ops = &codec_mm_heap_ops,
+		.flags = ION_HEAP_FLAG_DEFER_FREE,
+	},
+	{
+		.name = "ion-dev",
+		.heap_type = ION_HEAP_TYPE_DMA,
+		.ops = &ion_cma_ops,
+	},
+};
+
 struct device *ion_dev;
+static int num_heaps;
+static struct ion_cma_heap *heaps[MESON_MAX_ION_HEAP];
 
 struct device *meson_ion_get_dev(void)
 {
@@ -66,70 +88,98 @@ int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len)
 }
 EXPORT_SYMBOL(meson_ion_share_fd_to_phys);
 
-/*return:1:match,0:unmatch*/
-int meson_ion_cma_heap_match(const char *name)
+static unsigned int meson_ion_heap_id_get(char *heap_name)
 {
-	int ret;
+	int i;
+	struct ion_cma_heap *heap;
 
-	if (!ion_rmem_name) {
-		ret = 0;
-		DION_INFO("%s, ion_rmem_name is NULL!!\n", __func__);
-	} else if (strcmp(name, ion_rmem_name)) {
-		ret = 0;
-		DION_INFO("%s, ion_rmem.name(%s) unmatch input(%s)\n",
-			  __func__, ion_rmem_name, name);
-	} else {
-		ret = 1;
-		DION_INFO("%s, ion_rmem.name(%s) match input(%s)\n",
-			  __func__, ion_rmem_name, name);
+	for (i = 0; i < num_heaps; i++) {
+		heap = heaps[i];
+		if (!strcmp(heap->heap.name, heap_name))
+			return heap->heap.id;
 	}
-	return ret;
-}
-EXPORT_SYMBOL(meson_ion_cma_heap_match);
 
-void meson_ion_cma_heap_id_set(unsigned int id)
-{
-	ion_heap_id = id;
-}
-EXPORT_SYMBOL(meson_ion_cma_heap_id_set);
-
-unsigned int meson_ion_cma_heap_id_get(void)
-{
-	return ion_heap_id;
-}
-EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
-
-int dev_ion_probe(struct platform_device *pdev)
-{
-	int err = 0;
-	struct device_node *mem_node;
-	struct reserved_mem *rmem = NULL;
-
-	/* init reserved memory */
-	err = of_reserved_mem_device_init(&pdev->dev);
-	if (err != 0) {
-		DION_INFO("failed get reserved memory\n");
-		return err;
-	}
-	ion_dev = &pdev->dev;
-	mem_node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (mem_node)
-		rmem = of_reserved_mem_lookup(mem_node);
-	of_node_put(mem_node);
-
-	if (rmem) {
-		ion_rmem_name = rmem->name;
-		DION_INFO("%s, create [%s] heap done\n", __func__, rmem->name);
-	} else {
-		ion_rmem_name = NULL;
-		DION_ERROR("%s, done with NULL rmem!!\n", __func__);
-	}
 	return 0;
 }
 
-int dev_ion_remove(struct platform_device *pdev)
+unsigned int meson_ion_cma_heap_id_get(void)
 {
-	of_reserved_mem_device_release(&pdev->dev);
+	return meson_ion_heap_id_get("ion-dev");
+}
+
+static int __meson_ion_add_heap(struct ion_heap *heap,
+				struct heap_type_desc *desc)
+{
+	int ret;
+
+	heap->ops = desc->ops;
+	heap->type = desc->heap_type;
+	heap->flags = desc->flags;
+	heap->name = desc->name;
+
+	ret = ion_device_add_heap(heap);
+	if (ret)
+		DION_ERROR("%s fail\n", __func__);
+
+	return ret;
+}
+EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
+
+static int meson_ion_add_heap(struct cma *cma, void *data)
+{
+	int i, ret, heap_type;
+	bool need_add = false;
+	struct heap_type_desc *desc;
+	struct ion_cma_heap *heap;
+	int *cma_nr = data;
+	const char *cma_name = cma_get_name(cma);
+
+	for (i = 0; i < ARRAY_SIZE(meson_heap_descs); i++) {
+		desc = &meson_heap_descs[i];
+
+		if (strstr(cma_name, desc->name)) {
+			heap_type = desc->heap_type;
+			need_add = true;
+			break;
+		}
+	}
+
+	if (need_add) {
+		heap = kzalloc(sizeof(*heap), GFP_KERNEL);
+		if (!heap)
+			return -ENOMEM;
+
+		ret = __meson_ion_add_heap(&heap->heap, desc);
+		if (!ret)
+			heap->is_added = true;
+
+		heap->cma = cma;
+		heaps[num_heaps++] = heap;
+		*cma_nr = num_heaps;
+	}
+
+	return 0;
+}
+
+static int dev_ion_probe(struct platform_device *pdev)
+{
+	int ret;
+	int nr = 0;
+
+	ret = cma_for_each_area(meson_ion_add_heap, &nr);
+	if (ret) {
+		for (nr = 0; nr < num_heaps && heaps[nr]; nr++) {
+			if (heaps[nr]->is_added)
+				ion_device_remove_heap(&heaps[nr]->heap);
+			kfree(heaps[nr]);
+		}
+	}
+
+	return ret;
+}
+
+static int dev_ion_remove(struct platform_device *pdev)
+{
 	return 0;
 }
 

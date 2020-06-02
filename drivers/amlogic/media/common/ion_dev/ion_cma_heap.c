@@ -1,9 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * ION Memory Allocator CMA heap exporter
- *
- * Copyright (C) Linaro 2012
- * Author: <benjamin.gaignard@linaro.org> for ST-Ericsson.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -15,10 +12,7 @@
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
 
-struct ion_cma_heap {
-	struct ion_heap heap;
-	struct cma *cma;
-} cma_heaps[MAX_CMA_AREAS];
+#include "dev_ion.h"
 
 #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
 
@@ -95,57 +89,7 @@ static void ion_cma_free(struct ion_buffer *buffer)
 	kfree(buffer->sg_table);
 }
 
-static struct ion_heap_ops ion_cma_ops = {
+struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
 };
-
-static int __ion_add_cma_heap(struct cma *cma, void *data)
-{
-	int *cma_nr = data;
-	struct ion_cma_heap *cma_heap;
-	int ret;
-
-	if (*cma_nr >= MAX_CMA_AREAS)
-		return -EINVAL;
-
-	cma_heap = &cma_heaps[*cma_nr];
-	cma_heap->heap.ops = &ion_cma_ops;
-	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
-	cma_heap->heap.name = cma_get_name(cma);
-
-	ret = ion_device_add_heap(&cma_heap->heap);
-	if (ret)
-		goto out;
-
-	cma_heap->cma = cma;
-	*cma_nr += 1;
-out:
-	return 0;
-}
-
-static int __init ion_cma_heap_init(void)
-{
-	int ret;
-	int nr = 0;
-
-	ret = cma_for_each_area(__ion_add_cma_heap, &nr);
-	if (ret) {
-		for (nr = 0; nr < MAX_CMA_AREAS && cma_heaps[nr].cma; nr++)
-			ion_device_remove_heap(&cma_heaps[nr].heap);
-	}
-
-	return ret;
-}
-
-static void __exit ion_cma_heap_exit(void)
-{
-	int nr;
-
-	for (nr = 0; nr < MAX_CMA_AREAS && cma_heaps[nr].cma; nr++)
-		ion_device_remove_heap(&cma_heaps[nr].heap);
-}
-
-module_init(ion_cma_heap_init);
-module_exit(ion_cma_heap_exit);
-MODULE_LICENSE("GPL v2");
