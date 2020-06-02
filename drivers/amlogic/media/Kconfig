@@ -102,6 +102,7 @@ source "drivers/amlogic/media/frame_sync/Kconfig"
 source "drivers/amlogic/media/gdc/Kconfig"
 source "drivers/amlogic/media/vin/Kconfig"
 source "drivers/amlogic/media/cec/Kconfig"
+source "drivers/amlogic/media/esm/Kconfig"
 endif
 endmenu
 

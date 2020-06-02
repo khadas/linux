@@ -27,3 +27,5 @@ include drivers/amlogic/media/gdc/Makefile
 include drivers/amlogic/media/vin/Makefile
 
 include drivers/amlogic/media/cec/Makefile
+
+include drivers/amlogic/media/esm/Makefile

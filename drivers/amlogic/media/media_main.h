@@ -64,6 +64,20 @@ static inline int amhdmitx_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_ESM
+int esm_init(void);
+void esm_exit(void);
+#else
+static inline int esm_init(void)
+{
+	return 0;
+}
+
+static void esm_exit(void)
+{
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 int osd_init_module(void);
 #else
