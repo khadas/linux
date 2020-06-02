@@ -54,6 +54,11 @@
 
 unsigned char lcd_debug_print_flag;
 unsigned char lcd_resume_flag;
+/* for driver probe init:
+ *  0: none
+ *  1: power on request
+ */
+static unsigned char lcd_init_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
 struct mutex lcd_vout_mutex;
@@ -242,7 +247,6 @@ static struct lcd_config_s lcd_config_dft = {
 		.vlock_param = vlock_param,
 	},
 	.lcd_power = &lcd_power_config,
-	.lcd_boot_ctrl = &lcd_boot_ctrl_config,
 	.pinmux_flag = 0xff,
 	.change_flag = 0,
 	.retry_enable_flag = 0,
@@ -1136,6 +1140,15 @@ static int lcd_mode_probe(struct device *dev)
 	lcd_notifier_register();
 	lcd_vsync_irq_init();
 
+	if (lcd_init_flag) {
+		LCDPR("power on for init_flag\n");
+		lcd_init_flag = 0;
+		mutex_lock(&lcd_driver->power_mutex);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, NULL);
+		lcd_if_enable_retry(lcd_driver->lcd_config);
+		mutex_unlock(&lcd_driver->power_mutex);
+	}
+
 	/* add notifier for video sync_duration info refresh */
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
 		&lcd_driver->lcd_info->mode);
@@ -1241,17 +1254,30 @@ static void lcd_config_default(void)
 			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
 	pconf->lcd_basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
 			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
+	lcd_init_flag = 0;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN)) {
-		if (lcd_boot_ctrl_config.lcd_init_level)
-			lcd_driver->lcd_status = LCD_STATUS_ENCL_ON;
-		else
+		switch (lcd_boot_ctrl_config.lcd_init_level) {
+		case LCD_INIT_LEVEL_NORMAL:
 			lcd_driver->lcd_status = LCD_STATUS_ON;
+			break;
+		case LCD_INIT_LEVEL_PWR_OFF:
+			lcd_driver->lcd_status = LCD_STATUS_ENCL_ON;
+			break;
+		case LCD_INIT_LEVEL_KERNEL_ON:
+			lcd_init_flag = 1;
+			lcd_driver->lcd_status = LCD_STATUS_ENCL_ON;
+			break;
+		default:
+			lcd_driver->lcd_status = LCD_STATUS_ON;
+			break;
+		}
 		lcd_resume_flag = 1;
 	} else {
 		lcd_driver->lcd_status = 0;
 		lcd_resume_flag = 0;
 	}
-	LCDPR("status: %d\n", lcd_driver->lcd_status);
+	LCDPR("status: %d, init_flag: %d\n",
+	      lcd_driver->lcd_status, lcd_init_flag);
 }
 
 static int lcd_config_probe(struct platform_device *pdev)
@@ -1553,6 +1579,7 @@ static int lcd_probe(struct platform_device *pdev)
 		return -1;
 	}
 	lcd_driver->data = (struct lcd_data_s *)match->data;
+	lcd_driver->boot_ctrl = &lcd_boot_ctrl_config,
 	strcpy(lcd_driver->version, LCD_DRV_VERSION);
 	LCDPR("driver version: %s(%d-%s)\n",
 		lcd_driver->version,
@@ -1727,7 +1754,7 @@ static int __init lcd_boot_ctrl_setup(char *str)
 	lcd_boot_ctrl_config.lcd_type = 0xf & lcd_ctrl;
 	lcd_boot_ctrl_config.lcd_bits = 0xf & (lcd_ctrl >> 4);
 	lcd_boot_ctrl_config.advanced_flag = 0xff & (lcd_ctrl >> 8);
-	lcd_boot_ctrl_config.lcd_init_level = 0x1 & (lcd_ctrl >> 19);
+	lcd_boot_ctrl_config.lcd_init_level = 0x3 & (lcd_ctrl >> 18);
 	lcd_boot_ctrl_config.debug_print_flag = 0xf & (lcd_ctrl >> 20);
 	lcd_boot_ctrl_config.debug_test_pattern = 0xf & (lcd_ctrl >> 24);
 	lcd_boot_ctrl_config.debug_para_source = 0x3 & (lcd_ctrl >> 28);

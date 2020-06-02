@@ -442,11 +442,15 @@ struct lcd_power_ctrl_s {
 	int power_off_step_max; /* internal use for debug */
 };
 
+#define LCD_INIT_LEVEL_NORMAL         0
+#define LCD_INIT_LEVEL_PWR_OFF        1
+#define LCD_INIT_LEVEL_KERNEL_ON      2
+
 struct lcd_boot_ctrl_s {
 	unsigned char lcd_type;	//bit[3:0]
 	unsigned char lcd_bits; //bit[7:4] bits:6 or 8
 	unsigned char advanced_flag;	//bit[15:8]
-	unsigned char lcd_init_level;	//bit[19]
+	unsigned char lcd_init_level;	//bit[19:18]
 	unsigned char debug_print_flag;	//bit[23:20]
 	unsigned char debug_test_pattern;	//bit[27:24]
 	unsigned char debug_para_source;//bit[29:28]
@@ -465,7 +469,6 @@ struct lcd_config_s {
 	struct lcd_optical_info_s optical_info;
 	struct lcd_control_config_s lcd_control;
 	struct lcd_power_ctrl_s *lcd_power;
-	struct lcd_boot_ctrl_s *lcd_boot_ctrl;
 	struct pinctrl *pin;
 	unsigned char pinmux_flag;
 	unsigned char change_flag;
@@ -508,6 +511,7 @@ struct aml_lcd_drv_s {
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
 	struct class *lcd_debug_class;
+	struct lcd_boot_ctrl_s *boot_ctrl;
 
 	int fr_auto_policy;
 	int fr_mode;
