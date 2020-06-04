@@ -549,7 +549,7 @@ static int bl_extern_table_init_save(struct bl_extern_config_s *extconf)
 			return -1;
 		}
 		memcpy(extconf->init_on, table_init_on_dft,
-			extconf->init_off_cnt*sizeof(unsigned char));
+		       extconf->init_on_cnt * sizeof(unsigned char));
 	}
 	if (extconf->init_off_cnt > 0) {
 		extconf->init_off = kcalloc(extconf->init_off_cnt,
@@ -574,6 +574,11 @@ static int bl_extern_config_from_dts(struct device_node *np, int index)
 	unsigned int temp[5], val;
 	int ret = 0;
 	struct aml_bl_extern_driver_s *bl_extern = aml_bl_extern_get_driver();
+
+	if (!bl_extern) {
+		BLEXERR("%s: bl_extern is null\n", __func__);
+		return -1;
+	}
 
 	ret = of_property_read_string(np, "i2c_bus", &str);
 	if (ret == 0)
@@ -803,6 +808,11 @@ static int bl_extern_remove_driver(void)
 int aml_bl_extern_device_load(int index)
 {
 	int ret = 0;
+
+	if (!bl_extern_driver.dev) {
+		BLEXERR("%s: bl_extern_driver dev is null\n", __func__);
+		return -1;
+	}
 
 	bl_extern_config_from_dts(bl_extern_driver.dev->of_node, index);
 	ret = bl_extern_add_driver();

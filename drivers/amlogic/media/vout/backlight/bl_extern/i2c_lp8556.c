@@ -215,7 +215,8 @@ static int i2c_lp8556_power_off(void)
 
 static int i2c_lp8556_set_level(unsigned int level)
 {
-	unsigned char tData[3];
+	struct aml_bl_extern_driver_s *bl_extern = aml_bl_extern_get_driver();
+	unsigned char tData[5];
 	int ret = 0;
 
 	if (i2c_dev == NULL) {
@@ -223,9 +224,17 @@ static int i2c_lp8556_set_level(unsigned int level)
 		return -1;
 	}
 
-	tData[0] = 0x0;
-	tData[1] = level & 0xff;
-	ret = bl_extern_i2c_write(i2c_dev->client, tData, 2);
+	if (bl_extern->config.dim_max > 255) {
+		tData[0] = 0x10;
+		tData[1] = level & 0xff;
+		tData[2] = 0x11;
+		tData[3] = (level >> 8) & 0xf;
+		ret = bl_extern_i2c_write(i2c_dev->client, tData, 4);
+	} else {
+		tData[0] = 0x0;
+		tData[1] = level & 0xff;
+		ret = bl_extern_i2c_write(i2c_dev->client, tData, 2);
+	}
 	return ret;
 }
 
@@ -246,10 +255,12 @@ static int i2c_lp8556_update(void)
 	bl_extern->device_bri_update = i2c_lp8556_set_level;
 
 	bl_extern->config.cmd_size = BL_EXTERN_CMD_SIZE;
-	bl_extern->config.init_on = init_on_table;
-	bl_extern->config.init_on_cnt = sizeof(init_on_table);
-	bl_extern->config.init_off = init_off_table;
-	bl_extern->config.init_off_cnt = sizeof(init_off_table);
+	if (!bl_extern->config.init_loaded) {
+		bl_extern->config.init_on = init_on_table;
+		bl_extern->config.init_on_cnt = sizeof(init_on_table);
+		bl_extern->config.init_off = init_off_table;
+		bl_extern->config.init_off_cnt = sizeof(init_off_table);
+	}
 
 	return 0;
 }
