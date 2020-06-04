@@ -744,8 +744,9 @@ static void bl_power_on(void)
 			/* step 1: power on ldim */
 			if (ldim_drv->power_on) {
 				ret = ldim_drv->power_on();
-				if (ret)
-					BLERR("ldim: power on error\n");
+				if (ret < 0)
+					BLERR("bl: power on error, ret = %d\n",
+					      ret);
 			} else {
 				BLPR("ldim: power on is null\n");
 			}
