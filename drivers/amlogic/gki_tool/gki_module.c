@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#ifdef MODULE
 
 #include <linux/cdev.h>
 #include <linux/types.h>
@@ -118,3 +119,5 @@ void gki_module_init(void)
 	if (gki_tool_debug)
 		pr_info("%s() end\n", __func__);
 }
+
+#endif

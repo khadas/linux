@@ -6,7 +6,11 @@
 #ifndef __GKI_TOOL_AMLOGIC_H
 #define __GKI_TOOL_AMLOGIC_H
 
+#ifdef MODULE
+
 void gki_module_init(void);
 extern int gki_tool_debug;
+
+#endif
 
 #endif //__GKI_TOOL_AMLOGIC_H

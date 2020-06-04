@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#ifdef MODULE
 
 #include <linux/cdev.h>
 #include <linux/types.h>
@@ -36,3 +37,5 @@ module_exit(gki_tool_exit);
 
 MODULE_DESCRIPTION("Amlogic GKI tool");
 MODULE_LICENSE("GPL v2");
+
+#endif
