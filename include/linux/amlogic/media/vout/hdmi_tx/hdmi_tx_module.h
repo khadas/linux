@@ -894,6 +894,7 @@ struct Hdcp_Sub {
 };
 
 void setup_attr(const char *buf);
+void get_attr(char attr[16]);
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value,

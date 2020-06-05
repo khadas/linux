@@ -578,6 +578,7 @@ void aml_write_vcbus(unsigned int reg, unsigned int val)
 	if (ret)
 		pr_err("write vcbus reg %x error %d\n", reg, ret);
 }
+EXPORT_SYMBOL(aml_write_vcbus);
 
 void aml_vcbus_update_bits(unsigned int reg,
 			   unsigned int mask,

@@ -399,6 +399,20 @@ u32 get_videopip_enabled(void)
 }
 EXPORT_SYMBOL(get_videopip_enabled);
 
+void set_video_enabled(u32 value, u32 index)
+{
+	u32 disable_video = value ? 0 : 1;
+
+	if (index >= MAX_VD_LAYER)
+		return;
+	vd_layer[index].global_output = value;
+	if (index == 0)
+		_video_set_disable(disable_video);
+	else
+		_videopip_set_disable(disable_video);
+}
+EXPORT_SYMBOL(set_video_enabled);
+
 bool is_di_on(void)
 {
 	bool ret = false;
@@ -892,13 +906,11 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			(VD2_IF0_GEN_REG + vd_off, r);
 
 	if (type & VIDTYPE_VIU_NV21)
-		VSYNC_WR_MPEG_REG_BITS
-			(VD1_IF0_GEN_REG2 +
-			vd_off, 1, 0, 1);
+		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2 + vd_off, 1, 0, 2);
+	else if (type & VIDTYPE_VIU_NV12)
+		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2 + vd_off, 2, 0, 2);
 	else
-		VSYNC_WR_MPEG_REG_BITS
-			(VD1_IF0_GEN_REG2 +
-			vd_off, 0, 0, 1);
+		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2 + vd_off, 0, 0, 2);
 
 	/* FIXME: don't use glayer_info[0].reverse */
 	if (glayer_info[0].reverse) {
@@ -930,6 +942,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
 			if ((type & VIDTYPE_VIU_NV21) ||
+			     (type & VIDTYPE_VIU_NV12) ||
 			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
@@ -1297,13 +1310,11 @@ static void vd2_set_dcu(struct video_layer_s *layer,
 	VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG + vd_off, r);
 
 	if (type & VIDTYPE_VIU_NV21)
-		VSYNC_WR_MPEG_REG_BITS
-			(VD2_IF0_GEN_REG2 +
-			vd_off, 1, 0, 1);
+		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2 + vd_off, 1, 0, 2);
+	else if (type & VIDTYPE_VIU_NV12)
+		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2 + vd_off, 2, 0, 2);
 	else
-		VSYNC_WR_MPEG_REG_BITS
-			(VD2_IF0_GEN_REG2 +
-			vd_off, 0, 0, 1);
+		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2 + vd_off, 0, 0, 2);
 
 	/* FIXME: don't use glayer_info[1].reverse */
 	if (glayer_info[1].reverse)
@@ -1327,6 +1338,7 @@ static void vd2_set_dcu(struct video_layer_s *layer,
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
 			if ((type & VIDTYPE_VIU_NV21) ||
+			     (type & VIDTYPE_VIU_NV12) ||
 			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}

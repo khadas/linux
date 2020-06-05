@@ -35,6 +35,7 @@
 #define VIDTYPE_INTERLACE_FIRST         0x8
 #define VIDTYPE_MVC                     0x10
 #define VIDTYPE_NO_VIDEO_ENABLE         0x20
+#define VIDTYPE_VIU_NV12                0x80
 #define VIDTYPE_VIU_422                 0x800
 #define VIDTYPE_VIU_FIELD               0x1000
 #define VIDTYPE_VIU_SINGLE_PLANE        0x2000
@@ -94,6 +95,7 @@
 #define VFRAME_FLAG_VIDEO_LINEAR		0x400
 #define VFRAME_FLAG_EMPTY_FRAME_V4L		0x800
 #define VFRAME_FLAG_FAKE_FRAME			0x1000
+#define VFRAME_FLAG_VIDEO_DRM			0x4000
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,

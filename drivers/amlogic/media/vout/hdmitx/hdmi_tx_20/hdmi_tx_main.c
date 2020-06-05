@@ -696,6 +696,12 @@ void setup_attr(const char *buf)
 }
 EXPORT_SYMBOL(setup_attr);
 
+void get_attr(char attr[16])
+{
+	memcpy(attr, hdmitx_device.fmt_attr, sizeof(hdmitx_device.fmt_attr));
+}
+EXPORT_SYMBOL(get_attr);
+
 /* for android application data exchange / swap */
 static char *tmp_swap;
 static DEFINE_MUTEX(mutex_swap);

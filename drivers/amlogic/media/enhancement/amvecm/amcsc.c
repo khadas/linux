@@ -414,6 +414,16 @@ int get_hdr_policy(void)
 }
 EXPORT_SYMBOL(get_hdr_policy);
 
+void set_hdr_policy(int policy)
+{
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_enable())
+		set_dolby_vision_policy(policy);
+	#endif
+	hdr_policy = policy;
+}
+EXPORT_SYMBOL(set_hdr_policy);
+
 void set_cur_hdr_policy(uint policy)
 {
 	cur_hdr_policy = policy;

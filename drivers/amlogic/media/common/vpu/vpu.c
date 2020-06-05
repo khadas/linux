@@ -632,6 +632,7 @@ struct vpu_dev_s *vpu_dev_register(unsigned int vmod, char *owner_name)
 
 	return temp_dev;
 }
+EXPORT_SYMBOL(vpu_dev_register);
 
 /*
  *  Function: vpu_dev_unregister
@@ -822,6 +823,7 @@ void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
 		dump_stack();
 	}
 }
+EXPORT_SYMBOL(vpu_dev_mem_power_on);
 
 /*
  *  Function: vpu_dev_mem_power_down

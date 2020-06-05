@@ -445,6 +445,13 @@ u32 get_video_angle(void)
 }
 EXPORT_SYMBOL(get_video_angle);
 
+void set_video_zorder(u32 zorder, u32 index)
+{
+	if (index < 2)
+		glayer_info[index].zorder = zorder;
+}
+EXPORT_SYMBOL(set_video_zorder);
+
 /*for video related files only.*/
 void video_module_lock(void)
 {
@@ -1898,6 +1905,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	if (next_vf->flag & VFRAME_FLAG_VIDEO_COMPOSER)
 		return true;
 
+	/*freerun for drm video*/
+	if (next_vf->flag & VFRAME_FLAG_VIDEO_DRM)
+		return true;
+
 	if (step_enable) {
 		if (step_flag)
 			return false;
@@ -2943,7 +2954,8 @@ static void pip_swap_frame(struct vframe_s *vf)
 		DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
-	if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
+	    VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
@@ -3064,7 +3076,8 @@ static void primary_swap_frame(struct vframe_s *vf, int line)
 	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
 
-	if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
+	    VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
@@ -4670,7 +4683,8 @@ SET_FILTER:
 		}
 	}
 	if (vd_layer[0].dispbuf &&
-	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    (vd_layer[0].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
+		VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vd_layer[0].dispbuf->axis[0];
 		axis[1] = vd_layer[0].dispbuf->axis[1];
@@ -4867,7 +4881,8 @@ SET_FILTER:
 	}
 
 	if (vd_layer[1].dispbuf &&
-	    (vd_layer[1].dispbuf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    (vd_layer[1].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
+		VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vd_layer[1].dispbuf->axis[0];
 		axis[1] = vd_layer[1].dispbuf->axis[1];

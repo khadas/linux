@@ -84,6 +84,7 @@ source "drivers/amlogic/gki_tool/Kconfig"
 source "drivers/amlogic/hifi4dsp/Kconfig"
 
 source "drivers/amlogic/dvb/Kconfig"
+source "drivers/amlogic/drm/Kconfig"
 
 endmenu
 endif

@@ -47,6 +47,7 @@ void meson_ion_buffer_to_phys(struct ion_buffer *buffer,
 		*len = buffer->size;
 	}
 }
+EXPORT_SYMBOL(meson_ion_buffer_to_phys);
 
 int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len)
 {
@@ -96,6 +97,7 @@ unsigned int meson_ion_cma_heap_id_get(void)
 {
 	return ion_heap_id;
 }
+EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
 
 int dev_ion_probe(struct platform_device *pdev)
 {

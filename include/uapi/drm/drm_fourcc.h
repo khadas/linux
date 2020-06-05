@@ -309,6 +309,7 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_BROADCOM 0x07
 #define DRM_FORMAT_MOD_VENDOR_ARM     0x08
 #define DRM_FORMAT_MOD_VENDOR_ALLWINNER 0x09
+#define DRM_FORMAT_MOD_VENDOR_AMLOGIC 0x0a
 
 /* add more to the end as needed */
 
@@ -779,6 +780,9 @@ extern "C" {
  * both in row-major order.
  */
 #define DRM_FORMAT_MOD_ALLWINNER_TILED fourcc_mod_code(ALLWINNER, 1)
+
+#define DRM_FORMAT_MOD_MESON_AFBC	fourcc_mod_code(AMLOGIC, 1)
+#define DRM_FORMAT_MOD_MESON_AFBC_WB	fourcc_mod_code(AMLOGIC, 2)
 
 #if defined(__cplusplus)
 }
