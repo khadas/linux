@@ -988,6 +988,7 @@
 
 	non-removable;
 	disable-wp;
+	cap-sdio-irq;
 
 //	mmc-pwrseq = <&sdio_pwrseq>;
 

@@ -2651,7 +2651,7 @@
 			reg = <0x0 0xffe03000 0x0 0x800>,
 				<0x0 0xff63c264 0x0 0x4>,
 				<0x0 0xff6346cc 0x0 0x4>;
-			interrupts = <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_A>,
 				<&clkc CLKID_SD_EMMC_A_CLK0_SEL>,
