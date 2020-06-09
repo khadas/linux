@@ -776,6 +776,26 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 		     struct hdmitx_audpara *audio_param);
 
+enum hdmitx_event {
+	HDMITX_NONE_EVENT = 0,
+	HDMITX_HPD_EVENT,
+	HDMITX_HDCP_EVENT,
+	HDMITX_AUDIO_EVENT,
+	HDMITX_HDCPPWR_EVENT,
+	HDMITX_HDR_EVENT,
+	HDMITX_RXSENSE_EVENT,
+	HDMITX_CEDST_EVENT,
+};
+
+#define MAX_UEVENT_LEN 64
+struct hdmitx_uevent {
+	const enum hdmitx_event type;
+	int state;
+	const char *env;
+};
+
+int hdmitx_set_uevent(enum hdmitx_event type, int val);
+
 /* for notify to cec */
 #define HDMITX_PLUG			1
 #define HDMITX_UNPLUG			2

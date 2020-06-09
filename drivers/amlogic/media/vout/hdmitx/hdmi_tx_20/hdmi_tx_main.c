@@ -22,7 +22,6 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/ctype.h>
-#include <linux/extcon.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
@@ -33,8 +32,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
-#include "../../../../drivers/extcon/extcon.h"
-#include <linux/extcon-provider.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 //#include <linux/amlogic/cpu_version.h>
@@ -145,18 +142,67 @@ struct vout_device_s hdmitx_vdev = {
 
 struct hdmi_config_platform_data *hdmi_pdata;
 
-static const unsigned int hdmi_cable[] = {
-	EXTCON_DISP_HDMI,
-	EXTCON_NONE,
+static struct hdmitx_uevent hdmi_events[] = {
+	{
+		.type = HDMITX_HPD_EVENT,
+		.env = "hdmitx_hpd=",
+	},
+	{
+		.type = HDMITX_HDCP_EVENT,
+		.env = "hdmitx_hdcp=",
+	},
+	{
+		.type = HDMITX_AUDIO_EVENT,
+		.env = "hdmitx_audio=",
+	},
+	{
+		.type = HDMITX_HDCPPWR_EVENT,
+		.env = "hdmitx_hdcppwr=",
+	},
+	{
+		.type = HDMITX_HDR_EVENT,
+		.env = "hdmitx_hdr=",
+	},
+	{
+		.type = HDMITX_RXSENSE_EVENT,
+		.env = "hdmitx_rxsense=",
+	},
+	{
+		.type = HDMITX_CEDST_EVENT,
+		.env = "hdmitx_cedst=",
+	},
+	{ /* end of hdmi_events[] */
+		.type = HDMITX_NONE_EVENT,
+	},
 };
 
-struct extcon_dev *hdmitx_extcon_hdmi;
-struct extcon_dev *hdmitx_extcon_audio;
-struct extcon_dev *hdmitx_extcon_power;
-struct extcon_dev *hdmitx_extcon_hdr;
-struct extcon_dev *hdmitx_extcon_rxsense;
-struct extcon_dev *hdmitx_extcon_hdcp;
-struct extcon_dev *hdmitx_extcon_cedst;
+int hdmitx_set_uevent(enum hdmitx_event type, int val)
+{
+	char env[MAX_UEVENT_LEN];
+	struct hdmitx_uevent *event = hdmi_events;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	char *envp[2];
+	int ret = -1;
+
+	for (event = hdmi_events; event->type != HDMITX_NONE_EVENT; event++) {
+		if (type == event->type)
+			break;
+	}
+	if (event->type == HDMITX_NONE_EVENT)
+		return ret;
+	if (event->state == val)
+		return ret;
+
+	event->state = val;
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
+
+	ret = kobject_uevent_env(&hdev->hdtx_dev->kobj, KOBJ_CHANGE, envp);
+	/* pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret); */
+	return ret;
+}
 
 /* There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
  * hdmi drivers to send out related HDMI infoframe
@@ -204,7 +250,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
 	hdmitx_status.pwr = 0;
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 0);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 }
@@ -244,12 +290,11 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	set_disp_mode_auto();
 
-	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
-			      hdmitx_device.hpd_state);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdmitx_device.hpd_state);
+
 	hdmitx_status.pwr = 1;
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 1);
-	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
-			      hdmitx_device.hpd_state);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdmitx_device.hpd_state);
 	hdmitx_status.audio = hdmitx_device.hpd_state;
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
@@ -1295,13 +1340,13 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 		/* SDR -> HDR*/
 		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		hdmitx_status.hdr = 1;
-		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 1);
+		hdmitx_set_uevent(HDMITX_HDR_EVENT, 1);
 	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
 			(hdev->hdmi_current_hdr_mode == 0)) {
 		/* HDR -> SDR*/
 		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		hdmitx_status.hdr = 0;
-		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 0);
+		hdmitx_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
 }
 
@@ -4045,8 +4090,7 @@ static ssize_t fake_plug_store(struct device *dev,
 	if (strncmp(buf, "0", 1) == 0)
 		hdev->hpd_state = 0;
 
-	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
-			      hdev->hpd_state);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx_status.hpd_state = hdev->hpd_state;
 	return count;
 }
@@ -5122,7 +5166,7 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 
 	sense = hdev->hwop.cntlmisc(hdev, MISC_TMDS_RXSENSE, 0);
 	hdmitx_status.rxsense = sense;
-	extcon_set_state_sync(hdmitx_extcon_rxsense, EXTCON_DISP_HDMI, sense);
+	hdmitx_set_uevent(HDMITX_RXSENSE_EVENT, sense);
 	queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, HZ);
 }
 
@@ -5135,8 +5179,9 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	ced = hdev->hwop.cntlmisc(hdev, MISC_TMDS_CEDST, 0);
 	/* firstly send as 0, then real ced, A trigger signal */
 	hdmitx_status.cedst = ced;
-	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, 0);
-	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, ced);
+	hdmitx_set_uevent(HDMITX_CEDST_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_CEDST_EVENT, ced);
+	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
 
@@ -5195,8 +5240,8 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 
 	hdmitx_status.hpd_state = 1;
 	hdmitx_status.audio = 1;
-	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
-	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
 	/* Should be started at end of output */
 	cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->cedst_policy)
@@ -5223,7 +5268,7 @@ static void hdmitx_aud_hpd_plug_handler(struct work_struct *work)
 	st = hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	pr_info("%s state:%d\n", __func__, st);
 	hdmitx_status.audio = st;
-	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, st);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, st);
 }
 
 static void hdmitx_hpd_plugout_handler(struct work_struct *work)
@@ -5272,8 +5317,9 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_notify_hpd(hdev->hpd_state);
 	hdmitx_status.hpd_state = 0;
 	hdmitx_status.audio = 0;
-	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
-	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
+
 	mutex_unlock(&setclk_mutex);
 }
 
@@ -5498,137 +5544,7 @@ void hdmitx_event_notify(unsigned long state, void *arg)
 void hdmitx_hdcp_status(int hdmi_authenticated)
 {
 	hdmitx_status.hdcp = hdmi_authenticated;
-	extcon_set_state_sync(hdmitx_extcon_hdcp, EXTCON_DISP_HDMI,
-			      hdmi_authenticated);
-}
-
-void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
-{
-	struct extcon_dev *edev;
-	int ret;
-
-	/*hdmitx extcon hdmi*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate hdmitx extcon hdmi\n");
-		return;
-	}
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_hdmi";
-	dev_set_name(&edev->dev, "hdmi");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register hdmitx extcon hdmi\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_hdmi = edev;
-
-	/*hdmitx extcon audio*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate hdmitx extcon audio\n");
-		return;
-	}
-
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_audio";
-	dev_set_name(&edev->dev, "hdmi_audio");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register hdmitx extcon audio\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_audio = edev;
-
-	/*hdmitx extcon power*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate hdmitx extcon power\n");
-		return;
-	}
-
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_power";
-	dev_set_name(&edev->dev, "hdmi_power");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register extcon power\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_power = edev;
-
-	/*hdmitx extcon hdr*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate hdmitx extcon hdr\n");
-		return;
-	}
-
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_hdr";
-	dev_set_name(&edev->dev, "hdmi_hdr");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register hdmitx extcon hdr\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_hdr = edev;
-
-	/*hdmitx extcon CED */
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate extcon cedst\n");
-		return;
-	}
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_cedst";
-	dev_set_name(&edev->dev, "hdmi_cedst");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register extcon cedst\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_cedst = edev;
-
-	/*hdmitx extcon rxsense*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate extcon rxsense\n");
-		return;
-	}
-
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_rxsense";
-	dev_set_name(&edev->dev, "hdmi_rxsense");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register extcon rxsense\n");
-		return;
-	}
-	hdmitx_extcon_rxsense = edev;
-
-	/*hdmitx extcon hdcp*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, hdmi_cable);
-	if (IS_ERR(edev)) {
-		pr_info(SYS "failed to allocate extcon hdcp\n");
-		return;
-	}
-
-	edev->dev.parent = dev;
-	edev->name = "hdmitx_extcon_hdcp";
-	dev_set_name(&edev->dev, "hdcp");
-	ret = extcon_dev_register(edev);
-	if (ret < 0) {
-		pr_info(SYS "failed to register extcon hdcp\n");
-		extcon_dev_free(edev);
-		return;
-	}
-	hdmitx_extcon_hdcp = edev;
+	hdmitx_set_uevent(HDMITX_HDCP_EVENT, hdmi_authenticated);
 }
 
 static void hdmitx_init_parameters(struct hdmitx_info *info)
@@ -6152,18 +6068,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	aout_register_client(&hdmitx_notifier_nb_a);
 #endif
 
-	hdmitx_extcon_register(pdev, dev);
-
 	/* update fmt_attr */
 	hdmitx_init_fmt_attr(hdev);
 
-	hdmitx_extcon_hdmi->state = !!hdev->hwop.cntlmisc(hdev,
-							  MISC_HPD_GPI_ST, 0);
-	hdmitx_device.hpd_state = hdmitx_extcon_hdmi->state;
+	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx_notify_hpd(hdev->hpd_state);
 	hdmitx_status.pwr = hdev->hpd_state;
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
-			      hdev->hpd_state);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, hdev->hpd_state);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
@@ -6179,11 +6090,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 			  hdmitx_internal_intr_handler);
 
 	/* for rx sense feature */
-	hdev->rxsense_wq = alloc_workqueue("hdmitx_extcon_rxsense",
+	hdev->rxsense_wq = alloc_workqueue("hdmitx_rxsense",
 					   WQ_SYSFS | WQ_FREEZABLE, 0);
 	INIT_DELAYED_WORK(&hdev->work_rxsense, hdmitx_rxsense_process);
 	/* for cedst feature */
-	hdev->cedst_wq = alloc_workqueue("hdmitx_extcon_cedst",
+	hdev->cedst_wq = alloc_workqueue("hdmitx_cedst",
 					 WQ_SYSFS | WQ_FREEZABLE, 0);
 	INIT_DELAYED_WORK(&hdev->work_cedst, hdmitx_cedst_process);
 

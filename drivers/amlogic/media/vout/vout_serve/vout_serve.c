@@ -23,14 +23,12 @@
 #include <linux/of.h>
 #include <linux/major.h>
 #include <linux/uaccess.h>
-#include <linux/extcon-provider.h>
 #include <linux/cdev.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
 
 /* Local Headers */
-#include "../../../../drivers/extcon/extcon.h"
 #include "vout_func.h"
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -69,13 +67,8 @@ static unsigned int tvout_monitor_timeout_cnt = 20;
 
 static struct delayed_work tvout_mode_work;
 
-static struct extcon_dev *vout_excton_setmode;
-static const unsigned int vout_cable[] = {
-	EXTCON_TYPE_DISP,
-	EXTCON_NONE,
-};
-
 static struct vout_cdev_s *vout_cdev;
+static struct device *vout_dev;
 
 /* **********************************************************
  * null display support
@@ -231,6 +224,32 @@ char *get_vout_mode_uboot(void)
 }
 EXPORT_SYMBOL(get_vout_mode_uboot);
 
+#define MAX_UEVENT_LEN 64
+
+static int vout_set_uevent(unsigned int vout_event, int val)
+{
+	char env[MAX_UEVENT_LEN];
+	char *envp[2];
+	int ret;
+
+	if (vout_event != VOUT_EVENT_MODE_CHANGE)
+		return 0;
+
+	if (!vout_dev) {
+		VOUTERR("no vout_dev\n");
+		return -1;
+	}
+
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "vout_setmode=%d", val);
+
+	ret = kobject_uevent_env(&vout_dev->kobj, KOBJ_CHANGE, envp);
+
+	return ret;
+}
+
 int set_vout_mode(char *name)
 {
 	enum vmode_e mode;
@@ -252,7 +271,7 @@ int set_vout_mode(char *name)
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
 
-	extcon_set_state_sync(vout_excton_setmode, EXTCON_TYPE_DISP, 1);
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 1);
 
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	ret = set_current_vmode(mode);
@@ -264,7 +283,7 @@ int set_vout_mode(char *name)
 	}
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 
-	extcon_set_state_sync(vout_excton_setmode, EXTCON_TYPE_DISP, 0);
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 0);
 
 	return ret;
 }
@@ -879,35 +898,6 @@ static void aml_tvout_mode_monitor(void)
 	schedule_delayed_work(&tvout_mode_work, (1 * HZ / 2));
 }
 
-static void aml_vout_extcon_register(struct platform_device *pdev)
-{
-	struct extcon_dev *edev;
-	int ret;
-
-	/*set display mode*/
-	edev = devm_extcon_dev_allocate(&pdev->dev, vout_cable);
-	if (IS_ERR(edev)) {
-		VOUTERR("failed to allocate vout extcon setmode\n");
-		return;
-	}
-
-	edev->dev.parent = &pdev->dev;
-	edev->name = "vout_excton_setmode";
-	dev_set_name(&edev->dev, "setmode");
-	ret = devm_extcon_dev_register(&pdev->dev, edev);
-	if (ret) {
-		VOUTERR("failed to register vout extcon setmode\n");
-		return;
-	}
-	vout_excton_setmode = edev;
-}
-
-static void aml_vout_extcon_free(struct platform_device *pdev)
-{
-	devm_extcon_dev_free(&pdev->dev, vout_excton_setmode);
-	vout_excton_setmode = NULL;
-}
-
 /*****************************************************************
  **
  **	vout driver interface
@@ -916,6 +906,8 @@ static void aml_vout_extcon_free(struct platform_device *pdev)
 static int aml_vout_probe(struct platform_device *pdev)
 {
 	int ret = -1;
+
+	vout_dev = &pdev->dev;
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
@@ -931,7 +923,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 	vout_register_server(&nulldisp_vout_server);
 	set_vout_init_mode();
 
-	aml_vout_extcon_register(pdev);
 	aml_tvout_mode_monitor();
 
 	VOUTPR("%s OK\n", __func__);
@@ -944,7 +935,6 @@ static int aml_vout_remove(struct platform_device *pdev)
 	unregister_early_suspend(&early_suspend);
 #endif
 
-	aml_vout_extcon_free(pdev);
 	vout_attr_remove();
 	vout_fops_remove();
 	vout_unregister_server(&nulldisp_vout_server);
