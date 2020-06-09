@@ -1,0 +1,73 @@
+#
+# Focaltech Touchscreen driver configuration
+#
+
+config TOUCHSCREEN_FTS_3427
+	bool "Focaltech Touchscreen FT3427"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have Focaltech 3427 IC.
+		If unsure, say N.
+
+config TOUCHSCREEN_FTS_5726
+	bool "Focaltech Touchscreen FT5726"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC.
+		If unsure, say N.
+
+if TOUCHSCREEN_FTS_5726
+
+config TOUCHSCREEN_FTS_5726_P1
+	bool "Focaltech Touchscreen FT5726 for P1 Build Only"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC for P1 build.
+		If unsure, say N.
+
+config TOUCHSCREEN_FTS_5726_MP_POR
+	bool "Focaltech Touchscreen FT5726 for EVT Build Onwards"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC with the POR
+		touch configuration and HW. This should only be used
+		for devices from the EVT build onwards.
+		If unsure, say N.
+
+config TOUCHSCREEN_FTS_5726_UPDATE_TOPTOUCH_FW
+	bool "Focaltech Touchscreen Update TopTouch FW"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC,
+		and want to update FW for a TopTouch panel.
+		If unsure, say N.
+
+config TOUCHSCREEN_FTS_5726_UPDATE_TOPGROUP_FW
+	bool "Focaltech Touchscreen Update TopGroup FW"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC,
+		and want to update FW for a TopGroup panel.
+		If unsure, say N.
+
+config TOUCHSCREEN_FTS_5726_UPDATE_LENSONE_FW
+	bool "Focaltech Touchscreen Update Lensone FW"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have FocalTech 5726 IC,
+		and want to update FW for a Lensone panel.
+		If unsure, say N.
+
+endif # TOUCHSCREEN_FTS_5726
+
+config TOUCHSCREEN_FTS_DIRECTORY
+	string "Focaltech Touchscreen Directory"
+	default "focaltech_touch"
+	depends on TOUCHSCREEN_FTS_3427 || TOUCHSCREEN_FTS_5726
