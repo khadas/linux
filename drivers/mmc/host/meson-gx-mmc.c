@@ -270,7 +270,6 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	for_each_sg(data->sg, sg, data->sg_len, i)
 		/* check for 8 byte alignment */
 		if (sg->offset & 7) {
-			WARN_ONCE(1, "unaligned scatterlist buffer\n");
 			use_desc_chain_mode = false;
 			break;
 		}
