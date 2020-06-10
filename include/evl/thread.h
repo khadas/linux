@@ -19,6 +19,7 @@
 #include <evl/list.h>
 #include <evl/lock.h>
 #include <evl/stat.h>
+#include <evl/init.h>
 #include <evl/timer.h>
 #include <evl/sched/param.h>
 #include <evl/factory.h>
@@ -354,7 +355,7 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 
 #define evl_run_kthread(__kthread, __fn, __priority,			\
 			__clone_flags, __fmt, __args...)		\
-	_evl_run_kthread(__kthread, CPU_MASK_ALL, __fn, __priority,	\
+	_evl_run_kthread(__kthread, &evl_oob_cpus, __fn, __priority,	\
 			__clone_flags, __fmt, ##__args)
 
 #define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __priority,	\
