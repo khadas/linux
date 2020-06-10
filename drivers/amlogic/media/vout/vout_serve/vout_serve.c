@@ -53,20 +53,6 @@ static u32 vout_init_vmode = VMODE_INIT_NULL;
 static int uboot_display;
 static unsigned int bist_mode;
 
-static char hdmimode[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
-};
-
-static char cvbsmode[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
-};
-
-static enum vmode_e last_vmode = VMODE_MAX;
-static int tvout_monitor_flag = 1;
-static unsigned int tvout_monitor_timeout_cnt = 20;
-
-static struct delayed_work tvout_mode_work;
-
 static struct vout_cdev_s *vout_cdev;
 static struct device *vout_dev;
 
@@ -304,7 +290,6 @@ static int set_vout_init_mode(void)
 		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s",
 			 nulldisp_vinfo[nulldisp_index].name);
 	}
-	last_vmode = vout_init_vmode;
 
 	if (uboot_display)
 		vmode = vout_init_vmode | VMODE_INIT_BIT_MASK;
@@ -341,7 +326,6 @@ static ssize_t vout_mode_store(struct class *class,
 	char mode[VMODE_NAME_LEN_MAX];
 
 	mutex_lock(&vout_serve_mutex);
-	tvout_monitor_flag = 0;
 	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
 	set_vout_mode(mode);
 	mutex_unlock(&vout_serve_mutex);
@@ -815,89 +799,6 @@ static void aml_vout_late_resume(struct early_suspend *h)
 }
 #endif
 
-/* ***************************************************** */
-/* hdmi/cvbs output mode monitor */
-/* ***************************************************** */
-static int refresh_tvout_mode(void)
-{
-	enum vmode_e cur_vmode = VMODE_MAX;
-	char cur_mode_str[VMODE_NAME_LEN_MAX];
-	int hpd_state = 0;
-
-	if (tvout_monitor_flag == 0)
-		return 0;
-
-	hpd_state = vout_get_hpd_state();
-	if (hpd_state) {
-		cur_vmode = validate_vmode(hdmimode);
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", hdmimode);
-	} else {
-		cur_vmode = validate_vmode(cvbsmode);
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
-	}
-	if (cur_vmode >= VMODE_MAX) {
-		VOUTERR("%s: no matched cur_mode: %s, force to invalid\n",
-			__func__, cur_mode_str);
-		nulldisp_index = 1;
-		cur_vmode = nulldisp_vinfo[nulldisp_index].mode;
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s",
-			 nulldisp_vinfo[nulldisp_index].name);
-	}
-
-	/* not box platform */
-	if (cur_vmode != VMODE_HDMI &&
-	    cur_vmode != VMODE_CVBS &&
-	    cur_vmode != VMODE_NULL &&
-	    cur_vmode != VMODE_INVALID)
-		return -1;
-
-	if (cur_vmode != last_vmode) {
-		VOUTPR("%s: mode chang to %s\n", __func__, cur_mode_str);
-		set_vout_mode(cur_mode_str);
-		last_vmode = cur_vmode;
-	}
-
-	return 0;
-}
-
-static void aml_tvout_mode_work(struct work_struct *work)
-{
-	if (tvout_monitor_timeout_cnt-- == 0) {
-		tvout_monitor_flag = 0;
-		VOUTPR("%s: monitor_timeout\n", __func__);
-		return;
-	}
-
-	mutex_lock(&vout_serve_mutex);
-	refresh_tvout_mode();
-	mutex_unlock(&vout_serve_mutex);
-
-	if (tvout_monitor_flag)
-		schedule_delayed_work(&tvout_mode_work, (1 * HZ / 2));
-	else
-		VOUTPR("%s: monitor stop\n", __func__);
-}
-
-static void aml_tvout_mode_monitor(void)
-{
-	if (vout_init_vmode != VMODE_HDMI &&
-	    vout_init_vmode != VMODE_CVBS &&
-	    vout_init_vmode != VMODE_NULL &&
-	    vout_init_vmode != VMODE_INVALID)
-		return;
-
-	pr_debug("%s\n", __func__);
-	last_vmode = vout_init_vmode;
-	tvout_monitor_flag = 1;
-	INIT_DELAYED_WORK(&tvout_mode_work, aml_tvout_mode_work);
-
-	mutex_lock(&vout_serve_mutex);
-	refresh_tvout_mode();
-	mutex_unlock(&vout_serve_mutex);
-
-	schedule_delayed_work(&tvout_mode_work, (1 * HZ / 2));
-}
-
 /*****************************************************************
  **
  **	vout driver interface
@@ -922,8 +823,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 	vout_register_server(&nulldisp_vout_server);
 	set_vout_init_mode();
-
-	aml_tvout_mode_monitor();
 
 	VOUTPR("%s OK\n", __func__);
 	return ret;
@@ -1067,24 +966,6 @@ static int get_vout_init_mode(char *str)
 	return 0;
 }
 __setup("vout=", get_vout_init_mode);
-
-static int get_hdmi_mode(char *str)
-{
-	snprintf(hdmimode, VMODE_NAME_LEN_MAX, "%s", str);
-
-	VOUTPR("get hdmimode: %s\n", hdmimode);
-	return 0;
-}
-__setup("hdmimode=", get_hdmi_mode);
-
-static int get_cvbs_mode(char *str)
-{
-	snprintf(cvbsmode, VMODE_NAME_LEN_MAX, "%s", str);
-
-	VOUTPR("get cvbsmode: %s\n", cvbsmode);
-	return 0;
-}
-__setup("cvbsmode=", get_cvbs_mode);
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT Server Module");
