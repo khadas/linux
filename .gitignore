@@ -136,3 +136,7 @@ all.config
 
 # Kdevelop4
 *.kdev4
+/kernel/configs/android-10-go.config
+/kernel/configs/android-10.config
+/kernel/configs/rk3326.config
+/kernel/configs/rk3399.config
