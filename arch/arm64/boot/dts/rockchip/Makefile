@@ -58,3 +58,5 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp-avb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1030g-avb.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-khadas-edge-android.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-khadas-edge.dtb

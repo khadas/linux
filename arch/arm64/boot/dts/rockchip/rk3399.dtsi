@@ -683,7 +683,7 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart0_xfer>;
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -722,7 +722,7 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart3_xfer>;
+		pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";
 	};
 
@@ -749,7 +749,7 @@
 		pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
+		status = "okay";	
 	};
 
 	spi2: spi@ff1e0000 {
@@ -1745,7 +1745,7 @@
 		clock-names = "mclk", "hclk";
 		clocks = <&cru SCLK_SPDIF_8CH>, <&cru HCLK_SPDIF>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spdif_bus>;
+		pinctrl-0 = <&spdif_bus_1>;
 		power-domains = <&power RK3399_PD_SDIOAUDIO>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
@@ -2041,7 +2041,7 @@
 		rockchip,grf = <&grf>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_i2c_xfer>;
+		pinctrl-0 = <&hdmi_i2c_xfer &hdmi_cec>;
 		status = "disabled";
 
 		ports {
@@ -3072,6 +3072,10 @@
 		};
 
 		pcie {
+			pcie_clkreqn: pci-clkreqn {
+				rockchip,pins =
+					<2 26 RK_FUNC_2 &pcfg_pull_none>;
+			};
 			pcie_clkreqn_cpm: pci-clkreqn-cpm {
 				rockchip,pins =
 					<2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;

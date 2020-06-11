@@ -74,36 +74,6 @@
 		default-brightness-level = <200>;
 	};
 
-	es8316-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,es8316-codec";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Microphone", "Mic Jack",
-			"Headphone", "Headphone Jack";
-		simple-audio-card,routing =
-			"Mic Jack", "MICBIAS1",
-			"IN1P", "Mic Jack",
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s0>;
-			system-clock-frequency = <11289600>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&es8316>;
-			system-clock-frequency = <11289600>;
-		};
-	};
-
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		io-channels = <&saradc 2>;
-	};
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
@@ -127,7 +97,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
 	vcc_sys: vcc-sys {
@@ -150,7 +120,7 @@
 
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc5v0_host";
@@ -325,62 +295,6 @@
 	status = "disabled";
 };
 
-&dsi {
-	status = "okay";
-	rockchip,lane-rate = <1000>;
-	dsi_panel: panel@0 {
-		status = "okay";
-		compatible = "simple-panel-dsi";
-		reg = <0>;
-		backlight = <&backlight>;
-		reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_rst_gpio>;
-		reset-delay-ms = <60>;
-		enable-delay-ms = <60>;
-		prepare-delay-ms = <60>;
-		unprepare-delay-ms = <60>;
-		disable-delay-ms = <60>;
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
-		dsi,format = <MIPI_DSI_FMT_RGB888>;
-		dsi,lanes  = <4>;
-		panel-init-sequence = [
-			15 05 02 8F A5
-			15 14 02 01 00
-			15 05 02 8F A5
-			15 00 02 83 AA
-			15 00 02 84 11
-			15 00 02 A9 4B
-			15 00 02 83 00
-			15 00 02 84 00
-			15 00 02 8F 00
-		];
-
-		disp_timings: display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <150000000>;
-				hactive = <1200>;
-				hfront-porch = <80>;
-				hback-porch = <60>;
-				hsync-len = <1>;
-				vactive = <1920>;
-				vfront-porch = <35>;
-				vback-porch = <25>;
-				vsync-len = <1>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-	};
-};
-
-&dsi_in_vopl {
-	status = "disabled";
-};
 
 &emmc_phy {
 	status = "okay";
@@ -400,13 +314,12 @@
 };
 
 &hdmi_in_vopb {
-	status = "disabled";
-};
-
-&i2c0 {
 	status = "okay";
-	i2c-scl-rising-time-ns = <180>;
-	i2c-scl-falling-time-ns = <30>;
+};
+&i2c4 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <475>;
+	i2c-scl-falling-time-ns = <26>;
 	clock-frequency = <400000>;
 
 	vdd_cpu_b: syr837@40 {
@@ -414,8 +327,9 @@
 		reg = <0x40>;
 		vin-supply = <&vcc_sys>;
 		regulator-compatible = "fan53555-reg";
+		pinctrl-names = "default";
 		pinctrl-0 = <&vsel1_gpio>;
-		vsel-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		vsel-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vdd_cpu_b";
 		regulator-min-microvolt = <712500>;
 		regulator-max-microvolt = <1500000>;
@@ -434,8 +348,9 @@
 		reg = <0x41>;
 		vin-supply = <&vcc_sys>;
 		regulator-compatible = "fan53555-reg";
+		pinctrl-names = "default";
 		pinctrl-0 = <&vsel2_gpio>;
-		vsel-gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+		vsel-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vdd_gpu";
 		regulator-min-microvolt = <735000>;
 		regulator-max-microvolt = <1400000>;
@@ -452,7 +367,8 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
 		wakeup-source;
@@ -616,6 +532,18 @@
 			};
 		};
 	};
+
+	fusb1: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		//fusb302,role="ROLE_MODE_UFP";
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb1_int>;
+		int-n-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		support-uboot-charge = <1>;
+		port-num = <1>;
+		status = "okay";
+	};
 };
 
 &i2c1 {
@@ -623,17 +551,6 @@
 	i2c-scl-rising-time-ns = <140>;
 	i2c-scl-falling-time-ns = <30>;
 
-	es8316: es8316@11 {
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8316";
-		reg = <0x11>;
-		clocks = <&cru SCLK_I2S_8CH_OUT>;
-		clock-names = "mclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s_8ch_mclk>;
-		spk-con-gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
-		extcon = <&rk_headset>;
-	};
 };
 
 &i2c4 {
@@ -684,21 +601,7 @@
 		divider_res1 = <200>;
 		divider_res2 = <200>;
 	};
-
-	fusb0: fusb30x@22 {
-		compatible = "fairchild,fusb302";
-		reg = <0x22>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&fusb0_int>;
-		vbus-5v-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
-		int-n-gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
-		discharge-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-		charge-dev = <&bq25700>;
-		support-uboot-charge = <1>;
-		port-num = <0>;
-		status = "okay";
-	};
-
+	
 	kxtj: kxtj2@0e {
 		status = "okay";
 		compatible = "gs_kxtj9";
@@ -711,7 +614,7 @@
 		poll_delay_ms = <30>;
 		power-off-in-suspend = <1>;
 		layout = <5>;
-	};
+	};	
 };
 
 &i2c5 {
@@ -732,6 +635,28 @@
 		tp-size = <80>;
 		tp-supply = <&vcc3v0_tp>;
 		status = "okay";
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <475>;
+	i2c-scl-falling-time-ns = <26>;
+	
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		vbus-5v-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	mcu: mcu@18 {
+		compatible = "khadas-mcu";
+		status = "okay";
+		reg = <0x18>;
 	};
 };
 
@@ -775,17 +700,13 @@
 
 	fusb30x {
 		fusb0_int: fusb0-int {
-			rockchip,pins =
-				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
-			};
-	};
-
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fusb1_int: fusb1-int {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
 
 	kxtj2 {
 		kxtj2_irq_gpio: kxtj2-irq-gpio {
@@ -793,24 +714,24 @@
 		};
 	};
 
-	lcd_rst {
-		lcd_rst_gpio: lcd-rst-gpio {
-			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
+			
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
-				<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 22 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		pmic_dvs2: pmic-dvs2 {
+			rockchip,pins =
+				<1 19 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 		vsel1_gpio: vsel1-gpio {
 			rockchip,pins =
-				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>;
+				<1 13 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 		vsel2_gpio: vsel2-gpio {
 			rockchip,pins =
-				<1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>;
+				<0 13 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -825,19 +746,35 @@
 			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
-
+	
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
-			rockchip,pins = <2 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins =
+				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+	
+	vcc_sd {
+		vcc_sd_h: vcc-sd-h {
+			rockchip,pins =
+				<0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins =
+				<2 28 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 };
 
 &pmu_io_domains {
@@ -880,14 +817,10 @@
 		)
 	>;
 	rockchip,power-ctrl =
-		<&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>,
-		<&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+		<&gpio0 13 GPIO_ACTIVE_HIGH>,
+		<&gpio1 13 GPIO_ACTIVE_HIGH>;
 };
 
-&route_dsi {
-	status = "okay";
-	logo,mode = "center";
-};
 
 &saradc {
 	status = "okay";
@@ -982,11 +915,11 @@
 
 &usbdrd3_0 {
 	status = "okay";
+	extcon = <&fusb0>;
 };
 
 &usbdrd_dwc3_0 {
 	status = "okay";
-	extcon = <&fusb0>;
 };
 
 &vopb {

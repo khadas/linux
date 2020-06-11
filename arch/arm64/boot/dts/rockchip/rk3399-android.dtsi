@@ -115,6 +115,20 @@
 		};
 	};
 
+	rk_key: rockchip-key {
+		compatible = "rockchip,key";
+		status = "okay";
+
+		io-channels = <&saradc 1>;
+
+		home-key {
+			linux,code = <102>;
+			label = "home";
+			rockchip,adc_value = <70>;
+		};
+
+	};
+	
 	rga: rga@ff680000 {
 		compatible = "rockchip,rga2";
 		dev_mode = <1>;

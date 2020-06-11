@@ -91,7 +91,7 @@
 			opp-microvolt = <1125000 1125000 1250000>;
 			opp-microvolt-L0 = <1125000 1125000 1250000>;
 			opp-microvolt-L1 = <1100000 1100000 1250000>;
-			opp-microvolt-L2 = <1075000 1075000 1200000>;
+			opp-microvolt-L2 = <1075000 1075000 1250000>;
 			opp-microvolt-L3 = <1050000 1050000 1250000>;
 			clock-latency-ns = <40000>;
 		};
