@@ -650,6 +650,14 @@ config VIDEO_IMX274
 	  This is a V4L2 sensor driver for the Sony IMX274
 	  CMOS image sensor.
 
+config VIDEO_IMX214
+        tristate "Sony imx214 sensor support"
+        depends on VIDEO_V4L2 && I2C
+        depends on MEDIA_CAMERA_SUPPORT
+        select V4L2_FWNODE
+        help
+          This driver supports IMX214 cameras from Sony
+	  
 config VIDEO_IMX317
         tristate "Sony IMX317 sensor support"
         depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
