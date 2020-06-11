@@ -53,7 +53,7 @@ struct evl_monitor_state {
 };
 
 struct evl_monitor_waitreq {
-	__u64 timeout_ptr;	/* (struct __evl_timespec *timeout) */
+	__u64 timeout_ptr;	/* (struct __evl_timespec __user *timeout) */
 	__s32 gatefd;
 	__s32 status;
 	__s32 value;

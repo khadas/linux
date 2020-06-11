@@ -31,8 +31,8 @@ struct evl_poll_event {
 };
 
 struct evl_poll_waitreq {
-	__u64 timeout_ptr;	/* (struct __evl_timespec *timeout) */
-	__u64 pollset_ptr;	/* (struct evl_poll_event *pollset) */
+	__u64 timeout_ptr;	/* (struct __evl_timespec __user *timeout) */
+	__u64 pollset_ptr;	/* (struct evl_poll_event __user *pollset) */
 	int nrset;
 };
 
