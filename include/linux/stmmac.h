@@ -27,7 +27,7 @@
 #define __STMMAC_PLATFORM_DATA
 
 #include <linux/platform_device.h>
-
+#include <linux/wakelock.h>
 #define MTL_MAX_RX_QUEUES	8
 #define MTL_MAX_TX_QUEUES	8
 #define STMMAC_CH_MAX		8
@@ -194,5 +194,11 @@ struct plat_stmmacenet_data {
 	int mac_port_sel_speed;
 	bool en_tx_lpi_clockgating;
 	int has_xgmac;
+	int wolirq_io;
+	int wolirq_io_level;
+	int wol_irq;
+	struct wake_lock wol_wake_lock;
+	int wol_suspended;
+	int wol_suspend_count;	
 };
 #endif

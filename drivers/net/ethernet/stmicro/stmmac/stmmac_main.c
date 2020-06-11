@@ -54,6 +54,9 @@
 #include "dwmac1000.h"
 #include "dwxgmac2.h"
 #include "hwif.h"
+#include <linux/interrupt.h>
+#include <linux/gpio.h>
+#include <linux/rk_keys.h>
 
 #define	STMMAC_ALIGN(x)		ALIGN(ALIGN(x, SMP_CACHE_BYTES), 16)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
@@ -2605,6 +2608,27 @@ static void stmmac_hw_teardown(struct net_device *dev)
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
 }
 
+static irqreturn_t wol_io_isr(int irq, void *dev_id)
+{
+   struct net_device *dev = (struct net_device *)dev_id;
+   struct stmmac_priv *priv = netdev_priv(dev);
+
+   if (1 == priv->plat->wol_suspend_count || 0 == priv->plat->wol_suspended)
+   {
+       printk("%s: WOL wakeup!\n", __func__);
+       rk_send_power_key(1);
+       rk_send_power_key(0);
+   }
+   else
+   {
+       priv->plat->wol_suspended = 0;
+   }
+
+// wake_lock_timeout(&priv->plat->wol_wake_lock, msecs_to_jiffies(8000));
+
+   return IRQ_HANDLED;
+}
+
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -2700,6 +2724,28 @@ static int stmmac_open(struct net_device *dev)
 		}
 	}
 
+	if (priv->plat->wolirq_io > 0) {
+		ret = devm_gpio_request(priv->device, priv->plat->wolirq_io, "gmac_wol_io");
+		if (ret) {
+			pr_err("%s: ERROR: failed to request WOL GPIO %d, err: %d\n",
+											__func__, priv->plat->wolirq_io, ret);
+			goto lpiirq_error;
+		}
+
+		priv->plat->wol_irq = gpio_to_irq(priv->plat->wolirq_io);
+		ret = devm_request_irq(priv->device, priv->plat->wol_irq, wol_io_isr,
+									IRQF_TRIGGER_FALLING, "gmac_wol_io_irq", dev);
+		if (ret) {
+			pr_err("%s: ERROR: request wol io irq fail: %d", __func__, ret);
+			devm_gpio_free(priv->device, priv->plat->wolirq_io);
+			goto lpiirq_error;
+		}
+		disable_irq(priv->plat->wol_irq);
+		enable_irq_wake(priv->plat->wol_irq);
+	}
+
+	priv->plat->wol_suspend_count = 0;
+	priv->plat->wol_suspended = 0;
 	stmmac_enable_all_queues(priv);
 	stmmac_start_all_queues(priv);
 
@@ -2761,6 +2807,11 @@ static int stmmac_release(struct net_device *dev)
 	if (priv->lpi_irq > 0)
 		free_irq(priv->lpi_irq, dev);
 
+	if (priv->plat->wol_irq > 0)
+		devm_free_irq(priv->device, priv->plat->wol_irq, dev);
+
+	if (priv->plat->wolirq_io > 0)
+		devm_gpio_free(priv->device, priv->plat->wolirq_io);
 	/* Stop TX/RX DMA and clear the descriptors */
 	stmmac_stop_all_dma(priv);
 
@@ -4552,6 +4603,10 @@ int stmmac_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	u32 chan;
 
+	priv->plat->wol_suspended = 1;
+	priv->plat->wol_suspend_count++;
+
+	enable_irq(priv->plat->wol_irq);
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
@@ -4629,6 +4684,9 @@ int stmmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	priv->plat->wol_suspended = 0;
+	disable_irq(priv->plat->wol_irq);
 
 	if (!netif_running(ndev))
 		return 0;
