@@ -98,6 +98,7 @@ int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
 	sync_work->result = -EINVAL;
 
 	if (unlikely(running_inband())) {
+		EVL_WARN_ON(CORE, irqs_disabled());
 		evl_call_inband_from(work, wq);
 		flush_work(&work->wq_work);
 		return sync_work->result;
