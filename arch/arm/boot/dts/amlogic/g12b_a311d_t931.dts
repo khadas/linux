@@ -757,20 +757,21 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx227"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
-		pinctrl-0=<&clk12_24_z_pins>;
+		pinctrl-0=<&clk12_24_ao_pins>;
 		clocks = <&clkc CLKID_24M>;
 		clock-names = "g12a_24m";
-		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
-				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOZ_0 GPIO_ACTIVE_HIGH>;
+		vana-enable = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+		vdig-enable = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		mlb-enable = <&gpio GPIOZ_11  GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx227"; /*imx290;os08a10;imx227*/
 	};
 }; /* end of / */
 
@@ -829,6 +830,15 @@
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 
+	sensor-i2c@36 {
+		compatible = "arm, i2c-sensor";
+		reg = <0x36>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 	/* for ref board */
 	ad82584f_62: ad82584f_62@62 {
 		compatible = "ESMT, ad82584f";
@@ -956,20 +966,21 @@
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins",
 				"spdif_pins_mute";
-		pinctrl-0 = <&spdifout>;
-		pinctrl-1 = <&spdifout_a_mute>;
+//		pinctrl-0 = <&spdifout>;
+//		pinctrl-1 = <&spdifout_a_mute>;
 		status = "okay";
 	};
 	aml_spdif_b: spdif_b {
 		compatible = "amlogic, g12a-snd-spdif-b";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL0 /*CLKID_HIFI_PLL*/
+		clocks = <&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUTB
 				&clkaudio CLKID_AUDIO_SPDIFOUTB_CTRL>;
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 		status = "disabled";
 	};
+
 	aml_pdm: pdm {
 		compatible = "amlogic, g12a-snd-pdm";
 		#sound-dai-cells = <0>;
@@ -984,8 +995,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
-		filter_mode = <1>; /* mode 0~4, defalut:1 */
+	//	pinctrl-0 = <&pdmin>;
+		filter_mode = <1>;
 		status = "okay";
 	};
 
@@ -1165,25 +1176,23 @@
 	};
 
 	/* GPIOH_4 */
-	/*
-	 * spdifout: spdifout {
-	 *	mux {
-	 *		groups = "spdif_out_h";
-	 *		function = "spdif_out";
-	 *	};
-	 *};
-	 */
+// spdifout: spdifout {
+//	mux {
+//		groups = "spdif_out_h";
+//		function = "spdif_out";
+//	};
+// };
 
-	pdmin: pdmin {
-		mux { /* gpioa_5, gpioa_6, gpioa_7, gpioa_8, gpioa_9*/
-			groups = "pdm_din0_a",
-			/*"pdm_din1_a",*/
-			"pdm_din2_a",
-			/*"pdm_din3_a",*/
-			"pdm_dclk_a";
-			function = "pdm";
-		};
-	};
+//	pdmin: pdmin {
+//		mux { /* gpioa_5, gpioa_6, gpioa_7, gpioa_8, gpioa_9*/
+//			groups = "pdm_din0_a",
+//			/*"pdm_din1_a",*/
+//			"pdm_din2_a",
+//			/*"pdm_din3_a",*/
+//			"pdm_dclk_a";
+//			function = "pdm";
+//		};
+//	};
 
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
@@ -1203,19 +1212,28 @@
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
-	spdifout: spdifout {
-		mux { /* gpiao_10 */
-			groups = "spdif_out_ao";
-			function = "spdif_out_ao";
-		};
+	/* gpiao_10 */
+	clk12_24_ao_pins:clk12_24_ao_pins {
+		 mux {
+			 groups = "clk12_24_ao";
+			 function = "clk12_24_ao";
+			 driver-strength = <3>;
+		 };
 	};
-
-	spdifout_a_mute: spdifout_a_mute {
-		mux { /* gpiao_10 */
-			groups = "GPIOAO_10";
-			function = "gpio_aobus";
-		};
-	};
+	/* gpiao_10 */
+//	spdifout: spdifout {
+//		mux {
+//			groups = "spdif_out_ao";
+//			function = "spdif_out_ao";
+//		};
+//	};
+	/* gpiao_10 */
+//	spdifout_a_mute: spdifout_a_mute {
+//		mux {
+//			groups = "GPIOAO_10";
+//			function = "gpio_aobus";
+//		};
+//	};
 };  /* end of pinctrl_aobus */
 
 &irblaster {
