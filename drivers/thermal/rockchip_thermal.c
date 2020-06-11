@@ -1490,6 +1490,24 @@ static void rockchip_dump_temperature(struct rockchip_thermal_data *thermal)
 			       32, 4, thermal->regs, 0x88, false);
 	}
 }
+static struct platform_device *thermal_device;
+void rockchip_get_cpu_temperature(int *out_temp)
+{
+	struct rockchip_thermal_data *thermal;
+	struct platform_device *pdev;
+	struct rockchip_thermal_sensor *sensor;
+
+	if (!thermal_device)
+		return;
+
+	pdev = thermal_device;
+	thermal = platform_get_drvdata(pdev);
+
+	sensor = &thermal->sensors[0];
+
+	rockchip_thermal_get_temp(sensor, out_temp);
+}
+EXPORT_SYMBOL_GPL(rockchip_get_cpu_temperature);
 
 static int rockchip_thermal_panic(struct notifier_block *this,
 				  unsigned long ev, void *ptr)
@@ -1635,6 +1653,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, thermal);
 
 	thermal->panic_nb.notifier_call = rockchip_thermal_panic;
+	thermal_device = pdev;
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &thermal->panic_nb);
 
