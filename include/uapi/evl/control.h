@@ -31,7 +31,7 @@ struct evl_core_info {
 
 struct evl_cpu_state {
 	__u32 cpu;
-	__u64 state_ptr;	/* (__u32 *state) */
+	__u64 state_ptr;	/* (__u32 __user *state) */
 };
 
 #define EVL_CONTROL_IOCBASE	'C'

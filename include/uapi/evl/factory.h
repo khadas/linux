@@ -29,8 +29,8 @@ struct evl_element_ids {
 #define EVL_CLONE_MASK		(((__u32)-1 << 16) & ~EVL_CLONE_COREDEV)
 
 struct evl_clone_req {
-	__u64 name_ptr;		/* (const char *name) */
-	__u64 attrs_ptr;	/* (void *attrs) */
+	__u64 name_ptr;		/* (const char __user *name) */
+	__u64 attrs_ptr;	/* (void __user *attrs) */
 	__u32 clone_flags;
 	/* Output on success: */
 	struct evl_element_ids eids;
