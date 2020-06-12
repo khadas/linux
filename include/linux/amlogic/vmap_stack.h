@@ -82,4 +82,5 @@ extern void  aml_account_task_stack(struct task_struct *tsk, int account);
 #ifdef CONFIG_ARM
 extern int   on_irq_stack(unsigned long sp, int cpu);
 #endif
+extern struct page *check_pte_exist(unsigned long addr);
 #endif /* __VMAP_STACK_H__ */
