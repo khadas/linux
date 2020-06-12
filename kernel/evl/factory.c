@@ -799,7 +799,7 @@ static void delete_element_class(struct evl_factory *fac)
 	bitmap_free(fac->minor_map);
 }
 
-static int create_factory(struct evl_factory *fac, dev_t rdev)
+int evl_create_factory(struct evl_factory *fac, dev_t rdev)
 {
 	const char *idevname = "clone"; /* Initial device in factory. */
 	struct device *dev = NULL;
@@ -846,8 +846,9 @@ fail_cdev:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(evl_create_factory);
 
-static void delete_factory(struct evl_factory *fac)
+void evl_delete_factory(struct evl_factory *fac)
 {
 	struct device *dev = fac->dev;
 
@@ -859,6 +860,7 @@ static void delete_factory(struct evl_factory *fac)
 	if (!(fac->flags & EVL_FACTORY_SINGLE))
 		delete_element_class(fac);
 }
+EXPORT_SYMBOL_GPL(evl_delete_factory);
 
 static char *evl_devnode(struct device *dev, umode_t *mode)
 {
@@ -866,12 +868,12 @@ static char *evl_devnode(struct device *dev, umode_t *mode)
 }
 
 static int __init
-create_factories(struct evl_factory **factories, int nr)
+create_core_factories(struct evl_factory **factories, int nr)
 {
 	int ret, n;
 
 	for (n = 0; n < nr; n++) {
-		ret = create_factory(factories[n],
+		ret = evl_create_factory(factories[n],
 				MKDEV(MAJOR(factory_rdev), n));
 		if (ret)
 			goto fail;
@@ -880,18 +882,18 @@ create_factories(struct evl_factory **factories, int nr)
 	return 0;
 fail:
 	while (n-- > 0)
-		delete_factory(factories[n]);
+		evl_delete_factory(factories[n]);
 
 	return ret;
 }
 
 static void __init
-remove_factories(struct evl_factory **factories, int nr)
+delete_core_factories(struct evl_factory **factories, int nr)
 {
 	int n;
 
 	for (n = 0; n < nr; n++)
-		delete_factory(factories[n]);
+		evl_delete_factory(factories[n]);
 }
 
 int __init evl_early_init_factories(void)
@@ -911,7 +913,7 @@ int __init evl_early_init_factories(void)
 		return ret;
 	}
 
-	ret = create_factories(early_factories,
+	ret = create_core_factories(early_factories,
 			ARRAY_SIZE(early_factories));
 	if (ret) {
 		unregister_chrdev_region(factory_rdev, NR_FACTORIES);
@@ -923,18 +925,18 @@ int __init evl_early_init_factories(void)
 
 void __init evl_early_cleanup_factories(void)
 {
-	remove_factories(early_factories, ARRAY_SIZE(early_factories));
+	delete_core_factories(early_factories, ARRAY_SIZE(early_factories));
 	unregister_chrdev_region(factory_rdev, NR_FACTORIES);
 	class_destroy(evl_class);
 }
 
 int __init evl_late_init_factories(void)
 {
-	return create_factories(factories, ARRAY_SIZE(factories));
+	return create_core_factories(factories, ARRAY_SIZE(factories));
 }
 
 void __init evl_cleanup_factories(void)
 {
-	remove_factories(factories, ARRAY_SIZE(factories));
+	delete_core_factories(factories, ARRAY_SIZE(factories));
 	evl_early_cleanup_factories();
 }
