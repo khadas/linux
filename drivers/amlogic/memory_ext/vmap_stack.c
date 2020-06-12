@@ -261,7 +261,7 @@ static struct page *get_vmap_cached_page(int *remain)
 	return page;
 }
 
-static struct page *check_pte_exist(unsigned long addr)
+struct page *check_pte_exist(unsigned long addr)
 {
 	struct mm_struct *mm;
 	pgd_t *pgd;
