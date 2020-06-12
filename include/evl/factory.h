@@ -188,6 +188,10 @@ static inline void evl_unindex_factory_element(struct evl_element *e)
 	evl_unindex_element(&e->factory->index, e);
 }
 
+int evl_create_factory(struct evl_factory *fac, dev_t rdev);
+
+void evl_delete_factory(struct evl_factory *fac);
+
 int evl_early_init_factories(void);
 
 void evl_early_cleanup_factories(void);
