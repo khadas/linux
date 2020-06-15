@@ -717,6 +717,8 @@ struct ge2d_event_s {
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
 	struct semaphore cmd_in_sem;
+	/* for destroy context */
+	struct mutex destroy_lock;
 };
 
 struct ge2d_manager_s {

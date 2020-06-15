@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -388,6 +389,11 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	int ret = 0, i = 0;
 	unsigned int block_mode;
 	int timeout = 0;
+
+	if (!wq) {
+		ge2d_log_err("wq is null\n");
+		return ret;
+	}
 	if (wq->ge2d_request_exit)
 		goto exit;
 	ge2d_manager.ge2d_state = GE2D_STATE_RUNNING;
@@ -465,15 +471,15 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				break;
 			}
 		}
+		spin_lock(&wq->lock);
+		pos = pos->next;
+		list_move_tail(&pitem->list, &wq->free_queue);
+		spin_unlock(&wq->lock);
 		/* if block mode (cmd) */
 		if (block_mode) {
 			pitem->cmd.wait_done_flag = 0;
 			wake_up_interruptible(&wq->cmd_complete);
 		}
-		spin_lock(&wq->lock);
-		pos = pos->next;
-		list_move_tail(&pitem->list, &wq->free_queue);
-		spin_unlock(&wq->lock);
 		/* if dma buf detach it */
 		for (i = 0; i < MAX_PLANE; i++) {
 			if (pitem->config.src_dma_cfg[i].dma_used) {
@@ -499,9 +505,12 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	} while (pos != head);
 	ge2d_manager.last_wq = wq;
 exit:
-	if (wq->ge2d_request_exit)
+	mutex_lock(&ge2d_manager.event.destroy_lock);
+	if (wq && wq->ge2d_request_exit)
 		complete(&ge2d_manager.event.process_complete);
 	ge2d_manager.ge2d_state = GE2D_STATE_IDLE;
+	mutex_unlock(&ge2d_manager.event.destroy_lock);
+
 	return ret;
 }
 
@@ -2575,9 +2584,12 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 		list_del(&ge2d_work_queue->list);
 		empty = list_empty(&ge2d_manager.process_queue);
 		spin_unlock(&ge2d_manager.event.sem_lock);
+
+		mutex_lock(&ge2d_manager.event.destroy_lock);
 		if ((ge2d_manager.current_wq == ge2d_work_queue) &&
 		    (ge2d_manager.ge2d_state == GE2D_STATE_RUNNING)) {
 			ge2d_work_queue->ge2d_request_exit = 1;
+			mutex_unlock(&ge2d_manager.event.destroy_lock);
 			timeout = wait_for_completion_timeout(
 					&ge2d_manager.event.process_complete,
 					msecs_to_jiffies(500));
@@ -2585,7 +2597,10 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 				ge2d_log_err("wait timeout\n");
 			/* condition so complex ,simplify it . */
 			ge2d_manager.last_wq = NULL;
-		} /* else we can delete it safely. */
+		} else {
+			mutex_unlock(&ge2d_manager.event.destroy_lock);
+		}
+		/* we can delete it safely. */
 
 		head = &ge2d_work_queue->work_queue;
 		list_for_each_entry_safe(pitem, tmp, head, list) {
@@ -2637,6 +2652,7 @@ int ge2d_wq_init(struct platform_device *pdev,
 	init_waitqueue_head(&ge2d_manager.event.cmd_complete);
 	init_completion(&ge2d_manager.event.process_complete);
 	INIT_LIST_HEAD(&ge2d_manager.process_queue);
+	mutex_init(&ge2d_manager.event.destroy_lock);
 	ge2d_manager.last_wq = NULL;
 	ge2d_manager.ge2d_thread = NULL;
 	ge2d_manager.buffer = ge2d_dma_buffer_create();
