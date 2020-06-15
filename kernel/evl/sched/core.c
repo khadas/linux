@@ -262,6 +262,12 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 	struct evl_sched_class *sched_class = thread->sched_class;
 	struct evl_rq *src_rq = thread->rq;
 
+	/*
+	 * check_cpu_affinity() might ask us to move @thread to a CPU
+	 * which is not part of the oob set due to a spurious
+	 * migration, this is ok. The offending thread would exit
+	 * shortly after resuming.
+	 */
 	evl_double_rq_lock(src_rq, dst_rq);
 
 	if (thread->state & T_READY) {
@@ -309,32 +315,31 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *dst_rq)
 	evl_reset_account(&thread->stat.lastperiod);
 }
 
-static bool check_cpu_affinity(struct task_struct *p) /* inband, oob stage stalled */
+static void check_cpu_affinity(struct task_struct *p) /* inband, oob stage stalled */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 	int cpu = task_cpu(p);
 	struct evl_rq *rq = evl_cpu_rq(cpu);
-	bool ret = true;
 
 	evl_spin_lock(&thread->lock);
 
+	if (likely(rq == thread->rq))
+		goto out;
+
 	/*
-	 * To maintain consistency between both the EVL and in-band
-	 * schedulers, reflecting a thread migration to another CPU
-	 * into EVL's scheduler state must happen from in-band context
-	 * only, on behalf of the migrated thread itself once it runs
-	 * on the target CPU.
+	 * Resync the EVL and in-band schedulers upon migration from
+	 * an EVL thread, which can only happen from the in-band stage
+	 * (no CPU migration from the oob stage is possible). In such
+	 * an event, the CPU information kept by the EVL scheduler for
+	 * that thread has become obsolete.
 	 *
-	 * This means that the EVL scheduler state regarding the CPU
-	 * information lags behind the in-band scheduler state until
-	 * the migrated thread switches back to OOB context
-	 * (i.e. task_cpu(p) !=
-	 * evl_rq_cpu(evl_thread_from_task(p)->rq)).  This is ok since
-	 * EVL will not schedule such thread until then.
-	 *
-	 * check_cpu_affinity() detects when a EVL thread switching back to
-	 * OOB context did move to another CPU earlier while running
-	 * in-band. If so, do the fixups to reflect the change.
+	 * check_cpu_affinity() detects this when the EVL thread is in
+	 * flight to the oob stage. If the new CPU is not part of the
+	 * oob set, mark the thread for pending cancellation but
+	 * update the scheduler information nevertheless. Although
+	 * some CPUs might be excluded from the oob set, all of them
+	 * are capable of scheduling threads nevertheless (i.e. all
+	 * runqueues are up and running).
 	 */
 	if (unlikely(!is_threading_cpu(cpu))) {
 		printk(EVL_WARNING "thread %s[%d] switched to non-rt CPU%d, aborted.\n",
@@ -342,32 +347,26 @@ static bool check_cpu_affinity(struct task_struct *p) /* inband, oob stage stall
 		/*
 		 * Can't call evl_cancel_thread() from a CPU migration
 		 * point, that would break. Since we are on the wakeup
-		 * path to OOB context, just raise T_CANCELD to catch
+		 * path to oob context, just raise T_CANCELD to catch
 		 * it in evl_switch_oob().
 		 */
 		evl_spin_lock(&thread->rq->lock);
 		thread->info |= T_CANCELD;
 		evl_spin_unlock(&thread->rq->lock);
-		ret = false;
-		goto out;
+	} else {
+		/*
+		 * If the current thread moved to a supported
+		 * out-of-band CPU, which is not part of its original
+		 * affinity mask, assume user wants to extend this
+		 * mask.
+		 */
+		if (!cpumask_test_cpu(cpu, &thread->affinity))
+			cpumask_set_cpu(cpu, &thread->affinity);
 	}
-
-	if (likely(rq == thread->rq))
-		goto out;
-
-	/*
-	 * If the current thread moved to a supported out-of-band CPU,
-	 * which is not part of its original affinity mask, assume
-	 * user wants to extend this mask.
-	 */
-	if (!cpumask_test_cpu(cpu, &thread->affinity))
-		cpumask_set_cpu(cpu, &thread->affinity);
 
 	evl_migrate_thread(thread, rq);
 out:
 	evl_spin_unlock(&thread->lock);
-
-	return ret;
 }
 
 #else
@@ -377,10 +376,8 @@ out:
 
 #define evl_double_rq_unlock(__rq1, __rq2)  do { } while (0)
 
-static inline bool check_cpu_affinity(struct task_struct *p)
-{
-	return true;
-}
+static inline void check_cpu_affinity(struct task_struct *p)
+{ }
 
 #endif	/* CONFIG_SMP */
 
@@ -999,9 +996,8 @@ void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
 	 * If T_PTSTOP is set, pick_next_thread() is not allowed to
 	 * freeze @thread while in flight to the out-of-band stage.
 	 */
-	if (check_cpu_affinity(p))
-		evl_release_thread(thread, T_INBAND, 0);
-
+	check_cpu_affinity(p);
+	evl_release_thread(thread, T_INBAND, 0);
 	evl_schedule();
 }
 
@@ -1038,11 +1034,18 @@ int evl_switch_oob(void)
 	 * runqueue lock and the oob stage must be stalled.
 	 */
 	oob_context_only();
+
 	finish_rq_switch_from_inband();
 
-	evl_test_cancel();
-
 	trace_evl_switched_oob(curr);
+
+	/*
+	 * In case check_cpu_affinity() caught us resuming oob from a
+	 * wrong CPU (i.e. outside of the oob set), we have T_CANCELD
+	 * set. Check and bail out if so.
+	 */
+	if (curr->info & T_CANCELD)
+		evl_test_cancel();
 
 	/*
 	 * Since handle_sigwake_event()->evl_kick_thread() won't set
