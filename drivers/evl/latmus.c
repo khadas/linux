@@ -63,6 +63,7 @@ struct latmus_runner {
 	void (*set_gravity)(struct latmus_runner *runner, unsigned int gravity);
 	unsigned int (*adjust_gravity)(struct latmus_runner *runner, int adjust);
 	int (*start)(struct latmus_runner *runner, ktime_t start_time);
+	void (*stop)(struct latmus_runner *runner);
 	void (*destroy)(struct latmus_runner *runner);
 	int (*add_sample)(struct latmus_runner *runner, ktime_t timestamp);
 	int (*run)(struct latmus_runner *runner, struct latmus_result *result);
@@ -292,6 +293,15 @@ static int start_irq_runner(struct latmus_runner *runner,
 	return 0;
 }
 
+static void stop_irq_runner(struct latmus_runner *runner)
+{
+	struct irq_runner *irq_runner;
+
+	irq_runner = container_of(runner, struct irq_runner, runner);
+
+	evl_stop_timer(&irq_runner->timer);
+}
+
 static struct latmus_runner *create_irq_runner(int cpu)
 {
 	struct irq_runner *irq_runner;
@@ -307,6 +317,7 @@ static struct latmus_runner *create_irq_runner(int cpu)
 		.set_gravity = set_irq_gravity,
 		.adjust_gravity = adjust_irq_gravity,
 		.start = start_irq_runner,
+		.stop = stop_irq_runner,
 	};
 
 	init_runner_base(&irq_runner->runner);
@@ -366,6 +377,15 @@ static int start_sirq_runner(struct latmus_runner *runner,
 	return 0;
 }
 
+static void stop_sirq_runner(struct latmus_runner *runner)
+{
+	struct sirq_runner *sirq_runner;
+
+	sirq_runner = container_of(runner, struct sirq_runner, runner);
+
+	evl_stop_timer(&sirq_runner->timer);
+}
+
 static struct latmus_runner *create_sirq_runner(int cpu)
 {
 	struct sirq_runner * __percpu *sirq_percpu;
@@ -393,6 +413,7 @@ static struct latmus_runner *create_sirq_runner(int cpu)
 		.name = "sirqhand",
 		.destroy = destroy_sirq_runner,
 		.start = start_sirq_runner,
+		.stop = stop_sirq_runner,
 	};
 	sirq_runner->sirq = sirq;
 	sirq_runner->sirq_percpu = sirq_percpu;
@@ -582,6 +603,15 @@ static int start_uthread_runner(struct latmus_runner *runner,
 	return 0;
 }
 
+static void stop_uthread_runner(struct latmus_runner *runner)
+{
+	struct uthread_runner *u_runner;
+
+	u_runner = container_of(runner, struct uthread_runner, runner);
+
+	evl_stop_timer(&u_runner->timer);
+}
+
 static int add_uthread_sample(struct latmus_runner *runner,
 			      ktime_t user_timestamp)
 {
@@ -595,8 +625,9 @@ static int add_uthread_sample(struct latmus_runner *runner,
 		evl_stop_timer(&u_runner->timer);
 		/* Tell the caller to park until next round. */
 		ret = -EPIPE;
-	} else
+	} else {
 		ret = evl_wait_flag(&u_runner->pulse);
+	}
 
 	return ret;
 }
@@ -616,6 +647,7 @@ static struct latmus_runner *create_uthread_runner(int cpu)
 		.set_gravity = set_uthread_gravity,
 		.adjust_gravity = adjust_uthread_gravity,
 		.start = start_uthread_runner,
+		.stop = stop_uthread_runner,
 	};
 
 	init_runner_base(&u_runner->runner);
@@ -761,14 +793,17 @@ static int measure_continously(struct latmus_runner *runner)
 	state->sum = 0;
 	state->overruns = 0;
 	state->cur_samples = 0;
-	state->ideal = ktime_add(evl_read_clock(&evl_mono_clock), period);
 	state->offset = 0;	/* for SIRQ latency only. */
+	state->ideal = ktime_add(evl_read_clock(&evl_mono_clock), period);
 
 	ret = runner->start(runner, state->ideal);
 	if (ret)
 		goto out;
 
 	ret = evl_wait_flag(&runner->done) ?: runner->status;
+
+	if (runner->stop)
+		runner->stop(runner);
 out:
 	evl_put_xbuf(sfilp);
 
