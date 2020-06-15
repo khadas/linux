@@ -34,6 +34,12 @@ static inline void evl_destroy_flag(struct evl_flag *wf)
 	evl_destroy_wait(&wf->wait);
 }
 
+static inline bool evl_peek_flag(struct evl_flag *wf)
+{
+	smp_wmb();
+	return wf->raised;
+}
+
 static inline bool evl_read_flag(struct evl_flag *wf)
 {
 	if (wf->raised) {
