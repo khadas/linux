@@ -2330,8 +2330,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			else if (hdr_process_select == SDR_HLG)
 				hdr_process_select = RGB_HLG;
 			/* use in_mtx for g12b rev b, sm1, tl1 */
-			if (hdr_process_select == RGB_YUV
-			&& (is_meson_sm1_cpu() || is_meson_tl1_cpu()))
+			if (hdr_process_select == RGB_YUV)
 				mtx_only_mode = true;
 		}
 	}
