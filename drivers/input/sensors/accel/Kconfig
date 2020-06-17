@@ -137,6 +137,7 @@ config BMA2XX_ACC
 config ICM20602_ACC
 	bool "Sensor icm20602_acc"
 	default y
+	
 config GS_DA223
 	bool "gsensor da223"
 	help
