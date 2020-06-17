@@ -35,10 +35,7 @@
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
-
-/* These functions need other module's support, define it NULL here...*/
-#define tee_protect_tvp_mem(a, b, c) 0
-#define tee_unprotect_tvp_mem(a)
+#include <linux/amlogic/tee.h>
 
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
@@ -169,7 +166,7 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 	static struct codec_mm_mgt_s mgt;
 	static int inited;
 	int ret = 0;
-	//int handle = 0;
+	int handle = 0;
 
 	if (!inited) {
 		memset(&mgt, 0, sizeof(struct codec_mm_mgt_s));
