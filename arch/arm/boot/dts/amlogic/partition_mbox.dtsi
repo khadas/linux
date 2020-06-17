@@ -12,16 +12,16 @@
 / {
     partitions: partitions{
 		parts = <16>;
-		part-0 = <&logo>;
-		part-1 = <&recovery>;
-		part-2 = <&tee>;
-		part-3 = <&factory>;
-		part-4 = <&misc>;
-		part-5 = <&dtbo>;
-		part-6 = <&cri_data>;
-		part-7 = <&param>;
-		part-8 = <&boot>;
-		part-9 = <&vendor_boot>;
+		part-0 = <&recovery>;
+		part-1 = <&frp>;
+		part-2 = <&factory>;
+		part-3 = <&tee>;
+		part-4 = <&logo>;
+		part-5 = <&misc>;
+		part-6 = <&dtbo>;
+		part-7 = <&cri_data>;
+		part-8 = <&param>;
+		part-9 = <&boot>;
 		part-10 = <&rsv>;
 		part-11 = <&metadata>;
 		part-12 = <&vbmeta>;
@@ -29,14 +29,19 @@
 		part-14 = <&cache>;
 		part-15 = <&data>;
 
-		logo:logo{
-			pname = "logo";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
 		recovery:recovery{
 			pname = "recovery";
 			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		frp:frp{
+			pname = "frp";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
 			mask = <1>;
 		};
 		tee:tee{
@@ -44,8 +49,8 @@
 			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
-		factory:factory{
-			pname = "factory";
+		logo:logo{
+			pname = "logo";
 			size = <0x0 0x800000>;
 			mask = <1>;
 		};
@@ -88,12 +93,6 @@
 		boot:boot
 		{
 			pname = "boot";
-			size = <0x0 0x1800000>;
-			mask = <1>;
-		};
-		vendor_boot:vendor_boot
-		{
-			pname = "vendor_boot";
 			size = <0x0 0x1800000>;
 			mask = <1>;
 		};
