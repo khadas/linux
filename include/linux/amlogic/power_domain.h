@@ -19,6 +19,7 @@
 #define PWR_OFF	1
 
 #ifdef CONFIG_AMLOGIC_POWER
+bool is_support_power_domain(void);
 void power_domain_switch(int pwr_domain, bool pwr_switch);
 #else
 static inline void power_domain_switch(int pwr_domain, bool pwr_switch)

@@ -61,6 +61,7 @@
 
 static u32 vpu_mem_pd_reg3;
 static u32 vpu_mem_pd_reg4;
+static bool probe_done;
 
 struct power_domains {
 	void __iomem *dos_addr;
@@ -78,6 +79,12 @@ struct power_domains {
 };
 
 static struct power_domains *s_pd;
+
+bool is_support_power_domain(void)
+{
+	return probe_done;
+}
+EXPORT_SYMBOL(is_support_power_domain);
 
 static void power_switch(int pwr_domain, bool pwr_switch)
 {
@@ -571,6 +578,7 @@ static int pd_probe(struct platform_device *pdev)
 	spin_lock_init(&power_domains->iso_lock);
 
 	s_pd = power_domains;
+	probe_done = 1;
 
 	return 0;
 }
