@@ -6135,8 +6135,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_meson_init(hdev);
 
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
-
+	if (hdmitx_device.hpd_state) {
+		/* need to get edid before vout probe */
+		hdmitx_get_edid(hdev);
+	}
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vout_register_server(&hdmitx_vout_server);
 #endif
