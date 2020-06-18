@@ -196,5 +196,6 @@
 #define VIDEO_COMPOSER_MAJOR    (19 + (AML_BASE))
 #define TSYNC_MAJOR         (20 + (AML_BASE))
 #define VIDEOFRAME_MAJOR    (21 + (AML_BASE))
+#define MEDIASYNC_MAJOR     (22 + (AML_BASE))
 
 #endif
