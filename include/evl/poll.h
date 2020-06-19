@@ -40,13 +40,10 @@ struct evl_poll_node {
 struct evl_poll_watchpoint {
 	unsigned int fd;
 	int events_polled;
-	int events_received;
 	union evl_value pollval;
 	struct oob_poll_wait wait;
 	struct evl_flag *flag;
 	struct file *filp;
-	struct evl_poll_head *head;
-	void (*unwatch)(struct file *filp);
 	struct evl_poll_node node;
 };
 
@@ -59,7 +56,7 @@ void evl_init_poll_head(struct evl_poll_head *head)
 
 void evl_poll_watch(struct evl_poll_head *head,
 		struct oob_poll_wait *wait,
-		void (*unwait)(struct file *filp));
+		void (*unwatch)(struct evl_poll_head *head));
 
 void __evl_signal_poll_events(struct evl_poll_head *head,
 			      int events);
