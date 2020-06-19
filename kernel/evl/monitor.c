@@ -671,10 +671,11 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static void monitor_unwatch(struct file *filp)
+static void monitor_unwatch(struct evl_poll_head *head)
 {
-	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
+	struct evl_monitor *mon;
 
+	mon = container_of(head, struct evl_monitor, poll_head);
 	atomic_dec(&mon->state->u.event.pollrefs);
 }
 

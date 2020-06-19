@@ -50,20 +50,50 @@ struct poll_waiter {
 
 static const struct file_operations poll_fops;
 
+#define for_each_poll_connector(__poco, __wpt)					\
+	for (__poco = (__wpt)->wait.connectors;					\
+	     __poco < (__wpt)->wait.connectors + EVL_POLL_NR_CONNECTORS;	\
+	     __poco++)								\
+		if ((__poco)->head)
+
+/* head->lock held, irqs off */
+static void connect_watchpoint(struct oob_poll_wait *wait,
+			struct evl_poll_head *head,
+			void (*unwatch)(struct evl_poll_head *head))
+{
+	struct evl_poll_connector *poco;
+	int i;
+
+	for (i = 0; i < EVL_POLL_NR_CONNECTORS; i++) {
+		poco = wait->connectors + i;
+		if (poco->head == NULL) {
+			poco->head = head;
+			poco->unwatch = unwatch;
+			poco->events_received = 0;
+			list_add(&poco->next, &head->watchpoints);
+			poco->index = i;
+			return;
+		}
+		/* Duplicate connection to a poll head - fix driver. */
+		if (EVL_WARN_ON(CORE, poco->head == head))
+			return;
+	}
+
+	/* All connectors are busy - fix driver. */
+	EVL_WARN_ON(CORE, 1);
+}
+
 void evl_poll_watch(struct evl_poll_head *head,
 		struct oob_poll_wait *wait,
-		void (*unwatch)(struct file *filp))
+		void (*unwatch)(struct evl_poll_head *head))
 {
 	struct evl_poll_watchpoint *wpt;
 	unsigned long flags;
 
 	wpt = container_of(wait, struct evl_poll_watchpoint, wait);
-	/* Add to driver's poll head. */
+	/* Connect to a driver's poll head. */
 	evl_spin_lock_irqsave(&head->lock, flags);
-	wpt->head = head;
-	wpt->events_received = 0;
-	wpt->unwatch = unwatch;	/* must NOT reschedule. */
-	list_add(&wait->next, &head->watchpoints);
+	connect_watchpoint(wait, head, unwatch);
 	evl_spin_unlock_irqrestore(&head->lock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_poll_watch);
@@ -72,15 +102,18 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 			int events)
 {
 	struct evl_poll_watchpoint *wpt;
+	struct evl_poll_connector *poco;
 	unsigned long flags;
 	int ready;
 
 	evl_spin_lock_irqsave(&head->lock, flags);
 
-	list_for_each_entry(wpt, &head->watchpoints, wait.next) {
+	list_for_each_entry(poco, &head->watchpoints, next) {
+		wpt = container_of(poco, struct evl_poll_watchpoint,
+				wait.connectors[poco->index]);
 		ready = events & wpt->events_polled;
 		if (ready) {
-			wpt->events_received |= ready;
+			poco->events_received |= ready;
 			evl_raise_flag_nosched(wpt->flag);
 		}
 	}
@@ -276,27 +309,32 @@ static int del_item(struct poll_group *group,
 void evl_drop_watchpoints(struct list_head *drop_list)
 {
 	struct evl_poll_watchpoint *wpt;
+	struct evl_poll_connector *poco;
 	struct evl_poll_node *node;
 
 	/*
-	 * Drop the watchpoints attached to a closed file descriptor
-	 * upon release from inband. A watchpoint found in @drop_list
-	 * was registered via a call to evl_watch_fd() from
-	 * wait_events() but not unregistered by calling
-	 * evl_ignore_fd() from clear_wait() yet, so we know it is
-	 * still valid. Since a polled EVL fd has to be passed to this
-	 * routine before the file it references can be dismantled, we
-	 * may keep and use a direct pointer to this file in the
-	 * watchpoint struct until we return.
+	 * Drop the watchpoints attached to a file descriptor which is
+	 * being closed. Watchpoints found in @drop_list were
+	 * registered via a call to evl_watch_fd() from wait_events()
+	 * but not unregistered by calling evl_ignore_fd() from
+	 * clear_wait() yet, so they are still valid. wpt->filp is
+	 * valid as well, although it may become stale later on if the
+	 * last fd referencing it is being closed.
+	 *
+	 * NOTE: poco->next is kept untouched, only the thread which
+	 * is sleeping on a watchpoint is allowed to alter such
+	 * information for any of the related connectors.
 	 */
 	list_for_each_entry(node, drop_list, next) {
 		wpt = container_of(node, struct evl_poll_watchpoint, node);
-		evl_spin_lock(&wpt->head->lock);
-		wpt->events_received |= POLLNVAL;
-		if (wpt->unwatch)
-			wpt->unwatch(wpt->filp);
+		for_each_poll_connector(poco, wpt) {
+			evl_spin_lock(&poco->head->lock);
+			poco->events_received |= POLLNVAL;
+			if (poco->unwatch) /* handler must NOT reschedule. */
+				poco->unwatch(poco->head);
+			evl_spin_unlock(&poco->head->lock);
+		}
 		evl_raise_flag_nosched(wpt->flag);
-		evl_spin_unlock(&wpt->head->lock);
 		wpt->filp = NULL;
 	}
 }
@@ -357,6 +395,7 @@ static int collect_events(struct poll_group *group,
 	struct evl_thread *curr = evl_current();
 	struct evl_poll_watchpoint *wpt, *table;
 	int ret, n, nr, count = 0, ready;
+	struct evl_poll_connector *poco;
 	struct evl_poll_event ev;
 	unsigned int generation;
 	struct poll_item *item;
@@ -418,7 +457,10 @@ collect:
 	for (n = 0, wpt = table; n < nr; n++, wpt++) {
 		if (flag) {
 			wpt->flag = flag;
-			INIT_LIST_HEAD(&wpt->wait.next);
+			for_each_poll_connector(poco, wpt) {
+				poco->head = NULL;
+				INIT_LIST_HEAD(&poco->next);
+			}
 			/* If oob_poll() is absent, default to all events ready. */
 			ready = POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM;
 			efilp = evl_watch_fd(wpt->fd, &wpt->node);
@@ -429,8 +471,11 @@ collect:
 			if (filp->f_op->oob_poll)
 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
 			evl_put_file(efilp);
-		} else
-			ready = wpt->events_received;
+		} else {
+			ready = 0;
+			for_each_poll_connector(poco, wpt)
+				ready |= poco->events_received;
+		}
 
 		ready &= wpt->events_polled | POLLNVAL;
 		if (ready) {
@@ -463,6 +508,7 @@ static inline void clear_wait(void)
 {
 	struct evl_thread *curr = evl_current();
 	struct evl_poll_watchpoint *wpt;
+	struct evl_poll_connector *poco;
 	unsigned long flags;
 	int n;
 
@@ -471,7 +517,7 @@ static inline void clear_wait(void)
 	 * we have been monitoring so far from their poll heads.
 	 * wpt->head->lock serializes with __evl_signal_poll_events().
 	 * Any watchpoint which does not bear the POLLNVAL bit is
-	 * monitoring a still valid file by construction.
+	 * monitoring a valid file by construction.
 	 *
 	 * A watchpoint might no be attached to any poll head in case
 	 * oob_poll() is undefined for the device, or the related fd
@@ -482,13 +528,13 @@ static inline void clear_wait(void)
 	for (n = 0, wpt = curr->poll_context.table;
 	     n < curr->poll_context.nr; n++, wpt++) {
 		evl_ignore_fd(&wpt->node);
-		/* Remove from driver's poll head. */
-		if (!list_empty(&wpt->wait.next)) {
-			evl_spin_lock_irqsave(&wpt->head->lock, flags);
-			list_del(&wpt->wait.next);
-			if (!(wpt->events_received & POLLNVAL) && wpt->unwatch)
-				wpt->unwatch(wpt->filp);
-			evl_spin_unlock_irqrestore(&wpt->head->lock, flags);
+		/* Remove from driver's poll head(s). */
+		for_each_poll_connector(poco, wpt) {
+			evl_spin_lock_irqsave(&poco->head->lock, flags);
+			list_del(&poco->next);
+			if (!(poco->events_received & POLLNVAL) && poco->unwatch)
+				poco->unwatch(poco->head);
+			evl_spin_unlock_irqrestore(&poco->head->lock, flags);
 		}
 	}
 }
@@ -499,6 +545,7 @@ int wait_events(struct file *filp,
 		struct evl_poll_waitreq *wreq,
 		struct timespec64 *ts64)
 {
+	struct evl_poll_event __user *u_set;
 	struct poll_waiter waiter;
 	enum evl_tmode tmode;
 	unsigned long flags;
@@ -511,12 +558,10 @@ int wait_events(struct file *filp,
 	if (wreq->nrset == 0)
 		return 0;
 
+	u_set = evl_valptr64(wreq->pollset_ptr, struct evl_poll_event);
 	evl_init_flag(&waiter.flag);
 
-	count = collect_events(group,
-			       evl_valptr64(wreq->pollset_ptr,
-					    struct evl_poll_event),
-			       wreq->nrset, &waiter.flag);
+	count = collect_events(group, u_set, wreq->nrset, &waiter.flag);
 	if (count > 0 || (count == -EFAULT || count == -EBADF))
 		goto unwait;
 	if (count < 0)
@@ -540,10 +585,7 @@ int wait_events(struct file *filp,
 
 	count = ret;
 	if (count == 0)	/* Re-collect events after successful wait. */
-		count = collect_events(group,
-			       evl_valptr64(wreq->pollset_ptr,
-					    struct evl_poll_event),
-			       wreq->nrset, NULL);
+		count = collect_events(group, u_set, wreq->nrset, NULL);
 unwait:
 	clear_wait();
 out:
