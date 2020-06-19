@@ -356,6 +356,9 @@ static int aml_jtag_select(struct platform_device *pdev)
 		pr_info("select disable\n");
 
 	set_cpus_allowed_ptr(current, cpumask_of(0));
+	if (select == AMLOGIC_JTAG_DISABLE &&
+	    jdev->old_select != AMLOGIC_JTAG_DISABLE)
+		select = jdev->old_select;
 	aml_set_jtag_state(state, select);
 	set_cpus_allowed_ptr(current, cpu_all_mask);
 
