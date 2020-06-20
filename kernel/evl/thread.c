@@ -41,7 +41,7 @@
 #include <evl/flag.h>
 #include <evl/factory.h>
 #include <evl/observable.h>
-#include <asm/evl/syscall.h>
+#include <evl/uaccess.h>
 #include <trace/events/evl.h>
 
 #define EVL_THREAD_CLONE_FLAGS	\

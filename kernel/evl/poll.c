@@ -19,7 +19,6 @@
 #include <evl/flag.h>
 #include <evl/mutex.h>
 #include <evl/uaccess.h>
-#include <asm/evl/syscall.h>
 
 struct poll_group {
 	struct rb_root item_index;  /* struct poll_item */

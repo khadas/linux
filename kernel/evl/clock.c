@@ -33,7 +33,6 @@
 #include <evl/file.h>
 #include <evl/irq.h>
 #include <evl/uaccess.h>
-#include <asm/evl/syscall.h>
 #include <uapi/evl/factory.h>
 #include <uapi/evl/clock.h>
 #include <trace/events/evl.h>
