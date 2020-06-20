@@ -40,11 +40,6 @@
 		memory-region = <&ion_reserved>;
 	};
 
-	memory@00000000 {
-		device_type = "memory";
-		linux,usable-memory = <0x0100000 0x7ff00000>;
-	};
-
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
