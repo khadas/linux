@@ -10,6 +10,8 @@
 #include <linux/of_gpio.h>
 #include <linux/time.h>
 #include <linux/workqueue.h>
+#include <linux/khadas-hwver.h>
+
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
 #define KHADAS_FAN_TRIG_TEMP_LEVEL1		60	// 60 degree if not set
@@ -38,13 +40,6 @@ enum khadas_fan_enable {
 	KHADAS_FAN_ENABLE,
 };
 
-enum khadas_fan_hwver {
-	KHADAS_FAN_HWVER_NONE = 0,
-	KHADAS_FAN_HWVER_V12,
-    KHADAS_FAN_HWVER_V13,
-    KHADAS_FAN_HWVER_V14
-};
-
 struct khadas_fan_data {
 	struct platform_device *pdev;
 	struct class *class;
@@ -58,7 +53,6 @@ struct khadas_fan_data {
 	int	trig_temp_level0;
 	int	trig_temp_level1;
 	int	trig_temp_level2;
-	enum khadas_fan_hwver hwver;
 };
 
 struct khadas_fan_data *g_fan_data;
@@ -261,7 +255,7 @@ static int khadas_fan_probe(struct platform_device *pdev)
 	struct class *fclass;
 	int ret;
 	int i;
-	const char *hwver = NULL;
+	int hwver;
 
 	printk("khadas_fan_probe\n");
 
@@ -270,21 +264,9 @@ static int khadas_fan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	// Get hardwere version
-	ret = of_property_read_string(dev->of_node, "hwver", &hwver);
-	if (ret < 0) {
-		g_fan_data->hwver = KHADAS_FAN_HWVER_V12;
-	} else {
-		if (0 == strcmp(hwver, "VIM2.V12"))
-			g_fan_data->hwver = KHADAS_FAN_HWVER_V12;
-		else if (0 == strcmp(hwver, "VIM2.V13"))
-			g_fan_data->hwver = KHADAS_FAN_HWVER_V13;
-		else if (0 == strcmp(hwver, "VIM2.V14"))
-			g_fan_data->hwver = KHADAS_FAN_HWVER_V14;
-		else
-			g_fan_data->hwver = KHADAS_FAN_HWVER_NONE;
-	}
-
-	if (KHADAS_FAN_HWVER_V12 != g_fan_data->hwver) {
+	hwver = get_hwver();
+	printk("khadas_fan_probe hwver:%d\n",hwver);
+	if (HW_VERSION_VIM2_V12 != hwver) {
 		// This driver is only for Khadas VIM2 V12 version.
 		printk("FAN: This driver is only for Khadas VIM2 V12 version.\n");
 		return -1;
