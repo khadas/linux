@@ -15,7 +15,6 @@
 #include <evl/list.h>
 #include <evl/timer.h>
 #include <evl/clock.h>
-#include <trace/events/evl.h>
 #include <uapi/evl/thread.h>
 
 #define EVL_WAIT_FIFO    0
