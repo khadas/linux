@@ -20,7 +20,6 @@
 #include <evl/syscall.h>
 #include <evl/poll.h>
 #include <evl/uaccess.h>
-#include <asm/evl/syscall.h>
 #include <uapi/evl/monitor.h>
 #include <trace/events/evl.h>
 

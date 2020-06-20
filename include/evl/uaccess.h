@@ -8,6 +8,7 @@
 #define _EVL_UACCESS_H
 
 #include <linux/uaccess.h>
+#include <asm/evl/syscall.h>
 
 static inline unsigned long __must_check
 raw_copy_from_user_ptr64(void *to, u64 from_ptr, unsigned long n)

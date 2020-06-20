@@ -15,7 +15,6 @@
 #include <evl/sched.h>
 #include <evl/control.h>
 #include <evl/uaccess.h>
-#include <asm/evl/syscall.h>
 #include <asm/evl/fptest.h>
 #include <uapi/evl/control.h>
 
