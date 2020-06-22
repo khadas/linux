@@ -307,14 +307,11 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 
 	canvas_read(y_index, &cs0);
 	canvas_read(u_index, &cs1);
-	canvas_config(ydupindex,
-		(ulong) yaddr,
-		cs0.width, cs0.height,
-		CANVAS_ADDR_NOWRAP, cs0.blkmode);
-	canvas_config(udupindex,
-		(ulong) uaddr,
-		cs1.width, cs1.height,
-		CANVAS_ADDR_NOWRAP, cs1.blkmode);
+
+	canvas_config_ex(ydupindex, (ulong)yaddr, cs0.width, cs0.height,
+			 CANVAS_ADDR_NOWRAP, cs0.blkmode, cs0.endian);
+	canvas_config_ex(udupindex, (ulong)uaddr, cs1.width, cs1.height,
+			 CANVAS_ADDR_NOWRAP, cs1.blkmode, cs1.endian);
 
 	canvas_read(ydupindex, &cd);
 	src_index = ((y_index & 0xff) | ((u_index << 8) & 0x0000ff00));
