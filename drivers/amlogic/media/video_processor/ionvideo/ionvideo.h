@@ -48,6 +48,7 @@
 
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
+#include <linux/amlogic/media/canvas/canvas_mgr.h>
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
@@ -72,8 +73,6 @@ do {                                                    \
 	if (get_ionvideo_debug() >= level)                  \
 		pr_debug("ppmgr2-dev: " fmt, ## arg);  \
 } while (0)
-
-#define PPMGR2_CANVAS_INDEX_SRC (PPMGR2_CANVAS_INDEX + 3)
 
 /* v4l2_amlogic_parm must < u8[200] */
 struct v4l2_amlogic_parm {
@@ -317,6 +316,8 @@ struct ionvideo_dev {
 
 unsigned int get_ionvideo_debug(void);
 
+void ionvideo_alloc_canvas(void);
+void ionvideo_free_canvas(void);
 int ppmgr2_init(struct ppmgr2_device *ppd);
 int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index);
 int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index);
