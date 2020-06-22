@@ -1167,6 +1167,7 @@ void ionvideo_release_map(int inst)
 	unsigned long flags;
 	struct ionvideo_dev *dev = NULL;
 	struct list_head *p;
+	bool need_release_canvas;
 
 	flags = ionvideo_devlist_lock();
 
@@ -1178,6 +1179,17 @@ void ionvideo_release_map(int inst)
 			break;
 		}
 	}
+
+	need_release_canvas = true;
+	list_for_each(p, &ionvideo_devlist) {
+		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
+		if (dev->mapped) {
+			need_release_canvas = false;
+			break;
+		}
+	}
+	if (need_release_canvas)
+		ionvideo_free_canvas();
 
 	ionvideo_devlist_unlock(flags);
 }
