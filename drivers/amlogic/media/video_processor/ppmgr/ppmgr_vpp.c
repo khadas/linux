@@ -36,6 +36,7 @@
 #include <linux/amlogic/cpu_version.h>
 /*#include <linux/amlogic/ge2d/ge2d_main.h>*/
 #include <linux/amlogic/media/ge2d/ge2d.h>
+#include <linux/amlogic/media/gdc/gdc.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
 //#include <linux/semaphore.h>
@@ -483,6 +484,26 @@ static int get_input_format(struct vframe_s *vf)
 	return format;
 }
 
+/*
+ *for gdc
+ */
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+static int get_gdc_format(struct vframe_s *vf)
+{
+	int format = NV12;
+
+	if ((vf->type & VIDTYPE_VIU_NV21) ||
+	    (vf->type & VIDTYPE_VIU_NV12))
+		format = NV12;
+	else if (vf->type & VIDTYPE_VIU_422)
+		format = 0;
+	else if (vf->type & VIDTYPE_VIU_444)
+		format = YUV444_P;
+	else if (vf->type & VIDTYPE_RGB_444)
+		format = RGB444_P;
+	return format;
+}
+#endif
 /* extern int get_property_change(void); */
 /* extern void set_property_change(int flag); */
 /* extern int get_buff_change(void); */
@@ -682,7 +703,6 @@ const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void)
 	}
 
 	mutex_lock(&ppmgr_mutex);
-
 	vf_local_init();
 	vf_reg_provider(&ppmgr_vf_prov);
 	if (start_ppmgr_task() == 0)
@@ -905,7 +925,7 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 		h = 1280;
 	}
 
-	new_vf->width = w;
+	new_vf->width = (w + 0x1f) & ~0x1f;
 	new_vf->height = h;
 }
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
@@ -985,7 +1005,7 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 {
 	struct canvas_s cs0, cs1, cs2, cd;
 	int interlace_mode;
-	u32 canvas_id;
+	int canvas_id;
 	u32 format = GE2D_FORMAT_M24_YUV420;
 	u32 h_scale_coef_type =
 		context->config.h_scale_coef_type;
@@ -1065,7 +1085,6 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 			| ((tb_src_canvas[1] & 0xff) << 8)
 			| ((tb_src_canvas[2] & 0xff) << 16);
 		ge2d_config->src_para.canvas_index = canvas_id;
-
 	} else {
 		canvas_read(vf->canvas0Addr & 0xff, &cs0);
 		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
@@ -1195,22 +1214,89 @@ static void notify_data(u32 format)
 		PPMGRVPP_INFO("%s provider_name: %s, data: %d\n",
 			      __func__, provider_name, format);
 }
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+/*
+ *gdc config
+ */
+static int process_gdc(struct vframe_s *src_vf, struct vframe_s *dst_vf,
+		       struct gdc_context_s *gdc_context,
+		       struct gdc_phy_setting *gdc_config, int rotation)
+{
+	int ret;
+	char file_name[32];
+	int angle;
 
+	if (src_vf->canvas0_config[0].block_mode != CANVAS_BLKMODE_LINEAR ||
+	    src_vf->canvas0_config[1].block_mode != CANVAS_BLKMODE_LINEAR) {
+		if (ppmgr_device.ppmgr_debug & 16)
+			PPMGRVPP_INFO("vf is not linear, gdc not support!\n");
+		return -1;
+	}
+
+	angle = rotation * 90;
+	sprintf(file_name, "%dx%d-%dx%d-%d_nv12.bin",
+		src_vf->width, src_vf->height,
+		dst_vf->width, dst_vf->height, angle);
+
+	strncpy(gdc_config->config_name, file_name, CONFIG_PATH_LENG);
+
+	ret = get_gdc_format(src_vf);
+	if (ret <= 0) {
+		if (ppmgr_device.ppmgr_debug & 16)
+			PPMGRVPP_INFO("this format need use ge2d\n");
+		return -2;
+	}
+
+	gdc_config->format = ret;
+	gdc_config->in_width = src_vf->width;
+	gdc_config->in_height = src_vf->height;
+	gdc_config->out_height = dst_vf->height;
+	gdc_config->out_width = dst_vf->width;
+
+	gdc_config->in_plane_num = 2;
+	gdc_config->out_plane_num = 2;
+	gdc_config->use_builtin_fw = 1;
+	if (src_vf->canvas0Addr == src_vf->canvas1Addr &&
+	    src_vf->canvas0Addr != 0 && src_vf->canvas0Addr != -1) {
+		gdc_config->in_paddr[0] =
+			canvas_get_addr(canvasY(src_vf->canvas0Addr));
+		gdc_config->in_paddr[1] =
+			canvas_get_addr(canvasU(src_vf->canvas0Addr));
+	} else {
+		gdc_config->in_paddr[0] = src_vf->canvas0_config[0].phy_addr;
+		gdc_config->in_paddr[1] = src_vf->canvas0_config[1].phy_addr;
+	}
+	gdc_config->out_paddr[0] = dst_vf->canvas0_config[0].phy_addr;
+	gdc_config->out_paddr[1] = dst_vf->canvas0_config[1].phy_addr;
+
+	ret = gdc_process_phys(gdc_context, gdc_config);
+
+	if (ret < 0) {
+		if (ppmgr_device.ppmgr_debug & 16)
+			PPMGRVPP_INFO("gdc process fail\n");
+		return -3;
+	}
+
+	return 0;
+}
+#endif
 static void process_vf_rotate(struct vframe_s *vf,
-		struct ge2d_context_s *context,
-		struct config_para_ex_s *ge2d_config)
+			      struct ge2d_context_s *context,
+			      struct gdc_context_s *gdc_context,
+			      struct gdc_phy_setting *gdc_config,
+			      struct config_para_ex_s *ge2d_config)
 {
 	struct vframe_s *new_vf;
 	struct ppframe_s *pp_vf;
-	struct canvas_s cs0, cs1, cs2, cd;
 	u32 canvas_id;
+	u32 dst_canvas_id;
+	unsigned int buf_start;
+	int buf_size;
 	int ret = 0;
 	unsigned int cur_angle = 0;
 	int interlace_mode;
 	struct file *filp_scr = NULL;
-	struct file *filp_dst = NULL;
 	char source_path[64];
-	char dst_path[64];
 	int count;
 	int result = 0;
 	mm_segment_t old_fs;
@@ -1244,7 +1330,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	rect_h = max(rect_h, 64);
 #endif
 
-	if (ppmgr_device.debug_ppmgr_flag)
+	if (ppmgr_device.ppmgr_debug & 1)
 		pr_info("ppmgr:rotate\n");
 
 	new_vf = vfq_pop(&q_free);
@@ -1294,6 +1380,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	if (vf->type & VIDTYPE_COMPRESS) {
 		if ((cur_angle != 0) && (vf->type & VIDTYPE_NO_DW)) {
 			vf->type &= ~VIDTYPE_SUPPORT_COMPRESS;
+			vf->type_original &= ~VIDTYPE_SUPPORT_COMPRESS;
 			if (need_data_notify) {
 				need_data_notify = false;
 				notify_data(1);
@@ -1403,7 +1490,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 	new_vf->omx_index = vf->omx_index;
 	new_vf->type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
 			| VIDTYPE_VIU_FIELD;
-	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(pp_vf->index);
+	new_vf->canvas0Addr = -1;
+	new_vf->canvas1Addr = -1;
+	new_vf->plane_num = 1;
+	dst_canvas_id = index2canvas(pp_vf->index);
 	new_vf->orientation = vf->orientation;
 	new_vf->flag = vf->flag;
 
@@ -1456,24 +1546,27 @@ static void process_vf_rotate(struct vframe_s *vf,
 			return;
 		}
 	}
-
-	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+	get_ppmgr_buf_info(&buf_start, &buf_size);
+	buf_start += pp_vf->index * ppmgr_device.disp_width
+			* ppmgr_device.disp_height * 3;
+	new_vf->canvas0_config[0].phy_addr = buf_start;
+	new_vf->canvas0_config[0].width = new_vf->width * 3;
+	new_vf->canvas0_config[0].height = new_vf->height;
+	new_vf->canvas0_config[0].block_mode = 0;
+	new_vf->canvas0_config[0].endian = 0;
 
 	for (i = 0; i < VF_POOL_SIZE; i++) {
-		if (buf_status[i].index == new_vf->canvas0Addr)
+		if (i == pp_vf->index)
 			break;
 	}
+	canvas_config(dst_canvas_id,
+		      (ulong)buf_start,
+		      new_vf->width * 3,
+		      new_vf->height,
+		      CANVAS_ADDR_NOWRAP,
+		      CANVAS_BLKMODE_LINEAR);
 
-	if (i != VF_POOL_SIZE) {
-		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
-		if (cd.width != new_vf->width * 3)
-			canvas_config(PPMGR_CANVAS_INDEX + i,
-				      cd.addr,
-				      new_vf->width * 3,
-				      new_vf->height,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_32X32);
-	}
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	if (buf_status[i].dirty == 1) {
 		buf_status[i].dirty = 0;
@@ -1483,19 +1576,11 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->src1_gb_alpha = 0;/*0xff;*/
 		ge2d_config->dst_xy_swap = 0;
 
-		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
-		ge2d_config->src_planes[0].addr = cd.addr;
-		ge2d_config->src_planes[0].w = cd.width;
-		ge2d_config->src_planes[0].h = cd.height;
-		ge2d_config->dst_planes[0].addr = cd.addr;
-		ge2d_config->dst_planes[0].w = cd.width;
-		ge2d_config->dst_planes[0].h = cd.height;
-
 		ge2d_config->src_key.key_enable = 0;
 		ge2d_config->src_key.key_mask = 0;
 		ge2d_config->src_key.key_mode = 0;
 
-		ge2d_config->src_para.canvas_index = new_vf->canvas0Addr;
+		ge2d_config->src_para.canvas_index = dst_canvas_id;
 		ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 		ge2d_config->src_para.format = GE2D_FORMAT_S24_YUV444;
 		ge2d_config->src_para.fill_color_en = 0;
@@ -1510,7 +1595,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 		ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 
-		ge2d_config->dst_para.canvas_index = new_vf->canvas0Addr;
+		ge2d_config->dst_para.canvas_index = dst_canvas_id;
 		ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
 		ge2d_config->dst_para.format = GE2D_FORMAT_S24_YUV444;
 		ge2d_config->dst_para.fill_color_en = 0;
@@ -1534,7 +1619,38 @@ static void process_vf_rotate(struct vframe_s *vf,
 				new_vf->width, new_vf->height, 0x008080ff);
 		memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+	if (!interlace_mode && (ppmgr_device.debug_ppmgr_flag & 1)) {
+		new_vf->canvas0_config[1].phy_addr =
+			buf_start + new_vf->width * new_vf->height;
+		if (process_gdc(vf, new_vf, gdc_context,
+				gdc_config, cur_angle) >= 0) {
+			new_vf->canvas0_config[0].block_mode =
+				vf->canvas0_config[0].block_mode;
+			new_vf->canvas0_config[0].endian =
+				vf->canvas0_config[0].endian;
+			new_vf->canvas0_config[0].width = new_vf->width;
+			new_vf->canvas0_config[0].height = new_vf->height;
+			new_vf->canvas0_config[1].width = new_vf->width;
+			new_vf->canvas0_config[1].height = new_vf->height / 2;
+			new_vf->canvas0_config[1].block_mode =
+				vf->canvas0_config[1].block_mode;
+			new_vf->canvas0_config[1].endian =
+				vf->canvas0_config[1].endian;
+			new_vf->plane_num = 2;
+			new_vf->type = VIDTYPE_PROGRESSIVE
+					| VIDTYPE_VIU_FIELD
+					| VIDTYPE_VIU_NV21;
 
+			if (ppmgr_device.ppmgr_debug & 16) {
+				PPMGRVPP_INFO("endian0: %d, endian1: %d!\n",
+					      vf->canvas0_config[0].endian,
+					      vf->canvas0_config[1].endian);
+			}
+			goto rotate_done;
+		}
+	}
+#endif
 	if ((backup_index > 0) && (mode)) {
 		unsigned int dst_w = vf->width, dst_h = vf->height;
 
@@ -1560,63 +1676,23 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 		if (vf->canvas0Addr == (u32)-1) {
 			canvas_config_config(ppmgr_src_canvas[0],
-					&vf->canvas0_config[0]);
+					     &vf->canvas0_config[0]);
 			if (vf->plane_num == 2) {
-				canvas_config_config(
-					ppmgr_src_canvas[1],
-					&vf->canvas0_config[1]);
+				canvas_config_config(ppmgr_src_canvas[1],
+						     &vf->canvas0_config[1]);
 			} else if (vf->plane_num == 3) {
-				canvas_config_config(
-						ppmgr_src_canvas[2],
-						&vf->canvas0_config[2]);
+				canvas_config_config(ppmgr_src_canvas[2],
+						     &vf->canvas0_config[2]);
 			}
 			canvas_id =
 				ppmgr_src_canvas[0]
 				| (ppmgr_src_canvas[1] << 8)
 				| (ppmgr_src_canvas[2] << 16);
-
-			ge2d_config->src_planes[0].addr =
-					vf->canvas0_config[0].phy_addr;
-			ge2d_config->src_planes[0].w =
-					vf->canvas0_config[0].width;
-			ge2d_config->src_planes[0].h =
-					vf->canvas0_config[0].height;
-			ge2d_config->src_planes[1].addr =
-					vf->canvas0_config[1].phy_addr;
-			ge2d_config->src_planes[1].w =
-					vf->canvas0_config[1].width;
-			ge2d_config->src_planes[1].h =
-					vf->canvas0_config[1].height >> 1;
-			if (vf->plane_num == 3) {
-				ge2d_config->src_planes[2].addr =
-					vf->canvas0_config[2].phy_addr;
-				ge2d_config->src_planes[2].w =
-					vf->canvas0_config[2].width;
-				ge2d_config->src_planes[2].h =
-					vf->canvas0_config[2].height >> 1;
-			}
 			ge2d_config->src_para.canvas_index = canvas_id;
 		} else {
-			canvas_read(vf->canvas0Addr & 0xff, &cs0);
-			canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
-			canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
-			ge2d_config->src_planes[0].addr = cs0.addr;
-			ge2d_config->src_planes[0].w = cs0.width;
-			ge2d_config->src_planes[0].h = cs0.height;
-			ge2d_config->src_planes[1].addr = cs1.addr;
-			ge2d_config->src_planes[1].w = cs1.width;
-			ge2d_config->src_planes[1].h = cs1.height;
-			ge2d_config->src_planes[2].addr = cs2.addr;
-			ge2d_config->src_planes[2].w = cs2.width;
-			ge2d_config->src_planes[2].h = cs2.height;
 			ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 
 		}
-
-		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
-		ge2d_config->dst_planes[0].addr = cd.addr;
-		ge2d_config->dst_planes[0].w = cd.width;
-		ge2d_config->dst_planes[0].h = cd.height;
 
 		ge2d_config->src_key.key_enable = 0;
 		ge2d_config->src_key.key_mask = 0;
@@ -1677,11 +1753,6 @@ static void process_vf_rotate(struct vframe_s *vf,
 	ge2d_config->src1_gb_alpha = 0;/*0xff;*/
 	ge2d_config->dst_xy_swap = 0;
 
-	canvas_read(new_vf->canvas0Addr & 0xff, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
@@ -1689,55 +1760,20 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(ppmgr_src_canvas[0],
-				&vf->canvas0_config[0]);
+				     &vf->canvas0_config[0]);
 		if (vf->plane_num == 2) {
-			canvas_config_config(
-				ppmgr_src_canvas[1],
-				&vf->canvas0_config[1]);
+			canvas_config_config(ppmgr_src_canvas[1],
+					     &vf->canvas0_config[1]);
 		} else if (vf->plane_num == 3) {
-			canvas_config_config(
-					ppmgr_src_canvas[2],
-					&vf->canvas0_config[2]);
+			canvas_config_config(ppmgr_src_canvas[2],
+					     &vf->canvas0_config[2]);
 		}
 		canvas_id =
 			ppmgr_src_canvas[0]
 			| (ppmgr_src_canvas[1] << 8)
 			| (ppmgr_src_canvas[2] << 16);
-
-		ge2d_config->src_planes[0].addr =
-				vf->canvas0_config[0].phy_addr;
-		ge2d_config->src_planes[0].w =
-				vf->canvas0_config[0].width;
-		ge2d_config->src_planes[0].h =
-				vf->canvas0_config[0].height;
-		ge2d_config->src_planes[1].addr =
-				vf->canvas0_config[1].phy_addr;
-		ge2d_config->src_planes[1].w =
-				vf->canvas0_config[1].width;
-		ge2d_config->src_planes[1].h =
-				vf->canvas0_config[1].height >> 1;
-		if (vf->plane_num == 3) {
-			ge2d_config->src_planes[2].addr =
-				vf->canvas0_config[2].phy_addr;
-			ge2d_config->src_planes[2].w =
-				vf->canvas0_config[2].width;
-			ge2d_config->src_planes[2].h =
-				vf->canvas0_config[2].height >> 1;
-		}
 		ge2d_config->src_para.canvas_index = canvas_id;
 	} else {
-		canvas_read(vf->canvas0Addr & 0xff, &cs0);
-		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
-		canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
-		ge2d_config->src_planes[0].addr = cs0.addr;
-		ge2d_config->src_planes[0].w = cs0.width;
-		ge2d_config->src_planes[0].h = cs0.height;
-		ge2d_config->src_planes[1].addr = cs1.addr;
-		ge2d_config->src_planes[1].w = cs1.width;
-		ge2d_config->src_planes[1].h = cs1.height;
-		ge2d_config->src_planes[2].addr = cs2.addr;
-		ge2d_config->src_planes[2].w = cs2.width;
-		ge2d_config->src_planes[2].h = cs2.height;
 		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	}
 	ge2d_config->src_para.format = get_input_format(vf);
@@ -1754,7 +1790,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 
-	ge2d_config->dst_para.canvas_index = new_vf->canvas0Addr;
+	ge2d_config->dst_para.canvas_index = dst_canvas_id;
 	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
 	/*ge2d_config->dst_para.mem_type = CANVAS_OSD0;*/
 	/*ge2d_config->dst_para.format = GE2D_FORMAT_M24_YUV420;*/
@@ -1881,11 +1917,12 @@ static void process_vf_rotate(struct vframe_s *vf,
 			display_mode_adjust(context, vf);
 	}
 #else
-	stretchblt_noalpha(context, 0, 0,
-			vf->width,
-			vf->height,
-			0, 0, new_vf->width, new_vf->height);
+	stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
+			   0, 0, new_vf->width, new_vf->height);
 
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+rotate_done:
 #endif
 	if (strstr(ppmgr_device.dump_path, "scr")
 		&& (dumpfirstframe == 2)) {
@@ -1919,37 +1956,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	}
 	ppmgr_vf_put_dec(vf);
 	new_vf->source_type = VFRAME_SOURCE_TYPE_PPMGR;
-	if (dumpfirstframe != 2)
-		vfq_push(&q_ready, new_vf);
-
-	if (strstr(ppmgr_device.dump_path, "dst")
-		&& (dumpfirstframe == 2)) {
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		count = strlen(ppmgr_device.dump_path);
-		ppmgr_device.dump_path[count] = count_dst;
-		sprintf(dst_path, "%s_dst", ppmgr_device.dump_path);
-		count_dst++;
-		filp_dst = filp_open(dst_path,	O_RDWR | O_CREAT, 0666);
-		if (IS_ERR(filp_dst))
-			PPMGRVPP_INFO("open %s failed\n", dst_path);
-		else {
-			result = copy_phybuf_to_file(cd.addr,
-				cd.width * cd.height,
-				filp_dst, 0);
-			if (result < 0)
-				PPMGRVPP_INFO("write %s failed\n", dst_path);
-			PPMGRVPP_INFO("dst addr: %lx, width: %d, height: %d\n",
-				cd.addr, cd.width, cd.height);
-			PPMGRVPP_INFO("dump dst type: %d\n",
-				get_input_format(new_vf));
-			vfs_fsync(filp_dst, 0);
-			filp_close(filp_dst, NULL);
-			set_fs(old_fs);
-		}
-		if (count_dst >= ppmgr_device.ppmgr_debug)
-			dumpfirstframe = 0;
-	}
+	vfq_push(&q_ready, new_vf);
 
 #ifdef DDD
 	PPMGRVPP_WARN("rotate avail=%d, free=%d\n",
@@ -2523,7 +2530,9 @@ static int ppmgr_task(void *data)
 	struct vframe_s *vf_local = NULL;
 	struct ppframe_s *pp_local = NULL;
 	struct ge2d_context_s *context = create_ge2d_work_queue();
+	struct gdc_context_s *gdc_context = NULL;
 	struct config_para_ex_s ge2d_config;
+	struct gdc_phy_setting gdc_config;
 	struct ppframe_s *pp_vf;
 #ifdef PPMGR_TB_DETECT
 	bool first_frame = true;
@@ -2537,15 +2546,19 @@ static int ppmgr_task(void *data)
 	u32 init_mute = 0;
 #endif
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
+	memset(&gdc_config, 0, sizeof(struct gdc_phy_setting));
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	Reset3Dclear();
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+	gdc_context = create_gdc_work_queue();
+#endif
 	while (down_interruptible(&ppmgr_device.ppmgr_sem) == 0) {
 		struct vframe_s *vf = NULL;
 
-		if (ppmgr_device.debug_ppmgr_flag)
+		if (ppmgr_device.ppmgr_debug & 1)
 			PPMGRVPP_INFO("task_1, dec %p, free %d, avail %d\n",
 				      ppmgr_vf_peek_dec(),
 				      vfq_level(&q_free),
@@ -2751,8 +2764,10 @@ static int ppmgr_task(void *data)
 				VFRAME_SOURCE_TYPE_OTHERS)
 				goto SKIP_DETECT;
 			if ((vf->width * vf->height)
-				> (1920 * 1088)) {
-				// greater than (1920 * 1088), do not detect
+				> (1920 * 1088) || vf->mem_sec == 1) {
+				/* greater than (1920 * 1088) or secure mode,
+				 * do not detect
+				 */
 				goto SKIP_DETECT;
 			}
 			if (first_frame) {
@@ -2983,9 +2998,8 @@ SKIP_DETECT:
 				skip_picture =
 					ppmgr_device.tb_detect_period;
 #endif
-			process_vf_rotate(
-					vf, context,
-					&ge2d_config);
+			process_vf_rotate(vf, context, gdc_context,
+					  &gdc_config, &ge2d_config);
 #endif
 			vf_notify_receiver(
 				PROVIDER_NAME,
@@ -3039,7 +3053,7 @@ SKIP_DETECT:
 				      vfq_level(&q_free),
 				      vfq_level(&q_ready));
 		}
-		if (ppmgr_device.debug_ppmgr_flag)
+		if (ppmgr_device.ppmgr_debug & 1)
 			PPMGRVPP_WARN("ppmgr, dec %p, free %d, avail %d\n",
 				      ppmgr_vf_peek_dec(),
 				      vfq_level(&q_free),
@@ -3054,6 +3068,11 @@ SKIP_DETECT:
 	}
 
 	destroy_ge2d_work_queue(context);
+#ifdef CONFIG_AMLOGIC_MEDIA_GDC
+	if (destroy_gdc_work_queue(gdc_context) == 0)
+		PPMGRVPP_WARN("gdc exit!\n");
+#endif
+
 	while (!kthread_should_stop()) {
 		/* may not call stop, wait..
 		 * it is killed by SIGTERM,eixt on down_interruptible
