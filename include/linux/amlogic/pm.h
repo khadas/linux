@@ -23,7 +23,7 @@
 #define	ETH_PHY_GPIO	12
 #define	VAD_WAKEUP	13
 unsigned int get_resume_method(void);
-unsigned int is_pm_freeze_mode(void);
+unsigned int is_pm_s2idle_mode(void);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 enum {

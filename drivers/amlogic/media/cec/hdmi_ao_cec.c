@@ -61,8 +61,8 @@ static struct early_suspend aocec_suspend_handler;
 #define CEC_DEV_NAME		"cec"
 
 /* cec driver function config */
-/*#define CEC_FREEZE_WAKE_UP*/
-/*#define CEC_MAIL_BOX*/
+#define CEC_FREEZE_WAKE_UP
+#define CEC_MAIL_BOX
 
 DECLARE_WAIT_QUEUE_HEAD(cec_msg_wait_queue);
 
@@ -504,9 +504,9 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	CEC_INFO("%s", msg_log_buf);
 
 	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_freeze_mode()) {
+	if (is_pm_s2idle_mode())
 		*out_len = len;
-	} else {
+	else
 	#endif
 	{
 		if (cec_message_op(msg, len))
@@ -514,9 +514,6 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 		else
 			*out_len = 0;
 	}
-	#ifdef CEC_FREEZE_WAKE_UP
-	}
-	#endif
 	pin_status = 1;
 	return 0;
 }
@@ -1820,7 +1817,7 @@ void cec_key_report(int suspend)
 		return;
 	}
 	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_freeze_mode()) {
+	if (is_pm_s2idle_mode()) {
 		pm_wakeup_event(cec_dev->dbg_dev, 2000);
 		CEC_INFO("freeze mode:pm_wakeup_event\n");
 	}
@@ -2203,7 +2200,7 @@ static void cec_task(struct work_struct *work)
 		/*cec module on*/
 		#ifdef CEC_FREEZE_WAKE_UP
 		if ((cec_dev && cec_service_suspended()) ||
-		    is_pm_freeze_mode())
+		    is_pm_s2idle_mode())
 		#else
 		if (cec_dev && cec_service_suspended())
 		#endif
@@ -4046,7 +4043,7 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	cec_dev->cec_suspend = CEC_PW_TRANS_ON_TO_STANDBY;
 
 	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_freeze_mode()) {
+	if (is_pm_s2idle_mode()) {
 		CEC_ERR("%s:freeze mode\n", __func__);
 		cec_restore_pre_setting();
 	} else {
@@ -4084,10 +4081,11 @@ static int aml_cec_resume_noirq(struct device *dev)
 	cec_dev->msg_num = 0;
 
 	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_freeze_mode()) {
+	if (is_pm_s2idle_mode())
 		CEC_ERR("is freeze mode\n");
-	} else {
+	else
 	#endif
+	{
 		cec_clear_all_logical_addr(ee_cec);
 		scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
 		CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
@@ -4102,9 +4100,7 @@ static int aml_cec_resume_noirq(struct device *dev)
 		CEC_ERR("cev val2: 0x%#x\n", temp);
 		/* disable all logical address */
 		/*cec_dev->cec_info.addr_enable = 0;*/
-	#ifdef CEC_FREEZE_WAKE_UP
 	}
-	#endif
 	cec_pre_init();
 	if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
 		ret = pinctrl_pm_select_default_state(cec_dev->dbg_dev);
