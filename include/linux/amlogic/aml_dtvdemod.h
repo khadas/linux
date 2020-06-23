@@ -90,11 +90,17 @@ static inline __maybe_unused int aml_detach_dtvdemod(
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
 int aml_get_dts_demod_config(struct device_node *node,
 		struct demod_config *cfg, int index);
+void aml_show_demod_config(const char *title, struct demod_config *cfg);
 #else
 static inline __maybe_unused int aml_get_dts_demod_config(
 		struct device_node *node, struct demod_config *cfg, int index)
 {
 	return 0;
+}
+
+static inline __maybe_unused void aml_show_demod_config(const char *title,
+		struct demod_config *cfg)
+{
 }
 #endif
 

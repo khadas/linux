@@ -108,6 +108,18 @@ void aml_ktime_get_ts(struct timespec *ts)
 }
 EXPORT_SYMBOL(aml_ktime_get_ts);
 
+int aml_gpio_direction_output(int gpio, int value)
+{
+	return gpio_direction_output(gpio, value);
+}
+EXPORT_SYMBOL(aml_gpio_direction_output);
+
+int aml_gpio_direction_input(int gpio)
+{
+	return gpio_direction_input(gpio);
+}
+EXPORT_SYMBOL(aml_gpio_direction_input);
+
 bool aml_gpio_is_valid(int number)
 {
 	return gpio_is_valid(number);

@@ -71,7 +71,14 @@ enum dtv_demod_type {
 	AM_DTV_DEMOD_CXD2856  = 16,
 	AM_DTV_DEMOD_MXL248   = 17,
 	AM_DTV_DEMOD_M88DM6K  = 18,
-	AM_DTV_DEMOD_MN88436  = 19
+	AM_DTV_DEMOD_MN88436  = 19,
+	AM_DTV_DEMOD_MXL212C  = 20,
+	AM_DTV_DEMOD_MXL213C  = 21,
+	AM_DTV_DEMOD_MXL214C  = 22,
+	AM_DTV_DEMOD_MXL252C  = 23,
+	AM_DTV_DEMOD_MXL254C  = 24,
+	AM_DTV_DEMOD_MXL256C  = 25,
+	AM_DTV_DEMOD_MXL258C  = 26
 };
 
 enum aml_fe_dev_type {
@@ -113,24 +120,42 @@ struct tuner_config {
 
 /* For configure different demod */
 struct demod_config {
-	u32 code; /* demod chip code */
-	u8 id; /* enum demod type */
-	u8 mode; /* 0: internal, 1: external */
-	u8 xtal; /* demod xtal */
-	u8 ts; /* ts port */
-	u8 ts_out_mode; /* serial or parallel; 0:serial, 1:parallel */
-	u8 ts_data_pin; /* serial output pin of TS data */
+	u32 code; /* demod chip code. */
+	u8 id; /* enum demod type. */
+	u8 mode; /* 0: internal, 1: external. */
+	u8 xtal; /* demod xtal. */
+	u8 ts; /* demux ts in port. */
+	u8 ts_out_mode; /* serial or parallel; 0: serial, 1: parallel. */
+	u8 ts_data_pin; /* serial output pin of TS data. */
+	u8 ts_wire_mode; /* serial ts wire mode, 0: four-wire, 1: three-wire. */
+
+	/* serial ts multiplexer mode,
+	 * 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3, 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.
+	 */
+	u8 ts_mux_mode;
+
+	u8 ts_out_order; /* parallel/serial output bit order; 0: LSB, 1: MSB. */
+	u8 ts_out_bits; /* parallel output bits */
+	u8 ts_sync_width; /* 0: bit, 1: byte. */
+
+	/* for mixed ts packet stream. */
+	u8 ts_packet_mode; /* 0: add header, 1: remapping pid. */
+	u8 ts_header_bytes; /* add header to every packet, 4/8/12 bytes. */
+	u8 ts_header_data[12];
+	u8 ts_remap_cnt; /* remapping pid. */
+	u16 *ts_pid;
+	u16 *ts_remap_pid;
 
 	/* ts output clock, 0: self-adaption, clock frequency
 	 * is set according to the output bit rate.
 	 */
 	u32 ts_clk;
 
-	/* ts clock inversion setting
+	/* ts clock polarity.
 	 * 0: Falling / Negative edge.
 	 * 1: Rising / Positive edge.
 	 */
-	u8 ts_clk_mode;
+	u8 ts_clk_pol;
 
 	u8 i2c_addr;
 	u8 i2c_id;
@@ -209,6 +234,8 @@ const char *v4l2_std_to_str(v4l2_std_id std);
 
 void aml_ktime_get_ts(struct timespec *ts);
 
+int aml_gpio_direction_output(int gpio, int value);
+int aml_gpio_direction_input(int gpio);
 bool aml_gpio_is_valid(int number);
 int aml_gpio_get_value(int gpio);
 void aml_gpio_set_value(int gpio, int value);
@@ -237,6 +264,16 @@ static inline __maybe_unused const char *v4l2_std_to_str(v4l2_std_id std)
 static inline __maybe_unused void aml_ktime_get_ts(struct timespec *ts)
 {
 
+}
+
+static inline __maybe_unused int aml_gpio_direction_output(int gpio, int value)
+{
+	return 0;
+}
+
+static inline __maybe_unused int aml_gpio_direction_input(int gpio)
+{
+	return 0;
 }
 
 static inline __maybe_unused bool aml_gpio_is_valid(int number)
