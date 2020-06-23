@@ -5510,6 +5510,8 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 	static int post_index = -1;
 	unsigned char tmp_idx = 0;
 
+	if (!active_flag)
+		return 0;
 	post_cnt++;
 	if (di_post_stru.vscale_skip_flag)
 		return 0;
