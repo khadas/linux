@@ -264,7 +264,7 @@ int vf_reg_provider(struct vframe_provider_s *prov)
 	for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 		p = provider_table[i];
 		if (p) {
-			if (!strcmp(p->name, prov->name)) {
+			if (p->name && !strcmp(p->name, prov->name)) {
 				TABLE_UNLOCK();
 				return -1;
 			}
