@@ -118,7 +118,6 @@ static int register_audio_controller(struct platform_device *pdev,
 
 	/* gate on all clks on bringup stage, need gate separately */
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
 
 	return 0;
 }
