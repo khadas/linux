@@ -281,7 +281,6 @@ static int is_mcu_fan_control_available(void)
 {
 	// MCU FAN control only for Khadas VIM2 V13 and later.
 	if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_VIM2_V13){
-		printk("is_mcu_fan_control_available hwver:%d\n",g_mcu_data->fan_data.hwver);
 		return 1;
 	}
 	else
