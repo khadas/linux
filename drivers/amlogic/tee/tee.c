@@ -76,6 +76,10 @@ static int disable_flag;
 #define TEE_SMC_UNPROTECT_MEM \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_MEM)
 
+#define TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE       0xE050
+#define TEE_SMC_DEMUX_CONFIG_PIPELINE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE)
+
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -253,6 +257,15 @@ int tee_config_device_state(int dev_id, int secure)
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_config_device_state);
+
+void tee_demux_config_pipeline(int tsn_in, int tsn_out)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_DEMUX_CONFIG_PIPELINE,
+			tsn_in, tsn_out, 0, 0, 0, 0, 0, &res);
+}
+EXPORT_SYMBOL(tee_demux_config_pipeline);
 
 int tee_create_sysfs(void)
 {

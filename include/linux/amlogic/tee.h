@@ -50,5 +50,7 @@ void tee_unprotect_mem(u32 handle);
 
 int tee_config_device_state(int dev_id, int secure);
 
+void tee_demux_config_pipeline(int tsn_in, int tsn_out);
+
 #endif /* __TEE_H__ */
 
