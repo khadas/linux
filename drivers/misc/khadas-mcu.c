@@ -622,6 +622,15 @@ static ssize_t store_ethernet_mode(struct class *cls, struct class_attribute *at
 	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_ETHERNET_MODE_REG, reg, 1);
 	if (ret < 0)
 		printk("write mcu ethernet mode err\n");
+
+	if (mode == 1) {
+		reg[0] = 0;
+		ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_WOL_REG, reg, 1);
+		if (ret < 0)
+			printk("write wol state err\n");
+		g_mcu_data->wol_enable = 0;
+	}
+
 	return count;
 }
 
