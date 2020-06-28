@@ -13,3 +13,5 @@ include drivers/amlogic/media/video_processor/ionvideo/Makefile
 include drivers/amlogic/media/video_processor/v4lvideo/Makefile
 
 include drivers/amlogic/media/video_processor/video_composer/Makefile
+
+include drivers/amlogic/media/video_processor/videotunnel/Makefile

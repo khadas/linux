@@ -246,6 +246,20 @@ static inline int video_composer_module_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VIDEO_TUNNEL
+int meson_videotunnel_init(void);
+void meson_videotunnel_exit(void);
+#else
+static inline int meson_videotunnel_init(void)
+{
+	return 0;
+}
+
+static inline void meson_videotunnel_exit(void)
+{
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 int aml_lcd_extern_i2c_dev_init(void);
 #else

@@ -236,6 +236,11 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		status = "okay";

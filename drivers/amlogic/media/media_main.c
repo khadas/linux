@@ -95,6 +95,7 @@ static int __init media_main_init(void)
 	call_sub_init(tsync_module_init);
 	call_sub_init(aml_bl_extern_i2c_init);
 	call_sub_init(video_composer_module_init);
+	call_sub_init(meson_videotunnel_init);
 	call_sub_init(aml_lcd_extern_i2c_dev_init);
 	call_sub_init(aml_vecm_init);
 	call_sub_init(ionvideo_init);
@@ -119,6 +120,7 @@ static int __init media_main_init(void)
 static void __exit media_main_exit(void)
 {
 	pr_info("%s()\n", __func__);
+	meson_videotunnel_exit();
 }
 
 module_init(media_main_init);
