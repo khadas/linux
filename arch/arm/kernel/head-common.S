@@ -104,6 +104,9 @@ __mmap_switched:
 #ifdef CONFIG_AMLOGIC_KASAN32
 	bl	kasan_early_init
 #endif
+#ifdef CONFIG_AMLOGIC_VMAP
+	bl	fixup_init_thread_union
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 

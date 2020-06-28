@@ -174,7 +174,9 @@ struct ddr_bandwidth {
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH
 extern unsigned int aml_get_ddr_usage(void);
 extern struct ddr_bandwidth_ops g12_ddr_bw_ops;
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_GX
 extern struct ddr_bandwidth_ops gx_ddr_bw_ops;
+#endif
 extern struct ddr_bandwidth_ops gxl_ddr_bw_ops;
 #else
 static inline unsigned int aml_get_ddr_usage(void)
