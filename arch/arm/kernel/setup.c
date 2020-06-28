@@ -522,7 +522,7 @@ static void __init elf_hwcap_fixup(void)
 }
 
 #ifdef CONFIG_AMLOGIC_VMAP
-static void __init fixup_init_thread_union(void)
+void __init fixup_init_thread_union(void)
 {
 	void *p;
 
@@ -620,9 +620,6 @@ void __init smp_setup_processor_id(void)
 	 */
 	set_my_cpu_offset(0);
 
-#ifdef CONFIG_AMLOGIC_VMAP
-	fixup_init_thread_union();
-#endif
 	pr_info("Booting Linux on physical CPU 0x%x\n", mpidr);
 }
 

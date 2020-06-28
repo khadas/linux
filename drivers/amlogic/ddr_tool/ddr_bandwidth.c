@@ -746,14 +746,16 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	aml_db->mode = MODE_DISABLE;
 	aml_db->threshold = DEFAULT_THRESHOLD * aml_db->bytes_per_cycle *
 			(aml_db->clock_count / 10000);
-	if (aml_db->cpu_type <= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (aml_db->cpu_type <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_GX
 		aml_db->ops = &gx_ddr_bw_ops;
-	else if ((aml_db->cpu_type <= MESON_CPU_MAJOR_ID_TXHD) &&
-		 (aml_db->cpu_type >= MESON_CPU_MAJOR_ID_GXL))
+	#endif
+	} else if ((aml_db->cpu_type <= MESON_CPU_MAJOR_ID_TXHD) &&
+		 (aml_db->cpu_type >= MESON_CPU_MAJOR_ID_GXL)) {
 		aml_db->ops = &gxl_ddr_bw_ops;
-	else if (aml_db->cpu_type >= MESON_CPU_MAJOR_ID_G12A)
+	} else if (aml_db->cpu_type >= MESON_CPU_MAJOR_ID_G12A) {
 		aml_db->ops = &g12_ddr_bw_ops;
-	else {
+	} else {
 		pr_err("%s, can't find ops for cpu type:%d\n",
 			__func__, aml_db->cpu_type);
 		goto inval;

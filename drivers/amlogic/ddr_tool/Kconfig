@@ -27,6 +27,16 @@ config AMLOGIC_DDR_BANDWIDTH
 	  If open it, this driver will export interface to get ddr total
 	  bandwidth, it can be used for ddr DVFS/devfreq system.
 
+config AMLOGIC_DDR_BANDWIDTH_GX
+	tristate "Meson ddr bandwidth for GX"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for GX.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
 config AMLOGIC_DMC_MONITOR
        bool "Amlogic dmc monitor"
        depends on AMLOGIC_DDR_TOOL
@@ -36,3 +46,14 @@ config AMLOGIC_DMC_MONITOR
                set up an address range and assign R/W permission for each
                hardware. If hardware violated R/W permission, then interrupt
                will generated and can help to debug memory pollution.
+
+config AMLOGIC_DMC_MONITOR_GX
+	tristate "Amlogic dmc monitor for GX"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for gx chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.

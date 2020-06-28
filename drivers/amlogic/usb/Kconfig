@@ -28,6 +28,7 @@ config AMLOGIC_USB_HOST_ELECT_TEST
 config AMLOGIC_USBPHY
 	bool "Amlogic USB PHY Driver"
 	depends on AMLOGIC_USB
+	select USB_PHY
 	help
 	  Enable this to support Amlogic USB phy helper driver for Amlogic SoCs.
 	  This driver provides common interface to interact, for Amlogic USB 2.0 PHY

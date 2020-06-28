@@ -343,10 +343,13 @@ static int dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->chip = r;
 	dmc_mon->port_num = ports;
 	dmc_mon->port = desc;
-	if (dmc_mon->chip >= MESON_CPU_MAJOR_ID_G12A)
+	if (dmc_mon->chip >= MESON_CPU_MAJOR_ID_G12A) {
 		dmc_mon->ops = &g12_dmc_mon_ops;
-	else
+	} else {
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
 		dmc_mon->ops = &gx_dmc_mon_ops;
+#endif
+	}
 
 	r = of_property_read_u32(node, "reg_base", &io);
 	if (r < 0) {
