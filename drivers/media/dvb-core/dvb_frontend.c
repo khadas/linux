@@ -1622,7 +1622,8 @@ static bool is_dvbv3_delsys(u32 delsys)
 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC) ||
 		 (delsys == SYS_DTMB) || (delsys == SYS_DVBS2) ||
-		 (delsys == SYS_DVBT2);
+		 (delsys == SYS_DVBT2) || (delsys == SYS_ISDBC) ||
+		 (delsys == SYS_ISDBT) || (delsys == SYS_ISDBS);
 #else
 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC);
