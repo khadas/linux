@@ -28,7 +28,7 @@
 
 static const struct snd_soc_ops simple_ops = {
 	.startup	= asoc_simple_startup,
-	.shutdown	= asoc_simple_shutdown,
+	/*.shutdown	= asoc_simple_shutdown,*/
 	.hw_params	= asoc_simple_hw_params,
 };
 

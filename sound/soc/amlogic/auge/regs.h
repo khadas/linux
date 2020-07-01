@@ -226,6 +226,8 @@ struct register_table {
  *	AUDIO ARB,
  */
 #define EE_AUDIO_ARB_CTRL                  0x0a0
+#define EE_AUDIO_ARB_CTRL1                 0x0a1
+#define EE_AUDIO_ARB_STS                   0x0a8
 
 /*
  *	AUDIO LOOPBACK
