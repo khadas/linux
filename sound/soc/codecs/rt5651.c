@@ -911,6 +911,9 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("ADC ASRC", 1, RT5651_PLL_MODE_2,
 			      11, 0, NULL, 0),
 
+	SND_SOC_DAPM_SUPPLY("PLL1", RT5651_PWR_ANLG2,
+			RT5651_PWR_PLL_BIT, 0, NULL, 0),
+	/* Input Side */
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("LDO", RT5651_PWR_ANLG1,
 			RT5651_PWR_LDO_BIT, 0, NULL, 0),
@@ -1134,6 +1137,9 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"IN1P", NULL, "LDO"},
 	{"IN2P", NULL, "LDO"},
 	{"IN3P", NULL, "LDO"},
+	{"BST1", NULL, "micbias1"},
+	{"BST2", NULL, "micbias1"},
+	{"BST3", NULL, "micbias1"},
 
 	{"IN1P", NULL, "MIC1"},
 	{"IN2P", NULL, "MIC2"},
