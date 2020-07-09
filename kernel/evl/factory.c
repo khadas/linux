@@ -466,7 +466,7 @@ static int create_element_device(struct evl_element *e,
 	hash_for_each_possible(fac->name_hash, n, hash, hlen)
 		if (!strcmp(n->devname->name, e->devname->name)) {
 			mutex_unlock(&fac->hash_lock);
-			return -EEXIST;
+			goto fail_hash;
 		}
 
 	hash_add(fac->name_hash, &e->hash, hlen);
@@ -496,6 +496,18 @@ static int create_element_device(struct evl_element *e,
 	e->dev = dev;
 
 	return 0;
+
+	/*
+	 * On error, public and/or core-owned elements should be
+	 * discarded by the caller.  Private user elements must be
+	 * disposed of in this routine if we cannot give them a
+	 * device.
+	 */
+fail_hash:
+	if (!evl_element_is_public(e) && !evl_element_has_coredev(e))
+		fac->dispose(e);
+
+	return -EEXIST;
 
 fail_device:
 	if (evl_element_is_public(e)) {
@@ -593,6 +605,17 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
 		 * If we failed to create a private element,
 		 * evl_release_element() did run via filp_close(), so
 		 * the disposal has taken place already.
+		 *
+		 * NOTE: this code should never directly handle core
+		 * devices, since we are running the user interface to
+		 * cloning a new element. Although a thread may be
+		 * associated with a coredev observable, the latter
+		 * does not export any direct interface to user.
+		 */
+		EVL_WARN_ON(CORE, evl_element_has_coredev(e));
+		/*
+		 * @e might be stale if it was private, test the
+		 * visibility flag from the request block instead.
 		 */
 		if (req.clone_flags & EVL_CLONE_PUBLIC)
 			fac->dispose(e);
