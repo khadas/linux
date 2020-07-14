@@ -138,18 +138,6 @@
 		regulator-always-on;
 	};
 
-	/* Used by Tuner, RGB Led & IR Emitter LED array */
-	vddao_3v3_t: regulator-vddao_3v3_t {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_3V3_T";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vddao_3v3>;
-		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
-		enable-active-low;
-		regulator-always-on;
-	};
-
 	vddio_card: gpio-regulator {
 		compatible = "regulator-gpio";
 
