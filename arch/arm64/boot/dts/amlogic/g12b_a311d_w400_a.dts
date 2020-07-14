@@ -164,7 +164,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x6800000>;
+			size = <0x06800000>;
 			alignment = <0x400000>;
 		};
 		adapt_cma_reserved:linux,adapt_cma {
@@ -819,11 +819,16 @@
 
 &isp {
 	status = "okay";
+	temper-line-offset = <0x1E00>;
+	temper-buf-size = <32>;
+	temper-frame-num = <1>;
+	temper-frame-size = <0x1FA4000>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
+	mem_alloc = <24>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
