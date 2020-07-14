@@ -158,6 +158,8 @@ struct tls_sw_context_tx {
 	struct tls_rec *open_rec;
 	struct list_head tx_list;
 	atomic_t encrypt_pending;
+	/* protect crypto_wait with encrypt_pending */
+	spinlock_t encrypt_compl_lock;
 	int async_notify;
 	int async_capable;
 
@@ -178,6 +180,8 @@ struct tls_sw_context_rx {
 	int async_capable;
 	bool decrypted;
 	atomic_t decrypt_pending;
+	/* protect crypto_wait with decrypt_pending*/
+	spinlock_t decrypt_compl_lock;
 	bool async_notify;
 };
 
@@ -591,6 +595,15 @@ static inline bool tls_sw_has_ctx_tx(const struct sock *sk)
 	if (!ctx)
 		return false;
 	return !!tls_sw_ctx_tx(ctx);
+}
+
+static inline bool tls_sw_has_ctx_rx(const struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+
+	if (!ctx)
+		return false;
+	return !!tls_sw_ctx_rx(ctx);
 }
 
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx);
