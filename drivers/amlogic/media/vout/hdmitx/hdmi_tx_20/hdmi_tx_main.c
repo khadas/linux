@@ -510,9 +510,11 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 	    strncmp(info->name, "null", 4) == 0)
 		return;
 
+	mutex_lock(&getedid_mutex);
 	hdrinfo_to_vinfo(info, hdev);
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdmitx_device.rxcap.dv_info;
+	mutex_unlock(&getedid_mutex);
 }
 
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
@@ -4832,10 +4834,12 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdmitx_device.frac_rate_policy);
 
-	if (!(mode & VMODE_INIT_BIT_MASK))
+	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		set_disp_mode_auto();
-	else
+	} else {
 		pr_info("alread display in uboot\n");
+		edidinfo_attach_to_vinfo(&hdmitx_device);
+	}
 
 	return 0;
 }
@@ -6050,14 +6054,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	register_reboot_notifier(&hdev->nb);
 
 	hdmitx_meson_init(hdev);
-
-	hdmitx_edid_clear(hdev);
-	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
-	if (hdmitx_device.hpd_state) {
-		/* need to get edid before vout probe */
-		hdmitx_get_edid(hdev);
-	}
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vout_register_server(&hdmitx_vout_server);
 #endif
@@ -6104,6 +6102,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (hdev->drm_feature == 0)
 		hdev->hwop.setupirq(hdev);
 
+	if (hdmitx_device.hpd_state) {
+		/* need to get edid before vout probe */
+		hdmitx_get_edid(hdev);
+	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))
 		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 0);
