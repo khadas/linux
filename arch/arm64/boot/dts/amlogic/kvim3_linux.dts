@@ -202,7 +202,7 @@
 		};
 
 		red_led {
-			label = "red_red";
+			label = "red_led";
 			gpios = <&gpio_expander 5 GPIO_ACTIVE_HIGH>;
 			default-state ="off";
 			linux,default-trigger="none";
@@ -807,6 +807,12 @@
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
 		status = "okay";
+	};
+
+    onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		status = "disable";
 	};
 
 	sensor: sensor {
