@@ -495,15 +495,10 @@
 		reg = <0xff809000 0x48>;
 	};
 
-	pwrdm: power-domains {
-		compatible = "amlogic,sm1-power-domain";
-		reg = <0xff62fc00 0xf0>,
-		      <0xff8000e8 0x10>,
-		      <0xff63c100 0x40>,
-		      <0xffd01080 0x20>;
-		vpu_mempd_reg3 = <0xc>;
-		vpu_mempd_reg4 = <0x10>;
-		status = "okay";
+	power_ctrl: power_ctrl@ff8000e8 {
+		compatible = "amlogic, sm1-powerctrl";
+		reg = <0xff8000e8 0x10>,
+		      <0xff63c100 0x10>;
 	};
 
 	bl40: bl40 {

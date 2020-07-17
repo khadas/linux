@@ -23,13 +23,10 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/registers/regs/ao_regs.h>
 #include <linux/amlogic/power_ctrl.h>
-#include <linux/amlogic/power_domain.h>
 
 #include "ge2d_log.h"
 
 #define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
-#define GE2D_PWR_DOMAIN       19
-
 extern unsigned int ge2d_dump_reg_cnt;
 extern unsigned int ge2d_dump_reg_enable;
 extern void __iomem *ge2d_reg_map;
@@ -180,9 +177,6 @@ static inline void ge2d_set_pwr_tbl_bits(unsigned int table_type,
 	break;
 	case MEM_PD_REG0:
 		power_ctrl_mempd0(val ? 0 : 1, 0xFF, start);
-	break;
-	case PWR_DOMAIN_CTRL:
-		power_domain_switch(GE2D_PWR_DOMAIN, val);
 	break;
 	default:
 		ge2d_log_err("unsupported bus type\n");
