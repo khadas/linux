@@ -43,7 +43,7 @@
 struct aml_T9015_audio_priv {
 	struct snd_soc_codec *codec;
 	struct snd_pcm_hw_params *params;
-
+	struct work_struct work;
 	/* codec is used by meson or auge arch */
 	bool is_auge_arch;
 	/* tocodec ctrl supports in and out data */
@@ -416,6 +416,24 @@ static int aml_T9015_audio_start_up(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static void aml_T9015_release_fast_mode_work_func(struct work_struct *p_work)
+{
+	struct aml_T9015_audio_priv *aml_acodec;
+	struct snd_soc_codec *codec;
+
+	aml_acodec = container_of(
+				p_work, struct aml_T9015_audio_priv, work);
+	codec = aml_acodec->codec;
+
+	/*reset audio codec register*/
+	aml_T9015_audio_reset(codec);
+	aml_T9015_audio_start_up(codec);
+	aml_T9015_audio_reg_init(codec);
+
+	aml_acodec->codec = codec;
+	aml_T9015_audio_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+}
+
 static int aml_T9015_codec_mute_stream(struct snd_soc_dai *dai, int mute,
 				      int stream)
 {
@@ -442,10 +460,6 @@ static int aml_T9015_audio_probe(struct snd_soc_codec *codec)
 		pr_info("T9015_audio is null!\n");
 		return -ENODEV;
 	}
-	/*reset audio codec register*/
-	aml_T9015_audio_reset(codec);
-	aml_T9015_audio_start_up(codec);
-	aml_T9015_audio_reg_init(codec);
 
 	if (T9015_audio && T9015_audio->is_auge_arch) {
 		if (T9015_audio->tocodec_inout)
@@ -463,16 +477,18 @@ static int aml_T9015_audio_probe(struct snd_soc_codec *codec)
 				|(1 << 15)
 				|(2 << 2));
 
-	codec->component.dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	T9015_audio->codec = codec;
-
+	INIT_WORK(&T9015_audio->work, aml_T9015_release_fast_mode_work_func);
+	schedule_work(&T9015_audio->work);
 	return 0;
 }
 
 static int aml_T9015_audio_remove(struct snd_soc_codec *codec)
 {
+	struct aml_T9015_audio_priv *aml_acodec =
+		snd_soc_codec_get_drvdata(codec);
 	pr_info("aml_T9015_audio_remove!\n");
-
+	cancel_work_sync(&aml_acodec->work);
 	aml_T9015_audio_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
