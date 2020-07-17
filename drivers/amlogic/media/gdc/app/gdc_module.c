@@ -1900,6 +1900,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gdc_dev);
 	gdc_pwr_config(false);
 
+	gdc_manager.probed = 1;
+
 	return rc;
 }
 
