@@ -75,7 +75,11 @@
 		};
 	};
 
-
+    onewire:onewire {
+           compatible = "w1-gpio";
+           gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+           status = "disable";
+     };
 
 };
 
