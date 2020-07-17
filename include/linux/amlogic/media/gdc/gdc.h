@@ -165,9 +165,10 @@ struct gdc_phy_setting {
 	char config_name[CONFIG_PATH_LENG];
 };
 
+bool is_gdc_supported(void);
+struct gdc_context_s *create_gdc_work_queue(void);
 int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs);
-struct gdc_context_s *create_gdc_work_queue(void);
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue);
 
 #endif

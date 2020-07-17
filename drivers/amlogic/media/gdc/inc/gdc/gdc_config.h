@@ -56,6 +56,7 @@ struct gdc_manager_s {
 	int gdc_state;
 	int process_queue_state;//thread running flag
 	struct meson_gdc_dev_t *gdc_dev;
+	int probed;
 };
 
 extern struct gdc_manager_s gdc_manager;

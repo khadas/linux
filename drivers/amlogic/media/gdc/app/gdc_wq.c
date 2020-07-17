@@ -324,6 +324,15 @@ static inline int work_queue_no_space(struct gdc_context_s *queue)
 	return  list_empty(&queue->free_queue);
 }
 
+bool is_gdc_supported(void)
+{
+	if (gdc_manager.probed)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(is_gdc_supported);
+
 struct gdc_context_s *create_gdc_work_queue(void)
 {
 	int  i;
@@ -331,6 +340,10 @@ struct gdc_context_s *create_gdc_work_queue(void)
 	struct gdc_context_s *gdc_work_queue;
 	int  empty;
 
+	if (!gdc_manager.probed) {
+		gdc_log(LOG_INFO, "GDC is not supported for this chip\n");
+		return NULL;
+	}
 	gdc_work_queue = kzalloc(sizeof(struct gdc_context_s), GFP_KERNEL);
 	if (IS_ERR(gdc_work_queue)) {
 		gdc_log(LOG_ERR, "can't create work queue\n");
