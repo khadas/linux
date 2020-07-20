@@ -971,6 +971,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7A) },
 	{ USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7B) },
 	{ USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7C) },
+    { USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7C) },
 
 	/* Motorola devices */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x22b8, 0x2a70, 0xff, 0xff, 0xff) },	/* mdm6600 */
@@ -2112,6 +2113,12 @@ static int option_attach(struct usb_serial *serial)
 	struct usb_interface_descriptor *iface_desc;
 	struct usb_wwan_intf_private *data;
 	unsigned long device_flags;
+
+    if (serial->dev->descriptor.idVendor == HUAWEI_VENDOR_ID) {
+        if ( 0 != (serial->dev->config->desc.bmAttributes & 0x20)){
+            usb_enable_autosuspend(serial->dev);
+        }
+    }
 
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
