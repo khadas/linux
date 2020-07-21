@@ -33,26 +33,28 @@ create_package() {
 		chmod 775 $pdir/DEBIAN/preinst
 		#
 		echo "#!/bin/bash" >> $pdir/DEBIAN/postinst
-		echo "source /etc/fenix-release" >> $pdir/DEBIAN/postinst
 		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/postinst
 		echo "ln -sf dtb-$version /boot/dtb > /dev/null 2>&1 || mv /boot/dtb-$version /boot/dtb" >> $pdir/DEBIAN/postinst
 		cat <<-EOF >> $pdir/DEBIAN/postinst
-			case \$BOARD in
-				VIM1)
-					DTB=kvim_linux.dtb
-					;;
-				VIM2)
-					DTB=kvim2_linux.dtb
-					;;
-				VIM3)
-					DTB=kvim3_linux.dtb
-					;;
-				VIM3L)
-					DTB=kvim3l_linux.dtb
-					;;
-			esac
-			if [ \$INSTALL_TYPE != EMMC ]; then
-				cp /boot/dtb/\$DTB /boot/dtb.img
+			if [ -f /etc/fenix-release ]; then
+				source /etc/fenix-release
+				case \$BOARD in
+					VIM1)
+						DTB=kvim_linux.dtb
+						;;
+					VIM2)
+						DTB=kvim2_linux.dtb
+						;;
+					VIM3)
+						DTB=kvim3_linux.dtb
+						;;
+					VIM3L)
+						DTB=kvim3l_linux.dtb
+						;;
+				esac
+				if [ \$INSTALL_TYPE != EMMC ]; then
+					cp /boot/dtb/\$DTB /boot/dtb.img
+				fi
 			fi
 			exit 0
 		EOF
