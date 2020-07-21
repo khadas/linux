@@ -346,16 +346,16 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 				    &contr_status);
 			if (IR_DATA_IS_VALID(contr_status)) {
 				rc->ir_work = cnt;
-				break;
+				tasklet_schedule(&tasklet);
+				return IRQ_HANDLED;
 			}
 		}
 
-		if (cnt == IR_ID_MAX) {
+		if (cnt == (ENABLE_LEGACY_IR(rc->protocol) ? 2 : 1)) {
 			dev_err(rc->dev, "invalid interrupt.\n");
 			return IRQ_HANDLED;
 		}
 
-		tasklet_schedule(&tasklet);
 	}
 	return IRQ_HANDLED;
 }
