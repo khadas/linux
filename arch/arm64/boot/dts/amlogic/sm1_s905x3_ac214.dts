@@ -57,18 +57,6 @@
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
-/*
-	hdmi-connector {
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi_connector_in: endpoint {
-				remote-endpoint = <&hdmi_tx_tmds_out>;
-			};
-		};
-	};
-*/
 	leds {
 		compatible = "gpio-leds";
 
@@ -136,21 +124,6 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&dc_in>;
 		regulator-always-on;
-	};
-
-	vddio_card: gpio-regulator {
-		compatible = "regulator-gpio";
-
-		regulator-name = "VDDIO_CARD";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpios = <&gpio GPIOC_7 GPIO_ACTIVE_LOW>;
-		gpios-states = <1>;
-
-		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
-		states = <1800000 1
-			3300000 0>;
 	};
 
 	vddio_ao1v8: regulator-vddio_ao1v8 {
@@ -336,25 +309,13 @@
 		pps-enable = <1>;
 	};
 
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>;
-		clocks = <&wifi32k>;
-		clock-names = "ext_clock";
-	};
-
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
 	};
-	wifi32k: wifi32k {
-		compatible = "pwm-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
-	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_sm1";
 		dev_name = "aml_amdolby_vision_driver";
@@ -978,8 +939,6 @@
 	disable-wp;
 	cap-sdio-irq;
 
-//	mmc-pwrseq = <&sdio_pwrseq>;
-
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddio_ao1v8>;
 
@@ -1027,7 +986,6 @@
 	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&emmc_1v8>;
-	//vqmmc-supply = <&vddio_card>;
 };
 
 /* eMMC */

@@ -36,39 +36,6 @@
 		status = "okay";
 	};
 
-	tdmif_a: audio-controller-0 {
-		compatible = "amlogic,axg-tdm-iface";
-		#sound-dai-cells = <0>;
-		sound-name-prefix = "TDM_A";
-		clocks = <&clkc_audio AUD_CLKID_MST_A_MCLK>,
-			 <&clkc_audio AUD_CLKID_MST_A_SCLK>,
-			 <&clkc_audio AUD_CLKID_MST_A_LRCLK>;
-		clock-names = "mclk", "sclk", "lrclk";
-		status = "disabled";
-	};
-
-	tdmif_b: audio-controller-1 {
-		compatible = "amlogic,axg-tdm-iface";
-		#sound-dai-cells = <0>;
-		sound-name-prefix = "TDM_B";
-		clocks = <&clkc_audio AUD_CLKID_MST_B_MCLK>,
-			 <&clkc_audio AUD_CLKID_MST_B_SCLK>,
-			 <&clkc_audio AUD_CLKID_MST_B_LRCLK>;
-		clock-names = "mclk", "sclk", "lrclk";
-		status = "disabled";
-	};
-
-	tdmif_c: audio-controller-2 {
-		compatible = "amlogic,axg-tdm-iface";
-		#sound-dai-cells = <0>;
-		sound-name-prefix = "TDM_C";
-		clocks = <&clkc_audio AUD_CLKID_MST_C_MCLK>,
-			 <&clkc_audio AUD_CLKID_MST_C_SCLK>,
-			 <&clkc_audio AUD_CLKID_MST_C_LRCLK>;
-		clock-names = "mclk", "sclk", "lrclk";
-		status = "disabled";
-	};
-
 	efuse: efuse {
 		compatible = "amlogic,meson-gxbb-efuse";
 		clocks = <&clkc CLKID_EFUSE>;
@@ -145,41 +112,6 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xff600000 0x200000>;
-#if 0
-			hdmi_tx: hdmi-tx@0 {
-				compatible = "amlogic,meson-g12a-dw-hdmi";
-				reg = <0x0 0x10000>;
-				interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
-				resets = <&reset RESET_HDMITX_CAPB3>,
-					 <&reset RESET_HDMITX_PHY>,
-					 <&reset RESET_HDMITX>;
-				reset-names = "hdmitx_apb", "hdmitx", "hdmitx_phy";
-				clocks = <&clkc CLKID_HDMI>,
-					 <&clkc CLKID_HTX_PCLK>,
-					 <&clkc CLKID_VPU_INTR>;
-				clock-names = "isfr", "iahb", "venci";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				#sound-dai-cells = <0>;
-				status = "disabled";
-
-				/* VPU VENC Input */
-				hdmi_tx_venc_port: port@0 {
-					reg = <0>;
-
-					/*
-					 * hdmi_tx_in: endpoint {
-					 * remote-endpoint = <&hdmi_tx_out>;
-					 * };
-					 */
-				};
-
-				/* TMDS Output */
-				hdmi_tx_tmds_port: port@1 {
-					reg = <1>;
-				};
-			};
-#endif
 
 			apb_efuse: bus@30000 {
 				compatible = "simple-bus";
@@ -1749,18 +1681,6 @@
 					sound-name-prefix = "TOHDMITX";
 					status = "disabled";
 				};
-			};
-
-			usb3_pcie_phy: phy@46000 {
-				compatible = "amlogic,g12a-usb3-pcie-phy";
-				reg = <0x46000 0x2000>;
-				clocks = <&clkc CLKID_PCIE_PLL>;
-				clock-names = "ref_clk";
-				resets = <&reset RESET_PCIE_PHY>;
-				reset-names = "phy";
-				assigned-clocks = <&clkc CLKID_PCIE_PLL>;
-				assigned-clock-rates = <100000000>;
-				#phy-cells = <1>;
 			};
 
 			eth_phy: mdio-multiplexer@4c000 {
