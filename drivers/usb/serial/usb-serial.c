@@ -1226,6 +1226,7 @@ static struct usb_driver usb_serial_driver = {
 	.disconnect =	usb_serial_disconnect,
 	.suspend =	usb_serial_suspend,
 	.resume =	usb_serial_resume,
+    .reset_resume = usb_serial_resume,
 	.no_dynamic_id =	1,
 	.supports_autosuspend =	1,
 };
