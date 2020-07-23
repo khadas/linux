@@ -143,11 +143,13 @@ enum ge2d_memtype_s {
 #define MATRIX_BT_601                   (0 << 4)
 #define MATRIX_BT_709                   (1 << 4)
 #define MATRIX_CUSTOM                   BIT(5)
+#define STRIDE_CUSTOM                   BIT(6)
 
 #define GE2D_FORMAT_BT_STANDARD         (1 << 28)
 #define GE2D_FORMAT_BT601               (0 << 28)
 #define GE2D_FORMAT_BT709               (1 << 28)
 #define GE2D_MATRIX_CUSTOM              BIT(29)
+#define GE2D_STRIDE_CUSTOM              BIT(30)
 
 #define GE2D_ENDIAN_SHIFT	24
 #define GE2D_ENDIAN_MASK            (0x1 << GE2D_ENDIAN_SHIFT)
@@ -672,6 +674,12 @@ struct ge2d_matrix_s {
 	unsigned char sat_in_en;
 };
 
+struct ge2d_stride_s {
+	unsigned int src1_stride[MAX_PLANE];
+	unsigned int src2_stride[MAX_PLANE];
+	unsigned int dst_stride[MAX_PLANE];
+};
+
 struct ge2d_config_s {
 	struct ge2d_gen_s            gen;
 	struct ge2d_src1_data_s      src1_data;
@@ -1063,6 +1071,8 @@ struct config_para_ex_memtype_s {
 	unsigned int dst_mem_alloc_type;
 	/* for customized matrix */
 	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct config_ge2d_para_ex_s {
@@ -1083,6 +1093,8 @@ struct compat_config_para_ex_memtype_s {
 	unsigned int dst_mem_alloc_type;
 	/* for customized matrix */
 	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct compat_config_ge2d_para_ex_s {
