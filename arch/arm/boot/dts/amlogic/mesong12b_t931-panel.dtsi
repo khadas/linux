@@ -1306,7 +1306,7 @@
 
 		extern_5{
 			/* G101B158_FT (lcd_6) */
-			index = <4>;
+			index = <5>;
 			extern_name = "mipi_default";
 			status = "okay";
 			type = <2>; /*0=i2c, 1=spi, 2=mipi*/
