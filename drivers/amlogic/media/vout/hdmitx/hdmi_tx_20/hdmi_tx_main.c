@@ -6108,6 +6108,12 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))
 		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 0);
 
+	if (hdev->hpd_state) {
+		/* need to get edid before vout probe */
+		pr_info(SYS "%s get edid\n", __func__);
+		hdmitx_get_edid(hdev);
+	}
+
 	hdev->hdmi_init = 1;
 
 	hdmitx_hdcp_init();

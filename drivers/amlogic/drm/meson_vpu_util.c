@@ -147,7 +147,7 @@ int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 	return rdma_write_reg_bits(meson_vpu_reg_handle,
 				   addr, val, start, len);
 #else
-	aml_vcbus_update_bits(adr, ((1 << len) - 1) << start, val << start);
+	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
 	return 0;
 #endif
 }
@@ -173,5 +173,19 @@ void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
 			     u32 height, u32 wrap, u32 blkmode)
 {
 	canvas_config(index, addr, width, height, wrap, blkmode);
+}
+
+/*vpu mem power on/off*/
+void meson_vpu_power_config(enum vpu_mod_e mode, bool en)
+{
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *vpu_dev;
+
+	vpu_dev = vpu_dev_register(mode, "meson_drm");
+	if (en)
+		vpu_dev_mem_power_on(vpu_dev);
+	else
+		vpu_dev_mem_power_down(vpu_dev);
+#endif
 }
 

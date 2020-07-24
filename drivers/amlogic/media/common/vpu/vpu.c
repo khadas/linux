@@ -865,6 +865,7 @@ void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev)
 		dump_stack();
 	}
 }
+EXPORT_SYMBOL(vpu_dev_mem_power_down);
 
 /*
  *  Function: vpu_dev_mem_pd_get

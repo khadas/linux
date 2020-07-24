@@ -192,6 +192,21 @@ static int am_meson_logo_info_update(struct meson_drm *priv)
 	return 0;
 }
 
+static void am_meson_vpu_power_config(bool en)
+{
+	meson_vpu_power_config(VPU_MAIL_AFBCD, en);
+	meson_vpu_power_config(VPU_VIU_OSD2, en);
+	meson_vpu_power_config(VPU_VIU_OSD_SCALE, en);
+	meson_vpu_power_config(VPU_VD2_OSD2_SCALE, en);
+	meson_vpu_power_config(VPU_VIU_OSD3, en);
+	meson_vpu_power_config(VPU_OSD_BLD34, en);
+	meson_vpu_power_config(VPU_VIU_OSD2, en);
+
+	meson_vpu_power_config(VPU_VIU2_OSD1, en);
+	meson_vpu_power_config(VPU_VIU2_OSD1, en);
+	meson_vpu_power_config(VPU_VIU2_OSD_ROT, en);
+}
+
 static int am_meson_vpu_bind(struct device *dev,
 			     struct device *master, void *data)
 {
@@ -281,6 +296,7 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
+	am_meson_vpu_power_config(1);
 	vpu_pipeline_init(pipeline);
 
 	/*vsync irq.*/
@@ -315,6 +331,7 @@ static void am_meson_vpu_unbind(struct device *dev,
 	amvecm_drm_gamma_disable(0);
 	am_meson_ctm_disable();
 #endif
+	am_meson_vpu_power_config(0);
 }
 
 static const struct component_ops am_meson_vpu_component_ops = {

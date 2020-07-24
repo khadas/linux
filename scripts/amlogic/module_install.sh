@@ -15,6 +15,7 @@ insmod aml_media.ko
 insmod ion_cma_heap.ko
 insmod aml_ddr_tool.ko
 insmod aml_crypto_dma.ko
+insmod aml_drm.ko
 insmod reg_access.ko
 insmod pcie-amlogic-v2.ko
 insmod mdio-mux.ko

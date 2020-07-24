@@ -446,14 +446,10 @@ static void osd_afbc_hw_disable(struct meson_vpu_block *vblk)
 static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
-	struct vpu_dev_s *mali_afbc_vpu_dev;
 
 	afbc->afbc_regs = &afbc_osd_regs[vblk->index];
 	afbc->status_regs = &afbc_status_regs;
 
-	mali_afbc_vpu_dev =
-		vpu_dev_register(VPU_MAIL_AFBCD, "MALI_AFBC");
-	vpu_dev_mem_power_on(mali_afbc_vpu_dev);
 	afbc_backup_init();
 	/* disable osd1 afbc */
 	osd_afbc_enable(vblk->index, 0);

@@ -56,11 +56,11 @@ static int __init meson_drm_main_init(void)
 static void __exit meson_drm_main_exit(void)
 {
 	DRM_INFO("%s() start\n", __func__);
-	am_meson_cvbs_init();
-	am_meson_hdmi_init();
-	am_meson_lcd_init();
-	am_meson_vpu_init();
-	am_meson_drm_init();
+	am_meson_cvbs_exit();
+	am_meson_hdmi_exit();
+	am_meson_lcd_exit();
+	am_meson_vpu_exit();
+	am_meson_drm_exit();
 	DRM_INFO("%s() end\n", __func__);
 }
 

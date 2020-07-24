@@ -1,5 +1,5 @@
 MESON_DRM_MODULE_NAME = aml_drm
-obj-$(CONFIG_DRM_MESON) = $(MESON_DRM_MODULE_NAME).o
+obj-$(CONFIG_AMLOGIC_DRM) = $(MESON_DRM_MODULE_NAME).o
 $(MESON_DRM_MODULE_NAME)-y = meson_drm_main.o
 ifeq ($(CONFIG_DRM_MESON_USE_ION),y)
         $(MESON_DRM_MODULE_NAME)-y += meson_gem.o meson_fb.o

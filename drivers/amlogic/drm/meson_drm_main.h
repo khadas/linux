@@ -8,47 +8,52 @@
 
 #ifdef CONFIG_DRM_MESON_CVBS
 int am_meson_cvbs_init(void);
+void am_meson_cvbs_exit(void);
 #else
 static inline int am_meson_cvbs_init(void)
 {
 	return 0;
 }
+
+static inline void am_meson_cvbs_exit(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MESON_HDMI
 int am_meson_hdmi_init(void);
+void am_meson_hdmi_exit(void);
 #else
 static inline int am_meson_hdmi_init(void)
 {
 	return 0;
 }
+
+static inline void am_meson_hdmi_exit(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MESON_PANEL
 int am_meson_lcd_init(void);
+void am_meson_lcd_exit(void);
 #else
 static inline int am_meson_lcd_init(void)
 {
 	return 0;
 }
+
+static inline void am_meson_lcd_exit(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MESON_VPU
 int am_meson_vpu_init(void);
+void am_meson_vpu_exit(void);
 #else
 static inline int am_meson_vpu_init(void)
 {
-	return 0;
 }
+
+static inline void am_meson_vpu_exit(void) {}
 #endif
 
-#ifdef CONFIG_AMLOGIC_DRM
 int am_meson_drm_init(void);
-#else
-static inline int am_meson_drm_init(void)
-{
-	return 0;
-}
-#endif
+void am_meson_drm_exit(void);
 
 #endif
