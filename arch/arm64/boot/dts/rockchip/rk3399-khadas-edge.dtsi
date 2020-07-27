@@ -100,9 +100,16 @@
 		sys_led {
 			gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 			label = "sys_led";
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "default-on";
 			default-state = "on";
 		};
+		
+		red_led {
+			gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+			label = "red_led";
+			linux,default-trigger = "off";
+			default-state = "on";
+		};		
 
 	};
 
