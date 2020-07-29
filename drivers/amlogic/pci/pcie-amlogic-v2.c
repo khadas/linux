@@ -574,13 +574,17 @@ static int amlogic_pcie_link_up(struct pcie_port *pp)
 	int   cnt = 0;
 	u32   val = 0;
 	u32   linkup = 0;
+	int   i = 0;
 	struct amlogic_pcie *amlogic_pcie = to_amlogic_pcie(pp);
 
-	val = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
-	linkup = ((val & PCIE_PHY_DEBUG_R1_LINK_UP) &&
-		(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
-	if (linkup)
-		return linkup;
+	for (i = 0; i < 1000; i++) {
+		val = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
+		linkup = ((val & PCIE_PHY_DEBUG_R1_LINK_UP) &&
+			(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
+		if (linkup)
+			return linkup;
+		usleep_range(100, 110);
+	}
 
 	while (smlh_up == 0 || rdlh_up == 0
 		|| ltssm_up == 0 || speed_okay == 0) {
@@ -1035,6 +1039,7 @@ static int amlogic_pcie_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct amlogic_pcie *amlogic_pcie = platform_get_drvdata(pdev);
+	u32 val;
 
 	if (!amlogic_pcie->pm_enable) {
 		dev_info(dev, "don't noirq suspend amlogic pcie\n");
@@ -1058,15 +1063,23 @@ static int amlogic_pcie_suspend_noirq(struct device *dev)
 
 	dev_info(dev, "amlogic_pcie_suspend_noirq\n");
 
-	clk_disable_unprepare(amlogic_pcie->clk);
-	clk_disable_unprepare(amlogic_pcie->bus_clk);
-	clk_disable_unprepare(amlogic_pcie->phy_clk);
-	amlogic_pcie->phy->reset_state = 0;
+	val = amlogic_cfg_readl(amlogic_pcie, PCIE_CFG0);
+	val &= (~APP_LTSSM_ENABLE);
+	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
+	usleep_range(500, 510);
 
 	if (amlogic_pcie->pcie_num == 1) {
 		writel(0x1d, amlogic_pcie->pcie_aml_regs_v2.pcie_phy_r[0]);
 		amlogic_pcie->phy->power_state = 0;
 	}
+
+	usleep_range(500, 510);
+
+	clk_disable_unprepare(amlogic_pcie->clk);
+	clk_disable_unprepare(amlogic_pcie->phy_clk);
+	usleep_range(500, 510);
+	clk_disable_unprepare(amlogic_pcie->bus_clk);
+	amlogic_pcie->phy->reset_state = 0;
 
 	return 0;
 }
@@ -1076,6 +1089,7 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct amlogic_pcie *amlogic_pcie = platform_get_drvdata(pdev);
 	unsigned long rate = 100000000;
+	u32 val;
 
 	if (!amlogic_pcie->pm_enable) {
 		dev_info(dev, "don't noirq resume amlogic pcie\n");
@@ -1085,12 +1099,6 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 	if (amlogic_pcie->phy->device_attch == 0) {
 		dev_info(dev, "PCIE phy power off, no resume noirq\n");
 		return 0;
-	}
-
-	if (amlogic_pcie->pcie_num == 1) {
-		writel(0x1c, amlogic_pcie->pcie_aml_regs_v2.pcie_phy_r[0]);
-		amlogic_pcie->phy->power_state = 1;
-		udelay(500);
 	}
 
 	if (amlogic_pcie->device_attch == 0) {
@@ -1104,10 +1112,23 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 
 	amlogic_pcie->phy->reset_state = 1;
 
-	clk_prepare_enable(amlogic_pcie->phy_clk);
 	clk_prepare_enable(amlogic_pcie->bus_clk);
+	usleep_range(500, 510);
+
+	clk_prepare_enable(amlogic_pcie->phy_clk);
 	clk_prepare_enable(amlogic_pcie->clk);
-	udelay(500);
+	usleep_range(500, 510);
+
+	if (amlogic_pcie->pcie_num == 1) {
+		writel(0x1c, amlogic_pcie->pcie_aml_regs_v2.pcie_phy_r[0]);
+		amlogic_pcie->phy->power_state = 1;
+		usleep_range(500, 510);
+	}
+
+	val = amlogic_cfg_readl(amlogic_pcie, PCIE_CFG0);
+	val |= (APP_LTSSM_ENABLE);
+	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
+	usleep_range(500, 510);
 
 	return 0;
 }
@@ -1146,4 +1167,4 @@ static int __init amlogic_pcie_init(void)
 {
 	return platform_driver_probe(&amlogic_pcie_driver, amlogic_pcie_probe);
 }
-subsys_initcall(amlogic_pcie_init);
+device_initcall(amlogic_pcie_init);
