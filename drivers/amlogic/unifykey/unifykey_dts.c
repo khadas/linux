@@ -259,7 +259,6 @@ static int unifykey_item_create(struct platform_device *pdev, int num)
 		if (!ret)
 			index++;
 	}
-	pr_info("key unify fact unifykey-num is %d\n", index);
 
 	return 0;
 }
@@ -299,7 +298,6 @@ int unifykey_dt_create(struct platform_device *pdev)
 		ret = 0;
 	}
 
-	pr_info("key unify config unifykey-num is %d\n", key_num);
 	ukdev->uk_info.key_num = key_num;
 	if (!(ukdev->uk_info.key_flag)) {
 		unifykey_item_create(pdev, key_num);

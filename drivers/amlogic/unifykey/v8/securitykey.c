@@ -392,10 +392,6 @@ static int storage_probe(struct platform_device *pdev)
 				phy_storage_block_base, storage_block_size);
 	}
 
-	pr_info("storage in base: 0x%lx\n", (long)storage_in_base);
-	pr_info("storage out base: 0x%lx\n", (long)storage_out_base);
-	pr_info("storage block base: 0x%lx\n", (long)storage_block_base);
-
 	ret = 0;
 	if (!storage_in_base || !storage_out_base || !storage_block_base)
 		ret = -1;
@@ -404,7 +400,6 @@ static int storage_probe(struct platform_device *pdev)
 	else
 		storage_init_status = -1;
 
-	pr_info("probe done!\n");
 	return ret;
 }
 

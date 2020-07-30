@@ -1658,7 +1658,6 @@ static int aml_unifykeys_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto error1;
 	}
-	pr_info("unifykey_devno: %x\n", ukdev->uk_devno);
 
 	ukdev->cls.name = UNIFYKEYS_CLASS_NAME;
 	ukdev->cls.owner = THIS_MODULE;
@@ -1686,8 +1685,6 @@ static int aml_unifykeys_probe(struct platform_device *pdev)
 	}
 
 	devp->platform_data = get_unifykeys_drv_data(pdev);
-
-	pr_info("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
 
 	return 0;
 
