@@ -101,11 +101,12 @@ static void ion_codec_mm_heap_free(struct ion_buffer *buffer)
 	struct sg_table *table = buffer->priv_virt;
 	struct page *page = sg_page(table->sgl);
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+	struct device *ion_dev = meson_ion_get_dev();
 
 	ion_buffer_zero(buffer);
 
 	if (!!(buffer->flags & ION_FLAG_CACHED))
-		dma_sync_sg_for_device(NULL,
+		dma_sync_sg_for_device(ion_dev,
 				       table->sgl,
 				       table->nents,
 				       DMA_BIDIRECTIONAL);

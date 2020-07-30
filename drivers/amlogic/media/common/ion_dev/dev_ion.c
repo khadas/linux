@@ -174,6 +174,7 @@ static int dev_ion_probe(struct platform_device *pdev)
 			kfree(heaps[nr]);
 		}
 	}
+	ion_dev = &pdev->dev;
 
 	return ret;
 }
