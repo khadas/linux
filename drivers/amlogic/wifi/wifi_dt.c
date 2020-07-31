@@ -74,6 +74,7 @@ struct wifi_plat_info {
 	int power_on_pin_level;
 	int power_on_pin_OD;
 	int power_on_pin2;
+	int power_init_off;
 
 	int clock_32k_pin;
 	struct gpio_desc *interrupt_desc;
@@ -406,10 +407,17 @@ static int wifi_setup_dt(void)
 		ret = gpio_request(wifi_info.power_on_pin, OWNER_NAME);
 		if (ret)
 			WIFI_INFO("power_on_pin request failed(%d)\n", ret);
-		if (wifi_info.power_on_pin_level)
-			ret = set_power(1);
-		else
-			ret = set_power(0);
+		if (wifi_info.power_init_off) {
+			if (wifi_info.power_on_pin_level)
+				ret = set_power(1);
+			else
+				ret = set_power(0);
+		} else {
+			if (wifi_info.power_on_pin_level)
+				ret = set_power(0);
+			else
+				ret = set_power(1);
+		}
 		if (ret)
 			WIFI_INFO("power_on_pin output failed(%d)\n", ret);
 		SHOW_PIN_OWN("power_on_pin", wifi_info.power_on_pin);
@@ -663,6 +671,9 @@ static int wifi_dev_probe(struct platform_device *pdev)
 				"power_on_pin2", 0, NULL);
 			plat->power_on_pin2 = desc_to_gpio(desc);
 		}
+
+		ret = of_property_read_u32(pdev->dev.of_node,
+		"power_init_off", &plat->power_init_off);
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 			ret = pwm_double_channel_conf_dt(plat);
