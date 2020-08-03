@@ -96,7 +96,7 @@ int codecio_read_cbus(unsigned int reg)
 
 	ret = codecio_reg_read(CODECIO_CBUS_BASE, reg << 2, &val);
 	if (ret) {
-		pr_err("read cbus reg %x error %d\n", reg, ret);
+		// pr_err("read cbus reg %x error %d\n", reg, ret);
 		return -1;
 	} else
 		return val;
@@ -120,7 +120,7 @@ int codecio_read_dosbus(unsigned int reg)
 
 	ret = codecio_reg_read(CODECIO_DOSBUS_BASE, reg << 2, &val);
 	if (ret) {
-		pr_err("read cbus reg %x error %d\n", reg, ret);
+		// pr_err("read cbus reg %x error %d\n", reg, ret);
 		return -1;
 	} else
 		return val;
