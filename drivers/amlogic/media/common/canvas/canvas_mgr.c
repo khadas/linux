@@ -307,7 +307,6 @@ canvas_pool_alloc_canvas_table(const char *owner, u32 *tab, int size,
 			canvas_pool_free_canvas_table(tab, i);
 		return err;
 	}
-	canvas_pool_dump_canvas_table(tab, size);
 	pool->next_alloced_index = oldstart + 1;
 	if (pool->next_alloced_index >= pool->canvas_max)
 		pool->next_alloced_index = 1;
@@ -335,21 +334,6 @@ u32 canvas_pool_free_canvas_table(u32 *tab, int size)
 			canvas_pool_map_free_canvas(canvas4);
 	}
 	memset(tab, 0, size * sizeof(u32));
-	return 0;
-}
-
-u32 canvas_pool_dump_canvas_table(u32 *tab, int size)
-{
-	int i;
-	int canvas1, canvas2, canvas3;
-
-	for (i = 0; i < size; i++) {
-		canvas1 = tab[i] & 0xff;
-		canvas2 = (tab[i] >> 8) & 0xff;
-		canvas3 = (tab[i] >> 16) & 0xff;
-		pr_info("0x%08x:Y=%x,U=%x,V=%x\n", tab[i], (u32)canvas1,
-			(u32)canvas2, (u32)canvas3);
-	}
 	return 0;
 }
 

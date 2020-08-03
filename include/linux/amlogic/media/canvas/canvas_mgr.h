@@ -60,7 +60,6 @@ u32 canvas_pool_alloc_canvas_table(const char *owner, u32 *tab, int size,
 				   enum canvas_map_type_e type);
 
 u32 canvas_pool_free_canvas_table(u32 *tab, int size);
-u32 canvas_pool_dump_canvas_table(u32 *tab, int size);
 u32 canvas_pool_canvas_alloced(int index);
 int canvas_pool_get_static_canvas_by_name(const char *owner, u8 *tab, int size);
 #endif
