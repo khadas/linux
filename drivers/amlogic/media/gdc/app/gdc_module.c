@@ -930,7 +930,7 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 
 	ret = request_firmware(&fw, path, &gdc_manager.gdc_dev->pdev->dev);
 	if (ret < 0) {
-		gdc_log(LOG_ERR, "Error : %d can't load the %s.\n", ret, path);
+		gdc_log(LOG_DEBUG, "Error : %d can't load the %s.\n", ret, path);
 		kfree(path);
 		return -ENOENT;
 	}
@@ -1193,6 +1193,7 @@ int gdc_process_phys(struct gdc_context_s *context,
 	mutex_lock(&context->d_mutext);
 	gdc_cmd = &context->cmd;
 	memset(gdc_cmd, 0, sizeof(struct gdc_cmd_s));
+	memset(&fw_info, 0, sizeof(struct fw_info_s));
 
 	/* set gdc_config */
 	format = gs->format;
@@ -1200,27 +1201,54 @@ int gdc_process_phys(struct gdc_context_s *context,
 	i_height = gs->in_height;
 	o_width = gs->out_width;
 	o_height = gs->out_height;
+	i_y_stride = gs->in_y_stride;
+	i_c_stride = gs->in_c_stride;
+	o_y_stride = gs->out_y_stride;
+	o_c_stride = gs->out_c_stride;
 
-	if (format == NV12 || format == YUV444_P || format == RGB444_P) {
-		i_y_stride = AXI_WORD_ALIGN(i_width);
-		o_y_stride = AXI_WORD_ALIGN(o_width);
-		i_c_stride = AXI_WORD_ALIGN(i_width);
-		o_c_stride = AXI_WORD_ALIGN(o_width);
-	} else if (format == YV12) {
-		i_c_stride = AXI_WORD_ALIGN(i_width / 2);
-		o_c_stride = AXI_WORD_ALIGN(o_width / 2);
-		i_y_stride = i_c_stride * 2;
-		o_y_stride = o_c_stride * 2;
-	} else if (format == Y_GREY) {
-		i_y_stride = AXI_WORD_ALIGN(i_width);
-		o_y_stride = AXI_WORD_ALIGN(o_width);
-		i_c_stride = 0;
-		o_c_stride = 0;
-	} else {
-		gdc_log(LOG_ERR, "Error unknown format\n");
-		mutex_unlock(&context->d_mutext);
-		return -EINVAL;
+	/* if the input and output strides are all not set,
+	 * calculations will be made based on the format and input/output size.
+	 */
+	if (!i_y_stride && !i_c_stride) {
+		if (format == NV12 || format == YUV444_P ||
+		    format == RGB444_P) {
+			i_y_stride = AXI_WORD_ALIGN(i_width);
+			i_c_stride = AXI_WORD_ALIGN(i_width);
+		} else if (format == YV12) {
+			i_c_stride = AXI_WORD_ALIGN(i_width / 2);
+			i_y_stride = i_c_stride * 2;
+		} else if (format == Y_GREY) {
+			i_y_stride = AXI_WORD_ALIGN(i_width);
+			i_c_stride = 0;
+		} else {
+			gdc_log(LOG_ERR, "Error unknown format\n");
+			mutex_unlock(&context->d_mutext);
+			return -EINVAL;
+		}
 	}
+
+	if (!o_y_stride && !o_c_stride) {
+		if (format == NV12 || format == YUV444_P ||
+		    format == RGB444_P) {
+			o_y_stride = AXI_WORD_ALIGN(o_width);
+			o_c_stride = AXI_WORD_ALIGN(o_width);
+		} else if (format == YV12) {
+			o_c_stride = AXI_WORD_ALIGN(o_width / 2);
+			o_y_stride = o_c_stride * 2;
+		} else if (format == Y_GREY) {
+			o_y_stride = AXI_WORD_ALIGN(o_width);
+			o_c_stride = 0;
+		} else {
+			gdc_log(LOG_ERR, "Error unknown format\n");
+			mutex_unlock(&context->d_mutext);
+			return -EINVAL;
+		}
+	}
+
+	gdc_log(LOG_DEBUG, "input, format:%d, width:%d, height:%d y_stride:%d c_stride:%d\n",
+		format, i_width, i_height, i_y_stride, i_c_stride);
+	gdc_log(LOG_DEBUG, "output, format:%d, width:%d, height:%d y_stride:%d c_stride:%d\n",
+		format, o_width, o_height, o_y_stride, o_c_stride);
 
 	gdc_cmd->gdc_config.format = format;
 	gdc_cmd->gdc_config.input_width = i_width;
@@ -1231,8 +1259,10 @@ int gdc_process_phys(struct gdc_context_s *context,
 	gdc_cmd->gdc_config.output_height = o_height;
 	gdc_cmd->gdc_config.output_y_stride = o_y_stride;
 	gdc_cmd->gdc_config.output_c_stride = o_c_stride;
-	gdc_cmd->gdc_config.config_addr = gs->config_paddr;
-	gdc_cmd->gdc_config.config_size = gs->config_size;
+	if (!gs->use_builtin_fw) {
+		gdc_cmd->gdc_config.config_addr = gs->config_paddr;
+		gdc_cmd->gdc_config.config_size = gs->config_size;
+	}
 	gdc_cmd->outplane = gs->out_plane_num;
 
 	/* output_addr */
@@ -1292,7 +1322,7 @@ int gdc_process_phys(struct gdc_context_s *context,
 		fw_info.fw_name = gs->config_name;
 		ret = load_firmware_by_name(&fw_info, &gdc_cmd->gdc_config);
 		if (ret <= 0) {
-			gdc_log(LOG_ERR, "line %d,load FW %s failed\n",
+			gdc_log(LOG_DEBUG, "line %d,load FW %s failed\n",
 				__LINE__, fw_info.fw_name);
 			ret = -EINVAL;
 			mutex_unlock(&context->d_mutext);
