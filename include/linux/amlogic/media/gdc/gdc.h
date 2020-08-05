@@ -153,8 +153,12 @@ struct gdc_phy_setting {
 	u32 format;
 	u32 in_width;
 	u32 in_height;
+	u32 in_y_stride;  /* 16-byte alignment */
+	u32 in_c_stride;  /* 16-byte alignment */
 	u32 out_width;
 	u32 out_height;
+	u32 out_y_stride; /* 16-byte alignment */
+	u32 out_c_stride; /* 16-byte alignment */
 	u32 in_plane_num;
 	u32 out_plane_num;
 	u32 in_paddr[GDC_MAX_PLANE];
