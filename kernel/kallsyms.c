@@ -33,6 +33,30 @@
 #define all_var 0
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define KEY_WORD_BASE			0x8000
+/* using small storage type */
+struct short_base {
+	unsigned long   base;
+	unsigned int    start_idx;
+	unsigned int    syms;
+	unsigned short *table;
+};
+
+extern const unsigned int      kallsyms_num_syms __weak;
+extern const unsigned char     kallsyms_names[] __weak;
+extern const unsigned int      kallsyms_markers[] __weak;
+extern const unsigned char     kallsyms_token_table[] __weak;
+extern const unsigned short    kallsyms_token_index[] __weak;
+
+extern const struct short_base kallsyms_short_base[] __weak;
+extern const unsigned int      kallsyms_short_cnt __weak;
+extern const unsigned int      kallsyms_num_words __weak;
+extern const unsigned char     kallsyms_words[] __weak;
+extern const unsigned int      kallsyms_word_markers[] __weak;
+extern const unsigned char     kallsyms_word_table[] __weak;
+extern const unsigned short    kallsyms_word_index[] __weak;
+#else
 /*
  * These will be re-linked against their real values
  * during the second link stage.
@@ -55,6 +79,7 @@ extern const u8 kallsyms_token_table[] __weak;
 extern const u16 kallsyms_token_index[] __weak;
 
 extern const unsigned long kallsyms_markers[] __weak;
+#endif
 
 static inline int is_kernel_inittext(unsigned long addr)
 {
@@ -87,6 +112,103 @@ static int is_ksym_addr(unsigned long addr)
 	return is_kernel_text(addr) || is_kernel_inittext(addr);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned char *get_word_ptr(unsigned int idx)
+{
+	u8 *name;
+	int i;
+
+	name = (u8 *)&kallsyms_words[kallsyms_word_markers[idx >> 8]];
+	for (i = 0; i < (idx & 0xFF); i++)
+		name = name + (*name) + 1;
+
+	return name;
+}
+
+static int decode_word(int idx, char *result)
+{
+	int data, size = 0, dsize = 0;
+	unsigned char *word;
+	const u8 *t;
+
+	WARN_ON(idx >= kallsyms_num_words);
+	word = get_word_ptr(idx);
+	size = *word++;
+
+	while (size) {
+		if (*word < 0x80) {	/* decode for small token */
+			t = &kallsyms_word_table[kallsyms_word_index[*word]];
+			word++;
+			size--;
+			while (*t) {
+				result[dsize] = *t;
+				dsize++;
+				t++;
+			}
+		} else {
+			data   = ((word[0] << 8) + word[1]) - KEY_WORD_BASE;
+			dsize += decode_word(data, result + dsize);
+			word  += 2;
+			size  -= 2;
+		}
+	}
+	return dsize;
+}
+
+static unsigned int kallsyms_expand_symbol_aml(unsigned int off, char *result,
+					       size_t maxlen)
+{
+	int len, skipped_first = 0, wlen, word;
+	const u8 *t, *p;
+
+	p    = &kallsyms_names[off];
+	len  = *p;
+	off += len + 1;
+	p++;
+	while (len) {
+		if (*p < 0x80) {	/* decode for small token */
+			t = &kallsyms_token_table[kallsyms_token_index[*p]];
+			p++;
+			len--;
+			while (*t) {
+				if (skipped_first) {
+					if (maxlen <= 1)
+						goto tail;
+					*result = *t;
+					result++;
+					maxlen--;
+				} else
+					skipped_first = 1;
+				t++;
+			}
+		} else {
+			word = ((p[0] << 8) + p[1]) - KEY_WORD_BASE;
+			wlen = decode_word(word, result);
+			if (!skipped_first) {
+				memmove(result, result + 1, wlen);
+				skipped_first = 1;
+				result += (wlen - 1);
+			} else {
+				result += wlen;
+			}
+			p   += 2;
+			len -= 2;
+			maxlen -= wlen;
+			if (maxlen <= 1)
+				goto tail;
+		}
+	}
+
+tail:
+	if (maxlen)
+		*result = '\0';
+
+	/* Return to offset to the next symbol. */
+	return off;
+
+}
+#endif
+
 /*
  * Expand a compressed symbol data into the resulting uncompressed string,
  * if uncompressed string is too long (>= maxlen), it will be truncated,
@@ -95,6 +217,12 @@ static int is_ksym_addr(unsigned long addr)
 static unsigned int kallsyms_expand_symbol(unsigned int off,
 					   char *result, size_t maxlen)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int ret;
+
+	ret = kallsyms_expand_symbol_aml(off, result, maxlen);
+	return ret;
+#else
 	int len, skipped_first = 0;
 	const u8 *tptr, *data;
 
@@ -137,6 +265,7 @@ tail:
 
 	/* Return to offset to the next symbol. */
 	return off;
+#endif
 }
 
 /*
@@ -145,11 +274,27 @@ tail:
  */
 static char kallsyms_get_symbol_type(unsigned int off)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	const unsigned char *p;
+	int data;
+	char buf[KSYM_NAME_LEN];
+
+	if (kallsyms_names[off + 1] < 0x80) {
+		p = kallsyms_token_table;
+		return p[kallsyms_token_index[kallsyms_names[off + 1]]];
+	}
+
+	data = (kallsyms_names[off + 1] << 8) + kallsyms_names[off + 2];
+	data -= KEY_WORD_BASE;
+	decode_word(data, buf);
+	return buf[0];
+#else
 	/*
 	 * Get just the first code, look it up in the token table,
 	 * and return the first char from this token.
 	 */
 	return kallsyms_token_table[kallsyms_token_index[kallsyms_names[off + 1]]];
+#endif
 }
 
 
@@ -182,6 +327,31 @@ static unsigned int get_symbol_offset(unsigned long pos)
 
 static unsigned long kallsyms_sym_address(int idx)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	const struct short_base *base;
+	int high, low = 0, mid = 0, ih, find = 0;
+
+	base = kallsyms_short_base;
+	high = kallsyms_short_cnt - 1;
+	while (1) {	/* check which short base group idx is */
+		mid = (high + low) / 2;
+		ih  = base[mid].start_idx +  base[mid].syms;
+		if (idx >= base[mid].start_idx && idx < ih) {
+			find = 1;
+			break;
+		}
+		if (low >= high)
+			break;
+
+		if (idx < base[mid].start_idx)
+			high = mid - 1;
+		else
+			low = mid + 1;
+	}
+	WARN_ON(!find);
+	ih = idx - base[mid].start_idx;
+	return base[mid].table[ih] + base[mid].base;
+#else
 	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
 		return kallsyms_addresses[idx];
 
@@ -195,6 +365,7 @@ static unsigned long kallsyms_sym_address(int idx)
 
 	/* ...and negative offsets are relative to kallsyms_relative_base - 1 */
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
+#endif
 }
 
 /* Lookup the address for this symbol. Returns 0 if not found. */
@@ -240,11 +411,13 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	unsigned long symbol_start = 0, symbol_end = 0;
 	unsigned long i, low, high, mid;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	/* This kernel should never had been booted. */
 	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
 		BUG_ON(!kallsyms_addresses);
 	else
 		BUG_ON(!kallsyms_offsets);
+#endif
 
 	/* Do a binary search on the sorted kallsyms_addresses array. */
 	low = 0;

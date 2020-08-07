@@ -76,6 +76,7 @@ struct alloc_caller {
 struct fun_symbol {
 	const char *name;
 	int full_match;
+	int matched;
 };
 
 static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
@@ -86,45 +87,45 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  * functions
  */
 static struct fun_symbol common_func[] __initdata = {
-	{"__alloc_pages_nodemask",	1},
-	{"kmem_cache_alloc",		1},
-	{"__get_free_pages",		1},
-	{"__kmalloc",			1},
-	{"cma_alloc",			1},
-	{"dma_alloc_from_contiguous",	1},
-	{"aml_cma_alloc_post_hook",	1},
-	{"__dma_alloc",			1},
-	{"arm_dma_alloc",		1},
-	{"__kmalloc_track_caller",	1},
-	{"kmem_cache_alloc_trace",	1},
-	{"__alloc_from_contiguous",	1},
-	{"cma_allocator_alloc",		1},
-	{"cma_release",			1},
-	{"dma_release_from_contiguous", 1},
-	{"codec_mm_alloc_in",		0},
-	{"codec_mm_alloc",		0},
-	{"codec_mm_alloc_for_dma",	0},
-	{"codec_mm_extpool_pool_alloc",	1},
-	{"codec_mm_release",		1},
-	{"cma_allocator_free",		1},
-	{"alloc_pages_exact",		1},
-	{"get_zeroed_page",		1},
-	{"__vmalloc_node_range",	1},
-	{"vzalloc",			1},
-	{"vmalloc",			1},
-	{"__alloc_page_frag",		1},
-	{"kmalloc_order",		0},
+	{"__alloc_pages_nodemask",	1, 0},
+	{"kmem_cache_alloc",		1, 0},
+	{"__get_free_pages",		1, 0},
+	{"__kmalloc",			1, 0},
+	{"cma_alloc",			1, 0},
+	{"dma_alloc_from_contiguous",	1, 0},
+	{"aml_cma_alloc_post_hook",	1, 0},
+	{"__dma_alloc",			1, 0},
+	{"arm_dma_alloc",		1, 0},
+	{"__kmalloc_track_caller",	1, 0},
+	{"kmem_cache_alloc_trace",	1, 0},
+	{"__alloc_from_contiguous",	1, 0},
+	{"cma_allocator_alloc",		1, 0},
+	{"cma_release",			1, 0},
+	{"dma_release_from_contiguous", 1, 0},
+	{"codec_mm_alloc_in",		0, 0},
+	{"codec_mm_alloc",		0, 0},
+	{"codec_mm_alloc_for_dma",	0, 0},
+	{"codec_mm_extpool_pool_alloc",	1, 0},
+	{"codec_mm_release",		1, 0},
+	{"cma_allocator_free",		1, 0},
+	{"alloc_pages_exact",		1, 0},
+	{"get_zeroed_page",		1, 0},
+	{"__vmalloc_node_range",	1, 0},
+	{"vzalloc",			1, 0},
+	{"vmalloc",			1, 0},
+	{"__alloc_page_frag",		1, 0},
+	{"kmalloc_order",		0, 0},
 #ifdef CONFIG_NUMA
-	{"alloc_pages_current",		1},
-	{"alloc_page_interleave",	1},
-	{"kmalloc_large_node",		1},
-	{"kmem_cache_alloc_node",	1},
-	{"__kmalloc_node",		1},
-	{"alloc_pages_vma",		1},
+	{"alloc_pages_current",		1, 0},
+	{"alloc_page_interleave",	1, 0},
+	{"kmalloc_large_node",		1, 0},
+	{"kmem_cache_alloc_node",	1, 0},
+	{"__kmalloc_node",		1, 0},
+	{"alloc_pages_vma",		1, 0},
 #endif
 #ifdef CONFIG_SLUB	/* for some static symbols not exported in headfile */
-	{"new_slab",			0},
-	{"slab_alloc",			0},
+	{"new_slab",			0, 0},
+	{"slab_alloc",			0, 0},
 #endif
 	{}		/* tail */
 };
@@ -234,109 +235,12 @@ static inline int is_module_addr(unsigned long ip)
 }
 
 /*
- * following 3 functions are modify from kernel/kallsyms.c
- */
-static unsigned int __init kallsyms_expand_symbol(unsigned int off,
-					   char *result, size_t maxlen)
-{
-	int len, skipped_first = 0;
-	const u8 *tptr, *data;
-
-	/* Get the compressed symbol length from the first symbol byte. */
-	data = &kallsyms_names[off];
-	len = *data;
-	data++;
-
-	/*
-	 * Update the offset to return the offset for the next symbol on
-	 * the compressed stream.
-	 */
-	off += len + 1;
-
-	/*
-	 * For every byte on the compressed symbol data, copy the table
-	 * entry for that byte.
-	 */
-	while (len) {
-		tptr = &kallsyms_token_table[kallsyms_token_index[*data]];
-		data++;
-		len--;
-
-		while (*tptr) {
-			if (skipped_first) {
-				if (maxlen <= 1)
-					goto tail;
-				*result = *tptr;
-				result++;
-				maxlen--;
-			} else
-				skipped_first = 1;
-			tptr++;
-		}
-	}
-
-tail:
-	if (maxlen)
-		*result = '\0';
-
-	/* Return to offset to the next symbol. */
-	return off;
-}
-
-static unsigned long __init kallsyms_sym_address(int idx)
-{
-	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
-		return kallsyms_addresses[idx];
-
-	/* values are unsigned offsets if --absolute-percpu is not in effect */
-	if (!IS_ENABLED(CONFIG_KALLSYMS_ABSOLUTE_PERCPU))
-		return kallsyms_relative_base + (u32)kallsyms_offsets[idx];
-
-	/* ...otherwise, positive offsets are absolute values */
-	if (kallsyms_offsets[idx] >= 0)
-		return kallsyms_offsets[idx];
-
-	/* ...and negative offsets are relative to kallsyms_relative_base - 1 */
-	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
-}
-
-/* Lookup the address for this symbol. Returns 0 if not found. */
-static unsigned long __init kallsyms_contain_name(const char *name, long full,
-						  unsigned int *offset)
-{
-	char namebuf[KSYM_NAME_LEN];
-	unsigned long i;
-	unsigned int off = 0;
-
-	for (i = 0; i < kallsyms_num_syms; i++) {
-		off = kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
-
-		if (full && strcmp(namebuf, name) == 0)
-			return kallsyms_sym_address(i);
-		if (!full && strstr(namebuf, name)) {
-			/* not include tab */
-			if (!strstr(namebuf, "__kstrtab") &&
-			    !strstr(namebuf, "__kcrctab") &&
-			    !strstr(namebuf, "__ksymtab") &&
-			    (off > *offset)) {
-				/* update offset for next loop */
-				*offset = off;
-				return kallsyms_sym_address(i);
-			}
-		}
-	}
-	return 0;
-}
-
-/*
  * set up information for common caller in memory allocate API
  */
-static void __init setup_common_caller(unsigned long kaddr)
+static int __init setup_common_caller(unsigned long kaddr)
 {
 	unsigned long size, offset;
-	int i = 0;
-	const char *name;
-	char str[KSYM_NAME_LEN];
+	int i = 0, ret;
 
 	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
 		/* find a empty caller */
@@ -345,34 +249,20 @@ static void __init setup_common_caller(unsigned long kaddr)
 	}
 	if (i >= COMMON_CALLER_SIZE) {
 		pr_err("%s, out of memory\n", __func__);
-		return;
+		return -1;
 	}
 
-	name = kallsyms_lookup(kaddr, &size, &offset, NULL, str);
-	if (name) {
+	ret = kallsyms_lookup_size_offset(kaddr, &size, &offset);
+	if (ret) {
 		common_caller[i].func_start_addr = kaddr;
 		common_caller[i].size = size;
 		pr_debug("setup %d caller:%lx + %lx, %pf\n",
 			i, kaddr, size, (void *)kaddr);
-	} else
-		pr_err("can't find symbol %pf\n", (void *)kaddr);
-}
-
-static int __init fuzzy_match(const char *name)
-{
-	unsigned int off = 0;
-	unsigned long addr;
-	int find = 0;
-
-	while (1) {
-		addr = kallsyms_contain_name(name, 0, &off);
-		if (addr) {
-			setup_common_caller(addr);
-			find++;
-		} else
-			break;
+		return 0;
 	}
-	return find;
+
+	pr_err("can't find symbol %pf\n", (void *)kaddr);
+	return -1;
 }
 
 static void __init dump_common_caller(void)
@@ -401,28 +291,41 @@ static int __init sym_cmp(const void *x1, const void *x2)
 	return p1->func_start_addr < p2->func_start_addr ? 1 : -1;
 }
 
-static void __init find_static_common_symbol(void)
+static int __init match_common_caller(void *data, const char *name,
+				       struct module *module,
+				       unsigned long addr)
 {
-	int i;
-	unsigned long addr;
+	int i, ret;
 	struct fun_symbol *s;
 
-	memset(common_caller, 0, sizeof(common_caller));
+	if (module)
+		return -1;
+
+	if (!strcmp(name, "_etext"))	/* end of text */
+		return -1;
+
 	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
 		s = &common_func[i];
 		if (!s->name)
-			break;  /* end */
-		if (s->full_match) {
-			addr = kallsyms_contain_name(s->name, 1, NULL);
-			if (addr)
+			break;		/* end */
+		if (s->full_match && !s->matched) {
+			if (!strcmp(name, s->name)) {	/* strict match */
+				ret = setup_common_caller(addr);
+				s->matched = 1;
+			}
+		} else if (!s->full_match) {
+			if (strstr(name, s->name))	/* contians */
 				setup_common_caller(addr);
-			else
-				pr_debug("can't find symbol:%s\n", s->name);
-		} else {
-			if (!fuzzy_match(s->name))
-				pr_info("can't fuzzy match:%s\n", s->name);
 		}
 	}
+	return 0;
+}
+
+static void __init find_static_common_symbol(void)
+{
+
+	memset(common_caller, 0, sizeof(common_caller));
+	kallsyms_on_each_symbol(match_common_caller, NULL);
 	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
 		sym_cmp, NULL);
 	dump_common_caller();
@@ -817,11 +720,10 @@ struct pagetrace_summary {
 static unsigned long find_ip_base(unsigned long ip)
 {
 	unsigned long size, offset;
-	const char *name;
-	char str[KSYM_NAME_LEN];
+	int ret;
 
-	name = kallsyms_lookup(ip, &size, &offset, NULL, str);
-	if (name)	/* find */
+	ret = kallsyms_lookup_size_offset(ip, &size, &offset);
+	if (ret)	/* find */
 		return ip - offset;
 	else		/* not find */
 		return ip;
