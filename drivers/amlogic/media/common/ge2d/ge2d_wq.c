@@ -690,7 +690,7 @@ static int ge2d_monitor_thread(void *data)
 	int ret;
 	struct ge2d_manager_s *manager = (struct ge2d_manager_s *)data;
 
-	ge2d_log_info("ge2d workqueue monitor start\n");
+	ge2d_log_dbg("ge2d workqueue monitor start\n");
 	/* setup current_wq here. */
 	while (ge2d_manager.process_queue_state != GE2D_PROCESS_QUEUE_STOP) {
 		ret = down_interruptible(&manager->event.cmd_in_sem);
@@ -2553,8 +2553,8 @@ int ge2d_wq_init(struct platform_device *pdev,
 	ge2d_irq = irq;
 	ge2d_clk = clk;
 
-	ge2d_log_info("ge2d: pdev=%p, irq=%d, clk=%p\n",
-		pdev, irq, clk);
+	ge2d_log_dbg("ge2d: pdev=%p, irq=%d, clk=%p\n",
+		     pdev, irq, clk);
 
 	ge2d_manager.irq_num = request_irq(ge2d_irq,
 					ge2d_wq_handle,
