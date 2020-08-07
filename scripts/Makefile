@@ -11,7 +11,11 @@
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
 
 hostprogs-$(CONFIG_BUILD_BIN2C)  += bin2c
+#ifdef CONFIG_AMLOGIC_MODIFY
+hostprogs-$(CONFIG_KALLSYMS)     += kallsyms_aml
+#else
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
+#endf
 hostprogs-$(CONFIG_LOGO)         += pnmtologo
 hostprogs-$(CONFIG_VT)           += conmakehash
 hostprogs-$(BUILD_C_RECORDMCOUNT) += recordmcount
