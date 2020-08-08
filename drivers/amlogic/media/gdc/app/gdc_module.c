@@ -678,7 +678,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 {
 	int ret = -1;
 	unsigned long addr;
-	long size;
+	long size = 0;
 	struct aml_dma_cfg *cfg = NULL;
 	struct gdc_cmd_s *gdc_cmd = &context->cmd;
 	int i, plane_number;

@@ -138,6 +138,31 @@
 
 #define _RET_IP_		(unsigned long)__builtin_return_address(0)
 #define _THIS_IP_  ({ __label__ __here; __here: (unsigned long)&&__here; })
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef MODULE
+const char *__builtin_FUNCTION(void);
+#define __MY_FUNC__		(__builtin_FUNCTION())
+#else
+static inline const char *__my_pc__(void)
+{
+	const char *ret;
+#ifdef CONFIG_ARM
+	asm volatile (
+		"mov	%[ret],	pc	\n"
+		: [ret] "=r" (ret)
+		:
+		: "memory", "cc"
+	);
+#elif defined(CONFIG_ARM64)
+	ret = (const char *)_THIS_IP_;
+#else
+#error "----not supported ARCH----"
+#endif
+	return ret;
+}
+#define __MY_FUNC__		(__my_pc__())
+#endif
+#endif /* CONFIG_AMLOGIC_MODIFY */
 
 #ifdef CONFIG_LBDAF
 # include <asm/div64.h>

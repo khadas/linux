@@ -579,14 +579,27 @@ char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 	return buf;
 }
 
+
 static noinline_for_stack
 char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 {
 	int len = 0;
 	size_t lim = spec.precision;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	char name[KSYM_SYMBOL_LEN];
+#endif
 
 	if ((unsigned long)s < PAGE_SIZE)
 		s = "(null)";
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if ((s >= _text && s < _etext) ||
+	    (s >= _sinittext && s < _einittext)) {
+		/* special replace for __func__ */
+		sprint_symbol_no_offset(name, (unsigned long)s);
+		s = name;
+	}
+#endif
 
 	while (lim--) {
 		char c = *s++;

@@ -397,10 +397,15 @@ KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
-		   -Wno-format-security \
-		   -Werror	\
+		   -Wno-format-security -Wno-builtin-macro-redefined \
+		   -Werror \
 		   -std=gnu89 $(call cc-option,-fno-PIE)
 
+# re-define of __func__, __file__ to save rodata size
+AMLOGIC_KFLAGS 	:= -U__func__ -D__func__=__MY_FUNC__ \
+		   -U__FUNC__ -D__FUNC__=__MY_FUNC__ \
+		   -U__FILE__ -D__FILE__='"$(subst $(srctree)/,,$(<))"'
+export AMLOGIC_KFLAGS
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
