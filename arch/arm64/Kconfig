@@ -1550,6 +1550,7 @@ config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 
 source "kernel/Kconfig.dovetail"
+source "kernel/Kconfig.evl"
 
 config PARAVIRT
 	bool "Enable paravirtualization code"
@@ -2340,8 +2341,6 @@ config ARM64_CONTPTE
 	  This reduces TLB pressure and improves performance.
 
 endmenu # "Kernel Features"
-
-source "kernel/Kconfig.evl"
 
 menu "Boot options"
 
