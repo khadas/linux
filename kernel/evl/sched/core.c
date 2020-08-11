@@ -706,7 +706,7 @@ static inline void leave_inband(struct evl_thread *root)
 }
 
 /* oob stalled. */
-static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
+static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
 {
 	trace_evl_reschedule_ipi(this_evl_rq());
 
@@ -1309,7 +1309,7 @@ int __init evl_init_sched(void)
 
 	if (IS_ENABLED(CONFIG_SMP)) {
 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
-					reschedule_interrupt,
+					oob_reschedule_interrupt,
 					IRQF_OOB,
 					"EVL reschedule",
 					&evl_machine_cpudata);
