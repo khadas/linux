@@ -367,7 +367,7 @@ static void __init dump_common_caller(void)
 
 	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
 		if (common_caller[i].func_start_addr)
-			printk(KERN_DEBUG"%2d, addr:%lx + %4lx, %pf\n", i,
+			pr_debug("%2d, addr:%lx + %4lx, %pf\n", i,
 				common_caller[i].func_start_addr,
 				common_caller[i].size,
 				(void *)common_caller[i].func_start_addr);
@@ -403,7 +403,7 @@ static void __init find_static_common_symbol(void)
 			if (addr)
 				setup_common_caller(addr);
 			else
-				pr_info("can't find symbol:%s\n", s->name);
+				pr_debug("can't find symbol:%s\n", s->name);
 		} else {
 			if (!fuzzy_match(s->name))
 				pr_info("can't fuzzy match:%s\n", s->name);
