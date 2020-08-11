@@ -29,14 +29,17 @@ create_package() {
 
 	# Create preinstall and post install script to remove dtb
 	if [[ "$1" == *dtb* ]]; then
+		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb-$version ]; then mv /boot/dtb-$version /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb.old ]; then rm -rf /boot/dtb.old; fi" >> $pdir/DEBIAN/preinst
-		echo "if [ -d /dtb ]; then mv /dtb /dtb.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb ]; then mv /boot/dtb /boot/dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -d /dtb.old ]; then rm /dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -d /dtb ]; then mv /dtb /dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -L /boot/dtb ]; then rm /boot/dtb; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -L /boot/dtb/dtb-* ]; then rm /boot/dtb-*; fi" >> $pdir/DEBIAN/preinst
 		echo "exit 0" >> $pdir/DEBIAN/preinst
 		chmod 775 $pdir/DEBIAN/preinst
 		#
-		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/postinst
 		echo "ln -sf dtb-$version /boot/dtb > /dev/null 2>&1 || mv /boot/dtb-$version /boot/dtb" >> $pdir/DEBIAN/postinst
 		echo "exit 0" >> $pdir/DEBIAN/postinst
 		chmod 775 $pdir/DEBIAN/postinst
