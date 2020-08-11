@@ -20,6 +20,7 @@
 
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
+#include <linux/amlogic/aml_thermal_hw.h>
 
 #ifdef CONFIG_AMLOGIC_GPU_THERMAL
 

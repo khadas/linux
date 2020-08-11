@@ -20,6 +20,7 @@
 
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
+#include <linux/amlogic/aml_thermal_hw.h>
 struct gpucore_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
