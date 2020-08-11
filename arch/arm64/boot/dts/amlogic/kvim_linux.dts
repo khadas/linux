@@ -1224,5 +1224,5 @@
 };
 
 &uart_AO_B {
-	status = "okay";
+	status = "disabled";
 };
