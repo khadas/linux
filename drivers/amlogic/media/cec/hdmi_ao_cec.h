@@ -6,7 +6,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/01/22:suspend get phy addr from tx and save\n"
+#define CEC_DRIVER_VERSION     "2020/08/13:suspend driver don't handl msg\n"
 
 /*#define CEC_DEV_NAME		"cec"*/
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
