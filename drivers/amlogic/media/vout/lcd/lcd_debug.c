@@ -3892,6 +3892,7 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 		return -EINVAL;
 #endif
 	} else if (buf[0] == 'f') { /* filter */
+#ifdef CONFIG_AMLOGIC_LCD_TV
 		ret = sscanf(buf, "filter %x %x", &val[0], &val[1]);
 		if (ret == 2) {
 			pr_info("set vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
@@ -3905,6 +3906,9 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 				vx1_conf->hw_filter_cnt);
 			return -EINVAL;
 		}
+#else
+		return -EINVAL;
+#endif
 	} else {
 		ret = sscanf(buf, "%d %d %d", &vx1_conf->lane_count,
 			&vx1_conf->region_num, &vx1_conf->byte_mode);

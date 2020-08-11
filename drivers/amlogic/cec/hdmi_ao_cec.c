@@ -563,7 +563,9 @@ static bool cec_message_op(unsigned char *msg, unsigned char len)
 					break;
 			}
 			if (i == len) {
+			#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 				cec_set_dev_info(dev_osd_name[j][0]);
+			#endif
 				CEC_INFO("specific dev:%d", dev_osd_name[j][0]);
 			}
 		}
