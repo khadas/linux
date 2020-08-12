@@ -1,0 +1,58 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&sensor>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&iq>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&isp>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&adapter>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&i2c_AO>;
+
+		__overlay__ {
+			status = "okay";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sensor-i2c@6c {
+				compatible = "arm, i2c-sensor";
+				reg = <0x6c>;
+				reg-names = "i2c-sensor";
+				slave-addr = <0x6c>;
+				reg-type = <2>;
+				reg-data-type = <1>;
+				link-device = <&phycsi>;
+				status = "okay";
+			};
+		};
+	};
+};
