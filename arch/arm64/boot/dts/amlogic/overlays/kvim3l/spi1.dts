@@ -1,0 +1,31 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&spicc1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&pwm_ef>;
+
+		__overlay__ {
+			// NOTE: This syntax DOES NOT work on device tree overlays
+			// If you want to use SPI1, you have to remove pwm_f overlay
+			/delete-property/ pinctrl-names;
+			/delete-property/ pinctrl-0;
+		};
+	};
+
+	fragment@2 {
+		target = <&uart_C>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};
