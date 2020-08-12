@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+
 #ifndef _wl_escan_
 #define _wl_escan_
 #include <linuxver.h>

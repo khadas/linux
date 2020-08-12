@@ -200,6 +200,7 @@ wl_ext_event_handler(struct work_struct *work_data)
 	struct net_device *dev = NULL;
 	struct event_handler_list *evt_node;
 	dhd_pub_t *dhd;
+	unsigned long flags = 0;
 
 	BCM_SET_CONTAINER_OF(event_params, work_data, struct wl_event_params, event_work);
 	DHD_EVENT_WAKE_LOCK(event_params->pub);
@@ -218,10 +219,13 @@ wl_ext_event_handler(struct work_struct *work_data)
 			EVENT_TRACE(dev->name, "Unknown Event (%d): ignoring\n", e->etype);
 			goto fail;
 		}
-		if (dhd->busstate == DHD_BUS_DOWN) {
+		DHD_GENERAL_LOCK(dhd, flags);
+		if (DHD_BUS_CHECK_DOWN_OR_DOWN_IN_PROGRESS(dhd)) {
 			EVENT_ERROR(dev->name, "BUS is DOWN.\n");
+			DHD_GENERAL_UNLOCK(dhd, flags);
 			goto fail;
 		}
+		DHD_GENERAL_UNLOCK(dhd, flags);
 		EVENT_DBG(dev->name, "event type (%d)\n", e->etype);
 		mutex_lock(&event_params->event_sync);
 		evt_node = event_params->evt_head.evt_head;

@@ -3973,7 +3973,7 @@ int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstat
 
 	phy_noise = 0;
 	if ((res = dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise, sizeof(phy_noise)))) {
-		WL_ERROR(("WLC_GET_PHY_NOISE error=%d\n", res));
+		WL_TRACE(("WLC_GET_PHY_NOISE error=%d\n", res));
 		goto done;
 	}
 
@@ -3982,7 +3982,7 @@ int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstat
 
 	memset(&scb_val, 0, sizeof(scb_val));
 	if ((res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t)))) {
-		WL_ERROR(("WLC_GET_RSSI error=%d\n", res));
+		WL_TRACE(("WLC_GET_RSSI error=%d\n", res));
 		goto done;
 	}
 

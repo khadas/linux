@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 #ifndef _dhd_config_
 #define _dhd_config_
 
 #include <bcmdevs.h>
+#include <siutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <wlioctl.h>
@@ -122,7 +122,6 @@ enum in_suspend_flags {
 };
 
 enum in_suspend_mode {
-	AUTO_SUSPEND = -1,
 	EARLY_SUSPEND = 0,
 	PM_NOTIFIER = 1
 };
@@ -154,6 +153,10 @@ enum eapol_status {
 typedef struct dhd_conf {
 	uint chip;
 	uint chiprev;
+#ifdef GET_OTP_MODULE_NAME
+	char module_name[16];
+#endif
+	struct ether_addr otp_mac;
 	int fw_type;
 #ifdef BCMSDIO
 	wl_mac_list_ctrl_t fw_by_mac;
@@ -255,6 +258,8 @@ typedef struct dhd_conf {
 	int ctrl_resched;
 	mchan_params_t *mchan;
 	char *wl_preinit;
+	char *wl_suspend;
+	char *wl_resume;
 	int tsq;
 	int orphan_move;
 	uint eapol_status;
@@ -269,15 +274,14 @@ typedef struct dhd_conf {
 } dhd_conf_t;
 
 #ifdef BCMSDIO
-int dhd_conf_get_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, uint8 *mac);
+void dhd_conf_get_otp(dhd_pub_t *dhd, bcmsdh_info_t *sdh, si_t *sih);
 #if defined(HW_OOB) || defined(FORCE_WOWLAN)
-void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
+void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, struct si_pub *sih);
 #endif
 void dhd_conf_set_txglom_params(dhd_pub_t *dhd, bool enable);
 int dhd_conf_set_blksize(bcmsdh_info_t *sdh);
 #endif
-void dhd_conf_set_path_params(dhd_pub_t *dhd, void *sdh,
-	char *fw_path, char *nv_path);
+void dhd_conf_set_path_params(dhd_pub_t *dhd, char *fw_path, char *nv_path);
 int dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val,
 	int def, bool down);
 int dhd_conf_get_band(dhd_pub_t *dhd);
@@ -309,7 +313,7 @@ void dhd_conf_set_garp(dhd_pub_t *dhd, int ifidx, uint32 ipa, bool enable);
 int dhd_conf_get_disable_proptx(dhd_pub_t *dhd);
 #endif
 uint dhd_conf_get_insuspend(dhd_pub_t *dhd, uint mask);
-int dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend, int suspend_mode);
+int dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend);
 void dhd_conf_postinit_ioctls(dhd_pub_t *dhd);
 int dhd_conf_preinit(dhd_pub_t *dhd);
 int dhd_conf_reset(dhd_pub_t *dhd);

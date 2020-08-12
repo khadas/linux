@@ -1,14 +1,14 @@
 /*
  * Broadcom AMBA Interconnect definitions.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: aidmp.h 614820 2016-01-23 17:16:17Z $
+ * $Id: aidmp.h 617751 2016-02-08 09:04:22Z $
  */
 
 #ifndef	_AIDMP_H
@@ -113,7 +113,6 @@
 #define	SD_SZ_MASK		0xfffff000
 #define	SD_SG32			0x00000008
 #define	SD_SZ_ALIGN		0x00000fff
-
 
 #if !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__)
 
@@ -307,7 +306,6 @@ typedef volatile struct _aidmp {
 #define	AI_OOBDINWIDTH		0x364
 #define	AI_OOBDOUTWIDTH		0x368
 
-
 #define	AI_IOCTRLSET		0x400
 #define	AI_IOCTRLCLEAR		0x404
 #define	AI_IOCTRL		0x408
@@ -413,6 +411,13 @@ typedef volatile struct _aidmp {
 #define AI_OOBSEL_6_SHIFT	16
 #define AI_OOBSEL_7_SHIFT	24
 #define AI_IOCTRL_ENABLE_D11_PME	(1 << 14)
+
+/* bit Specific for AI_OOBSELOUTB30 */
+#define OOB_B_ALP_REQUEST 0
+#define OOB_B_HT_REQUEST 1
+#define OOB_B_ILP_REQUEST 2
+#define OOB_B_ALP_AVAIL_REQUEST 3
+#define OOB_B_HT_AVAIL_REQUEST 4
 
 /* mask for interrupts from each core to wrapper */
 #define AI_OOBSELINA74_CORE_MASK       0x80808080

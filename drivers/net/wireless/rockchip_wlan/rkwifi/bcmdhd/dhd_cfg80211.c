@@ -1,14 +1,14 @@
 /*
  * Linux cfg80211 driver - Dongle Host Driver (DHD) related
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_cfg80211.c 699163 2017-05-12 05:18:23Z $
+ * $Id: dhd_cfg80211.c 807961 2019-03-05 05:47:47Z $
  */
 
 #include <linux/vmalloc.h>
@@ -38,13 +38,13 @@
 #ifdef PKT_FILTER_SUPPORT
 #include <dngl_stats.h>
 #include <dhd.h>
-#endif
+#endif // endif
 
 #ifdef PKT_FILTER_SUPPORT
 extern uint dhd_pkt_filter_enable;
 extern uint dhd_master_mode;
 extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode);
-#endif
+#endif // endif
 
 static int dhd_dongle_up = FALSE;
 
@@ -78,17 +78,19 @@ s32 dhd_cfg80211_down(struct bcm_cfg80211 *cfg)
 {
 	struct net_device *ndev;
 	s32 err = 0;
+	dhd_pub_t *dhd =  (dhd_pub_t *)(cfg->pub);
 
 	WL_TRACE(("In\n"));
-	if (!dhd_dongle_up) {
-		WL_ERR(("Dongle is already down\n"));
-		return err;
+	if ((!dhd_dongle_up) || (!dhd->up)) {
+		WL_INFORM_MEM(("Dongle is already down\n"));
+		err = 0;
+		goto done;
 	}
-
 	ndev = bcmcfg_to_prmry_ndev(cfg);
 	wl_dongle_down(ndev);
+done:
 	dhd_dongle_up = FALSE;
-	return 0;
+	return err;
 }
 
 s32 dhd_cfg80211_set_p2p_info(struct bcm_cfg80211 *cfg, int val)
@@ -124,6 +126,15 @@ s32 dhd_cfg80211_clean_p2p_info(struct bcm_cfg80211 *cfg)
 	return 0;
 }
 
+#ifdef WL_STATIC_IF
+int32
+wl_cfg80211_update_iflist_info(struct bcm_cfg80211 *cfg, struct net_device *ndev,
+	int ifidx, uint8 *addr, int bssidx, char *name, int if_state)
+{
+	return dhd_update_iflist_info(cfg->pub, ndev, ifidx, addr, bssidx, name, if_state);
+}
+#endif /* WL_STATIC_IF */
+
 struct net_device* wl_cfg80211_allocate_if(struct bcm_cfg80211 *cfg, int ifidx, const char *name,
 	uint8 *mac, uint8 bssidx, const char *dngl_name)
 {
@@ -142,11 +153,21 @@ int wl_cfg80211_remove_if(struct bcm_cfg80211 *cfg,
 	return dhd_remove_if(cfg->pub, ifidx, rtnl_lock_reqd);
 }
 
+void wl_cfg80211_cleanup_if(struct net_device *net)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(net);
+	BCM_REFERENCE(cfg);
+	dhd_cleanup_if(net);
+}
+
 struct net_device * dhd_cfg80211_netdev_free(struct net_device *ndev)
 {
+	struct bcm_cfg80211 *cfg;
+
 	if (ndev) {
+		cfg = wl_get_cfg(ndev);
 		if (ndev->ieee80211_ptr) {
-			kfree(ndev->ieee80211_ptr);
+			MFREE(cfg->osh, ndev->ieee80211_ptr, sizeof(struct wireless_dev));
 			ndev->ieee80211_ptr = NULL;
 		}
 		free_netdev(ndev);
@@ -160,7 +181,7 @@ void dhd_netdev_free(struct net_device *ndev)
 {
 #ifdef WL_CFG80211
 	ndev = dhd_cfg80211_netdev_free(ndev);
-#endif
+#endif // endif
 	if (ndev)
 		free_netdev(ndev);
 }
@@ -191,12 +212,34 @@ wl_dongle_down(struct net_device *ndev)
 	return err;
 }
 
+s32
+wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
+{
+	s32 err = 0;
+
+	/* Setup timeout if Beacons are lost and roam is off to report link down */
+	if (roamvar) {
+		err = wldev_iovar_setint(ndev, "bcn_timeout", bcn_timeout);
+		if (unlikely(err)) {
+			WL_ERR(("bcn_timeout error (%d)\n", err));
+			goto dongle_rom_out;
+		}
+	}
+	/* Enable/Disable built-in roaming to allow supplicant to take care of roaming */
+	err = wldev_iovar_setint(ndev, "roam_off", roamvar);
+	if (unlikely(err)) {
+		WL_ERR(("roam_off error (%d)\n", err));
+		goto dongle_rom_out;
+	}
+dongle_rom_out:
+	return err;
+}
 
 s32 dhd_config_dongle(struct bcm_cfg80211 *cfg)
 {
 #ifndef DHD_SDALIGN
 #define DHD_SDALIGN	32
-#endif
+#endif // endif
 	struct net_device *ndev;
 	s32 err = 0;
 
@@ -234,14 +277,6 @@ int dhd_cfgvendor_priv_string_handler(struct bcm_cfg80211 *cfg, struct wireless_
 
 	dhd = cfg->pub;
 	DHD_OS_WAKE_LOCK(dhd);
-
-	/* send to dongle only if we are not waiting for reload already */
-	if (dhd->hang_was_sent) {
-		WL_ERR(("HANG was sent up earlier\n"));
-		DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(dhd, DHD_EVENT_TIMEOUT_MS);
-		DHD_OS_WAKE_UNLOCK(dhd);
-		return OSL_ERROR(BCME_DONGLE_DOWN);
-	}
 
 	ndev = wdev_to_wlc_ndev(wdev, cfg);
 	index = dhd_net2idx(dhd->info, ndev);

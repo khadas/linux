@@ -1,14 +1,14 @@
 /*
  * Indices for 802.11 a/b/g/n/ac 1-3 chain symmetric transmit rates
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,27 +24,25 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmwifi_rates.h 612483 2016-01-14 03:44:27Z $
+ * $Id: bcmwifi_rates.h 697006 2017-05-01 19:13:40Z $
  */
 
 #ifndef _bcmwifi_rates_h_
 #define _bcmwifi_rates_h_
 
+#include <typedefs.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-
 #define WL_RATESET_SZ_DSSS		4
 #define WL_RATESET_SZ_OFDM		8
-#define WL_RATESET_SZ_VHT_MCS	10
-#define WL_RATESET_SZ_VHT_MCS_P	12
+#define WL_RATESET_SZ_VHT_MCS		10
+#define WL_RATESET_SZ_VHT_MCS_P		12	/* 10 VHT rates + 2 proprietary rates */
+#define WL_RATESET_SZ_HE_MCS		12	/* 12 HE rates (mcs 0-11) */
 
-#if defined(WLPROPRIETARY_11N_RATES)
-#define WL_RATESET_SZ_HT_MCS	WL_RATESET_SZ_VHT_MCS
-#else
 #define WL_RATESET_SZ_HT_MCS	8
-#endif
 
 #define WL_RATESET_SZ_HT_IOCTL	8	/* MAC histogram, compatibility with wl utility */
 
@@ -75,7 +73,6 @@ typedef enum wl_tx_bw {
 	WL_TX_BW_10
 } wl_tx_bw_t;
 
-
 /*
  * Transmit modes.
  * Not all modes are listed here, only those required for disambiguation. e.g. SPEXP is not listed
@@ -88,7 +85,6 @@ typedef enum wl_tx_mode {
 	WL_NUM_TX_MODES
 } wl_tx_mode_t;
 
-
 /* Number of transmit chains */
 typedef enum wl_tx_chains {
 	WL_TX_CHAINS_1 = 1,
@@ -97,7 +93,6 @@ typedef enum wl_tx_chains {
 	WL_TX_CHAINS_4
 } wl_tx_chains_t;
 
-
 /* Number of transmit streams */
 typedef enum wl_tx_nss {
 	WL_TX_NSS_1 = 1,
@@ -105,7 +100,6 @@ typedef enum wl_tx_nss {
 	WL_TX_NSS_3,
 	WL_TX_NSS_4
 } wl_tx_nss_t;
-
 
 /* This enum maps each rate to a CLM index */
 
@@ -153,7 +147,6 @@ typedef enum clm_rates {
 	WL_RATE_1X1_VHT9SS1           = 21,
 	WL_RATE_P_1X1_VHT10SS1        = 22,
 	WL_RATE_P_1X1_VHT11SS1        = 23,
-
 
 	/************
 	* 2 chains *
@@ -312,7 +305,6 @@ typedef enum clm_rates {
 	WL_RATE_P_2X2_TXBF_VHT10SS2   = 102,
 	WL_RATE_P_2X2_TXBF_VHT11SS2   = 103,
 
-
 	/************
 	* 3 chains *
 	************
@@ -431,7 +423,6 @@ typedef enum clm_rates {
 	WL_RATE_P_3X3_VHT10SS3        = 162,
 	WL_RATE_P_3X3_VHT11SS3        = 163,
 
-
 	/****************************
 	 * TX Beamforming, 3 chains *
 	 ****************************
@@ -520,7 +511,6 @@ typedef enum clm_rates {
 	WL_RATE_3X3_TXBF_VHT9SS3      = 205,
 	WL_RATE_P_3X3_TXBF_VHT10SS3   = 206,
 	WL_RATE_P_3X3_TXBF_VHT11SS3   = 207,
-
 
 	/************
 	* 4 chains *
@@ -640,7 +630,6 @@ typedef enum clm_rates {
 	WL_RATE_P_3X4_VHT10SS3        = 266,
 	WL_RATE_P_3X4_VHT11SS3        = 267,
 
-
 	/* 4 Streams */
 	WL_RATE_4X4_SDM_MCS24         = 268,
 	WL_RATE_4X4_SDM_MCS25         = 269,
@@ -665,7 +654,6 @@ typedef enum clm_rates {
 	WL_RATE_4X4_VHT9SS4           = 277,
 	WL_RATE_P_4X4_VHT10SS4        = 278,
 	WL_RATE_P_4X4_VHT11SS4        = 279,
-
 
 	/****************************
 	 * TX Beamforming, 4 chains *
@@ -786,6 +774,56 @@ typedef enum clm_rates {
 /* Number of rate codes */
 #define WL_NUMRATES 336
 
+/* MCS rates */
+#define WLC_MAX_VHT_MCS	11	/**< Std VHT MCS 0-9 plus prop VHT MCS 10-11 */
+#define WLC_MAX_HE_MCS	11	/**< Std HE MCS 0-11 */
+
+/* Convert encoded rate value in plcp header to numerical rates in 500 KHz increments */
+#define OFDM_PHY2MAC_RATE(rlpt)         plcp_ofdm_rate_tbl[(rlpt) & 0x7]
+#define CCK_PHY2MAC_RATE(signal)	((signal)/5)
+
+/* given a proprietary MCS, get number of spatial streams */
+#define GET_PROPRIETARY_11N_MCS_NSS(mcs) (1 + ((mcs) - 85) / 8)
+
+#define GET_11N_MCS_NSS(mcs) ((mcs) < 32 ? (1 + ((mcs) / 8)) : \
+			      ((mcs) == 32 ? 1 : GET_PROPRIETARY_11N_MCS_NSS(mcs)))
+
+#define IS_PROPRIETARY_11N_MCS(mcs)	FALSE
+#define IS_PROPRIETARY_11N_SS_MCS(mcs)	FALSE /**< is proprietary HT single stream MCS */
+
+/* Store HE mcs map for all NSS in a compact form:
+ *
+ * bit[0:2] mcs code for NSS 1
+ * bit[3:5] mcs code for NSS 2
+ * ...
+ * bit[21:23] mcs code for NSS 8
+ */
+
+/**
+ * 3 bits are used for encoding each NSS mcs map (HE MCS MAP is 24 bits)
+ */
+#define HE_CAP_MCS_CODE_NONE		7
+
+/* macros to access above compact format */
+#define HE_CAP_MCS_NSS_SET_MASK		0x00ffffff /* Field is to be 24 bits long */
+#define HE_CAP_MCS_NSS_GET_SS_IDX(nss) (((nss)-1) * HE_CAP_MCS_CODE_SIZE)
+#define HE_CAP_MCS_NSS_GET_MCS(nss, mcs_nss_map) \
+	(((mcs_nss_map) >> HE_CAP_MCS_NSS_GET_SS_IDX(nss)) & HE_CAP_MCS_CODE_MASK)
+#define HE_CAP_MCS_NSS_SET_MCS(nss, mcs_code, mcs_nss_map) \
+	do { \
+	(mcs_nss_map) &= (~(HE_CAP_MCS_CODE_MASK << HE_CAP_MCS_NSS_GET_SS_IDX(nss))); \
+	(mcs_nss_map) |= (((mcs_code) & HE_CAP_MCS_CODE_MASK) << HE_CAP_MCS_NSS_GET_SS_IDX(nss)); \
+	(mcs_nss_map) &= (HE_CAP_MCS_NSS_SET_MASK); \
+	} while (0)
+
+extern const uint8 plcp_ofdm_rate_tbl[];
+
+uint8 wf_get_single_stream_mcs(uint mcs);
+
+uint8 wf_vht_plcp_to_rate(uint8 *plcp);
+uint wf_mcs_to_rate(uint mcs, uint nss, uint bw, int sgi);
+uint wf_he_mcs_to_rate(uint mcs, uint nss, uint bw, uint gi, bool dcm);
+uint wf_mcs_to_Ndbps(uint mcs, uint nss, uint bw);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

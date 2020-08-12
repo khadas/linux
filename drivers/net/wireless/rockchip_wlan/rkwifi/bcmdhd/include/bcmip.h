@@ -1,14 +1,14 @@
 /*
  * Fundamental constants relating to IP Protocol
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmip.h 700076 2017-05-17 14:42:22Z $
+ * $Id: bcmip.h 785436 2018-10-18 17:54:25Z $
  */
 
 #ifndef _bcmip_h_
@@ -32,11 +32,10 @@
 
 #ifndef _TYPEDEFS_H_
 #include <typedefs.h>
-#endif
+#endif // endif
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
-
 
 /* IPV4 and IPV6 common */
 #define IP_VER_OFFSET		0x0	/* offset to version field */
@@ -73,6 +72,8 @@
 
 #define IPV4_HLEN_MASK		0x0f	/* IPV4 header length mask */
 #define IPV4_HLEN(ipv4_body)	(4 * (((uint8 *)(ipv4_body))[IPV4_VER_HL_OFFSET] & IPV4_HLEN_MASK))
+
+#define IPV4_HLEN_MIN		(4 * 5)	/* IPV4 header minimum length */
 
 #define IPV4_ADDR_LEN		4	/* IPV4 address length */
 
@@ -128,21 +129,6 @@ BWL_PRE_PACKED_STRUCT struct ipv4_hdr {
 	uint16	hdr_chksum;		/* IP header checksum */
 	uint8	src_ip[IPV4_ADDR_LEN];	/* Source IP Address */
 	uint8	dst_ip[IPV4_ADDR_LEN];	/* Destination IP Address */
-} BWL_POST_PACKED_STRUCT;
-
-#define HTYPE_ETHERNET		1		/* htype for ethernet */
-#define ARP_OPC_REQUEST		1		/* ARP request */
-#define ARP_OPC_REPLY		2		/* ARP reply */
-BWL_PRE_PACKED_STRUCT struct bcmarp {
-	uint16	htype;				/* Header type (1 = ethernet) */
-	uint16	ptype;				/* Protocol type (0x800 = IP) */
-	uint8	hlen;				/* Hardware address length (Eth = 6) */
-	uint8	plen;				/* Protocol address length (IP = 4) */
-	uint16	oper;				/* ARP_OPC_... */
-	uint8	src_eth[ETHER_ADDR_LEN];	/* Source hardware address */
-	uint8	src_ip[IPV4_ADDR_LEN];		/* Source protocol address (not aligned) */
-	uint8	dst_eth[ETHER_ADDR_LEN];	/* Destination hardware address */
-	uint8	dst_ip[IPV4_ADDR_LEN];		/* Destination protocol address */
 } BWL_POST_PACKED_STRUCT;
 
 /* IPV6 field offsets */
@@ -226,11 +212,11 @@ ipv6_exthdr_len(uint8 *h, uint8 *proto)
 		if (eh->nexthdr == IPV6_EXTHDR_NONE)
 			return -1;
 		else if (eh->nexthdr == IPV6_EXTHDR_FRAGMENT)
-			hlen = 8;
+			hlen = 8U;
 		else if (eh->nexthdr == IPV6_EXTHDR_AUTH)
-			hlen = (eh->hdrlen + 2) << 2;
+			hlen = (uint16)((eh->hdrlen + 2U) << 2U);
 		else
-			hlen = IPV6_EXTHDR_LEN(eh);
+			hlen = (uint16)IPV6_EXTHDR_LEN(eh);
 
 		len += hlen;
 		eh = (struct ipv6_exthdr *)(h + len);
