@@ -1195,8 +1195,8 @@
 
     onewire:onewire {
         compatible = "w1-gpio";
-        gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
-        status = "disable";
+        gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+        status = "disabled";
     };
 };
 

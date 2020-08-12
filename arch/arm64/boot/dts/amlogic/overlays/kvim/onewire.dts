@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	// onewire using GPIOH_5
+	fragment@0 {
+		target = <&onewire>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

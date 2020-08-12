@@ -1060,6 +1060,11 @@
 		status = "okay";
 	};
 
+	onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
 }; /* end of / */
 
 &meson_fb {

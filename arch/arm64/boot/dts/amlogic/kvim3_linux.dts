@@ -836,7 +836,7 @@
     onewire:onewire {
 		compatible = "w1-gpio";
 		gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	sensor: sensor {
