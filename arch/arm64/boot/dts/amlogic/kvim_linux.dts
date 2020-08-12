@@ -1178,7 +1178,7 @@
 };
 
 &pwm_aoab {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&pwm_ao_a_pin>;
 };
