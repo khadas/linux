@@ -1221,7 +1221,7 @@
 };
 
 &pwm_cd {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&pwm_d_pin>;
 };
