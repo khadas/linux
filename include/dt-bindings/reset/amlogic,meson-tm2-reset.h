@@ -142,9 +142,12 @@
 #define RESET_DEVICE_MMC_ARB		229
 #define RESET_MALI_DMC_PIPL		230
 #define RESET_VPU_VID_LOCK		231
-/*					232	*/
+#define RESET_A53_DMC_PIPL		232
 #define RESET_DMC_VPU_PIPL		233
 #define RESET_GE2D_DMC_PIPL		234
-/*					235-255	*/
+#define RESET_HCODEC_PIPL		235
+/*					236	*/
+#define RESET_HEVCF_DM_PIPL		237
+/*					238-255	*/
 
 #endif
