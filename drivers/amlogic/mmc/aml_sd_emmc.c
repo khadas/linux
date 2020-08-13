@@ -526,6 +526,15 @@ _cali_retry:
 		} else {
 			pr_err("%s: calibration failed, use default\n",
 					mmc_hostname(host->mmc));
+#ifdef SD_EMMC_CLK_CTRL
+			vclk = readl(host->base + SD_EMMC_CLOCK);
+			clkc->div = clk_div_tmp;
+			writel(vclk, host->base + SD_EMMC_CLOCK);
+#else
+			clk_set_rate(host->cfg_div_clk, clk_tmp);
+			vclk = readl(host->base + SD_EMMC_CLOCK);
+#endif
+			pdata->clkc = vclk;
 			return -1;
 		}
 	}
@@ -539,6 +548,15 @@ _cali_retry:
 		} else {
 			pr_err("%s: calibration failed, use default\n",
 				mmc_hostname(host->mmc));
+#ifdef SD_EMMC_CLK_CTRL
+			vclk = readl(host->base + SD_EMMC_CLOCK);
+			clkc->div = clk_div_tmp;
+			writel(vclk, host->base + SD_EMMC_CLOCK);
+#else
+			clk_set_rate(host->cfg_div_clk, clk_tmp);
+			vclk = readl(host->base + SD_EMMC_CLOCK);
+#endif
+			pdata->clkc = vclk;
 			return -1;
 		}
 	}
