@@ -1018,6 +1018,13 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 	struct latmus_runner *runner;
 	int ret;
 
+	if (cmd == EVL_LATIOC_RESET) {
+		evl_reset_clock_gravity(&evl_mono_clock);
+		return 0;
+	}
+
+	/* All other cmds require a setup struct to be passed. */
+
 	if (copy_from_user(&setup_data, (struct latmus_setup __user *)arg,
 			   sizeof(setup_data)))
 		return -EFAULT;
@@ -1026,9 +1033,6 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
 		return -EINVAL;
 
 	switch (cmd) {
-	case EVL_LATIOC_RESET:
-		evl_reset_clock_gravity(&evl_mono_clock);
-		return 0;
 	case EVL_LATIOC_TUNE:
 		setup = setup_tuning;
 		run = run_tuning;
