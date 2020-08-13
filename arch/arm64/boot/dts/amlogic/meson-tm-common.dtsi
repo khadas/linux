@@ -1082,6 +1082,8 @@
 				clock-names = "clk_uart", "clk_gate";
 				fifosize = <64>;
 				status = "disabled";
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_ao_b_pins0>;
 			};
 
 			i2c_AO: i2c@5000 {
@@ -1266,6 +1268,8 @@
 				clocks = <&xtal>, <&clkc CLKID_UART0>;
 				clock-names = "clk_uart", "clk_gate";
 				fifosize = <128>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_a_pins>;
 			};
 
 			uart_B: serial@23000 {
@@ -1276,6 +1280,8 @@
 				clocks = <&xtal>, <&clkc CLKID_UART1>;
 				clock-names = "clk_uart", "clk_gate";
 				fifosize = <64>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_b_pins>;
 			};
 
 			uart_C: serial@22000 {
@@ -1286,6 +1292,8 @@
 				clocks = <&xtal>, <&clkc CLKID_UART2>;
 				clock-names = "clk_uart", "clk_gate";
 				fifosize = <64>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_c_pins>;
 			};
 
 			spicc0: spi@13000 {
