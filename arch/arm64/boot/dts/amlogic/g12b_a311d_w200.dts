@@ -156,23 +156,23 @@
 		galcore_reserved:linux,galcore {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x1000000>;
-			alignment = <0x400000>;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
 		isp_cma_reserved:linux,isp_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x06800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x06800000>;
+			alignment = <0x0 0x400000>;
 		};
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x01800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x01800000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 	galcore {
