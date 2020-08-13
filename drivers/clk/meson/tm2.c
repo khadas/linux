@@ -4193,6 +4193,111 @@ static struct clk_regmap tm2_dspb_mux = {
 	},
 };
 
+static const struct clk_parent_data tm2_vipnanoq_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &tm2_gp0_pll.hw },
+	{ .hw = &tm2_hifi_pll.hw },
+	{ .hw = &tm2_fclk_div2p5.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+	{ .hw = &tm2_fclk_div7.hw },
+};
+
+static struct clk_regmap tm2_vipnanoq_core_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_core_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_vipnanoq_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_vipnanoq_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_vipnanoq_core_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_core_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vipnanoq_core_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_vipnanoq_core_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vipnanoq_core_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vipnanoq_core_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_vipnanoq_axi_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_axi_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_vipnanoq_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_vipnanoq_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_vipnanoq_axi_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_axi_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vipnanoq_axi_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_vipnanoq_axi_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vipnanoq_axi_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vipnanoq_axi_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &tm2_clk81.hw)
 
@@ -4568,6 +4673,12 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_DSPB_B_DIV]		= &tm2_dspb_b_div.hw,
 		[CLKID_DSPB_B_GATE]		= &tm2_dspb_b_gate.hw,
 		[CLKID_DSPB_MUX]		= &tm2_dspb_mux.hw,
+		[CLKID_VIPNANOQ_CORE_MUX]	= &tm2_vipnanoq_core_mux.hw,
+		[CLKID_VIPNANOQ_CORE_DIV]	= &tm2_vipnanoq_core_div.hw,
+		[CLKID_VIPNANOQ_CORE_GATE]	= &tm2_vipnanoq_core_gate.hw,
+		[CLKID_VIPNANOQ_AXI_MUX]	= &tm2_vipnanoq_axi_mux.hw,
+		[CLKID_VIPNANOQ_AXI_DIV]	= &tm2_vipnanoq_axi_div.hw,
+		[CLKID_VIPNANOQ_AXI_GATE]	= &tm2_vipnanoq_axi_gate.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -4835,6 +4946,12 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_dspb_b_div,
 	&tm2_dspb_b_gate,
 	&tm2_dspb_mux,
+	&tm2_vipnanoq_core_mux,
+	&tm2_vipnanoq_core_div,
+	&tm2_vipnanoq_core_gate,
+	&tm2_vipnanoq_axi_mux,
+	&tm2_vipnanoq_axi_div,
+	&tm2_vipnanoq_axi_gate,
 };
 
 static const struct reg_sequence tm2_init_regs[] = {
