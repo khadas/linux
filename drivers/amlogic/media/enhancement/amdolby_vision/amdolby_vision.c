@@ -1116,8 +1116,7 @@ static bool dolby_vision_wait_init;
 static unsigned int frame_count;
 static struct hdr10_param_s hdr10_param;
 static struct master_display_info_s hdr10_data;
-#define MD_BUF_SIZE 1024
-#define COMP_BUF_SIZE 8196
+
 static char *md_buf[2];
 static char *comp_buf[2];
 static char *drop_md_buf[2];
@@ -6412,6 +6411,11 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			/* use aux date first, if invalid, use sei_ptr */
 			if ((!req.aux_buf || !req.aux_size) &&
 			    fmt == VFRAME_SIGNAL_FMT_DOVI) {
+				if (debug_dolby & 1)
+					pr_dolby_dbg("invalid aux buf %p %x, el %d\n",
+						     req.aux_buf,
+						     req.aux_size,
+						     req.dv_enhance_exist);
 				sei = (char *)get_sei_from_src_fmt
 					(vf, &sei_size);
 				if (sei && sei_size) {
@@ -6430,15 +6434,33 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				     req.dv_enhance_exist);
 		/* parse meta in base layer */
 		if (toggle_mode != 2) {
-			meta_flag_bl =
-				parse_sei_and_meta
-					(vf, &req,
-					 &total_comp_size,
-					 &total_md_size,
-					 &src_format,
-					 &ret_flags, drop_flag);
-			if (ret_flags && req.dv_enhance_exist &&
-			    frame_count == 0) {
+			ret = get_md_from_src_fmt(vf);
+			if (ret == 1) { /*parse succeeded*/
+				meta_flag_bl = 0;
+				src_format = FORMAT_DOVI;
+				memcpy(md_buf[current_id],
+				       vf->src_fmt.md_buf,
+				       vf->src_fmt.md_size);
+				memcpy(comp_buf[current_id],
+				       vf->src_fmt.comp_buf,
+				       vf->src_fmt.comp_size);
+				total_md_size =  vf->src_fmt.md_size;
+				total_comp_size =  vf->src_fmt.comp_size;
+				ret_flags = vf->src_fmt.parse_ret_flags;
+			} else if (ret == 2) { /*parse failed*/
+				meta_flag_bl = 1;
+				src_format = FORMAT_DOVI;
+				pr_dolby_dbg("parser error vf %p\n", vf);
+			} else {  /*no parse*/
+				meta_flag_bl =
+				parse_sei_and_meta(vf, &req,
+						   &total_comp_size,
+						   &total_md_size,
+						   &src_format,
+						   &ret_flags, drop_flag);
+			}
+
+			if (ret_flags && req.dv_enhance_exist) {
 				vf_notify_provider_by_name
 					(dv_provider,
 					 VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL,
