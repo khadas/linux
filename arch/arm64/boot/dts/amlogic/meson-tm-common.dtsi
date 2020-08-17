@@ -1373,7 +1373,7 @@
 				compatible = "amlogic,meson-gxbb-wdt";
 				status = "okay";
 				/* 0:userspace, 1:kernel */
-				amlogic,feed_watchdog_mode = <0>;
+				amlogic,feed_watchdog_mode = <1>;
 				reg = <0x0 0xf0d0 0x0 0x10>;
 				clocks = <&xtal>;
 			};
