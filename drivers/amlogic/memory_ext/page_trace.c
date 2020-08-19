@@ -48,7 +48,7 @@
 #ifdef CONFIG_NUMA
 #define COMMON_CALLER_SIZE	64	/* more function names if NUMA */
 #else
-#define COMMON_CALLER_SIZE	32
+#define COMMON_CALLER_SIZE	64
 #endif
 
 /*
@@ -99,6 +99,14 @@ static struct fun_symbol common_func[] __initdata = {
 	{"kmem_cache_alloc_trace",	1},
 	{"__alloc_from_contiguous",	1},
 	{"cma_allocator_alloc",		1},
+	{"cma_release",			1},
+	{"dma_release_from_contiguous", 1},
+	{"codec_mm_alloc_in",		0},
+	{"codec_mm_alloc",		0},
+	{"codec_mm_alloc_for_dma",	0},
+	{"codec_mm_extpool_pool_alloc",	1},
+	{"codec_mm_release",		1},
+	{"cma_allocator_free",		1},
 	{"alloc_pages_exact",		1},
 	{"get_zeroed_page",		1},
 	{"__vmalloc_node_range",	1},
