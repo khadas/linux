@@ -33,6 +33,7 @@
 #include <linux/jiffies.h>
 #include <linux/debugfs.h>
 #include <linux/random.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/aml_sync_api.h>
 
 #include <asm-generic/bug.h>
@@ -41,74 +42,81 @@
 
 #define DEVICE_NAME "videotunnel"
 #define MAX_VIDEO_INSTANCE_NUM 16
-#define VIDEOTUNNEL_CMD_FIFO_SIZE 256
+#define VT_CMD_FIFO_SIZE 128
 
-static struct videotunnel_dev *vdev;
+static struct vt_dev *vdev;
 static struct mutex debugfs_mutex;
 
 enum {
 	VT_DEBUG_NONE             = 0,
 	VT_DEBUG_USER             = 1U << 0,
 	VT_DEBUG_BUFFERS          = 1U << 1,
+	VT_DEBUG_CMD              = 1U << 2,
 };
 
-static u32 videotunnel_debug_mask = VT_DEBUG_NONE;
-module_param_named(debug_mask, videotunnel_debug_mask, uint, 0644);
+static u32 vt_debug_mask = VT_DEBUG_NONE;
+module_param_named(debug_mask, vt_debug_mask, uint, 0644);
 
-#define videotunnel_debug(mask, x...) \
+#define vt_debug(mask, x...) \
 	do { \
-		if (videotunnel_debug_mask & (mask)) \
-			pr_info_ratelimited(x); \
+		if (vt_debug_mask & (mask)) \
+			pr_info(x); \
 	} while (0)
 
-static int videotunnel_debug_instance_show(struct seq_file *s, void *unused)
+static int vt_debug_instance_show(struct seq_file *s, void *unused)
 {
-	struct videotunnel_instance *instance = s->private;
+	struct vt_instance *instance = s->private;
 	int size_to_con = kfifo_len(&instance->fifo_to_consumer);
 	int size_to_pro = kfifo_len(&instance->fifo_to_producer);
+	int size_cmd = kfifo_len(&instance->fifo_cmd);
 	int ref_count = atomic_read(&instance->ref.refcount.refs);
 
 	mutex_lock(&debugfs_mutex);
-	seq_printf(s, "tunnel id=%d, ref=%d\n", instance->id, ref_count);
+	seq_printf(s, "tunnel id=%d, ref=%d, fcount=%d\n",
+		   instance->id,
+		   ref_count,
+		   instance->fcount);
 	seq_puts(s, "-----------------------------------------------\n");
 	if (instance->consumer)
 		seq_printf(s, "consumer session (%s) %p\n",
-			   instance->consumer->display_name, instance->consumer);
+			   instance->consumer->display_name,
+			   instance->consumer);
 	if (instance->producer)
 		seq_printf(s, "producer session (%s) %p\n",
-			   instance->producer->display_name, instance->producer);
+			   instance->producer->display_name,
+			   instance->producer);
 	seq_puts(s, "-----------------------------------------------\n");
 	mutex_unlock(&debugfs_mutex);
 
-	seq_printf(s, "producer transfer to consumer fifo size:%d\n",
-		   size_to_con);
-	seq_printf(s, "consumer transfer to producer fifo size:%d\n",
-		   size_to_pro);
+	seq_printf(s, "to consumer fifo size:%d\n", size_to_con);
+	seq_printf(s, "to producer fifo size:%d\n", size_to_pro);
+	seq_printf(s, "cmd fifo size:%d\n", size_cmd);
 	seq_puts(s, "-----------------------------------------------\n");
 
 	return 0;
 }
 
-static int videotunnel_debug_instance_open(struct inode *inode,
-					   struct file *file)
+static int vt_debug_instance_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, videotunnel_debug_instance_show, inode->i_private);
+	return single_open(file,
+			   vt_debug_instance_show,
+			   inode->i_private);
 }
 
 static const struct file_operations debug_instance_fops = {
-	.open = videotunnel_debug_instance_open,
+	.open = vt_debug_instance_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int videotunnel_debug_session_show(struct seq_file *s, void *unused)
+static int vt_debug_session_show(struct seq_file *s, void *unused)
 {
-	struct videotunnel_session *session = s->private;
+	struct vt_session *session = s->private;
 	struct rb_node *n = NULL;
 
 	mutex_lock(&debugfs_mutex);
-	seq_printf(s, "session(%s) %p role %s cid %ld:\n",
+	seq_printf(s, "session(%s) %p role %s cid %ld\n",
 		   session->display_name, session,
 		   session->role == VT_ROLE_PRODUCER ?
 		   "producer" : (session->role == VT_ROLE_CONSUMER ?
@@ -117,8 +125,8 @@ static int videotunnel_debug_session_show(struct seq_file *s, void *unused)
 	seq_puts(s, "session buffers:\n");
 	mutex_lock(&session->lock);
 	for (n = rb_first(&session->buffers); n; n = rb_next(n)) {
-		struct videotunnel_buffer *buffer = rb_entry(n,
-				struct videotunnel_buffer, node);
+		struct vt_buffer *buffer = rb_entry(n,
+				struct vt_buffer, node);
 
 		seq_printf(s, "    tunnel id:%d, buffer fd:%d, status:%d\n",
 			   buffer->item.tunnel_id,
@@ -133,21 +141,21 @@ static int videotunnel_debug_session_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int videotunnel_debug_session_open(struct inode *inode,
-					  struct file *file)
+static int vt_debug_session_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, videotunnel_debug_session_show, inode->i_private);
+	return single_open(file,
+			   vt_debug_session_show,
+			   inode->i_private);
 }
 
 static const struct file_operations debug_session_fops = {
-	.open = videotunnel_debug_session_open,
+	.open = vt_debug_session_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int videotunnel_close_fd(struct videotunnel_session *session,
-				unsigned int fd)
+static int vt_close_fd(struct vt_session *session, unsigned int fd)
 {
 	int ret;
 
@@ -165,12 +173,13 @@ static int videotunnel_close_fd(struct videotunnel_session *session,
 	return ret;
 }
 
-static void videotunnel_instance_destroy(struct kref *kref)
+static void vt_instance_destroy(struct kref *kref)
 {
-	struct videotunnel_instance *instance =
-		container_of(kref, struct videotunnel_instance, ref);
-	struct videotunnel_dev *dev = instance->dev;
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_instance *instance =
+		container_of(kref, struct vt_instance, ref);
+	struct vt_dev *dev = instance->dev;
+	struct vt_buffer *buffer = NULL;
+	struct vt_cmd *vcmd = NULL;
 
 	mutex_lock(&debugfs_mutex);
 	mutex_lock(&dev->instance_lock);
@@ -179,9 +188,9 @@ static void videotunnel_instance_destroy(struct kref *kref)
 		idr_remove(&dev->instance_idr, instance->id);
 
 	list_del(&instance->entry);
-	videotunnel_debug(VT_DEBUG_USER,
-			  "vt %d destroy\n", instance->id);
+	vt_debug(VT_DEBUG_USER, "vt [%d] destroy\n", instance->id);
 
+	/* destroy fifo to conusmer */
 	mutex_lock(&instance->lock);
 	if (!kfifo_is_empty(&instance->fifo_to_consumer)) {
 		while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
@@ -191,14 +200,18 @@ static void videotunnel_instance_destroy(struct kref *kref)
 				rb_erase(&buffer->node,
 					 &instance->producer->buffers);
 				/* put file */
-				if (buffer->file_buffer)
+				if (buffer->file_buffer) {
 					fput(buffer->file_buffer);
+					instance->fcount--;
+				}
 				mutex_unlock(&instance->producer->lock);
 			}
 			kfree(buffer);
 		}
 	}
+	kfifo_free(&instance->fifo_to_consumer);
 
+	/* destroy fifo to producer */
 	if (!kfifo_is_empty(&instance->fifo_to_producer)) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
 			if (instance->consumer) {
@@ -213,34 +226,42 @@ static void videotunnel_instance_destroy(struct kref *kref)
 			kfree(buffer);
 		}
 	}
-
-	kfifo_free(&instance->fifo_to_consumer);
 	kfifo_free(&instance->fifo_to_producer);
-	debugfs_remove_recursive(instance->debug_root);
 	mutex_unlock(&instance->lock);
+
+	/* destroy fifo cmd */
+	mutex_lock(&instance->cmd_lock);
+	if (!kfifo_is_empty(&instance->fifo_cmd)) {
+		while (kfifo_get(&instance->fifo_cmd, &vcmd))
+			kfree(vcmd);
+	}
+	kfifo_free(&instance->fifo_cmd);
+	mutex_unlock(&instance->cmd_lock);
+
+	debugfs_remove_recursive(instance->debug_root);
 
 	kfree(instance);
 	mutex_unlock(&dev->instance_lock);
 	mutex_unlock(&debugfs_mutex);
 }
 
-static void videotunnel_instance_get(struct videotunnel_instance *instance)
+static void vt_instance_get(struct vt_instance *instance)
 {
 	kref_get(&instance->ref);
 }
 
-static int videotunnel_instance_put(struct videotunnel_instance *instance)
+static int vt_instance_put(struct vt_instance *instance)
 {
 	if (!instance)
 		return -ENOENT;
 
-	return kref_put(&instance->ref, videotunnel_instance_destroy);
+	return kref_put(&instance->ref, vt_instance_destroy);
 }
 
-static struct videotunnel_instance *videotunnel_instance_create(struct videotunnel_dev *dev)
+static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 {
-	struct videotunnel_instance *instance;
-	struct videotunnel_instance *entry;
+	struct vt_instance *instance;
+	struct vt_instance *entry;
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	int status;
@@ -251,28 +272,35 @@ static struct videotunnel_instance *videotunnel_instance_create(struct videotunn
 
 	instance->dev = dev;
 	mutex_init(&instance->lock);
+	mutex_init(&instance->cmd_lock);
 	INIT_LIST_HEAD(&instance->entry);
 	kref_init(&instance->ref);
 
 	status = kfifo_alloc(&instance->fifo_to_consumer,
-			     VIDEO_TUNNEL_POOL_SIZE, GFP_KERNEL);
+			     VT_POOL_SIZE, GFP_KERNEL);
 	if (status)
 		goto setup_fail;
 
 	status = kfifo_alloc(&instance->fifo_to_producer,
-			     VIDEO_TUNNEL_POOL_SIZE, GFP_KERNEL);
+			     VT_POOL_SIZE, GFP_KERNEL);
+	if (status)
+		goto setup_fail;
+
+	/* init fifo cmd */
+	status = kfifo_alloc(&instance->fifo_cmd, VT_CMD_FIFO_SIZE, GFP_KERNEL);
 	if (status)
 		goto setup_fail;
 
 	init_waitqueue_head(&instance->wait_producer);
 	init_waitqueue_head(&instance->wait_consumer);
+	init_waitqueue_head(&instance->wait_cmd);
 
 	/* insert it to dev instances rb tree */
 	mutex_lock(&dev->instance_lock);
 	p = &dev->instances.rb_node;
 	while (*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct videotunnel_instance, node);
+		entry = rb_entry(parent, struct vt_instance, node);
 
 		if (instance < entry)
 			p = &(*p)->rb_left;
@@ -292,15 +320,15 @@ setup_fail:
 	return ERR_PTR(status);
 }
 
-static int videotunnel_get_session_serial(const struct rb_root *root,
-					  const unsigned char *name)
+static int vt_get_session_serial(const struct rb_root *root,
+				 const unsigned char *name)
 {
 	int serial = -1;
 	struct rb_node *node;
 
 	for (node = rb_first(root); node; node = rb_next(node)) {
-		struct videotunnel_session *session =
-		    rb_entry(node, struct videotunnel_session, node);
+		struct vt_session *session =
+		    rb_entry(node, struct vt_session, node);
 
 		if (strcmp(session->name, name))
 			continue;
@@ -309,14 +337,14 @@ static int videotunnel_get_session_serial(const struct rb_root *root,
 	return serial + 1;
 }
 
-static struct videotunnel_session *videotunnel_session_create(struct videotunnel_dev *dev,
-							      const char *name)
+static struct vt_session *vt_session_create(struct vt_dev *dev,
+					    const char *name)
 {
-	struct videotunnel_session *session;
+	struct vt_session *session;
 	struct task_struct *task = NULL;
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
-	struct videotunnel_session *entry;
+	struct vt_session *entry;
 
 	if (!name) {
 		pr_err("%s: Name can not be null\n", __func__);
@@ -356,7 +384,7 @@ static struct videotunnel_session *videotunnel_session_create(struct videotunnel
 
 	down_write(&dev->session_lock);
 	session->display_serial =
-		videotunnel_get_session_serial(&dev->sessions, name);
+		vt_get_session_serial(&dev->sessions, name);
 	session->display_name = kasprintf(GFP_KERNEL, "%s-%d",
 					  name, session->display_serial);
 	if (!session->display_name) {
@@ -368,7 +396,7 @@ static struct videotunnel_session *videotunnel_session_create(struct videotunnel
 	p = &dev->sessions.rb_node;
 	while (*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct videotunnel_session, node);
+		entry = rb_entry(parent, struct vt_session, node);
 
 		if (session < entry)
 			p = &(*p)->rb_left;
@@ -389,6 +417,9 @@ static struct videotunnel_session *videotunnel_session_create(struct videotunnel
 
 	up_write(&dev->session_lock);
 
+	vt_debug(VT_DEBUG_USER, "vt session %s create\n",
+		 session->display_name);
+
 	return session;
 
 err_free_session_name:
@@ -405,10 +436,10 @@ err_put_task_struct:
 /*
  * when disconnect, release the buffer in session
  */
-static void videotunnel_session_trim(struct videotunnel_session *session,
-				     struct videotunnel_instance *instance)
+static void vt_session_trim(struct vt_session *session,
+			    struct vt_instance *instance)
 {
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_buffer *buffer = NULL;
 
 	if (!session || !instance)
 		return;
@@ -430,8 +461,10 @@ static void videotunnel_session_trim(struct videotunnel_session *session,
 		while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
 			mutex_lock(&session->lock);
 			rb_erase(&buffer->node, &session->buffers);
-			if (buffer->file_buffer)
+			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
+				instance->fcount--;
+			}
 			kfree(buffer);
 			mutex_unlock(&session->lock);
 		}
@@ -443,16 +476,16 @@ static void videotunnel_session_trim(struct videotunnel_session *session,
  * called when vt session released
  * clean up instance connected session
  */
-static int videotunnel_instance_trim(struct videotunnel_session *session)
+static int vt_instance_trim(struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance = NULL;
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
+	struct vt_buffer *buffer = NULL;
 	struct rb_node *n = NULL;
 
 	mutex_lock(&dev->instance_lock);
 	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
-		instance = rb_entry(n, struct videotunnel_instance, node);
+		instance = rb_entry(n, struct vt_instance, node);
 		if (instance->producer && instance->producer == session) {
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
@@ -465,6 +498,10 @@ static int videotunnel_instance_trim(struct videotunnel_session *session)
 		if (instance->consumer && instance->consumer == session) {
 			while (kfifo_get(&instance->fifo_to_consumer,
 					 &buffer)) {
+				if (buffer->file_buffer) {
+					fput(buffer->file_buffer);
+					instance->fcount--;
+				}
 				kfree(buffer);
 			}
 			instance->consumer = NULL;
@@ -478,8 +515,13 @@ static int videotunnel_instance_trim(struct videotunnel_session *session)
 				kfree(buffer);
 			}
 			while (kfifo_get(&instance->fifo_to_consumer,
-					 &buffer))
+					 &buffer)) {
+				if (buffer->file_buffer) {
+					fput(buffer->file_buffer);
+					instance->fcount--;
+				}
 				kfree(buffer);
+			}
 		}
 	}
 
@@ -487,15 +529,18 @@ static int videotunnel_instance_trim(struct videotunnel_session *session)
 	return 0;
 }
 
-static void videotunnel_session_destroy(struct videotunnel_session *session)
+static void vt_session_destroy(struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance = NULL, *tmp = NULL;
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL, *tmp = NULL;
+
+	vt_debug(VT_DEBUG_USER, "vt session %s destroy\n",
+		 session->display_name);
 
 	/* videotunnel instances cleanup */
 	mutex_lock(&session->lock);
 	list_for_each_entry_safe(instance, tmp, &session->instances_head, entry)
-		videotunnel_instance_put(instance);
+		vt_instance_put(instance);
 	mutex_unlock(&session->lock);
 
 	/* release dev session rb tree node */
@@ -506,23 +551,23 @@ static void videotunnel_session_destroy(struct videotunnel_session *session)
 	debugfs_remove_recursive(session->debug_root);
 	up_write(&dev->session_lock);
 
-	videotunnel_instance_trim(session);
+	vt_instance_trim(session);
 
 	kfree(session->display_name);
 	kfree(session->name);
 	kfree(session);
 }
 
-static int videotunnel_open(struct inode *inode, struct file *filp)
+static int vt_open(struct inode *inode, struct file *filp)
 {
 	struct miscdevice *miscdev = filp->private_data;
-	struct videotunnel_dev *dev =
-		container_of(miscdev, struct videotunnel_dev, mdev);
-	struct videotunnel_session *session;
+	struct vt_dev *dev =
+		container_of(miscdev, struct vt_dev, mdev);
+	struct vt_session *session;
 	char debug_name[64];
 
 	snprintf(debug_name, 64, "%u", task_pid_nr(current->group_leader));
-	session = videotunnel_session_create(dev, debug_name);
+	session = vt_session_create(dev, debug_name);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -531,15 +576,15 @@ static int videotunnel_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int videotunnel_release(struct inode *inode, struct file *filp)
+static int vt_release(struct inode *inode, struct file *filp)
 {
-	struct videotunnel_session *session = filp->private_data;
+	struct vt_session *session = filp->private_data;
 
-	videotunnel_session_destroy(session);
+	vt_session_destroy(session);
 	return 0;
 }
 
-static long videotunnel_get_connected_id(void)
+static long vt_get_connected_id(void)
 {
 	long cid;
 
@@ -550,141 +595,266 @@ static long videotunnel_get_connected_id(void)
 	return cid;
 }
 
-static int videotunnel_ctrl_process(struct vt_ctrl_data *data,
-				    struct videotunnel_session *session)
+static int vt_connect_process(struct vt_ctrl_data *data,
+			      struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance;
-	struct videotunnel_instance *replace;
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance;
+	struct vt_instance *replace;
+	int id = data->tunnel_id;
+	int ret = 0;
+	char name[64];
+
+	instance = idr_find(&dev->instance_idr, id);
+	if (!instance) {
+		while ((ret = idr_alloc(&dev->instance_idr,
+					NULL, 0,
+					MAX_VIDEO_TUNNEL, GFP_KERNEL))
+				<= id) {
+			if (ret == id)
+				break;
+			else if (ret < 0)
+				return ret;
+			vt_debug(VT_DEBUG_USER,
+				 "connect alloc instance id:%d\n", ret);
+		}
+
+		instance = vt_instance_create(dev);
+		if (IS_ERR(instance))
+			return PTR_ERR(instance);
+
+		mutex_lock(&dev->instance_lock);
+		replace = idr_replace(&dev->instance_idr, instance, id);
+		mutex_unlock(&dev->instance_lock);
+
+		if (IS_ERR(replace)) {
+			vt_instance_put(instance);
+			return PTR_ERR(replace);
+		}
+		if (!replace)
+			vt_instance_put(replace);
+
+		instance->id = id;
+		snprintf(name, 64, "instance-%d", instance->id);
+		instance->debug_root =
+			debugfs_create_file(name, 0664, dev->debug_root,
+					    instance,
+					    &debug_instance_fops);
+
+		vt_debug(VT_DEBUG_USER, "vt [%d] create\n", instance->id);
+	} else {
+		vt_instance_get(instance);
+	}
+
+	/* to do what if producer/consumer alread has value */
+	if (data->role == VT_ROLE_PRODUCER) {
+		if (instance->producer &&
+		    instance->producer != session) {
+			vt_instance_put(instance);
+			pr_err("Connect to vt [%d] err, already has producer\n",
+			       id);
+			return -EINVAL;
+		}
+		instance->producer = session;
+	} else if (data->role == VT_ROLE_CONSUMER) {
+		if (instance->consumer &&
+		    instance->consumer != session) {
+			vt_instance_put(instance);
+			pr_err("Connect to vt [%d] err, already has consumer\n",
+			       id);
+			return -EINVAL;
+		}
+		instance->consumer = session;
+	}
+	session->cid = vt_get_connected_id();
+	session->role = data->role;
+
+	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d connect, instance ref %d\n",
+		 instance->id,
+		 data->role == VT_ROLE_PRODUCER ? "producer" : "consumer",
+		 session->pid,
+		 atomic_read(&instance->ref.refcount.refs));
+
+	return ret;
+}
+
+static int vt_disconnect_process(struct vt_ctrl_data *data,
+				 struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance;
+	int id = data->tunnel_id;
+
+	/* find the instance with the tunnel_id */
+	instance = idr_find(&dev->instance_idr, id);
+
+	if (!instance || session->role != data->role)
+		return -EINVAL;
+
+	if (data->role == VT_ROLE_PRODUCER) {
+		if (!instance->producer)
+			return -EINVAL;
+		if (instance->producer != session)
+			return -EINVAL;
+
+		vt_session_trim(session, instance);
+		instance->producer = NULL;
+	} else if (data->role == VT_ROLE_CONSUMER) {
+		if (!instance->consumer)
+			return -EINVAL;
+		if (instance->consumer != session)
+			return -EINVAL;
+		vt_session_trim(session, instance);
+		instance->consumer = NULL;
+	}
+
+	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d disconnect, instance ref %d\n",
+		 instance->id,
+		 data->role == VT_ROLE_PRODUCER ? "producer" : "consumer",
+		 session->pid,
+		 atomic_read(&instance->ref.refcount.refs));
+	vt_instance_put(instance);
+	session->cid = -1;
+
+	return 0;
+}
+
+static int vt_send_cmd_process(struct vt_ctrl_data *data,
+			       struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance;
+	struct vt_cmd *cmd;
+	int id = data->tunnel_id;
+
+	instance = idr_find(&dev->instance_idr, id);
+
+	if (!instance || session->role != VT_ROLE_PRODUCER)
+		return -EINVAL;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+	cmd->cmd = data->video_cmd;
+	cmd->cmd_data = data->video_cmd_data;
+	cmd->client_id = session->pid;
+
+	mutex_lock(&instance->cmd_lock);
+	kfifo_put(&instance->fifo_cmd, cmd);
+	mutex_unlock(&instance->cmd_lock);
+
+	if (instance->consumer)
+		wake_up_interruptible(&instance->wait_cmd);
+
+	return 0;
+}
+
+static int vt_has_cmd(struct vt_instance *instance)
+{
+	int ret = !kfifo_is_empty(&instance->fifo_cmd);
+	return ret;
+}
+
+static int vt_recv_cmd_process(struct vt_ctrl_data *data,
+			       struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance;
+	struct vt_cmd *vcmd = NULL;
 	int id = data->tunnel_id;
 	int ret;
+
+	instance = idr_find(&dev->instance_idr, id);
+
+	if (!instance || session->role != VT_ROLE_CONSUMER)
+		return -EINVAL;
+
+	/* empty need wait */
+	if (kfifo_is_empty(&instance->fifo_cmd)) {
+		ret = wait_event_interruptible_timeout(instance->wait_cmd,
+						       vt_has_cmd(instance),
+						       msecs_to_jiffies(VT_MAX_WAIT_MS));
+
+		/* timeout */
+		if (ret == 0)
+			return -EAGAIN;
+	}
+
+	mutex_lock(&instance->cmd_lock);
+	ret = kfifo_get(&instance->fifo_cmd, &vcmd);
+	mutex_unlock(&instance->cmd_lock);
+	if (!ret || !vcmd) {
+		pr_err("vt [%d] recv cmd got null\n", instance->id);
+		return -EAGAIN;
+	}
+
+	vt_debug(VT_DEBUG_CMD, "vt [%d] recv cmd:%d data:%d\n",
+		 instance->id, vcmd->cmd, vcmd->cmd_data);
+
+	data->video_cmd = vcmd->cmd;
+	data->video_cmd_data = vcmd->cmd_data;
+	data->client_id = vcmd->client_id;
+
+	return 0;
+}
+
+static int vt_ctrl_process(struct vt_ctrl_data *data,
+			   struct vt_session *session)
+{
+	int id = data->tunnel_id;
+	int ret = 0;
 
 	if (id < 0 || id > MAX_VIDEO_INSTANCE_NUM)
 		return -EINVAL;
 	if (data->role == VT_ROLE_INVALID)
 		return -EINVAL;
 
-	/* find the instance with the tunnel_id */
-	instance = idr_find(&dev->instance_idr, id);
-	switch (data->cmd) {
+	switch (data->ctrl_cmd) {
 	case VT_CTRL_CONNECT:
 	{
-		char name[64];
-
-		if (!instance) {
-			while ((ret = idr_alloc(&dev->instance_idr,
-						NULL, 0, MAX_VIDEO_TUNNEL, GFP_KERNEL))
-					<= id) {
-				if (ret == id)
-					break;
-				else if (ret < 0)
-					return ret;
-				videotunnel_debug(VT_DEBUG_BUFFERS,
-						  "connect alloc id:%d\n", ret);
-			}
-
-			instance = videotunnel_instance_create(dev);
-			if (IS_ERR(instance))
-				return PTR_ERR(instance);
-
-			mutex_lock(&dev->instance_lock);
-			replace = idr_replace(&dev->instance_idr, instance, id);
-			mutex_unlock(&dev->instance_lock);
-
-			if (IS_ERR(replace)) {
-				videotunnel_instance_put(instance);
-				return PTR_ERR(replace);
-			}
-			if (!replace)
-				videotunnel_instance_put(replace);
-
-			instance->id = id;
-			snprintf(name, 64, "instance-%d", instance->id);
-			instance->debug_root =
-				debugfs_create_file(name, 0664, dev->debug_root,
-						    instance, &debug_instance_fops);
-
-			mutex_lock(&session->lock);
-			list_add_tail(&session->instances_head,
-				      &instance->entry);
-			mutex_unlock(&session->lock);
-		} else {
-			videotunnel_instance_get(instance);
-		}
-
-		/* to do what if producer/consumer alread has value */
-		if (data->role == VT_ROLE_PRODUCER) {
-			if (instance->producer &&
-			    instance->producer != session) {
-				videotunnel_instance_put(instance);
-				pr_err("Connect to vt %d err, already has producer", id);
-				return -EINVAL;
-			}
-			instance->producer = session;
-		} else if (data->role == VT_ROLE_CONSUMER) {
-			if (instance->consumer &&
-			    instance->consumer != session) {
-				videotunnel_instance_put(instance);
-				pr_err("Connect to vt %d err, already has consumer", id);
-				return -EINVAL;
-			}
-			instance->consumer = session;
-		}
-		session->cid = videotunnel_get_connected_id();
-		session->role = data->role;
+		ret = vt_connect_process(data, session);
 		break;
 	}
 	case VT_CTRL_DISCONNECT:
 	{
-		if (!instance || session->role != data->role)
-			return -EINVAL;
-
-		if (data->role == VT_ROLE_PRODUCER) {
-			if (!instance->producer)
-				return -EINVAL;
-			if (instance->producer != session)
-				return -EINVAL;
-			videotunnel_session_trim(session, instance);
-			instance->producer = NULL;
-		} else if (data->role == VT_ROLE_CONSUMER) {
-			if (!instance->consumer)
-				return -EINVAL;
-			if (instance->consumer != session)
-				return -EINVAL;
-			videotunnel_session_trim(session, instance);
-			instance->consumer = NULL;
-		}
-
-		videotunnel_instance_put(instance);
-		session->cid = -1;
+		ret = vt_disconnect_process(data, session);
+		break;
+	}
+	case VT_CTRL_SEND_CMD:
+	{
+		ret = vt_send_cmd_process(data, session);
+		break;
+	}
+	case VT_CTRL_RECV_CMD:
+	{
+		ret = vt_recv_cmd_process(data, session);
 		break;
 	}
 	default:
-		pr_err("unknown videotunnel cmd:%d\n", data->cmd);
+		pr_err("unknown videotunnel cmd:%d\n", data->ctrl_cmd);
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
-static int videotunnel_buffer_add(struct videotunnel_session *session,
-				  struct videotunnel_buffer *buffer)
+static int vt_buffer_add(struct vt_session *session, struct vt_buffer *buffer)
 {
 	struct rb_node **p = &session->buffers.rb_node;
 	struct rb_node *parent = NULL;
-	struct videotunnel_buffer *entry;
+	struct vt_buffer *entry;
 
 	while (*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct videotunnel_buffer, node);
+		entry = rb_entry(parent, struct vt_buffer, node);
 
 		if (buffer->item.buffer_fd < entry->item.buffer_fd) {
 			p = &(*p)->rb_left;
 		} else if (buffer->item.buffer_fd > entry->item.buffer_fd) {
 			p = &(*p)->rb_right;
 		} else {
-			videotunnel_debug(VT_DEBUG_BUFFERS,
-					  "%s: buffer already found.", __func__);
+			vt_debug(VT_DEBUG_BUFFERS,
+				 "%s: buffer already found.", __func__);
 			return -EEXIST;
 		}
 	}
@@ -695,14 +865,13 @@ static int videotunnel_buffer_add(struct videotunnel_session *session,
 	return 0;
 }
 
-static struct videotunnel_buffer *videotunnel_buffer_get(struct rb_root *root,
-							 int key)
+static struct vt_buffer *vt_buffer_get(struct rb_root *root, int key)
 {
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_buffer *buffer = NULL;
 	struct rb_node *n = NULL;
 
 	for (n = rb_first(root); n; n = rb_next(n)) {
-		buffer = rb_entry(n, struct videotunnel_buffer, node);
+		buffer = rb_entry(n, struct vt_buffer, node);
 		if (buffer->item.buffer_fd == key)
 			break;
 	}
@@ -710,8 +879,7 @@ static struct videotunnel_buffer *videotunnel_buffer_get(struct rb_root *root,
 	return buffer;
 }
 
-static int videotunnel_has_buffer(struct videotunnel_instance *instance,
-				  enum vt_role_e role)
+static int vt_has_buffer(struct vt_instance *instance, enum vt_role_e role)
 {
 	int ret = 0;
 
@@ -723,14 +891,14 @@ static int videotunnel_has_buffer(struct videotunnel_instance *instance,
 	return ret;
 }
 
-static int videotunnel_queue_buffer(struct vt_buffer_data *data,
-				    struct videotunnel_session *session)
+static int vt_queue_buffer(struct vt_buffer_data *data,
+			   struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance =
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
 	struct vt_buffer_item *item;
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_buffer *buffer = NULL;
 	int ret = 0;
 	int i;
 
@@ -739,21 +907,27 @@ static int videotunnel_queue_buffer(struct vt_buffer_data *data,
 	if (instance->producer && instance->producer != session)
 		return -EINVAL;
 
-	videotunnel_debug(VT_DEBUG_BUFFERS,
-			  "vt queuebuffer size=%d\n", data->buffer_size);
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] queuebuffer start\n", instance->id);
+
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
 		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 		if (!buffer)
 			return -ENOMEM;
 		buffer->file_buffer = fget(item->buffer_fd);
-		videotunnel_debug(VT_DEBUG_BUFFERS,
-				  "vt queuebuffer fget file=%p, buffer=%p\n",
-				  buffer->file_buffer, buffer);
+
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] queuebuffer fget file=%p, buffer=%p\n",
+			 instance->id, buffer->file_buffer, buffer);
+
 		if (!buffer->file_buffer) {
 			ret = -EBADF;
 			goto err_fget;
 		}
+
+		instance->fcount++;
+
 		buffer->buffer_fd_pro = item->buffer_fd;
 		buffer->buffer_fd_con = -1;
 		buffer->session_pro = session;
@@ -762,7 +936,7 @@ static int videotunnel_queue_buffer(struct vt_buffer_data *data,
 		buffer->item.buffer_status = VT_BUFFER_QUEUE;
 
 		mutex_lock(&session->lock);
-		videotunnel_buffer_add(session, buffer);
+		vt_buffer_add(session, buffer);
 		mutex_unlock(&session->lock);
 
 		mutex_lock(&instance->lock);
@@ -773,6 +947,9 @@ static int videotunnel_queue_buffer(struct vt_buffer_data *data,
 	if (instance->consumer && data->buffer_size > 0)
 		wake_up_interruptible(&instance->wait_consumer);
 
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] queuebuffer pfd:%d end\n",
+		 instance->id, buffer->buffer_fd_pro);
+
 	return 0;
 
 err_fget:
@@ -780,44 +957,49 @@ err_fget:
 	return ret;
 }
 
-static int videotunnel_dequeue_buffer(struct vt_buffer_data *data,
-				      struct videotunnel_session *session)
+static int vt_dequeue_buffer(struct vt_buffer_data *data,
+			     struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance =
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_buffer *buffer = NULL;
 	int ret = -1;
+	unsigned long long cur_time, wait_time;
 
 	if (!instance || !instance->producer)
 		return -EINVAL;
 	if (instance->producer && instance->producer != session)
 		return -EINVAL;
 
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] dequeuebuffer start\n", instance->id);
+
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_producer)) {
-		ret = wait_event_interruptible_timeout(instance->wait_producer,
-						       videotunnel_has_buffer(instance,
-									      VT_ROLE_PRODUCER),
-						       msecs_to_jiffies(VIDEO_TUNNEL_MAX_WAIT_MS));
+		ret =
+		  wait_event_interruptible_timeout(instance->wait_producer,
+						   vt_has_buffer(instance, VT_ROLE_PRODUCER),
+						   msecs_to_jiffies(VT_MAX_WAIT_MS));
 		/* timeout */
-		if (ret == 0)
+		if (ret == 0) {
+			vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer timeout end\n",
+				 instance->id);
 			return -EAGAIN;
+		}
 	}
 
 	mutex_lock(&instance->lock);
 	ret = kfifo_get(&instance->fifo_to_producer, &buffer);
 	mutex_unlock(&instance->lock);
 	if (!ret || !buffer) {
-		pr_err("dequeue buffer got null buffer");
+		pr_err("vt [%d] dequeue buffer got null buffer\n", instance->id);
 		return -EAGAIN;
 	}
 
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
 		mutex_lock(&session->lock);
-		if (buffer->file_buffer)
-			fput(buffer->file_buffer);
 		if (buffer->file_fence)
 			aml_sync_put_fence(buffer->file_fence);
 
@@ -829,9 +1011,18 @@ static int videotunnel_dequeue_buffer(struct vt_buffer_data *data,
 	}
 
 	if (buffer->file_fence) {
-		ret = aml_sync_wait_fence(buffer->file_fence, 3000);
+		cur_time = sched_clock();
+		ret = aml_sync_wait_fence(buffer->file_fence,
+					  msecs_to_jiffies(VT_FENCE_WAIT_MS));
+		wait_time = sched_clock() - cur_time;
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] dequeue buffer pfd:%d fence:%p fence_wait time %llu\n",
+			 instance->id, buffer->buffer_fd_pro,
+			 buffer->file_fence, wait_time);
+
 		if (ret < 0)
-			pr_err("dequeue buffer wait fence timeout");
+			pr_err("vt [%d] dequeue buffer wait fence timeout\n",
+			       instance->id);
 
 		aml_sync_put_fence(buffer->file_fence);
 	}
@@ -849,19 +1040,22 @@ static int videotunnel_dequeue_buffer(struct vt_buffer_data *data,
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
 
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer end pfd:%d\n",
+		 instance->id, buffer->buffer_fd_pro);
+
 	/* free the videotunnel buffer*/
 	kfree(buffer);
 
 	return 0;
 }
 
-static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
-				      struct videotunnel_session *session)
+static int vt_acquire_buffer(struct vt_buffer_data *data,
+			     struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance =
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
-	struct videotunnel_buffer *buffer = NULL;
+	struct vt_buffer *buffer = NULL;
 	int fd, ret = -1;
 
 	if (!instance || !instance->consumer)
@@ -869,26 +1063,28 @@ static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
-	videotunnel_debug(VT_DEBUG_BUFFERS,
-			  "vt acquirebuffer is empty=%d\n",
-			  kfifo_is_empty(&instance->fifo_to_consumer));
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] acquirebuffer start\n", instance->id);
+
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_consumer)) {
 		ret = wait_event_interruptible_timeout(instance->wait_consumer,
-						       videotunnel_has_buffer(instance,
-									      VT_ROLE_CONSUMER),
-						       msecs_to_jiffies(VIDEO_TUNNEL_MAX_WAIT_MS));
+						       vt_has_buffer(instance, VT_ROLE_CONSUMER),
+						       msecs_to_jiffies(VT_MAX_WAIT_MS));
 
 		/* timeout */
-		if (ret == 0)
+		if (ret == 0) {
+			vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer timeout end\n",
+				 instance->id);
 			return -EAGAIN;
+		}
 	}
 
 	mutex_lock(&instance->lock);
 	ret = kfifo_get(&instance->fifo_to_consumer, &buffer);
 	mutex_unlock(&instance->lock);
 	if (!ret || !buffer) {
-		pr_err("dequeue buffer got null buffer");
+		pr_err("vt [%d] acquirebuffer got null buffer\n", instance->id);
 		return -EAGAIN;
 	}
 
@@ -897,7 +1093,8 @@ static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
 		fd = get_unused_fd_flags(O_CLOEXEC);
 		if (fd < 0) {
 			/* back to producer */
-			pr_err("videotunnel install fd error\n");
+			pr_err("vt [%d] acquirebuffer install fd error\n",
+			       instance->id);
 			buffer->item.buffer_status = VT_BUFFER_RELEASE;
 			mutex_lock(&instance->lock);
 			kfifo_put(&instance->fifo_to_producer, buffer);
@@ -907,8 +1104,9 @@ static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
 
 		fd_install(fd, buffer->file_buffer);
 		buffer->buffer_fd_con = fd;
-		videotunnel_debug(VT_DEBUG_BUFFERS,
-				  "vt acquirebuffer install buffer fd=%d\n", fd);
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] acquirebuffer install buffer fd:%d\n",
+			 instance->id, fd);
 	}
 
 	/* remove the buffer from producer session rb tree*/
@@ -919,7 +1117,7 @@ static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
 	}
 	/* insert it the consumer session's rb tree */
 	mutex_lock(&session->lock);
-	videotunnel_buffer_add(session, buffer);
+	vt_buffer_add(session, buffer);
 	mutex_unlock(&session->lock);
 
 	buffer->item.buffer_fd = buffer->buffer_fd_con;
@@ -929,17 +1127,21 @@ static int videotunnel_acquire_buffer(struct vt_buffer_data *data,
 	/* return the buffer */
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
+
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d end\n",
+		 instance->id, buffer->buffer_fd_pro);
+
 	return 0;
 }
 
-static int videotunnel_release_buffer(struct vt_buffer_data *data,
-				      struct videotunnel_session *session)
+static int vt_release_buffer(struct vt_buffer_data *data,
+			     struct vt_session *session)
 {
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance =
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
 	struct vt_buffer_item *item;
-	struct videotunnel_buffer *buffer;
+	struct vt_buffer *buffer = NULL;
 	int i;
 
 	if (!instance || !instance->consumer)
@@ -947,13 +1149,13 @@ static int videotunnel_release_buffer(struct vt_buffer_data *data,
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
-	videotunnel_debug(VT_DEBUG_BUFFERS,
-			  "vt releasebuffer buffer_size:%d\n", data->buffer_size);
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] releasebuffer start\n", instance->id);
+
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
 		/* find the buffer in consumer rb tree */
-		buffer = videotunnel_buffer_get(&session->buffers,
-						item->buffer_fd);
+		buffer = vt_buffer_get(&session->buffers, item->buffer_fd);
 
 		if (!buffer)
 			return -EINVAL;
@@ -962,11 +1164,14 @@ static int videotunnel_release_buffer(struct vt_buffer_data *data,
 			buffer->file_fence = aml_sync_get_fence(item->fence_fd);
 
 		if (!buffer->file_fence)
-			videotunnel_debug(VT_DEBUG_BUFFERS,
-					  "vt releasebuffer fence file is null");
+			vt_debug(VT_DEBUG_BUFFERS,
+				 "vt [%d] releasebuffer fence file is null\n",
+				 instance->id);
 
 		/* close the fd in consumer side */
-		videotunnel_close_fd(session, buffer->buffer_fd_con);
+		vt_close_fd(session, buffer->buffer_fd_con);
+		instance->fcount--;
+
 		buffer->item.buffer_fd = buffer->buffer_fd_pro;
 		buffer->item.buffer_status = VT_BUFFER_RELEASE;
 
@@ -977,25 +1182,23 @@ static int videotunnel_release_buffer(struct vt_buffer_data *data,
 
 		/* todo if producer has disconnect */
 		if (!instance->producer) {
-			videotunnel_debug(VT_DEBUG_BUFFERS,
-					  "vt releasebuffer buffer, no producer\n");
+			vt_debug(VT_DEBUG_BUFFERS,
+				 "vt [%d] releasebuffer buffer, no producer\n",
+				 instance->id);
 			kfree(buffer);
 		} else {
 			/* insert it the producer session's rb tree */
-			videotunnel_debug(VT_DEBUG_BUFFERS,
-					  "vt releasebuffer producer:%p\n",
-				instance->producer);
-
 			if (buffer->session_pro &&
 			    buffer->session_pro != instance->producer) {
-				videotunnel_debug(VT_DEBUG_BUFFERS,
-						  "vt releasebuffer buffer, producer valid\n");
+				vt_debug(VT_DEBUG_BUFFERS,
+					 "vt [%d] releasebuffer buffer no producer valid\n",
+					 instance->id);
 				kfree(buffer);
 				continue;
 			}
 
 			mutex_lock(&instance->producer->lock);
-			videotunnel_buffer_add(instance->producer, buffer);
+			vt_buffer_add(instance->producer, buffer);
 			mutex_unlock(&instance->producer->lock);
 
 			mutex_lock(&instance->lock);
@@ -1006,33 +1209,36 @@ static int videotunnel_release_buffer(struct vt_buffer_data *data,
 	if (instance->producer && data->buffer_size > 0)
 		wake_up_interruptible(&instance->wait_producer);
 
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd:%d end\n",
+		 instance->id, buffer->buffer_fd_pro);
 	return 0;
 }
 
-static unsigned int videotunnel_ioctl_dir(unsigned int cmd)
+static unsigned int vt_ioctl_dir(unsigned int cmd)
 {
 	switch (cmd) {
 	case VT_IOC_ALLOC_ID:
 	case VT_IOC_DEQUEUE_BUFFER:
 	case VT_IOC_ACQUIRE_BUFFER:
-		return _IOC_READ;
-	case VT_IOC_FREE_ID:
 	case VT_IOC_CTRL:
+		return _IOC_READ;
+	case VT_IOC_QUEUE_BUFFER:
+	case VT_IOC_RELEASE_BUFFER:
+	case VT_IOC_FREE_ID:
 		return _IOC_WRITE;
 	default:
 		return _IOC_DIR(cmd);
 	}
 }
 
-static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
-			      unsigned long arg)
+static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	union videotunnel_ioctl_arg data;
-	struct videotunnel_session *session = filp->private_data;
-	unsigned int dir = videotunnel_ioctl_dir(cmd);
-	struct videotunnel_dev *dev = session->dev;
-	struct videotunnel_instance *instance = NULL;
+	union vt_ioctl_arg data;
+	struct vt_session *session = filp->private_data;
+	unsigned int dir = vt_ioctl_dir(cmd);
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -1044,7 +1250,7 @@ static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
 	case VT_IOC_ALLOC_ID: {
 		char name[64];
 
-		instance = videotunnel_instance_create(session->dev);
+		instance = vt_instance_create(session->dev);
 		if (IS_ERR(instance))
 			return PTR_ERR(instance);
 
@@ -1053,7 +1259,7 @@ static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
 		instance->id = ret;
 		mutex_unlock(&dev->instance_lock);
 		if (ret < 0) {
-			videotunnel_instance_put(instance);
+			vt_instance_put(instance);
 			return ret;
 		}
 
@@ -1067,6 +1273,9 @@ static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
 		mutex_unlock(&session->lock);
 
 		data.alloc_data.tunnel_id = instance->id;
+		vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
+			 instance->id,
+			 atomic_read(&instance->ref.refcount.refs));
 		break;
 	}
 	case VT_IOC_FREE_ID: {
@@ -1078,24 +1287,28 @@ static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
 			       data.alloc_data.tunnel_id);
 			ret = -EINVAL;
 		} else {
-			ret = videotunnel_instance_put(instance);
+			vt_debug(VT_DEBUG_USER, "vt free instance [%d], ref %d\n",
+				 instance->id,
+				 atomic_read(&instance->ref.refcount.refs));
+
+			ret = vt_instance_put(instance);
 		}
 		break;
 	}
 	case VT_IOC_CTRL:
-		ret = videotunnel_ctrl_process(&data.ctrl_data, session);
+		ret = vt_ctrl_process(&data.ctrl_data, session);
 		break;
 	case VT_IOC_QUEUE_BUFFER:
-		ret = videotunnel_queue_buffer(&data.buffer_data, session);
+		ret = vt_queue_buffer(&data.buffer_data, session);
 		break;
 	case VT_IOC_DEQUEUE_BUFFER:
-		ret = videotunnel_dequeue_buffer(&data.buffer_data, session);
+		ret = vt_dequeue_buffer(&data.buffer_data, session);
 		break;
 	case VT_IOC_RELEASE_BUFFER:
-		ret = videotunnel_release_buffer(&data.buffer_data, session);
+		ret = vt_release_buffer(&data.buffer_data, session);
 		break;
 	case VT_IOC_ACQUIRE_BUFFER:
-		ret = videotunnel_acquire_buffer(&data.buffer_data, session);
+		ret = vt_acquire_buffer(&data.buffer_data, session);
 		break;
 	default:
 		return -ENOTTY;
@@ -1109,17 +1322,17 @@ static long videotunnel_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static const struct file_operations videotunnel_fops = {
+static const struct file_operations vt_fops = {
 	.owner = THIS_MODULE,
-	.open = videotunnel_open,
-	.release = videotunnel_release,
-	.unlocked_ioctl = videotunnel_ioctl,
+	.open = vt_open,
+	.release = vt_release,
+	.unlocked_ioctl = vt_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = videotunnel_ioctl,
+	.compat_ioctl = vt_ioctl,
 #endif
 };
 
-static int videotunnel_probe(struct platform_device *pdev)
+static int vt_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -1130,7 +1343,7 @@ static int videotunnel_probe(struct platform_device *pdev)
 	vdev->dev_name = DEVICE_NAME;
 	vdev->mdev.minor = MISC_DYNAMIC_MINOR;
 	vdev->mdev.name = DEVICE_NAME;
-	vdev->mdev.fops = &videotunnel_fops;
+	vdev->mdev.fops = &vt_fops;
 
 	ret = misc_register(&vdev->mdev);
 	if (ret) {
@@ -1144,15 +1357,6 @@ static int videotunnel_probe(struct platform_device *pdev)
 	init_rwsem(&vdev->session_lock);
 	vdev->sessions = RB_ROOT;
 
-	ret = kfifo_alloc(&vdev->cmd_queue, VIDEOTUNNEL_CMD_FIFO_SIZE,
-			  GFP_KERNEL);
-	if (ret) {
-		pr_err("videotunnel: kfifo_alloc failed.\n");
-		goto failed_misc_register;
-	}
-
-	init_waitqueue_head(&vdev->cmd_wait);
-
 	mutex_init(&debugfs_mutex);
 	vdev->debug_root = debugfs_create_dir("videotunnel", NULL);
 	if (!vdev->debug_root)
@@ -1160,17 +1364,14 @@ static int videotunnel_probe(struct platform_device *pdev)
 
 	return 0;
 
-failed_misc_register:
-	misc_deregister(&vdev->mdev);
 failed_alloc_dev:
 	kfree(vdev);
 
 	return ret;
 }
 
-static int videotunnel_remove(struct platform_device *pdev)
+static int vt_remove(struct platform_device *pdev)
 {
-	kfifo_free(&vdev->cmd_queue);
 	idr_destroy(&vdev->instance_idr);
 	debugfs_remove_recursive(vdev->debug_root);
 	misc_deregister(&vdev->mdev);
@@ -1179,26 +1380,26 @@ static int videotunnel_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id meson_videotunnel_match[] = {
+static const struct of_device_id meson_vt_match[] = {
 	{.compatible = "amlogic, meson_videotunnel"},
 	{},
 };
 
-static struct platform_driver meson_videotunnel_driver = {
+static struct platform_driver meson_vt_driver = {
 	.driver = {
 		.name = "meson_videotunnel_driver",
 		.owner = THIS_MODULE,
-		.of_match_table = meson_videotunnel_match,
+		.of_match_table = meson_vt_match,
 	},
-	.probe = videotunnel_probe,
-	.remove = videotunnel_remove,
+	.probe = vt_probe,
+	.remove = vt_remove,
 };
 
 int __init meson_videotunnel_init(void)
 {
 	pr_info("videotunnel init\n");
 
-	if (platform_driver_register(&meson_videotunnel_driver)) {
+	if (platform_driver_register(&meson_vt_driver)) {
 		pr_err("failed to register videotunnel\n");
 		return -ENODEV;
 	}
@@ -1208,7 +1409,7 @@ int __init meson_videotunnel_init(void)
 
 void __exit meson_videotunnel_exit(void)
 {
-	platform_driver_unregister(&meson_videotunnel_driver);
+	platform_driver_unregister(&meson_vt_driver);
 }
 
 #ifndef MODULE

@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef __VIDEO_TUNNEL_H
-#define __VIDEO_TUNNEL_H
+#ifndef __VIDEO_TUNNEL_PRIV_H
+#define __VIDEO_TUNNEL_PRIV_H
 
 #include <linux/device.h>
 #include <linux/miscdevice.h>
@@ -33,17 +33,24 @@
 
 #include "uapi/videotunnel.h"
 
-#define  VIDEO_TUNNEL_POOL_SIZE 32
-#define  VIDEO_TUNNEL_MAX_WAIT_MS 4
+#define  VT_POOL_SIZE 32
+#define  VT_MAX_WAIT_MS 4
+#define  VT_FENCE_WAIT_MS 3000
 
-union videotunnel_ioctl_arg {
+union vt_ioctl_arg {
 	struct vt_alloc_id_data alloc_data;
 	struct vt_ctrl_data ctrl_data;
 	struct vt_buffer_data buffer_data;
 };
 
+struct vt_cmd {
+	enum vt_video_cmd_e cmd;
+	int cmd_data;
+	int client_id;
+};
+
 /*
- * struct videotunnel_dev - the metadata of the videotunnel device node
+ * struct vt_dev - the metadata of the videotunnel device node
  * @mdev:			the actual misc device
  * @instance_lock:	mutex procting the instances
  * @instance_idr:	an idr space for allocating instance ids
@@ -52,7 +59,7 @@ union videotunnel_ioctl_arg {
  * @sessions:		an rb tree for all the existing video session
  * @dev_name:		the device name
  */
-struct videotunnel_dev {
+struct vt_dev {
 	struct miscdevice mdev;
 	struct mutex instance_lock; /* protect the instances */
 	struct idr instance_idr;
@@ -62,8 +69,6 @@ struct videotunnel_dev {
 	struct rb_root sessions;
 
 	char *dev_name;
-	struct kfifo cmd_queue;
-	wait_queue_head_t cmd_wait;
 	struct dentry *debug_root;
 };
 
@@ -80,9 +85,9 @@ struct videotunnel_dev {
  * @display_serial:	used for debugging (to make display_name unique)
  * @task:		used for debugging
  */
-struct videotunnel_session {
+struct vt_session {
 	struct rb_node node;
-	struct videotunnel_dev *dev;
+	struct vt_dev *dev;
 	struct mutex lock; /* protect vt buffers */
 	struct list_head instances_head;
 	struct rb_root buffers;
@@ -98,7 +103,7 @@ struct videotunnel_session {
 };
 
 /*
- * struct videotunnel_buffer - videtunnel buffer
+ * struct vt_buffer - videtunnel buffer
  * @node:			node in the sessions buffer rb tree
  * @file_buffer:	file get from buffer fd
  * @buffer_fd_pro:	fd in the producer side
@@ -106,20 +111,20 @@ struct videotunnel_session {
  * @file_fence:		fence file get from release fence
  * @item:			buffer item
  */
-struct videotunnel_buffer {
+struct vt_buffer {
 	struct rb_node node;
 	struct file *file_buffer;
 	int buffer_fd_pro;
 	int buffer_fd_con;
 
 	struct dma_fence *file_fence;
-	struct videotunnel_session *session_pro;
+	struct vt_session *session_pro;
 	long cid_pro;
 	struct vt_buffer_item item;
 };
 
 /*
- * struct videotunnel_instance - an instance that holds the buffer
+ * struct vt_instance - an instance that holds the buffer
  * @id:			unique id allocated by device->idr
  * @node:		node in the videotunel device rbtree
  * @lock:		proctect fifo
@@ -133,22 +138,28 @@ struct videotunnel_buffer {
  * @fifo_to_producer:	fifo that queued the buffer transfer to producer
  */
 
-struct videotunnel_instance {
+struct vt_instance {
 	struct kref ref;
 	int id;
-	struct videotunnel_dev *dev;
+	struct vt_dev *dev;
 	struct rb_node node;
-	struct mutex lock; /* proctect fifo */
-	struct list_head entry;
-	struct videotunnel_session *consumer;
-	wait_queue_head_t wait_consumer;
-	struct videotunnel_session *producer;
-	wait_queue_head_t wait_producer;
-	struct dentry *debug_root;
 
-	DECLARE_KFIFO_PTR(fifo_to_consumer, struct videotunnel_buffer*);
-	DECLARE_KFIFO_PTR(fifo_to_producer, struct videotunnel_buffer*);
-/*	struct vt_frame_item items[VIDEO_TUNNEL_ITEM_SIZE]; */
+	struct mutex lock; /* proctect fd fifo */
+	struct list_head entry;
+	struct vt_session *consumer;
+	wait_queue_head_t wait_consumer;
+	struct vt_session *producer;
+	wait_queue_head_t wait_producer;
+
+	struct mutex cmd_lock; /* protect cmd fifo */
+	wait_queue_head_t wait_cmd;
+	DECLARE_KFIFO_PTR(fifo_cmd, struct vt_cmd*);
+
+	struct dentry *debug_root;
+	int fcount;
+
+	DECLARE_KFIFO_PTR(fifo_to_consumer, struct vt_buffer*);
+	DECLARE_KFIFO_PTR(fifo_to_producer, struct vt_buffer*);
 };
 
-#endif
+#endif /* __VIDEO_TUNNEL_PRIV_H */

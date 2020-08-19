@@ -34,6 +34,14 @@ enum vt_role_e {
 enum vt_ctrl_cmd_e {
 	VT_CTRL_CONNECT,
 	VT_CTRL_DISCONNECT,
+	VT_CTRL_SEND_CMD,
+	VT_CTRL_RECV_CMD,
+	VT_CTRL_REPLY_CMD,
+};
+
+enum vt_video_cmd_e {
+	VT_VIDEO_SET_STATUS,
+	VT_VIDEO_GET_STATUS,
 };
 
 enum vt_buffer_status {
@@ -52,7 +60,10 @@ struct vt_alloc_id_data {
 struct vt_ctrl_data {
 	int tunnel_id;
 	enum vt_role_e role;
-	enum vt_ctrl_cmd_e cmd;
+	enum vt_ctrl_cmd_e ctrl_cmd;
+	enum vt_video_cmd_e video_cmd;
+	int video_cmd_data;
+	int client_id;
 };
 
 /**
