@@ -22,7 +22,8 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include "v4lvideo.h"
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-v4l2.h>

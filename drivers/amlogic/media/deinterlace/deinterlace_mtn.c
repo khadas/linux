@@ -24,7 +24,8 @@
 #include <linux/proc_fs.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/iomap.h>
 #include "register.h"
 #include "deinterlace_mtn.h"

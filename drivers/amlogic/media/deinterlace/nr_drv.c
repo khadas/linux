@@ -10,7 +10,8 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include "register.h"
 #include "register_nr4.h"
 #include "nr_drv.h"

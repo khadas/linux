@@ -5,7 +5,8 @@
 
 #include <linux/amlogic/media/registers/register_ops.h>
 #include <linux/amlogic/media/registers/register_map.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/utils/log.h>
 static struct chip_register_ops m8_ops[] __initdata = {
 	{IO_DOS_BUS, 0, codecio_read_dosbus, codecio_write_dosbus},

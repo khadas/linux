@@ -23,7 +23,8 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-common.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 #include <linux/mm.h>
 /* #include <mach/mod_gate.h> */

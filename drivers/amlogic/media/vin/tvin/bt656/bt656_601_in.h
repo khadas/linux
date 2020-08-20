@@ -11,7 +11,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #include "../tvin_frontend.h"
 #include "../tvin_global.h"
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 #define BT656PR(fmt, args...)  pr_info("amvdec bt656in: " fmt "", ## args)
 #define BT656ERR(fmt, args...) pr_err("amvdec bt656in:error: " fmt "", ## args)

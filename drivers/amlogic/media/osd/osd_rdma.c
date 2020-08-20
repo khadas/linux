@@ -21,7 +21,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/of_device.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 /* Local Headers */
 #include "osd.h"
 #include "osd_io.h"

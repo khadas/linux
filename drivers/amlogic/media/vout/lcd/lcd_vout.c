@@ -26,7 +26,7 @@
 #include <linux/of.h>
 #endif
 #include <linux/amlogic/pm.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>

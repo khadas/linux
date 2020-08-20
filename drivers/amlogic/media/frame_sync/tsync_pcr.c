@@ -14,7 +14,8 @@
 #include <linux/amlogic/media/frame_sync/ptsserv.h>
 
 #include <linux/amlogic/media/frame_sync/tsync_pcr.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 #ifdef CONFIG_AM_PCRSYNC_LOG
 #define AMLOG

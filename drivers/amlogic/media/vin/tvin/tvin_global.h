@@ -24,7 +24,7 @@
 /* #include <mach/am_regs.h> */
 /*#include <linux/amlogic/iomap.h>*/
 #include <linux/amlogic/media/registers/register_map.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 
 #ifdef TVBUS_REG_ADDR

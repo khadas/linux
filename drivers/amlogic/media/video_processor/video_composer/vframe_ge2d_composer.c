@@ -23,7 +23,8 @@
 #include <linux/amlogic/media/ge2d/ge2d_func.h>
 #include "vframe_ge2d_composer.h"
 #include "vfq.h"
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/delay.h>

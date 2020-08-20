@@ -33,7 +33,7 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/iomap.h>

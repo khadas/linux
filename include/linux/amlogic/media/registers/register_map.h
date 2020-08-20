@@ -8,10 +8,6 @@
 
 #include <linux/io.h>
 
-struct codecio_device_data_s {
-	int cpu_id;
-};
-
 enum {
 	CODECIO_CBUS_BASE = 0,
 	CODECIO_DOSBUS_BASE,

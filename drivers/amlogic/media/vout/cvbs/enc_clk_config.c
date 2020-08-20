@@ -22,7 +22,7 @@
 #include <linux/mutex.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/iomap.h>
 

@@ -18,7 +18,8 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/utils/amlog.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include <linux/amlogic/media/utils/am_com.h>

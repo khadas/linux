@@ -34,7 +34,8 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/clk.h>
-#include <linux/amlogic/cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>

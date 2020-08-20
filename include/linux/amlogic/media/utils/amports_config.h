@@ -6,7 +6,9 @@
 #ifndef AMPORTS_CONFIG_HHH
 #define AMPORTS_CONFIG_HHH
 #include <linux/kconfig.h>
-#include <linux/amlogic/media/old_cpu_version.h>
+/* media module used media/registers/cpu_version.h since kernel 5.4 */
+#include <linux/amlogic/media/registers/cpu_version.h>
+
 
 /*
  *value seem:

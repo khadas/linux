@@ -42,7 +42,7 @@
 #include <linux/clk.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/vinfo.h>

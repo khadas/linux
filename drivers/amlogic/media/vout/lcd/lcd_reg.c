@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"

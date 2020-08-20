@@ -31,7 +31,7 @@
 #include <linux/workqueue.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
