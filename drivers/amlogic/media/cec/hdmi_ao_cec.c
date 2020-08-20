@@ -2828,6 +2828,15 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 		return 0;
 	}
 
+	/* CEC off, cec IP will receive boradcast msg
+	 * needn't transfer these msgs to cec framework
+	 * discard the msg
+	 */
+	if (!(cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON)) {
+		new_msg = 0;
+		return 0;
+	}
+
 	new_msg = 0;
 	/*CEC_ERR("read msg end\n");*/
 	if (copy_to_user(buf, rx_msg, rx_len))
@@ -3294,9 +3303,11 @@ static unsigned int cec_poll(struct file *filp, poll_table *wait)
  */
 void cec_new_msg_push(void)
 {
-	complete(&cec_dev->rx_ok);
-	new_msg = 1;
-	wake_up(&cec_msg_wait_queue);
+	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
+		complete(&cec_dev->rx_ok);
+		new_msg = 1;
+		wake_up(&cec_msg_wait_queue);
+	}
 }
 
 /* for improve rw permission */
