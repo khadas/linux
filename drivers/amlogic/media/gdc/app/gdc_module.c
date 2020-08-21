@@ -811,7 +811,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	mutex_lock(&context->d_mutext);
 	memcpy(&gdc_cmd->gdc_config, &gs_ex->gdc_config,
 	       sizeof(struct gdc_config_s));
-	for (i = 0; i < MAX_PLANE; i++) {
+	for (i = 0; i < GDC_MAX_PLANE; i++) {
 		context->dma_cfg.input_cfg[i].dma_used = 0;
 		context->dma_cfg.output_cfg[i].dma_used = 0;
 	}
@@ -879,15 +879,12 @@ static void release_config_firmware(struct fw_info_s *fw_info,
 		return;
 	}
 
-	if (fw_info->virt_addr)
-		gdc_unmap_virt_from_phys(fw_info->virt_addr);
-	if (fw_info->cma_pages) {
-		dma_release_from_contiguous
-			(&gdc_manager.gdc_dev->pdev->dev,
-			 fw_info->cma_pages,
-			 PAGE_ALIGN(gdc_config->config_size * 4) >> PAGE_SHIFT);
-
-		fw_info->cma_pages = NULL;
+	if (fw_info->virt_addr &&
+	    gdc_config->config_size && gdc_config->config_addr) {
+		dma_free_coherent(&gdc_manager.gdc_dev->pdev->dev,
+				  gdc_config->config_size * 4,
+				  fw_info->virt_addr,
+				  gdc_config->config_addr);
 	}
 }
 
@@ -897,7 +894,6 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 	int ret = -1;
 	const struct firmware *fw = NULL;
 	char *path = NULL;
-	struct page *cma_pages = NULL;
 	void __iomem *virt_addr = NULL;
 	phys_addr_t phys_addr = 0;
 
@@ -930,33 +926,18 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 		goto release;
 	}
 
-	cma_pages = dma_alloc_from_contiguous
-		(&gdc_manager.gdc_dev->pdev->dev,
-		 PAGE_ALIGN(fw->size) >> PAGE_SHIFT,
-		 0, 0);
-	if (cma_pages) {
-		phys_addr = page_to_phys(cma_pages);
-		virt_addr = gdc_map_virt_from_phys(phys_addr,
-						   PAGE_ALIGN(fw->size));
-		if (!virt_addr) {
-			gdc_log(LOG_ERR, "map_virt_from_phys failed\n");
-			dma_release_from_contiguous
-				(&gdc_manager.gdc_dev->pdev->dev,
-				 cma_pages,
-				 PAGE_ALIGN(fw->size) >> PAGE_SHIFT);
-			ret = -ENOMEM;
-			goto release;
-		}
-	} else {
-		gdc_log(LOG_ERR, "Failed to alloc dma buff\n");
+	virt_addr = dma_alloc_coherent(&gdc_manager.gdc_dev->pdev->dev, fw->size,
+				       &phys_addr, GFP_DMA | GFP_KERNEL);
+	if (!virt_addr) {
+		gdc_log(LOG_ERR, "alloc config buffer failed\n");
 		ret = -ENOMEM;
 		goto release;
 	}
+
 	memcpy(virt_addr, (char *)fw->data, fw->size);
 
 	gdc_config->config_addr = phys_addr;
 	gdc_config->config_size = fw->size / 4;
-	fw_info->cma_pages = cma_pages;
 	fw_info->virt_addr = virt_addr;
 
 	gdc_log(LOG_DEBUG,
@@ -1894,6 +1875,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gdc_dev);
 	gdc_pwr_config(false);
+
+	gdc_manager.probed = 1;
 
 	return rc;
 }

@@ -12,7 +12,7 @@
 #include <linux/dma-buf.h>
 
 #define CONFIG_PATH_LENG 128
-#define MAX_PLANE         3
+#define GDC_MAX_PLANE         3
 #define WORD_SIZE 16
 #define WORD_MASK (~(WORD_SIZE - 1))
 #define AXI_WORD_ALIGN(size) (((size) + WORD_SIZE - 1) & WORD_MASK)
@@ -34,8 +34,8 @@ struct gdc_dmabuf_cfg_s {
 
 struct gdc_dma_cfg_t {
 	struct gdc_dmabuf_cfg_s config_cfg;
-	struct gdc_dmabuf_cfg_s input_cfg[MAX_PLANE];
-	struct gdc_dmabuf_cfg_s output_cfg[MAX_PLANE];
+	struct gdc_dmabuf_cfg_s input_cfg[GDC_MAX_PLANE];
+	struct gdc_dmabuf_cfg_s output_cfg[GDC_MAX_PLANE];
 };
 
 struct gdc_dma_cfg {
@@ -136,17 +136,18 @@ struct gdc_phy_setting {
 	u32 out_height;
 	u32 in_plane_num;
 	u32 out_plane_num;
-	u32 in_paddr[MAX_PLANE];
-	u32 out_paddr[MAX_PLANE];
+	u32 in_paddr[GDC_MAX_PLANE];
+	u32 out_paddr[GDC_MAX_PLANE];
 	u32 config_paddr;
 	u32 config_size; /* in 32bit */
 	u32 use_builtin_fw;
 	char config_name[CONFIG_PATH_LENG];
 };
 
+bool is_gdc_supported(void);
+struct gdc_context_s *create_gdc_work_queue(void);
 int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs);
-struct gdc_context_s *create_gdc_work_queue(void);
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue);
 
 #endif
