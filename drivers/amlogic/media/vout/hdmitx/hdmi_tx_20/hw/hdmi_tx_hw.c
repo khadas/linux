@@ -2188,6 +2188,8 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 
 void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
 {
+	unsigned int data32 = 0;
+
 	set_vmode_enc_hw(hdev);
 
 	if (hdev->flag_3dfp) {
@@ -2244,6 +2246,25 @@ void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 	}
 
+	switch (hdev->cur_video_param->VIC) {
+	case HDMI_480i60:
+	case HDMI_480i60_16x9:
+	case HDMI_576i50:
+	case HDMI_576i50_16x9:
+	case HDMI_480i60_16x9_rpt:
+	case HDMI_576i50_16x9_rpt:
+		data32 = (1 << 0) | /* 2b01: ENCI  2b10: ENCP */
+			 (0 << 2) | /* INV_HSYNC */
+			 (0 << 3) | /* INV_VSYNC */
+			 (4 << 5) | /* 0 CrYCb/BGR 1 YCbCr/RGB 2 YCrCb/RBG.. */
+			 (1 << 8) | /* WR_RATE */
+			 (1 << 12); /* RD_RATE */
+		hd_write_reg(P_VPU_HDMI_SETTING, data32);
+		break;
+	default:
+		break;
+	}
+
 	switch (hdev->para->cd) {
 	case COLORDEPTH_30B:
 	case COLORDEPTH_36B:
@@ -2282,7 +2303,6 @@ void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
 		}
 	break;
 	}
-
 	switch (hdev->cur_video_param->VIC) {
 	case HDMI_480i60:
 	case HDMI_480i60_16x9:
@@ -5553,6 +5573,36 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 			vid_map = 0x14;
 		else
 			vid_map = 0x12;
+	}
+
+	switch (para->vic) {
+	case HDMI_720x480i60_4x3:
+	case HDMI_720x480i60_16x9:
+	case HDMI_2880x480i60_4x3:
+	case HDMI_2880x480i60_16x9:
+	case HDMI_720x576i50_4x3:
+	case HDMI_720x576i50_16x9:
+	case HDMI_2880x576i50_4x3:
+	case HDMI_2880x576i50_16x9:
+	case HDMI_720x576i100_4x3:
+	case HDMI_720x576i100_16x9:
+	case HDMI_720x480i120_4x3:
+	case HDMI_720x480i120_16x9:
+	case HDMI_720x576i200_4x3:
+	case HDMI_720x576i200_16x9:
+	case HDMI_720x480i240_4x3:
+	case HDMI_720x480i240_16x9:
+		if (output_color_format == COLORSPACE_YUV422) {
+			if (color_depth == COLORDEPTH_24B)
+				vid_map = 0x09;
+			if (color_depth == COLORDEPTH_30B)
+				vid_map = 0x0b;
+			if (color_depth == COLORDEPTH_36B)
+				vid_map = 0x0d;
+		}
+		break;
+	default:
+		break;
 	}
 
 	data32  = 0;
