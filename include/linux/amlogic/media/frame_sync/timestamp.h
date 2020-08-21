@@ -17,6 +17,11 @@ void timestamp_vpts_set(u32 pts);
 u64 timestamp_vpts_get_u64(void);
 
 void timestamp_vpts_set_u64(u64 pts);
+
+u32 timestamp_avsync_counter_get(void);
+
+void timestamp_avsync_counter_set(u32 counts);
+
 void timestamp_vpts_inc_u64(s32 val);
 
 void timestamp_vpts_inc(s32 val);

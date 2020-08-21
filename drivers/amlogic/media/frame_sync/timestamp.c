@@ -33,6 +33,7 @@ static u32 pcrscr_lantcy = 200 * 90;
 static u32 video_pts;
 static u64 video_pts_u64;
 static u32 audio_pts;
+static u32 avsync_counts;
 static u32 last_apts_gap;
 static u32 last_vpts_gap;
 
@@ -193,6 +194,18 @@ u64 timestamp_pcrscr_get_u64(void)
 	return pts_val_video;
 }
 EXPORT_SYMBOL(timestamp_pcrscr_get_u64);
+
+u32 timestamp_avsync_counter_get(void)
+{
+	return avsync_counts;
+}
+EXPORT_SYMBOL(timestamp_avsync_counter_get);
+
+void timestamp_avsync_counter_set(u32 counts)
+{
+	avsync_counts = counts;
+}
+EXPORT_SYMBOL(timestamp_avsync_counter_set);
 
 void timestamp_set_pcrlatency(u32 latency)
 {

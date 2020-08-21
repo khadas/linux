@@ -1741,6 +1741,25 @@ static ssize_t latency_store(struct class *class,
 	return size;
 }
 
+static ssize_t avsync_counts_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", timestamp_avsync_counter_get());
+}
+
+static ssize_t avsync_counts_store(struct class *class,
+				   struct class_attribute *attr,
+				   const char *buf, size_t size)
+{
+	unsigned int counts = 0;
+	ssize_t r;
+
+	r = kstrtouint(buf, 0, &counts);
+	if (r != 0)
+		return -EINVAL;
+	timestamp_avsync_counter_set(counts);
+	return size;
+}
 static ssize_t apts_lookup_show(struct class *class,
 				struct class_attribute *attrr, char *buf)
 {
@@ -1808,6 +1827,7 @@ static CLASS_ATTR_RW(slowsync_enable);
 static CLASS_ATTR_RW(startsync_mode);
 static CLASS_ATTR_RW(firstapts);
 static CLASS_ATTR_RO(checkin_firstvpts);
+static CLASS_ATTR_RW(avsync_counts);
 static CLASS_ATTR_RW(apts_lookup);
 static CLASS_ATTR_RO(demux_pcr);
 static CLASS_ATTR_RO(checkin_firstapts);
@@ -1837,6 +1857,7 @@ static struct attribute *tsync_class_attrs[] = {
 	&class_attr_startsync_mode.attr,
 	&class_attr_firstapts.attr,
 	&class_attr_checkin_firstvpts.attr,
+	&class_attr_avsync_counts.attr,
 	&class_attr_apts_lookup.attr,
 	&class_attr_demux_pcr.attr,
 	&class_attr_checkin_firstapts.attr,
