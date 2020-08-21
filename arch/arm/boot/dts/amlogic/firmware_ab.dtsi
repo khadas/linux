@@ -58,7 +58,7 @@
 				dev = "/dev/block/metadata";
 				type = "ext4";
 				mnt_flags = "noatime,nosuid,nodev,nodelalloc,nomblk_io_submit,errors=panic";
-				fsmgr_flags = "wait,slotselect,avb,check,formattable,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,check,formattable,first_stage_mount";
 				};
 			};
 		};
