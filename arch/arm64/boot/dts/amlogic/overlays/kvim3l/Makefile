@@ -3,7 +3,8 @@ dtbo-y += uart3.dtbo \
 		  i2c3.dtbo \
 		  spi1.dtbo \
 		  onewire.dtbo \
-		  disable-ts050.dtbo
+		  disable-ts050.dtbo \
+		  m2x-eth.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)
