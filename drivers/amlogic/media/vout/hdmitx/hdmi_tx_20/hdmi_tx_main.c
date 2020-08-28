@@ -5331,17 +5331,12 @@ static int get_dt_vend_init_data(struct device_node *np,
 
 	ret = of_property_read_string(np, "vendor_name",
 		(const char **)&(vend->vendor_name));
-	if (ret)
-		pr_info(SYS "not find vendor name\n");
 
 	ret = of_property_read_u32(np, "vendor_id", &(vend->vendor_id));
-	if (ret)
-		pr_info(SYS "not find vendor id\n");
 
 	ret = of_property_read_string(np, "product_desc",
 		(const char **)&(vend->product_desc));
-	if (ret)
-		pr_info(SYS "not find product desc\n");
+
 	return 0;
 }
 
@@ -5682,19 +5677,11 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		/* Get ic type information */
 		ret = of_property_read_u32(pdev->dev.of_node, "ic_type",
 			&(hdmitx_device.chip_type));
-		if (ret)
-			pr_info(SYS "not find ic_type\n");
-		else
-			pr_info(SYS "hdmitx_device.chip_type : %d\n",
-				hdmitx_device.chip_type);
 
 		/* Get dongle_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
 			&dongle_mode);
 		hdmitx_device.dongle_mode = !!dongle_mode;
-		if (!ret)
-			pr_info(SYS "hdmitx_device.dongle_mode: %d\n",
-				hdmitx_device.dongle_mode);
 
 		ret = of_property_read_u32(pdev->dev.of_node,
 			"repeater_tx", &val);
@@ -5712,50 +5699,32 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"vend-data", &val);
-		if (ret)
-			pr_info(SYS "not find match init-data\n");
 		if (ret == 0) {
 			phandle = val;
 			init_data = of_find_node_by_phandle(phandle);
-			if (!init_data)
-				pr_info(SYS "not find device node\n");
 			hdmitx_device.config_data.vend_data = kzalloc(
 				sizeof(struct vendor_info_data), GFP_KERNEL);
-			if (!(hdmitx_device.config_data.vend_data))
-				pr_info(SYS "not allocate memory\n");
 			ret = get_dt_vend_init_data(init_data,
 				hdmitx_device.config_data.vend_data);
-			if (ret)
-				pr_info(SYS "not find vend_init_data\n");
 		}
 		/* Get power control */
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"pwr-ctrl", &val);
-		if (ret)
-			pr_info(SYS "not find match pwr-ctl\n");
 		if (ret == 0) {
 			phandle = val;
 			init_data = of_find_node_by_phandle(phandle);
-			if (!init_data)
-				pr_info(SYS "not find device node\n");
 			hdmitx_device.config_data.pwr_ctl = kzalloc((sizeof(
 				struct hdmi_pwr_ctl)) * HDMI_TX_PWR_CTRL_NUM,
 				GFP_KERNEL);
-			if (!hdmitx_device.config_data.pwr_ctl)
-				pr_info(SYS"can not get pwr_ctl mem\n");
 			memset(hdmitx_device.config_data.pwr_ctl, 0,
 				sizeof(struct hdmi_pwr_ctl));
-			if (ret)
-				pr_info(SYS "not find pwr_ctl\n");
 		}
 		/* Get drm feature information */
 		drm_node = of_find_node_by_path("/drm-amhdmitx");
 		if (drm_node) {
 			ret = of_property_read_string(drm_node, "status",
 				(const char **)&(drm_status));
-			if (ret)
-				pr_info(SYS "not find drm_feature\n");
-			else {
+			if (!ret) {
 				if (memcmp(drm_status, "okay", 4) == 0)
 					hdmitx_device.drm_feature = 1;
 				else
@@ -5763,26 +5732,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				pr_info(SYS "hdmitx_device.drm_feature : %d\n",
 					hdmitx_device.drm_feature);
 			}
-		} else {
-			pr_info(SYS "not find drm_amhdmitx\n");
 		}
 	}
 
 #else
-		hdmi_pdata = pdev->dev.platform_data;
-		if (!hdmi_pdata) {
-			pr_info(SYS "not get platform data\n");
-			r = -ENOENT;
-		} else {
-			pr_info(SYS "get hdmi platform data\n");
-		}
+	hdmi_pdata = pdev->dev.platform_data;
 #endif
 	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
-	if (hdmitx_device.irq_hpd == -ENXIO) {
-		pr_err("%s: ERROR: hdmitx hpd irq No not found\n",
-				__func__);
-			return -ENXIO;
-	}
 
 	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
 
@@ -5800,49 +5756,35 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 	struct clk *venci_top_gate, *venci_0_gate, *venci_1_gate;
 
 	hdmi_clk_vapb = devm_clk_get(hdmitx_dev, "hdmi_vapb_clk");
-	if (IS_ERR(hdmi_clk_vapb))
-		pr_warn(SYS "vapb_clk failed to probe\n");
-	else {
+	if (!IS_ERR(hdmi_clk_vapb)) {
 		hdmitx_device.hdmitx_clk_tree.hdmi_clk_vapb = hdmi_clk_vapb;
 		clk_prepare_enable(hdmitx_device.hdmitx_clk_tree.hdmi_clk_vapb);
 	}
 
 	hdmi_clk_vpu = devm_clk_get(hdmitx_dev, "hdmi_vpu_clk");
-	if (IS_ERR(hdmi_clk_vpu))
-		pr_warn(SYS "vpu_clk failed to probe\n");
-	else {
+	if (!IS_ERR(hdmi_clk_vpu)) {
 		hdmitx_device.hdmitx_clk_tree.hdmi_clk_vpu = hdmi_clk_vpu;
 		clk_prepare_enable(hdmitx_device.hdmitx_clk_tree.hdmi_clk_vpu);
 	}
 
 	hdcp22_tx_skp = devm_clk_get(hdmitx_dev, "hdcp22_tx_skp");
-	if (IS_ERR(hdcp22_tx_skp))
-		pr_warn(SYS "hdcp22_tx_skp failed to probe\n");
-	else
+	if (!IS_ERR(hdcp22_tx_skp))
 		hdmitx_device.hdmitx_clk_tree.hdcp22_tx_skp = hdcp22_tx_skp;
 
 	hdcp22_tx_esm = devm_clk_get(hdmitx_dev, "hdcp22_tx_esm");
-	if (IS_ERR(hdcp22_tx_esm))
-		pr_warn(SYS "hdcp22_tx_esm failed to probe\n");
-	else
+	if (!IS_ERR(hdcp22_tx_esm))
 		hdmitx_device.hdmitx_clk_tree.hdcp22_tx_esm = hdcp22_tx_esm;
 
 	venci_top_gate = devm_clk_get(hdmitx_dev, "venci_top_gate");
-	if (IS_ERR(venci_top_gate))
-		pr_warn(SYS "venci_top_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_top_gate))
 		hdmitx_device.hdmitx_clk_tree.venci_top_gate = venci_top_gate;
 
 	venci_0_gate = devm_clk_get(hdmitx_dev, "venci_0_gate");
-	if (IS_ERR(venci_0_gate))
-		pr_warn(SYS "venci_0_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_0_gate))
 		hdmitx_device.hdmitx_clk_tree.venci_0_gate = venci_0_gate;
 
 	venci_1_gate = devm_clk_get(hdmitx_dev, "venci_1_gate");
-	if (IS_ERR(venci_1_gate))
-		pr_warn(SYS "venci_0_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_1_gate))
 		hdmitx_device.hdmitx_clk_tree.venci_1_gate = venci_1_gate;
 }
 
@@ -5850,8 +5792,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
 	struct device *dev;
-
-	pr_info(SYS "amhdmitx_probe start\n");
 
 	amhdmitx_device_init(&hdmitx_device);
 
@@ -5978,8 +5918,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
+
 	edidinfo_attach_to_vinfo(&hdmitx_device);
-	pr_info(SYS "amhdmitx_probe end\n");
 
 	return r;
 }
@@ -6268,8 +6208,6 @@ static int __init hdmitx_boot_frac_rate(char *str)
 	else
 		hdmitx_device.frac_rate_policy = 1;
 
-	pr_info("hdmitx boot frac_rate_policy: %d",
-		hdmitx_device.frac_rate_policy);
 	return 0;
 }
 
