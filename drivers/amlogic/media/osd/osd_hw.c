@@ -8592,6 +8592,9 @@ static int osd_setting_order(u32 output_index)
 	for (i = 0; i < osd_count; i++) {
 		if (osd_hw.enable[i]) {
 			struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[i];
+			enum color_index_e idx =
+				osd_hw.color_info[i]->color_index;
+			bool rgbx = false;
 
 			/* update = is_freescale_para_changed(i); */
 			if (!osd_hw.osd_afbcd[i].enable)
@@ -8634,7 +8637,11 @@ static int osd_setting_order(u32 output_index)
 				.update_func(i);
 			if (osd_update_window_axis)
 				osd_update_window_axis = false;
-			if (osd_hw.premult_en[i] && !osd_hw.blend_bypass)
+			if (idx >= COLOR_INDEX_32_BGRX &&
+			    idx <= COLOR_INDEX_32_XRGB)
+				rgbx = true;
+			if (osd_hw.premult_en[i] && !osd_hw.blend_bypass &&
+			    !rgbx)
 				VSYNCOSD_WR_MPEG_REG_BITS(
 				osd_reg->osd_mali_unpack_ctrl, 0x1, 28, 1);
 			else
