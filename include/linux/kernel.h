@@ -162,6 +162,9 @@ static inline const char *__my_pc__(void)
 }
 #define __MY_FUNC__		(__my_pc__())
 #endif
+#else
+const char *__builtin_FUNCTION(void);
+#define __MY_FUNC__		(__builtin_FUNCTION())
 #endif /* CONFIG_AMLOGIC_MODIFY */
 
 #ifdef CONFIG_LBDAF
