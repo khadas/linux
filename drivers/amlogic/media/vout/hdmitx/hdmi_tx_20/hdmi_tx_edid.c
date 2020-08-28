@@ -199,7 +199,6 @@ static void store_vesa_idx(struct rx_cap *prxcap, enum hdmi_vic vesa_timing)
 		if (prxcap->vesa_timing[i] == vesa_timing)
 			break;
 	}
-	pr_info("hdmitx: reach vesa idx MAX\n");
 }
 
 static void Edid_EstablishedTimings(struct rx_cap *prxcap, unsigned char *data)
@@ -2108,7 +2107,8 @@ next:
 			prxcap->dtd_idx, para->vic);
 		prxcap->dtd_idx++;
 	} else
-		dump_dtd_info(t);
+		if (0) /* for debug usage */
+			dump_dtd_info(t);
 }
 
 static void edid_check_pcm_declare(struct rx_cap *prxcap)
@@ -2966,9 +2966,7 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
 			tmp_chksum += buf[i + j*128];
 		if (tmp_chksum != 0) {
 			valid_blk_no++;
-			if ((tmp_chksum & 0xff) == 0)
-				pr_info(EDID "check sum valid\n");
-			else
+			if (tmp_chksum & 0xff)
 				pr_info(EDID "check sum invalid\n");
 		}
 		tmp_chksum = 0;
