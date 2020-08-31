@@ -616,7 +616,7 @@
 	cvbsout {
 		compatible = "amlogic, cvbsout-gxl";
 		dev_name = "cvbsout";
-		status = "okay";
+		status = "disabled";
 		clocks = <&clkc CLKID_VCLK2_ENCI
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1
@@ -1139,6 +1139,13 @@
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
+
+    onewire:onewire {
+        compatible = "w1-gpio";
+        gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+        status = "disabled";
+    };
+
 };
 
 &pinctrl_periphs{
@@ -1171,15 +1178,13 @@
 };
 
 &pwm_aoab {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&pwm_ao_a_pin>;
 };
 
 &pwm_ef {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&pwm_f_pin>;
 };
 
 &audio_data{
@@ -1187,7 +1192,7 @@
 };
 
 &i2c0 {
-	status = "okay";
+	status = "disabled";
 	clock-frequency = <400000>;
 	pinctrl-names="default";
 	pinctrl-0=<&a_i2c_master>;
@@ -1217,5 +1222,5 @@
 };
 
 &uart_AO_B {
-	status = "okay";
+	status = "disabled";
 };

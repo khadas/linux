@@ -25,34 +25,40 @@ create_package() {
 
 	# Create preinstall and post install script to remove dtb
 	if [[ "$1" == *dtb* ]]; then
+		echo "#!/bin/bash" >> $pdir/DEBIAN/preinst
+		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb-$version ]; then mv /boot/dtb-$version /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb.old ]; then rm -rf /boot/dtb.old; fi" >> $pdir/DEBIAN/preinst
-		echo "if [ -d /dtb ]; then mv /dtb /dtb.old; fi" >> $pdir/DEBIAN/preinst
 		echo "if [ -d /boot/dtb ]; then mv /boot/dtb /boot/dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -d /dtb.old ]; then rm -rf /dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -d /dtb ]; then mv /dtb /dtb.old; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -L /boot/dtb ]; then rm /boot/dtb; fi" >> $pdir/DEBIAN/preinst
+		echo "if [ -L /boot/dtb/dtb-* ]; then rm /boot/dtb/dtb-*; fi" >> $pdir/DEBIAN/preinst
 		echo "exit 0" >> $pdir/DEBIAN/preinst
 		chmod 775 $pdir/DEBIAN/preinst
 		#
 		echo "#!/bin/bash" >> $pdir/DEBIAN/postinst
-		echo "source /etc/fenix-release" >> $pdir/DEBIAN/postinst
-		echo "if [ -d /boot/dtb-$version.old ]; then rm -rf /boot/dtb-$version.old; fi" >> $pdir/DEBIAN/postinst
 		echo "ln -sf dtb-$version /boot/dtb > /dev/null 2>&1 || mv /boot/dtb-$version /boot/dtb" >> $pdir/DEBIAN/postinst
 		cat <<-EOF >> $pdir/DEBIAN/postinst
-			case \$BOARD in
-				VIM1)
-					DTB=kvim_linux.dtb
-					;;
-				VIM2)
-					DTB=kvim2_linux.dtb
-					;;
-				VIM3)
-					DTB=kvim3_linux.dtb
-					;;
-				VIM3L)
-					DTB=kvim3l_linux.dtb
-					;;
-			esac
-			if [ \$INSTALL_TYPE != EMMC ]; then
-				cp /boot/dtb/\$DTB /boot/dtb.img
+			if [ -f /etc/fenix-release ]; then
+				source /etc/fenix-release
+				case \$BOARD in
+					VIM1)
+						DTB=kvim_linux.dtb
+						;;
+					VIM2)
+						DTB=kvim2_linux.dtb
+						;;
+					VIM3)
+						DTB=kvim3_linux.dtb
+						;;
+					VIM3L)
+						DTB=kvim3l_linux.dtb
+						;;
+				esac
+				if [ \$INSTALL_TYPE != EMMC ]; then
+					cp /boot/dtb/\$DTB /boot/dtb.img
+				fi
 			fi
 			exit 0
 		EOF
@@ -173,7 +179,7 @@ BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
 # Setup the directory structure
 rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" "$dtb_dir" $objtree/debian/files
 mkdir -m 755 -p "$dtb_dir/DEBIAN"
-mkdir -p "$dtb_dir/boot/dtb-$version" "$dtb_dir/usr/share/doc/$dtb_packagename"
+mkdir -p $dtb_dir/boot/dtb-$version/overlays/{kvim,kvim2,kvim3,kvim3l} "$dtb_dir/usr/share/doc/$dtb_packagename"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p "$tmpdir/lib" "$tmpdir/boot"
 mkdir -p "$fwdir/lib/firmware/$version/"
@@ -229,8 +235,12 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 fi
 
 if grep -q '^CONFIG_ARM64=y' $KCONFIG_CONFIG ; then
-	mkdir -p "$tmpdir/boot/dtb-""$version"
+	mkdir -p "$tmpdir/boot/dtb-""$version"/overlays/{kvim,kvim2,kvim3,kvim3l}
 	cp $objtree/arch/$SRCARCH/boot/dts/amlogic/*.dtb $dtb_dir/boot/dtb-$version
+	cp $objtree/arch/$SRCARCH/boot/dts/amlogic/overlays/kvim/*.dtbo $dtb_dir/boot/dtb-$version/overlays/kvim
+	cp $objtree/arch/$SRCARCH/boot/dts/amlogic/overlays/kvim2/*.dtbo $dtb_dir/boot/dtb-$version/overlays/kvim2
+	cp $objtree/arch/$SRCARCH/boot/dts/amlogic/overlays/kvim3/*.dtbo $dtb_dir/boot/dtb-$version/overlays/kvim3
+	cp $objtree/arch/$SRCARCH/boot/dts/amlogic/overlays/kvim3l/*.dtbo $dtb_dir/boot/dtb-$version/overlays/kvim3l
 fi
 
 if [ "$ARCH" != "um" ]; then
@@ -408,6 +418,7 @@ fi
 (cd $srctree; find security/*/include -type f) >> "$objtree/debian/hdrsrcfiles"
 (cd $srctree; find arch/$SRCARCH -name module.lds -o -name Kbuild.platforms -o -name Platform) >> "$objtree/debian/hdrsrcfiles"
 (cd $srctree; find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f) >> "$objtree/debian/hdrsrcfiles"
+(cd $srctree; find drivers/amlogic/debug -name *.h) >> "$objtree/debian/hdrsrcfiles"
 if grep -q '^CONFIG_STACK_VALIDATION=y' $KCONFIG_CONFIG ; then
 	(cd $objtree; find tools/objtool -type f -executable) >> "$objtree/debian/hdrobjfiles"
 fi

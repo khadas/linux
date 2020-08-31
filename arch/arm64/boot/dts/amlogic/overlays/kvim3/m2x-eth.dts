@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&ethmac>;
+
+		__overlay__ {
+			status = "okay";
+
+			mc_val = <0x4be04>;
+			internal_phy=<1>;
+		};
+	};
+};

@@ -5,4 +5,8 @@ dtb-$(CONFIG_ARM64) += kvim3_linux.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb
+subdir-y	+= overlays/kvim
+subdir-y	+= overlays/kvim2
+subdir-y	+= overlays/kvim3
+subdir-y	+= overlays/kvim3l
+clean-files	:= *.dtb *.dtbo

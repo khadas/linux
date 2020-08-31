@@ -635,7 +635,7 @@
 		};
 	};
 
-	backlight{
+	backlight: backlight{
 		compatible = "amlogic, backlight-g12a";
 		status = "okay";
 		key_valid = <0>;

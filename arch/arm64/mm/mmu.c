@@ -506,8 +506,6 @@ static void __init map_kernel(pgd_t *pgd)
 		 * entry instead.
 		 */
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
-		set_pud(pud_set_fixmap_offset(pgd, FIXADDR_START),
-			__pud(__pa_symbol(bm_pmd) | PUD_TYPE_TABLE));
 		pud_populate(&init_mm, pud_set_fixmap_offset(pgd, FIXADDR_START),
 			     lm_alias(bm_pmd));
 		pud_clear_fixmap();

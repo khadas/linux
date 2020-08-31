@@ -202,7 +202,7 @@
 		};
 
 		red_led {
-			label = "red_red";
+			label = "red_led";
 			gpios = <&gpio_expander 5 GPIO_ACTIVE_HIGH>;
 			default-state ="off";
 			linux,default-trigger="none";
@@ -212,7 +212,7 @@
 	cvbsout {
 		compatible = "amlogic, cvbsout-g12b";
 		dev_name = "cvbsout";
-		status = "okay";
+		status = "disabled";
 		clocks = <&clkc CLKID_VCLK2_ENCI
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1
@@ -744,6 +744,22 @@
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <1020000>;
 		};
+		opp09 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <1030000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <1040000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <2100000000>;
+			opp-microvolt = <1040000>;
+		};
+		opp12 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <1040000>;
+		};
 	};
 
 	cpu_opp_table1: cpu_opp_table1 {
@@ -802,6 +818,14 @@
 			opp-hz = /bits/ 64 <2208000000>;
 			opp-microvolt = <1030000>;
 		};
+		opp13 {
+			opp-hz = /bits/ 64 <2304000000>;
+			opp-microvolt = <1030000>;
+		};
+		opp14 {
+			opp-hz = /bits/ 64 <2400000000>;
+			opp-microvolt = <1040000>;
+		};
 	};
 
 	cpufreq-meson {
@@ -809,9 +833,15 @@
 		status = "okay";
 	};
 
+    onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
 	sensor: sensor {
 		compatible = "soc, sensor";
-		status = "okay";
+		status = "disabled";
 		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
 		pinctrl-0=<&gen_clk_ee_ao>;
@@ -823,18 +853,18 @@
 
 	iq: iq {
 		compatible = "soc, iq";
-		status = "okay";
+		status = "disabled";
 		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 }; /* end of / */
 
 &isp {
-	status = "okay";
+	status = "disabled";
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
-	status = "okay";
+	status = "disabled";
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -859,8 +889,6 @@
 
 &pwm_ef {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_f_pins2>;
 };
 
 &pwm_AO_cd {
@@ -868,7 +896,7 @@
 };
 
 &i2c3 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
@@ -910,16 +938,6 @@
 		fan,trig_temp_level1 = <60>;
 		fan,trig_temp_level2 = <70>;
 		hwver = "VIM3.V11"; /* Will be updated in uboot. */
-	};
-
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
 	};
 };
 

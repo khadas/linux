@@ -1,0 +1,30 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	// onewire using GPIOH_6, so we have to disable pwm_f & uart_C
+	// which share the same pins
+	fragment@0 {
+		target = <&onewire>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&spicc1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&uart_C>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};
