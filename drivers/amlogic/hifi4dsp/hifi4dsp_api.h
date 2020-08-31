@@ -12,9 +12,9 @@ struct hifi4dsp_info_t {
 	char fw_name[32];	/*name of firmware which used for dsp*/
 	char fw1_name[32];	/*name of firmware which used for dsp ddr*/
 	char fw2_name[32];	/*name of firmware which used for dsp sram*/
-	long phy_addr;		/*phy address of firmware wille be loaded on*/
-	size_t size;		/*size of reserved hifi memory*/
-};
+	unsigned int phy_addr;/*phy address of firmware wille be loaded on*/
+	unsigned int size;		/*size of reserved hifi memory*/
+} __packed;
 
 #define HIFI4DSP_IOC_MAGIC  'H'
 
