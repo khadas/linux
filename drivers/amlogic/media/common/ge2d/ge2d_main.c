@@ -409,7 +409,12 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 				&uf_ex_mem->src2_mem_alloc_type);
 			r |= get_user(ge2d_config_ex_mem->dst_mem_alloc_type,
 				&uf_ex_mem->dst_mem_alloc_type);
-
+			r |= copy_from_user(&ge2d_config_ex_mem->matrix_custom,
+					    &uf_ex_mem->matrix_custom,
+					    sizeof(struct ge2d_matrix_s));
+			r |= copy_from_user(&ge2d_config_ex_mem->stride_custom,
+					    &uf_ex_mem->stride_custom,
+					    sizeof(struct ge2d_stride_s));
 		}
 		if (r) {
 			pr_err("GE2D_CONFIG_EX32 get parameter failed .\n");
