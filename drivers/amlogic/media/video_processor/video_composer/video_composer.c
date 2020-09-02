@@ -37,6 +37,8 @@
 #include <linux/ion.h>
 #include "video_composer.h"
 #include <linux/amlogic/media/utils/am_com.h>
+#include <linux/amlogic/meson_uvm_core.h>
+
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 #include <trace/events/meson_atrace.h>
@@ -299,6 +301,41 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 			 "uninit ge2d composer failed!\n");
 }
 
+static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
+						     struct file *file_vf)
+{
+	struct file_private_data *file_private_data;
+	bool is_v4lvideo_fd = false;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		pr_err("vc: get_file_private_data fail\n");
+		return NULL;
+	}
+
+	if (is_v4lvideo_buf_file(file_vf))
+		is_v4lvideo_fd = true;
+
+	if (is_v4lvideo_fd) {
+		file_private_data =
+			(struct file_private_data *)(file_vf->private_data);
+		return file_private_data;
+	}
+
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 VF_PROCESS_V4LVIDEO);
+	if (!uhmod || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "dma file file_private_data is NULL\n");
+		return NULL;
+	}
+	file_private_data = uhmod->arg;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 VF_PROCESS_V4LVIDEO);
+
+	return file_private_data;
+}
+
 static void frames_put_file(struct composer_dev *dev,
 			    struct received_frames_t *current_frames)
 {
@@ -444,19 +481,24 @@ static void videocom_vf_put(struct vframe_s *vf, struct composer_dev *dev)
 	wake_up_interruptible(&dev->wq);
 }
 
-static unsigned long get_dma_phy_addr(int fd)
+static unsigned long get_dma_phy_addr(int fd, int index)
 {
 	unsigned long phy_addr = 0;
 	struct dma_buf *dbuf = NULL;
 	struct sg_table *table = NULL;
 	struct page *page = NULL;
-	struct ion_buffer *buffer = NULL;
+	struct dma_buf_attachment *attach = NULL;
 
 	dbuf = dma_buf_get(fd);
-	buffer = dbuf->priv;
-	table = buffer->sg_table;
+	attach = dma_buf_attach(dbuf, ports[index].pdev);
+	if (IS_ERR(attach))
+		return 0;
+
+	table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	page = sg_page(table->sgl);
 	phy_addr = PFN_PHYS(page_to_pfn(page));
+	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
+	dma_buf_detach(dbuf, attach);
 	dma_buf_put(dbuf);
 	return phy_addr;
 }
@@ -724,8 +766,7 @@ static void vframe_composer(struct composer_dev *dev)
 			src_data.is_vframe = false;
 		} else {
 			file_vf = received_frames->file_vf[vf_dev[i]];
-			file_private_data =
-			(struct file_private_data *)(file_vf->private_data);
+			file_private_data = vc_get_file_private(dev, file_vf);
 			scr_vf = &file_private_data->vf;
 
 			src_data.canvas0Addr = scr_vf->canvas0Addr;
@@ -970,8 +1011,7 @@ static void video_composer_task(struct composer_dev *dev)
 			 kfifo_len(&dev->receive_q));
 		file_vf = received_frames->file_vf[0];
 		if (frame_info->type == 0) {
-			file_private_data =
-			(struct file_private_data *)(file_vf->private_data);
+			file_private_data = vc_get_file_private(dev, file_vf);
 			vf = &file_private_data->vf;
 		} else if (frame_info->type == 1) {
 			if (!kfifo_get(&dev->dma_free_q, &vf)) {
@@ -1429,8 +1469,7 @@ static void set_frames_info(struct composer_dev *dev,
 		}
 		dev->received_frames[i].file_vf[j] = file_vf;
 		if (frames_info->frame_info[j].type == 0) {
-			file_private_data =
-			(struct file_private_data *)(file_vf->private_data);
+			file_private_data = vc_get_file_private(dev, file_vf);
 			vf = &file_private_data->vf;
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
 				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
@@ -1453,7 +1492,8 @@ static void set_frames_info(struct composer_dev *dev,
 				 frames_info->frame_info[j].zorder,
 				 frames_info->frame_info[j].fd);
 			dev->received_frames[i].phy_addr[j] =
-			get_dma_phy_addr(frames_info->frame_info[j].fd);
+			get_dma_phy_addr(frames_info->frame_info[j].fd,
+					 dev->index);
 		} else {
 			vc_print(dev->index, PRINT_ERROR,
 				 "unsupport type=%d\n",
@@ -2365,6 +2405,7 @@ static int video_composer_probe(struct platform_device *pdev)
 	     i < video_composer_instance_num; i++, st++) {
 		pr_err("%s:ports[i].name=%s, i=%d\n", __func__,
 		       ports[i].name, i);
+		st->pdev = &pdev->dev;
 		st->class_dev = device_create(&video_composer_class, NULL,
 					      MKDEV(VIDEO_COMPOSER_MAJOR, i),
 					      NULL, ports[i].name);

@@ -19,6 +19,8 @@
 #ifndef V4LVIDEO_EXT_H
 #define V4LVIDEO_EXT_H
 
+#include <linux/dma-buf.h>
+
 int v4lvideo_assign_map(char **receiver_name, int *inst);
 
 int v4lvideo_alloc_map(int *inst);
@@ -38,7 +40,7 @@ struct file_private_data {
 };
 
 struct v4l_data_t {
-	struct vframe_s *vf;
+	struct file_private_data *file_private_data;
 	char *dst_addr;
 	u32 phy_addr[3];
 	int byte_stride;
@@ -46,9 +48,11 @@ struct v4l_data_t {
 	u32 height;
 };
 
-void v4lvideo_data_copy(struct v4l_data_t *v4l_data);
-struct vframe_s *v4lvideo_get_vf(int fd);
+void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf);
+struct file_private_data *v4lvideo_get_vf(int fd);
 void dim_post_keep_cmd_release2(struct vframe_s *vframe);
+int is_v4lvideo_buf_file(struct file *file);
+
 
 #endif /* V4LVIDEO_EXT_H */
 

@@ -513,15 +513,17 @@ static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 	struct uvm_hook_mod *uhmod = NULL;
 
 	mutex_lock(&handle->lock);
-	list_for_each_entry(uhmod, &handle->mod_attached, list) {
-		if (uhmod->type == type)
-			break;
+	if (!list_empty(&handle->mod_attached)) {
+		list_for_each_entry(uhmod, &handle->mod_attached, list) {
+			if (uhmod->type == type)
+				break;
+		}
 	}
 	mutex_unlock(&handle->lock);
 
 	if (!uhmod) {
 		UVM_PRINTK(0, "%s fail.\n", __func__);
-		return ERR_PTR(-EINVAL);
+		return NULL;
 	}
 
 	return uhmod;
@@ -543,6 +545,7 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	if (uhmod)
 		kref_get(&uhmod->ref);
 
+	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, type);
 	return uhmod;
 }
 EXPORT_SYMBOL(uvm_get_hook_mod);
@@ -553,7 +556,7 @@ static void uvm_hook_mod_release(struct kref *kref)
 
 	uhmod = container_of(kref, struct uvm_hook_mod, ref);
 	list_del(&uhmod->list);
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(1, "%s called, %px.\n", __func__, uhmod);
 	uhmod->free(uhmod->arg);
 }
 

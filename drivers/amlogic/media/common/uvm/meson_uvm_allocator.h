@@ -39,7 +39,6 @@ struct mua_buffer {
 	u32 height;
 	phys_addr_t paddr;
 	int commit_display;
-	struct vframe_s *vf;
 	u32 index;
 };
 

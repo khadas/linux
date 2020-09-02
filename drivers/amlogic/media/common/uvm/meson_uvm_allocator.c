@@ -51,23 +51,19 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 	kfree(buffer);
 }
 
-static int meson_uvm_fill_pattern(struct mua_buffer *buffer, void *vaddr)
+static int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr)
 {
 	struct v4l_data_t val_data;
 
 	memset(&val_data, 0, sizeof(val_data));
 
-	val_data.vf = buffer->vf;
 	val_data.dst_addr = vaddr;
 	val_data.byte_stride = buffer->byte_stride;
 	val_data.width = buffer->width;
 	val_data.height = buffer->height;
 	val_data.phy_addr[0] = buffer->paddr;
 
-	if (!buffer->index || buffer->index != buffer->vf->omx_index) {
-		v4lvideo_data_copy(&val_data);
-		buffer->index = buffer->vf->omx_index;
-	}
+	v4lvideo_data_copy(&val_data, dmabuf);
 
 	vunmap(vaddr);
 	return 0;
@@ -154,7 +150,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(1, "buffer vaddr: %p.\n", vaddr);
 
 	//start to filldata
-	meson_uvm_fill_pattern(buffer, vaddr);
+	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
 
 	return 0;
 }
@@ -198,10 +194,6 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 		info.delay_alloc = mua_process_delay_alloc;
 		info.free = mua_handle_free;
 		MUA_PRINTK(1, "UVM FLAGS is MUA_DELAY_ALLOC, %px\n", info.obj);
-
-		buffer->vf = v4lvideo_get_vf(data->v4l2_fd);
-		if (!buffer->vf)
-			MUA_PRINTK(0, "v4lvideo_get_vf failed.\n");
 	} else {
 		MUA_PRINTK(0, "unsupported MUA FLAGS.\n");
 		kfree(buffer);
