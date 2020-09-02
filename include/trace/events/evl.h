@@ -118,7 +118,7 @@ DECLARE_EVENT_CLASS(timer_event,
 			 { 1, "oob_write" },	\
 			 { 2, "oob_ioctl" })
 
-DECLARE_EVENT_CLASS(syscall_entry,
+DECLARE_EVENT_CLASS(evl_syscall_entry,
 	TP_PROTO(unsigned int nr),
 	TP_ARGS(nr),
 
@@ -133,7 +133,7 @@ DECLARE_EVENT_CLASS(syscall_entry,
 	TP_printk("syscall=%s", evl_print_syscall(__entry->nr))
 );
 
-DECLARE_EVENT_CLASS(syscall_exit,
+DECLARE_EVENT_CLASS(evl_syscall_exit,
 	TP_PROTO(long result),
 	TP_ARGS(result),
 
@@ -742,22 +742,22 @@ DEFINE_EVENT(mutex_event, evl_mutex_flush,
 #define __timespec_args(__name)					\
 	__entry->tv_sec_##__name, __entry->tv_nsec_##__name
 
-DEFINE_EVENT(syscall_entry, evl_oob_sysentry,
+DEFINE_EVENT(evl_syscall_entry, evl_oob_sysentry,
 	TP_PROTO(unsigned int nr),
 	TP_ARGS(nr)
 );
 
-DEFINE_EVENT(syscall_exit, evl_oob_sysexit,
+DEFINE_EVENT(evl_syscall_exit, evl_oob_sysexit,
 	TP_PROTO(long result),
 	TP_ARGS(result)
 );
 
-DEFINE_EVENT(syscall_entry, evl_inband_sysentry,
+DEFINE_EVENT(evl_syscall_entry, evl_inband_sysentry,
 	TP_PROTO(unsigned int nr),
 	TP_ARGS(nr)
 );
 
-DEFINE_EVENT(syscall_exit, evl_inband_sysexit,
+DEFINE_EVENT(evl_syscall_exit, evl_inband_sysexit,
 	TP_PROTO(long result),
 	TP_ARGS(result)
 );
