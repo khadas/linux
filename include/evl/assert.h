@@ -9,6 +9,7 @@
 #define _EVL_ASSERT_H
 
 #include <linux/kconfig.h>
+#include <linux/irqstage.h>
 
 #define EVL_INFO	KERN_INFO    "EVL: "
 #define EVL_WARNING	KERN_WARNING "EVL: "
