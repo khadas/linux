@@ -156,7 +156,8 @@ int dmabuf_bind_uvm_delay_alloc(struct dma_buf *dmabuf,
 /**
  * uvm vframe interface
  */
-int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf);
+int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf,
+		      enum uvm_hook_mod_type type);
 
 struct vframe_s *dmabuf_get_vframe(struct dma_buf *dmabuf);
 
@@ -174,5 +175,8 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 				      int type);
 
 int uvm_put_hook_mod(struct dma_buf *dmabuf, int type);
+
+bool is_valid_mod_type(struct dma_buf *dmabuf,
+		       enum uvm_hook_mod_type type);
 
 #endif

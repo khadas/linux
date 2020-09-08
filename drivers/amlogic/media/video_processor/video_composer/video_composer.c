@@ -766,8 +766,14 @@ static void vframe_composer(struct composer_dev *dev)
 			src_data.is_vframe = false;
 		} else {
 			file_vf = received_frames->file_vf[vf_dev[i]];
-			file_private_data = vc_get_file_private(dev, file_vf);
-			scr_vf = &file_private_data->vf;
+			if (is_valid_mod_type(file_vf->private_data,
+					      VF_SRC_DECODER)) {
+				scr_vf = dmabuf_get_vframe((struct dma_buf *)
+					(file_vf->private_data));
+			} else {
+				file_private_data = vc_get_file_private(dev, file_vf);
+				scr_vf = &file_private_data->vf;
+			}
 
 			src_data.canvas0Addr = scr_vf->canvas0Addr;
 			src_data.canvas1Addr = scr_vf->canvas1Addr;
@@ -1011,8 +1017,14 @@ static void video_composer_task(struct composer_dev *dev)
 			 kfifo_len(&dev->receive_q));
 		file_vf = received_frames->file_vf[0];
 		if (frame_info->type == 0) {
-			file_private_data = vc_get_file_private(dev, file_vf);
-			vf = &file_private_data->vf;
+			if (is_valid_mod_type(file_vf->private_data,
+					      VF_SRC_DECODER)) {
+				vf = dmabuf_get_vframe((struct dma_buf *)
+					(file_vf->private_data));
+			} else {
+				file_private_data = vc_get_file_private(dev, file_vf);
+				vf = &file_private_data->vf;
+			}
 		} else if (frame_info->type == 1) {
 			if (!kfifo_get(&dev->dma_free_q, &vf)) {
 				vc_print(dev->index, PRINT_ERROR,
@@ -1469,8 +1481,15 @@ static void set_frames_info(struct composer_dev *dev,
 		}
 		dev->received_frames[i].file_vf[j] = file_vf;
 		if (frames_info->frame_info[j].type == 0) {
-			file_private_data = vc_get_file_private(dev, file_vf);
-			vf = &file_private_data->vf;
+			if (is_valid_mod_type(file_vf->private_data,
+					      VF_SRC_DECODER)) {
+				vf = dmabuf_get_vframe((struct dma_buf *)
+					(file_vf->private_data));
+			} else {
+				file_private_data = vc_get_file_private(dev, file_vf);
+				vf = &file_private_data->vf;
+			}
+
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
 				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
 				 dev->received_count + 1,

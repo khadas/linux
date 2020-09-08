@@ -417,7 +417,8 @@ int dmabuf_bind_uvm_delay_alloc(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL(dmabuf_bind_uvm_delay_alloc);
 
-int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf)
+int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf,
+		      enum uvm_hook_mod_type type)
 {
 	struct uvm_handle *handle;
 
@@ -429,6 +430,8 @@ int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf)
 	handle = dmabuf->priv;
 	memcpy(&handle->vf, vf, sizeof(struct vframe_s));
 	handle->vfp = vf;
+
+	handle->mod_attached_mask |= (1 << type);
 
 	return 0;
 }
@@ -446,7 +449,7 @@ struct vframe_s *dmabuf_get_vframe(struct dma_buf *dmabuf)
 	handle = dmabuf->priv;
 	kref_get(&handle->ref);
 
-	return &handle->vf;
+	return handle->vfp ? &handle->vf : NULL;
 }
 EXPORT_SYMBOL(dmabuf_get_vframe);
 
@@ -463,6 +466,22 @@ int dmabuf_put_vframe(struct dma_buf *dmabuf)
 	return kref_put(&handle->ref, uvm_handle_destroy);
 }
 EXPORT_SYMBOL(dmabuf_put_vframe);
+
+bool is_valid_mod_type(struct dma_buf *dmabuf,
+		       enum uvm_hook_mod_type type)
+{
+	struct uvm_handle *handle;
+
+	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	handle = dmabuf->priv;
+
+	return (handle->mod_attached_mask & (1 << type)) ? 1 : 0;
+}
+EXPORT_SYMBOL(is_valid_mod_type);
 
 int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 			struct uvm_hook_mod_info *info)
