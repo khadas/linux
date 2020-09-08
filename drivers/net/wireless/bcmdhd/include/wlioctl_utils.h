@@ -1,14 +1,14 @@
 /*
  * Custom OID/ioctl related helper functions.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,13 +16,13 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlioctl_utils.h 614820 2016-01-23 17:16:17Z $
+ * $Id: wlioctl_utils.h 626207 2016-03-19 17:39:14Z $
  */
 
 #ifndef _wlioctl_utils_h_
@@ -47,9 +47,9 @@ extern int wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf,
 extern const char * wl_get_reinit_rc_name(int rc);
 
 /* Get data pointer of wlc layer counters tuple from xtlv formatted counters IOVar buffer. */
-#define GET_WLCCNT_FROM_CNTBUF(cntbuf)						\
-		bcm_get_data_from_xtlv_buf(((wl_cnt_info_t *)cntbuf)->data,	\
-		((wl_cnt_info_t *)cntbuf)->datalen, WL_CNT_XTLV_WLC,		\
+#define GET_WLCCNT_FROM_CNTBUF(cntbuf) (const wl_cnt_wlc_t*) \
+		bcm_get_data_from_xtlv_buf(((const wl_cnt_info_t *)cntbuf)->data,	\
+		((const wl_cnt_info_t *)cntbuf)->datalen, WL_CNT_XTLV_WLC,		\
 		NULL, BCM_XTLV_OPTION_ALIGN32)
 
 #define CHK_CNTBUF_DATALEN(cntbuf, ioctl_buflen) do {					\

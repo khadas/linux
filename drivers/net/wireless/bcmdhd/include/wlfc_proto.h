@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -14,7 +14,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -22,12 +22,11 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlfc_proto.h 675983 2016-12-19 23:18:49Z $
+ * $Id: wlfc_proto.h 735303 2017-12-08 06:20:29Z $
  *
  */
 
 /** WL flow control for PROP_TXSTATUS. Related to host AMPDU reordering. */
-
 
 #ifndef __wlfc_proto_definitions_h__
 #define __wlfc_proto_definitions_h__
@@ -81,37 +80,47 @@
 	 ---------------------------------------------------------------------------
 	*/
 
-#define WLFC_CTL_TYPE_MAC_OPEN			1
-#define WLFC_CTL_TYPE_MAC_CLOSE			2
-#define WLFC_CTL_TYPE_MAC_REQUEST_CREDIT	3
-#define WLFC_CTL_TYPE_TXSTATUS			4
-#define WLFC_CTL_TYPE_PKTTAG			5	/** host<->dongle */
+typedef enum {
+	WLFC_CTL_TYPE_MAC_OPEN = 1,
+	WLFC_CTL_TYPE_MAC_CLOSE	= 2,
+	WLFC_CTL_TYPE_MAC_REQUEST_CREDIT = 3,
+	WLFC_CTL_TYPE_TXSTATUS = 4,
+	WLFC_CTL_TYPE_PKTTAG = 5,	/** host<->dongle */
 
-#define WLFC_CTL_TYPE_MACDESC_ADD		6
-#define WLFC_CTL_TYPE_MACDESC_DEL		7
-#define WLFC_CTL_TYPE_RSSI			8
+	WLFC_CTL_TYPE_MACDESC_ADD = 6,
+	WLFC_CTL_TYPE_MACDESC_DEL = 7,
+	WLFC_CTL_TYPE_RSSI = 8,
 
-#define WLFC_CTL_TYPE_INTERFACE_OPEN		9
-#define WLFC_CTL_TYPE_INTERFACE_CLOSE		10
+	WLFC_CTL_TYPE_INTERFACE_OPEN = 9,
+	WLFC_CTL_TYPE_INTERFACE_CLOSE = 10,
 
-#define WLFC_CTL_TYPE_FIFO_CREDITBACK		11
+	WLFC_CTL_TYPE_FIFO_CREDITBACK = 11,
 
-#define WLFC_CTL_TYPE_PENDING_TRAFFIC_BMP	12	/** host->dongle */
-#define WLFC_CTL_TYPE_MAC_REQUEST_PACKET	13
-#define WLFC_CTL_TYPE_HOST_REORDER_RXPKTS	14
+	WLFC_CTL_TYPE_PENDING_TRAFFIC_BMP = 12,	/** host->dongle */
+	WLFC_CTL_TYPE_MAC_REQUEST_PACKET = 13,
+	WLFC_CTL_TYPE_HOST_REORDER_RXPKTS = 14,
 
-#define WLFC_CTL_TYPE_TX_ENTRY_STAMP		15
-#define WLFC_CTL_TYPE_RX_STAMP			16
-#define WLFC_CTL_TYPE_TX_STATUS_STAMP		17	/** obsolete */
+	WLFC_CTL_TYPE_TX_ENTRY_STAMP = 15,
+	WLFC_CTL_TYPE_RX_STAMP = 16,
+	WLFC_CTL_TYPE_TX_STATUS_STAMP = 17,	/** obsolete */
 
-#define WLFC_CTL_TYPE_TRANS_ID			18
-#define WLFC_CTL_TYPE_COMP_TXSTATUS		19
+	WLFC_CTL_TYPE_TRANS_ID = 18,
+	WLFC_CTL_TYPE_COMP_TXSTATUS = 19,
 
-#define WLFC_CTL_TYPE_TID_OPEN			20
-#define WLFC_CTL_TYPE_TID_CLOSE			21
+	WLFC_CTL_TYPE_TID_OPEN = 20,
+	WLFC_CTL_TYPE_TID_CLOSE = 21,
+	WLFC_CTL_TYPE_UPD_FLR_WEIGHT = 22,
+	WLFC_CTL_TYPE_ENAB_FFSCH = 23,
+	WLFC_CTL_TYPE_UPDATE_FLAGS = 24,	/* clear the flags set in flowring */
+	WLFC_CTL_TYPE_CLEAR_SUPPR = 25,		/* free the supression info in the flowring */
 
+	WLFC_CTL_TYPE_FLOWID_OPEN = 26,
+	WLFC_CTL_TYPE_FLOWID_CLOSE = 27,
 
-#define WLFC_CTL_TYPE_FILLER			255
+	WLFC_CTL_TYPE_FILLER = 255
+} wlfc_ctl_type_t;
+
+#define WLFC_CTL_VALUE_LEN_FLOWID		2
 
 #define WLFC_CTL_VALUE_LEN_MACDESC		8	/** handle, interface, MAC */
 
@@ -127,6 +136,14 @@
 
 #define WLFC_CTL_VALUE_LEN_SEQ			2
 
+/* Reset the flags set for the corresponding flowring of the SCB which is de-inited */
+/* FLOW_RING_FLAG_LAST_TIM | FLOW_RING_FLAG_INFORM_PKTPEND | FLOW_RING_FLAG_PKT_REQ */
+#define WLFC_RESET_ALL_FLAGS			0
+#define WLFC_CTL_VALUE_LEN_FLAGS		7	/** flags, MAC */
+
+/* free the data stored to be used for suppressed packets in future */
+#define WLFC_CTL_VALUE_LEN_SUPR			7	/** tid, MAC */
+
 /* The high bits of ratespec report in timestamp are used for various status */
 #define WLFC_TSFLAGS_RX_RETRY		(1 << 31)
 #define WLFC_TSFLAGS_PM_ENABLED		(1 << 30)
@@ -138,9 +155,9 @@
 #define WLFC_CTL_VALUE_LEN_REQUEST_CREDIT	3	/* credit, MAC-handle, prec_bitmap */
 #define WLFC_CTL_VALUE_LEN_REQUEST_PACKET	3	/* credit, MAC-handle, prec_bitmap */
 
-
 #define WLFC_PKTFLAG_PKTFROMHOST	0x01
 #define WLFC_PKTFLAG_PKT_REQUESTED	0x02
+#define WLFC_PKTFLAG_PKT_SENDTOHOST	0x04
 
 #define WL_TXSTATUS_STATUS_MASK			0xff /* allow 8 bits */
 #define WL_TXSTATUS_STATUS_SHIFT		24
@@ -215,6 +232,15 @@
 #define WL_SEQ_IS_AMSDU(x)   (((x) >> WL_SEQ_AMSDU_SHIFT) & \
 	WL_SEQ_AMSDU_MASK)
 
+/* indicates last_suppr_seq is valid */
+#define WL_SEQ_VALIDSUPPR_MASK		0x1 /* allow 1 bit */
+#define WL_SEQ_VALIDSUPPR_SHIFT		12
+#define WL_SEQ_SET_VALIDSUPPR(x, val)	((x) = \
+	((x) & ~(WL_SEQ_VALIDSUPPR_MASK << WL_SEQ_VALIDSUPPR_SHIFT)) | \
+	(((val) & WL_SEQ_VALIDSUPPR_MASK) << WL_SEQ_VALIDSUPPR_SHIFT))
+#define WL_SEQ_GET_VALIDSUPPR(x)	(((x) >> WL_SEQ_VALIDSUPPR_SHIFT) & \
+	WL_SEQ_VALIDSUPPR_MASK)
+
 #define WL_SEQ_FROMFW_MASK		0x1 /* allow 1 bit */
 #define WL_SEQ_FROMFW_SHIFT		13
 #define WL_SEQ_SET_FROMFW(x, val)	((x) = \
@@ -279,7 +305,6 @@
 #define WLFC_PKTFLAG_CLR_PKTREQUESTED(x)	(x) &= \
 	~(WLFC_PKTFLAG_PKT_REQUESTED << WL_TXSTATUS_FLAGS_SHIFT)
 
-
 #define WLFC_MAX_PENDING_DATALEN	120
 
 /* host is free to discard the packet */
@@ -296,6 +321,12 @@
 #define WLFC_CTL_PKTFLAG_DISCARD_NOACK	4
 /* Firmware wrongly reported suppressed previously,now fixing to acked */
 #define WLFC_CTL_PKTFLAG_SUPPRESS_ACKED	5
+/* Firmware send this packet expired, lifetime expiration */
+#define WLFC_CTL_PKTFLAG_EXPIRED	6
+/* Firmware drop this packet for any other reason  */
+#define WLFC_CTL_PKTFLAG_DROPPED	7
+/* Firmware free this packet  */
+#define WLFC_CTL_PKTFLAG_MKTFREE	8
 #define WLFC_CTL_PKTFLAG_MASK		(0x0f)	/* For 4-bit mask with one extra bit */
 
 #ifdef PROP_TXSTATUS_DEBUG
@@ -304,15 +335,12 @@
 #define WLFC_BREADCRUMB(x) do {if ((x) == NULL) \
 	{printf("WLFC: %s():%d:caller:%p\n", \
 	__FUNCTION__, __LINE__, CALL_SITE);}} while (0)
-#define WLFC_PRINTMAC(banner, ea) do {printf("%s MAC: [%02x:%02x:%02x:%02x:%02x:%02x]\n", \
-	banner, ea[0], 	ea[1], 	ea[2], 	ea[3], 	ea[4], 	ea[5]); } while (0)
 #define WLFC_WHEREIS(s) printf("WLFC: at %s():%d, %s\n", __FUNCTION__, __LINE__, (s))
 #else
 #define WLFC_DBGMESG(x)
 #define WLFC_BREADCRUMB(x)
-#define WLFC_PRINTMAC(banner, ea)
 #define WLFC_WHEREIS(s)
-#endif
+#endif /* PROP_TXSTATUS_DEBUG */
 
 /* AMPDU host reorder packet flags */
 #define WLHOST_REORDERDATA_MAXFLOWS		256
@@ -350,8 +378,14 @@
 #define WLFC_SET_REUSESEQ(x, val)	((x) = \
 	((x) & ~(1 << WLFC_MODE_REUSESEQ_SHIFT)) | \
 	(((val) & 1) << WLFC_MODE_REUSESEQ_SHIFT))
+
 /** returns TRUE if 'd11 sequence reuse' has been agreed upon between host and dongle */
+#if defined(BCMPCIEDEV_ENABLED) && !defined(ROM_ENAB_RUNTIME_CHECK)
+/* GET_REUSESEQ is always TRUE in pciedev */
+#define WLFC_GET_REUSESEQ(x)	(TRUE)
+#else
 #define WLFC_GET_REUSESEQ(x)	(((x) >> WLFC_MODE_REUSESEQ_SHIFT) & 1)
+#endif /* defined(BCMPCIEDEV_ENABLED) && !defined(ROM_ENAB_RUNTIME_CHECK) */
 
 #define WLFC_MODE_REORDERSUPP_SHIFT	4	/* host reorder suppress pkt bit */
 #define WLFC_SET_REORDERSUPP(x, val)	((x) = \
@@ -369,6 +403,9 @@
 #define FLOW_RING_TIM_SET	7
 #define FLOW_RING_TIM_RESET	8
 #define FLOW_RING_FLUSH_TXFIFO	9
+#define FLOW_RING_GET_PKT_MAX	10
+#define FLOW_RING_RESET_WEIGHT	11
+#define FLOW_RING_UPD_PRIOMAP	12
 
 /* bit 7, indicating if is TID(1) or AC(0) mapped info in tid field) */
 #define PCIEDEV_IS_AC_TID_MAP_MASK	0x80
