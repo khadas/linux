@@ -31,6 +31,7 @@ static struct workqueue_struct *goodix_wq;
 struct i2c_client * i2c_connect_client = NULL;
 int gtp_rst_gpio;
 int gtp_int_gpio;
+static u32 rotation;
 u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
                 = {GTP_REG_CONFIG_DATA >> 8, GTP_REG_CONFIG_DATA & 0xff};
 
@@ -391,8 +392,14 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
 		input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER,true);
 	}
 	input_report_abs(ts->input_dev, ABS_MT_PRESSURE, w);
-    input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
-    input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
+	
+	if (2 == rotation) {
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, ts->abs_x_max-x);
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->abs_y_max-y);
+	}else{
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
+	}
     input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, w);
     input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
 #else
@@ -2311,10 +2318,19 @@ void gtp_get_chip_type(struct goodix_ts_data *ts)
 static void gtp_parse_dt(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-
+	u32 temp_val;
+	int ret = 0;
+	
 	gtp_int_gpio = of_get_named_gpio(np, "irq-gpio", 0);
 	gtp_rst_gpio = of_get_named_gpio(np, "reset-gpio", 0);
 
+	ret = of_property_read_u32(np, "rotation", &temp_val);
+	if (!ret) {
+		rotation = temp_val;		
+	} else {
+		rotation = 0;
+		GTP_ERROR("cannot get rotation value of touchscreen");
+	}
 }
 
 /**
