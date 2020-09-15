@@ -4349,10 +4349,12 @@ static int osd_probe(struct platform_device *pdev)
 	/* Todo: only osd0 */
 	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
 	prop_idx = 0;
-	prop = of_get_property(pdev->dev.of_node, "4k2k_fb", NULL);
-	if (prop)
-		prop_idx = of_read_ulong(prop, 1);
-	osd_set_4k2k_fb_mode_hw(prop_idx);
+	if(strncmp(nativeui_propname, "enable", 6) == 0 && strncmp(hdmimode_propname, "2160p", 5) == 0) {
+		printk("nativeui_propname hdmimode_propname 4k \n ");
+		prop_idx = 1;
+		osd_set_4k2k_fb_mode_hw(prop_idx);
+	}
+
 	/* get default display mode from dt */
 	ret = of_property_read_string(pdev->dev.of_node,
 		"display_mode_default", &str);
