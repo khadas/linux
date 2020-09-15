@@ -131,11 +131,6 @@ void tvafe_set_snow_cfg(bool cfg);
 struct tvafe_user_param_s *tvafe_get_user_param(void);
 struct tvafe_dev_s *tvafe_get_dev(void);
 
-typedef int (*hook_func_t)(void);
-typedef int (*hook_func1_t)(bool);
-void aml_fe_hook_cvd(hook_func_t atv_mode,
-		hook_func_t cvd_hv_lock, hook_func_t get_fmt,
-		hook_func1_t set_mode);
 int tvafe_reg_read(unsigned int reg, unsigned int *val);
 int tvafe_reg_write(unsigned int reg, unsigned int val);
 int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val);

@@ -540,4 +540,13 @@ static int lut_dma_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_ATV_DEMOD
+int __init aml_atvdemod_init(void);
+#else
+static int aml_atvdemod_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif

@@ -420,7 +420,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "disabled";
+		status = "okay";
 
 		fe_num = <1>;
 		fe0_demod = "internal";
@@ -1018,7 +1018,7 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "disabled";
+		status = "okay";
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
@@ -1154,7 +1154,7 @@
 }; /* end of / */
 
 &i2c0 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_z_pins>;

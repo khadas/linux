@@ -36,6 +36,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 /*#include <mach/am_regs.h>*/
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/aml_atvdemod.h>
 
 /* Local include */
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
