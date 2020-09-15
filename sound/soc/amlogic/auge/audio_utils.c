@@ -573,11 +573,13 @@ void fratv_src_select(bool src)
 {
 	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 20, src << 20);
 }
+EXPORT_SYMBOL(fratv_src_select);
 
 void fratv_LR_swap(bool swap)
 {
 	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 19, swap << 19);
 }
+EXPORT_SYMBOL(fratv_LR_swap);
 
 void cec_arc_enable(int src, bool enable)
 {

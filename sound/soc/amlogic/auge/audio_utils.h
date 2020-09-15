@@ -13,7 +13,5 @@ int snd_card_add_kcontrols(struct snd_soc_card *card);
 void audio_locker_set(int enable);
 int audio_locker_get(void);
 void fratv_enable(bool enable);
-void fratv_src_select(bool src);
-void fratv_LR_swap(bool swap);
 void cec_arc_enable(int src, bool enable);
 #endif

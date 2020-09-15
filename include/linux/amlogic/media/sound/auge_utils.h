@@ -10,4 +10,19 @@
 void auge_acodec_reset(void);
 void auge_toacodec_ctrl(int tdmout_id);
 void auge_toacodec_ctrl_ext(int tdmout_id, int ch0_sel, int ch1_sel, bool separate_toacodec_en);
+
+#if ((defined CONFIG_AMLOGIC_SND_SOC_AUGE ||\
+		defined CONFIG_AMLOGIC_SND_SOC_AUGE_MODULE))
+void fratv_src_select(bool src);
+void fratv_LR_swap(bool swap);
+#else
+static inline __maybe_unused void fratv_src_select(bool src)
+{
+}
+
+static inline __maybe_unused void fratv_LR_swap(bool swap)
+{
+}
+#endif
+
 #endif
