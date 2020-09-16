@@ -4349,10 +4349,12 @@ static int osd_probe(struct platform_device *pdev)
 	/* Todo: only osd0 */
 	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
 	prop_idx = 0;
+	cpu_type = get_cpu_type();
 	if(strncmp(nativeui_propname, "enable", 6) == 0 && strncmp(hdmimode_propname, "2160p", 5) == 0) {
-		printk("nativeui_propname hdmimode_propname 4k \n ");
-		prop_idx = 1;
-		osd_set_4k2k_fb_mode_hw(prop_idx);
+		if (cpu_type == MESON_CPU_MAJOR_ID_G12B) {
+			prop_idx = 1;
+			osd_set_4k2k_fb_mode_hw(prop_idx);
+		}
 	}
 
 	/* get default display mode from dt */
@@ -4514,10 +4516,17 @@ static int osd_probe(struct platform_device *pdev)
 						var_screeninfo[2] = 720;
 						var_screeninfo[3] = 1152;
 					} else if(strncmp(hdmimode_propname, "2160p", 5) == 0) {
-						var_screeninfo[0] = 3840;
-						var_screeninfo[1] = 2160;
-						var_screeninfo[2] = 3840;
-						var_screeninfo[3] = 4320;
+						if ((cpu_type == MESON_CPU_MAJOR_ID_G12B)) {
+							var_screeninfo[0] = 3840;
+							var_screeninfo[1] = 2160;
+							var_screeninfo[2] = 3840;
+							var_screeninfo[3] = 4320;
+						} else {
+							var_screeninfo[0] = 1920;
+							var_screeninfo[1] = 1080;
+							var_screeninfo[2] = 1920;
+							var_screeninfo[3] = 2160;
+						}
 					} else {
 						/* set default fb from dts */
 						var_screeninfo[0] = 1920;
@@ -4527,7 +4536,7 @@ static int osd_probe(struct platform_device *pdev)
 					}
 
 				}
-				cpu_type = get_cpu_type();
+
 				if ((cpu_type == MESON_CPU_MAJOR_ID_G12B) || (cpu_type == MESON_CPU_MAJOR_ID_SM1)) {
 					fb_var_set_process(index);
 				} else {
