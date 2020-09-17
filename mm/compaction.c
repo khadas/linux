@@ -1545,6 +1545,51 @@ splitmap:
 	split_map_pages(freelist);
 }
 
+#ifdef CONFIG_AMLOGIC_CMA
+static int can_migrate_to_cma(struct page *page)
+{
+	struct address_space *mapping;
+
+	mapping = page_mapping(page);
+	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+		mapping = NULL;
+
+	if (PageKsm(page) && !PageSlab(page))
+		return 0;
+
+	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
+		return 0;
+
+	return 1;
+}
+
+static struct page *get_compact_page(struct page *migratepage,
+				     struct compact_control *cc)
+{
+	int can_to_cma, find = 0;
+	struct page *page, *next;
+
+	can_to_cma = can_migrate_to_cma(migratepage);
+	if (!can_to_cma) {
+		list_for_each_entry_safe(page, next, &cc->freepages, lru) {
+			if (!cma_page(page)) {
+				list_del(&page->lru);
+				cc->nr_freepages--;
+				find = 1;
+				break;
+			}
+		}
+		if (!find)
+			return NULL;
+	} else {
+		page = list_entry(cc->freepages.next, struct page, lru);
+		list_del(&page->lru);
+		cc->nr_freepages--;
+	}
+	return page;
+}
+#endif
+
 /*
  * This is a migrate-callback that "allocates" freepages by taking pages
  * from the isolated freelists in the block we are migrating to.
@@ -1565,9 +1610,13 @@ static struct page *compaction_alloc(struct page *migratepage,
 			return NULL;
 	}
 
+#ifdef CONFIG_AMLOGIC_CMA
+	freepage = get_compact_page(migratepage, cc);
+#else
 	freepage = list_entry(cc->freepages.next, struct page, lru);
 	list_del(&freepage->lru);
 	cc->nr_freepages--;
+#endif
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	if (freepage) {
 		old_trace = find_page_base(migratepage);
