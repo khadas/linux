@@ -471,11 +471,6 @@
 		cma_mode = <1>;
 	};
 
-	vout {
-		compatible = "amlogic, vout";
-		status = "okay";
-	};
-
 	fb: fb {
 		compatible = "amlogic, fb-sm1";
 		memory-region = <&logo_reserved>;
@@ -541,14 +536,34 @@
 		};
 	};
 
-	vout2 {
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+
+		/* fr_policy:
+		 *    0: disable
+		 *    1: nearby (only for 60->59.94 and 30->29.97)
+		 *    2: force (60/50/30/24/59.94/23.97)
+		 */
+		fr_policy = <2>;
+	};
+
+	vout2: vout2 {
 		compatible = "amlogic, vout2";
 		status = "okay";
 		clocks = <&clkc CLKID_VPU_CLKC_P0>,
 			<&clkc CLKID_VPU_CLKC_MUX>;
 		clock-names = "vpu_clkc0",
 			"vpu_clkc";
+
+		/* fr_policy:
+		 *    0: disable
+		 *    1: nearby (only for 60->59.94 and 30->29.97)
+		 *    2: force (60/50/30/24/59.94/23.97)
+		 */
+		fr_policy = <2>;
 	};
+
 	vpu: vpu {
 		compatible = "amlogic, vpu-sm1";
 		status = "okay";

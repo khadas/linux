@@ -431,6 +431,7 @@ struct lcd_config_s {
 struct lcd_duration_s {
 	unsigned int duration_num;
 	unsigned int duration_den;
+	unsigned int frac;
 };
 
 #define LCD_STATUS_IF_ON         BIT(0)
@@ -465,6 +466,8 @@ struct aml_lcd_drv_s {
 	struct class *lcd_debug_class;
 
 	int fr_auto_policy;
+	int fr_mode;
+	int fr_duration;
 	struct lcd_duration_s std_duration;
 
 	void (*driver_init_pre)(void);

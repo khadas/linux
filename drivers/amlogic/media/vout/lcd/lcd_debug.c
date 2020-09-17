@@ -512,13 +512,14 @@ static int lcd_info_print(char *buf, int offset)
 		"driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d, viu_sel: %d\n"
 		"key_valid: %d, config_load: %d\n"
-		"fr_auto_policy: %d\n",
+		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d\n",
 		lcd_drv->version,
 		pconf->lcd_propname, lcd_drv->data->chip_type,
 		lcd_mode_mode_to_str(lcd_drv->lcd_mode),
 		lcd_drv->lcd_status, lcd_drv->viu_sel,
 		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load,
-		lcd_drv->fr_auto_policy);
+		lcd_drv->fr_auto_policy,
+		lcd_drv->fr_mode, lcd_drv->fr_duration);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,

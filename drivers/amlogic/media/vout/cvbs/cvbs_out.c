@@ -63,10 +63,20 @@
 
 #include <linux/amlogic/gki_module.h>
 
+const char *cvbs_mode_t[] = {
+	"480cvbs",
+	"576cvbs",
+	"pal_m",
+	"pal_n",
+	"ntsc_n",
+	NULL
+};
+
 static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_480CVBS*/
 		.name              = "480cvbs",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -85,6 +95,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_576CVBS */
 		.name              = "576cvbs",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 576,
 		.field_height      = 288,
@@ -103,6 +114,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_PAL_M */
 		.name              = "pal_m",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -120,6 +132,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_PAL_N */
 		.name              = "pal_n",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 576,
 		.field_height      = 288,
@@ -137,6 +150,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_NTSC_M */
 		.name              = "ntsc_m",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -627,13 +641,21 @@ static int cvbs_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e cvbs_validate_vmode(char *mode)
+static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
 {
 	const struct vinfo_s *info = get_valid_vinfo(mode);
+
+	if (frac)
+		return VMODE_MAX;
 
 	if (info)
 		return VMODE_CVBS;
 	return VMODE_MAX;
+}
+
+static int cvbs_check_same_vmodeattr(char *mode)
+{
+	return 1;
 }
 
 static int cvbs_vmode_is_supported(enum vmode_e mode)
@@ -677,6 +699,15 @@ static int cvbs_vout_clr_state(int index)
 static int cvbs_vout_get_state(void)
 {
 	return cvbs_vout_state;
+}
+
+static int cvbs_vout_get_disp_cap(char *buf)
+{
+	int ret = 0, i;
+
+	for (i = 0; cvbs_mode_t[i]; i++)
+		ret += snprintf(buf + ret, PAGE_SIZE, "%s\n", cvbs_mode_t[i]);
+	return ret;
 }
 
 static char *cvbs_out_bist_str[] = {
@@ -800,15 +831,15 @@ static struct vout_server_s cvbs_vout_server = {
 		.get_vinfo = cvbs_get_current_info,
 		.set_vmode = cvbs_set_current_vmode,
 		.validate_vmode = cvbs_validate_vmode,
+		.check_same_vmodeattr = cvbs_check_same_vmodeattr,
 		.vmode_is_supported = cvbs_vmode_is_supported,
 		.disable = cvbs_module_disable,
 		.set_state = cvbs_vout_set_state,
 		.clr_state = cvbs_vout_clr_state,
 		.get_state = cvbs_vout_get_state,
+		.get_disp_cap = cvbs_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
-		.set_vframe_rate_end_hint = NULL,
-		.set_vframe_rate_policy = NULL,
-		.get_vframe_rate_policy = NULL,
+		.get_vframe_rate_hint = NULL,
 		.set_bist = cvbs_bist_test,
 #ifdef CONFIG_PM
 		.vout_suspend = cvbs_suspend,
@@ -824,15 +855,15 @@ static struct vout_server_s cvbs_vout2_server = {
 		.get_vinfo = cvbs_get_current_info,
 		.set_vmode = cvbs_set_current_vmode,
 		.validate_vmode = cvbs_validate_vmode,
+		.check_same_vmodeattr = cvbs_check_same_vmodeattr,
 		.vmode_is_supported = cvbs_vmode_is_supported,
 		.disable = cvbs_module_disable,
 		.set_state = cvbs_vout_set_state,
 		.clr_state = cvbs_vout_clr_state,
 		.get_state = cvbs_vout_get_state,
+		.get_disp_cap = cvbs_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
-		.set_vframe_rate_end_hint = NULL,
-		.set_vframe_rate_policy = NULL,
-		.get_vframe_rate_policy = NULL,
+		.get_vframe_rate_hint = NULL,
 		.set_bist = cvbs_bist_test,
 #ifdef CONFIG_PM
 		.vout_suspend = cvbs_suspend,

@@ -16,6 +16,7 @@ config AMLOGIC_VOUT
 		Also provide display mode service for all the display modules.
 
 if AMLOGIC_VOUT
+source "drivers/amlogic/media/vout/vclk_serve/Kconfig"
 source "drivers/amlogic/media/vout/lcd/Kconfig"
 source "drivers/amlogic/media/vout/vout_serve/Kconfig"
 source "drivers/amlogic/media/vout/hdmitx/Kconfig"

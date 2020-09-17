@@ -5534,7 +5534,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if (video_seek_flag == 0) {
-			set_vframe_rate_end_hint();
+			set_vframe_rate_hint(0);
 			omx_pts_dv_upper = OMX_PTS_DV_DEFAULT_UPPER;
 			omx_pts_dv_lower = OMX_PTS_DV_DEFAULT_LOWER;
 		}

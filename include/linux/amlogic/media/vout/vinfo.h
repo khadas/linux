@@ -10,7 +10,7 @@
 /* the MSB is represent vmode set by vmode_init */
 #define	VMODE_INIT_BIT_MASK	0x8000
 #define	VMODE_MODE_BIT_MASK	0xff
-#define VMODE_NULL_DISP_MAX	3
+#define VMODE_NULL_DISP_MAX	2
 
 enum vmode_e {
 	VMODE_HDMI = 0,
@@ -18,7 +18,9 @@ enum vmode_e {
 	VMODE_LCD,
 	VMODE_NULL, /* null mode is used as temporary witch mode state */
 	VMODE_INVALID,
-	VMODE_DUMMY_LCD,
+	VMODE_DUMMY_ENCP,
+	VMODE_DUMMY_ENCI,
+	VMODE_DUMMY_ENCL,
 	VMODE_MAX,
 	VMODE_INIT_NULL,
 	VMODE_MASK = 0xFF,
@@ -262,6 +264,7 @@ struct vinfo_s {
 	char *name;
 	enum vmode_e mode;
 	char ext_name[32];
+	u32 frac;
 	u32 width;
 	u32 height;
 	u32 field_height;

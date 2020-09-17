@@ -1,3 +1,5 @@
+include drivers/amlogic/media/vout/vclk_serve/Makefile
+
 include drivers/amlogic/media/vout/vout_serve/Makefile
 
 include drivers/amlogic/media/vout/hdmitx/Makefile

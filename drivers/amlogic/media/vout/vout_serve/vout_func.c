@@ -17,6 +17,7 @@
 
 /* Local Headers */
 #include "vout_func.h"
+#include "vout_reg.h"
 
 static DEFINE_MUTEX(vout_mutex);
 
@@ -26,6 +27,13 @@ static struct vout_module_s vout_module = {
 		&vout_module.vout_server_list
 	},
 	.curr_vout_server = NULL,
+	.init_flag = 0,
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.fr_policy = 0,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -35,6 +43,13 @@ static struct vout_module_s vout2_module = {
 		&vout2_module.vout_server_list
 	},
 	.curr_vout_server = NULL,
+	.init_flag = 0,
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.fr_policy = 0,
 };
 #endif
 
@@ -56,9 +71,12 @@ static struct vinfo_s invalid_vinfo = {
 	.vout_device       = NULL,
 };
 
-struct vinfo_s *get_invalid_vinfo(int index)
+struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag)
 {
-	VOUTERR("invalid vinfo%d. current vmode is not supported\n", index);
+	if (flag) {
+		VOUTERR("invalid vinfo%d. current vmode is not supported\n",
+			index);
+	}
 	return &invalid_vinfo;
 }
 EXPORT_SYMBOL(get_invalid_vinfo);
@@ -100,24 +118,6 @@ struct vout_module_s *vout_func_get_vout2_module(void)
 }
 EXPORT_SYMBOL(vout_func_get_vout2_module);
 #endif
-
-static unsigned int vout_func_vcbus_read(unsigned int _reg)
-{
-	return vpu_vcbus_read(_reg);
-};
-
-static void vout_func_vcbus_write(unsigned int _reg, unsigned int _value)
-{
-	vpu_vcbus_write(_reg, _value);
-};
-
-static void vout_func_vcbus_setb(unsigned int _reg, unsigned int _value,
-				 unsigned int _start, unsigned int _len)
-{
-	vout_func_vcbus_write(_reg, ((vout_func_vcbus_read(_reg) &
-			~(((1L << (_len)) - 1) << (_start))) |
-			(((_value) & ((1L << (_len)) - 1)) << (_start))));
-}
 
 static inline int vout_func_check_state(int index, unsigned int state,
 					struct vout_server_s *p_server)
@@ -184,6 +184,7 @@ void vout_func_update_viu(int index)
 	struct vout_module_s *p_module = NULL;
 	unsigned int mux_bit = 0xff, mux_sel = VIU_MUX_MAX;
 	unsigned int clk_bit = 0xff, clk_sel = 0;
+	unsigned int flag = 0;
 
 	mutex_lock(&vout_mutex);
 
@@ -205,13 +206,22 @@ void vout_func_update_viu(int index)
 		return;
 	}
 	p_server = p_module->curr_vout_server;
+	flag = p_module->init_flag;
+
+	/*
+	 *VOUTPR("%s: before: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
+	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
+	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL),
+	 *	VPU_VENCX_CLK_CTRL,
+	 *	vout_vcbus_read(VPU_VENCX_CLK_CTRL));
+	 */
 
 	if (p_server) {
 		if (p_server->op.get_vinfo)
 			vinfo = p_server->op.get_vinfo();
 	}
 	if (!vinfo)
-		vinfo = get_invalid_vinfo(index);
+		vinfo = get_invalid_vinfo(index, flag);
 
 	mux_sel = vinfo->viu_mux;
 	switch (mux_sel) {
@@ -229,30 +239,20 @@ void vout_func_update_viu(int index)
 	}
 
 	if (mux_bit < 0xff) {
-		vout_func_vcbus_setb(VPU_VIU_VENC_MUX_CTRL,
-				     mux_sel, mux_bit, 2);
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL,
+				mux_sel, mux_bit, 2);
 	}
 	if (clk_bit < 0xff)
-		vout_func_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
-
-	/* special setting for dummy mode */
-	if (index == 1) {
-		if (vinfo->mode == VMODE_DUMMY_LCD) {
-			/* viu1 use encl_vsync */
-			vout_func_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 4, 2);
-			vout_func_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 1, 20, 1);
-			vout_func_vcbus_setb(VPP_WRBAK_CTRL, 1, 11, 1);
-		} else {
-			vout_func_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 20, 1);
-			vout_func_vcbus_setb(VPP_WRBAK_CTRL, 0, 11, 1);
-		}
-	}
-
+		vout_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
 	/*
-	 *VOUTPR("%s: %d, mux_sel=%d, clk_sel=%d\n",
-	 *       __func__, index, mux_sel, clk_sel);
+	 *VOUTPR("%s: %d, mux_sel=%d, mux_bit=%d, clk_sel=%d clk_bit=%d\n",
+	 *	__func__, index, mux_sel, mux_bit, clk_sel, clk_bit);
+	 *VOUTPR("%s: after: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
+	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
+	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL),
+	 *	VPU_VENCX_CLK_CTRL,
+	 *	vout_vcbus_read(VPU_VENCX_CLK_CTRL));
 	 */
-
 	mutex_unlock(&vout_mutex);
 }
 EXPORT_SYMBOL(vout_func_update_viu);
@@ -277,6 +277,7 @@ int vout_func_set_vmode(int index, enum vmode_e mode)
 		return -1;
 	}
 	ret = p_module->curr_vout_server->op.set_vmode(mode);
+	p_module->init_flag = 1;
 
 	mutex_unlock(&vout_mutex);
 
@@ -296,10 +297,33 @@ int vout_func_set_current_vmode(int index, enum vmode_e mode)
 }
 EXPORT_SYMBOL(vout_func_set_current_vmode);
 
+int vout_func_check_same_vmodeattr(int index, char *name)
+{
+	struct vout_server_s *p_server = NULL;
+	int ret = 1;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_server = vout_module.curr_vout_server;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_server = vout2_module.curr_vout_server;
+#endif
+
+	if (!IS_ERR_OR_NULL(p_server)) {
+		if (p_server->op.check_same_vmodeattr)
+			ret = p_server->op.check_same_vmodeattr(name);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return ret;
+}
+
 /*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e vout_func_validate_vmode(int index, char *name)
+enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 {
 	enum vmode_e ret = VMODE_MAX;
 	struct vout_server_s  *p_server;
@@ -328,7 +352,7 @@ enum vmode_e vout_func_validate_vmode(int index, char *name)
 				continue;
 		}
 		if (p_server->op.validate_vmode) {
-			ret = p_server->op.validate_vmode(name);
+			ret = p_server->op.validate_vmode(name, frac);
 			if (ret != VMODE_MAX) /* valid vmode find. */
 				break;
 		}
@@ -338,6 +362,44 @@ enum vmode_e vout_func_validate_vmode(int index, char *name)
 	return ret;
 }
 EXPORT_SYMBOL(vout_func_validate_vmode);
+
+int vout_func_get_disp_cap(int index, char *buf)
+{
+	struct vout_server_s *p_server;
+	struct vout_module_s *p_module = NULL;
+	int state, len;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_module = &vout_module;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_module = &vout2_module;
+#endif
+
+	if (!p_module) {
+		len = sprintf(buf, "vout%d: %s: vout_module is NULL\n",
+			      index, __func__);
+		mutex_unlock(&vout_mutex);
+		return len;
+	}
+
+	len = 0;
+	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
+		if (p_server->op.get_state) {
+			state = p_server->op.get_state();
+			if (vout_func_check_state(index, state, p_server))
+				continue;
+		}
+		if (!p_server->op.get_disp_cap)
+			continue;
+		len += p_server->op.get_disp_cap(buf + len);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return len;
+}
 
 int vout_func_set_vframe_rate_hint(int index, int duration)
 {
@@ -366,9 +428,9 @@ EXPORT_SYMBOL(vout_func_set_vframe_rate_hint);
 /*
  *interface export to client who want to notify about source frame rate end.
  */
-int vout_func_set_vframe_rate_end_hint(int index)
+int vout_func_get_vframe_rate_hint(int index)
 {
-	int ret = -1;
+	int ret = 0;
 	struct vout_server_s *p_server = NULL;
 
 	mutex_lock(&vout_mutex);
@@ -381,68 +443,14 @@ int vout_func_set_vframe_rate_end_hint(int index)
 #endif
 
 	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.set_vframe_rate_end_hint)
-			ret = p_server->op.set_vframe_rate_end_hint();
+		if (p_server->op.get_vframe_rate_hint)
+			ret = p_server->op.get_vframe_rate_hint();
 	}
 
 	mutex_unlock(&vout_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(vout_func_set_vframe_rate_end_hint);
-
-/*
- *interface export to client who want to notify about source fr_policy.
- */
-int vout_func_set_vframe_rate_policy(int index, int policy)
-{
-	int ret = -1;
-	struct vout_server_s *p_server = NULL;
-
-	mutex_lock(&vout_mutex);
-
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-
-	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.set_vframe_rate_policy)
-			ret = p_server->op.set_vframe_rate_policy(policy);
-	}
-
-	mutex_unlock(&vout_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(vout_func_set_vframe_rate_policy);
-
-/*
- *interface export to client who want to notify about source fr_policy.
- */
-int vout_func_get_vframe_rate_policy(int index)
-{
-	int ret = -1;
-	struct vout_server_s *p_server = NULL;
-
-	mutex_lock(&vout_mutex);
-
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-
-	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.get_vframe_rate_policy)
-			ret = p_server->op.get_vframe_rate_policy();
-	}
-
-	mutex_unlock(&vout_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(vout_func_get_vframe_rate_policy);
+EXPORT_SYMBOL(vout_func_get_vframe_rate_hint);
 
 /*
  * interface export to client who want to set test bist.
@@ -568,7 +576,7 @@ int vout_func_vout_register_server(int index,
 		VOUTERR("vout%d: server name is NULL\n", index);
 		return -1;
 	}
-	VOUTPR("vout%d: register server: %s\n", index, mem_server->name);
+	/* VOUTPR("vout%d: register server: %s\n", index, mem_server->name);*/
 
 	mutex_lock(&vout_mutex);
 
@@ -612,7 +620,11 @@ int vout_func_vout_unregister_server(int index,
 		VOUTERR("vout%d: server is NULL\n", index);
 		return -1;
 	}
-	VOUTPR("vout%d: unregister server: %s\n", index, mem_server->name);
+	if (!mem_server->name) {
+		VOUTERR("vout%d: server name is NULL\n", index);
+		return -1;
+	}
+	/*VOUTPR("vout%d: unregister server: %s\n", index, mem_server->name);*/
 
 	mutex_lock(&vout_mutex);
 
@@ -651,44 +663,25 @@ int vout_func_vout_unregister_server(int index,
 }
 EXPORT_SYMBOL(vout_func_vout_unregister_server);
 
-/* fps = 9600/duration/100 hz */
-static int vsource_fps_table[][2] = {
-	/* duration    fps */
-	{1600,         6000,},
-	{1601,         5994,},
-	{1602,         5994,},
-	{1920,         5000,},
-	{3200,         3000,},
-	{3203,         2997,},
-	{3840,         2500,},
-	{4000,         2400,},
-	{4004,         2397,},
-};
-
-int vout_get_vsource_fps(int duration)
+/* return vout frac */
+unsigned int vout_parse_vout_name(char *name)
 {
-	int i;
-	int fps = 6000;
+	char *p, *frac_str;
+	unsigned int frac = 0;
 
-	for (i = 0; i < 9; i++) {
-		if (duration == vsource_fps_table[i][0]) {
-			fps = vsource_fps_table[i][1];
-			break;
-		}
+	mutex_lock(&vout_mutex);
+
+	p = strchr(name, ',');
+	if (!p) {
+		frac = 0;
+	} else {
+		frac_str = p + 1;
+		*p = '\0';
+		if (strcmp(frac_str, "frac") == 0)
+			frac = 1;
 	}
 
-	return fps;
+	mutex_unlock(&vout_mutex);
+
+	return frac;
 }
-EXPORT_SYMBOL(vout_get_vsource_fps);
-
-int vout_get_hpd_state(void)
-{
-	int ret = 0;
-
-#ifdef CONFIG_AMLOGIC_HDMITX
-	ret = get_hpd_state();
-#endif
-
-	return ret;
-}
-EXPORT_SYMBOL(vout_get_hpd_state);

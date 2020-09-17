@@ -156,7 +156,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	DRM_INFO("%s: %s\n", __func__, adjusted_mode->name);
 
 	name = am_meson_crtc_get_voutmode(adjusted_mode);
-	mode = validate_vmode(name);
+	mode = validate_vmode(name, 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;
@@ -195,7 +195,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	/*disable output by config null
 	 *Todo: replace or delete it if have new method
 	 */
-	mode = validate_vmode("null");
+	mode = validate_vmode("null", 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;

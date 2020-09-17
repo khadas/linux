@@ -72,6 +72,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param);
 static void hdmitx_setupirq(struct hdmitx_dev *hdev);
 static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf);
+static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num);
 static void hdmitx_uninit(struct hdmitx_dev *hdev);
 static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 		       unsigned int argv);
@@ -624,6 +625,7 @@ void hdmitx_meson_init(struct hdmitx_dev *hdev)
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
 	hdev->hwop.setupirq = hdmitx_setupirq;
 	hdev->hwop.debugfun = hdmitx_debug;
+	hdev->hwop.debug_bist = hdmitx_debug_bist;
 	hdev->hwop.uninit = hdmitx_uninit;
 	hdev->hwop.cntl = hdmitx_cntl;	/* todo */
 	hdev->hwop.cntlddc = hdmitx_cntl_ddc;
@@ -4433,6 +4435,199 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	} else if (strncmp(tmpbuf, "vsif_info", 9) == 0) {
 		hdmitx_dump_vsif_reg();
 		return;
+	}
+}
+
+static char *hdmitx_bist_str[] = {
+	"0-None",        /* 0 */
+	"1-Color Bar",   /* 1 */
+	"2-Thin Line",   /* 2 */
+	"3-Dot Grid",    /* 3 */
+	"4-Gray",        /* 4 */
+	"5-Red",         /* 5 */
+	"6-Green",       /* 6 */
+	"7-Blue",        /* 7 */
+	"8-Black"        /* 8 */
+};
+
+static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
+{
+	unsigned int h_active, video_start;
+
+	if (!hdev->vinfo)
+		return;
+
+	switch (num) {
+	case 1:
+	case 2:
+	case 3:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_CLRBAR_STRT, 0x112);
+			hd_write_reg(P_ENCI_TST_CLRBAR_WIDTH, 0xb4);
+			hd_write_reg(P_ENCI_TST_MDSEL, num);
+			hd_write_reg(P_ENCI_TST_Y, 0x200);
+			hd_write_reg(P_ENCI_TST_CB, 0x200);
+			hd_write_reg(P_ENCI_TST_CR, 0x200);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			video_start = hd_read_reg(P_ENCP_VIDEO_HAVON_BEGIN);
+			h_active = hdev->vinfo->width;
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, num);
+			hd_write_reg(P_VENC_VIDEO_TST_CLRBAR_STRT, video_start);
+			hd_write_reg(P_VENC_VIDEO_TST_CLRBAR_WIDTH,
+				     h_active / 8);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 4:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_MDSEL, 0);
+			hd_write_reg(P_ENCI_TST_Y, 0x3ff);
+			hd_write_reg(P_ENCI_TST_CB, 0x200);
+			hd_write_reg(P_ENCI_TST_CR, 0x200);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x3ff);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 5:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_MDSEL, 0);
+			hd_write_reg(P_ENCI_TST_Y, 0x200);
+			hd_write_reg(P_ENCI_TST_CB, 0x0);
+			hd_write_reg(P_ENCI_TST_CR, 0x3ff);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x3ff);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 6:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_MDSEL, 0);
+			hd_write_reg(P_ENCI_TST_Y, 0x200);
+			hd_write_reg(P_ENCI_TST_CB, 0x0);
+			hd_write_reg(P_ENCI_TST_CR, 0x0);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 7:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_MDSEL, 0);
+			hd_write_reg(P_ENCI_TST_Y, 0x200);
+			hd_write_reg(P_ENCI_TST_CB, 0x3ff);
+			hd_write_reg(P_ENCI_TST_CR, 0x0);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x3ff);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 8:
+		/*hdev->bist_lock = 1;*/
+		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+		 *		      hdev->para->cs);
+		 */
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_MDSEL, 0);
+			hd_write_reg(P_ENCI_TST_Y, 0x0);
+			hd_write_reg(P_ENCI_TST_CB, 0x200);
+			hd_write_reg(P_ENCI_TST_CR, 0x200);
+			hd_write_reg(P_ENCI_TST_EN, 1);
+		} else {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		}
+		pr_info("show bist pattern %d: %s\n",
+			num, hdmitx_bist_str[num]);
+		break;
+	case 0:
+	default:
+		/*hdev->bist_lock = 0;*/
+		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
+			hd_write_reg(P_ENCI_TST_EN, 0);
+		} else {
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 1, 3, 1);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 0);
+		}
+		pr_info("disable bist pattern");
+		break;
 	}
 }
 

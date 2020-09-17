@@ -45,6 +45,11 @@ static struct vinfo_s *lcd_get_current_info(void)
 	return lcd_drv->lcd_info;
 }
 
+static int lcd_check_same_vmodeattr(char *mode)
+{
+	return 0;
+}
+
 static int lcd_vmode_is_supported(enum vmode_e mode)
 {
 	mode &= VMODE_MODE_BIT_MASK;
@@ -56,12 +61,15 @@ static int lcd_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static enum vmode_e lcd_validate_vmode(char *mode)
+static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac)
 {
 	if (!mode)
 		return VMODE_MAX;
 
-	if ((strncmp(mode, PANEL_NAME, strlen(PANEL_NAME))) == 0)
+	if (frac)
+		return VMODE_MAX;
+
+	if ((strcmp(mode, PANEL_NAME)) == 0)
 		return VMODE_LCD;
 
 	return VMODE_MAX;
@@ -131,34 +139,33 @@ static int lcd_vout_get_state(void)
 	return lcd_vout_state;
 }
 
+static int lcd_vout_get_disp_cap(char *buf)
+{
+	int ret = 0;
+
+	ret = sprintf(buf, "panel\n");
+	return ret;
+}
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 struct lcd_vframe_match_s {
-	int fps;
 	int frame_rate; /* *100 */
 	unsigned int duration_num;
 	unsigned int duration_den;
+	unsigned int frac;
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table_1[] = {
-	{5000, 5000, 50, 1},
-	{2500, 5000, 50, 1},
-	{6000, 6000, 60, 1},
-	{3000, 6000, 60, 1},
-	{2400, 6000, 60, 1},
-	{2397, 5994, 5994, 100},
-	{2997, 5994, 5994, 100},
-	{5994, 5994, 5994, 100},
+	{5000, 50, 1, 0},
+	{6000, 60, 1, 0},
+	{5994, 5994, 100, 1}
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table_2[] = {
-	{5000, 5000, 50, 1},
-	{2500, 5000, 50, 1},
-	{6000, 6000, 60, 1},
-	{3000, 6000, 60, 1},
-	{2400, 4800, 48, 1},
-	{2397, 5994, 5994, 100},
-	{2997, 5994, 5994, 100},
-	{5994, 5994, 5994, 100},
+	{5000, 50, 1, 0},
+	{6000, 60, 1, 0},
+	{4800, 48, 1, 0},
+	{5994, 5994, 100, 1}
 };
 
 static int lcd_framerate_automation_set_mode(void)
@@ -198,21 +205,29 @@ static int lcd_set_vframe_rate_hint(int duration)
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vinfo_s *info;
-	int fr_policy;
 	unsigned int frame_rate = 6000;
-	unsigned int duration_num = 60, duration_den = 1;
+	unsigned int duration_num = 60, duration_den = 1, frac = 0;
 	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
-	int fps, i, n;
+	int i, n, find = 0;
+
+	if (!lcd_drv)
+		return -1;
 
 	if ((lcd_drv->lcd_status & LCD_STATUS_ENCL_ON) == 0) {
 		LCDPR("%s: lcd is disabled, exit\n", __func__);
-		return 0;
+		return -1;
 	}
 
-	info = lcd_drv->lcd_info;
+	if (lcd_drv->lcd_config->lcd_timing.fr_adjust_type == 0xff) {
+		LCDPR("%s: fixed timing, exit\n", __func__);
+		return -1;
+	}
 
-	fr_policy = lcd_drv->fr_auto_policy;
-	switch (fr_policy) {
+	if (lcd_debug_print_flag)
+		LCDPR("fr_auto_policy = %d\n", lcd_drv->fr_auto_policy);
+
+	info = lcd_drv->lcd_info;
+	switch (lcd_drv->fr_auto_policy) {
 	case 1:
 		vtable = lcd_vframe_match_table_1;
 		n = ARRAY_SIZE(lcd_vframe_match_table_1);
@@ -223,81 +238,76 @@ static int lcd_set_vframe_rate_hint(int duration)
 		break;
 	default:
 		LCDPR("%s: fr_auto_policy = %d, disabled\n",
-		      __func__, fr_policy);
+		      __func__, lcd_drv->fr_auto_policy);
 		return 0;
 	}
-	fps = vout_get_vsource_fps(duration);
-	for (i = 0; i < n; i++) {
-		if (fps == vtable[i].fps) {
-			frame_rate = vtable[i].frame_rate;
-			duration_num = vtable[i].duration_num;
-			duration_den = vtable[i].duration_den;
+
+	if (duration == 0) { /* end hint */
+		info = lcd_drv->lcd_info;
+		LCDPR("%s: return mode = %s, policy = %d\n", __func__,
+			info->name, lcd_drv->fr_auto_policy);
+
+		if (lcd_drv->fr_mode == 0) {
+			LCDPR("%s: fr_mode is invalid, exit\n", __func__);
+			return 0;
 		}
-	}
-	LCDPR("%s: policy = %d, duration = %d, fps = %d, frame_rate = %d\n",
-	      __func__, fr_policy, duration, fps, frame_rate);
 
-	/* if the sync_duration is same as current */
-	if (duration_num == info->sync_duration_num &&
-	    duration_den == info->sync_duration_den) {
-		LCDPR("%s: sync_duration is the same, exit\n", __func__);
-		return 0;
-	}
+		lcd_drv->fr_duration = 0;
+		/* update vinfo */
+		info->sync_duration_num = lcd_drv->std_duration.duration_num;
+		info->sync_duration_den = lcd_drv->std_duration.duration_den;
+		info->frac = 0;
+		lcd_drv->fr_mode = 0;
+	} else {
+		for (i = 0; i < n; i++) {
+			if (duration == vtable[i].frame_rate) {
+				frame_rate = vtable[i].frame_rate;
+				duration_num = vtable[i].duration_num;
+				duration_den = vtable[i].duration_den;
+				frac = vtable[i].frac;
+				find = 1;
+			}
+		}
+		if (find == 0) {
+			LCDERR("%s: can't support duration %d\n, exit\n",
+			       __func__, duration);
+			return -1;
+		}
 
-	/* update vinfo */
-	info->sync_duration_num = duration_num;
-	info->sync_duration_den = duration_den;
+		LCDPR("%s: policy = %d, duration = %d, frame_rate = %d\n",
+		      __func__, lcd_drv->fr_auto_policy,
+		      duration, frame_rate);
+
+		lcd_drv->fr_duration = duration;
+		/* if the sync_duration is same as current */
+		if (duration_num == info->sync_duration_num &&
+		    duration_den == info->sync_duration_den) {
+			LCDPR("%s: sync_duration is the same, exit\n",
+			      __func__);
+			return 0;
+		}
+
+		/* update vinfo */
+		info->sync_duration_num = duration_num;
+		info->sync_duration_den = duration_den;
+		info->frac = frac;
+		lcd_drv->fr_mode = duration;
+	}
 
 	lcd_framerate_automation_set_mode();
 #endif
 	return 0;
 }
 
-static int lcd_set_vframe_rate_end_hint(void)
+static int lcd_get_vframe_rate_hint(void)
 {
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-	struct vinfo_s *info;
 
-	if ((lcd_drv->lcd_status & LCD_STATUS_ENCL_ON) == 0) {
-		LCDPR("%s: lcd is disabled, exit\n", __func__);
+	if (!lcd_drv)
 		return 0;
-	}
 
-	if (lcd_debug_print_flag)
-		LCDPR("fr_auto_policy = %d\n", lcd_drv->fr_auto_policy);
-	if (lcd_drv->fr_auto_policy) {
-		info = lcd_drv->lcd_info;
-		LCDPR("%s: return mode = %s, policy = %d\n", __func__,
-		      info->name, lcd_drv->fr_auto_policy);
-
-		/* update vinfo */
-		info->sync_duration_num = lcd_drv->std_duration.duration_num;
-		info->sync_duration_den = lcd_drv->std_duration.duration_den;
-
-		lcd_framerate_automation_set_mode();
-	}
-#endif
-	return 0;
-}
-
-static int lcd_set_vframe_rate_policy(int policy)
-{
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->fr_auto_policy = policy;
-	LCDPR("%s: %d\n", __func__, lcd_drv->fr_auto_policy);
-#endif
-	return 0;
-}
-
-static int lcd_get_vframe_rate_policy(void)
-{
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	return lcd_drv->fr_auto_policy;
+	return lcd_drv->fr_mode;
 #else
 	return 0;
 #endif
@@ -353,15 +363,15 @@ static struct vout_server_s lcd_vout_server = {
 		.get_vinfo = lcd_get_current_info,
 		.set_vmode = lcd_set_current_vmode,
 		.validate_vmode = lcd_validate_vmode,
+		.check_same_vmodeattr = lcd_check_same_vmodeattr,
 		.vmode_is_supported = lcd_vmode_is_supported,
 		.disable = lcd_vout_disable,
 		.set_state = lcd_vout_set_state,
 		.clr_state = lcd_vout_clr_state,
 		.get_state = lcd_vout_get_state,
+		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
-		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
-		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
-		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
+		.get_vframe_rate_hint = lcd_get_vframe_rate_hint,
 		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,
@@ -377,15 +387,15 @@ static struct vout_server_s lcd_vout2_server = {
 		.get_vinfo = lcd_get_current_info,
 		.set_vmode = lcd_set_current_vmode,
 		.validate_vmode = lcd_validate_vmode,
+		.check_same_vmodeattr = lcd_check_same_vmodeattr,
 		.vmode_is_supported = lcd_vmode_is_supported,
 		.disable = lcd_vout_disable,
 		.set_state = lcd_vout_set_state,
 		.clr_state = lcd_vout_clr_state,
 		.get_state = lcd_vout_get_state,
+		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
-		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
-		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
-		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
+		.get_vframe_rate_hint = lcd_get_vframe_rate_hint,
 		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,

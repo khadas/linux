@@ -61,11 +61,20 @@ struct vinfo_s *get_current_vinfo2(void)
 			vinfo = p_module->curr_vout_server->op.get_vinfo();
 	}
 	if (!vinfo) /* avoid crash mistake */
-		vinfo = get_invalid_vinfo(2);
+		vinfo = get_invalid_vinfo(2, p_module->init_flag);
 
 	return vinfo;
 }
 EXPORT_SYMBOL(get_current_vinfo2);
+
+/*
+ *interface export to client who want to get display support list.
+ */
+int get_vout2_disp_cap(char *buf)
+{
+	return vout_func_get_disp_cap(2, buf);
+}
+EXPORT_SYMBOL(get_vout2_disp_cap);
 
 /*
  *interface export to client who want to get current vmode.
@@ -101,7 +110,7 @@ const char *get_name_by_vmode2(enum vmode_e mode)
 			vinfo = p_module->curr_vout_server->op.get_vinfo();
 	}
 	if (!vinfo)
-		vinfo = get_invalid_vinfo(2);
+		vinfo = get_invalid_vinfo(2, p_module->init_flag);
 	str = vinfo->name;
 
 	return str;
@@ -118,11 +127,20 @@ int set_current_vmode2(enum vmode_e mode)
 EXPORT_SYMBOL(set_current_vmode2);
 
 /*
+ *interface export to client who want to check same vmode attr.
+ */
+int vout2_check_same_vmodeattr(char *name)
+{
+	return vout_func_check_same_vmodeattr(2, name);
+}
+EXPORT_SYMBOL(vout2_check_same_vmodeattr);
+
+/*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e validate_vmode2(char *name)
+enum vmode_e validate_vmode2(char *name, unsigned int frac)
 {
-	return vout_func_validate_vmode(2, name);
+	return vout_func_validate_vmode(2, name, frac);
 }
 EXPORT_SYMBOL(validate_vmode2);
 
@@ -135,21 +153,26 @@ int set_vframe2_rate_hint(int duration)
 }
 EXPORT_SYMBOL(set_vframe2_rate_hint);
 
-/*
- *interface export to client who want to notify about source frame rate end.
- */
-int set_vframe2_rate_end_hint(void)
+int get_vframe2_rate_hint(void)
 {
-	return vout_func_set_vframe_rate_end_hint(2);
+	return vout_func_get_vframe_rate_hint(2);
 }
-EXPORT_SYMBOL(set_vframe2_rate_end_hint);
+EXPORT_SYMBOL(get_vframe2_rate_hint);
 
 /*
  *interface export to client who want to notify about source fr_policy.
  */
 int set_vframe2_rate_policy(int policy)
 {
-	return vout_func_set_vframe_rate_policy(2, policy);
+	struct vout_module_s *p_module = NULL;
+
+	p_module = vout_func_get_vout2_module();
+	if (!p_module)
+		return -1;
+
+	p_module->fr_policy = policy;
+
+	return 0;
 }
 EXPORT_SYMBOL(set_vframe2_rate_policy);
 
@@ -158,7 +181,13 @@ EXPORT_SYMBOL(set_vframe2_rate_policy);
  */
 int get_vframe2_rate_policy(void)
 {
-	return vout_func_get_vframe_rate_policy(2);
+	struct vout_module_s *p_module = NULL;
+
+	p_module = vout_func_get_vout2_module();
+	if (!p_module)
+		return 0;
+
+	return p_module->fr_policy;
 }
 EXPORT_SYMBOL(get_vframe2_rate_policy);
 

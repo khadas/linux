@@ -539,9 +539,6 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_UNKNOWN;
-	/* vic_ready got from IP */
-	enum hdmi_vic vic_ready =
-	hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
@@ -619,30 +616,6 @@ static int set_disp_mode_auto(void)
 		vic = HDMI_4k2k_smpte_24;
 	} else {
 	/* nothing */
-	}
-	if (vic_ready != HDMI_UNKNOWN && vic_ready == vic) {
-		pr_info(SYS "[%s] ALREADY init VIC = %d\n",
-			__func__, vic);
-		if (hdev->rxcap.ieeeoui == 0) {
-			/* DVI case judgement. In uboot, directly output HDMI
-			 * mode
-			 */
-			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
-				DVI_MODE);
-			pr_info(SYS "change to DVI mode\n");
-		} else if ((hdev->rxcap.ieeeoui == 0xc03) &&
-		(hdev->hwop.cntlconfig(hdev, CONF_GET_HDMI_DVI_MODE, 0)
-			== DVI_MODE)) {
-			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
-				HDMI_MODE);
-			pr_info(SYS "change to HDMI mode\n");
-		}
-		hdev->cur_VIC = vic;
-		hdev->output_blank_flag = 1;
-		hdev->ready = 1;
-		edidinfo_attach_to_vinfo(hdev);
-
-		return 1;
 	}
 
 	hdmitx_pre_display_init();
@@ -4778,10 +4751,9 @@ static DEVICE_ATTR_RO(hdmirx_info);
 static DEVICE_ATTR_RO(hdmi_hsty_config);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-static struct vinfo_s *hdmitx_vinfo;
 static struct vinfo_s *hdmitx_get_current_vinfo(void)
 {
-	return hdmitx_vinfo;
+	return hdmitx_device.vinfo;
 }
 
 /* fr_tab[]
@@ -4802,25 +4774,27 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 {
 	struct frac_rate_table *fr = &fr_tab[0];
 
-	pr_info(SYS "recalc before %s %d %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den);
+	pr_info(SYS "recalc before %s %d %d, frac %d\n", info->name,
+		info->sync_duration_num, info->sync_duration_den, info->frac);
 
 	while (fr->hz) {
 		if (strstr(info->name, fr->hz)) {
 			if (frac) {
 				info->sync_duration_num = fr->sync_num_dec;
 				info->sync_duration_den = fr->sync_den_dec;
+				info->frac = 1;
 			} else {
 				info->sync_duration_num = fr->sync_num_int;
 				info->sync_duration_den = fr->sync_den_int;
+				info->frac = 0;
 			}
 			break;
 		}
 		fr++;
 	}
 
-	pr_info(SYS "recalc after %s %d %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den);
+	pr_info(SYS "recalc after %s %d %d, frac %d\n", info->name,
+		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
 static int hdmitx_set_current_vmode(enum vmode_e mode)
@@ -4844,23 +4818,30 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e hdmitx_validate_vmode(char *mode)
+static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 {
 	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
-		hdmitx_vinfo = info;
-		hdmitx_vinfo->info_3d = NON_3D;
+		/* //remove frac support for vout api
+		 *if (frac)
+		 *	hdmitx_device.frac_rate_policy = 1;
+		 *else
+		 *	hdmitx_device.frac_rate_policy = 0;
+		 */
+
+		hdmitx_device.vinfo = info;
+		hdmitx_device.vinfo->info_3d = NON_3D;
 		if (hdmitx_device.flag_3dfp)
-			hdmitx_vinfo->info_3d = FP_3D;
+			hdmitx_device.vinfo->info_3d = FP_3D;
 
 		if (hdmitx_device.flag_3dtb)
-			hdmitx_vinfo->info_3d = TB_3D;
+			hdmitx_device.vinfo->info_3d = TB_3D;
 
 		if (hdmitx_device.flag_3dss)
-			hdmitx_vinfo->info_3d = SS_3D;
+			hdmitx_device.vinfo->info_3d = SS_3D;
 
-		hdmitx_vinfo->vout_device = &hdmitx_vdev;
+		hdmitx_device.vinfo->vout_device = &hdmitx_vdev;
 		return VMODE_HDMI;
 	}
 	return VMODE_MAX;
@@ -4884,7 +4865,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)
 		hdmitx_disable_vclk2_enci(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
-	hdmitx_validate_vmode("null");
+	hdmitx_validate_vmode("null", 0);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->rxsense_policy)
@@ -4911,18 +4892,46 @@ static int hdmitx_vout_get_state(void)
 	return hdmitx_vout_state;
 }
 
+/* if cs/cd/frac_rate is changed, then return 0 */
+static int hdmitx_check_same_vmodeattr(char *name)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (memcmp(hdev->backup_fmt_attr, hdev->fmt_attr, 16) == 0 &&
+	    hdev->backup_frac_rate_policy == hdev->frac_rate_policy)
+		return 1;
+	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
+	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
+	return 0;
+}
+
+static int hdmitx_vout_get_disp_cap(char *buf)
+{
+	return disp_cap_show(NULL, NULL, buf);
+}
+
+static void hdmitx_set_bist(unsigned int num)
+{
+	if (hdmitx_device.hwop.debug_bist)
+		hdmitx_device.hwop.debug_bist(&hdmitx_device, num);
+}
+
 static struct vout_server_s hdmitx_vout_server = {
 	.name = "hdmitx_vout_server",
 	.op = {
 		.get_vinfo = hdmitx_get_current_vinfo,
 		.set_vmode = hdmitx_set_current_vmode,
 		.validate_vmode = hdmitx_validate_vmode,
+		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
 		.vmode_is_supported = hdmitx_vmode_is_supported,
 		.disable = hdmitx_module_disable,
 		.set_state = hdmitx_vout_set_state,
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
-		.set_bist = NULL,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
+		.set_vframe_rate_hint = NULL,
+		.get_vframe_rate_hint = NULL,
+		.set_bist = hdmitx_set_bist,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
 		.vout_resume = NULL,
@@ -4938,12 +4947,16 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.get_vinfo = hdmitx_get_current_vinfo,
 		.set_vmode = hdmitx_set_current_vmode,
 		.validate_vmode = hdmitx_validate_vmode,
+		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
 		.vmode_is_supported = hdmitx_vmode_is_supported,
 		.disable = hdmitx_module_disable,
 		.set_state = hdmitx_vout_set_state,
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
-		.set_bist = NULL,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
+		.set_vframe_rate_hint = NULL,
+		.get_vframe_rate_hint = NULL,
+		.set_bist = hdmitx_set_bist,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
 		.vout_resume = NULL,
@@ -6362,6 +6375,8 @@ static void check_hdmiuboot_attr(char *token)
 			break;
 		}
 	}
+	memcpy(hdmitx_device.backup_fmt_attr, hdmitx_device.fmt_attr,
+	       sizeof(hdmitx_device.fmt_attr));
 }
 
 static int hdmitx_boot_para_setup(char *s)
@@ -6374,6 +6389,8 @@ static int hdmitx_boot_para_setup(char *s)
 	int size = strlen(s);
 
 	memset(hdmitx_device.fmt_attr, 0, sizeof(hdmitx_device.fmt_attr));
+	memset(hdmitx_device.backup_fmt_attr, 0,
+	       sizeof(hdmitx_device.backup_fmt_attr));
 
 	do {
 		token = next_token_ex(separator, s, size, offset,
@@ -6401,6 +6418,8 @@ static int hdmitx_boot_frac_rate(char *str)
 
 	pr_info("hdmitx boot frac_rate_policy: %d",
 		hdmitx_device.frac_rate_policy);
+
+	hdmitx_device.backup_frac_rate_policy = hdmitx_device.frac_rate_policy;
 	return 0;
 }
 

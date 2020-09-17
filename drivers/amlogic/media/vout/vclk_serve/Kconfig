@@ -1,0 +1,11 @@
+#
+# Amlogic VOUT_CLK_SERVE driver configuration
+#
+
+config AMLOGIC_VOUT_CLK_SERVE
+	bool "Amlogic Vout_Clk_Serve Module"
+	default n
+	help
+		Amlogic Video output Clk Server support.
+		Provide display mode clk service for all of the display modules.
+

@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 
 #include <linux/amlogic/media/vpu/vpu.h>
 
@@ -334,6 +335,7 @@ struct hdmitx_dev {
 	struct device *pdev; /* for pinctrl*/
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
+	struct vinfo_s *vinfo;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_aud_hpd_plug;
@@ -374,6 +376,8 @@ struct hdmitx_dev {
 		void (*setupirq)(struct hdmitx_dev *hdmitx_device);
 		void (*debugfun)(struct hdmitx_dev *hdmitx_device,
 				 const char *buf);
+		void (*debug_bist)(struct hdmitx_dev *hdmitx_device,
+				   unsigned int num);
 		void (*uninit)(struct hdmitx_dev *hdmitx_device);
 		int (*cntlpower)(struct hdmitx_dev *hdmitx_device,
 				 unsigned int cmd, unsigned int arg);
@@ -421,6 +425,7 @@ struct hdmitx_dev {
 	unsigned short physical_addr;
 	unsigned int cur_VIC;
 	char fmt_attr[16];
+	char backup_fmt_attr[16];
 	atomic_t kref_video_mute;
 	atomic_t kref_audio_mute;
 	/**/
@@ -451,6 +456,7 @@ struct hdmitx_dev {
 	struct hdcprp_topo *topo_info;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	unsigned int frac_rate_policy;
+	unsigned int backup_frac_rate_policy;
 	unsigned int rxsense_policy;
 	unsigned int cedst_policy;
 	struct ced_cnt ced_cnt;

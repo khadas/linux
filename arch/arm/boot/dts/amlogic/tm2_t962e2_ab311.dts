@@ -192,12 +192,6 @@
 		regulator-always-on;
 	};
 
-	vout {
-		compatible = "amlogic, vout";
-		status = "okay";
-		fr_auto_policy = <0>;
-	};
-
 	picdec {
 		compatible = "amlogic, picdec";
 		status = "okay";
