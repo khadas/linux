@@ -12,6 +12,11 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
+
+void lcd_vlock_m_update(unsigned int vlock_m);
+void lcd_vlock_frac_update(unsigned int vlock_farc);
 
 /* **********************************
  * debug print define
@@ -48,6 +53,7 @@ extern unsigned char lcd_debug_print_flag;
 
 /* ******** clk_ctrl ******** */
 #define CLK_CTRL_LEVEL              28 /* [30:28] */
+#define CLK_CTRL_FRAC_SHIFT         24 /* [24] */
 #define CLK_CTRL_FRAC               0  /* [18:0] */
 
 /* **********************************
@@ -68,11 +74,17 @@ enum lcd_mode_e {
 };
 
 enum lcd_chip_e {
-	LCD_CHIP_G12A = 0,
-	LCD_CHIP_G12B,  /* 1 */
-	LCD_CHIP_TL1,   /* 2 */
-	LCD_CHIP_SM1,   /* 3 */
-	LCD_CHIP_TM2,   /* 4 */
+	LCD_CHIP_GXL = 0,
+	LCD_CHIP_GXM,   /* 1 */
+	LCD_CHIP_TXL,   /* 2 */
+	LCD_CHIP_TXLX,  /* 3 */
+	LCD_CHIP_AXG,   /* 4 */
+	LCD_CHIP_G12A,  /* 5 */
+	LCD_CHIP_G12B,  /* 6 */
+	LCD_CHIP_TL1,   /* 7 */
+	LCD_CHIP_SM1,	/* 8 */
+	LCD_CHIP_TM2,   /* 9 */
+	LCD_CHIP_T5,   /* 10 */
 	LCD_CHIP_MAX,
 };
 
@@ -359,6 +371,7 @@ enum lcd_power_type_e {
 	LCD_POWER_TYPE_EXTERN,
 	LCD_POWER_TYPE_WAIT_GPIO,
 	LCD_POWER_TYPE_CLK_SS,
+	LCD_POWER_TYPE_TCON_SPI_DATA_LOAD,
 	LCD_POWER_TYPE_MAX,
 };
 
@@ -411,6 +424,23 @@ struct lcd_power_ctrl_s {
 	int power_off_step_max; /* internal use for debug */
 };
 
+#define LCD_INIT_LEVEL_NORMAL         0
+#define LCD_INIT_LEVEL_PWR_OFF        1
+#define LCD_INIT_LEVEL_KERNEL_ON      2
+
+struct lcd_boot_ctrl_s {
+	unsigned char lcd_type;	//bit[3:0]
+	unsigned char lcd_bits; //bit[7:4] bits:6 or 8
+	unsigned char advanced_flag;	//bit[15:8]
+	unsigned char lcd_init_level;	//bit[19:18]
+	unsigned char debug_print_flag;	//bit[23:20]
+	unsigned char debug_test_pattern;	//bit[27:24]
+	unsigned char debug_para_source;//bit[29:28]
+					//0:normal, 1:dts, 2:unifykey, 3:TBD
+	unsigned char debug_lcd_mode;	//bit[31:30]
+					//0:normal, 1:tv, 2:tablet, 3:TBD
+};
+
 #define LCD_ENABLE_RETRY_MAX    3
 struct lcd_config_s {
 	char *lcd_propname;
@@ -443,6 +473,7 @@ struct lcd_duration_s {
 #define LCD_TEST_UPDATE          BIT(5)
 
 #define LCD_VIU_SEL_NONE         0
+#define EXTERN_MUL_MAX	         10
 struct aml_lcd_drv_s {
 	char version[20];
 	struct lcd_data_s *data;
@@ -459,16 +490,20 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_mute_flag;
 	unsigned char viu_sel;
 	unsigned char vsync_none_timer_flag;
+	unsigned int extern_mul_index[EXTERN_MUL_MAX];
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
 	struct class *lcd_debug_class;
+	struct lcd_boot_ctrl_s *boot_ctrl;
 
 	int fr_auto_policy;
 	int fr_mode;
 	int fr_duration;
 	struct lcd_duration_s std_duration;
+
+	int tcon_status;
 
 	void (*driver_init_pre)(void);
 	void (*driver_disable_post)(void);

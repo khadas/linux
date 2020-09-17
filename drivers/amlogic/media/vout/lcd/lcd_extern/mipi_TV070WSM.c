@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/amlogic/i2c-amlogic.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>

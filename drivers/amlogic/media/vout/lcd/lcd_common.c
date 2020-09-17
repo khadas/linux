@@ -18,10 +18,12 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-
+#include <linux/page-flags.h>
+#include <linux/mm.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"
 
@@ -77,6 +79,58 @@ static char *lcd_mode_table[] = {
 	"tablet",
 	"invalid",
 };
+
+u8 *lcd_vmap(ulong addr, u32 size)
+{
+	u8 *vaddr = NULL;
+	struct page **pages = NULL;
+	u32 i, npages, offset = 0;
+	ulong phys, page_start;
+	/*pgprot_t pgprot = pgprot_noncached(PAGE_KERNEL);*/
+	pgprot_t pgprot = PAGE_KERNEL;
+
+	if (!PageHighMem(phys_to_page(addr)))
+		return phys_to_virt(addr);
+
+	offset = offset_in_page(addr);
+	page_start = addr - offset;
+	npages = DIV_ROUND_UP(size + offset, PAGE_SIZE);
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+	for (i = 0; i < npages; i++) {
+		phys = page_start + i * PAGE_SIZE;
+		pages[i] = pfn_to_page(phys >> PAGE_SHIFT);
+	}
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		LCDERR("the phy(%lx) vmaped fail, size: %d\n",
+		       page_start, npages << PAGE_SHIFT);
+		kfree(pages);
+		return NULL;
+	}
+	kfree(pages);
+
+	if (lcd_debug_print_flag) {
+		LCDPR("[lcd HIGH-MEM-MAP] %s, pa(%lx) to va(%p), size: %d\n",
+		      __func__, page_start, vaddr, npages << PAGE_SHIFT);
+	}
+
+	return vaddr + offset;
+}
+
+void lcd_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	if (is_vmalloc_or_module_addr(vaddr)) {
+		if (lcd_debug_print_flag)
+			LCDPR("----lcd unmap v: %p\n", addr);
+		vunmap(addr);
+	}
+}
 
 unsigned char lcd_mode_str_to_mode(const char *str)
 {
@@ -307,7 +361,7 @@ void lcd_ttl_pinmux_set(int status)
 		LCDERR("set ttl pinmux %s error\n", lcd_ttl_pinmux_str[index]);
 	} else {
 		if (lcd_debug_print_flag) {
-			LCDPR("set ttl pinmux %s: %p\n",
+			LCDPR("set ttl pinmux %s: 0x%p\n",
 			      lcd_ttl_pinmux_str[index], pconf->pin);
 		}
 	}
@@ -346,7 +400,7 @@ void lcd_vbyone_pinmux_set(int status)
 		       lcd_vbyone_pinmux_str[index]);
 	} else {
 		if (lcd_debug_print_flag) {
-			LCDPR("set vbyone pinmux %s: %p\n",
+			LCDPR("set vbyone pinmux %s: 0x%p\n",
 			      lcd_vbyone_pinmux_str[index], pconf->pin);
 		}
 	}
@@ -354,22 +408,27 @@ void lcd_vbyone_pinmux_set(int status)
 }
 
 static char *lcd_tcon_pinmux_str[] = {
-	"tcon",
-	"tcon_off",
-	"none",
+	"tcon_p2p",       /* 0 */
+	"tcon_p2p_usit",  /* 1 */
+	"tcon_p2p_off",   /* 2 */
+	"tcon_mlvds",     /* 3 */
+	"tcon_mlvds_off", /* 4 */
+	"none"		  /* 5 */
 };
 
-void lcd_tcon_pinmux_set(int status)
+void lcd_mlvds_pinmux_set(int status)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
 	unsigned int index;
 
+	if (!lcd_drv)
+		return;
 	if (lcd_debug_print_flag)
 		LCDPR("%s: %d\n", __func__, status);
 
 	pconf = lcd_drv->lcd_config;
-	index = (status) ? 0 : 1;
+	index = (status) ? 3 : 4;
 
 	if (pconf->pinmux_flag == index) {
 		LCDPR("pinmux %s is already selected\n",
@@ -380,11 +439,48 @@ void lcd_tcon_pinmux_set(int status)
 	pconf->pin = devm_pinctrl_get_select(lcd_drv->dev,
 					     lcd_tcon_pinmux_str[index]);
 	if (IS_ERR(pconf->pin)) {
-		LCDERR("set tcon pinmux %s error\n",
+		LCDERR("set mlvds pinmux %s error\n",
 		       lcd_tcon_pinmux_str[index]);
 	} else {
 		if (lcd_debug_print_flag) {
-			LCDPR("set tcon pinmux %s: %p\n",
+			LCDPR("set mlvds pinmux %s: 0x%p\n",
+			      lcd_tcon_pinmux_str[index], pconf->pin);
+		}
+	}
+	pconf->pinmux_flag = index;
+}
+
+void lcd_p2p_pinmux_set(int status)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	unsigned int index;
+
+	if (!lcd_drv)
+		return;
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
+	pconf = lcd_drv->lcd_config;
+	if (pconf->lcd_control.p2p_config->p2p_type == P2P_USIT)
+		index = (status) ? 1 : 2;
+	else
+		index = (status) ? 0 : 2;
+
+	if (pconf->pinmux_flag == index) {
+		LCDPR("pinmux %s is already selected\n",
+		      lcd_tcon_pinmux_str[index]);
+		return;
+	}
+
+	pconf->pin = devm_pinctrl_get_select(lcd_drv->dev,
+					     lcd_tcon_pinmux_str[index]);
+	if (IS_ERR(pconf->pin)) {
+		LCDERR("set p2p pinmux %s error\n",
+		       lcd_tcon_pinmux_str[index]);
+	} else {
+		if (lcd_debug_print_flag) {
+			LCDPR("set p2p pinmux %s: 0x%p\n",
 			      lcd_tcon_pinmux_str[index], pconf->pin);
 		}
 	}
@@ -398,7 +494,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	unsigned int para[5];
 	unsigned int val;
 	struct lcd_power_ctrl_s *lcd_power = pconf->lcd_power;
-	int i, j;
+	int i, j, temp;
 	unsigned int index;
 
 	if (lcd_debug_print_flag)
@@ -425,18 +521,15 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 				break;
 			j = 4 * i + 1;
 			ret = of_property_read_u32_index(child,
-							 "power_on_step", j,
-							 &val);
+				"power_on_step", j, &val);
 			lcd_power->power_on_step[i].index = val;
 			j = 4 * i + 2;
 			ret = of_property_read_u32_index(child,
-							 "power_on_step", j,
-							 &val);
+				"power_on_step", j, &val);
 			lcd_power->power_on_step[i].value = val;
 			j = 4 * i + 3;
 			ret = of_property_read_u32_index(child,
-							 "power_on_step", j,
-							 &val);
+				"power_on_step", j, &val);
 			lcd_power->power_on_step[i].delay = val;
 
 			/* gpio/extern probe */
@@ -448,8 +541,12 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 					lcd_cpu_gpio_probe(index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				pconf->extern_index = index;
+				lcd_extern_index_lut_add(index);
 				break;
+			case LCD_POWER_TYPE_CLK_SS:
+				temp = pconf->lcd_power->power_on_step[i].value;
+				pconf->lcd_timing.ss_level |= temp << 8;
+			break;
 			default:
 				break;
 			}
@@ -477,25 +574,21 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			lcd_power->power_off_step_max = i;
 			j = 4 * i;
 			ret = of_property_read_u32_index(child,
-							 "power_off_step", j,
-							 &val);
+				"power_off_step", j, &val);
 			lcd_power->power_off_step[i].type = (unsigned char)val;
 			if (val == 0xff) /* ending */
 				break;
 			j = 4 * i + 1;
 			ret = of_property_read_u32_index(child,
-							 "power_off_step", j,
-							 &val);
+				"power_off_step", j, &val);
 			lcd_power->power_off_step[i].index = val;
 			j = 4 * i + 2;
 			ret = of_property_read_u32_index(child,
-							 "power_off_step", j,
-							 &val);
+				"power_off_step", j, &val);
 			lcd_power->power_off_step[i].value = val;
 			j = 4 * i + 3;
 			ret = of_property_read_u32_index(child,
-							 "power_off_step", j,
-							 &val);
+				"power_off_step", j, &val);
 			lcd_power->power_off_step[i].delay = val;
 
 			/* gpio/extern probe */
@@ -541,7 +634,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 				 unsigned char *buf, int key_len, int len)
 {
-	int i, j;
+	int i, j, temp;
 	unsigned char *p;
 	unsigned int index;
 	int ret;
@@ -581,6 +674,10 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			break;
 		case LCD_POWER_TYPE_EXTERN:
 			pconf->extern_index = index;
+			break;
+		case LCD_POWER_TYPE_CLK_SS:
+			temp = pconf->lcd_power->power_on_step[i].value;
+			pconf->lcd_timing.ss_level |= temp << 8;
 			break;
 		default:
 			break;
@@ -835,32 +932,7 @@ int lcd_vmode_change(struct lcd_config_s *pconf)
 			}
 		}
 		break;
-	case 4: /* hdmi mode */
-		if ((duration_num / duration_den) == 59) {
-			/* pixel clk adjust */
-			pclk = (h_period * v_period) /
-				duration_den * duration_num;
-			if (pconf->lcd_timing.lcd_clk != pclk)
-				pconf->lcd_timing.clk_change =
-					LCD_CLK_PLL_CHANGE;
-		} else {
-			/* htotal adjust */
-			h_period = ((pclk / v_period) * duration_den * 100) /
-					duration_num;
-			h_period = (h_period + 99) / 100; /* round off */
-			if (pconf->lcd_basic.h_period != h_period) {
-				/* check clk frac update */
-				pclk = (h_period * v_period) / duration_den *
-					duration_num;
-				if (pconf->lcd_timing.lcd_clk != pclk) {
-					pconf->lcd_timing.clk_change =
-						LCD_CLK_FRAC_UPDATE;
-				}
-			}
-		}
-		break;
 	case 3: /* free adjust, use min/max range to calculate */
-	default:
 		v_period = ((pclk / h_period) * duration_den * 100) /
 			duration_num;
 		v_period = (v_period + 99) / 100; /* round off */
@@ -913,6 +985,33 @@ int lcd_vmode_change(struct lcd_config_s *pconf)
 			}
 		}
 		break;
+	case 4: /* hdmi mode */
+		if ((duration_num / duration_den) == 59) {
+			/* pixel clk adjust */
+			pclk = (h_period * v_period) /
+				duration_den * duration_num;
+			if (pconf->lcd_timing.lcd_clk != pclk)
+				pconf->lcd_timing.clk_change =
+					LCD_CLK_PLL_CHANGE;
+		} else {
+			/* htotal adjust */
+			h_period = ((pclk / v_period) * duration_den * 100) /
+					duration_num;
+			h_period = (h_period + 99) / 100; /* round off */
+			if (pconf->lcd_basic.h_period != h_period) {
+				/* check clk frac update */
+				pclk = (h_period * v_period) / duration_den *
+					duration_num;
+				if (pconf->lcd_timing.lcd_clk != pclk) {
+					pconf->lcd_timing.clk_change =
+						LCD_CLK_FRAC_UPDATE;
+				}
+			}
+		}
+		break;
+	default:
+		LCDERR("%s: invalid fr_adjust_type: %d\n", __func__, type);
+		return 0;
 	}
 
 	if (pconf->lcd_basic.v_period != v_period) {
@@ -1001,3 +1100,32 @@ void lcd_if_enable_retry(struct lcd_config_s *pconf)
 	pconf->retry_enable_cnt = 0;
 }
 
+void lcd_vout_notify_mode_change_pre(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->viu_sel == 1) {
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+					 &lcd_drv->lcd_info->mode);
+	} else if (lcd_drv->viu_sel == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+					  &lcd_drv->lcd_info->mode);
+#endif
+	}
+}
+
+void lcd_vout_notify_mode_change(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->viu_sel == 1) {
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+					 &lcd_drv->lcd_info->mode);
+	} else if (lcd_drv->viu_sel == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+					  &lcd_drv->lcd_info->mode);
+#endif
+	}
+}

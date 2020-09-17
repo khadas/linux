@@ -123,7 +123,7 @@ static int lcd_extern_i2c_dev_probe(struct i2c_client *client,
 	}
 
 	i2c_dev[i2c_dev_cnt] = kzalloc(sizeof(*i2c_dev[i2c_dev_cnt]),
-				       GFP_KERNEL);
+		GFP_KERNEL);
 	if (!i2c_dev[i2c_dev_cnt]) {
 		EXTERR("i2c0_dev %d driver malloc error\n", i2c_dev_cnt);
 		return -ENOMEM;

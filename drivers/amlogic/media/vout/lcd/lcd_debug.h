@@ -12,6 +12,24 @@
 #define LCD_DEBUG_REG_CNT_MAX    30
 #define LCD_DEBUG_REG_END        0xffffffff
 
+/*tcon adb port use */
+#define LCD_ADB_TCON_REG_RW_MODE_NULL              0
+#define LCD_ADB_TCON_REG_RW_MODE_RN                1
+#define LCD_ADB_TCON_REG_RW_MODE_WM                2
+#define LCD_ADB_TCON_REG_RW_MODE_WN                3
+#define LCD_ADB_TCON_REG_RW_MODE_WS                4
+#define LCD_ADB_TCON_REG_RW_MODE_ERR               5
+
+#define ADB_TCON_REG_8_bit                         0
+#define ADB_TCON_REG_32_bit                        1
+
+struct lcd_tcon_adb_reg_s {
+	unsigned int rw_mode;
+	unsigned int bit_width;
+	unsigned int addr;
+	unsigned int len;
+};
+
 struct lcd_debug_info_reg_s {
 	unsigned int *reg_clk_table;
 	unsigned int *reg_encl_table;
@@ -23,6 +41,33 @@ struct lcd_debug_info_if_s {
 	int (*reg_dump_interface)(char *buf, int offset);
 	int (*reg_dump_phy)(char *buf, int offset);
 	struct class_attribute *class_attrs;
+};
+
+static unsigned int lcd_reg_dump_clk_dft[] = {
+	HHI_HDMI_PLL_CNTL,
+	HHI_HDMI_PLL_CNTL2,
+	HHI_HDMI_PLL_CNTL3,
+	HHI_HDMI_PLL_CNTL4,
+	HHI_HDMI_PLL_CNTL5,
+	HHI_HDMI_PLL_CNTL6,
+	HHI_VID_PLL_CLK_DIV,
+	HHI_VIID_CLK_DIV,
+	HHI_VIID_CLK_CNTL,
+	HHI_VID_CLK_CNTL2,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_clk_axg[] = {
+	HHI_GP0_PLL_CNTL_AXG,
+	HHI_GP0_PLL_CNTL2_AXG,
+	HHI_GP0_PLL_CNTL3_AXG,
+	HHI_GP0_PLL_CNTL4_AXG,
+	HHI_GP0_PLL_CNTL5_AXG,
+	HHI_GP0_PLL_CNTL1_AXG,
+	HHI_VIID_CLK_DIV,
+	HHI_VIID_CLK_CNTL,
+	HHI_VID_CLK_CNTL2,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_clk_gp0_g12a[] = {
@@ -37,7 +82,7 @@ static unsigned int lcd_reg_dump_clk_gp0_g12a[] = {
 	HHI_VIID_CLK_CNTL,
 	HHI_VID_CLK_CNTL2,
 	HHI_MIPIDSI_PHY_CLK_CNTL,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_clk_hpll_g12a[] = {
@@ -53,7 +98,7 @@ static unsigned int lcd_reg_dump_clk_hpll_g12a[] = {
 	HHI_VIID_CLK_CNTL,
 	HHI_VID_CLK_CNTL2,
 	HHI_MIPIDSI_PHY_CLK_CNTL,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_clk_tl1[] = {
@@ -66,7 +111,7 @@ static unsigned int lcd_reg_dump_clk_tl1[] = {
 	HHI_VIID_CLK_DIV,
 	HHI_VIID_CLK_CNTL,
 	HHI_VID_CLK_CNTL2,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_encl_dft[] = {
@@ -92,7 +137,7 @@ static unsigned int lcd_reg_dump_encl_dft[] = {
 	L_RGB_COEFF_ADDR,
 	L_POL_CNTL_ADDR,
 	L_DITH_CNTL_ADDR,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_encl_tl1[] = {
@@ -120,14 +165,31 @@ static unsigned int lcd_reg_dump_encl_tl1[] = {
 	L_RGB_COEFF_ADDR,
 	L_POL_CNTL_ADDR,
 	L_DITH_CNTL_ADDR,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_pinmux_gxl[] = {
+	PERIPHS_PIN_MUX_1,
+	PERIPHS_PIN_MUX_3,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_pinmux_txl[] = {
+	PERIPHS_PIN_MUX_0,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_pinmux_txlx[] = {
+	PERIPHS_PIN_MUX_0,
+	PERIPHS_PIN_MUX_8,
+	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_pinmux_tl1[] = {
 	PERIPHS_PIN_MUX_7_TL1,
 	PERIPHS_PIN_MUX_8_TL1,
 	PERIPHS_PIN_MUX_9_TL1,
-	LCD_DEBUG_REG_END,
+	LCD_DEBUG_REG_END
 };
 
 #endif

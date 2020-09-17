@@ -24,10 +24,10 @@
 		pr_info("lcd ukey err: error: " fmt "", ## args)
 
 #ifdef CONFIG_AMLOGIC_UNIFYKEY
-static unsigned int cal_crc32(unsigned int crc, const unsigned char *buf,
-			      int buf_len)
+unsigned int cal_crc32(unsigned int crc, const unsigned char *buf,
+		       int buf_len)
 {
-	unsigned int s_crc32[16] = {
+	static unsigned int s_crc32[16] = {
 		0, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
 		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
 		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,

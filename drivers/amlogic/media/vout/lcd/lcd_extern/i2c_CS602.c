@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -18,32 +16,14 @@
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #include "lcd_extern.h"
 
-#define LCD_EXTERN_NAME           "i2c_T5800Q"
-
-#define LCD_EXTERN_I2C_ADDR       (0x1c) /* 7bit address */
-#define LCD_EXTERN_I2C_ADDR2      (0xff) /* 7bit address */
+#define LCD_EXTERN_NAME		  "i2c_CS602"
+#define LCD_EXTERN_I2C_ADDR       (0x66) /* 7bit address */
 #define LCD_EXTERN_I2C_BUS        LCD_EXTERN_I2C_BUS_2
 
 static struct lcd_extern_config_s *ext_config;
 static struct aml_lcd_extern_i2c_dev_s *i2c_dev;
 
 #define LCD_EXTERN_CMD_SIZE        LCD_EXT_CMD_SIZE_DYNAMIC
-static unsigned char init_on_table[] = {
-	0xc0, 7, 0x20, 0x01, 0x02, 0x00, 0x40, 0xFF, 0x00,
-	0xc0, 7, 0x80, 0x02, 0x00, 0x40, 0x62, 0x51, 0x73,
-	0xc0, 7, 0x61, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0xc0, 7, 0xC1, 0x05, 0x0F, 0x00, 0x08, 0x70, 0x00,
-	0xc0, 7, 0x13, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0xc0, 7, 0x3D, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
-	0xc0, 7, 0xED, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00,
-	0xc0, 7, 0x23, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0xfd, 1, 10,   /* delay 10ms */
-	0xff, 0,  /* ending */
-};
-
-static unsigned char init_off_table[] = {
-	0xff, 0,  /* ending */
-};
 
 static int lcd_extern_reg_read(unsigned char reg, unsigned char *buf)
 {
@@ -68,6 +48,43 @@ static int lcd_extern_reg_write(unsigned char *buf, unsigned int len)
 
 	ret = lcd_extern_i2c_write(i2c_dev->client, buf, len);
 	return ret;
+}
+
+static int lcd_extern_init_check(int len)
+{
+	int ret = 0;
+	unsigned char *chk_table;
+	int i;
+
+	chk_table = kmalloc((sizeof(unsigned char) * len),
+			    GFP_KERNEL);
+	if (!chk_table) {
+		EXTERR("%s: failed to alloc chk_table, not enough memory\n",
+		       LCD_EXTERN_NAME);
+		return ret;
+	}
+	memset(chk_table, 0, len);
+
+	if (!i2c_dev->client) {
+		EXTERR("%s: invalid i2c client\n", __func__);
+		kfree(chk_table);
+		chk_table = NULL;
+		return -1;
+	}
+	ret = lcd_extern_i2c_read(i2c_dev->client, chk_table, len);
+	if (ret == 0) {
+		for (i = 0; i < len; i++) {
+			if (chk_table[i] != ext_config->table_init_on[i + 3]) {
+				kfree(chk_table);
+				chk_table = NULL;
+				return -1;
+			}
+		}
+	}
+
+	kfree(chk_table);
+	chk_table = NULL;
+	return 0;
 }
 
 static int lcd_extern_power_cmd_dynamic_size(unsigned char *table, int flag)
@@ -108,15 +125,16 @@ static int lcd_extern_power_cmd_dynamic_size(unsigned char *table, int flag)
 				lcd_extern_gpio_set(table[i + 2], table[i + 3]);
 			if (cmd_size > 2) {
 				if (table[i + 4] > 0)
-					mdelay(table[i + 4]);
+					lcd_delay_ms(table[i + 4]);
 			}
 		} else if (type == LCD_EXT_CMD_TYPE_DELAY) {
 			delay_ms = 0;
 			for (j = 0; j < cmd_size; j++)
 				delay_ms += table[i + 2 + j];
 			if (delay_ms > 0)
-				mdelay(delay_ms);
-		} else if (type == LCD_EXT_CMD_TYPE_CMD) {
+				lcd_delay_ms(delay_ms);
+		} else if ((type == LCD_EXT_CMD_TYPE_CMD) ||
+			   (type == LCD_EXT_CMD_TYPE_CMD_BIN)) {
 			if (!i2c_dev) {
 				EXTERR("invalid i2c device\n");
 				return -1;
@@ -129,7 +147,7 @@ static int lcd_extern_power_cmd_dynamic_size(unsigned char *table, int flag)
 			}
 			ret = lcd_extern_reg_write(&table[i + 2], (cmd_size - 1));
 			if (table[i + cmd_size + 1] > 0)
-				mdelay(table[i + cmd_size + 1]);
+				lcd_delay_ms(table[i + cmd_size + 1]);
 		} else {
 			EXTERR("%s: %s(%d): type 0x%02x invalid\n",
 			       __func__, ext_config->name,
@@ -175,15 +193,16 @@ static int lcd_extern_power_cmd_fixed_size(unsigned char *table, int flag)
 				lcd_extern_gpio_set(table[i + 1], table[i + 2]);
 			if (cmd_size > 3) {
 				if (table[i + 3] > 0)
-					mdelay(table[i + 3]);
+					lcd_delay_ms(table[i + 3]);
 			}
 		} else if (type == LCD_EXT_CMD_TYPE_DELAY) {
 			delay_ms = 0;
 			for (j = 0; j < (cmd_size - 1); j++)
 				delay_ms += table[i + 1 + j];
 			if (delay_ms > 0)
-				mdelay(delay_ms);
-		} else if (type == LCD_EXT_CMD_TYPE_CMD) {
+				lcd_delay_ms(delay_ms);
+		} else if ((type == LCD_EXT_CMD_TYPE_CMD) ||
+			   (type == LCD_EXT_CMD_TYPE_CMD_BIN)) {
 			if (!i2c_dev) {
 				EXTERR("invalid i2c device\n");
 				return -1;
@@ -196,7 +215,7 @@ static int lcd_extern_power_cmd_fixed_size(unsigned char *table, int flag)
 			}
 			ret = lcd_extern_reg_write(&table[i + 1], (cmd_size - 2));
 			if (table[i + cmd_size - 1] > 0)
-				mdelay(table[i + cmd_size - 1]);
+				lcd_delay_ms(table[i + cmd_size - 1]);
 		} else {
 			EXTERR("%s: %s(%d): type 0x%02x invalid\n",
 			       __func__, ext_config->name,
@@ -213,7 +232,10 @@ static int lcd_extern_power_ctrl(int flag)
 {
 	unsigned char *table;
 	unsigned char cmd_size;
+	unsigned char check_data;
+	unsigned char check_len = 1;
 	int ret = 0;
+	int i = 0;
 
 	cmd_size = ext_config->cmd_size;
 	if (flag)
@@ -229,10 +251,28 @@ static int lcd_extern_power_ctrl(int flag)
 		return -1;
 	}
 
-	if (cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC)
-		ret = lcd_extern_power_cmd_dynamic_size(table, flag);
-	else
-		ret = lcd_extern_power_cmd_fixed_size(table, flag);
+	ret = lcd_extern_init_check(cmd_size);
+	if (!ret) {
+		if (cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC)
+			ret = lcd_extern_power_cmd_dynamic_size(table, flag);
+		else
+			ret = lcd_extern_power_cmd_fixed_size(table, flag);
+	}
+
+	for (i = 0; i < 10; i++) {
+		ret = lcd_extern_i2c_read(i2c_dev->client,
+					  &check_data, check_len);
+		if (!((ret >> 6) & 0x1)) {
+			if (cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC)
+				ret =
+				lcd_extern_power_cmd_dynamic_size(table, flag);
+			else
+				ret =
+				lcd_extern_power_cmd_fixed_size(table, flag);
+		} else {
+			break;
+		}
+	}
 
 	EXTPR("%s: %s(%d): %d\n",
 	      __func__, ext_config->name, ext_config->index, flag);
@@ -265,19 +305,18 @@ static int lcd_extern_driver_update(struct aml_lcd_extern_driver_s *ext_drv)
 	}
 
 	if (ext_drv->config->table_init_loaded == 0) {
-		ext_drv->config->cmd_size = LCD_EXTERN_CMD_SIZE;
-		ext_drv->config->table_init_on = init_on_table;
-		ext_drv->config->table_init_on_cnt  = sizeof(init_on_table);
-		ext_drv->config->table_init_off = init_off_table;
-		ext_drv->config->table_init_off_cnt  = sizeof(init_off_table);
+		EXTERR("%s: table_init is invalid\n", ext_drv->config->name);
+		return -1;
 	}
+
 	ext_drv->power_on  = lcd_extern_power_on;
 	ext_drv->power_off = lcd_extern_power_off;
+	ext_drv->reg_read = lcd_extern_reg_read;
 
 	return 0;
 }
 
-int aml_lcd_extern_i2c_T5800Q_probe(struct aml_lcd_extern_driver_s *ext_drv)
+int aml_lcd_extern_i2c_CS602_probe(struct aml_lcd_extern_driver_s *ext_drv)
 {
 	int ret = 0;
 
@@ -296,7 +335,7 @@ int aml_lcd_extern_i2c_T5800Q_probe(struct aml_lcd_extern_driver_s *ext_drv)
 	return ret;
 }
 
-int aml_lcd_extern_i2c_T5800Q_remove(void)
+int aml_lcd_extern_i2c_CS602_remove(void)
 {
 	i2c_dev = NULL;
 	ext_config = NULL;

@@ -8,8 +8,11 @@
 #ifndef _INC_AML_LCD_UNIFYKEY_H__
 #define _INC_AML_LCD_UNIFYKEY_H__
 
-#define LCD_UNIFYKEY_WAIT_TIMEOUT      500
+#define LCD_UNIFYKEY_WAIT_TIMEOUT      2000
 #define LCD_UNIFYKEY_RETRY_INTERVAL    20   /* ms */
+
+unsigned int cal_crc32(unsigned int crc, const unsigned char *buf,
+		       int buf_len);
 
 /* declare external unifykey function */
 void *get_ukdev(void);

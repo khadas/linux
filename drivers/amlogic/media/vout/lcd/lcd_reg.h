@@ -8,6 +8,7 @@
 
 #ifndef __LCD_REG_H__
 #define __LCD_REG_H__
+#include <linux/amlogic/iomap.h>
 
 /* register offset address define */
 /* base & offset */
@@ -82,6 +83,7 @@
     #define DAC0_CLK_SEL           28
     #define DAC1_CLK_SEL           24
     #define DAC2_CLK_SEL           20
+    #define VCLK2_XD_RST           17
     #define VCLK2_XD_EN            16
     #define ENCL_CLK_SEL           12
     #define VCLK2_XD                0
@@ -164,7 +166,6 @@
 
 #define HHI_DIF_CSI_PHY_CNTL10                     0x8e
 #define HHI_DIF_CSI_PHY_CNTL11                     0x8f
-#define HHI_DIF_CSI_PHY_CNTL11                     0x8f
 #define HHI_DIF_CSI_PHY_CNTL12                     0x90
 #define HHI_DIF_CSI_PHY_CNTL13                     0x91
 #define HHI_DIF_CSI_PHY_CNTL14                     0x92
@@ -241,6 +242,8 @@
 #define L_GAMMA_PROBE_COLOR_L                      0x140a
 #define L_GAMMA_PROBE_COLOR_H                      0x140b
 #define L_GAMMA_PROBE_HL_COLOR                     0x140c
+#define L_GAMMA_PROBE_POS_X                        0x140d
+#define L_GAMMA_PROBE_POS_Y                        0x140e
 #define L_STH1_HS_ADDR                             0x1410
 #define L_STH1_HE_ADDR                             0x1411
 #define L_STH1_VS_ADDR                             0x1412
@@ -306,8 +309,6 @@
 #define L_DE_HS_ADDR                               0x1451
 #define L_DE_HE_ADDR                               0x1452
 #define L_DE_VS_ADDR                               0x1453
-#define L_DE_VE_ADDR                               0x1454
-#define L_HSYNC_HS_ADDR                            0x1455
 #define L_DE_VE_ADDR                               0x1454
 #define L_HSYNC_HS_ADDR                            0x1455
 #define L_HSYNC_HE_ADDR                            0x1456
@@ -499,6 +500,8 @@
    #define  DITH8_EN          9
    #define  DITH_MD           8
    /* 7:4 */
+   #define  DITH10_CNTL_MSB   7
+   #define  DITH10_CNTL       4
    /* 3:0 */
    #define  DITH8_CNTL_MSB    3
    #define  DITH8_CNTL        0
@@ -575,8 +578,6 @@
 #define LCD_PWM1_HI_ADDR                           0x14bf
 #define INV_CNT_ADDR                               0x14c0
    #define     INV_EN          4
-   #define     INV_CNT_MSB     3
-   #define     INV_CNT         0
    #define     INV_CNT_MSB     3
    #define     INV_CNT         0
 #define TCON_MISC_SEL_ADDR                         0x14c1
@@ -672,6 +673,8 @@
    #define     tcon_pclk_div              24
    /* Bit 23:0 (3 bit for each channel) */
    #define     tcon_delay                  0
+#define LVDS_BLANK_DATA_HI                         0x14ce
+#define LVDS_BLANK_DATA_LO                         0x14cf
    /* 31:30 */
    #define     LVDS_blank_data_reserved 30
    /* 29:20 */
@@ -759,8 +762,6 @@
    #define     mpclk_dly                  28
    /* Bit 1:0 (control phy clok divide 2,4,6,8) */
    #define     mpclk_div                  26
-   /* Bit 1:0 (control phy clok divide 2,4,6,8) */
-   #define     mpclk_div                  26
    #define     use_mpclk                  25
    #define     mlvds_clk_half_delay       24
    /* Bit 23:0 */
@@ -839,6 +840,8 @@
 #define VBO_INTR_UNMASK                            0x147d
 #define VBO_TMCHK_HSYNC_STATE_L                    0x147e
 #define VBO_TMCHK_HSYNC_STATE_H                    0x147f
+#define VBO_TMCHK_VSYNC_STATE_L                    0x14f4
+#define VBO_TMCHK_VSYNC_STATE_H                    0x14f5
 #define VBO_TMCHK_VDE_STATE_L                      0x14f6
 #define VBO_TMCHK_VDE_STATE_H                      0x14f7
 #define VBO_INTR_STATE                             0x14f8
@@ -1491,6 +1494,7 @@
 /* ***********************************************
  * register access api
  */
+extern int lcd_reg_gxb[];
 extern int lcd_reg_g12a[];
 extern int lcd_reg_tl1[];
 
@@ -1514,6 +1518,13 @@ unsigned int lcd_hiu_getb(unsigned int _reg,
 			  unsigned int _start, unsigned int _len);
 void lcd_hiu_set_mask(unsigned int _reg, unsigned int _mask);
 void lcd_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+
+unsigned int lcd_ana_read(unsigned int _reg);
+void lcd_ana_write(unsigned int _reg, unsigned int _value);
+void lcd_ana_setb(unsigned int _reg, unsigned int _value,
+		  unsigned int _start, unsigned int _len);
+unsigned int lcd_ana_getb(unsigned int _reg,
+			  unsigned int _start, unsigned int _len);
 
 unsigned int lcd_cbus_read(unsigned int _reg);
 void lcd_cbus_write(unsigned int _reg, unsigned int _value);
@@ -1550,12 +1561,19 @@ unsigned int lcd_tcon_getb(unsigned int reg,
 			   unsigned int _start, unsigned int _len);
 void lcd_tcon_set_mask(unsigned int reg, unsigned int _mask);
 void lcd_tcon_clr_mask(unsigned int reg, unsigned int _mask);
+void lcd_tcon_update_bits(unsigned int reg, unsigned int mask,
+			  unsigned int value);
+int lcd_tcon_check_bits(unsigned int reg, unsigned int mask,
+			unsigned int value);
 unsigned char lcd_tcon_read_byte(unsigned int _reg);
 void lcd_tcon_write_byte(unsigned int _reg, unsigned char _value);
 void lcd_tcon_setb_byte(unsigned int reg, unsigned char value,
 			unsigned int _start, unsigned int _len);
 unsigned char lcd_tcon_getb_byte(unsigned int reg,
 				 unsigned int _start, unsigned int _len);
-
+void lcd_tcon_update_bits_byte(unsigned int reg, unsigned char mask,
+			       unsigned char value);
+int lcd_tcon_check_bits_byte(unsigned int reg, unsigned char mask,
+			     unsigned char value);
 #endif
 

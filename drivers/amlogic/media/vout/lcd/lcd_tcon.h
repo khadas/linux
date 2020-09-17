@@ -14,7 +14,7 @@
 
 #define REG_LCD_TCON_MAX    0xffff
 
-struct lcd_tcon_data_s {
+struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
 
 	unsigned int core_reg_width;
@@ -30,18 +30,65 @@ struct lcd_tcon_data_s {
 	unsigned int ctrl_timing_offset;
 	unsigned int ctrl_timing_cnt;
 
-	unsigned int axi_mem_size;
+	unsigned int rsv_size;
+	unsigned int axi_size;
+	unsigned int bin_path_size;
+	unsigned int vac_size;
+	unsigned int demura_set_size;
+	unsigned int demura_lut_size;
+	unsigned int acc_lut_size;
 	unsigned char *reg_table;
 
+	int (*tcon_gamma_pattern)(unsigned int bit_width, unsigned int gamma_r,
+				  unsigned int gamma_g, unsigned int gamma_b);
 	int (*tcon_enable)(struct lcd_config_s *pconf);
 };
 
 struct tcon_rmem_s {
 	unsigned char flag;
-	void *mem_vaddr;
-	phys_addr_t mem_paddr;
-	unsigned int mem_size;
+	void *rsv_mem_vaddr;
+	unsigned char *axi_mem_vaddr;
+	unsigned char *bin_path_mem_vaddr;
+	phys_addr_t rsv_mem_paddr;
+	phys_addr_t axi_mem_paddr;
+	phys_addr_t bin_path_mem_paddr;
+	phys_addr_t vac_mem_paddr;
+	phys_addr_t demura_set_mem_paddr;
+	phys_addr_t demura_lut_mem_paddr;
+	phys_addr_t acc_lut_mem_paddr;
+
+	unsigned int rsv_mem_size;
+	unsigned int axi_mem_size;
+	unsigned int bin_path_mem_size;
 };
+
+struct tcon_data_priority_s {
+	unsigned int index;
+	unsigned int priority;
+};
+
+struct tcon_mem_map_table_s {
+	unsigned int version;
+	unsigned char tcon_data_flag;
+	unsigned int data_load_level;
+	unsigned int block_cnt;
+	unsigned int valid_flag;
+
+	unsigned int vac_mem_size;
+	unsigned int demura_set_mem_size;
+	unsigned int demura_lut_mem_size;
+	unsigned int acc_lut_mem_size;
+
+	struct tcon_data_priority_s *data_priority;
+	unsigned char *vac_mem_vaddr;
+	unsigned char *demura_set_mem_vaddr;
+	unsigned char *demura_lut_mem_vaddr;
+	unsigned char *acc_lut_mem_vaddr;
+	unsigned char **data_mem_vaddr;
+};
+
+struct tcon_rmem_s *get_lcd_tcon_rmem(void);
+struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 
 /* **********************************
  * tcon config
@@ -59,5 +106,7 @@ struct tcon_rmem_s {
 #define REG_CORE_CTRL_TIMING_BASE_TL1    0x1b
 #define CTRL_TIMING_OFFSET_TL1           12
 #define CTRL_TIMING_CNT_TL1              0
+#define TCON_VAC_SET_PARAM_NUM		 3
+#define TCON_VAC_LUT_PARAM_NUM		 256
 
 #endif

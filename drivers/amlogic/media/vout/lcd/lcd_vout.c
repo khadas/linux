@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
+#include <linux/amlogic/iomap.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -48,6 +49,11 @@
 
 unsigned char lcd_debug_print_flag;
 unsigned char lcd_resume_flag;
+/* for driver probe init:
+ *  0: none
+ *  1: power on request
+ */
+static unsigned char lcd_init_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
 /* 1: unlocked, 0: locked, negative: locked, possible waiters */
@@ -184,6 +190,17 @@ static struct lcd_power_ctrl_s lcd_power_config = {
 			.type = LCD_POWER_TYPE_MAX,
 		},
 	},
+};
+
+static struct lcd_boot_ctrl_s lcd_boot_ctrl_config = {
+	.lcd_type = LCD_TYPE_MAX,
+	.lcd_bits = 0,
+	.advanced_flag = 0,
+	.lcd_init_level = 0,
+	.debug_print_flag = 0,
+	.debug_test_pattern = 0,
+	.debug_para_source = 0,
+	.debug_lcd_mode = 0,
 };
 
 /* index 0: valid flag */
@@ -371,6 +388,12 @@ static void lcd_power_encl_on(void)
 {
 	mutex_lock(&lcd_vout_mutex);
 
+	if (lcd_driver->lcd_status & LCD_STATUS_ENCL_ON) {
+		LCDPR("%s: on already\n", __func__);
+		mutex_unlock(&lcd_vout_mutex);
+		return;
+	}
+
 	lcd_driver->driver_init_pre();
 	lcd_driver->lcd_status |= LCD_STATUS_ENCL_ON;
 
@@ -397,6 +420,11 @@ static void lcd_power_encl_off(void)
 {
 	mutex_lock(&lcd_vout_mutex);
 
+	if (!(lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)) {
+		LCDPR("%s: off already\n", __func__);
+		mutex_unlock(&lcd_vout_mutex);
+		return;
+	}
 	lcd_driver->lcd_status &= ~LCD_STATUS_ENCL_ON;
 	lcd_driver->driver_disable_post();
 
@@ -411,9 +439,10 @@ static void lcd_power_encl_off(void)
 static void lcd_power_if_on(void)
 {
 	mutex_lock(&lcd_vout_mutex);
-
-	lcd_driver->power_ctrl(1);
-	lcd_driver->lcd_status |= LCD_STATUS_IF_ON;
+	if (!(lcd_driver->lcd_status & LCD_STATUS_IF_ON)) {
+		lcd_driver->power_ctrl(1);
+		lcd_driver->lcd_status |= LCD_STATUS_IF_ON;
+	}
 	lcd_driver->lcd_config->change_flag = 0;
 
 	mutex_unlock(&lcd_vout_mutex);
@@ -422,10 +451,10 @@ static void lcd_power_if_on(void)
 static void lcd_power_if_off(void)
 {
 	mutex_lock(&lcd_vout_mutex);
-
-	lcd_driver->lcd_status &= ~LCD_STATUS_IF_ON;
-	lcd_driver->power_ctrl(0);
-
+	if (lcd_driver->lcd_status & LCD_STATUS_IF_ON) {
+		lcd_driver->lcd_status &= ~LCD_STATUS_IF_ON;
+		lcd_driver->power_ctrl(0);
+	}
 	mutex_unlock(&lcd_vout_mutex);
 }
 
@@ -1088,7 +1117,7 @@ static void lcd_vsync_irq_remove(void)
 	}
 }
 
-void lcd_init_vout(void)
+static void lcd_init_vout(void)
 {
 	switch (lcd_driver->lcd_mode) {
 #ifdef CONFIG_AMLOGIC_LCD_TV
@@ -1124,15 +1153,24 @@ static int lcd_mode_probe(struct device *dev)
 		LCDERR("invalid lcd mode: %d\n", lcd_driver->lcd_mode);
 		break;
 	}
-	lcd_tcon_probe(lcd_driver);
 	if (lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)
 		lcd_clk_gate_switch(1);
 
+	lcd_tcon_probe(lcd_driver);
 	lcd_debug_probe();
 	lcd_fops_create();
 
 	lcd_notifier_register();
 	lcd_vsync_irq_init();
+
+	if (lcd_init_flag) {
+		LCDPR("power on for init_flag\n");
+		lcd_init_flag = 0;
+		mutex_lock(&lcd_driver->power_mutex);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, NULL);
+		lcd_if_enable_retry(lcd_driver->lcd_config);
+		mutex_unlock(&lcd_driver->power_mutex);
+	}
 
 	/* add notifier for video sync_duration info refresh */
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
@@ -1165,10 +1203,30 @@ static int lcd_config_remove(struct device *dev)
 		LCDPR("invalid lcd mode\n");
 		break;
 	}
+	lcd_driver->lcd_info = NULL;
 
 	lcd_clk_config_remove();
 
 	return 0;
+}
+
+static void lcd_vout_server_remove(void)
+{
+	switch (lcd_driver->lcd_mode) {
+#ifdef CONFIG_AMLOGIC_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_vout_server_remove();
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_vout_server_remove();
+		break;
+#endif
+	default:
+		LCDPR("%s: invalid lcd mode\n", __func__);
+		break;
+	}
 }
 
 static void lcd_config_probe_delayed(struct work_struct *work)
@@ -1187,6 +1245,7 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 	LCDPR("key_init_flag=%d, i=%d\n", key_init_flag, i);
 
 	if (key_init_flag == 0) {
+		lcd_vout_server_remove();
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 		LCDERR("key is not ready, probe exit\n");
@@ -1195,9 +1254,17 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 
 	ret = lcd_mode_probe(lcd_driver->dev);
 	if (ret) {
+		lcd_vout_server_remove();
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 		LCDERR("probe exit\n");
+	}
+
+	if ((lcd_driver->lcd_status & LCD_STATUS_VMODE_ACTIVE) &&
+	    !(lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)) {
+		LCDPR("%s: lcd_enable in kernel\n", __func__);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+		lcd_if_enable_retry(lcd_driver->lcd_config);
 	}
 }
 
@@ -1210,21 +1277,38 @@ static void lcd_config_default(void)
 			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
 	pconf->lcd_basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
 			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
+	lcd_init_flag = 0;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN)) {
-		lcd_driver->lcd_status = LCD_STATUS_ON;
+		switch (lcd_boot_ctrl_config.lcd_init_level) {
+		case LCD_INIT_LEVEL_NORMAL:
+			lcd_driver->lcd_status = LCD_STATUS_ON;
+			break;
+		case LCD_INIT_LEVEL_PWR_OFF:
+			lcd_driver->lcd_status = LCD_STATUS_ENCL_ON;
+			break;
+		case LCD_INIT_LEVEL_KERNEL_ON:
+			lcd_init_flag = 1;
+			lcd_driver->lcd_status = LCD_STATUS_ENCL_ON;
+			break;
+		default:
+			lcd_driver->lcd_status = LCD_STATUS_ON;
+			break;
+		}
 		lcd_resume_flag = 1;
 	} else {
 		lcd_driver->lcd_status = 0;
 		lcd_resume_flag = 0;
 	}
-	LCDPR("status: %d\n", lcd_driver->lcd_status);
+	LCDPR("status: %d, init_flag: %d\n",
+	      lcd_driver->lcd_status, lcd_init_flag);
 }
 
 static int lcd_config_probe(struct platform_device *pdev)
 {
-	const char *str;
+	const char *str = "none";
 	unsigned int val;
 	int ret = 0;
+	unsigned int i;
 
 	if (!lcd_driver->dev->of_node) {
 		LCDERR("dev of_node is null\n");
@@ -1232,19 +1316,35 @@ static int lcd_config_probe(struct platform_device *pdev)
 		return -1;
 	}
 
+	for (i = 0; i < EXTERN_MUL_MAX; i++)
+		lcd_driver->extern_mul_index[i] = LCD_EXTERN_INDEX_INVALID;
+
 	lcd_driver->res_vsync_irq = NULL;
 	lcd_driver->res_vsync2_irq = NULL;
 	lcd_driver->res_vx1_irq = NULL;
 	lcd_driver->res_tcon_irq = NULL;
 
 	/* lcd driver assign */
-	ret = of_property_read_string(lcd_driver->dev->of_node, "mode", &str);
-	if (ret) {
-		str = "none";
-		LCDERR("failed to get mode\n");
-		return -1;
+	switch (lcd_boot_ctrl_config.debug_lcd_mode) {
+	case 1:
+		LCDPR("debug_lcd_mode: 1,tv mode\n");
+		lcd_driver->lcd_mode = LCD_MODE_TV;
+		break;
+	case 2:
+		LCDPR("debug_lcd_mode: 2,tablet mode\n");
+		lcd_driver->lcd_mode = LCD_MODE_TABLET;
+		break;
+	default:
+		ret = of_property_read_string(lcd_driver->dev->of_node,
+					      "mode", &str);
+		if (ret) {
+			LCDERR("failed to get mode\n");
+			return -1;
+		}
+		lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
+		break;
 	}
-	lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
+
 	ret = of_property_read_u32(lcd_driver->dev->of_node,
 				   "fr_auto_policy", &val);
 	if (ret) {
@@ -1255,13 +1355,26 @@ static int lcd_config_probe(struct platform_device *pdev)
 		lcd_driver->fr_auto_policy = (unsigned char)val;
 	}
 
-	ret = of_property_read_u32(lcd_driver->dev->of_node, "key_valid", &val);
-	if (ret) {
-		if (lcd_debug_print_flag)
-			LCDPR("failed to get key_valid\n");
+	switch (lcd_boot_ctrl_config.debug_para_source) {
+	case 1:
+		LCDPR("debug_para_source: 1,dts\n");
 		lcd_driver->lcd_key_valid = 0;
-	} else {
-		lcd_driver->lcd_key_valid = (unsigned char)val;
+		break;
+	case 2:
+		LCDPR("debug_para_source: 2,unifykey\n");
+		lcd_driver->lcd_key_valid = 1;
+		break;
+	default:
+		ret = of_property_read_u32(lcd_driver->dev->of_node,
+					   "key_valid", &val);
+		if (ret) {
+			if (lcd_debug_print_flag)
+				LCDPR("failed to get key_valid\n");
+			lcd_driver->lcd_key_valid = 0;
+		} else {
+			lcd_driver->lcd_key_valid = (unsigned char)val;
+		}
+		break;
 	}
 	LCDPR("detect mode: %s, fr_auto_policy: %d, key_valid: %d\n",
 	      str, lcd_driver->fr_auto_policy, lcd_driver->lcd_key_valid);
@@ -1286,26 +1399,38 @@ static int lcd_config_probe(struct platform_device *pdev)
 		LCDPR("detect lcd_auto_test: %d\n", lcd_driver->lcd_auto_test);
 	}
 
+	ret = of_property_read_u32(lcd_driver->dev->of_node,
+				   "resume_type", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get resume_type\n");
+		lcd_driver->lcd_resume_type = 1; /* default workqueue */
+	} else {
+		lcd_driver->lcd_resume_type = (unsigned char)val;
+		LCDPR("detect resume_type: %d\n", lcd_driver->lcd_resume_type);
+	}
+
 	lcd_driver->res_vsync_irq = platform_get_resource_byname
-				(pdev, IORESOURCE_IRQ, "vsync");
+			(pdev, IORESOURCE_IRQ, "vsync");
 	lcd_driver->res_vsync2_irq = platform_get_resource_byname
-				(pdev, IORESOURCE_IRQ, "vsync2");
+			(pdev, IORESOURCE_IRQ, "vsync2");
 	lcd_driver->res_vx1_irq = platform_get_resource_byname
-				(pdev, IORESOURCE_IRQ, "vbyone");
+			(pdev, IORESOURCE_IRQ, "vbyone");
 	lcd_driver->res_tcon_irq = platform_get_resource_byname
-				(pdev, IORESOURCE_IRQ, "tcon");
+			(pdev, IORESOURCE_IRQ, "tcon");
 
 	lcd_driver->lcd_info = &lcd_vinfo;
 	lcd_driver->lcd_config = &lcd_config_dft;
-	lcd_driver->lcd_test_state = 0;
+	lcd_driver->lcd_test_state = lcd_boot_ctrl_config.debug_test_pattern;
 	lcd_driver->lcd_test_flag = 0;
 	lcd_driver->lcd_mute_state = 0;
 	lcd_driver->lcd_mute_flag = 0;
-	lcd_driver->lcd_resume_type = 1; /* default workqueue */
+	lcd_driver->fr_mode = 0;
 	lcd_driver->viu_sel = LCD_VIU_SEL_NONE;
 	lcd_driver->vsync_none_timer_flag = 0;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
+	lcd_phy_probe();
 	lcd_clk_config_probe();
 	lcd_config_default();
 	lcd_init_vout();
@@ -1324,12 +1449,37 @@ static int lcd_config_probe(struct platform_device *pdev)
 	} else {
 		ret = lcd_mode_probe(lcd_driver->dev);
 		if (ret) {
+			lcd_vout_server_remove();
 			kfree(lcd_driver);
 			lcd_driver = NULL;
 			LCDERR("probe exit\n");
 		}
 	}
 
+	if (lcd_driver->lcd_config->lcd_basic.lcd_type == LCD_TYPE_MAX) {
+		switch (lcd_boot_ctrl_config.lcd_type) {
+		case LCD_TTL:
+			lcd_driver->lcd_config->lcd_basic.lcd_bits =
+			lcd_boot_ctrl_config.lcd_bits;
+		lcd_driver->lcd_config->lcd_control.ttl_config->sync_valid =
+			lcd_boot_ctrl_config.advanced_flag;
+			lcd_ttl_pinmux_set(1);
+			break;
+		case LCD_VBYONE:
+			lcd_vbyone_pinmux_set(1);
+			break;
+		case LCD_MLVDS:
+			lcd_mlvds_pinmux_set(1);
+			break;
+		case LCD_P2P:
+		lcd_driver->lcd_config->lcd_control.p2p_config->p2p_type =
+				lcd_boot_ctrl_config.advanced_flag;
+			lcd_p2p_pinmux_set(1);
+			break;
+		default:
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -1365,6 +1515,12 @@ static struct lcd_data_s lcd_data_tm2 = {
 	.reg_map_table = &lcd_reg_tl1[0],
 };
 
+static struct lcd_data_s lcd_data_t5 = {
+	.chip_type = LCD_CHIP_T5,
+	.chip_name = "t5",
+	.reg_map_table = &lcd_reg_tl1[0],
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-g12a",
@@ -1386,7 +1542,11 @@ static const struct of_device_id lcd_dt_match_table[] = {
 		.compatible = "amlogic, lcd-tm2",
 		.data = &lcd_data_tm2,
 	},
-	{},
+	{
+		.compatible = "amlogic, lcd-t5",
+		.data = &lcd_data_t5,
+	},
+	{}
 };
 #endif
 
@@ -1395,11 +1555,8 @@ static int lcd_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret = 0;
 
-#ifdef LCD_DEBUG_INFO
-	lcd_debug_print_flag = 1;
-#else
-	lcd_debug_print_flag = 0;
-#endif
+	lcd_debug_print_flag = lcd_boot_ctrl_config.debug_print_flag;
+
 	lcd_driver = kmalloc(sizeof(*lcd_driver), GFP_KERNEL);
 	if (!lcd_driver) {
 		LCDERR("%s: lcd driver no enough memory\n", __func__);
@@ -1413,6 +1570,7 @@ static int lcd_probe(struct platform_device *pdev)
 		return -1;
 	}
 	lcd_driver->data = (struct lcd_data_s *)match->data;
+	lcd_driver->boot_ctrl = &lcd_boot_ctrl_config,
 	strcpy(lcd_driver->version, LCD_DRV_VERSION);
 	LCDPR("driver version: %s(%d-%s)\n",
 	      lcd_driver->version,
@@ -1572,7 +1730,37 @@ static int lcd_panel_type_para_setup(char *str)
 	LCDPR("panel_type: %s\n", lcd_propname);
 	return 0;
 }
+
+static int lcd_boot_ctrl_setup(char *str)
+{
+	//struct lcd_boot_ctrl_s *lcd_boot_ctrl = lcd_config_dft.lcd_boot_ctrl;
+
+	int ret = 0;
+	unsigned int lcd_ctrl = 0;
+
+	if (!str)
+		return -EINVAL;
+
+	ret = kstrtouint(str, 16, &lcd_ctrl);
+	if (ret) {
+		LCDERR("%s:invalid data\n", __func__);
+		return -EINVAL;
+	}
+
+	LCDPR("lcd_ctrl: 0x%08x\n", lcd_ctrl);
+	lcd_boot_ctrl_config.lcd_type = 0xf & lcd_ctrl;
+	lcd_boot_ctrl_config.lcd_bits = 0xf & (lcd_ctrl >> 4);
+	lcd_boot_ctrl_config.advanced_flag = 0xff & (lcd_ctrl >> 8);
+	lcd_boot_ctrl_config.lcd_init_level = 0x3 & (lcd_ctrl >> 18);
+	lcd_boot_ctrl_config.debug_print_flag = 0xf & (lcd_ctrl >> 20);
+	lcd_boot_ctrl_config.debug_test_pattern = 0xf & (lcd_ctrl >> 24);
+	lcd_boot_ctrl_config.debug_para_source = 0x3 & (lcd_ctrl >> 28);
+	lcd_boot_ctrl_config.debug_lcd_mode = 0x3 & (lcd_ctrl >> 30);
+	return 0;
+}
+
 __setup("panel_type=", lcd_panel_type_para_setup);
+__setup("lcd_ctrl=", lcd_boot_ctrl_setup);
 
 //MODULE_DESCRIPTION("Meson LCD Panel Driver");
 //MODULE_LICENSE("GPL");

@@ -34,6 +34,7 @@
 
 static unsigned int lcd_output_vmode;
 static char lcd_output_name[30];
+static int lcd_init_on_flag;
 
 /* ************************************************** *
  * lcd mode function
@@ -110,6 +111,9 @@ static int lcd_vmode_is_mached(int index)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+
+	if (!lcd_drv)
+		return -1;
 
 	pconf = lcd_drv->lcd_config;
 	if (pconf->lcd_basic.h_active == lcd_vmode_info[index].width &&
@@ -195,6 +199,9 @@ static void lcd_vmode_vinfo_update(enum vmode_e mode)
 	struct lcd_vmode_info_s *info;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+
+	if (!lcd_drv)
+		return;
 
 	pconf = lcd_drv->lcd_config;
 	lcd_output_vmode = lcd_get_vmode(mode);
@@ -298,6 +305,9 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac)
 	int ret;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return -1;
+
 	if (lcd_vout_serve_bypass) {
 		LCDPR("vout_serve bypass\n");
 		return VMODE_MAX;
@@ -314,7 +324,6 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac)
 		LCDERR("%s: outputmode is not support\n", __func__);
 		return VMODE_MAX;
 	}
-
 	if (lcd_drv->lcd_config->lcd_timing.fr_adjust_type == 0xff) {
 		LCDPR("%s: fixed timing\n", __func__);
 		return lcd_vmode_info[lcd_vmode].mode;
@@ -344,6 +353,8 @@ static struct vinfo_s *lcd_get_current_info(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return NULL;
 	return lcd_drv->lcd_info;
 }
 
@@ -351,6 +362,9 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 {
 	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (!lcd_drv)
+		return -1;
 
 	if (lcd_vout_serve_bypass) {
 		LCDPR("vout_serve bypass\n");
@@ -368,7 +382,19 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
 		if (mode & VMODE_INIT_BIT_MASK) {
 			lcd_clk_gate_switch(1);
-		} else {
+		} else if (lcd_init_on_flag == 0) {
+			lcd_init_on_flag = 1;
+			if (lcd_drv->lcd_key_valid == 0 &&
+			    !(lcd_drv->lcd_status & LCD_STATUS_ENCL_ON)) {
+				aml_lcd_notifier_call_chain
+					(LCD_EVENT_POWER_ON, NULL);
+				lcd_if_enable_retry(lcd_drv->lcd_config);
+			} else if (lcd_drv->driver_change) {
+				mutex_lock(&lcd_vout_mutex);
+				ret = lcd_drv->driver_change();
+				mutex_unlock(&lcd_vout_mutex);
+			}
+		} else if (lcd_init_on_flag == 1) {
 			mutex_lock(&lcd_vout_mutex);
 			ret = lcd_drv->driver_change();
 			mutex_unlock(&lcd_vout_mutex);
@@ -410,6 +436,9 @@ static int lcd_vout_disable(enum vmode_e cur_vmod)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return -1;
+
 	lcd_drv->lcd_status &= ~LCD_STATUS_VMODE_ACTIVE;
 
 	return 0;
@@ -420,6 +449,9 @@ static int lcd_vout_set_state(int index)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return -1;
+
 	lcd_vout_state |= (1 << index);
 	lcd_drv->viu_sel = index;
 
@@ -429,6 +461,9 @@ static int lcd_vout_set_state(int index)
 static int lcd_vout_clr_state(int index)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (!lcd_drv)
+		return -1;
 
 	lcd_vout_state &= ~(1 << index);
 	if (lcd_drv->viu_sel == index)
@@ -480,6 +515,9 @@ static int lcd_framerate_automation_set_mode(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return -1;
+
 	LCDPR("%s\n", __func__);
 
 	/* update interface timing */
@@ -497,8 +535,7 @@ static int lcd_framerate_automation_set_mode(void)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-				 &lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 
 	return 0;
 }
@@ -514,6 +551,9 @@ static int lcd_set_vframe_rate_hint(int duration)
 	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
 	int i, n, find = 0;
 
+	if (!lcd_drv)
+		return -1;
+
 	if (lcd_vout_serve_bypass) {
 		LCDPR("vout_serve bypass\n");
 		return 0;
@@ -527,7 +567,6 @@ static int lcd_set_vframe_rate_hint(int duration)
 		LCDPR("%s: fixed timing, exit\n", __func__);
 		return -1;
 	}
-	info = lcd_drv->lcd_info;
 
 	if (lcd_debug_print_flag)
 		LCDPR("fr_auto_policy = %d\n", lcd_drv->fr_auto_policy);
@@ -588,6 +627,7 @@ static int lcd_set_vframe_rate_hint(int duration)
 		lcd_drv->fr_duration = duration;
 		/* if the sync_duration is same as current */
 		if (duration_num == info->sync_duration_num &&
+		    duration_den == info->sync_duration_den &&
 		    duration_den == info->sync_duration_den) {
 			LCDPR("%s: sync_duration is the same, exit\n", __func__);
 			return 0;
@@ -624,6 +664,9 @@ static int lcd_suspend(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (!lcd_drv)
+		return -1;
+
 	mutex_lock(&lcd_drv->power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 	lcd_resume_flag = 0;
@@ -635,6 +678,9 @@ static int lcd_suspend(void)
 static int lcd_resume(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (!lcd_drv)
+		return -1;
 
 	if ((lcd_drv->lcd_status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
@@ -695,6 +741,9 @@ static void lcd_vinfo_update_default(void)
 	char *mode;
 	unsigned int frame_rate, frac;
 
+	if (!lcd_drv)
+		return;
+
 	if (!lcd_drv->lcd_info) {
 		LCDERR("no lcd_info exist\n");
 		return;
@@ -712,8 +761,6 @@ static void lcd_vinfo_update_default(void)
 			return;
 		}
 	}
-
-	mode = get_vout_mode_uboot();
 	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
 			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
 	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
@@ -760,7 +807,7 @@ void lcd_tv_vout_server_init(void)
 
 void lcd_tv_vout_server_remove(void)
 {
-	vout_register_server(&lcd_vout_server);
+	vout_unregister_server(&lcd_vout_server);
 }
 
 /* ************************************************** *
@@ -836,8 +883,11 @@ static int lcd_init_load_from_dts(struct lcd_config_s *pconf,
 		case LCD_VBYONE:
 			lcd_vbyone_pinmux_set(1);
 			break;
+		case LCD_MLVDS:
+			lcd_mlvds_pinmux_set(1);
+			break;
 		case LCD_P2P:
-			lcd_tcon_pinmux_set(1);
+			lcd_p2p_pinmux_set(1);
 			break;
 		default:
 			break;
@@ -1031,8 +1081,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			vx1_conf->phy_preem = para[1];
 			if (lcd_debug_print_flag) {
 				LCDPR("phy vswing=0x%x, preemphasis=0x%x\n",
-				      vx1_conf->phy_vswing,
-				      vx1_conf->phy_preem);
+				vx1_conf->phy_vswing, vx1_conf->phy_preem);
 			}
 		}
 		ret = of_property_read_u32(child, "vbyone_ctrl_flag", &val);
@@ -1045,8 +1094,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 		}
 		if (vx1_conf->ctrl_flag & 0x7) {
 			ret = of_property_read_u32_array(child,
-							 "vbyone_ctrl_timing",
-							 &para[0], 3);
+				"vbyone_ctrl_timing", &para[0], 3);
 			if (ret) {
 				LCDPR("failed to get vbyone_ctrl_timing\n");
 			} else {
@@ -1060,7 +1108,21 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 				LCDPR("hpd_data_delay: %d\n",
 				      vx1_conf->hpd_data_delay);
 				LCDPR("cdr_training_hold: %d\n",
-				      vx1_conf->cdr_training_hold);
+					vx1_conf->cdr_training_hold);
+			}
+		}
+		ret = of_property_read_u32_array(child, "hw_filter",
+						 &para[0], 2);
+		if (ret) {
+			if (lcd_debug_print_flag)
+				LCDPR("failed to get hw_filter\n");
+		} else {
+			vx1_conf->hw_filter_time = para[0];
+			vx1_conf->hw_filter_cnt = para[1];
+			if (lcd_debug_print_flag) {
+				LCDPR("vbyone hw_filter=0x%x 0x%x\n",
+				      vx1_conf->hw_filter_time,
+				      vx1_conf->hw_filter_cnt);
 			}
 		}
 		break;
@@ -1286,6 +1348,10 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 				((*(p + LCD_UKEY_IF_ATTR_6 + 1)) << 8)) & 0xff;
 			vx1_conf->vsync_intr_en = (*(p + LCD_UKEY_IF_ATTR_7) |
 				((*(p + LCD_UKEY_IF_ATTR_7 + 1)) << 8)) & 0xff;
+			vx1_conf->hw_filter_time = *(p + LCD_UKEY_IF_ATTR_8) |
+				((*(p + LCD_UKEY_IF_ATTR_8 + 1)) << 8);
+			vx1_conf->hw_filter_cnt = *(p + LCD_UKEY_IF_ATTR_9) |
+				((*(p + LCD_UKEY_IF_ATTR_9 + 1)) << 8);
 		}
 	} else if (pconf->lcd_basic.lcd_type == LCD_LVDS) {
 		if (lcd_header.version == 2) {
@@ -1520,6 +1586,8 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 
 	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
 
+	lcd_vout_notify_mode_change_pre();
+
 	/* update vinfo */
 	lcd_drv->lcd_info->sync_duration_num = sync_duration;
 	lcd_drv->lcd_info->sync_duration_den = 100;
@@ -1539,8 +1607,7 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-				 &lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 }
 
 static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,
@@ -1611,8 +1678,6 @@ int lcd_tv_remove(struct device *dev)
 		break;
 	}
 
-	kfree(lcd_drv->lcd_info);
-	lcd_drv->lcd_info = NULL;
 	return 0;
 }
 

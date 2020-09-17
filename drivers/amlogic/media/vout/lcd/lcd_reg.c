@@ -13,6 +13,9 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/vout/vclk_serve.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"
 
@@ -89,13 +92,14 @@ int lcd_ioremap(struct platform_device *pdev)
 			kfree(lcd_reg_map);
 			lcd_reg_map = NULL;
 			return -1;
-		}
-		lcd_reg_map[table[i]].flag = 1;
-		if (lcd_debug_print_flag) {
-			LCDPR("%s: reg mapped: 0x%x -> %p\n",
-			      __func__,
-			      lcd_reg_map[table[i]].base_addr,
-			      lcd_reg_map[table[i]].p);
+		} else {
+			lcd_reg_map[table[i]].flag = 1;
+			if (lcd_debug_print_flag) {
+				LCDPR("%s: reg mapped: 0x%x -> %p\n",
+				      __func__,
+				      lcd_reg_map[table[i]].base_addr,
+				      lcd_reg_map[table[i]].p);
+			}
 		}
 		i++;
 	}
@@ -277,22 +281,20 @@ static inline void __iomem *check_lcd_tcon_reg_byte(unsigned int _reg)
 
 unsigned int lcd_vcbus_read(unsigned int reg)
 {
-	void __iomem *p;
-
-	p = check_lcd_vcbus_reg(reg);
-	if (p)
-		return readl(p);
-	else
-		return -1;
+#ifdef CONFIG_AMLOGIC_VPU
+	return vpu_vcbus_read(reg);
+#else
+	return aml_read_vcbus(reg);
+#endif
 };
 
 void lcd_vcbus_write(unsigned int reg, unsigned int value)
 {
-	void __iomem *p;
-
-	p = check_lcd_vcbus_reg(reg);
-	if (p)
-		writel(value, p);
+#ifdef CONFIG_AMLOGIC_VPU
+	vpu_vcbus_write(reg, value);
+#else
+	aml_write_vcbus(reg, value);
+#endif
 };
 
 int lcd_regmap_update_bits(unsigned int bus_type,
@@ -353,22 +355,12 @@ void lcd_vcbus_clr_mask(unsigned int reg, unsigned int _mask)
 
 unsigned int lcd_hiu_read(unsigned int _reg)
 {
-	void __iomem *p;
-
-	p = check_lcd_hiu_reg(_reg);
-	if (p)
-		return readl(p);
-	else
-		return -1;
+	return vclk_clk_reg_read(_reg);
 };
 
 void lcd_hiu_write(unsigned int _reg, unsigned int _value)
 {
-	void __iomem *p;
-
-	p = check_lcd_hiu_reg(_reg);
-	if (p)
-		writel(_value, p);
+	vclk_clk_reg_write(_reg, _value);
 };
 
 void lcd_hiu_setb(unsigned int _reg, unsigned int _value,
@@ -395,24 +387,38 @@ void lcd_hiu_clr_mask(unsigned int _reg, unsigned int _mask)
 	lcd_hiu_write(_reg, (lcd_hiu_read(_reg) & (~(_mask))));
 }
 
+unsigned int lcd_ana_read(unsigned int _reg)
+{
+	return vclk_ana_reg_read(_reg);
+}
+
+void lcd_ana_write(unsigned int _reg, unsigned int _value)
+{
+	vclk_ana_reg_write(_reg, _value);
+}
+
+void lcd_ana_setb(unsigned int _reg, unsigned int _value,
+		  unsigned int _start, unsigned int _len)
+{
+	lcd_ana_write(_reg, ((lcd_ana_read(_reg) &
+		      (~(((1L << _len) - 1) << _start))) |
+		      ((_value & ((1L << _len) - 1)) << _start)));
+}
+
+unsigned int lcd_ana_getb(unsigned int _reg,
+			  unsigned int _start, unsigned int _len)
+{
+	return (lcd_ana_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+}
+
 unsigned int lcd_cbus_read(unsigned int _reg)
 {
-	void __iomem *p;
-
-	p = check_lcd_cbus_reg(_reg);
-	if (p)
-		return readl(p);
-	else
-		return -1;
+	return aml_read_cbus(_reg);
 };
 
 void lcd_cbus_write(unsigned int _reg, unsigned int _value)
 {
-	void __iomem *p;
-
-	p = check_lcd_hiu_reg(_reg);
-	if (p)
-		writel(_value, p);
+	aml_write_cbus(_reg, _value);
 };
 
 void lcd_cbus_setb(unsigned int _reg, unsigned int _value,
@@ -575,6 +581,29 @@ void lcd_tcon_clr_mask(unsigned int reg, unsigned int _mask)
 	lcd_tcon_write(reg, (lcd_tcon_read(reg) & (~(_mask))));
 }
 
+void lcd_tcon_update_bits(unsigned int reg,
+			  unsigned int mask, unsigned int value)
+{
+	if (mask == 0xffffffff) {
+		lcd_tcon_write(reg, value);
+	} else {
+		lcd_tcon_write(reg, (lcd_tcon_read(reg) & (~(mask))) |
+			       (value & mask));
+	}
+}
+
+int lcd_tcon_check_bits(unsigned int reg,
+			unsigned int mask, unsigned int value)
+{
+	unsigned int temp;
+
+	temp = lcd_tcon_read(reg) & mask;
+	if (value != temp)
+		return -1;
+
+	return 0;
+}
+
 unsigned char lcd_tcon_read_byte(unsigned int _reg)
 {
 	void __iomem *p;
@@ -607,4 +636,27 @@ unsigned char lcd_tcon_getb_byte(unsigned int reg,
 				 unsigned int _start, unsigned int _len)
 {
 	return (lcd_tcon_read_byte(reg) >> _start) & ((1L << _len) - 1);
+}
+
+void lcd_tcon_update_bits_byte(unsigned int reg,
+			       unsigned char mask, unsigned char value)
+{
+	if (mask == 0xff) {
+		lcd_tcon_write_byte(reg, value);
+	} else {
+		lcd_tcon_write_byte(reg, (lcd_tcon_read_byte(reg) & (~(mask))) |
+				    (value & mask));
+	}
+}
+
+int lcd_tcon_check_bits_byte(unsigned int reg,
+			     unsigned char mask, unsigned char value)
+{
+	unsigned char temp;
+
+	temp = lcd_tcon_read_byte(reg) & mask;
+	if (value != temp)
+		return -1;
+
+	return 0;
 }
