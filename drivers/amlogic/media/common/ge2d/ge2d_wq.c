@@ -119,7 +119,6 @@ static const int default_ge2d_color_lut[] = {
 
 static int ge2d_buffer_get_phys(struct aml_dma_cfg *cfg,
 				unsigned long *addr);
-static int ge2d_buffer_unmap(struct aml_dma_cfg *cfg);
 
 static void ge2d_pre_init(void)
 {
@@ -511,7 +510,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	struct ge2d_queue_item_s *pitem;
 	unsigned int  mask = 0x1;
 	struct list_head  *head = &wq->work_queue, *pos;
-	int ret = 0, i = 0;
+	int ret = 0;
 	unsigned int block_mode;
 	int timeout = 0;
 
@@ -542,6 +541,10 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		ret = -1;
 		goto  exit;
 	}
+
+	/* do power on/off every process, all setting should be updated */
+	if (ge2d_meson_dev.has_self_pwr)
+		pitem->config.update_flag = UPDATE_ALL;
 
 	do {
 		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_ON_OP))
@@ -609,27 +612,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		pos = pos->next;
 		list_move_tail(&pitem->list, &wq->free_queue);
 		spin_unlock(&wq->lock);
-		/* if dma buf detach it */
-		for (i = 0; i < MAX_PLANE; i++) {
-			if (pitem->config.src_dma_cfg[i].dma_used) {
-				ge2d_buffer_unmap((struct aml_dma_cfg *
-					)pitem->config.src_dma_cfg[i].dma_cfg);
-				pitem->config.src_dma_cfg[i].dma_used = 0;
-				kfree(pitem->config.src_dma_cfg[i].dma_cfg);
-			}
-			if (pitem->config.src2_dma_cfg[i].dma_used) {
-				ge2d_buffer_unmap((struct aml_dma_cfg *
-					)pitem->config.src2_dma_cfg[i].dma_cfg);
-				pitem->config.src2_dma_cfg[i].dma_used = 0;
-				kfree(pitem->config.src2_dma_cfg[i].dma_cfg);
-			}
-			if (pitem->config.dst_dma_cfg[i].dma_used) {
-				ge2d_buffer_unmap((struct aml_dma_cfg *
-					)pitem->config.dst_dma_cfg[i].dma_cfg);
-				pitem->config.dst_dma_cfg[i].dma_used = 0;
-				kfree(pitem->config.dst_dma_cfg[i].dma_cfg);
-			}
-		}
+
 		/* if block mode (cmd) */
 		if (block_mode) {
 			pitem->cmd.wait_done_flag = 0;
@@ -659,9 +642,9 @@ static irqreturn_t ge2d_wq_handle(int irq_number, void *para)
 }
 
 static void update_canvas_cfg(struct ge2d_canvas_cfg_s *canvas_cfg,
-			      unsigned long phys_addr,
-			      unsigned int stride,
-			      unsigned int height)
+			    unsigned long phys_addr,
+			    unsigned int stride,
+			    unsigned int height)
 {
 	canvas_cfg->canvas_used = 1;
 	canvas_cfg->phys_addr = phys_addr;
@@ -686,7 +669,7 @@ struct ge2d_canvas_cfg_s *ge2d_wq_get_canvas_cfg(struct ge2d_context_s *wq,
 		canvas_cfg = &wq->config.dst_canvas_cfg[plane_id];
 		break;
 	default:
-		ge2d_log_err("wrong data_type\n");
+		ge2d_log_err("%s, wrong data_type\n", __func__);
 		break;
 	}
 	return canvas_cfg;
@@ -709,7 +692,7 @@ struct ge2d_dma_cfg_s *ge2d_wq_get_dma_cfg(struct ge2d_context_s *wq,
 		dma_cfg = &wq->config.dst_dma_cfg[plane_id];
 		break;
 	default:
-		ge2d_log_err("wrong data_type\n");
+		ge2d_log_err("%s, wrong data_type\n", __func__);
 		break;
 	}
 
@@ -1257,14 +1240,14 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 	if (!plane)
 		return ret;
 	for (i = 0; i < MAX_PLANE; i++) {
-		if (plane[i].shared_fd) {
+		if (plane[i].shared_fd > 0) {
 			struct ge2d_dma_cfg_s *cfg = NULL;
 			struct aml_dma_cfg *dma_cfg = NULL;
 
 			cfg = ge2d_wq_get_dma_cfg(context, data_type, i);
 			if (!cfg)
 				return -1;
-			cfg->dma_used = 1;
+
 			dma_cfg = kzalloc(sizeof(*dma_cfg), GFP_KERNEL);
 			dma_cfg->fd = plane[i].shared_fd;
 			dma_cfg->dev = &ge2d_manager.pdev->dev;
@@ -1273,7 +1256,23 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 			ret = ge2d_buffer_get_phys(dma_cfg, &addr_temp);
 			if (ret != 0)
 				return ret;
+			kfree(dma_cfg);
 			plane[i].addr = addr_temp;
+		} else if (plane[i].shared_fd == DMA_FD_ATTACHED) {
+			struct ge2d_dma_cfg_s *cfg = NULL;
+			struct aml_dma_cfg *dma_cfg = NULL;
+
+			cfg = ge2d_wq_get_dma_cfg(context, data_type, i);
+			if (!cfg)
+				return -1;
+			if (!cfg->dma_cfg) {
+				ge2d_log_err("%s, dma_cfg is null\n",
+					     __func__);
+				return -1;
+			}
+
+			dma_cfg = (struct aml_dma_cfg *)cfg->dma_cfg;
+			plane[i].addr = sg_phys(dma_cfg->sg->sgl);
 		} else if (plane[i].addr) {
 			plane[i].addr += plane[0].addr;
 		}
@@ -1399,7 +1398,7 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 		for (i = 0; i < MAX_PLANE; i++) {
 			/* multi-src_planes */
 			canvas_set = 0;
-			if (plane[i].shared_fd) {
+			if (plane[i].shared_fd > 0) {
 				struct ge2d_dma_cfg_s *cfg = NULL;
 				struct aml_dma_cfg *dma_cfg = NULL;
 
@@ -1407,7 +1406,7 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 							  data_type, i);
 				if (!cfg)
 					return -1;
-				cfg->dma_used = 1;
+
 				dma_cfg = kzalloc(sizeof(*dma_cfg), GFP_KERNEL);
 				if (!dma_cfg)
 					return ret;
@@ -1418,8 +1417,27 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 				ret = ge2d_buffer_get_phys(dma_cfg, &addr);
 				if (ret != 0)
 					return ret;
+				kfree(dma_cfg);
 				plane[i].addr = addr;
 				canvas_set = 1;
+			}  else if (plane[i].shared_fd == DMA_FD_ATTACHED) {
+				struct ge2d_dma_cfg_s *cfg = NULL;
+				struct aml_dma_cfg *dma_cfg = NULL;
+
+				cfg = ge2d_wq_get_dma_cfg(context,
+							  data_type, i);
+				if (!cfg)
+					return -1;
+				if (!cfg->dma_cfg) {
+					ge2d_log_err("%s, dma_cfg is null\n",
+						     __func__);
+					return -1;
+				}
+
+				dma_cfg = (struct aml_dma_cfg *)cfg->dma_cfg;
+				plane[i].addr = sg_phys(dma_cfg->sg->sgl);
+				canvas_set = 1;
+				ret = 0;
 			} else if (plane[i].addr) {
 				plane[i].addr += plane[0].addr;
 				canvas_set = 1;
@@ -2214,15 +2232,9 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
 	struct config_para_ex_ion_s *ge2d_config;
 	unsigned int *stride_custom;
-	int i;
 
 	ge2d_config = &ge2d_config_mem->_ge2d_config_ex;
-	/* reset dms_used flag */
-	for (i = 0; i < MAX_PLANE; i++) {
-		context->config.src_dma_cfg[i].dma_used = 0;
-		context->config.src2_dma_cfg[i].dma_used = 0;
-		context->config.dst_dma_cfg[i].dma_used = 0;
-	}
+
 	/* setup src and dst */
 	switch (ge2d_config->src_para.mem_type) {
 	case CANVAS_OSD0:
@@ -2640,9 +2652,89 @@ static int ge2d_buffer_get_phys(struct aml_dma_cfg *cfg, unsigned long *addr)
 	return ge2d_dma_buffer_get_phys(ge2d_manager.buffer, cfg, addr);
 }
 
-static int ge2d_buffer_unmap(struct aml_dma_cfg *cfg)
+int ge2d_ioctl_attach_dma_fd(struct ge2d_context_s *wq,
+			     struct ge2d_dmabuf_attach_s *dma_attach)
 {
-	return ge2d_dma_buffer_unmap_info(ge2d_manager.buffer, cfg);
+	int ret = -1;
+	enum dma_data_direction dir;
+	int dma_fd, i;
+
+	if (!dma_attach) {
+		ge2d_log_err("dma_attach is null\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PLANE; i++) {
+		dma_fd = dma_attach->dma_fd[i];
+		if (dma_fd > 0) {
+			struct ge2d_dma_cfg_s *cfg = NULL;
+			struct aml_dma_cfg *dma_cfg = NULL;
+
+			cfg = ge2d_wq_get_dma_cfg(wq,
+						  dma_attach->data_type, i);
+			if (!cfg)
+				return -1;
+			cfg->dma_used[i] = 1;
+			dma_cfg = kzalloc(sizeof(*dma_cfg), GFP_KERNEL);
+			if (!dma_cfg) {
+				ge2d_log_err("%s, kzalloc error\n", __func__);
+				return ret;
+			}
+			cfg->dma_cfg = dma_cfg;
+
+			switch (dma_attach->data_type) {
+			case AML_GE2D_SRC:
+				dir = DMA_TO_DEVICE;
+				break;
+			case AML_GE2D_SRC2:
+				dir = DMA_TO_DEVICE;
+				break;
+			case AML_GE2D_DST:
+				dir = DMA_FROM_DEVICE;
+				break;
+			default:
+				ge2d_log_err("%s, data_type %d error\n",
+					     __func__, dma_attach->data_type);
+				dir = DMA_BIDIRECTIONAL;
+				break;
+			}
+			dma_cfg->fd = dma_fd;
+			dma_cfg->dev = &ge2d_manager.pdev->dev;
+			dma_cfg->dir = dir;
+
+			ret = ge2d_dma_buffer_map(dma_cfg);
+			if (ret < 0) {
+				kfree(dma_cfg);
+				pr_err("gdc_dma_buffer_map failed i=%d\n", i);
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
+void ge2d_ioctl_detach_dma_fd(struct ge2d_context_s *wq,
+			      enum ge2d_data_type_e data_type)
+{
+	int i;
+
+	for (i = 0; i < MAX_PLANE; i++) {
+		struct ge2d_dma_cfg_s *cfg = NULL;
+		struct aml_dma_cfg *dma_cfg = NULL;
+
+		cfg = ge2d_wq_get_dma_cfg(wq, data_type, i);
+		if (!cfg)
+			return;
+
+		dma_cfg = cfg->dma_cfg;
+		if (dma_cfg && cfg->dma_used[i]) {
+			ge2d_dma_buffer_unmap(dma_cfg);
+
+			cfg->dma_used[i] = 0;
+			kfree(dma_cfg);
+		}
+	}
 }
 
 struct ge2d_context_s *create_ge2d_work_queue(void)
