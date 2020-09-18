@@ -25,6 +25,8 @@
 		i2c4 = &i2c_AO;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
+		tsensor0 = &p_tsensor;
+		tsensor1 = &d_tsensor;
 	};
 
 	chosen {
