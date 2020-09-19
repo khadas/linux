@@ -33,6 +33,7 @@
 #include <evl/file.h>
 #include <evl/irq.h>
 #include <evl/uaccess.h>
+#include <asm/evl/calibration.h>
 #include <uapi/evl/factory.h>
 #include <uapi/evl/clock.h>
 #include <trace/events/evl.h>
@@ -1029,11 +1030,12 @@ static int set_coreclk_gravity(struct evl_clock *clock,
 
 static void get_default_gravity(struct evl_clock_gravity *p)
 {
-	unsigned int ulat = 3000; /* ns, decent default. */
+	unsigned int ulat = CONFIG_EVL_LATENCY_USER; /* ns */
 
-#if CONFIG_EVL_LATENCY_USER != 0
-	ulat = CONFIG_EVL_LATENCY_USER;
-#endif
+	if (!ulat)
+		/* If not specified, pick a reasonable default. */
+		ulat = evl_get_default_clock_gravity();
+
 	p->user = ulat;
 	p->kernel = CONFIG_EVL_LATENCY_KERNEL;
 	p->irq = CONFIG_EVL_LATENCY_IRQ;
