@@ -12,31 +12,6 @@ static void evl_fifo_init(struct evl_rq *rq)
 	evl_init_schedq(&rq->fifo.runnable);
 }
 
-static void evl_fifo_rotate(struct evl_rq *rq,
-			const union evl_sched_param *p)
-{
-	struct evl_thread *thread, *curr;
-
-	if (evl_schedq_is_empty(&rq->fifo.runnable))
-		return;	/* No runnable thread in this class. */
-
-	curr = rq->curr;
-	thread = evl_lookup_schedq(&rq->fifo.runnable, p->fifo.prio);
-	if (thread == NULL)
-		return;
-
-	/*
-	 * In case we picked the current thread, we have to make sure
-	 * not to move it back to the run queue if it was blocked
-	 * before we were called. The same goes if the current thread
-	 * holds the scheduler lock.
-	 */
-	if (thread != curr ||
-		(!(curr->state & EVL_THREAD_BLOCK_BITS) &&
-			evl_preempt_count() == 0))
-		evl_putback_thread(thread);
-}
-
 static void evl_fifo_tick(struct evl_rq *rq)
 {
 	/*
@@ -84,7 +59,6 @@ static ssize_t evl_fifo_show(struct evl_thread *thread,
 	if (thread->state & T_RRB)
 		return snprintf(buf, count, "%Ld\n",
 				ktime_to_ns(thread->rrperiod));
-
 	return 0;
 }
 
@@ -92,7 +66,6 @@ struct evl_sched_class evl_sched_fifo = {
 	.sched_init		=	evl_fifo_init,
 	.sched_pick		=	evl_fifo_pick,
 	.sched_tick		=	evl_fifo_tick,
-	.sched_rotate		=	evl_fifo_rotate,
 	.sched_chkparam		=	evl_fifo_chkparam,
 	.sched_setparam		=	evl_fifo_setparam,
 	.sched_trackprio	=	evl_fifo_trackprio,

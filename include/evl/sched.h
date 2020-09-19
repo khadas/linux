@@ -121,8 +121,6 @@ struct evl_sched_class {
 	void (*sched_requeue)(struct evl_thread *thread);
 	struct evl_thread *(*sched_pick)(struct evl_rq *rq);
 	void (*sched_tick)(struct evl_rq *rq);
-	void (*sched_rotate)(struct evl_rq *rq,
-			     const union evl_sched_param *p);
 	void (*sched_migrate)(struct evl_thread *thread,
 			      struct evl_rq *rq);
 	/*
@@ -410,14 +408,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
 
 void evl_protect_thread_priority(struct evl_thread *thread,
 				 int prio);
-
-static inline
-void evl_rotate_rq(struct evl_rq *rq,
-		   struct evl_sched_class *sched_class,
-		   const union evl_sched_param *sched_param)
-{
-	sched_class->sched_rotate(rq, sched_param);
-}
 
 static inline int evl_init_rq_thread(struct evl_thread *thread)
 {
