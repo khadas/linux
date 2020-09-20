@@ -64,7 +64,7 @@ static ssize_t evl_fifo_show(struct evl_thread *thread,
 
 struct evl_sched_class evl_sched_fifo = {
 	.sched_init		=	evl_fifo_init,
-	.sched_pick		=	evl_fifo_pick,
+	.sched_pick		=	NULL, /* not used (see __pick_next_thread()) */
 	.sched_tick		=	evl_fifo_tick,
 	.sched_chkparam		=	evl_fifo_chkparam,
 	.sched_setparam		=	evl_fifo_setparam,
