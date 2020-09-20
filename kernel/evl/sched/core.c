@@ -33,19 +33,26 @@ EXPORT_PER_CPU_SYMBOL_GPL(evl_runqueues);
 struct cpumask evl_cpu_affinity = CPU_MASK_ALL;
 EXPORT_SYMBOL_GPL(evl_cpu_affinity);
 
-static struct evl_sched_class *evl_sched_highest;
+static struct evl_sched_class *evl_sched_topmost;
 
-#define for_each_evl_sched_class(p)			\
-	for (p = evl_sched_highest; p; p = p->next)
+#define for_each_evl_sched_class(p)		\
+	for (p = evl_sched_topmost; p; p = p->next)
+
+static struct evl_sched_class *evl_sched_lower;
+
+#define for_each_evl_lower_sched_class(p)	\
+	for (p = evl_sched_lower; p; p = p->next)
 
 static void register_one_class(struct evl_sched_class *sched_class)
 {
-	sched_class->next = evl_sched_highest;
-	evl_sched_highest = sched_class;
+	sched_class->next = evl_sched_topmost;
+	evl_sched_topmost = sched_class;
+	if (sched_class != &evl_sched_fifo)
+		evl_sched_lower = sched_class;
 
 	/*
 	 * Classes shall be registered by increasing priority order,
-	 * idle first and up.
+	 * idle first and up until fifo last.
 	 */
 	EVL_WARN_ON(CORE, sched_class->next &&
 		sched_class->next->weight > sched_class->weight);
@@ -62,6 +69,9 @@ static void register_classes(void)
 	register_one_class(&evl_sched_tp);
 #endif
 	register_one_class(&evl_sched_fifo);
+
+	/* The FIFO class must be on top (see __pick_next_thread()). */
+	EVL_WARN_ON_ONCE(CORE, evl_sched_topmost != &evl_sched_fifo);
 }
 
 #ifdef CONFIG_EVL_WATCHDOG
@@ -655,7 +665,34 @@ evl_lookup_schedq(struct evl_multilevel_queue *q, int prio)
 	return list_first_entry(head, struct evl_thread, rq_next);
 }
 
-struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
+static inline void enter_inband(struct evl_thread *root)
+{
+#ifdef CONFIG_EVL_WATCHDOG
+	evl_stop_timer(&evl_thread_rq(root)->wdtimer);
+#endif
+}
+
+static inline void leave_inband(struct evl_thread *root)
+{
+#ifdef CONFIG_EVL_WATCHDOG
+	evl_start_timer(&evl_thread_rq(root)->wdtimer,
+			evl_abs_timeout(&evl_thread_rq(root)->wdtimer,
+					get_watchdog_timeout()),
+			EVL_INFINITE);
+#endif
+}
+
+/* oob stalled. */
+static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
+{
+	trace_evl_reschedule_ipi(this_evl_rq());
+
+	/* Will reschedule from evl_exit_irq(). */
+
+	return IRQ_HANDLED;
+}
+
+static struct evl_thread *lookup_fifo_class(struct evl_rq *rq)
 {
 	struct evl_multilevel_queue *q = &rq->fifo.runnable;
 	struct evl_thread *thread;
@@ -686,33 +723,6 @@ struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
 	__evl_del_schedq(q, &thread->rq_next, idx);
 
 	return thread;
-}
-
-static inline void enter_inband(struct evl_thread *root)
-{
-#ifdef CONFIG_EVL_WATCHDOG
-	evl_stop_timer(&evl_thread_rq(root)->wdtimer);
-#endif
-}
-
-static inline void leave_inband(struct evl_thread *root)
-{
-#ifdef CONFIG_EVL_WATCHDOG
-	evl_start_timer(&evl_thread_rq(root)->wdtimer,
-			evl_abs_timeout(&evl_thread_rq(root)->wdtimer,
-					get_watchdog_timeout()),
-			EVL_INFINITE);
-#endif
-}
-
-/* oob stalled. */
-static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
-{
-	trace_evl_reschedule_ipi(this_evl_rq());
-
-	/* Will reschedule from evl_exit_irq(). */
-
-	return IRQ_HANDLED;
 }
 
 static inline void set_next_running(struct evl_rq *rq,
@@ -755,13 +765,19 @@ static struct evl_thread *__pick_next_thread(struct evl_rq *rq)
 	}
 
 	/*
-	 * Find the next runnable thread having the highest priority
+	 * Find the next runnable thread with the highest priority
 	 * amongst all scheduling classes, scanned by decreasing
-	 * priority.
+	 * weight. We start from the FIFO class which is always on top
+	 * without going through any indirection; if no thread is
+	 * runnable there, poll the lower classes.
 	 */
-	for_each_evl_sched_class(sched_class) {
+	next = lookup_fifo_class(rq);
+	if (likely(next))
+		return next;
+
+	for_each_evl_lower_sched_class(sched_class) {
 		next = sched_class->sched_pick(rq);
-		if (likely(next))
+		if (next)
 			return next;
 	}
 

@@ -109,6 +109,4 @@ int evl_init_fifo_thread(struct evl_thread *thread)
 	return 0;
 }
 
-struct evl_thread *evl_fifo_pick(struct evl_rq *rq);
-
 #endif /* !_EVL_SCHED_FIFO_H */
