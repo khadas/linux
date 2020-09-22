@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -1033,6 +1033,9 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
 
             /* It is retrieved from inputPrim. Standalone providing this is just for convenience only */
             gctUINT                                      inputVtxCount;
+
+            /* Whether the shader has any stream out other than stream 0. */
+            gctBOOL                                      bHasStreamOut;
         } gs;
 
         /* States acted on PS */
@@ -1287,7 +1290,13 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
             /* Whether use Local memory. */
             gctUINT               bUseLocalMemory                 : 1;
 
-            gctUINT               reserved                        : 30;
+            /* Whether use Private memory. */
+            gctUINT               bUsePrivateMemory               : 1;
+
+            /* Whether use Evis instruction. */
+            gctUINT               bUseEvisInst                    : 1;
+
+            gctUINT               reserved                        : 28;
 
             gctUINT16             workGroupSizeFactor[3];
         } gps;

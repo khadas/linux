@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -120,11 +120,17 @@ BEGIN_EXTERN_C()
 /* bump up version to 1.37 for adding intrisinc functions for gSampler2DRect on 08/06/2019 */
 /* bump up version to 1.38 for saving the full graphics shaders into the binary on 08/08/2019 */
 /* bump up version to 1.39 for saving ubo array index into the binary on 08/09/2019 */
+/* bump up version to 1.40 for saving local memory size, uniform's swizzle and shader kind into the binary on 11/07/2019 */
 
+/* bump up version to 1.41 for saving the stream number for gcOUTPUT on 11/07/2019 */
+#define gcdSL_SHADER_BINARY_BEFORE_SAVING_STREAM_NUMBER_FOR_OUTPUT gcmCC(0, 0, 1, 41)
+
+/* bump up version to 1.42 for saving adding intrinsic functions sin, cos, tan 11/8/2019 */
+/* bump up version to 1.43 for supporting textureGather functions have texture2DrectShadow type 11/14/2019 */
 /* current version */
-#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 39)
+#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 43)
 
-#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 39)
+#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 43)
 
 typedef union _gcsValue
 {
@@ -205,14 +211,20 @@ gceFRAGOUT_USAGE;
 #define _SHADER_DX_VERSION_30     gcmCC('\3', '\0', '\0', '\0')
 #define _cldCL1Dot1               gcmCC('\0', '\0', '\0', '\1')
 #define _cldCL1Dot2               gcmCC('\0', '\0', '\2', '\1')
+#define _SHADER_GL10_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\0', '\1')
 #define _SHADER_GL11_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\1', '\1')
-#define _SHADER_GL20_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\0', '\2')
-#define _SHADER_GL21_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\1', '\2')
-#define _SHADER_GL30_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\0', '\3')
-#define _SHADER_GL31_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\1', '\3')
-#define _SHADER_GL32_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\2', '\3')
+#define _SHADER_GL12_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\2', '\1')
+#define _SHADER_GL13_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\3', '\1')
+#define _SHADER_GL14_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\4', '\1')
+#define _SHADER_GL15_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\5', '\1')
 #define _SHADER_GL33_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\3', '\3')
 #define _SHADER_GL40_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\0', '\4')
+#define _SHADER_GL41_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\1', '\4')
+#define _SHADER_GL42_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\2', '\4')
+#define _SHADER_GL43_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\3', '\4')
+#define _SHADER_GL44_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\4', '\4')
+#define _SHADER_GL45_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\5', '\4')
+#define _SHADER_GL46_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\6', '\4')
 
 #define gcShader_IsCL(S)           (GetShaderType(S) == gcSHADER_TYPE_CL && (((S)->compilerVersion[0] & 0xFFFF) == _cldLanguageType))
 #define gcShader_IsGlCompute(S)    (GetShaderType(S) == gcSHADER_TYPE_COMPUTE && (((S)->compilerVersion[0] & 0xFFFF) != _cldLanguageType))
@@ -379,7 +391,9 @@ typedef enum _gcSL_OPCODE
     gcSL_CSUBCJ, /* 0x99 Complex number conjugate sub. */
     gcSL_CADD, /* 0x9A Complex number add. */
     gcSL_GET_IMAGE_TYPE, /* 0x9B get the image type: 0-1d, 1-1dbuffer, 2-1darray, 3-2d, 4-2darray, 5-3d */
-    gcSL_CLAMPCOORD, /* clamp image 2d cooridate to its width and height */
+    gcSL_CLAMPCOORD, /* 0x9C clamp image 2d cooridate to its width and height */
+    gcSL_EMIT_STREAM_VERTEX, /* 0x9D For function "EmitStreamVertex" */
+    gcSL_END_STREAM_PRIMITIVE, /* 0x9E For function "EndStreamPrimitive" */
     gcSL_MAXOPCODE
 }
 gcSL_OPCODE;
@@ -430,7 +444,9 @@ gcSL_OPCODE;
                                                  (Opcode) == gcSL_TEXU_LOD            ||  \
                                                  (Opcode) == gcSL_MEM_BARRIER         ||  \
                                                  (Opcode) == gcSL_EMIT_VERTEX         ||  \
-                                                 (Opcode) == gcSL_END_PRIMITIVE)
+                                                 (Opcode) == gcSL_END_PRIMITIVE       ||  \
+                                                 (Opcode) == gcSL_EMIT_STREAM_VERTEX  ||  \
+                                                 (Opcode) == gcSL_END_STREAM_PRIMITIVE)
 
 #define gcSL_isOpcodeUseTargetAsSource(Opcode)  ((Opcode) == gcSL_STORE               ||  \
                                                  (Opcode) == gcSL_IMAGE_WR            ||  \
@@ -486,19 +502,36 @@ gcSL_OPCODE_ATTR;
 
 extern const gcSL_OPCODE_ATTR gcvOpcodeAttr[];
 
-typedef enum _gcSL_BARRIER_TYPE
+typedef enum _gcSL_MEMORY_SCOPE
 {
-    gcSL_BARRIER_NORMAL = 0,
-    gcSL_BARRIER_LOCAL,
-    gcSL_BARRIER_GLOBAL,
-    gcSL_BARRIER_MEM,
-    gcSL_BARRIER_MEM_ATOMIC_COUNTER,
-    gcSL_BARRIER_MEM_BUFFER,
-    gcSL_BARRIER_MEM_IMAGE,
-    gcSL_BARRIER_MEM_SHARED,
-    gcSL_BARRIER_MEM_GROUP
+    gcSL_MEMORY_SCOPE_CROSS_DEVICE      = 0,
+    gcSL_MEMORY_SCOPE_DEVICE            = 1,
+    gcSL_MEMORY_SCOPE_WORKGROUP         = 2,
+    gcSL_MEMORY_SCOPE_SUBGROUP          = 3,
+    gcSL_MEMORY_SCOPE_INVOCATION        = 4,
+    gcSL_MEMORY_SCOPE_QUEUE_FAMILY      = 5,
 }
-gcSL_BARRIER_TYPE;
+gcSL_MEMORY_SCOPE;
+
+/* Match SPIR-V spec. */
+typedef enum _gcSL_MEMORY_SEMANTIC_FLAG
+{
+    gcSL_MEMORY_SEMANTIC_RELAXED                = 0x0,
+    gcSL_MEMORY_SEMANTIC_ACQUIRE                = 0x2,
+    gcSL_MEMORY_SEMANTIC_RELEASE                = 0x4,
+    gcSL_MEMORY_SEMANTIC_ACQUIRERELEASE         = 0x8,
+    gcSL_MEMORY_SEMANTIC_SEQUENTIALLYCONSISTENT = 0x10,
+    gcSL_MEMORY_SEMANTIC_UNIFORMMEMORY          = 0x40,
+    gcSL_MEMORY_SEMANTIC_SUBGROUPMEMORY         = 0x80,
+    gcSL_MEMORY_SEMANTIC_WORKGROUPMEMORY        = 0x100,
+    gcSL_MEMORY_SEMANTIC_CROSSWORKGROUPMEMORY   = 0x200,
+    gcSL_MEMORY_SEMANTIC_ATOMICCOUNTERMEMORY    = 0x400,
+    gcSL_MEMORY_SEMANTIC_IMAGEMEMORY            = 0x800,
+    gcSL_MEMORY_SEMANTIC_OUTPUTMEMORY           = 0x1000,
+    gcSL_MEMORY_SEMANTIC_MAKEAVAILABLE          = 0x2000,
+    gcSL_MEMORY_SEMANTIC_MAKEVISIBLE            = 0x4000,
+    gcSL_MEMORY_SEMANTIC_VOLATILE               = 0x8000,
+}gcSL_MEMORY_SEMANTIC_FLAG;
 
 typedef enum _gcSL_FORMAT
 {
@@ -1049,6 +1082,8 @@ typedef enum _gcSHADER_VAR_CATEGORY
     gcSHADER_VAR_CATEGORY_WORK_GROUP_ID_OFFSET, /* the workGroupId offset, for multi-GPU only. */
     gcSHADER_VAR_CATEGORY_GLOBAL_INVOCATION_ID_OFFSET, /* the globalId offset, for multi-GPU only. */
     gcSHADER_VAR_CATEGORY_VIEW_INDEX,
+    gcSHADER_VAR_CATEGORY_CLIP_DISTANCE_ENABLE,
+    gcSHADER_VAR_CATEGORY_THREAD_ID_MEM_ADDR,
 }
 gcSHADER_VAR_CATEGORY;
 
@@ -1386,6 +1421,8 @@ gceUNIFORM_FLAGS;
 #define isUniformWorkGroupIdOffset(u)       ((u)->_varCategory == gcSHADER_VAR_CATEGORY_WORK_GROUP_ID_OFFSET)
 #define isUniformGlobalInvocationIdOffset(u)((u)->_varCategory == gcSHADER_VAR_CATEGORY_GLOBAL_INVOCATION_ID_OFFSET)
 #define isUniformViewIndex(u)               ((u)->_varCategory == gcSHADER_VAR_CATEGORY_VIEW_INDEX)
+#define isUniformClipDistanceEnable(u)      ((u)->_varCategory == gcSHADER_VAR_CATEGORY_CLIP_DISTANCE_ENABLE)
+#define isUniformThreadIdMemAddr(u)         ((u)->_varCategory == gcSHADER_VAR_CATEGORY_THREAD_ID_MEM_ADDR)
 
 #define isUniformBasicType(u)               (isUniformNormal((u))                   || \
                                              isUniformBlockMember((u))              || \
@@ -1398,6 +1435,7 @@ gceUNIFORM_FLAGS;
                                              isUniformGlImageForImaget((u))         || \
                                              isUniformWorkThreadCount((u))          || \
                                              isUniformWorkGroupCount((u))           || \
+                                             isUniformClipDistanceEnable((u))       || \
                                              isUniformWorkGroupIdOffset((u))        || \
                                              isUniformGlobalInvocationIdOffset((u)))
 
@@ -1477,7 +1515,8 @@ typedef enum _gceBuiltinNameKind
     gcSL_BOUNDING_BOX           = -38, /* gl_BoundingBox */
     gcSL_LAST_FRAG_DATA         = -39, /* gl_LastFragData */
     gcSL_CLUSTER_ID             = -40, /* cluster id */
-    gcSL_BUILTINNAME_COUNT      = 41
+    gcSL_CLIP_DISTANCE          = -41, /* gl_ClipDistance */
+    gcSL_BUILTINNAME_COUNT      = 42
 } gceBuiltinNameKind;
 
 /* Special code generation indices. */
@@ -2931,6 +2970,12 @@ typedef struct _gcBINARY_UNIFORM_EX
     */
     gctTYPE_QUALIFIER               qualifier;
 
+    /* Physically assigned values. */
+    gctUINT8                        swizzle;
+
+    /* Shader type for this uniform. Set this at the end of link. */
+    gcSHADER_KIND                   shaderKind;
+
     /* companion to format field to denote vector size,
        value of 0 denote the underlying type is scalar */
     gctINT16                        vectorSize;
@@ -3121,6 +3166,9 @@ struct _gcOUTPUT
     /* Flat output or smooth output. */
     gcSHADER_SHADERMODE             shaderMode;
 
+    /* The stream number, for GS only. The default value is 0. */
+    gctINT                          streamNumber;
+
     /* Location index. */
     gctINT                          location;
     gctINT                          output2RTIndex; /* user may specify location 1,3,
@@ -3163,6 +3211,8 @@ struct _gcOUTPUT
 #define GetOutputArrayIndex(o)              ((o)->arrayIndex)
 #define GetOutputTempIndex(o)               ((o)->tempIndex)
 #define GetOutputShaderMode(o)              ((o)->shaderMode)
+#define GetOutputStreamNumber(o)            ((o)->streamNumber)
+#define SetOutputStreamNumber(o, i)         (GetOutputStreamNumber(o) = (i))
 #define GetOutputLocation(o)                ((o)->location)
 #define GetOutput2RTIndex(o)                ((o)->output2RTIndex)
 #define GetOutputFieldIndex(o)              ((o)->fieldIndex)
@@ -3224,6 +3274,9 @@ typedef struct _gcBINARY_OUTPUT
 
     /* shader mode: flat/smooth/... */
     gctINT16                        shaderMode;
+
+    /* The stream number, for GS only. The default value is 0. */
+    gctINT16                        streamNumber;
 
     /* layout qualifier */
     char                            layoutQualifier[sizeof(gceLAYOUT_QUALIFIER)];
@@ -4200,6 +4253,7 @@ typedef enum _gcSHADER_FLAGS
     gcSHADER_FLAG_HAS_DEFINE_MAIN_FUNC      = 0x800000, /* Whether the shader defines a main function, for GL shader only. */
     gcSHADER_FLAG_ENABLE_MULTI_GPU          = 0x1000000, /* whether enable multi-GPU. */
     gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE = 0x2000000, /* the shader has OCL option `-cl-viv-gcsl-driver-image */
+    gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER= 0x4000000, /* whether enable offline compile. */
 } gcSHADER_FLAGS;
 
 #define gcShaderIsOldHeader(Shader)             (((Shader)->flags & gcSHADER_FLAG_OLDHEADER) != 0)
@@ -4228,6 +4282,7 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderConstantMemoryReferenced(Shader) (((Shader)->flags & gcSHADER_FLAG_CONSTANT_MEMORY_REFERENCED) != 0)
 #define gcShaderHasDefineMainFunc(Shader)       (((Shader)->flags & gcSHADER_FLAG_HAS_DEFINE_MAIN_FUNC) != 0)
 #define gcShaderEnableMultiGPU(Shader)          (((Shader)->flags & gcSHADER_FLAG_ENABLE_MULTI_GPU) != 0)
+#define gcShaderEnableOfflineCompiler(Shader)   (((Shader)->flags & gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER) != 0)
 
 #define gcShaderGetFlag(Shader)                 (Shader)->flags)
 
@@ -4275,6 +4330,8 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrHasDefineMainFunc(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_DEFINE_MAIN_FUNC; } while (0)
 #define gcShaderSetEnableMultiGPU(Shader)       do { (Shader)->flags |= gcSHADER_FLAG_ENABLE_MULTI_GPU; } while (0)
 #define gcShaderClrEnableMultiGPU(Shader)       do { (Shader)->flags &= ~gcSHADER_FLAG_ENABLE_MULTI_GPU; } while (0)
+#define gcShaderSetEnableOfflineCompiler(Shader)do { (Shader)->flags |= gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER; } while (0)
+#define gcShaderClrEnableOfflineCompiler(Shader)do { (Shader)->flags &= ~gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER; } while (0)
 
 #define gcShaderSetFlag(Shader, Flag)           do { (Shader)->flags = (Flag); } while (0)
 
@@ -4605,6 +4662,9 @@ struct _gcSHADER
 
     void *                      debugInfo;
     gceFRAGOUT_USAGE            fragOutUsage;
+
+    gctUINT32                   optionsLen;
+    gctSTRING                   buildOptions;
 
 #if _SUPPORT_LONG_ULONG_DATA_TYPE
     /* used to modefy the index of instruction when need to insert instruction into the shader when recompile */

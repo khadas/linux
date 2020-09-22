@@ -1,6 +1,6 @@
 ##############################################################################
 #
-#    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+#    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 #
 #    The material in this file is confidential and contains trade secrets
 #    of Vivante Corporation. This is proprietary information owned by
@@ -248,6 +248,7 @@ EXPORTS
     gcoHAL_QueryChipFeature
     gcoHAL_QueryChipIdentity
     gcoHAL_QueryChipIdentityEx
+	gcoHAL_QuerySuperTileMode
     gcoHAL_QueryChipLimits
     gcoHAL_QueryPowerManagementState
     gcoHAL_QueryTiled
@@ -266,6 +267,7 @@ EXPORTS
     gcoHAL_WrapUserMemory
     gcoHAL_LockVideoMemory
     gcoHAL_UnlockVideoMemory
+    gcoHAL_UnlockVideoMemoryEX
     gcoHAL_ReleaseVideoMemory
     gcoHAL_ScheduleSignal
     gcoHAL_GetPLS
@@ -281,6 +283,7 @@ EXPORTS
     gcoHAL_SetBltNP2Texture
     gcoHAL_Get3DEngine
     gcoHAL_SetCompilerFuncTable
+	gcoHAL_SetFscaleValue
 !ENDIF
     gcoHAL_SetHardwareType
     gcoHAL_GetBaseAddr
@@ -342,6 +345,9 @@ EXPORTS
     gcoSURF_GetInfo
     gcoSURF_QueryHints
     gcoSURF_UpdateMetadata
+    gcoSURF_QueryVidMemNode
+    gcoSURF_Set2DSource
+    gcoSURF_Set2DTarget
 
 !IF "$(VIVANTE_ENABLE_3D)_$(VIVANTE_ENABLE_VG)" != "0_0"
 ;   Both 3D & VG have these functions.
@@ -782,6 +788,7 @@ EXPORTS
     gcoVX_QueryCoreCount
     gcoVX_QueryMultiCore
     gcoVX_CaptureInitState
+    gcoVX_SetHardwareType
 
 !IF "$(VSIMULATOR_DEBUG)" == "1"
     gcoOS_UpdateSimulatorCallback

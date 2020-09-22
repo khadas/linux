@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -55,8 +55,11 @@
 /* 0.0.1.32 Add extension flag in VIR_Symbol 05/27/2019 */
 /* 0.0.1.33 Add a new opcode LOGICAL_RSHIFT 05/28/2019 */
 /* 0.0.1.34 Add WorkGroupSizeFactor in VIR_ComputeLayout on 07/18/2019 */
-#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 34)
-#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 34)
+/* 0.0.1.35 Add skhp flag in VIR_Instruction */
+/* 0.0.1.36 Add a function to patch clipDistance in GL VIR lib shader */
+/* 0.0.1.37 Add the sampled image information on 03/11/2020 */
+#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 37)
+#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 37)
 
 #if !defined(gcdTARGETHOST_BIGENDIAN)
 #define gcdTARGETHOST_BIGENDIAN 0  /* default host little endian, to change the
@@ -491,8 +494,8 @@ typedef VSC_TyQualifier      VIR_TyQualifier;
  * to achieve best performance */
 typedef enum {
     VSC_OCLImgLibKind_UseLoadStore       = 0, /* for v54x GC chips, use LOAD/STORE/TEXLD */
-    VSC_OCLImgLibKind_UseImgLoadTexldU   = 1, /* for v55 GC chips, use IMG_LOAD/IMG_STORE/TEXLD_U */
-    VSC_OCLImgLibKind_UseImgLoadTexldUXY = 2, /* for v60 GC and v620 GC chips */
+    VSC_OCLImgLibKind_UseImgLoadTexldU   = 1, /* for v55 GC chips, use IMG_LOAD/IMG_STORE/TEXLD_U  -- unused now */
+    VSC_OCLImgLibKind_UseImgLoadTexldUXY = 2, /* for v60 GC and v620 GC chips -- unused now*/
     VSC_OCLImgLibKind_UseImgLoadVIP      = 3, /* v60 VIP chip, use IMG_LOAD/IMG_STORE */
     VSC_OCLImgLibKind_Counts, /* count of img libs */
     VSC_OCLImgLibKind_BasedOnHWFeature         /* select library based on HW feature */
@@ -732,7 +735,10 @@ typedef struct _VSC_HW_CONFIG
         /* word 3 */
         gctUINT          hasPointSizeFix        : 1;
         gctUINT          supportVectorB0        : 1;
-        gctUINT          reserved1              : 30;
+        gctUINT          hasAtomTimingFix       : 1;
+        gctUINT          hasUSCAtomicFix2       : 1;
+        gctUINT          hasFloatingMadFix      : 1;
+        gctUINT          reserved1              : 27;
 
         /* Last word */
         /* Followings will be removed after shader programming is removed out of VSC */
@@ -750,9 +756,7 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          robustAtomic           : 1;
         gctUINT          newGPIPE               : 1;
         gctUINT          FEDrawDirect           : 1;
-
-        gctUINT          hasUSCAtomicFix2       : 1;
-        gctUINT          reserved2              : 18;
+        gctUINT          reserved2              : 19;
     } hwFeatureFlags;
 
     gctUINT              chipModel;
@@ -760,6 +764,7 @@ typedef struct _VSC_HW_CONFIG
     gctUINT              productID;
     gctUINT              customerID;
     gctUINT              maxCoreCount;
+    gctUINT              maxClusterCount;
     gctUINT              maxThreadCountPerCore;
     gctUINT              maxVaryingCount;
     gctUINT              maxAttributeCount;
@@ -841,8 +846,9 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_OPT_FULL_ACTIVE_IO                 0x0000000000008000ULL
 #define VSC_COMPILER_OPT_DUAL16                         0x0000000000010000ULL
 #define VSC_COMPILER_OPT_ILF_LINK                       0x0000000000020000ULL
+#define VSC_COMPILER_OPT_LOOP                           0x0000000000040000ULL
 
-#define VSC_COMPILER_OPT_FULL                           0x000000000003FFFFULL
+#define VSC_COMPILER_OPT_FULL                           0x000000000007FFFFULL
 
 #define VSC_COMPILER_OPT_NO_ALGE_SIMP                   0x0000000100000000ULL
 #define VSC_COMPILER_OPT_NO_GCP                         0x0000000200000000ULL
@@ -862,8 +868,9 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_OPT_NO_FULL_ACTIVE_IO              0x0000800000000000ULL
 #define VSC_COMPILER_OPT_NO_DUAL16                      0x0001000000000000ULL
 #define VSC_COMPILER_OPT_NO_ILF_LINK                    0x0002000000000000ULL
+#define VSC_COMPILER_OPT_NO_LOOP                        0x0004000000000000ULL
 
-#define VSC_COMPILER_OPT_NO_OPT                         0x0003FFFF00000000ULL
+#define VSC_COMPILER_OPT_NO_OPT                         0x0007FFFF00000000ULL
 
 /* Compiler flag for special purpose */
 #define VSC_COMPILER_FLAG_COMPILE_TO_HL                0x00000001   /* Compile IR to HL, including doing all opts in HL */

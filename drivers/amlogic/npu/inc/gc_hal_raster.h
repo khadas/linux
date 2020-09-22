@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -15,7 +15,7 @@
 #define __gc_hal_raster_h_
 
 #include "gc_hal_enum.h"
-#include "gc_hal_types.h"
+#include "shared/gc_hal_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -1055,6 +1055,20 @@ gco2D_NatureRotateTranslation(
     IN OUT gcsRECT_PTR DstRect,
     OUT gceSURF_ROTATION * SrcRotation,
     OUT gceSURF_ROTATION * DstRotation
+    );
+
+/* Set source endian mode. */
+gceSTATUS
+gco2D_SetSourceEndianMode(
+    IN gco2D Engine,
+    IN gceENDIAN_MODE eEndianMode
+    );
+
+/* Set target endian mode. */
+gceSTATUS
+gco2D_SetTargetEndianMode(
+    IN gco2D Engine,
+    IN gceENDIAN_MODE eEndianMode
     );
 
 #ifdef __cplusplus

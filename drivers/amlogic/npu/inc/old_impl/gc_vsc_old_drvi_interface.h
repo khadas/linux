@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -60,6 +60,8 @@ BEGIN_EXTERN_C()
 
 /* Shared use. */
 #define _sldLocalMemoryAddressName          "#sh_localMemoryAddress"
+#define _sldThreadIdMemoryAddressName       "#sh_threadIdMemAddr"
+#define _sldWorkThreadCountName             "#sh_workThreadCount"
 
 #define FULL_PROGRAM_BINARY_SIG_1           gcmCC('F', 'U', 'L', 'L')
 #define FULL_PROGRAM_BINARY_SIG_2           gcmCC('P', 'R', 'G', 'M')
@@ -112,6 +114,8 @@ enum gceRecompileKind
     gceRK_PATCH_Y_FLIPPED_TEXTURE,
     gceRK_PATCH_REMOVE_ASSIGNMENT_FOR_ALPHA,
     gceRK_PATCH_Y_FLIPPED_SHADER,
+    gceRK_PATCH_INVERT_FRONT_FACING,
+    gceRK_PATCH_ALPHA_TEST,
     gceRK_PATCH_SAMPLE_MASK,
     gceRK_PATCH_SIGNEXTENT,
     gceRK_PATCH_TCS_INPUT_COUNT_MISMATCH,
@@ -359,6 +363,12 @@ typedef struct _gcsPatchYFlippedShader
 }
 gcsPatchYFlippedShader;
 
+typedef struct _gcsPatchAlphaTestShader
+{
+    gcUNIFORM alphaTestData; /* uniform contains refValue and func. */
+}
+gcsPatchAlphaTestShader;
+
 typedef struct _gcsPatchFlippedSamplePosition
 {
     gctFLOAT  value;  /* change gl_SamplePosition to (value - gl_SamplePosition); */
@@ -442,6 +452,7 @@ typedef struct _gcRecompileDirective
         gcsPatchYFlippedTexture * yFlippedTexture;
         gcsPatchRemoveAssignmentForAlphaChannel * removeOutputAlpha;
         gcsPatchYFlippedShader *  yFlippedShader;
+        gcsPatchAlphaTestShader * alphaTestShader;
         gcsPatchSampleMask *      sampleMask;
         gcsPatchSignExtent *      signExtent;
         gcsPatchTCSInputCountMismatch *  inputMismatch;
@@ -478,11 +489,13 @@ typedef struct _gcsPROGRAM_VidMemPatchOffset
     gctUINT32 gprSpillVidMemInStateBuffer[gcMAX_SHADERS_IN_LINK_GOURP];
     gctUINT32 crSpillVidMemInStateBuffer[gcMAX_SHADERS_IN_LINK_GOURP];
     gctUINT32 sharedMemVidMemInStateBuffer;
+    gctUINT32 threadIdVidMemInStateBuffer;
 
     gctUINT32 instVidMemInStateDelta[gcMAX_SHADERS_IN_LINK_GOURP];
     gctUINT32 gprSpillVidMemInStateDelta[gcMAX_SHADERS_IN_LINK_GOURP];
     gctUINT32 crSpillVidMemInStateDelta[gcMAX_SHADERS_IN_LINK_GOURP];
     gctUINT32 sharedMemVidMemInStateDelta;
+    gctUINT32 threadIdVidMemInStateDelta;
 }
 gcsPROGRAM_VidMemPatchOffset;
 
@@ -575,6 +588,7 @@ typedef struct _gcSHADER_VID_NODES
     gctPOINTER  gprSpillVidmemNode[gcMAX_SHADERS_IN_LINK_GOURP]; /* SURF Node for gpr spill memory. */
     gctPOINTER  crSpillVidmemNode[gcMAX_SHADERS_IN_LINK_GOURP]; /* SURF Node for cr spill memory. */
     gctPOINTER  sharedMemVidMemNode;
+    gctPOINTER  threadIdVidMemNode;
 }gcSHADER_VID_NODES;
 
 typedef enum _gceMEMORY_ACCESS_FLAG
@@ -698,6 +712,7 @@ typedef struct _gcsHINT
     gctUINT32   colorKillInstruction[3];
 #endif
 
+    /* First word. */
     /* gctBOOL isdefined as signed int, 1 bit will have problem if the value
      * is not used to test zero or not, use 2 bits to avoid the potential error
      */
@@ -719,6 +734,8 @@ typedef struct _gcsHINT
     gctBOOL     useDSY                : 2;
     gctBOOL     yInvertAware          : 2;
     gctBOOL     hasCentroidInput      : 2; /* flag if PS uses any inputs defined as centroid. */
+
+    /* Second word. */
     gctBOOL     disableEarlyZ         : 2; /* Disable EarlyZ for this program. */
     gctBOOL     threadGroupSync       : 2;
     gctBOOL     usedSampleIdOrSamplePosition : 2; /* For sample shading. */
@@ -739,7 +756,12 @@ typedef struct _gcsHINT
 #endif
     gctBOOL     useGroupId            : 2;
     gctBOOL     useLocalId            : 2;
+    gctBOOL     useEvisInst           : 2;
+
+    /* Third word. */
     gctUINT     fragColorUsage        : 2;
+    gctUINT     reserved              : 30;
+
     /* flag if the shader uses gl_FragCoord, gl_FrontFacing, gl_PointCoord */
     gctCHAR     useFragCoord[4];
     gctCHAR     usePointCoord[4];
@@ -825,15 +847,20 @@ typedef struct _gcsHINT
     gctBOOL     useGPRSpill[gcvPROGRAM_STAGE_LAST];
 
     /* padding bytes to make the offset of shaderVidNodes field be consistent in 32bit and 64bit platforms */
-    gctCHAR     reserved[8];
+    gctCHAR     reservedByteForShaderVidNodeOffset[4];
 
     /* shaderVidNodes should always be the LAST filed in hits. */
     /* SURF Node for memory that is used in shader. */
     gcSHADER_VID_NODES shaderVidNodes;
 
     /* padding bytes to make the struct size be consistent in 32bit and 64bit platforms */
-    gctCHAR     reserved1[4];
+    gctCHAR     reservedByteForHitSize[8];
 }gcsHINT;
+
+#if defined(_WINDOWS)
+char _check_shader_vid_nodes_offset[(gcmOFFSETOF(_gcsHINT, shaderVidNodes) % 8) == 0];
+char _check_hint_size[(sizeof(struct _gcsHINT) % 8) == 0];
+#endif
 
 #define gcsHINT_isCLShader(Hint)            ((Hint)->clShader)
 #define gcsHINT_GetShaderMode(Hint)         ((Hint)->shaderMode)
@@ -1686,6 +1713,9 @@ typedef struct _gcOPTIMIZER_OPTION
      */
     gctBOOL     DriverVIRPath;
 
+    /* Close all optimization fro OCL debugger */
+    gctBOOL     disableOptForDebugger;
+
     /* NOTE: when you add a new option, you MUST initialize it with default
        value in theOptimizerOption too */
 } gcOPTIMIZER_OPTION;
@@ -1755,7 +1785,8 @@ extern gcOPTIMIZER_OPTION theOptimizerOption;
 #define gcmOPT_EnableDebug()        (gcmGetOptimizerOption()->enableDebug > 0)
 #define gcmOPT_EnableDebugDump()    (gcmGetOptimizerOption()->enableDebug > 1)
 #define gcmOPT_EnableDebugDumpALL() (gcmGetOptimizerOption()->enableDebug > 2)
-#define gcmOPT_EnableDebugMode()    (gcmGetOptimizerOption()->enableDebug == 4)
+#define gcmOPT_GetDebugLevel()      (gcmGetOptimizerOption()->enableDebug)
+#define gcmOPT_SetDebugLevel(level) (gcmGetOptimizerOption()->enableDebug = level)
 #define gcmOPT_INLINERKIND()        (gcmGetOptimizerOption()->inlinerKind)
 #define gcmOPT_INLINELEVEL()        (gcmGetOptimizerOption()->inlineLevel)
 #define gcmOPT_SetINLINELEVEL(v)    (gcmGetOptimizerOptionVariable()->inlineLevel = (v))
@@ -1765,6 +1796,9 @@ extern gcOPTIMIZER_OPTION theOptimizerOption;
 #define gcmOPT_DualFP16Mode()       (gcmGetOptimizerOption()->dual16Mode)
 #define gcmOPT_DualFP16Start()      (gcmGetOptimizerOption()->_dual16Start)
 #define gcmOPT_DualFP16End()        (gcmGetOptimizerOption()->_dual16End)
+
+#define gcmOPT_DisableOPTforDebugger()     (gcmGetOptimizerOption()->disableOptForDebugger)
+#define gcmOPT_SetDisableOPTforDebugger(b) (gcmGetOptimizerOption()->disableOptForDebugger = b)
 
 #define gcmOPT_TESSLEVEL()          (gcmGetOptimizerOption()->testTessLevel)
 
@@ -1832,6 +1866,8 @@ extern gctBOOL gcDoTriageForShaderId(gctINT shaderId, gctINT startId, gctINT end
 #define FB_TREAT_CONST_ARRAY_AS_UNIFORM     0x20000 /* Treat a const array as a uniform,
                                                        it can decrease the temp registers but increases the constant registers. */
 #define FB_DISABLE_GL_LOOP_UNROLLING        0x40000 /* Disable loop unrolling for GL FE. */
+
+#define FE_GENERATED_OFFLINE_COMPILER       0x80000 /* Enable Offline Compile . */
 
 #define gcmOPT_SetPatchTexld(m,n) (gcmGetOptimizerOption()->patchEveryTEXLDs = (m),\
                                    gcmGetOptimizerOption()->patchDummyTEXLDs = (n))
@@ -2360,10 +2396,29 @@ gcSHADER_IsHaltiCompiler(
 **        because detecting by clientApiVersion does not work in some cases.
 **
 */
-
 gctBOOL
 gcSHADER_IsOGLCompiler(
     IN gcSHADER Shader
+    );
+
+gctBOOL
+gcSHADER_IsGL43(
+    IN gcSHADER Shader
+    );
+
+gctBOOL
+gcSHADER_IsGL44(
+    IN gcSHADER Shader
+    );
+
+gctBOOL
+gcSHADER_IsGL45(
+    IN gcSHADER Shader
+    );
+
+gctBOOL
+gcSHADER_SupportAliasedAttribute(
+    IN gcSHADER      pShader
     );
 
 /*******************************************************************************
@@ -7495,6 +7550,18 @@ gcLoadKernelCompiler(
     );
 
 /*******************************************************************************
+**                              gcUnloadKernelCompiler
+********************************************************************************
+**
+**    OpenCL kernel shader compiler unload.
+**
+*/
+gceSTATUS
+gcUnloadKernelCompiler(
+void
+);
+
+/*******************************************************************************
 **                              gcOptimizeShader
 ********************************************************************************
 **
@@ -7865,6 +7932,16 @@ gcCreateRemoveAssignmentForAlphaChannel(
 
 gceSTATUS
 gcCreateYFlippedShaderDirective(
+    OUT gcPatchDirective  **   PatchDirectivePtr
+    );
+
+gceSTATUS
+gcCreateFrontFacingDirective(
+    OUT gcPatchDirective  **   PatchDirectivePtr
+    );
+
+gceSTATUS
+gcCreateAlphaTestDirective(
     OUT gcPatchDirective  **   PatchDirectivePtr
     );
 
@@ -8505,6 +8582,12 @@ gcSHADER_SetNotStagesRelatedLinkError(
 gceSTATUS
 gcSHADER_Has64BitOperation(
     IN gcSHADER                    Shader
+    );
+
+void
+gcSHADER_SetBuildOptions(
+    IN gcSHADER             Shader,
+    IN gctSTRING            Options
     );
 
 void

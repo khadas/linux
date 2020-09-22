@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -1404,7 +1404,12 @@ gckCOMMAND_Construct(
     /* Pre-allocate the command queues. */
     for (i = 0; i < gcdCOMMAND_QUEUES; ++i)
     {
+#if !gcdCAPTURE_ONLY_MODE
         gcePOOL pool = gcvPOOL_DEFAULT;
+#else
+        gcePOOL pool = gcvPOOL_VIRTUAL;
+#endif
+
         gctSIZE_T size = pageSize;
         gckVIDMEM_NODE videoMem = gcvNULL;
         gctUINT32 allocFlag = 0;
@@ -1579,6 +1584,7 @@ gckCOMMAND_Destroy(
                 Command->kernel,
                 Command->queues[i].videoMem,
                 0,
+                gcvFALSE,
                 gcvFALSE
                 ));
 
@@ -1887,12 +1893,16 @@ _StartWaitLinkFE(
         Command->kernel
         );
 #else
+
+#if !gcdCAPTURE_ONLY_MODE
     /* Enable command processor. */
     gcmkONERROR(gckWLFE_Execute(
         hardware,
         address,
         waitLinkBytes
         ));
+#endif
+
 #endif
 
     /* Command queue is running. */
@@ -2204,6 +2214,10 @@ _CommitWaitLinkOnce(
     gctUINT32 waitOffset;
     gctUINT32 waitSize;
 
+#if gcdCAPTURE_ONLY_MODE
+    gctINT i;
+#endif
+
 #ifdef __QNXNTO__
     gctPOINTER userCommandBufferLogical       = gcvNULL;
     gctBOOL    userCommandBufferLogicalMapped = gcvFALSE;
@@ -2436,6 +2450,17 @@ _CommitWaitLinkOnce(
             &commandLinkHigh
             ));
 
+#if gcdCAPTURE_ONLY_MODE
+        for (i = 0; i < gcdCONTEXT_BUFFER_NUM; ++i)
+        {
+            gcsCONTEXT_PTR buffer = contextBuffer;
+
+            gckOS_CopyToUserData(Command->os, buffer->logical, CommandBuffer->contextLogical[i], Context->bufferSize);
+
+            buffer = buffer->next;
+        }
+#endif
+
         gcmkONERROR(gckVIDMEM_NODE_CleanCache(
             Command->kernel,
             contextBuffer->videoMem,
@@ -2665,7 +2690,7 @@ _CommitWaitLinkOnce(
         commandBufferSize    - offset - 8
         );
 #else
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /*
      * Skip link to entryAddress.
      * Instead, we directly link to final wait link position.
@@ -2791,7 +2816,7 @@ _CommitWaitLinkOnce(
         waitLinkBytes
         );
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     gcmkDUMP(
         Command->os,
         "#[null driver: below command skipped link to 0x%08X 0x%08X]",
@@ -2857,6 +2882,7 @@ _CommitWaitLinkOnce(
             Command->kernel,
             commandBufferVideoMem,
             ProcessID,
+            gcvFALSE,
             gcvFALSE
             ));
 
@@ -3001,7 +3027,7 @@ _CommitAsyncOnce(
         }
     }
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /* Skip submit to hardware for NULL driver. */
     gcmkDUMP(Command->os, "#[null driver: below command is skipped]");
 #endif
@@ -3132,7 +3158,7 @@ _CommitMultiChannelOnce(
     gckOS_AcquireMutex(Command->os, Command->mutexQueue, gcvINFINITE);
     acquired = gcvTRUE;
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /* Skip submit to hardware for NULL driver. */
     gcmkDUMP(Command->os, "#[null driver: below command is skipped]");
 #endif
@@ -3582,7 +3608,7 @@ gckCOMMAND_Execute(
             ));
     }
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /*
      * Skip link to execAddress.
      * Instead, we directly link to final wait link position.
@@ -3642,7 +3668,7 @@ gckCOMMAND_Execute(
         execBytes
         );
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     gcmkDUMP(Command->os,
              "#[null driver: below command skipped link to 0x%08X 0x%08X]",
              execAddress,
@@ -3748,7 +3774,7 @@ gckCOMMAND_ExecuteAsync(
         }
     }
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /* Skip submit to hardware for NULL driver. */
     gcmkDUMP(Command->os, "#[null driver: below command is skipped]");
 #endif
@@ -3841,7 +3867,7 @@ gckCOMMAND_ExecuteMultiChannel(
             ));
     }
 
-#if gcdNULL_DRIVER
+#if gcdNULL_DRIVER || gcdCAPTURE_ONLY_MODE
     /* Skip submit to hardware for NULL driver. */
     gcmkDUMP(Command->os, "#[null driver: below command is skipped]");
 #endif
@@ -4382,6 +4408,7 @@ gckCOMMAND_DumpExecutingBuffer(
             kernel,
             nodeObject,
             0,
+            gcvFALSE,
             gcvFALSE
             ));
     }
@@ -4461,6 +4488,7 @@ gckCOMMAND_DumpExecutingBuffer(
                 kernel,
                 nodeObject,
                 0,
+                gcvFALSE,
                 gcvFALSE
                 ));
         }

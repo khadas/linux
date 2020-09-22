@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -75,10 +75,17 @@ struct viv_gem_object {
     gctBOOL               cacheable;
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+struct dma_buf *viv_gem_prime_export(struct drm_gem_object *gem_obj,
+                int flags)
+{
+    struct drm_device *drm = gem_obj->dev;
+#else
 struct dma_buf *viv_gem_prime_export(struct drm_device *drm,
                 struct drm_gem_object *gem_obj,
                 int flags)
 {
+#endif
     struct viv_gem_object *viv_obj = container_of(gem_obj, struct viv_gem_object, base);
     struct dma_buf *dmabuf = gcvNULL;
     gckGALDEVICE gal_dev = (gckGALDEVICE)drm->dev_private;
@@ -586,7 +593,7 @@ static int viv_ioctl_gem_attach_aux(struct drm_device *drm, void *data,
 
         /* Fill tile status node with tileStatusFiller. */
         memset(entry , tileStatusFiller , (__u64)gem_ts_obj->size);
-        gcmkONERROR(gckVIDMEM_NODE_UnlockCPU(kernel, ObjNode, 0, gcvFALSE));
+        gcmkONERROR(gckVIDMEM_NODE_UnlockCPU(kernel, ObjNode, 0, gcvFALSE, gcvFALSE));
 
         /* UnLock tile status node. */
         memset(&iface, 0, sizeof(iface));
@@ -772,7 +779,11 @@ static const struct file_operations viv_drm_fops = {
 };
 
 static struct drm_driver viv_drm_driver = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+    .driver_features    = DRIVER_GEM | DRIVER_RENDER,
+#else
     .driver_features    = DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER,
+#endif
     .open = viv_drm_open,
     .postclose = viv_drm_postclose,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)

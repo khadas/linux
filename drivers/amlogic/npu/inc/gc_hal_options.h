@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -265,7 +265,7 @@ This define enables the use of VM for gckCommand and fence buffers.
 
 
 /*
-    gcdDEBUG_FORCE_CONTEXT_UPDATE
+    gcdDEBUG_OPTION_SPECIFY_POOL
         When set to 1, pool of each type surface can be specified by
         changing poolPerType[] in gcsSURF_NODE_Construct.
 */
@@ -282,6 +282,19 @@ This define enables the use of VM for gckCommand and fence buffers.
  */
 #ifndef gcdENABLE_FSCALE_VAL_ADJUST
 #   define gcdENABLE_FSCALE_VAL_ADJUST          1
+#endif
+
+/*
+    gcdCAPTURE_ONLY_MODE
+        When non-zero, driver is built with capture only mode.
+        1) Set DDR address range in capture file with contiguousBase and contiguoutsSize.
+           Video memory allocation will go through reserved pool with capture only mode.
+        2) Set SRAM address range in capture file with sRAMBases, sRAMSizes and extSRAMBases, extSRAMSizes.
+           Video memory querion will go through reserved pool with capture only mode.
+        3) TODO: SRAM video memory allocation.
+*/
+#ifndef gcdCAPTURE_ONLY_MODE
+#   define gcdCAPTURE_ONLY_MODE                 0
 #endif
 
 /*
@@ -309,7 +322,11 @@ This define enables the use of VM for gckCommand and fence buffers.
         Number of bytes in a command buffer.
 */
 #ifndef gcdCMD_BUFFER_SIZE
+#if gcdCAPTURE_ONLY_MODE
+#   define gcdCMD_BUFFER_SIZE                   (4 << 10)
+#else
 #   define gcdCMD_BUFFER_SIZE                   (128 << 10)
+#endif
 #endif
 
 /*
@@ -327,7 +344,11 @@ This define enables the use of VM for gckCommand and fence buffers.
         Number of command buffers to use per client.
 */
 #ifndef gcdCMD_BUFFERS
+#if gcdCAPTURE_ONLY_MODE
+#   define gcdCMD_BUFFERS                       1
+#else
 #   define gcdCMD_BUFFERS                       2
+#endif
 #endif
 
 /*
@@ -490,7 +511,11 @@ This define enables the use of VM for gckCommand and fence buffers.
     between multiple sub-buffers.
 */
 #ifndef gcdENABLE_BUFFER_ALIGNMENT
+#if gcdCAPTURE_ONLY_MODE
+#   define gcdENABLE_BUFFER_ALIGNMENT             0
+#else
 #   define gcdENABLE_BUFFER_ALIGNMENT             1
+#endif
 #endif
 
 /*
@@ -500,9 +525,14 @@ This define enables the use of VM for gckCommand and fence buffers.
     _GetSurfaceBankAlignment() and _GetBankOffsetBytes() to define how
     different types of allocations are bank and channel aligned.
     When disabled (default), no bank alignment is done.
+    For CAPTURE ONLY MODE, should make sure that gcdENABLE_BANK_ALIGNMENT is disabled.
 */
 #ifndef gcdENABLE_BANK_ALIGNMENT
+#if gcdCAPTURE_ONLY_MODE
 #   define gcdENABLE_BANK_ALIGNMENT             0
+#else
+#   define gcdENABLE_BANK_ALIGNMENT             0
+#endif
 #endif
 
 /*
@@ -971,10 +1001,14 @@ This define enables the use of VM for gckCommand and fence buffers.
         When it's not zero, partial fast clear is enabled.
         Depends on gcdHAL_3D_DRAWBLIT, if gcdHAL_3D_DRAWBLIT is not enabled,
         only available when scissor box is completely aligned.
-        Expremental, under test.
+        Expremental, under test only. Not ready for production.
 */
 #ifndef gcdPARTIAL_FAST_CLEAR
+#if defined(ANDROID)
+#   define gcdPARTIAL_FAST_CLEAR                0
+#else
 #   define gcdPARTIAL_FAST_CLEAR                1
+#endif
 #endif
 
 /*
@@ -1219,11 +1253,6 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 #endif
 
-/*
-VIV:gcdUSE_MMU_EXCEPTION
-
-    When enabled, enable and check exception interrupt raised by MMU.
-*/
 #ifndef gcdUSE_MMU_EXCEPTION
 #   define gcdUSE_MMU_EXCEPTION                 1
 #endif
@@ -1311,6 +1340,25 @@ VIV:gcdUSE_MMU_EXCEPTION
  */
 #ifndef gcdKERNEL_QUERY_PERFORMANCE_COUNTER_V8
 #   define gcdKERNEL_QUERY_PERFORMANCE_COUNTER_V8  0
+#endif
+
+/*
+    gcdIGNORE_DRIVER_VERSIONS_MISMATCH
+        When enabled, driver will ignore user and kernel driver version mismatch.
+*/
+#ifndef gcdIGNORE_DRIVER_VERSIONS_MISMATCH
+#   define gcdIGNORE_DRIVER_VERSIONS_MISMATCH  0
+#endif
+
+/*
+    gcdEXTERNAL_SRAM_DEFAULT_POOL
+        When enabled, external SRAM can be used for the initial command,
+        but the external SRAM base and size must be set by customer.
+        AXI-SRAM only can be used if pool type is speficied
+        with gcvSRAM_EXTERNAL[X] when allocating video memory.
+*/
+#ifndef gcdEXTERNAL_SRAM_DEFAULT_POOL
+#   define gcdEXTERNAL_SRAM_DEFAULT_POOL 0
 #endif
 
 #endif /* __gc_hal_options_h_ */

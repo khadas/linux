@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -56,8 +56,6 @@
 #include "gc_hal_kernel_precomp.h"
 
 #define _GC_OBJ_ZONE    gcvZONE_MMU
-
-#define gcdMMU_PGTABLE_POOL     gcvPOOL_VIRTUAL
 
 typedef enum _gceMMU_TYPE
 {
@@ -632,6 +630,25 @@ OnError:
     return status;
 }
 
+static gcePOOL _GetPageTablePool(IN gckOS Os)
+{
+    gcePOOL pool = gcvPOOL_DEFAULT;
+    gctUINT64 data = 0;
+    gceSTATUS status;
+
+    status = gckOS_QueryOption(Os, "mmuPageTablePool", &data);
+
+    if (status  == gcvSTATUS_OK)
+    {
+        if (data == 1)
+        {
+            pool = gcvPOOL_VIRTUAL;
+        }
+    }
+
+    return pool;
+}
+
 static gceSTATUS
 _FillFlatMapping(
     IN gckMMU Mmu,
@@ -936,7 +953,7 @@ _FillFlatMapping(
         /* Need allocate a new chunk of stlbs */
         if (totalNewStlbs)
         {
-            gcePOOL pool = gcdMMU_PGTABLE_POOL;
+            gcePOOL pool = Mmu->pool;
             gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
 
             gcmkONERROR(
@@ -1249,7 +1266,7 @@ _ConstructDynamicStlb(
     gctBOOL acquired = gcvFALSE;
     gckKERNEL kernel = Mmu->hardware->kernel;
     gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
-    gcePOOL pool = gcdMMU_PGTABLE_POOL;
+    gcePOOL pool = Mmu->pool;
     gctUINT32 address;
     gctUINT32 mtlbEntry;
     gctUINT32 i;
@@ -1621,7 +1638,7 @@ _Construct(
     mmu->enabled          = gcvFALSE;
 
     mmu->dynamicAreaSetuped = gcvFALSE;
-
+    mmu->pool = _GetPageTablePool(mmu->os);
     gcsLIST_Init(&mmu->hardwareList);
 
     /* Use 4K page size for MMU version 0. */
@@ -1645,7 +1662,7 @@ _Construct(
 
         area->mapLogical = pointer;
 
-        pool = gcdMMU_PGTABLE_POOL;
+        pool = mmu->pool;
 
 #if gcdENABLE_CACHEABLE_COMMAND_BUFFER
         allocFlag |= gcvALLOC_FLAG_CACHEABLE;
@@ -1722,7 +1739,7 @@ _Construct(
     {
         mmu->mtlbSize = gcdMMU_MTLB_SIZE;
 
-        pool = gcdMMU_PGTABLE_POOL;
+        pool = mmu->pool;
 
 #if gcdENABLE_CACHEABLE_COMMAND_BUFFER
         allocFlag |= gcvALLOC_FLAG_CACHEABLE;
@@ -1787,6 +1804,7 @@ _Construct(
             gcmkONERROR(_FillFlatMapping(mmu, gpuAddress, physSize, gcvFALSE, gcvFALSE, gcvNULL));
         }
 
+#if !(0 || gcdCAPTURE_ONLY_MODE)
         if (!_ReadPageEntry(mmu->mtlbLogical + 0))
         {
             gctUINT32 mtlbEntry;
@@ -1813,6 +1831,7 @@ _Construct(
             mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].flag  = gcvFLATMAP_DIRECT;
             mmu->gpuAddressRangeCount++;
         }
+#endif
 
         status = gckOS_QueryOption(mmu->os, "contiguousBase", &contiguousBase);
 
@@ -1867,14 +1886,14 @@ _Construct(
     /* A 64 byte for safe address, we use 256 here. */
     mmu->safePageSize = 256;
 
-    pool = gcdMMU_PGTABLE_POOL;
+    pool = mmu->pool;
 
     /* Allocate safe page from video memory. */
     gcmkONERROR(gckKERNEL_AllocateVideoMemory(
         Kernel,
         256,
         gcvVIDMEM_TYPE_COMMAND,
-        gcvALLOC_FLAG_CONTIGUOUS | gcvALLOC_FLAG_4K_PAGES,
+        gcvALLOC_FLAG_CONTIGUOUS | gcvALLOC_FLAG_4K_PAGES | gcvALLOC_FLAG_4GB_ADDR,
         &mmu->safePageSize,
         &pool,
         &mmu->safePageVideoMem
@@ -3136,6 +3155,8 @@ gckMMU_SetupSRAM(
                 reservedBase = Device->sRAMBases[i][j];
                 reservedSize = Device->sRAMSizes[i][j];
 
+                Device->sRAMBaseAddresses[i][j] = 0;
+
                 needMapInternalSRAM = reservedSize && (reservedBase != gcvINVALID_PHYSICAL_ADDRESS);
 
                 /* Map the internal SRAM. */
@@ -3154,9 +3175,6 @@ gckMMU_SetupSRAM(
                      * Default gpu virtual base = 0.
                      * It can be specified if not conflict with existing mapping.
                      */
-
-                    Device->sRAMBaseAddresses[i][j] = 0;
-
                     gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(
                         Mmu->os,
                         reservedBase,
@@ -3190,7 +3208,9 @@ gckMMU_SetupSRAM(
                     Device->sRAMPhysFaked[i][j] = gcvTRUE;
                 }
 
-                Hardware->options.sRAMGPUVirtAddrs[j] = Device->sRAMBaseAddresses[i][j];
+#if gcdCAPTURE_ONLY_MODE
+                Device->sRAMPhysFaked[i][j] = gcvTRUE;
+#endif
             }
         }
 
@@ -3203,42 +3223,24 @@ gckMMU_SetupSRAM(
 
                 Device->extSRAMBaseAddresses[i] = 0;
 
-                Hardware->options.extSRAMCPUPhysAddrs[i] = Device->extSRAMBases[i];
-
                 gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(
                     Mmu->os,
                     Device->extSRAMBases[i],
-                    &Device->extSRAMBases[i]
+                    &Device->extSRAMGPUBases[i]
                     ));
-
-                Hardware->options.extSRAMGPUPhysAddrs[i] = Device->extSRAMBases[i];
 
                 gcmkONERROR(_FillFlatMapping(
                     Mmu,
-                    Device->extSRAMBases[i],
+                    Device->extSRAMGPUBases[i],
                     Device->extSRAMSizes[i],
                     gcvFALSE,
                     gcvTRUE,
                     &Device->extSRAMBaseAddresses[i]
                     ));
 
-                kernel->extSRAMBaseAddresses[i] = Device->extSRAMBaseAddresses[i];
-
-                Hardware->options.extSRAMGPUVirtAddrs[i] = Device->extSRAMBaseAddresses[i];
-                Hardware->options.extSRAMSizes[i] = Device->extSRAMSizes[i];
-
-                if (Device->showSRAMMapInfo)
-                {
-                    gcmkPRINT("Galcore Info: MMU mapped external shared SRAM[%d] CPU base=0x%llx GPU virtual address=0x%x size=0x%x",
-                        i,
-                        Device->extSRAMBases[i],
-                        kernel->extSRAMBaseAddresses[i],
-                        Device->extSRAMSizes[i]
-                        );
-                }
+                Device->extSRAMGPUPhysNames[i] = gckKERNEL_AllocateNameFromPointer(kernel, Device->extSRAMPhysical[i]);
             }
         }
-
         Mmu->sRAMMapped = gcvTRUE;
     }
 
@@ -3246,13 +3248,14 @@ gckMMU_SetupSRAM(
     for (i = gcvSRAM_INTERNAL0; i < gcvSRAM_INTER_COUNT; i++)
     {
         if (Device->sRAMSizes[Hardware->core][i] &&
-           (Device->sRAMBases[Hardware->core][i] != gcvINVALID_PHYSICAL_ADDRESS))
+           (Device->sRAMBaseAddresses[Hardware->core][i]))
         {
             kernel->sRAMBaseAddresses[i] = Device->sRAMBaseAddresses[Hardware->core][i];
             kernel->sRAMSizes[i] = Hardware->options.sRAMSizes[i]
                                  = Device->sRAMSizes[Hardware->core][i];
 
             kernel->sRAMPhysFaked[i] = Device->sRAMPhysFaked[Hardware->core][i];
+            Hardware->options.sRAMGPUVirtAddrs[i] = Device->sRAMBaseAddresses[Hardware->core][i];
 
             /* If the internal SRAM usage is reserve. */
             if (kernel->sRAMPhysFaked[i])
@@ -3294,6 +3297,32 @@ gckMMU_SetupSRAM(
                     i,
                     kernel->sRAMBaseAddresses[i],
                     kernel->sRAMSizes[i]
+                    );
+            }
+        }
+    }
+
+    for (i = gcvSRAM_EXTERNAL0; i < gcvSRAM_EXT_COUNT; i++)
+    {
+        if (Device->extSRAMSizes[i] &&
+            (Device->extSRAMBases[i] != gcvINVALID_PHYSICAL_ADDRESS))
+        {
+            kernel->extSRAMBaseAddresses[i] = Device->extSRAMBaseAddresses[i];
+
+            Hardware->options.extSRAMGPUVirtAddrs[i] = Device->extSRAMBaseAddresses[i];
+            Hardware->options.extSRAMSizes[i]        = Device->extSRAMSizes[i];
+            Hardware->options.extSRAMCPUPhysAddrs[i] = Device->extSRAMBases[i];
+            Hardware->options.extSRAMGPUPhysAddrs[i] = Device->extSRAMGPUBases[i];
+            Hardware->options.extSRAMGPUPhysNames[i] = Device->extSRAMGPUPhysNames[i];
+
+            if (Device->showSRAMMapInfo)
+            {
+                gcmkPRINT("Galcore Info: MMU mapped external shared SRAM[%d] CPU view base=0x%llx GPU view base=0x%llx GPU virtual address=0x%x size=0x%x",
+                    i,
+                    Device->extSRAMBases[i],
+                    Device->extSRAMGPUBases[i],
+                    kernel->extSRAMBaseAddresses[i],
+                    Device->extSRAMSizes[i]
                     );
             }
         }
