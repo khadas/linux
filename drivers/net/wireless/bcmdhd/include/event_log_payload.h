@@ -4,14 +4,14 @@
  * This file describes the payloads of event log entries that are data buffers
  * rather than formatted string entries. The contents are generally XTLVs.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -19,7 +19,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -27,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: event_log_payload.h 700076 2017-05-17 14:42:22Z $
+ * $Id: event_log_payload.h 825102 2019-06-12 22:26:41Z $
  */
 
 #ifndef _EVENT_LOG_PAYLOAD_H_
@@ -37,6 +37,35 @@
 #include <bcmutils.h>
 #include <ethernet.h>
 #include <event_log_tag.h>
+
+/**
+ * A (legacy) timestamp message
+ */
+typedef struct ts_message {
+	uint32 timestamp;
+	uint32 cyclecount;
+} ts_msg_t;
+
+/**
+ * Enhanced timestamp message
+ */
+typedef struct enhanced_ts_message {
+	uint32 version;
+	/* More data, depending on version */
+	uint8 data[];
+} ets_msg_t;
+
+#define ENHANCED_TS_MSG_VERSION_1 (1u)
+
+/**
+ * Enhanced timestamp message, version 1
+ */
+typedef struct enhanced_ts_message_v1 {
+	uint32 version;
+	uint32 timestamp; /* PMU time, in milliseconds */
+	uint32 cyclecount;
+	uint32 cpu_freq;
+} ets_msg_v1_t;
 
 #define EVENT_LOG_XTLV_ID_STR                   0  /**< XTLV ID for a string */
 #define EVENT_LOG_XTLV_ID_TXQ_SUM               1  /**< XTLV ID for txq_summary_t */
@@ -125,7 +154,6 @@ typedef struct scb_subq_summary {
 #define SCBDATA_APPS_F_OFF_BLOCKED      0x00000200
 #define SCBDATA_APPS_F_OFF_IN_PROG      0x00000400
 
-
 /**
  * Summary for tx datapath AMPDU SCB cubby
  * This is a specific data structure to describe the AMPDU datapath state for an SCB
@@ -187,16 +215,19 @@ typedef struct xtlv_uc_txs {
 /* Scan flags */
 #define SCAN_SUM_CHAN_INFO	0x1
 /* Scan_sum flags */
-#define BAND5G_SIB_ENAB	0x2
-#define BAND2G_SIB_ENAB	0x4
-#define PARALLEL_SCAN	0x8
-#define SCAN_ABORT	0x10
+#define BAND5G_SIB_ENAB		0x2
+#define BAND2G_SIB_ENAB		0x4
+#define PARALLEL_SCAN		0x8
+#define SCAN_ABORT		0x10
+#define SC_LOWSPAN_SCAN		0x20
+#define SC_SCAN			0x40
 
 /* scan_channel_info flags */
 #define ACTIVE_SCAN_SCN_SUM	0x2
 #define SCAN_SUM_WLC_CORE0	0x4
 #define SCAN_SUM_WLC_CORE1	0x8
-#define HOME_CHAN	0x10
+#define HOME_CHAN		0x10
+#define SCAN_SUM_SCAN_CORE	0x20
 
 typedef struct wl_scan_ssid_info
 {
@@ -281,47 +312,73 @@ typedef struct wl_chansw_event_log_record {
 	int32 dwell_time;
 } wl_chansw_event_log_record_t;
 
+typedef struct wl_chansw_event_log_record_v2 {
+	uint32 time;			/* Time in us */
+	uint32 old_chanspec;		/* Old channel spec */
+	uint32 new_chanspec;		/* New channel spec */
+	uint32 chansw_reason;		/* Reason for channel change */
+	int32 dwell_time;
+	uint32 core;
+	int32 phychanswtime;		/* channel switch time */
+} wl_chansw_event_log_record_v2_t;
+
 /* Sub-block type for EVENT_LOG_TAG_AMPDU_DUMP */
-#define WL_AMPDU_STATS_TYPE_RXMCSx1	0	/* RX MCS rate (Nss = 1) */
-#define WL_AMPDU_STATS_TYPE_RXMCSx2	1
-#define WL_AMPDU_STATS_TYPE_RXMCSx3	2
-#define WL_AMPDU_STATS_TYPE_RXMCSx4	3
-#define WL_AMPDU_STATS_TYPE_RXVHTx1	4	/* RX VHT rate (Nss = 1) */
-#define WL_AMPDU_STATS_TYPE_RXVHTx2	5
-#define WL_AMPDU_STATS_TYPE_RXVHTx3	6
-#define WL_AMPDU_STATS_TYPE_RXVHTx4	7
-#define WL_AMPDU_STATS_TYPE_TXMCSx1	8	/* TX MCS rate (Nss = 1) */
-#define WL_AMPDU_STATS_TYPE_TXMCSx2	9
-#define WL_AMPDU_STATS_TYPE_TXMCSx3	10
-#define WL_AMPDU_STATS_TYPE_TXMCSx4	11
-#define WL_AMPDU_STATS_TYPE_TXVHTx1	12	/* TX VHT rate (Nss = 1) */
-#define WL_AMPDU_STATS_TYPE_TXVHTx2	13
-#define WL_AMPDU_STATS_TYPE_TXVHTx3	14
-#define WL_AMPDU_STATS_TYPE_TXVHTx4	15
-#define WL_AMPDU_STATS_TYPE_RXMCSSGI	16	/* RX SGI usage (for all MCS rates) */
-#define WL_AMPDU_STATS_TYPE_TXMCSSGI	17	/* TX SGI usage (for all MCS rates) */
-#define WL_AMPDU_STATS_TYPE_RXVHTSGI	18	/* RX SGI usage (for all VHT rates) */
-#define WL_AMPDU_STATS_TYPE_TXVHTSGI	19	/* TX SGI usage (for all VHT rates) */
-#define WL_AMPDU_STATS_TYPE_RXMCSPER	20	/* RX PER (for all MCS rates) */
-#define WL_AMPDU_STATS_TYPE_TXMCSPER	21	/* TX PER (for all MCS rates) */
-#define WL_AMPDU_STATS_TYPE_RXVHTPER	22	/* RX PER (for all VHT rates) */
-#define WL_AMPDU_STATS_TYPE_TXVHTPER	23	/* TX PER (for all VHT rates) */
-#define WL_AMPDU_STATS_TYPE_RXDENS	24	/* RX AMPDU density */
-#define WL_AMPDU_STATS_TYPE_TXDENS	25	/* TX AMPDU density */
-#define WL_AMPDU_STATS_TYPE_RXMCSOK	26	/* RX all MCS rates */
-#define WL_AMPDU_STATS_TYPE_RXVHTOK	27	/* RX all VHT rates */
-#define WL_AMPDU_STATS_TYPE_TXMCSALL	28	/* TX all MCS rates */
-#define WL_AMPDU_STATS_TYPE_TXVHTALL	29	/* TX all VHT rates */
-#define WL_AMPDU_STATS_TYPE_TXMCSOK	30	/* TX all MCS rates */
-#define WL_AMPDU_STATS_TYPE_TXVHTOK	31	/* TX all VHT rates */
-
-#define WL_AMPDU_STATS_MAX_CNTS		64
-
+typedef enum {
+	WL_AMPDU_STATS_TYPE_RXMCSx1		= 0,	/* RX MCS rate (Nss = 1) */
+	WL_AMPDU_STATS_TYPE_RXMCSx2		= 1,
+	WL_AMPDU_STATS_TYPE_RXMCSx3		= 2,
+	WL_AMPDU_STATS_TYPE_RXMCSx4		= 3,
+	WL_AMPDU_STATS_TYPE_RXVHTx1		= 4,	/* RX VHT rate (Nss = 1) */
+	WL_AMPDU_STATS_TYPE_RXVHTx2		= 5,
+	WL_AMPDU_STATS_TYPE_RXVHTx3		= 6,
+	WL_AMPDU_STATS_TYPE_RXVHTx4		= 7,
+	WL_AMPDU_STATS_TYPE_TXMCSx1		= 8,	/* TX MCS rate (Nss = 1) */
+	WL_AMPDU_STATS_TYPE_TXMCSx2		= 9,
+	WL_AMPDU_STATS_TYPE_TXMCSx3		= 10,
+	WL_AMPDU_STATS_TYPE_TXMCSx4		= 11,
+	WL_AMPDU_STATS_TYPE_TXVHTx1		= 12,	/* TX VHT rate (Nss = 1) */
+	WL_AMPDU_STATS_TYPE_TXVHTx2		= 13,
+	WL_AMPDU_STATS_TYPE_TXVHTx3		= 14,
+	WL_AMPDU_STATS_TYPE_TXVHTx4		= 15,
+	WL_AMPDU_STATS_TYPE_RXMCSSGI		= 16,	/* RX SGI usage (for all MCS rates) */
+	WL_AMPDU_STATS_TYPE_TXMCSSGI		= 17,	/* TX SGI usage (for all MCS rates) */
+	WL_AMPDU_STATS_TYPE_RXVHTSGI		= 18,	/* RX SGI usage (for all VHT rates) */
+	WL_AMPDU_STATS_TYPE_TXVHTSGI		= 19,	/* TX SGI usage (for all VHT rates) */
+	WL_AMPDU_STATS_TYPE_RXMCSPER		= 20,	/* RX PER (for all MCS rates) */
+	WL_AMPDU_STATS_TYPE_TXMCSPER		= 21,	/* TX PER (for all MCS rates) */
+	WL_AMPDU_STATS_TYPE_RXVHTPER		= 22,	/* RX PER (for all VHT rates) */
+	WL_AMPDU_STATS_TYPE_TXVHTPER		= 23,	/* TX PER (for all VHT rates) */
+	WL_AMPDU_STATS_TYPE_RXDENS		= 24,	/* RX AMPDU density */
+	WL_AMPDU_STATS_TYPE_TXDENS		= 25,	/* TX AMPDU density */
+	WL_AMPDU_STATS_TYPE_RXMCSOK		= 26,	/* RX all MCS rates */
+	WL_AMPDU_STATS_TYPE_RXVHTOK		= 27,	/* RX all VHT rates */
+	WL_AMPDU_STATS_TYPE_TXMCSALL		= 28,	/* TX all MCS rates */
+	WL_AMPDU_STATS_TYPE_TXVHTALL		= 29,	/* TX all VHT rates */
+	WL_AMPDU_STATS_TYPE_TXMCSOK		= 30,	/* TX all MCS rates */
+	WL_AMPDU_STATS_TYPE_TXVHTOK		= 31,	/* TX all VHT rates */
+	WL_AMPDU_STATS_TYPE_RX_HE_SUOK		= 32,	/* DL SU MPDU frame per MCS */
+	WL_AMPDU_STATS_TYPE_RX_HE_SU_DENS	= 33,	/* DL SU AMPDU DENSITY */
+	WL_AMPDU_STATS_TYPE_RX_HE_MUMIMOOK	= 34,	/* DL MUMIMO Frame per MCS */
+	WL_AMPDU_STATS_TYPE_RX_HE_MUMIMO_DENS	= 35,	/* DL MUMIMO AMPDU Density */
+	WL_AMPDU_STATS_TYPE_RX_HE_DLOFDMAOK	= 36,	/* DL OFDMA Frame per MCS */
+	WL_AMPDU_STATS_TYPE_RX_HE_DLOFDMA_DENS	= 37,	/* DL OFDMA AMPDU Density */
+	WL_AMPDU_STATS_TYPE_RX_HE_DLOFDMA_HIST	= 38,	/* DL OFDMA frame RU histogram */
+	WL_AMPDU_STATS_TYPE_TX_HE_MCSALL	= 39,	/* TX HE (SU+MU) frames, all rates */
+	WL_AMPDU_STATS_TYPE_TX_HE_MCSOK		= 40,	/* TX HE (SU+MU) frames succeeded */
+	WL_AMPDU_STATS_TYPE_TX_HE_MUALL		= 41,	/* TX MU (UL OFDMA) frames all rates */
+	WL_AMPDU_STATS_TYPE_TX_HE_MUOK		= 42,	/* TX MU (UL OFDMA) frames succeeded */
+	WL_AMPDU_STATS_TYPE_TX_HE_RUBW		= 43,	/* TX UL RU by BW histogram */
+	WL_AMPDU_STATS_TYPE_TX_HE_PADDING	= 44,	/* TX padding total (single value) */
+	WL_AMPDU_STATS_MAX_CNTS			= 64
+} wl_ampdu_stat_enum_t;
 typedef struct {
 	uint16	type;		/* AMPDU statistics sub-type */
 	uint16	len;		/* Number of 32-bit counters */
 	uint32	counters[WL_AMPDU_STATS_MAX_CNTS];
 } wl_ampdu_stats_generic_t;
+
+typedef wl_ampdu_stats_generic_t wl_ampdu_stats_rx_t;
+typedef wl_ampdu_stats_generic_t wl_ampdu_stats_tx_t;
 
 typedef struct {
 	uint16	type;		/* AMPDU statistics sub-type */
@@ -330,6 +387,14 @@ typedef struct {
 	uint32	total_mpdu;
 	uint32	aggr_dist[WL_AMPDU_STATS_MAX_CNTS + 1];
 } wl_ampdu_stats_aggrsz_t;
+
+/* Sub-block type for WL_IFSTATS_XTLV_HE_TXMU_STATS */
+typedef enum {
+	/* Reserve 0 to avoid potential concerns */
+	WL_HE_TXMU_STATS_TYPE_TIME		= 1,	/* per-dBm, total usecs transmitted */
+	WL_HE_TXMU_STATS_TYPE_PAD_TIME		= 2,	/* per-dBm, padding usecs transmitted */
+} wl_he_txmu_stat_enum_t;
+#define WL_IFSTATS_HE_TXMU_MAX	32u
 
 /* Sub-block type for EVENT_LOG_TAG_MSCHPROFILE */
 #define WL_MSCH_PROFILER_START		0	/* start event check */
@@ -669,5 +734,283 @@ typedef struct msch_register_params	{
 	uint32 chanspec_cnt;
 	uint16 chanspec_list[WL_MSCH_NUMCHANNELS];
 } msch_register_params_t;
+
+typedef struct {
+	uint32	txallfrm;	/**< total number of frames sent, incl. Data, ACK, RTS, CTS,
+				* Control Management (includes retransmissions)
+				*/
+	uint32	rxrsptmout;	/**< number of response timeouts for transmitted frames
+				* expecting a response
+				*/
+	uint32	rxstrt;		/**< number of received frames with a good PLCP */
+	uint32  rxbadplcp;	/**< number of parity check of the PLCP header failed */
+	uint32  rxcrsglitch;	/**< PHY was able to correlate the preamble but not the header */
+	uint32  rxnodelim;	/**< number of no valid delimiter detected by ampdu parser */
+	uint32  bphy_badplcp;	/**< number of bad PLCP reception on BPHY rate */
+	uint32  bphy_rxcrsglitch;	/**< PHY count of bphy glitches */
+	uint32  rxbadfcs;	/**< number of frames for which the CRC check failed in the MAC */
+	uint32	rxanyerr;	/**< Any RX error that is not counted by other counters. */
+	uint32	rxbeaconmbss;	/**< beacons received from member of BSS */
+	uint32	rxdtucastmbss;	/**< number of received DATA frames with good FCS and matching RA */
+	uint32	rxdtocast;	/**< number of received DATA frames (good FCS and no matching RA) */
+	uint32  rxtoolate;	/**< receive too late */
+	uint32  goodfcs;        /**< Good fcs counters  */
+	uint32  rxf0ovfl;	/** < Rx FIFO0 overflow counters information */
+	uint32  rxf1ovfl;	/** < Rx FIFO1 overflow counters information */
+} phy_periodic_counters_v1_t;
+
+typedef struct phycal_log_cmn {
+	uint16 chanspec; /* Current phy chanspec */
+	uint8  last_cal_reason;  /* Last Cal Reason */
+	uint8  pad1;  /* Padding byte to align with word */
+	uint   last_cal_time; /* Last cal time in sec */
+} phycal_log_cmn_t;
+
+typedef struct phycal_log_core {
+	uint16 ofdm_txa; /* OFDM Tx IQ Cal a coeff */
+	uint16 ofdm_txb; /* OFDM Tx IQ Cal b coeff */
+	uint16 ofdm_txd; /* contain di & dq */
+	uint16 bphy_txa; /* BPHY Tx IQ Cal a coeff */
+	uint16 bphy_txb; /* BPHY Tx IQ Cal b coeff */
+	uint16 bphy_txd; /* contain di & dq */
+
+	uint16 rxa; /* Rx IQ Cal A coeffecient */
+	uint16 rxb; /* Rx IQ Cal B coeffecient */
+	int32 rxs;  /* FDIQ Slope coeffecient */
+
+	uint8 baseidx; /* TPC Base index */
+	uint8 adc_coeff_cap0_adcI; /* ADC CAP Cal Cap0 I */
+	uint8 adc_coeff_cap1_adcI; /* ADC CAP Cal Cap1 I */
+	uint8 adc_coeff_cap2_adcI; /* ADC CAP Cal Cap2 I */
+	uint8 adc_coeff_cap0_adcQ; /* ADC CAP Cal Cap0 Q */
+	uint8 adc_coeff_cap1_adcQ; /* ADC CAP Cal Cap1 Q */
+	uint8 adc_coeff_cap2_adcQ; /* ADC CAP Cal Cap2 Q */
+	uint8 pad; /* Padding byte to align with word */
+} phycal_log_core_t;
+
+#define PHYCAL_LOG_VER1         (1u)
+
+typedef struct phycal_log_v1 {
+	uint8  version; /* Logging structure version */
+	uint8  numcores; /* Numbe of cores for which core specific data present */
+	uint16 length;  /* Length of the entire structure */
+	phycal_log_cmn_t phycal_log_cmn; /* Logging common structure */
+	/* This will be a variable length based on the numcores field defined above */
+	phycal_log_core_t phycal_log_core[1];
+} phycal_log_v1_t;
+
+typedef struct phy_periodic_log_cmn {
+	uint16  chanspec; /* Current phy chanspec */
+	uint16  vbatmeas; /* Measured VBAT sense value */
+	uint16  featureflag; /* Currently active feature flags */
+	int8    chiptemp; /* Chip temparature */
+	int8    femtemp;  /* Fem temparature */
+
+	uint32  nrate; /* Current Tx nrate */
+
+	uint8   cal_phase_id; /* Current Multi phase cal ID */
+	uint8   rxchain; /* Rx Chain */
+	uint8   txchain; /* Tx Chain */
+	uint8   ofdm_desense; /* OFDM desense */
+
+	uint8   bphy_desense; /* BPHY desense */
+	uint8   pll_lockstatus; /* PLL Lock status */
+	uint8   pad1; /* Padding byte to align with word */
+	uint8   pad2; /* Padding byte to align with word */
+
+	uint32 duration;	/**< millisecs spent sampling this channel */
+	uint32 congest_ibss;	/**< millisecs in our bss (presumably this traffic will */
+				/**<  move if cur bss moves channels) */
+	uint32 congest_obss;	/**< traffic not in our bss */
+	uint32 interference;	/**< millisecs detecting a non 802.11 interferer. */
+
+} phy_periodic_log_cmn_t;
+
+typedef struct phy_periodic_log_core {
+	uint8	baseindxval; /* TPC Base index */
+	int8	tgt_pwr; /* Programmed Target power */
+	int8	estpwradj; /* Current Est Power Adjust value */
+	int8	crsmin_pwr; /* CRS Min/Noise power */
+	int8	rssi_per_ant; /* RSSI Per antenna */
+	int8	snr_per_ant; /* SNR Per antenna */
+	int8	pad1; /* Padding byte to align with word */
+	int8	pad2; /* Padding byte to align with word */
+} phy_periodic_log_core_t;
+
+#define PHY_PERIODIC_LOG_VER1         (1u)
+
+typedef struct phy_periodic_log_v1 {
+	uint8  version; /* Logging structure version */
+	uint8  numcores; /* Numbe of cores for which core specific data present */
+	uint16 length;  /* Length of the entire structure */
+	phy_periodic_log_cmn_t phy_perilog_cmn;
+	phy_periodic_counters_v1_t counters_peri_log;
+	/* This will be a variable length based on the numcores field defined above */
+	phy_periodic_log_core_t phy_perilog_core[1];
+} phy_periodic_log_v1_t;
+
+/* Note: The version 2 is reserved for 4357 only. Future chips must not use this version. */
+
+#define MAX_CORE_4357		(2u)
+#define PHYCAL_LOG_VER2		(2u)
+#define PHY_PERIODIC_LOG_VER2	(2u)
+
+typedef struct {
+	uint32	txallfrm;	/**< total number of frames sent, incl. Data, ACK, RTS, CTS,
+				* Control Management (includes retransmissions)
+				*/
+	uint32	rxrsptmout;	/**< number of response timeouts for transmitted frames
+				* expecting a response
+				*/
+	uint32	rxstrt;		/**< number of received frames with a good PLCP */
+	uint32  rxbadplcp;	/**< number of parity check of the PLCP header failed */
+	uint32  rxcrsglitch;	/**< PHY was able to correlate the preamble but not the header */
+	uint32  bphy_badplcp;	/**< number of bad PLCP reception on BPHY rate */
+	uint32  bphy_rxcrsglitch;	/**< PHY count of bphy glitches */
+	uint32	rxbeaconmbss;	/**< beacons received from member of BSS */
+	uint32	rxdtucastmbss;	/**< number of received DATA frames with good FCS and matching RA */
+	uint32  rxf0ovfl;	/** < Rx FIFO0 overflow counters information */
+	uint32  rxf1ovfl;	/** < Rx FIFO1 overflow counters information */
+	uint32	rxdtocast;	/**< number of received DATA frames (good FCS and no matching RA) */
+	uint32  rxtoolate;	/**< receive too late */
+	uint32  rxbadfcs;	/**< number of frames for which the CRC check failed in the MAC */
+} phy_periodic_counters_v2_t;
+
+/* Note: The version 2 is reserved for 4357 only. All future chips must not use this version. */
+
+typedef struct phycal_log_core_v2 {
+	uint16 ofdm_txa; /* OFDM Tx IQ Cal a coeff */
+	uint16 ofdm_txb; /* OFDM Tx IQ Cal b coeff */
+	uint16 ofdm_txd; /* contain di & dq */
+	uint16 rxa; /* Rx IQ Cal A coeffecient */
+	uint16 rxb; /* Rx IQ Cal B coeffecient */
+	uint8 baseidx; /* TPC Base index */
+	uint8 pad;
+	int32 rxs; /* FDIQ Slope coeffecient */
+} phycal_log_core_v2_t;
+
+/* Note: The version 2 is reserved for 4357 only. All future chips must not use this version. */
+
+typedef struct phycal_log_v2 {
+	uint8  version; /* Logging structure version */
+	uint16 length;  /* Length of the entire structure */
+	uint8 pad;
+	phycal_log_cmn_t phycal_log_cmn; /* Logging common structure */
+	phycal_log_core_v2_t phycal_log_core[MAX_CORE_4357];
+} phycal_log_v2_t;
+
+/* Note: The version 2 is reserved for 4357 only. All future chips must not use this version. */
+
+typedef struct phy_periodic_log_v2 {
+	uint8  version; /* Logging structure version */
+	uint16 length;  /* Length of the entire structure */
+	uint8 pad;
+	phy_periodic_log_cmn_t phy_perilog_cmn;
+	phy_periodic_counters_v2_t counters_peri_log;
+	phy_periodic_log_core_t phy_perilog_core[MAX_CORE_4357];
+} phy_periodic_log_v2_t;
+
+/* Event log payload for enhanced roam log */
+typedef enum {
+	ROAM_LOG_SCANSTART = 1,		/* EVT log for roam scan start */
+	ROAM_LOG_SCAN_CMPLT = 2,	/* EVT log for roam scan completeted */
+	ROAM_LOG_ROAM_CMPLT = 3,	/* EVT log for roam done */
+	ROAM_LOG_NBR_REQ = 4,		/* EVT log for Neighbor REQ */
+	ROAM_LOG_NBR_REP = 5,		/* EVT log for Neighbor REP */
+	ROAM_LOG_BCN_REQ = 6,		/* EVT log for BCNRPT REQ */
+	ROAM_LOG_BCN_REP = 7,		/* EVT log for BCNRPT REP */
+	PRSV_PERIODIC_ID_MAX
+} prsv_periodic_id_enum_t;
+
+typedef struct prsv_periodic_log_hdr {
+	uint8 version;
+	uint8 id;
+	uint16 length;
+} prsv_periodic_log_hdr_t;
+
+#define ROAM_LOG_VER_1	(1u)
+#define ROAM_LOG_TRIG_VER	(1u)
+#define ROAM_SSID_LEN	(32u)
+typedef struct roam_log_trig_v1 {
+	prsv_periodic_log_hdr_t hdr;
+	int8 rssi;
+	uint8 current_cu;
+	uint8 pad[2];
+	uint reason;
+	int result;
+	union {
+		struct {
+			uint rcvd_reason;
+		} prt_roam;
+		struct {
+			uint8 req_mode;
+			uint8 token;
+			uint16 nbrlist_size;
+			uint32 disassoc_dur;
+			uint32 validity_dur;
+			uint32 bss_term_dur;
+		} bss_trans;
+	};
+} roam_log_trig_v1_t;
+
+#define ROAM_LOG_RPT_SCAN_LIST_SIZE 3
+#define ROAM_LOG_INVALID_TPUT 0xFFFFFFFFu
+typedef struct roam_scan_ap_info {
+	int8 rssi;
+	uint8 pad[3];
+	uint32 score;
+	uint16 chanspec;
+	struct ether_addr addr;
+	uint32 estm_tput;
+} roam_scan_ap_info_t;
+
+typedef struct roam_log_scan_cmplt_v1 {
+	prsv_periodic_log_hdr_t hdr;
+	uint8 full_scan;
+	uint8 scan_count;
+	uint8 scan_list_size;
+	uint8 pad;
+	int32 score_delta;
+	roam_scan_ap_info_t cur_info;
+	roam_scan_ap_info_t scan_list[ROAM_LOG_RPT_SCAN_LIST_SIZE];
+} roam_log_scan_cmplt_v1_t;
+
+typedef struct roam_log_cmplt_v1 {
+	prsv_periodic_log_hdr_t hdr;
+	uint status;
+	uint reason;
+	uint16	chanspec;
+	struct ether_addr addr;
+	uint8 pad[3];
+	uint8 retry;
+} roam_log_cmplt_v1_t;
+
+typedef struct roam_log_nbrrep {
+	prsv_periodic_log_hdr_t hdr;
+	uint channel_num;
+} roam_log_nbrrep_v1_t;
+
+typedef struct roam_log_nbrreq {
+	prsv_periodic_log_hdr_t hdr;
+	uint token;
+} roam_log_nbrreq_v1_t;
+
+typedef struct roam_log_bcnrptreq {
+	prsv_periodic_log_hdr_t hdr;
+	int32 result;
+	uint8 reg;
+	uint8 channel;
+	uint8 mode;
+	uint8 bssid_wild;
+	uint8 ssid_len;
+	uint8 pad;
+	uint16 duration;
+	uint8 ssid[ROAM_SSID_LEN];
+} roam_log_bcnrpt_req_v1_t;
+
+typedef struct roam_log_bcnrptrep {
+	prsv_periodic_log_hdr_t hdr;
+	uint32 count;
+} roam_log_bcnrpt_rep_v1_t;
 
 #endif /* _EVENT_LOG_PAYLOAD_H_ */

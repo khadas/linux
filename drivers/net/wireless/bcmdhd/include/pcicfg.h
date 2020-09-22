@@ -1,14 +1,14 @@
 /*
  * pcicfg.h: PCI configuration constants and structures.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,12 +24,11 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: pcicfg.h 621340 2016-02-25 12:26:40Z $
+ * $Id: pcicfg.h 795237 2018-12-18 03:26:49Z $
  */
 
 #ifndef	_h_pcicfg_
 #define	_h_pcicfg_
-
 
 /* pci config status reg has a bit to indicate that capability ptr is present */
 
@@ -57,11 +56,7 @@
 * 0x18 as per the PCIe full dongle spec. Need to modify the values below
 * correctly at a later point of time
 */
-#ifdef DHD_EFI
-#define	PCI_CFG_BAR1		0x18
-#else
 #define	PCI_CFG_BAR1		0x14
-#endif /* DHD_EFI */
 #define	PCI_CFG_BAR2		0x18
 #define	PCI_CFG_BAR3		0x1c
 #define	PCI_CFG_BAR4		0x20
@@ -78,12 +73,12 @@
 #define	PCI_CFG_DEVCTRL		0xd8
 #define PCI_CFG_TLCNTRL_5	0x814
 
-
 /* PCI CAPABILITY DEFINES */
 #define PCI_CAP_POWERMGMTCAP_ID		0x01
 #define PCI_CAP_MSICAP_ID		0x05
 #define PCI_CAP_VENDSPEC_ID		0x09
 #define PCI_CAP_PCIECAP_ID		0x10
+#define PCI_CAP_MSIXCAP_ID		0x11
 
 /* Data structure to define the Message Signalled Interrupt facility
  * Valid for PCI and PCIE configurations
@@ -141,11 +136,13 @@ typedef struct _pciconfig_cap_pcie {
 
 /* PCIE Extended configuration */
 #define PCIE_ADV_CORR_ERR_MASK	0x114
+#define PCIE_ADV_CORR_ERR_MASK_OFFSET	0x14
 #define CORR_ERR_RE	(1 << 0) /* Receiver  */
-#define CORR_ERR_BT 	(1 << 6) /* Bad TLP  */
+#define CORR_ERR_BT	(1 << 6) /* Bad TLP  */
 #define CORR_ERR_BD	(1 << 7) /* Bad DLLP */
 #define CORR_ERR_RR	(1 << 8) /* REPLAY_NUM rollover */
 #define CORR_ERR_RT	(1 << 12) /* Reply timer timeout */
+#define CORR_ERR_AE	(1 << 13) /* Adviosry Non-Fital Error Mask */
 #define ALL_CORR_ERRORS (CORR_ERR_RE | CORR_ERR_BT | CORR_ERR_BD | \
 			 CORR_ERR_RR | CORR_ERR_RT)
 
@@ -159,6 +156,9 @@ typedef struct _pciconfig_cap_pcie {
 /* PCIE Root Capability Register bits (Host mode only) */
 #define	PCIE_RC_CRS_VISIBILITY		0x0001
 
+/* PCIe PMCSR Register bits */
+#define PCIE_PMCSR_PMESTAT		0x8000
+
 /* Header to define the PCIE specific capabilities in the extended config space */
 typedef struct _pcie_enhanced_caphdr {
 	uint16	capID;
@@ -166,10 +166,11 @@ typedef struct _pcie_enhanced_caphdr {
 	uint16	next_ptr : 12;
 } pcie_enhanced_caphdr;
 
-
+#define PCIE_CFG_PMCSR		0x4C
 #define	PCI_BAR0_WIN		0x80	/* backplane addres space accessed by BAR0 */
 #define	PCI_BAR1_WIN		0x84	/* backplane addres space accessed by BAR1 */
 #define	PCI_SPROM_CONTROL	0x88	/* sprom property control */
+#define	PCIE_CFG_SUBSYSTEM_CONTROL	0x88	/* used as subsystem control in PCIE devices */
 #define	PCI_BAR1_CONTROL	0x8c	/* BAR1 region burst control */
 #define	PCI_INT_STATUS		0x90	/* PCI and other cores interrupts */
 #define	PCI_INT_MASK		0x94	/* mask of PCI and other cores interrupts */
@@ -179,6 +180,7 @@ typedef struct _pcie_enhanced_caphdr {
 #define	PCI_CLK_CTL_ST		0xa8	/* pci config space clock control/status (>=rev14) */
 #define	PCI_BAR0_WIN2		0xac	/* backplane addres space accessed by second 4KB of BAR0 */
 #define	PCI_GPIO_IN		0xb0	/* pci config space gpio input (>=rev3) */
+#define	PCIE_CFG_DEVICE_CAPABILITY	0xb0	/* used as device capability in PCIE devices */
 #define	PCI_GPIO_OUT		0xb4	/* pci config space gpio output (>=rev3) */
 #define PCIE_CFG_DEVICE_CONTROL 0xb4    /* 0xb4 is used as device control in PCIE devices */
 #define PCIE_DC_AER_CORR_EN		(1u << 0u)
@@ -216,11 +218,79 @@ typedef struct _pcie_enhanced_caphdr {
 #define	PCI_CONFIG_EXT_CLK_MIN_TIME_MASK	(1u << 31u)
 #define	PCI_CONFIG_EXT_CLK_MIN_TIME_SHIFT	(31)
 
+#define PCI_ADV_ERR_CAP			0x100
+#define	PCI_UC_ERR_STATUS		0x104
+#define	PCI_UNCORR_ERR_MASK		0x108
+#define PCI_UCORR_ERR_SEVR		0x10c
+#define	PCI_CORR_ERR_STATUS		0x110
+#define	PCI_CORR_ERR_MASK		0x114
+#define	PCI_ERR_CAP_CTRL		0x118
+#define	PCI_TLP_HDR_LOG1		0x11c
+#define	PCI_TLP_HDR_LOG2		0x120
+#define	PCI_TLP_HDR_LOG3		0x124
+#define	PCI_TLP_HDR_LOG4		0x128
+#define	PCI_TL_CTRL_5			0x814
+#define	PCI_TL_HDR_FC_ST		0x980
+#define	PCI_TL_TGT_CRDT_ST		0x990
+#define	PCI_TL_SMLOGIC_ST		0x998
+#define	PCI_DL_ATTN_VEC			0x1040
+#define	PCI_DL_STATUS			0x1048
+
+#define	PCI_PHY_CTL_0			0x1800
+#define	PCI_SLOW_PMCLK_EXT_RLOCK	(1 << 7)
+
+#define	PCI_LINK_STATE_DEBUG	0x1c24
+#define PCI_RECOVERY_HIST		0x1ce4
+#define PCI_PHY_LTSSM_HIST_0	0x1cec
+#define PCI_PHY_LTSSM_HIST_1	0x1cf0
+#define PCI_PHY_LTSSM_HIST_2	0x1cf4
+#define PCI_PHY_LTSSM_HIST_3	0x1cf8
+#define PCI_PHY_DBG_CLKREG_0	0x1e10
+#define PCI_PHY_DBG_CLKREG_1	0x1e14
+#define PCI_PHY_DBG_CLKREG_2	0x1e18
+#define PCI_PHY_DBG_CLKREG_3	0x1e1c
+
+/* Bit settings for PCIE_CFG_SUBSYSTEM_CONTROL register */
+#define PCIE_BAR1COHERENTACCEN_BIT	8
+#define PCIE_BAR2COHERENTACCEN_BIT	9
+#define PCIE_SSRESET_STATUS_BIT		13
+#define PCIE_SSRESET_DISABLE_BIT	14
+#define PCIE_SSRESET_DIS_ENUM_RST_BIT		15
+
+#define PCIE_BARCOHERENTACCEN_MASK	0x300
+
+/* Bit settings for PCI_UC_ERR_STATUS register */
+#define PCI_UC_ERR_URES			(1 << 20)	/* Unsupported Request Error Status */
+#define PCI_UC_ERR_ECRCS		(1 << 19)	/* ECRC Error Status */
+#define PCI_UC_ERR_MTLPS		(1 << 18)	/* Malformed TLP Status */
+#define PCI_UC_ERR_ROS			(1 << 17)	/* Receiver Overflow Status */
+#define PCI_UC_ERR_UCS			(1 << 16)	/* Unexpected Completion Status */
+#define PCI_UC_ERR_CAS			(1 << 15)	/* Completer Abort Status */
+#define PCI_UC_ERR_CTS			(1 << 14)	/* Completer Timeout Status */
+#define PCI_UC_ERR_FCPES		(1 << 13)	/* Flow Control Protocol Error Status */
+#define PCI_UC_ERR_PTLPS		(1 << 12)	/* Poisoned TLP Status */
+#define PCI_UC_ERR_DLPES		(1 << 4)	/* Data Link Protocol Error Status */
+
+#define PCI_DL_STATUS_PHY_LINKUP    (1 << 13) /* Status of LINK */
+
 #define	PCI_PMCR_REFUP		0x1814	/* Trefup time */
+#define PCI_PMCR_TREFUP_LO_MASK		0x3f
+#define PCI_PMCR_TREFUP_LO_SHIFT	24
+#define PCI_PMCR_TREFUP_LO_BITS		6
+#define PCI_PMCR_TREFUP_HI_MASK		0xf
+#define PCI_PMCR_TREFUP_HI_SHIFT	5
+#define PCI_PMCR_TREFUP_HI_BITS		4
+#define PCI_PMCR_TREFUP_MAX			0x400
+#define PCI_PMCR_TREFUP_MAX_SCALE	0x2000
+
 #define	PCI_PMCR_REFUP_EXT	0x1818	/* Trefup extend Max */
+#define PCI_PMCR_TREFUP_EXT_SHIFT	22
+#define PCI_PMCR_TREFUP_EXT_SCALE	3
+#define PCI_PMCR_TREFUP_EXT_ON		1
+#define PCI_PMCR_TREFUP_EXT_OFF		0
+
 #define PCI_TPOWER_SCALE_MASK 0x3
 #define PCI_TPOWER_SCALE_SHIFT 3 /* 0:1 is scale and 2 is rsvd */
-
 
 #define	PCI_BAR0_SHADOW_OFFSET	(2 * 1024)	/* bar0 + 2K accesses sprom shadow (in pci core) */
 #define	PCI_BAR0_SPROM_OFFSET	(4 * 1024)	/* bar0 + 4K accesses external sprom */
@@ -237,6 +307,7 @@ typedef struct _pcie_enhanced_caphdr {
 #define PCIE2_BAR0_WIN2		0x70 /* backplane addres space accessed by second 4KB of BAR0 */
 #define PCIE2_BAR0_CORE2_WIN	0x74 /* backplane addres space accessed by second 4KB of BAR0 */
 #define PCIE2_BAR0_CORE2_WIN2	0x78 /* backplane addres space accessed by second 4KB of BAR0 */
+#define PCIE2_BAR0_WINSZ	0x8000
 
 #define PCI_BAR0_WIN2_OFFSET		0x1000u
 #define PCI_CORE_ENUM_OFFSET		0x2000u

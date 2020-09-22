@@ -2,14 +2,14 @@
  * Common stats definitions for clients of dongle
  * ports
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 1999-2019, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +17,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dngl_stats.h 681171 2017-01-25 05:27:08Z $
+ * $Id: dngl_stats.h 716269 2017-08-17 09:22:46Z $
  */
 
 #ifndef _dngl_stats_h_
@@ -102,13 +102,16 @@ typedef enum {
 typedef struct {
 	wifi_interface_mode mode;     /* interface mode */
 	uint8 mac_addr[6];               /* interface mac address (self) */
+	uint8 PAD[2];
 	wifi_connection_state state;  /* connection state (valid for STA, CLI only) */
 	wifi_roam_state roaming;      /* roaming state */
 	uint32 capabilities;             /* WIFI_CAPABILITY_XXX (self) */
 	uint8 ssid[DOT11_MAX_SSID_LEN+1]; /* null terminated SSID */
 	uint8 bssid[ETHER_ADDR_LEN];     /* bssid */
+	uint8 PAD[1];
 	uint8 ap_country_str[3];         /* country string advertised by AP */
 	uint8 country_str[3];            /* country string for this association */
+	uint8 PAD[2];
 } wifi_interface_info;
 
 typedef wifi_interface_info *wifi_interface_handle;
@@ -149,7 +152,7 @@ typedef struct {
 /* channel statistics */
 typedef struct {
 	wifi_channel_info channel;  /* channel */
-	uint32 on_time;         	/* msecs the radio is awake (32 bits number
+	uint32 on_time;			/* msecs the radio is awake (32 bits number
 				         * accruing over time)
 					 */
 	uint32 cca_busy_time;          /* msecs the CCA register is busy (32 bits number
