@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -86,7 +86,7 @@
 
 #define NTSTRSAFE_NO_CCH_FUNCTIONS
 #include "gc_hal.h"
-#include "gc_hal_driver.h"
+#include "shared/gc_hal_driver.h"
 #include "gc_hal_kernel.h"
 #include "gc_hal_kernel_platform.h"
 #include "gc_hal_kernel_device.h"
@@ -165,8 +165,7 @@
 
 #endif
 
-gceSTATUS get_nna_status(struct platform_device *dev);
-
+int get_nna_status(struct platform_device *dev);
 extern struct device *galcore_device;
 
 /******************************************************************************\

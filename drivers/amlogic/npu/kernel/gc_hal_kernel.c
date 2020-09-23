@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -57,6 +57,10 @@
 
 #if gcdDEC_ENABLE_AHB
 #include "viv_dec300_main.h"
+#endif
+
+#if gcdCAPTURE_ONLY_MODE
+#include "arch/gc_hal_kernel_context.h"
 #endif
 
 #define _GC_OBJ_ZONE    gcvZONE_KERNEL
@@ -392,6 +396,7 @@ gckKERNEL_Construct(
     gctUINT64 data;
     gctUINT32 recovery;
     gctUINT32 stuckDump;
+    gctUINT64 dynamicMap = 1;
 
     gcmkHEADER_ARG("Os=%p Context=%p", Os, Context);
 
@@ -415,6 +420,7 @@ gckKERNEL_Construct(
     kernel->core        = Core;
     kernel->device      = Device;
     kernel->chipID      = ChipID;
+    kernel->threadInitialized = gcvTRUE;
 
 #if gcdENABLE_TRUST_APPLICATION
     /* Connect to security service for this GPU. */
@@ -563,7 +569,8 @@ gckKERNEL_Construct(
         gcmkONERROR(
             gckMMU_SetupSRAM(kernel->mmu, kernel->hardware, kernel->device));
 
-        if (kernel->hardware->mmuVersion && !kernel->mmu->dynamicAreaSetuped)
+        status = gckOS_QueryOption(Os, "mmuDynamicMap", &dynamicMap);
+        if (dynamicMap && kernel->hardware->mmuVersion && !kernel->mmu->dynamicAreaSetuped)
         {
             gcmkONERROR(
                 gckMMU_SetupDynamicSpace(kernel->mmu));
@@ -692,6 +699,7 @@ gckKERNEL_Construct(
     return gcvSTATUS_OK;
 
 OnError:
+    gckOS_SetGPUPower(Os, kernel->core, gcvFALSE, gcvFALSE);
     *Kernel = gcvNULL;
 
     if (kernel != gcvNULL)
@@ -1019,6 +1027,13 @@ gckKERNEL_AllocateVideoMemory(
 
 AllocateMemory:
 
+#if gcdCAPTURE_ONLY_MODE
+    if (*Pool != gcvPOOL_VIRTUAL)
+    {
+        *Pool = gcvPOOL_SYSTEM;
+    }
+#endif
+
     /* Get initial pool. */
     switch (pool = *Pool)
     {
@@ -1157,6 +1172,7 @@ AllocateMemory:
                                                            videoMemory,
                                                            pool,
                                                            Type,
+                                                           Flag,
                                                            Alignment,
                                                            (pool == gcvPOOL_SYSTEM ||
                                                             pool == gcvPOOL_INTERNAL_SRAM ||
@@ -1170,6 +1186,13 @@ AllocateMemory:
                     /* Memory allocated. */
                     break;
                 }
+#if gcdCAPTURE_ONLY_MODE
+                else
+                {
+                    gcmkPRINT("Capture only mode: Out of Memory");
+                }
+#endif
+
             }
         }
 
@@ -1249,6 +1272,10 @@ AllocateMemory:
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
+#if gcdCAPTURE_ONLY_MODE
+    nodeObject->captureSize = bytes;
+#endif
+
     /* Return node and pool used for allocation. */
     *Pool  = pool;
     *Bytes = bytes;
@@ -1288,6 +1315,8 @@ _AllocateLinearMemory(
     gctUINT32 alignment = Interface->u.AllocateLinearVideoMemory.alignment;
     gceVIDMEM_TYPE type = (Interface->u.AllocateLinearVideoMemory.type & 0xFF);
     gctUINT32 flag = Interface->u.AllocateLinearVideoMemory.flag;
+    gctUINT64 mappingInOne  = 1;
+    gctBOOL isContiguous;
 
     gcmkHEADER_ARG("Kernel=%p pool=%d bytes=%lu alignment=%lu type=%d",
                    Kernel, pool, bytes, alignment, type);
@@ -1302,6 +1331,15 @@ _AllocateLinearMemory(
     if (Interface->u.AllocateLinearVideoMemory.extSRAMIndex >= 0)
     {
         Kernel->extSRAMIndex = Interface->u.AllocateLinearVideoMemory.extSRAMIndex;
+    }
+
+    gckOS_QueryOption(Kernel->os, "allMapInOne", &mappingInOne);
+    if (mappingInOne == 0)
+    {
+        /* TODO: it should page align if driver uses dynamic mapping for mapped user memory.
+         * it should be adjusted with different os.
+         */
+        alignment = gcmALIGN(alignment, 4096);
     }
 
     /* Allocate video memory node. */
@@ -1336,6 +1374,32 @@ _AllocateLinearMemory(
                                    gcmINT2PTR(handle),
                                    gcvNULL,
                                    bytes));
+
+    gcmkONERROR(gckVIDMEM_NODE_IsContiguous(Kernel, nodeObject, &isContiguous));
+
+    if (isContiguous)
+    {
+        /* Record in process db. */
+        gcmkONERROR(
+                gckKERNEL_AddProcessDB(Kernel,
+                                       ProcessID,
+                                       gcvDB_CONTIGUOUS,
+                                       gcmINT2PTR(handle),
+                                       gcvNULL,
+                                       bytes));
+    }
+
+    if (type & gcvVIDMEM_TYPE_COMMAND)
+    {
+        /* Record in process db. */
+        gcmkONERROR(
+                gckKERNEL_AddProcessDB(Kernel,
+                                       ProcessID,
+                                       gcvDB_COMMAND_BUFFER,
+                                       gcmINT2PTR(handle),
+                                       gcvNULL,
+                                       bytes));
+    }
 
     /* Return status. */
     gcmkFOOTER_ARG("pool=%d node=0x%x", pool, handle);
@@ -1390,6 +1454,7 @@ _ReleaseVideoMemory(
     gceSTATUS status;
     gckVIDMEM_NODE nodeObject;
     gceDATABASE_TYPE type;
+    gctBOOL isContiguous;
 
     gcmkHEADER_ARG("Kernel=%p ProcessID=%d Handle=%d",
                    Kernel, ProcessID, Handle);
@@ -1406,6 +1471,24 @@ _ReleaseVideoMemory(
             ProcessID,
             type,
             gcmINT2PTR(Handle)));
+
+    gcmkONERROR(gckVIDMEM_NODE_IsContiguous(Kernel, nodeObject, &isContiguous));
+
+    if (isContiguous)
+    {
+        gckKERNEL_RemoveProcessDB(Kernel,
+            ProcessID,
+            gcvDB_CONTIGUOUS,
+            gcmINT2PTR(Handle));
+    }
+
+    if (nodeObject->type & gcvVIDMEM_TYPE_COMMAND)
+    {
+        gckKERNEL_RemoveProcessDB(Kernel,
+            ProcessID,
+            gcvDB_COMMAND_BUFFER,
+            gcmINT2PTR(Handle));
+    }
 
     gckVIDMEM_HANDLE_Dereference(Kernel, ProcessID, Handle);
 
@@ -1474,6 +1557,18 @@ _LockVideoMemory(
     gcmkONERROR(gckVIDMEM_NODE_Reference(Kernel, nodeObject));
     referenced = gcvTRUE;
 
+#if gcdCAPTURE_ONLY_MODE
+    if (Interface->u.LockVideoMemory.queryCapSize)
+    {
+        Interface->u.LockVideoMemory.captureSize = nodeObject->captureSize;
+        return gcvSTATUS_OK;
+    }
+    else
+    {
+        nodeObject->captureLogical = Interface->u.LockVideoMemory.captureLogical;
+    }
+#endif
+
     /* Lock for userspace CPU userspace. */
     gcmkONERROR(
         gckVIDMEM_NODE_LockCPU(Kernel,
@@ -1511,7 +1606,7 @@ _LockVideoMemory(
 OnError:
     if (logical)
     {
-        gckVIDMEM_NODE_UnlockCPU(Kernel, nodeObject, ProcessID, gcvTRUE);
+        gckVIDMEM_NODE_UnlockCPU(Kernel, nodeObject, ProcessID, gcvTRUE, gcvFALSE);
     }
 
     if (address)
@@ -1569,6 +1664,7 @@ _UnlockVideoMemory(
     gcuVIDMEM_NODE_PTR node;
     gckVIDMEM_BLOCK vidMemBlock = gcvNULL;
     gctSIZE_T bytes;
+    gctUINT64 mappingInOne = 1;
 
     gcmkHEADER_ARG("Kernel=%p ProcessID=%d",
                    Kernel, ProcessID);
@@ -1583,9 +1679,10 @@ _UnlockVideoMemory(
         &nodeObject
         ));
 
+    gckOS_QueryOption(Kernel->os, "allMapInOne", &mappingInOne);
     /* Unlock CPU. */
     gcmkONERROR(gckVIDMEM_NODE_UnlockCPU(
-        Kernel, nodeObject, ProcessID, gcvTRUE));
+        Kernel, nodeObject, ProcessID, gcvTRUE, mappingInOne == 1));
 
     /* Unlock video memory. */
     gcmkONERROR(gckVIDMEM_NODE_Unlock(
@@ -1616,6 +1713,10 @@ _UnlockVideoMemory(
 
     Interface->u.UnlockVideoMemory.pool  = nodeObject->pool;
     Interface->u.UnlockVideoMemory.bytes = bytes;
+
+#if gcdCAPTURE_ONLY_MODE
+    Interface->u.UnlockVideoMemory.captureLogical = nodeObject->captureLogical;
+#endif
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
@@ -2010,6 +2111,14 @@ gckKERNEL_QueryDatabase(
                                  gcvDB_NON_PAGED,
                                  &Interface->u.Database.nonPaged));
 
+    /* Query contiguous memory. */
+    gcmkONERROR(
+        gckKERNEL_QueryProcessDB(Kernel,
+                                 Interface->u.Database.processID,
+                                 !Interface->u.Database.validProcessID,
+                                 gcvDB_CONTIGUOUS,
+                                 &Interface->u.Database.contiguous));
+
     /* Query GPU idle time. */
     gcmkONERROR(
         gckKERNEL_QueryProcessDB(Kernel,
@@ -2318,7 +2427,14 @@ _Commit(
         }
 
         /* Determine the objects. */
-        kernel = Device->map[HwType].kernels[subCommit->coreId];
+        if (HwType == gcvHARDWARE_3D || HwType == gcvHARDWARE_3D2D || HwType == gcvHARDWARE_VIP)
+        {
+            kernel = Device->coreInfoArray[subCommit->coreId].kernel;
+        }
+        else
+        {
+            kernel = Device->map[HwType].kernels[subCommit->coreId];
+        }
         if (Engine == gcvENGINE_BLT)
         {
             command  = kernel->asyncCommand;
@@ -2377,7 +2493,15 @@ _Commit(
 
     subCommit = &Commit->subCommit;
     userPtr = gcvNULL;
-    kernel = Device->map[HwType].kernels[subCommit->coreId];
+
+    if (HwType == gcvHARDWARE_3D || HwType == gcvHARDWARE_3D2D || HwType == gcvHARDWARE_VIP)
+    {
+        kernel = Device->coreInfoArray[subCommit->coreId].kernel;
+    }
+    else
+    {
+        kernel = Device->map[HwType].kernels[subCommit->coreId];
+    }
 
     if (!kernel->hardware->options.gpuProfiler || !kernel->profileEnable)
     {
@@ -2421,7 +2545,14 @@ _Commit(
             }
         }
 
-        kernel = Device->map[HwType].kernels[subCommit->coreId];
+        if (HwType == gcvHARDWARE_3D || HwType == gcvHARDWARE_3D2D || HwType == gcvHARDWARE_VIP)
+        {
+            kernel = Device->coreInfoArray[subCommit->coreId].kernel;
+        }
+        else
+        {
+            kernel = Device->map[HwType].kernels[subCommit->coreId];
+        }
 
         if ((kernel->hardware->options.gpuProfiler == gcvTRUE) &&
             (kernel->profileEnable == gcvTRUE))
@@ -2636,6 +2767,7 @@ gckKERNEL_Dispatch(
 
     gctBOOL powerMutexAcquired = gcvFALSE;
     gctBOOL commitMutexAcquired = gcvFALSE;
+    gctBOOL idle = gcvFALSE;
 
     gcmkHEADER_ARG("Kernel=%p Interface=%p", Kernel, Interface);
 
@@ -3198,9 +3330,7 @@ gckKERNEL_Dispatch(
         Interface->u.Version.build = gcvVERSION_BUILD;
 #if gcmIS_DEBUG(gcdDEBUG_TRACE)
         gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_KERNEL,
-                       "KERNEL version %d.%d.%d build %u",
-                       gcvVERSION_MAJOR, gcvVERSION_MINOR,
-                       gcvVERSION_PATCH, gcvVERSION_BUILD);
+                       "KERNEL version %s", gcvVERSION_STRING);
 #endif
         break;
 
@@ -3214,6 +3344,44 @@ gckKERNEL_Dispatch(
     case gcvHAL_ATTACH:
         if (Kernel->command)
         {
+#if gcdCAPTURE_ONLY_MODE
+           gckVIDMEM_NODE nodeObject = gcvNULL;
+
+           if (Interface->u.Attach.queryCapSize)
+           {
+                /* Attach user process. */
+                gcmkONERROR(
+                    gckCOMMAND_Attach(Kernel->command,
+                                      &context,
+                                      &bytes,
+                                      &Interface->u.Attach.numStates,
+                                      processID));
+
+                Interface->u.Attach.maxState = bytes;
+                Interface->u.Attach.context = gcmPTR_TO_NAME(context);
+
+                gcmkONERROR(
+                    gckVIDMEM_HANDLE_Lookup(Kernel, processID, context->buffer->handle, &nodeObject));
+
+                Interface->u.Attach.captureSize = nodeObject->captureSize;
+                break;
+            }
+            else
+            {
+                gctUINT i = 0;
+                context = gcmNAME_TO_PTR(Interface->u.Attach.context);
+
+                for (i = 0; i < gcdCONTEXT_BUFFER_NUM; ++i)
+                {
+                    gcsCONTEXT_PTR buffer = context->buffer;
+
+                    gckOS_CopyToUserData(Kernel->os, buffer->logical, Interface->u.Attach.contextLogical[i], Interface->u.Attach.captureSize);
+
+                    buffer = buffer->next;
+                }
+            }
+
+#else
             /* Attach user process. */
             gcmkONERROR(
                 gckCOMMAND_Attach(Kernel->command,
@@ -3224,15 +3392,27 @@ gckKERNEL_Dispatch(
 
             Interface->u.Attach.maxState = bytes;
             Interface->u.Attach.context = gcmPTR_TO_NAME(context);
+#endif
 
             if (Interface->u.Attach.map)
             {
                 if (context != gcvNULL)
                 {
+#if gcdCAPTURE_ONLY_MODE
+                    gctUINT i = 0;
+
+                    for (i = 0; i < gcdCONTEXT_BUFFER_NUM; ++i)
+                    {
+                        Interface->u.Attach.logicals[i] = gcmPTR_TO_UINT64(Interface->u.Attach.contextLogical[i]);
+                    }
+
+                    Interface->u.Attach.bytes = (gctUINT)context->totalSize;
+#else
                     gcmkVERIFY_OK(
                         gckCONTEXT_MapBuffer(context,
                                              Interface->u.Attach.logicals,
                                              &Interface->u.Attach.bytes));
+#endif
                 }
                 else
                 {
@@ -3286,8 +3466,24 @@ gckKERNEL_Dispatch(
 
     case gcvHAL_SET_FSCALE_VALUE:
 #if gcdENABLE_FSCALE_VAL_ADJUST
+        /* Wait for HW idle, otherwise it is not safe. */
+        gcmkONERROR(gckCOMMAND_Stall(Kernel->command, gcvFALSE));
+
+        for (;;)
+        {
+            gcmkONERROR(gckHARDWARE_QueryIdle(Kernel->hardware, &idle));
+
+            if (idle)
+            {
+                break;
+            }
+
+            gcmkVERIFY_OK(gckOS_Delay(Kernel->os, 1));
+        }
+
         status = gckHARDWARE_SetFscaleValue(Kernel->hardware,
-                                            Interface->u.SetFscaleValue.value);
+                                            Interface->u.SetFscaleValue.value,
+                                            Interface->u.SetFscaleValue.shValue);
 #else
         status = gcvSTATUS_NOT_SUPPORTED;
 #endif
@@ -3707,6 +3903,13 @@ gckKERNEL_AttachProcessEx(
                                             Kernel->hardware,
                                             gcvBROADCAST_LAST_PROCESS));
             }
+        }
+
+        if (Kernel->timeoutPID == PID)
+        {
+            Kernel->timeOut = Kernel->hardware->type == gcvHARDWARE_2D
+                            ? gcdGPU_2D_TIMEOUT
+                            : gcdGPU_TIMEOUT;
         }
     }
 
@@ -4943,7 +5146,13 @@ gckFENCE_Create(
     )
 {
     gceSTATUS status;
+
+#if !gcdCAPTURE_ONLY_MODE
     gcePOOL pool = gcvPOOL_DEFAULT;
+#else
+    gcePOOL pool = gcvPOOL_VIRTUAL;
+#endif
+
     gckFENCE fence = gcvNULL;
     gctSIZE_T size = 8;
     gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
@@ -5017,6 +5226,7 @@ gckFENCE_Destory(
             Fence->kernel,
             Fence->videoMem,
             0,
+            gcvFALSE,
             gcvFALSE
             ));
 
@@ -5117,6 +5327,7 @@ gckDEVICE_Construct(
     /* Initialize external SRAM. */
     for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
     {
+        device->extSRAMGPUBases[i] = gcvINVALID_PHYSICAL_ADDRESS;
         device->extSRAMBases[i] = gcvINVALID_PHYSICAL_ADDRESS;
         device->extSRAMSizes[i] = 0;
     }
@@ -5267,6 +5478,8 @@ gckDEVICE_ChipInfo(
         {
             Interface->u.ChipInfo.types[i] = info[i].type;
             Interface->u.ChipInfo.ids[i] = info[i].chipID;
+
+            Interface->u.ChipInfo.coreIndexs[i] = info[i].core;
         }
 
         Interface->u.ChipInfo.count = Device->coreNum;
@@ -5287,9 +5500,7 @@ gckDEVICE_Version(
     Interface->u.Version.build = gcvVERSION_BUILD;
 #if gcmIS_DEBUG(gcdDEBUG_TRACE)
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_KERNEL,
-                   "KERNEL version %d.%d.%d build %u",
-                   gcvVERSION_MAJOR, gcvVERSION_MINOR,
-                   gcvVERSION_PATCH, gcvVERSION_BUILD);
+                   "KERNEL version %s", gcvVERSION_STRING);
 #endif
 
     return gcvSTATUS_OK;
@@ -5337,14 +5548,28 @@ gckDEVICE_SetTimeOut(
     gctUINT i;
     gceHARDWARE_TYPE type = Interface->hardwareType;
     gcsCORE_LIST *coreList;
+    gctUINT32 processID = 0;
+    gcsCORE_INFO *info = Device->coreInfoArray;
 
     coreList = &Device->map[type];
 
-    for (i = 0; i < coreList->num; i++)
+    /* Get the current process ID. */
+    gckOS_GetProcessID(&processID);
+
+    for (i = 0; i < Device->coreNum; i++)
     {
-        kernel = coreList->kernels[i];
+        if (type == gcvHARDWARE_3D || type == gcvHARDWARE_3D2D || type == gcvHARDWARE_VIP)
+        {
+            kernel = info[i].kernel;
+        }
+        else
+        {
+            kernel = coreList->kernels[i];
+        }
 
         kernel->timeOut = Interface->u.SetTimeOut.timeOut;
+
+        kernel->timeoutPID = processID;
     }
 #endif
 
@@ -5390,8 +5615,14 @@ gckDEVICE_Dispatch(
     else
     {
         /* Need go through gckKERNEL dispatch. */
-        kernel = Device->map[type].kernels[coreIndex];
-
+        if (type == gcvHARDWARE_3D || type == gcvHARDWARE_3D2D || type == gcvHARDWARE_VIP)
+        {
+            kernel = Device->coreInfoArray[coreIndex].kernel;
+        }
+        else
+        {
+            kernel = Device->map[type].kernels[coreIndex];
+        }
 
         {
             status = gckKERNEL_Dispatch(kernel, Device, Interface);

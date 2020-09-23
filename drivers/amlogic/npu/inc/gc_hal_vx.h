@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -165,6 +165,11 @@ gcoVX_KernelConstruct(
     IN OUT gcoVX_Hardware_Context   *Context
     );
 
+gceSTATUS
+gcoVX_SetHardwareType(
+    IN gceHARDWARE_TYPE Type
+    );
+
 
 gceSTATUS
 gcoVX_LockKernel(
@@ -208,7 +213,10 @@ gcoVX_TriggerAccelerator(
     IN gctBOOL                waitEvent,
     IN gctUINT32              gpuId,
     IN gctBOOL                sync,
-    IN gctUINT32              syncEventID
+    IN gctUINT32              syncEventID,
+    IN gctUINT32              vipSRAMRemapStartAddr,
+    IN gctUINT32              axiSRAMRemapStartAddr,
+    IN gctUINT32              axiSRAMRemapEndAddr
     );
 
 gceSTATUS
@@ -356,8 +364,9 @@ gcoVX_ProgrammYUV2RGBScale(
 gceSTATUS
 gcoVX_CreateHW(
     IN gctUINT32  DeviceID,
-    IN gctUINT32  GpuCountPerDevice,
-    IN gctUINT32  GpuCoreIndexs[],
+    IN gctUINT32  CoreCountPerDevice,
+    IN gctUINT32  LocalCoreIndexs[],
+    IN gctUINT32  GlobalCoreIndexs[],
     OUT gcoHARDWARE * Hardware
     );
 

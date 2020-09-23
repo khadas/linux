@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -203,6 +203,7 @@ _DestroyDescRingBuf(
             kernel,
             Channel->ringBufVideoMem,
             0,
+            gcvFALSE,
             gcvFALSE
             ));
 
@@ -832,6 +833,57 @@ gckMCFE_Execute(
                                         ringBuf->writePtr));
 
     return gcvSTATUS_OK;
+}
+
+gceSTATUS
+gckMCFE_HardwareIdle(
+    IN gckHARDWARE Hardware,
+    OUT gctBOOL_PTR isIdle
+    )
+{
+    gceSTATUS status;
+    gctUINT32 idle;
+    gctUINT32 regRBase;
+    gctUINT32 readPtr;
+    gctUINT32 ChannelId = 0;
+    gctBOOL Priority = gcvFALSE;
+    gcsMCFE_CHANNEL * channel  = &Hardware->mcFE->channels[ChannelId];
+    gcsMCFE_RING_BUF * ringBuf = Priority ? &channel->priRingBuf
+                              : &channel->stdRingBuf;
+
+    gcmkHEADER();
+
+    *isIdle = gcvTRUE;
+
+    /* Read idle register. */
+    gcmkONERROR(
+        gckOS_ReadRegisterEx(Hardware->os, Hardware->core, 0x00004, &idle));
+
+    /* Pipe must be idle. */
+    if ((idle | (1 << 14)) != 0x7fffffff)
+    {
+        /* Something is busy. */
+        *isIdle = gcvFALSE;
+        return status;
+    }
+
+    regRBase = Priority ? 0x02B00
+        : 0x02700;
+
+    gcmkONERROR(gckOS_ReadRegisterEx(Hardware->os,
+                                       Hardware->core,
+                                       regRBase + ChannelId * 4,
+                                       &readPtr));
+
+    if (readPtr != ringBuf->writePtr)
+    {
+        *isIdle = gcvFALSE;
+    }
+
+    gcmkFOOTER();
+
+OnError:
+    return status;
 }
 
 

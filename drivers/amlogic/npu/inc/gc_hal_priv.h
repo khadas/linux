@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -152,6 +152,9 @@ typedef enum _gcePATCH_ID
     gcvPATCH_ANDROID_PHOTOS,
     gcvPATCH_OVX_CTS,
     gcvPATCH_DEQP_VK,
+    gcvPATCH_KANZI,
+    gcvPATCH_OPENCV_TEST_PHOTO,
+    gcvPATCH_VKMARK,
 
     gcvPATCH_COUNT
 } gcePATCH_ID;
@@ -246,6 +249,7 @@ typedef struct _gcsPLS
     gcsATOM_PTR                 globalFenceID;
 
     /* flag for memory profile */
+    gctHANDLE               mainThread;
     gctBOOL                 bMemoryProfile;
     gctPOINTER              profileLock;
     gctUINT32               allocCount;

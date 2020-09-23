@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -81,13 +81,6 @@
 
 /* Multiplication factor for previous Hz off mode. Make it more than 1.0 to advertise HZ on.*/
 #define VIV_STAT_EARLY_Z_FACTOR                 (1.05f)
-
-/* Defines the statistical data keys monitored by the statistics module */
-typedef enum _gceSTATISTICS
-{
-    gcvFRAME_FPS        =   1,
-}
-gceSTATISTICS;
 
 /* HAL statistics information. */
 typedef struct _gcsSTATISTICS_EARLYZ

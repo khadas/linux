@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -57,8 +57,9 @@
 #define __gc_hal_base_h_
 
 #include "gc_hal_enum.h"
-#include "gc_hal_types.h"
+#include "shared/gc_hal_types.h"
 #include "gc_hal_debug_zones.h"
+#include "shared/gc_hal_base.h"
 
 
 #ifdef __cplusplus
@@ -97,14 +98,6 @@ typedef void *                          gcoVG;
 typedef struct _gcoFENCE *              gcoFENCE;
 typedef struct _gcsSYNC_CONTEXT *       gcsSYNC_CONTEXT_PTR;
 
-typedef enum {
-    gcvFENCE_TYPE_READ          = 0x1,
-    gcvFENCE_TYPE_WRITE         = 0x2,
-    gcvFENCE_TYPE_ALL           = gcvFENCE_TYPE_READ | gcvFENCE_TYPE_WRITE,
-    gcvFNECE_TYPE_INVALID       = 0x10000,
-}
-gceFENCE_TYPE;
-
 typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
 
 /* Immuatable features from database */
@@ -136,8 +129,14 @@ typedef struct _gcsNN_FIXED_FEATURE
     gctUINT  uscBanks;
     gctUINT  nnLanesPerOutCycle;
     gctUINT  maxOTNumber;
+    gctUINT  physicalVipSramWidthInByte;
     gctUINT  equivalentVipsramWidthInByte;
     gctUINT  shaderCoreCount;
+    gctUINT  latencyHidingAtFullAxiBw;
+    gctUINT  axiBusWidth;
+    gctUINT  nnMaxKXSize;
+    gctUINT  nnMaxKYSize;
+    gctUINT  nnMaxKZSize;
 } gcsNN_FIXED_FEATURE;
 
 /* Features can be customized from outside */
@@ -145,6 +144,9 @@ typedef struct _gcsNN_CUSTOMIZED_FEATURE
 {
     gctUINT  vipSRAMSize;
     gctUINT  axiSRAMSize;
+    gctUINT  vipSRAMRemapStartAddr;
+    gctUINT  axiSRAMRemapStartAddr;
+    gctUINT  axiSRAMRemapEndAddr;
     gctFLOAT ddrReadBWLimit;
     gctFLOAT ddrWriteBWLimit;
     gctFLOAT ddrTotalBWLimit;
@@ -162,6 +164,7 @@ typedef struct _gcsNN_CUSTOMIZED_FEATURE
     gctUINT  nnWriteWithoutUSC;
     gctUINT  depthWiseSupport;
     gctUINT  vipVectorPrune;
+    gctUINT  ddrKernelBurstSize;
 } gcsNN_CUSTOMIZED_FEATURE;
 
 /* Features are unified (hardcoded) for hardwares */
@@ -269,6 +272,7 @@ gcsSystemInfo;
     gcvNULL, /* VX context lock    */ \
     gcvPATCH_NOTINIT,/* global patchID     */ \
     gcvNULL, /* global fenceID*/ \
+    gcvNULL, /* mainThreadHandle */ \
     gcvFALSE, /* memory profile flag */ \
     gcvNULL, /* profileLock;        */ \
     0, /* allocCount;         */ \
@@ -297,24 +301,12 @@ typedef struct _gcsDRIVER_TLS
 }
 gcsDRIVER_TLS;
 
-typedef enum _gceTLS_KEY
-{
-    gcvTLS_KEY_EGL,
-    gcvTLS_KEY_OPENGL_ES,
-    gcvTLS_KEY_OPENVG,
-    gcvTLS_KEY_OPENGL,
-    gcvTLS_KEY_OPENCL,
-    gcvTLS_KEY_OPENVX,
-
-    gcvTLS_KEY_COUNT
-}
-gceTLS_KEY;
-
 typedef struct _gcsTLS * gcsTLS_PTR;
 
 typedef struct _gcsTLS
 {
     gceHARDWARE_TYPE            currentType;
+    gceHARDWARE_TYPE            targetType;
 
     /* To which core device control is called,
     * it is index in a hardware type.
@@ -346,139 +338,6 @@ typedef struct _gcsTLS
     gcsDRIVER_TLS_PTR           driverTLS[gcvTLS_KEY_COUNT];
 }
 gcsTLS;
-
-/******************************************************************************\
-********************************* Enumerations *********************************
-\******************************************************************************/
-
-typedef enum _gcePLS_VALUE
-{
-  gcePLS_VALUE_EGL_DISPLAY_INFO,
-  gcePLS_VALUE_EGL_CONFIG_FORMAT_INFO,
-  gcePLS_VALUE_EGL_DESTRUCTOR_INFO,
-}
-gcePLS_VALUE;
-
-/* Video memory pool type. */
-typedef enum _gcePOOL
-{
-    gcvPOOL_UNKNOWN = 0,
-    gcvPOOL_DEFAULT,
-    gcvPOOL_LOCAL,
-    gcvPOOL_LOCAL_INTERNAL,
-    gcvPOOL_LOCAL_EXTERNAL,
-    gcvPOOL_UNIFIED,
-    gcvPOOL_SYSTEM,
-    gcvPOOL_SRAM,
-    gcvPOOL_VIRTUAL,
-    gcvPOOL_USER,
-    gcvPOOL_INTERNAL_SRAM,
-    gcvPOOL_EXTERNAL_SRAM,
-
-    gcvPOOL_NUMBER_OF_POOLS
-}
-gcePOOL;
-
-#if gcdENABLE_3D
-/* Blending functions. */
-typedef enum _gceBLEND_FUNCTION
-{
-    gcvBLEND_ZERO,
-    gcvBLEND_ONE,
-    gcvBLEND_SOURCE_COLOR,
-    gcvBLEND_INV_SOURCE_COLOR,
-    gcvBLEND_SOURCE_ALPHA,
-    gcvBLEND_INV_SOURCE_ALPHA,
-    gcvBLEND_TARGET_COLOR,
-    gcvBLEND_INV_TARGET_COLOR,
-    gcvBLEND_TARGET_ALPHA,
-    gcvBLEND_INV_TARGET_ALPHA,
-    gcvBLEND_SOURCE_ALPHA_SATURATE,
-    gcvBLEND_CONST_COLOR,
-    gcvBLEND_INV_CONST_COLOR,
-    gcvBLEND_CONST_ALPHA,
-    gcvBLEND_INV_CONST_ALPHA,
-}
-gceBLEND_FUNCTION;
-
-/* Blending modes. */
-typedef enum _gceBLEND_MODE
-{
-    gcvBLEND_ADD = 0,
-    gcvBLEND_SUBTRACT,
-    gcvBLEND_REVERSE_SUBTRACT,
-    gcvBLEND_MIN,
-    gcvBLEND_MAX,
-    gcvBLEND_MULTIPLY,
-    gcvBLEND_SCREEN,
-    gcvBLEND_OVERLAY,
-    gcvBLEND_DARKEN,
-    gcvBLEND_LIGHTEN,
-    gcvBLEND_COLORDODGE,
-    gcvBLEND_COLORBURN,
-    gcvBLEND_HARDLIGHT,
-    gcvBLEND_SOFTLIGHT,
-    gcvBLEND_DIFFERENCE,
-    gcvBLEND_EXCLUSION,
-    gcvBLEND_HSL_HUE,
-    gcvBLEND_HSL_SATURATION,
-    gcvBLEND_HSL_COLOR,
-    gcvBLEND_HSL_LUMINOSITY,
-
-    gcvBLEND_TOTAL
-}
-gceBLEND_MODE;
-
-/* Depth modes. */
-typedef enum _gceDEPTH_MODE
-{
-    gcvDEPTH_NONE,
-    gcvDEPTH_Z,
-    gcvDEPTH_W,
-}
-gceDEPTH_MODE;
-#endif /* gcdENABLE_3D */
-
-
-/* API flags. */
-typedef enum _gceAPI
-{
-    gcvAPI_D3D = 1,
-    gcvAPI_OPENGL_ES11,
-    gcvAPI_OPENGL_ES20,
-    gcvAPI_OPENGL_ES30,
-    gcvAPI_OPENGL_ES31,
-    gcvAPI_OPENGL_ES32,
-    gcvAPI_OPENGL,
-    gcvAPI_OPENVG,
-    gcvAPI_OPENCL,
-    gcvAPI_OPENVK,
-}
-gceAPI;
-
-typedef enum _gceWHERE
-{
-    gcvWHERE_COMMAND_PREFETCH = 0,
-    gcvWHERE_COMMAND,
-    gcvWHERE_RASTER,
-    gcvWHERE_PIXEL,
-    gcvWHERE_BLT,
-}
-gceWHERE;
-
-typedef enum _gceHOW
-{
-    gcvHOW_SEMAPHORE            = 0x1,
-    gcvHOW_STALL                = 0x2,
-    gcvHOW_SEMAPHORE_STALL      = 0x3,
-}
-gceHOW;
-
-typedef enum _gceSignalHandlerType
-{
-    gcvHANDLE_SIGFPE_WHEN_SIGNAL_CODE_IS_0        = 0x1,
-}
-gceSignalHandlerType;
 
 typedef struct _gcsSURF_VIEW
 {
@@ -516,20 +375,6 @@ typedef struct _gcsHAL_CHIPIDENTITY
     gctUINT64                   platformFlagBits;
 }
 gcsHAL_CHIPIDENTITY;
-
-
-#define gcdEXTERNAL_MEMORY_NAME_MAX 32
-#define gcdEXTERNAL_MEMORY_DATA_MAX 8
-
-typedef struct _gcsEXTERNAL_MEMORY_INFO
-{
-    /* Name of allocator used to attach this memory. */
-    gctCHAR                allocatorName[gcdEXTERNAL_MEMORY_NAME_MAX];
-
-    /* User defined data which will be passed to allocator. */
-    gctUINT32              userData[gcdEXTERNAL_MEMORY_DATA_MAX];
-}
-gcsEXTERNAL_MEMORY_INFO;
 
 /******************************************************************************\
 ********************************* gcoHAL Object *********************************
@@ -619,7 +464,10 @@ gcoHAL_GetProductName(
 
 gceSTATUS
 gcoHAL_SetFscaleValue(
-    IN gctUINT FscaleValue
+    IN gcoHAL Hal,
+    IN gctUINT CoreIndex,
+    IN gctUINT FscaleValue,
+    IN gctUINT ShaderFscaleValue
     );
 
 gceSTATUS
@@ -983,6 +831,24 @@ gcoHAL_GetCurrentCoreIndex(
     );
 
 gceSTATUS
+gcoHAL_ConvertCoreIndexGlobal(
+    IN gcoHAL Hal,
+    IN gceHARDWARE_TYPE Type,
+    IN gctUINT32 CoreCount,
+    IN gctUINT32 *LocalCoreIndexs,
+    OUT gctUINT32 *GlobalCoreIndexs
+    );
+
+gceSTATUS
+gcoHAL_ConvertCoreIndexLocal(
+    IN gcoHAL Hal,
+    IN gceHARDWARE_TYPE Type,
+    IN gctUINT32 CoreCount,
+    IN gctUINT32 *GlobalCoreIndexs,
+    OUT gctUINT32 *LocalCoreIndexs
+    );
+
+gceSTATUS
 gcoHAL_SelectChannel(
     IN gcoHAL Hal,
     IN gctBOOL Priority,
@@ -1074,6 +940,14 @@ gcoHAL_UnlockVideoMemory(
     IN gctUINT32 Node,
     IN gceVIDMEM_TYPE Type,
     IN gceENGINE engine
+    );
+
+gceSTATUS
+gcoHAL_UnlockVideoMemoryEX(
+    IN gctUINT32 Node,
+    IN gceVIDMEM_TYPE Type,
+    IN gceENGINE Engine,
+    IN gctBOOL Sync
     );
 
 gceSTATUS
@@ -1331,17 +1205,6 @@ gcoOS_DeviceControl(
 
 #define gcdMAX_PATH 512
 
-typedef enum _gceFILE_MODE
-{
-    gcvFILE_CREATE          = 0,
-    gcvFILE_APPEND,
-    gcvFILE_READ,
-    gcvFILE_CREATETEXT,
-    gcvFILE_APPENDTEXT,
-    gcvFILE_READTEXT,
-}
-gceFILE_MODE;
-
 /* Open a file. */
 gceSTATUS
 gcoOS_Open(
@@ -1513,14 +1376,6 @@ gcoOS_Stat(
     IN gctCONST_STRING FileName,
     OUT gctPOINTER Buffer
     );
-
-typedef enum _gceFILE_WHENCE
-{
-    gcvFILE_SEEK_SET,
-    gcvFILE_SEEK_CUR,
-    gcvFILE_SEEK_END
-}
-gceFILE_WHENCE;
 
 /* Set the current position of a file. */
 gceSTATUS
@@ -2222,48 +2077,6 @@ typedef struct _gcsPIXEL
 /*----------------------------------------------------------------------------*/
 /*------------------------------- gcoSURF Common ------------------------------*/
 
-/* Color format classes. */
-typedef enum _gceFORMAT_CLASS
-{
-    gcvFORMAT_CLASS_RGBA        = 4500,
-    gcvFORMAT_CLASS_YUV,
-    gcvFORMAT_CLASS_INDEX,
-    gcvFORMAT_CLASS_LUMINANCE,
-    gcvFORMAT_CLASS_BUMP,
-    gcvFORMAT_CLASS_DEPTH,
-    gcvFORMAT_CLASS_ASTC,
-    gcvFORMAT_CLASS_COMPRESSED,
-    gcvFORMAT_CLASS_OTHER
-}
-gceFORMAT_CLASS;
-
-/* Color format data type */
-typedef enum _gceFORMAT_DATATYPE
-{
-    gcvFORMAT_DATATYPE_UNSIGNED_NORMALIZED,
-    gcvFORMAT_DATATYPE_SIGNED_NORMALIZED,
-    gcvFORMAT_DATATYPE_UNSIGNED_INTEGER,
-    gcvFORMAT_DATATYPE_SIGNED_INTEGER,
-    gcvFORMAT_DATATYPE_FLOAT16,
-    gcvFORMAT_DATATYPE_FLOAT32,
-    gcvFORMAT_DATATYPE_FLOAT_E5B9G9R9,
-    gcvFORMAT_DATATYPE_FLOAT_B10G11R11F,
-    gcvFORMAT_DATATYPE_INDEX,
-    gcvFORMAT_DATATYPE_SRGB,
-    gcvFORMAT_DATATYPE_FLOAT32_UINT,
-}
-gceFORMAT_DATATYPE;
-
-/* Special enums for width field in gcsFORMAT_COMPONENT. */
-typedef enum _gceCOMPONENT_CONTROL
-{
-    gcvCOMPONENT_NOTPRESENT     = 0x00,
-    gcvCOMPONENT_DONTCARE       = 0x80,
-    gcvCOMPONENT_WIDTHMASK      = 0x7F,
-    gcvCOMPONENT_ODD            = 0x80
-}
-gceCOMPONENT_CONTROL;
-
 /* Color format component parameters. */
 typedef struct _gcsFORMAT_COMPONENT
 {
@@ -2415,14 +2228,6 @@ extern gcsFORMAT_COMPONENT gcvPIXEL_COMP_XXX8;
 extern gcsFORMAT_COMPONENT gcvPIXEL_COMP_XX8X;
 extern gcsFORMAT_COMPONENT gcvPIXEL_COMP_X8XX;
 extern gcsFORMAT_COMPONENT gcvPIXEL_COMP_8XXX;
-
-typedef enum _gceORIENTATION
-{
-    gcvORIENTATION_TOP_BOTTOM,
-    gcvORIENTATION_BOTTOM_TOP,
-}
-gceORIENTATION;
-
 
 /* Construct a new gcoSURF object. */
 gceSTATUS
@@ -3490,18 +3295,6 @@ gcoOS_StackRemove(
 **      Text        Optional text
 **      ...         Optional arguments for text.
 */
-typedef struct _gcsBINARY_TRACE_MESSAGE * gcsBINARY_TRACE_MESSAGE_PTR;
-typedef struct _gcsBINARY_TRACE_MESSAGE
-{
-    gctUINT32   signature;
-    gctUINT32   pid;
-    gctUINT32   tid;
-    gctUINT32   line;
-    gctUINT32   numArguments;
-    gctUINT8    payload;
-}
-gcsBINARY_TRACE_MESSAGE;
-
 void
 gcoOS_BinaryTrace(
     IN gctCONST_STRING Function,
@@ -3517,8 +3310,6 @@ gckOS_BinaryTrace(
     IN gctCONST_STRING Text OPTIONAL,
     ...
     );
-
-#define gcdBINARY_TRACE_MESSAGE_SIZE 240
 
 #if gcdBINARY_TRACE
 #   define gcmBINARY_TRACE          gcoOS_BinaryTrace
@@ -3905,40 +3696,12 @@ gcoOS_Print(
 #   define gcmkPRINT_VERSION()      _gcmPRINT_VERSION(gcmk)
 #   define _gcmPRINT_VERSION(prefix) \
         prefix##TRACE(gcvLEVEL_ERROR, \
-                      "Vivante HAL version %d.%d.%d build %d", \
-                      gcvVERSION_MAJOR, gcvVERSION_MINOR, \
-                      gcvVERSION_PATCH, gcvVERSION_BUILD)
+                      "Vivante HAL version %s", \
+                      gcvVERSION_STRING)
 #else
 #   define gcmPRINT_VERSION()       do { gcmSTACK_DUMP(); } while (gcvFALSE)
 #   define gcmkPRINT_VERSION()      do { } while (gcvFALSE)
 #endif
-
-typedef enum _gceDUMP_BUFFER_TYPE
-{
-    gcvDUMP_BUFFER_USER_STRING,
-    gcvDUMP_BUFFER_VERIFY,
-
-    gcvDUMP_BUFFER_MEMORY,
-    gcvDUMP_BUFFER_TEXTURE,
-    gcvDUMP_BUFFER_STREAM,
-    gcvDUMP_BUFFER_INDEX,
-    gcvDUMP_BUFFER_BUFOBJ,
-    gcvDUMP_BUFFER_IMAGE,
-    /* A type of command, but should not execute directly. */
-    gcvDUMP_BUFFER_INSTRUCTION,
-    gcvDUMP_BUFFER_CONTEXT,
-    gcvDUMP_BUFFER_COMMAND,
-    gcvDUMP_BUFFER_ASYNC_COMMAND,
-    gcvDUMP_BUFFER_USER_TYPE_LAST = gcvDUMP_BUFFER_ASYNC_COMMAND,
-
-    gcvDUMP_BUFFER_KERNEL_CONTEXT,
-    gcvDUMP_BUFFER_KERNEL_COMMAND,
-
-    gcvDUMP_BUFFER_PHYSICAL_MEMORY,
-
-    gcvDUMP_BUFFER_TYPE_COUNT,
-}
-gceDUMP_BUFFER_TYPE;
 
 void
 gckOS_Dump(
@@ -4862,15 +4625,6 @@ gckOS_DebugStatus2Name(
 ****************************** User Debug Option ******************************
 \******************************************************************************/
 
-/* User option. */
-typedef enum _gceDEBUG_MSG
-{
-    gcvDEBUG_MSG_NONE,
-    gcvDEBUG_MSG_ERROR,
-    gcvDEBUG_MSG_WARNING
-}
-gceDEBUG_MSG;
-
 typedef struct _gcsUSER_DEBUG_OPTION
 {
     gceDEBUG_MSG        debugMsg;
@@ -5301,6 +5055,18 @@ gcoHAL_GetUserDebugOption(
 }
 
 /*----------------------------------------------------------------------------*/
+
+#define gcmSETSINGLESTATE_DUMMY(StateDelta, CommandBuffer, Memory, FixedPoint, \
+                                Address, Data) \
+ { \
+    gctUINT32 __temp_data32__; \
+    __temp_data32__ = Data ; \
+    gcmVERIFYLOADSTATEALIGNED(CommandBuffer, Memory); \
+    *Memory++ = \
+        (gctUINT32)(0) | (0xFFFF & Address); \
+    *Memory++ = __temp_data32__; \
+    gcmENDSTATEBATCH_NEW(CommandBuffer, Memory); \
+}
 
 #define gcmSETSINGLESTATE_NEW(StateDelta, CommandBuffer, Memory, FixedPoint, \
                               Address, Data) \
@@ -5918,8 +5684,8 @@ gcoHAL_GetUserDebugOption(
                 } \
                 else \
                 { \
-                    attribBufSizeInKB -= 4; \
-                    L1cacheSize = 4; \
+                    attribBufSizeInKB -= 2; \
+                    L1cacheSize = 2; \
                 } \
             } \
             prefix##ASSERT(L1cacheSize); \
@@ -5975,7 +5741,6 @@ typedef struct _memory_profile_info
         gctUINT32     total_freeCount;
     } system_memory, gpu_memory;
 } memory_profile_info;
-
 
 gceSTATUS
 gcoOS_GetMemoryProfileInfo(

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -61,13 +61,16 @@ typedef enum SHS_PRIV_CONSTANT_KIND
 /* Shader mem static priv-mapping kind */
 typedef enum SHS_PRIV_MEM_KIND
 {
-    SHS_PRIV_MEM_KIND_GPR_SPILLED_MEMORY        = 0, /* For gpr register spillage */
-    SHS_PRIV_MEM_KIND_CONSTANT_SPILLED_MEMORY   = 1, /* For constant register spillage */
-    SHS_PRIV_MEM_KIND_STREAMOUT_BY_STORE        = 2, /* Stream buffer for SO */
-    SHS_PRIV_MEM_KIND_CL_PRIVATE_MEMORY         = 3, /* For CL private mem */
-    SHS_PRIV_MEM_KIND_SHARED_MEMORY             = 4, /* For CL local memory or DirectCompute shared mem */
-    SHS_PRIV_MEM_KIND_EXTRA_UAV_LAYER           = 5,
-    SHS_PRIV_MEM_KIND_COUNT                     = 6,
+    SHS_PRIV_MEM_KIND_NONE                      = 0,
+    SHS_PRIV_MEM_KIND_GPR_SPILLED_MEMORY        = 1, /* For gpr register spillage */
+    SHS_PRIV_MEM_KIND_CONSTANT_SPILLED_MEMORY   = 2, /* For constant register spillage */
+    SHS_PRIV_MEM_KIND_STREAMOUT_BY_STORE        = 3, /* Stream buffer for SO */
+    SHS_PRIV_MEM_KIND_CL_PRIVATE_MEMORY         = 4, /* For CL private mem */
+    SHS_PRIV_MEM_KIND_SHARED_MEMORY             = 5, /* For CL local memory or DirectCompute shared mem */
+    SHS_PRIV_MEM_KIND_EXTRA_UAV_LAYER           = 6,
+    SHS_PRIV_MEM_KIND_THREAD_ID_MEM_ADDR        = 7, /* The global memory to save the consecutive thread ID. */
+    SHS_PRIV_MEM_KIND_YCBCR_PLANE               = 8, /* The YCBCR plane. */
+    SHS_PRIV_MEM_KIND_COUNT                     = 9,
 }SHS_PRIV_MEM_KIND;
 
 /* !!!!!NOTE: For dynamic (lib-link) patch, the priv-mapping flag will directly use VSC_LIB_LINK_TYPE!!!!! */
@@ -154,6 +157,8 @@ typedef struct SHADER_PRIV_MEM_DATA_MAPPING
 
 typedef struct SHADER_PRIV_UAV_ENTRY
 {
+    gctUINT                                     uavEntryIndex;
+
     SHADER_PRIV_MAPPING_COMMON_ENTRY            commonPrivm;
 
     /* The data which will be set to this memory */

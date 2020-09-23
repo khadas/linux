@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2019 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -25,6 +25,10 @@ typedef union _SPECIALIZATION_CONSTANT_VALUE
 
 typedef struct _VSC_LIB_SPECIALIZATION_CONSTANT
 {
+    /*
+    ** Some specialized variables for a function parameter, note that a name of the function parameter may be padding with "#dup%d",
+    ** so we need to use gcoOS_StrNCmp to compare with the function parameter.
+    */
     gctCONST_STRING                   varName;
     SPECIALIZATION_CONSTANT_VALUE     value;
     VSC_SHADER_DATA_TYPE              type;
@@ -114,12 +118,14 @@ typedef enum _VSC_RES_ACT_BIT
 
 typedef enum _VSC_LINK_POINT_RESOURCE_SUBTYPE
 {
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXLD_EXTRA_LATYER              = 1,
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGRAD_EXTRA_LATYER            = 2,
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXFETCH_REPLACE_WITH_IMGLD     = 3,
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGATHER_EXTRA_LAYTER          = 4,
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGATHERPCF_D32F               = 5,
-    VSC_LINK_POINT_RESOURCE_SUBTYPE_NORMALIZE_TEXCOORD              = 6,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXLD_EXTRA_LAYER               = 1,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXLD_EXTRA_LAYER_SPECIFIED_OP  = 2,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGRAD_EXTRA_LAYER             = 3,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXFETCH_REPLACE_WITH_IMGLD     = 4,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGATHER_EXTRA_LAYTER          = 5,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGATHERPCF_D32F               = 6,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_NORMALIZE_TEXCOORD              = 7,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_YCBCR_TEXTURE                   = 8,
 } VSC_LINK_POINT_RESOURCE_SUBTYPE;
 
 typedef struct _VSC_LIB_LINK_POINT_FUNC_NAME
@@ -140,6 +146,7 @@ typedef struct _VSC_LIB_LINK_POINT_RESOURCE
     gctUINT                           arrayIndex;
     VSC_RES_OP_BIT                    opTypeBits;
     VSC_RES_ACT_BIT                   actBits;
+    void*                             pPrivData;
     VSC_LINK_POINT_RESOURCE_SUBTYPE   subType;
 } VSC_LIB_LINK_POINT_RESOURCE;
 
@@ -165,12 +172,21 @@ typedef struct _VSC_LIB_LINK_IMAGE_READ_WRITE
     VSC_SAMPLER_INFO *              samplerInfo;
 } VSC_LIB_LINK_IMAGE_READ_WRITE;
 
+/* Same value with VIR_IMAGE_ACCESS_STRATEGY. */
+typedef enum _VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY
+{
+    VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY_USE_FORMAT                = 0,
+    VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY_LOAD_ZERO_STORE_NOP       = 1,
+    VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY_LOAD_ZERO_STORE_ZERO      = 2,
+} VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY;
+
 typedef struct _VSC_LIB_LINK_IMAGE_FORMAT
 {
-    gctUINT                         set;
-    gctUINT                         binding;
-    gctUINT                         arrayIndex;
-    VSC_IMAGE_FORMAT                imageFormat;
+    gctUINT                             set;
+    gctUINT                             binding;
+    gctUINT                             arrayIndex;
+    VSC_IMAGE_FORMAT                    imageFormat;
+    VSC_LIB_LINK_IMAGE_ACCESS_STRATEGY  replaceStrategy;
 } VSC_LIB_LINK_IMAGE_FORMAT;
 
 typedef struct _VSC_LIB_LINK_POINT
@@ -194,6 +210,7 @@ typedef struct _VSC_LIB_LINK_POINT
     } u;
 }VSC_LIB_LINK_POINT;
 
+#define LIB_NUM 2
 typedef struct _VSC_SHADER_LIB_LINK_ENTRY
 {
     /* Which level this link entry should be applied. */
@@ -201,6 +218,7 @@ typedef struct _VSC_SHADER_LIB_LINK_ENTRY
 
     /* Lib shader */
     SHADER_HANDLE                     hShaderLib;
+    SHADER_HANDLE                     hShaderLibs[LIB_NUM];
 
     /* vreg map from libShader to the current shader */
     void*                             pTempHashTable;

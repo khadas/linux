@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -59,7 +59,7 @@
 #include <linux/uaccess.h>
 
 #include "gc_hal_kernel_linux.h"
-#include "gc_hal_driver.h"
+#include "shared/gc_hal_driver.h"
 
 #include <linux/platform_device.h>
 
@@ -153,6 +153,13 @@ module_param(externalBase, ulong, 0644);
 #endif
 MODULE_PARM_DESC(externalBase, "Base address of external memory");
 
+static ulong exclusiveSize = 0;
+module_param(exclusiveSize, ulong, 0644);
+MODULE_PARM_DESC(exclusiveSize, "Size of exclusiveSize memory, if it is 0, means there is no exclusive pool");
+
+static ulong exclusiveBase = 0;
+module_param(exclusiveBase, ulong, 0644);
+MODULE_PARM_DESC(exclusiveBase, "Base address of exclusive memory(GPU access only)");
 
 static int fastClear = -1;
 module_param(fastClear, int, 0644);
@@ -219,10 +226,14 @@ static int userClusterMask = 0;
 module_param(userClusterMask, int, 0644);
 MODULE_PARM_DESC(userClusterMask, "User defined cluster enable mask");
 
+/* GPU small batch feature. */
 static int smallBatch = 1;
 module_param(smallBatch, int, 0644);
-MODULE_PARM_DESC(smallBatch, "Enable/disable small batch");
+MODULE_PARM_DESC(smallBatch, "Enable/disable GPU small batch feature, enable by default");
 
+static int allMapInOne = 1;
+module_param(allMapInOne, int, 0644);
+MODULE_PARM_DESC(allMapInOne, "Mapping kernel video memory to user, 0 means mapping every time, otherwise only mapping one time");
 /*******************************************************************************
 ***************************** SRAM description *********************************
 *******************************************************************************/
@@ -255,9 +266,21 @@ static uint sRAMRequested = 1;
 module_param(sRAMRequested, uint, 0644);
 MODULE_PARM_DESC(sRAMRequested, "Default 1 means AXI-SRAM is already reserved for GPU, 0 means GPU driver need request the memory region.");
 
+static uint mmuPageTablePool = 1;
+module_param(mmuPageTablePool, uint, 0644);
+MODULE_PARM_DESC(mmuPageTablePool, "Default 1 means alloc mmu page table in virsual memory, 0 means auto select memory pool.");
+
 static uint sRAMLoopMode = 0;
 module_param(sRAMLoopMode, uint, 0644);
 MODULE_PARM_DESC(sRAMLoopMode, "Default 0 means SRAM pool must be specified when allocating SRAM memory, 1 means SRAM memory will be looped as default pool.");
+
+static uint mmuDynamicMap = 1;
+module_param(mmuDynamicMap, uint, 0644);
+MODULE_PARM_DESC(mmuDynamicMap, "Default 1 means enable mmu dynamic mapping in virsual memory, 0 means disable dynnamic mapping.");
+
+static uint isrPoll = 0;
+module_param(isrPoll, uint, 0644);
+MODULE_PARM_DESC(isrPoll, "Bits isr polling for per-core, default 0'1b means disable, 1'1b means auto enable isr polling mode");
 
 #if USE_LINUX_PCIE
 static int bar = 1;
@@ -280,11 +303,6 @@ static int sRAMOffsets[gcvSRAM_EXT_COUNT] = {[0 ... gcvSRAM_EXT_COUNT - 1] = -1}
 module_param_array(sRAMOffsets, int, NULL, 0644);
 MODULE_PARM_DESC(sRAMOffsets, "Array of SRAM offset inside bar of shared external SRAMs.");
 #endif
-
-static uint mmuPageTablePool = 1;
-module_param(mmuPageTablePool, uint, 0644);
-MODULE_PARM_DESC(mmuPageTablePool, "Default 1 means alloc mmu page table in virsual memory, 0 means auto select memory pool.");
-
 
 static int gpu3DMinClock = 1;
 static int contiguousRequested = 0;
@@ -415,6 +433,12 @@ _InitModuleParam(
     p->deviceType  = type;
     p->showArgs    = showArgs;
 
+    p->mmuPageTablePool = mmuPageTablePool;
+
+    p->mmuDynamicMap = mmuDynamicMap;
+    p->allMapInOne = allMapInOne;
+
+    p->isrPoll = isrPoll;
 #if !gcdENABLE_3D
     p->irqs[gcvCORE_MAJOR]          = irqLine = -1;
     p->registerBases[gcvCORE_MAJOR] = registerMemBase = 0;
@@ -471,8 +495,14 @@ _SyncModuleParam(
         p->chipIDs[i] = chipIDs[i];
     }
 
-    contiguousBase      = (ulong)p->contiguousBase;
-    contiguousSize      = (ulong)p->contiguousSize;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+        contiguousBase      = p->contiguousBase;
+        contiguousSize      = p->contiguousSize;
+#else
+        contiguousBase      = (ulong)p->contiguousBase;
+        contiguousSize      = (ulong)p->contiguousSize;
+#endif
+
     contiguousRequested = p->contiguousRequested;   /* not a module param. */
 
     externalBase = p->externalBase;
@@ -520,6 +550,11 @@ _SyncModuleParam(
 
     type        = p->deviceType;
     showArgs    = p->showArgs;
+
+    mmuPageTablePool = p->mmuDynamicMap;
+    mmuDynamicMap = p->mmuDynamicMap;
+    allMapInOne = p->allMapInOne;
+    isrPoll = p->isrPoll;
 }
 
 void
@@ -583,7 +618,8 @@ gckOS_DumpParam(
     printk("  stuckDump         = %d\n",      stuckDump);
     printk("  gpuProfiler       = %d\n",      gpuProfiler);
     printk("  userClusterMask   = 0x%x\n",    userClusterMask);
-    printk("  smallBatch        = %d\n",      smallBatch);
+    printk("  GPU smallBatch    = %d\n",      smallBatch);
+    printk("  allMapInOne       = %d\n",      allMapInOne);
 
     printk("  irqs              = ");
     for (i = 0; i < gcvCORE_COUNT; i++)
@@ -646,6 +682,10 @@ gckOS_DumpParam(
         printk("0x%llx, ", extSRAMBases[i]);
     }
     printk("\n");
+
+    printk("  mmuPageTablePool  = %d\n", mmuPageTablePool);
+    printk("  mmuDynamicMap     = %d\n", mmuDynamicMap);
+    printk("  isrPoll           = 0x%08X\n", isrPoll);
 
     printk("Build options:\n");
     printk("  gcdGPU_TIMEOUT    = %d\n", gcdGPU_TIMEOUT);
@@ -950,15 +990,14 @@ static struct miscdevice gal_device = {
 
 static int drv_init(void)
 {
-    int ret = -EINVAL;
+    int result = -EINVAL;
     gceSTATUS status;
     gckGALDEVICE device = gcvNULL;
     struct class* device_class = gcvNULL;
 
     gcmkHEADER();
 
-    printk("Galcore version %d.%d.%d.%d\n",
-        gcvVERSION_MAJOR, gcvVERSION_MINOR, gcvVERSION_PATCH, gcvVERSION_BUILD);
+    printk(KERN_INFO "Galcore version %s\n", gcvVERSION_STRING);
 
     if (showArgs)
     {
@@ -994,7 +1033,9 @@ static int drv_init(void)
     if (type == 1)
     {
         /* Register as misc driver. */
-        if (misc_register(&gal_device) < 0)
+        result = misc_register(&gal_device);
+
+        if (result < 0)
         {
             gcmkTRACE_ZONE(
                 gcvLEVEL_ERROR, gcvZONE_DRIVER,
@@ -1008,7 +1049,7 @@ static int drv_init(void)
     else
     {
         /* Register the character device. */
-        int result = register_chrdev(major, DEVICE_NAME, &driver_fops);
+        result = register_chrdev(major, DEVICE_NAME, &driver_fops);
 
         if (result < 0)
         {
@@ -1057,27 +1098,39 @@ static int drv_init(void)
         );
 
     /* Success. */
-    ret = 0;
+    gcmkFOOTER();
+    return 0;
 
 OnError:
-    if (ret)
+    /* Roll back. */
+    if (device_class)
     {
-        /* Roll back. */
-        if (device_class)
-        {
-            device_destroy(device_class, MKDEV(major, 0));
-            class_destroy(device_class);
-        }
-
-        if (device)
-        {
-            gcmkVERIFY_OK(gckGALDEVICE_Stop(device));
-            gcmkVERIFY_OK(gckGALDEVICE_Destroy(device));
-        }
+        device_destroy(device_class, MKDEV(major, 0));
+        class_destroy(device_class);
     }
 
+    if (result < 0)
+    {
+        if (type == 1)
+        {
+            misc_deregister(&gal_device);
+        }
+        else
+        {
+            unregister_chrdev(result, DEVICE_NAME);
+        }
+    }
+    if (device)
+    {
+        gcmkVERIFY_OK(gckGALDEVICE_Stop(device));
+        gcmkVERIFY_OK(gckGALDEVICE_Destroy(device));
+    }
+
+    galcore_device->dma_mask = NULL;
+    galcore_device = NULL;
+
     gcmkFOOTER();
-    return ret;
+    return result;
 }
 
 static void drv_exit(void)
@@ -1117,24 +1170,39 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 {
     int ret = -ENODEV;
+    bool getPowerFlag = gcvFALSE;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
     static u64 dma_mask = DMA_BIT_MASK(40);
 #else
     static u64 dma_mask = DMA_40BIT_MASK;
 #endif
 
+#if gcdCAPTURE_ONLY_MODE
+    gctPHYS_ADDR_T contiguousBaseCap = 0;
+    gctSIZE_T contiguousSizeCap = 0;
+    gctPHYS_ADDR_T sRAMBaseCap[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+    gctUINT32 sRAMSizeCap[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
+    gctPHYS_ADDR_T extSRAMBaseCap[gcvSRAM_EXT_COUNT];
+    gctUINT32 extSRAMSizeCap[gcvSRAM_EXT_COUNT];
+    gctUINT i = 0, j = 0;
+#endif
+
     gcmkHEADER();
-    if (get_nna_status(pdev) == gcvSTATUS_MISMATCH)
-    {
-        printk("nn is disable,should not do probe continue\n");
-        return ret;
-    }
+
+	if (get_nna_status(pdev) == gcvSTATUS_MISMATCH)
+	{
+		printk("nn is disable,should not do probe continue\n");
+		return ret;
+	}
+
     platform->device = pdev;
     galcore_device = &pdev->dev;
 
     galcore_device->dma_mask = &dma_mask;
 
-    galcore_device->coherent_dma_mask = dma_mask;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+        galcore_device->coherent_dma_mask = dma_mask;
+#endif
 
     if (platform->ops->getPower)
     {
@@ -1143,10 +1211,38 @@ static int __devinit gpu_probe(struct platform_device *pdev)
             gcmkFOOTER_NO();
             return ret;
         }
+        getPowerFlag = gcvTRUE;
     }
 
     /* Gather module parameters. */
     _InitModuleParam(&moduleParam);
+
+#if gcdCAPTURE_ONLY_MODE
+    contiguousBaseCap = moduleParam.contiguousBase;
+    contiguousSizeCap = moduleParam.contiguousSize;
+
+    gcmkPRINT("Capture only mode is enabled in Hal Kernel.");
+
+    if ((contiguousBaseCap + contiguousSizeCap) > 0x80000000)
+    {
+        gcmkPRINT("Capture only mode: contiguousBase + contiguousSize > 2G, there is error in CModel and old MMU version RTL simulation.");
+    }
+
+    for (i = 0; i < gcvCORE_COUNT; i++)
+    {
+        for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
+        {
+            sRAMBaseCap[i][j] = moduleParam.sRAMBases[i][j];
+            sRAMSizeCap[i][j] = moduleParam.sRAMSizes[i][j];
+        }
+    }
+
+    for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
+    {
+        extSRAMBaseCap[i] = moduleParam.extSRAMBases[i];
+        extSRAMSizeCap[i] = moduleParam.extSRAMSizes[i];
+    }
+#endif
 
     if (platform->ops->adjustParam)
     {
@@ -1154,6 +1250,25 @@ static int __devinit gpu_probe(struct platform_device *pdev)
         platform->ops->adjustParam(platform, &moduleParam);
     }
 
+#if gcdCAPTURE_ONLY_MODE
+    moduleParam.contiguousBase = contiguousBaseCap;
+    moduleParam.contiguousSize = contiguousSizeCap;
+
+    for (i = 0; i < gcvCORE_COUNT; i++)
+    {
+        for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
+        {
+            moduleParam.sRAMBases[i][j] = sRAMBaseCap[i][j];
+            moduleParam.sRAMSizes[i][j] = sRAMSizeCap[i][j];
+        }
+    }
+
+    for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
+    {
+        moduleParam.extSRAMBases[i] = extSRAMBaseCap[i];
+        moduleParam.extSRAMSizes[i] = extSRAMSizeCap[i];
+    }
+#endif
     /* Update module param because drv_init() uses them directly. */
     _SyncModuleParam(&moduleParam);
 
@@ -1170,6 +1285,14 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 
     if (ret < 0)
     {
+        if(platform->ops->putPower)
+        {
+            if(getPowerFlag == gcvTRUE)
+            {
+                platform->ops->putPower(platform);
+            }
+        }
+
         gcmkFOOTER_ARG(KERN_INFO "Failed to register gpu driver: %d\n", ret);
     }
     else
@@ -1384,4 +1507,5 @@ static void __exit gpu_exit(void)
 }
 
 module_init(gpu_init);
+
 module_exit(gpu_exit);
