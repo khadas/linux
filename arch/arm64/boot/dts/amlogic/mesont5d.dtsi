@@ -226,7 +226,7 @@
 	};
 
 	mailbox_pl: mhu@ff63c420 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_pl";
 		reg = <0x0 0xff63c420 0x0 0x4>,   /*from ao sts registers */
 		      <0x0 0xff63c428 0x0 0x4>,   /*to ao set registers */

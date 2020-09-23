@@ -649,7 +649,7 @@ static int mhu_pl_probe(struct platform_device *pdev)
 
 	mhu_pl_device = dev;
 	mhu_f |= MASK_MHU_PL;
-	pr_info("pl mailbox init done\n");
+	pr_info("pl mailbox init done %pK, 0x%x\n", mhu_pl_device, mhu_f);
 	return 0;
 }
 
