@@ -1510,11 +1510,13 @@ static inline void note_trap(struct evl_thread *curr,
 			(void *)instruction_pointer(regs));
 }
 
-/* oob stalled. */
+/* hard irqs off. */
 void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
 	bool is_bp = false;
+
+	trace_evl_thread_fault(trapnr, regs);
 
 	curr = evl_current();
 	if (curr->local_info & T_INFAULT) {
@@ -1525,8 +1527,6 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 	oob_context_only();
 
 	curr->local_info |= T_INFAULT;
-
-	trace_evl_thread_fault(trapnr, regs);
 
 	if (current->ptrace & PT_PTRACED)
 		is_bp = evl_is_breakpoint(trapnr);
@@ -1541,10 +1541,12 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 	evl_switch_inband(is_bp ? EVL_HMDIAG_TRAP : EVL_HMDIAG_EXDEMOTE);
 }
 
-/* hard irqs on. */
+/* hard irqs off */
 void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr = evl_current();
+
+	hard_local_irq_enable();
 
 	curr->local_info &= ~T_INFAULT;
 
@@ -1561,6 +1563,8 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 		evl_switch_oob();
 		note_trap(curr, trapnr, regs, "resuming out-of-band");
 	}
+
+	hard_local_irq_disable();
 }
 
 void handle_oob_mayday(struct pt_regs *regs)
