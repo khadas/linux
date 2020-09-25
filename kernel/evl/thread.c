@@ -1518,6 +1518,13 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 
 	trace_evl_thread_fault(trapnr, regs);
 
+	/*
+	 *  We may not demote the current task if running in NMI
+	 *  context. Just bail out if so.
+	 */
+	if (in_nmi())
+		return;
+
 	curr = evl_current();
 	if (curr->local_info & T_INFAULT) {
 		note_trap(curr, trapnr, regs, "recursive fault");
@@ -1545,6 +1552,9 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr = evl_current();
+
+	if (in_nmi())
+		return;
 
 	hard_local_irq_enable();
 
