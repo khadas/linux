@@ -1562,12 +1562,12 @@
 			cooling-maps {
 				cpufreq_cooling_map0 {
 					trip = <&pcontrol>;
-					cooling-device = <&cpufreq_cool0 0 10>;
+					cooling-device = <&cpufreq_cool0 0 12>;
 					contribution = <1024>;
 				};
 				cpufreq_cooling_map1 {
 					trip = <&pcontrol>;
-					cooling-device = <&cpufreq_cool1 0 9>;
+					cooling-device = <&cpufreq_cool1 0 14>;
 					contribution = <1024>;
 				};
 				cpucore_cooling_map0 {
