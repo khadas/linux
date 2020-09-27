@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  *
  * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
  *
- *
  */
+
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/utils/vdec_reg.h>
 
 #define LDIM_BL_ADDR_PORT			0x144e
 #define LDIM_BL_DATA_PORT			0x144f
@@ -89,6 +91,21 @@
 /* LD_CFG_BASE */
 #define REG_LD_BLMAT_RAM_MISC           0xf
 
+/* each base has 16 address space */
+/******  TM2  ******/
+#define REG_LD_RGB_NRMW_BASE_TM2       0x20
+#define REG_LD_BLK_HIDX_BASE_TM2       0x30
+#define REG_LD_BLK_VIDX_BASE_TM2       0x50
+#define REG_LD_LUT_VHK_NEGPOS_BASE_TM2 0x70
+#define REG_LD_LUT_VHO_NEGPOS_BASE_TM2 0x80
+#define REG_LD_LUT_HHK_BASE_TM2        0x90
+#define REG_LD_REFLECT_DGR_BASE_TM2    0xa0
+#define REG_LD_LUT_LEXT_BASE_TM2       0xb0
+#define REG_LD_LUT_HDG_BASE_TM2        0x100
+#define REG_LD_LUT_VDG_BASE_TM2        0x200
+#define REG_LD_LUT_VHK_BASE_TM2        0x300
+#define REG_LD_LUT_ID_BASE_TM2         0x400
+
 /* #define LDIM_STTS_HIST_REGION_IDX      0x1aa0 */
 #define LOCAL_DIM_STATISTIC_EN_BIT          31
 #define LOCAL_DIM_STATISTIC_EN_WID           1
@@ -109,112 +126,129 @@
 #define REGION_RD_INDEX_BIT                  0
 #define REGION_RD_INDEX_WID                  7
 
+// configure DMA
+#define VPU_DMA_RDMIF_CTRL3				0x27cc
+#define VPU_DMA_RDMIF_BADDR0				0x27cd
+#define VPU_DMA_WRMIF_CTRL1				0x27d1
+#define VPU_DMA_WRMIF_CTRL2				0x27d2
+#define VPU_DMA_WRMIF_CTRL3				0x27d3
+#define VPU_DMA_WRMIF_BADDR0				0x27d4
+#define VPU_DMA_RDMIF_CTRL				0x27d8
+#define VPU_DMA_RDMIF_BADDR1				0x27d9
+#define VPU_DMA_RDMIF_BADDR2				0x27da
+#define VPU_DMA_RDMIF_BADDR3				0x27db
+#define VPU_DMA_WRMIF_CTRL				0x27dc
+#define VPU_DMA_WRMIF_BADDR1				0x27dd
+#define VPU_DMA_WRMIF_BADDR2				0x27de
+#define VPU_DMA_WRMIF_BADDR3				0x27df
+
 #ifndef CONFIG_AMLOGIC_MEDIA_RDMA
 #define LDIM_VSYNC_RDMA      0
 #else
 #define LDIM_VSYNC_RDMA      0
 #endif
 
-unsigned int lcd_vcbus_read(unsigned int _reg);
-void lcd_vcbus_write(unsigned int _reg, unsigned int _value);
-void lcd_vcbus_setb(unsigned int reg, unsigned int value,
-		    unsigned int _start, unsigned int _len);
-unsigned int lcd_vcbus_getb(unsigned int reg,
-			    unsigned int _start, unsigned int _len);
-
-static inline void wr_reg_bits(unsigned int addr, unsigned int val,
-			       unsigned int start, unsigned int len)
+static inline void ldim_wr_vcbus(unsigned int addr, unsigned int val)
 {
-	lcd_vcbus_setb(addr, val, start, len);
+	aml_write_vcbus(addr, val);
 }
 
-static inline unsigned int rd_reg_bits(unsigned int addr, unsigned int start,
-				       unsigned int len)
+static inline unsigned int ldim_rd_vcbus(unsigned int addr)
 {
-	return lcd_vcbus_getb(addr, start, len);
+	return aml_read_vcbus(addr);
 }
 
-#define wr_reg(reg, val)    lcd_vcbus_write(reg, val)
-#define rd_reg(reg)         lcd_vcbus_read(reg)
+static inline void ldim_wr_vcbus_bits(unsigned int addr, unsigned int val,
+				      unsigned int start, unsigned int len)
+{
+	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
+}
 
-static inline void ldim_wr_32bits(unsigned int addr, unsigned int data)
+static inline unsigned int ldim_rd_vcbus_bits(unsigned int addr,
+					      unsigned int start,
+					      unsigned int len)
+{
+	return ((aml_read_vcbus(addr) >> start) & ((1 << len) - 1));
+}
+
+static inline void ldim_wr_reg(unsigned int addr, unsigned int data)
 {
 #if (LDIM_VSYNC_RDMA == 1)
 	VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, addr);
 	VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
 #else
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
-	lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_DATA_PORT, data);
 #endif
 }
 
-static inline unsigned int ldim_rd_32bits(unsigned int addr)
+static inline unsigned int ldim_rd_reg(unsigned int addr)
 {
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
-	return lcd_vcbus_read(LDIM_BL_DATA_PORT);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	return aml_read_vcbus(LDIM_BL_DATA_PORT);
 }
 
-static inline void LDIM_WR_reg_bits(unsigned int addr, unsigned int val,
+static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
 				    unsigned int start, unsigned int len)
 {
 	unsigned int data;
 
-	data = ldim_rd_32bits(addr);
+	data = ldim_rd_reg(addr);
 	data = (data & (~((1 << len) - 1) << start))  |
 		((val & ((1 << len) - 1)) << start);
-	ldim_wr_32bits(addr, data);
+	ldim_wr_reg(addr, data);
 }
 
-static inline void LDIM_WR_BASE_LUT(unsigned int base, unsigned int *pdata,
-				    unsigned int size_t, unsigned int len)
+static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,
+			       unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subcnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subcnt = 32 / size_t;
+	sub_cnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		data = data | ((pdata[i] & mask) << (size_t *cnt));
 		cnt++;
-		if (cnt == subcnt) {
-			lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
+		if (cnt == sub_cnt) {
+			aml_write_vcbus(LDIM_BL_DATA_PORT, data);
 			data = 0;
 			cnt = 0;
 			addr++;
 		}
 	}
 	if (cnt != 0)
-		lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
+		aml_write_vcbus(LDIM_BL_DATA_PORT, data);
 }
 
-static inline void LDIM_RD_BASE_LUT(unsigned int base, unsigned int *pdata,
-				    unsigned int size_t, unsigned int len)
+static inline void ldim_rd_lut(unsigned int base, unsigned int *pdata,
+			       unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subcnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subcnt = 32 / size_t;
+	sub_cnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == subcnt) {
-			data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
+		if (cnt == sub_cnt) {
+			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
 			pdata[i - 1] = data & mask;
 			pdata[i] = mask & (data >> size_t);
 			data = 0;
@@ -223,29 +257,29 @@ static inline void LDIM_RD_BASE_LUT(unsigned int base, unsigned int *pdata,
 		}
 	}
 	if (cnt != 0)
-		data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
+		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
 }
 
-static inline void LDIM_RD_BASE_LUT_2(unsigned int base, unsigned int *pdata,
-				      unsigned int size_t, unsigned int len)
+static inline void ldim_rd_lut2(unsigned int base, unsigned int *pdata,
+				unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subcnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subcnt = 2;
+	sub_cnt = 2;
 	cnt  = 0;
 	data = 0;
 
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == subcnt) {
-			data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
+		if (cnt == sub_cnt) {
+			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
 			pdata[i - 1] = data & mask;
 			pdata[i] = mask & (data >> size_t);
 			data = 0;
@@ -254,10 +288,10 @@ static inline void LDIM_RD_BASE_LUT_2(unsigned int base, unsigned int *pdata,
 		}
 	}
 	if (cnt != 0)
-		data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
+		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
 }
 
-static inline void LDIM_WR_BASE_LUT_DRT(int base, int *pdata, int len)
+static inline void ldim_wr_lut_drt(int base, int *pdata, int len)
 {
 	int i;
 	int addr;
@@ -268,9 +302,9 @@ static inline void LDIM_WR_BASE_LUT_DRT(int base, int *pdata, int len)
 	for (i = 0; i < len; i++)
 		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, pdata[i]);
 #else
-	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 	for (i = 0; i < len; i++)
-		lcd_vcbus_write(LDIM_BL_DATA_PORT, pdata[i]);
+		aml_write_vcbus(LDIM_BL_DATA_PORT, pdata[i]);
 #endif
 }
 

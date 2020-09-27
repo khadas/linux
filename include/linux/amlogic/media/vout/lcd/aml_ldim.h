@@ -39,85 +39,12 @@ enum ldim_dev_type_e {
 struct ldim_config_s {
 	unsigned short hsize;
 	unsigned short vsize;
-	unsigned char row;
-	unsigned char col;
+	unsigned char hist_row;
+	unsigned char hist_col;
 	unsigned char bl_mode;
 	unsigned char bl_en;
 	unsigned char hvcnt_bypass;
-};
-
-#define LDIM_INIT_ON_MAX     300
-#define LDIM_INIT_OFF_MAX    20
-struct ldim_dev_config_s {
-	char name[20];
-	char pinmux_name[20];
-	unsigned char type;
-	int cs_hold_delay;
-	int cs_clk_delay;
-	int en_gpio;
-	int en_gpio_on;
-	int en_gpio_off;
-	int lamp_err_gpio;
-	unsigned char fault_check;
-	unsigned char write_check;
-
-	unsigned int dim_min;
-	unsigned int dim_max;
-
-	unsigned char init_loaded;
-	unsigned char cmd_size;
-	unsigned char *init_on;
-	unsigned char *init_off;
-	unsigned int init_on_cnt;
-	unsigned int init_off_cnt;
-
-	struct bl_pwm_config_s ldim_pwm_config;
-	struct bl_pwm_config_s analog_pwm_config;
-
-	unsigned short bl_regnum;
-	unsigned short bl_mapping[LD_BLKREGNUM];
-
-	void (*dim_range_update)(void);
-	int (*dev_reg_write)(unsigned char *buf, unsigned int len);
-	int (*dev_reg_read)(unsigned char *buf, unsigned int len);
-};
-
-/*******global API******/
-struct aml_ldim_driver_s {
-	unsigned char valid_flag;
 	unsigned char dev_index;
-	unsigned char static_pic_flag;
-	unsigned char vsync_change_flag;
-	unsigned char pinmux_flag;
-
-	struct ldim_config_s *ldim_conf;
-	struct ldim_dev_config_s *ldev_conf;
-	unsigned int *hist_matrix;
-	unsigned int *max_rgb;
-	unsigned short *ldim_test_matrix;
-	unsigned short *local_ldim_matrix;
-	unsigned short *ldim_matrix_buf;
-	/**/
-	unsigned int *local_ldim_hist;
-	unsigned int *local_ldim_max;
-	unsigned int *local_ldim_max_rgb;
-
-	int (*init)(void);
-	int (*power_on)(void);
-	int (*power_off)(void);
-	int (*set_level)(unsigned int level);
-	int (*pinmux_ctrl)(int status);
-	int (*pwm_vs_update)(void);
-	int (*device_power_on)(void);
-	int (*device_power_off)(void);
-	int (*device_bri_update)(unsigned short *buf, unsigned char len);
-	int (*device_bri_check)(void);
-	void (*config_print)(void);
-	void (*test_ctrl)(int flag);
-	struct pinctrl *pin;
-	struct device *dev;
-	struct spi_device *spi_dev;
-	struct spi_board_info *spi_info;
 };
 
 struct ldim_param_s {
@@ -145,6 +72,121 @@ struct ldim_param_s {
 	/* remapping */
 	int lit_idx_th;
 	int comp_gain;
+};
+
+#define LDIM_INIT_ON_MAX     300
+#define LDIM_INIT_OFF_MAX    20
+struct ldim_dev_config_s {
+	unsigned char index;
+	char name[20];
+	char pinmux_name[20];
+	unsigned char type;
+	int cs_hold_delay;
+	int cs_clk_delay;
+	int en_gpio;
+	int en_gpio_on;
+	int en_gpio_off;
+	int lamp_err_gpio;
+	unsigned char fault_check;
+	unsigned char write_check;
+	unsigned char device_count;
+	unsigned char pinmux_flag;
+
+	unsigned int blk_row;
+	unsigned int blk_col;
+	unsigned int dim_min;
+	unsigned int dim_max;
+
+	unsigned char init_loaded;
+	unsigned char cmd_size;
+	unsigned char *init_on;
+	unsigned char *init_off;
+	unsigned int init_on_cnt;
+	unsigned int init_off_cnt;
+
+	struct bl_pwm_config_s ldim_pwm_config;
+	struct bl_pwm_config_s analog_pwm_config;
+
+	unsigned short bl_zone_num;
+	unsigned short bl_mapping[LD_BLKREGNUM];
+
+	void (*dim_range_update)(void);
+	int (*dev_reg_write)(unsigned int dev_id, unsigned char *buf,
+			     unsigned int len);
+	int (*dev_reg_read)(unsigned int dev_id, unsigned char *buf,
+			    unsigned int len);
+
+	struct pinctrl *pin;
+	struct device *dev;
+	struct class *dev_class;
+	struct spi_device *spi_dev;
+	struct spi_board_info *spi_info;
+};
+
+struct ldim_rmem_s {
+	void *wr_mem_vaddr1;
+	phys_addr_t wr_mem_paddr1;
+	void *wr_mem_vaddr2;
+	phys_addr_t wr_mem_paddr2;
+	void *rd_mem_vaddr1;
+	phys_addr_t rd_mem_paddr1;
+	void *rd_mem_vaddr2;
+	phys_addr_t rd_mem_paddr2;
+	unsigned int wr_mem_size;
+	unsigned int rd_mem_size;
+};
+
+/*******global API******/
+struct aml_ldim_driver_s {
+	unsigned char valid_flag;
+	unsigned char static_pic_flag;
+	unsigned char vsync_change_flag;
+
+	unsigned char init_on_flag;
+	unsigned char func_en;
+	unsigned char remap_en;
+	unsigned char demo_en;
+	unsigned char func_bypass;  /* for lcd bist pattern */
+	unsigned char brightness_bypass;
+	unsigned char test_en;
+	unsigned char avg_update_en;
+	unsigned char matrix_update_en;
+	unsigned char alg_en;
+	unsigned char top_en;
+	unsigned char hist_en;
+	unsigned char load_db_en;
+	unsigned char db_print_flag;
+
+	unsigned int data_min;
+	unsigned int data_max;
+	unsigned int brightness_level;
+	unsigned int litgain;
+	unsigned int irq_cnt;
+
+	struct ldim_config_s *conf;
+	struct ldim_dev_config_s *ldev_conf;
+	struct ldim_rmem_s *rmem;
+	unsigned int *hist_matrix;
+	unsigned int *max_rgb;
+	unsigned short *test_matrix;
+	unsigned short *local_ldim_matrix;
+	unsigned short *ldim_matrix_buf;
+	struct ldim_fw_para_s *fw_para;
+	int (*init)(void);
+	int (*power_on)(void);
+	int (*power_off)(void);
+	int (*set_level)(unsigned int level);
+	int (*pinmux_ctrl)(int status);
+	int (*pwm_vs_update)(void);
+	int (*device_power_on)(void);
+	int (*device_power_off)(void);
+	int (*device_bri_update)(unsigned short *buf, unsigned char len);
+	int (*device_bri_check)(void);
+	void (*config_print)(void);
+	void (*test_ctrl)(int flag);
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *ldim_vpu_dev;
+#endif
 };
 
 struct aml_ldim_driver_s *aml_ldim_get_driver(void);

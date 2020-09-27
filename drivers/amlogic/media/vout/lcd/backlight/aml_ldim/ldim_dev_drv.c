@@ -24,11 +24,10 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#include <linux/amlogic/gki_module.h>
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 #include "../aml_bl_reg.h"
-
-#define LDIM_CLASS_NAME "ldim_dev"
 
 struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX] = {
 	{.probe_flag = 0, .register_flag = 0,},
@@ -50,9 +49,9 @@ static struct spi_board_info ldim_spi_info = {
 static unsigned char *table_init_on_dft;
 static unsigned char *table_init_off_dft;
 static int ldim_dev_probe_flag;
-static struct class *ldim_dev_class;
 
 struct ldim_dev_config_s ldim_dev_config = {
+	.index = 0xff,
 	.type = LDIM_DEV_TYPE_NORMAL,
 	.cs_hold_delay = 0,
 	.cs_clk_delay = 0,
@@ -62,6 +61,7 @@ struct ldim_dev_config_s ldim_dev_config = {
 	.lamp_err_gpio = LCD_EXT_GPIO_INVALID,
 	.fault_check = 0,
 	.write_check = 0,
+	.pinmux_flag = 0xff,
 	.dim_min = 0x7f, /* min 3% duty */
 	.dim_max = 0xfff,
 	.init_loaded = 0,
@@ -70,6 +70,7 @@ struct ldim_dev_config_s ldim_dev_config = {
 	.init_off = NULL,
 	.init_on_cnt = 0,
 	.init_off_cnt = 0,
+	.device_count = 0,
 	.ldim_pwm_config = {
 		.pwm_method = BL_PWM_POSITIVE,
 		.pwm_port = BL_PWM_MAX,
@@ -84,17 +85,22 @@ struct ldim_dev_config_s ldim_dev_config = {
 		.pwm_duty_min = 10,
 	},
 
-	.bl_regnum = 0,
+	.blk_row = 1,
+	.blk_col = 1,
+	.bl_zone_num = 0,
 
 	.dim_range_update = NULL,
 	.dev_reg_write = NULL,
 	.dev_reg_read = NULL,
+
+	.pin = NULL,
+	.spi_dev = NULL,
+	.spi_info = NULL,
 };
 
 static void ldim_gpio_probe(int index)
 {
 	struct bl_gpio_s *ld_gpio;
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	const char *str;
 	int ret;
 
@@ -112,9 +118,8 @@ static void ldim_gpio_probe(int index)
 	}
 
 	/* get gpio name */
-	ret = of_property_read_string_index(ldim_drv->dev->of_node,
-					    "ldim_dev_gpio_names", index,
-					    &str);
+	ret = of_property_read_string_index(ldim_dev_config.dev->of_node,
+					    "ldim_dev_gpio_names", index, &str);
 	if (ret) {
 		LDIMERR("failed to get ldim_dev_gpio_names: %d\n", index);
 		str = "unknown";
@@ -129,7 +134,6 @@ static void ldim_gpio_probe(int index)
 static int ldim_gpio_register(int index, int init_value)
 {
 	struct bl_gpio_s *ld_gpio;
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int value;
 
 	if (index >= BL_GPIO_NUM_MAX) {
@@ -163,7 +167,7 @@ static int ldim_gpio_register(int index, int init_value)
 	}
 
 	/* request gpio */
-	ld_gpio->gpio = devm_gpiod_get_index(ldim_drv->dev,
+	ld_gpio->gpio = devm_gpiod_get_index(ldim_dev_config.dev,
 					     "ldim_dev", index, value);
 	if (IS_ERR(ld_gpio->gpio)) {
 		LDIMERR("register gpio %s[%d]: %p, err: %d\n",
@@ -290,25 +294,24 @@ static char *ldim_pinmux_str[] = {
 
 static int ldim_pwm_pinmux_ctrl(int status)
 {
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct bl_pwm_config_s *bl_pwm;
 	char *str;
 	int ret = 0, index = 0xff;
 
-	if (ldim_drv->ldev_conf->ldim_pwm_config.pwm_port >= BL_PWM_MAX)
+	if (ldim_dev_config.ldim_pwm_config.pwm_port >= BL_PWM_MAX)
 		return 0;
 
 	if (status) {
-		bl_pwm = &ldim_drv->ldev_conf->ldim_pwm_config;
+		bl_pwm = &ldim_dev_config.ldim_pwm_config;
 		if (bl_pwm->pwm_port == BL_PWM_VS)
 			index = 1;
 		else
 			index = 0;
-		bl_pwm = &ldim_drv->ldev_conf->analog_pwm_config;
+		bl_pwm = &ldim_dev_config.analog_pwm_config;
 		if (bl_pwm->pwm_port < BL_PWM_VS)
 			index += 2;
 	} else {
-		bl_pwm = &ldim_drv->ldev_conf->analog_pwm_config;
+		bl_pwm = &ldim_dev_config.analog_pwm_config;
 		if (bl_pwm->pwm_port < BL_PWM_VS)
 			index = 5;
 		else
@@ -316,20 +319,20 @@ static int ldim_pwm_pinmux_ctrl(int status)
 	}
 
 	str = ldim_pinmux_str[index];
-	if (ldim_drv->pinmux_flag == index) {
+	if (ldim_dev_config.pinmux_flag == index) {
 		LDIMPR("pinmux %s is already selected\n", str);
 		return 0;
 	}
 
 	/* request pwm pinmux */
-	ldim_drv->pin = devm_pinctrl_get_select(ldim_drv->dev, str);
-	if (IS_ERR(ldim_drv->pin)) {
+	ldim_dev_config.pin = devm_pinctrl_get_select(ldim_dev_config.dev, str);
+	if (IS_ERR_OR_NULL(ldim_dev_config.pin)) {
 		LDIMERR("set pinmux %s error\n", str);
 		ret = -1;
 	} else {
-		LDIMPR("set pinmux %s: 0x%p\n", str, ldim_drv->pin);
+		LDIMPR("set pinmux %s: 0x%p\n", str, ldim_dev_config.pin);
 	}
-	ldim_drv->pinmux_flag = index;
+	ldim_dev_config.pinmux_flag = index;
 
 	return ret;
 }
@@ -498,33 +501,35 @@ static void ldim_dev_config_print(void)
 	LDIMPR("%s:\n", __func__);
 
 	pr_info("valid_flag            = %d\n"
-		"dev_index             = %d\n"
 		"vsync_change_flag     = %d\n\n",
 		ldim_drv->valid_flag,
-		ldim_drv->dev_index,
 		ldim_drv->vsync_change_flag);
 	if (!ldim_drv->ldev_conf) {
 		LDIMERR("%s: device config is null\n", __func__);
 		return;
 	}
 
-	pr_info("dev_name              = %s\n"
+	pr_info("dev_index             = %d\n"
+		"dev_name              = %s\n"
 		"type                  = %d\n"
 		"en_gpio               = %d\n"
 		"en_gpio_on            = %d\n"
 		"en_gpio_off           = %d\n"
+		"device_cnt            = %d\n"
 		"dim_min               = 0x%03x\n"
 		"dim_max               = 0x%03x\n"
-		"region_num            = %d\n",
+		"bl_zone_num           = %d\n",
+		ldim_drv->ldev_conf->index,
 		ldim_drv->ldev_conf->name,
 		ldim_drv->ldev_conf->type,
 		ldim_drv->ldev_conf->en_gpio,
 		ldim_drv->ldev_conf->en_gpio_on,
 		ldim_drv->ldev_conf->en_gpio_off,
+		ldim_drv->ldev_conf->device_count,
 		ldim_drv->ldev_conf->dim_min,
 		ldim_drv->ldev_conf->dim_max,
-		ldim_drv->ldev_conf->bl_regnum);
-	n = ldim_drv->ldev_conf->bl_regnum;
+		ldim_drv->ldev_conf->bl_zone_num);
+	n = ldim_drv->ldev_conf->bl_zone_num;
 	len = (n * 4) + 50;
 	str = kcalloc(len, sizeof(char), GFP_KERNEL);
 	if (!str) {
@@ -552,12 +557,12 @@ static void ldim_dev_config_print(void)
 			"lamp_err_gpio         = %d\n"
 			"fault_check           = %d\n"
 			"write_check           = %d\n\n",
-			ldim_drv->spi_dev,
-			ldim_drv->spi_info->modalias,
-			ldim_drv->spi_info->mode,
-			ldim_drv->spi_info->max_speed_hz,
-			ldim_drv->spi_info->bus_num,
-			ldim_drv->spi_info->chip_select,
+			ldim_drv->ldev_conf->spi_dev,
+			ldim_drv->ldev_conf->spi_info->modalias,
+			ldim_drv->ldev_conf->spi_info->mode,
+			ldim_drv->ldev_conf->spi_info->max_speed_hz,
+			ldim_drv->ldev_conf->spi_info->bus_num,
+			ldim_drv->ldev_conf->spi_info->chip_select,
 			ldim_drv->ldev_conf->cs_hold_delay,
 			ldim_drv->ldev_conf->cs_clk_delay,
 			ldim_drv->ldev_conf->lamp_err_gpio,
@@ -596,8 +601,8 @@ static void ldim_dev_config_print(void)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("lidm_pwm state:\n"
-				"  period:            %d\n"
-				"  duty_cycle:        %d\n"
+				"  period:            %lld\n"
+				"  duty_cycle:        %lld\n"
 				"  polarity:          %d\n"
 				"  enabled:           %d\n",
 				pstate.period, pstate.duty_cycle,
@@ -649,8 +654,8 @@ static void ldim_dev_config_print(void)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("analog_pwm state:\n"
-				"  period:            %d\n"
-				"  duty_cycle:        %d\n"
+				"  period:            %lld\n"
+				"  duty_cycle:        %lld\n"
 				"  polarity:          %d\n"
 				"  enabled:           %d\n",
 				pstate.period, pstate.duty_cycle,
@@ -665,8 +670,8 @@ static void ldim_dev_config_print(void)
 	}
 	pr_info("\npinmux_flag:         %d\n"
 		"pinmux_pointer:      0x%p\n\n",
-		ldim_drv->pinmux_flag,
-		ldim_drv->pin);
+		ldim_drv->ldev_conf->pinmux_flag,
+		ldim_drv->ldev_conf->pin);
 
 	if (ldim_drv->ldev_conf->cmd_size > 0) {
 		pr_info("table_loaded:        %d\n"
@@ -700,7 +705,6 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 	phandle pwm_phandle;
 	struct device_node *pnode = NULL;
 	struct device_node *child;
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
 	if (ldim_debug_print)
 		LDIMPR("%s ok\n", __func__);
@@ -738,8 +742,8 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 
 		bl_pwm->pwm_data.port_index = index0;
 		bl_pwm->pwm_data.meson_index = index1;
-		bl_pwm->pwm_data.pwm = devm_of_pwm_get
-			(ldim_drv->dev, child, NULL);
+		bl_pwm->pwm_data.pwm = devm_of_pwm_get(ldim_dev_config.dev,
+						       child, NULL);
 		if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
 			ret = PTR_ERR(bl_pwm->pwm_data.pwm);
 			LDIMERR("unable to request bl_pwm\n");
@@ -980,7 +984,8 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 		LDIMERR("failed to get ldim_dev_name\n");
 		str = "ldim_dev";
 	}
-	strcpy(ldim_dev_config.name, str);
+	strncpy(ldim_dev_config.name, str, sizeof(ldim_dev_config.name));
+	ldim_dev_config.name[sizeof(ldim_dev_config.name) - 1] = '\0';
 
 	ret = of_property_read_string(child, "ldim_pwm_pinmux_sel", &str);
 	if (ret) {
@@ -1046,9 +1051,9 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 			bl_pwm->pwm_duty_min = temp[3];
 			bl_pwm->pwm_duty = temp[4];
 		}
-		LDIMPR("get analog_pwm pol = %d, freq = %d, duty_max = %d%%,"
-			bl_pwm->pwm_method, bl_pwm->pwm_freq,
-			bl_pwm->pwm_duty_max);
+		LDIMPR("get analog_pwm pol = %d, freq = %d, duty_max = %d%%",
+		       bl_pwm->pwm_method, bl_pwm->pwm_freq,
+		       bl_pwm->pwm_duty_max);
 		LDIMPR(" duty_min = %d%%, default duty = %d%%\n",
 		       bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
 
@@ -1084,19 +1089,35 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 		ldim_dev_config.dim_min = temp[1];
 	}
 
-	val = ldim_drv->ldim_conf->row * ldim_drv->ldim_conf->col;
-	ret = of_property_read_u32_array(child, "ldim_region_mapping",
+	ret = of_property_read_u32(child, "device_count", &val);
+	if (ret) {
+		ldim_dev_config.device_count = 1;
+	} else {
+		ldim_dev_config.device_count = val;
+		LDIMPR("device_count: %d\n", ldim_dev_config.device_count);
+	}
+
+	ldim_dev_config.blk_row = ldim_drv->conf->hist_row;
+	ldim_dev_config.blk_col = ldim_drv->conf->hist_col;
+	val = ldim_dev_config.blk_row * ldim_dev_config.blk_col;
+	ldim_dev_config.bl_zone_num = (unsigned short)val;
+	ret = of_property_read_u32_array(child, "ldim_zone_mapping",
 					 &temp[0], val);
 	if (ret) {
-		LDIMERR("failed to get ldim_region_mapping\n");
-		for (i = 0; i < LD_BLKREGNUM; i++)
-			ldim_dev_config.bl_mapping[i] = (unsigned short)i;
-	} else {
-		for (i = 0; i < val; i++)
-			ldim_dev_config.bl_mapping[i] = (unsigned short)temp[i];
+		ret = of_property_read_u32_array(child, "ldim_region_mapping",
+						 &temp[0], val);
+		if (ret) {
+			for (i = 0; i < ldim_dev_config.bl_zone_num; i++)
+				ldim_dev_config.bl_mapping[i] =
+					(unsigned short)i;
+			goto ldim_dev_get_config_from_dts_next;
+		}
 	}
-	ldim_dev_config.bl_regnum = (unsigned short)val;
+	LDIMPR("find custome ldim_zone_mapping\n");
+	for (i = 0; i < ldim_dev_config.bl_zone_num; i++)
+		ldim_dev_config.bl_mapping[i] = (unsigned short)temp[i];
 
+ldim_dev_get_config_from_dts_next:
 	ret = of_property_read_u32(child, "type", &val);
 	if (ret) {
 		LDIMERR("failed to get type\n");
@@ -1117,7 +1138,7 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 	switch (ldim_dev_config.type) {
 	case LDIM_DEV_TYPE_SPI:
 		/* get spi config */
-		ldim_drv->spi_info = &ldim_spi_info;
+		ldim_drv->ldev_conf->spi_info = &ldim_spi_info;
 
 		ret = of_property_read_u32(child, "spi_bus_num", &val);
 		if (ret) {
@@ -1506,12 +1527,13 @@ static ssize_t ldim_dev_reg_show(struct class *class,
 	unsigned char data;
 	ssize_t len = 0;
 	int ret;
+	int dev_id = 0;
 
 	if (!ldim_dev_config.dev_reg_read)
 		return sprintf(buf, "ldim dev_reg_read is null\n");
 
 	data = ldim_dev_reg;
-	ret = ldim_dev_config.dev_reg_read(&data, 1);
+	ret = ldim_dev_config.dev_reg_read(dev_id, &data, 1);
 	if (ret) {
 		len = sprintf(buf, "reg[0x%02x] read error\n", ldim_dev_reg);
 	} else {
@@ -1527,10 +1549,11 @@ static ssize_t ldim_dev_reg_store(struct class *class,
 				  const char *buf, size_t count)
 {
 	unsigned int reg = 0, val = 0;
+	unsigned int dev_id = 0;
 	unsigned char data[2];
 	unsigned int ret;
 
-	ret = sscanf(buf, "%x %x", &reg, &val);
+	ret = sscanf(buf, "%x %x %x", &reg, &val, &dev_id);
 	if (ret == 1) {
 		if (reg > 0xff) {
 			LDIMERR("invalid reg address: 0x%x\n", reg);
@@ -1549,8 +1572,23 @@ static ssize_t ldim_dev_reg_store(struct class *class,
 		ldim_dev_reg = (unsigned char)reg;
 		data[0] = ldim_dev_reg;
 		data[1] = (unsigned char)val;
-		ldim_dev_config.dev_reg_write(data, 2);
+		ldim_dev_config.dev_reg_write(dev_id, data, 2);
 		LDIMPR("write reg[0x%02x] = 0x%02x\n", data[0], data[1]);
+	} else if (ret == 3) {
+		if (!ldim_dev_config.dev_reg_write) {
+			LDIMERR("ldim dev_reg_write is null\n");
+			return count;
+		}
+		if (reg > 0xff) {
+			LDIMERR("invalid reg address: 0x%x\n", reg);
+			return count;
+		}
+		ldim_dev_reg = (unsigned char)reg;
+		data[0] = ldim_dev_reg;
+		data[1] = (unsigned char)val;
+		ldim_dev_config.dev_reg_write(dev_id, data, 2);
+		LDIMPR("write dev_id %dreg[0x%02x] = 0x%02x\n",
+		       dev_id, data[0], data[1]);
 	} else {
 		LDIMERR("invalid parameters\n");
 	}
@@ -1564,6 +1602,7 @@ static ssize_t ldim_dev_reg_dump_show(struct class *class,
 	unsigned char *data;
 	ssize_t len = 0;
 	int i, ret;
+	int dev_id = 0;
 
 	if (!ldim_dev_config.dev_reg_read)
 		return sprintf(buf, "ldim dev_reg_read is null\n");
@@ -1572,8 +1611,8 @@ static ssize_t ldim_dev_reg_dump_show(struct class *class,
 		return sprintf(buf, "ldim reg_dump_cnt is zero\n");
 
 	data = kcalloc(ldim_dev_reg_dump_cnt,
-		       sizeof(unsigned char), GFP_KERNEL);
-	ret = ldim_dev_config.dev_reg_read(data, ldim_dev_reg_dump_cnt);
+		sizeof(unsigned char), GFP_KERNEL);
+	ret = ldim_dev_config.dev_reg_read(dev_id, data, ldim_dev_reg_dump_cnt);
 	if (ret) {
 		len = sprintf(buf, "reg[0x%02x] read error\n", ldim_dev_reg);
 	} else {
@@ -1615,50 +1654,43 @@ static ssize_t ldim_dev_reg_dump_store(struct class *class,
 }
 
 static struct class_attribute ldim_dev_class_attrs[] = {
-	__ATTR(status, 0644, ldim_dev_show, NULL),
-	__ATTR(pwm_ldim, 0644, ldim_dev_pwm_ldim_show, ldim_dev_pwm_ldim_store),
-	__ATTR(pwm_analog, 0644, ldim_dev_pwm_analog_show,
+	__ATTR(dev_status, 0644, ldim_dev_show, NULL),
+	__ATTR(dev_pwm_ldim, 0644, ldim_dev_pwm_ldim_show,
+	       ldim_dev_pwm_ldim_store),
+	__ATTR(dev_pwm_analog, 0644, ldim_dev_pwm_analog_show,
 	       ldim_dev_pwm_analog_store),
-	__ATTR(reg, 0644, ldim_dev_reg_show, ldim_dev_reg_store),
-	__ATTR(reg_dump, 0644, ldim_dev_reg_dump_show, ldim_dev_reg_dump_store),
-	__ATTR_NULL
+	__ATTR(dev_reg, 0644, ldim_dev_reg_show, ldim_dev_reg_store),
+	__ATTR(dev_reg_dump, 0644, ldim_dev_reg_dump_show,
+	       ldim_dev_reg_dump_store)
 };
 
-static int ldim_dev_class_create(void)
+static void ldim_dev_class_create(struct ldim_dev_config_s *ldev_conf)
 {
 	int i;
-	int ret = 0;
 
-	/* create ldim_dev class */
-	ldim_dev_class = class_create(THIS_MODULE, LDIM_CLASS_NAME);
-	if (IS_ERR(ldim_dev_class)) {
+	ldev_conf->dev_class = class_create(THIS_MODULE, "ldim_dev");
+	if (IS_ERR_OR_NULL(ldev_conf->dev_class)) {
 		LDIMERR("create ldim_dev class fail\n");
-		return -1;
+		return;
 	}
 
-	/* create ldim_dev class attr files */
 	for (i = 0; i < ARRAY_SIZE(ldim_dev_class_attrs); i++) {
-		if (class_create_file
-			(ldim_dev_class, &ldim_dev_class_attrs[i])) {
-			LDIMERR("create ldim_dev attribute %s fail\n",
+		if (class_create_file(ldev_conf->dev_class,
+				      &ldim_dev_class_attrs[i])) {
+			LDIMERR("create ldim_dev class attribute %s fail\n",
 				ldim_dev_class_attrs[i].attr.name);
 		}
 	}
-
-	LDIMPR("create ldim_dev attribute OK\n");
-
-	return ret;
 }
 
 static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_config_s *ldev_conf = ldim_drv->ldev_conf;
-	int index = ldim_drv->dev_index;
 	int ret = 0;
 
 	switch (ldim_dev_config.type) {
 	case LDIM_DEV_TYPE_SPI:
-		ret = ldim_spi_driver_add(ldim_drv);
+		ret = ldim_spi_driver_add(ldev_conf);
 		break;
 	case LDIM_DEV_TYPE_I2C:
 		break;
@@ -1670,21 +1702,35 @@ static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 		return ret;
 
 	ret = -1;
-	if (strcmp(ldev_conf->name, "iw7027") == 0)
+	if (strcmp(ldev_conf->name, "iw7027") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027
 		ret = ldim_dev_iw7027_probe(ldim_drv);
-	else if (strcmp(ldev_conf->name, "ob3350") == 0)
-		ret = ldim_dev_ob3350_probe(ldim_drv);
-	else if (strcmp(ldev_conf->name, "global") == 0)
+#endif
+	} else if (strcmp(ldev_conf->name, "global") == 0) {
 		ret = ldim_dev_global_probe(ldim_drv);
-	else
+	} else if (strcmp(ldev_conf->name, "iw7027_he") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027_HE
+		ret = ldim_dev_iw7027_he_probe(ldim_drv);
+#endif
+	} else if (strcmp(ldev_conf->name, "iw7038") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7038
+		ret = ldim_dev_iw7038_probe(ldim_drv);
+#endif
+	} else if (strcmp(ldev_conf->name, "iw70xx_mcu") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW70XX_MCU
+		ret = ldim_dev_iw70xx_mcu_probe(ldim_drv);
+#endif
+	} else {
 		LDIMERR("invalid device name: %s\n", ldev_conf->name);
+	}
 
 	if (ret) {
 		LDIMERR("add device driver failed: %s(%d)\n",
-			ldev_conf->name, index);
+			ldev_conf->name, ldev_conf->index);
 	} else {
 		ldim_dev_probe_flag = 1;
-		LDIMPR("add device driver: %s(%d)\n", ldev_conf->name, index);
+		LDIMPR("add device driver: %s(%d)\n",
+		       ldev_conf->name, ldev_conf->index);
 	}
 
 	return ret;
@@ -1693,32 +1739,44 @@ static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_config_s *ldev_conf = ldim_drv->ldev_conf;
-	int index = ldim_drv->dev_index;
 	int ret = -1;
 
 	if (ldim_dev_probe_flag) {
-		if (strcmp(ldev_conf->name, "iw7027") == 0)
+		if (strcmp(ldev_conf->name, "iw7027") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027
 			ret = ldim_dev_iw7027_remove(ldim_drv);
-		else if (strcmp(ldev_conf->name, "ob3350") == 0)
-			ret = ldim_dev_ob3350_remove(ldim_drv);
-		else if (strcmp(ldev_conf->name, "global") == 0)
+#endif
+		} else if (strcmp(ldev_conf->name, "global") == 0) {
 			ret = ldim_dev_global_remove(ldim_drv);
-		else
+		} else if (strcmp(ldev_conf->name, "iw7027_he") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027_HE
+			ret = ldim_dev_iw7027_he_remove(ldim_drv);
+#endif
+		} else if (strcmp(ldev_conf->name, "iw7038") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7038
+			ret = ldim_dev_iw7038_remove(ldim_drv);
+#endif
+		} else if (strcmp(ldev_conf->name, "iw70xx_mcu") == 0) {
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW70XX_MCU
+			ret = ldim_dev_iw70xx_mcu_remove(ldim_drv);
+#endif
+		} else {
 			LDIMERR("invalid device name: %s\n", ldev_conf->name);
+		}
 
 		if (ret) {
 			LDIMERR("remove device driver failed: %s(%d)\n",
-				ldev_conf->name, index);
+				ldev_conf->name, ldev_conf->index);
 		} else {
 			ldim_dev_probe_flag = 0;
 			LDIMPR("remove device driver: %s(%d)\n",
-			       ldev_conf->name, index);
+				ldev_conf->name, ldev_conf->index);
 		}
 	}
 
 	switch (ldim_dev_config.type) {
 	case LDIM_DEV_TYPE_SPI:
-		ldim_spi_driver_remove(ldim_drv);
+		ldim_spi_driver_remove(ldev_conf);
 		break;
 	case LDIM_DEV_TYPE_I2C:
 		break;
@@ -1733,26 +1791,29 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 static int ldim_dev_probe(struct platform_device *pdev)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	int ret = -1;
 
 	ldim_dev_probe_flag = 0;
-	if (ldim_drv->dev_index != 0xff) {
+	ldim_dev_config.index = ldim_drv->conf->dev_index;
+	if (ldim_dev_config.index != 0xff) {
 		/* get configs */
-		ldim_drv->dev = &pdev->dev;
+		ldim_dev_config.dev = &pdev->dev;
 		ldim_drv->ldev_conf = &ldim_dev_config;
 		ldim_drv->pinmux_ctrl = ldim_pwm_pinmux_ctrl;
 		ldim_drv->pwm_vs_update = ldim_pwm_vs_update;
 		ldim_drv->config_print = ldim_dev_config_print,
 		ldim_dev_get_config_from_dts(pdev->dev.of_node,
-					     ldim_drv->dev_index);
+					     ldim_dev_config.index);
 
-		ldim_dev_class_create();
+		ldim_dev_class_create(&ldim_dev_config);
 		ldim_dev_add_driver(ldim_drv);
 
 		/* init ldim function */
 		if (ldim_drv->valid_flag)
 			ldim_drv->init();
-		LDIMPR("%s OK\n", __func__);
+		ret = 0;
 	}
+	LDIMPR("%s: %s\n", __func__, (ret ? "failed" : "ok"));
 
 	return 0;
 }
@@ -1761,10 +1822,9 @@ static int __exit ldim_dev_remove(struct platform_device *pdev)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
-	if (ldim_drv->dev_index != 0xff) {
+	if (ldim_dev_config.index != 0xff)
 		ldim_dev_remove_driver(ldim_drv);
-		LDIMPR("%s OK\n", __func__);
-	}
+	LDIMPR("%s\n", __func__);
 
 	return 0;
 }
@@ -1812,4 +1872,3 @@ module_exit(ldim_dev_exit);
 //MODULE_DESCRIPTION("LDIM device Driver for LCD Backlight");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Amlogic, Inc.");
-

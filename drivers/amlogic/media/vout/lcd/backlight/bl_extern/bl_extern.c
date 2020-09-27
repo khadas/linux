@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
- */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -17,6 +10,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#include <linux/amlogic/gki_module.h>
 #include "bl_extern.h"
 
 static struct aml_bl_extern_driver_s bl_extern_driver;
@@ -541,7 +535,7 @@ static int bl_extern_table_init_save(struct bl_extern_config_s *extconf)
 			return -1;
 		}
 		memcpy(extconf->init_on, table_init_on_dft,
-		       extconf->init_off_cnt * sizeof(unsigned char));
+		       extconf->init_on_cnt * sizeof(unsigned char));
 	}
 	if (extconf->init_off_cnt > 0) {
 		extconf->init_off = kcalloc(extconf->init_off_cnt,
@@ -566,6 +560,11 @@ static int bl_extern_config_from_dts(struct device_node *np, int index)
 	unsigned int temp[5], val;
 	int ret = 0;
 	struct aml_bl_extern_driver_s *bl_extern = aml_bl_extern_get_driver();
+
+	if (!bl_extern) {
+		BLEXERR("%s: bl_extern is null\n", __func__);
+		return -1;
+	}
 
 	ret = of_property_read_string(np, "i2c_bus", &str);
 	if (ret == 0)
@@ -598,7 +597,8 @@ static int bl_extern_config_from_dts(struct device_node *np, int index)
 		BLEXERR("failed to get bl_extern_name\n");
 		strcpy(bl_extern->config.name, "none");
 	} else {
-		strcpy(bl_extern->config.name, str);
+		strncpy(bl_extern->config.name, str, BL_EXTERN_NAME_LEN_MAX);
+		bl_extern->config.name[BL_EXTERN_NAME_LEN_MAX - 1] = '\0';
 	}
 
 	ret = of_property_read_u32(child, "type", &val);
@@ -794,6 +794,11 @@ static int bl_extern_remove_driver(void)
 int aml_bl_extern_device_load(int index)
 {
 	int ret = 0;
+
+	if (!bl_extern_driver.dev) {
+		BLEXERR("%s: bl_extern_driver dev is null\n", __func__);
+		return -1;
+	}
 
 	bl_extern_config_from_dts(bl_extern_driver.dev->of_node, index);
 	ret = bl_extern_add_driver();

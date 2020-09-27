@@ -473,7 +473,7 @@ struct lcd_duration_s {
 #define LCD_TEST_UPDATE          BIT(5)
 
 #define LCD_VIU_SEL_NONE         0
-#define EXTERN_MUL_MAX	         10
+#define EXTERN_MUL_MAX	      10
 struct aml_lcd_drv_s {
 	char version[20];
 	struct lcd_data_s *data;

@@ -15,8 +15,10 @@ int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf,
 		   int wlen);
 int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int wlen,
 		  unsigned char *rbuf, int rlen);
-int ldim_spi_driver_add(struct aml_ldim_driver_s *ldim_drv);
-int ldim_spi_driver_remove(struct aml_ldim_driver_s *ldim_drv);
+int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
+		       unsigned char *rbuf, int len);
+int ldim_spi_driver_add(struct ldim_dev_config_s *ldev_conf);
+int ldim_spi_driver_remove(struct ldim_dev_config_s *ldev_conf);
 
 /* ldim global api */
 void ldim_gpio_set(int index, int value);
@@ -27,6 +29,15 @@ void ldim_pwm_off(struct bl_pwm_config_s *ld_pwm);
 /* ldim dev api */
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_iw7027_remove(struct aml_ldim_driver_s *ldim_drv);
+
+int ldim_dev_iw7027_he_probe(struct aml_ldim_driver_s *ldim_drv);
+int ldim_dev_iw7027_he_remove(struct aml_ldim_driver_s *ldim_drv);
+
+int ldim_dev_iw7038_probe(struct aml_ldim_driver_s *ldim_drv);
+int ldim_dev_iw7038_remove(struct aml_ldim_driver_s *ldim_drv);
+
+int ldim_dev_iw70xx_mcu_probe(struct aml_ldim_driver_s *ldim_drv);
+int ldim_dev_iw70xx_mcu_remove(struct aml_ldim_driver_s *ldim_drv);
 
 int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_ob3350_remove(struct aml_ldim_driver_s *ldim_drv);

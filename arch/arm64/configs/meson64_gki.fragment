@@ -555,6 +555,8 @@ CONFIG_MESON_EE_PM_DOMAINS=y
 
 # media module needed
 CONFIG_VIDEO_DEV=y
+CONFIG_LCD_CLASS_DEVICE=y
+CONFIG_BACKLIGHT_CLASS_DEVICE=y
 
 ############## internal KO Modules ##############
 CONFIG_AMLOGIC_DVB=y

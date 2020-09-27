@@ -1,15 +1,9 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
- */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
+#include <linux/amlogic/gki_module.h>
 #include "bl_extern.h"
 
 static struct aml_bl_extern_i2c_dev_s *i2c_device;
@@ -84,7 +78,8 @@ static int bl_extern_i2c_config_from_dts(struct device *dev,
 		BLEXERR("failed to get dev_name\n");
 		strcpy(i2c_dev->name, "none");
 	} else {
-		strcpy(i2c_dev->name, str);
+		strncpy(i2c_dev->name, str, sizeof(i2c_dev->name));
+		i2c_dev->name[sizeof(i2c_dev->name) - 1] = '\0';
 	}
 
 	return 0;

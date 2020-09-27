@@ -38,6 +38,7 @@ enum bl_chip_type_e {
 	BL_CHIP_TL1,
 	BL_CHIP_SM1,
 	BL_CHIP_TM2,
+	BL_CHIP_T5,
 	BL_CHIP_MAX,
 };
 
@@ -81,6 +82,12 @@ enum bl_off_policy_e {
 	BL_OFF_POLICY_MAX,
 };
 
+#define BL_LEVEL_MASK                        0xfff
+#define BL_POLICY_BRIGHTNESS_BYPASS_BIT      15
+#define BL_POLICY_BRIGHTNESS_BYPASS_MASK     1
+#define BL_POLICY_POWER_ON_BIT               12
+#define BL_POLICY_POWER_ON_MASK              3
+
 #define BL_GPIO_OUTPUT_LOW      0
 #define BL_GPIO_OUTPUT_HIGH     1
 #define BL_GPIO_INPUT           2
@@ -111,6 +118,7 @@ struct bl_pwm_config_s {
 	unsigned int level_min;
 	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
 	unsigned int pwm_duty; /* unit: % */
+	unsigned int pwm_duty_save; /* unit: %, for power on recovery */
 	unsigned int pwm_duty_max; /* unit: % */
 	unsigned int pwm_duty_min; /* unit: % */
 	unsigned int pwm_cnt; /* internal used for pwm control */
@@ -157,7 +165,9 @@ struct bl_config_s {
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
+#define BL_STATE_DV_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
+#define BL_STATE_BL_INIT_ON           BIT(2)
 #define BL_STATE_BL_POWER_ON          BIT(1)
 #define BL_STATE_BL_ON                BIT(0)
 struct aml_bl_drv_s {

@@ -15,3 +15,4 @@ include drivers/amlogic/media/vout/lcd/lcd_tablet/Makefile
 include drivers/amlogic/media/vout/lcd/lcd_extern/Makefile
 
 include drivers/amlogic/media/vout/lcd/backlight/Makefile
+

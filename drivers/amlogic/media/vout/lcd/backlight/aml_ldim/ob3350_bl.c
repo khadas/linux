@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
- */
-
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/types.h>
@@ -21,11 +14,13 @@
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 
-#define OB3350_CLASS_NAME "0b3350"
-
 static int ob3350_on_flag;
 
-static struct class *bl_ob3350;
+struct ob3350 {
+	unsigned char cur_addr;
+};
+
+struct ob3350 *bl_ob3350;
 
 static int ob3350_hw_init_on(void)
 {
@@ -132,7 +127,7 @@ static ssize_t ob3350_show(struct class *class,
 				"dim_max        = %d\n"
 				"dim_min        = %d\n"
 				"pwm_duty       = %d%%\n\n",
-				ldim_drv->dev_index, ob3350_on_flag,
+				ldim_drv->conf->dev_index, ob3350_on_flag,
 				ldim_drv->ldev_conf->en_gpio_on,
 				ldim_drv->ldev_conf->en_gpio_off,
 				ldim_drv->ldev_conf->dim_max,
@@ -165,31 +160,32 @@ static int ob3350_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 
 int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv)
 {
+	struct class *dev_class;
 	int i;
-	int ret = 0;
 
 	ob3350_on_flag = 0;
+	bl_ob3350 = kzalloc(sizeof(*bl_ob3350), GFP_KERNEL);
+	if (!bl_ob3350)
+		return -1;
+
 	ob3350_ldim_driver_update(ldim_drv);
 
-	  /* create ob3350 class */
-	bl_ob3350 = class_create(THIS_MODULE, OB3350_CLASS_NAME);
-	if (IS_ERR(bl_ob3350)) {
-		LDIMERR("create ob3350 class fail\n");
-		return -1;
-	}
-
-	 /* create ob3350 class attr files */
-	for (i = 0; i < ARRAY_SIZE(ob3350_class_attrs); i++) {
-		if (class_create_file(bl_ob3350, &ob3350_class_attrs[i])) {
-			LDIMERR("create ob3350 attribute %s fail\n",
-				ob3350_class_attrs[i].attr.name);
+	if (ldim_drv->ldev_conf->dev_class) {
+		dev_class = ldim_drv->ldev_conf->dev_class;
+		for (i = 0; i < ARRAY_SIZE(ob3350_class_attrs); i++) {
+			if (class_create_file(dev_class,
+					      &ob3350_class_attrs[i])) {
+				LDIMERR
+				("create ldim_dev class attribute %s fail\n",
+				 ob3350_class_attrs[i].attr.name);
+			}
 		}
 	}
 
 	ob3350_on_flag = 1; /* default enable in uboot */
 	LDIMPR("%s ok\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 int ldim_dev_ob3350_remove(struct aml_ldim_driver_s *ldim_drv)

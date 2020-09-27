@@ -22,7 +22,8 @@
 #define LD_BLKHMAX 32
 #define LD_BLKVMAX 32
 
-#define LD_BLKREGNUM 384  /* maximum support 24*16*/
+#define LD_BLKREGNUM 384  /* maximum support 48*32*/
+#define LD_NUM_PROFILE 8  //16
 
 struct LDReg_s {
 	int reg_ld_pic_row_max;            /*u13*/
@@ -265,16 +266,7 @@ struct FW_DAT_s {
 	unsigned int *tf_bl_matrix_2;
 };
 
-struct ldim_fw_para_s {
-	/* header */
-	unsigned int para_ver;
-	unsigned int para_size;
-	char ver_str[20];
-	unsigned char ver_num;
-
-	unsigned char hist_col;
-	unsigned char hist_row;
-
+struct fw_ctrl_config_s {
 	unsigned int fw_ld_thsf_l;
 	unsigned int fw_ld_thtf_l;
 	unsigned int boost_gain; /*norm 256 to 1,T960 finally use*/
@@ -309,11 +301,30 @@ struct ldim_fw_para_s {
 	unsigned char bbd_detect_en;
 	unsigned char diff_blk_luma_en;
 
-	unsigned char sf_bypass,
-	unsigned char lpf_bypass,
+	unsigned char sf_bypass;
+	unsigned char lpf_bypass;
 	unsigned char boost_light_bypass;
 	unsigned char ld_remap_bypass;
 	unsigned char black_frm;
+
+	unsigned char white_area_remap_en;
+	unsigned int white_area;
+	unsigned int white_lvl;
+	unsigned int white_area_th_max;
+	unsigned int white_area_th_min;
+	unsigned int white_lvl_th_max;
+	unsigned int white_lvl_th_min;
+};
+
+struct ldim_fw_para_s {
+	/* header */
+	unsigned int para_ver;
+	unsigned int para_size;
+	char ver_str[20];
+	unsigned char ver_num;
+
+	unsigned char hist_col;
+	unsigned char hist_row;
 
 	/* for debug print */
 	unsigned char fw_hist_print;/*20180525*/
@@ -324,6 +335,8 @@ struct ldim_fw_para_s {
 	struct FW_DAT_s *fdat;
 	unsigned int *bl_remap_curve; /* size: 16 */
 	unsigned int *fw_ld_whist;    /* size: 16 */
+
+	struct fw_ctrl_config_s *ctrl;
 
 	void (*fw_alg_frm)(struct ldim_fw_para_s *fw_para,
 			   unsigned int *max_matrix,

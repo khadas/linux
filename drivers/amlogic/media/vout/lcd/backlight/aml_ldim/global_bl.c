@@ -21,10 +21,17 @@
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 
-#define GLOBAL_CLASS_NAME "global"
+#define VSYNC_INFO_FREQUENT        300
 
 static int global_on_flag;
-static struct class *bl_global;
+static unsigned short vsync_cnt;
+
+struct global {
+	struct class cls;
+	unsigned char cur_addr;
+};
+
+struct global *bl_global;
 
 static int global_hw_init_on(void)
 {
@@ -60,14 +67,18 @@ static int global_smr(unsigned short *buf, unsigned char len)
 	unsigned int dim_max, dim_min;
 	unsigned int level, val;
 
+	if (vsync_cnt++ >= VSYNC_INFO_FREQUENT)
+		vsync_cnt = 0;
+
 	if (global_on_flag == 0) {
-		if (ldim_debug_print)
+		if (vsync_cnt == 0)
 			LDIMPR("%s: on_flag=%d\n", __func__, global_on_flag);
 		return 0;
 		}
 
 	if (len != 1) {
-		LDIMERR("%s: data len %d invalid\n", __func__, len);
+		if (vsync_cnt == 0)
+			LDIMERR("%s: data len %d invalid\n", __func__, len);
 		return -1;
 	}
 
@@ -101,6 +112,7 @@ static int global_power_on(void)
 
 	global_hw_init_on();
 	global_on_flag = 1;
+	vsync_cnt = 0;
 
 	LDIMPR("%s: ok\n", __func__);
 	return 0;
@@ -130,7 +142,7 @@ static ssize_t global_show(struct class *class,
 				"dim_max        = %d\n"
 				"dim_min        = %d\n"
 				"pwm_duty       = %d%%\n\n",
-				ldim_drv->dev_index, global_on_flag,
+				ldim_drv->ldev_conf->index, global_on_flag,
 				ldim_drv->ldev_conf->en_gpio_on,
 				ldim_drv->ldev_conf->en_gpio_off,
 				ldim_drv->ldev_conf->dim_max,
@@ -163,31 +175,34 @@ static int global_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 
 int ldim_dev_global_probe(struct aml_ldim_driver_s *ldim_drv)
 {
+	struct class *dev_class;
 	int i;
-	int ret = 0;
 
 	global_on_flag = 0;
-	global_ldim_driver_update(ldim_drv);
-
-	/* create global class */
-	bl_global = class_create(THIS_MODULE, GLOBAL_CLASS_NAME);
-	if (IS_ERR(bl_global)) {
-		LDIMERR("create bl_global class fail\n");
+	vsync_cnt = 0;
+	bl_global = kzalloc(sizeof(*bl_global), GFP_KERNEL);
+	if (!bl_global) {
+		pr_err("malloc bl_global failed\n");
 		return -1;
 	}
 
-	 /* create global class attr files */
-	for (i = 0; i < ARRAY_SIZE(global_class_attrs); i++) {
-		if (class_create_file(bl_global, &global_class_attrs[i])) {
-			LDIMERR("create global attribute %s fail\n",
-				global_class_attrs[i].attr.name);
+	global_ldim_driver_update(ldim_drv);
+
+	if (ldim_drv->ldev_conf->dev_class) {
+		dev_class = ldim_drv->ldev_conf->dev_class;
+		for (i = 0; i < ARRAY_SIZE(global_class_attrs); i++) {
+			if (class_create_file(dev_class,
+					      &global_class_attrs[i])) {
+				LDIMERR("create ldim_dev class attribute %s fail\n",
+					global_class_attrs[i].attr.name);
+			}
 		}
 	}
 
 	global_on_flag = 1; /* default enable in uboot */
 	LDIMPR("%s ok\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 int ldim_dev_global_remove(struct aml_ldim_driver_s *ldim_drv)

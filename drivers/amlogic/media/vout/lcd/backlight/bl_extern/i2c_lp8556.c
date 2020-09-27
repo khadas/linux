@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
- */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -207,7 +200,8 @@ static int i2c_lp8556_power_off(void)
 
 static int i2c_lp8556_set_level(unsigned int level)
 {
-	unsigned char t_data[3];
+	struct aml_bl_extern_driver_s *bl_extern = aml_bl_extern_get_driver();
+	unsigned char tdata[5];
 	int ret = 0;
 
 	if (!i2c_dev) {
@@ -215,9 +209,17 @@ static int i2c_lp8556_set_level(unsigned int level)
 		return -1;
 	}
 
-	t_data[0] = 0x0;
-	t_data[1] = level & 0xff;
-	ret = bl_extern_i2c_write(i2c_dev->client, t_data, 2);
+	if (bl_extern->config.dim_max > 255) {
+		tdata[0] = 0x10;
+		tdata[1] = level & 0xff;
+		tdata[2] = 0x11;
+		tdata[3] = (level >> 8) & 0xf;
+		ret = bl_extern_i2c_write(i2c_dev->client, tdata, 4);
+	} else {
+		tdata[0] = 0x0;
+		tdata[1] = level & 0xff;
+		ret = bl_extern_i2c_write(i2c_dev->client, tdata, 2);
+	}
 	return ret;
 }
 
@@ -238,10 +240,12 @@ static int i2c_lp8556_update(void)
 	bl_extern->device_bri_update = i2c_lp8556_set_level;
 
 	bl_extern->config.cmd_size = BL_EXTERN_CMD_SIZE;
-	bl_extern->config.init_on = init_on_table;
-	bl_extern->config.init_on_cnt = sizeof(init_on_table);
-	bl_extern->config.init_off = init_off_table;
-	bl_extern->config.init_off_cnt = sizeof(init_off_table);
+	if (!bl_extern->config.init_loaded) {
+		bl_extern->config.init_on = init_on_table;
+		bl_extern->config.init_on_cnt = sizeof(init_on_table);
+		bl_extern->config.init_off = init_off_table;
+		bl_extern->config.init_off_cnt = sizeof(init_off_table);
+	}
 
 	return 0;
 }
