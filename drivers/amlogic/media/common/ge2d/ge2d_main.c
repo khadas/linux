@@ -45,6 +45,7 @@
 #ifdef CONFIG_AMLOGIC_ION
 #include <meson_ion.h>
 #endif
+#include <linux/amlogic/power_domain.h>
 /* Local Headers */
 #include "ge2dgen.h"
 #include "ge2d_log.h"
@@ -1085,11 +1086,11 @@ struct ge2d_power_table_s default_poweroff_table = {4, default_poweroff_ctrl};
 #else
 static struct ge2d_ctrl_s default_poweron_ctrl[] = {
 			/* power on */
-			{PWR_DOMAIN_CTRL, 0, 0, 0, 0, 0},
+			{PWR_DOMAIN_CTRL, 0, PWR_ON, 0, 0, 0},
 		};
 static struct ge2d_ctrl_s default_poweroff_ctrl[] = {
 			/* power off */
-			{PWR_DOMAIN_CTRL, 0, 1, 0, 0, 0},
+			{PWR_DOMAIN_CTRL, 0, PWR_OFF, 0, 0, 0},
 		};
 
 struct ge2d_power_table_s default_poweron_table = {1, default_poweron_ctrl};
@@ -1097,10 +1098,10 @@ struct ge2d_power_table_s default_poweroff_table = {1, default_poweroff_ctrl};
 #endif
 
 static struct ge2d_ctrl_s smc_poweron_ctrl[] = {
-			{PWR_SMC, 0, 1, 0, 0}
+			{PWR_SMC, 0, PWR_ON, 0, 0}
 		};
 static struct ge2d_ctrl_s smc_poweroff_ctrl[] = {
-			{PWR_SMC, 0, 0, 0, 0}
+			{PWR_SMC, 0, PWR_OFF, 0, 0}
 		};
 
 struct ge2d_power_table_s smc_poweron_table = {1, smc_poweron_ctrl};
