@@ -245,7 +245,7 @@ void vout_func_update_viu(int index)
 	if (clk_bit < 0xff)
 		vout_func_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
 
-#if 0
+#if 1
 	VOUTPR("%s: %d, mux_sel=%d, clk_sel=%d\n",
 		__func__, index, mux_sel, clk_sel);
 #endif

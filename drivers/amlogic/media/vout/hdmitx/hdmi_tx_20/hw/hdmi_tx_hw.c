@@ -1434,7 +1434,7 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 	struct hdmi_format_para *hdmi_encp_para = NULL;
 	struct hdmi_cea_timing *hdmi_encp_timing = NULL;
 
-	if ((param->VIC & HDMITX_VESA_OFFSET) == HDMITX_VESA_OFFSET) {
+	if(param->VIC >= HDMITX_VESA_OFFSET) {
 		/* VESA modes setting */
 		hdmi_tvenc_vesa_set(param);
 		return;
@@ -1646,6 +1646,23 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		SOF_LINES = hdmi_encp_timing->v_back;
 		TOTAL_FRAMES = 4;
 		break;
+    case HDMIV_1024x768p60hz:
+        printk("jason hdmi_tvenc_set \n");
+        INTERLACE_MODE = 0;
+        PIXEL_REPEAT_VENC = 0;
+        PIXEL_REPEAT_HDMI = 0;
+        ACTIVE_PIXELS = (1024*(1+PIXEL_REPEAT_HDMI));
+        ACTIVE_LINES = (768/(1+INTERLACE_MODE));
+        LINES_F0 = 806;
+        LINES_F1 = 806;
+        FRONT_PORCH = 24;
+        HSYNC_PIXELS = 136;
+        BACK_PORCH = 160;
+        EOF_LINES = 3;
+        VSYNC_LINES = 6;
+        SOF_LINES = 29;
+        TOTAL_FRAMES = 4;
+        break;
 	default:
 		break;
 	}
