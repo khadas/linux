@@ -2322,6 +2322,7 @@ static ssize_t show_disp_cap(struct device *dev,
 			pos += snprintf(buf+pos, PAGE_SIZE, "\n");
 		}
 		}
+        pos += snprintf(buf + pos, PAGE_SIZE, "1024x768p60hz\n");
 	}
 	return pos;
 }
