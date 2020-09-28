@@ -1,0 +1,11 @@
+#
+#  Touchscreen driver configuration
+#
+
+config  AMLOGIC_GSLX680
+       tristate  "GSLX680 touchscreen driver"      
+       depends on INPUT && I2C
+       default m
+       help
+         GSLX680 touchscreen driver    
+

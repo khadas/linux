@@ -377,9 +377,9 @@ Output:
 *********************************************************/
 static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
 {
-#if GTP_CHANGE_X2Y
+if (1 == rotation) {
     GTP_SWAP(x, y);
-#endif
+}
 
 #if GTP_ICS_SLOT_REPORT
 
@@ -394,6 +394,9 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
 	input_report_abs(ts->input_dev, ABS_MT_PRESSURE, w);
 	
 	if (2 == rotation) {
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->abs_y_max-y);
+	}else if (3 == rotation) {
 		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, ts->abs_x_max-x);
 		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->abs_y_max-y);
 	}else{
@@ -486,9 +489,9 @@ static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(i2c_connect_client);
 
-#if GTP_CHANGE_X2Y
+if (1 == rotation) {
     GTP_SWAP(x, y);
-#endif
+}
 
     input_report_key(ts->pen_dev, BTN_TOOL_PEN, 1);
 #if GTP_ICS_SLOT_REPORT
@@ -1837,9 +1840,9 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
     input_set_capability(ts->input_dev, EV_KEY, KEY_POWER);
 #endif
 
-#if GTP_CHANGE_X2Y
+if (1 == rotation) {
     GTP_SWAP(ts->abs_x_max, ts->abs_y_max);
-#endif
+}
 
     input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);

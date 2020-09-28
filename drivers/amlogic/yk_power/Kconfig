@@ -1,0 +1,40 @@
+menuconfig AMLOGIC_YK618
+	bool "YK Power drivers"
+	depends on I2C
+	depends on OF
+	select MFD_CORE
+	select REGMAP_I2C
+	default y
+	---help---
+	  This option allows you to select YK power driver
+
+if AMLOGIC_YK618
+
+choice
+	prompt "YK PMU type"
+	default YK618
+
+config YK618
+	bool "YK618 driver"
+	---help---
+	  YK618 driver
+
+endchoice
+
+config YK_DEBUG
+	bool "YK debug interface"
+	default n
+
+config KP_OUTPUTINIT
+	bool "YK output init"
+	default n
+
+config YK_CHARGEINIT
+	bool "YK initial charging environment set"
+	default y
+
+config YK_CHGCHANGE
+	bool "YK charging current set when suspend\resume\shutdown"
+	default y
+
+endif # !YK618

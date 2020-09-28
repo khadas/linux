@@ -597,6 +597,14 @@ config REGULATOR_PWM
 	  This driver supports PWM controlled voltage regulators. PWM
 	  duty cycle can increase or decrease the voltage.
 
+config REGULATOR_YK618
+	tristate "YK618 voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports YK618 controlled voltage regulators. YK618
+	  duty cycle can increase or decrease the voltage.
+
 config REGULATOR_QCOM_RPM
 	tristate "Qualcomm RPM regulator driver"
 	depends on MFD_QCOM_RPM

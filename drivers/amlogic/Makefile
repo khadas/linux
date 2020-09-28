@@ -110,6 +110,8 @@ obj-$(CONFIG_AMLOGIC_HIFI4DSP) += hifi4dsp/
 
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 
+obj-$(CONFIG_AMLOGIC_YK618)		+= yk_power/
+
 obj-$(CONFIG_AMLOGIC_PCIE)      += pci/
 
 obj-$(CONFIG_AMLOGIC_IRBLASTER_CORE) += irblaster/
