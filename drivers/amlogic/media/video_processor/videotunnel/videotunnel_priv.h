@@ -43,12 +43,6 @@ union vt_ioctl_arg {
 	struct vt_buffer_data buffer_data;
 };
 
-struct vt_cmd {
-	enum vt_video_cmd_e cmd;
-	int cmd_data;
-	int client_id;
-};
-
 /*
  * struct vt_dev - the metadata of the videotunnel device node
  * @mdev:			the actual misc device
@@ -74,23 +68,20 @@ struct vt_dev {
 
 /*
  * struct videotunbel_session - a process block lock address space data
- * @node:		node in the tree of all session
- * @dev:		backpointer to videotunnel device
+ * @node:			node in the tree of all session
+ * @dev:			backpointer to videotunnel device
  * @instances_head:	an list of all instance allocated in this session
- * @lock:		lock protecting vt buffers
- * @buffers:	an rb tree for all the buffers in this session
- * @role:		producer or consumer
- * @name:		used for debugging
+ * @role:			producer or consumer
+ * @name:			used for debugging
  * @display_name:	used for debugging (unique version of @name)
  * @display_serial:	used for debugging (to make display_name unique)
- * @task:		used for debugging
+ * @task:			used for debugging
+ * @cid:			connection id
  */
 struct vt_session {
 	struct rb_node node;
 	struct vt_dev *dev;
-	struct mutex lock; /* protect vt buffers */
 	struct list_head instances_head;
-	struct rb_root buffers;
 
 	enum vt_role_e role;
 	pid_t pid;
@@ -109,10 +100,11 @@ struct vt_session {
  * @buffer_fd_pro:	fd in the producer side
  * @buffer_fd_con:	fd in the consumer side
  * @file_fence:		fence file get from release fence
+ * @session_pro:	vt_session that queued this buffer
+ * @cid_pro:		producer session connection id
  * @item:			buffer item
  */
 struct vt_buffer {
-	struct rb_node node;
 	struct file *file_buffer;
 	int buffer_fd_pro;
 	int buffer_fd_con;
@@ -124,7 +116,20 @@ struct vt_buffer {
 };
 
 /*
+ * struct vt_cmd - videotunnel cmd
+ * @cmd:		command
+ * @cmd_data:	command data
+ * @client_id:	producer pid
+ */
+struct vt_cmd {
+	enum vt_video_cmd_e cmd;
+	int cmd_data;
+	int client_id;
+};
+
+/*
  * struct vt_instance - an instance that holds the buffer
+ * @ref:		reference count
  * @id:			unique id allocated by device->idr
  * @node:		node in the videotunel device rbtree
  * @lock:		proctect fifo
@@ -134,6 +139,9 @@ struct vt_buffer {
  * @wait_consumer:	cosnumer wait queue for buffer
  * @producer:		producer session on this instance
  * @wait_producer:	producer wait queue for buffer
+ * @cmd_lock:			protect cmd fifo
+ * @wait_cmd:			consumer wait queue for vt cmd
+ * @fcount:				file operation count
  * @fifo_to_consumer:	fifo that queued the buffer transfer to consumer
  * @fifo_to_producer:	fifo that queued the buffer transfer to producer
  */
@@ -160,6 +168,8 @@ struct vt_instance {
 
 	DECLARE_KFIFO_PTR(fifo_to_consumer, struct vt_buffer*);
 	DECLARE_KFIFO_PTR(fifo_to_producer, struct vt_buffer*);
+
+	struct vt_buffer vt_buffers[VT_POOL_SIZE];
 };
 
 #endif /* __VIDEO_TUNNEL_PRIV_H */

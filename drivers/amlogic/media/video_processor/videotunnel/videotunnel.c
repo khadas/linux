@@ -52,6 +52,7 @@ enum {
 	VT_DEBUG_USER             = 1U << 0,
 	VT_DEBUG_BUFFERS          = 1U << 1,
 	VT_DEBUG_CMD              = 1U << 2,
+	VT_DEBUG_FILE             = 1U << 3,
 };
 
 static u32 vt_debug_mask = VT_DEBUG_NONE;
@@ -63,16 +64,51 @@ module_param_named(debug_mask, vt_debug_mask, uint, 0644);
 			pr_info(x); \
 	} while (0)
 
+static const char *vt_debug_buffer_status_to_string(int status)
+{
+	const char *status_str;
+
+	switch (status) {
+	case VT_BUFFER_QUEUE:
+		status_str = "queued";
+		break;
+	case VT_BUFFER_DEQUEUE:
+		status_str = "dequeued";
+		break;
+	case VT_BUFFER_ACQUIRE:
+		status_str = "acquired";
+		break;
+	case VT_BUFFER_RELEASE:
+		status_str = "released";
+		break;
+	case VT_BUFFER_FREE:
+		status_str = "free";
+		break;
+	default:
+		status_str = "unknown";
+	}
+
+	return status_str;
+}
+
 static int vt_debug_instance_show(struct seq_file *s, void *unused)
 {
 	struct vt_instance *instance = s->private;
-	int size_to_con = kfifo_len(&instance->fifo_to_consumer);
-	int size_to_pro = kfifo_len(&instance->fifo_to_producer);
-	int size_cmd = kfifo_len(&instance->fifo_cmd);
-	int ref_count = atomic_read(&instance->ref.refcount.refs);
+	int i;
+	int size_to_con;
+	int size_to_pro;
+	int size_cmd;
+	int ref_count;
 
 	mutex_lock(&debugfs_mutex);
-	seq_printf(s, "tunnel id=%d, ref=%d, fcount=%d\n",
+	mutex_lock(&instance->lock);
+	size_to_con = kfifo_len(&instance->fifo_to_consumer);
+	size_to_pro = kfifo_len(&instance->fifo_to_producer);
+	size_cmd = kfifo_len(&instance->fifo_cmd);
+	ref_count = atomic_read(&instance->ref.refcount.refs);
+
+	seq_printf(s, "tunnel (%p) id=%d, ref=%d, fcount=%d\n",
+		   instance,
 		   instance->id,
 		   ref_count,
 		   instance->fcount);
@@ -86,12 +122,27 @@ static int vt_debug_instance_show(struct seq_file *s, void *unused)
 			   instance->producer->display_name,
 			   instance->producer);
 	seq_puts(s, "-----------------------------------------------\n");
-	mutex_unlock(&debugfs_mutex);
 
 	seq_printf(s, "to consumer fifo size:%d\n", size_to_con);
 	seq_printf(s, "to producer fifo size:%d\n", size_to_pro);
 	seq_printf(s, "cmd fifo size:%d\n", size_cmd);
 	seq_puts(s, "-----------------------------------------------\n");
+
+	seq_puts(s, "buffers:\n");
+
+	for (i = 0; i < VT_POOL_SIZE; i++) {
+		struct vt_buffer *buffer = &instance->vt_buffers[i];
+		int status = buffer->item.buffer_status;
+
+		if (status == VT_BUFFER_QUEUE || status == VT_BUFFER_ACQUIRE ||
+				status == VT_BUFFER_RELEASE)
+			seq_printf(s, "    buffer produce_fd(%d) status(%s)\n",
+				   buffer->buffer_fd_pro,
+				   vt_debug_buffer_status_to_string(status));
+	}
+	seq_puts(s, "-----------------------------------------------\n");
+	mutex_unlock(&instance->lock);
+	mutex_unlock(&debugfs_mutex);
 
 	return 0;
 }
@@ -113,7 +164,6 @@ static const struct file_operations debug_instance_fops = {
 static int vt_debug_session_show(struct seq_file *s, void *unused)
 {
 	struct vt_session *session = s->private;
-	struct rb_node *n = NULL;
 
 	mutex_lock(&debugfs_mutex);
 	seq_printf(s, "session(%s) %p role %s cid %ld\n",
@@ -122,20 +172,6 @@ static int vt_debug_session_show(struct seq_file *s, void *unused)
 		   "producer" : (session->role == VT_ROLE_CONSUMER ?
 		   "consumer" : "invalid"), session->cid);
 	seq_puts(s, "-----------------------------------------------\n");
-	seq_puts(s, "session buffers:\n");
-	mutex_lock(&session->lock);
-	for (n = rb_first(&session->buffers); n; n = rb_next(n)) {
-		struct vt_buffer *buffer = rb_entry(n,
-				struct vt_buffer, node);
-
-		seq_printf(s, "    tunnel id:%d, buffer fd:%d, status:%d\n",
-			   buffer->item.tunnel_id,
-			   session->role == VT_ROLE_PRODUCER
-			   ? buffer->buffer_fd_pro : buffer->buffer_fd_con,
-			   buffer->item.buffer_status);
-	}
-	seq_puts(s, "-----------------------------------------------\n");
-	mutex_unlock(&session->lock);
 	mutex_unlock(&debugfs_mutex);
 
 	return 0;
@@ -194,19 +230,12 @@ static void vt_instance_destroy(struct kref *kref)
 	mutex_lock(&instance->lock);
 	if (!kfifo_is_empty(&instance->fifo_to_consumer)) {
 		while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
-			if (instance->producer) {
-				mutex_lock(&instance->producer->lock);
-				/* erase node from producer rb tree */
-				rb_erase(&buffer->node,
-					 &instance->producer->buffers);
-				/* put file */
-				if (buffer->file_buffer) {
-					fput(buffer->file_buffer);
-					instance->fcount--;
-				}
-				mutex_unlock(&instance->producer->lock);
+			/* put file */
+			if (buffer->file_buffer) {
+				fput(buffer->file_buffer);
+				instance->fcount--;
 			}
-			kfree(buffer);
+			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
 	kfifo_free(&instance->fifo_to_consumer);
@@ -214,16 +243,9 @@ static void vt_instance_destroy(struct kref *kref)
 	/* destroy fifo to producer */
 	if (!kfifo_is_empty(&instance->fifo_to_producer)) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
-			if (instance->consumer) {
-				mutex_lock(&instance->consumer->lock);
-				/* erase node from producer rb tree */
-				rb_erase(&buffer->node,
-					 &instance->consumer->buffers);
-				if (buffer->file_fence)
-					aml_sync_put_fence(buffer->file_fence);
-				mutex_unlock(&instance->consumer->lock);
-			}
-			kfree(buffer);
+			if (buffer->file_fence)
+				aml_sync_put_fence(buffer->file_fence);
+			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
 	kfifo_free(&instance->fifo_to_producer);
@@ -265,6 +287,7 @@ static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	int status;
+	int i;
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
@@ -294,6 +317,10 @@ static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 	init_waitqueue_head(&instance->wait_producer);
 	init_waitqueue_head(&instance->wait_consumer);
 	init_waitqueue_head(&instance->wait_cmd);
+
+	/* set the buffer pool status to free */
+	for (i = 0; i < VT_POOL_SIZE; i++)
+		instance->vt_buffers[i].item.buffer_status = VT_BUFFER_FREE;
 
 	/* insert it to dev instances rb tree */
 	mutex_lock(&dev->instance_lock);
@@ -374,9 +401,7 @@ static struct vt_session *vt_session_create(struct vt_dev *dev,
 	session->dev = dev;
 	session->task = task;
 	session->role = VT_ROLE_INVALID;
-
 	INIT_LIST_HEAD(&session->instances_head);
-	mutex_init(&session->lock);
 
 	session->name = kstrdup(name, GFP_KERNEL);
 	if (!session->name)
@@ -436,7 +461,7 @@ err_put_task_struct:
 /*
  * when disconnect, release the buffer in session
  */
-static void vt_session_trim(struct vt_session *session,
+static void vt_session_trim_lock(struct vt_session *session,
 			    struct vt_instance *instance)
 {
 	struct vt_buffer *buffer = NULL;
@@ -444,32 +469,29 @@ static void vt_session_trim(struct vt_session *session,
 	if (!session || !instance)
 		return;
 
-	mutex_lock(&instance->lock);
 	if (instance->producer && instance->producer == session) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
-			mutex_lock(&session->lock);
 			if (buffer->file_fence)
 				aml_sync_put_fence(buffer->file_fence);
 
-			rb_erase(&buffer->node, &session->buffers);
-			kfree(buffer);
-			mutex_unlock(&session->lock);
+			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
 
 	if (instance->consumer && instance->consumer == session) {
 		while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
-			mutex_lock(&session->lock);
-			rb_erase(&buffer->node, &session->buffers);
 			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
 				instance->fcount--;
+
+				vt_debug(VT_DEBUG_FILE,
+					 "vt [%d] session trim file(%p) buffer(%p) fcount=%d\n",
+					 instance->id, buffer->file_buffer,
+					 buffer, instance->fcount);
 			}
-			kfree(buffer);
-			mutex_unlock(&session->lock);
+			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
-	mutex_unlock(&instance->lock);
 }
 
 /*
@@ -482,16 +504,18 @@ static int vt_instance_trim(struct vt_session *session)
 	struct vt_instance *instance = NULL;
 	struct vt_buffer *buffer = NULL;
 	struct rb_node *n = NULL;
+	int i;
 
 	mutex_lock(&dev->instance_lock);
 	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
 		instance = rb_entry(n, struct vt_instance, node);
+		mutex_lock(&instance->lock);
 		if (instance->producer && instance->producer == session) {
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
 				if (buffer->file_fence)
 					aml_sync_put_fence(buffer->file_fence);
-				kfree(buffer);
+				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
 			instance->producer = NULL;
 		}
@@ -501,8 +525,14 @@ static int vt_instance_trim(struct vt_session *session)
 				if (buffer->file_buffer) {
 					fput(buffer->file_buffer);
 					instance->fcount--;
+
+					vt_debug(VT_DEBUG_FILE,
+						 "vt [%d] instance trim file(%p) buffer(%p), fcount=%d\n",
+						 instance->id,
+						 buffer->file_buffer,
+						 buffer, instance->fcount);
 				}
-				kfree(buffer);
+				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
 			instance->consumer = NULL;
 		}
@@ -512,20 +542,30 @@ static int vt_instance_trim(struct vt_session *session)
 					 &buffer)) {
 				if (buffer->file_fence)
 					aml_sync_put_fence(buffer->file_fence);
-				kfree(buffer);
 			}
 			while (kfifo_get(&instance->fifo_to_consumer,
 					 &buffer)) {
 				if (buffer->file_buffer) {
 					fput(buffer->file_buffer);
 					instance->fcount--;
-				}
-				kfree(buffer);
-			}
-		}
-	}
 
+					vt_debug(VT_DEBUG_FILE,
+						 "vt [%d] instance trim file(%p) buffer(%p) fcount=%d\n",
+						 instance->id,
+						 buffer->file_buffer,
+						 buffer, instance->fcount);
+				}
+			}
+
+			/* set all instance buffer to free */
+			for (i = 0; i < VT_POOL_SIZE; i++)
+				instance->vt_buffers[i].item.buffer_status = VT_BUFFER_FREE;
+		}
+
+		mutex_unlock(&instance->lock);
+	}
 	mutex_unlock(&dev->instance_lock);
+
 	return 0;
 }
 
@@ -538,10 +578,8 @@ static void vt_session_destroy(struct vt_session *session)
 		 session->display_name);
 
 	/* videotunnel instances cleanup */
-	mutex_lock(&session->lock);
 	list_for_each_entry_safe(instance, tmp, &session->instances_head, entry)
 		vt_instance_put(instance);
-	mutex_unlock(&session->lock);
 
 	/* release dev session rb tree node */
 	down_write(&dev->session_lock);
@@ -646,7 +684,6 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		vt_instance_get(instance);
 	}
 
-	/* to do what if producer/consumer alread has value */
 	if (data->role == VT_ROLE_PRODUCER) {
 		if (instance->producer &&
 		    instance->producer != session) {
@@ -655,7 +692,9 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			       id);
 			return -EINVAL;
 		}
+		mutex_lock(&instance->lock);
 		instance->producer = session;
+		mutex_unlock(&instance->lock);
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (instance->consumer &&
 		    instance->consumer != session) {
@@ -664,7 +703,9 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			       id);
 			return -EINVAL;
 		}
+		mutex_lock(&instance->lock);
 		instance->consumer = session;
+		mutex_unlock(&instance->lock);
 	}
 	session->cid = vt_get_connected_id();
 	session->role = data->role;
@@ -689,24 +730,27 @@ static int vt_disconnect_process(struct vt_ctrl_data *data,
 	instance = idr_find(&dev->instance_idr, id);
 
 	if (!instance || session->role != data->role)
-		return -EINVAL;
+		goto find_fail;
 
+	mutex_lock(&instance->lock);
 	if (data->role == VT_ROLE_PRODUCER) {
 		if (!instance->producer)
-			return -EINVAL;
+			goto disconnect_fail;
 		if (instance->producer != session)
-			return -EINVAL;
+			goto disconnect_fail;
 
-		vt_session_trim(session, instance);
+		vt_session_trim_lock(session, instance);
 		instance->producer = NULL;
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (!instance->consumer)
-			return -EINVAL;
+			goto disconnect_fail;
 		if (instance->consumer != session)
-			return -EINVAL;
-		vt_session_trim(session, instance);
+			goto disconnect_fail;
+
+		vt_session_trim_lock(session, instance);
 		instance->consumer = NULL;
 	}
+	mutex_unlock(&instance->lock);
 
 	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d disconnect, instance ref %d\n",
 		 instance->id,
@@ -717,6 +761,11 @@ static int vt_disconnect_process(struct vt_ctrl_data *data,
 	session->cid = -1;
 
 	return 0;
+
+disconnect_fail:
+	mutex_unlock(&instance->lock);
+find_fail:
+	return -EINVAL;
 }
 
 static int vt_send_cmd_process(struct vt_ctrl_data *data,
@@ -838,43 +887,20 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 	return ret;
 }
 
-static int vt_buffer_add(struct vt_session *session, struct vt_buffer *buffer)
-{
-	struct rb_node **p = &session->buffers.rb_node;
-	struct rb_node *parent = NULL;
-	struct vt_buffer *entry;
-
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct vt_buffer, node);
-
-		if (buffer->item.buffer_fd < entry->item.buffer_fd) {
-			p = &(*p)->rb_left;
-		} else if (buffer->item.buffer_fd > entry->item.buffer_fd) {
-			p = &(*p)->rb_right;
-		} else {
-			vt_debug(VT_DEBUG_BUFFERS,
-				 "%s: buffer already found.", __func__);
-			return -EEXIST;
-		}
-	}
-
-	rb_link_node(&buffer->node, parent, p);
-	rb_insert_color(&buffer->node, &session->buffers);
-
-	return 0;
-}
-
-static struct vt_buffer *vt_buffer_get(struct rb_root *root, int key)
+static struct vt_buffer *vt_buffer_get(struct vt_instance *instance, int key)
 {
 	struct vt_buffer *buffer = NULL;
-	struct rb_node *n = NULL;
+	int i;
 
-	for (n = rb_first(root); n; n = rb_next(n)) {
-		buffer = rb_entry(n, struct vt_buffer, node);
-		if (buffer->item.buffer_fd == key)
+	mutex_lock(&instance->lock);
+	for (i = 0; i < VT_POOL_SIZE; i++) {
+		buffer = &instance->vt_buffers[i];
+
+		if (buffer->item.buffer_status == VT_BUFFER_ACQUIRE &&
+				buffer->buffer_fd_con == key)
 			break;
 	}
+	mutex_unlock(&instance->lock);
 
 	return buffer;
 }
@@ -891,6 +917,26 @@ static int vt_has_buffer(struct vt_instance *instance, enum vt_role_e role)
 	return ret;
 }
 
+static struct vt_buffer *vt_get_free_buffer(struct vt_instance *instance)
+{
+	struct vt_buffer *buffer = NULL;
+	int i, status;
+
+	mutex_lock(&instance->lock);
+	for (i = 0; i < VT_POOL_SIZE; i++) {
+		status = instance->vt_buffers[i].item.buffer_status;
+		if (status == VT_BUFFER_FREE || status == VT_BUFFER_DEQUEUE) {
+			buffer = &instance->vt_buffers[i];
+			buffer->file_buffer = NULL;
+			buffer->file_fence = NULL;
+			break;
+		}
+	}
+	mutex_unlock(&instance->lock);
+
+	return buffer;
+}
+
 static int vt_queue_buffer(struct vt_buffer_data *data,
 			   struct vt_session *session)
 {
@@ -899,7 +945,6 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 		idr_find(&dev->instance_idr, data->tunnel_id);
 	struct vt_buffer_item *item;
 	struct vt_buffer *buffer = NULL;
-	int ret = 0;
 	int i;
 
 	if (!instance || !instance->producer)
@@ -912,19 +957,13 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
-		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+		buffer = vt_get_free_buffer(instance);
 		if (!buffer)
 			return -ENOMEM;
 		buffer->file_buffer = fget(item->buffer_fd);
 
-		vt_debug(VT_DEBUG_BUFFERS,
-			 "vt [%d] queuebuffer fget file=%p, buffer=%p\n",
-			 instance->id, buffer->file_buffer, buffer);
-
-		if (!buffer->file_buffer) {
-			ret = -EBADF;
-			goto err_fget;
-		}
+		if (!buffer->file_buffer)
+			return -EBADF;
 
 		instance->fcount++;
 
@@ -935,9 +974,10 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 		buffer->item = *item;
 		buffer->item.buffer_status = VT_BUFFER_QUEUE;
 
-		mutex_lock(&session->lock);
-		vt_buffer_add(session, buffer);
-		mutex_unlock(&session->lock);
+		vt_debug(VT_DEBUG_FILE,
+			 "vt [%d] queuebuffer fget file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
+			 instance->id, buffer->file_buffer,
+			 buffer, buffer->session_pro, instance->fcount);
 
 		mutex_lock(&instance->lock);
 		kfifo_put(&instance->fifo_to_consumer, buffer);
@@ -951,10 +991,6 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 		 instance->id, buffer->buffer_fd_pro);
 
 	return 0;
-
-err_fget:
-	kfree(buffer);
-	return ret;
 }
 
 static int vt_dequeue_buffer(struct vt_buffer_data *data,
@@ -972,9 +1008,6 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 	if (instance->producer && instance->producer != session)
 		return -EINVAL;
 
-	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] dequeuebuffer start\n", instance->id);
-
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_producer)) {
 		ret =
@@ -982,31 +1015,27 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 						   vt_has_buffer(instance, VT_ROLE_PRODUCER),
 						   msecs_to_jiffies(VT_MAX_WAIT_MS));
 		/* timeout */
-		if (ret == 0) {
-			vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer timeout end\n",
-				 instance->id);
+		if (ret == 0)
 			return -EAGAIN;
-		}
 	}
 
 	mutex_lock(&instance->lock);
 	ret = kfifo_get(&instance->fifo_to_producer, &buffer);
-	mutex_unlock(&instance->lock);
 	if (!ret || !buffer) {
-		pr_err("vt [%d] dequeue buffer got null buffer\n", instance->id);
+		pr_err("vt [%d] dequeue buffer got null buffer ret(%d)\n",
+		       instance->id, ret);
+		mutex_unlock(&instance->lock);
 		return -EAGAIN;
 	}
+	mutex_unlock(&instance->lock);
+
+	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
 
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
-		mutex_lock(&session->lock);
 		if (buffer->file_fence)
 			aml_sync_put_fence(buffer->file_fence);
 
-		rb_erase(&buffer->node, &session->buffers);
-		mutex_unlock(&session->lock);
-
-		kfree(buffer);
 		return -EAGAIN;
 	}
 
@@ -1027,11 +1056,6 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 		aml_sync_put_fence(buffer->file_fence);
 	}
 
-	/* remove the buffer from producer session rb tree*/
-	mutex_lock(&session->lock);
-	rb_erase(&buffer->node, &instance->producer->buffers);
-	mutex_unlock(&session->lock);
-
 	buffer->item.buffer_fd = buffer->buffer_fd_pro;
 	buffer->item.tunnel_id = instance->id;
 	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
@@ -1042,9 +1066,6 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer end pfd:%d\n",
 		 instance->id, buffer->buffer_fd_pro);
-
-	/* free the videotunnel buffer*/
-	kfree(buffer);
 
 	return 0;
 }
@@ -1063,9 +1084,6 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
-	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] acquirebuffer start\n", instance->id);
-
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_consumer)) {
 		ret = wait_event_interruptible_timeout(instance->wait_consumer,
@@ -1073,11 +1091,8 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 						       msecs_to_jiffies(VT_MAX_WAIT_MS));
 
 		/* timeout */
-		if (ret == 0) {
-			vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer timeout end\n",
-				 instance->id);
+		if (ret == 0)
 			return -EAGAIN;
-		}
 	}
 
 	mutex_lock(&instance->lock);
@@ -1093,10 +1108,19 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 		fd = get_unused_fd_flags(O_CLOEXEC);
 		if (fd < 0) {
 			/* back to producer */
-			pr_err("vt [%d] acquirebuffer install fd error\n",
+			pr_info("vt [%d] acquirebuffer install fd error\n",
 			       instance->id);
-			buffer->item.buffer_status = VT_BUFFER_RELEASE;
 			mutex_lock(&instance->lock);
+			buffer->item.buffer_status = VT_BUFFER_RELEASE;
+			if (buffer->file_buffer) {
+				fput(buffer->file_buffer);
+				instance->fcount--;
+
+				vt_debug(VT_DEBUG_FILE,
+					 "vt [%d] acuqirebuffer install fd error file(%p) buffer(%p) fcount=%d\n",
+					 instance->id, buffer->file_buffer,
+					 buffer, instance->fcount);
+			}
 			kfifo_put(&instance->fifo_to_producer, buffer);
 			mutex_unlock(&instance->lock);
 			ret = -ENOMEM;
@@ -1109,17 +1133,6 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 			 instance->id, fd);
 	}
 
-	/* remove the buffer from producer session rb tree*/
-	if (instance->producer) {
-		mutex_lock(&instance->producer->lock);
-		rb_erase(&buffer->node, &instance->producer->buffers);
-		mutex_unlock(&instance->producer->lock);
-	}
-	/* insert it the consumer session's rb tree */
-	mutex_lock(&session->lock);
-	vt_buffer_add(session, buffer);
-	mutex_unlock(&session->lock);
-
 	buffer->item.buffer_fd = buffer->buffer_fd_con;
 	buffer->item.tunnel_id = instance->id;
 	buffer->item.buffer_status = VT_BUFFER_ACQUIRE;
@@ -1128,8 +1141,9 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d end\n",
-		 instance->id, buffer->buffer_fd_pro);
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d buffer(%p) buffer session(%p)\n",
+		 instance->id, buffer->buffer_fd_pro,
+		 buffer, buffer->session_pro);
 
 	return 0;
 }
@@ -1149,13 +1163,9 @@ static int vt_release_buffer(struct vt_buffer_data *data,
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
-	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] releasebuffer start\n", instance->id);
-
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
-		/* find the buffer in consumer rb tree */
-		buffer = vt_buffer_get(&session->buffers, item->buffer_fd);
+		buffer = vt_buffer_get(instance, item->buffer_fd);
 
 		if (!buffer)
 			return -EINVAL;
@@ -1172,34 +1182,31 @@ static int vt_release_buffer(struct vt_buffer_data *data,
 		vt_close_fd(session, buffer->buffer_fd_con);
 		instance->fcount--;
 
+		vt_debug(VT_DEBUG_FILE,
+			 "vt [%d] releasebuffer file(%p) buffer(%p) buffer sesion(%p) fcount=%d\n",
+			 instance->id, buffer->file_buffer, buffer,
+			 buffer->session_pro, instance->fcount);
+
 		buffer->item.buffer_fd = buffer->buffer_fd_pro;
 		buffer->item.buffer_status = VT_BUFFER_RELEASE;
 
-		/* erase node from consumer rb tree */
-		mutex_lock(&session->lock);
-		rb_erase(&buffer->node, &session->buffers);
-		mutex_unlock(&session->lock);
-
-		/* todo if producer has disconnect */
+		/* if producer has disconnect */
 		if (!instance->producer) {
 			vt_debug(VT_DEBUG_BUFFERS,
 				 "vt [%d] releasebuffer buffer, no producer\n",
 				 instance->id);
-			kfree(buffer);
+			buffer->item.buffer_status = VT_BUFFER_FREE;
 		} else {
-			/* insert it the producer session's rb tree */
 			if (buffer->session_pro &&
 			    buffer->session_pro != instance->producer) {
 				vt_debug(VT_DEBUG_BUFFERS,
-					 "vt [%d] releasebuffer buffer no producer valid\n",
-					 instance->id);
-				kfree(buffer);
+					 "vt [%d] releasebuffer buffer producer not valid, instance->producer(%p), buffer session(%p)\n",
+					 instance->id,
+					 instance->producer,
+					 buffer->session_pro);
+				buffer->item.buffer_status = VT_BUFFER_FREE;
 				continue;
 			}
-
-			mutex_lock(&instance->producer->lock);
-			vt_buffer_add(instance->producer, buffer);
-			mutex_unlock(&instance->producer->lock);
 
 			mutex_lock(&instance->lock);
 			kfifo_put(&instance->fifo_to_producer, buffer);
@@ -1268,9 +1275,7 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			debugfs_create_file(name, 0664, dev->debug_root,
 					    instance, &debug_instance_fops);
 
-		mutex_lock(&session->lock);
 		list_add_tail(&session->instances_head, &instance->entry);
-		mutex_unlock(&session->lock);
 
 		data.alloc_data.tunnel_id = instance->id;
 		vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
