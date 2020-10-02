@@ -121,6 +121,21 @@ int setup_cma_full_pagemap(struct cma *cma)
 #endif
 }
 
+static struct cma *find_cma(struct page *page)
+{
+	unsigned long pfn;
+	struct cma *cma;
+	int i;
+
+	pfn = page_to_pfn(page);
+	for (i = 0; i < cma_area_count; i++) {
+		cma = &cma_areas[i];
+		if (cma->base_pfn <= pfn && pfn < cma->base_pfn + cma->count)
+			return cma;
+	}
+	return NULL;
+}
+
 int cma_mmu_op(struct page *page, int count, bool set)
 {
 	pgd_t *pgd;
@@ -129,9 +144,17 @@ int cma_mmu_op(struct page *page, int count, bool set)
 	pte_t *pte;
 	unsigned long addr, end;
 	struct mm_struct *mm;
+	struct cma *cma;
 
 	if (!page || PageHighMem(page))
 		return -EINVAL;
+
+	cma  = find_cma(page);
+	if (!cma || !cma->clear_map) {
+		pr_debug("%s, page:%lx is not cma or no clear-map, cma:%px\n",
+			 __func__, page_to_pfn(page), cma);
+		return -EINVAL;
+	}
 
 	addr = (unsigned long)page_address(page);
 	end  = addr + count * PAGE_SIZE;
