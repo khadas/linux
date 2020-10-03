@@ -11,7 +11,7 @@
 #include <dt-bindings/power/sc2-pd.h>
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/gpio/meson-sc2-gpio.h>
+#include <dt-bindings/gpio/meson-t7-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
@@ -255,18 +255,18 @@
 			};
 
 			periphs_pinctrl: pinctrl@4000 {
-				#compatible = "amlogic,meson-sc2-periphs-pinctrl";
+				compatible = "amlogic,meson-t7-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
 
 				gpio: bank@4000 {
-					reg = <0x0 0x4000 0x0 0x004c>,
+					reg = <0x0 0x4000 0x0 0x0064>,
 					      <0x0 0x40c0 0x0 0x0220>;
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 87>;
+					gpio-ranges = <&periphs_pinctrl 0 0 157>;
 				};
 			};
 

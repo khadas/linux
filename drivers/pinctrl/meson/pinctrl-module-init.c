@@ -26,6 +26,7 @@ static int __init pinctrl_module_init(void)
 	load_pinctrl_module(tm2);
 	load_pinctrl_module(sc2);
 	load_pinctrl_module(t5d);
+	load_pinctrl_module(t7);
 
 	pr_info("### %s() end\n", __func__);
 
