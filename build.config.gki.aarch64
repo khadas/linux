@@ -15,6 +15,7 @@ android/abi_gki_aarch64_oneplus
 android/abi_gki_aarch64_oplus
 android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_sunxi
+android/abi_gki_aarch64_meson
 android/abi_gki_aarch64_unisoc
 android/abi_gki_aarch64_vivo
 android/abi_gki_aarch64_workarounds

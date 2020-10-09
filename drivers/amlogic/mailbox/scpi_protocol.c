@@ -259,7 +259,7 @@ unsigned long scpi_clk_get_val(u16 clk_id)
 
 	return buf.clk_rate;
 }
-EXPORT_SYMBOL_GPL(scpi_clk_get_val);
+EXPORT_SYMBOL(scpi_clk_get_val);
 
 int scpi_clk_set_val(u16 clk_id, unsigned long rate)
 {
@@ -278,7 +278,7 @@ int scpi_clk_set_val(u16 clk_id, unsigned long rate)
 			SCPI_CMD_SET_CLOCK_VALUE, buf, stat);
 	return scpi_execute_cmd(&sdata);
 }
-EXPORT_SYMBOL_GPL(scpi_clk_set_val);
+EXPORT_SYMBOL(scpi_clk_set_val);
 
 struct scpi_dvfs_info *scpi_dvfs_get_opps(u8 domain)
 {
@@ -325,7 +325,7 @@ struct scpi_dvfs_info *scpi_dvfs_get_opps(u8 domain)
 
 	return opps;
 }
-EXPORT_SYMBOL_GPL(scpi_dvfs_get_opps);
+EXPORT_SYMBOL(scpi_dvfs_get_opps);
 
 int scpi_dvfs_get_idx(u8 domain)
 {
@@ -348,7 +348,7 @@ int scpi_dvfs_get_idx(u8 domain)
 		ret = buf.dvfs_idx;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_dvfs_get_idx);
+EXPORT_SYMBOL(scpi_dvfs_get_idx);
 
 int scpi_dvfs_set_idx(u8 domain, u8 idx)
 {
@@ -370,7 +370,7 @@ int scpi_dvfs_set_idx(u8 domain, u8 idx)
 			SCPI_CMD_SET_DVFS, buf, stat);
 	return scpi_execute_cmd(&sdata);
 }
-EXPORT_SYMBOL_GPL(scpi_dvfs_set_idx);
+EXPORT_SYMBOL(scpi_dvfs_set_idx);
 
 int scpi_get_sensor(char *name)
 {
@@ -421,7 +421,7 @@ int scpi_get_sensor(char *name)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_get_sensor);
+EXPORT_SYMBOL(scpi_get_sensor);
 
 int scpi_get_sensor_value(u16 sensor, u32 *val)
 {
@@ -441,7 +441,7 @@ int scpi_get_sensor_value(u16 sensor, u32 *val)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_get_sensor_value);
+EXPORT_SYMBOL(scpi_get_sensor_value);
 
 /****Send fail when data size > 0x1fd.      ***
  * Because of USER_LOW_TASK_SHARE_MEM_BASE ***
@@ -479,7 +479,7 @@ int scpi_send_usr_data(u32 client_id, u32 *val, u32 size)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_send_usr_data);
+EXPORT_SYMBOL(scpi_send_usr_data);
 
 int scpi_get_vrtc(u32 *p_vrtc)
 {
@@ -500,7 +500,7 @@ int scpi_get_vrtc(u32 *p_vrtc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_get_vrtc);
+EXPORT_SYMBOL(scpi_get_vrtc);
 
 int scpi_set_vrtc(u32 vrtc_val)
 {
@@ -515,7 +515,7 @@ int scpi_set_vrtc(u32 vrtc_val)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_set_vrtc);
+EXPORT_SYMBOL(scpi_set_vrtc);
 
 int scpi_get_ring_value(unsigned char *val)
 {
@@ -535,7 +535,7 @@ int scpi_get_ring_value(unsigned char *val)
 		memcpy(val, &buf.ringinfo, sizeof(buf.ringinfo));
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_get_ring_value);
+EXPORT_SYMBOL(scpi_get_ring_value);
 
 int scpi_get_wakeup_reason(u32 *wakeup_reason)
 {
@@ -556,7 +556,7 @@ int scpi_get_wakeup_reason(u32 *wakeup_reason)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_get_wakeup_reason);
+EXPORT_SYMBOL(scpi_get_wakeup_reason);
 
 int scpi_clr_wakeup_reason(void)
 {
@@ -571,7 +571,7 @@ int scpi_clr_wakeup_reason(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_clr_wakeup_reason);
+EXPORT_SYMBOL(scpi_clr_wakeup_reason);
 
 int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0)
 {
@@ -594,7 +594,7 @@ int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_init_dsp_cfg0);
+EXPORT_SYMBOL(scpi_init_dsp_cfg0);
 
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 {
@@ -614,7 +614,7 @@ int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 	*p_cec = buf.cec_val;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_get_cec_val);
+EXPORT_SYMBOL(scpi_get_cec_val);
 
 int scpi_set_cec_val(enum scpi_std_cmd index, u32 cec_data)
 {
@@ -629,7 +629,7 @@ int scpi_set_cec_val(enum scpi_std_cmd index, u32 cec_data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_set_cec_val);
+EXPORT_SYMBOL(scpi_set_cec_val);
 
 u8 scpi_get_ethernet_calc(void)
 {
@@ -648,7 +648,7 @@ u8 scpi_get_ethernet_calc(void)
 		return 0;
 	return buf.eth_calc;
 }
-EXPORT_SYMBOL_GPL(scpi_get_ethernet_calc);
+EXPORT_SYMBOL(scpi_get_ethernet_calc);
 
 int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 {
@@ -700,7 +700,7 @@ int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 	};
 	return ret;
 }
-EXPORT_SYMBOL_GPL(scpi_get_cpuinfo);
+EXPORT_SYMBOL(scpi_get_cpuinfo);
 
 int scpi_unlock_bl40(void)
 {
@@ -718,7 +718,7 @@ int scpi_unlock_bl40(void)
 		return -1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_unlock_bl40);
+EXPORT_SYMBOL(scpi_unlock_bl40);
 
 int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf)
 {

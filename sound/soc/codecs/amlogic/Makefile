@@ -43,3 +43,20 @@ obj-$(CONFIG_AMLOGIC_SND_SOC_ES7243) += es7243.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_AD82584F) += ad82584f.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_CS42528) += cs42528.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_TAS5805) += snd-soc-tas5805.o
+
+
+KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
+
+all:
+	@$(MAKE) -C $(KERNEL_SRC) M=$(M)  modules $(GKI_EXT_MODULE_CONFIG)
+	#@$(MAKE) -C $(KERNEL_SRC) M=$(M)/optee --trace  modules
+
+modules_install:
+	@echo "$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KERNEL_SRC) modules_install"
+	@$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KERNEL_SRC) modules_install
+	mkdir -p ${OUT_DIR}/../vendor_lib
+	cd ${OUT_DIR}/$(M)/; find -name "*.ko" -exec cp {} ${OUT_DIR}/../vendor_lib/ \;
+
+
+clean:
+	$(MAKE) -C $(KERNEL_SRC) M=$(M) clean

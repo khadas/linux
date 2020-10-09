@@ -626,6 +626,9 @@ ifeq ($(MAKECMDGOALS),)
   KBUILD_MODULES := 1
 endif
 
+KBUILD_MODPOST_WARN := 1
+export KBUILD_MODPOST_WARN
+
 export KBUILD_MODULES KBUILD_BUILTIN
 
 ifdef need-config

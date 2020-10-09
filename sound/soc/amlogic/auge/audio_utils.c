@@ -517,7 +517,7 @@ void auge_acodec_reset(void)
 {
 	audioreset_update_bits(EE_RESET1, 1 << 29, 1 << 29);
 }
-EXPORT_SYMBOL_GPL(auge_acodec_reset);
+EXPORT_SYMBOL(auge_acodec_reset);
 
 void auge_toacodec_ctrl(int tdmout_id)
 {
@@ -531,7 +531,7 @@ void auge_toacodec_ctrl(int tdmout_id)
 		       tdmout_id << 0 /* mclk */
 		);
 }
-EXPORT_SYMBOL_GPL(auge_toacodec_ctrl);
+EXPORT_SYMBOL(auge_toacodec_ctrl);
 
 void auge_toacodec_ctrl_ext(int tdmout_id, int ch0_sel, int ch1_sel)
 {
@@ -546,7 +546,7 @@ void auge_toacodec_ctrl_ext(int tdmout_id, int ch0_sel, int ch1_sel)
 		       tdmout_id << 0             /* mclk */
 	);
 }
-EXPORT_SYMBOL_GPL(auge_toacodec_ctrl_ext);
+EXPORT_SYMBOL(auge_toacodec_ctrl_ext);
 
 void fratv_enable(bool enable)
 {

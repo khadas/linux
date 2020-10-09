@@ -80,6 +80,7 @@ void set_usb_phy_device_tuning(int port, int default_val)
 	}
 	g_phy2_v2->phy_cfg_state[port] = default_val;
 }
+EXPORT_SYMBOL(set_usb_phy_device_tuning);
 
 
 void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)

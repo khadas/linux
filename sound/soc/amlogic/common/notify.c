@@ -40,4 +40,8 @@ int aout_notifier_call_chain(unsigned long val, void *v)
 {
 	return blocking_notifier_call_chain(&aout_notifier_list, val, v);
 }
-EXPORT_SYMBOL_GPL(aout_notifier_call_chain);
+EXPORT_SYMBOL(aout_notifier_call_chain);
+
+MODULE_AUTHOR("Amlogic");
+MODULE_DESCRIPTION("Sound notify interface");
+MODULE_LICENSE("GPL v2");

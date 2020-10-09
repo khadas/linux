@@ -26,3 +26,14 @@ config AMLOGIC_SND_SOC_COMMON
 		Say Y or M if you want to add support for common interface attached to
 		the Amlogic Asoc interface. You will also need
 		to select the audio interfaces to support below.
+
+config AMLOGIC_SND_NOTIFY
+	bool "Amlogic sound notify interface"
+	default y if AMLOGIC_SND_SOC=m || AMLOGIC_SND_SOC=y
+	depends on AMLOGIC_GKI
+	help
+		Say Y or M if you want to add support for sound
+		notify interface. This config is used to remove
+		cycle dependence of aml_media -> snd_soc -> aml_media
+		if all drivers build to modules.
+

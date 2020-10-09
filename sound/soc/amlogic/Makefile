@@ -1,6 +1,71 @@
 SND_MODULE_NAME = snd_soc
 
-obj-$(CONFIG_AMLOGIC_SND_SOC) = $(SND_MODULE_NAME).o
 $(SND_MODULE_NAME)-y = sound_init.o
-include sound/soc/amlogic/auge/Makefile
-include sound/soc/amlogic/common/Makefile
+
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/sm1_clk.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/tm2_clk.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/a1_clk.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/audio_clks.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_controller.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_io.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/card_utils.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/spdif.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/spdif_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pdm.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pdm_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/iomap.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/ddr_mngr.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/loopback.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/loopback_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_utils.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/locker.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/locker_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/resample.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/resample_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/effects.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/effects_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/effects_v2.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/effects_hw_v2.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/sharebuffer.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/extn.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/frhdmirx_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/vad.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/vad_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/vad_dev.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/earc.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/earc_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/card.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pwrdet_hw.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/earc_hw.o
+
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/spdif_info.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/misc.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/iomapres.o
+
+ifndef CONFIG_AMLOGIC_GKI
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/notify.o
+else
+SND_NOTIFY = snd_soc_notify
+obj-$(CONFIG_AMLOGIC_SND_NOTIFY) += $(SND_NOTIFY).o
+$(SND_NOTIFY)-y += common/notify.o
+endif
+
+obj-$(CONFIG_AMLOGIC_SND_SOC) += $(SND_MODULE_NAME).o
+
+KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
+
+all:
+	@$(MAKE) -C $(KERNEL_SRC) M=$(M)  modules $(GKI_EXT_MODULE_CONFIG)
+	#@$(MAKE) -C $(KERNEL_SRC) M=$(M)/optee --trace  modules
+
+modules_install:
+	@echo "$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KERNEL_SRC) modules_install"
+	@$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KERNEL_SRC) modules_install
+	mkdir -p ${OUT_DIR}/../vendor_lib
+	cd ${OUT_DIR}/$(M)/; find -name "*.ko" -exec cp {} ${OUT_DIR}/../vendor_lib/ \;
+
+
+clean:
+	$(MAKE) -C $(KERNEL_SRC) M=$(M) clean
