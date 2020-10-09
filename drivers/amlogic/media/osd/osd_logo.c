@@ -191,7 +191,7 @@ int set_osd_logo_freescaler(void)
 	s32 dst_y_start = 0, dst_y_end = 0;
 	s32 target_x_end = 0, target_y_end = 0;
 
-	if (logo_info.loaded == 0)
+	if (logo_info.loaded == 0 || logo_info.index < 0)
 		return 0;
 
 	if (osd_get_logo_index() != logo_info.index) {
@@ -201,6 +201,13 @@ int set_osd_logo_freescaler(void)
 
 	if ((osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE) && (index >= 1))
 		return -1;
+
+	/* for dual logo, if viu1 interface(such as hdmi) is unplugged when booting.
+	 * the viu2 display device will be used for viu1 after booting.
+	 */
+	if (osd_hw.osd_meson_dev.has_viu2)
+		if (index >= LOGO_DEV_VIU2_OSD0)
+			index = LOGO_DEV_OSD0;
 
 	if (osd_get_position_from_reg(
 		index,

@@ -2079,7 +2079,7 @@ int osd_notify_callback_viu2(struct notifier_block *block, unsigned long cmd,
 		osd_log_err("current vinfo NULL\n");
 		return -1;
 	}
-	osd_log_info("current vmode=%s, cmd: 0x%lx\n",
+	osd_log_info("current vmode2=%s, cmd: 0x%lx\n",
 		vinfo->name, cmd);
 	if (!strcmp(vinfo->name, "invalid"))
 		return -1;
