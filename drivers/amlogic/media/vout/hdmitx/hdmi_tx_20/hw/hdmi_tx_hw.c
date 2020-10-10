@@ -2852,9 +2852,19 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		/* Wait for 40 us for TX I2S decoder to settle */
 		msleep(20);
 	}
+	data32 = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
+	pr_info(HW "[0x10e3] = 0x%x\n", data32);
 	set_aud_fifo_rst();
 	udelay(10);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+	/* double confirm that ACR packet is enabled
+	 * simultaneously with audio sample packet
+	 */
+	data32 = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
+	if ((data32 & 0x9) == 0x8) {
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
+		pr_info(HW "enable ACR: [0x10e3] = 0x%x\n", data32);
+	}
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
 
 	return 1;
