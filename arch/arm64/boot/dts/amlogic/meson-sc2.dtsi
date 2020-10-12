@@ -10,6 +10,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/meson-sm1-power.h>
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/meson-sc2-gpio.h>
 
 / {
 	cpus:cpus {
@@ -103,6 +105,23 @@
 				      <0x0 0x8000 0x0 0x2e8>,
 				      <0x0 0xe140 0x0 0x24>;
 				status = "okay";
+			};
+
+			periphs_pinctrl: pinctrl@4000 {
+				compatible = "amlogic,meson-sc2-periphs-pinctrl";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges;
+
+				gpio: bank@4000 {
+					reg = <0x0 0x4000 0x0 0x004c>,
+					      <0x0 0x40c0 0x0 0x0220>;
+					reg-names = "mux", "gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&periphs_pinctrl 0 0 87>;
+				};
+
 			};
 
 			uart_B: serial@7a000 {
