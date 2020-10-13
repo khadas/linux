@@ -45,6 +45,13 @@
 #define REG_PIN_SEL_SHIFT(x)	(((x) % 4) * 8)
 #define REG_FILTER_SEL_SHIFT(x)	((x) * 4)
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define REG_PIN_SC2_SEL					0x04
+#define REG_EDGE_POL_EXTR				0x1c
+#define REG_EDGE_POL_MASK_SC2(x)			\
+	({typeof(x) _x = (x); BIT(_x) | BIT(12 + (_x)); })
+#endif
+
 struct meson_gpio_irq_controller;
 static void meson8_gpio_irq_sel_pin(struct meson_gpio_irq_controller *ctl,
 				    unsigned int channel, unsigned long hwirq);
@@ -52,12 +59,24 @@ static void meson_gpio_irq_init_dummy(struct meson_gpio_irq_controller *ctl);
 static void meson_a1_gpio_irq_sel_pin(struct meson_gpio_irq_controller *ctl,
 				      unsigned int channel,
 				      unsigned long hwirq);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned int
+meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
+			    unsigned int idx, u32 val);
+#endif
+
 static void meson_a1_gpio_irq_init(struct meson_gpio_irq_controller *ctl);
 
 struct irq_ctl_ops {
 	void (*gpio_irq_sel_pin)(struct meson_gpio_irq_controller *ctl,
 				 unsigned int channel, unsigned long hwirq);
 	void (*gpio_irq_init)(struct meson_gpio_irq_controller *ctl);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int (*gpio_irq_sel_type)(struct meson_gpio_irq_controller *ctl,
+					  unsigned int idx, u32 val);
+#endif
 };
 
 struct meson_gpio_irq_params {
@@ -68,14 +87,36 @@ struct meson_gpio_irq_params {
 	unsigned int pol_low_offset;
 	unsigned int pin_sel_mask;
 	struct irq_ctl_ops ops;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u8 channel_num;
+#endif
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 #define INIT_MESON_COMMON(irqs, init, sel)			\
 	.nr_hwirq = irqs,					\
 	.ops = {						\
 		.gpio_irq_init = init,				\
 		.gpio_irq_sel_pin = sel,			\
 	},
+
+#else
+#define INIT_MESON_COMMON(irqs, init, sel)			\
+	.nr_hwirq = irqs,					\
+	.channel_num = 8,					\
+	.ops = {						\
+		.gpio_irq_init = init,				\
+		.gpio_irq_sel_pin = sel,			\
+	},
+
+#define INIT_MESON_SC2_COMMON(irqs, init, sel, type)		\
+	.nr_hwirq = irqs,					\
+	.ops = {						\
+		.gpio_irq_init = init,				\
+		.gpio_irq_sel_pin = sel,			\
+		.gpio_irq_sel_type = type,			\
+	},
+#endif
 
 #define INIT_MESON8_COMMON_DATA(irqs)				\
 	INIT_MESON_COMMON(irqs, meson_gpio_irq_init_dummy,	\
@@ -92,6 +133,20 @@ struct meson_gpio_irq_params {
 	.edge_single_offset = 8,				\
 	.pol_low_offset = 0,					\
 	.pin_sel_mask = 0x7f,					\
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* For sc2/t7 like platform */
+#define INIT_MESON_SC2_COMMON_DATA(irqs)			\
+	INIT_MESON_SC2_COMMON(irqs, meson_a1_gpio_irq_init,	\
+			      meson_a1_gpio_irq_sel_pin,	\
+			      meson_sc2_gpio_irq_sel_type)	\
+	.support_edge_both = true,				\
+	.edge_both_offset = 0,					\
+	.edge_single_offset = 12,				\
+	.pol_low_offset = 0,					\
+	.pin_sel_mask = 0x7f,					\
+	.channel_num = 12,
+#endif
 
 static const struct meson_gpio_irq_params meson8_params = {
 	INIT_MESON8_COMMON_DATA(134)
@@ -129,6 +184,10 @@ static const struct meson_gpio_irq_params tm2_params = {
 	.support_edge_both = true,
 	.edge_both_offset = 8,
 };
+
+static const struct meson_gpio_irq_params sc2_params = {
+	INIT_MESON_SC2_COMMON_DATA(87)
+};
 #endif
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
@@ -142,6 +201,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson-a1-gpio-intc", .data = &a1_params },
 #ifdef CONFIG_AMLOGIC_MODIFY
 	{ .compatible = "amlogic,meson-tm2-gpio-intc", .data = &tm2_params },
+	{ .compatible = "amlogic,meson-sc2-gpio-intc", .data = &sc2_params },
 #endif
 	{ }
 };
@@ -149,8 +209,14 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 struct meson_gpio_irq_controller {
 	const struct meson_gpio_irq_params *params;
 	void __iomem *base;
+#ifndef CONFIG_AMLOGIC_MODIFY
 	u32 channel_irqs[NUM_CHANNEL];
 	DECLARE_BITMAP(channel_map, NUM_CHANNEL);
+#else
+	u32 *channel_irqs;
+	unsigned long *channel_map;
+	u8 channel_num;
+#endif
 	spinlock_t lock;
 };
 
@@ -204,6 +270,42 @@ static void meson_a1_gpio_irq_init(struct meson_gpio_irq_controller *ctl)
 	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL, BIT(31), BIT(31));
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned int
+meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
+			    unsigned int idx, unsigned int type)
+{
+	unsigned int val = 0;
+	unsigned long flags;
+
+	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL_EXTR, BIT(0 + (idx)), 0);
+
+	if (type == IRQ_TYPE_EDGE_BOTH) {
+		val |= BIT(ctl->params->edge_both_offset + (idx));
+		spin_lock_irqsave(&ctl->lock, flags);
+		meson_gpio_irq_update_bits(ctl, REG_EDGE_POL_EXTR,
+					   BIT(ctl->params->edge_both_offset + (idx)), val);
+		spin_unlock_irqrestore(&ctl->lock, flags);
+		return 0;
+	}
+
+	spin_lock_irqsave(&ctl->lock, flags);
+
+	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING))
+		val |= BIT(ctl->params->pol_low_offset + (idx));
+
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
+		val |= BIT(ctl->params->edge_single_offset  + (idx));
+
+	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL,
+				   REG_EDGE_POL_MASK_SC2(idx), val);
+
+	spin_unlock_irqrestore(&ctl->lock, flags);
+
+	return 0;
+};
+#endif
+
 static int
 meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 			       unsigned long  hwirq,
@@ -220,11 +322,13 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 	spin_lock_irqsave(&ctl->lock, flags);
 #endif
 	/* Find a free channel */
+#ifndef CONFIG_AMLOGIC_MODIFY
 	idx = find_first_zero_bit(ctl->channel_map, NUM_CHANNEL);
 	if (idx >= NUM_CHANNEL) {
-#ifndef CONFIG_AMLOGIC_MODIFY
 		spin_unlock(&ctl->lock);
 #else
+	idx = find_first_zero_bit(ctl->channel_map, ctl->channel_num);
+	if (idx >= ctl->channel_num) {
 		spin_unlock_irqrestore(&ctl->lock, flags);
 #endif
 		pr_err("No channel available\n");
@@ -304,6 +408,10 @@ static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 	 * New controller support EDGE_BOTH trigger. This setting takes
 	 * precedence over the other edge/polarity settings
 	 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (params->ops.gpio_irq_sel_type)
+		return params->ops.gpio_irq_sel_type(ctl, idx, type);
+#endif
 	if (type == IRQ_TYPE_EDGE_BOTH) {
 		if (!params->support_edge_both)
 			return -EINVAL;
@@ -484,6 +592,7 @@ static int __init meson_gpio_irq_parse_dt(struct device_node *node,
 
 	ctl->params = match->data;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	ret = of_property_read_variable_u32_array(node,
 						  "amlogic,channel-interrupts",
 						  ctl->channel_irqs,
@@ -493,6 +602,31 @@ static int __init meson_gpio_irq_parse_dt(struct device_node *node,
 		pr_err("can't get %d channel interrupts\n", NUM_CHANNEL);
 		return ret;
 	}
+#else
+	ctl->channel_num = ctl->params->channel_num;
+	ctl->channel_irqs = kcalloc(ctl->channel_num,
+				    sizeof(*ctl->channel_irqs), GFP_KERNEL);
+	ctl->channel_map = bitmap_zalloc(ctl->params->channel_num, GFP_KERNEL);
+
+	if (!ctl->channel_irqs || !ctl->channel_map) {
+		pr_err("allocate  irqs and channel maps mem fail\n");
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_variable_u32_array(node,
+						  "amlogic,channel-interrupts",
+						  ctl->channel_irqs,
+						  ctl->channel_num,
+						  ctl->channel_num);
+	if (ret < 0) {
+		pr_err("can't get %d channel interrupts\n", ctl->channel_num);
+		kfree(ctl->channel_irqs);
+		ctl->channel_irqs = NULL;
+		bitmap_free(ctl->channel_map);
+		ctl->channel_map = NULL;
+		return ret;
+	}
+#endif
 
 	ctl->params->ops.gpio_irq_init(ctl);
 
@@ -543,9 +677,13 @@ static int __init meson_gpio_irq_of_init(struct device_node *node,
 		ret = -ENODEV;
 		goto free_channel_irqs;
 	}
-
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_info("%d to %d gpio interrupt mux initialized\n",
 		ctl->params->nr_hwirq, NUM_CHANNEL);
+#else
+	pr_info("%d to %d gpio interrupt mux initialized\n",
+		ctl->params->nr_hwirq, ctl->channel_num);
+#endif
 
 	return 0;
 
