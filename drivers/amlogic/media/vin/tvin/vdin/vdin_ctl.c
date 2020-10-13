@@ -1204,6 +1204,74 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
 }
 
+static void vdin_set_hdr(struct vdin_dev_s *devp)
+{
+	enum vd_format_e video_format;
+
+	if (devp->index == 0)
+		return;
+
+	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_WB0_VD1:
+	case TVIN_PORT_VIU1_WB0_VD2:
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_VD1:
+	case TVIN_PORT_VIU1_WB1_VD2:
+	case TVIN_PORT_VIU1_WB0_OSD1:
+	case TVIN_PORT_VIU1_WB0_OSD2:
+	case TVIN_PORT_VIU1_WB1_OSD1:
+	case TVIN_PORT_VIU1_WB1_OSD2:
+		video_format = devp->vd1_fmt;
+		break;
+
+	case TVIN_PORT_VIU1_WB0_VPP:
+	case TVIN_PORT_VIU1_WB1_VPP:
+	case TVIN_PORT_VIU2_ENCL:
+	case TVIN_PORT_VIU2_ENCI:
+	case TVIN_PORT_VIU2_ENCP:
+		video_format = devp->tx_fmt;
+		break;
+
+	default:
+		video_format = devp->tx_fmt;
+		break;
+	}
+
+	switch (video_format) {
+	case SIGNAL_HDR10:
+	case SIGNAL_HDR10PLUS:
+		/* parameters:
+		 * 1st, moudle sel: 4=VDIN0_HDR, 5=VDIN1_HDR
+		 * 2nd, process sel: bit1=HDR_SDR
+		 * bit11=HDR10P_SDR
+		 */
+		hdr_set(5, 2);
+		break;
+
+	case SIGNAL_SDR:
+		/* HDR_BYPASS(bit0) | HLG_BYPASS(bit3) */
+		hdr_set(5, 0x9);
+		break;
+
+	case SIGNAL_HLG:
+		/* HLG_SDR(bit4) */
+		hdr_set(5, 0x10);
+		break;
+
+	/* VDIN DON'T support dv loopback currently */
+	case SIGNAL_DOVI:
+		pr_err("err:  don't support dv signal loopback");
+		break;
+
+	default:
+		break;
+	}
+
+	/* hdr set uses rdma, will delay 1 frame to take effect */
+	devp->frame_drop_num = 1;
+}
+
 /*this function will set the bellow parameters of devp:
  *1.h_active
  *2.v_active
@@ -1990,7 +2058,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		    is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2))
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 			devp->csc_idx =
 			vdin_set_color_matrixhdr2(devp->addr_offset,
 						  devp->fmt_info_p,
@@ -1999,7 +2067,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 						  devp->prop.color_fmt_range,
 						  devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
 						  devp->color_range_mode);
-		else
+			vdin_set_hdr(devp);
+		} else {
 			devp->csc_idx =
 			vdin_set_color_matrix0(devp->addr_offset,
 					       devp->fmt_info_p,
@@ -2008,6 +2077,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 					       devp->prop.color_fmt_range,
 					       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
 					       devp->color_range_mode);
+		}
 		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (vdin_is_dolby_signal_in(devp) ||
 		    devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
@@ -3505,24 +3575,6 @@ void vdin_hw_enable(struct vdin_dev_s *devp)
 	wr_bits(offset, VDIN_COM_CTRL0, 1,
 		VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
 
-	/* mux input */
-	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
-	wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
-
-	/* enable clock of blackbar, histogram, histogram, line fifo1, matrix,
-	 * hscaler, pre hscaler, clock0
-	 */
-	/* [15:14]  Enable blackbar clock       = 00/(auto, off, on, on) */
-	/* [13:12]  Enable histogram clock      = 00/(auto, off, on, on) */
-	/* [11:10]  Enable line fifo1 clock     = 00/(auto, off, on, on) */
-	/* [ 9: 8]  Enable matrix clock         = 00/(auto, off, on, on) */
-	/* [ 7: 6]  Enable hscaler clock        = 00/(auto, off, on, on) */
-	/* [ 5: 4]  Enable pre hscaler clock    = 00/(auto, off, on, on) */
-	/* [ 3: 2]  Enable clock0               = 00/(auto, off, on, on) */
-	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
-	/*switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
-	 *VPU_CLK_GATE_ON);
-	 */
 	vdin_clk_onoff(devp, true);
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x0); */
 }

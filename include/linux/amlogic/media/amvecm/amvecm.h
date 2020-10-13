@@ -636,7 +636,7 @@ struct single_scene_s {
 };
 
 extern struct single_scene_s detected_scenes[SCENE_MAX];
-
+u32 hdr_set(u32 module_sel, u32 hdr_process_select);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 #endif /* AMVECM_H */
 

@@ -42,5 +42,6 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp);
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp);
 void vdin_cma_release(struct vdin_dev_s *devp);
 void vdin_cma_malloc_mode(struct vdin_dev_s *devp);
+void vdin_set_mem_protect(struct vdin_dev_s *devp, unsigned int protect);
 #endif /* __VDIN_CANVAS_H */
 

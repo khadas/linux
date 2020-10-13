@@ -37,6 +37,8 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
@@ -63,7 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1010: add write done interrupt"
+#define VDIN_VER "ver:2020-1026: support secure mode for screen cap"
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -103,12 +105,13 @@ enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_SIG_NOT_STABLE,
 	VDIN_IRQ_FLG_FMT_TRANS_CHG,
 	VDIN_IRQ_FLG_CSC_CHG,
-	VDIN_IRQ_FLG_BUFF_SKIP,
+	VDIN_IRQ_FLG_BUFF_SKIP, /* 10 */
 	VDIN_IRQ_FLG_IGNORE_FRAME,
 	VDIN_IRQ_FLG_SKIP_FRAME,
 	VDIN_IRQ_FLG_GM_DV_CHK_SUM_ERR,
 	VDIN_IRQ_FLG_NO_WR_FE,
-	VDIN_IRQ_FLG_NO_NEXT_FE,
+	VDIN_IRQ_FLG_NO_NEXT_FE, /* 15 */
+	VDIN_IRQ_FLG_SECURE_MD,
 };
 
 /* for config hw function support */
@@ -627,6 +630,9 @@ struct vdin_dev_s {
 	unsigned int matrix_pattern_mode;
 	unsigned int pause_num;
 	unsigned int hv_reverse_en;
+
+	unsigned int tx_fmt;
+	unsigned int vd1_fmt;
 
 	/*v4l interface ---- start*/
 	enum vdin_work_mode_e work_mode;

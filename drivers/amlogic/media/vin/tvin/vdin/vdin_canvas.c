@@ -670,9 +670,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	}
 
 #ifdef CONFIG_AMLOGIC_TEE
-	/* must align to 64k for secure protection */
-	if (devp->secure_en)
-		mem_size = roundup(mem_size, 64 * 1024);
+	/* must align to 64k for secure protection
+	 * always align for switch secure mode dynamically
+	 */
+	mem_size = roundup(mem_size, 64 * 1024);
 #endif
 
 	if (mem_size > devp->cma_mem_size) {
@@ -889,6 +890,27 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	devp->mem_start = 0;
 	devp->mem_size = 0;
 	devp->cma_mem_alloc = 0;
+}
+
+void vdin_set_mem_protect(struct vdin_dev_s *devp, unsigned int protect)
+{
+#ifdef CONFIG_AMLOGIC_TEE
+	unsigned int res = 0;
+
+	if (protect) {
+		res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,
+					      devp->mem_start,
+					      devp->mem_size,
+					      &devp->secure_handle);
+		if (res)
+			devp->mem_protected = 0;
+		else
+			devp->mem_protected = 1;
+	} else {
+		tee_unprotect_mem(devp->secure_handle);
+		devp->mem_protected = 0;
+	}
+#endif
 }
 
 /*@20170823 new add for the case of csc change after signal stable*/
