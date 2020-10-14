@@ -140,9 +140,9 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
 
 	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val | temp), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 
 	amlogic_new_usbphy_reset_v2(phy);
 
@@ -224,9 +224,9 @@ static void amlogic_new_usb2phy_shutdown(struct usb_phy *x)
 
 	/* set usb phy to low power mode */
 	val = readl((void __iomem		*)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val & (~temp)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 
 	if (phy->phy.flags == AML_USB2_PHY_ENABLE)
 		clk_disable_unprepare(phy->clk);
@@ -249,6 +249,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	unsigned int clk_regsize = 0;
 	int portnum = 0;
 	int phy_version = 0;
+	int reset_level = 0x84;
 	const void *prop;
 	int i = 0;
 	int retval;
@@ -279,6 +280,12 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 		phy_version = of_read_ulong(prop, 1);
 	else
 		phy_version = 0;
+
+	prop = of_get_property(dev->of_node, "reset-level", NULL);
+	if (prop)
+		reset_level = of_read_ulong(prop, 1);
+	else
+		reset_level = 0x84;
 
 	prop = of_get_property(dev->of_node, "otg-phy-index", NULL);
 	if (prop)
@@ -416,6 +423,8 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->suspend_flag = 0;
 	phy->phy_version = phy_version;
 	phy->otg_phy_index = otg_phy_index;
+	phy->reset_level = reset_level;
+	phy->usb_reset_bit = usb_reset_bit;
 	for (i = 0; i < portnum; i++) {
 		phy->phy_cfg[i] = phy_cfg_base[i];
 		/* set port default tuning state */
@@ -434,8 +443,6 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 		}
 		phy->phy.flags = AML_USB2_PHY_ENABLE;
 	}
-
-	phy->usb_reset_bit = usb_reset_bit;
 
 	usb_add_phy_dev(&phy->phy);
 

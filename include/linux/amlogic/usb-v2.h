@@ -203,6 +203,7 @@ struct amlogic_usb_v2 {
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER];
 	u32 usb_reset_bit;
 	u32 otg_phy_index;
+	u32 reset_level;
 	struct clk		*clk;
 	struct clk		*usb_clk;
 	struct clk		*gate0_clk;

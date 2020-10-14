@@ -20,8 +20,11 @@ int amlogic_new_usbphy_reset_v2(struct amlogic_usb_v2 *phy)
 
 	if (!init_count) {
 		init_count++;
-		writel((0x1 << phy->usb_reset_bit),
-		       phy->reset_regs);
+		if (phy->usb_reset_bit == 2)
+			writel((readl(phy->reset_regs) |
+				(0x1 << phy->usb_reset_bit)), phy->reset_regs);
+		else
+			writel((0x1 << phy->usb_reset_bit), phy->reset_regs);
 	}
 
 	return 0;
@@ -41,16 +44,16 @@ int amlogic_new_usbphy_reset_phycfg_v2(struct amlogic_usb_v2 *phy, int cnt)
 
 	/* set usb phy to low power mode */
 	val = readl((void __iomem		*)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val & (~temp)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 
 	udelay(100);
 
 	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val | temp), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x21 * 4 - mask)));
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 
 	return 0;
 }

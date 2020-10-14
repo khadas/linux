@@ -172,6 +172,100 @@
 				reg=<0x0 0x10220 0x0 0x4>;
 			};
 		};
+
+		usb2_phy_v2: usb2phy@fe03a000 {
+			compatible = "amlogic,amlogic-new-usb2-v2";
+			status = "disable";
+			#phy-cells = <0>;
+			reg = <0x0 0xfe03a000 0x0 0x80
+					0x0 0xFE002000 0x0 0x100
+					0x0 0xfe03c000 0x0 0x2000
+					0x0 0xfe03e000 0x0 0x2000>;
+			pll-setting-1 = <0x09400414>;
+			pll-setting-2 = <0x927E0000>;
+			pll-setting-3 = <0xac5f69e5>;
+			pll-setting-4 = <0xfe18>;
+			pll-setting-5 = <0x8000fff>;
+			pll-setting-6 = <0x78000>;
+			pll-setting-7 = <0xe0004>;
+			pll-setting-8 = <0xe000c>;
+			version = <2>;
+			/*power-domains = <&pwrdm PDID_USB_COMB>;*/
+			phy20-reset-level-bit = <8>;
+			phy21-reset-level-bit = <9>;
+			usb-reset-bit = <4>;
+			reset-level = <0x40>;
+		};
+
+		usb3_phy_v2: usb3phy@fe03a080 {
+			compatible = "amlogic,amlogic-new-usb3-v2";
+			status = "disable";
+			#phy-cells = <0>;
+			reg = <0x0 0xfe03a080 0x0 0x20
+				0x0 0xfe002000 0x0 0x100>;
+			phy-reg = <0xfe02a000>;
+			phy-reg-size = <0x2000>;
+			usb2-phy-reg = <0xfe03a000>;
+			usb2-phy-reg-size = <0x80>;
+			clocks = <&clkc CLKID_PCIE_PLL>;
+			clock-names = "pcie_refpll";
+			interrupts = <0 129 4>;
+		};
+
+		usb0: usb@fde00000 {
+			compatible = "amlogic,meson-g12a-dwc3";
+			status = "disable";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			clocks = <&clkc CLKID_USB>;
+			clock-names = "usb_general";
+
+			dwc3: dwc3@fde00000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfde00000 0x0 0x100000>;
+				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				dr_mode = "host";
+				maximum-speed = "high-speed";
+				snps,dis_u2_susphy_quirk;
+				snps,quirk-frame-length-adjustment;
+				usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
+				clocks = <&clkc CLKID_USB>;
+				clock-names = "usb_general";
+				/*usb5v-supply = <&ao_5v>;*/
+				/*usb3v3-supply = <&vddao_3v3>;*/
+				/*usb1v8-supply = <&vddio_ao1v8>;*/
+			};
+		};
+
+		dwc2_a: dwc2_a@fdd00000 {
+			compatible = "amlogic,dwc2";
+			status = "disable";
+			device_name = "dwc2_a";
+			reg = <0x0 0xfdd00000 0x0 0x100000>;
+			interrupts = <0 131 4>;
+			pl-periph-id = <0>; /** lm name */
+			clock-src = "usb0"; /** clock src */
+			port-id = <0>;  /** ref to mach/usb.h */
+			port-type = <2>;        /** 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /** 0: default, high, 1: full */
+			port-config = <0>; /** 0: default */
+			/*0:default,1:single,2:incr,3:incr4,4:incr8,5:incr16,6:disable*/
+			port-dma = <0>;
+			port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+			usb-fifo = <728>;
+			cpu-type = "v2";
+			phy-reg = <0xfe03a000>;
+			phy-reg-size = <0xa0>;
+			/** phy-interface: 0x0: amlogic phy, 0x1: synopsys phy **/
+			phy-interface = <0x2>;
+			clocks = <&clkc CLKID_USB
+						&clkc CLKID_USB1_TO_DDR>;
+			clock-names = "usb_general",
+						"usb1";
+		};
+
 	};
 
 	ddr_bandwidth {
