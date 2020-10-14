@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/amlogic/pm.h>
 #include <linux/irq.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "gpio-keypad: " fmt

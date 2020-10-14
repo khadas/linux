@@ -27,7 +27,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/kobject.h>
 #include <../kernel/power/power.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);

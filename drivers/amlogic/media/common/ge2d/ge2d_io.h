@@ -11,7 +11,7 @@
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/registers/regs/ao_regs.h>
 #include <linux/amlogic/power_ctrl.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
 #include "ge2d_log.h"
 #include "ge2d_reg.h"
@@ -154,7 +154,7 @@ static inline void ge2d_set_pwr_tbl_bits(unsigned int table_type,
 		power_ctrl_mempd0(val ? 0 : 1, 0xFF, start);
 		break;
 	case PWR_SMC:
-		pwr_ctrl_psci_smc(PM_GE2D, val);
+		//pwr_ctrl_psci_smc(PM_GE2D, val);
 		break;
 	default:
 		ge2d_log_err("unsupported bus type\n");

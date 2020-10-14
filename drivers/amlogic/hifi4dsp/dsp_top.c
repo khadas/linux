@@ -19,7 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/scpi_protocol.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 

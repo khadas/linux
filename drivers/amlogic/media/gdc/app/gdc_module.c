@@ -30,7 +30,7 @@
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/firmware.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
 //gdc configuration sequence
 #include "gdc_config.h"
@@ -1819,7 +1819,7 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	}
 
 	/* power-up */
-	pwr_ctrl_psci_smc(PM_GDC, 1);
+	//pwr_ctrl_psci_smc(PM_GDC, 1);
 
 	rc = of_property_read_u32(pdev->dev.of_node, "clk-rate", &clk_rate);
 	if (rc < 0)

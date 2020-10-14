@@ -6,7 +6,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_domain.h>
 #include <linux/platform_device.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
 static unsigned int power_domain;
 struct generic_pm_domain **power_domains;
@@ -60,6 +60,8 @@ static ssize_t power_status_show(struct device *_dev,
 	unsigned int len = 0, cnt = 20;
 
 	for (i = pdid_start; i < pdid_max; i++) {
+		if (!*(power_domains + i))
+			continue;
 		power_status = pwr_ctrl_status_psci_smc(i);
 		pd_snprintf(buf, cnt, "%s[%d]		:%d\n",
 			    (*(power_domains + i))->name, i, power_status);

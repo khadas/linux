@@ -4,9 +4,9 @@
  */
 
 #include <linux/arm-smccc.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 
-unsigned long pwr_ctrl_psci_smc(enum pm_e power_domain, bool power_control)
+unsigned long pwr_ctrl_psci_smc(int power_domain, bool power_control)
 {
 	struct arm_smccc_res res;
 
@@ -16,7 +16,7 @@ unsigned long pwr_ctrl_psci_smc(enum pm_e power_domain, bool power_control)
 }
 EXPORT_SYMBOL(pwr_ctrl_psci_smc);
 
-unsigned long pwr_ctrl_status_psci_smc(enum pm_e power_domain)
+unsigned long pwr_ctrl_status_psci_smc(int power_domain)
 {
 	struct arm_smccc_res res;
 

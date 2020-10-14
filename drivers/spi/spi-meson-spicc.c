@@ -18,7 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
-#include <linux/amlogic/pwr_ctrl.h>
+#include <linux/amlogic/power_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #endif

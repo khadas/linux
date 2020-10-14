@@ -90,6 +90,12 @@
 		#clock-cells = <0>;
 	};
 
+	pwrdm: power-domains {
+		compatible = "amlogic,sc2-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
