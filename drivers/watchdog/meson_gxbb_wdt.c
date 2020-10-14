@@ -13,6 +13,9 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/of_device.h>
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define DEFAULT_TIMEOUT 60      /* seconds */
@@ -149,8 +152,27 @@ static const struct dev_pm_ops meson_gxbb_wdt_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(meson_gxbb_wdt_suspend, meson_gxbb_wdt_resume)
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct wdt_params {
+	u8 rst_shift;
+};
+
+static const struct wdt_params sc2_params = {
+	.rst_shift = 22,
+};
+
+static const struct wdt_params gxbb_params = {
+	.rst_shift = 21,
+};
+#endif
+
 static const struct of_device_id meson_gxbb_wdt_dt_ids[] = {
+#ifndef CONFIG_AMLOGIC_MODIFY
 	 { .compatible = "amlogic,meson-gxbb-wdt", },
+#else
+	 { .compatible = "amlogic,meson-gxbb-wdt", .data = &gxbb_params},
+	 { .compatible = "amlogic,meson-sc2-wdt", .data = &sc2_params},
+#endif
 	 { /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, meson_gxbb_wdt_dt_ids);
@@ -165,6 +187,9 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct meson_gxbb_wdt *data;
 	int ret;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct wdt_params *wdt_params;
+#endif
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -196,13 +221,22 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	data->wdt_dev.timeout = DEFAULT_TIMEOUT;
 	watchdog_set_drvdata(&data->wdt_dev, data);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	/* Setup with 1ms timebase */
 	writel(((clk_get_rate(data->clk) / 1000) & GXBB_WDT_CTRL_DIV_MASK) |
 		GXBB_WDT_CTRL_EE_RESET |
 		GXBB_WDT_CTRL_CLK_EN |
 		GXBB_WDT_CTRL_CLKDIV_EN,
 		data->reg_base + GXBB_WDT_CTRL_REG);
-
+#else
+	wdt_params = (struct wdt_params *)of_device_get_match_data(dev);
+	/* Setup with 1ms timebase */
+	writel(((clk_get_rate(data->clk) / 1000) & GXBB_WDT_CTRL_DIV_MASK) |
+		BIT(wdt_params->rst_shift) |
+		GXBB_WDT_CTRL_CLK_EN |
+		GXBB_WDT_CTRL_CLKDIV_EN,
+		data->reg_base + GXBB_WDT_CTRL_REG);
+#endif
 	meson_gxbb_wdt_set_timeout(&data->wdt_dev, data->wdt_dev.timeout);
 
 #ifdef CONFIG_AMLOGIC_MODIFY

@@ -14,6 +14,7 @@ properties:
   compatible:
     enum:
       - amlogic,meson-gxbb-wdt
+      - amlogic,meson-sc2-wdt
 
   reg:
     maxItems: 1

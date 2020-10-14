@@ -110,6 +110,15 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xfe000000 0x480000>;
 
+			watchdog@2100 {
+				compatible = "amlogic,meson-sc2-wdt";
+				status = "okay";
+				/* 0:userspace, 1:kernel */
+				amlogic,feed_watchdog_mode = <1>;
+				reg = <0x2100 0x10>;
+				clocks = <&xtal>;
+			};
+
 			periphs_pinctrl: pinctrl@4000 {
 				compatible = "amlogic,meson-sc2-periphs-pinctrl";
 				#address-cells = <1>;
