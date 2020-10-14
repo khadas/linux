@@ -160,3 +160,7 @@
 //	vmmc-supply = <&vddao_3v3>;
 //	vqmmc-supply = <&vddao_1v8>;
 };
+
+&saradc {
+	status = "okay";
+};
