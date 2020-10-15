@@ -598,16 +598,16 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 	GROUP(gen_clk_d,		4),
 
 	/* bank D func5 */
-	GROUP(mic_mute_en,		4),
-	GROUP(tdm_d0,			4),
-	GROUP(tdm_d1,			4),
-	GROUP(tdm_fs1,			4),
-	GROUP(tdm_sclk1,		4),
-	GROUP(mclk1,			4),
-	GROUP(tdm_d2_d,			4),
+	GROUP(mic_mute_en,		5),
+	GROUP(tdm_d0,			5),
+	GROUP(tdm_d1,			5),
+	GROUP(tdm_fs1,			5),
+	GROUP(tdm_sclk1,		5),
+	GROUP(mclk1,			5),
+	GROUP(tdm_d2_d,			5),
 
 	/* bank D func6 */
-	GROUP(clk12_24_d,		4),
+	GROUP(clk12_24_d,		6),
 
 	/* bank E func1 */
 	GROUP(uart_b_cts,		1),
@@ -696,11 +696,11 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 	GROUP(pdm_din1_c7,		4),
 
 	/* bank C func5 */
-	GROUP(spi_a_mosi_c,		4),
-	GROUP(spi_a_miso_c,		4),
-	GROUP(spi_a_ss0_c,		4),
-	GROUP(spi_a_sclk_c,		4),
-	GROUP(pwm_c_c,			4),
+	GROUP(spi_a_mosi_c,		5),
+	GROUP(spi_a_miso_c,		5),
+	GROUP(spi_a_ss0_c,		5),
+	GROUP(spi_a_sclk_c,		5),
+	GROUP(pwm_c_c,			5),
 	GROUP(iso7816_clk_c,		5),
 	GROUP(iso7816_data_c,		5),
 
