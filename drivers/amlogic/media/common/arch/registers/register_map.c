@@ -75,6 +75,10 @@ static struct codecio_device_data_s codecio_tm2 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_TM2,
 };
 
+static struct codecio_device_data_s codecio_sc2 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_SC2,
+};
+
 static const struct of_device_id codec_io_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-gxbb, codec-io",
@@ -129,6 +133,10 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.compatible = "amlogic, meson-tm2, codec-io",
 		.data = &codecio_tm2,
 	},
+	{
+		.compatible = "amlogic, meson-sc2, codec-io",
+		.data = &codecio_sc2,
+	},
 	{},
 };
 
@@ -148,6 +156,7 @@ static int codecio_reg_read(u32 bus_type, unsigned int reg, unsigned int *val)
 		*val = readl((codecio_reg_map[bus_type] + reg));
 		return 0;
 	} else {
+		dump_stack();
 		return -1;
 	}
 }
@@ -163,6 +172,7 @@ static int codecio_reg_write(u32 bus_type, unsigned int reg, unsigned int val)
 		writel(val, (codecio_reg_map[bus_type] + reg));
 		return 0;
 	} else {
+		dump_stack();
 		return -1;
 	}
 }

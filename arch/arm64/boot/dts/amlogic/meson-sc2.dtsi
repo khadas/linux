@@ -629,6 +629,44 @@
 		};
 
 	};
+
+	canvas: canvas{
+		compatible = "amlogic, meson, canvas";
+		status = "okay";
+		reg = <0x0 0xfe036000 0x0 0x2000>;
+	};
+
+	codec_io: codec_io {
+		compatible = "amlogic, meson-sc2, codec-io";
+		status = "okay";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		reg =	<0x0 0xfe002000 0x0 0x2000>,
+			<0x0 0xfe320000 0x0 0x10000>,
+			<0x0 0 0x0 0>,
+			<0x0 0 0x0 0>,
+			<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0xfe036000 0x0 0x2000>,
+			<0x0 0 0x0 0>;
+		reg-names = "cbus",
+			    "dosbus",
+			    "hiubus",
+			    "aobus",
+			    "vcbus",
+			    "dmcbus",
+			    "efusebus";
+	};
+
+	rdma{
+		compatible = "amlogic, meson-sc2, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "rdma";
+		/* after sc2 */
+		reset-names = "rdma";
+		resets = <&reset RESET_RDMA>;
+	};
 };
 
 &periphs_pinctrl {

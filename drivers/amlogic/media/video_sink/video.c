@@ -10764,7 +10764,7 @@ bool is_meson_tm2_revb(void)
 		return false;
 }
 
-bool is_meson_sc2_cpu(void)
+bool video_is_meson_sc2_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_SC2_)
@@ -10977,7 +10977,7 @@ int __init video_init(void)
 			LAYER0_AFBC |
 			LAYER0_SCALER |
 			LAYER0_AVAIL;
-	else if (is_meson_sc2_cpu())
+	else if (video_is_meson_sc2_cpu())
 		layer_cap =
 			LAYER1_ALPHA |
 			LAYER1_AFBC |

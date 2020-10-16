@@ -31,6 +31,8 @@ enum rdma_ver_e {
 enum cpu_ver_e {
 	CPU_G12B_REVA,
 	CPU_G12B_REVB,
+	CPU_TL1,
+	CPU_SC2,
 	CPU_NORMAL,
 };
 

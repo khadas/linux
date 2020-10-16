@@ -5634,7 +5634,7 @@ int video_early_init(void)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		cur_dev->viu_off = 0x3200 - 0x1a50;
 		legacy_vpp = false;
-		if (is_meson_sc2_cpu())
+		if (video_is_meson_sc2_cpu())
 			cur_dev->viu_off = 0x4800 - 0x1a50;
 		else
 			cur_dev->viu_off = 0x3200 - 0x1a50;
@@ -5685,7 +5685,7 @@ int video_early_init(void)
 			glayer_info[i].pps_support = true;
 		}
 		if ((is_meson_tm2_cpu() && is_meson_tm2_revb()) ||
-		    is_meson_sc2_cpu())
+		    video_is_meson_sc2_cpu())
 			glayer_info[i].fgrain_support = true;
 		else
 			glayer_info[i].fgrain_support = false;
@@ -5694,7 +5694,7 @@ int video_early_init(void)
 	vd_layer[0].global_output = 1;
 	vd_layer[0].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
-	if (is_meson_sc2_cpu()) {
+	if (video_is_meson_sc2_cpu()) {
 		vd_layer[0].afbc_reg_offt = 0x4840 - AFBC_ENABLE
 			+ cur_dev->vpp_off;
 		vd_layer[1].afbc_reg_offt = 0x48c0 - VD2_AFBC_ENABLE

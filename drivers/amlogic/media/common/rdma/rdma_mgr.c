@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/reset.h>
 
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
@@ -49,6 +50,7 @@
 int rdma_mgr_irq_request;
 int rdma_reset_tigger_flag;
 
+struct reset_control *rdma_rst;
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -341,8 +343,12 @@ static void rdma_reset(unsigned char external_reset)
 			__func__, external_reset);
 
 	if (external_reset) {
-		WRITE_MPEG_REG(RESET4_REGISTER,
-			       (1 << 5));
+		if (rdma_meson_dev.cpu_type >= CPU_SC2)
+			reset_control_reset(rdma_rst);
+		else
+			WRITE_MPEG_REG
+				(RESET4_REGISTER,
+				(1 << 5));
 	} else {
 		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
 		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
@@ -1021,7 +1027,13 @@ static struct rdma_device_data_s rdma_g12b_revb = {
 };
 
 static struct rdma_device_data_s rdma_tl1 = {
-	.cpu_type = CPU_NORMAL,
+	.cpu_type = CPU_TL1,
+	.rdma_ver = RDMA_VER_2,
+	.trigger_mask_len = 16,
+};
+
+static struct rdma_device_data_s rdma_sc2 = {
+	.cpu_type = CPU_SC2,
 	.rdma_ver = RDMA_VER_2,
 	.trigger_mask_len = 16,
 };
@@ -1042,6 +1054,10 @@ static const struct of_device_id rdma_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-tl1, rdma",
 		.data = &rdma_tl1,
+	},
+	{
+		.compatible = "amlogic, meson-sc2, rdma",
+		.data = &rdma_sc2,
 	},
 	{},
 };
@@ -1376,7 +1392,16 @@ static int __init rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].rdma_write_count = 0;
 	}
 
-	WRITE_MPEG_REG(RESET4_REGISTER, (1 << 5));
+	if (rdma_meson_dev.cpu_type >= CPU_SC2) {
+		rdma_rst = devm_reset_control_get(&pdev->dev, "rdma");
+		if (IS_ERR(rdma_rst)) {
+			pr_err("failed to get reset: %ld\n", PTR_ERR(rdma_rst));
+			return PTR_ERR(rdma_rst);
+		}
+		reset_control_reset(rdma_rst);
+	} else {
+		WRITE_MPEG_REG(RESET4_REGISTER, (1 << 5));
+	}
 
 #ifdef SKIP_OSD_CHANNEL
 	info->rdma_ins[3].used = 1; /* OSD driver uses this channel */

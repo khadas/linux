@@ -83,7 +83,7 @@ static const struct of_device_id lut_dma_dt_match[] = {
 	{}
 };
 
-static bool is_meson_sc2_cpu(void)
+static bool lutdma_is_meson_sc2_cpu(void)
 {
 	if (lutdma_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_SC2_)
@@ -1075,7 +1075,7 @@ static int lut_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < LUT_DMA_CHANNEL; i++)
 		mutex_init(&info->ins[i].lut_dma_lock);
 	lut_dma_probed = 1;
-	if (is_meson_sc2_cpu())
+	if (lutdma_is_meson_sc2_cpu())
 		lut_dma_reg_set_bits(VPU_DMA_RDMIF_CTRL2,
 				     1, 29, 1);
 	return 0;

@@ -6,6 +6,9 @@
 #ifndef RDMA_REGS_HEADER_
 #define RDMA_REGS_HEADER_
 
+/* cbus reset ctrl */
+#define RESETCTRL_RESET4  0x0004
+
 #ifndef RDMA_AHB_START_ADDR_MAN
 #define RDMA_AHB_START_ADDR_MAN     0x1100
 #define RDMA_AHB_END_ADDR_MAN       0x1101
