@@ -219,6 +219,7 @@ static ssize_t log_level_store(struct class *cla,
 static int ge2d_open(struct inode *inode, struct file *file)
 {
 	struct ge2d_context_s *context = NULL;
+	int i;
 
 	/* we create one ge2d workqueue for this file handler. */
 	context = create_ge2d_work_queue();
@@ -226,6 +227,14 @@ static int ge2d_open(struct inode *inode, struct file *file)
 		ge2d_log_err("can't create work queue\n");
 		return -1;
 	}
+
+	/* reset dms_used flag */
+	for (i = 0; i < MAX_PLANE; i++) {
+		context->config.src_dma_cfg[i].dma_used[i] = 0;
+		context->config.src2_dma_cfg[i].dma_used[i] = 0;
+		context->config.dst_dma_cfg[i].dma_used[i] = 0;
+	}
+
 	file->private_data = context;
 	atomic_inc(&ge2d_device.open_count);
 
@@ -447,6 +456,8 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 #endif
 	int cap_mask = 0;
 	int index = 0, dma_fd;
+	enum ge2d_data_type_e data_type;
+	struct ge2d_dmabuf_attach_s attatch;
 	void __user *argp = (void __user *)args;
 
 	context = (struct ge2d_context_s *)filp->private_data;
@@ -794,6 +805,22 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 			return -EINVAL;
 		}
 		break;
+	case GE2D_ATTACH_DMA_FD:
+		ret = copy_from_user(&attatch, argp,
+				     sizeof(struct ge2d_dmabuf_attach_s));
+		if (ret < 0) {
+			pr_err("Error user param\n");
+			return -EINVAL;
+		}
+		break;
+	case GE2D_DETACH_DMA_FD:
+		ret = copy_from_user(&data_type, argp,
+				     sizeof(enum ge2d_data_type_e));
+		if (ret < 0) {
+			pr_err("Error user param\n");
+			return -EINVAL;
+		}
+		break;
 	case GE2D_CONFIG_OLD:
 	case GE2D_CONFIG_EX_OLD:
 	case GE2D_SRCCOLORKEY_OLD:
@@ -1026,6 +1053,12 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		break;
 	case GE2D_SYNC_CPU:
 		ge2d_buffer_cache_flush(dma_fd);
+		break;
+	case GE2D_ATTACH_DMA_FD:
+		ge2d_ioctl_attach_dma_fd(context, &attatch);
+		break;
+	case GE2D_DETACH_DMA_FD:
+		ge2d_ioctl_detach_dma_fd(context, data_type);
 		break;
 	}
 	return ret;

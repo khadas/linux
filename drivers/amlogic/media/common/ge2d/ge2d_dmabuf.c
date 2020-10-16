@@ -626,30 +626,9 @@ int ge2d_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			dma_sync_sg_for_cpu(cfg->dev, sg_table->sgl,
 					    sg_table->nents, cfg->dir);
 		}
+		ge2d_dma_buffer_unmap(cfg);
 	}
 	return ret;
-}
-
-int ge2d_dma_buffer_unmap_info(struct aml_dma_buffer *buffer,
-	struct aml_dma_cfg *cfg)
-{
-	int i, found = 0;
-
-	if (cfg == NULL || (cfg->fd < 0)) {
-		pr_err("%s: error input param\n", __func__);
-		return -EINVAL;
-	}
-	for (i = 0; i < AML_MAX_DMABUF; i++) {
-		if (buffer->gd_buffer[i].alloc) {
-			if (cfg->dbuf == buffer->gd_buffer[i].dbuf) {
-				found = 1;
-				break;
-			}
-		}
-	}
-	if (!found)
-		ge2d_dma_buffer_unmap(cfg);
-	return 0;
 }
 
 void ge2d_dma_buffer_unmap(struct aml_dma_cfg *cfg)
