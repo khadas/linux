@@ -31,6 +31,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 		};
 
 		cpu1: cpu@1 {
@@ -39,6 +40,7 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 		};
 
 		cpu2: cpu@2 {
@@ -47,6 +49,7 @@
 			reg = <0x2>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 		};
 
 		cpu3: cpu@3 {
@@ -55,10 +58,30 @@
 			reg = <0x3>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 		};
 
 		l2: l2-cache0 {
 			compatible = "cache";
+		};
+
+		idle-states {
+			entry-method = "arm,psci-0.2";
+			CPU_SLEEP_0: cpu-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0010000>;
+					local-timer-stop;
+					entry-latency-us = <4000>;
+					exit-latency-us = <5000>;
+					min-residency-us = <10000>;
+			};
+			SYSTEM_SLEEP_0: system-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0000000>;
+					entry-latency-us = <0x3fffffff>;
+					exit-latency-us = <0x40000000>;
+					min-residency-us = <0xffffffff>;
+			};
 		};
 	};
 
@@ -68,6 +91,21 @@
 			     <GIC_PPI 14 0xff08>,
 			     <GIC_PPI 11 0xff08>,
 			     <GIC_PPI 10 0xff08>;
+	};
+
+	timer_bc {
+		compatible = "amlogic,bc-timer";
+		reg= <0xfe0100D8 0x4 0xfe0100DC 0x4>;
+		timer_name = "Meson TimerD";
+		clockevent-rating=<300>;
+		clockevent-shift=<20>;
+		clockevent-features=<0x23>;
+		interrupts = <0 3 1>;
+		bit_enable=<7>;
+		bit_mode=<6>;
+		bit_resolution=<0>;
+		resolution_1us=<1>;
+		min_delta_ns=<10>;
 	};
 
 	gic: interrupt-controller@fff01000 {
