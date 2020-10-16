@@ -18,6 +18,8 @@ static int __init clkcs_module_init(void)
 	meson_tm2_clkc_init();
 	meson_tm2_aoclkc_init();
 
+	meson_sc2_clkc_init();
+
 	return 0;
 }
 

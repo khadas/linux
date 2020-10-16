@@ -110,6 +110,17 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xfe000000 0x480000>;
 
+			clkc: clock-controller {
+				compatible = "amlogic,sc2-clkc";
+				#clock-cells = <1>;
+				reg = <0x0 0x49c>,
+				      <0x8000 0x2e8>,
+				      <0xe140 0x24>;
+				reg-names = "basic", "pll",
+					    "cpu_clk";
+				status = "okay";
+			};
+
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
 				status = "okay";

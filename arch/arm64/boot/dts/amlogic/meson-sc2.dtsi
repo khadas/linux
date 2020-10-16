@@ -4,7 +4,7 @@
  */
 
 #include <dt-bindings/clock/axg-audio-clkc.h>
-#include <dt-bindings/clock/g12a-clkc.h>
+#include <dt-bindings/clock/amlogic,sc2-clkc.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -111,6 +111,8 @@
 				reg = <0x0 0x0 0x0 0x49c>,
 				      <0x0 0x8000 0x0 0x2e8>,
 				      <0x0 0xe140 0x0 0x24>;
+				reg-names = "basic", "pll",
+					    "cpu_clk";
 				status = "okay";
 			};
 

@@ -38,5 +38,14 @@ static inline int meson_tm2_aoclkc_init(void)
 }
 #endif
 
+#ifdef CONFIG_COMMON_CLK_SC2
+int meson_sc2_clkc_init(void);
+#else
+static inline int meson_sc2_clkc_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* end of ifdef MODULE */
 #endif /* end of _CLK_MODULE_H__ */

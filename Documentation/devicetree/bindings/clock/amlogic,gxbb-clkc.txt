@@ -13,6 +13,7 @@ Required Properties:
 		"amlogic,g12b-clkc" for G12B SoC.
 		"amlogic,sm1-clkc" for SM1 SoC.
 		"amlogic,tm2-clkc" for TM2 SoC.
+		"amlogic,sc2-clkc" for SC2 SoC.
 - clocks : list of clock phandle, one for each entry clock-names.
 - clock-names : should contain the following:
   * "xtal": the platform xtal
