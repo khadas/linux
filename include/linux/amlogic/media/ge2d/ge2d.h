@@ -369,6 +369,9 @@ enum ge2d_memtype_s {
 #define	UPDATE_SCALE_COEF   0x20
 #define	UPDATE_ALL          0x3f
 
+/* Indicates that dma fd has been attatched using ioctl GE2D_ATTACH_DMA_FD */
+#define DMA_FD_ATTACHED     (-2)
+
 struct rectangle_s {
 	int x;   /* X coordinate of its top-left point */
 	int y;   /* Y coordinate of its top-left point */
@@ -638,7 +641,7 @@ struct ge2d_canvas_cfg_s {
 };
 
 struct ge2d_dma_cfg_s {
-	int dma_used;
+	int dma_used[MAX_PLANE];
 	void *dma_cfg;
 };
 
@@ -1095,6 +1098,12 @@ struct ge2d_dmabuf_exp_s {
 	unsigned int flags;
 	int fd;
 };
+
+struct ge2d_dmabuf_attach_s {
+	int dma_fd[MAX_PLANE];
+	enum ge2d_data_type_e data_type;
+};
+
 /* end of ge2d dma buffer define */
 
 enum {
@@ -1180,6 +1189,10 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 
 #define GE2D_SYNC_DEVICE _IOW(GE2D_IOC_MAGIC, 0x08, int)
 #define GE2D_SYNC_CPU _IOW(GE2D_IOC_MAGIC, 0x09, int)
+
+#define GE2D_ATTACH_DMA_FD \
+	_IOW(GE2D_IOC_MAGIC, 0x0a, struct ge2d_dmabuf_attach_s)
+#define GE2D_DETACH_DMA_FD _IOW(GE2D_IOC_MAGIC, 0x0b, enum ge2d_data_type_e)
 
 extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 extern void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);

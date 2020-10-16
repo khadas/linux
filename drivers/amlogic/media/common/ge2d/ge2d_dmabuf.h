@@ -78,8 +78,10 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg);
 void ge2d_dma_buffer_unmap(struct aml_dma_cfg *cfg);
 int ge2d_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 	struct aml_dma_cfg *cfg, unsigned long *addr);
-int ge2d_dma_buffer_unmap_info(struct aml_dma_buffer *buffer,
-	struct aml_dma_cfg *cfg);
 void ge2d_dma_buffer_dma_flush(struct device *dev, int fd);
 void ge2d_dma_buffer_cache_flush(struct device *dev, int fd);
+int ge2d_ioctl_attach_dma_fd(struct ge2d_context_s *wq,
+			     struct ge2d_dmabuf_attach_s *dma_attach);
+void ge2d_ioctl_detach_dma_fd(struct ge2d_context_s *wq,
+			      enum ge2d_data_type_e data_type);
 #endif
