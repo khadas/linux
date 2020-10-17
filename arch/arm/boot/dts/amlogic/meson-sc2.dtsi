@@ -121,6 +121,11 @@
 				status = "okay";
 			};
 
+			meson_clk_msr@48000 {
+				compatible = "amlogic,meson-sc2-clk-measure";
+				reg = <0x48000 0x1c>;
+			};
+
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
 				status = "okay";
