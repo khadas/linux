@@ -19,6 +19,11 @@
 
 	aliases {
 		serial0 = &uart_B;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 	};
 
 	memory@00000000 {

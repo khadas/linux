@@ -19,6 +19,11 @@
 
 	aliases {
 		serial0 = &uart_B;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 	};
 
 	memory@00000000 {
@@ -62,4 +67,10 @@
 	otg = <1>;
 	gpio-vbus-power = "GPIOH_6";
 	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins2>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
