@@ -487,7 +487,6 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	snprintf(clk_name, sizeof(clk_name), "%s#div", dev_name(host->dev));
 	init.name = clk_name;
 	init.ops = &clk_divider_ops;
-	init.flags = CLK_SET_RATE_PARENT;
 	clk_parent[0] = __clk_get_name(host->mux[1]);
 	init.parent_names = clk_parent;
 	init.num_parents = 1;
@@ -2180,6 +2179,8 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct meson_host *host = mmc_priv(mmc);
 	int err;
 
+	if (IS_ERR(mmc->supply.vqmmc) && IS_ERR(mmc->supply.vmmc))
+		return 0;
 	/* vqmmc regulator is available */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		/*
@@ -2701,6 +2702,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	}
 	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
 	mmc->max_seg_size = mmc->max_req_size;
+	mmc->ocr_avail = 0x200080;
 
 	/*
 	 * At the moment, we don't know how to reliably enable HS400.
