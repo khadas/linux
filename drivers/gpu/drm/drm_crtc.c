@@ -205,6 +205,33 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 }
 
 /**
+ * DOC: standard CRTC properties
+ *
+ * DRM CRTCs have a few standardized properties:
+ *
+ * ACTIVE:
+ * 	Atomic property for setting the power state of the CRTC. When set to 1
+ * 	the CRTC will actively display content. When set to 0 the CRTC will be
+ * 	powered off. There is no expectation that user-space will reset CRTC
+ * 	resources like the mode and planes when setting ACTIVE to 0.
+ *
+ * 	User-space can rely on an ACTIVE change to 1 to never fail an atomic
+ * 	test as long as no other property has changed. If a change to ACTIVE
+ * 	fails an atomic test, this is a driver bug. For this reason setting
+ * 	ACTIVE to 0 must not release internal resources (like reserved memory
+ * 	bandwidth or clock generators).
+ *
+ * 	Note that the legacy DPMS property on connectors is internally routed
+ * 	to control this property for atomic drivers.
+ * MODE_ID:
+ * 	Atomic property for setting the CRTC display timings. The value is the
+ * 	ID of a blob containing the DRM mode info. To disable the CRTC,
+ * 	user-space must set this property to 0.
+ *
+ * 	Setting MODE_ID to 0 will release reserved resources for the CRTC.
+ */
+
+/**
  * drm_crtc_init_with_planes - Initialise a new CRTC object with
  *    specified primary and cursor planes.
  * @dev: DRM device
@@ -748,3 +775,34 @@ int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 
 	return ret;
 }
+
+/**
+ * drm_crtc_create_scaling_filter_property - create a new scaling filter
+ * property
+ *
+ * @crtc: drm CRTC
+ * @supported_filters: bitmask of supported scaling filters, must include
+ *		       BIT(DRM_SCALING_FILTER_DEFAULT).
+ *
+ * This function lets driver to enable the scaling filter property on a given
+ * CRTC.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+					    unsigned int supported_filters)
+{
+	struct drm_property *prop =
+		drm_create_scaling_filter_prop(crtc->dev, supported_filters);
+
+	if (IS_ERR(prop))
+		return PTR_ERR(prop);
+
+	drm_object_attach_property(&crtc->base, prop,
+				   DRM_SCALING_FILTER_DEFAULT);
+	crtc->scaling_filter_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_create_scaling_filter_property);
