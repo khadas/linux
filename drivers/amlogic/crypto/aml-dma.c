@@ -95,6 +95,7 @@ static int aml_dma_init_dbgfs(struct device *dev)
 	return 0;
 }
 
+#if !DMA_IRQ_MODE
 static int aml_dma_queue_manage(void *data)
 {
 	struct aml_dma_dev *dev = (struct aml_dma_dev *)data;
@@ -142,6 +143,7 @@ static int aml_dma_queue_manage(void *data)
 
 	return 0;
 }
+#endif
 
 static int aml_dma_probe(struct platform_device *pdev)
 {
@@ -182,10 +184,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->irq = res_irq->start;
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
-#if DMA_IRQ_MODE
-	tasklet_init(&dma_dd->worker_task, dma_worker_task,
-		     (unsigned long)aes_dd);
-#else
+#if !DMA_IRQ_MODE
 	crypto_init_queue(&dma_dd->queue, AML_DMA_QUEUE_LENGTH);
 	mutex_init(&dma_dd->queue_mutex);
 	dma_dd->kthread = kthread_run(aml_dma_queue_manage,
