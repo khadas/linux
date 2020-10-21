@@ -153,20 +153,6 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&periphs_pinctrl 0 0 87>;
 				};
-
-				eecec_a: ee_ceca {
-					mux {
-						groups = "cec_a_h";
-						function = "cec_a";
-					};
-				};
-
-				eecec_b: ee_cecb {
-					mux {
-						groups = "cec_b_h";
-						function = "cec_b";
-					};
-				};
 			};
 
 			gpio_intc: interrupt-controller@4080 {
@@ -893,6 +879,20 @@
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
+		};
+	};
+
+	eecec_a: ee_ceca {
+		mux {
+			groups = "cec_a_h";
+			function = "cec_a";
+		};
+	};
+
+	eecec_b: ee_cecb {
+		mux {
+			groups = "cec_b_h";
+			function = "cec_b";
 		};
 	};
 };
