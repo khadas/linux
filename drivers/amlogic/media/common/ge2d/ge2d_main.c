@@ -478,7 +478,19 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 #endif
 	switch (cmd) {
 	case GE2D_GET_CAP:
-		cap_mask = ge2d_meson_dev.src2_alp & 0x1;
+		/* CANVAS_STATUS   |
+		 * HAS_SELF_POWER  |
+		 * DEEP_COLOR      |
+		 * ADVANCED_MATRIX |
+		 * SRC2_REPEAT     |
+		 * SRC2_ALPHA
+		 */
+		cap_mask = ge2d_meson_dev.canvas_status << 5 |
+			   ge2d_meson_dev.has_self_pwr  << 4 |
+			   ge2d_meson_dev.deep_color    << 3 |
+			   /* ge2d_meson_dev.adv_matrix    << 2 | */
+			   /* ge2d_meson_dev.src2_repeat   << 1 | */
+			   ge2d_meson_dev.src2_alp      << 0;
 		put_user(cap_mask, (int __user *)argp);
 		break;
 	case GE2D_CONFIG:
