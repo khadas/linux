@@ -407,6 +407,63 @@
 			mmc_debug_flag;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
+
+		uart_A: serial@fe078000 {
+			compatible = "amlogic, meson-uart";
+			reg = <0xfe078000 0x18>;
+			interrupts = <0 168 1>;
+			status = "disabled";
+			clocks = <&xtal
+						&clkc CLKID_UART_A>;
+			clock-names = "clk_uart",
+				"clk_gate";
+			xtal_tick_en = <3>;
+			fifosize = < 128 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&a_uart_pins1>;
+		};
+
+		uart_C: serial@fe07c000 {
+			compatible = "amlogic, meson-uart";
+			reg = <0xfe07c000 0x18>;
+			interrupts = <0 170 1>;
+			status = "disabled";
+			clocks = <&xtal
+						&clkc CLKID_UART_C>;
+			clock-names = "clk_uart",
+				"clk_gate";
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&c_uart_pins>;
+		};
+
+		uart_D: serial@fe07e000 {
+			compatible = "amlogic, meson-uart";
+			status = "disabled";
+			reg = <0xfe07e000 0x18>;
+			interrupts = <0 171 1>;
+			clocks = <&xtal
+					&clkc CLKID_UART_D>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&d_uart_pins1>;
+		};
+
+		uart_E: serial@fe080000 {
+			compatible = "amlogic, meson-uart";
+			status = "disabled";
+			reg = <0xfe080000 0x18>;
+			interrupts = <0 172 1>;
+			clocks = <&xtal
+					&clkc CLKID_UART_E>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&e_uart_pins>;
+		};
 	};
 
 	ddr_bandwidth {
@@ -627,6 +684,60 @@
 			function = "i2c4";
 			drive-strength-microamp = <3000>;
 			bias-disable;
+		};
+	};
+
+	a_uart_pins1:a_uart1 {
+		mux {
+			groups = "uart_a_tx_d2",
+				"uart_a_rx_d3";
+			function = "uart_a";
+		};
+	};
+
+	a_uart_pins2:a_uart2 {
+		mux {
+			groups = "uart_a_tx_d8",
+				"uart_a_rx_d9";
+			function = "uart_a";
+		};
+	};
+
+	c_uart_pins:c_uart {
+		mux {
+			groups = "uart_c_tx",
+				"uart_c_rx";
+			bias-pull-up;
+			output-high;
+			function = "uart_c";
+		};
+	};
+
+	d_uart_pins1:d_uart1 {
+		mux {
+			groups = "uart_d_tx_x6",
+				"uart_d_rx_x7";
+			function = "uart_d";
+		};
+	};
+
+	d_uart_pins2:d_uart2 {
+		mux {
+			groups = "uart_d_tx_x10",
+				"uart_d_rx_x11";
+			function = "uart_d";
+		};
+	};
+
+	e_uart_pins:e_uart {
+		mux {
+			groups = "uart_e_tx",
+				"uart_e_rx",
+				"uart_e_cts",
+				"uart_e_rts";
+			bias-pull-up;
+			output-high;
+			function = "uart_e";
 		};
 	};
 
