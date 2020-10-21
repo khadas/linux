@@ -229,5 +229,20 @@ const char *tvin_trans_force_range_str(enum tvin_force_color_range_e
 }
 EXPORT_SYMBOL(tvin_trans_force_range_str);
 
+inline bool IS_TVAFE_SRC(enum tvin_port_e port)
+{
+	return ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS3));
+}
+
+inline bool IS_TVAFE_ATV_SRC(enum tvin_port_e port)
+{
+	return (port == TVIN_PORT_CVBS3);
+}
+
+inline bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port)
+{
+	return ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS2));
+}
+
 //MODULE_LICENSE("GPL");
 

@@ -18,6 +18,14 @@ enum {
 	MEMP_ATV_WITH_3D,
 };
 
+enum adc_sel {
+	ADC_ATV_DEMOD = 1,
+	ADC_TVAFE = 2,
+	ADC_DTV_DEMOD = 4,
+	ADC_DTV_DEMODPLL = 8,
+	ADC_MAX,
+};
+
 /* *********************************************************************** */
 
 /* * TVIN general definition/enum/struct *********************************** */
@@ -61,19 +69,9 @@ enum tvin_port_e {
 	TVIN_PORT_VIU1_WB1_VPP,
 	TVIN_PORT_VIU1_WB1_POST_BLEND,
 	TVIN_PORT_VIU2 = 0x0000C000,
-	TVIN_PORT_VIU2_VIDEO,
-	TVIN_PORT_VIU2_WB0_VD1,
-	TVIN_PORT_VIU2_WB0_VD2,
-	TVIN_PORT_VIU2_WB0_OSD1,
-	TVIN_PORT_VIU2_WB0_OSD2,
-	TVIN_PORT_VIU2_WB0_VPP,
-	TVIN_PORT_VIU2_WB0_POST_BLEND,
-	TVIN_PORT_VIU2_WB1_VD1,
-	TVIN_PORT_VIU2_WB1_VD2,
-	TVIN_PORT_VIU2_WB1_OSD1,
-	TVIN_PORT_VIU2_WB1_OSD2,
-	TVIN_PORT_VIU2_WB1_VPP,
-	TVIN_PORT_VIU2_WB1_POST_BLEND,
+	TVIN_PORT_VIU2_ENCL,
+	TVIN_PORT_VIU2_ENCI,
+	TVIN_PORT_VIU2_ENCP,
 	TVIN_PORT_MIPI = 0x00010000,
 	TVIN_PORT_ISP = 0x00020000,
 	TVIN_PORT_MAX = 0x80000000,
@@ -165,7 +163,8 @@ enum tvin_sig_fmt_e {
 	TVIN_SIG_FMT_HDMI_720X576P_50HZ_FRAME_PACKING = 0x44d,
 	TVIN_SIG_FMT_HDMI_640X480P_72HZ = 0x44e,
 	TVIN_SIG_FMT_HDMI_640X480P_75HZ = 0x44f,
-	TVIN_SIG_FMT_HDMI_MAX = 0x450,
+	TVIN_SIG_FMT_HDMI_1152X864_00HZ = 0x450,
+	TVIN_SIG_FMT_HDMI_MAX = 0x451,
 	TVIN_SIG_FMT_HDMI_THRESHOLD = 0x600,
 	/* Video Formats */
 	TVIN_SIG_FMT_CVBS_NTSC_M = 0x601,
@@ -283,8 +282,22 @@ enum tvin_color_fmt_range_e {
 	TVIN_COLOR_FMT_RANGE_MAX,
 };
 
-const char *tvin_trans_color_range_str(enum tvin_color_fmt_range_e
-				       color_range);
+enum tvin_aspect_ratio_e {
+	TVIN_ASPECT_NULL = 0,
+	TVIN_ASPECT_1x1,
+	TVIN_ASPECT_4x3_FULL,
+	TVIN_ASPECT_14x9_FULL,
+	TVIN_ASPECT_14x9_LB_CENTER,
+	TVIN_ASPECT_14x9_LB_TOP,
+	TVIN_ASPECT_16x9_FULL,
+	TVIN_ASPECT_16x9_LB_CENTER,
+	TVIN_ASPECT_16x9_LB_TOP,
+	TVIN_ASPECT_MAX,
+};
+
+const char *tvin_trans_color_range_str(enum
+						tvin_color_fmt_range_e
+						color_range);
 
 enum tvin_force_color_range_e {
 	COLOR_RANGE_AUTO = 0,
@@ -296,7 +309,6 @@ enum tvin_force_color_range_e {
 const char *tvin_trans_force_range_str(enum tvin_force_color_range_e
 				       force_range);
 const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt);
-
 enum tvin_scan_mode_e {
 	TVIN_SCAN_MODE_NULL = 0,
 	TVIN_SCAN_MODE_PROGRESSIVE,
@@ -331,6 +343,7 @@ struct tvin_info_s {
 	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
 	 */
 	unsigned int signal_type;
+	enum tvin_aspect_ratio_e aspect_ratio;
 };
 
 struct tvin_frontend_info_s {
@@ -407,10 +420,10 @@ enum tvafe_cvbs_video_e {
 enum tvafe_adc_pin_e {
 	TVAFE_ADC_PIN_NULL = 0,
 	/*(MESON_CPU_TYPE > MESON_CPU_TYPE_MESONG9TV) */
-	TVAFE_CVBS_IN0 = 1,
-	TVAFE_CVBS_IN1 = 2,
-	TVAFE_CVBS_IN2 = 3,
-	TVAFE_CVBS_IN3 = 4,	/*as atvdemod to tvafe */
+	TVAFE_CVBS_IN0 = 1,  /* avin ch0 */
+	TVAFE_CVBS_IN1 = 2,  /* avin ch1 */
+	TVAFE_CVBS_IN2 = 3,  /* avin ch2 */
+	TVAFE_CVBS_IN3 = 4,  /*as atvdemod to tvafe */
 	TVAFE_ADC_PIN_MAX,
 };
 
@@ -428,6 +441,10 @@ enum tvafe_src_sig_e {
 struct tvafe_pin_mux_s {
 	enum tvafe_adc_pin_e pin[TVAFE_SRC_SIG_MAX_NUM];
 };
+
+bool IS_TVAFE_SRC(enum tvin_port_e port);
+bool IS_TVAFE_ATV_SRC(enum tvin_port_e port);
+bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 
 /* ************************************************************************* */
 
@@ -447,6 +464,8 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_G_SIG_INFO         _IOR(_TM_T, 0x07, struct tvin_info_s)
 #define TVIN_IOC_G_BUF_INFO         _IOR(_TM_T, 0x08, struct tvin_buf_info_s)
 #define TVIN_IOC_START_GET_BUF      _IO(_TM_T, 0x09)
+#define TVIN_IOC_G_EVENT_INFO	_IOW(_TM_T, 0x0a, struct vdin_event_info)
+
 #define TVIN_IOC_GET_BUF            _IOR(_TM_T, 0x10, struct tvin_video_buf_s)
 #define TVIN_IOC_PAUSE_DEC          _IO(_TM_T, 0x41)
 #define TVIN_IOC_RESUME_DEC         _IO(_TM_T, 0x42)
@@ -461,7 +480,6 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_SET_COLOR_RANGE	_IOW(_TM_T, 0X4a,\
 	enum tvin_force_color_range_e)
 #define TVIN_IOC_GAME_MODE          _IOW(_TM_T, 0x4b, unsigned int)
-#define TVIN_IOC_SET_AUTO_RATIO_EN  _IOW(_TM_T, 0x4c, unsigned int)
 #define TVIN_IOC_GET_LATENCY_MODE		_IOR(_TM_T, 0x4d,\
 	struct tvin_latency_s)
 #define TVIN_IOC_G_FRONTEND_INFO    _IOR(_TM_T, 0x4e,\
@@ -469,6 +487,9 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_S_CANVAS_ADDR  _IOW(_TM_T, 0x4f,\
 	struct vdin_set_canvas_s)
 #define TVIN_IOC_S_PC_MODE		_IOW(_TM_T, 0x50, unsigned int)
+#define TVIN_IOC_S_FRAME_WR_EN		_IOW(_TM_T, 0x51, unsigned int)
+#define TVIN_IOC_G_INPUT_TIMING		_IOW(_TM_T, 0x52, struct tvin_format_s)
+
 
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */
@@ -501,7 +522,7 @@ struct dfe_adcpll_para {
 };
 
 struct rx_audio_stat_s {
-	/*audio packets received*/
+	/* 1: AUDS, 2: OBA, 4:DST, 8: HBR, 16: OBM, 32: MAS */
 	int aud_rcv_packet;
 	/*audio stable status*/
 	bool aud_stb_flag;
@@ -535,13 +556,40 @@ struct rx_audio_stat_s {
 	int aud_alloc;
 };
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
 void adc_pll_down(void);
+void adc_set_pll_reset(void);
+int adc_get_pll_flag(void);
 /*ADC_EN_ATV_DEMOD	0x1*/
 /*ADC_EN_TVAFE		0x2*/
 /*ADC_EN_DTV_DEMOD	0x4*/
 /*ADC_EN_DTV_DEMODPLL	0x8*/
-int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pdtvdara);
-void tvafe_set_ddemod_default(void);/* add for dtv demod*/
+int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
+void adc_set_ddemod_default(void);/* add for dtv demod */
+#else
+static inline void adc_pll_down(void)
+{
+}
+
+static inline void adc_set_pll_reset(void)
+{
+}
+
+static inline int adc_get_pll_flag(void)
+{
+	return 0;
+}
+
+static inline int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_)
+{
+	return 0;
+}
+
+static inline void adc_set_ddemod_default(void)
+{
+}
+#endif
+
 void rx_get_audio_status(struct rx_audio_stat_s *aud_sts);
 void rx_set_atmos_flag(bool en);
 bool rx_get_atmos_flag(void);

@@ -64,6 +64,8 @@ struct tvin_state_machine_ops_s {
 	bool (*check_frame_skip)(struct tvin_frontend_s *fe);
 	bool (*get_secam_phase)(struct tvin_frontend_s *fe);
 	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe);
+	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe);
+	bool (*vdin_set_property)(struct tvin_frontend_s *fe);
 };
 
 struct tvin_frontend_s {
@@ -77,6 +79,8 @@ struct tvin_frontend_s {
 	unsigned int reserved;
 	struct list_head list;
 };
+
+#define VDIN_FRONTEND_IDX	0x10
 
 int tvin_frontend_init(struct tvin_frontend_s *fe,
 		       struct tvin_decoder_ops_s *dec_ops,

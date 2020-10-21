@@ -36,6 +36,36 @@ enum tvin_sm_status_e {
 	TVIN_SM_STATUS_STABLE,
 };
 
+enum tvin_sg_chg_flg {
+	TVIN_SIG_CHG_NONE = 0,
+	TVIN_SIG_CHG_SDR2HDR	= 0x01,
+	TVIN_SIG_CHG_HDR2SDR	= 0x02,
+	TVIN_SIG_CHG_DV2NO	= 0x04,
+	TVIN_SIG_CHG_NO2DV	= 0x08,
+	TVIN_SIG_CHG_COLOR_FMT	= 0x10,
+	TVIN_SIG_CHG_RANGE	= 0x20,	/*color range:full or limit*/
+	TVIN_SIG_CHG_BIT	= 0x40,	/*color bit deepth: 8,10,12 ...*/
+	TVIN_SIG_CHG_VS_FRQ	= 0x80,
+	TVIN_SIG_CHG_DV_ALLM	= 0x100,
+	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
+	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
+};
+
+#define TVIN_SIG_DV_CHG		(TVIN_SIG_CHG_DV2NO | TVIN_SIG_CHG_NO2DV)
+#define TVIN_SIG_HDR_CHG	(TVIN_SIG_CHG_SDR2HDR | TVIN_SIG_CHG_HDR2SDR)
+
+#define RE_CONFIG_DV_EN		0x01
+#define RE_CONFIG_HDR_EN	0x02
+#define RE_CONFIG_ALLM_EN	0x04
+
+enum vdin_sm_log_level {
+	VDIN_SM_LOG_L_1 = 0x01,
+	VDIN_SM_LOG_L_2 = 0x02,
+	VDIN_SM_LOG_L_3 = 0x04,
+	VDIN_SM_LOG_L_4 = 0x08,
+
+};
+
 struct tvin_sm_s {
 	enum tvin_sig_status_e sig_status;
 	enum tvin_sm_status_e state;
@@ -53,12 +83,16 @@ struct tvin_sm_s {
 };
 
 extern bool manual_flag;
+extern unsigned int vdin_get_prop_in_sm_en;
 
 void tvin_smr(struct vdin_dev_s *pdev);
 void tvin_smr_init(int index);
 void reset_tvin_smr(unsigned int index);
 
 enum tvin_sm_status_e tvin_get_sm_status(int index);
+void vdin_dump_vs_info(struct vdin_dev_s *devp);
+void vdin_send_event(struct vdin_dev_s *devp, enum tvin_sg_chg_flg sts);
+void vdin_update_prop(struct vdin_dev_s *devp);
 
 #endif
 

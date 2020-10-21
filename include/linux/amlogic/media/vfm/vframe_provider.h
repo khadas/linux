@@ -42,6 +42,14 @@ struct vframe_states {
 #define VFRAME_EVENT_RECEIVER_DISP_MODE				0x100
 #define VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL		0x200
 #define VFRAME_EVENT_RECEIVER_NEED_NO_COMP		0x400
+#define VFRAME_EVENT_RECEIVER_BUF_COUNT		0x800
+#define VFRAME_EVENT_RECEIVER_REQ_STATE		0x1000
+
+enum req_state_type_e {
+	REQ_STATE_INVALID = 0,
+	REQ_STATE_SECURE = 1,
+	REQ_STATE_MAX = 0xff,
+};
 
 	/* for VFRAME_EVENT_RECEIVER_GET_AUX_DATA*/
 struct provider_aux_req_s {
@@ -62,6 +70,15 @@ struct provider_disp_mode_req_s {
 	unsigned int req_mode;/*0:get;1:check*/
 	/*output*/
 	enum vframe_disp_mode_e disp_mode;
+};
+
+/* for VFRAME_EVENT_RECEIVER_REQ_STATE */
+struct provider_state_req_s {
+	/*input*/
+	struct vframe_s *vf;
+	enum req_state_type_e req_type;
+	/*output*/
+	u32 req_result[4];
 };
 
 struct vframe_operations_s {

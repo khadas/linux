@@ -1109,6 +1109,46 @@
 		#irblaster-cells = <2>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
 	};
+
+	/*if you want to use vdin just modify status to "ok"*/
+	vdin0: vdin0 {
+		compatible = "amlogic, vdin-sc2";
+		dev_name = "vdin0";
+		status = "disabled";
+		reserve-iomap = "true";
+		flag_cma = <0>;/*1:share with codec_mm;2:cma alone*/
+		/*MByte, if 10bit disable: 64M(YUV422),
+		 *if 10bit enable: 64*1.5 = 96M(YUV422)
+		 *if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
+		 *if support 4K2K-YUV422-10bit-wr:3840*2160*3*4 ~= 96M
+		 *if support 4K2K-YUV422-8BIT-WR:3840*2160*2*4 ~= 64M
+		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
+		 */
+		/*cma_size = <16>;*/
+		interrupts = <0 210 1>;
+		rdma-irq = <2>;
+		/*clocks = <&clkc CLKID_VPU_CLKB_GATE>,
+		 *	<&clkc CLKID_VPU_CLKB_TMP_MUX>;
+		 *clock-names = "vpu_clkb_gate",
+		 *	"vpu_clkb_tmp_mux";
+		 */
+		vdin_id = <0>;
+	};
+	vdin1: vdin1 {
+		compatible = "amlogic, vdin-sc2";
+		dev_name = "vdin1";
+		status = "disabled";
+		reserve-iomap = "true";
+		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
+		interrupts = <0 212 1>;
+		rdma-irq = <4>;
+		/*clocks = <&clock CLK_FPLL_DIV5>,
+		 *	<&clock CLK_VDIN_MEAS_CLK>;
+		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		 */
+		vdin_id = <1>;
+	};
+
 };
 
 &periphs_pinctrl {

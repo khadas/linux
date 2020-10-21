@@ -98,6 +98,10 @@
 #define VFRAME_FLAG_FAKE_FRAME			0x1000
 #define VFRAME_FLAG_DOUBLE_FRAM		        0x2000
 #define VFRAME_FLAG_VIDEO_DRM			0x4000
+#define VFRAME_FLAG_VIDEO_VDETECT		0x8000
+#define VFRAME_FLAG_VIDEO_VDETECT_PUT		0x10000
+#define VFRAME_FLAG_VIDEO_SECURE		0x20000
+
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
@@ -361,6 +365,16 @@ struct codec_mm_box_s {
 	int     bmmu_idx;
 };
 
+struct vsif_info {
+	void *addr;
+	unsigned int size;
+};
+
+struct emp_info {
+	void *addr;
+	unsigned int size;
+};
+
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
@@ -404,29 +418,27 @@ struct vframe_s {
 	u32 compHeight;
 	u32 ratio_control;
 	u32 bitdepth;
+
+	/*
+	 * bit 30: is_dv
+	 * bit 29: present_flag
+	 * bit 28-26: video_format
+	 *	"component", "PAL", "NTSC", "SECAM", "MAC", "unspecified"
+	 * bit 25: range "limited", "full_range"
+	 * bit 24: color_description_present_flag
+	 * bit 23-16: color_primaries
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "film", "bt2020"
+	 * bit 15-8: transfer_characteristic
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "linear", "log100", "log316",
+	 *	"iec61966-2-4", "bt1361e", "iec61966-2-1", "bt2020-10",
+	 *	"bt2020-12", "smpte-st-2084", "smpte-st-428"
+	 * bit 7-0: matrix_coefficient
+	 *	"GBR", "bt709", "undef", "bt601", "fcc", "bt470bg",
+	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
+	 */
 	u32 signal_type;
-/*
- *	   bit 29: present_flag
- *	   bit 28-26: video_format
- *	   "component", "PAL", "NTSC", "SECAM",
- *	   "MAC", "unspecified"
- *	   bit 25: range "limited", "full_range"
- *	   bit 24: color_description_present_flag
- *	   bit 23-16: color_primaries
- *	   "unknown", "bt709", "undef", "bt601",
- *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
- *	   "film", "bt2020"
- *	   bit 15-8: transfer_characteristic
- *	   "unknown", "bt709", "undef", "bt601",
- *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
- *	   "linear", "log100", "log316", "iec61966-2-4",
- *	   "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
- *	   "smpte-st-2084", "smpte-st-428"
- *	   bit 7-0: matrix_coefficient
- *	   "GBR", "bt709", "undef", "bt601",
- *	   "fcc", "bt470bg", "smpte170m", "smpte240m",
- *	   "YCgCo", "bt2020nc", "bt2020c"
- */
 	u32 orientation;
 	u32 video_angle;
 	enum vframe_source_type_e source_type;
@@ -474,6 +486,8 @@ struct vframe_s {
 	 * used by memory owner.
 	 */
 	void *mem_handle;
+	/* in secure memory */
+	int mem_sec;
 	/*for MMU H265/VP9 compress header*/
 	void *mem_head_handle;
 	struct vframe_pic_mode_s pic_mode;
@@ -494,6 +508,10 @@ struct vframe_s {
 
 	u32 axis[4];
 	u32 crop[4];
+
+	struct vsif_info vsif;
+	struct emp_info emp;
+
 	u32 zorder;
 	u32 repeat_count[2];
 	struct file *file_vf;

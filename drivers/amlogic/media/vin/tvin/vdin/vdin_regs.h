@@ -33,6 +33,7 @@
 #define VPU_WRARB_REQEN_SLV_L1C2 0x27af
 #define VDIN0_REQ_EN_BIT 0
 #define VDIN1_REQ_EN_BIT 1
+
 #define VDIN_MISC_CTRL 0x2782
 #define VDIN0_OUT_AFBCE_BIT 21
 #define VDIN0_OUT_MIF_BIT 20
@@ -43,6 +44,14 @@
 #define VDIN0_MIF_RST_BIT 3
 #define VDIN1_MIF_RST_BIT 4
 #define VDIN_MIF_RST_W 1
+
+#define VPU_AXI_WR_PROTECT	0x27c6
+#define PROTECT_EN1_BIT	1
+#define PROTECT_EN21_BIT	21
+#define PROTECT_EN_WID	1
+#define HOLD_NUM_BIT	2
+#define HOLD_NUM_WID	19
+
 #define VDIN1_WR_CTRL2 0x129f
 #define VDIN1_WR_CTRL 0x12a0
 #define VDIN_COM_CTRL1 0x1282
@@ -143,6 +152,17 @@
 /* Bit 7:0 vdi1 asfifo_ctrl */
 /* Bit 23:16 vdi2 asfifo_ctrl */
 #define VDIN_ASFIFO_CTRL0        ((0x1208))/* + 0xd0100000) */
+#define VDI6_BIST_DE_START_BIT	28
+#define VDI6_BIST_DE_START_WID	3
+#define VDI6_BIST_VBLANK_BIT	20
+#define VDI6_BIST_VBLANK_WID	8
+#define VDI6_BIST_HBLANK_BIT	12
+#define VDI6_BIST_HBLANK_WID	8
+#define VDI6_BIST_SEL_BIT	9
+#define VDI6_BIST_SEL_WID	2
+#define VDI6_BIST_EN_BIT	8
+#define VDI6_BIST_EN_WID	1
+
 /* Bit 7:0 vdi3 asfifo_ctrl */
 /* Bit 23:16 vdi4 asfifo_ctrl */
 #define VDIN_ASFIFO_CTRL1        ((0x1209))/* + 0xd0100000) */
@@ -240,12 +260,23 @@
 #define VDIN_LFIFO_CTRL             ((0x121a))/* + 0xd0100000) */
 #define LFIFO_BUF_SIZE_BIT	0
 #define LFIFO_BUF_SIZE_WID	12
+/* tm2 new add begin */
+#define CH0_OUT_EN_BIT	17
+#define CH1_OUT_EN_BIT	18
+#define CH_OUT_EN_WID	1
+/* tm2 new add end */
 
 #define VDIN_COM_GCLK_CTRL          ((0x121b))/* + 0xd0100000) */
 /* 12:0 VDIN input interface width minus 1,
  * before the window function, after the de decimation
  */
 #define VDIN_INTF_WIDTHM1   ((0x121c))/* + 0xd0100000) */
+/* before the cut window function, after the de decimation function */
+#define VDIN_WR_MIF_BURST_LAST_SEL_BIT	25
+#define VDIN_WR_MIF_BURST_LAST_SEL_WID	1
+#define VDIN_INTF_WIDTHM1_BIT           0
+#define VDIN_INTF_WIDTHM1_WID           13
+
 /* Bit 15          //default== 0, urgent_ctrl_en */
 /* Bit 14          //default== 0, urgent_wr, if true for write buffer */
 /* Bit 13          //default== 0, out_inv_en */
@@ -253,9 +284,27 @@
 /* Bit 11:6        //default == 0, up_th  up threshold */
 /* Bit 5:0         //default == 0, dn_th  dn threshold */
 #define VDIN_LFIFO_URG_CTRL        ((0x121e))/* + 0xd0100000) */
-/* Bit 8, 1: discard data before line fifo, 0: normal mode */
-/* Bit 7:0 Write chroma canvas address */
+
 #define VDIN_WR_CTRL2    ((0x121f))/* + 0xd0100000) */
+/*1: enable WR 10 bit mode, 0: disable WR 10 bit mode*/
+#define VDIN_WR_10BIT_MODE_BIT		19
+#define VDIN_WR_10BIT_MODE_WID		1
+/* data_ext_en 1:send out data if req was interrupt by soft reset */
+/* 0:normal mode */
+#define VDIN_WR_DATA_EXT_EN_BIT		18
+#define VDIN_WR_DATA_EXT_EN_WID		1
+/*0: 1 word in 1burst, 1: 2 words in 1burst;
+ *10: 4 words in 1burst; 11: reserved
+ */
+#define VDIN_WR_BURST_MODE_BIT		12
+#define VDIN_WR_BURST_MODE_WID		4
+/* 1: discard data before line fifo, 0: normal mode */
+#define DISCARD_BEF_LINE_FIFO_BIT		8
+#define DISCARD_BEF_LINE_FIFO_WID       1
+/* Write chroma canvas address */
+#define WRITE_CHROMA_CANVAS_ADDR_BIT	0
+#define WRITE_CHROMA_CANVAS_ADDR_WID   8
+
 /* Bit 31:30 hconv_mode, Applicable only to bit[13:12]=0 or 2.
  * 0: Output every even pixels' CbCr;
  */
@@ -309,14 +358,85 @@
 /* Bit 8 vdin write request enable */
 /* Bit 7:0 Write luma canvas address */
 #define VDIN_WR_CTRL                   ((0x1220))/* + 0xd0100000) */
-/* Bit 29, if true, horizontal reverse */
-/* Bit 28:16 start */
-/* Bit 12:0  end */
+/* Applicable only bit[13:12]=0 or 10. */
+/* 0: Output every even pixels' CbCr; */
+/* 1: Output every odd pixels' CbCr; */
+/* 10: Output an average value per even&odd pair of pixels; */
+/* 11: Output all CbCr. (This does NOT apply to bit[13:12]=0 -- 4:2:2 mode.) */
+#define HCONV_MODE_BIT                  30
+#define HCONV_MODE_WID                  2
+/* 1:disable vid_wr_mif clock gating function */
+#define NO_CLOCK_GATE_BIT               29
+#define NO_CLOCK_GATE_WID                1
+#define WR_RESPONSE_CNT_CLR_BIT         28
+#define WR_RESPONSE_CNT_CLR_WID         1
+#define EOL_SEL_BIT                     27
+#define EOL_SEL_WID                     1
+#define VCP_NR_EN_BIT                   26/* ONLY VDIN0 */
+#define VCP_NR_EN_WID                   1
+#define VCP_WR_EN_BIT                   25/* ONLY VDIN0 */
+#define VCP_WR_EN_WID                   1
+#define VCP_IN_EN_BIT                   24/* ONLY VDIN0 */
+#define VCP_IN_EN_WID                   1
+/* #define WR_OUT_CTRL_BIT                 24 ? */
+/* #define WR_OUT_CTRL_WID                 8    //directly send out */
+#define FRAME_SOFT_RST_EN_BIT           23
+#define FRAME_SOFT_RST_EN_WID           1
+/* reset LFIFO on VS (Go_field) */
+#define LFIFO_SOFT_RST_EN_BIT           22
+#define LFIFO_SOFT_RST_EN_WID           1
+#define DIRECT_DONE_CLR_BIT             21   /* used by other modules */
+#define DIRECT_DONE_CLR_WID             1
+#define NR_DONE_CLR_BIT                 20   /* used by other modules */
+#define NR_DONE_CLR_WID                 1
+#define WORDS_SWAP_BIT			19
+#define WORDS_SWAP_WID			1
+/* only [13:12]=10;0 output cbcr(nv12);1 output cbcr(nv21) */
+#define SWAP_CBCR_BIT                      18
+#define SWAP_CBCR_WID                      1
+/* 0: Output even lines' CbCr; 01: Output odd lines' CbCr;
+ * 10: Reserved; 11: Output all CbCr.
+ */
+#define VCONV_MODE_BIT                     16
+#define VCONV_MODE_WID                    2
+/* 0: 422;1: 444;10:Y to luma canvas cbcr to chroma canvas for NV12/21 */
+#define WR_FMT_BIT                      12
+#define WR_FMT_WID                     2
+/* vdin_wr_canvas = vdin_wr_canvas_dbuf_en ? wr_canvas_shadow :wr_canvas;  */
+/* shadow is latch by go_field */
+#define WR_CANVAS_DOUBLE_BUF_EN_BIT            11
+#define WR_CANVAS_DOUBLE_BUF_EN_WID            1
+#define VDIN_WRCTRLREG_PAUSE_BIT		10
+#define VDIN_WRCTRLREG_PAUSE_WID		1
+#define WR_REQ_URGENT_BIT               9
+#define WR_REQ_URGENT_WID               1    /* directly send out */
+#define WR_REQ_EN_BIT                   8
+#define WR_REQ_EN_WID                   1    /* directly send out */
+#define WR_CANVAS_BIT                   0
+#define WR_CANVAS_WID                   8
+
 #define VDIN_WR_H_START_END            ((0x1221))/* + 0xd0100000) */
-/* Bit 29, if true, vertical reverse */
-/* Bit 28:16 start */
-/* Bit 12:0  end */
+/* 0 = big endian, 1 = little endian */
+#define WR_ENDIAN_BIT			30
+#define WR_ENDIAN_WID			1
+/* if true horizontal reverse */
+#define HORIZONTAL_REVERSE_BIT          29
+#define HORIZONTAL_REVERSE_WID		1
+/* write mif star/end */
+#define WR_HSTART_BIT                   16
+#define WR_HSTART_WID                   13
+#define WR_HEND_BIT                     0
+#define WR_HEND_WID                     13
+
 #define VDIN_WR_V_START_END            ((0x1222))/* + 0xd0100000) */
+/* if true vertical reverse */
+#define VERTICAL_REVERSE_BIT		29
+#define VERTICAL_REVERSE_WID		1
+#define WR_VSTART_BIT                   16
+#define WR_VSTART_WID                   13
+#define WR_VEND_BIT                     0
+#define WR_VEND_WID                     13
+
 /* Bit 24:20, integer portion */
 /* Bit 19:0, fraction portion */
 #define VDIN_VSC_PHASE_STEP            ((0x1223))/* + 0xd0100000) */
@@ -443,6 +563,12 @@
 #define VDIN_DNLP_HIST29    ((0x1254))/* + 0xd0100000) */
 #define VDIN_DNLP_HIST30    ((0x1255))/* + 0xd0100000) */
 #define VDIN_DNLP_HIST31    ((0x1256))/* + 0xd0100000) */
+#define HIST_ON_BIN_63_BIT              16
+#define HIST_ON_BIN_63_WID              16
+#define HIST_ON_BIN_62_BIT              0
+#define HIST_ON_BIN_62_WID              16
+
+#ifdef CONFIG_AML_LOCAL_DIMMING /* DO NOT enable, already removed from chip */
 /* Bit 31, local dimming statistic enable */
 /* Bit 28, eol enable */
 /* Bit 27:25, vertical line overlap number for max finding */
@@ -458,6 +584,25 @@
  */
 /* Bit 6:0, region read index */
 #define VDIN_LDIM_STTS_HIST_REGION_IDX ((0x1257))/* + 0xd0100000) */
+#define LOCAL_DIM_STATISTIC_EN_BIT          31
+#define LOCAL_DIM_STATISTIC_EN_WID         1
+#define EOL_EN_BIT                                          28
+#define EOL_EN_WID                                        1
+#define VLINE_OVERLAP_NUMBER_BIT        25
+#define VLINE_OVERLAP_NUMBER_WID       3
+/* 0: 17 pix, 1: 9 pix, 2: 5 pix, 3: 3 pix, 4: 0 pix */
+#define HLINE_OVERLAP_NUMBER_BIT        22
+#define HLINE_OVERLAP_NUMBER_WID       3
+#define LPF_BEFORE_STATISTIC_EN_BIT    20
+#define LPF_BEFORE_STATISTIC_EN_WID    1
+/* region H/V position index, refer to VDIN_LDIM_STTS_HIST_SET_REGION */
+#define BLK_HV_POS_IDXS_BIT                     16
+#define BLK_HV_POS_IDXS_WID                    4
+#define REGION_RD_INDEX_INC_BIT             15
+#define REGION_RD_INDEX_INC_WID            1
+#define REGION_RD_INDEX_BIT                      0
+#define REGION_RD_INDEX_WID                     7
+
 /* Bit 28:0, if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h0:
  * read/write hvstart0
  */
@@ -483,6 +628,23 @@
 /* hend89, Bit 28:16 col9 hend, Bit 12:0 col8 hend */
 /* vend89, Bit 28:16 row9 vend, Bit 12:0 row8 vend */
 #define VDIN_LDIM_STTS_HIST_SET_REGION  ((0x1258))/* + 0xd0100000) */
+#else
+#define VDIN_WR_URGENT_CTRL	((0x1257))
+#define AUTO_URGENT_EN_BIT	15
+#define AUTO_URGENT_EN_WID	1
+#define URGENT_WR_BIT	14
+#define URGENT_WR_WID	1
+#define WR_DONE_LAST_SEL_BIT	9
+#define WR_DONE_LAST_SEL_WID	1
+#define BVALID_EN_BIT	8
+#define BVALID_EN_WID	1
+#define UP_THRESHOLD_BIT	4
+#define UP_THRESHOLD_WID	4
+#define DOWN_THRESHOLD_BIT	0
+#define DOWN_THRESHOLD_WID	4
+
+#define VDIN_RO_WRMIF_STATUS		(0x1258)
+#endif
 /* REGION STATISTIC DATA READ OUT PORT, bit 29:20 max_comp2,
  * bit 19:10 max_comp1, bit 9:0 max_comp0
  */
@@ -623,10 +785,18 @@
 /* Bit 28:16 input window V start */
 /* Bit 12:0  input window V end */
 #define VDIN_WIN_V_START_END     ((0x126e))/* + 0xd0100000) */
+
+/* Bit 31:24 vdi9 asfifo_ctrl */
 /* Bit 23:16 vdi8 asfifo_ctrl */
 /* Bit 15:8 vdi7 asfifo_ctrl */
 /* Bit 7:0 vdi6 asfifo_ctrl */
 #define VDIN_ASFIFO_CTRL3        ((0x126f))/* + 0xd0100000) */
+#define VDI9_ASFIFO_CTRL_BIT		24
+#define VDI8_ASFIFO_CTRL_BIT		16
+#define VDI7_ASFIFO_CTRL_BIT            8
+#define VDI6_ASFIFO_CTRL_BIT            0
+#define VDI_ASFIFO_CTRL_WID		8
+
 /* Bit 3:2 vshrk_clk2_ctrl */
 /* Bit 1:0 vshrk_clk1_ctrl */
 #define VDIN_COM_GCLK_CTRL2      ((0x1270))/* + 0xd0100000) */
@@ -729,10 +899,15 @@
 #define VDIN_HDR2_PROC_WIN2 0x12ba
 #define VDIN_HDR2_MATRIXI_EN_CTRL 0x12bb
 #define VDIN_HDR2_MATRIXO_EN_CTRL 0x12bc
-
 /*g12a new add end*/
 
 #define VDIN_WRARB_REQEN_SLV       0x12c1
+
+#define VDIN_CRC_CHK	0x12c9
+#define VDIN_CRC_CHK_START_BIT	0
+#define VDIN_CRC_CHK_START_WID	1
+
+#define VDIN_RO_CRC	0x12ca
 
 /*tm2 new add begin*/
 #define VDIN_VSHRK_SIZE_M1	0x12d9
@@ -777,13 +952,13 @@
  */
 #define VDIN_TOP_DOUBLE_CTRL	0x410b
 #define VDIN_REORDER_SEL_WID	4
-/*[3:0] afbce sel*/
+/* [3:0] afbce sel */
 #define AFBCE_OUT_SEL_BIT	0
-/*[7:4] wr mif 0 sel*/
+/* [7:4] wr mif 0 sel */
 #define MIF0_OUT_SEL_BIT	4
-/*[11:8] wr mif 1 sel*/
+/* [11:8] wr mif 1 sel */
 #define MIF1_OUT_SEL_BIT	8
-/*[15:12] wr mif 2 sel*/
+/* [15:12] wr mif 2 sel */
 #define MIF2_OUT_SEL_BIT	12
 
 /*tm2 new add end*/
@@ -1160,11 +1335,6 @@
 #define COM_GCLK_REG_BIT                0
 #define COM_GCLK_REG_WID                1    /* 0: auto,  1: off. Caution !!! */
 
-/* #define VDIN_INTF_WIDTHM1                        0x121c */
-/* before the cut window function, after the de decimation function */
-#define VDIN_INTF_WIDTHM1_BIT           0
-#define VDIN_INTF_WIDTHM1_WID           13
-
 /* #define VDIN_LFIFO_URG_CTRL                       0x121e */
 /*Bit 15          default== 0, urgent_ctrl_en
  *Bit 14          default== 0, urgent_wr, if true for write buffer
@@ -1185,99 +1355,6 @@
 #define VDIN_LFIFO_URG_UP_TH_WID        6
 #define VDIN_LFIFO_URG_DN_TH_BIT        0
 #define VDIN_LFIFO_URG_DN_TH_WID        6
-
-/* #define VDIN_WR_CTRL2                           0x121f */
-/*1: enable WR 10 bit mode, 0: disable WR 10 bit mode*/
-#define VDIN_WR_10BIT_MODE_BIT		19
-#define VDIN_WR_10BIT_MODE_WID		1
-/* data_ext_en 1:send out data if req was interrupt by soft reset */
-/* 0:normal mode */
-#define VDIN_WR_DATA_EXT_EN_BIT		18
-#define VDIN_WR_DATA_EXT_EN_WID		1
-/*0: 1 word in 1burst, 1: 2 words in 1burst;
- *10: 4 words in 1burst; 11: reserved
- */
-#define VDIN_WR_BURST_MODE_BIT		12
-#define VDIN_WR_BURST_MODE_WID		4
-/* 1: discard data before line fifo, 0: normal mode */
-#define DISCARD_BEF_LINE_FIFO_BIT		8
-#define DISCARD_BEF_LINE_FIFO_WID       1
-/* Write chroma canvas address */
-#define WRITE_CHROMA_CANVAS_ADDR_BIT	0
-#define WRITE_CHROMA_CANVAS_ADDR_WID   8
-
-/* #define VDIN_WR_CTRL                            0x1220 */
-
-/* Applicable only bit[13:12]=0 or 10. */
-/* 0: Output every even pixels' CbCr; */
-/* 1: Output every odd pixels' CbCr; */
-/* 10: Output an average value per even&odd pair of pixels; */
-/* 11: Output all CbCr. (This does NOT apply to bit[13:12]=0 -- 4:2:2 mode.) */
-#define HCONV_MODE_BIT                  30
-#define HCONV_MODE_WID                  2
-/* 1:disable vid_wr_mif clock gating function */
-#define NO_CLOCK_GATE_BIT               29
-#define NO_CLOCK_GATE_WID                1
-#define WR_RESPONSE_CNT_CLR_BIT         28
-#define WR_RESPONSE_CNT_CLR_WID         1
-#define EOL_SEL_BIT                     27
-#define EOL_SEL_WID                     1
-#define VCP_NR_EN_BIT                   26/* ONLY VDIN0 */
-#define VCP_NR_EN_WID                   1
-#define VCP_WR_EN_BIT                   25/* ONLY VDIN0 */
-#define VCP_WR_EN_WID                   1
-#define VCP_IN_EN_BIT                   24/* ONLY VDIN0 */
-#define VCP_IN_EN_WID                   1
-/* #define WR_OUT_CTRL_BIT                 24 ? */
-/* #define WR_OUT_CTRL_WID                 8    //directly send out */
-#define FRAME_SOFT_RST_EN_BIT           23
-#define FRAME_SOFT_RST_EN_WID           1
-/* reset LFIFO on VS (Go_field) */
-#define LFIFO_SOFT_RST_EN_BIT           22
-#define LFIFO_SOFT_RST_EN_WID           1
-#define DIRECT_DONE_CLR_BIT             21   /* used by other modules */
-#define DIRECT_DONE_CLR_WID             1
-#define NR_DONE_CLR_BIT                 20   /* used by other modules */
-#define NR_DONE_CLR_WID                 1
-/* only [13:12]=10;0 output cbcr(nv12);1 output cbcr(nv21) */
-#define SWAP_CBCR_BIT                      18
-#define SWAP_CBCR_WID                      1
-/* 0: Output even lines' CbCr; 01: Output odd lines' CbCr;
- * 10: Reserved; 11: Output all CbCr.
- */
-#define VCONV_MODE_BIT                     16
-#define VCONV_MODE_WID                    2
-/* 0: 422;1: 444;10:Y to luma canvas cbcr to chroma canvas for NV12/21 */
-#define WR_FMT_BIT                      12
-#define WR_FMT_WID                     2
-/* vdin_wr_canvas = vdin_wr_canvas_dbuf_en ? wr_canvas_shadow :wr_canvas;  */
-/* shadow is latch by go_field */
-#define WR_CANVAS_DOUBLE_BUF_EN_BIT            11
-#define WR_CANVAS_DOUBLE_BUF_EN_WID            1
-#define WR_REQ_URGENT_BIT               9
-#define WR_REQ_URGENT_WID               1    /* directly send out */
-#define WR_REQ_EN_BIT                   8
-#define WR_REQ_EN_WID                   1    /* directly send out */
-#define WR_CANVAS_BIT                   0
-#define WR_CANVAS_WID                   8
-
-/* #define VDIN_WR_H_START_END                        0x1221 */
-
-#define HORIZONTAL_REVERSE_BIT          29/* if true horizontal reverse */
-#define HORIZONTAL_REVERSE_WID         1
-#define WR_HSTART_BIT                   16
-#define WR_HSTART_WID                   13   /* directly send out */
-#define WR_HEND_BIT                     0
-#define WR_HEND_WID                     13   /* directly send out */
-
-/* #define VDIN_WR_V_START_END                        0x1222 */
-
-#define VERTICAL_REVERSE_BIT          29/* if true vertical reverse */
-#define VERTICAL_REVERSE_WID         1
-#define WR_VSTART_BIT                   16
-#define WR_VSTART_WID                   13   /* directly send out */
-#define WR_VEND_BIT                     0
-#define WR_VEND_WID                     13  /* directly send out */
 
 /* #define VDIN_VSC_PHASE_STEP                       0x1223 */
 #define INTEGER_PORTION_BIT            20
@@ -1386,7 +1463,7 @@
  *  10: from matrix1 dout, 11: form matrix1 din
  */
 #define HIST_HIST_DIN_SEL_BIT           2
-#define HIST_HIST_DIN_SEL_WID           2
+#define HIST_HIST_DIN_SEL_WID           3
 /* Histgram range: 0: full picture, 1: histgram window
  * defined by VDIN_HIST_H_START_END & VDIN_HIST_V_START_END
  */
@@ -1614,32 +1691,6 @@
 #define HIST_ON_BIN_60_BIT              0
 #define HIST_ON_BIN_60_WID              16
 
-/* #define VDIN_DNLP_HIST31                        0x1256 */
-#define HIST_ON_BIN_63_BIT              16
-#define HIST_ON_BIN_63_WID              16
-#define HIST_ON_BIN_62_BIT              0
-#define HIST_ON_BIN_62_WID              16
-
-/* #define VDIN_LDIM_STTS_HIST_REGION_IDX       0x1257 */
-#define LOCAL_DIM_STATISTIC_EN_BIT          31
-#define LOCAL_DIM_STATISTIC_EN_WID         1
-#define EOL_EN_BIT                                          28
-#define EOL_EN_WID                                        1
-#define VLINE_OVERLAP_NUMBER_BIT        25
-#define VLINE_OVERLAP_NUMBER_WID       3
-/* 0: 17 pix, 1: 9 pix, 2: 5 pix, 3: 3 pix, 4: 0 pix */
-#define HLINE_OVERLAP_NUMBER_BIT        22
-#define HLINE_OVERLAP_NUMBER_WID       3
-#define LPF_BEFORE_STATISTIC_EN_BIT    20
-#define LPF_BEFORE_STATISTIC_EN_WID    1
-/* region H/V position index, refer to VDIN_LDIM_STTS_HIST_SET_REGION */
-#define BLK_HV_POS_IDXS_BIT                     16
-#define BLK_HV_POS_IDXS_WID                    4
-#define REGION_RD_INDEX_INC_BIT             15
-#define REGION_RD_INDEX_INC_WID            1
-#define REGION_RD_INDEX_BIT                      0
-#define REGION_RD_INDEX_WID                     7
-
 /* # VDIN_LDIM_STTS_HIST_SET_REGION                    0x1258 */
 /* Bit 28:0, if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h0:
  * read/write hvstart0
@@ -1842,30 +1893,12 @@
 #define INPUT_WIN_V_END_BIT              0
 #define INPUT_WIN_V_END_WID              13
 
-/* Bit 15:8 vdi7 asfifo_ctrl */
-/* Bit 7:0 vdi6 asfifo_ctrl */
-/* #define VDIN_ASFIFO_CTRL3                                 0x126f */
-#define VDI9_ASFIFO_CTRL_BIT		    24
-#define VDI9_ASFIFO_CTRL_WID            8
-#define VDI8_ASFIFO_CTRL_BIT		    16
-#define VDI8_ASFIFO_CTRL_WID            8
-#define VDI7_ASFIFO_CTRL_BIT            8
-#define VDI7_ASFIFO_CTRL_WID            8
-#define VDI6_ASFIFO_CTRL_BIT            0
-#define VDI6_ASFIFO_CTRL_WID            8
-
 /* Bit 3:2 vshrk_clk2_ctrl */
 /* Bit 1:0 vshrk_clk1_ctrl */
 /* #define VDIN_COM_GCLK_CTRL2    ((0x1270  << 2) + 0xd0100000) */
 /* #define VDIN_DNLP_HIST32    ((0x1272  << 2) + 0xd0100000) */
 
 #define VDIN_FORCEGOLINE_EN_BIT		28
-#define VDIN_WRREQUEST_EN_BT		8
-#define VDIN_WRCTRLREG_PAUSE_BIT		10
-
-/*#define VDIN_INTF_WIDTHM1*/
-#define VDIN_FIX_NONSTDVSYNC_BIT	24
-#define VDIN_FIX_NONSTDVSYNC_WID	2
 
 /*#define VPU_ARB_URG_CTRL*/
 #define VDIN_LFF_URG_CTRL_BIT	8
@@ -1877,11 +1910,6 @@
 #define VDIN_COMMONINPUT_EN_BIT		4
 #define VDIN_COMMONINPUT_EN_WID		1
 
-/*#define VDIN_WR_CTRL*/
-#define VDIN0_VCP_WR_EN_BIT	25
-#define VDIN0_VCP_WR_EN_WID	1
-#define VDIN0_DISABLE_CLOCKGATE_BIT	29
-#define VDIN0_DISABLE_CLOCKGATE_WID	1
 /*#define VDIN1_WR_CTRL*/
 #define VDIN1_VCP_WR_EN_BIT	8
 #define VDIN1_VCP_WR_EN_WID	1

@@ -40,6 +40,7 @@
 #define VF_FLAG_NORMAL_FRAME		 0x00000001
 #define VF_FLAG_FREEZED_FRAME		 0x00000002
 #define VFRAME_DISP_MAX_NUM 20
+#define VDIN_CANVAS_MAX_CNT	10
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
 
@@ -139,11 +140,11 @@ struct vf_pool {
 #endif
 	atomic_t buffer_cnt;
 	unsigned int low_latency;
-	unsigned int dv_buf_mem[VDIN_DV_MAX_NUM];
-	void *dv_buf_vmem[VDIN_DV_MAX_NUM];
-	unsigned int dv_buf_size[VDIN_DV_MAX_NUM];
-	char *dv_buf[VDIN_DV_MAX_NUM];
-	char *dv_buf_ori[VDIN_DV_MAX_NUM];
+	unsigned int dv_buf_mem[VDIN_CANVAS_MAX_CNT];
+	void *dv_buf_vmem[VDIN_CANVAS_MAX_CNT];
+	unsigned int dv_buf_size[VDIN_CANVAS_MAX_CNT];
+	char *dv_buf[VDIN_CANVAS_MAX_CNT];
+	char *dv_buf_ori[VDIN_CANVAS_MAX_CNT];
 	unsigned int disp_index[VFRAME_DISP_MAX_NUM];
 	unsigned int skip_vf_num;/*skip pre vframe num*/
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];

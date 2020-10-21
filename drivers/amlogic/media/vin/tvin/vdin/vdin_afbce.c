@@ -83,7 +83,8 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 {
 	enum vdin_output_mif_e sel;
 
-	if ((devp->afbce_flag & VDIN_AFBCE_EN) == 0)
+	if (((devp->afbce_flag & VDIN_AFBCE_EN) == 0) || devp->index == 1 ||
+	    devp->double_wr)
 		return;
 
 	if (devp->afbce_mode == 0)
@@ -91,26 +92,47 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 	else
 		sel = VDIN_OUTPUT_TO_AFBCE;
 
-	if (devp->index == 0) {
-		if (sel == VDIN_OUTPUT_TO_MIF) {
-			vdin_afbce_hw_disable();
+	if (sel == VDIN_OUTPUT_TO_MIF) {
+		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    1, VDIN0_MIF_ENABLE_BIT, 1);
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    0, VDIN0_OUT_AFBCE_BIT, 1);
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    1, VDIN0_OUT_MIF_BIT, 1);
-		} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    1, VDIN0_MIF_ENABLE_BIT, 1);
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    0, VDIN0_OUT_MIF_BIT, 1);
-			W_VCBUS_BIT(VDIN_MISC_CTRL,
-				    1, VDIN0_OUT_AFBCE_BIT, 1);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 
-			vdin_afbce_hw_enable();
+			/* axi write protection
+			 * for HDMI cable plug/unplug crash issue
+			 */
+			W_VCBUS_BIT(VPU_AXI_WR_PROTECT, 0x8000,
+				    HOLD_NUM_BIT, HOLD_NUM_WID);
+			W_VCBUS_BIT(VPU_AXI_WR_PROTECT, 1,
+				    PROTECT_EN1_BIT, PROTECT_EN_WID);
+			W_VCBUS_BIT(VPU_AXI_WR_PROTECT, 1,
+				    PROTECT_EN21_BIT, PROTECT_EN_WID);
+		} else {
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_MIF_ENABLE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN0_OUT_AFBCE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_MIF_BIT, 1);
 		}
+	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+
+			/* axi write protection
+			 * for HDMI cable plug/unplug crash issue
+			 */
+			W_VCBUS(VPU_AXI_WR_PROTECT, 0);
+		} else {
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_MIF_ENABLE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN0_OUT_MIF_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_AFBCE_BIT, 1);
+		}
+
+		W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 }
 
@@ -118,50 +140,90 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 			     enum vdin_output_mif_e sel)
 {
-	if ((devp->afbce_flag & VDIN_AFBCE_EN) == 0)
+	if (((devp->afbce_flag & VDIN_AFBCE_EN) == 0) || devp->double_wr)
 		return;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
-		if (is_meson_tm2_cpu()) {
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
-					    VDIN_TOP_DOUBLE_CTRL,
-					    WR_SEL_VDIN0_NOR,
-					    MIF0_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
+					    VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+					    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			rdma_write_reg_bits(devp->rdma_handle,
 					    VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
-					    AFBCE_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
-		}
+					    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, 8, 1);
-		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-				    0, VDIN0_OUT_AFBCE_BIT, 1);
-		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-				    1, VDIN0_OUT_MIF_BIT, 1);
+			/* axi write protection
+			 * for HDMI cable plug/unplug crash issue
+			 */
+			rdma_write_reg_bits(devp->rdma_handle,
+					    VPU_AXI_WR_PROTECT, 0x8000,
+					    HOLD_NUM_BIT, HOLD_NUM_WID);
+			rdma_write_reg_bits(devp->rdma_handle,
+					    VPU_AXI_WR_PROTECT, 1,
+					    PROTECT_EN1_BIT, PROTECT_EN_WID);
+			rdma_write_reg_bits(devp->rdma_handle,
+					    VPU_AXI_WR_PROTECT, 1,
+					    PROTECT_EN21_BIT, PROTECT_EN_WID);
+		} else {
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
+					    0, VDIN0_OUT_AFBCE_BIT, 1);
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
+					    1, VDIN0_OUT_MIF_BIT, 1);
+		}
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-		if (is_meson_tm2_cpu()) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
 					    VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
-					    MIF0_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
+					    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			rdma_write_reg_bits(devp->rdma_handle,
-					    VDIN_TOP_DOUBLE_CTRL,
-					    WR_SEL_VDIN0_NOR,
-					    AFBCE_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
+					    VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+					    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+
+			/* axi write protection
+			 * for HDMI cable plug/unplug crash issue
+			 */
+			rdma_write_reg(devp->rdma_handle, VPU_AXI_WR_PROTECT,
+				       0);
+		} else {
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
+					    0, VDIN0_OUT_MIF_BIT, 1);
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
+					    1, VDIN0_OUT_AFBCE_BIT, 1);
 		}
 
-		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-				    0, VDIN0_OUT_MIF_BIT, 1);
-		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-				    1, VDIN0_OUT_AFBCE_BIT, 1);
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 8, 1);
+		if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)
+			rdma_write_reg(devp->rdma_handle, AFBCE_QUANT_ENABLE,
+				       0xc11);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 }
 
-#define VDIN_AFBCE_HOLD_LINE_NUM    4
+bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp)
+{
+	enum vdin_format_convert_e vdinout_fmt;
+	int reg_fmt444_rgb_en = false;
+	int reg_fmt444_comb = false;
 
+	vdinout_fmt = devp->format_convert;
+	if (vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||
+	    vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_GBR ||
+	    vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_BRG ||
+	    vdinout_fmt == VDIN_FORMAT_CONVERT_RGB_RGB)
+		reg_fmt444_rgb_en = true;
+
+	if ((vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
+	     vdinout_fmt == VDIN_FORMAT_CONVERT_RGB_YUV444 || reg_fmt444_rgb_en) &&
+	     devp->h_active > 2048)
+		reg_fmt444_comb = true;
+	else
+		reg_fmt444_comb = false;
+
+	return reg_fmt444_comb;
+}
+
+#define VDIN_AFBCE_HOLD_LINE_NUM    4
 void vdin_afbce_update(struct vdin_dev_s *devp)
 {
 	int hold_line_num = VDIN_AFBCE_HOLD_LINE_NUM;
@@ -179,39 +241,33 @@ void vdin_afbce_update(struct vdin_dev_s *devp)
 	pr_info("vdin afbce must use RDMA,but it not be opened\n");
 	pr_info("##############################################\n");
 #endif
+	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
 
-	if (devp->prop.dest_cfmt == TVIN_YUV444 && devp->h_active > 2048)
-		reg_fmt444_comb = 1;
-	else
-		reg_fmt444_comb = 0;
-
-	if (devp->prop.dest_cfmt == TVIN_NV12 ||
-	    devp->prop.dest_cfmt == TVIN_NV21) {
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
 		reg_format_mode = 2;
 		sblk_num = 12;
-	} else if ((devp->prop.dest_cfmt == TVIN_YUV422) ||
-		(devp->prop.dest_cfmt == TVIN_YUYV422) ||
-		(devp->prop.dest_cfmt == TVIN_YVYU422) ||
-		(devp->prop.dest_cfmt == TVIN_UYVY422) ||
-		(devp->prop.dest_cfmt == TVIN_VYUY422)) {
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
 		reg_format_mode = 1;
 		sblk_num = 16;
-	} else {
+		break;
+	default:
 		reg_format_mode = 0;
 		sblk_num = 24;
+		break;
 	}
 	uncmp_bits = devp->source_bitdepth;
 
 	/* bit size of uncompression mode */
 	uncmp_size = (((((16 * uncmp_bits * sblk_num) + 7) >> 3) + 31)
 		      / 32) << 1;
-	/*
-	 *pr_info("%s: dest_cfmt=%d, reg_format_mode=%d, uncmp_bits=%d,
-	 *         sblk_num=%d, uncmp_size=%d\n",
-	 *	__func__, devp->prop.dest_cfmt, reg_format_mode,
-	 *	uncmp_bits, sblk_num, uncmp_size);
-	 */
-
 	rdma_write_reg(devp->rdma_handle, AFBCE_MODE,
 		       (0 & 0x7) << 29 | (0 & 0x3) << 26 | (3 & 0x3) << 24 |
 		       (hold_line_num & 0x7f) << 16 |
@@ -225,29 +281,6 @@ void vdin_afbce_update(struct vdin_dev_s *devp)
 		       (reg_format_mode  & 0x3) << 8 |
 		       (uncmp_bits & 0xf) << 4 |
 		       (uncmp_bits & 0xf));
-}
-
-bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp)
-{
-	enum vdin_format_convert_e vdinout_fmt;
-	int reg_fmt444_rgb_en = false;
-	int reg_fmt444_comb = false;
-
-	vdinout_fmt = devp->format_convert;
-	if (vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_BRG ||
-	    vdinout_fmt == VDIN_FORMAT_CONVERT_RGB_RGB)
-		reg_fmt444_rgb_en = true;
-
-	if ((vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	     vdinout_fmt == VDIN_FORMAT_CONVERT_RGB_YUV444 ||
-	     reg_fmt444_rgb_en) && devp->h_active > 2048)
-		reg_fmt444_comb = true;
-	else
-		reg_fmt444_comb = false;
-
-	return reg_fmt444_comb;
 }
 
 void vdin_afbce_config(struct vdin_dev_s *devp)
@@ -299,7 +332,6 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	blk_out_end_v	=  enc_win_bgn_v      >> 2 ;//output blk scope
 	blk_out_bgn_v	= (enc_win_end_v + 3) >> 2 ;//output blk scope
 
-	pr_info("%s format_convert:%d\n", __func__, devp->format_convert);
 	vdinout_fmt = devp->format_convert;
 	if (vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||
 	    vdinout_fmt == VDIN_FORMAT_CONVERT_YUV_GBR ||
@@ -330,7 +362,8 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	//bit size of uncompression mode
 	uncmp_size = (((((16 * uncmp_bits * sblk_num) + 7) >> 3) + 31)
 		      / 32) << 1;
-
+	pr_info("%s fmt_convert:%d comb:%d\n", __func__,
+		devp->format_convert, reg_fmt444_comb);
 	W_VCBUS_BIT(AFBCE_MODE_EN, 1, 18, 1);/* disable order mode */
 
 	W_VCBUS_BIT(VDIN_WRARB_REQEN_SLV, 0x1, 3, 1);//vpu arb axi_enable
@@ -418,8 +451,12 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	 */
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, 0x1c4f, 16, 13);
 
-	W_VCBUS_BIT(AFBCE_ENABLE, 1, 12, 1); //set afbce pulse mode
-	W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);//disable afbce
+	W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_WORK_MD_BIT, AFBCE_WORK_MD_WID);
+
+	if (devp->double_wr)
+		W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
+	else
+		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 }
 
 void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
@@ -506,12 +543,16 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 		rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
 			       devp->afbce_info->fm_head_paddr[i]);
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
-				    devp->afbce_info->fm_table_paddr[i], 0, 32);
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 0, 1);
-	} else {
-#endif
-		pr_info("afbce must use RDMA.\n");
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+			       devp->afbce_info->fm_table_paddr[i], 0, 32);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
+				    AFBCE_START_PULSE_BIT, AFBCE_START_PULSE_WID);
+
+		if (devp->pause_dec)
+			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+					    AFBCE_EN_BIT, AFBCE_EN_WID);
+		else
+			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
+					    AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 #endif
 	vdin_afbce_clear_writedown_flag(devp);
@@ -536,31 +577,9 @@ int vdin_afbce_read_writedown_flag(void)
 		return 0;
 }
 
-void vdin_afbce_hw_disable(void)
-{
-	/*can not use RDMA*/
-	W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);//disable afbce
-}
-
-void vdin_afbce_hw_enable(void)
-{
-	W_VCBUS_BIT(AFBCE_ENABLE, 1, 8, 1);
-}
-
-void vdin_afbce_hw_disable_rdma(struct vdin_dev_s *devp)
-{
-	rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, 8, 1);
-}
-
-void vdin_afbce_hw_enable_rdma(struct vdin_dev_s *devp)
-{
-	if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)
-		rdma_write_reg(devp->rdma_handle, AFBCE_QUANT_ENABLE, 0xc11);
-	rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 8, 1);
-}
-
 void vdin_afbce_soft_reset(void)
 {
+	W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 1, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);
@@ -584,18 +603,21 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 			if (devp->afbce_flag & VDIN_AFBCE_EN_SMALL)
 				devp->afbce_valid = 1;
 		}
-
+		/*afbc up up 4k 444*/
 		/* if is hdr mode, not enable afbc mode*/
-		if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
-			if (devp->prop.hdr_info.hdr_data.eotf == EOTF_HDR ||
-			    devp->prop.hdr_info.hdr_data.eotf ==
-			    EOTF_SMPTE_ST_2048 ||
-			    devp->prop.hdr_info.hdr_data.eotf == EOTF_HLG)
-				devp->afbce_valid = false;
-		}
-
-		if (devp->prop.hdr10p_info.hdr10p_on)
-			devp->afbce_valid = false;
+		/* if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
+		 *	if ((devp->prop.hdr_info.hdr_data.eotf ==
+		 *			EOTF_HDR) ||
+		 *		(devp->prop.hdr_info.hdr_data.eotf ==
+		 *			EOTF_SMPTE_ST_2048) ||
+		 *		(devp->prop.hdr_info.hdr_data.eotf ==
+		 *			EOTF_HLG))
+		 *	devp->afbce_valid = false;
+		 *}
+		 *
+		 *if (devp->prop.hdr10p_info.hdr10p_on)
+		 *	devp->afbce_valid = false;
+		 */
 	}
 
 	/* default non-afbce mode
@@ -609,13 +631,10 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 void vdin_afbce_mode_update(struct vdin_dev_s *devp)
 {
 	/* vdin mif/afbce mode update */
-	if (devp->afbce_mode) {
+	if (devp->afbce_mode)
 		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_AFBCE);
-		vdin_afbce_hw_enable_rdma(devp);
-	} else {
-		vdin_afbce_hw_disable_rdma(devp);
+	else
 		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
-	}
 
 	if (vdin_dbg_en) {
 		pr_info("vdin.%d: change afbce_mode %d->%d\n",
