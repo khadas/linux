@@ -78,6 +78,10 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 	vf = vf_get(ins->recv_name);
 
 	if (vf) {
+		if (vf->type & VIDTYPE_V4L_EOS) {
+			vf_put(vf, ins->recv_name);
+			return NULL;
+		}
 		if (vf->disp_pts && vf->disp_pts_us64) {
 			vf->pts = vf->disp_pts;
 			vf->pts_us64 = vf->disp_pts_us64;

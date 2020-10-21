@@ -1,0 +1,31 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef VIDEO_SIGNAL_NOTIFY_H
+#define VIDEO_SIGNAL_NOTIFY_H
+#include <linux/notifier.h>
+#include <linux/list.h>
+
+#define VIDEO_SIGNAL_TYPE_CHANGED   0x0001
+
+enum vd_format_e {
+	SIGNAL_INVALID = -1,
+	SIGNAL_SDR = 0,
+	SIGNAL_HDR10 = 1,
+	SIGNAL_HLG = 2,
+	SIGNAL_HDR10PLUS = 3,
+	SIGNAL_DOVI = 4,
+};
+
+struct vd_signal_info_s {
+	enum vd_format_e signal_type;
+	u32 reversed;
+};
+
+int vd_signal_register_client(struct notifier_block *nb);
+int vd_signal_unregister_client(struct notifier_block *nb);
+int vd_signal_notifier_call_chain(unsigned long val, void *v);
+
+#endif /* VIDEO_SIGNAL_NOTIFY_H */

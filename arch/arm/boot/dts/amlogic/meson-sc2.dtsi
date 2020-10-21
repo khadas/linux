@@ -1199,6 +1199,21 @@
 		vdin_id = <1>;
 	};
 
+	meson-amvideom {
+		compatible = "amlogic, amvideom-sc2";
+		dev_name = "amvideom";
+		status = "okay";
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
+	};
+
+	vpu_security{
+		compatible = "amlogic, meson-sc2, vpu_security";
+		dev_name = "amlogic-vpu-security";
+		status = "okay";
+		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vpu_security";
+	};
 };
 
 &periphs_pinctrl {

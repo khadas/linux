@@ -10,6 +10,7 @@
 #include <linux/ctype.h>
 
 #define MAX_VD_LAYER 2
+#define MAX_SR_NUM   2
 
 struct hw_vd_reg_s {
 	u32 vd_if0_gen_reg; /* VD1_IF0_GEN_REG */
@@ -38,6 +39,36 @@ struct hw_vd_reg_s {
 	u32 viu_vd_fmt_w;/* VIU_VD1_FMT_W */
 };
 
+struct hw_afbc_reg_s {
+	u32 afbc_enable; /* AFBC_ENABLE */
+	u32 afbc_mode;/* AFBC_MODE */
+	u32 afbc_size_in;/* AFBC_SIZE_IN */
+	u32 afbc_dec_def_color;/* AFBC_DEC_DEF_COLOR */
+	u32 afbc_conv_ctrl; /* AFBC_CONV_CTRL */
+	u32 afbc_lbuf_depth; /* AFBC_LBUF_DEPTH */
+	u32 afbc_head_baddr; /* AFBC_HEAD_BADDR */
+	u32 afbc_body_baddr; /* AFBC_BODY_BADDR */
+	u32 afbc_size_out;/* AFBC_SIZE_OUT */
+	u32 afbc_out_yscope;/* AFBC_OUT_YSCOPE */
+	u32 afbc_stat;/* AFBC_STAT */
+	u32 afbc_vd_cfmt_ctrl; /* AFBC_VD_CFMT_CTRL */
+	u32 afbc_vd_cfmt_w;/* AFBC_VD_CFMT_W */
+	u32 afbc_mif_hor_scope;/* AFBC_MIF_HOR_SCOPE */
+	u32 afbc_mif_ver_scope;/* AFBC_MIF_VER_SCOPE */
+	u32 afbc_pixel_hor_scope;/* AFBC_PIXEL_HOR_SCOPE */
+	u32 afbc_pixel_ver_scope;/* AFBC_PIXEL_VER_SCOPE */
+	u32 afbc_vd_cfmt_h;/* AFBC_VD_CFMT_H */
+	u32 afbcdec_iquant_enable; /* AFBCDEC_IQUANT_ENABLE */
+	u32 afbcdec_iquant_lut_1; /* AFBCDEC_IQUANT_LUT_1 */
+	u32 afbcdec_iquant_lut_2; /* AFBCDEC_IQUANT_LUT_2 */
+	u32 afbcdec_iquant_lut_3; /* AFBCDEC_IQUANT_LUT_3 */
+	u32 afbcdec_iquant_lut_4; /* AFBCDEC_IQUANT_LUT_4 */
+};
+
+struct hw_sr_reg_s {
+	u32 sr_sharp_sync_ctrl;
+};
+
 struct hw_fg_reg_s {
 	u32 fgrain_ctrl;
 	u32 fgrain_win_h;
@@ -47,7 +78,9 @@ struct hw_fg_reg_s {
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER];
 extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER];
 extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER];
-extern struct hw_vd_reg_s fg_reg_g12_array[MAX_VD_LAYER];
-extern struct hw_vd_reg_s fg_reg_sc2_array[MAX_VD_LAYER];
+extern struct hw_afbc_reg_s vd_afbc_reg_array[MAX_VD_LAYER];
+extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER];
+extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER];
+extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER];
 
 #endif

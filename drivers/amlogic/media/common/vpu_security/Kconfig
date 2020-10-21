@@ -1,0 +1,14 @@
+#
+# VPU SECURITY driver configuration
+#
+
+menu "VPU SECURITY driver"
+
+config AMLOGIC_MEDIA_SECURITY
+	bool "Amlogic VPU SECURITY driver"
+	default n
+	help
+		This option is used to configure Amlogic drivers
+		of the vpu security module,
+		Select to enable VPU SECURITY driver.
+endmenu

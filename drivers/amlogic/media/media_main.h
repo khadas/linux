@@ -398,4 +398,12 @@ static int amvdec_656in_init_module(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+int vpu_security_init(void);
+#else
+static int vpu_security_init(void)
+{
+	return 0;
+}
+#endif
 #endif

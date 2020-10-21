@@ -3605,7 +3605,7 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 {
 	int i, j;
 
-	if (!p->present_flag & 1) {
+	if (!(p->present_flag & 1)) {
 		pr_csc(1, "\tmaster display color not available");
 		return;
 	}
@@ -7298,7 +7298,7 @@ static void video_process(struct vframe_s *vf,
 				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
 				mtx_setting(POST2_MTX,
-					    csc_type, MTX_ON);
+					    (enum mtx_csc_e)csc_type, MTX_ON);
 			}
 		}
 	}

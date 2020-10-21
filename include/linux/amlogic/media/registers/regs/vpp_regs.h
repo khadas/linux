@@ -61,6 +61,8 @@
 #define VPP_HSC_INI_PAT_CTRL              0x1d35
 #define VPP_PREHSC_COEF                   0x1d37
 #define VPP_PREHSC_CTRL                   0x1d38
+#define VPP_PRE_SCALE_CTRL 0x1d38
+#define VPP_PREVSC_COEF 0x1d39
 #define VPP_VADJ_CTRL                     0x1d40
 #define VPP_VADJ1_Y                       0x1d41
 #define VPP_VADJ1_MA_MB                   0x1d42
@@ -245,6 +247,9 @@
 /* after g12b */
 #define SRSHARP0_SHARP_SYNC_CTRL          0x3eb0
 #define SRSHARP1_SHARP_SYNC_CTRL          0x3fb0
+/* after tm2revb */
+#define TM2REVB_SRSHARP0_SHARP_SYNC_CTRL 0x50b0
+#define TM2REVB_SRSHARP1_SHARP_SYNC_CTRL 0x52b0
 #define VPU_RDARB_MODE_L2C1               0x279d
 #define VPU_WRARB_MODE_L2C1               0x27a2
 #define VPP_XVYCC_MISC   0x1dcf

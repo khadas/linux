@@ -213,6 +213,14 @@ enum {
 #define VPP_HSC_INIRCV_NUM_WID      4
 #define VPP_HSC_TOP_INI_PHASE_WID   16
 #define VPP_HSC_TOP_INI_PHASE_BIT   0
+#define VPP_PREHSC_FLT_NUM_BIT_T5      7
+#define VPP_PREHSC_FLT_NUM_WID_T5      4
+#define VPP_PREVSC_FLT_NUM_BIT_T5      4
+#define VPP_PREVSC_FLT_NUM_WID_T5      3
+#define VPP_PREHSC_DS_RATIO_BIT_T5     2
+#define VPP_PREHSC_DS_RATIO_WID_T5     2
+#define VPP_PREVSC_DS_RATIO_BIT_T5     0
+#define VPP_PREVSC_DS_RATIO_WID_T5     2
 
 #define VPP_PREHSC_FLT_NUM_BIT      0
 #define VPP_PREHSC_FLT_NUM_WID      4
@@ -225,6 +233,10 @@ enum {
 #define VPP_PREHSC_COEF0_BIT        0
 #define VPP_PREHSC_COEF0_WID        8
 
+#define VPP_PREVSC_COEF1_BIT        8
+#define VPP_PREVSC_COEF1_WID        8
+#define VPP_PREVSC_COEF0_BIT        0
+#define VPP_PREVSC_COEF0_WID        8
 #define VPP_OFIFO_LINELEN_MASK      0xfff
 #define VPP_OFIFO_LINELEN_BIT       20
 #define VPP_INV_VS                  BIT(19)
@@ -252,7 +264,7 @@ enum {
 
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
-
+#define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int amvideo_notifier_call_chain(unsigned long val, void *v);
 #else
@@ -281,6 +293,9 @@ u32 get_video_angle(void);
 unsigned int DI_POST_REG_RD(unsigned int addr);
 int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
+void vsync_notify_videosync(void);
+bool get_video_reverse(void);
+int get_osd_reverse(void);
 void vsync_notify_video_composer(void);
 int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 val);
