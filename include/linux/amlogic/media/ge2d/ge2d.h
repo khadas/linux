@@ -128,6 +128,13 @@ enum ge2d_memtype_s {
 #define FILTER_TYPE_GAU0_BOT    5
 #define FILTER_TYPE_GAU1    6
 
+#define CANVAS_STATUS   (BIT(5) | BIT(6))
+#define HAS_SELF_POWER  BIT(4)
+#define DEEP_COLOR      BIT(3)
+#define ADVANCED_MATRIX BIT(2)
+#define SRC2_REPEAT     BIT(1)
+#define SRC2_ALPHA      BIT(0)
+
 #define MATRIX_YCC_TO_RGB               (1 << 0)
 #define MATRIX_RGB_TO_YCC               (1 << 1)
 #define MATRIX_FULL_RANGE_YCC_TO_RGB    (1 << 2)
