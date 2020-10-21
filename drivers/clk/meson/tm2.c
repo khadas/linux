@@ -4560,6 +4560,364 @@ static struct clk_regmap tm2_vipnanoq_axi_gate = {
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+
+static const struct clk_parent_data tm2_hdmirx_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+};
+
+static struct clk_regmap tm2_hdmirx_cfg_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_cfg_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_cfg_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_cfg_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_cfg_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_cfg_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_cfg_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_cfg_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_modet_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_modet_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_modet_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_modet_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_modet_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_modet_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_modet_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_modet_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data tm2_hdmirx_ref_parent_hws[] = {
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+	{ .hw = &tm2_fclk_div7.hw },
+};
+
+static struct clk_regmap tm2_hdmirx_acr_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDMIRX_AUD_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_acr_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_ref_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_ref_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_acr_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_AUD_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_acr_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_acr_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_acr_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_AUD_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_acr_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_acr_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data tm2_hdmirx_meter_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+};
+
+static struct clk_regmap tm2_hdmirx_meter_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDMIRX_METER_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_meter_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_meter_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_meter_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_meter_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_METER_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_meter_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_meter_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_meter_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_METER_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_meter_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_meter_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_axi_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDMIRX_AXI_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_axi_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_meter_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_meter_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_axi_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_AXI_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_axi_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_axi_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_axi_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_AXI_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_axi_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_axi_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_skp_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDCP22_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_skp_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_meter_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_meter_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_skp_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDMIRX_METER_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_skp_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_skp_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_skp_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDMIRX_METER_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_skp_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_skp_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_parent_data tm2_hdmirx_esm_parent_hws[] = {
+	{ .hw = &tm2_fclk_div7.hw },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+};
+
+static struct clk_regmap tm2_hdmirx_esm_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_HDCP22_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_esm_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_hdmirx_esm_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_hdmirx_esm_parent_hws),
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_esm_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_HDCP22_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hdmirx_esm_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_esm_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_hdmirx_esm_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_HDCP22_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmirx_esm_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_hdmirx_esm_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &tm2_clk81.hw)
 
@@ -4953,6 +5311,27 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_VDIN_MEAS_MUX]		= &tm2_vdin_meas_mux.hw,
 		[CLKID_VDIN_MEAS_DIV]		= &tm2_vdin_meas_div.hw,
 		[CLKID_VDIN_MEAS]		= &tm2_vdin_meas.hw,
+		[CLKID_HDMIRX_CFG_MUX]		= &tm2_hdmirx_cfg_mux.hw,
+		[CLKID_HDMIRX_CFG_DIV]		= &tm2_hdmirx_cfg_div.hw,
+		[CLKID_HDMIRX_CFG_GATE]		= &tm2_hdmirx_cfg_gate.hw,
+		[CLKID_HDMIRX_MODET_MUX]	= &tm2_hdmirx_modet_mux.hw,
+		[CLKID_HDMIRX_MODET_DIV]	= &tm2_hdmirx_modet_div.hw,
+		[CLKID_HDMIRX_MODET_GATE]	= &tm2_hdmirx_modet_gate.hw,
+		[CLKID_HDMIRX_ACR_MUX]		= &tm2_hdmirx_acr_mux.hw,
+		[CLKID_HDMIRX_ACR_DIV]		= &tm2_hdmirx_acr_div.hw,
+		[CLKID_HDMIRX_ACR_GATE]		= &tm2_hdmirx_acr_gate.hw,
+		[CLKID_HDMIRX_METER_MUX]	= &tm2_hdmirx_meter_mux.hw,
+		[CLKID_HDMIRX_METER_DIV]	= &tm2_hdmirx_meter_div.hw,
+		[CLKID_HDMIRX_METER_GATE]	= &tm2_hdmirx_meter_gate.hw,
+		[CLKID_HDMIRX_AXI_MUX]		= &tm2_hdmirx_axi_mux.hw,
+		[CLKID_HDMIRX_AXI_DIV]		= &tm2_hdmirx_axi_div.hw,
+		[CLKID_HDMIRX_AXI_GATE]		= &tm2_hdmirx_axi_gate.hw,
+		[CLKID_HDMIRX_SKP_MUX]		= &tm2_hdmirx_skp_mux.hw,
+		[CLKID_HDMIRX_SKP_DIV]		= &tm2_hdmirx_skp_div.hw,
+		[CLKID_HDMIRX_SKP_GATE]		= &tm2_hdmirx_skp_gate.hw,
+		[CLKID_HDMIRX_ESM_MUX]		= &tm2_hdmirx_esm_mux.hw,
+		[CLKID_HDMIRX_ESM_DIV]		= &tm2_hdmirx_esm_div.hw,
+		[CLKID_HDMIRX_ESM_GATE]		= &tm2_hdmirx_esm_gate.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5238,6 +5617,27 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_dsu_clk_dyn,
 	&tm2_dsu_final_clk,
 	&tm2_dsu_clk,
+	&tm2_hdmirx_cfg_mux,
+	&tm2_hdmirx_cfg_div,
+	&tm2_hdmirx_cfg_gate,
+	&tm2_hdmirx_modet_mux,
+	&tm2_hdmirx_modet_div,
+	&tm2_hdmirx_modet_gate,
+	&tm2_hdmirx_acr_mux,
+	&tm2_hdmirx_acr_div,
+	&tm2_hdmirx_acr_gate,
+	&tm2_hdmirx_meter_mux,
+	&tm2_hdmirx_meter_div,
+	&tm2_hdmirx_meter_gate,
+	&tm2_hdmirx_axi_mux,
+	&tm2_hdmirx_axi_div,
+	&tm2_hdmirx_axi_gate,
+	&tm2_hdmirx_skp_mux,
+	&tm2_hdmirx_skp_div,
+	&tm2_hdmirx_skp_gate,
+	&tm2_hdmirx_esm_mux,
+	&tm2_hdmirx_esm_div,
+	&tm2_hdmirx_esm_gate
 };
 
 static const struct reg_sequence tm2_init_regs[] = {
