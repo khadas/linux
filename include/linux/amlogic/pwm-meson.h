@@ -21,6 +21,8 @@
 
 #define MESON_NUM_PWMS		2
 #define MESON_DOUBLE_NUM_PWMS	4
+#define DEFAULT_EXTERN_CLK	24000000
+
 
 /*a group pwm registers offset address
  * for example:
@@ -96,11 +98,14 @@ struct meson_pwm_variant {
  *double channel enable
  * double_channel = false ,could use PWM A
  * double_channel = true , could use PWM A and PWM A2
+ * extern_clk = false , clk div, gate, mux in pwm controller
+ * extern_clk = true , clk div, gate, mux in clktree
  */
 struct meson_pwm_data {
 	const char * const *parent_names;
 	unsigned int num_parents;
 	unsigned int double_channel;
+	unsigned int extern_clk;
 };
 
 struct meson_pwm_channel {

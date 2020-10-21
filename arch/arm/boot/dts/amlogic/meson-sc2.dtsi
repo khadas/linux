@@ -12,6 +12,8 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-sc2-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 
 / {
 	compatible = "amlogic,sm1";
@@ -108,6 +110,55 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
+	vddcpu0: pwm_j-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm_ij MESON_PWM_1 1500 0>;
+		regulator-name = "vddcpu0";
+		regulator-min-microvolt = <689000>;
+		regulator-max-microvolt = <1049000>;
+		regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table = <1049000 0>,
+				<1039000 3>,
+				<1029000 6>,
+				<1019000 9>,
+				<1009000 12>,
+				<999000 14>,
+				<989000 17>,
+				<979000 20>,
+				<969000 23>,
+				<959000 26>,
+				<949000 29>,
+				<939000 31>,
+				<929000 34>,
+				<919000 37>,
+				<909000 40>,
+				<899000 43>,
+				<889000 45>,
+				<879000 48>,
+				<869000 51>,
+				<859000 54>,
+				<849000 56>,
+				<839000 59>,
+				<829000 62>,
+				<819000 65>,
+				<809000 68>,
+				<799000 70>,
+				<789000 73>,
+				<779000 76>,
+				<769000 79>,
+				<759000 81>,
+				<749000 84>,
+				<739000 87>,
+				<729000 89>,
+				<719000 92>,
+				<709000 95>,
+				<699000 98>,
+				<689000 100>;
+		status = "disabled";
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -172,6 +223,56 @@
 				#interrupt-cells = <2>;
 				amlogic,channel-interrupts =
 					<10 11 12 13 14 15 16 17 18 19 20 21>;
+			};
+
+			pwm_ab: pwm@58000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x58000 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_A_GATE>,
+						<&clkc CLKID_PWM_B_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
+			};
+
+			pwm_cd: pwm@5a000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x5a000 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_C_GATE>,
+						<&clkc CLKID_PWM_D_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
+			};
+
+			pwm_ef: pwm@5c000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x5c000 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_E_GATE>,
+						<&clkc CLKID_PWM_F_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
+			};
+
+			pwm_gh: pwm@5e000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x5e000 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_G_GATE>,
+						<&clkc CLKID_PWM_H_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
+			};
+
+			pwm_ij: pwm@60000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x60000 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_I_GATE>,
+						<&clkc CLKID_PWM_J_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
 			};
 
 			i2c0: i2c@66000 {
@@ -929,6 +1030,188 @@
 				 "jtag_2_clk",
 				 "jtag_2_tms";
 			function = "jtag_2";
+		};
+	};
+
+	pwm_a_pins1: pwm_a_pins1 {
+		mux {
+			groups = "pwm_a_e";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_a_pins2: pwm_a_pins2 {
+		mux {
+			groups = "pwm_a_x";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_b_pins1: pwm_b_pins1 {
+		mux {
+			groups = "pwm_b_h";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_b_pins2: pwm_b_pins2 {
+		mux {
+			groups = "pwm_b_z0";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_b_pins3: pwm_b_pins3 {
+		mux {
+			groups = "pwm_b_z13";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_b_pins4: pwm_b_pins4 {
+		mux {
+			groups = "pwm_b_x7";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_b_pins5: pwm_b_pins5 {
+		mux {
+			groups = "pwm_b_x19";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_c_pins1: pwm_c_pins1 {
+		mux {
+			groups = "pwm_c_c";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_c_pins2: pwm_c_pins2 {
+		mux {
+			groups = "pwm_c_x";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_c_pins3: pwm_c_pins3 {
+		mux {
+			groups = "pwm_c_z";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_d_pins1: pwm_d_pins1 {
+		mux {
+			groups = "pwm_d_z";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins2: pwm_d_pins2 {
+		mux {
+			groups = "pwm_d_x3";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins3: pwm_d_pins3 {
+		mux {
+			groups = "pwm_d_x6";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_e_pins: pwm_e_pins {
+		mux {
+			groups = "pwm_e";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_f_pins1: pwm_f_pins1 {
+		mux {
+			groups = "pwm_f_x";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_f_pins2: pwm_f_pins2 {
+		mux {
+			groups = "pwm_f_h";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_f_pins3: pwm_f_pins3 {
+		mux {
+			groups = "pwm_f_z";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_g_pins: pwm_g_pins {
+		mux {
+			groups = "pwm_g";
+			function = "pwm_g";
+		};
+	};
+
+	pwm_h_pins: pwm_h_pins {
+		mux {
+			groups = "pwm_h";
+			function = "pwm_h";
+		};
+	};
+
+	pwm_i_pins1: pwm_i_pins1 {
+		mux {
+			groups = "pwm_i_d4";
+			function = "pwm_i";
+		};
+	};
+
+	pwm_i_pins2: pwm_i_pins2 {
+		mux {
+			groups = "pwm_i_d6";
+			function = "pwm_i";
+		};
+	};
+
+	pwm_j_pins1: pwm_j_pins1 {
+		mux {
+			groups = "pwm_j_e";
+			function = "pwm_j";
+		};
+	};
+
+	pwm_j_pins2: pwm_j_pins2 {
+		mux {
+			groups = "pwm_j_d5";
+			function = "pwm_j";
+		};
+	};
+
+	pwm_j_pins3: pwm_j_pins3 {
+		mux {
+			groups = "pwm_j_d10";
+			function = "pwm_j";
+		};
+	};
+
+	pwm_i_hiz_pins: pwm_i_hiz_pins {
+		mux {
+			groups = "pwm_i_hiz";
+			function = "pwm_i_hiz";
+		};
+	};
+
+	pwm_g_hiz_pins: pwm_g_hiz_pins {
+		mux {
+			groups = "pwm_g_hiz";
+			function = "pwm_g_hiz";
 		};
 	};
 };

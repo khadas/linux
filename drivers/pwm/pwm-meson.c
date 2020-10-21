@@ -159,16 +159,28 @@ static int meson_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return 0;
 
 	channel = &meson->channels[pwm->hwpwm];
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (!meson->data->extern_clk)
+#endif
+		if (channel->clk_parent) {
+			err = clk_set_parent(channel->clk, channel->clk_parent);
+			if (err < 0) {
+				dev_err(dev, "failed to set parent %s for %s: %d\n",
+					__clk_get_name(channel->clk_parent),
+					__clk_get_name(channel->clk), err);
+					return err;
+			}
+		}
 
-	if (channel->clk_parent) {
-		err = clk_set_parent(channel->clk, channel->clk_parent);
-		if (err < 0) {
-			dev_err(dev, "failed to set parent %s for %s: %d\n",
-				__clk_get_name(channel->clk_parent),
-				__clk_get_name(channel->clk), err);
-				return err;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson->data->extern_clk) {
+		err = clk_set_rate(channel->clk, DEFAULT_EXTERN_CLK);
+		if (err) {
+			pr_err("%s: error in setting pwm rate!\n", __func__);
+			return err;
 		}
 	}
+#endif
 
 	err = clk_prepare_enable(channel->clk);
 	if (err < 0) {
@@ -278,6 +290,10 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 	struct meson_pwm_channel_data *channel_data;
 	unsigned long flags;
 	u32 value;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long set_clk;
+	u32 err;
+#endif
 
 	channel_data = &meson_pwm_per_channel_data[pwm->hwpwm];
 
@@ -298,6 +314,18 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 	writel(value, meson->base + REG_MISC_AB);
 
 	spin_unlock_irqrestore(&meson->lock, flags);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson->data->extern_clk) {
+		set_clk = clk_get_rate(channel->clk);
+		if (set_clk == 0)
+			dev_err(meson->chip.dev, "invalid source clock frequency\n");
+
+		set_clk /= (channel->pre_div + 1);
+		err = clk_set_rate(channel->clk, set_clk);
+		if (err)
+			pr_err("%s: error in setting pwm rate!\n", __func__);
+	}
+#endif
 }
 
 static void meson_pwm_disable(struct meson_pwm *meson, struct pwm_device *pwm)
@@ -377,6 +405,40 @@ static unsigned int meson_pwm_cnt_to_ns(struct pwm_chip *chip,
 	return cnt * fin_ns * (channel->pre_div + 1);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_v2_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+				   struct pwm_state *state)
+{
+	struct meson_pwm *meson = to_meson_pwm(chip);
+	u32 value, mask;
+
+	if (!state)
+		return;
+
+	switch (pwm->hwpwm) {
+	case 0:
+		mask = MISC_A_EN;
+		break;
+
+	case 1:
+		mask = MISC_B_EN;
+		break;
+
+	case 2:
+		mask = MISC_A2_EN;
+		break;
+
+	case 3:
+		mask = MISC_B2_EN;
+
+	default:
+		return;
+	}
+	value = readl(meson->base + REG_MISC_AB);
+	state->enabled = (value & mask) != 0;
+}
+#endif
+
 static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				struct pwm_state *state)
 {
@@ -387,6 +449,12 @@ static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (!state)
 		return;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* TODO: later, clk tree will be used to synchronize the status of pwm */
+	if (meson->data->extern_clk)
+		return meson_v2_pwm_get_state(chip, pwm, state);
+#endif
 
 	channel = &meson->channels[pwm->hwpwm];
 	channel_data = &meson_pwm_per_channel_data[pwm->hwpwm];
@@ -526,6 +594,13 @@ static const struct meson_pwm_data pwm_g12a_ee_data = {
 #endif
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_pwm_data pwm_v2_data = {
+	.double_channel = true,
+	.extern_clk = true,
+};
+#endif
+
 static const struct of_device_id meson_pwm_matches[] = {
 	{
 		.compatible = "amlogic,meson8b-pwm",
@@ -571,6 +646,10 @@ static const struct of_device_id meson_pwm_matches[] = {
 	{
 		.compatible = "amlogic,meson-tm2-ao-pwm-cd",
 		.data = &pwm_g12a_ao_cd_data
+	},
+	{
+		.compatible = "amlogic,meson-v2-pwm",
+		.data = &pwm_v2_data
 	},
 #endif
 	{},
@@ -623,6 +702,26 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 }
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_pwm_v2_init_channels(struct meson_pwm *meson)
+{
+	struct meson_pwm_channel *channels = meson->channels;
+	struct device *dev = meson->chip.dev;
+	unsigned int i;
+	char name[255];
+
+	for (i = 0; i < (meson->chip.npwm / 2); i++) {
+		snprintf(name, sizeof(name), "clkin%u", i);
+		(channels + i)->clk = devm_clk_get(dev, name);
+		if (IS_ERR((channels + i)->clk)) {
+			dev_err(meson->chip.dev, "can't get device clock\n");
+			return PTR_ERR((channels + i)->clk);
+		}
+		(channels + i + 2)->clk = (channels + i)->clk;
+	}
+
+	return 0;
+}
+
 static struct regmap_config meson_pwm_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -657,17 +756,23 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
 	meson->chip.base = -1;
+	meson->data = of_device_get_match_data(&pdev->dev);
 #ifndef CONFIG_AMLOGIC_MODIFY
 	meson->chip.npwm = MESON_NUM_PWMS;
 #else
-	meson->chip.npwm = MESON_DOUBLE_NUM_PWMS;
+	if (meson->data->double_channel)
+		meson->chip.npwm = MESON_DOUBLE_NUM_PWMS;
+	else
+		meson->chip.npwm = MESON_NUM_PWMS;
 #endif
 	meson->chip.of_xlate = of_pwm_xlate_with_flags;
 	meson->chip.of_pwm_n_cells = 3;
-
-	meson->data = of_device_get_match_data(&pdev->dev);
-
-	err = meson_pwm_init_channels(meson);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (meson->data->extern_clk)
+		err = meson_pwm_v2_init_channels(meson);
+	else
+#endif
+		err = meson_pwm_init_channels(meson);
 	if (err < 0)
 		return err;
 
