@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/set_hdr2_v0.h
+ * drivers/amlogic/media/enhancement/amvecm/util/base64.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,18 +16,21 @@
  *
  */
 
-#include "../amcsc.h"
+#ifndef BASE64_H
+#define BASE64_H
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
+/*
+ * out is null-terminated encode string.
+ * return values is out length, exclusive terminating `\0'
+ */
+unsigned long base64_encode(unsigned char *in,
+			    unsigned int inlen,
+			    char *out);
 
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
+/*
+ * return values is out length
+ */
+unsigned long base64_decode(char *in, unsigned int inlen,
+			    unsigned char *out);
 
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
-#endif
+#endif /* BASE64_H */

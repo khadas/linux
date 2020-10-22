@@ -61,5 +61,6 @@ void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en);
 void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en);
 void cm2_sat(enum ecm2colormd colormode, int sat_val, int lpf_en);
 
+void default_sat_param(unsigned int reg, unsigned int value);
 #endif
 

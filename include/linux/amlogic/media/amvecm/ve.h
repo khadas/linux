@@ -210,8 +210,10 @@ struct ve_dnlp_s {
 
 struct ve_lc_curve_parm_s {
 	unsigned int ve_lc_saturation[63];
-	unsigned int ve_lc_yminval_lmt[12];
-	unsigned int ve_lc_ypkbv_ymaxval_lmt[12];
+	unsigned int ve_lc_yminval_lmt[16];
+	unsigned int ve_lc_ypkbv_ymaxval_lmt[16];
+	unsigned int ve_lc_ymaxval_lmt[16];
+	unsigned int ve_lc_ypkbv_lmt[16];
 	unsigned int ve_lc_ypkbv_ratio[4];
 	unsigned int param[100];
 };

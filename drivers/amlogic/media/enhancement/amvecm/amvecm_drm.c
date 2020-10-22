@@ -22,6 +22,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/ve_regs.h"
 #include "arch/vpp_regs.h"
+#include "reg_helper.h"
 #include "amve.h"
 
 void amvecm_drm_init(u32 index)
@@ -106,28 +107,28 @@ int am_meson_ctm_set(u32 index, struct drm_color_ctm *ctm)
 		// - shift the fractional part and take the 10 significant bits.
 		m[i] = ((m[i] >> 51) & 0x1000) | ((m[i] >> 22) & 0xfff);
 	}
-	VSYNC_WR_MPEG_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 1, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 1, 0, 1);
 
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_COEF00_01, ((m[0] & 0xfff) << 16)
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF00_01, ((m[0] & 0xfff) << 16)
 		| (m[1] & 0xfff));
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_COEF02_10, ((m[2] & 0xfff) << 16)
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF02_10, ((m[2] & 0xfff) << 16)
 		| (m[3] & 0xfff));
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_COEF11_12, ((m[4] & 0xfff) << 16)
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF11_12, ((m[4] & 0xfff) << 16)
 		| (m[5] & 0xfff));
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_COEF20_21, ((m[6] & 0xfff) << 16)
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF20_21, ((m[6] & 0xfff) << 16)
 		| (m[7] & 0xfff));
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_COEF22, (m[8] & 0xfff));
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_OFFSET0_1, 0x0);
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_OFFSET2, 0x0);
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_PRE_OFFSET0_1, 0x0);
-	VSYNC_WR_MPEG_REG(VPP_POST_MATRIX_PRE_OFFSET2, 0x0);
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF22, (m[8] & 0xfff));
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_OFFSET0_1, 0x0);
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_OFFSET2, 0x0);
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_PRE_OFFSET0_1, 0x0);
+	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_PRE_OFFSET2, 0x0);
 	return 0;
 }
 EXPORT_SYMBOL(am_meson_ctm_set);
 
 int am_meson_ctm_disable(void)
 {
-	VSYNC_WR_MPEG_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 0, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 0, 0, 1);
 	return 0;
 }
 EXPORT_SYMBOL(am_meson_ctm_disable);

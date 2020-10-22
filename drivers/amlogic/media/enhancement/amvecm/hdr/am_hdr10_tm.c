@@ -135,12 +135,23 @@ int time_iir(u32 *maxl)
 		dtl_lum =
 			(max_lum[2] > max_lum[1]) ?
 			(max_lum[2] - max_lum[1]) :
-			(max_lum[1] > max_lum[2]);
+			(max_lum[1] - max_lum[2]);
 
-		max_lum[2] =
-			(max_lum[2] > max_lum[1]) ?
-			(max_lum[1] + (dtl_lum >> 6)) :
-			(max_lum[1] - (dtl_lum >> 6));
+		if (dtl_lum < (1 << 3))
+			max_lum[2] =
+				(max_lum[2] > max_lum[1]) ?
+				(max_lum[1] + (dtl_lum >> 1)) :
+				(max_lum[1] - (dtl_lum >> 1));
+		else if (dtl_lum < (1 << 6))
+			max_lum[2] =
+				(max_lum[2] > max_lum[1]) ?
+				(max_lum[1] + (dtl_lum >> 3)) :
+				(max_lum[1] - (dtl_lum >> 3));
+		else
+			max_lum[2] =
+				(max_lum[2] > max_lum[1]) ?
+				(max_lum[1] + (dtl_lum >> 6)) :
+				(max_lum[1] - (dtl_lum >> 6));
 
 		*maxl = max_lum[2];
 		ret = 2;
@@ -341,13 +352,19 @@ int dynamic_hdr_sdr_ootf(u32 maxl, u32 panell, u64 sx, u64 sy, u64 *anchor)
 	range_ebz_y = MAX_32 - ky;
 
 	if (maxl <= panell) {
-		if (oe_x[i] <= kx_primy) {
-			temp = tgtl << TM_GAIN_BIT;
-			oo_gain[i] = div64_u64(temp, panell);
-		} else {
-			curvey[i] = oe_x[148] << TM_GAIN_BIT;
-			curvex[i] = oe_x[i];
-			oo_gain[i] = div64_u64(curvey[i], curvex[i]);
+		for (i = 0; i < OE_X; i++) {
+			if (oe_x[i] <= kx_primy) {
+				temp = tgtl << TM_GAIN_BIT;
+				oo_gain[i] = div64_u64(temp, panell);
+			} else {
+				curvey[i] = oe_x[148] << TM_GAIN_BIT;
+				curvex[i] = oe_x[i];
+				oo_gain[i] = div64_u64(curvey[i], curvex[i]);
+			}
+			if (oo_gain[i] < (1 << TM_GAIN_BIT))
+				oo_gain[i] = 1 << TM_GAIN_BIT;
+			if (oo_gain[i] > (1 << MAX12_BIT) - 1)
+				oo_gain[i] = (1 << MAX12_BIT) - 1;
 		}
 	} else {
 		for (i = 0; i < OE_X; i++) {
@@ -420,7 +437,9 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 	primry_maxl = p->luminance[0];
 
 	/*use 95% maxl because of high percert flicker*/
-	maxl = (percentile[7] > primry_maxl) ? primry_maxl : percentile[7];
+	maxl = (percentile[8] > primry_maxl) ? primry_maxl : percentile[8];
+	pr_hdr_tm("maxl = %d, percentile[8] = %d, primry_maxl =%d\n",
+		  maxl, percentile[8], primry_maxl);
 
 	if (hdr_tm_iir)
 		scn_chang_flag = time_iir(&maxl);

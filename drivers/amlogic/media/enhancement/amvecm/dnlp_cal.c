@@ -30,6 +30,8 @@
 #include <linux/amlogic/media/amvecm/ve.h>
 #include "dnlp_algorithm/dnlp_alg.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include "ai_pq/ai_pq.h"
+#include "reg_helper.h"
 
 bool ve_en;
 unsigned int ve_dnlp_rt;
@@ -262,7 +264,7 @@ void dnlp_alg_param_init(void)
 	dnlp_alg_param.dnlp_lowrange = 18;
 	dnlp_alg_param.dnlp_hghrange = 18;
 	dnlp_alg_param.dnlp_satur_rat = 30;
-	dnlp_alg_param.dnlp_satur_max = 40;
+	dnlp_alg_param.dnlp_satur_max = 0;
 	dnlp_alg_param.dnlp_set_saturtn = 0;
 	dnlp_alg_param.dnlp_sbgnbnd = 4;
 	dnlp_alg_param.dnlp_sendbnd = 4;
@@ -335,11 +337,11 @@ static void ve_dnlp_add_cm(unsigned int value)
 {
 	unsigned int reg_value;
 
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-	reg_value = VSYNC_RD_MPEG_REG(VPP_CHROMA_DATA_PORT);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	reg_value = VSYNC_READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 	reg_value = (reg_value & 0xf000ffff) | (value << 16);
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, reg_value);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, reg_value);
 }
 
 /*in: vf (hist), h_sel
@@ -527,7 +529,7 @@ void ve_dnlp_calculate_reg(void)
 {
 	ulong i = 0, j = 0, cur = 0, data = 0,
 			offset = ve_dnlp_rt ? (1 << (ve_dnlp_rt - 1)) : 0;
-	if (is_meson_tl1_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		for (i = 0; i < 32; i++) {
 			ve_dnlp_reg_v2[i] = 0;
 			cur = i << 1;
@@ -551,6 +553,14 @@ void ve_dnlp_calculate_reg(void)
 			}
 		}
 	}
+}
+
+void ai_dnlp_param_update(int value)
+{
+	dnlp_alg_param.dnlp_final_gain = value;
+	if (dnlp_insmod_ok == 0)
+		return;
+	dnlp_dbg_node_copy();
 }
 
 void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)

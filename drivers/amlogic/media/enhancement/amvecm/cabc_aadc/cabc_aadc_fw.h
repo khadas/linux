@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/set_hdr2_v0.h
+ * drivers/amlogic/media/enhancement/amvecm/cacb_aadc.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,18 +16,13 @@
  *
  */
 
-#include "../amcsc.h"
+#ifndef CABC_AADC_H
+#define CABC_AADC_H
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
-
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
-
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
+void aml_cabc_alg_process(struct work_struct *work);
+void aml_cabc_alg_bypass(struct work_struct *work);
+int cabc_aad_debug(char **param);
+int cabc_aad_alg_state(void);
+int *vf_param_get(void);
+int fw_en_get(void);
 #endif

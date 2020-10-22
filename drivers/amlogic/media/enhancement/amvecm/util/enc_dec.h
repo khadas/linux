@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/set_hdr2_v0.h
+ * drivers/amlogic/media/enhancement/amvecm/util/enc_dec.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,18 +16,19 @@
  *
  */
 
-#include "../amcsc.h"
+#ifndef ENC_DEC_H
+#define ENC_DEC_H
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
+#define SAFE_SIZE(s) ((unsigned long)((s) * 2))
+#define DECHUFF_MAXLEN (4913 * 3 * 4)
 
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
+unsigned long huff64_encode(unsigned int *in, unsigned int inlen,
+			    char *out);
 
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
-#endif
+/*
+ * return values is out length
+ */
+unsigned long huff64_decode(char *in, unsigned int inlen,
+			    unsigned int *out, unsigned int outlen);
+
+#endif /* ENC_DEC_H */

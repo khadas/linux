@@ -647,7 +647,6 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 	char *p;
 	unsigned int size = 0;
 	unsigned int type = 0;
-	unsigned int event_type = 0;
 
 	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 		hdr10_plus_vf_md_parse(vf);
@@ -658,15 +657,20 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
-
-		event_type = VFRAME_EVENT_RECEIVER_GET_AUX_DATA;
-		vf_notify_provider_by_name("vdec.h265.00",
-					   event_type,
-					   (void *)&req);
-		if (!req.aux_buf)
-			vf_notify_provider_by_name("decoder",
-						   event_type,
+		if (get_vframe_src_fmt(vf) ==
+		    VFRAME_SIGNAL_FMT_HDR10PLUS) {
+			size = 0;
+			req.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
+			req.aux_size = size;
+		} else {
+			vf_notify_provider_by_name("vdec.h265.00",
+						   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 						   (void *)&req);
+			if (!req.aux_buf)
+				vf_notify_provider_by_name("decoder",
+							   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+							   (void *)&req);
+		}
 		if (req.aux_buf && req.aux_size) {
 			p = req.aux_buf;
 			while (p < req.aux_buf

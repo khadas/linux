@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/uaccess.h>
 #include "arch/vpp_regs.h"
+#include "reg_helper.h"
 #include "local_contrast.h"
 
 /*may define in other module*/
@@ -45,6 +46,7 @@ int amlc_debug;
 	} while (0)
 
 int lc_en = 1;
+int lc_bitdepth = 10;
 int lc_demo_mode;
 int lc_en_chflg = 0xff;
 static int lc_flag = 0xff;
@@ -221,15 +223,52 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_YUV601L_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x012a0000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x198012a);
-			WRITE_VPP_REG(matrix_coef11_12, 0xf9c0f30);
-			WRITE_VPP_REG(matrix_coef20_21, 0x12a0204);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
 			if (bitdepth == 10) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04A80000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x066204a8);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1e701cbf);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x04a80812);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x012a0000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x198012a);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0xf9c0f30);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x12a0204);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
 			} else {
+				if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x012a0000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x198012a);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0xf9c0f30);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x12a0204);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04A80000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x066204a8);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1e701cbf);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x04a80812);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
 				WRITE_VPP_REG(matrix_clip, 0xfff);
 			}
@@ -273,20 +312,52 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_YUV709L_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x012a0000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x01cb012a);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1fc90f77);
-			WRITE_VPP_REG(matrix_coef20_21, 0x012a021d);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
 			if (bitdepth == 10) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04A80000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x072C04A8);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1F261DDD);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x04A80876);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x012a0000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x01cb012a);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1fc90f77);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x012a021d);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
 			} else {
-				/* for YUV->RGB
-				 * 12bit matrix is not supported actually
-				 * the HW use 8bit conversion by default
-				 * but the shift extra bit only 2bits
-				 */
+				if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x012a0000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x01cb012a);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1fc90f77);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x012a021d);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04A80000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x072C04A8);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1F261DDD);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x04A80876);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
 				WRITE_VPP_REG(matrix_clip, 0xfff);
 			}
@@ -330,15 +401,52 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_YUV709_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x01000000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x01930100);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1fd01f88);
-			WRITE_VPP_REG(matrix_coef20_21, 0x010001db);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
 			if (bitdepth == 10) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04000000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x064d0400);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1f411e21);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x0400076d);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x01000000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x01930100);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1fd01f88);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x010001db);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
 			} else {
+				if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x01000000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x01930100);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1fd01f88);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x010001db);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				} else {
+					WRITE_VPP_REG(matrix_coef00_01,
+						      0x04000000);
+					WRITE_VPP_REG(matrix_coef02_10,
+						      0x064d0400);
+					WRITE_VPP_REG(matrix_coef11_12,
+						      0x1f411e21);
+					WRITE_VPP_REG(matrix_coef20_21,
+						      0x0400076d);
+					WRITE_VPP_REG(matrix_coef22, 0x0);
+				}
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x800);
 				WRITE_VPP_REG(matrix_clip, 0xfff);
 			}
@@ -609,7 +717,7 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	}
 }
 
-static void lc_disable(void)
+void lc_disable(void)
 {
 	/*lc enable need set at last*/
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 4, 1);
@@ -672,10 +780,13 @@ static void lc_config(int enable,
 
 	/* try to detect out of spec signal level */
 	flag_full = 0;
-	if (detect_signal_range_en == 2)
+	if (detect_signal_range_en == 2) {
 		flag_full = signal_detect(vf->prop.hist.vpp_gamma);
-	else
+		if (vf->type & VIDTYPE_RGB_444)
+			flag_full = 1;
+	} else {
 		flag_full = detect_signal_range_en;
+	}
 
 	if (flag_full != flag_full_pre) {
 		pr_info("signal changed, flag_full:%d->%d\n",
@@ -884,14 +995,14 @@ static void lc_demo_wr_curve(int h_num, int v_num)
 					(i * h_num + j) + 4] << 10) |
 				(lc_szcurve[6 *
 					(i * h_num + j) + 5] << 20);
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA, temp1);
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA, temp2);
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA, temp1);
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA, temp2);
 		}
 		for (j = h_num / 2; j < h_num; j++) {
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
-					  (0 | (0 << 10) | (512 << 20)));
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
-					  (1023 | (1023 << 10) | (512 << 20)));
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+					    (0 | (0 << 10) | (512 << 20)));
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+					    (1023 | (1023 << 10) | (512 << 20)));
 		}
 	}
 }
@@ -953,22 +1064,22 @@ static int set_lc_curve(int binit, int bcheck)
 		}
 		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 	} else {
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
 		if (lc_demo_mode)
 			lc_demo_wr_curve(h_num, v_num);
 		else
 			for (i = 0; i < h_num * v_num; i++) {
-				VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
-						  lc_szcurve[6 * i + 0] |
+				VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+						    lc_szcurve[6 * i + 0] |
 					(lc_szcurve[6 * i + 1] << 10) |
 					(lc_szcurve[6 * i + 2] << 20));
-				VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
-						  lc_szcurve[6 * i + 3] |
+				VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+						    lc_szcurve[6 * i + 3] |
 					(lc_szcurve[6 * i + 4] << 10) |
 					(lc_szcurve[6 * i + 5] << 20));
 			}
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 	}
 
 	if (bcheck) {
@@ -986,9 +1097,9 @@ static int set_lc_curve(int binit, int bcheck)
 			}
 			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 		} else {
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR,
-					  0 | (1 << 31));
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR,
+					    0 | (1 << 31));
 			if (lc_demo_mode)
 				rflag = lc_demo_check_curve(h_num, v_num);
 			else
@@ -1012,7 +1123,7 @@ static int set_lc_curve(int binit, int bcheck)
 						rflag =
 						(2 * i + 1) | (1 << 31);
 				}
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+			VSYNC_WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 		}
 	}
 
@@ -1608,6 +1719,7 @@ void lc_init(int bitdepth)
 	int i, tmp, tmp1, tmp2;
 
 	tune_nodes_patch_init();
+	lc_bitdepth = bitdepth;
 
 	height = vinfo->height;
 	width = vinfo->width;
@@ -1659,12 +1771,42 @@ void lc_init(int bitdepth)
 	WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, 0x8cc0c060);
 	WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
 
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_2_3, 0x00830091);
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_4_5, 0x00a000c4);
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_6_7, 0x00e00100);
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_8_9, 0x01200140);
-	WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_10_11, 0x01600190);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+	    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_2_3, 0x00830091);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_4_5, 0x00a000c4);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_6_7, 0x00e00100);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_8_9, 0x01200140);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_10_11, 0x01600190);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13, 0x01b001d0);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_14_15, 0x01f00210);
+
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1, 0x004400b4);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_2_3, 0x00fb0123);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_4_5, 0x015901a2);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_6_7, 0x01d90208);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_8_9, 0x02400280);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_10_11, 0x02d70310);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13, 0x03400380);
+		WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_14_15, 0x03c003ff);
+
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_0_1, 0x004400b4);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_2_3, 0x00fb0123);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_4_5, 0x015901a2);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_6_7, 0x01d90208);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_8_9, 0x02400280);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_10_11, 0x02d70310);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_12_13, 0x03400380);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_14_15, 0x03c003ff);
+	} else {
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_2_3, 0x00830091);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_4_5, 0x00a000c4);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_6_7, 0x00e00100);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_8_9, 0x01200140);
+		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_10_11, 0x01600190);
+	}
 
 	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1, 0x004400b4);
 	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_2_3, 0x00fb0123);
@@ -1694,17 +1836,9 @@ void lc_process(struct vframe_s *vf,
 	unsigned int sps_h_in)
 {
 	int blk_hnum, blk_vnum, dwtemp;
-	int bitdepth;
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
 		return;
-
-	if (is_meson_tl1_cpu())
-		bitdepth = 10;
-	else if (is_meson_tm2_cpu())
-		bitdepth = 12;
-	else
-		bitdepth = 12;
 
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("%s: lc malloc fail", __func__);
@@ -1732,7 +1866,7 @@ void lc_process(struct vframe_s *vf,
 	blk_hnum = (dwtemp >> 8) & 0x1f;
 	blk_vnum = (dwtemp) & 0x1f;
 	lc_config(lc_en, vf, sps_h_en, sps_v_en,
-		  sps_w_in, sps_h_in, bitdepth);
+		  sps_w_in, sps_h_in, lc_bitdepth);
 
 	if (lc_bypass_flag <= 0) {
 		set_lc_curve(1, 0);

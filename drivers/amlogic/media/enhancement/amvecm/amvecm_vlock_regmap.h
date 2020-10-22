@@ -82,7 +82,7 @@ static struct vlock_regs_s vlock_pll_phase_setting[VLOCK_PHASE_REG_SIZE] = {
 	{0x300c,	 0x06000000},
 	{0x3025,	 0x00013000},
 	{0x3027,	 0x00022002},
-	{0x3028,	 0x00008000},
+	{0x3028,	 0x00008f00},
 	{0x302a,	 0x00022002},
 };
 
@@ -95,7 +95,7 @@ static struct vlock_regs_s vlock_encl_phase_setting[VLOCK_PHASE_REG_SIZE] = {
 	{0x300c,	 0x06000000},
 	{0x3025,	 0x00013000},
 	{0x3027,	 0x00022002},
-	{0x3028,	 0x00008000},
+	{0x3028,	 0x00008f00},
 	{0x302a,	 0x00022002},
 };
 

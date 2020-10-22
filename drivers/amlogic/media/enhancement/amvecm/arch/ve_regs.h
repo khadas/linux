@@ -508,7 +508,6 @@
 
 #define VPP_VE_H_V_SIZE             0x1da4
 
-#define SRSHARP0_DNLP_EN					0x3245
 #define SRSHARP0_DNLP_00					0x3246
 #define SRSHARP0_DNLP_01					0x3247
 #define SRSHARP0_DNLP_02					0x3248
@@ -525,9 +524,7 @@
 #define SRSHARP0_DNLP_13					0x3253
 #define SRSHARP0_DNLP_14					0x3254
 #define SRSHARP0_DNLP_15					0x3255
-#define SRSHARP0_DEMO_CRTL					0x3256
 
-#define SRSHARP1_DNLP_EN					0x32c5
 #define SRSHARP1_DNLP_00					0x32c6
 #define SRSHARP1_DNLP_01					0x32c7
 #define SRSHARP1_DNLP_02					0x32c8
@@ -544,6 +541,72 @@
 #define SRSHARP1_DNLP_13					0x32d3
 #define SRSHARP1_DNLP_14					0x32d4
 #define SRSHARP1_DNLP_15					0x32d5
-#define SRSHARP1_DEMO_CRTL					0x32d6
+
+/* after G12a add more nodes for dnlp */
+#define SRSHARP0_DNLP2_00     0x3e90
+#define SRSHARP0_DNLP2_01     0x3e91
+#define SRSHARP0_DNLP2_02     0x3e92
+#define SRSHARP0_DNLP2_03     0x3e93
+#define SRSHARP0_DNLP2_04     0x3e94
+#define SRSHARP0_DNLP2_05     0x3e95
+#define SRSHARP0_DNLP2_06     0x3e96
+#define SRSHARP0_DNLP2_07     0x3e97
+#define SRSHARP0_DNLP2_08     0x3e98
+#define SRSHARP0_DNLP2_09     0x3e99
+#define SRSHARP0_DNLP2_10     0x3e9a
+#define SRSHARP0_DNLP2_11     0x3e9b
+#define SRSHARP0_DNLP2_12     0x3e9c
+#define SRSHARP0_DNLP2_13     0x3e9d
+#define SRSHARP0_DNLP2_14     0x3e9e
+#define SRSHARP0_DNLP2_15     0x3e9f
+#define SRSHARP0_DNLP2_16     0x3ea0
+#define SRSHARP0_DNLP2_17     0x3ea1
+#define SRSHARP0_DNLP2_18     0x3ea2
+#define SRSHARP0_DNLP2_19     0x3ea3
+#define SRSHARP0_DNLP2_20     0x3ea4
+#define SRSHARP0_DNLP2_21     0x3ea5
+#define SRSHARP0_DNLP2_22     0x3ea6
+#define SRSHARP0_DNLP2_23     0x3ea7
+#define SRSHARP0_DNLP2_24     0x3ea8
+#define SRSHARP0_DNLP2_25     0x3ea9
+#define SRSHARP0_DNLP2_26     0x3eaa
+#define SRSHARP0_DNLP2_27     0x3eab
+#define SRSHARP0_DNLP2_28     0x3eac
+#define SRSHARP0_DNLP2_29     0x3ead
+#define SRSHARP0_DNLP2_30     0x3eae
+#define SRSHARP0_DNLP2_31     0x3eaf
+
+#define SRSHARP1_DNLP2_00     0x3f90
+#define SRSHARP1_DNLP2_01     0x3f91
+#define SRSHARP1_DNLP2_02     0x3f92
+#define SRSHARP1_DNLP2_03     0x3f93
+#define SRSHARP1_DNLP2_04     0x3f94
+#define SRSHARP1_DNLP2_05     0x3f95
+#define SRSHARP1_DNLP2_06     0x3f96
+#define SRSHARP1_DNLP2_07     0x3f97
+#define SRSHARP1_DNLP2_08     0x3f98
+#define SRSHARP1_DNLP2_09     0x3f99
+#define SRSHARP1_DNLP2_10     0x3f9a
+#define SRSHARP1_DNLP2_11     0x3f9b
+#define SRSHARP1_DNLP2_12     0x3f9c
+#define SRSHARP1_DNLP2_13     0x3f9d
+#define SRSHARP1_DNLP2_14     0x3f9e
+#define SRSHARP1_DNLP2_15     0x3f9f
+#define SRSHARP1_DNLP2_16     0x3fa0
+#define SRSHARP1_DNLP2_17     0x3fa1
+#define SRSHARP1_DNLP2_18     0x3fa2
+#define SRSHARP1_DNLP2_19     0x3fa3
+#define SRSHARP1_DNLP2_20     0x3fa4
+#define SRSHARP1_DNLP2_21     0x3fa5
+#define SRSHARP1_DNLP2_22     0x3fa6
+#define SRSHARP1_DNLP2_23     0x3fa7
+#define SRSHARP1_DNLP2_24     0x3fa8
+#define SRSHARP1_DNLP2_25     0x3fa9
+#define SRSHARP1_DNLP2_26     0x3faa
+#define SRSHARP1_DNLP2_27     0x3fab
+#define SRSHARP1_DNLP2_28     0x3fac
+#define SRSHARP1_DNLP2_29     0x3fad
+#define SRSHARP1_DNLP2_30     0x3fae
+#define SRSHARP1_DNLP2_31     0x3faf
 
 #endif /* _VE_REG_H */

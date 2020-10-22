@@ -26,6 +26,13 @@
 #define PATTERN_MAX          8
 #define PATTERN_MASK(i) (1 << (i))
 
+#define MULTICAST_REG_SIZE 6
+#define MULTICAST_REG_LEV 2
+
+struct di_reg_s {
+	unsigned int val[MULTICAST_REG_SIZE];
+};
+
 #define setting_reg_count 32
 struct setting_regs_s {
 	unsigned int    length; /* Length of total am_reg */
@@ -37,7 +44,7 @@ enum epattern {
 	PATTERN_75COLORBAR = PATTERN_START,
 	PATTERN_SKIN_TONE_FACE,
 	PATTERN_GREEN_CORN,
-	PATTERN3,
+	PATTERN_MULTICAST,
 	PATTERN4,
 	PATTERN5,
 	PATTERN6,
@@ -60,6 +67,10 @@ extern int pattern_detect_debug;
 extern int detected_pattern;
 extern int last_detected_pattern;
 extern uint pattern_mask;
+extern uint mltcast_ratio1;
+extern uint mltcast_ratio2;
+extern int mltcast_skip_en;
+
 int pattern_detect_add_checker(int id,
 			       int (*checker)(struct vframe_s *vf));
 int pattern_detect_add_handler(int id,

@@ -31,6 +31,7 @@
 #include "arch/vpp_regs.h"
 #include "arch/vpp_keystone_regs.h"
 #include "keystone_correction.h"
+#include "reg_helper.h"
 
 /*algotithm input parameters begin*/
 unsigned int vks_input_width = 1920;

@@ -49,8 +49,10 @@ enum lc_reg_lut_e {
 	YMINVAL_LMT = 0x2,
 	YPKBV_YMAXVAL_LMT = 0x4,
 	YPKBV_RAT = 0x8,
-	YPKBV_SLP_LMT = 0x10,
-	CNTST_LMT = 0x20,
+	YMAXVAL_LMT = 0x10,
+	YPKBV_LMT = 0x20,
+	YPKBV_SLP_LMT = 0x40,
+	CNTST_LMT = 0x80,
 	MAX_REG_LUT
 };
 
@@ -121,5 +123,6 @@ void lc_process(struct vframe_s *vf,
 		unsigned int sps_w_in,
 		unsigned int sps_h_in);
 void lc_free(void);
+void lc_disable(void);
 #endif
 

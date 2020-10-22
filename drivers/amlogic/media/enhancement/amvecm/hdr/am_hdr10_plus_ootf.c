@@ -37,7 +37,7 @@ unsigned int hdr10_plus_printk;
 module_param(hdr10_plus_printk, uint, 0664);
 MODULE_PARM_DESC(hdr10_plus_printk, "hdr10_plus_printk");
 
-unsigned int force_ref_peak = 1;
+unsigned int force_ref_peak;
 module_param(force_ref_peak, uint, 0664);
 MODULE_PARM_DESC(force_ref_peak, "force_ref_peak");
 
@@ -538,15 +538,12 @@ int guidedootf(struct scene2094metadata *metadata,
 				(norm >> 1)) / norm;
 			}
 			if (hdr10_plus_printk & 2) {
-				pr_hdr("p-1=>Anchor[i]  = ");
-				pr_hdr("(blendcoeff *referenceBezierParams.");
-				pr_hdr("Anchor[i] + (norm - blendcoeff)");
-				pr_hdr("*minBezierParams.");
-				pr_hdr("Anchor[i]");
+				pr_hdr("p-1=>Anchor[i] = ");
+				pr_hdr("(blendcoeff *referenceBezierParams->Anchor[i] ");
+				pr_hdr("+ (norm - blendcoeff)*minBezierParams.Anchor[i]");
 				pr_hdr(" + (norm>>1) )/norm\n");
 				for (i = 0; i < nump; i++) {
-					pr_hdr("p-1=>");
-					pr_hdr(" %2d: %4d = ",
+					pr_hdr("p-1=> %2d: %4d = ",
 					       i,
 					       productbezierparams->anchor[i]);
 					pr_hdr(" %4d * %4d + ",
@@ -581,8 +578,7 @@ int guidedootf(struct scene2094metadata *metadata,
 			}
 			if (hdr10_plus_printk & 2) {
 				for (i = 0; i < nump; i++) {
-					pr_hdr("p-1=>");
-					pr_hdr(" %2d: %4d = ",
+					pr_hdr("p-1=> %2d: %4d = ",
 					       i,
 					       productbezierparams->anchor[i]);
 					pr_hdr(" %4d * %4d + ",
@@ -671,24 +667,26 @@ u64 oo_lut_x[OOLUT_NUM] = {
 
 /*gen OOTF curve and gain from (sx,sy) and P1~pn-1*/
 int gen_ebzurve(u64 *curvex, u64 *curvey,
-		unsigned int *gain, unsigned int *gain_ter,
+		unsigned int *gain,
 	u64 nkx, uint64_t nky,
 	u64 *anchory, int order)
 {
 	u64 my_anchor_y[16];
 	u64 temp;
-	static u64 linearx[POINTS];
 	u64 kx, ky;
 
 	u64 range_ebz_x;
 	u64 range_ebz_y;
 
 	u64 step_alpha;
-	static u64 step_ter[POINTS];
 	u64 beziercurve[2];
 	int i;
-	int nump = N - 1;
+	int nump;
 
+	if (order > 1 && order <= N)
+		nump = order - 1;
+	else
+		nump = N - 1;
 	/*u12->U16*/
 	kx = nkx << (U32 - PROCESSING_MAX);
 	ky = nky << (U32 - PROCESSING_MAX);
@@ -711,24 +709,19 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 	my_anchor_y[N] = range_ebz_y; /*u12 -> U32*/
 #endif  /* org_anchory */
 
-	for (i = 0; i < POINTS; i++) {
-		linearx[i] = oo_lut_x[i];/* x index sample,u32 */
+	for (i = 0; i < POINTS; i++)
 		curvey[i] = 0;
-		step_ter[i] = 1023;
-	}
 
 	for (i = 0; i < POINTS; i++) {
-		if (linearx[i] < kx) {
-			curvex[i] = linearx[i];/*u32*/
-			curvey[i] = linearx[i] * ky;
+		if (oo_lut_x[i] < kx) {
+			curvex[i] = oo_lut_x[i];/*u32*/
+			curvey[i] = oo_lut_x[i] * ky;
 			curvey[i] = div64_u64(curvey[i], kx ? kx : 1);
 			temp = curvey[i] << GAIN_BIT;/*u12*/
-			gain[i] = div64_u64(temp, curvex[i]);
-			step_ter[i] = 1024;
+			gain[i] = div64_u64(temp, oo_lut_x[i]);
 		} else {
-			/*norm in decasteliau() function*/
-			step_alpha = (linearx[i] - kx);
-			step_ter[i] = step_alpha;
+			/*norm in Decasteliau() function*/
+			step_alpha = (oo_lut_x[i] - kx);
 			/* calc each point from 1st to N-th layer*/
 			decasteliau(&beziercurve[0], my_anchor_y, step_alpha,
 				    order, range_ebz_x);
@@ -747,7 +740,7 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 			/*range_ebz_x);*/
 			curvex[i] = kx + step_alpha;
 			temp = curvey[i] << GAIN_BIT;
-			gain[i] = div64_u64(temp, curvex[i]);
+			gain[i] = div64_u64(temp, oo_lut_x[i]);
 			if (gain[i] < (1 << GAIN_BIT))
 				gain[i] = 1 << GAIN_BIT;
 		}
@@ -914,7 +907,6 @@ void vframe_hdr_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei,
 }
 
 unsigned int gain[POINTS];
-unsigned int gain_ter[POINTS];
 u64 curvex[POINTS], curvey[POINTS];
 
 /*input o->10000, should adaptive scale by shift and gamut*/
@@ -976,7 +968,6 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 	memset(curvex,   0, sizeof(uint64_t) * POINTS);
 	memset(curvey,   0, sizeof(uint64_t) * POINTS);
 	memset(gain,	 0, sizeof(unsigned int) * POINTS);
-	memset(gain_ter, 0, sizeof(unsigned int) * POINTS);
 
 	basisootf_params_init(&basisootf_params);
 
@@ -1033,7 +1024,7 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 		anchory[i] = (uint64_t)productbezierparams.anchor[i];
 
 	/*step 5. gen bezier curve*/
-	gen_ebzurve(&curvex[0], &curvey[0], &gain[0], &gain_ter[0],
+	gen_ebzurve(&curvex[0], &curvey[0], &gain[0],
 		    kx, ky, &anchory[0], order);
 
 	/* debug */

@@ -21,27 +21,41 @@
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/ve.h>
-#include <linux/amlogic/media/amvecm/cm.h>
+#include "linux/amlogic/media/amvecm/cm.h"
+#include "linux/amlogic/media/amvecm/amvecm.h"
 
-/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
-/* #define WRITE_VPP_REG(x,val) */
-/* WRITE_VCBUS_REG(x,val) */
-/* #define WRITE_VPP_REG_BITS(x,val,start,length) */
-/* WRITE_VCBUS_REG_BITS(x,val,start,length) */
-/* #define READ_VPP_REG(x) */
-/* READ_VCBUS_REG(x) */
-/* #define READ_VPP_REG_BITS(x,start,length) */
-/* READ_VCBUS_REG_BITS(x,start,length) */
-/* #else */
-/* #define WRITE_VPP_REG(x,val) */
-/* WRITE_CBUS_REG(x,val) */
-/* #define WRITE_VPP_REG_BITS(x,val,start,length) */
-/* WRITE_CBUS_REG_BITS(x,val,start,length) */
-/* #define READ_VPP_REG(x) */
-/* READ_CBUS_REG(x) */
-/* #define READ_VPP_REG_BITS(x,start,length) */
-/* READ_CBUS_REG_BITS(x,start,length) */
-/* #endif */
+enum pq_ctl_cfg_e {
+	TV_CFG_DEF = 0,
+	OTT_CFG_DEF,
+	TV_DV_BYPASS,
+	OTT_DV_BYPASS,
+	PQ_CFG_MAX
+};
+
+struct pq_ctrl_s {
+	u8 sharpness0_en;
+	u8 sharpness1_en;
+	u8 dnlp_en;
+	u8 cm_en;
+	u8 vadj1_en;
+	u8 vd1_ctrst_en;
+	u8 vadj2_en;
+	u8 post_ctrst_en;
+	u8 wb_en;
+	u8 gamma_en;
+	u8 lc_en;
+	u8 black_ext_en;
+	u8 chroma_cor_en;
+	u8 reserved;
+};
+
+struct vpp_pq_ctrl_s {
+	unsigned int length;
+	union {
+		void *ptr;/*point to pq_ctrl_s*/
+		long long ptr_length;
+	};
+};
 
 struct ve_regs_s {
 	unsigned int val:32;
@@ -73,6 +87,10 @@ extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
 
 extern spinlock_t vpp_lcd_gamma_lock;
+extern struct mutex vpp_lut3d_lock;
+extern int lut3d_en;/*0:disabel;1:enable */
+extern int lut3d_order;/* 0 RGB 1 GBR */
+extern int lut3d_debug;
 
 extern u16 gamma_data_r[256];
 extern u16 gamma_data_g[256];
@@ -137,13 +155,6 @@ extern unsigned int sync_3d_out_inv;
 extern unsigned int sync_3d_black_color;
 extern unsigned int sync_3d_sync_to_vbo;
 
-#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-#define VSYNC_WR_MPEG_REG(adr, val) WRITE_VPP_REG(adr, val)
-#define VSYNC_RD_MPEG_REG(adr) READ_VPP_REG(adr)
-#else
-u32 VSYNC_RD_MPEG_REG(u32 adr);
-int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
-#endif
 
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
@@ -166,13 +177,27 @@ extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
 void amvecm_fresh_overscan(struct vframe_s *vf);
 void amvecm_reset_overscan(void);
-int vpp_set_lut3d(int enable, int blut3dload,
-		  int *plut3d, int blut3dcheck);
-void vpp_lut3d_table_init(int *plut3d, int bitdepth);
+int vpp_set_lut3d(int bfromkey,
+		  int keyindex,
+		  unsigned int p3dlut_in[][3],
+		  int blut3dcheck);
+int vpp_write_lut3d_section(int index,
+			    int section_len,
+			    unsigned int *p3dlut_section_in);
+int vpp_read_lut3d_section(int index,
+			   int section_len,
+			   unsigned int *p3dlut_section_out);
+void vpp_lut3d_table_init(int r, int g, int b);
+void vpp_lut3d_table_release(void);
+int vpp_enable_lut3d(int enable);
 void dump_plut3d_table(void);
 void dump_plut3d_reg_table(void);
 
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
+void amvecm_wb_enable(int enable);
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
+unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
+void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 #endif
 

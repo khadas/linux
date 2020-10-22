@@ -66,6 +66,8 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD1_HDR2_MATRIXI_CLIP              0x381a
 #define VD1_HDR2_MATRIXO_CLIP              0x381b
 #define VD1_HDR2_CGAIN_OFFT                0x381c
+/*TL1 hist read is 0x3840, tm2 is 0x381d*/
+#define VD1_HDR2_HIST_RD_2                 0x381d
 #define VD1_EOTF_LUT_ADDR_PORT             0x381e
 #define VD1_EOTF_LUT_DATA_PORT             0x381f
 #define VD1_OETF_LUT_ADDR_PORT             0x3820
@@ -130,6 +132,8 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD2_HDR2_MATRIXI_CLIP              0x386a
 #define VD2_HDR2_MATRIXO_CLIP              0x386b
 #define VD2_HDR2_CGAIN_OFFT                0x386c
+/*TL1 hist read is 0x3890, tm2 is 0x386d*/
+#define VD2_HDR2_HIST_RD_2                 0x386d
 #define VD2_EOTF_LUT_ADDR_PORT             0x386e
 #define VD2_EOTF_LUT_DATA_PORT             0x386f
 #define VD2_OETF_LUT_ADDR_PORT             0x3870
@@ -414,4 +418,6 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VDIN1_HDR2_PROC_WIN2               0x13ba
 #define VDIN1_HDR2_MATRIXI_EN_CTRL         0x13bb
 #define VDIN1_HDR2_MATRIXO_EN_CTRL         0x13bc
+
+#define VPP_VD2_HDR_IN_SIZE                0x1df0
 #endif

@@ -20,6 +20,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/vpp_regs.h"
 #include "cm2_adj.h"
+#include "reg_helper.h"
 
 #define NUM_MATRIX_PARAM 7
 #define NUM_COLOR_MAX ecm2colormd_max
@@ -63,6 +64,8 @@ static char adj_hue_via_s[NUM_COLOR_MAX][5][32];
 static char adj_hue_via_hue[NUM_COLOR_MAX][32];
 static char adj_sat_via_hs[NUM_COLOR_MAX][3][32];
 static char adj_luma_via_hue[NUM_COLOR_MAX][32];
+
+static char def_sat_via_hs[3][32];
 
 module_param_array(lpf_coef, uint,
 		   &lpf_coef_matrix_param, 0664);
@@ -407,13 +410,16 @@ void cm2_curve_update_sat(enum ecm2colormd colormode)
 			if (j == reg_node) {
 				val1[j] &= 0x000000ff;
 				/*curve 0*/
-				temp = adj_sat_via_hs[colormode][0][i];
+				temp = adj_sat_via_hs[colormode][0][i] +
+				def_sat_via_hs[0][i];
 				val1[j] |= (temp << 8) & 0x0000ff00;
 				/*curve 1*/
-				temp = adj_sat_via_hs[colormode][1][i];
+				temp = adj_sat_via_hs[colormode][1][i] +
+				def_sat_via_hs[1][i];
 				val1[j] |= (temp << 16) & 0x00ff0000;
 				/*curve 2*/
-				temp = adj_sat_via_hs[colormode][2][i];
+				temp = adj_sat_via_hs[colormode][2][i] +
+				def_sat_via_hs[2][i];
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
@@ -423,6 +429,35 @@ void cm2_curve_update_sat(enum ecm2colormd colormode)
 				      CM2_ENH_COEF0_H00 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
+	}
+}
+
+/**
+ * get saturation default value
+ *	0:purple
+ *	1:red
+ *	2: skin
+ *	3: yellow
+ *	4: yellow green
+ *	5: green
+ *	6: green blue
+ *	7: cyan
+ *	8: blue
+ * @param colormode [description]
+ * @param def_sat_via_hs[3][32]  [description]
+ */
+void default_sat_param(unsigned int reg, unsigned int value)
+{
+	unsigned int i;
+
+	if (reg < CM2_ENH_COEF0_H00 || reg >= 0x200)
+		return;
+
+	if ((reg - CM2_ENH_COEF0_H00) % 8 == 0) {
+		i = (reg - CM2_ENH_COEF0_H00) / 8;
+		def_sat_via_hs[0][i] = (value >> 8) & 0xff;
+		def_sat_via_hs[1][i] = (value >> 16) & 0xff;
+		def_sat_via_hs[2][i] = (value >> 24) & 0xff;
 	}
 }
 

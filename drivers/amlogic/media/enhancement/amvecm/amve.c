@@ -28,12 +28,14 @@
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "amve.h"
@@ -41,6 +43,8 @@
 #include <linux/io.h>
 #include "dnlp_cal.h"
 #include "local_contrast.h"
+#include "amcm.h"
+#include "reg_helper.h"
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
@@ -51,7 +55,7 @@
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
 
 #define GAMMA_RETRY        1000
-unsigned int gamma_loadprotect_en = 1;
+unsigned int gamma_loadprotect_en;
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -108,6 +112,10 @@ int dnlp_en_2;/* 0:disabel;1:enable */
 module_param(dnlp_en_2, int, 0664);
 MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 
+int lut3d_en;/* lut3d_en enable/disable */
+int lut3d_order;/* 0 RGB 1 GBR */
+int lut3d_debug;
+
 static int frame_lock_freq;
 module_param(frame_lock_freq, int, 0664);
 MODULE_PARM_DESC(frame_lock_freq, "frame_lock_50");
@@ -125,6 +133,12 @@ MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
 int video_rgb_ogo_xvy_mtx_latch;
 
 static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
+
+/*0: recovery mode
+ *1: certification mode
+ *2: bypass mode, vadj1 follow config for ui setting
+ */
+static int dv_pq_bypass;
 
 /* 3d sync parts begin */
 unsigned int sync_3d_h_start;
@@ -183,15 +197,22 @@ void ve_hist_gamma_reset(void)
 void ve_dnlp_load_reg(void)
 {
 	int i;
+	int dnlp_reg = 0;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 			for (i = 0; i < 16; i++)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
-		} else if (is_meson_tl1_cpu()) {
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->mode != VMODE_LCD)
+				dnlp_reg = SRSHARP0_DNLP2_00;
+			else
+				dnlp_reg = SRSHARP1_DNLP2_00;
+
 			for (i = 0; i < 32; i++)
-				WRITE_VPP_REG(SHARP1_DNLP_00 + i,
+				WRITE_VPP_REG(dnlp_reg + i,
 					      ve_dnlp_reg_v2[i]);
 		} else {
 			for (i = 0; i < 16; i++)
@@ -208,15 +229,22 @@ void ve_dnlp_load_reg(void)
 static void ve_dnlp_load_def_reg(void)
 {
 	int i;
+	int dnlp_reg = 0;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 			for (i = 0; i < 16; i++)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
-		} else if (is_meson_tl1_cpu()) {
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->mode != VMODE_LCD)
+				dnlp_reg = SRSHARP0_DNLP2_00;
+			else
+				dnlp_reg = SRSHARP1_DNLP2_00;
+
 			for (i = 0; i < 32; i++)
-				WRITE_VPP_REG(SHARP1_DNLP_00 + i,
+				WRITE_VPP_REG(dnlp_reg + i,
 					      ve_dnlp_reg_v2[i]);
 		} else {
 			for (i = 0; i < 16; i++)
@@ -268,7 +296,7 @@ int vpp_get_encl_viu_mux(void)
 void vpp_enable_lcd_gamma_table(int viu_sel)
 {
 	if (viu_sel == 1) /* viu1 vsync rdma */
-		VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT, 1, GAMMA_EN, 1);
+		VSYNC_WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 1, GAMMA_EN, 1);
 	else
 		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 1, GAMMA_EN, 1);
 }
@@ -276,7 +304,7 @@ void vpp_enable_lcd_gamma_table(int viu_sel)
 void vpp_disable_lcd_gamma_table(int viu_sel)
 {
 	if (viu_sel == 1) /* viu1 vsync rdma */
-		VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
+		VSYNC_WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
 	else
 		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
 }
@@ -324,8 +352,8 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 
 	if (gamma_loadprotect_en) {
 		if (viu_sel == 1) { /* viu1 vsync rdma */
-			VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
-					       gamma_en, GAMMA_EN, 1);
+			VSYNC_WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+						 gamma_en, GAMMA_EN, 1);
 		} else { /* viu2 directly write, rdma todo */
 			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
 					   gamma_en, GAMMA_EN, 1);
@@ -354,15 +382,25 @@ void vpp_get_lcd_gamma_table(u32 rgb_mask)
 	cnt = 0;
 	for (i = 0; i < 256; i++) {
 		cnt = 0;
+		while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
+			udelay(10);
+			if (cnt++ > GAMMA_RETRY) {
+				pr_info("%s ADR_RDY timeout\n", __func__);
+				break;
+			}
+		}
 		WRITE_VPP_REG(L_GAMMA_ADDR_PORT, (0x1 << H_RD) |
 						(0x0 << H_AUTO_INC) |
 						(0x1 << rgb_mask)	|
 						(i << HADR));
 
+		cnt = 0;
 		while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << RD_RDY))) {
 			udelay(10);
-			if (cnt++ > GAMMA_RETRY)
+			if (cnt++ > GAMMA_RETRY) {
+				pr_info("%s ADR_RDY timeout\n", __func__);
 				break;
+			}
 		}
 		if (rgb_mask == H_SEL_R)
 			gamma_data_r[i] = READ_VPP_REG(L_GAMMA_DATA_PORT);
@@ -483,7 +521,7 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 		m[10] = p->g_gain * m[10] / COEFF_NORM(1.0);
 		m[11] = p->b_gain * m[11] / COEFF_NORM(1.0);
 
-		if (vinfo->viu_color_fmt == COLOR_FMT_RGB444) {
+		if (vinfo->mode == VMODE_LCD) {
 			m[18] = (p->r_pre_offset + m[18] + 1024)
 				* p->r_gain / COEFF_NORM(1.0)
 				- p->r_gain + p->r_post_offset;
@@ -638,14 +676,19 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 
 void ve_enable_dnlp(void)
 {
+	struct vinfo_s *vinfo = get_current_vinfo();
+
 	ve_en = 1;
 /* #ifdef NEW_DNLP_IN_SHARPNESS */
 /* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
-		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			WRITE_VPP_REG_BITS(SHARP1_DNLP_EN, 1, 0, 1);
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			if (vinfo->mode != VMODE_LCD)
+				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
 		else
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
 	} else {
@@ -657,12 +700,17 @@ void ve_enable_dnlp(void)
 
 void ve_disable_dnlp(void)
 {
+	struct vinfo_s *vinfo = get_current_vinfo();
+
 	ve_en = 0;
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
-		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			WRITE_VPP_REG_BITS(SHARP1_DNLP_EN, 0, 0, 1);
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			if (vinfo->mode != VMODE_LCD)
+				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
 		else
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
 	else
@@ -1038,26 +1086,26 @@ void vpp_vd1_mtx_rgb_contrast(signed int cont_val, struct vframe_s *vf)
 		return;
 	cont_val = cont_val + 1024;
 	/*close rgb contrast protect*/
-	WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 0, 1);
 	/*VPP_VADJ_CTRL bit 1 on for rgb contrast adj*/
 	rgb_con_en = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1);
 	if (!rgb_con_en)
-		WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1, 1);
+		VSYNC_WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1, 1);
 
 	/*select full or limit range setting*/
 	con_minus_value = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 4, 10);
 	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
 		if (con_minus_value != 64)
-			WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 64, 4, 10);
+			VSYNC_WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 64, 4, 10);
 	} else {
 		if (con_minus_value != 0)
-			WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 4, 10);
+			VSYNC_WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 4, 10);
 	}
 
 	vd1_contrast = (READ_VPP_REG(XVYCC_VD1_RGB_CTRST) & 0xf000ffff) |
 					(cont_val << 16);
 
-	WRITE_VPP_REG(XVYCC_VD1_RGB_CTRST, vd1_contrast);
+	VSYNC_WRITE_VPP_REG(XVYCC_VD1_RGB_CTRST, vd1_contrast);
 }
 
 void vpp_contrast_adj_by_uv(int cont_u, int cont_v)
@@ -1098,28 +1146,28 @@ void vpp_contrast_adj_by_uv(int cont_u, int cont_v)
 	rs = matrix_yuv_bypass_coef[15];
 	en = matrix_yuv_bypass_coef[16];
 
-	WRITE_VPP_REG(VPP_VD1_MATRIX_COEF00_01,
-		      ((coef00 & 0x1fff) << 16) | (coef01 & 0x1fff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_COEF02_10,
-		      ((coef02 & 0x1fff) << 16) | (coef10 & 0x1fff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_COEF11_12,
-		      ((coef11 & 0x1fff) << 16) | (coef12 & 0x1fff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_COEF20_21,
-		      ((coef20 & 0x1fff) << 16) | (coef21 & 0x1fff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_COEF22,
-		      (coef22 & 0x1fff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_OFFSET0_1,
-		      ((offst0 & 0xfff) << 16) | (offst1 & 0xfff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_OFFSET2,
-		      (offst2 & 0xfff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_PRE_OFFSET0_1,
-		      ((pre_offst0 & 0xfff) << 16) |
-		      (pre_offst1 & 0xfff));
-	WRITE_VPP_REG(VPP_VD1_MATRIX_PRE_OFFSET2,
-		      (pre_offst2 & 0xfff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_COEF00_01,
+			    ((coef00 & 0x1fff) << 16) | (coef01 & 0x1fff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_COEF02_10,
+			    ((coef02 & 0x1fff) << 16) | (coef10 & 0x1fff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_COEF11_12,
+			    ((coef11 & 0x1fff) << 16) | (coef12 & 0x1fff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_COEF20_21,
+			    ((coef20 & 0x1fff) << 16) | (coef21 & 0x1fff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_COEF22,
+			    (coef22 & 0x1fff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_OFFSET0_1,
+			    ((offst0 & 0xfff) << 16) | (offst1 & 0xfff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_OFFSET2,
+			    (offst2 & 0xfff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_PRE_OFFSET0_1,
+			    ((pre_offst0 & 0xfff) << 16) |
+			    (pre_offst1 & 0xfff));
+	VSYNC_WRITE_VPP_REG(VPP_VD1_MATRIX_PRE_OFFSET2,
+			    (pre_offst2 & 0xfff));
 
-	WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_CLIP, rs, 5, 3);
-	WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_EN_CTRL, en, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_CLIP, rs, 5, 3);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_EN_CTRL, en, 0, 1);
 }
 
 /*for gxbbtv contrast adj in vadj1*/
@@ -1150,16 +1198,17 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 	if (is_meson_gxtvbb_cpu()) {
 		if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
 			if (!vdj1_ctl)
-				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
+				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
 		} else {
 			if (vdj1_ctl)
-				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
 		}
 	}
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0x7ff00) |
 						(cont_val << 0);
-		WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_contrast);
+		//VSYNC_WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_contrast);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, cont_val, 0, 8);
 
 		vpp_contrast_adj_by_uv(contrast_u, contrast_v);
 		return;
@@ -1170,7 +1219,7 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
 						(cont_val << 0);
 	}
-	WRITE_VPP_REG(VPP_VADJ1_Y, vd1_contrast);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_Y, cont_val, 0, 8);
 }
 
 void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
@@ -1194,13 +1243,14 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0xff) |
 			(bri_val << 8);
 
-		WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_brightness);
+		//WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_brightness);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, bri_val, 8, 11);
 	} else if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		bri_val = bri_val >> 1;
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff) |
 			(bri_val << 8);
 
-		WRITE_VPP_REG(VPP_VADJ1_Y, vd1_brightness);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_Y, bri_val, 8, 10);
 	} else {
 		if (vf->source_type == VFRAME_SOURCE_TYPE_TUNER ||
 		    vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
@@ -1534,11 +1584,6 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 	if (overscan_disable)
 		return;
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_on())
-		return;
-#endif
-
 	if (overscan_table[0].load_flag) {
 		height = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compHeight : vf->height;
@@ -1558,16 +1603,26 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 		vf->pic_mode.AFD_enable =
 			overscan_table[overscan_timing].afd_enable;
 		/*local play screen mode set by decoder*/
-		if (overscan_table[0].source == SOURCE_MPEG)
-			vf->pic_mode.screen_mode = 0xff;
-		else
-			vf->pic_mode.screen_mode =
-				overscan_table[overscan_timing].screen_mode;
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+		      vf->pic_mode.AFD_enable)) {
+			if (overscan_table[0].source == SOURCE_MPEG)
+				vf->pic_mode.screen_mode = 0xff;
+			else
+				vf->pic_mode.screen_mode = overscan_screen_mode;
+		}
 
-		vf->pic_mode.hs = overscan_table[overscan_timing].hs;
-		vf->pic_mode.he = overscan_table[overscan_timing].he;
-		vf->pic_mode.vs = overscan_table[overscan_timing].vs;
-		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+		    vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_table[overscan_timing].hs;
+			vf->pic_mode.he += overscan_table[overscan_timing].he;
+			vf->pic_mode.vs += overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve += overscan_table[overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_table[overscan_timing].hs;
+			vf->pic_mode.he = overscan_table[overscan_timing].he;
+			vf->pic_mode.vs = overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
@@ -1596,11 +1651,23 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 			overscan_table[overscan_timing].screen_mode;
 		vf->pic_mode.AFD_enable =
 			overscan_table[overscan_timing].afd_enable;
-		vf->pic_mode.screen_mode = overscan_screen_mode;
-		vf->pic_mode.hs = overscan_table[overscan_timing].hs;
-		vf->pic_mode.he = overscan_table[overscan_timing].he;
-		vf->pic_mode.vs = overscan_table[overscan_timing].vs;
-		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+		      vf->pic_mode.AFD_enable))
+			vf->pic_mode.screen_mode = overscan_screen_mode;
+
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+		    vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_table[overscan_timing].hs;
+			vf->pic_mode.he += overscan_table[overscan_timing].he;
+			vf->pic_mode.vs += overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve += overscan_table[overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_table[overscan_timing].hs;
+			vf->pic_mode.he = overscan_table[overscan_timing].he;
+			vf->pic_mode.vs = overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
 #endif
@@ -1630,27 +1697,169 @@ void amvecm_reset_overscan(void)
 
 static int P3dlut_tab[289] = {0};
 static int P3dlut_regtab[291] = {0};
-/*------------------------------------------------*/
-/*plut3d[]: 17*17*17*3*12bit*/
-int vpp_set_lut3d(int enable, int blut3dload,
-		  int *plut3d, int blut3dcheck)
+static unsigned int *plut3d;
+static unsigned char *pkeylutall;
+static unsigned int *pkeylut;
+static unsigned int max_3dlut_count = 3;
+#define LUT3DBIN_PATH "/vendor/etc/tvconfig/panel/3dlut.bin"
+/*plut3d[]: 17*17*17*3*10bit for tl1*/
+/*plut3d[]: 17*17*17*3*12bit for tm2*/
+/*bfromkey == 0 data from input para */
+/*bfromkey == 1 data from unifykey */
+/*bfromkey == 2 data from bin file */
+int vpp_set_lut3d(int bfromkey,
+		  int keyindex,
+		  unsigned int p3dlut_in[][3],
+		  int blut3dcheck)
 {
-	int i;
-	u32 dwtemp, wrgb[3];
+	int i, key_len, key_count, ret, offset = 0;
+	int d0, d1, d2, counter, size, index0, index1, idn;
+	u32 dwtemp, ctltemp, wrgb[3];
+	unsigned int combine3 = 0;
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
 
-	if (blut3dload) {
-		WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
-		WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31));
-		for (i = 0; i < 17 * 17 * 17; i++) {
-			//{comp0, comp1, comp2}
-			WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
-				      ((plut3d[i * 3 + 1] & 0xfff) << 16) |
-				      (plut3d[i * 3 + 2] & 0xfff));
-			WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
-				      (plut3d[i * 3 + 0] & 0xfff)); /*MSB*/
+	if (!lut3d_en)
+		return 1;
+
+	if (!plut3d)
+		return 1;
+
+	/* load 3d lut from unifykey store */
+	if (bfromkey) {
+		/* allocate a little bit more buffer than required for safety */
+		key_len = (4914 * 5 * max_3dlut_count);
+		pkeylutall = kmalloc(key_len, GFP_KERNEL);
+		if (!pkeylutall)
+			return 1;
+
+		pkeylut = kmalloc(4914 * sizeof(int) * 3,
+				  GFP_KERNEL);
+		if (!pkeylut) {
+			kfree(pkeylutall);
+			return 1;
 		}
-		pr_info("%s: Lut3d load ok!!\n", __func__);
+
+		if (bfromkey == 1) {
+			ret =
+			lcd_unifykey_get_no_header("lcd_3dlut",
+						   (unsigned char *)pkeylutall,
+						   &key_len);
+			if (ret) {
+				kfree(pkeylutall);
+				kfree(pkeylut);
+				return 1;
+			}
+		} else if (bfromkey == 2) {
+			fp = filp_open(LUT3DBIN_PATH, O_RDONLY, 0);
+			if (IS_ERR(fp)) {
+				kfree(pkeylutall);
+				kfree(pkeylut);
+				return 1;
+			}
+			fs = get_fs();
+			set_fs(KERNEL_DS);
+			pos = 0;
+			key_len = vfs_read(fp, pkeylutall, key_len, &pos);
+
+			if (key_len == 0) {
+				kfree(pkeylutall);
+				kfree(pkeylut);
+				return 1;
+			}
+			filp_close(fp, NULL);
+			set_fs(fs);
+		}
+
+		size = (4914 * 9) / 2;
+		key_count = key_len / size;
+		if (keyindex >= key_count) {
+			pr_info("warn: key index out of range");
+			kfree(pkeylutall);
+			kfree(pkeylut);
+			return 1;
+		}
+
+		offset = keyindex * size;
+		counter = 0;
+		combine3 = 0;
+		for (i = 0; i < size; i += 3) {
+			combine3 = pkeylutall[offset + i];
+			combine3 |= (pkeylutall[offset + i + 1] << 8);
+			combine3 |= (pkeylutall[offset + i + 2] << 16);
+			pkeylut[counter] = combine3 & 0xfff;
+			++counter;
+			pkeylut[counter] = (combine3 >> 12) & 0xfff;
+			++counter;
+		}
+
+		if (counter != 4914 * 3)
+			pr_info("warn: key lut read size error");
+
+		for (d0 = 0; d0 < 17; d0++) {
+			for (d1 = 0; d1 < 17; d1++) {
+				for (d2 = 0; d2 < 17; d2++) {
+					index0 = d0 * 289 + d1 * 17 + d2;
+					index1 = d2 * 289 + d1 * 17 + d0;
+					idn =
+					lut3d_order ? index1 : index0;
+					plut3d[index0 * 3 + 0] =
+					pkeylut[idn * 3 + 0] & 0xfff;
+					plut3d[index0 * 3 + 1] =
+					pkeylut[idn * 3 + 1] & 0xfff;
+					plut3d[index0 * 3 + 2] =
+					pkeylut[idn * 3 + 2] & 0xfff;
+				}
+			}
+		}
+
+		kfree(pkeylutall);
+		kfree(pkeylut);
+	} else {
+		if (p3dlut_in) {
+			for (d0 = 0; d0 < 17; d0++) {
+				for (d1 = 0; d1 < 17; d1++) {
+					for (d2 = 0; d2 < 17; d2++) {
+						index0 =
+						d0 * 289 + d1 * 17 + d2;
+						index1 =
+						d2 * 289 + d1 * 17 + d0;
+						idn =
+						lut3d_order ? index1 : index0;
+						plut3d[index0 * 3 + 0] =
+						p3dlut_in[idn][0] & 0xfff;
+						plut3d[index0 * 3 + 1] =
+						p3dlut_in[idn][1] & 0xfff;
+						plut3d[index0 * 3 + 2] =
+						p3dlut_in[idn][2] & 0xfff;
+					}
+				}
+			}
+		}
 	}
+
+	ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
+	WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp & 0xFFFFFFFE);
+	usleep_range(16000, 16001);
+
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
+	WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31));
+	for (i = 0; i < 17 * 17 * 17; i++) {
+		//{comp0, comp1, comp2}
+		WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      ((plut3d[i * 3 + 1] & 0xfff) << 16) |
+			      (plut3d[i * 3 + 2] & 0xfff));
+		WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      (plut3d[i * 3 + 0] & 0xfff)); /*MSB*/
+		if (lut3d_debug == 1 && (i < 17 * 17))
+			pr_info("%d: %03x %03x %03x\n",
+				i,
+				plut3d[i * 3 + 0],
+				plut3d[i * 3 + 1],
+				plut3d[i * 3 + 2]);
+	}
+
 	if (blut3dcheck) {
 		WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
 		WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (1 << 31));
@@ -1668,15 +1877,18 @@ int vpp_set_lut3d(int enable, int blut3dload,
 			if (wrgb[0] != plut3d[i * 3 + 0]) {
 				pr_info("%s:Error: Lut3d check error at R[%d]\n",
 					__func__, i);
+				WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
 				return 1;
 			}
 			if (wrgb[1] != plut3d[i * 3 + 1]) {
 				pr_info("%s:Error: Lut3d check error at G[%d]\n",
 					__func__, i);
+				WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
 				return 1;
 			}
 			if (wrgb[2] != plut3d[i * 3 + 2]) {
 				pr_info("%s:\n", __func__);
+				WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
 				return 1;
 			}
 		}
@@ -1684,92 +1896,146 @@ int vpp_set_lut3d(int enable, int blut3dload,
 	}
 
 	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
-	WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, 7, 4, 3);/*reg_lut3d_extnd_en[6:4]*/
-	WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, enable & 0x1, 0, 1);/*reg_lut3d_en*/
-	pr_info("%s: Lut3d set done!!\n", __func__);
+	WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
 	return 0;
 }
 
-static void ycbcr2rgbpc_nb(int *R, int *G, int *B,
-			   int Y, int CB, int CR, int bitdepth)
+int vpp_write_lut3d_section(int index, int section_len,
+			    unsigned int *p3dlut_section_in)
 {
-	int y = 0;
-	int cb = 0;
-	int cr = 0;
-	int r = 0;
-	int g = 0;
-	int b = 0;
-	int norm = (1 << bitdepth) - 1;
+	int i;
+	int r_offset, g_offset;
+	u32 ctltemp;
 
-	y  = Y  - (1 << (bitdepth - 4));
-	cb = CB - (1 << (bitdepth - 1));
-	cr = CR - (1 << (bitdepth - 1));
+	if (!lut3d_en)
+		return 1;
 
-	r = (298 * y + 408 * cr) / 256;
-	g = (298 * y - 208 * cr - 100 * cb) / 256;
-	b = (298 * y + 516 * cb) / 256;
+	index = index * section_len / 17;
 
-	if (r > norm)
-		r = norm;
-	if (g > norm)
-		g = norm;
-	if (b > norm)
-		b = norm;
+	g_offset = index % 17;
+	r_offset = index / 17;
 
-	if (r < 0)
-		r = 0;
-	if (g < 0)
-		g = 0;
-	if (b < 0)
-		b = 0;
+	ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
+	WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp & 0xFFFFFFFE);
+	usleep_range(16000, 16001);
 
-	*R = r;
-	*G = g;
-	*B = b;
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
+	/* LUT3D_RAM_ADDR  bit20:16 R, bit12:8 G, bit4:0 B */
+	WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR,
+		      (r_offset << 16) | (g_offset << 8) | (0 << 31));
+	for (i = 0; i < section_len; i++) {
+		//{comp0, comp1, comp2}
+		WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      ((p3dlut_section_in[i * 3 + 1] & 0xfff) << 16) |
+			      (p3dlut_section_in[i * 3 + 2] & 0xfff));
+		WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      (p3dlut_section_in[i * 3 + 0] & 0xfff)); /*MSB*/
+	}
+
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
+	WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
+	return 0;
+}
+
+int vpp_read_lut3d_section(int index, int section_len,
+			   unsigned int *p3dlut_section_out)
+{
+	int i;
+	int r_offset, g_offset;
+	u32 dwtemp;
+
+	if (!lut3d_en)
+		return 1;
+
+	index = index * section_len / 17;
+
+	g_offset = index % 17;
+	r_offset = index / 17;
+
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
+	/* LUT3D_RAM_ADDR  bit20:16 R, bit12:8 G, bit4:0 B */
+	WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR,
+		      (r_offset << 16) | (g_offset << 8) | (1 << 31));
+	for (i = 0; i < section_len; i++) {
+		dwtemp  = READ_VPP_REG(VPP_LUT3D_RAM_DATA);
+		p3dlut_section_out[i * 3 + 2] = dwtemp & 0xfff;
+		p3dlut_section_out[i * 3 + 1] = (dwtemp >> 16) & 0xfff;
+		dwtemp  = READ_VPP_REG(VPP_LUT3D_RAM_DATA);
+		p3dlut_section_out[i * 3 + 0] = dwtemp & 0xfff;
+	}
+
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
+	return 0;
+}
+
+int vpp_enable_lut3d(int enable)
+{
+	u32 temp;
+
+	if (!lut3d_en)
+		return 1;
+
+	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
+
+	temp  = READ_VPP_REG(VPP_LUT3D_CTRL);
+	temp = (temp & 0xFFFFFF8E) | (enable & 0x1) | (0x7 << 4);
+	/*reg_lut3d_extnd_en[6:4]*/
+	/*reg_lut3d_en*/
+	WRITE_VPP_REG(VPP_LUT3D_CTRL, temp);
+	return 0;
 }
 
 /*table: use for yuv->rgb*/
-void vpp_lut3d_table_init(int *plut3d, int bitdepth)
+void vpp_lut3d_table_init(int r, int g, int b)
 {
-	int d0, d1, d2, ncmp;
-	unsigned int i, index_r, index_g, index_b;
-	int step[3]; /*steps of each input components lut-nodes*/
-	int max_val = (1 << bitdepth) - 1;
-	/*step*/
-	for (ncmp = 0; ncmp < 3; ncmp++)
-		step[ncmp] = (1 << (bitdepth - 4));
+	int d0, d1, d2, step, max_val = 4095;
+	unsigned int i, index;
+
+	mutex_lock(&vpp_lut3d_lock);
+
+	plut3d = kmalloc(14739 * sizeof(int), GFP_KERNEL);
+	if (!plut3d)
+		return;
+
+	if (is_meson_tl1_cpu())
+		max_val = 1023;
+
+	step = (max_val + 1) / 16;
 
 	/*initialize the lut3d ad same input and output;*/
 	for (d0 = 0; d0 < 17; d0++) {
 		for (d1 = 0; d1 < 17; d1++) {
 			for (d2 = 0; d2 < 17; d2++) {
-				index_r =
-				d0 * 17 * 17 * 3 + d1 * 17 * 3 + d2 * 3 + 0;
-				index_g =
-				d0 * 17 * 17 * 3 + d1 * 17 * 3 + d2 * 3 + 1;
-				index_b =
-				d0 * 17 * 17 * 3 + d1 * 17 * 3 + d2 * 3 + 2;
-				plut3d[index_r] =
-					(d0 * step[0] < max_val) ?
-					d0 * step[0] : max_val;
-				plut3d[index_g] =
-					(d1 * step[1] < max_val) ?
-					d1 * step[1] : max_val;
-				plut3d[index_b] =
-					(d2 * step[2] < max_val) ?
-					d2 * step[2] : max_val;
-				ycbcr2rgbpc_nb(&plut3d[index_r],
-					       &plut3d[index_g],
-					       &plut3d[index_b],
-					       plut3d[index_r],
-					       plut3d[index_g],
-					       plut3d[index_b],
-					       bitdepth);
+				index =
+				d0 * 17 * 17 * 3 + d1 * 17 * 3 + d2 * 3;
+				if (r < 0 || g < 0 || b < 0) {
+					/* bypass data */
+					plut3d[index + 0] =
+						min(max_val, d0 * step);
+					plut3d[index + 1] =
+						min(max_val, d1 * step);
+					plut3d[index + 2] =
+						min(max_val, d2 * step);
+				} else {
+					plut3d[index + 0] =
+						min(max_val, r);
+					plut3d[index + 1] =
+						min(max_val, g);
+					plut3d[index + 2] =
+						min(max_val, b);
+				}
 			}
 		}
 	}
 	for (i = 0; i < 289; i++)
 		P3dlut_tab[i] = plut3d[i];
+}
+
+void vpp_lut3d_table_release(void)
+{
+	kfree(plut3d);
+	plut3d = NULL;
+	mutex_unlock(&vpp_lut3d_lock);
 }
 
 void dump_plut3d_table(void)
@@ -1806,7 +2072,6 @@ void set_gamma_regs(int en, int sel)
 {
 	int i;
 	int *gamma_lut = NULL;
-	u32 temp;
 
 	static int gamma_lut_default[66] =  {
 	0, 0, 0, 1, 2, 4, 6, 8, 11, 14, 17, 21, 26, 31,
@@ -1833,22 +2098,253 @@ void set_gamma_regs(int en, int sel)
 
 	if (en) {
 		WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
-		for (i = 0; i < 33; i = i + 1) {
-			temp = (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16) |
-				((gamma_lut[i * 2] << 2) & 0xffff);
-			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, temp);
-		}
-		for (i = 0; i < 33; i = i + 1) {
-			temp = (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16) |
-				((gamma_lut[i * 2] << 2) & 0xffff);
-			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, temp);
-		}
-		for (i = 0; i < 33; i = i + 1) {
-			temp = (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16) |
-				((gamma_lut[i * 2] << 2) & 0xffff);
-			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, temp);
-		}
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				      (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				      ((gamma_lut[i * 2] << 2) & 0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				      (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				      ((gamma_lut[i * 2] << 2) & 0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				      (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				      ((gamma_lut[i * 2] << 2) & 0xffff)));
 		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
 	}
 }
 
+void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb)
+{
+	int i;
+
+	if (!pre_gma_tb)
+		return;
+
+	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
+	for (i = 0; i < 32; i++)
+		VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				    (((pre_gma_tb->lut_r[i * 2 + 1] << 2) & 0xffff) << 16 |
+				    ((pre_gma_tb->lut_r[i * 2] << 2) & 0xffff)));
+	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, (pre_gma_tb->lut_r[64] << 2) & 0xffff);
+	for (i = 0; i < 32; i++)
+		VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				    (((pre_gma_tb->lut_g[i * 2 + 1] << 2) & 0xffff) << 16 |
+				    ((pre_gma_tb->lut_g[i * 2] << 2) & 0xffff)));
+	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, (pre_gma_tb->lut_g[64] << 2) & 0xffff);
+	for (i = 0; i < 32; i++)
+		VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				    (((pre_gma_tb->lut_b[i * 2 + 1] << 2) & 0xffff) << 16 |
+				    ((pre_gma_tb->lut_b[i * 2] << 2) & 0xffff)));
+	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, (pre_gma_tb->lut_b[64] << 2) & 0xffff);
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, pre_gma_tb->en, 0, 1);
+}
+
+void amvecm_wb_enable(int enable)
+{
+	if (enable) {
+		wb_en = 1;
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+	} else {
+		wb_en = 0;
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+	}
+}
+
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
+{
+	VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
+				 pq_cfg.sharpness0_en, 1, 1);
+
+	VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
+				 pq_cfg.sharpness1_en, 1, 1);
+
+	if (pq_cfg.dnlp_en) {
+		ve_enable_dnlp();
+		dnlp_en = 1;
+	} else {
+		ve_disable_dnlp();
+		dnlp_en = 0;
+	}
+
+	if (pq_cfg.cm_en) {
+		amcm_enable();
+		cm_en = 1;
+	} else {
+		amcm_disable();
+		cm_en = 0;
+	}
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC,
+					 pq_cfg.vadj1_en, 0, 1);
+	else
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+					 pq_cfg.vadj1_en, 0, 1);
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VD1_RGB_CTRST,
+				 pq_cfg.vd1_ctrst_en, 1, 1);
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC,
+					 pq_cfg.vadj2_en, 0, 1);
+	else
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+					 pq_cfg.vadj2_en, 2, 1);
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_RGB_CTRST,
+				 pq_cfg.post_ctrst_en, 1, 1);
+
+	amvecm_wb_enable(pq_cfg.wb_en);
+
+	gamma_en = pq_cfg.gamma_en;
+	VSYNC_WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+				 pq_cfg.gamma_en, GAMMA_EN, 1);
+
+	if (pq_cfg.lc_en) {
+		lc_en = 1;
+	} else {
+		lc_en = 0;
+		if (is_meson_tl1_cpu() ||
+		    is_meson_tm2_cpu())
+			lc_disable();
+	}
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+				 pq_cfg.black_ext_en, 3, 1);
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+				 pq_cfg.chroma_cor_en, 4, 1);
+
+	return 0;
+}
+
+unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
+{
+	unsigned int ret = 0;
+	struct pq_ctrl_s cfg;
+
+	if (dv_pq_bypass == 2) {
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.vadj1_en = pq_cfg.vadj1_en;
+	} else if (dv_pq_bypass == 1) {
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+	} else {
+		memcpy(&cfg, &pq_cfg, sizeof(struct pq_ctrl_s));
+	}
+
+	if (!cfg.sharpness0_en) {
+		if (p->addr == (SRSHARP0_PK_NR_ENABLE)) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!cfg.sharpness1_en) {
+		if (p->addr == (SRSHARP1_PK_NR_ENABLE)) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!cfg.cm_en) {
+		if (p->addr == 0x208) {
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+				ret |= 1 << 0;
+			else
+				ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!cfg.vadj1_en) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (p->addr == VPP_VADJ1_MISC) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		} else {
+			if (p->addr == VPP_VADJ_CTRL) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		}
+	}
+
+	if (!cfg.vd1_ctrst_en) {
+		if (p->addr == VPP_VD1_RGB_CTRST) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!cfg.vadj2_en) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (p->addr == VPP_VADJ2_MISC) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		} else {
+			if (p->addr == VPP_VADJ2_Y) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		}
+	}
+
+	if (!cfg.post_ctrst_en) {
+		if (p->addr == VPP_POST_RGB_CTRST) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (p->addr == VPP_VE_ENABLE_CTRL) {
+		if (!cfg.black_ext_en)
+			ret |= 1 << 3;
+		if (!cfg.chroma_cor_en)
+			ret |= 1 << 4;
+		return ret;
+	}
+
+	return ret;
+}
+
+int dv_pq_ctl(enum dv_pq_ctl_e ctl)
+{
+	struct pq_ctrl_s cfg;
+
+	switch (ctl) {
+	case DV_PQ_BYPASS:
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.vadj1_en = pq_cfg.vadj1_en;
+		vpp_pq_ctrl_config(cfg);
+		dv_pq_bypass = 2;
+		pr_amve_dbg("dv enable, pq disable, dv_pq_bypass = %d\n",
+			    dv_pq_bypass);
+		break;
+	case DV_PQ_CERT:
+		vpp_pq_ctrl_config(dv_cfg_bypass);
+		dv_pq_bypass = 1;
+		pr_amve_dbg("dv certification mode, pq disable, dv_pq_bypass = %d\n",
+			    dv_pq_bypass);
+		break;
+	case DV_PQ_REC:
+		vpp_pq_ctrl_config(pq_cfg);
+		dv_pq_bypass = 0;
+		pr_amve_dbg("dv disable, pq recovery, dv_pq_bypass = %d\n",
+			    dv_pq_bypass);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(dv_pq_ctl);

@@ -105,8 +105,13 @@ enum output_format_e {
 #define XVY_MTX_EN_MASK  BIT(XVY_MTX_EN)
 #define OSD1_MTX_EN_MASK BIT(OSD1_MTX_EN)
 
-#define HDR_SUPPORT	BIT(2)
-#define HLG_SUPPORT	BIT(3)
+#define SDR_SUPPORT		(BIT(1))
+#define HDR_SUPPORT		(BIT(2))
+#define HLG_SUPPORT		(BIT(3))
+#define HDRP_SUPPORT		(BIT(4))
+#define BT2020_SUPPORT		(BIT(5))
+#define DV_SUPPORT_SHF		(6)
+#define DV_SUPPORT		(3 << DV_SUPPORT_SHF)
 
 bool is_vinfo_available(const struct vinfo_s *vinfo);
 int is_sink_cap_changed(const struct vinfo_s *vinfo,
@@ -129,6 +134,7 @@ int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
 #define SIG_COLORIMETRY_SUPPORT 0x1000
 #define SIG_OUTPUT_MODE_CHG	0x2000
 #define SIG_HDR_OOTF_CHG 0x4000
+#define SIG_FORCE_CHG 0x8000
 
 #define LUT_289_SIZE	289
 extern unsigned int lut_289_mapping[LUT_289_SIZE];
@@ -168,9 +174,9 @@ extern uint cur_sdr_process_mode[VD_PATH_MAX];
 /* 0: tx don't support hdr10+, 1: tx support hdr10+*/
 extern uint tx_hdr10_plus_support;
 
-int amvecm_matrix_process(struct vframe_s *vf,
-			  struct vframe_s *vf_rpt,
-			  int flags,
+extern struct master_display_info_s dbg_hdr_send;
+
+int amvecm_matrix_process(struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
 			  enum vd_path_e vd_path);
 int amvecm_hdr_dbg(u32 sel);
 
@@ -204,6 +210,7 @@ void hdr_set_cfg_osd_100(int val);
 void hdr_osd_off(void);
 void hdr_vd1_off(void);
 void hdr_vd2_off(void);
+void hdr_vd1_iptmap(void);
 bool is_video_layer_on(enum vd_path_e vd_path);
 
 #define HDR_MODULE_OFF		0
@@ -241,8 +248,12 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path);
 #define HDRPLUS_PKT_REPEAT	1
 #define HDRPLUS_PKT_IDLE	0
 
-void hdr10_plus_process_update(int force_source_lumin);
+void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path);
 extern int customer_hdr_clipping;
+
+/* api to get sink capability */
+uint32_t sink_dv_support(const struct vinfo_s *vinfo);
+uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 
 #endif /* AM_CSC_H */
 

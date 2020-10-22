@@ -43,6 +43,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include "../amvecm/arch/vpp_hdr_regs.h"
 #include "../amvecm/amcsc.h"
+#include "../amvecm/reg_helper.h"
 #endif
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
@@ -127,9 +128,23 @@ module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 static unsigned int last_dolby_vision_policy;
 
-/* bit0: follow sink 0: bypass hdr to vpp, 1: process hdr by dolby core */
-/* bit1: follow source 0: bypass hdr to vpp, 1: process hdr by dolby core */
-/* bit2: 0: bypass hlg/hdr10+ to vpp, 1: process hlg/hdr10+ by dolby core */
+/* === HDR10 === */
+/* bit0: follow sink 0: bypass hdr10 to vpp 1: process hdr10 by dolby core */
+/* bit1: follow source 0: bypass hdr10 to vpp 1: process hdr10 by dolby core */
+/* === HDR10+ === */
+/* bit2: 0: bypass hdr10+ to vpp, 1: process hdr10+ as hdr10 by dolby core */
+/* === HLG -- TV core 1.6 only === */
+/* bit3: follow sink 0: bypass hlg to vpp, 1: process hlg by dolby core */
+/* bit4: follow source 0: bypass hlg to vpp, 1: process hlg by dolby core */
+/* === SDR === */
+/* bit5: 0: bypass SDR to vpp, 1: process SDR by dolby core */
+/* set by policy_process */
+#define HDR_BY_DV_F_SINK 0x1
+#define HDR_BY_DV_F_SRC 0x2
+#define HDRP_BY_DV 0x4
+#define HLG_BY_DV_F_SINK 0x8
+#define HLG_BY_DV_F_SRC 0x10
+#define SDR_BY_DV 0x20
 static unsigned int dolby_vision_hdr10_policy = 1;
 module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
@@ -215,6 +230,15 @@ static u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
 static unsigned int dolby_vision_src_format;
 module_param(dolby_vision_src_format, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_src_format, "\n dolby_vision_src_format\n");
+/*bit0: 0-> efuse, 1->no efuse; */
+/*bit1: 1->ko loaded*/
+/*bit2: 1-> value updated*/
+static int support_info;
+int get_dv_support_info(void)
+{
+	return support_info;
+}
+EXPORT_SYMBOL(get_dv_support_info);
 
 static uint dolby_vision_on_count;
 static bool dolby_vision_el_disable;
@@ -4445,7 +4469,6 @@ static int sink_support_dolby_vision(const struct vinfo_s *vinfo)
 
 static int sink_support_hdr(const struct vinfo_s *vinfo)
 {
-#define HDR_SUPPORT BIT(2)
 	if (!vinfo)
 		return 0;
 	if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
@@ -7863,6 +7886,33 @@ int get_dolby_vision_policy(void)
 	return dolby_vision_policy;
 }
 EXPORT_SYMBOL(get_dolby_vision_policy);
+
+/* bit 0 for HDR10: 1=by dv, 0-by vpp */
+/* bit 1 for HLG: 1=by dv, 0-by vpp */
+int get_dolby_vision_hdr_policy(void)
+{
+	int ret = 0;
+
+	if (!is_dolby_vision_enable())
+		return 0;
+	if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SOURCE) {
+		/* policy == FOLLOW_SRC, check hdr/hlg policy */
+		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SRC) ? 1 : 0;
+		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SRC) ? 2 : 0;
+	} else if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SINK) {
+		/* policy == FOLLOW_SINK, check hdr/hlg policy */
+		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SINK) ? 1 : 0;
+		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SINK) ? 2 : 0;
+	} else {
+		/* policy == FORCE, check hdr/hlg policy */
+		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SRC) ? 1 : 0;
+		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SRC) ? 2 : 0;
+		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SINK) ? 1 : 0;
+		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SINK) ? 2 : 0;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(get_dolby_vision_hdr_policy);
 
 int register_dv_functions(const struct dolby_vision_func_s *func)
 {

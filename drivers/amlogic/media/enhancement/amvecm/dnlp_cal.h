@@ -153,5 +153,6 @@ extern unsigned int *ve_dnlp_tgt_10b_copy;
 void dnlp_dbg_node_copy(void);
 extern bool dnlp_insmod_ok; /*0:fail, 1:ok*/
 extern int *dnlp_printk_copy;
+void ai_dnlp_param_update(int value);
 #endif
 
