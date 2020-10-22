@@ -171,6 +171,7 @@ void nr_process_in_irq(void);
 void nr_all_config(unsigned short nCol, unsigned short nRow,
 	unsigned short type);
 bool set_nr_ctrl_reg_table(unsigned int addr, unsigned int value);
+void secam_cfr_adjust(unsigned int sig_fmt, unsigned int frame_type);
 
 extern void cue_int(struct vframe_s *vf);
 

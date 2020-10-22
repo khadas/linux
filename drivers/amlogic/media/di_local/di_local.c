@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_local/di_local.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/version.h>
@@ -28,6 +41,9 @@
 #include <linux/of_irq.h>
 #include <linux/uaccess.h>
 #include <linux/of_fdt.h>
+#include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/vpu/vpu.h>	//VPU_MEM_POWER_ON
+#include "../deinterlace/di_pqa.h"
 
 /*for di_ext_ops*/
 /*#include <linux/amlogic/media/video_sink/video.h> */
@@ -58,6 +74,8 @@ static const struct di_ext_ops *dil_api;	//temp
 
 static unsigned int diffver_flag;
 
+static unsigned int cpuver_id;
+
 /***************************************
  * dil api for make a distinction between old/new DI function *
  **************************************/
@@ -71,6 +89,20 @@ unsigned int dil_get_diffver_flag(void)
 	return diffver_flag;
 }
 EXPORT_SYMBOL(dil_get_diffver_flag);
+
+/***************************************
+ * dil api for cpu version *
+ **************************************/
+void dil_set_cpuver_flag(unsigned int para)
+{
+	cpuver_id = para;
+}
+EXPORT_SYMBOL(dil_set_cpuver_flag);
+unsigned int dil_get_cpuver_flag(void)
+{
+	return cpuver_id;
+}
+EXPORT_SYMBOL(dil_get_cpuver_flag);
 
 /***************************************
  * di api for other module *
@@ -138,6 +170,20 @@ void DI_POST_UPDATE_MC(void)
 }
 EXPORT_SYMBOL(DI_POST_UPDATE_MC);
 
+void dim_post_keep_cmd_release2(struct vframe_s *vframe)
+{
+	if (dil_api && dil_api->post_keep_cmd_release2)
+		dil_api->post_keep_cmd_release2(vframe);
+}
+EXPORT_SYMBOL(dim_post_keep_cmd_release2);
+
+void dim_polic_cfg(unsigned int cmd, bool on)
+{
+	if (dil_api && dil_api->polic_cfg)
+		dil_api->polic_cfg(cmd, on);
+}
+EXPORT_SYMBOL(dim_polic_cfg);
+
 /***************************************
  * reserved mem for di *
  **************************************/
@@ -161,6 +207,34 @@ void dil_get_flg(unsigned int *flg)
 }
 EXPORT_SYMBOL(dil_get_flg);
 
+/**********************************
+ * ext_api used by DI
+ ********************************/
+
+void ext_switch_vpu_mem_pd_vmod(unsigned int vmod, bool on)
+{
+	//switch_vpu_mem_pd_vmod(vmod,
+			       //on ? VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN);
+}
+
+const struct ext_ops_s ext_ops_4_di = {
+	.switch_vpu_mem_pd_vmod		= ext_switch_vpu_mem_pd_vmod,
+	/*no use ?*/
+/*	.vf_get_receiver_name		= vf_get_receiver_name,*/
+	//.switch_vpu_clk_gate_vmod	= switch_vpu_clk_gate_vmod,
+	.get_current_vscale_skip_count	= get_current_vscale_skip_count,
+	.cvs_alloc_table = canvas_pool_alloc_canvas_table,
+	.cvs_free_table	= canvas_pool_free_canvas_table,
+};
+
+bool dil_attch_ext_api(const struct ext_ops_s **exp_4_di)
+{
+	*exp_4_di = &ext_ops_4_di;
+
+	return true;
+}
+EXPORT_SYMBOL(dil_attch_ext_api);
+
 /***************************************
  * reserved mem for di *
  **************************************/
@@ -173,9 +247,10 @@ int __init rmem_dil_init(struct reserved_mem *rmem,
 	if (devp) {
 		devp->mem_start = rmem->base;
 		devp->mem_size = rmem->size;
-		if (pfn_valid(__phys_to_pfn(devp->mem_start)))
+	#ifdef MARK_HIS//mark for ko can't use the reserved mem
+		if (!of_get_flat_dt_prop(rmem->fdt_node, "no-map", NULL))
 			devp->flg_map = 1;
-
+	#endif
 #ifdef MARK_HIS
 		o_size = rmem->size / DI_CHANNEL_NUB;
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/di_multi/di_post.h
+ * drivers/amlogic/media/di_multi/sc2/di_afbc_dbg.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,13 +16,11 @@
  *
  */
 
-#ifndef __DI_POST_H__
-#define __DI_POST_H__
+#ifndef __DI_AFBC_DBG_H__
+#define __DI_AFBC_DBG_H__
 
-void dpost_init(void);
-void dpst_process(void);
-const char *dpst_state_name_get(enum EDI_PST_ST state);
-void dpst_dbg_f_trig(unsigned int cmd);
-bool dpst_can_exit(unsigned int ch);
+void dbg_afbcd_bits_show(struct seq_file *s, enum EAFBC_DEC eidx);
+//void dbg_afd_reg(struct seq_file *s, enum EAFBC_DEC eidx);
+void dbg_afbce_bits_show(struct seq_file *s, enum EAFBC_ENC eidx);
 
-#endif	/*__DI_POST_H__*/
+#endif	/*__DI_AFBC_DBG_H__*/

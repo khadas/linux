@@ -4056,6 +4056,8 @@ struct reg_t {
 	char *bname;
 	char *info;
 };
+
+#ifdef MARK_SC2
 struct reg_acc {
 	void (*wr)(unsigned int adr, unsigned int val);
 	unsigned int (*rd)(unsigned int adr);
@@ -4065,6 +4067,7 @@ struct reg_acc {
 			unsigned int len);
 
 };
+#endif
 
 static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 			unsigned int bw)

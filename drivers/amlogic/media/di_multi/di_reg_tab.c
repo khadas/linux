@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_reg_tab.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/kernel.h>
@@ -12,6 +25,8 @@
 #include "deinterlace.h"
 #include "di_data_l.h"
 #include "register.h"
+#include "di_reg_v2.h"
+#include "deinterlace_hw.h"
 
 static const struct reg_t rtab_contr[] = {
 	/*--------------------------*/
@@ -92,7 +107,8 @@ static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 	       (((1L << bw) - 1) << bstart)) >> (bstart));
 }
 
-static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
+//static
+void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 {
 	struct reg_t creg;
 	int i;
@@ -128,7 +144,7 @@ static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 
 		i++;
 		creg = pregtab[i];
-		if (i > TABLE_LEN_MAX) {
+		if (i > DIMTABLE_LEN_MAX) {
 			pr_info("warn: too long, stop\n");
 			break;
 		}
@@ -138,6 +154,17 @@ static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 int reg_con_show(struct seq_file *seq, void *v)
 {
 	dbg_reg_tab(seq, &rtab_contr[0]);
+	return 0;
+}
+
+int reg_contr_show(struct seq_file *s, void *v)
+{
+	if (DIM_IS_IC_EF(SC2)) {
+		if (opl1()->rtab_contr_bits_tab)
+			dbg_reg_tab(s, opl1()->rtab_contr_bits_tab);
+		else
+			seq_printf(s, "%s:none\n", __func__);
+	}
 	return 0;
 }
 
@@ -178,7 +205,7 @@ static unsigned int dim_reg_read(unsigned int addr)
 	return aml_read_vcbus(addr);
 }
 
-static const struct reg_acc di_pre_regset = {
+const struct reg_acc di_pre_regset = {
 	.wr = DIM_DI_WR,
 	.rd = dim_reg_read,
 	.bwr = DIM_RDMA_WR_BITS,
@@ -200,7 +227,7 @@ static bool di_wr_tab(const struct reg_acc *ops,
 
 	for (i = 0; i < tabsize; i++) {
 		if (pl->add == TABLE_FLG_END ||
-		    i > TABLE_LEN_MAX) {
+		    i > DIMTABLE_LEN_MAX) {
 			break;
 		}
 
@@ -224,7 +251,7 @@ bool dim_wr_cue_int(void)
 	di_wr_tab(&di_pre_regset,
 		  ptab,
 		  tabsize);
-	PR_INF("%s:finish\n", __func__);
+	//PR_INF("%s:finish\n", __func__);
 
 	return true;
 }

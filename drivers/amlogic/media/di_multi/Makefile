@@ -24,6 +24,14 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_que.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_sys.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_task.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_api.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_que_buf.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_decont.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/dolby_sys.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_hw_v3.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_afbc_v3.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_afbc_dbg.o
 
 ccflags-y += -Idrivers/amlogic/media/common/rdma/
 ccflags-y += -I$(src)/di_multi/
+ccflags-y += -I$(src)/di_multi/sc2
+ccflags-y += -Idrivers/amlogic/media/di_local/

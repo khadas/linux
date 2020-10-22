@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_vframe.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/semaphore.h>
@@ -53,24 +66,6 @@ void dev_vframe_unreg(struct dev_vfram_t *pvfm)
 		PR_WARN("duplicate ureg\n");
 	}
 }
-
-void di_vframe_reg(unsigned int ch)
-{
-	struct dev_vfram_t *pvfm;
-
-	pvfm = get_dev_vframe(ch);
-
-	dev_vframe_reg(pvfm);
-}
-
-void di_vframe_unreg(unsigned int ch)
-{
-	struct dev_vfram_t *pvfm;
-
-	pvfm = get_dev_vframe(ch);
-	dev_vframe_unreg(pvfm);
-}
-
 /*--------------------------*/
 
 const char * const di_receiver_event_cmd[] = {
@@ -100,9 +95,11 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	struct dev_vfram_t *pvfm;
 	unsigned int ch;
 	int ret = 0;
+	struct di_ch_s *pch;
+	char *provider_name = (char *)data;
 
 	ch = *(int *)arg;
-
+	pch = get_chdata(ch);
 	pvfm = get_dev_vframe(ch);
 
 	if (type <= VFRAME_EVENT_PROVIDER_CMD_MAX	&&
@@ -114,13 +111,18 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_UNREG:
-		ret = di_ori_event_unreg(ch);
-/*		task_send_cmd(LCMD1(ECMD_UNREG, 0));*/
+		dim_trig_unreg(ch);
+		dev_vframe_unreg(&pch->vfm);
+		dim_api_unreg(DIME_REG_MODE_VFM, pch);
+
 		break;
 	case VFRAME_EVENT_PROVIDER_REG:
-		/*dev_vframe_reg(pvfm);*/
-		ret = di_ori_event_reg(data, ch);
-/*		task_send_cmd(LCMD1(ECMD_REG, 0));*/
+		pch->sum_reg_cnt++;
+		dbg_ev("reg:%s[%d]\n", provider_name, pch->sum_reg_cnt);
+
+		dim_api_reg(DIME_REG_MODE_VFM, pch);
+
+		dev_vframe_reg(&pch->vfm);
 		break;
 	case VFRAME_EVENT_PROVIDER_START:
 		break;
@@ -162,6 +164,7 @@ static const struct vframe_receiver_op_s di_vf_receiver = {
 	.event_cb	= di_receiver_event_fun
 };
 
+#ifdef MARK_HIS
 bool vf_type_is_prog(unsigned int type)
 {
 	bool ret = (type & VIDTYPE_TYPEMASK) == 0 ? true : false;
@@ -303,6 +306,7 @@ bool vf_type_is_vd2(unsigned int type)
 
 	return ret;
 }
+#endif
 
 bool is_bypss_complete(struct dev_vfram_t *pvfm)
 {
@@ -345,19 +349,6 @@ bool is_bypss2_complete(unsigned int ch)
 	return is_bypss_complete(pvfm);
 }
 
-#ifdef MARK_HIS
-static void set_reg(unsigned int ch, int on)
-{
-	struct dev_vfram_t *pvfm;
-
-	pvfm = get_dev_vframe(ch);
-
-	if (on)
-		pvfm->reg = true;
-	else
-		pvfm->reg = false;
-}
-#endif
 static struct vframe_s *di_vf_peek(void *arg)
 {
 	unsigned int ch = *(int *)arg;
@@ -394,6 +385,8 @@ static struct vframe_s *di_vf_get(void *arg)
 	#endif
 		return pw_vf_get(ch);
 
+	sum_pst_g_inc(ch);
+
 	return di_vf_l_get(ch);
 }
 
@@ -407,6 +400,8 @@ static void di_vf_put(struct vframe_s *vf, void *arg)
 				      VFRAME_EVENT_RECEIVER_PUT, NULL);
 		return;
 	}
+
+	sum_pst_p_inc(ch);
 
 	di_vf_l_put(vf, ch);
 }
@@ -442,33 +437,6 @@ static const struct vframe_operations_s deinterlace_vf_provider = {
 	.vf_states	= di_vf_states,
 };
 
-#ifdef MARK_HIS
-struct vframe_s *pw_vf_get(unsigned int channel)
-{
-	return vf_get(VFM_NAME);
-}
-
-struct vframe_s *pw_vf_peek(unsigned int channel)
-{
-	return vf_peek(VFM_NAME);
-}
-
-void pw_vf_put(struct vframe_s *vf, unsigned int channel)
-{
-	vf_put(vf, VFM_NAME);
-}
-
-int pw_vf_notify_provider(unsigned int channel, int event_type, void *data)
-{
-	return vf_notify_provider(VFM_NAME, event_type, data);
-}
-
-int pw_vf_notify_receiver(unsigned int channel, int event_type, void *data)
-{
-	return vf_notify_receiver(VFM_NAME, event_type, data);
-}
-
-#else
 struct vframe_s *pw_vf_get(unsigned int ch)
 {
 	sum_g_inc(ch);
@@ -513,8 +481,6 @@ void pw_vf_light_unreg_provider(unsigned int ch)
 	vf_light_unreg_provider(prov);
 }
 
-#endif
-
 void dev_vframe_exit(void)
 {
 	struct dev_vfram_t *pvfm;
@@ -532,6 +498,7 @@ void dev_vframe_init(void)
 {
 	struct dev_vfram_t *pvfm;
 	int ch;
+//	struct di_ch_s *pch;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pvfm = get_dev_vframe(ch);

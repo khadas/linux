@@ -8430,8 +8430,10 @@ static int __init rmem_di_device_init(struct reserved_mem *rmem,
 	if (di_devp) {
 		di_devp->mem_start = rmem->base;
 		di_devp->mem_size = rmem->size;
+		#ifdef MARK_HIS//mark for ko can't use the reserved mem
 		if (!of_get_flat_dt_prop(rmem->fdt_node, "no-map", NULL))
 			di_devp->flags |= DI_MAP_FLAG;
+		#endif
 	pr_dbg("di reveser memory 0x%lx, size %uMB.\n",
 			di_devp->mem_start, (di_devp->mem_size >> 20));
 		return 0;

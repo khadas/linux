@@ -1,6 +1,19 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/register.h
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #ifndef __MACH_DEINTERLACE_REG_ADDR_H_
@@ -36,10 +49,10 @@ void DIM_DI_WR(unsigned int addr, unsigned int val);
 void DIM_DI_WR_REG_BITS(unsigned int adr, unsigned int val,
 			unsigned int start, unsigned int len);
 void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
-void DIM_VSC_WR_MPG_BT(unsigned int addr,
-		       unsigned int val,
-		       unsigned int start,
-		       unsigned int len);
+unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
+			       unsigned int val,
+			       unsigned int start,
+			       unsigned int len);
 
 #define HHI_VPU_CLKB_CNTL	0x83
 
@@ -60,6 +73,8 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_DBG_CTRL1					0x200c
 #define DI_DBG_SRDY_INF					0x200d
 #define DI_DBG_RRDY_INF				0x200e
+
+#ifdef MARK_SC2 /*ary move to di_reg_v2.h */
 /* txl add if2 */
 #define DI_IF2_GEN_REG					0x2010
 #define DI_IF2_CANVAS0					0x2011
@@ -104,6 +119,7 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_IF0_FMT_W					0x2040
 #define DI_IF0_URGENT_CTRL				0x2041
 #define DI_IF0_GEN_REG3					0x2042
+#endif	/*ary move to di_reg_v2.h end */
 /* AXI ARB */
 #define DI_RDARB_MODE_L1C1				0x2050
 #define DI_RDARB_REQEN_SLV_L1C1			0x2051
@@ -119,11 +135,12 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_RDARB_UGT_L1C1				0x205b
 #define DI_RDARB_LIMT0_L1C1				0x205c
 #define DI_WRARB_UGT_L1C1				0x205d
+#ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define DI_PRE_GL_CTRL					0x20ab
 #define DI_PRE_GL_THD					0x20ac
 #define DI_POST_GL_CTRL					0x20ad
 #define DI_POST_GL_THD					0x20ae
-
+#endif
 #define DI_SUB_RDARB_MODE				0x37c0
 #define DI_SUB_RDARB_REQEN_SLV			0x37c1
 #define DI_SUB_RDARB_WEIGH0_SLV			0x37c2
@@ -179,6 +196,13 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define MCINFWR_Y						0x37f6
 #define MCINFWR_CTRL					0x37f7
 #define MCINFWR_CAN_SIZE				0x37f8
+
+/* from TM2 new added */
+/* DI HDR2 */
+#define DI_HDR2_HIST_CTRL				0x37ad
+#define DI_HDR2_HIST_H_START_END			0x37ae
+#define DI_HDR2_HIST_V_START_END			0x37af
+
 /* DI SCALE */
 #define DI_SCO_FIFO_CTRL				0x374e
 #define DI_SC_TOP_CTRL					0x374f
@@ -341,7 +365,8 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* bit 12 ,      me autoenable */
 /* bit 11:8,		mtn_paramtnthd */
 /* bit 7:0,      mtn_parafltthd */
-#define DI_BLEND_CTRL                     ((0x170d)) /* << 2) + 0xd0100000) */
+//just for before sc2,move to reg_v2
+//#define DI_BLEND_CTRL                     ((0x170d)) /* << 2) + 0xd0100000) */
 /* bit 31,      blend_1_en */
 /* bit 30,      blend_mtn_lpf */
 /* bit 28,      post_mb_en */
@@ -1533,6 +1558,7 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_CONTP2RD_X                    ((0x17a5)) /* << 2) + 0xd0100000) */
 #define DI_CONTP2RD_Y                    ((0x17a6)) /* << 2) + 0xd0100000) */
 #define DI_CONTRD_CTRL                   ((0x17a7)) /* << 2) + 0xd0100000) */
+#ifdef MARK_SC2 /*move to di_reg_v2.h*/
 #define DI_NRWR_X                        ((0x17c0)) /* << 2) + 0xd0100000) */
 #define DI_NRWR_Y                        ((0x17c1)) /* << 2) + 0xd0100000) */
 /* bit 31:30				nrwr_words_lim */
@@ -1558,8 +1584,11 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* bit 15:8				nrwr_canvas_index_chroma */
 /* bit 7:0				nrwr_canvas_index_luma */
 #define DI_MTNWR_X                       ((0x17c3)) /* << 2) + 0xd0100000) */
+#endif
+
 #define DI_MTNWR_Y                       ((0x17c4)) /* << 2) + 0xd0100000) */
 #define DI_MTNWR_CTRL                    ((0x17c5)) /* << 2) + 0xd0100000) */
+#ifdef MARK_SC2	/* move to di_reg_v2.h */
 #define DI_DIWR_X                        ((0x17c6)) /* << 2) + 0xd0100000) */
 #define DI_DIWR_Y                        ((0x17c7)) /* << 2) + 0xd0100000) */
 /* bit 31:30				diwr_words_lim */
@@ -1582,11 +1611,13 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* bit 16				diwr_urgent */
 /* bit 15:8				diwr_canvas_index_chroma */
 /* bit 7:0				diwr_canvas_index_luma */
+#endif
 /* `define DI_MTNCRD_X               8'hc9 */
 /* `define DI_MTNCRD_Y               8'hca */
 #define DI_MTNPRD_X                      ((0x17cb)) /* << 2) + 0xd0100000) */
 #define DI_MTNPRD_Y                      ((0x17cc)) /* << 2) + 0xd0100000) */
 #define DI_MTNRD_CTRL                    ((0x17cd)) /* << 2) + 0xd0100000) */
+#ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define DI_INP_GEN_REG                   ((0x17ce)) /* << 2) + 0xd0100000) */
 #define DI_INP_CANVAS0                   ((0x17cf)) /* << 2) + 0xd0100000) */
 #define DI_INP_LUMA_X0                   ((0x17d0)) /* << 2) + 0xd0100000) */
@@ -1655,11 +1686,15 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_CHAN2_GEN_REG2                ((0x17b7)) /* << 2) + 0xd0100000) */
 #define DI_CHAN2_FMT_CTRL                ((0x17b8)) /* << 2) + 0xd0100000) */
 #define DI_CHAN2_FMT_W                   ((0x17b9)) /* << 2) + 0xd0100000) */
+
+#endif /* ary move to di_reg_v2.h end */
+
 #define DI_CANVAS_URGENT0                ((0x170a)) /* << 2) + 0xd0100000) */
 #define DI_CANVAS_URGENT1                ((0x170b)) /* << 2) + 0xd0100000) */
 #define DI_MTN_CTRL                      ((0x170b)) /* << 2) + 0xd0100000) */
 #define DI_CANVAS_URGENT2                ((0x170e)) /* << 2) + 0xd0100000) */
 
+#ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define VD1_IF0_GEN_REG				    0x1a50
 /* ((0x1a50  << 2) + 0xd0100000) */
 #define VD1_IF0_LUMA_FIFO_SIZE          0x1a63
@@ -1700,6 +1735,9 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 /*bit9:8	bit mode: 0 = 8bits, 1=10bits 422,  2 = 10bits 444 */
 #define DI_CHAN2_GEN_REG3               0x20aa
 		/* 0xd01082a8 */
+
+#endif	/*ary move to di_reg_v2.h end*/
+
 /* dnr  Base Addr: 0xd0100000 */
 #define DNR_CTRL                         ((0x2d00))
 /* Bit 31:17,        reserved */
@@ -4410,5 +4448,104 @@ void DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define NR3_CMOT_PARA					0x2ff4
 #define NR3_SUREMOT_YGAIN				0x2ff5
 #define NR3_SUREMOT_CGAIN				0x2ff6
+
+/* for tm2-b */
+
+#define DI_RO_PRE_FIELD_CNT0				((0x17A3))
+#define DI_RO_PRE_FIELD_CNT1				((0x17A4))
+#define DI_RO_POS_FRAME_CNT0				((0x17A5))
+#define DI_RO_POS_FRAME_CNT1				((0x17A6))
+#define DI_INP_AFBC_ENABLE		(0x1800)
+#define DI_INP_AFBC_MODE		(0x1801)
+#define DI_INP_AFBC_SIZE_IN		(0x1802)
+#define DI_INP_AFBC_DEC_DEF_COLOR	(0x1803)
+#define DI_INP_AFBC_CONV_CTRL		(0x1804)
+#define DI_INP_AFBC_LBUF_DEPTH		(0x1805)
+#define DI_INP_AFBC_HEAD_BADDR		(0x1806)
+#define DI_INP_AFBC_BODY_BADDR		(0x1807)
+#define DI_INP_AFBC_SIZE_OUT		(0x1808)
+#define DI_INP_AFBC_OUT_YSCOPE		(0x1809)
+#define DI_INP_AFBC_STAT		(0x180a)
+#define DI_INP_AFBC_VD_CFMT_CTRL	(0x180b)
+#define DI_INP_AFBC_VD_CFMT_W		(0x180c)
+#define DI_INP_AFBC_MIF_HOR_SCOPE	(0x180d)
+#define DI_INP_AFBC_MIF_VER_SCOPE	(0x180e)
+#define DI_INP_AFBC_PIXEL_HOR_SCOPE	(0x180f)
+#define DI_INP_AFBC_PIXEL_VER_SCOPE	(0x1810)
+#define DI_INP_AFBC_VD_CFMT_H		(0x1811)
+
+#define DI_MEM_AFBC_ENABLE		(0x1820)
+#define DI_MEM_AFBC_MODE		(0x1821)
+#define DI_MEM_AFBC_SIZE_IN		(0x1822)
+#define DI_MEM_AFBC_DEC_DEF_COLOR	(0x1823)
+#define DI_MEM_AFBC_CONV_CTRL		(0x1824)
+#define DI_MEM_AFBC_LBUF_DEPTH		(0x1825)
+#define DI_MEM_AFBC_HEAD_BADDR		(0x1826)
+#define DI_MEM_AFBC_BODY_BADDR		(0x1827)
+#define DI_MEM_AFBC_SIZE_OUT		(0x1828)
+#define DI_MEM_AFBC_OUT_YSCOPE		(0x1829)
+#define DI_MEM_AFBC_STAT		(0x182a)
+#define DI_MEM_AFBC_VD_CFMT_CTRL	(0x182b)
+#define DI_MEM_AFBC_VD_CFMT_W		(0x182c)
+#define DI_MEM_AFBC_MIF_HOR_SCOPE	(0x182d)
+#define DI_MEM_AFBC_MIF_VER_SCOPE	(0x182e)
+#define DI_MEM_AFBC_PIXEL_HOR_SCOPE	(0x182f)
+#define DI_MEM_AFBC_PIXEL_VER_SCOPE	(0x1830)
+#define DI_MEM_AFBC_VD_CFMT_H		(0x1831)
+
+#define DI_AFBCE_CTRL			(0x2003) /* ary sc2 ? */
+/*
+ * bit[0]: nrwr_sel: 1: nr channel 0 to afbce; 0:nr channel 0 to normal mif
+ * bit[4]: nr_en: important! 1:enable nr write to DDR;
+ * bit[10]:inp_afbc0_sel:0:normal mif; 1:afbc dec0;
+ * bit[11]:inp_data_sel:0:normal sel; 1:afbc dec0;
+ * bit[12]:mem_afbc1_sel:0:normal mif; 1:afbc dec1;
+ * bit[13]:mem_data_sel:0:normal mif; 1:afbc dec1
+ */
+#define DI_AFBCE_ENABLE			(0x2060)
+#define DI_AFBCE_MODE			(0x2061)
+#define DI_AFBCE_SIZE_IN		(0x2062)
+#define DI_AFBCE_BLK_SIZE_IN		(0x2063)
+#define DI_AFBCE_HEAD_BADDR		(0x2064)
+#define DI_AFBCE_MIF_SIZE		(0x2065)
+#define DI_AFBCE_PIXEL_IN_HOR_SCOPE	(0x2066)
+#define DI_AFBCE_PIXEL_IN_VER_SCOPE	(0x2067)
+#define DI_AFBCE_CONV_CTRL		(0x2068)
+#define DI_AFBCE_MIF_HOR_SCOPE		(0x2069)
+#define DI_AFBCE_MIF_VER_SCOPE		(0x206a)
+#define DI_AFBCE_STAT1			(0x206b)
+#define DI_AFBCE_STAT2			(0x206c)
+#define DI_AFBCE_FORMAT			(0x206d)
+#define DI_AFBCE_MODE_EN		(0x206e)
+#define DI_AFBCE_DWSCALAR		(0x206f)
+#define DI_AFBCE_DEFCOLOR_1		(0x2070)
+#define DI_AFBCE_DEFCOLOR_2		(0x2071)
+#define DI_AFBCE_QUANT_ENABLE		(0x2072)
+#define DI_AFBCE_IQUANT_LUT_1		(0x2073)
+#define DI_AFBCE_IQUANT_LUT_2		(0x2074)
+#define DI_AFBCE_IQUANT_LUT_3		(0x2075)
+#define DI_AFBCE_IQUANT_LUT_4		(0x2076)
+#define DI_AFBCE_RQUANT_LUT_1		(0x2077)
+#define DI_AFBCE_RQUANT_LUT_2		(0x2078)
+#define DI_AFBCE_RQUANT_LUT_3		(0x2079)
+#define DI_AFBCE_RQUANT_LUT_4		(0x207a)
+#define DI_AFBCE_YUV_FORMAT_CONV_MODE	(0x207b)
+#define DI_AFBCE_DUMMY_DATA		(0x207c)
+#define DI_AFBCE_CLR_FLAG		(0x207d)
+#define DI_AFBCE_STA_FLAGT		(0x207e)
+#define DI_AFBCE_MMU_NUM		(0x207f)	/*read only*/
+#define DI_AFBCE_MMU_RMIF_CTRL1		(0x2080)
+#define DI_AFBCE_MMU_RMIF_CTRL2		(0x2081)
+#define DI_AFBCE_MMU_RMIF_CTRL3		(0x2082)
+#define DI_AFBCE_MMU_RMIF_CTRL4		(0x2083)
+#define DI_AFBCE_MMU_RMIF_SCOPE_X	(0x2084)
+#define DI_AFBCE_MMU_RMIF_SCOPE_Y	(0x2085)
+#define DI_AFBCE_MMU_RMIF_RO_STAT	(0x2086)
+
+/* for TM2-B DI FILM_GRAIN */
+
+#define DI_FGRAIN_CTRL					0x1840
+#define DI_FGRAIN_WIN_H					0x1841
+#define DI_FGRAIN_WIN_V					0x1842
 
 #endif

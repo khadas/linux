@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/nr_downscale.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/module.h>
@@ -58,7 +71,7 @@ static void nr_ds_hw_init(unsigned int width, unsigned int height)
  * init nr ds buffer
  */
 void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
-			struct device *dev)
+			struct device *dev, bool tvp_flg)
 {
 	unsigned int i = 0;
 	bool ret;
@@ -70,13 +83,13 @@ void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
 		#ifdef MARK_HIS
 		nrds_dev.nrds_pages = dma_alloc_from_contiguous(dev,
 								NR_DS_PAGE_NUM,
-								0);
+								0, 0);
 		if (nrds_dev.nrds_pages)
 			nrds_dev.nrds_addr = page_to_phys(nrds_dev.nrds_pages);
 		else
 			PR_ERR("DI: alloc nr ds mem error.\n");
 		#else
-		ret = dim_mm_alloc_api(cma_flag, NR_DS_PAGE_NUM, &omm);
+		ret = dim_mm_alloc_api(cma_flag, NR_DS_PAGE_NUM, &omm, tvp_flg);
 		if (ret) {
 			nrds_dev.nrds_pages = omm.ppage;
 			nrds_dev.nrds_addr = omm.addr;
@@ -125,13 +138,15 @@ void dim_nr_ds_init(unsigned int width, unsigned int height)
 	if (nrds_dev.canvas_idx != 0)
 		return;
 
-	if (ext_ops.canvas_pool_alloc_canvas_table("nr_ds",
-						   &nrds_dev.canvas_idx,
-						   1, CANVAS_MAP_TYPE_1)) {
+	if (ops_ext()->cvs_alloc_table("nr_ds",
+				       &nrds_dev.canvas_idx,
+				       1, CANVAS_MAP_TYPE_1)) {
 		PR_ERR("%s alloc nrds canvas error.\n", __func__);
 		return;
 	}
 	PR_INF("%s alloc nrds canvas %u.\n", __func__, nrds_dev.canvas_idx);
+	get_datal()->cvs.nr_ds_idx = nrds_dev.canvas_idx;
+	get_datal()->cvs.en |= DI_CVS_EN_DS;
 }
 
 /*

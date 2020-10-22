@@ -1,11 +1,27 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_api.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include "deinterlace.h"
+#include "di_data_l.h"
+#include "di_prc.h"
 
 #include "di_api.h"
 /**********************************
@@ -15,6 +31,8 @@ static const struct di_ext_ops di_ext = {
 	.di_post_reg_rd             = l_DI_POST_REG_RD,
 	.di_post_wr_reg_bits        = l_DI_POST_WR_REG_BITS,
 	.post_update_mc		    = NULL,
+	.post_keep_cmd_release2		= dim_post_keep_cmd_release2_local,
+	.polic_cfg			= dim_polic_cfg_local,
 };
 
 void dim_attach_to_local(void)
@@ -40,58 +58,30 @@ void diext_clk_b_sw(bool on)
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	if (on)
-		ext_ops.vpu_dev_clk_gate_on(de_devp->di_vpu_clk_gate_dev);
+		vpu_dev_clk_gate_on(de_devp->dim_vpu_clk_gate_dev);
 	else
-		ext_ops.vpu_dev_clk_gate_off(de_devp->di_vpu_clk_gate_dev);
+		vpu_dev_clk_gate_off(de_devp->dim_vpu_clk_gate_dev);
 }
 
 /*EXPORT_SYMBOL(dim_attach_ext_api);*/
 
+#ifdef MARK_SC2
 /**********************************
  * ext_api used by DI
  ********************************/
 #define ARY_TEMP2
 #ifdef ARY_TEMP2
-void dim_vpu_vmod_mem_pd_on_off(unsigned int mode, bool on)
+void ext_switch_vpu_mem_pd_vmod(unsigned int vmod, bool on)
 {
-	struct di_dev_s *de_devp = get_dim_de_devp();
-
-	switch (mode) {
-	case VPU_AFBC_DEC:
-		if (on)
-			vpu_dev_mem_power_on(de_devp->di_vpu_pd_dec);
-		else
-			vpu_dev_mem_power_down(de_devp->di_vpu_pd_dec);
-		break;
-	case VPU_AFBC_DEC1:
-		if (on)
-			vpu_dev_mem_power_on(de_devp->di_vpu_pd_dec1);
-		else
-			vpu_dev_mem_power_down(de_devp->di_vpu_pd_dec1);
-		break;
-	case VPU_VIU_VD1:
-		if (on)
-			vpu_dev_mem_power_on(de_devp->di_vpu_pd_vd1);
-		else
-			vpu_dev_mem_power_down(de_devp->di_vpu_pd_vd1);
-		break;
-	case VPU_DI_POST:
-		if (on)
-			vpu_dev_mem_power_on(de_devp->di_vpu_pd_post);
-		else
-			vpu_dev_mem_power_down(de_devp->di_vpu_pd_post);
-		break;
-	default:
-		pr_info("%s:mode overlow:%d\n", __func__, mode);
-		break;
-	}
+	switch_vpu_mem_pd_vmod(vmod,
+			       on ? VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN);
 }
 
 const struct ext_ops_s ext_ops = {
-	.dim_vpu_mem_pd_vmod	= dim_vpu_vmod_mem_pd_on_off,
+	.switch_vpu_mem_pd_vmod		= ext_switch_vpu_mem_pd_vmod,
+	/*no use ?*/
 /*	.vf_get_receiver_name		= vf_get_receiver_name,*/
-	.vpu_dev_clk_gate_on = vpu_dev_clk_gate_on,
-	.vpu_dev_clk_gate_off = vpu_dev_clk_gate_off,
+	.switch_vpu_clk_gate_vmod	= switch_vpu_clk_gate_vmod,
 	.get_current_vscale_skip_count	= get_current_vscale_skip_count,
 	.canvas_pool_alloc_canvas_table = canvas_pool_alloc_canvas_table,
 };
@@ -123,12 +113,40 @@ u32 n_canvas_pool_alloc_canvas_table(const char *owner, u32 *tab,
 }
 
 const struct ext_ops_s ext_ops = {
+	.switch_vpu_mem_pd_vmod		= n_switch_vpu_mem_pd_vmod,
 	.vf_get_receiver_name		= n_vf_get_receiver_name,
-	.vpu_dev_clk_gate_on = vpu_dev_clk_gate_on;
-	.vpu_dev_clk_gate_off = vpu_dev_clk_gate_off;
+	.switch_vpu_clk_gate_vmod	= n_switch_vpu_clk_gate_vmod,
 	.get_current_vscale_skip_count	= n_get_current_vscale_skip_count,
 	.canvas_pool_alloc_canvas_table	= n_canvas_pool_alloc_canvas_table,
 };
-
 #endif
+#endif
+
+void sc2wr(unsigned int adr, unsigned int val)
+{
+}
+
+unsigned int sc2rd(unsigned int adr)
+{
+	return 0;
+}
+
+unsigned int sc2wr_reg_bits(unsigned int adr, unsigned int val,
+			    unsigned int start, unsigned int len)
+{
+	return 0;
+}
+
+unsigned int sc2brd(unsigned int adr, unsigned int start,
+		    unsigned int len)
+{
+	return 0;
+}
+
+const struct reg_acc sc2reg = {
+	.wr = sc2wr,
+	.rd	= sc2rd,
+	.bwr	= sc2wr_reg_bits,
+	.brd	= sc2brd,
+};
 

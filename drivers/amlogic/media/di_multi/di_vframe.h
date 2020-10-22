@@ -1,6 +1,19 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_vframe.h
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #ifndef __DI_VFRAME_H__
@@ -12,9 +25,10 @@
 
 void dev_vframe_init(void);
 void dev_vframe_exit(void);
-void di_vframe_reg(unsigned int ch);
-void di_vframe_unreg(unsigned int ch);
+void dev_vframe_reg(struct dev_vfram_t *pvfm);
+void dev_vframe_unreg(struct dev_vfram_t *pvfm);
 
+#ifdef MARK_SC2
 bool vf_type_is_prog(unsigned int type);
 bool vf_type_is_interlace(unsigned int type);
 bool vf_type_is_top(unsigned int type);
@@ -35,7 +49,7 @@ bool vf_type_is_compress(unsigned int type);
 bool vf_type_is_pic(unsigned int type);
 bool vf_type_is_scatter(unsigned int type);
 bool vf_type_is_vd2(unsigned int type);
-
+#endif
 extern const char * const di_rev_name[4];
 
 struct vframe_s *pw_vf_get(unsigned int ch);

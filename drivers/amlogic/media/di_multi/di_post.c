@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_post.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/kernel.h>
@@ -142,10 +155,6 @@ bool dpst_step_set(void)
 	}
 
 	vf_p = di_buf->vframe;
-	if (ppost->run_early_proc_fun_flag) {
-		if (vf_p->early_process_fun)
-			vf_p->early_process_fun = dim_do_post_wr_fun;
-	}
 
 	dim_print("%s:pr_index=%d\n", __func__, di_buf->process_fun_index);
 	if (di_buf->process_fun_index) {	/*not bypass?*/
@@ -205,7 +214,7 @@ bool dpst_step_wait_int(void)
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pst->tout)) {
 			ppost = get_post_stru(ch);
 			PR_WARN("ch[%d]:post timeout[%d]\n", ch,
-				ppost->cur_post_buf->seq);
+				ppost->cur_post_buf->seq_post);
 			dim_ddbg_mod_save(EDI_DBG_MOD_POST_TIMEOUT, ch, 0);
 			/*state*/
 			pst->state = EDI_PST_ST_TIMEOUT;
@@ -219,10 +228,7 @@ void dpst_timeout(unsigned int ch)
 {
 	hpst_dbg_mem_pd_trig(0);
 	post_close_new();
-	#ifdef MARK_HIS
-	di_post_set_flow(1, EDI_POST_FLOW_STEP1_STOP);
-	di_post_reset();
-	#endif
+
 	dimh_pst_trig_resize();
 }
 
@@ -239,6 +245,7 @@ bool dpst_step_timeout(void)
 	dim_post_de_done_buf_config(ch);
 	spin_unlock_irqrestore(&plist_lock, flags);
 	pst->flg_int_done = false;
+	pst->flg_have_set = false;
 
 	/*state*/
 	pst->state = EDI_PST_ST_IDLE;

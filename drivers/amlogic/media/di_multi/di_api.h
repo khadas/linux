@@ -1,6 +1,19 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_api.h
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #ifndef __DI_API_H__
@@ -9,7 +22,8 @@
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "../di_local/di_local.h"
-#include "deinterlace.h"
+//#include "di_local.h"
+//#include "deinterlace.h"
 
 /*--------------------------*/
 unsigned int l_DI_POST_REG_RD(unsigned int addr);
@@ -27,18 +41,6 @@ void diext_clk_b_sw(bool on);
 /*--------------------------*/
 int get_current_vscale_skip_count(struct vframe_s *vf);
 
-struct ext_ops_s {
-	void (*dim_vpu_mem_pd_vmod)(unsigned int vmod, bool on);
-/*	char *(*vf_get_receiver_name)(const char *provider_name);*/
-	void (*vpu_dev_clk_gate_on)(struct vpu_dev_s *vpu_dev);
-	void (*vpu_dev_clk_gate_off)(struct vpu_dev_s *vpu_dev);
-	int (*get_current_vscale_skip_count)(struct vframe_s *vf);
-	u32 (*canvas_pool_alloc_canvas_table)(const char *owner, u32 *tab,
-					      int size,
-					      enum canvas_map_type_e type);
-};
-
-extern const struct ext_ops_s ext_ops;
 
 /*--------------------------*/
 void dil_get_rev_mem(unsigned long *mstart, unsigned int *msize);

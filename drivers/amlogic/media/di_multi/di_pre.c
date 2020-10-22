@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/di_multi/di_pre.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/kernel.h>
@@ -131,8 +144,8 @@ bool is_bypass_i_p(void)
 	struct di_vinfo_s *vl = &pre->vinf_lst;
 
 	if (vl->ch != vc->ch			&&
-	    vf_type_is_interlace(vl->vtype)	&&
-	    vf_type_is_prog(vc->vtype)) {
+	    VFMT_IS_I(vl->vtype)	&&
+	    VFMT_IS_P(vc->vtype)) {
 		ret = true;
 	}
 	#else
@@ -148,8 +161,8 @@ bool is_bypass_i_p(void)
 	ch_l = (ch_c ? 0 : 1);
 	ppre_c = get_pre_stru(ch_c);
 	ppre_l = get_pre_stru(ch_l);
-	if (vf_type_is_interlace(ppre_l->cur_inp_type)	&&
-	    vf_type_is_prog(ppre_c->cur_inp_type)) {
+	if (VFMT_IS_I(ppre_l->cur_inp_type)	&&
+	    VFMT_IS_P(ppre_c->cur_inp_type)) {
 		ret = true;
 		dim_print("ch[%d]:bypass p\n", ch_c);
 	}
@@ -169,7 +182,7 @@ void dpre_init(void)
 {/*reg:*/
 	struct di_hpre_s  *pre = get_hw_pre();
 
-	pre->pre_st = (enum EDI_PRE_ST4)EDI_PRE_ST_IDLE;
+	pre->pre_st = EDI_PRE_ST4_IDLE;
 
 	/*timer out*/
 	di_tout_int(&pre->tout, 40);	/*ms*/
@@ -376,13 +389,13 @@ enum EDI_PRE_MT {
 unsigned int dpre_mtotal_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	unsigned int ret = K_DO_R_NOT_FINISH;
+	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
 	if (pre_run_flag == DI_RUN_FLAG_RUN	||
 	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-		/*dim_print("%s:\n", __func__);*/
+		dim_print("%s:\n", __func__);
 		if (dim_pre_de_buf_config(pre->curr_ch))
 			ret = K_DO_R_FINISH;
 		else
@@ -441,15 +454,8 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		 * interrupts are raised if both
 		 * DI_INTR_CTRL[16] and DI_INTR_CTRL[17] are 0
 		 */
-#ifdef MARK_HIS
-		data32 = RD(DI_INTR_CTRL);
-		if (((data32 & 0x1) &&
-		     (ppre->enable_mtnwr == 0 || (data32 & 0x2))) ||
-		      ppre->pre_de_clear_flag == 2) {
-			DIM_RDMA_WR(DI_INTR_CTRL, data32);
-		}
-#endif
-		di_pre_wait_irq_set(false);
+
+		/*di_pre_wait_irq_set(false);*/
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pre->tout);
 		spin_lock_irqsave(&plist_lock, flags);
@@ -464,21 +470,21 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		spin_unlock_irqrestore(&plist_lock, flags);
 
 		ppre = get_pre_stru(pre->curr_ch);
-#ifdef MARK_HIS
-		if (ppre->field_count_for_cont == 1) {
-			usleep_range(2000, 2001);
-			pr_info("delay 1ms\n");
-		}
-#endif
+
 
 		ret = EDI_WAIT_INT_HAVE_INT;
 
 	} else {
 		/*check if timeout:*/
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pre->tout)) {
-			di_pre_wait_irq_set(false);
-			/*return K_DO_R_FINISH;*/
-			ret = EDI_WAIT_INT_TIME_OUT;
+			/*di_pre_wait_irq_set(false);*/
+			if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int)) {
+				PR_WARN("%s:timeout\n", __func__);
+				di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
+			} else {
+				/*return K_DO_R_FINISH;*/
+				ret = EDI_WAIT_INT_TIME_OUT;
+			}
 		}
 	}
 	/*debug:*/
@@ -515,8 +521,13 @@ void dpre_mtotal_timeout_contr(void)
 	/*move from di_pre_trigger_work*/
 	if (dimp_get(edi_mp_di_dbg_mask) & 4)
 		dim_dump_mif_size_state(pre->pres, pre->psts);
+	hpre_timeout_read();
+
+	if (DIM_IS_IC_EF(SC2))
+		opl1()->pre_gl_sw(false);
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+	dcntr_dis();
 	if (di_get_dts_nrds_en())
 		dim_nr_ds_hw_ctrl(false);
 	pre->pres->pre_de_irq_timeout_count++;
@@ -576,7 +587,7 @@ const struct do_table_ops_s pr_mode_total[] = {
 	.con = NULL,
 	.do_op = dpre_mtotal_check,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_t",
 	},
 	[EDI_PRE_MT_SET] = {
 	.id = EDI_PRE_MT_SET,
@@ -623,13 +634,13 @@ enum EDI_PRE_MP {
 unsigned int dpre_mp_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	unsigned int ret = K_DO_R_NOT_FINISH;
+	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
 	if (pre_run_flag == DI_RUN_FLAG_RUN	||
 	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-			/*dim_print("%s:\n", __func__);*/
+		dim_print("%s:\n", __func__);
 		if (dim_pre_de_buf_config(pre->curr_ch)) {
 			/*pre->flg_wait_int = false;*/
 			/*pre_p_asi_set_next(pre->curr_ch);*/
@@ -653,10 +664,6 @@ unsigned int dpre_mp_check2(void *data)
 		/*pre->flg_wait_int = false;*/
 		ret = K_DO_R_FINISH;
 	} else {
-		#ifdef MARK_HIS
-		PR_ERR("%s:not second?ch[%d]\n", __func__, pre->curr_ch);
-		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
-		#endif
 	}
 
 	return ret;
@@ -741,7 +748,7 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.con = NULL,
 	.do_op = dpre_mp_check,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_p",
 	},
 	[EDI_PRE_MP_SET] = {
 	.id = EDI_PRE_MP_SET,
@@ -774,7 +781,7 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_check2,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_p2",
 	},
 	[EDI_PRE_MP_SET2] = {
 	.id = EDI_PRE_MP_SET2,
@@ -897,14 +904,23 @@ bool dpre_step4_check(void)
 	}
 	pre->idle_cnt = 0;
 	if (mode == EDI_WORK_MODE_P_AS_I) {
+		#ifdef MARK_SC2
 		do_table_init(&pre->sdt_mode,
 			      &pre_mode_proc[0],
 			      ARRAY_SIZE(pre_mode_proc));
+		pre->sdt_mode.name = "mproc";
+		#else
+		do_table_init(&pre->sdt_mode,
+			      &pr_mode_total[0],
+			      ARRAY_SIZE(pr_mode_total));
+		pre->sdt_mode.name = "mtotal";
+		#endif
 
 	} else {
 		do_table_init(&pre->sdt_mode,
 			      &pr_mode_total[0],
 			      ARRAY_SIZE(pr_mode_total));
+		pre->sdt_mode.name = "mtotal";
 	}
 	do_talbe_cmd(&pre->sdt_mode, EDO_TABLE_CMD_START);
 
