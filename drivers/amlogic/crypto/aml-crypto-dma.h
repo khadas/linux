@@ -104,6 +104,8 @@ struct dma_dsc {
 #define DMA_FLAG_AES_IN_USE    BIT(2)
 #define DMA_FLAG_SHA_IN_USE    BIT(3)
 
+#define DMA_STATUS_KEY_ERROR   BIT(1)
+
 #define DMA_KEY_IV_BUF_SIZE (48)
 struct aml_dma_dev {
 	spinlock_t dma_lock; /* spinlock for dma */

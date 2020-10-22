@@ -43,6 +43,7 @@
 #define TDES_FLAGS_DMA          BIT(9)
 #define TDES_FLAGS_FAST         BIT(10)
 #define TDES_FLAGS_BUSY         BIT(11)
+#define TDES_FLAGS_ERROR        BIT(12)
 
 #define AML_TDES_QUEUE_LENGTH	50
 
@@ -61,6 +62,8 @@ struct aml_tdes_ctx {
 	u16	block_size;
 	struct crypto_skcipher	*fallback;
 	u16 same_key;
+
+	int kte;
 };
 
 struct aml_tdes_reqctx {
@@ -124,6 +127,69 @@ static struct aml_tdes_drv aml_tdes = {
 };
 
 static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd);
+static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
+			      u32 *key, u32 keylen, u32 *iv)
+{
+	struct dma_dsc *dsc = dd->descriptor;
+	struct device *dev = dd->dev;
+	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
+	u32 *piv = key_iv; // + 8;
+	u32 len = keylen;
+	dma_addr_t dma_addr_key;
+
+	if (!key_iv) {
+		dev_err(dev, "error allocating key_iv buffer\n");
+		return -EINVAL;
+	}
+
+	if (iv)
+		memcpy(piv, iv, 8);
+
+	len = DMA_KEY_IV_BUF_SIZE; /* full key storage */
+
+	dma_addr_key = dma_map_single(dd->dev, key_iv,
+				      DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
+
+	if (dma_mapping_error(dd->dev, dma_addr_key)) {
+		dev_err(dev, "error mapping dma_addr_key\n");
+		kfree(key_iv);
+		return -EINVAL;
+	}
+
+	dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
+	dsc[0].tgt_addr = 0;
+	dsc[0].dsc_cfg.d32 = 0;
+	dsc[0].dsc_cfg.b.length = keylen;
+	dsc[0].dsc_cfg.b.mode = MODE_KEY;
+	dsc[0].dsc_cfg.b.owner = 1;
+	dsc[0].dsc_cfg.b.eoc = 0;
+
+	if (iv) {
+		dsc[1].src_addr = (u32)dma_addr_key;
+		dsc[1].tgt_addr = 32;
+		dsc[1].dsc_cfg.d32 = 0;
+		dsc[1].dsc_cfg.b.length = 16;
+		dsc[1].dsc_cfg.b.mode = MODE_KEY;
+		dsc[1].dsc_cfg.b.owner = 1;
+		dsc[1].dsc_cfg.b.eoc = 1;
+	} else {
+		dsc[0].dsc_cfg.b.eoc = 1;
+	}
+
+	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
+				   PAGE_SIZE, DMA_TO_DEVICE);
+	aml_write_crypto_reg(dd->thread,
+			     (uintptr_t)dd->dma_descript_tab | 2);
+	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	while (aml_read_crypto_reg(dd->status) == 0)
+		;
+	aml_write_crypto_reg(dd->status, 0xf);
+	dma_unmap_single(dd->dev, dma_addr_key,
+			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
+
+	kfree(key_iv);
+	return 0;
+}
 
 static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 			   u32 *key, u32 keylen, u32 *iv)
@@ -443,6 +509,7 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 static int aml_tdes_write_ctrl(struct aml_tdes_dev *dd)
 {
 	int err = 0;
+	u32 *iv = NULL;
 
 	err = aml_tdes_hw_init(dd);
 
@@ -450,11 +517,12 @@ static int aml_tdes_write_ctrl(struct aml_tdes_dev *dd)
 		return err;
 
 	if (dd->flags & TDES_FLAGS_CBC)
-		err = set_tdes_key_iv(dd, dd->ctx->key, dd->ctx->keylen,
-				      dd->req->info);
+		iv = dd->req->info;
+
+	if (dd->ctx->kte >= 0)
+		err = set_tdes_kl_key_iv(dd, dd->ctx->key, dd->ctx->keylen, iv);
 	else
-		err = set_tdes_key_iv(dd, dd->ctx->key, dd->ctx->keylen,
-				      NULL);
+		err = set_tdes_key_iv(dd, dd->ctx->key, dd->ctx->keylen, iv);
 
 	return err;
 }
@@ -509,6 +577,7 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
 	rctx->mode &= TDES_FLAGS_MODE_MASK;
 	dd->flags = (dd->flags & ~TDES_FLAGS_MODE_MASK) | rctx->mode;
+	dd->flags = (dd->flags & ~TDES_FLAGS_ERROR);
 	dd->ctx = ctx;
 	ctx->dd = dd;
 
@@ -744,6 +813,7 @@ static int aml_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
+	ctx->kte = -1;
 
 	return 0;
 }
@@ -760,6 +830,7 @@ static int aml_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
+	ctx->kte = -1;
 
 	return 0;
 }
@@ -891,17 +962,23 @@ static int aml_tdes_lite_cra_init(struct crypto_tfm *tfm)
 {
 	struct aml_tdes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const char *alg_name = crypto_tfm_alg_name(tfm);
+	const char *driver_name = crypto_tfm_alg_driver_name(tfm);
 	const u32 flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct aml_tdes_reqctx);
 
-	/* Allocate a fallback and abort if it failed. */
-	ctx->fallback = crypto_alloc_skcipher(alg_name, 0,
-					      flags);
-	if (IS_ERR(ctx->fallback)) {
-		pr_err("aml-tdes: fallback '%s' could not be loaded.\n",
-		       alg_name);
-		return PTR_ERR(ctx->fallback);
+	/* Driver name with '-kl' is only for installing key by kte.
+	 * No need to allocate fallback for it
+	 */
+	if (!strstr(driver_name, "-kl")) {
+		/* Allocate a fallback and abort if it failed. */
+		ctx->fallback = crypto_alloc_skcipher(alg_name, 0,
+						      flags);
+		if (IS_ERR(ctx->fallback)) {
+			pr_err("aml-tdes: fallback '%s' could not be loaded.\n",
+			       alg_name);
+			return PTR_ERR(ctx->fallback);
+		}
 	}
 
 	return 0;
@@ -915,6 +992,25 @@ static void aml_tdes_lite_cra_exit(struct crypto_tfm *tfm)
 		crypto_free_skcipher(ctx->fallback);
 
 	ctx->fallback = NULL;
+}
+
+static int aml_tdes_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			      unsigned int keylen)
+{
+	struct aml_tdes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	int ret = 0;
+
+	if ((keylen != 2 * DES_KEY_SIZE) && (keylen != 3 * DES_KEY_SIZE)) {
+		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	/* key[0:3] = kte */
+	ctx->kte = *(uint32_t *)&key[0];
+
+	ctx->keylen = keylen;
+
+	return ret;
 }
 
 static int aml_tdes_lite_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -931,6 +1027,7 @@ static int aml_tdes_lite_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
+	ctx->kte = -1;
 
 	tmp = (u64 *)ctx->key;
 	if (keylen == 2 * DES_KEY_SIZE)
@@ -991,6 +1088,49 @@ static struct crypto_alg tdes_lite_algs[] = {
 			.encrypt     = aml_tdes_cbc_encrypt,
 			.decrypt     = aml_tdes_cbc_decrypt,
 		}
+	},
+	{
+		.cra_name        = "ecb(tdes-kl-aml)",
+		.cra_driver_name = "ecb-tdes-kl-aml",
+		.cra_priority   = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC |  CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize  = DES_BLOCK_SIZE,
+		.cra_ctxsize    = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask  = 0,
+		.cra_type       = &crypto_ablkcipher_type,
+		.cra_module     = THIS_MODULE,
+		.cra_init       = aml_tdes_lite_cra_init,
+		.cra_exit       = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    2 * DES_KEY_SIZE,
+			.max_keysize	=    3 * DES_KEY_SIZE,
+			.setkey     =    aml_tdes_kl_setkey,
+			.encrypt    =    aml_tdes_ecb_encrypt,
+			.decrypt    =    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        = "cbc(tdes-kl-aml)",
+		.cra_driver_name = "cbc-tdes-kl-aml",
+		.cra_priority  = 100,
+		.cra_flags     = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize = DES_BLOCK_SIZE,
+		.cra_ctxsize   = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask = 0,
+		.cra_type      = &crypto_ablkcipher_type,
+		.cra_module    = THIS_MODULE,
+		.cra_init      = aml_tdes_lite_cra_init,
+		.cra_exit      = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher =       {
+			.min_keysize = 2 * DES_KEY_SIZE,
+			.max_keysize = 3 * DES_KEY_SIZE,
+			.ivsize	     = DES_BLOCK_SIZE,
+			.setkey	     = aml_tdes_kl_setkey,
+			.encrypt     = aml_tdes_cbc_encrypt,
+			.decrypt     = aml_tdes_cbc_decrypt,
+		}
 	}
 };
 
@@ -1009,6 +1149,11 @@ static void aml_tdes_done_task(unsigned long data)
 	int err;
 
 	err = aml_tdes_crypt_dma_stop(dd);
+
+	if (!err) {
+		err = dd->flags & TDES_FLAGS_ERROR;
+		dd->flags = (dd->flags & ~TDES_FLAGS_ERROR);
+	}
 
 	aml_dma_debug(dd->descriptor, dd->fast_nents ?
 			dd->fast_nents : 1, __func__, dd->thread, dd->status);
@@ -1052,6 +1197,8 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		if ((tdes_dd->dma->dma_busy & DMA_FLAG_TDES_IN_USE) &&
 		    (tdes_dd->flags & TDES_FLAGS_DMA)) {
+			if (status & DMA_STATUS_KEY_ERROR)
+				tdes_dd->flags |= TDES_FLAGS_ERROR;
 			aml_write_crypto_reg(tdes_dd->status, 0xf);
 			tdes_dd->dma->dma_busy &= ~DMA_FLAG_TDES_IN_USE;
 			tasklet_schedule(&tdes_dd->done_task);
