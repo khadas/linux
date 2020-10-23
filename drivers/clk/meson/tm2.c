@@ -1897,7 +1897,7 @@ static struct clk_regmap tm2_vapb_sel = {
 			&tm2_vapb_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 	},
 };
 
