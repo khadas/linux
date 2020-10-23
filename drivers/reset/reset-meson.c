@@ -152,8 +152,15 @@ static struct platform_driver meson_reset_driver = {
 		.of_match_table	= meson_reset_dt_ids,
 	},
 };
-builtin_platform_driver(meson_reset_driver);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+static int __init meson_reset_driver_init(void)
+{
+	return platform_driver_register(&meson_reset_driver);
+}
+core_initcall(meson_reset_driver_init);
+
 MODULE_LICENSE("GPL");
+#else
+builtin_platform_driver(meson_reset_driver);
 #endif
