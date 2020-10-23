@@ -479,7 +479,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disabled";
 	i2c-scl-rising-time-ns = <600>;
 	i2c-scl-falling-time-ns = <20>;
 };
