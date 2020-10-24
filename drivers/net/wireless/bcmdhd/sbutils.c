@@ -2,14 +2,14 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +17,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbutils.c 700323 2017-05-18 16:12:11Z $
+ * $Id: sbutils.c 599296 2015-11-13 06:36:13Z $
  */
 
 #include <bcm_cfg.h>
@@ -42,10 +42,11 @@
 
 #include "siutils_priv.h"
 
+
 /* local prototypes */
 static uint _sb_coreidx(si_info_t *sii, uint32 sba);
 static uint _sb_scan(si_info_t *sii, uint32 sba, volatile void *regs, uint bus, uint32 sbba,
-                     uint ncores, uint devid);
+                     uint ncores);
 static uint32 _sb_coresba(si_info_t *sii);
 static volatile void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 #define	SET_SBREG(sii, r, mask, val)	\
@@ -66,6 +67,7 @@ sb_read_sbreg(si_info_t *sii, volatile uint32 *sbr)
 {
 	uint8 tmp;
 	uint32 val, intr_val = 0;
+
 
 	/*
 	 * compact flash only has 11 bits address, while we needs 12 bits address.
@@ -97,6 +99,7 @@ sb_write_sbreg(si_info_t *sii, volatile uint32 *sbr, uint32 v)
 	uint8 tmp;
 	volatile uint32 dummy;
 	uint32 intr_val = 0;
+
 
 	/*
 	 * compact flash only has 11 bits address, while we needs 12 bits address.
@@ -208,6 +211,7 @@ _sb_coresba(si_info_t *sii)
 {
 	uint32 sbaddr;
 
+
 	switch (BUSTYPE(sii->pub.bustype)) {
 	case SI_BUS: {
 		sbconfig_t *sb = REGS2SB(sii->curmap);
@@ -235,7 +239,8 @@ _sb_coresba(si_info_t *sii)
 	case SDIO_BUS:
 		sbaddr = (uint32)(uintptr)sii->curmap;
 		break;
-#endif // endif
+#endif
+
 
 	default:
 		sbaddr = BADCOREADDR;
@@ -532,7 +537,7 @@ sb_corereg_addr(si_t *sih, uint coreidx, uint regoff)
 #define SB_MAXBUSES	2
 static uint
 _sb_scan(si_info_t *sii, uint32 sba, volatile void *regs, uint bus,
-	uint32 sbba, uint numcores, uint devid)
+	uint32 sbba, uint numcores)
 {
 	uint next;
 	uint ncc = 0;
@@ -600,15 +605,15 @@ _sb_scan(si_info_t *sii, uint32 sba, volatile void *regs, uint bus,
 
 			sii->numcores = next + 1;
 
-			if ((nsbba & 0xfff00000) != si_enum_base(devid))
+			if ((nsbba & 0xfff00000) != SI_ENUM_BASE)
 				continue;
 			nsbba &= 0xfffff000;
 			if (_sb_coreidx(sii, nsbba) != BADIDX)
 				continue;
 
 			nsbcc = (R_SBREG(sii, &sb->sbtmstatehigh) & 0x000f0000) >> 16;
-			nsbcc = _sb_scan(sii, sba, regs, bus + 1, nsbba, nsbcc, devid);
-			if (sbba == si_enum_base(devid))
+			nsbcc = _sb_scan(sii, sba, regs, bus + 1, nsbba, nsbcc);
+			if (sbba == SI_ENUM_BASE)
 				numcores -= nsbcc;
 			ncc += nsbcc;
 		}
@@ -638,8 +643,8 @@ sb_scan(si_t *sih, volatile void *regs, uint devid)
 	 */
 	origsba = _sb_coresba(sii);
 
-	/* scan all SB(s) starting from SI_ENUM_BASE_DEFAULT */
-	sii->numcores = _sb_scan(sii, origsba, regs, 0, si_enum_base(devid), 1, devid);
+	/* scan all SB(s) starting from SI_ENUM_BASE */
+	sii->numcores = _sb_scan(sii, origsba, regs, 0, SI_ENUM_BASE, 1);
 }
 
 /*
@@ -714,6 +719,7 @@ _sb_setcoreidx(si_info_t *sii, uint coreidx)
 		regs = cores_info->regs[coreidx];
 		break;
 #endif	/* BCMSDIO */
+
 
 	default:
 		ASSERT(0);
@@ -793,6 +799,7 @@ sb_addrspacesize(si_t *sih, uint asidx)
 
 	return (sb_size(R_SBREG(sii, sb_admatch(sii, asidx))));
 }
+
 
 /* do buffered registers update */
 void
@@ -965,6 +972,7 @@ sb_set_initiator_to(si_t *sih, uint32 to, uint idx)
 	uint32 tmp, ret = 0xffffffff;
 	sbconfig_t *sb;
 
+
 	if ((to & ~TO_MASK) != 0)
 		return ret;
 
@@ -980,7 +988,7 @@ sb_set_initiator_to(si_t *sih, uint32 to, uint idx)
 		case PCMCIA_BUS:
 #ifdef BCMSDIO
 		case SDIO_BUS:
-#endif // endif
+#endif
 			idx = si_findcoreidx(sih, PCMCIA_CORE_ID, 0);
 			break;
 		case SI_BUS:
@@ -1090,4 +1098,4 @@ sb_dumpregs(si_t *sih, struct bcmstrbuf *b)
 	sb_setcoreidx(sih, origidx);
 	INTR_RESTORE(sii, intr_val);
 }
-#endif // endif
+#endif	

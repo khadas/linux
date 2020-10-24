@@ -1,14 +1,14 @@
 /*
  * Common function shared by Linux WEXT, cfg80211 and p2p drivers
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wldev_common.c 786015 2018-10-24 08:21:53Z $
+ * $Id: wldev_common.c 699163 2017-05-12 05:18:23Z $
  */
 
 #include <osl.h>
@@ -36,8 +36,7 @@
 #include <bcmutils.h>
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
-#include <wl_cfgscan.h>
-#endif /* WL_CFG80211 */
+#endif
 #include <dhd_config.h>
 
 #define htod32(i) (i)
@@ -47,17 +46,17 @@
 #define htodchanspec(i) (i)
 #define dtohchanspec(i) (i)
 
-#define	WLDEV_ERROR_MSG(x, args...)						\
-	do {												\
-		printk(KERN_INFO "[dhd] WLDEV-ERROR) " x, ## args);	\
+#define	WLDEV_ERROR(args)						\
+	do {										\
+		printk(KERN_ERR "WLDEV-ERROR) ");	\
+		printk args;							\
 	} while (0)
-#define WLDEV_ERROR(x) WLDEV_ERROR_MSG x
 
-#define	WLDEV_INFO_MSG(x, args...)						\
-	do {												\
-		printk(KERN_INFO "[dhd] WLDEV-INFO) " x, ## args);	\
+#define	WLDEV_INFO(args)						\
+	do {										\
+		printk(KERN_INFO "WLDEV-INFO) ");	\
+		printk args;							\
 	} while (0)
-#define WLDEV_INFO(x) WLDEV_INFO_MSG x
 
 extern int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd);
 
@@ -65,17 +64,20 @@ s32 wldev_ioctl(
 	struct net_device *dev, u32 cmd, void *arg, u32 len, u32 set)
 {
 	s32 ret = 0;
-	struct wl_ioctl  ioc;
+	struct wl_ioctl ioc;
+
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = cmd;
 	ioc.buf = arg;
 	ioc.len = len;
 	ioc.set = set;
-	ret = dhd_ioctl_entry_local(dev, (wl_ioctl_t *)&ioc, cmd);
+
+	ret = dhd_ioctl_entry_local(dev, &ioc, cmd);
 
 	return ret;
 }
+
 
 /*
 SET commands :
@@ -89,13 +91,14 @@ s32 wldev_ioctl_set(
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-#endif // endif
+#endif
 	return wldev_ioctl(dev, cmd, (void *)arg, len, 1);
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
 #pragma GCC diagnostic pop
-#endif // endif
+#endif
 
 }
+
 
 s32 wldev_ioctl_get(
 	struct net_device *dev, u32 cmd, void *arg, u32 len)
@@ -108,7 +111,7 @@ s32 wldev_ioctl_get(
  * wl_iw, wl_cfg80211 and wl_cfgp2p
  */
 static s32 wldev_mkiovar(
-	const s8 *iovar_name, const s8 *param, s32 paramlen,
+	const s8 *iovar_name, s8 *param, s32 paramlen,
 	s8 *iovar_buf, u32 buflen)
 {
 	s32 iolen = 0;
@@ -119,7 +122,7 @@ static s32 wldev_mkiovar(
 
 s32 wldev_iovar_getbuf(
 	struct net_device *dev, s8 *iovar_name,
-	const void *param, s32 paramlen, void *buf, s32 buflen, struct mutex* buf_sync)
+	void *param, s32 paramlen, void *buf, s32 buflen, struct mutex* buf_sync)
 {
 	s32 ret = 0;
 	if (buf_sync) {
@@ -147,9 +150,10 @@ exit:
 	return ret;
 }
 
+
 s32 wldev_iovar_setbuf(
 	struct net_device *dev, s8 *iovar_name,
-	const void *param, s32 paramlen, void *buf, s32 buflen, struct mutex* buf_sync)
+	void *param, s32 paramlen, void *buf, s32 buflen, struct mutex* buf_sync)
 {
 	s32 ret = 0;
 	s32 iovar_len;
@@ -178,6 +182,7 @@ s32 wldev_iovar_setint(
 		sizeof(iovar_buf), NULL);
 }
 
+
 s32 wldev_iovar_getint(
 	struct net_device *dev, s8 *iovar, s32 *pval)
 {
@@ -200,7 +205,7 @@ s32 wldev_iovar_getint(
  *  wl_iw, wl_cfg80211 and wl_cfgp2p
  */
 s32 wldev_mkiovar_bsscfg(
-	const s8 *iovar_name, const s8 *param, s32 paramlen,
+	const s8 *iovar_name, s8 *param, s32 paramlen,
 	s8 *iovar_buf, s32 buflen, s32 bssidx)
 {
 	const s8 *prefix = "bsscfg:";
@@ -210,7 +215,7 @@ s32 wldev_mkiovar_bsscfg(
 	u32 iolen;
 
 	/* initialize buffer */
-	if (!iovar_buf || buflen <= 0)
+	if (!iovar_buf || buflen == 0)
 		return BCME_BADARG;
 	memset(iovar_buf, 0, buflen);
 
@@ -223,7 +228,8 @@ s32 wldev_mkiovar_bsscfg(
 	namelen = (u32) strlen(iovar_name) + 1; /* lengh of iovar  name + null */
 	iolen = prefixlen + namelen + sizeof(u32) + paramlen;
 
-	if (iolen > (u32)buflen) {
+	if (buflen < 0 || iolen > (u32)buflen)
+	{
 		WLDEV_ERROR(("%s: buffer is too short\n", __FUNCTION__));
 		return BCME_BUFTOOSHORT;
 	}
@@ -270,9 +276,8 @@ s32 wldev_iovar_getbuf_bsscfg(
 }
 
 s32 wldev_iovar_setbuf_bsscfg(
-	struct net_device *dev, const s8 *iovar_name,
-	const void *param, s32 paramlen,
-	void *buf, s32 buflen, s32 bsscfg_idx, struct mutex* buf_sync)
+	struct net_device *dev, s8 *iovar_name,
+	void *param, s32 paramlen, void *buf, s32 buflen, s32 bsscfg_idx, struct mutex* buf_sync)
 {
 	s32 ret = 0;
 	s32 iovar_len;
@@ -302,6 +307,7 @@ s32 wldev_iovar_setint_bsscfg(
 	return wldev_iovar_setbuf_bsscfg(dev, iovar, &val, sizeof(val), iovar_buf,
 		sizeof(iovar_buf), bssidx, NULL);
 }
+
 
 s32 wldev_iovar_getint_bsscfg(
 	struct net_device *dev, s8 *iovar, s32 *pval, s32 bssidx)
@@ -431,7 +437,7 @@ int wldev_get_mode(
 		buf = NULL;
 		return error;
 	}
-	bss = (wl_bss_info_t*)(buf + 4);
+	bss = (struct  wl_bss_info *)(buf + 4);
 	chanspec = wl_chspec_driver_to_host(bss->chanspec);
 
 	band = chanspec & WL_CHANSPEC_BAND_MASK;
@@ -471,33 +477,44 @@ int wldev_set_country(
 {
 	int error = -1;
 	wl_country_t cspec = {{0}, 0, {0}};
+	wl_country_t cur_cspec = {{0}, 0, {0}};	/* current ccode */
 	scb_val_t scbval;
+	char smbuf[WLC_IOCTL_SMLEN];
 #ifdef WL_CFG80211
 	struct wireless_dev *wdev = ndev_to_wdev(dev);
 	struct wiphy *wiphy = wdev->wiphy;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
-#endif /* WL_CFG80211 */
+#endif
 
 	if (!country_code)
 		return error;
 
 	bzero(&scbval, sizeof(scb_val_t));
-	error = wldev_iovar_getbuf(dev, "country", NULL, 0, &cspec, sizeof(cspec), NULL);
+	error = wldev_iovar_getbuf(dev, "country", NULL, 0, &cur_cspec, sizeof(wl_country_t), NULL);
 	if (error < 0) {
 		WLDEV_ERROR(("%s: get country failed = %d\n", __FUNCTION__, error));
 		return error;
 	}
 
+	cspec.rev = revinfo;
+	memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
+	memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
+	error = dhd_conf_map_country_list(dhd_get_pub(dev), &cspec);
+	if (error)
+		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+
+	WLDEV_INFO(("%s: Current country %s rev %d\n",
+		__FUNCTION__, cur_cspec.ccode, cur_cspec.rev));
+
 	if ((error < 0) ||
 		dhd_force_country_change(dev) ||
-	    (strncmp(country_code, cspec.ccode, WLC_CNTRY_BUF_SZ) != 0)) {
+	    (strncmp(cspec.ccode, cur_cspec.ccode, WLC_CNTRY_BUF_SZ) != 0)) {
 
+		if ((user_enforced)
 #ifdef WL_CFG80211
-		if ((user_enforced) && (wl_get_drv_status(cfg, CONNECTED, dev)))
-#else
-		if (user_enforced)
-#endif /* WL_CFG80211 */
-		{
+			&& (wl_get_drv_status(cfg, CONNECTED, dev))
+#endif
+		) {
 			bzero(&scbval, sizeof(scb_val_t));
 			error = wldev_ioctl_set(dev, WLC_DISASSOC,
 			                        &scbval, sizeof(scb_val_t));
@@ -508,17 +525,8 @@ int wldev_set_country(
 			}
 		}
 
-#ifdef WL_CFG80211
-		wl_cfg80211_scan_abort(cfg);
-#endif
-
-		cspec.rev = revinfo;
-		strlcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
-		strlcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
-		error = dhd_conf_map_country_list(dhd_get_pub(dev), &cspec);
-		if (error)
-			dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
-		error = dhd_conf_set_country(dhd_get_pub(dev), &cspec);
+		error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
+			smbuf, sizeof(smbuf), NULL);
 		if (error < 0) {
 			WLDEV_ERROR(("%s: set country for %s as %s rev %d failed\n",
 				__FUNCTION__, country_code, cspec.ccode, cspec.rev));

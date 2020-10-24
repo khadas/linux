@@ -1,14 +1,14 @@
 /*
  * From FreeBSD 2.2.7: Fundamental constants relating to ethernet.
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -32,10 +32,11 @@
 
 #ifndef _TYPEDEFS_H_
 #include "typedefs.h"
-#endif // endif
+#endif
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
+
 
 /*
  * The number of bytes in an ethernet (MAC) address.
@@ -153,6 +154,7 @@ BWL_PRE_PACKED_STRUCT struct	ether_addr {
  */
 #define ETHER_ISMULTI(ea) (((const uint8 *)(ea))[0] & 1)
 
+
 /* compare two ethernet addresses - assumes the pointers can be referenced as shorts */
 #define eacmp(a, b)	((((const uint16 *)(a))[0] ^ ((const uint16 *)(b))[0]) | \
 	                 (((const uint16 *)(a))[1] ^ ((const uint16 *)(b))[1]) | \
@@ -186,6 +188,7 @@ do { \
 	((uint32 *)(d))[2] = ((const uint32 *)(s))[2]; \
 	((uint16 *)(d))[6] = ((const uint16 *)(s))[6]; \
 } while (0)
+
 
 static const struct ether_addr ether_bcast = {{255, 255, 255, 255, 255, 255}};
 static const struct ether_addr ether_null = {{0, 0, 0, 0, 0, 0}};

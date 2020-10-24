@@ -5,14 +5,14 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -20,7 +20,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -28,13 +28,14 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhdioctl.h 800512 2019-01-22 09:31:01Z $
+ * $Id: dhdioctl.h 675190 2016-12-14 15:27:52Z $
  */
 
 #ifndef _dhdioctl_h_
 #define	_dhdioctl_h_
 
 #include <typedefs.h>
+
 
 /* Linux network driver ioctl encoding */
 typedef struct dhd_ioctl {
@@ -54,69 +55,6 @@ enum {
 	BUS_TYPE_PCIE /* for PCIE dongles */
 };
 
-typedef enum {
-	DMA_XFER_SUCCESS = 0,
-	DMA_XFER_IN_PROGRESS,
-	DMA_XFER_FAILED
-} dma_xfer_status_t;
-
-typedef enum d11_lpbk_type {
-	M2M_DMA_LPBK = 0,
-	D11_LPBK = 1,
-	BMC_LPBK = 2,
-	M2M_NON_DMA_LPBK = 3,
-	D11_HOST_MEM_LPBK = 4,
-	BMC_HOST_MEM_LPBK = 5,
-	MAX_LPBK = 6
-} dma_xfer_type_t;
-
-typedef struct dmaxfer_info {
-	uint16 version;
-	uint16 length;
-	dma_xfer_status_t status;
-	dma_xfer_type_t type;
-	uint src_delay;
-	uint dest_delay;
-	uint should_wait;
-	uint core_num;
-	int error_code;
-	uint32 num_bytes;
-	uint64 time_taken;
-	uint64 tput;
-} dma_xfer_info_t;
-
-#define DHD_DMAXFER_VERSION 0x1
-
-typedef struct tput_test {
-	uint16 version;
-	uint16 length;
-	uint8 direction;
-	uint8 tput_test_running;
-	uint8 mac_sta[6];
-	uint8 mac_ap[6];
-	uint8 PAD[2];
-	uint32 payload_size;
-	uint32 num_pkts;
-	uint32 timeout_ms;
-	uint32 flags;
-
-	uint32 pkts_good;
-	uint32 pkts_bad;
-	uint32 pkts_cmpl;
-	uint64 time_ms;
-	uint64 tput_bps;
-} tput_test_t;
-
-typedef enum {
-	TPUT_DIR_TX = 0,
-	TPUT_DIR_RX
-} tput_dir_t;
-
-#define TPUT_TEST_T_VER 1
-#define TPUT_TEST_T_LEN 68
-#define TPUT_TEST_MIN_PAYLOAD_SIZE 16
-#define TPUT_TEST_USE_ETHERNET_HDR 0x1
-#define TPUT_TEST_USE_802_11_HDR 0x2
 
 /* per-driver magic numbers */
 #define DHD_IOCTL_MAGIC		0x00444944
@@ -171,20 +109,10 @@ typedef enum {
 #define DHD_PKT_MON_VAL		0x2000000
 #define DHD_PKT_MON_DUMP_VAL	0x4000000
 #define DHD_ERROR_MEM_VAL	0x8000000
-#define DHD_DNGL_IOVAR_SET_VAL	0x10000000 /**< logs the setting of dongle iovars */
-#define DHD_LPBKDTDUMP_VAL	0x20000000
-#define DHD_PRSRV_MEM_VAL	0x40000000
-#define DHD_IOVAR_MEM_VAL	0x80000000
 #define DHD_ANDROID_VAL	0x10000
 #define DHD_IW_VAL	0x20000
 #define DHD_CFG_VAL	0x40000
 #define DHD_CONFIG_VAL	0x80000
-#define DUMP_EAPOL_VAL	0x0001
-#define DUMP_ARP_VAL	0x0002
-#define DUMP_DHCP_VAL	0x0004
-#define DUMP_ICMP_VAL	0x0008
-#define DUMP_DNS_VAL	0x0010
-#define DUMP_TRX_VAL	0x0080
 
 #ifdef SDTEST
 /* For pktgen iovar */
@@ -220,57 +148,6 @@ typedef struct dhd_pktgen {
 #define DHD_IDLE_ACTIVE	0	/* Do not request any SD clock change when idle */
 #define DHD_IDLE_STOP   (-1)	/* Request SD clock be stopped (and use SD1 mode) */
 
-enum dhd_maclist_xtlv_type {
-	DHD_MACLIST_XTLV_R = 0x1,
-	DHD_MACLIST_XTLV_X = 0x2,
-	DHD_SVMPLIST_XTLV = 0x3
-};
 
-typedef struct _dhd_maclist_t {
-	uint16 version;		/* Version */
-	uint16 bytes_len;	/* Total bytes length of lists, XTLV headers and paddings */
-	uint8 plist[1];		/* Pointer to the first list */
-} dhd_maclist_t;
-
-typedef struct _dhd_pd11regs_param {
-	uint16 start_idx;
-	uint8 verbose;
-	uint8 pad;
-	uint8 plist[1];
-} dhd_pd11regs_param;
-
-typedef struct _dhd_pd11regs_buf {
-	uint16 idx;
-	uint8 pad[2];
-	uint8 pbuf[1];
-} dhd_pd11regs_buf;
-
-/* BT logging and memory dump */
-
-#define BT_LOG_BUF_MAX_SIZE		(DHD_IOCTL_MAXLEN - (2 * sizeof(int)))
-#define BT_LOG_BUF_NOT_AVAILABLE	0
-#define BT_LOG_NEXT_BUF_NOT_AVAIL	1
-#define BT_LOG_NEXT_BUF_AVAIL		2
-#define BT_LOG_NOT_READY		3
-
-typedef struct bt_log_buf_info {
-	int availability;
-	int size;
-	char buf[BT_LOG_BUF_MAX_SIZE];
-} bt_log_buf_info_t;
-
-/* request BT memory in chunks */
-typedef struct bt_mem_req {
-	int offset;	/* offset from BT memory start */
-	int buf_size;	/* buffer size per chunk */
-} bt_mem_req_t;
-
-/* max dest supported */
-#define DEBUG_BUF_DEST_MAX	4
-
-/* debug buf dest stat */
-typedef struct debug_buf_dest_stat {
-	uint32 stat[DEBUG_BUF_DEST_MAX];
-} debug_buf_dest_stat_t;
 
 #endif /* _dhdioctl_h_ */

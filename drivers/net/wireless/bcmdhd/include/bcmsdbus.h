@@ -2,14 +2,14 @@
  * Definitions for API from sdio common code (bcmsdh) to individual
  * host controller drivers.
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +17,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdbus.h 689948 2017-03-14 05:21:03Z $
+ * $Id: bcmsdbus.h 644725 2016-06-21 12:26:04Z $
  */
 
 #ifndef	_sdio_api_h_
@@ -34,6 +34,7 @@
 #if defined(BT_OVER_SDIO)
 #include <linux/mmc/sdio_func.h>
 #endif /* defined (BT_OVER_SDIO) */
+
 
 #define SDIOH_API_RC_SUCCESS                          (0x00)
 #define SDIOH_API_RC_FAIL	                      (0x01)
@@ -72,7 +73,7 @@
 #warning "SDPCM_DEFGLOM_SIZE cannot be higher than SDPCM_MAXGLOM_SIZE!!"
 #undef SDPCM_DEFGLOM_SIZE
 #define SDPCM_DEFGLOM_SIZE SDPCM_MAXGLOM_SIZE
-#endif // endif
+#endif
 
 #ifdef PKT_STATICS
 typedef struct pkt_statics {
@@ -114,7 +115,7 @@ extern SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *si, bool enable_disable);
 
 #if defined(DHD_DEBUG)
 extern bool sdioh_interrupt_pending(sdioh_info_t *si);
-#endif // endif
+#endif
 
 /* read or write one byte using cmd52 */
 extern SDIOH_API_RC sdioh_request_byte(sdioh_info_t *si, uint rw, uint fnc, uint addr, uint8 *byte);
@@ -155,18 +156,11 @@ extern int sdioh_waitlockfree(sdioh_info_t *si);
 /* Reset and re-initialize the device */
 extern int sdioh_sdio_reset(sdioh_info_t *si);
 
-#ifdef BCMSPI
-/* Function to pass gSPI specific device-status bits to dhd. */
-extern uint32 sdioh_get_dstatus(sdioh_info_t *si);
 
-/* chipid and chiprev info for lower layers to control sw WAR's for hw bugs. */
-extern void sdioh_chipinfo(sdioh_info_t *si, uint32 chip, uint32 chiprev);
-extern void sdioh_dwordmode(sdioh_info_t *si, bool set);
-#endif /* BCMSPI */
 
 #if defined(BCMSDIOH_STD)
 	#define SDIOH_SLEEP_ENABLED
-#endif // endif
+#endif
 extern SDIOH_API_RC sdioh_sleep(sdioh_info_t *si, bool enab);
 
 /* GPIO support */

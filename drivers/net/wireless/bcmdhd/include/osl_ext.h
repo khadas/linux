@@ -2,14 +2,14 @@
  * OS Abstraction Layer Extension - the APIs defined by the "extension" API
  * are only supported by a subset of all operating systems.
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,7 +17,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -25,11 +25,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: osl_ext.h 759145 2018-04-24 05:09:37Z $
+ * $Id: osl_ext.h 611959 2016-01-12 15:23:56Z $
  */
 
 #ifndef _osl_ext_h_
 #define _osl_ext_h_
+
 
 /* ---- Include Files ---------------------------------------------------- */
 
@@ -40,14 +41,14 @@
 	#include <threadx_osl_ext.h>
 #else
 	#define OSL_EXT_DISABLED
-#endif // endif
+#endif
 
 /* Include base operating system abstraction. */
 #include <osl.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif // endif
+#endif
 
 /* ---- Constants and Types ---------------------------------------------- */
 
@@ -65,7 +66,6 @@ typedef enum osl_ext_status_t
 
 #define OSL_EXT_TIME_FOREVER ((osl_ext_time_ms_t)(-1))
 typedef unsigned int osl_ext_time_ms_t;
-typedef unsigned int osl_ext_time_us_t;
 
 typedef unsigned int osl_ext_event_bits_t;
 
@@ -87,6 +87,7 @@ typedef enum
 /* User registered callback and parameter to invoke when timer expires. */
 typedef void* osl_ext_timer_arg_t;
 typedef void (*osl_ext_timer_callback)(osl_ext_timer_arg_t arg);
+
 
 /* -----------------------------------------------------------------------
  * Tasks.
@@ -113,10 +114,12 @@ typedef enum
 	OSL_EXT_TASK_NUM_PRIORITES
 } osl_ext_task_priority_t;
 
+
 #ifndef OSL_EXT_DISABLED
 
 /* ---- Variable Externs ------------------------------------------------- */
 /* ---- Function Prototypes ---------------------------------------------- */
+
 
 /* --------------------------------------------------------------------------
 ** Semaphore
@@ -185,6 +188,7 @@ osl_ext_status_t osl_ext_sem_give(osl_ext_sem_t *sem);
 */
 osl_ext_status_t osl_ext_sem_take(osl_ext_sem_t *sem, osl_ext_time_ms_t timeout_msec);
 
+
 /* --------------------------------------------------------------------------
 ** Mutex
 */
@@ -247,6 +251,7 @@ osl_ext_status_t osl_ext_mutex_acquire(osl_ext_mutex_t *mutex, osl_ext_time_ms_t
 */
 osl_ext_status_t osl_ext_mutex_release(osl_ext_mutex_t *mutex);
 
+
 /* --------------------------------------------------------------------------
 ** Timers
 */
@@ -305,23 +310,6 @@ osl_ext_timer_start(osl_ext_timer_t *timer,
 	osl_ext_time_ms_t timeout_msec, osl_ext_timer_mode_t mode);
 
 /****************************************************************************
-* Function:   osl_ext_timer_start
-*
-* Purpose:    Start a previously created timer object.
-*
-* Parameters: timer (in)        Timer object.
-*             timeout_usec (in) Invoke callback after this number of micro-seconds.
-*             mode (in)         One-shot or periodic timer.
-*
-* Returns:    OSL_EXT_SUCCESS if the timer was created successfully, or an
-*             error code if the timer could not be created.
-*****************************************************************************
-*/
-osl_ext_status_t
-osl_ext_timer_start_us(osl_ext_timer_t *timer,
-	osl_ext_time_us_t timeout_usec, osl_ext_timer_mode_t mode);
-
-/****************************************************************************
 * Function:   osl_ext_timer_stop
 *
 * Purpose:    Stop a previously created timer object.
@@ -371,31 +359,12 @@ osl_ext_time_ms_t osl_ext_time_get(void);
 
 #define osl_ext_task_create(name, stack, stack_size, priority, func, arg, task) \
 	   osl_ext_task_create_ex((name), (stack), (stack_size), (priority), 0, (func), \
-	   (arg), TRUE, (task))
-
-/****************************************************************************
-* Function:   osl_ext_task_create_ex
-*
-* Purpose:    Create a task with autostart option.
-*
-* Parameters: name       (in)  Pointer to task string descriptor.
-*             stack      (in)  Pointer to stack. NULL to allocate.
-*             stack_size (in)  Stack size - in bytes.
-*             priority   (in)  Abstract task priority.
-*             func       (in)  A pointer to the task entry point function.
-*             arg        (in)  Value passed into task entry point function.
-*             autostart  (in)  TRUE to start task after creation.
-*             task       (out) Task to create.
-*
-* Returns:    OSL_EXT_SUCCESS if the task was created successfully, or an
-*             error code if the task could not be created.
-*****************************************************************************
-*/
+	   (arg), (task))
 
 osl_ext_status_t osl_ext_task_create_ex(char* name,
 	void *stack, unsigned int stack_size, osl_ext_task_priority_t priority,
 	osl_ext_time_ms_t timslice_msec, osl_ext_task_entry func, osl_ext_task_arg_t arg,
-	bool autostart, osl_ext_task_t *task);
+	osl_ext_task_t *task);
 
 /****************************************************************************
 * Function:   osl_ext_task_delete
@@ -410,6 +379,7 @@ osl_ext_status_t osl_ext_task_create_ex(char* name,
 */
 osl_ext_status_t osl_ext_task_delete(osl_ext_task_t *task);
 
+
 /****************************************************************************
 * Function:   osl_ext_task_is_running
 *
@@ -422,18 +392,6 @@ osl_ext_status_t osl_ext_task_delete(osl_ext_task_t *task);
 */
 osl_ext_task_t *osl_ext_task_current(void);
 
-/****************************************************************************
-* Function:   osl_ext_task_yield
-*
-* Purpose:    Yield the CPU to other tasks of the same priority that are
-*             ready-to-run.
-*
-* Parameters: None.
-*
-* Returns:    OSL_EXT_SUCCESS if successful, else error code.
-*****************************************************************************
-*/
-osl_ext_status_t osl_ext_task_yield(void);
 
 /****************************************************************************
 * Function:   osl_ext_task_yield
@@ -448,31 +406,6 @@ osl_ext_status_t osl_ext_task_yield(void);
 */
 osl_ext_status_t osl_ext_task_yield(void);
 
-/****************************************************************************
-* Function:   osl_ext_task_suspend
-*
-* Purpose:    Suspend a task.
-*
-* Parameters: task (mod) Task to suspend.
-*
-* Returns:    OSL_EXT_SUCCESS if the task was suspended successfully, or an
-*             error code if the task could not be suspended.
-*****************************************************************************
-*/
-osl_ext_status_t osl_ext_task_suspend(osl_ext_task_t *task);
-
-/****************************************************************************
-* Function:   osl_ext_task_resume
-*
-* Purpose:    Resume a task.
-*
-* Parameters: task (mod) Task to resume.
-*
-* Returns:    OSL_EXT_SUCCESS if the task was resumed successfully, or an
-*             error code if the task could not be resumed.
-*****************************************************************************
-*/
-osl_ext_status_t osl_ext_task_resume(osl_ext_task_t *task);
 
 /****************************************************************************
 * Function:   osl_ext_task_enable_stack_check
@@ -485,6 +418,7 @@ osl_ext_status_t osl_ext_task_resume(osl_ext_task_t *task);
 *****************************************************************************
 */
 osl_ext_status_t osl_ext_task_enable_stack_check(void);
+
 
 /* --------------------------------------------------------------------------
 ** Queue
@@ -584,6 +518,7 @@ osl_ext_status_t osl_ext_queue_receive(osl_ext_queue_t *queue,
 */
 osl_ext_status_t osl_ext_queue_count(osl_ext_queue_t *queue, int *count);
 
+
 /* --------------------------------------------------------------------------
 ** Event
 */
@@ -649,6 +584,7 @@ osl_ext_status_t osl_ext_event_get(osl_ext_event_t *event,
 osl_ext_status_t osl_ext_event_set(osl_ext_event_t *event,
 	osl_ext_event_bits_t event_bits);
 
+
 /* --------------------------------------------------------------------------
 ** Interrupt
 */
@@ -664,6 +600,7 @@ osl_ext_status_t osl_ext_event_set(osl_ext_event_t *event,
 *****************************************************************************
 */
 osl_ext_interrupt_state_t osl_ext_interrupt_disable(void);
+
 
 /****************************************************************************
 * Function:   osl_ext_interrupt_restore
@@ -681,11 +618,6 @@ void osl_ext_interrupt_restore(osl_ext_interrupt_state_t state);
 #else
 
 /* ---- Constants and Types ---------------------------------------------- */
-
-/* Interrupt control */
-#define OSL_INTERRUPT_SAVE_AREA
-#define OSL_DISABLE
-#define OSL_RESTORE
 
 /* Semaphore. */
 #define osl_ext_sem_t
@@ -760,6 +692,6 @@ void osl_ext_interrupt_restore(osl_ext_interrupt_state_t state);
 
 #ifdef __cplusplus
 }
-#endif // endif
+#endif
 
 #endif	/* _osl_ext_h_ */
