@@ -8,12 +8,14 @@
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
+#include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/sched/task.h>
 #include <linux/start_kernel.h>
-#include <linux/pgtable.h>
+#include <asm/pgtable.h>
 #include <asm/cputype.h>
 #include <asm/highmem.h>
 #include <asm/mach/map.h>
@@ -28,6 +30,7 @@
 static pgd_t tmp_pgd_table[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
 
 pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
+
 
 static __init void *kasan_alloc_block(size_t size)
 {
@@ -180,7 +183,7 @@ void __init kasan_early_init(void)
 	kasan_pgd_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, true);
 }
 
-static void __init clear_pgds(unsigned long start,
+void __init clear_pgds(unsigned long start,
 			unsigned long end)
 {
 	for (; start && start < end; start += PMD_SIZE)
@@ -239,7 +242,8 @@ void __init kasan_init(void)
 	kasan_populate_early_shadow(kasan_mem_to_shadow((void *)VMALLOC_START),
 				    kasan_mem_to_shadow((void *)-1UL) + 1);
 
-	for_each_mem_range(i, &pa_start, &pa_end) {
+	for_each_mem_range(i, &memblock.memory, NULL, NUMA_NO_NODE,
+			MEMBLOCK_NONE, &pa_start, &pa_end, NULL) {
 		void *start = __va(pa_start);
 		void *end = __va(pa_end);
 

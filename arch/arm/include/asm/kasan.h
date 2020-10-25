@@ -26,6 +26,7 @@
 asmlinkage void kasan_early_init(void);
 extern void kasan_init(void);
 
+void __init clear_pgds(unsigned long start, unsigned long end);
 #else
 static inline void kasan_init(void) { }
 #endif
