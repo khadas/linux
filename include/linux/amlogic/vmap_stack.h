@@ -18,13 +18,13 @@
 #else
 /* currently support max 6144 tasks on 32bit */
 #define VM_STACK_AREA_SIZE		(SZ_64M - SZ_16M)
-#ifdef CONFIG_AMLOGIC_KASAN32		/* change place if open kasan */
+#ifdef CONFIG_KASAN		/* change place if open kasan */
 #define VMAP_ADDR_START			VMALLOC_START
 #define VMAP_ADDR_END			(VMALLOC_START + VM_STACK_AREA_SIZE)
 #else
 #define VMAP_ADDR_START			MODULES_VADDR
 #define VMAP_ADDR_END			MODULES_END
-#endif /* CONFIG_AMLOGIC_KASAN32 */
+#endif /* CONFIG_KASAN */
 #define VMAP_ALIGN			SZ_64M
 #endif
 

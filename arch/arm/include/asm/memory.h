@@ -19,6 +19,14 @@
 #include <mach/memory.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#define SIZE_VSTACK		(48 * 1024 * 1024)
+#else
+#define SIZE_VSTACK		(0)
+#endif
+
+#include <asm/kasan_def.h>
+
 /* PAGE_OFFSET - the virtual address of the start of the kernel image */
 #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
 
@@ -28,11 +36,12 @@
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
-#ifdef CONFIG_AMLOGIC_VMAP
-#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_64M))
+
+#ifndef CONFIG_KASAN
+#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M) - SIZE_VSTACK)
 #else
-#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
-#endif /* CONFIG_AMLOGIC_VMAP */
+#define TASK_SIZE		(KASAN_SHADOW_START)
+#endif /* CONFIG_KASAN */
 #define TASK_UNMAPPED_BASE	ALIGN(TASK_SIZE / 3, SZ_16M)
 
 /*
