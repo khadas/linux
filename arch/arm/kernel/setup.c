@@ -62,6 +62,7 @@
 #ifdef CONFIG_AMLOGIC_VMAP
 #include <linux/amlogic/vmap_stack.h>
 #endif
+#include <asm/kasan.h>
 
 #include "atags.h"
 
@@ -1173,6 +1174,7 @@ void __init setup_arch(char **cmdline_p)
 	early_ioremap_reset();
 
 	paging_init(mdesc);
+	kasan_init();
 	request_standard_resources(mdesc);
 
 	if (mdesc->restart) {
