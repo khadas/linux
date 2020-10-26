@@ -15,9 +15,6 @@ CONFIG_AMLOGIC_JTAG_MESON=m
 # aml_mailbox.ko
 CONFIG_AMLOGIC_MHU_MBOX=m
 
-# aml_mailbox_dsp.ko
-CONFIG_AMLOGIC_MHU_MBOX_DSP=m
-
 # hifi4dsp.ko
 CONFIG_AMLOGIC_HIFI4DSP=m
 

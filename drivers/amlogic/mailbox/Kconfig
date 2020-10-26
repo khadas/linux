@@ -15,17 +15,6 @@ config AMLOGIC_MHU_MBOX
 		.
 		.
 
-config AMLOGIC_MHU_MBOX_DSP
-	tristate "MESON MHU Mailbox For DSP"
-	default n
-	select MAILBOX
-	select ARM_SCPI_PROTOCOL
-	help
-		MESON MHU Mailbox For DSP driver.
-		.
-		.
-		.
-
 config ARM_SCPI_PROTOCOL
        tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
        default n

@@ -43,8 +43,7 @@ static struct dentry *hifi4rtos_debug_dir;
 static struct dentry *hifi4alogbuf_file;
 static struct dentry *hifi4blogbuf_file;
 
-#define SENDCMDTODSPA 1
-#define SENDCMDTODSPB 0
+struct hifi4syslog hifi4logbuffer[2];
 
 void dumpsyslogbinary(void *base, u32 bytes)
 {
@@ -137,15 +136,25 @@ static int dumphifi4syslog(u32 dspid, struct seq_file *s)
 static int sendrequest(u32 dspid)
 {
 	char requestinfo[] = "AP request";
+	struct hifi4syslog phifilogbuf;
 
 	strcpy(hifi4logbuffer[dspid].syslogstate, "OFF");
 	/*send request cmd to dsp to get syslog args*/
 	if (dspid == 0)
-		scpi_send_dsp_cmd(requestinfo, sizeof(requestinfo),
-				  SENDCMDTODSPA, SCPI_CMD_HIFI4SYSTLOG, 0);
+		scpi_send_data(requestinfo, sizeof(requestinfo),
+			       SCPI_DSPA, SCPI_CMD_HIFI4SYSTLOG,
+			       &phifilogbuf, sizeof(phifilogbuf));
 	else
-		scpi_send_dsp_cmd(requestinfo, sizeof(requestinfo),
-				  SENDCMDTODSPB, SCPI_CMD_HIFI4SYSTLOG, 0);
+		scpi_send_data(requestinfo, sizeof(requestinfo),
+			       SCPI_DSPB, SCPI_CMD_HIFI4SYSTLOG,
+			       &phifilogbuf, sizeof(phifilogbuf));
+
+	strcpy(hifi4logbuffer[dspid].syslogstate, phifilogbuf.syslogstate);
+	hifi4logbuffer[dspid].logbaseaddr = phifilogbuf.logbaseaddr;
+	hifi4logbuffer[dspid].syslogsize = phifilogbuf.syslogsize;
+	hifi4logbuffer[dspid].loghead = phifilogbuf.loghead;
+	hifi4logbuffer[dspid].logtail = phifilogbuf.logtail;
+
 	return 0;
 }
 
