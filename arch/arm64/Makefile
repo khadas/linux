@@ -120,6 +120,10 @@ zinstall install: vmlinux
 
 %.dtb: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+ifeq ($(CONFIG_ARCH_ROCKCHIP),y)
+%.dtbo: scripts
+	$(Q)$(MAKE) $(build)=$(boot)/dts/rockchip $(boot)/dts/rockchip/$@
+endif
 
 PHONY += dtbs dtbs_install
 

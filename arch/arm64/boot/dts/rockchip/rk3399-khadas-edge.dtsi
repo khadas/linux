@@ -479,7 +479,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disabled";
 	i2c-scl-rising-time-ns = <600>;
 	i2c-scl-falling-time-ns = <20>;
 };
@@ -754,6 +754,15 @@
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
+
+&i2s0 {
+	status = "disabled";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
+	#sound-dai-cells = <0>;
+};
+
 
 &io_domains {
 	status = "okay";
@@ -1092,3 +1101,13 @@
 		};
 	};
 };
+
+
+&spi3 {
+	status = "disabled";
+
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>, <&gpio1 16 GPIO_ACTIVE_LOW>;
+	max-freq = <48000000>;
+
+};
+
