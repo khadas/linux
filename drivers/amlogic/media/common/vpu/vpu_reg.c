@@ -13,10 +13,26 @@
 #include "vpu.h"
 
 enum vpu_map_e {
-	VPU_MAP_HIU = 0,
+	VPU_MAP_CLK = 0,
+	VPU_MAP_PWRCTRL,
+	VPU_MAP_CBUS,
+	VPU_MAP_AOBUS,
+	VPU_MAP_VCBUS,
+	VPU_MAP_MAX,
+};
+
+int vpu_reg_table[] = {
+	VPU_MAP_CLK,
 	VPU_MAP_VCBUS,
 	VPU_MAP_CBUS,
 	VPU_MAP_AOBUS,
+	VPU_MAP_MAX,
+};
+
+int vpu_reg_table_new[] = {
+	VPU_MAP_CLK,
+	VPU_MAP_PWRCTRL,
+	VPU_MAP_VCBUS,
 	VPU_MAP_MAX,
 };
 
@@ -29,10 +45,17 @@ struct vpu_reg_map_s {
 
 static struct vpu_reg_map_s *vpu_reg_map;
 
-int vpu_ioremap(struct platform_device *pdev)
+int vpu_ioremap(struct platform_device *pdev, int *reg_map_table)
 {
 	int i = 0;
+	int *table;
 	struct resource *res;
+
+	if (!reg_map_table) {
+		VPUERR("%s: reg_map_table is null\n", __func__);
+		return -1;
+	}
+	table = reg_map_table;
 
 	vpu_reg_map = devm_kcalloc(&pdev->dev, VPU_MAP_MAX,
 				   sizeof(struct vpu_reg_map_s),
@@ -41,30 +64,34 @@ int vpu_ioremap(struct platform_device *pdev)
 		VPUERR("%s: vpu_reg_map buf malloc error\n", __func__);
 		return -ENOMEM;
 	}
+
 	while (i < VPU_MAP_MAX) {
+		if (table[i] == VPU_MAP_MAX)
+			break;
+
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
 			VPUERR("%s: vpu_reg resource get error\n", __func__);
 			vpu_reg_map = NULL;
 			return -ENOMEM;
 		}
-		vpu_reg_map[i].base_addr = res->start;
-		vpu_reg_map[i].size = resource_size(res);
-		vpu_reg_map[i].p = devm_ioremap_nocache(&pdev->dev,
-							res->start,
-							vpu_reg_map[i].size);
-		if (!vpu_reg_map[i].p) {
-			vpu_reg_map[i].flag = 0;
+		vpu_reg_map[table[i]].base_addr = res->start;
+		vpu_reg_map[table[i]].size = resource_size(res);
+		vpu_reg_map[table[i]].p =
+			devm_ioremap_nocache(&pdev->dev, res->start,
+					     vpu_reg_map[table[i]].size);
+		if (!vpu_reg_map[table[i]].p) {
+			vpu_reg_map[table[i]].flag = 0;
 			VPUERR("%s: reg map failed: 0x%x\n",
-			       __func__, vpu_reg_map[i].base_addr);
+			       __func__, vpu_reg_map[table[i]].base_addr);
 			vpu_reg_map = NULL;
 			return -ENOMEM;
 		}
-		vpu_reg_map[i].flag = 1;
+		vpu_reg_map[table[i]].flag = 1;
 		if (vpu_debug_print_flag) {
 			VPUPR("%s: reg mapped: 0x%x -> %p\n",
-			      __func__, vpu_reg_map[i].base_addr,
-			      vpu_reg_map[i].p);
+			      __func__, vpu_reg_map[table[i]].base_addr,
+			      vpu_reg_map[table[i]].p);
 		}
 
 		i++;
@@ -87,14 +114,13 @@ static inline void __iomem *check_vpu_hiu_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
-	unsigned int reg_base, reg_offset;
+	unsigned int reg_offset;
 
-	reg_bus = VPU_MAP_HIU;
+	reg_bus = VPU_MAP_CLK;
 	if (check_vpu_ioremap(reg_bus))
 		return NULL;
 
-	reg_base = vpu_reg_map[reg_bus].base_addr - VPU_HIU_BASE;
-	reg_offset = (_reg << 2) - reg_base;
+	reg_offset = (_reg << 2);
 
 	if (WARN_ON(reg_offset >= vpu_reg_map[reg_bus].size))
 		return NULL;
@@ -103,18 +129,17 @@ static inline void __iomem *check_vpu_hiu_reg(unsigned int _reg)
 	return p;
 }
 
-static inline void __iomem *check_vpu_vcbus_reg(unsigned int _reg)
+static inline void __iomem *check_vpu_pwrctrl_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
-	unsigned int reg_base, reg_offset;
+	unsigned int reg_offset;
 
-	reg_bus = VPU_MAP_VCBUS;
+	reg_bus = VPU_MAP_PWRCTRL;
 	if (check_vpu_ioremap(reg_bus))
 		return NULL;
 
-	reg_base = vpu_reg_map[reg_bus].base_addr - VPU_VCBUS_BASE;
-	reg_offset = (_reg << 2) - reg_base;
+	reg_offset = (_reg << 2);
 
 	if (WARN_ON(reg_offset >= vpu_reg_map[reg_bus].size))
 		return NULL;
@@ -127,14 +152,13 @@ static inline void __iomem *check_vpu_cbus_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
-	unsigned int reg_base, reg_offset;
+	unsigned int reg_offset;
 
 	reg_bus = VPU_MAP_CBUS;
 	if (check_vpu_ioremap(reg_bus))
 		return NULL;
 
-	reg_base = vpu_reg_map[reg_bus].base_addr - VPU_CBUS_BASE;
-	reg_offset = (_reg << 2) - reg_base;
+	reg_offset = (_reg << 2);
 
 	if (WARN_ON(reg_offset >= vpu_reg_map[reg_bus].size))
 		return NULL;
@@ -147,14 +171,32 @@ static inline void __iomem *check_vpu_aobus_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
-	unsigned int reg_base, reg_offset;
+	unsigned int reg_offset;
 
 	reg_bus = VPU_MAP_AOBUS;
 	if (check_vpu_ioremap(reg_bus))
 		return NULL;
 
-	reg_base = vpu_reg_map[reg_bus].base_addr - VPU_AOBUS_BASE;
-	reg_offset = (_reg << 2) - reg_base;
+	reg_offset = (_reg << 2);
+
+	if (WARN_ON(reg_offset >= vpu_reg_map[reg_bus].size))
+		return NULL;
+
+	p = vpu_reg_map[reg_bus].p + reg_offset;
+	return p;
+}
+
+static inline void __iomem *check_vpu_vcbus_reg(unsigned int _reg)
+{
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = VPU_MAP_VCBUS;
+	if (check_vpu_ioremap(reg_bus))
+		return NULL;
+
+	reg_offset = (_reg << 2);
 
 	if (WARN_ON(reg_offset >= vpu_reg_map[reg_bus].size))
 		return NULL;
@@ -176,7 +218,7 @@ unsigned int vpu_hiu_read(unsigned int _reg)
 	if (p)
 		return readl(p);
 	else
-		return -1;
+		return 0;
 };
 
 void vpu_hiu_write(unsigned int _reg, unsigned int _value)
@@ -212,6 +254,26 @@ void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask)
 	vpu_hiu_write(_reg, (vpu_hiu_read(_reg) & (~(_mask))));
 }
 
+unsigned int vpu_pwrctrl_read(unsigned int _reg)
+{
+	void __iomem *p;
+	unsigned int ret = 0;
+
+	p = check_vpu_pwrctrl_reg(_reg);
+	if (p)
+		ret = readl(p);
+	else
+		ret = 0;
+
+	return ret;
+};
+
+unsigned int vpu_pwrctrl_getb(unsigned int _reg,
+			      unsigned int _start, unsigned int _len)
+{
+	return (vpu_pwrctrl_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+}
+
 unsigned int vpu_vcbus_read(unsigned int _reg)
 {
 	void __iomem *p;
@@ -220,7 +282,7 @@ unsigned int vpu_vcbus_read(unsigned int _reg)
 	if (p)
 		return readl(p);
 	else
-		return -1;
+		return 0;
 };
 
 void vpu_vcbus_write(unsigned int _reg, unsigned int _value)

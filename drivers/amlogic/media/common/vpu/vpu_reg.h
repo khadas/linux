@@ -33,9 +33,24 @@
 #define HHI_VPU_MEM_PD_REG3_SM1      0x43
 #define HHI_VPU_MEM_PD_REG4_SM1      0x44
 
-#define HHI_VPU_CLKC_CNTL            0x6d
+/* pwrctrl reg */
+#define PWRCTRL_MEM_PD5_SC2          0x0015
+#define PWRCTRL_MEM_PD6_SC2          0x0016
+#define PWRCTRL_MEM_PD7_SC2          0x0017
+#define PWRCTRL_MEM_PD8_SC2          0x0018
+#define PWRCTRL_MEM_PD9_SC2          0x0019
+
+#define PWRCTRL_MEM_PD3_T5           0x00a
+#define PWRCTRL_MEM_PD4_T5           0x00b
+#define PWRCTRL_MEM_PD5_T5           0x00c
+#define PWRCTRL_MEM_PD6_T5           0x00d
+#define PWRCTRL_MEM_PD7_T5           0x00e
+
 #define HHI_VPU_CLK_CNTL             0x6f
 #define HHI_VAPBCLK_CNTL             0x7d
+
+#define CLKCTRL_VPU_CLK_CTRL         0x003a
+#define CLKCTRL_VAPBCLK_CTRL         0x003f
 
 /* cbus */
 #define RESET0_LEVEL                 0x0420
@@ -79,7 +94,7 @@
 #define VPU_RDARB_MODE_L2C1          0x279d
 #define VPU_WRARB_MODE_L2C1          0x27a2
 
-int vpu_ioremap(struct platform_device *pdev);
+int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 
 unsigned int vpu_hiu_read(unsigned int _reg);
 void vpu_hiu_write(unsigned int _reg, unsigned int _value);
@@ -89,6 +104,10 @@ unsigned int vpu_hiu_getb(unsigned int _reg,
 			  unsigned int _start, unsigned int _len);
 void vpu_hiu_set_mask(unsigned int _reg, unsigned int _mask);
 void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+
+unsigned int vpu_pwrctrl_read(unsigned int _reg);
+unsigned int vpu_pwrctrl_getb(unsigned int _reg,
+			      unsigned int _start, unsigned int _len);
 
 unsigned int vpu_cbus_read(unsigned int _reg);
 void vpu_cbus_write(unsigned int _reg, unsigned int _value);

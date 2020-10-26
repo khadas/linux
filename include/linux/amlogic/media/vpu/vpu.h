@@ -41,6 +41,7 @@ enum vpu_mod_e {
 	VPU_DOLBY0,           /* reg1[9:8], TXLX */
 	VPU_DOLBY1A,          /* reg1[11:10], TXLX */
 	VPU_DOLBY1B,          /* reg1[13:12], TXLX */
+	VPU_DOLBY2,
 	VPU_VPU_ARB,          /* reg1[15:14], GXBB, GXTVBB, GXL, TXLX */
 	VPU_AFBC_DEC,         /* reg1[17:16], GXBB, GXTVBB, TXL, TXLX */
 	VPU_OSD_AFBCD,        /* reg1[19:18], TXLX */
@@ -73,8 +74,15 @@ enum vpu_mod_e {
 	VPU_AXI_WR1,          /* reg4[1:0], TL1 */
 	VPU_AXI_WR0,          /* reg4[3:2], TL1 */
 	VPU_AFBCE,            /* reg4[5:4], TL1 */
-	VPU_VDIN_WR_MIF2,     /* reg4[7:6], TM2, vdin double write */
-	VPU_DMA,              /* reg4[11:8], TM2, local dimming */
+	VPU_VDIN_WR_MIF2,     /* reg4[7:6], TM2 */
+	VPU_DMA,              /* reg4[11:8], TM2 */
+	VPU_HDMI,             /* reg4[13:12], TM2B */
+	VPU_FGRAIN0,          /* reg4[15:14], TM2B */
+	VPU_FGRAIN1,          /* reg4[17:16], TM2B */
+	VPU_DI_AFBCD,         /* reg9[23:18], SC2 */
+	VPU_DI_AFBCE,         /* reg9[27:24], SC2 */
+	VPU_DI_DOLBY,         /* reg9[29:28], SC2 */
+	VPU_DECONTOUR,        /* reg4[19:18], T5 */
 
 	VPU_MOD_MAX,
 

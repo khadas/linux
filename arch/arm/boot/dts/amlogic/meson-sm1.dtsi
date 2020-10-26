@@ -541,10 +541,10 @@
 	vpu: vpu {
 		compatible = "amlogic, vpu-sm1";
 		status = "okay";
-		reg =	<0xff63c100 0x100    /* hiu */
-			0xff900000 0x50000 /* vcbus */
-			0xffd01080 0x20    /* cbus */
-			0xff8000e8 0x2>;   /* aobus */
+		reg =	<0xff63c000 0x200  /* hiu */
+			 0xff900000 0x50000 /* vcbus */
+			 0xffd00000 0x10a0  /* cbus */
+			 0xff800000 0x100>; /* aobus */
 		clocks = <&clkc CLKID_VAPB_SEL>,
 			<&clkc CLKID_VPU_INTR>,
 			<&clkc CLKID_VPU_0>,
