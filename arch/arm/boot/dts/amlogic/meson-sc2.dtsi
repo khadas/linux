@@ -14,6 +14,9 @@
 #include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/input/meson_ir.h>
+#include "meson-ir-map.dtsi"
 
 / {
 	compatible = "amlogic,sm1";
@@ -831,6 +834,17 @@
 		 */
 		fr_policy = <2>;
 	};
+
+	ir: ir@8000 {
+		compatible = "amlogic, meson-ir";
+		reg = <0xfe084040 0x44>,
+			<0xfe084000 0x20>;
+		status = "disable";
+		protocol = <REMOTE_TYPE_NEC>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+		map = <&custom_maps>;
+		max_frame_time = <200>;
+	};
 };
 
 &periphs_pinctrl {
@@ -1407,6 +1421,14 @@
 		mux {
 			groups = "pwm_g_hiz";
 			function = "pwm_g_hiz";
+		};
+	};
+
+	remote_pins: remote_pin {
+		mux {
+			groups = "remote_input_d5";
+			function = "remote_input";
+			bias-disable;
 		};
 	};
 };
