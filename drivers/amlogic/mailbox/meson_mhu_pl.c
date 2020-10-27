@@ -37,6 +37,8 @@ static struct class *mbox_class;
 
 static struct list_head mbox_list[CHANNEL_PL_MAX];
 
+static int mbflag;
+
 enum USR_CMD {
 	MBOX_USER_CMD = 0x1001,
 };
@@ -145,6 +147,18 @@ static irqreturn_t mbox_dsp_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
+void memcpy_tomb(void __iomem *to, const void *from, long count)
+{
+	while (count > 0) {
+		__raw_writeb(*(const u8 *)from, to);
+		count--;
+		to++;
+		from++;
+	}
+	/*for sram issue*/
+	mb();
+}
+
 static int mhu_transfer_data(struct mbox_chan *link, void *msg)
 {
 	struct mhu_chan *mhu_chan = link->con_priv;
@@ -159,10 +173,15 @@ static int mhu_transfer_data(struct mbox_chan *link, void *msg)
 
 	mhu_chan->data = data;
 	if (data->tx_buf) {
-		memset_io(payload + TX_PAYLOAD,
-			  0, MBOX_PL_SIZE);
-		memcpy_toio(payload + TX_PAYLOAD,
-			    data->tx_buf, data->tx_size);
+		if (mbflag == 1) {
+			memcpy_tomb(payload + TX_PAYLOAD,
+				    data->tx_buf, data->tx_size);
+		} else {
+			memset_io(payload + TX_PAYLOAD,
+				  0, MBOX_PL_SIZE);
+			memcpy_toio(payload + TX_PAYLOAD,
+				    data->tx_buf, data->tx_size);
+		}
 	}
 	writel(data->cmd, mbox_set_base);
 
@@ -537,6 +556,12 @@ static int mhu_pl_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get mailbox num\n");
 		return -ENXIO;
 	}
+
+	mbflag = 0;
+	of_property_read_u32(dev->of_node,
+			     "mbox-mb", &mbflag);
+	if (!mbflag)
+		dev_err(dev, "no mailbox mbox-mb\n");
 
 	memid = num_chans / 2;
 

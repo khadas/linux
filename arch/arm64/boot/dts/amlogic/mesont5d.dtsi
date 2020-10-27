@@ -240,6 +240,7 @@
 		mboxes = <&mailbox_pl 0>,
 			 <&mailbox_pl 1>;
 		mbox-nums = <2>;
+		mbox-mb = <1>;
 	};
 
 	cpu_iomap {
