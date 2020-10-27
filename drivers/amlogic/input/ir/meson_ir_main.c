@@ -99,6 +99,16 @@ struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
 	return NULL;
 }
 
+void meson_ir_map_tab_list_free(struct meson_ir_chip *chip)
+{
+	struct meson_ir_map_tab_list *ir_map, *t_map;
+
+	list_for_each_entry_safe(ir_map, t_map, &chip->map_tab_head, list) {
+		list_del(&ir_map->list);
+		kfree((void *)ir_map);
+	}
+}
+
 void meson_ir_tab_free(struct meson_ir_map_tab_list *ir_map_list)
 {
 	kfree((void *)ir_map_list);
@@ -667,7 +677,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	dev->rc_type = chip->protocol;
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 	dev_pm_set_wake_irq(&pdev->dev, chip->irqno);
 
 	led_trigger_register_simple("ir_led", &dev->led_feedback);
@@ -689,7 +699,15 @@ static int meson_ir_remove(struct platform_device *pdev)
 		meson_ir_raw_event_unregister(chip->r_dev);
 
 	led_trigger_unregister_simple(chip->r_dev->led_feedback);
+
+	dev_pm_clear_wake_irq(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
+
 	meson_ir_cdev_free(chip);
+	input_unregister_device(chip->r_dev->input_device);
+	meson_ir_map_tab_list_free(chip);
+	irq_set_affinity_hint(chip->irqno, NULL);
+
 	return 0;
 }
 

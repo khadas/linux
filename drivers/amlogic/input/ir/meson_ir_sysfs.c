@@ -369,5 +369,6 @@ EXPORT_SYMBOL_GPL(meson_ir_sysfs_init);
 void meson_ir_sysfs_exit(struct meson_ir_chip *chip)
 {
 	device_destroy(&meson_ir_class, chip->chr_devno);
+	class_unregister(&meson_ir_class);
 }
 EXPORT_SYMBOL_GPL(meson_ir_sysfs_exit);
