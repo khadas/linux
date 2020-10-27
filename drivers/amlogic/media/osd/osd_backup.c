@@ -224,7 +224,7 @@ static struct reg_item freescale_recovery_table[] = {
 	{VPP_OSD_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
 	{VPP_OSD_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
 	{VPP_OSD_SC_DUMMY_DATA, 0x0, 0xffffffff, 0},
-	{VPP_OSD_SC_CTRL0, 0x0, 0x00007ffb, 1},
+	{VPP_OSD_SC_CTRL0, 0x0, 0x00007fff, 1},
 	{VPP_OSD_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
 	{VPP_OSD_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
 	{VPP_OSD_SCO_V_START_END, 0x0, 0x0fff0fff, 1},

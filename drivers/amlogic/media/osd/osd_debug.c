@@ -455,33 +455,36 @@ static void osd_test_colorbar(void)
 	u32 gclk_other = 0;
 	u32 encp_video_adv = 0;
 
-	gclk_other = osd_cbus_read(HHI_GCLK_OTHER);
-	encp_video_adv = osd_reg_read(ENCP_VIDEO_MODE_ADV);
+	if (osd_hw.osd_meson_dev.cpu_id <
+		__MESON_CPU_MAJOR_ID_SC2) {
+		gclk_other = osd_cbus_read(HHI_GCLK_OTHER);
+		encp_video_adv = osd_reg_read(ENCP_VIDEO_MODE_ADV);
 
-	/* start test mode */
-	osd_log_info("--- OSD TEST COLORBAR ---\n");
-	osd_cbus_write(HHI_GCLK_OTHER, 0xFFFFFFFF);
-	osd_reg_write(ENCP_VIDEO_MODE_ADV, 0);
-	osd_reg_write(VENC_VIDEO_TST_EN, 1);
-	/* TST_MODE COLORBAR */
-	osd_log_info("- COLORBAR -\n");
-	osd_reg_write(VENC_VIDEO_TST_MDSEL, 1);
-	msleep(OSD_TEST_DURATION);
+		/* start test mode */
+		osd_log_info("--- OSD TEST COLORBAR ---\n");
+		osd_cbus_write(HHI_GCLK_OTHER, 0xFFFFFFFF);
+		osd_reg_write(ENCP_VIDEO_MODE_ADV, 0);
+		osd_reg_write(VENC_VIDEO_TST_EN, 1);
+		/* TST_MODE COLORBAR */
+		osd_log_info("- COLORBAR -\n");
+		osd_reg_write(VENC_VIDEO_TST_MDSEL, 1);
+		msleep(OSD_TEST_DURATION);
 
-	/* TST_MODE THINLINE */
-	osd_log_info("- THINLINE -\n");
-	osd_reg_write(VENC_VIDEO_TST_MDSEL, 2);
-	msleep(OSD_TEST_DURATION);
-	/* TST_MODE DOTGRID */
-	osd_log_info("- DOTGRID -\n");
-	osd_reg_write(VENC_VIDEO_TST_MDSEL, 3);
-	msleep(OSD_TEST_DURATION);
+		/* TST_MODE THINLINE */
+		osd_log_info("- THINLINE -\n");
+		osd_reg_write(VENC_VIDEO_TST_MDSEL, 2);
+		msleep(OSD_TEST_DURATION);
+		/* TST_MODE DOTGRID */
+		osd_log_info("- DOTGRID -\n");
+		osd_reg_write(VENC_VIDEO_TST_MDSEL, 3);
+		msleep(OSD_TEST_DURATION);
 
-	/* stop test mode */
-	osd_cbus_write(HHI_GCLK_OTHER, gclk_other);
-	osd_reg_write(ENCP_VIDEO_MODE_ADV, encp_video_adv);
-	osd_reg_write(VENC_VIDEO_TST_EN, 0);
-	osd_reg_write(VENC_VIDEO_TST_MDSEL, 0);
+		/* stop test mode */
+		osd_cbus_write(HHI_GCLK_OTHER, gclk_other);
+		osd_reg_write(ENCP_VIDEO_MODE_ADV, encp_video_adv);
+		osd_reg_write(VENC_VIDEO_TST_EN, 0);
+		osd_reg_write(VENC_VIDEO_TST_MDSEL, 0);
+	}
 }
 
 static void osd_reset(void)

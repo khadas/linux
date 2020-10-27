@@ -276,6 +276,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_SM1,
 	__MESON_CPU_MAJOR_ID_TM2,
 	__MESON_CPU_MAJOR_ID_A1,
+	__MESON_CPU_MAJOR_ID_SC2,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -467,6 +468,7 @@ struct layer_fence_map_s {
 	u32 plane_alpha;
 	u32 dim_layer;
 	u32 dim_color;
+	u32 secure_enable;
 	size_t afbc_len;
 	struct file *buf_file;
 	struct dma_fence *in_fence;
@@ -614,6 +616,7 @@ struct hw_osd_blending_s {
 	u32 layer_cnt;
 	u32 b_exchange_din;
 	u32 b_exchange_blend_in;
+	u32 osd1_freescale_used;
 	u32 osd1_freescale_disable;
 	u32 vinfo_width;
 	u32 vinfo_height;
@@ -750,6 +753,7 @@ struct hw_para_s {
 	u32 osd_fps[VIU_COUNT];
 	u32 osd_fps_start[VIU_COUNT];
 	u32 osd_display_debug[VIU_COUNT];
+	u32 osd_display_fb[VIU_COUNT];
 	ulong screen_base[HW_OSD_COUNT];
 	ulong screen_size[HW_OSD_COUNT];
 	ulong screen_base_backup[HW_OSD_COUNT];
@@ -782,6 +786,8 @@ struct hw_para_s {
 	u32 rdma_trace_num;
 	u32 rdma_trace_reg[MAX_TRACE_NUM];
 	u32 osd_v_skip[HW_OSD_COUNT];
+	u32 secure_enable[HW_OSD_COUNT];
+	u32 secure_src;
 	u32 rdma_delayed_cnt;
 	u32 osd_reg_check;
 	struct hw_debug_s osd_debug;

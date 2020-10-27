@@ -48,6 +48,21 @@
 			alignment = <0x400000>;
 			alloc-ranges = <0x05000000 0x400000>;
 		};
+
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x800000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x7f800000 0x800000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x8000000>;
+			alignment = <0x400000>;
+		};
 	};
 
 	cvbsout {
@@ -227,4 +242,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins_h>;
 	cs-gpios = <&gpio GPIOH_6 0>;
+};
+
+&fb {
+	status = "okay";
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
+	logo_addr = "0x7f800000";
+	mem_alloc = <0>;
+	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };

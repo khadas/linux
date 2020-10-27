@@ -78,7 +78,7 @@ struct sync_req_render_s {
 	unsigned int  dim_color;
 	int  fb_width;
 	int  fb_height;
-	int  reserve;
+	int  secure_enable;
 };
 
 struct fb_sync_request_s {

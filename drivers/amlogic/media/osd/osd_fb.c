@@ -3523,6 +3523,34 @@ static ssize_t store_osd_reg_check(struct device *device,
 	return count;
 }
 
+static ssize_t show_osd_display_fb(struct device *device,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 osd_display_fb;
+
+	osd_get_display_fb(fb_info->node, &osd_display_fb);
+	return snprintf(buf, 40, "%d\n",
+			osd_display_fb);
+}
+
+static ssize_t store_osd_display_fb(struct device *device,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret < 0)
+		return -EINVAL;
+	osd_set_display_fb(fb_info->node, res);
+
+	return count;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -3754,6 +3782,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_rdma_delayed, NULL),
 	__ATTR(reg_check, 0644,
 	       show_osd_reg_check, store_osd_reg_check),
+	__ATTR(osd_display_fb, 0644,
+	       show_osd_display_fb, store_osd_display_fb),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4179,6 +4209,22 @@ static struct osd_device_data_s osd_a1 = {
 	.osd0_sc_independ = 0,
 };
 
+static struct osd_device_data_s osd_sc2 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_SC2,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+};
+
 static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-gxbb",
@@ -4234,8 +4280,12 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.data = &osd_tm2,
 	},
 	{
-		.compatible = "amlogic, meson-a1",
+		.compatible = "amlogic, fb-a1",
 		.data = &osd_a1,
+	},
+	{
+		.compatible = "amlogic, fb-sc2",
+		.data = &osd_sc2,
 	},
 	{},
 };
