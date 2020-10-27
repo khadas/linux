@@ -174,3 +174,9 @@
 &saradc {
 	status = "okay";
 };
+
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
+};
