@@ -75,10 +75,12 @@
 	status = "okay";
 	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
 };
 
 &fusb1 {
 	status = "okay";
 	max-input-voltage = <13000000>;
 	max-input-current = <6000000>;
+	charge-dev = <&bq25703>;
 };
