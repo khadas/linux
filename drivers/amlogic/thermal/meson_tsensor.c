@@ -322,6 +322,7 @@ static void r1p1_tsensor_control(struct platform_device *pdev, bool on)
 		con |= (0x1 << R1P1_TS_IRQ_LOGIC_EN_SHIT);
 		con |= (R1P1_TS_FILTER_EN | R1P1_TS_VCM_EN | R1P1_TS_VBG_EN
 			| R1P1_TS_DEM_EN | R1P1_TS_CH_SEL);
+		con &= ~(R1P1_TS_RSET_VBG | R1P1_TS_RSET_ADC);
 		ret = clk_set_rate(data->clk, R1P1_TS_CLK_RATE);
 		if (ret)
 			dev_err(&pdev->dev,

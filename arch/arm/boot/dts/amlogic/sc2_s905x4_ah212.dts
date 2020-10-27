@@ -30,6 +30,8 @@
 		i2c4 = &i2c4;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
+		tsensor0 = &p_tsensor;
+		tsensor1 = &d_tsensor;
 	};
 
 	memory@0 {
