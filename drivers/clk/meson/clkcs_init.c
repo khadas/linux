@@ -19,6 +19,7 @@ static int __init clkcs_module_init(void)
 	meson_tm2_aoclkc_init();
 
 	meson_sc2_clkc_init();
+	meson_t7_clkc_init();
 
 	meson_t5d_clkc_init();
 	meson_t5d_periph_clkc_init();
