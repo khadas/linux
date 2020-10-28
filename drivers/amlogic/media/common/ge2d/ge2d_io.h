@@ -20,6 +20,7 @@
 extern unsigned int ge2d_dump_reg_cnt;
 extern unsigned int ge2d_dump_reg_enable;
 extern void __iomem *ge2d_reg_map;
+void ge2d_runtime_pwr(int enable);
 
 static int check_map_flag(void)
 {
@@ -154,7 +155,10 @@ static inline void ge2d_set_pwr_tbl_bits(unsigned int table_type,
 		power_ctrl_mempd0(val ? 0 : 1, 0xFF, start);
 		break;
 	case PWR_SMC:
-		//pwr_ctrl_psci_smc(PM_GE2D, val);
+		ge2d_log_err("PWR_SMC is not supported\n");
+		break;
+	case PWR_RUNTIME:
+		ge2d_runtime_pwr(val);
 		break;
 	default:
 		ge2d_log_err("unsupported bus type\n");

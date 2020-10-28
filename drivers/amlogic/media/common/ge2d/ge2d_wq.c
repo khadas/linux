@@ -16,6 +16,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/canvas/canvas.h>
@@ -136,6 +137,22 @@ static void ge2d_pre_init(void)
 	 */
 	ge2d_gen_cfg.burst_ctrl = 0;
 	ge2d_set_gen(&ge2d_gen_cfg);
+}
+
+void ge2d_runtime_pwr(int enable)
+{
+	int ret = -1;
+	struct device *dev = &ge2d_manager.pdev->dev;
+
+	if (enable) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0)
+			ge2d_log_err("runtime get power error\n");
+	} else {
+		ret = pm_runtime_put_sync(dev);
+		if (ret < 0)
+			ge2d_log_err("runtime put power error\n");
+	}
 }
 
 static int ge2d_clk_config(bool enable)

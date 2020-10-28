@@ -21,6 +21,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -1122,6 +1123,16 @@ static struct ge2d_ctrl_s smc_poweroff_ctrl[] = {
 struct ge2d_power_table_s smc_poweron_table = {1, smc_poweron_ctrl};
 struct ge2d_power_table_s smc_poweroff_table = {1, smc_poweroff_ctrl};
 
+static struct ge2d_ctrl_s runtime_poweron_ctrl[] = {
+		{PWR_RUNTIME, 0, 1, 0, 0}
+	};
+static struct ge2d_ctrl_s runtime_poweroff_ctrl[] = {
+		{PWR_RUNTIME, 0, 0, 0, 0}
+	};
+
+struct ge2d_power_table_s runtime_poweron_table = {1, runtime_poweron_ctrl};
+struct ge2d_power_table_s runtime_poweroff_table = {1, runtime_poweroff_ctrl};
+
 static struct ge2d_device_data_s ge2d_gxl = {
 	.ge2d_rate = 400000000,
 	.src2_alp = 0,
@@ -1237,8 +1248,8 @@ static struct ge2d_device_data_s ge2d_sc2 = {
 	.hang_flag = 1,
 	.fifo = 1,
 	.has_self_pwr = 1,
-	.poweron_table = &smc_poweron_table,
-	.poweroff_table = &smc_poweroff_table,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
 	.chip_type = MESON_CPU_MAJOR_ID_SC2,
 	.adv_matrix = 1,
 	.src2_repeat = 1,
@@ -1429,7 +1440,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
 	clk_disable_unprepare(clk_gate);
-
+	pm_runtime_enable(&pdev->dev);
 failed1:
 	return ret;
 }

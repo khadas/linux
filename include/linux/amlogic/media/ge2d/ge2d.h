@@ -1113,7 +1113,8 @@ enum {
 	GEN_PWR_SLEEP0,
 	GEN_PWR_ISO0,
 	MEM_PD_REG0,
-	PWR_SMC
+	PWR_SMC,
+	PWR_RUNTIME
 };
 
 struct ge2d_ctrl_s {
