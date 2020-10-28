@@ -3572,3 +3572,10 @@ bool is_hdmi14_4k(enum hdmi_vic vic)
 	return ret;
 }
 
+bool is_hdmi4k_420(enum hdmi_vic vic)
+{
+	if ((vic & HDMITX_VIC420_OFFSET) == HDMITX_VIC420_OFFSET)
+		return 1;
+	return 0;
+}
+

@@ -759,6 +759,54 @@
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	amhdmitx: amhdmitx{
+		compatible = "amlogic, amhdmitx-sc2";
+		dev_name = "amhdmitx";
+		status = "disabled";
+		vend-data = <&vend_data>;
+		pinctrl-names="default";
+		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
+		clock-names = "venci_top_gate",
+			"venci_0_gate",
+			"venci_1_gate",
+			"hdmi_vapb_clk",
+			"hdmi_vpu_clk";
+		/* refer to sc2-system-registers.docx */
+		interrupts = <0 204 1>;
+		interrupt-names = "hdmitx_hpd";
+		/* refer to hdmi_tx_module.h */
+		ic_type = <15>;
+		reg =	<0x0 0x00000000 0x0 0x000>, /* reserved */
+			<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0x00000000 0x0 0x000>, /* reserved */
+			<0x0 0xfe308000 0x0 0x4000>,
+			<0x0 0xfe300000 0x0 0x8000>,
+			<0x0 0xfe032000 0x0 0x100>,
+			<0x0 0xfe008000 0x0 0x400>,
+			<0x0 0xfe00c000 0x0 0x800>,
+			<0x0 0xfe002000 0x0 0x400>,
+			<0x0 0xfe010000 0x0 0x100>,
+			<0x0 0xfe000000 0x0 0x2000>;
+		reg-names = "cbus",
+			    "vpu",
+			    "hiu",
+			    "hdmitxdwc",
+			    "hdmitxtop",
+			    "esm",
+			    "anactrl",
+			    "pwrctrl",
+			    "resetctrl",
+			    "sysctrl",
+			    "clkctrl";
+
+		vend_data: vend_data{ /* Should modified by Customer */
+			vendor_name = "Amlogic"; /* Max Chars: 8 */
+			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */
+			/* standards.ieee.org/develop/regauth/oui/oui.txt */
+			vendor_id = <0x000000>;
+		};
+	};
+
 	aocec: aocec {
 		compatible = "amlogic, aocec-sc2";
 		dev_name = "aocec";
@@ -1418,6 +1466,32 @@
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
+		};
+	};
+
+	hdmitx_hpd: hdmitx_hpd {
+		mux {
+			groups = "hdmitx_hpd_in";
+			function = "hdmitx";
+			bias-disable;
+		};
+	};
+
+	hdmitx_hpd_gpio: hdmitx_hpd_gpio {
+		mux {
+			groups = "GPIOH_1";
+			function = "gpio_periphs";
+			bias-disable;
+		};
+	};
+
+	hdmitx_ddc: hdmitx_ddc {
+		mux {
+			groups = "hdmitx_sda",
+				"hdmitx_sck";
+			function = "hdmitx";
+			bias-disable;
+			drive-strength = <3>;
 		};
 	};
 

@@ -379,3 +379,8 @@
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
+
+&amhdmitx {
+	status = "okay";
+};
+

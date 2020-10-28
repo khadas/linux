@@ -59,6 +59,26 @@ int read_hpd_gpio_txlx(void);
 int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd);
 int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd);
 unsigned int hdmitx_get_format_txlx(void);
+void hdmitx_set_format_txlx(unsigned int val);
 void hdmitx_sys_reset_txlx(void);
 
+void hdmitx_phy_bandgap_en_tm2(void);
+void hdmitx_phy_bandgap_en_g12(void);
+void hdmitx_phy_bandgap_en_sc2(void);
+
+void set_phy_by_mode_g12(unsigned int mode);
+void set_phy_by_mode_tm2(unsigned int mode);
+void set_phy_by_mode_sm1(unsigned int mode);
+void set_phy_by_mode_sc2(unsigned int mode);
+void set_phy_by_mode_gxl(unsigned int mode);
+void set_phy_by_mode_gxbb(unsigned int mode);
+
+void hdmitx_sys_reset_sc2(void);
+
+void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk);
+void set_hpll_od1_sc2(unsigned int div);
+void set_hpll_od2_sc2(unsigned int div);
+void set_hpll_od3_sc2(unsigned int div);
+
+void set_hpll_sspll_sc2(enum hdmi_vic vic);
 #endif

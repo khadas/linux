@@ -61,3 +61,27 @@ int hdmitx_ddc_hw_op_gxbb(enum ddc_op cmd)
 	}
 	return ret;
 }
+
+void set_phy_by_mode_gxbb(unsigned int mode)
+{
+	/* other than GXL */
+	switch (mode) {
+	case HDMI_PHYPARA_6G: /* 5.94Gbps, 3.7125Gbsp */
+	case HDMI_PHYPARA_4p5G:
+	case HDMI_PHYPARA_3p7G:
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353245);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2100115b);
+		break;
+	case HDMI_PHYPARA_3G: /* 2.97Gbps */
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
+		break;
+	case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
+	case HDMI_PHYPARA_DEF:
+	default:
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632122);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2000115b);
+		break;
+	}
+}
+

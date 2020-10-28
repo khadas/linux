@@ -36,6 +36,8 @@ enum amhdmitx_chip_e {
 	MESON_CPU_ID_G12B,
 	MESON_CPU_ID_SM1,
 	MESON_CPU_ID_TM2,
+	MESON_CPU_ID_TM2B,
+	MESON_CPU_ID_SC2,
 	MESON_CPU_ID_MAX,
 };
 
@@ -126,6 +128,7 @@ struct rx_cap {
 	unsigned int hdr_sup_eotf_smpte_st_2084:1;
 	unsigned int hdr_sup_eotf_hlg:1;
 	unsigned int hdr_sup_SMD_type1:1;
+	unsigned int hdmi2ver;
 	unsigned char hdr_lum_max;
 	unsigned char hdr_lum_avg;
 	unsigned char hdr_lum_min;
@@ -353,6 +356,14 @@ struct hdmitx_dev {
 	int hpdmode;
 	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */
 	int hdcp_mode;
+	/* in board dts file, here can add
+	 * &amhdmitx {
+	 *     hdcp_type_policy = <1>;
+	 * };
+	 * 0 is default for NTS 0->1, 1 is fixed as 1, and 2 is fixed as 0
+	 */
+	/* -1, fixed 0; 0, NTS 0->1; 1, fixed 1 */
+	int hdcp_type_policy;
 	int hdcp_bcaps_repeater;
 	int ready;	/* 1, hdmi stable output, others are 0 */
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
@@ -362,6 +373,7 @@ struct hdmitx_dev {
 	struct {
 		void (*setpacket)(int type, unsigned char *DB,
 				  unsigned char *HB);
+		void (*disablepacket)(int type);
 		/* In original setpacket, there are many policys, like
 		 *  if ((DB[4] >> 4) == T3D_FRAME_PACKING)
 		 * Need a only pure data packet to call
@@ -397,6 +409,10 @@ struct hdmitx_dev {
 				unsigned int cmd, unsigned int arg);
 		int (*cntl)(struct hdmitx_dev *hdmitx_device, unsigned int cmd,
 			    unsigned int arg); /* Other control */
+		void (*am_hdmitx_hdcp_disable)(void);
+		void (*am_hdmitx_hdcp_enable)(void);
+		void (*am_hdmitx_hdcp_result)(unsigned int *exe_type,
+					      unsigned int *result_type);
 	} hwop;
 	struct {
 		unsigned int hdcp14_en;
@@ -431,6 +447,7 @@ struct hdmitx_dev {
 	/**/
 	unsigned char hpd_event; /* 1, plugin; 2, plugout */
 	unsigned char hpd_state; /* 1, connect; 0, disconnect */
+	unsigned char drm_mode_setting; /* 1, setting; 0, keeping */
 	unsigned char rhpd_state; /* For repeater use only, no delay */
 	unsigned char hdcp_max_exceed_state;
 	unsigned int hdcp_max_exceed_cnt;
@@ -464,6 +481,9 @@ struct hdmitx_dev {
 	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
 	unsigned int ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
 	unsigned int sspll;
+	/* if HDMI plugin even once time, then set 1 */
+	/* if never hdmi plugin, then keep as 0 */
+	unsigned int already_used;
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
@@ -491,7 +511,9 @@ struct hdmitx_dev {
 	unsigned int dongle_mode:1;
 	unsigned int cedst_en:1; /* configure in DTS */
 	unsigned int hdr_priority:1;
+	unsigned int bist_lock:1;
 	unsigned int drm_feature;/*Direct Rander Management*/
+	unsigned int vend_id_hit:1;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 };
 
@@ -504,24 +526,6 @@ struct hdmitx_report {
 	int hdcp;
 	int cedst;
 };
-
-enum {
-	HDMI_REPORT_HPD,
-	HDMI_REPORT_AUD,
-	HDMI_REPORT_PWR,
-	HDMI_REPORT_HDR,
-	HDMI_REPORT_RXSN,
-	HDMI_REPORT_HDCP,
-	HDMI_REPORT_CEDST
-};
-
-#define HDMI_REPORT_IOC_HPD    _IOR('R', HDMI_REPORT_HPD, int)
-#define HDMI_REPORT_IOC_AUD    _IOR('R', HDMI_REPORT_AUD, int)
-#define HDMI_REPORT_IOC_PWR    _IOR('R', HDMI_REPORT_PWR, int)
-#define HDMI_REPORT_IOC_HDR    _IOR('R', HDMI_REPORT_HDR, int)
-#define HDMI_REPORT_IOC_RXSN   _IOR('R', HDMI_REPORT_RXSN, int)
-#define HDMI_REPORT_IOC_HDCP   _IOR('R', HDMI_REPORT_HDCP, int)
-#define HDMI_REPORT_IOC_CEDST  _IOR('R', HDMI_REPORT_CEDST, int)
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
 #define CMD_STATUS_OFFSET       (0x11 << 24)
@@ -726,6 +730,9 @@ int hdmitx_construct_vsif(struct hdmitx_dev *hdev, enum vsif_type type, int on,
 /* if vic is 93 ~ 95, or 98 (HDMI14 4K), return 1 */
 bool is_hdmi14_4k(enum hdmi_vic vic);
 
+/* if 4k is Y420, return 1 */
+bool is_hdmi4k_420(enum hdmi_vic vic);
+
 /* set vic to AVI.VIC */
 void hdmitx_set_avi_vic(enum hdmi_vic vic);
 
@@ -782,6 +789,11 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 		     struct hdmitx_audpara *audio_param);
 
+/* for notify to cec */
+#define HDMITX_PLUG			1
+#define HDMITX_UNPLUG			2
+#define HDMITX_PHY_ADDR_VALID		3
+
 enum hdmitx_event {
 	HDMITX_NONE_EVENT = 0,
 	HDMITX_HPD_EVENT,
@@ -801,11 +813,6 @@ struct hdmitx_uevent {
 };
 
 int hdmitx_set_uevent(enum hdmitx_event type, int val);
-
-/* for notify to cec */
-#define HDMITX_PLUG			1
-#define HDMITX_UNPLUG			2
-#define HDMITX_PHY_ADDR_VALID		3
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
@@ -931,6 +938,10 @@ void hdmitx_poll_reg(unsigned int addr, unsigned int val,
 void hdmitx_set_reg_bits(unsigned int addr, unsigned int value,
 			 unsigned int offset, unsigned int len);
 unsigned int hdmitx_rd_reg(unsigned int addr);
-void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
-			 unsigned int mask);
+unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
+				 unsigned int mask);
+void vsem_init_cfg(struct hdmitx_dev *hdev);
+bool LGAVIErrorTV(struct rx_cap *prxcap);
+bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
+
 #endif

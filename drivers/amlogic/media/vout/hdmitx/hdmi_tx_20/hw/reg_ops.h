@@ -36,9 +36,15 @@ enum map_addr_idx_e {
 	CBUS_REG_IDX = 0,
 	VCBUS_REG_IDX,
 	HHI_REG_IDX,
-	HDMITX_SEC_REG_IDX,
 	HDMITX_REG_IDX,
+	HDMITX_SEC_REG_IDX,
 	ELP_ESM_REG_IDX,
+	/* new added in SC2 */
+	ANACTRL_REG_IDX,
+	PWRCTRL_REG_IDX,
+	RESETCTRL_REG_IDX,
+	SYSCTRL_REG_IDX,
+	CLKCTRL_REG_IDX,
 	REG_IDX_END
 };
 
@@ -56,6 +62,16 @@ enum map_addr_idx_e {
 	((HDMITX_REG_IDX << BASE_REG_OFFSET) + (reg))/*TOP*/
 #define ELP_ESM_REG_ADDR(reg) \
 	((ELP_ESM_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define ANACTRL_REG_ADDR(reg) \
+	((ANACTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define PWRCTRL_REG_ADDR(reg) \
+	((PWRCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define RESETCTRL_REG_ADDR(reg) \
+	((RESETCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define SYSCTRL_REG_ADDR(reg) \
+	((SYSCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define CLKCTRL_REG_ADDR(reg) \
+	((CLKCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);

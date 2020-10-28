@@ -15,6 +15,11 @@ unsigned int hdmitx_get_format_txlx(void)
 	return hd_read_reg(P_ISA_DEBUG_REG0);
 }
 
+void hdmitx_set_format_txlx(unsigned int val)
+{
+	return hd_write_reg(P_ISA_DEBUG_REG0, val);
+}
+
 /*
  * hdmitx apb reset
  * P_RESET0_REGISTER bit19 : hdmitx capb

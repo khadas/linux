@@ -174,6 +174,19 @@ static void edid_parsingidserialnumber(struct rx_cap *prxcap,
 			prxcap->IDSerialNumber[i] = data[3 - i];
 }
 
+bool LGAVIErrorTV(struct rx_cap *prxcap)
+{
+	if (strcmp("GSM", (char *)&prxcap->IDManufacturerName[0]) == 0 &&
+	    prxcap->IDProductCode[0] == 1 &&
+	    prxcap->IDProductCode[1] == 0 &&
+	    prxcap->IDSerialNumber[0] == 1 &&
+	    prxcap->IDSerialNumber[1] == 1 &&
+	    prxcap->IDSerialNumber[2] == 1 &&
+	    prxcap->IDSerialNumber[3] == 1)
+		return true;
+	return false;
+}
+
 /* store the idx of vesa_timing[32], which is 0 */
 static void store_vesa_idx(struct rx_cap *prxcap, enum hdmi_vic vesa_timing)
 {

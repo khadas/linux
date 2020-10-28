@@ -195,6 +195,7 @@ enum hdmi_vic {
 	HDMIV_2560x1440p60hz,
 	HDMIV_2560x1600p60hz,
 	HDMIV_3440x1440p60hz,
+	HDMIV_2400x1200p90hz,
 	HDMI_VIC_END,
 };
 
@@ -221,6 +222,7 @@ enum hdmi_vic {
 #define HDMI_1080p24            HDMI_1920x1080p24_16x9
 #define HDMI_1080p25            HDMI_1920x1080p25_16x9
 #define HDMI_1080p30            HDMI_1920x1080p30_16x9
+#define HDMI_1080p120           HDMI_1920x1080p120_16x9
 #define HDMI_480p60_16x9_rpt    HDMI_2880x480p60_16x9
 #define HDMI_576p50_16x9_rpt    HDMI_2880x576p50_16x9
 #define HDMI_4k2k_24            HDMI_3840x2160p24_16x9

@@ -36,8 +36,8 @@ int hdmitx_init_reg_map(struct platform_device *pdev)
 
 	for (i = CBUS_REG_IDX; i < REG_IDX_END; i++) {
 		if (of_address_to_resource(np, i, &res)) {
-			pr_err("Fail to get regbase index %d\n", i);
-			return (-ENOENT);
+			pr_err("not get regbase index %d\n", i);
+			return 0;
 		}
 
 		reg_maps[i].phy_addr = res.start;
@@ -96,6 +96,8 @@ unsigned int hd_read_reg(unsigned int addr)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_SC2:
 	default:
 		val = readl(TO_PMAP_ADDR(addr));
 		break;
@@ -120,6 +122,8 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_SC2:
 	default:
 		writel(val, TO_PMAP_ADDR(addr));
 		break;
@@ -281,8 +285,8 @@ void hdmitx_poll_reg(unsigned int addr, unsigned int val, unsigned long timeout)
 }
 EXPORT_SYMBOL(hdmitx_poll_reg);
 
-void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
-			 unsigned int mask)
+unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
+				 unsigned int mask)
 {
 	unsigned long rd_data;
 
@@ -290,8 +294,10 @@ void hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 	if ((rd_data | mask) != (exp_data | mask)) {
 		pr_info(REG "HDMITX-DWC addr=0x%04x rd_data=0x%02x\n",
 			(unsigned int)addr, (unsigned int)rd_data);
-		pr_info(REG "Error: HDMITX-DWC exp_data=0x%02x mask=0x%02x\n",
+		pr_info(REG "HDMITX-DWC exp_data=0x%02x mask=0x%02x\n",
 			(unsigned int)exp_data, (unsigned int)mask);
+		return 1;
 	}
+	return 0;
 }
 EXPORT_SYMBOL(hdmitx_rd_check_reg);

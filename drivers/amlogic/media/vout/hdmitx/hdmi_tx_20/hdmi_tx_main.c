@@ -101,6 +101,11 @@ static struct amhdmitx_data_s amhdmitx_data_sm1 = {
 	.chip_name = "sm1",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_sc2 = {
+	.chip_type = MESON_CPU_ID_SC2,
+	.chip_name = "sc2",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-g12a",
@@ -113,6 +118,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-sm1",
 		.data = &amhdmitx_data_sm1,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-sc2",
+		.data = &amhdmitx_data_sc2,
 	},
 	{},
 };
@@ -3586,7 +3595,7 @@ static ssize_t frac_rate_policy_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		pr_debug(SYS "set frac_rate_policy as %d\n", val);
+		pr_info(SYS "set frac_rate_policy as %d\n", val);
 		if (val == 0 || val == 1)
 			hdmitx_device.frac_rate_policy = val;
 		else
@@ -4862,8 +4871,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)
-		hdmitx_disable_vclk2_enci(hdev);
+	hdmitx_disable_clk(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null", 0);
 	if (hdev->cedst_policy)
@@ -5700,6 +5708,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		       sizeof(struct hdmi_config_platform_data));
 		/* Get chip type and name information */
 		match = of_match_device(meson_amhdmitx_of_match, &pdev->dev);
+
 		if (!match) {
 			pr_info("%s: no match table\n", __func__);
 			return -1;
@@ -5861,100 +5870,6 @@ void amhdmitx_vpu_dev_regiter(struct hdmitx_dev *hdev)
 	vpu_dev_register(VPU_VENCI, DEVICE_NAME);
 }
 
-static long hdmitx_report_ioctl(struct file *f, unsigned int cmd,
-				unsigned long arg)
-{
-	int rtn_val;
-	unsigned int out_size;
-	unsigned long check_size;
-
-	out_size = _IOC_SIZE(cmd);
-	switch (cmd) {
-	case HDMI_REPORT_IOC_HPD:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.hpd_state,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_AUD:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.audio,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_PWR:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.pwr,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_HDR:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.hdr,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_RXSN:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.rxsense,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_HDCP:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.hdcp,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	case HDMI_REPORT_IOC_CEDST:
-		check_size = copy_to_user((void __user *)arg,
-					  (void *)&hdmitx_status.cedst,
-					  out_size);
-		if (check_size == out_size)
-			rtn_val = 0;
-		else
-			rtn_val = -1;
-		break;
-	default:
-		pr_info("HDMI Report command WRONG\n");
-		rtn_val = -EPERM;
-	}
-
-	return rtn_val;
-}
-
-static const struct file_operations hdmitx_report_file_operations = {
-	.unlocked_ioctl = hdmitx_report_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = hdmitx_report_ioctl,
-#endif
-	.owner = THIS_MODULE,
-};
-
-static struct miscdevice hdmitx_report_device = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "hdmitx_report",
-	.fops = &hdmitx_report_file_operations,
-};
-
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -5973,7 +5888,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	amhdmitx_vpu_dev_regiter(hdev);
 
-	misc_register(&hdmitx_report_device);
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);
 	cdev_init(&hdev->cdev, &amhdmitx_fops);
@@ -6065,10 +5979,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 	hdev->nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&hdev->nb);
-
 	hdmitx_meson_init(hdev);
 	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
-
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vout_register_server(&hdmitx_vout_server);
 #endif
@@ -6219,7 +6131,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	class_destroy(hdmitx_class);
 
 	unregister_chrdev_region(hdmitx_device.hdmitx_id, HDMI_TX_COUNT);
-	misc_deregister(&hdmitx_report_device);
 	return 0;
 }
 
@@ -6237,7 +6148,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
-	pr_debug("amhdmitx: I2C_REACTIVE\n");
+	pr_info("amhdmitx: I2C_REACTIVE\n");
 	hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
 
 	return 0;
