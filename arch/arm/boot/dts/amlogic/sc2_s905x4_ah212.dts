@@ -104,7 +104,7 @@
 	/*gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
 };
 
-&pcie_A {
+&pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
 	status = "disable";
 };

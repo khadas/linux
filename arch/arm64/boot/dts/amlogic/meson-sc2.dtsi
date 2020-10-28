@@ -550,7 +550,7 @@
 						"usb1";
 		};
 
-		pcie_A: pcieA@f5000000 {
+		pcie: pcie@f5000000 {
 			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
 			reg = <0x0 0xf5000000 0x0 0x400000
 				0x0 0xfe02c000 0x0 0x2000
