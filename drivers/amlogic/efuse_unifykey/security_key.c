@@ -252,7 +252,7 @@ int __init security_key_init(struct platform_device *pdev)
 	    !phy_block || phy_block == SMC_UNK ||
 	    !(share_mem->size) || share_mem->size == SMC_UNK) {
 		pr_err("fail to obtain phy addr of shared mem\n");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	/*

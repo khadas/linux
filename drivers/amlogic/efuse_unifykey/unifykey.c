@@ -19,7 +19,6 @@
 #endif
 #include "unifykey.h"
 #include "amlkey_if.h"
-#include "security_key.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) "unifykey: " fmt
@@ -1245,8 +1244,8 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 	struct device *devp;
 	struct aml_uk_dev *ukdev;
 
-	if (security_key_init(pdev) != 0) {
-		pr_err("fail to initialize security key\n");
+	if (amlkey_if_init(pdev) != 0) {
+		pr_err("fail to initialize aml key\n");
 		ret = -ENODEV;
 		goto out;
 	}

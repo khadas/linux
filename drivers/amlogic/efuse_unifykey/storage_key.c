@@ -4,10 +4,14 @@
  */
 
 #include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
+#include <linux/property.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
 #ifdef CONFIG_AMLOGIC_EFUSE
 #include <linux/amlogic/efuse.h>
 #endif
@@ -15,6 +19,7 @@
 #include "unifykey.h"
 #include "amlkey_if.h"
 #include "security_key.h"
+#include "normal_key.h"
 
 #define SECUESTORAGE_HEAD_SIZE		(256)
 #define SECUESTORAGE_WHOLE_SIZE		(0x40000)
@@ -81,7 +86,7 @@ EXPORT_SYMBOL(register_unifykey_types);
  *1.init
  * return ok 0, fail 1
  */
-s32 amlkey_init(u8 *seed, u32 len, int encrypt_type)
+static s32 _amlkey_init(u8 *seed, u32 len, int encrypt_type)
 {
 	s32	ret = 0;
 	u32	actual_size = 0;
@@ -138,7 +143,7 @@ _out:
 	return ret;
 }
 
-u32 amlkey_exsit(const u8 *name)
+static u32 _amlkey_exsit(const u8 *name)
 {
 	unsigned long ret = 0;
 	u32	retval;
@@ -157,7 +162,7 @@ u32 amlkey_exsit(const u8 *name)
 	return retval;
 }
 
-u32 amlkey_get_attr(const u8 *name)
+static u32 _amlkey_get_attr(const u8 *name)
 {
 	unsigned long ret = 0;
 	u32	retval;
@@ -176,7 +181,7 @@ u32 amlkey_get_attr(const u8 *name)
 	return retval;
 }
 
-unsigned int amlkey_size(const u8 *name)
+static unsigned int _amlkey_size(const u8 *name)
 {
 	unsigned int	retval;
 
@@ -194,7 +199,7 @@ _out:
 	return retval;
 }
 
-unsigned int amlkey_read(const u8 *name, u8 *buffer, u32 len)
+static unsigned int _amlkey_read(const u8 *name, u8 *buffer, u32 len)
 {
 	unsigned int retval = 0;
 
@@ -211,8 +216,8 @@ _out:
 	return retval;
 }
 
-ssize_t amlkey_write(const u8 *name, u8 *buffer,
-		     u32 len, u32 attr)
+static ssize_t _amlkey_write(const u8 *name, u8 *buffer,
+			     u32 len, u32 attr)
 {
 	ssize_t retval = 0;
 	u32	actual_length;
@@ -264,7 +269,232 @@ _out:
 	return retval;
 }
 
-s32 amlkey_hash(const u8 *name, u8 *hash)
+static s32 _amlkey_hash(const u8 *name, u8 *hash)
 {
 	return secure_storage_verify((u8 *)name, hash);
+}
+
+#define DEF_NORMAL_BLOCK_SIZE	(256 * 1024)
+static DEFINE_MUTEX(normalkey_lock);
+static u32 normal_blksz = DEF_NORMAL_BLOCK_SIZE;
+static u32 normal_flashsize = DEF_NORMAL_BLOCK_SIZE;
+static u8 *normal_block;
+
+static s32 _amlkey_init_normal(u8 *seed, u32 len, int encrypt_type)
+{
+	int ret;
+
+	if (!normal_block)
+		return -1;
+
+	if (!unifykey_types.ops->read) {
+		pr_err("no storage found\n");
+		return -1;
+	}
+
+	if (normalkey_init())
+		return -1;
+
+	mutex_lock(&normalkey_lock);
+	ret = unifykey_types.ops->read(normal_block,
+				       normal_blksz,
+				       &normal_flashsize);
+	if (ret) {
+		pr_err("read storage fail\n");
+		goto finish;
+	}
+
+	ret = normalkey_readfromblock(normal_block, normal_flashsize);
+	if (ret) {
+		pr_err("init block key fail\n");
+		goto finish;
+	}
+
+	ret = 0;
+finish:
+	if (ret)
+		normalkey_deinit();
+	mutex_unlock(&normalkey_lock);
+
+	return ret;
+}
+
+static u32 _amlkey_exist_normal(const u8 *name)
+{
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	mutex_unlock(&normalkey_lock);
+
+	return !!obj;
+}
+
+static u32 _amlkey_get_attr_normal(const u8 *name)
+{
+	u32 attr = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj)
+		attr = obj->attribute;
+	mutex_unlock(&normalkey_lock);
+
+	return attr;
+}
+
+static unsigned int _amlkey_size_normal(const u8 *name)
+{
+	unsigned int size = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj)
+		size = obj->datasize;
+	mutex_unlock(&normalkey_lock);
+
+	return size;
+}
+
+static unsigned int _amlkey_read_normal(const u8 *name, u8 *buffer, u32 len)
+{
+	unsigned int size = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj && len >= obj->datasize) {
+		size = obj->datasize;
+		memcpy(buffer, obj->dataptr, size);
+	}
+	mutex_unlock(&normalkey_lock);
+
+	return size;
+}
+
+static ssize_t _amlkey_write_normal(const u8 *name, u8 *buffer,
+				    u32 len, u32 attr)
+{
+	int ret;
+	u32 wrtsz = 0;
+
+	if (attr & OBJ_ATTR_SECURE) {
+		pr_err("can't write secure key\n");
+		return 0;
+	}
+
+	if (!unifykey_types.ops->write) {
+		pr_err("no storage found\n");
+		return 0;
+	}
+
+	mutex_lock(&normalkey_lock);
+	ret = normalkey_add(name, buffer, len, attr);
+	if (ret) {
+		pr_err("write key fail\n");
+		ret = 0;
+		goto unlock;
+	}
+
+	ret = normalkey_writetoblock(normal_block, normal_flashsize);
+	if (ret) {
+		pr_err("write block fail\n");
+		ret = 0;
+		goto unlock;
+	}
+
+	ret = unifykey_types.ops->write(normal_block,
+					normal_flashsize,
+					&wrtsz);
+	if (ret) {
+		pr_err("write storage fail\n");
+		ret = 0;
+		goto unlock;
+	}
+	ret = len;
+unlock:
+	mutex_unlock(&normalkey_lock);
+	return ret;
+}
+
+static s32 _amlkey_hash_normal(const u8 *name, u8 *hash)
+{
+	int ret = -1;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj) {
+		ret = 0;
+		memcpy(hash, obj->hashptr, 32);
+	}
+	mutex_unlock(&normalkey_lock);
+
+	return ret;
+}
+
+int normal_key_init(struct platform_device *pdev)
+{
+	u32 blksz;
+	int ret;
+
+	ret = device_property_read_u32(&pdev->dev, "blocksize", &blksz);
+	if (!ret && blksz && PAGE_ALIGNED(blksz)) {
+		normal_blksz = blksz;
+		pr_info("block size from config: %x\n", blksz);
+	}
+
+	normal_block = kmalloc(normal_blksz, GFP_KERNEL);
+	if (!normal_block)
+		return -1;
+
+	return 0;
+}
+
+enum amlkey_if_type {
+	IFTYPE_SECURE_STORAGE,
+	IFTYPE_NORMAL_STORAGE,
+	IFTYPE_MAX
+};
+
+struct amlkey_if amlkey_ifs[] = {
+	[IFTYPE_SECURE_STORAGE] = {
+		.init = _amlkey_init,
+		.exsit = _amlkey_exsit,
+		.get_attr = _amlkey_get_attr,
+		.size = _amlkey_size,
+		.read = _amlkey_read,
+		.write = _amlkey_write,
+		.hash = _amlkey_hash,
+	},
+	[IFTYPE_NORMAL_STORAGE] = {
+		.init = _amlkey_init_normal,
+		.exsit = _amlkey_exist_normal,
+		.get_attr = _amlkey_get_attr_normal,
+		.size = _amlkey_size_normal,
+		.read = _amlkey_read_normal,
+		.write = _amlkey_write_normal,
+		.hash = _amlkey_hash_normal,
+	}
+};
+
+struct amlkey_if *amlkey_if;
+
+int __init amlkey_if_init(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = security_key_init(pdev);
+	if (ret != -EOPNOTSUPP) {
+		amlkey_if = &amlkey_ifs[IFTYPE_SECURE_STORAGE];
+		return ret;
+	}
+
+	pr_info("normal key used!\n");
+	ret = normal_key_init(pdev);
+	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
+
+	return ret;
 }
