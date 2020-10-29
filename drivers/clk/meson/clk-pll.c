@@ -404,15 +404,16 @@ static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	int delay = 24000000;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int delay = 1000;
 
 	do {
 		/* Is the clock locked now ? */
 		if (meson_parm_read(clk->map, &pll->l))
 			return 0;
-
-		delay--;
-	} while (delay > 0);
+		udelay(1);
+	} while (delay--);
+#endif
 
 	return -ETIMEDOUT;
 }
@@ -445,12 +446,16 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 
 static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 {
-	meson_clk_pll_init(hw);
+	int retry = 10;
 
-	if (meson_clk_pll_wait_lock(hw))
-		return -EIO;
+	do {
+		meson_clk_pll_init(hw);
+		if (!meson_clk_pll_wait_lock(hw))
+			return 0;
+		pr_info("%s:%d retry = %d\n", __func__, __LINE__, retry);
+	} while (retry--);
 
-	return 0;
+	return -EIO;
 }
 
 static int meson_clk_pll_enable(struct clk_hw *hw)
