@@ -10,8 +10,10 @@
 #define DOMAIN_INIT_OFF   1
 #define POWER_CTRL_IRQ_SET     0x82000094
 
+int get_max_id(void);
 unsigned long pwr_ctrl_psci_smc(int power_domain, bool power_control);
 unsigned long pwr_ctrl_status_psci_smc(int power_domain);
+unsigned long vpu_mempd_psci_smc(int mempd_id, bool power_control);
 
 /*
  *irq:irq number for wakeup pwrctrl

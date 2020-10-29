@@ -12,13 +12,9 @@ static unsigned int power_domain;
 struct generic_pm_domain **power_domains;
 static unsigned int pdid_start, pdid_max;
 
-static void pd_snprintf(char *buf, unsigned int cnt, const char *fmt, ...)
+int get_max_id(void)
 {
-	va_list args;
-
-	va_start(args, fmt);
-	vsnprintf(buf, cnt, fmt, args);
-	va_end(args);
+	return pdid_max;
 }
 
 static ssize_t power_on_store(struct device *dev,
@@ -63,8 +59,8 @@ static ssize_t power_status_show(struct device *_dev,
 		if (!*(power_domains + i))
 			continue;
 		power_status = pwr_ctrl_status_psci_smc(i);
-		pd_snprintf(buf, cnt, "%s[%d]		:%d\n",
-			    (*(power_domains + i))->name, i, power_status);
+		snprintf(buf, cnt, "%s[%d]		:%d\n",
+			 (*(power_domains + i))->name, i, power_status);
 		buf = buf + cnt;
 		len = len + cnt;
 	}

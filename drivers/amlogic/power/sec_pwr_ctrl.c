@@ -26,6 +26,18 @@ unsigned long pwr_ctrl_status_psci_smc(int power_domain)
 }
 EXPORT_SYMBOL(pwr_ctrl_status_psci_smc);
 
+unsigned long vpu_mempd_psci_smc(int mempd_id, bool power_control)
+{
+	int switch_id, pd_max_id;
+	unsigned long ret;
+
+	pd_max_id = get_max_id();
+	switch_id = mempd_id + pd_max_id;
+	ret = pwr_ctrl_psci_smc(switch_id, power_control);
+
+	return ret;
+}
+
 unsigned long pwr_ctrl_irq_set(u64 irq, u64 irq_mask, u64 irq_invert)
 {
 	struct arm_smccc_res res;
