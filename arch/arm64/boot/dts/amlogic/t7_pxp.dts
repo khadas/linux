@@ -1187,22 +1187,22 @@
 	clock-frequency = <300000>; /* default 100k */
 
 	/* for ref board */
-	ad82584f_62: ad82584f_62@62 {
-		compatible = "ESMT, ad82584f";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "disabled";
-		//reset_pin = <&gpio GPIOA_5 0>;
-		no_mclk;
-	};
-
-	bl_extern_i2c {
-		compatible = "bl_extern, i2c";
-		dev_name = "lp8556";
-		reg = <0x2c>;
-		status = "disabled";
-	};
-
+//	ad82584f_62: ad82584f_62@62 {
+//		compatible = "ESMT, ad82584f";
+//		#sound-dai-cells = <0>;
+//		reg = <0x31>;
+//		status = "disabled";
+//		//reset_pin = <&gpio GPIOA_5 0>;
+//		no_mclk;
+//	};
+//
+//	bl_extern_i2c {
+//		compatible = "bl_extern, i2c";
+//		dev_name = "lp8556";
+//		reg = <0x2c>;
+//		status = "disabled";
+//	};
+//
 	tlc59116: tlc59116@60 {
 		compatible = "amlogic,tlc59116_led";
 		reg = <0x60>;
