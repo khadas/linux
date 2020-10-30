@@ -12,6 +12,7 @@
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-sc2-gpio.h>
+#include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
 
 / {
 	cpus:cpus {
@@ -143,6 +144,13 @@
 				/*pinctrl-0 = <&ao_uart_pins>;*/
 				support-sysrq = <1>;  /* 0 not support*/
 			};
+
+			reset: reset-controller@2000 {
+				compatible = "amlogic,meson-sc2-reset";
+				reg = <0x0 0x2000 0x0 0x98>;
+				#reset-cells = <1>;
+			};
+
 			cpu_version {
 				compatible = "amlogic,meson-gx-ao-secure", "syscon";
 				reg=<0x0 0x10220 0x0 0x4>;

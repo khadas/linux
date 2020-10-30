@@ -97,11 +97,21 @@ static const struct meson_reset_param meson_a1_param = {
 	.level_offset	= 0x40,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static const struct meson_reset_param meson_sc2_param = {
+	.reg_count	= 6,
+	.level_offset	= 0x40,
+};
+#endif
+
 static const struct of_device_id meson_reset_dt_ids[] = {
 	 { .compatible = "amlogic,meson8b-reset",    .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-gxbb-reset", .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-axg-reset",  .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-a1-reset",   .data = &meson_a1_param},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	 { .compatible = "amlogic,meson-sc2-reset",  .data = &meson_sc2_param},
+#endif
 	 { /* sentinel */ },
 };
 
@@ -143,3 +153,7 @@ static struct platform_driver meson_reset_driver = {
 	},
 };
 builtin_platform_driver(meson_reset_driver);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+MODULE_LICENSE("GPL");
+#endif
