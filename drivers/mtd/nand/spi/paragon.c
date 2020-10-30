@@ -122,14 +122,16 @@ static int paragon_spinand_detect(struct spinand_device *spinand)
 	u8 *id = spinand->id.data;
 	int ret;
 
-	/* Read ID returns [0][MID][DID] */
-
-	if (id[1] != SPINAND_MFR_PARAGON)
+	/*
+	 * PARAGON SPI NAND read ID needs a dummy byte, now add dummy to
+	 * the operation of read id, So the 0th byte is the vendor ID.
+	 */
+	if (id[0] != SPINAND_MFR_PARAGON)
 		return 0;
 
 	ret = spinand_match_and_init(spinand, paragon_spinand_table,
 				     ARRAY_SIZE(paragon_spinand_table),
-				     id[2]);
+				     id[1]);
 	if (ret)
 		return ret;
 

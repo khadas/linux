@@ -334,6 +334,16 @@
 				status = "disabled";
 			};
 
+			spifc: spi@56000 {
+				compatible = "amlogic,meson-spifc";
+				reg = <0x0 0x56000 0x0 0x290>;
+				clock-names = "clk81";
+				clocks = <&clkc CLKID_SYS_CLK>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			pwm_ab: pwm@58000 {
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x58000 0x0 0x24>;
@@ -2087,6 +2097,18 @@
 				 "spi_b_sclk_h";
 			function = "spi_b";
 			drive-strength = <2>;
+		};
+	};
+
+	spifc_pins:spifc_pins {
+		mux {
+			groups = "nor_hold",
+				 "nor_d",
+				 "nor_q",
+				 "nor_c",
+				 "nor_wp",
+				 "nor_cs";
+			function = "nor";
 		};
 	};
 

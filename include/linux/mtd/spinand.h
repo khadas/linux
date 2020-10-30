@@ -32,11 +32,20 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 #define SPINAND_READID_OP(ndummy, buf, len)				\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x9f, 1),				\
 		   SPI_MEM_OP_NO_ADDR,					\
 		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
 		   SPI_MEM_OP_DATA_IN(len, buf, 1))
+#else
+/* Add addr0 instead of dummy */
+#define SPINAND_READID_OP(ndummy, buf, len)				\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(0x9f, 1),				\
+		   SPI_MEM_OP_ADDR(1, 0x00, 1),			\
+		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 1))
+#endif
 
 #define SPINAND_SET_FEATURE_OP(reg, valptr)				\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x1f, 1),				\
@@ -230,6 +239,10 @@ extern const struct spinand_manufacturer micron_spinand_manufacturer;
 extern const struct spinand_manufacturer paragon_spinand_manufacturer;
 extern const struct spinand_manufacturer toshiba_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* spinand add zetta support */
+extern const struct spinand_manufacturer zetta_spinand_manufacturer;
+#endif
 
 /**
  * struct spinand_op_variants - SPI NAND operation variants
@@ -457,5 +470,15 @@ int spinand_match_and_init(struct spinand_device *dev,
 
 int spinand_upd_cfg(struct spinand_device *spinand, u8 mask, u8 val);
 int spinand_select_target(struct spinand_device *spinand, unsigned int target);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MODIFY) && IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON) && \
+	IS_ENABLED(CONFIG_MTD_RESV_MESON))
+int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd);
+int meson_add_mtd_partitions(struct mtd_info *mtd);
+#endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+/* spinand add info page support */
+bool spinand_is_info_page(struct nand_device *nand, int page);
+int spinand_set_info_page(struct mtd_info *mtd, void *buf);
+#endif
 
 #endif /* __LINUX_MTD_SPINAND_H */

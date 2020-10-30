@@ -253,7 +253,11 @@ int nanddev_init(struct nand_device *nand, const struct nand_ops *ops,
 	mtd->size = nanddev_size(nand);
 	mtd->owner = owner;
 
+#if IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
+	return 0;
+#else
 	return nanddev_bbt_init(nand);
+#endif
 }
 EXPORT_SYMBOL_GPL(nanddev_init);
 

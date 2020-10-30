@@ -108,14 +108,14 @@ static int micron_spinand_detect(struct spinand_device *spinand)
 	int ret;
 
 	/*
-	 * Micron SPI NAND read ID need a dummy byte,
-	 * so the first byte in raw_id is dummy.
+	 * Micron SPI NAND read ID needs a dummy byte, now add dummy to
+	 * the operation of read id, So the 0th byte is the vendor ID.
 	 */
-	if (id[1] != SPINAND_MFR_MICRON)
+	if (id[0] != SPINAND_MFR_MICRON)
 		return 0;
 
 	ret = spinand_match_and_init(spinand, micron_spinand_table,
-				     ARRAY_SIZE(micron_spinand_table), id[2]);
+				     ARRAY_SIZE(micron_spinand_table), id[1]);
 	if (ret)
 		return ret;
 

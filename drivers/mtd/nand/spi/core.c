@@ -375,11 +375,19 @@ static int spinand_read_id_op(struct spinand_device *spinand, u8 *buf)
 	struct spi_mem_op op = SPINAND_READID_OP(0, spinand->scratchbuf,
 						 SPINAND_MAX_ID_LEN);
 	int ret;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int i;
+#endif
 	ret = spi_mem_exec_op(spinand->spimem, &op);
 	if (!ret)
 		memcpy(buf, spinand->scratchbuf, SPINAND_MAX_ID_LEN);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* Success or failure print id */
+	for (i = 0; i < SPINAND_MAX_ID_LEN; i++)
+		dev_info(&spinand->spimem->spi->dev, "id[%d] = 0x%x\n",
+			 i, spinand->id.data[i]);
+#endif
 	return ret;
 }
 
@@ -529,6 +537,35 @@ static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 	return ret ? ret : max_bitflips;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int spinand_append_info_page(struct mtd_info *mtd,
+				    struct nand_page_io_req *last_req)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct nand_page_io_req req;
+	int page;
+	u8 *buf;
+	int ret = 0;
+
+	page = nanddev_pos_to_row(nand, &last_req->pos);
+	if (!last_req->pos.target && spinand_is_info_page(nand, page)) {
+		req = *last_req;
+		req.datalen = mtd->writesize;
+		req.dataoffs = 0;
+		req.ooblen = 0;
+		buf = kzalloc(mtd->writesize, GFP_KERNEL);
+		req.databuf.in = buf;
+		spinand_set_info_page(mtd, buf);
+		nanddev_pos_next_page(nand, &req.pos);
+		ret = spinand_write_page(spinand, &req);
+		kfree(buf);
+		pr_info("%s: %d\n", __func__, page);
+	}
+	return ret;
+}
+#endif
+
 static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
@@ -555,6 +592,13 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 		ret = spinand_write_page(spinand, &iter.req);
 		if (ret)
 			break;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+		/* spinand add info page support */
+		ret = spinand_append_info_page(mtd, &iter.req);
+		if (ret)
+			break;
+#endif
 
 		ops->retlen += iter.req.datalen;
 		ops->oobretlen += iter.req.ooblen;
@@ -1099,7 +1143,13 @@ static int spinand_probe(struct spi_mem *mem)
 	if (ret)
 		return ret;
 
+#if (IS_ENABLED(CONFIG_AMLOGIC_MODIFY) && IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON) && \
+	IS_ENABLED(CONFIG_MTD_RESV_MESON))
+	meson_spinand_init(spinand, mtd);
+	ret = meson_add_mtd_partitions(mtd);
+#else
 	ret = mtd_device_register(mtd, NULL, 0);
+#endif
 	if (ret)
 		goto err_spinand_cleanup;
 

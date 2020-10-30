@@ -162,15 +162,15 @@ static int toshiba_spinand_detect(struct spinand_device *spinand)
 	int ret;
 
 	/*
-	 * Toshiba SPI NAND read ID needs a dummy byte,
-	 * so the first byte in id is garbage.
+	 * TOSHIBA SPI NAND read ID needs a dummy byte, now add dummy to
+	 * the operation of read id, So the 0th byte is the vendor ID.
 	 */
-	if (id[1] != SPINAND_MFR_TOSHIBA)
+	if (id[0] != SPINAND_MFR_TOSHIBA)
 		return 0;
 
 	ret = spinand_match_and_init(spinand, toshiba_spinand_table,
 				     ARRAY_SIZE(toshiba_spinand_table),
-				     id[2]);
+				     id[1]);
 	if (ret)
 		return ret;
 

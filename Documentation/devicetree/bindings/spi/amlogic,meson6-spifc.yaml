@@ -23,6 +23,7 @@ properties:
     enum:
       - amlogic,meson6-spifc # SPI Flash Controller on Meson6 and compatible SoCs
       - amlogic,meson-gxbb-spifc # SPI Flash Controller on GXBB and compatible SoCs
+      - amlogic,meson-spifc # SPI Flash V1 Controller on meson SoCs
 
   reg:
     maxItems: 1

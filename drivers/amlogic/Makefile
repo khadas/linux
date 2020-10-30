@@ -26,7 +26,7 @@ obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
 obj-$(CONFIG_AMLOGIC_IRBLASTER)		+= irblaster/
 obj-$(CONFIG_MTD_NAND_MESON)		+= mtd/nand/
 obj-$(CONFIG_MTD_RESV_MESON)		+= mtd/reserve/
-
+obj-$(CONFIG_MTD_SPI_NAND_MESON)	+= mtd/spi_nand/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/
@@ -57,3 +57,4 @@ modules_install:
 
 clean:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) clean
+

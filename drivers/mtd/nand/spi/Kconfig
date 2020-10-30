@@ -6,3 +6,18 @@ menuconfig MTD_SPI_NAND
 	select SPI_MEM
 	help
 	  This is the framework for the SPI NAND device drivers.
+
+if MTD_SPI_NAND
+
+config MTD_SPI_NAND_MESON
+        tristate "MESON SPI NAND support"
+        default n
+	select MTD_RESV_MESON
+	select SPI_MESON_SPIFC
+        depends on MTD_SPI_NAND && AMLOGIC_MODIFY
+        help
+          This is based on MTD_SPI_NAND, adding partition and rsv management.
+          Say Y, Will register partitions according to dts and add rsv management.
+          Say N, Only register one mtd device.
+
+endif #MTD_SPI_NAND

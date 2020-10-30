@@ -145,7 +145,6 @@ int meson_free_rsv_info(struct meson_rsv_info_t *rsv_info)
 int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
-	struct mtd_oob_region region;
 	struct oobinfo_t oobinfo;
 	struct mtd_oob_ops oob_ops;
 	size_t length = 0;
@@ -160,13 +159,12 @@ int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 	memcpy(oobinfo.name, rsv_info->name, 4);
 	oobinfo.ec = rsv_info->valid_node->ec;
 	oobinfo.timestamp = rsv_info->valid_node->timestamp;
-	mtd->ooblayout->free(mtd, 0, &region);
 	while (length < rsv_info->size) {
 		oob_ops.mode = MTD_OPS_AUTO_OOB;
 		oob_ops.len = min_t(u32, mtd->writesize,
 				    (rsv_info->size - length));
 		oob_ops.ooblen = sizeof(struct oobinfo_t);
-		oob_ops.ooboffs = region.offset;
+		oob_ops.ooboffs = 0;
 		oob_ops.datbuf = buf + length;
 		oob_ops.oobbuf = (u8 *)&oobinfo;
 
@@ -308,7 +306,6 @@ int meson_rsv_scan(struct meson_rsv_info_t *rsv_info)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
 	struct mtd_oob_ops oob_ops;
-	struct mtd_oob_region region;
 	struct oobinfo_t oobinfo;
 	struct free_node_t *free_node, *temp_node;
 	u64 offset;
@@ -327,8 +324,6 @@ RE_RSV_INFO_EXT:
 		rsv_info->name, rsv_info->size,
 		end, start);
 
-	mtd->ooblayout->free(mtd, 0, &region);
-
 	do {
 		offset = mtd->erasesize;
 		offset *= start;
@@ -337,7 +332,7 @@ RE_RSV_INFO:
 	oob_ops.mode = MTD_OPS_AUTO_OOB;
 	oob_ops.len = 0;
 	oob_ops.ooblen = sizeof(struct oobinfo_t);
-	oob_ops.ooboffs = region.offset;
+	oob_ops.ooboffs = 0;
 	oob_ops.datbuf = NULL;
 	oob_ops.oobbuf = (u8 *)&oobinfo;
 
@@ -446,7 +441,7 @@ RE_RSV_INFO:
 		oob_ops.mode = MTD_OPS_AUTO_OOB;
 		oob_ops.len = 0;
 		oob_ops.ooblen = sizeof(struct oobinfo_t);
-		oob_ops.ooboffs = region.offset;
+		oob_ops.ooboffs = 0;
 		oob_ops.datbuf = NULL;
 		oob_ops.oobbuf = (u8 *)&oobinfo;
 
@@ -522,14 +517,12 @@ EXPORT_SYMBOL(meson_rsv_scan);
 int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
-	struct mtd_oob_region region;
 	struct oobinfo_t oobinfo;
 	struct mtd_oob_ops oob_ops;
 	size_t length = 0;
 	loff_t offset;
 	int ret = 0;
 
-	mtd->ooblayout->free(mtd, 0, &region);
 READ_RSV_AGAIN:
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
@@ -542,7 +535,7 @@ READ_RSV_AGAIN:
 		oob_ops.len = min_t(u32, mtd->writesize,
 				    (rsv_info->size - length));
 		oob_ops.ooblen = sizeof(struct oobinfo_t);
-		oob_ops.ooboffs = region.offset;
+		oob_ops.ooboffs = 0;
 		oob_ops.datbuf = buf + length;
 		oob_ops.oobbuf = (u8 *)&oobinfo;
 
