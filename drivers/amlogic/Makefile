@@ -23,7 +23,7 @@ obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/
 obj-$(CONFIG_AMLOGIC_HIFI4DSP)          += hifi4dsp/
 obj-$(CONFIG_AMLOGIC_DVB_COMPAT)        += dvb/
 obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
-
+obj-$(CONFIG_AMLOGIC_IRBLASTER)		+= irblaster/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/

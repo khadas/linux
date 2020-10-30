@@ -103,6 +103,7 @@ source "drivers/amlogic/gki_tool/Kconfig"
 source "drivers/amlogic/hifi4dsp/Kconfig"
 source "drivers/amlogic/dvb/Kconfig"
 source "drivers/amlogic/drm/Kconfig"
+source "drivers/amlogic/irblaster/Kconfig"
 
 source "drivers/amlogic/cpuidle/Kconfig"
 source "drivers/amlogic/defendkey/Kconfig"

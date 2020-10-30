@@ -1,0 +1,13 @@
+#
+# Amlogic IRBLASTER
+#
+
+config	AMLOGIC_IRBLASTER
+	tristate "Amlogic Meson SoC irblaster driver"
+	default	n
+	help
+	  This enable irblaster support for soc mesom (irblaster communication
+	  controller) available in Amlogic Meson SoCs.
+	  If you want to use meson irblaster interface,
+	  say Y here.If you are not sure, say N.
+
