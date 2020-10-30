@@ -6,15 +6,17 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/08/12:disable cec do not trans msg to framework\n"
+#define CEC_DRIVER_VERSION     "2020/10/19:scc 5.4 bringup\n"
 
-/*#define CEC_DEV_NAME		"cec"*/
-#define CEC_FRAME_DELAY		msecs_to_jiffies(400)
+#define CEC_DEV_NAME		"cec"
 
-#define HR_DELAY(n)		(ktime_set(0, (n) * 1000 * 1000))
-#define MAX_INT			0x7ffffff
+#define CEC_FRAME_DELAY		msecs_to_jiffies(30)
+#define CEC_CHK_BUS_CNT		20
 
 #define CEC_PHY_PORT_NUM	4
+#define HR_DELAY(n)		(ktime_set(0, (n) * 1000 * 1000))
+
+#define MAX_INT				0x7ffffff
 
 enum cec_chip_ver {
 	CEC_CHIP_GXL = 0,
@@ -27,30 +29,36 @@ enum cec_chip_ver {
 	CEC_CHIP_SM1,
 	CEC_CHIP_TL1,
 	CEC_CHIP_TM2,
+	CEC_CHIP_A1,
+	CEC_CHIP_SC2,
+	CEC_CHIP_T5,/*only have cecb*/
 };
 
 enum cecaver {
+	CECA_NONE,
 	/*
 	 * first version, only support one logical addr
 	 * "0xf" broadcast addr is default on
 	 */
-	CECA_VER_0 = 0,
+	CECA_VER_0,
 
 	/*
 	 * support multi logical address, "0xf" broadcast
 	 * addr is default on
 	 */
-	CECA_VER_1 = 1,
+	CECA_VER_1,
 };
 
 enum cecbver {
+	CECB_NONE,
+
 	/* first version
 	 * support multi logical address, "0xf" broadcast
 	 * addr is default on
 	 */
-	CECB_VER_0 = 0,
+	CECB_VER_0,
 	/*ee to ao */
-	CECB_VER_1 = 1,
+	CECB_VER_1,
 	/*
 	 * 1.fix bug: cts 7-1
 	 * 2.fix bug: Do not signal initiator error, when it's
@@ -58,7 +66,22 @@ enum cecbver {
 	 * 3.fix bug: Receive messages are ignored and not acknowledge
 	 * 4.add status reg
 	 */
-	CECB_VER_2 = 2,
+	CECB_VER_2,
+	/*
+	 * After and equal A1, register read/write changed
+	 */
+	CECB_VER_3,
+};
+
+/* from android cec hal */
+enum {
+	HDMI_OPTION_WAKEUP = 1,
+	HDMI_OPTION_ENABLE_CEC = 2,
+	/*frame work pw on, 1:pw on 0:suspend*/
+	HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
+	HDMI_OPTION_SET_LANG = 5,
+	/*have cec framework*/
+	HDMI_OPTION_SERVICE_FLAG = 16,
 };
 
 #define L_1		1
@@ -75,26 +98,6 @@ enum cecbver {
 #define CEC_B_ARB_TIME 8
 
 #define CEC_MSG_BUFF_MAX	30
-
-struct dbgflg {
-	unsigned int hal_cmd_bypass:1;
-};
-
-struct st_rx_msg {
-	unsigned char len;
-	unsigned char msg[16];
-};
-
-/* from android cec hal */
-enum {
-	HDMI_OPTION_WAKEUP = 1,
-	HDMI_OPTION_ENABLE_CEC = 2,
-	/*frame work pw on, 1:pw on 0:suspend*/
-	HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
-	HDMI_OPTION_SET_LANG = 5,
-	/*have cec framework*/
-	HDMI_OPTION_SERVICE_FLAG = 16,
-};
 
 struct cec_platform_data_s {
 	enum cec_chip_ver chip_id;
@@ -113,9 +116,26 @@ struct cec_wakeup_t {
 	unsigned int wk_port_id:8;
 };
 
+struct dbgflg {
+	unsigned int hal_cmd_bypass:1;
+
+};
+
+struct st_rx_msg {
+	unsigned char len;
+	unsigned char msg[16];
+};
+
+struct st_cec_mailbox_data {
+	unsigned int cec_config;
+	unsigned int phy_addr;
+	unsigned int vendor_id;
+	unsigned char osd_name[16];
+} __packed;
+
 /* global struct for tx and rx */
 struct ao_cec_dev {
-	bool proble_finish;
+	bool probe_finish;
 	unsigned long dev_type;
 	struct device_node *node;
 	unsigned int port_num;	/*total input hdmi port number*/
@@ -133,6 +153,7 @@ struct ao_cec_dev {
 	void __iomem *hdmi_rxreg;
 	void __iomem *hhi_reg;
 	void __iomem *periphs_reg;
+	void __iomem *clk_reg;
 	struct hdmitx_dev *tx_dev;
 	struct workqueue_struct *cec_thread;
 	struct device *dbg_dev;
@@ -140,7 +161,7 @@ struct ao_cec_dev {
 	struct delayed_work cec_work;
 	struct completion rx_ok;
 	struct completion tx_ok;
-	spinlock_t cec_reg_lock;/*reg rw lock*/
+	spinlock_t cec_reg_lock;/*cec register access*/
 	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct cec_wakeup_t wakup_data;
@@ -151,10 +172,16 @@ struct ao_cec_dev {
 	struct vendor_info_data v_data;
 	struct cec_global_info_t cec_info;
 	struct cec_platform_data_s *plat_data;
+
+	unsigned int cfg;
 	unsigned int wakeup_st;
+
 	unsigned int msg_idx;
 	unsigned int msg_num;
 	struct st_rx_msg msgbuff[CEC_MSG_BUFF_MAX];
+
+	struct clk *ceca_clk;
+	struct clk *cecb_clk;
 };
 
 struct cec_msg_last {
@@ -164,64 +191,47 @@ struct cec_msg_last {
 	unsigned long last_jiffies;
 };
 
-/*
- *#define CEC_FUNC_MASK			0
- *#define ONE_TOUCH_PLAY_MASK		1
- *#define ONE_TOUCH_STANDBY_MASK	2
- *#define AUTO_POWER_ON_MASK		3
- */
-#define CEC_FUNC_CFG_CEC_ON		0x01
-#define CEC_FUNC_CFG_OTP_ON		0x02
+#define CEC_FUNC_CFG_CEC_ON			0x01
+#define CEC_FUNC_CFG_OTP_ON			0x02
 #define CEC_FUNC_CFG_AUTO_STANDBY	0x04
 #define CEC_FUNC_CFG_AUTO_POWER_ON	0x08
-#define CEC_FUNC_CFG_ALL		0x2f
-#define CEC_FUNC_CFG_NONE		0x0
+#define CEC_FUNC_CFG_ALL			0x2f
+#define CEC_FUNC_CFG_NONE			0x0
 
-/*#define AO_BASE				0xc8100000*/
+#define PREG_PAD_GPIO3_I			(0x01b << 2)
 
-#define AO_GPIO_I			(0x0A << 2)
-#define PREG_PAD_GPIO3_I		(0x1b << 2)
+enum {
+	AO_CEC_CLK_CNTL_REG0 = 0,
+	AO_CEC_CLK_CNTL_REG1,	/*1*/
+	AO_CEC_GEN_CNTL,	/*2*/
+	AO_CEC_RW_REG,
+	AO_CEC_INTR_MASKN,
+	AO_CEC_INTR_CLR,
+	AO_CEC_INTR_STAT,
 
-#define AO_CEC_GEN_CNTL			(0x40 << 2)
-#define AO_CEC_RW_REG			(0x41 << 2)
-#define AO_CEC_INTR_MASKN		(0x42 << 2)
-#define AO_CEC_INTR_CLR			(0x43 << 2)
-#define AO_CEC_INTR_STAT		(0x44 << 2)
+	AO_CECB_CLK_CNTL_REG0,	/*7*/
+	AO_CECB_CLK_CNTL_REG1,	/*8*/
+	AO_CECB_GEN_CNTL,	/*9*/
+	AO_CECB_RW_REG,		/*0xa*/
+	AO_CECB_INTR_MASKN,	/*0xb*/
+	AO_CECB_INTR_CLR,	/*0xc*/
+	AO_CECB_INTR_STAT,	/*0xd*/
 
-#define AO_RTI_PWR_CNTL_REG0		(0x04 << 2)
-#define AO_CRT_CLK_CNTL1		(0x1a << 2)
-#define AO_RTC_ALT_CLK_CNTL0		(0x25 << 2)
-#define AO_RTC_ALT_CLK_CNTL1		(0x26 << 2)
+	AO_RTI_STATUS_REG1,
+	AO_RTI_PWR_CNTL_REG0,
+	AO_CRT_CLK_CNTL1,
+	AO_RTC_ALT_CLK_CNTL0,
+	AO_RTC_ALT_CLK_CNTL1,
 
-/* for TXLX, same as AO_RTC_ALT_CLK_CNTLx */
-#define AO_CEC_CLK_CNTL_REG0		(0x1d << 2)
-#define AO_CEC_CLK_CNTL_REG1		(0x1e << 2)
+	AO_DEBUG_REG0,
+	AO_DEBUG_REG1,
+	AO_GPIO_I,
 
-#define AO_RTI_STATUS_REG1		(0x01 << 2)
-#define AO_DEBUG_REG0			(0x28 << 2)
-#define AO_DEBUG_REG1			(0x29 << 2)
-#define AO_DEBUG_REG2			(0x2a << 2)
-#define AO_DEBUG_REG3			(0x2b << 2)
-/* for new add after g12a/b ...*/
-#define AO_CEC_STICKY_DATA0			(0xca << 2)
-#define AO_CEC_STICKY_DATA1			(0xcb << 2)
-#define AO_CEC_STICKY_DATA2			(0xcc << 2)
-#define AO_CEC_STICKY_DATA3			(0xcd << 2)
-#define AO_CEC_STICKY_DATA4			(0xce << 2)
-#define AO_CEC_STICKY_DATA5			(0xcf << 2)
-#define AO_CEC_STICKY_DATA6			(0xd0 << 2)
-#define AO_CEC_STICKY_DATA7			(0xd1 << 2)
+	AO_REG_DEF_END
+};
 
-/*
- * AOCEC_B register
- */
-#define AO_CECB_CLK_CNTL_REG0		(0xa0 << 2)
-#define AO_CECB_CLK_CNTL_REG1		(0xa1 << 2)
-#define AO_CECB_GEN_CNTL		(0xa2 << 2)
-#define AO_CECB_RW_REG			(0xa3 << 2)
-#define AO_CECB_INTR_MASKN		(0xa4 << 2)
-#define AO_CECB_INTR_CLR		(0xa5 << 2)
-#define AO_CECB_INTR_STAT		(0xa6 << 2)
+#define REG_MASK_ADDR	0x00ffffff
+#define REG_MASK_PR	0x01000000/*periphs register*/
 
 /*
  * AOCEC_A internal register
@@ -250,8 +260,8 @@ struct cec_msg_last {
 #define CEC_RX_MSG_CMD             0x14
 #define CEC_RX_CLEAR_BUF           0x15
 #define CEC_LOGICAL_ADDR0          0x16
-#define CEC_LOGICAL_ADDR1          0x17
-#define CEC_LOGICAL_ADDR2          0x18
+#define CEC_LOGICAL_ADDR1          0x17/*ADDR L tm2 later*/
+#define CEC_LOGICAL_ADDR2          0x18/*ADDR H tm2 later*/
 #define CEC_LOGICAL_ADDR3          0x19
 #define CEC_LOGICAL_ADDR4          0x1A
 #define CEC_CLOCK_DIV_H            0x1B
@@ -464,55 +474,6 @@ struct cec_msg_last {
 #define DWC_CEC_WKUPCTRL                 0x1FC4
 
 /*
- * AOCEC_B internal register
- * for EE CEC
- */
-/*
- *#define AO_CECB_CTRL_ADDR                0x00
- *#define AO_CECB_CTRL2_ADDR               0x01
- *#define AO_CECB_INTR_MASK_ADDR           0x02
- *#define AO_CECB_LADD_LOW_ADDR            0x05
- *#define AO_CECB_LADD_HIGH_ADDR           0x06
- *#define AO_CECB_TX_CNT_ADDR              0x07
- *#define AO_CECB_RX_CNT_ADDR              0x08
- *#define AO_CECB_STAT0_ADDR               0x09
- *#define AO_CECB_TX_DATA00_ADDR           0x10
- *#define AO_CECB_TX_DATA01_ADDR           0x11
- *#define AO_CECB_TX_DATA02_ADDR           0x12
- *#define AO_CECB_TX_DATA03_ADDR           0x13
- *#define AO_CECB_TX_DATA04_ADDR           0x14
- *#define AO_CECB_TX_DATA05_ADDR           0x15
- *#define AO_CECB_TX_DATA06_ADDR           0x16
- *#define AO_CECB_TX_DATA07_ADDR           0x17
- *#define AO_CECB_TX_DATA08_ADDR           0x18
- *#define AO_CECB_TX_DATA09_ADDR           0x19
- *#define AO_CECB_TX_DATA10_ADDR           0x1A
- *#define AO_CECB_TX_DATA11_ADDR           0x1B
- *#define AO_CECB_TX_DATA12_ADDR           0x1C
- *#define AO_CECB_TX_DATA13_ADDR           0x1D
- *#define AO_CECB_TX_DATA14_ADDR           0x1E
- *#define AO_CECB_TX_DATA15_ADDR           0x1F
- *#define AO_CECB_RX_DATA00_ADDR           0x20
- *#define AO_CECB_RX_DATA01_ADDR           0x21
- *#define AO_CECB_RX_DATA02_ADDR           0x22
- *#define AO_CECB_RX_DATA03_ADDR           0x23
- *#define AO_CECB_RX_DATA04_ADDR           0x24
- *#define AO_CECB_RX_DATA05_ADDR           0x25
- *#define AO_CECB_RX_DATA06_ADDR           0x26
- *#define AO_CECB_RX_DATA07_ADDR           0x27
- *#define AO_CECB_RX_DATA08_ADDR           0x28
- *#define AO_CECB_RX_DATA09_ADDR           0x29
- *#define AO_CECB_RX_DATA10_ADDR           0x2A
- *#define AO_CECB_RX_DATA11_ADDR           0x2B
- *#define AO_CECB_RX_DATA12_ADDR           0x2C
- *#define AO_CECB_RX_DATA13_ADDR           0x2D
- *#define AO_CECB_RX_DATA14_ADDR           0x2E
- *#define AO_CECB_RX_DATA15_ADDR           0x2F
- *#define AO_CECB_LOCK_BUF_ADDR            0x30
- *#define AO_CECB_WAKEUPCTRL_ADDR          0x31
- */
-
-/*
  * AOCEC B CEC_STAT0
  */
 enum {
@@ -545,7 +506,7 @@ enum {
 #define EECEC_IRQ_TX_ERR_INITIATOR	BIT(20)
 #define EECEC_IRQ_RX_ERR_FOLLOWER	BIT(21)
 #define EECEC_IRQ_RX_WAKEUP		BIT(22)
-#define EE_CEC_IRQ_EN_MASK		(0x3f << 16)
+#define EE_CEC_IRQ_EN_MASK			(0x3f00)
 
 /* cec irq bit flags for AO_CEC_B */
 #define CECB_IRQ_TX_DONE		BIT(0)
@@ -555,7 +516,7 @@ enum {
 #define CECB_IRQ_TX_ERR_INITIATOR	BIT(4)
 #define CECB_IRQ_RX_ERR_FOLLOWER	BIT(5)
 #define CECB_IRQ_RX_WAKEUP		BIT(6)
-#define CECB_IRQ_EN_MASK		(0x3f << 0)
+#define CECB_IRQ_EN_MASK			(0x3f)
 
 /* common mask */
 #define CEC_IRQ_TX_DONE			(1 << (16 - shift))
@@ -589,13 +550,13 @@ enum {
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 unsigned long hdmirx_rd_top(unsigned long addr);
 void hdmirx_wr_top(unsigned long addr, unsigned long data);
-u32 hdmirx_rd_dwc(u16 addr);
+uint32_t hdmirx_rd_dwc(u16 addr);
 void hdmirx_wr_dwc(u16 addr, u32 data);
 unsigned int rd_reg_hhi(unsigned int offset);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
-int cec_set_dev_info(u8 dev_idx);
-int __attribute__((weak))cec_set_dev_info(u8 dev_idx);
+int __attribute__((weak))cec_set_dev_info(uint8_t dev_idx);
 #else
+
 static inline unsigned long hdmirx_rd_top(unsigned long addr)
 {
 	return 0;
@@ -605,16 +566,16 @@ static inline void hdmirx_wr_top(unsigned long addr, unsigned long data)
 {
 }
 
-static inline u32 hdmirx_rd_dwc(u16 addr)
+static inline uint32_t hdmirx_rd_dwc(u16 addr)
 {
 	return 0;
 }
 
-static inline void hdmirx_wr_dwc(u16 addr, u32 data)
+static inline void hdmirx_wr_dwc(u16 addr, u16 data)
 {
 }
 
-unsigned int rd_reg_hhi(unsigned int offset)
+unsigned int rd_reg_hhi(u32 offset)
 {
 	return 0;
 }
@@ -623,36 +584,30 @@ void wr_reg_hhi(unsigned int offset, unsigned int val)
 {
 }
 
-int cec_set_dev_info(u8 dev_idx)
-{
-	return 0;
-}
 #endif
 
 int hdmirx_get_connect_info(void);
-int __attribute__((weak))hdmirx_get_connect_info(void)
-{
-	return 0;
-}
 
 unsigned int aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
 void cecb_irq_handle(void);
 void cec_logicaddr_set(int l_add);
-void cec_arbit_bit_time_set(unsigned int bit_set,
-			    unsigned int time_set, unsigned int flag);
+void cec_arbit_bit_time_set(u32 bit_set, u32 time_set, u32 flag);
 void cec_irq_enable(bool enable);
 void aocec_irq_enable(bool enable);
 void dump_reg(void);
-
 void cec_status(void);
-void cec_hw_reset(unsigned int cec_sel);
-void cec_restore_logical_addr(unsigned int cec_sel,
-			      unsigned int addr_en);
-void cec_logicaddr_add(unsigned int cec_sel, unsigned int l_add);
-void cec_clear_all_logical_addr(unsigned int cec_sel);
+void cec_hw_reset(u32 cec_sel);
+void cec_restore_logical_addr(u32 cec_sel, u32 addr_en);
+void cec_logicaddr_add(u32  cec_sel, u32 l_add);
 int dump_cecrx_reg(char *b);
-void cec_ip_share_io(u32 share, u32 cec_ip);
+void cec_clear_all_logical_addr(unsigned int cec_sel);
+void cec_ap_add_logical_addr(u32 l_addr);
+void cec_ap_set_dev_type(u32 type);
+void cec_ap_rm_logical_addr(u32 addr);
 void cec_new_msg_push(void);
+unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
+unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag);
+unsigned int cec_config2_devtype(unsigned int value, bool wr_flag);
 unsigned int cec_config(unsigned int value, bool wr_flag);
 #endif	/* __AO_CEC_H__ */

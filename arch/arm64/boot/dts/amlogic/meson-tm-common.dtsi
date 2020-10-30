@@ -1039,6 +1039,20 @@
 						function = "sw";
 					};
 				};
+
+				aoceca_mux:aoceca_mux {
+					mux {
+						groups = "cec_ao_a";
+						function = "cec_ao";
+					};
+				};
+
+				aocecb_mux:aocecb_mux {
+					mux {
+						groups = "cec_ao_b";
+						function = "cec_ao";
+					};
+				};
 			};
 		};
 

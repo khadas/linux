@@ -212,6 +212,34 @@
 		pps-enable = <1>;
 	};
 
+       aocec: aocec {
+		compatible = "amlogic, aocec-tm2";
+		/*device_name = "aocec";*/
+		status = "okay";
+		vendor_name = "Amlogic"; /* Max Chars: 8         */
+		/* Refer to the following URL at:
+		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
+		 */
+		vendor_id = <0x000000>;
+		product_desc = "TM2"; /* Max Chars: 16    */
+		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
+		port_num = <4>;
+		ee_cec;
+		/*cec_sel = <2>;*/
+		output = <1>;   /*output port number*/
+		arc_port_mask = <0x2>;
+		interrupts = <0 203 1
+			0 199 1>;
+		interrupt-names = "hdmi_aocecb","hdmi_aocec";
+		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
+		pinctrl-0=<&aoceca_mux>;
+		pinctrl-1=<&aocecb_mux>;
+		pinctrl-2=<&aoceca_mux>;
+		reg = <0x0 0xFF80023c 0x0 0x4
+			0x0 0xFF800000 0x0 0x400>;
+		reg-names = "ao_exit","ao";
+	};
+
 	picdec {
 		compatible = "amlogic, picdec";
 		status = "okay";
