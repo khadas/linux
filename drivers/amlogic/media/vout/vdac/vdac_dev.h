@@ -24,12 +24,16 @@
 #define HHI_VDAC_CNTL0_G12A   0xbb
 #define HHI_VDAC_CNTL1_G12A   0xbc
 
+#define ANACTRL_VDAC_CTRL0    0xb0
+#define ANACTRL_VDAC_CTRL1    0xb1
 #define HHI_VIID_CLK_DIV      0x4a
 #define HHI_VIID_CLK_CNTL     0x4b
 #define HHI_VIID_DIVIDER_CNTL 0x4c
 #define HHI_VID_CLK_CNTL2     0x65
 #define HHI_VID_DIVIDER_CNTL  0x66
 
+#define CLKCTRL_VID_CLK_CTRL2 0x31
+#define CLKCTRL_VIID_CLK_DIV  0x33
 #define VENC_VDAC_DACSEL0     0x1b78
 
 #define VDAC_CTRL_MAX         10
@@ -39,9 +43,11 @@ enum vdac_cpu_type {
 	VDAC_CPU_TL1 = 1,
 	VDAC_CPU_SM1 = 2,
 	VDAC_CPU_TM2 = 3,
+	VDAC_CPU_SC2 = 4,
 	VDAC_CPU_MAX,
 };
 
+#define VDAC_REG_OFFSET(reg)          ((reg) << 2)
 #define VDAC_REG_MAX    0xffff
 
 struct meson_vdac_data {
@@ -50,6 +56,8 @@ struct meson_vdac_data {
 
 	unsigned int reg_cntl0;
 	unsigned int reg_cntl1;
+	unsigned int reg_vid_clk_ctrl2;
+	unsigned int reg_vid2_clk_div;
 	struct meson_vdac_ctrl_s *ctrl_table;
 };
 
@@ -60,6 +68,7 @@ struct meson_vdac_ctrl_s {
 	unsigned int len;
 };
 
+extern const struct of_device_id meson_vdac_dt_match[];
 struct meson_vdac_data *aml_vdac_config_probe(struct platform_device *pdev);
 
 #endif

@@ -22,6 +22,5 @@
 extern unsigned int cvbs_clk_path;
 void set_vmode_clk(void);
 void disable_vmode_clk(void);
-int cvbs_cpu_type(void);
 
 #endif

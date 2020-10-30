@@ -26,7 +26,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include "cvbs_mode.h"
 
-#define CVBSOUT_VER "Ref.2018/11/07"
+/* sync kernel 4.9 code */
+#define CVBSOUT_VER "Ref.2020/10/23"
 
 #define CVBS_CLASS_NAME	"cvbs"
 #define CVBS_NAME	"cvbs"
@@ -38,8 +39,6 @@
 #define VOUT_IOC_CC_CLOSE          _IO(_TM_V, 0x02)
 #define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_ccparm_s)
 
-#define print_info(fmt, args...) pr_info(fmt, ##args)
-
 struct reg_s {
 	unsigned int reg;
 	unsigned int val;
@@ -48,33 +47,46 @@ struct reg_s {
 enum cvbs_cpu_type {
 	CVBS_CPU_TYPE_G12A   = 0,
 	CVBS_CPU_TYPE_G12B   = 1,
-	CVBS_CPU_TYPE_TL1    = 3,
-	CVBS_CPU_TYPE_SM1	 = 4,
-	CVBS_CPU_TYPE_TM2	 = 5,
+	CVBS_CPU_TYPE_TL1    = 2,
+	CVBS_CPU_TYPE_SM1    = 3,
+	CVBS_CPU_TYPE_TM2    = 4,
+	CVBS_CPU_TYPE_SC2    = 5,
 };
 
 struct meson_cvbsout_data {
-	unsigned int cntl0_val;
 	enum cvbs_cpu_type cpu_id;
 	const char *name;
+	unsigned int vdac_vref_adj;
+	unsigned int vdac_gsw;
+	unsigned int reg_vid_pll_clk_div;
+	unsigned int reg_vid_clk_div;
+	unsigned int reg_vid_clk_ctrl;
+	unsigned int reg_vid2_clk_div;
+	unsigned int reg_vid2_clk_ctrl;
+	unsigned int reg_vid_clk_ctrl2;
 };
 
 #define CVBS_PERFORMANCE_CNT_MAX    20
-struct cvbs_config_s {
-	unsigned int performance_reg_cnt;
-	struct reg_s *performance_reg_table;
+struct performance_config_s {
+	unsigned int reg_cnt;
+	struct reg_s *reg_table;
 };
 
-struct disp_module_info_s {
+/* cvbs driver flag */
+#define CVBS_FLAG_EN_ENCI   BIT(0)
+#define CVBS_FLAG_EN_VDAC   BIT(1)
+
+struct cvbs_drv_s {
 	struct vinfo_s *vinfo;
 	struct cdev   *cdev;
 	dev_t         devno;
 	struct class  *base_class;
 	struct device *dev;
 	struct meson_cvbsout_data *cvbs_data;
-	struct cvbs_config_s cvbs_conf;
-	struct delayed_work dv_dwork;
-	bool dwork_flag;
+	struct performance_config_s perf_conf_pal;
+	struct performance_config_s perf_conf_ntsc;
+	struct delayed_work vdac_dwork;
+	unsigned int flag;
 
 	/* clktree */
 	unsigned int clk_gate_state;
@@ -101,5 +113,8 @@ struct cvbsregs_set_t {
 };
 
 void amvecm_clip_range_limit(bool limit_en);
+
+int cvbs_cpu_type(void);
+struct meson_cvbsout_data *get_cvbs_data(void);
 
 #endif

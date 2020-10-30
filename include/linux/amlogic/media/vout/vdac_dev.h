@@ -26,9 +26,11 @@
 #define VDAC_MODULE_CVBS_OUT  (0x8)
 #define VDAC_MODULE_AUDIO_OUT (0x10) /*0x10*/
 
-void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1);
 void vdac_enable(bool on, unsigned int module_sel);
 int vdac_enable_check_dtv(void);
 int vdac_enable_check_cvbs(void);
+int vdac_vref_adj(unsigned int value);
+int vdac_gsw_adj(unsigned int value);
+unsigned int vdac_get_reg_addr(unsigned int index);
 
 #endif

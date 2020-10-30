@@ -85,6 +85,10 @@
 #define WSS_576I_FULL_LENGTH					0xe
 #define WSS_576I_FULL_MASK						0x3fff
 
+#define WSS_576I_MVSN_LINE					0x8
+#define WSS_576I_MVSN_START					0x0
+#define WSS_576I_MVSN_LENGTH					0x1
+#define WSS_576I_MVSN_MASK					0x1
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* for 480i, according to <IEC 61880:1998> */
 
@@ -135,6 +139,11 @@
 /*line evn 17,odd 18,reault all 21*/
 #define WSS_480I_CC_LENGTH						0x2
 #define WSS_480I_CC_MASK                        0xffff
+
+#define WSS_480I_MVSN_LINE			0xa
+#define WSS_480I_MVSN_START			0x0
+#define WSS_480I_MVSN_LENGTH			0x1
+#define WSS_480I_MVSN_MASK			0x1
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* common struct for 480i/576i wss */
 
@@ -149,14 +158,16 @@ enum WSS_576I_CMD {
 	WSS_576I_CMD_CGMS_A = 0x7,
 	WSS_576I_CMD_FULL = 0x8,
 	WSS_576I_CMD_CC = 0x9,
-	WSS_576I_CMD_OFF = 0xa,
+	WSS_576I_CMD_MVSN = 0xa,
+	WSS_576I_CMD_OFF = 0xb,
 
 	WSS_480I_CMD_AR = 0x10,
 	WSS_480I_CMD_CGMS_A = 0x11,
 	WSS_480I_CMD_PSP = 0x12,
 	WSS_480I_CMD_PRE_RECORDED = 0x13,
 	WSS_480I_CMD_CC = 0x14,
-	WSS_480I_CMD_OFF = 0x15,
+	WSS_480I_CMD_MVSN = 0x15,
+	WSS_480I_CMD_OFF = 0x16,
 
 };
 

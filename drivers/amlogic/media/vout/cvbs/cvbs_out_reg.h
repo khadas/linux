@@ -20,6 +20,7 @@
 #define __CVBS_OUT_REG_H__
 #include <linux/amlogic/iomap.h>
 
+#define CVBS_REG_OFFSET(reg)          ((reg) << 2)
 /* ********************************
  * register offset address define
  * **********************************/
@@ -142,6 +143,23 @@
 #define HHI_GP0_PLL_CNTL5						   0x15
 #define HHI_GP0_PLL_CNTL6						   0x16
 
+/* sc2 */
+#define ANACTRL_HDMIPLL_CTRL0                      0x0070
+#define ANACTRL_HDMIPLL_CTRL1                      0x0071
+#define ANACTRL_HDMIPLL_CTRL2                      0x0072
+#define ANACTRL_HDMIPLL_CTRL3                      0x0073
+#define ANACTRL_HDMIPLL_CTRL4                      0x0074
+#define ANACTRL_HDMIPLL_CTRL5                      0x0075
+#define ANACTRL_HDMIPLL_CTRL6                      0x0076
+
+#define CLKCTRL_VID_CLK_CTRL                       0x0030
+#define CLKCTRL_VID_CLK_CTRL2                      0x0031
+#define CLKCTRL_VID_CLK_DIV                        0x0032
+#define CLKCTRL_VIID_CLK_DIV                       0x0033
+#define CLKCTRL_VIID_CLK_CTRL                      0x0034
+#define CLKCTRL_HDMI_CLK_CTRL                      0x0038
+#define CLKCTRL_VID_PLL_CLK_DIV                    0x0039
+
 #define HHI_DSI_LVDS_EDP_CNTL0                     0xd1
 #define HHI_DSI_LVDS_EDP_CNTL1                     0xd2
 #define HHI_DIF_CSI_PHY_CNTL0                      0xd8
@@ -166,6 +184,11 @@
 #define HHI_VDAC_CNTL1                             0xbe
 #define HHI_VDAC_CNTL0_G12A                        0xbb
 #define HHI_VDAC_CNTL1_G12A                        0xbc
+
+/*********************************
+ * HIU:  GXBB
+ **********************************/
+#define CVBS_OUT_HIU_REG_GX(addr)                    ((addr) & 0xff)
 
 /*********************************
  * Global control:  RESET_CBUS_BASE = 0x11
@@ -647,5 +670,12 @@ unsigned int cvbs_out_hiu_getb(unsigned int _reg,
 			       unsigned int _start, unsigned int _len);
 void cvbs_out_hiu_set_mask(unsigned int _reg, unsigned int _mask);
 void cvbs_out_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+
+unsigned int cvbs_out_ana_read(unsigned int _reg);
+void cvbs_out_ana_write(unsigned int _reg, unsigned int _value);
+void cvbs_out_ana_setb(unsigned int _reg, unsigned int _value,
+		       unsigned int _start, unsigned int _len);
+unsigned int cvbs_out_ana_getb(unsigned int _reg,
+			       unsigned int _start, unsigned int _len);
 
 #endif
