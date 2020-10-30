@@ -18,3 +18,5 @@ include drivers/amlogic/media/common/uvm/Makefile
 include drivers/amlogic/media/common/vfm/Makefile
 
 include drivers/amlogic/media/common/v4l_util/Makefile
+
+include drivers/amlogic/media/common/lut_dma/Makefile

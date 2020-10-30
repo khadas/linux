@@ -21,10 +21,12 @@
 
 #define MAX_VD_LAYERS 2
 
+#define LAYER1_ALPHA  BIT(12)
 #define LAYER1_BUSY   BIT(11)
 #define LAYER1_AFBC   BIT(10)
 #define LAYER1_SCALER BIT(9)
 #define LAYER1_AVAIL  BIT(8)
+#define LAYER0_ALPHA  BIT(4)
 #define LAYER0_BUSY   BIT(3)
 #define LAYER0_AFBC   BIT(2)
 #define LAYER0_SCALER BIT(1)
@@ -180,6 +182,7 @@ enum {
 #define VPP_PHASECTL_INIRCVNUMT_BIT 0
 
 #define VPP_PPS_LAST_LINE_FIX_BIT     24
+#define VPP_SC_PREHORZ_EN_BIT_OLD       23
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19
@@ -202,10 +205,25 @@ enum {
 
 #define VPP_HSC_INIRPT_NUM_MASK     0x3
 #define VPP_HSC_INIRPT_NUM_BIT      21
+#define VPP_HSC_INIRPT_NUM_WID      2
+#define VPP_HSC_INIRPT_NUM_BIT_8TAP 20
+#define VPP_HSC_INIRPT_NUM_WID_8TAP 4
 #define VPP_HSC_INIRCV_NUM_MASK     0xf
 #define VPP_HSC_INIRCV_NUM_BIT      16
+#define VPP_HSC_INIRCV_NUM_WID      4
 #define VPP_HSC_TOP_INI_PHASE_WID   16
 #define VPP_HSC_TOP_INI_PHASE_BIT   0
+
+#define VPP_PREHSC_FLT_NUM_BIT      0
+#define VPP_PREHSC_FLT_NUM_WID      4
+#define VPP_PREHSC_COEF3_BIT        24
+#define VPP_PREHSC_COEF3_WID        8
+#define VPP_PREHSC_COEF2_BIT        16
+#define VPP_PREHSC_COEF2_WID        8
+#define VPP_PREHSC_COEF1_BIT        8
+#define VPP_PREHSC_COEF1_WID        8
+#define VPP_PREHSC_COEF0_BIT        0
+#define VPP_PREHSC_COEF0_WID        8
 
 #define VPP_OFIFO_LINELEN_MASK      0xfff
 #define VPP_OFIFO_LINELEN_BIT       20
@@ -250,6 +268,8 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 #define VIDEO_MUTE_ON_DV	2
 void set_video_mute(bool on);
 int get_video_mute(void);
+u32 get_first_pic_coming(void);
+u32 get_toggle_frame_count(void);
 
 int query_video_status(int type, int *value);
 u32 set_blackout_policy(int policy);
@@ -270,6 +290,8 @@ void set_video_crop_ext(int layer_index, int *p);
 void set_video_window_ext(int layer_index, int *p);
 void set_video_zorder_ext(int layer_index, int zorder);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
+s32 set_sideband_type(s32 type, u8 layer_id);
+void vpp_probe_en_set(u32 enable);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);
@@ -277,6 +299,7 @@ int tsync_set_tunnel_mode(int mode);
 
 #ifdef CONFIG_AMLOGIC_VIDEOSYNC
 void videosync_pcrscr_update(s32 inc, u32 base);
+void videosync_pcrscr_inc(s32 inc);
 void vsync_notify_videosync(void);
 #endif
 #endif /* VIDEO_H */

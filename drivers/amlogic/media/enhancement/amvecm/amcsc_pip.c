@@ -97,6 +97,7 @@ static const char *dv_output_str[6] = {
 	"BYPASS"
 };
 
+static int process_id[2];
 void hdr_proc(enum hdr_module_sel module_sel,
 	      enum hdr_process_sel hdr_process_select,
 	      struct vinfo_s *vinfo)
@@ -117,6 +118,18 @@ void hdr_proc(enum hdr_module_sel module_sel,
 		       module_str[module_sel],
 		       process_str[hdr_process_select]);
 }
+
+void get_hdr_process_name(int id, char *name)
+{
+	int index;
+
+	if (id > 1)
+		return;
+	index = process_id[id];
+	if (index < 2)
+		memcpy(name, process_str[index], strlen(process_str[index]) + 1);
+}
+EXPORT_SYMBOL(get_hdr_process_name);
 
 int hdr_policy_process(struct vinfo_s *vinfo,
 		       enum hdr_type_e *source_format,

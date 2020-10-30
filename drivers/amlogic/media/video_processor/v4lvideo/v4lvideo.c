@@ -966,7 +966,8 @@ static s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 			ret = update_vframe_src_fmt(dup_vf, (void *)p,
 						    (u32)req.aux_size,
 						    req.dv_enhance_exist
-						    ? true : false);
+						    ? true : false,
+						    provider, NULL);
 			if (!ret) {
 				/* FIXME: work around for sei/el out of sync */
 				if (dup_vf->src_fmt.fmt ==
@@ -979,10 +980,14 @@ static s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 				vfree(p);
 			}
 		} else {
-			ret = update_vframe_src_fmt(dup_vf, NULL, 0, false);
+			ret = update_vframe_src_fmt
+				(dup_vf, NULL, 0, false,
+				provider, NULL);
 		}
 	} else {
-		ret = update_vframe_src_fmt(dup_vf, NULL, 0, false);
+		ret = update_vframe_src_fmt
+			(dup_vf, NULL, 0, false,
+			provider, NULL);
 	}
 	if (alloc_sei & 2)
 		pr_info("import sei: provider:%s, vf:%p, dup_vf:%p, req.aux_buf:%p, req.aux_size:%d, req.dv_enhance_exist:%d, vf->src_fmt.fmt:%d\n",

@@ -42,6 +42,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
+#include <linux/amlogic/media/di/di.h>
 #include "video_priv.h"
 #include "video_receiver.h"
 
@@ -143,6 +144,9 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	spin_lock_irqsave(&ins->lock, flags);
 	ins->buf_to_put = NULL;
 	ins->rdma_buf = NULL;
+	ins->original_vf = NULL;
+	ins->switch_vf = false;
+	ins->last_switch_state = false;
 
 	if (ins->cur_buf) {
 		ins->local_buf = *ins->cur_buf;
@@ -281,30 +285,31 @@ static void common_toggle_frame(struct video_recv_s *ins,
 	}
 	if (ins->cur_buf &&
 	    ins->cur_buf != &ins->local_buf &&
-	    ins->cur_buf != vf) {
+	    (ins->original_vf != vf)) {
 		ins->frame_count++;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		if (is_vsync_rdma_enable()) {
 			if (ins->rdma_buf == ins->cur_buf)
-				ins->buf_to_put = ins->cur_buf;
+				ins->buf_to_put = ins->original_vf;
 			else
 				common_vf_put
-					(ins, ins->cur_buf);
+					(ins, ins->original_vf);
 		} else {
 			if (ins->buf_to_put) {
 				common_vf_put
 					(ins, ins->buf_to_put);
 				ins->buf_to_put = NULL;
 			}
-			common_vf_put(ins, ins->cur_buf);
+			common_vf_put(ins, ins->original_vf);
 		}
 #else
-		common_vf_put(ins, ins->cur_buf);
+		common_vf_put(ins, ins->original_vf);
 #endif
 	}
-	if (ins->cur_buf != vf)
+	if (ins->original_vf != vf)
 		vf->type_backup = vf->type;
 	ins->cur_buf = vf;
+	ins->original_vf = vf;
 }
 
 /*********************************************************
@@ -402,7 +407,9 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 				common_toggle_frame(ins, vf);
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-				dvel_toggle_frame(vf, true);
+				if (glayer_info[0].display_path_id ==
+				    ins->path_id)
+					dvel_toggle_frame(vf, true);
 #endif
 			}
 		} else {
@@ -413,18 +420,77 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 		drop_count++;
 		vf = common_vf_peek(ins);
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (toggle_vf &&
+	    (toggle_vf->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
+	    glayer_info[0].display_path_id == ins->path_id) {
+		if (toggle_vf->di_instance_id == di_api_get_instance_id()) {
+			if (ins->switch_vf) {
+				ins->switch_vf = false;
+				pr_info("set switch_vf false\n");
+			}
+		} else {
+			if (!ins->switch_vf) {
+				ins->switch_vf = true;
+				pr_info("set switch_vf true\n");
+			}
+		}
+	}
+#endif
+
+	if (toggle_vf && (toggle_vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
+		/* new frame */
+		if (ins->switch_vf && toggle_vf->vf_ext) {
+			ins->cur_buf = toggle_vf->vf_ext;
+			toggle_vf = ins->cur_buf;
+		}
+	} else if (ins->cur_buf) {
+		/* repeat frame */
+		if (ins->switch_vf && ins->cur_buf->vf_ext &&
+		    (ins->cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
+			ins->cur_buf = ins->cur_buf->vf_ext;
+			toggle_vf = ins->cur_buf;
+		} else if (!ins->switch_vf &&
+			(ins->cur_buf != ins->original_vf)) {
+			ins->cur_buf = ins->original_vf;
+			toggle_vf = ins->cur_buf;
+		}
+	}
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (ins->switch_vf &&
+	    ins->switch_vf != ins->last_switch_state) {
+		di_api_post_disable();
+	}
+#endif
+
+	ins->last_switch_state = ins->switch_vf;
 	return toggle_vf;
 }
 
 static s32 recv_common_return_frame(struct video_recv_s *ins,
 				    struct vframe_s *vf)
 {
-	if (!ins) {
+	if (!ins || !vf) {
 		pr_err("%s error, empty ins\n", __func__);
 		return -1;
 	}
-	if (vf)
+
+	if (vf == ins->cur_buf &&
+	    ins->cur_buf == &ins->local_buf) {
+		pr_info("recv_common_return_frame skip the local vf =%p\n",
+			ins->original_vf);
+		return 0;
+	}
+
+	if (vf == ins->cur_buf) {
+		common_vf_put(ins, ins->original_vf);
+		ins->cur_buf = NULL;
+		ins->original_vf = NULL;
+		pr_info("recv_common_return_frame force return the display vf: %p\n",
+			ins->original_vf);
+	} else {
 		common_vf_put(ins, vf);
+	}
 	return 0;
 }
 
@@ -490,4 +556,14 @@ void destroy_video_receiver(struct video_recv_s *ins)
 	vf_unreg_receiver(&ins->handle);
 	kfree(ins);
 	pr_info("%s\n", __func__);
+}
+
+void switch_vf(struct video_recv_s *ins, bool switch_flag)
+{
+	if (!ins) {
+		pr_err("%s: ins is NULL.\n", __func__);
+		return;
+	}
+	ins->switch_vf = switch_flag;
+	pr_info("set switch_flag %d\n", switch_flag);
 }

@@ -31,6 +31,7 @@ static u32 first_checkin_apts;
 static u32 first_apts;
 static u32 pcrscr_lantcy = 200 * 90;
 static u32 video_pts;
+static u64 video_pts_u64;
 static u32 audio_pts;
 static u32 last_apts_gap;
 static u32 last_vpts_gap;
@@ -76,11 +77,45 @@ void timestamp_vpts_inc(s32 val)
 }
 EXPORT_SYMBOL(timestamp_vpts_inc);
 
+u64 timestamp_vpts_get_u64(void)
+{
+	return video_pts_u64;
+}
+EXPORT_SYMBOL(timestamp_vpts_get_u64);
+
+void timestamp_vpts_set_u64(u64 pts)
+{
+	video_pts_u64 = pts;
+}
+EXPORT_SYMBOL(timestamp_vpts_set_u64);
+
+void timestamp_vpts_inc_u64(s32 val)
+{
+	video_pts_u64 += val;
+}
+EXPORT_SYMBOL(timestamp_vpts_inc_u64);
+
 u32 timestamp_apts_get(void)
 {
 	return audio_pts;
 }
 EXPORT_SYMBOL(timestamp_apts_get);
+
+u64 timestamp_apts_get_u64(void)
+{
+	u64 pts_val_video;
+	u64 pts_val;
+
+	pts_val_video = div64_u64(timestamp_vpts_get_u64() * 9, 100);
+	pts_val = ((u64)timestamp_apts_get()) & 0x00000000FFFFFFFF;
+	if (pts_val_video & (1LL << 32))
+		pts_val |= (1LL << 32);
+
+	pts_val_video = div64_u64(pts_val * 100, 9);
+
+	return pts_val_video;
+}
+EXPORT_SYMBOL(timestamp_apts_get_u64);
 
 void timestamp_apts_set(u32 pts)
 {
@@ -142,7 +177,22 @@ u32 timestamp_pcrscr_get(void)
 		return system_time;
 	}
 }
-EXPORT_SYMBOL(timestamp_pcrscr_get);
+
+u64 timestamp_pcrscr_get_u64(void)
+{
+	u64 pts_val_video;
+	u64 pts_val;
+
+	pts_val_video = div64_u64(timestamp_vpts_get_u64() * 9, 100);
+	pts_val = ((u64)timestamp_pcrscr_get()) & 0x00000000FFFFFFFF;
+	if (pts_val_video & (1LL << 32))
+		pts_val |= (1LL << 32);
+
+	pts_val_video = div64_u64(pts_val * 100, 9);
+
+	return pts_val_video;
+}
+EXPORT_SYMBOL(timestamp_pcrscr_get_u64);
 
 void timestamp_set_pcrlatency(u32 latency)
 {

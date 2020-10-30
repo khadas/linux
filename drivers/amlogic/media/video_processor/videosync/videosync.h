@@ -140,6 +140,7 @@ struct videosync_s {
 	u32 video_frame_repeat_count;
 	u32 freerun_mode;
 	u32 first_frame_toggled;
+	u32 vmaster_mode;
 	u32 get_frame_count;
 	u32 put_frame_count;
 	void *op_arg;

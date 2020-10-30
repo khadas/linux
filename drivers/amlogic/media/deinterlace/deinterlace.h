@@ -271,6 +271,7 @@ struct di_dev_s {
 	struct vpu_dev_s *di_vpu_pd_dec1;
 	struct vpu_dev_s *di_vpu_pd_vd1;
 	struct vpu_dev_s *di_vpu_pd_post;
+	u32 instance_id; /* di_instance_id; */
 };
 
 struct di_pre_stru_s {

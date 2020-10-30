@@ -59,6 +59,8 @@
 #define VPP_SCO_FIFO_CTRL                 0x1d33
 #define VPP_HSC_PHASE_CTRL1               0x1d34
 #define VPP_HSC_INI_PAT_CTRL              0x1d35
+#define VPP_PREHSC_COEF                   0x1d37
+#define VPP_PREHSC_CTRL                   0x1d38
 #define VPP_VADJ_CTRL                     0x1d40
 #define VPP_VADJ1_Y                       0x1d41
 #define VPP_VADJ1_MA_MB                   0x1d42
@@ -202,6 +204,8 @@
 #define VPP_POST_MATRIX_SAT               0x32c1
 
 /* g12a vd2 pps */
+#define VD2_PREHSC_COEF  0x3937
+#define VD2_PREHSC_CTRL  0x3938
 #define VD2_SCALE_COEF_IDX                0x3943
 #define VD2_SCALE_COEF                    0x3944
 #define VD2_VSC_REGION12_STARTP           0x3945
@@ -243,5 +247,98 @@
 #define SRSHARP1_SHARP_SYNC_CTRL          0x3fb0
 #define VPU_RDARB_MODE_L2C1               0x279d
 #define VPU_WRARB_MODE_L2C1               0x27a2
+#define VPP_XVYCC_MISC   0x1dcf
+#define VPP_XVYCC_MISC0  0x1ddf
+
+/* vpp crc */
+#define VPP_RO_CRCSUM           0x1db2
+#define VPP_CRC_CHK             0x1db3
+
+/*viu2  vpp crc */
+#define VPP2_CRC_CHK            0x1eb0
+#define VPP2_RO_CRCSUM          0x1eb1
+
+/* pip alpha gen */
+#define VD1_PIP_ALPH_CTRL                          0x5880
+#define VD1_PIP_ALPH_SCP_H_0                       0x5881
+#define VD1_PIP_ALPH_SCP_H_1                       0x5882
+#define VD1_PIP_ALPH_SCP_H_2                       0x5883
+#define VD1_PIP_ALPH_SCP_H_3                       0x5884
+#define VD1_PIP_ALPH_SCP_H_4                       0x5885
+#define VD1_PIP_ALPH_SCP_H_5                       0x5886
+#define VD1_PIP_ALPH_SCP_H_6                       0x5887
+#define VD1_PIP_ALPH_SCP_H_7                       0x5888
+#define VD1_PIP_ALPH_SCP_H_8                       0x5889
+#define VD1_PIP_ALPH_SCP_H_9                       0x588a
+#define VD1_PIP_ALPH_SCP_H_10                      0x588b
+#define VD1_PIP_ALPH_SCP_H_11                      0x588c
+#define VD1_PIP_ALPH_SCP_H_12                      0x588d
+#define VD1_PIP_ALPH_SCP_H_13                      0x588e
+#define VD1_PIP_ALPH_SCP_H_14                      0x588f
+#define VD1_PIP_ALPH_SCP_H_15                      0x5890
+#define VD1_PIP_ALPH_SCP_V_0                       0x5891
+#define VD1_PIP_ALPH_SCP_V_1                       0x5892
+#define VD1_PIP_ALPH_SCP_V_2                       0x5893
+#define VD1_PIP_ALPH_SCP_V_3                       0x5894
+#define VD1_PIP_ALPH_SCP_V_4                       0x5895
+#define VD1_PIP_ALPH_SCP_V_5                       0x5896
+#define VD1_PIP_ALPH_SCP_V_6                       0x5897
+#define VD1_PIP_ALPH_SCP_V_7                       0x5898
+#define VD1_PIP_ALPH_SCP_V_8                       0x5899
+#define VD1_PIP_ALPH_SCP_V_9                       0x589a
+#define VD1_PIP_ALPH_SCP_V_10                      0x589b
+#define VD1_PIP_ALPH_SCP_V_11                      0x589c
+#define VD1_PIP_ALPH_SCP_V_12                      0x589d
+#define VD1_PIP_ALPH_SCP_V_13                      0x589e
+#define VD1_PIP_ALPH_SCP_V_14                      0x589f
+#define VD1_PIP_ALPH_SCP_V_15                      0x58a0
+
+#define VD2_PIP_ALPH_CTRL                          0x58b0
+#define VD2_PIP_ALPH_SCP_H_0                       0x58b1
+#define VD2_PIP_ALPH_SCP_H_1                       0x58b2
+#define VD2_PIP_ALPH_SCP_H_2                       0x58b3
+#define VD2_PIP_ALPH_SCP_H_3                       0x58b4
+#define VD2_PIP_ALPH_SCP_H_4                       0x58b5
+#define VD2_PIP_ALPH_SCP_H_5                       0x58b6
+#define VD2_PIP_ALPH_SCP_H_6                       0x58b7
+#define VD2_PIP_ALPH_SCP_H_7                       0x58b8
+#define VD2_PIP_ALPH_SCP_H_8                       0x58b9
+#define VD2_PIP_ALPH_SCP_H_9                       0x58ba
+#define VD2_PIP_ALPH_SCP_H_10                      0x58bb
+#define VD2_PIP_ALPH_SCP_H_11                      0x58bc
+#define VD2_PIP_ALPH_SCP_H_12                      0x58bd
+#define VD2_PIP_ALPH_SCP_H_13                      0x58be
+#define VD2_PIP_ALPH_SCP_H_14                      0x58bf
+#define VD2_PIP_ALPH_SCP_H_15                      0x58c0
+#define VD2_PIP_ALPH_SCP_V_0                       0x58c1
+#define VD2_PIP_ALPH_SCP_V_1                       0x58c2
+#define VD2_PIP_ALPH_SCP_V_2                       0x58c3
+#define VD2_PIP_ALPH_SCP_V_3                       0x58c4
+#define VD2_PIP_ALPH_SCP_V_4                       0x58c5
+#define VD2_PIP_ALPH_SCP_V_5                       0x58c6
+#define VD2_PIP_ALPH_SCP_V_6                       0x58c7
+#define VD2_PIP_ALPH_SCP_V_7                       0x58c8
+#define VD2_PIP_ALPH_SCP_V_8                       0x58c9
+#define VD2_PIP_ALPH_SCP_V_9                       0x58ca
+#define VD2_PIP_ALPH_SCP_V_10                      0x58cb
+#define VD2_PIP_ALPH_SCP_V_11                      0x58cc
+#define VD2_PIP_ALPH_SCP_V_12                      0x58cd
+#define VD2_PIP_ALPH_SCP_V_13                      0x58ce
+#define VD2_PIP_ALPH_SCP_V_14                      0x58cf
+#define VD2_PIP_ALPH_SCP_V_15                      0x58d0
+
+#define G12_FGRAIN_CTRL                  0x4800
+#define G12_FGRAIN_WIN_H                 0x4801
+#define G12_FGRAIN_WIN_V                 0x4802
+#define G12_VD2_FGRAIN_CTRL              0x4810
+#define G12_VD2_FGRAIN_WIN_H             0x4811
+#define G12_VD2_FGRAIN_WIN_V             0x4812
+
+#define SC2_FGRAIN_CTRL                  0x4870
+#define SC2_FGRAIN_WIN_H                 0x4871
+#define SC2_FGRAIN_WIN_V                 0x4872
+#define SC2_VD2_FGRAIN_CTRL              0x48f0
+#define SC2_VD2_FGRAIN_WIN_H             0x48f1
+#define SC2_VD2_FGRAIN_WIN_V             0x48f2
 #endif
 

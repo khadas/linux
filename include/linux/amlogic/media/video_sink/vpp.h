@@ -25,7 +25,7 @@
 #define TV_REVERSE
 
 extern bool super_scaler;
-
+extern struct sr_info_s sr_info;
 #define VPP_FLAG_WIDEMODE_MASK      0x0000000F
 #define VPP_FLAG_INTERLACE_OUT      0x00000010
 #define VPP_FLAG_INTERLACE_IN       0x00000020
@@ -199,6 +199,9 @@ struct disp_info_s {
 	bool pps_support;
 
 	bool need_no_compress;
+	s32 sideband_type;
+	bool fgrain_support;
+	bool fgrain_start;
 };
 
 enum select_scaler_path_e {

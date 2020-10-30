@@ -362,3 +362,7 @@
 	status = "okay";
 	vref-supply = <&vddao_1v8>;
 };
+
+&lut_dma {
+	status = "okay";
+};

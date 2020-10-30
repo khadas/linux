@@ -91,7 +91,8 @@ struct stvlock_sig_sts {
 	struct vdin_sts vdinsts;
 };
 
-void amve_vlock_process(struct vframe_s *vf);
+void vlock_process(struct vframe_s *vf,
+		   struct vpp_frame_par_s *cur_video_sts);
 void amve_vlock_resume(void);
 void vlock_param_set(unsigned int val, enum vlock_param_e sel);
 void vlock_status(void);

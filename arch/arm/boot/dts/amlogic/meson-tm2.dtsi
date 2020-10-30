@@ -372,9 +372,9 @@
 	};
 
 	meson-amvideom {
-		compatible = "amlogic, amvideom";
+		compatible = "amlogic, amvideom-tm2-revb";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
@@ -480,6 +480,11 @@
 				<&pwrc PWRC_TM2_DSPB_ID>;
 		power-domain-names = "dspa", "dspb";
 		status = "okay";
+	};
+
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson, lut_dma";
+		status = "disabled";
 	};
 };
 

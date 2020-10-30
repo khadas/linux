@@ -582,6 +582,20 @@ void di_trig_free_mirror_mem(void)
 	}
 }
 EXPORT_SYMBOL(di_trig_free_mirror_mem);
+
+u32 di_api_get_instance_id(void)
+{
+	u32 ret = 0;
+
+	if (dil_get_diffver_flag())
+		return ret;
+
+	if (de_devp)
+		ret = de_devp->instance_id;
+	return ret;
+}
+EXPORT_SYMBOL(di_api_get_instance_id);
+
 static bool di_free_mem_pre(void)
 {
 
@@ -5339,6 +5353,16 @@ static int de_post_disable_fun(void *arg, vframe_t *disp_vf)
  * video set video_property_changed
  */
 }
+
+void di_api_post_disable(void)
+{
+	if (dil_get_diffver_flag())
+		return;
+
+	di_print("%s:\n", __func__);
+	disable_post_deinterlace_2();
+}
+EXPORT_SYMBOL(di_api_post_disable);
 
 static int do_nothing_fun(void *arg, vframe_t *disp_vf)
 {

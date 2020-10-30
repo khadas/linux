@@ -40,7 +40,10 @@ struct video_recv_s {
 	struct vframe_s *cur_buf;
 	struct vframe_s *rdma_buf;
 	struct vframe_s *buf_to_put;
+	struct vframe_s *original_vf;
 
+	bool switch_vf;
+	bool last_switch_state;
 	bool active;
 
 	u32 notify_flag;
@@ -53,5 +56,6 @@ struct video_recv_s {
 
 struct video_recv_s *create_video_receiver(const char *recv_name, u8 path_id);
 void destroy_video_receiver(struct video_recv_s *ins);
+void switch_vf(struct video_recv_s *ins, bool switch_flag);
 
 #endif

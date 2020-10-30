@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/utils/amstream.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/media/video_sink/vpp.h>
 #include <drm/drmP.h>
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -497,7 +498,9 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 void refresh_on_vs(struct vframe_s *vf);
 void pc_mode_process(void);
 void pq_user_latch_process(void);
-void vlock_process(struct vframe_s *vf);
+void vlock_process(struct vframe_s *vf,
+		   struct vpp_frame_par_s *cur_video_sts);
+void get_hdr_process_name(int id, char *name);
 
 /* master_display_info for display device */
 struct hdr_metadata_info_s {

@@ -356,6 +356,53 @@ void videosync_pcrscr_update(s32 inc, u32 base)
 	}
 }
 
+void videosync_pcrscr_inc(s32 inc)
+{
+	int i = 0;
+	/*unsigned long flags;*/
+	struct videosync_s *dev_s;
+	u32 current_omx_pts;
+	int diff;
+
+	if (!videosync_inited)
+		return;
+	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
+		dev_s = &vp_dev->video_prov[i];
+		if (dev_s && dev_s->active_state == VIDEOSYNC_ACTIVE) {
+			if (dev_s->system_time_up) {
+				dev_s->system_time += inc + system_time_inc_adj;
+
+				vp_print
+				(dev_s->vf_receiver_name, PRINT_OTHER,
+				"update sys_time %u, system_time_inc_adj %d, inc %d\n",
+				dev_s->system_time,
+				system_time_inc_adj,
+				inc);
+			}
+
+			/*check if need to correct pcr by omx_pts*/
+			if (!dev_s->vmaster_mode) {
+				current_omx_pts = dev_s->omx_pts;
+				diff = dev_s->system_time - current_omx_pts;
+
+				if ((diff - omx_pts_interval_upper) > 0 ||
+				    (diff - omx_pts_interval_lower)
+				    < 0) {
+					vp_print(dev_s->vf_receiver_name,
+						 PRINT_TIMESTAMP,
+						 "sys_time=%u, omx_pts=%u, diff=%d\n",
+						 dev_s->system_time,
+						 current_omx_pts,
+						 diff);
+					ts_pcrscr_set
+						(dev_s,
+						current_omx_pts + duration_gcd);
+				}
+			}
+		}
+	}
+}
+
 /* -----------------------------------------------------------------
  *           videosync operations
  * -----------------------------------------------------------------

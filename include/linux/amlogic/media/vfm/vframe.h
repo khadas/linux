@@ -35,6 +35,7 @@
 #define VIDTYPE_INTERLACE_FIRST         0x8
 #define VIDTYPE_MVC                     0x10
 #define VIDTYPE_NO_VIDEO_ENABLE         0x20
+#define VIDTYPE_SEC_MD			0x40
 #define VIDTYPE_VIU_NV12                0x80
 #define VIDTYPE_VIU_422                 0x800
 #define VIDTYPE_VIU_FIELD               0x1000
@@ -95,6 +96,7 @@
 #define VFRAME_FLAG_VIDEO_LINEAR		0x400
 #define VFRAME_FLAG_EMPTY_FRAME_V4L		0x800
 #define VFRAME_FLAG_FAKE_FRAME			0x1000
+#define VFRAME_FLAG_DOUBLE_FRAM		        0x2000
 #define VFRAME_FLAG_VIDEO_DRM			0x4000
 
 enum pixel_aspect_ratio_e {
@@ -359,6 +361,14 @@ struct codec_mm_box_s {
 	int     bmmu_idx;
 };
 
+#define MAX_COMPOSER_COUNT 9
+#define AXIS_INFO_COUNT    4
+
+struct componser_info_t {
+	int count;
+	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -493,6 +503,33 @@ struct vframe_s {
 
 	/* signal format and sei data */
 	struct vframe_src_fmt_s src_fmt;
+	/*for di process NR and cts, storage dec vf*/
+	void *vf_ext;
+
+	u32 dwHeadAddr;
+	u32 dwBodyAddr;
+	bool fgs_valid;
+	u32 fgs_table_adr;
+
+	u32 di_instance_id;
+
+	int sidebind_type;
+	int sidebind_channel_id;
+
+	/*for double write VP9/AV1 vf*/
+	void *mem_dw_handle;
+	struct fence *fence;
+		/*current is dv input*/
+	bool dv_input;
+	/* dv mode crc check:
+	 * true: crc check ok
+	 * false: crc check fail
+	 */
+	bool dv_crc_sts;
+
+	/* currently only for keystone use */
+	unsigned int crc;
+	struct componser_info_t *componser_info;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
@@ -503,7 +540,9 @@ void pause_video(unsigned char pause_flag);
 s32 update_vframe_src_fmt(struct vframe_s *vf,
 			  void *sei,
 			  u32 size,
-			  bool dual_layer);
+			  bool dual_layer,
+			  char *prov_name,
+			  char *recv_name);
 void *get_sei_from_src_fmt(struct vframe_s *vf, u32 *sei_size);
 enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf);
 s32 clear_vframe_src_fmt(struct vframe_s *vf);

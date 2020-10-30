@@ -96,4 +96,5 @@ bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void dolby_vision_set_provider(char *prov_name);
 int dolby_vision_check_mvc(struct vframe_s *vf);
 bool for_dolby_vision_video_effect(void);
+int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode);
 #endif

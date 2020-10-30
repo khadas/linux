@@ -7136,6 +7136,70 @@ int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag)
 }
 EXPORT_SYMBOL(dolby_vision_update_metadata);
 
+/* to re-init the src format after video off -> on case */
+int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode)
+{
+	unsigned int mode = dolby_vision_mode;
+	enum signal_format_e check_format;
+
+	if (!dolby_vision_enable || !vf)
+		return -1;
+
+	/* src_format is valid, need not re-init */
+	if (dolby_vision_src_format != 0)
+		return 0;
+
+	/* vf is not in the dv queue, new frame case */
+	if (dolby_vision_vf_check(vf))
+		return 0;
+
+	if (is_dovi_frame(vf))
+		check_format = FORMAT_DOVI;
+	else if (is_hdr10_frame(vf))
+		check_format = FORMAT_HDR10;
+	else if (is_hlg_frame(vf))
+		check_format = FORMAT_HLG;
+	else if (is_hdr10plus_frame(vf))
+		check_format = FORMAT_HDR10PLUS;
+	else if (is_mvc_frame(vf))
+		check_format = FORMAT_MVC;
+	else
+		check_format = FORMAT_SDR;
+	if (vf)
+		update_src_format(check_format, vf);
+
+	if (!dolby_vision_wait_init &&
+	    !dolby_vision_core1_on &&
+	    dolby_vision_src_format != 0) {
+		if (dolby_vision_policy_process
+			(&mode, check_format)) {
+			if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS &&
+			    dolby_vision_mode ==
+			     DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+				dolby_vision_wait_init = true;
+				dolby_vision_wait_count =
+					dolby_vision_wait_delay;
+				dolby_vision_target_mode = mode;
+				dolby_vision_wait_on = true;
+				pr_dolby_dbg
+					("dolby_vision_need_wait src=%d mode=%d\n",
+					check_format, mode);
+			}
+		}
+		/* don't use run mode when sdr -> dv and vd1 not disable */
+		if (dolby_vision_wait_init &&
+		    (READ_VPP_DV_REG(VPP_MISC) & (1 << 10)))
+			dolby_vision_on_count =
+				dolby_vision_run_mode_delay + 1;
+	}
+	pr_dolby_dbg
+		("%s done vf:%p, src=%d, toggle mode:%d\n",
+		__func__,
+		vf, dolby_vision_src_format, toggle_mode);
+	return 1;
+}
+EXPORT_SYMBOL(dolby_vision_update_src_format);
+
 static void update_dolby_vision_status(enum signal_format_e src_format)
 {
 	if ((src_format == FORMAT_DOVI || src_format == FORMAT_DOVI_LL) &&

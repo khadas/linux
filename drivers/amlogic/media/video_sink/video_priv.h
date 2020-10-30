@@ -20,6 +20,7 @@
 #define VIDEO_PRIV_HEADER_HH
 
 #include <linux/amlogic/media/video_sink/vpp.h>
+#include "video_reg.h"
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -63,7 +64,6 @@
 #define VIDEO_NOTIFY_POS_CHANGED  0x10
 #define VIDEO_NOTIFY_NEED_NO_COMP  0x20
 
-#define MAX_VD_LAYER 2
 
 #define COMPOSE_MODE_NONE			0
 #define COMPOSE_MODE_3D			1
@@ -82,6 +82,9 @@
 #else
 #define CANVAS_TABLE_CNT 1
 #endif
+
+#define MAX_PIP_WINDOW    16
+#define VPP_FILER_COEFS_NUM   33
 
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
@@ -108,8 +111,8 @@ struct video_layer_s;
 
 struct mif_pos_s {
 	u32 id;
-	u32 vd_reg_offt;
 	u32 afbc_reg_offt;
+	struct hw_vd_reg_s *p_vd_mif_reg;
 
 	/* frame original size */
 	u32 src_w;
@@ -193,6 +196,30 @@ struct blend_setting_s {
 	struct vpp_frame_par_s *frame_par;
 };
 
+struct pip_alpha_scpxn_s {
+	u32 scpxn_bgn_h[MAX_PIP_WINDOW];
+	u32 scpxn_end_h[MAX_PIP_WINDOW];
+	u32 scpxn_bgn_v[MAX_PIP_WINDOW];
+	u32 scpxn_end_v[MAX_PIP_WINDOW];
+};
+
+struct fgrain_setting_s {
+	u32 id;
+	u32 start_x;
+	u32 end_x;
+	u32 start_y;
+	u32 end_y;
+	u32 fmt_mode; /* only support 420 */
+	u32 bitdepth; /* 8 bit or 10 bit */
+	u32 reverse;
+	u32 afbc; /* afbc or not */
+	u32 last_in_mode; /* related with afbc */
+	u32 used;
+	/* lut dma */
+	u32 fgs_table_adr;
+	u32 table_size;
+};
+
 enum mode_3d_e {
 	mode_3d_disable = 0,
 	mode_3d_enable,
@@ -204,9 +231,9 @@ struct video_layer_s {
 
 	/* reg map offsett*/
 	u32 misc_reg_offt;
-	u32 vd_reg_offt;
 	u32 afbc_reg_offt;
-
+	struct hw_vd_reg_s vd_mif_reg;
+	struct hw_fg_reg_s fg_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u8 next_canvas_id;
@@ -234,6 +261,7 @@ struct video_layer_s {
 	struct mif_pos_s mif_setting;
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
+	struct fgrain_setting_s fgrain_setting;
 
 	u32 new_vframe_count;
 
@@ -258,11 +286,26 @@ struct video_layer_s {
 	u32 global_debug;
 };
 
+enum cpu_type_e {
+	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
+	MESON_CPU_MAJOR_ID_TM2_REVB_,
+	MESON_CPU_MAJOR_ID_SC2_,
+	MESON_CPU_MAJOR_ID_UNKNOWN_,
+};
+
+struct amvideo_device_data_s {
+	enum cpu_type_e cpu_type;
+	u8 hscaler_8tap_en;
+	u8 pre_hscaler_ntap_en;
+};
+
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];
 extern struct video_dev_s *cur_dev;
 extern bool legacy_vpp;
+extern bool hscaler_8tap_enable;
+extern bool pre_hscaler_ntap_enable;
 
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
@@ -356,9 +399,13 @@ int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
 u32 get_cur_enc_line(void);
 void vpu_work_process(void);
+int vpp_crc_check(u32 vpp_crc_en);
+void enable_vpp_crc_viu2(u32 vpp_crc_en);
+int vpp_crc_viu2_check(u32 vpp_crc_en);
 
 int video_hw_init(void);
 int video_early_init(void);
+int video_late_uninit(void);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
@@ -388,6 +435,7 @@ extern struct video_recv_s *gvideo_recv[2];
 bool black_threshold_check(u8 id);
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
+s32 set_sideband_type(s32 type, u8 layer_id);
 
 /*for video related files only.*/
 void video_module_lock(void);
@@ -404,6 +452,23 @@ struct vframe_s *dvel_toggle_frame(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 int ext_frame_capture_poll(int endflags);
 #endif
+bool is_meson_tm2_revb(void);
+bool is_meson_sc2_cpu(void);
+void set_alpha(u8 layer_id,
+	       u32 win_en,
+	       struct pip_alpha_scpxn_s *alpha_win);
+bool is_hscaler_8tap_en(void);
+bool is_pre_hscaler_ntap_en(void);
+void fgrain_config(u8 layer_id,
+		   struct vpp_frame_par_s *frame_par,
+		   struct mif_pos_s *mif_setting,
+		   struct fgrain_setting_s *setting,
+		   struct vframe_s *vf);
+void fgrain_setting(u8 layer_id,
+		    struct fgrain_setting_s *setting,
+		    struct vframe_s *vf);
+void fgrain_update_table(u8 layer_id,
+			 struct vframe_s *vf);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {
