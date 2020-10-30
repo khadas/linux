@@ -284,6 +284,7 @@ unsigned int vpu_vcbus_read(unsigned int _reg)
 	else
 		return 0;
 };
+EXPORT_SYMBOL(vpu_vcbus_read);
 
 void vpu_vcbus_write(unsigned int _reg, unsigned int _value)
 {
@@ -293,6 +294,7 @@ void vpu_vcbus_write(unsigned int _reg, unsigned int _value)
 	if (p)
 		writel(_value, p);
 };
+EXPORT_SYMBOL(vpu_vcbus_write);
 
 void vpu_vcbus_setb(unsigned int _reg, unsigned int _value,
 		    unsigned int _start, unsigned int _len)
@@ -301,22 +303,26 @@ void vpu_vcbus_setb(unsigned int _reg, unsigned int _value,
 			~(((1L << (_len)) - 1) << (_start))) |
 			(((_value) & ((1L << (_len)) - 1)) << (_start))));
 }
+EXPORT_SYMBOL(vpu_vcbus_setb);
 
 unsigned int vpu_vcbus_getb(unsigned int _reg, unsigned int _start,
 			    unsigned int _len)
 {
 	return (vpu_vcbus_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
 }
+EXPORT_SYMBOL(vpu_vcbus_getb);
 
 void vpu_vcbus_set_mask(unsigned int _reg, unsigned int _mask)
 {
 	vpu_vcbus_write(_reg, (vpu_vcbus_read(_reg) | (_mask)));
 }
+EXPORT_SYMBOL(vpu_vcbus_set_mask);
 
 void vpu_vcbus_clr_mask(unsigned int _reg, unsigned int _mask)
 {
 	vpu_vcbus_write(_reg, (vpu_vcbus_read(_reg) & (~(_mask))));
 }
+EXPORT_SYMBOL(vpu_vcbus_clr_mask);
 
 unsigned int vpu_cbus_read(unsigned int _reg)
 {

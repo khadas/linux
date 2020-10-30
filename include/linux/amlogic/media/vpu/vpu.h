@@ -136,6 +136,5 @@ unsigned int vpu_vcbus_getb(unsigned int _reg,
 			    unsigned int _start, unsigned int _len);
 void vpu_vcbus_set_mask(unsigned int _reg, unsigned int _mask);
 void vpu_vcbus_clr_mask(unsigned int _reg, unsigned int _mask);
-int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod);
-int vpu_vmod_clk_release(unsigned int vmod);
+
 #endif

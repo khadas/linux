@@ -177,6 +177,7 @@ unsigned int vpu_clk_get(void)
 	clk_freq = clk_hw_get_rate(hw);
 	return clk_freq;
 }
+EXPORT_SYMBOL(vpu_clk_get);
 
 static int switch_gp_pll(int flag)
 {
@@ -322,7 +323,7 @@ static unsigned int vpu_vmod_clk_get(unsigned int vmod)
 	return vpu_clk;
 }
 
-int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
+static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 {
 	int ret = 0;
 #ifdef CONFIG_VPU_DYNAMIC_ADJ
@@ -371,7 +372,7 @@ int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 	return ret;
 }
 
-int vpu_vmod_clk_release(unsigned int vmod)
+static int vpu_vmod_clk_release(unsigned int vmod)
 {
 	int ret = 0;
 #ifdef CONFIG_VPU_DYNAMIC_ADJ
@@ -455,7 +456,7 @@ static int vpu_vmod_mem_pd_switch_new(unsigned int vmod, int flag)
 
 	state = (flag == VPU_MEM_POWER_ON) ? PWR_ON : PWR_OFF;
 #ifdef CONFIG_AMLOGIC_POWER
-	/*ret = vpu_mempd_psci_smc(vmod, state);*/
+	ret = vpu_mempd_psci_smc(vmod, state);
 #endif
 	if (ret)
 		VPUPR("switch_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
@@ -634,6 +635,7 @@ struct vpu_dev_s *vpu_dev_get(unsigned int vmod, char *owner_name)
 
 	return temp_dev;
 }
+EXPORT_SYMBOL(vpu_dev_get);
 
 /*
  *  Function: vpu_dev_register
@@ -764,6 +766,7 @@ int vpu_dev_unregister(struct vpu_dev_s *vpu_dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(vpu_dev_unregister);
 
 /*
  *  Function: vpu_dev_clk_get
@@ -794,6 +797,7 @@ unsigned int vpu_dev_clk_get(struct vpu_dev_s *vpu_dev)
 
 	return vclk;
 }
+EXPORT_SYMBOL(vpu_dev_clk_get);
 
 /*
  *  Function: vpu_dev_clk_request
@@ -827,6 +831,7 @@ int vpu_dev_clk_request(struct vpu_dev_s *vpu_dev, unsigned int vclk)
 
 	return ret;
 }
+EXPORT_SYMBOL(vpu_dev_clk_request);
 
 /*
  *  Function: vpu_dev_clk_release
@@ -859,6 +864,7 @@ int vpu_dev_clk_release(struct vpu_dev_s *vpu_dev)
 
 	return ret;
 }
+EXPORT_SYMBOL(vpu_dev_clk_release);
 
 /*
  *  Function: vpu_dev_mem_power_on
@@ -989,6 +995,7 @@ int vpu_dev_mem_pd_get(struct vpu_dev_s *vpu_dev)
 
 	return ret;
 }
+EXPORT_SYMBOL(vpu_dev_mem_pd_get);
 
 /*
  *  Function: vpu_dev_clk_gate_on
@@ -1030,6 +1037,7 @@ void vpu_dev_clk_gate_on(struct vpu_dev_s *vpu_dev)
 		dump_stack();
 	}
 }
+EXPORT_SYMBOL(vpu_dev_clk_gate_on);
 
 /*
  *  Function: vpu_dev_clk_gate_off
@@ -1071,6 +1079,7 @@ void vpu_dev_clk_gate_off(struct vpu_dev_s *vpu_dev)
 		dump_stack();
 	}
 }
+EXPORT_SYMBOL(vpu_dev_clk_gate_off);
 
 /* *********************************************** */
 

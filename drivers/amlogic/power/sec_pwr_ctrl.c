@@ -37,6 +37,7 @@ unsigned long vpu_mempd_psci_smc(int mempd_id, bool power_control)
 
 	return ret;
 }
+EXPORT_SYMBOL(vpu_mempd_psci_smc);
 
 unsigned long pwr_ctrl_irq_set(u64 irq, u64 irq_mask, u64 irq_invert)
 {
