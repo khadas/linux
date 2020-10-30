@@ -368,6 +368,10 @@
 	cs-gpios = <&gpio GPIOC_3 0>;
 };
 
+&pwm_AO_cd {
+	status = "okay";
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;

@@ -339,6 +339,10 @@
 	};
 };
 
+&pwm_AO_cd {
+	status = "okay";
+};
+
 &sd_emmc_c {
 	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
