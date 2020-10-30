@@ -145,6 +145,20 @@
 					gpio-ranges = <&periphs_pinctrl 0 0 87>;
 				};
 
+				eecec_a: ee_ceca {
+					mux {
+						groups = "cec_a_h";
+						function = "cec_a";
+					};
+				};
+
+				eecec_b: ee_cecb {
+					mux {
+						groups = "cec_b_h";
+						function = "cec_b";
+					};
+				};
+
 			};
 
 			gpio_intc: interrupt-controller@4080 {
@@ -342,6 +356,39 @@
 		reg = <0 0xfe036000 0 0x100>;
 		reg_base = <0xfe036000>;
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	aocec: aocec {
+		compatible = "amlogic, aocec-sc2";
+		dev_name = "aocec";
+		status = "okay";
+		vendor_name = "Amlogic"; /* Max Chars: 8     */
+		/* Refer to the following URL at:
+		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
+		 */
+		vendor_id = <0x000000>;
+		product_desc = "SC2"; /* Max Chars: 16    */
+		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
+		cec_version = <5>;/*5:1.4;6:2.0*/
+		port_num = <1>;
+		output = <1>;
+		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
+		ee_cec;
+		arc_port_mask = <0x1>;
+		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
+			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
+		interrupt-names = "hdmi_aocecb","hdmi_aocec";
+		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
+		pinctrl-0=<&eecec_a>;
+		pinctrl-1=<&eecec_b>;
+		pinctrl-2=<&eecec_b>;
+		clocks = <&clkc CLKID_CECA_32K_CLKOUT>,
+			<&clkc CLKID_CECB_32K_CLKOUT>;
+		clock-names = "ceca_clk","cecb_clk";
+		reg = <0x0 0xfe044000 0x0 0x2ff
+		       0x0 0xfe010000 0x0 0xfff
+		       0x0 0xfe000000 0x0 0xfff>;
+		reg-names = "ao","periphs","clock"/*ao_exit hdmirx hhi*/;
 	};
 
 };
