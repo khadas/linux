@@ -753,14 +753,12 @@ static void recovery_regs_init_g12a(void)
 	gRecovery[i].table =
 		(struct reg_item *)&osd12_recovery_table_g12a[0];
 
-	if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == DEV_OSD3) {
-		i++;
-		gRecovery[i].base_addr = VIU_OSD3_CTRL_STAT;
-		gRecovery[i].size = sizeof(osd3_recovery_table_g12a)
-			/ sizeof(struct reg_item);
-		gRecovery[i].table =
-			(struct reg_item *)&osd3_recovery_table_g12a[0];
-	}
+	i++;
+	gRecovery[i].base_addr = VIU_OSD3_CTRL_STAT;
+	gRecovery[i].size = sizeof(osd3_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_recovery_table_g12a[0];
 
 	i++;
 	gRecovery[i].base_addr = VPP_OSD_VSC_PHASE_STEP;
@@ -776,14 +774,12 @@ static void recovery_regs_init_g12a(void)
 	gRecovery[i].table =
 		(struct reg_item *)&osd2_sc_recovery_table_g12a[0];
 
-	if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == DEV_OSD3) {
-		i++;
-		gRecovery[i].base_addr = OSD34_SCALE_COEF_IDX;
-		gRecovery[i].size = sizeof(osd3_sc_recovery_table_g12a)
-			/ sizeof(struct reg_item);
-		gRecovery[i].table =
-			(struct reg_item *)&osd3_sc_recovery_table_g12a[0];
-	}
+	i++;
+	gRecovery[i].base_addr = OSD34_SCALE_COEF_IDX;
+	gRecovery[i].size = sizeof(osd3_sc_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_sc_recovery_table_g12a[0];
 
 	i++;
 	gRecovery[i].base_addr = VPU_MAFBC_BLOCK_ID;
@@ -1320,6 +1316,7 @@ static int update_recovery_item_g12a(u32 addr, u32 value)
 
 static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 {
+	int cpu_id = osd_hw.osd_meson_dev.cpu_id;
 	u32 base, size;
 	int i;
 	struct reg_item *table = NULL;
@@ -1527,7 +1524,16 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;
 			u32 real_value = osd_reg_read(addr);
+			u32 temp1 = 0, temp2 = 0;
 
+			if (cpu_id <= __MESON_CPU_MAJOR_ID_SM1 &&
+			    addr == VIU_OSD_BLEND_CTRL1) {
+				/* hw bug, >=bit6 need << 2*/
+				temp1 = real_value & 0x3f;
+				temp2 = (real_value & (~0x3f)) << 2;
+				temp2 |= temp1;
+				real_value = temp2;
+			}
 			if (enable_vd_zorder &&
 			    addr == OSD2_BLEND_SRC_CTRL) {
 				ret = 1;

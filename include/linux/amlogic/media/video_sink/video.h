@@ -233,6 +233,8 @@ enum {
 #define VPP_COEF_INDEX_BIT      0
 
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
+#define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int amvideo_notifier_call_chain(unsigned long val, void *v);
 #else

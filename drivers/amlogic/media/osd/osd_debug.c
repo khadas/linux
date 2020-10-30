@@ -199,6 +199,13 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VPP_OUT_H_V_SIZE;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+
+		reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = OSD1_HDR2_MATRIXO_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VPP_OSD2_MATRIX_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		if (!osd_hw.powered[count - 1])
 			count--;
 	}
@@ -247,7 +254,9 @@ static void osd_debug_dump_register_all(void)
 			reg = osd_reg->osd_dimm_ctrl;
 			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
-
+			reg = osd_reg->osd_matrix_en_ctrl;
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_vsc_phase_step;
 			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));

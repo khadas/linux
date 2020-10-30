@@ -1416,4 +1416,11 @@
 #define VIU2_OSD1_MATRIX_PRE_OFFSET0_1      0x1e7b
 #define VIU2_OSD1_MATRIX_PRE_OFFSET2        0x1e7c
 #define VIU2_OSD1_MATRIX_EN_CTRL            0x1e7d
+
+#define VPP_WRAP_OSD1_MATRIX_EN_CTRL        0x3d6d
+#define VPP_WRAP_OSD2_MATRIX_EN_CTRL        0x3d7d
+#define VPP_WRAP_OSD3_MATRIX_EN_CTRL        0x3dbd
+#define OSD1_HDR2_MATRIXI_EN_CTRL           0x38db
+#define OSD1_HDR2_MATRIXO_EN_CTRL           0x38dc
+#define VPP_OSD2_MATRIX_EN_CTRL             0x392d
 #endif
