@@ -304,6 +304,7 @@ static void tsync_pcr_recover_with_video(void)
 
 static bool tsync_pcr_recover_use_video(void)
 {
+#define MEM_CTRL_EMPTY_EN       BIT(2)
 	/*
 	 *This is just a hacking to use audio output enable
 	 *as the flag to check if this is a video only playback.

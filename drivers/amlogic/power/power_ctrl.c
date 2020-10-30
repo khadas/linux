@@ -27,6 +27,12 @@ struct power_ctrl {
 struct power_ctrl ctrl;
 static bool probe_done;
 
+bool is_support_power_ctrl(void)
+{
+	return probe_done;
+}
+EXPORT_SYMBOL(is_support_power_ctrl);
+
 int power_ctrl_sleep(bool power_on, unsigned int shift)
 {
 	unsigned int val;

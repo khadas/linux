@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
+//#define DEBUG
  #define pr_fmt(fmt) "Codec io: " fmt
 
 #include <linux/module.h>
@@ -718,7 +718,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 {
 	int i = 0;
 	struct resource res;
-	void __iomem *base;
+	//void __iomem *base;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -756,30 +756,22 @@ static int __init codec_io_probe(struct platform_device *pdev)
 				pr_err("cannot map codec_io registers\n");
 				return -ENOMEM;
 			}
-			pr_debug("codec map io source 0x%lx,size=%d to 0x%lx\n",
-				 (unsigned long)res.start,
+			pr_err("codec map io source 0x%lx,size=%d to 0x%lx\n",
+			       (unsigned long)res.start,
 				 (int)resource_size(&res),
 				 (unsigned long)codecio_reg_map[i]);
 		} else {
 			codecio_reg_map[i] = 0;
 			codecio_reg_start[i] = 0;
-			pr_debug("ignore io source start %lx,size=%d\n",
-				 (unsigned long)res.start,
-				 (int)resource_size(&res));
+			pr_err("ignore io source start %lx,size=%d\n",
+			       (unsigned long)res.start, (int)resource_size(&res));
 		}
-		base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-		if (IS_ERR(base))
-			return -ENOMEM;
 
-		codecio_reg_map[i] = base;
 		if (i == CODECIO_HIUBUS_BASE)
 			hiu_base = codecio_reg_map[i];
 		if (i == CODECIO_VCBUS_BASE)
 			vpp_base = codecio_reg_map[i];
 
-		pr_info("codec map io source 0x%lx,size=%d to 0x%lx\n",
-		       (unsigned long)res.start, (int)resource_size(&res),
-		       (unsigned long)codecio_reg_map[i]);
 	}
 	pr_info("%s success. %d mapped\n", __func__, i);
 	return 0;

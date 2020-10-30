@@ -741,6 +741,54 @@
 		};
 	};
 
+	mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		dev_name = "mesonstream";
+		status = "okay";
+		clocks = <&clkc CLKID_DOS
+			&clkc CLKID_VDEC_MUX
+			&clkc CLKID_HCODEC_MUX
+			&clkc CLKID_HEVCF_MUX
+			&clkc CLKID_HEVCB_MUX>;
+		clock-names = "vdec",
+			"clk_vdec_mux",
+			"clk_hcodec_mux",
+			"clk_hevcf_mux",
+			"clk_hevcb_mux";
+	};
+
+	vdec {
+		compatible = "amlogic, vdec-pm-pd";
+		dev_name = "vdec.0";
+		status = "okay";
+		interrupts = <0 3 1
+			0 23 1
+			0 32 1
+			0 91 1
+			0 92 1
+			0 93 1
+			0 72 1>;
+		interrupt-names = "vsync",
+			"demux",
+			"parser",
+			"mailbox_0",
+			"mailbox_1",
+			"mailbox_2",
+			"parser_b";
+		power-domains = <&pwrdm PDID_SC2_DOS_VDEC>,
+			<&pwrdm PDID_SC2_DOS_HCODEC>,
+			<&pwrdm PDID_SC2_DOS_HEVC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hcodec",
+			"pwrc-hevc";
+	};
+
+	vcodec_dec {
+		compatible = "amlogic, vcodec-dec";
+		dev_name = "aml-vcodec-dec";
+		status = "okay";
+	};
+
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-g12a";
 		status = "okay";
@@ -866,6 +914,7 @@
 
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
+		dev_name = "amlogic-canvas";
 		status = "okay";
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
@@ -873,16 +922,16 @@
 	codec_io: codec_io {
 		compatible = "amlogic, meson-sc2, codec-io";
 		status = "okay";
-		#address-cells=<1>;
-		#size-cells=<1>;
+		#address-cells=<2>;
+		#size-cells=<2>;
 		ranges;
 		reg =	<0x0 0xfe002000 0x0 0x2000>,
 			<0x0 0xfe320000 0x0 0x10000>,
-			<0x0 0 0x0 0>,
-			<0x0 0 0x0 0>,
+			<0x0 0x0 0x0 0x0>,
+			<0x0 0x0 0x0 0x00>,
 			<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe036000 0x0 0x2000>,
-			<0x0 0 0x0 0>;
+			<0x0 0x0 0x0 0x0>;
 		reg-names = "cbus",
 			    "dosbus",
 			    "hiubus",
@@ -891,6 +940,7 @@
 			    "dmcbus",
 			    "efusebus";
 	};
+
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		dev_name = "amvenc_avc";

@@ -340,6 +340,7 @@
 #define HEVC_SAO_MMU_DMA_CTRL               0x363e
 #define HEVC_SAO_MMU_DMA_STATUS             0x363f
 #define HEVC_CM_CORE_STATUS                 0x3640
+#define HEVC_SAO_MMU_RESET_CTRL             0x3641
 #define HEVC_IQIT_CLK_RST_CTRL              0x3700
 #define HEVC_IQIT_DEQUANT_CTRL              0x3701
 #define HEVC_IQIT_SCALELUT_WR_ADDR          0x3702

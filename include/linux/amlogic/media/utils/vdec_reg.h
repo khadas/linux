@@ -144,14 +144,14 @@
 #define RESET_PSCALE        BIT(4)
 #define RESET_IQIDCT        BIT(2)
 #define RESET_MC            BIT(3)
-#define MEM_BUFCTRL_MANUAL      BIT(1)
-#define MEM_BUFCTRL_INIT        BIT(0)
+//#define MEM_BUFCTRL_MANUAL      BIT(1)
+//#define MEM_BUFCTRL_INIT        BIT(0)
 #define MEM_LEVEL_CNT_BIT       18
 #define MEM_FIFO_CNT_BIT        16
-#define MEM_FILL_ON_LEVEL       BIT(10)
-#define MEM_CTRL_EMPTY_EN       BIT(2)
-#define MEM_CTRL_FILL_EN        BIT(1)
-#define MEM_CTRL_INIT           BIT(0)
+//#define MEM_FILL_ON_LEVEL       BIT(10)
+//#define MEM_CTRL_EMPTY_EN       BIT(2)
+//#define MEM_CTRL_FILL_EN        BIT(1)
+//#define MEM_CTRL_INIT           BIT(0)
 
 #ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 #define VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)

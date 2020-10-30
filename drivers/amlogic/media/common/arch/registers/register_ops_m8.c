@@ -73,7 +73,10 @@ int __init vdec_reg_ops_init(void)
 				break;
 
 			case IO_RESET_BUS:
-				m8_ops[i].ext_offset = -0xd00;
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SC2)
+					m8_ops[i].ext_offset = 0;
+				else
+					m8_ops[i].ext_offset = -0xd00;
 				break;
 			}
 		}

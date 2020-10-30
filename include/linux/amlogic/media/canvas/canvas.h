@@ -55,7 +55,7 @@ struct canvas_config_s {
  * in canvas_mgr.c canvas_pool_config().
  */
 #define AMVDEC_CANVAS_MAX1        0xbf
-#define AMVDEC_CANVAS_MAX2        0x25
+#define AMVDEC_CANVAS_MAX2        0x1a
 #define AMVDEC_CANVAS_START_INDEX 0x78
 
 void canvas_config_config(u32 index, struct canvas_config_s *cfg);

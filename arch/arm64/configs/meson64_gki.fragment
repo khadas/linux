@@ -521,6 +521,8 @@ CONFIG_CPUFREQ_DT=y
 CONFIG_PCIE_DW_PLAT_HOST=y
 CONFIG_INPUT_POLLDEV=y
 
+CONFIG_DEVTMPFS=y
+
 ############Amlogic Basic#####################
 #basic
 
