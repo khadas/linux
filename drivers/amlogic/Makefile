@@ -24,6 +24,9 @@ obj-$(CONFIG_AMLOGIC_HIFI4DSP)          += hifi4dsp/
 obj-$(CONFIG_AMLOGIC_DVB_COMPAT)        += dvb/
 obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
 obj-$(CONFIG_AMLOGIC_IRBLASTER)		+= irblaster/
+obj-$(CONFIG_MTD_NAND_MESON)		+= mtd/nand/
+obj-$(CONFIG_MTD_RESV_MESON)		+= mtd/reserve/
+
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/

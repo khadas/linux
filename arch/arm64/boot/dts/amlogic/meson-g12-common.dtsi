@@ -213,6 +213,33 @@
 						};
 					};
 
+					all_nand_pins: all_nand_pins {
+						mux {
+							groups = "emmc_nand_d0",
+								"emmc_nand_d1",
+								"emmc_nand_d2",
+								"emmc_nand_d3",
+								"emmc_nand_d4",
+								"emmc_nand_d5",
+								"emmc_nand_d6",
+								"emmc_nand_d7",
+								"nand_ce0",
+								"nand_ale",
+								"nand_cle",
+								"nand_wen_clk",
+								"nand_ren_wr";
+							function = "nand";
+							input-enable;
+						};
+					};
+
+					nand_cs_pins: nand_cs {
+						mux {
+							groups = "nand_ce0";
+							function = "nand";
+						};
+					};
+
 					hdmitx_ddc_pins: hdmitx_ddc {
 						mux {
 							groups = "hdmitx_sda",
@@ -2624,6 +2651,18 @@
 			card_type = <1>;
 			mmc_debug_flag;
 			resets = <&reset RESET_SD_EMMC_C>;
+		};
+
+		mtd_nand: nfc@ffe07800 {
+			compatible = "amlogic,meson-nfc-full-ecc";
+			status = "disabled";
+			reg = <0x0 0xFFE07800 0x0 0x200>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
+
+			clocks = <&clkc CLKID_SD_EMMC_C>,
+					 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "gate", "fdiv2pll";
+			nand_clk_ctrl = <0xFFE07000>;
 		};
 
 		usb2_phy_v2: usb2phy@ffe09000 {

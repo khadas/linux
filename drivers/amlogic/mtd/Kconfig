@@ -1,0 +1,17 @@
+#
+# Amlogic MTD RESERVED AREA MANAGEMENT configuration
+#
+
+menu "Meson MTD RESERVED AREA MANAGEMENT Support"
+
+config MTD_RESV_MESON
+	tristate "AMLOGIC MTD reserve area management"
+	depends on MTD_NAND_MESON
+	help
+		Implements a reserve area which is used
+		to manage the bbt/key/dtd/env and so on.
+		we pre-allocate fixed blocks and list these
+		blocks base on different usage, such as bbt,
+		key. it is efficiently for power lost and
+		backups and others.
+endmenu

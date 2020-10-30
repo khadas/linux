@@ -5,8 +5,8 @@ the MTD NAND bindings.
 
 Required properties:
 - compatible : contains one of:
-  - "amlogic,meson-gxl-nfc"
-  - "amlogic,meson-axg-nfc"
+  - "amlogic,meson-nfc-full-ecc"
+  - "amlogic,meson-nfc-single-ecc"
 - clocks     :
 	A list of phandle + clock-specifier pairs for the clocks listed
 	in clock-names.
@@ -34,7 +34,7 @@ Example demonstrate on AXG SoC:
 	};
 
 	nand-controller@7800 {
-		compatible = "amlogic,meson-axg-nfc";
+		compatible = "amlogic,meson-nfc-single-ecc";
 		reg = <0x0 0x7800 0x0 0x100>;
 		#address-cells = <1>;
 		#size-cells = <0>;

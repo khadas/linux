@@ -79,6 +79,7 @@ config AMLOGIC_DVB_COMPAT
 		it is enabled by default,depending on
 		AMLOGIC_DVB and DVB_CORE.
 
+source "drivers/amlogic/mtd/Kconfig"
 endmenu
 
 if AMLOGIC_DRIVER

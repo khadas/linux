@@ -32,6 +32,10 @@
 #define NAND_MFR_STMICRO	0x20
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_WINBOND	0xef
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define NAND_MFR_DOSILICON	0xf8
+#define NAND_MFR_ZETTA		0xba
+#endif
 
 /**
  * struct nand_manufacturer_ops - NAND Manufacturer operations
