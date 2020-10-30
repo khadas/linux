@@ -79,6 +79,17 @@ config AMLOGIC_DMC_MONITOR_G12
 		hardware. If hardware violated R/W permission, then interrupt
 		will generated and can help to debug memory pollution.
 
+config AMLOGIC_DMC_MONITOR_TM2
+	bool "Amlogic dmc monitor for TM2 revb"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for tm2 chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
 config AMLOGIC_DMC_MONITOR_GX
 	bool "Amlogic dmc monitor for GX"
 	depends on AMLOGIC_DMC_MONITOR

@@ -31,6 +31,7 @@ struct dmc_mon_ops {
 };
 
 struct dmc_monitor {
+	void __iomem *io_mem;
 	unsigned long io_base;
 	unsigned long addr_start;
 	unsigned long addr_end;
@@ -71,12 +72,13 @@ unsigned int get_all_dev_mask(void);
 /*
  * Following functions are internal used only
  */
-unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw);
+unsigned long dmc_prot_rw(unsigned long addr, unsigned long value, int rw);
 
 size_t dump_dmc_reg(char *buf);
 
 char *to_ports(int id);
 char *to_sub_ports(int mid, int sid, char *id_str);
+void show_violation_mem(unsigned long addr);
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
 extern struct dmc_mon_ops gx_dmc_mon_ops;
@@ -86,6 +88,9 @@ extern struct dmc_mon_ops g12_dmc_mon_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_C1
 extern struct dmc_mon_ops c1_dmc_mon_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_TM2
+extern struct dmc_mon_ops tm2_dmc_mon_ops;
 #endif
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR

@@ -38,4 +38,5 @@ struct ddr_port_desc {
  * This function used only during boot
  */
 int ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc);
+unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw);
 #endif /* __DDR_PORT_DESC_H__ */

@@ -257,19 +257,20 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-g12a";
+		compatible = "amlogic,ddr-bandwidth-tm2";
 		status = "okay";
 		reg = <0xff638000 0x100
-			0xff638c00 0x100>;
+		       0xff638c00 0x100>;
 		interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};
 
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-sm1";
+		compatible = "amlogic,dmc_monitor-tm2";
 		status = "okay";
+		reg = <0xff638000 0x100>;
 		reg_base = <0xff639000>;
-		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
 	};
 
 	ion_dev {

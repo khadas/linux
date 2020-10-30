@@ -25,7 +25,9 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/page_trace.h>
+#include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
+#include <linux/highmem.h>
 #include "dmc_monitor.h"
 #include "ddr_port.h"
 
@@ -79,14 +81,40 @@ MODULE_PARM_DESC(jtag, "dmc_monitor");
 early_param("dmc_monitor", early_dmc_param);
 #endif
 
-unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw)
+
+void show_violation_mem(unsigned long addr)
 {
-	struct arm_smccc_res smccc;
+	struct page *page;
+	unsigned long *p, *q;
 
-	arm_smccc_smc(DMC_MON_RW, addr + dmc_mon->io_base,
-		      value, rw, 0, 0, 0, 0, &smccc);
+	if (!pfn_valid(__phys_to_pfn(addr)))
+		return;
 
-	return smccc.a0;
+	page = phys_to_page(addr);
+	p = kmap_atomic(page);
+	if (!p)
+		return;
+
+	q = p + ((addr & (PAGE_SIZE - 1)) / sizeof(*p));
+	pr_emerg(DMC_TAG "[%08lx]:%016lx, f:%8lx, m:%p, a:%ps\n",
+		 (unsigned long)q, *q, page->flags & 0xffffffff,
+		 page->mapping,
+		 (void *)get_page_trace(page));
+	kunmap_atomic(p);
+}
+
+unsigned long dmc_prot_rw(unsigned long addr, unsigned long value, int rw)
+{
+	if (dmc_mon->io_mem) {
+		if (rw == DMC_WRITE) {
+			writel(value, dmc_mon->io_mem + addr);
+			return 0;
+		} else {
+			return readl(dmc_mon->io_mem + addr);
+		}
+	} else {
+		return dmc_rw(addr + dmc_mon->io_base, value, rw);
+	}
 }
 
 static int dev_name_to_id(const char *dev_name)
@@ -344,7 +372,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_G12B:
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
-	case DMC_TYPE_TM2:
 		mon->ops = &g12_dmc_mon_ops;
 		break;
 #endif
@@ -366,6 +393,18 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->ops = &gx_dmc_mon_ops;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_TM2
+	case DMC_TYPE_TM2:
+		if (is_meson_rev_b())
+			mon->ops = &tm2_dmc_mon_ops;
+		else
+		#ifdef CONFIG_AMLOGIC_DMC_MONITOR_G12
+			mon->ops = &g12_dmc_mon_ops;
+		#else
+			#error need support for revA
+		#endif
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, chip);
 		break;
@@ -378,6 +417,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	unsigned int tmp;
 	struct device_node *node;
 	struct ddr_port_desc *desc = NULL;
+	struct resource *res;
 
 	pr_info("%s\n", __func__);
 	dmc_mon = devm_kzalloc(&pdev->dev, sizeof(*dmc_mon), GFP_KERNEL);
@@ -406,6 +446,11 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	}
 
 	dmc_mon->io_base = tmp;
+
+	/* for register not in secure world */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res)
+		dmc_mon->io_mem = ioremap(res->start, res->end - res->start);
 
 	irq = of_irq_get(node, 0);
 	r = request_irq(irq, dmc_monitor_irq_handler,
@@ -488,6 +533,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-c1",
 		.data = (void *)DMC_TYPE_C1,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-tm2",
+		.data = (void *)DMC_TYPE_TM2,
 	},
 	{}
 };

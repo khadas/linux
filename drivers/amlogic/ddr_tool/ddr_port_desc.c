@@ -9,8 +9,10 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
+#include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include "ddr_port.h"
+#include "dmc_monitor.h"
 
 /*
  * NOTE:
@@ -660,4 +662,12 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	*desc = chip_ddr_port;
 
 	return desc_size;
+}
+
+unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw)
+{
+	struct arm_smccc_res smccc;
+
+	arm_smccc_smc(DMC_MON_RW, addr, value, rw, 0, 0, 0, 0, &smccc);
+	return smccc.a0;
 }
