@@ -73,6 +73,11 @@
 	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
 
+&pcie_A {
+	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+	status = "disable";
+};
+
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins2>;
 	pinctrl-names = "default";

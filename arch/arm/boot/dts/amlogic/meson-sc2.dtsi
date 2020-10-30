@@ -7,7 +7,7 @@
 #include <dt-bindings/clock/amlogic,sc2-clkc.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/amlogic,sc2-clkc.h>
-#include <dt-bindings/power/meson-sm1-power.h>
+#include <dt-bindings/power/sc2-pd.h>
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-sc2-gpio.h>
@@ -368,7 +368,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			version = <2>;
-			/*power-domains = <&pwrdm PDID_USB_COMB>;*/
+			power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy20-reset-level-bit = <8>;
 			phy21-reset-level-bit = <9>;
 			usb-reset-bit = <4>;
@@ -388,6 +388,7 @@
 			clocks = <&clkc CLKID_PCIE_PLL>;
 			interrupts = <0 129 4>;
 			clock-names = "pcie_refpll";
+			power-domains = <&pwrdm PDID_SC2_PCIE>;
 		};
 
 		usb0: usb@fde00000 {
@@ -442,6 +443,50 @@
 						&clkc CLKID_USB1_TO_DDR>;
 			clock-names = "usb_general",
 						"usb1";
+		};
+
+		pcie_A: pcieA@f5000000 {
+			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
+			reg = <0xf5000000 0x400000
+				0xfe02c000 0x2000
+				0xf5400000 0x200000
+				0xfe02a000 0x2000
+				0xfe002044 0x10>;
+			reg-names = "elbi", "cfg", "config", "phy",
+					"reset";
+			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+			#interrupt-cells = <1>;
+			bus-range = <0x0 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0 0xf5600000 0x0 0x100000
+				/* downstream I/O */
+				0x82000000 0x0 0xf5700000 0xf5700000 0x0 0x1900000>;
+				/* non-prefetchable memory */
+			num-lanes = <1>;
+			pcie-num = <1>;
+
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_PCIE
+				&clkc CLKID_PCIE_PHY>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy";
+			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
+			gpio-type = <2>;
+			pcie-apb-rst-bit = <14>;
+			pcie-phy-rst-bit = <13>;
+			pcie-ctrl-a-rst-bit = <12>;
+			pwr-ctl = <0>;
+			pcie-ctrl-sleep-shift = <15>;
+			pcie-hhi-mem-pd-shift = <26>;
+			pcie-hhi-mem-pd-mask = <0xf>;
+			pcie-ctrl-iso-shift = <15>;
+			power-domains = <&pwrdm PDID_SC2_PCIE>;
+			status = "disabled";
 		};
 
 		sd_emmc_a: sdio@fe088000 {
