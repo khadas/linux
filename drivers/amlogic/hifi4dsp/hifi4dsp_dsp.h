@@ -18,6 +18,12 @@ struct firmware;
 struct hifi4dsp_pdata;
 struct hifi4dsp_dsp;
 
+enum dsp_start_mode {
+	SCPI_START_MODE,
+	SMC_START_MODE,
+	MAX_START_MODE,
+};
+
 /*
  * DSP memory offsets and addresses.
  */
@@ -133,6 +139,7 @@ struct hifi4dsp_dsp {
 
 	/*power domain for dsp*/
 	struct device *pd_dsp;
+	enum dsp_start_mode start_mode;
 
 	void *info;
 	void *priv;

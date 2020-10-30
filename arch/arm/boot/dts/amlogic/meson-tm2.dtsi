@@ -540,6 +540,7 @@
 		reg-names = "dspa_top_reg", "dspb_top_reg";
 		clocks = <&clkc CLKID_DSPA_MUX>, <&clkc CLKID_DSPB_MUX>;
 		clock-names = "dspa_clk", "dspb_clk";
+		dsp-start-mode = <0>; /*0:scpi start mode,1:smc start mode*/
 		dsp-cnt = <2>;
 		dspaoffset = <0>;
 		dspboffset = <0x800000>;

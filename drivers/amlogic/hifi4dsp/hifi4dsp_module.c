@@ -817,6 +817,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct hifi4dsp_pdata *pdata;
 	struct hifi4dsp_miscdev_t *p_dsp_miscdev;
 	struct miscdevice *pmscdev;
+	enum dsp_start_mode startmode;
 
 	phys_addr_t hifi4base;
 	int hifi4size;
@@ -841,6 +842,13 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	pr_debug("%s of read dsp-cnt=%d\n", __func__, dsp_cnt);
+
+	ret = of_property_read_u32(np, "dsp-start-mode", &startmode);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't retrieve dsp-start-mode\n");
+		goto err1;
+	}
+	pr_debug("%s of read dsp_start_mode = %d\n", __func__, startmode);
 
 	ret = of_property_read_u32(np, "dspaoffset", &dspaoffset);
 	if (ret < 0) {
@@ -960,10 +968,12 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err3;
 	pr_info("cma alloc hifi4 mem region success!\n");
 
-	platform_set_drvdata(pdev, dsp);
-	ret = hifi4dsp_attach_pd(&pdev->dev, dsp_cnt);
-	if (ret < 0)
-		goto err3;
+	if (dsp_cnt > 1) {
+		platform_set_drvdata(pdev, dsp);
+		ret = hifi4dsp_attach_pd(&pdev->dev, dsp_cnt);
+		if (ret < 0)
+			goto err3;
+	}
 	/*init hifi4 syslog*/
 	create_hifi4_syslog();
 	mutex_init(&hifi4dsp_flock);
@@ -1069,13 +1079,17 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dsp->info = hifi_info;
 		dsp->dsp_dev = priv->dsp_dev;
 		dsp->ops = priv->dsp_dev->ops;
+		dsp->start_mode = startmode;
 		priv->dsp = dsp;
 
 		hifi4dsp_p[i] = priv;
-		//p_dsp_miscdev->priv = priv;
 
-		dev_set_drvdata(priv->dev, priv);
-		pm_runtime_put_sync_suspend(dsp->pd_dsp);
+		if (dsp_cnt > 1) {
+			pm_runtime_put_sync_suspend(dsp->pd_dsp);
+		} else {
+			pm_runtime_enable(&pdev->dev);
+			dev_set_drvdata(priv->dev, &pdev->dev);
+		}
 		pr_info("register dsp-%d done\n", id);
 	}
 	pr_info("%s done\n", __func__);

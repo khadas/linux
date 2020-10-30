@@ -72,6 +72,15 @@ static inline void __iomem *get_dsp_addr(int dsp_id)
 		return g_regbases.dspa_addr;
 }
 
+unsigned long init_dsp_psci_smc(u32 id, u32 addr, u32 cfg0)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(0x82000090, id, addr, cfg0,
+		      0, 0, 0, 0, &res);
+	return res.a0;
+}
+
 static void start_dsp(u32 dsp_id, u32 reset_addr)
 {
 	u32 StatVectorSel;
@@ -84,7 +93,18 @@ static void start_dsp(u32 dsp_id, u32 reset_addr)
 	StatVectorSel = (reset_addr != 0xfffa0000);
 
 	tmp = 0x1 |  StatVectorSel << 1 | strobe << 2;
-	scpi_init_dsp_cfg0(dsp_id, reset_addr, tmp);
+	switch (hifi4dsp_p[dsp_id]->dsp->start_mode) {
+	case SCPI_START_MODE:
+		scpi_init_dsp_cfg0(dsp_id, reset_addr, tmp);
+		break;
+	case SMC_START_MODE:
+		init_dsp_psci_smc(dsp_id, reset_addr, tmp);
+		break;
+	default:
+		pr_debug("dsp_start_mode error,start dsp failed.\n");
+		break;
+	}
+
 	read = readl(reg + REG_DSP_CFG0);
 	pr_debug("REG_DSP_CFG0 read=0x%x\n", read);
 
@@ -125,6 +145,10 @@ static void soc_dsp_powerdomain_switch(int dsp_id, bool pwr_cntl)
 {
 	struct device *dev = hifi4dsp_p[dsp_id]->dsp->pd_dsp;
 
+	if (!dev)
+		dev = dev_get_drvdata(hifi4dsp_p[dsp_id]->dev);
+	if (!dev)
+		return;
 	if (pwr_cntl)
 		pm_runtime_get_sync(dev);
 	else
