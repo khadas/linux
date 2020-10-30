@@ -887,13 +887,6 @@ void dirspi_stop(struct spi_device *spi)
 	dirspi_set_cs(spi, false);
 }
 EXPORT_SYMBOL(dirspi_stop);
-
-int dirspi_register_board_info(struct spi_board_info const *info,
-			       unsigned int n)
-{
-	return spi_register_board_info(info, n);
-}
-EXPORT_SYMBOL_GPL(dirspi_register_board_info);
 #endif
 
 #define TEST_PARAM_NUM 5
