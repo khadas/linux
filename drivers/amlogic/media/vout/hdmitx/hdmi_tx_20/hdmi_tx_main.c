@@ -6066,6 +6066,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&hdmitx_vout2_server);
 #endif
+
 #ifdef CONFIG_AMLOGIC_SND_SOC
 	aout_unregister_client(&hdmitx_notifier_nb_a);
 #endif

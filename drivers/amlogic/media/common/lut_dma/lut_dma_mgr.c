@@ -1115,7 +1115,7 @@ static struct platform_driver lut_dma_driver = {
 	},
 };
 
-static int __init lut_dma_init(void)
+int __init lut_dma_init(void)
 {
 	int r;
 
@@ -1128,14 +1128,16 @@ static int __init lut_dma_init(void)
 	return 0;
 }
 
-static void __exit lut_dma_exit(void)
+void __exit lut_dma_exit(void)
 {
 	platform_driver_unregister(&lut_dma_driver);
 }
 
+#ifndef MODULE
 postcore_initcall(lut_dma_init);
 module_exit(lut_dma_exit);
+#endif
 
-MODULE_DESCRIPTION("AMLOGIC LUT DMA management driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("PengCheng.Chen <pengcheng.chen@amlogic.com>");
+//MODULE_DESCRIPTION("AMLOGIC LUT DMA management driver");
+//MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("PengCheng.Chen <pengcheng.chen@amlogic.com>");

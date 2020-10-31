@@ -38,6 +38,9 @@ static struct early_suspend early_suspend;
 static int early_suspend_flag;
 #endif
 
+/* must be last includ file */
+#include <linux/amlogic/gki_module.h>
+
 #define VOUT_CDEV_NAME  "display"
 #define VOUT_CLASS_NAME "display"
 #define MAX_NUMBER_PARA 10
@@ -357,37 +360,6 @@ static ssize_t vout_fr_policy_store(struct class *class,
 	ret = set_vframe_rate_policy(policy);
 	if (ret)
 		pr_info("%s: %d failed\n", __func__, policy);
-	mutex_unlock(&vout_serve_mutex);
-
-	return count;
-}
-
-static ssize_t vout_fr_hint_show(struct class *class,
-				 struct class_attribute *attr, char *buf)
-{
-	int fr_hint;
-	int ret = 0;
-
-	fr_hint = get_vframe_rate_hint();
-	ret = sprintf(buf, "%d\n", fr_hint);
-
-	return ret;
-}
-
-static ssize_t vout_fr_hint_store(struct class *class,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
-{
-	int fr_hint;
-	int ret = 0;
-
-	mutex_lock(&vout_serve_mutex);
-	ret = kstrtoint(buf, 10, &fr_hint);
-	if (ret) {
-		mutex_unlock(&vout_serve_mutex);
-		return -EINVAL;
-	}
-	set_vframe_rate_hint(fr_hint);
 	mutex_unlock(&vout_serve_mutex);
 
 	return count;
@@ -850,21 +822,6 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 	}
 }
 
-static void aml_vout_get_dt_info(struct platform_device *pdev)
-{
-	int ret;
-	unsigned int para[2];
-
-	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
-	if (!ret) {
-		ret = set_vframe_rate_policy(para[0]);
-		if (ret)
-			VOUTERR("init fr_policy %d failed\n", para[0]);
-		else
-			VOUTPR("fr_policy:%d\n", para[0]);
-	}
-}
-
 /*****************************************************************
  **
  **	vout driver interface
@@ -1020,7 +977,7 @@ static void vout_init_mode_parse(char *str)
 	VOUTPR("%s\n", vout_mode_uboot);
 }
 
-static int get_vout_init_mode(char *str)
+int get_vout_init_mode(char *str)
 {
 	char *ptr = str;
 	char sep[2];

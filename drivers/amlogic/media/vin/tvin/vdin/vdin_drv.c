@@ -1200,7 +1200,7 @@ int stop_tvin_service(int no)
 }
 EXPORT_SYMBOL(stop_tvin_service);
 
-static void get_tvin_canvas_info(int *start, int *num)
+void get_tvin_canvas_info(int *start, int *num)
 {
 	*start = vdin_canvas_ids[0][0];
 	*num = vdin_devp[0]->canvas_max_num;

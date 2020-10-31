@@ -130,7 +130,7 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 			}
 			dprintk(2, "vb2_buf idx:%d pl:%d dmabuf:0x%p fd:%d vf:(%d:0x%p)\n",
 				index, i, dmabuf, fd, vfp->index, vfp);
-			if (dmabuf_set_vframe(dmabuf, vfp))
+			if (dmabuf_set_vframe(dmabuf, vfp, VF_SRC_VDIN))
 				dprintk(0, "set vf fail\n");
 		}
 	}

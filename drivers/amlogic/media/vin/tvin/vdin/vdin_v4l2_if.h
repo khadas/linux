@@ -6,6 +6,8 @@
 #ifndef __VDIN_V4L2_IF_H
 #define __VDIN_V4L2_IF_H
 
+#include <linux/amlogic/meson_uvm_core.h>
+
 #define VDIN_DEV_VER		0x20201003
 #define VDIN_DEV_VER2		"support v4l nvm mode"
 #define VDIN_V4L_DV_NAME	"videovdin"
@@ -24,8 +26,6 @@ struct vdin_vb_buff {
 
 	unsigned int tag;
 };
-
-int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf);
 
 #define to_vdin_vb_buf(buf)	container_of(buf, struct vdin_vb_buff, vb)
 
