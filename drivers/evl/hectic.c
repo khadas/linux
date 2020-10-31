@@ -450,7 +450,7 @@ static int rtswitch_create_kthread(struct rtswitch_context *ctx,
 				task_pid_nr(current));
 	/*
 	 * On error, clear the flag bits in order to avoid calling
-	 * evl_cancel_kthread() for an invalid thread in
+	 * evl_stop_kthread() for an invalid thread in
 	 * hectic_release().
 	 */
 	if (err)
@@ -641,7 +641,7 @@ static int hectic_release(struct inode *inode, struct file *filp)
 			struct rtswitch_task *task = &ctx->tasks[i];
 
 			if (task->base.flags & HECTIC_KTHREAD)
-				evl_cancel_kthread(&task->kthread);
+				evl_stop_kthread(&task->kthread);
 
 			evl_destroy_flag(&task->rt_synch);
 		}

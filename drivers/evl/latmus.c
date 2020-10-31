@@ -475,7 +475,7 @@ void kthread_handler(struct evl_kthread *kthread)
 	}
 out:
 	done_sampling(&k_runner->runner, ret);
-	evl_cancel_kthread(&k_runner->kthread);
+	evl_stop_kthread(&k_runner->kthread);
 }
 
 static void destroy_kthread_runner(struct latmus_runner *runner)
@@ -483,7 +483,7 @@ static void destroy_kthread_runner(struct latmus_runner *runner)
 	struct kthread_runner *k_runner;
 
 	k_runner = container_of(runner, struct kthread_runner, runner);
-	evl_cancel_kthread(&k_runner->kthread);
+	evl_stop_kthread(&k_runner->kthread);
 	evl_destroy_flag(&k_runner->barrier);
 	destroy_runner_base(runner);
 	kfree(k_runner);
