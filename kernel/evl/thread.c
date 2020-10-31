@@ -237,11 +237,9 @@ int evl_init_thread(struct evl_thread *thread,
 	evl_init_timer_on_rq(&thread->rtimer, &evl_mono_clock, timeout_handler,
 			rq, gravity);
 	evl_set_timer_name(&thread->rtimer, thread->name);
-	evl_set_timer_priority(&thread->rtimer, EVL_TIMER_HIPRIO);
 	evl_init_timer_on_rq(&thread->ptimer, &evl_mono_clock, periodic_handler,
 			rq, gravity);
 	evl_set_timer_name(&thread->ptimer, thread->name);
-	evl_set_timer_priority(&thread->ptimer, EVL_TIMER_HIPRIO);
 
 	thread->base_class = NULL; /* evl_set_thread_policy() sets it. */
 	ret = evl_init_rq_thread(thread);

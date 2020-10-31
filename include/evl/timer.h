@@ -63,15 +63,9 @@ enum evl_tmode {
 #define EVL_TIMER_GRAVITY_MASK	(EVL_TIMER_KGRAVITY|EVL_TIMER_UGRAVITY)
 #define EVL_TIMER_INIT_MASK	EVL_TIMER_GRAVITY_MASK
 
-/* Timer priorities */
-#define EVL_TIMER_LOPRIO  (-999999999)
-#define EVL_TIMER_STDPRIO 0
-#define EVL_TIMER_HIPRIO  999999999
-
 struct evl_tnode {
 	struct rb_node rb;
 	ktime_t date;
-	int prio;
 };
 
 struct evl_tqueue {
@@ -230,12 +224,6 @@ ktime_t evl_get_timer_next_date(struct evl_timer *timer)
 {
 	return ktime_add_ns(timer->start_date,
 			timer->pexpect_ticks * ktime_to_ns(timer->interval));
-}
-
-static inline
-void evl_set_timer_priority(struct evl_timer *timer, int prio)
-{
-	timer->node.prio = prio;
 }
 
 void __evl_init_timer(struct evl_timer *timer,

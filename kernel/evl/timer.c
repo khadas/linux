@@ -297,7 +297,6 @@ void __evl_init_timer(struct evl_timer *timer,
 
 	timer->clock = clock;
 	evl_tdate(timer) = EVL_INFINITE;
-	evl_set_timer_priority(timer, EVL_TIMER_STDPRIO);
 	timer->status = EVL_TIMER_DEQUEUED|(flags & EVL_TIMER_INIT_MASK);
 	timer->handler = handler;
 	timer->interval = EVL_INFINITE;
@@ -460,13 +459,13 @@ static __always_inline
 bool date_is_earlier(struct evl_tnode *left,
 		struct evl_tnode *right)
 {
-	return left->date < right->date
-		|| (left->date == right->date && left->prio > right->prio);
+	return left->date < right->date;
 }
 
 void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 {
 	struct rb_node **new = &tq->root.rb_node, *parent = NULL;
+	struct evl_tnode *i;
 
 	if (!tq->head)
 		tq->head = node;
@@ -475,8 +474,7 @@ void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 		new = &parent->rb_left;
 		tq->head = node;
 	} else while (*new) {
-			struct evl_tnode *i = container_of(*new, struct evl_tnode, rb);
-
+			i = container_of(*new, struct evl_tnode, rb);
 			parent = *new;
 			if (date_is_earlier(node, i))
 				new = &((*new)->rb_left);

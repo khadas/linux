@@ -176,17 +176,14 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 */
 	evl_init_timer_on_rq(&rq->inband_timer, &evl_mono_clock, NULL,
 			rq, EVL_TIMER_IGRAVITY);
-	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
 	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
 	evl_init_timer_on_rq(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
 			rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
-	evl_set_timer_priority(&rq->rrbtimer, EVL_TIMER_LOPRIO);
 #ifdef CONFIG_EVL_WATCHDOG
 	evl_init_timer_on_rq(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
 			rq, EVL_TIMER_IGRAVITY);
 	evl_set_timer_name(&rq->wdtimer, "[watchdog]");
-	evl_set_timer_priority(&rq->wdtimer, EVL_TIMER_LOPRIO);
 #endif /* CONFIG_EVL_WATCHDOG */
 
 	evl_set_current_account(rq, &rq->root_thread.stat.account);
