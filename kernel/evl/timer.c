@@ -485,4 +485,3 @@ void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 	rb_link_node(&node->rb, parent, new);
 	rb_insert_color(&node->rb, &tq->root);
 }
-EXPORT_SYMBOL_GPL(evl_insert_tnode);
