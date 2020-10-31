@@ -363,15 +363,15 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
 			__clone_flags, __fmt, ##__args)
 
-static inline void evl_cancel_kthread(struct evl_kthread *kthread)
+static inline void evl_stop_kthread(struct evl_kthread *kthread)
 {
 	evl_cancel_thread(&kthread->thread);
 	evl_join_thread(&kthread->thread, true);
 }
 
-static inline int evl_kthread_should_stop(void)
+static inline bool evl_kthread_should_stop(void)
 {
-	return evl_current()->info & T_CANCELD;
+	return !!(evl_current()->info & T_CANCELD);
 }
 
 void evl_set_kthread_priority(struct evl_kthread *thread,
