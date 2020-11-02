@@ -511,25 +511,30 @@
 		mboxes = <&mailbox 0 &mailbox 1>;
 	};
 
-	mailbox_dsp: mhu@ff680150 {
+	mailbox_pl: mhu@ff680150 {
 		status = "okay";
-		compatible = "amlogic, meson_mhu_dsp";
-		reg = <0x0 0xff680150 0x0 0x84>,   /* MHU registers */
-		      <0x0 0xff690150 0x0 0x84>,
-		      <0x0 0xfffdc800 0x0 0x800>;   /* Payload area */
-		interrupts = <0 242 1>,   /* DSPA Receive */
-			     <0 244 1>,   /* DSPA Send */
-			     <0 246 1>,   /* DSPB Receive */
-			     <0 248 1>;   /* DSPB Send */
-		mbox-names = "dspa_to_ap",
+		compatible = "amlogic, meson_mhu_pl";
+		reg = <0x0 0xff6801d0 0x0 0x4>,   /*from dsp sts registers */
+		      <0x0 0xff680154 0x0 0x4>,   /*to dsp set registers */
+		      <0x0 0xff680190 0x0 0x4>,   /*to dsp clr registers */
+		      <0x0 0xfffdc800 0x0 0x400>,   /*to dsp payload */
+		      <0x0 0xff6901d0 0x0 0x4>,   /*from ao sts registers */
+		      <0x0 0xff690154 0x0 0x4>,   /* to ao registers */
+		      <0x0 0xff690190 0x0 0x4>,   /* to ao registers */
+		      <0x0 0xfffdcc00 0x0 0x400>;   /*from ao payload */
+		interrupts = <GIC_SPI 242 IRQ_TYPE_EDGE_RISING>,  /* ap Rev se*/
+			     <GIC_SPI 244 IRQ_TYPE_EDGE_RISING>,  /* ap Send se*/
+			     <GIC_SPI 246 IRQ_TYPE_EDGE_RISING>,  /* ap Rev se */
+			     <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;  /* ap Send se*/
+		mbox-names = "dsp_dev",
 			     "ap_to_dspa",
-			     "dspb_to_ap",
+			     "dspb_dev",
 			     "ap_to_dspb";
 		#mbox-cells = <1>;
-		mboxes = <&mailbox_dsp 0>,
-			 <&mailbox_dsp 1>,
-			 <&mailbox_dsp 2>,
-			 <&mailbox_dsp 3>;
+		mboxes = <&mailbox_pl 0>,
+			 <&mailbox_pl 1>,
+			 <&mailbox_pl 2>,
+			 <&mailbox_pl 3>;
 		mbox-nums = <4>;
 	};
 
