@@ -613,6 +613,9 @@ struct vpu_dev_s *vpu_dev_get(unsigned int vmod, char *owner_name)
 	struct vpu_dev_s *temp_dev = NULL;
 	int i;
 
+	if (vpu_chip_valid_check())
+		return NULL;
+
 	if (!owner_name) {
 		VPUERR("%s: owner_name is null\n", __func__);
 		return NULL;
@@ -657,6 +660,9 @@ struct vpu_dev_s *vpu_dev_register(unsigned int vmod, char *owner_name)
 {
 	struct vpu_dev_s *temp_dev;
 	int ret;
+
+	if (vpu_chip_valid_check())
+		return NULL;
 
 	if (vpu_dev_num >= VPU_DEV_MAX) {
 		VPUERR("%s: no space for vpu_dev\n", __func__);
@@ -731,6 +737,9 @@ int vpu_dev_unregister(struct vpu_dev_s *vpu_dev)
 {
 	int i, n;
 
+	if (vpu_chip_valid_check())
+		return -1;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return -1;
@@ -786,6 +795,9 @@ unsigned int vpu_dev_clk_get(struct vpu_dev_s *vpu_dev)
 {
 	unsigned int vclk;
 
+	if (vpu_chip_valid_check())
+		return 0;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return 0;
@@ -820,9 +832,12 @@ int vpu_dev_clk_request(struct vpu_dev_s *vpu_dev, unsigned int vclk)
 {
 	int ret = 0;
 
+	if (vpu_chip_valid_check())
+		return -1;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
-		return 0;
+		return -1;
 	}
 
 	mutex_lock(&vpu_dev_mutex);
@@ -853,9 +868,12 @@ int vpu_dev_clk_release(struct vpu_dev_s *vpu_dev)
 {
 	int ret = 0;
 
+	if (vpu_chip_valid_check())
+		return -1;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
-		return 0;
+		return -1;
 	}
 
 	mutex_lock(&vpu_dev_mutex);
@@ -881,6 +899,9 @@ void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
 {
 	unsigned long flags = 0;
 	int ret;
+
+	if (vpu_chip_valid_check())
+		return;
 
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
@@ -927,6 +948,9 @@ void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev)
 {
 	unsigned long flags = 0;
 	int ret;
+
+	if (vpu_chip_valid_check())
+		return;
 
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
@@ -1013,6 +1037,9 @@ void vpu_dev_clk_gate_on(struct vpu_dev_s *vpu_dev)
 	unsigned long flags = 0;
 	int ret;
 
+	if (vpu_chip_valid_check())
+		return;
+
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
 		return;
@@ -1054,6 +1081,9 @@ void vpu_dev_clk_gate_off(struct vpu_dev_s *vpu_dev)
 {
 	unsigned long flags = 0;
 	int ret;
+
+	if (vpu_chip_valid_check())
+		return;
 
 	if (!vpu_dev) {
 		VPUERR("%s: vpu_dev is null\n", __func__);
