@@ -927,27 +927,117 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 }
 EXPORT_SYMBOL(codec_mm_release);
 
-void *codec_mm_dma_alloc_coherent(const char *owner,
+void *codec_mm_dma_alloc_coherent(ulong *handle,
+				  ulong *phy_out,
 				  int size,
-				  dma_addr_t *dma_handle,
-				  gfp_t flag,
-				  int memflags)
+				  const char *owner)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	void *addr = NULL;
+	struct codec_mm_s *mem = NULL;
+	void *vaddr = NULL;
+	int space, s_res, s_cma, s_sys;
+	dma_addr_t dma_handle;
+	int buf_size = PAGE_ALIGN(size);
+	ulong flags;
 
-	addr = dma_alloc_coherent(mgt->dev, size, dma_handle, flag);
-	return addr;
+	vaddr = dma_alloc_coherent(mgt->dev, buf_size, &dma_handle, GFP_KERNEL);
+	if (!vaddr)
+		goto err;
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
+		goto err;
+
+	mem->owner[0]	= owner;
+	mem->vbuffer	= vaddr;
+	mem->phy_addr	= dma_handle;
+	mem->buffer_size = buf_size;
+	mem->from_flags	= AMPORTS_MEM_FLAGS_FROM_GET_FROM_COHERENT;
+
+	space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, 0);
+	if (!space)
+		goto err;
+
+	s_res = (space & 1);
+	s_cma = (space & 2);
+	s_sys = (space & 4);
+	if (!s_res && !s_cma && !s_sys) {
+		if (debug_mode & 0x20)
+			pr_err("error, codec mm have space: %x\n", space);
+		goto err;
+	}
+	mem->flags = space;
+
+	spin_lock_irqsave(&mgt->lock, flags);
+
+	mem->mem_id = mgt->global_memid++;
+	if (s_cma) {
+		mgt->alloced_cma_size	+= buf_size;
+	} else if (s_res) {
+		if (mgt->cma_res_pool.total_size > 0)
+			mgt->cma_res_pool.total_size += buf_size;
+		else
+			mgt->alloced_res_size += buf_size;
+	} else {
+		mgt->alloced_sys_size	+= buf_size;
+	}
+	mgt->alloced_from_coherent	+= buf_size;
+	mgt->total_alloced_size		+= buf_size;
+	*handle				= (ulong)mem;
+	*phy_out			= mem->phy_addr;
+	list_add_tail(&mem->list, &mgt->mem_list);
+
+	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	if (debug_mode & 0x20) {
+		pr_info("[%s] alloc coherent mem (phy %lx, vddr %px) size (%d).\n",
+			owner, mem->phy_addr, vaddr, buf_size);
+	}
+	return vaddr;
+err:
+	if (vaddr)
+		dma_free_coherent(mgt->dev, buf_size, vaddr, dma_handle);
+
+	return NULL;
 }
 EXPORT_SYMBOL(codec_mm_dma_alloc_coherent);
 
-void codec_mm_dma_free_coherent(const char *owner, int size,
-				void *cpu_addr, dma_addr_t dma_handle,
-				int memflags)
+void codec_mm_dma_free_coherent(ulong handle)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem = (struct codec_mm_s *)handle;
+	ulong flags;
 
-	dma_free_coherent(mgt->dev, size, cpu_addr, dma_handle);
+	if (!handle)
+		return;
+
+	dma_free_coherent(mgt->dev, mem->buffer_size,
+		mem->vbuffer, mem->phy_addr);
+
+	spin_lock_irqsave(&mgt->lock, flags);
+
+	if (mem->flags & 2)
+		mgt->alloced_cma_size	-= mem->buffer_size;
+	else if (mem->flags & 1)
+		if (mgt->cma_res_pool.total_size > 0)
+			mgt->cma_res_pool.total_size += mem->buffer_size;
+		else
+			mgt->alloced_res_size += mem->buffer_size;
+	else
+		mgt->alloced_sys_size	-= mem->buffer_size;
+	mgt->alloced_from_coherent	-= mem->buffer_size;
+	mgt->total_alloced_size		-= mem->buffer_size;
+	list_del(&mem->list);
+
+	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	if (debug_mode & 0x20) {
+		pr_info("[%s] free coherent mem (phy %lx, vddr %px) size (%d)\n",
+			mem->owner[0], mem->phy_addr, mem->vbuffer,
+			mem->buffer_size);
+	}
+
+	kfree(mem);
 }
 EXPORT_SYMBOL(codec_mm_dma_free_coherent);
 
@@ -1545,12 +1635,13 @@ static int dump_mem_infos(void *buf, int size)
 	pbuf += s;
 
 	s = snprintf(pbuf, size - tsize,
-		     "\tCMA:%d,RES:%d,TVP:%d,SYS:%d,VMAPED:%d MB\n",
-			mgt->alloced_cma_size / SZ_1M,
-			mgt->alloced_res_size / SZ_1M,
-			mgt->tvp_pool.alloced_size / SZ_1M,
-			mgt->alloced_sys_size / SZ_1M,
-			(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
+		"\tCMA:%d,RES:%d,TVP:%d,SYS:%d,COHER:%d,VMAPED:%d MB\n",
+		mgt->alloced_cma_size / SZ_1M,
+		mgt->alloced_res_size / SZ_1M,
+		mgt->tvp_pool.alloced_size / SZ_1M,
+		mgt->alloced_sys_size / SZ_1M,
+		mgt->alloced_from_coherent / SZ_1M,
+		(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
 	tsize += s;
 	pbuf += s;
 

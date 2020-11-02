@@ -140,11 +140,9 @@ int codec_mm_enough_for_size(int size, int with_wait);
 int codec_mm_disable_tvp(void);
 int codec_mm_enable_tvp(int size, int flags);
 int codec_mm_video_tvp_enabled(void);
-void *codec_mm_dma_alloc_coherent(const char *owner, int size,
-				  dma_addr_t *dma_handle,
-				  gfp_t flag, int memflags);
-void codec_mm_dma_free_coherent(const char *owner, int size, void *cpu_addr,
-				dma_addr_t dma_handle, int memflags);
+void *codec_mm_dma_alloc_coherent(ulong *handle,
+	ulong *phy_out, int size, const char *owner);
+void codec_mm_dma_free_coherent(ulong handle);
 
 struct device *v4l_get_dev_from_codec_mm(void);
 struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
