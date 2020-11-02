@@ -875,6 +875,16 @@
 
 	};
 
+	rng {
+		compatible = "amlogic,meson-rng";
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0xfe440788 0x0c>;
+		quality = /bits/ 16 <1000>;
+		version = <2>;
+	};
+
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
