@@ -1245,9 +1245,7 @@ static void vlock_enable_step3_soft_enc(void)
 
 	err = oa - ia;
 
-	if (err < margin && err > -margin)
-		err = err;
-	else
+	if (!(err < margin && err > -margin))
 		err = 0;
 
 	vdif_err = err_accum + err;

@@ -2008,6 +2008,9 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 	enum hdr_module_sel module_sel = VD1_HDR;
 	unsigned int hdr2_hist_rd;
 
+	hist_width = 0;
+	hist_height = 0;
+
 	if (vd_path == VD1_PATH)
 		module_sel = VD1_HDR;
 	else

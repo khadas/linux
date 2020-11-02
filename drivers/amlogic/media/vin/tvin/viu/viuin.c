@@ -417,7 +417,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	case TVIN_PORT_VIU1_WB0_VPP:
 	case TVIN_PORT_VIU1_WB1_VPP:
 		vinfo = get_current_vinfo();
-		prop->color_format = vinfo->viu_color_fmt;
+		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
 		break;
 
 	/* ENCL/ENCI/ENCP is only for viu2 loopback currently
@@ -435,14 +435,14 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 		else
 			pr_err("error: TVIN_PORT_VIU2_ENCL line begin = end\n");
 
-		prop->color_format = vinfo->viu_color_fmt;
+		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
 		break;
 	case TVIN_PORT_VIU2_ENCI:
 		vinfo = get_current_vinfo2();
 
 		/* always negative */
 		prop->polarity_vs = 1; /* negative */
-		prop->color_format = vinfo->viu_color_fmt;
+		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
 		break;
 	case TVIN_PORT_VIU2_ENCP:
 		vinfo = get_current_vinfo2();
@@ -456,7 +456,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 		else
 			pr_err("error: TVIN_PORT_VIU2_ENCP line begin = end\n");
 
-		prop->color_format = vinfo->viu_color_fmt;
+		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
 		break;
 	default:
 		prop->color_format = devp->parm.cfmt;

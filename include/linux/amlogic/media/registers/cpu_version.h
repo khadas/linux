@@ -68,7 +68,7 @@ struct codecio_device_data_s {
 
 extern struct codecio_device_data_s codecio_meson_dev;
 
-int get_meson_cpu_version(int level);
+unsigned char get_meson_cpu_version(int level);
 
 static inline int get_cpu_type(void)
 {
