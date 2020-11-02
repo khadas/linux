@@ -494,8 +494,8 @@
 		reg =	<0xffd00000 0x100000>,
 			<0xff900000 0x40000>,
 			<0xff63c000 0x2000>,
+			<0xff608000 0x8000>,
 			<0xff600000 0x8000>,
-			<0xff608000 0x4000>,
 			<0xffe01000 0x100>;
 		reg-names = "cbus",
 			    "vcbus",
@@ -506,6 +506,7 @@
 
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
+			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */
 			/* standards.ieee.org/develop/regauth/oui/oui.txt */
 			vendor_id = <0x000000>;
 		};
