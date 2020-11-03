@@ -730,12 +730,22 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 
 		ret = meson_ee_pwrc_init_domain(pdev, pwrc, dom);
 		if (ret)
-			return ret;
+			goto init_fail;
 
 		pwrc->xlate.domains[i] = &dom->base;
 	}
 
 	return of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
+
+init_fail:
+	for (i--; i >= 0; i--)
+		pm_genpd_remove(&pwrc->domains[i].base);
+
+	devm_kfree(&pdev->dev, pwrc->domains);
+	devm_kfree(&pdev->dev, pwrc->xlate.domains);
+	devm_kfree(&pdev->dev, pwrc);
+
+	return ret;
 }
 
 static void meson_ee_pwrc_shutdown(struct platform_device *pdev)
