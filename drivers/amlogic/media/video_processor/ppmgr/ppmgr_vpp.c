@@ -701,6 +701,11 @@ void vf_ppmgr_unreg_provider(void)
 
 	vf_unreg_provider(&ppmgr_vf_prov);
 
+#ifdef PPMGR_TB_DETECT
+	tb_buffer_uninit();
+#endif
+	ppmgr_buffer_uninit();
+
 	dec_vfp = NULL;
 
 	ppmgr_device.started = 0;
@@ -2977,10 +2982,6 @@ SKIP_DETECT:
 	}
 
 	destroy_ge2d_work_queue(context);
-#ifdef PPMGR_TB_DETECT
-	tb_buffer_uninit();
-#endif
-	ppmgr_buffer_uninit();
 	while (!kthread_should_stop()) {
 		/* may not call stop, wait..
 		 * it is killed by SIGTERM,eixt on down_interruptible
