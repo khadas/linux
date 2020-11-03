@@ -8270,7 +8270,8 @@ void init_pq_setting(void)
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		 is_meson_sm1_cpu()) {
+		 is_meson_sm1_cpu() ||
+		 get_cpu_type() == MESON_CPU_MAJOR_ID_SC2) {
 		bitdepth = 12;
 		/*confirm with vlsi-Lunhai.Chen, for G12A/G12B,
 		 *VPP_GCLK_CTRL1 must enable

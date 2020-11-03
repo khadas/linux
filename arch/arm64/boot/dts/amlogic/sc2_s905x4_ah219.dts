@@ -202,6 +202,17 @@
 		status = "okay";
 	};
 
+	amlvecm {
+		compatible = "amlogic, vecm";
+		dev_name = "aml_vecm";
+		status = "okay";
+		gamma_en = <0>;/*1:enabel ;0:disable*/
+		wb_en = <0>;/*1:enabel ;0:disable*/
+		cm_en = <0>;/*1:enabel ;0:disable*/
+		/*0: 709/601  1: bt2020*/
+		tx_op_color_primary = <0>;
+	};
+
 	multi-di {
 		compatible = "amlogic, dim-sc2";
 		status = "okay";
