@@ -185,7 +185,16 @@ struct vpu_dev_s *vpu_dev_mem_pd_afbce;
 
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
-char *vf_get_receiver_name(const char *provider_name);
+static int vdin_get_video_reverse(char *str)
+{
+	unsigned char *ptr = str;
+
+	pr_info("%s: bootargs is %s.\n", __func__, str);
+	if (strstr(ptr, "1"))
+		panel_reverse = 1;
+	return 0;
+}
+__setup("video_reverse=", vdin_get_video_reverse);
 
 static void vdin_timer_func(struct timer_list *t)
 {

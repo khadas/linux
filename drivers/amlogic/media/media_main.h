@@ -406,4 +406,23 @@ static int vpu_security_init(void)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+int vdin_drv_init(void);
+#else
+static int vdin_drv_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIUIN
+int viuin_init_module(void);
+#else
+static int viuin_init_module(void)
+{
+	return 0;
+}
+#endif
+
 #endif
