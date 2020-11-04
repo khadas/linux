@@ -144,7 +144,7 @@ struct meson_gpio_irq_params {
 	.edge_both_offset = 0,					\
 	.edge_single_offset = 12,				\
 	.pol_low_offset = 0,					\
-	.pin_sel_mask = 0x7f,					\
+	.pin_sel_mask = 0xff,					\
 	.channel_num = 12,
 #endif
 
@@ -194,6 +194,10 @@ static const struct meson_gpio_irq_params t5d_params = {
 	.support_edge_both = true,
 	.edge_both_offset = 8,
 };
+
+static const struct meson_gpio_irq_params t7_params = {
+	INIT_MESON_SC2_COMMON_DATA(157)
+};
 #endif
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
@@ -209,6 +213,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson-tm2-gpio-intc", .data = &tm2_params },
 	{ .compatible = "amlogic,meson-sc2-gpio-intc", .data = &sc2_params },
 	{ .compatible = "amlogic,meson-t5d-gpio-intc", .data = &t5d_params },
+	{ .compatible = "amlogic,meson-t7-gpio-intc", .data = &t7_params },
 #endif
 	{ }
 };

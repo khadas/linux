@@ -21,6 +21,7 @@ Required properties:
     "amlogic,meson-a1-gpio-intc" for A1 SoCs (A113L)
     "amlogic,meson-sc2-gpio-intc" for SC2 SoCs (S905X4, S905C2)
     "amlogic,meson-t5d-gpio-intc" for T5D SoCs (T950X4, T950X4)
+    "amlogic,meson-t7-gpio-intc" for T7 SoCs (unknown yet)
 - reg : Specifies base physical address and size of the registers.
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
