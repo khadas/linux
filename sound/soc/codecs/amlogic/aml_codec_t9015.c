@@ -23,9 +23,16 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <linux/regmap.h>
+#include <linux/of_device.h>
+#include <linux/reset.h>
+
 #include <linux/amlogic/media/sound/auge_utils.h>
 
 #include "aml_codec_t9015.h"
+
+struct t9015_acodec_chipinfo {
+	bool separate_toacodec_en;
+};
 
 struct aml_T9015_audio_priv {
 	struct snd_soc_component *component;
@@ -38,8 +45,17 @@ struct aml_T9015_audio_priv {
 	/* channel map */
 	int ch0_sel;
 	int ch1_sel;
+	struct t9015_acodec_chipinfo *chipinfo;
+	struct reset_control *rst;
 };
 
+static struct t9015_acodec_chipinfo aml_acodec_cinfo = {
+	.separate_toacodec_en = false,
+};
+
+static struct t9015_acodec_chipinfo sc2_acodec_cinfo = {
+	.separate_toacodec_en = true,
+};
 static const struct reg_default t9015_init_list[] = {
 	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000300F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
@@ -297,10 +313,19 @@ static int aml_T9015_audio_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-static int aml_T9015_audio_reset(void)
+static int aml_T9015_audio_reset(struct snd_soc_component *component)
 {
+	struct aml_T9015_audio_priv *T9015_audio =
+		snd_soc_component_get_drvdata(component);
+
+	/* imporant: please call standard reset interface for new project */
+	if (T9015_audio && !IS_ERR(T9015_audio->rst)) {
+		pr_info("call standard reset interface\n");
+		reset_control_reset(T9015_audio->rst);
+		return 0;
+	}
 	auge_acodec_reset();
-	usleep_range(900, 1000);
+	usleep_range(950, 1000);
 
 	return 0;
 }
@@ -346,16 +371,18 @@ static int aml_T9015_audio_probe(struct snd_soc_component *component)
 		return -ENODEV;
 	}
 	dapm->idle_bias_off = 0;
+	T9015_audio->rst = devm_reset_control_get(component->dev, "acodec");
 
 	/*reset audio codec register*/
-	aml_T9015_audio_reset();
+	aml_T9015_audio_reset(component);
 	aml_T9015_audio_start_up(component);
 	aml_T9015_audio_reg_init(component);
 
 	if (T9015_audio->tocodec_inout)
 		auge_toacodec_ctrl_ext(T9015_audio->tdmout_index,
 				       T9015_audio->ch0_sel,
-				       T9015_audio->ch1_sel);
+				       T9015_audio->ch1_sel,
+				       T9015_audio->chipinfo->separate_toacodec_en);
 	else
 		auge_toacodec_ctrl(T9015_audio->tdmout_index);
 
@@ -385,7 +412,7 @@ static int aml_T9015_audio_resume(struct snd_soc_component *component)
 {
 	pr_info("%s!\n", __func__);
 
-	aml_T9015_audio_reset();
+	aml_T9015_audio_reset(component);
 	aml_T9015_audio_start_up(component);
 	aml_T9015_audio_reg_init(component);
 	component->dapm.bias_level = SND_SOC_BIAS_STANDBY;
@@ -459,6 +486,7 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct aml_T9015_audio_priv *T9015_audio;
 	int ret = 0;
+	struct t9015_acodec_chipinfo *p_chipinfo;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
@@ -467,6 +495,17 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 	if (!T9015_audio)
 		return -ENOMEM;
+
+	p_chipinfo = (struct t9015_acodec_chipinfo *)
+		of_device_get_match_data(&pdev->dev);
+	if (!p_chipinfo) {
+		dev_warn_once(&pdev->dev,
+			      "no update t9015_acodec_chipinfo\n");
+		return -EINVAL;
+	}
+
+	T9015_audio->chipinfo = p_chipinfo;
+
 	platform_set_drvdata(pdev, T9015_audio);
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -517,8 +556,15 @@ static void aml_T9015_audio_codec_shutdown(struct platform_device *pdev)
 }
 
 static const struct of_device_id aml_T9015_codec_dt_match[] = {
-	{.compatible = "amlogic, aml_codec_T9015",},
-	{},
+	{
+		.compatible = "amlogic, aml_codec_T9015",
+		.data = &aml_acodec_cinfo,
+	},
+	{
+		.compatible = "amlogic, sc2_codec_T9015",
+		.data = &sc2_acodec_cinfo,
+	},
+	{}
 };
 
 static struct platform_driver aml_T9015_codec_platform_driver = {

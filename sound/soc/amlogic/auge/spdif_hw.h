@@ -9,6 +9,11 @@
 #include "regs.h"
 
 #include <linux/amlogic/media/sound/spdif_info.h>
+enum spdif_id {
+	SPDIF_A = 0,
+	SPDIF_B,
+	SPDIF_ID_CNT
+};
 
 unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
 				 int stream, int index);
@@ -37,7 +42,9 @@ void spdifin_set_channel_status(int ch, int bits);
 void aml_spdifout_select_aed(bool enable, int spdifout_id);
 void aml_spdifout_get_aed_info(int spdifout_id,
 			       int *bitwidth, int *frddrtype);
-void spdifout_to_hdmitx_ctrl(int spdif_index);
+
+void enable_spdifout_to_hdmitx(int spdif_tohdmitxen_separated);
+
 void spdifout_samesource_set(int spdif_index, int fifo_id,
 			     int bitwidth, int channels,
 			     bool is_enable, int lane_i2s);
@@ -46,9 +53,12 @@ int spdifin_get_sample_rate(void);
 int spdifin_get_ch_status0to31(void);
 int spdifin_get_audio_type(void);
 void spdif_set_channel_status_info(struct iec958_chsts *chsts, int spdif_id);
-void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable);
+void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separated);
 void spdifout_play_with_zerodata_free(unsigned int spdif_id);
 void spdifin_set_src(int src);
 void aml_spdif_out_reset(unsigned int spdif_id, int offset);
+void aml_spdifin_sample_mode_filter_en(void);
+int get_spdif_to_hdmitx_id(void);
+void set_spdif_to_hdmitx_id(int spdif_id);
 
 #endif

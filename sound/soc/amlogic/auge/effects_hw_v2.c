@@ -12,7 +12,7 @@
 #include "tdm_hw.h"
 #include "spdif_hw.h"
 
-void aed_set_ram_coeff(int add, int len, unsigned int *params)
+void aed_init_ram_coeff(int version, int add, int len, unsigned int *params)
 {
 	int i, ctrl_v;
 	unsigned int *p = params;
@@ -21,6 +21,86 @@ void aed_set_ram_coeff(int add, int len, unsigned int *params)
 		ctrl_v = ((add + i) << 2) | (0x1 << 1) | (0x1 << 0);
 		eqdrc_write(AED_COEF_RAM_DATA, *p);
 		eqdrc_write(AED_COEF_RAM_CNTL, ctrl_v);
+	}
+
+	/* init RAMB */
+	if (version > VERSION3) {
+		p = params;
+		for (i = 0; i < len; i++, p++) {
+			ctrl_v = ((add + i) << 2) | (0x1 << 1) | (0x1 << 0);
+			eqdrc_write(AED_COEF_RAM_DATA_B, *p);
+			eqdrc_write(AED_COEF_RAM_CNTL_B, ctrl_v);
+		}
+	}
+}
+
+void aed_set_ram_coeff(int version, int add, int len, unsigned int *params)
+{
+	int i, ctrl_v;
+	unsigned int *p = params, value = 0;
+
+	if (version > VERSION3) {
+		/*
+		 * dynamic control
+		 * step 1. write params to unselected ram
+		 * step 2. switch  to unselected ram
+		 * step 3. write params to the other ram
+		 */
+
+		/*
+		 * EE_AED_EQDRC_DYNAMIC_CNTL bit 0
+		 * coef ram sel: 0 select rama coef; 1 select ramb coef
+		 */
+		value = eqdrc_read(AED_EQDRC_DYNAMIC_CNTL);
+		value &= 0x1;
+
+		if (value) {
+			for (i = 0; i < len; i++, p++) {
+				ctrl_v = ((add + i) << 2)
+					| (0x1 << 1)
+					| (0x1 << 0);
+				eqdrc_write(AED_COEF_RAM_DATA, *p);
+				eqdrc_write(AED_COEF_RAM_CNTL, ctrl_v);
+			}
+		} else {
+			for (i = 0; i < len; i++, p++) {
+				ctrl_v = ((add + i) << 2)
+					| (0x1 << 1)
+					| (0x1 << 0);
+				eqdrc_write(AED_COEF_RAM_DATA_B, *p);
+				eqdrc_write(AED_COEF_RAM_CNTL_B, ctrl_v);
+			}
+		}
+
+		eqdrc_update_bits(AED_EQDRC_DYNAMIC_CNTL,
+				  0x1 << 0,
+				  !value << 0);
+
+		p = params;
+		if (value) {
+			for (i = 0; i < len; i++, p++) {
+				ctrl_v = ((add + i) << 2)
+					| (0x1 << 1)
+					| (0x1 << 0);
+				eqdrc_write(AED_COEF_RAM_DATA_B, *p);
+				eqdrc_write(AED_COEF_RAM_CNTL_B, ctrl_v);
+			}
+		} else {
+			for (i = 0; i < len; i++, p++) {
+				ctrl_v = ((add + i) << 2)
+					| (0x1 << 1)
+					| (0x1 << 0);
+				eqdrc_write(AED_COEF_RAM_DATA, *p);
+				eqdrc_write(AED_COEF_RAM_CNTL, ctrl_v);
+			}
+		}
+
+	} else {
+		for (i = 0; i < len; i++, p++) {
+			ctrl_v = ((add + i) << 2) | (0x1 << 1) | (0x1 << 0);
+			eqdrc_write(AED_COEF_RAM_DATA, *p);
+			eqdrc_write(AED_COEF_RAM_CNTL, ctrl_v);
+		}
 	}
 }
 
@@ -284,7 +364,7 @@ void aed_set_format(int msb, enum ddr_types frddr_type,
 		    enum ddr_num source, int offset)
 {
 	eqdrc_update_bits(AED_TOP_CTL,
-			  0x7 << 11 | 0x1f << 6 | 0x3 << 4,
+			  0x7 << 11 | 0x1f << 6 | 0x3 << (4 - offset),
 			  frddr_type << 11 | msb << 6 |
 			  source << (4 - offset));
 }

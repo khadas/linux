@@ -21,36 +21,64 @@ struct loopback_chipinfo {
 	 *             1: channel and mask is controlled by ctrl3
 	 */
 	bool ch_ctrl;
+
+	/* EE_AUDIO_LB_A_CTRL0 bit 27, chnum_en
+	 * from tm2 revb, no chnum_en
+	 */
+	bool chnum_en;
+};
+
+static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
+	.id      = LOOPBACKA,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo tl1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo tl1_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo sm1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo sm1_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo tm2_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
+	.chnum_en = true,
 };
 
 static struct loopback_chipinfo tm2_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
+	.chnum_en = true,
+};
+
+static struct loopback_chipinfo tm2_revb_loopbacka_chipinfo = {
+	.id      = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+};
+
+static struct loopback_chipinfo tm2_revb_loopbackb_chipinfo = {
+	.id      = LOOPBACKB,
+	.ch_ctrl = true,
+	.chnum_en = false,
 };
 
 static const struct of_device_id loopback_device_id[] = {
@@ -62,6 +90,7 @@ static const struct of_device_id loopback_device_id[] = {
 	},
 	{
 		.compatible = "amlogic, g12a-loopback",
+		.data       = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-loopbacka",
@@ -86,6 +115,14 @@ static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, tm2-loopbackb",
 		.data		= &tm2_loopbackb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tm2-revb-loopbacka",
+		.data		= &tm2_revb_loopbacka_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tm2-revb-loopbackb",
+		.data		= &tm2_revb_loopbackb_chipinfo,
 	},
 	{}
 };

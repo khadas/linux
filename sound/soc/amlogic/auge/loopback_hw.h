@@ -51,8 +51,6 @@ void tdminlb_set_src(int src);
 void lb_set_datain_src(int id, int src);
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
 void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
-void lb_enable(int id, bool enable);
-void lb_set_chnum_en(int id, bool en);
 
 enum lb_out_rate {
 	MIC_RATE,
@@ -60,4 +58,7 @@ enum lb_out_rate {
 };
 
 void lb_set_mode(int id, enum lb_out_rate rate);
+void lb_enable(int id, bool enable, bool chnum_en);
+
+void lb_set_chnum_en(int id, bool en, bool chnum_en);
 #endif

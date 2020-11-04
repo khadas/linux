@@ -8,6 +8,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/math64.h>
 
+#include "resample.h"
 #include "resample_hw.h"
 #include "resample_hw_coeff.h"
 #include "regs.h"
@@ -182,6 +183,17 @@ void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 	if (channel > 8 || channel == 0 || bits < 16)
 		return;
 
+	/* resample B is always 2 channel for loopback */
+	if (id == RESAMPLE_B) {
+		channel = 2;
+		reg_val = 31;
+
+		if (get_resample_enable_chnum_sync(RESAMPLE_B))
+			audiobus_update_bits(EE_AUDIO_RSAMP_B_CHSYNC_CTRL,
+					     0xFF << 0,
+					     (2 - 1) << 0);
+	}
+
 	new_resample_enable(id, false);
 	new_resample_status_check(id);
 
@@ -189,6 +201,13 @@ void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 	/* channel num */
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0x3f << 24,
 				 channel << 24);
+
+	/* bit 0-7: chnum_max */
+	if (get_resample_enable_chnum_sync(id) && id == RESAMPLE_A)
+		audiobus_update_bits(EE_AUDIO_RSAMP_A_CHSYNC_CTRL,
+				     0xFF << 0,
+				     (channel - 1) << 0);
+
 	/* bit width */
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1f << 13,
 				 reg_val << 13);
@@ -392,4 +411,16 @@ int resample_set_hw_pause_thd(enum resample_idx id, unsigned int thd)
 			     1 << 24 | thd << 11);
 
 	return 0;
+}
+
+void aml_resample_chsync_enable(enum resample_idx id)
+{
+	int offset =
+		EE_AUDIO_RSAMP_B_CHSYNC_CTRL - EE_AUDIO_RSAMP_A_CHSYNC_CTRL;
+	int reg = EE_AUDIO_RSAMP_A_CHSYNC_CTRL + offset * id;
+
+	/* bit 31: enable */
+	audiobus_update_bits(reg,
+			     0x1 << 31,
+			     0x1 << 31);
 }

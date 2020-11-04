@@ -413,6 +413,16 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 				 fmt->type << 13 |
 				 fmt->msb << 8 |
 				 fmt->lsb << 3);
+
+	/* bit 0-7: chnum_max, same with record channels */
+	if (to->chipinfo && to->chipinfo->chnum_sync) {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CHSYNC_CTRL,
+					 reg_base);
+		aml_audiobus_update_bits(actrl,
+					 reg,
+					 0xFF << 0,
+					 (fmt->ch_num - 1) << 0);
+	}
 }
 
 unsigned int aml_toddr_get_status(struct toddr *to)
@@ -429,6 +439,21 @@ unsigned int aml_toddr_get_status(struct toddr *to)
 unsigned int aml_toddr_get_fifo_cnt(struct toddr *to)
 {
 	return (aml_toddr_get_status(to) & TODDR_FIFO_CNT) >> 8;
+}
+
+void aml_toddr_chsync_enable(struct toddr *to)
+{
+	struct aml_audio_controller *actrl = to->actrl;
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TODDR_B_CHSYNC_CTRL - EE_AUDIO_TODDR_A_CHSYNC_CTRL;
+	reg = EE_AUDIO_TODDR_A_CHSYNC_CTRL + offset * to->fifo_id;
+
+	/* bit 31: enable */
+	aml_audiobus_update_bits(actrl,
+				 reg,
+				 0x1 << 31,
+				 0x1 << 31);
 }
 
 void aml_toddr_ack_irq(struct toddr *to, int status)
@@ -1425,7 +1450,7 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 	struct frddr *fr = fetch_frddr_by_src(p_attach_aed->attach_module);
 	int aed_version = check_aed_version();
 
-	if (aed_version == VERSION2 || aed_version == VERSION3) {
+	if (aed_version > VERSION1) {
 		struct aml_audio_controller *actrl = fr->actrl;
 		unsigned int reg_base = fr->reg_base;
 		unsigned int reg;
@@ -1434,7 +1459,7 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 		if (enable) {
 			aml_audiobus_update_bits(actrl,
 						 reg, 0x1 << 3, enable << 3);
-			if (aed_version == VERSION3) {
+			if (aed_version > VERSION2) {
 				aed_set_ctrl(enable, 0,
 					     p_attach_aed->attach_module, 1);
 				aed_set_format(fr->msb,
@@ -1448,7 +1473,7 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 			aed_enable(enable);
 		} else {
 			aed_enable(enable);
-			if (aed_version == VERSION3) {
+			if (aed_version > VERSION2) {
 				aed_set_ctrl(enable, 0,
 					     p_attach_aed->attach_module, 1);
 			} else {
@@ -1746,7 +1771,7 @@ static struct ddr_chipinfo tm2_revb_ddr_chipinfo = {
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
 	.fifo_num              = 4,
-	.burst_finished_flag   = true,
+	.chnum_sync            = true,
 };
 
 static struct ddr_chipinfo sm1_ddr_chipinfo = {
@@ -1903,6 +1928,9 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
 			return -ENXIO;
 		}
+
+		if (p_ddr_chipinfo->chnum_sync)
+			aml_toddr_chsync_enable(&toddrs[i]);
 	}
 
 	ret = register_pm_notifier(&ddr_pm_notifier_block);

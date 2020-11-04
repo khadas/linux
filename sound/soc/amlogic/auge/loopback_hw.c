@@ -213,18 +213,21 @@ void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
 	}
 }
 
-void lb_enable(int id, bool enable)
+void lb_enable(int id, bool enable, bool chnum_en)
 {
 	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
 	int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
 
 	audiobus_update_bits(reg, 0x1 << 31, enable << 31);
+	lb_set_chnum_en(id, enable, chnum_en);
 }
 
-void lb_set_chnum_en(int id, bool en)
+void lb_set_chnum_en(int id, bool en, bool chnum_en)
 {
-	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
-	int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
+	if (chnum_en) {
+		int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
+		int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
 
-	audiobus_update_bits(reg, 0x1 << 27, en << 27);
+		audiobus_update_bits(reg, 0x1 << 27, en << 27);
+	}
 }

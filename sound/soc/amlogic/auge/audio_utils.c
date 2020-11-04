@@ -533,18 +533,33 @@ void auge_toacodec_ctrl(int tdmout_id)
 }
 EXPORT_SYMBOL(auge_toacodec_ctrl);
 
-void auge_toacodec_ctrl_ext(int tdmout_id, int ch0_sel, int ch1_sel)
+void auge_toacodec_ctrl_ext(int tdmout_id, int ch0_sel, int ch1_sel, bool separate_toacodec_en)
 {
 	// TODO: check skew for tl1/sm1
 	audiobus_write(EE_AUDIO_TOACODEC_CTRL0,
-		       1 << 31 |
-		       ((tdmout_id << 2) + ch1_sel) << 20 | /* data 1 */
-		       ((tdmout_id << 2) + ch0_sel) << 16 | /* data 0 */
-		       tdmout_id << 12 |          /* lrclk */
-		       1 << 9 |                   /* Bclk_cap_inv*/
-		       tdmout_id << 4 |           /* bclk */
-		       tdmout_id << 0             /* mclk */
-	);
+		((tdmout_id << 2) + ch1_sel) << 20 /* data 1 */
+		| ((tdmout_id << 2) + ch0_sel) << 16 /* data 0 */
+		| tdmout_id << 12          /* lrclk */
+		| 1 << 9                   /* Bclk_cap_inv*/
+		| tdmout_id << 4           /* bclk */
+		| tdmout_id << 0           /* mclk */
+		);
+
+	/* if toacodec_en is separated, need do:
+	 * step1: enable/disable mclk
+	 * step2: enable/disable bclk
+	 * step3: enable/disable dat
+	 */
+	if (separate_toacodec_en) {
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0,
+				     0x1 << 29,
+				     0x1 << 29);
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0,
+				     0x1 << 30,
+				     0x1 << 30);
+	}
+	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x1 << 31, 0x1 << 31);
+
 }
 EXPORT_SYMBOL(auge_toacodec_ctrl_ext);
 

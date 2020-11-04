@@ -35,6 +35,7 @@ void resample_format_set(enum resample_idx id, int ch_num, int bits);
 int resample_ctrl_read(enum resample_idx id);
 void resample_ctrl_write(enum resample_idx id, int value);
 int resample_set_hw_pause_thd(enum resample_idx id, unsigned int thd);
+void aml_resample_chsync_enable(enum resample_idx id);
 
 #ifdef AA_FILTER_DEBUG
 void check_ram_coeff_aa(enum resample_idx id, int len,

@@ -109,7 +109,7 @@ void aml_tdm_mclk_pad_select(struct aml_audio_controller *actrl,
 			     int mpad, int mpad_offset, int mclk_sel);
 void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 			     int mpad_offset, int tdm_index, int clk_sel);
-void i2s_to_hdmitx_ctrl(int tdm_index);
+void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index);
 void aml_tdm_mute_playback(struct aml_audio_controller *actrl,
 			   int index, bool mute, int lane_cnt);
 void aml_tdm_mute_capture(struct aml_audio_controller *actrl,
@@ -119,5 +119,6 @@ void aml_tdm_set_oe_v1(struct aml_audio_controller *actrl,
 		       int index, int force_oe, int oe_val);
 void aml_tdm_set_oe_v2(struct aml_audio_controller *actrl,
 		       int index, int force_oe, int oe_val);
+void aml_tdm_pinmux_set(unsigned int tdm_id);
 
 #endif

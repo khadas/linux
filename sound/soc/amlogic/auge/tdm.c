@@ -97,6 +97,8 @@ struct aml_tdm {
 	uint last_mpll_freq;
 	uint last_mclk_freq;
 	uint last_fmt;
+
+	bool en_share;
 	unsigned int lane_cnt;
 
 	/* tdmin_lb src sel */
@@ -167,7 +169,7 @@ static int tdmin_clk_get(struct snd_kcontrol *kcontrol,
 	int clk = 0;
 	int value;
 
-	clk = meson_clk_measure(70);
+	//clk = meson_clk_measure(70);
 	if (clk >= 11000000)
 		value = 3;
 	else if (clk >= 6000000)
@@ -439,7 +441,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
-	int bit_depth;
+	int bit_depth, separated = 0;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -453,11 +455,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		    p_tdm->chipinfo->same_src_fn &&
 		    p_tdm->samesource_sel >= 0 &&
 		    aml_check_sharebuffer_valid(p_tdm->fddr,
-						p_tdm->samesource_sel)) {
+						p_tdm->samesource_sel) &&
+						p_tdm->en_share) {
 			sharebuffer_prepare(substream,
 					    fr, p_tdm->samesource_sel,
 					    p_tdm->lane_ss,
-					    p_tdm->chipinfo->reset_reg_offset);
+					    p_tdm->chipinfo->reset_reg_offset,
+					    p_tdm->chipinfo->separate_tohdmitx_en);
 				/* sharebuffer default uses spdif_a */
 			spdif_set_audio_clk(p_tdm->samesource_sel - 3,
 					    p_tdm->clk,
@@ -466,9 +470,15 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
-			i2s_to_hdmitx_ctrl(p_tdm->id);
-			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-						 substream);
+			if (p_tdm->chipinfo) {
+				separated =
+				p_tdm->chipinfo->separate_tohdmitx_en;
+			}
+
+			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
+				aout_notifier_call_chain
+					(AOUT_EVENT_IEC_60958_PCM,
+					 substream);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
@@ -1417,6 +1427,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	p_tdm->lane_cnt = p_chipinfo->lane_cnt;
 	pr_info("%s, tdm ID = %u, lane_cnt = %d\n", __func__,
 		p_tdm->id, p_tdm->lane_cnt);
+	if (p_chipinfo->pinmux_set)
+		aml_tdm_pinmux_set(p_tdm->id);
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

@@ -224,7 +224,7 @@ void earcrx_arc_init(struct regmap *dmac_map)
 	mmio_write(dmac_map,
 		   EARCRX_SPDIFIN_CTRL0,
 		   0x1 << 31 | /* reg_work_en */
-		   0x1 << 30 | /* reg_chnum_sel */
+		   0x0 << 30 | /* reg_chnum_sel */
 		   0x1 << 25 | /* reg_findpapb_en */
 		   0x1 << 24 | /* nonpcm2pcm_th enable */
 		   0xFFF << 12 |  /* reg_nonpcm2pcm_th */

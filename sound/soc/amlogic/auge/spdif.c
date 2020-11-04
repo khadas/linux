@@ -27,10 +27,11 @@
 
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
-#include "spdif_match_table.h"
+
 #include "resample.h"
 #include "resample_hw.h"
 #include "spdif.h"
+#include "spdif_match_table.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -155,6 +156,16 @@ static const char *const spdifin_samplerate[] = {
 	"176400",
 	"192000"
 };
+
+int spdifout_get_lane_mask_version(int id)
+{
+	int ret = SPDIFOUT_LANE_MASK_V1;
+
+	if (spdif_priv[id] && spdif_priv[id]->chipinfo)
+		ret = spdif_priv[id]->chipinfo->spdifout_lane_mask;
+
+	return ret;
+}
 
 static int spdifin_samplerate_get_enum(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
@@ -1019,6 +1030,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int bit_depth = 0;
 	unsigned int fifo_id = 0;
+	int separated = 0;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -1052,10 +1064,14 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		/* TOHDMITX_CTRL0
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
-		spdifout_to_hdmitx_ctrl(p_spdif->id);
-		/* notify to hdmitx */
-		spdif_notify_to_hdmitx(substream);
-
+		if (p_spdif->chipinfo)
+			separated = p_spdif->chipinfo->separate_tohdmitx_en;
+		//spdifout_to_hdmitx_ctrl(separated, p_spdif->id);
+		enable_spdifout_to_hdmitx(separated);
+		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
+			/* notify to hdmitx */
+			spdif_notify_to_hdmitx(substream);
+		}
 	} else {
 		struct toddr *to = p_spdif->tddr;
 		struct toddr_fmt fmt;
@@ -1453,6 +1469,7 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	struct spdif_chipinfo *p_spdif_chipinfo;
 	int ret = 0;
 	bool spdif_reenable = false;
+	int separated = 0;
 
 	aml_spdif = devm_kzalloc(dev, sizeof(struct aml_spdif), GFP_KERNEL);
 	if (!aml_spdif)
@@ -1474,6 +1491,10 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 		aml_spdif->chipinfo = p_spdif_chipinfo;
 
 		spdif_reenable = p_spdif_chipinfo->same_src_spdif_reen;
+
+		if (p_spdif_chipinfo->sample_mode_filter_en)
+			aml_spdifin_sample_mode_filter_en();
+		separated = p_spdif_chipinfo->separate_tohdmitx_en;
 	} else {
 		dev_warn_once(dev, "check to update spdif chipinfo\n");
 	}
@@ -1494,7 +1515,9 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	ret = aml_spdif_parse_of(pdev);
 	if (ret)
 		return -EINVAL;
-
+	/* spdif out play zero data at uboot stage */
+	/* if (aml_spdif->clk_cont && aml_spdif->id == 0) */
+	/*	spdifout_play_with_zerodata(aml_spdif->id, spdif_reenable, separated); */
 	ret = devm_snd_soc_register_component(dev, &aml_spdif_component,
 					      &aml_spdif_dai[aml_spdif->id],
 					      1);

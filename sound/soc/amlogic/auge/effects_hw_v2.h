@@ -8,7 +8,15 @@
 #include <linux/types.h>
 #include "ddr_mngr.h"
 
-void aed_set_ram_coeff(int add, int len, unsigned int *params);
+enum {
+	VERSION1 = 0,
+	VERSION2,
+	VERSION3,
+	VERSION4
+};
+
+void aed_init_ram_coeff(int version, int add, int len, unsigned int *params);
+void aed_set_ram_coeff(int version, int add, int len, unsigned int *params);
 void aed_get_ram_coeff(int add, int len, unsigned int *params);
 void aed_set_multiband_drc_coeff(int band, unsigned int *params);
 void aed_get_multiband_drc_coeff(int band, unsigned int *params);

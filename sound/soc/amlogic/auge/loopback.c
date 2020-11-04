@@ -685,7 +685,12 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 
 			aml_toddr_enable(p_loopback->tddr, true);
 			/* loopback */
-			lb_enable(p_loopback->id, true);
+			if (p_loopback->chipinfo)
+				lb_enable(p_loopback->id,
+					  true,
+					  p_loopback->chipinfo->chnum_en);
+			else
+				lb_enable(p_loopback->id, true, true);
 			/* tdminLB */
 			tdminlb_enable(p_loopback->datalb_src, true);
 			/* pdm */
@@ -710,7 +715,12 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 				pdm_enable(0);
 
 			/* loopback */
-			lb_enable(p_loopback->id, false);
+			if (p_loopback->chipinfo)
+				lb_enable(p_loopback->id,
+					  false,
+					  p_loopback->chipinfo->chnum_en);
+			else
+				lb_enable(p_loopback->id, false, true);
 			/* tdminLB */
 			tdminlb_fifo_enable(false);
 			tdminlb_enable(p_loopback->datalb_src, false);

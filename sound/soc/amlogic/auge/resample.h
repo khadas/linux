@@ -22,4 +22,6 @@ int get_resample_version_id(enum resample_idx id);
 
 bool get_resample_enable(enum resample_idx id);
 
+bool get_resample_enable_chnum_sync(enum resample_idx id);
+
 #endif
