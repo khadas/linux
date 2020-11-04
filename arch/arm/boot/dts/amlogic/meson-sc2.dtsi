@@ -1381,6 +1381,12 @@
 		interrupt-names = "vsync";
 	};
 
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+
 	vpu_security{
 		compatible = "amlogic, meson-sc2, vpu_security";
 		dev_name = "amlogic-vpu-security";
