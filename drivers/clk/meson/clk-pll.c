@@ -649,7 +649,7 @@ static int meson_secure_clk_pll_enable(struct clk_hw *hw)
 #endif
 	} else {
 		rate = meson_clk_pll_recalc_rate(hw, clk_hw_get_rate(parent));
-		rate = meson_clk_pll_round_rate(hw, rate, NULL);
+		rate = meson_secure_clk_pll_round_rate(hw, rate, NULL);
 	}
 
 	return meson_secure_clk_pll_set_rate(hw, rate, clk_hw_get_rate(parent));

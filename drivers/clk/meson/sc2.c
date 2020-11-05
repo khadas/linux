@@ -183,6 +183,7 @@ static struct clk_regmap sc2_sys_pll_dco = {
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		/* This clock feeds the CPU, avoid disabling it */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -583,7 +584,7 @@ static struct clk_regmap sc2_gp1_pll_dco = {
 		},
 		.num_parents = 1,
 		/* This clock feeds the DSU, avoid disabling it */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
 	},
 };
 
@@ -990,7 +991,7 @@ static struct clk_regmap sc2_dsu_clk = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk",
-		.ops = &clk_regmap_secure_mux_ro_ops,
+		.ops = &clk_regmap_secure_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&sc2_cpu_clk.hw,
 			&sc2_dsu_final_clk.hw,
