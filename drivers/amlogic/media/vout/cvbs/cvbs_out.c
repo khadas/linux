@@ -61,6 +61,11 @@
 #endif
 #include <linux/amlogic/gki_module.h>
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+/* interrupt source */
+#define INT_VIU_VSYNC    35
+#endif
+
 const char *cvbs_mode_t[] = {
 	"480cvbs",
 	"576cvbs",
@@ -166,6 +171,14 @@ static struct vinfo_s cvbs_info[] = {
 	},
 };
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+static struct cc_ring_mgr_s cc_ringbuf;
+static spinlock_t tvout_clk_lock;
+static unsigned int vsync_empty_flag;
+static unsigned int vsync_empty_flag_evn;
+static unsigned int vsync_empty_flag_odd;
+#endif
+
 /*bit[0]: 0=vid_pll, 1=gp0_pll*/
 /*bit[1]: 0=vid2_clk, 1=vid1_clk*/
 unsigned int cvbs_clk_path;
@@ -174,7 +187,6 @@ static struct cvbs_drv_s *cvbs_drv;
 static enum cvbs_mode_e local_cvbs_mode;
 static unsigned int vdac_gsw_config;
 static DEFINE_MUTEX(setmode_mutex);
-static DEFINE_MUTEX(CC_mutex);
 
 static int cvbs_vdac_power_level;
 static ssize_t aml_CVBS_attr_vdac_power_show(struct class *class,
@@ -517,46 +529,65 @@ static int cvbs_release(struct inode *inode, struct file *file)
 static long cvbs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
 	unsigned int CC_2byte_data = 0;
+	unsigned long flags = 0;
 	void __user *argp = (void __user *)arg;
-
-	cvbs_log_info("[cvbs..] %s: cmd_nr = 0x%x\n", __func__, _IOC_NR(cmd));
+#endif
+	cvbs_log_info("[cvbs..] %s: cmd_nr = 0x%x\n",
+			__func__, _IOC_NR(cmd));
 	if (_IOC_TYPE(cmd) != _TM_V) {
 		cvbs_log_err("%s invalid command: %u\n", __func__, cmd);
 		return -ENOTTY;
 	}
 	switch (cmd) {
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
 	case VOUT_IOC_CC_OPEN:
+		spin_lock_irqsave(&tvout_clk_lock, flags);
+		memset(&cc_ringbuf, 0, sizeof(struct cc_ring_mgr_s));
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x3, 0, 2);
 		break;
 	case VOUT_IOC_CC_CLOSE:
+		spin_lock_irqsave(&tvout_clk_lock, flags);
+		memset(&cc_ringbuf, 0, sizeof(struct cc_ring_mgr_s));
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 0, 2);
 		break;
 	case VOUT_IOC_CC_DATA: {
-		struct vout_ccparm_s parm = {0};
+		struct vout_cc_parm_s parm = {0};
 
-		mutex_lock(&CC_mutex);
+		spin_lock_irqsave(&tvout_clk_lock, flags);
 		if (copy_from_user(&parm, argp,
-				   sizeof(struct vout_ccparm_s))) {
+				sizeof(struct vout_cc_parm_s))) {
 			cvbs_log_err("VOUT_IOC_CC_DATAinvalid parameter\n");
 			ret = -EFAULT;
-			mutex_unlock(&CC_mutex);
+			spin_unlock_irqrestore(&tvout_clk_lock, flags);
 			break;
 		}
-		/*cc standerd:nondisplay control byte + display control byte*/
-		/*our chip high-low 16bits is opposite*/
+
+		if (parm.type != 0) {
+			spin_unlock_irqrestore(&tvout_clk_lock, flags);
+			break;
+		}
+		/* cc standerd:nondisplay control byte + display control byte */
+		/* our chip high-low 16bits is opposite */
 		CC_2byte_data = parm.data2 << 8 | parm.data1;
-		if (parm.type == 0)
-			cvbs_out_reg_write(ENCI_VBI_CCDT_EVN, CC_2byte_data);
-		else if (parm.type == 1)
-			cvbs_out_reg_write(ENCI_VBI_CCDT_ODD, CC_2byte_data);
-		else
-			cvbs_log_err("CC type:%d,Unknown.\n", parm.type);
-		cvbs_log_info("VOUT_IOC_CC_DATA..type:%d,0x%x\n",
-			      parm.type, CC_2byte_data);
-		mutex_unlock(&CC_mutex);
+		if ((cc_ringbuf.wp + 1) % MAX_RING_BUFF_LEN != cc_ringbuf.rp) {
+			cc_ringbuf.cc_data[cc_ringbuf.wp].type = parm.type;
+			cc_ringbuf.cc_data[cc_ringbuf.wp].data = CC_2byte_data;
+			cc_ringbuf.wp = (cc_ringbuf.wp + 1) %
+					MAX_RING_BUFF_LEN;
+			/* vout_log_info("CCringbuf Write :0x%x wp:%d\n", */
+			/* CC_2byte_data, cc_ringbuf.wp); */
+		} else {
+			cvbs_log_err("CCringbuf is FULL!! can't write.\n");
+		}
+
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		break;
 	}
+#endif
 	default:
 		ret = -ENOIOCTLCMD;
 		cvbs_log_err("%s %d is not supported command\n",
@@ -1720,6 +1751,72 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 };
 #endif
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+static irqreturn_t tvout_vsync_isr(int irq, void *dev_id)
+{
+	unsigned int CC_2byte_data;
+	unsigned long flags = 0;
+	struct vout_cc_parm_s parm = {0};
+
+	spin_lock_irqsave(&tvout_clk_lock, flags);
+	if (cc_ringbuf.rp != cc_ringbuf.wp) {
+		parm.type = cc_ringbuf.cc_data[cc_ringbuf.rp].type;
+		CC_2byte_data = cc_ringbuf.cc_data[cc_ringbuf.rp].data;
+		vsync_empty_flag = 0;
+		vsync_empty_flag_evn = 0;
+		vsync_empty_flag_odd = 0;
+	} else {
+		if (vsync_empty_flag == 0) {
+			if ((cvbs_out_reg_read(ENCI_INFO_READ) &
+							0x20000000) == 0x0) {
+				cvbs_out_reg_write(ENCI_VBI_CCDT_EVN, 0x8080);
+				vsync_empty_flag_evn = 1;
+			} else {
+				cvbs_out_reg_write(ENCI_VBI_CCDT_ODD, 0x8080);
+				vsync_empty_flag_odd = 1;
+			}
+			vsync_empty_flag = vsync_empty_flag_evn &
+					vsync_empty_flag_odd;
+		}
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	if (parm.type == 0) {
+		if ((((CC_2byte_data >> 8) & 0x7f) >= 0x1) &&
+				(((CC_2byte_data >> 8) & 0x7f) < 0x10)) {
+			if ((cvbs_out_reg_read(ENCI_INFO_READ) &
+							0x20000000) != 0x0) {
+				cvbs_out_reg_write(ENCI_VBI_CCDT_ODD,
+								CC_2byte_data);
+				if (((cvbs_out_reg_read(ENCI_INFO_READ) >> 16) &
+							0xff) <= 0x15)
+					cc_ringbuf.rp = (cc_ringbuf.rp +
+							1) % MAX_RING_BUFF_LEN;
+			} else {
+				cvbs_out_reg_write(ENCI_VBI_CCDT_ODD, 0x8080);
+			}
+		} else {
+			if ((cvbs_out_reg_read(ENCI_INFO_READ) &
+						0x20000000) == 0x0){
+				cvbs_out_reg_write(ENCI_VBI_CCDT_EVN,
+						CC_2byte_data);
+				if (((cvbs_out_reg_read(ENCI_INFO_READ) >>
+							16) & 0xff) <= 0x15)
+					cc_ringbuf.rp = (cc_ringbuf.rp +
+						1) % MAX_RING_BUFF_LEN;
+			} else {
+				cvbs_out_reg_write(ENCI_VBI_CCDT_EVN, 0x8080);
+			}
+		}
+	} else {
+		cvbs_log_err("vsync_isr.type:%d Unknown\n", parm.type);
+	}
+	spin_unlock_irqrestore(&tvout_clk_lock, flags);
+	return IRQ_HANDLED;
+}
+#endif
+
 static int cvbsout_probe(struct platform_device *pdev)
 {
 	int  ret;
@@ -1727,6 +1824,12 @@ static int cvbsout_probe(struct platform_device *pdev)
 
 	cvbs_clk_path = 0;
 	local_cvbs_mode = MODE_MAX;
+
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	memset(&cc_ringbuf, 0, sizeof(struct cc_ring_mgr_s));
+	cc_ringbuf.max_len = MAX_RING_BUFF_LEN;
+	spin_lock_init(&tvout_clk_lock);
+#endif
 
 	cvbs_drv = kzalloc(sizeof(*cvbs_drv), GFP_KERNEL);
 	if (!cvbs_drv)
@@ -1764,6 +1867,15 @@ static int cvbsout_probe(struct platform_device *pdev)
 		goto cvbsout_probe_err;
 	}
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	if (request_irq(INT_VIU_VSYNC, &tvout_vsync_isr,
+		IRQF_SHARED, "tvout_vsync", (void *)"tvout_vsync")) {
+		cvbs_log_err("can't request vsync_irq for tvout\n");
+	} else {
+		cvbs_log_info("request tvout vsync_irq successful\n");
+	}
+#endif
+
 	INIT_DELAYED_WORK(&cvbs_drv->vdac_dwork, cvbs_vdac_dwork);
 	cvbs_log_info("%s OK\n", __func__);
 	return 0;
@@ -1778,6 +1890,9 @@ static int cvbsout_remove(struct platform_device *pdev)
 {
 	int i;
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	free_irq(INT_VIU_VSYNC, (void *)"tvout_vsync");
+#endif
 	cvbsout_clktree_remove(&pdev->dev);
 
 	if (cvbs_drv->base_class) {
@@ -1838,6 +1953,10 @@ int __init cvbs_init_module(void)
 		cvbs_log_err("%s failed to register module\n", __func__);
 		return -ENODEV;
 	}
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	memset(&cc_ringbuf, 0, sizeof(struct cc_ring_mgr_s));
+	cc_ringbuf.max_len = MAX_RING_BUFF_LEN;
+#endif
 	return 0;
 }
 

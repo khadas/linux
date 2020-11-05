@@ -35,9 +35,12 @@
 
 #define _TM_V 'V'
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+#define MAX_RING_BUFF_LEN 128
 #define VOUT_IOC_CC_OPEN           _IO(_TM_V, 0x01)
 #define VOUT_IOC_CC_CLOSE          _IO(_TM_V, 0x02)
-#define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_ccparm_s)
+#define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_cc_parm_s)
+#endif
 
 struct reg_s {
 	unsigned int reg;
@@ -101,11 +104,26 @@ struct cvbs_drv_s {
 
 static  DEFINE_MUTEX(cvbs_mutex);
 
-struct vout_ccparm_s {
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+struct cc_parm_s {
+	unsigned int type;
+	unsigned int data;
+};
+
+struct cc_ring_mgr_s {
+	unsigned int max_len;
+	unsigned int rp;
+	unsigned int wp;
+	int over_flag;
+	struct cc_parm_s cc_data[MAX_RING_BUFF_LEN];
+};
+
+struct vout_cc_parm_s {
 	unsigned int type;
 	unsigned char data1;
 	unsigned char data2;
 };
+#endif
 
 struct cvbsregs_set_t {
 	enum cvbs_mode_e cvbsmode;

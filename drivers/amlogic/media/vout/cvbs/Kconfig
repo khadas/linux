@@ -21,3 +21,10 @@ config AMLOGIC_WSS
 		base on amlogic cvbs output driver.
 		function cgms-a,wide screen,closed caption.
 
+config AML_VOUT_CC_BYPASS
+        bool "closed caption bypass"
+        default n
+        depends on AMLOGIC_CVBS_OUTPUT
+        help
+                add cvbsout closed caption bypass function
+

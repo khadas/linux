@@ -638,6 +638,15 @@
  */
 #define VPU_VIU_VENC_MUX_CTRL                      0x271a
 
+/* ********************************
+ * [ 31 : 29 ] R,Current ENCI field status;
+ * [ 28 : 25 ] R,Reserved;
+ * [ 24 : 16 ] R,Current ENCI line counter status;
+ * [ 15 : 11 ] R,Reserved;
+ * [ 10 : 0 ] R,Current ENCI pixel counter status
+ */
+#define ENCI_INFO_READ                           0x271c
+
 /*Bit  6 RW, gclk_mpeg_vpu_misc
  *Bit  5 RW, gclk_mpeg_venc_l_top
  *Bit  4 RW, gclk_mpeg_vencl_int
