@@ -1533,6 +1533,34 @@
 		reg = <0xff040000 0x100>;
 		power-domains = <&pwrdm PDID_SC2_GE2D>;
 	};
+
+	aml_bt: aml_bt {
+		compatible = "amlogic, aml-bt";
+		status = "disabled";
+	};
+
+	aml_wifi: aml_wifi {
+		compatible = "amlogic, aml-wifi";
+		status = "disabled";
+		irq_trigger_type = "GPIO_IRQ_LOW";
+		/* dhd_static_buf; */ /* if use bcm wifi, config dhd_static_buf */
+		//pinctrl-0 = <&pwm_e_pins>;
+		//pinctrl-names = "default";
+		pwm_config = <&wifi_pwm_conf>;
+	};
+
+	wifi_pwm_conf:wifi_pwm_conf{
+		pwm_channel1_conf {
+			pwms = <&pwm_ef 0 30541 0>;
+			duty-cycle = <15270>;
+			times = <7>;
+		};
+		pwm_channel2_conf {
+			pwms = <&pwm_ef 2 30500 0>;
+			duty-cycle = <15250>;
+			times = <10>;
+		};
+	};
 };
 
 &periphs_pinctrl {
@@ -2051,6 +2079,7 @@
 		mux {
 			groups = "pwm_e";
 			function = "pwm_e";
+			drive-strength-microamp = <500>;
 		};
 	};
 
