@@ -1158,9 +1158,6 @@ void earc_hdmitx_hpdst(bool st)
 		__func__,
 		st ? "plugin" : "plugout");
 
-	/* ensure clock gate */
-	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x1 << 6, 0x1 << 6);
-
 	if (!p_earc->rx_bootup_auto_cal) {
 		p_earc->rx_bootup_auto_cal = true;
 		p_earc->event |= EVENT_RX_ANA_AUTO_CAL;
