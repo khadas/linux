@@ -807,7 +807,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	meson_ports[pdev->id] = mup;
 
 	/* reset port before registering (and possibly registering console) */
-	if (meson_uart_request_port(port) > 0) {
+	if (meson_uart_request_port(port) >= 0) {
 		meson_uart_reset(port);
 		meson_uart_release_port(port);
 	}

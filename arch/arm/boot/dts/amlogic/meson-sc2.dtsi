@@ -942,7 +942,7 @@
 		};
 
 		uart_A: serial@fe078000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			reg = <0xfe078000 0x18>;
 			interrupts = <0 168 1>;
 			status = "disabled";
@@ -957,7 +957,7 @@
 		};
 
 		uart_C: serial@fe07c000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			reg = <0xfe07c000 0x18>;
 			interrupts = <0 170 1>;
 			status = "disabled";
@@ -971,7 +971,7 @@
 		};
 
 		uart_D: serial@fe07e000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			status = "disabled";
 			reg = <0xfe07e000 0x18>;
 			interrupts = <0 171 1>;
@@ -985,7 +985,7 @@
 		};
 
 		uart_E: serial@fe080000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			status = "disabled";
 			reg = <0xfe080000 0x18>;
 			interrupts = <0 172 1>;
