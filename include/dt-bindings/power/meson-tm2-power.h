@@ -22,5 +22,10 @@
 #define PWRC_TM2_DSPA_ID		12
 #define PWRC_TM2_DSPB_ID		13
 #define PWRC_TM2_DEMOD_ID		14
+#define PWRC_TM2_EMMCB_ID		15
+#define PWRC_TM2_EMMCC_ID		16
+#define PWRC_TM2_TVFE_ID		17
+#define PWRC_TM2_ACODEC_ID		18
+#define PWRC_TM2_ATVDEMOD_ID		19
 
 #endif

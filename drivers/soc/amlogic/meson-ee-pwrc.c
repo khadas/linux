@@ -41,6 +41,7 @@
 #define TM2_HHI_VPU_MEM_PD_REG4		(0x4c << 2)
 #define HHI_DEMOD_MEM_PD_REG		(0x043 << 2)
 #define HHI_DSP_MEM_PD_REG0		(0x044 << 2)
+#define HHI_MEM_PD_REG1			(0x35 << 2)
 
 #define DOS_MEM_PD_VDEC			(0x0 << 2)
 #define DOS_MEM_PD_HCODEC		(0x2 << 2)
@@ -130,6 +131,12 @@ static struct meson_ee_pwrc_top_domain tm2_pwrc_pcieb = TM2_EE_PD(20);
 static struct meson_ee_pwrc_top_domain tm2_pwrc_dspa = TM2_EE_PD(21);
 static struct meson_ee_pwrc_top_domain tm2_pwrc_dspb = TM2_EE_PD(22);
 static struct meson_ee_pwrc_top_domain tm2_pwrc_demod = TM2_EE_PD(23);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_audio = TM2_EE_PD(11);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_emmcb = TM2_EE_PD(9);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_emmcc = TM2_EE_PD(10);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_tvfe = TM2_EE_PD(12);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_acodec = TM2_EE_PD(13);
+static struct meson_ee_pwrc_top_domain tm2_pwrc_atvdemod = TM2_EE_PD(14);
 
 /* Memory PD Domains */
 
@@ -260,19 +267,7 @@ static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_ge2d[] = {
 };
 
 static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_audio[] = {
-	{ HHI_MEM_PD_REG0, GENMASK(5, 4) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(1, 0) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(3, 2) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(5, 4) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(7, 6) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(13, 12) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(15, 14) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(17, 16) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(19, 18) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(21, 20) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(23, 22) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(25, 24) },
-	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(27, 26) },
+	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(31, 16) },
 };
 
 static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_vdec[] = {
@@ -306,6 +301,26 @@ static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_dspb[] = {
 static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_demod[] = {
 	{ HHI_DEMOD_MEM_PD_REG, GENMASK(11, 0) },
 	{ HHI_DEMOD_MEM_PD_REG, BIT(13) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_emmcb[] = {
+	{ HHI_MEM_PD_REG1, GENMASK(11, 10) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_emmcc[] = {
+	{ HHI_MEM_PD_REG1, GENMASK(9, 8) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_tvfe[] = {
+	{ HHI_MEM_PD_REG1, GENMASK(7, 6) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_acodec[] = {
+	{ HHI_MEM_PD_REG1, GENMASK(19, 18) },
+};
+
+static struct meson_ee_pwrc_mem_domain tm2_pwrc_mem_atvdemod[] = {
+	{ HHI_MEM_PD_REG1, GENMASK(5, 4) },
 };
 
 #define VPU_PD(__name, __top_pd, __mem, __get_power, __resets,		\
@@ -389,8 +404,8 @@ static struct meson_ee_pwrc_domain_desc tm2_pwrc_domains[] = {
 				    0),
 	[PWRC_TM2_GE2D_ID] = TOP_PD("GE2D", &tm2_pwrc_ge2d, tm2_pwrc_mem_ge2d,
 				    pwrc_ee_get_power, 1, PWRC_TM2_GE2D_ID, 0),
-	[PWRC_TM2_AUDIO_ID] = MEM_PD("AUDIO", tm2_pwrc_mem_audio,
-				     PWRC_TM2_AUDIO_ID, 0),
+	[PWRC_TM2_AUDIO_ID] = TOP_PD("AUDIO", &tm2_pwrc_audio, tm2_pwrc_mem_audio,
+				     pwrc_ee_get_power, 1, PWRC_TM2_AUDIO_ID, GENPD_FLAG_ALWAYS_ON),
 	[PWRC_TM2_ETH_ID] = MEM_PD("ETH", g12a_pwrc_mem_eth, PWRC_TM2_ETH_ID,
 					0),
 	[PWRC_TM2_VDEC_ID] = TOP_PD("VDEC", &tm2_pwrc_vdec, tm2_pwrc_mem_vdec,
@@ -415,6 +430,21 @@ static struct meson_ee_pwrc_domain_desc tm2_pwrc_domains[] = {
 	[PWRC_TM2_DEMOD_ID] = TOP_PD("DEMOD", &tm2_pwrc_demod,
 				tm2_pwrc_mem_demod, pwrc_ee_get_power,
 				1, PWRC_TM2_DEMOD_ID, 0),
+	[PWRC_TM2_EMMCB_ID] = TOP_PD("EMMCB", &tm2_pwrc_emmcb,
+				tm2_pwrc_mem_emmcb, pwrc_ee_get_power,
+				1, PWRC_TM2_EMMCB_ID, 0),
+	[PWRC_TM2_EMMCC_ID] = TOP_PD("EMMCC", &tm2_pwrc_emmcc,
+				tm2_pwrc_mem_emmcc, pwrc_ee_get_power,
+				1, PWRC_TM2_EMMCC_ID, 0),
+	[PWRC_TM2_TVFE_ID] = TOP_PD("TVFE", &tm2_pwrc_tvfe,
+				tm2_pwrc_mem_tvfe, pwrc_ee_get_power,
+				1, PWRC_TM2_TVFE_ID, 0),
+	[PWRC_TM2_ACODEC_ID] = TOP_PD("ACODEC", &tm2_pwrc_acodec,
+				tm2_pwrc_mem_acodec, pwrc_ee_get_power,
+				1, PWRC_TM2_ACODEC_ID, 0),
+	[PWRC_TM2_ATVDEMOD_ID] = TOP_PD("ATVDEMOD", &tm2_pwrc_atvdemod,
+				tm2_pwrc_mem_atvdemod, pwrc_ee_get_power,
+				1, PWRC_TM2_ATVDEMOD_ID, 0),
 };
 
 static const struct regmap_config dos_regmap_config = {
