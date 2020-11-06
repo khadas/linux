@@ -1346,7 +1346,7 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "disabled";
+			status = "okay";
 			compatible = "amlogic, meson-cooldev";
 			cooling_devices {
 				cpucore_cool_cluster0 {
@@ -1356,17 +1356,11 @@
 				};
 				gpufreq_cool {
 					dyn_coeff = <140>;
-					node_name = "gpufreq_cool0";
+					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
 			};
 			cpucore_cool0:cpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-			gpufreq_cool0:gpufreq_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-			gpucore_cool0:gpucore_cool0 {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 		};/*meson cooling devices end*/
@@ -1394,20 +1388,19 @@
 					type = "critical";
 				};
 			};
-/*
- *			cooling-maps {
- *				cpufreq_cooling_map {
- *					trip = <&pcontrol>;
- *					cooling-device = <&cpufreq_cool0 0 6>;
- *					contribution = <1024>;
- *				};
- *				gpufreq_cooling_map {
- *					trip = <&pcontrol>;
- *					cooling-device = <&gpufreq_cool0 0 3>;
- *					contribution = <1024>;
- *				};
- *			};
- */
+
+			cooling-maps {
+				cpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&cpu0 0 8>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+			};
 		};
 		ddr_thermal: ddr_thermal {
 			polling-delay = <2000>;
