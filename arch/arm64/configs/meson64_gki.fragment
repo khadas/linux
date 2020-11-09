@@ -631,6 +631,9 @@ CONFIG_EXFAT_FS=m
 
 CONFIG_AMLOGIC_MEDIA_V4L_DEC=y
 
+# aml_pcie_v2.ko
+CONFIG_AMLOGIC_PCIE=m
+
 # CONFIG_USB_DUMMY_HCD is not set
 
 ### clang may cause ftrace panic, disable temporary

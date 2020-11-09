@@ -20,6 +20,8 @@ sed -i 's/CONFIG_AMLOGIC_USB_HOST_ELECT_TEST=m/CONFIG_AMLOGIC_USB_HOST_ELECT_TES
 sed -i 's/CONFIG_AMLOGIC_USBPHY=m/CONFIG_AMLOGIC_USBPHY=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB2PHY=m/CONFIG_AMLOGIC_USB2PHY=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB3PHY=m/CONFIG_AMLOGIC_USB3PHY=y/' arch/arm64/configs/meson64_gki.fragment.m
+sed -i 's/CONFIG_AMLOGIC_PINCTRL_MODULE=m/CONFIG_AMLOGIC_PINCTRL_MODULE=y/' arch/arm64/configs/meson64_gki.fragment.m
+sed -i 's/CONFIG_AMLOGIC_PCIE=m/CONFIG_AMLOGIC_PCIE=y/' arch/arm64/configs/meson64_gki.fragment.m
 cat arch/arm64/configs/gki_defconfig arch/arm64/configs/meson64_gki.fragment.m > arch/arm64/configs/meson64_tmp_defconfig
 rm arch/arm64/configs/meson64_gki.fragment.m
 
