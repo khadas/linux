@@ -630,3 +630,8 @@ CONFIG_AMLOGIC_BT_DEVICE=y
 CONFIG_EXFAT_FS=m
 
 CONFIG_AMLOGIC_MEDIA_V4L_DEC=y
+
+# CONFIG_USB_DUMMY_HCD is not set
+
+### clang may cause ftrace panic, disable temporary
+# CONFIG_DYNAMIC_FTRACE is not set
