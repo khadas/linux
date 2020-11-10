@@ -1422,6 +1422,11 @@
 		memory-region = <&ion_cma_reserved>;
 	};
 
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
 	fb: fb {
 		compatible = "amlogic, fb-sc2";
 		memory-region = <&logo_reserved>;
