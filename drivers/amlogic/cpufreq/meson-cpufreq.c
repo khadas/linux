@@ -159,7 +159,7 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 			if (ret) {
 				pr_err("%s: CPU%d clk_prepare_enable failed\n",
 					__func__, policy->cpu);
-				return ret;
+				goto out;
 			}
 		}
 
@@ -167,35 +167,35 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 		if (ret) {
 			pr_err("%s: error in setting low_freq_clk_p as parent\n",
 				__func__);
-			return ret;
+			goto out;
 		}
 
 		ret = clk_set_rate(high_freq_clk_p, new_rate * 1000);
 		if (ret) {
 			pr_err("%s: error in setting high_freq_clk_p rate!\n",
 				__func__);
-			return ret;
+			goto out;
 		}
 
 		ret = clk_set_parent(clk[cur_cluster], high_freq_clk_p);
 		if (ret) {
 			pr_err("%s: error in setting high_freq_clk_p as parent\n",
 				__func__);
-			return ret;
+			goto out;
 		}
 	} else {
 		ret = clk_set_rate(low_freq_clk_p, new_rate * 1000);
 		if (ret) {
 			pr_err("%s: error in setting low_freq_clk_p rate!\n",
 				__func__);
-			return ret;
+			goto out;
 		}
 
 		ret = clk_set_parent(clk[cur_cluster], low_freq_clk_p);
 		if (ret) {
 			pr_err("%s: error in setting low_freq_clk_p rate!\n",
 				__func__);
-			return ret;
+			goto out;
 		}
 
 		if (__clk_get_enable_count(high_freq_clk_p) >= 1)
@@ -215,15 +215,13 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 			ret = -EIO;
 	}
 
-	if (WARN_ON(ret)) {
+	if (WARN_ON(ret))
 		pr_err("clk_set_rate failed: %d, new cluster: %d\n", ret,
 				cur_cluster);
-		mutex_unlock(&cluster_lock[cur_cluster]);
-		return ret;
-	}
 
+out:
 	mutex_unlock(&cluster_lock[cur_cluster]);
-	return 0;
+	return ret;
 }
 
 static int meson_regulator_set_volate(struct regulator *regulator, int old_uv,
