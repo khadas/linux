@@ -1065,7 +1065,7 @@ static u64 read_mono_clock_cycles(struct evl_clock *clock)
 
 static ktime_t read_realtime_clock(struct evl_clock *clock)
 {
-	return ktime_get_real_fast();
+	return ns_to_ktime(ktime_get_real_fast_ns());
 }
 
 static u64 read_realtime_clock_cycles(struct evl_clock *clock)
