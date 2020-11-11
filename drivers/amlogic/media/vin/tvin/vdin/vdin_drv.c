@@ -4165,6 +4165,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		} else {
 			clk_set_parent(vdevp->msr_clk, fclk_div5);
 			clk_set_rate(vdevp->msr_clk, 50000000);
+			clk_prepare_enable(vdevp->msr_clk);
 			if (!IS_ERR(vdevp->msr_clk)) {
 				vdevp->msr_clk_val =
 					clk_get_rate(vdevp->msr_clk);
