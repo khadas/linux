@@ -387,6 +387,10 @@ int mmc_of_parse(struct mmc_host *host)
 		mmc->debug_flag = 0;
 	else
 		mmc->debug_flag = 1;
+	if (device_property_read_bool(dev, "mmc-run-pxp"))
+		mmc->run_pxp_flag = 1;
+	else
+		mmc->run_pxp_flag = 0;
 #endif
 	return mmc_pwrseq_alloc(host);
 }

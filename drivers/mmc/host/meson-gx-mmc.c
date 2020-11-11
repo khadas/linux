@@ -373,6 +373,9 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 {
 	struct mmc_host *mmc = host->mmc;
 	int ret;
+	u32 clk_src, val;
+	u32 clk_div;
+	unsigned long src_rate;
 	u32 cfg;
 
 	/* Same request - bail-out */
@@ -404,45 +407,52 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 	writel(cfg, host->regs + SD_EMMC_CFG);
 	host->ddr = ddr;
 
-	if (rate <= 24000000) {
-		ret = clk_set_parent(host->mux[0], host->clk[0]);
-		if (ret) {
-			dev_err(host->dev, "SET 24M parent error!\n");
-			return ret;
-		}
-	} else {
-		if (rate > 200000000) {
-			ret = clk_set_parent(host->mux[0], host->clk[2]);
+	if (host->run_pxp_flag == 0) {
+		if (rate <= 24000000) {
+			ret = clk_set_parent(host->mux[0], host->clk[0]);
+			if (ret) {
+				dev_err(host->dev, "SET 24M parent error!\n");
+				return ret;
+			}
 		} else {
-			ret = clk_set_parent(host->mux[0], host->clk[1]);
+			if (rate > 200000000)
+				ret = clk_set_parent(host->mux[0], host->clk[2]);
+			else
+				ret = clk_set_parent(host->mux[0], host->clk[1]);
 			if (ret) {
 				dev_err(host->dev, "SET 1188M parent error!\n");
 				return ret;
 			}
 		}
-
-		if (host->src_clk_rate != 0) {
-			if (host->debug_flag)
-				dev_notice(host->dev, "set src rate to: %u\n",
-					   host->src_clk_rate);
-			ret = clk_set_rate(host->clk[2], host->src_clk_rate);
-			if (ret) {
-				dev_err(host->dev, "!!!SET src error!\n");
-				return ret;
-			}
+		ret = clk_set_rate(host->mmc_clk, rate);
+		if (ret) {
+			dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
+				rate, ret);
+			return ret;
 		}
+
+		host->req_rate = rate;
+		mmc->actual_clock = clk_get_rate(host->mmc_clk);
+	} else {
+		if (rate <= 400000) {
+			src_rate = 24000000;
+			clk_src = 0;
+		} else {
+			src_rate = 1000000000;
+			clk_src = (1 << 6);
+		}
+		dev_err(host->dev, "clock reg 0x%x\n", readl(host->regs + SD_EMMC_CLOCK));
+		clk_div = DIV_ROUND_UP(src_rate, rate);
+		pr_info("clk_div:0x%x\n", clk_div);
+		val = readl(host->regs + SD_EMMC_CLOCK);
+		pr_info("val:0x%x\n", val);
+		val &= ~CLK_DIV_MASK;
+		val |= clk_div;
+		val &= ~CLK_SRC_MASK;
+		val |= clk_src;
+		writel(val, host->regs + SD_EMMC_CLOCK);
+		pr_info("clock reg:0x%x, rate:%lu\n", readl(host->regs + SD_EMMC_CLOCK), rate);
 	}
-
-	ret = clk_set_rate(host->mmc_clk, rate);
-	if (ret) {
-		dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
-			rate, ret);
-		return ret;
-	}
-
-	host->req_rate = rate;
-	mmc->actual_clock = clk_get_rate(host->mmc_clk);
-
 	/* We should report the real output frequency of the controller */
 	if (ddr) {
 		host->req_rate >>= 1;
@@ -529,6 +539,44 @@ static int meson_mmc_clk_init(struct meson_host *host)
 		return ret;
 
 	return clk_prepare_enable(host->mmc_clk);
+}
+
+static int meson_mmc_pxp_clk_init(struct meson_host *host)
+{
+	u32 reg_val, val;
+	struct mmc_phase *mmc_phase_init = &host->sdmmc.init;
+
+	writel(0, host->regs + SD_EMMC_V3_ADJUST);
+	writel(0, host->regs + SD_EMMC_DELAY1);
+	writel(0, host->regs + SD_EMMC_DELAY2);
+	writel(0, host->regs + SD_EMMC_CLOCK);
+
+	reg_val = 0;
+	reg_val |= CLK_ALWAYS_ON(host);
+	reg_val |= CLK_DIV_MASK;
+	writel(reg_val, host->regs + SD_EMMC_CLOCK);
+
+	val = readl(host->clk_tree_base);
+	pr_info("clk tree base:0x%x\n", val);
+	if (aml_card_type_non_sdio(host))
+		writel(0x800000, host->clk_tree_base);
+
+	else
+		writel(0x80, host->clk_tree_base);
+
+	reg_val = readl(host->regs);
+	reg_val &= ~CLK_DIV_MASK;
+	reg_val |= 60;
+	writel(reg_val, host->regs);
+
+	meson_mmc_set_phase_delay(host, CLK_CORE_PHASE_MASK,
+									mmc_phase_init->core_phase);
+	meson_mmc_set_phase_delay(host, CLK_TX_PHASE_MASK,
+									mmc_phase_init->tx_phase);
+	reg_val = readl(host->regs + SD_EMMC_CFG);
+	reg_val |= CFG_AUTO_CLK;
+	reg_val = readl(host->regs + SD_EMMC_CFG);
+	return 0;
 }
 
 static unsigned int aml_sd_emmc_clktest(struct mmc_host *mmc)
@@ -2977,6 +3025,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct meson_host), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
+
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->dev = &pdev->dev;
@@ -3078,19 +3127,23 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		host->pins_clk_gate = NULL;
 	}
 
-	host->core_clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(host->core_clk)) {
-		ret = PTR_ERR(host->core_clk);
-		goto free_host;
+	if (host->run_pxp_flag == 0) {
+		host->core_clk = devm_clk_get(&pdev->dev, "core");
+		if (IS_ERR(host->core_clk)) {
+			ret = PTR_ERR(host->core_clk);
+			goto free_host;
+		}
+
+		ret = clk_prepare_enable(host->core_clk);
+		if (ret)
+			goto free_host;
+
+		ret = meson_mmc_clk_init(host);
+		if (ret)
+			goto err_core_clk;
+	} else {
+		meson_mmc_pxp_clk_init(host);
 	}
-
-	ret = clk_prepare_enable(host->core_clk);
-	if (ret)
-		goto free_host;
-
-	ret = meson_mmc_clk_init(host);
-	if (ret)
-		goto err_core_clk;
 
 	/* set config to sane default */
 	meson_mmc_cfg_init(host);
