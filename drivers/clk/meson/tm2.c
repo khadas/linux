@@ -3147,6 +3147,62 @@ static struct clk_regmap tm2_dsi_meas = {
 	},
 };
 
+static const struct clk_parent_data tm2_vdin_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+	{ .hw = &tm2_vid_pll.hw }
+};
+
+static struct clk_regmap tm2_vdin_meas_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdin_meas_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = tm2_vdin_parent_hws,
+		.num_parents = ARRAY_SIZE(tm2_vdin_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap tm2_vdin_meas_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdin_meas_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vdin_meas_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap tm2_vdin_meas = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdin_meas",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_vdin_meas_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
 static const struct clk_parent_data tm2_vdec_mux_parent_hws[] = {
 	{ .hw = &tm2_vdec_1.hw },
 	{ .hw = &tm2_vdec_p1.hw },
@@ -4894,6 +4950,9 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_DSU_CLK_DYN]		= &tm2_dsu_clk_dyn.hw,
 		[CLKID_DSU_CLK_FINAL]		= &tm2_dsu_final_clk.hw,
 		[CLKID_DSU_CLK]			= &tm2_dsu_clk.hw,
+		[CLKID_VDIN_MEAS_MUX]		= &tm2_vdin_meas_mux.hw,
+		[CLKID_VDIN_MEAS_DIV]		= &tm2_vdin_meas_div.hw,
+		[CLKID_VDIN_MEAS]		= &tm2_vdin_meas.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -5030,6 +5089,9 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_dsi_meas_mux,
 	&tm2_dsi_meas_div,
 	&tm2_dsi_meas,
+	&tm2_vdin_meas_mux,
+	&tm2_vdin_meas_div,
+	&tm2_vdin_meas,
 	&tm2_vdec_p1_mux,
 	&tm2_vdec_p1_div,
 	&tm2_vdec_p1,
