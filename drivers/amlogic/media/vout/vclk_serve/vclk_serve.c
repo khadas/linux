@@ -217,15 +217,52 @@ void vclk_ana_reg_write(unsigned int _reg, unsigned int _value)
 void vclk_ana_reg_setb(unsigned int _reg, unsigned int _value,
 		       unsigned int _start, unsigned int _len)
 {
-	vclk_ana_reg_write(_reg, ((vclk_ana_reg_read(_reg) &
-		(~(((1L << _len) - 1) << _start))) |
-		((_value & ((1L << _len) - 1)) << _start)));
+	void __iomem *p;
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_ana_reg(_reg);
+		if (p) {
+			temp = readl(p);
+			temp = (temp & (~(((1L << _len) - 1) << _start))) |
+				((_value & ((1L << _len) - 1)) << _start);
+			writel(temp, p);
+		}
+	} else {
+		temp = aml_read_hiubus(_reg);
+		temp = (temp & (~(((1L << _len) - 1) << _start))) |
+			((_value & ((1L << _len) - 1)) << _start);
+		aml_write_hiubus(_reg, temp);
+	}
+
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
 }
 
 unsigned int vclk_ana_reg_getb(unsigned int _reg,
 			       unsigned int _start, unsigned int _len)
 {
-	return (vclk_ana_reg_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+	void __iomem *p;
+	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_ana_reg(_reg);
+		if (p)
+			val = readl(p);
+		else
+			val = 0;
+	} else {
+		val = aml_read_hiubus(_reg);
+	}
+	val = (val >> _start) & ((1L << _len) - 1);
+
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
+	return val;
 }
 
 unsigned int vclk_clk_reg_read(unsigned int _reg)
@@ -268,15 +305,52 @@ void vclk_clk_reg_write(unsigned int _reg, unsigned int _value)
 void vclk_clk_reg_setb(unsigned int _reg, unsigned int _value,
 		       unsigned int _start, unsigned int _len)
 {
-	vclk_clk_reg_write(_reg, ((vclk_clk_reg_read(_reg) &
-		(~(((1L << _len) - 1) << _start))) |
-		((_value & ((1L << _len) - 1)) << _start)));
+	void __iomem *p;
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_clk_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_clk_reg(_reg);
+		if (p) {
+			temp = readl(p);
+			temp = (temp & (~(((1L << _len) - 1) << _start))) |
+				((_value & ((1L << _len) - 1)) << _start);
+			writel(temp, p);
+		}
+	} else {
+		temp = aml_read_hiubus(_reg);
+		temp = (temp & (~(((1L << _len) - 1) << _start))) |
+			((_value & ((1L << _len) - 1)) << _start);
+		aml_write_hiubus(_reg, temp);
+	}
+
+	spin_unlock_irqrestore(&vclk_clk_lock, flags);
 }
 
 unsigned int vclk_clk_reg_getb(unsigned int _reg,
 			       unsigned int _start, unsigned int _len)
 {
-	return (vclk_clk_reg_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+	void __iomem *p;
+	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_clk_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_clk_reg(_reg);
+		if (p)
+			val = readl(p);
+		else
+			val = 0;
+	} else {
+		val = aml_read_hiubus(_reg);
+	}
+	val = (val >> _start) & ((1L << _len) - 1);
+
+	spin_unlock_irqrestore(&vclk_clk_lock, flags);
+	return val;
 }
 
 /*****************************************************************
