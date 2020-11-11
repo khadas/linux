@@ -30,7 +30,7 @@
 		part-15 = <&vbmeta_a>;
 		part-16 = <&vbmeta_b>;
 		part-17 = <&super>;
-		part-18 = <&data>;
+		part-18 = <&userdata>;
 
 		frp:frp{
 			pname = "frp";
@@ -126,9 +126,9 @@
 			size = <0x0 0x64000000>;
 			mask = <1>;
 		};
-		data:data
+		userdata:userdata
 		{
-			pname = "data";
+			pname = "userdata";
 			size = <0xffffffff 0xffffffff>;
 			mask = <4>;
 		};

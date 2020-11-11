@@ -27,7 +27,7 @@
 		part-12 = <&vbmeta>;
 		part-13 = <&super>;
 		part-14 = <&cache>;
-		part-15 = <&data>;
+		part-15 = <&userdata>;
 
 		recovery:recovery{
 			pname = "recovery";
@@ -108,9 +108,9 @@
 			size = <0x0 0x32000000>;
 			mask = <2>;
 		};
-		data:data
+		userdata:userdata
 		{
-			pname = "data";
+			pname = "userdata";
 			size = <0xffffffff 0xffffffff>;
 			mask = <4>;
 		};
