@@ -1209,7 +1209,7 @@ static int vpp_set_filters_internal
 	bool ext_sar = false;
 	bool no_compress = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
-	int is_larger_4k60hz = 0;
+	int is_larger_4k50hz = 0;
 	u32 cur_super_debug = 0;
 	u32 src_width_max, src_height_max;
 
@@ -2022,7 +2022,7 @@ RESTART:
 	} else {
 		filter->vpp_pre_hsc_en = 0;
 	/* vscaler enable
-	 * vout 4k 60hz
+	 * vout 4k 50hz
 	 * video src heiht >= 2160*60%
 	 * 4tap pre-hscaler bandwidth issue, need used old pre hscaler
 	 */
@@ -2031,12 +2031,12 @@ RESTART:
 		if (vinfo->width >= 3840 &&
 		    vinfo->height >= 2160 &&
 		    (vinfo->sync_duration_num /
-		    vinfo->sync_duration_den >= 59))
-			is_larger_4k60hz = 1;
+		    vinfo->sync_duration_den >= 50))
+			is_larger_4k50hz = 1;
 	}
 	if (pre_hscaler_ntap_set[input->layer_id] == 0xff) {
 		if (filter->vpp_pre_hsc_en &&
-		    is_larger_4k60hz &&
+		    is_larger_4k50hz &&
 		    (height_in >= 2160 * hscaler_input_h_threshold / 100) &&
 		    filter->vpp_vsc_start_phase_step != 0x1000000)
 			pre_hscaler_ntap_enable[input->layer_id] = 0;
