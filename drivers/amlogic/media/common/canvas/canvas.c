@@ -150,6 +150,8 @@ static void canvas_config_locked(u32 index, struct canvas_s *p)
 	u32 datal, datah;
 	int reg_add = -DC_CAV_LUT_DATAL;
 
+	if (!hw_canvas_support)
+		return;
 	canvas_lut_data_build(p->addr,
 			      p->width,
 			      p->height,
@@ -176,6 +178,8 @@ int canvas_read_hw(u32 index, struct canvas_s *canvas)
 	u32 datal, datah;
 	int reg_add = -DC_CAV_LUT_DATAL;
 
+	if (!hw_canvas_support)
+		return 0;
 	if (!CANVAS_VALID(index))
 		return -1;
 	datal = 0;
@@ -480,26 +484,29 @@ static struct kobj_type canvas_attr_type = {
 
 static int __init canvas_probe(struct platform_device *pdev)
 {
-	int i, r;
+	int i, r = 0;
 	struct canvas_device_info *info = NULL;
 	struct resource *res;
 	int size;
 
-	r = 0;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory region");
-		return -ENODEV;
-	}
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	info->res = *res;
-	size = (int)resource_size(res);
-	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!info->reg_base) {
-		dev_err(&pdev->dev, "devm_ioremap_nocache canvas failed!\n");
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "I/O memory region is not used\n");
+		r = -ENOMEM;
 		goto err1;
+	} else {
+		info->res = *res;
+		size = (int)resource_size(res);
+		info->reg_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!info->reg_base) {
+			dev_err(&pdev->dev,
+				"devm_ioremap_nocache canvas failed!\n");
+			goto err1;
+		}
 	}
 	amcanvas_manager_init();
 	info->max_canvas_num = canvas_pool_canvas_num();
@@ -516,8 +523,9 @@ static int __init canvas_probe(struct platform_device *pdev)
 	}
 	info->canvas_dev = pdev;
 	canvas_info = info;
-	pr_info("%s ok, reg=%lx, size=%x base =%px\n",
-		__func__, (unsigned long)res->start, size, info->reg_base);
+
+	pr_info("%s ok, reg=%lx, size=%x base =%px\n", __func__,
+		(unsigned long)res->start, size, info->reg_base);
 	return 0;
 
 err2:
@@ -525,6 +533,7 @@ err2:
 		kobject_put(&info->canvasPool[i].kobj);
 	amcanvas_manager_exit();
 err1:
+	devm_kfree(&pdev->dev, info);
 	pr_error("Canvas driver probe failed\n");
 	return r;
 }

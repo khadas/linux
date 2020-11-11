@@ -19,6 +19,7 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 
 static struct canvas_pool *global_pool;
+int hw_canvas_support;
 
 struct canvas_pool *get_canvas_pool(void)
 {
@@ -497,6 +498,11 @@ static struct class canvas_class = {
 static int canvas_pool_config(void)
 {
 	int ret;
+
+	if (is_meson_t7_cpu())
+		hw_canvas_support = 0;
+	else
+		hw_canvas_support = 1;
 
 	ret = canvas_pool_init();
 	if (ret < 0)
