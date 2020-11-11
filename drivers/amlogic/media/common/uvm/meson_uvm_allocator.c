@@ -36,6 +36,9 @@ module_param(mua_debug_level, int, 0644);
 			pr_info("MUA: " fmt, ## arg); \
 	} while (0)
 
+#define V4L2_DECODER_BUFFER_MAX_WIDTH       3840
+#define V4L2_DECODER_BUFFER_MAX_HEIGHT      2304
+
 static void mua_handle_free(struct uvm_buf_obj *obj)
 {
 	struct mua_buffer *buffer;
@@ -62,10 +65,96 @@ static int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 	val_data.width = buffer->width;
 	val_data.height = buffer->height;
 	val_data.phy_addr[0] = buffer->paddr;
-
+	MUA_PRINTK(1, "%s. width=%d height=%d byte_stride=%d\n",
+			__func__, buffer->width, buffer->height, buffer->byte_stride);
 	v4lvideo_data_copy(&val_data, dmabuf);
 
 	vunmap(vaddr);
+	return 0;
+}
+
+static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
+				   struct uvm_buf_obj *obj, int scalar)
+{
+	int i, j, num_pages;
+	struct dma_buf *idmabuf;
+	struct ion_buffer *ibuffer;
+	struct uvm_alloc_info info;
+	struct mua_buffer *buffer;
+	struct page *page;
+	struct page **tmp;
+	struct page **page_array;
+	pgprot_t pgprot;
+	void *vaddr;
+	struct sg_table *src_sgt = NULL;
+	struct scatterlist *sg = NULL;
+
+	buffer = container_of(obj, struct mua_buffer, base);
+	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d\n",
+				__func__, scalar, buffer->width, buffer->height);
+	memset(&info, 0, sizeof(info));
+
+	if (!enable_screencap && current->tgid == mdev->pid &&
+	    buffer->commit_display) {
+		MUA_PRINTK(0, "gpu_realloc: screen cap should not access the uvm buffer.\n");
+		return -ENODEV;
+	}
+	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
+			buffer->size, dmabuf->size);
+	if (1 /*!buffer->ibuffer*/) {
+		idmabuf = ion_alloc(buffer->size * scalar * scalar,
+				    (1 << ION_HEAP_TYPE_CUSTOM), 0);
+		if (IS_ERR(idmabuf)) {
+			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
+			return -ENOMEM;
+		}
+		ibuffer = idmabuf->priv;
+		if (ibuffer) {
+			src_sgt = ibuffer->sg_table;
+			page = sg_page(src_sgt->sgl);
+			buffer->paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->ibuffer = ibuffer;
+			buffer->sg_table = ibuffer->sg_table;
+
+			info.sgt = src_sgt;
+			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+		}
+	}
+
+	//start to do vmap
+	if (!buffer->sg_table) {
+		MUA_PRINTK(0, "none uvm buffer allocated.\n");
+		return -ENODEV;
+	}
+	src_sgt = buffer->sg_table;
+	num_pages = PAGE_ALIGN(buffer->size * scalar * scalar) / PAGE_SIZE;
+	tmp = vmalloc(sizeof(struct page *) * num_pages);
+	page_array = tmp;
+
+	pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	for_each_sg(src_sgt->sgl, sg, src_sgt->nents, i) {
+		int npages_this_entry =
+			PAGE_ALIGN(sg->length) / PAGE_SIZE;
+		struct page *page = sg_page(sg);
+
+		for (j = 0; j < npages_this_entry; j++)
+			*(tmp++) = page++;
+	}
+
+	vaddr = vmap(page_array, num_pages, VM_MAP, pgprot);
+	if (!vaddr) {
+		MUA_PRINTK(0, "vmap fail, size: %d\n",
+			   num_pages << PAGE_SHIFT);
+		vfree(page_array);
+		return -ENOMEM;
+	}
+	vfree(page_array);
+	MUA_PRINTK(1, "buffer vaddr: %p.\n", vaddr);
+
+	//start to filldata
+	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+
 	return 0;
 }
 
@@ -93,7 +182,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 
 	if (!enable_screencap && current->tgid == mdev->pid &&
 	    buffer->commit_display) {
-		MUA_PRINTK(0, "screen cap should not access the uvm buffer.\n");
+		MUA_PRINTK(0, "delay_alloc: screen cap should not access the uvm buffer.\n");
 		return -ENODEV;
 	}
 
@@ -193,6 +282,8 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 		info.obj = &buffer->base;
 		info.flags = data->flags;
 		info.size = data->size;
+		info.scalar = data->scalar;
+		info.gpu_realloc = mua_process_gpu_realloc;
 		info.free = mua_handle_free;
 		MUA_PRINTK(1, "UVM FLAGS is MUA_IMM_ALLOC, %px\n", info.obj);
 	} else if (data->flags & MUA_DELAY_ALLOC) {
@@ -241,8 +332,9 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int pid;
 	int ret = 0;
 	int fd = 0;
-
+	int buf_scalar = 1;
 	md = file->private_data;
+	int v4l2_decoder_max_buf_size = 0;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -252,7 +344,15 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case UVM_IOC_ALLOC:
+		v4l2_decoder_max_buf_size =
+			(V4L2_DECODER_BUFFER_MAX_WIDTH * V4L2_DECODER_BUFFER_MAX_HEIGHT) * 3 / 2;
+		buf_scalar = data.alloc_data.scalar;
+		if (buf_scalar > 1)
+			data.alloc_data.size =
+				v4l2_decoder_max_buf_size / (buf_scalar * buf_scalar);
 		data.alloc_data.size = PAGE_ALIGN(data.alloc_data.size);
+		MUA_PRINTK(1, "%s. buf_scalar=%d After PAGE_ALIGN size=%d\n",
+					__func__, buf_scalar, data.alloc_data.size);
 		dmabuf = uvm_alloc_dmabuf(data.alloc_data.size,
 					  data.alloc_data.align,
 					  data.alloc_data.flags);

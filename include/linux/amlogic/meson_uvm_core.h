@@ -96,18 +96,22 @@ struct uvm_alloc {
 	void *vaddr;
 	size_t size;
 	u64 flags;
+	int scalar;
 	struct uvm_buf_obj *obj;
 	void (*free)(struct uvm_buf_obj *obj);
 	int (*delay_alloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj);
+	int (*gpu_realloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj, int scalar);
 };
 
 struct uvm_alloc_info {
 	size_t size;
 	u64 flags;
+	int scalar;
 	struct sg_table *sgt;
 	struct uvm_buf_obj *obj;
 	void (*free)(struct uvm_buf_obj *obj);
 	int (*delay_alloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj);
+	int (*gpu_realloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj, int scalar);
 };
 
 enum uvm_hook_mod_type {
