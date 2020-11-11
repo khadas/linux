@@ -699,7 +699,7 @@ bool aml_frddr_check_fifo_count(struct frddr *fr)
 		pr_debug("i: %d, fifo cnt:[%d] cnt1:[%d] cnt2:[%d]\n", i, cnt0, cnt1, cnt2);
 		/* ddr stopped */
 		if (cnt0 == cnt1 && cnt0 == cnt2) {
-			pr_info("%s(), i (%d) cnt(%d) break out\n",
+			pr_debug("%s(), i (%d) cnt(%d) break out\n",
 				__func__, i, cnt2);
 			fifo_stop = true;
 			break;
