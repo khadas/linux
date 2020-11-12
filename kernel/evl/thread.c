@@ -1523,7 +1523,16 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 	if (in_nmi())
 		return;
 
+	/*
+	 * We might be running oob over a non-dovetailed task context
+	 * (e.g. taking a trap on top of evl_schedule() ->
+	 * run_oob_call()). In this case, there is nothing we
+	 * can/should do, just bail out.
+	 */
 	curr = evl_current();
+	if (curr == NULL)
+		return;
+
 	if (curr->local_info & T_INFAULT) {
 		note_trap(curr, trapnr, regs, "recursive fault");
 		return;
