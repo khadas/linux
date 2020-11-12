@@ -1250,8 +1250,12 @@ static int process_gdc(struct vframe_s *src_vf, struct vframe_s *dst_vf,
 	gdc_config->format = ret;
 	gdc_config->in_width = src_vf->width;
 	gdc_config->in_height = src_vf->height;
+	gdc_config->in_y_stride = src_vf->canvas0_config[0].width;
+	gdc_config->in_c_stride = src_vf->canvas0_config[1].width;
 	gdc_config->out_height = dst_vf->height;
 	gdc_config->out_width = dst_vf->width;
+	gdc_config->out_y_stride = dst_vf->canvas0_config[0].width;
+	gdc_config->out_c_stride = dst_vf->canvas0_config[1].width;
 
 	gdc_config->in_plane_num = 2;
 	gdc_config->out_plane_num = 2;
