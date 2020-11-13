@@ -59,9 +59,13 @@
 #include "gc_hal.h"
 #include "gc_hal_kernel_hardware.h"
 #include "gc_hal_kernel_hardware_fe.h"
-#include "shared/gc_hal_driver.h"
+#include "gc_hal_driver.h"
 #include "gc_hal_kernel_mutex.h"
 #include "gc_hal_metadata.h"
+
+#if gcdENABLE_SW_PREEMPTION
+#include "gc_hal_kernel_preemption.h"
+#endif
 
 
 #if gcdSECURITY || gcdENABLE_TRUST_APPLICATION
@@ -238,6 +242,9 @@ typedef enum _gceDATABASE_TYPE
     gcvDB_MAP_MEMORY,                   /* Map memory */
     gcvDB_MAP_USER_MEMORY,              /* Map user memory */
     gcvDB_SHBUF,                        /* Shared buffer. */
+#if gcdENABLE_SW_PREEMPTION
+    gcvDB_PRIORITY,
+#endif
 
     gcvDB_NUM_TYPES,
 }
@@ -318,6 +325,12 @@ gcsFDPRIVATE;
 
 typedef struct _gcsRECORDER * gckRECORDER;
 
+typedef enum _gceMMU_INIT_MODE
+{
+    gcvMMU_INIT_FROM_REG,
+    gcvMMU_INIT_FROM_CMD,
+}
+gceMMU_INIT_MODE;
 
 /* Create a process database that will contain all its allocations. */
 gceSTATUS
@@ -519,10 +532,6 @@ struct _gckDB
     gctPOINTER                  videoMemListMutex;
 };
 
-typedef struct _gckCOMMAND *        gckCOMMAND;
-
-typedef struct _gckEVENT *      gckEVENT;
-
 /* gckKERNEL object. */
 struct _gckKERNEL
 {
@@ -616,6 +625,7 @@ struct _gckKERNEL
     gctUINT32                   contiguousBaseAddress;
     gctUINT32                   externalBaseAddress;
     gctUINT32                   internalBaseAddress;
+    gctUINT32                   exclusiveBaseAddress;
 
     /* External shared SRAM. */
     gctUINT32                   extSRAMBaseAddresses[gcvSRAM_EXT_COUNT];
@@ -632,6 +642,14 @@ struct _gckKERNEL
 
     gctUINT32                   timeoutPID;
     gctBOOL                     threadInitialized;
+
+#if gcdENABLE_SW_PREEMPTION
+    gctPOINTER                  priorityQueueMutex[gcdMAX_PRIORITY_QUEUE_NUM];
+    gcsPRIORITY_QUEUE_PTR       priorityQueues[gcdMAX_PRIORITY_QUEUE_NUM];
+    gctBOOL                     priorityDBCreated[gcdMAX_PRIORITY_QUEUE_NUM];
+    gctSEMAPHORE                preemptSema;
+    gcePREEMPTION_MODE          preemptionMode;
+#endif
 };
 
 struct _FrequencyHistory
@@ -992,6 +1010,17 @@ gckEVENT_GetEvent(
 
 /* Add a new event to the list of events. */
 gceSTATUS
+gckEVENT_AddListEx(
+    IN gckEVENT Event,
+    IN gcsHAL_INTERFACE_PTR Interface,
+    IN gceKERNEL_WHERE FromWhere,
+    IN gctBOOL AllocateAllowed,
+    IN gctBOOL FromKernel,
+    IN gctUINT32 ProcessID
+    );
+
+/* Add a new event to the list of events. */
+gceSTATUS
 gckEVENT_AddList(
     IN gckEVENT Event,
     IN gcsHAL_INTERFACE_PTR Interface,
@@ -1284,6 +1313,9 @@ typedef struct _gcsVIDMEM_NODE
     /* Pointer to gcuVIDMEM_NODE. */
     gcuVIDMEM_NODE_PTR          node;
 
+    /* Pointer to gcuVIDMEM_NODE. */
+    gcuVIDMEM_NODE_PTR          transitNode;
+
     /* Pointer to gckKERNEL object. */
     gckKERNEL                   kernel;
 
@@ -1416,6 +1448,10 @@ typedef struct _gcsDEVICE
 
     /* Mutex for multi-core combine mode command submission */
     gctPOINTER                  commitMutex;
+
+#if gcdENABLE_SW_PREEMPTION
+    gctPOINTER                  atomPriorityID;
+#endif
 }
 gcsDEVICE;
 
@@ -1770,6 +1806,10 @@ struct _gckMMU
     gctUINT32                   contiguousBaseAddress;
     gctUINT32                   externalBaseAddress;
     gctUINT32                   internalBaseAddress;
+    gctUINT32                   exclusiveBaseAddress;
+
+    gceMMU_INIT_MODE            initMode;
+    gctBOOL                     pageTableOver4G;
 };
 
 
@@ -1846,6 +1886,17 @@ gckKERNEL_AllocateVideoMemory(
     IN OUT gctSIZE_T * Bytes,
     IN OUT gcePOOL * Pool,
     OUT gckVIDMEM_NODE * NodeObject
+    );
+
+gceSTATUS
+gckHARDWARE_QchannelPowerOn(
+    IN gckHARDWARE Hardware
+    );
+
+gceSTATUS
+gckHARDWARE_QchannelBypass(
+    IN gckHARDWARE Hardware,
+    IN gctBOOL Enable
     );
 
 gceSTATUS
@@ -2352,6 +2403,14 @@ gckDEVICE_Dispatch(
     IN gckDEVICE Device,
     IN gcsHAL_INTERFACE_PTR Interface
     );
+
+#if VIVANTE_PROFILER
+gceSTATUS
+gckDEVICE_Profiler_Dispatch(
+    IN gckDEVICE Device,
+    IN gcsHAL_PROFILER_INTERFACE_PTR Interface
+    );
+#endif
 
 gceSTATUS
 gckDEVICE_GetMMU(

@@ -227,6 +227,7 @@ EXPORTS
     gcoHAL_DumpFrameDB
 	gcoHAL_InitGPUProfile
 	gcoHAL_DumpGPUProfile
+    gcoHAL_InitCoreIndexByType
 
 
 !IF "$(VIVANTE_ENABLE_3D)" == "1"
@@ -271,6 +272,8 @@ EXPORTS
     gcoHAL_ReleaseVideoMemory
     gcoHAL_ScheduleSignal
     gcoHAL_GetPLS
+    gcoHAL_SetPriority
+    gcoHAL_GetPriority
 
 !IF "$(VIVANTE_ENABLE_3D)" == "1"
     gcoHAL_QueryShaderCaps
@@ -383,6 +386,7 @@ EXPORTS
     gcoSURF_WaitFence
     gcoSURF_AlignResolveRect
     gcoSURF_DrawBlit
+    gcoSURF_DrawBlitDepth
     gcsSURF_NODE_Construct
     gcsSURF_NODE_Destroy
     gcsSURF_NODE_Lock
@@ -787,8 +791,8 @@ EXPORTS
     gcoVX_QueryDeviceCount
     gcoVX_QueryCoreCount
     gcoVX_QueryMultiCore
-    gcoVX_CaptureInitState
     gcoVX_SetHardwareType
+    gcoVX_MultiGPUSync
 
 !IF "$(VSIMULATOR_DEBUG)" == "1"
     gcoOS_UpdateSimulatorCallback

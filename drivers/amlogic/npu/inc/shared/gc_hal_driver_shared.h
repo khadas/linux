@@ -1,60 +1,18 @@
 /****************************************************************************
 *
-*    The MIT License (MIT)
+*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
-*
-*    Permission is hereby granted, free of charge, to any person obtaining a
-*    copy of this software and associated documentation files (the "Software"),
-*    to deal in the Software without restriction, including without limitation
-*    the rights to use, copy, modify, merge, publish, distribute, sublicense,
-*    and/or sell copies of the Software, and to permit persons to whom the
-*    Software is furnished to do so, subject to the following conditions:
-*
-*    The above copyright notice and this permission notice shall be included in
-*    all copies or substantial portions of the Software.
-*
-*    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-*    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-*    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-*    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-*    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-*    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-*    DEALINGS IN THE SOFTWARE.
-*
-*****************************************************************************
-*
-*    The GPL License (GPL)
-*
-*    Copyright (C) 2014 - 2020 Vivante Corporation
-*
-*    This program is free software; you can redistribute it and/or
-*    modify it under the terms of the GNU General Public License
-*    as published by the Free Software Foundation; either version 2
-*    of the License, or (at your option) any later version.
-*
-*    This program is distributed in the hope that it will be useful,
-*    but WITHOUT ANY WARRANTY; without even the implied warranty of
-*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*    GNU General Public License for more details.
-*
-*    You should have received a copy of the GNU General Public License
-*    along with this program; if not, write to the Free Software Foundation,
-*    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-*****************************************************************************
-*
-*    Note: This software is released under dual MIT and GPL licenses. A
-*    recipient may use this file under the terms of either the MIT license or
-*    GPL License. If you wish to use only one license not the other, you can
-*    indicate your decision by deleting one of the above license notices in your
-*    version of this file.
+*    The material in this file is confidential and contains trade secrets
+*    of Vivante Corporation. This is proprietary information owned by
+*    Vivante Corporation. No part of this work may be disclosed,
+*    reproduced, copied, transmitted, or used in any way for any purpose,
+*    without the express written permission of Vivante Corporation.
 *
 *****************************************************************************/
 
 
-#ifndef __gc_hal_driver_h_
-#define __gc_hal_driver_h_
+#ifndef __gc_hal_driver_shared_h_
+#define __gc_hal_driver_shared_h_
 
 #include "gc_hal_enum.h"
 #include "gc_hal_types.h"
@@ -65,7 +23,14 @@ extern "C" {
 #endif
 
 /* The number of context buffers per user. */
-#define gcdCONTEXT_BUFFER_NUM 2
+#if gcdCAPTURE_ONLY_MODE
+#define gcdCONTEXT_BUFFER_COUNT 1
+#else
+#define gcdCONTEXT_BUFFER_COUNT 2
+#endif
+
+#define gcdRENDER_FENCE_LENGTH          (6 * gcmSIZEOF(gctUINT32))
+#define gcdBLT_FENCE_LENGTH             (10 * gcmSIZEOF(gctUINT32))
 
 /******************************************************************************\
 ******************************* I/O Control Codes ******************************
@@ -73,7 +38,7 @@ extern "C" {
 
 #define gcvHAL_CLASS                    "galcore"
 #define IOCTL_GCHAL_INTERFACE           30000
-#define IOCTL_GCHAL_KERNEL_INTERFACE    30001
+#define IOCTL_GCHAL_PROFILER_INTERFACE  30001
 #define IOCTL_GCHAL_TERMINATE           30002
 
 /******************************************************************************\
@@ -136,6 +101,11 @@ typedef struct _gcsHAL_QUERY_VIDEO_MEMORY
     OUT gctUINT32               contiguousPhysName;
     /* Size in bytes of contiguous memory.*/
     OUT gctUINT64               contiguousSize;
+
+    /* Physical memory address of exclusive memory. Just a name. */
+    OUT gctUINT32               exclusivePhysName;
+    /* Size in bytes of exclusive memory.*/
+    OUT gctUINT64               exclusiveSize;
 }
 gcsHAL_QUERY_VIDEO_MEMORY;
 
@@ -254,6 +224,8 @@ typedef struct _gcsHAL_QUERY_CHIP_OPTIONS
     gceSECURE_MODE              secureMode;
     gctBOOL                     enableNNTPParallel;
     gctUINT                     enableSwtilingPhase1;
+
+    gctBOOL                     hasShader;
 }
 gcsHAL_QUERY_CHIP_OPTIONS;
 
@@ -537,7 +509,7 @@ typedef struct _gcsHAL_ATTACH
 
 #if gcdCAPTURE_ONLY_MODE
     IN gctBOOL                  queryCapSize;
-    IN gctPOINTER               contextLogical[gcdCONTEXT_BUFFER_NUM];
+    IN gctPOINTER               contextLogical[gcdCONTEXT_BUFFER_COUNT];
     OUT gctSIZE_T               captureSize;
 #endif
 }
@@ -557,6 +529,14 @@ typedef struct _gcsHAL_EVENT_COMMIT
 {
     /* Event queue in gcsQUEUE. */
     IN gctUINT64                queue;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* Priority ID. */
+    IN gctUINT32                priorityID;
+
+    /* Does it require top priority? */
+    IN gctBOOL                  topPriority;
+#endif
 }
 gcsHAL_EVENT_COMMIT;
 
@@ -591,7 +571,7 @@ typedef struct _gcsHAL_COMMAND_LOCATION
     /* struct _gcsHAL_COMMAND_LOCATION * next; */
     gctUINT64                   next;
 #if gcdCAPTURE_ONLY_MODE
-    gctPOINTER                  contextLogical[gcdCONTEXT_BUFFER_NUM];
+    gctPOINTER                  contextLogical[gcdCONTEXT_BUFFER_COUNT];
 #endif
 }
 gcsHAL_COMMAND_LOCATION;
@@ -614,8 +594,25 @@ typedef struct _gcsHAL_SUBCOMMIT
 
     /* struct _gcsHAL_SUBCOMMIT * next; */
     gctUINT64                   next;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* Process ID. */
+    gctUINT32                   pid;
+
+    /* Engine type. */
+    gceENGINE                   engine;
+
+    /* Is it multi-core and shared mode?. */
+    gctBOOL                     shared;
+
+    /* Priority ID. */
+    gctUINT32                   priorityID;
+
+    /* Does it require top priority. */
+    gctBOOL                     topPriority;
+#endif
 }
-gcsHAL_SUBCOMMIT;
+gcsHAL_SUBCOMMIT, * gcsHAL_SUBCOMMIT_PTR;
 
 /* gcvHAL_COMMIT */
 typedef struct _gcsHAL_COMMIT
@@ -628,6 +625,11 @@ typedef struct _gcsHAL_COMMIT
 
     /* Commit stamp of this commit. */
     OUT gctUINT64               commitStamp;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* If user need to merge the delta. */
+    gctBOOL                     needMerge;
+#endif
 }
 gcsHAL_COMMIT;
 
@@ -635,6 +637,11 @@ gcsHAL_COMMIT;
 typedef struct _gcsHAL_COMMIT_DONE
 {
     IN gctUINT64                context;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* Priority ID. */
+    IN gctUINT32                priorityID;
+#endif
 }
 gcsHAL_COMMIT_DONE;
 
@@ -1085,6 +1092,12 @@ typedef struct _gcsHAL_DEC300_FLUSH_WAIT
 DEC300FlushWait;
 #endif
 
+typedef struct _gcsHAL_SYNC_VIDEO_MEMORY
+{
+    IN gctUINT64 node;
+    IN gceSYNC_VIDEO_MEMORY_REASON reason;
+}
+gcsHAL_SYNC_VIDEO_MEMORY;
 
 typedef struct _gcsHAL_INTERFACE
 {
@@ -1157,15 +1170,6 @@ typedef struct _gcsHAL_INTERFACE
         gcsHAL_READ_REGISTER_EX             ReadRegisterDataEx;
         gcsHAL_WRITE_REGISTER_EX            WriteRegisterDataEx;
 
-#if VIVANTE_PROFILER
-        gcsHAL_GET_PROFILE_SETTING          GetProfileSetting;
-        gcsHAL_SET_PROFILE_SETTING          SetProfileSetting;
-        gcsHAL_READ_PROFILER_REGISTER_SETTING SetProfilerRegisterClear;
-        gcsHAL_READ_ALL_PROFILE_REGISTERS_PART1 RegisterProfileData_part1;
-        gcsHAL_READ_ALL_PROFILE_REGISTERS_PART2 RegisterProfileData_part2;
-        gcsHAL_PROFILE_REGISTERS_2D         RegisterProfileData2D;
-#endif
-
         gcsHAL_SET_POWER_MANAGEMENT         SetPowerManagement;
         gcsHAL_QUERY_POWER_MANAGEMENT       QueryPowerManagement;
         gcsHAL_CONFIG_POWER_MANAGEMENT      ConfigPowerManagement;
@@ -1210,16 +1214,129 @@ typedef struct _gcsHAL_INTERFACE
         gcsHAL_DEC300_FLUSH                 DEC300Flush;
         gcsHAL_DEC300_FLUSH_WAIT            DEC300FlushWait;
 #endif
+        gcsHAL_SYNC_VIDEO_MEMORY            SyncVideoMemory;
     }
     u;
 }
 gcsHAL_INTERFACE;
 
+#if VIVANTE_PROFILER
+typedef struct _gcsHAL_PROFILER_INTERFACE
+{
+    /* Command code. */
+    gceHAL_COMMAND_CODES        command;
+
+    /* Hardware type. */
+    gceHARDWARE_TYPE            hardwareType;
+
+    /* Core index for current hardware type. */
+    gctUINT32                   coreIndex;
+
+    /* Status value. */
+    gceSTATUS                   status;
+
+    /* Engine */
+    gceENGINE                   engine;
+
+    /* Ignore information from TSL when doing IO control */
+    gctBOOL                     ignoreTLS;
+
+    /* The mutext already acquired */
+    IN gctBOOL                  commitMutex;
+
+    /* Union of command structures. */
+    union profiler_u
+    {
+        gcsHAL_GET_PROFILE_SETTING              GetProfileSetting;
+        gcsHAL_SET_PROFILE_SETTING              SetProfileSetting;
+        gcsHAL_READ_PROFILER_REGISTER_SETTING   SetProfilerRegisterClear;
+        gcsHAL_READ_ALL_PROFILE_REGISTERS_PART1 RegisterProfileData_part1;
+        gcsHAL_READ_ALL_PROFILE_REGISTERS_PART2 RegisterProfileData_part2;
+        gcsHAL_PROFILE_REGISTERS_2D             RegisterProfileData2D;
+    }
+    u;
+}
+gcsHAL_PROFILER_INTERFACE;
+#endif
+
+/* State delta record. */
+typedef struct _gcsSTATE_DELTA_RECORD * gcsSTATE_DELTA_RECORD_PTR;
+typedef struct _gcsSTATE_DELTA_RECORD
+{
+    /* State address. */
+    gctUINT                     address;
+
+    /* State mask. */
+    gctUINT32                   mask;
+
+    /* State data. */
+    gctUINT32                   data;
+}
+gcsSTATE_DELTA_RECORD;
+
+/* State delta. */
+typedef struct _gcsSTATE_DELTA
+{
+    /* For debugging: the number of delta in the order of creation. */
+    gctUINT                     num;
+
+    /* Main state delta ID. Every time state delta structure gets reinitialized,
+       main ID is incremented. If main state ID overflows, all map entry IDs get
+       reinitialized to make sure there is no potential erroneous match after
+       the overflow.*/
+    gctUINT                     id;
+
+    /* The number of contexts pending modification by the delta. */
+    gctINT                      refCount;
+
+    /* Vertex element count for the delta buffer. */
+    gctUINT                     elementCount;
+
+    /* Number of states currently stored in the record array. */
+    gctUINT                     recordCount;
+
+    /* Record array; holds all modified states in gcsSTATE_DELTA_RECORD. */
+    gctUINT64                   recordArray;
+
+    /* Map entry ID is used for map entry validation. If map entry ID does not
+       match the main state delta ID, the entry and the corresponding state are
+       considered not in use. */
+    gctUINT64                   mapEntryID;
+    gctUINT                     mapEntryIDSize;
+
+    /* If the map entry ID matches the main state delta ID, index points to
+       the state record in the record array. */
+    gctUINT64                   mapEntryIndex;
+
+    /* Previous and next state deltas in gcsSTATE_DELTA. */
+    gctUINT64                   prev;
+    gctUINT64                   next;
+}
+gcsSTATE_DELTA;
+
+typedef struct _gcsQUEUE
+{
+    /* Pointer to next gcsQUEUE structure in gcsQUEUE. */
+    gctUINT64                   next;
+
+    /* Event information. */
+    gcsHAL_INTERFACE            iface;
+}
+gcsQUEUE;
+
+/* A record chunk include multiple records to save allocation. */
+typedef struct _gcsQUEUE_CHUNK
+{
+    struct _gcsQUEUE_CHUNK *    next;
+
+    gcsQUEUE                    record[16];
+}
+gcsQUEUE_CHUNK;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __gc_hal_driver_h_ */
+#endif /* __gc_hal_driver_shared_h_ */
 
 

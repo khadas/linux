@@ -205,6 +205,7 @@ _CreateMdl(
         atomic_set(&mdl->refs, 1);
         mutex_init(&mdl->mapsMutex);
         INIT_LIST_HEAD(&mdl->mapsHead);
+        INIT_LIST_HEAD(&mdl->rmaHead);
     }
 
     gcmkFOOTER_ARG("%p", mdl);
@@ -233,6 +234,7 @@ _DestroyMdl(
             if (Mdl->addr)
             {
                 gcmALLOCATOR_UnmapKernel(allocator, Mdl, Mdl->addr);
+                Mdl->addr = gcvNULL;
             }
             gcmALLOCATOR_Free(allocator, Mdl);
         }
@@ -249,6 +251,13 @@ _DestroyMdl(
             /* Remove the node from global list.. */
             mutex_lock(&os->mdlMutex);
             list_del(&Mdl->link);
+            mutex_unlock(&os->mdlMutex);
+        }
+        else if (Mdl->rmaLink.next)
+        {
+            /* Remove the sub node from root mdl */
+            mutex_lock(&os->mdlMutex);
+            list_del(&Mdl->rmaLink);
             mutex_unlock(&os->mdlMutex);
         }
 
@@ -872,6 +881,11 @@ gckOS_CreateKernelMapping(
     else
     {
         gcmkONERROR(gcmALLOCATOR_MapKernel(allocator, mdl, Offset, Bytes, Logical));
+        if (Offset == 0 && Bytes == mdl->bytes)
+        {
+            /* the whole mdl has mapped */
+            mdl->addr = *Logical;
+        }
     }
 
 OnError:
@@ -893,7 +907,9 @@ gckOS_DestroyKernelMapping(
 
     if (mdl->addr)
     {
-        /* Nothing to do. */
+        /* Nothing to do.
+         * it will be unmpped in vidmem free
+         */
     }
     else
     {
@@ -1416,6 +1432,7 @@ gckOS_AllocateNonPagedMemory(
     mdl->numPages = numPages;
 
     mdl->contiguous = gcvTRUE;
+    mdl->cpuAccessible = gcvTRUE;
 
     gcmkONERROR(gcmALLOCATOR_MapKernel(allocator, mdl, 0, bytes, &addr));
 
@@ -1558,6 +1575,7 @@ gckOS_RequestReservedMemory(
     gctSIZE_T Size,
     const char * Name,
     gctBOOL Requested,
+    gctBOOL CpuAccessible,
     gctPOINTER * MemoryHandle
     )
 {
@@ -1581,6 +1599,7 @@ gckOS_RequestReservedMemory(
     desc.reservedMem.size      = Size;
     desc.reservedMem.name      = Name;
     desc.reservedMem.requested = Requested;
+    desc.reservedMem.root      = gcvTRUE;
 
     allocator = _FindAllocator(Os, gcvALLOC_FLAG_LINUX_RESERVED_MEM);
     if (!allocator)
@@ -1593,13 +1612,14 @@ gckOS_RequestReservedMemory(
     gcmkONERROR(gcmALLOCATOR_Attach(allocator, &desc, mdl));
 
     /* Assign alloator. */
-    mdl->allocator  = allocator;
-    mdl->bytes      = Size;
-    mdl->numPages   = Size >> PAGE_SHIFT;
-    mdl->contiguous = gcvTRUE;
-    mdl->addr       = gcvNULL;
-    mdl->dmaHandle  = Start;
-    mdl->gid        = 0;
+    mdl->allocator      = allocator;
+    mdl->bytes          = Size;
+    mdl->numPages       = Size >> PAGE_SHIFT;
+    mdl->cpuAccessible  = CpuAccessible;
+    mdl->contiguous     = gcvTRUE;
+    mdl->addr           = gcvNULL;
+    mdl->dmaHandle      = Start;
+    mdl->gid            = 0;
 
     /*
      * Add this to a global list.
@@ -1636,6 +1656,106 @@ gckOS_ReleaseReservedMemory(
     if (mdl)
     {
         gcmkVERIFY_OK(_DestroyMdl(mdl));
+    }
+}
+
+/*******************************************************************************
+**
+**  gckOS_RequestReservedMemoryArea
+**
+**  request a reserved memory area. it is used for dynamic mapping for usr
+**
+**  INPUT:
+**
+**      gctPOINTER MemoryHandle
+**          Pointer to the root MDL.
+**
+**      gctSIZE_T Offset
+**          Offset from the root reserved memory.
+**
+**       gctSIZE_T Size
+**          Area size.
+**
+**       gctPOINTER * MemoryAreaHandle
+**          Sub MDL address to save
+**  OUTPUT:
+**
+**      gctPOINTER * MemoryAreaHandle
+**          Pointer to sub MDL.
+*/
+gceSTATUS
+gckOS_RequestReservedMemoryArea(
+    IN gctPOINTER MemoryHandle,
+    IN gctSIZE_T Offset,
+    IN gctSIZE_T Size,
+    OUT gctPOINTER * MemoryAreaHandle
+    )
+{
+    PLINUX_MDL rootMdl = (PLINUX_MDL)MemoryHandle;
+    PLINUX_MDL subMdl = gcvNULL;
+    gceSTATUS status;
+    gcsATTACH_DESC desc;
+
+    gcmkHEADER_ARG("MemoryHandle=%p Offset=0x%lx size=0x%lx", MemoryHandle, Offset, Size);
+
+    /* Round up to page size. */
+    Size = (Size + ~PAGE_MASK) & PAGE_MASK;
+
+    subMdl = _CreateMdl(rootMdl->os);
+    if (!subMdl)
+    {
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+    }
+
+    desc.reservedMem.start     = rootMdl->dmaHandle + Offset;
+    desc.reservedMem.size      = Size;
+    desc.reservedMem.name      = "subRMA";
+    /* consider that the memory region has requested by the root mdl */
+    desc.reservedMem.requested = gcvTRUE;
+    desc.reservedMem.root      = gcvFALSE;
+
+    /* Call attach. */
+    gcmkONERROR(gcmALLOCATOR_Attach((gckALLOCATOR)rootMdl->allocator, &desc, subMdl));
+
+    /* Assign alloator. */
+    subMdl->allocator      = rootMdl->allocator;
+    subMdl->bytes          = Size;
+    subMdl->numPages       = Size >> PAGE_SHIFT;
+    subMdl->cpuAccessible  = rootMdl->cpuAccessible;
+    subMdl->contiguous     = gcvTRUE;
+    subMdl->addr           = gcvNULL;
+    subMdl->dmaHandle      = rootMdl->dmaHandle + Offset;
+    subMdl->gid            = 0;
+
+    mutex_lock(&rootMdl->os->mdlMutex);
+    list_add_tail(&subMdl->rmaLink, &rootMdl->rmaHead);
+    mutex_unlock(&rootMdl->os->mdlMutex);
+
+    *MemoryAreaHandle = (void *)subMdl;
+
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
+
+OnError:
+    if (subMdl)
+    {
+        gcmkVERIFY_OK(_DestroyMdl(subMdl));
+    }
+
+    gcmkFOOTER();
+    return status;
+}
+
+void
+gckOS_ReleaseReservedMemoryArea(
+    gctPOINTER MemoryAreaHandle
+    )
+{
+    PLINUX_MDL subMdl = (PLINUX_MDL)MemoryAreaHandle;
+
+    if (subMdl)
+    {
+        gcmkVERIFY_OK(_DestroyMdl(subMdl));
     }
 }
 
@@ -1970,7 +2090,23 @@ _GetPhysicalAddressProcess(
         {
             mutex_lock(&mdl->mapsMutex);
 
-            status = _ConvertLogical2Physical(Os, Logical, ProcessID, mdl, Address);
+            if (mdl->addr != gcvNULL)
+            {
+                status = _ConvertLogical2Physical(Os, Logical, ProcessID, mdl, Address);
+            }
+            else if (!list_empty(&mdl->rmaHead))
+            {
+                PLINUX_MDL subMdl;
+
+                list_for_each_entry(subMdl, &mdl->rmaHead, rmaLink)
+                {
+                    status = _ConvertLogical2Physical(Os, Logical, ProcessID, subMdl, Address);
+                    if (gcmIS_SUCCESS(status))
+                    {
+                        break;
+                    }
+                }
+            }
 
             mutex_unlock(&mdl->mapsMutex);
 
@@ -2192,13 +2328,38 @@ gckOS_MapPhysical(
         if (mdl->dmaHandle != 0)
         {
             if ((physical >= mdl->dmaHandle)
-            &&  (physical <  mdl->dmaHandle + mdl->bytes)
-            &&  (mdl->addr != 0)
-            )
+            &&  (physical < mdl->dmaHandle + mdl->bytes))
             {
-                *Logical = mdl->addr + (physical - mdl->dmaHandle);
-                found = gcvTRUE;
-                break;
+
+                if (mdl->addr != gcvNULL)
+                {
+                    *Logical = mdl->addr + (physical - mdl->dmaHandle);
+                    found = gcvTRUE;
+                }
+                else if (!list_empty(&mdl->rmaHead))
+                {
+                    PLINUX_MDL subMdl;
+
+                    /* when enable dynamic mapping, MDL from the mdlHead is the root.
+                     * the sub MDL should be looped from root MDL
+                     */
+                    list_for_each_entry(subMdl, &mdl->rmaHead, rmaLink)
+                    {
+                        if ((physical >= subMdl->dmaHandle)
+                            && (physical < subMdl->dmaHandle + subMdl->bytes)
+                            && (subMdl->addr != 0))
+                        {
+                            *Logical = subMdl->addr + (physical - subMdl->dmaHandle);
+                            found = gcvTRUE;
+                            break;
+                        }
+                    }
+                }
+
+                if (found)
+                {
+                    break;
+                }
             }
         }
     }
@@ -2262,7 +2423,7 @@ gckOS_MapPhysical(
             /* Map memory as cached memory. */
             request_mem_region(physical, Bytes, "MapRegion");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
-            logical = (gctPOINTER) ioremap(physical, Bytes);
+            logical = (gctPOINTER) memremap(physical, Bytes, MEMREMAP_WT);
 #else
             logical = (gctPOINTER) ioremap_nocache(physical, Bytes);
 #endif
@@ -2337,8 +2498,27 @@ gckOS_UnmapPhysical(
                 (Logical < (gctPOINTER)((gctSTRING)mdl->addr + mdl->bytes)))
             {
                 found = gcvTRUE;
-                break;
             }
+        }
+        else if (!list_empty(&mdl->rmaHead))
+        {
+            PLINUX_MDL subMdl;
+            /* Find the subMDL */
+            list_for_each_entry(subMdl, &mdl->rmaHead, rmaLink)
+            {
+                if ((subMdl->addr != gcvNULL) &&
+                    (Logical >= (gctPOINTER)subMdl->addr) &&
+                    (Logical < (gctPOINTER)((gctSTRING)subMdl->addr + subMdl->bytes)))
+                {
+                    found = gcvTRUE;
+                    break;
+                }
+            }
+        }
+
+        if (found)
+        {
+            break;
         }
     }
 
@@ -3005,6 +3185,41 @@ gckOS_GetTime(
 
 /*******************************************************************************
 **
+**  _ExternalCacheOperation
+**
+**  External device cache operation, if support. If the core has any additional caches
+**  they must be invalidated after this function returns. If the core does not
+**  have any addional caches the externalCacheOperation in the platform->ops should
+**  remain NULL.
+**
+**  INPUT:
+**
+**      gckOS Os
+**          Pointer to an gckOS object.
+**
+**      gceCACHEOPERATION Operation
+**          Cache Operation: gcvCACHE_FLUSH, gcvCACHE_CLEAN or gcvCACHE_INVALIDATE.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+static void
+_ExternalCacheOperation(
+    IN gckOS Os,
+    IN gceCACHEOPERATION Operation
+    )
+{
+    gcsPLATFORM *platform = Os->device->platform;
+
+    if (platform && platform->ops->externalCacheOperation)
+    {
+        platform->ops->externalCacheOperation(platform, Operation);
+    }
+}
+
+/*******************************************************************************
+**
 **  gckOS_MemoryBarrier
 **
 **  Make sure the CPU has executed everything up to this point and the data got
@@ -3029,6 +3244,8 @@ gckOS_MemoryBarrier(
     )
 {
     _MemoryBarrier();
+
+    _ExternalCacheOperation(Os, gcvCACHE_INVALIDATE);
 
     return gcvSTATUS_OK;
 }
@@ -3136,6 +3353,7 @@ gckOS_AllocatePagedMemory(
     mdl->numPages   = numPages;
     mdl->contiguous = Flag & gcvALLOC_FLAG_CONTIGUOUS;
     mdl->cacheable  = Flag & gcvALLOC_FLAG_CACHEABLE;
+    mdl->cpuAccessible = gcvTRUE;
 
     /*
      * Add this to a global list.
@@ -3649,7 +3867,6 @@ gckOS_UnlockPages(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
     gcmkVERIFY_ARGUMENT(Physical != gcvNULL);
-    gcmkVERIFY_ARGUMENT(Logical != gcvNULL);
 
     mutex_lock(&mdl->mapsMutex);
 
@@ -4189,11 +4406,21 @@ _CacheOperation(
             gcmALLOCATOR_Cache(allocator,
                 mdl, Offset, Logical, Bytes, Operation);
 
+            if (Operation == gcvCACHE_CLEAN || Operation == gcvCACHE_FLUSH)
+            {
+                _ExternalCacheOperation(Os, gcvCACHE_INVALIDATE);
+            }
+
             return gcvSTATUS_OK;
         }
     }
 
     _MemoryBarrier();
+
+    if (Operation == gcvCACHE_CLEAN || Operation == gcvCACHE_FLUSH)
+    {
+        _ExternalCacheOperation(Os, gcvCACHE_INVALIDATE);
+    }
 
     return gcvSTATUS_OK;
 }
@@ -4760,6 +4987,43 @@ gckOS_ReleaseSemaphore(
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
 }
+
+#if gcdENABLE_SW_PREEMPTION
+gceSTATUS
+gckOS_ReleaseSemaphoreEx(
+    IN gckOS Os,
+    IN gctPOINTER Semaphore
+    )
+{
+    struct semaphore *sem;
+    unsigned long flags;
+
+    gcmkHEADER_ARG("Os=%p Semaphore=%p", Os, Semaphore);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
+    gcmkVERIFY_ARGUMENT(Semaphore != gcvNULL);
+
+    sem = Semaphore;
+
+    raw_spin_lock_irqsave(&sem->lock, flags);
+
+    if (!sem->count)
+    {
+        raw_spin_unlock_irqrestore(&sem->lock, flags);
+        up((struct semaphore *) Semaphore);
+    }
+    else
+    {
+        raw_spin_unlock_irqrestore(&sem->lock, flags);
+    }
+
+
+    /* Success. */
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
+}
+#endif
 
 /*******************************************************************************
 **
@@ -6932,6 +7196,16 @@ gckOS_QueryOption(
         *Value = device->externalSize;
         return gcvSTATUS_OK;
     }
+    else if (!strcmp(Option, "exclusiveBase"))
+    {
+        *Value = device->exclusiveBase;
+        return gcvSTATUS_OK;
+    }
+    else if (!strcmp(Option, "exclusiveSize"))
+    {
+        *Value = device->exclusiveSize;
+        return gcvSTATUS_OK;
+    }
     else if (!strcmp(Option, "externalBase"))
     {
         *Value = device->externalBase;
@@ -7266,4 +7540,3 @@ gckOS_GetPolicyID(
 
     return status;
 }
-

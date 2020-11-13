@@ -99,6 +99,13 @@ typedef struct _gckGALDEVICE
     gctPOINTER          contiguousLogical;
     gckVIDMEM           contiguousVidMem;
 
+    gctPHYS_ADDR_T      exclusiveBase;
+    gctSIZE_T           exclusiveSize;
+    gctPHYS_ADDR        exclusivePhysical;
+    gctUINT32           exclusivePhysName;
+    gctPOINTER          exclusiveLogical;
+    gckVIDMEM           exclusiveVidMem;
+
     /* By request_mem_region. */
     gctUINT64           requestedContiguousBase;
     gctSIZE_T           requestedContiguousSize;
@@ -145,6 +152,13 @@ typedef struct _gckGALDEVICE
 
 #if gcdENABLE_DRM
     void *              drm;
+#endif
+
+#if gcdENABLE_SW_PREEMPTION
+    struct task_struct *preemptThread[gcdMAX_GPU_COUNT];
+    struct semaphore    preemptSemas[gcdMAX_GPU_COUNT];
+    gctBOOL             preemptThreadInits[gcdMAX_GPU_COUNT];
+    gctBOOL             killPreemptThread;
 #endif
 }
 * gckGALDEVICE;

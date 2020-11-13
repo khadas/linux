@@ -141,7 +141,6 @@ gcoVX_InvokeKernel(
     IN gcsVX_KERNEL_PARAMETERS_PTR  Parameters
     );
 
-
 gceSTATUS
 gcoVX_AllocateMemory(
     IN gctUINT32        Size,
@@ -213,10 +212,7 @@ gcoVX_TriggerAccelerator(
     IN gctBOOL                waitEvent,
     IN gctUINT32              gpuId,
     IN gctBOOL                sync,
-    IN gctUINT32              syncEventID,
-    IN gctUINT32              vipSRAMRemapStartAddr,
-    IN gctUINT32              axiSRAMRemapStartAddr,
-    IN gctUINT32              axiSRAMRemapEndAddr
+    IN gctUINT32              syncEventID
     );
 
 gceSTATUS
@@ -340,14 +336,6 @@ gcoVX_CaptureState(
     );
 
 gceSTATUS
-gcoVX_CaptureInitState(
-    IN OUT gctPOINTER *CaptureBuffer,
-    IN gctUINT32 InputSizeInByte,
-    IN OUT gctUINT32_PTR OutputSizeInByte,
-    IN gctUINT32 deviceCount
-    );
-
-gceSTATUS
 gcoVX_SetRemapAddress(
     IN gctUINT32 remapStart,
     IN gctUINT32 remapEnd,
@@ -379,7 +367,9 @@ gceSTATUS gcoVX_GetEvisNoInstFeatureCap(
     OUT vx_evis_no_inst_s *EvisNoInst
     );
 
-
+gceSTATUS gcoVX_MultiGPUSync(
+    OUT gctUINT32_PTR *Memory
+    );
 
 #ifdef __cplusplus
 }

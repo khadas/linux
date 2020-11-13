@@ -1,12 +1,54 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    The MIT License (MIT)
 *
-*    The material in this file is confidential and contains trade secrets
-*    of Vivante Corporation. This is proprietary information owned by
-*    Vivante Corporation. No part of this work may be disclosed,
-*    reproduced, copied, transmitted, or used in any way for any purpose,
-*    without the express written permission of Vivante Corporation.
+*    Copyright (c) 2014 - 2020 Vivante Corporation
+*
+*    Permission is hereby granted, free of charge, to any person obtaining a
+*    copy of this software and associated documentation files (the "Software"),
+*    to deal in the Software without restriction, including without limitation
+*    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+*    and/or sell copies of the Software, and to permit persons to whom the
+*    Software is furnished to do so, subject to the following conditions:
+*
+*    The above copyright notice and this permission notice shall be included in
+*    all copies or substantial portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+*    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+*    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+*    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+*    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+*    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+*    DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************
+*
+*    The GPL License (GPL)
+*
+*    Copyright (C) 2014 - 2020 Vivante Corporation
+*
+*    This program is free software; you can redistribute it and/or
+*    modify it under the terms of the GNU General Public License
+*    as published by the Free Software Foundation; either version 2
+*    of the License, or (at your option) any later version.
+*
+*    This program is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU General Public License for more details.
+*
+*    You should have received a copy of the GNU General Public License
+*    along with this program; if not, write to the Free Software Foundation,
+*    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*
+*****************************************************************************
+*
+*    Note: This software is released under dual MIT and GPL licenses. A
+*    recipient may use this file under the terms of either the MIT license or
+*    GPL License. If you wish to use only one license not the other, you can
+*    indicate your decision by deleting one of the above license notices in your
+*    version of this file.
 *
 *****************************************************************************/
 
@@ -228,6 +270,126 @@ typedef struct _gcsPROFILER_COUNTERS
     gcsPROFILER_COUNTERS_PART2 counters_part2;
 }
 gcsPROFILER_COUNTERS;
+
+typedef enum _gceVIP_PROBE_COUNTER
+{
+    gcvVIP_PROBE_COUNTER_NEURAL_NET,
+    gcvVIP_PROBE_COUNTER_TENSOR_PROCESSOR,
+    gcvVIP_PROBE_COUNTER_COUNT
+}
+gceVIP_PROBE_COUNTER;
+
+/* Mask definations for overflow indicator of TP */
+typedef enum _gceTPCOUNTER_OVERFLOW
+{
+    gcvTPCOUNTER_LAYER_ID_OVERFLOW                  = (1 << 0),
+    gcvTPCOUNTER_TOTAL_BUSY_CYCLE_OVERFLOW          = (1 << 1),
+    gcvTPCOUNTER_TOTAL_READ_BW_DDR_OVERFLOW         = (1 << 2),
+    gcvTPCOUNTER_TOTAL_WRITE_BW_DDR_OVERFLOW        = (1 << 3),
+    gcvTPCOUNTER_TOTAL_READ_BW_SRAM_OVERFLOW        = (1 << 4),
+    gcvTPCOUNTER_TOTAL_WRITE_BW_SRAM_OVERFLOW       = (1 << 5),
+    gcvTPCOUNTER_TOTAL_READ_BW_OCB_OVERFLOW         = (1 << 6),
+    gcvTPCOUNTER_TOTAL_WRITE_BW_OCB_OVERFLOW        = (1 << 7),
+    gcvTPCOUNTER_FC_PIX_CNT_OVERFLOW                = (1 << 8),
+    gcvTPCOUNTER_FC_ZERO_SKIP_OVERFLOW              = (1 << 9),
+    gcvTPCOUNTER_FC_COEF_CNT_OVERFLOW               = (1 << 10),
+    gcvTPCOUNTER_FC_COEF_ZERO_CNT_OVERFLOW          = (1 << 11),
+    gcvTPCOUNTER_TOTAL_IDLE_CYCLE_CORE0_OVERFLOW    = (1 << 0),
+    gcvTPCOUNTER_TOTAL_IDLE_CYCLE_CORE1_OVERFLOW    = (1 << 1),
+    gcvTPCOUNTER_TOTAL_IDLE_CYCLE_CORE2_OVERFLOW    = (1 << 2),
+    gcvTPCOUNTER_TOTAL_IDLE_CYCLE_CORE3_OVERFLOW    = (1 << 3),
+}
+_gceTPCOUNTER_OVERFLOW;
+
+/* Mask definations for overflow indicator of NN */
+typedef enum _gceNNCOUNTER_OVERFLOW
+{
+    gcvNNCOUNTER_TOTAL_BUSY_CYCLE_OVERFLOW          = (1 << 0),
+    gcvNNCOUNTER_TOTAL_READ_CYCLE_DDR_OVERFLOW      = (1 << 2),
+    gcvNNCOUNTER_TOTAL_READ_BW_DDR_OVERFLOW         = (1 << 3),
+    gcvNNCOUNTER_TOTAL_WRITE_CYCLE_DDR_OVERFLOW     = (1 << 4),
+    gcvNNCOUNTER_TOTAL_WRITE_BW_DDR_OVERFLOW        = (1 << 5),
+    gcvNNCOUNTER_TOTAL_READ_SYCLE_SRAM_OVERFLOW     = (1 << 6),
+    gcvNNCOUNTER_TOTAL_WRITE_CYCLE_SRAM_OVERFLOW    = (1 << 7),
+    gcvNNCOUNTER_TOTAL_MAC_CYCLE_OVERFLOW           = (1 << 8),
+    gcvNNCOUNTER_TOTAL_MAC_COUNT_OVERFLOW           = (1 << 9),
+    gcvNNCOUNTER_ZERO_COEF_SKIP_COUNT_OVERFLOW      = (1 << 10),
+    gcvNNCOUNTER_NON_ZERO_COEF_COUNT_OVERFLOW       = (1 << 11),
+}
+_gceNNCOUNTER_OVERFLOW;
+
+#define   MODULE_NN_RESERVED_COUNTER_NUM           0x9
+typedef struct _gcsPROFILER_VIP_PROBE_COUNTERS
+{
+    /* NN */
+    gctUINT32       nn_layer_id;
+    gctUINT32       nn_layer_id_overflow;
+    gctUINT32       nn_instr_info;
+    gctUINT32       nn_total_busy_cycle;
+    gctUINT32       nn_total_busy_cycle_overflow;
+    gctUINT32       nn_total_read_cycle_ddr;
+    gctUINT32       nn_total_read_cycle_ddr_overflow;
+    gctUINT32       nn_total_read_valid_bandwidth_ddr;
+    gctUINT32       nn_total_read_valid_bandwidth_ddr_overflow;
+    gctUINT32       nn_total_write_cycle_ddr;
+    gctUINT32       nn_total_write_cycle_ddr_overflow;
+    gctUINT32       nn_total_write_valid_bandwidth_ddr;
+    gctUINT32       nn_total_write_valid_bandwidth_ddr_overflow;
+    gctUINT32       nn_total_read_cycle_sram;
+    gctUINT32       nn_total_read_cycle_sram_overflow;
+    gctUINT32       nn_total_write_cycle_sram;
+    gctUINT32       nn_total_write_cycle_sram_overflow;
+    gctUINT32       nn_total_mac_cycle;
+    gctUINT32       nn_total_mac_cycle_overflow;
+    gctUINT32       nn_total_mac_count;
+    gctUINT32       nn_total_mac_count_overflow;
+    gctUINT32       nn_zero_coef_skip_count;
+    gctUINT32       nn_zero_coef_skip_count_overflow;
+    gctUINT32       nn_non_zero_coef_count;
+    gctUINT32       nn_non_zero_coef_count_overflow;
+
+    gctUINT32       nn_reserved_counter[4 * MODULE_NN_RESERVED_COUNTER_NUM];
+    gctUINT32       nn_total_idle_cycle_core_overflow;
+    gctUINT32       nn_total_idle_cycle_core[32];
+
+    /* TP */
+    gctUINT32       tp_layer_id;
+    gctUINT32       tp_layer_id_overflow;
+    gctUINT32       tp_total_busy_cycle;
+    gctUINT32       tp_total_busy_cycle_overflow;
+
+    gctUINT32       tp_total_read_bandwidth_cache;
+    gctUINT32       tp_total_read_bandwidth_cache_overflow;
+    gctUINT32       tp_total_write_bandwidth_cache;
+    gctUINT32       tp_total_write_bandwidth_cache_overflow;
+
+    gctUINT32       tp_total_read_bandwidth_sram;
+    gctUINT32       tp_total_read_bandwidth_sram_overflow;
+    gctUINT32       tp_total_write_bandwidth_sram;
+    gctUINT32       tp_total_write_bandwidth_sram_overflow;
+
+
+    gctUINT32       tp_total_read_bandwidth_ocb;
+    gctUINT32       tp_total_read_bandwidth_ocb_overflow;
+    gctUINT32       tp_total_write_bandwidth_ocb;
+    gctUINT32       tp_total_write_bandwidth_ocb_overflow;
+
+    gctUINT32       tp_fc_pix_count;
+    gctUINT32       tp_fc_zero_skip_count;
+    gctUINT32       tp_fc_pix_count_overflow;
+    gctUINT32       tp_fc_zero_skip_count_overflow;
+
+    gctUINT32       tp_fc_coef_count;
+    gctUINT32       tp_fc_coef_zero_count;
+    gctUINT32       tp_fc_coef_count_overflow;
+    gctUINT32       tp_fc_coef_zero_count_overflow;
+
+    gctUINT32       tp_total_idle_cycle_core[16];
+    gctUINT32       tp_total_idle_cycle_core_overflows[16];
+
+    /* VIP SH */
+}
+gcsPROFILER_VIP_PROBE_COUNTERS;
 
 #ifdef __cplusplus
 }

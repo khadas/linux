@@ -53,12 +53,17 @@ BEGIN_EXTERN_C()
 #define __INIT_VALUE_FOR_WORK_GROUP_INDEX__ 0x1234
 
 /* For OCL. */
+#define _sldLocalSizeName                   "#local_size"
+#define _sldGlobalSizeName                  "#global_size"
+#define _sldGlobalOffsetName                "#global_offset"
+#define _sldEnqueuedLocalSizeName           "#enqueued_local_size"
 #define _sldLocalStorageAddressName         "#sh_local_address"
 #define _sldWorkGroupCountName              "#workGroupCount"
 #define _sldWorkGroupIdOffsetName           "#workGroupIdOffset"
 #define _sldGlobalIdOffsetName              "#globalIdOffset"
 
 /* Shared use. */
+#define _sldLocalInvocationIndexName        "#local_invocation_index"
 #define _sldLocalMemoryAddressName          "#sh_localMemoryAddress"
 #define _sldThreadIdMemoryAddressName       "#sh_threadIdMemAddr"
 #define _sldWorkThreadCountName             "#sh_workThreadCount"
@@ -760,7 +765,8 @@ typedef struct _gcsHINT
 
     /* Third word. */
     gctUINT     fragColorUsage        : 2;
-    gctUINT     reserved              : 30;
+    gctBOOL     dependOnWorkGroupSize : 2;
+    gctUINT     reserved              : 28;
 
     /* flag if the shader uses gl_FragCoord, gl_FrontFacing, gl_PointCoord */
     gctCHAR     useFragCoord[4];
@@ -831,6 +837,7 @@ typedef struct _gcsHINT
 
     /* per-vertex attributeCount. */
     gctUINT     tcsPerVertexAttributeCount;
+    gctBOOL     tcsHasNoPerVertexAttribute;
 
     gctUINT     extraUscPages;
 
@@ -846,8 +853,11 @@ typedef struct _gcsHINT
     /* Sampler Base offset. */
     gctBOOL     useGPRSpill[gcvPROGRAM_STAGE_LAST];
 
+    /* Misc hints */
+    gctINT32    GSmaxThreadsPerHwTG;
+    gctUINT     tpgTopology;
     /* padding bytes to make the offset of shaderVidNodes field be consistent in 32bit and 64bit platforms */
-    gctCHAR     reservedByteForShaderVidNodeOffset[4];
+    gctCHAR     reservedByteForShaderVidNodeOffset[8];
 
     /* shaderVidNodes should always be the LAST filed in hits. */
     /* SURF Node for memory that is used in shader. */
@@ -911,13 +921,13 @@ typedef struct _gcSHADER_TYPEINFO
 
 extern const gcSHADER_TYPEINFO gcvShaderTypeInfo[];
 
-#define gcmType_Comonents(Type)         (gcvShaderTypeInfo[Type].components)
-#define gcmType_PackedComonents(Type)   (gcvShaderTypeInfo[Type].packedComponents)
-#define gcmType_Rows(Type)              (gcvShaderTypeInfo[Type].rows)
-#define gcmType_RowType(Type)           (gcvShaderTypeInfo[Type].rowType)
-#define gcmType_ComonentType(Type)      (gcvShaderTypeInfo[Type].componentType)
-#define gcmType_Kind(Type)              (gcvShaderTypeInfo[Type].kind)
-#define gcmType_Name(Type)              (gcvShaderTypeInfo[Type].name)
+#define gcmType_Comonents(Type)         (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].components : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].components)
+#define gcmType_PackedComonents(Type)   (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].packedComponents : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].packedComponents)
+#define gcmType_Rows(Type)              (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].rows : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].rows)
+#define gcmType_RowType(Type)           (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].rowType : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].rowType)
+#define gcmType_ComonentType(Type)      (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].componentType : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].componentType)
+#define gcmType_Kind(Type)              (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].kind : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].kind)
+#define gcmType_Name(Type)              (Type < gcSHADER_TYPE_COUNT? gcvShaderTypeInfo[Type].name : gcvShaderTypeInfo[gcSHADER_UNKONWN_TYPE].name)
 
 #define gcmType_isSampler(Type)         (gcmType_Kind(Type) == gceTK_SAMPLER || gcmType_Kind(Type) == gceTK_SAMPLER_T)
 
@@ -1018,8 +1028,8 @@ typedef enum _gceSHADER_FLAGS
     /* Remove unused uniforms on shader, only enable for es20 shader. */
     gcvSHADER_REMOVE_UNUSED_UNIFORMS    = 0x2000,
 
-    /* Force linking when either vertex or fragment shader not present */
-    gcvSHADER_FORCE_LINKING             = 0x4000,
+    /* Force generate a floating MAD, no matter if HW can support it. */
+    gcSHADER_FLAG_FORCE_GEN_FLOAT_MAD   = 0x4000,
 
     /* Disable default UBO for vertex and fragment shader. */
     gcvSHADER_DISABLE_DEFAULT_UBO       = 0x8000,
@@ -1867,7 +1877,9 @@ extern gctBOOL gcDoTriageForShaderId(gctINT shaderId, gctINT startId, gctINT end
                                                        it can decrease the temp registers but increases the constant registers. */
 #define FB_DISABLE_GL_LOOP_UNROLLING        0x40000 /* Disable loop unrolling for GL FE. */
 
-#define FE_GENERATED_OFFLINE_COMPILER       0x80000 /* Enable Offline Compile . */
+#define FB_GENERATED_OFFLINE_COMPILER       0x80000 /* Enable Offline Compile . */
+
+#define FB_VSIMULATOR_RUNNING_MODE          0x100000 /* VSimulator running mode. */
 
 #define gcmOPT_SetPatchTexld(m,n) (gcmGetOptimizerOption()->patchEveryTEXLDs = (m),\
                                    gcmGetOptimizerOption()->patchDummyTEXLDs = (n))
@@ -2053,8 +2065,13 @@ typedef struct _gcsGLSLCaps
     gcePROVOKING_VERTEX_CONVENSION provokingVertex;
     gctUINT maxGsInvocationCount;
 
-    /* Desktop GL limits */
+    /* Primitive Clipling limits */
     gctUINT maxClipDistances;
+    gctUINT maxCullDistances;
+    gctUINT maxCombinedClipAndCullDistances;
+
+    /* Desktop GL limits */
+    gctUINT maxLights;
     gctUINT maxClipPlanes;
     gctUINT maxFragmentUniformComponents;
     gctUINT maxTextureCoords;
@@ -2092,7 +2109,8 @@ extern gcsHWCaps *
 #define GetHWHasHalti1()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti1)
 #define GetHWHasHalti2()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti2)
 #define GetHWHasHalti5()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti5)
-#define GetHWHasFmaSupport()                  (gcGetHWCaps()->hwFeatureFlags.supportAdvancedInsts)
+#define GetHWHasAdvancedInst()                (gcGetHWCaps()->hwFeatureFlags.supportAdvancedInsts)
+#define GetHWHasFmaSupport()                  (GetHWHasHalti5() && GetHWHasAdvancedInst())
 #define GetHWHasTS()                          (gcGetHWCaps()->hwFeatureFlags.supportTS)
 #define GetHWHasGS()                          (gcGetHWCaps()->hwFeatureFlags.supportGS)
 #define GetHWHasSamplerBaseOffset()           (gcGetHWCaps()->hwFeatureFlags.hasSamplerBaseOffset)
@@ -2212,8 +2230,12 @@ extern gceSTATUS gcInitGLSLCaps(
 #define GetGLMaxGSUniformBufferBindings()     (gcGetGLSLCaps()->maxGsUniformBlocks)
 #define GetGLMaxGSShaderStorageBufferBindings()     (gcGetGLSLCaps()->maxGsShaderStorageBlocks)
 
-/* Desktop GL constants */
 #define GetGLMaxClipDistances()               (gcGetGLSLCaps()->maxClipDistances)
+#define GetGLMaxCullDistances()               (gcGetGLSLCaps()->maxCullDistances)
+#define GetGLMaxCombinedClipCullDistances()   (gcGetGLSLCaps()->maxCombinedClipAndCullDistances)
+
+/* Desktop GL constants */
+#define GetGLMaxLights()                      (gcGetGLSLCaps()->maxLights)
 #define GetGLMaxClipPlanes()                  (gcGetGLSLCaps()->maxClipPlanes)
 #define GetGLMaxFragmentUniformComponents()   (gcGetGLSLCaps()->maxFragmentUniformComponents)
 #define GetGLMaxTextureCoords()               (gcGetGLSLCaps()->maxTextureCoords)
@@ -8584,7 +8606,7 @@ gcSHADER_Has64BitOperation(
     IN gcSHADER                    Shader
     );
 
-void
+gceSTATUS
 gcSHADER_SetBuildOptions(
     IN gcSHADER             Shader,
     IN gctSTRING            Options
@@ -8612,6 +8634,12 @@ gcSHADER_SetAttrLocationByDriver(
     IN gcSHADER             Shader,
     IN gctCHAR*             Name,
     IN gctINT               Location
+    );
+
+gceSTATUS
+gcSHADER_SetCLProgramBinaryType(
+    IN gcSHADER             Shader,
+    IN gctUINT              clProgramBinaryType
     );
 
 gctBOOL

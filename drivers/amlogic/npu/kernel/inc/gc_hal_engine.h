@@ -56,7 +56,7 @@
 #ifndef __gc_hal_engine_h_
 #define __gc_hal_engine_h_
 
-#include "shared/gc_hal_types.h"
+#include "gc_hal_types.h"
 #include "gc_hal_enum.h"
 
 
@@ -495,6 +495,13 @@ gcoSURF_DrawBlit(
     gcsSURF_VIEW *DstView,
     gscSURF_BLITDRAW_BLIT *Args
     );
+
+gceSTATUS
+gcoSURF_DrawBlitDepth(
+    gcsSURF_VIEW *SrcView,
+    gcsSURF_VIEW *DstView,
+    gscSURF_BLITDRAW_BLIT *Args
+);
 
 
 /******************************************************************************\

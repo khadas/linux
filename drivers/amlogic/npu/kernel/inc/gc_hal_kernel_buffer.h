@@ -64,15 +64,6 @@ extern "C" {
 ************************ Command Buffer and Event Objects **********************
 \******************************************************************************/
 
-/* The number of context buffers per user. */
-#if gcdCAPTURE_ONLY_MODE
-#define gcdCONTEXT_BUFFER_COUNT 1
-#else
-#define gcdCONTEXT_BUFFER_COUNT 2
-#endif
-
-#define gcdRENDER_FENCE_LENGTH                      (6 * gcmSIZEOF(gctUINT32))
-#define gcdBLT_FENCE_LENGTH                         (10 * gcmSIZEOF(gctUINT32))
 #define gcdRESERVED_FLUSHCACHE_LENGTH               (2 * gcmSIZEOF(gctUINT32))
 #define gcdRESERVED_PAUSE_OQ_LENGTH                 (2 * gcmSIZEOF(gctUINT32))
 #define gcdRESERVED_PAUSE_XFBWRITTEN_QUERY_LENGTH   (4 * gcmSIZEOF(gctUINT32))
@@ -80,69 +71,11 @@ extern "C" {
 #define gcdRESERVED_PAUSE_XFB_LENGTH                (2 * gcmSIZEOF(gctUINT32))
 #define gcdRESERVED_HW_FENCE_32BIT                  (4 * gcmSIZEOF(gctUINT32))
 #define gcdRESERVED_HW_FENCE_64BIT                  (6 * gcmSIZEOF(gctUINT32))
-#define gcdRESERVED_PAUSE_PROBE_LENGTH              (TOTAL_PROBE_NUMBER * 2 * gcmSIZEOF(gctUINT32))
 
 #define gcdRESUME_OQ_LENGTH                         (2 * gcmSIZEOF(gctUINT32))
 #define gcdRESUME_XFBWRITTEN_QUERY_LENGTH           (4 * gcmSIZEOF(gctUINT32))
 #define gcdRESUME_PRIMGEN_QUERY_LENGTH              (4 * gcmSIZEOF(gctUINT32))
 #define gcdRESUME_XFB_LENGH                         (2 * gcmSIZEOF(gctUINT32))
-#define gcdRESUME_PROBE_LENGH                       (TOTAL_PROBE_NUMBER * 2 * gcmSIZEOF(gctUINT32))
-
-
-/* State delta record. */
-typedef struct _gcsSTATE_DELTA_RECORD * gcsSTATE_DELTA_RECORD_PTR;
-typedef struct _gcsSTATE_DELTA_RECORD
-{
-    /* State address. */
-    gctUINT                     address;
-
-    /* State mask. */
-    gctUINT32                   mask;
-
-    /* State data. */
-    gctUINT32                   data;
-}
-gcsSTATE_DELTA_RECORD;
-
-/* State delta. */
-typedef struct _gcsSTATE_DELTA
-{
-    /* For debugging: the number of delta in the order of creation. */
-    gctUINT                     num;
-
-    /* Main state delta ID. Every time state delta structure gets reinitialized,
-       main ID is incremented. If main state ID overflows, all map entry IDs get
-       reinitialized to make sure there is no potential erroneous match after
-       the overflow.*/
-    gctUINT                     id;
-
-    /* The number of contexts pending modification by the delta. */
-    gctINT                      refCount;
-
-    /* Vertex element count for the delta buffer. */
-    gctUINT                     elementCount;
-
-    /* Number of states currently stored in the record array. */
-    gctUINT                     recordCount;
-
-    /* Record array; holds all modified states in gcsSTATE_DELTA_RECORD. */
-    gctUINT64                   recordArray;
-
-    /* Map entry ID is used for map entry validation. If map entry ID does not
-       match the main state delta ID, the entry and the corresponding state are
-       considered not in use. */
-    gctUINT64                   mapEntryID;
-    gctUINT                     mapEntryIDSize;
-
-    /* If the map entry ID matches the main state delta ID, index points to
-       the state record in the record array. */
-    gctUINT64                   mapEntryIndex;
-
-    /* Previous and next state deltas in gcsSTATE_DELTA. */
-    gctUINT64                   prev;
-    gctUINT64                   next;
-}
-gcsSTATE_DELTA;
 
 #define FENCE_NODE_LIST_INIT_COUNT         100
 
@@ -275,25 +208,6 @@ struct _gcoCMDBUF
     gctUINT32                   mirrorCount;
 };
 
-typedef struct _gcsQUEUE
-{
-    /* Pointer to next gcsQUEUE structure in gcsQUEUE. */
-    gctUINT64                   next;
-
-    /* Event information. */
-    gcsHAL_INTERFACE            iface;
-}
-gcsQUEUE;
-
-/* A record chunk include multiple records to save allocation. */
-typedef struct _gcsQUEUE_CHUNK
-{
-    struct _gcsQUEUE_CHUNK *    next;
-
-    gcsQUEUE                    record[16];
-}
-gcsQUEUE_CHUNK;
-
 /* Event queue. */
 struct _gcoQUEUE
 {
@@ -320,6 +234,14 @@ struct _gcoQUEUE
     gctUINT                     maxUnlockBytes;
 
     gceENGINE                   engine;
+
+    /* Pointer to gcoHARDWARE object. */
+    gcoHARDWARE                 hardware;
+
+#if gcdENABLE_SW_PREEMPTION
+    gctUINT                     priorityID;
+    gctBOOL                     topPriority;
+#endif
 };
 
 struct _gcsTEMPCMDBUF

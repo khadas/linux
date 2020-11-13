@@ -73,6 +73,6 @@ SOURCES = \
 
 INCLUDES = \
     $(INCLUDES); \
-    $(AQROOT)\hal\kernel\inc; \
+    $(AQROOT)\hal\user; \
     $(AQROOT)\hal\os\ce\kernel; \
     $(AQROOT)\hal\kernel\arch; \

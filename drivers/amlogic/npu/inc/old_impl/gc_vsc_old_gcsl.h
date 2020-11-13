@@ -127,10 +127,25 @@ BEGIN_EXTERN_C()
 
 /* bump up version to 1.42 for saving adding intrinsic functions sin, cos, tan 11/8/2019 */
 /* bump up version to 1.43 for supporting textureGather functions have texture2DrectShadow type 11/14/2019 */
-/* current version */
-#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 43)
 
-#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 43)
+/* bump up version to 1.44 for saving cl_program_binary_type for gcSHADER on 03/12/2020 */
+#define gcdSL_SHADER_BINARY_BEFORE_SAVING_CL_PROGRAM_BINARY_TYPE gcmCC(0, 0, 1, 44)
+
+/* bump up version to 1.45 for saving the return variable to a argument 03/27/2020 */
+#define gcdSL_SHADER_BINARY_BEFORE_SAVING_FUNCTION_RETURN_VARIABLE gcmCC(0, 0, 1, 45)
+
+/* bump up version to 1.46 for adding intrinsic functions vstore_half with rounding modes rtz, rtp and rtn 03/28/2020 */
+
+/* bump up version to 1.47 for adding intrinsic functions noise1, noise2 ... for OGL4.0 05/02/2020 */
+
+/* bump up version to 1.48 for adding intrinsic functions of double type for ldexp, frexp, fma, packDouble2x32 and unpackDouble2x32 for OGL4.0 05/04/2020 */
+
+/* bump up version to 1.49 for supporting textureSize function for more sampler type 5/20/2020 */
+/* bump up version to 1.50 for adding a new variable tcsHasNoPerVertexAttribute in hints 06/03/2020 */
+
+/* current version */
+#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 51)
+#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 51)
 
 typedef union _gcsValue
 {
@@ -394,6 +409,7 @@ typedef enum _gcSL_OPCODE
     gcSL_CLAMPCOORD, /* 0x9C clamp image 2d cooridate to its width and height */
     gcSL_EMIT_STREAM_VERTEX, /* 0x9D For function "EmitStreamVertex" */
     gcSL_END_STREAM_PRIMITIVE, /* 0x9E For function "EndStreamPrimitive" */
+    gcSL_CTZ, /* 0x9F For function "ctz()" */
     gcSL_MAXOPCODE
 }
 gcSL_OPCODE;
@@ -1482,7 +1498,7 @@ typedef enum _gceBuiltinNameKind
     gcSL_POINT_COORD     = -5,
     gcSL_POSITION_W      = -6,
     gcSL_DEPTH           = -7,
-    gcSL_FOG_COORD       = -8,
+    gcSL_FOG_FRAG_COORD  = -8,
     gcSL_VERTEX_ID       = -9,
     gcSL_INSTANCE_ID     = -10,
     gcSL_WORK_GROUP_ID          = -11,
@@ -1516,7 +1532,22 @@ typedef enum _gceBuiltinNameKind
     gcSL_LAST_FRAG_DATA         = -39, /* gl_LastFragData */
     gcSL_CLUSTER_ID             = -40, /* cluster id */
     gcSL_CLIP_DISTANCE          = -41, /* gl_ClipDistance */
-    gcSL_BUILTINNAME_COUNT      = 42
+    gcSL_LOCAL_INVOCATION_INDEX  = -42,
+    gcSL_GLOBAL_INVOCATION_INDEX = -43,
+    gcSL_SECONDARY_COLOR        = -44, /* gl_SecondaryColor */
+    gcSL_NORMAL                 = -45, /* gl_Normal */
+    gcSL_VERTEX                 = -46, /* gl_Vertex */
+    gcSL_FOG_COORD              = -47, /* gl_FogCoord */
+    gcSL_MULTI_TEX_COORD_0      = -48, /* gl_MultiTexCoord0 */
+    gcSL_MULTI_TEX_COORD_1      = -49, /* gl_MultiTexCoord1 */
+    gcSL_MULTI_TEX_COORD_2      = -50, /* gl_MultiTexCoord2 */
+    gcSL_MULTI_TEX_COORD_3      = -51, /* gl_MultiTexCoord3 */
+    gcSL_MULTI_TEX_COORD_4      = -52, /* gl_MultiTexCoord4 */
+    gcSL_MULTI_TEX_COORD_5      = -53, /* gl_MultiTexCoord5 */
+    gcSL_MULTI_TEX_COORD_6      = -54, /* gl_MultiTexCoord6 */
+    gcSL_MULTI_TEX_COORD_7      = -55, /* gl_MultiTexCoord7 */
+    gcSL_CLIP_VERTEX            = -56, /* gl_ClipVertex */
+    gcSL_BUILTINNAME_COUNT      = 57
 } gceBuiltinNameKind;
 
 /* Special code generation indices. */
@@ -1725,14 +1756,8 @@ typedef struct _gcSL_INSTRUCTION
 typedef union _ConstantValueUnion
 {
     gctBOOL        b;
-    gctUINT8       u8;
-    gctUINT16      u16;
     gctUINT32      u32;
-    gctUINT64      u64;
-    gctINT8        i8;
-    gctINT16       i16;
     gctINT32       i32;
-    gctINT64       i64;
     gctFLOAT       f32;
 } ConstantValueUnion;
 
@@ -3624,8 +3649,9 @@ typedef struct _gcBINARY_VARIABLE_EX
 
 typedef enum _gceFUNCTION_ARGUMENT_FLAG
 {
-    gceFUNCTION_ARGUMENT_FLAG_NONE          = 0x00,
-    gceFUNCTION_ARGUMENT_FLAG_IS_PRECISE    = 0x01,
+    gceFUNCTION_ARGUMENT_FLAG_NONE                  = 0x00,
+    gceFUNCTION_ARGUMENT_FLAG_IS_PRECISE            = 0x01,
+    gceFUNCTION_ARGUMENT_FLAG_IS_RETURN_VARIABLE    = 0x02,
 } gceFUNCTION_ARGUMENT_FLAG;
 
 typedef struct _gcsFUNCTION_ARGUMENT
@@ -4254,6 +4280,8 @@ typedef enum _gcSHADER_FLAGS
     gcSHADER_FLAG_ENABLE_MULTI_GPU          = 0x1000000, /* whether enable multi-GPU. */
     gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE = 0x2000000, /* the shader has OCL option `-cl-viv-gcsl-driver-image */
     gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER= 0x4000000, /* whether enable offline compile. */
+    gcSHADER_FLAG_COMPATIBILITY_PROFILE     = 0x8000000, /* the shader version is compatibility profile for OGL.*/
+    gcSHADER_FLAG_USE_CONST_REG_FOR_UBO     = 0x10000000, /* Use constant register to save the UBO.*/
 } gcSHADER_FLAGS;
 
 #define gcShaderIsOldHeader(Shader)             (((Shader)->flags & gcSHADER_FLAG_OLDHEADER) != 0)
@@ -4283,6 +4311,8 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderHasDefineMainFunc(Shader)       (((Shader)->flags & gcSHADER_FLAG_HAS_DEFINE_MAIN_FUNC) != 0)
 #define gcShaderEnableMultiGPU(Shader)          (((Shader)->flags & gcSHADER_FLAG_ENABLE_MULTI_GPU) != 0)
 #define gcShaderEnableOfflineCompiler(Shader)   (((Shader)->flags & gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER) != 0)
+#define gcShaderIsCompatibilityProfile(Shader)  (((Shader)->flags & gcSHADER_FLAG_COMPATIBILITY_PROFILE) != 0)
+#define gcShaderUseConstRegForUBO(Shader)       (((Shader)->flags & gcSHADER_FLAG_USE_CONST_REG_FOR_UBO) != 0)
 
 #define gcShaderGetFlag(Shader)                 (Shader)->flags)
 
@@ -4332,7 +4362,10 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrEnableMultiGPU(Shader)       do { (Shader)->flags &= ~gcSHADER_FLAG_ENABLE_MULTI_GPU; } while (0)
 #define gcShaderSetEnableOfflineCompiler(Shader)do { (Shader)->flags |= gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER; } while (0)
 #define gcShaderClrEnableOfflineCompiler(Shader)do { (Shader)->flags &= ~gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER; } while (0)
-
+#define gcShaderSetIsCompatibilityProfile(Shader)     do { (Shader)->flags |= gcSHADER_FLAG_COMPATIBILITY_PROFILE; } while (0)
+#define gcShaderClrIsCompatibilityProfile(Shader)     do { (Shader)->flags &= ~gcSHADER_FLAG_COMPATIBILITY_PROFILE; } while (0)
+#define gcShaderSetUseConstRegForUBO(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_USE_CONST_REG_FOR_UBO; } while (0)
+#define gcShaderClrUseConstRegForUBO(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_USE_CONST_REG_FOR_UBO; } while (0)
 #define gcShaderSetFlag(Shader, Flag)           do { (Shader)->flags = (Flag); } while (0)
 
 typedef struct _gcLibraryList gcLibraryList;
@@ -4451,6 +4484,15 @@ typedef struct _gcGEOLAYOUT
     gcGeoPrimitive        geoOutPrimitive;
 } gcGEOLayout;
 
+/* same value as cl_program_binary_type. */
+typedef enum _gcCL_PROGRAM_BINARY_TYPE
+{
+    gcCL_PROGRAM_BINARY_TYPE_NONE                   = 0x0,
+    gcCL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT        = 0x1,
+    gcCL_PROGRAM_BINARY_TYPE_LIBRARY                = 0x2,
+    gcCL_PROGRAM_BINARY_TYPE_EXECUTABLE             = 0x4,
+} gcCL_PROGRAM_BINARY_TYPE;
+
 /* The structure that defines the gcSHADER object to the outside world. */
 struct _gcSHADER
 {
@@ -4482,6 +4524,9 @@ struct _gcSHADER
 
     /* Type of shader. */
     gcSHADER_KIND               type;
+
+    /* Save the cl_program_binary_type which is set by OCL driver. */
+    gcCL_PROGRAM_BINARY_TYPE    clProgramBinaryType;
 
     /* Flags */
     gcSHADER_FLAGS              flags;
@@ -4923,6 +4968,7 @@ typedef enum _gcBuiltinConst
     gcBIConst_MaxGSAtomicCounterBuffers,
 
     /* Desktop GL */
+    gcBIConst_MaxLights,
     gcBIConst_MaxClipDistances,
     gcBIConst_MaxClipPlanes,
     gcBIConst_MaxFragmentUniformComponents,

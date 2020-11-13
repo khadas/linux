@@ -56,11 +56,11 @@
 #ifndef __gc_hal_h_
 #define __gc_hal_h_
 
-#include "shared/gc_hal_types.h"
+#include "gc_hal_types.h"
 #include "gc_hal_enum.h"
 #include "gc_hal_base.h"
 #include "gc_hal_profiler.h"
-#include "shared/gc_hal_driver.h"
+#include "gc_hal_driver.h"
 #if gcdENABLE_3D
 #include "gc_hal_statistics.h"
 #endif
@@ -413,6 +413,7 @@ gckOS_RequestReservedMemory(
     gctSIZE_T Size,
     const char * Name,
     gctBOOL Requested,
+    gctBOOL CpuAccessible,
     gctPOINTER * MemoryHandle
     );
 
@@ -420,6 +421,20 @@ void
 gckOS_ReleaseReservedMemory(
     gckOS Os,
     gctPOINTER MemoryHandle
+    );
+
+/* Reserved memory sub area */
+gceSTATUS
+gckOS_RequestReservedMemoryArea(
+    IN gctPOINTER MemoryHandle,
+    IN gctSIZE_T Offset,
+    IN gctSIZE_T Size,
+    OUT gctPOINTER * MemoryAreaHandle
+    );
+
+void
+gckOS_ReleaseReservedMemoryArea(
+    gctPOINTER MemoryAreaHandle
     );
 
 /* Get the number fo bytes per page. */
@@ -1415,6 +1430,15 @@ gckOS_ReleaseSemaphore(
     IN gctPOINTER Semaphore
     );
 
+#if gcdENABLE_SW_PREEMPTION
+/* Release a semahore. */
+gceSTATUS
+gckOS_ReleaseSemaphoreEx(
+    IN gckOS Os,
+    IN gctPOINTER Semaphore
+    );
+#endif
+
 /*******************************************************************************
 ** Timer API.
 */
@@ -1501,6 +1525,8 @@ gckHEAP_ProfileEnd(
 
 typedef struct _gckVIDMEM *         gckVIDMEM;
 typedef struct _gckKERNEL *         gckKERNEL;
+typedef struct _gckCOMMAND *        gckCOMMAND;
+typedef struct _gckEVENT *          gckEVENT;
 typedef struct _gckDB *             gckDB;
 typedef struct _gckDVFS *           gckDVFS;
 typedef struct _gckMMU *            gckMMU;
@@ -1614,6 +1640,13 @@ gceSTATUS
 gckKERNEL_Notify(
     IN gckKERNEL Kernel,
     IN gceNOTIFY Notifcation
+    );
+
+gceSTATUS
+gckKERNEL_SyncVideoMemory(
+    IN gckKERNEL Kernel,
+    IN gckVIDMEM_NODE Node,
+    IN gctUINT32 Reason
     );
 
 /*******************************************************************************

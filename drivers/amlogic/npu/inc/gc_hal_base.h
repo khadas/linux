@@ -15,9 +15,9 @@
 #define __gc_hal_base_h_
 
 #include "gc_hal_enum.h"
-#include "shared/gc_hal_types.h"
+#include "gc_hal_types.h"
 #include "gc_hal_debug_zones.h"
-#include "shared/gc_hal_base.h"
+#include "shared/gc_hal_base_shared.h"
 
 
 #ifdef __cplusplus
@@ -102,9 +102,6 @@ typedef struct _gcsNN_CUSTOMIZED_FEATURE
 {
     gctUINT  vipSRAMSize;
     gctUINT  axiSRAMSize;
-    gctUINT  vipSRAMRemapStartAddr;
-    gctUINT  axiSRAMRemapStartAddr;
-    gctUINT  axiSRAMRemapEndAddr;
     gctFLOAT ddrReadBWLimit;
     gctFLOAT ddrWriteBWLimit;
     gctFLOAT ddrTotalBWLimit;
@@ -294,6 +291,11 @@ typedef struct _gcsTLS
 
     /* Driver tls. */
     gcsDRIVER_TLS_PTR           driverTLS[gcvTLS_KEY_COUNT];
+
+#if gcdENABLE_SW_PREEMPTION
+    /* PriorityID. */
+    gctUINT                     priorityID;
+#endif
 }
 gcsTLS;
 
@@ -789,6 +791,14 @@ gcoHAL_GetCurrentCoreIndex(
     );
 
 gceSTATUS
+gcoHAL_InitCoreIndexByType(
+    IN gcoHAL Hal,
+    IN gceHARDWARE_TYPE Type,
+    IN gctBOOL Init,
+    OUT gctUINT32 *CoreIndex
+    );
+
+gceSTATUS
 gcoHAL_ConvertCoreIndexGlobal(
     IN gcoHAL Hal,
     IN gceHARDWARE_TYPE Type,
@@ -879,7 +889,7 @@ gcoHAL_AllocateVideoMemory(
     IN gctUINT Alignment,
     IN gceVIDMEM_TYPE Type,
     IN gctUINT32 Flag,
-    IN gcePOOL Pool,
+    IN OUT gcePOOL *Pool,
     IN OUT gctSIZE_T * Bytes,
     OUT gctUINT32_PTR Node
     );
@@ -924,6 +934,16 @@ gcoHAL_QueryTargetCaps(
     OUT gctUINT * MaxSamples
     );
 #endif
+
+gceSTATUS
+gcoHAL_PrepareVideoMemory(
+    IN gctUINT32 Node
+    );
+
+gceSTATUS
+gcoHAL_FinishVideoMemory(
+    IN gctUINT32 Node
+    );
 
 gceSTATUS
 gcoHAL_WrapUserMemory(
@@ -2097,6 +2117,13 @@ typedef struct _gcsFORMAT_CLASS_TYPE_DEPTH
 }
 gcsFORMAT_CLASS_TYPE_DEPTH;
 
+/* Intensity format class. */
+typedef struct _gcsFORMAT_CLASs_TYPE_INTENSITY
+{
+    gcsFORMAT_COMPONENT         value;
+}
+gcsFORMAT_CLASs_TYPE_INTENSITY;
+
 typedef union _gcuPIXEL_FORMAT_CLASS
 {
     gcsFORMAT_CLASS_TYPE_BUMP       bump;
@@ -2105,6 +2132,7 @@ typedef union _gcuPIXEL_FORMAT_CLASS
     gcsFORMAT_CLASS_TYPE_LUMINANCE  lum;
     gcsFORMAT_CLASS_TYPE_INDEX      index;
     gcsFORMAT_CLASS_TYPE_DEPTH      depth;
+    gcsFORMAT_CLASs_TYPE_INTENSITY  intensity;
 }
 gcuPIXEL_FORMAT_CLASS;
 
@@ -5623,6 +5651,7 @@ gcoHAL_GetUserDebugOption(
             if (featureComputeOnly) \
             { \
                 L1cacheSize = featureL1CacheSize; \
+                attribCacheRatio = 0x7; \
             } \
             else \
             { \

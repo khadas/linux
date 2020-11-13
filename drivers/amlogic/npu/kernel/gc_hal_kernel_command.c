@@ -2185,7 +2185,9 @@ _CommitWaitLinkOnce(
     IN gcsSTATE_DELTA_PTR StateDelta,
     IN gctUINT32 ProcessID,
     IN gctBOOL Shared,
-    INOUT gctBOOL *contextSwitched
+    INOUT gctBOOL *contextSwitched,
+    IN gctPOINTER PreemptCommit,
+    IN gctBOOL InPreemptThread
     )
 {
     gceSTATUS status;
@@ -2391,7 +2393,21 @@ _CommitWaitLinkOnce(
         contextBuffer = Context->buffer;
 
         /* Yes, merge in the deltas. */
+#if gcdENABLE_SW_PREEMPTION
+        if (InPreemptThread || Command->kernel->preemptionMode == gcvNON_FULLY_PREEMPTIBLE_MODE)
+        {
+            gckPREEMPT_COMMIT preemptCommit = (gckPREEMPT_COMMIT)PreemptCommit;
+            gcmkONERROR(gckCONTEXT_PreemptUpdate(Context, preemptCommit));
+        }
+        else
+        {
+            gcmkONERROR(gckCONTEXT_Update(Context, ProcessID, StateDelta));
+
+            gcmkONERROR(gckCONTEXT_ConstructPrevDelta(Context, ProcessID, StateDelta));
+        }
+#else
         gcmkONERROR(gckCONTEXT_Update(Context, ProcessID, StateDelta));
+#endif
 
         /***************************************************************
         ** SWITCHING CONTEXT.
@@ -2451,7 +2467,7 @@ _CommitWaitLinkOnce(
             ));
 
 #if gcdCAPTURE_ONLY_MODE
-        for (i = 0; i < gcdCONTEXT_BUFFER_NUM; ++i)
+        for (i = 0; i < gcdCONTEXT_BUFFER_COUNT; ++i)
         {
             gcsCONTEXT_PTR buffer = contextBuffer;
 
@@ -2631,11 +2647,13 @@ _CommitWaitLinkOnce(
     {
         gctUINT8_PTR link = commandBufferTail + CommandBuffer->exitIndex * 16;
         gctSIZE_T bytes = 8;
+        gceCORE_3D_MASK mask = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MULTI_CLUSTER) ?
+            gcvCORE_3D_ALL_MASK : ((gceCORE_3D_MASK)(1 << hardware->kernel->chipID));
 
         gcmkONERROR(gckWLFE_ChipEnable(
             hardware,
             link,
-            (gceCORE_3D_MASK)(1 << hardware->kernel->chipID),
+            mask,
             &bytes
             ));
 
@@ -2723,7 +2741,6 @@ _CommitWaitLinkOnce(
 #endif
 
 #if gcdLINK_QUEUE_SIZE
-    /* TODO: What's it? */
     if (Command->kernel->stuckDump >= gcvSTUCK_DUMP_USER_COMMAND)
     {
         gcuQUEUEDATA data;
@@ -3211,7 +3228,37 @@ OnError:
     return status;
 }
 
+gceSTATUS
+_ValidCommandBuffer(
+    IN gckCOMMAND Command,
+    IN gctUINT32 ProcessId,
+    IN gcsHAL_COMMAND_LOCATION *cmdLoc
+    )
+{
+    gceSTATUS status;
+    gcsDATABASE_RECORD Record;
 
+    gcmkHEADER_ARG("Command=%p CommandLocation=%p Pid=%u",
+                    Command, cmdLoc, ProcessId);
+
+    gcmkONERROR(gckKERNEL_FindProcessDB(
+        Command->kernel,
+        ProcessId,
+        0,
+        gcvDB_VIDEO_MEMORY_LOCKED,
+        gcmINT2PTR(cmdLoc->videoMemNode),
+        &Record
+        ));
+
+    if (gcmPTR_TO_UINT64(Record.physical) != cmdLoc->logical)
+    {
+        gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
+    }
+
+OnError:
+    gcmkFOOTER();
+    return status;
+}
 /*******************************************************************************
 **
 **  gckCOMMAND_Commit
@@ -3302,6 +3349,8 @@ gckCOMMAND_Commit(
             }
         }
 
+        gcmkONERROR(_ValidCommandBuffer(Command, ProcessId, cmdLoc));
+
         if (Command->feType == gcvHW_FE_WAIT_LINK)
         {
             /* Commit command buffers. */
@@ -3311,7 +3360,9 @@ gckCOMMAND_Commit(
                                          delta,
                                          ProcessId,
                                          Shared,
-                                         contextSwitched);
+                                         contextSwitched,
+                                         gcvNULL,
+                                         gcvFALSE);
         }
         else if (Command->feType == gcvHW_FE_MULTI_CHANNEL)
         {
@@ -4507,3 +4558,75 @@ OnError:
     return status;
 }
 
+#if gcdENABLE_SW_PREEMPTION
+/*******************************************************************************
+**
+**  gckCOMMAND_PreemptCommit
+**
+**  Commit command in preemption mode.
+**
+**  INPUT:
+**
+**      gckCOMMAND Command
+**          Pointer to a gckCOMMAND object.
+**
+**      gckPREEMPT_COMMIT PreemptCommit
+**          The preempt commit.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+gceSTATUS
+gckCOMMAND_PreemptCommit(
+    IN gckCOMMAND Command,
+    IN gckPREEMPT_COMMIT PreemptCommit
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+    gctBOOL contextSwitched = gcvFALSE;
+    gcsHAL_COMMAND_LOCATION *cmdLoc = PreemptCommit->cmdLoc;
+    gckCONTEXT context = PreemptCommit->context;
+    gcsSTATE_DELTA_PTR delta = PreemptCommit->delta;
+
+    gcmkHEADER();
+
+    do
+    {
+        if (Command->feType == gcvHW_FE_WAIT_LINK)
+        {
+            status = _CommitWaitLinkOnce(Command,
+                                         context,
+                                         cmdLoc,
+                                         delta,
+                                         PreemptCommit->pid,
+                                         PreemptCommit->shared,
+                                         &contextSwitched,
+                                         PreemptCommit,
+                                         gcvTRUE);
+
+            if (status != gcvSTATUS_INTERRUPTED)
+            {
+                gcmkONERROR(status);
+            }
+        }
+        else
+        {
+            gcmkPRINT("Don't enable SW preemption for non-WLFE.\n");
+
+            gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+        }
+
+        context = gcvNULL;
+        delta   = gcvNULL;
+
+        cmdLoc  = (gcsHAL_COMMAND_LOCATION *)gcmUINT64_TO_PTR(cmdLoc->next);
+    }
+    while(cmdLoc);
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
+    return status;
+}
+#endif

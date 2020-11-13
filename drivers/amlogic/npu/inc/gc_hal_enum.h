@@ -15,7 +15,7 @@
 #define __gc_hal_enum_h_
 
 #include "gc_hal_options.h"
-#include "shared/gc_hal_enum.h"
+#include "shared/gc_hal_enum_shared.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -443,12 +443,22 @@ typedef enum _gce2D_TILE_STATUS_CONFIG
 }
 gce2D_TILE_STATUS_CONFIG;
 
+typedef enum _gce2D_DEC400_MINOR_VERSION
+{
+    gcv2D_DEC400_MINOR_V1 = 1,
+    gcv2D_DEC400_MINOR_V2 = 2,
+    gcv2D_DEC400_MINOR_V3 = 3,
+}
+gce2D_DEC400_MINOR_VERSION;
+
+
 typedef enum _gce2D_QUERY
 {
     gcv2D_QUERY_RGB_ADDRESS_MIN_ALIGN       = 0,
     gcv2D_QUERY_RGB_STRIDE_MIN_ALIGN,
     gcv2D_QUERY_YUV_ADDRESS_MIN_ALIGN,
     gcv2D_QUERY_YUV_STRIDE_MIN_ALIGN,
+    gcv2D_QUERY_DEC400_MINOR_VERSION,
 }
 gce2D_QUERY;
 
@@ -1417,7 +1427,8 @@ typedef enum _gceFORMAT_CLASS
     gcvFORMAT_CLASS_DEPTH,
     gcvFORMAT_CLASS_ASTC,
     gcvFORMAT_CLASS_COMPRESSED,
-    gcvFORMAT_CLASS_OTHER
+    gcvFORMAT_CLASS_OTHER,
+    gcvFORMAT_CLASS_INTENSITY
 }
 gceFORMAT_CLASS;
 
@@ -1538,8 +1549,9 @@ gceCLEAR;
 
 typedef enum _gceBLITDRAW_TYPE
 {
-    gcvBLITDRAW_CLEAR = 0,
-    gcvBLITDRAW_BLIT  = 1,
+    gcvBLITDRAW_CLEAR      = 0,
+    gcvBLITDRAW_BLIT       = 1,
+    gcvBLITDRAW_BLIT_DEPTH = 2,
 
     /* last number, not a real type */
     gcvBLITDRAW_NUM_TYPE
@@ -2089,6 +2101,9 @@ enum
 /* Do not try slow pools (gcvPOOL_VIRTUAL) */
 #define gcvALLOC_FLAG_FAST_POOLS            0x00000100
 
+/* Only accessed by GPU */
+#define gcvALLOC_FLAG_NON_CPU_ACCESS        0x00000200
+
 /* Import DMABUF. */
 #define gcvALLOC_FLAG_DMABUF                0x00001000
 /* Import USERMEMORY. */
@@ -2122,6 +2137,11 @@ enum
 /* Default chip ID means chip ID same as core index. */
 #define gcvCHIP_ID_DEFAULT             (~0U)
 
+/* Tile status header size */
+#ifndef gcvTS_FC_HEADER_SIZE
+#define gcvTS_FC_HEADER_SIZE    128
+#endif
+
 /******************************************************************************\
 ****************************** Object Declarations *****************************
 \******************************************************************************/
@@ -2132,6 +2152,9 @@ typedef struct _gcsSTATE_DELTA      * gcsSTATE_DELTA_PTR;
 typedef struct _gcsQUEUE            * gcsQUEUE_PTR;
 typedef struct _gcoQUEUE            * gcoQUEUE;
 typedef struct _gcsHAL_INTERFACE    * gcsHAL_INTERFACE_PTR;
+#if VIVANTE_PROFILER
+typedef struct _gcsHAL_PROFILER_INTERFACE    * gcsHAL_PROFILER_INTERFACE_PTR;
+#endif
 typedef struct _gcs2D_PROFILE       * gcs2D_PROFILE_PTR;
 
 

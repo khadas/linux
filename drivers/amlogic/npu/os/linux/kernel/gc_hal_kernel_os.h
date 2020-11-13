@@ -89,6 +89,7 @@ struct _LINUX_MDL
     gctBOOL                 contiguous;
     dma_addr_t              dmaHandle;
     gctBOOL                 cacheable;
+    gctBOOL                 cpuAccessible;
 
     struct mutex            mapsMutex;
     struct list_head        mapsHead;
@@ -104,6 +105,12 @@ struct _LINUX_MDL
     struct list_head        link;
 
     gctBOOL                 pageUnit1M;
+
+    /* list header for sub mdl for dynamic mapping */
+    struct list_head        rmaHead;
+
+    /* sub mdl list */
+    struct list_head        rmaLink;
 };
 
 extern PLINUX_MDL_MAP

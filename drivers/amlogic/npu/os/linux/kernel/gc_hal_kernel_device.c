@@ -55,10 +55,14 @@
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_kernel_allocator.h"
+#include "gc_feature_database.h"
+#include "gc_hal.h"
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/mman.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/io.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_DEVICE
 
@@ -71,6 +75,67 @@ static gckGALDEVICE galDevice;
 
 extern gcTA globalTA[16];
 
+#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_CPU_CSKYV2) && LINUX_VERSION_CODE <= KERNEL_VERSION(3,0,8)
+static void
+seq_vprintf(
+    struct seq_file *m,
+    const char *f,
+    va_list args
+    )
+{
+    int len;
+    if (m->count < m->size)
+    {
+        len = vsnprintf(m->buf + m->count, m->size - m->count, f, args);
+        if (m->count + len < m->size)
+        {
+            m->count += len;
+            return;
+        }
+    }
+    m->count = m->size;
+}
+#endif
+
+static int
+debugfs_printf(
+    IN void* obj,
+    IN const char* fmt,
+    ...
+    )
+{
+    va_list args;
+    va_start(args, fmt);
+    seq_vprintf((struct seq_file*)obj, fmt, args);
+    va_end(args);
+
+    return 0;
+}
+#else
+static int
+sys_printf(
+    IN void* obj,
+    IN const char* fmt,
+    ...
+    )
+{
+    int len = 0;
+    va_list args;
+    va_start(args, fmt);
+    len = vsprintf((char*)obj, fmt, args);
+    va_end(args);
+
+    return len;
+}
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+#define fs_printf   debugfs_printf
+#else
+#define fs_printf   sys_printf
+#endif
+
 /******************************************************************************\
 ******************************** Debugfs Support *******************************
 \******************************************************************************/
@@ -79,11 +144,16 @@ extern gcTA globalTA[16];
 ***************************** DEBUG SHOW FUNCTIONS *****************************
 \******************************************************************************/
 
-int gc_info_show(struct seq_file* m, void* data)
+int gc_info_show(void* m, void* data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     int i = 0;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
     gceCHIPMODEL chipModel = 0;
     gctUINT32 chipRevision = 0;
     gctUINT32 productID = 0;
@@ -107,34 +177,38 @@ int gc_info_show(struct seq_file* m, void* data)
                 ecoID = device->kernels[i]->hardware->identity.ecoID;
             }
 
-            seq_printf(m, "gpu      : %d\n", i);
-            seq_printf(m, "model    : %4x\n", chipModel);
-            seq_printf(m, "revision : %4x\n", chipRevision);
-            seq_printf(m, "product  : %4x\n", productID);
-            seq_printf(m, "eco      : %4x\n", ecoID);
-            seq_printf(m, "\n");
+            len = fs_printf(ptr, "gpu      : %d\n", i);
+            len += fs_printf(ptr + len, "model    : %4x\n", chipModel);
+            len += fs_printf(ptr + len, "revision : %4x\n", chipRevision);
+            len += fs_printf(ptr + len, "product  : %4x\n", productID);
+            len += fs_printf(ptr + len, "eco      : %4x\n", ecoID);
+            len += fs_printf(ptr + len, "\n");
         }
     }
-
-    return 0;
+    return len;
 }
 
-int gc_clients_show(struct seq_file* m, void* data)
+int gc_clients_show(void* m, void* data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
 
     gckKERNEL kernel = _GetValidKernel(device);
 
     gcsDATABASE_PTR database;
     gctINT i, pid;
     char name[24];
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!kernel)
         return -ENXIO;
 
-    seq_printf(m, "%-8s%s\n", "PID", "NAME");
-    seq_printf(m, "------------------------\n");
+    len = fs_printf(ptr, "%-8s%s\n", "PID", "NAME");
+    len += fs_printf(ptr + len, "------------------------\n");
 
     /* Acquire the database mutex. */
     gcmkVERIFY_OK(
@@ -151,7 +225,7 @@ int gc_clients_show(struct seq_file* m, void* data)
 
             gcmkVERIFY_OK(gckOS_GetProcessNameByPid(pid, gcmSIZEOF(name), name));
 
-            seq_printf(m, "%-8d%s\n", pid, name);
+            len += fs_printf(ptr + len, "%-8d%s\n", pid, name);
         }
     }
 
@@ -159,18 +233,23 @@ int gc_clients_show(struct seq_file* m, void* data)
     gcmkVERIFY_OK(gckOS_ReleaseMutex(kernel->os, kernel->db->dbMutex));
 
     /* Success. */
-    return 0;
+    return len;
 }
 
-int gc_meminfo_show(struct seq_file* m, void* data)
+int gc_meminfo_show(void* m, void* data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gckKERNEL kernel = _GetValidKernel(device);
     gckVIDMEM memory;
     gceSTATUS status;
     gcsDATABASE_PTR database;
     gctUINT32 i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     gctUINT32 free = 0, used = 0, total = 0, minFree = 0, maxUsed = 0;
 
@@ -196,13 +275,13 @@ int gc_meminfo_show(struct seq_file* m, void* data)
         gcmkVERIFY_OK(gckOS_ReleaseMutex(memory->os, memory->mutex));
     }
 
-    seq_printf(m, "VIDEO MEMORY:\n");
-    seq_printf(m, "  POOL SYSTEM:\n");
-    seq_printf(m, "    Free :    %10u B\n", free);
-    seq_printf(m, "    Used :    %10u B\n", used);
-    seq_printf(m, "    MinFree : %10u B\n", minFree);
-    seq_printf(m, "    MaxUsed : %10u B\n", maxUsed);
-    seq_printf(m, "    Total :   %10u B\n", total);
+    len  = fs_printf(ptr, "VIDEO MEMORY:\n");
+    len += fs_printf(ptr + len, "  POOL SYSTEM:\n");
+    len += fs_printf(ptr + len, "    Free :    %10u B\n", free);
+    len += fs_printf(ptr + len, "    Used :    %10u B\n", used);
+    len += fs_printf(ptr + len, "    MinFree : %10u B\n", minFree);
+    len += fs_printf(ptr + len, "    MaxUsed : %10u B\n", maxUsed);
+    len += fs_printf(ptr + len, "    Total :   %10u B\n", total);
 
     /* Acquire the database mutex. */
     gcmkVERIFY_OK(
@@ -229,11 +308,11 @@ int gc_meminfo_show(struct seq_file* m, void* data)
     /* Release the database mutex. */
     gcmkVERIFY_OK(gckOS_ReleaseMutex(kernel->os, kernel->db->dbMutex));
 
-    seq_printf(m, "  POOL VIRTUAL:\n");
-    seq_printf(m, "    Used :    %10llu B\n", virtualCounter.bytes);
-    seq_printf(m, "    MaxUsed : %10llu B\n", virtualCounter.bytes);
+    len += fs_printf(ptr + len, "  POOL VIRTUAL:\n");
+    len += fs_printf(ptr + len, "    Used :    %10llu B\n", virtualCounter.bytes);
+    len += fs_printf(ptr + len, "    MaxUsed : %10llu B\n", virtualCounter.bytes);
 
-    return 0;
+    return len;
 }
 
 static const char * vidmemTypeStr[gcvVIDMEM_TYPE_COUNT] =
@@ -271,19 +350,21 @@ static const char * poolStr[gcvPOOL_NUMBER_OF_POOLS] =
     "User",
     "Insram",
     "Exsram",
+    "Exclusive",
 };
 
-static void
+static int
 _ShowDummyRecord(
-    IN struct seq_file *File,
+    IN void *File,
     IN gcsDATABASE_PTR Database
     )
 {
+    return 0;
 }
 
-static void
+static int
 _ShowVideoMemoryRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
@@ -294,9 +375,15 @@ _ShowVideoMemoryRecord(
     gctINT32 refCount = 0;
     gctINT32 lockCount = 0;
     gceSTATUS status;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "Video Memory Node:\n");
-    seq_printf(m, "  handle         nodeObject       size         type     pool     physical  ref lock\n");
+    len = fs_printf(ptr, "Video Memory Node:\n");
+    len += fs_printf(ptr + len, "  handle         nodeObject       size         type     pool     physical  ref lock\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -323,7 +410,7 @@ _ShowVideoMemoryRecord(
 
             if (gcmIS_ERROR(status))
             {
-                seq_printf(m, "%6u Invalid Node\n", handle);
+                len += fs_printf(ptr + len, "%6u Invalid Node\n", handle);
                 continue;
             }
 
@@ -331,7 +418,7 @@ _ShowVideoMemoryRecord(
             gcmkONERROR(gckVIDMEM_NODE_GetReference(record->kernel, nodeObject, &refCount));
             gcmkONERROR(gckVIDMEM_NODE_GetLockCount(record->kernel, nodeObject, &lockCount));
 
-            seq_printf(m, "%#8x %#18lx %10lu %12s %8s %#12llx %4d %4d\n",
+            len += fs_printf(ptr + len, "%#8x %#18lx %10lu %12s %8s %#12llx %4d %4d\n",
                 handle,
                 (unsigned long)nodeObject,
                 (unsigned long)record->bytes,
@@ -345,28 +432,34 @@ _ShowVideoMemoryRecord(
     }
 
 OnError:
-    return;
+    return len;
 }
 
-static void
+static int
 _ShowCommandBufferRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
-    return;
+    return 0;
 }
 
-static void
+static int
 _ShowNonPagedRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
     gctUINT i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "NonPaged Memory:\n");
-    seq_printf(m, "  name              vaddr       size\n");
+    len = fs_printf(ptr, "NonPaged Memory:\n");
+    len += fs_printf(ptr + len, "  name              vaddr       size\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -382,33 +475,40 @@ _ShowNonPagedRecord(
                 continue;
             }
 
-            seq_printf(m, "%6u %#18lx %10lu\n",
+            len += fs_printf(ptr + len, "%6u %#18lx %10lu\n",
                 gcmPTR2INT32(record->physical),
                 (unsigned long)record->data,
                 (unsigned long)record->bytes
                 );
         }
     }
+    return len;
 }
 
-static void
+static int
 _ShowContiguousRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
-    return;
+    return 0;
 }
 
-static void
+static int
 _ShowSignalRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
     gctUINT i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "User signal:\n");
+    len = fs_printf(ptr, "User signal:\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -424,14 +524,15 @@ _ShowSignalRecord(
                 continue;
             }
 
-            seq_printf(m, "%#10x\n", gcmPTR2INT32(record->data));
+            len += fs_printf(ptr + len, "%#10x\n", gcmPTR2INT32(record->data));
         }
     }
+    return len;
 }
 
-static void
+static int
 _ShowLockRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
@@ -439,9 +540,15 @@ _ShowLockRecord(
     gceSTATUS status;
     gctUINT32 handle;
     gckVIDMEM_NODE nodeObject;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "Video Memory Lock:\n");
-    seq_printf(m, "  handle         nodeObject              vaddr\n");
+    len = fs_printf(ptr, "Video Memory Lock:\n");
+    len += fs_printf(ptr + len, "  handle         nodeObject              vaddr\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -471,24 +578,31 @@ _ShowLockRecord(
                 nodeObject = gcvNULL;
             }
 
-            seq_printf(m, "%#8x %#18lx %#18lx\n",
+            len += fs_printf(ptr + len, "%#8x %#18lx %#18lx\n",
                 handle,
                 (unsigned long)nodeObject,
                 (unsigned long)record->physical
                 );
         }
     }
+    return len;
 }
 
-static void
+static int
 _ShowContextRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
     gctUINT i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "Context:\n");
+    len = fs_printf(ptr, "Context:\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -504,21 +618,28 @@ _ShowContextRecord(
                 continue;
             }
 
-            seq_printf(m, "%6u\n", gcmPTR2INT32(record->data));
+            len += fs_printf(ptr + len, "%6u\n", gcmPTR2INT32(record->data));
         }
     }
+    return len;
 }
 
-static void
+static int
 _ShowMapMemoryRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
     gctUINT i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "Map Memory:\n");
-    seq_printf(m, "  name              vaddr       size\n");
+    len = fs_printf(ptr, "Map Memory:\n");
+    len += fs_printf(ptr + len, "  name              vaddr       size\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -534,33 +655,40 @@ _ShowMapMemoryRecord(
                 continue;
             }
 
-            seq_printf(m, "%#6lx %#18lx %10lu\n",
+            len += fs_printf(ptr + len, "%#6lx %#18lx %10lu\n",
                 (unsigned long)record->physical,
                 (unsigned long)record->data,
                 (unsigned long)record->bytes
                 );
         }
     }
+    return len;
 }
 
-static void
+static int
 _ShowMapUserMemoryRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
-    return;
+    return 0;
 }
 
-static void
+static int
 _ShowShbufRecord(
-    IN struct seq_file *m,
+    IN void *m,
     IN gcsDATABASE_PTR Database
     )
 {
     gctUINT i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
-    seq_printf(m, "ShBuf:\n");
+    len = fs_printf(ptr, "ShBuf:\n");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -576,18 +704,36 @@ _ShowShbufRecord(
                 continue;
             }
 
-            seq_printf(m, "%#8x\n", gcmPTR2INT32(record->data));
+            len += fs_printf(ptr + len, "%#8x\n", gcmPTR2INT32(record->data));
         }
     }
+    return len;
 }
 
-static void
+#if gcdENABLE_SW_PREEMPTION
+static int
+_ShowPriorityRecord(
+    IN void *m,
+    IN gcsDATABASE_PTR Database
+    )
+{
+    return 0;
+}
+#endif
+
+static int
 _ShowCounters(
-    struct seq_file *File,
+    void *File,
     gcsDATABASE_PTR Database
     )
 {
     gctUINT i = 0;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
 
     static const char * otherCounterNames[] = {
         "AllocNonPaged",
@@ -603,10 +749,10 @@ _ShowCounters(
         &Database->mapMemory,
     };
 
-    seq_printf(File, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
+    len = fs_printf(ptr, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
 
     /* Print surface type counters. */
-    seq_printf(File, "%-16s %16lld %16lld %16lld\n",
+    len += fs_printf(ptr + len, "%-16s %16lld %16lld %16lld\n",
                "All-Types",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -614,16 +760,17 @@ _ShowCounters(
 
     for (i = 1; i < gcvVIDMEM_TYPE_COUNT; i++)
     {
-        seq_printf(File, "%-16s %16lld %16lld %16lld\n",
+        len += fs_printf(ptr + len, "%-16s %16lld %16lld %16lld\n",
                    vidmemTypeStr[i],
                    Database->vidMemType[i].bytes,
                    Database->vidMemType[i].maxBytes,
                    Database->vidMemType[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print surface pool counters. */
-    seq_printf(File, "%-16s %16lld %16lld %16lld\n",
+    len += fs_printf(ptr + len, "%-16s %16lld %16lld %16lld\n",
                "All-Pools",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -631,29 +778,32 @@ _ShowCounters(
 
     for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
     {
-        seq_printf(File, "%-16s %16lld %16lld %16lld\n",
+        len += fs_printf(ptr + len, "%-16s %16lld %16lld %16lld\n",
                    poolStr[i],
                    Database->vidMemPool[i].bytes,
                    Database->vidMemPool[i].maxBytes,
                    Database->vidMemPool[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print other counters. */
     for (i = 0; i < gcmCOUNTOF(otherCounterNames); i++)
     {
-        seq_printf(File, "%-16s %16lld %16lld %16lld\n",
+        len += fs_printf(ptr + len, "%-16s %16lld %16lld %16lld\n",
                    otherCounterNames[i],
                    otherCounters[i]->bytes,
                    otherCounters[i]->maxBytes,
                    otherCounters[i]->totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
+    return len;
 }
 
 static int
 _ShowRecord(
-    IN struct seq_file *File,
+    IN void *File,
     IN gcsDATABASE_PTR Database,
     IN gcsDATABASE_RECORD_PTR Record
     )
@@ -662,6 +812,12 @@ _ShowRecord(
     gckVIDMEM_NODE nodeObject;
     gctPHYS_ADDR_T physical;
     gceSTATUS status = gcvSTATUS_OK;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
 
     static const char * recordTypes[gcvDB_NUM_TYPES] = {
         "Unknown",
@@ -691,7 +847,7 @@ _ShowRecord(
 
         if (gcmIS_ERROR(status))
         {
-            seq_printf(File, "%6u Invalid Node\n", handle);
+            len += fs_printf(ptr + len, "%6u Invalid Node\n", handle);
             gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
         }
         gcmkONERROR(gckVIDMEM_NODE_GetPhysical(Record->kernel, nodeObject, 0, &physical));
@@ -701,7 +857,7 @@ _ShowRecord(
         physical = (gctUINT64)(gctUINTPTR_T)Record->physical;
     }
 
-    seq_printf(File, "%-14s %3d %16x %16zx %16zu\n",
+    len += fs_printf(ptr + len, "%-14s %3d %16x %16zx %16zu\n",
         recordTypes[Record->type],
         Record->kernel->core,
         gcmPTR2INT32(Record->data),
@@ -710,29 +866,35 @@ _ShowRecord(
         );
 
 OnError:
-    return status;
+    return len;
 }
 
-static void
+static int
 _ShowDataBaseOldFormat(
-    IN struct seq_file *File,
+    IN void *File,
     IN gcsDATABASE_PTR Database
     )
 {
     gctINT pid;
     gctUINT i;
     char name[24];
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
 
     /* Process ID and name */
     pid = Database->processID;
     gcmkVERIFY_OK(gckOS_GetProcessNameByPid(pid, gcmSIZEOF(name), name));
 
-    seq_printf(File, "--------------------------------------------------------------------------------\n");
-    seq_printf(File, "Process: %-8d %s\n", pid, name);
+    len = fs_printf(ptr, "--------------------------------------------------------------------------------\n");
+    len += fs_printf(ptr + len, "Process: %-8d %s\n", pid, name);
 
-    seq_printf(File, "Records:\n");
+    len += fs_printf(ptr + len, "Records:\n");
 
-    seq_printf(File, "%14s %3s %16s %16s %16s\n",
+    len += fs_printf(ptr + len, "%14s %3s %16s %16s %16s\n",
                "Type", "GPU", "Data/Node", "Physical/Node", "Bytes");
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
@@ -741,27 +903,34 @@ _ShowDataBaseOldFormat(
 
         while (record != NULL)
         {
-            _ShowRecord(File, Database, record);
+            len += _ShowRecord(ptr + len, Database, record);
             record = record->next;
         }
     }
 
-    seq_printf(File, "Counters:\n");
+    len += fs_printf(ptr + len, "Counters:\n");
 
-    _ShowCounters(File, Database);
+    len += _ShowCounters(ptr + len, Database);
+    return len;
 }
 
-static void
+static int
 _ShowDatabase(
-    IN struct seq_file *File,
+    IN void *File,
     IN gcsDATABASE_PTR Database
     )
 {
     gctINT pid;
     gctUINT i;
     char name[24];
+     int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
     gctBOOL hasType[gcvDB_NUM_TYPES] = {0,};
-    void (* showFuncs[])(struct seq_file *, gcsDATABASE_PTR) =
+    int (* showFuncs[])(void *, gcsDATABASE_PTR) =
     {
         _ShowDummyRecord,
         _ShowVideoMemoryRecord,
@@ -775,6 +944,9 @@ _ShowDatabase(
         _ShowMapMemoryRecord,
         _ShowMapUserMemoryRecord,
         _ShowShbufRecord,
+#if gcdENABLE_SW_PREEMPTION
+        _ShowPriorityRecord,
+#endif
     };
 
     gcmSTATIC_ASSERT(gcmCOUNTOF(showFuncs) == gcvDB_NUM_TYPES,
@@ -784,8 +956,8 @@ _ShowDatabase(
     pid = Database->processID;
     gcmkVERIFY_OK(gckOS_GetProcessNameByPid(pid, gcmSIZEOF(name), name));
 
-    seq_printf(File, "--------------------------------------------------------------------------------\n");
-    seq_printf(File, "Process: %-8d %s\n", pid, name);
+    len = fs_printf(ptr, "--------------------------------------------------------------------------------\n");
+    len += fs_printf(ptr + len, "Process: %-8d %s\n", pid, name);
 
     for (i = 0; i < gcmCOUNTOF(Database->list); i++)
     {
@@ -802,20 +974,26 @@ _ShowDatabase(
     {
         if (hasType[i])
         {
-            showFuncs[i](File, Database);
+            len += showFuncs[i](ptr + len, Database);
         }
     }
+    return len;
 }
 
 static int
-gc_db_show_old(struct seq_file *m, void *data)
+gc_db_old_show(void *m, void *data)
 {
     gcsDATABASE_PTR database;
     gctINT i;
     static gctUINT64 idleTime = 0;
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gckKERNEL kernel = _GetValidKernel(device);
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!kernel)
         return -ENXIO;
@@ -832,7 +1010,7 @@ gc_db_show_old(struct seq_file *m, void *data)
     }
 
     /* Idle time since last call */
-    seq_printf(m, "GPU Idle: %llu ns\n",  idleTime);
+    len = fs_printf(ptr, "GPU Idle: %llu ns\n",  idleTime);
 
     /* Walk the databases. */
     for (i = 0; i < gcmCOUNTOF(kernel->db->db); ++i)
@@ -841,25 +1019,30 @@ gc_db_show_old(struct seq_file *m, void *data)
              database != gcvNULL;
              database = database->next)
         {
-            _ShowDataBaseOldFormat(m, database);
+            len += _ShowDataBaseOldFormat(ptr + len, database);
         }
     }
 
     /* Release the database mutex. */
     gcmkVERIFY_OK(gckOS_ReleaseMutex(kernel->os, kernel->db->dbMutex));
 
-    return 0 ;
+    return len;
 }
 
 static int
-gc_db_show(struct seq_file *m, void *data)
+gc_db_show(void *m, void *data)
 {
     gcsDATABASE_PTR database;
     gctINT i;
     static gctUINT64 idleTime = 0;
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gckKERNEL kernel = _GetValidKernel(device);
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!kernel)
         return -ENXIO;
@@ -876,7 +1059,7 @@ gc_db_show(struct seq_file *m, void *data)
     }
 
     /* Idle time since last call */
-    seq_printf(m, "GPU Idle: %llu ns\n",  idleTime);
+    len = fs_printf(ptr, "GPU Idle: %llu ns\n",  idleTime);
 
     /* Walk the databases. */
     for (i = 0; i < gcmCOUNTOF(kernel->db->db); ++i)
@@ -885,22 +1068,27 @@ gc_db_show(struct seq_file *m, void *data)
              database != gcvNULL;
              database = database->next)
         {
-            _ShowDatabase(m, database);
+            len += _ShowDatabase(ptr + len, database);
         }
     }
 
     /* Release the database mutex. */
     gcmkVERIFY_OK(gckOS_ReleaseMutex(kernel->os, kernel->db->dbMutex));
 
-    return 0 ;
+    return len;
 }
 
 static int
-gc_version_show(struct seq_file *m, void *data)
+gc_version_show(void *m, void *data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gcsPLATFORM * platform = gcvNULL;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!device)
         return -ENXIO;
@@ -909,18 +1097,18 @@ gc_version_show(struct seq_file *m, void *data)
     if (!platform)
         return -ENXIO;
 
-    seq_printf(m, "%s built at %s\n",  gcvVERSION_STRING, HOST);
+    len = fs_printf(ptr, "%s built at %s\n",  gcvVERSION_STRING, HOST);
 
     if (platform->name)
     {
-        seq_printf(m, "Platform path: %s\n", platform->name);
+        len += fs_printf(ptr + len, "Platform path: %s\n", platform->name);
     }
     else
     {
-        seq_printf(m, "Code path: %s\n", __FILE__);
+        len += fs_printf(ptr + len, "Code path: %s\n", __FILE__);
     }
 
-    return 0 ;
+    return len;
 }
 
 static void print_ull(char dest[32], unsigned long long u)
@@ -963,10 +1151,9 @@ static void print_ull(char dest[32], unsigned long long u)
 **  Suspend: Time GPU stays in gcvPOWER_SUSPEND.
 */
 static int
-gc_idle_show(struct seq_file *m, void *data)
+gc_idle_show(void *m, void *data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gckKERNEL kernel = _GetValidKernel(device);
     char str[32];
 
@@ -974,6 +1161,12 @@ gc_idle_show(struct seq_file *m, void *data)
     gctUINT64 off;
     gctUINT64 idle;
     gctUINT64 suspend;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!kernel)
         return -ENXIO;
@@ -982,15 +1175,15 @@ gc_idle_show(struct seq_file *m, void *data)
 
     /* Idle time since last call */
     print_ull(str, on);
-    seq_printf(m, "On:      %s ns\n",  str);
+    len = fs_printf(ptr, "On:      %s ns\n",  str);
     print_ull(str, off);
-    seq_printf(m, "Off:     %s ns\n",  str);
+    len += fs_printf(ptr + len, "Off:     %s ns\n",  str);
     print_ull(str, idle);
-    seq_printf(m, "Idle:    %s ns\n",  str);
+    len += fs_printf(ptr + len, "Idle:    %s ns\n",  str);
     print_ull(str, suspend);
-    seq_printf(m, "Suspend: %s ns\n",  str);
+    len += fs_printf(ptr + len, "Suspend: %s ns\n",  str);
 
-    return 0 ;
+    return len;
 }
 
 extern void
@@ -1016,11 +1209,17 @@ _DumpState(
 static int dumpCore = 0;
 
 static int
-gc_dump_trigger_show(struct seq_file *m, void *data)
+gc_dump_trigger_show(void *m, void *data)
 {
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
+
 #if gcdENABLE_3D
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gckKERNEL kernel = gcvNULL;
 
     if (dumpCore >= gcvCORE_MAJOR && dumpCore < gcvCORE_COUNT)
@@ -1033,29 +1232,35 @@ gc_dump_trigger_show(struct seq_file *m, void *data)
 
 #endif
 
-    seq_printf(m, gcdDEBUG_FS_WARN);
+    len = fs_printf(ptr, gcdDEBUG_FS_WARN);
 
 #if gcdENABLE_3D
-    seq_printf(m, "Get dump from /proc/kmsg or /sys/kernel/debug/gc/galcore_trace\n");
+    //len += fs_printf(ptr + len, "Get dump from /proc/kmsg or /sys/kernel/debug/gc/galcore_trace\n");
 
-    if (kernel && kernel->hardware->options.powerManagement == gcvFALSE)
+    if (kernel)
     {
         _DumpState(kernel);
     }
 #endif
 
-    return 0;
+    return len;
 }
 
 static int dumpProcess = 0;
 
-static void
+static int
 _ShowVideoMemoryOldFormat(
-    struct seq_file *File,
+    void *File,
     gcsDATABASE_PTR Database
     )
 {
     gctUINT i = 0;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
 
     static const char * otherCounterNames[] = {
         "AllocNonPaged",
@@ -1071,10 +1276,10 @@ _ShowVideoMemoryOldFormat(
         &Database->mapMemory,
     };
 
-    seq_printf(File, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
+    len = fs_printf(ptr, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
 
     /* Print surface type counters. */
-    seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+    len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                "All-Types",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -1082,16 +1287,17 @@ _ShowVideoMemoryOldFormat(
 
     for (i = 1; i < gcvVIDMEM_TYPE_COUNT; i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    vidmemTypeStr[i],
                    Database->vidMemType[i].bytes,
                    Database->vidMemType[i].maxBytes,
                    Database->vidMemType[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print surface pool counters. */
-    seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+    len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                "All-Pools",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -1099,33 +1305,42 @@ _ShowVideoMemoryOldFormat(
 
     for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    poolStr[i],
                    Database->vidMemPool[i].bytes,
                    Database->vidMemPool[i].maxBytes,
                    Database->vidMemPool[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print other counters. */
     for (i = 0; i < gcmCOUNTOF(otherCounterNames); i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    otherCounterNames[i],
                    otherCounters[i]->bytes,
                    otherCounters[i]->maxBytes,
                    otherCounters[i]->totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
+    return len;
 }
 
-static void
+static int
 _ShowVideoMemory(
-    struct seq_file *File,
+    void *File,
     gcsDATABASE_PTR Database
     )
 {
     gctUINT i = 0;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = File;
+#else
+    char* ptr = (char*)File;
+#endif
 
     static const char * otherCounterNames[] = {
         "AllocNonPaged",
@@ -1137,10 +1352,10 @@ _ShowVideoMemory(
         &Database->mapMemory,
     };
 
-    seq_printf(File, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
+    len = fs_printf(ptr, "%-16s %16s %16s %16s\n", "", "Current", "Maximum", "Total");
 
     /* Print surface type counters. */
-    seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+    len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                "All-Types",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -1148,16 +1363,17 @@ _ShowVideoMemory(
 
     for (i = 1; i < gcvVIDMEM_TYPE_COUNT; i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    vidmemTypeStr[i],
                    Database->vidMemType[i].bytes,
                    Database->vidMemType[i].maxBytes,
                    Database->vidMemType[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print surface pool counters. */
-    seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+    len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                "All-Pools",
                Database->vidMem.bytes,
                Database->vidMem.maxBytes,
@@ -1165,34 +1381,42 @@ _ShowVideoMemory(
 
     for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    poolStr[i],
                    Database->vidMemPool[i].bytes,
                    Database->vidMemPool[i].maxBytes,
                    Database->vidMemPool[i].totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
 
     /* Print other counters. */
     for (i = 0; i < gcmCOUNTOF(otherCounterNames); i++)
     {
-        seq_printf(File, "%-16s %16llu %16llu %16llu\n",
+        len += fs_printf(ptr + len, "%-16s %16llu %16llu %16llu\n",
                    otherCounterNames[i],
                    otherCounters[i]->bytes,
                    otherCounters[i]->maxBytes,
                    otherCounters[i]->totalBytes);
     }
-    seq_puts(File, "\n");
+    /*seq_puts(File, "\n");*/
+    len += fs_printf(ptr + len, "\n");
+    return len;
 }
 
-static int gc_vidmem_show_old(struct seq_file *m, void *unused)
+static int gc_vidmem_old_show(void *m, void *unused)
 {
     gceSTATUS status;
     gcsDATABASE_PTR database;
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     char name[64];
     int i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     gckKERNEL kernel = _GetValidKernel(device);
 
@@ -1212,9 +1436,10 @@ static int gc_vidmem_show_old(struct seq_file *m, void *unused)
                  database = database->next)
             {
                 gckOS_GetProcessNameByPid(database->processID, gcmSIZEOF(name), name);
-                seq_printf(m, "VidMem Usage (Process %u: %s):\n", database->processID, name);
-                _ShowVideoMemoryOldFormat(m, database);
-                seq_puts(m, "\n");
+                len += fs_printf(ptr + len, "VidMem Usage (Process %u: %s):\n", database->processID, name);
+                len += _ShowVideoMemoryOldFormat(ptr + len, database);
+                /*seq_puts(m, "\n");*/
+                len += fs_printf(ptr + len, "\n");
             }
         }
 
@@ -1228,26 +1453,31 @@ static int gc_vidmem_show_old(struct seq_file *m, void *unused)
 
         if (gcmIS_ERROR(status))
         {
-            seq_printf(m, "ERROR: process %d not found\n", dumpProcess);
-            return 0;
+            len += fs_printf(ptr + len, "ERROR: process %d not found\n", dumpProcess);
+            return len;
         }
 
         gckOS_GetProcessNameByPid(dumpProcess, gcmSIZEOF(name), name);
-        seq_printf(m, "VidMem Usage (Process %d: %s):\n", dumpProcess, name);
-        _ShowVideoMemoryOldFormat(m, database);
+        len += fs_printf(ptr + len, "VidMem Usage (Process %d: %s):\n", dumpProcess, name);
+        len += _ShowVideoMemoryOldFormat(ptr + len, database);
     }
 
-    return 0;
+    return len;
 }
 
-static int gc_vidmem_show(struct seq_file *m, void *unused)
+static int gc_vidmem_show(void *m, void *unused)
 {
     gceSTATUS status;
     gcsDATABASE_PTR database;
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     char name[64];
     int i;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     gckKERNEL kernel = _GetValidKernel(device);
 
@@ -1267,9 +1497,10 @@ static int gc_vidmem_show(struct seq_file *m, void *unused)
                  database = database->next)
             {
                 gckOS_GetProcessNameByPid(database->processID, gcmSIZEOF(name), name);
-                seq_printf(m, "VidMem Usage (Process %u: %s):\n", database->processID, name);
-                _ShowVideoMemory(m, database);
-                seq_puts(m, "\n");
+                len += fs_printf(ptr + len, "VidMem Usage (Process %u: %s):\n", database->processID, name);
+                len += _ShowVideoMemory(ptr + len, database);
+                /*seq_puts(m, "\n");*/
+                len += fs_printf(ptr + len, "\n");
             }
         }
 
@@ -1283,18 +1514,19 @@ static int gc_vidmem_show(struct seq_file *m, void *unused)
 
         if (gcmIS_ERROR(status))
         {
-            seq_printf(m, "ERROR: process %d not found\n", dumpProcess);
-            return 0;
+            len += fs_printf(ptr + len, "ERROR: process %d not found\n", dumpProcess);
+            return len;
         }
 
         gckOS_GetProcessNameByPid(dumpProcess, gcmSIZEOF(name), name);
-        seq_printf(m, "VidMem Usage (Process %d: %s):\n", dumpProcess, name);
-        _ShowVideoMemory(m, database);
+        len += fs_printf(ptr + len, "VidMem Usage (Process %d: %s):\n", dumpProcess, name);
+        len += _ShowVideoMemory(ptr + len, database);
     }
 
-    return 0;
+    return len;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static inline int strtoint_from_user(const char __user *s,
                         size_t count, int *res)
 {
@@ -1327,13 +1559,19 @@ static int gc_dump_trigger_write(const char __user *buf, size_t count, void* dat
 {
     return strtoint_from_user(buf, count, &dumpCore);
 }
+#endif
 
-static int gc_clk_show(struct seq_file* m, void* data)
+static int gc_clk_show(void* m, void* data)
 {
-    gcsINFO_NODE *node = m->private;
-    gckGALDEVICE device = node->device;
+    gckGALDEVICE device = galDevice;
     gctUINT i;
     gceSTATUS status;
+    int len = 0;
+#ifdef CONFIG_DEBUG_FS
+    void* ptr = m;
+#else
+    char* ptr = (char*)m;
+#endif
 
     if (!device)
         return -ENXIO;
@@ -1352,39 +1590,298 @@ static int gc_clk_show(struct seq_file* m, void* data)
             status = gckHARDWARE_QueryFrequency(hardware);
             if (gcmIS_ERROR(status))
             {
-                seq_printf(m, "query gpu%d clock fail.\n", i);
+                len += fs_printf(ptr + len, "query gpu%d clock fail.\n", i);
                 continue;
             }
 
             if (hardware->mcClk)
             {
-                seq_printf(m, "gpu%d mc clock: %d HZ.\n", i, hardware->mcClk);
+                len += fs_printf(ptr + len, "gpu%d mc clock: %d HZ.\n", i, hardware->mcClk);
             }
 
             if (hardware->shClk)
             {
-                seq_printf(m, "gpu%d sh clock: %d HZ.\n", i, hardware->shClk);
+                len += fs_printf(ptr + len, "gpu%d sh clock: %d HZ.\n", i, hardware->shClk);
             }
         }
     }
 
-    return 0;
+    return len;
 }
+
+static int gc_dump_param_show(void *m, void *unused)
+{
+	fs_printf(m, "galcore module param will dumped by printk\n");
+	gckOS_DumpParam();
+	return 0;
+}
+
+static int customID = 0;
+static int gc_chipinfo_show(void *m, void *unused)
+{
+	int entryNum = sizeof(gChipInfo) / sizeof(gChipInfo[0]);
+    int i;
+	if(customID == 0)
+	{
+		gcQueryFeatureDB(0,0,0,0,0);
+		fs_printf(m, "chip id should setting by <echo **id>chipinfo>\n");
+	}
+    /* check formal release entries first */
+    for (i = 0; i < entryNum; ++i)
+    {
+
+        if(gChipInfo[i].customerID == customID)
+        {
+            fs_printf(m, "chipID:0x%x\n",gChipInfo[i].chipID);
+			fs_printf(m, "customID:0x%x\n",customID);
+			fs_printf(m, "shaderCore number:%d\n",gChipInfo[i].NumShaderCores);
+			fs_printf(m, "NNcore number:%d\n",gChipInfo[i].NNCoreCount/2);
+			fs_printf(m, "NNInputDepth:%d\n",gChipInfo[i].NNInputBufferDepth);
+			fs_printf(m, "TPcore number:%d\n",gChipInfo[i].TPEngine_CoreCount);
+			fs_printf(m, "AXI-SRAM size:0x%x\n",gChipInfo[i].AXI_SRAM_SIZE);
+			fs_printf(m, "VIP-SRAM size:0x%x\n",gChipInfo[i].VIP_SRAM_SIZE);
+			fs_printf(m, "NN-KERNEL-X size:%d\n",gChipInfo[i].NN_KERNEL_X_SIZE);
+			fs_printf(m, "NN-KERNEL-Y size:%d\n",gChipInfo[i].NN_KERNEL_Y_SIZE);
+			fs_printf(m, "MMU ENABLE:%d\n",gChipInfo[i].REG_MMU);
+			fs_printf(m, "TP reorder:%d\n",gChipInfo[i].TP_REORDER);
+			fs_printf(m, "NN-FP16-ALU:%d\n",gChipInfo[i].NN_FP16_ALU);
+			fs_printf(m, "NN-INT16-ALU:%d\n",gChipInfo[i].NN_INT16_ALU);
+			fs_printf(m, "TP-ROI-POOLING:%d\n",gChipInfo[i].TP_ROI_POOLING);
+			fs_printf(m, "NN-DEPTHWISE-SUPPORT:%d\n",gChipInfo[i].NN_DEPTHWISE_SUPPORT);
+			break;
+        }
+    }
+	return 0;
+}
+
+static int gc_chipinfo_write(const char __user *ubuf, size_t count, void* data)
+{
+	int dval[2];
+	int i;
+	int j;
+	
+	char buf[10];
+    size_t len = min(count, sizeof(buf) - 1);
+	
+	printk("chipinfo write enter,customID-[0x00,0xff]\n");
+    if(copy_from_user(buf, ubuf, len))
+	{
+        return -EFAULT;
+	}
+
+	if((buf[0]=='0') && (buf[1]=='x'))
+	{
+		customID = 0;
+		for(i=2,j=0;i<count-1&&j<2;i++,j++)
+		{
+			if((buf[i] >= '0') && (buf[i] <= '9'))
+			{
+				dval[j] = buf[i] - '0';
+			}
+			else if((buf[i] >= 'a') && (buf[i] <= 'f'))
+			{
+				dval[j] = buf[i] - 'a' + 10;
+			}
+			else if((buf[i] >= 'A') && (buf[i] <= 'F'))
+			{
+				dval[j] = buf[i] - 'A' + 10;
+			}
+		}
+		
+		if(count == 5)
+		{
+			customID = 16*dval[0]+dval[1];
+		}
+		else if(count == 4)
+		{
+			customID = dval[0];
+		}
+		else
+		{
+			printk("count number not support:%ld\n",count);
+		}
+	}
+	else
+	{
+		strtoint_from_user(buf, count, &customID);
+	}
+	printk("customid:0x%x\n",customID);
+	return 0;
+}
+
+#ifdef CONFIG_DEBUG_FS
+int gc_info_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_info_show((void*)m , data);
+}
+int gc_clients_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_clients_show((void*)m , data);
+}
+int gc_meminfo_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_meminfo_show((void*)m , data);
+}
+int gc_idle_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_idle_show((void*)m , data);
+}
+int gc_db_old_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_db_old_show((void*)m , data);
+}
+int gc_db_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_db_show((void*)m , data);
+}
+int gc_version_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_version_show((void*)m , data);
+}
+int gc_vidmem_old_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_vidmem_old_show((void*)m , data);
+}
+int gc_vidmem_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_vidmem_show((void*)m , data);
+}
+int gc_dump_trigger_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_dump_trigger_show((void*)m , data);
+}
+int gc_clk_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_clk_show((void*)m , data);
+}
+int gc_dump_param_show_debugfs(struct seq_file* m, void* data)
+{
+    return gc_dump_param_show((void*)m , data);
+}
+int gc_chipinfo_show_debugfs(struct seq_file*m, void *unused)
+{
+    return gc_chipinfo_show((void *)m, unused);
+}
+int gc_chipinfo_write_debugfs(const char __user *ubuf, size_t count, void* data)
+{
+    return gc_chipinfo_write(ubuf, count, data );
+}
+
 
 static gcsINFO InfoList[] =
 {
-    {"info", gc_info_show},
-    {"clients", gc_clients_show},
-    {"meminfo", gc_meminfo_show},
-    {"idle", gc_idle_show},
-    {"database", gc_db_show_old},
-    {"database64x", gc_db_show},
-    {"version", gc_version_show},
-    {"vidmem", gc_vidmem_show_old, gc_vidmem_write},
-    {"vidmem64x", gc_vidmem_show, gc_vidmem_write},
-    {"dump_trigger", gc_dump_trigger_show, gc_dump_trigger_write},
-    {"clk", gc_clk_show},
+    {"info", gc_info_show_debugfs},
+    {"clients", gc_clients_show_debugfs},
+    {"meminfo", gc_meminfo_show_debugfs},
+    {"idle", gc_idle_show_debugfs},
+    {"database", gc_db_old_show_debugfs},
+    {"database64x", gc_db_show_debugfs},
+    {"version", gc_version_show_debugfs},
+    {"vidmem", gc_vidmem_old_show_debugfs, gc_vidmem_write},
+    {"vidmem64x", gc_vidmem_show_debugfs, gc_vidmem_write},
+    {"dump_trigger", gc_dump_trigger_show_debugfs, gc_dump_trigger_write},
+    {"clk", gc_clk_show_debugfs},
+    {"dump_param",gc_dump_param_show_debugfs},
+	{"chipinfo",gc_chipinfo_show_debugfs, gc_chipinfo_write_debugfs},
 };
+#else
+static ssize_t info_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_info_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(info);
+
+static ssize_t clients_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_clients_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(clients);
+
+static ssize_t meminfo_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_meminfo_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(meminfo);
+
+static ssize_t idle_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_idle_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(idle);
+
+static ssize_t database_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_db_old_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(database);
+
+static ssize_t database64x_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_db_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(database64x);
+
+static ssize_t version_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_version_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(version);
+
+static ssize_t vidmem_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_vidmem_old_show((void*)buf, NULL);
+}
+static ssize_t vidmem_store(struct device *dev, struct device_attribute* attr, const char *buf, size_t count)
+{
+    sscanf(buf, "%d", &dumpProcess);
+    return count;
+}
+DEVICE_ATTR_RW(vidmem);
+
+static ssize_t vidmem64x_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_vidmem_show((void*)buf, NULL);
+}
+static ssize_t vidmem64x_store(struct device *dev, struct device_attribute* attr, const char *buf, size_t count)
+{
+    sscanf(buf, "%d", &dumpProcess);
+    return count;
+}
+DEVICE_ATTR_RW(vidmem64x);
+
+static ssize_t dump_trigger_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_dump_trigger_show((void*)buf, NULL);
+}
+static ssize_t dump_trigger_store(struct device *dev, struct device_attribute* attr, const char *buf, size_t count)
+{
+    sscanf(buf, "%d", &dumpCore);
+    return count;
+}
+DEVICE_ATTR_RW(dump_trigger);
+
+static ssize_t clk_show(struct device *dev, struct device_attribute* attr, char *buf)
+{
+    return gc_clk_show((void*)buf, NULL);
+}
+DEVICE_ATTR_RO(clk);
+
+static struct attribute *Info_attrs[] = {
+    &dev_attr_info.attr,
+    &dev_attr_clients.attr,
+    &dev_attr_meminfo.attr,
+    &dev_attr_idle.attr,
+    &dev_attr_database.attr,
+    &dev_attr_database64x.attr,
+    &dev_attr_version.attr,
+    &dev_attr_vidmem.attr,
+    &dev_attr_vidmem64x.attr,
+    &dev_attr_dump_trigger.attr,
+    &dev_attr_clk.attr,
+    NULL,
+};
+ATTRIBUTE_GROUPS(Info);
+#endif
 
 static gceSTATUS
 _DebugfsInit(
@@ -1392,10 +1889,21 @@ _DebugfsInit(
     )
 {
     gceSTATUS status = gcvSTATUS_OK;
+
+#ifdef CONFIG_DEBUG_FS
     gckDEBUGFS_DIR dir = &Device->debugfsDir;
 
-    gcmkONERROR(gckDEBUGFS_DIR_Init(dir, gcvNULL, "gc"));
+    gcmkONERROR(gckDEBUGFS_DIR_Init(dir, gcvNULL, "galcore"));
     gcmkONERROR(gckDEBUGFS_DIR_CreateFiles(dir, InfoList, gcmCOUNTOF(InfoList), Device));
+#else
+    int ret;
+    ret = sysfs_create_groups(&galcore_device->kobj, Info_groups);
+    if (ret < 0)
+    {
+        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+    }
+#endif
+    galDevice = Device;
 
 OnError:
     return status;
@@ -1406,6 +1914,7 @@ _DebugfsCleanup(
     IN gckGALDEVICE Device
     )
 {
+#ifdef CONFIG_DEBUG_FS
     gckDEBUGFS_DIR dir = &Device->debugfsDir;
 
     if (Device->debugfsDir.root)
@@ -1414,6 +1923,9 @@ _DebugfsCleanup(
 
         gckDEBUGFS_DIR_Deinit(dir);
     }
+#else
+    sysfs_remove_groups(&galcore_device->kobj, Info_groups);
+#endif
 }
 
 
@@ -1590,8 +2102,9 @@ _SetupContiguousVidMem(
 
             gcmkONERROR(gckOS_RequestReservedMemory(
                 device->os, Args->contiguousBase, Args->contiguousSize,
-                "galcore contiguous memory",
+                "gcContMem",
                 contiguousRequested,
+                gcvTRUE,
                 &device->contiguousPhysical
                 ));
 
@@ -1668,6 +2181,7 @@ _SetupExternalSRAMVidMem(
                         device->extSRAMBases[i], device->extSRAMSizes[i],
                         sRAMName,
                         device->args.sRAMRequested,
+                        gcvTRUE,
                         &device->extSRAMPhysical[i]
                         ));
 
@@ -1960,6 +2474,8 @@ _StartThread(
 
         device->threadCtxts[Core]         = task;
         device->threadInitializeds[Core] = device->kernels[Core]->threadInitialized = gcvTRUE;
+
+        set_user_nice(task, -20);
     }
     else
     {
@@ -1986,6 +2502,99 @@ _StopThread(
         Device->threadInitializeds[Core] = gcvFALSE;
     }
 }
+
+#if gcdENABLE_SW_PREEMPTION
+
+static int
+_ThreadPreempt(
+    void *ctxt
+    )
+{
+    gckGALDEVICE device = galDevice;
+    gceCORE core = (gceCORE) gcmPTR2INT32(ctxt);
+
+    sema_init((struct semaphore *)(device->kernels[core]->preemptSema), 0);
+
+    for (;;)
+    {
+        int down;
+
+        down = down_interruptible(device->kernels[core]->preemptSema);
+        if (down && down != -EINTR)
+        {
+            return down;
+        }
+
+        if (unlikely(device->killPreemptThread))
+        {
+            while (!kthread_should_stop())
+            {
+                gckOS_Delay(device->os, 1);
+            }
+
+            return 0;
+        }
+
+        gckKERNEL_PreemptionThread(device->kernels[core]);
+    }
+}
+
+static gceSTATUS
+_StartPreemptThread(
+    IN gckGALDEVICE Device,
+    IN gceCORE Core
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+    gckGALDEVICE device = galDevice;
+    struct task_struct * task;
+
+    if (device->kernels[Core] != gcvNULL)
+    {
+        /* Start the kernel thread. */
+        task = kthread_run(_ThreadPreempt, (void *)Core,
+                "galcore_preempt/%d", Core);
+
+        if (IS_ERR(task))
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): Could not start the kernel preempt thread.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_GENERIC_IO);
+        }
+
+        device->preemptThread[Core]      = task;
+        device->preemptThreadInits[Core] = gcvTRUE;
+    }
+    else
+    {
+        device->preemptThreadInits[Core] = gcvFALSE;
+    }
+
+OnError:
+    return status;
+}
+
+static void
+_StopPreemptThread(
+    gckGALDEVICE Device,
+    gceCORE Core
+    )
+{
+    if (Device->preemptThreadInits[Core])
+    {
+        Device->killPreemptThread = gcvTRUE;
+        up(Device->kernels[Core]->preemptSema);
+
+        kthread_stop(Device->preemptThread[Core]);
+        Device->preemptThread[Core]      = gcvNULL;
+        Device->preemptThreadInits[Core] = gcvFALSE;
+    }
+}
+#endif
 
 /*******************************************************************************
 **
@@ -2092,12 +2701,12 @@ gckGALDEVICE_Construct(
 
                     gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
                 }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-                device->registerBases[i] = (gctPOINTER)ioremap(
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+                device->registerBases[i] = (gctPOINTER)memremap(physical, device->requestedRegisterMemSizes[i], MEMREMAP_WT);
 #else
-                device->registerBases[i] = (gctPOINTER)ioremap_nocache(
+                device->registerBases[i] = (gctPOINTER)ioremap_nocache(physical, device->requestedRegisterMemSizes[i]);
 #endif
-                        physical, device->requestedRegisterMemSizes[i]);
 
                 if (device->registerBases[i] == gcvNULL)
                 {
@@ -2122,6 +2731,9 @@ gckGALDEVICE_Construct(
     device->externalBase = Args->externalBase;
     device->externalSize = Args->externalSize;
 
+    /* Set the extern base address and none cpu access */
+    device->exclusiveBase = Args->exclusiveBase;
+    device->exclusiveSize = Args->exclusiveSize;
     for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
     {
         device->extSRAMBases[i] = Args->extSRAMBases[i];
@@ -2155,12 +2767,48 @@ gckGALDEVICE_Construct(
             gcmkONERROR(gckOS_RequestReservedMemory(
                     device->os,
                     device->externalBase, device->externalSize,
-                    "galcore external memory",
+                    "gcExtMem",
+                    gcvTRUE,
                     gcvTRUE,
                     &device->externalPhysical
                     ));
 
             device->externalVidMem->physical = device->externalPhysical;
+        }
+    }
+
+    if (device->exclusiveSize > 0)
+    {
+        /* create the exclusive memory heap */
+        status = gckVIDMEM_Construct(
+            device->os,
+            device->exclusiveBase,
+            device->exclusiveSize,
+            64,
+            0,
+            &device->exclusiveVidMem
+            );
+
+        if (gcmIS_ERROR(status))
+        {
+            /* Error, disable exclusive heap. */
+            device->exclusiveSize = 0;
+        }
+        else
+        {
+            gckALLOCATOR allocator;
+            /* Map exclusive memory. */
+            gcmkONERROR(gckOS_RequestReservedMemory(
+                    device->os,
+                    device->exclusiveBase, device->exclusiveSize,
+                    "gcExclMem",
+                    gcvTRUE,
+                    gcvFALSE,
+                    &device->exclusivePhysical
+                    ));
+            allocator = ((PLINUX_MDL)device->exclusivePhysical)->allocator;
+            device->exclusiveVidMem->physical = device->exclusivePhysical;
+            device->exclusiveVidMem->capability |= allocator->capability;
         }
     }
 
@@ -2332,6 +2980,11 @@ gckGALDEVICE_Construct(
         device->externalPhysName = gcmPTR_TO_NAME(device->externalPhysical);
     }
 
+    if (device->exclusivePhysical)
+    {
+        device->exclusivePhysName = gcmPTR_TO_NAME(device->exclusivePhysical);
+    }
+
     if (device->contiguousPhysical)
     {
         device->contiguousPhysName = gcmPTR_TO_NAME(device->contiguousPhysical);
@@ -2408,6 +3061,11 @@ gckGALDEVICE_Destroy(
             {
                 gcmRELEASE_NAME(Device->contiguousPhysName);
                 Device->contiguousPhysName = 0;
+            }
+            if (Device->exclusivePhysName != 0)
+            {
+                gcmRELEASE_NAME(Device->exclusivePhysName);
+                Device->exclusivePhysName = 0;
             }
         }
 
@@ -2518,6 +3176,27 @@ gckGALDEVICE_Destroy(
             Device->externalVidMem = gcvNULL;
         }
 
+        if (Device->exclusivePhysical != gcvNULL)
+        {
+            gckOS_ReleaseReservedMemory(
+                Device->os,
+                Device->exclusivePhysical
+                );
+            Device->exclusivePhysical = gcvNULL;
+        }
+
+        if (Device->exclusiveLogical != gcvNULL)
+        {
+            Device->exclusiveLogical = gcvNULL;
+        }
+
+        if (Device->exclusiveVidMem != gcvNULL)
+        {
+            /* destroy the external heap */
+            gcmkVERIFY_OK(gckVIDMEM_Destroy(Device->exclusiveVidMem));
+            Device->exclusiveVidMem = gcvNULL;
+        }
+
         /*
          * Destroy contiguous memory pool after gckDEVICE destroyed. gckDEVICE
          * may allocates GPU memory types from SYSTEM pool.
@@ -2561,7 +3240,11 @@ gckGALDEVICE_Destroy(
                 /* Unmap register memory. */
                 if (Device->requestedRegisterMemBases[i] != 0)
                 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+                    memunmap(Device->registerBases[i]);
+#else
                     iounmap(Device->registerBases[i]);
+#endif
                     release_mem_region(Device->requestedRegisterMemBases[i],
                             Device->requestedRegisterMemSizes[i]);
                 }
@@ -2636,6 +3319,10 @@ gckGALDEVICE_Start(
         }
 
         gcmkONERROR(_StartThread(Device, i));
+
+#if gcdENABLE_SW_PREEMPTION
+        gcmkONERROR(_StartPreemptThread(Device, i));
+#endif
     }
 
     for (i = 0; i < gcvCORE_COUNT; i++)
@@ -2732,6 +3419,9 @@ gckGALDEVICE_Stop(
     for (i = 0; i < gcvCORE_COUNT; i++)
     {
         _StopThread(Device, i);
+#if gcdENABLE_SW_PREEMPTION
+        _StopPreemptThread(Device, i);
+#endif
     }
 
 OnError:

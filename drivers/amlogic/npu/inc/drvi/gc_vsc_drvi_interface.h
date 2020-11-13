@@ -58,8 +58,18 @@
 /* 0.0.1.35 Add skhp flag in VIR_Instruction */
 /* 0.0.1.36 Add a function to patch clipDistance in GL VIR lib shader */
 /* 0.0.1.37 Add the sampled image information on 03/11/2020 */
-#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 37)
-#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 37)
+/* 0.0.1.38 Saving the return variable to a argument 03/27/2020 */
+/* 0.0.1.39 Update the image addre for an image buffer 04/01/2020 */
+/* 0.0.1.40 Save the SPIR-V information to VIR shader 04/10/2020 */
+/* 0.0.1.41 Add a new opcode MOV_DUAL16 04/23/2020 */
+/* 0.0.1.42 Move SkpHp into the instruction flag 05/14/2020 */
+/* 0.0.1.43 Add a data precision in VIR_Symbol 05/14/2020 */
+/* 0.0.1.44 Add VIR_ModifierOrder in VIR_Operand on 05/14/2020 */
+/* 0.0.1.45 Add a new enumeration for VIR_SymFlagExt 05/15/2020 */
+/* 0.0.1.46 Add a minimum workGroupSize in VIR_ComputeLayout 05/19/2020 */
+/* 0.0.1.47 Save the HW specific attributes in VIR_Shader 05/26/2020 */
+#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 47)
+#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 47)
 
 #if !defined(gcdTARGETHOST_BIGENDIAN)
 #define gcdTARGETHOST_BIGENDIAN 0  /* default host little endian, to change the
@@ -804,6 +814,7 @@ typedef struct _VSC_HW_CONFIG
     gctUINT              psSamplerNoBaseInInstruction;
     gctFLOAT             minPointSize;
     gctFLOAT             maxPointSize;
+    gctUINT              maxTcsOutPatchVectors;
 
     /* Caps for workGroupSize. */
     gctUINT              initWorkGroupSizeToCalcRegCount;
@@ -893,6 +904,10 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_FLAG_USE_VSC_IMAGE_DESC           0x00020000
 #define VSC_COMPILER_FLAG_ENABLE_MULTI_GPU             0x00040000
 #define VSC_COMPILER_FLAG_DISABLE_IR_DUMP              0x00080000  /* used by driver to disable patch lib IR dump */
+#define VSC_COMPILER_FLAG_ADD_GLOBAL_OFFSET            0x00100000  /* gl_GlobalInvocationID = gl_GlobalInvocationID + #global_offset. */
+#define VSC_COMPILER_FLAG_ENABLE_DUAL16_FOR_VK         0x00200000  /* It is a temp option to enable dual16 for vulkan. we need to remove after verify all vulkan cases. */
+#define VSC_COMPILER_FLAG_USE_CONST_REG_FOR_UBO        0x00400000
+#define VSC_COMPILER_FLAG_FORCE_GEN_FLOAT_MAD          0x00800000  /* Force generate a floating MAD, no matter if HW can support it. */
 
 #define VSC_COMPILER_FLAG_COMPILE_FULL_LEVELS          0x0000000F
 
