@@ -81,6 +81,8 @@ struct reserved_mem
 
     /* Link together. */
     struct list_head link;
+    /* the mdl is root or not */
+    gctBOOL root;
 };
 
 /* allocator info. */
@@ -182,33 +184,33 @@ reserved_mem_attach(
     res->offset_in_page = Desc->reservedMem.start & (PAGE_SIZE - 1);
     strncpy(res->name, Desc->reservedMem.name, sizeof(res->name)-1);
     res->release = 0;
+    res->root = Desc->reservedMem.root;
 
-    if (!Desc->reservedMem.requested)
+    /* the region requierd is handed by root MDL */
+    if (Desc->reservedMem.root)
     {
-        region = request_mem_region(res->start, res->size, res->name);
-
-        if (!region)
+        if (!Desc->reservedMem.requested)
         {
-            printk("request mem %s(0x%lx - 0x%lx) failed\n",
-                res->name, res->start, res->start + res->size - 1);
+            region = request_mem_region(res->start, res->size, res->name);
 
-            kfree(res);
-            return gcvSTATUS_OUT_OF_RESOURCES;
+            if (!region)
+            {
+                printk("request mem %s(0x%lx - 0x%lx) failed\n",
+                    res->name, res->start, res->start + res->size - 1);
+
+                kfree(res);
+                return gcvSTATUS_OUT_OF_RESOURCES;
+            }
+
+            res->release = 1;
         }
 
-        res->release = 1;
+        mutex_lock(&alloc->lock);
+        list_add(&res->link, &alloc->region);
+        mutex_unlock(&alloc->lock);
     }
-
-    mutex_lock(&alloc->lock);
-    list_add(&res->link, &alloc->region);
-    mutex_unlock(&alloc->lock);
 
     Mdl->priv = res;
-
-    if ((res->start + res->size) < 0xFFFFFFFF)
-    {
-        Allocator->capability |= gcvALLOC_FLAG_4GB_ADDR;
-    }
 
     return gcvSTATUS_OK;
 }
@@ -222,14 +224,17 @@ reserved_mem_detach(
     struct reserved_mem_alloc *alloc = Allocator->privateData;
     struct reserved_mem *res = Mdl->priv;
 
-    /* unlink from region list. */
-    mutex_lock(&alloc->lock);
-    list_del_init(&res->link);
-    mutex_unlock(&alloc->lock);
-
-    if (res->release)
+    if (res->root)
     {
-        release_mem_region(res->start, res->size);
+        /* unlink from region list. */
+        mutex_lock(&alloc->lock);
+        list_del_init(&res->link);
+        mutex_unlock(&alloc->lock);
+
+        if (res->release)
+        {
+            release_mem_region(res->start, res->size);
+        }
     }
 
     kfree(res);
@@ -251,25 +256,38 @@ reserved_mem_mmap(
 
     gcmkHEADER_ARG("Allocator=%p Mdl=%p vma=%p", Allocator, Mdl, vma);
 
-    gcmkASSERT(skipPages + numPages <= Mdl->numPages);
-
-    pfn = (res->start >> PAGE_SHIFT) + skipPages;
-
-    /* Make this mapping non-cached. */
-    vma->vm_flags |= gcdVM_FLAGS;
-    vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-    if (remap_pfn_range(vma, vma->vm_start,
-            pfn, numPages << PAGE_SHIFT, vma->vm_page_prot) < 0)
+    if (Mdl->cpuAccessible)
     {
-        gcmkTRACE(
-            gcvLEVEL_ERROR,
-            "%s(%d): remap_pfn_range error.",
-            __FUNCTION__, __LINE__
-            );
+        gcmkASSERT(skipPages + numPages <= Mdl->numPages);
 
-        status = gcvSTATUS_OUT_OF_MEMORY;
+        pfn = (res->start >> PAGE_SHIFT) + skipPages;
+
+        /* Make this mapping non-cached. */
+        vma->vm_flags |= gcdVM_FLAGS;
+
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
+        vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#else
+        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
+
+        if (remap_pfn_range(vma, vma->vm_start,
+                pfn, numPages << PAGE_SHIFT, vma->vm_page_prot) < 0)
+        {
+            gcmkTRACE(
+                gcvLEVEL_ERROR,
+                "%s(%d): remap_pfn_range error.",
+                __FUNCTION__, __LINE__
+                );
+
+            status = gcvSTATUS_OUT_OF_MEMORY;
+        }
     }
+    else
+    {
+        status = gcvSTATUS_NOT_SUPPORTED;
+    }
+
 
     gcmkFOOTER();
     return status;
@@ -316,6 +334,12 @@ reserved_mem_map_user(
     gceSTATUS status = gcvSTATUS_OK;
 
     gcmkHEADER_ARG("Allocator=%p Mdl=%p Cacheable=%d", Allocator, Mdl, Cacheable);
+
+    if (!Mdl->cpuAccessible)
+    {
+        status = gcvSTATUS_NOT_SUPPORTED;
+        goto Out;
+    }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
     userLogical = (gctPOINTER)vm_mmap(NULL, 0L, res->size,
@@ -373,6 +397,7 @@ OnError:
     {
         reserved_mem_unmap_user(Allocator, Mdl, userLogical, res->size);
     }
+Out:
     gcmkFOOTER();
     return status;
 }
@@ -389,13 +414,22 @@ reserved_mem_map_kernel(
     struct reserved_mem *res = Mdl->priv;
     void *vaddr;
 
+    if (!Mdl->cpuAccessible)
+    {
+        return gcvSTATUS_NOT_SUPPORTED;
+    }
+
     if (Offset + Bytes > res->size)
     {
         return gcvSTATUS_INVALID_ARGUMENT;
     }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
     vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WC);
+#else
+    vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WT);
+#endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
     vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WT);
 #else
@@ -418,6 +452,11 @@ reserved_mem_unmap_kernel(
     IN gctPOINTER Logical
     )
 {
+    if (!Mdl->cpuAccessible)
+    {
+        return gcvSTATUS_NOT_SUPPORTED;
+    }
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
     memunmap((void *)Logical);
 #else
@@ -528,7 +567,9 @@ _ReservedMemoryAllocatorInit(
 
     allocator->capability = gcvALLOC_FLAG_LINUX_RESERVED_MEM
                           | gcvALLOC_FLAG_CONTIGUOUS
-                          | gcvALLOC_FLAG_CPU_ACCESS;
+                          | gcvALLOC_FLAG_CPU_ACCESS
+                          | gcvALLOC_FLAG_NON_CPU_ACCESS
+                          | gcvALLOC_FLAG_4GB_ADDR;
 
     *Allocator = allocator;
 

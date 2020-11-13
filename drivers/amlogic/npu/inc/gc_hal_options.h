@@ -635,7 +635,11 @@ This define enables the use of VM for gckCommand and fence buffers.
         When non-zero, all video memory will be bufferable by default.
 */
 #ifndef gcdENABLE_BUFFERABLE_VIDEO_MEMORY
+#if gcdFPGA_BUILD
+#   define gcdENABLE_BUFFERABLE_VIDEO_MEMORY           0
+#else
 #   define gcdENABLE_BUFFERABLE_VIDEO_MEMORY           1
+#endif
 #endif
 
 /*
@@ -717,7 +721,11 @@ This define enables the use of VM for gckCommand and fence buffers.
 */
 #ifndef gcdENABLE_GPU_1M_PAGE
 #if !gcdSECURITY && defined(LINUX)
+#ifdef EMULATOR
+#   define gcdENABLE_GPU_1M_PAGE                0
+#else
 #   define gcdENABLE_GPU_1M_PAGE                1
+#endif
 #else
 #   define gcdENABLE_GPU_1M_PAGE                0
 #endif
@@ -1004,11 +1012,7 @@ This define enables the use of VM for gckCommand and fence buffers.
         Expremental, under test only. Not ready for production.
 */
 #ifndef gcdPARTIAL_FAST_CLEAR
-#if defined(ANDROID)
 #   define gcdPARTIAL_FAST_CLEAR                0
-#else
-#   define gcdPARTIAL_FAST_CLEAR                1
-#endif
 #endif
 
 /*
@@ -1359,6 +1363,15 @@ This define enables the use of VM for gckCommand and fence buffers.
 */
 #ifndef gcdEXTERNAL_SRAM_DEFAULT_POOL
 #   define gcdEXTERNAL_SRAM_DEFAULT_POOL 0
+#endif
+
+/*
+    gcdENABLE_SW_PREEMPTION
+        Enable software preemption if set to 1, disable by default.
+        Only support Linux OS currently.
+*/
+#ifndef gcdENABLE_SW_PREEMPTION
+#   define gcdENABLE_SW_PREEMPTION 0
 #endif
 
 #endif /* __gc_hal_options_h_ */

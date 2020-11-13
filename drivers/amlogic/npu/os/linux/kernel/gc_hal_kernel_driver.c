@@ -57,11 +57,13 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
-
-#include "gc_hal_kernel_linux.h"
-#include "shared/gc_hal_driver.h"
-
+#include <linux/fs.h>
+#include <linux/sysfs.h>
 #include <linux/platform_device.h>
+#include <linux/proc_fs.h>
+#include <linux/delay.h>
+#include "gc_hal_kernel_linux.h"
+#include "gc_hal_driver.h"
 
 /* Zone used for header/footer. */
 #define _GC_OBJ_ZONE    gcvZONE_DRIVER
@@ -157,8 +159,13 @@ static ulong exclusiveSize = 0;
 module_param(exclusiveSize, ulong, 0644);
 MODULE_PARM_DESC(exclusiveSize, "Size of exclusiveSize memory, if it is 0, means there is no exclusive pool");
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+static gctPHYS_ADDR_T exclusiveBase = 0;
+module_param(exclusiveBase, ullong, 0644);
+#else
 static ulong exclusiveBase = 0;
 module_param(exclusiveBase, ulong, 0644);
+#endif
 MODULE_PARM_DESC(exclusiveBase, "Base address of exclusive memory(GPU access only)");
 
 static int fastClear = -1;
@@ -311,6 +318,151 @@ static ulong bankSize = 0;
 
 static gcsMODULE_PARAMETERS moduleParam;
 
+/*==========================some sysfs functions,class begin===================================*/
+static ssize_t show_class_control(struct class *class,struct class_attribute *attr, char *buf)
+{
+    gctUINT32 status = 0;
+    if (platform->ops->getPowerStatus)
+    {
+        platform->ops->getPowerStatus(platform,&status);
+    }
+    return snprintf(buf, PAGE_SIZE, "customid:%d,status:%d\n",galDevice->kernels[0]->hardware->identity.customerID,status);
+}
+/*============the control format should as: (control-domain:control-value)==========*/
+static int kcmp(const char *buff,const char *token,int lenth)
+{
+    int i = 0;
+    int flag = 0;
+    for (i=0;i<lenth;i++)
+    {
+        if (buff[i] != token[i])
+        {
+            flag = 1;
+            break;
+        }
+    }
+    return flag;
+}
+static int findtok(const char *buff,const char token,int lenth)
+{
+    int pos = 0;
+    int i = 0;
+    for (i=0;i<lenth;i++)
+    {
+        if (buff[i] == token)
+        {
+            pos = i;
+            break;
+        }
+    }
+    return pos;
+}
+static ssize_t store_class_control(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+{
+    gctUINT32 status = 0;
+    int pos = 0;
+    int val = 0;
+    pos = findtok(buf,':',strlen(buf));
+    if (pos == 0)
+    {
+        return count;
+    }
+
+    if (kcmp(buf,"profile",strlen("profile")) == 0)
+    {
+        printk("the control domain is profile\n");
+        if (platform->ops->getPowerStatus)
+        {
+            platform->ops->getPowerStatus(platform,&status);
+        }
+        if (status != POWER_ON)
+        {
+            gckOS_SetGPUPower(galDevice->os, 0, 1, 1);
+        }
+        if (buf[pos+1] == '1')
+        {
+            galDevice->args.gpuProfiler = 1;
+            gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 1);
+        }
+        else
+        {
+            galDevice->args.gpuProfiler = 0;
+            gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 0);
+        }
+    }
+    else if (kcmp(buf,"policy",strlen("policy")) == 0)
+    {
+        printk("the control domain is policy\n");
+        if (platform->ops->setPolicy)
+        {
+            platform->ops->setPolicy(platform,(gctUINT32)(buf[pos+1]-'0'));
+        }
+    }
+    else if (kcmp(buf,"suspend",strlen("suspend")) == 0)
+    {
+        if (kstrtoint(&buf[pos+1], 0, &val) != 0)
+        {
+            printk("kstrtoint return error\n");
+            val = 300;
+        }
+        printk("the control domain is suspend,value is %d\n",val);
+        galDevice->kernels[0]->hardware->powerTimeout = val;
+    }
+    return count;
+}
+
+static ssize_t show_class_policy(struct class *class,struct class_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "policy read,just for test\n");
+}
+
+static ssize_t store_class_policy(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+{
+    ssize_t ret = 0;
+    printk("store_policy,%s\n",buf);
+    return ret;
+}
+
+static ssize_t show_class_status(struct class *class,struct class_attribute *attr, char *buf)
+{
+    gctUINT32 status = 0;
+    if (platform->ops->getPowerStatus)
+    {
+        platform->ops->getPowerStatus(platform,&status);
+    }
+    return snprintf(buf, PAGE_SIZE, "status:%d",status);
+}
+
+static ssize_t store_class_status(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+{
+    ssize_t ret = 0;
+    printk("store_status,%s\n",buf);
+    return ret;
+}
+
+static ssize_t show_class_info(struct class *class,struct class_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "info read,just for test\n");
+}
+
+static ssize_t store_class_info(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+{
+    ssize_t ret = 0;
+    printk("store_info,%s\n",buf);
+    return ret;
+}
+
+static struct class_attribute gal_class_attrs[] = {
+    __ATTR(control, 0664,
+            show_class_control, store_class_control),
+    __ATTR(policy, 0664,
+            show_class_policy, store_class_policy),
+    __ATTR(status, 0664,
+            show_class_status, store_class_status),
+    __ATTR(info, 0664,
+            show_class_info, store_class_info),
+};
+/*=========================some sysfs functions,class end=======================================*/
 static void
 _InitModuleParam(
     gcsMODULE_PARAMETERS * ModuleParam
@@ -338,7 +490,10 @@ _InitModuleParam(
 #if USE_LINUX_PCIE
     if (bar != -1)
     {
-        p->bars[gcvCORE_MAJOR]         = bar;
+        if (p->bars[gcvCORE_MAJOR] == -1)
+        {
+            p->bars[gcvCORE_MAJOR] = bar;
+        }
     }
 #endif
 
@@ -388,6 +543,9 @@ _InitModuleParam(
 
     p->externalBase = externalBase;
     p->externalSize = externalSize;
+
+    p->exclusiveBase = exclusiveBase;
+    p->exclusiveSize = exclusiveSize;
 
     for (i = 0; i < gcvCORE_COUNT; i++)
     {
@@ -508,6 +666,9 @@ _SyncModuleParam(
     externalBase = p->externalBase;
     externalSize = p->externalSize;
 
+    exclusiveBase = p->exclusiveBase;
+    exclusiveSize = p->exclusiveSize;
+
     for (i = 0; i < gcvCORE_COUNT; i++)
     {
         for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
@@ -607,6 +768,12 @@ gckOS_DumpParam(
     printk("  externalBase      = 0x%llX\n",  externalBase);
 #else
     printk("  externalBase      = 0x%lX\n",  externalBase);
+#endif
+    printk("  exclusiveSize     = 0x%08lX\n", exclusiveSize);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+    printk("  exclusiveBase     = 0x%llX\n", exclusiveBase);
+#else
+    printk("  exclusiveBase     = 0x%lX\n", exclusiveBase);
 #endif
     printk("  bankSize          = 0x%08lX\n", bankSize);
     printk("  fastClear         = %d\n",      fastClear);
@@ -834,6 +1001,11 @@ static long drv_ioctl(
     long ret = -ENOTTY;
     gceSTATUS status = gcvSTATUS_OK;
     gcsHAL_INTERFACE iface;
+
+#if VIVANTE_PROFILER
+    static gcsHAL_PROFILER_INTERFACE iface_profiler;
+#endif
+
     gctUINT32 copyLen;
     DRIVER_ARGS drvArgs;
     gckGALDEVICE device;
@@ -867,97 +1039,172 @@ static long drv_ioctl(
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
     }
 
-    if ((ioctlCode != IOCTL_GCHAL_INTERFACE)
-    &&  (ioctlCode != IOCTL_GCHAL_KERNEL_INTERFACE)
-    )
+    switch (ioctlCode)
     {
+    case IOCTL_GCHAL_INTERFACE:
+        /* Get the drvArgs. */
+        copyLen = copy_from_user(
+            &drvArgs, (void *) arg, sizeof(DRIVER_ARGS)
+            );
+
+        if (copyLen != 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of the input arguments.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        /* Now bring in the gcsHAL_INTERFACE structure. */
+        if ((drvArgs.InputBufferSize  != sizeof(gcsHAL_INTERFACE))
+        ||  (drvArgs.OutputBufferSize != sizeof(gcsHAL_INTERFACE))
+        )
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): input or/and output structures are invalid.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        copyLen = copy_from_user(
+            &iface, gcmUINT64_TO_PTR(drvArgs.InputBuffer), sizeof(gcsHAL_INTERFACE)
+            );
+
+        if (copyLen != 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of input HAL interface.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        if (iface.command == gcvHAL_DEVICE_MUTEX)
+        {
+            if (iface.u.DeviceMutex.isMutexLocked == gcvTRUE)
+            {
+                data->isLocked = gcvTRUE;
+            }
+            else
+            {
+                data->isLocked = gcvFALSE;
+            }
+        }
+
+        status = gckDEVICE_Dispatch(device->device, &iface);
+
+        /* Redo system call after pending signal is handled. */
+        if (status == gcvSTATUS_INTERRUPTED)
+        {
+            ret = -ERESTARTSYS;
+            gcmkONERROR(status);
+        }
+
+        /* Copy data back to the user. */
+        copyLen = copy_to_user(
+            gcmUINT64_TO_PTR(drvArgs.OutputBuffer), &iface, sizeof(gcsHAL_INTERFACE)
+            );
+
+        if (copyLen != 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of output HAL interface.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+        break;
+
+    case IOCTL_GCHAL_PROFILER_INTERFACE:
+#if VIVANTE_PROFILER
+        /* Get the drvArgs. */
+        copyLen = copy_from_user(
+            &drvArgs, (void *) arg, sizeof(DRIVER_ARGS)
+            );
+
+        if (copyLen != 0)
+        {
+           gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of the input arguments.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        /* Now bring in the gcsHAL_INTERFACE structure. */
+        if ((drvArgs.InputBufferSize  != sizeof(gcsHAL_PROFILER_INTERFACE))
+        ||  (drvArgs.OutputBufferSize != sizeof(gcsHAL_PROFILER_INTERFACE))
+        )
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): input or/and output structures are invalid.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        copyLen = copy_from_user(
+            &iface_profiler, gcmUINT64_TO_PTR(drvArgs.InputBuffer), sizeof(gcsHAL_PROFILER_INTERFACE)
+            );
+
+        if (copyLen != 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of input HAL interface.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        status = gckDEVICE_Profiler_Dispatch(device->device, &iface_profiler);
+
+        /* Redo system call after pending signal is handled. */
+        if (status == gcvSTATUS_INTERRUPTED)
+        {
+            ret = -ERESTARTSYS;
+            gcmkONERROR(status);
+        }
+
+        /* Copy data back to the user. */
+        copyLen = copy_to_user(
+            gcmUINT64_TO_PTR(drvArgs.OutputBuffer), &iface_profiler, sizeof(gcsHAL_PROFILER_INTERFACE)
+            );
+
+        if (copyLen != 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_ERROR, gcvZONE_DRIVER,
+                "%s(%d): error copying of output HAL interface.\n",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+#endif
+        break;
+
+    default:
         gcmkTRACE_ZONE(
             gcvLEVEL_ERROR, gcvZONE_DRIVER,
             "%s(%d): unknown command %d\n",
             __FUNCTION__, __LINE__,
             ioctlCode
-            );
-
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
-
-    /* Get the drvArgs. */
-    copyLen = copy_from_user(
-        &drvArgs, (void *) arg, sizeof(DRIVER_ARGS)
-        );
-
-    if (copyLen != 0)
-    {
-        gcmkTRACE_ZONE(
-            gcvLEVEL_ERROR, gcvZONE_DRIVER,
-            "%s(%d): error copying of the input arguments.\n",
-            __FUNCTION__, __LINE__
-            );
-
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
-
-    /* Now bring in the gcsHAL_INTERFACE structure. */
-    if ((drvArgs.InputBufferSize  != sizeof(gcsHAL_INTERFACE))
-    ||  (drvArgs.OutputBufferSize != sizeof(gcsHAL_INTERFACE))
-    )
-    {
-        gcmkTRACE_ZONE(
-            gcvLEVEL_ERROR, gcvZONE_DRIVER,
-            "%s(%d): input or/and output structures are invalid.\n",
-            __FUNCTION__, __LINE__
-            );
-
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
-
-    copyLen = copy_from_user(
-        &iface, gcmUINT64_TO_PTR(drvArgs.InputBuffer), sizeof(gcsHAL_INTERFACE)
-        );
-
-    if (copyLen != 0)
-    {
-        gcmkTRACE_ZONE(
-            gcvLEVEL_ERROR, gcvZONE_DRIVER,
-            "%s(%d): error copying of input HAL interface.\n",
-            __FUNCTION__, __LINE__
-            );
-
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
-
-    if (iface.command == gcvHAL_DEVICE_MUTEX)
-    {
-        if (iface.u.DeviceMutex.isMutexLocked == gcvTRUE)
-        {
-            data->isLocked = gcvTRUE;
-        }
-        else
-        {
-            data->isLocked = gcvFALSE;
-        }
-    }
-
-    status = gckDEVICE_Dispatch(device->device, &iface);
-
-    /* Redo system call after pending signal is handled. */
-    if (status == gcvSTATUS_INTERRUPTED)
-    {
-        ret = -ERESTARTSYS;
-        gcmkONERROR(status);
-    }
-
-    /* Copy data back to the user. */
-    copyLen = copy_to_user(
-        gcmUINT64_TO_PTR(drvArgs.OutputBuffer), &iface, sizeof(gcsHAL_INTERFACE)
-        );
-
-    if (copyLen != 0)
-    {
-        gcmkTRACE_ZONE(
-            gcvLEVEL_ERROR, gcvZONE_DRIVER,
-            "%s(%d): error copying of output HAL interface.\n",
-            __FUNCTION__, __LINE__
             );
 
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
@@ -1068,7 +1315,7 @@ static int drv_init(void)
         }
 
         /* Create the device class. */
-        device_class = class_create(THIS_MODULE, CLASS_NAME);
+        device_class = class_create(THIS_MODULE, "npu");
 
         if (IS_ERR(device_class))
         {
@@ -1171,6 +1418,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 {
     int ret = -ENODEV;
     bool getPowerFlag = gcvFALSE;
+	int i = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
     static u64 dma_mask = DMA_BIT_MASK(40);
 #else
@@ -1188,12 +1436,12 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 
     gcmkHEADER();
-
 	if (get_nna_status(pdev) == gcvSTATUS_MISMATCH)
 	{
 		printk("nn is disable,should not do probe continue\n");
 		return ret;
 	}
+
 
     platform->device = pdev;
     galcore_device = &pdev->dev;
@@ -1272,6 +1520,11 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     /* Update module param because drv_init() uses them directly. */
     _SyncModuleParam(&moduleParam);
 
+    if (powerManagement == 0)
+    {
+        gcmkPRINT("[galcore warning]: power saveing is disabled.");
+    }
+
     ret = drv_init();
 
     if (!ret)
@@ -1282,6 +1535,12 @@ static int __devinit gpu_probe(struct platform_device *pdev)
         ret = viv_drm_probe(&pdev->dev);
 #endif
     }
+
+	for (i = 0; i < ARRAY_SIZE(gal_class_attrs); i++)
+	{
+		//device_create_file(&pdev->dev, &gal_attrs[i]);
+		ret = class_create_file(gpuClass, &gal_class_attrs[i]);
+	}
 
     if (ret < 0)
     {

@@ -807,8 +807,16 @@ gckKERNEL_AddProcessDB(
         return gcvSTATUS_OK;
     }
 
+#if gcdENABLE_SW_PREEMPTION
+    if (Type == gcvDB_PRIORITY)
+    {
+        gctUINT32 id = gcmPTR2INT32(Pointer);
+        Kernel->priorityDBCreated[id] = gcvTRUE;
+    }
+#else
     /* Verify the arguments. */
     gcmkVERIFY_ARGUMENT(Pointer != gcvNULL);
+#endif
 
     /* Find the database. */
     gcmkONERROR(gckKERNEL_FindDatabase(Kernel, ProcessID, gcvFALSE, &database));
@@ -1325,6 +1333,56 @@ gckKERNEL_DestroyProcessDB(
                                "DB: SHBUF %u (status=%d)",
                                (gctUINT32)(gctUINTPTR_T) record->data, status);
                 break;
+
+#if gcdENABLE_SW_PREEMPTION
+            case gcvDB_PRIORITY:
+                /* Commit done and trigger the lower priority queue. */
+                {
+                    gctUINT32 priorityID = gcmPTR2INT32(record->data);
+                    gceHARDWARE_TYPE type = Kernel->hardware->type;
+                    gctUINT32 id = 0;
+
+                    if (priorityID >= gcdMAX_PRIORITY_QUEUE_NUM)
+                    {
+                        gcmkPRINT("Galcore Info: get an error priority.");
+                        break;
+                    }
+
+                    Kernel->priorityDBCreated[priorityID] = gcvFALSE;
+
+                    gcmkVERIFY_OK(gckOS_AtomGet(Kernel->os, Kernel->device->atomPriorityID, &id));
+
+                    if (id > 0 && priorityID == id)
+                    {
+                        gcmkVERIFY_OK(gckOS_AtomDecrement(Kernel->os, Kernel->device->atomPriorityID, &id));
+                        while (--id)
+                        {
+                            gcmkVERIFY_OK(gckOS_AcquireMutex(Kernel->os, Kernel->priorityQueueMutex[id], gcvINFINITE));
+                            if (!Kernel->priorityQueues[id] || !Kernel->priorityQueues[id]->head)
+                            {
+                                gcmkVERIFY_OK(gckOS_AtomDecrement(Kernel->os, kernel->device->atomPriorityID, &id));
+                            }
+
+                            gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Kernel->priorityQueueMutex[id]));
+                        }
+                    }
+
+                    if (type == gcvHARDWARE_3D || type == gcvHARDWARE_3D2D || type == gcvHARDWARE_VIP)
+                    {
+                        gckKERNEL kernel = gcvNULL;
+                        gctINT i;
+
+                        for (i = 0; i < Kernel->device->coreNum; i++)
+                        {
+                            kernel = Kernel->device->coreInfoArray[i].kernel;
+
+                            gcmkVERIFY_OK(gckOS_ReleaseSemaphoreEx(kernel->os, kernel->preemptSema));
+                        }
+                    }
+                }
+
+                break;
+#endif
 
             default:
                 gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DATABASE,

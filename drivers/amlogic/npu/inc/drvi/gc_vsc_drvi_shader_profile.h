@@ -169,7 +169,7 @@ typedef enum SHADER_IO_USAGE
 
     /* For gfx clients only, and only for GL */
     SHADER_IO_USAGE_POINT_COORD              = 36,
-    SHADER_IO_USAGE_FOG_COORD                = 37,
+    SHADER_IO_USAGE_FOG_FRAG_COORD           = 37,
     SHADER_IO_USAGE_HELPER_PIXEL             = 38,
 
     /* For gfx pixel-frequency only (sample-frequency will directly use SHADER_IO_USAGE_DEPTH),
@@ -308,7 +308,8 @@ SHADER_UAV_ACCESS_MODE;
 typedef enum SHADER_HW_ACCESS_MODE
 {
     SHADER_HW_ACCESS_MODE_REGISTER           = 0,
-    SHADER_HW_ACCESS_MODE_MEMORY             = 1
+    SHADER_HW_ACCESS_MODE_MEMORY             = 1,
+    SHADER_HW_ACCESS_MODE_BOTH_REG_AND_MEM   = 2,
 }
 SHADER_HW_ACCESS_MODE;
 
@@ -665,7 +666,8 @@ struct _SHADER_CONSTANT_HW_LOCATION_MAPPING
 {
     SHADER_HW_ACCESS_MODE                            hwAccessMode;
 
-    union
+    /* Use a structure here because it might save the constant into the reigster and memomry at the same time. */
+    struct
     {
         /* Case to map to constant register */
         struct
@@ -1014,6 +1016,7 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
             gctUINT                                      inputCtrlPointCount;
 
             /* HS only */
+            gctBOOL                                      hasNoPerVertexInput;
             gctUINT                                      outputCtrlPointCount;
 
             /* For DX, they are provided in HS, but for OGL they are provided in DS */
@@ -1258,6 +1261,9 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
             gctUINT               hwRegNoForSampleMaskId          : 9;
             gctUINT               hwRegChannelForSampleMaskId     : 2;
 
+            /* PS reg start index, exclude #position. */
+            gctUINT               psStartRegIndex                 : 2;
+
             /* Shader will run on per-sample frequency */
             gctUINT               bExecuteOnSampleFreq            : 1;
 
@@ -1273,12 +1279,10 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
                implements alpha-blend, or for OGL, lastFragData is presented) */
             gctUINT               bNeedRtRead                     : 1;
 
-#if gcdALPHA_KILL_IN_SHADER
             gctUINT               alphaClrKillInstsGened          : 1;
-#else
-            gctUINT               reserved                        : 1;
-#endif
             gctUINT               fragColorUsage                  : 2;
+
+            gctUINT               reserved                        : 28;
         } ps;
 
         /* States acted on gps */
@@ -1296,7 +1300,10 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
             /* Whether use Evis instruction. */
             gctUINT               bUseEvisInst                    : 1;
 
-            gctUINT               reserved                        : 28;
+            /* Whether the shader depends on the workGroupSize. */
+            gctUINT               bDependOnWorkGroupSize          : 1;
+
+            gctUINT               reserved                        : 27;
 
             gctUINT16             workGroupSizeFactor[3];
         } gps;
@@ -1308,7 +1315,6 @@ typedef struct SHADER_EXECUTABLE_HINTS
     SHADER_EXECUTABLE_NATIVE_HINTS          nativeHints;
     SHADER_EXECUTABLE_DERIVED_HINTS         derivedHints;
 }SHADER_EXECUTABLE_HINTS;
-
 
 struct SHADER_EXECUTABLE_INSTANCE;
 
@@ -1399,7 +1405,7 @@ void vscSortIOsByHwLoc(SHADER_IO_MAPPING_PER_EXE_OBJ* pIoMappingPerExeObj, gctUI
 /* If hShader != NULL, mapping 'symbol->#->hw resource' is dumped, otherwise
    only '#->hw' is dumped. For the 2nd case, it is easy for driver to dump any
    SEP when flushing to hw to triage bugs */
-void vscPrintSEP(VSC_SYS_CONTEXT* pSysCtx, SHADER_EXECUTABLE_PROFILE* pSEP, SHADER_HANDLE hShader);
+gctBOOL vscPrintSEP(VSC_SYS_CONTEXT* pSysCtx, SHADER_EXECUTABLE_PROFILE* pSEP, SHADER_HANDLE hShader);
 
 /* Linkage info */
 typedef struct SHADER_IO_REG_LINKAGE
@@ -1470,6 +1476,7 @@ typedef enum HW_SAMPLER_FETCH_MODE
 
 typedef struct SHADER_HW_PROGRAMMING_HINTS
 {
+    /* Word 1*/
     /* Inst fetch mode */
     gctUINT                                     hwInstFetchMode               : 2;
 
@@ -1491,6 +1498,7 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
        HW_SAMPLER_FETCH_MODE_UNIFIED_REG_FILE, for other cases, it must be set to 0 */
     gctUINT                                     hwSamplerRegAddrOffset        : 7;
 
+    /* Word 2*/
     /* Result-cache is used to queue missed data streamming from up-stage and release them
        after they are used. This window-size is the size of queue. Note that this result-$
        occupies some space of USC storage (uscSizeInKbyte). The ocuppied space is calc'ed
@@ -1505,6 +1513,7 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
        maxHwTGThreadCount, i.e, (maxCoreCount * 4) */
     gctUINT                                     maxThreadsPerHwTG             : 7;
 
+    /* Word 3*/
     /* USC is shared by all shader stages, so we need allocate proper size for each stage
        to get best perf of pipeline. The relation between these two members are
        1. minUscSizeInKbyte can not be greater than maxUscSizeInKbyte.
@@ -1518,6 +1527,13 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
 
     /* Iteration factor to time 'min parallel shader stage combination' when analyzing USC */
     gctUINT                                     maxParallelFactor             : 16;
+
+    /* Word 4*/
+    /* Max patches number. */
+    gctUINT                                     tsMaxPatches                  : 7;
+
+    /* Reserved bits */
+    gctUINT                                     reserved                      : 25;
 }SHADER_HW_PROGRAMMING_HINTS;
 
 typedef struct SHADER_HW_INFO

@@ -89,6 +89,7 @@ typedef struct _gcoCL_DEVICE_INFO
     gctBOOL             halti2;                   /* Halit2 support */
     gctBOOL             multiWGPack;
     gctBOOL             asyncBLT;
+    gctBOOL             multiCluster;
 
     gceCHIPMODEL        chipModel;
     gctUINT32           chipRevision;
@@ -117,6 +118,16 @@ gcoCL_SetHardwareType(
     IN gceHARDWARE_TYPE Type
     );
 
+gceSTATUS
+gcoCL_ForceSetHardwareType(
+    IN gceHARDWARE_TYPE Type,
+    OUT gceHARDWARE_TYPE *savedType
+    );
+
+gceSTATUS
+gcoCL_ForceRestoreHardwareType(
+    IN gceHARDWARE_TYPE savedType
+    );
 /*******************************************************************************
 **
 **  gcoCL_InitializeHardware
@@ -598,9 +609,33 @@ gcoCL_QueryDeviceCount(
     OUT gctUINT32 * GPUCountPerDevice
     );
 
+gceSTATUS
+gcoCL_QueryDeviceCountWithGPUType(
+    OUT gctUINT32 * DeviceCount,
+    OUT gctUINT32 * GPUCountPerDevice
+    );
+
+gceSTATUS
+gcoCL_QueryDeviceCountWithVIPType(
+    OUT gctUINT32 * DeviceCount,
+    OUT gctUINT32 * GPUCountPerDevice
+    );
+
+gceSTATUS
+gcoCL_QueryDeviceCountWith3D2DType(
+    OUT gctUINT32 * DeviceCount,
+    OUT gctUINT32 * GPUCountPerDevice
+    );
 
 gceSTATUS
 gcoCL_CreateHW(
+    IN gctUINT32    DeviceId,
+    OUT gcoHARDWARE * Hardware
+    );
+
+gceSTATUS
+gcoCL_CreateHWWithType(
+    IN gceHARDWARE_TYPE hwType,
     IN gctUINT32    DeviceId,
     OUT gcoHARDWARE * Hardware
     );

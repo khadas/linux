@@ -56,8 +56,6 @@
 #ifndef __gc_hal_kernel_context_h_
 #define __gc_hal_kernel_context_h_
 
-#include "gc_hal_kernel_buffer.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -109,6 +107,12 @@ typedef struct _gcsCONTEXT
 
     /* Pointer to the first delta to be applied. */
     gcsSTATE_DELTA_PTR          delta;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* Kernel delta. */
+    gcsSTATE_DELTA_PTR          kDelta;
+    gctUINT                     kDeltaCount;
+#endif
 
     /* Next context buffer. */
     gcsCONTEXT_PTR              next;
@@ -183,6 +187,18 @@ struct _gckCONTEXT
     gcsPROFILER_COUNTERS_PART2    latestProfiler_part2;
     gcsPROFILER_COUNTERS_PART2    histroyProfiler_part2;
     gcsPROFILER_COUNTERS_PART2    preProfiler_part2;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* Kernel delta. */
+    gcsSTATE_DELTA_PTR            delta;
+    gcsSTATE_DELTA_PTR            deltaHead;
+
+    gcsSTATE_DELTA                prevDelta;
+    gcsSTATE_DELTA_PTR            prevDeltaPtr;
+    gcsSTATE_DELTA_RECORD_PTR     prevRecordArray;
+    gctUINT32 *                   prevMapEntryID;
+    gctUINT32 *                   prevMapEntryIndex;
+#endif
 };
 
 #ifdef __cplusplus

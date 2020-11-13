@@ -232,6 +232,10 @@ struct _gckHARDWARE
     gcsHARDWARE_PAGETABLE_ARRAY pagetableArray;
 
     gctUINT64                   contextID;
+
+	gctUINT32                   powerTimeout;
+
+    gctBOOL                     hasQchannel;
 };
 
 gceSTATUS

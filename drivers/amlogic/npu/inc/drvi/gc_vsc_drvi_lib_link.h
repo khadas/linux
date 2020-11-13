@@ -85,6 +85,12 @@ typedef enum _VSC_LIB_LINK_TYPE
 
     /* Image format. */
     VSC_LIB_LINK_TYPE_IMAGE_FORMAT                  = 6,
+
+    /* The minimum workGroupSize that application requires. */
+    VSC_LIB_LINK_TYPE_SET_MIN_WORK_GROUP_SIZE       = 7,
+
+    /* The fixed workGroupSize that application requires. */
+    VSC_LIB_LINK_TYPE_SET_FIXED_WORK_GROUP_SIZE     = 8,
 }VSC_LIB_LINK_TYPE;
 
 typedef enum _VSC_RES_OP_BIT
@@ -207,10 +213,12 @@ typedef struct _VSC_LIB_LINK_POINT
         VSC_LIB_LINK_POINT_RESOURCE   resource;
         VSC_LIB_LINK_IMAGE_READ_WRITE imageReadWrite;
         VSC_LIB_LINK_IMAGE_FORMAT     imageFormat;
+        gctUINT                       minWorkGroupSize;
+        gctUINT                       maxWorkGroupSize;
     } u;
 }VSC_LIB_LINK_POINT;
 
-#define LIB_NUM 2
+#define MAX_LIB_NUM 8
 typedef struct _VSC_SHADER_LIB_LINK_ENTRY
 {
     /* Which level this link entry should be applied. */
@@ -218,7 +226,7 @@ typedef struct _VSC_SHADER_LIB_LINK_ENTRY
 
     /* Lib shader */
     SHADER_HANDLE                     hShaderLib;
-    SHADER_HANDLE                     hShaderLibs[LIB_NUM];
+    SHADER_HANDLE                     hShaderLibs[MAX_LIB_NUM];
 
     /* vreg map from libShader to the current shader */
     void*                             pTempHashTable;

@@ -107,6 +107,10 @@ gckKERNEL_QueryVideoMemory(
     Interface->u.QueryVideoMemory.contiguousSize = device->contiguousSize;
     Interface->u.QueryVideoMemory.contiguousPhysName = device->contiguousPhysName;
 
+    /* Get exclusive memory size and physical address. */
+    Interface->u.QueryVideoMemory.exclusiveSize = device->exclusiveSize;
+    Interface->u.QueryVideoMemory.exclusivePhysName = device->exclusivePhysName;
+
     /* Success. */
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
@@ -167,6 +171,11 @@ gckKERNEL_GetVideoMemoryPool(
     case gcvPOOL_SYSTEM:
         /* System memory. */
         videoMemory = device->contiguousVidMem;
+        break;
+
+    case gcvPOOL_LOCAL_EXCLUSIVE:
+        /* gpu exclusive memory. */
+        videoMemory = device->exclusiveVidMem;
         break;
 
     case gcvPOOL_INTERNAL_SRAM:
@@ -295,6 +304,9 @@ gckKERNEL_DestroyProcessReservedUserMap(
     /* when unmap reserved memory, we don't need real logical*/
     gctPOINTER Logical = (gctPOINTER)0xFFFFFFFF;
     gctINT i;
+    PLINUX_MDL mdl;
+    PLINUX_MDL_MAP mdlMap = gcvNULL;
+
     gcmkHEADER_ARG("Logical=0x%08x pid=%u",
                    Logical, Pid);
     /* Verify the arguments. */
@@ -306,14 +318,24 @@ gckKERNEL_DestroyProcessReservedUserMap(
     bytes = device->internalSize;
     if (bytes)
     {
-        gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        mdl = physHandle;
+        mdlMap = FindMdlMap(mdl, Pid);
+        if (mdlMap)
+        {
+            gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        }
     }
 
     physHandle = (PLINUX_MDL)device->externalPhysical;
     bytes = device->externalSize;
     if (bytes)
     {
-        gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        mdl = physHandle;
+        mdlMap = FindMdlMap(mdl, Pid);
+        if (mdlMap)
+        {
+            gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        }
     }
 
     /* System memory. */
@@ -321,7 +343,12 @@ gckKERNEL_DestroyProcessReservedUserMap(
     bytes = device->contiguousSize;
     if (bytes)
     {
-        gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        mdl = physHandle;
+        mdlMap = FindMdlMap(mdl, Pid);
+        if (mdlMap)
+        {
+            gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+        }
     }
 
     /* External shared SRAM memory. */
@@ -331,7 +358,12 @@ gckKERNEL_DestroyProcessReservedUserMap(
         bytes = device->extSRAMSizes[i];
         if (bytes)
         {
-            gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+            mdl = physHandle;
+            mdlMap = FindMdlMap(mdl, Pid);
+            if (mdlMap)
+            {
+                gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+            }
         }
     }
 
@@ -344,7 +376,12 @@ gckKERNEL_DestroyProcessReservedUserMap(
             bytes = Kernel->sRAMSizes[i];
             if (bytes)
             {
-                gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+                mdl = physHandle;
+                mdlMap = FindMdlMap(mdl, Pid);
+                if (mdlMap)
+                {
+                    gckOS_UnmapMemoryEx(Kernel->os, physHandle, bytes, Logical, Pid);
+                }
             }
         }
     }
@@ -659,3 +696,30 @@ gckKERNEL_Notify(
     gcmkFOOTER();
     return status;
 }
+
+gceSTATUS
+gckKERNEL_SyncVideoMemory(
+    IN gckKERNEL Kernel,
+    IN gckVIDMEM_NODE Node,
+    IN gctUINT32 Reason
+    )
+{
+    gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
+    gcsPLATFORM * platform;
+
+    gcmkHEADER();
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Kernel, gcvOBJ_KERNEL);
+
+    platform = Kernel->os->device->platform;
+
+    if (platform && platform->ops->syncMemory)
+    {
+        status = platform->ops->syncMemory(Kernel, (gctPOINTER)Node, Reason);
+    }
+
+    gcmkFOOTER();
+    return status;
+}
+

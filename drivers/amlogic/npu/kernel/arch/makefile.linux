@@ -85,6 +85,7 @@ CFLAGS += $(INCLUDE) -Werror -ansi
 OBJECTS = $(OBJ_DIR)/gc_hal_kernel_context.o \
           $(OBJ_DIR)/gc_hal_kernel_hardware.o \
           $(OBJ_DIR)/gc_hal_kernel_hardware_func.o \
+          $(OBJ_DIR)/gc_hal_kernel_hardware_func_flop_reset.o \
           $(OBJ_DIR)/gc_hal_kernel_hardware_async_fe.o \
           $(OBJ_DIR)/gc_hal_kernel_hardware_mc_fe.o \
           $(OBJ_DIR)/gc_hal_kernel_hardware_waitlink_fe.o

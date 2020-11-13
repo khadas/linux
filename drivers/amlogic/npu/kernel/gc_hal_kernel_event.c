@@ -54,7 +54,6 @@
 
 
 #include "gc_hal_kernel_precomp.h"
-#include "gc_hal_kernel_buffer.h"
 
 #ifdef __QNXNTO__
 #include "gc_hal_kernel_qnx.h"
@@ -940,12 +939,13 @@ OnError:
 **      Nothing.
 */
 gceSTATUS
-gckEVENT_AddList(
+gckEVENT_AddListEx(
     IN gckEVENT Event,
     IN gcsHAL_INTERFACE_PTR Interface,
     IN gceKERNEL_WHERE FromWhere,
     IN gctBOOL AllocateAllowed,
-    IN gctBOOL FromKernel
+    IN gctBOOL FromKernel,
+    IN gctUINT32 ProcessID
     )
 {
     gceSTATUS status;
@@ -994,7 +994,14 @@ gckEVENT_AddList(
     gckOS_MemCopy(&record->info, Interface, gcmSIZEOF(record->info));
 
     /* Get process ID. */
-    gcmkONERROR(gckOS_GetProcessID(&record->processID));
+    if (ProcessID)
+    {
+        record->processID = ProcessID;
+    }
+    else
+    {
+        gcmkONERROR(gckOS_GetProcessID(&record->processID));
+    }
 
     if (FromKernel == gcvFALSE)
     {
@@ -1081,6 +1088,18 @@ OnError:
     /* Return the status. */
     gcmkFOOTER();
     return status;
+}
+
+gceSTATUS
+gckEVENT_AddList(
+    IN gckEVENT Event,
+    IN gcsHAL_INTERFACE_PTR Interface,
+    IN gceKERNEL_WHERE FromWhere,
+    IN gctBOOL AllocateAllowed,
+    IN gctBOOL FromKernel
+    )
+{
+    return gckEVENT_AddListEx(Event, Interface, FromWhere, AllocateAllowed, FromKernel, 0);
 }
 
 /*******************************************************************************
@@ -1520,6 +1539,79 @@ OnError:
 **      gckEVENT Event
 **          Pointer to an gckEVENT object.
 **
+**      gckPREEMPT_COMMIT PreemptCommit
+**          The preempt commit.
+**
+**      gctBOOL Forced
+**          Force fire a event. There won't be interrupt if there's no events
+**          queued. Force a event by append a dummy one if this parameter is on.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+#if gcdENABLE_SW_PREEMPTION
+gceSTATUS
+gckEVENT_PreemptCommit(
+    IN gckEVENT Event,
+    IN gckPREEMPT_COMMIT PreemptCommit,
+    IN gctBOOL Forced
+    )
+{
+    gceSTATUS status;
+    gcsQUEUE_PTR record = gcvNULL;
+
+    gcmkHEADER_ARG("Event=0x%x PreemptCommit=0x%x", Event, PreemptCommit);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Event, gcvOBJ_EVENT);
+    gcmkVERIFY_ARGUMENT(PreemptCommit != gcvNULL);
+
+    record = PreemptCommit->eventQueue;
+
+    /* Loop while there are records in the queue. */
+    while (record != gcvNULL)
+    {
+        /* Append event record to event queue. */
+        gcmkONERROR(gckEVENT_AddListEx(
+            Event,
+            &record->iface,
+            gcvKERNEL_PIXEL,
+            gcvTRUE,
+            gcvFALSE,
+            PreemptCommit->pid
+            ));
+
+        /* Next record in the queue. */
+        record = gcmUINT64_TO_PTR(record->next);
+    }
+
+
+    /* Submit the event list. */
+    gcmkONERROR(gckEVENT_Submit(Event, gcvTRUE, gcvFALSE));
+
+    /* Success */
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
+    return status;
+}
+#endif
+
+/*******************************************************************************
+**
+**  gckEVENT_Commit
+**
+**  Commit an event queue from the user.
+**
+**  INPUT:
+**
+**      gckEVENT Event
+**          Pointer to an gckEVENT object.
+**
 **      gcsQUEUE_PTR Queue
 **          User event queue.
 **
@@ -1633,7 +1725,6 @@ OnError:
     gcmkFOOTER();
     return status;
 }
-
 /*******************************************************************************
 **
 **  gckEVENT_Interrupt
@@ -1975,15 +2066,15 @@ gckEVENT_Notify(
                 nodeObject = gcmUINT64_TO_PTR(record->info.u.UnlockVideoMemory.node);
 
                 /* Unlock, sync'ed. */
-                status = gckVIDMEM_NODE_Unlock(
-                    Event->kernel,
-                    nodeObject,
-                    record->processID,
-                    gcvNULL
-                    );
+                gcmkERR_BREAK(
+                    gckVIDMEM_NODE_Unlock(Event->kernel,
+                                          nodeObject,
+                                          record->processID,
+                                          gcvNULL));
 
                 /* Deref node. */
-                status = gckVIDMEM_NODE_Dereference(Event->kernel, nodeObject);
+                gcmkERR_BREAK(gckVIDMEM_NODE_Dereference(Event->kernel, nodeObject));
+
                 break;
 
             case gcvHAL_SIGNAL:

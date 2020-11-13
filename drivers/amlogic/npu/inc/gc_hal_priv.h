@@ -155,6 +155,9 @@ typedef enum _gcePATCH_ID
     gcvPATCH_KANZI,
     gcvPATCH_OPENCV_TEST_PHOTO,
     gcvPATCH_VKMARK,
+    gcvPATCH_VK_T3DSTRESSTEST,
+    gcvPATCH_VK_HDR02_FBBASICTONEMAPPING,
+    gcvPATCH_VK_BLOOM,
 
     gcvPATCH_COUNT
 } gcePATCH_ID;
@@ -315,6 +318,18 @@ gcoOS_DetectProgrameByEncryptedSymbols(
 gceSTATUS
 gcoHAL_GetPLS(
     OUT gcsPLS_PTR * PLS
+    );
+
+gceSTATUS
+gcoHAL_SetPriority(
+    IN gcoHAL Hal,
+    IN gctUINT32 PriorityID
+    );
+
+gceSTATUS
+gcoHAL_GetPriority(
+    IN gcoHAL Hal,
+    OUT gctUINT32 * PriorityID
     );
 
 #ifdef __cplusplus

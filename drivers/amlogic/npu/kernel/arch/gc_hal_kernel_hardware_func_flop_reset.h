@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2019 Vivante Corporation
+*    Copyright (c) 2014 - 2020 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2019 Vivante Corporation
+*    Copyright (C) 2014 - 2020 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -53,17 +53,40 @@
 *****************************************************************************/
 
 
-#ifndef __gc_hal_resource_h_
-#define __gc_hal_resource_h_
-
+#ifndef __gc_hal_kernel_hardware_func_flop_reset_h_
+#define __gc_hal_kernel_hardware_func_flop_reset_h_
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "gc_hal.h"
+#include "gc_hal_kernel.h"
+#include "gc_hal_kernel_hardware.h"
 
+gceSTATUS
+gckHARDWARE_ResetFlopWithPPU(
+    IN gckHARDWARE Hardware,
+    IN gctUINT32 AllocFlag,
+    IN gcePOOL *Pool,
+    OUT gcsFUNCTION_COMMAND_PTR Command
+    );
+
+gceSTATUS
+gckHARDWARE_ResetFlopWithNN(
+    IN gckHARDWARE Hardware,
+    IN gctUINT32 AllocFlag,
+    IN gcePOOL *Pool,
+    OUT gcsFUNCTION_COMMAND_PTR Command
+    );
+
+gceSTATUS
+gckHARDWARE_ResetFlopWithTP(
+    IN gckHARDWARE Hardware,
+    IN gctUINT32 AllocFlag,
+    IN gcePOOL *Pool,
+    OUT gcsFUNCTION_COMMAND_PTR Command
+    );
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __gc_hal_resource_h_ */
-
+#endif
 

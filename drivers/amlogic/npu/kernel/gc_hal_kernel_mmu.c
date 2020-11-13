@@ -973,7 +973,10 @@ _FillFlatMapping(
             allocFlag |= gcvALLOC_FLAG_CACHEABLE;
 #endif
 
-            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+            if (!Mmu->pageTableOver4G)
+            {
+                allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+            }
 
             gcmkONERROR(gckKERNEL_AllocateVideoMemory(
                 kernel,
@@ -1275,7 +1278,10 @@ _ConstructDynamicStlb(
     allocFlag |= gcvALLOC_FLAG_CACHEABLE;
 #endif
 
-    allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+    if (!Mmu->pageTableOver4G)
+    {
+        allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+    }
 
     /* Construct Slave TLB. */
     gcmkONERROR(gckKERNEL_AllocateVideoMemory(
@@ -1596,8 +1602,10 @@ _Construct(
     gctSIZE_T physSize;
     gctPHYS_ADDR_T contiguousBase;
     gctSIZE_T contiguousSize = 0;
-    gctPHYS_ADDR_T externalBase;
+    gctPHYS_ADDR_T externalBase = 0;
+    gctPHYS_ADDR_T exclusiveBase = 0;
     gctSIZE_T externalSize = 0;
+    gctSIZE_T exclusiveSize = 0;
     gctUINT32 gpuAddress;
     gctPHYS_ADDR_T gpuPhysical;
     gcsADDRESS_AREA_PTR area = gcvNULL;
@@ -1636,6 +1644,8 @@ _Construct(
     mmu->mtlbLogical      = gcvNULL;
     mmu->staticSTLB       = gcvNULL;
     mmu->enabled          = gcvFALSE;
+    mmu->initMode         = gcvMMU_INIT_FROM_CMD;
+    mmu->pageTableOver4G  = gcvFALSE;
 
     mmu->dynamicAreaSetuped = gcvFALSE;
     mmu->pool = _GetPageTablePool(mmu->os);
@@ -1737,7 +1747,28 @@ _Construct(
     }
     else
     {
+        gctUINT64 gpuContiguousBase = ~0ULL;
+
         mmu->mtlbSize = gcdMMU_MTLB_SIZE;
+
+        status = gckOS_QueryOption(mmu->os, "contiguousBase", &contiguousBase);
+
+        if (gcmIS_SUCCESS(status))
+        {
+            status = gckOS_QueryOption(mmu->os, "contiguousSize", &data);
+            contiguousSize = (gctSIZE_T)data;
+        }
+
+        if (gcmIS_SUCCESS(status) && contiguousSize)
+        {
+            gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(mmu->os, contiguousBase, &gpuContiguousBase));
+
+            if (gpuContiguousBase >= gcvMAXUINT32)
+            {
+                mmu->pageTableOver4G = gcvTRUE;
+                mmu->pool = gcvPOOL_DEFAULT;
+            }
+        }
 
         pool = mmu->pool;
 
@@ -1745,7 +1776,10 @@ _Construct(
         allocFlag |= gcvALLOC_FLAG_CACHEABLE;
 #endif
 
-        allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+        if (!mmu->pageTableOver4G)
+        {
+            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+        }
 
         /* 1K mode is 1024 byte aligned. */
         gcmkONERROR(gckKERNEL_AllocateVideoMemory(
@@ -1833,20 +1867,9 @@ _Construct(
         }
 #endif
 
-        status = gckOS_QueryOption(mmu->os, "contiguousBase", &contiguousBase);
-
-        if (gcmIS_SUCCESS(status))
+        if (contiguousSize && gpuContiguousBase != ~0ULL)
         {
-            status = gckOS_QueryOption(mmu->os, "contiguousSize", &data);
-            contiguousSize = (gctSIZE_T)data;
-        }
-
-        if (gcmIS_SUCCESS(status) && contiguousSize)
-        {
-            gctUINT64 gpuContiguousBase;
             gctUINT32 contiguousBaseAddress = 0;
-
-            gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(mmu->os, contiguousBase, &gpuContiguousBase));
 
             /* Setup flat mapping for reserved memory (VIDMEM). */
             gcmkONERROR(_FillFlatMapping(mmu, gpuContiguousBase, contiguousSize, gcvFALSE, gcvTRUE, &contiguousBaseAddress));
@@ -1881,6 +1904,24 @@ _Construct(
 
             mmu->externalBaseAddress = externalBaseAddress;
         }
+
+        status = gckOS_QueryOption(mmu->os, "exclusiveBase", &exclusiveBase);
+
+        if (gcmIS_SUCCESS(status))
+        {
+            status = gckOS_QueryOption(mmu->os, "exclusiveSize", &data);
+            exclusiveSize = (gctSIZE_T)data;
+        }
+
+        if (gcmIS_SUCCESS(status) && exclusiveSize)
+        {
+            gctUINT32 exclusiveBaseAddress = 0;
+
+            /* Setup flat mapping for external memory. */
+            gcmkONERROR(_FillFlatMapping(mmu, exclusiveBase, exclusiveSize, gcvFALSE, gcvTRUE, &exclusiveBaseAddress));
+
+            mmu->exclusiveBaseAddress = exclusiveBaseAddress;
+        }
     }
 
     /* A 64 byte for safe address, we use 256 here. */
@@ -1888,12 +1929,19 @@ _Construct(
 
     pool = mmu->pool;
 
+    allocFlag = gcvALLOC_FLAG_CONTIGUOUS | gcvALLOC_FLAG_4K_PAGES;
+
+    if (!mmu->pageTableOver4G)
+    {
+        allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+    }
+
     /* Allocate safe page from video memory. */
     gcmkONERROR(gckKERNEL_AllocateVideoMemory(
         Kernel,
         256,
         gcvVIDMEM_TYPE_COMMAND,
-        gcvALLOC_FLAG_CONTIGUOUS | gcvALLOC_FLAG_4K_PAGES | gcvALLOC_FLAG_4GB_ADDR,
+        allocFlag,
         &mmu->safePageSize,
         &pool,
         &mmu->safePageVideoMem
@@ -3281,7 +3329,8 @@ gckMMU_SetupSRAM(
                         Mmu->os,
                         (gctPHYS_ADDR_T)kernel->sRAMBaseAddresses[i],
                         kernel->sRAMSizes[i],
-                        "Per core SRAM reserve usage region",
+                        "gcPerCoreSRAM",
+                        gcvTRUE,
                         gcvTRUE,
                         &kernel->sRAMPhysical[i]
                         ));

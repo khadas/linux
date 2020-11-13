@@ -501,6 +501,7 @@ typedef union _gcsATTACH_DESC
         unsigned long           size;
         const char *            name;
         int                     requested;
+        gctBOOL                 root;
     }
     reservedMem;
 }

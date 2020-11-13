@@ -56,7 +56,7 @@
 #ifndef __gc_hal_profiler_h_
 #define __gc_hal_profiler_h_
 
-#include "shared/gc_hal_profiler.h"
+#include "shared/gc_hal_profiler_shared.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -267,7 +267,9 @@ extern "C" {
 #define VPNG_MCZ        0x2e0000
 #define VPNG_HI         0x2f0000
 #define VPNG_L2         0x300000
-#define VPG_FINISH      0x310000
+#define VPNG_NN         0x310000
+#define VPNG_TP         0x320000
+#define VPG_FINISH      0x330000
 #define VPG_END         0xff0000
 
 /* Info. */
@@ -678,6 +680,134 @@ extern "C" {
                               + MODULE_MEMORY_CONTROLLER_DEPTH_COUNTER_NUM + MODULE_HOST_INTERFACE0_COUNTER_NUM + MODULE_HOST_INTERFACE1_COUNTER_NUM \
                               + MODULE_GPUL2_CACHE_COUNTER_NUM)
 
+#define VPNC_NN_LAYER_ID                        (VPNG_NN + 1)
+#define VPNC_NN_LAYER_ID_OVFL                   (VPNG_NN + 2)
+#define VPNC_NN_INSTR_INFO                      (VPNG_NN + 3)
+#define VPNC_NN_TOTAL_BUSY_CYCLE                (VPNG_NN + 4)
+#define VPNC_NN_TOTAL_BUSY_CYCLE_OVFL           (VPNG_NN + 5)
+#define VPNC_NN_TOTAL_READ_CYCLE_DDR            (VPNG_NN + 6)
+#define VPNC_NN_TOTAL_READ_CYCLE_DDR_OVFL       (VPNG_NN + 7)
+#define VPNC_NN_TOTAL_READ_VALID_BW_DDR         (VPNG_NN + 8)
+#define VPNC_NN_TOTAL_READ_VALID_BW_DDR_OVFL    (VPNG_NN + 9)
+#define VPNC_NN_TOTAL_WRITE_CYCLE_DDR           (VPNG_NN + 10)
+#define VPNC_NN_TOTAL_WRITE_CYCLE_DDR_OVFL      (VPNG_NN + 11)
+#define VPNC_NN_TOTAL_WRITE_VALID_BW_DDR        (VPNG_NN + 12)
+#define VPNC_NN_TOTAL_WRITE_VALID_BW_DDR_OVFL   (VPNG_NN + 13)
+#define VPNC_NN_TOTAL_READ_CYCLE_SRAM           (VPNG_NN + 14)
+#define VPNC_NN_TOTAL_READ_CYCLE_SRAM_OVFL      (VPNG_NN + 15)
+#define VPNC_NN_TOTAL_WRITE_CYCLE_SRAM          (VPNG_NN + 16)
+#define VPNC_NN_TOTAL_WRITE_CYCLE_SRAM_OVFL     (VPNG_NN + 17)
+#define VPNC_NN_TOTAL_MAC_CYCLE                 (VPNG_NN + 18)
+#define VPNC_NN_TOTAL_MAC_CYCLE_OVFL            (VPNG_NN + 19)
+#define VPNC_NN_TOTAL_MAC_COUNT                 (VPNG_NN + 20)
+#define VPNC_NN_TOTAL_MAC_COUNT_OVFL            (VPNG_NN + 21)
+#define VPNC_NN_ZERO_COEF_SKIP_COUNT            (VPNG_NN + 22)
+#define VPNC_NN_ZERO_COEF_SKIP_COUNT_OVFL       (VPNG_NN + 23)
+#define VPNC_NN_NON_ZERO_COEF_COUNT             (VPNG_NN + 24)
+#define VPNC_NN_NON_ZERO_COEF_COUNT_OVFL        (VPNG_NN + 25)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE_OVFL      (VPNG_NN + 26)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE0          (VPNG_NN + 27)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE1          (VPNG_NN + 28)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE2          (VPNG_NN + 29)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE3          (VPNG_NN + 30)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE4          (VPNG_NN + 31)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE5          (VPNG_NN + 32)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE6          (VPNG_NN + 33)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE7          (VPNG_NN + 34)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE8          (VPNG_NN + 35)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE9          (VPNG_NN + 36)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE10         (VPNG_NN + 37)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE11         (VPNG_NN + 38)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE12         (VPNG_NN + 39)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE13         (VPNG_NN + 40)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE14         (VPNG_NN + 41)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE15         (VPNG_NN + 42)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE16         (VPNG_NN + 43)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE17         (VPNG_NN + 44)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE18         (VPNG_NN + 45)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE19         (VPNG_NN + 46)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE20         (VPNG_NN + 47)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE21         (VPNG_NN + 48)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE22         (VPNG_NN + 49)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE23         (VPNG_NN + 50)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE24         (VPNG_NN + 51)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE25         (VPNG_NN + 52)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE26         (VPNG_NN + 53)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE27         (VPNG_NN + 54)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE28         (VPNG_NN + 55)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE29         (VPNG_NN + 56)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE30         (VPNG_NN + 57)
+#define VPNC_NN_TOTAL_IDLE_CYCLE_CORE31         (VPNG_NN + 58)
+#define VPNC_NN_COUNT                           (VPNC_NN_TOTAL_IDLE_CYCLE_CORE31 - VPNG_NN)
+
+/* HW: TP Probe Counters. */
+#define VPNC_TP_LAYER_ID                      (VPNG_TP + 1)
+#define VPNC_TP_LAYER_ID_OVFL                 (VPNG_TP + 2)
+#define VPNC_TP_TOTAL_BUSY_CYCLE              (VPNG_TP + 3)
+#define VPNC_TP_TOTAL_BUSY_CYCLE_OVFL         (VPNG_TP + 4)
+#define VPNC_TP_TOTAL_READ_BW_CACHE           (VPNG_TP + 5)
+#define VPNC_TP_TOTAL_READ_BW_CACHE_OVFL      (VPNG_TP + 6)
+#define VPNC_TP_TOTAL_WRITE_BW_CACHE          (VPNG_TP + 7)
+#define VPNC_TP_TOTAL_WRITE_BW_CACHE_OVFL     (VPNG_TP + 8)
+#define VPNC_TP_TOTAL_READ_BW_SRAM            (VPNG_TP + 9)
+#define VPNC_TP_TOTAL_READ_BW_SRAM_OVFL       (VPNG_TP + 10)
+#define VPNC_TP_TOTAL_WRITE_BW_SRAM           (VPNG_TP + 11)
+#define VPNC_TP_TOTAL_WRITE_BW_SRAM_OVFL      (VPNG_TP + 12)
+#define VPNC_TP_TOTAL_READ_BW_OCB             (VPNG_TP + 13)
+#define VPNC_TP_TOTAL_READ_BW_OCB_OVFL        (VPNG_TP + 14)
+#define VPNC_TP_TOTAL_WRITE_BW_OCB            (VPNG_TP + 15)
+#define VPNC_TP_TOTAL_WRITE_BW_OCB_OVFL       (VPNG_TP + 16)
+#define VPNC_TP_FC_PIX_CNT                    (VPNG_TP + 17)
+#define VPNC_TP_FC_ZERO_SKIP_CNT              (VPNG_TP + 18)
+#define VPNC_TP_FC_PIX_CNT_OVFL               (VPNG_TP + 19)
+#define VPNC_TP_FC_ZERO_SKIP_CNT_OVFL         (VPNG_TP + 20)
+#define VPNC_TP_FC_COEF_CNT                   (VPNG_TP + 21)
+#define VPNC_TP_FC_COEF_ZERO_CNT              (VPNG_TP + 22)
+#define VPNC_TP_FC_COEF_CNT_OVFL              (VPNG_TP + 23)
+#define VPNC_TP_FC_COEF_ZERO_CNT_OVFL         (VPNG_TP + 24)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE0        (VPNG_TP + 25)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE0_OVFL   (VPNG_TP + 26)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE1        (VPNG_TP + 27)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE1_OVFL   (VPNG_TP + 28)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE2        (VPNG_TP + 29)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE2_OVFL   (VPNG_TP + 30)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE3        (VPNG_TP + 31)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE3_OVFL   (VPNG_TP + 32)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE4        (VPNG_TP + 33)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE4_OVFL   (VPNG_TP + 34)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE5        (VPNG_TP + 35)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE5_OVFL   (VPNG_TP + 36)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE6        (VPNG_TP + 37)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE6_OVFL   (VPNG_TP + 38)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE7        (VPNG_TP + 39)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE7_OVFL   (VPNG_TP + 40)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE8        (VPNG_TP + 41)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE8_OVFL   (VPNG_TP + 42)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE9        (VPNG_TP + 43)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE9_OVFL   (VPNG_TP + 44)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE10       (VPNG_TP + 45)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE10_OVFL  (VPNG_TP + 46)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE11       (VPNG_TP + 47)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE11_OVFL  (VPNG_TP + 48)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE12       (VPNG_TP + 49)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE12_OVFL  (VPNG_TP + 50)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE13       (VPNG_TP + 51)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE13_OVFL  (VPNG_TP + 52)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE14       (VPNG_TP + 53)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE14_OVFL  (VPNG_TP + 54)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE15       (VPNG_TP + 55)
+#define VPNC_TP_TOTAL_IDLE_CYCLE_CORE15_OVFL  (VPNG_TP + 56)
+#define VPNC_TP_COUNT                         (VPNC_TP_TOTAL_IDLE_CYCLE_CORE15_OVFL - VPNG_TP)
+
+#define   MODULE_NN_BASE_COUNTER_NUM               0x6
+/*#define   MODULE_NN_RESERVED_COUNTER_NUM           0x9*/
+#define   MODULE_NN_IDLE_COUNTER_NUM               0x9
+#define   MODULE_NN_COUNTER_NUM            (MODULE_NN_BASE_COUNTER_NUM + MODULE_NN_RESERVED_COUNTER_NUM + MODULE_NN_IDLE_COUNTER_NUM)
+
+#define  TOTAL_VIP_COUNTER_NUMBER  (VPNC_TP_COUNT + VPNC_NN_COUNT)
+#define   TOTAL_VIP_MODULE_NUMBER  2
+#define   MODULE_TP_COUNTER_NUM      0xE
+#define   TOTAL_VIP_PROBE_NUMBER (MODULE_NN_COUNTER_NUM + MODULE_TP_COUNTER_NUM)
 
 #ifdef ANDROID
 #define DEFAULT_PROFILE_FILE_NAME   "/sdcard/vprofiler.vpd"
@@ -782,8 +912,30 @@ extern "C" {
         { \
             gctUINT32 i; \
             gctUINT32_PTR Memory = memory; \
+            gctUINT32 total_probe_number = gcoPROFILER_GetProbeNumber(clusterCount, hostInterface1); \
             counter = 0; \
-            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * (1 << clusterIDWidth); \
+            Memory = memory + total_probe_number * CoreId * (1 << clusterIDWidth); \
+            for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
+            { \
+                counter += *(Memory + (counterId + offset) * (1 << clusterIDWidth) + i); \
+            } \
+        } \
+    } \
+    while (gcvFALSE)
+
+#define gcmGET_VIPCOUNTER(counter, counterId) \
+    do \
+    { \
+        if (*(memory + (counterId + offset) * (1 << clusterIDWidth)) == 0xdeaddead) \
+        { \
+            counter = 0xdeaddead; \
+        } \
+        else \
+        { \
+            gctUINT32 i; \
+            gctUINT32_PTR Memory = memory; \
+            counter = 0; \
+            Memory = memory + TOTAL_VIP_PROBE_NUMBER * CoreId * (1 << clusterIDWidth); \
             for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
                 counter += *(Memory + (counterId + offset) * (1 << clusterIDWidth) + i); \
@@ -803,7 +955,8 @@ extern "C" {
         { \
             gctUINT32 i; \
             gctUINT32_PTR Memory = memory; \
-            Memory = memory + TOTAL_PROBE_NUMBER * CoreId * (1 << clusterIDWidth); \
+            gctUINT32 total_probe_number = gcoPROFILER_GetProbeNumber(clusterCount, hostInterface1); \
+            Memory = memory + total_probe_number * CoreId * (1 << clusterIDWidth); \
             for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
                 maxLatency += ((*(Memory + (counterId + offset) * (1 << clusterIDWidth) + i) & 0xfff000) >> 12); \
@@ -823,6 +976,7 @@ typedef struct gcsCounterBuffer * gcsCounterBuffer_PTR;
 struct gcsCounterBuffer
 {
     gcsPROFILER_COUNTERS        *counters;
+    gcsPROFILER_VIP_PROBE_COUNTERS *vipCounters;
     gctHANDLE                   couterBufobj;
     gctUINT32                   probeAddress;
     gctPOINTER                  logicalAddress;
@@ -845,6 +999,7 @@ struct _gcoPROFILER
     gctBOOL                     enablePrint;
     gctBOOL                     disableProbe;
     gctBOOL                     probeMode;
+    gctBOOL                     vipProbe;
 
     gctFILE                     file;
     gctCHAR*                    fileName;
@@ -917,6 +1072,13 @@ gceSTATUS
 gcoPROFILER_Flush(
     IN gcoPROFILER Profiler
     );
+
+gctUINT32
+gcoPROFILER_GetProbeNumber(
+    IN gctUINT32 clusterCount,
+    IN gctBOOL hostInterface1
+    );
+
 #ifdef __cplusplus
 }
 #endif
