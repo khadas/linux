@@ -79,9 +79,9 @@
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
 struct video_layer_s vd_layer[MAX_VD_LAYER];
-struct disp_info_s glayer_info[MAX_VD_LAYERS];
+struct disp_info_s glayer_info[MAX_VD_LAYER];
 
-struct video_dev_s video_dev = {0x1d00 - 0x1d00, 0x1a50 - 0x1a50};
+struct video_dev_s video_dev;
 struct video_dev_s *cur_dev = &video_dev;
 bool legacy_vpp = true;
 
@@ -654,6 +654,176 @@ static void vd2_path_select(struct video_layer_s *layer,
 		VSYNC_WR_MPEG_REG_BITS
 			(VIU_MISC_CTRL1 + misc_off,
 			(afbc ? 2 : 0), 0, 2);
+	}
+}
+
+static u32 viu_line_stride(u32 pixel_bits, u32 hsize)
+{
+	u32 line_stride;
+	u32 ali_32b;
+
+	/* 64 byte align */
+	line_stride = (hsize * pixel_bits + 511) >> 9;
+	/* 1 stride = 16 byte */
+	line_stride = line_stride << 2;
+
+	/* 32 byte align */
+	ali_32b = (hsize * pixel_bits + 255) >> 8;
+	ali_32b = ali_32b << 1;
+	if (line_stride != ali_32b)
+		pr_err("burst mismatch !!!!! line_stride=%d,ali_32=%d\n",
+			line_stride, ali_32b);
+
+	return line_stride;
+}
+
+static void set_vd_mif_linear_cs(struct video_layer_s *layer,
+				   struct canvas_s *cs0,
+				   struct canvas_s *cs1,
+				   struct canvas_s *cs2,
+				   u32 type)
+{
+	u32 y_line_stride;
+	u32 c_line_stride;
+	int y_bits = 8, c_bits, y_hsize, c_hsize, bpp = 1;
+	u64 baddr_y, baddr_cb, baddr_cr;
+	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
+
+	if ((type & VIDTYPE_VIU_444) ||
+		    (type & VIDTYPE_RGB_444) ||
+		    (type & VIDTYPE_VIU_422)) {
+		if ((type & VIDTYPE_VIU_444) ||
+			    (type & VIDTYPE_RGB_444)) {
+			y_bits = 24;
+			bpp = 3;
+		} else if (type & VIDTYPE_VIU_422) {
+			y_bits = 16;
+			bpp = 2;
+		}
+		baddr_y = cs0->addr;
+		y_hsize = cs0->width;
+		y_line_stride = viu_line_stride(y_bits, y_hsize / bpp);
+		baddr_cb = 0;
+		baddr_cr = 0;
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
+			baddr_y >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
+			baddr_cb >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cr,
+			baddr_cr >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_0,
+			y_line_stride | 0 << 16);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
+			1 << 16 | 0);
+	} else {
+		baddr_y = cs0->addr;
+		y_hsize = cs0->width;
+		y_bits = 8;
+		baddr_cb = cs1->addr;
+		c_hsize = cs1->width;
+		c_bits = 8;
+		baddr_cr = cs2->addr;
+
+		y_line_stride = viu_line_stride(y_bits, y_hsize);
+		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
+			baddr_y >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
+			baddr_cb >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cr,
+			baddr_cr >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_0,
+			y_line_stride | c_line_stride << 16);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
+			1 << 16 | c_line_stride);
+	}
+}
+
+static void set_vd_mif_linear(struct video_layer_s *layer,
+				   struct canvas_config_s *config,
+				   u32 planes,
+				   u32 type)
+{
+	u32 y_line_stride;
+	u32 c_line_stride;
+	int y_bits = 8, c_bits, y_hsize, c_hsize;
+	u64 baddr_y, baddr_cb, baddr_cr;
+	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
+	struct canvas_config_s *cfg = config;
+
+	switch (planes) {
+	case 1:
+		if ((type & VIDTYPE_VIU_444) ||
+			    (type & VIDTYPE_RGB_444))
+			y_bits = 24;
+		else if (type & VIDTYPE_VIU_422)
+			y_bits = 16;
+		baddr_y = cfg->phy_addr;
+		y_hsize = cfg->width;
+		y_line_stride = viu_line_stride(y_bits, y_hsize);
+		baddr_cb = 0;
+		baddr_cr = 0;
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
+			baddr_y >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
+			baddr_cb >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cr,
+			baddr_cr >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_0,
+			y_line_stride | 0 << 16);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
+			1 << 16 | 0);
+		break;
+	case 2:
+		baddr_y = cfg->phy_addr;
+		y_hsize = cfg->width;
+		y_bits = 8;
+		cfg++;
+		baddr_cb = cfg->phy_addr;
+		c_hsize = cfg->width;
+		c_bits = 8;
+		baddr_cr = 0;
+		y_line_stride = viu_line_stride(y_bits, y_hsize);
+		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
+			baddr_y >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
+			baddr_cb >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cr,
+			baddr_cr >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_0,
+			y_line_stride | c_line_stride << 16);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
+			1 << 16 | c_line_stride);
+
+		break;
+	case 3:
+		baddr_y = cfg->phy_addr;
+		y_hsize = cfg->width;
+		y_bits = 8;
+		cfg++;
+		baddr_cb = cfg->phy_addr;
+		c_hsize = cfg->width;
+		c_bits = 8;
+		cfg++;
+		baddr_cr = cfg->phy_addr;
+
+		y_line_stride = viu_line_stride(y_bits, y_hsize);
+		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
+			baddr_y >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
+			baddr_cb >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cr,
+			baddr_cr >> 4);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_0,
+			y_line_stride | c_line_stride << 16);
+		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
+			1 << 16 | c_line_stride);
+		break;
+	default:
+		pr_err("error planes=%d\n", planes);
+		break;
 	}
 }
 
@@ -2520,7 +2690,11 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 	VSYNC_WR_MPEG_REG
 		(VPP_LINE_IN_LENGTH + misc_off,
 		frame_par->VPP_line_in_length_);
-
+	if (cur_dev->t7_display)
+		VSYNC_WR_MPEG_REG
+			(VD1_HDR_IN_SIZE + misc_off,
+			(frame_par->VPP_pic_in_height_ << 16)
+			| frame_par->VPP_line_in_length_);
 	/* FIXME: if enable it */
 #ifdef CHECK_LATER
 	if (vd_layer[0].enabled == 1) {
@@ -2888,11 +3062,18 @@ static void vd2_scaler_setting(struct scaler_setting_s *setting)
 			(VD2_VSC_START_PHASE_STEP + misc_off,
 			vpp_filter->vpp_vsc_start_phase_step);
 	}
+	if (cur_dev->t7_display)
+		VSYNC_WR_MPEG_REG
+			(VD2_HDR_IN_SIZE + misc_off,
+			(frame_par->VPP_pic_in_height_ << 16)
+			| frame_par->VPP_line_in_length_);
 
-	VSYNC_WR_MPEG_REG
-		(VPP_VD2_HDR_IN_SIZE + misc_off,
-		(frame_par->VPP_pic_in_height_ << 16)
-		| frame_par->VPP_line_in_length_);
+	else
+		VSYNC_WR_MPEG_REG
+			(VPP_VD2_HDR_IN_SIZE + misc_off,
+			(frame_par->VPP_pic_in_height_ << 16)
+			| frame_par->VPP_line_in_length_);
+
 }
 
 static void vd1_blend_setting(struct blend_setting_s *setting)
@@ -4856,6 +5037,7 @@ int set_layer_display_canvas(u8 layer_id,
 	layer = &vd_layer[layer_id];
 
 	cur_canvas_id = layer->cur_canvas_id;
+	pr_info("cur_canvas_id=%x\n", cur_canvas_id);
 	cur_canvas_tbl =
 		&layer->canvas_tbl[cur_canvas_id][0];
 
@@ -4881,21 +5063,38 @@ int set_layer_display_canvas(u8 layer_id,
 
 	if (update_mif) {
 		if (vf->canvas0Addr != (u32)-1) {
+			struct canvas_s cs0, cs1, cs2;
+
 			canvas_copy(vf->canvas0Addr & 0xff,
 				    cur_canvas_tbl[0]);
 			canvas_copy((vf->canvas0Addr >> 8) & 0xff,
 				    cur_canvas_tbl[1]);
 			canvas_copy((vf->canvas0Addr >> 16) & 0xff,
 				    cur_canvas_tbl[2]);
+			if (cur_dev->mif_linear) {
+				canvas_read(cur_canvas_tbl[0], &cs0);
+				canvas_read(cur_canvas_tbl[1], &cs1);
+				canvas_read(cur_canvas_tbl[2], &cs2);
+				set_vd_mif_linear_cs(layer,
+					&cs0, &cs1, &cs2,
+					vf->type);
+			}
 		} else {
 			vframe_canvas_set
 				(&vf->canvas0_config[0],
 				vf->plane_num,
 				&cur_canvas_tbl[0]);
+			if (cur_dev->mif_linear) {
+				set_vd_mif_linear(layer,
+					&vf->canvas0_config[0],
+					vf->plane_num,
+					vf->type);
+			}
 		}
 		if (layer_id == 0 &&
 		    (is_mvc || process_3d_type)) {
 			if (vf->canvas1Addr != (u32)-1) {
+				struct canvas_s cs0, cs1, cs2;
 				canvas_copy
 					(vf->canvas1Addr & 0xff,
 					cur_canvas_tbl[3]);
@@ -4905,11 +5104,25 @@ int set_layer_display_canvas(u8 layer_id,
 				canvas_copy
 					((vf->canvas1Addr >> 16) & 0xff,
 					cur_canvas_tbl[5]);
+				if (cur_dev->mif_linear) {
+					canvas_read(cur_canvas_tbl[3], &cs0);
+					canvas_read(cur_canvas_tbl[4], &cs1);
+					canvas_read(cur_canvas_tbl[5], &cs2);
+					set_vd_mif_linear_cs(layer,
+						&cs0, &cs1, &cs2,
+						vf->type);
+				}
 			} else {
 				vframe_canvas_set
 					(&vf->canvas1_config[0],
 					vf->plane_num,
 					&cur_canvas_tbl[3]);
+				if (cur_dev->mif_linear) {
+					set_vd_mif_linear(layer,
+						&vf->canvas1_config[0],
+						vf->plane_num,
+						vf->type);
+				}
 			}
 		}
 		VSYNC_WR_MPEG_REG
@@ -6236,6 +6449,21 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		glayer_info[i].last_sel_port = i;
 		glayer_info[i].display_path_id = VFM_PATH_DEF;
 		glayer_info[i].need_no_compress = false;
+		glayer_info[i].afbc_support = 0;
+		if (p_amvideo->layer_support[i] == 0) {
+			glayer_info[i].afbc_support = false;
+			glayer_info[i].pps_support = false;
+			glayer_info[i].dv_support = false;
+			glayer_info[i].fgrain_support = false;
+			glayer_info[i].fgrain_enable = false;
+			glayer_info[i].alpha_support = false;
+			hscaler_8tap_enable[i] = false;
+			pre_hscaler_ntap_enable[i] = false;
+			pre_vscaler_ntap_enable[i] = false;
+			pre_hscaler_ntap_set[i] = 0xff;
+			pre_vscaler_ntap_set[i] = 0xff;
+			continue;
+		}
 		if (legacy_vpp) {
 			glayer_info[i].afbc_support = true;
 			glayer_info[i].pps_support =
@@ -6274,6 +6502,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			glayer_info[i].fgrain_support = false;
 			glayer_info[i].fgrain_enable = false;
 		}
+		vd_layer[i].layer_support = p_amvideo->layer_support[i];
+		glayer_info[i].layer_support = p_amvideo->layer_support[i];
 		glayer_info[i].alpha_support = p_amvideo->alpha_support[i];
 		hscaler_8tap_enable[i] = has_hscaler_8tap(i);
 		pre_hscaler_ntap_enable[i] = has_pre_hscaler_ntap(i);
@@ -6295,7 +6525,47 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[0].global_output = 1;
 	vd_layer[0].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
-	if (video_is_meson_sc2_cpu()) {
+	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
+	cur_dev->mif_linear = p_amvideo->mif_linear;
+	cur_dev->t7_display = p_amvideo->t7_display;
+	if (video_is_meson_t7_cpu()) {
+		memcpy(&vd_layer[0].vd_afbc_reg,
+		       &vd_afbc_reg_t7_array[0],
+		       sizeof(struct hw_afbc_reg_s));
+		memcpy(&vd_layer[1].vd_afbc_reg,
+		       &vd_afbc_reg_t7_array[1],
+		       sizeof(struct hw_afbc_reg_s));
+		memcpy(&vd_layer[2].vd_afbc_reg,
+		       &vd_afbc_reg_t7_array[2],
+		       sizeof(struct hw_afbc_reg_s));
+		memcpy(&vd_layer[0].vd_mif_reg,
+		       &vd_mif_reg_t7_array[0],
+		       sizeof(struct hw_vd_reg_s));
+		memcpy(&vd_layer[1].vd_mif_reg,
+		       &vd_mif_reg_t7_array[1],
+		       sizeof(struct hw_vd_reg_s));
+		memcpy(&vd_layer[2].vd_mif_reg,
+		       &vd_mif_reg_t7_array[2],
+		       sizeof(struct hw_vd_reg_s));
+		memcpy(&vd_layer[0].vd_mif_linear_reg,
+		      &vd_mif_linear_reg_t7_array[0],
+		      sizeof(struct hw_vd_linear_reg_s));
+		memcpy(&vd_layer[1].vd_mif_linear_reg,
+		      &vd_mif_linear_reg_t7_array[1],
+		      sizeof(struct hw_vd_linear_reg_s));
+		memcpy(&vd_layer[2].vd_mif_linear_reg,
+		      &vd_mif_linear_reg_t7_array[2],
+		      sizeof(struct hw_vd_linear_reg_s));
+		memcpy(&vd_layer[0].fg_reg,
+		       &fg_reg_t7_array[0],
+		       sizeof(struct hw_fg_reg_s));
+		memcpy(&vd_layer[1].fg_reg,
+		       &fg_reg_t7_array[1],
+		       sizeof(struct hw_fg_reg_s));
+		memcpy(&vd_layer[2].fg_reg,
+		       &fg_reg_t7_array[2],
+		       sizeof(struct hw_fg_reg_s));
+	} else if (video_is_meson_sc2_cpu()) {
 		memcpy(&vd_layer[0].vd_afbc_reg,
 		       &vd_afbc_reg_sc2_array[0],
 		       sizeof(struct hw_afbc_reg_s));
@@ -6349,6 +6619,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 	/* g12a has no alpha overflow check in hardware */
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
+	vd_layer[2].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
 	vpp_ofifo_size = p_amvideo->ofifo_size;
 	conv_lbuf_len = p_amvideo->afbc_conv_lbuf_len;
 
@@ -6356,6 +6627,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[1], LAYER2_CANVAS_BASE_INDEX);
+	init_layer_canvas(&vd_layer[2], LAYER3_CANVAS_BASE_INDEX);
+
 	return r;
 }
 

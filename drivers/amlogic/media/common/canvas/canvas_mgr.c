@@ -516,6 +516,8 @@ static int canvas_pool_config(void)
 	canvas_pool_register_const_canvas(0xe4, 0xef, "encoder");
 	canvas_pool_register_const_canvas(0x40, 0x48, "osd");
 	canvas_pool_register_const_canvas(0xc0, 0xd7, "videocapture");
+	if (hw_canvas_support)
+		canvas_pool_register_const_canvas(0xd8, 0xe3, "display2");
 	/*please add static canvas later. */
 	return 0;
 }

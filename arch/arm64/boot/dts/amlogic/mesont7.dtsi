@@ -1562,9 +1562,9 @@
 	};
 
 	meson-amvideom {
-		compatible = "amlogic, amvideom-sc2";
+		compatible = "amlogic, amvideom-t7";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "disable";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 	};

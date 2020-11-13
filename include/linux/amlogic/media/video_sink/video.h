@@ -19,7 +19,7 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#define MAX_VD_LAYERS 2
+#define MAX_VD_LAYERS 3
 
 #define LAYER1_ALPHA  BIT(12)
 #define LAYER1_BUSY   BIT(11)

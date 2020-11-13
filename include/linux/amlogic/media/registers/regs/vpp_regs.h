@@ -345,5 +345,12 @@
 #define SC2_VD2_FGRAIN_CTRL              0x48f0
 #define SC2_VD2_FGRAIN_WIN_H             0x48f1
 #define SC2_VD2_FGRAIN_WIN_V             0x48f2
+#define VD3_FGRAIN_CTRL                  0x4970
+#define VD3_FGRAIN_WIN_H                 0x4971
+#define VD3_FGRAIN_WIN_V                 0x4972
+
+#define VD1_HDR_IN_SIZE                            0x1a57
+#define VD2_HDR_IN_SIZE                            0x1a58
+#define VD3_HDR_IN_SIZE                            0x1a59
 #endif
 

@@ -167,7 +167,7 @@ struct vpp_frame_par_s {
 
 struct disp_info_s {
 	u8 layer_id;
-
+	u8 layer_support;
 	u32 angle;
 	u32 custom_ar;
 

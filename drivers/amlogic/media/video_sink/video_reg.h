@@ -9,8 +9,10 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 
-#define MAX_VD_LAYER 2
+#define MAX_VD_LAYER_G12 2
 #define MAX_SR_NUM   2
+
+#define MAX_VD_LAYER_T7 3
 
 struct hw_vd_reg_s {
 	u32 vd_if0_gen_reg; /* VD1_IF0_GEN_REG */
@@ -37,6 +39,19 @@ struct hw_vd_reg_s {
 	u32 vd_if0_gen_reg3;/* VD1_IF0_GEN_REG3 */
 	u32 viu_vd_fmt_ctrl;/* VIU_VD1_FMT_CTRL */
 	u32 viu_vd_fmt_w;/* VIU_VD1_FMT_W */
+};
+
+struct hw_vd_linear_reg_s {
+	u32 vd_if0_baddr_y;
+	u32 vd_if0_baddr_cb;
+	u32 vd_if0_baddr_cr;
+	u32 vd_if0_stride_0;
+	u32 vd_if0_stride_1;
+	u32 vd_if0_baddr_y_f1;
+	u32 vd_if0_baddr_cb_f1;
+	u32 vd_if0_baddr_cr_f1;
+	u32 vd_if0_stride_0_f1;
+	u32 vd_if0_stride_1_f1;
 };
 
 struct hw_afbc_reg_s {
@@ -75,12 +90,17 @@ struct hw_fg_reg_s {
 	u32 fgrain_win_v;
 };
 
-extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER];
-extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER];
-extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER];
-extern struct hw_afbc_reg_s vd_afbc_reg_array[MAX_VD_LAYER];
-extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER];
-extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER];
-extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER];
+extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
+extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER_G12];
+extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER_G12];
+extern struct hw_afbc_reg_s vd_afbc_reg_array[MAX_VD_LAYER_G12];
+extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER_G12];
+extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER_G12];
+extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER_G12];
+
+extern struct hw_vd_reg_s vd_mif_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_vd_linear_reg_s vd_mif_linear_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_afbc_reg_s vd_afbc_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_fg_reg_s fg_reg_t7_array[MAX_VD_LAYER_T7];
 
 #endif

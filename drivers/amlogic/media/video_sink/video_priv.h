@@ -64,7 +64,7 @@
 #define VIDEO_NOTIFY_POS_CHANGED  0x10
 #define VIDEO_NOTIFY_NEED_NO_COMP  0x20
 
-#define MAX_VD_LAYER 2
+#define MAX_VD_LAYER 3
 #define COMPOSE_MODE_NONE			0
 #define COMPOSE_MODE_3D			1
 #define COMPOSE_MODE_DV			2
@@ -76,6 +76,7 @@
 
 #define LAYER1_CANVAS_BASE_INDEX 0x58
 #define LAYER2_CANVAS_BASE_INDEX 0x64
+#define LAYER3_CANVAS_BASE_INDEX 0xd8
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 #define CANVAS_TABLE_CNT 2
@@ -105,6 +106,8 @@ enum toggle_out_fl_frame_e {
 struct video_dev_s {
 	int vpp_off;
 	int viu_off;
+	int mif_linear;
+	int t7_display;
 };
 
 struct video_layer_s;
@@ -228,10 +231,11 @@ enum mode_3d_e {
 
 struct video_layer_s {
 	u8 layer_id;
-
+	u8 layer_support;
 	/* reg map offsett*/
 	u32 misc_reg_offt;
 	struct hw_vd_reg_s vd_mif_reg;
+	struct hw_vd_linear_reg_s vd_mif_linear_reg;
 	struct hw_afbc_reg_s vd_afbc_reg;
 	struct hw_fg_reg_s fg_reg;
 	u8 cur_canvas_id;
@@ -301,6 +305,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_SC2_,
 	MESON_CPU_MAJOR_ID_T5_,
 	MESON_CPU_MAJOR_ID_T5D_,
+	MESON_CPU_MAJOR_ID_T7_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -326,6 +331,8 @@ struct amvideo_device_data_s {
 	u32 src_height_max[MAX_VD_LAYER];
 	u32 ofifo_size;
 	u32 afbc_conv_lbuf_len;
+	u8 mif_linear;
+	u8 t7_display;
 };
 
 /* from video_hw.c */
@@ -488,6 +495,7 @@ int ext_frame_capture_poll(int endflags);
 #endif
 bool is_meson_tm2_revb(void);
 bool video_is_meson_sc2_cpu(void);
+bool video_is_meson_t7_cpu(void);
 void set_alpha(u8 layer_id,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
