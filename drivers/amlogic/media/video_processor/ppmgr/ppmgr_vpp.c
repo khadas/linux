@@ -1889,7 +1889,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 			if (result < 0)
 				PPMGRVPP_INFO("write %s failed\n",
 					      source_path);
-			PPMGRVPP_INFO("scr addr: %0x, width: %d, height: %d\n",
+			PPMGRVPP_INFO("scr addr: %lx, width: %d, height: %d\n",
 				      vf->canvas0_config[0].phy_addr,
 				      vf->canvas0_config[0].width,
 				      vf->canvas0_config[0].height);

@@ -284,7 +284,7 @@ void canvas_copy(u32 src, u32 dst)
 }
 EXPORT_SYMBOL(canvas_copy);
 
-void canvas_update_addr(u32 index, u32 addr)
+void canvas_update_addr(u32 index, ulong addr)
 {
 	struct canvas_device_info *info = canvas_info;
 	struct canvas_s *canvas;
@@ -306,7 +306,7 @@ void canvas_update_addr(u32 index, u32 addr)
 }
 EXPORT_SYMBOL(canvas_update_addr);
 
-unsigned int canvas_get_addr(u32 index)
+ulong canvas_get_addr(u32 index)
 {
 	struct canvas_device_info *info = canvas_info;
 
@@ -356,7 +356,7 @@ static ssize_t show_canvas(struct canvas_s *canvas, char *buf)
 	int l = 0;
 
 	l = sprintf(buf + l, "index:0x%x\n", (unsigned int)canvas->index);
-	l += sprintf(buf + l, "addr:0x%x\n", (unsigned int)canvas->addr);
+	l += sprintf(buf + l, "addr:0x%lx\n", canvas->addr);
 	l += sprintf(buf + l, "height:%d\n", canvas->height);
 	l += sprintf(buf + l, "width:%d\n", canvas->width);
 	l += sprintf(buf + l, "wrap:%d\n", canvas->wrap);

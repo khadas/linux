@@ -23,7 +23,7 @@ struct canvas_s {
 };
 
 struct canvas_config_s {
-	u32 phy_addr;
+	ulong phy_addr;
 	u32 width;
 	u32 height;
 	u32 block_mode;
@@ -65,8 +65,8 @@ void canvas_config_ex(u32 index, ulong addr, u32 width,
 		      u32 height, u32 wrap, u32 blkmode, u32 endian);
 void canvas_read(u32 index, struct canvas_s *p);
 void canvas_copy(unsigned int src, unsigned int dst);
-void canvas_update_addr(u32 index, u32 addr);
-unsigned int canvas_get_addr(u32 index);
+void canvas_update_addr(u32 index, ulong addr);
+ulong canvas_get_addr(u32 index);
 
 unsigned int canvas_get_width(u32 index);
 

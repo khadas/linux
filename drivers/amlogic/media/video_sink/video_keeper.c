@@ -1129,7 +1129,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 	}
 
 	if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT) {
-		pr_info("%s keep_y_addr=%p %x\n",
+		pr_info("%s keep_y_addr=%p %lx\n",
 			__func__, (void *)keep_y_addr,
 			canvas_get_addr(y_index));
 	}

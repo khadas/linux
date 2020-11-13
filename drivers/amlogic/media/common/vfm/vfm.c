@@ -529,13 +529,13 @@ void vfm_dump_one(const char *name)
 				pbuf += sprintf(pbuf, "vf canvas1Addr=%x\n",
 					vf->canvas1Addr);
 				pbuf += sprintf(pbuf,
-					"vf canvas0Addr.y.addr=%x(%d)\n",
+					"vf canvas0Addr.y.addr=%lx(%ld)\n",
 					canvas_get_addr
 					(canvasY(vf->canvas0Addr)),
 					canvas_get_addr
 					(canvasY(vf->canvas0Addr)));
 				pbuf += sprintf(pbuf,
-					"vf canvas0Adr.uv.adr=%x(%d)\n",
+					"vf canvas0Adr.uv.adr=%lx(%ld)\n",
 					canvas_get_addr
 					(canvasUV(vf->canvas0Addr)),
 					canvas_get_addr

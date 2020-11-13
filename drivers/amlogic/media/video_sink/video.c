@@ -9050,13 +9050,13 @@ static ssize_t vframe_states_show(struct class *cla,
 					"vf canvas1Addr=%x\n",
 						vf->canvas1Addr);
 				ret += sprintf(buf + ret,
-					"vf canvas0Addr.y.addr=%x(%d)\n",
+					"vf canvas0Addr.y.addr=%lx(%ld)\n",
 					canvas_get_addr
 					(canvasY(vf->canvas0Addr)),
 					canvas_get_addr
 					(canvasY(vf->canvas0Addr)));
 				ret += sprintf(buf + ret,
-					"vf canvas0Adr.uv.adr=%x(%d)\n",
+					"vf canvas0Adr.uv.adr=%lx(%ld)\n",
 					canvas_get_addr
 					(canvasUV(vf->canvas0Addr)),
 					canvas_get_addr

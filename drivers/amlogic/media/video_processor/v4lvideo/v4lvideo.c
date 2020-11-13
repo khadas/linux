@@ -828,7 +828,7 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 		 vf->width, vf->height, ALIGN(vf->width, 32));
 	pr_debug("umm-bytestride: %d, umm-width:%u, umm-height:%u\n",
 		 v4l_data->byte_stride, v4l_data->width, v4l_data->height);
-	pr_debug("y_addr:%u, uv_addr:%u.\n", dst_canvas_config[0].phy_addr,
+	pr_debug("y_addr:%lu, uv_addr:%lu.\n", dst_canvas_config[0].phy_addr,
 		 dst_canvas_config[1].phy_addr);
 	if (vf->canvas0Addr == (u32)-1) {
 		if (canvas_src_id[0] <= 0)
