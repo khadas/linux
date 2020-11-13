@@ -1294,6 +1294,18 @@
 
 		};
 
+		arm_pmu {
+			compatible = "arm,armv8-pmuv3";
+			/* clusterb-enabled; */
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0 0xff634680 0 0x4>;
+			cpumasks = <0xf>;
+			/* default 10ms */
+			relax-timer-ns = <10000000>;
+			/* default 10000us */
+			max-wait-cnt = <10000>;
+		};
+
 		gic: interrupt-controller@ffc01000 {
 			compatible = "arm,gic-400";
 			reg = <0x0 0xffc01000 0 0x1000>,
@@ -1758,7 +1770,7 @@
 			pl-periph-id = <0>; /** lm name */
 			clock-src = "usb0"; /** clock src */
 			port-id = <0>;  /** ref to mach/usb.h */
-			port-type = <2>;        /** 0: otg, 1: host, 2: slave */
+			port-type = <2>;	/** 0: otg, 1: host, 2: slave */
 			port-speed = <0>; /** 0: default, high, 1: full */
 			port-config = <0>; /** 0: default */
 			/*0:default,1:single,2:incr,3:incr4,*/

@@ -350,7 +350,11 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	start_clock = sched_clock();
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ret = armpmu->handle_irq(irq, armpmu);
+#else
 	ret = armpmu->handle_irq(armpmu);
+#endif
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);
