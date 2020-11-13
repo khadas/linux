@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/enhancement/amvecm/dolby_vision/amdolby_vision.h
  *
@@ -25,8 +24,8 @@
 
 #include <linux/types.h>
 
-#define DEF_G2L_LUT_SIZE_2P        8
-#define DEF_G2L_LUT_SIZE           BIT(DEF_G2L_LUT_SIZE_2P)
+/*#define DEF_G2L_LUT_SIZE_2P        8*/
+#define DEF_G2L_LUT_SIZE           BIT(8) /*(1 << DEF_G2L_LUT_SIZE_2P)*/
 
 #ifdef V2_4
 #define EXT_MD_AVAIL_LEVEL_1 BIT(0)
@@ -546,16 +545,17 @@ struct dovi_setting_s {
 #endif
 };
 
-enum cpu_id_e {
+enum cpuID_e {
 	_CPU_MAJOR_ID_GXM,
 	_CPU_MAJOR_ID_TXLX,
 	_CPU_MAJOR_ID_G12,
 	_CPU_MAJOR_ID_TM2,
+	_CPU_MAJOR_ID_SC2,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
 struct dv_device_data_s {
-	enum cpu_id_e cpu_id;
+	enum cpuID_e cpu_id;
 };
 
 struct amdolby_vision_port_t {
@@ -565,18 +565,17 @@ struct amdolby_vision_port_t {
 	void *runtime;
 };
 
-extern int control_path
-	(enum signal_format_e in_format,
-	 enum signal_format_e out_format,
-	 char *in_comp, int in_comp_size,
-	 char *in_md, int in_md_size,
-	 enum priority_mode_e set_priority,
-	 int set_bit_depth, int set_chroma_format, int set_yuv_range,
-	 int set_graphic_min_lum, int set_graphic_max_lum,
-	 int set_target_min_lum, int set_target_max_lum,
-	 int set_no_el,
-	 struct hdr10_param_s *hdr10_param,
-	 struct dovi_setting_s *output);
+int control_path(enum signal_format_e in_format,
+	enum signal_format_e out_format,
+	char *in_comp, int in_comp_size,
+	char *in_md, int in_md_size,
+	enum priority_mode_e set_priority,
+	int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	int set_graphic_min_lum, int set_graphic_max_lum,
+	int set_target_min_lum, int set_target_max_lum,
+	int set_no_el,
+	struct hdr10_param_s *hdr10_param,
+	struct dovi_setting_s *output);
 
 struct tv_dovi_setting_s {
 	u64 core1_reg_lut[3754];
@@ -592,62 +591,53 @@ struct tv_dovi_setting_s {
 	enum input_mode_e input_mode;
 };
 
-int tv_control_path
-	(enum signal_format_e in_format,
-	 enum input_mode_e in_mode,
-	 char *in_comp, int in_comp_size,
-	 char *in_md, int in_md_size,
-	 int set_bit_depth, int set_chroma_format, int set_yuv_range,
-	 struct pq_config_s *pq_config,
-	 struct ui_menu_params_s *menu_param,
-	 int set_no_el,
-	 struct hdr10_param_s *hdr10_param,
-	 struct tv_dovi_setting_s *output);
+int tv_control_path(enum signal_format_e in_format,
+	enum input_mode_e in_mode,
+	char *in_comp, int in_comp_size,
+	char *in_md, int in_md_size,
+	int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	struct pq_config_s *pq_config,
+	struct ui_menu_params_s *menu_param,
+	int set_no_el,
+	struct hdr10_param_s *hdr10_param,
+	struct tv_dovi_setting_s *output);
 
 void *metadata_parser_init(int flag);
 int metadata_parser_reset(int flag);
-int metadata_parser_process
-	(char  *src_rpu, int rpu_len,
-	 char  *dst_comp, int *comp_len,
-	 char  *dst_md, int *md_len, bool src_eos);
+int metadata_parser_process(char  *src_rpu, int rpu_len,
+	char  *dst_comp, int *comp_len,
+	char  *dst_md, int *md_len, bool src_eos);
 void metadata_parser_release(void);
 
 struct dolby_vision_func_s {
 	const char *version_info;
 	void * (*metadata_parser_init)(int flag);
-
 	int (*metadata_parser_reset)(int flag);
-
-	int (*metadata_parser_process)
-		(char  *src_rpu, int rpu_len,
-		 char  *dst_comp, int *comp_len,
-		 char  *dst_md, int *md_len, bool src_eos);
-
+	int (*metadata_parser_process)(char  *src_rpu, int rpu_len,
+		char  *dst_comp, int *comp_len,
+		char  *dst_md, int *md_len, bool src_eos);
 	void (*metadata_parser_release)(void);
-
-	int (*control_path)
-		(enum signal_format_e in_format,
-		 enum signal_format_e out_format,
-		 char *in_comp, int in_comp_size,
-		 char *in_md, int in_md_size,
-		 enum priority_mode_e set_priority,
-		 int set_bit_depth, int set_chroma_format, int set_yuv_range,
-		 int set_graphic_min_lum, int set_graphic_max_lum,
-		 int set_target_min_lum, int set_target_max_lum,
-		 int set_no_el,
-		 struct hdr10_param_s *hdr10_param,
-		 struct dovi_setting_s *output);
-	int (*tv_control_path)
-		(enum signal_format_e in_format,
-		 enum input_mode_e in_mode,
-		 char *in_comp, int in_comp_size,
-		 char *in_md, int in_md_size,
-		 int set_bit_depth, int set_chroma_format, int set_yuv_range,
-		 struct pq_config_s *pq_config,
-		 struct ui_menu_params_s *menu_param,
-		 int set_no_el,
-		 struct hdr10_param_s *hdr10_param,
-		 struct tv_dovi_setting_s *output);
+	int (*control_path)(enum signal_format_e in_format,
+		enum signal_format_e out_format,
+		char *in_comp, int in_comp_size,
+		char *in_md, int in_md_size,
+		enum priority_mode_e set_priority,
+		int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		int set_graphic_min_lum, int set_graphic_max_lum,
+		int set_target_min_lum, int set_target_max_lum,
+		int set_no_el,
+		struct hdr10_param_s *hdr10_param,
+		struct dovi_setting_s *output);
+	int (*tv_control_path)(enum signal_format_e in_format,
+		enum input_mode_e in_mode,
+		char *in_comp, int in_comp_size,
+		char *in_md, int in_md_size,
+		int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		struct pq_config_s *pq_config,
+		struct ui_menu_params_s *menu_param,
+		int set_no_el,
+		struct hdr10_param_s *hdr10_param,
+		struct tv_dovi_setting_s *output);
 };
 
 int register_dv_functions(const struct dolby_vision_func_s *func);
@@ -662,5 +652,5 @@ int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 u32 VSYNC_RD_MPEG_REG(u32 adr);
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 #endif
-u32 get_video_enabled(void);
+
 #endif
