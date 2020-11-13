@@ -3,14 +3,14 @@
  *     export functions to client drivers
  *     abstract OS and BUS specific details of SDIO
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,7 +18,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdh.h 727623 2017-10-21 01:00:32Z $
+ * $Id: bcmsdh.h 698895 2017-05-11 02:55:17Z $
  */
 
 /**
@@ -52,13 +52,14 @@ extern const uint bcmsdh_msglevel;
 typedef struct bcmsdh_info bcmsdh_info_t;
 typedef void (*bcmsdh_cb_fn_t)(void *);
 
+
 #if defined(BT_OVER_SDIO)
 typedef enum {
 	NO_HANG_STATE		= 0,
 	HANG_START_STATE		= 1,
 	HANG_RECOVERY_STATE	= 2
 } dhd_hang_state_t;
-#endif // endif
+#endif
 
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *sdioh, ulong *regsva);
 /**
@@ -99,7 +100,7 @@ extern void bcmsdh_intr_forward(void *sdh, bool pass);
 #if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */
 extern bool bcmsdh_intr_pending(void *sdh);
-#endif // endif
+#endif
 
 /* Register a callback to be called if and when bcmsdh detects
  * device removal. No-op in the case of non-removable/hardwired devices.
@@ -205,7 +206,7 @@ extern uint bcmsdh_query_iofnum(void *sdh);
 
 /* Miscellaneous knob tweaker. */
 extern int bcmsdh_iovar_op(void *sdh, const char *name,
-                           void *params, uint plen, void *arg, uint len, bool set);
+                           void *params, int plen, void *arg, int len, bool set);
 
 /* Reset and reinitialize the device */
 extern int bcmsdh_reset(bcmsdh_info_t *sdh);
@@ -235,12 +236,12 @@ extern void bcmsdh_device_remove(void * sdh);
 extern int bcmsdh_reg_sdio_notify(void* semaphore);
 extern void bcmsdh_unreg_sdio_notify(void);
 
-#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
+#if defined(OOB_INTR_ONLY)
 extern int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handler,
 	void* oob_irq_handler_context);
 extern void bcmsdh_oob_intr_unregister(bcmsdh_info_t *sdh);
 extern void bcmsdh_oob_intr_set(bcmsdh_info_t *sdh, bool enable);
-#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
+#endif 
 extern void bcmsdh_dev_pm_stay_awake(bcmsdh_info_t *sdh);
 extern void bcmsdh_dev_relax(bcmsdh_info_t *sdh);
 extern bool bcmsdh_dev_pm_enabled(bcmsdh_info_t *sdh);
@@ -260,9 +261,6 @@ extern void bcmsdh_force_sbwad_calc(void *sdh, bool force);
 /* Function to pass chipid and rev to lower layers for controlling pr's */
 extern void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev);
 
-#ifdef BCMSPI
-extern void bcmsdh_dwordmode(void *sdh, bool set);
-#endif /* BCMSPI */
 
 extern int bcmsdh_sleep(void *sdh, bool enab);
 

@@ -1,14 +1,14 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2019, Broadcom.
- *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary,Open:>>
  *
- * $Id: bcmsdh_sdmmc.h 753315 2018-03-21 04:10:12Z $
+ * $Id: bcmsdh_sdmmc.h 687253 2017-02-28 09:33:36Z $
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -60,7 +60,7 @@
 /* private bus modes */
 #define SDIOH_MODE_SD4		2
 #define CLIENT_INTR			0x100	/* Get rid of this! */
-#define SDIOH_SDMMC_MAX_SG_ENTRIES	64
+#define SDIOH_SDMMC_MAX_SG_ENTRIES	(SDPCM_MAXGLOM_SIZE + 2)
 
 struct sdioh_info {
 	osl_t		*osh;			/* osh handler */
@@ -102,6 +102,7 @@ extern bool check_client_intr(sdioh_info_t *sd);
 /* Core interrupt enable/disable of device interrupts */
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
+
 
 /**************************************************************
  * Internal interfaces: bcmsdh_sdmmc.c references to per-port code

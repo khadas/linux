@@ -3,6 +3,11 @@
 #include <dhd_linux.h>
 #include <linux/gpio.h>
 
+#ifdef CUSTOMER_HW_PLATFORM
+#include <plat/sdhci.h>
+#define	sdmmc_channel	sdmmc_device_mmc0
+#endif /* CUSTOMER_HW_PLATFORM */
+
 #if defined(BUS_POWER_RESTORE) && defined(BCMSDIO)
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -25,10 +30,9 @@ static int gpio_wl_host_wake = -1; // WL_HOST_WAKE is output pin of WLAN module
 extern int wifi_irq_trigger_level(void);
 extern u8 *wifi_get_mac(void);
 #endif
-extern  void sdio_reinit(void);
 extern void set_usb_bt_power(int is_power);
+extern  void sdio_reinit(void);
 extern void extern_wifi_set_enable(int is_on);
-extern void pci_remove_reinit(unsigned int vid, unsigned int pid, int delBus);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 extern int wifi_irq_num(void);
 #endif
@@ -68,15 +72,14 @@ dhd_wlan_set_power(int on
 #endif
 #endif
 #if defined(BUS_POWER_RESTORE)
-#if defined(BCMSDIO) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
+#if defined(BCMSDIO)
 		if (adapter->sdio_func && adapter->sdio_func->card && adapter->sdio_func->card->host) {
-			mdelay(100);
 			printf("======== mmc_power_restore_host! ========\n");
 			mmc_power_restore_host(adapter->sdio_func->card->host);
 		}
 #elif defined(BCMPCIE)
+		OSL_SLEEP(50); /* delay needed to be able to restore PCIe configuration registers */
 		if (adapter->pci_dev) {
-			mdelay(100);
 			printf("======== pci_set_power_state PCI_D0! ========\n");
 			pci_set_power_state(adapter->pci_dev, PCI_D0);
 			if (adapter->pci_saved_state)
@@ -93,7 +96,7 @@ dhd_wlan_set_power(int on
 		mdelay(100);
 	} else {
 #if defined(BUS_POWER_RESTORE)
-#if defined(BCMSDIO) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
+#if defined(BCMSDIO)
 		if (adapter->sdio_func && adapter->sdio_func->card && adapter->sdio_func->card->host) {
 			printf("======== mmc_power_save_host! ========\n");
 			mmc_power_save_host(adapter->sdio_func->card->host);
@@ -118,7 +121,7 @@ dhd_wlan_set_power(int on
 			}
 		}
 #ifdef CUSTOMER_HW_AMLOGIC
-#ifdef BCMSIDO
+#ifdef BCMSDIO
 		extern_wifi_set_enable(0);
 		mdelay(200);
 #endif
@@ -166,10 +169,6 @@ static int dhd_wlan_set_carddetect(int present)
 #endif
 #elif defined(BCMPCIE)
 		printf("======== Card detection to remove PCIE card! ========\n");
-#ifdef CUSTOMER_HW_AMLOGIC
-		extern_wifi_set_enable(0);
-		mdelay(200);
-#endif
 #endif
 	}
 #endif /* BUS_POWER_RESTORE */
@@ -177,29 +176,18 @@ static int dhd_wlan_set_carddetect(int present)
 	return err;
 }
 
-static int dhd_wlan_get_mac_addr(unsigned char *buf
-#ifdef CUSTOM_MULTI_MAC
-	, char *name
-#endif
-)
+static int dhd_wlan_get_mac_addr(unsigned char *buf)
 {
 	int err = 0;
 
-#ifdef CUSTOM_MULTI_MAC
-	if (!strcmp("wlan1", name)) {
+	printf("======== %s ========\n", __FUNCTION__);
 #ifdef EXAMPLE_GET_MAC
+	/* EXAMPLE code */
+	{
 		struct ether_addr ea_example = {{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF}};
 		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
-#endif /* EXAMPLE_GET_MAC */
-	} else
-#endif /* CUSTOM_MULTI_MAC */
-	{
-#ifdef EXAMPLE_GET_MAC
-		struct ether_addr ea_example = {{0x02, 0x11, 0x22, 0x33, 0x44, 0x55}};
-		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
-#endif /* EXAMPLE_GET_MAC */
 	}
-
+#endif /* EXAMPLE_GET_MAC */
 #ifdef EXAMPLE_GET_MAC_VER2
 	/* EXAMPLE code */
 	{
@@ -214,8 +202,6 @@ static int dhd_wlan_get_mac_addr(unsigned char *buf
 		bcopy(macpad, buf+6, sizeof(macpad));
 	}
 #endif /* EXAMPLE_GET_MAC_VER2 */
-
-	printf("======== %s err=%d ========\n", __FUNCTION__, err);
 
 	return err;
 }
@@ -303,13 +289,6 @@ int dhd_wlan_init_gpio(void)
 	gpio_wl_reg_on = -1;
 #ifdef CUSTOMER_OOB
 	gpio_wl_host_wake = -1;
-#endif
-
-#ifdef CUSTOMER_HW_AMLOGIC
-#if defined(BCMPCIE)
-	printf("======== Card detection to detect PCIE card! ========\n");
-	pci_remove_reinit(0x14e4, 0x43ec, 1);
-#endif
 #endif
 
 	if (gpio_wl_reg_on >= 0) {
