@@ -353,7 +353,7 @@ const struct di_cfgx_ctr_s di_cfgx_ctr[K_DI_CFGX_NUB] = {
 	/* cfg channel x*/
 	[EDI_CFGX_BEGIN]  = {"cfg x begin ", EDI_CFGX_BEGIN, 0},
 	/* bypass_all */
-	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 1},
+	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 0},
 	[EDI_CFGX_END]  = {"cfg x end ", EDI_CFGX_END, 0},
 
 	/* debug cfg x */

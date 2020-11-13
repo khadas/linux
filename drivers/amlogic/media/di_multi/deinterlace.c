@@ -3059,6 +3059,10 @@ bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
 		/* IN_USED -> OUT */
 		pch = get_chdata(ch);
 		di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
+		if (di_buf->pat_buf) {
+			qpat_in_ready(pch, (struct dim_pat_s *)di_buf->pat_buf);
+			di_buf->pat_buf = NULL;
+		}
 		mem_release_one_inused(pch, di_buf->blk_buf);
 		di_que_in(ch, QUE_PST_NO_BUF, di_buf);
 

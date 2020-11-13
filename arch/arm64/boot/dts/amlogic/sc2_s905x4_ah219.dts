@@ -220,8 +220,8 @@
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
-		interrupts = <0 46 1
-				0 40 1>;
+		interrupts = <0 203 1
+				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
