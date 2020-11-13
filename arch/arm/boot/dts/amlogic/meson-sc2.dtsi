@@ -185,6 +185,14 @@
 		method = "smc";
 	};
 
+	meson_suspend:pm {
+		compatible = "amlogic, pm";
+		status = "okay";
+		device_name = "aml_pm";
+		reg = <0xfe010288 0x4>, /*SYSCTRL_STATUS_REG2*/
+			<0xfe01037c 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
+	};
+
 	secmon {
 		compatible = "amlogic,meson-gxbb-sm";
 		memory-region = <&secmon_reserved>;
