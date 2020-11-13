@@ -57,7 +57,7 @@ static struct t9015_acodec_chipinfo sc2_acodec_cinfo = {
 	.separate_toacodec_en = true,
 };
 static const struct reg_default t9015_init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000300F},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B03F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
 	{LINE_OUT_CONFIG, 0x00001111},
@@ -298,6 +298,8 @@ static int aml_T9015_audio_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
+		if (component->dapm.bias_level == SND_SOC_BIAS_OFF)
+			snd_soc_component_cache_sync(component);
 		break;
 
 	case SND_SOC_BIAS_OFF:

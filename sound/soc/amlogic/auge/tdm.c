@@ -98,7 +98,6 @@ struct aml_tdm {
 	uint last_mclk_freq;
 	uint last_fmt;
 
-	bool en_share;
 	unsigned int lane_cnt;
 
 	/* tdmin_lb src sel */
@@ -455,8 +454,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		    p_tdm->chipinfo->same_src_fn &&
 		    p_tdm->samesource_sel >= 0 &&
 		    aml_check_sharebuffer_valid(p_tdm->fddr,
-						p_tdm->samesource_sel) &&
-						p_tdm->en_share) {
+						p_tdm->samesource_sel)) {
 			sharebuffer_prepare(substream,
 					    fr, p_tdm->samesource_sel,
 					    p_tdm->lane_ss,
