@@ -22,6 +22,9 @@
 #include <linux/kdebug.h>
 #include <linux/arm-smccc.h>
 
+#include <linux/syscore_ops.h>
+#include <linux/cpu.h>
+
 static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
@@ -141,6 +144,25 @@ ssize_t reboot_reason_show(struct device *dev,
 
 static DEVICE_ATTR_RO(reboot_reason);
 
+static void disable_non_bootcpu_shutdown(void)
+{
+	int error;
+
+	error = disable_nonboot_cpus();
+	if (error)
+		panic("Disabling non-boot cpus failed.\n");
+}
+
+static struct syscore_ops disable_non_bootcpu_syscore_ops = {
+	.shutdown		= disable_non_bootcpu_shutdown,
+};
+
+static int __init reboot_pm_init_ops(void)
+{
+	register_syscore_ops(&disable_non_bootcpu_syscore_ops);
+	return 0;
+}
+
 static struct notifier_block aml_restart_nb = {
 	.notifier_call = do_aml_restart,
 	.priority = 130,
@@ -168,6 +190,12 @@ static int aml_restart_probe(struct platform_device *pdev)
 		pr_debug("reboot_reason paddr: 0x%x\n", paddr);
 		reboot_reason_vaddr = ioremap(paddr, 0x4);
 		device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node,
+					"dis_nb_cpus_in_shutdown")) {
+		pr_info("Enable disable_nonboot_cpus in syscore shutdown.\n");
+		reboot_pm_init_ops();
 	}
 
 	ret = register_die_notifier(&panic_notifier);
