@@ -40,4 +40,8 @@ enum ppmgr_source_type {
 	VDIN_8BIT_NORMAL,
 	VDIN_10BIT_NORMAL,
 };
+
+extern u32 omx_cur_session;
+extern int ppmgr_secure_debug;
+extern int ppmgr_secure_mode;
 #endif

@@ -5,9 +5,56 @@
 
 #include "ionvideo.h"
 
+#define IONVIDEO_CANVAS_COUNT 5
+int ionvideo_canvas_id[IONVIDEO_CANVAS_COUNT] = {-1, -1, -1, -1, -1};
+
+void ionvideo_alloc_canvas(void)
+{
+	const char *owner = "ionvideo";
+	int i;
+
+	if (ionvideo_canvas_id[0] != -1 &&
+	    ionvideo_canvas_id[1] != -1 &&
+	    ionvideo_canvas_id[2] != -1 &&
+	    ionvideo_canvas_id[3] != -1 &&
+	    ionvideo_canvas_id[4] != -1)
+		return;
+
+	for (i = 0; i < IONVIDEO_CANVAS_COUNT; i++) {
+		if (ionvideo_canvas_id[i] == -1)
+			ionvideo_canvas_id[i] =
+				canvas_pool_map_alloc_canvas(owner);
+	}
+
+	for (i = 0; i < IONVIDEO_CANVAS_COUNT; i++) {
+		if (ionvideo_canvas_id[i] == -1) {
+			pr_err("%s: %x, %x, %x, %x, %x\n",
+				__func__,
+				ionvideo_canvas_id[0],
+				ionvideo_canvas_id[1],
+				ionvideo_canvas_id[2],
+				ionvideo_canvas_id[3],
+				ionvideo_canvas_id[4]);
+			break;
+		}
+	}
+}
+
+void ionvideo_free_canvas(void)
+{
+	int i;
+
+	for (i = 0; i < IONVIDEO_CANVAS_COUNT; i++) {
+		if (ionvideo_canvas_id[i] != -1) {
+			canvas_pool_map_free_canvas(ionvideo_canvas_id[i]);
+			ionvideo_canvas_id[i] = -1;
+		}
+	}
+}
+
 static inline void paint_mode_convert(int paint_mode, int *src_position,
-				      int *dst_paint_position,
-				      int *dst_plane_position)
+					int *dst_paint_position,
+					int *dst_plane_position)
 {
 	if (paint_mode == 0) { /* stretch full */
 		dst_paint_position[0] = dst_plane_position[0];
@@ -102,27 +149,27 @@ static int get_input_format(struct vframe_s *vf)
 }
 
 static inline void ge2d_src_config(struct vframe_s *vf,
-				   struct config_para_ex_s *ge2d_config)
+					struct config_para_ex_s *ge2d_config)
 {
-	int src_canvas_id = -1;
+	int canvas_id = -1;
 	struct canvas_s src_cs0, src_cs1, src_cs2;
 
 	if (vf->canvas0Addr == (u32)-1) {
-		canvas_config_config(PPMGR2_CANVAS_INDEX_SRC,
+		canvas_config_config(ionvideo_canvas_id[2],
 				     &vf->canvas0_config[0]);
 
 		if (vf->plane_num > 1)
-			canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 1,
+			canvas_config_config(ionvideo_canvas_id[3],
 					     &vf->canvas0_config[1]);
 
 		if (vf->plane_num > 2)
-			canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 2,
+			canvas_config_config(ionvideo_canvas_id[4],
 					     &vf->canvas0_config[2]);
 
-		src_canvas_id =
-			(PPMGR2_CANVAS_INDEX_SRC)
-			| ((PPMGR2_CANVAS_INDEX_SRC + 1) << 8)
-			| ((PPMGR2_CANVAS_INDEX_SRC + 2) << 16);
+		canvas_id =
+			ionvideo_canvas_id[2]
+			| (ionvideo_canvas_id[3] << 8)
+			| (ionvideo_canvas_id[4] << 16);
 
 		ge2d_config->src_planes[0].addr =
 				vf->canvas0_config[0].phy_addr;
@@ -145,6 +192,7 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 			ge2d_config->src_planes[2].h =
 					vf->canvas0_config[2].height << 1;
 		}
+		ge2d_config->src_para.canvas_index = canvas_id;
 	} else {
 		canvas_read(vf->canvas0Addr & 0xff, &src_cs0);
 		canvas_read(vf->canvas0Addr >> 8 & 0xff, &src_cs1);
@@ -158,6 +206,7 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 		ge2d_config->src_planes[2].addr = src_cs2.addr;
 		ge2d_config->src_planes[2].w = src_cs2.width;
 		ge2d_config->src_planes[2].h = src_cs2.height;
+		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	}
 	/* data operating. */
 	ge2d_config->alu_const_color = 0; /* 0x000000ff; */
@@ -167,7 +216,6 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_para.canvas_index = src_canvas_id;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format(vf);
 	ge2d_config->src_para.fill_color_en = 0;
@@ -276,13 +324,10 @@ static int ge2d_paint_dst(struct ge2d_context_s *context,
 
 		if (dst_paint_position[2] > dst_cd.width ||
 		    dst_paint_position[3] > dst_cd.height) {
-			ppmgr2_printk(0, "error: id %d,width %d,height %d, ",
-				      dst_canvas_id,
-				      dst_cd.width,
-				      dst_cd.height);
-			ppmgr2_printk(0, "dst_width %d,dst_height %d\n",
-				      dst_paint_position[2],
-				      dst_paint_position[3]);
+			pr_info("ppmgr2-dev: error: id %d,width %d,height %d, ",
+				dst_canvas_id, dst_cd.width, dst_cd.height);
+			pr_info("ppmgr2-dev: dst_width %d,dst_height %d\n",
+				dst_paint_position[2], dst_paint_position[3]);
 			ppmgr2_printk(1, "error case : dst addr:%p\n",
 				      (void *)dst_cd.addr);
 			return -1;
@@ -363,7 +408,7 @@ int ppmgr2_init(struct ppmgr2_device *ppd)
 	ppd->ge2d_fmt = 0;
 	ppd->dst_width = 0;
 	ppd->dst_height = 0;
-	for (i = 0; i < PPMGR2_MAX_CANVAS; i++) {
+	for (i = 0; i < IONVIDEO_POOL_SIZE; i++) {
 		ppd->phy_addr[i] = NULL;
 		ppd->canvas_id[i] = -1;
 	}
@@ -384,44 +429,49 @@ int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 	canvas_width = ppd->dst_buffer_width;
 	canvas_height = ppd->dst_buffer_height;
 
+	if (index >= IONVIDEO_POOL_SIZE) {
+		ppmgr2_printk(0, "canvas index too large! %d>=%d\n", index,
+			      IONVIDEO_POOL_SIZE);
+		return -1;
+	}
+
 	phy_addr = ppd->phy_addr[index];
 
-	if (index >= PPMGR2_MAX_CANVAS) {
-		ppmgr2_printk(0, "canvas index too large! %d>=%d\n", index,
-			      PPMGR2_MAX_CANVAS);
+	if (IS_ERR_OR_NULL(phy_addr)) {
+		ppmgr2_printk(1, "NULL physical address!\n");
 		return -1;
 	}
 
 	if (ppd->ge2d_fmt == GE2D_FORMAT_M24_NV21 || ppd->ge2d_fmt ==
 	    GE2D_FORMAT_M24_NV12) {
-		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
+		canvas_config(ionvideo_canvas_id[0], (ulong)phy_addr,
 			      canvas_width, canvas_height, CANVAS_ADDR_NOWRAP,
 			      CANVAS_BLKMODE_LINEAR);
-		canvas_config(PPMGR2_CANVAS_INDEX + 1,
+		canvas_config(ionvideo_canvas_id[1],
 			      (ulong)
 			      (phy_addr + (canvas_width * canvas_height)),
 			      canvas_width, canvas_height >> 1,
 			      CANVAS_ADDR_NOWRAP,
 			      CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX) |
-					 ((PPMGR2_CANVAS_INDEX + 1) << 8);
+		ppd->canvas_id[index] = ionvideo_canvas_id[0] |
+					 (ionvideo_canvas_id[1] << 8);
 	} else if (ppd->ge2d_fmt == GE2D_FORMAT_S8_Y) {
-		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
+		canvas_config(ionvideo_canvas_id[0], (ulong)phy_addr,
 			      canvas_width, canvas_height, CANVAS_ADDR_NOWRAP,
 			      CANVAS_BLKMODE_LINEAR);
-		canvas_config(PPMGR2_CANVAS_INDEX + 1,
+		canvas_config(ionvideo_canvas_id[1],
 			      (ulong)(phy_addr + canvas_width * canvas_height),
 			      canvas_width >> 1, canvas_height >> 1,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		canvas_config(PPMGR2_CANVAS_INDEX + 2,
+		canvas_config(ionvideo_canvas_id[2],
 			      (ulong)
 			      (phy_addr + (canvas_width * canvas_height * 5 >>
 					   2)),
 			canvas_width >> 1, canvas_height >> 1,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX)
-			| ((PPMGR2_CANVAS_INDEX + 1) << 8)
-			| ((PPMGR2_CANVAS_INDEX + 2) << 16);
+		ppd->canvas_id[index] = ionvideo_canvas_id[0]
+			| (ionvideo_canvas_id[1] << 8)
+			| (ionvideo_canvas_id[2] << 16);
 	} else {
 		int bpp = 0;
 
@@ -436,10 +486,10 @@ int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 			ppmgr2_printk(1, "Not support format!\n");
 			return -1;
 		}
-		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
+		canvas_config(ionvideo_canvas_id[0], (ulong)phy_addr,
 			      canvas_width * bpp, canvas_height,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = PPMGR2_CANVAS_INDEX;
+		ppd->canvas_id[index] = ionvideo_canvas_id[0];
 	}
 	ppmgr2_printk(2, "canvas[%d] phy_addr:%p width:%d height:%d\n", index,
 		      phy_addr, canvas_width, canvas_height);
@@ -488,6 +538,7 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 	}
 
 	mutex_lock(ppd->ge2d_canvas_mutex);
+	ionvideo_alloc_canvas();
 	ppmgr2_canvas_config(ppd, index);
 	dst_canvas_id = ppd->canvas_id[index];
 	src_position[0] = 0;
