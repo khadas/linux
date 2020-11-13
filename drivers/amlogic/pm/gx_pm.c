@@ -292,3 +292,5 @@ static int __init meson_pm_init(void)
 }
 
 late_initcall(meson_pm_init);
+
+MODULE_LICENSE("GPL");
