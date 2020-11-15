@@ -31,6 +31,7 @@
 #include <linux/workqueue.h>
 
 #include <uapi/linux/gpio.h>
+#include <evl/devices/gpio.h>
 
 #include "gpiolib.h"
 #include "gpiolib-cdev.h"
@@ -77,6 +78,8 @@ struct linehandle_state {
 	const char *label;
 	struct gpio_desc *descs[GPIOHANDLES_MAX];
 	u32 num_descs;
+	u32 lflags;
+	struct linehandle_oob_state oob_state;
 };
 
 #define GPIOHANDLE_REQUEST_VALID_FLAGS \
@@ -87,7 +90,13 @@ struct linehandle_state {
 	GPIOHANDLE_REQUEST_BIAS_PULL_DOWN | \
 	GPIOHANDLE_REQUEST_BIAS_DISABLE | \
 	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
-	GPIOHANDLE_REQUEST_OPEN_SOURCE)
+	GPIOHANDLE_REQUEST_OPEN_SOURCE | \
+	(IS_ENABLED(CONFIG_GPIOLIB_OOB) ? GPIOHANDLE_REQUEST_OOB : 0))
+
+static inline bool oob_handling_requested(u32 lflags)
+{
+	return IS_ENABLED(CONFIG_GPIOLIB_OOB) && lflags & GPIOHANDLE_REQUEST_OOB;
+}
 
 #define GPIOHANDLE_REQUEST_DIRECTION_FLAGS \
 	(GPIOHANDLE_REQUEST_INPUT | \
@@ -267,6 +276,54 @@ static long linehandle_ioctl_compat(struct file *file, unsigned int cmd,
 }
 #endif
 
+#ifdef CONFIG_GPIOLIB_OOB
+
+static long linehandle_oob_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+	struct linehandle_state *lh = file->private_data;
+	DECLARE_BITMAP(valmap, GPIOHANDLES_MAX);
+	struct gpio_chip *gc = lh->gdev->chip;
+	void __user *ip = (void __user *)arg;
+	struct gpiohandle_data ghd;
+	int i, ret;
+
+	if (!oob_handling_requested(lh->lflags))
+		return -EPERM;
+
+	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
+		ret = gpiod_get_array_value_oob(gc, valmap,
+					lh->num_descs, lh->descs);
+		if (ret)
+			return ret;
+
+		memset(&ghd, 0, sizeof(ghd));
+		for (i = 0; i < lh->num_descs; i++)
+			ghd.values[i] = test_bit(i, valmap);
+
+		if (raw_copy_to_user(ip, &ghd, sizeof(ghd)))
+			return -EFAULT;
+
+		return 0;
+	} else if (cmd == GPIOHANDLE_SET_LINE_VALUES_IOCTL) {
+		if (!test_bit(FLAG_IS_OUT, &lh->descs[0]->flags))
+			return -EPERM;
+
+		if (raw_copy_from_user(&ghd, ip, sizeof(ghd)))
+			return -EFAULT;
+
+		for (i = 0; i < lh->num_descs; i++)
+			__assign_bit(i, valmap, ghd.values[i]);
+
+		return gpiod_set_array_value_oob(gc, valmap,
+					lh->num_descs, lh->descs);
+	}
+
+	return -EINVAL;
+}
+
+#endif	/* CONFIG_GPIOLIB_OOB */
+
 static void linehandle_free(struct linehandle_state *lh)
 {
 	int i;
@@ -281,7 +338,12 @@ static void linehandle_free(struct linehandle_state *lh)
 
 static int linehandle_release(struct inode *inode, struct file *file)
 {
-	linehandle_free(file->private_data);
+ 	struct linehandle_state *lh = file->private_data;
+
+	if (oob_handling_requested(lh->lflags))
+		evl_release_file(&lh->oob_state.efile);
+
+	linehandle_free(lh);
 	return 0;
 }
 
@@ -290,8 +352,14 @@ static const struct file_operations linehandle_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.unlocked_ioctl = linehandle_ioctl,
+#ifdef CONFIG_GPIOLIB_OOB
+	.oob_ioctl = linehandle_oob_ioctl,
+#endif
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = linehandle_ioctl_compat,
+#endif
+#ifdef CONFIG_GPIOLIB_OOB
+	.compat_oob_ioctl = compat_ptr_oob_ioctl,
 #endif
 };
 
@@ -310,6 +378,18 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 
 	lflags = handlereq.flags;
 
+	if (oob_handling_requested(lflags)) {
+		if (gdev->chip->ngpio > CONFIG_GPIOLIB_FASTPATH_LIMIT) {
+			chip_warn(gdev->chip,
+				"too many lines for out-of-band handling"
+				" (%u > %u fastpath)\n",
+				gdev->chip->ngpio, CONFIG_GPIOLIB_FASTPATH_LIMIT);
+			return -EOPNOTSUPP;
+		}
+		if (gdev->chip->can_sleep)
+			return -EOPNOTSUPP;
+	}
+
 	ret = linehandle_validate_flags(lflags);
 	if (ret)
 		return ret;
@@ -318,6 +398,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	if (!lh)
 		return -ENOMEM;
 	lh->gdev = gpio_device_get(gdev);
+	lh->lflags = lflags;
 
 	if (handlereq.consumer_label[0] != '\0') {
 		/* label is only initialized if consumer_label is set */
@@ -387,6 +468,14 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 		goto out_put_unused_fd;
+	}
+
+	if (oob_handling_requested(lflags)) {
+		ret = evl_open_file(&lh->oob_state.efile, file);
+		if (ret) {
+			fput(file);
+			goto out_put_unused_fd;
+		}
 	}
 
 	handlereq.fd = fd;
@@ -1908,12 +1997,14 @@ struct lineevent_state {
 	struct gpio_device *gdev;
 	const char *label;
 	struct gpio_desc *desc;
+	u32 lflags;
 	u32 eflags;
 	int irq;
 	wait_queue_head_t wait;
 	struct notifier_block device_unregistered_nb;
 	DECLARE_KFIFO(events, struct gpioevent_data, 16);
 	u64 timestamp;
+	struct lineevent_oob_state oob_state;
 };
 
 #define GPIOEVENT_REQUEST_VALID_FLAGS \
@@ -1969,6 +2060,9 @@ static ssize_t lineevent_read(struct file *file, char __user *buf,
 	if (!rcu_access_pointer(le->gdev->chip))
 		return -ENODEV;
 
+	if (oob_handling_requested(le->lflags))
+		return -EPERM;
+
 	/*
 	 * When compatible system call is being used the struct gpioevent_data,
 	 * in case of at least ia32, has different size due to the alignment
@@ -2019,6 +2113,112 @@ static ssize_t lineevent_read(struct file *file, char __user *buf,
 	return bytes_read;
 }
 
+#ifdef CONFIG_GPIOLIB_OOB
+
+static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+{
+	struct lineevent_state *le = p;
+	struct gpioevent_data ge;
+
+	ge.timestamp = evl_ktime_monotonic();
+
+	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
+		return IRQ_NONE;
+
+	evl_spin_lock(&le->oob_state.wait.lock);
+	kfifo_put(&le->events, ge);
+	evl_wake_up_head(&le->oob_state.wait);
+	evl_signal_poll_events(&le->oob_state.poll_head, POLLIN|POLLRDNORM);
+	evl_spin_unlock(&le->oob_state.wait.lock);
+
+	return IRQ_HANDLED;
+}
+
+static __poll_t lineevent_oob_poll(struct file *file,
+				struct oob_poll_wait *wait)
+{
+	struct lineevent_state *le = file->private_data;
+	unsigned long flags;
+	__poll_t ready = 0;
+
+	evl_poll_watch(&le->oob_state.poll_head, wait, NULL);
+
+	evl_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
+
+	if (!kfifo_is_empty(&le->events))
+		ready |= POLLIN|POLLRDNORM;
+
+	evl_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
+
+	return ready;
+}
+
+static ssize_t lineevent_oob_read(struct file *file,
+				char __user *buf,
+				size_t count)
+{
+	struct lineevent_state *le = file->private_data;
+	struct gpioevent_data ge = { 0 };
+	unsigned long flags;
+	int ret;
+
+	if (count < sizeof(struct gpioevent_data))
+		return -EINVAL;
+
+	if (!oob_handling_requested(le->lflags))
+		return -EPERM;
+
+	do {
+		evl_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
+
+		ret = kfifo_get(&le->events, &ge);
+		/*
+		 * Silly work around to address a false positive
+		 * enabling -Wmaybe-uninitialized w/ gcc 8.3.1.
+		 */
+		if (!ret)
+			ret = 0;
+
+		evl_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
+
+		if (ret) {
+			ret = raw_copy_to_user(buf, &ge, sizeof(ge));
+			return ret ? -EFAULT : sizeof(ge);
+		}
+
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		ret = evl_wait_event(&le->oob_state.wait,
+ 				!kfifo_is_empty(&le->events));
+	} while (!ret);
+
+	return ret;
+}
+
+static int lineevent_init_oob_state(struct lineevent_state *le,
+				int irq, const char *label, int irqflags)
+{
+	evl_init_wait(&le->oob_state.wait, &evl_mono_clock, EVL_WAIT_PRIO);
+	evl_init_poll_head(&le->oob_state.poll_head);
+
+	return request_irq(irq,
+			lineevent_oob_irq_handler,
+			irqflags | IRQF_OOB,
+			label,
+			le);
+}
+
+#else
+
+static inline int lineevent_init_oob_state(struct lineevent_state *le,
+					int irq, const char *label, int irqflags)
+{
+	return -EINVAL;
+}
+
+#endif	/* !CONFIG_GPIOLIB_OOB */
+
 static void lineevent_free(struct lineevent_state *le)
 {
 	if (le->device_unregistered_nb.notifier_call)
@@ -2035,7 +2235,12 @@ static void lineevent_free(struct lineevent_state *le)
 
 static int lineevent_release(struct inode *inode, struct file *file)
 {
-	lineevent_free(file->private_data);
+	struct lineevent_state *le = file->private_data;
+
+	if (oob_handling_requested(le->lflags))
+		evl_release_file(&le->oob_state.efile);
+
+	lineevent_free(le);
 	return 0;
 }
 
@@ -2084,6 +2289,10 @@ static long lineevent_ioctl_compat(struct file *file, unsigned int cmd,
 static const struct file_operations lineevent_fileops = {
 	.release = lineevent_release,
 	.read = lineevent_read,
+#ifdef CONFIG_GPIOLIB_OOB
+	.oob_read = lineevent_oob_read,
+	.oob_poll = lineevent_oob_poll,
+#endif
 	.poll = lineevent_poll,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
@@ -2111,25 +2320,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	else
 		ge.timestamp = le->timestamp;
 
-	if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE
-	    && le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
-		int level = gpiod_get_value_cansleep(le->desc);
-
-		if (level)
-			/* Emit low-to-high event */
-			ge.id = GPIOEVENT_EVENT_RISING_EDGE;
-		else
-			/* Emit high-to-low event */
-			ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
-	} else if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE) {
-		/* Emit low-to-high event */
-		ge.id = GPIOEVENT_EVENT_RISING_EDGE;
-	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
-		/* Emit high-to-low event */
-		ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
-	} else {
+	if (lineevent_read_pin(le, &ge, true) == IRQ_NONE)
 		return IRQ_NONE;
-	}
 
 	ret = kfifo_in_spinlocked_noirqsave(&le->events, &ge,
 					    1, &le->wait.lock);
@@ -2219,6 +2411,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 		goto out_free_le;
 	le->desc = desc;
 	le->eflags = eflags;
+	le->lflags = lflags;
 
 	linehandle_flags_to_desc_flags(lflags, &desc->flags);
 
@@ -2243,7 +2436,6 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	irqflags |= IRQF_ONESHOT;
 
 	INIT_KFIFO(le->events);
-	init_waitqueue_head(&le->wait);
 
 	le->device_unregistered_nb.notifier_call = lineevent_unregistered_notify;
 	ret = blocking_notifier_chain_register(&gdev->device_notifier,
@@ -2257,13 +2449,20 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 		goto out_free_le;
 	}
 
-	/* Request a thread to read the events */
-	ret = request_threaded_irq(irq,
-				   lineevent_irq_handler,
-				   lineevent_irq_thread,
-				   irqflags,
-				   label,
-				   le);
+	if (oob_handling_requested(lflags)) {
+		if (desc->gdev->chip->can_sleep)
+			ret = -EOPNOTSUPP;
+		else
+			ret = lineevent_init_oob_state(le, irq, label, irqflags);
+	} else {
+		/* Request a thread to read the events */
+		ret = request_threaded_irq(irq,
+					lineevent_irq_handler,
+					lineevent_irq_thread,
+					irqflags,
+					label,
+					le);
+	}
 	if (ret) {
 		free_irq_label(label);
 		goto out_free_le;
@@ -2286,21 +2485,31 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 		goto out_put_unused_fd;
 	}
 
+	if (oob_handling_requested(lflags)) {
+		ret = evl_open_file(&le->oob_state.efile, file);
+		if (ret)
+			goto out_put_file;
+	}
+
 	eventreq.fd = fd;
 	if (copy_to_user(ip, &eventreq, sizeof(eventreq))) {
 		/*
 		 * fput() will trigger the release() callback, so do not go onto
 		 * the regular error cleanup path here.
 		 */
-		fput(file);
-		put_unused_fd(fd);
-		return -EFAULT;
+		if (oob_handling_requested(lflags))
+			evl_release_file(&le->oob_state.efile);
+ 
+		ret = -EFAULT;
+		goto out_put_file;
 	}
 
 	fd_install(fd, file);
 
 	return 0;
 
+out_put_file:
+	fput(file);
 out_put_unused_fd:
 	put_unused_fd(fd);
 out_free_le:
