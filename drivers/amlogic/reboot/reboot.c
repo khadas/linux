@@ -146,11 +146,30 @@ static DEVICE_ATTR_RO(reboot_reason);
 
 static void disable_non_bootcpu_shutdown(void)
 {
-	int error;
+	int error = 0, cpu, primary = 0;
 
-	error = disable_nonboot_cpus();
-	if (error)
-		panic("Disabling non-boot cpus failed.\n");
+	if (!cpu_online(primary))
+		primary = cpumask_first(cpu_online_mask);
+
+	cpu_hotplug_enable();
+
+	for_each_online_cpu(cpu) {
+		if (cpu == primary)
+			continue;
+
+		error = cpu_down(cpu);
+		if (error) {
+			pr_err("Error taking CPU%d down: %d\n", cpu, error);
+			break;
+		}
+	}
+
+	if (!error)
+		WARN_ON(num_online_cpus() > 1);
+	else
+		pr_err("Non-boot CPUs are not disabled\n");
+
+	cpu_hotplug_disable();
 }
 
 static struct syscore_ops disable_non_bootcpu_syscore_ops = {

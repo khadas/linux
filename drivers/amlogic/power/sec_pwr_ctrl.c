@@ -47,4 +47,5 @@ unsigned long pwr_ctrl_irq_set(u64 irq, u64 irq_mask, u64 irq_invert)
 		      0, 0, 0, 0, &res);
 	return res.a0;
 }
+EXPORT_SYMBOL(pwr_ctrl_irq_set);
 

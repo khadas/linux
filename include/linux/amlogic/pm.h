@@ -42,7 +42,7 @@ struct early_suspend {
 
 void register_early_suspend(struct early_suspend *handler);
 void unregister_early_suspend(struct early_suspend *handler);
-unsigned int lgcy_early_suspend_init(void);
+unsigned int lgcy_early_suspend_init(struct platform_device *pdev);
 
 #endif //CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 

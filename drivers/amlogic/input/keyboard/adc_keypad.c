@@ -18,6 +18,7 @@
 #include <linux/iio/consumer.h>
 #include <linux/input-polldev.h>
 #include <linux/amlogic/scpi_protocol.h>
+#include <linux/amlogic/pm.h>
 #include "adc_keypad.h"
 
 #define POLL_INTERVAL_DEFAULT 25
