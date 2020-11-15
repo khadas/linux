@@ -3532,6 +3532,78 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 	return 0;
 }
 
+#ifdef CONFIG_GPIOLIB_OOB
+
+int gpiod_get_array_value_oob(struct gpio_chip *gc,
+			unsigned long *value_bitmap,
+			u32 num_descs,
+			struct gpio_desc **desc_array)
+{
+	unsigned long mask[2 * BITS_TO_LONGS(CONFIG_GPIOLIB_FASTPATH_LIMIT)];
+	unsigned long *bits = mask + BITS_TO_LONGS(gc->ngpio);
+	const struct gpio_desc *desc;
+	int ret, n, hwgpio, value;
+
+	bitmap_zero(mask, gc->ngpio);
+
+	for (n = 0; n < num_descs; n++) {
+		desc = desc_array[n];
+		hwgpio = gpio_chip_hwgpio(desc);
+		__set_bit(hwgpio, mask);
+	}
+
+	ret = gpio_chip_get_multiple(gc, mask, bits);
+	if (ret)
+		return ret;
+
+	for (n = 0; n < num_descs; n++) {
+		desc = desc_array[n];
+		hwgpio = gpio_chip_hwgpio(desc);
+		value = test_bit(hwgpio, bits);
+		/* We assume non-raw mode. */
+		if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			value = !value;
+		__assign_bit(n, value_bitmap, value);
+		trace_gpio_value(desc_to_gpio(desc), 1, value);
+	}
+
+	return 0;
+}
+
+int gpiod_set_array_value_oob(struct gpio_chip *gc,
+			const unsigned long *value_bitmap,
+			u32 num_descs,
+			struct gpio_desc **desc_array)
+{
+	unsigned long mask[2 * BITS_TO_LONGS(CONFIG_GPIOLIB_FASTPATH_LIMIT)];
+	unsigned long *bits = mask + BITS_TO_LONGS(gc->ngpio);
+	const struct gpio_desc *desc;
+	int n, hwgpio, value;
+
+	bitmap_zero(mask, gc->ngpio);
+
+	for (n = 0; n < num_descs; n++) {
+		desc = desc_array[n];
+		hwgpio = gpio_chip_hwgpio(desc);
+		__set_bit(hwgpio, mask);
+		/* We assume non-raw mode. */
+		value = test_bit(n, value_bitmap);
+		if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			value = !value;
+		if (value)
+			__set_bit(hwgpio, bits);
+		else
+			__clear_bit(hwgpio, bits);
+		trace_gpio_value(desc_to_gpio(desc), 0, value);
+	}
+
+	gpio_chip_set_multiple(gc, mask, bits);
+
+	return 0;
+}
+
+#endif /* CONFIG_GPIOLIB_OOB */
+
 /**
  * gpiod_set_raw_value() - assign a gpio's raw value
  * @desc: gpio whose value will be assigned
