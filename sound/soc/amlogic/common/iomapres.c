@@ -10,7 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/device.h>
 
-#include <linux/amlogic/media/sound/iomapres.h>
+#include "iomapres.h"
 
 struct regmap *regmap_resource(struct device *dev, char *name)
 {

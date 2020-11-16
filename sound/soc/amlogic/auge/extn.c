@@ -28,8 +28,7 @@
 #include "audio_utils.h"
 #include "frhdmirx_hw.h"
 #include "resample.h"
-
-#include <linux/amlogic/media/sound/misc.h>
+#include "../common/misc.h"
 
 #define DRV_NAME "EXTN"
 #define MAX_INT    0x7ffffff

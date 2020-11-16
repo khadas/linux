@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) "spdif_info: " fmt
 
 #include <linux/amlogic/media/sound/aout_notify.h>
-#include <linux/amlogic/media/sound/spdif_info.h>
+#include "spdif_info.h"
 #ifdef CONFIG_AMLOGIC_HDMITX
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #endif

@@ -17,7 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/clk-provider.h>
 
-#include <linux/amlogic/media/sound/iomapres.h>
+#include "../common/iomapres.h"
 
 #include "audio_io.h"
 #include "regs.h"

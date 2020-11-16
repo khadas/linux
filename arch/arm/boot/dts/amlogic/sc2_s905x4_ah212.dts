@@ -403,7 +403,7 @@
 	};//End efusekey
 	/* Audio Related start */
 	auge_sound {
-		compatible = "amlogic, sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/

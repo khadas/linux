@@ -9,7 +9,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 
-#include <linux/amlogic/media/sound/spdif_info.h>
 #include "earc_hw.h"
 
 void earcrx_pll_refresh(struct regmap *top_map)

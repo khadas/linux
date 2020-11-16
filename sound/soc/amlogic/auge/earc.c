@@ -26,7 +26,6 @@
 #include <linux/workqueue.h>
 
 #include <linux/amlogic/media/sound/hdmi_earc.h>
-#include <linux/amlogic/media/sound/mixer.h>
 #include "ddr_mngr.h"
 #include "earc_hw.h"
 
@@ -1078,13 +1077,15 @@ static const struct snd_kcontrol_new earc_controls[] = {
 		     earctx_get_attend_type,
 		     earctx_set_attend_type),
 
-	SND_INT("eARC_RX Latency",
-		earcrx_get_latency,
-		earcrx_set_latency),
+	SND_SOC_BYTES_EXT("eARC_RX Latency",
+			  1,
+			  earcrx_get_latency,
+			  earcrx_set_latency),
 
-	SND_INT("eARC_TX Latency",
-		earctx_get_latency,
-		earctx_set_latency),
+	SND_SOC_BYTES_EXT("eARC_TX Latency",
+			  1,
+			  earctx_get_latency,
+			  earctx_set_latency),
 
 	SND_SOC_BYTES_EXT("eARC_RX CDS",
 			  CDS_MAX_BYTES,

@@ -436,12 +436,6 @@ static int tdmout_c_binv_set_enum(struct snd_kcontrol *kcontrol,
 #define SND_SPDIFOUT_SWAP(xname, type, xenum, xshift, xmask)   \
 	SND_ENUM(xname, type, SWAP, xenum, xshift, xmask)
 
-#define TDM_MASK(xname, type, func)   \
-	SND_INT(xname, type, func)
-
-#define TDM_MUTE(xname, type, func)   \
-	SND_INT(xname, type, func)
-
 #define TDM_GAIN(xname, type, func, xshift, xmask)   \
 	SND_BYTE(xname, type, func, xshift, xmask)
 

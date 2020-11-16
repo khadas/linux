@@ -6,8 +6,6 @@
  *
  */
 
-#include <linux/amlogic/media/sound/misc.h>
-
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 #include <linux/amlogic/aml_atvdemod.h>
 #endif
@@ -15,6 +13,35 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #endif
+
+#include "misc.h"
+
+bool audio_debug;
+
+static const char *const audio_debug_text[] = {
+	"off",
+	"on"
+};
+
+const struct soc_enum audio_debug_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_debug_text),
+			audio_debug_text);
+
+int audio_debug_get(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = audio_debug;
+
+	return 0;
+}
+
+int audio_debug_put(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	audio_debug = ucontrol->value.integer.value[0];
+
+	return 0;
+}
 
 static const char *const audio_is_stable[] = {
 	"false",
@@ -45,7 +72,7 @@ const struct soc_enum av_audio_status_enum =
 			audio_is_stable);
 
 int aml_get_av_audio_stable(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = tvin_get_av_status();
 	return 0;
@@ -88,7 +115,7 @@ int get_hdmi_sample_rate_index(void)
 		break;
 	default:
 		pr_err("HDMIRX samplerate not support: %d\n",
-		       aud_sts.aud_sr);
+			aud_sts.aud_sr);
 		break;
 	}
 	return val;
@@ -177,6 +204,13 @@ static const char * const hdmi_in_audio_packet[] = {
 	"MAS"
 };
 
+static const char * const hdmi_in_bitwidth[] = {
+	"REFER_TO_HEADER",
+	"16bit",
+	"20bit",
+	"24bit"
+};
+
 const struct soc_enum hdmi_in_status_enum[] = {
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_is_stable),
 			audio_is_stable),
@@ -187,16 +221,21 @@ const struct soc_enum hdmi_in_status_enum[] = {
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_format),
 			hdmi_in_format),
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_audio_packet),
-			hdmi_in_audio_packet)
+			hdmi_in_audio_packet),
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_bitwidth),
+			hdmi_in_bitwidth)
 };
 
 int get_hdmiin_audio_stable(void)
 {
 	struct rx_audio_stat_s aud_sts;
+	bool audio_packet = 0;
 
 	rx_get_audio_status(&aud_sts);
 
-	return (aud_sts.aud_rcv_packet == 0) ? 0 : 1;
+	audio_packet = (aud_sts.aud_rcv_packet == 0) ? 0 : 1;
+
+	return (aud_sts.aud_stb_flag & audio_packet);
 }
 
 int aml_get_hdmiin_audio_stable(struct snd_kcontrol *kcontrol,

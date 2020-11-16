@@ -334,11 +334,11 @@
 	};
 
 	auge_sound {
-		compatible = "amlogic, sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		/* Power Amplifier Enable gpio */
-		//pa-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		/* avout mute gpio */
+		//avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";

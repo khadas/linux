@@ -8,7 +8,7 @@
 #include "audio_io.h"
 #include "regs.h"
 
-#include <linux/amlogic/media/sound/spdif_info.h>
+#include "../common/spdif_info.h"
 enum spdif_id {
 	SPDIF_A = 0,
 	SPDIF_B,
