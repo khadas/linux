@@ -11,7 +11,7 @@
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t7-gpio.h>
-#include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
+#include <dt-bindings/reset/amlogic,meson-t7-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
@@ -522,7 +522,7 @@
 			};
 
 			reset: reset-controller@2000 {
-				compatible = "amlogic,meson-sc2-reset";
+				compatible = "amlogic,meson-t7-reset";
 				reg = <0x0 0x2000 0x0 0x98>;
 				#reset-cells = <1>;
 			};
@@ -1031,8 +1031,8 @@
 		clock-names = "cts_hcodec_aclk";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
-		reset-names = "hcodec_rst";
-		resets = <&reset RESET_BRG_HCODEC_PIPL0>;
+		//reset-names = "hcodec_rst";
+		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
 	};
 	jpegenc{
 		compatible = "amlogic, jpegenc";
@@ -1042,8 +1042,8 @@
 		clock-names = "cts_jpegenc_aclk";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
-		reset-names = "jpegenc_rst";
-		resets = <&reset RESET_BRG_HCODEC_PIPL0>;
+		//reset-names = "jpegenc_rst";
+		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
 	};
 	hevc_enc{
 		compatible = "cnm, HevcEnc";
@@ -1092,8 +1092,8 @@
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
-		reset-names = "rdma";
-		resets = <&reset RESET_RDMA>;
+		//reset-names = "rdma";
+		//resets = <&reset RESET_RDMA>;
 	};
 
 	vclk_serve: vclk_serve {

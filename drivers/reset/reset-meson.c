@@ -103,6 +103,11 @@ static const struct meson_reset_param meson_sc2_param = {
 	.reg_count	= 6,
 	.level_offset	= 0x40,
 };
+
+static const struct meson_reset_param meson_t7_param = {
+	.reg_count	= 7,
+	.level_offset	= 0x40,
+};
 #endif
 
 static const struct of_device_id meson_reset_dt_ids[] = {
@@ -113,6 +118,7 @@ static const struct of_device_id meson_reset_dt_ids[] = {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	 { .compatible = "amlogic,meson-sc2-reset",  .data = &meson_sc2_param},
 	 { .compatible = "amlogic,meson-t5d-reset",  .data = &meson8b_param},
+	 { .compatible = "amlogic,meson-t7-reset",  .data = &meson_t7_param},
 #endif
 	 { /* sentinel */ },
 };
