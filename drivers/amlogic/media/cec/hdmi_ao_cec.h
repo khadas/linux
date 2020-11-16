@@ -6,7 +6,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/10/19:scc 5.4 bringup\n"
+#define CEC_DRIVER_VERSION     "2020/11/13:cec t7\n"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -29,10 +29,11 @@ enum cec_chip_ver {
 	CEC_CHIP_SM1,
 	CEC_CHIP_TL1,
 	CEC_CHIP_TM2,
-	CEC_CHIP_A1,
+	CEC_CHIP_A1 = 10,
 	CEC_CHIP_SC2,
 	CEC_CHIP_T5,	/*only have cecb, first bringup at 4.9-dev*/
 	CEC_CHIP_T5D,	/*only have cecb, first bringup at 4.9-dev*/
+	CEC_CHIP_T7,
 };
 
 enum cecaver {
@@ -231,7 +232,7 @@ enum {
 	AO_REG_DEF_END
 };
 
-#define REG_MASK_ADDR	0x00ffffff
+#define REG_MASK_ADDR	0x0000ffff
 #define REG_MASK_PR	0x01000000/*periphs register*/
 
 /*

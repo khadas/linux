@@ -82,7 +82,7 @@ static bool ceca_err_flag;
 /*static bool wake_ok = 1;*/
 static bool ee_cec;
 static bool pin_status;
-static unsigned int cec_msg_dbg_en;
+static int cec_msg_dbg_en;
 static struct st_cec_mailbox_data cec_mailbox;
 
 #define CEC_ERR(format, args...)				\
@@ -97,10 +97,10 @@ static struct st_cec_mailbox_data cec_mailbox;
 			pr_info("cec: " format, ##args);	\
 	} while (0)
 
-#define CEC_INFO_L(level, format, args...)				\
-	do {	\
-		if (cec_msg_dbg_en >= (level) && cec_dev->dbg_dev)	\
-			pr_info("cec: " format, ##args);	\
+#define dprintk(level, fmt, arg...) \
+	do { \
+		if (cec_msg_dbg_en >= (level) && cec_dev->dbg_dev) \
+			pr_info("cec: " fmt, ## arg); \
 	} while (0)
 
 static unsigned char msg_log_buf[128] = { 0 };
@@ -176,16 +176,17 @@ static void write_ao(unsigned int addr, unsigned int data)
 	unsigned int real_addr;
 
 	if (cec_dev->plat_data->chip_id == CEC_CHIP_A1 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2)
+	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
+	    cec_dev->plat_data->chip_id == CEC_CHIP_T7)
 		real_addr = top_reg_tab[addr][1];
 	else
 		real_addr = top_reg_tab[addr][0];
 
-	if (addr == 0xffff) {
-		CEC_INFO_L(L_4, "%s, no exist reg:0x%x", __func__, addr);
+	if ((real_addr & REG_MASK_ADDR) == 0xffff) {
+		dprintk(L_4, "%s, no exist reg:0x%x", __func__, addr);
 		return;
 	}
-	CEC_INFO_L(L_4, "%s :reg idx:0x%x, 0x%x(0x%lx) val:0x%x\n", __func__,
+	dprintk(L_4, "%s :reg idx:0x%x, 0x%x(0x%lx) val:0x%x\n", __func__,
 		   addr, (real_addr & REG_MASK_ADDR),
 		   (long)(cec_dev->cec_reg + (real_addr & REG_MASK_ADDR)),
 		   data);
@@ -203,17 +204,18 @@ static unsigned int read_ao(unsigned int addr)
 	unsigned int data;
 
 	if (cec_dev->plat_data->chip_id == CEC_CHIP_A1 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2)
+	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
+	    cec_dev->plat_data->chip_id == CEC_CHIP_T7)
 		real_addr = top_reg_tab[addr][1];
 	else
 		real_addr = top_reg_tab[addr][0];
 
-	if (addr == 0xffff) {
-		CEC_INFO_L(L_4, "w ao no exist reg:0x%x", addr);
+	if (((real_addr & REG_MASK_ADDR)) == 0xffff) {
+		dprintk(L_4, "w ao no exist reg:0x%x", addr);
 		return 0;
 	}
 
-	CEC_INFO_L(L_4, "%s :0x%x(0x%lx)\n", __func__,
+	dprintk(L_4, "%s :reg idx:0x%x, 0x%x(0x%lx)\n", __func__, addr,
 		   (real_addr & REG_MASK_ADDR),
 		   (long)(cec_dev->cec_reg + (real_addr & REG_MASK_ADDR)));
 
@@ -223,7 +225,7 @@ static unsigned int read_ao(unsigned int addr)
 	else
 		data = readl(cec_dev->cec_reg +
 			     (real_addr & REG_MASK_ADDR));
-	CEC_INFO_L(L_4, "\t val:0x%x\n", data);
+	dprintk(L_4, "\t val:0x%x\n", data);
 	return data;
 }
 
@@ -484,7 +486,7 @@ void cecb_hw_reset(void)
 		cec_set_reg_bits(AO_CECB_GEN_CNTL, 0, 0, 1);
 	}
 	udelay(9);
-	CEC_INFO_L(L_4, "%s\n", __func__);
+	dprintk(L_4, "%s\n", __func__);
 }
 
 static void cecrx_check_irq_enable(void)
@@ -663,22 +665,22 @@ void cecb_irq_handle(void)
 	if (intr_cec != 0)
 		cecrx_clear_irq(intr_cec);
 	else
-		CEC_INFO_L(L_2, "err cec intsts:0\n");
+		dprintk(L_2, "err cec intsts:0\n");
 
-	CEC_INFO_L(L_2, "cecb intsts:0x%x\n", intr_cec);
+	dprintk(L_2, "cecb intsts:0x%x\n", intr_cec);
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
 	/* TX DONE irq, increase tx buffer pointer */
 	if (intr_cec == CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
-		CEC_INFO_L(L_2, "irqflg:TX_DONE\n");
+		dprintk(L_2, "irqflg:TX_DONE\n");
 		complete(&cec_dev->tx_ok);
 	}
 	lock = hdmirx_cec_read(DWC_CEC_LOCK);
 	/* EOM irq, message is coming */
 	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cecb_pick_msg(rx_msg, &rx_len);
-		CEC_INFO_L(L_2, "irqflg:RX_EOM\n");
+		dprintk(L_2, "irqflg:RX_EOM\n");
 		cec_store_msg_to_buff(rx_len, rx_msg);
 		cec_new_msg_push();
 		dwork = &cec_dev->cec_work;
@@ -691,18 +693,18 @@ void cecb_irq_handle(void)
 	    (intr_cec & CEC_IRQ_TX_ERR_INITIATOR)) {
 		if (intr_cec & CEC_IRQ_TX_NACK) {
 			cec_tx_result = CEC_FAIL_NACK;
-			CEC_INFO_L(L_2, "irqflg:TX_NACK\n");
+			dprintk(L_2, "irqflg:TX_NACK\n");
 		} else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
 			hdmirx_cec_write(DWC_CEC_TX_CNT, 0);
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
-			CEC_INFO_L(L_2, "irqflg:ARB_LOST\n");
+			dprintk(L_2, "irqflg:ARB_LOST\n");
 		} else if (intr_cec & CEC_IRQ_TX_ERR_INITIATOR) {
-			CEC_INFO_L(L_2, "irqflg:INITIATOR\n");
+			dprintk(L_2, "irqflg:INITIATOR\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 		} else {
-			CEC_INFO_L(L_2, "irqflg:Other\n");
+			dprintk(L_2, "irqflg:Other\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 		}
 		complete(&cec_dev->tx_ok);
@@ -710,14 +712,14 @@ void cecb_irq_handle(void)
 
 	/* RX error irq flag */
 	if (intr_cec & CEC_IRQ_RX_ERR_FOLLOWER) {
-		CEC_INFO_L(L_2, "warning:FOLLOWER\n");
+		dprintk(L_2, "warning:FOLLOWER\n");
 		hdmirx_cec_write(DWC_CEC_LOCK, 0);
 		/* TODO: need reset cec hw logic? */
 	}
 
 	/* wakeup op code will triger this int*/
 	if (intr_cec & CEC_IRQ_RX_WAKEUP) {
-		CEC_INFO_L(L_2, "warning:RX_WAKEUP\n");
+		dprintk(L_2, "warning:RX_WAKEUP\n");
 		hdmirx_cec_write(DWC_CEC_WKUPCTRL, WAKEUP_EN_MASK);
 		/* TODO: wake up system if needed */
 	}
@@ -1172,7 +1174,7 @@ void cec_restore_logical_addr(unsigned int cec_sel, unsigned int addr_en)
 
 		addr_enable = addr_enable >> 1;
 	}
-	CEC_INFO_L(L_4, "%s cec:%d, en:%d\n", __func__, cec_sel, addr_en);
+	dprintk(L_4, "%s cec:%d, en:%d\n", __func__, cec_sel, addr_en);
 }
 
 void ceca_hw_reset(void)
@@ -1622,7 +1624,7 @@ try_again:
 		if (retry > 0) {
 			retry--;
 			msleep(100 + (prandom_u32() & 0x07) * 10);
-			CEC_INFO_L(L_2, "retry0 %d\n", retry);
+			dprintk(L_2, "retry0 %d\n", retry);
 			goto try_again;
 		}
 		mutex_unlock(&cec_dev->cec_tx_mutex);
@@ -1644,7 +1646,7 @@ try_again:
 		if (retry > 0) {
 			retry--;
 			msleep(100 + (prandom_u32() & 0x07) * 10);
-			CEC_INFO_L(L_2, "retry1 %d\n", retry);
+			dprintk(L_2, "retry1 %d\n", retry);
 			goto try_again;
 		}
 	}
@@ -1658,7 +1660,7 @@ try_again:
 		}
 	}
 
-	CEC_INFO_L(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
+	dprintk(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	mutex_unlock(&cec_dev->cec_tx_mutex);
 	return ret;
 }
@@ -1764,7 +1766,7 @@ static void ao_ceca_init(void)
 	cec_arbit_bit_time_set(3, 0x118, 0);
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
-	CEC_INFO_L(L_1, "%s\n", __func__);
+	dprintk(L_1, "%s\n", __func__);
 }
 
 void cec_arbit_bit_time_set(unsigned int bit_set,
@@ -2382,7 +2384,7 @@ static void ceca_tasklet_pro(unsigned long arg)
 
 	dwork = &cec_dev->cec_work;
 	intr_stat = ao_cec_intr_stat();
-	/*CEC_INFO_L(L_2, "ceca_tsklet 0x%x\n", intr_stat);*/
+	/*dprintk(L_2, "ceca_tsklet 0x%x\n", intr_stat);*/
 	if (intr_stat & AO_CEC_TX_INT) {
 		/* cec a tx intr */
 		ceca_tx_irq_handle();
@@ -2628,7 +2630,7 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 
 	/*CEC_ERR("cnt=%d\n", cnt);*/
 	ret = cec_ll_tx(buf, cnt);
-	CEC_INFO_L(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
+	dprintk(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	return count;
 }
 
@@ -3086,9 +3088,9 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 		}
 	}
 
-	CEC_INFO_L(L_3, "%s phy_addr:%x, port num:%x\n", __func__, phy_addr,
+	dprintk(L_3, "%s phy_addr:%x, port num:%x\n", __func__, phy_addr,
 		   cec_dev->port_num);
-	CEC_INFO_L(L_3, "port_seq=0x%x\n", cec_dev->port_seq);
+	dprintk(L_3, "port_seq=0x%x\n", cec_dev->port_seq);
 	/* init for port info */
 	for (a = 0; a < sizeof(cec_dev->port_seq) * 2; a++) {
 		/* set port physical address according port sequence */
@@ -3119,7 +3121,7 @@ static void init_cec_port_info(struct hdmi_port_info *port,
 			port[e].arc_supported = 1;
 		else
 			port[e].arc_supported = 0;
-		CEC_INFO_L(L_3, "portinfo id:%d arc:%d phy:%x,type:%d\n",
+		dprintk(L_3, "portinfo id:%d arc:%d phy:%x,type:%d\n",
 			   port[e].port_id, port[e].arc_supported,
 			   port[e].physical_address,
 			   port[e].type);
@@ -3413,7 +3415,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 				if (((cec_dev->port_seq >> i * 4) & 0xF) == a)
 					break;
 			}
-			CEC_INFO_L(L_3, "phy port:%d, ui port:%d\n", i, a);
+			dprintk(L_3, "phy port:%d, ui port:%d\n", i, a);
 
 			if ((tmp & (1 << i)) && a != 0xF)
 				tmp = 1;
@@ -3802,6 +3804,17 @@ static const struct cec_platform_data_s cec_t5d_data = {
 	.share_io = true,
 };
 
+static const struct cec_platform_data_s cec_t7_data = {
+	.chip_id = CEC_CHIP_T7,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_1,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+};
+
 static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, amlogic-aocec",
@@ -3850,6 +3863,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-t5d",
 		.data = &cec_t5d_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t7",
+		.data = &cec_t7_data,
 	},
 	{}
 };
@@ -4027,12 +4044,12 @@ static int aml_cec_probe(struct platform_device *pdev)
 	of_id = of_match_device(aml_cec_dt_match, &pdev->dev);
 	if (of_id) {
 		cec_dev->plat_data = (struct cec_platform_data_s *)of_id->data;
-		CEC_INFO_L(L_4, "compatible:%s\n", of_id->compatible);
-		CEC_INFO_L(L_4, "chip_id:%d\n", cec_dev->plat_data->chip_id);
-		CEC_INFO_L(L_4, "line_reg:%d\n", cec_dev->plat_data->line_reg);
-		CEC_INFO_L(L_4, "line_bit:%d\n", cec_dev->plat_data->line_bit);
-		CEC_INFO_L(L_4, "ceca_ver:%d\n", cec_dev->plat_data->ceca_ver);
-		CEC_INFO_L(L_4, "cecb_ver:%d\n", cec_dev->plat_data->cecb_ver);
+		dprintk(L_4, "compatible:%s\n", of_id->compatible);
+		dprintk(L_4, "chip_id:%d\n", cec_dev->plat_data->chip_id);
+		dprintk(L_4, "line_reg:%d\n", cec_dev->plat_data->line_reg);
+		dprintk(L_4, "line_bit:%d\n", cec_dev->plat_data->line_bit);
+		dprintk(L_4, "ceca_ver:%d\n", cec_dev->plat_data->ceca_ver);
+		dprintk(L_4, "cecb_ver:%d\n", cec_dev->plat_data->cecb_ver);
 	} else {
 		CEC_ERR("unable to get matched device\n");
 	}
@@ -4122,7 +4139,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		}
 		cec_dev->exit_reg = (void *)base;
 	} else {
-		CEC_INFO_L(L_4, "no ao_exit regs\n");
+		dprintk(L_4, "no ao_exit regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao");
@@ -4149,7 +4166,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		}
 		cec_dev->hdmi_rxreg = (void *)base;
 	} else {
-		CEC_INFO_L(L_4, "no hdmirx regs\n");
+		dprintk(L_4, "no hdmirx regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hhi");
@@ -4162,7 +4179,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		}
 		cec_dev->hhi_reg = (void *)base;
 	} else {
-		CEC_INFO_L(L_4, "no hhi regs\n");
+		dprintk(L_4, "no hhi regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "periphs");
@@ -4175,7 +4192,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		}
 		cec_dev->periphs_reg = (void *)base;
 	} else {
-		CEC_INFO_L(L_4, "no periphs regs\n");
+		dprintk(L_4, "no periphs regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "clock");
@@ -4188,7 +4205,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->clk_reg = (void *)base;
 	} else {
 		cec_dev->clk_reg = NULL;
-		CEC_INFO_L(L_4, "no clock regs\n");
+		dprintk(L_4, "no clock regs\n");
 	}
 
 	r = of_property_read_u32(node, "port_num", &cec_dev->port_num);
@@ -4210,28 +4227,28 @@ static int aml_cec_probe(struct platform_device *pdev)
 	r = of_property_read_string(node, "vendor_name",
 				    (const char **)&vend->vendor_name);
 	if (r)
-		CEC_INFO_L(L_4, "not find vendor name\n");
+		dprintk(L_4, "not find vendor name\n");
 
 	r = of_property_read_u32(node, "vendor_id", &vend->vendor_id);
 	if (r)
-		CEC_INFO_L(L_4, "not find vendor id\n");
+		dprintk(L_4, "not find vendor id\n");
 
 	r = of_property_read_string(node, "product_desc",
 				    (const char **)&vend->product_desc);
 	if (r)
-		CEC_INFO_L(L_4, "not find product desc\n");
+		dprintk(L_4, "not find product desc\n");
 
 	r = of_property_read_string(node, "cec_osd_string",
 				    (const char **)&vend->cec_osd_string);
 	if (r) {
-		CEC_INFO_L(L_4, "not find cec osd string\n");
+		dprintk(L_4, "not find cec osd string\n");
 		strcpy(vend->cec_osd_string, "AML TV/BOX");
 	}
 	r = of_property_read_u32(node, "cec_version",
 				 &cec_dev->cec_info.cec_version);
 	if (r) {
 		/* default set to 2.0 */
-		CEC_INFO_L(L_4, "not find cec_version\n");
+		dprintk(L_4, "not find cec_version\n");
 		cec_dev->cec_info.cec_version = CEC_VERSION_14A;
 	}
 
@@ -4260,7 +4277,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->irq_ceca = cec_dev->irq_cecb;
 	}
 
-	CEC_INFO_L(0, "irq cnt:%d, a:%d, b:%d\n", __of_irq_count(node),
+	dprintk(0, "irq cnt:%d, a:%d, b:%d\n", __of_irq_count(node),
 		   cec_dev->irq_ceca, cec_dev->irq_cecb);
 	if (of_get_property(node, "interrupt-names", NULL)) {
 		if (of_property_count_strings(node, "interrupt-names") > 1) {

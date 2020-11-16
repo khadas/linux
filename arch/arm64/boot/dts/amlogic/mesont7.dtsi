@@ -1149,29 +1149,29 @@
 	};
 
 	aocec: aocec {
-		compatible = "amlogic, aocec-sc2";
+		compatible = "amlogic, aocec-t7";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0x000000>;
-		product_desc = "SC2"; /* Max Chars: 16    */
-		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
+		product_desc = "T7"; /* Max Chars: 16    */
+		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
-		port_num = <1>;
+		port_num = <4>;
 		output = <1>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
-		ee_cec;
-		arc_port_mask = <0x1>;
+		/*ee_cec;*/ /*use cec a or b*/
+		arc_port_mask = <0x2>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
 			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
-		pinctrl-0=<&eecec_a>;
-		pinctrl-1=<&eecec_b>;
-		pinctrl-2=<&eecec_b>;
+		pinctrl-0=<&cec_a>;
+		pinctrl-1=<&cec_b>;
+		pinctrl-2=<&cec_b>;
 		clocks = <&clkc CLKID_CECA_32K_CLKOUT>,
 			<&clkc CLKID_CECB_32K_CLKOUT>;
 		clock-names = "ceca_clk","cecb_clk";
@@ -2114,16 +2114,16 @@
 		};
 	};
 
-	eecec_a: ee_ceca {
+	cec_a: cec_a {
 		mux {
-			groups = "cec_a_h";
+			groups = "cec_a";
 			function = "cec_a";
 		};
 	};
 
-	eecec_b: ee_cecb {
+	cec_b: cec_b {
 		mux {
-			groups = "cec_b_h";
+			groups = "cec_b";
 			function = "cec_b";
 		};
 	};
