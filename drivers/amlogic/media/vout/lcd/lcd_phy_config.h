@@ -8,6 +8,14 @@
 #ifndef __AML_LCD_PHY_CONFIG_H__
 #define __AML_LCD_PHY_CONFIG_H__
 
+struct lcd_phy_ctrl_s {
+	void (*phy_set_lvds)(struct lcd_config_s *pconf, int status);
+	void (*phy_set_vx1)(struct lcd_config_s *pconf, int status);
+	void (*phy_set_mlvds)(struct lcd_config_s *pconf, int status);
+	void (*phy_set_p2p)(struct lcd_config_s *pconf, int status);
+	void (*phy_set_mipi)(struct lcd_config_s *pconf, int status);
+};
+
 /* -------------------------- */
 /* lvsd phy parameters define */
 /* -------------------------- */

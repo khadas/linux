@@ -39,6 +39,8 @@ enum bl_chip_type_e {
 	BL_CHIP_SM1,
 	BL_CHIP_TM2,
 	BL_CHIP_T5,
+	BL_CHIP_T5D,
+	BL_CHIP_T7,
 	BL_CHIP_MAX,
 };
 
@@ -173,6 +175,7 @@ struct bl_config_s {
 struct aml_bl_drv_s {
 	unsigned int index;
 	unsigned int level;
+	unsigned int dv_level;
 	unsigned int state;
 	struct bl_data_s *data;
 	struct device             *dev;
@@ -181,6 +184,7 @@ struct aml_bl_drv_s {
 	struct workqueue_struct   *workqueue;
 	struct delayed_work       bl_delayed_work;
 	struct resource *res_ldim_vsync_irq;
+	struct resource *res_bl_vsync_irq;
 	/*struct resource *res_ldim_rdma_irq;*/
 };
 

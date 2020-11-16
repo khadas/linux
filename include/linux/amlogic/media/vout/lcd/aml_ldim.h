@@ -184,9 +184,6 @@ struct aml_ldim_driver_s {
 	int (*device_bri_check)(void);
 	void (*config_print)(void);
 	void (*test_ctrl)(int flag);
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *ldim_vpu_dev;
-#endif
 };
 
 struct aml_ldim_driver_s *aml_ldim_get_driver(void);

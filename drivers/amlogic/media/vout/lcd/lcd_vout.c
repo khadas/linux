@@ -27,7 +27,6 @@
 #include <linux/of.h>
 #endif
 #include <linux/amlogic/pm.h>
-#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
@@ -291,9 +290,8 @@ static void lcd_power_ctrl(int status)
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct aml_lcd_extern_driver_s *ext_drv;
 #endif
-	unsigned int i, index, wait, temp;
+	unsigned int i, index, wait;
 	int value = -1;
-	int ret = 0;
 
 	LCDPR("%s: %d\n", __func__, status);
 	i = 0;
@@ -360,17 +358,6 @@ static void lcd_power_ctrl(int status)
 				LCDERR("wait_gpio %d timeout!\n", value);
 			break;
 		case LCD_POWER_TYPE_CLK_SS:
-			temp = lcd_driver->lcd_config->lcd_timing.ss_level;
-			value = (power_step->value) & 0xff;
-			ret = lcd_set_ss(0xff,
-					 (value >> LCD_CLK_SS_BIT_FREQ) & 0xf,
-					 (value >> LCD_CLK_SS_BIT_MODE) & 0xf);
-			if (ret == 0) {
-				temp &= ~(0xff << 8);
-				temp |= (value << 8);
-				lcd_driver->lcd_config->lcd_timing.ss_level =
-					temp;
-			}
 			break;
 		default:
 			break;
@@ -809,30 +796,6 @@ static struct notifier_block lcd_bl_select_nb = {
 	.notifier_call = lcd_bl_select_notifier,
 };
 
-static int lcd_extern_select_notifier(struct notifier_block *nb,
-				      unsigned long event, void *data)
-{
-	unsigned int *index;
-	struct lcd_config_s *pconf = lcd_driver->lcd_config;
-
-	if ((event & LCD_EVENT_EXTERN_SEL) == 0)
-		return NOTIFY_DONE;
-	/* LCDPR("%s: 0x%lx\n", __func__, event); */
-
-	index = (unsigned int *)data;
-	*index = pconf->extern_index;
-	if (pconf->lcd_basic.lcd_type == LCD_MIPI) {
-		if (*index == LCD_EXTERN_INDEX_INVALID)
-			*index = pconf->lcd_control.mipi_config->extern_init;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block lcd_extern_select_nb = {
-	.notifier_call = lcd_extern_select_notifier,
-};
-
 static int lcd_vlock_param_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
@@ -879,9 +842,6 @@ static int lcd_notifier_register(void)
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
 		LCDERR("register aml_bl_select_notifier failed\n");
-	ret = aml_lcd_notifier_register(&lcd_extern_select_nb);
-	if (ret)
-		LCDERR("register lcd_extern_select_nb failed\n");
 	ret = aml_lcd_notifier_register(&lcd_vlock_param_nb);
 	if (ret)
 		LCDERR("register lcd_vlock_param_nb failed\n");
@@ -899,7 +859,6 @@ static void lcd_notifier_unregister(void)
 	aml_lcd_notifier_unregister(&lcd_power_encl_on_nb);
 
 	aml_lcd_notifier_unregister(&lcd_bl_select_nb);
-	aml_lcd_notifier_unregister(&lcd_extern_select_nb);
 	aml_lcd_notifier_unregister(&lcd_vlock_param_nb);
 }
 
@@ -1346,6 +1305,16 @@ static int lcd_config_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(lcd_driver->dev->of_node,
+				   "pxp", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get lcd_pxp\n");
+		lcd_driver->lcd_pxp = 0;
+	} else {
+		lcd_driver->lcd_pxp = (unsigned char)val;
+	}
+
+	ret = of_property_read_u32(lcd_driver->dev->of_node,
 				   "fr_auto_policy", &val);
 	if (ret) {
 		if (lcd_debug_print_flag)
@@ -1437,14 +1406,10 @@ static int lcd_config_probe(struct platform_device *pdev)
 
 	if (lcd_driver->lcd_key_valid) {
 		if (lcd_driver->workqueue) {
-			queue_delayed_work
-			(lcd_driver->workqueue,
-			 &lcd_driver->lcd_probe_delayed_work,
-			 msecs_to_jiffies(2000));
+			queue_work(lcd_driver->workqueue,
+				&lcd_driver->lcd_probe_work);
 		} else {
-			schedule_delayed_work
-			(&lcd_driver->lcd_probe_delayed_work,
-			 msecs_to_jiffies(2000));
+			schedule_work(&lcd_driver->lcd_probe_work);
 		}
 	} else {
 		ret = lcd_mode_probe(lcd_driver->dev);
@@ -1521,6 +1486,18 @@ static struct lcd_data_s lcd_data_t5 = {
 	.reg_map_table = &lcd_reg_tl1[0],
 };
 
+static struct lcd_data_s lcd_data_t5d = {
+	.chip_type = LCD_CHIP_T5D,
+	.chip_name = "t5d",
+	.reg_map_table = &lcd_reg_tl1[0],
+};
+
+static struct lcd_data_s lcd_data_t7 = {
+	.chip_type = LCD_CHIP_T7,
+	.chip_name = "t7",
+	.reg_map_table = &lcd_reg_tl1[0],
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-g12a",
@@ -1545,6 +1522,14 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-t5",
 		.data = &lcd_data_t5,
+	},
+	{
+		.compatible = "amlogic, lcd-t5d",
+		.data = &lcd_data_t5d,
+	},
+	{
+		.compatible = "amlogic, lcd-t7",
+		.data = &lcd_data_t7,
 	},
 	{}
 };
@@ -1586,8 +1571,8 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_vout_serve_bypass = 0;
 
 	/* init workqueue */
-	INIT_DELAYED_WORK(&lcd_driver->lcd_probe_delayed_work,
-			  lcd_config_probe_delayed);
+	INIT_WORK(&lcd_driver->lcd_probe_work,
+		lcd_config_probe_delayed);
 	INIT_DELAYED_WORK(&lcd_test_delayed_work, lcd_auto_test_delayed);
 	lcd_driver->workqueue = create_singlethread_workqueue("lcd_work_queue");
 	if (!lcd_driver->workqueue)
@@ -1608,7 +1593,7 @@ static int lcd_remove(struct platform_device *pdev)
 	if (!lcd_driver)
 		return 0;
 
-	cancel_delayed_work(&lcd_driver->lcd_probe_delayed_work);
+	cancel_work_sync(&lcd_driver->lcd_probe_work);
 	cancel_work_sync(&lcd_driver->lcd_resume_work);
 	if (lcd_driver->workqueue)
 		destroy_workqueue(lcd_driver->workqueue);

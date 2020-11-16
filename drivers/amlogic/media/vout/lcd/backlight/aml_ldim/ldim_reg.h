@@ -1,12 +1,11 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *
  * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
  *
+ *
  */
-
-#include <linux/amlogic/iomap.h>
-#include <linux/amlogic/media/utils/vdec_reg.h>
+#include "../../lcd_reg.h"
 
 #define LDIM_BL_ADDR_PORT			0x144e
 #define LDIM_BL_DATA_PORT			0x144f
@@ -150,25 +149,25 @@
 
 static inline void ldim_wr_vcbus(unsigned int addr, unsigned int val)
 {
-	aml_write_vcbus(addr, val);
+	lcd_vcbus_write(addr, val);
 }
 
 static inline unsigned int ldim_rd_vcbus(unsigned int addr)
 {
-	return aml_read_vcbus(addr);
+	return lcd_vcbus_read(addr);
 }
 
 static inline void ldim_wr_vcbus_bits(unsigned int addr, unsigned int val,
 				      unsigned int start, unsigned int len)
 {
-	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
+	lcd_vcbus_setb(addr, val, start, len);
 }
 
 static inline unsigned int ldim_rd_vcbus_bits(unsigned int addr,
 					      unsigned int start,
 					      unsigned int len)
 {
-	return ((aml_read_vcbus(addr) >> start) & ((1 << len) - 1));
+	return lcd_vcbus_getb(addr, start, len);
 }
 
 static inline void ldim_wr_reg(unsigned int addr, unsigned int data)
@@ -177,15 +176,15 @@ static inline void ldim_wr_reg(unsigned int addr, unsigned int data)
 	VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, addr);
 	VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
 #else
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
-	aml_write_vcbus(LDIM_BL_DATA_PORT, data);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
 #endif
 }
 
 static inline unsigned int ldim_rd_reg(unsigned int addr)
 {
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
-	return aml_read_vcbus(LDIM_BL_DATA_PORT);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
+	return lcd_vcbus_read(LDIM_BL_DATA_PORT);
 }
 
 static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
@@ -193,10 +192,10 @@ static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
 {
 	unsigned int data;
 
-	data = ldim_rd_reg(addr);
+	data = ldim_rd_32bits(addr);
 	data = (data & (~((1 << len) - 1) << start))  |
 		((val & ((1 << len) - 1)) << start);
-	ldim_wr_reg(addr, data);
+	ldim_wr_32bits(addr, data);
 }
 
 static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,
@@ -204,29 +203,29 @@ static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, sub_cnt;
+	unsigned int mask, subcnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	sub_cnt = 32 / size_t;
+	subcnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		data = data | ((pdata[i] & mask) << (size_t *cnt));
 		cnt++;
-		if (cnt == sub_cnt) {
-			aml_write_vcbus(LDIM_BL_DATA_PORT, data);
+		if (cnt == subcnt) {
+			lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
 			data = 0;
 			cnt = 0;
 			addr++;
 		}
 	}
 	if (cnt != 0)
-		aml_write_vcbus(LDIM_BL_DATA_PORT, data);
+		lcd_vcbus_write(LDIM_BL_DATA_PORT, data);
 }
 
 static inline void ldim_rd_lut(unsigned int base, unsigned int *pdata,
@@ -234,21 +233,21 @@ static inline void ldim_rd_lut(unsigned int base, unsigned int *pdata,
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, sub_cnt;
+	unsigned int mask, subcnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	sub_cnt = 32 / size_t;
+	subcnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == sub_cnt) {
-			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+		if (cnt == subcnt) {
+			data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
 			pdata[i - 1] = data & mask;
 			pdata[i] = mask & (data >> size_t);
 			data = 0;
@@ -257,7 +256,7 @@ static inline void ldim_rd_lut(unsigned int base, unsigned int *pdata,
 		}
 	}
 	if (cnt != 0)
-		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+		data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
 }
 
 static inline void ldim_rd_lut2(unsigned int base, unsigned int *pdata,
@@ -265,21 +264,21 @@ static inline void ldim_rd_lut2(unsigned int base, unsigned int *pdata,
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, sub_cnt;
+	unsigned int mask, subcnt;
 	unsigned int cnt;
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	sub_cnt = 2;
+	subcnt = 2;
 	cnt  = 0;
 	data = 0;
 
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == sub_cnt) {
-			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+		if (cnt == subcnt) {
+			data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
 			pdata[i - 1] = data & mask;
 			pdata[i] = mask & (data >> size_t);
 			data = 0;
@@ -288,7 +287,7 @@ static inline void ldim_rd_lut2(unsigned int base, unsigned int *pdata,
 		}
 	}
 	if (cnt != 0)
-		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+		data = lcd_vcbus_read(LDIM_BL_DATA_PORT);
 }
 
 static inline void ldim_wr_lut_drt(int base, int *pdata, int len)
@@ -302,9 +301,9 @@ static inline void ldim_wr_lut_drt(int base, int *pdata, int len)
 	for (i = 0; i < len; i++)
 		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, pdata[i]);
 #else
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	lcd_vcbus_write(LDIM_BL_ADDR_PORT, addr);
 	for (i = 0; i < len; i++)
-		aml_write_vcbus(LDIM_BL_DATA_PORT, pdata[i]);
+		lcd_vcbus_write(LDIM_BL_DATA_PORT, pdata[i]);
 #endif
 }
 

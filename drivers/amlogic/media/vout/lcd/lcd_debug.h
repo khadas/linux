@@ -31,6 +31,7 @@ struct lcd_tcon_adb_reg_s {
 };
 
 struct lcd_debug_info_reg_s {
+	unsigned int *reg_ana_table;
 	unsigned int *reg_clk_table;
 	unsigned int *reg_encl_table;
 	unsigned int *reg_pinmux_table;
@@ -41,33 +42,6 @@ struct lcd_debug_info_if_s {
 	int (*reg_dump_interface)(char *buf, int offset);
 	int (*reg_dump_phy)(char *buf, int offset);
 	struct class_attribute *class_attrs;
-};
-
-static unsigned int lcd_reg_dump_clk_dft[] = {
-	HHI_HDMI_PLL_CNTL,
-	HHI_HDMI_PLL_CNTL2,
-	HHI_HDMI_PLL_CNTL3,
-	HHI_HDMI_PLL_CNTL4,
-	HHI_HDMI_PLL_CNTL5,
-	HHI_HDMI_PLL_CNTL6,
-	HHI_VID_PLL_CLK_DIV,
-	HHI_VIID_CLK_DIV,
-	HHI_VIID_CLK_CNTL,
-	HHI_VID_CLK_CNTL2,
-	LCD_DEBUG_REG_END
-};
-
-static unsigned int lcd_reg_dump_clk_axg[] = {
-	HHI_GP0_PLL_CNTL_AXG,
-	HHI_GP0_PLL_CNTL2_AXG,
-	HHI_GP0_PLL_CNTL3_AXG,
-	HHI_GP0_PLL_CNTL4_AXG,
-	HHI_GP0_PLL_CNTL5_AXG,
-	HHI_GP0_PLL_CNTL1_AXG,
-	HHI_VIID_CLK_DIV,
-	HHI_VIID_CLK_CNTL,
-	HHI_VID_CLK_CNTL2,
-	LCD_DEBUG_REG_END
 };
 
 static unsigned int lcd_reg_dump_clk_gp0_g12a[] = {
@@ -108,6 +82,23 @@ static unsigned int lcd_reg_dump_clk_tl1[] = {
 	HHI_TCON_PLL_CNTL3,
 	HHI_TCON_PLL_CNTL4,
 	HHI_VID_PLL_CLK_DIV,
+	HHI_VIID_CLK_DIV,
+	HHI_VIID_CLK_CNTL,
+	HHI_VID_CLK_CNTL2,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_ana_t5[] = {
+	HHI_TCON_PLL_CNTL0,
+	HHI_TCON_PLL_CNTL1,
+	HHI_TCON_PLL_CNTL2,
+	HHI_TCON_PLL_CNTL3,
+	HHI_TCON_PLL_CNTL4,
+	HHI_VID_PLL_CLK_DIV,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_clk_t5[] = {
 	HHI_VIID_CLK_DIV,
 	HHI_VIID_CLK_CNTL,
 	HHI_VID_CLK_CNTL2,
@@ -168,27 +159,16 @@ static unsigned int lcd_reg_dump_encl_tl1[] = {
 	LCD_DEBUG_REG_END
 };
 
-static unsigned int lcd_reg_dump_pinmux_gxl[] = {
-	PERIPHS_PIN_MUX_1,
-	PERIPHS_PIN_MUX_3,
-	LCD_DEBUG_REG_END
-};
-
-static unsigned int lcd_reg_dump_pinmux_txl[] = {
-	PERIPHS_PIN_MUX_0,
-	LCD_DEBUG_REG_END
-};
-
-static unsigned int lcd_reg_dump_pinmux_txlx[] = {
-	PERIPHS_PIN_MUX_0,
-	PERIPHS_PIN_MUX_8,
-	LCD_DEBUG_REG_END
-};
-
 static unsigned int lcd_reg_dump_pinmux_tl1[] = {
 	PERIPHS_PIN_MUX_7_TL1,
 	PERIPHS_PIN_MUX_8_TL1,
 	PERIPHS_PIN_MUX_9_TL1,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_pinmux_t5[] = {
+	PERIPHS_PIN_MUX_5_TL1,
+	PERIPHS_PIN_MUX_6_TL1,
 	LCD_DEBUG_REG_END
 };
 

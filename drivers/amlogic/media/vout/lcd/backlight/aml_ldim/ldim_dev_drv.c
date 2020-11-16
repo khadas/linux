@@ -15,8 +15,6 @@
 #include <linux/spinlock.h>
 #include <linux/irq.h>
 #include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -24,7 +22,6 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
-#include <linux/amlogic/gki_module.h>
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 #include "../aml_bl_reg.h"
@@ -168,7 +165,7 @@ static int ldim_gpio_register(int index, int init_value)
 
 	/* request gpio */
 	ld_gpio->gpio = devm_gpiod_get_index(ldim_dev_config.dev,
-					     "ldim_dev", index, value);
+		"ldim_dev", index, value);
 	if (IS_ERR(ld_gpio->gpio)) {
 		LDIMERR("register gpio %s[%d]: %p, err: %d\n",
 			ld_gpio->name, index, ld_gpio->gpio,
@@ -359,8 +356,8 @@ static int ldim_pwm_vs_update(void)
 }
 
 #define EXT_LEN_MAX   500
-void ldim_dev_init_table_dynamic_size_print(struct ldim_dev_config_s
-						   *econf, int flag)
+static void ldim_dev_init_table_dynamic_size_print
+		(struct ldim_dev_config_s *econf, int flag)
 {
 	int i, j, k, max_len;
 	unsigned char cmd_size;
@@ -439,8 +436,8 @@ init_table_dynamic_print_next:
 	kfree(str);
 }
 
-void ldim_dev_init_table_fixed_size_print(struct ldim_dev_config_s
-						 *econf, int flag)
+static void ldim_dev_init_table_fixed_size_print
+		(struct ldim_dev_config_s *econf, int flag)
 {
 	int i, j, k, max_len;
 	unsigned char cmd_size;
@@ -601,8 +598,8 @@ static void ldim_dev_config_print(void)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("lidm_pwm state:\n"
-				"  period:            %lld\n"
-				"  duty_cycle:        %lld\n"
+				"  period:            %d\n"
+				"  duty_cycle:        %d\n"
 				"  polarity:          %d\n"
 				"  enabled:           %d\n",
 				pstate.period, pstate.duty_cycle,
@@ -654,8 +651,8 @@ static void ldim_dev_config_print(void)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("analog_pwm state:\n"
-				"  period:            %lld\n"
-				"  duty_cycle:        %lld\n"
+				"  period:            %d\n"
+				"  duty_cycle:        %d\n"
 				"  polarity:          %d\n"
 				"  enabled:           %d\n",
 				pstate.period, pstate.duty_cycle,
@@ -759,10 +756,9 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 	return ret;
 }
 
-int ldim_dev_init_table_dynamic_size_load_dts(struct device_node
-						     *of_node,
-						     struct ldim_dev_config_s
-						     *ldconf, int flag)
+static int ldim_dev_init_table_dynamic_size_load_dts
+		(struct device_node *of_node,
+		 struct ldim_dev_config_s *ldconf, int flag)
 {
 	unsigned char cmd_size, type;
 	int i = 0, j, val, max_len, step = 0, ret = 0;
@@ -846,9 +842,9 @@ init_table_dynamic_dts_next:
 	return 0;
 }
 
-int ldim_dev_init_table_fixed_size_load_dts(struct device_node *of_node,
-					    struct ldim_dev_config_s *ldconf,
-					    int flag)
+static int ldim_dev_init_table_fixed_size_load_dts
+		(struct device_node *of_node,
+		 struct ldim_dev_config_s *ldconf, int flag)
 {
 	unsigned char cmd_size;
 	int i = 0, j, val, max_len, step = 0, ret = 0;
@@ -1051,9 +1047,9 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 			bl_pwm->pwm_duty_min = temp[3];
 			bl_pwm->pwm_duty = temp[4];
 		}
-		LDIMPR("get analog_pwm pol = %d, freq = %d, duty_max = %d%%",
-		       bl_pwm->pwm_method, bl_pwm->pwm_freq,
-		       bl_pwm->pwm_duty_max);
+		LDIMPR("get analog_pwm pol = %d, freq = %d, duty_max = %d%%,"
+			bl_pwm->pwm_method, bl_pwm->pwm_freq,
+			bl_pwm->pwm_duty_max);
 		LDIMPR(" duty_min = %d%%, default duty = %d%%\n",
 		       bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
 
@@ -1108,8 +1104,7 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 						 &temp[0], val);
 		if (ret) {
 			for (i = 0; i < ldim_dev_config.bl_zone_num; i++)
-				ldim_dev_config.bl_mapping[i] =
-					(unsigned short)i;
+				ldim_dev_config.bl_mapping[i] = (unsigned short)i;
 			goto ldim_dev_get_config_from_dts_next;
 		}
 	}
@@ -1702,27 +1697,14 @@ static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 		return ret;
 
 	ret = -1;
-	if (strcmp(ldev_conf->name, "iw7027") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027
+	if (strcmp(ldev_conf->name, "iw7027") == 0)
 		ret = ldim_dev_iw7027_probe(ldim_drv);
-#endif
-	} else if (strcmp(ldev_conf->name, "global") == 0) {
+	else if (strcmp(ldev_conf->name, "ob3350") == 0)
+		ret = ldim_dev_ob3350_probe(ldim_drv);
+	else if (strcmp(ldev_conf->name, "global") == 0)
 		ret = ldim_dev_global_probe(ldim_drv);
-	} else if (strcmp(ldev_conf->name, "iw7027_he") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027_HE
-		ret = ldim_dev_iw7027_he_probe(ldim_drv);
-#endif
-	} else if (strcmp(ldev_conf->name, "iw7038") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7038
-		ret = ldim_dev_iw7038_probe(ldim_drv);
-#endif
-	} else if (strcmp(ldev_conf->name, "iw70xx_mcu") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW70XX_MCU
-		ret = ldim_dev_iw70xx_mcu_probe(ldim_drv);
-#endif
-	} else {
+	else
 		LDIMERR("invalid device name: %s\n", ldev_conf->name);
-	}
 
 	if (ret) {
 		LDIMERR("add device driver failed: %s(%d)\n",
@@ -1742,27 +1724,14 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 	int ret = -1;
 
 	if (ldim_dev_probe_flag) {
-		if (strcmp(ldev_conf->name, "iw7027") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027
+		if (strcmp(ldev_conf->name, "iw7027") == 0)
 			ret = ldim_dev_iw7027_remove(ldim_drv);
-#endif
-		} else if (strcmp(ldev_conf->name, "global") == 0) {
+		else if (strcmp(ldev_conf->name, "ob3350") == 0)
+			ret = ldim_dev_ob3350_remove(ldim_drv);
+		else if (strcmp(ldev_conf->name, "global") == 0)
 			ret = ldim_dev_global_remove(ldim_drv);
-		} else if (strcmp(ldev_conf->name, "iw7027_he") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7027_HE
-			ret = ldim_dev_iw7027_he_remove(ldim_drv);
-#endif
-		} else if (strcmp(ldev_conf->name, "iw7038") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW7038
-			ret = ldim_dev_iw7038_remove(ldim_drv);
-#endif
-		} else if (strcmp(ldev_conf->name, "iw70xx_mcu") == 0) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING_IW70XX_MCU
-			ret = ldim_dev_iw70xx_mcu_remove(ldim_drv);
-#endif
-		} else {
+		else
 			LDIMERR("invalid device name: %s\n", ldev_conf->name);
-		}
 
 		if (ret) {
 			LDIMERR("remove device driver failed: %s(%d)\n",
@@ -1872,3 +1841,4 @@ module_exit(ldim_dev_exit);
 //MODULE_DESCRIPTION("LDIM device Driver for LCD Backlight");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Amlogic, Inc.");
+

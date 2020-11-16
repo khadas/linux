@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vclk_serve.h>
@@ -19,28 +18,19 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 
-#define LCD_MAP_HIU	  0
-#define LCD_MAP_VCBUS	  1
-#define LCD_MAP_CBUS	  2
-#define LCD_MAP_PERIPHS   3
-#define LCD_MAP_DSI_HOST  4
-#define LCD_MAP_DSI_PHY   5
-#define LCD_MAP_TCON      6
-#define LCD_MAP_MAX       7
+#define LCD_MAP_PERIPHS   0
+#define LCD_MAP_DSI_HOST  1
+#define LCD_MAP_DSI_PHY   2
+#define LCD_MAP_TCON      3
+#define LCD_MAP_MAX       4
 
 int lcd_reg_g12a[] = {
-	LCD_MAP_HIU,
-	LCD_MAP_VCBUS,
-	LCD_MAP_CBUS,
 	LCD_MAP_DSI_HOST,
 	LCD_MAP_DSI_PHY,
 	LCD_MAP_MAX,
 };
 
 int lcd_reg_tl1[] = {
-	LCD_MAP_HIU,
-	LCD_MAP_VCBUS,
-	LCD_MAP_CBUS,
 	LCD_MAP_TCON,
 	LCD_MAP_PERIPHS,
 	LCD_MAP_MAX,
@@ -53,6 +43,7 @@ struct lcd_reg_map_s {
 	char flag;
 };
 
+static spinlock_t lcd_tcon_reg_lock;
 static struct lcd_reg_map_s *lcd_reg_map;
 
 int lcd_ioremap(struct platform_device *pdev)
@@ -104,6 +95,8 @@ int lcd_ioremap(struct platform_device *pdev)
 		i++;
 	}
 
+	spin_lock_init(&lcd_tcon_reg_lock);
+
 	return 0;
 }
 
@@ -118,69 +111,6 @@ static int check_lcd_ioremap(int n)
 		return -1;
 	}
 	return 0;
-}
-
-static inline void __iomem *check_lcd_hiu_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_base, reg_offset;
-
-	reg_bus = LCD_MAP_HIU;
-	if (check_lcd_ioremap(reg_bus))
-		return NULL;
-
-	reg_base = lcd_reg_map[reg_bus].base_addr - LCD_HIU_BASE;
-	reg_offset = (_reg << 2) - reg_base;
-
-	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid hiu reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = lcd_reg_map[reg_bus].p + reg_offset;
-	return p;
-}
-
-static inline void __iomem *check_lcd_vcbus_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_base, reg_offset;
-
-	reg_bus = LCD_MAP_VCBUS;
-	if (check_lcd_ioremap(reg_bus))
-		return NULL;
-
-	reg_base = lcd_reg_map[reg_bus].base_addr - LCD_VCBUS_BASE;
-	reg_offset = (_reg << 2) - reg_base;
-
-	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid vcbus reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = lcd_reg_map[reg_bus].p + reg_offset;
-	return p;
-}
-
-static inline void __iomem *check_lcd_cbus_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_base, reg_offset;
-
-	reg_bus = LCD_MAP_CBUS;
-	if (check_lcd_ioremap(reg_bus))
-		return NULL;
-
-	reg_base = lcd_reg_map[reg_bus].base_addr - LCD_CBUS_BASE;
-	reg_offset = (_reg << 2) - reg_base;
-
-	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid cbus reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = lcd_reg_map[reg_bus].p + reg_offset;
-	return p;
 }
 
 static inline void __iomem *check_lcd_periphs_reg(unsigned int _reg)
@@ -283,8 +213,6 @@ unsigned int lcd_vcbus_read(unsigned int reg)
 {
 #ifdef CONFIG_AMLOGIC_VPU
 	return vpu_vcbus_read(reg);
-#else
-	return aml_read_vcbus(reg);
 #endif
 };
 
@@ -292,42 +220,8 @@ void lcd_vcbus_write(unsigned int reg, unsigned int value)
 {
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_vcbus_write(reg, value);
-#else
-	aml_write_vcbus(reg, value);
 #endif
 };
-
-int lcd_regmap_update_bits(unsigned int bus_type,
-			   unsigned int reg,
-			   unsigned int mask,
-			   unsigned int val)
-{
-	unsigned int orig;
-	unsigned int tmp;
-
-	if (check_lcd_ioremap(bus_type))
-		return -1;
-
-	orig = readl(lcd_reg_map[bus_type].p + reg);
-
-	tmp = orig & ~mask;
-	tmp |= val & mask;
-	writel(tmp, (lcd_reg_map[bus_type].p + reg));
-
-	return 0;
-}
-
-void lcd_vcbus_update_bits(unsigned int reg,
-			   unsigned int mask,
-			   unsigned int val)
-{
-	int ret;
-
-	ret = lcd_regmap_update_bits(LCD_VCBUS_BASE,
-				     reg << 2, mask, val);
-	if (ret)
-		LCDERR("write vcbus reg %x error %d\n", reg, ret);
-}
 
 void lcd_vcbus_setb(unsigned int reg, unsigned int value,
 		    unsigned int _start, unsigned int _len)
@@ -353,38 +247,38 @@ void lcd_vcbus_clr_mask(unsigned int reg, unsigned int _mask)
 	lcd_vcbus_write(reg, (lcd_vcbus_read(reg) & (~(_mask))));
 }
 
-unsigned int lcd_hiu_read(unsigned int _reg)
+unsigned int lcd_clk_read(unsigned int _reg)
 {
 	return vclk_clk_reg_read(_reg);
 };
 
-void lcd_hiu_write(unsigned int _reg, unsigned int _value)
+void lcd_clk_write(unsigned int _reg, unsigned int _value)
 {
 	vclk_clk_reg_write(_reg, _value);
 };
 
-void lcd_hiu_setb(unsigned int _reg, unsigned int _value,
+void lcd_clk_setb(unsigned int _reg, unsigned int _value,
 		  unsigned int _start, unsigned int _len)
 {
-	lcd_hiu_write(_reg, ((lcd_hiu_read(_reg) &
+	lcd_clk_write(_reg, ((lcd_clk_read(_reg) &
 		      ~(((1L << (_len)) - 1) << (_start))) |
 		      (((_value) & ((1L << (_len)) - 1)) << (_start))));
 }
 
-unsigned int lcd_hiu_getb(unsigned int _reg,
+unsigned int lcd_clk_getb(unsigned int _reg,
 			  unsigned int _start, unsigned int _len)
 {
-	return (lcd_hiu_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+	return (lcd_clk_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
 }
 
-void lcd_hiu_set_mask(unsigned int _reg, unsigned int _mask)
+void lcd_clk_set_mask(unsigned int _reg, unsigned int _mask)
 {
-	lcd_hiu_write(_reg, (lcd_hiu_read(_reg) | (_mask)));
+	lcd_clk_write(_reg, (lcd_clk_read(_reg) | (_mask)));
 }
 
-void lcd_hiu_clr_mask(unsigned int _reg, unsigned int _mask)
+void lcd_clk_clr_mask(unsigned int _reg, unsigned int _mask)
 {
-	lcd_hiu_write(_reg, (lcd_hiu_read(_reg) & (~(_mask))));
+	lcd_clk_write(_reg, (lcd_clk_read(_reg) & (~(_mask))));
 }
 
 unsigned int lcd_ana_read(unsigned int _reg)
@@ -540,123 +434,239 @@ void dsi_phy_clr_mask(unsigned int reg, unsigned int _mask)
 unsigned int lcd_tcon_read(unsigned int _reg)
 {
 	void __iomem *p;
+	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
 	p = check_lcd_tcon_reg(_reg);
 	if (p)
-		return readl(p);
+		val = readl(p);
 	else
-		return -1;
+		val = 0;
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return val;
 };
 
 void lcd_tcon_write(unsigned int _reg, unsigned int _value)
 {
 	void __iomem *p;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
 	p = check_lcd_tcon_reg(_reg);
 	if (p)
 		writel(_value, p);
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 };
 
 void lcd_tcon_setb(unsigned int reg, unsigned int value,
 		   unsigned int _start, unsigned int _len)
 {
-	lcd_tcon_write(reg, ((lcd_tcon_read(reg) &
-		       (~(((1L << _len) - 1) << _start))) |
-		       ((value & ((1L << _len) - 1)) << _start)));
+	void __iomem *p;
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
+
+	p = check_lcd_tcon_reg(reg);
+	if (p) {
+		temp = readl(p);
+		temp = (temp & (~(((1L << _len) - 1) << _start))) |
+			((value & ((1L << _len) - 1)) << _start);
+		writel(temp, p);
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 }
 
 unsigned int lcd_tcon_getb(unsigned int reg,
 			   unsigned int _start, unsigned int _len)
 {
-	return (lcd_tcon_read(reg) >> _start) & ((1L << _len) - 1);
-}
+	void __iomem *p;
+	unsigned int val;
+	unsigned long flags = 0;
 
-void lcd_tcon_set_mask(unsigned int reg, unsigned int _mask)
-{
-	lcd_tcon_write(reg, (lcd_tcon_read(reg) | (_mask)));
-}
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
-void lcd_tcon_clr_mask(unsigned int reg, unsigned int _mask)
-{
-	lcd_tcon_write(reg, (lcd_tcon_read(reg) & (~(_mask))));
+	p = check_lcd_tcon_reg(reg);
+	if (p) {
+		val = readl(p);
+		val = (val >> _start) & ((1L << _len) - 1);
+	} else {
+		val = 0;
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return val;
 }
 
 void lcd_tcon_update_bits(unsigned int reg,
 			  unsigned int mask, unsigned int value)
 {
-	if (mask == 0xffffffff) {
-		lcd_tcon_write(reg, value);
-	} else {
-		lcd_tcon_write(reg, (lcd_tcon_read(reg) & (~(mask))) |
-			       (value & mask));
+	void __iomem *p;
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
+
+	p = check_lcd_tcon_reg(reg);
+	if (p) {
+		if (mask == 0xffffffff) {
+			writel(value, p);
+		} else {
+			temp =  readl(p);
+			temp = (temp & (~(mask))) | (value & mask);
+			writel(temp, p);
+		}
 	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 }
 
 int lcd_tcon_check_bits(unsigned int reg,
 			unsigned int mask, unsigned int value)
 {
+	void __iomem *p;
 	unsigned int temp;
+	unsigned long flags = 0;
 
-	temp = lcd_tcon_read(reg) & mask;
-	if (value != temp)
-		return -1;
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
-	return 0;
+	p = check_lcd_tcon_reg(reg);
+	if (p) {
+		temp = readl(p);
+		if ((temp & mask) != value)
+			temp = -1;
+		else
+			temp = 0;
+	} else {
+		temp = -1;
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return temp;
 }
 
 unsigned char lcd_tcon_read_byte(unsigned int _reg)
 {
 	void __iomem *p;
+	unsigned char val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
 	p = check_lcd_tcon_reg_byte(_reg);
 	if (p)
-		return readb(p);
+		val = readb(p);
 	else
-		return -1;
+		val = 0;
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return val;
 };
 
 void lcd_tcon_write_byte(unsigned int _reg, unsigned char _value)
 {
 	void __iomem *p;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
 	p = check_lcd_tcon_reg_byte(_reg);
 	if (p)
 		writeb(_value, p);
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 };
 
 void lcd_tcon_setb_byte(unsigned int reg, unsigned char value,
 			unsigned int _start, unsigned int _len)
 {
-	lcd_tcon_write_byte(reg, ((lcd_tcon_read_byte(reg) &
-		(~(((1L << _len) - 1) << _start))) |
-		((value & ((1L << _len) - 1)) << _start)));
+	void __iomem *p;
+	unsigned char temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
+
+	p = check_lcd_tcon_reg_byte(reg);
+	if (p) {
+		temp = readl(p);
+		temp = (temp & (~(((1L << _len) - 1) << _start))) |
+			((value & ((1L << _len) - 1)) << _start);
+		writel(temp, p);
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 }
 
 unsigned char lcd_tcon_getb_byte(unsigned int reg,
 				 unsigned int _start, unsigned int _len)
 {
-	return (lcd_tcon_read_byte(reg) >> _start) & ((1L << _len) - 1);
+	void __iomem *p;
+	unsigned char val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
+
+	p = check_lcd_tcon_reg_byte(reg);
+	if (p) {
+		val = readl(p);
+		val = (val >> _start) & ((1L << _len) - 1);
+	} else {
+		val = 0;
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return val;
 }
 
 void lcd_tcon_update_bits_byte(unsigned int reg,
 			       unsigned char mask, unsigned char value)
 {
-	if (mask == 0xff) {
-		lcd_tcon_write_byte(reg, value);
-	} else {
-		lcd_tcon_write_byte(reg, (lcd_tcon_read_byte(reg) & (~(mask))) |
-				    (value & mask));
+	void __iomem *p;
+	unsigned char temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
+
+	p = check_lcd_tcon_reg_byte(reg);
+	if (p) {
+		if (mask == 0xffffffff) {
+			writel(value, p);
+		} else {
+			temp =  readl(p);
+			temp = (temp & (~(mask))) | (value & mask);
+			writel(temp, p);
+		}
 	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
 }
 
 int lcd_tcon_check_bits_byte(unsigned int reg,
 			     unsigned char mask, unsigned char value)
 {
+	void __iomem *p;
 	unsigned char temp;
+	unsigned long flags = 0;
 
-	temp = lcd_tcon_read_byte(reg) & mask;
-	if (value != temp)
-		return -1;
+	spin_lock_irqsave(&lcd_tcon_reg_lock, flags);
 
-	return 0;
+	p = check_lcd_tcon_reg_byte(reg);
+	if (p) {
+		temp = readl(p);
+		if ((temp & mask) != value)
+			temp = -1;
+		else
+			temp = 0;
+	} else {
+		temp = -1;
+	}
+
+	spin_unlock_irqrestore(&lcd_tcon_reg_lock, flags);
+	return temp;
 }

@@ -12,18 +12,9 @@
 #include <linux/mm.h>
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
 
-/*20180629: initial version */
-/*20180725: new pwm control flow support */
-/*20180730: algorithm clear up */
-/*20180820: pq tooling support, espically optimize some alg parameters */
-/*20181101: fix ldim_op_func null mistake, add new spi api support */
-/*20181203: add 50/60hz change & iw7027 error handle support */
-/*20181220: add tl1 support*/
-/*20190103: add analog pwm support*/
-/*20190107: add iw7038, iw7027_he support and ldim_delay for delay ms*/
-/*20191115: add tm2 support*/
-/*20200806: add white remap policy*/
-#define LDIM_DRV_VER    "20200806"
+/*20200215: init version */
+/*20201120: support t7 */
+#define LDIM_DRV_VER    "20201120"
 
 extern unsigned char ldim_debug_print;
 
@@ -50,7 +41,6 @@ struct ldim_operate_func_s {
 	void (*vs_arithmetic)(void);
 };
 
-void ldim_delay(int ms);
 /*========================================*/
 
 /* ldim func */

@@ -30,12 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
-#include <linux/amlogic/iomap.h>
 #include <linux/workqueue.h>
-#ifdef CONFIG_AMLOGIC_VPU
-#include <linux/amlogic/media/vpu/vpu.h>
-#endif
-#include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -49,7 +44,6 @@
 
 #define AML_LDIM_DEV_NAME            "aml_ldim"
 
-static const char ldim_dev_id[] = "ldim-dev";
 unsigned char ldim_debug_print;
 
 struct ldim_dev_s {
@@ -68,8 +62,8 @@ static struct aml_ldim_driver_s ldim_driver;
 static unsigned char ldim_level_update;
 static unsigned int brightness_vs_cnt;
 
-static spinlock_t  ldim_isr_lock;
-static spinlock_t  rdma_ldim_isr_lock;
+static spinlock_t ldim_isr_lock;
+static spinlock_t rdma_ldim_isr_lock;
 
 static struct workqueue_struct *ldim_queue;
 static struct work_struct ldim_on_vs_work;
@@ -178,14 +172,14 @@ void ldim_remap_ctrl(unsigned char status)
 	if (status) {
 		ldim_driver.matrix_update_en = 0;
 		ldim_hw_remap_en(1);
-		ldim_delay(20);
+		msleep(20);
 		if (bl_drv->data->chip_type == BL_CHIP_TM2)
 			ldim_hw_vpu_dma_mif_en(LDIM_VPU_DMA_RD, 1);
 		ldim_driver.matrix_update_en = temp;
 	} else {
 		ldim_driver.matrix_update_en = 0;
 		ldim_hw_remap_en(0);
-		ldim_delay(20);
+		msleep(20);
 		if (bl_drv->data->chip_type == BL_CHIP_TM2)
 			ldim_hw_vpu_dma_mif_en(LDIM_VPU_DMA_RD, 0);
 		ldim_driver.matrix_update_en = temp;
@@ -261,9 +255,9 @@ void ldim_initial(unsigned int pic_h, unsigned int pic_v,
 	ldim_driver.fw_para->nprm->reg_ld_pic_row_max = pic_v;
 	ldim_driver.fw_para->nprm->reg_ld_pic_col_max = pic_h;
 	/* Maximum to BLKVMAX  , Maximum to BLKHMAX */
-	ldim_driver.fw_para->nprm->reg_ld_blk_vnum     = hist_vnum;
-	ldim_driver.fw_para->nprm->reg_ld_blk_hnum     = hist_hnum;
-	ldim_driver.fw_para->nprm->reg_ld_blk_mode     = blk_mode;
+	ldim_driver.fw_para->nprm->reg_ld_blk_vnum = hist_vnum;
+	ldim_driver.fw_para->nprm->reg_ld_blk_hnum = hist_hnum;
+	ldim_driver.fw_para->nprm->reg_ld_blk_mode = blk_mode;
 	/*config params end */
 	ld_func_fw_cfg_once(ldim_driver.fw_para->nprm);
 
@@ -896,7 +890,7 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 		goto ldim_malloc_err1;
 
 	ldim_driver.test_matrix = kcalloc((hist_row * hist_col),
-					  sizeof(unsigned short), GFP_KERNEL);
+					   sizeof(unsigned short), GFP_KERNEL);
 	if (!ldim_driver.test_matrix)
 		goto ldim_malloc_err2;
 
@@ -912,10 +906,10 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	if (!ldim_driver.ldim_matrix_buf)
 		goto ldim_malloc_err4;
 
-	fw_para->fdat->sf_bl_matrix = kcalloc((hist_row * hist_col),
-					      sizeof(unsigned int),
+	fw_para->fdat->SF_BL_matrix = kcalloc((hist_row * hist_col),
+					       sizeof(unsigned int),
 					       GFP_KERNEL);
-	if (!fw_para->fdat->sf_bl_matrix)
+	if (!fw_para->fdat->SF_BL_matrix)
 		goto ldim_malloc_err5;
 
 	fw_para->fdat->last_sta1_maxrgb = kcalloc((hist_row * hist_col * 3),
@@ -924,21 +918,21 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	if (!fw_para->fdat->last_sta1_maxrgb)
 		goto ldim_malloc_err6;
 
-	fw_para->fdat->tf_bl_matrix = kcalloc((hist_row * hist_col),
+	fw_para->fdat->TF_BL_matrix = kcalloc((hist_row * hist_col),
 					      sizeof(unsigned int),
 					      GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_matrix)
+	if (!fw_para->fdat->TF_BL_matrix)
 		goto ldim_malloc_err7;
 
-	fw_para->fdat->tf_bl_matrix_2 = kcalloc((hist_row * hist_col),
+	fw_para->fdat->TF_BL_matrix_2 = kcalloc((hist_row * hist_col),
 						sizeof(unsigned int),
 						GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_matrix_2)
+	if (!fw_para->fdat->TF_BL_matrix_2)
 		goto ldim_malloc_err8;
 
-	fw_para->fdat->tf_bl_alpha = kcalloc((hist_row * hist_col),
+	fw_para->fdat->TF_BL_alpha = kcalloc((hist_row * hist_col),
 					     sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_alpha)
+	if (!fw_para->fdat->TF_BL_alpha)
 		goto ldim_malloc_err9;
 
 	if (ldim_dev.ldim_op_func->alloc_rmem) {
@@ -950,15 +944,15 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	return 0;
 
 ldim_malloc_err10:
-	kfree(ldim_driver.fw_para->fdat->tf_bl_alpha);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_alpha);
 ldim_malloc_err9:
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix_2);
 ldim_malloc_err8:
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix);
 ldim_malloc_err7:
 	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
 ldim_malloc_err6:
-	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
+	kfree(ldim_driver.fw_para->fdat->SF_BL_matrix);
 ldim_malloc_err5:
 	kfree(ldim_driver.ldim_matrix_buf);
 ldim_malloc_err4:
@@ -1063,7 +1057,6 @@ int aml_ldim_probe(struct platform_device *pdev)
 		devp->ldim_op_func = NULL;
 		break;
 	}
-
 	ret = ldim_region_num_check(devp->ldim_op_func);
 	if (ret)
 		return -1;
@@ -1091,8 +1084,8 @@ int aml_ldim_probe(struct platform_device *pdev)
 	if (ret)
 		goto err1;
 
-	devp->aml_ldim_cdevp = kmalloc(sizeof(*devp->aml_ldim_cdevp),
-				       GFP_KERNEL);
+	devp->aml_ldim_cdevp =
+		kmalloc(sizeof(*devp->aml_ldim_cdevp), GFP_KERNEL);
 	if (!devp->aml_ldim_cdevp) {
 		ret = -ENOMEM;
 		goto err2;
@@ -1110,17 +1103,11 @@ int aml_ldim_probe(struct platform_device *pdev)
 	}
 
 	devp->dev = device_create(devp->aml_ldim_clsp, NULL,
-				  devp->aml_ldim_devno, NULL,
-				  AML_LDIM_CLASS_NAME);
+		devp->aml_ldim_devno, NULL, AML_LDIM_CLASS_NAME);
 	if (IS_ERR(devp->dev)) {
 		ret = PTR_ERR(devp->dev);
 		goto err4;
 	}
-
-#ifdef CONFIG_AMLOGIC_VPU
-	/*vpu dev register for lcd*/
-	ldim_driver.ldim_vpu_dev = vpu_dev_register(VPU_VENCP, AML_LDIM_DEV_NAME);
-#endif
 
 	ldim_queue = create_workqueue("ldim workqueue");
 	if (!ldim_queue) {
@@ -1134,8 +1121,8 @@ int aml_ldim_probe(struct platform_device *pdev)
 	spin_lock_init(&ldim_isr_lock);
 	spin_lock_init(&rdma_ldim_isr_lock);
 
-	bl_drv->res_ldim_vsync_irq =
-		platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	bl_drv->res_ldim_vsync_irq = platform_get_resource_byname
+				(pdev, IORESOURCE_IRQ, "vsync");
 	if (!bl_drv->res_ldim_vsync_irq) {
 		ret = -ENODEV;
 		LDIMERR("ldim_vsync_irq resource error\n");
@@ -1143,7 +1130,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	}
 	ldim_vsync_irq = bl_drv->res_ldim_vsync_irq->start;
 	if (request_irq(ldim_vsync_irq, ldim_vsync_isr, IRQF_SHARED,
-			"ldim_vsync", (void *)"ldim_vsync")) {
+		"ldim_vsync", (void *)"ldim_vsync")) {
 		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_vsync_irq);
 	}
 
@@ -1173,11 +1160,11 @@ int aml_ldim_remove(void)
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
 
-	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
+	kfree(ldim_driver.fw_para->fdat->SF_BL_matrix);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix_2);
 	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_alpha);
+	kfree(ldim_driver.fw_para->fdat->TF_BL_alpha);
 	kfree(ldim_driver.ldim_matrix_buf);
 	kfree(ldim_driver.hist_matrix);
 	kfree(ldim_driver.max_rgb);

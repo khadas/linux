@@ -129,6 +129,7 @@ static void mipi_dsi_init_table_print(struct dsi_config_s *dconf, int on_off)
 		} else if ((dsi_table[i] & 0xf) == 0x0) {
 			pr_info("  dsi_init_%s wrong data_type: 0x%02x\n",
 				on_off ? "on" : "off", dsi_table[i]);
+			break;
 		} else {
 			len = sprintf(str, "  0x%02x,%d,", dsi_table[i], n);
 			for (j = 0; j < n; j++) {
@@ -483,8 +484,9 @@ static void dsi_phy_init(struct dsi_phy_s *dphy, unsigned char lane_num)
 
 	/* 0x05210f08);//0x03211c08 */
 	dsi_phy_write(MIPI_DSI_CLK_TIM,
-		      (dphy->clk_trail | ((dphy->clk_post + dphy->hs_trail)
-		      << 8) | (dphy->clk_zero << 16) |
+		      (dphy->clk_trail |
+			  ((dphy->clk_post + dphy->hs_trail) << 8) |
+			  (dphy->clk_zero << 16) |
 		      (dphy->clk_prepare << 24)));
 	dsi_phy_write(MIPI_DSI_CLK_TIM1, dphy->clk_pre); /* ?? */
 	/* 0x050f090d */
@@ -678,34 +680,6 @@ static void set_mipi_dsi_host(unsigned int vcid, unsigned int chroma_subsample,
 		/* [23:16]outvact, [7:0]invact */
 		dsi_host_write(MIPI_DSI_DWC_DPI_LP_CMD_TIM_OS,
 			       (4 << 16) | (4 << 0));
-		/* 3.2   Configure video packet size settings */
-	//	if (vid_mode_type == BURST_MODE) {
-			/* should be one line in pixels, such as 480/240... */
-	//		dsi_host_write(MIPI_DSI_DWC_VID_PKT_SIZE_OS,
-	//			p->lcd_basic.h_active);
-	//	} else {  /* non-burst mode */
-			/* in unit of pixels,
-			 *   (pclk period/byte clk period)*num_of_lane
-			 *    should be integer
-			 */
-	//		dsi_host_write(MIPI_DSI_DWC_VID_PKT_SIZE_OS,
-	//			dsi_vconf.pixel_per_chunk);
-	//	}
-
-		/* 3.3  Configure number of chunks and null packet size
-		 *  for one line
-		 */
-	//	if (vid_mode_type == BURST_MODE) {
-	//		dsi_host_write(MIPI_DSI_DWC_VID_NUM_CHUNKS_OS, 0);
-	//		dsi_host_write(MIPI_DSI_DWC_VID_NULL_SIZE_OS, 0);
-	//	} else {  /* non burst mode */
-			/* HACT/VID_PKT_SIZE */
-	//		dsi_host_write(MIPI_DSI_DWC_VID_NUM_CHUNKS_OS,
-	//			dsi_vconf.vid_num_chunks);
-			/* video null size */
-	//		dsi_host_write(MIPI_DSI_DWC_VID_NULL_SIZE_OS,
-	//			dsi_vconf.vid_null_size);
-	//	}
 		/* 3.2   Configure video packet size settings */
 		dsi_host_write(MIPI_DSI_DWC_VID_PKT_SIZE_OS,
 			       dsi_vconf.pixel_per_chunk);
@@ -913,59 +887,6 @@ static int wait_cmd_fifo_empty(void)
 
 	return 0;
 }
-
-/* *************************************************************
- * Function: wait_for_generic_read_response
- * Wait for generic read response
- */
-// static unsigned int wait_for_generic_read_response(void)
-// {
-//	unsigned int timeout, phy_status, data_out;
-
-//	phy_status = dsi_host_read(MIPI_DSI_DWC_PHY_STATUS_OS);
-//	for (timeout = 0; timeout < 50; timeout++) {
-//		if (((phy_status & 0x40) >> BIT_PHY_RXULPSESC0LANE) == 0x0)
-//			break;
-//		phy_status = dsi_host_read(MIPI_DSI_DWC_PHY_STATUS_OS);
-//		lcd_delay_us(1);
-//	}
-//	phy_status = dsi_host_read(MIPI_DSI_DWC_PHY_STATUS_OS);
-//	for (timeout = 0; timeout < 50; timeout++) {
-//		if (((phy_status & 0x40) >> BIT_PHY_RXULPSESC0LANE) == 0x1)
-//			break;
-//		phy_status = dsi_host_read(MIPI_DSI_DWC_PHY_STATUS_OS);
-//		lcd_delay_us(1);
-//	}
-
-//	data_out = dsi_host_read(MIPI_DSI_DWC_GEN_PLD_DATA_OS);
-//	return data_out;
-// }
-
-/* *************************************************************
- * Function: generic_read_packet_0_para
- * Generic Read Packet 0 Parameter with Generic Interface
- * Supported DCS Command: DCS_SET_ADDRESS_MODE,
- *			DCS_SET_GAMMA_CURVE,
- *			DCS_SET_PIXEL_FORMAT,
- *			DCS_SET_TEAR_ON
- */
-// static unsigned int generic_read_packet_0_para(unsigned char data_type,
-//		unsigned char vc_id, unsigned char dcs_command)
-// {
-//	unsigned int read_data;
-
-	/* lcd_print(" para is %x, dcs_command is %x\n", para, dcs_command); */
-	/* lcd_print(" vc_id %x, data_type is %x\n", vc_id, data_type); */
-//	generic_if_wr(MIPI_DSI_DWC_GEN_HDR_OS,
-//		((0 << BIT_GEN_WC_MSBYTE)                           |
-//		(((unsigned int)dcs_command) << BIT_GEN_WC_LSBYTE)  |
-//		(((unsigned int)vc_id) << BIT_GEN_VC)               |
-//		(((unsigned int)data_type) << BIT_GEN_DT)));
-
-//	read_data = wait_for_generic_read_response();
-
-//	return read_data;
-// }
 
 static void dsi_set_max_return_pkt_size(struct dsi_cmd_request_s *req)
 {
@@ -1720,31 +1641,6 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 		vid_num_chunks = 0;
 		vid_null_size = 0;
 	} else {
-	//	while ((i >= 1) && (done == 0)) {
-	//		pixel_per_chunk = i * 4;
-	//		if (dconf->dpi_data_format == COLOR_18BIT_CFG_1) {
-				/* 18bit (4*18/8=9byte) */
-	//			byte_per_chunk = pixel_per_chunk * 9/4;
-	//		} else {
-				/* 24bit or 18bit-loosely */
-	//			byte_per_chunk = pixel_per_chunk * 3;
-	//		}
-	//		vid_pkt_byte_per_chunk = 4 + byte_per_chunk + 2;
-	//		total_bytes_per_chunk =
-	//			(lane_num * pixel_per_chunk * clk_factor) / 8;
-	//		vid_num_chunks = hactive / pixel_per_chunk;
-
-	//		chunk_overhead =
-	//			total_bytes_per_chunk - vid_pkt_byte_per_chunk;
-	//		if (chunk_overhead >= 12) {
-	//			vid_null_size = chunk_overhead - 12;
-	//			done = 1;
-	//		} else if (chunk_overhead >= 6) {
-	//			vid_null_size = 0;
-	//			done = 1;
-	//		}
-	//		i--;
-	//	}
 		i = 2;
 		while ((i < hactive) && (done == 0)) {
 			vid_num_chunks = i;
@@ -2018,9 +1914,6 @@ void lcd_mipi_dsi_config_post(struct lcd_config_s *pconf)
 		      (pclk / 1000), (pclk % 1000),
 		      (pconf->lcd_timing.bit_rate / 1000000),
 		      ((pconf->lcd_timing.bit_rate / 1000) % 1000));
-	//	dconf->factor_numerator = pclk;
-	//	dconf->factor_denominator = lanebyteclk;
-
 		dconf->factor_numerator = 8;
 		dconf->factor_denominator = dconf->clk_factor;
 	}

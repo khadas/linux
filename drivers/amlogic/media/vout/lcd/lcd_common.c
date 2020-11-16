@@ -413,7 +413,7 @@ static char *lcd_tcon_pinmux_str[] = {
 	"tcon_p2p_off",   /* 2 */
 	"tcon_mlvds",     /* 3 */
 	"tcon_mlvds_off", /* 4 */
-	"none"		  /* 5 */
+	"none"		      /* 5 */
 };
 
 void lcd_mlvds_pinmux_set(int status)
@@ -600,8 +600,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 					lcd_cpu_gpio_probe(index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				if (pconf->extern_index == 0xff)
-					pconf->extern_index = index;
+				lcd_extern_index_lut_add(index);
 				break;
 			default:
 				break;
@@ -673,7 +672,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 				lcd_cpu_gpio_probe(index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			pconf->extern_index = index;
+			lcd_extern_index_lut_add(index);
 			break;
 		case LCD_POWER_TYPE_CLK_SS:
 			temp = pconf->lcd_power->power_on_step[i].value;
@@ -730,8 +729,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 				lcd_cpu_gpio_probe(index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			if (pconf->extern_index == 0xff)
-				pconf->extern_index = index;
+			lcd_extern_index_lut_add(index);
 			break;
 		default:
 			break;

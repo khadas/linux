@@ -13,12 +13,17 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
 #define REG_LCD_TCON_MAX    0xffff
+#define TCON_INTR_MASKN_VAL    0x0  /* default mask all */
 
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
 
+	unsigned int core_reg_ver;
 	unsigned int core_reg_width;
+	unsigned int reg_table_width;
 	unsigned int reg_table_len;
+	unsigned int core_reg_start;
+	unsigned int top_reg_base;
 
 	unsigned int reg_top_ctrl;
 	unsigned int bit_en;
@@ -26,40 +31,51 @@ struct lcd_tcon_config_s {
 	unsigned int reg_core_od;
 	unsigned int bit_od_en;
 
-	unsigned int reg_core_ctrl_timing_base;
+	unsigned int reg_ctrl_timing_base;
 	unsigned int ctrl_timing_offset;
 	unsigned int ctrl_timing_cnt;
 
-	unsigned int rsv_size;
-	unsigned int axi_size;
+	unsigned int axi_bank;
+
+	unsigned int rsv_mem_size;
+	unsigned int axi_mem_size;
 	unsigned int bin_path_size;
 	unsigned int vac_size;
 	unsigned int demura_set_size;
 	unsigned int demura_lut_size;
 	unsigned int acc_lut_size;
-	unsigned char *reg_table;
 
+	unsigned int *axi_reg;
+	void (*tcon_axi_mem_config)(void);
+	void (*tcon_axi_mem_secure)(void);
 	int (*tcon_gamma_pattern)(unsigned int bit_width, unsigned int gamma_r,
 				  unsigned int gamma_g, unsigned int gamma_b);
 	int (*tcon_enable)(struct lcd_config_s *pconf);
+	int (*tcon_disable)(struct lcd_config_s *pconf);
+};
+
+struct tcon_rmem_config_s {
+	phys_addr_t mem_paddr;
+	unsigned char *mem_vaddr;
+	unsigned int mem_size;
 };
 
 struct tcon_rmem_s {
 	unsigned char flag;
-	void *rsv_mem_vaddr;
-	unsigned char *axi_mem_vaddr;
-	unsigned char *bin_path_mem_vaddr;
-	phys_addr_t rsv_mem_paddr;
-	phys_addr_t axi_mem_paddr;
-	phys_addr_t bin_path_mem_paddr;
-	phys_addr_t vac_mem_paddr;
-	phys_addr_t demura_set_mem_paddr;
-	phys_addr_t demura_lut_mem_paddr;
-	phys_addr_t acc_lut_mem_paddr;
-
 	unsigned int rsv_mem_size;
 	unsigned int axi_mem_size;
-	unsigned int bin_path_mem_size;
+
+	void *rsv_mem_vaddr;
+	phys_addr_t rsv_mem_paddr;
+	phys_addr_t axi_mem_paddr;
+
+	struct tcon_rmem_config_s *axi_rmem;
+	struct tcon_rmem_config_s bin_path_rmem;
+
+	struct tcon_rmem_config_s vac_rmem;
+	struct tcon_rmem_config_s demura_set_rmem;
+	struct tcon_rmem_config_s demura_lut_rmem;
+	struct tcon_rmem_config_s acc_lut_rmem;
 };
 
 struct tcon_data_priority_s {
@@ -74,19 +90,29 @@ struct tcon_mem_map_table_s {
 	unsigned int block_cnt;
 	unsigned int valid_flag;
 
-	unsigned int vac_mem_size;
-	unsigned int demura_set_mem_size;
-	unsigned int demura_lut_mem_size;
-	unsigned int acc_lut_mem_size;
+	unsigned int core_reg_table_size;
+	unsigned char *core_reg_table;
 
 	struct tcon_data_priority_s *data_priority;
-	unsigned char *vac_mem_vaddr;
-	unsigned char *demura_set_mem_vaddr;
-	unsigned char *demura_lut_mem_vaddr;
-	unsigned char *acc_lut_mem_vaddr;
+	unsigned int *data_size;
 	unsigned char **data_mem_vaddr;
 };
 
+struct tcon_mem_secure_config_s {
+	unsigned int handle;
+	bool protect;
+};
+
+struct lcd_tcon_local_setting_s {
+	struct tcon_mem_secure_config_s secure_cfg;
+};
+
+#ifdef CONFIG_AMLOGIC_TEE
+int lcd_tcon_mem_tee_get_status(void);
+int lcd_tcon_mem_tee_unprotect(void);
+#endif
+
+struct lcd_tcon_config_s *get_lcd_tcon_config(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 
@@ -94,19 +120,78 @@ struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
  * tcon config
  * **********************************
  */
+/* common */
+#define TCON_VAC_SET_PARAM_NUM		 3
+#define TCON_VAC_LUT_PARAM_NUM		 256
+
 /* TL1 */
 #define LCD_TCON_CORE_REG_WIDTH_TL1      8
+#define LCD_TCON_TABLE_WIDTH_TL1         8
 #define LCD_TCON_TABLE_LEN_TL1           24000
 #define LCD_TCON_AXI_BANK_TL1            3
 
 #define BIT_TOP_EN_TL1                   4
 
+#define TCON_CORE_REG_START_TL1          0x0000
 #define REG_CORE_OD_TL1                  0x247
 #define BIT_OD_EN_TL1                    0
 #define REG_CORE_CTRL_TIMING_BASE_TL1    0x1b
 #define CTRL_TIMING_OFFSET_TL1           12
 #define CTRL_TIMING_CNT_TL1              0
-#define TCON_VAC_SET_PARAM_NUM		 3
-#define TCON_VAC_LUT_PARAM_NUM		 256
+
+/* T5 */
+#define LCD_TCON_CORE_REG_WIDTH_T5       32
+#define LCD_TCON_TABLE_WIDTH_T5          32
+#define LCD_TCON_TABLE_LEN_T5            0x18d4 /* 0x635*4 */
+#define LCD_TCON_AXI_BANK_T5             2
+
+#define BIT_TOP_EN_T5                    4
+
+#define TCON_CORE_REG_START_T5           0x0100
+#define REG_CORE_OD_T5                   0x247
+#define BIT_OD_EN_T5                     0
+#define REG_CORE_CTRL_TIMING_BASE_T5     0x1b
+#define CTRL_TIMING_OFFSET_T5            12
+#define CTRL_TIMING_CNT_T5               0
+
+/* T5D */
+#define LCD_TCON_CORE_REG_WIDTH_T5D       32
+#define LCD_TCON_TABLE_WIDTH_T5D          32
+#define LCD_TCON_TABLE_LEN_T5D            0x102c /* 0x40b*4 */
+#define LCD_TCON_AXI_BANK_T5D             2
+
+#define BIT_TOP_EN_T5D                    4
+
+#define TCON_CORE_REG_START_T5D           0x0100
+#define REG_CORE_OD_T5D                   0x247
+#define BIT_OD_EN_T5D                     0
+#define REG_CTRL_TIMING_BASE_T5D          0x1b
+#define CTRL_TIMING_OFFSET_T5D            12
+#define CTRL_TIMING_CNT_T5D               0
+
+/* **********************************
+ * tcon api
+ * **********************************
+ */
+/* internal */
+int lcd_tcon_valid_check(void);
+struct tcon_rmem_s *get_lcd_tcon_rmem(void);
+struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
+int lcd_tcon_gamma_pattern_tl1(unsigned int bit_width, unsigned int gamma_r,
+			       unsigned int gamma_g, unsigned int gamma_b);
+int lcd_tcon_gamma_pattern_t5(unsigned int bit_width, unsigned int gamma_r,
+			      unsigned int gamma_g, unsigned int gamma_b);
+void lcd_tcon_core_reg_update(struct lcd_tcon_config_s *tcon_conf,
+			      struct tcon_mem_map_table_s *mm_table);
+int lcd_tcon_enable_tl1(struct lcd_config_s *pconf);
+int lcd_tcon_enable_t5(struct lcd_config_s *pconf);
+
+/* common */
+int lcd_tcon_data_load(void);
+void lcd_tcon_reg_table_print(void);
+void lcd_tcon_reg_readback_print(void);
+int lcd_tcon_info_print(char *buf, int offset);
+void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
+				unsigned int size);
 
 #endif

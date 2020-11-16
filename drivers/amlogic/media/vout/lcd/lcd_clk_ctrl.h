@@ -22,142 +22,6 @@
 #define PLL_FREF_MIN                (5 * 1000)
 #define PLL_FREF_MAX                (25 * 1000)
 
-/* **********************************
- * GXL
- * **********************************
- */
-/* ******** register bit ******** */
-/* PLL_CNTL 0x10c8 */
-#define LCD_PLL_LOCK_GXL            31
-#define LCD_PLL_EN_GXL              30
-#define LCD_PLL_RST_GXL             28
-#define LCD_PLL_N_GXL               9
-#define LCD_PLL_M_GXL               0
-
-#define LCD_PLL_OD3_GXL             19
-#define LCD_PLL_OD2_GXL             23
-#define LCD_PLL_OD1_GXL             21
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_GXL               1
-#define PLL_M_MIN_GXL               2
-#define PLL_M_MAX_GXL               511
-#define PLL_N_MIN_GXL               1
-#define PLL_N_MAX_GXL               1
-#define PLL_FRAC_RANGE_GXL          BIT(10)
-#define PLL_FRAC_SIGN_BIT_GXL       11
-#define PLL_OD_SEL_MAX_GXL          3
-#define PLL_FREF_MIN_GXL            (5 * 1000)
-#define PLL_FREF_MAX_GXL            (25 * 1000)
-#define PLL_VCO_MIN_GXL             (3000 * 1000)
-#define PLL_VCO_MAX_GXL             (6000 * 1000)
-
-/* video */
-#define CLK_DIV_IN_MAX_GXL          (3100 * 1000)
-#define CRT_VID_CLK_IN_MAX_GXL      (3100 * 1000)
-#define ENCL_CLK_IN_MAX_GXL         (620 * 1000)
-
-/* **********************************
- * TXL
- * **********************************
- */
-/* ******** register bit ******** */
-/* PLL_CNTL 0x10c8 */
-#define LCD_PLL_LOCK_TXL            31
-#define LCD_PLL_EN_TXL              30
-#define LCD_PLL_RST_TXL             28
-#define LCD_PLL_N_TXL               9
-#define LCD_PLL_M_TXL               0
-
-#define LCD_PLL_OD3_TXL             19
-#define LCD_PLL_OD2_TXL             23
-#define LCD_PLL_OD1_TXL             21
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_TXL               1 /* update od_fb to 1 for ss width */
-#define PLL_M_MIN_TXL               2
-#define PLL_M_MAX_TXL               511
-#define PLL_N_MIN_TXL               1
-#define PLL_N_MAX_TXL               1
-#define PLL_FRAC_RANGE_TXL          BIT(10)
-#define PLL_FRAC_SIGN_BIT_TXL       11
-#define PLL_OD_SEL_MAX_TXL          3
-#define PLL_FREF_MIN_TXL            (5 * 1000)
-#define PLL_FREF_MAX_TXL            (25 * 1000)
-#define PLL_VCO_MIN_TXL             (2950 * 1000)
-#define PLL_VCO_MAX_TXL             (5900 * 1000)
-
-/* video */
-#define CLK_DIV_IN_MAX_TXL          (3100 * 1000)
-#define CRT_VID_CLK_IN_MAX_TXL      (3100 * 1000)
-#define ENCL_CLK_IN_MAX_TXL         (620 * 1000)
-
-/* **********************************
- * TXLX
- * **********************************
- */
-/* ******** register bit ******** */
-/* PLL_CNTL 0x10c8 */
-#define LCD_PLL_LOCK_TXLX            31
-#define LCD_PLL_EN_TXLX              30
-#define LCD_PLL_RST_TXLX             28
-#define LCD_PLL_N_TXLX               9
-#define LCD_PLL_M_TXLX               0
-
-#define LCD_PLL_OD3_TXLX             19
-#define LCD_PLL_OD2_TXLX             23
-#define LCD_PLL_OD1_TXLX             21
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_TXLX               0
-#define PLL_M_MIN_TXLX               2
-#define PLL_M_MAX_TXLX               511
-#define PLL_N_MIN_TXLX               1
-#define PLL_N_MAX_TXLX               1
-#define PLL_FRAC_RANGE_TXLX          BIT(10)
-#define PLL_FRAC_SIGN_BIT_TXLX       11
-#define PLL_OD_SEL_MAX_TXLX          3
-#define PLL_FREF_MIN_TXLX            (5 * 1000)
-#define PLL_FREF_MAX_TXLX            (25 * 1000)
-#define PLL_VCO_MIN_TXLX             (3000 * 1000)
-#define PLL_VCO_MAX_TXLX             (6000 * 1000)
-
-/* video */
-#define CLK_DIV_IN_MAX_TXLX          (3100 * 1000)
-#define CRT_VID_CLK_IN_MAX_TXLX      (3100 * 1000)
-#define ENCL_CLK_IN_MAX_TXLX         (620 * 1000)
-
-/* **********************************
- * AXG
- * **********************************
- */
-/* ******** register bit ******** */
-/* PLL_CNTL */
-#define LCD_PLL_LOCK_AXG            31
-#define LCD_PLL_EN_AXG              30
-#define LCD_PLL_RST_AXG             29
-#define LCD_PLL_OD_AXG              16
-#define LCD_PLL_N_AXG               9
-#define LCD_PLL_M_AXG               0
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_AXG               0
-#define PLL_M_MIN_AXG               2
-#define PLL_M_MAX_AXG               511
-#define PLL_N_MIN_AXG               1
-#define PLL_N_MAX_AXG               1
-#define PLL_FRAC_RANGE_AXG          BIT(10)
-#define PLL_FRAC_SIGN_BIT_AXG       11
-#define PLL_OD_SEL_MAX_AXG          3
-#define PLL_FREF_MIN_AXG            (5 * 1000)
-#define PLL_FREF_MAX_AXG            (25 * 1000)
-#define PLL_VCO_MIN_AXG             (960 * 1000)
-#define PLL_VCO_MAX_AXG             (1920 * 1000)
-
-/* video */
-#define CRT_VID_CLK_IN_MAX_AXG      (1920 * 1000)
-#define ENCL_CLK_IN_MAX_AXG         (200 * 1000)
-
 /* G12A */
 /* ******** register bit ******** */
 /* PLL_CNTL bit: GP0 */
@@ -195,14 +59,6 @@
 #define PLL_VCO_MIN_HPLL_G12A       (3000 * 1000)
 #define PLL_VCO_MAX_HPLL_G12A       (6000 * 1000)
 
-/* gp0 & hpll common */
-#define PLL_M_MIN_G12A              2
-#define PLL_M_MAX_G12A              511
-#define PLL_N_MIN_G12A              1
-#define PLL_N_MAX_G12A              1
-#define PLL_FREF_MIN_G12A           (5 * 1000)
-#define PLL_FREF_MAX_G12A           (25 * 1000)
-
 /* video */
 #define CRT_VID_CLK_IN_MAX_G12A     (6000 * 1000)
 #define ENCL_CLK_IN_MAX_G12A        (200 * 1000)
@@ -225,15 +81,9 @@
 
 /* ******** frequency limit (unit: kHz) ******** */
 #define PLL_OD_FB_TL1               0
-#define PLL_M_MIN_TL1               2
-#define PLL_M_MAX_TL1               511
-#define PLL_N_MIN_TL1               1
-#define PLL_N_MAX_TL1               1
 #define PLL_FRAC_RANGE_TL1          BIT(17)
 #define PLL_FRAC_SIGN_BIT_TL1       18
 #define PLL_OD_SEL_MAX_TL1          3
-#define PLL_FREF_MIN_TL1            (5 * 1000)
-#define PLL_FREF_MAX_TL1            (25 * 1000)
 #define PLL_VCO_MIN_TL1             (3384 * 1000)
 #define PLL_VCO_MAX_TL1             (6024 * 1000)
 
@@ -248,6 +98,15 @@
  */
 #define PLL_VCO_MIN_TM2             (3000 * 1000)
 #define PLL_VCO_MAX_TM2             (6000 * 1000)
+
+/* **********************************
+ * T5D
+ * **********************************
+ */
+/* video */
+#define CLK_DIV_IN_MAX_T5D          (3100 * 1000)
+#define CRT_VID_CLK_IN_MAX_T5D      (3100 * 1000)
+#define ENCL_CLK_IN_MAX_T5D         (400 * 1000)
 
 /* **********************************
  * Spread Spectrum
@@ -343,24 +202,6 @@ static unsigned int pll_ss_reg_tl1[][2] = {
  * pll control
  * **********************************
  */
-struct lcd_clk_ctrl_s pll_ctrl_table_txl[] = {
-	/* flag             reg                 bit              len*/
-	{LCD_CLK_CTRL_EN,   HHI_HDMI_PLL_CNTL,  LCD_PLL_EN_TXL,   1},
-	{LCD_CLK_CTRL_RST,  HHI_HDMI_PLL_CNTL,  LCD_PLL_RST_TXL,  1},
-	{LCD_CLK_CTRL_M,    HHI_HDMI_PLL_CNTL,  LCD_PLL_M_TXL,    9},
-	{LCD_CLK_CTRL_FRAC, HHI_HDMI_PLL_CNTL2,               0, 12},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                  0,  0},
-};
-
-struct lcd_clk_ctrl_s pll_ctrl_table_axg[] = {
-	/* flag             reg                   bit              len*/
-	{LCD_CLK_CTRL_EN,   HHI_GP0_PLL_CNTL_AXG, LCD_PLL_EN_AXG,   1},
-	{LCD_CLK_CTRL_RST,  HHI_GP0_PLL_CNTL_AXG, LCD_PLL_RST_AXG,  1},
-	{LCD_CLK_CTRL_M,    HHI_GP0_PLL_CNTL_AXG, LCD_PLL_M_AXG,    9},
-	{LCD_CLK_CTRL_FRAC, HHI_GP0_PLL_CNTL1_AXG,              0, 12},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                    0,  0},
-};
-
 struct lcd_clk_ctrl_s pll_ctrl_table_g12a_path0[] = {
 	/* flag             reg                 bit                    len*/
 	{LCD_CLK_CTRL_EN,   HHI_HDMI_PLL_CNTL,  LCD_PLL_EN_HPLL_G12A,   1},

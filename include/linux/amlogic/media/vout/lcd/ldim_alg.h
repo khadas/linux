@@ -22,8 +22,7 @@
 #define LD_BLKHMAX 32
 #define LD_BLKVMAX 32
 
-#define LD_BLKREGNUM 384  /* maximum support 48*32*/
-#define LD_NUM_PROFILE 8  //16
+#define LD_BLKREGNUM 384  /* maximum support 24*16*/
 
 struct LDReg_s {
 	int reg_ld_pic_row_max;            /*u13*/
@@ -277,7 +276,7 @@ struct fw_ctrl_config_s {
 	unsigned int alpha_delta;
 
 	/*LPF tap: 0-lpf_res 41,1-lpf_res 114,...*/
-	unsigned int lpf_res;    /* 1024/9*9 = 13,lpf_method=3 */
+	unsigned int lpf_res;    /* 1024/9*9 = 13,LPF_method=3 */
 	unsigned int rgb_base;
 
 	unsigned int ov_gain;
@@ -287,7 +286,7 @@ struct fw_ctrl_config_s {
 
 	unsigned int fw_rgb_diff_th;
 	unsigned int max_luma;
-	unsigned int lmh_avg_TH;/*for woman flicker*/
+	unsigned int lmh_avg_th;/*for woman flicker*/
 	unsigned int fw_tf_sum_th;/*20180530*/
 
 	unsigned int lpf_method;
@@ -302,8 +301,8 @@ struct fw_ctrl_config_s {
 	unsigned char diff_blk_luma_en;
 
 	unsigned char sf_bypass;
-	unsigned char lpf_bypass;
 	unsigned char boost_light_bypass;
+	unsigned char lpf_bypass;
 	unsigned char ld_remap_bypass;
 	unsigned char black_frm;
 

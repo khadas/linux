@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -49,7 +47,7 @@ static struct fw_ctrl_config_s ldim_fw_ctrl = {
 
 	.fw_rgb_diff_th = 32760,
 	.max_luma = 4060,
-	.lmh_avg_TH = 200,/*for woman flicker*/
+	.lmh_avg_th = 200,/*for woman flicker*/
 	.fw_tf_sum_th = 32760,/*20180530*/
 
 	.lpf_method = 3,

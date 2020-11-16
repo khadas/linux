@@ -12,33 +12,10 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "lcd_clk_config.h"
 
-/* 20170505: add a113 support to linux4.9 */
-/* 20170905: fix coverity errors */
-/* 20180122: support txlx, optimize lcd noitfier event */
-/* 20180226: g12a support */
-/* 20180425: tvconfig suuport */
-/* 20180620: fix coverity errors */
-/* 20180626: txl suuport */
-/* 20180718: mute: wait vsync for display shadow */
-/* 20180827: add pinmux off support */
-/* 20180928: tl1 support, optimize clk config */
-/* 20181012: tl1 support tcon */
-/* 20181212: tl1 update p2p config and pll setting */
-/* 20181225: update phy config */
-/* 20190108: tl1 support tablet mode */
-/* 20190115: tl1 tcon all interface support */
-/* 20190225: optimize unifykey read flow to avoid crash */
-/* 20190308: add more panel clk_ss_level step for tl1 */
-/* 20190520: add vbyone hw filter user define support */
-/* 20190911: add lcd_init_level for tl1 */
-/* 20191025: tcon chpi phy setting update */
-/* 20191115: tcon add demura and vac function  for tl1*/
-/* 20191227: vbyone hw filter disable support*/
-/* 20200102: support resume type to avoid dual display interfere each other*/
-/* 20200611: update tcon pinmux pre-lock*/
-/* 20200619: correct P2P CHPI tx low common setting*/
-/* 20200827: support T5 TV driver support */
-#define LCD_DRV_VERSION    "20200827"
+/* 20200211: initial version*/
+/* 20200827: add tm2 support*/
+/* 20201116: add t5,t5d,t7 support*/
+#define LCD_DRV_VERSION    "20201116"
 
 #define VPP_OUT_SATURATE            BIT(0)
 
@@ -82,6 +59,8 @@ void lcd_if_enable_retry(struct lcd_config_s *pconf);
 void lcd_vout_notify_mode_change_pre(void);
 void lcd_vout_notify_mode_change(void);
 
+unsigned int cal_crc32(unsigned int crc, const unsigned char *buf, int buf_len);
+
 /* lcd phy */
 void lcd_lvds_phy_set(struct lcd_config_s *pconf, int status);
 void lcd_vbyone_phy_set(struct lcd_config_s *pconf, int status);
@@ -94,21 +73,17 @@ void lcd_phy_tcon_chpi_bbc_init_tl1(struct lcd_config_s *pconf);
 /* lcd tcon */
 unsigned int lcd_tcon_reg_read(unsigned int addr);
 void lcd_tcon_reg_write(unsigned int addr, unsigned int val);
-void lcd_tcon_reg_table_print(void);
-void lcd_tcon_reg_readback_print(void);
-int lcd_tcon_info_print(char *buf, int offset);
-int lcd_tcon_od_set(int flag);
-int lcd_tcon_od_get(void);
-int lcd_tcon_reg_table_size_get(void);
-unsigned char *lcd_tcon_reg_table_get(void);
+int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv);
 int lcd_tcon_gamma_set_pattern(unsigned int bit_width, unsigned int gamma_r,
 			       unsigned int gamma_g, unsigned int gamma_b);
-
+unsigned int lcd_tcon_table_read(unsigned int addr);
+unsigned int lcd_tcon_table_write(unsigned int addr, unsigned int val);
+int lcd_tcon_core_update(void);
+int lcd_tcon_od_set(int flag);
+int lcd_tcon_od_get(void);
 int lcd_tcon_core_reg_get(unsigned char *buf, unsigned int size);
-void lcd_tcon_core_reg_update(void);
 int lcd_tcon_enable(struct lcd_config_s *pconf);
 void lcd_tcon_disable(void);
-int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv);
 
 /* lcd debug */
 int lcd_debug_info_len(int num);

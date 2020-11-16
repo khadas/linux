@@ -13,10 +13,6 @@
 /* register offset address define */
 /* base & offset */
 
-#define LCD_HIU_BASE                 0xff63c000
-#define LCD_VCBUS_BASE               0xff900000
-#define LCD_CBUS_BASE		     0xffd00000
-
 #define LCD_REG_OFFSET(reg)                   (((reg) << 2))
 #define LCD_REG_OFFSET_MIPI_HOST(reg)         ((((reg) & 0xff) << 2))
 #define LCD_REG_OFFSET_BYTE(reg)              ((reg))
@@ -131,6 +127,11 @@
 #define HHI_EDP_APB_CLK_CNTL_M8M2                  0x82
 #define HHI_EDP_TX_PHY_CNTL0                       0x9c
 #define HHI_EDP_TX_PHY_CNTL1                       0x9d
+/*  T7  */
+#define CLKCTRL_VID_CLK0_CTRL2	0x31
+#define CLKCTRL_VIID_CLK0_DIV	0x33
+#define CLKCTRL_VIID_CLK0_CTRL	0x34
+
 /* g9tv */
 #define HHI_HDMI_PLL_CNTL                          0xc8
 #define HHI_HDMI_PLL_CNTL2                         0xc9
@@ -152,10 +153,8 @@
 #define HHI_DIF_CSI_PHY_CNTL1                      0xd9
 #define HHI_DIF_CSI_PHY_CNTL2                      0xda
 #define HHI_DIF_CSI_PHY_CNTL3                      0xdb
-#define HHI_LVDS_TX_PHY_CNTL0                      0xde
-#define HHI_LVDS_TX_PHY_CNTL1                      0xdf
-#define HHI_LVDS_TX_PHY_CNTL0_TL1                  0x9a
-#define HHI_LVDS_TX_PHY_CNTL1_TL1                  0x9b
+#define HHI_LVDS_TX_PHY_CNTL0                      0x9a
+#define HHI_LVDS_TX_PHY_CNTL1                      0x9b
 #define HHI_VID2_PLL_CNTL                          0xe0
 #define HHI_VID2_PLL_CNTL2                         0xe1
 #define HHI_VID2_PLL_CNTL3                         0xe2
@@ -942,13 +941,17 @@
 #define ENCL_INBUF_CNTL0                           0x1cd3
 #define ENCL_INBUF_CNTL1                           0x1cd4
 #define ENCL_INBUF_CNT                             0x1cd5
+#ifndef VPU_VENC_CTRL
+#define VPU_VENC_CTRL                              0x1cef
+#endif
+#ifndef VPU_DISP_VIU0_CTRL
+#define VPU_DISP_VIU0_CTRL                         0x2786
+#endif
 
 /* ********************************
  * TCON TOP:  TCON_TOP_BASE = 0x2000
  * ********************************
  */
-#define TCON_CORE_REG_START                        0x0000
-
 #define TCON_CTRL_TIMING_BASE                      0x01b0
 
 #define TCON_TOP_BASE                              0x2000
@@ -1501,8 +1504,6 @@ extern int lcd_reg_tl1[];
 int lcd_ioremap(struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int _reg);
 void lcd_vcbus_write(unsigned int _reg, unsigned int _value);
-void lcd_vcbus_update_bits(unsigned int reg, unsigned int mask,
-			   unsigned int val);
 void lcd_vcbus_setb(unsigned int reg, unsigned int value,
 		    unsigned int _start, unsigned int _len);
 unsigned int lcd_vcbus_getb(unsigned int reg,
@@ -1510,14 +1511,14 @@ unsigned int lcd_vcbus_getb(unsigned int reg,
 void lcd_vcbus_set_mask(unsigned int reg, unsigned int _mask);
 void lcd_vcbus_clr_mask(unsigned int reg, unsigned int _mask);
 
-unsigned int lcd_hiu_read(unsigned int _reg);
-void lcd_hiu_write(unsigned int _reg, unsigned int _value);
-void lcd_hiu_setb(unsigned int _reg, unsigned int _value,
+unsigned int lcd_clk_read(unsigned int _reg);
+void lcd_clk_write(unsigned int _reg, unsigned int _value);
+void lcd_clk_setb(unsigned int _reg, unsigned int _value,
 		  unsigned int _start, unsigned int _len);
-unsigned int lcd_hiu_getb(unsigned int _reg,
+unsigned int lcd_clk_getb(unsigned int _reg,
 			  unsigned int _start, unsigned int _len);
-void lcd_hiu_set_mask(unsigned int _reg, unsigned int _mask);
-void lcd_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+void lcd_clk_set_mask(unsigned int _reg, unsigned int _mask);
+void lcd_clk_clr_mask(unsigned int _reg, unsigned int _mask);
 
 unsigned int lcd_ana_read(unsigned int _reg);
 void lcd_ana_write(unsigned int _reg, unsigned int _value);

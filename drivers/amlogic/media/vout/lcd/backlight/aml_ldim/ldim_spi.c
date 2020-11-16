@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ *
+ * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
+ *
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -127,8 +134,6 @@ static struct spi_driver ldim_spi_dev_driver = {
 
 int ldim_spi_driver_add(struct ldim_dev_config_s *ldev_conf)
 {
-	struct spi_controller *ctlr;
-	struct spi_device *spi_device;
 	int ret;
 
 	if (!ldev_conf->spi_info) {
@@ -136,18 +141,7 @@ int ldim_spi_driver_add(struct ldim_dev_config_s *ldev_conf)
 		return -1;
 	}
 
-	ctlr = spi_busnum_to_master(ldev_conf->spi_info->bus_num);
-	if (!ctlr) {
-		LDIMERR("get busnum failed\n");
-		return -1;
-	}
-
-	spi_device = spi_new_device(ctlr, ldev_conf->spi_info);
-	if (!spi_device) {
-		LDIMERR("get spi_device failed\n");
-		return -1;
-	}
-
+	spi_register_board_info(ldev_conf->spi_info, 1);
 	ret = spi_register_driver(&ldim_spi_dev_driver);
 	if (ret) {
 		LDIMERR("%s failed\n", __func__);

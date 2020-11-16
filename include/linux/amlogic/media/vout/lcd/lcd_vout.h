@@ -15,9 +15,6 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 
-void lcd_vlock_m_update(unsigned int vlock_m);
-void lcd_vlock_frac_update(unsigned int vlock_farc);
-
 /* **********************************
  * debug print define
  * **********************************
@@ -74,17 +71,14 @@ enum lcd_mode_e {
 };
 
 enum lcd_chip_e {
-	LCD_CHIP_GXL = 0,
-	LCD_CHIP_GXM,   /* 1 */
-	LCD_CHIP_TXL,   /* 2 */
-	LCD_CHIP_TXLX,  /* 3 */
-	LCD_CHIP_AXG,   /* 4 */
-	LCD_CHIP_G12A,  /* 5 */
-	LCD_CHIP_G12B,  /* 6 */
-	LCD_CHIP_TL1,   /* 7 */
-	LCD_CHIP_SM1,	/* 8 */
-	LCD_CHIP_TM2,   /* 9 */
-	LCD_CHIP_T5,   /* 10 */
+	LCD_CHIP_G12A = 0,
+	LCD_CHIP_G12B,  /* 1 */
+	LCD_CHIP_TL1,   /* 2 */
+	LCD_CHIP_SM1,	/* 3 */
+	LCD_CHIP_TM2,   /* 4 */
+	LCD_CHIP_T5,    /* 5 */
+	LCD_CHIP_T5D,   /* 6 */
+	LCD_CHIP_T7,    /* 7 */
 	LCD_CHIP_MAX,
 };
 
@@ -478,6 +472,7 @@ struct aml_lcd_drv_s {
 	char version[20];
 	struct lcd_data_s *data;
 	unsigned char lcd_mode;
+	unsigned char lcd_pxp;
 	unsigned char lcd_status;
 	unsigned char lcd_key_valid;
 	unsigned char lcd_clk_path; /* 0=hpll, 1=gp0_pll */
@@ -517,7 +512,7 @@ struct aml_lcd_drv_s {
 	void (*power_ctrl)(int status);
 
 	struct workqueue_struct *workqueue;
-	struct delayed_work lcd_probe_delayed_work;
+	struct work_struct lcd_probe_work;
 	struct work_struct  lcd_resume_work;
 	struct resource *res_vsync_irq;
 	struct resource *res_vsync2_irq;
@@ -531,6 +526,9 @@ struct aml_lcd_drv_s {
 };
 
 struct aml_lcd_drv_s *aml_lcd_get_driver(void);
+
+void lcd_vlock_m_update(unsigned int vlock_m);
+void lcd_vlock_frac_update(unsigned int vlock_farc);
 
 /* **********************************
  * IOCTL define
