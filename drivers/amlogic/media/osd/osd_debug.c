@@ -145,6 +145,59 @@ static void osd_debug_dump_register_all(void)
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	reg = VPP_HOLD_LINES;
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	if (osd_dev_hw.t7_display) {
+		reg = PATH_START_SEL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd vsync sel)\n", reg, osd_reg_read(reg));
+		reg = OSD_PATH_MISC_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(vpp mux)\n", reg, osd_reg_read(reg));
+		reg = MALI_AFBCD_TOP_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1/2 dv bypass bit14/20)\n",
+			     reg, osd_reg_read(reg));
+		reg = MALI_AFBCD1_TOP_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 dv bypass bit20)\n", reg, osd_reg_read(reg));
+		reg = MALI_AFBCD2_TOP_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 dv bypass bit20)\n", reg, osd_reg_read(reg));
+		reg = VPP_WRAP_OSD1_MATRIX_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1 matrix en)\n", reg, osd_reg_read(reg));
+		reg = VPP_WRAP_OSD2_MATRIX_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd2 matrix en)\n", reg, osd_reg_read(reg));
+		reg = VIU_OSD3_MATRIX_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 matrix en)\n", reg, osd_reg_read(reg));
+		reg = VIU_OSD4_MATRIX_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 matrix en)\n", reg, osd_reg_read(reg));
+		reg = OSD1_HDR_IN_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1 hdr size)\n", reg, osd_reg_read(reg));
+		reg = OSD2_HDR_IN_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x(osd2 hdr size)\n", reg, osd_reg_read(reg));
+		reg = OSD3_HDR_IN_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 hdr size)\n", reg, osd_reg_read(reg));
+		reg = OSD4_HDR_IN_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 hdr size)\n", reg, osd_reg_read(reg));
+		reg = OSD1_HDR2_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1 hdr ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD2_HDR2_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd2 hdr ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD3_HDR2_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 hdr ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD4_HDR2_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 hdr ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD1_HDR2_MATRIXO_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd1 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD2_HDR2_MATRIXI_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd2 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD2_HDR2_MATRIXO_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd2 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD3_HDR2_MATRIXI_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD3_HDR2_MATRIXO_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd3 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD4_HDR2_MATRIXI_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
+		reg = OSD4_HDR2_MATRIXO_EN_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(osd4 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
+	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		reg = OSD_PATH_MISC_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
@@ -189,6 +242,10 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VD2_BLEND_SRC_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		if (osd_dev_hw.t7_display) {
+			reg = VD3_BLEND_SRC_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		}
 		reg = OSD1_BLEND_SRC_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = OSD2_BLEND_SRC_CTRL;

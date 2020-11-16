@@ -732,7 +732,7 @@ static int sync_render_add(struct fb_sync_request_s *sync_request,
 	int ret = -1;
 	phys_addr_t addr;
 	size_t len;
-	u32 phys_addr;
+	ulong phys_addr;
 
 	if ((sync_request->sync_req_render.magic & 0xfffffffe) ==
 		(FB_SYNC_REQUEST_RENDER_MAGIC_V1 & 0xfffffffe)) {
@@ -1139,7 +1139,7 @@ static int malloc_osd_memory(struct fb_info *info)
 		if (cma) {
 			base = cma_get_base(cma);
 			size = cma_get_size(cma);
-			pr_info("%s, cma:%p\n", __func__, cma);
+			pr_info("%s, cma:%px\n", __func__, cma);
 		}
 	}
 #else
@@ -1259,7 +1259,7 @@ static int malloc_osd_memory(struct fb_info *info)
 					(fb_rmem_afbc_paddr[fb_index][j],
 					 fb_rmem_afbc_size[fb_index][j]);
 				dev_alert(&pdev->dev,
-					  "ion memory(%d): created fb at 0x%p, size %lu MiB\n",
+					  "ion memory(%d): created fb at 0x%px, size %lu MiB\n",
 					  fb_index,
 					  (void *)fb_rmem_afbc_paddr
 					  [fb_index][j],
@@ -1275,7 +1275,7 @@ static int malloc_osd_memory(struct fb_info *info)
 					osd_log_err("failed to ioremap afbc frame buffer\n");
 					return -1;
 				}
-				osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
+				osd_log_info(" %d, phy: 0x%px, vir:0x%px, size=%ldK\n\n",
 					     fb_index,
 					     (void *)
 					     fbdev->fb_mem_afbc_paddr[j],
@@ -1323,7 +1323,7 @@ static int malloc_osd_memory(struct fb_info *info)
 		return -ENOMEM;
 	}
 	osd_log_info("Frame buffer memory assigned at");
-	osd_log_info(" %d, phy: 0x%lx, vir:0x%lx, size=%dK\n\n",
+	osd_log_info(" %d, phy: 0x%lx, vir:0x%lx, size=%ldK\n\n",
 		     fb_index, (unsigned long)fbdev->fb_mem_paddr,
 		(unsigned long)fbdev->fb_mem_vaddr,
 		fbdev->fb_len >> 10);
@@ -1339,7 +1339,7 @@ static int malloc_osd_memory(struct fb_info *info)
 				osd_log_err("failed to ioremap afbc frame buffer\n");
 				return -ENOMEM;
 			}
-			osd_log_info(" %d, phy: 0x%lx, vir:0x%px, size=%dK\n\n",
+			osd_log_info(" %d, phy: 0x%lx, vir:0x%px, size=%ldK\n\n",
 				     fb_index,
 				     (unsigned long)fbdev->fb_mem_afbc_paddr[j],
 				     fbdev->fb_mem_afbc_vaddr[j],
@@ -1461,7 +1461,7 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long mmio_pgoff;
 	unsigned long start;
-	u32 len;
+	ulong len;
 	int ret = 0;
 	static int mem_alloced;
 
@@ -2863,8 +2863,9 @@ static ssize_t show_osd_deband(struct device *device,
 			       char *buf)
 {
 	u32 osd_deband_enable;
+	struct fb_info *fb_info = dev_get_drvdata(device);
 
-	osd_get_deband(&osd_deband_enable);
+	osd_get_deband(fb_info->node, &osd_deband_enable);
 	return snprintf(buf, 40, "%d\n",
 		osd_deband_enable);
 }
@@ -2875,9 +2876,10 @@ static ssize_t store_osd_deband(struct device *device,
 {
 	int res = 0;
 	int ret = 0;
+	struct fb_info *fb_info = dev_get_drvdata(device);
 
 	ret = kstrtoint(buf, 0, &res);
-	osd_set_deband(res);
+	osd_set_deband(fb_info->node, res);
 
 	return count;
 }
@@ -3211,8 +3213,9 @@ static ssize_t show_afbc_err_cnt(struct device *device,
 				 char *buf)
 {
 	u32 err_cnt;
+	struct fb_info *fb_info = dev_get_drvdata(device);
 
-	osd_get_afbc_err_cnt(&err_cnt);
+	osd_get_afbc_err_cnt(fb_info->node, &err_cnt);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", err_cnt);
 }
@@ -3342,9 +3345,10 @@ static ssize_t show_osd_blend_bypass(struct device *device,
 				     struct device_attribute *attr,
 				     char *buf)
 {
+	struct fb_info *fb_info = dev_get_drvdata(device);
 	int  blend_bypass;
 
-	blend_bypass = osd_get_blend_bypass();
+	blend_bypass = osd_get_blend_bypass(fb_info->node);
 
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", blend_bypass);
 }
@@ -3551,6 +3555,32 @@ static ssize_t store_osd_display_fb(struct device *device,
 	if (ret < 0)
 		return -EINVAL;
 	osd_set_display_fb(fb_info->node, res);
+
+	return count;
+}
+
+static ssize_t show_osd_sc_depend(struct device *device,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	u32 osd_sc_depend;
+
+	osd_get_sc_depend(&osd_sc_depend);
+	return snprintf(buf, 40, "%d\n",
+			osd_sc_depend);
+}
+
+static ssize_t store_osd_sc_depend(struct device *device,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret < 0)
+		return -EINVAL;
+	osd_set_sc_depend(res);
 
 	return count;
 }
@@ -3788,6 +3818,9 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_reg_check, store_osd_reg_check),
 	__ATTR(osd_display_fb, 0644,
 	       show_osd_display_fb, store_osd_display_fb),
+	__ATTR(osd_sc_depend, 0644,
+	       show_osd_sc_depend, store_osd_sc_depend),
+
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4019,6 +4052,7 @@ static struct osd_device_data_s osd_gxbb = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_gxtvbb = {
@@ -4036,6 +4070,7 @@ static struct osd_device_data_s osd_gxtvbb = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_gxl = {
@@ -4053,6 +4088,7 @@ static struct osd_device_data_s osd_gxl = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_gxm = {
@@ -4070,6 +4106,7 @@ static struct osd_device_data_s osd_gxm = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_txl = {
@@ -4087,6 +4124,7 @@ static struct osd_device_data_s osd_txl = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_txlx = {
@@ -4104,6 +4142,7 @@ static struct osd_device_data_s osd_txlx = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_axg = {
@@ -4122,6 +4161,7 @@ static struct osd_device_data_s osd_axg = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_g12a = {
@@ -4139,6 +4179,7 @@ static struct osd_device_data_s osd_g12a = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_g12b = {
@@ -4156,6 +4197,7 @@ static struct osd_device_data_s osd_g12b = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_tl1 = {
@@ -4173,6 +4215,7 @@ static struct osd_device_data_s osd_tl1 = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_sm1 = {
@@ -4190,6 +4233,7 @@ static struct osd_device_data_s osd_sm1 = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_tm2 = {
@@ -4207,6 +4251,7 @@ static struct osd_device_data_s osd_tm2 = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_a1 = {
@@ -4224,6 +4269,7 @@ static struct osd_device_data_s osd_a1 = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_sc2 = {
@@ -4241,6 +4287,7 @@ static struct osd_device_data_s osd_sc2 = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_t5 = {
@@ -4258,6 +4305,7 @@ static struct osd_device_data_s osd_t5 = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 1,
+	.mif_linear = 0,
 };
 
 static struct osd_device_data_s osd_t5d = {
@@ -4275,6 +4323,40 @@ static struct osd_device_data_s osd_t5d = {
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 1,
+	.mif_linear = 0,
+};
+
+static struct osd_device_data_s osd_t7 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T7,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 0,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+};
+
+static struct osd_device_hw_s legcy_dev_property = {
+	.t7_display = 0,
+	.has_8G_addr = 0,
+	.multi_afbc_core = 0,
+	.has_multi_vpp = 0,
+	.new_blend_bypass = 0,
+};
+
+static struct osd_device_hw_s t7_dev_property = {
+	.t7_display = 1,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 1,
+	.has_multi_vpp = 1,
+	.new_blend_bypass = 1,
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -4347,6 +4429,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, meson-t5d",
 		.data = &osd_t5d,
 	},
+	{
+		.compatible = "amlogic, fb-t7",
+		.data = &osd_t7,
+	},
 	{},
 };
 
@@ -4392,6 +4478,12 @@ static int __init osd_probe(struct platform_device *pdev)
 		amlfb_virtual_probe(pdev);
 		return 0;
 	}
+	if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7)
+		memcpy(&osd_dev_hw, &t7_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else
+		memcpy(&osd_dev_hw, &legcy_dev_property,
+		       sizeof(struct osd_device_hw_s));
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
 	if (int_viu_vsync  == -ENXIO) {

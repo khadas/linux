@@ -23,6 +23,7 @@
 extern int int_viu_vsync;
 extern int int_viu2_vsync;
 extern struct hw_para_s osd_hw;
+extern struct osd_device_hw_s osd_dev_hw;
 extern int enable_vd_zorder;
 
 #ifdef CONFIG_HIBERNATION
@@ -157,8 +158,8 @@ void osd_switch_free_scale(u32 pre_index,
 			   u32 next_scale);
 void osd_get_urgent(u32 index, u32 *urgent);
 void osd_set_urgent(u32 index, u32 urgent);
-void osd_get_deband(u32 *osd_deband_enable);
-void osd_set_deband(u32 osd_deband_enable);
+void osd_get_deband(u32 index, u32 *osd_deband_enable);
+void osd_set_deband(u32 index, u32 osd_deband_enable);
 void osd_get_fps(u32 index, u32 *osd_fps);
 void osd_set_fps(u32 index, u32 osd_fps_start);
 void osd_get_info(u32 index, u32 *addr, u32 *width, u32 *height);
@@ -206,7 +207,7 @@ void osd_set_single_step(u32 index, u32 osd_single_step);
 void output_save_info(void);
 void osd_get_rotate(u32 index, u32 *osd_rotate);
 void osd_set_rotate(u32 index, u32 osd_rotate);
-void osd_get_afbc_err_cnt(u32 *err_cnt);
+void osd_get_afbc_err_cnt(u32 index, u32 *err_cnt);
 void osd_get_dimm_info(u32 index, u32 *osd_dimm_layer, u32 *osd_dimm_color);
 void osd_set_dimm_info(u32 index, u32 osd_dimm_layer, u32 osd_dimm_color);
 u32 osd_get_line_n_rdma(void);
@@ -215,7 +216,7 @@ u32 get_output_device_id(u32 index);
 void osd_set_hold_line(u32 index, int hold_line);
 u32 osd_get_hold_line(u32 index);
 void osd_set_blend_bypass(int index, u32 blend_bypass);
-u32 osd_get_blend_bypass(void);
+u32 osd_get_blend_bypass(u32 index);
 void set_viu2_format(u32 format);
 void osd_init_viu2(void);
 u32 viu2_osd_reg_read(u32 addr);
@@ -226,4 +227,6 @@ void viu2_osd_reg_clr_mask(u32 addr, u32 _mask);
 int notify_preblend_to_amvideo(u32 preblend_en);
 void osd_get_display_fb(u32 index, u32 *osd_display_fb);
 void osd_set_display_fb(u32 index, u32 osd_display_fb);
+void osd_get_sc_depend(u32 *osd_sc_depend);
+void osd_set_sc_depend(u32 osd_sc_depend);
 #endif

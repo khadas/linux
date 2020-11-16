@@ -25,10 +25,10 @@ struct osd_fb_dev_s {
 	struct platform_device *dev;
 	phys_addr_t fb_mem_paddr;
 	void __iomem *fb_mem_vaddr;
-	u32 fb_len;
+	ulong fb_len;
 	phys_addr_t fb_mem_afbc_paddr[OSD_MAX_BUF_NUM];
 	void __iomem *fb_mem_afbc_vaddr[OSD_MAX_BUF_NUM];
-	u32 fb_afbc_len[OSD_MAX_BUF_NUM];
+	ulong fb_afbc_len[OSD_MAX_BUF_NUM];
 	const struct color_bit_define_s *color;
 	enum vmode_e vmode;
 	struct osd_ctl_s osd_ctl;
