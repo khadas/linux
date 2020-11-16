@@ -1274,7 +1274,7 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 			if (ret != 0)
 				return ret;
 			kfree(dma_cfg);
-			plane[i].addr = addr_temp;
+			plane[i].addr += addr_temp;
 		} else if (plane[i].shared_fd == DMA_FD_ATTACHED) {
 			struct ge2d_dma_cfg_s *cfg = NULL;
 			struct aml_dma_cfg *dma_cfg = NULL;
@@ -1289,7 +1289,7 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 			}
 
 			dma_cfg = (struct aml_dma_cfg *)cfg->dma_cfg;
-			plane[i].addr = sg_phys(dma_cfg->sg->sgl);
+			plane[i].addr += sg_phys(dma_cfg->sg->sgl);
 		} else if (plane[i].addr) {
 			plane[i].addr += plane[0].addr;
 		}
@@ -1372,7 +1372,7 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 #else
 				return ret;
 #endif
-				plane[i].addr = addr;
+				plane[i].addr += addr;
 				canvas_set = 1;
 			} else if (plane[i].addr) {
 				plane[i].addr += plane[0].addr;
@@ -1435,7 +1435,7 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 				if (ret != 0)
 					return ret;
 				kfree(dma_cfg);
-				plane[i].addr = addr;
+				plane[i].addr += addr;
 				canvas_set = 1;
 			}  else if (plane[i].shared_fd == DMA_FD_ATTACHED) {
 				struct ge2d_dma_cfg_s *cfg = NULL;
@@ -1452,7 +1452,7 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 				}
 
 				dma_cfg = (struct aml_dma_cfg *)cfg->dma_cfg;
-				plane[i].addr = sg_phys(dma_cfg->sg->sgl);
+				plane[i].addr += sg_phys(dma_cfg->sg->sgl);
 				canvas_set = 1;
 				ret = 0;
 			} else if (plane[i].addr) {
