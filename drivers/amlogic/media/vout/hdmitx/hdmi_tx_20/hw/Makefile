@@ -1,4 +1,5 @@
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_hw.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_dump.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/reg_ops.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/enc_cfg_hw.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_ddc.o

@@ -73,6 +73,17 @@ enum map_addr_idx_e {
 #define CLKCTRL_REG_ADDR(reg) \
 	((CLKCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 
+extern struct reg_map reg_maps[REG_IDX_END];
+
+unsigned int TO_PHY_ADDR(unsigned int addr);
+void __iomem *TO_PMAP_ADDR(unsigned int addr);
+
+unsigned int hd_read_reg(unsigned int addr);
+void hd_write_reg(unsigned int addr, unsigned int val);
+void hd_set_reg_bits(unsigned int addr, unsigned int value,
+		unsigned int offset, unsigned int len);
+void init_reg_map(unsigned int type);
+
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value,

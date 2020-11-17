@@ -150,6 +150,7 @@ enum mode_type {
 struct dv_vsif_para {
 	u8 ver; /* 0 or 1 or 2*/
 	u8 length;/*ver1: 15 or 12*/
+	u8 ver2_l11_flag;
 	union {
 		struct {
 			u8 low_latency:1;
@@ -162,6 +163,23 @@ struct dv_vsif_para {
 			u8 auxiliary_runversion;
 			u8 auxiliary_debug0;
 		} ver2;
+		struct {
+			u8 low_latency:1;
+			u8 dobly_vision_signal:1;
+			u8 backlt_ctrl_MD_present:1;
+			u8 auxiliary_MD_present:1;
+			u8 eff_tmax_PQ_hi;
+			u8 eff_tmax_PQ_low;
+			u8 auxiliary_runmode;
+			u8 auxiliary_runversion;
+			u8 auxiliary_debug0;
+			u8 content_type;
+			u8 content_sub_type;
+			u8 crf;
+			u8 intended_white_point;
+			u8 l11_byte2;
+			u8 l11_byte3;
+		} ver2_l11;
 	} vers;
 };
 
@@ -200,6 +218,7 @@ struct dv_info {
 	u8 sup_2160p60hz:1;
 	/* if as 0, then support 2160p30hz */
 	u8 sup_global_dimming:1;
+	u8 dv_emp_cap:1;
 	u16 Rx;
 	u16 Ry;
 	u16 Gx;

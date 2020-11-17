@@ -78,6 +78,16 @@ static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+/* Base Block, Vendor/Product Information, byte[8]~[18] */
+struct edid_venddat_t {
+	unsigned char data[10];
+};
+
+static struct edid_venddat_t vendor_id[] = {
+{ {0x41, 0x0C, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x03, 0x14} },
+/* { {0x05, 0xAC, 0x30, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x19} }, */
+/* Add new vendor data here */
+};
 
 static int xtochar(int num, unsigned char *checksum)
 {
@@ -1064,6 +1074,21 @@ static void edid_parsingvendspec(struct hdmitx_dev *hdev,
 	_edid_parsingvendspec(dv2, hdr10_plus, buf);
 }
 
+static bool Y420VicRight(unsigned int vic)
+{
+	bool rtn_val;
+
+	rtn_val = false;
+	if (vic == HDMI_3840x2160p60_64x27 ||
+	    vic == HDMI_3840x2160p50_64x27 ||
+	    vic == HDMI_4096x2160p60_256x135 ||
+	    vic == HDMI_4096x2160p50_256x135 ||
+	    vic == HDMI_3840x2160p60_16x9 ||
+	    vic == HDMI_3840x2160p50_16x9)
+		rtn_val = true;
+	return rtn_val;
+}
+
 /* ----------------------------------------------------------- */
 static int edid_parsingy420vdb(struct rx_cap *prxcap,
 			       unsigned char *buf)
@@ -1084,7 +1109,8 @@ static int edid_parsingy420vdb(struct rx_cap *prxcap,
 	while (pos < data_end) {
 		if (prxcap->VIC_count < VIC_MAX_NUM) {
 			for (i = 0; i < prxcap->VIC_count; i++) {
-				if (prxcap->VIC[i] == buf[pos]) {
+				if (prxcap->VIC[i] == buf[pos] &&
+				    Y420VicRight(buf[pos])) {
 					prxcap->VIC[i] =
 					HDMITX_VIC420_OFFSET + buf[pos];
 					found = 1;
@@ -1329,7 +1355,8 @@ static int edid_y420cmdb_postprocess(struct hdmitx_dev *hdmitx_device)
 		p = &info->y420cmdb_bitmap[i];
 		for (j = 0; j < 8; j++) {
 			valid = ((*p >> j) & 0x1);
-			if (valid != 0) {
+			if (valid != 0 &&
+			    Y420VicRight(rxcap->VIC[i * 8 + j])) {
 				rxcap->VIC[rxcap->VIC_count] =
 				HDMITX_VIC420_OFFSET + rxcap->VIC[i * 8 + j];
 				rxcap->VIC_count++;
@@ -2280,6 +2307,19 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 	}
 }
 
+int hdmitx_find_philips(struct hdmitx_dev *hdev)
+{
+	int j;
+	int length = sizeof(vendor_id) / sizeof(struct edid_venddat_t);
+
+	for (j = 0; j < length; j++) {
+		if (memcmp(&hdev->EDID_buf[8], &vendor_id[j],
+			sizeof(struct edid_venddat_t)) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char checksum;
@@ -2519,14 +2559,19 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			pr_info(EDID "clear sup_2160p60hz\n");
 		}
 	}
+	hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
 	return 0;
 }
 
 static struct dispmode_vic dispmode_vic_tab[] = {
-	{"480i60hz", HDMI_480i60_16x9},
-	{"480p60hz", HDMI_480p60_16x9},
-	{"576i50hz", HDMI_576i50_16x9},
-	{"576p50hz", HDMI_576p50_16x9},
+	{"480i60hz_4x3", HDMI_720x480i60_4x3},
+	{"480p60hz_4x3", HDMI_720x480p60_4x3},
+	{"576i50hz_4x3", HDMI_720x576i50_4x3},
+	{"576p50hz_4x3", HDMI_720x576p50_4x3},
+	{"480i60hz", HDMI_720x480i60_16x9},
+	{"480p60hz", HDMI_720x480p60_16x9},
+	{"576i50hz", HDMI_720x576i50_16x9},
+	{"576p50hz", HDMI_720x576p50_16x9},
 	{"720p50hz", HDMI_720p50},
 	{"720p60hz", HDMI_720p60},
 	{"1080i50hz", HDMI_1080i50},
@@ -2536,6 +2581,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"1080p25hz", HDMI_1080p25},
 	{"1080p24hz", HDMI_1080p24},
 	{"1080p60hz", HDMI_1080p60},
+	{"1080p120hz", HDMI_1080p120},
 	{"2560x1080p50hz", HDMI_2560x1080p50_64x27},
 	{"2560x1080p60hz", HDMI_2560x1080p60_64x27},
 	{"2160p30hz", HDMI_4k2k_30},
@@ -2580,6 +2626,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"2560x1440p60hz", HDMIV_2560x1440p60hz},
 	{"2560x1600p60hz", HDMIV_2560x1600p60hz},
 	{"3440x1440p60hz", HDMIV_3440x1440p60hz},
+	{"2400x1200p90hz", HDMIV_2400x1200p90hz},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)
@@ -2835,7 +2882,14 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 	struct rx_cap *prxcap = &hdev->rxcap;
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
+	struct hdmi_format_para *para = NULL;
+	enum hdmi_vic *vesa_t = &hdev->rxcap.vesa_timing[0];
+	enum hdmi_vic vesa_vic;
 
+	if (vic >= HDMITX_VESA_OFFSET)
+		vesa_vic = vic;
+	else
+		vesa_vic = HDMI_UNKNOWN;
 	if (vic != HDMI_UNKNOWN) {
 		if (force_flag == 0) {
 			for (j = 0 ; j < prxcap->VIC_count ; j++) {
@@ -2844,6 +2898,18 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 			}
 			if (j >= prxcap->VIC_count)
 				vic = HDMI_UNKNOWN;
+		}
+	}
+	if (vic == HDMI_UNKNOWN && vesa_vic != HDMI_UNKNOWN) {
+		for (j = 0; vesa_t[j] && j < VESA_MAX_TIMING; j++) {
+			para = hdmi_get_fmt_paras(vesa_t[j]);
+			if (para) {
+				if (para->vic >= HDMITX_VESA_OFFSET &&
+					vesa_vic == para->vic) {
+					vic = para->vic;
+					break;
+				}
+			}
 		}
 	}
 	return vic;

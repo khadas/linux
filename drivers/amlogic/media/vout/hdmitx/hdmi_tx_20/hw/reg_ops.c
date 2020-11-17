@@ -27,7 +27,7 @@
 #include "hdmi_tx_reg.h"
 #include "reg_ops.h"
 
-static struct reg_map reg_maps[REG_IDX_END];
+struct reg_map reg_maps[REG_IDX_END] = {0};
 int hdmitx_init_reg_map(struct platform_device *pdev)
 {
 	int i = 0;
@@ -97,6 +97,7 @@ unsigned int hd_read_reg(unsigned int addr)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 	case MESON_CPU_ID_SC2:
 	default:
 		val = readl(TO_PMAP_ADDR(addr));
@@ -123,6 +124,7 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 	case MESON_CPU_ID_SC2:
 	default:
 		writel(val, TO_PMAP_ADDR(addr));
@@ -203,6 +205,11 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 	return data;
 }
 EXPORT_SYMBOL(hdmitx_rd_reg);
+
+bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr)
+{
+	return (hdmitx_rd_reg(addr) & (1 << bit_nr)) == (1 << bit_nr);
+}
 
 void hdmitx_wr_reg_normal(unsigned int addr, unsigned int data)
 {

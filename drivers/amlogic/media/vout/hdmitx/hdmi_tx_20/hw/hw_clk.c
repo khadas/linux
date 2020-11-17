@@ -187,6 +187,7 @@ void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 	default:
 		hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 	break;
@@ -218,6 +219,7 @@ static void set_hpll_clk_out(unsigned int clk)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 		set_g12a_hpll_clk_out(frac_rate, clk);
 		break;
 	case MESON_CPU_ID_SC2:
@@ -239,6 +241,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 		set_hpll_sspll_g12a(vic);
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -289,6 +292,7 @@ static void set_hpll_od1(unsigned int div)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 		set_hpll_od1_g12a(div);
 		break;
 	case MESON_CPU_ID_SC2:
@@ -332,6 +336,7 @@ static void set_hpll_od2(unsigned int div)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 		set_hpll_od2_g12a(div);
 		break;
 	case MESON_CPU_ID_SC2:
@@ -380,6 +385,7 @@ static void set_hpll_od3(unsigned int div)
 		set_hpll_od3_sc2(div);
 		break;
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
 		set_hpll_od3_g12a(div);
 		/* new added in TM2 */
 		hd_set_reg_bits(P_HHI_LVDS_TX_PHY_CNTL1, 1, 29, 1);

@@ -25,6 +25,23 @@
 #define DOVI_IEEEOUI		0x00D046
 #define HDR10PLUS_IEEEOUI	0x90848B
 
+enum hdmi_tf_type {
+	HDMI_NONE = 0,
+	/* HDMI_HDR_TYPE, HDMI_DV_TYPE, and HDMI_HDR10P_TYPE
+	 * should be mutexed with each other
+	 */
+	HDMI_HDR_TYPE = 0x10,
+	HDMI_HDR_SMPTE_2084	= HDMI_HDR_TYPE | 1,
+	HDMI_HDR_HLG		= HDMI_HDR_TYPE | 2,
+	HDMI_HDR_HDR		= HDMI_HDR_TYPE | 3,
+	HDMI_HDR_SDR		= HDMI_HDR_TYPE | 4,
+	HDMI_DV_TYPE = 0x20,
+	HDMI_DV_VSIF_STD	= HDMI_DV_TYPE | 1,
+	HDMI_DV_VSIF_LL		= HDMI_DV_TYPE | 2,
+	HDMI_HDR10P_TYPE = 0x30,
+	HDMI_HDR10P_DV_VSIF	= HDMI_HDR10P_TYPE | 1,
+};
+
 #define GET_OUI_BYTE0(oui)	((oui) & 0xff) /* Little Endian */
 #define GET_OUI_BYTE1(oui)	(((oui) >> 8) & 0xff)
 #define GET_OUI_BYTE2(oui)	(((oui) >> 16) & 0xff)

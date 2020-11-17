@@ -45,9 +45,7 @@ unsigned int hdcp_get_downstream_ver(void)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdev->hwop.cntlddc(hdev,
-			       DDC_HDCP_22_LSTORE,
-			       0) == 0)
+	if (hdev->hwop.cntlddc(hdev, DDC_HDCP_22_LSTORE, 0) == 0)
 		if (hdcp_rd_hdcp22_ver())
 			ret = 22;
 		else

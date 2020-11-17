@@ -281,6 +281,17 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 		.sc		= SC_SCALE_HORIZ_VERT,
 	},
 	{
+		.VIC		= HDMI_1080p120,
+		.color_prefer   = COLORSPACE_RGB444,
+		.color_depth	= COLORDEPTH_24B,
+		.bar_info	= B_BAR_VERT_HORIZ,
+		.repeat_time	= NO_REPEAT,
+		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
+		.cc		= CC_ITU709,
+		.ss		= SS_SCAN_UNDER,
+		.sc		= SC_SCALE_HORIZ_VERT,
+	},
+	{
 		.VIC		= HDMI_4k2k_30,
 		.color_prefer   = COLORSPACE_RGB444,
 		.color_depth	= COLORDEPTH_24B,
@@ -808,6 +819,17 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 		.ss = SS_NO_DATA,
 		.sc = SC_NO_UINFORM,
 	},
+	{
+		.VIC		= HDMIV_2400x1200p90hz,
+		.color_prefer	= COLORSPACE_RGB444,
+		.color_depth	= COLORDEPTH_24B,
+		.bar_info	= B_INVALID,
+		.repeat_time	= NO_REPEAT,
+		.aspect_ratio	= ASPECT_RATIO_SAME_AS_SOURCE,
+		.cc = CC_NO_DATA,
+		.ss = SS_NO_DATA,
+		.sc = SC_NO_UINFORM,
+	},
 };
 
 static struct
@@ -896,6 +918,8 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		AVI_DB[i] = 0;
 
 	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+	if (hdev->vend_id_hit)
+		pr_info(VID "special tv detected\n");
 	pr_info(VID "already init VIC = %d  Now VIC = %d\n",
 		vic, videocode);
 	if (vic != HDMI_UNKNOWN && vic == videocode)
@@ -1072,12 +1096,14 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 		return;
 	}
 	if (vend_data->vendor_name) {
-		strncpy(&SPD_DB[0], vend_data->vendor_name, sizeof(SPD_DB));
+		len = strlen(vend_data->vendor_name);
+		strncpy(&SPD_DB[0], vend_data->vendor_name,
+			(len > 8) ? 8 : len);
 	}
 	if (vend_data->product_desc) {
 		len = strlen(vend_data->product_desc);
 		strncpy(&SPD_DB[8], vend_data->product_desc,
-			sizeof(SPD_DB) - len);
+			(len > 16) ? 16 : len);
 	}
 	SPD_DB[24] = 0x1;
 	hdev->hwop.setpacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);

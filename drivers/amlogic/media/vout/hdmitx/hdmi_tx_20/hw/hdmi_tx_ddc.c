@@ -41,7 +41,7 @@ static uint32_t ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("ddc w1b error 0x%02x 0x%02x 0x%02x\n",
+		pr_info("hdmitx: E: ddc w1b 0x%02x 0x%02x 0x%02x\n",
 			slave, offset_addr, data);
 	} else {
 		st = 1;
@@ -64,7 +64,7 @@ static uint32_t ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("hdmitx: ddc rd8b error 0x%02x 0x%02x 0x%02x\n",
+		pr_info("hdmitx: E: ddc rd8b 0x%02x 0x%02x 0x%02x\n",
 			slave, offset_addr, *data);
 	} else {
 		st = 1;
@@ -88,7 +88,7 @@ static uint32_t ddc_read_1byte(u8 slave, u8 offset_addr, u8 *data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("ddc rd8b error 0x%02x 0x%02x\n",
+		pr_info("hdmitx: E: ddc rd8b 0x%02x 0x%02x\n",
 			slave, offset_addr);
 	} else {
 		st = 1;
@@ -212,5 +212,10 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			byte_num++;
 		}
 	}
+	/* Because DRM will use segment registers,
+	 * so clear the registers to default
+	 */
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x0);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x0);
 	mutex_unlock(&ddc_mutex);
 } /* hdmi20_tx_read_edid */

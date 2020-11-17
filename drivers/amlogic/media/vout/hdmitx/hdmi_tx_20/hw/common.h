@@ -81,4 +81,8 @@ void set_hpll_od2_sc2(unsigned int div);
 void set_hpll_od3_sc2(unsigned int div);
 
 void set_hpll_sspll_sc2(enum hdmi_vic vic);
+
+int hdmitx_uboot_audio_en(void);
+void hdmitx_debugfs_init(void);
+
 #endif

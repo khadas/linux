@@ -7,6 +7,7 @@
 #define _HDMI_TX_MODULE_H
 #include "hdmi_info_global.h"
 #include "hdmi_config.h"
+#include "hdmi_hdcp.h"
 #include <linux/wait.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
@@ -14,11 +15,12 @@
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-
 #include <linux/amlogic/media/vpu/vpu.h>
 
+#define DEVICE_NAME "amhdmitx"
+
 /* HDMITX driver version */
-#define HDMITX_VER "20190815"
+#define HDMITX_VER "20201030"
 
 /* chip type */
 enum amhdmitx_chip_e {
@@ -286,41 +288,6 @@ struct hdcplog_buf {
 	unsigned char buf[HDCP_LOG_SIZE + 64]; /* padding 8 bytes */
 };
 
-enum hdcp_ver_e {
-	HDCPVER_NONE = 0,
-	HDCPVER_14,
-	HDCPVER_22,
-};
-
-#define MAX_KSV_LISTS 127
-struct hdcprp14_topo {
-	unsigned char max_cascade_exceeded:1;
-	unsigned char depth:3;
-	unsigned char max_devs_exceeded:1;
-	unsigned char device_count:7; /* 1 ~ 127 */
-	unsigned char ksv_list[MAX_KSV_LISTS * 5];
-};
-
-struct hdcprp22_topo {
-	unsigned int depth;
-	unsigned int device_count;
-	unsigned int v1_X_device_down;
-	unsigned int v2_0_repeater_down;
-	unsigned int max_devs_exceeded;
-	unsigned int max_cascade_exceeded;
-	unsigned char id_num;
-	unsigned char id_lists[MAX_KSV_LISTS * 5];
-};
-
-struct hdcprp_topo {
-	/* hdcp_ver currently used */
-	enum hdcp_ver_e hdcp_ver;
-	union {
-		struct hdcprp14_topo topo14;
-		struct hdcprp22_topo topo22;
-	} topo;
-};
-
 #define EDID_MAX_BLOCK              4
 #define HDMI_TMP_BUF_SIZE           1024
 struct hdmitx_dev {
@@ -517,16 +484,6 @@ struct hdmitx_dev {
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 };
 
-struct hdmitx_report {
-	int hpd_state;
-	int audio;
-	int pwr;
-	int hdr;
-	int rxsense;
-	int hdcp;
-	int cedst;
-};
-
 #define CMD_DDC_OFFSET          (0x10 << 24)
 #define CMD_STATUS_OFFSET       (0x11 << 24)
 #define CMD_PACKET_OFFSET       (0x12 << 24)
@@ -603,6 +560,7 @@ struct hdmitx_report {
 #define CONF_CLR_VSDB_PACKET    (CMD_CONF_OFFSET + 0x05)
 #define CONF_VIDEO_MAPPING	(CMD_CONF_OFFSET + 0x06)
 #define CONF_GET_HDMI_DVI_MODE	(CMD_CONF_OFFSET + 0x07)
+#define CONF_CLR_DV_VS10_SIG	(CMD_CONF_OFFSET + 0x10)
 
 #define CONF_AUDIO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x00)
 #define AUDIO_MUTE          0x1
@@ -926,6 +884,8 @@ struct Hdcp_Sub {
 	unsigned int hdcp_sub_len;
 };
 
+void hdmi_tx_edid_proc(unsigned char *edid);
+
 void setup_attr(const char *buf);
 void get_attr(char attr[16]);
 unsigned int hd_read_reg(unsigned int addr);
@@ -940,7 +900,15 @@ void hdmitx_set_reg_bits(unsigned int addr, unsigned int value,
 unsigned int hdmitx_rd_reg(unsigned int addr);
 unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 				 unsigned int mask);
+bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr);
 void vsem_init_cfg(struct hdmitx_dev *hdev);
+
+enum hdmi_tf_type hdmitx_get_cur_hdr_st(void);
+enum hdmi_tf_type hdmitx_get_cur_dv_st(void);
+enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void);
+bool hdmitx_hdr_en(void);
+bool hdmitx_dv_en(void);
+bool hdmitx_hdr10p_en(void);
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
 
