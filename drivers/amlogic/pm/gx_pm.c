@@ -208,6 +208,16 @@ unsigned int lgcy_early_suspend_init(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(lgcy_early_suspend_init);
 
+unsigned int lgcy_early_suspend_exit(struct platform_device *pdev)
+{
+	int ret;
+
+	device_remove_file(&pdev->dev, &dev_attr_early_suspend_trigger);
+
+	ret = unregister_pm_notifier(&lgcy_early_suspend_notifier);
+	return ret;
+}
+
 #endif /*CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND*/
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
@@ -311,7 +321,7 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(time_out);
 
-static int __init meson_pm_probe(struct platform_device *pdev)
+static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
 
@@ -342,6 +352,15 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 
 static int __exit meson_pm_remove(struct platform_device *pdev)
 {
+	if (debug_reg)
+		iounmap(debug_reg);
+	if (exit_reg)
+		iounmap(exit_reg);
+	device_remove_file(&pdev->dev, &dev_attr_suspend_reason);
+	device_remove_file(&pdev->dev, &dev_attr_time_out);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	lgcy_early_suspend_exit(pdev);
+#endif
 	return 0;
 }
 
@@ -352,6 +371,7 @@ static const struct of_device_id amlogic_pm_dt_match[] = {
 };
 
 static struct platform_driver meson_pm_driver = {
+	.probe = meson_pm_probe,
 	.driver = {
 		   .name = "pm-meson",
 		   .owner = THIS_MODULE,
@@ -360,13 +380,7 @@ static struct platform_driver meson_pm_driver = {
 	.remove = __exit_p(meson_pm_remove),
 };
 
-static int __init meson_pm_init(void)
-{
-	return platform_driver_probe(&meson_pm_driver, meson_pm_probe);
-}
-
-late_initcall(meson_pm_init);
-//module_exit(meson_pm_remove);
+module_platform_driver(meson_pm_driver);
 MODULE_AUTHOR("Amlogic");
 MODULE_DESCRIPTION("Amlogic suspend driver");
 MODULE_LICENSE("GPL");
