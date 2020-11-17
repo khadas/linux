@@ -113,6 +113,7 @@
 #define VIU_OSD3_MALI_UNPACK_CTRL 0x3d9f
 #define VIU_OSD3_DIMM_CTRL        0x3da0
 
+#define VIU_DATA_SEC              0x1a50
 #define VD1_IF0_GEN_REG           0x1a50
 #define VD1_IF0_CANVAS0           0x1a51
 #define VD1_IF0_CANVAS1           0x1a52

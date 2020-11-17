@@ -9,6 +9,7 @@
 #include <linux/list.h>
 
 #define VIDEO_SIGNAL_TYPE_CHANGED   0x0001
+#define VIDEO_SECURE_TYPE_CHANGED   0x0002
 
 enum vd_format_e {
 	SIGNAL_INVALID = -1,

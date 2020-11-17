@@ -8933,6 +8933,31 @@ static void fix_target_dst_size_adjust(struct hw_osd_blending_s *blending)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+void osd_secure_cb(u32 arg)
+{
+	osd_log_dbg(MODULE_SECURE, "%s: arg=%x, secure_src=%x, reg:%x\n",
+		    __func__,
+		    arg, osd_hw.secure_src,
+		    osd_reg_read(VIU_DATA_SEC));
+}
+
+static void osd_secure_set(u32 secure_src)
+{
+	static int registered;
+	int ret = -1;
+
+	if (!registered) {
+		ret = secure_register(OSD_MODULE, 0,
+			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
+		if (ret == 0)
+			registered = 1;
+	}
+	if (registered)
+		secure_config(OSD_MODULE, secure_src);
+}
+#endif
+
 static int osd_setting_order(u32 output_index)
 {
 #define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
@@ -9132,7 +9157,7 @@ static int osd_setting_order(u32 output_index)
 	set_blend_reg(blend_reg);
 	save_blend_reg(blend_reg);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	secure_config(OSD_MODULE, secure_src);
+	osd_secure_set(secure_src);
 #endif
 	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
 	rdma_dt_cnt++;
@@ -9946,16 +9971,6 @@ static void affinity_set_init(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-void osd_secure_cb(u32 arg)
-{
-	osd_log_dbg(MODULE_SECURE, "%s: arg=%x, secure_src=%x, reg:%x\n",
-		    __func__,
-		    arg, osd_hw.secure_src,
-		    osd_reg_read(VIU_DATA_SEC));
-}
-#endif
-
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		 struct osd_device_data_s *osd_meson)
 {
@@ -10313,10 +10328,6 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_rdma_enable(2);
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	affinity_set_init();
-#endif
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	secure_register(OSD_MODULE, 0,
-			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
 #endif
 	osd_log_out = 1;
 }

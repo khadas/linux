@@ -6,6 +6,7 @@
 #ifndef VPU_SECURE_H_
 #define VPU_SECURE_H_
 
+#define MAX_SECURE_OUT 5
 enum secure_module_e {
 	OSD_MODULE,
 	VIDEO_MODULE,
@@ -30,6 +31,11 @@ enum module_port_e {
 #define VD1_INPUT_SECURE        BIT(2)
 #define OSD2_INPUT_SECURE       BIT(1)
 #define OSD1_INPUT_SECURE       BIT(0)
+
+struct vd_secure_info_s {
+	enum module_port_e secure_type;
+	u32 secure_enable;
+};
 
 int secure_register(enum secure_module_e module,
 		    int config_delay,

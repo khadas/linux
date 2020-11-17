@@ -339,6 +339,7 @@ static struct vpu_dev_s *vpu_fgrain1;
 static struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 static u32 reference_zorder = 128;
 static u32 vpp_hold_line = 8;
+static unsigned int cur_vf_flag;
 
 static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 	{F2V_P2IT, F2V_P2IB, F2V_P2P},	/* VIDTYPE_PROGRESSIVE */
@@ -5550,6 +5551,16 @@ void vpp_probe_en_set(u32 enable)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+void vpp_secure_cb(u32 arg)
+{
+	pr_debug("%s: arg=%x, reg:%x\n",
+		 __func__,
+		 arg,
+		 READ_VCBUS_REG(VIU_DATA_SEC));
+}
+#endif
+
 void video_secure_set(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
@@ -5557,14 +5568,26 @@ void video_secure_set(void)
 	u32 secure_src = 0;
 	u32 secure_enable = 0;
 	struct video_layer_s *layer = NULL;
+	static int registered;
+
+	if (!registered) {
+		int ret = -1;
+
+		ret = secure_register(VIDEO_MODULE, 0,
+			VSYNC_WR_MPEG_REG, vpp_secure_cb);
+		if (ret == 0)
+			registered = 1;
+	}
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		layer = &vd_layer[i];
 		if (layer->dispbuf &&
-		    (layer->dispbuf->flag && VFRAME_FLAG_VIDEO_SECURE))
+		    (layer->dispbuf->flag & VFRAME_FLAG_VIDEO_SECURE))
 			secure_enable = 1;
 		else
 			secure_enable = 0;
+		if (layer->dispbuf)
+			cur_vf_flag = layer->dispbuf->flag;
 		if (layer->dispbuf &&
 		    secure_enable) {
 			if (layer->layer_id == 0)
@@ -5576,16 +5599,6 @@ void video_secure_set(void)
 	secure_config(VIDEO_MODULE, secure_src);
 #endif
 }
-
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-void vpp_secure_cb(u32 arg)
-{
-	pr_debug("%s: arg=%x, reg:%x\n",
-		 __func__,
-		 arg,
-		 READ_VCBUS_REG(VIU_DATA_SEC));
-}
-#endif
 
 int video_hw_init(void)
 {
@@ -5703,10 +5716,6 @@ int video_hw_init(void)
 		if (glayer_info[i].fgrain_support)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
 	}
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	secure_register(VIDEO_MODULE, 0,
-			VSYNC_WR_MPEG_REG, vpp_secure_cb);
-#endif
 	return 0;
 }
 
@@ -5996,3 +6005,7 @@ module_param(reference_zorder, uint, 0664);
 
 MODULE_PARM_DESC(video_mute_on, "\n video_mute_on\n");
 module_param(video_mute_on, bool, 0664);
+
+MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
+module_param(cur_vf_flag, uint, 0444);
+

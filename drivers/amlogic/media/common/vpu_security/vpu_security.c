@@ -32,6 +32,7 @@
 
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 
 #include "vpu_security.h"
 
@@ -113,8 +114,10 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    u32 secure_src)
 {
 	static u32 osd_secure, video_secure;
-	static u32 value_save;
+	static int value_save = -1;
 	u32 value = 0;
+	int secure_update = 0;
+	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
 
 	if (is_meson_sc2_cpu()) {
 		if (check_secure_enable(module) || secure_src)
@@ -161,13 +164,28 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 		case VDIN_MODULE:
 			break;
 		}
-		if (OSD_MODULE || VIDEO_MODULE || DI_MODULE) {
-			if (ins->reg_wr_op && value_save != value)
+		if (module == OSD_MODULE ||
+			module == VIDEO_MODULE ||
+			module == DI_MODULE) {
+			if (ins->reg_wr_op && value_save != value) {
 				ins->reg_wr_op(VIU_DATA_SEC, value);
+				secure_update = 1;
+			}
 			value_save = value;
 		}
 	}
 	secure_cfg = (osd_secure | video_secure) & (~VPP_OUTPUT_SECURE);
+	if (secure_update) {
+		int i;
+
+		for (i = 0; i < MAX_SECURE_OUT; i++) {
+			vd_secure[i].secure_type = i;
+			vd_secure[i].secure_enable = get_secure_state(i);
+		}
+		vd_signal_notifier_call_chain
+			(VIDEO_SECURE_TYPE_CHANGED,
+			&vd_secure[0]);
+	}
 	return value;
 }
 
@@ -180,10 +198,14 @@ int secure_register(enum secure_module_e module,
 	struct vpu_secure_ins *ins = NULL;
 	struct mutex *lock = NULL;
 
-	if (!info->probed)
+	if (!info->probed) {
+		pr_info("%s module=%d, failed, not probed\n", __func__, module);
 		return -1;
-	if (module >= MODULE_NUM)
+	}
+	if (module >= MODULE_NUM) {
+		pr_info("%s failed, module = %d\n", __func__, module);
 		return -1;
+	}
 	ins = &info->ins[module];
 	if (!ins->registered) {
 		lock = &info->ins[module].secure_lock;
@@ -194,6 +216,7 @@ int secure_register(enum secure_module_e module,
 		ins->secure_cb = cb;
 		mutex_unlock(lock);
 	}
+	pr_info("%s module=%d ok\n", __func__, module);
 	return 0;
 }
 
@@ -324,6 +347,7 @@ static int vpu_security_probe(struct platform_device *pdev)
 		mutex_init(&info->ins[i].secure_lock);
 
 	info->probed = 1;
+	pr_info("%s ok.\n", __func__);
 	return 0;
 fail_class_create_file:
 	for (i = 0; i < ARRAY_SIZE(vpu_security_attrs); i++)
