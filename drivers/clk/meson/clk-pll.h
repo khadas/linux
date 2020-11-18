@@ -59,11 +59,15 @@ struct meson_clk_pll_data {
 	unsigned int init_count;
 	const struct pll_params_table *table;
 	const struct pll_mult_range *range;
+	unsigned int smc_id;
 	u8 flags;
+	u8 secid_disable;
+	u8 secid;
 };
 
 extern const struct clk_ops meson_clk_pll_ro_ops;
 extern const struct clk_ops meson_clk_pll_ops;
 extern const struct clk_ops meson_clk_pcie_pll_ops;
+extern const struct clk_ops meson_secure_pll_v2_ops;
 
 #endif /* __MESON_CLK_PLL_H */

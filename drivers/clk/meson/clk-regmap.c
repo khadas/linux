@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/arm-smccc.h>
 #include "clk-regmap.h"
 
 static int clk_regmap_gate_endisable(struct clk_hw *hw, int enable)
@@ -119,7 +120,36 @@ static int clk_regmap_div_set_rate(struct clk_hw *hw, unsigned long rate,
 				  clk_div_mask(div->width) << div->shift, val);
 };
 
+static int clk_regmap_secure_v2_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long parent_rate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_div_data *div = clk_get_regmap_div_data(clk);
+	unsigned int val;
+	struct arm_smccc_res res;
+	int ret;
+
+	ret = divider_get_val(rate, parent_rate, div->table, div->width,
+			      div->flags);
+	if (ret < 0)
+		return ret;
+
+	val = (unsigned int)ret << div->shift;
+
+	/* Send the divider to bl31, 0x8200009A is the general clk addr */
+	arm_smccc_smc(div->smc_id, div->secid,
+			clk_div_mask(div->width) << div->shift, val, 0, 0, 0, 0, &res);
+
+	return 0;
+};
+
 /* Would prefer clk_regmap_div_ro_ops but clashes with qcom */
+const struct clk_ops clk_regmap_secure_v2_divider_ops = {
+	.recalc_rate = clk_regmap_div_recalc_rate,
+	.round_rate = clk_regmap_div_round_rate,
+	.set_rate = clk_regmap_secure_v2_div_set_rate,
+};
+EXPORT_SYMBOL_GPL(clk_regmap_secure_v2_divider_ops);
 
 const struct clk_ops clk_regmap_divider_ops = {
 	.recalc_rate = clk_regmap_div_recalc_rate,
@@ -140,10 +170,17 @@ static u8 clk_regmap_mux_get_parent(struct clk_hw *hw)
 	struct clk_regmap_mux_data *mux = clk_get_regmap_mux_data(clk);
 	unsigned int val;
 	int ret;
+	struct arm_smccc_res res;
 
-	ret = regmap_read(clk->map, mux->offset, &val);
-	if (ret)
-		return ret;
+	if (mux->smc_id) {
+		arm_smccc_smc(mux->smc_id, mux->secid_rd,
+				0, 0, 0, 0, 0, 0, &res);
+		val = res.a0;
+	} else {
+		ret = regmap_read(clk->map, mux->offset, &val);
+		if (ret)
+			return ret;
+	}
 
 	val >>= mux->shift;
 	val &= mux->mask;
@@ -155,10 +192,18 @@ static int clk_regmap_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct clk_regmap_mux_data *mux = clk_get_regmap_mux_data(clk);
 	unsigned int val = clk_mux_index_to_val(mux->table, mux->flags, index);
+	struct arm_smccc_res res;
 
-	return regmap_update_bits(clk->map, mux->offset,
+	if (mux->smc_id)
+		arm_smccc_smc(mux->smc_id, mux->secid,
+				mux->mask << mux->shift, val << mux->shift,
+				0, 0, 0, 0, &res);
+	else
+		regmap_update_bits(clk->map, mux->offset,
 				  mux->mask << mux->shift,
 				  val << mux->shift);
+
+	return 0;
 }
 
 static int clk_regmap_mux_determine_rate(struct clk_hw *hw,

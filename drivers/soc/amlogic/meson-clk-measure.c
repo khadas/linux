@@ -18,7 +18,7 @@
 #define MSR_CONT		BIT(17) /* continuous measurement */
 #define MSR_INTR		BIT(18) /* interrupts */
 #define MSR_RUN			BIT(19)
-#define MSR_CLK_SRC		GENMASK(26, 20)
+#define MSR_CLK_SRC		GENMASK(27, 20)
 #define MSR_BUSY		BIT(31)
 
 #define MSR_VAL_MASK		GENMASK(19, 0)
@@ -1129,6 +1129,8 @@ static struct meson_msr_id clk_msr_t7[] __initdata = {
 	CLK_MSR_ID(167, "pwm_c_clk"),
 	CLK_MSR_ID(168, "pwm_b_clk"),
 	CLK_MSR_ID(169, "pwm_a_clk"),
+	CLK_MSR_ID(170, "cts_ACLKM"),
+	CLK_MSR_ID(171, "mclk_pll_clk"),
 	CLK_MSR_ID(172, "a73_sys_pll_div16"),
 	CLK_MSR_ID(173, "a73_cpu_clk_div16"),
 	CLK_MSR_ID(176, "rng_ring_0"),

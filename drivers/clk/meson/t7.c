@@ -100,42 +100,32 @@ static const struct clk_ops meson_pll_clk_no_ops = {};
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t7_sys_pll_params_table[] = {
-	PLL_PARAMS(168, 1, 2), /*DCO=4032M OD=1008M*/
-	PLL_PARAMS(184, 1, 2), /*DCO=4416M OD=1104M*/
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
-	PLL_PARAMS(216, 1, 2), /*DCO=5184M OD=1296M*/
-	PLL_PARAMS(233, 1, 2), /*DCO=5592M OD=1398M*/
-	PLL_PARAMS(234, 1, 2), /*DCO=5616M OD=1404M*/
-	PLL_PARAMS(249, 1, 2), /*DCO=5976M OD=1494M*/
-	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024M OD=1512M*/
-	PLL_PARAMS(134, 1, 1), /*DCO=3216M OD=1608M*/
-	PLL_PARAMS(142, 1, 1), /*DCO=3408M OD=1704M*/
-	PLL_PARAMS(150, 1, 1), /*DCO=3600M OD=1800M*/
-	PLL_PARAMS(158, 1, 1), /*DCO=3792M OD=1896M*/
-	PLL_PARAMS(159, 1, 1), /*DCO=3816M OD=1908*/
-	PLL_PARAMS(160, 1, 1), /*DCO=3840M OD=1920M*/
-	PLL_PARAMS(167, 1, 1), /*DCO=4008M OD=2004M*/
+	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
+	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
+	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
+	PLL_PARAMS(126, 1, 1), /*DCO=3024 OD=1512M*/
+	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
+	PLL_PARAMS(118, 1, 1), /*DCO=2832M OD=1416M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
+	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
+	PLL_PARAMS(80, 1, 0), /*DCO=1920M OD=1920M*/
+	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
+	PLL_PARAMS(92, 1, 0), /*DCO=2208M OD=2208M*/
 	{ /* sentinel */ }
 };
 #else
 static const struct pll_params_table t7_sys_pll_params_table[] = {
-	PLL_PARAMS(168, 1), /*DCO=4032M OD=1008M*/
-	PLL_PARAMS(184, 1), /*DCO=4416M OD=1104M*/
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
-	PLL_PARAMS(216, 1), /*DCO=5184M OD=1296M*/
-	PLL_PARAMS(233, 1), /*DCO=5592M OD=1398M*/
-	PLL_PARAMS(234, 1), /*DCO=5616M OD=1404M*/
-	PLL_PARAMS(249, 1), /*DCO=5976M OD=1494M*/
-	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
-	PLL_PARAMS(126, 1), /*DCO=3024M OD=1512M*/
-	PLL_PARAMS(134, 1), /*DCO=3216M OD=1608M*/
-	PLL_PARAMS(142, 1), /*DCO=3408M OD=1704M*/
-	PLL_PARAMS(150, 1), /*DCO=3600M OD=1800M*/
-	PLL_PARAMS(158, 1), /*DCO=3792M OD=1896M*/
-	PLL_PARAMS(159, 1), /*DCO=3816M OD=1908*/
-	PLL_PARAMS(160, 1), /*DCO=3840M OD=1920M*/
-	PLL_PARAMS(167, 1), /*DCO=4008M OD=2004M*/
+	PLL_PARAMS(67, 1), /*DCO=1608M OD=1608MM*/
+	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
+	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
+	PLL_PARAMS(126, 1), /*DCO=3024 OD=1512M*/
+	PLL_PARAMS(116, 1), /*DCO=2784 OD=1392M*/
+	PLL_PARAMS(118, 1), /*DCO=2832M OD=1416M*/
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
+	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
+	PLL_PARAMS(80, 1), /*DCO=1920M OD=1920M*/
+	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
+	PLL_PARAMS(92, 1), /*DCO=2208M OD=2208M*/
 	{ /* sentinel */ }
 };
 #endif
@@ -154,14 +144,14 @@ static struct clk_regmap t7_sys_pll_dco = {
 		},
 		.n = {
 			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 10,
+			.shift   = 16,
 			.width   = 5,
 		},
 #ifdef CONFIG_ARM
 		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift	 = 16,
+			.shift	 = 12,
 			.width	 = 3,
 		},
 #endif
@@ -176,13 +166,67 @@ static struct clk_regmap t7_sys_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.smc_id = SECURE_PLL_CLK,
+		.secid_disable = SECID_SYS0_DCO_PLL_DIS,
+		.secid = SECID_SYS0_DCO_PLL
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll_dco",
-		.ops = &meson_secure_clk_pll_ops,
+		.ops = &meson_secure_pll_v2_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		/* This clock feeds the CPU, avoid disabling it */
+		.flags = CLK_IS_CRITICAL,
+	},
+};
+
+static struct clk_regmap t7_sys1_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift   = 16,
+			.width   = 5,
+		},
+#ifdef CONFIG_ARM
+		/* od for 32bit */
+		.od = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift	 = 12,
+			.width	 = 3,
+		},
+#endif
+		.table = t7_sys_pll_params_table,
+		.l = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_SYS1PLL_CTRL0,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.smc_id = SECURE_PLL_CLK,
+		.secid_disable = SECID_SYS1_DCO_PLL_DIS,
+		.secid = SECID_SYS1_DCO_PLL,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "sys1_pll_dco",
+		.ops = &meson_secure_pll_v2_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+		/* This clock feeds the CPU, avoid disabling it */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -220,19 +264,59 @@ static struct clk_regmap t7_sys_pll = {
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
+
+static struct clk_regmap t7_sys1_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "sys1_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_sys1_pll_dco.hw
+		},
+		.num_parents = 1,
+		/*
+		 * sys pll is used by cpu clock , it is initialized
+		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
+		 * prevent the system hang up which will be called
+		 * by clk_disable_unused
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
 #else
 static struct clk_regmap t7_sys_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_SYS0PLL_CTRL0,
-		.shift = 16,
+		.shift = 12,
 		.width = 3,
 		.flags = CLK_DIVIDER_POWER_OF_TWO,
+		.smc_id = SECURE_PLL_CLK,
+		.secid = SECID_SYS0_PLL_OD
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
-		.ops = &clk_regmap_divider_ops,
+		.ops = &clk_regmap_secure_v2_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t7_sys_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_sys1_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_SYS1PLL_CTRL0,
+		.shift = 12,
+		.width = 3,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+		.smc_id = SECURE_PLL_CLK,
+		.secid = SECID_SYS1_PLL_OD
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "sys1_pll",
+		.ops = &clk_regmap_secure_v2_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_sys1_pll_dco.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -418,6 +502,7 @@ static const struct pll_params_table t7_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
+	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
@@ -425,6 +510,7 @@ static const struct pll_params_table t7_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
+	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #endif
@@ -606,164 +692,202 @@ static struct clk_regmap t7_gp1_pll = {
 	},
 };
 
-/*cpu_clk*/
-/* Datasheet names this field as "premux0" */
-static struct clk_regmap t7_cpu_clk_premux0 = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.mask = 0x3,
-		.shift = 0,
-		.flags = CLK_MUX_ROUND_CLOSEST,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn0_sel",
-		.ops = &clk_regmap_secure_mux_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t7_fclk_div2.hw },
-			{ .hw = &t7_fclk_div3.hw },
-		},
-		.num_parents = 3,
-		.flags = CLK_SET_RATE_PARENT,
-	},
+#ifdef CONFIG_ARM
+static const struct pll_params_table t7_mclk_pll_table[] = {
+	PLL_PARAMS(99, 1, 1), /* DCO = 2376M OD = 1 PLL = 1152M */
+	PLL_PARAMS(100, 1, 1), /* DCO = 2400M */
+	{ /* sentinel */  }
+};
+#else
+static const struct pll_params_table t7_mclk_pll_table[] = {
+	PLL_PARAMS(99, 1), /* DCO = 2376M OD = 1 PLL = 1152M */
+	PLL_PARAMS(100, 1), /* DCO = 2400M */
+	{ /* sentinel */  }
+};
+#endif
+
+static const struct reg_sequence t7_mclk_init_regs[] = {
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x20011064, .delay_us = 20 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x30011064 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL1, .def = 0x1470500f },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL2, .def = 0x00023041 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL3, .def = 0x18180000 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL4, .def = 0x00180303 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x10011064, .delay_us = 20 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL2, .def = 0x00023001, .delay_us = 20 }
 };
 
-/* Datasheet names this field as "premux1" */
-static struct clk_regmap t7_cpu_clk_premux1 = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.mask = 0x3,
-		.shift = 16,
+static struct clk_regmap t7_mclk_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 16,
+			.width   = 5,
+		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift	 = 12,
+			.width	 = 3,
+		},
+#endif
+		.l = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = t7_mclk_pll_table,
+		.init_regs = t7_mclk_init_regs,
+		.init_count = ARRAY_SIZE(t7_mclk_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn1_sel",
-		.ops = &clk_regmap_secure_mux_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t7_fclk_div2.hw },
-			{ .hw = &t7_fclk_div3.hw },
-		},
-		.num_parents = 3,
-		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT
-	},
-};
-
-/* Datasheet names this field as "mux0_divn_tcnt" */
-static struct clk_regmap t7_cpu_clk_mux0_div = {
-	.data = &(struct meson_clk_cpu_dyndiv_data){
-		.div = {
-			.reg_off = CPUCTRL_SYS_CPU_CLK_CTRL0,
-			.shift = 4,
-			.width = 6,
-		},
-		.dyn = {
-			.reg_off = CPUCTRL_SYS_CPU_CLK_CTRL0,
-			.shift = 26,
-			.width = 1,
-		},
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn0_div",
-		.ops = &meson_secure_clk_cpu_dyndiv_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_premux0.hw
-		},
+		.name = "mclk_pll_dco",
+		.ops = &meson_clk_pll_ops,
+		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL
 	},
 };
 
-/* Datasheet names this field as "postmux0" */
-static struct clk_regmap t7_cpu_clk_postmux0 = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.mask = 0x1,
-		.shift = 2,
-		.flags = CLK_MUX_ROUND_CLOSEST,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn0",
-		.ops = &clk_regmap_secure_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_premux0.hw,
-			&t7_cpu_clk_mux0_div.hw,
-		},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-/* Datasheet names this field as "Mux1_divn_tcnt" */
-static struct clk_regmap t7_cpu_clk_mux1_div = {
+static struct clk_regmap t7_mclk_pre_od = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.shift = 20,
-		.width = 6,
+		.offset = ANACTRL_MCLK_PLL_CNTL0,
+		.shift = 12,
+		.width = 3,
+		.flags = (CLK_DIVIDER_POWER_OF_TWO |
+			  CLK_DIVIDER_ROUND_CLOSEST),
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn1_div",
-		.ops = &clk_regmap_secure_divider_ro_ops,
+		.name = "mclk_pre_od",
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_premux1.hw
+			&t7_mclk_pll_dco.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
-/* Datasheet names this field as "postmux1" */
-static struct clk_regmap t7_cpu_clk_postmux1 = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.mask = 0x1,
-		.shift = 18,
+static struct clk_regmap t7_mclk_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.shift = 16,
+		.width = 5,
+		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn1",
-		.ops = &clk_regmap_secure_mux_ops,
+		.name = "mclk_pll",
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_premux1.hw,
-			&t7_cpu_clk_mux1_div.hw,
+			&t7_mclk_pre_od.hw
 		},
-		.num_parents = 2,
-		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
-/* Datasheet names this field as "Final_dyn_mux_sel" */
-static struct clk_regmap t7_cpu_clk_dyn = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
-		.mask = 0x1,
-		.shift = 10,
-		.flags = CLK_MUX_ROUND_CLOSEST,
+/*a53 cpu_clk, get the table from ucode */
+static const struct cpu_dyn_table t7_cpu_dyn_table[] = {
+	CPU_LOW_PARAMS(24000000, 0, 0, 0),
+	CPU_LOW_PARAMS(100000000, 1, 1, 9),
+	CPU_LOW_PARAMS(250000000, 1, 1, 3),
+	CPU_LOW_PARAMS(333333333, 2, 1, 1),
+	CPU_LOW_PARAMS(500000000, 1, 1, 1),
+	CPU_LOW_PARAMS(666666666, 2, 0, 0),
+	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
+};
+
+static struct clk_regmap t7_cpu_dyn_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = t7_cpu_dyn_table,
+		.table_cnt = ARRAY_SIZE(t7_cpu_dyn_table),
+		.secid_dyn_rd = SECID_CPU_CLK_RD,
+		.secid_dyn = SECID_CPU_CLK_DYN,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk_dyn",
-		.ops = &clk_regmap_secure_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_postmux0.hw,
-			&t7_cpu_clk_postmux1.hw,
+		.name = "cpu_dyn_clk",
+		.ops = &meson_sec_cpu_dyn_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &t7_fclk_div2.hw },
+			{ .hw = &t7_fclk_div3.hw },
+			{ .hw = &t7_fclk_div2p5.hw }
 		},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.num_parents = 4,
 	},
 };
 
-/* Datasheet names this field as "Final_mux_sel" */
 static struct clk_regmap t7_cpu_clk = {
 	.data = &(struct clk_regmap_mux_data){
-		.offset = CPUCTRL_SYS_CPU_CLK_CTRL0,
 		.mask = 0x1,
 		.shift = 11,
 		.flags = CLK_MUX_ROUND_CLOSEST,
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_CPU_CLK_SEL,
+		.secid_rd = SECID_CPU_CLK_RD
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_clk",
-		.ops = &clk_regmap_secure_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_cpu_clk_dyn.hw,
+			&t7_cpu_dyn_clk.hw,
+			&t7_sys1_pll.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_a73_dyn_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = t7_cpu_dyn_table,
+		.table_cnt = ARRAY_SIZE(t7_cpu_dyn_table),
+		.secid_dyn_rd = SECID_A73_CLK_RD,
+		.secid_dyn = SECID_A73_CLK_DYN,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "a73_dyn_clk",
+		.ops = &meson_sec_cpu_dyn_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &t7_fclk_div2.hw },
+			{ .hw = &t7_fclk_div3.hw },
+			{ .hw = &t7_fclk_div2p5.hw }
+		},
+		.num_parents = 4,
+	},
+};
+
+static struct clk_regmap t7_a73_clk = {
+	.data = &(struct clk_regmap_mux_data){
+		.mask = 0x1,
+		.shift = 11,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_A73_CLK_SEL,
+		.secid_rd = SECID_A73_CLK_RD
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "a73_clk",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_a73_dyn_clk.hw,
 			&t7_sys_pll.hw,
 		},
 		.num_parents = 2,
@@ -828,124 +952,11 @@ static struct clk_regmap t7_cpu3_clk = {
 
 #endif
 
-static int t7_cpu_clk_mux_notifier_cb(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	if (event == POST_RATE_CHANGE || event == PRE_RATE_CHANGE) {
-		/* Wait for clock propagation before/after changing the mux */
-		udelay(100);
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block t7_cpu_clk_mux_nb = {
-	.notifier_call = t7_cpu_clk_mux_notifier_cb,
-};
-
-struct t7_cpu_clk_postmux_nb_data {
-	struct notifier_block nb;
-	struct clk_hw *xtal;
-	struct clk_hw *cpu_clk_dyn;
-	struct clk_hw *cpu_clk_postmux0;
-	struct clk_hw *cpu_clk_postmux1;
-	struct clk_hw *cpu_clk_premux1;
-};
-
-static int t7_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
-					   unsigned long event, void *data)
-{
-	struct t7_cpu_clk_postmux_nb_data *nb_data =
-		container_of(nb, struct t7_cpu_clk_postmux_nb_data, nb);
-
-	switch (event) {
-	case PRE_RATE_CHANGE:
-		/*
-		 * This notifier means cpu_clk_postmux0 clock will be changed
-		 * to feed cpu_clk, this is the current path :
-		 * cpu_clk
-		 *    \- cpu_clk_dyn
-		 *          \- cpu_clk_postmux0
-		 *                \- cpu_clk_muxX_div
-		 *                      \- cpu_clk_premux0
-		 *				\- fclk_div3 or fclk_div2
-		 *		OR
-		 *                \- cpu_clk_premux0
-		 *			\- fclk_div3 or fclk_div2
-		 */
-
-		/* Setup cpu_clk_premux1 to xtal */
-		clk_hw_set_parent(nb_data->cpu_clk_premux1,
-				  nb_data->xtal);
-
-		/* Setup cpu_clk_postmux1 to bypass divider */
-		clk_hw_set_parent(nb_data->cpu_clk_postmux1,
-				  nb_data->cpu_clk_premux1);
-
-		/* Switch to parking clk on cpu_clk_postmux1 */
-		clk_hw_set_parent(nb_data->cpu_clk_dyn,
-				  nb_data->cpu_clk_postmux1);
-
-		/*
-		 * Now, cpu_clk is 24MHz in the current path :
-		 * cpu_clk
-		 *    \- cpu_clk_dyn
-		 *          \- cpu_clk_postmux1
-		 *                \- cpu_clk_premux1
-		 *                      \- xtal
-		 */
-
-		udelay(100);
-
-		return NOTIFY_OK;
-
-	case POST_RATE_CHANGE:
-		/*
-		 * The cpu_clk_postmux0 has ben updated, now switch back
-		 * cpu_clk_dyn to cpu_clk_postmux0 and take the changes
-		 * in account.
-		 */
-
-		/* Configure cpu_clk_dyn back to cpu_clk_postmux0 */
-		clk_hw_set_parent(nb_data->cpu_clk_dyn,
-				  nb_data->cpu_clk_postmux0);
-
-		/*
-		 * new path :
-		 * cpu_clk
-		 *    \- cpu_clk_dyn
-		 *          \- cpu_clk_postmux0
-		 *                \- cpu_clk_muxX_div
-		 *                      \- cpu_clk_premux0
-		 *				\- fclk_div3 or fclk_div2
-		 *		OR
-		 *                \- cpu_clk_premux0
-		 *			\- fclk_div3 or fclk_div2
-		 */
-
-		udelay(100);
-
-		return NOTIFY_OK;
-
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static struct t7_cpu_clk_postmux_nb_data t7_cpu_clk_postmux0_nb_data = {
-	.cpu_clk_dyn = &t7_cpu_clk_dyn.hw,
-	.cpu_clk_postmux0 = &t7_cpu_clk_postmux0.hw,
-	.cpu_clk_postmux1 = &t7_cpu_clk_postmux1.hw,
-	.cpu_clk_premux1 = &t7_cpu_clk_premux1.hw,
-	.nb.notifier_call = t7_cpu_clk_postmux_notifier_cb,
-};
-
 struct t7_sys_pll_nb_data {
 	struct notifier_block nb;
 	struct clk_hw *sys_pll;
 	struct clk_hw *cpu_clk;
-	struct clk_hw *cpu_clk_dyn;
+	struct clk_hw *cpu_dyn_clk;
 };
 
 static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
@@ -966,7 +977,7 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 
 		/* Configure cpu_clk to use cpu_clk_dyn */
 		clk_hw_set_parent(nb_data->cpu_clk,
-				  nb_data->cpu_clk_dyn);
+				  nb_data->cpu_dyn_clk);
 
 		/*
 		 * Now, cpu_clk uses the dyn path
@@ -1008,10 +1019,17 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 	}
 }
 
-static struct t7_sys_pll_nb_data t7_sys_pll_nb_data = {
+static struct t7_sys_pll_nb_data t7_sys1_pll_nb_data = {
 	.sys_pll = &t7_sys_pll.hw,
 	.cpu_clk = &t7_cpu_clk.hw,
-	.cpu_clk_dyn = &t7_cpu_clk_dyn.hw,
+	.cpu_dyn_clk = &t7_cpu_dyn_clk.hw,
+	.nb.notifier_call = t7_sys_pll_notifier_cb,
+};
+
+static struct t7_sys_pll_nb_data t7_sys_pll_nb_data = {
+	.sys_pll = &t7_sys1_pll.hw,
+	.cpu_clk = &t7_a73_clk.hw,
+	.cpu_dyn_clk = &t7_a73_dyn_clk.hw,
 	.nb.notifier_call = t7_sys_pll_notifier_cb,
 };
 
@@ -6893,6 +6911,110 @@ static struct clk_regmap t7_gen = {
 	},
 };
 
+static struct clk_regmap t7_mclk_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.mask = 0x3,
+		.shift = 4,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .hw = &t7_mclk_pll.hw },
+			{ .fw_name = "xtal", },
+			{ .hw = &t7_mpll_50m.hw },
+		},
+		.num_parents = 3,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.shift = 2,
+		.width = 1,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_0_div",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_mclk_0_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.bit_idx = 0,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "mclk_0",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_mclk_0_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.mask = 0x3,
+		.shift = 12,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .hw = &t7_mclk_pll.hw },
+			{ .fw_name = "xtal", },
+			{ .hw = &t7_mpll_50m.hw },
+		},
+		.num_parents = 3,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.shift = 10,
+		.width = 1,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_1_div",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_mclk_1_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "mclk_1",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_mclk_1_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_SC2_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -7002,6 +7124,8 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_FIXED_PLL]		= &t7_fixed_pll.hw,
 		[CLKID_SYS_PLL_DCO]		= &t7_sys_pll_dco.hw,
 		[CLKID_SYS_PLL]			= &t7_sys_pll.hw,
+		[CLKID_SYS1_PLL_DCO]		= &t7_sys1_pll_dco.hw,
+		[CLKID_SYS1_PLL]		= &t7_sys1_pll.hw,
 		[CLKID_FCLK_DIV2_DIV]		= &t7_fclk_div2_div.hw,
 		[CLKID_FCLK_DIV2]		= &t7_fclk_div2.hw,
 		[CLKID_FCLK_DIV3_DIV]		= &t7_fclk_div3_div.hw,
@@ -7018,14 +7142,13 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_GP0_PLL]			= &t7_gp0_pll.hw,
 		[CLKID_GP1_PLL_DCO]		= &t7_gp1_pll_dco.hw,
 		[CLKID_GP1_PLL]			= &t7_gp1_pll.hw,
-		[CLKID_CPU_CLK_DYN0_SEL]	= &t7_cpu_clk_premux0.hw,
-		[CLKID_CPU_CLK_DYN0_DIV]	= &t7_cpu_clk_mux0_div.hw,
-		[CLKID_CPU_CLK_DYN0]		= &t7_cpu_clk_postmux0.hw,
-		[CLKID_CPU_CLK_DYN1_SEL]	= &t7_cpu_clk_premux1.hw,
-		[CLKID_CPU_CLK_DYN1_DIV]	= &t7_cpu_clk_mux1_div.hw,
-		[CLKID_CPU_CLK_DYN1]		= &t7_cpu_clk_postmux1.hw,
-		[CLKID_CPU_CLK_DYN]		= &t7_cpu_clk_dyn.hw,
+		[CLKID_MCLK_PLL_DCO]		= &t7_mclk_pll_dco.hw,
+		[CLKID_MCLK_PRE]		= &t7_mclk_pre_od.hw,
+		[CLKID_MCLK_PLL]		= &t7_mclk_pll.hw,
+		[CLKID_CPU_DYN_CLK]		= &t7_cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]			= &t7_cpu_clk.hw,
+		[CLKID_A73_DYN_CLK]		= &t7_a73_dyn_clk.hw,
+		[CLKID_A73_CLK]			= &t7_a73_clk.hw,
 /*
  *		[CLKID_CPU1_CLK]		= &t7_cpu1_clk.hw,
  *		[CLKID_CPU2_CLK]		= &t7_cpu2_clk.hw,
@@ -7165,6 +7288,12 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_HDMIRX_METER_MUX]	= &t7_hdmirx_meter_sel.hw,
 		[CLKID_HDMIRX_METER_DIV]	= &t7_hdmirx_meter_div.hw,
 		[CLKID_HDMIRX_METER]		= &t7_hdmirx_meter.hw,
+		[CLKID_MCLK_0_SEL]		= &t7_mclk_0_sel.hw,
+		[CLKID_MCLK_0_DIV]		= &t7_mclk_0_div.hw,
+		[CLKID_MCLK_0]			= &t7_mclk_0.hw,
+		[CLKID_MCLK_1_SEL]		= &t7_mclk_1_sel.hw,
+		[CLKID_MCLK_1_DIV]		= &t7_mclk_1_div.hw,
+		[CLKID_MCLK_1]			= &t7_mclk_1.hw,
 		[CLKID_TS_CLK_DIV]		= &t7_ts_clk_div.hw,
 		[CLKID_TS_CLK_GATE]		= &t7_ts_clk_gate.hw,
 		[CLKID_MALI_0_SEL]		= &t7_mali_0_sel.hw,
@@ -7562,6 +7691,12 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 	&t7_hdmirx_meter_sel,
 	&t7_hdmirx_meter_div,
 	&t7_hdmirx_meter,
+	&t7_mclk_0_sel,
+	&t7_mclk_0_div,
+	&t7_mclk_0,
+	&t7_mclk_1_sel,
+	&t7_mclk_1_div,
+	&t7_mclk_1,
 	&t7_ts_clk_div,
 	&t7_ts_clk_gate,
 	&t7_mali_0_sel,
@@ -7846,14 +7981,10 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 };
 
 static struct clk_regmap *const t7_cpu_clk_regmaps[] = {
-	&t7_cpu_clk_premux0,
-	&t7_cpu_clk_mux0_div,
-	&t7_cpu_clk_postmux0,
-	&t7_cpu_clk_premux1,
-	&t7_cpu_clk_mux1_div,
-	&t7_cpu_clk_postmux1,
-	&t7_cpu_clk_dyn,
+	&t7_cpu_dyn_clk,
 	&t7_cpu_clk,
+	&t7_a73_dyn_clk,
+	&t7_a73_clk,
 /*
  *	&t7_cpu1_clk,
  *	&t7_cpu2_clk,
@@ -7866,6 +7997,8 @@ static struct clk_regmap *const t7_pll_clk_regmaps[] = {
 	&t7_fixed_pll,
 	&t7_sys_pll_dco,
 	&t7_sys_pll,
+	&t7_sys1_pll_dco,
+	&t7_sys1_pll,
 	&t7_fclk_div2,
 	&t7_fclk_div3,
 	&t7_fclk_div4,
@@ -7876,6 +8009,9 @@ static struct clk_regmap *const t7_pll_clk_regmaps[] = {
 	&t7_gp0_pll,
 	&t7_gp1_pll_dco,
 	&t7_gp1_pll,
+	&t7_mclk_pll_dco,
+	&t7_mclk_pre_od,
+	&t7_mclk_pll,
 	&t7_hifi_pll_dco,
 	&t7_hifi_pll,
 	&t7_pcie_pll_dco,
@@ -7894,65 +8030,22 @@ static struct clk_regmap *const t7_pll_clk_regmaps[] = {
 	&t7_mpll3
 };
 
-static int meson_t7_dvfs_setup_common(struct platform_device *pdev,
-				       struct clk_hw **hws)
-{
-	struct clk *notifier_clk;
-	struct clk_hw *xtal;
-	int ret;
-
-	xtal = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 0);
-
-	/* Setup clock notifier for cpu_clk_postmux0 */
-	t7_cpu_clk_postmux0_nb_data.xtal = xtal;
-	notifier_clk = t7_cpu_clk_postmux0.hw.clk;
-	ret = clk_notifier_register(notifier_clk,
-				    &t7_cpu_clk_postmux0_nb_data.nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register the cpu_clk_postmux0 notifier\n");
-		return ret;
-	}
-
-	/* Setup clock notifier for cpu_clk_dyn mux */
-	notifier_clk = t7_cpu_clk_dyn.hw.clk;
-	ret = clk_notifier_register(notifier_clk, &t7_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register the cpu_clk_dyn notifier\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static unsigned int skip_dvfs;
-
 static int meson_t7_dvfs_setup(struct platform_device *pdev)
 {
-	struct clk_hw **hws = t7_hw_onecell_data.hws;
 	int ret;
 
-	/* Skip first ,bl31 is not ready*/
-	pr_info("skip meson t7 dvfs setup\n");
-
-	if (!skip_dvfs)
-		return 0;
-
-	ret = meson_t7_dvfs_setup_common(pdev, hws);
-	if (ret)
-		return ret;
-
-	/* Setup clock notifier for cpu_clk mux */
-	ret = clk_notifier_register(t7_cpu_clk.hw.clk, &t7_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register cpu_clk notifier\n");
-		return ret;
-	}
-
-	/* Setup clock notifier for sys_pll */
+	/* Setup cluster 0 clock notifier for sys_pll */
 	ret = clk_notifier_register(t7_sys_pll.hw.clk,
 				    &t7_sys_pll_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
+		return ret;
+	}
+	/* Setup cluster 1 clock notifier for sys1_pll */
+	ret = clk_notifier_register(t7_sys_pll.hw.clk,
+				    &t7_sys1_pll_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register sys1_pll notifier\n");
 		return ret;
 	}
 
@@ -7998,7 +8091,6 @@ static int meson_t7_probe(struct platform_device *pdev)
 	struct regmap *cpu_clk_map;
 	int ret, i;
 
-	pr_info("t7 clk probe start..\n");
 	/* Get regmap for different clock area */
 	basic_map = t7_regmap_resource(dev, "basic");
 	if (IS_ERR(basic_map)) {
@@ -8034,18 +8126,6 @@ static int meson_t7_probe(struct platform_device *pdev)
 		if (!t7_hw_onecell_data.hws[i])
 			continue;
 
-		/*Ship secure clk first, bl31 is not ready */
-		if (i >= CLKID_CPU_BASE && i <= CLKID_CPU_CLK)
-			continue;
-
-		if (i == CLKID_SYS_PLL_DCO || i == CLKID_SYS_PLL ||
-		    i == CLKID_GP0_PLL_DCO || i == CLKID_GP0_PLL ||
-		    i == CLKID_GP1_PLL_DCO || i == CLKID_GP1_PLL)
-			continue;
-		/*
-		 *dev_err(dev, "register %d  %s\n",i,
-		 *	t7_hw_onecell_data.hws[i]->init->name);
-		 */
 		ret = devm_clk_hw_register(dev, t7_hw_onecell_data.hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
@@ -8055,7 +8135,6 @@ static int meson_t7_probe(struct platform_device *pdev)
 
 	meson_t7_dvfs_setup(pdev);
 
-	pr_info("T7 clk probe OK.\n");
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &t7_hw_onecell_data);
 }
