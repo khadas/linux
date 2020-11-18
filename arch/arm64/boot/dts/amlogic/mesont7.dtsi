@@ -7,7 +7,7 @@
 #include <dt-bindings/clock/amlogic,t7-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/power/sc2-pd.h>
+#include <dt-bindings/power/t7-pd.h>
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t7-gpio.h>
@@ -135,9 +135,9 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,sc2-power-domain";
+		compatible = "amlogic,t7-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	jtag {
@@ -479,7 +479,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			version = <2>;
-			power-domains = <&pwrdm PDID_SC2_USB_COMB>;
+//			power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy20-reset-level-bit = <8>;
 			phy21-reset-level-bit = <9>;
 			usb-reset-bit = <4>;
@@ -590,7 +590,7 @@
 			pcie-phy-rst-bit = <13>;
 			pcie-ctrl-a-rst-bit = <12>;
 			pwr-ctl = <0>;
-			power-domains = <&pwrdm PDID_SC2_PCIE>;
+//			power-domains = <&pwrdm PDID_SC2_PCIE>;
 			pcie-ctrl-sleep-shift = <15>;
 			pcie-hhi-mem-pd-shift = <26>;
 			pcie-hhi-mem-pd-mask = <0xf>;
@@ -666,7 +666,7 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_SC2_ETH>;
+//			power-domains = <&pwrdm PDID_SC2_ETH>;
 			clocks = <&clkc CLKID_ETH>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
@@ -786,9 +786,9 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_SC2_DOS_VDEC>,
-			<&pwrdm PDID_SC2_DOS_HCODEC>,
-			<&pwrdm PDID_SC2_DOS_HEVC>;
+//		power-domains = <&pwrdm PDID_SC2_DOS_VDEC>,
+//			<&pwrdm PDID_SC2_DOS_HCODEC>,
+//			<&pwrdm PDID_SC2_DOS_HEVC>;
 		power-domain-names = "pwrc-vdec",
 			"pwrc-hcodec",
 			"pwrc-hevc";
@@ -1275,7 +1275,7 @@
 			"clk_ge2d",
 			"clk_ge2d_gate";
 		reg = <0x0 0xff040000 0x0 0x100>;
-		power-domains = <&pwrdm PDID_SC2_GE2D>;
+//		power-domains = <&pwrdm PDID_SC2_GE2D>;
 	};
 };
 
