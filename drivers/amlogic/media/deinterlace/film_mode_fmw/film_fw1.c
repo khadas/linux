@@ -434,6 +434,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			*rCmb32Spcl = 1;
 	} else if (pRDat.pMod22[HISDETNUM - 1] == 2) {
 		nMod = pRDat.pMod22[HISDETNUM - 1];
+		pRDat.mNum32[HISDETNUM - 1] = 0;
 		/* nT0 = pRDat.pFlg22[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum22[HISDETNUM - 1] < 255)	/* maximum */
