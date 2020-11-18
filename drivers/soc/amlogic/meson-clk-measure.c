@@ -23,7 +23,7 @@ static DEFINE_MUTEX(measure_lock);
 #define MSR_CLK_SRC		GENMASK(26, 20)
 #define MSR_BUSY		BIT(31)
 
-#define MSR_VAL_MASK		GENMASK(15, 0)
+#define MSR_VAL_MASK		GENMASK(19, 0)
 
 #define DIV_MIN			32
 #define DIV_STEP		32
@@ -844,8 +844,12 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 
 	mutex_unlock(&measure_lock);
 
-	if (val >= MSR_VAL_MASK)
+	if (val > MSR_VAL_MASK) {
+		pr_err("measure val error\n");
 		return -EINVAL;
+	} else if (val == MSR_VAL_MASK) {
+		return 0;
+	}
 
 	return DIV_ROUND_CLOSEST_ULL((val & MSR_VAL_MASK) * 1000000ULL,
 				     duration);
@@ -917,8 +921,10 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 			continue;
 
 		val = meson_measure_best_id(&msr_table[i], &precision);
-		if (val < 0)
+		if (val < 0) {
+			pr_err("measure failed\n");
 			return val;
+		}
 
 		seq_printf(s, " %-20s %10d    +/-%dHz\n",
 			   msr_table[i].name, val, precision);
