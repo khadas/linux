@@ -1452,6 +1452,11 @@
 		status = "okay";
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	fb: fb {
 		compatible = "amlogic, fb-sc2";
 		memory-region = <&logo_reserved>;
