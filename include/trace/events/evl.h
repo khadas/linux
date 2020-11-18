@@ -177,7 +177,8 @@ DECLARE_EVENT_CLASS(evl_sched_attrs,
 	),
 
 	TP_printk("thread=%s policy=%s param={ %s }",
-		  evl_element_name(&__entry->thread->element),
+		  evl_element_name(&__entry->thread->element)?
+		  evl_element_name(&__entry->thread->element):"{ }",
 		  evl_print_sched_policy(__entry->policy),
 		  evl_trace_sched_attrs(p,
 					(struct evl_sched_attrs *)
