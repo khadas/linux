@@ -6301,6 +6301,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	int src_fmt = -1;
 	int ret = 0;
 #endif
+	int i;
+	char *p;
 
 	if (!vf)
 		return -1;
@@ -6310,11 +6312,39 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	vf->src_fmt.sei_ptr = sei;
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME) {
+		pr_info("===update vf %p, sei %p, size %d===\n",
+			vf, sei, size);
+		if (sei && size > 15) {
+			p = (char *)sei;
+			for (i = 0; i < size; i += 16)
+				pr_info("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+					p[i],
+					p[i + 1],
+					p[i + 2],
+					p[i + 3],
+					p[i + 4],
+					p[i + 5],
+					p[i + 6],
+					p[i + 7],
+					p[i + 8],
+					p[i + 9],
+					p[i + 10],
+					p[i + 11],
+					p[i + 12],
+					p[i + 13],
+					p[i + 14],
+					p[i + 15]);
+		}
+	}
 
 	if (vf->type & VIDTYPE_MVC) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
 	} else if (sei && size) {
-		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
+		if (vf->discard_dv_data) {
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("ignore nonstandard dv\n");
+		} else if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 #if PARSE_MD_IN_ADVANCE
@@ -6374,6 +6404,9 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 
 	if (vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI)
 		clear_vframe_dovi_md_info(vf);
+
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+		pr_info("[%s]fmt: %d\n", __func__, vf->src_fmt.fmt);
 
 	return 0;
 }

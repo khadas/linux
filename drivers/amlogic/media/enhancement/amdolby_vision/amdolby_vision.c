@@ -6399,8 +6399,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
-		if (fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		    fmt == VFRAME_SIGNAL_FMT_INVALID) {
+		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
+		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
+		    !vf->discard_dv_data) {
 			u32 sei_size = 0;
 			char *sei;
 
@@ -6412,10 +6413,11 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			if ((!req.aux_buf || !req.aux_size) &&
 			    fmt == VFRAME_SIGNAL_FMT_DOVI) {
 				if (debug_dolby & 1)
-					pr_dolby_dbg("invalid aux buf %p %x, el %d\n",
+					pr_dolby_dbg("no aux buf %p %x, el %d from %s\n",
 						     req.aux_buf,
 						     req.aux_size,
-						     req.dv_enhance_exist);
+						     req.dv_enhance_exist,
+						     dv_provider);
 				sei = (char *)get_sei_from_src_fmt
 					(vf, &sei_size);
 				if (sei && sei_size) {
@@ -6427,8 +6429,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("dvbldec get vf %p, fmt %d, aux data %p %x, el %d\n",
-				     vf, fmt,
+			pr_dolby_dbg("dvbldec get vf %p(%d), fmt %d, aux %p %x, el %d\n",
+				     vf, vf->discard_dv_data, fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);
