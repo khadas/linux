@@ -41,6 +41,8 @@
 #define MUTE_TYPE_RGB	2
 #define MUTE_TYPE_IPT	3
 struct vframe_s;
+#define MD_BUF_SIZE 1024
+#define COMP_BUF_SIZE 8196
 
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);

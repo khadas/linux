@@ -565,7 +565,7 @@ struct vframe_s {
 
 	/*for double write VP9/AV1 vf*/
 	void *mem_dw_handle;
-	struct fence *fence;
+	struct dma_fence *fence;
 		/*current is dv input*/
 	bool dv_input;
 	/* dv mode crc check:
@@ -578,6 +578,9 @@ struct vframe_s {
 	unsigned int crc;
 	struct componser_info_t *componser_info;
 	void *decontour_pre;
+
+	u32 hdr10p_data_size;
+	char *hdr10p_data_buf;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);

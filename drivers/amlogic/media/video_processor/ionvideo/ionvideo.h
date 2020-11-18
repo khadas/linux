@@ -37,6 +37,7 @@
 
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
+#include <linux/amlogic/media/canvas/canvas_mgr.h>
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
@@ -45,7 +46,7 @@
 #define MAX_WIDTH 4096
 #define MAX_HEIGHT 4096
 
-#define IONVIDEO_POOL_SIZE 16
+#define IONVIDEO_POOL_SIZE 32
 
 #define IONVID_INFO(fmt, args...) pr_info("ionvid: info: " fmt " ", ## args)
 #define IONVID_DBG(fmt, args...) pr_debug("ionvid: dbg: " fmt " ", ## args)
@@ -59,8 +60,6 @@ do {                                                    \
 	if (get_ionvideo_debug() >= (level))                  \
 		pr_debug("ppmgr2-dev: " fmt, ## arg);  \
 } while (0)
-
-#define PPMGR2_CANVAS_INDEX_SRC (PPMGR2_CANVAS_INDEX + 3)
 
 /* v4l2_amlogic_parm must < u8[200] */
 struct v4l2_amlogic_parm {
@@ -201,8 +200,8 @@ struct ppmgr2_device {
 	int dst_buffer_width;
 	int dst_buffer_height;
 	int ge2d_fmt;
-	int canvas_id[PPMGR2_MAX_CANVAS];
-	void *phy_addr[PPMGR2_MAX_CANVAS];
+	int canvas_id[IONVIDEO_POOL_SIZE];
+	void *phy_addr[IONVIDEO_POOL_SIZE];
 	int phy_size;
 
 	struct ge2d_context_s *context;
@@ -311,6 +310,8 @@ struct ionvideo_dev {
 
 int get_ionvideo_debug(void);
 
+void ionvideo_alloc_canvas(void);
+void ionvideo_free_canvas(void);
 int ppmgr2_init(struct ppmgr2_device *ppd);
 int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index);
 int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index);

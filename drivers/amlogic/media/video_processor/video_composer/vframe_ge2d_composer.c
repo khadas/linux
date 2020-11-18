@@ -308,6 +308,18 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 		dst_canvas0_config[0].height = ge2d_comp_para->buffer_h;
 		dst_canvas0_config[0].block_mode = 0;
 		dst_canvas0_config[0].endian = 0;
+	} else if (ge2d_comp_para->format == GE2D_FORMAT_M24_NV21) {
+		dst_canvas0_config[0].phy_addr = ge2d_comp_para->phy_addr[0];
+		dst_canvas0_config[0].width = ge2d_comp_para->buffer_w;
+		dst_canvas0_config[0].height = ge2d_comp_para->buffer_h;
+		dst_canvas0_config[0].block_mode = 0;
+		dst_canvas0_config[0].endian = 0;
+		dst_canvas0_config[1].phy_addr = ge2d_comp_para->phy_addr[0]
+			+ ge2d_comp_para->buffer_w * ge2d_comp_para->buffer_h;
+		dst_canvas0_config[1].width = ge2d_comp_para->buffer_w;
+		dst_canvas0_config[1].height = ge2d_comp_para->buffer_h >> 1;
+		dst_canvas0_config[1].block_mode = 0;
+		dst_canvas0_config[1].endian = 0;
 	}
 	dst_plane_num = ge2d_comp_para->plane_num;
 
@@ -369,6 +381,9 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 	ge2d_comp_para->ge2d_config->dst_para.left = 0;
 	ge2d_comp_para->ge2d_config->dst_para.format =
 		ge2d_comp_para->format;
+	if (ge2d_comp_para->format == GE2D_FORMAT_M24_NV21)
+		ge2d_comp_para->ge2d_config->dst_para.format |=
+			GE2D_LITTLE_ENDIAN;
 	ge2d_comp_para->ge2d_config->dst_para.width =
 		ge2d_comp_para->buffer_w;
 	ge2d_comp_para->ge2d_config->dst_para.height =
@@ -406,6 +421,18 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 		dst_canvas0_config[0].height = ge2d_comp_para->buffer_h;
 		dst_canvas0_config[0].block_mode = 0;
 		dst_canvas0_config[0].endian = 0;
+	} else if (ge2d_comp_para->format == GE2D_FORMAT_M24_NV21) {
+		dst_canvas0_config[0].phy_addr = ge2d_comp_para->phy_addr[0];
+		dst_canvas0_config[0].width = ge2d_comp_para->buffer_w;
+		dst_canvas0_config[0].height = ge2d_comp_para->buffer_h;
+		dst_canvas0_config[0].block_mode = 0;
+		dst_canvas0_config[0].endian = 0;
+		dst_canvas0_config[1].phy_addr = ge2d_comp_para->phy_addr[0]
+			+ ge2d_comp_para->buffer_w * ge2d_comp_para->buffer_h;
+		dst_canvas0_config[1].width = ge2d_comp_para->buffer_w;
+		dst_canvas0_config[1].height = ge2d_comp_para->buffer_h >> 1;
+		dst_canvas0_config[1].block_mode = 0;
+		dst_canvas0_config[1].endian = 0;
 	}
 	dst_plane_num = ge2d_comp_para->plane_num;
 
@@ -513,6 +540,9 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 
 	ge2d_comp_para->ge2d_config->dst_para.format =
 		ge2d_comp_para->format;
+	if (ge2d_comp_para->format == GE2D_FORMAT_M24_NV21)
+		ge2d_comp_para->ge2d_config->dst_para.format |=
+			GE2D_LITTLE_ENDIAN;
 	ge2d_comp_para->ge2d_config->dst_para.width =
 		ge2d_comp_para->buffer_w;
 	ge2d_comp_para->ge2d_config->dst_para.height =

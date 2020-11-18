@@ -211,7 +211,8 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -EAGAIN;
-	if (vf->flag & VFRAME_FLAG_SWITCHING_FENSE) {
+	if ((vf->flag & VFRAME_FLAG_SWITCHING_FENSE) ||
+	    (vf->type & VIDTYPE_V4L_EOS)) {
 		vf_put(vf, dev->vf_receiver_name);
 		return -EAGAIN;
 	}
@@ -932,8 +933,9 @@ static int ionvideo_create_instance(int inst,
 			 dev->vf_receiver_name,
 			 &video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_receiver);
-	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
-		  video_device_node_name(vfd));
+	if (inst == n_devs - 1 || inst == 0)
+		v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
+			  video_device_node_name(vfd));
 
 	/* add to device list */
 	flags = ionvideo_devlist_lock();
@@ -1003,6 +1005,7 @@ void ionvideo_release_map(int inst)
 	unsigned long flags;
 	struct ionvideo_dev *dev = NULL;
 	struct list_head *p;
+	bool need_release_canvas;
 
 	flags = ionvideo_devlist_lock();
 
@@ -1014,6 +1017,17 @@ void ionvideo_release_map(int inst)
 			break;
 		}
 	}
+
+	need_release_canvas = true;
+	list_for_each(p, &ionvideo_devlist) {
+		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
+		if (dev->mapped) {
+			need_release_canvas = false;
+			break;
+		}
+	}
+	if (need_release_canvas)
+		ionvideo_free_canvas();
 
 	ionvideo_devlist_unlock(flags);
 }
@@ -1359,10 +1373,6 @@ static int ionvideo_driver_probe(struct platform_device *pdev)
 		ret = PTR_ERR(devp);
 		return ret;
 	}
-
-	IONVID_INFO("Video Technology Magazine Ion Video\n");
-	IONVID_INFO("Capture Board ver %s successfully loaded\n",
-		    IONVIDEO_VERSION);
 
 	/* n_devs will reflect the actual number of allocated devices */
 	n_devs = i;
