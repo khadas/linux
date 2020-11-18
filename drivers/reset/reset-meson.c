@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/of_device.h>
+#include <linux/module.h>
 
 #define BITS_PER_REG	32
 

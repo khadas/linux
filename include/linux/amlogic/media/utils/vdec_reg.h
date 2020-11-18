@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/registers/register_ops.h>
 #include <linux/amlogic/media/registers/register_map.h>

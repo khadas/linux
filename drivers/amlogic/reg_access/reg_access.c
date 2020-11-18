@@ -199,16 +199,19 @@ static int __init aml_debug_init(void)
 {
 	static struct dentry *dir_aml_reg;
 
-	dir_aml_reg = debugfs_create_dir("aml_reg", NULL);
-	if (IS_ERR_OR_NULL(dir_aml_reg)) {
-		pr_warn("failed to create debugfs directory\n");
-		dir_aml_reg = NULL;
-		return -ENOMEM;
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		dir_aml_reg = debugfs_create_dir("aml_reg", NULL);
+		if (IS_ERR_OR_NULL(dir_aml_reg)) {
+			pr_warn("failed to create debugfs directory\n");
+			dir_aml_reg = NULL;
+			return -ENOMEM;
+		}
+		debugfs_create_file("paddr", S_IFREG | 0440,
+				    dir_aml_reg, &aml_dev, &paddr_file_ops);
+		debugfs_create_file("dump", S_IFREG | 0440,
+				    dir_aml_reg, &aml_dev, &dump_file_ops);
 	}
-	debugfs_create_file("paddr", S_IFREG | 0440,
-			    dir_aml_reg, &aml_dev, &paddr_file_ops);
-	debugfs_create_file("dump", S_IFREG | 0440,
-			    dir_aml_reg, &aml_dev, &dump_file_ops);
+
 	return 0;
 }
 

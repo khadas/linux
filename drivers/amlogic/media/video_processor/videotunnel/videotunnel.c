@@ -36,6 +36,7 @@
 #include <linux/random.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/aml_sync_api.h>
+#include <linux/sched/task.h>
 
 #include <asm-generic/bug.h>
 
