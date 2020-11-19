@@ -304,6 +304,7 @@ static int set_vout_init_mode(void)
 		snprintf(vout_mode, VMODE_NAME_LEN_MAX, "%s", local_name);
 		VOUTPR("init mode %s set ok\n", local_name);
 	}
+	vout_notifier_call_chain(VOUT_EVENT_SYS_INIT, &vmode);
 
 	return ret;
 }
