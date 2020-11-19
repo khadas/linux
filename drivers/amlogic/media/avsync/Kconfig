@@ -1,0 +1,8 @@
+#
+# Amlogic multi-instance AVsync
+#
+config AMLOGIC_MEDIA_MSYNC
+	bool "Multi-Instance AVSync"
+	default n
+	help
+		Amlogic multi instance AVSync support

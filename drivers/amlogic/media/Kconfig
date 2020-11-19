@@ -75,6 +75,7 @@ source "drivers/amlogic/media/vin/Kconfig"
 source "drivers/amlogic/media/cec/Kconfig"
 source "drivers/amlogic/media/esm/Kconfig"
 source "drivers/amlogic/media/atv_demod/Kconfig"
+source "drivers/amlogic/media/avsync/Kconfig"
 source "drivers/amlogic/media/dtv_demod/Kconfig"
 endif
 endmenu

@@ -565,4 +565,18 @@ static int aml_dtvdemod_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
+int __init msync_init(void);
+void __exit msync_exit(void);
+#else
+static int msync_init(void)
+{
+	return 0;
+}
+
+void __exit msync_exit(void)
+{
+}
+#endif
+
 #endif

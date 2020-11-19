@@ -123,6 +123,7 @@ static int __init media_main_init(void)
 	call_sub_init(resman_init);
 	call_sub_init(aml_atvdemod_init);
 	call_sub_init(aml_dtvdemod_init);
+	call_sub_init(msync_init);
 	pr_info("### %s() end\n", __func__);
 	return 0;
 }
@@ -130,6 +131,7 @@ static void __exit media_main_exit(void)
 {
 	pr_info("%s()\n", __func__);
 	meson_videotunnel_exit();
+	msync_exit();
 }
 module_init(media_main_init);
 module_exit(media_main_exit);
