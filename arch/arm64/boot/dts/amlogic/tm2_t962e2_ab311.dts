@@ -489,6 +489,7 @@
 	keep-power-in-suspend;
 	card_type = <3>;
 
+	power-domains = <&pwrc PWRC_TM2_EMMCB_ID>;
 //	mmc-pwrseq = <&sdio_pwrseq>;
 
 	vmmc-supply = <&vddao_3v3>;
@@ -515,6 +516,7 @@
 	non-removable;
 	disable-wp;
 
+	power-domains = <&pwrc PWRC_TM2_EMMCC_ID>;
 //	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddao_1v8>;
