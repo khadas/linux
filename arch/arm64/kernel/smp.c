@@ -62,6 +62,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <asm/cputype.h>
+#endif
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
@@ -833,6 +836,18 @@ static void ipi_cpu_stop(unsigned int cpu)
 
 	local_irq_disable();
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* CORTEX-A55 need power down here for shutdown*/
+	/* If A55 enter WFI here, it is possible quit from wfi,
+	 *  which cause CPU PACTIVE check fail.
+	 */
+#ifdef CONFIG_HOTPLUG_CPU
+	if ((read_cpuid_id() & MIDR_CPU_MODEL_MASK) == MIDR_CORTEX_A55) {
+		if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_die)
+			cpu_ops[cpu]->cpu_die(cpu);
+	}
+#endif
+#endif
 	while (1)
 		cpu_relax();
 }
