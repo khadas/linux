@@ -995,8 +995,8 @@
 		};
 	};
 	vpu: vpu {
-		compatible = "amlogic, vpu-sc2";
-		status = "disabled";
+		compatible = "amlogic, vpu-t7";
+		status = "okay";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xa000>; /* vcbus */
