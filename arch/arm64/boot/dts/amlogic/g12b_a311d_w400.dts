@@ -891,7 +891,7 @@
 		reg = <0x5d>;
 		reset-gpio = <&gpio GPIOZ_9 GPIO_ACTIVE_HIGH>;
 		irq-gpio = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
-		rotation = <2>;
+		rotation = <3>;
 		goodix,cfg-group0 = [
 			41 00 04 58 02 05 0C 00 02 54 07
 			0F 50 2D 03 05 00 00 00 00 40 00
@@ -1031,7 +1031,7 @@
 		 */
 		lb-src-sel = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	aml_spdif: spdif {
