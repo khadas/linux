@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_P_32.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
@@ -246,19 +246,19 @@
 		};
 	};
 
-	codec_mm {
-		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved>;
-		dev_name = "codec_mm";
-		status = "okay";
-	};
-
 	picdec_cma_reserved:linux,picdec {
 		compatible = "shared-dma-pool";
 		reusable;
 		size = <0x0>;
 		alignment = <0x0>;
 		linux,contiguous-region;
+	};
+
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
 	};
 
 	picdec {
@@ -325,7 +325,7 @@
 		compatible = "amlogic, vm";
 		memory-region = <&vm0_cma_reserved>;
 		dev_name = "vm0";
-		status = "disabled";
+		status = "okay";
 		vm_id = <0>;
 	};
 
@@ -348,7 +348,7 @@
 
 	aml_cams {
 		compatible = "amlogic, cams_prober";
-		status = "disabled";
+		status = "okay";
 		pinctrl-names="default";
 		pinctrl-0=<&gen_clk_ee_z>;
 		clocks = <&clkc CLKID_GEN_CLK>;
@@ -372,7 +372,7 @@
 
 	amvdec_csi {
 		compatible = "amlogic, amvdec_csi";
-		status = "disabled";
+		status = "okay";
 		csi_id = <0>;
 		reg = <0x0 0xff650000 0x0 0x00000100>,
 		      <0x0 0xffe0c000 0x0 0x00000100>,
@@ -930,7 +930,7 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_master_pins3>;
 	clock-frequency = <100000>;
@@ -1313,13 +1313,16 @@
 
 		status = "disabled";
 	};
+
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
+
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -1332,6 +1335,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
+
 		status = "disabled";
 	};
 }; /* end of audiobus */
@@ -1702,4 +1706,3 @@
 		&dvfs800_cfg
 		&dvfs800_cfg>;
 };
-
