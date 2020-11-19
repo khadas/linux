@@ -122,6 +122,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #define TRACE_INCLUDE_PATH ../../drivers/amlogic/media/video_sink
 #define TRACE_INCLUDE_FILE video_trace
 #include <trace/define_trace.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
+#include <uapi/linux/amlogic/msync.h>
+#endif
 
 static int get_count;
 static int get_di_count;
@@ -5165,6 +5168,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
+	msync_vsync_update();
+#endif
 
 	if (cur_vd1_path_id == 0xff)
 		cur_vd1_path_id = vd1_path_id;
