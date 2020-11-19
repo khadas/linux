@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-tm2.dtsi"
+#include "partition_mbox.dtsi"
 
 / {
 	compatible = "amlogic,tm2";
