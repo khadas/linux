@@ -170,6 +170,10 @@ unsigned int drop_num = 2;
 module_param(drop_num, uint, 0664);
 MODULE_PARM_DESC(drop_num, "drop_num");
 
+enum vdin_vf_put_md frame_work_mode = VDIN_VF_PUT;
+module_param(frame_work_mode, uint, 0664);
+MODULE_PARM_DESC(frame_work_mode, "frame_work_mode");
+
 static unsigned int panel_reverse;
 struct vdin_hist_s vdin1_hist;
 struct vdin_v4l2_param_s vdin_v4l2_param;
@@ -743,9 +747,11 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_dobly_mdata_write_en(devp->addr_offset, 0);
 	}
 #endif
+	vdin_write_done_check(devp->addr_offset, devp);
+
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
-	devp->abnormal_cnt = 0;
+	devp->wr_done_abnormal_cnt = 0;
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
 	vdin_drop_cnt = 0;
@@ -823,6 +829,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vpu_crash_cnt = 0;
 	devp->rdma_irq_cnt = 0;
 	devp->frame_cnt = 0;
+	devp->puted_frame_cnt = 0;
+	devp->wr_done_irq_cnt = 0;
 	phase_lock_flag = 0;
 	devp->ignore_frames = max_ignore_frame_cnt;
 	devp->vs_time_stamp = sched_clock();
@@ -870,6 +878,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 	    devp->vpu_crash_irq != 0)
 		disable_irq(devp->vpu_crash_irq);
+
+	if (devp->wr_done_irq > 0)
+		disable_irq(devp->wr_done_irq);
 
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
 	if (vdin_dbg_en)
@@ -1622,10 +1633,15 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
  *	-1:recycled one frame
  */
 int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
-				enum vdin_vf_put_md md)
+				  enum vdin_vf_put_md work_md)
 {
 	int ret = 0;
 	int ret_v4l = 0;
+	enum vdin_vf_put_md md = work_md;
+
+	/*for debug*/
+	if (frame_work_mode == VDIN_VF_RECYCLE)
+		md = VDIN_VF_RECYCLE;
 
 	/*force recycle one frame*/
 	if (devp->frame_cnt < drop_num || md == VDIN_VF_RECYCLE) {
@@ -1640,8 +1656,10 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				receiver_vf_put(&vfe->vf, devp->vfp);
 				return -1;
 			}
+			devp->puted_frame_cnt++;
 		} else {
 			provider_vf_put(vfe, devp->vfp);
+			devp->puted_frame_cnt++;
 		}
 
 		vfe->vf.ready_clock[1] = sched_clock();
@@ -1667,6 +1685,20 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		}
 	}
 	return ret;
+}
+
+irqreturn_t vdin_write_done_isr(int irq, void *dev_id)
+{
+	struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;
+	bool sts;
+
+	/*need clear write done flag*/
+	sts = vdin_write_done_check(devp->addr_offset, devp);
+
+	/*write done flag VDIN_RO_WRMIF_STATUS bit 0*/
+	devp->wr_done_irq_cnt++;
+	/*pr_info("%s %d\n", __func__, devp->wr_done_irq_cnt);*/
+	return sts;/*IRQ_HANDLED;*/
 }
 
 irqreturn_t vpu_crash_isr(int irq, void *dev_id)
@@ -2551,6 +2583,10 @@ static int vdin_open(struct inode *inode, struct file *file)
 					   IRQF_SHARED,
 					   devp->vpu_crash_irq_name,
 					   (void *)devp);
+		if (devp->wr_done_irq > 0)
+			ret = request_irq(devp->wr_done_irq, vdin_write_done_isr,
+					  IRQF_SHARED, devp->wr_done_irq_name,
+					  (void *)devp);
 
 		if (vdin_dbg_en)
 			pr_info("%s vdin.%d request_irq\n", __func__,
@@ -2563,6 +2599,8 @@ static int vdin_open(struct inode *inode, struct file *file)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 	    devp->vpu_crash_irq != 0)
 		disable_irq(devp->vpu_crash_irq);
+	if (devp->wr_done_irq > 0)
+		disable_irq(devp->wr_done_irq);
 
 	if (vdin_dbg_en)
 		pr_info("%s vdin.%d disable_irq\n", __func__,
@@ -2620,6 +2658,8 @@ static int vdin_release(struct inode *inode, struct file *file)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 		    devp->vpu_crash_irq != 0)
 			free_irq(devp->vpu_crash_irq, (void *)devp);
+		if (devp->wr_done_irq > 0)
+			free_irq(devp->wr_done_irq, (void *)devp);
 
 		if (vdin_dbg_en)
 			pr_info("%s vdin.%d free_irq\n", __func__,
@@ -2777,10 +2817,14 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			    devp->index == 0 && devp->vpu_crash_irq != 0)
 				enable_irq(devp->vpu_crash_irq);
 
+			if (devp->wr_done_irq > 0)
+				enable_irq(devp->wr_done_irq);
+
 			if (vdin_dbg_en)
 				pr_info("%s START_DEC vdin.%d enable_irq\n",
 					__func__, devp->index);
 		}
+
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_START_DEC port %s, decode started ok flags=0x%x\n",
 				tvin_port_str(devp->parm.port), devp->flags);
@@ -3986,6 +4030,13 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				 "vpu-crash-irq");
 		}
 	}
+	/*get vdin write down irq number*/
+	vdevp->wr_done_irq = of_irq_get_byname(pdev->dev.of_node,
+					       "write_done_int");
+	snprintf(vdevp->wr_done_irq_name,
+		 sizeof(vdevp->wr_done_irq_name),
+		 "vdin%d_wr_done", vdevp->index);
+	pr_info("%s=%d\n", vdevp->wr_done_irq_name, vdevp->wr_done_irq);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "rdma-irq", &vdevp->rdma_irq);

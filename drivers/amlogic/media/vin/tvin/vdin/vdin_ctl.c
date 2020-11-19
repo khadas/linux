@@ -3690,15 +3690,23 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 
 bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 {
-	if (rd_bits(offset, VDIN_COM_STATUS0,
-		    DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID)) {
-		wr_bits(offset, VDIN_WR_CTRL, 1,
+	/*clear int status*/
+	wr_bits(offset, VDIN_WR_CTRL, 1,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
-		wr_bits(offset, VDIN_WR_CTRL, 0,
+	wr_bits(offset, VDIN_WR_CTRL, 0,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
-		return true;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+		if (rd_bits(offset, VDIN_RO_WRMIF_STATUS,
+			    WRITE_DONE_BIT, WRITE_DONE_WID))
+			return true;
+
+	} else {
+		if (rd_bits(offset, VDIN_COM_STATUS0,
+			    DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID))
+			return true;
 	}
-	devp->abnormal_cnt++;
+	devp->wr_done_abnormal_cnt++;
 	return false;
 }
 

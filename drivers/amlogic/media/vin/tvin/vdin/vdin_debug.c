@@ -128,7 +128,7 @@ ssize_t attr_show(struct device *dev,
 	len += sprintf(buf + len,
 		       "cfmt/dfmt:\t0 : RGB44\t1 YUV422\t2 YUV444\t7 NV12\t8 NV21\n");
 	len += sprintf(buf + len, "scan_fmt:\t1 : PROGRESSIVE\t2 INTERLACE\n");
-	len += sprintf(buf + len, "abnormal cnt %u\n", devp->abnormal_cnt);
+	len += sprintf(buf + len, "abnormal cnt %u\n", devp->wr_done_abnormal_cnt);
 	len += sprintf(buf + len, "echo fps >/sys/class/vdin/vdinx/attr\n");
 	len += sprintf(buf + len,
 		       "echo conversion w h dest_cfmt >/sys/class/vdin/vdinx/attr\n");
@@ -941,6 +941,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("vdin_irq_flag:%d %s\n", devp->vdin_irq_flag,
 		vdin_trans_irqflag_to_str(devp->vdin_irq_flag));
 	pr_info("vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
+	pr_info("write done: %d\n", devp->wr_done_irq_cnt);
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
@@ -1025,6 +1026,19 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	/*vdin_dump_vs_info(devp);*/
+}
+
+static void vdin_dump_count(struct vdin_dev_s *devp)
+{
+	pr_info("irq_cnt: %d\n", devp->irq_cnt);
+	pr_info("vpu crash irq: %d\n", devp->vpu_crash_cnt);
+	pr_info("write done irq: %d\n", devp->wr_done_irq_cnt);
+	pr_info("wr done abnormal_cnt: %d\n", devp->wr_done_abnormal_cnt);
+	pr_info("puted_frame_cnt:%d\n", devp->puted_frame_cnt);
+	pr_info("frame_cnt:%d\n", devp->frame_cnt);
+	pr_info("ignore_frames:%d\n", devp->ignore_frames);
+	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
+	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
 }
 
 /*same as vdin_dump_state*/
@@ -1977,6 +1991,8 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "state")) {
 		vdin_dump_state(devp);
+	} else if (!strcmp(parm[0], "counter")) {
+		vdin_dump_count(devp);
 	} else if (!strcmp(parm[0], "histgram")) {
 		vdin_dump_histgram(devp);
 #ifdef CONFIG_AML_LOCAL_DIMMING

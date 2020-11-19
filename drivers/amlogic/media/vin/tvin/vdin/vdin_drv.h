@@ -63,7 +63,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1010: add v4l2 nvm interface"
+#define VDIN_VER "ver:2020-1010: add write done interrupt"
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -480,13 +480,15 @@ struct vdin_dev_s {
 	unsigned int irq;
 	unsigned int rdma_irq;
 	unsigned int vpu_crash_irq;
+	unsigned int wr_done_irq;
 	char irq_name[12];
 	char vpu_crash_irq_name[20];
+	char wr_done_irq_name[20];
 	/* address offset(vdin0/vdin1/...) */
 	unsigned int addr_offset;
 
 	unsigned int unstable_flag;
-	unsigned int abnormal_cnt;
+	unsigned int wr_done_abnormal_cnt;
 	unsigned int stamp;
 	unsigned int hcnt64;
 	unsigned int cycle;
@@ -601,7 +603,9 @@ struct vdin_dev_s {
 	unsigned int irq_cnt;
 	unsigned int vpu_crash_cnt;
 	unsigned int frame_cnt;
+	unsigned int puted_frame_cnt;
 	unsigned int rdma_irq_cnt;
+	unsigned int wr_done_irq_cnt;
 	unsigned int vdin_irq_flag;
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;

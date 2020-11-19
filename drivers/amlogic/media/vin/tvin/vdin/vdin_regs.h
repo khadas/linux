@@ -644,6 +644,8 @@
 #define DOWN_THRESHOLD_WID	4
 
 #define VDIN_RO_WRMIF_STATUS		(0x1258)
+#define WRITE_DONE_BIT		0
+#define WRITE_DONE_WID		1
 #endif
 /* REGION STATISTIC DATA READ OUT PORT, bit 29:20 max_comp2,
  * bit 19:10 max_comp1, bit 9:0 max_comp0
