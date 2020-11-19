@@ -473,8 +473,8 @@ bool is_valid_mod_type(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 
 	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
-		return ERR_PTR(-EINVAL);
+		UVM_PRINTK(1, "dmabuf is not uvm.\n");
+		return 0;
 	}
 
 	handle = dmabuf->priv;
