@@ -176,6 +176,59 @@
 			0xffff  0x0>; /* ending flag */
 	};
 
+	dvb_cxd2856 {
+		compatible = "amlogic sc2, dvb";
+		dev_name = "dvb";
+		status = "okay";
+
+		reg = <0xfe000000 0x480000>;
+
+		dmxdev_num = <4>;
+
+		tsn_from = "demod";
+
+		fe0_mode = "external";
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c2>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe0_reset_dir = <1>; /* 0: out, 1: in. */
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
+
+		/*single demod setting */
+		ts0_sid = <0x20>;
+		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
+		ts0_control = <0x0>;
+		ts0_invert = <0>;
+
+		fe1_mode = "external";
+		fe1_demod = "cxd2856";
+		fe1_i2c_adap_id = <&i2c2>;
+		fe1_demod_i2c_addr = <0xCA>;
+		fe1_reset_value = <0>;
+		fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <1>; /* 0: out, 1: in. */
+		fe1_ant_poweron_value = <0>;
+		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+		fe1_dtv_demod = <1>;
+		fe1_ts  = <1>;
+		fe1_dev = <1>;
+
+		ts1_sid = <0x21>;
+		ts1 = "serial-4wire";
+		ts1_control = <0x0>;
+		ts1_invert = <0>;
+
+		pinctrl-names = "s_ts0", "s_ts1";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts1_pins>;
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
@@ -662,6 +715,13 @@
 	status = "okay";
 };
 
+&i2c2 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins3>;
+	clock-frequency = <300000>;
+};
+
 &vddcpu0 {
 	status = "okay";
 };
@@ -1082,6 +1142,46 @@
 			groups = "GPIOD_10";
 			function = "gpio_periphs";
 			output-low;
+		};
+	};
+
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups = "tsin_a_sop_d",
+				"tsin_a_valid_d",
+				"tsin_a_clk_d",
+				"tsin_a_din0_d";
+			function = "tsin_a";
+		};
+	};
+
+	dvb_s_ts1_pins: dvb_s_ts1_pins {
+		tsin_b {
+			groups = "tsin_b_sop",
+				"tsin_b_valid",
+				"tsin_b_clk",
+				"tsin_b_din0";
+			function = "tsin_b";
+		};
+	};
+
+	dvb_s_ts2_pins: dvb_s_ts2_pins {
+		tsin_c {
+			groups = "tsin_c_sop_z",
+				"tsin_c_valid_z",
+				"tsin_c_clk_z",
+				"tsin_c_din0_z";
+			function = "tsin_c";
+		};
+	};
+
+	dvb_s_ts3_pins: dvb_s_ts3_pins {
+		tsin_d {
+			groups = "tsin_d_sop_z",
+				"tsin_d_valid_z",
+				"tsin_d_clk_z",
+				"tsin_d_din0_z";
+			function = "tsin_d";
 		};
 	};
 }; /* end of periphs_pinctrl */

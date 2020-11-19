@@ -9,3 +9,20 @@ config AMLOGIC_DVB_EXTERN
 		N: disable
 		M: build as module
 endmenu
+
+menu "DVB AUCPU support"
+source "drivers/amlogic/dvb/aucpu/Kconfig"
+endmenu
+#
+#dvb driver for demux
+#
+menu "AMLOGIC DVB demux/dsc support"
+
+config AMLOGIC_DVB_DMX
+   tristate "AMLOGIC DVB DMX"
+#   default m
+#   bool "AMLOGIC DVB DMX"
+   default (DVB_CORE && DVB_PLATFORM_DRIVER && AMLOGIC_DVB && AMLOGIC_DVB_COMPAT)
+   help
+     support dmx/dsc driver.
+endmenu

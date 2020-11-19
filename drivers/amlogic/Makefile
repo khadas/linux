@@ -43,6 +43,7 @@ obj-$(CONFIG_AMLOGIC_BT_DEVICE)		+= bluetooth/
 obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard/
 obj-$(CONFIG_MMC_MESON_GX)		+= mmc/
 obj-$(CONFIG_AMLOGIC_USB)               += usb/
+obj-$(CONFIG_AMLOGIC_DVB_DMX)		+= dvb/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 
