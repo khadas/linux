@@ -1254,6 +1254,10 @@ RESTART:
 		screen_aspect = 0x90;
 		ext_sar = false;
 	} else if (wide_mode == VIDEO_WIDEOPTION_CUSTOM) {
+		if (cur_super_debug)
+			pr_info("layer%d: wide_mode=%d, aspect_factor=%d, cur_custom_ar=%d\n",
+				input->layer_id, wide_mode,
+				aspect_factor, cur_custom_ar);
 		if (cur_custom_ar != 0) {
 			aspect_factor = cur_custom_ar & 0x3ff;
 			ext_sar = false;
@@ -3547,7 +3551,7 @@ int vpp_set_filters(struct disp_info_s *input,
 		    (vf->ratio_control & DISP_RATIO_INFOFRAME_AVAIL))
 			wide_mode = VIDEO_WIDEOPTION_AFD;
 		if (wide_mode == VIDEO_WIDEOPTION_CUSTOM) {
-			if (!custom_ar)
+			if (custom_ar)
 				local_input.custom_ar = custom_ar;
 			else
 				local_input.custom_ar =
