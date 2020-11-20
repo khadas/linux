@@ -2633,7 +2633,7 @@ static void vd2_scaler_setting(struct scaler_setting_s *setting)
 				pre_hscaler_table[3],
 				VPP_PREHSC_COEF3_BIT,
 				VPP_PREHSC_COEF3_WID);
-			if (!has_pre_hscaler_ntap(1))
+			if (has_pre_hscaler_ntap(1))
 				VSYNC_WR_MPEG_REG_BITS
 					(VD2_PREHSC_CTRL + misc_off,
 					flt_num,
