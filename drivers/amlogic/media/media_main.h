@@ -87,6 +87,15 @@ static inline int osd_init_module(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT_CLK_SERVE
+int aml_vclk_init_module(void);
+#else
+static inline int aml_vclk_init_module(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 int vout_init_module(void);
 #else
