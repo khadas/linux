@@ -213,6 +213,11 @@
 		#clock-cells = <0>;
 	};
 
+	vrtc: rtc@0xfe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0xfe010288 0x4>;
+	};
+
 	audio_data: audio_data {
 		compatible = "amlogic, audio_data";
 		query_licence_cmd = <0x82000050>;
