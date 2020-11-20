@@ -2952,12 +2952,12 @@ static struct clk_regmap tm2_hevcf_p1 = {
 	},
 };
 
-/* vpu_clkb_tmp */
-
-/* cts_vpu_clkc */
-static const char * const vpu_clkc_parent_names[] = { "fclk_div4",
-	"fclk_div3", "fclk_div5", "fclk_div7", "mpll1", "vid_pll",
-	"mpll2",  "gp0_pll"};
+static const struct clk_parent_data vpu_parent_hws[] = {
+	{ .hw = &tm2_fclk_div4.hw },
+	{ .hw = &tm2_fclk_div3.hw },
+	{ .hw = &tm2_fclk_div5.hw },
+	{ .hw = &tm2_fclk_div7.hw },
+};
 
 static struct clk_regmap tm2_vpu_clkc_p0_mux  = {
 	.data = &(struct clk_regmap_mux_data){
@@ -2968,8 +2968,8 @@ static struct clk_regmap tm2_vpu_clkc_p0_mux  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "vpu_clkc_p0_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = vpu_clkc_parent_names,
-		.num_parents = ARRAY_SIZE(vpu_clkc_parent_names),
+		.parent_data = vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(vpu_parent_hws),
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -3005,19 +3005,6 @@ static struct clk_regmap tm2_vpu_clkc_p0 = {
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
-};
-
-/* cts_vpu_clk */
-
-static const struct clk_parent_data vpu_parent_hws[] = {
-	{ .hw = &tm2_fclk_div3.hw },
-	{ .hw = &tm2_fclk_div4.hw },
-	{ .hw = &tm2_fclk_div5.hw },
-	{ .hw = &tm2_fclk_div7.hw },
-	{ .fw_name = "mp1l0", },
-	{ .hw = &tm2_vid_pll.hw },
-	{ .hw = &tm2_hifi_pll.hw },
-	{ .hw = &tm2_gp0_pll.hw },
 };
 
 static struct clk_regmap tm2_vpu_clkc_p1_mux = {
