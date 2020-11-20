@@ -485,23 +485,28 @@ struct vframe_s *vf_get(const char *receiver)
 }
 EXPORT_SYMBOL(vf_get);
 
-void vf_put(struct vframe_s *vf, const char *receiver)
+int vf_put(struct vframe_s *vf, const char *receiver)
 {
 	struct vframe_provider_s *vfp;
+	int ret = 0;
 
 	providers_lock();
 	vfp = vf_get_provider(receiver);
 	if (use_provider(vfp)) {
 		provider_update_caller(receiver, vfp->name);
-		if (vfp->ops && vfp->ops->put)
+		if (vfp->ops && vfp->ops->put) {
 			vfp->ops->put(vf, vfp->op_arg);
+			ret = 0;
+		}
 		if (vf)
 			vftrace_info_in(vfp->traceput, vf);
 		unuse_provider(vfp);
 	} else {
 		provider_update_caller(receiver, NULL);
+		ret = -1;
 	}
 	providers_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(vf_put);
 

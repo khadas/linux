@@ -120,7 +120,7 @@ struct vframe_provider_s *vf_get_provider(const char *name);
 
 struct vframe_s *vf_peek(const char *receiver);
 struct vframe_s *vf_get(const char *receiver);
-void vf_put(struct vframe_s *vf, const char *receiver);
+int vf_put(struct vframe_s *vf, const char *receiver);
 int vf_get_states(struct vframe_provider_s *vfp, struct vframe_states *states);
 int vf_get_states_by_name(const char *receiver_name,
 			  struct vframe_states *states);

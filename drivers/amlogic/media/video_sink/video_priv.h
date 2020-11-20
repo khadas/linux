@@ -84,6 +84,7 @@
 #define CANVAS_TABLE_CNT 1
 #endif
 
+#define DISPBUF_TO_PUT_MAX 3
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
 
