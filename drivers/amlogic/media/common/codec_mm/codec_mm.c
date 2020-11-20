@@ -2501,7 +2501,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 	pr_info("%s ok\n", __func__);
 
-	codec_mm_scatter_mgt_init();
+	codec_mm_scatter_mgt_init(&pdev->dev);
 	codec_mm_keeper_mgr_init();
 	amstream_test_init();
 	codec_mm_scatter_mgt_test();

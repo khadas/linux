@@ -33,7 +33,7 @@ struct codec_mm_slot {
 
 int codec_mm_dump_slot(struct codec_mm_slot *slot, void *buf, int size);
 
-int codec_mm_scatter_mgt_init(void);
+int codec_mm_scatter_mgt_init(struct device *dev);
 int codec_mm_scatter_mgt_test(void);
 
 int codec_mm_scatter_info_dump(void *buf, int size);
