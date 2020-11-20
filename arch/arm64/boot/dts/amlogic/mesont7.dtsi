@@ -2281,17 +2281,32 @@
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
 		<0 0xFE002000 0 0x01000>, /*reset register*/
 		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
-		<0 0xFF63c000 0 0x01000>, /*hiubus for clk cntl*/
+		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
 		<0 0xFE002000 0 0x01000>; /*reset register*/
 
 	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
 	interrupt-names = "GPU", "MMU", "JOB";
-	clk_cntl_reg = <0x57>;
+	power-domains = <&pwrdm PDID_T7_MALI_TOP>;
+	num_of_pp = <4>;
+	system-coherency = <0>;
 
-	tbl =  <&dvfs285_cfg
-		&dvfs400_cfg
+	tbl =  <&dvfs500_cfg
 		&dvfs500_cfg
-		&dvfs666_cfg
-		&dvfs850_cfg
-		&dvfs850_cfg>;
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg>;
+
+	reset_cfg:reset_cfg {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <2>;
+	};
+
+	capb_reset:capb_reset {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <1>;
+	};
 };
+
