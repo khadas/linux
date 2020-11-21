@@ -425,4 +425,13 @@ static int viuin_init_module(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
+int resman_init(void);
+#else
+static int resman_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif

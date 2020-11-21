@@ -22,3 +22,6 @@ include drivers/amlogic/media/common/v4l_util/Makefile
 include drivers/amlogic/media/common/lut_dma/Makefile
 
 include drivers/amlogic/media/common/vpu_security/Makefile
+
+include drivers/amlogic/media/common/resource_mgr/Makefile
+

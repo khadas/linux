@@ -107,7 +107,7 @@
 #define SC_FREE(p) vfree(p)
 
 #endif
-#define MAX_SC_LIST 64
+#define MAX_SC_LIST 128
 #define MK_TAG(a, b, c, d) (((a) << 24) | ((b) << 16) |\
 					((c) << 8) | (d))
 #define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')
@@ -2570,20 +2570,24 @@ int codec_mm_scatter_scatter_clear(struct codec_mm_scatter_mgt *smgt,
 }
 
 /*
- *clear all ignore any cache.
- *
- *return the total num alloced.
- *0 is all freeed.
- *N is have some pages not alloced.
- */
-static
-int codec_mm_scatter_free_all_ignorecache_in(struct codec_mm_scatter_mgt *smgt)
+*clear all ignore any cache.
+*
+*return the total num alloced.
+*0 is all freeed.
+*N is have some pages not alloced.
+*flags: 0: cache only,
+*       1: all no user;
+*       2: all, ignore the time check.
+*/
+static int codec_mm_scatter_free_all_ignorecache_in
+	(struct codec_mm_scatter_mgt *smgt, int flags)
 {
 	int need_retry = 1;
 	int retry_num = 0;
 
 	mutex_lock(&smgt->monitor_lock);
 	pr_info("force free all scatter ignorecache!\n");
+	/*free cache: always*/
 	do {
 		struct codec_mm_scatter *mms;
 		/*clear cache first. */
@@ -2597,16 +2601,23 @@ int codec_mm_scatter_free_all_ignorecache_in(struct codec_mm_scatter_mgt *smgt)
 		codec_mm_list_unlock(smgt);
 		if (mms) {
 			pr_info("cache_sc page_max %d, page_used %d\n",
-				mms->page_max_cnt, mms->page_used);
+					mms->page_max_cnt, mms->page_used);
 			codec_mm_scatter_dec_owner_user(mms, 0);
 			codec_mm_scatter_free_on_nouser(smgt, mms);
 		}
 		/*alloced again on timer?*/
 		  /* check again. */
 	} while (smgt->cache_scs[0]);
-	do {
-		need_retry = codec_mm_scatter_scatter_clear(smgt, 1);
-	} while ((smgt->scatters_cnt > 0) && (retry_num++ < 1000));
+	/* free cache nouser
+	 *	if flags==2  force
+	 */
+	if (flags >= 1) {
+		do {
+			need_retry = codec_mm_scatter_scatter_clear
+					(smgt, flags == 2);
+		} while ((smgt->scatters_cnt > 0) && (retry_num++ < 1000));
+	}
+
 	if (need_retry || smgt->scatters_cnt > 0) {
 		pr_info("can't free all scatter, because some have used!!\n");
 		/*codec_mm_dump_all_scatters();*/
@@ -2620,7 +2631,6 @@ int codec_mm_scatter_free_all_ignorecache_in(struct codec_mm_scatter_mgt *smgt)
 	mutex_unlock(&smgt->monitor_lock);
 	return smgt->total_page_num;
 }
-EXPORT_SYMBOL(codec_mm_scatter_free_all_ignorecache);
 
 int codec_mm_scatter_free_all_ignorecache(int flags)
 {
@@ -2628,14 +2638,15 @@ int codec_mm_scatter_free_all_ignorecache(int flags)
 
 	if (flags & 1) {
 		p = codec_mm_get_scatter_mgt(0);
-		codec_mm_scatter_free_all_ignorecache_in(p);
+		codec_mm_scatter_free_all_ignorecache_in(p, 2);
 	}
 	if (flags & 2) {
 		p = codec_mm_get_scatter_mgt(1);
-		codec_mm_scatter_free_all_ignorecache_in(p);
+		codec_mm_scatter_free_all_ignorecache_in(p, 1);
 	}
 	return 0;
 }
+EXPORT_SYMBOL(codec_mm_scatter_free_all_ignorecache);
 
 static void codec_mm_scatter_monitor(struct work_struct *work)
 {

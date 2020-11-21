@@ -115,6 +115,7 @@ static int __init media_main_init(void)
 	call_sub_init(vpu_security_init);
 	call_sub_init(vdin_drv_init);
 	call_sub_init(viuin_init_module);
+	call_sub_init(resman_init);
 	pr_info("### %s() end\n", __func__);
 	return 0;
 }
