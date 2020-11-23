@@ -826,7 +826,7 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_DOS
 			&clkc CLKID_VDEC_MUX
 			&clkc CLKID_HCODEC_MUX
@@ -840,9 +840,9 @@
 	};
 
 	vdec {
-		compatible = "amlogic, vdec-pm-pd";
+		compatible = "amlogic, vdec-pm-pd-sec-api";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -857,18 +857,20 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-//		power-domains = <&pwrdm PDID_SC2_DOS_VDEC>,
-//			<&pwrdm PDID_SC2_DOS_HCODEC>,
-//			<&pwrdm PDID_SC2_DOS_HEVC>;
+		power-domains = <&pwrdm PDID_T7_DOS_VDEC>,
+			<&pwrdm PDID_T7_DOS_HCODEC>,
+			<&pwrdm PDID_T7_DOS_HEVC>;
 		power-domain-names = "pwrc-vdec",
 			"pwrc-hcodec",
 			"pwrc-hevc";
 	};
-
+	cpu_ver_name {
+		compatible = "amlogic, cpu-major-id-t7";
+	};
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {
@@ -886,7 +888,6 @@
 		reg_base = <0xfe036000>;
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
 	};
-
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx-sc2";
 		dev_name = "amhdmitx";
@@ -1007,6 +1008,7 @@
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
+		/* use cbus space for reset_ctrl*/
 		reg =	<0x0 0xfe002000 0x0 0x2000>,
 			<0x0 0xfe320000 0x0 0x10000>,
 			<0x0 0x0 0x0 0x0>,
