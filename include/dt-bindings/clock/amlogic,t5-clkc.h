@@ -1,0 +1,127 @@
+/*
+ * include/dt-bindings/clock/tl1-clkc.h
+ *
+ * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+#ifndef __DT_BINDINGS_T5_CLKC_H
+#define __DT_BINDINGS_T5_CLKC_H
+
+/*
+ * CLKID index values
+ */
+#define CLKID_SYS_PLL				0
+#define CLKID_FIXED_PLL				1
+#define CLKID_FCLK_DIV2				2
+#define CLKID_FCLK_DIV3				3
+#define CLKID_FCLK_DIV4				4
+#define CLKID_FCLK_DIV5				5
+#define CLKID_FCLK_DIV7				6
+#define CLKID_FCLK_DIV2P5			7
+#define CLKID_GP0_PLL				8
+#define CLKID_HIFI_PLL				9
+#define CLKID_MPLL0				10
+#define CLKID_MPLL1				11
+#define CLKID_MPLL2				12
+#define CLKID_MPLL3				13
+#define CLKID_CPU_FCLK_P			14
+#define CLKID_CPU_CLK				15
+
+#define GATE_BASE0				16
+
+#define CLKID_DDR				(GATE_BASE0 + 0)
+#define CLKID_DOS				(GATE_BASE0 + 1)
+#define CLKID_ETH_PHY				(GATE_BASE0 + 2)
+#define CLKID_ISA				(GATE_BASE0 + 3)
+#define CLKID_PL310				(GATE_BASE0 + 4)
+#define CLKID_PERIPHS				(GATE_BASE0 + 5)
+#define CLKID_SPICC0				(GATE_BASE0 + 6)
+#define CLKID_I2C				(GATE_BASE0 + 7)
+#define CLKID_SANA				(GATE_BASE0 + 8)
+#define CLKID_UART0				(GATE_BASE0 + 9)
+#define CLKID_STREAM				(GATE_BASE0 + 10)
+#define CLKID_ASYNC_FIFO			(GATE_BASE0 + 11)
+#define CLKID_TVFE				(GATE_BASE0 + 12)
+#define CLKID_HIU_REG				(GATE_BASE0 + 13)
+#define CLKID_HDMIRX_PCLK			(GATE_BASE0 + 14)
+#define CLKID_ATV_DEMOD				(GATE_BASE0 + 15)
+#define CLKID_ASSIST_MISC			(GATE_BASE0 + 16)
+#define CLKID_PWR_CTRL				(GATE_BASE0 + 17)
+#define CLKID_SD_EMMC_C				(GATE_BASE0 + 18)
+#define CLKID_ADEC				(GATE_BASE0 + 19)
+#define CLKID_ACODEC				(GATE_BASE0 + 20)
+#define CLKID_TCON				(GATE_BASE0 + 21)
+#define CLKID_SPI				(GATE_BASE0 + 22)
+
+/*HHI_GCLK_MPEG1: 0x51*/
+#define GATE_BASE1				(GATE_BASE0 + 23)
+#define CLKID_AUDIO				(GATE_BASE1 + 0)
+#define CLKID_ETH_CORE				(GATE_BASE1 + 1)
+#define CLKID_DEMUX				(GATE_BASE1 + 2)
+#define CLKID_CLK_RST				(GATE_BASE1 + 3)
+#define CLKID_AIFIFO				(GATE_BASE1 + 4)
+#define CLKID_UART1				(GATE_BASE1 + 5)
+#define CLKID_G2D				(GATE_BASE1 + 6)
+#define CLKID_RESET				(GATE_BASE1 + 7)
+
+#define CLKID_PARSER0				(GATE_BASE1 + 8)
+#define CLKID_USB_GENERAL			(GATE_BASE1 + 9)
+#define CLKID_PARSER1				(GATE_BASE1 + 10)
+#define CLKID_AHB_ARB0				(GATE_BASE1 + 11)
+
+/*HHI_GCLK_MPEG2: 0x52*/
+#define GATE_BASE2				(GATE_BASE1 + 12)
+#define CLKID_AHB_DATA_BUS			(GATE_BASE2 + 0)
+#define CLKID_AHB_CTRL_BUS			(GATE_BASE2 + 1)
+#define CLKID_USB1_TO_DDR			(GATE_BASE2 + 2)
+#define CLKID_MMC_PCLK				(GATE_BASE2 + 3)
+#define CLKID_HDMIRX_AXI			(GATE_BASE2 + 4)
+#define CLKID_HDCP22_PCLK			(GATE_BASE2 + 5)
+#define CLKID_UART2				(GATE_BASE2 + 6)
+#define CLKID_CLK81_TS				(GATE_BASE2 + 7)
+#define CLKID_VPU_INTR				(GATE_BASE2 + 8)
+#define CLKID_DEMOD_COMB			(GATE_BASE2 + 9)
+#define CLKID_GIC				(GATE_BASE2 + 10)
+
+/*HHI_GCLK_OTHER: 0x55*/
+#define GATE_OTHER				(GATE_BASE2 + 11)
+#define CLKID_VCLK2_VENCI0			(GATE_OTHER + 0)
+#define CLKID_VCLK2_VENCI1			(GATE_OTHER + 1)
+#define CLKID_VCLK2_VENCP0			(GATE_OTHER + 2)
+#define CLKID_VCLK2_VENCP1			(GATE_OTHER + 3)
+#define CLKID_VCLK2_VENCT0			(GATE_OTHER + 4)
+#define CLKID_VCLK2_VENCT1			(GATE_OTHER + 5)
+#define CLKID_VCLK2_OTHER			(GATE_OTHER + 6)
+#define CLKID_VCLK2_ENCI			(GATE_OTHER + 7)
+#define CLKID_VCLK2_ENCP			(GATE_OTHER + 8)
+#define CLKID_DAC_CLK				(GATE_OTHER + 9)
+#define CLKID_ENC480P				(GATE_OTHER + 10)
+#define CLKID_RAMDOM				(GATE_OTHER + 11)
+#define CLKID_VCLK2_ENCT			(GATE_OTHER + 12)
+#define CLKID_VCLK2_ENCL			(GATE_OTHER + 13)
+#define CLKID_VCLK2_VENCLMMC			(GATE_OTHER + 14)
+#define CLKID_VCLK2_VENCL			(GATE_OTHER + 15)
+#define CLKID_VCLK2_OTHER1			(GATE_OTHER + 16)
+
+#define GATE_AO_BASE				(GATE_OTHER + 17)
+#define CLKID_DMA				(GATE_AO_BASE + 0)
+#define CLKID_EFUSE				(GATE_AO_BASE + 1)
+#define CLKID_ROM_BOOT				(GATE_AO_BASE + 2)
+#define CLKID_RESET_SEC				(GATE_AO_BASE + 3)
+#define CLKID_SEC_AHB				(GATE_AO_BASE + 4)
+#define CLKID_RSA				(GATE_AO_BASE + 5)
+
+#define NR_CLKS					(GATE_AO_BASE + 6)
+
+#endif /* __DT_BINDINGS_T5_CLKC_H */

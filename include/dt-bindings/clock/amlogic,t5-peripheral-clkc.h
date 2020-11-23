@@ -1,0 +1,128 @@
+/*
+ * include/dt-bindings/clock/tl1-clkc.h
+ *
+ * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+#ifndef __DT_BINDINGS_T5_PER_CLKC_H
+#define __DT_BINDINGS_T5_PER_CLKC_H
+
+#define CLKID_MPEG_SEL		0
+#define CLKID_MPEG_DIV		1
+#define CLKID_CLK81		2
+#define CLKID_TS_DIV		3
+#define CLKID_TS		4
+#define CLKID_GPU_P0_MUX	5
+#define CLKID_GPU_P0_DIV	6
+#define CLKID_GPU_P0_GATE	7
+#define CLKID_GPU_P1_MUX	8
+#define CLKID_GPU_P1_DIV	9
+#define CLKID_GPU_P1_GATE	10
+#define CLKID_GPU_MUX		11
+#define CLKID_VPU_P0_MUX	12
+#define CLKID_VPU_P0_DIV	13
+#define CLKID_VPU_P0_GATE	14
+#define CLKID_VPU_P1_MUX	15
+#define CLKID_VPU_P1_DIV	16
+#define CLKID_VPU_P1_GATE	17
+#define CLKID_VPU_MUX		18
+#define CLKID_VPU_CLKC_P0_MUX	19
+#define CLKID_VPU_CLKC_P0_DIV	20
+#define CLKID_VPU_CLKC_P0_GATE	21
+#define CLKID_VPU_CLKC_P1_MUX	22
+#define CLKID_VPU_CLKC_P1_DIV	23
+#define CLKID_VPU_CLKC_P1_GATE	24
+#define CLKID_VPU_CLKC_MUX	25
+#define CLKID_ADC_EXTCLK_IN_MUX	26
+#define CLKID_ADC_EXTCLK_IN_DIV	27
+#define CLKID_ADC_EXTCLK_IN	28
+#define CLKID_DEMOOD_CORE_CLK_MUX	29
+#define CLKID_DEMOOD_CORE_CLK_DIV	30
+#define CLKID_DEMOOD_CORE_CLK	31
+#define CLKID_VDEC_P0_MUX	32
+#define CLKID_VDEC_P0_DIV	33
+#define CLKID_VDEC_P0_GATE	34
+#define CLKID_HEVCF_P0_MUX	35
+#define CLKID_HEVCF_P0_DIV	36
+#define CLKID_HEVCF_P0_GATE	37
+#define CLKID_VDEC_P1_MUX	38
+#define CLKID_VDEC_P1_DIV	39
+#define CLKID_VDEC_P1_GATE	40
+#define CLKID_VDEC_MUX		41
+#define CLKID_HEVCF_P1_MUX	42
+#define CLKID_HEVCF_P1_DIV	43
+#define CLKID_HEVCF_P1_GATE	44
+#define CLKID_HEVCF_MUX		45
+#define CLKID_HDCP22_ESM_MUX	46
+#define CLKID_HDCP22_SKP_MUX	47
+#define CLKID_HDCP22_ESM_DIV	48
+#define CLKID_HDCP22_SKP_DIV	49
+#define CLKID_HDCP22_ESM_GATE	50
+#define CLKID_HDCP22_SKP_GATE	51
+#define CLKID_VAPB_P0_MUX	52
+#define CLKID_VAPB_P1_MUX	53
+#define CLKID_VAPB_P0_DIV	54
+#define CLKID_VAPB_P1_DIV	55
+#define CLKID_VAPB_P0_GATE	56
+#define CLKID_VAPB_P1_GATE	57
+#define CLKID_VAPB_MUX		58
+#define CLKID_HDMIRX_CFG_MUX	59
+#define CLKID_HDMIRX_MODET_MUX	60
+#define CLKID_HDMIRX_CFG_DIV	61
+#define CLKID_HDMIRX_MODET_DIV	62
+#define CLKID_HDMIRX_CFG_GATE	63
+#define CLKID_HDMIRX_MODET_GATE	64
+#define CLKID_HDMIRX_ACR_MUX	65
+#define CLKID_HDMIRX_ACR_DIV	66
+#define CLKID_HDMIRX_ACR_GATE	67
+#define CLKID_HDMIRX_METER_MUX	68
+#define CLKID_HDMIRX_METER_DIV	69
+#define CLKID_HDMIRX_METER_GATE	70
+#define CLKID_VDIN_MEAS_MUX	71
+#define CLKID_VDIN_MEAS_DIV	72
+#define CLKID_VDIN_MEAS_GATE	73
+#define CLKID_SD_EMMC_C_MUX	74
+#define CLKID_SD_EMMC_C_DIV	75
+#define CLKID_SD_EMMC_C_GATE	76
+#define CLKID_SPICC0_MUX	77
+#define CLKID_SPICC0_DIV	78
+#define CLKID_SPICC0_GATE	79
+#define CLKID_VDAC_CLKC_MUX	80
+#define CLKID_VDAC_CLKC_DIV	81
+#define CLKID_VDAC_CLKC_GATE	82
+#define CLKID_GE2D_GATE		83
+#define CLKID_VPU_CLKB_TMP_MUX	84
+#define CLKID_VPU_CLKB_TMP_DIV	85
+#define CLKID_VPU_CLKB_TMP_GATE	86
+#define CLKID_VPU_CLKB_DIV	87
+#define CLKID_VPU_CLKB_GATE	88
+#define CLKID_TCON_PLL_CLK_MUX	89
+#define CLKID_TCON_PLL_CLK_DIV	90
+#define CLKID_TCON_PLL_CLK_GATE	91
+#define CLKID_SD_EMMC_C_P0_COMP	92
+#define CLKID_VID_LOCK_DIV	93
+#define CLKID_VID_LOCK_CLK	94
+#define CLKID_HDMI_AXI_MUX	95
+#define CLKID_HDMI_AXI_DIV	96
+#define CLKID_HDMI_AXI_GATE	97
+#define CLKID_DEMOD_T2_MUX	98
+#define CLKID_DEMOD_T2_DIV	99
+#define CLKID_DEMOD_T2_GATE	100
+#define CLKID_TSIN_DEGLICH_MUX	101
+#define CLKID_TSIN_DEGLICH_DIV	102
+#define CLKID_TSIN_DEGLICH_GATE	103
+
+#define NR_PER_CLKS		104
+
+#endif
