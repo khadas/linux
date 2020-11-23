@@ -82,4 +82,10 @@ config PINCTRL_MESON_SC2
 	depends on ARM64 || AMLOGIC_ARMV8_AARCH32
 	select PINCTRL_MESON_AXG_PMX
 	default n
+
+config PINCTRL_MESON_T5D
+	bool "Meson t5d Soc pinctrl driver"
+	depends on ARM64 || AMLOGIC_ARMV8_AARCH32
+	select PINCTRL_MESON_AXG_PMX
+	default n
 endif

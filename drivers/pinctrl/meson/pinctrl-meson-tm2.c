@@ -1767,14 +1767,6 @@ static struct meson_axg_pmx_data meson_tm2_aobus_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_tm2_aobus_pmx_banks),
 };
 
-static int meson_tm2_aobus_parse_dt_extra(struct meson_pinctrl *pc)
-{
-	pc->reg_pull = pc->reg_gpio;
-	pc->reg_pullen = pc->reg_gpio;
-
-	return 0;
-}
-
 static struct meson_pinctrl_data meson_tm2_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= meson_tm2_periphs_pins,
@@ -1801,7 +1793,7 @@ static struct meson_pinctrl_data meson_tm2_aobus_pinctrl_data = {
 	.num_banks	= ARRAY_SIZE(meson_tm2_aobus_banks),
 	.pmx_ops	= &meson_axg_pmx_ops,
 	.pmx_data	= &meson_tm2_aobus_pmx_banks_data,
-	.parse_dt	= meson_tm2_aobus_parse_dt_extra,
+	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
 };
 
 static const struct of_device_id meson_tm2_pinctrl_dt_match[] = {

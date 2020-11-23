@@ -1510,6 +1510,7 @@ static struct meson_axg_pmx_data meson_g12a_aobus_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_g12a_aobus_pmx_banks),
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static int meson_g12a_aobus_parse_dt_extra(struct meson_pinctrl *pc)
 {
 	pc->reg_pull = pc->reg_gpio;
@@ -1517,6 +1518,7 @@ static int meson_g12a_aobus_parse_dt_extra(struct meson_pinctrl *pc)
 
 	return 0;
 }
+#endif
 
 static struct meson_pinctrl_data meson_g12a_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
