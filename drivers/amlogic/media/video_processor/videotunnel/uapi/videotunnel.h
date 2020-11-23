@@ -22,7 +22,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define MAX_VIDEO_BUFFER_NUM 8
+#define MAX_VIDEO_BUFFER_NUM 4
 #define MAX_VIDEO_TUNNEL 8
 
 enum vt_role_e {
@@ -74,6 +74,7 @@ struct vt_buffer_item {
 	int buffer_fd;
 	int fence_fd;
 	int buffer_status;
+	long long time_stamp;
 };
 
 /**

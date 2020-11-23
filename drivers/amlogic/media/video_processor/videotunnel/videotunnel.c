@@ -136,9 +136,10 @@ static int vt_debug_instance_show(struct seq_file *s, void *unused)
 
 		if (status == VT_BUFFER_QUEUE || status == VT_BUFFER_ACQUIRE ||
 				status == VT_BUFFER_RELEASE)
-			seq_printf(s, "    buffer produce_fd(%d) status(%s)\n",
+			seq_printf(s, "    buffer produce_fd(%d) status(%s) timestamp(%lld)\n",
 				   buffer->buffer_fd_pro,
-				   vt_debug_buffer_status_to_string(status));
+				   vt_debug_buffer_status_to_string(status),
+				   buffer->item.time_stamp);
 	}
 	seq_puts(s, "-----------------------------------------------\n");
 	mutex_unlock(&instance->lock);
