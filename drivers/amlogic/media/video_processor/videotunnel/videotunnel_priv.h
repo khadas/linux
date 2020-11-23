@@ -77,6 +77,8 @@ struct vt_dev {
  * @display_serial:	used for debugging (to make display_name unique)
  * @task:			used for debugging
  * @cid:			connection id
+ * @wait_consumer:	cosunmer wait queue of this session
+ * @wait_producer:	producer wait queue of this session
  */
 struct vt_session {
 	struct rb_node node;
@@ -90,6 +92,11 @@ struct vt_session {
 	int display_serial;
 	struct task_struct *task;
 	long cid;
+	int block_mode;
+
+	wait_queue_head_t wait_consumer;
+	wait_queue_head_t wait_producer;
+
 	struct dentry *debug_root;
 };
 

@@ -29,6 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/dma-buf.h>
 #include <linux/mm.h>
+#include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/debugfs.h>
@@ -172,6 +173,7 @@ static int vt_debug_session_show(struct seq_file *s, void *unused)
 		   session->role == VT_ROLE_PRODUCER ?
 		   "producer" : (session->role == VT_ROLE_CONSUMER ?
 		   "consumer" : "invalid"), session->cid);
+	seq_printf(s, " block mode %d\n", session->block_mode);
 	seq_puts(s, "-----------------------------------------------\n");
 	mutex_unlock(&debugfs_mutex);
 
@@ -402,7 +404,10 @@ static struct vt_session *vt_session_create(struct vt_dev *dev,
 	session->dev = dev;
 	session->task = task;
 	session->role = VT_ROLE_INVALID;
+	session->block_mode = 1;
 	INIT_LIST_HEAD(&session->instances_head);
+	init_waitqueue_head(&session->wait_producer);
+	init_waitqueue_head(&session->wait_consumer);
 
 	session->name = kstrdup(name, GFP_KERNEL);
 	if (!session->name)
@@ -860,24 +865,28 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 		return -EINVAL;
 
 	switch (data->ctrl_cmd) {
-	case VT_CTRL_CONNECT:
-	{
+	case VT_CTRL_CONNECT: {
 		ret = vt_connect_process(data, session);
 		break;
 	}
-	case VT_CTRL_DISCONNECT:
-	{
+	case VT_CTRL_DISCONNECT: {
 		ret = vt_disconnect_process(data, session);
 		break;
 	}
-	case VT_CTRL_SEND_CMD:
-	{
+	case VT_CTRL_SEND_CMD: {
 		ret = vt_send_cmd_process(data, session);
 		break;
 	}
-	case VT_CTRL_RECV_CMD:
-	{
+	case VT_CTRL_RECV_CMD: {
 		ret = vt_recv_cmd_process(data, session);
+		break;
+	}
+	case VT_CTRL_SET_NONBLOCK_MODE: {
+		session->block_mode = 0;
+		break;
+	}
+	case VT_CTRL_SET_BLOCK_MODE: {
+		session->block_mode = 1;
 		break;
 	}
 	default:
@@ -985,8 +994,11 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 		mutex_unlock(&instance->lock);
 	}
 
-	if (instance->consumer && data->buffer_size > 0)
+	if (instance->consumer && data->buffer_size > 0) {
 		wake_up_interruptible(&instance->wait_consumer);
+		/* wake up poll wait */
+		wake_up_interruptible(&instance->consumer->wait_consumer);
+	}
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] queuebuffer pfd:%d end\n",
 		 instance->id, buffer->buffer_fd_pro);
@@ -1082,6 +1094,9 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_consumer)) {
+		if (!session->block_mode)
+			return -EAGAIN;
+
 		ret = wait_event_interruptible_timeout(instance->wait_consumer,
 						       vt_has_buffer(instance, VT_ROLE_CONSUMER),
 						       msecs_to_jiffies(VT_MAX_WAIT_MS));
@@ -1209,8 +1224,10 @@ static int vt_release_buffer(struct vt_buffer_data *data,
 			mutex_unlock(&instance->lock);
 		}
 	}
-	if (instance->producer && data->buffer_size > 0)
+	if (instance->producer && data->buffer_size > 0) {
 		wake_up_interruptible(&instance->wait_producer);
+		wake_up_interruptible(&instance->producer->wait_producer);
+	}
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd:%d end\n",
 		 instance->id, buffer->buffer_fd_pro);
@@ -1323,6 +1340,22 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
+{
+	struct vt_session *session = filp->private_data;
+
+	/* not connected */
+	if (session->role == VT_ROLE_INVALID)
+		return POLLERR;
+
+	if (session->role == VT_ROLE_PRODUCER)
+		poll_wait(filp, &session->wait_producer, wait);
+	else if (session->role == VT_ROLE_CONSUMER)
+		poll_wait(filp, &session->wait_consumer, wait);
+
+	return POLLIN | POLLRDNORM;
+}
+
 static const struct file_operations vt_fops = {
 	.owner = THIS_MODULE,
 	.open = vt_open,
@@ -1331,6 +1364,7 @@ static const struct file_operations vt_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = vt_ioctl,
 #endif
+	.poll = vt_poll,
 };
 
 static int vt_probe(struct platform_device *pdev)
