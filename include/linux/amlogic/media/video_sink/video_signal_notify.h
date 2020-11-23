@@ -22,6 +22,8 @@ enum vd_format_e {
 
 struct vd_signal_info_s {
 	enum vd_format_e signal_type;
+	enum vd_format_e vd1_signal_type;
+	enum vd_format_e vd2_signal_type;
 	u32 reversed;
 };
 

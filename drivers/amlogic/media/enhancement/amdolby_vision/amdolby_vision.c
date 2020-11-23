@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/registers/register_map.h>
 //#include <linux/amlogic/cpu_version.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
@@ -5821,6 +5822,24 @@ static int prepare_vsif_pkt
 }
 #endif
 
+static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
+{
+	static int pre_signal = -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	if (pre_signal != vd_signal->signal_type) {
+		vd_signal->vd1_signal_type =
+			SIGNAL_DOVI;
+		vd_signal->vd2_signal_type =
+			SIGNAL_DOVI;
+		amvideo_notifier_call_chain
+			(AMVIDEO_UPDATE_SIGNAL_MODE,
+			(void *)vd_signal);
+	}
+#endif
+	pre_signal = vd_signal->signal_type;
+	return 0;
+}
+
 /* #define HDMI_SEND_ALL_PKT */
 static u32 last_dst_format = FORMAT_SDR;
 static bool send_hdmi_pkt
@@ -5832,6 +5851,7 @@ static bool send_hdmi_pkt
 	int i;
 	bool flag = false;
 	static int sdr_transition_delay;
+	struct vd_signal_info_s vd_signal;
 
 	if (dst_format == FORMAT_HDR10) {
 		sdr_transition_delay = 0;
@@ -6003,6 +6023,8 @@ static bool send_hdmi_pkt
 			pr_dolby_dbg("send hdmi pkt: HDR10\n");
 
 		last_dst_format = dst_format;
+		vd_signal.signal_type = SIGNAL_HDR10;
+		notify_vd_signal_to_amvideo(&vd_signal);
 		if (flag && debug_dolby & 8) {
 			pr_dolby_dbg("Info frame for hdr10 changed:\n");
 			for (i = 0; i < 3; i++)
@@ -6077,6 +6099,8 @@ static bool send_hdmi_pkt
 			pr_dolby_dbg("send hdmi pkt: %s\n",
 				     dovi_setting.dovi_ll_enable ? "LL" : "DV");
 		last_dst_format = dst_format;
+		vd_signal.signal_type = SIGNAL_DOVI;
+		notify_vd_signal_to_amvideo(&vd_signal);
 	} else if (last_dst_format != dst_format) {
 		if (last_dst_format == FORMAT_HDR10) {
 			sdr_transition_delay = 0;
@@ -6139,6 +6163,8 @@ static bool send_hdmi_pkt
 				}
 			}
 		}
+		vd_signal.signal_type = SIGNAL_SDR;
+		notify_vd_signal_to_amvideo(&vd_signal);
 	}
 	if (dolby_vision_flags & FLAG_FORCE_HDMI_PKT)
 		dolby_vision_flags &= ~FLAG_FORCE_HDMI_PKT;

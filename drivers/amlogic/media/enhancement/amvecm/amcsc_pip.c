@@ -22,6 +22,8 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include "arch/vpp_regs.h"
 #include "reg_helper.h"
 #include "amcsc.h"
@@ -824,6 +826,24 @@ static void prepare_hdr_info(struct master_display_info_s *hdr_data,
 	}
 }
 
+static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
+{
+	static int pre_signal = -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	if (pre_signal != vd_signal->signal_type) {
+		vd_signal->vd1_signal_type =
+			vd_signal->signal_type;
+		vd_signal->vd2_signal_type =
+			vd_signal->signal_type;
+		amvideo_notifier_call_chain
+			(AMVIDEO_UPDATE_SIGNAL_MODE,
+			(void *)vd_signal);
+	}
+#endif
+	pre_signal = vd_signal->signal_type;
+	return 0;
+}
+
 static unsigned int content_max_lumin[VD_PATH_MAX];
 
 void hdmi_packet_process(int signal_change_flag,
@@ -840,6 +860,7 @@ void hdmi_packet_process(int signal_change_flag,
 		      struct hdr10plus_para *data);
 	void (*f_h)(struct master_display_info_s *data);
 	struct hdr10plus_para *h10_para;
+	struct vd_signal_info_s vd_signal;
 
 	f_h = NULL;
 	f_h10 = NULL;
@@ -921,6 +942,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 16)	/* bt709 */
 			| (1 << 8)	/* bt709 */
 			| (1 << 0);	/* bt709 */
+		vd_signal.signal_type = SIGNAL_SDR;
 		break;
 	case BT2020:
 		send_info.features =
@@ -933,6 +955,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (9 << 16) /* 2020 */
 			| (1 << 8)	/* bt709 */
 			| (10 << 0);
+		vd_signal.signal_type = SIGNAL_HDR10;
 		break;
 	case BT2020_PQ:
 		send_info.features =
@@ -944,6 +967,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (9 << 16)
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
+		vd_signal.signal_type = SIGNAL_HDR10;
 		break;
 	case BT2020_HLG:
 		send_info.features =
@@ -955,6 +979,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (9 << 16)
 			| (18 << 8)
 			| (10 << 0);
+		vd_signal.signal_type = SIGNAL_HLG;
 		break;
 	case BT2020_PQ_DYNAMIC:
 		send_info.features =
@@ -966,6 +991,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (9 << 16)
 			| (16 << 8)  /* Always HDR10 */
 			| (10 << 0); /* bt2020c */
+		vd_signal.signal_type = SIGNAL_HDR10PLUS;
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:
@@ -991,11 +1017,14 @@ void hdmi_packet_process(int signal_change_flag,
 			if (f_h10)
 				f_h10(1, h10_para);
 		}
+		notify_vd_signal_to_amvideo(&vd_signal);
 		return;
 	}
 	/* none hdr+ */
-	if (f_h)
+	if (f_h) {
 		f_h(&send_info);
+		notify_vd_signal_to_amvideo(&vd_signal);
+	}
 }
 
 void video_post_process(struct vframe_s *vf,
