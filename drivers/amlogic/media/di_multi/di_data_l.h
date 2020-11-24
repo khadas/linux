@@ -1477,6 +1477,10 @@ struct di_ch_s {
 	struct buf_que_s iat_qb;
 	struct qs_cls_s iat_q[QBF_IAT_Q_NUB];
 	struct dim_iat_s	iat_bf[DIM_IAT_NUB];
+	unsigned int		is_tvp	:2;
+	//0: unknown, 1: non tvp, 2: tvp
+	unsigned int		is_secure	:2;
+	//0: unknown, 1: non secure, 2: secure
 };
 
 struct dim_policy_s {
@@ -1548,7 +1552,6 @@ struct di_mng_s {
 	/*new reg/unreg*/
 	atomic_t trig_reg[DI_CHANNEL_NUB];
 	atomic_t trig_unreg[DI_CHANNEL_NUB];
-	s8 is_tvp[DI_CHANNEL_NUB];/* -1: unknown, 0: non tvp, 1: tvp */
 };
 
 /*************************
@@ -2001,14 +2004,24 @@ static inline void set_or_act_flag(bool on)
 	get_bufmng()->act_flg =  on;
 }
 
-static inline s8 get_flag_tvp(unsigned char ch)
+static inline unsigned int get_flag_tvp(unsigned char ch)
 {
-	return get_bufmng()->is_tvp[ch];
+	return get_datal()->ch_data[ch].is_tvp;
 }
 
-static inline void set_flag_tvp(unsigned char ch, s8 data)
+static inline void set_flag_tvp(unsigned char ch, unsigned int data)
 {
-	get_bufmng()->is_tvp[ch] =  data;
+	get_datal()->ch_data[ch].is_tvp = data;
+}
+
+static inline unsigned int get_flag_secure(unsigned char ch)
+{
+	return get_datal()->ch_data[ch].is_secure;
+}
+
+static inline void set_flag_secure(unsigned char ch, unsigned int data)
+{
+	get_datal()->ch_data[ch].is_secure = data;
 }
 
 /*sum*/

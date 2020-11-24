@@ -1835,7 +1835,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 //	rot_width = roundup((rot_width << 1), canvas_align_width);
 
 	/* tvp flg */
-	if (get_flag_tvp(ch) == 1) {
+	if (get_flag_tvp(ch) == 2) {
 		mm->sts.flg_tvp = 1;
 		mm->cfg.ibuf_flg.b.tvp = 1;
 		mm->cfg.pbuf_flg.b.tvp = 1;
@@ -2386,7 +2386,8 @@ static void check_tvp_state(struct di_ch_s *pch)
 	char *provider_name = vf_get_provider_name(pch->vfm.name);
 
 	ch = pch->ch_id;
-	set_flag_tvp(ch, -1);
+	set_flag_tvp(ch, 0);
+	set_flag_secure(ch, 0);
 
 	while (provider_name) {
 		if (!vf_get_provider_name(provider_name))
@@ -2403,19 +2404,16 @@ static void check_tvp_state(struct di_ch_s *pch)
 			 VFRAME_EVENT_RECEIVER_REQ_STATE,
 			 (void *)&req);
 		if (req.req_result[0] == 0)
-			set_flag_tvp(ch, 0);
-		else if (req.req_result[0] != 0xffffffff)
 			set_flag_tvp(ch, 1);
+		else if (req.req_result[0] != 0xffffffff)
+			set_flag_tvp(ch, 2);
 	}
 	dbg_mem2("%s:tvp1:%d\n", __func__, get_flag_tvp(ch));
-	if (get_flag_tvp(ch) == -1) {
-		if (codec_mm_video_tvp_enabled()) {
+	if (get_flag_tvp(ch) == 0) {
+		if (codec_mm_video_tvp_enabled())
+			set_flag_tvp(ch, 2);
+		else
 			set_flag_tvp(ch, 1);
-			dim_sc2_secure_sw(true);
-		} else {
-			set_flag_tvp(ch, 0);
-			dim_sc2_secure_sw(false);
-		}
 	}
 	dbg_mem2("%s:tvp2:%d\n", __func__, get_flag_tvp(ch));
 }
@@ -3943,6 +3941,8 @@ void dim_pre_de_process(unsigned int channel)
 
 	if (IS_ERR_OR_NULL(ppre->di_mem_buf_dup_p))
 		return;
+
+	dim_sc2_secure_sw_pre(channel);
 
 	if (ppre->di_mem_buf_dup_p	&&
 	    ppre->di_mem_buf_dup_p != ppre->di_inp_buf) {
@@ -7064,6 +7064,9 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		pr_dbg("[di_kpi] di:ch[%d]:queue 1st frame to post ready.\n",
 		       channel);
 	}
+
+	dim_sc2_secure_sw_post(channel);
+
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");
 	di_start_x = zoom_start_x_lines;

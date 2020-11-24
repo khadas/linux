@@ -345,6 +345,7 @@ void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
 
 void hpre_gl_read(void);
 void cvsi_cfg(struct dim_cvsi_s	*pcvsi);
-void dim_sc2_secure_sw(bool on);
+void dim_sc2_secure_sw_pre(unsigned char ch);
+void dim_sc2_secure_sw_post(unsigned char ch);
 
 #endif /* __DI_HW_V3_H__ */

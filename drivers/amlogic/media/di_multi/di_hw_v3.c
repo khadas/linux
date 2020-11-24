@@ -4443,20 +4443,50 @@ void dim_sc2_afbce_rst(unsigned int ec_nub)
 	}
 }
 
-void dim_sc2_secure_sw(bool on)
+void dim_sc2_secure_pre_en(unsigned char ch)
+{
+	if (get_datal()->ch_data[ch].is_tvp == 2) {
+		DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
+		get_datal()->ch_data[ch].is_secure = 2;
+	} else {
+		DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
+		get_datal()->ch_data[ch].is_secure = 1;
+	}
+}
+
+void dim_sc2_secure_sw_pre(unsigned char ch)
 {
 	if (DIM_IS_IC_BF(SC2))
 		return;
-	if (on) {
-		DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);
-		DIM_DI_WR(DI_POST_SEC_IN, 0x1F);
-		DIM_DI_WR(DI_VIU_DATA_SEC, 0x100);
 
+	if (get_datal()->ch_data[ch].is_secure == 0)//first set
+		dim_sc2_secure_pre_en(ch);
+	else if (get_datal()->ch_data[ch].is_tvp !=
+		 get_datal()->ch_data[ch].is_secure)
+		dim_sc2_secure_pre_en(ch);
+}
+
+void dim_sc2_secure_pst_en(unsigned char ch)
+{
+	if (get_datal()->ch_data[ch].is_tvp == 2) {
+		DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
+		get_datal()->ch_data[ch].is_secure = 2;
 	} else {
-		DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
 		DIM_DI_WR(DI_POST_SEC_IN, 0x0);
-		DIM_DI_WR(DI_VIU_DATA_SEC, 0x0);
+		get_datal()->ch_data[ch].is_secure = 1;
 	}
+}
+
+void dim_sc2_secure_sw_post(unsigned char ch)
+{
+	if (DIM_IS_IC_BF(SC2))
+		return;
+
+	if (get_datal()->ch_data[ch].is_secure == 0)//first set
+		dim_sc2_secure_pst_en(ch);
+	else if (get_datal()->ch_data[ch].is_tvp !=
+		 get_datal()->ch_data[ch].is_secure)
+		dim_sc2_secure_pst_en(ch);
 }
 
 void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
