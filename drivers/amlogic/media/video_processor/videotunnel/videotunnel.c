@@ -40,6 +40,7 @@
 #include <asm-generic/bug.h>
 
 #include "videotunnel_priv.h"
+#include "videotunnel.h"
 
 #define DEVICE_NAME "videotunnel"
 #define MAX_VIDEO_INSTANCE_NUM 16
@@ -367,8 +368,8 @@ static int vt_get_session_serial(const struct rb_root *root,
 	return serial + 1;
 }
 
-static struct vt_session *vt_session_create(struct vt_dev *dev,
-					    const char *name)
+static struct vt_session *vt_session_create_internal(struct vt_dev *dev,
+						     const char *name)
 {
 	struct vt_session *session;
 	struct task_struct *task = NULL;
@@ -575,7 +576,7 @@ static int vt_instance_trim(struct vt_session *session)
 	return 0;
 }
 
-static void vt_session_destroy(struct vt_session *session)
+void vt_session_destroy(struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance = NULL, *tmp = NULL;
@@ -601,6 +602,7 @@ static void vt_session_destroy(struct vt_session *session)
 	kfree(session->name);
 	kfree(session);
 }
+EXPORT_SYMBOL(vt_session_destroy);
 
 static int vt_open(struct inode *inode, struct file *filp)
 {
@@ -611,7 +613,7 @@ static int vt_open(struct inode *inode, struct file *filp)
 	char debug_name[64];
 
 	snprintf(debug_name, 64, "%u", task_pid_nr(current->group_leader));
-	session = vt_session_create(dev, debug_name);
+	session = vt_session_create_internal(dev, debug_name);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -637,6 +639,66 @@ static long vt_get_connected_id(void)
 		return 0;
 
 	return cid;
+}
+
+static int vt_alloc_id_process(struct vt_alloc_id_data *data,
+			       struct vt_session *session)
+{
+	int ret = 0;
+	char name[64];
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = vt_instance_create(session->dev);
+
+	if (IS_ERR(instance))
+		return PTR_ERR(instance);
+
+	mutex_lock(&dev->instance_lock);
+	ret = idr_alloc(&dev->instance_idr, instance, 0, 0, GFP_KERNEL);
+	instance->id = ret;
+	mutex_unlock(&dev->instance_lock);
+	if (ret < 0) {
+		vt_instance_put(instance);
+		return ret;
+	}
+
+	snprintf(name, 64, "instance-%d", instance->id);
+	instance->debug_root =
+		debugfs_create_file(name, 0664, dev->debug_root,
+				    instance, &debug_instance_fops);
+
+	list_add_tail(&session->instances_head, &instance->entry);
+
+	data->tunnel_id = instance->id;
+	vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
+		 instance->id,
+		 atomic_read(&instance->ref.refcount.refs));
+
+	return ret;
+}
+
+static int vt_free_id_process(struct vt_alloc_id_data *data,
+			      struct vt_session *session)
+{
+	int ret = 0;
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
+
+	instance = idr_find(&dev->instance_idr,
+			    data->tunnel_id);
+	/* to do free id operation check */
+	if (!instance) {
+		pr_err("destroy unknown videotunnel instance:%d\n",
+		       data->tunnel_id);
+		ret = -EINVAL;
+	} else {
+		vt_debug(VT_DEBUG_USER, "vt free instance [%d], ref %d\n",
+			 instance->id,
+			 atomic_read(&instance->ref.refcount.refs));
+
+		ret = vt_instance_put(instance);
+	}
+
+	return ret;
 }
 
 static int vt_connect_process(struct vt_ctrl_data *data,
@@ -947,8 +1009,8 @@ static struct vt_buffer *vt_get_free_buffer(struct vt_instance *instance)
 	return buffer;
 }
 
-static int vt_queue_buffer(struct vt_buffer_data *data,
-			   struct vt_session *session)
+static int vt_queue_buffer_process(struct vt_buffer_data *data,
+				   struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
@@ -1006,8 +1068,8 @@ static int vt_queue_buffer(struct vt_buffer_data *data,
 	return 0;
 }
 
-static int vt_dequeue_buffer(struct vt_buffer_data *data,
-			     struct vt_session *session)
+static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
+				     struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
@@ -1078,8 +1140,8 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 	return 0;
 }
 
-static int vt_acquire_buffer(struct vt_buffer_data *data,
-			     struct vt_session *session)
+static int vt_acquire_buffer_process(struct vt_buffer_data *data,
+				     struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
@@ -1159,8 +1221,8 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 	return 0;
 }
 
-static int vt_release_buffer(struct vt_buffer_data *data,
-			     struct vt_session *session)
+static int vt_release_buffer_process(struct vt_buffer_data *data,
+				     struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
@@ -1257,8 +1319,6 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	union vt_ioctl_arg data;
 	struct vt_session *session = filp->private_data;
 	unsigned int dir = vt_ioctl_dir(cmd);
-	struct vt_dev *dev = session->dev;
-	struct vt_instance *instance = NULL;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -1268,65 +1328,27 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case VT_IOC_ALLOC_ID: {
-		char name[64];
-
-		instance = vt_instance_create(session->dev);
-		if (IS_ERR(instance))
-			return PTR_ERR(instance);
-
-		mutex_lock(&dev->instance_lock);
-		ret = idr_alloc(&dev->instance_idr, instance, 0, 0, GFP_KERNEL);
-		instance->id = ret;
-		mutex_unlock(&dev->instance_lock);
-		if (ret < 0) {
-			vt_instance_put(instance);
-			return ret;
-		}
-
-		snprintf(name, 64, "instance-%d", instance->id);
-		instance->debug_root =
-			debugfs_create_file(name, 0664, dev->debug_root,
-					    instance, &debug_instance_fops);
-
-		list_add_tail(&session->instances_head, &instance->entry);
-
-		data.alloc_data.tunnel_id = instance->id;
-		vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
-			 instance->id,
-			 atomic_read(&instance->ref.refcount.refs));
+		ret = vt_alloc_id_process(&data.alloc_data, session);
 		break;
 	}
 	case VT_IOC_FREE_ID: {
-		instance = idr_find(&dev->instance_idr,
-				    data.alloc_data.tunnel_id);
-		/* to do free id operation check */
-		if (!instance) {
-			pr_err("destroy unknown videotunnel instance:%d\n",
-			       data.alloc_data.tunnel_id);
-			ret = -EINVAL;
-		} else {
-			vt_debug(VT_DEBUG_USER, "vt free instance [%d], ref %d\n",
-				 instance->id,
-				 atomic_read(&instance->ref.refcount.refs));
-
-			ret = vt_instance_put(instance);
-		}
+		ret = vt_free_id_process(&data.alloc_data, session);
 		break;
 	}
 	case VT_IOC_CTRL:
 		ret = vt_ctrl_process(&data.ctrl_data, session);
 		break;
 	case VT_IOC_QUEUE_BUFFER:
-		ret = vt_queue_buffer(&data.buffer_data, session);
+		ret = vt_queue_buffer_process(&data.buffer_data, session);
 		break;
 	case VT_IOC_DEQUEUE_BUFFER:
-		ret = vt_dequeue_buffer(&data.buffer_data, session);
+		ret = vt_dequeue_buffer_process(&data.buffer_data, session);
 		break;
 	case VT_IOC_RELEASE_BUFFER:
-		ret = vt_release_buffer(&data.buffer_data, session);
+		ret = vt_release_buffer_process(&data.buffer_data, session);
 		break;
 	case VT_IOC_ACQUIRE_BUFFER:
-		ret = vt_acquire_buffer(&data.buffer_data, session);
+		ret = vt_acquire_buffer_process(&data.buffer_data, session);
 		break;
 	default:
 		return -ENOTTY;
@@ -1340,9 +1362,32 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+static int vt_poll_ready(struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
+	struct rb_node *n = NULL;
+	int size = 0;
+
+	mutex_lock(&dev->instance_lock);
+	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
+		instance = rb_entry(n, struct vt_instance, node);
+		mutex_lock(&instance->lock);
+		if (instance->producer && instance->producer == session)
+			size += kfifo_len(&instance->fifo_to_producer);
+		else if (instance->consumer && instance->consumer == session)
+			size += kfifo_len(&instance->fifo_to_consumer);
+		mutex_unlock(&instance->lock);
+	}
+	mutex_unlock(&dev->instance_lock);
+
+	return size;
+}
+
 static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct vt_session *session = filp->private_data;
+	vt_debug(VT_DEBUG_USER, "vt poll\n");
 
 	/* not connected */
 	if (session->role == VT_ROLE_INVALID)
@@ -1353,8 +1398,107 @@ static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 	else if (session->role == VT_ROLE_CONSUMER)
 		poll_wait(filp, &session->wait_consumer, wait);
 
-	return POLLIN | POLLRDNORM;
+	if (vt_poll_ready(session) > 0)
+		return POLLIN | POLLRDNORM;
+	else
+		return 0;
 }
+
+struct vt_session *vt_session_create(const char *name)
+{
+	return vt_session_create_internal(vdev, name);
+}
+EXPORT_SYMBOL(vt_session_create);
+
+int vt_alloc_id(struct vt_session *session, int *tunnel_id)
+{
+	int ret = 0;
+	struct vt_alloc_id_data data;
+
+	ret = vt_alloc_id_process(&data, session);
+
+	if (ret < 0)
+		return ret;
+
+	*tunnel_id = data.tunnel_id;
+	return ret;
+}
+EXPORT_SYMBOL(vt_alloc_id);
+
+int vt_free_id(struct vt_session *session, int tunnel_id)
+{
+	struct vt_alloc_id_data data;
+
+	data.tunnel_id = tunnel_id;
+	return vt_free_id_process(&data, session);
+}
+EXPORT_SYMBOL(vt_free_id);
+
+int vt_producer_connect(struct vt_session *session, int tunnel_id)
+{
+	struct vt_ctrl_data data;
+
+	data.tunnel_id = tunnel_id;
+	data.role = VT_ROLE_PRODUCER;
+
+	return vt_connect_process(&data, session);
+}
+EXPORT_SYMBOL(vt_producer_connect);
+
+int vt_producer_disconnect(struct vt_session *session, int tunnel_id)
+{
+	struct vt_ctrl_data data;
+
+	data.tunnel_id = tunnel_id;
+	data.role = VT_ROLE_PRODUCER;
+
+	return vt_disconnect_process(&data, session);
+}
+EXPORT_SYMBOL(vt_producer_disconnect);
+
+int vt_queue_buffer(struct vt_session *session, int tunnel_id,
+		    int buffer_fd, int fence_fd, int64_t time_stamp)
+{
+	struct vt_buffer_data data;
+
+	data.tunnel_id = tunnel_id;
+	data.buffer_size = 1;
+	data.buffers[0].tunnel_id = tunnel_id;
+	data.buffers[0].buffer_fd = buffer_fd;
+	data.buffers[0].fence_fd = fence_fd;
+	data.buffers[0].time_stamp = time_stamp;
+
+	return vt_queue_buffer_process(&data, session);
+}
+EXPORT_SYMBOL(vt_queue_buffer);
+
+int vt_dequeue_buffer(struct vt_session *session, int tunnel_id,
+		      int *buffer_fd, int *fence_fd)
+{
+	struct vt_buffer_data data;
+	int ret;
+
+	data.tunnel_id = tunnel_id;
+	ret = vt_dequeue_buffer_process(&data, session);
+	*buffer_fd = data.buffers[0].buffer_fd;
+	*fence_fd = -1;
+
+	return ret;
+}
+EXPORT_SYMBOL(vt_dequeue_buffer);
+
+int vt_send_cmd(struct vt_session *session, int tunnel_id,
+		enum vt_video_cmd_e cmd, int cmd_data)
+{
+	struct vt_ctrl_data data;
+
+	data.tunnel_id = tunnel_id;
+	data.video_cmd = cmd;
+	data.video_cmd_data = cmd_data;
+
+	return vt_send_cmd_process(&data, session);
+}
+EXPORT_SYMBOL(vt_send_cmd);
 
 static const struct file_operations vt_fops = {
 	.owner = THIS_MODULE,
