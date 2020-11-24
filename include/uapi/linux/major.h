@@ -195,4 +195,6 @@
 #define V4LVIDEO_MAJOR      (18 + (AML_BASE))
 #define VIDEO_COMPOSER_MAJOR    (19 + (AML_BASE))
 #define TSYNC_MAJOR         (20 + (AML_BASE))
+#define VIDEOFRAME_MAJOR    (21 + (AML_BASE))
+
 #endif

@@ -302,6 +302,7 @@ static ulong codec_mm_search_phy_addr(char *vaddr)
 		 */
 		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
 			continue;
+
 		if (vaddr - mem->vbuffer >= 0 &&
 		    vaddr - mem->vbuffer < mem->buffer_size) {
 			if (mem->phy_addr)
@@ -337,6 +338,7 @@ static void *codec_mm_search_vaddr(unsigned long phy_addr)
 		 */
 		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
 			continue;
+
 		if (phy_addr >= mem->phy_addr &&
 		    phy_addr < mem->phy_addr + mem->buffer_size) {
 			if (mem->vbuffer)
@@ -659,27 +661,28 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		}
 	} while (--max_retry > 0);
 
-	if (mem->mem_handle)
+	if (mem->mem_handle) {
 		return 0;
-
-	if (debug_mode & 0x10) {
-		pr_info("codec mm have space:%x\n",
-			have_space);
-		pr_info("canfrom: %d,%d,%d,%d\n",
-			can_from_tvp,
-			can_from_sys,
-			can_from_res,
-			can_from_cma);
-		pr_info("alloc flags:%d,align=%d,%d,pages:%d,s:%d\n",
-			mem->flags,
-			mem->align2n,
-			align_2n,
-			mem->page_count,
-			mem->buffer_size);
-		pr_info("try alloc mask:%x\n",
-			alloc_trace_mask);
+	} else {
+		if (debug_mode & 0x10) {
+			pr_info("codec mm have space:%x\n",
+				have_space);
+			pr_info("canfrom: %d,%d,%d,%d\n",
+				can_from_tvp,
+				can_from_sys,
+				can_from_res,
+				can_from_cma);
+			pr_info("alloc flags:%d,align=%d,%d,pages:%d,s:%d\n",
+				mem->flags,
+				mem->align2n,
+				align_2n,
+				mem->page_count,
+				mem->buffer_size);
+			pr_info("try alloc mask:%x\n",
+				alloc_trace_mask);
+		}
+		return -10003;
 	}
-	return -10003;
 }
 
 static int codec_mm_tvp_pool_unprotect(struct extpool_mgt_s *tvp_pool)
@@ -1313,13 +1316,8 @@ alloced_finished:
 		tvp_pool->total_size = alloced_size;
 	if (for_tvp) {
 		if (alloced_size >= size) {
-			if (tvp_mode >= 1) {
-				if (codec_mm_tvp_pool_protect(tvp_pool)) {
-					codec_mm_extpool_pool_release_inner(slot_num,
-						tvp_pool);
-					alloced_size = 0;
-				}
-			}
+			if (tvp_mode >= 1)
+				codec_mm_tvp_pool_protect(tvp_pool);
 		} else {
 			codec_mm_extpool_pool_release_inner(slot_num, tvp_pool);
 			alloced_size = 0;

@@ -90,6 +90,8 @@ void set_timestamp_inc_factor(u32 factor);
 int pts_cached_time(u8 type);
 #endif
 
+u32 get_first_pic_coming(void);
+
 int get_vsync_pts_inc_mode(void);
 
 void tsync_avevent_locked(enum avevent_e event, u32 param);
@@ -157,7 +159,10 @@ int tsync_get_tunnel_mode(void);
 void timestamp_set_pcrlatency(u32 latency);
 u32 timestamp_get_pcrlatency(void);
 bool tsync_check_vpts_discontinuity(unsigned int vpts);
+int tsync_get_vpts_error_num(void);
+int tsync_get_apts_error_num(void);
 void timestamp_clac_pts_latency(u8 type, u32 pts);
+u32 get_toggle_frame_count(void);
 u32 timestamp_get_pts_latency(u8 type);
 void timestamp_clean_pts_latency(u8 type);
 int tsync_get_vpts_adjust(void);

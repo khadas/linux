@@ -322,4 +322,7 @@
 #define DMC_AXI7_QOS_CTRL0 0xfe
 #define DMC_AXI7_QOS_CTRL1 0xff
 
+/* t5 chip used in vdec */
+#define  T5_DMC_CHAN_STS 0xbc
+
 #endif

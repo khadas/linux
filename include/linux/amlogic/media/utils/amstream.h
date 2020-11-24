@@ -205,8 +205,10 @@
 #define AMSTREAM_IOC_GET_OMX_VERSION              _IOW((_A_M), 0xb1, int)
 #define AMSTREAM_IOC_GET_OMX_INFO                 _IOR((_A_M), 0xb2, u32)
 #define AMSTREAM_IOC_SET_HDR_INFO                 _IOW((_A_M), 0xb3, int)
+#define AMSTREAM_IOC_GET_VIDEO_LATENCY _IOW((_A_M), 0xb4, int)
 #define AMSTREAM_IOC_SET_TUNNEL_MODE _IOR(_A_M, 0xbd, unsigned int)
 #define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED      _IOR(_A_M, 0xbe, u32)
+/* av sycn event */
 #define AMSTREAM_IOC_SET_VIDEOPEEK                _IOW(_A_M, 0xbf, u32)
 
 #define AMSTREAM_IOC_GET_TRICK_VPTS               _IOR((_A_M), 0xf0, int)
@@ -236,6 +238,7 @@
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
 #define TRICKMODE_FFFB       0x02
+#define TRICKMODE_I_HEVC     0x07
 
 #define TRICK_STAT_DONE     0x01
 #define TRICK_STAT_WAIT     0x00
@@ -277,6 +280,10 @@ enum FRAME_BASE_VIDEO_PATH {
 	FRAME_BASE_PATH_TUNNEL_MODE,
 	FRAME_BASE_PATH_V4L_OSD,
 	FRAME_BASE_PATH_DI_V4LVIDEO,
+	FRAME_BASE_PATH_PIP_TUNNEL_MODE,
+	FRAME_BASE_PATH_V4LVIDEO,
+	FRAME_BASE_PATH_DTV_TUNNEL_MODE,
+	FRAME_BASE_PATH_AMLVIDEO_FENCE,
 	FRAME_BASE_PATH_MAX
 };
 
@@ -328,22 +335,34 @@ struct vdec_status {
 
 struct vdec_info {
 	char vdec_name[16];
-	unsigned int ver;
-	unsigned int frame_width;
-	unsigned int frame_height;
-	unsigned int frame_rate;
-	unsigned int bit_rate;
-	unsigned int frame_dur;
-	unsigned int frame_data;
-	unsigned int error_count;
-	unsigned int status;
-	unsigned int frame_count;
-	unsigned int error_frame_count;
-	unsigned int drop_frame_count;
-	unsigned long long total_data;
-	unsigned int samp_cnt;
-	unsigned int offset;
-	unsigned int ratio_control;
+	u32 ver;
+	u32 frame_width;
+	u32 frame_height;
+	u32 frame_rate;
+	union {
+		u32 bit_rate;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_luma;
+	};
+	u32 frame_dur;
+	union {
+		u32 frame_data;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_chroma;
+	};
+	u32 error_count;
+	u32 status;
+	u32 frame_count;
+	u32 error_frame_count;
+	u32 drop_frame_count;
+	u64 total_data;
+	union {
+		u32 samp_cnt;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 double_write_mode;
+	};
+	u32 offset;
+	u32 ratio_control;
 	char reserved[32];
 };
 
@@ -584,6 +603,7 @@ struct usr_crc_info_t {
 /*  amstream set ptr cmd */
 #define AMSTREAM_SET_PTR_AUDIO_INFO           0x300
 #define AMSTREAM_SET_PTR_CONFIGS              0x301
+#define AMSTREAM_SET_PTR_HDR10P_DATA 0x302
 
 /*  amstream get cmd */
 #define AMSTREAM_GET_SUB_LENGTH               0x800
@@ -695,7 +715,7 @@ struct vframe_qos_s {
 	int max_mv;
 	int min_mv;
 	int avg_mv;
-	int decode_buffer;
+	int decode_buffer;//For padding currently
 } /*vframe_qos */;
 
 struct vframe_comm_s {
@@ -710,16 +730,28 @@ struct vframe_counter_s {
 	u32 frame_width;
 	u32 frame_height;
 	u32 frame_rate;
-	u32 bit_depth_luma;//original bit_rate;
+	union {
+		u32 bit_rate;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_luma;
+	};
 	u32 frame_dur;
-	u32 bit_depth_chroma;//original frame_data;
+	union {
+		u32 frame_data;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_chroma;
+	};
 	u32 error_count;
 	u32 status;
 	u32 frame_count;
 	u32 error_frame_count;
 	u32 drop_frame_count;
 	u64 total_data;//this member must be 8 bytes alignment
-	u32 double_write_mode;//original samp_cnt;
+	union {
+		u32 samp_cnt;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 double_write_mode;
+	};
 	u32 offset;
 	u32 ratio_control;
 	u32 vf_type;
@@ -768,6 +800,7 @@ struct av_info_t {
 	unsigned int dec_frame_count;/*vdec frame count*/
 	unsigned int dec_drop_frame_count;/*drop frame num*/
 	int tsync_mode;
+	unsigned int dec_video_bps;/*video bitrate*/
 };
 
 struct av_param_info_t {
