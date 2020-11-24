@@ -1142,16 +1142,6 @@ struct ge2d_power_table_s default_poweron_table = {1, default_poweron_ctrl};
 struct ge2d_power_table_s default_poweroff_table = {1, default_poweroff_ctrl};
 #endif
 
-static struct ge2d_ctrl_s smc_poweron_ctrl[] = {
-			{PWR_SMC, 0, PWR_ON, 0, 0}
-		};
-static struct ge2d_ctrl_s smc_poweroff_ctrl[] = {
-			{PWR_SMC, 0, PWR_OFF, 0, 0}
-		};
-
-struct ge2d_power_table_s smc_poweron_table = {1, smc_poweron_ctrl};
-struct ge2d_power_table_s smc_poweroff_table = {1, smc_poweroff_ctrl};
-
 static struct ge2d_device_data_s ge2d_gxl = {
 	.ge2d_rate = 400000000,
 	.src2_alp = 0,
@@ -1224,18 +1214,6 @@ static struct ge2d_device_data_s ge2d_sm1 = {
 	.poweroff_table = &default_poweroff_table,
 };
 
-static struct ge2d_device_data_s ge2d_t5 = {
-	.ge2d_rate = 500000000,
-	.src2_alp = 1,
-	.canvas_status = 0,
-	.deep_color = 1,
-	.hang_flag = 1,
-	.fifo = 1,
-	.has_self_pwr = 1,
-	.poweron_table = &smc_poweron_table,
-	.poweroff_table = &smc_poweroff_table,
-};
-
 static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1265,10 +1243,6 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.compatible = "amlogic, ge2d-sm1",
 		.data = &ge2d_sm1,
 	},
-	{
-		.compatible = "amlogic, ge2d-t5",
-		.data = &ge2d_t5,
-	},
 	{},
 };
 
@@ -1276,7 +1250,7 @@ static int ge2d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int irq = 0;
-	struct clk *clk_gate = NULL;
+	struct clk *clk_gate;
 	struct clk *clk_vapb0;
 	struct clk *clk;
 	struct resource res;
@@ -1359,7 +1333,6 @@ static int ge2d_probe(struct platform_device *pdev)
 				vapb_rate/1000000);
 		}
 	}
-
 	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
 	if (ret == 0) {
 		ge2d_log_dbg("find address resource\n");
