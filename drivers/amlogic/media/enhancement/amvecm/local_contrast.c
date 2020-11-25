@@ -224,7 +224,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	case LC_MTX_YUV601L_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (bitdepth == 10) {
-				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+				    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x04A80000);
 					WRITE_VPP_REG(matrix_coef02_10,
@@ -313,7 +314,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	case LC_MTX_YUV709L_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (bitdepth == 10) {
-				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+				    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x04A80000);
 					WRITE_VPP_REG(matrix_coef02_10,
@@ -402,7 +404,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	case LC_MTX_YUV709_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (bitdepth == 10) {
-				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5) {
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+				    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x04000000);
 					WRITE_VPP_REG(matrix_coef02_10,

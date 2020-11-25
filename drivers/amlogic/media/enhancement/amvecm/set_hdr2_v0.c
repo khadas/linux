@@ -2039,7 +2039,8 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 	    module_sel == VD2_HDR)
 		return;
 
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5) &&
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
 	    module_sel == VD2_HDR)
 		return;
 
@@ -2227,7 +2228,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu())
 		bit_depth = 10;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -2840,7 +2842,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.p_sel = SDR_GMT_CONVERT;
 	}
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 &&
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
@@ -2902,7 +2905,8 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu())
 		bit_depth = 10;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -2977,7 +2981,8 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu())
 		bit_depth = 10;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 		bit_depth = 10;
 
 	if (hdr_process_select & HDR_SDR) {
@@ -3038,7 +3043,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu())
 		bit_depth = 10;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -3190,7 +3196,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			hdr_mtx_param.gmt_bit_mode = 1;
 	}
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 &&
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 

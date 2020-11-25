@@ -8217,7 +8217,8 @@ void hdr_hist_config_int(void)
 	VSYNC_WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END, 0x10000);
 	VSYNC_WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END, 0x0);
 
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T5) {
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T5 &&
+	    get_cpu_type() != MESON_CPU_MAJOR_ID_T5D) {
 		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_CTRL, 0x5510);
 		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_H_START_END, 0x10000);
 		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_V_START_END, 0x0);
@@ -8267,7 +8268,8 @@ void init_pq_setting(void)
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 	    is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
@@ -8299,7 +8301,8 @@ tvchip_pq_setting:
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (is_meson_tl1_cpu())
 			bitdepth = 10;
-		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5)
+		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+			 get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
 			bitdepth = 10;
 		else if (is_meson_tm2_cpu())
 			bitdepth = 12;
