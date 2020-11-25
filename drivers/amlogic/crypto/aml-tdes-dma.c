@@ -159,7 +159,13 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 	dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = keylen;
+	/* Internal key_iv storage of DMA is 48 bytes (32 for key; 16 for iv)
+	 * For some reason, it fails to set key if key length is 8 bytes(ex: DES).
+	 * Therefore, we always set length to 32 bytes(full key storage) regardless of
+	 * real key length.
+	 * PLEASE ask Qian Cheng(cheng.qian@amlogic.com) for details.
+	 */
+	dsc[0].dsc_cfg.b.length = 32;
 	dsc[0].dsc_cfg.b.mode = MODE_KEY;
 	dsc[0].dsc_cfg.b.owner = 1;
 	dsc[0].dsc_cfg.b.eoc = 0;
@@ -818,6 +824,24 @@ static int aml_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	return 0;
 }
 
+static int aml_des_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			     u32 keylen)
+{
+	struct aml_tdes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+
+	if (keylen != DES_KEY_SIZE) {
+		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	/* key[0:3] = kte */
+	ctx->kte = *(uint32_t *)&key[0];
+	ctx->keylen = keylen;
+
+	return 0;
+}
+
+/*
 static int aml_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			   u32 keylen)
 {
@@ -834,6 +858,7 @@ static int aml_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	return 0;
 }
+*/
 
 static int aml_tdes_ecb_encrypt(struct ablkcipher_request *req)
 {
@@ -859,6 +884,7 @@ static int aml_tdes_cbc_decrypt(struct ablkcipher_request *req)
 			TDES_FLAGS_CBC);
 }
 
+/*
 static int aml_tdes_cra_init(struct crypto_tfm *tfm)
 {
 	struct aml_tdes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -872,7 +898,14 @@ static int aml_tdes_cra_init(struct crypto_tfm *tfm)
 static void aml_tdes_cra_exit(struct crypto_tfm *tfm)
 {
 }
+*/
 
+static int aml_tdes_lite_cra_init(struct crypto_tfm *tfm);
+static void aml_tdes_lite_cra_exit(struct crypto_tfm *tfm);
+static int aml_tdes_lite_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+				unsigned int keylen);
+static int aml_tdes_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			      unsigned int keylen);
 static struct crypto_alg des_tdes_algs[] = {
 	{
 		.cra_name        = "ecb(des)",
@@ -884,8 +917,8 @@ static struct crypto_alg des_tdes_algs[] = {
 		.cra_alignmask =  0,
 		.cra_type      =  &crypto_ablkcipher_type,
 		.cra_module    =  THIS_MODULE,
-		.cra_init      =  aml_tdes_cra_init,
-		.cra_exit      =  aml_tdes_cra_exit,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
 		.cra_u.ablkcipher = {
 			.min_keysize	=    DES_KEY_SIZE,
 			.max_keysize	=    DES_KEY_SIZE,
@@ -904,8 +937,8 @@ static struct crypto_alg des_tdes_algs[] = {
 		.cra_alignmask =  0,
 		.cra_type      =  &crypto_ablkcipher_type,
 		.cra_module    =  THIS_MODULE,
-		.cra_init      =  aml_tdes_cra_init,
-		.cra_exit      =  aml_tdes_cra_exit,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
 		.cra_u.ablkcipher = {
 			.min_keysize	=    DES_KEY_SIZE,
 			.max_keysize	=    DES_KEY_SIZE,
@@ -919,18 +952,19 @@ static struct crypto_alg des_tdes_algs[] = {
 		.cra_name        = "ecb(des3_ede)",
 		.cra_driver_name = "ecb-tdes-aml",
 		.cra_priority   = 200,
-		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = DES_BLOCK_SIZE,
 		.cra_ctxsize    = sizeof(struct aml_tdes_ctx),
 		.cra_alignmask  = 0,
 		.cra_type       = &crypto_ablkcipher_type,
 		.cra_module     = THIS_MODULE,
-		.cra_init       = aml_tdes_cra_init,
-		.cra_exit       = aml_tdes_cra_exit,
+		.cra_init       = aml_tdes_lite_cra_init,
+		.cra_exit       = aml_tdes_lite_cra_exit,
 		.cra_u.ablkcipher = {
 			.min_keysize	=    2 * DES_KEY_SIZE,
 			.max_keysize	=    3 * DES_KEY_SIZE,
-			.setkey		=    aml_tdes_setkey,
+			.setkey		=    aml_tdes_lite_setkey,
 			.encrypt	=    aml_tdes_ecb_encrypt,
 			.decrypt	=    aml_tdes_ecb_decrypt,
 		}
@@ -939,19 +973,102 @@ static struct crypto_alg des_tdes_algs[] = {
 		.cra_name        = "cbc(des3_ede)",
 		.cra_driver_name = "cbc-tdes-aml",
 		.cra_priority  = 200,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize = DES_BLOCK_SIZE,
+		.cra_ctxsize   = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask = 0,
+		.cra_type      = &crypto_ablkcipher_type,
+		.cra_module    = THIS_MODULE,
+		.cra_init      = aml_tdes_lite_cra_init,
+		.cra_exit      = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher =       {
+			.min_keysize = 2 * DES_KEY_SIZE,
+			.max_keysize = 3 * DES_KEY_SIZE,
+			.ivsize	     = DES_BLOCK_SIZE,
+			.setkey	     = aml_tdes_lite_setkey,
+			.encrypt     = aml_tdes_cbc_encrypt,
+			.decrypt     = aml_tdes_cbc_decrypt,
+		}
+	},
+	{
+		.cra_name        = "ecb(des-kl-aml)",
+		.cra_driver_name = "ecb-des-kl-aml",
+		.cra_priority  =  100,
+		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize =  DES_BLOCK_SIZE,
+		.cra_ctxsize   =  sizeof(struct aml_tdes_ctx),
+		.cra_alignmask =  0,
+		.cra_type      =  &crypto_ablkcipher_type,
+		.cra_module    =  THIS_MODULE,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    DES_KEY_SIZE,
+			.max_keysize	=    DES_KEY_SIZE,
+			.setkey		=    aml_des_kl_setkey,
+			.encrypt	=    aml_tdes_ecb_encrypt,
+			.decrypt	=    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        =  "cbc(des-kl-aml)",
+		.cra_driver_name =  "cbc-des-kl-aml",
+		.cra_priority  =  100,
+		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize =  DES_BLOCK_SIZE,
+		.cra_ctxsize   =  sizeof(struct aml_tdes_ctx),
+		.cra_alignmask =  0,
+		.cra_type      =  &crypto_ablkcipher_type,
+		.cra_module    =  THIS_MODULE,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    DES_KEY_SIZE,
+			.max_keysize	=    DES_KEY_SIZE,
+			.ivsize		=    DES_BLOCK_SIZE,
+			.setkey		=    aml_des_kl_setkey,
+			.encrypt	=    aml_tdes_cbc_encrypt,
+			.decrypt	=    aml_tdes_cbc_decrypt,
+		}
+	},
+	{
+		.cra_name        = "ecb(tdes-kl-aml)",
+		.cra_driver_name = "ecb-tdes-kl-aml",
+		.cra_priority   = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize  = DES_BLOCK_SIZE,
+		.cra_ctxsize    = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask  = 0,
+		.cra_type       = &crypto_ablkcipher_type,
+		.cra_module     = THIS_MODULE,
+		.cra_init       = aml_tdes_lite_cra_init,
+		.cra_exit       = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    2 * DES_KEY_SIZE,
+			.max_keysize	=    3 * DES_KEY_SIZE,
+			.setkey     =    aml_tdes_kl_setkey,
+			.encrypt    =    aml_tdes_ecb_encrypt,
+			.decrypt    =    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        = "cbc(tdes-kl-aml)",
+		.cra_driver_name = "cbc-tdes-kl-aml",
+		.cra_priority  = 100,
 		.cra_flags     = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 		.cra_blocksize = DES_BLOCK_SIZE,
 		.cra_ctxsize   = sizeof(struct aml_tdes_ctx),
 		.cra_alignmask = 0,
 		.cra_type      = &crypto_ablkcipher_type,
 		.cra_module    = THIS_MODULE,
-		.cra_init      = aml_tdes_cra_init,
-		.cra_exit      = aml_tdes_cra_exit,
+		.cra_init      = aml_tdes_lite_cra_init,
+		.cra_exit      = aml_tdes_lite_cra_exit,
 		.cra_u.ablkcipher =       {
 			.min_keysize = 2 * DES_KEY_SIZE,
 			.max_keysize = 3 * DES_KEY_SIZE,
 			.ivsize	     = DES_BLOCK_SIZE,
-			.setkey	     = aml_tdes_setkey,
+			.setkey	     = aml_tdes_kl_setkey,
 			.encrypt     = aml_tdes_cbc_encrypt,
 			.decrypt     = aml_tdes_cbc_decrypt,
 		}

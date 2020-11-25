@@ -1182,7 +1182,7 @@
 		};
 
 		aml_tdes {
-			compatible = "amlogic,tdes_dma";
+			compatible = "amlogic,des_dma,tdes_dma";
 			dev_name = "aml_tdes_dma";
 			status = "okay";
 		};

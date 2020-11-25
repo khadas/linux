@@ -130,7 +130,7 @@ static int aml_dma_queue_manage(void *data)
 
 				if (strstr(driver_name, "aes"))
 					ret = aml_aes_process(req);
-				else if (strstr(driver_name, "tdes"))
+				else if (strstr(driver_name, "des"))
 					ret = aml_tdes_process(req);
 				else
 					ret = -EINVAL;
