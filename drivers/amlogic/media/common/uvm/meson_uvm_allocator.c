@@ -84,6 +84,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	void *vaddr;
 	struct sg_table *src_sgt = NULL;
 	struct scatterlist *sg = NULL;
+	unsigned int ion_flags = 0;
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	memset(&info, 0, sizeof(info));
@@ -97,8 +98,10 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	}
 
 	if (!buffer->ibuffer) {
+		if (buffer->ion_flags & MUA_USAGE_PROTECTED)
+			ion_flags |= ION_FLAG_PROTECTED;
 		idmabuf = ion_alloc(dmabuf->size,
-				    (1 << ION_HEAP_TYPE_CUSTOM), 0);
+				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			return -ENOMEM;
@@ -161,6 +164,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 	struct uvm_alloc_info info;
 	struct dma_buf *idmabuf;
 	struct ion_buffer *ibuffer;
+	unsigned int ion_flags = 0;
 
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -169,10 +173,14 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 	buffer->byte_stride = data->byte_stride;
 	buffer->width = data->width;
 	buffer->height = data->height;
+	buffer->ion_flags = data->flags;
+
+	if (data->flags & MUA_USAGE_PROTECTED)
+		ion_flags |= ION_FLAG_PROTECTED;
 
 	if (data->flags & MUA_IMM_ALLOC) {
 		idmabuf = ion_alloc(data->size,
-				    (1 << ION_HEAP_TYPE_CUSTOM), 0);
+				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			kfree(buffer);

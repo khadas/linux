@@ -21,8 +21,12 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
-#define MUA_IMM_ALLOC	BIT(UVM_IMM_ALLOC)
-#define MUA_DELAY_ALLOC	BIT(UVM_DELAY_ALLOC)
+#define MUA_IMM_ALLOC        BIT(UVM_IMM_ALLOC)
+#define MUA_DELAY_ALLOC      BIT(UVM_DELAY_ALLOC)
+#define MUA_FAKE_ALLOC       BIT(UVM_FAKE_ALLOC)
+#define MUA_USAGE_PROTECTED  BIT(UVM_SECURE_ALLOC)
+#define ION_FLAG_PROTECTED   BIT(31)
+
 
 struct mua_device;
 struct mua_buffer;
@@ -40,6 +44,7 @@ struct mua_buffer {
 	phys_addr_t paddr;
 	int commit_display;
 	u32 index;
+	u32 ion_flags;
 };
 
 struct mua_device {
