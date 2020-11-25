@@ -198,10 +198,10 @@ int secure_register(enum secure_module_e module,
 	struct vpu_secure_ins *ins = NULL;
 	struct mutex *lock = NULL;
 
-	if (!info->probed) {
-		pr_info("%s module=%d, failed, not probed\n", __func__, module);
+	if (!is_meson_sc2_cpu())
 		return -1;
-	}
+	if (!info->probed)
+		return -1;
 	if (module >= MODULE_NUM) {
 		pr_info("%s failed, module = %d\n", __func__, module);
 		return -1;
@@ -226,6 +226,8 @@ int secure_unregister(enum secure_module_e module)
 	struct vpu_secure_ins *ins = NULL;
 	struct mutex *lock = NULL;
 
+	if (!is_meson_sc2_cpu())
+		return -1;
 	if (!info->probed)
 		return -1;
 	if (module >= MODULE_NUM)
