@@ -401,6 +401,7 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 	state->pipeline = pipeline;
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->obj);
+	state->global_afbc = 0;
 
 	return &state->obj;
 }

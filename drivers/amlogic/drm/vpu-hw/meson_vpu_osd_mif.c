@@ -287,9 +287,10 @@ void osd_canvas_config(struct osd_mif_reg_s *reg, u32 canvas_index)
 /*osd mali afbc src en
  * 1: read data from mali afbcd;0: read data from DDR directly
  */
-void osd_mali_src_en(struct osd_mif_reg_s *reg, bool flag)
+void osd_mali_src_en(struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
 {
 	meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0, flag, 30, 1);
+	meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, flag, (osd_index + 4), 1);
 }
 
 /*osd endian mode
@@ -317,9 +318,20 @@ void osd_mem_mode(struct osd_mif_reg_s *reg, bool mode)
 /*osd alpha_div en
  *if input is premult,alpha_div=1,else alpha_div=0
  */
-void osd_alpha_div_enable(struct osd_mif_reg_s *reg, bool flag)
+void osd_global_alpha_set(struct osd_mif_reg_s *reg, u16 val)
 {
+	meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat, val, 12, 9);
+}
+
+/*osd alpha_div en
+ *if input is premult,alpha_div=1,else alpha_div=0
+ */
+void osd_premult_enable(struct osd_mif_reg_s *reg, bool flag)
+{
+	/*afbc*/
 	meson_vpu_write_reg_bits(reg->viu_osd_mali_unpack_ctrl, flag, 28, 1);
+	/*mif*/
+	//meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat, flag, 1, 1);
 }
 
 /*osd x reverse en
@@ -454,12 +466,65 @@ static void osd_color_config(struct osd_mif_reg_s *reg,
 				 alpha_replace, 14, 1);
 }
 
-static void osd_afbc_config(struct osd_mif_reg_s *reg, bool afbc_en)
+static void osd_afbc_config(struct osd_mif_reg_s *reg,
+			    u8 osd_index, bool afbc_en)
 {
 	osd_mali_unpack_enable(reg, afbc_en);
-	osd_mali_src_en(reg, afbc_en);
+	osd_mali_src_en(reg, osd_index, afbc_en);
 	osd_endian_mode(reg, !afbc_en);
 	osd_mem_mode(reg, afbc_en);
+}
+
+u8 *meson_drm_vmap(ulong addr, u32 size, bool *bflg)
+{
+	u8 *vaddr = NULL;
+	ulong phys = addr;
+	u32 offset = phys & ~PAGE_MASK;
+	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
+	struct page **pages = NULL;
+	pgprot_t pgprot;
+	int i;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+
+	if (offset)
+		npages++;
+
+	pages = vmalloc(sizeof(struct page *) * npages);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	/*nocache*/
+	pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmaped fail, size: %d\n",
+		       addr - offset, npages << PAGE_SHIFT);
+		vfree(pages);
+		return NULL;
+	}
+
+	vfree(pages);
+
+	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
+		  addr, vaddr + offset, npages << PAGE_SHIFT);
+	*bflg = true;
+
+	return vaddr + offset;
+}
+
+void meson_drm_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	vunmap(addr);
 }
 
 static int osd_check_state(struct meson_vpu_block *vblk,
@@ -479,7 +544,7 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 		DRM_INFO("mvos is NULL!\n");
 		return -1;
 	}
-	DRM_DEBUG("%s check_state called.\n", osd->base.name);
+	DRM_DEBUG("%s - %d check_state called.\n", osd->base.name, vblk->index);
 	plane_info = &mvps->plane_info[vblk->index];
 	mvos->src_x = plane_info->src_x;
 	mvos->src_y = plane_info->src_y;
@@ -493,6 +558,8 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->rotation = plane_info->rotation;
 	mvos->afbc_en = plane_info->afbc_en;
 	mvos->blend_bypass = plane_info->blend_bypass;
+	mvos->plane_index = plane_info->plane_index;
+	mvos->global_alpha = plane_info->global_alpha;
 	return 0;
 }
 
@@ -507,11 +574,15 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	struct am_meson_crtc *amc;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 	struct meson_vpu_osd_state *mvos = to_osd_state(state);
-	u32 pixel_format, canvas_index, src_h, byte_stride, phy_addr;
+	u32 pixel_format, canvas_index, src_h, byte_stride;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg = osd->reg;
 	bool alpha_div_en, reverse_x, reverse_y, afbc_en;
+	bool bflg = false;
+	void *buff = NULL;
+	u64 phy_addr;
 	u32 hold_line;
+	u16 global_alpha = 256; /*range 0~256*/
 
 	crtc = vblk->pipeline->crtc;
 	amc = to_am_meson_crtc(crtc);
@@ -520,9 +591,17 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		DRM_DEBUG("set_state break for NULL.\n");
 		return;
 	}
+
+	DRM_DEBUG("%s - %d %s called.\n", osd->base.name, vblk->index, __func__);
+
 	alpha_div_en = (mvos->premult_en && !mvos->blend_bypass) ? 1 : 0;
 	afbc_en = mvos->afbc_en ? 1 : 0;
-	src_h = mvos->src_h;
+	/*drm alaph 16bit, amlogic alpha 8bit*/
+	global_alpha = mvos->global_alpha >> 8;
+	if (global_alpha == 0xff)
+		global_alpha = 0x100;
+
+	src_h = mvos->src_h + mvos->src_y;
 	byte_stride = mvos->byte_stride;
 	phy_addr = mvos->phy_addr;
 	scope_src.h_start = mvos->src_x;
@@ -544,8 +623,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_canvas_config(reg, canvas_index);
 	osd_input_size_config(reg, scope_src);
 	osd_color_config(reg, pixel_format, afbc_en);
-	osd_afbc_config(reg, afbc_en);
-	osd_alpha_div_enable(reg, alpha_div_en);
+	osd_afbc_config(reg, vblk->index, afbc_en);
+	osd_premult_enable(reg, alpha_div_en);
+	osd_global_alpha_set(reg, global_alpha);
 	if (crtc->index == 0)
 		hold_line = VIU1_DEFAULT_HOLD_LINE;
 	else
@@ -553,8 +633,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_fifo_hold_line_config(reg, hold_line);
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
-	DRM_DEBUG("canvas_index[%d]=0x%x,phy_addr=0x%x\n",
-		  osd_canvas_index[vblk->index], canvas_index, phy_addr);
+	DRM_DEBUG("canvas_index[%d]=0x%x,phy_addr=0x%pa\n",
+		  osd_canvas_index[vblk->index], canvas_index, &phy_addr);
 	DRM_DEBUG("scope h/v start/end:[%d/%d/%d/%d]\n",
 		  scope_src.h_start, scope_src.h_end,
 		scope_src.v_start, scope_src.v_end);
@@ -578,11 +658,14 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		if (IS_ERR(fp)) {
 			DRM_ERROR("create %s osd_dump fail.\n", name_buf);
 		} else {
-			vfs_write(fp, phys_to_virt(phy_addr),
-				  mvos->fb_size, &pos);
+			buff = meson_drm_vmap(phy_addr, mvos->fb_size, &bflg);
+			vfs_write(fp, buff, mvos->fb_size, &pos);
 			filp_close(fp, NULL);
 		}
 		set_fs(fs);
+		DRM_DEBUG("low_mem: %d.\n", bflg);
+		if (bflg)
+			meson_drm_unmap_phyaddr(buff);
 	}
 }
 

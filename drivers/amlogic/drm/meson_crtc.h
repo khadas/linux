@@ -48,9 +48,7 @@ struct am_meson_crtc {
 	struct drm_pending_vblank_event *event;
 	struct am_meson_video_out_fence video_fence[VIDEO_LATENCY_VSYNC];
 
-	unsigned int vblank_irq;
-	spinlock_t vblank_irq_lock;/*atomic*/
-	u32 vblank_enable;
+	unsigned int irq;
 
 	struct dentry *crtc_debugfs_dir;
 

@@ -324,6 +324,119 @@ static const struct file_operations meson_osd_blend_bypass_fops = {
 	.write = meson_osd_blend_bypass_write,
 };
 
+u32 overwrite_reg[256];
+u32 overwrite_val[256];
+int overwrite_enable;
+int reg_num;
+
+static int meson_reg_debug_show(struct seq_file *sf, void *data)
+{
+	int i;
+
+	seq_puts(sf, "echo rv reg > debug to read the register\n");
+	seq_puts(sf, "echo wv reg val > debug to overwrite the register\n");
+	seq_puts(sf, "echo ow 1 > debug to enable overwrite register\n");
+	seq_printf(sf, "\noverwrited status: %s\n", overwrite_enable ? "on" : "off");
+	if (overwrite_enable) {
+		for (i = 0; i < reg_num; i++)
+			seq_printf(sf, "reg[0x%04x]=0x%08x\n", overwrite_reg[i],
+				   overwrite_val[i]);
+	}
+	//seq_printf(sf, "blank_enable: %d\n", amc->blank_enable);
+	return 0;
+}
+
+static int meson_reg_debug_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, meson_reg_debug_show, crtc);
+}
+
+static void parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+
+static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
+					size_t len, loff_t *offp)
+{
+	char buf[64];
+	long val;
+	int i;
+	unsigned int reg_addr, reg_val;
+	char *bufp, *parm[8] = {NULL};
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	bufp = buf;
+	parse_param(bufp, (char **)&parm);
+	if (!strcmp(parm[0], "rv")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+
+		reg_addr = val;
+		DRM_INFO("reg[0x%04x]=0x%08x\n", reg_addr, meson_drm_read_reg(reg_addr));
+	} else if (!strcmp(parm[0], "wv")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		reg_addr = val;
+
+		if (kstrtoul(parm[2], 16, &val) < 0)
+			return -EINVAL;
+
+		reg_val = val;
+		for (i = 0; i < reg_num; i++) {
+			if (overwrite_reg[i] == reg_addr) {
+				overwrite_val[i] = reg_val;
+				return len;
+			}
+		}
+
+		if (i == reg_num) {
+			overwrite_reg[i] = reg_addr;
+			overwrite_val[i] = reg_val;
+			reg_num++;
+		}
+	} else if (!strcmp(parm[0], "ow")) {
+		if (parm[1] && !strcmp(parm[1], "1"))
+			overwrite_enable = 1;
+		else if (parm[1] && !strcmp(parm[1], "0"))
+			overwrite_enable = 0;
+	}
+
+	return len;
+}
+
+static const struct file_operations meson_reg_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = meson_reg_debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = meson_reg_debug_write,
+};
+
 int meson_crtc_debugfs_init(struct drm_crtc *crtc, struct dentry *root)
 {
 	struct dentry *meson_vpu_root;
@@ -356,6 +469,13 @@ int meson_crtc_debugfs_init(struct drm_crtc *crtc, struct dentry *root)
 				    &meson_blank_fops);
 	if (!entry) {
 		DRM_ERROR("create blank node error\n");
+		debugfs_remove_recursive(meson_vpu_root);
+	}
+
+	entry = debugfs_create_file("debug", 0644, meson_vpu_root, crtc,
+					&meson_reg_debug_fops);
+	if (!entry) {
+		DRM_ERROR("create reg_debug node error\n");
 		debugfs_remove_recursive(meson_vpu_root);
 	}
 
@@ -419,9 +539,4 @@ int meson_debugfs_init(struct drm_minor *minor)
 	return ret;
 }
 
-void meson_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(meson_debugfs_list,
-				 ARRAY_SIZE(meson_debugfs_list), minor);
-}
 #endif

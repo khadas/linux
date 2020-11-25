@@ -175,6 +175,12 @@ void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
 	canvas_config(index, addr, width, height, wrap, blkmode);
 }
 
+int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
+				      enum canvas_map_type_e type)
+{
+	return canvas_pool_alloc_canvas_table(owner, table, size, type);
+}
+
 /*vpu mem power on/off*/
 void meson_vpu_power_config(enum vpu_mod_e mode, bool en)
 {
@@ -186,6 +192,45 @@ void meson_vpu_power_config(enum vpu_mod_e mode, bool en)
 		vpu_dev_mem_power_on(vpu_dev);
 	else
 		vpu_dev_mem_power_down(vpu_dev);
+#endif
+}
+
+void osd_vpu_power_on(void)
+{
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *osd1_vpu_dev;
+	struct vpu_dev_s *osd2_vpu_dev;
+	struct vpu_dev_s *osd_scale_vpu_dev;
+
+	osd1_vpu_dev = vpu_dev_register(VPU_VIU_OSD1, "OSD1");
+	vpu_dev_mem_power_on(osd1_vpu_dev);
+	osd2_vpu_dev = vpu_dev_register(VPU_VIU_OSD2, "OSD2");
+	vpu_dev_mem_power_on(osd2_vpu_dev);
+	osd_scale_vpu_dev =
+		vpu_dev_register(VPU_VIU_OSD_SCALE, "OSD_SCALE");
+	vpu_dev_mem_power_on(osd_scale_vpu_dev);
+	if (1) {
+		struct vpu_dev_s *osd2_scale_vpu_dev;
+		struct vpu_dev_s *osd3_vpu_dev;
+		struct vpu_dev_s *blend34_vpu_dev;
+
+		osd2_scale_vpu_dev =
+			vpu_dev_register(VPU_VD2_OSD2_SCALE, "OSD2_SCALE");
+		vpu_dev_mem_power_on(osd2_scale_vpu_dev);
+		osd3_vpu_dev = vpu_dev_register(VPU_VIU_OSD3, "OSD3");
+		vpu_dev_mem_power_on(osd3_vpu_dev);
+		blend34_vpu_dev =
+			vpu_dev_register(VPU_OSD_BLD34, "BLEND34_SCALE");
+		vpu_dev_mem_power_on(blend34_vpu_dev);
+	}
+
+	if (1) {
+		struct vpu_dev_s *mali_afbc_vpu_dev;
+
+		mali_afbc_vpu_dev =
+			vpu_dev_register(VPU_MAIL_AFBCD, "MALI_AFBC");
+		vpu_dev_mem_power_on(mali_afbc_vpu_dev);
+	}
 #endif
 }
 

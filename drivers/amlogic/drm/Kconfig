@@ -76,3 +76,18 @@ config DRM_MESON_EMULATE_FBDEV
 		Emulate framebuffer device for device
 		which need use fbdev api.
 
+config DRM_MESON_FBDEV_UI_W
+	int "fbdev ui size width"
+	default 1920
+	depends on DRM_MESON_EMULATE_FBDEV
+	help
+		UI size width
+
+
+config DRM_MESON_FBDEV_UI_H
+	int "fbdev ui size hight"
+	default 1080
+	depends on DRM_MESON_EMULATE_FBDEV
+	help
+		UI size height
+

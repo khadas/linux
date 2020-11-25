@@ -45,10 +45,10 @@ static int am_meson_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	DRM_INFO("%s  %d\n", __func__, on);
 
 	if (on) {
-		enable_irq(amcrtc->vblank_irq);
+		enable_irq(amcrtc->irq);
 		drm_crtc_vblank_on(crtc);
 	} else {
-		disable_irq(amcrtc->vblank_irq);
+		disable_irq(amcrtc->irq);
 		drm_crtc_vblank_off(crtc);
 	}
 
@@ -57,24 +57,11 @@ static int am_meson_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 
 static int am_meson_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	unsigned long flags;
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-
-	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	amcrtc->vblank_enable = true;
-	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
-
 	return 0;
 }
 
 static void am_meson_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	unsigned long flags;
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-
-	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	amcrtc->vblank_enable = false;
-	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
 }
 
 const struct meson_crtc_funcs meson_private_crtc_funcs = {
@@ -134,13 +121,9 @@ void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 
 void am_meson_crtc_irq(struct meson_drm *priv)
 {
-	unsigned long flags;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(priv->crtc);
 
-	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	if (amcrtc->vblank_enable)
-		am_meson_crtc_handle_vsync(amcrtc);
-	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
+	am_meson_crtc_handle_vsync(amcrtc);
 }
 
 static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
@@ -296,7 +279,12 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
-	am_meson_vpu_power_config(1);
+
+	if (0)
+		am_meson_vpu_power_config(1);
+	else
+		osd_vpu_power_on();
+
 	vpu_pipeline_init(pipeline);
 
 	/*vsync irq.*/
@@ -305,17 +293,14 @@ static int am_meson_vpu_bind(struct device *dev,
 		dev_err(dev, "cannot find irq for vpu\n");
 		return irq;
 	}
-	amcrtc->vblank_irq = (unsigned int)irq;
+	amcrtc->irq = (unsigned int)irq;
 
-	spin_lock_init(&amcrtc->vblank_irq_lock);
-	amcrtc->vblank_enable = false;
-
-	ret = devm_request_irq(dev, amcrtc->vblank_irq, am_meson_vpu_irq,
+	ret = devm_request_irq(dev, amcrtc->irq, am_meson_vpu_irq,
 			       IRQF_SHARED, dev_name(dev), drm_dev);
 	if (ret)
 		return ret;
-
-	disable_irq(amcrtc->vblank_irq);
+	/* IRQ is initially disabled; it gets enabled in crtc_enable */
+	disable_irq(amcrtc->irq);
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;
 }
@@ -351,6 +336,8 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	{.compatible = "amlogic, meson-tl1-vpu",},
 	{.compatible = "amlogic, meson-sm1-vpu",},
 	{.compatible = "amlogic, meson-tm2-vpu",},
+	{.compatible = "amlogic, meson-t5-vpu",},
+	{.compatible = "amlogic, meson-sc2-vpu",},
 	{}
 };
 

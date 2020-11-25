@@ -12,32 +12,44 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-
+#include <linux/amlogic/meson_uvm_core.h>
 #include "meson_fb.h"
 
-#define MESON_PLANE_BEGIN_ZORDER	1
-#define MESON_PLANE_END_ZORDER		65
+/*legacy video driver issue caused zorder problem.*/
+#define OSD_PLANE_BEGIN_ZORDER	65
+#define OSD_PLANE_END_ZORDER		128
 
 struct am_meson_plane_state {
 	struct drm_plane_state base;
-	u32 premult_en;
+};
+
+enum meson_plane_type {
+	OSD_PLANE = 0,
+	VIDEO_PLANE,
 };
 
 struct am_osd_plane {
+	/*base struct, same as am_video_plane*/
 	struct drm_plane base; //must be first element.
 	struct meson_drm *drv; //point to struct parent.
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
+	int plane_type;
+
+	/*osd extend*/
 	u32 osd_reverse;
 	u32 osd_blend_bypass;
-	struct drm_property *prop_premult_en;
 };
 
 struct am_video_plane {
+	/*base struct, same as am_video_plane*/
 	struct drm_plane base; //must be first element.
 	struct meson_drm *drv; //point to struct parent.
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
+	int plane_type;
+
+	/*video exted*/
 };
 
 #define to_am_osd_plane(x) container_of(x, \
@@ -48,5 +60,16 @@ struct am_video_plane {
 	struct am_video_plane, base)
 
 int am_meson_plane_create(struct meson_drm *priv);
+
+/*For async commit on kernel 4.9, and can be reused on kernel 5.4.*/
+int meson_video_plane_async_check(struct drm_plane *plane,
+	struct drm_plane_state *state);
+void meson_video_plane_async_update(struct drm_plane *plane,
+	struct drm_plane_state *new_state);
+
+int meson_osd_plane_async_check(struct drm_plane *plane,
+	struct drm_plane_state *state);
+void meson_osd_plane_async_update(struct drm_plane *plane,
+	struct drm_plane_state *new_state);
 
 #endif

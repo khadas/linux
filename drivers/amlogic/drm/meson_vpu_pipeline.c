@@ -300,7 +300,15 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				mvps->plane_info[i].enable = 0;
 				continue;
 			}
+			DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
+				mvps->plane_info[i].plane_index,
+				mvps->plane_info[i].zorder,
+				mvps->plane_info[i].phy_addr,
+				mvps->plane_info[i].dst_w,
+				mvps->plane_info[i].dst_h);
 			mvps->num_plane++;
+		} else {
+			DRM_DEBUG("osdplane indx [%d] disable.\n", i);
 		}
 	}
 	for (i = 0; i < pipeline->num_video; i++) {
@@ -316,6 +324,33 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 		  mvps->num_plane, mvps->num_plane_video);
 }
 
+int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
+		       struct drm_atomic_state *state)
+{
+	struct meson_vpu_pipeline_state *mvps;
+
+	mvps = meson_vpu_pipeline_get_state(pipeline, state);
+	vpu_pipeline_planes_calc(pipeline, mvps);
+
+	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
+
+	return 0;
+}
+
+int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
+		       struct drm_atomic_state *state)
+{
+	struct meson_vpu_pipeline_state *mvps;
+
+	mvps = meson_vpu_pipeline_get_state(pipeline, state);
+
+	vpu_pipeline_planes_calc(pipeline, mvps);
+	vpu_video_pipeline_check_block(mvps, state);
+	DRM_DEBUG("check done--num_video=%d.\n", mvps->num_plane_video);
+
+	return 0;
+}
+
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state)
 {
@@ -323,7 +358,6 @@ int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 	struct meson_vpu_pipeline_state *mvps;
 
 	mvps = meson_vpu_pipeline_get_state(pipeline, state);
-
 	vpu_pipeline_planes_calc(pipeline, mvps);
 
 	ret = vpu_pipeline_traverse(mvps, state);
@@ -356,10 +390,82 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 	VPU_PIPELINE_HW_INIT(&pipeline->postblend->base);
 }
 
+int vpu_pipeline_video_update(struct meson_vpu_pipeline *pipeline,
+			struct drm_atomic_state *old_state)
+{
+	unsigned long id;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_pipeline_state *new_mvps;
+	unsigned long affected_blocks = 0;
+
+	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+
+	#ifdef MESON_DRM_VERSION_V0
+	meson_vpu_pipeline_atomic_backup_state(new_mvps);
+	#endif
+	affected_blocks = new_mvps->enable_blocks;
+	for_each_set_bit(id, &affected_blocks, 32) {
+		mvb = vpu_blocks[id];
+		if (mvb->type != MESON_BLK_VIDEO)
+			continue;
+
+		mvbs = priv_to_block_state(mvb->obj.state);
+		if (new_mvps->enable_blocks & BIT(id)) {
+			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->enable(mvb);
+		} else {
+			mvb->ops->disable(mvb);
+		}
+	}
+
+	return 0;
+}
+
+int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
+			struct drm_atomic_state *old_state)
+{
+	int i;
+	unsigned long id;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_pipeline_state *new_mvps;
+	unsigned long affected_blocks = 0;
+
+	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+
+	#ifdef MESON_DRM_VERSION_V0
+	meson_vpu_pipeline_atomic_backup_state(new_mvps);
+	#endif
+	affected_blocks = new_mvps->enable_blocks;
+	for_each_set_bit(id, &affected_blocks, 32) {
+		mvb = vpu_blocks[id];
+		/*TODO: we may need also update other blocks on newer soc.*/
+		if (mvb->type != MESON_BLK_OSD)
+			continue;
+
+		mvbs = priv_to_block_state(mvb->obj.state);
+		if (new_mvps->enable_blocks & BIT(id)) {
+			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->enable(mvb);
+		} else {
+			mvb->ops->disable(mvb);
+		}
+	}
+
+	if (overwrite_enable) {
+		for (i = 0; i < reg_num; i++)
+			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
+	}
+
+	return 0;
+}
+
 /* maybe use graph traverse is a good choice */
 int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
+	int i;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
@@ -369,8 +475,9 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 
-	DRM_DEBUG("old_enable_blocks: 0x%llx, new_enable_blocks: 0x%llx.\n",
-		  old_mvps->enable_blocks, new_mvps->enable_blocks);
+	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
+		  old_mvps->enable_blocks, old_mvps,
+		  new_mvps->enable_blocks, new_mvps);
 
 	#ifdef MESON_DRM_VERSION_V0
 	meson_vpu_pipeline_atomic_backup_state(new_mvps);
@@ -386,6 +493,11 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 		} else {
 			mvb->ops->disable(mvb);
 		}
+	}
+
+	if (overwrite_enable) {
+		for (i = 0; i < reg_num; i++)
+			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
 	}
 
 	return 0;

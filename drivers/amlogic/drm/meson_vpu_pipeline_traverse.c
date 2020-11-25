@@ -53,11 +53,11 @@ static struct meson_vpu_block *neighbour(struct meson_vpu_block_state *mvbs,
 			continue;
 		}
 		if (!mvbl->edges_active) {
-			DRM_DEBUG("edges is not active.\n");
+			//DRM_DEBUG("edges is not active.\n");
 			continue;
 		}
 		if (mvbl->edges_visited) {
-			DRM_DEBUG("edges is already visited.\n");
+			//DRM_DEBUG("edges is already visited.\n");
 			continue;
 		}
 
@@ -131,7 +131,7 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 				stack_push(mvs, next);
 				next_state->in_stack = 1;
 			} else {
-				DRM_DEBUG("next is NULL!!\n");
+			//	DRM_DEBUG("next is NULL!!\n");
 				stack_pop(mvs);
 				curr_state->in_stack = 0;
 				pipeline_visit_clean(curr_state);
@@ -158,7 +158,8 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 					 struct meson_vpu_pipeline_state *mvps)
 {
 	u8 m, i;
-	u32 ratio_x[MESON_MAX_SCALERS], ratio_y[MESON_MAX_SCALERS];
+	u32 ratio_w_num, ratio_w_den;
+	u32 ratio_h_num, ratio_h_den;
 	struct meson_vpu_scaler_param *scaler_param, *scaler_param_1;
 
 	i = index;
@@ -177,19 +178,18 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 	} else if (mvps->scaler_cnt[i] == 1) {
 		m = mvps->scale_blk[i][0]->index;
 		scaler_param = &mvps->scaler_param[m];
-		scaler_param->ratio_x =
-			(mvps->plane_info[osd_index].src_w *
-			RATIO_BASE) /
-			mvps->plane_info[osd_index].dst_w;
-		scaler_param->ratio_y =
-			(mvps->plane_info[osd_index].src_h *
-			RATIO_BASE) /
-			mvps->plane_info[osd_index].dst_h;
+
+		/*save sclaer ratio*/
+		scaler_param->ratio_w_num = mvps->plane_info[osd_index].src_w;
+		scaler_param->ratio_w_den = mvps->plane_info[osd_index].dst_w;
+		scaler_param->ratio_h_num = mvps->plane_info[osd_index].src_h;
+		scaler_param->ratio_h_den = mvps->plane_info[osd_index].dst_h;
 		scaler_param->calc_done_mask |=
 			SCALER_RATIO_X_CALC_DONE |
 			SCALER_RATIO_Y_CALC_DONE;
+
 		if (scaler_param->before_osdblend) {
-			/*scale size calc firstly*/
+			/*scale size follow buffer size*/
 			scaler_param->input_width =
 				mvps->plane_info[osd_index].src_w;
 			scaler_param->input_height =
@@ -198,11 +198,6 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->plane_info[osd_index].dst_w;
 			scaler_param->output_height =
 				mvps->plane_info[osd_index].dst_h;
-			scaler_param->calc_done_mask |=
-				SCALER_IN_W_CALC_DONE |
-				SCALER_IN_H_CALC_DONE |
-				SCALER_OUT_W_CALC_DONE |
-				SCALER_OUT_H_CALC_DONE;
 			/*osdblend scope size calc*/
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x;
@@ -217,58 +212,66 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 		} else {/*scaler position is after osdlend*/
 			/*osdblend scope size calc firstly*/
 			mvps->osd_scope_pre[osd_index].h_start =
-				(mvps->plane_info[osd_index].dst_x *
-				scaler_param->ratio_x) / RATIO_BASE;
+				mvps->plane_info[osd_index].dst_x *
+				scaler_param->ratio_w_num /
+				scaler_param->ratio_w_den;
 			mvps->osd_scope_pre[osd_index].v_start =
-				(mvps->plane_info[osd_index].dst_y *
-				scaler_param->ratio_y) / RATIO_BASE;
+				mvps->plane_info[osd_index].dst_y *
+				scaler_param->ratio_h_num /
+				scaler_param->ratio_h_den;
 			mvps->osd_scope_pre[osd_index].h_end =
-				mvps->osd_scope_pre[osd_index].h_start
-				+ (mvps->plane_info[osd_index].dst_w *
-				scaler_param->ratio_x) / RATIO_BASE - 1;
+				mvps->osd_scope_pre[osd_index].h_start +
+				mvps->plane_info[osd_index].src_w - 1;
 			mvps->osd_scope_pre[osd_index].v_end =
-				mvps->osd_scope_pre[osd_index].v_start
-				+ (mvps->plane_info[osd_index].dst_h *
-				scaler_param->ratio_y) / RATIO_BASE - 1;
-			/*reset osd input mif scope,avoid no match with
-			 *the result of osdblend scope
-			 */
-			mvps->plane_info[osd_index].src_w =
-				mvps->osd_scope_pre[osd_index].h_end -
-				mvps->osd_scope_pre[osd_index].h_start + 1;
-			mvps->plane_info[osd_index].src_h =
-				mvps->osd_scope_pre[osd_index].v_end -
-				mvps->osd_scope_pre[osd_index].v_start + 1;
-			/*scaler size calc*/
+				mvps->osd_scope_pre[osd_index].v_start +
+				mvps->plane_info[osd_index].src_h - 1;
+
+			/*scale size follow blend scope.*/
 			scaler_param->input_width =
 				mvps->osd_scope_pre[osd_index].h_end + 1;
 			scaler_param->input_height =
 				mvps->osd_scope_pre[osd_index].v_end + 1;
 			scaler_param->output_width =
-				mvps->plane_info[osd_index].dst_x +
-				mvps->plane_info[osd_index].dst_w;
+				mvps->plane_info[osd_index].dst_w +
+				mvps->plane_info[osd_index].dst_x;
 			scaler_param->output_height =
-				mvps->plane_info[osd_index].dst_y +
-				mvps->plane_info[osd_index].dst_h;
-			scaler_param->calc_done_mask |=
-				SCALER_IN_W_CALC_DONE |
-				SCALER_IN_H_CALC_DONE |
-				SCALER_OUT_W_CALC_DONE |
-				SCALER_OUT_H_CALC_DONE;
+				mvps->plane_info[osd_index].dst_h +
+				mvps->plane_info[osd_index].dst_y;
 		}
+
+		scaler_param->calc_done_mask |=
+			SCALER_IN_W_CALC_DONE |
+			SCALER_IN_H_CALC_DONE |
+			SCALER_OUT_W_CALC_DONE |
+			SCALER_OUT_H_CALC_DONE;
+
+		DRM_DEBUG("Scaler [%d-%d] of osd [%d]  = [%d/%d,%d/%d], scope[%d,%d-%d,%d]\n",
+			m, mvps->scaler_cnt[i], osd_index,
+			scaler_param->ratio_w_num, scaler_param->ratio_w_den,
+			scaler_param->ratio_h_num, scaler_param->ratio_h_den,
+			mvps->osd_scope_pre[osd_index].h_start,
+			mvps->osd_scope_pre[osd_index].h_end,
+			mvps->osd_scope_pre[osd_index].v_start,
+			mvps->osd_scope_pre[osd_index].v_end);
 	} else if (mvps->scaler_cnt[i] == 2) {
-		m = mvps->scale_blk[i][0]->index;
-		scaler_param = &mvps->scaler_param[m];
 		m = mvps->scale_blk[i][1]->index;
 		scaler_param_1 = &mvps->scaler_param[m];
+		m = mvps->scale_blk[i][0]->index;
+		scaler_param = &mvps->scaler_param[m];
+
 		if (scaler_param_1->calc_done_mask &
 			SCALER_RATIO_X_CALC_DONE) {/*TODO*/
-			ratio_x[1] = scaler_param_1->ratio_x;
-			ratio_y[1] = scaler_param_1->ratio_y;
+			ratio_w_num = scaler_param_1->ratio_w_num;
+			ratio_w_den = scaler_param_1->ratio_w_den;
+			ratio_h_num = scaler_param_1->ratio_h_num;
+			ratio_h_den = scaler_param_1->ratio_h_den;
 			/*recheck scaler size*/
 		} else {/*TODO*/
-			ratio_x[1] = RATIO_BASE;
-			ratio_y[1] = RATIO_BASE;
+			DRM_DEBUG("Global scaler not set, use default 1:1 config.\n");
+			ratio_w_num = RATIO_BASE;
+			ratio_w_den = RATIO_BASE;
+			ratio_h_num = RATIO_BASE;
+			ratio_h_den = RATIO_BASE;
 			scaler_param_1->calc_done_mask |=
 				SCALER_RATIO_X_CALC_DONE |
 				SCALER_RATIO_Y_CALC_DONE;
@@ -281,22 +284,23 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->plane_info[osd_index].src_h;
 			scaler_param->output_width =
 				mvps->plane_info[osd_index].dst_w *
-				ratio_x[1] / RATIO_BASE;
+				ratio_w_num / ratio_w_den;
 			scaler_param->output_height =
 				mvps->plane_info[osd_index].dst_h *
-				ratio_y[1] / RATIO_BASE;
+				ratio_h_num / ratio_h_den;
 			scaler_param->calc_done_mask |=
 				SCALER_IN_W_CALC_DONE |
 				SCALER_IN_H_CALC_DONE |
 				SCALER_OUT_W_CALC_DONE |
 				SCALER_OUT_H_CALC_DONE;
+
 			/*scope size calc*/
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x *
-				ratio_x[1] / RATIO_BASE;
+				ratio_w_num / ratio_w_den;
 			mvps->osd_scope_pre[osd_index].v_start =
 				mvps->plane_info[osd_index].dst_y *
-				ratio_y[1] / RATIO_BASE;
+				ratio_h_num / ratio_h_den;
 			mvps->osd_scope_pre[osd_index].h_end =
 				mvps->osd_scope_pre[osd_index].h_start
 				+ scaler_param->output_width - 1;
@@ -305,8 +309,9 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				+ scaler_param->output_height - 1;
 		} else {
 			/*TODO*/
+			DRM_ERROR("two scaler after blend?!\n");
 		}
-		/*reclac second scaler size*/
+		/*reclac second scaler size, it may changed according to blend output.*/
 		/*scaler_param_1->before_osdblend == 0*/
 		if (scaler_param_1->input_width <
 			mvps->osd_scope_pre[osd_index].h_end + 1) {
@@ -324,6 +329,21 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->plane_info[osd_index].dst_y +
 				mvps->plane_info[osd_index].dst_h;
 		}
+
+		DRM_DEBUG("Scaler [%d-%d] of osd [%d]  = [%d/%d,%d/%d], scope[%d,%d-%d,%d]\n",
+			m, mvps->scaler_cnt[i], osd_index,
+			scaler_param->input_width, scaler_param->output_width,
+			scaler_param->input_height, scaler_param->output_height,
+			mvps->osd_scope_pre[osd_index].h_start,
+			mvps->osd_scope_pre[osd_index].h_end,
+			mvps->osd_scope_pre[osd_index].v_start,
+			mvps->osd_scope_pre[osd_index].v_end);
+
+		DRM_DEBUG("Scaler Global ratio[%d/%d-%d/%d], input [%d/%d,%d/%d],\n",
+			scaler_param_1->ratio_w_num, scaler_param_1->ratio_w_den,
+			scaler_param_1->ratio_h_num, scaler_param_1->ratio_h_den,
+			scaler_param_1->input_width, scaler_param_1->output_width,
+			scaler_param_1->input_height, scaler_param_1->output_height);
 	}
 }
 
@@ -346,7 +366,6 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
 	struct meson_vpu_scaler_param *scaler_param, *scaler_param_1;
-	u32 ratio_x[MESON_MAX_SCALERS], ratio_y[MESON_MAX_SCALERS];
 	bool have_blend;
 
 	ret = 0;
@@ -383,71 +402,34 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 		}
 
 		if (mvps->scaler_cnt[i] == 0) {
-			ratio_x[0] = (mvps->plane_info[osd_index].src_w *
-				RATIO_BASE) /
-				mvps->plane_info[osd_index].dst_w;
-			ratio_y[0] = (mvps->plane_info[osd_index].src_h *
-				RATIO_BASE) /
-				mvps->plane_info[osd_index].dst_h;
-			if (ratio_x[0] != RATIO_BASE ||
-			    ratio_y[0] != RATIO_BASE) {
-				ret = -1;
-				break;
-			}
 			vpu_pipeline_scaler_scope_size_calc(i,
 							    osd_index, mvps);
 		} else if (mvps->scaler_cnt[i] == 1) {
 			vpu_pipeline_scaler_scope_size_calc(i,
 							    osd_index, mvps);
 		} else if (mvps->scaler_cnt[i] == 2) {
+			vpu_pipeline_scaler_scope_size_calc(i,
+							    osd_index, mvps);
 			/*
-			 *check second scaler firstly,
-			 *if second scaler have not check,
-			 *disable the second scaler.only use first scale.
+			 *filter unsuitable scaler setting:
+			 *1. NO: scale down -> scale up
+			 *
 			 */
 			m = mvps->scale_blk[i][1]->index;
 			scaler_param_1 = &mvps->scaler_param[m];
-			if (scaler_param_1->calc_done_mask &
-				SCALER_RATIO_X_CALC_DONE) {/*TODO*/
-				ratio_x[1] = scaler_param_1->ratio_x;
-				ratio_y[1] = scaler_param_1->ratio_y;
-				/*recheck scaler size*/
-			} else {/*TODO*/
-				ratio_x[1] = RATIO_BASE;
-				ratio_y[1] = RATIO_BASE;
-				scaler_param_1->ratio_x = RATIO_BASE;
-				scaler_param_1->ratio_y = RATIO_BASE;
-				scaler_param_1->calc_done_mask |=
-					SCALER_RATIO_X_CALC_DONE |
-					SCALER_RATIO_Y_CALC_DONE;
-			}
-			ratio_x[0] = (mvps->plane_info[osd_index].src_w *
-				RATIO_BASE) /
-				mvps->plane_info[osd_index].dst_w;
-			ratio_y[0] = (mvps->plane_info[osd_index].src_h *
-				RATIO_BASE) /
-				mvps->plane_info[osd_index].dst_h;
 			m = mvps->scale_blk[i][0]->index;
 			scaler_param = &mvps->scaler_param[m];
-			scaler_param->ratio_x =
-				(ratio_x[0] * RATIO_BASE) / ratio_x[1];
-			scaler_param->ratio_y =
-				(ratio_y[0] * RATIO_BASE) / ratio_y[1];
-			scaler_param->calc_done_mask |=
-				SCALER_RATIO_X_CALC_DONE |
-				SCALER_RATIO_Y_CALC_DONE;
-			ratio_x[0] = scaler_param->ratio_x;
-			ratio_y[0] = scaler_param->ratio_y;
 
-			if ((ratio_x[0] > RATIO_BASE &&
-			     ratio_x[1] < RATIO_BASE) ||
-				(ratio_y[0] > RATIO_BASE &&
-				ratio_y[1] < RATIO_BASE)) {
+			/* TODO
+			if ((scaler_param->input_width > scaler_param->output_width &&
+				scaler_param_1->ratio_w_num < scaler_param_1->ratio_w_den) ||
+				(scaler_param->input_height > scaler_param->output_height &&
+				scaler_param_1->ratio_h_num < scaler_param_1->ratio_h_den)) {
+				DRM_ERROR("Bad scaler setting:scale down -> up\n");
 				ret = -1;
 				break;
 			}
-			vpu_pipeline_scaler_scope_size_calc(i,
-							    osd_index, mvps);
+			*/
 		}
 	}
 	if (ret == 0 && mvps->num_plane > 0 &&
@@ -480,8 +462,10 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 
 	osdblend = &mvps->pipeline->osdblend->base;
 	ret = vpu_pipeline_scaler_check(combination, num_planes, mvps);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG("%s check scaler failed\n", __func__);
 		return -1;
+	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -541,6 +525,8 @@ int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 	int i, ret;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
+
+	DRM_DEBUG("mvps (%p), atomic-state(%p)\n", mvps, state);
 
 	for (i = 0; i < MESON_MAX_VIDEO; i++) {
 		if (!mvps->video_plane_info[i].enable)
@@ -642,12 +628,15 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 {
 	int i, j, ret;
 	bool is_continue = false;
+	/*comb of osd path index or each osd.*/
 	int combination[MESON_MAX_OSDS] = {0};
 
 	i = 0;
 	ret = -1;
 
 	do {
+		DRM_DEBUG("Comb check [%d-%d-%d-%d]\n",
+			combination[0], combination[1], combination[2], combination[3]);
 		// sum the combination result to check osd blend block
 		ret = vpu_pipeline_check_block(combination,
 					       num_planes, mvps, state);
@@ -670,9 +659,12 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 		is_continue = false;
 
 		for (j = 0; j < num_planes; j++) {
-			if (combination[j] != 0)
+			if (combination[j] != 0) {
 				is_continue = true;
+				break;
+			}
 		}
+
 	} while (is_continue);
 	if (!ret)
 		vpu_pipeline_enable_block(combination, num_planes, mvps);
@@ -703,7 +695,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	if (!num_planes)
 		return 0;
 
-	DRM_DEBUG("traverse num: %d  %p.\n", num_planes, mvps);
+	DRM_DEBUG("====> traverse start num: %d  %p.\n", num_planes, mvps);
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
 			continue;
@@ -713,6 +705,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		pipeline_dfs(osd_index, mvps, start, end, state);
 	}
 
+	DRM_DEBUG("==>pipeline_dfs end, start combinate.\n");
 	// start to combination every layer case
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -727,5 +720,6 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	if (ret)
 		DRM_ERROR("can't find a valid path.\n");
 
+	DRM_DEBUG("====> traverse end\n");
 	return ret;
 }

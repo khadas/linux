@@ -7,6 +7,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_connector.h>
 
 #include <linux/component.h>
@@ -111,7 +112,8 @@ enum drm_mode_status am_cvbs_tx_check_mode(struct drm_connector *connector,
 		    cvbs_mode[i].vdisplay == mode->vdisplay &&
 		    cvbs_mode[i].vrefresh == mode->vrefresh)
 			return MODE_OK;
-		DRM_INFO("hdisplay = %d\nvdisplay = %d\n"
+		else
+			DRM_INFO("hdisplay = %d\nvdisplay = %d\n"
 			 "vrefresh = %d\n", mode->hdisplay,
 			 mode->vdisplay, mode->vrefresh);
 	}
@@ -187,7 +189,6 @@ static void am_cvbs_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs am_cvbs_connector_funcs = {
-	.dpms			= drm_atomic_helper_connector_dpms,
 	.detect			= am_cvbs_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.set_property		= am_cvbs_connector_set_property,
@@ -288,7 +289,7 @@ static int am_meson_cvbs_bind(struct device *dev,
 
 	connector->interlace_allowed = 1;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("Failed to init cvbs attach\n");
 		goto cvbs_err;

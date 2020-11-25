@@ -10,6 +10,9 @@
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 #include "meson_vpu_osdblend.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 
 static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_CTRL,
@@ -207,6 +210,9 @@ static void osd_dv_core_size_set(u32 h_size, u32 v_size)
 			     (v_size + 0x80));
 	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL2,
 			    (h_size << 16) | v_size);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	update_graphic_width_height(h_size, v_size);
+#endif
 }
 
 /*osd blend0 & blend1 4 din inputs premult flag config as 0 default*/
@@ -476,7 +482,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
 	DRM_DEBUG("%s check done.\n", vblk->name);
-	return ret;
+	return 0;
 }
 
 static void osdblend_set_state(struct meson_vpu_block *vblk,

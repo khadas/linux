@@ -43,6 +43,7 @@ int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len);
 void meson_ion_buffer_to_phys(struct ion_buffer *buffer,
 			      phys_addr_t *addr, size_t *len);
 unsigned int meson_ion_cma_heap_id_get(void);
+unsigned int meson_ion_codecmm_heap_id_get(void);
 
 extern struct ion_heap_ops codec_mm_heap_ops;
 extern struct ion_heap_ops ion_cma_ops;

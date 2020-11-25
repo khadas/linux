@@ -133,6 +133,8 @@ struct cvbsregs_set_t {
 void amvecm_clip_range_limit(bool limit_en);
 
 int cvbs_cpu_type(void);
+const struct vinfo_s *get_valid_vinfo(char  *mode);
+int cvbs_set_current_vmode(enum vmode_e mode);
 struct meson_cvbsout_data *get_cvbs_data(void);
 
 #endif

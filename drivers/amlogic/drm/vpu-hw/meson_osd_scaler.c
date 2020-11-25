@@ -649,9 +649,16 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 static void scaler_set_state(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state)
 {
+	struct meson_vpu_pipeline_state *mvps;
+
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 	struct meson_vpu_scaler_state *scaler_state = to_scaler_state(state);
 	struct osd_scaler_reg_s *reg = scaler->reg;
+	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
+
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	if (mvps->global_afbc)
+		meson_vpu_write_reg(0x3a05, 1);
 
 	if (!scaler_state) {
 		DRM_DEBUG("scaler or scaler_state is NULL!!\n");

@@ -19,6 +19,8 @@
 #define MESON_USE_CAMERA_WRITE		(1ull << 13)
 #define MESON_USE_CAMERA_READ		(1ull << 14)
 #define MESON_USE_TEXTURE			(1ull << 17)
+#define MESON_USE_VIDEO_PLANE           (1ull << 18)
+#define MESON_USE_VIDEO_AFBC            (1ull << 19)
 
 /**
  * User-desired buffer creation information structure.
@@ -34,9 +36,8 @@ struct drm_meson_gem_create {
 	__u32 handle;
 };
 
-#define DRM_MESON_GEM_CREATE		0x00
-
-#define DRM_IOCTL_MESON_GEM_CREATE		DRM_IOWR(DRM_COMMAND_BASE + \
-		DRM_MESON_GEM_CREATE, struct drm_meson_gem_create)
+/*Memory related.*/
+#define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x00, struct drm_meson_gem_create)
 
 #endif /* _MESON_DRM_H */

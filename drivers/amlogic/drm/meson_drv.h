@@ -12,6 +12,8 @@
 #ifdef CONFIG_DRM_MESON_USE_ION
 #include <ion/ion_private.h>
 #endif
+/*CONFIG_DRM_MESON_EMULATE_FBDEV*/
+#include <meson_fbdev.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
@@ -34,23 +36,12 @@ struct meson_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 };
 
-struct meson_drm_fbdev_config {
-	u32 ui_w;
-	u32 ui_h;
-	u32 fb_w;
-	u32 fb_h;
-	u32 fb_bpp;
-};
-
 struct meson_drm {
 	struct device *dev;
 
 	struct drm_device *drm;
 	struct drm_crtc *crtc;
 	const struct meson_crtc_funcs *crtc_funcs[MESON_MAX_CRTC];
-	struct drm_fbdev_cma *fbdev;
-	struct drm_fb_helper *fbdev_helper;
-	struct drm_gem_object *fbdev_bo;
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;
 	struct drm_property_blob *gamma_lut_blob;
@@ -68,9 +59,12 @@ struct meson_drm {
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 
 	u32 num_planes;
-	struct am_osd_plane *planes[MESON_MAX_OSD];
+	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
+
+	/*CONFIG_DRM_MESON_EMULATE_FBDEV*/
 	struct meson_drm_fbdev_config ui_config;
+	struct meson_drm_fbdev *osd_fbdevs[MESON_MAX_OSD];
 };
 
 static inline int meson_vpu_is_compatible(struct meson_drm *priv,
@@ -86,7 +80,6 @@ struct drm_connector *am_meson_hdmi_connector(void);
 
 #ifdef CONFIG_DEBUG_FS
 int meson_debugfs_init(struct drm_minor *minor);
-void meson_debugfs_cleanup(struct drm_minor *minor);
 #endif
 int __am_meson_drm_set_config(struct drm_mode_set *set,
 			      struct drm_atomic_state *state);

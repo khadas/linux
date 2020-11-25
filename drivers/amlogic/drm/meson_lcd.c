@@ -86,29 +86,28 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 
 	lcd = con_to_lcd(connector);
 
-	pr_info("***************************************************\n");
-	pr_info("am_drm_lcd: %s: lcd mode [%s] display size: %d x %d\n",
+	DRM_DEBUG("***************************************************\n");
+	DRM_DEBUG("am_drm_lcd: %s: lcd mode [%s] display size: %d x %d\n",
 		__func__, lcd->mode->name,
 		lcd->mode->hdisplay, lcd->mode->vdisplay);
 
 	mode = drm_mode_duplicate(connector->dev, lcd->mode);
-	pr_info("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
+	DRM_DEBUG("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
 		__func__, mode->name, mode->hdisplay, mode->vdisplay);
-	pr_info("am_drm_lcd: %s: lcd config size: %d x %d\n",
+	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
 		__func__, lcd->lcd_drv->lcd_config->lcd_basic.h_active,
 		lcd->lcd_drv->lcd_config->lcd_basic.v_active);
 
 	drm_mode_probed_add(connector, mode);
 	count = 1;
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
-	pr_info("***************************************************\n");
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("***************************************************\n");
 
 	return count;
 }
 
-enum drm_mode_status
-am_lcd_connector_mode_valid(struct drm_connector *connector,
-			    struct drm_display_mode *mode)
+enum drm_mode_status am_lcd_connector_mode_valid(struct drm_connector *connector,
+		struct drm_display_mode *mode)
 {
 	struct am_drm_lcd_s *lcd;
 
@@ -118,9 +117,9 @@ am_lcd_connector_mode_valid(struct drm_connector *connector,
 	if (!lcd->lcd_drv)
 		return MODE_ERROR;
 
-	pr_info("am_drm_lcd: %s: mode [%s] display size: %d x %d\n",
+	DRM_DEBUG("am_drm_lcd: %s: mode [%s] display size: %d x %d\n",
 		__func__, mode->name, mode->hdisplay, mode->vdisplay);
-	pr_info("am_drm_lcd: %s: lcd config size: %d x %d\n",
+	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
 		__func__, lcd->lcd_drv->lcd_config->lcd_basic.h_active,
 		lcd->lcd_drv->lcd_config->lcd_basic.v_active);
 
@@ -129,7 +128,7 @@ am_lcd_connector_mode_valid(struct drm_connector *connector,
 	if (mode->vdisplay != lcd->lcd_drv->lcd_config->lcd_basic.v_active)
 		return MODE_BAD_WIDTH;
 
-	pr_info("am_drm_lcd: %s %d: check mode OK\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d: check mode OK\n", __func__, __LINE__);
 
 	return MODE_OK;
 }
@@ -141,10 +140,10 @@ static const struct drm_connector_helper_funcs am_lcd_connector_helper_funcs = {
 	//.atomic_best_encoder
 };
 
-static enum drm_connector_status
-am_lcd_connector_detect(struct drm_connector *connector, bool force)
+static enum drm_connector_status am_lcd_connector_detect(struct drm_connector *connector,
+			bool force)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	return connector_status_connected;
 }
 
@@ -152,7 +151,9 @@ static int am_lcd_connector_dpms(struct drm_connector *connector, int mode)
 {
 	int ret = 0;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+
+	ret = drm_helper_connector_dpms(connector, mode);
 	return ret;
 }
 
@@ -161,32 +162,31 @@ static int am_lcd_connector_fill_modes(struct drm_connector *connector,
 {
 	int count = 0;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	count = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
-	pr_info("am_drm_lcd: %s %d: count=%d\n", __func__, __LINE__, count);
+	DRM_DEBUG("am_drm_lcd: %s %d: count=%d\n", __func__, __LINE__, count);
 	return count;
 }
 
 static void am_lcd_connector_destroy(struct drm_connector *connector)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	drm_connector_cleanup(connector);
 }
 
 static void am_lcd_connector_reset(struct drm_connector *connector)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	drm_atomic_helper_connector_reset(connector);
 }
 
-static struct drm_connector_state *
-am_lcd_connector_duplicate_state(struct drm_connector *connector)
+static struct drm_connector_state *am_lcd_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct drm_connector_state *state;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	state = drm_atomic_helper_connector_duplicate_state(connector);
 	return state;
@@ -195,7 +195,7 @@ am_lcd_connector_duplicate_state(struct drm_connector *connector)
 static void am_lcd_connector_destroy_state(struct drm_connector *connector,
 					   struct drm_connector_state *state)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	drm_atomic_helper_connector_destroy_state(connector, state);
 }
@@ -214,7 +214,7 @@ static void am_lcd_encoder_mode_set(struct drm_encoder *encoder,
 				    struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static void am_lcd_encoder_enable(struct drm_encoder *encoder)
@@ -228,11 +228,11 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder)
 		return;
 
 	if (vmode == VMODE_LCD)
-		DRM_INFO("enable\n");
+		DRM_DEBUG("enable\n");
 	else
-		DRM_INFO("enable fail! vmode:%d\n", vmode);
+		DRM_DEBUG("enable fail! vmode:%d\n", vmode);
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
 	mutex_lock(&lcd->lcd_drv->power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, NULL);
@@ -243,7 +243,7 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder)
 		if (lcd->lcd_drv->lcd_config->retry_enable_cnt++ >=
 			LCD_ENABLE_RETRY_MAX)
 			break;
-		pr_info("am_drm_lcd: retry enable...%d\n",
+		DRM_DEBUG("am_drm_lcd: retry enable...%d\n",
 			lcd->lcd_drv->lcd_config->retry_enable_cnt);
 		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, NULL);
 		msleep(1000);
@@ -253,7 +253,7 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder)
 
 	mutex_unlock(&lcd->lcd_drv->power_mutex);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static void am_lcd_encoder_disable(struct drm_encoder *encoder)
@@ -265,24 +265,24 @@ static void am_lcd_encoder_disable(struct drm_encoder *encoder)
 	if (!lcd->lcd_drv)
 		return;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	mutex_lock(&lcd->lcd_drv->power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, NULL);
 	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, NULL);
 	mutex_unlock(&lcd->lcd_drv->power_mutex);
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static void am_lcd_encoder_commit(struct drm_encoder *encoder)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static int am_lcd_encoder_atomic_check(struct drm_encoder *encoder,
 				       struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state)
 {
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -355,13 +355,13 @@ static int am_lcd_enable(struct drm_panel *panel)
 	if (!lcd->lcd_drv)
 		return -ENODEV;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	mutex_lock(&lcd->lcd_drv->power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, NULL);
 	mutex_unlock(&lcd->lcd_drv->power_mutex);
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	return 0;
 }
@@ -396,7 +396,7 @@ static int am_lcd_get_modes(struct drm_panel *panel)
 
 	connector->display_info.bus_flags = DRM_BUS_FLAG_DE_HIGH;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	return 1;
 }
@@ -412,12 +412,12 @@ static int am_lcd_get_timings(struct drm_panel *panel,
 	if (!lcd->timing)
 		return 0;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	if (timings)
 		memcpy(&timings[0], lcd->timing, sizeof(struct display_timing));
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	return 1;
 }
@@ -438,11 +438,11 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 	char *vout_mode;
 
 	if (!lcd->lcd_drv) {
-		pr_info("invalid lcd driver\n");
+		DRM_DEBUG("invalid lcd driver\n");
 		return;
 	}
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	pconf = lcd->lcd_drv->lcd_config;
 	vout_mode = get_vout_mode_internal();
@@ -511,7 +511,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 	lcd->timing->vsync_len.typ = pconf->lcd_timing.vsync_width;
 	lcd->timing->vsync_len.max = pconf->lcd_timing.vsync_width;
 
-	DRM_INFO("am_drm_lcd: %s: lcd config:\n"
+	DRM_DEBUG("am_drm_lcd: %s: lcd config:\n"
 		"lcd_clk             %d\n"
 		"h_active            %d\n"
 		"v_active            %d\n"
@@ -527,7 +527,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->lcd_drv->lcd_config->lcd_basic.screen_height,
 		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_den,
 		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_num);
-	DRM_INFO("am_drm_lcd: %s: display mode:\n"
+	DRM_DEBUG("am_drm_lcd: %s: display mode:\n"
 		"clock       %d\n"
 		"hdisplay    %d\n"
 		"vdisplay    %d\n"
@@ -541,7 +541,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->mode->width_mm,
 		lcd->mode->height_mm,
 		lcd->mode->vrefresh);
-	DRM_INFO("am_drm_lcd: %s: timing:\n"
+	DRM_DEBUG("am_drm_lcd: %s: timing:\n"
 		"pixelclock   %d\n"
 		"hactive      %d\n"
 		"vactive      %d\n",
@@ -550,7 +550,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->timing->hactive.typ,
 		lcd->timing->vactive.typ);
 
-	DRM_INFO("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 int am_drm_lcd_notify_callback(struct notifier_block *block, unsigned long cmd,
@@ -565,7 +565,7 @@ int am_drm_lcd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case VOUT_EVENT_MODE_CHANGE:
 		am_drm_lcd_display_mode_timing_init(am_drm_lcd);
-		DRM_INFO("%s:event MODE_CHANGE\n", __func__);
+		DRM_DEBUG("%s:event MODE_CHANGE\n", __func__);
 		break;
 	default:
 		break;
@@ -595,7 +595,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	if (!am_drm_lcd)
 		return -ENOMEM;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	am_drm_lcd->lcd_drv = aml_lcd_get_driver();
 	if (!am_drm_lcd->lcd_drv) {
@@ -613,13 +613,13 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	am_drm_lcd->panel.dev = NULL;
 	am_drm_lcd->panel.funcs = &am_drm_lcd_funcs;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	ret = drm_panel_add(&am_drm_lcd->panel);
 	if (ret < 0)
 		return ret;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	am_drm_lcd->drm = drm;
 
@@ -636,7 +636,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 		pr_err("error: am_drm_lcd: Failed to init lcd encoder\n");
 		return ret;
 	}
-	pr_info("am_drm_lcd: %s %d: encoder possible_crtcs=%d\n",
+	DRM_DEBUG("am_drm_lcd: %s %d: encoder possible_crtcs=%d\n",
 		__func__, __LINE__, encoder->possible_crtcs);
 
 	/* Connector */
@@ -653,7 +653,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 
 	drm_connector_attach_encoder(connector, encoder);
 
-	pr_info("am_drm_lcd: register ok\n");
+	DRM_DEBUG("am_drm_lcd: register ok\n");
 
 	return ret;
 }
@@ -667,12 +667,12 @@ static void am_meson_lcd_unbind(struct device *dev, struct device *master,
 	if (!am_drm_lcd->lcd_drv)
 		return;
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	drm_panel_detach(&am_drm_lcd->panel);
 	drm_panel_remove(&am_drm_lcd->panel);
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static const struct component_ops am_meson_lcd_ops = {

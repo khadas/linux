@@ -140,7 +140,6 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
-	unsigned long flags;
 	char *name;
 	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
@@ -165,11 +164,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	update_vout_viu();
 	memcpy(&pipeline->mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
-	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	amcrtc->vblank_enable = 1;
-	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
 	drm_crtc_vblank_on(crtc);
-	enable_irq(amcrtc->vblank_irq);
+	enable_irq(amcrtc->irq);
 	DRM_DEBUG("%s:out\n", __func__);
 }
 
@@ -177,7 +173,6 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_state)
 {
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-	unsigned long flags;
 	enum vmode_e mode;
 
 	DRM_INFO("%s:in\n", __func__);
@@ -188,10 +183,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		spin_unlock_irq(&crtc->dev->event_lock);
 		crtc->state->event = NULL;
 	}
-	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	amcrtc->vblank_enable = 0;
-	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
-	disable_irq(amcrtc->vblank_irq);
+	disable_irq(amcrtc->irq);
 	/*disable output by config null
 	 *Todo: replace or delete it if have new method
 	 */

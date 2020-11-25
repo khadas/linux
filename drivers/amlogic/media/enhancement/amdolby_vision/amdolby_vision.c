@@ -2762,6 +2762,7 @@ void update_graphic_width_height(unsigned int width,
 	new_osd_graphic_width = width;
 	new_osd_graphic_height = height;
 }
+EXPORT_SYMBOL(update_graphic_width_height);
 
 void update_graphic_status(void)
 {

@@ -13,6 +13,9 @@
 #define BLOCK_SPLIT		BIT(9)
 #define YUV_TRANSFORM		BIT(8)
 
+/* osd afbc control*/
+#define MALI_AFBCD_TOP_CTRL 0x1a0f
+
 /* osd afbc on g12a */
 #define VPU_MAFBC_BLOCK_ID 0x3a00
 #define VPU_MAFBC_IRQ_RAW_STATUS 0x3a01

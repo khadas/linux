@@ -106,6 +106,13 @@ unsigned int meson_ion_cma_heap_id_get(void)
 {
 	return meson_ion_heap_id_get("ion-dev");
 }
+EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
+
+unsigned int meson_ion_codecmm_heap_id_get(void)
+{
+	return meson_ion_heap_id_get("codec_mm_cma");
+}
+EXPORT_SYMBOL(meson_ion_codecmm_heap_id_get);
 
 static int __meson_ion_add_heap(struct ion_heap *heap,
 				struct heap_type_desc *desc)
@@ -123,7 +130,6 @@ static int __meson_ion_add_heap(struct ion_heap *heap,
 
 	return ret;
 }
-EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
 
 static int meson_ion_add_heap(struct cma *cma, void *data)
 {
