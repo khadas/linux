@@ -117,13 +117,13 @@
 		boot_a:boot_a
 		{
 			pname = "boot_a";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			mask = <1>;
 		};
 		boot_b:boot_b
 		{
 			pname = "boot_b";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			mask = <1>;
 		};
 		super:super
