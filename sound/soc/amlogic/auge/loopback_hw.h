@@ -9,6 +9,18 @@
 #include <linux/types.h>
 #include "loopback.h"
 
+struct mux_conf {
+	char name[32];
+	unsigned int val;
+	unsigned int reg;
+	unsigned int shift;
+	unsigned int mask;
+};
+
+#define AUDIO_SRC_CONFIG(_name, _val, _reg, _shift, _mask) \
+{	.name = (_name), .val = (_val), .reg = (_reg),\
+	.shift = (_shift), .mask = (_mask)}
+
 struct data_cfg {
 	/*
 	 * 0: extend bits as "0"
@@ -36,10 +48,12 @@ struct data_cfg {
 
 	/* enable resample B for loopback*/
 	unsigned int resample_enable;
+	/* srcs from chipinfo */
+	struct mux_conf *srcs;
+	struct mux_conf *tdmin_lb_srcs;
 };
 
-void tdminlb_set_clk(enum datalb_src lb_src,
-		     int sclk_div, int ratio, bool enable);
+void tdminlb_set_clk(enum datalb_src lb_src, int sclk_div, int ratio, bool enable);
 void tdminlb_set_format(int i2s_fmt);
 void tdminlb_set_ctrl(enum datalb_src src);
 void tdminlb_enable(int tdm_index, int in_enable);
@@ -47,10 +61,13 @@ void tdminlb_fifo_enable(int is_enable);
 void tdminlb_set_format(int i2s_fmt);
 void tdminlb_set_lanemask_and_chswap
 	(int swap, int lane_mask, unsigned int mask);
+
 void tdminlb_set_src(int src);
 void lb_set_datain_src(int id, int src);
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
 void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
+void lb_enable(int id, bool enable, bool chnum_en);
+void lb_set_chnum_en(int id, bool en, bool chnum_en);
 
 enum lb_out_rate {
 	MIC_RATE,
@@ -58,7 +75,4 @@ enum lb_out_rate {
 };
 
 void lb_set_mode(int id, enum lb_out_rate rate);
-void lb_enable(int id, bool enable, bool chnum_en);
-
-void lb_set_chnum_en(int id, bool en, bool chnum_en);
 #endif

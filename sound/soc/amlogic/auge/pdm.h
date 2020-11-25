@@ -9,8 +9,6 @@
 #include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRV_NAME "snd_pdm"
-
 #define DEFAULT_FS_RATIO		256
 
 #define PDM_CHANNELS_MIN		1
@@ -28,6 +26,9 @@
 					SNDRV_PCM_FMTBIT_S24_LE |\
 					SNDRV_PCM_FMTBIT_S32_LE)
 
+#define PDM_TRAIN_VERSION_V1		(1)
+#define PDM_TRAIN_VERSION_V2		(2)
+
 enum {
 	PDM_RUN_MUTE_VAL = 0,
 	PDM_RUN_MUTE_CHMASK,
@@ -42,6 +43,8 @@ struct pdm_chipinfo {
 	bool truncate_data;
 	/* train */
 	bool train;
+
+	int train_version;
 };
 
 struct aml_pdm {
@@ -83,7 +86,20 @@ struct aml_pdm {
 	bool train_en;
 
 	/* low power mode, for dclk_sycpll to 24m */
-	bool low_power;
+	bool islowpower;
+	/* force to lower power when suspend */
+	bool force_lowpower;
+	/* Hibernation for vad, suspended or not */
+	bool vad_hibernation;
+	/* whether vad buffer is used, for xrun */
+	bool vad_buf_occupation;
+	bool vad_buf_recovery;
+	int pdm_input_vol;
+
+	int train_sample_count;
 };
 
+int get_pdm_gain_loopback(void);
+int pdm_get_train_sample_count_from_dts(void);
+int pdm_get_train_version(void);
 #endif /*__AML_PDM_H__*/

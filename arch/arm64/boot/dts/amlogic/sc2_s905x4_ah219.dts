@@ -724,7 +724,7 @@
 
 &audiobus {
 	tdma: tdm@0 {
-		compatible = "amlogic, sc2-snd-tdma";
+		compatible = "amlogic, tm2-revb-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-oe-lane-slot-mask-out = <1 0>;
@@ -733,7 +733,10 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_a>;
+		pinctrl-0 = <&tdm_a
+			&tdm_d3_pins
+			&tdm_d4_pins
+			&tdm_clk_pins>;
 
 		status = "okay";
 	};
@@ -822,7 +825,7 @@
 		status = "okay";
 	};
 	pdm: pdm {
-		compatible = "amlogic, sm1-snd-pdm";
+		compatible = "amlogic, sc2-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -841,6 +844,8 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
+
+		train_sample_count = <0xe>;
 
 		status = "okay";
 	};
@@ -874,8 +879,8 @@
 			&clkaudio CLKID_AUDIO_VAD>;
 		clock-names = "gate", "pll", "clk";
 
-		interrupts = <GIC_SPI 155 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_wakeup", "irq_frame_sync";
 
 		/*
@@ -1035,6 +1040,29 @@
 
 &earc {
 	status = "disabled";
+};
+
+&pinctrl_audio {
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdmina_lane1";
+		};
+	};
+
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmouta_lane0";
+		};
+	};
+
+	tdm_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
 };
 
 &periphs_pinctrl {

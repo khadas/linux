@@ -7,6 +7,7 @@
 #define __AML_AUDIO_UTILS_H__
 
 #include <sound/soc.h>
+#include <sound/control.h>
 
 int snd_card_add_kcontrols(struct snd_soc_card *card);
 void audio_locker_set(int enable);

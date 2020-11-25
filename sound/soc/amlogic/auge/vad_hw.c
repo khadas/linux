@@ -52,8 +52,7 @@ void vad_set_cep(void)
 
 void vad_set_src(int src)
 {
-	audiobus_update_bits
-		(EE_AUDIO_TOVAD_CTRL0,
+	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
 		0x7 << 12,
 		src << 12);
 }
@@ -70,8 +69,8 @@ void vad_set_in(void)
 void vad_set_enable(bool enable)
 {
 	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
-			     0x1 << 31 | 0x1 << 30,
-			     enable << 31 | 0x1 << 30);
+		0x1 << 31 | 0x1 << 30,
+		enable << 31 | 0x1 << 30);
 
 	if (enable) {
 		vad_write(VAD_TOP_CTRL0, 0x7ff);
@@ -81,16 +80,16 @@ void vad_set_enable(bool enable)
 		vad_write(VAD_TOP_CTRL1, 0x0);
 
 		vad_update_bits(VAD_TOP_CTRL0,
-				0xfff << 20,
-				1 << 31 | /* vad_en */
-				1 << 30 | /* dec_fir_en */
-				1 << 29 | /* pre_emp_en */
-				1 << 28 | /* pre_ram_en */
-				1 << 27 | /* frame_his_en */
-				1 << 23 | /* ceps_ceps_en */
-				1 << 22 | /* ceps_spec_en */
-				0 << 20   /* two_channel_en */
-				);
+			0xfff << 20,
+			1 << 31 | /* vad_en */
+			1 << 30 | /* dec_fir_en */
+			1 << 29 | /* pre_emp_en */
+			1 << 28 | /* pre_ram_en */
+			1 << 27 | /* frame_his_en */
+			1 << 23 | /* ceps_ceps_en */
+			1 << 22 | /* ceps_spec_en */
+			0 << 20   /* two_channel_en */
+		);
 	} else {
 		vad_write(VAD_TOP_CTRL0, 0x0);
 

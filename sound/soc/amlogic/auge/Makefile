@@ -1,9 +1,12 @@
-$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/sm1_clk.o
-$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/tm2_clk.o
-$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/a1_clk.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-sm1.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-tm2.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-a1.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-sc2.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-t5.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/audio_clks.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_controller.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_io.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/card_utils.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm_hw.o

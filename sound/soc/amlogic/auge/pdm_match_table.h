@@ -20,12 +20,21 @@ static struct pdm_chipinfo sm1_pdm_chipinfo = {
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V1,
 };
 
 static struct pdm_chipinfo tm2_pdm_chipinfo = {
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V1,
+};
+
+static struct pdm_chipinfo sc2_pdm_chipinfo = {
+	.mute_fn         = true,
+	.truncate_data   = false,
+	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V2,
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
@@ -47,6 +56,10 @@ static const struct of_device_id aml_pdm_device_id[] = {
 	{
 		.compatible = "amlogic, tm2-snd-pdm",
 		.data		= &tm2_pdm_chipinfo,
+	},
+	{
+		.compatible = "amlogic, sc2-snd-pdm",
+		.data		= &sc2_pdm_chipinfo,
 	},
 
 	{}

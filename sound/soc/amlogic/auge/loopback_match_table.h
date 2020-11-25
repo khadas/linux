@@ -3,8 +3,67 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include "loopback_hw.h"
+#include "regs.h"
+
 #define LOOPBACKA    0
 #define LOOPBACKB    1
+
+struct mux_conf lb_srcs_v1[] = {
+	AUDIO_SRC_CONFIG("tdmin_a", 0, EE_AUDIO_LB_A_CTRL0, 0, 0x7),
+	AUDIO_SRC_CONFIG("tdmin_b", 1, EE_AUDIO_LB_A_CTRL0, 0, 0x7),
+	AUDIO_SRC_CONFIG("tdmin_c", 2, EE_AUDIO_LB_A_CTRL0, 0, 0x7),
+	AUDIO_SRC_CONFIG("spdifin", 3, EE_AUDIO_LB_A_CTRL0, 0, 0x7),
+	AUDIO_SRC_CONFIG("pdmin", 4, EE_AUDIO_LB_A_CTRL0, 0, 0x7),
+	{ /* sentinel */ }
+};
+
+struct mux_conf lb_srcs_v2[] = {
+	AUDIO_SRC_CONFIG("tdmin_a", 0, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdmin_b", 1, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdmin_c", 2, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("spdifin", 3, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("pdmin", 4, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("fratv", 5, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("loopback_a", 7, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("frhdmirx", 8, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("loopback_b", 9, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("spdifin_lb", 10, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("earc_rx_dmac", 11, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("frhdmirx_pao", 12, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("resample_a", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("resample_b", 14, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("vad", 15, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	{ /* sentinel */ }
+};
+
+struct mux_conf tdmin_lb_srcs_v1[] = {
+	AUDIO_SRC_CONFIG("tdmout_a", 0, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_b", 1, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_c", 2, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_a", 3, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_b", 4, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_c", 5, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmind_a", 6, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmind_b", 7, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmind_c", 8, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("hdmirx", 9, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("acodec_adc", 10, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	{ /* sentinel */ }
+};
+
+struct mux_conf tdmin_lb_srcs_v2[] = {
+	AUDIO_SRC_CONFIG("tdmin_a", 0, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_b", 1, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_c", 2, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("hdmirx", 4, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("acodec_adc", 5, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_a", 12, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_b", 13, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_c", 14, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	{ /* sentinel */ }
+};
 
 struct loopback_chipinfo {
 	unsigned int id;
@@ -26,67 +85,99 @@ struct loopback_chipinfo {
 	 * from tm2 revb, no chnum_en
 	 */
 	bool chnum_en;
+
+	/* srcs config to make reg compatible */
+	struct mux_conf *srcs;
+	struct mux_conf *tdmin_lb_srcs;
 };
 
 static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.chnum_en = true,
+	.srcs     = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tl1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tl1_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo sm1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo sm1_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_revb_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = false,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_revb_loopbackb_chipinfo = {
 	.id      = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = false,
+	.srcs	  = &lb_srcs_v1[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
+};
+
+static struct loopback_chipinfo t5_loopbacka_chipinfo = {
+	.id      = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs	  = &lb_srcs_v2[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
 };
 
 static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, snd-loopback",
+		.data		= &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, axg-loopback",
+		.data       = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, g12a-loopback",
@@ -123,6 +214,10 @@ static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, tm2-revb-loopbackb",
 		.data		= &tm2_revb_loopbackb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t5-loopbacka",
+		.data       = &t5_loopbacka_chipinfo,
 	},
 	{}
 };
