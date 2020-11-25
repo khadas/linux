@@ -24,6 +24,7 @@ insmod dwmac-meson8b.ko
 insmod snd_soc.ko
 insmod snd-soc-aml_t9015.ko
 insmod snd-soc-dummy_codec.ko
+insmod audio_data.ko
 #mdio-mux.ko
 insmod mdio-mux-meson-g12a.ko
 insmod i2c-meson.ko
