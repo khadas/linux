@@ -1128,7 +1128,7 @@
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
-		vendor_id = <0x000000>;
+		vendor_id = <0xffffff>;
 		product_desc = "SC2"; /* Max Chars: 16    */
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
