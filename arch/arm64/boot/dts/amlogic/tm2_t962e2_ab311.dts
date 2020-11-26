@@ -337,7 +337,7 @@
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
-		vendor_id = <0x000000>;
+		vendor_id = <0xffffff>;
 		product_desc = "TM2"; /* Max Chars: 16    */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		port_num = <4>;
