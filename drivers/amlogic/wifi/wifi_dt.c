@@ -43,6 +43,15 @@
 #include "../../gpio/gpiolib-of.h"
 #define OWNER_NAME "sdio_wifi"
 
+struct pcie_wifi_chip {
+	unsigned int vendor;
+	unsigned int device;
+};
+
+static const struct pcie_wifi_chip pcie_wifi[] = {
+	{0x16c3, 0xabcd}
+};
+
 int wifi_power_gpio;
 int wifi_power_gpio2;
 
@@ -75,6 +84,7 @@ struct wifi_plat_info {
 	int power_on_pin_level;
 	int power_on_pin_OD;
 	int power_on_pin2;
+	int power_init_off;
 
 	int clock_32k_pin;
 	struct gpio_desc *interrupt_desc;
@@ -253,6 +263,32 @@ static int  wifi_power_release(struct inode *inode, struct file *file)
 }
 
 #ifdef CONFIG_PCI
+void pci_remove(void)
+{
+	struct pci_dev *device = NULL;
+	struct pci_dev *devicebus = NULL;
+	int n = 0;
+	int i = 0;
+
+	WIFI_INFO("pci remove!\n");
+	n = (int)(sizeof(pcie_wifi) / sizeof(struct pcie_wifi_chip));
+	for (i = 0; i < n; i++) {
+		device = pci_get_device(pcie_wifi[i].vendor,
+			pcie_wifi[i].device, NULL);
+		if (device) {
+			WIFI_INFO("found device 0x%x:0x%x, remove it!\n",
+				pcie_wifi[i].vendor, pcie_wifi[i].device);
+			devicebus = device->bus->self;
+			pci_stop_and_remove_bus_device_locked(device);
+			if (devicebus) {
+				WIFI_INFO("remove bus!\n");
+				pci_stop_and_remove_bus_device_locked(devicebus);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(pci_remove);
+
 void pci_reinit(void)
 {
 	struct pci_bus *bus = NULL;
@@ -342,6 +378,7 @@ static long wifi_power_ioctl(struct file *filp,
 		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power down!\n");
 		break;
 	case WIFI_POWER_UP:
+		pci_remove();
 		set_usb_wifi_power(0);
 		msleep(200);
 		set_usb_wifi_power(1);
@@ -400,6 +437,7 @@ static ssize_t power_store(struct class *cls,
 	WIFI_INFO("wifi power ctrl: cmd = %d\n", (int)cmd);
 	switch (cmd) {
 	case 1:
+		pci_reinit();
 		set_usb_wifi_power(0);
 		msleep(200);
 		set_usb_wifi_power(1);
@@ -465,10 +503,17 @@ static int wifi_setup_dt(void)
 		ret = gpio_request(wifi_info.power_on_pin, OWNER_NAME);
 		if (ret)
 			WIFI_INFO("power_on_pin request failed(%d)\n", ret);
-		if (wifi_info.power_on_pin_level)
-			ret = set_power(1);
-		else
-			ret = set_power(0);
+		if (wifi_info.power_init_off) {
+			if (wifi_info.power_on_pin_level)
+				ret = set_power(1);
+			else
+				ret = set_power(0);
+		} else {
+			if (wifi_info.power_on_pin_level)
+				ret = set_power(0);
+			else
+				ret = set_power(1);
+		}
 		if (ret)
 			WIFI_INFO("power_on_pin output failed(%d)\n", ret);
 		SHOW_PIN_OWN("power_on_pin", wifi_info.power_on_pin);
