@@ -450,6 +450,9 @@ static int squashfs_readpages_fragment(struct page *page,
 			put_page(page);
 			return 0;
 		}
+	#ifdef CONFIG_AMLOGIC_CMA
+		put_page(page); /* put page to let it can be migrate */
+	#endif /* CONFIG_AMLOGIC_CMA */
 	}
 	return squashfs_readpage_fragment(page);
 }
@@ -478,6 +481,9 @@ static int squashfs_readpages_sparse(struct page *page,
 			put_page(page);
 			return 0;
 		}
+	#ifdef CONFIG_AMLOGIC_CMA
+		put_page(page); /* put page to let it can be migrate */
+	#endif /* CONFIG_AMLOGIC_CMA */
 	}
 	return squashfs_readpage_sparse(page, index, file_end);
 }
