@@ -724,7 +724,7 @@
 		dev_name = "aocec";
 		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
-		vendor_id = <0x000000>;
+		vendor_id = <0xffffff>;
 		product_desc = "SM1"; /* Max Chars: 16    */
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
