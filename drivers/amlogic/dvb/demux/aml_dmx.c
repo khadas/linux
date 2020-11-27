@@ -146,8 +146,8 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 
-	if (signal_pending(current))
-		return -EINTR;
+//	if (signal_pending(current))
+//		return -EINTR;
 	return ret;
 }
 
