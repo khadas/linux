@@ -609,9 +609,9 @@
 
 	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
-			pwms = <&pwm_ef 0 30541 0>;
+			pwms = <&pwm_ef 0 30550 0>;
 			duty-cycle = <15270>;
-			times = <10>;
+			times = <8>;
 		};
 		pwm_channel2_conf {
 			pwms = <&pwm_ef 2 30500 0>;
