@@ -31,7 +31,6 @@
 #include <evl/assert.h>
 #include <evl/lock.h>
 #include <evl/thread.h>
-#include <evl/sched.h>
 #include <evl/memory.h>
 #include <evl/file.h>
 #include <evl/factory.h>
