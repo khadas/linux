@@ -70,7 +70,9 @@ static u32 rdma_trace_reg[MAX_TRACE_NUM];
 
 struct rdma_regadr_s {
 	u32 rdma_ahb_start_addr;
+	u32 rdma_ahb_start_addr_msb;
 	u32 rdma_ahb_end_addr;
+	u32 rdma_ahb_end_addr_msb;
 	u32 trigger_mask_reg;
 	u32 trigger_mask_reg_bitpos;
 	u32 addr_inc_reg;
@@ -90,7 +92,7 @@ struct rdma_instance_s {
 	u32 *reg_buf;
 	dma_addr_t dma_handle;
 	u32 *rdma_table_addr;
-	u32 rdma_table_phy_addr;
+	ulong rdma_table_phy_addr;
 	int rdma_item_count;
 	int rdma_write_count;
 	unsigned char keep_buf;
@@ -113,62 +115,79 @@ struct rdma_device_info {
 };
 
 static struct rdma_device_data_s rdma_meson_dev;
+static int support_64bit_addr;
 static DEFINE_SPINLOCK(rdma_lock);
 
 static struct rdma_device_info rdma_info;
 static struct vpu_dev_s *rdma_vpu_dev;
 static struct rdma_regadr_s rdma_regadr[RDMA_NUM] = {
 	{RDMA_AHB_START_ADDR_MAN,
+		0,
 		RDMA_AHB_END_ADDR_MAN,
+		0,
 		0, 0,
 		RDMA_ACCESS_MAN, 1,
 		RDMA_ACCESS_MAN, 2,
 		24, 24
 	},
 	{RDMA_AHB_START_ADDR_1,
+		0,
 		RDMA_AHB_END_ADDR_1,
+		0,
 		RDMA_ACCESS_AUTO,  8,
 		RDMA_ACCESS_AUTO,  1,
 		RDMA_ACCESS_AUTO,  5,
 		25, 25
 	},
 	{RDMA_AHB_START_ADDR_2,
-			RDMA_AHB_END_ADDR_2,
-			RDMA_ACCESS_AUTO,  16,
-			RDMA_ACCESS_AUTO,  2,
-			RDMA_ACCESS_AUTO,  6,
-			26, 26
+		0,
+		RDMA_AHB_END_ADDR_2,
+		0,
+		RDMA_ACCESS_AUTO,  16,
+		RDMA_ACCESS_AUTO,  2,
+		RDMA_ACCESS_AUTO,  6,
+		26, 26
 	},
 	{RDMA_AHB_START_ADDR_3,
+		0,
 		RDMA_AHB_END_ADDR_3,
+		0,
 		RDMA_ACCESS_AUTO,  24,
 		RDMA_ACCESS_AUTO,  3,
 		RDMA_ACCESS_AUTO,  7,
 		27, 27
 	},
 	{RDMA_AHB_START_ADDR_4,
-			RDMA_AHB_END_ADDR_4,
-			RDMA_ACCESS_AUTO3, 0,
-			RDMA_ACCESS_AUTO2, 0,
-			RDMA_ACCESS_AUTO2, 4,
-			28, 28
+		0,
+		RDMA_AHB_END_ADDR_4,
+		0,
+		RDMA_ACCESS_AUTO3, 0,
+		RDMA_ACCESS_AUTO2, 0,
+		RDMA_ACCESS_AUTO2, 4,
+		28, 28
 	},
 	{RDMA_AHB_START_ADDR_5,
+		0,
 		RDMA_AHB_END_ADDR_5,
+		0,
 		RDMA_ACCESS_AUTO3, 8,
 		RDMA_ACCESS_AUTO2, 1,
 		RDMA_ACCESS_AUTO2, 5,
 		29, 29
 	},
 	{RDMA_AHB_START_ADDR_6,
+		0,
 		RDMA_AHB_END_ADDR_6,
+		0,
 		RDMA_ACCESS_AUTO3, 16,
 		RDMA_ACCESS_AUTO2, 2,
 		RDMA_ACCESS_AUTO2, 6,
 		30, 30
 	},
 	{RDMA_AHB_START_ADDR_7,
+		0,
 		RDMA_AHB_END_ADDR_7,
+		0,
 		RDMA_ACCESS_AUTO3, 24,
 		RDMA_ACCESS_AUTO2, 3,
 		RDMA_ACCESS_AUTO2, 7,
@@ -178,39 +197,49 @@ static struct rdma_regadr_s rdma_regadr[RDMA_NUM] = {
 
 static struct rdma_regadr_s rdma_regadr_tl1[RDMA_NUM] = {
 	{RDMA_AHB_START_ADDR_MAN,
+		0,
 		RDMA_AHB_END_ADDR_MAN,
+		0,
 		0, 0,
 		RDMA_ACCESS_MAN, 1,
 		RDMA_ACCESS_MAN, 2,
 		24, 24
 	},
 	{RDMA_AHB_START_ADDR_1,
+		0,
 		RDMA_AHB_END_ADDR_1,
+		0,
 		RDMA_AUTO_SRC1_SEL,  0,
 		RDMA_ACCESS_AUTO,  1,
 		RDMA_ACCESS_AUTO,  5,
 		25, 25
 	},
 	{RDMA_AHB_START_ADDR_2,
-			RDMA_AHB_END_ADDR_2,
-			RDMA_AUTO_SRC2_SEL,  0,
-			RDMA_ACCESS_AUTO,  2,
-			RDMA_ACCESS_AUTO,  6,
-			26, 26
+		0,
+		RDMA_AHB_END_ADDR_2,
+		0,
+		RDMA_AUTO_SRC2_SEL,  0,
+		RDMA_ACCESS_AUTO,  2,
+		RDMA_ACCESS_AUTO,  6,
+		26, 26
 	},
 	{RDMA_AHB_START_ADDR_3,
+		0,
 		RDMA_AHB_END_ADDR_3,
+		0,
 		RDMA_AUTO_SRC3_SEL,  0,
 		RDMA_ACCESS_AUTO,  3,
 		RDMA_ACCESS_AUTO,  7,
 		27, 27
 	},
 	{RDMA_AHB_START_ADDR_4,
-			RDMA_AHB_END_ADDR_4,
-			RDMA_AUTO_SRC4_SEL, 0,
-			RDMA_ACCESS_AUTO2, 0,
-			RDMA_ACCESS_AUTO2, 4,
-			28, 28
+		0,
+		RDMA_AHB_END_ADDR_4,
+		0,
+		RDMA_AUTO_SRC4_SEL, 0,
+		RDMA_ACCESS_AUTO2, 0,
+		RDMA_ACCESS_AUTO2, 4,
+		28, 28
 	},
 	{RDMA_AHB_START_ADDR_5,
 		RDMA_AHB_END_ADDR_5,
@@ -220,14 +249,93 @@ static struct rdma_regadr_s rdma_regadr_tl1[RDMA_NUM] = {
 		29, 29
 	},
 	{RDMA_AHB_START_ADDR_6,
+		0,
 		RDMA_AHB_END_ADDR_6,
+		0,
 		RDMA_AUTO_SRC6_SEL, 0,
 		RDMA_ACCESS_AUTO2, 2,
 		RDMA_ACCESS_AUTO2, 6,
 		30, 30
 	},
 	{RDMA_AHB_START_ADDR_7,
+		0,
 		RDMA_AHB_END_ADDR_7,
+		0,
+		RDMA_AUTO_SRC7_SEL, 0,
+		RDMA_ACCESS_AUTO2, 3,
+		RDMA_ACCESS_AUTO2, 7,
+		31, 31
+	}
+};
+
+static struct rdma_regadr_s rdma_regadr_t7[RDMA_NUM] = {
+	{RDMA_AHB_START_ADDR_MAN,
+		RDMA_AHB_START_ADDR_MAN_MSB,
+		RDMA_AHB_END_ADDR_MAN,
+		RDMA_AHB_END_ADDR_MAN_MSB,
+		0, 0,
+		RDMA_ACCESS_MAN, 1,
+		RDMA_ACCESS_MAN, 2,
+		24, 24
+	},
+	{RDMA_AHB_START_ADDR_1,
+		RDMA_AHB_START_ADDR_1_MSB,
+		RDMA_AHB_END_ADDR_1,
+		RDMA_AHB_END_ADDR_1_MSB,
+		RDMA_AUTO_SRC1_SEL,  0,
+		RDMA_ACCESS_AUTO,  1,
+		RDMA_ACCESS_AUTO,  5,
+		25, 25
+	},
+	{RDMA_AHB_START_ADDR_2,
+		RDMA_AHB_START_ADDR_2_MSB,
+		RDMA_AHB_END_ADDR_2,
+		RDMA_AHB_END_ADDR_2_MSB,
+		RDMA_AUTO_SRC2_SEL,  0,
+		RDMA_ACCESS_AUTO,  2,
+		RDMA_ACCESS_AUTO,  6,
+		26, 26
+	},
+	{RDMA_AHB_START_ADDR_3,
+		RDMA_AHB_START_ADDR_3_MSB,
+		RDMA_AHB_END_ADDR_3,
+		RDMA_AHB_END_ADDR_3_MSB,
+		RDMA_AUTO_SRC3_SEL,  0,
+		RDMA_ACCESS_AUTO,  3,
+		RDMA_ACCESS_AUTO,  7,
+		27, 27
+	},
+	{RDMA_AHB_START_ADDR_4,
+		RDMA_AHB_START_ADDR_4_MSB,
+		RDMA_AHB_END_ADDR_4,
+		RDMA_AHB_END_ADDR_4_MSB,
+		RDMA_AUTO_SRC4_SEL, 0,
+		RDMA_ACCESS_AUTO2, 0,
+		RDMA_ACCESS_AUTO2, 4,
+		28, 28
+	},
+	{RDMA_AHB_START_ADDR_5,
+		RDMA_AHB_START_ADDR_5_MSB,
+		RDMA_AHB_END_ADDR_5,
+		RDMA_AHB_END_ADDR_5_MSB,
+		RDMA_AUTO_SRC5_SEL, 0,
+		RDMA_ACCESS_AUTO2, 1,
+		RDMA_ACCESS_AUTO2, 5,
+		29, 29
+	},
+	{RDMA_AHB_START_ADDR_6,
+		RDMA_AHB_START_ADDR_6_MSB,
+		RDMA_AHB_END_ADDR_6,
+		RDMA_AHB_END_ADDR_6_MSB,
+		RDMA_AUTO_SRC6_SEL, 0,
+		RDMA_ACCESS_AUTO2, 2,
+		RDMA_ACCESS_AUTO2, 6,
+		30, 30
+	},
+	{RDMA_AHB_START_ADDR_7,
+		RDMA_AHB_START_ADDR_7_MSB,
+		RDMA_AHB_END_ADDR_7,
+		RDMA_AHB_END_ADDR_7_MSB,
 		RDMA_AUTO_SRC7_SEL, 0,
 		RDMA_ACCESS_AUTO2, 3,
 		RDMA_ACCESS_AUTO2, 7,
@@ -264,10 +372,10 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 				(&info->rdma_dev->dev, table_size,
 				&dma_handle, GFP_KERNEL);
 			info->rdma_ins[i].rdma_table_phy_addr =
-				(u32)(dma_handle);
+				(ulong)(dma_handle);
 			info->rdma_ins[i].reg_buf =
 				kmalloc(table_size, GFP_KERNEL);
-			pr_info("%s, rdma_table_addr %lx phy: %x reg_buf %lx\n",
+			pr_info("%s, rdma_table_addr %lx phy: %lx reg_buf %lx\n",
 				__func__,
 				(unsigned long)
 				info->rdma_ins[i].rdma_table_addr,
@@ -526,13 +634,33 @@ int rdma_config(int handle, int trigger_type)
 				WRITE_VCBUS_REG
 				(RDMA_ACCESS_MAN,
 				 READ_VCBUS_REG(RDMA_ACCESS_MAN) & (~1));
-				WRITE_VCBUS_REG
-				(man_ins->rdma_regadr->rdma_ahb_start_addr,
-				 ins->rdma_table_phy_addr);
-				WRITE_VCBUS_REG
-				(man_ins->rdma_regadr->rdma_ahb_end_addr,
-				ins->rdma_table_phy_addr
-				+ ins->rdma_item_count * 8 - 1);
+				if (support_64bit_addr) {
+					#ifdef CONFIG_ARM64
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_start_addr,
+					 ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_start_addr_msb,
+					(ins->rdma_table_phy_addr >> 32) & 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_end_addr,
+					(ins->rdma_table_phy_addr + ins->rdma_item_count * 8 - 1)
+					& 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_end_addr_msb,
+					((ins->rdma_table_phy_addr
+					+ ins->rdma_item_count * 8 - 1) >> 32) & 0xffffffff);
+					#endif
+				} else {
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_start_addr,
+					 ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_end_addr,
+					(ins->rdma_table_phy_addr & 0xffffffff)
+					+ ins->rdma_item_count * 8 - 1);
+				}
+
 
 				WRITE_VCBUS_REG_BITS
 				(man_ins->rdma_regadr->addr_inc_reg,
@@ -562,15 +690,32 @@ int rdma_config(int handle, int trigger_type)
 				 0,
 				 ins->rdma_regadr->trigger_mask_reg_bitpos,
 				 rdma_meson_dev.trigger_mask_len);
-
-				WRITE_VCBUS_REG
-				(ins->rdma_regadr->rdma_ahb_start_addr,
-				ins->rdma_table_phy_addr);
-				WRITE_VCBUS_REG
-				(ins->rdma_regadr->rdma_ahb_end_addr,
-				 ins->rdma_table_phy_addr +
-				 ins->rdma_item_count * 8 - 1);
-
+				if (support_64bit_addr) {
+					#ifdef CONFIG_ARM64
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_start_addr,
+					ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_start_addr_msb,
+					(ins->rdma_table_phy_addr >> 32) & 0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_end_addr,
+					 (ins->rdma_table_phy_addr +
+					 ins->rdma_item_count * 8 - 1) & 0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_end_addr_msb,
+					 ((ins->rdma_table_phy_addr +
+					 ins->rdma_item_count * 8 - 1) >> 32) & 0xffffffff);
+					#endif
+				} else {
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_start_addr,
+					ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_end_addr,
+					 (ins->rdma_table_phy_addr & 0xffffffff) +
+					 ins->rdma_item_count * 8 - 1);
+				}
 				WRITE_VCBUS_REG_BITS
 				(ins->rdma_regadr->addr_inc_reg,
 				 0,
@@ -1038,6 +1183,12 @@ static struct rdma_device_data_s rdma_sc2 = {
 	.trigger_mask_len = 16,
 };
 
+static struct rdma_device_data_s rdma_t7 = {
+	.cpu_type = CPU_T7,
+	.rdma_ver = RDMA_VER_3,
+	.trigger_mask_len = 16,
+};
+
 static const struct of_device_id rdma_dt_match[] = {
 	{
 		.compatible = "amlogic, meson, rdma",
@@ -1059,6 +1210,11 @@ static const struct of_device_id rdma_dt_match[] = {
 		.compatible = "amlogic, meson-sc2, rdma",
 		.data = &rdma_sc2,
 	},
+	{
+		.compatible = "amlogic, meson-t7, rdma",
+		.data = &rdma_t7,
+	},
+
 	{},
 };
 
@@ -1379,12 +1535,16 @@ static int __init rdma_probe(struct platform_device *pdev)
 	memset((void *)&info->rdma_reg, 0, sizeof(struct rdma_conflict_regs_s));
 	for (i = 0; i < RDMA_NUM; i++) {
 		info->rdma_ins[i].rdma_table_size = 0;
-		if (rdma_meson_dev.rdma_ver == RDMA_VER_1)
+		if (rdma_meson_dev.rdma_ver == RDMA_VER_1) {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
-		else if (rdma_meson_dev.rdma_ver == RDMA_VER_2)
+		} else if (rdma_meson_dev.rdma_ver == RDMA_VER_2) {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr_tl1[i];
-		else
+		} else if (rdma_meson_dev.rdma_ver == RDMA_VER_3) {
+			info->rdma_ins[i].rdma_regadr = &rdma_regadr_t7[i];
+			support_64bit_addr = 1;
+		} else {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
+		}
 		info->rdma_ins[i].keep_buf = 1;
 		/*do not change it in normal case */
 		info->rdma_ins[i].used = 0;

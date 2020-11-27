@@ -1269,13 +1269,13 @@
 	};
 
 	rdma{
-		compatible = "amlogic, meson-sc2, rdma";
-		status = "disabled";
+		compatible = "amlogic, meson-t7, rdma";
+		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
-		//reset-names = "rdma";
-		//resets = <&reset RESET_RDMA>;
+		reset-names = "rdma";
+		resets = <&reset RESET_RDMA>;
 	};
 
 	vclk_serve: vclk_serve {

@@ -26,6 +26,7 @@ struct rdma_op_s {
 enum rdma_ver_e {
 	RDMA_VER_1,
 	RDMA_VER_2,
+	RDMA_VER_3,
 };
 
 enum cpu_ver_e {
@@ -34,6 +35,7 @@ enum cpu_ver_e {
 	CPU_G12B_REVB,
 	CPU_TL1,
 	CPU_SC2,
+	CPU_T7,
 };
 
 struct rdma_device_data_s {

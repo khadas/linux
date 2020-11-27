@@ -44,6 +44,23 @@
 #define RDMA_AUTO_SRC5_SEL          0x1127
 #define RDMA_AUTO_SRC6_SEL          0x1128
 #define RDMA_AUTO_SRC7_SEL          0x1129
+
+#define RDMA_AHB_START_ADDR_MAN_MSB                0x1130
+#define RDMA_AHB_END_ADDR_MAN_MSB                  0x1131
+#define RDMA_AHB_START_ADDR_1_MSB                  0x1132
+#define RDMA_AHB_END_ADDR_1_MSB                    0x1133
+#define RDMA_AHB_START_ADDR_2_MSB                  0x1134
+#define RDMA_AHB_END_ADDR_2_MSB                    0x1135
+#define RDMA_AHB_START_ADDR_3_MSB                  0x1136
+#define RDMA_AHB_END_ADDR_3_MSB                    0x1137
+#define RDMA_AHB_START_ADDR_4_MSB                  0x1138
+#define RDMA_AHB_END_ADDR_4_MSB                    0x1139
+#define RDMA_AHB_START_ADDR_5_MSB                  0x113a
+#define RDMA_AHB_END_ADDR_5_MSB                    0x113b
+#define RDMA_AHB_START_ADDR_6_MSB                  0x113c
+#define RDMA_AHB_END_ADDR_6_MSB                    0x113d
+#define RDMA_AHB_START_ADDR_7_MSB                  0x113e
+#define RDMA_AHB_END_ADDR_7_MSB                    0x113f
 #endif
 
 #endif

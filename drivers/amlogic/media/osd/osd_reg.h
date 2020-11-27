@@ -1034,6 +1034,23 @@
 #define RDMA_STATUS                  0x1115
 #define RDMA_STATUS2                 0x1116
 #define RDMA_STATUS3                 0x1117
+#define RDMA_AHB_START_ADDR_MAN_MSB                0x1130
+#define RDMA_AHB_END_ADDR_MAN_MSB                  0x1131
+#define RDMA_AHB_START_ADDR_1_MSB                  0x1132
+#define RDMA_AHB_END_ADDR_1_MSB                    0x1133
+#define RDMA_AHB_START_ADDR_2_MSB                  0x1134
+#define RDMA_AHB_END_ADDR_2_MSB                    0x1135
+#define RDMA_AHB_START_ADDR_3_MSB                  0x1136
+#define RDMA_AHB_END_ADDR_3_MSB                    0x1137
+#define RDMA_AHB_START_ADDR_4_MSB                  0x1138
+#define RDMA_AHB_END_ADDR_4_MSB                    0x1139
+#define RDMA_AHB_START_ADDR_5_MSB                  0x113a
+#define RDMA_AHB_END_ADDR_5_MSB                    0x113b
+#define RDMA_AHB_START_ADDR_6_MSB                  0x113c
+#define RDMA_AHB_END_ADDR_6_MSB                    0x113d
+#define RDMA_AHB_START_ADDR_7_MSB                  0x113e
+#define RDMA_AHB_END_ADDR_7_MSB                    0x113f
+
 #define L_GAMMA_CNTL_PORT            0x1400
 #define L_GAMMA_DATA_PORT            0x1401
 #define L_GAMMA_ADDR_PORT            0x1402

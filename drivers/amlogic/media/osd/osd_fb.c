@@ -4333,7 +4333,7 @@ static struct osd_device_data_s osd_t7 = {
 	.osd_count = 4,
 	.has_deband = 1,
 	.has_lut = 1,
-	.has_rdma = 0,
+	.has_rdma = 1,
 	.has_dolby_vision = 1,
 	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0xfff,/* 2048 */

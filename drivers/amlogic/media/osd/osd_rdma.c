@@ -47,7 +47,7 @@ static struct rdma_table_item *rdma_table;
 static struct device *osd_rdma_dev;
 static void *osd_rdma_table_virt;
 static dma_addr_t osd_rdma_table_phy;
-static u32 table_paddr;
+static ulong table_paddr;
 static void *table_vaddr;
 static u32 rdma_enable;
 static u32 item_count;
@@ -68,6 +68,7 @@ static unsigned int vsync_irq_count;
 static bool osd_rdma_done;
 static int osd_rdma_handle = -1;
 static struct rdma_table_item *rdma_temp_tbl;
+static int support_64bit_addr = 1;
 void *memcpy(void *dest, const void *src, size_t len);
 
 static int osd_rdma_init(void);
@@ -104,7 +105,7 @@ static inline void reset_rdma_table(void)
 	struct rdma_table_item request_item;
 	unsigned long flags;
 	u32 old_count;
-	u32 end_addr;
+	ulong end_addr;
 	int i, j = 0, k = 0, trace_num = 0;
 	struct rdma_table_item reset_item[2] = {
 		{
@@ -136,13 +137,31 @@ static inline void reset_rdma_table(void)
 		}
 		memset(rdma_temp_tbl, 0,
 		       (sizeof(struct rdma_table_item) * item_count));
-
-		end_addr = osd_reg_read(END_ADDR) + 1;
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			end_addr = osd_reg_read(END_ADDR_MSB);
+			end_addr = (end_addr & 0xffffffff) << 32;
+			end_addr |= osd_reg_read(END_ADDR);
+			end_addr++;
+			#endif
+		} else {
+			end_addr = osd_reg_read(END_ADDR) + 1;
+		}
 		if (end_addr > table_paddr)
 			old_count = (end_addr - table_paddr) >> 3;
 		else
 			old_count = 0;
-		osd_reg_write(END_ADDR, table_paddr - 1);
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(END_ADDR,
+				      (table_paddr - 1) & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				      ((table_paddr - 1) >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(END_ADDR,
+				     (table_paddr - 1) & 0xffffffff);
+		}
 
 		for (i = (int)(item_count - 1);
 			i >= 0; i--) {
@@ -205,8 +224,20 @@ static inline void reset_rdma_table(void)
 		osd_rdma_mem_cpy(rdma_table, &reset_item[0], 8);
 		osd_rdma_mem_cpy(&rdma_table[item_count - 1],
 				 &reset_item[1], 8);
-		osd_reg_write(END_ADDR,
-			      (table_paddr + item_count * 8 - 1));
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				      ((table_paddr +
+				      item_count * 8 - 1) >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+		}
 	}
 	spin_unlock_irqrestore(&rdma_lock, flags);
 }
@@ -217,7 +248,7 @@ static int update_table_item(u32 addr, u32 val, u8 irq_mode)
 	int retry_count = OSD_RDMA_UPDATE_RETRY_COUNT;
 	struct rdma_table_item request_item;
 	int reject1 = 0, reject2 = 0, ret = 0;
-	u32 paddr;
+	ulong paddr;
 	static int pace_logging;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -252,8 +283,20 @@ static int update_table_item(u32 addr, u32 val, u8 irq_mode)
 		osd_rdma_mem_cpy(rdma_table, &reset_item[0], 8);
 		osd_rdma_mem_cpy(&rdma_table[item_count - 1],
 				 &reset_item[1], 8);
-		osd_reg_write(END_ADDR,
-			      (table_paddr + item_count * 8 - 1));
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				      ((table_paddr +
+				      item_count * 8 - 1) >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+		}
 		return -1;
 	}
 
@@ -324,7 +367,15 @@ retry:
 	item_count++;
 	paddr = table_paddr + item_count * 8 - 1;
 	if (!OSD_RDMA_STATUS_IS_REJECT) {
-		osd_reg_write(END_ADDR, paddr);
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(END_ADDR, paddr & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				     (paddr >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(END_ADDR, paddr & 0xffffffff);
+		}
 	} else if (!irq_mode) {
 		reject2++;
 		pr_debug("need update ---, but rdma running,");
@@ -1194,8 +1245,24 @@ void enable_line_n_rdma(void)
 #endif
 	spin_lock_irqsave(&rdma_lock, flags);
 	OSD_RDMA_STATUS_CLEAR_REJECT;
-	osd_reg_write(START_ADDR, table_paddr);
-	osd_reg_write(END_ADDR, table_paddr - 1);
+	if (support_64bit_addr) {
+		#ifdef CONFIG_ARM64
+		osd_reg_write(START_ADDR,
+			      table_paddr & 0xffffffff);
+		osd_reg_write(START_ADDR_MSB,
+			      (table_paddr >> 32) & 0xffffffff);
+
+		osd_reg_write(END_ADDR,
+			      (table_paddr - 1) & 0xffffffff);
+		osd_reg_write(END_ADDR_MSB,
+			      ((table_paddr - 1) >> 32) & 0xffffffff);
+		#endif
+	} else {
+		osd_reg_write(START_ADDR,
+			      table_paddr & 0xffffffff);
+		osd_reg_write(END_ADDR,
+			      (table_paddr - 1) & 0xffffffff);
+	}
 	item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
 	reset_rdma_table();
@@ -1216,8 +1283,24 @@ void enable_vsync_rdma(void)
 #endif
 	spin_lock_irqsave(&rdma_lock, flags);
 	OSD_RDMA_STATUS_CLEAR_REJECT;
-	osd_reg_write(START_ADDR, table_paddr);
-	osd_reg_write(END_ADDR, table_paddr - 1);
+	if (support_64bit_addr) {
+		#ifdef CONFIG_ARM64
+		osd_reg_write(START_ADDR,
+			      table_paddr & 0xffffffff);
+		osd_reg_write(START_ADDR_MSB,
+			      (table_paddr >> 32) & 0xffffffff);
+
+		osd_reg_write(END_ADDR,
+			      (table_paddr - 1) & 0xffffffff);
+		osd_reg_write(END_ADDR_MSB,
+			      ((table_paddr - 1) >> 32) & 0xffffffff);
+		#endif
+	} else {
+		osd_reg_write(START_ADDR,
+			      table_paddr & 0xffffffff);
+		osd_reg_write(END_ADDR,
+			      (table_paddr - 1) & 0xffffffff);
+	}
 	item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
 	reset_rdma_table();
@@ -1292,8 +1375,23 @@ int osd_rdma_enable(u32 enable)
 	if (enable) {
 		spin_lock_irqsave(&rdma_lock, flags);
 		OSD_RDMA_STATUS_CLEAR_REJECT;
-		osd_reg_write(START_ADDR, table_paddr);
-		osd_reg_write(END_ADDR, table_paddr - 1);
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(START_ADDR,
+				      table_paddr & 0xffffffff);
+			osd_reg_write(START_ADDR_MSB,
+				      (table_paddr >> 32) & 0xffffffff);
+			osd_reg_write(END_ADDR,
+				      (table_paddr - 1) & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				      ((table_paddr - 1) >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(START_ADDR,
+				      table_paddr & 0xffffffff);
+			osd_reg_write(END_ADDR,
+				      (table_paddr - 1) & 0xffffffff);
+		}
 		item_count = 0;
 		spin_unlock_irqrestore(&rdma_lock, flags);
 		reset_rdma_table();
@@ -1353,23 +1451,108 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 		i++;
 	}
 
-	if (osd_hw.afbc_regs_backup) {
-		i = 0;
-		base = VPU_MAFBC_IRQ_MASK;
-		while ((reset_bit & HW_RESET_MALI_AFBCD_REGS) &&
-		       (i < MALI_AFBC_REG_BACKUP_COUNT)) {
-			addr = mali_afbc_reg_backup[i];
-			value = mali_afbc_backup[addr - base];
-			wrtie_reg_internal(addr, value);
-			i++;
+	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
+	    !osd_dev_hw.multi_afbc_core &&
+	    reset_bit & HW_RESET_MALI_AFBCD_REGS) {
+		/* restore mali afbcd regs */
+		if (osd_hw.afbc_regs_backup) {
+			int i;
+			u32 addr;
+			u32 value;
+			u32 base = VPU_MAFBC_IRQ_MASK;
+
+			for (i = 0; i < MALI_AFBC_REG_BACKUP_COUNT;
+				i++) {
+				addr = mali_afbc_reg_backup[i];
+				value = mali_afbc_backup[addr - base];
+				wrtie_reg_internal(addr, value);
+			}
+		}
+		wrtie_reg_internal(VPU_MAFBC_COMMAND, 1);
+	}
+	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
+	    osd_dev_hw.multi_afbc_core) {
+		u32 afbc_reset;
+
+		reset_bit &= ~HW_RESET_MALI_AFBCD_ARB;
+		afbc_reset = HW_RESET_MALI_AFBCD_REGS;
+		afbc_reset &= ~HW_RESET_MALI_AFBCD_ARB;
+		if (reset_bit & afbc_reset) {
+			/* restore mali afbcd regs */
+			if (osd_hw.afbc_regs_backup) {
+				int i;
+				u32 addr;
+				u32 value;
+				u32 base = VPU_MAFBC_IRQ_MASK;
+
+				for (i = 0; i < MALI_AFBC_REG_T7_BACKUP_COUNT;
+					i++) {
+					addr = mali_afbc_reg_t7_backup[i];
+					value = mali_afbc_t7_backup[addr - base];
+					wrtie_reg_internal(addr, value);
+				}
+			}
+			wrtie_reg_internal(VPU_MAFBC_COMMAND, 1);
+		}
+		afbc_reset = HW_RESET_MALI_AFBCD1_REGS;
+		afbc_reset &= ~HW_RESET_MALI_AFBCD_ARB;
+		if (reset_bit & HW_RESET_MALI_AFBCD1_REGS) {
+			/* restore mali afbcd regs */
+			if (osd_hw.afbc_regs_backup) {
+				int i;
+				u32 addr;
+				u32 value;
+				u32 base = VPU_MAFBC1_IRQ_MASK;
+
+				for (i = 0; i < MALI_AFBC1_REG_T7_BACKUP_COUNT;
+					i++) {
+					addr = mali_afbc1_reg_t7_backup[i];
+					value = mali_afbc1_t7_backup[addr - base];
+					wrtie_reg_internal(addr, value);
+				}
+			}
+			wrtie_reg_internal(VPU_MAFBC1_COMMAND, 1);
+		}
+		afbc_reset = HW_RESET_MALI_AFBCD2_REGS;
+		afbc_reset &= ~HW_RESET_MALI_AFBCD_ARB;
+		if (reset_bit & HW_RESET_MALI_AFBCD2_REGS) {
+			/* restore mali afbcd regs */
+			if (osd_hw.afbc_regs_backup) {
+				int i;
+				u32 addr;
+				u32 value;
+				u32 base = VPU_MAFBC2_IRQ_MASK;
+
+				for (i = 0; i < MALI_AFBC2_REG_T7_BACKUP_COUNT;
+					i++) {
+					addr = mali_afbc2_reg_t7_backup[i];
+					value = mali_afbc2_t7_backup[addr - base];
+					wrtie_reg_internal(addr, value);
+				}
+			}
+			wrtie_reg_internal(VPU_MAFBC2_COMMAND, 1);
 		}
 	}
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
-	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
+	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
+	    !osd_dev_hw.multi_afbc_core)
 		wrtie_reg_internal(VPU_MAFBC_COMMAND, 1);
 
 	if (item_count < 500) {
-		osd_reg_write(END_ADDR, (table_paddr + item_count * 8 - 1));
+		if (support_64bit_addr) {
+			#ifdef CONFIG_ARM64
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+			osd_reg_write(END_ADDR_MSB,
+				      ((table_paddr +
+				      item_count * 8 - 1) >> 32) & 0xffffffff);
+			#endif
+		} else {
+			osd_reg_write(END_ADDR,
+				      (table_paddr +
+				      item_count * 8 - 1) & 0xffffffff);
+		}
 	} else {
 		pr_info("%s item overflow %d\n",
 			__func__, item_count);
@@ -1493,7 +1676,7 @@ static int osd_rdma_init(void)
 	dump_reg_trigger = 0;
 	table_vaddr = osd_rdma_table_virt;
 	table_paddr = osd_rdma_table_phy;
-	osd_log_info("%s: rdma_table p=0x%x,op=0x%lx , v=0x%p\n", __func__,
+	osd_log_info("%s: rdma_table p=0x%lx,op=0x%lx , v=0x%p\n", __func__,
 		     table_paddr, (unsigned long)osd_rdma_table_phy,
 		     table_vaddr);
 	rdma_table = (struct rdma_table_item *)table_vaddr;
@@ -1533,7 +1716,10 @@ static int osd_rdma_init(void)
 #else
 	osd_rdma_handle = 3; /* use channel 3 as default */
 #endif
-
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7)
+		support_64bit_addr =  1;
+	else
+		support_64bit_addr =  0;
 	return 0;
 
 error2:
@@ -1564,7 +1750,7 @@ MODULE_PARM_DESC(item_count, "\n item_count\n");
 module_param(item_count, uint, 0664);
 
 MODULE_PARM_DESC(table_paddr, "\n table_paddr\n");
-module_param(table_paddr, uint, 0664);
+module_param(table_paddr, ulong, 0664);
 
 MODULE_PARM_DESC(rdma_debug, "\n rdma_debug\n");
 module_param(rdma_debug, uint, 0664);
