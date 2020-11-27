@@ -1445,6 +1445,10 @@
 	status = "okay";
 };
 
+&irblaster {
+	status = "okay";
+};
+
 &uart_E {
 	status = "okay";
 	uart-has-rtscts;
