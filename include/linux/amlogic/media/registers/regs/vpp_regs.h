@@ -208,8 +208,15 @@
 #define VPP_POST_MATRIX_SAT               0x32c1
 
 /* g12a vd2 pps */
-#define VD2_PREHSC_COEF  0x3937
-#define VD2_PREHSC_CTRL  0x3938
+/* for sc2 */
+#define VD2_PREHSC_COEF                   0x3937
+#define VD2_PREHSC_CTRL                   0x3938
+/* for t5d, s4 */
+#define VD2_PREHSC_COEF_T5D               0x395d
+#define VD2_PRE_SCALE_CTRL                0x395e
+#define VD2_PREVSC_COEF                   0x395f
+#define VD2_PREVSC_COEF1                  0x3942
+
 #define VD2_SCALE_COEF_IDX                0x3943
 #define VD2_SCALE_COEF                    0x3944
 #define VD2_VSC_REGION12_STARTP           0x3945

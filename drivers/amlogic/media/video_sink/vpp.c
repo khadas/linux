@@ -2711,7 +2711,7 @@ static void vpp_set_super_scaler
 	    next_frame_par->supscl_path == CORE0_BEFORE_PPS ||
 	    next_frame_par->supscl_path == PPS_CORE0_CORE1 ||
 	    next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1 ||
-	    (next_frame_par->supscl_path == PPS_POSTBLEND_CORE1) ||
+	    next_frame_par->supscl_path == PPS_POSTBLEND_CORE1 ||
 	    next_frame_par->supscl_path == PPS_CORE1_CM) {
 		next_frame_par->spsc1_h_in =
 			(height_out >> next_frame_par->supsc1_vert_ratio);

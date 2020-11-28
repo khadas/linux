@@ -182,6 +182,7 @@ extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER_G12];
 extern struct hw_pps_reg_s pps_reg_array[MAX_VD_LAYER_G12];
+extern struct hw_pps_reg_s pps_reg_array_t5d[MAX_VD_LAYER_G12];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_array[MAX_VD_LAYER_G12];
 
 extern struct hw_vd_reg_s vd_mif_reg_t7_array[MAX_VD_LAYER_T7];

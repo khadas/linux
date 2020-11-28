@@ -2547,9 +2547,9 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 		     PPS_CORE0_CORE1 ||
 		    frame_par->supscl_path ==
 		     PPS_CORE0_POSTBLEND_CORE1 ||
-		     frame_par->supscl_path ==
+		    frame_par->supscl_path ==
 		     PPS_POSTBLEND_CORE1 ||
-		     frame_par->supscl_path ==
+		    frame_par->supscl_path ==
 		     PPS_CORE1_CM)
 			r3 >>= frame_par->supsc1_hori_ratio;
 		if (frame_par->supscl_path ==
@@ -2874,7 +2874,11 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 		    frame_par->supscl_path ==
 		     CORE1_AFTER_PPS ||
 		    frame_par->supscl_path ==
-		     PPS_CORE0_POSTBLEND_CORE1)
+		     PPS_CORE0_POSTBLEND_CORE1 ||
+		    frame_par->supscl_path ==
+		     PPS_POSTBLEND_CORE1 ||
+		    frame_par->supscl_path ==
+		     PPS_CORE1_CM)
 			r1 >>= frame_par->supsc1_vert_ratio;
 		if (frame_par->supscl_path ==
 		     CORE0_AFTER_PPS ||
@@ -3110,7 +3114,6 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 			frame_par->VPP_hf_ini_phase_,
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
-
 		if (has_pre_hscaler_ntap(layer_id)) {
 			int ds_ratio = 1;
 			int flt_num = 4;
@@ -3298,7 +3301,6 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 					VPP_PREVSC_DS_RATIO_WID_T5);
 			}
 		}
-
 		VSYNC_WR_MPEG_REG
 			(vd_pps_reg->vd_hsc_region12_startp,
 			(0 << VPP_REGION1_BIT) |
@@ -5479,7 +5481,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 
 void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 {
-	static u32 t7_vd1_enabled;
+	static u32 t7_vd1_enabled, vpp_misc_set_save;
 	u32 vpp_misc_save, vpp_misc_set, mode = 0;
 	u32 vpp_off = cur_dev->vpp_off;
 	int video1_off_req = 0;
@@ -5800,7 +5802,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
-		if (vpp_misc_set != vpp_misc_save || force_flush) {
+		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[4] = {0, 0, 0, 0};
 			u32 vd1_port, vd2_port, vd3_port;
 			u32 post_blend_reg[4] = {
@@ -5906,6 +5908,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 
 		}
 	}
+	vpp_misc_set_save = vpp_misc_set;
 
 	if (vd_layer[2].dispbuf && video3_off_req)
 		disable_vd3_blend(&vd_layer[2]);
@@ -7648,9 +7651,15 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 				       &vd_mif_reg_legacy_array[i],
 				       sizeof(struct hw_vd_reg_s));
 			}
-			memcpy(&vd_layer[i].pps_reg,
-			       &pps_reg_array[i],
-			       sizeof(struct hw_pps_reg_s));
+			if (video_is_meson_t5d_cpu() ||
+			    video_is_meson_s4_cpu())
+				memcpy(&vd_layer[i].pps_reg,
+				       &pps_reg_array_t5d[i],
+				       sizeof(struct hw_pps_reg_s));
+			else
+				memcpy(&vd_layer[i].pps_reg,
+				       &pps_reg_array[i],
+				       sizeof(struct hw_pps_reg_s));
 			memcpy(&vd_layer[i].vpp_blend_reg,
 			       &vpp_blend_reg_array[i],
 			       sizeof(struct hw_vpp_blend_reg_s));

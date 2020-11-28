@@ -336,6 +336,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T5_,
 	MESON_CPU_MAJOR_ID_T5D_,
 	MESON_CPU_MAJOR_ID_T7_,
+	MESON_CPU_MAJOR_ID_S4_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -538,7 +539,9 @@ int ext_frame_capture_poll(int endflags);
 #endif
 bool is_meson_tm2_revb(void);
 bool video_is_meson_sc2_cpu(void);
+bool video_is_meson_t5d_cpu(void);
 bool video_is_meson_t7_cpu(void);
+bool video_is_meson_s4_cpu(void);
 void set_alpha(u8 layer_id,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
