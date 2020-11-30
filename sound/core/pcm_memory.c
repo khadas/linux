@@ -77,6 +77,9 @@ void snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
 }
+#ifdef CONFIG_AMLOGIC_MODIFY
+EXPORT_SYMBOL(snd_pcm_lib_preallocate_free);
+#endif
 
 /**
  * snd_pcm_lib_preallocate_free_for_all - release all pre-allocated buffers on the pcm
