@@ -29,7 +29,7 @@
 #include <dt-bindings/phy/phy-amlogic-pcie.h>
 //#include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
-#include <dt-bindings/reset/amlogic,meson-t5-reset.h>
+#include <dt-bindings/reset/amlogic,meson-t5d-reset.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/power/t5-pd.h>
 
@@ -863,7 +863,7 @@
 			};
 
 			reset: reset-controller@1004 {
-				compatible = "amlogic,meson-t5-reset";
+				compatible = "amlogic,meson-t5d-reset";
 				reg = <0x0 0x1004 0x0 0x9C>;
 				#reset-cells = <1>;
 			};

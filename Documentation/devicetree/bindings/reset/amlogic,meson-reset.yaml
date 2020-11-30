@@ -18,6 +18,7 @@ properties:
       - amlogic,meson-axg-reset # Reset Controller on AXG and compatible SoCs
       - amlogic,meson-a1-reset # Reset Controller on A1 and compatible SoCs
       - amlogic,meson-sc2-reset # Reset Controller on SC2 and compatible SoCs
+      - amlogic,meson-t5d-reset # Reset Controller on T5D and compatible SoCs
 
   reg:
     maxItems: 1

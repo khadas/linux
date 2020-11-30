@@ -112,6 +112,7 @@ static const struct of_device_id meson_reset_dt_ids[] = {
 	 { .compatible = "amlogic,meson-a1-reset",   .data = &meson_a1_param},
 #ifdef CONFIG_AMLOGIC_MODIFY
 	 { .compatible = "amlogic,meson-sc2-reset",  .data = &meson_sc2_param},
+	 { .compatible = "amlogic,meson-t5d-reset",  .data = &meson8b_param},
 #endif
 	 { /* sentinel */ },
 };
