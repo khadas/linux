@@ -574,8 +574,8 @@ int pwm_double_channel_conf_dt(struct wifi_plat_info *plat)
 		pdata->pwm = devm_of_pwm_get(plat->dev, child, NULL);
 		if (IS_ERR(pdata->pwm)) {
 			ret = PTR_ERR(pdata->pwm);
-			dev_err(plat->dev, "unable to request PWM%d\n",
-				plat->ddata.num_pwm);
+			dev_err(plat->dev, "unable to request PWM%d, ret = %d\n",
+				plat->ddata.num_pwm, ret);
 			return ret;
 		}
 		ret = of_property_read_u32(child, "duty-cycle",
@@ -744,6 +744,8 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			ret = pwm_double_channel_conf_dt(plat);
 			if (!ret)
 				pwm_double_channel_conf(plat);
+			else if (ret == -EPROBE_DEFER)
+				goto out;
 		}
 
 		if (of_get_property(pdev->dev.of_node,
