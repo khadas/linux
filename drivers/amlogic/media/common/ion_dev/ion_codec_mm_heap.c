@@ -22,11 +22,12 @@
 #define CODEC_MM_ION "ION"
 
 static phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
-					 unsigned long size)
+					 unsigned long size, unsigned long flags)
 {
 	struct ion_cma_heap *codec_heap =
 		container_of(heap, struct ion_cma_heap, heap);
 	unsigned long offset;
+	unsigned long allocflags = CODEC_MM_FLAGS_DMA;
 
 	if (codec_heap->alloced_size + size > codec_heap->max_can_alloc_size)
 		pr_debug("%s failed out size %ld,alloced %d\n",
@@ -34,10 +35,13 @@ static phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
 			 size,
 			 codec_heap->alloced_size);
 
+	if (flags & ION_FLAG_EXTEND_PROTECTED)
+		allocflags |= CODEC_MM_FLAGS_TVP;
+
 	offset = codec_mm_alloc_for_dma(CODEC_MM_ION,
 					size / PAGE_SIZE,
 					0,
-					CODEC_MM_FLAGS_DMA);
+					allocflags);
 
 	if (!offset) {
 		pr_err("%s failed out size %d\n", __func__, (int)size);
@@ -76,7 +80,7 @@ static int ion_codec_mm_heap_allocate(struct ion_heap *heap,
 	if (ret)
 		goto err_free;
 
-	paddr = ion_codec_mm_allocate(heap, size);
+	paddr = ion_codec_mm_allocate(heap, size, flags);
 	if (paddr == ION_CODEC_MM_ALLOCATE_FAIL) {
 		ret = -ENOMEM;
 		goto err_free_table;
@@ -103,7 +107,9 @@ static void ion_codec_mm_heap_free(struct ion_buffer *buffer)
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 	struct device *ion_dev = meson_ion_get_dev();
 
-	ion_buffer_zero(buffer);
+	if ((buffer->flags & ION_FLAG_EXTEND_PROTECTED) !=
+		ION_FLAG_EXTEND_PROTECTED)
+		ion_buffer_zero(buffer);
 
 	if (!!(buffer->flags & ION_FLAG_CACHED))
 		dma_sync_sg_for_device(ion_dev,
