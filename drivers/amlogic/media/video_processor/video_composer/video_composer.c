@@ -1478,8 +1478,8 @@ static void disable_video_layer(struct composer_dev *dev, int val)
 	pr_info("dev->index =%d, val=%d", dev->index, val);
 	if (dev->index == 0)
 		_video_set_disable(val);
-	else if (dev->index == 1)
-		_videopip_set_disable(val);
+	else
+		_videopip_set_disable(dev->index, val);
 }
 
 static void set_frames_info(struct composer_dev *dev,

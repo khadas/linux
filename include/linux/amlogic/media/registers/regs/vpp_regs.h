@@ -238,10 +238,46 @@
 #define VD2_SC_GCLK_CTRL                  0x395c
 #define VPP_VD2_HDR_IN_SIZE               0x1df0
 
+/* t7 vd3 pps */
+#define VD3_SCALE_COEF_IDX                         0x5903
+#define VD3_SCALE_COEF                             0x5904
+#define VD3_VSC_REGION12_STARTP                    0x5905
+#define VD3_VSC_REGION34_STARTP                    0x5906
+#define VD3_VSC_REGION4_ENDP                       0x5907
+#define VD3_VSC_START_PHASE_STEP                   0x5908
+#define VD3_VSC_REGION0_PHASE_SLOPE                0x5909
+#define VD3_VSC_REGION1_PHASE_SLOPE                0x590a
+#define VD3_VSC_REGION3_PHASE_SLOPE                0x590b
+#define VD3_VSC_REGION4_PHASE_SLOPE                0x590c
+#define VD3_VSC_PHASE_CTRL                         0x590d
+#define VD3_VSC_INI_PHASE                          0x590e
+#define VD3_HSC_REGION12_STARTP                    0x590f
+#define VD3_HSC_REGION34_STARTP                    0x5910
+#define VD3_HSC_REGION4_ENDP                       0x5911
+#define VD3_HSC_START_PHASE_STEP                   0x5912
+#define VD3_HSC_REGION0_PHASE_SLOPE                0x5913
+#define VD3_HSC_REGION1_PHASE_SLOPE                0x5914
+#define VD3_HSC_REGION3_PHASE_SLOPE                0x5915
+#define VD3_HSC_REGION4_PHASE_SLOPE                0x5916
+#define VD3_HSC_PHASE_CTRL                         0x5917
+#define VD3_SC_MISC                                0x5918
+#define VD3_SCO_FIFO_CTRL                          0x5919
+#define VD3_HSC_PHASE_CTRL1                        0x591a
+#define VD3_HSC_INI_PAT_CTRL                       0x591b
+#define VD3_SC_GCLK_CTRL                           0x591c
+#define VD3_PREHSC_COEF                            0x591d
+#define VD3_PRE_SCALE_CTRL                         0x591e
+#define VD3_PREVSC_COEF                            0x591f
+#define VD3_PREHSC_COEF1                           0x5920
+
 #define VD1_BLEND_SRC_CTRL                0x1dfb
 #define VD2_BLEND_SRC_CTRL                0x1dfc
 #define OSD1_BLEND_SRC_CTRL               0x1dfd
 #define OSD2_BLEND_SRC_CTRL               0x1dfe
+
+#define VPP_BLEND_VD3_H_START_END                  0x1deb
+#define VPP_BLEND_VD3_V_START_END                  0x1dec
+#define VD3_BLEND_SRC_CTRL                         0x1def
 
 #define VPP_POST_BLEND_BLEND_DUMMY_DATA   0x3968
 #define VPP_POST_BLEND_DUMMY_ALPHA        0x3969
@@ -334,6 +370,40 @@
 #define VD2_PIP_ALPH_SCP_V_14                      0x58cf
 #define VD2_PIP_ALPH_SCP_V_15                      0x58d0
 
+#define VD3_PIP_ALPH_CTRL                          0x5850
+#define VD3_PIP_ALPH_SCP_H_0                       0x5851
+#define VD3_PIP_ALPH_SCP_H_1                       0x5852
+#define VD3_PIP_ALPH_SCP_H_2                       0x5853
+#define VD3_PIP_ALPH_SCP_H_3                       0x5854
+#define VD3_PIP_ALPH_SCP_H_4                       0x5855
+#define VD3_PIP_ALPH_SCP_H_5                       0x5856
+#define VD3_PIP_ALPH_SCP_H_6                       0x5857
+#define VD3_PIP_ALPH_SCP_H_7                       0x5858
+#define VD3_PIP_ALPH_SCP_H_8                       0x5859
+#define VD3_PIP_ALPH_SCP_H_9                       0x585a
+#define VD3_PIP_ALPH_SCP_H_10                      0x585b
+#define VD3_PIP_ALPH_SCP_H_11                      0x585c
+#define VD3_PIP_ALPH_SCP_H_12                      0x585d
+#define VD3_PIP_ALPH_SCP_H_13                      0x585e
+#define VD3_PIP_ALPH_SCP_H_14                      0x585f
+#define VD3_PIP_ALPH_SCP_H_15                      0x5860
+#define VD3_PIP_ALPH_SCP_V_0                       0x5861
+#define VD3_PIP_ALPH_SCP_V_1                       0x5862
+#define VD3_PIP_ALPH_SCP_V_2                       0x5863
+#define VD3_PIP_ALPH_SCP_V_3                       0x5864
+#define VD3_PIP_ALPH_SCP_V_4                       0x5865
+#define VD3_PIP_ALPH_SCP_V_5                       0x5866
+#define VD3_PIP_ALPH_SCP_V_6                       0x5867
+#define VD3_PIP_ALPH_SCP_V_7                       0x5868
+#define VD3_PIP_ALPH_SCP_V_8                       0x5869
+#define VD3_PIP_ALPH_SCP_V_9                       0x586a
+#define VD3_PIP_ALPH_SCP_V_10                      0x586b
+#define VD3_PIP_ALPH_SCP_V_11                      0x586c
+#define VD3_PIP_ALPH_SCP_V_12                      0x586d
+#define VD3_PIP_ALPH_SCP_V_13                      0x586e
+#define VD3_PIP_ALPH_SCP_V_14                      0x586f
+#define VD3_PIP_ALPH_SCP_V_15                      0x5870
+
 #define G12_FGRAIN_CTRL                  0x4800
 #define G12_FGRAIN_WIN_H                 0x4801
 #define G12_FGRAIN_WIN_V                 0x4802
@@ -351,8 +421,17 @@
 #define VD3_FGRAIN_WIN_H                 0x4971
 #define VD3_FGRAIN_WIN_V                 0x4972
 
+#define MALI_AFBCD_TOP_CTRL                        0x1a0f
 #define VD1_HDR_IN_SIZE                            0x1a57
 #define VD2_HDR_IN_SIZE                            0x1a58
 #define VD3_HDR_IN_SIZE                            0x1a59
+#define VPP_MISC2                                  0x1d7a
+#define MALI_AFBCD1_TOP_CTRL                       0x1a55
+#define MALI_AFBCD2_TOP_CTRL                       0x1a56
+#define VD_PATH_MISC_CTRL                          0x1a7a
+#define VPP_VD1_DSC_CTRL                           0x1a83
+#define VPP_VD2_DSC_CTRL                           0x1a84
+#define VPP_VD3_DSC_CTRL                           0x1a85
+#define PATH_START_SEL                             0x1a8a
 #endif
 

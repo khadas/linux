@@ -91,6 +91,63 @@ struct hw_fg_reg_s {
 	u32 fgrain_win_v;
 };
 
+struct hw_vpp_blend_reg_s {
+	u32 preblend_h_start_end;
+	u32 preblend_v_start_end;
+	u32 preblend_h_size;
+	u32 postblend_h_start_end;
+	u32 postblend_v_start_end;
+	/* pip window */
+	u32 vd_pip_alph_ctrl;
+	u32 vd_pip_alph_scp_h;
+	u32 vd_pip_alph_scp_v;
+};
+
+struct hw_viu_misc_reg_s   {
+	u32 mali_afbcd_top_ctrl;
+	u32 mali_afbcd1_top_ctrl;
+	u32 mali_afbcd2_top_ctrl;
+	u32 vpp_vd1_top_ctrl;
+	u32 vpp_vd2_top_ctrl;
+	u32 vpp_vd3_top_ctr;
+	u32 vd_path_misc_ctrl;
+	u32 path_start_sel;
+	u32 vpp_misc;
+	u32 vpp_misc1;
+};
+
+struct hw_vpp_path_size_s {
+	u32 vd1_hdr_in_size;
+	u32 vd2_hdr_in_size;
+	u32 vd3_hdr_in_size;
+	u32 vpp_line_in_length;
+	u32 vpp_pic_in_height;
+	u32 vd1_sc_h_startp;
+	u32 vd1_sc_h_endp;
+	u32 vd1_sc_v_startp;
+	u32 vd1_sc_v_endp;
+	u32 vd2_sc_h_startp;
+	u32 vd2_sc_h_endp;
+	u32 vd2_sc_v_startp;
+	u32 vd2_sc_v_endp;
+	u32 vd3_sc_h_startp;
+	u32 vd3_sc_h_endp;
+	u32 vd3_sc_v_startp;
+	u32 vd3_sc_v_endp;
+	u32 vpp_preblend_h_size;
+	u32 preblend_vd1_h_start_end;
+	u32 preblend_vd1_v_start_end;
+	u32 vpp_ve_h_v_size;
+	u32 vpp_postblend_h_size;
+	u32 vpp_out_h_v_size;
+	u32 postblend_vd1_h_start_end;
+	u32 postlend_vd1_v_start_end;
+	u32 blend_vd2_h_start_end;
+	u32 blend_vd2_v_start_end;
+	u32 blend_vd3_h_start_end;
+	u32 blend_vd3_v_start_end;
+};
+
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER_G12];
@@ -98,10 +155,11 @@ extern struct hw_afbc_reg_s vd_afbc_reg_array[MAX_VD_LAYER_G12];
 extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER_G12];
+extern struct hw_vpp_blend_reg_s vpp_blend_reg_array[MAX_VD_LAYER_G12];
 
 extern struct hw_vd_reg_s vd_mif_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vd_linear_reg_s vd_mif_linear_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_afbc_reg_s vd_afbc_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_fg_reg_s fg_reg_t7_array[MAX_VD_LAYER_T7];
-
+extern struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7];
 #endif

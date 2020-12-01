@@ -87,12 +87,16 @@
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
 
+/* karry ? */
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
 	VFM_PATH_AMVIDEO = 0,
 	VFM_PATH_PIP = 1,
 	VFM_PATH_VIDEO_RENDER0 = 2,
 	VFM_PATH_VIDEO_RENDER1 = 3,
+	/* karry ? */
+	VFM_PATH_PIP2 = 4,
+	VFM_PATH_VIDEO_RENDER2 = 5,
 	VFM_PATH_AUTO = 0xfe,
 	VFM_PATH_INVALID = 0xff
 };
@@ -108,6 +112,7 @@ struct video_dev_s {
 	int viu_off;
 	int mif_linear;
 	int t7_display;
+	int max_vd_layers;
 };
 
 struct video_layer_s;
@@ -239,6 +244,7 @@ struct video_layer_s {
 	struct hw_vd_linear_reg_s vd_mif_linear_reg;
 	struct hw_afbc_reg_s vd_afbc_reg;
 	struct hw_fg_reg_s fg_reg;
+	struct hw_vpp_blend_reg_s vpp_blend_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u8 next_canvas_id;
@@ -277,6 +283,8 @@ struct video_layer_s {
 
 	u32 disable_video;
 	u32 enabled;
+	u32 pre_blend_en;
+	u32 post_blend_en;
 	u32 enabled_status_saved;
 	u32 onoff_state;
 	u32 onoff_time;
@@ -335,6 +343,7 @@ struct amvideo_device_data_s {
 	u32 afbc_conv_lbuf_len;
 	u8 mif_linear;
 	u8 t7_display;
+	u8 max_vd_layers;
 };
 
 /* from video_hw.c */
@@ -356,6 +365,7 @@ bool for_dolby_vision_certification(void);
 struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(void);
 u32 get_videopip_enabled(void);
+u32 get_videopip2_enabled(void);
 
 bool is_di_on(void);
 bool is_di_post_on(void);
@@ -464,16 +474,20 @@ extern bool reverse;
 extern u32  mirror;
 extern struct vframe_s vf_local;
 extern struct vframe_s vf_local2;
+extern struct vframe_s vf_local3;
 extern struct vframe_s local_pip;
+extern struct vframe_s local_pip2;
 extern struct vframe_s *cur_dispbuf;
 extern struct vframe_s *cur_pipbuf;
+extern struct vframe_s *cur_pipbuf2;
 extern bool need_disable_vd2;
+extern bool need_disable_vd3;
 extern u32 last_el_status;
 extern u32 force_blackout;
 extern atomic_t video_unreg_flag;
 extern atomic_t video_inirq_flag;
-extern struct video_recv_s *gvideo_recv[2];
 extern uint load_pps_coef;
+extern struct video_recv_s *gvideo_recv[3];
 
 bool black_threshold_check(u8 id);
 struct vframe_s *get_cur_dispbuf(void);
@@ -485,7 +499,7 @@ void video_module_lock(void);
 void video_module_unlock(void);
 int get_video_debug_flags(void);
 int _video_set_disable(u32 val);
-int _videopip_set_disable(u32 val);
+int _videopip_set_disable(u32 index, u32 val);
 struct device *get_video_device(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 struct vframe_s *dvel_toggle_frame(struct vframe_s *vf,
@@ -599,7 +613,8 @@ static inline void vsync_notify_videosync(void) {}
 enum vd_path_e {
 	VD1_PATH = 0,
 	VD2_PATH = 1,
-	VD_PATH_MAX = 2
+	VD3_PATH = 2,
+	VD_PATH_MAX = 3
 };
 #endif
 #endif

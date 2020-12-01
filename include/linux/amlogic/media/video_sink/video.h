@@ -21,6 +21,11 @@
 
 #define MAX_VD_LAYERS 3
 
+#define LAYER2_ALPHA  BIT(17)
+#define LAYER2_BUSY   BIT(16)
+#define LAYER2_AFBC   BIT(15)
+#define LAYER2_SCALER BIT(14)
+#define LAYER2_AVAIL  BIT(13)
 #define LAYER1_ALPHA  BIT(12)
 #define LAYER1_BUSY   BIT(11)
 #define LAYER1_AFBC   BIT(10)
@@ -312,6 +317,7 @@ u32 set_blackout_policy(int policy);
 u32 get_blackout_policy(void);
 u32 set_blackout_pip_policy(int policy);
 u32 get_blackout_pip_policy(void);
+u32 get_blackout_pip2_policy(void);
 void set_video_angle(u32 s_value);
 u32 get_video_angle(void);
 unsigned int DI_POST_REG_RD(unsigned int addr);
@@ -322,7 +328,7 @@ bool get_video_reverse(void);
 int get_osd_reverse(void);
 void vsync_notify_video_composer(void);
 int _video_set_disable(u32 val);
-int _videopip_set_disable(u32 val);
+int _videopip_set_disable(u32 index, u32 val);
 void video_set_global_output(u32 index, u32 val);
 u32 video_get_layer_capability(void);
 void set_video_crop_ext(int layer_index, int *p);

@@ -545,7 +545,8 @@ struct vecm_match_data_s {
 enum vd_path_e {
 	VD1_PATH = 0,
 	VD2_PATH = 1,
-	VD_PATH_MAX = 2
+	VD3_PATH = 2,
+	VD_PATH_MAX = 3
 };
 
 extern signed int vd1_brightness, vd1_contrast;

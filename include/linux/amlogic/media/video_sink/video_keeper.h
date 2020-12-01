@@ -23,9 +23,10 @@
 
 void video_keeper_new_frame_notify(void);
 void video_pip_keeper_new_frame_notify(void);
+void video_pip2_keeper_new_frame_notify(void);
 void try_free_keep_video(int flags);
 void try_free_keep_videopip(int flags);
-
+void try_free_keep_videopip2(int flags);
 int video_keeper_init(void);
 void video_keeper_exit(void);
 unsigned int vf_keep_current
@@ -34,5 +35,7 @@ unsigned int vf_keep_current
 unsigned int vf_keep_pip_current_locked
 	(struct vframe_s *cur_dispbuf,
 	struct vframe_s *cur_dispbuf_el);
-
+unsigned int vf_keep_pip2_current_locked
+	(struct vframe_s *cur_dispbuf,
+	struct vframe_s *cur_dispbuf_el);
 #endif
