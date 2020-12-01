@@ -567,7 +567,9 @@ static void vlock_setting(struct vframe_s *vf,
 		pr_info("type_original:0x%x\n", vf->type_original);
 	}
 	vlock_set_phase_frq_lock_speed();
-	/*vlock_set_clk_src();*/
+	/*vlock_set_clk_src, after tm2 use clk tree*/
+	if (vlock.dtdata->vlk_chip <= vlock_chip_tm2)
+		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
 	if (IS_ENC_MODE(vlock_mode)) {
 		/*init default config for enc mode*/
 		vlock_hw_reinit(vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
