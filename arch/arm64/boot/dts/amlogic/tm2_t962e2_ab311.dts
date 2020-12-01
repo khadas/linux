@@ -36,7 +36,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	adc_keypad {
@@ -78,14 +78,6 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
 
-		ion_cma_reserved:linux,ion-dev {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x8000000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x50000000>;
-		};
-
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -105,7 +97,7 @@
 			reusable;
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
