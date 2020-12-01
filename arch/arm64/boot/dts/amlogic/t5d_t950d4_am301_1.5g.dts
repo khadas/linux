@@ -923,13 +923,13 @@
 	aocec: aocec {
 		compatible = "amlogic, aocec-t5d";
 		/*device_name = "aocec";*/
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8	 */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0xffffff>;
-		product_desc = "TM2"; /* Max Chars: 16	  */
+		product_desc = "t5d"; /* Max Chars: 16	  */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		port_num = <4>;
 		ee_cec;
@@ -942,7 +942,7 @@
 		pinctrl-0=<&aocecb_mux>;
 		pinctrl-1=<&aocecb_mux>;
 		pinctrl-2=<&aocecb_mux>;
-		clocks = <&clkc CLKID_CECB_32K_CLKOUT>;
+		clocks = <&clkc_AO CLKID_CECB_32K_CLKOUT>;
 		clock-names = "cecb_clk";
 		reg = <0x0 0xFF80023c 0x0 0x4
 			   0x0 0xFF800000 0x0 0x400>;
