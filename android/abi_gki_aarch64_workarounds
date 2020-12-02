@@ -1,3 +1,0 @@
-[abi_whitelist]
-  # b/167230325
-  ehci_handshake
