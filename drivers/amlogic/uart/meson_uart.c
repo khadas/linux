@@ -886,6 +886,7 @@ static int meson_uart_remove(struct platform_device *pdev)
 
 static const struct of_device_id meson_uart_dt_match[] = {
 	{ .compatible = "amlogic,meson-uart" },
+	{ .compatible = "amlogic, meson-uart" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, meson_uart_dt_match);

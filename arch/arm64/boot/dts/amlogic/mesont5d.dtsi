@@ -886,33 +886,6 @@
 				#clock-cells = <1>;
 			};
 
-			uart_AO: serial@3000 {
-				compatible = "amlogic, meson-uart";
-				reg = <0x0 0x3000 0x0 0x18>;
-				interrupts = <0 193 1>;
-				status = "disabled";
-				clocks = <&xtal>;
-				clock-names = "clk_uart";
-				xtal_tick_en = <2>;
-				fifosize = < 64 >;
-				//pinctrl-names = "default";
-				//pinctrl-0 = <&ao_a_uart_pins>;
-				/* 0 not support; 1 support */
-				support-sysrq = <0>;
-			};
-
-
-			uart_AO_B: serial@4000 {
-				compatible = "amlogic, meson-uart";
-				reg = <0x0 0x4000 0x0 0x18>;
-				interrupts = <0 197 1>;
-				status = "disabled";
-				clocks = <&xtal>;
-				clock-names = "clk_uart";
-				fifosize = < 64 >;
-				pinctrl-names = "default";
-				pinctrl-0 = <&ao_b_uart_pins1>;
-			};
 			remote: rc@8040 {
 				compatible = "amlogic, aml_remote";
 				reg = <0x0 0x8040 0x0 0x44>,
@@ -1149,7 +1122,7 @@
 	};
 
 	uart_A: serial@ffd24000 {
-		compatible = "amlogic, meson-uart";
+		compatible = "amlogic,meson-uart";
 		reg = <0x0 0xffd24000 0x0 0x18>;
 		interrupts = <0 26 1>;
 		status = "disabled";
@@ -1177,7 +1150,7 @@
 		support-sysrq = <0>;
 	};
 	uart_C: serial@ffd22000 {
-		compatible = "amlogic, meson-uart";
+		compatible = "amlogic,meson-uart";
 		reg = <0x0 0xffd22000 0x0 0x18>;
 		interrupts = <0 93 1>;
 		status = "disabled";
