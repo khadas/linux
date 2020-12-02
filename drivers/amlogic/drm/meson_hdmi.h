@@ -71,6 +71,8 @@ struct am_hdmi_tx {
 	unsigned int hdcp_stop_flag;/*turn off hdcp state machine*/
 	unsigned int hdcp_try_times;
 	struct task_struct *hdcp_work;
+
+	struct drm_property *update_attr_prop;
 };
 
 #define connector_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, connector)

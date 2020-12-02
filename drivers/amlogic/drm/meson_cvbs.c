@@ -34,7 +34,7 @@ static struct drm_display_mode cvbs_mode[] = {
 		.vdisplay = 480,
 		.vsync_start = 725,
 		.vsync_end = 730,
-		.vtotal = 525,
+		.vtotal = 750,
 		.vscan = 0,
 		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_INTERLACE,
@@ -53,7 +53,7 @@ static struct drm_display_mode cvbs_mode[] = {
 		.vsync_end = 730,
 		.vtotal = 750,
 		.vscan = 0,
-		.vrefresh = 60,
+		.vrefresh = 50,
 		.flags = DRM_MODE_FLAG_INTERLACE,
 	},
 };
@@ -85,21 +85,23 @@ static inline struct am_drm_cvbs_s *encoder_to_cvbs(struct drm_encoder *encoder)
 
 int am_cvbs_tx_get_modes(struct drm_connector *connector)
 {
-	int i;
+	int i, count;
 	struct drm_display_mode *mode;
 
+	count = 0;
 	for (i = 0; i < ARRAY_SIZE(cvbs_mode); i++) {
 		mode = drm_mode_duplicate(connector->dev, &cvbs_mode[i]);
 		if (!mode) {
 			DRM_INFO("[%s:%d]duplicate failed\n", __func__,
 				 __LINE__);
-			return 0;
+			continue;
 		}
 
 		drm_mode_probed_add(connector, mode);
+		count++;
 	}
 
-	return 1;
+	return count;
 }
 
 enum drm_mode_status am_cvbs_tx_check_mode(struct drm_connector *connector,
@@ -213,9 +215,9 @@ void am_cvbs_encoder_enable(struct drm_encoder *encoder)
 {
 	enum vmode_e vmode = get_current_vmode();
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
+	set_vout_mode_pre_process(vmode);
 	cvbs_set_current_vmode(VMODE_CVBS);
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
+	set_vout_mode_post_process(vmode);
 }
 
 void am_cvbs_encoder_disable(struct drm_encoder *encoder)

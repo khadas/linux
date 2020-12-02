@@ -35,8 +35,12 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
 
+#include <linux/amlogic/media/vout/vout_notify.h>
+
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
+
+#define MAX_CONNECTOR_NUM (3)
 
 static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 {
@@ -131,11 +135,15 @@ core_param(display_bpp, logo.bpp, uint, 0644);
 core_param(outputmode, logo.outputmode_t, charp, 0644);
 core_param(osd_reverse, logo.osd_reverse, uint, 0644);
 #endif
+
 static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
 {
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
 	struct am_meson_fb *meson_fb;
+
+	/*TODO: get mode from vout api temp.*/
+	strcpy(logo.outputmode, get_vout_mode_uboot());
 
 	DRM_INFO("width=%d,height=%d,start_addr=0x%pa,size=%d\n",
 		 logo.width, logo.height, &logo.start, logo.size);
@@ -159,43 +167,6 @@ static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
 	meson_fb->logo = &logo;
 
 	return fb;
-}
-
-#define FPS_DELTA_LIMIT 1
-struct drm_display_mode *
-am_meson_drm_display_mode_init(struct drm_connector *connector)
-{
-	struct drm_display_mode *mode;
-	struct drm_device *dev;
-	u32 found, num_modes;
-	char *name;
-
-	if (!connector || !connector->dev)
-		return NULL;
-	dev = connector->dev;
-	found = 0;
-	drm_modeset_lock_all(dev);
-	if (drm_modeset_is_locked(&dev->mode_config.connection_mutex))
-		drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	num_modes = connector->funcs->fill_modes(connector,
-						 dev->mode_config.max_width,
-						 dev->mode_config.max_height);
-	drm_modeset_unlock_all(dev);
-	if (!num_modes) {
-		DRM_INFO("%s:num_modes is zero\n", __func__);
-		return NULL;
-	}
-	list_for_each_entry(mode, &connector->modes, head) {
-		name = am_meson_crtc_get_voutmode(mode);
-		if (!strcmp(name, logo.outputmode)) {
-			found = 1;
-			break;
-		}
-	}
-	if (found)
-		return mode;
-	else
-		return NULL;
 }
 
 /*copy from update_output_state,
@@ -398,6 +369,8 @@ static void am_meson_load_logo(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct drm_modeset_acquire_ctx *ctx;
 	struct meson_drm *private = dev->dev_private;
+	u32 found, num_modes;
+	char *vmode_name;
 
 	if (!logo.alloc_flag) {
 		DRM_INFO("%s: logo memory is not cma alloc\n", __func__);
@@ -408,26 +381,57 @@ static void am_meson_load_logo(struct drm_device *dev)
 		DRM_INFO("%s:framebuffer is NULL!\n", __func__);
 		return;
 	}
+	if (!strcmp("null", logo.outputmode)) {
+		DRM_INFO("NULL MODE, nothing to do.");
+		return;
+	}
+
+	/*init all connecotr and found matched uboot mode.*/
+	found = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_modeset_lock_all(dev);
+		if (drm_modeset_is_locked(&dev->mode_config.connection_mutex))
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
+		num_modes = connector->funcs->fill_modes(connector,
+							 dev->mode_config.max_width,
+							 dev->mode_config.max_height);
+		drm_modeset_unlock_all(dev);
+
+		if (num_modes) {
+			list_for_each_entry(mode, &connector->modes, head) {
+				vmode_name = am_meson_crtc_get_voutmode(mode);
+				if (!strcmp(vmode_name, logo.outputmode)) {
+					found = 1;
+					break;
+				}
+			}
+			if (found)
+				break;
+		}
+
+		DRM_ERROR("Connecotr[%d] status[%d]\n",
+			connector->connector_type, connector->status);
+	}
+
+	if (found) {
+		DRM_ERROR("Found Connecotr[%d] mode[%s]\n",
+			connector->connector_type, mode->name);
+		if (!strcmp("null", mode->name)) {
+			DRM_INFO("NULL MODE, nothing to do.");
+			return;
+		}
+	} else {
+		connector = NULL;
+		mode = NULL;
+		return;
+	}
+
 	connector_set = kmalloc_array(1, sizeof(struct drm_connector *),
 				      GFP_KERNEL);
 	if (!connector_set)
 		return;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
-			break;
-		else if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
-			break;
-	}
-
 	connector_set[0] = connector;
-	mode = am_meson_drm_display_mode_init(connector_set[0]);
-	if (!mode) {
-		DRM_INFO("%s:display mode is NULL!\n", __func__);
-		kfree(connector_set);
-		return;
-	}
-	DRM_INFO("find the match display mode:%s\n", mode->name);
 	set.crtc = private->crtc;
 	set.x = 0;
 	set.y = 0;
@@ -436,6 +440,7 @@ static void am_meson_load_logo(struct drm_device *dev)
 	set.connectors = connector_set;
 	set.num_connectors = 1;
 	set.fb = fb;
+
 	drm_modeset_lock_all(dev);
 	ctx = dev->mode_config.acquire_ctx;
 	if (am_meson_drm_set_config(&set, ctx))
@@ -846,6 +851,7 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		of_node_put(port);
 	}
 	pr_info("[%s] out\n", __func__);
+	disable_vout_mode_set_sysfs();
 	return component_master_add_with_match(dev, &am_meson_drm_ops, match);
 }
 

@@ -288,6 +288,9 @@ struct hdcplog_buf {
 	unsigned char buf[HDCP_LOG_SIZE + 64]; /* padding 8 bytes */
 };
 
+/*drm hpd*/
+typedef void (*drm_hpd_cb)(void *data);
+
 #define EDID_MAX_BLOCK              4
 #define HDMI_TMP_BUF_SIZE           1024
 struct hdmitx_dev {
@@ -479,9 +482,13 @@ struct hdmitx_dev {
 	unsigned int cedst_en:1; /* configure in DTS */
 	unsigned int hdr_priority:1;
 	unsigned int bist_lock:1;
-	unsigned int drm_feature;/*Direct Rander Management*/
 	unsigned int vend_id_hit:1;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
+
+	/*DRM related*/
+	unsigned int drm_feature;/*force 0 now.*/
+	drm_hpd_cb drm_cb;
+	void *drm_data;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -911,5 +918,11 @@ bool hdmitx_dv_en(void);
 bool hdmitx_hdr10p_en(void);
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
+
+/*DRM connector API*/
+int drm_hdmitx_detect_hpd(void);
+int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data);
+int drm_hdmitx_get_vic_list(int **vics);
+/*DRM connector API end*/
 
 #endif

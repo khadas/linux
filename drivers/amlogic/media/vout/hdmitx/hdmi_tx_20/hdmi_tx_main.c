@@ -210,6 +210,7 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val)
 	/* pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret); */
 	return ret;
 }
+EXPORT_SYMBOL(hdmitx_set_uevent);
 
 /* There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
  * hdmi drivers to send out related HDMI infoframe
@@ -2646,18 +2647,18 @@ static ssize_t disp_cap_show(struct device *dev,
 				vic = hdmitx_edid_get_VIC(&hdmitx_device,
 							  mode_tmp, 0);
 			}
-		if (vic != HDMI_UNKNOWN) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "%s",
-				disp_mode_t[i]);
-			if (native_disp_mode &&
-			    (strcmp(native_disp_mode,
-				disp_mode_t[i]) == 0)) {
-				pos += snprintf(buf + pos, PAGE_SIZE,
-					"*\n");
-			} else {
-				pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			if (vic != HDMI_UNKNOWN) {
+				pos += snprintf(buf + pos, PAGE_SIZE, "%s",
+					disp_mode_t[i]);
+				if (native_disp_mode &&
+				    (strcmp(native_disp_mode,
+					disp_mode_t[i]) == 0)) {
+					pos += snprintf(buf + pos, PAGE_SIZE,
+						"*\n");
+				} else {
+					pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+				}
 			}
-		}
 		}
 	}
 	return pos;
@@ -5391,8 +5392,13 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdev->hpd_state = 1;
 	hdmitx_notify_hpd(hdev->hpd_state);
 
+	/*notify to drm hdmi*/
+	if (hdmitx_device.drm_cb)
+		hdmitx_device.drm_cb(hdmitx_device.drm_data);
+
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
+
 	/* Should be started at end of output */
 	cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->cedst_policy)
@@ -5465,6 +5471,11 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
+
+	/*notify to drm hdmi*/
+	if (hdmitx_device.drm_cb)
+		hdmitx_device.drm_cb(hdmitx_device.drm_data);
+
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 
@@ -5750,6 +5761,65 @@ void hdmitx_hdcp_status(int hdmi_authenticated)
 	hdmitx_set_uevent(HDMITX_HDCP_EVENT, hdmi_authenticated);
 }
 
+/*************DRM connector API**************/
+int drm_hdmitx_detect_hpd(void)
+{
+	return hdmitx_device.hpd_state;
+}
+EXPORT_SYMBOL(drm_hdmitx_detect_hpd);
+
+int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data)
+{
+	mutex_lock(&setclk_mutex);
+	hdmitx_device.drm_cb = cb;
+	hdmitx_device.drm_data = data;
+	mutex_unlock(&setclk_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmitx_register_hpd_cb);
+
+int drm_hdmitx_get_vic_list(int **vics)
+{
+	enum hdmi_vic vic;
+	char mode_tmp[32];
+	int len = sizeof(disp_mode_t) / sizeof(char *);
+	int i;
+	int count = 0;
+	int *viclist = 0;
+
+	if (hdmitx_device.tv_no_edid)
+		return 0;
+
+	viclist = kmalloc_array(len, sizeof(int), GFP_KERNEL);
+	for (i = 0; disp_mode_t[i]; i++) {
+		memset(mode_tmp, 0, sizeof(mode_tmp));
+		strncpy(mode_tmp, disp_mode_t[i], 31);
+		if (hdmitx_limited_1080p() && is_4k_fmt(mode_tmp))
+			continue;
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
+		/* Handling only 4k420 mode */
+		if (vic == HDMI_UNKNOWN && is_4k50_fmt(mode_tmp)) {
+			strcat(mode_tmp, "420");
+			vic = hdmitx_edid_get_VIC(&hdmitx_device,
+						  mode_tmp, 0);
+		}
+
+		if (vic != HDMI_UNKNOWN) {
+			viclist[count] = vic;
+			count++;
+		}
+	}
+
+	if (count == 0)
+		kfree(viclist);
+	else
+		*vics = viclist;
+
+	return count;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_vic_list);
+/*************DRM connector API**************/
+
 static void hdmitx_init_parameters(struct hdmitx_info *info)
 {
 	memset(info, 0, sizeof(struct hdmitx_info));
@@ -5829,23 +5899,30 @@ static void amhdmitx_get_drm_info(void)
 	unsigned char *drm_status;
 	int ret = 0;
 
-	drm_node = of_find_node_by_path("/drm-amhdmitx");
-	if (drm_node) {
-		ret =
-		of_property_read_string(drm_node, "status",
-					(const char **)&drm_status);
-		if (ret) {
-			pr_info(SYS "not find drm_feature\n");
+	if (false) {
+		drm_node = of_find_node_by_path("/drm-amhdmitx");
+		if (drm_node) {
+			ret =
+			of_property_read_string(drm_node, "status",
+						(const char **)&drm_status);
+			if (ret) {
+				pr_info(SYS "not find drm_feature\n");
+			} else {
+				if (memcmp(drm_status, "okay", 4) == 0)
+					hdmitx_device.drm_feature = 1;
+				else
+					hdmitx_device.drm_feature = 0;
+				pr_info(SYS "hdmitx_device.drm_feature : %d\n",
+					hdmitx_device.drm_feature);
+			}
 		} else {
-			if (memcmp(drm_status, "okay", 4) == 0)
-				hdmitx_device.drm_feature = 1;
-			else
-				hdmitx_device.drm_feature = 0;
-			pr_info(SYS "hdmitx_device.drm_feature : %d\n",
-				hdmitx_device.drm_feature);
+			pr_info(SYS "not find drm_amhdmitx\n");
 		}
 	} else {
-		pr_info(SYS "not find drm_amhdmitx\n");
+		hdmitx_device.drm_feature = 0;
+		hdmitx_device.drm_cb = 0;
+		hdmitx_device.drm_data = 0;
+		pr_info("drm_feature skip.");
 	}
 }
 

@@ -112,7 +112,12 @@ int set_vout_mode(char *name);
 void set_vout_init(enum vmode_e mode);
 void update_vout_viu(void);
 int set_vout_vmode(enum vmode_e mode);
+int set_vout_mode_pre_process(enum vmode_e mode);
+int set_vout_mode_post_process(enum vmode_e mode);
+int set_vout_mode_name(char *name);
 enum vmode_e validate_vmode(char *name, unsigned int frac);
 int set_current_vmode(enum vmode_e mode);
+
+void disable_vout_mode_set_sysfs(void);
 
 #endif /* _VOUT_NOTIFY_H_ */

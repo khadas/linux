@@ -3012,6 +3012,7 @@ struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic)
 	}
 	return &fmt_para_non_hdmi_fmt;
 }
+EXPORT_SYMBOL(hdmi_get_fmt_paras);
 
 struct hdmi_format_para *hdmi_match_dtd_paras(struct dtd *t)
 {

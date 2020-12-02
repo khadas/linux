@@ -58,6 +58,8 @@ static unsigned int bist_mode;
 static struct vout_cdev_s *vout_cdev;
 static struct device *vout_dev;
 
+static bool disable_modesysfs;
+
 /* **********************************************************
  * null display support
  * **********************************************************
@@ -226,6 +228,33 @@ static int vout_set_uevent(unsigned int vout_event, int val)
 	return ret;
 }
 
+int set_vout_mode_pre_process(enum vmode_e mode)
+{
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 1);
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
+	return 0;
+}
+EXPORT_SYMBOL(set_vout_mode_pre_process);
+
+int set_vout_mode_post_process(enum vmode_e mode)
+{
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 0);
+	return 0;
+}
+EXPORT_SYMBOL(set_vout_mode_post_process);
+
+int set_vout_mode_name(char *name)
+{
+	if (!name)
+		return -EINVAL;
+
+	memset(vout_mode, 0, sizeof(vout_mode));
+	snprintf(vout_mode, VMODE_NAME_LEN_MAX, "%s", name);
+	return 0;
+}
+EXPORT_SYMBOL(set_vout_mode_name);
+
 int set_vout_mode(char *name)
 {
 	enum vmode_e mode;
@@ -326,8 +355,12 @@ static ssize_t vout_mode_store(struct class *class,
 	char mode[VMODE_NAME_LEN_MAX];
 
 	mutex_lock(&vout_serve_mutex);
-	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
-	set_vout_mode(mode);
+	if (!disable_modesysfs) {
+		snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
+		set_vout_mode(mode);
+	} else {
+		VOUTPR("voutmode set skipped\n");
+	}
 	mutex_unlock(&vout_serve_mutex);
 	return count;
 }
@@ -1010,6 +1043,13 @@ int get_vout_init_mode(char *str)
 	return 0;
 }
 __setup("vout=", get_vout_init_mode);
+
+/*TODO: drm to disable display/mode sysfs set.*/
+void disable_vout_mode_set_sysfs(void)
+{
+	disable_modesysfs = true;
+}
+EXPORT_SYMBOL(disable_vout_mode_set_sysfs);
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT Server Module");

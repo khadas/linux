@@ -160,8 +160,17 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_ERROR("no matched vout mode\n");
 		return;
 	}
-	set_vout_init(mode);
-	update_vout_viu();
+
+	if (mode == VMODE_DUMMY_ENCL ||
+		mode == VMODE_DUMMY_ENCI ||
+		mode == VMODE_DUMMY_ENCP) {
+		set_current_vmode(mode);
+	} else {
+		set_vout_init(mode);
+		update_vout_viu();
+	}
+	set_vout_mode_name(name);
+
 	memcpy(&pipeline->mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 	drm_crtc_vblank_on(crtc);
