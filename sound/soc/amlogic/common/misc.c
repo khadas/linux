@@ -16,33 +16,6 @@
 
 #include "misc.h"
 
-bool audio_debug;
-
-static const char *const audio_debug_text[] = {
-	"off",
-	"on"
-};
-
-const struct soc_enum audio_debug_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_debug_text),
-			audio_debug_text);
-
-int audio_debug_get(struct snd_kcontrol *kcontrol,
-		    struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = audio_debug;
-
-	return 0;
-}
-
-int audio_debug_put(struct snd_kcontrol *kcontrol,
-		    struct snd_ctl_elem_value *ucontrol)
-{
-	audio_debug = ucontrol->value.integer.value[0];
-
-	return 0;
-}
-
 static const char *const audio_is_stable[] = {
 	"false",
 	"true"

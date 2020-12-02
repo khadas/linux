@@ -35,6 +35,7 @@ void aed_set_ctrl(bool enable, int sel,
 		  enum frddr_dest module, int offset);
 void aed_set_format(int msb, enum ddr_types frddr_type,
 		    enum ddr_num source, int offset);
+void aed_reload_config(void);
 void aed_enable(bool enable);
 void aed_set_mixer_params(void);
 void aed_eq_taps(unsigned int eq1_taps);

@@ -230,8 +230,7 @@ int card_add_effects_init(struct snd_soc_card *card)
 	int eq_enable = -1, drc_enable = -1, eqdrc_module = -1;
 	int lane_mask = -1, channel_mask = -1;
 
-	audio_effect_np = of_parse_phandle(card->dev->of_node,
-					   "aml-audio-card,effect", 0);
+	audio_effect_np = of_parse_phandle(card->dev->of_node, "aml-audio-card, effect", 0);
 	if (!audio_effect_np) {
 		pr_warn("no node %s for eq/drc info!\n", "audio_effect");
 		return -EINVAL;

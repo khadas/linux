@@ -875,13 +875,6 @@ static int card_resume_post(struct snd_soc_card *card)
 
 }
 
-static const struct snd_kcontrol_new snd_controls[] = {
-	SOC_SINGLE_BOOL_EXT("Audio Debug",
-			    0,
-			    audio_debug_get,
-			    audio_debug_put),
-};
-
 static irqreturn_t aml_audio_exception64_isr(int irq, void *dev_id)
 {
 	unsigned int intrpt_status0, intrpt_status1;
@@ -970,8 +963,6 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->snd_card.num_links	= num;
 	priv->snd_card.suspend_pre	= card_suspend_pre;
 	priv->snd_card.resume_post	= card_resume_post;
-	priv->snd_card.controls		= snd_controls;
-	priv->snd_card.num_controls	= ARRAY_SIZE(snd_controls);
 
 	if (np && of_device_is_available(np)) {
 		ret = aml_card_parse_of(np, priv);

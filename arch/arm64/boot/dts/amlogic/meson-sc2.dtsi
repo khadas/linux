@@ -9,7 +9,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/sc2-pd.h>
-#include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
+#include <dt-bindings/clock/amlogic,sc2-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-sc2-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
@@ -695,7 +695,7 @@
 			power-domains = <&pwrdm PDID_SC2_AUDIO>;
 
 			clkaudio: audio_clocks {
-				compatible = "amlogic, sm1-audio-clocks";
+				compatible = "amlogic, sc2-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
 			};
@@ -717,6 +717,10 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
+			};
+
+			pinctrl_audio: pinctrl {
+				compatible = "amlogic, audio-pinctrl";
 			};
 		};/* end of audiobus*/
 

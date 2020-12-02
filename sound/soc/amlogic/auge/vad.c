@@ -40,7 +40,8 @@
 
 #define DRV_NAME "VAD"
 
-#define DMA_BUFFER_BYTES_MAX (2 * 1024 * 1024)
+#define DMA_BUFFER_BYTES_MAX (96 * 1024)
+
 
 #define VAD_READ_FRAME_COUNT    (1024 / 2)
 
@@ -70,7 +71,10 @@ struct vad {
 	unsigned int start_last;
 	unsigned int end_last;
 	unsigned int addr;
-	int switch_buffer;
+	unsigned int threshold;
+
+	/* alsa buffer switch to vad buffer */
+	bool a2v_buf;
 
 	/* vad flag interrupt */
 	int irq_wakeup;
@@ -129,6 +133,7 @@ static void vad_key_report(void)
 
 	if (!p_vad)
 		return;
+
 	pr_info("%s\n", __func__);
 
 	input_event(p_vad->input_device, EV_KEY, KEY_POWER, 1);
@@ -252,10 +257,12 @@ EXPORT_SYMBOL(unregister_vad_callback);
  * 0: no wake word found
  * 1: contained wake word, should wake up system
  */
-static int
-vad_transfer_data_to_algorithm(struct vad *p_vad,
-			       char *buf, int frames,
-			       int rate, int channels, int bitdepth)
+static int vad_transfer_data_to_algorithm(struct vad *p_vad,
+	char *buf,
+	int frames,
+	int rate,
+	int channels,
+	int bitdepth)
 {
 	int ret = 0;
 
@@ -281,11 +288,11 @@ static int vad_engine_check(struct vad *p_vad)
 	unsigned char *hwbuf;
 	int bytes, read_bytes;
 	int start, end, size, last_addr, curr_addr;
-	int chnum, bytes_per_sample;
+	int chnum, bitdepth, rate, bytes_per_sample;
 	int frame_count = VAD_READ_FRAME_COUNT;
 
 	if (!p_vad->tddr || !p_vad->tddr->actrl ||
-	    !p_vad->tddr->in_use)
+		!p_vad->tddr->in_use)
 		return 0;
 
 	hwbuf = p_vad->dma_buffer.area;
@@ -293,25 +300,33 @@ static int vad_engine_check(struct vad *p_vad)
 	start = p_vad->dma_buffer.addr;
 	end   = start + size;
 	last_addr = p_vad->addr;
+
+	chnum    = p_vad->tddr->fmt.ch_num;
+	bitdepth = p_vad->tddr->fmt.bit_depth;
+	rate     = p_vad->tddr->fmt.rate;
+
 	curr_addr = aml_toddr_get_position(p_vad->tddr);
 
 	if (curr_addr < start || curr_addr > end ||
-	    last_addr < start || last_addr > end) {
-		pr_info("%s line:%d, start:%x,end:%x, addr:%x, curr_addr=%x\n",
-			__func__, __LINE__, start, end,
-			p_vad->addr, curr_addr);
+		last_addr < start || last_addr > end) {
+		pr_debug("%s line:%d, start:%x,end:%x, addr:%x, curr_addr=%x\n",
+			__func__, __LINE__,
+			start,
+			end,
+			p_vad->addr,
+			curr_addr);
 		p_vad->addr = curr_addr;
 		return 0;
 	}
 
 	bytes = (curr_addr - last_addr + size) % size;
-	chnum = p_vad->tddr->channels;
 	/* bytes for each sample */
-	bytes_per_sample = p_vad->tddr->bitdepth >> 3;
+	bytes_per_sample = bitdepth >> 3;
 
 	read_bytes = frame_count * chnum * bytes_per_sample;
 	if (bytes < read_bytes) {
-		pr_debug("%s: need more data: %d\n", __func__, bytes);
+		pr_debug("%s line:%d, %d bytes, curr_addr:%x, need more data\n",
+			 __func__, __LINE__, bytes, curr_addr);
 		return 0;
 	}
 
@@ -322,17 +337,29 @@ static int vad_engine_check(struct vad *p_vad)
 	}
 	memset(p_vad->buf, 0x0, read_bytes);
 
-	pr_debug("start:%x,end:%x, curr:%x, last:%x, offset:%d, bytes:%d\n",
-		 start, end, curr_addr, last_addr, bytes, read_bytes);
+	pr_debug("start:%x,end:%x, curr_addr:%x, last_addr:%x, offset:%d, read_bytes:%d\n",
+		start,
+		end,
+		curr_addr,
+		last_addr,
+		bytes,
+		read_bytes);
+
 
 	if (last_addr + read_bytes <= end) {
-		memcpy(p_vad->buf, hwbuf + last_addr - start, read_bytes);
+		memcpy(p_vad->buf,
+			hwbuf + last_addr - start,
+			read_bytes);
 		p_vad->addr = last_addr + read_bytes;
 	} else {
 		int tmp_bytes = end - last_addr;
 
-		memcpy(p_vad->buf, hwbuf + last_addr - start, tmp_bytes);
-		memcpy(p_vad->buf + tmp_bytes, hwbuf, read_bytes - tmp_bytes);
+		memcpy(p_vad->buf,
+			hwbuf + last_addr - start,
+			tmp_bytes);
+		memcpy(p_vad->buf + tmp_bytes,
+			hwbuf,
+			read_bytes - tmp_bytes);
 		p_vad->addr = start + read_bytes - tmp_bytes;
 	}
 
@@ -342,10 +369,7 @@ static int vad_engine_check(struct vad *p_vad)
 #endif
 
 	return vad_transfer_data_to_algorithm(p_vad,
-		p_vad->buf, frame_count,
-		p_vad->tddr->rate,
-		p_vad->tddr->channels,
-		p_vad->tddr->bitdepth);
+		p_vad->buf, frame_count, rate, chnum, bitdepth);
 }
 
 static int vad_freeze_thread(void *data)
@@ -356,6 +380,7 @@ static int vad_freeze_thread(void *data)
 		return 0;
 
 	current->flags |= PF_NOFREEZE;
+	dev_dbg(p_vad->dev, "vad: freeze thread start\n");
 
 	for (;;) {
 		msleep_interruptible(10);
@@ -365,8 +390,8 @@ static int vad_freeze_thread(void *data)
 			break;
 		}
 
-		if (!p_vad || !p_vad->en || !p_vad->callback ||
-		    !p_vad->tddr || !p_vad->switch_buffer) {
+		if (!p_vad || !p_vad->en || /*!p_vad->callback ||*/
+			!p_vad->tddr || !p_vad->a2v_buf) {
 			msleep_interruptible(10);
 			continue;
 		}
@@ -383,11 +408,13 @@ static irqreturn_t vad_wakeup_isr(int irq, void *data)
 {
 	struct vad *p_vad = (struct vad *)data;
 
-	if (vad_in_kernel_test) {
+	if (vad_in_kernel_test &&
+	    p_vad->level == LEVEL_KERNEL &&
+	    p_vad->a2v_buf) {
+		vad_wakeup_count++;
 		pr_info("%s vad_wakeup_count:%d\n", __func__, vad_wakeup_count);
-		if (p_vad->level == LEVEL_KERNEL && p_vad->switch_buffer)
-			vad_wakeup_count++;
 	}
+
 	return IRQ_HANDLED;
 }
 
@@ -433,8 +460,10 @@ static int vad_init(struct vad *p_vad)
 	int ret = 0, flag = 0;
 
 	/* malloc buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, p_vad->dev,
-				  DMA_BUFFER_BYTES_MAX, &p_vad->dma_buffer);
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+				p_vad->dev,
+				DMA_BUFFER_BYTES_MAX,
+				&p_vad->dma_buffer);
 	if (ret) {
 		dev_err(p_vad->dev, "Cannot allocate buffer(s)\n");
 		return ret;
@@ -444,49 +473,51 @@ static int vad_init(struct vad *p_vad)
 	if (p_vad->level == LEVEL_KERNEL) {
 		flag = IRQF_SHARED | IRQF_NO_SUSPEND;
 
-		/* Start Micro/Audio Dock firmware loader thread */
-		if (!p_vad->thread) {
-			p_vad->thread =
-				kthread_create(vad_freeze_thread, p_vad,
-					       "vad_freeze_thread");
-			if (IS_ERR(p_vad->thread)) {
-				int err = PTR_ERR(p_vad->thread);
+	/* Start Micro/Audio Dock firmware loader thread */
+	if (!p_vad->thread) {
+		p_vad->thread =
+			kthread_create(vad_freeze_thread, p_vad,
+					   "vad_freeze_thread");
+		if (IS_ERR(p_vad->thread)) {
+			int err = PTR_ERR(p_vad->thread);
 
-				p_vad->thread = NULL;
-				dev_info(p_vad->dev,
-					 "vad freeze: Creating thread failed\n");
-				return err;
-			}
-			wake_up_process(p_vad->thread);
-			vad_wakeup_count = 0;
+			p_vad->thread = NULL;
+			dev_info(p_vad->dev,
+					"vad freeze: Creating thread failed\n");
+			return err;
 		}
-
-#ifdef __VAD_DUMP_DATA__
-		p_vad->fp =
-			filp_open(VAD_DUMP_FILE_NAME, O_RDWR | O_CREAT, 0666);
-		if (IS_ERR(p_vad->fp)) {
-			pr_err("create file %s error/n", VAD_DUMP_FILE_NAME);
-			return -1;
-		}
-		p_vad->fs = get_fs();
-		p_vad->pos = 0;
-#endif
-	} else if (p_vad->level == LEVEL_USER) {
-		flag = IRQF_SHARED;
+		wake_up_process(p_vad->thread);
+		vad_wakeup_count = 0;
 	}
 
-	ret = request_irq(p_vad->irq_wakeup, vad_wakeup_isr,
-			  flag, "vad_wakeup", p_vad);
+#ifdef __VAD_DUMP_DATA__
+	p_vad->fp = filp_open(VAD_DUMP_FILE_NAME, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(p_vad->fp)) {
+		pr_err("create file %s error/n", VAD_DUMP_FILE_NAME);
+		return -1;
+	}
+	p_vad->fs = get_fs();
+	p_vad->pos = 0;
+#endif
+
+	} else if (p_vad->level == LEVEL_USER)
+		flag = IRQF_SHARED;
+
+	ret = request_irq(p_vad->irq_wakeup,
+			vad_wakeup_isr, flag, "vad_wakeup",
+			p_vad);
 	if (ret) {
 		dev_err(p_vad->dev, "failed to claim irq_wakeup %u\n",
-			p_vad->irq_wakeup);
+					p_vad->irq_wakeup);
 		return -ENXIO;
 	}
 
-	ret = request_irq(p_vad->irq_fs, vad_fs_isr, 0, "vad_fs", p_vad);
+	ret = request_irq(p_vad->irq_fs,
+			vad_fs_isr, 0, "vad_fs",
+			p_vad);
 	if (ret) {
 		dev_err(p_vad->dev, "failed to claim irq_fs %u\n",
-			p_vad->irq_fs);
+					p_vad->irq_fs);
 		return -ENXIO;
 	}
 
@@ -524,53 +555,59 @@ static void vad_deinit(struct vad *p_vad)
 	vad_set_clks(p_vad, false);
 }
 
-void vad_set_lowerpower_mode(bool low_power)
+void vad_set_lowerpower_mode(bool islowpower)
 {
-	vad_force_clk_to_oscin(low_power);
+	vad_force_clk_to_oscin(islowpower);
 }
 
-void vad_update_buffer(int isvad)
+void vad_update_buffer(bool isvadbuf)
 {
 	struct vad *p_vad = get_vad();
 	unsigned int start, end;
 	unsigned int rd_th;
 
 	if (!p_vad || !p_vad->en || !p_vad->tddr ||
-	    !p_vad->tddr->in_use || !p_vad->tddr->actrl)
+		!p_vad->tddr->in_use || !p_vad->tddr->actrl)
 		return;
 
-	if (p_vad->switch_buffer == isvad)
+	if (p_vad->a2v_buf == isvadbuf)
 		return;
-	p_vad->switch_buffer = isvad;
+	p_vad->a2v_buf = isvadbuf;
 
-	if (isvad) {	/* switch to vad buffer */
+	if (isvadbuf) {	/* switch to vad buffer */
 		struct toddr *tddr = p_vad->tddr;
 
 		p_vad->start_last = tddr->start_addr;
 		p_vad->end_last   = tddr->end_addr;
+		p_vad->threshold  = tddr->threshold;
 
-		rd_th = 0x800;
+		rd_th = tddr->chipinfo->fifo_depth * 3 / 4;
 
-		pr_debug("Switch to VAD buffer\n");
+		pr_info("Switch to VAD buffer\n");
 		pr_debug("\t ASAL start:%x, end:%x, bytes:%d\n",
-			 tddr->start_addr, tddr->end_addr,
-			 tddr->end_addr - tddr->start_addr);
+			tddr->start_addr, tddr->end_addr,
+			tddr->end_addr - tddr->start_addr);
 
 		start = p_vad->dma_buffer.addr;
 		end   = start + p_vad->dma_buffer.bytes - 8;
 
 		pr_debug("\t VAD start:%x, end:%x, bytes:%d\n",
-			 start, end, end - start);
+			start, end,
+			end - start);
 	} else {
-		pr_debug("Switch to ALSA buffer\n");
+		pr_info("Switch to ALSA buffer\n");
+		pr_debug("\t ASAL start:%x, end:%x, bytes:%d\n",
+			 p_vad->start_last, p_vad->end_last,
+			 p_vad->end_last - p_vad->start_last);
+
 		start = p_vad->start_last;
 		end   = p_vad->end_last;
-		rd_th = 0x40;
+		rd_th = p_vad->threshold;
 		vad_set_trunk_data_readable(true);
 	}
 	aml_toddr_set_buf(p_vad->tddr, start, end);
 	aml_toddr_force_finish(p_vad->tddr);
-	aml_toddr_update_fifos_rd_th(p_vad->tddr, rd_th);
+	aml_toddr_set_fifos(p_vad->tddr, rd_th);
 	p_vad->addr = 0;
 }
 
@@ -595,30 +632,43 @@ int vad_transfer_chunk_data(unsigned long data, int frames)
 	if (addr < start || addr > end)
 		return 0;
 
-	chnum = p_vad->tddr->channels;
+	chnum = p_vad->tddr->fmt.ch_num;
 	/* bytes for each sample */
-	bytes_per_sample = p_vad->tddr->bitdepth >> 3;
+	bytes_per_sample = p_vad->tddr->fmt.bit_depth >> 3;
 
 	bytes = frames * chnum * bytes_per_sample < size ?
 		frames * chnum * bytes_per_sample : size;
 
 	pr_debug("%s dma bytes:%d, wanted bytes:%d, actual bytes:%d\n",
-		 __func__, size, frames * chnum * bytes_per_sample, bytes);
+		__func__,
+		size,
+		frames * chnum * bytes_per_sample,
+		bytes);
 
 	pr_debug("%s dma bytes:%d, start:%d, end:%d, current:%d\n",
-		 __func__, size, start, end, addr);
+		__func__,
+		size,
+		start,
+		end,
+		addr);
 
 	if (addr - start >= bytes) {
-		if (copy_to_user(buf, hwbuf + addr - bytes - start, bytes))
+		if (copy_to_user(buf,
+			hwbuf + addr - bytes - start,
+			bytes))
 			return 0;
 	} else {
 		int tmp_bytes = bytes - (addr - start);
 		int tmp_offset = (end - tmp_bytes) - start;
 
-		if (copy_to_user(buf, hwbuf + tmp_offset, tmp_bytes))
+		if (copy_to_user(buf,
+			hwbuf + tmp_offset,
+			tmp_bytes))
 			return 0;
 
-		if (copy_to_user(buf + tmp_bytes, hwbuf, addr - start))
+		if (copy_to_user(buf + tmp_bytes,
+			hwbuf,
+			addr - start))
 			return 0;
 	}
 
@@ -638,6 +688,10 @@ void vad_set_toddr_info(struct toddr *to)
 	pr_debug("%s update vad toddr:%p\n", __func__, to);
 
 	p_vad->tddr = to;
+
+	/* make sure buffer is not used by VAD buffer */
+	if (!to)
+		p_vad->a2v_buf = false;
 }
 
 void vad_enable(bool enable)
@@ -669,7 +723,7 @@ void vad_enable(bool enable)
 }
 
 static int vad_get_enable_enum(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
@@ -684,7 +738,7 @@ static int vad_get_enable_enum(struct snd_kcontrol *kcontrol,
 }
 
 static int vad_set_enable_enum(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
@@ -727,7 +781,7 @@ const struct soc_enum vad_src_enum =
 			vad_src_txt);
 
 static int vad_get_src_enum(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
@@ -742,7 +796,7 @@ static int vad_get_src_enum(struct snd_kcontrol *kcontrol,
 }
 
 static int vad_set_src_enum(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
@@ -752,9 +806,6 @@ static int vad_set_src_enum(struct snd_kcontrol *kcontrol,
 	}
 
 	p_vad->src = ucontrol->value.integer.value[0];
-
-	if (p_vad->en)
-		aml_set_vad(p_vad->en, p_vad->src);
 
 	return 0;
 }
@@ -769,7 +820,7 @@ static int vad_get_switch_enum(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	ucontrol->value.integer.value[0] = p_vad->switch_buffer;
+	ucontrol->value.integer.value[0] = p_vad->a2v_buf;
 
 	return 0;
 }
@@ -779,6 +830,7 @@ static int vad_set_switch_enum(struct snd_kcontrol *kcontrol,
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
+	pr_debug("%s()\n", __func__);
 	if (!p_vad) {
 		pr_debug("VAD is not inited\n");
 		return 0;
@@ -791,7 +843,7 @@ static int vad_set_switch_enum(struct snd_kcontrol *kcontrol,
 }
 
 static int vad_test_get_enum(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = vad_in_kernel_test;
 
@@ -799,7 +851,7 @@ static int vad_test_get_enum(struct snd_kcontrol *kcontrol,
 }
 
 static int vad_test_set_enum(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
 	vad_in_kernel_test = ucontrol->value.integer.value[0];
 
@@ -807,17 +859,24 @@ static int vad_test_set_enum(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new vad_controls[] = {
-	SOC_SINGLE_BOOL_EXT("VAD enable", 0,
-			    vad_get_enable_enum, vad_set_enable_enum),
+	SOC_SINGLE_BOOL_EXT("VAD enable",
+		0,
+		vad_get_enable_enum,
+		vad_set_enable_enum),
 
-	SOC_ENUM_EXT("VAD Source sel", vad_src_enum,
-		     vad_get_src_enum, vad_set_src_enum),
+	SOC_ENUM_EXT("VAD Source sel",
+		vad_src_enum,
+		vad_get_src_enum,
+		vad_set_src_enum),
 
 	SOC_SINGLE_BOOL_EXT("VAD Switch", 0,
-			    vad_get_switch_enum, vad_set_switch_enum),
+			    vad_get_switch_enum,
+			    vad_set_switch_enum),
 
-	SOC_SINGLE_BOOL_EXT("VAD Test", 0,
-			    vad_test_get_enum, vad_test_set_enum),
+	SOC_SINGLE_BOOL_EXT("VAD Test",
+		0,
+		vad_test_get_enum,
+		vad_test_set_enum),
 };
 
 int card_add_vad_kcontrols(struct snd_soc_card *card)
@@ -832,7 +891,8 @@ int card_add_vad_kcontrols(struct snd_soc_card *card)
 
 	for (idx = 0; idx < ARRAY_SIZE(vad_controls); idx++) {
 		err = snd_ctl_add(card->snd_card,
-				  snd_ctl_new1(&vad_controls[idx], p_vad));
+				snd_ctl_new1(&vad_controls[idx],
+				p_vad));
 		if (err < 0)
 			return err;
 	}
@@ -873,8 +933,10 @@ static int vad_platform_probe(struct platform_device *pdev)
 
 	pdev_parent = of_find_device_by_node(node_prt);
 	of_node_put(node_prt);
-	actrl = (struct aml_audio_controller *)
-				platform_get_drvdata(pdev_parent);
+
+	if (pdev_parent)
+		actrl = (struct aml_audio_controller *)
+					platform_get_drvdata(pdev_parent);
 	p_vad->actrl = actrl;
 
 	/* clock */
@@ -918,16 +980,19 @@ static int vad_platform_probe(struct platform_device *pdev)
 	}
 
 	/* data source select */
-	ret = of_property_read_u32(node, "src", &p_vad->src);
+	ret = of_property_read_u32(node, "src",
+			&p_vad->src);
 	if (ret < 0) {
 		dev_err(dev, "Failed to get vad data src select:%d\n",
 			p_vad->src);
 		return -EINVAL;
 	}
 	/* to deal with hot word in user space or kernel space */
-	ret = of_property_read_u32(node, "level", &p_vad->level);
+	ret = of_property_read_u32(node, "level",
+			&p_vad->level);
 	if (ret < 0) {
-		dev_info(dev, "Fail to get level, default in user space\n");
+		dev_info(dev,
+			"Failed to get vad level, default in user space\n");
 		p_vad->level = 0;
 	}
 
@@ -955,9 +1020,7 @@ static int vad_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef VAD_PM
-static int vad_platform_suspend(struct platform_device *pdev,
-				pm_message_t state)
+static int vad_platform_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
 	struct vad *p_vad = dev_get_drvdata(dev);
@@ -965,7 +1028,7 @@ static int vad_platform_suspend(struct platform_device *pdev,
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze */
-	if (is_pm_freeze_mode() && vad_is_enable()) {
+	if (/* is_pm_freeze_mode() && */vad_is_enable()) {
 		pr_info("%s, Entry in freeze\n", __func__);
 
 		if (p_vad->level == LEVEL_USER)
@@ -983,7 +1046,7 @@ static int vad_platform_resume(struct platform_device *pdev)
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze mode */
-	if (is_pm_freeze_mode() && vad_is_enable()) {
+	if (/* is_pm_freeze_mode() && */vad_is_enable()) {
 		pr_info("%s, Exist from freeze\n", __func__);
 
 		if (p_vad->level == LEVEL_USER)
@@ -992,15 +1055,15 @@ static int vad_platform_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#endif
+
 struct platform_driver vad_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = vad_device_id,
 	},
 	.probe   = vad_platform_probe,
-	//.suspend = vad_platform_suspend,
-	//.resume  = vad_platform_resume,
+	.suspend = vad_platform_suspend,
+	.resume  = vad_platform_resume,
 };
 
 int __init vad_drv_init(void)

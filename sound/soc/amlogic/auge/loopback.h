@@ -47,8 +47,14 @@ enum datalb_src {
 	TDMINLB_PAD_TDMINA_D,
 	TDMINLB_PAD_TDMINB_D,
 	TDMINLB_PAD_TDMINC_D,
+	TDMINLB_HDMIRX,
+	TDMINLB_ACODEC,
 
 	SPDIFINLB_SPDIFOUTA,
 	SPDIFINLB_SPDIFOUTB,
+	TDMINLB_SRC_MAX
 };
+
+unsigned int loopback_get_lb_channel(int id);
+
 #endif

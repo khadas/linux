@@ -11,9 +11,28 @@
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
 
+struct samesrc_ops *samesrc_ops_table[SHAREBUFFER_SRC_NUM];
+
+struct samesrc_ops *get_samesrc_ops(enum sharebuffer_srcs src)
+{
+	if (src >= SHAREBUFFER_SRC_NUM)
+		return NULL;
+
+	return samesrc_ops_table[src];
+}
+
+int register_samesrc_ops(enum sharebuffer_srcs src, struct samesrc_ops *ops)
+{
+	if (src >= SHAREBUFFER_SRC_NUM)
+		return -EINVAL;
+
+	samesrc_ops_table[src] = ops;
+	return 0;
+}
+
 static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
-					struct frddr *fr, int spdif_id,
-					int lane_i2s, int separated)
+	struct frddr *fr, int spdif_id, int lane_i2s,
+	enum aud_codec_types type, int separated)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth;
@@ -31,11 +50,10 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 				lane_i2s);
 
 	/* spdif to hdmitx */
-	//spdifout_to_hdmitx_ctrl(separated, spdif_id);
-	//set_spdif_to_hdmitx_id(spdif_id);
-	enable_spdifout_to_hdmitx(separated);
+	spdifout_to_hdmitx_ctrl(separated, spdif_id);
 	/* check and set channel status */
-	spdif_get_channel_status_info(&chsts, runtime->rate);
+	iec_get_channel_status_info(&chsts,
+				    type, runtime->rate);
 	spdif_set_channel_status_info(&chsts, spdif_id);
 
 	/* for samesource case, always 2ch substream to hdmitx */
@@ -51,7 +69,7 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 }
 
 static int sharebuffer_spdifout_free(struct snd_pcm_substream *substream,
-				     struct frddr *fr, int spdif_id)
+	struct frddr *fr, int spdif_id)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth;
@@ -82,7 +100,7 @@ void sharebuffer_enable(int sel, bool enable, bool reenable)
 
 int sharebuffer_prepare(struct snd_pcm_substream *substream,
 			void *pfrddr, int samesource_sel,
-			int lane_i2s, int offset, int separated)
+			int lane_i2s, enum aud_codec_types type, int share_lvl, int separated)
 {
 	struct frddr *fr = (struct frddr *)pfrddr;
 
@@ -95,17 +113,17 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 	} else if (samesource_sel < 5) {
 		/* same source with spdif a/b */
 		sharebuffer_spdifout_prepare
-			(substream, fr, samesource_sel - 3, lane_i2s, separated);
+		(substream, fr, samesource_sel - 3, lane_i2s, type, separated);
 	}
 
 	/* frddr, share buffer, src_sel1 */
-	aml_frddr_select_dst_ss(fr, samesource_sel, 1, true);
+	aml_frddr_select_dst_ss(fr, samesource_sel, share_lvl, true);
 
 	return 0;
 }
 
 int sharebuffer_free(struct snd_pcm_substream *substream,
-		     void *pfrddr, int samesource_sel)
+	void *pfrddr, int samesource_sel, int share_lvl)
 {
 	struct frddr *fr = (struct frddr *)pfrddr;
 
@@ -121,7 +139,7 @@ int sharebuffer_free(struct snd_pcm_substream *substream,
 	}
 
 	/* frddr, share buffer, src_sel1 */
-	aml_frddr_select_dst_ss(fr, samesource_sel, 1, false);
+	aml_frddr_select_dst_ss(fr, samesource_sel, share_lvl, false);
 
 	return 0;
 }
@@ -147,7 +165,7 @@ int sharebuffer_trigger(int cmd, int samesource_sel, bool reenable)
 }
 
 void sharebuffer_get_mclk_fs_ratio(int samesource_sel,
-				   int *pll_mclk_ratio, int *mclk_fs_ratio)
+	int *pll_mclk_ratio, int *mclk_fs_ratio)
 {
 	if (samesource_sel < 0) {
 		pr_err("Not support same source\n");

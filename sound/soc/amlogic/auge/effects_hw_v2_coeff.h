@@ -128,7 +128,7 @@ static unsigned int multiband_drc_coeff[AED_MULTIBAND_DRC_SIZE] = {
 	0x00040000,  /* High GAIN */
 };
 
-#define AED_FULLBAND_DRC_SIZE        (17)
+#define AED_FULLBAND_DRC_SIZE        (18)
 #define AED_FULLBAND_DRC_BYTES       (70)
 #define AED_FULLBAND_DRC_OFFSET      (6)
 #define AED_FULLBAND_DRC_GROUP_SIZE  (3)
@@ -158,6 +158,7 @@ static int fullband_drc_coeff[AED_FULLBAND_DRC_SIZE] = {
 	0x00000090,	/* Delay time*/
 	0xdd000000,	/* THD_OUT0 */
 	0x00040000,	/* K1 */
+	0x00000000,	/* NULL */
 };
 
 #endif

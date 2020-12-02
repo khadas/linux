@@ -369,6 +369,12 @@ void aed_set_format(int msb, enum ddr_types frddr_type,
 			  source << (4 - offset));
 }
 
+void aed_reload_config(void)
+{
+	eqdrc_update_bits(AED_TOP_CTL, 0x1 << 29, 0x1 << 29);
+	eqdrc_update_bits(AED_TOP_CTL, 0x1 << 29, 0x0 << 29);
+}
+
 void aed_enable(bool enable)
 {
 	/*don't change this flow*/

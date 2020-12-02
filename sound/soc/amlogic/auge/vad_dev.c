@@ -35,27 +35,22 @@ void vad_set_trunk_data_readable(bool en)
 }
 
 static ssize_t readable_show(struct class *cla, struct class_attribute *attr,
-			     char *buf)
+			      char *buf)
 {
 	return sprintf(buf, "%d\n", readable);
 }
 
-//static struct class_attribute vad_attrs[] = {
-//	__ATTR_RO(readable),
-
-//	__ATTR_NULL
-//};
 static CLASS_ATTR_RO(readable);
-static struct attribute *vad_attrs[] = {
+static struct attribute *vad_class_attrs[] = {
 	&class_attr_readable.attr,
-	NULL,
+	NULL
 };
-ATTRIBUTE_GROUPS(vad);
+ATTRIBUTE_GROUPS(vad_class);
 
 static struct class vad_class = {
 	.name = DRV_NAME,
-	//.class_attrs = vad_attrs,
-	.class_groups = vad_groups,
+	.owner = THIS_MODULE,
+	.class_groups = vad_class_groups,
 };
 
 static int vad_open(struct inode *inode, struct file *file)
@@ -65,8 +60,9 @@ static int vad_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static long vad_unlocked_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long arg)
+static long vad_unlocked_ioctl(struct file *file,
+	unsigned int cmd,
+	unsigned long arg)
 {
 	if (cmd == IOCTL_READI_SUSPENDED_FRAMES) {
 		struct snd_xferi xferi;
@@ -88,8 +84,8 @@ static long vad_unlocked_ioctl(struct file *file, unsigned int cmd,
 		__put_user(result, &_xferi->result);
 
 		pr_debug("VAD resume trunk data, frames:%lu, result:%d\n",
-			 xferi.frames,
-			 result);
+			xferi.frames,
+			result);
 
 		/* if audio data is read, waiting for next time */
 		vad_set_trunk_data_readable(false);
@@ -102,8 +98,8 @@ static long vad_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 #ifdef CONFIG_COMPAT
 static long vad_ioctl_compat(struct file *file,
-			     unsigned int cmd,
-			     unsigned long arg)
+	unsigned int cmd,
+	unsigned long arg)
 {
 	pr_info("%s\n", __func__);
 	return -ENOIOCTLCMD;

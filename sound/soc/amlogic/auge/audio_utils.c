@@ -342,7 +342,6 @@ static int audio_locker_get_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.enumerated.item[0] = audio_locker_get();
-
 	return 0;
 }
 
@@ -352,7 +351,6 @@ static int audio_locker_set_enum(struct snd_kcontrol *kcontrol,
 	int enable = ucontrol->value.enumerated.item[0];
 
 	audio_locker_set(enable);
-
 	return 0;
 }
 

@@ -14,6 +14,7 @@
 #include "regs.h"
 #include "iomap.h"
 #include "pdm_hw_coeff.h"
+#include "pdm.h"
 
 static DEFINE_SPINLOCK(pdm_lock);
 static unsigned long pdm_enable_cnt;
@@ -25,15 +26,16 @@ void pdm_enable(int is_enable)
 	if (is_enable) {
 		if (pdm_enable_cnt == 0)
 			aml_pdm_update_bits(PDM_CTRL,
-					    0x1 << 31, is_enable << 31);
+				0x1 << 31,
+				is_enable << 31);
 		pdm_enable_cnt++;
 	} else {
 		if (WARN_ON(pdm_enable_cnt == 0))
 			goto exit;
 		if (--pdm_enable_cnt == 0)
 			aml_pdm_update_bits(PDM_CTRL,
-					    0x1 << 31 | 0x1 << 16,
-					    0 << 31 | 0 << 16);
+				0x1 << 31 | 0x1 << 16,
+				0 << 31 | 0 << 16);
 	}
 
 exit:
@@ -45,8 +47,13 @@ void pdm_fifo_reset(void)
 	/* PDM Asynchronous FIFO soft reset.
 	 * write 1 to soft reset AFIFO
 	 */
-	aml_pdm_update_bits(PDM_CTRL, 0x1 << 16, 0 << 16);
-	aml_pdm_update_bits(PDM_CTRL, 0x1 << 16, 0x1 << 16);
+	aml_pdm_update_bits(PDM_CTRL,
+		0x1 << 16,
+		0 << 16);
+
+	aml_pdm_update_bits(PDM_CTRL,
+		0x1 << 16,
+		0x1 << 16);
 }
 
 void pdm_force_sysclk_to_oscin(bool force)
@@ -56,15 +63,24 @@ void pdm_force_sysclk_to_oscin(bool force)
 
 void pdm_set_channel_ctrl(int sample_count)
 {
-	aml_pdm_write(PDM_CHAN_CTRL, ((sample_count << 24) |
-					(sample_count << 16) |
-					(sample_count << 8) |
-					(sample_count << 0)
+	int left_sample_count = sample_count, right_sample_count = sample_count;
+	int train_version = pdm_get_train_version();
+
+	/* only for sc2, left and right sample count are different */
+	/* sysclk / dclk / 2 */
+	/* 133 / 3.072 / 2 = 22 */
+	if (train_version == PDM_TRAIN_VERSION_V2)
+		right_sample_count += 22;
+
+	aml_pdm_write(PDM_CHAN_CTRL, ((right_sample_count << 24) |
+					(left_sample_count << 16) |
+					(right_sample_count << 8) |
+					(left_sample_count << 0)
 		));
-	aml_pdm_write(PDM_CHAN_CTRL1, ((sample_count << 24) |
-					(sample_count << 16) |
-					(sample_count << 8) |
-					(sample_count << 0)
+	aml_pdm_write(PDM_CHAN_CTRL1, ((right_sample_count << 24) |
+					(left_sample_count << 16) |
+					(right_sample_count << 8) |
+					(left_sample_count << 0)
 		));
 }
 
@@ -113,19 +129,20 @@ void aml_pdm_ctrl(struct pdm_info *info)
 
 	/* must be sure that clk and pdm is enable */
 	aml_pdm_update_bits(PDM_CTRL,
-			    (0x7 << 28 | 0xff << 8 | 0xff << 0),
-			    /* invert the PDM_DCLK or not */
-			    (0 << 30) |
-			    /* output mode:  1: 24bits. 0: 32 bits */
-			    (mode << 29) |
-			    /* bypass mode.
-			     * 1: bypass all filter. 0: normal mode.
-			     */
-			    (info->bypass << 28) |
-			    /* PDM channel reset. */
-			    (ch_mask << 8) |
-			    /* PDM channel enable */
-			    (ch_mask << 0));
+				(0x7 << 28 | 0xff << 8 | 0xff << 0),
+				/* invert the PDM_DCLK or not */
+				(0 << 30) |
+				/* output mode:  1: 24bits. 0: 32 bits */
+				(mode << 29) |
+				/* bypass mode.
+				 * 1: bypass all filter. 0: normal mode.
+				 */
+				(info->bypass << 28) |
+				/* PDM channel reset. */
+				(ch_mask << 8) |
+				/* PDM channel enable */
+				(ch_mask << 0)
+				);
 
 	pdm_set_channel_ctrl(info->sample_count);
 }
@@ -137,8 +154,8 @@ void aml_pdm_arb_config(struct aml_audio_controller *actrl)
 }
 
 /* config for hcic, lpf1,2,3, hpf */
-static void aml_pdm_filters_config(int osr, int lpf1_len,
-				   int lpf2_len, int lpf3_len)
+static void aml_pdm_filters_config(int osr,
+	int lpf1_len, int lpf2_len, int lpf3_len)
 {
 	s32 hcic_dn_rate;
 	s32 hcic_tap_num;
@@ -212,10 +229,6 @@ static void aml_pdm_filters_config(int osr, int lpf1_len,
 		break;
 	}
 
-	/* TODO: fixed hcic_shift 'cause of Dmic */
-	if (pdm_hcic_shift_gain)
-		hcic_shift -= 0x4;
-
 	hcic_tap_num = 0x0007;
 	f1_tap_num	 = lpf1_len;
 	f2_tap_num	 = lpf2_len;
@@ -233,31 +246,46 @@ static void aml_pdm_filters_config(int osr, int lpf1_len,
 
 	/* hcic */
 	aml_pdm_write(PDM_HCIC_CTRL1,
-		      0x80000000 | hcic_tap_num |
-		      (hcic_dn_rate << 4) | (hcic_gain << 16) |
-		      (hcic_shift << 24));
+		(0x80000000 |
+		hcic_tap_num |
+		(hcic_dn_rate << 4) |
+		(hcic_gain << 16) |
+		(hcic_shift << 24))
+		);
 
 	/* lpf */
 	aml_pdm_write(PDM_F1_CTRL,
-		      0x80000000 | f1_tap_num |
-		      (2 << 12) | (f1_rnd_mode << 16));
+		(0x80000000 |
+		f1_tap_num |
+		(2 << 12) |
+		(f1_rnd_mode << 16))
+		);
 	aml_pdm_write(PDM_F2_CTRL,
-		      (0x80000000 | f2_tap_num |
-		      (2 << 12) | (f2_rnd_mode << 16)));
+		(0x80000000 |
+		f2_tap_num |
+		(2 << 12) |
+		(f2_rnd_mode << 16))
+		);
 	aml_pdm_write(PDM_F3_CTRL,
-		      (0x80000000 | f3_tap_num |
-		      (2 << 12) | (f3_rnd_mode << 16)));
+		(0x80000000 |
+		f3_tap_num |
+		(2 << 12) |
+		(f3_rnd_mode << 16))
+		);
 
 	/* hpf */
 	aml_pdm_write(PDM_HPF_CTRL,
-		      (hpf_out_factor | (hpf_shift_step << 16) |
-		      (hpf_en << 31)));
+		(hpf_out_factor |
+		(hpf_shift_step << 16) |
+		(hpf_en << 31))
+		);
+
 }
 
 /* coefficent for LPF1,2,3 */
 static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
-			      int lpf2_len, const int *lpf2_coeff,
-			      int lpf3_len, const int *lpf3_coeff)
+	int lpf2_len, const int *lpf2_coeff,
+	int lpf3_len, const int *lpf3_coeff)
 {
 	int i;
 	s32 data;
@@ -305,6 +333,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 			pr_info("DDR COEFF = %x\n", data_tmp);
 		}
 	}
+
 }
 
 void aml_pdm_filter_ctrl(int osr, int mode)
@@ -405,11 +434,16 @@ void aml_pdm_filter_ctrl(int osr, int mode)
 	}
 
 	/* config filter */
-	aml_pdm_filters_config(osr, lpf1_len, lpf2_len, lpf3_len);
+	aml_pdm_filters_config(osr,
+		lpf1_len,
+		lpf2_len,
+		lpf3_len);
 
 	aml_pdm_LPF_coeff(lpf1_len, lpf1_coeff,
-			  lpf2_len, lpf2_coeff,
-			  lpf3_len, lpf3_coeff);
+		lpf2_len, lpf2_coeff,
+		lpf3_len, lpf3_coeff
+		);
+
 }
 
 int pdm_get_mute_value(void)
@@ -436,8 +470,9 @@ void pdm_set_mute_channel(int mute_chmask)
 	if (mute_chmask)
 		mute_en = 1;
 
-	aml_pdm_update_bits(PDM_CTRL, 0xff << 20 | 0x1 << 17,
-			    mute_chmask << 20 | mute_en << 17);
+	aml_pdm_update_bits(PDM_CTRL,
+		(0xff << 20 | 0x1 << 17),
+		(mute_chmask << 20 | mute_en << 17));
 }
 
 void pdm_set_bypass_data(bool bypass)
@@ -457,12 +492,16 @@ void pdm_init_truncate_data(int freq)
 
 void pdm_train_en(bool en)
 {
-	aml_pdm_update_bits(PDM_CTRL, 0x1 << 19, en << 19);
+	aml_pdm_update_bits(PDM_CTRL,
+		0x1 << 19,
+		en << 19);
 }
 
 void pdm_train_clr(void)
 {
-	aml_pdm_update_bits(PDM_CTRL, 0x1 << 18, 0x1 << 18);
+	aml_pdm_update_bits(PDM_CTRL,
+		0x1 << 18,
+		0x1 << 18);
 }
 
 int pdm_train_sts(void)
@@ -486,18 +525,21 @@ int pdm_dclkidx2rate(int idx)
 	return rate;
 }
 
-int pdm_get_sample_count(int low_power, int dclk_idx)
+int pdm_get_sample_count(int islowpower, int dclk_idx)
 {
 	int count = 0;
 
-	if (low_power)
+	if (islowpower) {
 		count = 0;
-	else if (dclk_idx == 1)
+	} else if (dclk_idx == 1) {
 		count = 38;
-	else if (dclk_idx  == 2)
+	} else if (dclk_idx  == 2) {
 		count = 48;
-	else
-		count = 18;
+	} else {
+		count = pdm_get_train_sample_count_from_dts();
+		if (count < 0)
+			count = 18;
+	}
 
 	return count;
 }
@@ -513,7 +555,7 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 			osr = 128;
 		else
 			pr_err("%s, Not support rate:%d\n",
-			       __func__, sample_rate);
+				__func__, sample_rate);
 	} else if (dclk_idx == 2) {
 		if (sample_rate == 16000)
 			osr = 48;
@@ -521,7 +563,7 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 			osr = 96;
 		else
 			pr_err("%s, Not support rate:%d\n",
-			       __func__, sample_rate);
+				__func__, sample_rate);
 	} else {
 		if (sample_rate == 96000)
 			osr = 32;
@@ -537,7 +579,7 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 			osr = 384;
 		else
 			pr_err("%s, Not support rate:%d\n",
-			       __func__, sample_rate);
+				__func__, sample_rate);
 	}
 
 	return osr;
