@@ -30,7 +30,7 @@ int irblaster_send(struct irblaster_chip *chip, unsigned int *data,
 	unsigned int sum_time = 0;
 	int err, i;
 
-	if (!chip || (len % 2 == 1) || len == 0 || len > MAX_PLUSE) {
+	if (!chip || len == 0 || len > MAX_PLUSE) {
 		pr_err("%s(): parameter error\n", __func__);
 		return -EINVAL;
 	}
