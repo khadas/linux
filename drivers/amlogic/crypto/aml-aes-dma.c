@@ -1207,6 +1207,28 @@ static struct crypto_alg aes_lite_algs[] = {
 			.encrypt	=    aml_aes_cbc_encrypt,
 			.decrypt	=    aml_aes_cbc_decrypt,
 		}
+	},
+	{
+		.cra_name         = "ctr(aes-kl-aml)",
+		.cra_driver_name  = "ctr-aes-kl-aml",
+		.cra_priority    = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize  = 1,
+		.cra_ctxsize    = sizeof(struct aml_aes_ctx),
+		.cra_alignmask  = 0xf,
+		.cra_type       = &crypto_ablkcipher_type,
+		.cra_module     = THIS_MODULE,
+		.cra_init       = aml_aes_lite_cra_init,
+		.cra_exit       = aml_aes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    AES_MIN_KEY_SIZE,
+			.max_keysize	=    AES_MAX_KEY_SIZE,
+			.ivsize		=    AES_BLOCK_SIZE,
+			.setkey		=    aml_aes_kl_setkey,
+			.encrypt	=    aml_aes_ctr_encrypt,
+			.decrypt	=    aml_aes_ctr_decrypt,
+		}
 	}
 };
 
