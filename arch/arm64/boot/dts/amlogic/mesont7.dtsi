@@ -1436,7 +1436,7 @@
 	};
 
 	fb: fb {
-		compatible = "amlogic, fb-sc2";
+		compatible = "amlogic, fb-t7";
 		memory-region = <&logo_reserved>;
 		status = "disabled";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING
