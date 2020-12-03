@@ -180,6 +180,12 @@ config ROCKCHIP_CLK_PVTM
 	help
 	  Say y here to enable clk pvtm.
 
+config ROCKCHIP_CLK_PVTPLL
+	tristate "Rockchip Clk Pvtpll"
+	default y if CPU_RV1103B
+	help
+	  Say y here to enable clk pvtpll.
+
 config ROCKCHIP_DDRCLK
 	bool
 
