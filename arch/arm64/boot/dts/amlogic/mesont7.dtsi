@@ -3,12 +3,11 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <dt-bindings/clock/axg-audio-clkc.h>
 #include <dt-bindings/clock/amlogic,t7-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/t7-pd.h>
-#include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
+#include <dt-bindings/clock/amlogic,t7-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t7-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-t7-reset.h>
@@ -626,6 +625,157 @@
 				/*usb5v-supply = <&ao_5v>;*/
 				/*usb3v3-supply = <&vddao_3v3>;*/
 				/*usb1v8-supply = <&vddio_ao1v8>;*/
+			};
+		};
+
+		dummy_codec:dummy{
+			#sound-dai-cells = <0>;
+			compatible = "amlogic, aml_dummy_codec";
+			status = "okay";
+		};
+		acodec:codec {
+			#sound-dai-cells = <0>;
+			compatible = "amlogic, tm2_revb_acodec";
+			reg = <0x0 0xff632000 0x0 0x1c>;
+			tdmout_index = <0>;
+			tdmin_index = <0>;
+			dat0_ch_sel = <1>;
+
+			status = "disabled";
+		};
+
+		audio_data: audio_data {
+			compatible = "amlogic, audio_data";
+			query_licence_cmd = <0x82000050>;
+			status = "disabled";
+		};
+
+		audiobus: audiobus@0xFE330000 {
+			compatible = "amlogic, audio-controller", "simple-bus";
+			reg = <0x0 0xFE330000 0x0 0x3000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
+
+			power-domains = <&pwrdm PDID_T7_AUDIO>;
+			status = "okay";
+
+			clkaudio: audio_clocks {
+				compatible = "amlogic, t7-audio-clocks";
+				#clock-cells = <1>;
+				reg = <0x0 0x0 0x0 0xb0>;
+				status = "okay";
+			};
+			ddr_manager {
+				compatible =
+					"amlogic, t5-audio-ddr-manager";
+				interrupts = <
+					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
+				>;
+				interrupt-names =
+					"toddr_a", "toddr_b", "toddr_c",
+					"toddr_d",
+					"frddr_a", "frddr_b", "frddr_c",
+					"frddr_d";
+				status = "okay";
+			};
+
+		pinctrl_audio: pinctrl {
+				compatible = "amlogic, audio-pinctrl";
+				status = "okay";
+			};
+		};/* end of audiobus*/
+
+		/* eARC */
+		audio_earc: bus@fe333000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xfe333000 0x0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xfe333000 0x0 0x1000>;
+
+			earc: earc@0 {
+				compatible = "amlogic, sm1-snd-earc";
+				#sound-dai-cells = <0>;
+
+				status = "disabled";
+
+				reg = <0x0 0x0 0x0 0x400>,
+					<0x0 0x400 0x0 0x200>,
+					<0x0 0x600 0x0 0x200>,
+					<0x0 0x800 0x0 0x400>,
+					<0x0 0xc00 0x0 0x200>,
+					<0x0 0xe00 0x0 0x200>;
+				reg-names = "tx_cmdc",
+					"tx_dmac",
+					"tx_top",
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_top";
+
+				clocks = < &clkaudio CLKID_EARCRX_CMDC
+					&clkaudio CLKID_EARCRX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_FCLK_DIV4
+					&clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL1
+					>;
+				clock-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_cmdc_srcpll",
+					"rx_dmac_srcpll",
+					"tx_cmdc",
+					"tx_dmac",
+					"tx_cmdc_srcpll",
+					"tx_dmac_srcpll";
+
+				interrupts = <
+					GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "earc_rx", "earc_tx";
+			};
+		};
+
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<2>;
+			#size-cells=<2>;
+			ranges;
+			pdm_bus {
+				reg = <0x0 0xFE331000 0x0 0x400>;
+			};
+			audiobus_base {
+				reg = <0x0 0xFE330000 0x0 0x1000>;
+			};
+			audiolocker_base {
+				reg = <0x0 0xFE331400 0x0 0x400>;
+			};
+			eqdrc_base {
+				reg = <0x0 0xFE332000 0x0 0x1000>;
+			};
+			reset_base {
+				reg = <0x0 0xFE002000 0x0 0x1000>;
+			};
+			vad_base {
+				reg = <0x0 0xFE331800 0x0 0x400>;
+			};
+			resampleA_base {
+				reg = <0x0 0xFE331c00 0x0 0x104>;
+			};
+			resampleB_base {
+				reg = <0x0 0xFE334000 0x0 0x104>;
 			};
 		};
 
