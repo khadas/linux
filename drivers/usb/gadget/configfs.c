@@ -36,6 +36,30 @@ struct device *create_function_device(char *name)
 EXPORT_SYMBOL_GPL(create_function_device);
 #endif
 
+#ifdef CONFIG_AMLOGIC_USB
+struct gadget_lock {
+	struct wakeup_source *wakesrc;
+	bool held;
+};
+
+static struct gadget_lock Gadget_Lock;
+
+static void gadget_hold(struct gadget_lock *lock)
+{
+	if (!lock->held) {
+		__pm_stay_awake(lock->wakesrc);
+		lock->held = true;
+	}
+}
+
+static void gadget_drop(struct gadget_lock *lock)
+{
+	if (lock->held) {
+		__pm_relax(lock->wakesrc);
+		lock->held = false;
+	}
+}
+#endif
 int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
 {
@@ -1316,9 +1340,18 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	gi->unbind = 0;
 	cdev->gadget = gadget;
 	set_gadget_data(gadget, cdev);
+#ifdef CONFIG_AMLOGIC_USB
+	Gadget_Lock.wakesrc = wakeup_source_register(NULL, "gadget-connect");
+	if (!Gadget_Lock.wakesrc)
+		pr_info("----register  gadget-connect wakeup source  failed\n");
+#endif
 	ret = composite_dev_prepare(composite, cdev);
-	if (ret)
+	if (ret) {
+#ifdef CONFIG_AMLOGIC_USB
+		wakeup_source_unregister(Gadget_Lock.wakesrc);
+#endif
 		return ret;
+	}
 	/* and now the gadget bind */
 	ret = -EINVAL;
 
@@ -1439,6 +1472,9 @@ err_purge_funcs:
 	purge_configs_funcs(gi);
 err_comp_cleanup:
 	composite_dev_cleanup(cdev);
+#ifdef CONFIG_AMLOGIC_USB
+	wakeup_source_unregister(Gadget_Lock.wakesrc);
+#endif
 	return ret;
 }
 
@@ -1478,12 +1514,18 @@ static void android_work(struct work_struct *data)
 		kobject_uevent_env(&gi->dev->kobj, KOBJ_CHANGE, configured);
 		pr_info("%s: sent uevent %s\n", __func__, configured[0]);
 		uevent_sent = true;
+#ifdef CONFIG_AMLOGIC_USB
+		gadget_hold(&Gadget_Lock);
+#endif
 	}
 
 	if (status[2]) {
 		kobject_uevent_env(&gi->dev->kobj, KOBJ_CHANGE, disconnected);
 		pr_info("%s: sent uevent %s\n", __func__, disconnected[0]);
 		uevent_sent = true;
+#ifdef CONFIG_AMLOGIC_USB
+		gadget_drop(&Gadget_Lock);
+#endif
 	}
 
 	if (!uevent_sent) {
@@ -1512,6 +1554,9 @@ static void configfs_composite_unbind(struct usb_gadget *gadget)
 	purge_configs_funcs(gi);
 	composite_dev_cleanup(cdev);
 	usb_ep_autoconfig_reset(cdev->gadget);
+#ifdef CONFIG_AMLOGIC_USB
+	wakeup_source_unregister(Gadget_Lock.wakesrc);
+#endif
 	spin_lock_irqsave(&gi->spinlock, flags);
 	cdev->gadget = NULL;
 	set_gadget_data(gadget, NULL);
