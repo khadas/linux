@@ -109,7 +109,7 @@ struct vt_buffer {
 	int buffer_fd_pro;
 	int buffer_fd_con;
 
-	struct dma_fence *file_fence;
+	struct file *file_fence;
 	struct vt_session *session_pro;
 	long cid_pro;
 	struct vt_buffer_item item;

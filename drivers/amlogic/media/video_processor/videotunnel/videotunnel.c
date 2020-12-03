@@ -244,7 +244,7 @@ static void vt_instance_destroy(struct kref *kref)
 	if (!kfifo_is_empty(&instance->fifo_to_producer)) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
 			if (buffer->file_fence)
-				aml_sync_put_fence(buffer->file_fence);
+				fput(buffer->file_fence);
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
@@ -472,7 +472,7 @@ static void vt_session_trim_lock(struct vt_session *session,
 	if (instance->producer && instance->producer == session) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
 			if (buffer->file_fence)
-				aml_sync_put_fence(buffer->file_fence);
+				fput(buffer->file_fence);
 
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
@@ -514,7 +514,7 @@ static int vt_instance_trim(struct vt_session *session)
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
 				if (buffer->file_fence)
-					aml_sync_put_fence(buffer->file_fence);
+					fput(buffer->file_fence);
 				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
 			instance->producer = NULL;
@@ -541,7 +541,7 @@ static int vt_instance_trim(struct vt_session *session)
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
 				if (buffer->file_fence)
-					aml_sync_put_fence(buffer->file_fence);
+					fput(buffer->file_fence);
 			}
 			while (kfifo_get(&instance->fifo_to_consumer,
 					 &buffer)) {
@@ -1001,7 +1001,7 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 		idr_find(&dev->instance_idr, data->tunnel_id);
 	struct vt_buffer *buffer = NULL;
 	int ret = -1;
-	unsigned long long cur_time, wait_time;
+	int fd = -1;
 
 	if (!instance || !instance->producer)
 		return -EINVAL;
@@ -1034,28 +1034,23 @@ static int vt_dequeue_buffer(struct vt_buffer_data *data,
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
 		if (buffer->file_fence)
-			aml_sync_put_fence(buffer->file_fence);
+			fput(buffer->file_fence);
 
 		return -EAGAIN;
 	}
 
 	if (buffer->file_fence) {
-		cur_time = sched_clock();
-		ret = aml_sync_wait_fence(buffer->file_fence,
-					  msecs_to_jiffies(VT_FENCE_WAIT_MS));
-		wait_time = sched_clock() - cur_time;
-		vt_debug(VT_DEBUG_BUFFERS,
-			 "vt [%d] dequeue buffer pfd:%d fence:%p fence_wait time %llu\n",
-			 instance->id, buffer->buffer_fd_pro,
-			 buffer->file_fence, wait_time);
-
-		if (ret < 0)
-			pr_err("vt [%d] dequeue buffer wait fence timeout\n",
+		fd = get_unused_fd_flags(O_CLOEXEC);
+		if (fd < 0) {
+			pr_info("vt [%d] dequeuebuffer install fence fd error, Suspected fd leak!!\n",
 			       instance->id);
+			ret = -ENOMEM;
+		}
 
-		aml_sync_put_fence(buffer->file_fence);
+		fd_install(fd, buffer->file_fence);
 	}
 
+	buffer->item.fence_fd = fd;
 	buffer->item.buffer_fd = buffer->buffer_fd_pro;
 	buffer->item.tunnel_id = instance->id;
 	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
@@ -1171,7 +1166,7 @@ static int vt_release_buffer(struct vt_buffer_data *data,
 			return -EINVAL;
 
 		if (item->fence_fd > 0)
-			buffer->file_fence = aml_sync_get_fence(item->fence_fd);
+			buffer->file_fence = fget(item->fence_fd);
 
 		if (!buffer->file_fence)
 			vt_debug(VT_DEBUG_BUFFERS,
