@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/amlogic/iomap.h>
 
 #include "frhdmirx_hw.h"
 #include "regs.h"
@@ -26,16 +27,10 @@ void frhdmirx_afifo_reset(void)
 void frhdmirx_enable(bool enable)
 {
 	if (enable) {
-		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
-			0x1 << 29,
-			0x1 << 29);
-		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
-			0x1 << 28,
-			0x1 << 28);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x1 << 29, 0x1 << 29);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x1 << 28, 0x1 << 28);
 	} else {
-		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
-			0x3 << 28,
-			0x0 << 28);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x3 << 28, 0x0 << 28);
 	}
 
 	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x1 << 31, enable << 31);
@@ -237,36 +232,30 @@ unsigned int frhdmirx_get_chan_status_pc(enum hdmirx_mode mode)
 void arc_source_enable(int src, bool enable)
 {
 	/* bits[1:0], 0x2: common; 0x1: single; 0x0: disabled */
-	/* depend on hiubus API
-	 * aml_hiubus_update_bits(HHI_HDMIRX_ARC_CNTL,
-	 * 0x1f << 0,
-	 * src << 2 | (enable ? 0x1 : 0) << 0);
-	 */
+	aml_hiubus_update_bits(HHI_HDMIRX_ARC_CNTL,
+			       0x1f << 0,
+			       src << 2 | (enable ? 0x1 : 0) << 0);
 }
 
 /* this is used for TM2, arc/earc source select */
 void arc_earc_source_select(int src)
 {
-	/* depend on hiubus API
-	 * if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX) {
-	 * // spdif_a = 1; spdif_b = 2
-	 * aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0xfffffff8 | src);
-	 * // analog registers: single mode, about 520mv
-	 * aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL0, 0x14710490);
-	 * aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
-	 * } else {
-	 * // earctx_spdif
-	 * aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0x0);
-	 * }
-	 */
+	if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX) {
+		/* spdif_a = 1; spdif_b = 2*/
+		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0xfffffff8 | src);
+		/* analog registers: single mode, about 520mv*/
+		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL0, 0x14710490);
+		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
+	} else {
+		/* earctx_spdif*/
+		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0x0);
+	}
 }
 
 /* this is used for TM2, arc source enable */
 void arc_enable(bool enable)
 {
-	/* depend on hiubus API
-	 * aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0, 0x1 << 31,
-	 * (enable ? 0x1 : 0) << 31);
-	 */
+	aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0, 0x1 << 31,
+			       (enable ? 0x1 : 0) << 31);
 }
 
