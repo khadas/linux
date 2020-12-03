@@ -152,6 +152,7 @@ extern unsigned int game_mode;
 extern unsigned int force_game_mode;
 extern bool vdin_dbg_en;
 extern unsigned int vdin_pc_mode;
+extern int irq_max_count;
 
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
@@ -193,11 +194,11 @@ unsigned int vdin_get_total_v(unsigned int offset);
 unsigned int vdin_get_canvas_id(unsigned int offset);
 void vdin_set_canvas_id(struct vdin_dev_s *devp,
 			unsigned int rdma_enable,
-			unsigned int canvas_id);
+			struct vf_entry *vfe);
 unsigned int vdin_get_chma_canvas_id(unsigned int offset);
 void vdin_set_chma_canvas_id(struct vdin_dev_s *devp,
 			     unsigned int rdma_enable,
-			     unsigned int canvas_id);
+			     struct vf_entry *vfe);
 void vdin_set_crc_pulse(struct vdin_dev_s *devp);
 void vdin_enable_module(struct vdin_dev_s *devp, bool enable);
 void vdin_set_matrix(struct vdin_dev_s *devp);

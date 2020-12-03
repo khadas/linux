@@ -181,7 +181,7 @@ static unsigned int panel_reverse;
 struct vdin_hist_s vdin1_hist;
 struct vdin_v4l2_param_s vdin_v4l2_param;
 
-static int irq_max_count;
+int irq_max_count;
 
 enum tvin_force_color_range_e color_range_force = COLOR_RANGE_AUTO;
 
@@ -445,6 +445,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 	struct vframe_s *vf;
 	struct vf_pool *p = devp->vfp;
 	enum tvin_scan_mode_e	scan_mode;
+	unsigned int chroma_size = 0;
 
 	index = devp->index;
 	/* const struct tvin_format_s *fmt_info = tvin_get_fmt_info(fmt); */
@@ -490,14 +491,40 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 				<< 8;
 			addr = vdin_canvas_ids[index][vf->index << 1]
 				| chromaid;
+			vf->plane_num = 2;
 			break;
 		default:
 			addr = vdin_canvas_ids[index][vf->index];
+			vf->plane_num = 1;
 			break;
 		}
 
-		vf->canvas1Addr = addr;
-		vf->canvas0Addr = addr;
+		if (devp->dtdata->hw_ver == VDIN_HW_T7 &&
+		    i < devp->canvas_max_num) {
+			/* use phyaddress */
+			vf->canvas0Addr = (u32)-1;
+			vf->canvas1Addr = (u32)-1;
+			/*save phy address to vf*/
+
+			vf->canvas0_config[0].phy_addr = devp->vfmem_start[i];
+			vf->canvas0_config[0].width = devp->canvas_w;
+			vf->canvas0_config[0].height = devp->canvas_h;
+			vf->canvas0_config[0].block_mode = 0;
+
+			if (vf->plane_num == 2) {
+				vf->canvas0_config[1].phy_addr = (u32)
+					(devp->vfmem_start[i] + chroma_size);
+				vf->canvas0_config[1].width = devp->canvas_w;
+				vf->canvas0_config[1].height =
+						devp->canvas_h / vf->plane_num;
+				vf->canvas0_config[1].block_mode = 0;
+			}
+		} else {
+			vf->canvas0Addr = addr;
+			vf->canvas1Addr = addr;
+		}
+		devp->vf_canvas_id[i] = addr;
+
 		/* init afbce config */
 		if (devp->afbce_info) {
 			vf->compHeadAddr = devp->afbce_info->fm_head_paddr[i];
@@ -1574,8 +1601,7 @@ irqreturn_t vdin_isr_simple(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	/* set canvas address */
 
-	vdin_set_canvas_id(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE,
-			   vdin_canvas_ids[devp->index][irq_max_count]);
+	vdin_set_canvas_id(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE, NULL);
 	if (vdin_dbg_en)
 		pr_info("%2d: canvas id %d, field type %s\n",
 			irq_max_count,
@@ -1584,6 +1610,8 @@ irqreturn_t vdin_isr_simple(int irq, void *dev_id)
 			  VIDTYPE_INTERLACE_TOP ? "top" : "buttom"));
 
 	irq_max_count++;
+	if (irq_max_count >= VDIN_CANVAS_MAX_CNT)
+		irq_max_count = 0;
 	return IRQ_HANDLED;
 }
 
@@ -2233,18 +2261,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	if (devp->afbce_mode == 0 || devp->double_wr) {
 		vdin_set_canvas_id(devp, (devp->flags & VDIN_FLAG_RDMA_ENABLE),
-				   (next_wr_vfe->vf.canvas0Addr & 0xff));
+				   next_wr_vfe);
 
 		/* prepare for chroma canvas*/
-		if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+		if (next_wr_vfe->vf.plane_num == 2)
 			vdin_set_chma_canvas_id(devp,
 						(devp->flags &
 						 VDIN_FLAG_RDMA_ENABLE),
-						(next_wr_vfe->vf.canvas0Addr
-						>> 8) & 0xff);
+						next_wr_vfe);
 	}
 
 	if (devp->afbce_mode == 1 || devp->double_wr) {
@@ -2523,18 +2547,13 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	if (devp->afbce_mode == 0) {
 		vdin_set_canvas_id(devp, (devp->flags & VDIN_FLAG_RDMA_ENABLE),
-				   (next_wr_vfe->vf.canvas0Addr & 0xff));
+				   next_wr_vfe);
 
-		if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+		if (next_wr_vfe->vf.plane_num == 2)
 			vdin_set_chma_canvas_id(devp,
 						(devp->flags
 						& VDIN_FLAG_RDMA_ENABLE),
-						(next_wr_vfe->vf.canvas0Addr
-						>> 8)
-						& 0xff);
+						next_wr_vfe);
 	} else if (devp->afbce_mode == 1) {
 		vdin_afbce_set_next_frame(devp,
 					  (devp->flags & VDIN_FLAG_RDMA_ENABLE),

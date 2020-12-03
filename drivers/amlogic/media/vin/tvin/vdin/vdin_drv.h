@@ -95,6 +95,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_SC2,
 	VDIN_HW_T5,
 	VDIN_HW_T5D,
+	VDIN_HW_T7,
 };
 
 /*addr for verify chip*/
@@ -486,6 +487,7 @@ struct vdin_dev_s {
 	unsigned int canvas_alin_w;
 	unsigned int canvas_max_size;
 	unsigned int canvas_max_num;
+	unsigned int vf_canvas_id[VDIN_CANVAS_MAX_CNT];
 	/*before G12A:32byte(256bit)align;
 	 *after G12A:64byte(512bit)align
 	 */

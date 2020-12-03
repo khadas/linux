@@ -2334,8 +2334,19 @@ unsigned int vdin_get_total_v(unsigned int offset)
 }
 
 void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
-			unsigned int canvas_id)
+			struct vf_entry *vfe)
 {
+	u32 canvas_id;
+
+	if (vfe) {
+		if (vfe->vf.canvas0Addr != (u32)-1)
+			canvas_id = vfe->vf.canvas0Addr;
+		else
+			canvas_id = devp->vf_canvas_id[vfe->vf.index];
+	} else {
+		canvas_id = vdin_canvas_ids[devp->index][irq_max_count];
+	}
+	canvas_id = (canvas_id & 0xff);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
@@ -2381,8 +2392,19 @@ unsigned int vdin_get_canvas_id(unsigned int offset)
 }
 
 void vdin_set_chma_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
-			     unsigned int canvas_id)
+		struct vf_entry *vfe)
 {
+	u32 canvas_id;
+
+	if (!vfe)
+		return;
+
+	if (vfe->vf.canvas0Addr != (u32)-1)
+		canvas_id = vfe->vf.canvas0Addr;
+	else
+		canvas_id =
+		devp->vf_canvas_id[vfe->vf.index];
+	canvas_id = (canvas_id >> 8);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable)
 		rdma_write_reg_bits(devp->rdma_handle,
