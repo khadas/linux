@@ -87,7 +87,6 @@ struct aml_spdif {
 	enum SPDIF_SRC spdifin_src;
 	int clk_tuning_enable;
 	bool on;
-	unsigned int iec958_fmt;
 	int in_err_cnt;
 	/* share buffer with module */
 	enum sharebuffer_srcs samesource_sel;
@@ -729,7 +728,7 @@ static int spdif_b_format_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.enumerated.item[0] = p_spdif->iec958_fmt;
+	ucontrol->value.enumerated.item[0] = p_spdif->codec_type;
 	return 0;
 }
 
@@ -744,7 +743,7 @@ static int spdif_b_format_set_enum(struct snd_kcontrol *kcontrol,
 		pr_err("bad parameter for spdif format set\n");
 		return -1;
 	}
-	p_spdif->iec958_fmt = index;
+	p_spdif->codec_type = index;
 	return 0;
 }
 
