@@ -8,6 +8,26 @@
 #include "pinctrl-meson-axg-pmx.h"
 #include "pinctrl-module-init.h"
 
+static const struct pinctrl_pin_desc meson_t5d_analog_pins[] = {
+	MESON_PIN(CDAC_IOUT),
+	MESON_PIN(CVBS0),
+	MESON_PIN(CVBS1)
+};
+
+static struct meson_pmx_group meson_t5d_analog_groups[] = {
+	GPIO_GROUP(CDAC_IOUT),
+	GPIO_GROUP(CVBS0),
+	GPIO_GROUP(CVBS1)
+};
+
+static const char * const gpio_analog_groups[] = {
+	"CDAC_IOUT", "CVBS0", "CVBS1"
+};
+
+static struct meson_pmx_func meson_t5d_analog_functions[] = {
+	FUNCTION(gpio_analog)
+};
+
 static const struct pinctrl_pin_desc meson_t5d_aobus_pins[] = {
 	MESON_PIN(GPIOD_0),
 	MESON_PIN(GPIOD_1),
@@ -1378,6 +1398,20 @@ static struct meson_bank meson_t5d_aobus_banks[] = {
 	     3,  16, 2, 16, 0,  16, 4, 16, 1,  16, 0x01, 16)
 };
 
+static struct meson_bank meson_t5d_analog_banks[] = {
+	BANK("ANALOG", CDAC_IOUT, CVBS1,   113, 115,
+	     0,  31, 0, 30, 0, 0, 0, 0, 1, 0)
+};
+
+static struct meson_pmx_bank meson_t5d_analog_pmx_banks[] = {
+	BANK_PMX("ANALOG", CDAC_IOUT, CVBS1, 0x0, 29)
+};
+
+static struct meson_axg_pmx_data meson_t5d_analog_pmx_banks_data = {
+	.pmx_banks	= meson_t5d_analog_pmx_banks,
+	.num_pmx_banks	= ARRAY_SIZE(meson_t5d_analog_pmx_banks),
+};
+
 static struct meson_pmx_bank meson_t5d_periphs_pmx_banks[] = {
 	/*	 name	 first		lask	   reg	offset  */
 	BANK_PMX("B",    GPIOB_0,  GPIOB_13, 0x0, 0),
@@ -1432,6 +1466,21 @@ static struct meson_pinctrl_data meson_t5d_aobus_pinctrl_data = {
 	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
 };
 
+static struct meson_pinctrl_data meson_t5d_analog_pinctrl_data = {
+	.name		= "analog-banks",
+	.pins		= meson_t5d_analog_pins,
+	.groups		= meson_t5d_analog_groups,
+	.funcs		= meson_t5d_analog_functions,
+	.banks		= meson_t5d_analog_banks,
+	.num_pins	= ARRAY_SIZE(meson_t5d_analog_pins),
+	.num_groups	= ARRAY_SIZE(meson_t5d_analog_groups),
+	.num_funcs	= ARRAY_SIZE(meson_t5d_analog_functions),
+	.num_banks	= ARRAY_SIZE(meson_t5d_analog_banks),
+	.pmx_ops	= &meson_axg_pmx_ops,
+	.pmx_data	= &meson_t5d_analog_pmx_banks_data,
+	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
+};
+
 static const struct of_device_id meson_t5d_pinctrl_dt_match[] = {
 	{
 		.compatible = "amlogic,meson-t5d-periphs-pinctrl",
@@ -1440,6 +1489,10 @@ static const struct of_device_id meson_t5d_pinctrl_dt_match[] = {
 	{
 		.compatible = "amlogic,meson-t5d-aobus-pinctrl",
 		.data = &meson_t5d_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-t5d-analog-pinctrl",
+		.data = &meson_t5d_analog_pinctrl_data,
 	},
 	{ }
 };

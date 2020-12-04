@@ -374,6 +374,22 @@
 		};
 	};
 
+	pinctrl_analog: pinctrl@ff63448c {
+		compatible = "amlogic,meson-t5d-analog-pinctrl";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gpio_analog: analog-bank@ff63448c {
+			reg = <0x0 0xff634480 0x0 0x4>,
+			      <0x0 0xff63448c 0x0 0x8>;
+			reg-names = "mux", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_analog 0 0 3>;
+		};
+	};
+
 	pinctrl_periphs: pinctrl@ff6346c0 {
 		compatible = "amlogic,meson-t5d-periphs-pinctrl";
 		#address-cells = <2>;
@@ -384,7 +400,7 @@
 			reg = <0x0 0xff6346c0 0x0 0x40>,
 				  <0x0 0xff6344e8 0x0 0x18>,
 				  <0x0 0xff634520 0x0 0x18>,
-				  <0x0 0xff634440 0x0 0x4c>,
+				  <0x0 0xff634440 0x0 0x3c>,
 				  <0x0 0xff634740 0x0 0x24>;
 			reg-names = "mux",
 				"pull",

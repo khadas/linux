@@ -6,6 +6,11 @@
 #ifndef __DT_BINDINGS_MESON_T5D_GPIO_H
 #define __DT_BINDINGS_MESON_T5D_GPIO_H
 
+/* Analog Bank */
+#define	CDAC_IOUT		0
+#define	CVBS0			1
+#define	CVBS1			2
+
 /* AO Bank */
 #define	GPIOD_0			0
 #define	GPIOD_1			1
