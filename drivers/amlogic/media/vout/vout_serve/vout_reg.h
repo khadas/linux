@@ -281,11 +281,17 @@
 #define ENCT_GATE_VCLK           1
 #define ENCI_GATE_VCLK           0
 
-unsigned int vout_hiu_read(unsigned int _reg);
-void vout_hiu_write(unsigned int _reg, unsigned int _value);
-void vout_hiu_setb(unsigned int _reg, unsigned int _value,
+#define CLKCTRL_VID_CLK_CTRL                       0x0030
+#define CLKCTRL_VID_CLK_CTRL2                      0x0031
+#define CLKCTRL_VID_CLK_DIV                        0x0032
+#define CLKCTRL_VIID_CLK_DIV                       0x0033
+#define CLKCTRL_VIID_CLK_CTRL                      0x0034
+
+unsigned int vout_clk_read(unsigned int _reg);
+void vout_clk_write(unsigned int _reg, unsigned int _value);
+void vout_clk_setb(unsigned int _reg, unsigned int _value,
 		   unsigned int _start, unsigned int _len);
-unsigned int vout_hiu_getb(unsigned int reg,
+unsigned int vout_clk_getb(unsigned int reg,
 			   unsigned int _start, unsigned int _len);
 
 unsigned int vout_vcbus_read(unsigned int _reg);

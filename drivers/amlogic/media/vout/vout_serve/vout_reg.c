@@ -19,28 +19,28 @@
  * register access api
  * *********************************
  */
-unsigned int vout_hiu_read(unsigned int _reg)
+unsigned int vout_clk_read(unsigned int _reg)
 {
 	return vclk_clk_reg_read(_reg);
 };
 
-void vout_hiu_write(unsigned int _reg, unsigned int _value)
+void vout_clk_write(unsigned int _reg, unsigned int _value)
 {
 	vclk_clk_reg_write(_reg, _value);
 };
 
-void vout_hiu_setb(unsigned int _reg, unsigned int _value,
+void vout_clk_setb(unsigned int _reg, unsigned int _value,
 		   unsigned int _start, unsigned int _len)
 {
-	vout_hiu_write(_reg, ((vout_hiu_read(_reg) &
+	vout_clk_write(_reg, ((vout_clk_read(_reg) &
 			~(((1L << (_len)) - 1) << (_start))) |
 			(((_value) & ((1L << (_len)) - 1)) << (_start))));
 }
 
-unsigned int vout_hiu_getb(unsigned int reg,
+unsigned int vout_clk_getb(unsigned int reg,
 			   unsigned int _start, unsigned int _len)
 {
-	return (vout_hiu_read(reg) >> _start) & ((1L << _len) - 1);
+	return (vout_clk_read(reg) >> _start) & ((1L << _len) - 1);
 }
 
 unsigned int vout_vcbus_read(unsigned int _reg)
