@@ -4,6 +4,10 @@
 
 #include <uapi/asm-generic/resource.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#undef MLOCK_LIMIT
+#define MLOCK_LIMIT		(8 * 1024 * 1024)
+#endif
 
 /*
  * boot-time rlimit defaults for the init task:
