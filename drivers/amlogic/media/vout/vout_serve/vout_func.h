@@ -24,6 +24,11 @@ struct vout_module_s *vout_func_get_vout_module(void);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 struct vout_module_s *vout_func_get_vout2_module(void);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+struct vout_module_s *vout_func_get_vout3_module(void);
+#endif
+
+void vout_venc_mux_update(int index, unsigned int mux_sel);
 
 void vout_func_set_state(int index, enum vmode_e mode);
 void vout_func_update_viu(int index);
@@ -60,6 +65,16 @@ enum vmode_e validate_vmode2(char *name, unsigned int frac);
 int vout2_suspend(void);
 int vout2_resume(void);
 int vout2_shutdown(void);
+#endif
+
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+int set_current_vmode3(enum vmode_e);
+int vout3_check_same_vmodeattr(char *name);
+enum vmode_e validate_vmode3(char *name, unsigned int frac);
+
+int vout3_suspend(void);
+int vout3_resume(void);
+int vout3_shutdown(void);
 #endif
 
 #endif

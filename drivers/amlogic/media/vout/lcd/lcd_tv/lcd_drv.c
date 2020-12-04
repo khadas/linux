@@ -108,10 +108,6 @@ static void lcd_encl_tcon_set(struct lcd_config_s *pconf)
 	default:
 		break;
 	}
-
-	if (lcd_vcbus_read(VPP_MISC) & VPP_OUT_SATURATE)
-		lcd_vcbus_write(VPP_MISC,
-			lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
 static void lcd_venc_set(struct lcd_config_s *pconf)
@@ -206,7 +202,6 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 
 	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
 	if (lcd_drv->data->chip_type == LCD_CHIP_T7) {
-		lcd_vcbus_write(VPU_VENC_CTRL, 2);  // sel encl timming
 		/*
 		 * bit31: lvds enable
 		 * bit30: vx1 enable
@@ -236,6 +231,7 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 			break;
 		}
 	}
+
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
 }
 

@@ -87,6 +87,24 @@ void set_vout2_bist(unsigned int bist);
 
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+int vout3_register_client(struct notifier_block *p);
+int vout3_unregister_client(struct notifier_block *p);
+int vout3_notifier_call_chain(unsigned int long, void *p);
+int vout3_register_server(struct vout_server_s *p);
+int vout3_unregister_server(struct vout_server_s *p);
+
+int get_vout3_disp_cap(char *buf);
+struct vinfo_s *get_current_vinfo3(void);
+enum vmode_e get_current_vmode3(void);
+int set_vframe3_rate_hint(int duration);
+int get_vframe3_rate_hint(void);
+int set_vframe3_rate_policy(int policy);
+int get_vframe3_rate_policy(void);
+void set_vout3_bist(unsigned int bist);
+
+#endif
+
 #define VOUT_EVENT_MODE_CHANGE_PRE     0x00010000
 #define VOUT_EVENT_MODE_CHANGE         0x00020000
 #define VOUT_EVENT_OSD_BLANK           0x00030000

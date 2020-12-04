@@ -1280,18 +1280,42 @@
 
 	vclk_serve: vclk_serve {
 		compatible = "amlogic, vclk_serve";
-		status = "disabled";
-		reg = <0x0 0xfe008000 0x0 0x300    /* ana reg */
+		status = "okay";
+		reg = <0x0 0xfe008000 0x0 0x400    /* ana reg */
 			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
 	};
 
-	vdac {
-		compatible = "amlogic, vdac-sc2";
-		status = "disabled";
+	vout_venc: vout_venc {
+		compatible = "amlogic, vout_venc-t7";
+		status = "okay";
 	};
 
 	vout: vout {
 		compatible = "amlogic, vout";
+		status = "okay";
+
+		/* fr_policy:
+		 *    0: disable
+		 *    1: nearby (only for 60->59.94 and 30->29.97)
+		 *    2: force (60/50/30/24/59.94/23.97)
+		 */
+		fr_policy = <2>;
+	};
+
+	vout2: vout2 {
+		compatible = "amlogic, vout2";
+		status = "disabled";
+
+		/* fr_policy:
+		 *    0: disable
+		 *    1: nearby (only for 60->59.94 and 30->29.97)
+		 *    2: force (60/50/30/24/59.94/23.97)
+		 */
+		fr_policy = <2>;
+	};
+
+	vout3: vout3 {
+		compatible = "amlogic, vout3";
 		status = "disabled";
 
 		/* fr_policy:

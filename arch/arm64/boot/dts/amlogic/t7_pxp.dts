@@ -8,6 +8,7 @@
 #include "mesont7.dtsi"
 #include "partition_mbox.dtsi"
 #include <dt-bindings/input/input.h>
+#include "mesont7_pxp-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -167,6 +168,9 @@
 		unifykey-index-16= <&keysn_16>;
 		unifykey-index-17= <&keysn_17>;
 		unifykey-index-18= <&keysn_18>;
+		unifykey-index-19= <&keysn_19>;
+		unifykey-index-20= <&keysn_20>;
+		unifykey-index-21= <&keysn_21>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -263,6 +267,21 @@
 		};
 		keysn_18:key_18{
 			key-name = "oemkey";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "lcd";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "lcd_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "backlight";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};

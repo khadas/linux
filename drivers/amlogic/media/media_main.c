@@ -75,6 +75,7 @@ static int __init media_main_init(void)
 	call_sub_init(aml_vclk_init_module);
 	call_sub_init(amcanvas_init);
 	call_sub_init(amrdma_init);
+	call_sub_init(vout_venc_init);
 	call_sub_init(amhdmitx_init);
 	call_sub_init(aml_vdac_init);
 	call_sub_init(cvbs_init_module);
@@ -94,6 +95,7 @@ static int __init media_main_init(void)
 	call_sub_init(lut_dma_init);
 	call_sub_init(video_init);
 	call_sub_init(vout2_init_module);
+	call_sub_init(vout3_init_module);
 	call_sub_init(ppmgr_init_module);
 	call_sub_init(videosync_init);
 	call_sub_init(picdec_init_module);

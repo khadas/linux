@@ -232,6 +232,8 @@
 #define ENCP_VIDEO_MATRIX_CR                       0x1bbc
 #define ENCP_VIDEO_RGBIN_CTRL                      0x1bbd
 
+#define VPU_VENC_CTRL                              0x1cef
+
 /* HIU */
 #define HHI_VIID_CLK_DIV                           0x4a
 #define DAC0_CLK_SEL           28

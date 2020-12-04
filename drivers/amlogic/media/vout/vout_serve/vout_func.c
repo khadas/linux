@@ -17,7 +17,6 @@
 
 /* Local Headers */
 #include "vout_func.h"
-#include "vout_reg.h"
 
 static DEFINE_MUTEX(vout_mutex);
 
@@ -41,6 +40,23 @@ static struct vout_module_s vout2_module = {
 	.vout_server_list = {
 		&vout2_module.vout_server_list,
 		&vout2_module.vout_server_list
+	},
+	.curr_vout_server = NULL,
+	.init_flag = 0,
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.fr_policy = 0,
+};
+#endif
+
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+static struct vout_module_s vout3_module = {
+	.vout_server_list = {
+		&vout3_module.vout_server_list,
+		&vout3_module.vout_server_list
 	},
 	.curr_vout_server = NULL,
 	.init_flag = 0,
@@ -119,6 +135,14 @@ struct vout_module_s *vout_func_get_vout2_module(void)
 EXPORT_SYMBOL(vout_func_get_vout2_module);
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+struct vout_module_s *vout_func_get_vout3_module(void)
+{
+	return &vout3_module;
+}
+EXPORT_SYMBOL(vout_func_get_vout3_module);
+#endif
+
 static inline int vout_func_check_state(int index, unsigned int state,
 					struct vout_server_s *p_server)
 {
@@ -145,6 +169,10 @@ void vout_func_set_state(int index, enum vmode_e mode)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	else if (index == 2)
 		p_module = &vout2_module;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (index == 3)
+		p_module = &vout3_module;
 #endif
 
 	if (!p_module) {
@@ -182,23 +210,21 @@ void vout_func_update_viu(int index)
 	struct vinfo_s *vinfo = NULL;
 	struct vout_server_s *p_server;
 	struct vout_module_s *p_module = NULL;
-	unsigned int mux_bit = 0xff, mux_sel = VIU_MUX_MAX;
-	unsigned int clk_bit = 0xff, clk_sel = 0;
+	unsigned int mux_sel;
 	unsigned int flag = 0;
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1) {
+	if (index == 1)
 		p_module = &vout_module;
-		mux_bit = 0;
-		clk_sel = 0;
-	} else if (index == 2) {
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
 		p_module = &vout2_module;
-		mux_bit = 2;
-		clk_sel = 1;
 #endif
-	}
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (index == 3)
+		p_module = &vout3_module;
+#endif
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
@@ -216,43 +242,15 @@ void vout_func_update_viu(int index)
 	 *	vout_vcbus_read(VPU_VENCX_CLK_CTRL));
 	 */
 
-	if (p_server) {
-		if (p_server->op.get_vinfo)
-			vinfo = p_server->op.get_vinfo();
-	}
+	if (p_server && p_server->op.get_vinfo)
+		vinfo = p_server->op.get_vinfo();
 	if (!vinfo)
 		vinfo = get_invalid_vinfo(index, flag);
 
 	mux_sel = vinfo->viu_mux;
-	switch (mux_sel) {
-	case VIU_MUX_ENCL:
-		clk_bit = 1;
-		break;
-	case VIU_MUX_ENCI:
-		clk_bit = 2;
-		break;
-	case VIU_MUX_ENCP:
-		clk_bit = 0;
-		break;
-	default:
-		break;
-	}
 
-	if (mux_bit < 0xff) {
-		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL,
-				mux_sel, mux_bit, 2);
-	}
-	if (clk_bit < 0xff)
-		vout_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
-	/*
-	 *VOUTPR("%s: %d, mux_sel=%d, mux_bit=%d, clk_sel=%d clk_bit=%d\n",
-	 *	__func__, index, mux_sel, mux_bit, clk_sel, clk_bit);
-	 *VOUTPR("%s: after: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
-	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
-	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL),
-	 *	VPU_VENCX_CLK_CTRL,
-	 *	vout_vcbus_read(VPU_VENCX_CLK_CTRL));
-	 */
+	vout_venc_mux_update(index, mux_sel);
+
 	mutex_unlock(&vout_mutex);
 }
 EXPORT_SYMBOL(vout_func_update_viu);
