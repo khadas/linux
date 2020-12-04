@@ -748,11 +748,9 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xffd00000 0x0 0x27000>;
 
-			clk-measure@18004 {
-				compatible = "amlogic,t5-measure";
-				reg = <0x0 0x18004 0x0 0x4 0x0 0x1800c 0x0 0x4>;
-				/*ringctrl = <0xff6345fc>;*/ /* ring Waiting to confirm */
-				status = "disabled";
+			clk-measure@18000 {
+				compatible = "amlogic,meson-t5d-clk-measure";
+				reg = <0x0 0x18000 0x0 0x10>;
 			};
 
 			i2c0: i2c@1f000 {
