@@ -7,3 +7,9 @@ config AMLOGIC_MEDIA_VFM
 	default n
 	help
 		Select to enable VFM support
+
+config AMLOGIC_MEDIA_VFM_GRABBER
+	bool "Amlogic VFM Grabber Support"
+	default n
+	help
+		Select to enable VFM Grabber support
