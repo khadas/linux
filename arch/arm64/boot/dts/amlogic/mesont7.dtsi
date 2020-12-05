@@ -23,36 +23,36 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu-map {
-			cluster0:cluster0 {
-				core0 {
-					cpu = <&CPU0>;
-				};
-				core1 {
-					cpu = <&CPU1>;
-				};
-				core2 {
-					cpu = <&CPU2>;
-				};
-				core3 {
-					cpu = <&CPU3>;
-				};
-			};
-			cluster1:cluster1 {
-				core0 {
-					cpu = <&CPU4>;
-				};
-				core1 {
-					cpu = <&CPU5>;
-				};
-				core2 {
-					cpu = <&CPU6>;
-				};
-				core3 {
-					cpu = <&CPU7>;
-				};
-			};
-		};
+//		cpu-map {
+//			cluster0:cluster0 {
+//				core0 {
+//					cpu = <&CPU0>;
+//				};
+//				core1 {
+//					cpu = <&CPU1>;
+//				};
+//				core2 {
+//					cpu = <&CPU2>;
+//				};
+//				core3 {
+//					cpu = <&CPU3>;
+//				};
+//			};
+//			cluster1:cluster1 {
+//				core0 {
+//					cpu = <&CPU4>;
+//				};
+//				core1 {
+//					cpu = <&CPU5>;
+//				};
+//				core2 {
+//					cpu = <&CPU6>;
+//				};
+//				core3 {
+//					cpu = <&CPU7>;
+//				};
+//			};
+//		};
 
 		CPU0:cpu@0 {
 			device_type = "cpu";
@@ -94,45 +94,45 @@
 //			#cooling-cells = <2>;
 		};
 
-		CPU4:cpu@100 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x100>;
-			enable-method = "psci";
+//		CPU4:cpu@100 {
+//			device_type = "cpu";
+//			compatible = "arm,cortex-a53","arm,armv8";
+//			reg = <0x0 0x100>;
+//			enable-method = "psci";
  //		cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
  //		dynamic-power-coefficient = <230>;
  //		#cooling-cells = <2>;
-	};
+//	};
 
-		CPU5:cpu@101{
-			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x101>;
-			enable-method = "psci";
+//		CPU5:cpu@101{
+//			device_type = "cpu";
+//			compatible = "arm,cortex-a53","arm,armv8";
+//			reg = <0x0 0x101>;
+//			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
-		};
+//		};
 
-		CPU6:cpu@102 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x102>;
-			enable-method = "psci";
+//		CPU6:cpu@102 {
+//			device_type = "cpu";
+//			compatible = "arm,cortex-a53","arm,armv8";
+//			reg = <0x0 0x102>;
+//			enable-method = "psci";
  //		cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
  //		dynamic-power-coefficient = <230>;
  //		#cooling-cells = <2>;
-		};
+//		};
 
-		CPU7:cpu@103 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x103>;
-			enable-method = "psci";
+//		CPU7:cpu@103 {
+//			device_type = "cpu";
+//			compatible = "arm,cortex-a53","arm,armv8";
+//			reg = <0x0 0x103>;
+//			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
-		};
+//		};
 
 //		idle-states {
 //			entry-method = "arm,psci-0.2";
