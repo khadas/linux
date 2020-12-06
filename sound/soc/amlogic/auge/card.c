@@ -75,6 +75,7 @@ struct aml_card_data {
 	int mic_detect_flag;
 	bool mic_det_enable;
 	bool av_mute_enable;
+	bool spk_mute_enable;
 	int irq_exception64;
 };
 
@@ -730,6 +731,13 @@ static int aml_card_parse_gpios(struct device_node *node,
 	gpio = of_get_named_gpio_flags(node, "spk_mute-gpios", 0, &flags);
 	priv->spk_mute_gpio = gpio;
 
+	if (priv->spk_mute_enable) {
+		gpio_set_value(priv->spk_mute_gpio, GPIOF_OUT_INIT_LOW);
+	} else {
+		msleep(200);
+		gpio_set_value(priv->spk_mute_gpio, GPIOF_OUT_INIT_HIGH);
+	}
+
 	if (gpio_is_valid(gpio)) {
 		active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
 		flags = active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
@@ -857,6 +865,7 @@ static int card_suspend_pre(struct snd_soc_card *card)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 1;
+	priv->spk_mute_enable = 1;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
 	pr_info("it is card_pre_suspend\n");
@@ -868,6 +877,7 @@ static int card_resume_post(struct snd_soc_card *card)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 0;
+	priv->spk_mute_enable = 0;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
 	pr_info("it is card_post_resume\n");
@@ -1036,6 +1046,7 @@ static int aml_card_probe(struct platform_device *pdev)
 		audio_extcon_register(priv, dev);
 	}
 	priv->av_mute_enable = 0;
+	priv->spk_mute_enable = 0;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
 
@@ -1068,6 +1079,7 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 1;
+	priv->spk_mute_enable = 1;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
 }
