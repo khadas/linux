@@ -32,6 +32,7 @@
 #include <dt-bindings/reset/amlogic,meson-t5d-reset.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/power/t5-pd.h>
+#include "meson-ir-map.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -953,10 +954,10 @@
 			};
 
 			remote: rc@8040 {
-				compatible = "amlogic, aml_remote";
+				compatible = "amlogic, meson-ir";
 				reg = <0x0 0x8040 0x0 0x44>,
 					<0x0 0x8000 0x0 0x20>;
-				status = "disabled";
+				status = "okay";
 				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				pinctrl-names = "default";
@@ -981,211 +982,6 @@
 			memory-region = <&ion_cma_reserved>;
 		};/* end of ion_dev*/
 	}; /* end of soc*/
-
-	custom_maps: custom_maps {
-		mapnum = <4>;
-		map0 = <&map_0>;
-		map1 = <&map_1>;
-		map2 = <&map_2>;
-		map3 = <&map_3>;
-		map_0: map_0{
-			mapname = "amlogic-remote-1";
-			customcode = <0xfb04>;
-			release_delay = <80>;
-			size  = <44>;   /*keymap size*/
-			keymap = <REMOTE_KEY(0x01, KEY_1)
-				REMOTE_KEY(0x02, KEY_2)
-				REMOTE_KEY(0x03, KEY_3)
-				REMOTE_KEY(0x04, KEY_4)
-				REMOTE_KEY(0x05, KEY_5)
-				REMOTE_KEY(0x06, KEY_6)
-				REMOTE_KEY(0x07, KEY_7)
-				REMOTE_KEY(0x08, KEY_8)
-				REMOTE_KEY(0x09, KEY_9)
-				REMOTE_KEY(0x0a, KEY_0)
-				REMOTE_KEY(0x1F, KEY_FN_F1)
-				REMOTE_KEY(0x15, KEY_MENU)
-				REMOTE_KEY(0x16, KEY_TAB)
-				REMOTE_KEY(0x0c, KEY_CHANNELUP)
-				REMOTE_KEY(0x0d, KEY_CHANNELDOWN)
-				REMOTE_KEY(0x0e, KEY_VOLUMEUP)
-				REMOTE_KEY(0x0f, KEY_VOLUMEDOWN)
-				REMOTE_KEY(0x11, KEY_HOME)
-				REMOTE_KEY(0x1c, KEY_RIGHT)
-				REMOTE_KEY(0x1b, KEY_LEFT)
-				REMOTE_KEY(0x19, KEY_UP)
-				REMOTE_KEY(0x1a, KEY_DOWN)
-				REMOTE_KEY(0x1d, KEY_ENTER)
-				REMOTE_KEY(0x17, KEY_MUTE)
-				REMOTE_KEY(0x49, KEY_FINANCE)
-				REMOTE_KEY(0x43, KEY_BACK)
-				REMOTE_KEY(0x12, KEY_FN_F4)
-				REMOTE_KEY(0x14, KEY_FN_F5)
-				REMOTE_KEY(0x18, KEY_FN_F6)
-				REMOTE_KEY(0x59, KEY_INFO)
-				REMOTE_KEY(0x5a, KEY_STOPCD)
-				REMOTE_KEY(0x10, KEY_POWER)
-				REMOTE_KEY(0x42, KEY_PREVIOUSSONG)
-				REMOTE_KEY(0x44, KEY_NEXTSONG)
-				REMOTE_KEY(0x1e, KEY_REWIND)
-				REMOTE_KEY(0x4b, KEY_FASTFORWARD)
-				REMOTE_KEY(0x58, KEY_PLAYPAUSE)
-				REMOTE_KEY(0x46, KEY_PROPS)
-				REMOTE_KEY(0x40, KEY_UNDO)
-				REMOTE_KEY(0x38, KEY_SCROLLLOCK)
-				REMOTE_KEY(0x57, KEY_FN)
-				REMOTE_KEY(0x5b, KEY_FN_ESC)
-				REMOTE_KEY(0x13, 195)
-				REMOTE_KEY(0x54, KEY_RED)
-				REMOTE_KEY(0x4c, KEY_GREEN)
-				REMOTE_KEY(0x4e, KEY_YELLOW)
-				REMOTE_KEY(0x55, KEY_BLUE)
-				REMOTE_KEY(0x53, KEY_BLUETOOTH)
-				REMOTE_KEY(0x52, KEY_WLAN)
-				REMOTE_KEY(0x39, KEY_CAMERA)
-				REMOTE_KEY(0x41, KEY_SOUND)
-				REMOTE_KEY(0x0b, KEY_QUESTION)
-				REMOTE_KEY(0x00, KEY_CHAT)
-				REMOTE_KEY(0x13, KEY_SEARCH)>;
-		};
-
-		map_1: map_1{
-			mapname = "amlogic-remote-2";
-			customcode = <0xfe01>;
-			release_delay = <80>;
-			size  = <53>;
-			keymap = <REMOTE_KEY(0x01, KEY_1)
-				REMOTE_KEY(0x02, KEY_2)
-				REMOTE_KEY(0x03, KEY_3)
-				REMOTE_KEY(0x04, KEY_4)
-				REMOTE_KEY(0x05, KEY_5)
-				REMOTE_KEY(0x06, KEY_6)
-				REMOTE_KEY(0x07, KEY_7)
-				REMOTE_KEY(0x08, KEY_8)
-				REMOTE_KEY(0x09, KEY_9)
-				REMOTE_KEY(0x0a, KEY_0)
-				REMOTE_KEY(0x1F, KEY_FN_F1)
-				REMOTE_KEY(0x15, KEY_MENU)
-				REMOTE_KEY(0x16, KEY_TAB)
-				REMOTE_KEY(0x0c, KEY_CHANNELUP)
-				REMOTE_KEY(0x0d, KEY_CHANNELDOWN)
-				REMOTE_KEY(0x0e, KEY_VOLUMEUP)
-				REMOTE_KEY(0x0f, KEY_VOLUMEDOWN)
-				REMOTE_KEY(0x11, KEY_HOME)
-				REMOTE_KEY(0x1c, KEY_RIGHT)
-				REMOTE_KEY(0x1b, KEY_LEFT)
-				REMOTE_KEY(0x19, KEY_UP)
-				REMOTE_KEY(0x1a, KEY_DOWN)
-				REMOTE_KEY(0x1d, KEY_ENTER)
-				REMOTE_KEY(0x17, KEY_MUTE)
-				REMOTE_KEY(0x49, KEY_FINANCE)
-				REMOTE_KEY(0x43, KEY_BACK)
-				REMOTE_KEY(0x12, KEY_FN_F4)
-				REMOTE_KEY(0x14, KEY_FN_F5)
-				REMOTE_KEY(0x18, KEY_FN_F6)
-				REMOTE_KEY(0x59, KEY_INFO)
-				REMOTE_KEY(0x5a, KEY_STOPCD)
-				REMOTE_KEY(0x10, KEY_POWER)
-				REMOTE_KEY(0x42, KEY_PREVIOUSSONG)
-				REMOTE_KEY(0x44, KEY_NEXTSONG)
-				REMOTE_KEY(0x1e, KEY_REWIND)
-				REMOTE_KEY(0x4b, KEY_FASTFORWARD)
-				REMOTE_KEY(0x58, KEY_PLAYPAUSE)
-				REMOTE_KEY(0x46, KEY_PROPS)
-				REMOTE_KEY(0x40, KEY_UNDO)
-				REMOTE_KEY(0x38, KEY_SCROLLLOCK)
-				REMOTE_KEY(0x57, KEY_FN)
-				REMOTE_KEY(0x5b, KEY_FN_ESC)
-				REMOTE_KEY(0x54, KEY_RED)
-				REMOTE_KEY(0x4c, KEY_GREEN)
-				REMOTE_KEY(0x4e, KEY_YELLOW)
-				REMOTE_KEY(0x55, KEY_BLUE)
-				REMOTE_KEY(0x53, KEY_BLUETOOTH)
-				REMOTE_KEY(0x52, KEY_WLAN)
-				REMOTE_KEY(0x39, KEY_CAMERA)
-				REMOTE_KEY(0x41, KEY_SOUND)
-				REMOTE_KEY(0x0b, KEY_QUESTION)
-				REMOTE_KEY(0x00, KEY_CHAT)
-				REMOTE_KEY(0x13, KEY_SEARCH)>;
-		};
-
-		map_2: map_2{
-			mapname = "amlogic-remote-3";
-			customcode = <0xbd02>;
-			release_delay = <80>;
-			size  = <17>;
-			keymap = <REMOTE_KEY(0xca,KEY_UP)
-				REMOTE_KEY(0xd2,KEY_DOWN)
-				REMOTE_KEY(0x99,KEY_LEFT)
-				REMOTE_KEY(0xc1,KEY_RIGHT)
-				REMOTE_KEY(0xce,KEY_RIGHTCTRL)
-				REMOTE_KEY(0x45,KEY_POWER)
-				REMOTE_KEY(0xc5,KEY_COPY)
-				REMOTE_KEY(0x80,KEY_MUTE)
-				REMOTE_KEY(0xd0,KEY_TAB)
-				REMOTE_KEY(0xd6,KEY_LEFTMETA)
-				REMOTE_KEY(0x95,KEY_HOME)
-				REMOTE_KEY(0xdd,KEY_PAGEUP)
-				REMOTE_KEY(0x8c,KEY_PAGEDOWN)
-				REMOTE_KEY(0x89,KEY_UNDO)
-				REMOTE_KEY(0x9c,KEY_PROPS)
-				REMOTE_KEY(0x9a,KEY_SCALE)
-				REMOTE_KEY(0xcd,KEY_KPCOMMA)>;
-		};
-		map_3: map_3{
-			mapname = "amlogic-remote-4";
-			customcode = <0xa4e8>; /* Reference Remote Control */
-			release_delay = <80>;
-			size  = <45>;
-			keymap = <
-				REMOTE_KEY(0xc7, 200) /* power */
-				REMOTE_KEY(0x93, 201) /* eject-->input source */
-				REMOTE_KEY(0xb2, 202) /* usb */
-				REMOTE_KEY(0xb8, 203) /* coaxial */
-				REMOTE_KEY(0xb7, 204) /* aux */
-				REMOTE_KEY(0x8a, 205) /* scan-->hdmi arc */
-				REMOTE_KEY(0x96, 206) /* dimmer */
-				REMOTE_KEY(0x90, 207) /* hdmi1 */
-				REMOTE_KEY(0xa8, 208) /* hdmi2 */
-				REMOTE_KEY(0x85, 209) /* mute */
-				REMOTE_KEY(0x80, 210) /* vol+ */
-				REMOTE_KEY(0x81, 211) /* vol- */
-				REMOTE_KEY(0x61, 212) /* DAP */
-				REMOTE_KEY(0x62, 213) /* BM */
-				REMOTE_KEY(0x63, 214) /* DRC */
-				REMOTE_KEY(0x64, 215) /* POST */
-				REMOTE_KEY(0x65, 216) /* UPMIX */
-				REMOTE_KEY(0x66, 217) /* VIRT */
-				REMOTE_KEY(0x67, 218) /* LEGACY */
-				REMOTE_KEY(0x68, 219) /* HFILT */
-				REMOTE_KEY(0x69, 220) /* Loundness */
-				REMOTE_KEY(0x60, 221) /* Audio_info */
-				REMOTE_KEY(0xb1, 222) /* CD */
-				REMOTE_KEY(0xb4, 223) /* CD */
-				REMOTE_KEY(0xb9, 224) /* CD */
-				REMOTE_KEY(0xab, 225) /* CD */
-				REMOTE_KEY(0x91, 226) /* CD */
-				REMOTE_KEY(0x92, 227) /* CD */
-				REMOTE_KEY(0x89, 228) /* CD */
-				REMOTE_KEY(0x88, 229) /* CD */
-				REMOTE_KEY(0xa5, 230) /* CD */
-				REMOTE_KEY(0x84, 231) /* CD */
-				REMOTE_KEY(0x72, 232) /* CD */
-				REMOTE_KEY(0x73, 233) /* CD */
-				REMOTE_KEY(0x9a, 234) /* CD */
-				REMOTE_KEY(0x9b, 235) /* CD */
-				REMOTE_KEY(0xa0, 236) /* CD */
-				REMOTE_KEY(0x71, 237) /* CD */
-				REMOTE_KEY(0x74, 238) /* CD */
-				REMOTE_KEY(0x75, 239) /* CD */
-				REMOTE_KEY(0x7e, 240) /* CD */
-				REMOTE_KEY(0x7f, 241) /* CD */
-				REMOTE_KEY(0x7a, 242) /* CD */
-				REMOTE_KEY(0xa7, 243) /* CD */
-				REMOTE_KEY(0xa9, 244) /* CD */
-				>;
-		};
-	};
 
 	uart_A: serial@ffd24000 {
 		compatible = "amlogic,meson-uart";
