@@ -611,7 +611,7 @@
 	pwrdm: power-domains {
 		compatible = "amlogic,t5-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	soc {

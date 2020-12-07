@@ -10,6 +10,7 @@
 #include <dt-bindings/power/a1-pd.h>
 #include <dt-bindings/power/c1-pd.h>
 #include <dt-bindings/power/sc2-pd.h>
+#include <dt-bindings/power/t5-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_domain {
@@ -164,10 +165,24 @@ static struct sec_pm_domain_data sc2_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(sc2_pm_domains),
 };
 
+static struct sec_pm_domain t5_pm_domains[] = {
+	[PDID_T5_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T5_DOS_HEVC, DOMAIN_INIT_OFF, 0),
+	[PDID_T5_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T5_DOS_VDEC, DOMAIN_INIT_OFF, 0),
+	[PDID_T5_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T5_VPU_HDMI, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
+	[PDID_T5_DEMOD] = POWER_DOMAIN(demod, PDID_T5_DEMOD, DOMAIN_INIT_OFF, 0),
+};
+
+static struct sec_pm_domain_data t5_pm_domain_data = {
+	.domains = t5_pm_domains,
+	.domains_count = ARRAY_SIZE(t5_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct sec_pm_domain *pd;
+	int init_status;
 	const struct sec_pm_domain_data *match;
 	struct genpd_onecell_data *sec_pd_onecell_data;
 
@@ -204,15 +219,20 @@ static int sec_pd_probe(struct platform_device *pdev)
 		if (!pd->base.name)
 			continue;
 
+		init_status = pwr_ctrl_status_psci_smc(pd->pd_index);
+
+		if (init_status == -1 || pd->base.flags == GENPD_FLAG_ALWAYS_ON)
+			init_status = pd->pd_status;
+
 		/* Initialize based on pd_status */
 		if (pd->base.flags & GENPD_FLAG_ALWAYS_ON)
 #ifdef MODULE
-			pm_genpd_init(&pd->base, aon_gov, pd.pd_status);
+			pm_genpd_init(&pd->base, aon_gov, init_status);
 #else
-			pm_genpd_init(&pd->base, &pm_domain_always_on_gov, pd->pd_status);
+			pm_genpd_init(&pd->base, &pm_domain_always_on_gov, init_status);
 #endif
 		else
-			pm_genpd_init(&pd->base, NULL, pd->pd_status);
+			pm_genpd_init(&pd->base, NULL, init_status);
 
 		sec_pd_onecell_data->domains[i] = &pd->base;
 	}
@@ -245,6 +265,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,sc2-power-domain",
 		.data = &sc2_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,t5-power-domain",
+		.data = &t5_pm_domain_data,
 	},
 	{}
 };
