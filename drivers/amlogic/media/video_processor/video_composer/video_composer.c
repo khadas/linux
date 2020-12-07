@@ -1071,6 +1071,8 @@ static void video_composer_task(struct composer_dev *dev)
 	unsigned long phy_addr;
 	u64 time_us64;
 	struct vframe_s *vf_ext = NULL;
+	u32 pic_w;
+	u32 pic_h;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1143,10 +1145,40 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
-		vf->crop[0] = 0;
-		vf->crop[1] = 0;
-		vf->crop[2] = 0;
-		vf->crop[3] = 0;
+		vf->crop[0] = frame_info->crop_y;
+		vf->crop[1] = frame_info->crop_x;
+		if (frame_info->type == 0) {
+			if ((vf->type & VIDTYPE_COMPRESS) != 0) {
+				pic_w = vf->compWidth;
+				pic_h = vf->compHeight;
+			} else {
+				pic_w = vf->width;
+				pic_h = vf->height;
+			}
+			vf->crop[2] = pic_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = pic_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+			/*omx receive w*h is small than actual w*h;such as 8k*/
+			if (pic_w > frame_info->buffer_w ||
+				pic_h > frame_info->buffer_h) {
+				vf->crop[0] = 0;
+				vf->crop[1] = 0;
+				vf->crop[2] = 0;
+				vf->crop[3] = 0;
+				vc_print(dev->index, PRINT_AXIS,
+					"crop info is error!\n");
+			}
+		} else if (frame_info->type == 1) {
+			vf->crop[2] = frame_info->buffer_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = frame_info->buffer_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+		}
 		vf->zorder = frames_info->disp_zorder;
 		vf->file_vf = file_vf;
 		//vf->zorder = 1;
@@ -1178,14 +1210,6 @@ static void video_composer_task(struct composer_dev *dev)
 					| VIDTYPE_VIU_NV21;
 			vf->bitdepth =
 				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
-			vf->crop[0] = frame_info->crop_y;
-			vf->crop[1] = frame_info->crop_x;
-			vf->crop[2] = frame_info->buffer_h
-				- frame_info->crop_h
-				- frame_info->crop_y;
-			vf->crop[3] = frame_info->buffer_w
-				- frame_info->crop_w
-				- frame_info->crop_x;
 		}
 		vc_print(dev->index, PRINT_AXIS,
 			 "axis: %d %d %d %d\ncrop: %d %d %d %d\n",
