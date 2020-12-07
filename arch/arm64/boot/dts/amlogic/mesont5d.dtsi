@@ -1797,7 +1797,7 @@
 				"i2c0_ao_sda";
 			function = "i2c0_ao";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -1824,7 +1824,7 @@
 				"i2c2_ao_sda";
 			function = "i2c2_ao";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2036,7 +2036,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2055,7 +2055,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2065,7 +2065,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-down;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2077,7 +2077,7 @@
 			function = "sdcard";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2092,7 +2092,7 @@
 			function = "sdcard";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2104,7 +2104,7 @@
 			function = "sdcard";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2162,7 +2162,7 @@
 				"nand_ren_wr";
 			function = "nand";
 			input-enable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2170,7 +2170,7 @@
 		mux {
 			groups = "nand_ce0";
 			function = "nand";
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2182,7 +2182,7 @@
 			function = "sdcard";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2197,7 +2197,7 @@
 			function = "sdcard";
 			input-enable;
 			bias-pull-up;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2303,7 +2303,7 @@
 				"i2c0_sda_z";
 			function = "i2c0";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2330,7 +2330,7 @@
 				"i2c1_sda_h";
 			function = "i2c1";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2357,7 +2357,7 @@
 				"i2c2_sda_h";
 			function = "i2c2";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2442,7 +2442,7 @@
 			"eth_txd2_rgmii",
 			"eth_txd3_rgmii";
 			function = "eth";
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2510,7 +2510,7 @@
 				"hdmitx_sck";
 			function = "hdmitx";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 	atvdemod_agc_pins: atvdemod_agc_pins {
