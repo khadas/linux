@@ -1645,6 +1645,9 @@ struct xhci_scratchpad {
 struct urb_priv {
 	int	num_tds;
 	int	num_tds_done;
+  #ifdef CONFIG_AMLOGIC_USB
+	unsigned char transfer_data[4096 + 16];
+#endif
 	struct	xhci_td	td[0];
 };
 
@@ -1878,6 +1881,7 @@ struct xhci_hcd {
 #define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
 #ifdef CONFIG_AMLOGIC_USB
 #define XHCI_AML_SUPER_SPEED_SUPPORT   BIT_ULL(29)
+#define XHCI_CRG_HOST		BIT(30)
 #endif
 
 	unsigned int		num_active_eps;

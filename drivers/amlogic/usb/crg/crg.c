@@ -223,6 +223,8 @@ int crg_host_init(struct crg *crg)
 	if (crg->super_speed_support)
 		props[prop_idx++].name = "super_speed_support";
 
+	props[prop_idx++].name = "xhci-crg-host";
+
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
 		if (ret) {
