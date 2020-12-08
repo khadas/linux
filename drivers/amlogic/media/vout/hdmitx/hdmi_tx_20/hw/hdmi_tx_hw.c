@@ -105,22 +105,22 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 
 	switch (hdev->data->chip_type) {
 	case MESON_CPU_ID_GXBB:
-		return hdmitx_hpd_hw_op_gxbb(cmd);
+		return !!hdmitx_hpd_hw_op_gxbb(cmd);
 	case MESON_CPU_ID_GXTVBB:
-		return hdmitx_hpd_hw_op_gxtvbb(cmd);
+		return !!hdmitx_hpd_hw_op_gxtvbb(cmd);
 	case MESON_CPU_ID_GXL:
 	case MESON_CPU_ID_GXM:
-		return hdmitx_hpd_hw_op_gxl(cmd);
+		return !!hdmitx_hpd_hw_op_gxl(cmd);
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_TM2:
 	case MESON_CPU_ID_TM2B:
-		return hdmitx_hpd_hw_op_txlx(cmd);
+		return !!hdmitx_hpd_hw_op_txlx(cmd);
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_SC2:
 	default:
-		return hdmitx_hpd_hw_op_g12a(cmd);
+		return !!hdmitx_hpd_hw_op_g12a(cmd);
 	}
 	return 0;
 }
