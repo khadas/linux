@@ -730,34 +730,34 @@
 			};
 		};
 
-		aml-audio-card,dai-link@4 {
-			mclk-fs = <128>;
+		//aml-audio-card,dai-link@4 {
+		//	mclk-fs = <128>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-spdif";
-			cpu {
-				sound-dai = <&spdifa>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
+		//	suffix-name = "alsaPORT-spdif";
+		//	cpu {
+		//		sound-dai = <&spdifa>;
+		//		system-clock-frequency = <6144000>;
+		//	};
+		//	codec {
+		//		sound-dai = <&dummy_codec>;
+		//	};
+		//};
 
-		aml-audio-card,dai-link@5 {
-			mclk-fs = <128>;
-			continuous-clock;
+		//aml-audio-card,dai-link@5 {
+		//	mclk-fs = <128>;
+		//	continuous-clock;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-spdifb";
-			cpu {
-				sound-dai = <&spdifb>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
+		//	suffix-name = "alsaPORT-spdifb";
+		//	cpu {
+		//		sound-dai = <&spdifb>;
+		//		system-clock-frequency = <6144000>;
+		//	};
+		//	codec {
+		//		sound-dai = <&dummy_codec>;
+		//	};
+		//};
 
 		aml-audio-card,dai-link@6 {
 			mclk-fs = <256>;
@@ -1090,7 +1090,7 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-		samesource_sel = <3>;
+		//samesource_sel = <3>;
 
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
@@ -1189,7 +1189,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 	spdifb: spdif@1 {
 		compatible = "amlogic, sm1-snd-spdif-b";
@@ -1200,7 +1200,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "okay";
+		status = "disabled";
 	};
 	pdm: pdm {
 		compatible = "amlogic, sm1-snd-pdm";
