@@ -14,6 +14,8 @@ Required properties:
                          or "amlogic,meson-tm2-ao-pwm-ab"
                          or "amlogic,meson-tm2-ao-pwm-cd"
 			 or "amlogic,meson-v2-pwm"
+			 or "amlogic,meson-t5d-ee-pwm"
+
 - #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
   the cells format.
 

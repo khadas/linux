@@ -798,7 +798,7 @@
 			};
 
 			pwm_ab: pwm@1b000 {
-				compatible = "amlogic,tl1-ee-pwm";
+				compatible = "amlogic,meson-t5d-ee-pwm";
 				reg = <0x0 0x1b000 0x0 0x20>;
 				#pwm-cells = <3>;
 				clocks = <&xtal>,
@@ -816,7 +816,7 @@
 			};
 
 			pwm_cd: pwm@1a000 {
-				compatible = "amlogic,tl1-ee-pwm";
+				compatible = "amlogic,meson-t5d-ee-pwm";
 				reg = <0x0 0x1a000 0x0 0x20>;
 				#pwm-cells = <3>;
 				clocks = <&xtal>,
@@ -831,7 +831,7 @@
 			};
 
 			pwm_ef: pwm@19000 {
-				compatible = "amlogic,tl1-ee-pwm";
+				compatible = "amlogic,meson-t5d-ee-pwm";
 				reg = <0x0 0x19000 0x0 0x20>;
 				#pwm-cells = <3>;
 				clocks = <&xtal>,
@@ -1735,6 +1735,13 @@
 		mux {
 			groups = "pwm_ao_d_hiz";
 			function = "pwm_ao_d_hiz";
+		};
+	};
+
+	pwm_ao_e_pins: pwm_ao_e_pins {
+		mux {
+			groups = "pwm_ao_e";
+			function = "pwm_ao_e";
 		};
 	};
 

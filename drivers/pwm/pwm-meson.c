@@ -595,6 +595,16 @@ static const struct meson_pwm_data pwm_g12a_ee_data = {
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+static const char * const pwm_t5d_parent_names[] = {
+	"xtal", "clk81", "fclk_div4", "fclk_div5"
+};
+
+static const struct meson_pwm_data pwm_t5d_data = {
+	.parent_names = pwm_t5d_parent_names,
+	.num_parents = ARRAY_SIZE(pwm_t5d_parent_names),
+	.double_channel = true,
+};
+
 static const struct meson_pwm_data pwm_v2_data = {
 	.double_channel = true,
 	.extern_clk = true,
@@ -646,6 +656,10 @@ static const struct of_device_id meson_pwm_matches[] = {
 	{
 		.compatible = "amlogic,meson-tm2-ao-pwm-cd",
 		.data = &pwm_g12a_ao_cd_data
+	},
+	{
+		.compatible = "amlogic,meson-t5d-ee-pwm",
+		.data = &pwm_t5d_data
 	},
 	{
 		.compatible = "amlogic,meson-v2-pwm",
