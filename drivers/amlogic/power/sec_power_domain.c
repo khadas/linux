@@ -241,6 +241,7 @@ static struct sec_pm_domain t7_pm_domains[] = {
 	[PDID_T7_MIPI_DSI1] = POWER_DOMAIN(mipi_dsi1, PDID_T7_MIPI_DSI1,
 					   DOMAIN_INIT_ON,
 					   GENPD_FLAG_ALWAYS_ON),
+	[PDID_T7_AUDIO] = POWER_DOMAIN(audio, PDID_T7_AUDIO, DOMAIN_INIT_OFF, 0),
 };
 
 static struct sec_pm_domain_data t7_pm_domain_data = {

@@ -54,3 +54,4 @@
 #define PDID_T7_EDP0		48
 #define PDID_T7_EDP1		49
 #define PDID_T7_MIPI_DSI1	50
+#define PDID_T7_AUDIO		51
