@@ -185,7 +185,6 @@ unsigned int cvbs_clk_path;
 
 static struct cvbs_drv_s *cvbs_drv;
 static enum cvbs_mode_e local_cvbs_mode;
-static unsigned int vdac_gsw_config;
 static DEFINE_MUTEX(setmode_mutex);
 
 static int cvbs_vdac_power_level;
@@ -249,43 +248,6 @@ struct meson_cvbsout_data *get_cvbs_data(void)
 	return cvbs_drv->cvbs_data;
 }
 
-static unsigned char cvbs_get_trimming_version(unsigned int flag)
-{
-	unsigned char version = 0xff;
-
-	if ((flag & 0xf0) == 0xa0)
-		version = 5;
-	else if ((flag & 0xf0) == 0x40)
-		version = 2;
-	else if ((flag & 0xc0) == 0x80)
-		version = 1;
-	else if ((flag & 0xc0) == 0x00)
-		version = 0;
-	return version;
-}
-
-static unsigned int cvbs_config_vdac(unsigned int value)
-{
-	unsigned char version = 0;
-	unsigned int cfg_valid, gsw_cfg;
-
-	version = cvbs_get_trimming_version((value >> 8) & 0xff);
-	/* flag 1/0 for validity of vdac config */
-	if (version == 1 || version == 2 || version == 5) {
-		cfg_valid = 1;
-		gsw_cfg = value & 0x7;
-	} else {
-		cfg_valid = 0;
-		gsw_cfg = 0xffff;
-	}
-	if (cfg_valid) {
-		cvbs_log_info("%s: cvbs trimming 0x%x: %d.v%d, 0x%x\n",
-			      __func__, value, cfg_valid, version, gsw_cfg);
-	}
-
-	return gsw_cfg;
-}
-
 static void cvbs_vdac_output(unsigned int open)
 {
 	if (open == 0) { /* close */
@@ -293,7 +255,6 @@ static void cvbs_vdac_output(unsigned int open)
 		vdac_enable(0, VDAC_MODULE_CVBS_OUT);
 	} else if (open == 1) { /* open */
 		vdac_vref_adj(cvbs_drv->cvbs_data->vdac_vref_adj);
-		vdac_gsw_adj(cvbs_drv->cvbs_data->vdac_gsw);
 		vdac_enable(1, VDAC_MODULE_CVBS_OUT);
 		cvbs_drv->flag |= CVBS_FLAG_EN_VDAC;
 	}
@@ -1025,8 +986,8 @@ static void cvbs_performance_regs_dump(void)
 	vdac_reg0 = vdac_get_reg_addr(0);
 	vdac_reg1 = vdac_get_reg_addr(1);
 	if (vdac_reg0 < 0x1000 && vdac_reg1 < 0x1000) {
-		pr_info("hiu [0x%x] = 0x%x\n"
-			"hiu [0x%x] = 0x%x\n",
+		pr_info("vdac cntl0 [0x%x] = 0x%x\n"
+			"vdac cntl1 [0x%x] = 0x%x\n",
 			vdac_reg0, cvbs_out_ana_read(vdac_reg0),
 			vdac_reg1, cvbs_out_ana_read(vdac_reg1));
 	}
@@ -1497,17 +1458,6 @@ static void cvbsout_get_config(struct device *dev)
 		}
 	}
 
-	/* vdac config */
-	ret = of_property_read_u32(dev->of_node, "vdac_config",
-				   &vdac_gsw_config);
-	if (cvbs_drv->cvbs_data) {
-		if (vdac_gsw_config) {
-			val = cvbs_config_vdac(vdac_gsw_config);
-			if (val < 0xff)
-				cvbs_drv->cvbs_data->vdac_gsw = val;
-		}
-	}
-
 	/* performance: PAL */
 	cvbs_drv->perf_conf_pal.reg_cnt = 0;
 	cvbs_drv->perf_conf_pal.reg_table = NULL;
@@ -1965,17 +1915,6 @@ __exit void cvbs_exit_module(void)
 	/* cvbs_log_info("%s module exit\n", __func__); */
 	platform_driver_unregister(&cvbsout_driver);
 }
-
-static int vdac_config_bootargs_setup(char *line)
-{
-	int ret = 0;
-
-	cvbs_log_info("cvbs trimming line = %s\n", line);
-	ret = kstrtouint(line, 16, &vdac_gsw_config);
-	return 1;
-}
-
-__setup("vdaccfg=", vdac_config_bootargs_setup);
 
 #ifndef MODULE
 subsys_initcall(cvbs_init_module);

@@ -497,41 +497,6 @@ int vdac_vref_adj(unsigned int value)
 	return ret;
 }
 
-int vdac_gsw_adj(unsigned int value)
-{
-	struct meson_vdac_ctrl_s *table;
-	unsigned int reg;
-	unsigned int bit = 0;
-	int i = 0;
-	int ret = -1;
-
-	if (!s_vdac_data) {
-		pr_err("\n%s: s_vdac_data NULL\n", __func__);
-		return ret;
-	}
-
-	table = s_vdac_data->ctrl_table;
-	reg = s_vdac_data->reg_cntl1;
-
-	while (i < VDAC_CTRL_MAX) {
-		if (table[i].reg == VDAC_REG_MAX)
-			break;
-		if (table[i].reg == reg && table[i].bit == bit) {
-			vdac_ana_reg_setb(reg, value, bit, table[i].len);
-			if (vdac_debug_print) {
-				pr_info("vdac: %s: reg=0x%x set bit%d=0x%x, readback=0x%08x\n",
-					__func__, reg, bit, value,
-					vdac_ana_reg_read(reg));
-			}
-			ret = 0;
-			break;
-		}
-		i++;
-	}
-
-	return ret;
-}
-
 unsigned int vdac_get_reg_addr(unsigned int index)
 {
 	unsigned int reg;
