@@ -4554,11 +4554,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 		node->vid_dev->v4l2_dev.name,
 		sizeof(cap->bus_info));
 	cap->version = AMLVIDEO2_VERSION;
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
+			| V4L2_CAP_READWRITE;
 	cap->capabilities = cap->device_caps |
-			V4L2_CAP_DEVICE_CAPS |
-			V4L2_CAP_STREAMING |
-			V4L2_CAP_READWRITE;
+			V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
