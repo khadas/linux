@@ -270,14 +270,6 @@ static void __init cma_activate_area(struct cma *cma)
 		base_pfn = pfn;
 		for (j = pageblock_nr_pages; j; --j, pfn++) {
 			WARN_ON_ONCE(!pfn_valid(pfn));
-			/*
-			 * alloc_contig_range requires the pfn range
-			 * specified to be in the same zone. Make this
-			 * simple by forcing the entire CMA resv range
-			 * to be in the same zone.
-			 */
-			if (page_zone(pfn_to_page(pfn)) != zone)
-				goto not_in_zone;
 		}
 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
 	} while (--i);
@@ -296,8 +288,6 @@ static void __init cma_activate_area(struct cma *cma)
 
 	return;
 
-not_in_zone:
-	bitmap_free(cma->bitmap);
 out_error:
 	cma->count = 0;
 	pr_err("CMA area %s could not be activated\n", cma->name);
@@ -658,6 +648,10 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	int dummy;
 	unsigned long long tick;
 	unsigned long long in_tick, timeout;
+#ifndef CONFIG_ARM64
+	unsigned long pfn_limit;
+	int ret_low, ret_high;
+#endif
 
 	in_tick = sched_clock();
 #endif /* CONFIG_AMLOGIC_CMA */
@@ -718,7 +712,25 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
 		mutex_lock(&cma_mutex);
 	#ifdef CONFIG_AMLOGIC_CMA
+	#ifndef CONFIG_ARM64
+		if (!PageHighMem(pfn_to_page(pfn)) &&
+			PageHighMem(pfn_to_page(pfn + count - 1))) {
+			pfn_limit = ((unsigned long)high_memory - PAGE_OFFSET)
+				>> PAGE_SHIFT;
+			ret_low = aml_cma_alloc_range(pfn, pfn_limit);
+			ret_high = aml_cma_alloc_range(pfn_limit, pfn + count);
+			if (ret_low == 0 && ret_high == 0)
+				ret = 0;
+			else if ((ret_low == -EBUSY) || (ret_high == -EBUSY))
+				ret = -EBUSY;
+			else
+				ret = ret_low | ret_high;
+		} else {
+			ret = aml_cma_alloc_range(pfn, pfn + count);
+		}
+	#else
 		ret = aml_cma_alloc_range(pfn, pfn + count);
+	#endif
 	#else
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
