@@ -1841,7 +1841,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &pwm_ab {
