@@ -1124,31 +1124,19 @@
 		 */
 	};
 
-	slc_nand: nand-controller@0xFFE07800 {
-		compatible = "amlogic, aml_mtd_nand";
+	mtd_nand: nfc@0xFFE07800 {
+		compatible = "amlogic,meson-nfc-single-ecc";
 		status = "disabled";
 		reg = <0x0 0xFFE07800 0x0 0x200>;
-		interrupts = <0 34 1>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
 
-		pinctrl-names = "nand_rb_mod", "nand_norb_mod", "nand_cs_only";
+		pinctrl-names = "nand_norb_mod", "nand_cs_only";
 		pinctrl-0 = <&all_nand_pins>;
-		pinctrl-1 = <&all_nand_pins>;
-		pinctrl-2 = <&nand_cs_pins>;
+		pinctrl-1 = <&nand_cs_pins>;
 		clocks = <&clkc CLKID_SD_EMMC_C>,
 				<&clkc CLKID_FCLK_DIV2>;
 		clock-names = "gate", "fdiv2pll";
 
-		device_id = <0>;
-		/*fip/tpl configurations, must be same
-		 *with uboot if bl_mode was set as 1
-		 *bl_mode: 0 compact mode;1 descrete mode
-		 *if bl_mode was set as 1,fip configuration will work
-		 */
-		bl_mode = <1>;
-		/*copy count of fip*/
-		fip_copies = <4>;
-		/*size of each fip copy*/
-		fip_size = <0x200000>;
 		nand_clk_ctrl = <0xFFE07000>;
 		/*partions defined in dts*/
 	};

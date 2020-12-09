@@ -1362,7 +1362,8 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	int ret;
 
 	if (mtd->writesize <= 2048 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG) {
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
 		nsectors = mtd->writesize / 512;
 	} else {
 		nsectors = mtd->writesize / 1024;
@@ -1387,7 +1388,8 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	ret = nand_ecc_choose_conf(nand, nfc->data->ecc_caps,
 				   mtd->oobsize - 2 * nsectors);
 	if (mtd->writesize <= 2048 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG) {
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
 		nand->ecc.size = SZ_512;
 		nand->ecc.strength = 8;
 		nand->ecc.bytes = ECC_PARITY_BCH8_512B;
