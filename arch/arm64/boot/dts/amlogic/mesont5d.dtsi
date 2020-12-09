@@ -536,10 +536,10 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/apao */
 		interrupts = <GIC_SPI 204 IRQ_TYPE_EDGE_RISING>;
-		pinctrl-names="jtag_apao_pins";
+		pinctrl-names="jtag_a_pins";
 		pinctrl-0=<&jtag_apao_pins>;
 	};
 
@@ -1847,14 +1847,6 @@
 			"jtag_a_clk",
 			"jtag_a_tms";
 			function = "jtag_a";
-		};
-	};
-
-	jtag_swd_apao_pins:swd_apao_pin {
-		mux {
-			groups = "swclk",
-			"swdio";
-			function = "sw";
 		};
 	};
 
