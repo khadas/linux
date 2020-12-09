@@ -82,6 +82,8 @@ static u32 drop_cnt;
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
+static u32 total_get_count;
+static u32 total_put_count;
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -357,8 +359,9 @@ static void frames_put_file(struct composer_dev *dev,
 	for (i = 0; i < current_count; i++) {
 		file_vf = current_frames->file_vf[i];
 		fput(file_vf);
+		total_put_count++;
+		dev->fput_count++;
 	}
-	dev->fput_count++;
 }
 
 static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
@@ -404,6 +407,7 @@ static void display_q_uninit(struct composer_dev *dev)
 					 dis_vf->omx_index);
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			} else if (!(dis_vf->flag
@@ -450,6 +454,7 @@ static void ready_q_uninit(struct composer_dev *dev)
 				repeat_count = dis_vf->repeat_count[dev->index];
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			}
@@ -1019,6 +1024,7 @@ static void empty_ready_queue(struct composer_dev *dev)
 			if (!is_composer) {
 				for (i = 0; i <= repeat_count; i++) {
 					fput(file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			} else {
@@ -1475,6 +1481,7 @@ static void set_frames_info(struct composer_dev *dev,
 			frames_info->frame_info[j].composer_fen_fd = -1;
 		vc_print(dev->index, PRINT_ERROR,
 			 "set frame but not enable\n");
+		return;
 	}
 
 	for (j = 0; j < frames_info->frame_count; j++) {
@@ -1605,6 +1612,7 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "fget fd fail\n");
 			return;
 		}
+		total_get_count++;
 		dev->received_frames[i].file_vf[j] = file_vf;
 		if (frames_info->frame_info[j].type == 0) {
 			if (is_valid_mod_type(file_vf->private_data,
@@ -1725,8 +1733,9 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		get_count[dev->index]++;
 
 		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
-			 "get: omx_index=%d, get_count=%d, vsync =%d, vf=%p\n",
+			 "get: omx_index=%d, index_disp=%d, get_count=%d, vsync =%d, vf=%p\n",
 			 vf->omx_index,
+			 vf->index_disp,
 			 get_count[dev->index],
 			 countinue_vsync_count[dev->index],
 			 vf);
@@ -1743,6 +1752,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	int repeat_count;
 	int omx_index;
+	int index_disp;
 	bool rendered;
 	bool is_composer;
 	int i;
@@ -1754,6 +1764,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	repeat_count = vf->repeat_count[dev->index];
 	omx_index = vf->omx_index;
+	index_disp = vf->index_disp;
 	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 	file_vf = vf->file_vf;
@@ -1766,8 +1777,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 
 	vc_print(dev->index, PRINT_FENCE,
-		 "put: repeat_count =%d, omx_index=%d\n",
-		 repeat_count, omx_index);
+		 "put: repeat_count =%d, omx_index=%d, index_disp=%x\n",
+		 repeat_count, omx_index, index_disp);
 
 	vf_pop_display_q(dev, vf);
 
@@ -1783,9 +1794,14 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (!is_composer) {
 		for (i = 0; i <= repeat_count; i++) {
-			if (file_vf)
+			if (file_vf) {
 				fput(file_vf);
-			dev->fput_count++;
+				total_put_count++;
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"put: file error!!!\n");
+			}
 		}
 	} else {
 		videocom_vf_put(vf, dev);
@@ -1983,12 +1999,12 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 	if (val > VIDEO_COMPOSER_ENABLE_NORMAL)
 		return -EINVAL;
 
+	if (val == 0)
+		dev->composer_enabled = false;
+
 	vc_print(dev->index, PRINT_ERROR,
 		 "vc: set enable index=%d, val=%d\n",
 		 dev->index, val);
-
-	if (val == 0)
-		dev->composer_enabled = false;
 
 	if (dev->enable_composer == val) {
 		pr_err("vc: set_enable repeat set dev->index =%d,val=%d\n",
@@ -2541,6 +2557,20 @@ static ssize_t receive_count_pip_show(struct class *class,
 	return sprintf(buf, "%d\n", receive_count_pip);
 }
 
+static ssize_t total_get_count_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", total_get_count);
+}
+
+static ssize_t total_put_count_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", total_put_count);
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -2563,6 +2593,8 @@ static CLASS_ATTR_RO(drop_cnt);
 static CLASS_ATTR_RO(drop_cnt_pip);
 static CLASS_ATTR_RO(receive_count);
 static CLASS_ATTR_RO(receive_count_pip);
+static CLASS_ATTR_RO(total_get_count);
+static CLASS_ATTR_RO(total_put_count);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -2587,6 +2619,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_drop_cnt_pip.attr,
 	&class_attr_receive_count.attr,
 	&class_attr_receive_count_pip.attr,
+	&class_attr_total_get_count.attr,
+	&class_attr_total_put_count.attr,
 	NULL
 };
 
