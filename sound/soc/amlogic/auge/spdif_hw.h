@@ -63,7 +63,7 @@ void aml_spdifout_get_aed_info(int spdifout_id,
 			       int *bitwidth,
 			       int *frddrtype);
 
-void spdifout_to_hdmitx_ctrl(int spdif_tohdmitxen_separated, int spdif_index);
+void enable_spdifout_to_hdmitx(void);
 
 void spdifout_samesource_set(int spdif_index,
 			     int fifo_id,
