@@ -48,6 +48,7 @@ enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_VS_FRQ	= 0x80,
 	TVIN_SIG_CHG_DV_ALLM	= 0x100,
 	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
+	TVIN_SIG_CHG_CLOSE_FE	= 0x40000000,	/*closed frontend*/
 	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
 };
 

@@ -1204,74 +1204,6 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
 }
 
-static void vdin_set_hdr(struct vdin_dev_s *devp)
-{
-	enum vd_format_e video_format;
-
-	if (devp->index == 0)
-		return;
-
-	switch (devp->parm.port) {
-	case TVIN_PORT_VIU1_WB0_VD1:
-	case TVIN_PORT_VIU1_WB0_VD2:
-	case TVIN_PORT_VIU1_WB0_POST_BLEND:
-	case TVIN_PORT_VIU1_WB1_POST_BLEND:
-	case TVIN_PORT_VIU1_WB1_VD1:
-	case TVIN_PORT_VIU1_WB1_VD2:
-	case TVIN_PORT_VIU1_WB0_OSD1:
-	case TVIN_PORT_VIU1_WB0_OSD2:
-	case TVIN_PORT_VIU1_WB1_OSD1:
-	case TVIN_PORT_VIU1_WB1_OSD2:
-		video_format = devp->vd1_fmt;
-		break;
-
-	case TVIN_PORT_VIU1_WB0_VPP:
-	case TVIN_PORT_VIU1_WB1_VPP:
-	case TVIN_PORT_VIU2_ENCL:
-	case TVIN_PORT_VIU2_ENCI:
-	case TVIN_PORT_VIU2_ENCP:
-		video_format = devp->tx_fmt;
-		break;
-
-	default:
-		video_format = devp->tx_fmt;
-		break;
-	}
-
-	switch (video_format) {
-	case SIGNAL_HDR10:
-	case SIGNAL_HDR10PLUS:
-		/* parameters:
-		 * 1st, moudle sel: 4=VDIN0_HDR, 5=VDIN1_HDR
-		 * 2nd, process sel: bit1=HDR_SDR
-		 * bit11=HDR10P_SDR
-		 */
-		hdr_set(5, 2);
-		break;
-
-	case SIGNAL_SDR:
-		/* HDR_BYPASS(bit0) | HLG_BYPASS(bit3) */
-		hdr_set(5, 0x9);
-		break;
-
-	case SIGNAL_HLG:
-		/* HLG_SDR(bit4) */
-		hdr_set(5, 0x10);
-		break;
-
-	/* VDIN DON'T support dv loopback currently */
-	case SIGNAL_DOVI:
-		pr_err("err:  don't support dv signal loopback");
-		break;
-
-	default:
-		break;
-	}
-
-	/* hdr set uses rdma, will delay 1 frame to take effect */
-	devp->frame_drop_num = 1;
-}
-
 /*this function will set the bellow parameters of devp:
  *1.h_active
  *2.v_active
@@ -1431,7 +1363,7 @@ void vdin_set_config(struct vdin_dev_s *devp)
 			VDIN_PIXELCLK_4K_60HZ; /* 2160p60hz*/
 }
 
-void vdin_change_matrix0(unsigned int offset, unsigned int matrix_csc)
+void vdin_change_matrix0(u32 offset, u32 matrix_csc)
 {
 	struct vdin_matrix_lup_s *matrix_tbl;
 
@@ -1501,6 +1433,9 @@ void vdin_change_matrix1(u32 offset, u32 matrix_csc)
 	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
+/*
+ * after, equel g12a have this matrix
+ */
 void vdin_change_matrixhdr(u32 offset, u32 matrix_csc)
 {
 	struct vdin_matrix_lup_s *matrix_tbl;
@@ -1544,178 +1479,9 @@ void vdin_change_matrixhdr(u32 offset, u32 matrix_csc)
 
 	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
-/*set matrix_csc
- * based on parameters:
- *	a.format_convert
- *	b.port
- *	c.color_range_mode
- *	d.vdin_hdr_flag
- */
-static enum vdin_matrix_csc_e
-vdin_set_color_matrix1(unsigned int offset,
-		       struct tvin_format_s *tvin_fmt_p,
-		       enum vdin_format_convert_e format_convert,
-		       enum tvin_port_e port,
-		       enum tvin_color_fmt_range_e color_fmt_range,
-		       unsigned int vdin_hdr_flag,
-		       unsigned int color_range_mode)
-{
-	/* unsigned int offset = devp->addr_offset; */
-	enum vdin_matrix_csc_e matrix_csc = VDIN_MATRIX_NULL;
-	struct tvin_format_s *fmt_info = tvin_fmt_p;
-
-	switch (format_convert)	{
-	case VDIN_MATRIX_XXX_YUV_BLACK:
-		matrix_csc = VDIN_MATRIX_XXX_YUV601_BLACK;
-		break;
-	case VDIN_FORMAT_CONVERT_RGB_YUV422:
-	case VDIN_FORMAT_CONVERT_RGB_NV12:
-	case VDIN_FORMAT_CONVERT_RGB_NV21:
-		if (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGBS_YUV709;
-				}
-			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB2020_YUV2020;
-					else
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
-				}
-			}
-		} else {
-			if (color_range_mode == 1)
-				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
-				matrix_csc = VDIN_MATRIX_RGB_YUV709;
-		}
-		break;
-	case VDIN_FORMAT_CONVERT_BRG_YUV422:
-		matrix_csc = VDIN_MATRIX_BRG_YUV601;
-		break;
-	case VDIN_FORMAT_CONVERT_GBR_YUV422:
-		matrix_csc = VDIN_MATRIX_GBR_YUV601;
-		break;
-	case VDIN_FORMAT_CONVERT_RGB_YUV444:
-		if (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGBS_YUV709;
-				}
-			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB2020_YUV2020;
-					else
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709F;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
-				}
-			}
-		} else {
-			if (color_range_mode == 1)
-				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
-				matrix_csc = VDIN_MATRIX_RGB_YUV709;
-		}
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_RGB:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540))    /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_RGB;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_RGB;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_GBR:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540))    /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_GBR;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_GBR;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_BRG:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED  &&
-		     fmt_info->v_active >= 540)) /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_BRG;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_BRG;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_YUV422:
-	case VDIN_FORMAT_CONVERT_YUV_YUV444:
-	case VDIN_FORMAT_CONVERT_YUV_NV12:
-	case VDIN_FORMAT_CONVERT_YUV_NV21:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540)) {  /* 1080i & above */
-			if (color_range_mode == 1 &&
-			    color_fmt_range != TVIN_YUV_FULL)
-				matrix_csc = VDIN_MATRIX_YUV709_YUV709F;
-			else if (color_range_mode == 0 &&
-				 color_fmt_range == TVIN_YUV_FULL)
-				matrix_csc = VDIN_MATRIX_YUV709F_YUV709;
-		} else {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_YUV_FULL)
-					matrix_csc =
-						VDIN_MATRIX_YUV601F_YUV709F;
-				else
-					matrix_csc = VDIN_MATRIX_YUV601_YUV709F;
-			} else {
-				if (color_fmt_range == TVIN_YUV_FULL)
-					matrix_csc = VDIN_MATRIX_YUV601F_YUV709;
-				else
-					matrix_csc = VDIN_MATRIX_YUV601_YUV709;
-			}
-		}
-		if (vdin_hdr_flag == 1) {
-			if (color_fmt_range == TVIN_YUV_FULL)
-				matrix_csc = VDIN_MATRIX_YUV2020F_YUV2020;
-			else
-				matrix_csc = VDIN_MATRIX_NULL;
-		}
-		break;
-	default:
-		matrix_csc = VDIN_MATRIX_NULL;
-		break;
-	}
-
-	vdin_change_matrix1(offset, matrix_csc);
-
-	return matrix_csc;
-}
 
 static enum vdin_matrix_csc_e
-vdin_set_color_matrix0(unsigned int offset,
+vdin_set_color_matrix(enum vdin_matrix_sel_e maxsel, unsigned int offset,
 		       struct tvin_format_s *tvin_fmt_p,
 		       enum vdin_format_convert_e format_convert,
 		       enum tvin_port_e port,
@@ -1874,180 +1640,98 @@ vdin_set_color_matrix0(unsigned int offset,
 		break;
 	}
 
-	vdin_change_matrix0(offset, matrix_csc);
+	if (maxsel == VDIN_SEL_MATRIX0)
+		vdin_change_matrix0(offset, matrix_csc);
+	else if (maxsel == VDIN_SEL_MATRIX1)
+		vdin_change_matrix1(offset, matrix_csc);
+	else if (maxsel == VDIN_SEL_MATRIXHDR)
+		vdin_change_matrixhdr(offset, matrix_csc);
+	else
+		matrix_csc = VDIN_MATRIX_NULL;
+
 	return matrix_csc;
 }
 
-static enum vdin_matrix_csc_e
-vdin_set_color_matrixhdr2(unsigned int offset,
-			  struct tvin_format_s *tvin_fmt_p,
-			  enum vdin_format_convert_e
-			  format_convert,
-			  enum tvin_port_e port,
-			  enum tvin_color_fmt_range_e
-			  color_fmt_range,
-			  unsigned int vdin_hdr_flag,
-			  unsigned int color_range_mode)
+void vdin_set_hdr(struct vdin_dev_s *devp)
 {
-	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
-	struct tvin_format_s *fmt_info = tvin_fmt_p;
+	enum vd_format_e video_format;
 
-	switch (format_convert)	{
-	case VDIN_MATRIX_XXX_YUV_BLACK:
-		matrix_csc = VDIN_MATRIX_XXX_YUV601_BLACK;
+	if (devp->index == 0)
+		return;
+
+	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_WB0_VD1:
+	case TVIN_PORT_VIU1_WB0_VD2:
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_VD1:
+	case TVIN_PORT_VIU1_WB1_VD2:
+	case TVIN_PORT_VIU1_WB0_OSD1:
+	case TVIN_PORT_VIU1_WB0_OSD2:
+	case TVIN_PORT_VIU1_WB1_OSD1:
+	case TVIN_PORT_VIU1_WB1_OSD2:
+		video_format = devp->vd1_fmt;
 		break;
-	case VDIN_FORMAT_CONVERT_RGB_YUV422:
-	case VDIN_FORMAT_CONVERT_RGB_NV12:
-	case VDIN_FORMAT_CONVERT_RGB_NV21:
-		if (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc =
-						VDIN_MATRIX_RGBS_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGBS_YUV709;
-				}
-			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB2020_YUV2020;
-					else
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
-				}
-			}
-		} else {
-			if (color_range_mode == 1)
-				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
-				matrix_csc = VDIN_MATRIX_RGB_YUV709;
-		}
+
+	case TVIN_PORT_VIU1_WB0_VPP:
+	case TVIN_PORT_VIU1_WB1_VPP:
+	case TVIN_PORT_VIU2_ENCL:
+	case TVIN_PORT_VIU2_ENCI:
+	case TVIN_PORT_VIU2_ENCP:
+		video_format = devp->tx_fmt;
 		break;
-	case VDIN_FORMAT_CONVERT_GBR_YUV422:
-		matrix_csc = VDIN_MATRIX_GBR_YUV601;
-		break;
-	case VDIN_FORMAT_CONVERT_BRG_YUV422:
-		matrix_csc = VDIN_MATRIX_BRG_YUV601;
-		break;
-	case VDIN_FORMAT_CONVERT_RGB_YUV444:
-		if (port >= TVIN_PORT_HDMI0 &&
-		    port <= TVIN_PORT_HDMI7) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGBS_YUV709;
-				}
-			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
-					if (vdin_hdr_flag == 1)
-						matrix_csc =
-						VDIN_MATRIX_RGB2020_YUV2020;
-					else
-						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709F;
-				} else {
-					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
-				}
-			}
-		} else {
-			if (color_range_mode == 1)
-				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
-				matrix_csc = VDIN_MATRIX_RGB_YUV709;
-		}
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_RGB:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540))    /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_RGB;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_RGB;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_GBR:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540)) /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_GBR;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_GBR;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_BRG:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540))    /* 1080i & above */
-			matrix_csc = VDIN_MATRIX_YUV709_BRG;
-		else
-			matrix_csc = VDIN_MATRIX_YUV601_BRG;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_YUV422:
-	case VDIN_FORMAT_CONVERT_YUV_YUV444:
-	case VDIN_FORMAT_CONVERT_YUV_NV12:
-	case VDIN_FORMAT_CONVERT_YUV_NV21:
-		if ((fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE &&
-		     fmt_info->v_active >= 720) || /* 720p & above */
-		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     fmt_info->v_active >= 540)) { /* 1080i & above */
-			if (color_range_mode == 1 &&
-			    color_fmt_range != TVIN_YUV_FULL)
-				matrix_csc = VDIN_MATRIX_YUV709_YUV709F;
-			else if (color_range_mode == 0 &&
-				 color_fmt_range == TVIN_YUV_FULL)
-				matrix_csc = VDIN_MATRIX_YUV709F_YUV709;
-		} else {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_YUV_FULL)
-					matrix_csc =
-						VDIN_MATRIX_YUV601F_YUV709F;
-				else
-					matrix_csc = VDIN_MATRIX_YUV601_YUV709F;
-			} else {
-				if (color_fmt_range == TVIN_YUV_FULL)
-					matrix_csc = VDIN_MATRIX_YUV601F_YUV709;
-				else
-					matrix_csc = VDIN_MATRIX_YUV601_YUV709;
-			}
-		}
-		if (vdin_hdr_flag == 1)
-			matrix_csc = VDIN_MATRIX_NULL;
-		break;
+
 	default:
-		matrix_csc = VDIN_MATRIX_NULL;
+		video_format = devp->tx_fmt;
 		break;
 	}
+#ifndef VDIN_BRINGUP_NO_AMLVECM
+	pr_info("%s fmt:%d\n", __func__, video_format);
+	switch (video_format) {
+	case SIGNAL_HDR10:
+	case SIGNAL_HDR10PLUS:
+		/* parameters:
+		 * 1st, moudle sel: 4=VDIN0_HDR, 5=VDIN1_HDR
+		 * 2nd, process sel: bit1=HDR_SDR
+		 * bit11=HDR10P_SDR
+		 */
+		hdr_set(5, 2);
+		break;
 
-	vdin_change_matrixhdr(offset, matrix_csc);
-	return matrix_csc;
+	case SIGNAL_SDR:
+		/* HDR_BYPASS(bit0) | HLG_BYPASS(bit3) */
+		hdr_set(5, 0x9);
+		break;
+
+	case SIGNAL_HLG:
+		/* HLG_SDR(bit4) */
+		hdr_set(5, 0x10);
+		break;
+
+	/* VDIN DON'T support dv loopback currently */
+	case SIGNAL_DOVI:
+		pr_err("err:  don't support dv signal loopback");
+		break;
+
+	default:
+		break;
+	}
+#endif
+	/* hdr set uses rdma, will delay 1 frame to take effect */
+	devp->frame_drop_num = 1;
 }
 
 /*set matrix based on rgb_info_enable:
  * 0:set matrix0, disable matrix1
  * 1:set matrix1, set matrix0
+ * after equal g12a: matris1, matrixhdr2
  */
 void vdin_set_matrix(struct vdin_dev_s *devp)
 {
 	enum vdin_format_convert_e format_convert_matrix0;
 	enum vdin_format_convert_e format_convert_matrix1;
 	unsigned int offset = devp->addr_offset;
+	enum vdin_matrix_sel_e maxsel;
 
 	if (rgb_info_enable == 0) {
 		/* vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
@@ -2057,27 +1741,24 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		    is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
-			devp->csc_idx =
-			vdin_set_color_matrixhdr2(devp->addr_offset,
-						  devp->fmt_info_p,
-						  devp->format_convert,
-						  devp->parm.port,
-						  devp->prop.color_fmt_range,
-						  devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-						  devp->color_range_mode);
-			vdin_set_hdr(devp);
+		    is_meson_sm1_cpu() || is_meson_tm2_cpu()) {
+			maxsel = VDIN_SEL_MATRIX1;/*VDIN_SEL_MATRIXHDR*/
 		} else {
-			devp->csc_idx =
-			vdin_set_color_matrix0(devp->addr_offset,
-					       devp->fmt_info_p,
-					       devp->format_convert,
-					       devp->parm.port,
-					       devp->prop.color_fmt_range,
-					       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-					       devp->color_range_mode);
+			maxsel = VDIN_SEL_MATRIX0;
 		}
+		devp->csc_idx =
+		vdin_set_color_matrix(maxsel,
+				      devp->addr_offset,
+				      devp->fmt_info_p,
+				      devp->format_convert,
+				      devp->parm.port,
+				      devp->prop.color_fmt_range,
+				      devp->prop.vdin_hdr_flag |
+						devp->dv.dv_flag,
+				      devp->color_range_mode);
+
+		vdin_set_hdr(devp);
+
 		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (vdin_is_dolby_signal_in(devp) ||
 		    devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
@@ -2089,34 +1770,35 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 	} else {
 		format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
 		format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
-		devp->csc_idx =
-		vdin_set_color_matrix1(devp->addr_offset,
-				       devp->fmt_info_p,
-				       format_convert_matrix1,
-				       devp->parm.port,
-				       devp->prop.color_fmt_range,
-				       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-				       devp->color_range_mode);
+		devp->csc_idx = vdin_set_color_matrix(VDIN_SEL_MATRIX1,
+				devp->addr_offset,
+				devp->fmt_info_p,
+				format_convert_matrix1,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		    is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2))
+		    is_meson_sm1_cpu() || is_meson_tm2_cpu())
 			devp->csc_idx =
-			vdin_set_color_matrixhdr2(devp->addr_offset,
-						  devp->fmt_info_p,
-						  devp->format_convert,
-						  devp->parm.port,
-						  devp->prop.color_fmt_range,
-						  devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-						  devp->color_range_mode);
+				vdin_set_color_matrix(VDIN_SEL_MATRIXHDR,
+				devp->addr_offset,
+				devp->fmt_info_p,
+				devp->format_convert,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		else
 			devp->csc_idx =
-			vdin_set_color_matrix0(devp->addr_offset,
-					       devp->fmt_info_p,
-					       format_convert_matrix0,
-					       devp->parm.port,
-					       devp->prop.color_fmt_range,
-					       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-					       devp->color_range_mode);
+				vdin_set_color_matrix(VDIN_SEL_MATRIX0,
+				devp->addr_offset,
+				devp->fmt_info_p,
+				format_convert_matrix0,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		if (devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
@@ -2140,33 +1822,34 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 	switch (id) {
 	case 0:
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		    is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2))
+		    is_meson_sm1_cpu() || is_meson_tm2_cpu())
 			devp->csc_idx =
-			vdin_set_color_matrixhdr2(devp->addr_offset,
-						  devp->fmt_info_p,
-						  devp->format_convert,
-						  devp->parm.port,
-						  devp->prop.color_fmt_range,
-						  devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-						  devp->color_range_mode);
+				vdin_set_color_matrix(VDIN_SEL_MATRIXHDR,
+				devp->addr_offset,
+				devp->fmt_info_p,
+				devp->format_convert,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		else
 			devp->csc_idx =
-			vdin_set_color_matrix0(devp->addr_offset,
-					       devp->fmt_info_p, csc,
-					       devp->parm.port,
-					       devp->prop.color_fmt_range,
-					       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-					       devp->color_range_mode);
+				vdin_set_color_matrix(VDIN_SEL_MATRIX0,
+				devp->addr_offset,
+				devp->fmt_info_p, csc,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		break;
 	case 1:
-		devp->csc_idx =
-			vdin_set_color_matrix1(devp->addr_offset,
-					       devp->fmt_info_p, csc,
-					       devp->parm.port,
-					       devp->prop.color_fmt_range,
-					       devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-					       devp->color_range_mode);
+		devp->csc_idx = vdin_set_color_matrix(VDIN_SEL_MATRIX1,
+				devp->addr_offset,
+				devp->fmt_info_p, csc,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
 		break;
 	default:
 		break;
@@ -3381,8 +3064,9 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		/* T5 vdin1 only support 2k */
-		if ((devp->dtdata->hw_ver == VDIN_HW_T5 ||
-		     devp->dtdata->hw_ver == VDIN_HW_SC2) && devp->index)
+		/* T5D vdin0 vdin1 all support 2k*/
+		if (devp->dtdata->hw_ver == VDIN_HW_T5D ||
+		    (devp->dtdata->hw_ver == VDIN_HW_T5 && devp->index))
 			wr(offset, VDIN_LFIFO_CTRL, 0xc0020780);
 		else
 			wr(offset, VDIN_LFIFO_CTRL, 0xc0020f00);
@@ -4046,7 +3730,8 @@ static void vdin_set_vshrink(struct vdin_dev_s *devp)
 		pr_err("vdin.%d don't support vshrink before TM2\n",
 		       devp->index);
 		return;
-	} else if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5) && devp->index) {
+	} else if ((devp->dtdata->hw_ver == VDIN_HW_T5 ||
+		    devp->dtdata->hw_ver == VDIN_HW_T5D) && devp->index) {
 		return;
 	}
 
@@ -4964,7 +4649,9 @@ void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 	/* only support vdin0
 	 * don't support in T5
 	 */
-	if (offset == 1 || devp->dtdata->hw_ver == VDIN_HW_T5)
+	if (offset == 1 ||
+	    (devp->dtdata->hw_ver == VDIN_HW_T5 ||
+	     devp->dtdata->hw_ver == VDIN_HW_T5D))
 		return;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {

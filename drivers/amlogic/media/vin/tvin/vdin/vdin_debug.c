@@ -1689,12 +1689,14 @@ static ssize_t attr_store(struct device *dev,
 	long val = 0;
 	unsigned int temp;
 	unsigned int mode = 0, flag = 0;
+	unsigned int offset;
 
 	if (!buf)
 		return len;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	devp = dev_get_drvdata(dev);
 	vdin_parse_param(buf_orig, (char **)&parm);
+	offset = devp->addr_offset;
 
 	if (!strncmp(parm[0], "fps", 3)) {
 		if (devp->cycle)
@@ -1723,9 +1725,13 @@ static ssize_t attr_store(struct device *dev,
 	} else if  (!strcmp(parm[0], "request_irq")) {
 		snprintf(devp->irq_name, sizeof(devp->irq_name),
 			 "vdin%d-irq", devp->index);
-		pr_info("vdin work in normal mode\n");
-		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
-				  devp->irq_name, (void *)devp);
+		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
+			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
+					  devp->irq_name, (void *)devp);
+			disable_irq(devp->irq);
+			devp->flags |= VDIN_FLAG_ISR_REQ;
+		}
+		pr_info("req ISR flag:0x%x\n", devp->flags);
 	} else if  (!strcmp(parm[0], "free_irq")) {
 		free_irq(devp->irq, (void *)devp);
 		pr_info("free irq\n");
@@ -1833,19 +1839,40 @@ start_chk:
 			pr_info("TVIN_IOC_START_DEC(%d) error, fmt is null\n",
 				devp->index);
 		}
+		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
+			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
+					  devp->irq_name, (void *)devp);
+			devp->flags |= VDIN_FLAG_ISR_REQ;
+			disable_irq(devp->irq);
+		}
 		vdin_start_dec(devp);
+
 		/*enable irq */
 		enable_irq(devp->irq);
-
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    devp->index == 0 && devp->vpu_crash_irq != 0)
-			enable_irq(devp->vpu_crash_irq);
+		devp->flags |= VDIN_FLAG_ISR_EN;
+		/*if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&*/
+		/*    devp->index == 0 && devp->vpu_crash_irq > 0)*/
+		/*	enable_irq(devp->vpu_crash_irq);*/
 
 		pr_info("%s START_DEC vdin.%d enable_irq\n",
 			__func__, devp->index);
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
 		pr_info("TVIN_IOC_START_DEC port %s, decode started ok\n\n",
 			tvin_port_str(devp->parm.port));
+	} else if (!strcmp(parm[0], "startdec")) {
+		temp = devp->parm.info.fmt;
+		pr_info("cur timing info:0x%x %s\n", temp,
+			tvin_sig_fmt_str(devp->parm.info.fmt));
+		devp->fmt_info_p =
+			(struct tvin_format_s *)tvin_get_fmt_info(temp);
+
+		vdin_start_dec(devp);
+		/*enable irq */
+		enable_irq(devp->irq);
+
+		pr_info("%s START_DEC vdin.%d enable_irq\n",
+			__func__, devp->index);
+		devp->flags |= VDIN_FLAG_DEC_STARTED;
 	} else if (!strcmp(parm[0], "tvstop")) {
 		vdin_stop_dec(devp);
 		vdin_close_fe(devp);
@@ -2457,20 +2484,17 @@ start_chk:
 			pr_info("skip frame check para err, ori: %d\n",
 				devp->skip_disp_md_check);
 		}
-	} else if (!strcmp(parm[0], "vdinmtx0")) {
+	} else if (!strcmp(parm[0], "vdinmtx")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &temp) == 0)
-				vdin_change_matrix0(devp->addr_offset, temp);
-		}
-	} else if (!strcmp(parm[0], "vdinmtx1")) {
-		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &temp) == 0)
-				vdin_change_matrix1(0, temp);
-		}
-	} else if (!strcmp(parm[0], "vdinmtxhdr")) {
-		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &temp) == 0)
-				vdin_change_matrixhdr(devp->addr_offset, temp);
+			if (kstrtouint(parm[1], 10, &temp) == 0  &&
+			    kstrtouint(parm[2], 10, &mode) == 0) {
+				if (temp == VDIN_SEL_MATRIX0)
+					vdin_change_matrix0(offset, mode);
+				else if (temp == VDIN_SEL_MATRIX1)
+					vdin_change_matrix1(offset, mode);
+				else if (temp == VDIN_SEL_MATRIXHDR)
+					vdin_change_matrixhdr(offset, mode);
+			}
 		}
 	} else if (!strcmp(parm[0], "scramble")) {
 		if (parm[1]) {

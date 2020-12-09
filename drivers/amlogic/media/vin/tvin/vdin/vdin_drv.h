@@ -65,7 +65,11 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1221: vdin1 force recycle case crash"
+#define VDIN_VER "ver:2020-1021: support loopback HDR signal"
+
+/*#define VDIN_BRINGUP_NO_VF*/
+/*#define VDIN_BRINGUP_NO_VLOCK*/
+/*#define VDIN_BRINGUP_NO_AMLVECM*/
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -90,6 +94,7 @@ enum vdin_hw_ver_e {
 	 */
 	VDIN_HW_SC2,
 	VDIN_HW_T5,
+	VDIN_HW_T5D,
 };
 
 /*addr for verify chip*/
@@ -294,6 +299,12 @@ enum vdin_matrix_csc_e {
 	VDIN_MATRIX_RGB_RGBS,
 	VDIN_MATRIX_RGB2020_YUV2020,
 	VDIN_MATRIX_YUV2020F_YUV2020,
+};
+
+enum vdin_matrix_sel_e {
+	VDIN_SEL_MATRIX0 = 0,
+	VDIN_SEL_MATRIX1,
+	VDIN_SEL_MATRIXHDR,/*after, equeal g12a have*/
 };
 
 static inline const char
@@ -619,7 +630,6 @@ struct vdin_dev_s {
 	unsigned int interlace_force_drop;
 	unsigned int frame_drop_num;
 	unsigned int skip_disp_md_check;
-
 	unsigned int vframe_wr_en;
 	unsigned int vframe_wr_en_pre;
 	unsigned int pause_dec;
@@ -630,9 +640,6 @@ struct vdin_dev_s {
 	unsigned int matrix_pattern_mode;
 	unsigned int pause_num;
 	unsigned int hv_reverse_en;
-
-	unsigned int tx_fmt;
-	unsigned int vd1_fmt;
 
 	/*v4l interface ---- start*/
 	enum vdin_work_mode_e work_mode;
@@ -654,6 +661,9 @@ struct vdin_dev_s {
 	unsigned int dbg_v4l_que_cnt;
 	unsigned int dbg_v4l_dque_cnt;
 	/*v4l interface ---- end*/
+
+	unsigned int tx_fmt;
+	unsigned int vd1_fmt;
 };
 
 struct vdin_hist_s {
@@ -675,6 +685,8 @@ extern unsigned int skip_frame_debug;
 extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
 extern unsigned int dv_de_scramble;
+
+struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;
 extern unsigned int dolby_size_byte;
 extern unsigned int dv_dbg_mask;
@@ -720,11 +732,15 @@ void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
 u32 vlock_get_phase_en(void);
+void vdin_change_matrix0(u32 offset, u32 matrix_csc);
+void vdin_change_matrix1(u32 offset, u32 matrix_csc);
+void vdin_change_matrixhdr(u32 offset, u32 matrix_csc);
 
 struct vdin_dev_s *vdin_get_dev(unsigned int index);
 void vdin_mif_config_init(struct vdin_dev_s *devp);
 void vdin_drop_frame_info(struct vdin_dev_s *devp, char *info);
 int vdin_create_debug_files(struct device *dev);
+void vdin_remove_debug_files(struct device *dev);
 void vdin_vpu_dev_register(struct vdin_dev_s *vdevp);
 void vdin_vpu_clk_gate_on_off(struct vdin_dev_s *vdevp, unsigned int on);
 void vdin_vpu_clk_mem_pd(struct vdin_dev_s *vdevp, unsigned int on);
