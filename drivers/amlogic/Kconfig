@@ -119,6 +119,7 @@ source "drivers/amlogic/uart/Kconfig"
 source "drivers/amlogic/smartcard/Kconfig"
 source "drivers/amlogic/mtd/Kconfig"
 source "drivers/amlogic/audioinfo/Kconfig"
+source "drivers/amlogic/dolby_fw/Kconfig"
 
 endmenu
 endif

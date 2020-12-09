@@ -65,6 +65,10 @@ struct meson_sm_firmware {
 
 static struct meson_sm_firmware fw;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static DEFINE_MUTEX(meson_sm_mutex);
+#endif
+
 static u32 meson_sm_get_cmd(const struct meson_sm_chip *chip,
 			    unsigned int cmd_index)
 {
@@ -229,6 +233,44 @@ int meson_sm_call_write(void *buffer, unsigned int size, unsigned int cmd_index,
 	return written;
 }
 EXPORT_SYMBOL(meson_sm_call_write);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+void meson_sm_mutex_lock(void)
+{
+	mutex_lock(&meson_sm_mutex);
+}
+EXPORT_SYMBOL(meson_sm_mutex_lock);
+
+void meson_sm_mutex_unlock(void)
+{
+	mutex_unlock(&meson_sm_mutex);
+}
+EXPORT_SYMBOL(meson_sm_mutex_unlock);
+
+void __iomem *get_meson_sm_input_base(void)
+{
+	if (!fw.chip)
+		return NULL;
+
+	if (!fw.chip->cmd_shmem_in_base)
+		return NULL;
+
+	return fw.sm_shmem_in_base;
+}
+EXPORT_SYMBOL(get_meson_sm_input_base);
+
+void __iomem *get_meson_sm_output_base(void)
+{
+	if (!fw.chip)
+		return NULL;
+
+	if (!fw.chip->cmd_shmem_out_base)
+		return NULL;
+
+	return fw.sm_shmem_out_base;
+}
+EXPORT_SYMBOL(get_meson_sm_output_base);
+#endif
 
 #define SM_CHIP_ID_LENGTH	119
 #define SM_CHIP_ID_OFFSET	4
