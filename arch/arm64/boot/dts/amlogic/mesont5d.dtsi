@@ -335,21 +335,26 @@
 	};
 
 	ethmac: ethernet@ff3f0000 {
-		compatible = "amlogic, g12a-eth-dwmac","snps,dwmac";
-		reg = <0x0 0xff3f0000 0x0 0x10000
-			0x0 0xff634540 0x0 0x8
-			0x0 0xff64c000 0x0 0xa0
-			0x0 0xffd01008 0x0 0x4
-			0x0 0xff800270 0x0 0x4>;
-		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset", "tx_amp_src";
-		interrupts = <0 8 1>;
+		compatible = "amlogic,meson-axg-dwmac",
+			     "snps,dwmac-3.70a",
+			     "snps,dwmac";
+		reg = <0x0 0xff3f0000 0x0 0x10000>,
+			  <0x0 0xff634400 0x0 0x8>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq";
+		clocks = <&clkc CLKID_ETH_CORE>,
+			 <&clkc CLKID_FCLK_DIV2>,
+			 <&clkc CLKID_MPLL2>;
+		clock-names = "stmmaceth", "clkin0", "clkin1";
+		rx-fifo-depth = <4096>;
+		tx-fifo-depth = <2048>;
 		status = "disabled";
-		clocks = <&clkc CLKID_ETH_CORE>;
-		clock-names = "ethclk81";
-		enet_type = <3>;
-		pll_val = <0x9c0040a 0x927e0000 0xac5f49e5>;
-		analog_val = <0x20200000 0x0000c000 0x00000023>;
+
+		mdio0: mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dwmac-mdio";
+		};
 	};
 
 	pinctrl_aobus: pinctrl@ff800014 {
@@ -670,6 +675,38 @@
 				};
 			};
 		};/* end of hiubus1*/
+
+		eth_phy: mdio-multiplexer@ff64c000 {
+			compatible = "amlogic,g12a-mdio-mux";
+			reg = <0x0 0xff64c000 0x0 0xa4>;
+			clocks = <&clkc CLKID_ETH_PHY>,
+				 <&xtal>,
+				 <&clkc CLKID_MPLL_50M>;
+			clock-names = "pclk", "clkin0", "clkin1";
+			mdio-parent-bus = <&mdio0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ext_mdio: mdio@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			int_mdio: mdio@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				internal_ephy: ethernet_phy@8 {
+					compatible = "ethernet-phy-id0180.3301",
+						     "ethernet-phy-ieee802.3-c22";
+					interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+					reg = <8>;
+					max-speed = <100>;
+				};
+			};
+		};
 
 		audiobus: audiobus@0xff600000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
