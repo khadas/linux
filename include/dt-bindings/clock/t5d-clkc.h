@@ -46,9 +46,10 @@
 #define CLKID_CPU_CLK_DYN1			34
 #define CLKID_CPU_CLK_DYN			35
 #define CLKID_CPU_CLK				36
+#define CLKID_MPLL_50M_DIV			37
+#define CLKID_MPLL_50M				38
 
-#define GATE_BASE0				37
-
+#define GATE_BASE0				39
 #define CLKID_DDR				(GATE_BASE0 + 0)
 #define CLKID_DOS				(GATE_BASE0 + 1)
 #define CLKID_ETH_PHY				(GATE_BASE0 + 2)

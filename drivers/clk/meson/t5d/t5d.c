@@ -612,6 +612,36 @@ static struct clk_regmap t5d_hifi_pll = {
 	},
 };
 
+static struct clk_fixed_factor t5d_mpll_50m_div = {
+	.mult = 1,
+	.div = 80,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll_50m_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t5d_fixed_pll_dco.hw
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap t5d_mpll_50m = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_FIX_PLL_CNTL3,
+		.mask = 0x1,
+		.shift = 5,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll_50m",
+		.ops = &clk_regmap_mux_ro_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &t5d_mpll_50m_div.hw },
+		},
+		.num_parents = 2,
+	},
+};
+
 static struct clk_fixed_factor t5d_mpll_prediv = {
 	.mult = 1,
 	.div = 2,
@@ -1325,6 +1355,8 @@ static struct clk_hw_onecell_data t5d_hw_onecell_data = {
 		[CLKID_CPU_CLK_DYN1]		= &t5d_cpu_clk_postmux1.hw,
 		[CLKID_CPU_CLK_DYN]		= &t5d_cpu_clk_dyn.hw,
 		[CLKID_CPU_CLK]			= &t5d_cpu_clk.hw,
+		[CLKID_MPLL_50M_DIV]	= &t5d_mpll_50m_div.hw,
+		[CLKID_MPLL_50M]	= &t5d_mpll_50m.hw,
 		[CLKID_DDR]		= &t5d_clk81_ddr.hw,
 		[CLKID_DOS]		= &t5d_clk81_dos.hw,
 		[CLKID_ETH_PHY]		= &t5d_clk81_ethphy.hw,
@@ -1501,6 +1533,7 @@ static struct clk_regmap *const t5d_clk_regmaps[] = {
 	&t5d_cpu_clk_postmux1,
 	&t5d_cpu_clk_dyn,
 	&t5d_cpu_clk,
+	&t5d_mpll_50m,
 };
 
 static const struct reg_sequence t5d_init_regs[] = {
