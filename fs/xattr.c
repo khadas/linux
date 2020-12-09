@@ -264,7 +264,12 @@ retry_deleg:
 	}
 	return error;
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+EXPORT_SYMBOL_GPL(vfs_setxattr);
+#else
 EXPORT_SYMBOL_NS_GPL(vfs_setxattr, ANDROID_GKI_VFS_EXPORT_ONLY);
+#endif
 
 static ssize_t
 xattr_getsecurity(struct inode *inode, const char *name, void *value,
