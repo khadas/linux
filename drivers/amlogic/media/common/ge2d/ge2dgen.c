@@ -91,6 +91,25 @@ void _set_dst_format(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 		src2_dst_data_cfg->dst2_enable = 0;
 	}
 	/* #endif */
+
+	if (ge2d_meson_dev.dst_repeat)
+		switch (format_dst & GE2D_EXT_MASK) {
+		case GE2D_DST_REPEAT_2:
+			src2_dst_data_cfg->dst_rpt = DST_RPT_2 |
+						     DST_RPT_PATTERN_XX;
+			break;
+		case GE2D_DST_REPEAT_4:
+			src2_dst_data_cfg->dst_rpt = DST_RPT_4 |
+						     DST_RPT_PATTERN_XX;
+			break;
+		case GE2D_DST_REPEAT_8:
+			src2_dst_data_cfg->dst_rpt = DST_RPT_8 |
+						     DST_RPT_PATTERN_XX;
+			break;
+		default:
+			src2_dst_data_cfg->dst_rpt = 0;
+			break;
+		}
 }
 
 static bool is_src1_addr_update(struct ge2d_src1_data_s *src1_data_cfg,

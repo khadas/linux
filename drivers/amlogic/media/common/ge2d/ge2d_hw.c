@@ -489,6 +489,9 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->src2_mode_8b_sel, 15, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->dst_mode_8b_sel, 24, 2);
 
+	if (ge2d_meson_dev.dst_repeat)
+		ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->dst_rpt, 17, 6);
+
 	ge2d_reg_set_bits(GE2D_GEN_CTRL3, cfg->dst2_pixel_byte_width, 16, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL3, cfg->dst2_color_map, 19, 4);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL3, cfg->dst2_discard_mode, 10, 4);
@@ -839,6 +842,22 @@ void ge2d_set_dp_gen(struct ge2d_config_s *config)
 				cfg->matrix_sat_in_en = 0;
 				cfg->matrix_minus_16_ctrl = 0;
 				cfg->matrix_sign_ctrl = 0;
+			} else if (matrix_using & MATRIX_ONE) {
+				cfg->matrix_coef[0] = 1;
+				cfg->matrix_coef[1] = 0;
+				cfg->matrix_coef[2] = 0;
+				cfg->matrix_coef[3] = 0;
+				cfg->matrix_coef[4] = 1;
+				cfg->matrix_coef[5] = 0;
+				cfg->matrix_coef[6] = 0;
+				cfg->matrix_coef[7] = 0;
+				cfg->matrix_coef[8] = 1;
+				cfg->matrix_offset[0] = 0;
+				cfg->matrix_offset[1] = 0;
+				cfg->matrix_offset[2] = 0;
+				cfg->matrix_sat_in_en = 0;
+				cfg->matrix_minus_16_ctrl = 0;
+				cfg->matrix_sign_ctrl = 0;
 			}
 
 			if (cfg->matrix_minus_16_ctrl)
@@ -887,6 +906,10 @@ void ge2d_set_dp_gen(struct ge2d_config_s *config)
 			       (cfg->matrix_offset[2] << 0)
 			       );
 	}
+
+	if (ge2d_meson_dev.dst_sign_mode && cfg->conv_matrix_en_dst)
+		ge2d_reg_set_bits(GE2D_MATRIX3_COEF22_CTRL,
+				  cfg->dst_signed_mode, 6, 1);
 
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->src1_gb_alpha, 0, 8);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL2,

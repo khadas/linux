@@ -117,12 +117,22 @@ enum ge2d_memtype_s {
 #define FILTER_TYPE_GAU0_BOT    5
 #define FILTER_TYPE_GAU1    6
 
+#define DST_SIGN_MODE   BIT(8)
+#define DST_REPEAT      BIT(7)
 #define CANVAS_STATUS   (BIT(5) | BIT(6))
 #define HAS_SELF_POWER  BIT(4)
 #define DEEP_COLOR      BIT(3)
 #define ADVANCED_MATRIX BIT(2)
 #define SRC2_REPEAT     BIT(1)
 #define SRC2_ALPHA      BIT(0)
+
+#define DST_RPT_PATTERN_X0 1
+#define DST_RPT_PATTERN_0X 2
+#define DST_RPT_PATTERN_XX 3
+
+#define DST_RPT_2          (0 << 2)
+#define DST_RPT_4          BIT(2)
+#define DST_RPT_8          (2 << 2)
 
 #define MATRIX_YCC_TO_RGB               BIT(0)
 #define MATRIX_RGB_TO_YCC               BIT(1)
@@ -133,6 +143,13 @@ enum ge2d_memtype_s {
 #define MATRIX_BT_709                   BIT(4)
 #define MATRIX_CUSTOM                   BIT(5)
 #define STRIDE_CUSTOM                   BIT(6)
+#define MATRIX_ONE                      BIT(4)
+
+#define GE2D_EXT_MASK                   (BIT(25) | BIT(26) | BIT(27) | BIT(31))
+#define GE2D_DST_REPEAT_2               BIT(31)
+#define GE2D_DST_REPEAT_4               BIT(27)
+#define GE2D_DST_REPEAT_8               (BIT(31) | BIT(27))
+#define GE2D_DST_SIGN_MDOE              BIT(26)
 
 #define GE2D_FORMAT_BT_STANDARD         BIT(28)
 #define GE2D_FORMAT_BT601               (0 << 28)
@@ -476,6 +493,7 @@ struct ge2d_src2_dst_data_s {
 	unsigned int src2_stride[MAX_PLANE];
 	unsigned int dst_phyaddr[MAX_PLANE];
 	unsigned int dst_stride[MAX_PLANE];
+	unsigned char dst_rpt;
 };
 
 struct ge2d_src2_dst_gen_s {
@@ -532,6 +550,7 @@ struct ge2d_dp_gen_s {
 	unsigned char     conv_matrix_en_src2;        /* src2 matrix enable */
 	unsigned char     conv_matrix_en_dst;         /* dst  matrix enable */
 	unsigned char     matrix_sat_in_en;
+	unsigned char     dst_signed_mode;
 	unsigned char     matrix_minus_16_ctrl; /* 3bit */
 	unsigned char     matrix_sign_ctrl;     /* 3bit */
 	int               matrix_offset[3];
@@ -1156,7 +1175,9 @@ struct ge2d_device_data_s {
 	struct ge2d_power_table_s *poweroff_table;
 	int chip_type;
 	unsigned int adv_matrix;
-	unsigned int src2_repeat;
+	unsigned int src2_repeat;    /* src2 x/y repeat */
+	unsigned int dst_repeat;     /* dst x repeat */
+	unsigned int dst_sign_mode;  /* dst signed matrix */
 };
 
 extern struct ge2d_device_data_s ge2d_meson_dev;

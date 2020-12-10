@@ -465,14 +465,18 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 #endif
 	switch (cmd) {
 	case GE2D_GET_CAP:
-		/* CANVAS_STATUS   |
+		/* DST_SIGN_MODE   |
+		 * DST_REPEAT      |
+		 * CANVAS_STATUS   |
 		 * HAS_SELF_POWER  |
 		 * DEEP_COLOR      |
 		 * ADVANCED_MATRIX |
 		 * SRC2_REPEAT     |
 		 * SRC2_ALPHA
 		 */
-		cap_mask = ge2d_meson_dev.canvas_status << 5 |
+		cap_mask = ge2d_meson_dev.dst_sign_mode << 8 |
+			   ge2d_meson_dev.dst_repeat << 7    |
+			   ge2d_meson_dev.canvas_status << 5 |
 			   ge2d_meson_dev.has_self_pwr  << 4 |
 			   ge2d_meson_dev.deep_color    << 3 |
 			   ge2d_meson_dev.adv_matrix    << 2 |
@@ -1278,6 +1282,23 @@ static struct ge2d_device_data_s ge2d_t5 = {
 	.chip_type = MESON_CPU_MAJOR_ID_T5,
 };
 
+static struct ge2d_device_data_s ge2d_t7 = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_T7,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1322,6 +1343,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-t5",
 		.data = &ge2d_t5,
+	},
+	{
+		.compatible = "amlogic, ge2d-t7",
+		.data = &ge2d_t7,
 	},
 	{},
 };

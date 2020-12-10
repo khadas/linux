@@ -424,6 +424,13 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 	format_src2 = config->src2_dst_data.src2_format_all;
 	format_dst = config->src2_dst_data.dst_format_all;
 
+	/* dst signed mode */
+	if (ge2d_meson_dev.dst_sign_mode &&
+	    (format_dst & GE2D_EXT_MASK) == GE2D_DST_SIGN_MDOE)
+		dp_gen_cfg->dst_signed_mode = 1;
+	else
+		dp_gen_cfg->dst_signed_mode = 0;
+
 	if (ge2d_meson_dev.adv_matrix && cmd->cmd_op == IS_BLEND) {
 		/* in blend case
 		 * src & src2 should be transform to RGB first for ALU
@@ -469,13 +476,24 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 			dp_gen_cfg->conv_matrix_en_dst = 0;
 		}
 	} else {
-		/* not blend case
-		 * disable src2 and dst matrix, just use src matrix
+		/* not blend case, disable src2 matrix,
+		 * use src matrix to convert format.
+		 *
+		 * if dst_sign_mode is supported and used,
+		 * use dst matrix to convert to signed output,
+		 * else disable dst matrix.
 		 */
-		dp_gen_cfg->use_matrix_default_dst = 0;
-		dp_gen_cfg->conv_matrix_en_dst = 0;
 		dp_gen_cfg->use_matrix_default_src2 = 0;
 		dp_gen_cfg->conv_matrix_en_src2 = 0;
+
+		if (ge2d_meson_dev.dst_sign_mode &&
+		    dp_gen_cfg->dst_signed_mode) {
+			dp_gen_cfg->use_matrix_default_dst = MATRIX_ONE;
+			dp_gen_cfg->conv_matrix_en_dst = 1;
+		} else {
+			dp_gen_cfg->use_matrix_default_dst = 0;
+			dp_gen_cfg->conv_matrix_en_dst = 0;
+		}
 
 		/* if customized matrix is used
 		 * skip internal matrix params, use externel directly
