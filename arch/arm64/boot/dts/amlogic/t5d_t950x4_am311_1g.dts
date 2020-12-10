@@ -1845,15 +1845,11 @@
 };
 
 &pwm_ab {
-	status = "disabled";
-};
-
-&pwm_ef {
-	status = "disabled";
+	status = "okay";
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &efuse {
