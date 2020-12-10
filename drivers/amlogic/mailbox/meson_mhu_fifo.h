@@ -12,7 +12,7 @@
 
 #define CHANNEL_FIFO_MAX	6
 #define MBOX_MAX		CHANNEL_FIFO_MAX
-#define MHUIRQ_MAXNUM		32
+#define MHUIRQ_MAXNUM_DEF	32
 
 #define PAYLOAD_OFFSET(chan)	(0x80 * (chan))
 #define CTL_OFFSET(chan)	((chan) * 0x4)
@@ -24,6 +24,13 @@
 #define IRQ_TYPE_OFFSET(x)	(0x10 + ((x) << 2))
 #define IRQ_CLR_OFFSET(x)	(0x20 + ((x) << 2))
 #define IRQ_STS_OFFSET(x)	(0x30 + ((x) << 2))
+
+#define IRQ_MASK_OFFSETL(x)	(0x00 + ((x) << 3))
+#define IRQ_CLR_OFFSETL(x)	(0x40 + ((x) << 3))
+#define IRQ_STS_OFFSETL(x)	(0x80 + ((x) << 3))
+#define IRQ_MASK_OFFSETH(x)	(0x04 + ((x) << 3))
+#define IRQ_CLR_OFFSETH(x)	(0x44 + ((x) << 3))
+#define IRQ_STS_OFFSETH(x)	(0x84 + ((x) << 3))
 
 /*inclule status 0x4 task id 0x8, ullclt 0x8, completion 0x8*/
 #define MBOX_HEAD_SIZE		0x1c
@@ -45,6 +52,8 @@
 #define MBOX_ULLCLT_LEN		8
 
 #define REV_MBOX_MASK		0xAA
+#define MBOX_IRQMASK		0xffffffff
+#define MBOX_IRQSHIFT		32
 
 int __init aml_mhu_fifo_init(void);
 void aml_mhu_fifo_exit(void);
