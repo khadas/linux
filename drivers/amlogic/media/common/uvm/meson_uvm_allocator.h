@@ -35,7 +35,8 @@ struct mua_buffer {
 	struct uvm_buf_obj base;
 	struct mua_device *dev;
 	size_t size;
-	struct ion_buffer *ibuffer;
+	struct ion_buffer *ibuffer[2];
+	struct dma_buf *idmabuf[2];
 	struct sg_table *sg_table;
 
 	int byte_stride;

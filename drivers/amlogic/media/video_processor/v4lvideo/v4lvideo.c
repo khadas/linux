@@ -776,25 +776,18 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	if (cts_use_di)
 		vf = &file_private_data->vf;
 
+	if (is_valid_mod_type(dmabuf, VF_SRC_DECODER))
+		vf = dmabuf_get_vframe(dmabuf);
+	else
+		v4l_data->file_private_data = file_private_data;
+
 	pr_info("%s: vf->type: %d vf->compWidth: %d\n",
 			__func__, vf->type, vf->compWidth);
-	/* TODO: how to know whether is v4l2 decoer
-	 * or v4lvideo.
-	 *
-	 * Workaround:
-	 * If we get vf from file_private_data,
-	 * we think it is v4lvideo path when
-	 * vf->type == VIDTYPE_COMPRESS and vf->compWidth != 0 .
-	 *
-	 * If we get vf from file_private_data, but
-	 * vf->compWidth == 0, which means it is
-	 * v4l2 decoder path
-	 */
+	if (!vf) {
+		pr_err("vf is NULL\n");
+		return;
+	}
 	if ((vf->type & VIDTYPE_COMPRESS)) {
-		if (vf->compWidth != 0)
-			v4l_data->file_private_data = file_private_data;
-		else
-			vf = dmabuf_get_vframe(dmabuf);
 		do_vframe_afbc_soft_decode(v4l_data, vf);
 		return;
 	}

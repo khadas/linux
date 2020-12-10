@@ -86,7 +86,7 @@ static struct sg_table
 		UVM_PRINTK(1, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
 					ua->size, ua->scalar);
 		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
-			UVM_PRINTK(0, "gpu_realloc fail\n");
+			UVM_PRINTK(1, "gpu_realloc fail\n");
 			return ERR_PTR(-ENOMEM);
 		}
 	}
@@ -558,7 +558,7 @@ static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 	mutex_unlock(&handle->lock);
 
 	if (!uhmod) {
-		UVM_PRINTK(0, "%s fail.\n", __func__);
+		UVM_PRINTK(1, "%s fail.\n", __func__);
 		return NULL;
 	}
 
