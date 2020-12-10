@@ -108,7 +108,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			videobuf_queue_cancel(q);
 
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
-			if (q->bufs[i])
+			if (!q->bufs[i])
 				continue;
 
 			if (q->bufs[i]->map != map)
