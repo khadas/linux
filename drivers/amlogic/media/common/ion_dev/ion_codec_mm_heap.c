@@ -89,7 +89,7 @@ static int ion_codec_mm_heap_allocate(struct ion_heap *heap,
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), size, 0);
 	buffer->priv_virt = table;
 	buffer->sg_table = table;
-
+	ion_buffer_prep_noncached(buffer);
 	return 0;
 
 err_free_table:
