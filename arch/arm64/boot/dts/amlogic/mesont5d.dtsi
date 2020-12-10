@@ -311,7 +311,7 @@
 
 	vpu: vpu {
 		compatible = "amlogic, vpu-t5d";
-		status = "disabled";
+		status = "okay";
 		clocks = <&peripheral_clkc CLKID_VAPB_MUX>,
 			<&peripheral_clkc CLKID_VPU_P0_GATE>,
 			<&peripheral_clkc CLKID_VPU_P1_GATE>,
@@ -325,7 +325,7 @@
 		reg = <0x0 0xff646000 0x0 0x200    /* clk */
 			0x0 0xff644000 0x0 0x40     /* pwrctrl */
 			0x0 0xff900000 0x0 0x40000>; /* vcbus */
-		clk_level = <3>;
+		clk_level = <5>;
 		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
 		/* 4: 333.3M    5: 400.0M */
 	};

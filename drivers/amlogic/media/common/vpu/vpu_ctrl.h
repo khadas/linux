@@ -23,8 +23,8 @@
 #define CLK_LEVEL_MAX_G12A     8
 
 /* T5D */
-/* freq max=400M, default=250M */
-#define CLK_LEVEL_DFT_T5D     3
+/* freq max=400M, default=400M */
+#define CLK_LEVEL_DFT_T5D     5
 #define CLK_LEVEL_MAX_T5D     6
 
 /* vpu clk setting */
