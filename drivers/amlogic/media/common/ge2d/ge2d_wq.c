@@ -751,7 +751,7 @@ static int build_ge2d_config(struct ge2d_context_s *context,
 		src->ge2d_color_index = cfg->src_format;
 		src->bpp = bpp(cfg->src_format);
 		for (i = 0; i < MAX_PLANE; i++) {
-			if (cfg->src_planes[0].addr) {
+			if (cfg->src_planes[i].addr) {
 				if (ge2d_meson_dev.canvas_status == 1) {
 					if (i == 0) {
 						src->canvas_index = 0;
