@@ -2147,16 +2147,22 @@ static int vpu_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	if (!vpu_conf.data)
+		return 0;
+
 	VPUPR("suspend clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_hiu_read(HHI_VPU_CLK_CNTL)));
+	      vpu_clk_get(), (vpu_hiu_read(vpu_conf.data->vpu_clk_reg)));
 	return 0;
 }
 
 static int vpu_resume(struct platform_device *pdev)
 {
+	if (!vpu_conf.data)
+		return 0;
+
 	set_vpu_clk(vpu_conf.clk_level);
 	VPUPR("resume clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_hiu_read(HHI_VPU_CLK_CNTL)));
+	      vpu_clk_get(), (vpu_hiu_read(vpu_conf.data->vpu_clk_reg)));
 	return 0;
 }
 #endif
