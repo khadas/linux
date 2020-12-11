@@ -1074,13 +1074,13 @@ static s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 			(void *)&req);
 		if (req.aux_buf && req.aux_size) {
 			p = vmalloc(req.aux_size);
-		if (p) {
-			memcpy(p, req.aux_buf, req.aux_size);
-			ret = update_vframe_src_fmt(dup_vf, (void *)p,
-						    (u32)req.aux_size,
-						    req.dv_enhance_exist
-						    ? true : false,
-						    provider, NULL);
+			if (p) {
+				memcpy(p, req.aux_buf, req.aux_size);
+				ret = update_vframe_src_fmt(dup_vf, (void *)p,
+							    (u32)req.aux_size,
+							    req.dv_enhance_exist
+							    ? true : false,
+							    provider, NULL);
 				if (!ret) {
 				/* FIXME: work around for sei/el out of sync */
 					if (dup_vf->src_fmt.fmt ==

@@ -44,6 +44,9 @@ struct vframe_s;
 #define MD_BUF_SIZE 1024
 #define COMP_BUF_SIZE 8196
 
+#define MD_BUF_SIZE 1024
+#define COMP_BUF_SIZE 8196
+
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
@@ -101,4 +104,15 @@ bool for_dolby_vision_video_effect(void);
 int get_dolby_vision_hdr_policy(void);
 int get_dv_support_info(void);
 int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode);
+void update_graphic_status(void);
+int parse_sei_and_meta_ext
+	(struct vframe_s *vf,
+	 char *aux_buf,
+	 int aux_size,
+	 int *total_comp_size,
+	 int *total_md_size,
+	 void *fmt,
+	 int *ret_flags,
+	 char *md_buf,
+	 char *comp_buf);
 #endif
