@@ -66,15 +66,30 @@ static struct sg_table
 	struct uvm_handle *handle;
 	struct uvm_alloc *ua;
 	struct sg_table *sgt;
+	bool gpu_access = false;
+
+	if (strstr(dev_name(attachment->dev), "bifrost") ||
+		strstr(dev_name(attachment->dev), "mali")) {
+		gpu_access = true;
+	}
 
 	dmabuf = attachment->dmabuf;
 	handle = dmabuf->priv;
 	ua = handle->ua;
 
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	UVM_PRINTK(1, "%s called, %s. gpu_access:%d\n", __func__, current->comm, gpu_access);
 
 	if (ua->flags & BIT(UVM_DELAY_ALLOC))
 		ua->delay_alloc(dmabuf, ua->obj);
+
+	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && ua->scalar > 1) {
+		UVM_PRINTK(1, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
+					ua->size, ua->scalar);
+		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
+			UVM_PRINTK(0, "gpu_realloc fail\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
 
 	sgt = ua->sgt;
 	if (!sgt) {
@@ -382,7 +397,9 @@ int dmabuf_bind_uvm_alloc(struct dma_buf *dmabuf, struct uvm_alloc_info *info)
 	ua->size = info->size;
 	ua->flags = info->flags;
 	ua->free = info->free;
+	ua->scalar = info->scalar;
 	ua->delay_alloc = info->delay_alloc;
+	ua->gpu_realloc = info->gpu_realloc;
 
 	if (info->obj) {
 		ua->obj = info->obj;

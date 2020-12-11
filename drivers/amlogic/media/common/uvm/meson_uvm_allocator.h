@@ -64,6 +64,7 @@ struct uvm_alloc_data {
 	int byte_stride;
 	u32 width;
 	u32 height;
+	int scalar;
 };
 
 struct uvm_pid_data {
