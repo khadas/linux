@@ -623,7 +623,36 @@ static int get_input_format(struct vframe_s *vf)
 	return format;
 }
 
-static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
+static void dump_yuv_data(struct vframe_s *vf,
+			struct v4l_data_t *v4l_data)
+{
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	char name_buf[32];
+	u32 write_size;
+
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.raw",
+		 vf->width, vf->height);
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp)) {
+		pr_err("create %s fail.\n", name_buf);
+	} else {
+		write_size = v4l_data->byte_stride *
+			v4l_data->height * 3 / 2;
+		vfs_write(fp, phys_to_virt(v4l_data->phy_addr[0]),
+			  write_size, &pos);
+		pr_info("write %u size to file.\n", write_size);
+		filp_close(fp, NULL);
+	}
+	set_fs(fs);
+}
+
+static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
+					struct vframe_s *vf)
 {
 	int i, j, ret, y_size;
 	short *planes[4];
@@ -633,14 +662,6 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 	int bit_10;
 	struct timeval start, end;
 	unsigned long time_use = 0;
-	struct vframe_s *vf = NULL;
-	struct file_private_data *file_private_data;
-
-	file_private_data = v4l_data->file_private_data;
-	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
-		vf = &file_private_data->vf_ext;
-	else
-		vf = &file_private_data->vf;
 
 	if ((vf->bitdepth & BITDEPTH_YMASK)  == BITDEPTH_Y10)
 		bit_10 = 1;
@@ -648,11 +669,11 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 		bit_10 = 0;
 
 	y_size = vf->compWidth * vf->compHeight * sizeof(short);
-	pr_debug("width: %d, height: %d, compWidth: %u, compHeight: %u.\n",
+	pr_info("width: %d, height: %d, compWidth: %u, compHeight: %u.\n",
 		 vf->width, vf->height, vf->compWidth, vf->compHeight);
 	for (i = 0; i < 4; i++) {
 		planes[i] = vmalloc(y_size);
-		pr_debug("plane %d size: %d, vmalloc addr: %p.\n",
+		pr_info("plane %d size: %d, vmalloc addr: %p.\n",
 			 i, y_size, planes[i]);
 	}
 
@@ -714,6 +735,8 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 	time_use = (end.tv_sec - start.tv_sec) * 1000 +
 				(end.tv_usec - start.tv_usec) / 1000;
 	pr_debug("bitblk time: %ldms\n", time_use);
+	if (vf_dump)
+		dump_yuv_data(vf, v4l_data);
 
 free:
 	for (i = 0; i < 4; i++)
@@ -722,33 +745,25 @@ free:
 
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 {
-	struct file *fp;
-	mm_segment_t fs;
-	loff_t pos;
-	char name_buf[32];
-	u32 write_size;
-
-	struct uvm_hook_mod *uhmod;
+	struct uvm_hook_mod *uhmod = NULL;
 	struct config_para_ex_s ge2d_config;
 	struct canvas_config_s dst_canvas_config[3];
 	struct vframe_s *vf = NULL;
 	const char *keep_owner = "ge2d_dest_comp";
 	bool di_mode = false;
 	bool is_10bit = false;
-	struct file_private_data *file_private_data;
+	struct file_private_data *file_private_data = NULL;
 
 	if (!dmabuf) {
 		file_private_data = v4l_data->file_private_data;
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		if (!(uhmod && uhmod->arg)) {
-			pr_err("uvm_get_hook_mod fail.\n");
-			return;
+		if (uhmod && uhmod->arg) {
+			file_private_data = uhmod->arg;
+			uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		}
-		file_private_data = uhmod->arg;
-		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 	}
-
+	pr_info("%s: uhmod: %p\n", __func__, uhmod);
 	if (!file_private_data) {
 		pr_err("file_private_data is NULL\n");
 		return;
@@ -761,9 +776,26 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	if (cts_use_di)
 		vf = &file_private_data->vf;
 
+	pr_info("%s: vf->type: %d vf->compWidth: %d\n",
+			__func__, vf->type, vf->compWidth);
+	/* TODO: how to know whether is v4l2 decoer
+	 * or v4lvideo.
+	 *
+	 * Workaround:
+	 * If we get vf from file_private_data,
+	 * we think it is v4lvideo path when
+	 * vf->type == VIDTYPE_COMPRESS and vf->compWidth != 0 .
+	 *
+	 * If we get vf from file_private_data, but
+	 * vf->compWidth == 0, which means it is
+	 * v4l2 decoder path
+	 */
 	if ((vf->type & VIDTYPE_COMPRESS)) {
-		v4l_data->file_private_data = file_private_data;
-		do_vframe_afbc_soft_decode(v4l_data);
+		if (vf->compWidth != 0)
+			v4l_data->file_private_data = file_private_data;
+		else
+			vf = dmabuf_get_vframe(dmabuf);
+		do_vframe_afbc_soft_decode(v4l_data, vf);
 		return;
 	}
 	is_10bit = vf->bitdepth & BITDEPTH_Y10;
@@ -899,26 +931,8 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	else
 		stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
 				   0, 0, vf->width, vf->height);
-
-	if (vf_dump) {
-		snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.raw",
-			 vf->width, vf->height);
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-		pos = 0;
-		fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
-		if (IS_ERR(fp)) {
-			pr_err("create %s fail.\n", name_buf);
-		} else {
-			write_size = v4l_data->byte_stride *
-				v4l_data->height * 3 / 2;
-			vfs_write(fp, phys_to_virt(v4l_data->phy_addr[0]),
-				  write_size, &pos);
-			pr_debug("write %u size to file.\n", write_size);
-			filp_close(fp, NULL);
-		}
-		set_fs(fs);
-	}
+	if (vf_dump)
+		dump_yuv_data(vf, v4l_data);
 }
 
 static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
