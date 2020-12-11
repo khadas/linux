@@ -1806,6 +1806,9 @@ static int osd_release(struct fb_info *info, int arg)
 	} else if (fbdev->open_count == 1) {
 		osd_log_info("%s:index=%d,open_count=%d\n",
 			     __func__, fbdev->fb_index, fbdev->open_count);
+		if (osd_meson_dev.has_viu2 &&
+		    fbdev->fb_index == osd_meson_dev.viu2_index)
+			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
 	}
 	fbdev->open_count--;
 done:
