@@ -9084,6 +9084,7 @@ static int osd_setting_order(u32 output_index)
 					      CANVAS_ADDR_NOWRAP,
 					      CANVAS_BLKMODE_LINEAR);
 			#endif
+			osd_set_scan_mode(i);
 			osd_hw.reg[OSD_COLOR_MODE].update_func(i);
 			if (!osd_hw.dim_layer[i]) {
 				VSYNCOSD_WR_MPEG_REG(osd_reg->osd_dimm_ctrl,
@@ -9111,7 +9112,6 @@ static int osd_setting_order(u32 output_index)
 			osd_hw.reg[DISP_GEOMETRY].update_func(i);
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(i);
 			osd_hw.reg[DISP_OSD_REVERSE].update_func(i);
-			osd_set_scan_mode(i);
 			osd_hw.reg[OSD_FREESCALE_COEF].update_func(i);
 			osd_hw.reg[DISP_FREESCALE_ENABLE]
 				.update_func(i);
