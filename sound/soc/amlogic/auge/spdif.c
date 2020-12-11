@@ -1242,7 +1242,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
 		separated = p_spdif->chipinfo->separate_tohdmitx_en;
-		spdifout_to_hdmitx_ctrl(separated, p_spdif->id);
+		enable_spdifout_to_hdmitx();
 		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);
@@ -1470,12 +1470,10 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir)
 {
-	if (clk_id == 0) {
-		struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
+	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 
-		p_spdif->sysclk_freq = freq;
-		aml_set_spdifclk(p_spdif);
-	}
+	p_spdif->sysclk_freq = freq;
+	aml_set_spdifclk(p_spdif);
 
 	return 0;
 }
