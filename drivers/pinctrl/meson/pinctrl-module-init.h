@@ -53,6 +53,15 @@ static inline int meson_t7_pinctrl_init(void)
 }
 #endif
 
+#ifdef CONFIG_PINCTRL_MESON_S4
+int meson_s4_pinctrl_init(void);
+#else
+static inline int meson_s4_pinctrl_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* end of ifdef MODULE */
 #endif /* end of _PINCTRL_MODULE_H__ */
 
