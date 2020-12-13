@@ -527,7 +527,7 @@ static int set_clock_time(struct evl_clock *clock,
 {
 	trace_evl_clock_settime(clock, &ts);
 
-	return evl_set_clock_time(clock, &ts);
+	return evl_set_clock_time(clock, timespec64_to_ktime(ts));
 }
 
 static void get_timer_value(struct evl_timer *__restrict__ timer,

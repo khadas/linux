@@ -37,8 +37,7 @@ struct evl_clock {
 	struct {
 		ktime_t (*read)(struct evl_clock *clock);
 		u64 (*read_cycles)(struct evl_clock *clock);
-		int (*set_time)(struct evl_clock *clock,
-				const struct timespec64 *ts);
+		int (*set)(struct evl_clock *clock, ktime_t date);
 		void (*program_local_shot)(struct evl_clock *clock);
 		void (*program_remote_shot)(struct evl_clock *clock,
 					struct evl_rq *rq);
@@ -102,11 +101,10 @@ static inline ktime_t evl_read_clock(struct evl_clock *clock)
 }
 
 static inline int
-evl_set_clock_time(struct evl_clock *clock,
-		const struct timespec64 *ts)
+evl_set_clock_time(struct evl_clock *clock, ktime_t date)
 {
-	if (clock->ops.set_time)
-		return clock->ops.set_time(clock, ts);
+	if (clock->ops.set)
+		return clock->ops.set(clock, date);
 
 	return -EOPNOTSUPP;
 }
