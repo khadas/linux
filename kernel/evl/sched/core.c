@@ -887,10 +887,11 @@ static inline bool test_resched(struct evl_rq *this_rq)
 }
 
 /*
- * CAUTION: curr->altsched.task may be unsynced and even stale if curr
- * == &this_rq->root_thread, since the task logged by leave_inband()
- * may not still be the current one. Use "current" for disambiguating
- * if you need to refer to the underlying inband task.
+ * CAUTION: curr->altsched.task may be unsynced and even stale if
+ * (this_rq->curr == &this_rq->root_thread), since the task logged by
+ * dovetail_context_switch() may not still be the current one. Always
+ * use "current" for disambiguating if you intend to refer to the
+ * running inband task.
  */
 void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 {
