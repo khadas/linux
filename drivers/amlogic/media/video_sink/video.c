@@ -400,6 +400,7 @@ struct video_pm_state_s {
 #define PTS_THROTTLE
 /* #define PTS_TRACE_DEBUG */
 /* #define PTS_TRACE_START */
+#define AVSYNC_COUNT
 #ifdef AVSYNC_COUNT
 static bool av_discontinue;
 static u32 avsync_count;

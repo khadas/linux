@@ -316,7 +316,7 @@ struct buf_status {
 #define DECODER_ERROR_MASK	(0xffff << 16)
 /* The total slot number for fifo_buf */
 #define NUM_FRAME_VDEC  128  //This must be 2^n
-#define QOS_FRAME_NUM 4
+#define QOS_FRAME_NUM 8
 
 enum E_ASPECT_RATIO {
 	ASPECT_RATIO_4_3,
@@ -363,7 +363,17 @@ struct vdec_info {
 	};
 	u32 offset;
 	u32 ratio_control;
-	char reserved[32];
+	char reserved[0];
+	unsigned int i_decoded_frames;/*i frames decoded*/
+	unsigned int i_lost_frames;/*i frames can not be decoded*/
+	unsigned int i_concealed_frames;/*i frames decoded but have some error*/
+	unsigned int p_decoded_frames;
+	unsigned int p_lost_frames;
+	unsigned int p_concealed_frames;
+	unsigned int b_decoded_frames;
+	unsigned int b_lost_frames;
+	unsigned int b_concealed_frames;
+	char endipb_line[0];
 };
 
 struct adec_status {
@@ -758,6 +768,53 @@ struct vframe_counter_s {
 	u32 signal_type;
 	u32 pts;
 	u64 pts_us64;
+	/*mediacodec report*/
+	unsigned int i_decoded_frames; //i frames decoded
+	unsigned int i_lost_frames;//i frames can not be decoded
+	unsigned int i_concealed_frames;//i frames decoded but have some error
+	unsigned int p_decoded_frames;
+	unsigned int p_lost_frames;
+	unsigned int p_concealed_frames;
+	unsigned int b_decoded_frames;
+	unsigned int b_lost_frames;
+	unsigned int b_concealed_frames;
+	unsigned int av_resynch_counter;
+};
+
+struct vframe_counter_s_old {
+	struct vframe_qos_s qos;
+	u32  decode_time_cost;/*us*/
+	u32 frame_width;
+	u32 frame_height;
+	u32 frame_rate;
+	union {
+		u32 bit_rate;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_luma;
+	};
+	u32 frame_dur;
+	union {
+		u32 frame_data;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_chroma;
+	};
+	u32 error_count;
+	u32 status;
+	u32 frame_count;
+	u32 error_frame_count;
+	u32 drop_frame_count;
+	u64 total_data;//this member must be 8 bytes alignment
+	union {
+		u32 samp_cnt;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 double_write_mode;
+	};
+	u32 offset;
+	u32 ratio_control;
+	u32 vf_type;
+	u32 signal_type;
+	u32 pts;
+	u64 pts_us64;
 };
 
 struct vdec_frames_s {
@@ -828,6 +885,18 @@ struct av_param_mvdec_t {
 
 	struct vframe_comm_s comm;
 	struct vframe_counter_s minfo[QOS_FRAME_NUM];
+};
+
+/*old report struct*/
+struct av_param_mvdec_t_old {
+	int vdec_id;
+
+	int struct_size;
+
+	int slots;
+
+	struct vframe_comm_s comm;
+	struct vframe_counter_s_old minfo[QOS_FRAME_NUM];
 };
 
 #define SUPPORT_VDEC_NUM	(64)
