@@ -505,6 +505,7 @@ void cm_latch_process(void)
 			(!is_meson_txlx_cpu()) &&
 			(!is_meson_tl1_cpu()) &&
 			(!is_meson_tm2_cpu()) &&
+			(get_cpu_type() != MESON_CPU_MAJOR_ID_SC2) &&
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_T5))
 			amcm_level_sel(cm_level);
 		amcm_enable();
