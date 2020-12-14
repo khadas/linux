@@ -71,7 +71,7 @@ const char *cvbs_mode_t[] = {
 	"576cvbs",
 	"pal_m",
 	"pal_n",
-	"ntsc_n",
+	"ntsc_m",
 	NULL
 };
 
