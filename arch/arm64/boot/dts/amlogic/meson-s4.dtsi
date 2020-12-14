@@ -12,7 +12,7 @@
 #include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-s4-gpio.h>
-#include <dt-bindings/reset/amlogic,meson-sc2-reset.h>
+#include <dt-bindings/reset/amlogic,meson-s4-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
@@ -588,7 +588,7 @@
 			};
 
 			reset: reset-controller@2000 {
-				//compatible = "amlogic,meson-sc2-reset";
+				compatible = "amlogic,meson-sc2-reset";
 				reg = <0x0 0x2000 0x0 0x98>;
 				#reset-cells = <1>;
 			};
