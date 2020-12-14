@@ -2666,6 +2666,18 @@ static ssize_t lcd_debug_test_store(struct class *class,
 	unsigned int temp = 0, i = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (buf[0] == 'f') { /* force test pattern */
+		ret = sscanf(buf, "force %d", &temp);
+		if (ret == 0)
+			goto lcd_debug_test_store_next;
+		temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
+		lcd_debug_test(temp);
+		lcd_drv->lcd_test_state = (unsigned char)temp;
+		lcd_drv->lcd_test_flag &= ~(LCD_TEST_UPDATE);
+		return count;
+	}
+
+lcd_debug_test_store_next:
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
 		pr_info("invalid data\n");

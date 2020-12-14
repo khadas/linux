@@ -232,7 +232,7 @@ void vlock_set_phase(u32 percent);
 void vlock_set_phase_en(u32 en);
 
 void lcd_vlock_m_update(unsigned int vlock_m);
-void lcd_vlock_farc_update(unsigned int vlock_farc);
+void lcd_vlock_frac_update(unsigned int vlock_frac);
 int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
 ssize_t vlock_debug_store(struct class *cla,
 			  struct class_attribute *attr,

@@ -277,6 +277,11 @@ void lcd_delay_us(int us)
 
 void lcd_delay_ms(int ms)
 {
+	if (!lcd_driver)
+		return;
+	if (lcd_driver->lcd_pxp)
+		return;
+
 	if (ms > 0 && ms < 20)
 		usleep_range(ms * 1000, ms * 1000 + 1);
 	else if (ms >= 20)
@@ -364,7 +369,7 @@ static void lcd_power_ctrl(int status)
 		}
 		if (power_step->type != LCD_POWER_TYPE_WAIT_GPIO &&
 		    power_step->delay > 0)
-			mdelay(power_step->delay);
+			lcd_delay_ms(power_step->delay);
 		i++;
 	}
 	if (lcd_debug_print_flag)
@@ -609,6 +614,11 @@ static void lcd_wait_vsync(void)
 {
 	int line_cnt, line_cnt_previous;
 	int i = 0;
+
+	if (!lcd_driver)
+		return;
+	if (lcd_driver->lcd_pxp)
+		return;
 
 	line_cnt = 0x1fff;
 	line_cnt_previous = lcd_vcbus_getb(ENCL_INFO_READ, 16, 13);

@@ -243,7 +243,7 @@ void vlock_set_panel_pll_frac(u32 val)
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, val);
 #ifdef CONFIG_AMLOGIC_LCD
 	else
-		lcd_vlock_farc_update(frac);
+		lcd_vlock_frac_update(frac);
 #endif
 }
 
