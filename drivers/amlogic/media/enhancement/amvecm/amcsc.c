@@ -3967,8 +3967,9 @@ int signal_type_changed(struct vframe_s *vf,
 		/*vf->signal_type, signal_type);*/
 	}
 
-	/* only check primary for bt2020 */
-	if (p_new && p_cur && ((signal_type >> 16) & 0xff) == 9) {
+	/* only check primary for new = bt2020 or  cur = bt2020 */
+	if (p_new && p_cur &&
+	    (((signal_type >> 16) & 0xff) == 9 || p_cur->present_flag)) {
 		ret = hdr10_primaries_changed(p_new, p_cur);
 		if (ret)
 			change_flag |= SIG_PRI_INFO;
@@ -7713,7 +7714,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			/* dv from on to off */
 			if (dovi_on) {
 				cap_changed = true;
-				if (flags & CSC_FLAG_TOGGLE_FRAME)
+				if (flags &
+				    (CSC_FLAG_TOGGLE_FRAME |
+				    CSC_FLAG_CHECK_OUTPUT))
 					flags |= CSC_FLAG_FORCE_SIGNAL;
 				dovi_on = false;
 			}
@@ -8002,7 +8005,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       0,
 				       size);
 				vpp_matrix_update(&fake_vframe, vinfo,
-						  CSC_FLAG_TOGGLE_FRAME,
+						  CSC_FLAG_TOGGLE_FRAME | CSC_FLAG_FORCE_SIGNAL,
 						  vd_path);
 				last_vf[vd_path] = NULL;
 				null_vf_cnt[vd_path] = null_vf_max + 1;
