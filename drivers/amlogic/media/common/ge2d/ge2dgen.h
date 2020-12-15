@@ -9,7 +9,7 @@
 void ge2dgen_src(struct ge2d_context_s *wq,
 		 unsigned int canvas_addr,
 		unsigned int format,
-		unsigned int *phy_addr,
+		unsigned long *phy_addr,
 		unsigned int *stride);
 
 void ge2dgen_post_release_src1buf(struct ge2d_context_s *wq,
@@ -25,7 +25,7 @@ void ge2dgen_post_release_src2canvas(struct ge2d_context_s *wq);
 void ge2dgen_src2(struct ge2d_context_s *wq,
 		  unsigned int canvas_addr,
 		unsigned int format,
-		unsigned int *phy_addr,
+		unsigned long *phy_addr,
 		unsigned int *stride);
 
 void ge2dgen_src2_clip(struct ge2d_context_s *wq,
@@ -41,7 +41,7 @@ void ge2dgen_rendering_dir(struct ge2d_context_s *wq,
 void ge2dgen_dst(struct ge2d_context_s *wq,
 		 unsigned int canvas_addr,
 		unsigned int format,
-		unsigned int *phy_addr,
+		unsigned long *phy_addr,
 		unsigned int *stride);
 
 void ge2dgen_src_clip(struct ge2d_context_s *wq,

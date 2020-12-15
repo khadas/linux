@@ -997,7 +997,7 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 #endif
 	u32 cs_width = 0, cs_height = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
-	u32 cs_addr = 0;
+	ulong cs_addr = 0;
 #endif
 	unsigned	int	data32;
 	unsigned	int	bpp;
@@ -1177,7 +1177,7 @@ int ge2d_context_config(struct ge2d_context_s *context,
 
 static int build_ge2d_addr_config(struct config_planes_s *plane,
 				  unsigned int format,
-				  unsigned int *addr,
+				  unsigned long *addr,
 				  unsigned int *stride)
 {
 	int ret = -1, i = 0;
@@ -1209,7 +1209,7 @@ static int build_ge2d_addr_config(struct config_planes_s *plane,
 
 static int build_ge2d_addr_config_ion(struct config_planes_ion_s *plane,
 				      unsigned int format,
-				      unsigned int *addr,
+				      unsigned long *addr,
 				      unsigned int *stride)
 {
 	int ret = -1, i = 0;
@@ -1259,7 +1259,7 @@ static int
 build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 			   struct config_planes_ion_s *plane,
 			   unsigned int format,
-			   unsigned int *addr,
+			   unsigned long *addr,
 			   unsigned int *stride,
 			   unsigned int *stride_custom,
 			   unsigned int dir,
@@ -1510,9 +1510,12 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
-	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
-	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
+	unsigned long src_addr[MAX_PLANE] = {0};
+	unsigned long src2_addr[MAX_PLANE] = {0};
+	unsigned long dst_addr[MAX_PLANE] = {0};
+	unsigned int src_stride[MAX_PLANE] = {0};
+	unsigned int src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_stride[MAX_PLANE] = {0};
 
 	/* setup src and dst */
 	switch (ge2d_config->src_para.mem_type) {
@@ -1541,7 +1544,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		}
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src_addr[0],
 			src_stride[0],
 			ge2d_config->src_para.format);
@@ -1563,7 +1566,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 					 src_addr,
 					 src_stride) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src_addr[0],
 				src_stride[0],
 				ge2d_config->src_para.format);
@@ -1609,7 +1612,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		}
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src2_addr[0],
 			src_stride[0],
 			ge2d_config->src2_para.format);
@@ -1640,7 +1643,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 						 src2_addr,
 						 src2_stride) < 0)
 					return -1;
-				ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+				ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 					     src2_addr[0],
 					src2_stride[0],
 					ge2d_config->src2_para.format);
@@ -1689,7 +1692,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		}
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     dst_addr[0],
 			dst_stride[0],
 			ge2d_config->dst_para.format);
@@ -1728,7 +1731,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 						 dst_addr,
 						 dst_stride) < 0)
 					return -1;
-				ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+				ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 					     dst_addr[0],
 					dst_stride[0],
 					ge2d_config->dst_para.format);
@@ -1889,9 +1892,12 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
-	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
-	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
+	unsigned long src_addr[MAX_PLANE] = {0};
+	unsigned long src2_addr[MAX_PLANE] = {0};
+	unsigned long dst_addr[MAX_PLANE] = {0};
+	unsigned int src_stride[MAX_PLANE] = {0};
+	unsigned int src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_stride[MAX_PLANE] = {0};
 
 	/* setup src and dst */
 	switch (ge2d_config->src_para.mem_type) {
@@ -1921,7 +1927,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		}
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src_addr[0],
 			src_stride[0],
 			ge2d_config->src_para.format);
@@ -1943,7 +1949,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 					 src_addr,
 					 src_stride) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src_addr[0],
 				src_stride[0],
 				ge2d_config->src_para.format);
@@ -1991,7 +1997,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		}
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src2_addr[0],
 			src2_stride[0],
 			ge2d_config->src2_para.format);
@@ -2018,7 +2024,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 					 src2_addr,
 					 src2_stride) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src2_addr[0],
 				src2_stride[0],
 				ge2d_config->src2_para.format);
@@ -2066,7 +2072,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		}
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     dst_addr[0],
 			dst_stride[0],
 			ge2d_config->dst_para.format);
@@ -2096,7 +2102,7 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 					 dst_addr,
 					 dst_stride) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     dst_addr[0],
 				dst_stride[0],
 				ge2d_config->dst_para.format);
@@ -2262,9 +2268,12 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
-	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
-	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
+	unsigned long src_addr[MAX_PLANE] = {0};
+	unsigned long src2_addr[MAX_PLANE] = {0};
+	unsigned long dst_addr[MAX_PLANE] = {0};
+	unsigned int src_stride[MAX_PLANE] = {0};
+	unsigned int src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_stride[MAX_PLANE] = {0};
 	struct config_para_ex_ion_s *ge2d_config;
 	unsigned int *stride_custom;
 
@@ -2298,7 +2307,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		}
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src_addr[0],
 			src_stride[0],
 			ge2d_config->src_para.format);
@@ -2325,7 +2334,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					 DMA_TO_DEVICE,
 					 AML_GE2D_SRC) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src_addr[0],
 				     src_stride[0],
 				     ge2d_config->src_para.format);
@@ -2375,7 +2384,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		}
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     src2_addr[0],
 			src2_stride[0],
 			ge2d_config->src2_para.format);
@@ -2407,7 +2416,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					 DMA_TO_DEVICE,
 					 AML_GE2D_SRC2) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src2_addr[0],
 				     src2_stride[0],
 				     ge2d_config->src2_para.format);
@@ -2457,7 +2466,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		}
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
-		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+		ge2d_log_dbg("ge2d osd phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 			     dst_addr[0],
 			dst_stride[0],
 			ge2d_config->dst_para.format);
@@ -2492,7 +2501,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					 DMA_FROM_DEVICE,
 					 AML_GE2D_DST) < 0)
 				return -1;
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     dst_addr[0],
 				     dst_stride[0],
 				     ge2d_config->dst_para.format);

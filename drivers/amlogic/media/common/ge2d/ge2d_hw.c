@@ -272,11 +272,11 @@ static const unsigned int filt_coef3[] = { /* 3 point triangle */
 	0x00
 };
 
-void ge2d_canv_config(u32 index, u32 *addr, u32 *stride)
+void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 {
 	int i;
 
-	ge2d_log_dbg("%s:index=%d,addr=%x,stride=%d\n",
+	ge2d_log_dbg("%s:index=%d,addr=%lx,stride=%d\n",
 		     __func__, index, addr[0], stride[0]);
 	if (ge2d_meson_dev.canvas_status == 1) {
 		if (index <= 2) {

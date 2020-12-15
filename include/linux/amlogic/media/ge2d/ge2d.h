@@ -439,7 +439,7 @@ struct ge2d_src1_data_s {
 	unsigned char     color_conv_mode1;
 	unsigned int      def_color;
 	unsigned int      format_all;
-	unsigned int      phy_addr[MAX_PLANE];
+	unsigned long      phy_addr[MAX_PLANE];
 	unsigned int      stride[MAX_PLANE];
 };
 
@@ -489,9 +489,9 @@ struct ge2d_src2_dst_data_s {
 	unsigned char	dst2_discard_mode;
 	unsigned char	dst2_enable;
 
-	unsigned int src2_phyaddr[MAX_PLANE];
+	unsigned long src2_phyaddr[MAX_PLANE];
 	unsigned int src2_stride[MAX_PLANE];
-	unsigned int dst_phyaddr[MAX_PLANE];
+	unsigned long dst_phyaddr[MAX_PLANE];
 	unsigned int dst_stride[MAX_PLANE];
 	unsigned char dst_rpt;
 };
@@ -797,7 +797,7 @@ struct src_dst_para_s {
 	int  canvas_index;
 	int  bpp;
 	int  ge2d_color_index;
-	int  phy_addr[MAX_PLANE];
+	ulong  phy_addr[MAX_PLANE];
 	int  stride[MAX_PLANE];
 };
 
@@ -1271,7 +1271,7 @@ extern struct ge2d_src2_dst_gen_s
 struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
 struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
 int ge2d_wq_add_work(struct ge2d_context_s *wq);
-void ge2d_canv_config(u32 index, u32 *addr, u32 *stride);
+void ge2d_canv_config(u32 index, ulong *addr, u32 *stride);
 #include "ge2d_func.h"
 
 #endif

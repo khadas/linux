@@ -162,7 +162,7 @@ void osd_get_deband(u32 index, u32 *osd_deband_enable);
 void osd_set_deband(u32 index, u32 osd_deband_enable);
 void osd_get_fps(u32 index, u32 *osd_fps);
 void osd_set_fps(u32 index, u32 osd_fps_start);
-void osd_get_info(u32 index, u32 *addr, u32 *width, u32 *height);
+void osd_get_info(u32 index, ulong *addr, u32 *width, u32 *height);
 void osd_update_scan_mode(void);
 void osd_update_3d_mode(void);
 void osd_update_vsync_hit(void);

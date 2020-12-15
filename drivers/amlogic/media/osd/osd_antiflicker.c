@@ -53,8 +53,9 @@ static int osd_antiflicker_process(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	struct canvas_s cs, cd;
 #endif
-	u32 cs_addr = 0, cs_width = 0, cs_height = 0;
-	u32 cd_addr = 0, cd_width = 0, cd_height = 0;
+	ulong cs_addr = 0, cd_addr = 0;
+	u32 cs_width = 0, cs_height = 0;
+	u32 cd_width = 0, cd_height = 0;
 	u32 x0 = 0;
 	u32 y0 = 0;
 	u32 y1 = 0;

@@ -113,7 +113,7 @@ void _set_dst_format(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 }
 
 static bool is_src1_addr_update(struct ge2d_src1_data_s *src1_data_cfg,
-				unsigned int *phy_addr,
+				unsigned long *phy_addr,
 				unsigned int *stride)
 {
 	int i;
@@ -132,7 +132,7 @@ static bool is_src1_addr_update(struct ge2d_src1_data_s *src1_data_cfg,
 }
 
 static bool is_src2_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
-				unsigned int *phy_addr,
+				unsigned long *phy_addr,
 				unsigned int *stride)
 {
 	int i;
@@ -151,7 +151,7 @@ static bool is_src2_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 }
 
 static bool is_dst_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
-			       unsigned int *phy_addr,
+			       unsigned long *phy_addr,
 			       unsigned int *stride)
 {
 	int i;
@@ -172,7 +172,7 @@ static bool is_dst_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 void ge2dgen_src(struct ge2d_context_s *wq,
 		 unsigned int canvas_addr,
 		unsigned int format,
-		unsigned int *phy_addr,
+		unsigned long *phy_addr,
 		unsigned int *stride)
 {
 	struct ge2d_src1_data_s *src1_data_cfg = ge2d_wq_get_src_data(wq);
@@ -256,7 +256,7 @@ void ge2dgen_cb(struct ge2d_context_s *wq,
 void ge2dgen_src2(struct ge2d_context_s *wq,
 		  unsigned int canvas_addr,
 		unsigned int format,
-		unsigned int *phy_addr,
+		unsigned long *phy_addr,
 		unsigned int *stride)
 {
 	struct ge2d_src2_dst_data_s *src2_dst_data_cfg =
@@ -282,7 +282,7 @@ void ge2dgen_src2(struct ge2d_context_s *wq,
 void ge2dgen_dst(struct ge2d_context_s *wq,
 		 unsigned int canvas_addr,
 		 unsigned int format,
-		 unsigned int *phy_addr,
+		 unsigned long *phy_addr,
 		 unsigned int *stride)
 {
 	struct ge2d_src1_data_s *src1_data_cfg = ge2d_wq_get_src_data(wq);

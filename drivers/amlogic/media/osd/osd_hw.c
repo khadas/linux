@@ -5975,7 +5975,7 @@ void osd_pan_display_hw(u32 index, unsigned int xoffset, unsigned int yoffset)
 		     osd_hw.pandata[index].y_end);
 }
 
-void osd_get_info(u32 index, u32 *addr, u32 *width, u32 *height)
+void osd_get_info(u32 index, ulong *addr, u32 *width, u32 *height)
 {
 	*addr = osd_hw.fb_gem[index].addr;
 	*width = osd_hw.fb_gem[index].width;

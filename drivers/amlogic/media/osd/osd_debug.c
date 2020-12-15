@@ -577,7 +577,8 @@ static void osd_test_rect(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	struct canvas_s cs;
 #endif
-	u32 cs_addr, cs_width, cs_height;
+	ulong cs_addr;
+	u32 cs_width, cs_height;
 	struct config_para_s *cfg = &ge2d_config;
 	struct config_para_ex_s *cfg_ex = &ge2d_config_ex;
 	struct ge2d_context_s *context = ge2d_context;
