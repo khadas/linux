@@ -529,9 +529,11 @@ PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
 	$(Q)rm -f .tmp_quiet_recordmcount
-	$(Q)mkdir -p $(srctree)/.git/hooks
-	$(Q)cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
-	$(Q)chmod +x $(srctree)/.git/hooks/pre-commit
+	$(Q)if [ -d $(srctree)/.git/hooks ]; then \
+		cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/; \
+		chmod +x $(srctree)/.git/hooks/pre-commit; \
+	fi
+#$(Q)mkdir -p $(srctree)/.git/hooks
 
 PHONY += outputmakefile
 # Before starting out-of-tree build, make sure the source tree is clean.
