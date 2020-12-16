@@ -38,6 +38,7 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+	compatible = "amlogic,t5d";
 
 	cpus:cpus {
 		#address-cells = <2>;
@@ -49,9 +50,9 @@
 			reg = <0x0 0x0>;
 			//timer=<&timer_a>;
 			enable-method = "psci";
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -68,9 +69,9 @@
 			reg = <0x0 0x1>;
 //			//timer=<&timer_b>;
 			enable-method = "psci";
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -87,9 +88,9 @@
 			reg = <0x0 0x2>;
 //			//timer=<&timer_c>;
 			enable-method = "psci";
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -106,9 +107,9 @@
 			reg = <0x0 0x3>;
 //			//timer=<&timer_d>;
 			enable-method = "psci";
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";

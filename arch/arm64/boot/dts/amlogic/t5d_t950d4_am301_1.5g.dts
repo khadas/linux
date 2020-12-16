@@ -24,7 +24,6 @@
 / {
 	model = "Amlogic T5D T950D4 AM301 1.5G";
 	amlogic-dt-id = "t5d_t950d4_am301-1.5g";
-	compatible = "amlogic, t5d_t950d4_am301_1.5g";
 
 	aliases {
 		serial0 = &uart_B;
@@ -1030,7 +1029,7 @@
 		compatible = "amlogic, cpufreq-meson";
 	//	pinctrl-names = "default";
 	//	pinctrl-0 = <&pwm_ao_d_pins3>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	atv-demod {
