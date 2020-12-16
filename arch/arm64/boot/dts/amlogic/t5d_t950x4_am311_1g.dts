@@ -35,8 +35,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
-		spi0 = &spicc_a;
-		spi1 = &spicc0;
+		spi0 = &spicc0;
 	};
 
 	memory@00000000 {
@@ -1802,32 +1801,11 @@
 	controller-type = <1>;
 };
 
-&spicc_a {
-	status = "disabled";
-	pinctrl-names= "default";
-	pinctrl-0=<&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
-	spi-nor@0 {
-		compatible = "jedec,spi-nor";
-		status = "disabled";
-		frequency = <16000000>;
-	};
-};
-
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 0>;
-};
-
-&sspicc0 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_h &spicc0_pins_cs_h>;
-	cs-num = <0>;
-	spi-mode = <0>;
-	vmem-bus-num = <0>;
 };
 
 &meson_fb {
