@@ -52,6 +52,7 @@
 #include "hdr/gamut_convert.h"
 #include "hdr/am_hdr10_tm.h"
 #include "reg_helper.h"
+#include <linux/amlogic/gki_module.h>
 
 uint debug_csc;
 static int cur_mvc_type[2];
