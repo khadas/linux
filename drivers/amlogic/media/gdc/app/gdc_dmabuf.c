@@ -624,7 +624,7 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 	}
 	ret = gdc_dma_buffer_get_phys_internal(buffer, cfg, addr);
 	if (ret < 0) {
-		gdc_log(LOG_DEBUG, "get_phys(fd=%d) failed.\n", cfg->fd);
+		gdc_log(LOG_DEBUG, "get_phys(fd=%d) is external.\n", cfg->fd);
 		ret = gdc_dma_buffer_map(cfg);
 		if (ret < 0) {
 			pr_err("gdc_dma_buffer_map failed\n");

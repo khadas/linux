@@ -4905,7 +4905,7 @@ static struct clk_regmap t7_vapb = {
 			&t7_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5018,7 +5018,7 @@ static struct clk_regmap t7_gdcclk = {
 			&t7_gdcclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5147,7 +5147,7 @@ static struct clk_regmap t7_dewarpclk = {
 			&t7_dewarpclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 	},
 };
 

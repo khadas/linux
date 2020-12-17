@@ -17,6 +17,11 @@
 #define WORD_MASK (~(WORD_SIZE - 1))
 #define AXI_WORD_ALIGN(size) (((size) + WORD_SIZE - 1) & WORD_MASK)
 
+enum {
+	ARM_GDC,
+	AML_GDC
+};
+
 struct aml_dma_cfg {
 	int fd;
 	void *dev;
@@ -94,6 +99,8 @@ struct gdc_cmd_s {
 	};
 	u32 v_base_addr;
 	unsigned char wait_done_flag;
+	/* ARM_GDC or AML_GDC */
+	u32 dev_type;
 };
 
 struct gdc_context_s {
@@ -145,7 +152,8 @@ struct gdc_phy_setting {
 };
 
 bool is_gdc_supported(void);
-struct gdc_context_s *create_gdc_work_queue(void);
+bool is_aml_gdc_supported(void);
+struct gdc_context_s *create_gdc_work_queue(u32 dev_type);
 int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs);
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue);

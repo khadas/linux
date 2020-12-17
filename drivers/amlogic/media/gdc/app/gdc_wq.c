@@ -87,7 +87,7 @@ static int write_buf_to_file(char *path, char *buf, int size)
 	loff_t pos = 0;
 	int w_size = 0;
 
-	if (!path || !config_out_path_defined) {
+	if (!path) {
 		gdc_log(LOG_ERR, "please define path first\n");
 		return -1;
 	}
@@ -114,31 +114,43 @@ static int write_buf_to_file(char *path, char *buf, int size)
 	return w_size;
 }
 
-static void dump_config_file(struct gdc_config_s *gc)
+static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 {
 	void __iomem *config_virt_addr;
 	int ret;
 
-	/* dump config buffer */
-	config_virt_addr =
-		gdc_map_virt_from_phys(gc->config_addr,
-				       PAGE_ALIGN(gc->config_size * 4));
-	ret = write_buf_to_file(config_out_file,
-				config_virt_addr,
-				(gc->config_size * 4));
-	if (ret <= 0)
-		gdc_log(LOG_ERR,
-			"Failed to read_file_to_buf\n");
-	gdc_unmap_virt_from_phys(config_virt_addr);
+	if (GDC_DEV_T(dev_type)->config_out_path_defined) {
+		/* dump config buffer */
+		config_virt_addr =
+			gdc_map_virt_from_phys(gc->config_addr,
+					       PAGE_ALIGN(gc->config_size * 4));
+		ret = write_buf_to_file(GDC_DEV_T(dev_type)->config_out_file,
+					config_virt_addr,
+					(gc->config_size * 4));
+		if (ret <= 0)
+			gdc_log(LOG_ERR,
+				"Failed to read_file_to_buf\n");
+		gdc_unmap_virt_from_phys(config_virt_addr);
+	} else {
+		gdc_log(LOG_ERR, "config_out_path_defined is not set\n");
+	}
 }
 
-static void dump_gdc_regs(void)
+static void dump_gdc_regs(u32 dev_type)
 {
 	int i;
 
-	for (i = 0; i <= 0xFF; i += 4)
-		gdc_log(LOG_ERR, "reg[0x%x] = 0x%x\n",
-			i, system_gdc_read_32(i));
+	if (dev_type == ARM_GDC) {
+		gdc_log(LOG_INFO, "### ARM GDC ###\n");
+		for (i = 0; i <= 0xFF; i += 4)
+			gdc_log(LOG_INFO, "reg[0x%x] = 0x%x\n",
+				i, system_gdc_read_32(i));
+	} else {
+		gdc_log(LOG_INFO, "### AML GDC ###\n");
+		for (i = 0; i <= 0x60; i += 4)
+			gdc_log(LOG_INFO, "reg[0x%x] = 0x%x\n",
+				i, system_gdc_read_32(i));
+	}
 }
 
 static int gdc_process_work_queue(struct gdc_context_s *wq)
@@ -150,9 +162,13 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 	int timeout = 0;
 	ktime_t start_time = 0, stop_time = 0, diff_time = 0;
 	int process_time = 0;
+	int trace_mode_enable = 0;
 
-	if (wq->gdc_request_exit)
+	if (!wq || wq->gdc_request_exit)
 		goto exit;
+
+	trace_mode_enable = GDC_DEV_T(wq->cmd.dev_type)->trace_mode_enable;
+
 	gdc_manager.gdc_state = GDC_STATE_RUNNING;
 	pos = head->next;
 	if (pos != head) { /* current work queue not empty. */
@@ -184,14 +200,16 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 					(&gdc_manager.event.d_com,
 					 msecs_to_jiffies(WAIT_THRESHOLD));
 		if (timeout == 0) {
-			gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
-				gdc_status_read());
+			if (pitem->cmd.dev_type == ARM_GDC)
+				gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
+					gdc_status_read());
 			/*soft_rst(); */
 			if (trace_mode_enable >= 2) {
 				/* dump regs */
-				dump_gdc_regs();
+				dump_gdc_regs(pitem->cmd.dev_type);
 				/* dump config buffer */
-				dump_config_file(&pitem->cmd.gdc_config);
+				dump_config_file(&pitem->cmd.gdc_config,
+						 pitem->cmd.dev_type);
 			}
 		}
 		gdc_stop(&pitem->cmd);
@@ -238,7 +256,7 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 	} while (pos != head);
 	gdc_manager.last_wq = wq;
 exit:
-	if (wq->gdc_request_exit)
+	if (wq && wq->gdc_request_exit)
 		complete(&gdc_manager.event.process_complete);
 	gdc_manager.gdc_state = GDC_STATE_IDLE;
 	return ret;
@@ -272,12 +290,16 @@ static int gdc_monitor_thread(void *data)
 	/* setup current_wq here. */
 	while (manager->process_queue_state != GDC_PROCESS_QUEUE_STOP) {
 		ret = down_interruptible(&manager->event.cmd_in_sem);
-		gdc_pwr_config(true);
 		while ((manager->current_wq =
-				get_next_gdc_work_queue(manager)) != NULL)
+				get_next_gdc_work_queue(manager)) != NULL) {
+			int dev_type = manager->current_wq->cmd.dev_type;
+
+			gdc_pwr_config(true, dev_type);
 			gdc_process_work_queue(manager->current_wq);
-		if (!gdc_reg_store_mode)
-			gdc_pwr_config(false);
+
+			if (!GDC_DEV_T(dev_type)->reg_store_mode_enable)
+				gdc_pwr_config(false, dev_type);
+		}
 	}
 	gdc_log(LOG_INFO, "exit %s\n", __func__);
 	return 0;
@@ -318,24 +340,39 @@ static inline int work_queue_no_space(struct gdc_context_s *queue)
 
 bool is_gdc_supported(void)
 {
-	if (gdc_manager.probed)
+	if (gdc_manager.gdc_dev && gdc_manager.gdc_dev->probed)
 		return true;
 
 	return false;
 }
 EXPORT_SYMBOL(is_gdc_supported);
 
-struct gdc_context_s *create_gdc_work_queue(void)
+bool is_aml_gdc_supported(void)
+{
+	if (gdc_manager.aml_gdc_dev && gdc_manager.aml_gdc_dev->probed)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(is_aml_gdc_supported);
+
+struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 {
 	int  i;
 	struct gdc_queue_item_s *p_item;
 	struct gdc_context_s *gdc_work_queue;
 	int  empty;
 
-	if (!gdc_manager.probed) {
-		gdc_log(LOG_INFO, "GDC is not supported for this chip\n");
+	if ((dev_type == ARM_GDC && gdc_manager.gdc_dev->probed) ||
+	    (dev_type == AML_GDC && gdc_manager.aml_gdc_dev->probed)) {
+		gdc_log(LOG_DEBUG, "Create a work queue, dev_type %d\n",
+			dev_type);
+	} else {
+		gdc_log(LOG_ERR, "GDC is not supported for this chip, dev_type %d\n",
+			dev_type);
 		return NULL;
 	}
+
 	gdc_work_queue = kzalloc(sizeof(*gdc_work_queue), GFP_KERNEL);
 	if (IS_ERR(gdc_work_queue)) {
 		gdc_log(LOG_ERR, "can't create work queue\n");
@@ -364,6 +401,9 @@ struct gdc_context_s *create_gdc_work_queue(void)
 	empty = list_empty(&gdc_manager.process_queue);
 	list_add_tail(&gdc_work_queue->list, &gdc_manager.process_queue);
 	spin_unlock(&gdc_manager.event.sem_lock);
+
+	gdc_work_queue->cmd.dev_type = dev_type;
+
 	return gdc_work_queue; /* find it */
 fail:
 	{
@@ -469,10 +509,9 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 	return 0;
 }
 
-int gdc_wq_init(struct meson_gdc_dev_t *gdc_dev)
+int gdc_wq_init(void)
 {
 	gdc_log(LOG_INFO, "init gdc device\n");
-	gdc_manager.gdc_dev = gdc_dev;
 
 	/* prepare bottom half */
 	spin_lock_init(&gdc_manager.event.sem_lock);
@@ -500,6 +539,5 @@ int gdc_wq_deinit(void)
 
 	gdc_dma_buffer_destroy(gdc_manager.buffer);
 	gdc_manager.buffer = NULL;
-	gdc_manager.gdc_dev = NULL;
 	return  0;
 }

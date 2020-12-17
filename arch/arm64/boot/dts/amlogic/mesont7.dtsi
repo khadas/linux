@@ -1591,6 +1591,38 @@
 		reg = <0x0 0xff040000 0x0 0x100>;
 		power-domains = <&pwrdm PDID_T7_GE2D>;
 	};
+
+	gdc {
+		#address-cells=<2>;
+		#size-cells=<2>;
+		status = "disabled";
+		compatible = "amlogic, arm-gdc";
+		reg = <0 0xfe08e000 0 0x0000100>;
+		interrupts = <GIC_SPI 223 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "gdc";
+		clocks = <&clkc CLKID_GDCCLK_0>,
+			<&clkc CLKID_GDCCLK>,
+			<&clkc CLKID_GDC_CLK>;
+		clock-names = "mux_gate", "mux_sel", "clk_gate";
+		clk-rate = <800000000>;
+		power-domains = <&pwrdm PDID_T7_GDC>;
+	};
+
+	amlgdc {
+		#address-cells=<2>;
+		#size-cells=<2>;
+		status = "disabled";
+		compatible = "amlogic, aml-gdc";
+		reg = <0 0xfe040000 0 0x000015c>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "amlgdc";
+		clocks = <&clkc CLKID_DEWARPCLK_0>,
+			<&clkc CLKID_DEWARPCLK>,
+			<&clkc CLKID_DEWARP_CLK>;
+		clock-names = "mux_gate", "mux_sel", "clk_gate";
+		clk-rate = <800000000>;
+		power-domains = <&pwrdm PDID_T7_DEWARP>;
+	};
 };
 
 &periphs_pinctrl {

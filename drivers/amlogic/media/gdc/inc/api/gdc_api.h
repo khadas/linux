@@ -339,8 +339,8 @@ int gdc_get_frame(struct gdc_cmd_s *gdc_cmd);
  */
 int gdc_run(struct gdc_cmd_s *g);
 
-s32 init_gdc_io(struct device_node *dn);
+s32 init_gdc_io(struct device_node *dn, u32 dev_type);
 
-int gdc_pwr_config(bool enable);
+int gdc_pwr_config(bool enable, u32 dev_type);
 
 #endif

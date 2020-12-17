@@ -11,6 +11,8 @@
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 //data types and prototypes
 #include "gdc_api.h"
@@ -32,6 +34,8 @@
  */
 int gdc_init(struct gdc_cmd_s *gdc_cmd)
 {
+	u32 dev_type = gdc_cmd->dev_type;
+
 	gdc_cmd->is_waiting_gdc = 0;
 	gdc_cmd->current_addr = gdc_cmd->buffer_addr;
 
@@ -41,14 +45,18 @@ int gdc_init(struct gdc_cmd_s *gdc_cmd)
 		return -1;
 	}
 	//stop gdc
-	gdc_start_flag_write(0);
+	gdc_start_flag_write(0, dev_type);
 	//set the configuration address and size to the gdc block
-	gdc_config_addr_write(gdc_cmd->gdc_config.config_addr);
-	gdc_config_size_write(gdc_cmd->gdc_config.config_size);
+	gdc_config_addr_write(gdc_cmd->gdc_config.config_addr, dev_type);
+	gdc_config_size_write(gdc_cmd->gdc_config.config_size, dev_type);
+
+	//set the gdc input resolution
+	gdc_datain_width_write(gdc_cmd->gdc_config.input_width, dev_type);
+	gdc_datain_height_write(gdc_cmd->gdc_config.input_height, dev_type);
 
 	//set the gdc output resolution
-	gdc_dataout_width_write(gdc_cmd->gdc_config.output_width);
-	gdc_dataout_height_write(gdc_cmd->gdc_config.output_height);
+	gdc_dataout_width_write(gdc_cmd->gdc_config.output_width, dev_type);
+	gdc_dataout_height_write(gdc_cmd->gdc_config.output_height, dev_type);
 
 	return 0;
 }
@@ -62,7 +70,7 @@ int gdc_init(struct gdc_cmd_s *gdc_cmd)
 void gdc_stop(struct gdc_cmd_s *gdc_cmd)
 {
 	gdc_cmd->is_waiting_gdc = 0;
-	gdc_start_flag_write(0);
+	gdc_start_flag_write(0, gdc_cmd->dev_type);
 }
 
 /**
@@ -75,8 +83,8 @@ void gdc_stop(struct gdc_cmd_s *gdc_cmd)
  */
 void gdc_start(struct gdc_cmd_s *gdc_cmd)
 {
-	gdc_start_flag_write(0); //do a stop for sync
-	gdc_start_flag_write(1);
+	gdc_start_flag_write(0, gdc_cmd->dev_type); //do a stop for sync
+	gdc_start_flag_write(1, gdc_cmd->dev_type);
 	gdc_cmd->is_waiting_gdc = 1;
 }
 
@@ -102,45 +110,42 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 		u32 y_base_addr, u32 uv_base_addr)
 {
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
-	u32 input_width = gdc_cmd->gdc_config.input_width;
-	u32 input_height = gdc_cmd->gdc_config.input_height;
 	u32 output_height = gdc_cmd->gdc_config.output_height;
 	u32 i_y_line_offset = gdc_cmd->gdc_config.input_y_stride;
 	u32 i_uv_line_offset = gdc_cmd->gdc_config.input_c_stride;
 	u32 o_y_line_offset = gdc_cmd->gdc_config.output_y_stride;
 	u32 o_uv_line_offset = gdc_cmd->gdc_config.output_c_stride;
+	u32 dev_type = gdc_cmd->dev_type;
 
 	if (gdc_cmd->is_waiting_gdc) {
-		gdc_start_flag_write(0);
+		gdc_start_flag_write(0, dev_type);
 		gdc_log(LOG_CRIT, "No interrupt Still waiting...\n");
-		gdc_start_flag_write(1);
+		gdc_start_flag_write(1, dev_type);
 
 		return -1;
 	}
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
-	gdc_datain_width_write(input_width);
-	gdc_datain_height_write(input_height);
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr);
-	gdc_data1in_line_offset_write(i_y_line_offset);
+	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_line_offset_write(i_y_line_offset, dev_type);
 
 	//input uv plane
-	gdc_data2in_addr_write(uv_base_addr);
-	gdc_data2in_line_offset_write(i_uv_line_offset);
+	gdc_data2in_addr_write(uv_base_addr, dev_type);
+	gdc_data2in_line_offset_write(i_uv_line_offset, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr);
-	gdc_data1out_line_offset_write(o_y_line_offset);
+	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_line_offset_write(o_y_line_offset, dev_type);
 
 	//gdc uv output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * o_y_line_offset;
 	else
 		gdc_out_base_addr = gdc_cmd->uv_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr);
-	gdc_data2out_line_offset_write(o_uv_line_offset);
+	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_line_offset_write(o_uv_line_offset, dev_type);
 
 	gdc_start(gdc_cmd);
 
@@ -170,17 +175,16 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
-	u32 input_width = gc->input_width;
-	u32 input_height = gc->input_height;
 	u32 input_stride = gc->input_y_stride;
 	u32 input_u_stride = gc->input_c_stride;
 	u32 input_v_stride = gc->input_c_stride;
+	u32 dev_type = gdc_cmd->dev_type;
 
 	gdc_log(LOG_DEBUG, "is_waiting_gdc=%d\n", gdc_cmd->is_waiting_gdc);
 	if (gdc_cmd->is_waiting_gdc) {
-		gdc_start_flag_write(0);
+		gdc_start_flag_write(0, dev_type);
 		gdc_log(LOG_CRIT, "No interrupt Still waiting...\n");
-		gdc_start_flag_write(1);
+		gdc_start_flag_write(1, dev_type);
 		return -1;
 	}
 
@@ -193,39 +197,37 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 	u32 output_u_stride = gc->output_c_stride;
 	u32 output_v_stride = gc->output_c_stride;
 
-	gdc_datain_width_write(input_width);
-	gdc_datain_height_write(input_height);
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr);
-	gdc_data1in_line_offset_write(input_stride);
+	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr);
-	gdc_data2in_line_offset_write(input_u_stride);
+	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr);
-	gdc_data3in_line_offset_write(input_v_stride);
+	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr);
-	gdc_data1out_line_offset_write(output_stride);
+	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr);
-	gdc_data2out_line_offset_write(output_u_stride);
+	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_u_stride / 2;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr);
-	gdc_data3out_line_offset_write(output_v_stride);
+	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_line_offset_write(output_v_stride, dev_type);
 	gdc_start(gdc_cmd);
 
 	return 0;
@@ -252,30 +254,27 @@ int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
-	u32 input_width = gc->input_width;
-	u32 input_height = gc->input_height;
 	u32 input_stride = gc->input_y_stride;
 	u32 output_stride = gc->output_y_stride;
+	u32 dev_type = gdc_cmd->dev_type;
 
 	gdc_log(LOG_DEBUG, "is_waiting_gdc=%d\n", gdc_cmd->is_waiting_gdc);
 	if (gdc_cmd->is_waiting_gdc) {
-		gdc_start_flag_write(0);
+		gdc_start_flag_write(0, dev_type);
 		gdc_log(LOG_CRIT, "No interrupt Still waiting...\n");
-		gdc_start_flag_write(1);
+		gdc_start_flag_write(1, dev_type);
 		return -1;
 	}
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
-	gdc_datain_width_write(input_width);
-	gdc_datain_height_write(input_height);
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr);
-	gdc_data1in_line_offset_write(input_stride);
+	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr);
-	gdc_data1out_line_offset_write(output_stride);
+	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	gdc_start(gdc_cmd);
 
@@ -305,8 +304,6 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
-	u32 input_width = gc->input_width;
-	u32 input_height = gc->input_height;
 	u32 input_stride = gc->input_y_stride;
 	u32 input_u_stride = gc->input_c_stride;
 	u32 input_v_stride = gc->input_c_stride;
@@ -314,50 +311,49 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 	u32 output_stride = gc->output_y_stride;
 	u32 output_u_stride = gc->output_c_stride;
 	u32 output_v_stride = gc->output_c_stride;
+	u32 dev_type = gdc_cmd->dev_type;
 
 	gdc_log(LOG_DEBUG, "is_waiting_gdc=%d\n", gdc_cmd->is_waiting_gdc);
 	if (gdc_cmd->is_waiting_gdc) {
-		gdc_start_flag_write(0);
+		gdc_start_flag_write(0, dev_type);
 		gdc_log(LOG_CRIT, "No interrupt Still waiting...\n");
-		gdc_start_flag_write(1);
+		gdc_start_flag_write(1, dev_type);
 		return -1;
 	}
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
-	gdc_datain_width_write(input_width);
-	gdc_datain_height_write(input_height);
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr);
-	gdc_data1in_line_offset_write(input_stride);
+	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr);
-	gdc_data2in_line_offset_write(input_u_stride);
+	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr);
-	gdc_data3in_line_offset_write(input_v_stride);
+	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr);
-	gdc_data1out_line_offset_write(output_stride);
+	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr);
-	gdc_data2out_line_offset_write(output_u_stride);
+	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_u_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr);
-	gdc_data3out_line_offset_write(output_v_stride);
+	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_line_offset_write(output_v_stride, dev_type);
 	gdc_start(gdc_cmd);
 
 	return 0;
@@ -388,8 +384,6 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
-	u32 input_width = gc->input_width;
-	u32 input_height = gc->input_height;
 	u32 input_stride = gc->input_y_stride;
 	u32 input_u_stride = gc->input_c_stride;
 	u32 input_v_stride = gc->input_c_stride;
@@ -397,50 +391,49 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 	u32 output_stride = gc->output_y_stride;
 	u32 output_u_stride = gc->output_c_stride;
 	u32 output_v_stride = gc->output_c_stride;
+	u32 dev_type = gdc_cmd->dev_type;
 
 	gdc_log(LOG_DEBUG, "is_waiting_gdc=%d\n", gdc_cmd->is_waiting_gdc);
 	if (gdc_cmd->is_waiting_gdc) {
-		gdc_start_flag_write(0);
+		gdc_start_flag_write(0, dev_type);
 		gdc_log(LOG_CRIT, "No interrupt Still waiting...\n");
-		gdc_start_flag_write(1);
+		gdc_start_flag_write(1, dev_type);
 		return -1;
 	}
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
-	gdc_datain_width_write(input_width);
-	gdc_datain_height_write(input_height);
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr);
-	gdc_data1in_line_offset_write(input_stride);
+	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr);
-	gdc_data2in_line_offset_write(input_u_stride);
+	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr);
-	gdc_data3in_line_offset_write(input_v_stride);
+	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr);
-	gdc_data1out_line_offset_write(output_stride);
+	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr);
-	gdc_data2out_line_offset_write(output_u_stride);
+	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
 	if (gdc_cmd->outplane == 1)
 		gdc_out_base_addr += output_height * output_u_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr);
-	gdc_data3out_line_offset_write(output_v_stride);
+	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_line_offset_write(output_v_stride, dev_type);
 	gdc_start(gdc_cmd);
 
 	return 0;
@@ -453,24 +446,56 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
  *   @return  0 - success
  *           -1 - fail.
  */
-int gdc_pwr_config(bool enable)
+int gdc_pwr_config(bool enable, u32 dev_type)
 {
-	struct meson_gdc_dev_t *gdc_dev = gdc_manager.gdc_dev;
+	struct meson_gdc_dev_t *gdc_dev = NULL;
+	struct device *dev;
+	int ret = -1;
+	int clk_type = 0;
+
+	gdc_dev = GDC_DEV_T(dev_type);
 
 	if (!gdc_dev ||
 	    !gdc_dev->clk_core ||
-	    !gdc_dev->clk_axi) {
-		gdc_log(LOG_ERR, "core/axi set err.\n");
+	    !gdc_dev->pdev) {
+		gdc_log(LOG_ERR, "core clk set err or pdev is null.\n");
 		return -1;
+	}
+
+	clk_type = gdc_dev->clk_type;
+
+	if (clk_type == CORE_AXI && !gdc_dev->clk_axi) {
+		gdc_log(LOG_ERR, "axi clk set err.\n");
+		return -1;
+	}
+
+	dev = &gdc_dev->pdev->dev;
+	/* power */
+	if (enable) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0)
+			gdc_log(LOG_ERR, "runtime get power error\n");
+	} else {
+		ret = pm_runtime_put_sync(dev);
+		if (ret < 0)
+			gdc_log(LOG_ERR, "runtime put power error\n");
 	}
 
 	/* clk */
 	if (enable) {
-		clk_prepare_enable(gdc_dev->clk_core);
-		clk_prepare_enable(gdc_dev->clk_axi);
+		if (clk_type == CORE_AXI) {
+			clk_prepare_enable(gdc_dev->clk_core);
+			clk_prepare_enable(gdc_dev->clk_axi);
+		} else if (clk_type == MUXGATE_MUXSEL_GATE) {
+			clk_prepare_enable(gdc_dev->clk_gate);
+		}
 	} else {
-		clk_disable_unprepare(gdc_dev->clk_core);
-		clk_disable_unprepare(gdc_dev->clk_axi);
+		if (clk_type == CORE_AXI) {
+			clk_disable_unprepare(gdc_dev->clk_core);
+			clk_disable_unprepare(gdc_dev->clk_axi);
+		} else if (clk_type == MUXGATE_MUXSEL_GATE) {
+			clk_disable_unprepare(gdc_dev->clk_gate);
+		}
 	}
 
 	return 0;

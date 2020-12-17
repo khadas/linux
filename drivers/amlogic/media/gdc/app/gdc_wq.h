@@ -26,15 +26,10 @@ struct gdc_queue_item_s {
 	struct gdc_dma_cfg_t dma_cfg;
 };
 
-extern unsigned int gdc_reg_store_mode;
-extern int trace_mode_enable;
-extern char *config_out_file;
-extern int config_out_path_defined;
-
 u8 __iomem *gdc_map_virt_from_phys(phys_addr_t phys, unsigned long total_size);
 void gdc_unmap_virt_from_phys(u8 __iomem *vaddr);
 
-int gdc_wq_init(struct meson_gdc_dev_t *gdc_dev);
+int gdc_wq_init(void);
 int gdc_wq_deinit(void);
 void *gdc_prepare_item(struct gdc_context_s *wq);
 int gdc_wq_add_work(struct gdc_context_s *wq,

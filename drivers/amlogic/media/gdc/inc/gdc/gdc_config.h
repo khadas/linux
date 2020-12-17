@@ -11,18 +11,39 @@
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
+#include <linux/highmem.h>
 #include "system_gdc_io.h"
 #include "gdc_api.h"
 #include "gdc_dmabuf.h"
+#include "system_log.h"
 
 struct gdc_context_s;
 
+enum {
+	CORE_AXI,
+	MUXGATE_MUXSEL_GATE
+};
+
+struct gdc_device_data_s {
+	int dev_type;
+	int clk_type;
+};
+
 struct meson_gdc_dev_t {
-	struct platform_device *pdev;
 	int irq;
-	struct clk	*clk_core;
-	struct clk	*clk_axi;
+	int probed;
+	struct platform_device *pdev;
 	struct miscdevice misc_dev;
+	char *config_out_file;
+	int config_out_path_defined;
+	int trace_mode_enable;
+	int reg_store_mode_enable;
+	int clk_type;
+	union {
+		struct clk *clk_core;
+		struct clk *clk_gate;
+	};
+	struct clk *clk_axi; /* not used for clk_gate only cases */
 };
 
 struct gdc_event_s {
@@ -34,7 +55,6 @@ struct gdc_event_s {
 };
 
 struct gdc_manager_s {
-	struct ion_client   *ion_client;
 	struct list_head process_queue;
 	struct gdc_context_s *current_wq;
 	struct gdc_context_s *last_wq;
@@ -42,14 +62,48 @@ struct gdc_manager_s {
 	struct gdc_event_s event;
 	struct aml_dma_buffer *buffer;
 	int gdc_state;
-	int process_queue_state;//thread running flag
+	int process_queue_state; //thread running flag
 	struct meson_gdc_dev_t *gdc_dev;
-	int probed;
+	struct meson_gdc_dev_t *aml_gdc_dev;
 };
 
 extern struct gdc_manager_s gdc_manager;
 
-irqreturn_t interrupt_handler_next(int irq, void *param);
+#define GDC_DEVICE(dev_type) ((dev_type) == ARM_GDC ?             \
+			      &gdc_manager.gdc_dev->pdev->dev :   \
+			      &gdc_manager.aml_gdc_dev->pdev->dev)
+
+#define GDC_DEV_T(dev_type) ((dev_type) == ARM_GDC ?   \
+			     gdc_manager.gdc_dev :     \
+			     gdc_manager.aml_gdc_dev)
+
+/* AML GDC registers */
+#define ISP_DWAP_REG_MARK                  BIT(16)
+#define ISP_DWAP_TOP_SRC_FSIZE             ((0x00 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_CTRL0                 ((0x02 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_COEF_CTRL0            ((0x03 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_COEF_CTRL1            ((0x04 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_CMD_CTRL0             ((0x05 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_CMD_CTRL1             ((0x06 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_Y_CTRL0           ((0x07 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_Y_CTRL1           ((0x08 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_U_CTRL0           ((0x09 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_U_CTRL1           ((0x0a << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_V_CTRL0           ((0x0b << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_SRC_V_CTRL1           ((0x0c << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_MESH_CTRL0            ((0x0d << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_FSIZE             ((0x10 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_Y_CTRL0           ((0x13 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_Y_CTRL1           ((0x14 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_U_CTRL0           ((0x15 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_U_CTRL1           ((0x16 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_V_CTRL0           ((0x17 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_TOP_DST_V_CTRL1           ((0x18 << 2) | ISP_DWAP_REG_MARK)
+
+#define DEWARP_STRIDE_ALIGN(x) (((x) + 15) / 16)
+#define AML_GDC_COEF_SIZE  256
+#define AML_GDC_CFG_STRIDE 4096
+
 // ----------------------------------- //
 // Instance 'gdc' of module 'gdc_ip_config'
 // ----------------------------------- //
@@ -140,10 +194,54 @@ static inline u32 gdc_id_revision_read(void)
 #define GDC_CONFIG_ADDR_OFFSET (0x10)
 #define GDC_CONFIG_ADDR_MASK (0xffffffff)
 
-// args: data (32-bit)
-static inline void gdc_config_addr_write(u32 data)
+static inline void gdc_coef_addr_write(u32 data)
 {
-	system_gdc_write_32(0x10L, data);
+	gdc_log(LOG_DEBUG, "coef paddr: 0x%x\n", data);
+	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL0, data >> 4);
+	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL1, AML_GDC_COEF_SIZE);
+}
+
+static inline void gdc_aml_cfg_addr_write(u32 data)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1);
+
+	gdc_log(LOG_DEBUG, " cfg paddr: 0x%x\n", data);
+	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL0, data >> 4);
+	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1, AML_GDC_CFG_STRIDE | curr);
+}
+
+static inline void gdc_mesh_addr_write(u32 data)
+{
+	gdc_log(LOG_DEBUG, "mesh paddr: 0x%x\n", data);
+	system_gdc_write_32(ISP_DWAP_TOP_MESH_CTRL0, data >> 4);
+}
+
+// args: data (32-bit)
+static inline void gdc_config_addr_write(u32 data, u32 dev_type)
+{
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x10L, data);
+	} else {
+		struct page *page = phys_to_page(data);
+		void *vaddr = kmap(page);
+		u32 coef_size = *(u32 *)vaddr;
+		u32 aml_cfg_size = *((u32 *)vaddr + 1);
+		u32 fw_offset = *((u32 *)vaddr + 2);
+
+		data += fw_offset;
+
+		gdc_coef_addr_write(data);
+		gdc_aml_cfg_addr_write(data + coef_size);
+		gdc_mesh_addr_write(data + coef_size + aml_cfg_size);
+		kunmap(page);
+
+		gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
+			coef_size, coef_size);
+		gdc_log(LOG_DEBUG, "aml_cfg_size: 0x%x %u\n",
+			aml_cfg_size, aml_cfg_size);
+		gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
+			fw_offset, fw_offset);
+	}
 }
 
 static inline u32 gdc_config_addr_read(void)
@@ -165,9 +263,10 @@ static inline u32 gdc_config_addr_read(void)
 #define GDC_CONFIG_SIZE_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_config_size_write(u32 data)
+static inline void gdc_config_size_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x14L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x14L, data);
 }
 
 static inline u32 gdc_config_size_read(void)
@@ -189,11 +288,18 @@ static inline u32 gdc_config_size_read(void)
 #define GDC_DATAIN_WIDTH_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_datain_width_write(uint16_t data)
+static inline void gdc_datain_width_write(u16 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x20L);
+	u32 curr;
 
-	system_gdc_write_32(0x20L, ((curr & 0xffff0000) | data));
+	if (dev_type == ARM_GDC) {
+		curr = system_gdc_read_32(0x20L);
+		system_gdc_write_32(0x20L, ((curr & 0xffff0000) | data));
+	} else {
+		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_FSIZE,
+				    ((curr & 0x0000ffff) | (data << 16)));
+	}
 }
 
 static inline uint16_t gdc_datain_width_read(void)
@@ -215,11 +321,18 @@ static inline uint16_t gdc_datain_width_read(void)
 #define GDC_DATAIN_HEIGHT_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_datain_height_write(uint16_t data)
+static inline void gdc_datain_height_write(u16 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x24L);
+	u32 curr = 0;
 
-	system_gdc_write_32(0x24L, ((curr & 0xffff0000) | data));
+	if (dev_type == ARM_GDC) {
+		curr = system_gdc_read_32(0x24L);
+		system_gdc_write_32(0x24L, ((curr & 0xffff0000) | data));
+	} else {
+		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_FSIZE,
+				    ((curr & 0xffff0000) | data));
+	}
 }
 
 static inline uint16_t gdc_datain_height_read(void)
@@ -243,9 +356,12 @@ static inline uint16_t gdc_datain_height_read(void)
 #define GDC_DATA1IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1in_addr_write(u32 data)
+static inline void gdc_data1in_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x28L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x28L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data1in_addr_read(void)
@@ -269,9 +385,14 @@ static inline u32 gdc_data1in_addr_read(void)
 #define GDC_DATA1IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1in_line_offset_write(u32 data)
+static inline void gdc_data1in_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x2cL, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x2cL, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data1in_line_offset_read(void)
@@ -295,9 +416,12 @@ static inline u32 gdc_data1in_line_offset_read(void)
 #define GDC_DATA2IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2in_addr_write(u32 data)
+static inline void gdc_data2in_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x30L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x30L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data2in_addr_read(void)
@@ -321,9 +445,14 @@ static inline u32 gdc_data2in_addr_read(void)
 #define GDC_DATA2IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2in_line_offset_write(u32 data)
+static inline void gdc_data2in_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x34L, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x34L, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data2in_line_offset_read(void)
@@ -347,9 +476,12 @@ static inline u32 gdc_data2in_line_offset_read(void)
 #define GDC_DATA3IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3in_addr_write(u32 data)
+static inline void gdc_data3in_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x38L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x38L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data3in_addr_read(void)
@@ -374,9 +506,14 @@ static inline u32 gdc_data3in_addr_read(void)
 #define GDC_DATA3IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3in_line_offset_write(u32 data)
+static inline void gdc_data3in_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x3cL, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x3cL, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data3in_line_offset_read(void)
@@ -398,11 +535,18 @@ static inline u32 gdc_data3in_line_offset_read(void)
 #define GDC_DATAOUT_WIDTH_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_dataout_width_write(uint16_t data)
+static inline void gdc_dataout_width_write(u16 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x40L);
+	u32 curr;
 
-	system_gdc_write_32(0x40L, ((curr & 0xffff0000) | data));
+	if (dev_type == ARM_GDC) {
+		curr = system_gdc_read_32(0x40L);
+		system_gdc_write_32(0x40L, ((curr & 0xffff0000) | data));
+	} else {
+		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_FSIZE,
+				    ((curr & 0x0000ffff) | (data << 16)));
+	}
 }
 
 static inline uint16_t gdc_dataout_width_read(void)
@@ -424,11 +568,18 @@ static inline uint16_t gdc_dataout_width_read(void)
 #define GDC_DATAOUT_HEIGHT_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_dataout_height_write(uint16_t data)
+static inline void gdc_dataout_height_write(u16 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x44L);
+	u32 curr;
 
-	system_gdc_write_32(0x44L, ((curr & 0xffff0000) | data));
+	if (dev_type == ARM_GDC) {
+		curr = system_gdc_read_32(0x44L);
+		system_gdc_write_32(0x44L, ((curr & 0xffff0000) | data));
+	} else {
+		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_FSIZE,
+				    ((curr & 0xffff0000) | data));
+	}
 }
 
 static inline uint16_t gdc_dataout_height_read(void)
@@ -452,9 +603,12 @@ static inline uint16_t gdc_dataout_height_read(void)
 #define GDC_DATA1OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1out_addr_write(u32 data)
+static inline void gdc_data1out_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x48L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x48L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data1out_addr_read(void)
@@ -478,9 +632,14 @@ static inline u32 gdc_data1out_addr_read(void)
 #define GDC_DATA1OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1out_line_offset_write(u32 data)
+static inline void gdc_data1out_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x4cL, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x4cL, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data1out_line_offset_read(void)
@@ -503,9 +662,12 @@ static inline u32 gdc_data1out_line_offset_read(void)
 #define GDC_DATA2OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2out_addr_write(u32 data)
+static inline void gdc_data2out_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x50L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x50L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data2out_addr_read(void)
@@ -529,9 +691,14 @@ static inline u32 gdc_data2out_addr_read(void)
 #define GDC_DATA2OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2out_line_offset_write(u32 data)
+static inline void gdc_data2out_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x54L, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x54L, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data2out_line_offset_read(void)
@@ -554,9 +721,12 @@ static inline u32 gdc_data2out_line_offset_read(void)
 #define GDC_DATA3OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3out_addr_write(u32 data)
+static inline void gdc_data3out_addr_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x58L, data);
+	if (dev_type == ARM_GDC)
+		system_gdc_write_32(0x58L, data);
+	else
+		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL0, data >> 4);
 }
 
 static inline u32 gdc_data3out_addr_read(void)
@@ -580,9 +750,14 @@ static inline u32 gdc_data3out_addr_read(void)
 #define GDC_DATA3OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3out_line_offset_write(u32 data)
+static inline void gdc_data3out_line_offset_write(u32 data, u32 dev_type)
 {
-	system_gdc_write_32(0x5cL, data);
+	if (dev_type == ARM_GDC) {
+		system_gdc_write_32(0x5cL, data);
+	} else {
+		data = DEWARP_STRIDE_ALIGN(data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL1, data);
+	}
 }
 
 static inline u32 gdc_data3out_line_offset_read(void)
@@ -910,12 +1085,27 @@ static inline u32 gdc_config_read(void)
 #define GDC_START_FLAG_MASK (0x1)
 
 // args: data (1-bit)
-static inline void gdc_start_flag_write(uint8_t data)
+static inline void gdc_start_flag_write(u8 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x64L);
-	u32 val = ((data & 0x1) << 0) | (curr & 0xfffffffe);
+	if (dev_type == ARM_GDC) {
+		u32 curr = system_gdc_read_32(0x64L);
+		u32 val = ((data & 0x1) << 0) | (curr & 0xfffffffe);
 
-	system_gdc_write_32(0x64L, val);
+		system_gdc_write_32(0x64L, val);
+	} else {
+		if (data) {
+			u32 val = 0;
+
+			val = 1 << 30 | /* reg_sw_rst */
+			      0 << 16 | /* reg_stdly_num */
+			      1 << 2  ; /* reg_hs_sel */
+			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+
+			val = 0;
+			val = 1 << 31 | 1 << 2;  /* reg_frm_rst */
+			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+		}
+	}
 }
 
 static inline uint8_t gdc_start_flag_read(void)
@@ -942,12 +1132,14 @@ static inline uint8_t gdc_start_flag_read(void)
 #define GDC_STOP_FLAG_MASK (0x2)
 
 // args: data (1-bit)
-static inline void gdc_stop_flag_write(uint8_t data)
+static inline void gdc_stop_flag_write(u8 data, u32 dev_type)
 {
-	u32 curr = system_gdc_read_32(0x64L);
-	u32 val = ((data & 0x1) << 1) | (curr & 0xfffffffd);
+	if (dev_type == ARM_GDC) {
+		u32 curr = system_gdc_read_32(0x64L);
+		u32 val = ((data & 0x1) << 1) | (curr & 0xfffffffd);
 
-	system_gdc_write_32(0x64L, val);
+		system_gdc_write_32(0x64L, val);
+	}
 }
 
 static inline uint8_t gdc_stop_flag_read(void)
