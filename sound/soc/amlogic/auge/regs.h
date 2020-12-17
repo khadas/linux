@@ -648,6 +648,7 @@ struct register_table {
 #define EE_AUDIO_FRHDMIRX_CTRL3            0x203
 #define EE_AUDIO_FRHDMIRX_CTRL4            0x204
 #define EE_AUDIO_FRHDMIRX_CTRL5            0x205
+#define EE_AUDIO_FRHDMIRX_CTRL6            0x206
 #define EE_AUDIO_FRHDMIRX_STAT0            0x20a
 #define EE_AUDIO_FRHDMIRX_STAT1            0x20b
 

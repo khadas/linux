@@ -40,19 +40,20 @@
 #define MAX_INT    0x7ffffff
 
 /*
- * TXLX: hdmirx arc from spdif
- * TL1: hdmirx arc from spdifA/spdifB
- * TM2: hdmirx arc from spdifA/spdifB/earctx_spdif
+ * TXLX_ARC: hdmirx arc from spdif
+ * TL1_ARC: hdmirx arc from spdifA/spdifB
+ * TM2_ARC: hdmirx arc from spdifA/spdifB/earctx_spdif
  */
 enum {
-	TXLX = 0,
-	TL1 = 1,
-	TM2 = 2,
+	TXLX_ARC = 0,
+	TL1_ARC = 1,
+	TM2_ARC = 2,
 };
 
 struct extn_chipinfo {
 	int arc_version;
 	bool PAO_channel_sync;
+	int frhdmirx_version;
 };
 
 struct extn {
@@ -94,7 +95,7 @@ struct extn {
 	struct extn_chipinfo *chipinfo;
 	int audio_type;
 	struct snd_aes_iec958 iec;
-
+	int frhdmirx_version;
 };
 
 #define EXTN_BUFFER_BYTES (512 * 1024)
@@ -143,6 +144,11 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 		return IRQ_HANDLED;
 
 	snd_pcm_period_elapsed(substream);
+
+	if (p_extn->frhdmirx_version == T7_FRHDMIRX) {
+		frhdmirx_clr_SPDIF_irq_bits_for_t7_version();
+		return IRQ_HANDLED;
+	}
 
 	/* check pcm or nonpcm for PAO*/
 	if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) {
@@ -261,7 +267,7 @@ static int extn_close(struct snd_pcm_substream *substream)
 
 		if (toddr_src_get() == FRHDMIRX) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
-			frhdmirx_clr_all_irq_bits();
+			frhdmirx_clr_all_irq_bits(p_extn->frhdmirx_version);
 			free_irq(p_extn->irq_frhdmirx, p_extn);
 		}
 	}
@@ -395,9 +401,9 @@ static int arc_set_enable(struct snd_kcontrol *kcontrol,
 
 	p_extn->arc_en = ucontrol->value.integer.value[0];
 
-	if (p_extn->chipinfo && p_extn->chipinfo->arc_version == TL1)
+	if (p_extn->chipinfo && p_extn->chipinfo->arc_version == TL1_ARC)
 		arc_source_enable(p_extn->arc_src, p_extn->arc_en);
-	else if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2)
+	else if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2_ARC)
 		arc_enable(p_extn->arc_en);
 
 	return 0;
@@ -435,10 +441,10 @@ static int extn_dai_probe(struct snd_soc_dai *cpu_dai)
 
 	extn_create_controls(card, p_extn);
 
-	if (p_extn->chipinfo && p_extn->chipinfo->arc_version == TL1)
+	if (p_extn->chipinfo && p_extn->chipinfo->arc_version == TL1_ARC)
 		arc_source_enable(p_extn->arc_src, false);
 
-	if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2) {
+	if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2_ARC) {
 		/* override the earc default setting if earc doesn't exist */
 		if (!is_earc_spdif())
 			arc_earc_source_select(SPDIFA_TO_HDMIRX);
@@ -520,8 +526,11 @@ static int extn_dai_prepare(struct snd_pcm_substream *substream,
 				lsb = 32 - bit_depth;
 			}
 
-			frhdmirx_ctrl(runtime->channels, p_extn->hdmirx_mode);
-			frhdmirx_src_select(p_extn->hdmirx_mode);
+			frhdmirx_ctrl(runtime->channels,
+				      p_extn->hdmirx_mode,
+				      p_extn->frhdmirx_version);
+			if (p_extn->frhdmirx_version != T7_FRHDMIRX)
+				frhdmirx_src_select(p_extn->hdmirx_mode);
 		} else {
 			pr_info("Not support toddr src:%s\n",
 				toddr_src_get_str(src));
@@ -568,7 +577,7 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (src == FRATV)
 				fratv_enable(true);
 			else if (src == FRHDMIRX)
-				frhdmirx_enable(true);
+				frhdmirx_enable(true, p_extn->frhdmirx_version);
 
 			aml_toddr_enable(p_extn->tddr, true);
 		}
@@ -586,7 +595,7 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (src == FRATV)
 				fratv_enable(false);
 			else if (src == FRHDMIRX)
-				frhdmirx_enable(false);
+				frhdmirx_enable(false, p_extn->frhdmirx_version);
 
 			dev_dbg(substream->pcm->card->dev,
 				"External Capture disable\n");
@@ -683,6 +692,10 @@ static int frhdmirx_set_mode(struct snd_kcontrol *kcontrol,
 
 	if (!p_extn)
 		return 0;
+	if (p_extn->frhdmirx_version == T7_FRHDMIRX) {
+		pr_err("T7_FRHDMIRX, can't switch mode\n");
+		return 0;
+	}
 
 	p_extn->hdmirx_mode = ucontrol->value.integer.value[0];
 
@@ -728,7 +741,7 @@ static const struct soc_enum hdmirx_audio_type_enum =
 static int hdmiin_check_audio_type(struct extn *p_extn)
 {
 	int total_num = sizeof(type_texts) / sizeof(struct sppdif_audio_info);
-	int pc = frhdmirx_get_chan_status_pc(p_extn->hdmirx_mode);
+	int pc = frhdmirx_get_chan_status_pc(p_extn->hdmirx_mode, p_extn->frhdmirx_version);
 	int audio_type = 0;
 	int i;
 
@@ -783,7 +796,7 @@ int aml_get_hdmiin_audio_bitwidth(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	iec = &p_extn->iec;
-	status = frhdmirx_get_ch_status(1);
+	status = frhdmirx_get_ch_status(1, p_extn->frhdmirx_version);
 	iec->status[4] = status & 0xff;
 	wl_status = iec->status[4] & IEC958_AES4_CON_WORDLEN;
 	if (iec->status[4] & IEC958_AES4_CON_MAX_WORDLEN_24) {
@@ -892,13 +905,21 @@ static const struct snd_soc_component_driver extn_component = {
 };
 
 struct extn_chipinfo tl1_extn_chipinfo = {
-	.arc_version	= TL1,
+	.arc_version	= TL1_ARC,
 	.PAO_channel_sync = false,
+	.frhdmirx_version = TL1_FRHDMIRX,
 };
 
 struct extn_chipinfo tm2_extn_chipinfo = {
-	.arc_version	= TM2,
+	.arc_version	= TM2_ARC,
 	.PAO_channel_sync = true,
+	.frhdmirx_version = TL1_FRHDMIRX,
+};
+
+struct extn_chipinfo t7_extn_chipinfo = {
+	.arc_version	= TM2_ARC,
+	.PAO_channel_sync = false,
+	.frhdmirx_version = T7_FRHDMIRX,
 };
 
 static const struct of_device_id extn_device_id[] = {
@@ -912,6 +933,10 @@ static const struct of_device_id extn_device_id[] = {
 	{
 		.compatible = "amlogic, tm2-snd-extn",
 		.data       = &tm2_extn_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t7-snd-extn",
+		.data       = &t7_extn_chipinfo,
 	},
 	{}
 };
@@ -937,12 +962,14 @@ static int extn_platform_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, p_extn);
 
 	/* match data */
-	p_chipinfo = (struct extn_chipinfo *)
-		of_device_get_match_data(dev);
-	if (!p_chipinfo)
+	p_chipinfo = (struct extn_chipinfo *)of_device_get_match_data(dev);
+	p_extn->frhdmirx_version = 0;
+	if (!p_chipinfo) {
 		dev_warn_once(dev, "check whether to update chipinfo\n");
-	else
+	} else {
 		p_extn->chipinfo = p_chipinfo;
+		p_extn->frhdmirx_version = p_chipinfo->frhdmirx_version;
+	}
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

@@ -21,18 +21,24 @@ enum {
 	HDMIRX_SPDIF_TO_HDMIRX = 3,
 };
 
+enum {
+	TL1_FRHDMIRX = 0,
+	T7_FRHDMIRX = 1,
+};
+
 void arc_source_enable(int src, bool enable);
 void arc_earc_source_select(int src);
 void arc_enable(bool enable);
 
-void frhdmirx_enable(bool enable);
+void frhdmirx_enable(bool enable, int version);
 void frhdmirx_src_select(int src);
-void frhdmirx_ctrl(int channels, int src);
+void frhdmirx_ctrl(int channels, int src, int version);
 void frhdmirx_clr_PAO_irq_bits(void);
 void frhdmirx_clr_SPDIF_irq_bits(void);
-unsigned int frhdmirx_get_ch_status(int num);
-unsigned int frhdmirx_get_chan_status_pc(enum hdmirx_mode mode);
-void frhdmirx_clr_all_irq_bits(void);
+void frhdmirx_clr_SPDIF_irq_bits_for_t7_version(void);
+unsigned int frhdmirx_get_ch_status(int num, int version);
+unsigned int frhdmirx_get_chan_status_pc(enum hdmirx_mode mode, int version);
+void frhdmirx_clr_all_irq_bits(int version);
 void frhdmirx_afifo_reset(void);
 
 #endif
