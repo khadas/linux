@@ -140,6 +140,9 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 		/* return 0; */
 	gpufreq_device->gpufreq_state = state;
 	ret = gpufreq_get_max_state(cdev, &max_state);
+
+	if (WARN_ON(state >= max_state))
+		return -EINVAL;
 	state = max_state - 1 - state;
 
 	pr_debug("state=%ld,gpufreq_device->gpufreq_state=%d\n",
