@@ -99,6 +99,7 @@ static int __init media_main_init(void)
 	call_sub_init(picdec_init_module);
 	call_sub_init(amdolby_vision_init);
 	call_sub_init(tsync_module_init);
+	call_sub_init(tsync_pcr_init);
 	call_sub_init(aml_bl_extern_i2c_init);
 	call_sub_init(video_composer_module_init);
 	call_sub_init(meson_videotunnel_init);

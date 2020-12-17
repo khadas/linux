@@ -3,7 +3,6 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#undef DEBUG
 #define DEBUG
 #include <linux/module.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
@@ -40,16 +39,10 @@ static u32 last_vpts_gap;
 static u32 system_time_scale_base = 1;
 static u32 system_time_scale_remainder;
 
-extern pfun_tsdemux_pcrscr_get tsdemux_pcrscr_get_cb;
-extern pfun_get_buf_by_type get_buf_by_type_cb;
-extern pfun_stbuf_level stbuf_level_cb;
-extern pfun_stbuf_space stbuf_space_cb;
-extern pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
-extern pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
-
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
 #define PLL_FACTOR 10000
 static u32 timestamp_inc_factor = PLL_FACTOR;
+
 void set_timestamp_inc_factor(u32 factor)
 {
 	timestamp_inc_factor = factor;
@@ -69,12 +62,14 @@ EXPORT_SYMBOL(timestamp_vpts_get);
 void timestamp_vpts_set(u32 pts)
 {
 	video_pts = pts;
+	ATRACE_COUNTER("VPTS", video_pts);
 }
 EXPORT_SYMBOL(timestamp_vpts_set);
 
 void timestamp_vpts_inc(s32 val)
 {
 	video_pts += val;
+	ATRACE_COUNTER("VPTS", video_pts);
 }
 EXPORT_SYMBOL(timestamp_vpts_inc);
 
@@ -121,6 +116,7 @@ EXPORT_SYMBOL(timestamp_apts_get_u64);
 void timestamp_apts_set(u32 pts)
 {
 	audio_pts = pts;
+	ATRACE_COUNTER("APTS", audio_pts);
 }
 EXPORT_SYMBOL(timestamp_apts_set);
 
@@ -131,6 +127,7 @@ void timestamp_apts_inc(s32 inc)
 		inc = inc * timestamp_inc_factor / PLL_FACTOR;
 #endif
 		audio_pts += inc;
+		ATRACE_COUNTER("APTS", audio_pts);
 	}
 }
 EXPORT_SYMBOL(timestamp_apts_inc);
@@ -157,17 +154,18 @@ EXPORT_SYMBOL(timestamp_apts_started);
 
 u32 timestamp_pcrscr_get(void)
 {
+	u32 tmp_pcr;
 	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER)
 		return system_time;
 
-	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb()) {
+	if (tsync_get_demux_pcrscr_valid()) {
 		if (tsync_pcr_demux_pcr_used() == 0) {
 			return system_time;
 		} else {
-			if (tsdemux_pcrscr_get_cb) {
-				if (tsdemux_pcrscr_get_cb() > pcrscr_lantcy)
+			if (tsync_get_demux_pcr(&tmp_pcr)) {
+				if (tmp_pcr > pcrscr_lantcy)
 					return
-					tsdemux_pcrscr_get_cb() - pcrscr_lantcy;
+					tmp_pcr - pcrscr_lantcy;
 				else
 					return 0;
 			} else {
@@ -178,6 +176,7 @@ u32 timestamp_pcrscr_get(void)
 		return system_time;
 	}
 }
+EXPORT_SYMBOL(timestamp_pcrscr_get);
 
 u64 timestamp_pcrscr_get_u64(void)
 {
@@ -209,10 +208,10 @@ EXPORT_SYMBOL(timestamp_avsync_counter_set);
 
 void timestamp_set_pcrlatency(u32 latency)
 {
-	if (latency < 500 * 90)
+	if (latency < 3000 * 90)
 		pcrscr_lantcy = latency;
 	else
-		pcrscr_lantcy = 500 * 90;
+		pcrscr_lantcy = 3000 * 90;
 }
 EXPORT_SYMBOL(timestamp_set_pcrlatency);
 
@@ -221,6 +220,7 @@ u32 timestamp_get_pcrlatency(void)
 	return pcrscr_lantcy;
 }
 EXPORT_SYMBOL(timestamp_get_pcrlatency);
+
 void timestamp_clac_pts_latency(u8 type, u32 pts)
 {
 	u32 demux_pcr = 0;
@@ -228,11 +228,9 @@ void timestamp_clac_pts_latency(u8 type, u32 pts)
 
 	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER)
 		return;
-	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() &&
-	    tsync_pcr_demux_pcr_used()) {
-		if (tsdemux_pcrscr_get_cb)
-			demux_pcr = tsdemux_pcrscr_get_cb();
-		else
+	if (tsync_get_demux_pcrscr_valid() &&
+		tsync_pcr_demux_pcr_used()) {
+		if (tsync_get_demux_pcr(&demux_pcr) == 0)
 			return;
 		if (demux_pcr == 0 ||
 		    demux_pcr == 0xffffffff) {
@@ -297,6 +295,7 @@ void timestamp_clac_pts_latency(u8 type, u32 pts)
 	}
 }
 EXPORT_SYMBOL(timestamp_clac_pts_latency);
+
 u32 timestamp_get_pts_latency(u8 type)
 {
 	if (type == 0)
@@ -318,8 +317,10 @@ EXPORT_SYMBOL(timestamp_clean_pts_latency);
 
 u32 timestamp_tsdemux_pcr_get(void)
 {
-	if (tsdemux_pcrscr_get_cb)
-		return tsdemux_pcrscr_get_cb();
+	u32 tmp_pcr = 0;
+
+	if (tsync_get_demux_pcr(&tmp_pcr))
+		return tmp_pcr;
 
 	return (u32)-1;
 }
@@ -328,8 +329,8 @@ EXPORT_SYMBOL(timestamp_tsdemux_pcr_get);
 void timestamp_pcrscr_set(u32 pts)
 {
 	/*pr_info("timestamp_pcrscr_set system time  = %x\n", pts);*/
-	ATRACE_COUNTER("PCRSCR",  pts);
 	system_time = pts;
+	ATRACE_COUNTER("PCRSCR",  pts);
 }
 EXPORT_SYMBOL(timestamp_pcrscr_set);
 

@@ -247,8 +247,14 @@ static inline int amdolby_vision_init(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_module_init(void);
+int tsync_pcr_init(void);
 #else
 static inline int tsync_module_init(void)
+{
+	return 0;
+}
+
+static inline int tsync_pcr_init(void)
 {
 	return 0;
 }

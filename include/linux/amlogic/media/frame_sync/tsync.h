@@ -17,6 +17,18 @@
 #define TSYNC_IOC_SET_VIDEO_PEEK _IOW(TSYNC_IOC_MAGIC, 0x01, int)
 
 #define TSYNC_IOC_GET_FIRST_FRAME_TOGGLED _IOR(TSYNC_IOC_MAGIC, 0x20, int)
+#define TSYNC_IOC_SET_FIRST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x02, u32)
+#define TSYNC_IOC_SET_LAST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x03, u32)
+#define TSYNC_IOC_SET_DEMUX_INFO _IOW(TSYNC_IOC_MAGIC, 0x06, struct dmx_info)
+#define TSYNC_IOC_STOP_TSYNC_PCR _IO((TSYNC_IOC_MAGIC), 0x08)
+
+struct dmx_info {
+int demux_device_id;
+int index;
+int vpid;
+int apid;
+int pcrpid;
+};
 
 enum avevent_e {
 	VIDEO_START,
@@ -53,11 +65,17 @@ enum tysnc_func_type_e {
 
 //bool disable_slow_sync;
 
+int demux_get_pcr(int demux_device_index, int index, u64 *stc);
+
 typedef u8 (*pfun_tsdemux_pcrscr_valid)(void);
 //pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
 
 typedef u32 (*pfun_tsdemux_pcrscr_get)(void);
 //pfun_tsdemux_pcrscr_get tsdemux_pcrscr_get_cb;
+
+typedef int (*pfun_amldemux_pcrscr_get)(int demux_device_index, int index,
+					u64 *stc);
+//pfun_amldemux_pcrscr_get amldemux_pcrscr_get_cb;
 
 typedef u32 (*pfun_tsdemux_first_pcrscr_get)(void);
 //pfun_tsdemux_first_pcrscr_get tsdemux_first_pcrscr_get_cb;
@@ -169,6 +187,50 @@ int tsync_get_vpts_adjust(void);
 void set_video_peek(void);
 u32 get_first_frame_toggled(void);
 void tsync_set_av_state(u8 type, int state);
+
+u8 tsync_get_demux_pcrscr_valid_for_newarch(void);
+
+u8 tsync_get_demux_pcrscr_valid(void);
+
+void tsync_get_demux_pcr_for_newarch(void);
+
+u8 tsync_get_demux_pcr(u32 *pcr);
+
+void tsync_get_first_demux_pcr_for_newarch(void);
+
+u8 tsync_get_first_demux_pcr(u32 *first_pcr);
+
+u8 tsync_get_audio_pid_valid_for_newarch(void);
+
+u8 tsync_get_audio_pid_valid(void);
+
+u8 tsync_get_video_pid_valid_for_newarch(void);
+
+u8 tsync_get_video_pid_valid(void);
+
+void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf);
+
+u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf);
+
+void tsync_get_stbuf_level_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_level);
+
+u8 tsync_get_stbuf_level(struct stream_buf_s *pbuf, u32 *buf_level);
+
+void tsync_get_stbuf_space_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_space);
+
+u8 tsync_get_stbuf_space(struct stream_buf_s *pbuf, u32 *buf_space);
+
+void tsync_get_stbuf_size_for_newarch(struct stream_buf_s *pbuf, u32 *buf_size);
+
+u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size);
+
+bool tsync_get_new_arch(void);
+
+u32 tsync_get_checkin_apts(void);
+
+void tsync_reset(void);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
