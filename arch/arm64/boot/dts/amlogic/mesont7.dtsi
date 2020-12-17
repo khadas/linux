@@ -232,6 +232,13 @@
 		reserve_mem_size = <0x03300000>;
 	};
 
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <18432 23040 27648 32256 36864 46080>;
+	};
+
 	securitykey {
 		compatible = "aml, securitykey";
 		storage_query = <0x82000060>;

@@ -198,6 +198,14 @@
 		out_base_func = <0x82000021>;
 		reserve_mem_size = <0x00300000>;
 	};
+
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <18432 23040 27648 32256 36864 46080>;
+	};
+
 	securitykey {
 		compatible = "amlogic, securitykey";
 		status = "disabled";
