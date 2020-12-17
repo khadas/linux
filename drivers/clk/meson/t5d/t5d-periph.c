@@ -375,7 +375,7 @@ static struct clk_regmap t5d_vpu_clkc_p0_div = {
 
 static struct clk_regmap t5d_vpu_clkc_p0_gate = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = HHI_VPU_CLK_CNTL,
+		.offset = HHI_VPU_CLKC_CNTL,
 		.bit_idx = 8,
 	},
 	.hw.init = &(struct clk_init_data) {
