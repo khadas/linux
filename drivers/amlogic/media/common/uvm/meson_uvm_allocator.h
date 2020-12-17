@@ -26,6 +26,7 @@
 #define MUA_FAKE_ALLOC       BIT(UVM_FAKE_ALLOC)
 #define MUA_USAGE_PROTECTED  BIT(UVM_SECURE_ALLOC)
 #define ION_FLAG_PROTECTED   BIT(31)
+#define META_DATA_SIZE       (256)
 
 
 struct mua_device;
@@ -77,10 +78,18 @@ struct uvm_fd_data {
 	int commit_display;
 };
 
+struct uvm_meta_data {
+	int fd;
+	int type;
+	int size;
+	u8 data[META_DATA_SIZE];
+};
+
 union uvm_ioctl_arg {
 	struct uvm_alloc_data alloc_data;
 	struct uvm_pid_data pid_data;
 	struct uvm_fd_data fd_data;
+	struct uvm_meta_data meta_data;
 };
 
 #define UVM_IOC_MAGIC 'U'
@@ -92,6 +101,7 @@ union uvm_ioctl_arg {
 				struct uvm_pid_data)
 #define UVM_IOC_SET_FD _IOWR(UVM_IOC_MAGIC, 3, \
 				struct uvm_fd_data)
-
+#define UVM_IOC_GET_METADATA _IOWR(UVM_IOC_MAGIC, 4, \
+				struct uvm_meta_data)
 #endif
 

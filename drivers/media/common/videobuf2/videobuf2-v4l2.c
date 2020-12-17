@@ -328,6 +328,10 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		vbuf->flags &= ~V4L2_BUF_FLAG_LAST;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_V4L_DEC
+	vbuf->meta_ptr = (ulong)(((u64)b->reserved2 << 32) | b->reserved);
+#endif
+
 	return 0;
 }
 

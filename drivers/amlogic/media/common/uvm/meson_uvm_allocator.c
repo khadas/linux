@@ -341,6 +341,46 @@ static int mua_set_commit_display(int fd, int commit_display)
 	return 0;
 }
 
+static int mua_get_meta_data(int fd, ulong arg)
+{
+	struct dma_buf *dmabuf;
+	struct uvm_handle *handle;
+	struct vframe_s *vfp;
+	struct uvm_meta_data meta;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		MUA_PRINTK(0, "invalid dmabuf fd\n");
+		return -EINVAL;
+	}
+
+	handle = dmabuf->priv;
+	vfp = &handle->vf;
+
+	/* check source type. */
+	if (!vfp->hdr10p_data_size ||
+		vfp->hdr10p_data_size > META_DATA_SIZE) {
+		MUA_PRINTK(0, "meta data size: %d is invalid.\n",
+			vfp->hdr10p_data_size);
+		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
+
+	meta.fd = fd;
+	meta.size = vfp->hdr10p_data_size;
+	memcpy(meta.data, vfp->hdr10p_data_buf, vfp->hdr10p_data_size);
+
+	if (copy_to_user((void __user *)arg, &meta, sizeof(meta))) {
+		MUA_PRINTK(0, "meta data copy err.\n");
+		dma_buf_put(dmabuf);
+		return -EFAULT;
+	}
+
+	dma_buf_put(dmabuf);
+
+	return 0;
+}
+
 static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mua_device *md;
@@ -410,6 +450,13 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (ret < 0) {
 			MUA_PRINTK(0, "invalid dmabuf fd.\n");
+			return -EINVAL;
+		}
+		break;
+	case UVM_IOC_GET_METADATA:
+		ret = mua_get_meta_data(data.meta_data.fd, arg);
+		if (ret < 0) {
+			MUA_PRINTK(0, "get meta data fail.\n");
 			return -EINVAL;
 		}
 		break;

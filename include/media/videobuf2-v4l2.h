@@ -49,6 +49,7 @@ struct vb2_v4l2_buffer {
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 #ifdef CONFIG_AMLOGIC_MEDIA_V4L_DEC
 	__u32			private;
+	ulong                   meta_ptr;
 #endif
 };
 
