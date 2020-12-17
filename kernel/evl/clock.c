@@ -491,7 +491,7 @@ static int clock_sleep(struct evl_clock *clock,
 	} else
 		timeout = timespec64_to_ktime(ts64);
 
-	rem = evl_delay_thread(timeout, EVL_ABS, clock);
+	rem = evl_delay(timeout, EVL_ABS, clock);
 	if (!rem)
 		return 0;
 
