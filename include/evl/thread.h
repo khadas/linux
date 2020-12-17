@@ -158,14 +158,6 @@ struct evl_thread {
 	char *name;
 };
 
-struct evl_kthread {
-	struct evl_thread thread;
-	struct completion done;
-	void (*threadfn)(struct evl_kthread *kthread);
-	int status;
-	struct irq_work irq_work;
-};
-
 #define for_each_evl_booster(__pos, __thread)			\
 	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
 
@@ -275,19 +267,19 @@ void evl_release_thread(struct evl_thread *thread,
 void evl_unblock_thread(struct evl_thread *thread,
 			int reason);
 
-ktime_t evl_delay_thread(ktime_t timeout,
-			enum evl_tmode timeout_mode,
-			struct evl_clock *clock);
+ktime_t evl_delay(ktime_t timeout,
+		enum evl_tmode timeout_mode,
+		struct evl_clock *clock);
 
 int evl_sleep_until(ktime_t timeout);
 
 int evl_sleep(ktime_t delay);
 
-int evl_set_thread_period(struct evl_clock *clock,
-			ktime_t idate,
-			ktime_t period);
+int evl_set_period(struct evl_clock *clock,
+		ktime_t idate,
+		ktime_t period);
 
-int evl_wait_thread_period(unsigned long *overruns_r);
+int evl_wait_period(unsigned long *overruns_r);
 
 void evl_cancel_thread(struct evl_thread *thread);
 
@@ -330,6 +322,18 @@ static inline void evl_propagate_schedparam_change(struct evl_thread *curr)
 		__evl_propagate_schedparam_change(curr);
 }
 
+pid_t evl_get_inband_pid(struct evl_thread *thread);
+
+int activate_oob_mm_state(struct oob_mm_state *p);
+
+struct evl_kthread {
+	struct evl_thread thread;
+	struct completion done;
+	void (*threadfn)(struct evl_kthread *kthread);
+	int status;
+	struct irq_work irq_work;
+};
+
 int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 
 #define _evl_run_kthread(__kthread, __affinity, __fn, __priority,	\
@@ -363,6 +367,9 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
 			__clone_flags, __fmt, ##__args)
 
+void evl_set_kthread_priority(struct evl_kthread *kthread,
+			int priority);
+
 static inline void evl_stop_kthread(struct evl_kthread *kthread)
 {
 	evl_cancel_thread(&kthread->thread);
@@ -374,11 +381,18 @@ static inline bool evl_kthread_should_stop(void)
 	return !!(evl_current()->info & T_CANCELD);
 }
 
-void evl_set_kthread_priority(struct evl_kthread *thread,
-			int priority);
+static inline
+void evl_unblock_kthread(struct evl_kthread *kthread,
+			int reason)
+{
+	evl_unblock_thread(&kthread->thread, reason);
+}
 
-pid_t evl_get_inband_pid(struct evl_thread *thread);
-
-int activate_oob_mm_state(struct oob_mm_state *p);
+static inline
+int evl_join_kthread(struct evl_kthread *kthread,
+		bool uninterruptible)
+{
+	return evl_join_thread(&kthread->thread, uninterruptible);
+}
 
 #endif /* !_EVL_THREAD_H */

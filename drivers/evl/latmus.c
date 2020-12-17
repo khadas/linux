@@ -455,20 +455,20 @@ void kthread_handler(struct evl_kthread *kthread)
 		if (ret)
 			break;
 
-		ret = evl_set_thread_period(&evl_mono_clock,
-					k_runner->start_time,
-					k_runner->runner.period);
+		ret = evl_set_period(&evl_mono_clock,
+				k_runner->start_time,
+				k_runner->runner.period);
 		if (ret)
 			break;
 
 		for (;;) {
-			ret = evl_wait_thread_period(NULL);
+			ret = evl_wait_period(NULL);
 			if (ret && ret != -ETIMEDOUT)
 				goto out;
 
 			now = evl_read_clock(&evl_mono_clock);
 			if (k_runner->runner.add_sample(&k_runner->runner, now)) {
-				evl_set_thread_period(NULL, 0, 0);
+				evl_set_period(NULL, 0, 0);
 				break;
 			}
 		}

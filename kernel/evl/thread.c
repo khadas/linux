@@ -777,8 +777,8 @@ ktime_t evl_get_thread_period(struct evl_thread *thread)
 }
 EXPORT_SYMBOL_GPL(evl_get_thread_period);
 
-ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
-			struct evl_clock *clock)
+ktime_t evl_delay(ktime_t timeout, enum evl_tmode timeout_mode,
+		struct evl_clock *clock)
 {
 	struct evl_thread *curr = evl_current();
 	ktime_t rem = 0;
@@ -791,7 +791,7 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
 
 	return rem;
 }
-EXPORT_SYMBOL_GPL(evl_delay_thread);
+EXPORT_SYMBOL_GPL(evl_delay);
 
 int evl_sleep_until(ktime_t timeout)
 {
@@ -800,7 +800,7 @@ int evl_sleep_until(ktime_t timeout)
 	if (!EVL_ASSERT(CORE, !evl_cannot_block()))
 		return -EPERM;
 
-	rem = evl_delay_thread(timeout, EVL_ABS, &evl_mono_clock);
+	rem = evl_delay(timeout, EVL_ABS, &evl_mono_clock);
 
 	return rem ? -EINTR : 0;
 }
@@ -813,8 +813,8 @@ int evl_sleep(ktime_t delay)
 }
 EXPORT_SYMBOL_GPL(evl_sleep);
 
-int evl_set_thread_period(struct evl_clock *clock,
-			ktime_t idate, ktime_t period)
+int evl_set_period(struct evl_clock *clock,
+		ktime_t idate, ktime_t period)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
@@ -849,9 +849,9 @@ int evl_set_thread_period(struct evl_clock *clock,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(evl_set_thread_period);
+EXPORT_SYMBOL_GPL(evl_set_period);
 
-int evl_wait_thread_period(unsigned long *overruns_r)
+int evl_wait_period(unsigned long *overruns_r)
 {
 	unsigned long overruns, flags;
 	struct evl_thread *curr;
@@ -886,7 +886,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(evl_wait_thread_period);
+EXPORT_SYMBOL_GPL(evl_wait_period);
 
 void evl_cancel_thread(struct evl_thread *thread)
 {
