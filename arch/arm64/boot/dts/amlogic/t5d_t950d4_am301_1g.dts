@@ -1832,14 +1832,14 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins>;
 
-	lcd_extern_i2c0: lcd_extern_i2c@0 {
+	lcd_extern_i2c0: lcd_extern_i2c@36 {
 		compatible = "lcd_ext, i2c";
 		dev_name = "i2c_RT6965";
 		reg = <0x36>;
 		status = "disabled";
 	};
 
-	tas5805: tas5805@5c {
+	tas5805: tas5805@2e {
 		compatible = "ti,tas5805";
 		#sound-dai-cells = <0>;
 		codec_name = "tas5805";

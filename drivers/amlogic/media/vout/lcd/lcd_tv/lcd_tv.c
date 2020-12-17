@@ -527,13 +527,19 @@ static int lcd_framerate_automation_set_mode(void)
 		(lcd_drv->lcd_vpu_dev, lcd_drv->lcd_config->lcd_timing.lcd_clk);
 #endif
 
-	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_interrupt_enable(0);
+	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE) {
+		if (lcd_drv->lcd_status & LCD_STATUS_IF_ON)
+			lcd_vbyone_interrupt_enable(0);
+	}
+
 	/* change clk parameter */
 	lcd_clk_change(lcd_drv->lcd_config);
 	lcd_venc_change(lcd_drv->lcd_config);
-	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_wait_stable();
+
+	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE) {
+		if (lcd_drv->lcd_status & LCD_STATUS_IF_ON)
+			lcd_vbyone_wait_stable();
+	}
 
 	lcd_vout_notify_mode_change();
 

@@ -604,6 +604,25 @@ static int lcd_info_print(char *buf, int offset)
 	return len;
 }
 
+static void lcd_reg_print_serializer(char *buf, int offset)
+{
+	unsigned int reg0, reg1;
+	int n, len = 0;
+
+	reg0 = HHI_LVDS_TX_PHY_CNTL0;
+	reg1 = HHI_LVDS_TX_PHY_CNTL1;
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "\nserializer regs:\n");
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"HHI_LVDS_TX_PHY_CNTL0    [0x%04x] = 0x%08x\n",
+		reg0, lcd_ana_read(reg0));
+	len += snprintf((buf + len), n,
+		"HHI_LVDS_TX_PHY_CNTL1    [0x%04x] = 0x%08x\n",
+		reg1, lcd_ana_read(reg1));
+}
+
 static int lcd_reg_print_ttl(char *buf, int offset)
 {
 	unsigned int reg;
@@ -953,6 +972,7 @@ static int lcd_reg_print_phy_analog(char *buf, int offset)
 	unsigned int reg;
 	int n, len = 0;
 
+	lcd_reg_print_serializer((buf + len), (len + offset));
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n, "\nphy analog regs:\n");
 
@@ -3648,8 +3668,6 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 	unsigned int reg_cntl0;
 
 	reg_cntl0 = HHI_LVDS_TX_PHY_CNTL0;
-
-
 	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
 	if (buf[0] == 'i') { /* intr */
 #ifdef CONFIG_AMLOGIC_LCD_TV
@@ -4372,6 +4390,89 @@ static void lcd_tcon_reg_table_load(char *path, unsigned char *reg_table,
 	pr_info("load bin file path: %s finish\n", path);
 }
 
+static void lcd_tcon_reg_setting_load(char *path)
+{
+	unsigned int size = 0, table_size = 0, len = 0;
+	char *reg_table;
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	mm_segment_t old_fs = get_fs();
+	/*struct kstat stat;*/
+	unsigned int i, n;
+	char *ps, *token;
+	char str[4] = {',', ' ', '\n', '\0'};
+	unsigned int temp[2];
+
+	set_fs(KERNEL_DS);
+
+	/*vfs_stat(path, &stat);
+	 *table_size = stat.size;
+	 */
+
+	filp = filp_open(path, O_RDONLY, 0);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("read %s error or filp is NULL.\n", path);
+		return;
+	}
+	table_size = filp->f_inode->i_size;
+	reg_table = kzalloc((table_size + 2), GFP_KERNEL);
+	if (!reg_table) {
+		filp_close(filp, NULL);
+		set_fs(old_fs);
+		return;
+	}
+
+	size = vfs_read(filp, reg_table, table_size, &pos);
+	if (size < table_size) {
+		pr_info("%s read size %u < %u error.\n",
+			__func__, size, table_size);
+		filp_close(filp, NULL);
+		set_fs(old_fs);
+		kfree(reg_table);
+		return;
+	}
+	vfs_fsync(filp, 0);
+
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+
+	ps = reg_table;
+	len = 0;
+	i = 0;
+	n = 0;
+	while (1) {
+		if (len >= table_size)
+			break;
+		if (!ps)
+			break;
+		token = strsep(&ps, str);
+		if (!token)
+			break;
+		if (*token == '\0') {
+			len++;
+			continue;
+		}
+		if (kstrtouint(token, 16, &temp[i % 2]) < 0) {
+			kfree(reg_table);
+			return;
+		}
+		if ((i % 2) == 1) {
+			if (lcd_debug_print_flag) {
+				pr_info("write tcon reg 0x%04x = 0x%08x\n",
+					temp[0], temp[1]);
+			}
+			lcd_tcon_reg_write(temp[0], temp[1]);
+			n++;
+		}
+		len += (strlen(token) + 1);
+		i++;
+	}
+
+	pr_info("load setting file path: %s finish, total line %d\n",
+		path, n);
+	kfree(reg_table);
+}
+
 static void lcd_tcon_axi_rmem_load(unsigned int index, char *path)
 {
 	unsigned int size = 0, mem_size;
@@ -4733,6 +4834,8 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 			lcd_tcon_axi_rmem_load(temp, parm[3]);
 		} else if (strcmp(parm[1], "table") == 0) {
 			lcd_tcon_reg_table_load(parm[2], table, size);
+		} else if (strcmp(parm[1], "setting") == 0) {
+			lcd_tcon_reg_setting_load(parm[2]);
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
@@ -5248,7 +5351,7 @@ static int lcd_class_creat(void)
 
 	INIT_WORK(&lcd_test_check_work, lcd_test_pattern_check);
 
-	lcd_drv->lcd_debug_class = class_create(THIS_MODULE, "lcd");
+	lcd_drv->lcd_debug_class = class_create(THIS_MODULE, "aml_lcd");
 	if (IS_ERR(lcd_drv->lcd_debug_class)) {
 		LCDERR("create lcd debug class fail\n");
 		return -1;
