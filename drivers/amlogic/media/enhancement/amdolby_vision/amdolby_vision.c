@@ -1174,6 +1174,7 @@ static bool osd_update;
 static bool enable_fel;
 
 static bool module_installed;
+static bool recovery_mode;
 
 #define MAX_PARAM   8
 static bool is_meson_gxm(void)
@@ -8612,35 +8613,6 @@ static const char dv_mode_str[6][12] = {
 	"BYPASS"
 };
 
-static bool is_recovery_mode(void)
-{
-	struct file *filp1 = NULL;
-	struct file *filp2 = NULL;
-	bool  file1_exist = false;
-	bool  file2_exist = false;
-	const char *recovery_file1 = "/system/bin/recovery";
-	const char *recovery_file2 = "/sbin/recovery";
-
-	filp1 = filp_open(recovery_file1, O_RDONLY, 0444);
-	if (IS_ERR(filp1)) {
-		filp2 = filp_open(recovery_file2, O_RDONLY, 0444);
-		if (IS_ERR(filp2)) {
-			pr_info("[%s] no file: |%s|%s|\n",
-				__func__, recovery_file1, recovery_file2);
-		} else {
-			file2_exist = true;
-			filp_close(filp2, NULL);
-		}
-	} else {
-		file1_exist = true;
-		filp_close(filp1, NULL);
-	}
-	if (file1_exist || file2_exist)
-		return true;
-	else
-		return false;
-}
-
 unsigned int dolby_vision_check_enable(void)
 {
 	int uboot_dv_mode = 0;
@@ -8681,7 +8653,8 @@ unsigned int dolby_vision_check_enable(void)
 	/*check if dovi enable in uboot*/
 	if (is_meson_g12() || is_meson_sc2()) {
 		if (dolby_vision_on_in_uboot) {
-			if (is_recovery_mode()) {/*recovery mode*/
+			if (recovery_mode) {/*recovery mode*/
+				pr_info("recovery_mode\n");
 				dolby_vision_on = true;
 				if (uboot_dv_source_led_yuv ||
 					uboot_dv_sink_led) {
@@ -9155,6 +9128,19 @@ static int get_dolby_uboot_status(char *str)
 	return 0;
 }
 __setup("dolby_vision_on=", get_dolby_uboot_status);
+
+static int recovery_mode_check(char *str)
+{
+	char recovery_status[DV_NAME_LEN_MAX] = {0};
+
+	snprintf(recovery_status, DV_NAME_LEN_MAX, "%s", str);
+	pr_info("recovery_status: %s\n", recovery_status);
+
+	if (strlen(recovery_status) > 0)
+		recovery_mode = true;
+	return 0;
+}
+__setup("recovery_part=", recovery_mode_check);
 
 int __init amdolby_vision_init(void)
 {
