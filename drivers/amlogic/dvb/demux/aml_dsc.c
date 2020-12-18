@@ -288,6 +288,7 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 			     enum ca_sc2_key_type parity, u32 key_index)
 {
 	struct dsc_pid_table *ptmp = NULL;
+	struct dsc_pid_table *ptmp1 = NULL;
 	int handle_has_iv = 0;
 	int type_has_iv = 0;
 	u32 kte;
@@ -331,9 +332,10 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 			return -1;
 		}
 		ptmp->scb00 = 1;
-		if (ch->dsc_type == CA_DSC_TSE_TYPE) {
-			ptmp->scb_as_is = 0;
-			ptmp->scb_out = 0;
+		ptmp1 = _get_dsc_pid_table(ch->index, ch->dsc_type);
+		if (ptmp1 && ptmp1->scb_user == 1) {
+			ptmp->scb_as_is = ptmp1->scb_as_is;
+			ptmp->scb_out = ptmp1->scb_out;
 		} else {
 			ptmp->scb_as_is = 0;
 			ptmp->scb_out = 0;
@@ -345,18 +347,19 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 			return -1;
 		}
 		ptmp->scb00 = 0;
-		ptmp->scb_as_is = 0;
-		ptmp->scb_out = 0;
-
-		/*tse, need set scb */
-		if (ch->dsc_type == CA_DSC_TSE_TYPE) {
-			if (parity == CA_KEY_EVEN_TYPE)
-				ptmp->scb_out = 0x2;
-			if (parity == CA_KEY_ODD_TYPE)
-				ptmp->scb_out = 0x3;
-		} else {
+		if (ptmp->scb_user == 0) {
 			ptmp->scb_as_is = 0;
 			ptmp->scb_out = 0;
+			/*tse, need set scb */
+			if (ch->dsc_type == CA_DSC_TSE_TYPE) {
+				if (parity == CA_KEY_EVEN_TYPE)
+					ptmp->scb_out = 0x2;
+				if (parity == CA_KEY_ODD_TYPE)
+					ptmp->scb_out = 0x3;
+			} else {
+				ptmp->scb_as_is = 0;
+				ptmp->scb_out = 0;
+			}
 		}
 	}
 	ptmp->valid = 1;
@@ -377,7 +380,53 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 	else
 		ptmp->kte_even_00 = kte;
 
-	dsc_config_pid_table(ptmp, ch->dsc_type);
+	if (ptmp->algo != (CA_ALGO_UNKNOWN + 1))
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+	return 0;
+}
+
+static int _dsc_chan_set_scb(struct dsc_channel *ch, u8 scb_out, u8 scb_as_is)
+{
+	struct dsc_pid_table *ptmp = NULL;
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+	ptmp->scb_as_is = scb_as_is;
+	ptmp->scb_out = scb_out;
+	ptmp->scb_user = 1;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+
+	if (ch->index00) {
+		ptmp = _get_dsc_pid_table(ch->index00, ch->dsc_type);
+		if (!ptmp) {
+			dprint("%s _get_dsc_pid_table fail\n", __func__);
+			return -1;
+		}
+		ptmp->scb_as_is = scb_as_is;
+		ptmp->scb_out = scb_out;
+		if (ptmp->valid)
+			dsc_config_pid_table(ptmp, ch->dsc_type);
+	}
+	return 0;
+}
+
+static int _dsc_chan_set_algo(struct dsc_channel *ch,
+		enum ca_sc2_algo_type algo)
+{
+	struct dsc_pid_table *ptmp = NULL;
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+	ptmp->algo = algo;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
 	return 0;
 }
 
@@ -404,7 +453,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 	switch (d->cmd) {
 	case CA_ALLOC:{
 //              pr_dbg("%s CA_ALLOC\n", __func__);
-			if (d->params.alloc_params.algo > CA_ALGO_ASA_LIGHT) {
+			if (d->params.alloc_params.algo > CA_ALGO_UNKNOWN) {
 				ret = -EINVAL;
 				break;
 			}
@@ -457,6 +506,36 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				d->params.key_params.key_index =
 						dsc_get_status(dsc_type);
 				ret = 0;
+			}
+		}
+		break;
+	case CA_SET_SCB:{
+			struct dsc_channel *ch;
+
+			ch = _get_chan_from_list(dsc,
+						 d->params.key_params.ca_index);
+			if (ch) {
+				pr_dbg("%s scb:%d, scb_as_is:%d\n",
+				       __func__,
+				       d->params.scb_params.ca_scb,
+				       d->params.scb_params.ca_scb_as_is);
+				ret = _dsc_chan_set_scb(ch,
+							d->params.scb_params.ca_scb,
+							d->params.scb_params.ca_scb_as_is);
+			}
+		}
+		break;
+	case CA_SET_ALGO:{
+			struct dsc_channel *ch;
+
+			ch = _get_chan_from_list(dsc,
+					 d->params.algo_params.ca_index);
+			if (ch) {
+				pr_dbg("%s algo:%d\n",
+				       __func__,
+				       d->params.algo_params.algo);
+				ret = _dsc_chan_set_algo(ch,
+						d->params.algo_params.algo + 1);
 			}
 		}
 		break;
@@ -800,6 +879,7 @@ int dsc_dump_info(char *buf)
 
 				have_show_e = 1;
 			}
+			chans = chans->next;
 		}
 
 		chans = dsc->dsc_channels;

@@ -35,6 +35,7 @@
 #define MAX_READ_BUF_LEN			(64 * 1024)
 #define MAX_DVR_READ_BUF_LEN		(2 * 1024 * 1024)
 
+#define MAX_FEED_NUM				32
 static int ts_output_max_pid_num_per_sid = 16;
 /*protect cb_list/ts output*/
 static struct mutex *ts_output_mutex;
@@ -47,6 +48,7 @@ struct es_params_t {
 	u8 have_send_header;
 	unsigned long data_start;
 	unsigned int data_len;
+	int es_overflow;
 };
 
 struct ts_out {
@@ -80,7 +82,7 @@ struct cb_entry {
 	u8 format;
 	u8 ref;
 	ts_output_cb cb;
-	void *udata;
+	void *udata[MAX_FEED_NUM];
 	struct cb_entry *next;
 };
 
@@ -116,6 +118,14 @@ struct out_elem {
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
 	__u64 newest_pts;
+
+	/*pts/dts for aucpu*/
+	s32 aucpu_pts_handle;
+	u8 aucpu_pts_start;
+	unsigned long aucpu_pts_mem_phy;
+	unsigned long aucpu_pts_mem;
+	unsigned int aucpu_pts_mem_size;
+	unsigned int aucpu_pts_r_offset;
 };
 
 struct sid_entry {
@@ -208,7 +218,7 @@ static int out_es_flush_time = 10;
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
 static int start_aucpu_non_es(struct out_elem *pout);
 static int aucpu_bufferid_read(struct out_elem *pout,
-			       char **pread, unsigned int len);
+			       char **pread, unsigned int len, int is_pts);
 
 static void dump_file_open(char *path, struct dump_file *dump_file_fp)
 {
@@ -225,8 +235,8 @@ static void dump_file_open(char *path, struct dump_file *dump_file_fp)
 	}
 }
 
-static void dump_file_write(char *buf, size_t count,
-	struct dump_file *dump_file_fp)
+static void dump_file_write(char *buf,
+		size_t count, struct dump_file *dump_file_fp)
 {
 	mm_segment_t old_fs;
 
@@ -407,7 +417,7 @@ static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
 
 	ptmp = pout->cb_sec_list;
 	while (ptmp && ptmp->cb) {
-		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata[0], 0, 0);
 		if (last_w_size != -1 && w_size != last_w_size) {
 			dprint("ref:%d ", pout->ref);
 			dprint("add pid:%d cache for filter ",
@@ -421,7 +431,8 @@ static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
 	return w_size;
 }
 
-static int out_ts_cb_list(struct out_elem *pout, char *buf, int size)
+static int out_ts_cb_list(struct out_elem *pout, char *buf, int size,
+	int req_len, int *req_ret)
 {
 	int w_size = 0;
 	struct cb_entry *ptmp = NULL;
@@ -431,7 +442,10 @@ static int out_ts_cb_list(struct out_elem *pout, char *buf, int size)
 
 	ptmp = pout->cb_ts_list;
 	while (ptmp && ptmp->cb) {
-		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata[0],
+				req_len, req_ret);
+		if (req_ret && *req_ret == 1)
+			return 0;
 		ptmp = ptmp->next;
 	}
 
@@ -450,7 +464,7 @@ static int section_process(struct out_elem *pout)
 	if (pout->remain_len == 0) {
 		len = MAX_READ_BUF_LEN;
 		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len);
+			ret = aucpu_bufferid_read(pout, &pread, len, 0);
 		else
 			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
@@ -473,12 +487,12 @@ static int section_process(struct out_elem *pout)
 				}
 			}
 			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret);
+				out_ts_cb_list(pout, pread, ret, 0, 0);
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
 		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len);
+			ret = aucpu_bufferid_read(pout, &pread, len, 0);
 		else
 			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
@@ -497,7 +511,7 @@ static int section_process(struct out_elem *pout)
 						pout->remain_len);
 			}
 			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret);
+				out_ts_cb_list(pout, pread, ret, 0, 0);
 		}
 	}
 	return 0;
@@ -513,7 +527,7 @@ static void write_sec_ts_data(struct out_elem *pout, char *buf, int size)
 	sec_ts_data.data_end = (unsigned long)buf + size;
 
 	out_ts_cb_list(pout, (char *)&sec_ts_data,
-		       sizeof(struct dmx_sec_ts_data));
+		       sizeof(struct dmx_sec_ts_data), 0, 0);
 }
 
 static int dvr_process(struct out_elem *pout)
@@ -531,8 +545,13 @@ static int dvr_process(struct out_elem *pout)
 	if (ret != 0) {
 		if (pout->cb_ts_list && flag == 0) {
 //                      dprint("%s w:%d wwwwww\n", __func__, len);
-			out_ts_cb_list(pout, pread, ret);
-			dump_file_write(pread, ret, &dvr_dump_file);
+			out_ts_cb_list(pout, pread, ret, 0, 0);
+			if (dump_dvr_ts == 1) {
+				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file);
+				dump_file_write(pread, ret, &dvr_dump_file);
+			} else {
+				dump_file_close(&dvr_dump_file);
+			}
 		} else if (pout->cb_ts_list && flag == 1) {
 			write_sec_ts_data(pout, pread, ret);
 		}
@@ -578,13 +597,14 @@ static int _task_out_func(void *data)
 				if (ptmp->pout->pchan->sec_level) {
 					start_aucpu_non_es(ptmp->pout);
 					ret = aucpu_bufferid_read(ptmp->pout,
-						&pread, len);
+						&pread, len, 0);
 				} else {
 					ret = SC2_bufferid_read(ptmp->pout->pchan,
 						&pread, len, 0);
 				}
 				if (ret != 0)
-					out_ts_cb_list(ptmp->pout, pread, ret);
+					out_ts_cb_list(ptmp->pout, pread,
+							ret, 0, 0);
 			}
 			ptmp = ptmp->pnext;
 		}
@@ -661,8 +681,31 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 
 	header_len = 16;
 	offset = 0;
+
+	if (!pout->aucpu_pts_start &&
+		 pout->aucpu_pts_handle >= 0) {
+		if (wdma_get_active(pout->pchan1->id)) {
+			ret = aml_aucpu_strm_start(pout->aucpu_pts_handle);
+			if (ret >= 0) {
+				pr_dbg("aucpu pts start success\n");
+				pout->aucpu_pts_start = 1;
+			} else {
+				pr_dbg("aucpu start fail ret:%d\n",
+					   ret);
+				return -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
 	while (header_len) {
-		ret = SC2_bufferid_read(pout->pchan1, &pts_dts, header_len, 0);
+		if (pout->aucpu_pts_start)
+			ret = aucpu_bufferid_read(pout, &pts_dts,
+					header_len, 1);
+		else
+			ret = SC2_bufferid_read(pout->pchan1,
+					&pts_dts, header_len, 0);
 		if (ret != 0) {
 			memcpy((char *)(cur_header + offset), pts_dts, ret);
 			header_len -= ret;
@@ -675,7 +718,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	}
 	pid = (cur_header[1] & 0x1f) << 8 | cur_header[0];
 	if (pout->es_pes->pid != pid) {
-		pr_dbg("%s pid diff req pid %d, ret pid:%d\n",
+		dprint("%s pid diff req pid %d, ret pid:%d\n",
 		       __func__, pout->es_pes->pid, pid);
 		return -2;
 	}
@@ -745,7 +788,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       es_params->header.len);
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
+		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
+			(h_len + es_params->header.len),
+			&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
@@ -753,8 +798,12 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	len = es_len - es_params->data_len;
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
-		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1) {
+		if (!es_params->es_overflow)
+			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+		else
+			pr_dbg("audio data lost\n");
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+		((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 			dump_file_write(ptmp, ret, &audio_dump_file);
 		} else if (audio_dump_file.file_fp) {
@@ -774,10 +823,16 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			len = es_params->header.len - es_params->data_len;
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
-				out_ts_cb_list(pout, ptmp, ret);
-				if (dump_audio_es == 1)
+				if (!es_params->es_overflow)
+					out_ts_cb_list(pout, ptmp, ret, 0, 0);
+				else
+					pr_dbg("audio data lost\n");
+				if (((dump_audio_es & 0xFFFF) ==
+							pout->es_pes->pid) &&
+					(((dump_audio_es >> 16) & 0xFFFF)
+						== pout->sid))
 					dump_file_write(ptmp,
-						ret, &audio_dump_file);
+							ret, &audio_dump_file);
 				es_params->data_len += ret;
 				pr_dbg("%s total len:%d, remain:%d\n",
 					   pout->type == AUDIO_TYPE ?
@@ -832,6 +887,50 @@ static int start_aucpu_non_es(struct out_elem *pout)
 	return 0;
 }
 
+static void create_aucpu_pts(struct out_elem *pout)
+{
+	struct aml_aucpu_strm_buf src;
+	struct aml_aucpu_strm_buf dst;
+	struct aml_aucpu_inst_config cfg;
+	int ret;
+
+	if (pout->aucpu_pts_handle < 0 && pout->pchan1->sec_level) {
+		src.phy_start = pout->pchan1->mem_phy;
+		src.buf_size = pout->pchan1->mem_size;
+		src.buf_flags = 0;
+
+		pr_dbg("%s src aucpu pts phy:0x%lx, size:0x%0x\n",
+		       __func__, src.phy_start, src.buf_size);
+
+		pout->aucpu_pts_mem_size = pout->pchan1->mem_size;
+		ret =
+		    _alloc_buff(pout->aucpu_pts_mem_size, 0,
+					&pout->aucpu_pts_mem,
+					&pout->aucpu_pts_mem_phy, 0);
+		if (ret != 0)
+			return;
+		pr_dbg("%s dst aucpu pts mem:0x%lx, phy:0x%lx\n",
+		       __func__, pout->aucpu_pts_mem, pout->aucpu_pts_mem_phy);
+
+		dst.phy_start = pout->aucpu_pts_mem_phy;
+		dst.buf_size = pout->aucpu_pts_mem_size;
+		dst.buf_flags = 0;
+		cfg.media_type = MEDIA_PTS_PACK;
+		cfg.dma_chn_id = (pout->es_pes->pid << 8) |
+			pout->pchan1->id;
+		cfg.config_flags = 0;
+		pout->aucpu_pts_handle = aml_aucpu_strm_create(&src,
+				&dst, &cfg);
+		if (pout->aucpu_pts_handle < 0)
+			dprint("%s create aucpu pts fail, ret:%d\n",
+			       __func__, pout->aucpu_pts_handle);
+		else
+			dprint("%s create aucpu pts inst success\n", __func__);
+
+		pout->aucpu_pts_r_offset = 0;
+		pout->aucpu_pts_start = 0;
+	}
+}
 static void create_aucpu_inst(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
@@ -839,10 +938,15 @@ static void create_aucpu_inst(struct out_elem *pout)
 	struct aml_aucpu_inst_config cfg;
 	int ret;
 
-	if (pout->type == VIDEO_TYPE ||
-		pout->type == NONE_TYPE)
+	if (pout->type == NONE_TYPE)
 		return;
 
+	if (pout->type == VIDEO_TYPE) {
+		create_aucpu_pts(pout);
+		return;
+	} else if (pout->type == AUDIO_TYPE) {
+		create_aucpu_pts(pout);
+	}
 	/*now except the video, others will pass by aucpu */
 	if (pout->aucpu_handle < 0) {
 		src.phy_start = pout->pchan->mem_phy;
@@ -879,12 +983,79 @@ static void create_aucpu_inst(struct out_elem *pout)
 	}
 }
 
-static unsigned int aucpu_read_process(struct out_elem *pout,
+static unsigned int aucpu_read_pts_process(struct out_elem *pout,
 				       unsigned int w_offset,
 				       char **pread, unsigned int len)
 {
 	unsigned int buf_len = len;
 	unsigned int data_len = 0;
+
+	pr_dbg("%s pts w:0x%0x, r:0x%0x\n", __func__,
+	       (u32)w_offset, (u32)(pout->aucpu_pts_r_offset));
+	if (w_offset > pout->aucpu_pts_r_offset) {
+		data_len = min((w_offset - pout->aucpu_pts_r_offset), buf_len);
+		if (data_len < 16)
+			return 0;
+		dma_sync_single_for_cpu(aml_get_device(),
+					(dma_addr_t)(pout->aucpu_pts_mem_phy +
+						      pout->aucpu_pts_r_offset),
+					data_len, DMA_FROM_DEVICE);
+		*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+		pout->aucpu_pts_r_offset += data_len;
+	} else {
+		unsigned int part1_len = 0;
+
+		part1_len = pout->aucpu_pts_mem_size - pout->aucpu_pts_r_offset;
+		if (part1_len == 0) {
+			data_len = min(w_offset, buf_len);
+			if (data_len < 16)
+				return 0;
+			pout->aucpu_pts_r_offset = 0;
+			*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset += data_len;
+			return data_len;
+		}
+		data_len = min(part1_len, buf_len);
+		if (data_len < 16)
+			return 0;
+
+		*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+		if (data_len < part1_len) {
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset += data_len;
+		} else {
+			data_len = part1_len;
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset = 0;
+		}
+	}
+	pr_dbg("%s pts request:%d, ret:%d\n", __func__, len, data_len);
+	return data_len;
+}
+
+static unsigned int aucpu_read_process(struct out_elem *pout,
+				       unsigned int w_offset,
+				       char **pread, unsigned int len,
+					   int is_pts)
+{
+	unsigned int buf_len = len;
+	unsigned int data_len = 0;
+
+	if (is_pts)
+		return aucpu_read_pts_process(pout, w_offset, pread, len);
 
 	pr_dbg("%s w:0x%0x, r:0x%0x\n", __func__,
 	       (u32)w_offset, (u32)(pout->aucpu_read_offset));
@@ -900,6 +1071,18 @@ static unsigned int aucpu_read_process(struct out_elem *pout,
 		unsigned int part1_len = 0;
 
 		part1_len = pout->aucpu_mem_size - pout->aucpu_read_offset;
+		if (part1_len == 0) {
+			data_len = min(w_offset, buf_len);
+			pout->aucpu_read_offset = 0;
+			*pread = (char *)(pout->aucpu_mem +
+					pout->aucpu_read_offset);
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_mem_phy +
+						 pout->aucpu_read_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_read_offset += data_len;
+			return data_len;
+		}
 		data_len = min(part1_len, buf_len);
 		*pread = (char *)(pout->aucpu_mem + pout->aucpu_read_offset);
 		if (data_len < part1_len) {
@@ -922,16 +1105,30 @@ static unsigned int aucpu_read_process(struct out_elem *pout,
 }
 
 static int aucpu_bufferid_read(struct out_elem *pout,
-			       char **pread, unsigned int len)
+			       char **pread, unsigned int len, int is_pts)
 {
 	struct aml_aucpu_buf_upd upd;
 	unsigned int w_offset = 0;
+	s32 handle;
+	unsigned long mem_phy;
+	unsigned int r_offset;
 
-	if (aml_aucpu_strm_get_dst(pout->aucpu_handle, &upd)
+	if (is_pts) {
+		handle = pout->aucpu_pts_handle;
+		mem_phy = pout->aucpu_pts_mem_phy;
+		r_offset = pout->aucpu_pts_r_offset;
+	} else {
+		handle = pout->aucpu_handle;
+		mem_phy = pout->aucpu_mem_phy;
+		r_offset = pout->aucpu_read_offset;
+	}
+
+	if (aml_aucpu_strm_get_dst(handle, &upd)
 	    >= 0) {
-		w_offset = upd.phy_cur_ptr - pout->aucpu_mem_phy;
-		if (pout->aucpu_read_offset != w_offset)
-			return aucpu_read_process(pout, w_offset, pread, len);
+		w_offset = upd.phy_cur_ptr - mem_phy;
+		if (r_offset != w_offset)
+			return aucpu_read_process(pout,
+					w_offset, pread, len, is_pts);
 	}
 	return 0;
 }
@@ -964,6 +1161,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 					   ret);
 				return -1;
 			}
+		} else {
+			return -1;
 		}
 	}
 
@@ -976,16 +1175,22 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       es_params->header.len);
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
+		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
+			(h_len + es_params->header.len),
+			&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
 	es_len = es_params->header.len;
 	len = es_len - es_params->data_len;
-	ret = aucpu_bufferid_read(pout, &ptmp, len);
+	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
-		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1) {
+		if (!es_params->es_overflow)
+			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+		else
+			pr_dbg("audio data lost\n");
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 			dump_file_write(ptmp, ret, &audio_dump_file);
 		} else if (audio_dump_file.file_fp) {
@@ -1029,11 +1234,13 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 					   ret);
 				return -1;
 			}
+		} else {
+			return -1;
 		}
 	}
 
 	len = es_params->header.len - es_params->data_len;
-	ret = aucpu_bufferid_read(pout, &ptmp, len);
+	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
 
@@ -1058,7 +1265,7 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
 
 	out_ts_cb_list(pout, (char *)&sec_es_data,
-		       sizeof(struct dmx_sec_es_data));
+		       sizeof(struct dmx_sec_es_data), 0, 0);
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1090,7 +1297,7 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 	}
 
 	while (len) {
-		ret = aucpu_bufferid_read(pout, &ptmp, len);
+		ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 		if (ret != 0)
 			len -= ret;
 
@@ -1128,7 +1335,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 
 	es_params->data_len += ret;
 
-	if (dump_video_es == 1) {
+	if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+		((dump_video_es >> 16) & 0xFFFF) == pout->sid) {
 		dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
 		if (video_dump_file.file_fp) {
 			if (flag) {
@@ -1152,7 +1360,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		len = es_params->header.len - es_params->data_len;
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		es_params->data_len += ret;
-		if (dump_video_es == 1) {
+		if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_video_es >> 16) & 0xFFFF) == pout->sid) {
 			if (video_dump_file.file_fp) {
 				if (flag) {
 					enforce_flush_cache(ptmp, ret);
@@ -1199,7 +1408,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	if (es_params->header.pts_dts_flag & 0x2)
 		pout->newest_pts = sec_es_data.pts;
 	out_ts_cb_list(pout, (char *)&sec_es_data,
-			sizeof(struct dmx_sec_es_data));
+			sizeof(struct dmx_sec_es_data), 0, 0);
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1271,6 +1480,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			es_params->have_send_header = 0;
 			es_params->data_len = 0;
 			es_params->data_start = 0;
+			es_params->es_overflow = 0;
 			return 0;
 		} else {
 			return -1;
@@ -1283,6 +1493,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				es_params->have_send_header = 0;
 				es_params->data_len = 0;
 				es_params->data_start = 0;
+				es_params->es_overflow = 0;
 				return 0;
 			} else {
 				return -1;
@@ -1642,6 +1853,9 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->cache_len = 0;
 		pout->cache = NULL;
 		pout->aucpu_handle = -1;
+		pout->aucpu_start = 0;
+		pout->aucpu_pts_handle = -1;
+		pout->aucpu_pts_start = 0;
 		if (dump_video_es == 1)
 			dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
 
@@ -1658,6 +1872,9 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 			return NULL;
 		}
 		pout->aucpu_handle = -1;
+		pout->aucpu_start = 0;
+		pout->aucpu_pts_handle = -1;
+		pout->aucpu_pts_start = 0;
 		pout->enable = 0;
 		pout->remain_len = 0;
 		pout->cache_len = READ_CACHE_SIZE;
@@ -1720,10 +1937,10 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 int ts_output_close(struct out_elem *pout)
 {
 	if (pout->ref) {
-		if (pout->format != DVR_FORMAT)
-			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
-				pout->format,
-				pout->es_pes->pid);
+//		if (pout->format != DVR_FORMAT)
+//			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
+//				pout->format,
+//				pout->es_pes->pid);
 		return 0;
 	}
 
@@ -1740,7 +1957,8 @@ int ts_output_close(struct out_elem *pout)
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
 	} else {
-		if (pout->format == DVR_FORMAT)
+		if (pout->format == DVR_FORMAT &&
+			dvr_dump_file.file_fp)
 			dump_file_close(&dvr_dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
@@ -1766,6 +1984,29 @@ int ts_output_close(struct out_elem *pout)
 		_free_buff(pout->aucpu_mem_phy,
 				pout->aucpu_mem_size, 0, 0);
 		pout->aucpu_mem = 0;
+	}
+
+	if (pout->aucpu_pts_handle >= 0) {
+		s32 ret;
+
+		if (pout->aucpu_pts_start) {
+			ret = aml_aucpu_strm_stop(pout->aucpu_pts_handle);
+			if (ret >= 0)
+				pr_dbg("aml_aucpu_strm_stop pts success\n");
+			else
+				pr_dbg("aucpu_stop fail ret:%d\n", ret);
+			pout->aucpu_pts_start = 0;
+		}
+		ret = aml_aucpu_strm_remove(pout->aucpu_pts_handle);
+		if (ret >= 0)
+			pr_dbg("aucpu_strm_remove pts success\n");
+		else
+			pr_dbg("aucpu_strm_remove pts fail ret:%d\n", ret);
+		pout->aucpu_pts_handle = -1;
+
+		_free_buff(pout->aucpu_pts_mem_phy,
+				pout->aucpu_pts_mem_size, 0, 0);
+		pout->aucpu_pts_mem = 0;
 	}
 
 	if (pout->pchan) {
@@ -1822,6 +2063,20 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		es_pes->dmx_id = dmx_id;
 		es_pes->pout = pout;
 		pout->es_pes = es_pes;
+
+		/*before pid filter enable */
+		if (pout->pchan->sec_level)
+			create_aucpu_inst(pout);
+		if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_video_es >> 16) & 0xFFFF) == pout->sid  &&
+			pout->format == ES_FORMAT)
+			dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
+
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_audio_es >> 16) & 0xFFFF) == pout->sid  &&
+			pout->format == ES_FORMAT)
+			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
+
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
@@ -1922,8 +2177,8 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 	return 0;
 }
 
-int ts_output_set_mem(struct out_elem *pout,
-		      int memsize, int sec_level, int pts_memsize)
+int ts_output_set_mem(struct out_elem *pout, int memsize,
+	int sec_level, int pts_memsize, int pts_level)
 {
 	pr_dbg("%s mem size:0x%0x, pts_memsize:0x%0x, sec_level:%d\n",
 		__func__, memsize, pts_memsize, sec_level);
@@ -1932,10 +2187,7 @@ int ts_output_set_mem(struct out_elem *pout,
 		SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
 
 	if (pout && pout->pchan1)
-		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, 0);
-
-	if (pout->pchan->sec_level)
-		create_aucpu_inst(pout);
+		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, pts_level);
 
 	return 0;
 }
@@ -1998,6 +2250,8 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 			if (tmp_cb->id == cb_id &&
 				tmp_cb->format == DVR_FORMAT) {
 				tmp_cb->ref++;
+				if (tmp_cb->ref < MAX_FEED_NUM)
+					tmp_cb->udata[tmp_cb->ref] = udata;
 				return 0;
 			}
 			tmp_cb = tmp_cb->next;
@@ -2010,7 +2264,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 		return -1;
 	}
 	tmp_cb->cb = cb;
-	tmp_cb->udata = udata;
+	tmp_cb->udata[0] = udata;
 	tmp_cb->next = NULL;
 	tmp_cb->format = format;
 	tmp_cb->ref = 0;
@@ -2032,6 +2286,19 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 	pout->ref++;
 	return 0;
+}
+
+static void remove_udata(struct cb_entry *tmp_cb, void *udata)
+{
+	int i, j;
+
+	/*remove the free feed*/
+	for (i = 0; i <= tmp_cb->ref && i < MAX_FEED_NUM; i++) {
+		if (tmp_cb->udata[i] == udata) {
+			for (j = i; j < tmp_cb->ref && j < MAX_FEED_NUM; j++)
+				tmp_cb->udata[j] = tmp_cb->udata[j + 1];
+		}
+	}
 }
 
 /**
@@ -2064,6 +2331,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 					pout->ref--;
 					return 0;
 				}
+				remove_udata(tmp_cb, udata);
 				tmp_cb->ref--;
 				return 0;
 			}
@@ -2075,7 +2343,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 	if (is_sec) {
 		tmp_cb = pout->cb_sec_list;
 		while (tmp_cb) {
-			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+			if (tmp_cb->cb == cb && tmp_cb->udata[0] == udata) {
 				if (tmp_cb == pout->cb_sec_list)
 					pout->cb_sec_list = tmp_cb->next;
 				else
@@ -2096,7 +2364,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 		tmp_cb = pout->cb_ts_list;
 		while (tmp_cb) {
-			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+			if (tmp_cb->cb == cb && tmp_cb->udata[0] == udata) {
 				if (tmp_cb == pout->cb_ts_list)
 					pout->cb_ts_list = tmp_cb->next;
 				else

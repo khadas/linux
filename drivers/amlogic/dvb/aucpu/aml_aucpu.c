@@ -127,6 +127,7 @@ static s32 s_aucpu_major;
 static s32 s_register_flag;
 static struct device *aucpu_dev;
 static ulong s_aucpu_register_base;
+static s32 load_firmware_status = AUCPU_DRVERR_NO_INIT;
 
 struct aucpu_buffer_t {
 	u32 size;
@@ -1174,6 +1175,12 @@ s32 aml_aucpu_strm_get_status(s32 handle, s32 *state, s32 *report)
 }
 EXPORT_SYMBOL(aml_aucpu_strm_get_status);
 
+s32 aml_aucpu_strm_get_load_firmware_status(void)
+{
+	return load_firmware_status;
+}
+EXPORT_SYMBOL(aml_aucpu_strm_get_load_firmware_status);
+
 static void clear_aucpu_all_intances(void)
 {
 	struct aucpu_ctx_t *pctx;
@@ -1463,7 +1470,7 @@ static s32 aucpu_probe(struct platform_device *pdev)
 		goto ERROR_PROVE_DEVICE;
 	}
 	/* load FW and start AUCPU */
-	load_start_aucpu_fw(&pdev->dev /*aucpu_dev */);
+	load_firmware_status = load_start_aucpu_fw(&pdev->dev /*aucpu_dev */);
 
 	mutex_init(&pctx->mutex);
 	/*setup  the DEBUG buffer */

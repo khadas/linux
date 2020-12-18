@@ -11,6 +11,7 @@ struct dsc_pid_table {
 	int used;
 	int valid;
 	char scb00;
+	char scb_user;
 	char scb_out;
 	/*if 1, keep out scb same,
 	 * if 0, out scb will scb_out

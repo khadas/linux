@@ -22,7 +22,9 @@
 enum user_id {
 	DSC_LOC_DEC,
 	DSC_NETWORK,
-	DSC_LOC_ENC
+	DSC_LOC_ENC,
+
+	CRYPTO_T0 = 0x100,
 };
 
 enum key_algo {

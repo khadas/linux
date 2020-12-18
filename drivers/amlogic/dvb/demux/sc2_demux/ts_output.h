@@ -21,8 +21,8 @@ struct pts_dts {
 struct out_elem;
 
 typedef int (*ts_output_cb) (struct out_elem *pout,
-			     char *buf, int count, void *udata);
-
+			     char *buf, int count, void *udata,
+				 int req_len, int *req_ret);
 enum content_type {
 	NONE_TYPE,
 	VIDEO_TYPE,
@@ -111,12 +111,12 @@ int ts_output_close(struct out_elem *pout);
  * \param pid:
  * \param pid_mask:0,matched all bits; 0x1FFF matched any PID
  * \param dmx_id: dmx_id
- * \param ref:same pid ref
+ * \param cb_id:same pid ref
  * \retval 0:success.
  * \retval -1:fail.
  */
 int ts_output_add_pid(struct out_elem *pout, int pid,
-		int pid_mask, int dmx_id, int *ref);
+		int pid_mask, int dmx_id, int *cb_id);
 
 /**
  * remove pid in stream
@@ -132,11 +132,12 @@ int ts_output_remove_pid(struct out_elem *pout, int pid);
  * \param memsize
  * \param sec_level
  * \param pts_memsize
+ * \param pts_level
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_set_mem(struct out_elem *pout,
-		      int memsize, int sec_level, int pts_memsize);
+int ts_output_set_mem(struct out_elem *pout, int memsize,
+	int sec_level, int pts_memsize, int pts_level);
 
 int ts_output_set_sec_mem(struct out_elem *pout,
 	unsigned int buf, unsigned int size);

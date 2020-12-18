@@ -53,6 +53,7 @@
 #define KTE_STATUS_MASK      (3)
 #define MKL_STS_OK           (0)
 
+#define MKL_USER_CRYPTO_T0   (0)
 #define MKL_USER_LOC_DEC     (8)
 #define MKL_USER_NETWORK     (9)
 #define MKL_USER_LOC_ENC     (10)
@@ -237,6 +238,9 @@ static int kt_config(u32 handle, int key_userid, int key_algo)
 	case DSC_LOC_ENC:
 		key_table[index].key_userid = MKL_USER_LOC_ENC;
 		break;
+	case CRYPTO_T0:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T0;
+		break;
 	default:
 		dprint("%s, %d invalid user id\n",
 		       __func__, __LINE__);
@@ -315,8 +319,9 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	KT_KEY2 = KT_REE_KEY2;
 	KT_KEY3 = KT_REE_KEY3;
 
-	if (key_len == 1) {
-		dprint_i("driver aml_key key_len=1, mode=1 CAS_A\n");
+	if (key_len == 1 || key_len == 2) {
+		/* key_len 1:CAS_A decrypt, 2:CAS_A encrypt */
+		dprint_i("driver aml_key key_len=%d, mode=1 CAS_A\n", key_len);
 		mode = KTE_MODE_CAS_A;
 	}
 
@@ -330,10 +335,20 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		memcpy((void *)&key3, &key[12], 4);
 
 	user_id = key_table[index].key_userid;
-	if (user_id == MKL_USER_LOC_DEC || user_id == MKL_USER_NETWORK)
+	if (user_id == MKL_USER_CRYPTO_T0) {
+		if (key_len == 1) {
+			en_decrypt = 1;
+		} else if (key_len == 2) {
+			en_decrypt = 2;
+		} else {
+			/* if from AP, enable for both encrypt and decrypt */
+			en_decrypt = 3;
+		}
+	} else if (user_id == MKL_USER_LOC_DEC || user_id == MKL_USER_NETWORK) {
 		en_decrypt = 2;
-	else
+	} else {
 		en_decrypt = 1;
+	}
 
 	algo = key_table[index].key_algo;
 	i = 0;
