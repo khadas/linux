@@ -4018,6 +4018,7 @@ static struct osd_device_data_s osd_gxbb = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_gxtvbb = {
@@ -4034,6 +4035,7 @@ static struct osd_device_data_s osd_gxtvbb = {
 	.dummy_data = 0x0,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_gxl = {
@@ -4050,6 +4052,7 @@ static struct osd_device_data_s osd_gxl = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_gxm = {
@@ -4066,6 +4069,7 @@ static struct osd_device_data_s osd_gxm = {
 	.dummy_data = 0x00202000,/* dummy data is different */
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_txl = {
@@ -4082,6 +4086,7 @@ static struct osd_device_data_s osd_txl = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_txlx = {
@@ -4098,6 +4103,7 @@ static struct osd_device_data_s osd_txlx = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_axg = {
@@ -4115,6 +4121,7 @@ static struct osd_device_data_s osd_axg = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0xff,
 };
 
 static struct osd_device_data_s osd_g12a = {
@@ -4131,6 +4138,7 @@ static struct osd_device_data_s osd_g12a = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_g12b = {
@@ -4147,6 +4155,7 @@ static struct osd_device_data_s osd_g12b = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_tl1 = {
@@ -4163,6 +4172,7 @@ static struct osd_device_data_s osd_tl1 = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_sm1 = {
@@ -4179,6 +4189,7 @@ static struct osd_device_data_s osd_sm1 = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_tm2 = {
@@ -4195,6 +4206,7 @@ static struct osd_device_data_s osd_tm2 = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_a1 = {
@@ -4211,6 +4223,7 @@ static struct osd_device_data_s osd_a1 = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
 };
 
 static struct osd_device_data_s osd_sc2 = {
@@ -4227,6 +4240,41 @@ static struct osd_device_data_s osd_sc2 = {
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
 	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
+};
+
+static struct osd_device_data_s osd_t5 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T5,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 0,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 1,
+};
+
+static struct osd_device_data_s osd_t5d = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T5D,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 0,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0x77f,
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 1,
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -4290,6 +4338,14 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-sc2",
 		.data = &osd_sc2,
+	},
+	{
+		.compatible = "amlogic, meson-t5",
+		.data = &osd_t5,
+	},
+	{
+		.compatible = "amlogic, meson-t5d",
+		.data = &osd_t5d,
 	},
 	{},
 };

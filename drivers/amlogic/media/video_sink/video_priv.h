@@ -483,7 +483,6 @@ int ext_frame_capture_poll(int endflags);
 #endif
 bool is_meson_tm2_revb(void);
 bool video_is_meson_sc2_cpu(void);
-bool is_meson_t5_cpu(void);
 void set_alpha(u8 layer_id,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);

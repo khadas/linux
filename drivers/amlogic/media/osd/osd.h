@@ -277,6 +277,8 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_TM2,
 	__MESON_CPU_MAJOR_ID_A1,
 	__MESON_CPU_MAJOR_ID_SC2,
+	__MESON_CPU_MAJOR_ID_T5,
+	__MESON_CPU_MAJOR_ID_T5D,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -510,6 +512,7 @@ struct osd_device_data_s {
 	u32 dummy_data;
 	u32 has_viu2;
 	u32 osd0_sc_independ;
+	u32 osd_rgb2yuv;
 	u32 viu1_osd_count;
 	u32 viu2_index;
 	struct clk *vpu_clkc;

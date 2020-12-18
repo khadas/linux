@@ -11349,15 +11349,6 @@ bool video_is_meson_sc2_cpu(void)
 		return false;
 }
 
-bool is_meson_t5_cpu(void)
-{
-	if (amvideo_meson_dev.cpu_type ==
-		MESON_CPU_MAJOR_ID_T5_)
-		return true;
-	else
-		return false;
-}
-
 bool has_hscaler_8tap(u8 layer_id)
 {
 	if (amvideo_meson_dev.has_hscaler_8tap[layer_id])

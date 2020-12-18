@@ -2205,6 +2205,8 @@ static u32 osd_get_hw_reset_flag(void)
 	case __MESON_CPU_MAJOR_ID_SM1:
 	case __MESON_CPU_MAJOR_ID_TM2:
 	case __MESON_CPU_MAJOR_ID_SC2:
+	case __MESON_CPU_MAJOR_ID_T5:
+	case __MESON_CPU_MAJOR_ID_T5D:
 		{
 		int i, afbc_enable = 0;
 
@@ -9956,6 +9958,64 @@ static void affinity_set_init(void)
 }
 #endif
 
+static void set_vpp_osd1_rgb2yuv(bool on)
+{
+	int *m = NULL;
+
+	/* RGB -> 709 limit */
+	m = RGB709_to_YUV709l_coeff;
+
+	/* VPP WRAP OSD3 matrix */
+	osd_reg_write(VPP_OSD1_MATRIX_PRE_OFFSET0_1,
+		      ((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
+	osd_reg_write(VPP_OSD1_MATRIX_PRE_OFFSET2,
+		      m[2] & 0xfff);
+	osd_reg_write(VPP_OSD1_MATRIX_COEF00_01,
+		      ((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
+	osd_reg_write(VPP_OSD1_MATRIX_COEF02_10,
+		      ((m[5] & 0x1fff) << 16) | (m[6] & 0x1fff));
+	osd_reg_write(VPP_OSD1_MATRIX_COEF11_12,
+		      ((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
+	osd_reg_write(VPP_OSD1_MATRIX_COEF20_21,
+		      ((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
+	osd_reg_write(VPP_OSD1_MATRIX_COEF22,
+		      m[11] & 0x1fff);
+	osd_reg_write(VPP_OSD1_MATRIX_OFFSET0_1,
+		      ((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
+	osd_reg_write(VPP_OSD1_MATRIX_OFFSET2,
+		      m[20] & 0xfff);
+	osd_reg_set_bits(VPP_OSD1_MATRIX_EN_CTRL, on, 0, 1);
+}
+
+static void set_vpp_osd2_rgb2yuv(bool on)
+{
+	int *m = NULL;
+
+	/* RGB -> 709 limit */
+	m = RGB709_to_YUV709l_coeff;
+
+	/* VPP WRAP OSD3 matrix */
+	osd_reg_write(VPP_OSD2_MATRIX_PRE_OFFSET0_1,
+		      ((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
+	osd_reg_write(VPP_OSD2_MATRIX_PRE_OFFSET2,
+		      m[2] & 0xfff);
+	osd_reg_write(VPP_OSD2_MATRIX_COEF00_01,
+		      ((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
+	osd_reg_write(VPP_OSD2_MATRIX_COEF02_10,
+		      ((m[5] & 0x1fff) << 16) | (m[6] & 0x1fff));
+	osd_reg_write(VPP_OSD2_MATRIX_COEF11_12,
+		      ((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
+	osd_reg_write(VPP_OSD2_MATRIX_COEF20_21,
+		      ((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
+	osd_reg_write(VPP_OSD2_MATRIX_COEF22,
+		      m[11] & 0x1fff);
+	osd_reg_write(VPP_OSD2_MATRIX_OFFSET0_1,
+		      ((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
+	osd_reg_write(VPP_OSD2_MATRIX_OFFSET2,
+		      m[20] & 0xfff);
+	osd_reg_set_bits(VPP_OSD2_MATRIX_EN_CTRL, on, 0, 1);
+}
+
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		 struct osd_device_data_s *osd_meson)
 {
@@ -9974,7 +10034,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	       sizeof(struct osd_device_data_s));
 
 	osd_vpu_power_on();
-	if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_TL1) {
+	if (osd_meson->osd_count == 3 &&
+	    osd_meson->has_viu2) {
 		/* VIU1 2 OSD + 1 VIU2 1 OSD*/
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_tl1[0],
 		       sizeof(struct hw_osd_reg_s) *
@@ -10273,6 +10334,10 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		data32 |= 0x18 << 5;
 		osd_reg_write(hw_osd_reg_array[OSD1].osd_fifo_ctrl_stat,
 			      data32);
+	}
+	if (osd_hw.osd_meson_dev.osd_rgb2yuv == 1) {
+		set_vpp_osd1_rgb2yuv(1);
+		set_vpp_osd2_rgb2yuv(1);
 	}
 	osd_set_deband(osd_hw.osd_deband_enable);
 	if (osd_hw.fb_drvier_probe) {
