@@ -25,3 +25,5 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amv
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/util/base64.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/util/enc_dec.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/cabc_aadc/cabc_aadc_fw.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr10_tmo_fw.o
+

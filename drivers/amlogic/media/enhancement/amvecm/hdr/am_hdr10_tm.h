@@ -17,6 +17,7 @@
  */
 
 #include "../amcsc.h"
+#include "am_hdr10_tmo_fw.h"
 
 #ifndef HDR10_TONE_MAPPING
 #define HDR10_TONE_MAPPING

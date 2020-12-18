@@ -588,7 +588,7 @@ static int eo_y_hdr_10000[143] = {
 };
 
 unsigned int hdr10_pr;
-unsigned int hdr10_clip_disable;
+unsigned int hdr10_clip_disable = 1;
 unsigned int hdr10_clip_luma;
 /*margin: margin / 10*/
 unsigned int hdr10_clip_margin = 2;
@@ -1687,7 +1687,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			if (hdr_mtx_param->gmt_bit_mode) {
 				adpscl_shift[0] = adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR -
-				_log2((1 << OO_NOR) / oo_y_lut_hdr_sdr[148]);
+				_log2((1 << OO_NOR) / 64);
 			} else {
 			/*because input 1/2, shift0/shift1 need change*/
 				adpscl_shift[0] = adp_scal_x_shift - 1;

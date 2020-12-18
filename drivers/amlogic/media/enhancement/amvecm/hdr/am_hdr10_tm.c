@@ -23,8 +23,10 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/amvecm/hdr10_tmo_alg.h>
 #include "am_hdr10_tm.h"
 #include "../set_hdr2_v0.h"
+#include "am_hdr10_tmo_fw.h"
 
 unsigned int hdr10_tm_dbg;
 module_param(hdr10_tm_dbg, uint, 0664);
@@ -40,9 +42,9 @@ unsigned int panell = 400;
 module_param(panell, uint, 0664);
 MODULE_PARM_DESC(panell, "display panel luminance\n");
 
-static unsigned int hdr10_tm_enable = 1;
-module_param(hdr10_tm_enable, uint, 0664);
-MODULE_PARM_DESC(hdr10_tm_enable, "hdr10_tm_enable\n");
+static unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
+module_param(hdr10_tm_sel, uint, 0664);
+MODULE_PARM_DESC(hdr10_tm_sel, "hdr10_tm_sel\n");
 
 #define KNEE_POINT 2
 static unsigned int kp = KNEE_POINT;
@@ -65,6 +67,13 @@ MODULE_PARM_DESC(sc_th, "scene change th\n");
 u32 hdr_tm_iir = 1;
 module_param(hdr_tm_iir, uint, 0664);
 MODULE_PARM_DESC(hdr_tm_iir, "HDR_TM_IIR\n");
+
+int is_hdr_tmo_support(void)
+{
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SM1)
+		return 1;
+	return 0;
+}
 
 int time_iir(u32 *maxl)
 {
@@ -427,6 +436,7 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 		181, 406, 607, 796, 834, 863, 890, 917, 938
 	};
 	int scn_chang_flag = 1;
+	struct aml_tmo_reg_sw *pre_tmo_reg;
 
 	if (p->luminance[0] > 10000)
 		p->luminance[0] /= 10000;
@@ -465,13 +475,26 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 	for (i = 0; i < MAX_BEIZER_ORDER - 1; i++)
 		anchor[i] = P_init[i] << 2;
 
-	if (hdr10_tm_enable) {
+	pre_tmo_reg = tmo_fw_param_get();
+	if (is_hdr_tmo_support() && pre_tmo_reg->pre_hdr10_tmo_alg) {
+		/*default new hdr10 alg*/
+		pr_hdr_tm("used new hdr_alg.\n");
+		hdr10_tm_sel = 2;
+	} else {
+		/* after sm1 or insmod hdr_tmo ko failed*/
+		pr_hdr_tm("IC is before sm1 or insmod hdr_tmo ko failed.\n");
+		hdr10_tm_sel = 1;
+	}
+
+	if (hdr10_tm_sel == 1) {
 		dynamic_hdr_sdr_ootf(maxl, panel_luma, sx, sy, anchor);
 		memcpy(oo_y_lut_hdr_sdr, oo_gain, sizeof(u32) * OE_X);
+	} else if (hdr10_tm_sel == 2) {
+		hdr10_tmo_gen(oo_gain);
+		memcpy(oo_y_lut_hdr_sdr, oo_gain, sizeof(u32) * OE_X);
 	} else {
-		memcpy(oo_y_lut_hdr_sdr,
-		       oo_y_lut_hdr_sdr_def,
-		       sizeof(u32) * OE_X);
+		memcpy(oo_y_lut_hdr_sdr, oo_y_lut_hdr_sdr_def,
+			sizeof(u32) * OE_X);
 	}
 
 	if (hdr10_tm_dbg > 0)

@@ -23,6 +23,7 @@
 
 #include "linux/amlogic/media/amvecm/ve.h"
 #include "linux/amlogic/media/amvecm/cm.h"
+#include "linux/amlogic/media/amvecm/hdr10_tmo_alg.h"
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/utils/amstream.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
@@ -325,6 +326,10 @@ struct pre_gamma_table_s {
 
 #define AMVECM_IOC_S_PRE_GAMMA   _IOW(_VE_CM, 0x72, struct pre_gamma_table_s)
 #define AMVECM_IOC_G_PRE_GAMMA   _IOR(_VE_CM, 0x73, struct pre_gamma_table_s)
+
+/*hdr10_tmo ioc*/
+#define AMVECM_IOC_S_HDR_TMO   _IOW(_VE_CM, 0x74, struct hdr_tmo_sw)
+#define AMVECM_IOC_G_HDR_TMO   _IOR(_VE_CM, 0x75, struct hdr_tmo_sw)
 
 struct am_vdj_mode_s {
 	int flag;

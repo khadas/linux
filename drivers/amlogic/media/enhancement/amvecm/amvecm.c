@@ -80,6 +80,7 @@
 #include "reg_default_setting.h"
 #include "util/enc_dec.h"
 #include "cabc_aadc/cabc_aadc_fw.h"
+#include "hdr/am_hdr10_tmo_fw.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -1957,6 +1958,7 @@ static long amvecm_ioctl(struct file *file,
 	int lut_order, lut_index;
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
+	struct hdr_tmo_sw pre_tmo_reg;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -2585,6 +2587,28 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("pre gam struct cp to usr success\n");
 		}
 		break;
+	case AMVECM_IOC_S_HDR_TMO:
+		if (copy_from_user(&pre_tmo_reg,
+			(void __user *)arg,
+			sizeof(struct hdr_tmo_sw))) {
+			ret = -EFAULT;
+			pr_info("tmo_reg info cp from usr failed\n");
+		} else {
+			hdr10_tmo_reg_set(&pre_tmo_reg);
+			pr_info("tmo_reg set success\n");
+		}
+		break;
+	case AMVECM_IOC_G_HDR_TMO:
+		argp = (void __user *)arg;
+		hdr10_tmo_reg_get(&pre_tmo_reg);
+		if (copy_to_user(argp, &pre_tmo_reg,
+			sizeof(struct hdr_tmo_sw))) {
+			ret = -EFAULT;
+			pr_info("tmo_reg copy to user fail\n");
+		} else {
+			pr_info("tmo_reg copy to user success\n");
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -2594,6 +2618,7 @@ static long amvecm_ioctl(struct file *file,
 	kfree(hdr_tm);
 	kfree(aipq_ofst_ptr);
 	kfree(pre_gma_tb);
+	// kfree(pre_tmo_reg);
 	return ret;
 }
 
@@ -4792,9 +4817,9 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				cgain_lut_bypass[i] = curve_val[i];
 		}
-	} else {
-		pr_info("error cmd\n");
 	}
+
+	hdr10_tmo_dbg(parm);
 
 free_buf:
 	kfree(stemp);
@@ -4816,6 +4841,20 @@ static ssize_t amvecm_hdr_reg_show(struct class *cla,
 static ssize_t amvecm_hdr_reg_store(struct class *cla,
 				    struct class_attribute *attr,
 				    const char *buf, size_t count)
+{
+	return 0;
+}
+
+static ssize_t amvecm_hdr_tmo_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	hdr10_tmo_parm_show();
+	return 0;
+}
+
+static ssize_t amvecm_hdr_tmo_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
@@ -8609,6 +8648,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 	       amvecm_hdr_dbg_show, amvecm_hdr_dbg_store),
 	__ATTR(hdr_reg, 0644,
 	       amvecm_hdr_reg_show, amvecm_hdr_reg_store),
+	__ATTR(hdr_tmo, 0644,
+	       amvecm_hdr_tmo_show, amvecm_hdr_tmo_store),
 	__ATTR(gamma_pattern, 0644,
 	       set_gamma_pattern_show, set_gamma_pattern_store),
 	__ATTR(pc_mode, 0644,
