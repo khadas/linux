@@ -27,7 +27,7 @@
 #include <dt-bindings/clock/t5d-aoclkc.h>
 #include <dt-bindings/clock/amlogic,t5-audio-clk.h>
 #include <dt-bindings/phy/phy-amlogic-pcie.h>
-//#include "mesong12a-bifrost.dtsi"
+#include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/reset/amlogic,meson-t5d-reset.h>
 #include <dt-bindings/power/t5-pd.h>
@@ -2344,19 +2344,34 @@
 	};
 };
 
-//&gpu{
-//	reg = <0 0xFFE40000 0 0x40000>, /*mali APB bus base address*/
-//		<0 0xFFD01000 0 0x01000>, /*reset register*/
-//		<0 0xFF800000 0 0x01000>, /*aobus for gpu pmu domain*/
-//		<0 0xFF646000 0 0x01000>, /*gpu clk cntl*/
-//		<0 0xFFD01000 0 0x01000>; /*reset register*/
-//	clocks = <&peripheral_clkc CLKID_GPU_MUX &clkc CLKID_GP0_PLL>;
-//	clock-names = "gpu_mux","gp0_pll";
-//
-//	tbl =  <&dvfs285_cfg
-//		&dvfs400_cfg
-//		&dvfs500_cfg
-//		&dvfs666_cfg
-//		&dvfs800_cfg
-//		&dvfs800_cfg>; /* the last one of table is for preheat */
-//};
+&gpu{
+	reg = <0 0xFFE40000 0 0x40000>, /*mali APB bus base address*/
+		<0 0xFFD01000 0 0x01000>, /*reset register*/
+		<0 0xFF800000 0 0x01000>, /*aobus for gpu pmu domain*/
+		<0 0xFF646000 0 0x01000>, /*gpu clk cntl*/
+		<0 0xFFD01000 0 0x01000>; /*reset register*/
+	clocks = <&peripheral_clkc CLKID_GPU_MUX>;
+	clock-names = "gpu_mux";
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&peripheral_clkc CLKID_GPU_P0_MUX>,
+			  <&peripheral_clkc CLKID_GPU_P0_GATE>,
+			  <&peripheral_clkc CLKID_GPU_MUX>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&peripheral_clkc CLKID_GPU_P0_GATE>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+				   <800000000>,
+				   <0>; /* Do Nothing */
+
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>; /* the last one of table is for preheat */
+};
