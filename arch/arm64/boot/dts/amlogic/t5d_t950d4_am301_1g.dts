@@ -948,24 +948,6 @@
 		reg-names = "ao_exit","ao";
 	};
 
-	p_tsensor: p_tsensor@ff634800 {
-		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
-		reg = <0x0 0xff634800 0x0 0x50>,
-			<0x0 0xff800268 0x0 0x4>;
-		cal_type = <0x1>;
-		cal_a = <324>;
-		cal_b = <424>;
-		cal_c = <3159>;
-		cal_d = <9411>;
-		rtemp = <115000>;
-		interrupts = <0 35 0>;
-		/*clocks = <&clkc CLKID_TS_CLK_COMP>; // CLKID_TS_COMP>;
-		 *clock-names = "ts_comp";
-		 */
-		#thermal-sensor-cells = <1>;
-	};
-
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -1838,11 +1820,11 @@
 };
 
 &p_tsensor {
-	status = "disabled";
+	status = "okay";
 };
 
 &meson_cooldev {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c1 {

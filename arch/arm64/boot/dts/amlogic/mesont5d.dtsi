@@ -30,7 +30,6 @@
 //#include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/reset/amlogic,meson-t5d-reset.h>
-#include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/power/t5-pd.h>
 #include "meson-ir-map.dtsi"
 
@@ -61,6 +60,8 @@
 			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			dynamic-power-coefficient = <80>;
+			#cooling-cells = <2>;
 		};
 
 		CPU1:cpu@1 {
@@ -80,6 +81,8 @@
 			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			dynamic-power-coefficient = <80>;
+			#cooling-cells = <2>;
 		};
 
 		CPU2:cpu@2 {
@@ -99,6 +102,8 @@
 			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			dynamic-power-coefficient = <80>;
+			#cooling-cells = <2>;
 		};
 
 		CPU3:cpu@3 {
@@ -118,6 +123,8 @@
 			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			dynamic-power-coefficient = <80>;
+			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -1508,61 +1515,36 @@
 
 	p_tsensor: p_tsensor@ff634800 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xff634800 0x0 0x50>,
 			<0x0 0xff800268 0x0 0x4>;
 		cal_type = <0x1>;
-		cal_a = <324>;
-		cal_b = <424>;
-		cal_c = <3159>;
-		cal_d = <9411>;
+		cal_coeff = <324 424 3159 9411>;
 		rtemp = <120000>;
-		interrupts = <0 35 0>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&peripheral_clkc CLKID_TS>; // CLKID_TS_COMP>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpufreq_cool_cluster0 {
-				min_state = <1000000>;
-				dyn_coeff = <140>;
-				cluster_id = <0>;
-				node_name = "cpufreq_cool0";
-				device_type = "cpufreq";
-			};
 			cpucore_cool_cluster0 {
-				min_state = <1>;
 				cluster_id = <0>;
-				node_name = "cpucore_cool0";
+				node_name = "cpucore0";
 				device_type = "cpucore";
 			};
+/*
 			gpufreq_cool {
-				min_state = <400>;
-				dyn_coeff = <160>;
-				gpu_pp = <2>;
-				node_name = "gpufreq_cool0";
+				dyn_coeff = <245>;
+				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-			gpucore_cool {
-				min_state = <1>;
-				node_name = "gpucore_cool0";
-				device_type = "gpucore";
-			};
+*/
 		};
-		cpufreq_cool0:cpufreq_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpucore_cool0:gpucore_cool0 {
+		cpucore0:cpucore0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 	};/*meson cooling devices end*/
@@ -1571,7 +1553,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1230>;
+			sustainable-power = <1100>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {
@@ -1593,16 +1575,16 @@
 			cooling-maps {
 				cpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&cpufreq_cool0 0
-							  THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 0 8>;
 					contribution = <1024>;
 				};
+/*
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&gpufreq_cool0 0
-							  THERMAL_NO_LIMIT>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
+*/
 			};
 		};
 	}; /*thermal zone end*/
