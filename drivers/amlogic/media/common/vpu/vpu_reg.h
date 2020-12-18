@@ -34,6 +34,14 @@
 #define HHI_VPU_MEM_PD_REG4_SM1      0x44
 
 /* pwrctrl reg */
+#define PWRCTRL_PWR_ACK0             0x0000
+#define PWRCTRL_PWR_ACK1             0x0001
+#define PWRCTRL_PWR_OFF0             0x0004
+#define PWRCTRL_PWR_OFF1             0x0005
+#define PWRCTRL_ISO_EN0              0x0008
+#define PWRCTRL_ISO_EN1              0x0009
+#define PWRCTRL_FOCRST0              0x000c
+#define PWRCTRL_FOCRST1              0x000d
 #define PWRCTRL_MEM_PD5_SC2          0x0015
 #define PWRCTRL_MEM_PD6_SC2          0x0016
 #define PWRCTRL_MEM_PD7_SC2          0x0017
@@ -66,29 +74,6 @@
 /* vcbus */
 #define VPU_CLK_GATE                 0x2723
 
-#define VDIN0_OFFSET                 0x00
-#define VDIN1_OFFSET                 0x80
-#define VDIN_COM_GCLK_CTRL           0x121b
-#define VDIN_COM_GCLK_CTRL2          0x1270
-#define VDIN0_COM_GCLK_CTRL          (VDIN0_OFFSET + VDIN_COM_GCLK_CTRL)
-#define VDIN0_COM_GCLK_CTRL2         (VDIN0_OFFSET + VDIN_COM_GCLK_CTRL2)
-#define VDIN1_COM_GCLK_CTRL          (VDIN1_OFFSET + VDIN_COM_GCLK_CTRL)
-#define VDIN1_COM_GCLK_CTRL2         (VDIN1_OFFSET + VDIN_COM_GCLK_CTRL2)
-
-#define DI_CLKG_CTRL                 0x1718
-
-#define VPP_GCLK_CTRL0               0x1d72
-#define VPP_GCLK_CTRL1               0x1d73
-#define VPP_SC_GCLK_CTRL             0x1d74
-#define VPP_SRSCL_GCLK_CTRL          0x1d77
-#define VPP_OSDSR_GCLK_CTRL          0x1d78
-#define VPP_XVYCC_GCLK_CTRL          0x1d79
-
-#define DOLBY_TV_CLKGATE_CTRL        0x33f1
-#define DOLBY_CORE1_CLKGATE_CTRL     0x33f2
-#define DOLBY_CORE2A_CLKGATE_CTRL    0x3432
-#define DOLBY_CORE3_CLKGATE_CTRL     0x36f0
-
 #define VPU_RDARB_MODE_L1C1          0x2790
 #define VPU_RDARB_MODE_L1C2          0x2799
 #define VPU_RDARB_MODE_L2C1          0x279d
@@ -96,14 +81,14 @@
 
 int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 
-unsigned int vpu_hiu_read(unsigned int _reg);
-void vpu_hiu_write(unsigned int _reg, unsigned int _value);
-void vpu_hiu_setb(unsigned int _reg, unsigned int _value,
+unsigned int vpu_clk_read(unsigned int _reg);
+void vpu_clk_write(unsigned int _reg, unsigned int _value);
+void vpu_clk_setb(unsigned int _reg, unsigned int _value,
 		  unsigned int _start, unsigned int _len);
-unsigned int vpu_hiu_getb(unsigned int _reg,
+unsigned int vpu_clk_getb(unsigned int _reg,
 			  unsigned int _start, unsigned int _len);
-void vpu_hiu_set_mask(unsigned int _reg, unsigned int _mask);
-void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+void vpu_clk_set_mask(unsigned int _reg, unsigned int _mask);
+void vpu_clk_clr_mask(unsigned int _reg, unsigned int _mask);
 
 unsigned int vpu_pwrctrl_read(unsigned int _reg);
 unsigned int vpu_pwrctrl_getb(unsigned int _reg,

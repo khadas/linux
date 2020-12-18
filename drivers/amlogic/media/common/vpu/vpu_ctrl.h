@@ -22,6 +22,11 @@
 #define CLK_LEVEL_DFT_G12A     7
 #define CLK_LEVEL_MAX_G12A     8
 
+/* T5D */
+/* freq max=400M, default=250M */
+#define CLK_LEVEL_DFT_T5D     3
+#define CLK_LEVEL_MAX_T5D     6
+
 /* vpu clk setting */
 enum vpu_mux_e {
 	FCLK_DIV4 = 0,
@@ -558,13 +563,28 @@ static struct vpu_ctrl_s vpu_mem_pd_t5[] = {
 };
 
 /* ******************************************************* */
+/*                 VPU pwrctrl id table                 */
+/* ******************************************************* */
+static unsigned int vpu_pwrctrl_id_table[] = {
+	PM_VPU_HDMI_SC2,
+	VPU_PWR_ID_END
+};
+
+static unsigned int vpu_pwrctrl_id_table_t7[] = {
+	PM_VPU_HDMI_T7,
+	PM_VI_CLK1_T7,
+	PM_VI_CLK2_T7,
+	VPU_PWR_ID_END
+};
+
+/* ******************************************************* */
 /*                 VPU clock gate table                    */
 /* ******************************************************* */
 static struct vpu_ctrl_s vpu_clk_gate_g12a[] = {
 	/* vpu module,      reg,                  val, bit, len */
 	{VPU_VPU_TOP,       VPU_CLK_GATE,         1,   1,   1}, /*vpu_sys_clk*/
 	{VPU_VPU_CLKB,      VPU_CLK_GATE,         1,  18,   1},
-	{VPU_CLK_B_REG_LATCH, VPU_CLK_GATE,       1,  17,   1},
+	{VPU_VPU_CLKB,      VPU_CLK_GATE,         1,  17,   1},
 	{VPU_CLK_VIB,       VPU_CLK_GATE,         1,  16,   1},
 	{VPU_RDMA,          VPU_CLK_GATE,         1,  15,   1}, /*rdma_clk*/
 	{VPU_VLOCK,         VPU_CLK_GATE,         1,  14,   1},
@@ -573,23 +593,6 @@ static struct vpu_ctrl_s vpu_clk_gate_g12a[] = {
 	{VPU_VENCP,         VPU_CLK_GATE,         1,   0,   1},
 	{VPU_VENCL,         VPU_CLK_GATE,         1,   4,   2},
 	{VPU_VENCI,         VPU_CLK_GATE,         1,  10,   2},
-	{VPU_VIU_VDIN0,     VDIN0_COM_GCLK_CTRL,  1,  24,   6},
-	{VPU_VIU_VDIN0,     VDIN0_COM_GCLK_CTRL,  1,   4,  18},
-	{VPU_VIU_VDIN0,     VDIN0_COM_GCLK_CTRL,  1,   1,   1},
-	{VPU_VIU_VDIN0,     VDIN0_COM_GCLK_CTRL2, 1,   0,   4},
-	{VPU_VIU_VDIN1,     VDIN1_COM_GCLK_CTRL,  1,  24,   6},
-	{VPU_VIU_VDIN1,     VDIN1_COM_GCLK_CTRL,  1,   4,  18},
-	{VPU_VIU_VDIN1,     VDIN1_COM_GCLK_CTRL,  1,   1,   1},
-	{VPU_VIU_VDIN1,     VDIN1_COM_GCLK_CTRL2, 1,   0,   4},
-	{VPU_DI,            DI_CLKG_CTRL,         1,  26,   5},
-	{VPU_DI,            DI_CLKG_CTRL,         1,  24,   1},
-	{VPU_DI,            DI_CLKG_CTRL,         1,  17,   5},
-	{VPU_DI,            DI_CLKG_CTRL,         1,   0,   2},
-	{VPU_VPP,           VPP_GCLK_CTRL0,       1,   2,  30},
-	{VPU_VPP,           VPP_GCLK_CTRL1,       1,   0,  12},
-	{VPU_VPP,           VPP_SC_GCLK_CTRL,     1,  18,   8},
-	{VPU_VPP,           VPP_SC_GCLK_CTRL,     1,   2,  10},
-	{VPU_VPP,           VPP_XVYCC_GCLK_CTRL,  1,   0,  18},
 	{VPU_MAX,           VPU_REG_END,          0,   0,   0},
 };
 

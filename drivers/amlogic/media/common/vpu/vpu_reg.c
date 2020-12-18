@@ -210,7 +210,7 @@ static inline void __iomem *check_vpu_vcbus_reg(unsigned int _reg)
  * *********************************
  */
 
-unsigned int vpu_hiu_read(unsigned int _reg)
+unsigned int vpu_clk_read(unsigned int _reg)
 {
 	void __iomem *p;
 
@@ -221,7 +221,7 @@ unsigned int vpu_hiu_read(unsigned int _reg)
 		return 0;
 };
 
-void vpu_hiu_write(unsigned int _reg, unsigned int _value)
+void vpu_clk_write(unsigned int _reg, unsigned int _value)
 {
 	void __iomem *p;
 
@@ -230,28 +230,28 @@ void vpu_hiu_write(unsigned int _reg, unsigned int _value)
 		writel(_value, p);
 };
 
-void vpu_hiu_setb(unsigned int _reg, unsigned int _value,
+void vpu_clk_setb(unsigned int _reg, unsigned int _value,
 		  unsigned int _start, unsigned int _len)
 {
-	vpu_hiu_write(_reg, ((vpu_hiu_read(_reg) &
+	vpu_clk_write(_reg, ((vpu_clk_read(_reg) &
 			~(((1L << (_len)) - 1) << (_start))) |
 			(((_value) & ((1L << (_len)) - 1)) << (_start))));
 }
 
-unsigned int vpu_hiu_getb(unsigned int _reg, unsigned int _start,
+unsigned int vpu_clk_getb(unsigned int _reg, unsigned int _start,
 			  unsigned int _len)
 {
-	return (vpu_hiu_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+	return (vpu_clk_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
 }
 
-void vpu_hiu_set_mask(unsigned int _reg, unsigned int _mask)
+void vpu_clk_set_mask(unsigned int _reg, unsigned int _mask)
 {
-	vpu_hiu_write(_reg, (vpu_hiu_read(_reg) | (_mask)));
+	vpu_clk_write(_reg, (vpu_clk_read(_reg) | (_mask)));
 }
 
-void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask)
+void vpu_clk_clr_mask(unsigned int _reg, unsigned int _mask)
 {
-	vpu_hiu_write(_reg, (vpu_hiu_read(_reg) & (~(_mask))));
+	vpu_clk_write(_reg, (vpu_clk_read(_reg) & (~(_mask))));
 }
 
 unsigned int vpu_pwrctrl_read(unsigned int _reg)

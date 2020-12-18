@@ -21,6 +21,7 @@ enum vpu_chip_e {
 	VPU_CHIP_SC2,
 	VPU_CHIP_T5,
 	VPU_CHIP_T5D,
+	VPU_CHIP_T7,
 	VPU_CHIP_MAX,
 };
 
@@ -30,7 +31,13 @@ enum vpu_chip_e {
 #define VPU_MEM_PD_CNT_MAX      150
 #define VPU_CLK_GATE_CNT_MAX    150
 
-#define VPU_PWR_ID_INVALID     0xffff
+#define VPU_PWR_ID_END          0xffff
+#define VPU_PWR_ID_MAX          10
+
+#define PM_VPU_HDMI_SC2         5
+#define PM_VPU_HDMI_T7          6
+#define PM_VI_CLK1_T7           13
+#define PM_VI_CLK2_T7           14
 
 struct fclk_div_s {
 	unsigned int fclk_id;
@@ -73,7 +80,7 @@ struct vpu_data_s {
 	unsigned int mem_pd_reg[VPU_MEM_PD_REG_CNT];
 	unsigned int mem_pd_reg_flag;
 
-	unsigned int pwrctrl_id;
+	unsigned int *pwrctrl_id_table;
 
 	struct vpu_ctrl_s *power_table;
 	struct vpu_ctrl_s *iso_table;

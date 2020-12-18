@@ -91,12 +91,12 @@ void vpu_power_on(void)
 			_reg = ctrl_table[i].reg;
 			_bit = ctrl_table[i].bit;
 			_len = ctrl_table[i].len;
-			vpu_hiu_setb(_reg, 0x0, _bit, _len);
+			vpu_clk_setb(_reg, 0x0, _bit, _len);
 			usleep_range(5, 10);
 			i++;
 		}
 		for (i = 8; i < 16; i++) {
-			vpu_hiu_setb(HHI_MEM_PD_REG0, 0, i, 1);
+			vpu_clk_setb(HHI_MEM_PD_REG0, 0, i, 1);
 			usleep_range(5, 10);
 		}
 		usleep_range(20, 25);
@@ -189,12 +189,12 @@ void vpu_power_off(void)
 				_val = 0xffffffff;
 			else
 				_val = (1 << _len) - 1;
-			vpu_hiu_setb(_reg, _val, _bit, _len);
+			vpu_clk_setb(_reg, _val, _bit, _len);
 			usleep_range(5, 10);
 			i++;
 		}
 		for (i = 8; i < 16; i++) {
-			vpu_hiu_setb(HHI_MEM_PD_REG0, 0x1, i, 1);
+			vpu_clk_setb(HHI_MEM_PD_REG0, 0x1, i, 1);
 			usleep_range(5, 10);
 		}
 		usleep_range(20, 25);
@@ -223,8 +223,21 @@ void vpu_power_off(void)
 void vpu_power_on_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	if (vpu_conf.data->pwrctrl_id < VPU_PWR_ID_INVALID)
-		pwr_ctrl_psci_smc(vpu_conf.data->pwrctrl_id, 1);
+	unsigned int pwr_id;
+	int i = 0;
+
+	if (!vpu_conf.data->pwrctrl_id_table)
+		return;
+
+	while (i < VPU_PWR_ID_MAX) {
+		pwr_id = vpu_conf.data->pwrctrl_id_table[i];
+		if (pwr_id == VPU_PWR_ID_END)
+			break;
+		if (vpu_debug_print_flag)
+			VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
+		pwr_ctrl_psci_smc(pwr_id, 1);
+		i++;
+	}
 	VPUPR("%s\n", __func__);
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
@@ -237,9 +250,22 @@ void vpu_power_on_new(void)
 void vpu_power_off_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	if (vpu_conf.data->pwrctrl_id < VPU_PWR_ID_INVALID)
-		pwr_ctrl_psci_smc(vpu_conf.data->pwrctrl_id, 0);
+	unsigned int pwr_id;
+	int i = 0;
+
 	VPUPR("%s\n", __func__);
+	if (!vpu_conf.data->pwrctrl_id_table)
+		return;
+
+	while (i < VPU_PWR_ID_MAX) {
+		pwr_id = vpu_conf.data->pwrctrl_id_table[i];
+		if (pwr_id == VPU_PWR_ID_END)
+			break;
+		if (vpu_debug_print_flag)
+			VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
+		pwr_ctrl_psci_smc(pwr_id, 0);
+		i++;
+	}
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
 #endif
