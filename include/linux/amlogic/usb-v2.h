@@ -210,6 +210,7 @@ struct amlogic_usb_v2 {
 	struct clk		*gate1_clk;
 	u32 portconfig_31;
 	u32 portconfig_30;
+	void __iomem	*usb_phy_trim_reg;
 };
 
 union phy3_r1 {

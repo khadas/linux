@@ -82,6 +82,37 @@ void set_usb_phy_device_tuning(int port, int default_val)
 }
 EXPORT_SYMBOL(set_usb_phy_device_tuning);
 
+static void usb_set_calibration_trim
+	(void __iomem *reg, struct amlogic_usb_v2 *phy)
+{
+	u32 value = 0;
+	u32 cali, i;
+	u8 cali_en;
+
+	if (!phy->usb_phy_trim_reg) {
+		dev_err(phy->dev, "Not usb-phy-trim-reg\n");
+		return;
+	}
+
+	cali = readl(phy->usb_phy_trim_reg);
+	cali_en = (cali >> 12) & 0x1;
+	cali = cali >> 8;
+	if (cali_en) {
+		cali = cali & 0xf;
+		if (cali > 12)
+			cali = 12;
+	} else {
+		cali = phy->pll_setting[4];
+	}
+	value = readl(reg + 0x10);
+	value &= (~0xfff);
+	for (i = 0; i < cali; i++)
+		value |= (1 << i);
+
+	writel(value, reg + 0x10);
+
+	dev_info(phy->dev, "phy trim value= 0x%08x\n", value);
+}
 
 void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
@@ -102,9 +133,15 @@ void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 			writel(phy->pll_setting[3], reg + 0x50);
 			writel(0x2a, reg + 0x54);
 
-			val = readl(reg + 0x08);
-			val &= 0xfff;
-			writel(val | readl(reg + 0x10), reg + 0x10);
+	/**phy_version == 3, 0x10 set value in usb_set_calibration_trim**/
+	/**phy_version == 3, 0x08 no longer contains the default value of 0x10**/
+			if (g_phy2_v2->phy_version != 3) {
+				val = readl(reg + 0x08);
+				val &= 0xfff;
+				if (val == 0)
+					val = 0x800001f;
+				writel(val | readl(reg + 0x10), reg + 0x10);
+			}
 
 			writel(0x78000, reg + 0x34);
 		} else {
@@ -176,6 +213,8 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 				((unsigned long)phy->regs + i*PHY_REGISTER_SIZE
 				+ 4 * j);
 		}
+		usb_set_calibration_trim(phy->phy_cfg[i], phy);
+
 		/* ID DETECT: usb2_otg_aca_en set to 0 */
 		/* usb2_otg_iddet_en set to 1 */
 		writel(readl(phy->phy_cfg[i] + 0x54) & (~(1 << 2)),
@@ -247,6 +286,8 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	unsigned int	usb_clk_reg;
 	void __iomem	*usb_clk_reg_base = NULL;
 	unsigned int clk_regsize = 0;
+	unsigned int	phy_trim_reg;
+	void __iomem	*usb_phy_trim_reg = NULL;
 	int portnum = 0;
 	int phy_version = 0;
 	int reset_level = 0x84;
@@ -315,6 +356,13 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 			if (IS_ERR(phy_cfg_base[i]))
 				return PTR_ERR(phy_cfg_base[i]);
 		}
+	}
+
+	retval = of_property_read_u32(dev->of_node, "usb-phy-trim-reg",
+				      &phy_trim_reg);
+	if (retval >= 0) {
+		usb_phy_trim_reg = ioremap((resource_size_t)phy_trim_reg,
+					   4);
 	}
 
 	retval = of_property_read_u32(dev->of_node, "usb-clk-reg",
@@ -425,6 +473,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->otg_phy_index = otg_phy_index;
 	phy->reset_level = reset_level;
 	phy->usb_reset_bit = usb_reset_bit;
+	phy->usb_phy_trim_reg = usb_phy_trim_reg;
 	for (i = 0; i < portnum; i++) {
 		phy->phy_cfg[i] = phy_cfg_base[i];
 		/* set port default tuning state */

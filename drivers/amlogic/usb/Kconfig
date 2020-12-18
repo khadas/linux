@@ -22,6 +22,15 @@ config AMLOGIC_USB_DWC_OTG_HCD
 	   dwc_otg
 	   support
 
+config AMLOGIC_CRG
+        tristate "USB Host controller corigine support"
+        depends on AMLOGIC_USB
+        help
+           USB Host
+           controller
+           corigine
+           support
+
 config AMLOGIC_USB_HOST_ELECT_TEST
 	tristate "USB high speed electric test"
 	depends on USB

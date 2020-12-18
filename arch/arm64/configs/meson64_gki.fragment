@@ -643,6 +643,8 @@ CONFIG_AMLOGIC_PCIE=m
 
 # CONFIG_USB_DUMMY_HCD is not set
 
+CONFIG_AMLOGIC_CRG=m
+
 ### clang may cause ftrace panic, disable temporary
 # CONFIG_DYNAMIC_FTRACE is not set
 CONFIG_RTC_LIB=y

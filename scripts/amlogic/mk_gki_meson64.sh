@@ -13,6 +13,7 @@ export INSTALL_MOD_PATH=./modules_install
 cp arch/arm64/configs/meson64_gki.fragment arch/arm64/configs/meson64_gki.fragment.m
 #### set usb configs to y for bringup ####
 sed -i 's/CONFIG_USB_DWC3=m/CONFIG_USB_DWC3=y/' arch/arm64/configs/meson64_gki.fragment.m
+sed -i 's/CONFIG_AMLOGIC_CRG=m/CONFIG_AMLOGIC_CRG=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB=m/CONFIG_AMLOGIC_USB=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB_DWC_OTG_HCD=m/CONFIG_AMLOGIC_USB_DWC_OTG_HCD=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB_HOST_ELECT_TEST=m/CONFIG_AMLOGIC_USB_HOST_ELECT_TEST=y/' arch/arm64/configs/meson64_gki.fragment.m
