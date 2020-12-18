@@ -1309,7 +1309,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	aed:effect {
@@ -1333,8 +1333,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-
-		status = "disabled";
+		status = "okay";
 	};
 }; /* end of audiobus */
 
