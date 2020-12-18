@@ -454,6 +454,33 @@ static int vpu_security_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
+int tvafe_drv_init(void);
+#else
+static int tvafe_drv_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_VBI
+int vbi_init(void);
+#else
+static int vbi_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+int tvafe_avin_detect_init(void);
+#else
+static int tvafe_avin_detect_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 int vdin_drv_init(void);
 #else

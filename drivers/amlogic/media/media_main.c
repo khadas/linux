@@ -119,6 +119,9 @@ static int __init media_main_init(void)
 	call_sub_init(ldim_dev_init);
 	call_sub_init(aml_bl_init);
 	call_sub_init(amvdec_656in_init_module);
+	call_sub_init(tvafe_drv_init);
+	call_sub_init(vbi_init);
+	call_sub_init(tvafe_avin_detect_init);
 	call_sub_init(vdin_drv_init);
 	call_sub_init(hdmirx_init);
 	call_sub_init(hld_init);
