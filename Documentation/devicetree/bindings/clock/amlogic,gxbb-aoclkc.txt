@@ -12,6 +12,7 @@ Required Properties:
 	- AXG (A113D, A113X) : "amlogic,meson-axg-aoclkc"
 	- G12A (S905X2, S905D2, S905Y2) : "amlogic,meson-g12a-aoclkc"
 	- TM2 (S62E2 T962X3) : "amlogic,meson-tm2-aoclkc"
+	- T5D: "amlogic,t5d-aoclkc"
 	followed by the common "amlogic,meson-gx-aoclkc"
 - clocks: list of clock phandle, one for each entry clock-names.
 - clock-names: should contain the following:

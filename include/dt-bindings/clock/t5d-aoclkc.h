@@ -1,5 +1,5 @@
 /*
- * include/dt-bindings/clock/tl1-clkc.h
+ * include/dt-bindings/clock/t5d-clkc.h
  *
  * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
  *
@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef __DT_BINDINGS_T5_AOCLKC_H
-#define __DT_BINDINGS_T5_AOCLKC_H
+#ifndef __DT_BINDINGS_T5D_AOCLKC_H
+#define __DT_BINDINGS_T5D_AOCLKC_H
 
 #define CLKID_AO_CLK81				0
 #define CLKID_SARADC_MUX			1
@@ -39,4 +39,4 @@
 
 #define NR_AOCLKS				18
 
-#endif /* __DT_BINDINGS_T5_AOCLKC_H */
+#endif /* __DT_BINDINGS_T5D_AOCLKC_H */

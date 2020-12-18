@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * include/dt-bindings/clock/tl1-clkc.h
- *
- * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DT_BINDINGS_T5_CLKC_H
@@ -21,24 +9,45 @@
 /*
  * CLKID index values
  */
-#define CLKID_SYS_PLL				0
-#define CLKID_FIXED_PLL				1
-#define CLKID_FCLK_DIV2				2
-#define CLKID_FCLK_DIV3				3
-#define CLKID_FCLK_DIV4				4
-#define CLKID_FCLK_DIV5				5
-#define CLKID_FCLK_DIV7				6
-#define CLKID_FCLK_DIV2P5			7
-#define CLKID_GP0_PLL				8
-#define CLKID_HIFI_PLL				9
-#define CLKID_MPLL0				10
-#define CLKID_MPLL1				11
-#define CLKID_MPLL2				12
-#define CLKID_MPLL3				13
-#define CLKID_CPU_FCLK_P			14
-#define CLKID_CPU_CLK				15
+#define CLKID_SYS_PLL_DCO			0
+#define CLKID_FIXED_PLL_DCO			1
+#define CLKID_GP0_PLL_DCO			2
+#define CLKID_HIFI_PLL_DCO			3
+#define CLKID_SYS_PLL				4
+#define CLKID_FIXED_PLL				5
+#define CLKID_GP0_PLL				6
+#define CLKID_HIFI_PLL				7
+#define CLKID_FCLK_DIV2_DIV			8
+#define CLKID_FCLK_DIV3_DIV			9
+#define CLKID_FCLK_DIV4_DIV			10
+#define CLKID_FCLK_DIV5_DIV			11
+#define CLKID_FCLK_DIV7_DIV			12
+#define CLKID_FCLK_DIV2P5_DIV			13
+#define CLKID_FCLK_DIV2				14
+#define CLKID_FCLK_DIV3				15
+#define CLKID_FCLK_DIV4				16
+#define CLKID_FCLK_DIV5				17
+#define CLKID_FCLK_DIV7				18
+#define CLKID_FCLK_DIV2P5			19
+#define CLKID_PRE_MPLL				20
+#define CLKID_MPLL0_DIV				21
+#define CLKID_MPLL1_DIV				22
+#define CLKID_MPLL2_DIV				23
+#define CLKID_MPLL3_DIV				24
+#define CLKID_MPLL0				25
+#define CLKID_MPLL1				26
+#define CLKID_MPLL2				27
+#define CLKID_MPLL3				28
+#define CLKID_CPU_CLK_DYN0_SEL			29
+#define CLKID_CPU_CLK_DYN0_DIV			30
+#define CLKID_CPU_CLK_DYN0			31
+#define CLKID_CPU_CLK_DYN1_SEL			32
+#define CLKID_CPU_CLK_DYN1_DIV			33
+#define CLKID_CPU_CLK_DYN1			34
+#define CLKID_CPU_CLK_DYN			35
+#define CLKID_CPU_CLK				36
 
-#define GATE_BASE0				16
+#define GATE_BASE0				37
 
 #define CLKID_DDR				(GATE_BASE0 + 0)
 #define CLKID_DOS				(GATE_BASE0 + 1)

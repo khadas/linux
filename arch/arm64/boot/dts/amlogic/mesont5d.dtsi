@@ -22,9 +22,9 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
-#include <dt-bindings/clock/amlogic,t5-clkc.h>
-#include <dt-bindings/clock/amlogic,t5-aoclkc.h>
-#include <dt-bindings/clock/amlogic,t5-peripheral-clkc.h>
+#include <dt-bindings/clock/t5d-clkc.h>
+#include <dt-bindings/clock/t5d-periph-clkc.h>
+#include <dt-bindings/clock/t5d-aoclkc.h>
 #include <dt-bindings/clock/amlogic,t5-audio-clk.h>
 #include <dt-bindings/phy/phy-amlogic-pcie.h>
 //#include "mesong12a-bifrost.dtsi"
@@ -48,9 +48,9 @@
 			reg = <0x0 0x0>;
 			//timer=<&timer_a>;
 			enable-method = "psci";
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_FCLK_P>,
-				<&clkc CLKID_SYS_PLL>;
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_FCLK_P>,
+			//	<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -67,9 +67,9 @@
 			reg = <0x0 0x1>;
 //			//timer=<&timer_b>;
 			enable-method = "psci";
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_FCLK_P>,
-				<&clkc CLKID_SYS_PLL>;
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_FCLK_P>,
+			//	<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -86,9 +86,9 @@
 			reg = <0x0 0x2>;
 //			//timer=<&timer_c>;
 			enable-method = "psci";
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_FCLK_P>,
-				<&clkc CLKID_SYS_PLL>;
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_FCLK_P>,
+			//	<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -105,9 +105,9 @@
 			reg = <0x0 0x3>;
 //			//timer=<&timer_d>;
 			enable-method = "psci";
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_FCLK_P>,
-				<&clkc CLKID_SYS_PLL>;
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_FCLK_P>,
+			//	<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
@@ -525,7 +525,7 @@
 		compatible = "amlogic,meson-g12a-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
-		clocks = <&xtal>, <&aoclkc CLKID_SARADC_GATE>;
+		clocks = <&xtal>, <&clkc_AO CLKID_SARADC_GATE>;
 		clock-names = "xtal", "saradc_clk";
 		interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>;
 		reg = <0x0 0xff809000 0x0 0x48>;
@@ -626,18 +626,49 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xff63c000 0x0 0x2000>;
 
-			clkc: clock-controller@0 {
-				compatible = "amlogic,t5-clkc";
-				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x3fc>;
+			hhi: system-controller@0 {
+				compatible = "amlogic,meson-gx-hhi-sysctrl",
+						"simple-mfd", "syscon";
+
+				reg = <0 0 0 0x400>;
+				clkc: clock-controller@0 {
+					compatible = "amlogic,t5d-clkc";
+					#clock-cells = <1>;
+					clocks = <&xtal>;
+					clock-names = "xtal";
+				};
 			};
 		};/* end of hiubus*/
 
-		peripheral_clkc: clock-controller@ff646000 {
-			compatible = "amlogic,t5-peripheral-clkc";
-			#clock-cells = <1>;
-			reg = <0x0 0xff646000 0x0 0x3dc>;
-		};
+		hiubus1: hiubus@ff646000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xff646000 0x0 0x2000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xff646000 0x0 0x2000>;
+
+			hhi1: system-controller@1 {
+				compatible = "amlogic,meson-gx-hhi-sysctrl",
+						"simple-mfd", "syscon";
+
+				reg = <0 0 0 0x400>;
+				peripheral_clkc: clock-controller@1 {
+					compatible = "amlogic,t5d-periph-clkc";
+					#clock-cells = <1>;
+
+					clocks = <&clkc CLKID_FCLK_DIV2>,
+						<&clkc CLKID_FCLK_DIV3>,
+						<&clkc CLKID_FCLK_DIV4>,
+						<&clkc CLKID_FCLK_DIV5>,
+						<&clkc CLKID_FCLK_DIV7>,
+						<&clkc CLKID_FCLK_DIV2P5>,
+						<&xtal>;
+					clock-names = "fclk_div2", "fclk_div3", "fclk_div4",
+							"fclk_div5", "fclk_div7",
+							"fclk_div2p5", "xtal";
+				};
+			};
+		};/* end of hiubus1*/
 
 		audiobus: audiobus@0xff600000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
@@ -880,10 +911,47 @@
 				reg = <0x0 0x220 0x0 0x4>;
 			};
 
-			aoclkc: clock-controller@3fc {
-				compatible = "amlogic,t5-aoclkc";
-				reg = <0x0 0x0 0x0 0x3fc>;
-				#clock-cells = <1>;
+			rti: sys-ctrl@0 {
+				compatible = "amlogic,meson-gx-ao-sysctrl",
+						"simple-mfd", "syscon";
+				reg = <0x0 0x0 0x0 0x100>;
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges = <0x0 0x0 0x0 0x0 0x0 0x100>;
+
+				clkc_AO: clock-controller@2 {
+					compatible = "amlogic,t5d-aoclkc";
+					#clock-cells = <1>;
+					clocks = <&xtal>;
+					clock-names = "xtal";
+				};
+			};
+
+			uart_AO: serial@3000 {
+				compatible = "amlogic, meson-uart";
+				reg = <0x0 0x3000 0x0 0x18>;
+				interrupts = <0 193 1>;
+				status = "disabled";
+				clocks = <&xtal>;
+				clock-names = "clk_uart";
+				xtal_tick_en = <2>;
+				fifosize = < 64 >;
+				//pinctrl-names = "default";
+				//pinctrl-0 = <&ao_a_uart_pins>;
+				/* 0 not support; 1 support */
+				support-sysrq = <0>;
+			};
+
+			uart_AO_B: serial@4000 {
+				compatible = "amlogic, meson-uart";
+				reg = <0x0 0x4000 0x0 0x18>;
+				interrupts = <0 197 1>;
+				status = "disabled";
+				clocks = <&xtal>;
+				clock-names = "clk_uart";
+				fifosize = < 64 >;
+				pinctrl-names = "default";
+				pinctrl-0 = <&ao_b_uart_pins1>;
 			};
 
 			remote: rc@8040 {
