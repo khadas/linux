@@ -27,6 +27,7 @@
 #define NFC_CMD_SEED		((8 << 16) | (3 << 20))
 #define NFC_CMD_M2N		((0 << 17) | (2 << 20))
 #define NFC_CMD_N2M		((1 << 17) | (2 << 20))
+#define NFC_CMD_DRD		(0x8 << 14)
 #define NFC_CMD_RB		BIT(20)
 #define NFC_CMD_SCRAMBLER_ENABLE	1 //BIT(19)
 #define NFC_CMD_SCRAMBLER_DISABLE	0
@@ -101,6 +102,10 @@
 
 #define PER_INFO_BYTE		8
 
+#define NAND_BLOCK_GOOD	0
+#define NAND_BLOCK_BAD	1
+#define NAND_FACTORY_BAD	2
+
 /* Max total is 1024 as romboot says so... */
 #define BOOT_TOTAL_PAGES	(1024)
 #define NAND_FIPMODE_DISCRETE   (1)
@@ -154,14 +159,13 @@ struct meson_nfc {
 	struct clk *fix_div2_pll;
 	struct clk_divider nand_divider;
 	struct clk *nand_div_clk;
-
 	unsigned long clk_rate;
 	u32 bus_timing;
-	u32 clk_ctrl_base;
 
 	struct device *dev;
 	void __iomem *reg_base;
 	void __iomem *nand_clk_reg;
+
 	struct completion completion;
 	struct list_head chips;
 	const struct meson_nfc_data *data;
@@ -177,37 +181,56 @@ struct meson_nfc {
 	dma_addr_t iaddr;
 
 	unsigned long assigned_cs;
-	u32 fip_copies;
-	u32 fip_size;
 	s8 *block_status;
-	u8 bl_mode;
-	u8 skip_bad_block;
+
+	struct para_form_dts {
+		u32 clk_ctrl_base;
+		u32 bl_mode;
+		u32 fip_copies;
+		u32 fip_size;
+		u32 skip_bad_block;
+		u32 disa_irq_hand;
+	} param_from_dts;
 
 	struct pinctrl *nand_pinctrl;
 	struct pinctrl_state *nand_norbstate;
 	struct pinctrl_state *nand_idlestate;
 };
 
-/* if you don't need skip the bad blocks when addr
- * partitions, please enable this macro.
- * #define CONFIG_NOT_SKIP_BAD_BLOCK
- */
 /**for info page0 information**/
+union sc2_cmdinfo {
+	u32 d32;
+	struct {
+		unsigned cmd:22;
+		unsigned page_list:1;
+		unsigned new_type:8;
+		unsigned reserved:1;
+	} b;
+};
+
+struct _nand_setup_sc2 {
+	union sc2_cmdinfo cfg;
+	u16 id;
+	u16 max;
+};
+
+union cmdinfo {
+	u32 d32;
+	struct {
+		unsigned cmd:22;
+		unsigned large_page:1;
+		unsigned no_rb:1;
+		unsigned a2:1;
+		unsigned reserved25:1;
+		unsigned page_list:1;
+		unsigned sync_mode:2;
+		unsigned size:2;
+		unsigned active:1;
+	} b;
+};
+
 struct _nand_setup {
-	union {
-		u32 d32;
-		struct {
-			unsigned cmd:22;
-			unsigned large_page:1;
-			unsigned no_rb:1;
-			unsigned a2:1;
-			unsigned reserved25:1;
-			unsigned page_list:1;
-			unsigned sync_mode:2;
-			unsigned size:2;
-			unsigned active:1;
-		} b;
-	} cfg;
+	union cmdinfo cfg;
 	u16 id;
 	u16 max;
 };
@@ -244,9 +267,84 @@ struct _nand_page0 {
 	struct _nand_cmd retry_usr[32];
 	struct _ext_info ext_info;
 	struct _fip_info fip_info;
+	u32 ddrp_start_page;
 };
 
+struct _nand_page0_sc2 {
+	struct _nand_setup_sc2 nand_setup;
+	unsigned char page_list[32];
+	struct _nand_cmd retry_usr[32];
+	struct _ext_info ext_info;
+	struct _fip_info fip_info;
+	u32 ddrp_start_page;
+};
 /**end info page0 information**/
 extern struct mtd_part_parser ofpart_meson_parser;
 extern struct nand_flash_dev aml_nand_flash_ids[];
+
+/**sc2 new layout**/
+struct nand_startup_parameter {
+	int page_size;
+	int block_size;
+	int layout_reserve_size;
+	int pages_per_block;
+	int setup_data;
+	int page0_disable;
+};
+
+#define BL2E_STORAGE_PARAM_SIZE		(0x80)
+#define BOOT_FIRST_BLOB_SIZE		(254 * 1024)
+#define BOOT_FILLER_SIZE	(4 * 1024)
+#define BOOT_RESERVED_SIZE	(4 * 1024)
+#define BOOT_RANDOM_NONCE	(16)
+#define BOOT_BL2E_SIZE		(66672) //74864-8K
+#define BOOT_EBL2E_SIZE		\
+	(BOOT_FILLER_SIZE + BOOT_RESERVED_SIZE + BOOT_BL2E_SIZE)
+#define BOOT_BL2X_SIZE		(66672)
+#define MAX_BOOT_AREA_ENTRIES	(8)
+#define BL2_CORE_BASE_OFFSET_EMMC	(0x200000)
+#define BOOT_AREA_BB1ST             (0)
+#define BOOT_AREA_BL2E              (1)
+#define BOOT_AREA_BL2X              (2)
+#define BOOT_AREA_DDRFIP            (3)
+#define BOOT_AREA_DEVFIP            (4)
+#define BOOT_AREA_INVALID           (MAX_BOOT_AREA_ENTRIES)
+#define BAE_BB1ST                   "1STBLOB"
+#define BAE_BL2E                    "BL2E"
+#define BAE_BL2X                    "BL2X"
+#define BAE_DDRFIP                  "DDRFIP"
+#define BAE_DEVFIP                  "DEVFIP"
+
+struct boot_area_entry {
+	char name[11];
+	unsigned char idx;
+	u64 offset;
+	u64 size;
+};
+
+struct boot_layout {
+	struct boot_area_entry *boot_entry;
+};
+
+struct storage_boot_entry {
+	unsigned int offset;
+	unsigned int size;
+};
+
+union storage_independent_parameter {
+	struct nand_startup_parameter nsp;
+};
+
+struct storage_startup_parameter {
+	unsigned char boot_device;
+	unsigned char	boot_seq;
+	unsigned char	boot_backups;
+	unsigned char reserved;
+	struct storage_boot_entry boot_entry[MAX_BOOT_AREA_ENTRIES];
+	union storage_independent_parameter sip;
+};
+
+extern struct storage_startup_parameter g_ssp;
+int aml_nand_param_check_and_layout_init(void);
+/**sc2 new layout**/
 #endif  /* __AMLMTD_NAND_H_ */

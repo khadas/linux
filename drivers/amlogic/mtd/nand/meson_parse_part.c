@@ -12,6 +12,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/aml_mtd_nand.h>
+#include "linux/amlogic/cpu_version.h"
 
 static bool node_has_compatible(struct device_node *pp)
 {
@@ -22,6 +23,7 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 			      struct mtd_partition *parts)
 {
 	u8 i = 0, bl_mode, reserved_part_blk_num = NAND_RSV_BLOCK_NUM;
+	u8 internal_part_count = 0;
 	u64 part_size, start_blk = 0, part_blk = 0;
 	loff_t offset;
 	int phys_erase_shift, error = 0;
@@ -33,23 +35,46 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 	phys_erase_shift = nand->phys_erase_shift;
 
 	adjust_offset = BOOT_TOTAL_PAGES * (loff_t)master->writesize;
-	bl_mode = nfc->bl_mode;
+	bl_mode = nfc->param_from_dts.bl_mode;
 	if (bl_mode == NAND_FIPMODE_DISCRETE) {
-		//i++;
-		fip_part_size = nfc->fip_copies *
-			nfc->fip_size;
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2) {
+			aml_nand_param_check_and_layout_init();
+			fip_part_size =
+				g_ssp.boot_entry[BOOT_AREA_DEVFIP].size *
+				nfc->param_from_dts.fip_copies;
+			adjust_offset =
+				g_ssp.boot_entry[BOOT_AREA_DEVFIP].offset +
+				fip_part_size;
+			internal_part_count = 4;
+			for (i = 0; i < internal_part_count; i++) {
+				parts[i].offset =
+					g_ssp.boot_entry[i + 1].offset;
+				if (i == internal_part_count - 1)
+					parts[i].size = fip_part_size;
+				else
+					parts[i].size = g_ssp.boot_entry[i + 1].size *
+					g_ssp.boot_backups;
+				pr_info("%s: off %llx, size %llx\n",
+					parts[i].name, parts[i].offset,
+					parts[i].size);
+			}
+		} else {
+			fip_part_size = nfc->param_from_dts.fip_copies *
+				nfc->param_from_dts.fip_size;
+			internal_part_count = 1;
 
-		parts[i].offset = adjust_offset +
-			reserved_part_blk_num *
-			master->erasesize;
-		parts[i].size = fip_part_size;
-		pr_info("%s: off %lld, size %lld\n", parts[i].name,
-			parts[i].offset, parts[i].size);
+			parts[i].offset = adjust_offset +
+				reserved_part_blk_num *
+				master->erasesize;
+			parts[i].size = fip_part_size;
+			pr_info("%s: off %llx, size %llx\n", parts[i].name,
+				parts[i].offset, parts[i].size);
+			adjust_offset += reserved_part_blk_num *
+			master->erasesize + fip_part_size;
+		}
 	}
-	adjust_offset += reserved_part_blk_num *
-		master->erasesize + fip_part_size;
-	i++;
-	for (; i < nr_parts; i++) {
+
+	for (i = internal_part_count; i < nr_parts; i++) {
 		if (master->size < adjust_offset) {
 			pr_info("%s %d error: over the nand size!!!\n",
 				__func__, __LINE__);
@@ -59,7 +84,7 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 		part_size = parts[i].size;
 		if (i == nr_parts - 1)
 			part_size = master->size - adjust_offset;
-		if (nfc->skip_bad_block) {
+		if (nfc->param_from_dts.skip_bad_block) {
 			offset = 0;
 			start_blk = 0;
 			part_blk = part_size >> phys_erase_shift;
@@ -80,8 +105,8 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 				start_blk++;
 			} while (start_blk < part_blk);
 		}
-	adjust_offset += part_size;
-	parts[i].size = adjust_offset - parts[i].offset;
+		adjust_offset += part_size;
+		parts[i].size = adjust_offset - parts[i].offset;
 	}
 
 	return 0;
