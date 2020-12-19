@@ -266,6 +266,12 @@ static void pwm_fan_set(struct pwm_fan_ctx *ctx)
 				case 3:
 					pwm_fan_set_cur_state(ctx->cdev, 3);
 					break;
+				case 4:
+					pwm_fan_set_cur_state(ctx->cdev, 4);
+					break;
+				case 5:
+					pwm_fan_set_cur_state(ctx->cdev, 5);
+					break;					
 				default:
 					break;
 			}
@@ -344,9 +350,9 @@ static void pwm_fan_work_func(struct work_struct *_work)
 		} else if (temp < ctx->trig_temp_level1) {
 			state = 1;
 		} else if (temp < ctx->trig_temp_level2) {
-			state = 2;
-		} else{
 			state = 3;
+		} else{
+			state = 5;
 		}
 
 		pwm_fan_set_cur_state(ctx->cdev, state);
