@@ -16,6 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/emmc_partitions.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
@@ -410,15 +411,28 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 			return ret;
 		}
 	} else {
-		if (rate > 200000000)
+		if (rate > 200000000) {
 			ret = clk_set_parent(host->mux[0], host->clk[2]);
-		else
+		} else {
 			ret = clk_set_parent(host->mux[0], host->clk[1]);
-		if (ret) {
-			dev_err(host->dev, "SET 1188M parent error!\n");
-			return ret;
+			if (ret) {
+				dev_err(host->dev, "SET 1188M parent error!\n");
+				return ret;
+			}
+		}
+
+		if (host->src_clk_rate != 0) {
+			if (host->debug_flag)
+				dev_notice(host->dev, "set src rate to: %u\n",
+					   host->src_clk_rate);
+			ret = clk_set_rate(host->clk[2], host->src_clk_rate);
+			if (ret) {
+				dev_err(host->dev, "!!!SET src error!\n");
+				return ret;
+			}
 		}
 	}
+
 	ret = clk_set_rate(host->mmc_clk, rate);
 	if (ret) {
 		dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
@@ -1709,6 +1723,33 @@ static unsigned int tl1_emmc_line_timing(struct mmc_host *mmc)
 	return 0;
 }
 
+static int single_read_cmd_for_scan(struct mmc_host *mmc,
+		 u8 opcode, u8 *blk_test, u32 blksz, u32 blocks, u32 offset)
+{
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+
+	cmd.opcode = opcode;
+	cmd.arg = offset;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	data.blksz = blksz;
+	data.blocks = blocks;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	memset(blk_test, 0, blksz * data.blocks);
+	sg_init_one(&sg, blk_test, blksz * data.blocks);
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+	mmc_wait_for_req(mmc, &mrq);
+	return data.error | cmd.error;
+}
+
 static int emmc_test_bus(struct mmc_host *mmc)
 {
 	int err = 0;
@@ -1792,7 +1833,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	intf3 &= ~DS_SHT_EXP_MASK;
 	intf3 |= (best_start + best_size / 2) << __ffs(DS_SHT_M_MASK);
 	writel(intf3, host->regs + SD_EMMC_INTF3);
-	pr_info("ds_sht:%lu, window:%d, intf3:0x%x, clock:0x%x",
+	pr_info("ds_sht: %lu, window:%d, intf3:0x%x, clock:0x%x",
 		intf3 & DS_SHT_M_MASK, best_size,
 		readl(host->regs + SD_EMMC_INTF3),
 		readl(host->regs + SD_EMMC_CLOCK));
@@ -1912,10 +1953,208 @@ static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 	set_emmc_cmd_delay(mmc, 0);
 }
 
+static long long _para_checksum_calc(struct aml_tuning_para *para)
+{
+	int i = 0;
+	int size = sizeof(struct aml_tuning_para) - 6 * sizeof(unsigned int);
+	unsigned int *buffer;
+	long long checksum = 0;
+
+	if (!para)
+		return 1;
+
+	size = size >> 2;
+	buffer = (unsigned int *)para;
+	while (i < size)
+		checksum += buffer[i++];
+
+	return checksum;
+}
+
+/*
+ * read tuning para from reserved partition
+ * and copy it to pdata->para
+ */
+int aml_read_tuning_para(struct mmc_host *mmc)
+{
+	int off, blk;
+	int ret;
+	int para_size;
+	struct meson_host *host = mmc_priv(mmc);
+
+	if (host->save_para == 0)
+		return 0;
+
+	para_size = sizeof(struct aml_tuning_para);
+	blk = (para_size - 1) / 512 + 1;
+	off = MMC_TUNING_OFFSET;
+
+	ret = single_read_cmd_for_scan(mmc,
+				       MMC_READ_SINGLE_BLOCK,
+				       host->blk_test, 512,
+				       blk, off);
+	if (ret) {
+		pr_info("read tuning parameter failed\n");
+		return ret;
+	}
+
+	memcpy(&host->para, host->blk_test, para_size);
+	return ret;
+}
+
+/*set para on controller register*/
+static void aml_set_tuning_para(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	struct aml_tuning_para *para = &host->para;
+	int temp_index;
+	u32 delay1, delay2, intf3;
+	int cmd_delay;
+
+	if (host->compute_cmd_delay == 1) {
+		temp_index = host->first_temp_index;
+		delay1 = host->para.hs4[temp_index].delay1;
+		delay2 = host->para.hs4[temp_index].delay2;
+		intf3 = host->para.hs4[temp_index].intf3;
+
+		cmd_delay = ((10 + host->compute_coef) * (host->cur_temp_index
+				- host->first_temp_index)) / 10;
+
+		delay2 -= cmd_delay << 24;
+		pr_info("bef %d, cur %d, delay switch from 0x%x to 0x%x\n",
+				host->first_temp_index,
+				host->cur_temp_index,
+				host->para.hs4[temp_index].delay2,
+				delay2);
+
+		writel(delay1, host->regs + SD_EMMC_DELAY1);
+		writel(delay2, host->regs + SD_EMMC_DELAY2);
+		writel(intf3, host->regs + SD_EMMC_INTF3);
+	} else {
+		temp_index = para->temperature / 10000;
+		delay1 = host->para.hs4[temp_index].delay1;
+		delay2 = host->para.hs4[temp_index].delay2;
+		intf3 = host->para.hs4[temp_index].intf3;
+
+		writel(delay1, host->regs + SD_EMMC_DELAY1);
+		writel(delay2, host->regs + SD_EMMC_DELAY2);
+		writel(intf3, host->regs + SD_EMMC_INTF3);
+	}
+}
+
+/*save parameter on mmc_host pdata*/
+static void aml_save_tuning_para(struct mmc_host *mmc)
+{
+	long long checksum;
+	int temp_index;
+	struct meson_host *host = mmc_priv(mmc);
+	struct aml_tuning_para *para = &host->para;
+
+	u32 delay1 = readl(host->regs + SD_EMMC_DELAY1);
+	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+
+	if (host->save_para == 0)
+		return;
+
+	temp_index = para->temperature / 10000;
+	if (para->temperature < 0 || temp_index > 6) {
+		para->update = 0;
+		return;
+	}
+
+	host->para.hs4[temp_index].delay1 = delay1;
+	host->para.hs4[temp_index].delay2 = delay2;
+	host->para.hs4[temp_index].intf3 = intf3;
+	host->para.hs4[temp_index].flag = 1;
+	host->para.magic = 0x00487e44; /*E~K\0*/
+	host->para.version = 1;
+
+	checksum = _para_checksum_calc(para);
+	host->para.checksum = checksum;
+}
+
+/*
+ * check if tuning parameter is exist
+ * check if temperature is in the 0~69
+ * check if the parameter has been tuning
+ *		under the current temperature
+ * check if the data had been broken by  checksum
+ *
+ * if all four condition above is yes, the tuning parameter
+ *		could be use directly
+ * otherwise retunning and save parameter
+ */
+static int aml_para_is_exist(struct mmc_host *mmc)
+{
+	int temperature;
+	int temp_index;
+	long long checksum;
+	struct meson_host *host = mmc_priv(mmc);
+	struct aml_tuning_para *para = &host->para;
+	int i;
+
+	if (host->save_para == 0)
+		return 0;
+
+	para->update = 1;
+	temperature = -1;
+
+	if (temperature == -1) {
+		para->update = 0;
+		pr_info("get temperature failed\n");
+		return 0;
+	}
+	pr_info("current temperature is %d\n", temperature);
+
+	temp_index = temperature / 10000;
+	para->temperature = temperature;
+
+	checksum = _para_checksum_calc(para);
+	if (checksum != para->checksum) {
+		pr_info("warning: checksum is not match\n");
+		return 0;
+	}
+
+	if (host->compute_cmd_delay == 1) {
+		for (i = 0; i < 7; i++) {
+			if (para->hs4[i].flag == 1) {
+				host->first_temp_index = i;
+				host->cur_temp_index = temp_index;
+				para->update = 0;
+				return 1;
+			}
+		}
+	}
+
+	/* temperature range is 0 ~ 69 */
+	if (temperature < 0 || temp_index > 6) {
+		pr_info("temperature is out of normal range\n");
+		return 0;
+	}
+
+	if (para->hs4[temp_index].flag == 0) {
+		pr_info("current temperature %d degree not tuning yet\n",
+			temperature / 1000);
+		return 0;
+	}
+
+	para->update = 0;
+
+	return 1;
+}
+
 static void aml_post_hs400_timming(struct mmc_host *mmc)
 {
 	aml_sd_emmc_clktest(mmc);
+
+	if (aml_para_is_exist(mmc)) {
+		aml_set_tuning_para(mmc);
+		return;
+	}
 	aml_emmc_hs400_tl1(mmc);
+
+	aml_save_tuning_para(mmc);
 }
 
 static void aml_sd_emmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -2313,7 +2552,8 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		intf3 = readl(host->regs + SD_EMMC_INTF3);
 		intf3 |= (1 << 22);
 		writel(intf3, (host->regs + SD_EMMC_INTF3));
-		aml_emmc_hs200_tl1(mmc);
+		if (0)
+			aml_emmc_hs200_tl1(mmc);
 		err = 0;
 	}
 
@@ -2532,6 +2772,157 @@ static irqreturn_t meson_mmc_cd_detect_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+ssize_t emmc_hs200_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+	u32 opcode;
+
+	mmc_claim_host(mmc);
+	if (aml_card_type_mmc(host))
+		opcode = MMC_SEND_TUNING_BLOCK_HS200;
+	else
+		opcode = MMC_SEND_TUNING_BLOCK;
+	host->is_tuning = 1;
+	meson_mmc_clk_phase_tuning(mmc, opcode);
+	host->is_tuning = 0;
+	mmc_release_host(mmc);
+	return 1;
+}
+
+static void scan_emmc_tx_win(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 vclk = readl(host->regs + SD_EMMC_CLOCK);
+	u32 dly1 = readl(host->regs + SD_EMMC_DELAY1);
+	u32 dly2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+	u32 clk_bak = vclk;
+	u32 i, j, err;
+	u8 tx_delay = (vclk & CLK_V3_TX_DELAY_MASK) >>
+		__ffs(CLK_V3_TX_DELAY_MASK);
+	int repeat_times = 100;
+	char str[64] = {0};
+
+	aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+			    host->blk_test, 512, 40, MMC_PATTERN_NAME);
+	host->is_tuning = 1;
+	tx_delay = 0;
+	vclk &= ~CLK_V3_TX_DELAY_MASK;
+	vclk |= tx_delay << __ffs(CLK_V3_TX_DELAY_MASK);
+	writel(vclk, host->regs + SD_EMMC_CLOCK);
+	for (i = tx_delay; i < 64; i++) {
+		aml_emmc_hs400_tl1(mmc);
+		for (j = 0; j < repeat_times; j++) {
+			err = mmc_write_internal(mmc->card, MMC_PATTERN_OFFSET,
+						 40, host->blk_test);
+			if (!err)
+				str[i]++;
+			else
+				break;
+		}
+		tx_delay += 1;
+		vclk &= ~CLK_V3_TX_DELAY_MASK;
+		vclk |= tx_delay << __ffs(CLK_V3_TX_DELAY_MASK);
+		writel(vclk, host->regs + SD_EMMC_CLOCK);
+		pr_debug("tx_delay: 0x%x, send cmd %d times success %d times, is ok\n",
+			 tx_delay, repeat_times, str[i]);
+	}
+	host->is_tuning = 0;
+
+	writel(clk_bak, host->regs + SD_EMMC_CLOCK);
+	writel(dly1, host->regs + SD_EMMC_DELAY1);
+	writel(dly2, host->regs + SD_EMMC_DELAY2);
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+	emmc_search_cmd_delay(str, repeat_times);
+	pr_info(">>>>>>>>>>>>>>>>>>>>this is tx window>>>>>>>>>>>>>>>>>>>>>>\n");
+	emmc_show_cmd_window(str, repeat_times);
+}
+
+ssize_t emmc_scan_tx_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+
+	mmc_claim_host(mmc);
+	scan_emmc_tx_win(mmc);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
+}
+
+ssize_t emmc_eyetestlog_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+	u32 dly, dly1_bak, dly2_bak;
+	int i = 0;
+
+	mmc_claim_host(mmc);
+	dly1_bak = readl(host->regs + SD_EMMC_DELAY1);
+	dly2_bak = readl(host->regs + SD_EMMC_DELAY2);
+	for (i = 0; i < 64; i++) {
+		dly = (i << 0) | (i << 6) | (i << 12) | (i << 18) | (i << 24);
+		writel(dly, host->regs + SD_EMMC_DELAY1);
+		writel(dly, host->regs + SD_EMMC_DELAY2);
+		update_all_line_eyetest(mmc);
+	}
+	writel(dly1_bak, host->regs + SD_EMMC_DELAY1);
+	writel(dly2_bak, host->regs + SD_EMMC_DELAY2);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc all lines eyetest log.\n");
+}
+
+//static int meson_mmc_clk_set_delay(struct clk_hw *hw, int degrees)
+//{
+//	struct meson_mmc_phase *mmc = to_meson_mmc_phase(hw);
+//	unsigned int delay_num = 1 <<  hweight_long(mmc->delay_mask);
+//	u32 val = 0;
+//
+//	val = readl(mmc->reg);
+//	if (degrees < delay_num && mmc->delay_mask) {
+//		val &= ~mmc->delay_mask;
+//		val |= degrees << __ffs(mmc->delay_mask);
+//	}
+//
+//	writel(val, mmc->reg);
+//	return 0;
+//}
+
+//ssize_t emmc_txdelay_show(struct device *dev,
+//			  struct device_attribute *attr, char *buf)
+//{
+//	struct meson_host *host = dev_get_drvdata(dev);
+//	struct mmc_host *mmc = host->mmc;
+//	int i;
+//
+//	mmc_claim_host(mmc);
+//	for (i = 0; i < 64; i++) {
+//		meson_mmc_clk_set_delay(&host->tx->hw, i);
+//		mdelay(10);
+//		pr_info("set txdelay[%d]\n", i);
+//		aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
+//				    host->blk_test, 512,
+//				    40, MMC_PATTERN_NAME);
+//	}
+//	mmc_release_host(mmc);
+//	return sprintf(buf, "%s\n", "Emmc tx delay.\n");
+//}
+
+ssize_t emmc_cmd_rx_win_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	struct mmc_host *mmc = host->mmc;
+
+	mmc_claim_host(mmc);
+	scan_emmc_cmd_win(mmc, 0);
+	mmc_release_host(mmc);
+	return sprintf(buf, "%s\n", "Emmc scan cmd rx win done.\n");
+}
+
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
@@ -2544,6 +2935,13 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
+
+DEVICE_ATTR_RO(emmc_eyetest);
+DEVICE_ATTR_RO(emmc_clktest);
+DEVICE_ATTR_RO(emmc_scan_tx);
+DEVICE_ATTR_RO(emmc_hs200);
+DEVICE_ATTR_RO(emmc_eyetestlog);
+DEVICE_ATTR_RO(emmc_cmd_rx_win);
 
 static int meson_mmc_probe(struct platform_device *pdev)
 {
@@ -2778,6 +3176,35 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (aml_card_type_sdio(host)) {/* if sdio_wifi */
 		sdio_host = mmc;
 	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_eyetest);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_clktest);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
+//	ret = device_create_file(&pdev->dev, &dev_attr_emmc_txdelay_test);
+//	if (ret)
+//		dev_warn(mmc_dev(host->mmc),
+//			 "Unable to creat sysfs attributes\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_hs200);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_scan_tx);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_cmd_rx_win);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_emmc_eyetestlog);
+	if (ret)
+		dev_warn(mmc_dev(host->mmc),
+			 "Unable to creat sysfs attributes\n");
 
 	host->blk_test = devm_kzalloc(host->dev,
 				      512 * CALI_BLK_CNT, GFP_KERNEL);

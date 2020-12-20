@@ -1291,7 +1291,7 @@ static struct clk_regmap t5d_vdin_meas_gate = {
 	},
 };
 
-static const char * const sd_emmc_parent_names[] = { "xtal", "t5d_fclk_div2",
+static const char * const sd_emmc_parent_names[] = { "xtal", "fclk_div2",
 	"fclk_div3", "fclk_div5", "fclk_div2p5", "mpll2", "mpll3", "gp0_pll" };
 
 static struct clk_regmap t5d_sd_emmc_c_mux = {
@@ -1323,7 +1323,7 @@ static struct clk_regmap t5d_sd_emmc_c_div = {
 			&t5d_sd_emmc_c_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		//.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1339,7 +1339,7 @@ static struct clk_regmap t5d_sd_emmc_c_gate  = {
 			&t5d_sd_emmc_c_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		//.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
 	},
 };
 

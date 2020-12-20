@@ -1096,45 +1096,32 @@
 		nn_power_version = <3>;
 		nn_efuse = <0xff63003c 0x20>;
 	};
-	sd_emmc_c: emmc@ffe07000 {
+	sd_emmc_c: mmc@ffe07000 {
 		status = "disabled";
-		compatible = "amlogic, meson-mmc-t5d";
-		reg = <0x0 0xffe07000 0x0 0x800>;
-		interrupts = <0 191 1>;
-		pinctrl-names = "emmc_clk_cmd_pins", "emmc_all_pins", "sleep";
-		pinctrl-0 = <&emmc_clk_cmd_pins>;
-		pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
-		pinctrl-2 = <&emmc_pins_sleep>;
+		compatible = "amlogic,meson-axg-mmc";
+		reg = <0x0 0xffe07000 0x0 0x800>,
+				<0x0 0xff64625c 0x0 0x4>,
+				<0x0 0xff6346c0 0x0 0x4>;
+		interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 		clocks = <&clkc CLKID_SD_EMMC_C>,
-			   <&peripheral_clkc CLKID_SD_EMMC_C_P0_COMP>,
-			   <&clkc CLKID_FCLK_DIV2>,
-			   <&clkc CLKID_FCLK_DIV2P5>,
-			   <&xtal>;
-		clock-names = "core","clkin0","clkin1","clkin2","xtal";
+				<&peripheral_clkc CLKID_SD_EMMC_C_MUX>,
+				<&peripheral_clkc CLKID_SD_EMMC_C_GATE>,
+				<&xtal>,
+				<&clkc CLKID_FCLK_DIV2>,
+				<&clkc CLKID_GP0_PLL>;
 
-		bus-width = <8>;
-		cap-sd-highspeed;
-		cap-mmc-highspeed;
-		/* mmc-ddr-1_8v; */
-		/* mmc-hs200-1_8v; */
-
-		max-frequency = <200000000>;
-		non-removable;
-		disable-wp;
-		emmc {
-			pinname = "emmc";
-			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
-			/*caps defined in dts*/
-			tx_delay = <10>;
-			runtime = <0>;
-			max_req_size = <0x20000>; /**128KB*/
-			gpio_dat3 = <&gpio GPIOB_3 GPIO_ACTIVE_HIGH>;
-			hw_reset = <&gpio GPIOB_9 GPIO_ACTIVE_HIGH>;
-			card_type = <1>;
-			/* 1:mmc card(include eMMC),
-			 * 2:sd card(include tSD)
-			 */
-		};
+		clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
+		card_type = <1>;
+		tx_delay = <10>;
+		save_para = <0>;
+		src_clk_rate = <780000000>;
+		compute_cmd_delay = <0>;
+		compute_coef = <0>;
+		mmc_debug_flag;
+		/* 1:mmc card(include eMMC),
+		 * 2:sd card(include tSD)
+		 */
 	};
 
 	slc_nand: nand-controller@0xFFE07800 {

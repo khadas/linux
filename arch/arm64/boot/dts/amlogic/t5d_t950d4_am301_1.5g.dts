@@ -1660,21 +1660,24 @@
 }; /* end of pinctrl_periphs */
 
 &sd_emmc_c {
-	status = "disabled";
-	emmc {
-		caps = "MMC_CAP_8_BIT_DATA",
-			 "MMC_CAP_MMC_HIGHSPEED",
-			 "MMC_CAP_SD_HIGHSPEED",
-			 "MMC_CAP_NONREMOVABLE",
-			 "MMC_CAP_1_8V_DDR",
-			 "MMC_CAP_HW_RESET",
-			 "MMC_CAP_ERASE",
-			 "MMC_CAP_CMD23",
-			 "MMC_CAP_DRIVER_TYPE_A";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
-		f_min = <400000>;
-		f_max = <200000000>;
-	};
+	status = "okay";
+	pinctrl-names = "default", "clk-gate";
+	pinctrl-0 = <&emmc_clk_cmd_pins>;
+	pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
+	pinctrl-2 = <&emmc_pins_sleep>;
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	//mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+//	mmc-pwrseq = <&emmc_pwrseq>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&vddao_1v8>;
 };
 
 &spifc {

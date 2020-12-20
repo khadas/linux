@@ -32,6 +32,7 @@
 
 /* the size of bootloader partition */
 #define     MMC_BOOT_PARTITION_SIZE         (4 * SZ_1M)
+#define		MMC_TUNING_OFFSET               0X14400
 
 /* the size of reserve space behind bootloader partition */
 #define     MMC_BOOT_PARTITION_RESERVED     (32 * SZ_1M)

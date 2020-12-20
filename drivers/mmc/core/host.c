@@ -367,8 +367,19 @@ int mmc_of_parse(struct mmc_host *host)
 			 &mmc->sdmmc.hs4.core_phase, 0);
 	aml_dts_u32_read(dev, "hs4_tx_phase",
 			 &mmc->sdmmc.hs4.tx_phase, 0);
-	aml_dts_u32_read(dev, "hs4_tx_delay",
-			 &mmc->sdmmc.hs4.tx_delay, 16);
+	aml_dts_u32_read(dev, "src_clk_rate", &mmc->src_clk_rate, 0);
+
+	if (device_property_read_u32(dev, "tx_delay",
+				&mmc->sdmmc.hs4.tx_delay) < 0)
+		aml_dts_u32_read(dev, "hs4_tx_delay",
+				 &mmc->sdmmc.hs4.tx_delay, 16);
+
+	device_property_read_u32(dev, "save_para", &mmc->save_para);
+	device_property_read_u32(dev, "compute_cmd_delay",
+							  &mmc->compute_cmd_delay);
+
+	device_property_read_u32(dev, "compute_coef", &mmc->compute_coef);
+
 	if (device_property_read_bool(dev, "fixadj_have_hole"))
 		mmc->fixadj_have_hole = 1;
 

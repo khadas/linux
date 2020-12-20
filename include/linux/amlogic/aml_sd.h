@@ -78,6 +78,36 @@ struct meson_mmc_hole {
 	u8 size;
 };
 
+struct hs400_para {
+	unsigned int delay1;
+	unsigned int delay2;
+	unsigned int intf3;
+	unsigned int flag;
+};
+
+struct hs200_para {
+	unsigned int adjust;
+};
+
+struct hs_para {
+	unsigned int adjust;
+};
+
+struct aml_tuning_para {
+	unsigned int chip_id[4];
+	unsigned int magic;
+	unsigned int vddee;
+	struct hs400_para hs4[7];
+	struct hs200_para hs2;
+	struct hs_para hs;
+	unsigned int version;
+	unsigned int busmode;
+	unsigned int update;
+	int temperature;
+	long long checksum;
+
+};
+
 struct meson_host {
 	struct	device		*dev;
 	struct	meson_mmc_data *data;
@@ -137,6 +167,13 @@ struct meson_host {
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
 	int is_uart;
 	int sd_uart_init;
+	int first_temp_index;
+	int cur_temp_index;
+	int compute_cmd_delay;
+	int compute_coef;
+	unsigned int save_para;
+	unsigned int src_clk_rate;
+	struct aml_tuning_para para;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
