@@ -340,6 +340,8 @@ static struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 static u32 reference_zorder = 128;
 static u32 vpp_hold_line = 8;
 static unsigned int cur_vf_flag;
+static u32 vpp_ofifo_size = 0x1000;
+static u32 conv_lbuf_len = 0x100;
 
 static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 	{F2V_P2IT, F2V_P2IB, F2V_P2P},	/* VIDTYPE_PROGRESSIVE */
@@ -731,7 +733,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		}
 		VSYNC_WR_MPEG_REG(vd_afbc_reg->afbc_enable, r);
 
-		r = 0x100;
+		r = conv_lbuf_len;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((type & VIDTYPE_VIU_444) ||
 			    (type & VIDTYPE_RGB_444))
@@ -1212,7 +1214,7 @@ static void vd2_set_dcu(struct video_layer_s *layer,
 		}
 		VSYNC_WR_MPEG_REG(vd2_afbc_reg->afbc_enable, r);
 
-		r = 0x100;
+		r = conv_lbuf_len;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((type & VIDTYPE_VIU_444) ||
 			    (type & VIDTYPE_RGB_444))
@@ -4372,6 +4374,7 @@ static int vpp_zorder_check(void)
 
 void vpp_blend_update(const struct vinfo_s *vinfo)
 {
+	static u32 vpp_misc_set_save;
 	u32 vpp_misc_save, vpp_misc_set, mode = 0;
 	u32 vpp_off = cur_dev->vpp_off;
 	int video1_off_req = 0;
@@ -4653,7 +4656,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
-		if (vpp_misc_set != vpp_misc_save || force_flush) {
+		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[3] = {0, 0, 0};
 			u32 vd1_port, vd2_port, icnt;
 			u32 post_blend_reg[3] = {
@@ -4728,6 +4731,9 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 				set_value |= VPP_VD1_POSTBLEND;
 				set_value |= VPP_VD1_PREBLEND;
 			}
+			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
+			set_value &= 0xfffff1ff;
+			set_value |= (vpp_misc_save & 0xe00);
 			VSYNC_WR_MPEG_REG
 				(VPP_MISC + vpp_off,
 				set_value);
@@ -5934,13 +5940,17 @@ void video_secure_set(void)
 
 int video_hw_init(void)
 {
-	u32 cur_hold_line;
+	u32 cur_hold_line, ofifo_size;
 	struct vpu_dev_s *arb_vpu_dev;
 	int i;
 
 	if (!legacy_vpp) {
+		if (vpp_ofifo_size == 0xff)
+			ofifo_size = 0x1000;
+		else
+			ofifo_size = vpp_ofifo_size;
 		WRITE_VCBUS_REG_BITS
-			(VPP_OFIFO_SIZE, 0x1000,
+			(VPP_OFIFO_SIZE, ofifo_size,
 			VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
 		WRITE_VCBUS_REG_BITS
 			(VPP_MATRIX_CTRL, 0, 10, 5);
@@ -6254,6 +6264,16 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		pre_vscaler_ntap_enable[i] = has_pre_vscaler_ntap(i);
 		pre_hscaler_ntap_set[i] = 0xff;
 		pre_vscaler_ntap_set[i] = 0xff;
+		if (p_amvideo->src_width_max[i] != 0xff)
+			glayer_info[i].src_width_max =
+				p_amvideo->src_width_max[i];
+		else
+			glayer_info[i].src_width_max = 4096;
+		if (p_amvideo->src_height_max[i] != 0xff)
+			glayer_info[i].src_height_max =
+				p_amvideo->src_height_max[i];
+		else
+			glayer_info[i].src_height_max = 2160;
 	}
 	/* only enable vd1 as default */
 	vd_layer[0].global_output = 1;
@@ -6313,6 +6333,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 	/* g12a has no alpha overflow check in hardware */
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
+	vpp_ofifo_size = p_amvideo->ofifo_size;
+	conv_lbuf_len = p_amvideo->afbc_conv_lbuf_len;
 
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 

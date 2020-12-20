@@ -210,6 +210,8 @@ struct disp_info_s {
 	bool dv_support;
 	bool alpha_support;
 	u32 mirror;
+	u32 src_width_max;
+	u32 src_height_max;
 };
 
 enum select_scaler_path_e {
@@ -225,6 +227,9 @@ enum select_scaler_path_e {
 	PPS_CORE0_CORE1,
 	PPS_CORE0_POSTBLEND_CORE1,
 	CORE0_PPS_POSTBLEND_CORE1,
+	/* t5d only have core1, support below tow mode */
+	PPS_POSTBLEND_CORE1,
+	PPS_CORE1_CM,
 	SCALER_PATH_MAX,
 };
 

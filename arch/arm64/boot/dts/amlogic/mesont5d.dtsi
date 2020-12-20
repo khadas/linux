@@ -1316,14 +1316,14 @@
 
 	meson-amvideom {
 		compatible = "amlogic, amvideom-t5d";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
 
 	ionvideo {
 		compatible = "amlogic, ionvideo";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlvideo {

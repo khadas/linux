@@ -300,6 +300,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_TM2_REVB,
 	MESON_CPU_MAJOR_ID_SC2_,
 	MESON_CPU_MAJOR_ID_T5_,
+	MESON_CPU_MAJOR_ID_T5D_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -321,6 +322,10 @@ struct amvideo_device_data_s {
 	u8 has_hscaler_8tap[MAX_VD_LAYER];
 	u8 has_pre_hscaler_ntap[MAX_VD_LAYER];
 	u8 has_pre_vscaler_ntap[MAX_VD_LAYER];
+	u32 src_width_max[MAX_VD_LAYER];
+	u32 src_height_max[MAX_VD_LAYER];
+	u32 ofifo_size;
+	u32 afbc_conv_lbuf_len;
 };
 
 /* from video_hw.c */

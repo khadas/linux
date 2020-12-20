@@ -1211,6 +1211,7 @@ static int vpp_set_filters_internal
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 	int is_larger_4k60hz = 0;
 	u32 cur_super_debug = 0;
+	u32 src_width_max, src_height_max;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1248,6 +1249,8 @@ static int vpp_set_filters_internal
 	video_layer_left = input->layer_left;
 	video_layer_width = input->layer_width;
 	video_layer_height = input->layer_height;
+	src_width_max = input->src_width_max;
+	src_height_max = input->src_height_max;
 #ifdef TV_REVERSE
 	reverse = input->reverse;
 #endif
@@ -1290,7 +1293,16 @@ static int vpp_set_filters_internal
 		pr_info("sar_width=%d, sar_height = %d, %d\n",
 			vf->sar_width, vf->sar_height,
 			force_use_ext_ar);
-
+	if (width_in > src_width_max) {
+		video_source_crop_left =
+			(video_source_crop_left + 1) & ~0x01;
+		video_source_crop_right =
+			(video_source_crop_right + 1) & ~0x01;
+	}
+	if (width_in > src_width_max)
+		next_frame_par->hscale_skip_count++;
+	if (height_in > src_height_max)
+		next_frame_par->vscale_skip_count++;
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -2168,6 +2180,10 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 
 	sr = &sr_info;
 	sr_support = sr->sr_support;
+	if (super_scaler == 0) {
+		sr_support &= ~SUPER_CORE0_SUPPORT;
+		sr_support &= ~SUPER_CORE1_SUPPORT;
+	}
 	sr_reg_offt = sr->sr_reg_offt;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	/* just work around for g12a not to disable sr core2 bit2 */
@@ -2381,9 +2397,11 @@ static void vpp_set_super_scaler
 	sr = &sr_info;
 	sr_support = sr->sr_support;
 	/*for sr adjust*/
-	vpp_super_scaler_support();
-
-	next_frame_par->sr_core_support = sr_support;
+	if (super_scaler == 0) {
+		sr_support &= ~SUPER_CORE0_SUPPORT;
+		sr_support &= ~SUPER_CORE1_SUPPORT;
+	}
+	next_frame_par->sr_core_support = sr->sr_support;
 
 	hor_sc_multiple_num = (1 << PPS_FRAC_BITS) /
 		next_frame_par->vpp_filter.vpp_hsc_start_phase_step;
@@ -2545,7 +2563,9 @@ static void vpp_set_super_scaler
 		next_frame_par->supscl_path == CORE1_AFTER_PPS ||
 		next_frame_par->supscl_path == CORE0_BEFORE_PPS ||
 		next_frame_par->supscl_path == PPS_CORE0_CORE1 ||
-		next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1) &&
+		next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1 ||
+		(next_frame_par->supscl_path == PPS_POSTBLEND_CORE1) ||
+		(next_frame_par->supscl_path == PPS_CORE1_CM)) &&
 	       next_frame_par->supsc1_hori_ratio))) {
 		temp = next_frame_par->VPP_hsc_endp;
 		if (++temp >= vinfo->width) {
@@ -2580,7 +2600,11 @@ static void vpp_set_super_scaler
 				(((next_frame_par->supscl_path ==
 				PPS_CORE0_CORE1) ||
 				(next_frame_par->supscl_path ==
-				PPS_CORE0_POSTBLEND_CORE1)) &&
+				PPS_CORE0_POSTBLEND_CORE1) ||
+				(next_frame_par->supscl_path ==
+				PPS_POSTBLEND_CORE1) ||
+				(next_frame_par->supscl_path ==
+				PPS_CORE1_CM)) &&
 				next_frame_par->supsc1_hori_ratio)) {
 				next_frame_par->supsc1_enable = 0;
 				next_frame_par->supsc1_hori_ratio = 0;
@@ -2603,7 +2627,9 @@ static void vpp_set_super_scaler
 		next_frame_par->supscl_path == CORE1_AFTER_PPS ||
 		next_frame_par->supscl_path == CORE0_BEFORE_PPS ||
 		next_frame_par->supscl_path == PPS_CORE0_CORE1 ||
-		next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1) &&
+		next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1 ||
+		(next_frame_par->supscl_path == PPS_POSTBLEND_CORE1) ||
+		(next_frame_par->supscl_path == PPS_CORE1_CM)) &&
 	       next_frame_par->supsc1_vert_ratio))) {
 		temp = next_frame_par->VPP_vsc_endp;
 		if (++temp >= vinfo->height) {
@@ -2638,7 +2664,11 @@ static void vpp_set_super_scaler
 				(((next_frame_par->supscl_path ==
 				PPS_CORE0_CORE1) ||
 				(next_frame_par->supscl_path ==
-				PPS_CORE0_POSTBLEND_CORE1)) &&
+				PPS_CORE0_POSTBLEND_CORE1) ||
+				(next_frame_par->supscl_path ==
+				PPS_POSTBLEND_CORE1) ||
+				(next_frame_par->supscl_path ==
+				PPS_CORE1_CM)) &&
 				next_frame_par->supsc1_vert_ratio)) {
 				next_frame_par->supsc1_enable = 0;
 				next_frame_par->supsc1_hori_ratio = 0;
@@ -2681,7 +2711,8 @@ static void vpp_set_super_scaler
 	    next_frame_par->supscl_path == CORE1_AFTER_PPS ||
 	    next_frame_par->supscl_path == CORE0_BEFORE_PPS ||
 	    next_frame_par->supscl_path == PPS_CORE0_CORE1 ||
-	    next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1) {
+	    next_frame_par->supscl_path == PPS_CORE0_POSTBLEND_CORE1 ||
+	    next_frame_par->supscl_path == PPS_CORE1_CM) {
 		next_frame_par->spsc1_h_in =
 			(height_out >> next_frame_par->supsc1_vert_ratio);
 		next_frame_par->spsc1_w_in =
@@ -2801,21 +2832,31 @@ static void vpp_set_super_scaler
 				next_frame_par->VPP_vsc_startp + 1;
 		}
 	} else if (sr->core_support == ONLY_CORE1) {
-		if (sr_path == CORE1_BEFORE_PPS)
+		if (sr_path == CORE1_BEFORE_PPS ||
+		    sr_path == PPS_CORE1_CM)
 			next_frame_par->sr1_position = 1;
-		else if (sr_path == CORE1_AFTER_PPS)
+		else if (sr_path == CORE1_AFTER_PPS  ||
+			 sr_path == PPS_POSTBLEND_CORE1)
 			next_frame_par->sr1_position = 0;
 		else
 			next_frame_par->sr1_position = 1;
 		next_frame_par->sr0_position = 0;
 		if (!next_frame_par->sr1_position) {
-			/* sr core 1 output */
-			next_frame_par->cm_input_w =
-				next_frame_par->spsc1_w_in <<
-				next_frame_par->supsc1_hori_ratio;
-			next_frame_par->cm_input_h =
-				next_frame_par->spsc1_h_in <<
-				next_frame_par->supsc1_vert_ratio;
+			/* sr core 1 input */
+			if (sr_path == PPS_POSTBLEND_CORE1) {
+				next_frame_par->cm_input_w =
+					next_frame_par->spsc1_w_in;
+				next_frame_par->cm_input_h =
+					next_frame_par->spsc1_h_in;
+			} else {
+				/* sr core 1 output */
+				next_frame_par->cm_input_w =
+					next_frame_par->spsc1_w_in <<
+					next_frame_par->supsc1_hori_ratio;
+				next_frame_par->cm_input_h =
+					next_frame_par->spsc1_h_in <<
+					next_frame_par->supsc1_vert_ratio;
+				}
 		} else {
 			/* pps output */
 			next_frame_par->cm_input_w =
@@ -3803,16 +3844,6 @@ void vpp_disp_info_init(struct disp_info_s *info, u8 id)
 	}
 }
 
-void vpp_super_scaler_support(void)
-{
-	struct sr_info_s *sr;
-
-	sr = &sr_info;
-	if (super_scaler == 0) {
-		sr->sr_support &= ~SUPER_CORE0_SUPPORT;
-		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
-	}
-}
 /*for gxlx only have core1 which will affact pip line*/
 void vpp_bypass_ratio_config(void)
 {
