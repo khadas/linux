@@ -9124,8 +9124,10 @@ static int get_dolby_uboot_status(char *str)
 	snprintf(uboot_dolby_status, DV_NAME_LEN_MAX, "%s", str);
 	pr_info("get_dolby_on: %s\n", uboot_dolby_status);
 
-	if (!strcmp(uboot_dolby_status, "1"))
+	if (!strcmp(uboot_dolby_status, "1")) {
 		dolby_vision_on_in_uboot = 1;
+		dolby_vision_enable = 1;
+	}
 	return 0;
 }
 __setup("dolby_vision_on=", get_dolby_uboot_status);
