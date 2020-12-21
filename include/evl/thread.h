@@ -397,4 +397,13 @@ int evl_join_kthread(struct evl_kthread *kthread,
 	return evl_join_thread(&kthread->thread, uninterruptible);
 }
 
+static inline struct evl_kthread *
+evl_current_kthread(void)
+{
+	struct evl_thread *t = evl_current();
+
+	return !t || t->state & T_USER ? NULL :
+		container_of(t, struct evl_kthread, thread);
+}
+
 #endif /* !_EVL_THREAD_H */
