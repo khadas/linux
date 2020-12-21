@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
+#include <linux/amlogic/media/di/di.h>
 
 #include "../di_local/di_local.h"
 //#include "di_local.h"
@@ -170,6 +171,14 @@ struct di_win_s {
 };
 
 #define pulldown_mode_t enum pulldown_mode_e
+
+struct dsub_bufv_s {
+	void *in; /* struct dim_nins_s */
+	bool in_noback; /* this is for dec reset */
+	bool src_is_i;
+	void *buffer;	/*for new interface */
+};
+
 struct di_buf_s {
 	struct vframe_s *vframe;
 	int index; /* index in vframe_in_dup[] or vframe_in[],
@@ -261,21 +270,26 @@ struct di_buf_s {
 	struct di_win_s win; /*post write*/
 	struct di_buf_s *di_buf_post; /*07-27 */
 	unsigned long jiff; // for wait
+	struct dim_rpt_s pq_rpt;
 	enum EDI_SGN	sgn_lv;
-	void *pat_buf; /*2020-10-05*/
+//	void *pat_buf; /*2020-10-05*/
 	void *iat_buf; /*2020-10-13*/
 	unsigned int buf_is_i	: 1; /* 1: i; 0: p */
 	unsigned int flg_nr	: 1;
 	unsigned int flg_null	: 1;
-	unsigned int flg_nv21	: 1;
+	unsigned int flg_nv21	: 2;
 	unsigned int is_4k	: 1;
 	unsigned int is_eos	: 1;
 	unsigned int is_lastp	: 1;
 	unsigned int flg_afbce_set	: 1;
 
 	unsigned int trig_post_update	: 1;
-	unsigned int rev1	: 7;
+	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
+	unsigned int is_nbypass	: 1; /*2020-12-07*/
+	//unsigned int src_i	: 1;
+	unsigned int rev1	: 5;
 	unsigned int rev2	: 16;
+	struct dsub_bufv_s	c;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -452,7 +466,8 @@ struct di_pre_stru_s {
 /* true: bypass di all logic, false: not bypass */
 	bool bypass_flag;
 	unsigned int is_bypass_all	: 1;
-	unsigned int rev1		: 31;
+	unsigned int is_bypass_mem	: 1;
+	unsigned int rev1		: 30;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
@@ -580,7 +595,7 @@ struct di_buf_pool_s {
 };
 
 unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int channel);
-bool dim_bypass_first_frame(unsigned int ch);
+//bool dim_bypass_first_frame(unsigned int ch);
 
 int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
 	       int bit10_support, int pack422);
@@ -685,13 +700,22 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
 /*--------------------------*/
-int di_ori_event_qurey_vdin2nr(unsigned int channel);
-int di_ori_event_reset(unsigned int channel);
-int di_ori_event_light_unreg(unsigned int channel);
-int di_ori_event_light_unreg_revframe(unsigned int channel);
-int di_ori_event_ready(unsigned int channel);
-int di_ori_event_qurey_state(unsigned int channel);
-void  di_ori_event_set_3D(int type, void *data, unsigned int channel);
+//int di_ori_event_qurey_vdin2nr(unsigned int channel);
+//int di_ori_event_reset(unsigned int channel);
+//int di_ori_event_light_unreg(unsigned int channel);
+//int di_ori_event_light_unreg_revframe(unsigned int channel);
+//int di_ori_event_ready(unsigned int channel);
+//int di_ori_event_qurey_state(unsigned int channel);
+//void  di_ori_event_set_3D(int type, void *data, unsigned int channel);
+void di_block_set(int val);
+int di_block_get(void);
+void di_lock_irqfiq_save(ulong irq_flag);
+void di_unlock_irqfiq_restore(ulong irq_flag);
+void di_lock_irq(void);
+void di_unlock_irq(void);
+
+int dump_state_flag_get(void);
+int di_get_kpi_frame_num(void);
 
 /*--------------------------*/
 extern int pre_run_flag;
@@ -707,7 +731,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel);
 
 unsigned char pre_p_asi_de_buf_config(unsigned int ch);
 void dim_dbg_release_keep_all(unsigned int ch);
-void dim_post_keep_back_recycle(unsigned int ch);
+//void dim_post_keep_back_recycle(unsigned int ch);
 void dim_post_re_alloc(unsigned int ch);
 //void dim_post_release(unsigned int ch);
 unsigned int dim_cfg_nv21(void);
@@ -787,4 +811,8 @@ void hpre_timeout_read(void);
 
 /*split buffer alloc to i, p , idata, iafbc xxx */
 #define CFG_BUF_ALLOC_SP (1)
+/*@ary_note: 2020-12-17*/
+/* */
+//#define TST_NEW_INS_INTERFACE		(1)
+//#define TMP_TEST	(1)
 #endif

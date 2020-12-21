@@ -54,6 +54,28 @@ bool disable_di_decontour(void)
 	return false;
 }
 
+/* dcntr dynamic used dbg_dct BIT:6-8*/
+bool dcntr_dynamic_alpha_1(void)
+{
+	if (dbg_dct & DI_BIT6)
+		return true;
+	return false;
+}
+
+bool dcntr_dynamic_alpha_2(void)
+{
+	if (dbg_dct & DI_BIT7)
+		return true;
+	return false;
+}
+
+bool dcntr_dynamic_disable(void)
+{
+	if (dbg_dct & DI_BIT8)
+		return true;
+	return false;
+}
+
 enum ECNTR_MIF_IDX {
 	ECNTR_MIF_IDX_DIVR,
 	ECNTR_MIF_IDX_GRID,
@@ -180,7 +202,7 @@ struct dcntr_core_s {
 			st_off	: 1,
 			n_set	: 1,
 			n_up	: 1,
-			rev1	: 1,
+			n_rp	: 1,
 
 			cvs_y	: 8,
 			cvs_uv	: 8,
@@ -837,7 +859,7 @@ static void dcntr_post(void)
 	       ((ysize >> pcfg->in.DS_RATIO) << 16)	|
 		(ysize >> (pcfg->in.DS_RATIO + 1)));
 	pcfg->st_set	= 1;
-	pcfg->st_pause	= 1;
+	//pcfg->st_pause	= 1;
 	pcfg->n_set	= 0;
 	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2,
 		  op->rd(DCNTR_GRID_RMIF_CTRL2));
@@ -867,9 +889,108 @@ static void dcntr_update(void)
 	dim_print("rd:0x%x,0x%x\n",
 		  DCNTR_GRID_RMIF_CTRL2, op->rd(DCNTR_GRID_RMIF_CTRL2));
 
-	if (pcfg->st_pause && ((dbg_dct & DI_BIT0) == 0))
+	if ((dbg_dct & DI_BIT0) == 0) {
+		if ((dbg_dct & DI_BIT2) == 0)
+			di_pq_db_setting(DIM_DB_SV_DCT_BL2);
+
 		op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
+	}
 	pcfg->n_up = 0;
+}
+
+void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
+{
+	u64 map_0;
+	u64 map_1;
+	u64 map_2;
+	u64 map_3;
+	u64 map_15;
+	u64 map_count;
+	unsigned int bld_2;
+	unsigned int val_db;
+	unsigned int pdate[2];
+	unsigned int alpha;
+	unsigned int thr = 60; /* map_count default 60*/
+	unsigned int target = 256; /*max 256*/
+	struct db_save_s *dbp;
+	const struct reg_acc *op = &di_pre_regset;
+
+	if (!rpt || dcntr_dynamic_disable()) {
+		dbg_pq("%s rpt is null or suspend dcntr dynamic.\n", __func__);
+		return;
+	}
+	/*get val form db*/
+	dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
+	if (!dbp) {
+		dbg_pq("val form db failed, default set 0.\n");
+		val_db = 0;
+	} else {
+		/*bits[16-24] is bld value*/
+		val_db = (dbp->val_db & dbp->mask) >> 16;
+		dbg_pq("val:%d form db.\n", val_db);
+	}
+	/*debug alpha dtc bit6:1, bit7:9*/
+	if (dcntr_dynamic_alpha_1())
+		alpha = 1;
+	else if (dcntr_dynamic_alpha_2())
+		alpha = 9;
+	else
+		alpha = 3;
+
+	map_0 = rpt->dct_map_0;
+	map_1 = rpt->dct_map_1;
+	map_2 = rpt->dct_map_2;
+	map_3 = rpt->dct_map_3;
+	map_15 = rpt->dct_map_15;
+	bld_2 = rpt->dct_bld_2;
+	map_count = (map_0 + map_1 + map_2 + map_3) * 10000;
+	dbg_pq("bits[0x%x],mp0-3[%lld,%lld,%lld,%lld],mp15[%lld],count[%lld],bld[0x%x]\n",
+		rpt->spt_bits,  map_0, map_1, map_2, map_3, map_15,
+		map_count,  rpt->dct_bld_2 << 16);
+
+	if (map_count < thr * map_15) {
+		if (bld_2 == target)
+			return;
+		/*+7 is compensation for loss of accuracy*/
+		bld_2 = alpha * target + (10 - alpha) * bld_2 + 7;
+		pdate[0] = (bld_2 / 10);
+
+		if (pdate[0] > target)
+			pdate[0] = target;
+		dbg_pq("case:1, pdate:%x\n", pdate[0]);
+	} else {
+		if (bld_2 == val_db)
+			return;
+		/*db value default 0, function: bld2 = db_val*a + (10-a)*bld_2 */
+		bld_2 = val_db * alpha + (10 - alpha) * bld_2;
+		pdate[0] = (bld_2 / 10);
+
+		if (pdate[0] < val_db)
+			pdate[0] = val_db;
+		dbg_pq("case:0, pdate:%x\n", pdate[0]);
+	}
+	op->bwr(DCTR_BLENDING2, pdate[0], 16, 9);
+}
+
+void dcntr_pq_tune(struct dim_rpt_s *rpt)
+{
+	const struct reg_acc *op = &di_pre_regset;
+//	unsigned int tmp[3];
+	struct dcntr_core_s *pcfg = &di_dcnt;
+
+	if (!pcfg->n_rp)
+		return;
+	rpt->spt_bits |= DI_BIT0;
+	rpt->dct_map_0 = op->rd(DCTR_MAP_HIST_0);
+	rpt->dct_map_1 = op->rd(DCTR_MAP_HIST_1);
+	rpt->dct_map_2 = op->rd(DCTR_MAP_HIST_2);
+	rpt->dct_map_3 = op->rd(DCTR_MAP_HIST_3);
+	rpt->dct_map_15 = op->rd(DCTR_MAP_HIST_15);
+	rpt->dct_bld_2 = op->brd(DCTR_BLENDING2, 16, 9);
+	pcfg->n_rp = 0;
+	dim_print("%s:0x%x\n", __func__, rpt->dct_map_0);
+
+	dcntr_dynamic_setting(rpt);
 }
 
 void dcntr_dis(void)
@@ -877,8 +998,12 @@ void dcntr_dis(void)
 	const struct reg_acc *op = &di_pre_regset;
 	struct dcntr_core_s *pcfg = &di_dcnt;
 
-	if (pcfg->st_pause)
+	if (pcfg->st_pause) {
+		dim_print("%s\n", __func__);
 		op->bwr(DI_PRE_CTRL, 0, 15, 1);// decontour enable
+		pcfg->st_pause	= 0;
+		pcfg->n_rp	= 1;
+	}
 }
 
 void dcntr_set(void)
@@ -906,10 +1031,13 @@ void dcntr_set(void)
 			       (pcfg->in.x_size >> 1));
 		pcfg->n_demo = 0;
 	}
-	if (pcfg->n_set)
+	if (pcfg->n_set) {
 		dcntr_post();
-	else if (pcfg->n_up)
+		pcfg->st_pause	= 1;
+	} else if (pcfg->n_up) {
 		dcntr_update();
+		pcfg->st_pause	= 1;
+	}
 }
 
 static void dbg_pre_cfg(struct dcntr_mem_s *pprecfg)
@@ -958,7 +1086,7 @@ void dcntr_check(struct vframe_s *vfm)
 	if (!pcfg->flg_int)
 		return;
 	/*dbg*/
-	if (dbg_dct & 0x10)
+	if (dbg_dct & DI_BIT4)
 		pcfg->in.grid_use_fix = 1;
 
 	pcfg->n_set	= 0;
@@ -1120,7 +1248,7 @@ void dcntr_check(struct vframe_s *vfm)
 		pcfg->n_set	= 0;
 		pcfg->n_up	= 0;
 	} else {
-		if (chg || (dbg_dct & 0x20))
+		if (chg || (dbg_dct & DI_BIT5))
 			pcfg->n_set	= 1;
 		else
 			pcfg->n_up	= 1;
@@ -1149,6 +1277,7 @@ void dcntr_reg(unsigned int on)
 		pcfg->st_pause	= 0;
 		pcfg->n_set	= 0;
 		pcfg->n_up	= 0;
+		pcfg->n_rp	= 0;
 
 		pcfg->in.grd_num_mode	= 2;
 		pcfg->in.use_cvs	= 1;
@@ -1200,6 +1329,7 @@ int  dbg_dct_mif_show(struct seq_file *s, void *v)
 int dbg_dct_core_show(struct seq_file *s, void *v)
 {
 	struct dcntr_core_s *pcore;
+	struct db_save_s *dbp;
 
 	pcore = &di_dcnt;
 
@@ -1216,6 +1346,18 @@ int dbg_dct_core_show(struct seq_file *s, void *v)
 		   pcore->cvs_y, pcore->cvs_uv);
 	seq_printf(s, "\t:bypass:%d\n", pcore->n_bypass);
 
+	seq_printf(s, "%s:\n", "dct_bl2");
+	dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
+	seq_printf(s, "\t:spt:%d;update:%d;add[0x%x];mask[0x%x]\n",
+		   dbp->support,
+		   dbp->update,
+		   dbp->addr,
+		   dbp->mask);
+	seq_printf(s, "\t:db:en:%d,val[0x%x],pq:%d,0x%x\n",
+		   dbp->en_db,
+		   dbp->val_db,
+		   dbp->en_pq,
+		   dbp->val_pq);
 	return 0;
 }
 

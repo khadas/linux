@@ -64,6 +64,16 @@ bool qpat_idle_to_ready(struct di_ch_s *pch, unsigned long addr);
 struct dim_pat_s *qpat_out_ready(struct di_ch_s *pch);
 bool qpat_in_ready(struct di_ch_s *pch, struct dim_pat_s *pat_buf);
 bool qpat_in_ready_msk(struct di_ch_s *pch, unsigned int msk);
+bool qpat_sct_2_ready(struct di_ch_s *pch, struct dim_pat_s *pat_buf);
+void pat_release_vaddr(struct dim_pat_s *pat);
+void pat_clear_mem(struct device *dev,
+		struct di_ch_s *pch,
+		struct dim_pat_s *pat_buf);
+void pat_frash(struct device *dev,
+		struct di_ch_s *pch,
+		struct dim_pat_s *pat_buf);
+
+void dbg_pat(struct seq_file *s, struct di_ch_s *pch);
 
 void bufq_iat_int(struct di_ch_s *pch);
 void bufq_iat_exit(struct di_ch_s *pch);
@@ -72,6 +82,33 @@ bool qiat_idle_to_ready(struct di_ch_s *pch, struct dim_iat_s **idat);
 struct dim_iat_s *qiat_out_ready(struct di_ch_s *pch);
 bool qiat_in_ready(struct di_ch_s *pch, struct dim_iat_s *iat_buf);
 bool qiat_all_back2_ready(struct di_ch_s *pch);
+
+void bufq_sct_int(struct di_ch_s *pch);
+void bufq_sct_exit(struct di_ch_s *pch);
+void bufq_sct_rest(struct di_ch_s *pch);
+bool qsct_idle_to_req(struct di_ch_s *pch,
+			struct dim_sct_s **sct);
+bool qsct_req_to_idle(struct di_ch_s *pch,
+			struct dim_sct_s **sct);
+
+bool qsct_req_to_ready(struct di_ch_s *pch,
+			struct dim_sct_s **sct);
+bool qsct_ready_to_used(struct di_ch_s *pch,
+			struct dim_sct_s **sct);
+bool qsct_used_some_to_recycle(struct di_ch_s *pch, struct dim_sct_s *sct_buf);
+bool qsct_used_some_to_keep(struct di_ch_s *pch, struct dim_sct_s *sct_buf);
+//bool qsct_used_to_recycle(struct di_ch_s *pch,
+//			struct dim_sct_s **sct);
+bool qsct_any_to_recycle(struct di_ch_s *pch,
+			enum QBF_SCT_Q_TYPE qtype,
+			struct dim_sct_s **sct);
+
+struct dim_sct_s *qsct_req_peek(struct di_ch_s *pch);
+struct dim_sct_s *qsct_peek(struct di_ch_s *pch, unsigned int q);
+bool qsct_recycle_to_idle(struct di_ch_s *pch,
+			struct dim_sct_s **sct);
+
+void dbg_sct_used(struct seq_file *s, struct di_ch_s *pch);
 
 void bufq_mem_int(struct di_ch_s *pch);
 void bufq_mem_exit(struct di_ch_s *pch);
@@ -82,17 +119,29 @@ bool mem_alloc_check(struct di_ch_s *pch);
 
 bool mem_cfg_pre(struct di_ch_s *pch);
 bool mem_cfg(struct di_ch_s *pch);
-void mem_release(struct di_ch_s *pch);
+void mem_release(struct di_ch_s *pch, struct dim_mm_blk_s **blks, unsigned int blk_nub);
 bool mem_2_blk(struct di_ch_s *pch);
 void mem_release_all_inused(struct di_ch_s *pch);
 void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf);
-void mem_release_keep_back(struct di_ch_s *pch);
+unsigned int mem_release_keep_back(struct di_ch_s *pch);
+void dim_post_keep_back_recycle(struct di_ch_s *pch);
+
 bool mem_cfg_realloc(struct di_ch_s *pch); /*temp for re-alloc mem*/
 unsigned int  mem_release_free(struct di_ch_s *pch);
+unsigned int mem_release_sct_wait(struct di_ch_s *pch);
+
 void mem_cfg_realloc_wait(struct di_ch_s *pch);
 
 void bufq_mem_clear(struct di_ch_s *pch);
 void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg);
 void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg);
+
+int codec_mm_keeper_unmask_keeper(int keep_id, int delayms);
+bool dim_blk_tvp_is_sct(struct dim_mm_blk_s *blk_buf);
+bool dim_blk_tvp_is_out(struct dim_mm_blk_s *blk_buf);
+void di_buf_no2wait(struct di_ch_s *pch);
+bool mem_cfg_pst(struct di_ch_s *pch);
+void mem_resize_buf(struct di_ch_s *pch, struct di_buf_s *di_buf);
+
 /*-------------------------*/
 #endif	/*__DI_SYS_H__*/

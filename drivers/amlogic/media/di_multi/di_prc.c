@@ -36,6 +36,8 @@
 #include "di_post.h"
 #include "di_api.h"
 #include "di_hw_v3.h"
+#include "reg_decontour.h"
+#include "deinterlace_dbg.h"
 
 #include <linux/amlogic/media/di/di.h>
 //#include "../deinterlace/di_pqa.h"
@@ -51,11 +53,23 @@ static unsigned int dim_cfg = 1;
 #endif
 module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
+static unsigned int dim_dbg_dec21;
+module_param_named(dim_dbg_dec21, dim_dbg_dec21, uint, 0644);
+unsigned int dim_get_dbg_dec21(void)
+{
+	return dim_dbg_dec21;
+}
+
+bool dim_in_linear(void)
+{
+	return (dim_dbg_dec21 & 0x200) ? true : false;
+}
 /**************************************
  *
  * cfg ctr top
  *	bool
  **************************************/
+static unsigned int dbg_unreg_flg;
 
 const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/*same order with enum eDI_DBG_CFG*/
@@ -93,12 +107,16 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_4K]  = {"en_4k",
 			EDI_CFG_4K,
+			/* 0: not support 4K;	*/
+			/* 1: enable 4K		*/
+			/* 2: dynamic: vdin: 4k enable, other, disable	*/
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_POUT_FMT]  = {"po_fmt",
 	/* 0:default; 1: nv21; 2: nv12; 3:afbce */
 	/* 4: dynamic change p out put;	 4k:afbce, other:yuv422 10*/
 	/* 5: dynamic: 4k: nv21, other yuv422 10bit */
+	/* 6: dynamic: like 4: 4k: afbce yuv420, other:yuv422 10 */
 			EDI_CFG_POUT_FMT,
 			3,
 			K_DI_CFG_T_FLG_DTS},
@@ -106,10 +124,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_DAT,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_ALLOC_WAIT]  = {"alloc waite", /* 0:not wait; 1: wait */
-			EDI_CFG_ALLOC_WAIT,
-			0, //1, //
-			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_ALLOC_SCT]  = {"alloc sct",
+		/* 0:not support;	*/
+		/* 1: for 4k only	*/
+			EDI_CFG_ALLOC_SCT,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_KEEP_DEC_VF]  = {"keep_dec_vf",
 			/* 0:not keep; 1: keep dec vf for p; 2: dynamic*/
 			EDI_CFG_KEEP_DEC_VF,
@@ -118,6 +138,31 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	[EDI_CFG_POST_NUB]  = {"post_nub",
 			/* 0:not config post nub;*/
 			EDI_CFG_POST_NUB,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_BYPASS_MEM]  = {"bypass_mem",
+			/* 0:not bypass;	*/
+			/* 1:bypass;		*/
+			/* 2: when 4k bypass	*/
+			/* 3: when 4k bypass,but not from vdin */
+			EDI_CFG_BYPASS_MEM,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_IOUT_FMT]  = {"io_fmt",
+	/* 0:default; 1: nv21; 2: nv12; 3:afbce */
+			EDI_CFG_IOUT_FMT,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_TMODE_1]  = {"tmode1",
+			EDI_CFG_TMODE_1,
+			1,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_TMODE_2]  = {"tmode2",
+			EDI_CFG_TMODE_2,
+			1,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_TMODE_3]  = {"tmode3",
+			EDI_CFG_TMODE_3,
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
@@ -341,6 +386,25 @@ void di_cfg_top_set(enum EDI_CFG_TOP_IDX id, unsigned int val)
 	pd->b.val_c = val;
 }
 
+void di_cfg_cp_ch(struct di_ch_s *pch)
+{
+	int i;
+
+	for (i = 0; i < EDI_CFG_END; i++)
+		pch->cfg_cp[i] = di_cfg_top_get(i);
+}
+
+unsigned char di_cfg_cp_get(struct di_ch_s *pch, enum EDI_CFG_TOP_IDX id)
+{
+	return pch->cfg_cp[id];
+}
+
+void di_cfg_cp_set(struct di_ch_s *pch,
+		   enum EDI_CFG_TOP_IDX id,
+		   unsigned char val)
+{
+	pch->cfg_cp[id] = val;
+}
 /**************************************
  *
  * cfg ctr x
@@ -797,6 +861,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				EDI_MP_SUB_3D_E, 0},
 
 	/**************************************/
+	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:long?",
+				edi_mp_clock_low_ratio, 60000000},
 	[EDI_MP_UI_T_END]  = {"module para top end ", EDI_MP_UI_T_END, 0},
 };
 
@@ -1092,16 +1158,27 @@ void dim_sumx_clear(unsigned int ch)
 	memset(psumx, 0, sizeof(*psumx));
 }
 
-void dim_sumx_set(unsigned int ch)
+void dim_sumx_set(struct di_ch_s *pch)
 {
-	struct dim_sum_s *psumx = get_sumx(ch);
+	//struct di_ch_s *pch;
+	struct dim_sum_s *psumx;// = get_sumx(ch);
+	unsigned int ch;
 
+	//pch = get_chdata(ch);
+	psumx = &pch->sumx;
+	ch = pch->ch_id;
 	psumx->b_pre_free	= list_count(ch, QUEUE_LOCAL_FREE);
 	psumx->b_pre_ready	= di_que_list_count(ch, QUE_PRE_READY);
 	psumx->b_pst_free	= di_que_list_count(ch, QUE_POST_FREE);
-	psumx->b_pst_ready	= di_que_list_count(ch, QUE_POST_READY);
+	psumx->b_pst_ready	= ndrd_cnt(pch);//di_que_list_count(ch, QUE_POST_READY);
 	psumx->b_recyc		= list_count(ch, QUEUE_RECYCLE);
 	psumx->b_display	= list_count(ch, QUEUE_DISPLAY);
+	psumx->b_nin		= nins_cnt(pch, QBF_NINS_Q_CHECK);
+
+	if (psumx->b_nin && psumx->b_pst_free)
+		bset(&pch->self_trig_need, 0);
+	else
+		bclr(&pch->self_trig_need, 0);
 }
 
 /****************************/
@@ -1154,228 +1231,6 @@ void dip_cma_close(void)
 	}
 	pbm->cma_flg_run = 0;
 }
-
-#ifdef MARK_SC2
-static void dip_wq_cma_handler(struct work_struct *work)
-{
-	struct di_mng_s *pbm = get_bufmng();
-	enum EDI_CMA_ST cma_st;
-	bool do_flg;
-	struct dim_wq_s *wq;
-	ulong flags = 0;
-
-	unsigned int ch;
-	unsigned int cma_cmd;
-
-	spin_lock_irqsave(&plist_lock, flags);
-	pbm->cma_flg_run |= DI_BIT0;
-	wq = container_of(work, struct dim_wq_s, wq_work);
-	do_flg = false;
-	ch = wq->ch;
-	cma_cmd = wq->cmd;
-	spin_unlock_irqrestore(&plist_lock, flags);
-	cma_st = dip_cma_get_st(ch);
-
-	dbg_wq("%s:ch[%d],cmd[%d],st[%d][%d]\n",
-	       "k:h:", ch, cma_cmd, cma_st, wq->cnt);
-
-	/* release alloc one ******************************/
-	if (cma_cmd == ECMA_CMD_ONE_RE_AL) {
-		dpst_cma_re_alloc_re_alloc(ch);
-
-		spin_lock_irqsave(&plist_lock, flags);
-		pbm->cma_flg_run &= (~DI_BIT0);
-		pbm->cma_flg_run &= (~DI_BIT3);
-		task_send_ready();
-		spin_unlock_irqrestore(&plist_lock, flags);
-		return;
-	} else if (cma_cmd == ECMA_CMD_ONE_RELEAS) {
-		dpst_cma_r_back_unreg(ch);
-
-		spin_lock_irqsave(&plist_lock, flags);
-		pbm->cma_flg_run &= (~DI_BIT0);
-		pbm->cma_flg_run &= (~DI_BIT3);
-		task_send_ready();
-		spin_unlock_irqrestore(&plist_lock, flags);
-		return;
-	}
-	/**************************************************/
-	switch (cma_st) {
-	case EDI_CMA_ST_IDL:
-		if (cma_cmd == ECMA_CMD_ALLOC) {
-			do_flg = true;
-			/*set:alloc:*/
-			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
-			if (dim_cma_top_alloc(ch)) {
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_READY);
-			}
-		}
-		break;
-	case EDI_CMA_ST_READY:
-		if (cma_cmd == ECMA_CMD_RELEASE ||
-		    cma_cmd == ECMA_CMD_BACK) {
-			do_flg = true;
-			atomic_set(&pbm->cma_mem_state[ch],
-				   EDI_CMA_ST_RELEASE);
-			dim_cma_top_release(ch);
-			if (di_que_is_empty(ch, QUE_POST_KEEP))
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_IDL);
-			else
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_PART);
-			dpst_cma_re_alloc_unreg(ch);
-		}
-		break;
-	case EDI_CMA_ST_PART:
-		if (cma_cmd == ECMA_CMD_ALLOC) {
-			do_flg = true;
-			/*set:alloc:*/
-			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
-			if (dim_cma_top_alloc(ch)) {
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_READY);
-			}
-		} else if ((cma_cmd == ECMA_CMD_RELEASE) ||
-			   (cma_cmd == ECMA_CMD_BACK)) {
-			do_flg = true;
-			atomic_set(&pbm->cma_mem_state[ch],
-				   EDI_CMA_ST_RELEASE);
-			dim_cma_top_release(ch);
-			if (di_que_is_empty(ch, QUE_POST_KEEP))
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_IDL);
-			else
-				atomic_set(&pbm->cma_mem_state[ch],
-					   EDI_CMA_ST_PART);
-		}
-
-		break;
-	case EDI_CMA_ST_ALLOC:	/*do*/
-	case EDI_CMA_ST_RELEASE:/*do*/
-	default:
-		break;
-	}
-	if (!do_flg)
-		PR_INF("\tch[%d],do nothing[%d]\n", ch, cma_st);
-
-	dbg_wq("%s:end\n", __func__);
-	spin_lock_irqsave(&plist_lock, flags);
-	pbm->cma_flg_run &= (~DI_BIT0);
-	pbm->cma_flg_run &= (~DI_BIT3);
-	task_send_ready();
-	spin_unlock_irqrestore(&plist_lock, flags);
-}
-
-static void dip_wq_prob(void)
-{
-	struct di_mng_s *pbm = get_bufmng();
-
-	pbm->wq.wq_cma = create_singlethread_workqueue("deinterlace");
-	INIT_WORK(&pbm->wq.wq_work, dip_wq_cma_handler);
-}
-
-static void dip_wq_ext(void)
-{
-	struct di_mng_s *pbm = get_bufmng();
-
-	cancel_work_sync(&pbm->wq.wq_work);
-	destroy_workqueue(pbm->wq.wq_cma);
-	pr_info("%s:finish\n", __func__);
-}
-#endif
-#ifdef MARK_SC2
-static void dip_wq_check(unsigned int ch)
-{
-	struct di_mng_s *pbm = get_bufmng();
-	enum EDI_CMA_ST cma_st;
-
-	/* for reg */
-	if (pbm->cma_wqsts[ch] & DI_BIT0) {
-		PR_WARN("k:cma_check:ch[%d] release lost\n", ch);
-		pbm->cma_wqsts[ch] &= (~DI_BIT0);
-	}
-	if (pbm->cma_wqsts[ch] & DI_BIT1) {
-		pbm->cma_wqsts[ch] &= (~DI_BIT1);
-		cma_st = dip_cma_get_st(ch);
-		if (cma_st == EDI_CMA_ST_IDL ||
-		    cma_st == EDI_CMA_ST_PART) {
-			dip_wq_cma_run(ch, ECMA_CMD_ALLOC);
-			PR_WARN("k:cma_re:ch[%d]\n", ch);
-		}
-	}
-}
-
-void dip_wq_check_unreg(unsigned int ch)
-{
-	struct di_mng_s *pbm = get_bufmng();
-
-	if (pbm->cma_wqsts[ch] & DI_BIT0) {
-		PR_WARN("k:unreg\n");
-		/* after unreg */
-		cancel_work_sync(&pbm->wq.wq_work);
-		pbm->cma_wqsts[ch] &= (~DI_BIT0);
-		dip_wq_cma_run(ch, ECMA_CMD_RELEASE);
-	}
-}
-
-void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd)
-{
-	struct di_mng_s *pbm = get_bufmng();
-	bool ret = true;
-
-	dbg_wq("%s:ch[%d] [%d][%d]\n",
-	       "k:u", ch, reg_cmd, pbm->cma_wqcnt);
-	pbm->cma_flg_run |= DI_BIT2;
-	if (pbm->cma_flg_run & DI_BIT0) {
-		if (reg_cmd == ECMA_CMD_ALLOC)
-			pbm->cma_wqsts[ch] |= DI_BIT1;
-		else if (reg_cmd == ECMA_CMD_RELEASE)
-			pbm->cma_wqsts[ch] |= DI_BIT0;
-		else if (reg_cmd == ECMA_CMD_ONE_RE_AL)
-			pbm->cma_wqsts[ch] |= DI_BIT3;
-		else if (reg_cmd == ECMA_CMD_ONE_RELEAS)
-			pbm->cma_wqsts[ch] |= DI_BIT4;
-		PR_WARN("k:cma:2 ch[%d][%d]\n", ch, reg_cmd);
-		pbm->cma_flg_run &= (~DI_BIT2);
-		return;
-	}
-
-	pbm->wq.cmd = reg_cmd;
-
-	pbm->wq.ch = ch;
-	pbm->wq.cnt = pbm->cma_wqcnt;
-	ret = queue_work(pbm->wq.wq_cma, &pbm->wq.wq_work);
-	if (!ret) {
-		PR_WARN("k:cma:ch[%d] [%d]\n", ch, reg_cmd);
-		if (reg_cmd == ECMA_CMD_ALLOC)
-			pbm->cma_wqsts[ch] |= DI_BIT1;
-		else if (reg_cmd == ECMA_CMD_RELEASE)
-			pbm->cma_wqsts[ch] |= DI_BIT0;
-		else if (reg_cmd == ECMA_CMD_ONE_RE_AL)
-			pbm->cma_wqsts[ch] |= DI_BIT3;
-		else if (reg_cmd == ECMA_CMD_ONE_RELEAS)
-			pbm->cma_wqsts[ch] |= DI_BIT4;
-	} else {
-		pbm->cma_flg_run |= DI_BIT3;
-	}
-	pbm->cma_wqcnt++;
-	pbm->cma_flg_run &= (~DI_BIT2);
-	dbg_wq("%s:end\n", "k:u");
-}
-
-bool dip_cma_st_is_ready(unsigned int ch)
-{
-	struct di_mng_s *pbm = get_bufmng();
-	bool ret = false;
-
-	if (atomic_read(&pbm->cma_mem_state[ch]) == EDI_CMA_ST_READY)
-		ret = true;
-
-	return ret;
-}
-#endif
 
 bool dip_cma_st_is_idle(unsigned int ch)
 {
@@ -1473,16 +1328,17 @@ void dip_chst_process_ch(void)
 	struct vframe_s *vframe;
 	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
 //	struct di_mng_s *pbm = get_bufmng();
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
 	struct di_ch_s *pch;
 	struct di_mng_s *pbm = get_bufmng();
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pch = get_chdata(ch);
-		if (atomic_read(&pbm->trig_reg[ch]))
-			dim_process_reg(pch);
 		if (atomic_read(&pbm->trig_unreg[ch]))
 			dim_process_unreg(pch);
+		else if (atomic_read(&pbm->trig_reg[ch]))
+			dim_process_reg(pch);
+
 
 		dip_process_reg_after(pch);
 
@@ -1501,16 +1357,20 @@ void dip_chst_process_ch(void)
 
 			break;
 		case EDI_TOP_STATE_READY:
-			spin_lock_irqsave(&plist_lock, flags);
-			dim_post_keep_back_recycle(ch);
-			spin_unlock_irqrestore(&plist_lock, flags);
-			dim_sumx_set(ch);
+			dip_itf_vf_op_polling(pch);
+			dip_itf_back_input(pch);
+//ary 2020-12-09			spin_lock_irqsave(&plist_lock, flags);
+			dim_post_keep_back_recycle(pch);
+//ary 2020-12-09			spin_unlock_irqrestore(&plist_lock, flags);
+			//move dim_sumx_set(ch);
+			//dbg_nins_check_id(pch);
+//			tst_release(pch);
 #ifdef SC2_NEW_FLOW
 			ins_in_vf(pch);
 #endif
 			break;
 		case EDI_TOP_STATE_BYPASS:
-			vframe = pw_vf_peek(ch);
+			vframe = nins_peekvfm(pch);
 			if (!vframe)
 				break;
 			if (dim_need_bypass(ch, vframe))
@@ -1526,6 +1386,27 @@ void dip_chst_process_ch(void)
 			break;
 
 		default:
+			break;
+		}
+	}
+}
+
+void dip_sum_post_ch(void)
+{
+	unsigned int ch;
+	unsigned int chst;
+	struct di_ch_s *pch;
+
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		chst = dip_chst_get(ch);
+		switch (chst) {
+		case EDI_TOP_STATE_READY:
+			dim_sumx_set(pch);
+			bclr(&pch->self_trig_mask, 30);
+			break;
+		default:
+			bset(&pch->self_trig_mask, 30);
 			break;
 		}
 	}
@@ -1691,7 +1572,9 @@ bool dim_process_reg(struct di_ch_s *pch)
 	case EDI_TOP_STATE_IDLE:
 		queue_init2(ch);
 		di_que_init(ch);
+		bufq_nin_reg(pch);
 		//move to event di_vframe_reg(ch);
+		di_cfg_cp_ch(pch);
 
 		dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
 		task_send_cmd(LCMD1(ECMD_REG, ch));
@@ -1854,7 +1737,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	unsigned int ch = pch->ch_id;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool reflesh = true;
-	struct di_mng_s *pbm = get_bufmng();
+//	struct di_mng_s *pbm = get_bufmng();
 //	ulong flags = 0;
 
 	while (reflesh) {
@@ -1869,7 +1752,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	case EDI_TOP_STATE_IDLE:
 		break;
 	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
-		vframe = pw_vf_peek(ch);
+		dip_itf_vf_op_polling(pch);
+		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
 			dbg_timer(ch, EDBG_TIMER_FIRST_GET);
@@ -1884,16 +1768,17 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		}
 		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
-		vframe = pw_vf_peek(ch);
+		vframe = nins_peekvfm(pch);
 		if (!vframe) {
 			PR_ERR("%s:p1 vfm nop\n", __func__);
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
 			reflesh = true;
 			break;
 		}
+		#ifdef MARK_HIS
 		if (pbm->cma_flg_run & DI_BIT0)
 			break;
-
+		#endif
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
@@ -1939,14 +1824,21 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		    mem_alloc_check(pch)) {
 			mem_cfg(pch);
 #endif
-			mem_cfg_realloc_wait(pch);
-			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
-				if (get_sum_g(ch) == 0)
-					dim_bypass_first_frame(ch);
-				else
+			//mem_cfg_realloc_wait(pch);
+			sct_mng_working(pch);
+			sct_alloc_in_poling(pch->ch_id);
+			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS) &&
+			    pch->itf.etype == EDIM_NIN_TYPE_VFM) {
+				if (get_sum_g(ch) == 0) {
+					if (dip_itf_vf_sop(pch) &&
+					    dip_itf_vf_sop(pch)->vf_m_bypass_first_frame)
+						dip_itf_vf_sop(pch)->vf_m_bypass_first_frame(pch);
+				} else {
 					PR_INF("ch[%d],g[%d]\n",
 					       ch, get_sum_g(ch));
+				}
 			}
+
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
 		}
@@ -1964,6 +1856,65 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	}
 }
 
+/****************************************************************
+ * tmode
+ ****************************************************************/
+void dim_tmode_preset(void)
+{
+	struct di_mng_s *pbm = get_bufmng();
+	unsigned int ch;
+	unsigned int cnt;
+
+	/*EDIM_TMODE_1_PW_VFM*/
+	cnt = min_t(size_t, DI_CHANNEL_NUB, cfgg(TMODE_1));
+	for (ch = 0; ch < cnt; ch++)
+		pbm->tmode_pre[ch] = EDIM_TMODE_1_PW_VFM;
+
+	/*EDIM_TMODE_2_PW_OUT*/
+	cnt += cfgg(TMODE_2);
+	cnt = min_t(size_t, DI_CHANNEL_NUB, cnt);
+	for (; ch < cnt; ch++)
+		pbm->tmode_pre[ch] = EDIM_TMODE_2_PW_OUT;
+
+	/*EDIM_TMODE_3_PW_LOCAL*/
+	cnt += cfgg(TMODE_3);
+	cnt = min_t(size_t, DI_CHANNEL_NUB, cnt);
+	for (; ch < cnt; ch++)
+		pbm->tmode_pre[ch] = EDIM_TMODE_3_PW_LOCAL;
+
+	/*dbg*/
+	PR_INF("%s:\n", __func__);
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++)
+		PR_INF("\tch[%d]:tmode[%d]\n", ch, pbm->tmode_pre[ch]);
+}
+
+void dim_tmode_set(unsigned int ch, enum EDIM_TMODE tmode)
+{
+	struct di_mng_s *pbm = get_bufmng();
+
+	if (ch >= DI_CHANNEL_NUB)
+		return;
+
+	pbm->tmode_pre[ch] = tmode;
+}
+
+bool dim_tmode_is_localpost(unsigned int ch)
+{
+//	struct di_mng_s *pbm = get_bufmng();
+	struct di_ch_s *pch;
+
+	if (ch >= DI_CHANNEL_NUB) {
+		PR_ERR("%s:ch[%d]\n", __func__, ch);
+		return false;
+	}
+	pch = get_chdata(ch);
+
+	if (pch->itf.tmode == EDIM_TMODE_2_PW_OUT)
+		return false;
+	return true;
+}
+
+/************************************************/
 void dip_hw_process(void)
 {
 	di_dbg_task_flg = 5;
@@ -1973,6 +1924,7 @@ void dip_hw_process(void)
 	di_dbg_task_flg = 7;
 	dpst_process();
 	di_dbg_task_flg = 8;
+	dpre_after_do_table();
 }
 
 const char * const di_top_state_name[] = {
@@ -2279,7 +2231,7 @@ void do_table_working(struct do_table_s *pdo)
 {
 	const struct do_table_ops_s *pcrr;
 	unsigned int ret = 0;
-	unsigned int next;
+	unsigned int next = 0;
 	bool flash = false;
 	unsigned int cnt = 0;	/*proction*/
 	unsigned int lst_id;	/*dbg only*/
@@ -2322,8 +2274,10 @@ void do_table_working(struct do_table_s *pdo)
 
 	/*pause?*/
 	if (pdo->op_crr == K_DO_TABLE_ID_STOP	||
-	    pdo->op_crr == K_DO_TABLE_ID_PAUSE)
+	    pdo->op_crr == K_DO_TABLE_ID_PAUSE) {
+		lst_id = pdo->op_crr;
 		return;
+	}
 
 	do {
 		flash = false;
@@ -2408,6 +2362,7 @@ void do_table_working(struct do_table_s *pdo)
 		}
 
 		pcrr = pdo->ptab + pdo->op_crr;
+		dbg_dt("next[%d] op[%d] flash[%d]\n", next, pdo->op_crr, flash);
 	} while (flash && !pdo->do_step);
 
 	/*debug 2:*/
@@ -2559,6 +2514,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	unsigned int reason = 0;
 	unsigned int ptt, pcu, i;
 	unsigned int ch;
+	unsigned int x, y;
 
 	ch = pch->ch_id;
 
@@ -2584,6 +2540,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 		dump_stack();
 		return reason;
 	}
+	dim_vf_x_y(vf, &x, &y);
 	/*count total*/
 	ptt = 0;
 	for (i = 0; i < DI_CHANNEL_NUB; i++)
@@ -2592,8 +2549,8 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	ptt -= pp->ch[ch];
 
 	/*count current*/
-	pcu = (vf->height >> DIM_POLICY_SHIFT_H) *
-		(vf->width >> DIM_POLICY_SHIFT_W);
+	pcu = (y >> DIM_POLICY_SHIFT_H) *
+		(x >> DIM_POLICY_SHIFT_W);
 	if (VFMT_IS_I(vf->type))
 		pcu >>= 1;
 
@@ -2657,6 +2614,25 @@ static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
 }
 
 /****************************/
+bool dip_is_support_4k(unsigned int ch)
+{
+	struct di_ch_s *pch = get_chdata(ch);
+
+	if ((cfgg(4K) == 1) ||
+	    ((cfgg(4K) == 2) && IS_VDIN_SRC(pch->src_type)))
+		return true;
+	return false;
+}
+
+bool dip_is_support_nv2110(unsigned int ch)
+{
+	struct di_ch_s *pch = get_chdata(ch);
+
+	if ((cfggch(pch, POUT_FMT) == 6) && (!IS_VDIN_SRC(pch->src_type)))
+		return true;
+	return false;
+}
+
 void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 {
 	struct di_post_stru_s *ppost;
@@ -2696,6 +2672,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_prog_proc_config, 0x23);
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
+	pch->src_type = vframe->source_type;
 	if (dim_afds())
 		di_set_default(ch);
 
@@ -2706,7 +2683,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 
 	if (cfgg(FIX_BUF)) {
 		if (dim_afds()	&&
-		    cfgg(4K)) {
+		    cfggch(pch, 4K)) {
 			memcpy(&mm->cfg, &c_mm_cfg_fix_4k,
 			       sizeof(struct di_mm_cfg_s));
 		} else {
@@ -2714,27 +2691,30 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 			       sizeof(struct di_mm_cfg_s));
 		}
 		mm->cfg.fix_buf = 1;
-	} else if (!cfgg(4K)) {
+	} else if (!cfggch(pch, 4K)) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	} else if (sgn <= EDI_SGN_HD) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
-		if (cfgg(POUT_FMT) == 4)
+		if ((cfggch(pch, POUT_FMT) == 4) || (cfggch(pch, POUT_FMT) == 6))
 			mm->cfg.dis_afbce = 1;
 	} else if ((sgn <= EDI_SGN_4K)	&&
 		 dim_afds()		&&
-		 cfgg(4K)) {
+		 dip_is_support_4k(ch)) {
 		memcpy(&mm->cfg, &c_mm_cfg_4k, sizeof(struct di_mm_cfg_s));
 	} else {
 		memcpy(&mm->cfg, &c_mm_cfg_bypass, sizeof(struct di_mm_cfg_s));
 	}
+
+	if ((cfggch(pch, POUT_FMT) <= 2))
+		mm->cfg.dis_afbce = 1;
 
 	if (cfgg(FIX_BUF))
 		mm->cfg.fix_buf = 1;
 	else
 		mm->cfg.fix_buf = 0;
 
-	post_nub = cfgg(POST_NUB);
-	if (post_nub && post_nub < POST_BUF_NUM)
+	post_nub = cfggch(pch, POST_NUB);
+	if ((post_nub) && post_nub < POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
 	PR_INF("%s:ch[%d]:fix_buf:%d\n", __func__, ch, mm->cfg.fix_buf);
@@ -2747,6 +2727,7 @@ enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe)
 	unsigned int h, v;
 	enum EDI_SGN sgn;
 
+#ifdef HIS_CODE
 	if (IS_COMP_MODE(vframe->type)) {
 		h = vframe->compWidth;
 		v = vframe->compHeight;
@@ -2754,6 +2735,8 @@ enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe)
 		h = vframe->width;
 		v = vframe->height;
 	}
+#endif
+	dim_vf_x_y(vframe, &h, &v);
 
 	if (h <= 1280 && v <= 720) {
 		sgn = EDI_SGN_SD;
@@ -2769,6 +2752,160 @@ enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe)
 	return sgn;
 }
 
+/************************************************
+ *
+ ************************************************/
+static void pq_sv_db_ini(void)
+{
+	struct db_save_s *dbp;
+	/* dct */
+	if (DIM_IS_IC(T5)) {
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
+		dbp->support = 1;
+		dbp->addr	= DCTR_BLENDING2;
+	}
+}
+
+void dim_pq_db_setreg(unsigned int nub, unsigned int *preg)
+{
+	unsigned int i;
+	struct db_save_s *dbp;
+	unsigned int nubl;
+
+	if (dil_get_diffver_flag() != 1)
+		return;
+
+	nubl = nub;
+	if (nubl > DIM_DB_SAVE_NUB) {
+		PR_ERR("%s:nub is overflow %d\n",
+			 __func__, nub);
+		nubl = DIM_DB_SAVE_NUB;
+	}
+
+	for (i = 0; i < nubl; i++) {
+		dbp = &get_datal()->db_save[i];
+		dbp->addr = preg[i];
+		PR_INF("%s:reg:0x%x\n", __func__, preg[i]);
+	}
+}
+EXPORT_SYMBOL(dim_pq_db_setreg);
+
+/**************************************************
+ * pdate:
+ *	value / mask
+ *	need keep same order with di_patch_mov_setreg
+ **************************************************/
+bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate)
+{
+	struct db_save_s *dbp;
+	//int i;
+	bool ret = true;
+
+	if (dil_get_diffver_flag() != 1)
+		return false;
+
+	if (idx >= DIM_DB_SAVE_NUB)
+		return false;
+
+	dbp = &get_datal()->db_save[idx];
+
+	if (!dbp->support)
+		return false;
+
+	switch (mode) {
+	case 0:/*setting from db*/
+		dbp->mode = 0;
+		dbp->update = 1;
+		break;
+	case 1:/*setting from pq*/
+		dbp->update = 0;
+
+		dbp->val_pq = pdate[0];
+		dbp->mask = pdate[1];
+		dbp->en_pq = true;
+
+		dbp->mode = 1;
+		dbp->update = true;
+
+		break;
+	default:
+		ret = false;
+		break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(dim_pq_db_sel);
+
+void di_pq_db_setting(enum DIM_DB_SV idx)
+{
+	unsigned int val, vall;
+	struct db_save_s *dbp;
+	const struct reg_acc *op = &di_pre_regset;
+
+	if (idx >= DIM_DB_SAVE_NUB)
+		return;
+
+	dbp = &get_datal()->db_save[idx];
+
+	if (!dbp->support ||
+	    dbp->mode < 0	||
+	    dbp->mode > 1	||
+	    !dbp->update)
+		return;
+	dbg_pq("%s:1\n", __func__);
+	if (dbp->mode == 0 && dbp->en_db) {
+		val = dbp->val_db;
+	} else if ((dbp->mode == 1) && (dbp->en_pq)) {
+		val = dbp->val_pq;
+	} else {
+		dbg_pq("%s:mode[%d], en[%d,%d]\n",
+			__func__, dbp->mode,
+			dbp->en_db,
+			dbp->en_pq);
+		return;
+	}
+
+	if (dbp->mask != 0xffffffff) {
+		vall = ((op->rd(dbp->addr) &
+			(~(dbp->mask))) |
+			(val & dbp->mask));
+	} else {
+		vall = val;
+	}
+	op->wr(dbp->addr, vall);
+	dbg_pq("%s:0x%x,0x%x\n", __func__, dbp->addr, val);
+	dbp->update = 0;
+}
+
+struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm)
+{
+	struct di_buf_s *di_buf;
+
+	if (dil_get_diffver_flag() != 1)
+		return NULL;
+
+	if (!vfm)
+		return NULL;
+	if (!vfm->private_data ||
+	    ((vfm->type & VIDTYPE_DI_PW) == 0))
+		return NULL;
+
+	di_buf = (struct di_buf_s *)vfm->private_data;
+	return &di_buf->pq_rpt;
+}
+EXPORT_SYMBOL(dim_api_getrpt);
+
+void dim_pqrpt_init(struct dim_rpt_s *rpt)
+{
+	if (!rpt)
+		return;
+
+	dim_print("%s:\n", __func__);
+	memset(rpt, 0, sizeof(*rpt));
+	rpt->version = 1;
+}
+
+/*******************************************/
 static bool dip_init_value(void)
 {
 	unsigned int ch;
@@ -2788,8 +2925,8 @@ static bool dip_init_value(void)
 		/*que*/
 		ret = di_que_alloc(ch);
 		if (ret) {
-			pw_queue_clear(ch, QUE_POST_KEEP);
-			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
+//			pw_queue_clear(ch, QUE_POST_KEEP);
+//			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
 		}
 		mm = dim_mm_get(ch);
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
@@ -2800,6 +2937,1697 @@ static bool dip_init_value(void)
 	set_current_channel(0);
 
 	return ret;
+}
+
+/************************************************
+ * ins
+ ************************************************/
+static const struct que_creat_s qbf_nin_cfg_q[] = {//TST_Q_IN_NUB
+	[QBF_NINS_Q_IDLE] = {
+		.name	= "QBF_NINS_Q_IDLE",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NINS_Q_CHECK] = {
+		.name	= "QBF_NINS_Q_CHECK",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NINS_Q_USED] = {
+		.name	= "QBF_NINS_Q_USED",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NINS_Q_RECYCL] = {
+		.name	= "QBF_NINS_Q_RECYCL",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NINS_Q_USEDB] = {
+		.name	= "QBF_NINS_Q_USEDB",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	}
+};
+
+static const struct qbuf_creat_s qbf_nin_cfg_qbuf = {
+	.name	= "qbuf_nin",
+	.nub_que	= QBF_NINS_Q_NUB,
+	.nub_buf	= DIM_NINS_NUB,
+	.code		= CODE_NIN,
+};
+
+void bufq_nin_int(struct di_ch_s *pch)
+{
+	struct dim_nins_s *nin;
+	struct buf_que_s *pbufq;
+	int i;
+
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	/* clear buf*/
+	nin = &pch->nin_bf[0];
+	memset(nin, 0, sizeof(*nin) * DIM_NINS_NUB);
+
+	/* set buf's header */
+	for (i = 0; i < DIM_NINS_NUB; i++) {
+		nin = &pch->nin_bf[i];
+
+		nin->header.code	= CODE_NIN;
+		nin->header.index	= i;
+		nin->header.ch	= pch->ch_id;
+	}
+
+	pbufq = &pch->nin_qb;
+	/*clear bq */
+	memset(pbufq, 0, sizeof(*pbufq));
+
+	/* point to resource */
+	for (i = 0; i < QBF_NINS_Q_NUB; i++)
+		pbufq->pque[i] = &pch->nin_q[i];
+
+	for (i = 0; i < DIM_NINS_NUB; i++)
+		pbufq->pbuf[i].qbc = &pch->nin_bf[i].header;
+
+	qbuf_int(pbufq, &qbf_nin_cfg_q[0], &qbf_nin_cfg_qbuf);
+
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_NINS_Q_IDLE);
+	PR_INF("%s:\n", __func__);
+}
+
+void bufq_nin_exit(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+
+	PR_INF("%s:\n", __func__);
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->nin_qb;
+
+	qbuf_release_que(pbufq);
+}
+
+/*********************************
+ * dependent:
+ *	pch->itf->etype
+ * Be dependent:
+ *	vfm input
+ *********************************/
+void bufq_nin_reg(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	int i;
+	struct dim_nins_s *nin;
+
+	PR_INF("%s:\n", __func__);
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->nin_qb;
+
+	qbuf_reset(pbufq);
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_NINS_Q_IDLE);
+
+	for (i = 0; i < DIM_NINS_NUB; i++) {
+		nin = &pch->nin_bf[i];
+		/* set etype */
+		nin->etype = pch->itf.etype;
+		memset(&nin->c, 0, sizeof(nin->c));
+	}
+	//qbuf_dbg_checkid(pbufq, 1);
+}
+
+struct dim_nins_s *nins_peek(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	bool ret;
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+	return ins;
+}
+
+struct vframe_s *nins_peekvfm(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	struct vframe_s *vfm;
+	bool ret;
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+	vfm = &ins->c.vfm_cp;
+
+	return vfm;
+}
+
+/* from check to used */
+struct dim_nins_s *nins_get(struct di_ch_s *pch)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+
+	pbufq = &pch->nin_qb;
+
+	ret = qbuf_out(pbufq, QBF_NINS_Q_CHECK, &index);
+	if (!ret)
+		return NULL;
+
+	q_buf = pbufq->pbuf[index];
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+	qbuf_in(pbufq, QBF_NINS_Q_USED, index);
+	//qbuf_dbg_checkid(pbufq, 2);
+
+	return ins;
+}
+
+/* in_used to recycle*/
+bool nins_out_some(struct di_ch_s *pch,
+		   struct dim_nins_s *ins,
+		   unsigned int q)
+{
+//	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->nin_qb;
+	q_buf.qbc = &ins->header;
+
+	ret = qbuf_out_some(pbufq, q, q_buf);
+	if (!ret) {
+		PR_ERR("%s:\n", __func__);
+//		dbg_hd_print(&ins->header);
+//		dbg_q_listid_print(pbufq);
+	}
+	//qbuf_dbg_checkid(pbufq, 3);
+
+	return ret;
+}
+
+/* in_used to recycle*/
+bool nins_used_some_to_recycle(struct di_ch_s *pch, struct dim_nins_s *ins)
+{
+//	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->nin_qb;
+	q_buf.qbc = &ins->header;
+	//qbuf_dbg_checkid(pbufq, 5);
+
+	if (ins->header.index >= DIM_NINS_NUB) {
+		PR_ERR("%s:%d:overflow\n", "nin_some", ins->header.index);
+		return false;
+	}
+	ret = qbuf_out_some(pbufq, QBF_NINS_Q_USED, q_buf);
+	if (!ret) {
+		PR_ERR("%s:\n", __func__);
+		dbg_hd_print(&ins->header);
+//		dbg_q_listid_print(pbufq);
+		return false;
+	}
+	#ifdef MARK_HIS
+	PR_INF("%s:%d:0x%x\n", __func__,
+		ins->header.index,
+		ins->header.code);
+	#endif
+	ret = qbuf_in(pbufq, QBF_NINS_Q_RECYCL, ins->header.index);
+	if (!ret) {
+		PR_ERR("%s:in failed\n", __func__);
+		return false;
+	}
+	//qbuf_dbg_checkid(pbufq, 4);
+
+	return true;
+}
+
+/* from check to used */
+struct dim_nins_s *nins_move(struct di_ch_s *pch,
+			     unsigned int qf,
+			     unsigned int qt)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+
+	pbufq = &pch->nin_qb;
+	if (qf >= pbufq->nub_que ||
+	    qt >= pbufq->nub_que ||
+	    qf == qt) {
+		PR_ERR("%s:%d->%d\n", __func__, qf, qt);
+		return NULL;
+	}
+	ret = qbuf_out(pbufq, qf, &index);
+	if (!ret) {
+		PR_ERR("%s:out:%d->%d\n", __func__, qf, qt);
+		return NULL;
+	}
+
+	q_buf = pbufq->pbuf[index];
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+	qbuf_in(pbufq, qt, index);
+	qbuf_dbg_checkid(pbufq, 5);
+
+	return ins;
+}
+
+unsigned int nins_cnt_used_all(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	unsigned int len_check, len_used, len_rc;
+
+	pbufq = &pch->nin_qb;
+	len_check	= qbufp_count(pbufq, QBF_NINS_Q_CHECK);
+	len_used	= qbufp_count(pbufq, QBF_NINS_Q_USED);
+	len_rc		= qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+
+	return len_check + len_used + len_rc;
+}
+
+unsigned int nins_cnt(struct di_ch_s *pch, unsigned int q)
+{
+	struct buf_que_s *pbufq;
+
+	pbufq = &pch->nin_qb;
+	return qbufp_count(pbufq, q);
+}
+
+void dbg_nins_log_buf(struct di_buf_s *di_buf, unsigned int dbgid)
+{
+	struct dim_nins_s *ins;
+
+	if (di_buf && di_buf->c.in) {
+		ins = (struct dim_nins_s *)di_buf->c.in;
+	} else {
+		PR_INF("%s:no in:%d\n", "nins", di_buf->index);
+		return;
+	}
+
+	PR_INF("%s:%d:%d->%d,0x%x,0x%px\n", "nins",
+		dbgid, di_buf->index,
+		ins->header.index,
+		ins->header.code,
+		ins);
+}
+
+void dbg_nins_check_id(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+
+	pbufq = &pch->nin_qb;
+	qbuf_dbg_checkid(pbufq, 10);
+}
+
+static bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf);
+
+/************************************************
+ * new display
+ ************************************************/
+static const struct que_creat_s qbf_ndis_cfg_q[] = {//TST_Q_IN_NUB
+	[QBF_NDIS_Q_IDLE] = {
+		.name	= "QBF_NDIS_Q_IDLE",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NDIS_Q_USED] = {
+		.name	= "QBF_NDIS_Q_USED",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NDIS_Q_DISPLAY] = {
+		.name	= "QBF_NDIS_Q_DISPLAY",
+		.type	= Q_T_N,
+		.lock	= 1,
+	},
+#ifdef MARK_HIS
+	[QBF_NDIS_Q_BACK] = {
+		.name	= "QBF_NDIS_Q_BACK",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+#endif
+	[QBF_NDIS_Q_KEEP] = {
+		.name	= "QBF_NDIS_Q_KEEP",
+		.type	= Q_T_N,
+		.lock	= 0,
+	}
+};
+
+static const struct qbuf_creat_s qbf_ndis_cfg_qbuf = {
+	.name	= "qbuf_ndis",
+	.nub_que	= QBF_NDIS_Q_NUB,
+	.nub_buf	= DIM_NDIS_NUB,
+	.code		= CODE_NDIS,
+};
+
+void bufq_ndis_int(struct di_ch_s *pch)
+{
+	struct dim_ndis_s *dis;
+	struct buf_que_s *pbufq;
+	int i;
+
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	/* clear buf*/
+	dis = &pch->ndis_bf[0];
+	memset(dis, 0, sizeof(*dis) * DIM_NDIS_NUB);
+
+	/* set buf's header */
+	for (i = 0; i < DIM_NDIS_NUB; i++) {
+		dis = &pch->ndis_bf[i];
+
+		dis->header.code	= CODE_NDIS;
+		dis->header.index	= i;
+		dis->header.ch	= pch->ch_id;
+	}
+
+	pbufq = &pch->ndis_qb;
+	/*clear bq */
+	memset(pbufq, 0, sizeof(*pbufq));
+
+	/* point to resource */
+	for (i = 0; i < QBF_NDIS_Q_NUB; i++)
+		pbufq->pque[i] = &pch->ndis_q[i];
+
+	for (i = 0; i < DIM_NDIS_NUB; i++)
+		pbufq->pbuf[i].qbc = &pch->ndis_bf[i].header;
+
+	qbuf_int(pbufq, &qbf_ndis_cfg_q[0], &qbf_ndis_cfg_qbuf);
+
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_NDIS_Q_IDLE);
+	PR_INF("%s:\n", __func__);
+}
+
+void bufq_ndis_exit(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+
+	PR_INF("%s:\n", __func__);
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->ndis_qb;
+
+	qbuf_release_que(pbufq);
+}
+
+struct dim_ndis_s *ndisq_peek(struct di_ch_s *pch, unsigned int que)
+{
+//	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_ndis_s *ndis;
+
+	pbufq = &pch->ndis_qb;
+
+	ret = qbufp_peek(pbufq, que, &q_buf);
+	if (!ret)
+		return NULL;
+
+	ndis = (struct dim_ndis_s *)q_buf.qbc;
+
+	return ndis;
+}
+
+unsigned int ndis_cnt(struct di_ch_s *pch, unsigned int que)
+{
+	struct buf_que_s *pbufq;
+	unsigned int len;
+
+	pbufq = &pch->ndis_qb;
+	len	= qbufp_count(pbufq, que);
+
+	return len;
+}
+
+struct dim_ndis_s *ndisq_out(struct di_ch_s *pch, unsigned int que)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_ndis_s *ndis;
+
+	pbufq = &pch->ndis_qb;
+
+	ret = qbuf_out(pbufq, que, &index);
+	if (!ret)
+		return NULL;
+
+	q_buf = pbufq->pbuf[index];
+	ndis = (struct dim_ndis_s *)q_buf.qbc;
+
+	return ndis;
+}
+
+struct dim_ndis_s *ndis_get_fromid(struct di_ch_s *pch, unsigned int idx)
+{
+	struct dim_ndis_s *ndis;
+	struct buf_que_s *pbufq;
+
+	pbufq = &pch->ndis_qb;
+	if (idx >= pbufq->nub_buf) {
+		PR_ERR("%s:ch[%d], %d, overflow\n", __func__, pch->ch_id, idx);
+		return NULL;
+	}
+
+	ndis = (struct dim_ndis_s *)pbufq->pbuf[idx].qbc;
+	dbg_nq("%s:%d\n", __func__, idx);
+
+	return ndis;
+}
+
+struct dim_ndis_s *ndis_move(struct di_ch_s *pch,
+			     unsigned int qf,
+			     unsigned int qt)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_ndis_s *ndis;
+
+	pbufq = &pch->ndis_qb;
+	if (qf >= pbufq->nub_que ||
+	    qt >= pbufq->nub_que ||
+	    qf == qt) {
+		PR_ERR("%s:%d->%d\n", __func__, qf, qt);
+		return NULL;
+	}
+	ret = qbuf_out(pbufq, qf, &index);
+	if (!ret) {
+		PR_ERR("%s:out:%d->%d\n", __func__, qf, qt);
+		return NULL;
+	}
+
+	q_buf = pbufq->pbuf[index];
+	ndis = (struct dim_ndis_s *)q_buf.qbc;
+
+	qbuf_in(pbufq, qt, index);
+	if (dbg_unreg_flg)
+		PR_WARN("%s:after unreg:%d->%d,%d\n", __func__, qf, qt, index);
+
+	//qbuf_dbg_checkid(pbufq, 5);
+
+	return ndis;
+}
+
+/* @ary_note: this will clear, and not used back */
+bool ndis_move_display2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
+{
+	//unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->ndis_qb;
+
+	q_buf.qbc = &ndis->header;
+	ret = qbuf_out_some(pbufq, QBF_NDIS_Q_DISPLAY, q_buf);
+	if (!ret) {
+		PR_ERR("%s:out:%d\n", __func__, ndis->header.index);
+		return NULL;
+	}
+
+	/*clear */
+	memset(&ndis->c, 0, sizeof(ndis->c));
+
+	qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
+	//qbuf_dbg_checkid(pbufq, 5);
+	dbg_nq("%s:%d\n", __func__, ndis->header.index);
+	return ndis;
+}
+
+bool ndis_is_in_display(struct di_ch_s *pch, struct dim_ndis_s *ndis)
+{
+	struct buf_que_s *pbufq;
+	bool ret;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->ndis_qb;
+	q_buf.qbc = &ndis->header;
+
+	ret = qbuf_n_is_in(pbufq, QBF_NDIS_Q_DISPLAY, q_buf);
+	return ret;
+}
+
+bool ndis_is_in_keep(struct di_ch_s *pch, struct dim_ndis_s *ndis)
+{
+	struct buf_que_s *pbufq;
+	bool ret;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->ndis_qb;
+	q_buf.qbc = &ndis->header;
+
+	ret = qbuf_n_is_in(pbufq, QBF_NDIS_Q_KEEP, q_buf);
+	return ret;
+}
+
+bool ndis_move_keep2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
+{
+	//unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->ndis_qb;
+
+	q_buf.qbc = &ndis->header;
+	ret = qbuf_out_some(pbufq, QBF_NDIS_Q_KEEP, q_buf);
+	if (!ret) {
+		PR_ERR("%s:out:%d\n", __func__, ndis->header.index);
+		return NULL;
+	}
+
+	/*clear */
+	memset(&ndis->c, 0, sizeof(ndis->c));
+
+	qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
+	//qbuf_dbg_checkid(pbufq, 5);
+	PR_INF("%s:%d\n", __func__, ndis->header.index);
+	return ndis;
+}
+
+#ifdef MARK_HIS //no used
+/* */
+void ndis_back2_idle(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	int i;
+	struct dim_ndis_s *ndis;
+	unsigned int len;
+	bool ret;
+//	unsigned int index;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->ndis_qb;
+
+	len	= qbufp_count(pbufq, QBF_NDIS_Q_BACK);
+	if (!len)
+		return;
+
+	for (i = 0; i < len; i++) {
+		/* clear */
+		ndis = ndisq_out(pch, QBF_NDIS_Q_BACK);
+		if (!ndis) {
+			PR_ERR("%s:no dis[%d]\n", __func__, i);
+			continue;
+		}
+		q_buf.qbc = &ndis->header;
+		ret = qbuf_out_some(pbufq, QBF_NDIS_Q_DISPLAY, q_buf);
+		if (!ret)
+			PR_ERR("%s, o some [%d]\n", __func__, i);
+		qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
+	}
+}
+#endif
+/* this keep is tmp will clear when unreg */
+unsigned int ndis_2keep(struct di_ch_s *pch,
+		struct dim_mm_blk_s **blk,
+		unsigned int len_max,
+		unsigned int disable_mirror)
+{
+	struct buf_que_s *pbufq;
+	int i;
+	struct dim_ndis_s *ndis;
+	unsigned int len;
+//	unsigned int mask;
+	bool ret;
+	unsigned int index;
+	struct di_buf_s *p;
+	unsigned int ch;
+	unsigned int cnt = 0;
+
+	pbufq = &pch->ndis_qb;
+
+	len	= qbufp_count(pbufq, QBF_NDIS_Q_DISPLAY);
+
+	ch = pch->ch_id;
+	if (len) {
+		for (i = 0; i < len; i++) {
+			ret = qbuf_out(pbufq, QBF_NDIS_Q_DISPLAY, &index);
+			if (!ret) {
+				PR_ERR("%s:out display [%d]\n", __func__, i);
+				continue;
+			}
+			//PR_INF("%s:out from display %d\n", __func__, index);
+			ndis = (struct dim_ndis_s *)pbufq->pbuf[index].qbc;
+			p = ndis->c.di_buf;
+			ndis->c.blk = p->blk_buf;
+			ndis->c.di_buf = NULL;
+
+			if (!p->blk_buf) {
+				PR_ERR("%s:no blk:%d\n", __func__, p->index);
+				continue;
+			}
+			//blk[i] = p->blk_buf;
+			/* dec vf keep */
+			if (p->in_buf) {
+				if (p->in_buf->c.in) {
+					//nins_used_some_to_recycle(pch,
+					//	(struct dim_nins_s*)p->in_buf->c.in);
+					p->in_buf->c.in = NULL;
+				}
+
+				queue_in(ch, p->in_buf, QUEUE_RECYCLE);
+				p->in_buf = NULL;
+			}
+
+			/* @ary_note: clear di_buf */
+			di_buf_clear(pch, p);
+			di_que_in(pch->ch_id, QUE_PST_NO_BUF, p);
+
+			//memset(&ndis->c, 0, sizeof(ndis->c));
+			//PR_INF("%s:to keep %d\n", __func__,
+			//	ndis->header.index);
+			if (disable_mirror) {
+				/* clear */
+				memset(&ndis->c, 0, sizeof(ndis->c));
+				ndis->etype = EDIM_NIN_TYPE_NONE;
+				qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
+			} else {
+				ndis_dbg_print2(ndis, "to keep");
+				qbuf_in(pbufq, QBF_NDIS_Q_KEEP, ndis->header.index);
+				cnt++;
+			}
+		}
+	}
+	len	= qbufp_count(pbufq, QBF_NDIS_Q_KEEP);
+
+	if (!len)
+		return 0;
+
+	if (len > len_max)
+		len = len_max;
+	qbufp_list(pbufq, QBF_NDIS_Q_KEEP);
+	cnt = 0;
+	for (i = 0; i < len; i++) {
+		if (pbufq->list_id[i] >= pbufq->nub_buf) {
+			PR_ERR("%s:cnt list err:%d,%d\n", __func__,
+				len, i);
+			break;
+		}
+		index = pbufq->list_id[i];
+		ndis = (struct dim_ndis_s *)pbufq->pbuf[index].qbc;
+		if (!ndis->c.blk) {
+			PR_ERR("%s:no blk %d, %d\n", __func__, len, i);
+			continue;
+		}
+
+		blk[i] = ndis->c.blk;
+		cnt++;
+	}
+
+	PR_INF("%s:cnt[%d]\n", __func__, cnt);
+	return cnt;
+}
+
+void bufq_ndis_unreg(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	int i;
+	struct dim_ndis_s *ndis;
+	unsigned int len;
+//	union q_buf_u q_buf;
+//	bool ret;
+
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->ndis_qb;
+
+	/* clear used */
+	len = qbufp_count(pbufq, QBF_NDIS_Q_USED);
+	if (len) {
+		for (i = 0; i < len; i++) {
+			ndis = ndisq_out(pch, QBF_NDIS_Q_USED);
+			if (!ndis) {
+				PR_ERR("%s:no dis[%d]\n", __func__, i);
+				continue;
+			}
+			/* clear */
+			memset(&ndis->c, 0, sizeof(ndis->c));
+			ndis->etype = EDIM_NIN_TYPE_NONE;
+			qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
+			PR_INF("%s:used 2 idle %d\n", __func__, ndis->header.index);
+		}
+	}
+	//dbg_unreg_flg = 1;
+	PR_INF("%s:%d\n", __func__, len);
+
+	/* check keep */
+
+	//qbuf_reset(pbufq);
+	/* all to idle */
+	//qbuf_in_all(pbufq, QBF_NDIS_Q_IDLE);
+#ifdef MARK_HIS
+	for (i = 0; i < DIM_NDIS_NUB; i++) {
+		ndis = &pch->ndis_bf[i];
+		/* set etype */
+		ndis->etype = EDIM_NIN_TYPE_NONE;
+		memset(&ndis->c, 0, sizeof(ndis->c));
+	}
+#endif
+	//qbuf_dbg_checkid(pbufq, 1);
+}
+
+void ndis_dbg_content(struct seq_file *s, struct dim_ndis_s *ndis)
+{
+	if (!ndis) {
+		seq_printf(s, "\t%s\n", "no_ndis");
+		return;
+	}
+	if (ndis->c.di_buf) {
+		seq_printf(s, "\t%s\n", "have di_buf");
+		seq_printf(s, "\t\t type[%d] index[%d]\n",
+				ndis->c.di_buf->type, ndis->c.di_buf->index);
+	} else {
+		seq_printf(s, "\t%s\n", "no di_buf");
+	}
+	if (ndis->c.blk) {
+		seq_printf(s, "\t%s\n", "have blk");
+		seq_printf(s, "\t\t index[%d]\n",
+				ndis->c.blk->header.index);
+	} else {
+		seq_printf(s, "\t%s\n", "no blk");
+	}
+}
+
+void ndis_dbg_print2(struct dim_ndis_s *ndis, char *name)
+{
+	struct dim_pat_s *pat_buf;//dbg only
+
+	if (!ndis) {
+		PR_INF("%s:no ndis\n", __func__);
+		return;
+	}
+	PR_INF("%s:%d\n", name, ndis->header.index);
+	if (ndis->c.di_buf) {
+		PR_INF("di_buf:t[%d]:%d\n",
+			ndis->c.di_buf->type,
+			ndis->c.di_buf->index);
+	}
+	if (ndis->c.blk) {
+		PR_INF("blk:%d\n", ndis->c.blk->header.index);
+		if (ndis->c.blk->pat_buf) {
+			pat_buf = ndis->c.blk->pat_buf;
+			PR_INF("pat:%d\n", pat_buf->header.index);
+		}
+	}
+}
+
+void ndis_dbg_qbuf_detail(struct seq_file *s, struct di_ch_s *pch)
+{
+	unsigned int j;
+	union q_buf_u	pbuf;
+	//struct qs_buf_s *header;
+	struct buf_que_s *pqbuf;
+	struct dim_ndis_s *ndis;
+	char *splt = "---------------------------";
+
+	pqbuf = &pch->ndis_qb;
+
+	seq_printf(s, "%s:\n", pqbuf->name);
+	for (j = 0; j < pqbuf->nub_buf; j++) {
+		pbuf = pqbuf->pbuf[j];
+		if (!pbuf.qbc)
+			break;
+		//header = pbuf->qbc;
+		dbg_hd(s, pbuf.qbc);
+		ndis = (struct dim_ndis_s *)pbuf.qbc;
+		ndis_dbg_content(s, ndis);
+		seq_printf(s, "%s\n", splt);
+	}
+}
+
+void ndrd_int(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->ndis_que_ready;
+
+	qfp_int(pq, "np_ready", 0); /* unlock */
+
+	pq = &pch->ndis_que_kback;
+	qfp_int(pq, "np_kback", 0); /* unlock */
+}
+
+void ndrd_exit(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->ndis_que_ready;
+	qfp_release(pq);
+
+	pq = &pch->ndis_que_kback;
+	qfp_release(pq);
+}
+
+void ndrd_reset(struct di_ch_s *pch)
+{
+	struct qs_cls_s *pq;
+
+	pq = &pch->ndis_que_ready;
+	pq->ops.reset(NULL, pq);
+}
+
+/* vfm is vframe or di_buffer */
+void ndrd_qin(struct di_ch_s *pch, void *vfm)
+{
+	struct qs_cls_s	*pq;
+	union q_buf_u ubuf;
+
+	if (!vfm)
+		return;
+	pq = &pch->ndis_que_ready;
+	ubuf.qbc = (struct qs_buf_s *)vfm;
+	pq->ops.in(NULL, pq, ubuf);
+}
+
+/* @ary_note: only one caller: vfm peek */
+struct vframe_s *ndrd_qpeekvfm(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct vframe_s *vfm;
+
+	pq = &pch->ndis_que_ready;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	vfm = (struct vframe_s *)pbuf.qbc;
+	return vfm;
+}
+
+/* @ary_note: debug ? */
+struct di_buf_s *ndrd_qpeekbuf(struct di_ch_s *pch)
+{
+	struct qs_cls_s *pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct vframe_s *vfm;
+	struct dim_ndis_s *ndis;
+	struct di_buf_s *di_buf;
+	struct di_buffer *buffer;
+
+	pq = &pch->ndis_que_ready;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	if (dip_itf_is_vfm(pch)) {
+		vfm = (struct vframe_s *)pbuf.qbc;
+		if (!vfm->private_data)
+			return NULL;
+		ndis = (struct dim_ndis_s *)vfm->private_data;
+		if (!ndis->c.di_buf)
+			return NULL;
+
+		di_buf = ndis->c.di_buf;
+	} else {
+		buffer = (struct di_buffer *)pbuf.qbc;
+		ndis = (struct dim_ndis_s *)buffer->private_data;
+		if (!ndis || !ndis->c.di_buf)
+			return NULL;
+		di_buf = ndis->c.di_buf;
+	}
+
+	return di_buf;
+}
+
+/* */
+struct vframe_s *ndrd_qout(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct vframe_s *vfm;
+
+	pq = &pch->ndis_que_ready;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	ret = pq->ops.out(NULL, pq, &pbuf);
+
+	vfm = (struct vframe_s *)pbuf.qbc;
+	return vfm;
+}
+
+void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
+{
+	unsigned int cnt_ready;
+	int i;
+	struct qs_cls_s *pq;
+	union q_buf_u pbuf;
+	bool ret;
+	struct di_buffer *buffer;
+	struct dim_ndis_s *ndis1, *ndis2;
+
+	if (dip_itf_is_vfm(pch))
+		return;
+	cnt_ready = ndrd_cnt(pch);
+	if (!cnt_ready)
+		return;
+
+	pq = &pch->ndis_que_ready;
+	for (i = 0; i < cnt_ready; i++) {
+		ret = pq->ops.peek(NULL, pq, &pbuf);
+		if (!ret) {
+			//return NULL;
+			PR_ERR("%s:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		ret = pq->ops.out(NULL, pq, &pbuf);
+		if (!ret || !pbuf.qbc) {
+			//return NULL;
+			PR_ERR("%s:out:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		buffer = (struct di_buffer *)pbuf.qbc;
+		ndis1 = (struct dim_ndis_s *)buffer->private_data;
+		if (ndis1) {
+			ndis2 = ndis_move(pch, QBF_NDIS_Q_USED, QBF_NDIS_Q_DISPLAY);
+			if (ndis1 != ndis2)
+				PR_ERR("%s:\n", __func__);
+		}
+		#ifdef MARK_HIS
+		if (dip_itf_is_ins_exbuf(pch)) {
+			buffer->private_data = NULL;
+			ndis1->c.pbuff = NULL;
+			task_send_cmd2(pch->ch_id,
+			LCMD2(ECMD_RL_KEEP,
+			     pch->ch_id,
+			     ndis1->header.index));
+		}
+		#endif
+		didbg_vframe_out_save(pch->ch_id, buffer->vf);
+		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
+		sum_pst_g_inc(pch->ch_id);
+	}
+}
+
+void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
+{
+	unsigned int cnt_ready;
+	int i;
+	struct qs_cls_s *pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct di_buffer *buffer;
+
+	if (!dip_itf_is_ins_exbuf(pch))
+		return;
+	cnt_ready = ndrd_cnt(pch);
+	if (!cnt_ready)
+		return;
+
+	pq = &pch->ndis_que_ready;
+	for (i = 0; i < cnt_ready; i++) {
+		ret = pq->ops.peek(NULL, pq, &pbuf);
+		if (!ret) {
+			//return NULL;
+			PR_ERR("%s:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		ret = pq->ops.out(NULL, pq, &pbuf);
+		if (!ret || !pbuf.qbc) {
+			//return NULL;
+			PR_ERR("%s:out:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		buffer = (struct di_buffer *)pbuf.qbc;
+		didbg_vframe_out_save(pch->ch_id, buffer->vf);
+		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
+		sum_pst_g_inc(pch->ch_id);
+	}
+}
+
+#ifdef MARK_HIS
+void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
+{
+	unsigned int cnt_ready;
+	int i;
+	struct qs_cls_s *pq;
+	union q_buf_u pbuf;
+	bool ret;
+	struct di_buffer *buffer;
+	struct dim_ndis_s *ndis1, *ndis2;
+	struct di_buf_s *di_buf;
+
+	if (dip_itf_is_vfm(pch))
+		return;
+	cnt_ready = ndrd_cnt(pch);
+	if (!cnt_ready)
+		return;
+
+	pq = &pch->ndis_que_ready;
+	for (i = 0; i < cnt_ready; i++) {
+		ret = pq->ops.peek(NULL, pq, &pbuf);
+		if (!ret) {
+			//return NULL;
+			PR_ERR("%s:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		ret = pq->ops.out(NULL, pq, &pbuf);
+		if (!ret || !pbuf.qbc) {
+			//return NULL;
+			PR_ERR("%s:out:%d:%d\n", __func__, cnt_ready, i);
+			break;
+		}
+		buffer = (struct di_buffer *)pbuf.qbc;
+		ndis1 = (struct dim_ndis_s *)buffer->private_data;
+		if (ndis1) {
+			buffer->private_data = NULL;
+			//di_buf:
+			di_buf = ndis1->c.di_buf;
+			if (di_buf) {
+				di_buf_clear(pch, di_buf);
+				di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, di_buf);
+			}
+			ndis2 = ndis_move(pch, QBF_NDIS_Q_USED, QBF_NDIS_Q_IDLE);
+			if (ndis1 != ndis2)
+				PR_ERR("%s:\n", __func__);
+		}
+		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
+		sum_pst_g_inc(pch->ch_id);
+	}
+}
+#endif
+unsigned int ndrd_cnt(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->ndis_que_ready;
+
+	return pq->ops.count(NULL, pq);
+}
+
+/* crash ?? */
+void ndrd_dbg_list_buf(struct seq_file *s, struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	void *list[MAX_FIFO_SIZE];
+	unsigned int len;
+	int i;
+	struct dim_ndis_s *ndis;
+	struct di_buf_s *p;
+
+	pq = &pch->ndis_que_ready;
+
+	len = qfp_list(pq, MAX_FIFO_SIZE, &list[0]);
+	if (!len) {
+		seq_printf(s, "%s:non\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < len; i++) {
+		ndis = (struct dim_ndis_s *)list[i];
+		ndis_dbg_content(s, ndis);
+		if (ndis->c.di_buf) {
+			p = ndis->c.di_buf;
+			print_di_buf_seq(p, 2, s);
+			print_di_buf_seq(p->di_buf[0], 1, s);
+			print_di_buf_seq(p->di_buf[1], 1, s);
+		}
+	}
+}
+
+/****/
+/* @ary_note keep back que */
+
+void ndkb_reset(struct di_ch_s *pch)
+{
+	struct qs_cls_s *pq;
+
+	pq = &pch->ndis_que_kback;
+	pq->ops.reset(NULL, pq);
+}
+
+void ndkb_qin(struct di_ch_s *pch, struct dim_ndis_s *ndis)
+{
+	struct qs_cls_s	*pq;
+	union q_buf_u ubuf;
+
+	if (!ndis)
+		return;
+	pq = &pch->ndis_que_kback;
+	ubuf.qbc = &ndis->header;
+	pq->ops.in(NULL, pq, ubuf);
+	PR_INF("%s:%d\n", __func__, ndis->header.index);
+}
+
+void ndkb_qin_byidx(struct di_ch_s *pch, unsigned int idx)
+{
+	struct qs_cls_s	*pq;
+	union q_buf_u ubuf;
+	struct buf_que_s *pbufq;
+//	int i;
+	struct dim_ndis_s *ndis;
+
+	pbufq = &pch->ndis_qb;
+	if (idx >= pbufq->nub_buf) {
+		PR_ERR("%s:overflow %d\n", __func__, idx);
+		return;
+	}
+	ndis = (struct dim_ndis_s *)pbufq->pbuf[idx].qbc;
+
+	pq = &pch->ndis_que_kback;
+	ubuf.qbc = &ndis->header;
+	pq->ops.in(NULL, pq, ubuf);
+	PR_INF("%s:%d\n", __func__, ndis->header.index);
+}
+
+struct dim_ndis_s *ndkb_qout(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct dim_ndis_s *ndis;
+
+	pq = &pch->ndis_que_kback;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	ret = pq->ops.out(NULL, pq, &pbuf);
+
+	ndis = (struct dim_ndis_s *)pbuf.qbc;
+	PR_INF("%s:%d\n", __func__, ndis->header.index);
+	return ndis;
+}
+
+unsigned int ndkb_cnt(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->ndis_que_kback;
+	return pq->ops.count(NULL, pq);
+}
+
+void ndkb_dbg_list(struct seq_file *s, struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	void *list[MAX_FIFO_SIZE];
+	unsigned int len;
+	int i;
+	struct dim_ndis_s *ndis;
+
+	pq = &pch->ndis_que_kback;
+
+	len = qfp_list(pq, MAX_FIFO_SIZE, &list[0]);
+	if (!len) {
+		seq_printf(s, "%s:non\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < len; i++) {
+		ndis = (struct dim_ndis_s *)list[i];
+		ndis_dbg_content(s, ndis);
+	}
+}
+
+void npst_int(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->npst_que;
+
+	qfp_int(pq, "npst", 0); /* unlock */
+}
+
+void npst_exit(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->npst_que;
+	qfp_release(pq);
+}
+
+void npst_reset(struct di_ch_s *pch)
+{
+	struct qs_cls_s *pq;
+
+	pq = &pch->npst_que;
+	pq->ops.reset(NULL, pq);
+}
+
+/*  */
+void npst_qin(struct di_ch_s *pch, void *buffer)
+{
+	struct qs_cls_s	*pq;
+	union q_buf_u ubuf;
+	bool ret;
+
+	if (!buffer) {
+		PR_ERR("%s:no buffer\n", __func__);
+		return;
+	}
+	pq = &pch->npst_que;
+	ubuf.qbc = (struct qs_buf_s *)buffer;
+	ret = pq->ops.in(NULL, pq, ubuf);
+	if (!ret)
+		PR_ERR("%s:in\n", __func__);
+}
+
+/* @ary_note: only one caller: vfm peek */
+struct di_buffer *npst_qpeek(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct di_buffer *buffer;
+
+	pq = &pch->npst_que;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	buffer = (struct di_buffer *)pbuf.qbc;
+	return buffer;
+}
+
+struct di_buffer *npst_qout(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+	bool ret;
+	union q_buf_u pbuf;
+	struct di_buffer *buffer;
+
+	pq = &pch->npst_que;
+
+	ret = pq->ops.peek(NULL, pq, &pbuf);
+	if (!ret)
+		return NULL;
+	ret = pq->ops.out(NULL, pq, &pbuf);
+
+	buffer = (struct di_buffer *)pbuf.qbc;
+	return buffer;
+}
+
+unsigned int npst_cnt(struct di_ch_s *pch)
+{
+	struct qs_cls_s	*pq;
+
+	pq = &pch->npst_que;
+
+	return pq->ops.count(NULL, pq);
+}
+
+void dbg_log_pst_buffer(struct di_buf_s *di_buf, unsigned int dbgid)
+{
+//	struct di_buffer *buffer;
+
+	PR_INF("log_pst:%d:di_buf[%d],cvsw[%d]\n",
+		dbgid, di_buf->flg_null,
+		di_buf->canvas_width[0]);
+	if (di_buf->c.buffer)
+		PR_INF("log_pst:%d:%px\n", dbgid, di_buf->c.buffer);
+	else
+		PR_INF("log_pst:%d:no\n", dbgid);
+}
+
+static bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	struct vframe_s *vfm;
+	int index;
+	int type, queue_index;
+	unsigned int canvas_config_flag;
+	unsigned int canvas_height;
+	unsigned int canvas_width[3];/* nr/mtn/mv */
+	unsigned int channel;
+	int i;
+
+	/* back */
+	vfm = di_buf->vframe;
+	index = di_buf->index;
+	type = di_buf->type;
+	canvas_config_flag = di_buf->canvas_config_flag;
+	canvas_height = di_buf->canvas_height;
+	channel	= di_buf->channel;
+	queue_index = di_buf->queue_index;
+//	is_i	= di_buf->buf_is_i;
+	for (i = 0; i < 3; i++)
+		canvas_width[i] = di_buf->canvas_width[i];
+
+	memset(di_buf, 0, sizeof(*di_buf));
+	di_buf->vframe = vfm;
+	di_buf->index = index;
+	di_buf->type = type;
+	di_buf->canvas_config_flag = canvas_config_flag;
+
+	di_buf->canvas_height = canvas_height;
+	di_buf->channel	= channel;
+	di_buf->queue_index = queue_index;
+//	di_buf->buf_is_i = is_i;
+	for (i = 0; i < 3; i++)
+		di_buf->canvas_width[i] = canvas_width[i];
+
+	return true;
+}
+
+static bool ndis_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	struct dim_nins_s *nins;
+	void *in_ori;
+	struct di_buf_s *ibuf;
+//	struct dim_nins_s	*nins =NULL;
+	struct di_buffer *buffer;
+
+	if (di_buf->is_nbypass) {
+		//check:
+		if (di_buf->type != VFRAME_TYPE_POST) {
+			PR_ERR("%s:bypass not post ?\n", __func__);
+			return true;
+		}
+		ibuf = di_buf->di_buf_dup_p[0];
+		if (!ibuf) {
+			PR_ERR("%s:bypass no in ?\n", __func__);
+			return true;
+		}
+		nins = (struct dim_nins_s *)ibuf->c.in;
+		if (!nins) {
+			PR_ERR("%s:no in ori ?\n", __func__);
+			return true;
+		}
+		in_ori = nins->c.ori;
+
+		/* recycle */
+		nins->c.ori = NULL;
+		nins_used_some_to_recycle(pch, nins);
+
+		ibuf->c.in = NULL;
+		//di_buf->queue_index = -1;
+		//di_que_in(pch->ch_id, QUE_POST_BACK, di_buf);
+		di_buf_clear(pch, di_buf);
+		di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+		queue_in(pch->ch_id, ibuf, QUEUE_RECYCLE);
+
+		/* to ready buffer */
+		if (dip_itf_is_ins(pch)) {
+			/* need mark bypass flg*/
+			buffer = (struct di_buffer *)in_ori;
+			buffer->flag |= DI_FLAG_BUF_BY_PASS;
+		}
+
+		ndrd_qin(pch, in_ori);
+		return true;
+	}
+	return false;
+}
+
+static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	struct dim_ndis_s *dis;
+	//struct di_buffer *buffer;
+
+	//dis = ndisq_peek(pch, QBF_NDIS_Q_IDLE);
+	dis = ndis_move(pch, QBF_NDIS_Q_IDLE, QBF_NDIS_Q_USED);
+	if (!dis) {
+		PR_ERR("%s:no idle\n", __func__);
+		return false;
+	}
+	/* clear dis */
+	memset(&dis->c, 0, sizeof(dis->c));
+	dis->etype = pch->itf.etype;
+
+	atomic_set(&di_buf->di_cnt, 1);
+	dis->c.di_buf = di_buf;
+	if (dis->etype == EDIM_NIN_TYPE_VFM) {
+		memcpy(&dis->c.vfm, di_buf->vframe, sizeof(dis->c.vfm));
+		dis->c.vfm.private_data = dis;
+
+		/* to ready buffer */
+		ndrd_qin(pch, &dis->c.vfm);
+	} else {
+		/* @ary_note: only for new_interface mode self buff */
+		if (dip_itf_is_ins_lbuf(pch)) {
+			//PR_INF("%s:lbuf\n", __func__);
+			/*int dis's buffer*/
+			dis->c.dbuff.mng.ch = pch->ch_id;
+			dis->c.dbuff.mng.code = CODE_INS_LBF;
+			dis->c.dbuff.mng.index = dis->header.index;
+			/* */
+			memcpy(&dis->c.vfm, di_buf->vframe, sizeof(dis->c.vfm));
+			dis->c.dbuff.vf = &dis->c.vfm;
+			dis->c.dbuff.private_data = dis;
+			dis->c.dbuff.caller_data = pch->itf.u.dinst.parm.caller_data;
+			if (di_buf->c.src_is_i)
+				dis->c.dbuff.flag |= DI_FLAG_I;
+			else
+				dis->c.dbuff.flag |= DI_FLAG_P;
+			ndrd_qin(pch, &dis->c.dbuff);
+			dim_tr_ops.post_get(dis->c.dbuff.vf->index_disp);
+		} else {
+			PR_INF("%s:ext buf\n", __func__);
+			dis->c.pbuff = di_buf->c.buffer;
+			if (!dis->c.pbuff) {
+				PR_ERR("%s:no out buffer\n", __func__);
+				return false;
+			}
+			di_buf->c.buffer = NULL;
+			memcpy(&dis->c.pbuff->vf, di_buf->vframe, sizeof(*dis->c.pbuff->vf));
+			dis->c.pbuff->private_data = dis;
+			dis->c.pbuff->caller_data = pch->itf.u.dinst.parm.caller_data;
+			ndrd_qin(pch, &dis->c.pbuff);
+		}
+	}
+	return true;
+}
+
+bool ndis_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	bool ret;
+	struct dim_itf_s *itf;
+	struct dev_vfm_s *pvfmc;
+
+	ret = ndis_fill_ready_bypass(pch, di_buf);
+
+	if (!ret)
+		ret = ndis_fill_ready_pst(pch, di_buf);
+
+	itf = &pch->itf;
+	if (itf->etype == EDIM_NIN_TYPE_VFM) {
+		pvfmc = &itf->u.dvfmc;
+		if (pvfmc->vf_m_fill_ready)
+			pvfmc->vf_m_fill_ready(pch);
+	}
+
+	return true;
+}
+
+static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	struct di_buffer *buffer;
+
+	if (di_buf->is_nbypass)
+		buffer = di_buf->c.buffer;
+
+	return false;
+}
+
+/* @ary_note: use exbuf only */
+
+static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	struct di_buffer *buffer;
+	struct canvas_config_s *cvp_ori, *cvp_di;
+
+	if (!dip_itf_is_ins_exbuf(pch))
+		return false;
+	if (!di_buf->c.buffer) {
+		PR_WARN("%s:no buffer\n", __func__);
+		return false;
+	}
+	buffer = di_buf->c.buffer;
+	if (!buffer->vf) {
+		PR_WARN("%s:no buffer vf\n", __func__);
+		return false;
+	}
+	di_buf->c.buffer = NULL;
+	cvp_di	= &di_buf->vframe->canvas0_config[0];
+	cvp_ori	= &buffer->vf->canvas0_config[0];
+
+	if (cvp_di->phy_addr != cvp_ori->phy_addr) {
+		PR_ERR("%s:0x%x->0x%x\n", __func__, cvp_ori->phy_addr, cvp_di->phy_addr);
+		return false;
+	}
+	memcpy(buffer->vf, di_buf->vframe, sizeof(*buffer->vf));
+	buffer->caller_data = pch->itf.u.dinst.parm.caller_data;
+	if (di_buf->c.src_is_i)
+		buffer->flag |= DI_FLAG_I;
+	else
+		buffer->flag |= DI_FLAG_P;
+	di_buf_clear(pch, di_buf);
+	di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, di_buf);
+	ndrd_qin(pch, buffer);
+	dim_tr_ops.post_get(buffer->vf->index_disp);
+	return true;
+}
+
+bool ndrd_m1_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	if (!dip_itf_is_ins_exbuf(pch))
+		return false;
+
+	if (ndrd_m1_fill_ready_bypass(pch, di_buf))
+		return true;
+	ndrd_m1_fill_ready_pst(pch, di_buf);
+
+	return true;
+}
+
+/******************************************
+ *	new interface
+ *****************************************/
+
+static void dip_itf_prob(struct di_ch_s *pch)
+{
+	struct dim_itf_s *itf;
+
+	if (!pch)
+		return;
+	itf = &pch->itf;
+	mutex_init(&itf->lock_reg);
+}
+
+void dip_itf_vf_op_polling(struct di_ch_s *pch)
+{
+	struct dev_vfm_s *vfmc;
+
+	if (!pch || pch->itf.etype != EDIM_NIN_TYPE_VFM)
+		return;
+
+	vfmc = &pch->itf.u.dvfmc;
+	vfmc->vf_m_fill_polling(pch);
+}
+
+void dip_itf_back_input(struct di_ch_s *pch)
+{
+	if (!pch ||
+	    !pch->itf.opins_m_back_in)
+		return;
+
+	pch->itf.opins_m_back_in(pch);
+}
+
+bool dip_itf_is_vfm(struct di_ch_s *pch)
+{
+	return (pch->itf.etype == EDIM_NIN_TYPE_VFM) ? true : false;
+}
+
+bool dip_itf_is_ins(struct di_ch_s *pch)
+{
+	return (pch->itf.etype == EDIM_NIN_TYPE_INS) ? true : false;
+}
+
+bool dip_itf_is_ins_lbuf(struct di_ch_s *pch)
+{
+	bool ret = false;
+
+	if (pch->itf.etype == EDIM_NIN_TYPE_INS &&
+	    pch->itf.tmode == EDIM_TMODE_3_PW_LOCAL)
+		ret = true;
+
+	return ret;
+}
+
+bool dip_itf_is_o_linear(struct di_ch_s *pch)
+{
+	bool ret = false;
+
+	if (dip_itf_is_ins(pch)) {
+		if (pch->itf.u.dinst.parm.output_format & DI_OUTPUT_LINEAR)
+			ret = true;
+	}
+
+	if (dim_dbg_dec21 & 0x100)
+		ret = true;
+	return ret;
+}
+
+void dbg_itf_tmode(struct di_ch_s *pch, unsigned int pos)
+{
+	PR_INF("%s:ch[%d]:%d:%d\n", __func__,
+		pch->ch_id, pos, pch->itf.tmode);
+}
+
+bool dip_itf_is_ins_exbuf(struct di_ch_s *pch)
+{
+	bool ret = false;
+
+	if (pch->itf.etype == EDIM_NIN_TYPE_INS &&
+	    pch->itf.tmode == EDIM_TMODE_2_PW_OUT)
+		ret = true;
+	return ret;
+}
+
+struct dev_vfm_s *dip_itf_vf_sop(struct di_ch_s *pch)
+{
+	if (pch->itf.etype != EDIM_NIN_TYPE_VFM)
+		return NULL;
+	return &pch->itf.u.dvfmc;
+}
+
+void set_bypass2_complete(unsigned int ch, bool on)
+{
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	//set_bypass_complete(pvfm, on);
+	if (on)
+		pch->itf.bypass_complete = true;
+	else
+		pch->itf.bypass_complete = false;
+}
+
+bool is_bypss2_complete(unsigned int ch)
+{
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	return pch->itf.bypass_complete;
 }
 
 /******************************************
@@ -2847,6 +4675,8 @@ void dip_init_pq_ops(void)
 			PR_INF("%s\n", "op12 failed");
 	#endif
 	}
+
+	pq_sv_db_ini();
 }
 
 /**********************************/
@@ -2880,6 +4710,7 @@ bool dip_prob(void)
 	di_mp_uit_init_val();
 	di_mp_uix_init_val();
 
+	dim_tmode_preset(); /*need before vframe*/
 	dev_vframe_init();
 	didbg_fs_init();
 //	dip_wq_prob();
@@ -2906,12 +4737,75 @@ void dip_exit(void)
 		bufq_mem_exit(pch);
 		bufq_pat_exit(pch);
 		bufq_iat_exit(pch);
+		bufq_sct_exit(pch);
+
+		bufq_nin_exit(pch);
+		bufq_ndis_exit(pch);
+		ndrd_exit(pch);
+		npst_exit(pch);
 	}
 	dim_release_canvas();
 //	dip_wq_ext();
 	dev_vframe_exit();
 	dip_clean_value();
 	didbg_fs_exit();
+	#ifdef TST_NEW_INS_INTERFACE
+	dtst_exit();
+	#endif
+}
+
+void dip_prob_ch(void)
+{
+	unsigned int ch;
+	struct di_ch_s *pch;
+
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		bufq_sct_int(pch);
+		sct_prob(pch);
+
+		/**/
+		bufq_nin_int(pch);
+		bufq_ndis_int(pch);
+		ndrd_int(pch);
+		npst_int(pch);
+		dip_itf_prob(pch);
+	}
+
+	#ifdef TST_NEW_INS_INTERFACE
+	dtst_prob();
+	#endif
+}
+
+bool dbg_src_change_simple(unsigned int ch/*struct di_ch_s *pch*/)
+{
+	struct vframe_s *vfm;
+	//unsigned int ch;
+	static unsigned int last_w;
+	static enum EDI_SGN sgn;
+
+	if (!cfgg(PAUSE_SRC_CHG))
+		return false;
+
+	//ch = pch->ch_id;
+	vfm = pw_vf_peek(ch);
+	if (cfgg(PAUSE_SRC_CHG) == 1) {
+		if (last_w != vfm->width) {
+			PR_INF("%s:%d->%d\n", __func__, last_w, vfm->width);
+			last_w = vfm->width;
+			pre_run_flag = DI_RUN_FLAG_PAUSE;
+		}
+	} else if (cfgg(PAUSE_SRC_CHG) == 2) {
+	/**/
+		sgn = di_vframe_2_sgn(vfm);
+		if (last_w != sgn) {
+			PR_INF("%s:%d->%d\n", __func__, last_w, sgn);
+			last_w = sgn;
+			pre_run_flag = DI_RUN_FLAG_PAUSE;
+		}
+	}
+
+	return true;
 }
 
 /**********************************************/
@@ -4364,3 +6258,158 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 {
 }
 #endif
+
+void dbg_q_listid(struct seq_file *s, struct buf_que_s *pqbuf)
+{
+	unsigned int j, i;
+	struct qs_cls_s *p;
+	unsigned int psize;
+	char *splt = "---------------------------";
+
+	seq_printf(s, "%s:\n", pqbuf->name);
+	for (j = 0; j < pqbuf->nub_que; j++) {
+		p = pqbuf->pque[j];
+		p->ops.list(pqbuf, p, &psize);
+
+		seq_printf(s, "%s (crr %d):\n", p->name, psize);
+		for (i = 0; i < psize; i++)
+			seq_printf(s, "\t%2d,\n", pqbuf->list_id[i]);
+
+		seq_printf(s, "%s\n", splt);
+	}
+}
+
+void dbg_q_listid_print(struct buf_que_s *pqbuf)
+{
+	unsigned int j, i;
+	struct qs_cls_s *p;
+	unsigned int psize;
+	char *splt = "---------------------------";
+
+	PR_INF("%s:\n", pqbuf->name);
+	for (j = 0; j < pqbuf->nub_que; j++) {
+		p = pqbuf->pque[j];
+		p->ops.list(pqbuf, p, &psize);
+
+		PR_INF("%s (crr %d):\n", p->name, psize);
+		for (i = 0; i < psize; i++)
+			PR_INF("\t%2d,\n", pqbuf->list_id[i]);
+
+		PR_INF("%s\n", splt);
+	}
+}
+
+void dbg_hd(struct seq_file *s, struct qs_buf_s *header)
+{
+	seq_printf(s, "%s\n", "header");
+	if (!header) {
+		seq_puts(s, "\tnone\n");
+		return;
+	}
+	seq_printf(s, "\t%s:%d\n", "index", header->index);
+	seq_printf(s, "\t%s:0x%x\n", "code", header->code);
+	//seq_printf(s, "\t%s:%d:%s\n", "dbg_id", header->dbg_id,
+	//	   dbgid_name(header->dbg_id));
+}
+
+void dbg_hd_print(struct qs_buf_s *header)
+{
+	PR_INF("%s\n", "header");
+	if (!header) {
+		PR_INF("\tnone\n");
+		return;
+	}
+	PR_INF("\t%s:%d\n", "index", header->index);
+	PR_INF("\t%s:0x%x\n", "code", header->code);
+	//PR_INF("\t%s:%d:%s\n", "dbg_id", header->dbg_id,
+	//	   dbgid_name(header->dbg_id));
+	PR_INF("%px\n", header);
+}
+
+void dbg_blk(struct seq_file *s, struct dim_mm_blk_s *blk_buf)
+{
+	seq_printf(s, "%s\n", "blk");
+	if (!blk_buf) {
+		seq_puts(s, "\tnone\n");
+		return;
+	}
+	dbg_hd(s, &blk_buf->header);
+
+	seq_printf(s, "\t%s:0x%lx\n", "mem_start", blk_buf->mem_start);
+	seq_printf(s, "\t%s:0x%x\n", "size_page", blk_buf->flg.b.page);
+	seq_printf(s, "\t%s:0x%x\n", "size_page", blk_buf->flg.b.typ);
+	seq_printf(s, "\t%s:%d\n", "flg_alloc", blk_buf->flg_alloc);
+	seq_printf(s, "\t%s:%d\n", "tvp", blk_buf->flg.b.tvp);
+}
+
+/* @ary_note: */
+void dbg_q_list_qbuf(struct seq_file *s, struct buf_que_s *pqbuf)
+{
+	unsigned int j;
+	union q_buf_u	pbuf;
+	//struct qs_buf_s *header;
+
+	char *splt = "---------------------------";
+
+	seq_printf(s, "%s:\n", pqbuf->name);
+	for (j = 0; j < pqbuf->nub_buf; j++) {
+		pbuf = pqbuf->pbuf[j];
+		if (!pbuf.qbc)
+			break;
+		//header = pbuf->qbc;
+		dbg_hd(s, pbuf.qbc);
+
+		seq_printf(s, "%s\n", splt);
+	}
+}
+
+void dbg_q_list_qbuf_print(struct buf_que_s *pqbuf)
+{
+	unsigned int j;
+	union q_buf_u pbuf;
+	//struct qs_buf_s *header;
+
+	char *splt = "---------------------------";
+
+	PR_INF("%s:\n", pqbuf->name);
+	for (j = 0; j < pqbuf->nub_buf; j++) {
+		pbuf = pqbuf->pbuf[j];
+		if (!pbuf.qbc)
+			break;
+		//header = pbuf->qbc;
+		dbg_hd_print(pbuf.qbc);
+
+		PR_INF("%s\n", splt);
+	}
+}
+
+void dbg_buffer(struct seq_file *s, void *in)
+{
+	struct di_buffer *buffer;
+
+	buffer = (struct di_buffer *)in;
+	seq_printf(s, "%s:%px\n", "dbg_buffer", buffer);
+	seq_printf(s, "\t:code:0x%x,ch[%d],indx[%d], type[%d]\n",
+		buffer->mng.code, buffer->mng.ch,
+		buffer->mng.index, buffer->mng.type);
+	if (buffer->vf)
+		seq_printf(s, "\t:vf:0x%px, 0x%x\n", buffer->vf, buffer->vf->index);
+	else
+		seq_printf(s, "\t:%s\n", "no vf");
+}
+
+void dbg_buffer_print(void *in)
+{
+	struct di_buffer *buffer;
+
+	buffer = (struct di_buffer *)in;
+	PR_INF("%s:%px\n", "dbg_buffer", buffer);
+	PR_INF("\t:code:0x%x,ch[%d],indx[%d], type[%d]\n",
+		buffer->mng.code,
+		buffer->mng.ch, buffer->mng.index, buffer->mng.type);
+	if (buffer->vf)
+		PR_INF("\t:vf:0x%px, 0x%x\n", buffer->vf, buffer->vf->index);
+	else
+		PR_INF("\t:%s\n", "no vf");
+}
+

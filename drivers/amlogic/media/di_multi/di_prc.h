@@ -21,6 +21,7 @@
 
 bool dip_prob(void);
 void dip_exit(void);
+void dip_prob_ch(void);
 
 void dip_even_reg_init_val(unsigned int ch);
 void dip_even_unreg_val(unsigned int ch);
@@ -101,6 +102,12 @@ void di_cfgt_show_item_all(struct seq_file *s);
 void di_cfgt_show_val_sel(struct seq_file *s);
 void di_cfgt_show_val_all(struct seq_file *s);
 void di_cfgt_set_sel(unsigned int dbg_mode, unsigned int id);
+void di_cfg_cp_ch(struct di_ch_s *pch);
+unsigned char di_cfg_cp_get(struct di_ch_s *pch,
+			enum EDI_CFG_TOP_IDX id);
+void di_cfg_cp_set(struct di_ch_s *pch,
+		   enum EDI_CFG_TOP_IDX id,
+		   unsigned char val);
 
 /**************************************
  *
@@ -180,17 +187,132 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe);
 enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
 const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k);
 
+/************************************************
+ * sct
+ ************************************************/
+void tst_alloc(struct di_ch_s *pch);
+void tst_resize(struct di_ch_s *pch, unsigned int used_size);
+void tst_release(struct di_ch_s *pch);
+void tst_unreg(struct di_ch_s *pch);
+void tst_reg(struct di_ch_s *pch);
+
+void sct_prob(struct di_ch_s *pch);
+void sct_sw_on(struct di_ch_s *pch,
+		unsigned int max_num,
+		bool tvp,
+		unsigned int buffer_size);
+void sct_sw_off_rebuild(struct di_ch_s *pch);
+
+void sct_alloc_in_poling(unsigned int ch);
+void sct_mng_working(struct di_ch_s *pch);
+void sct_mng_working_recycle(struct di_ch_s *pch);
+
+void sct_mng_idle(struct di_ch_s *pch);
+void sct_free_l(struct di_ch_s *pch, struct dim_sct_s *sct);
+void sct_free_tail_l(struct di_ch_s *pch,
+		      unsigned int buffer_used,
+		      struct dim_sct_s *sct);
+unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct);
+void sct_sw_off(struct di_ch_s *pch);
+int dim_dbg_sct_top_show(struct seq_file *s, void *what);
+
+void bufq_nin_int(struct di_ch_s *pch);
+void bufq_nin_exit(struct di_ch_s *pch);
+void bufq_nin_reg(struct di_ch_s *pch);
+struct dim_nins_s *nins_peek(struct di_ch_s *pch);
+struct dim_nins_s *nins_get(struct di_ch_s *pch);
+struct vframe_s *nins_peekvfm(struct di_ch_s *pch);
+bool nins_out_some(struct di_ch_s *pch,
+		   struct dim_nins_s *ins,
+		   unsigned int q);
+bool nins_used_some_to_recycle(struct di_ch_s *pch,
+				struct dim_nins_s *ins);
+struct dim_nins_s *nins_move(struct di_ch_s *pch,
+			     unsigned int qf,
+			     unsigned int qt);
+unsigned int nins_cnt_used_all(struct di_ch_s *pch);
+unsigned int nins_cnt(struct di_ch_s *pch, unsigned int q);
+
+struct vframe_s *ndrd_qout(struct di_ch_s *pch);
+void dbg_nins_log_buf(struct di_buf_s *di_buf, unsigned int dbgid);
+void dbg_nins_check_id(struct di_ch_s *pch);
+
+void bufq_ndis_int(struct di_ch_s *pch);
+void bufq_ndis_exit(struct di_ch_s *pch);
+
+bool ndis_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf);
+bool ndrd_m1_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf);
+bool ndis_is_in_display(struct di_ch_s *pch, struct dim_ndis_s *ndis);
+bool ndis_move_display2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis);
+struct dim_ndis_s *ndis_get_fromid(struct di_ch_s *pch, unsigned int idx);
+unsigned int ndis_cnt(struct di_ch_s *pch, unsigned int que);
+struct dim_ndis_s *ndis_move(struct di_ch_s *pch,
+			     unsigned int qf,
+			     unsigned int qt);
+unsigned int ndis_2keep(struct di_ch_s *pch,
+		struct dim_mm_blk_s **blk,
+		unsigned int len_max,
+		unsigned int disable_mirror);
+void bufq_ndis_unreg(struct di_ch_s *pch);
+bool ndis_is_in_keep(struct di_ch_s *pch, struct dim_ndis_s *ndis);
+bool ndis_move_keep2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis);
+void ndis_dbg_qbuf_detail(struct seq_file *s, struct di_ch_s *pch);
+void ndis_dbg_print2(struct dim_ndis_s *ndis, char *name);
+
+void ndrd_int(struct di_ch_s *pch);
+void ndrd_exit(struct di_ch_s *pch);
+unsigned int ndrd_cnt(struct di_ch_s *pch);
+
+struct vframe_s *ndrd_qpeekvfm(struct di_ch_s *pch);
+struct di_buf_s *ndrd_qpeekbuf(struct di_ch_s *pch);
+void ndrd_dbg_list_buf(struct seq_file *s, struct di_ch_s *pch);
+void ndrd_qin(struct di_ch_s *pch, void *vfm);
+void ndrd_reset(struct di_ch_s *pch);
+
+void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch);
+void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch);
+
+void ndkb_qin(struct di_ch_s *pch, struct dim_ndis_s *ndis);
+struct dim_ndis_s *ndkb_qout(struct di_ch_s *pch);
+unsigned int ndkb_cnt(struct di_ch_s *pch);
+void ndkb_qin_byidx(struct di_ch_s *pch, unsigned int idx);
+void ndkb_dbg_list(struct seq_file *s, struct di_ch_s *pch);
+void npst_int(struct di_ch_s *pch);
+void npst_exit(struct di_ch_s *pch);
+void npst_reset(struct di_ch_s *pch);
+/*  */
+void npst_qin(struct di_ch_s *pch, void *buffer);
+/* @ary_note:  */
+struct di_buffer *npst_qpeek(struct di_ch_s *pch);
+struct di_buffer *npst_qout(struct di_ch_s *pch);
+unsigned int npst_cnt(struct di_ch_s *pch);
+void dbg_log_pst_buffer(struct di_buf_s *di_buf, unsigned int dbgid);
+
+void dip_itf_vf_op_polling(struct di_ch_s *pch);
+void dip_itf_back_input(struct di_ch_s *pch);
+struct dev_vfm_s *dip_itf_vf_sop(struct di_ch_s *pch);
+bool dip_itf_is_vfm(struct di_ch_s *pch);
+bool dip_itf_is_ins(struct di_ch_s *pch);
+bool dip_itf_is_ins_lbuf(struct di_ch_s *pch);
+bool dip_itf_is_ins_exbuf(struct di_ch_s *pch);
+bool dip_itf_is_o_linear(struct di_ch_s *pch);
+void dbg_itf_tmode(struct di_ch_s *pch, unsigned int pos);
+void dim_dbg_buffer(struct di_buffer *buffer, unsigned int id);
+
+unsigned int nins_cnt_used_all(struct di_ch_s *pch);
+
 bool di_is_pause(unsigned int ch);
 void di_pause_step_done(unsigned int ch);
 void di_pause(unsigned int ch, bool on);
 
 void dim_sumx_clear(unsigned int ch);
-void dim_sumx_set(unsigned int ch);
+void dim_sumx_set(struct di_ch_s *pch);
 
 void dim_mp_update_reg(void);
 void dim_mp_update_post(void);
 
 void dip_init_pq_ops(void);
+bool dbg_src_change_simple(unsigned int ch);
 bool dbg_checkcrc(struct di_buf_s *di_buf, unsigned int cnt);
 
 void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode);
@@ -201,12 +323,22 @@ void dbg_afbce_update_level1(struct vframe_s *vf,
 			     enum EAFBC_ENC enc);
 void pre_cfg_cvs(struct vframe_s *vf);//debug only
 void dbg_pip_func(struct di_ch_s *pch, unsigned int mode);
+bool dip_is_support_4k(unsigned int ch);
+bool dip_is_support_nv2110(unsigned int ch);
+
+void dim_vf_x_y(struct vframe_s *vf, unsigned int *x, unsigned int *y);
+
 /************************************************/
 void dcntr_prob(void);
 void dcntr_reg(unsigned int on);
 void dcntr_check(struct vframe_s *vfm);
 void dcntr_dis(void);
 void dcntr_set(void);
+void dcntr_pq_tune(struct dim_rpt_s *rpt);
+struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
+void dim_pqrpt_init(struct dim_rpt_s *rpt);
+
+void di_pq_db_setting(enum DIM_DB_SV idx);
 
 int  dbg_dct_mif_show(struct seq_file *s, void *v);
 int dbg_dct_core_show(struct seq_file *s, void *v);
@@ -216,5 +348,38 @@ int dbg_dct_contr_show(struct seq_file *s, void *v);
 void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
 		  const unsigned int *padd);//debug only
 void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab);//debug only
+void dbg_q_listid(struct seq_file *s, struct buf_que_s *pqbuf);
+void dbg_blk(struct seq_file *s, struct dim_mm_blk_s *blk_buf);
+bool dbg_sct_used_decoder_buffer(void);
+bool dbg_sct_clear_by_frame(void);
+void dbg_q_list_qbuf(struct seq_file *s, struct buf_que_s *pqbuf);
+void dbg_q_list_qbuf_print(struct buf_que_s *pqbuf);
+void dbg_q_list_qbuf_buffer(struct seq_file *s, struct buf_que_s *pqbuf);
+void vfmtst_init(void);
+void vfmtst_exit(void);
+void dtst_prob(void);
+void dtst_exit(void);
+
+void dbg_buffer(struct seq_file *s, void *in);
+void dbg_buffer_print(void *in);
+//int dim_dbg_tst_in_show(struct seq_file *s, void *what);
+//void qbuf_dbg_check_in_buffer_id(unsigned int dbgid);
+bool tst_tmp_is_extbuf(void);
+bool dim_is_dbg_tabe(void);
+void dip_sum_post_ch(void);
+
+void dbg_hd(struct seq_file *s, struct qs_buf_s *header);
+void dbg_hd_print(struct qs_buf_s *header);
+void print_di_buf_seq(struct di_buf_s *di_buf, int format,
+			     struct seq_file *seq);
+void dbg_q_listid_print(struct buf_que_s *pqbuf);
+void dim_dbg_buffer2(struct di_buffer *buffer, unsigned int id);
+bool dim_dbg_new_int(unsigned int id);
+#ifdef TST_NEW_INS_INTERFACE
+int dim_dbg_tst_in_show(struct seq_file *s, void *what);
+
+#endif
+unsigned int dim_get_dbg_dec21(void);
+bool dim_in_linear(void);
 
 #endif	/*__DI_PRC_H__*/

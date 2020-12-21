@@ -276,6 +276,7 @@ int ver_blk_ofst_calc_sw(int *pVbOfVldCnt,
 	return 0;
 }
 #endif
+
 static u32 check_dnr_dm_ctrl(u32 org_val, unsigned short width,
 			     unsigned short height)
 {

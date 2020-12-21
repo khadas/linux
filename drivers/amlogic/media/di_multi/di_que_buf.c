@@ -39,11 +39,11 @@
 #define PR_ERR_Q(fmt, args ...)		pr_err("dim:err:" fmt, ## args)
 
 //static DEFINE_SPINLOCK(dim_ready);
-
+#ifdef MARK_HIS
 unsigned int bypass_flg[] = {
 	CODE_BYPASS,
 };
-
+#endif
 /*keep same order with enum QS_FUNC_E*/
 const char *qs_func_name[] = {
 	"n_in",
@@ -365,6 +365,102 @@ static bool n_list(struct buf_que_s *pqb, struct qs_cls_s *p,
 	if (p->flg_lock)
 		spin_unlock_irqrestore(&p->lock_rd, flags);
 
+	return true;
+}
+
+static bool n_out(struct buf_que_s *pqb, struct qs_cls_s *p,
+		  union q_buf_u *pbuf)
+{
+	int i;
+	//unsigned int index;
+	unsigned int mask;
+	//unsigned int cnt;
+	ulong flags = 0;
+	bool ret = false;
+
+	if (p->flg_lock)
+		spin_lock_irqsave(&p->lock_rd, flags);
+
+	if (!p->n.nub) {
+		/* *pbuf = NULL;*/
+		if (p->flg_lock)
+			spin_unlock_irqrestore(&p->lock_rd, flags);
+		return false;
+	}
+
+	mask = p->n.marsk;
+
+	for (i = 0; i < MAX_FIFO_SIZE; i++) {
+		if (mask & 0x01) {
+			//pqb->list_id[cnt] = i;
+			*pbuf = pqb->pbuf[i];
+			bclr(&p->n.marsk, i);
+			p->n.nub--;
+			ret = true;
+			break;
+		}
+		mask >>= 1;
+	}
+
+	if (p->flg_lock)
+		spin_unlock_irqrestore(&p->lock_rd, flags);
+
+	return ret;
+}
+
+/* 2020-12-07 */
+static bool n_is_in(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf)
+{
+	struct qs_err_msg_s msg;
+	//struct qs_cls_s *p;
+	unsigned int buf_index;
+	ulong flags = 0;
+	bool ret;
+
+	buf_index = ubuf.qbc->index;
+	if (buf_index > 31 ||
+	    !is_eq_ubuf(pqb->pbuf[buf_index], ubuf)) {
+		msg.func_id	= QS_FUNC_N_IS_IN;
+		msg.err_id	= QS_ERR_INDEX_OVERFLOW;
+		msg.qname	= p->name;
+		msg.index1	= buf_index;
+		msg.index2	= 0;
+		qs_err_add(p->plog, &msg);
+		PR_ERR_Q("%s can't support %d\n", __func__, buf_index);
+
+		return false;
+	}
+
+	if (p->flg_lock)
+		spin_lock_irqsave(&p->lock_rd, flags);
+
+	if (bget(&p->n.marsk, buf_index))
+		ret = true;
+	else
+		ret = false;
+
+	if (p->flg_lock)
+		spin_unlock_irqrestore(&p->lock_rd, flags);
+
+	return ret;
+}
+
+static bool n_get_marsk(struct buf_que_s *pqb, struct qs_cls_s *p,
+		  unsigned int *marsk)
+{
+//	int i;
+	//unsigned int index;
+//	unsigned int mask;
+//	unsigned int cnt;
+	ulong flags = 0;
+//	bool ret = false;
+
+	if (p->flg_lock)
+		spin_lock_irqsave(&p->lock_rd, flags);
+
+	*marsk = p->n.marsk;
+	if (p->flg_lock)
+		spin_unlock_irqrestore(&p->lock_rd, flags);
 	return true;
 }
 
@@ -949,10 +1045,12 @@ const struct qsp_ops_s ques_ops[] = {
 		.count	= f_count,
 		.reset	= f_reset,
 		.list	= f_list,
+		.is_in  = NULL,
+		.n_get_marsk = NULL,
 	},
 	[Q_T_N] = {
 		.in		= n_in,
-		.out		= NULL,
+		.out		= n_out,
 		.out_some	= n_out_some,
 		.peek		= NULL,
 		.is_empty	= n_empty,
@@ -960,6 +1058,8 @@ const struct qsp_ops_s ques_ops[] = {
 		.count		= n_count,
 		.reset		= n_reset,
 		.list		= n_list,
+		.is_in		= n_is_in,
+		.n_get_marsk = n_get_marsk,
 	},
 	[Q_T_FIFO_2] = {
 		.in	= fp_in,
@@ -971,6 +1071,8 @@ const struct qsp_ops_s ques_ops[] = {
 		.count	= fp_count,
 		.reset	= fp_reset,
 		.list	= fp_list,
+		.is_in  = NULL,
+		.n_get_marsk = NULL,
 	},
 	[Q_T_N_2] = {
 		.in		= np_in,
@@ -982,6 +1084,8 @@ const struct qsp_ops_s ques_ops[] = {
 		.count		= np_count,
 		.reset		= np_reset,
 		.list		= np_list,
+		.is_in  = NULL,
+		.n_get_marsk = NULL,
 	}
 };
 
@@ -1083,6 +1187,90 @@ static bool qb_list(struct buf_que_s *pqb, unsigned int qindex,
 		return false;
 }
 #endif
+/* fp que don't need pbufq */
+void qfp_int(struct qs_cls_s	*pq,
+	      unsigned char *qname,
+	      unsigned int lock)
+{
+//	int i;
+//	const struct que_creat_s *pcfg;
+
+//	bool rsc_flg = true;
+//	int ret;
+
+	if (!pq)
+		return;
+
+	/*creat que*/
+	qs_creat(Q_T_FIFO_2, pq, qname);
+	if (!pq->flg) {
+		//rsc_flg = false;
+		//no resource
+		return;
+	}
+	/*reset*/
+	pq->ops.reset(NULL, pq);
+	/*lock ?*/
+	if (lock & DIM_QUE_LOCK_RD) {
+		spin_lock_init(&pq->lock_rd);
+		pq->flg_lock |= DIM_QUE_LOCK_RD;
+	}
+	if (lock & DIM_QUE_LOCK_WR) {
+		spin_lock_init(&pq->lock_wr);
+		pq->flg_lock |= DIM_QUE_LOCK_WR;
+	}
+
+	PR_INF("%s:%s:end\n", __func__, qname);
+}
+
+bool qfp_release(struct qs_cls_s	*pq)
+{
+//	int i;
+
+	if (!pq)
+		return true;
+	qs_release(pq);
+
+	return true;
+}
+
+/* @ary_note: this need protect */
+unsigned int qfp_list(struct qs_cls_s *p,
+	     unsigned int size,
+	     void **list)
+{
+	int i;
+	ud index;
+	struct kfifo	tmp_kfifo;
+	int ret;
+	unsigned int cnt = 0;
+
+	for (i = 0; i < size; i++)
+		list[i] = NULL;
+
+	if (kfifo_is_empty(&p->f.fifo)) {
+		PR_INF("\t%s:empty\n", p->name);
+		return 0;
+	}
+
+	ret = kfifo_alloc(&tmp_kfifo,
+			  tst_quep_ele * MAX_FIFO_SIZE,
+			  GFP_KERNEL);
+	if (ret < 0) {
+		PR_ERR_Q("%s:alloc kfifo err:tmp\n", __func__);
+		return false;
+	}
+
+	memcpy(&tmp_kfifo, &p->f.fifo, sizeof(tmp_kfifo));
+
+	while (kfifo_out(&tmp_kfifo, &index, tst_quep_ele) ==
+	       tst_quep_ele && (cnt < size)) {
+		list[i] = (void *)index;
+		cnt++;
+	}
+	kfifo_free(&tmp_kfifo);
+	return cnt;
+}
 
 void qbuf_int(struct buf_que_s *pbufq, const struct que_creat_s *cfg,
 	      const struct qbuf_creat_s *cfg_qbuf)
@@ -1199,6 +1387,7 @@ bool qbuf_is_empty(struct buf_que_s *pqbuf, unsigned int qindex)
 	if (!pqbuf->pque[qindex]) {
 		PR_ERR_Q("%s:pq[%s][%d] is null\n", __func__,
 			 pqbuf->name, qindex);
+		dump_stack();
 		return true;
 	}
 	pq = pqbuf->pque[qindex];
@@ -1402,6 +1591,7 @@ bool qbuf_peek(struct buf_que_s *pqbuf, unsigned int qt,
 	return ret;
 }
 
+#ifdef HIS_CODE
 /* pbuf is point */
 bool qbuf_peek_s(struct buf_que_s *pqbuf, unsigned int qt,
 		 union q_buf_u *pbuf)
@@ -1422,6 +1612,7 @@ bool qbuf_peek_s(struct buf_que_s *pqbuf, unsigned int qt,
 
 	return ret;
 }
+#endif
 
 bool qbuf_in_all(struct buf_que_s *pqbuf, unsigned int qt)
 {
@@ -1447,6 +1638,25 @@ bool qbuf_in_all(struct buf_que_s *pqbuf, unsigned int qt)
 	}
 
 	return true;
+}
+
+bool qbuf_n_is_in(struct buf_que_s *pqbuf,
+		   unsigned int qt,
+		   union q_buf_u q_buf)
+{
+	struct qs_cls_s *pqt;
+
+	if (!pqbuf->pque[qt]) {
+		PR_ERR("%s:%s: no que %d\n", __func__, pqbuf->name, qt);
+		return false;
+	}
+
+	pqt = pqbuf->pque[qt];
+
+	if (pqt->ops.is_in)
+		return pqt->ops.is_in(pqbuf, pqt, q_buf);
+	PR_ERR("%s:%s:no is_in function:\n", __func__, pqt->name);
+	return false;
 }
 
 bool qbuf_out_some(struct buf_que_s *pqbuf,
@@ -1486,6 +1696,26 @@ bool qbuf_out_some(struct buf_que_s *pqbuf,
 	return ret;
 }
 
+void qbuf_dbg_checkid(struct buf_que_s *pqbuf, unsigned int dbgid)
+{
+	int i;
+
+	//PR_INF("%s\n", pqbuf->name);
+	for (i = 0; i < pqbuf->nub_buf; i++) {
+		if (!pqbuf->pbuf[i].qbc) {
+			PR_ERR("%s:[%d]:[%d]no\n", pqbuf->name, dbgid, i);
+			break;
+		}
+
+		if (i != pqbuf->pbuf[i].qbc->index) {
+			PR_ERR("%s:[%d]id change [%d][%d]\n",
+			       pqbuf->name,
+			       dbgid, i, pqbuf->pbuf[i].qbc->index);
+			break;
+		}
+		//PR_INF("\t:%d:%d\n", i, pqbuf->pbuf[i].qbc->index);
+	}
+}
 /***********************************************************/
 bool qbufp_move_some(struct buf_que_s *pqbuf, unsigned int qf,
 		     unsigned int qt, union q_buf_u q_buf)
@@ -1723,9 +1953,9 @@ bool qbufp_list(struct buf_que_s *pqbuf, unsigned int qt)
 {
 	struct qs_cls_s *pqt;
 	unsigned int siz;
-	int i;
+//	int i;
 //	ud index;
-	struct qs_buf_s *qbc;
+//	struct qs_buf_s *qbc;
 
 	if (!pqbuf->pque[qt]) {
 		PR_ERR("%s:%s: no que %d\n", __func__, pqbuf->name, qt);
@@ -1735,6 +1965,7 @@ bool qbufp_list(struct buf_que_s *pqbuf, unsigned int qt)
 	if (pqt->ops.list)
 		pqt->ops.list(pqbuf, pqt, &siz);
 
+	#ifdef MARK_HIS
 	PR_INF("%s:%s:\n", __func__, pqt->name);
 	for (i = 0; i < MAX_FIFO_SIZE; i++) {
 		if (pqbuf->list_ud[i]) {
@@ -1744,6 +1975,7 @@ bool qbufp_list(struct buf_que_s *pqbuf, unsigned int qt)
 			break;
 		}
 	}
+	#endif
 	return true;
 }
 

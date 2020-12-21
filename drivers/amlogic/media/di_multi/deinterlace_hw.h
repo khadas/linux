@@ -112,6 +112,7 @@ enum EDPST_MODE {
 	EDPST_MODE_422_10BIT_PACK,
 	EDPST_MODE_422_10BIT,
 	EDPST_MODE_422_8BIT,
+	EDPST_MODE_420_10BIT /* add 2020-11-26 */
 };
 
 struct AFBCD_S {
@@ -283,7 +284,11 @@ struct DI_MIF_S {
 	/* ary no use*/
 	unsigned int nocompress		:1;
 	unsigned int		output_field_num:1;
-	unsigned int reserved		:8;
+	unsigned int		l_endian : 1; //2020-12-21
+	unsigned int		reg_swap : 1;
+	unsigned int		cbcr_swap: 1;
+
+	unsigned int reserved		:5;
 
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
@@ -322,7 +327,8 @@ struct DI_SIM_MIF_s {
 
 	unsigned int	en		:1; /* add for sc2*/
 	unsigned int	src_i		:1; /* ary add for sc2 */
-	unsigned int	reserved	: 15;
+	unsigned int	reg_swap	:1;
+	unsigned int	reserved	: 13;
 
 	enum DI_MIFS_ID	mif_index; /* */
 };

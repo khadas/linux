@@ -63,6 +63,9 @@ struct dim_tr_ops_s {
 	void (*post_ir)(unsigned int index);
 	void (*post_do)(unsigned int index);
 	void (*post_peek)(unsigned int index);
+	void (*sct_alloc)(unsigned int index, u64 timer_begin);
+	void (*sct_tail)(unsigned int index, unsigned int used_cnt);
+	void (*self_trig)(unsigned int index);
 };
 
 extern const struct dim_tr_ops_s dim_tr_ops;

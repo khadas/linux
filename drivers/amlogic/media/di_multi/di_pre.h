@@ -35,5 +35,6 @@ bool dim_bypass_detect(unsigned int ch, struct vframe_s *vfm);
 void pre_mode_setting(void);
 bool dpre_process_step4(void);
 const char *dpre_state4_name_get(enum EDI_PRE_ST4 state);
+bool dpre_after_do_table(void);
 
 #endif	/*__DI_PRE_H__*/

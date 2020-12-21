@@ -94,12 +94,13 @@ bool qbuf_out(struct buf_que_s *pqbuf, unsigned int qt, unsigned int *pindex);
 bool qbuf_reset(struct buf_que_s *pqbuf);
 bool qbuf_peek(struct buf_que_s *pqbuf, unsigned int qt,
 	       unsigned int *buf_index);
-bool qbuf_peek_s(struct buf_que_s *pqbuf, unsigned int qt,
-		 union q_buf_u *pbuf);
+//bool qbuf_peek_s(struct buf_que_s *pqbuf, unsigned int qt,
+//		 union q_buf_u *pbuf);
 
 bool qbuf_in_all(struct buf_que_s *pqbuf, unsigned int qt);
 bool qbuf_out_some(struct buf_que_s *pqbuf,
 		   unsigned int qt, union q_buf_u q_buf);
+void qbuf_dbg_checkid(struct buf_que_s *pqbuf, unsigned int dbgid);
 
 bool qbufp_move_some(struct buf_que_s *pqbuf, unsigned int qf,
 		     unsigned int qt, union q_buf_u q_buf);
@@ -115,6 +116,20 @@ bool qbufp_out_some(struct buf_que_s *pqbuf,
 		    unsigned int qt, union q_buf_u q_buf);
 bool qbufp_list(struct buf_que_s *pqbuf,
 		unsigned int qt);
+
+void qfp_int(struct qs_cls_s	*pq,
+	      unsigned char *qname,
+	      unsigned int lock);
+bool qfp_release(struct qs_cls_s *pq);
+/* dbg only*/
+unsigned int qfp_list(struct qs_cls_s *p,
+	     unsigned int size,
+	     void **list);
+
+/* only for n type have this function */
+bool qbuf_n_is_in(struct buf_que_s *pqbuf,
+		   unsigned int qt,
+		   union q_buf_u q_buf);
 
 /*************************************************/
 #endif	/*__DI_QUE_H__*/

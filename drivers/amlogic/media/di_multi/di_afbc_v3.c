@@ -1235,7 +1235,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
-		pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
+		pafd_ctr->fb.mode = AFBC_WK_P;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
 		pafd_ctr->fb.ver = AFBCD_NONE;
@@ -1294,7 +1294,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		pafd_ctr->fb.mem_alloci	= 0;
 	}
 
-	afbc_cfg = BITS_EAFBC_CFG_DISABLE;
+	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 	di_pr_info("%s:ver[%d],%s\n", __func__, pafd_ctr->fb.ver,
 		   afbc_get_version());
 }
@@ -1769,7 +1769,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	 * different with from dos
 	 */
 		if (!(vf->type & VIDTYPE_VIU_422) &&
-		    dec == EAFBC_DEC2_DI)
+		    (dec == EAFBC_DEC2_DI))
 		    /* ary note: frame afbce, set 0*/
 			r |= (1 << 19); /* dos_uncomp */
 
@@ -2767,7 +2767,7 @@ static unsigned int afbc_count_info_size(unsigned int w, unsigned int h,
 	unsigned int blk_hsize_align, blk_vsize_align;
 
 	if (!afbc_is_supported() ||
-	    (pafd_ctr->fb.mode < AFBC_WK_P && (!cfgg(FIX_BUF)))) {
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF)))) {
 		pafd_ctr->blk_nub_total	= 0;
 		pafd_ctr->size_info	= 0;
 		return 0;
@@ -2795,7 +2795,7 @@ static unsigned int v2_afbc_count_buffer_size(unsigned int format,
 	unsigned int fmt_mode, compbits;
 
 	if (!afbc_is_supported() ||
-	    (pafd_ctr->fb.mode < AFBC_WK_P && (!cfgg(FIX_BUF)))) {
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF)))) {
 		pafd_ctr->size_afbc_buf	= 0;
 		return 0;
 	}
@@ -2832,7 +2832,7 @@ static unsigned int afbc_count_tab_size(unsigned int buf_size)
 
 	/* tmp: large */
 	if (!afbc_is_supported() ||
-	    (pafd_ctr->fb.mode < AFBC_WK_P && (!cfgg(FIX_BUF))))
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF))))
 		return 0;
 
 	length = PAGE_ALIGN(((buf_size + 0xfff) >> 12) *
@@ -2849,7 +2849,7 @@ static unsigned int afbc_count_info_size(unsigned int w, unsigned int h)
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
 	if ((!afbc_is_supported()) ||
-	    (pafd_ctr->fb.mode < AFBC_WK_P && (!cfgg(FIX_BUF))))
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF))))
 		return 0;
 
 	length = PAGE_ALIGN((roundup(w * 2, 32) *
@@ -2866,7 +2866,7 @@ static unsigned int afbc_count_tab_size(unsigned int buf_size)
 
 	/* tmp: large */
 	if ((!afbc_is_supported()) ||
-	    (pafd_ctr->fb.mode < AFBC_WK_P && (!cfgg(FIX_BUF))))
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF))))
 		return 0;
 
 	length = PAGE_ALIGN(((buf_size * 2 + 0xfff) >> 12) *
@@ -2887,7 +2887,7 @@ static unsigned int afbc_int_tab(struct device *dev,
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 	unsigned int crc = 0;
 	unsigned long crc_tmp = 0;
-	//struct di_mm_s *mm = dim_mm_get(ch);
+	//struct div2_mm_s *mm = dim_mm_get(ch);
 	//struct di_dev_s *de_devp = get_dim_de_devp();
 
 	if (!afbc_is_supported()	||
@@ -3231,6 +3231,11 @@ static void vf_set_for_com(struct di_buf_s *di_buf)
 	vf->compWidth  = vf->width;
 	vf->bitdepth |= (BITDEPTH_U10 | BITDEPTH_V10);
 
+	if (di_buf->afbce_out_yuv420_10) {
+		vf->type &= ~VFMT_COLOR_MSK;
+		vf->type |= VIDTYPE_VIU_FIELD;
+		vf->bitdepth &= ~(FULL_PACK_422_MODE);
+	}
 	//dim_print("%s:%px:0x%x\n", __func__,  vf, vf->type);
 #ifdef DBG_AFBC
 
@@ -3508,6 +3513,8 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 		/* ary : not setting DI_AFBCE_CTRL ?*/
 
 	} else {
+		if (DIM_IS_IC(TM2B))//dis afbce mode from vlsi xianjun.fan
+			op->bwr(reg[EAFBCE_MODE_EN], 0x01, 18, 1);
 		op->bwr(reg[EAFBCE_ENABLE], cfg->enable, 8, 1);//enable afbce
 		op->bwr(DI_AFBCE_CTRL, cfg->enable, 0, 1);//di pre to afbce
 		//op->bwr(DI_AFBCE_CTRL, cfg->enable, 4, 1);//di pre to afbce
@@ -3528,6 +3535,18 @@ void afbce_sw(enum EAFBC_ENC enc, bool on)
 		op->bwr(reg[EAFBCE_ENABLE], 0, 8, 1);//enable afbce
 		op->bwr(reg[EAFBCE_ENABLE], 0, 0, 1);//enable afbce
 	}
+}
+
+unsigned int afbce_read_used(enum EAFBC_ENC enc)
+{
+	const unsigned int *reg;
+	const struct reg_acc *op = &di_normal_regset;
+	unsigned int nub;
+
+	reg = &reg_afbc_e[enc][0];
+
+	nub = op->rd(reg[EAFBCE_MMU_NUM]);
+	return nub;
 }
 
 /* set_di_afbce_cfg */
@@ -3583,7 +3602,10 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 		 cfg->head_baddr,
 		 cfg->mmu_info_baddr);
 #endif
-	cfg->reg_format_mode = 1;/*0:444 1:422 2:420*/
+	if (di_buf->afbce_out_yuv420_10)
+		cfg->reg_format_mode = 2;
+	else
+		cfg->reg_format_mode = 1;/*0:444 1:422 2:420*/
 	cfg->reg_compbits_y = 10;//8;/*bits num after compression*/
 	cfg->reg_compbits_c = 10;//8;/*bits num after compression*/
 #ifdef MARK_SC2

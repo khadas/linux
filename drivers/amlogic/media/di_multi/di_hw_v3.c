@@ -1728,9 +1728,10 @@ static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 
 };
 
-static void set_wrmif_simple(int index, int enable,
-			     struct DI_MIF_S  *wr_mif,
-			     const struct reg_acc *opin)
+static void set_wrmif_simple
+			(int index,
+			 int enable,
+			 struct DI_MIF_S  *wr_mif, const struct reg_acc *opin)
 {
 	const unsigned int *reg;
 	const struct reg_acc *op;
@@ -1881,7 +1882,7 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 			(0 << 24) |   // no gate clock
 			(0 << 25) |   // canvas_sync enable
 			(2 << 26) |   // burst lim
-			(1 << 30));   // 64-bits swap enable
+			(mif->reg_swap << 30));   // 64-bits swap enable
 	} else {
 		op->wr(reg[WRMIF_CTRL],
 		       (mif->en << 0) |   // write mif en.
@@ -1899,7 +1900,7 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 		       (0      << 24) |   // no gate clock
 		       (0      << 25) |   // canvas_sync enable
 		       (2      << 26) |   // burst lim
-		       (1      << 30));   // 64-bits swap enable
+		       (mif->reg_swap      << 30));   // 64-bits swap enable
 	}
 }
 
@@ -3505,9 +3506,9 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 
 	op->wr(off + reg[MIF_GEN_REG3],
 	       mif->bit_mode << 8 |    // bits_mode
-	       3 << 4 |    // block length
-	       burst_len	<< 1 |	//2 << 1 |    // use bst4
-	       1 << 0);   //64 bit swap
+	       3 << 4		  |    // block length
+	       burst_len << 1	  |	//2 << 1 |    // use bst4
+	       mif->reg_swap << 0);   //64 bit swap
 	if (!is_mask(SC2_REG_MSK_GEN_PRE)) {
 		op->wr(off + reg[MIF_GEN_REG],
 			(reset_bit << 29)          | // reset on go field
@@ -3522,6 +3523,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 			(mif->burst_size_cb << 10) |
 			(mif->burst_size_y << 8)   |
 			(chro_rpt_lastl_ctrl << 6) |
+			(mif->l_endian << 4)		| /* 2020-12-29 ?*/
 			((mif->set_separate_en != 0) << 1)      |
 			(1 << 0)                     // cntl_enable
 			);
@@ -3529,6 +3531,8 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	if (mif->set_separate_en == 2) {
 		// Enable NV12 Display
 		op->wr(off + reg[MIF_GEN_REG2], 1);
+		if (mif->cbcr_swap)
+			op->bwr(off + reg[MIF_GEN_REG2], 2, 0, 2);
 	} else {
 		op->wr(off + reg[MIF_GEN_REG2], 0);
 	}
@@ -4176,12 +4180,16 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 			di_mif->canvas0_addr2 =
 				(di_buf->vframe->canvas0Addr >> 16) & 0xff;
 		}
+		di_mif->reg_swap = 1;
+		di_mif->l_endian = 0;
+		di_mif->cbcr_swap = 0;
 	} else {
 		if (di_buf->vframe->type & VIDTYPE_VIU_444)
 			di_mif->video_mode = 2;
 		else
 			di_mif->video_mode = 0;
-		if (di_buf->vframe->type & VIDTYPE_VIU_NV21)
+		if (di_buf->vframe->type &
+		    (VIDTYPE_VIU_NV21 | VIDTYPE_VIU_NV12))
 			di_mif->set_separate_en = 2;
 		else
 			di_mif->set_separate_en = 1;

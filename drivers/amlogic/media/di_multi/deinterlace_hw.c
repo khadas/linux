@@ -848,6 +848,10 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	unsigned short mem_hsize = 0, mem_vsize = 0;
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
 
+	if (DIM_IS_IC(T5))
+		mem_bypass = (pre_vdin_link & DI_BIT4) ? true : false;
+	pre_vdin_link &= 0xf;
+
 	if (DIM_IS_IC_EF(SC2)) {
 		di_inp_mif->urgent	= dimp_get(edi_mp_pre_urgent);
 		di_inp_mif->hold_line	= dimp_get(edi_mp_pre_hold_line);
@@ -1302,16 +1306,24 @@ static void set_di_inp_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		    (1 << 12)			| /*burst_size_cr*/
 		    (1 << 10)			| /*burst_size_cb*/
 		    (3 << 8)			| /*burst_size_y*/
+		    (mif->l_endian << 4)		|
 		    (chro_rpt_lastl_ctrl << 6)	|
 		    ((mif->set_separate_en != 0) << 1) |
 		    (0 << 0)/* cntl_enable */
 		    );
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 1, 0, 1);
+		if (mif->cbcr_swap)
+			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 2, 0, 2);
+		else
+			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 1, 0, 2);
 	} else {
 		DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 1);
 	}
+	if (mif->reg_swap == 1)
+		DIM_RDMA_WR_BITS(DI_INP_GEN_REG3, 1, 0, 1);
+	else
+		DIM_RDMA_WR_BITS(DI_INP_GEN_REG3, 0, 0, 1);
 
 	if (mif->canvas_w % 32)
 		burst_len = 0;
@@ -4387,11 +4399,37 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 			  wins->regs[3].blend_mode, 14, 2);
 }
 
+static bool pq_save_db(unsigned int addr, unsigned int val, unsigned int mask)
+{
+	bool ret = false;
+	int i;
+	struct db_save_s *p;
+
+	for (i = 0; i < DIM_DB_SAVE_NUB; i++) {
+		p = &get_datal()->db_save[i];
+
+		if (!p->support)
+			continue;
+
+		if (addr == p->addr) {
+			p->val_db	= val;
+			p->mask		= mask;
+			p->en_db	= true;
+			ret	= true;
+			dbg_pq("%s:reg:0x%x,val:0x%x,mask:0x%x\n",
+				__func__, p->addr, p->val_db, p->mask);
+			break;
+		}
+	}
+	return ret;
+}
+
 void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 {
 	unsigned int i = 0, j = 0, addr = 0, value = 0, mask = 0, len;
 	unsigned int table_name = 0, nr_table = 0;
 	bool ctrl_reg_flag = false;
+	bool save_db	= false;
 	struct am_reg_s *regs_p = NULL;
 
 	if (dimp_get(edi_mp_pq_load_dbg) == 1)
@@ -4439,8 +4477,11 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (table_name & nr_table)
 			ctrl_reg_flag =
 			get_ops_nr()->set_nr_ctrl_reg_table(addr, value);
+		//if (table_name & (TABLE_NAME_NR | TABLE_NAME_SMOOTHPLUS))
+		if (table_name & TABLE_NAME_NR)
+			save_db = pq_save_db(addr, value, mask);
 
-		if (!ctrl_reg_flag)
+		if (!ctrl_reg_flag && !save_db)
 			DIM_DI_WR(addr, value);
 		if (dimp_get(edi_mp_pq_load_dbg) == 2)
 			pr_info("[%u][0x%x] = [0x%x] %s\n", i, addr,
@@ -4543,7 +4584,7 @@ static void dimh_wrmif_switch_buf(struct DI_SIM_MIF_s *cfg_mif,
 		/*rgb mode =0, 422 YCBCR to one canvas.*/
 		(0 << 22)		|
 		(0 << 24)		|
-		(cfg_mif->ddr_en << 30));
+		(cfg_mif->reg_swap << 30));
 
 	if (cfg_mif->set_separate_en == 0) {
 		ctr |= (cfg_mif->canvas_num & 0xff);	/* canvas index.*/
@@ -4603,7 +4644,7 @@ static void dimh_wrmif_set(struct DI_SIM_MIF_s *cfg_mif,
 	       /*rgb mode =0, 422 YCBCR to one canvas.*/
 	       (0 << 22)		|
 	       (0 << 24)		|
-	       (cfg_mif->ddr_en << 30);
+	       (cfg_mif->reg_swap << 30);
 	if (cfg_mif->set_separate_en == 0) {
 		ctr |= (cfg_mif->canvas_num & 0xff);	/* canvas index.*/
 	} else if (cfg_mif->set_separate_en == 2) {
@@ -4642,8 +4683,8 @@ static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 
 	//cfg_mif->ddr_en = ddr_en;
 	cfg_mif->urgent = urgent;
-	cfg_mif->cbcr_swap = 0;
-	cfg_mif->l_endian = 0;
+	//cfg_mif->cbcr_swap = 0;
+	//cfg_mif->l_endian = 0;
 
 	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_WR);
 }
@@ -4656,8 +4697,8 @@ static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 
 	cfg_mif->ddr_en = ddr_en;
 	cfg_mif->urgent = urgent;
-	cfg_mif->cbcr_swap = 0;
-	cfg_mif->l_endian = 0;
+	//cfg_mif->cbcr_swap = 0;
+	//cfg_mif->l_endian = 0;
 
 	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_NR);
 }
@@ -4668,10 +4709,10 @@ void dimh_pst_mif_update(struct DI_SIM_MIF_s *cfg_mif,
 {
 	struct cfg_mifset_s mifset;
 
-	mifset.ddr_en = ddr_en;
-	mifset.urgent = urgent;
-	mifset.cbcr_swap = 0;
-	mifset.l_endian = 0;
+	//mifset.ddr_en = ddr_en;
+	//mifset.urgent = urgent;
+	//mifset.cbcr_swap = 0;
+	//mifset.l_endian = 0;
 
 	dimh_wrmif_switch_buf(cfg_mif, &di_pst_regset, &mifset, EDI_MIFSM_WR);
 }

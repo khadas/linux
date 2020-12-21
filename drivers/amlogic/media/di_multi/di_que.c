@@ -37,8 +37,8 @@ const char * const di_name_new_que[QUE_NUB] = {
 	"QUE_POST_READY",	/*3*/
 	"QUE_POST_BACK",	/*4*/
 	"QUE_POST_DOING",
-	"QUE_POST_KEEP",
-	"QUE_POST_KEEP_BACK",
+//	"QUE_POST_KEEP",
+//	"QUE_POST_KEEP_BACK",
 	"QUE_DBG",
 /*	"QUE_NUB",*/
 
@@ -261,8 +261,8 @@ void di_que_init(unsigned int ch)
 	struct di_ch_s *pch = get_chdata(ch);
 
 	for (i = 0; i < QUE_NUB; i++) {
-		if (i == QUE_POST_KEEP		||
-		    i == QUE_POST_KEEP_BACK	||
+		if (//		    i == QUE_POST_KEEP		||
+		    //		    i == QUE_POST_KEEP_BACK	||
 		    i == QUE_POST_KEEP_RE_ALLOC)
 			continue;
 		pw_queue_clear(ch, i);

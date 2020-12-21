@@ -25,8 +25,8 @@
 
 void dev_vframe_init(void);
 void dev_vframe_exit(void);
-void dev_vframe_reg(struct dev_vfram_t *pvfm);
-void dev_vframe_unreg(struct dev_vfram_t *pvfm);
+//void dev_vframe_reg(struct dev_vfram_t *pvfm);
+//void dev_vframe_unreg(struct dev_vfram_t *pvfm);
 
 #ifdef MARK_SC2
 bool vf_type_is_prog(unsigned int type);
@@ -64,7 +64,7 @@ int pw_vf_notify_receiver(unsigned int channel,
 void pw_vf_light_unreg_provider(unsigned int ch);
 
 void set_bypass2_complete(unsigned int ch, bool on);
-bool is_bypss_complete(struct dev_vfram_t *pvfm);
+//no used bool is_bypss_complete(struct dev_vfram_t *pvfm);
 bool is_bypss2_complete(unsigned int ch);
 
 #endif /*__DI_VFRAME_H__*/

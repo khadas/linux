@@ -152,6 +152,7 @@ enum AFBC_WK_MODE {
 //const unsigned int *afbce_get_addrp(enum EAFBC_ENC eidx);
 /*define in vpp*/
 s32 di_request_afbc_hw(u8 id, bool on);
+unsigned int afbce_read_used(enum EAFBC_ENC enc);
 //bool cfg_pmode(void);
 //bool cfg_test4k(void);
 //bool dbg_di_prelink(void);

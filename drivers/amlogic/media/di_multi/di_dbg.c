@@ -34,6 +34,7 @@
 #include "di_pre.h"
 #include "di_post.h"
 #include "di_dbg.h"
+#include "di_sys.h"
 
 /********************************
  *trace:
@@ -219,6 +220,30 @@ static void trace_post_peek(unsigned int index)
 	trace_dim_pst_peekx("PST-PEEK-8", index, ustime);
 }
 
+static void trace_slef_trig(unsigned int index)
+{
+	u64 ustime;
+
+	if (di_get_disp_cnt() > DI_TRACE_LIMIT)
+		return;
+
+	ustime = cur_to_usecs();
+	trace_dim_self_trig("P-TRIG", index, ustime);
+}
+
+static void trace_msct(unsigned int index, u64 timer_begin)
+{
+	u64 ustime;
+
+	ustime = cur_to_usecs();
+	trace_dim_sct_alloc("SCT-ALLOC", index, ustime - timer_begin);
+}
+
+static void trace_msct_tail(unsigned int index, unsigned int used_cnt)
+{
+	trace_dim_sct_tail("SCT-TAILX", index, (u64)used_cnt);
+}
+
 const struct dim_tr_ops_s dim_tr_ops = {
 	.pre = trace_pre,
 	.post = trace_post,
@@ -234,6 +259,9 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.post_ir = trace_post_irq,
 	.post_do = trace_post_doing,
 	.post_peek = trace_post_peek,
+	.sct_alloc = trace_msct,
+	.sct_tail  = trace_msct_tail,
+	.self_trig = trace_slef_trig,
 };
 
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
@@ -519,6 +547,7 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
 	int i;
 	struct canvas_config_s *pcvs;
+	struct dim_rpt_s *rpt;
 
 	if (!pvfm) {
 		seq_puts(seq, "war: dump vframe NULL\n");
@@ -543,7 +572,7 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%d\n", "disp_pts", pvfm->disp_pts);
 	seq_printf(seq, "%-15s:%lld\n", "disp_pts_us64", pvfm->disp_pts_us64);
 	seq_printf(seq, "%-15s:%lld\n", "timestamp", pvfm->timestamp);
-	seq_printf(seq, "%-15s:%d\n", "flag", pvfm->flag);
+	seq_printf(seq, "%-15s:0x%x\n", "flag", pvfm->flag);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
 		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
@@ -639,6 +668,19 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		seq_printf(seq, "%-15s\n", "vf_ext");
 	else
 		seq_printf(seq, "%-15s\n", "vf_ext:none");
+	rpt = dim_api_getrpt(pvfm);
+	if (rpt) {
+		if (rpt->spt_bits) {
+			seq_printf(seq, "bits[0x%x], map0[0x%x], map1[0x%x],map2[0x%x],map3[0x%x],map15[0x%x], bld2[0x%x]\n",
+				   rpt->spt_bits,
+				   rpt->dct_map_0,
+				   rpt->dct_map_1,
+				   rpt->dct_map_2,
+				   rpt->dct_map_3,
+				   rpt->dct_map_15,
+				   rpt->dct_bld_2);
+		}
+	}
 
 	return 0;
 }
@@ -822,6 +864,131 @@ ssize_t seq_file_vtype_store(struct file *file, const char __user *userbuf,
 	return count;
 }
 
+static int dbg_q_sct_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	dbg_q_listid(s, &pch->sct_qb);
+
+	return 0;
+}
+
+static int dbg_sct_peek_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+	struct dim_sct_s *qsct;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	qsct = qsct_peek(pch, QBF_SCT_Q_IDLE);
+	if (!qsct) {
+		seq_printf(s, "%s:\n", "null");
+		return 0;
+	}
+
+	seq_printf(s, "\t%d:\n", qsct->header.index);
+
+	return 0;
+}
+
+static int dbg_sct_used_pat_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+//	struct dim_sct_s *qsct;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	dbg_sct_used(s, pch);
+	return 0;
+}
+
+static int dbg_q_nins_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	dbg_q_listid(s, &pch->nin_qb);
+
+	dbg_q_list_qbuf(s, &pch->nin_qb);
+
+	//qbuf_dbg_checkid(&pch->nin_qb, 10);
+	return 0;
+}
+
+static int dbg_nins_peek_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+	struct dim_nins_s *nin;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	nin = nins_peek(pch);
+	if (!nin) {
+		seq_printf(s, "%s:\n", "null");
+		return 0;
+	}
+
+	seq_printf(s, "\t%d:\n", nin->header.index);
+
+	return 0;
+}
+
+static int dbg_q_ndis_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	dbg_q_listid(s, &pch->ndis_qb);
+
+	//dbg_q_list_qbuf(s, &pch->ndis_qb);
+	ndis_dbg_qbuf_detail(s, pch);
+
+	//qbuf_dbg_checkid(&pch->nin_qb, 10);
+	return 0;
+}
+
+static int dbg_q_ndkb_show(struct seq_file *s, void *what)
+{
+	int *chp;
+	struct di_ch_s *pch;
+
+	chp = (int *)s->private;
+
+	seq_printf(s, "%s:ch[%d]\n", __func__, *chp);
+	pch = get_chdata(*chp);
+
+	ndkb_dbg_list(s, pch);
+	return 0;
+}
+
 /**************************************
  *
  * show vframe current
@@ -874,6 +1041,7 @@ static int seq_file_curr_vframe_show(struct seq_file *seq, void *v)
 	/********************************/
 	/* post_ready_list		*/
 	/********************************/
+	#ifdef MARK_HIS	//@ary_note: todo
 	di_que_list(ch, QUE_POST_READY, &tmpa[0], &psize);
 	seq_printf(seq, "post_ready_list: curr(%d)\n", psize);
 
@@ -884,7 +1052,7 @@ static int seq_file_curr_vframe_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%s\n", splt2);
 	}
 	seq_printf(seq, "%s\n", splt);
-
+	#endif
 	/********************************/
 	/* display_list			*/
 	/********************************/
@@ -1190,7 +1358,7 @@ ssize_t keep_buf_clear_store(struct file *file, const char __user *userbuf,
 		return 0;
 	}
 
-	dim_dbg_release_keep_all(ch);
+	//dim_dbg_release_keep_all(ch);
 
 	return count;
 }
@@ -1679,6 +1847,23 @@ void dbg_f_trig_task(unsigned int para)
 	task_send_ready();
 }
 
+void dbg_f_pq_sel(unsigned int para)
+{
+	unsigned int data[2];
+	static unsigned int cnt;
+
+	if (para == 0) {
+		dim_pq_db_sel(DIM_DB_SV_DCT_BL2, 0, NULL);
+	} else if (para == 1) {
+		data[0] = cnt << 16;
+		data[1] = 0x1ff0000;
+		dim_pq_db_sel(DIM_DB_SV_DCT_BL2, 1, &data[0]);
+		PR_INF("%s:data[0x%x],data[0x%x],cnt[0x%x]\n",
+			__func__, data[0], data[1], cnt);
+		cnt++;
+	}
+}
+
 const struct di_dbg_func_s di_func_tab[] = {
 	{EDI_DBG_F_00, dbg_f_post_disable,
 		"dimh_disable_post_deinterlace_2", "no para"},
@@ -1697,6 +1882,8 @@ const struct di_dbg_func_s di_func_tab[] = {
 		"trig post gate off/on", "no para"},
 	{EDI_DBG_F_07, hpst_dbg_trig_mif,
 		"trig post mif off/free", "no para"},
+	{EDI_DBG_F_08, dbg_f_pq_sel,
+		"trig pq set", "no para"},
 };
 
 static ssize_t wfunc_store(struct file *file, const char __user *userbuf,
@@ -2075,7 +2262,19 @@ DEFINE_STORE_ONLY(dbg_pip);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_mif);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_contr);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_core);
+DEFINE_SEQ_SHOW_ONLY(dbg_q_sct);
+DEFINE_SEQ_SHOW_ONLY(dbg_sct_peek);
+DEFINE_SEQ_SHOW_ONLY(dbg_sct_used_pat);
+DEFINE_SEQ_SHOW_ONLY(dim_dbg_sct_top);
+DEFINE_SEQ_SHOW_ONLY(dbg_q_nins);
+DEFINE_SEQ_SHOW_ONLY(dbg_nins_peek);
+DEFINE_SEQ_SHOW_ONLY(dbg_q_ndis);
+DEFINE_SEQ_SHOW_ONLY(dbg_q_ndkb);
 
+//test:
+#ifdef TST_NEW_INS_INTERFACE
+DEFINE_SEQ_SHOW_ONLY(dim_dbg_tst_in);
+#endif
 /**********************/
 
 struct di_dbgfs_files_t {
@@ -2137,6 +2336,9 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"dct_mif", S_IFREG | 0644, &dbg_dct_mif_fops},
 	{"dct_ctr", S_IFREG | 0644, &dbg_dct_contr_fops},
 	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},
+#ifdef TST_NEW_INS_INTERFACE
+	{"tst_list_in", S_IFREG | 0644, &dim_dbg_tst_in_fops},
+#endif
 
 };
 
@@ -2153,7 +2355,15 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"mpxw", S_IFREG | 0644, &mpxw_fops},
 	{"vfmc", S_IFREG | 0644, &seq_file_curr_vframe_fops},
 	{"dbg_crc", S_IFREG | 0644, &dbg_crc_fops},
-	{"dbg_pip", S_IFREG | 0644, &dbg_pip_fops}
+	{"dbg_pip", S_IFREG | 0644, &dbg_pip_fops},
+	{"sct_top", S_IFREG | 0644, &dim_dbg_sct_top_fops},
+	{"list_sct", S_IFREG | 0644, &dbg_q_sct_fops},
+	{"list_sct_peek", S_IFREG | 0644, &dbg_sct_peek_fops},
+	{"list_sct_used", S_IFREG | 0644, &dbg_sct_used_pat_fops},
+	{"list_ndis", S_IFREG | 0644, &dbg_q_ndis_fops},
+	{"list_ndkb", S_IFREG | 0644, &dbg_q_ndkb_fops},
+	{"list_nin", S_IFREG | 0644, &dbg_q_nins_fops},
+	{"list_nin_peek", S_IFREG | 0644, &dbg_nins_peek_fops}
 };
 
 void didbg_fs_init(void)

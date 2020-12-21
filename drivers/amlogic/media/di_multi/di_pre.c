@@ -183,6 +183,7 @@ void dpre_init(void)
 	struct di_hpre_s  *pre = get_hw_pre();
 
 	pre->pre_st = EDI_PRE_ST4_IDLE;
+	//bset(&pre->self_trig_mask, 2);//
 
 	/*timer out*/
 	di_tout_int(&pre->tout, 40);	/*ms*/
@@ -390,7 +391,11 @@ unsigned int dpre_mtotal_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
+	unsigned int cfg_val;
 
+	dbg_src_change_simple(pre->curr_ch);/*dbg only*/
+
+#ifdef MARK_HIS
 	if (pre_run_flag == DI_RUN_FLAG_RUN	||
 	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
@@ -403,19 +408,29 @@ unsigned int dpre_mtotal_check(void *data)
 
 		dim_dbg_pre_cnt(pre->curr_ch, "x");
 	}
+#else
+	cfg_val = dim_pre_de_buf_config(pre->curr_ch);
+	if (!cfg_val) {/*ok*/
+		ret = K_DO_R_FINISH;
+	} else {
+		dbg_dt("cfg fail:%d\n", cfg_val);
+		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
+	}
 
+#endif
 	return ret;
 }
 
 unsigned int dpre_mtotal_set(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
 
 	/*dim_print("%s:\n", __func__);*/
-	spin_lock_irqsave(&plist_lock, flags);
+	//trace_printk("%s\n", __func__);
+//ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	dim_pre_de_process(pre->curr_ch);
-	spin_unlock_irqrestore(&plist_lock, flags);
+//ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
 	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
 
@@ -435,7 +450,7 @@ enum EDI_WAIT_INT {
 enum EDI_WAIT_INT di_pre_wait_int(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	ulong flags = 0;
+	//tmp ulong flags = 0;
 	struct di_pre_stru_s *ppre;
 
 	enum EDI_WAIT_INT ret = EDI_WAIT_INT_NEED_WAIT;
@@ -458,7 +473,7 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		/*di_pre_wait_irq_set(false);*/
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pre->tout);
-		spin_lock_irqsave(&plist_lock, flags);
+		//tmp spin_lock_irqsave(&plist_lock, flags);
 
 		dim_pre_de_done_buf_config(pre->curr_ch, false);
 
@@ -467,7 +482,7 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		dpre_recyc(pre->curr_ch);
 		dpre_vdoing(pre->curr_ch);
 
-		spin_unlock_irqrestore(&plist_lock, flags);
+		//tmp spin_unlock_irqrestore(&plist_lock, flags);
 
 		ppre = get_pre_stru(pre->curr_ch);
 
@@ -479,7 +494,8 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pre->tout)) {
 			/*di_pre_wait_irq_set(false);*/
 			if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int)) {
-				PR_WARN("%s:timeout\n", __func__);
+				PR_WARN("%s:ch[%d]timeout\n", __func__,
+					pre->curr_ch);
 				di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
 			} else {
 				/*return K_DO_R_FINISH;*/
@@ -553,11 +569,11 @@ void dpre_mtotal_timeout_contr(void)
 
 unsigned int dpre_mtotal_timeout(void *data)
 {
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
 
-	spin_lock_irqsave(&plist_lock, flags);
+	//tmp spin_lock_irqsave(&plist_lock, flags);
 	dpre_mtotal_timeout_contr();
-	spin_unlock_irqrestore(&plist_lock, flags);
+	//tmp spin_unlock_irqrestore(&plist_lock, flags);
 
 	return K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 }
@@ -641,7 +657,7 @@ unsigned int dpre_mp_check(void *data)
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 		dim_print("%s:\n", __func__);
-		if (dim_pre_de_buf_config(pre->curr_ch)) {
+		if (!dim_pre_de_buf_config(pre->curr_ch)) {
 			/*pre->flg_wait_int = false;*/
 			/*pre_p_asi_set_next(pre->curr_ch);*/
 			ret = K_DO_R_FINISH;
@@ -660,7 +676,7 @@ unsigned int dpre_mp_check2(void *data)
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_NOT_FINISH;
 
-	if (dim_pre_de_buf_config(pre->curr_ch)) {
+	if (!dim_pre_de_buf_config(pre->curr_ch)) {
 		/*pre->flg_wait_int = false;*/
 		ret = K_DO_R_FINISH;
 	} else {
@@ -850,8 +866,17 @@ unsigned int dpre_check_mode(unsigned int ch)
 {
 	struct vframe_s *vframe;
 	unsigned int mode;
+	struct di_ch_s *pch;
 
-	vframe = pw_vf_peek(ch);
+	pch = get_chdata(ch);
+	if (pre_run_flag == DI_RUN_FLAG_RUN	||
+	    pre_run_flag == DI_RUN_FLAG_STEP) {
+		if (pre_run_flag == DI_RUN_FLAG_STEP)
+			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
+		vframe = nins_peekvfm(pch);//pw_vf_peek(ch);
+	} else {
+		vframe = NULL;
+	}
 
 	if (!vframe)
 		return EDI_WORK_MODE_NONE;
@@ -943,6 +968,30 @@ bool dpre_step4_do_table(void)
 	return reflesh;
 }
 
+bool dpre_after_do_table(void)
+{
+	struct di_hpre_s  *pre = get_hw_pre();
+	enum EDI_PRE_ST4 pre_st;
+	bool ret = false;
+
+	if (do_table_is_crr(&pre->sdt_mode, K_DO_TABLE_ID_STOP)) {
+		pre->pre_st = EDI_PRE_ST4_IDLE;
+		ret = true;
+	}
+	pre_st = pre->pre_st;
+	pre->self_trig_mask = 0;
+	if (pre_run_flag == DI_RUN_FLAG_RUN)
+		bclr(&pre->self_trig_mask, 0);
+	else
+		bset(&pre->self_trig_mask, 0);
+
+	if (pre_st == EDI_PRE_ST4_DO_TABLE)
+		bset(&pre->self_trig_mask, 1);
+	else
+		bclr(&pre->self_trig_mask, 1);
+	return ret;
+}
+
 const struct di_func_tab_s di_pre_func_tab4[] = {
 	{EDI_PRE_ST4_EXIT, NULL},
 	{EDI_PRE_ST4_IDLE, dpre_step4_idle},
@@ -969,14 +1018,14 @@ bool dpre_process_step4(void)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 	enum EDI_PRE_ST4 pre_st = pre->pre_st;
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
 
 	if (pre_st > EDI_PRE_ST4_EXIT) {
-		spin_lock_irqsave(&plist_lock, flags);
+//ary 2020-12-09		spin_lock_irqsave(&plist_lock, flags);
 		dim_recycle_post_back(pre->curr_ch);
 		dpre_recyc(pre->curr_ch);
 		dpre_vdoing(pre->curr_ch);
-		spin_unlock_irqrestore(&plist_lock, flags);
+//ary 2020-12-09		spin_unlock_irqrestore(&plist_lock, flags);
 	}
 	if (pre_st <= EDI_PRE_ST4_DO_TABLE	&&
 	    di_pre_func_tab4[pre_st].func) {

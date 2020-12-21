@@ -60,6 +60,9 @@ DEFINE_DI_EVENT(dim_pst_irxxx);
 DEFINE_DI_EVENT(dim_pst_doing);
 DEFINE_DI_EVENT(dim_pst_peekx);
 DEFINE_DI_EVENT(dim_pst_get2x);
+DEFINE_DI_EVENT(dim_self_trig);
+DEFINE_DI_EVENT(dim_sct_alloc);
+DEFINE_DI_EVENT(dim_sct_tail);
 
 #endif /* _DIM_TRACE_H */
 

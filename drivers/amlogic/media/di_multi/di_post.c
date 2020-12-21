@@ -142,7 +142,8 @@ bool dpst_step_set(void)
 	struct di_hpst_s  *pst = get_hw_pst();
 	unsigned int ch;
 	bool reflesh = false;
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
+	struct di_ch_s *pch;
 
 	ch = pst->curr_ch;
 	ppost = get_post_stru(ch);
@@ -156,14 +157,15 @@ bool dpst_step_set(void)
 
 	vf_p = di_buf->vframe;
 
+	pch = get_chdata(ch);
 	dim_print("%s:pr_index=%d\n", __func__, di_buf->process_fun_index);
 	if (di_buf->process_fun_index) {	/*not bypass?*/
 
 		ppost->post_wr_cnt++;
-		spin_lock_irqsave(&plist_lock, flags);
+//ary 2020-12-09		spin_lock_irqsave(&plist_lock, flags);
 		dim_post_process(di_buf, 0, vf_p->width - 1,
 				 0, vf_p->height - 1, vf_p);
-		spin_unlock_irqrestore(&plist_lock, flags);
+//ary 2020-12-09		spin_unlock_irqrestore(&plist_lock, flags);
 
 		/*begin to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_EN, &pst->tout);
@@ -193,7 +195,7 @@ bool dpst_step_wait_int(void)
 	unsigned int ch;
 	struct di_post_stru_s *ppost;
 	bool reflesh = false;
-	ulong flags = 0;
+	//ary 2020-12-07 ulong flags = 0;
 
 	ch = pst->curr_ch;
 
@@ -202,9 +204,9 @@ bool dpst_step_wait_int(void)
 	if (pst->flg_int_done) {
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pst->tout);
-		spin_lock_irqsave(&plist_lock, flags);
+		//ary 2020-12-07 spin_lock_irqsave(&plist_lock, flags);
 		dim_post_de_done_buf_config(ch);
-		spin_unlock_irqrestore(&plist_lock, flags);
+		//ary 2020-12-07 spin_unlock_irqrestore(&plist_lock, flags);
 		pst->flg_int_done = false;
 		/*state*/
 		pst->state = EDI_PST_ST_IDLE;
@@ -237,13 +239,13 @@ bool dpst_step_timeout(void)
 	struct di_hpst_s  *pst = get_hw_pst();
 	unsigned int ch;
 	bool reflesh = false;
-	ulong flags = 0;
+	//ary 2020-12-07 ulong flags = 0;
 
 	ch = pst->curr_ch;
 	dpst_timeout(ch);
-	spin_lock_irqsave(&plist_lock, flags);
+	//ary 2020-12-07 spin_lock_irqsave(&plist_lock, flags);
 	dim_post_de_done_buf_config(ch);
-	spin_unlock_irqrestore(&plist_lock, flags);
+	//ary 2020-12-07 spin_unlock_irqrestore(&plist_lock, flags);
 	pst->flg_int_done = false;
 	pst->flg_have_set = false;
 

@@ -22,13 +22,14 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
+#include <linux/amlogic/media/di/di_interface.h>
 
 #include <linux/kfifo.h>	/*ary add*/
 
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 
-#define DI_CHANNEL_NUB	(2)
+#define DI_CHANNEL_NUB	(3)
 #define DI_CHANNEL_MAX  (4)
 
 /* for vfm mode limit input vf */
@@ -132,16 +133,33 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_4K,
 	EDI_CFG_POUT_FMT,
 	EDI_CFG_DAT,
-	EDI_CFG_ALLOC_WAIT, /* alloc wait */
+	EDI_CFG_ALLOC_SCT, /* alloc sct */
 	EDI_CFG_KEEP_DEC_VF,
 	EDI_CFG_POST_NUB,
+	EDI_CFG_BYPASS_MEM,
+	EDI_CFG_IOUT_FMT,
+	EDI_CFG_TMODE_1,	/*EDIM_TMODE_1_PW_VFM*/
+	EDI_CFG_TMODE_2,	/*EDIM_TMODE_2_PW_OUT*/
+	EDI_CFG_TMODE_3,	/*EDIM_TMODE_3_PW_LOCAL*/
 	EDI_CFG_END,
+};
+
+struct di_ch_s;
+struct dim_wmode_s;
+
+enum EDIM_NIN_TYPE {
+	EDIM_NIN_TYPE_NONE,
+	EDIM_NIN_TYPE_VFM,
+	EDIM_NIN_TYPE_INS,
 };
 
 #define cfgeq(a, b) ((di_cfg_top_get(EDI_CFG_##a) == (b)) ? true : false)
 #define cfgnq(a, b) ((di_cfg_top_get(EDI_CFG_##a) != (b)) ? true : false)
 #define cfgg(a) di_cfg_top_get(EDI_CFG_##a)
 #define cfgs(a, b) di_cfg_top_set(EDI_CFG_##a, b)
+#define cfggch(pch, a) di_cfg_cp_get(pch, EDI_CFG_##a)
+#define cfgsch(pch, a, b) di_cfg_cp_set(pch, EDI_CFG_##a, b)
+
 #define K_DI_CFG_NUB	(EDI_CFG_END - EDI_CFG_BEGIN + 1)
 #define K_DI_CFG_T_FLG_NOTHING	(0x00)
 #define K_DI_CFG_T_FLG_DTS	(0x01)
@@ -234,6 +252,7 @@ enum EDI_DBG_F {
 	EDI_DBG_F_06,
 	EDI_DBG_F_07,
 	EDI_DBG_F_08,
+	EDI_DBG_F_09,
 };
 
 struct di_dbg_func_s {
@@ -369,6 +388,48 @@ struct di_vinfo_s {
 	unsigned int v;
 };
 
+struct dim_wmode_s {
+	//enum EDIM_TMODE		tmode;
+	unsigned int	buf_type;	/*add this to split kinds */
+	unsigned int	is_afbc		:1,
+		is_vdin		:1,
+		is_i			:1,
+		need_bypass		:1,
+		is_bypass		:1,
+		pre_bypass		:1,
+		post_bypass		:1,
+		flg_keep		:1, /*keep buf*/
+
+		trick_mode		:1,
+		prog_proc_config	:1, /*debug only: proc*/
+	/**************************************
+	 *prog_proc_config:	same as p_as_i?
+	 *1: process p from decoder as field
+	 *0: process p from decoder as frame
+	 ***************************************/
+		is_invert_tp		:1,
+		p_as_i			:1,
+		p_as_p			:1,
+		p_use_2i		:1,
+		is_angle		:1,
+		is_top			:1, /*include */
+		is_eos			:1,
+		is_eos_insert		:1, /* this is internal eos */
+		bypass			:1, /* is_bypass | need_bypass*/
+		reserved		:13;
+	unsigned int vtype;	/*vfm->type*/
+	//unsigned int h;	/*taget h*/
+	//unsigned int w;	/*taget w*/
+	unsigned int src_h;
+	unsigned int src_w;
+	unsigned int tgt_h;
+	unsigned int tgt_w;
+	unsigned int o_h;
+	unsigned int o_w;
+	unsigned int seq;
+	unsigned int seq_sgn;
+};
+
 /**************************************/
 /* PRE */
 /**************************************/
@@ -430,6 +491,7 @@ struct di_hpre_s {
 	unsigned int dbg_f_cnt;
 	union hw_sc2_ctr_pre_s pre_top_cfg;
 
+	unsigned int self_trig_mask;
 };
 
 /**************************************/
@@ -615,6 +677,8 @@ enum EDIM_BLK_TYP {
 	EDIM_BLK_TYP_BUFP,
 	EDIM_BLK_TYP_DATI,
 	EDIM_BLK_TYP_PAFBCT,
+	EDIM_BLK_TYP_PSCT,
+	EDIM_BLK_TYP_POUT = 0x08	/* not di buffer */
 };
 
 struct blk_flg_s {
@@ -651,8 +715,8 @@ enum QUE_TYPE {	/*mast start from 0 */
 	QUE_POST_READY,	/*8*/
 	QUE_POST_BACK,		/*new*/
 	QUE_POST_DOING,
-	QUE_POST_KEEP,	/*below use pw_queue_in*/
-	QUE_POST_KEEP_BACK,
+//	QUE_POST_KEEP,	/*below use pw_queue_in*/
+//	QUE_POST_KEEP_BACK,
 	QUE_POST_KEEP_RE_ALLOC, /*need*/
 	QUE_PRE_NO_BUF_WAIT,	//
 	QUE_PST_NO_BUF_WAIT,	//
@@ -877,6 +941,7 @@ enum EDI_MP_UI_T {
 
 	EDI_MP_SUB_3D_E,
 	/**************************************/
+	edi_mp_clock_low_ratio,//set low ratio of vpu clkb
 	EDI_MP_UI_T_END,
 };
 
@@ -947,6 +1012,56 @@ struct di_dat_s {
 	struct blk_flg_s flg;
 	unsigned long addr_st;
 	unsigned long addr_end;
+};
+
+/* new interface */
+/* @ary_note: for vfm option only */
+struct dev_vfm_s {
+	bool (*vf_m_fill_polling)(struct di_ch_s *pch);
+	void (*vf_m_fill_ready)(struct di_ch_s *pch);
+	bool (*vf_m_bypass_first_frame)(struct di_ch_s *pch);
+};
+
+struct dev_instance {
+	struct di_init_parm parm;
+//n	struct di_buffer *in[DIM_K_BUF_IN_LIMIT];
+//n	struct di_buffer *out[DIM_K_BUF_OUT_LIMIT];
+};
+
+struct dim_itf_ops_s {
+	void *(*peek)(struct di_ch_s *pch);
+	void *(*get)(struct di_ch_s *pch);
+	void (*put)(void *data, struct di_ch_s *pch);
+};
+
+//n struct dim_inter_s {
+struct dim_itf_s {
+	enum EDIM_NIN_TYPE etype;
+	unsigned int tmode;
+	const char *name;
+	unsigned int ch;
+	/*status:*/
+	bool bypass_complete;
+	bool reg;
+	struct mutex lock_reg; /* for reg */
+	struct dim_itf_ops_s opsi;
+	struct dim_itf_ops_s opso;
+	void (*op_post_done)(struct di_ch_s *pch);
+	struct dim_dvfm_s *(*op_dvfm_fill)(struct di_ch_s *pch);
+	void (*op_ins_2_doing)(struct di_ch_s *pch,
+			       bool bypass,
+			       struct di_buf_s *di_buf);
+	void (*opins_m_back_in)(struct di_ch_s *pch);
+	void (*op_m_unreg)(struct di_ch_s *pch);
+	bool (*op_fill_ready)(struct di_ch_s *pch, struct di_buf_s *di_buf);
+	void (*op_ready_out)(struct di_ch_s *pch);
+	/* @ary_note: vfm only */
+	struct dev_vfram_t	dvfm;	/* for vfm prob fix */
+
+	union {
+	struct dev_vfm_s	dvfmc; /* for vfm option */
+	struct dev_instance	dinst;
+	} u;
 };
 
 struct di_ores_s {
@@ -1071,6 +1186,7 @@ struct dim_sum_s {
 	unsigned int b_pre_ready;
 	unsigned int b_pst_free;
 	unsigned int b_display;
+	unsigned int b_nin;
 };
 
 struct dim_bypass_s {
@@ -1106,10 +1222,15 @@ typedef uintptr_t ud;
 #define CODE_MEMN	(DIM_DATA_MASK | 0x06)
 #define CODE_PAT	(DIM_DATA_MASK | 0x07)
 #define CODE_IAT	(DIM_DATA_MASK | 0x08)
+#define CODE_SCT	(DIM_DATA_MASK | 0x09)
+#define CODE_NIN	(DIM_DATA_MASK | 0x0a)
+#define CODE_NDIS	(DIM_DATA_MASK | 0x0b)
 
 #define CODE_OUT	(0xff123402)
+#define CODE_IN		(0xff123406)
 #define CODE_OUT_MODE2	(0xff123403)
 #define CODE_BYPASS	(0xff123405)
+#define CODE_INS_LBF		(DIM_DATA_MASK | 0x0c)
 
 #define NONE_QUE	(0xff)
 
@@ -1122,6 +1243,7 @@ enum QS_FUNC_E {
 	QS_FUNC_N_LIST,
 	QS_FUNC_N_PEEK,
 	QS_FUNC_N_SOME,
+	QS_FUNC_N_IS_IN,
 
 	QS_FUNC_F_IN,// = 0x100,
 	QS_FUNC_F_O,
@@ -1217,6 +1339,9 @@ struct qsp_ops_s {
 		     union q_buf_u *pbuf);
 	bool (*out_some)(struct buf_que_s *pqb, struct qs_cls_s *q,
 			 union q_buf_u pbuf);
+	bool (*is_in)(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf);
+	bool (*n_get_marsk)(struct buf_que_s *pqb, struct qs_cls_s *q,
+			    unsigned int *marsk);
 };
 
 struct qs_cls_s {
@@ -1303,6 +1428,10 @@ struct dim_mm_blk_s {
 	unsigned int	reg_cnt;
 	//unsigned long jiff;
 //	bool	tvp;
+	void *pat_buf;
+	void *sct;
+	unsigned int sct_keep; //keep number
+	void *buffer; //new_interface
 };
 
 /*que buf block end*/
@@ -1311,6 +1440,7 @@ struct dim_mm_blk_s {
 enum QBF_PAT_Q_TYPE {
 	QBF_PAT_Q_IDLE,
 	QBF_PAT_Q_READY, /* multi wr, multi rd */
+	QBF_PAT_Q_READY_SCT, /* for sct ? */
 	QBF_PAT_Q_IN_USED,
 	QBF_PAT_Q_NUB,
 };
@@ -1320,6 +1450,12 @@ struct dim_pat_s {
 	struct qs_buf_s	header;
 
 	unsigned long	mem_start;
+
+	/* for sct */
+	void *vaddr;
+	bool flg_vmap;
+	bool flg_mode; /* 0: for normal; 1: sct */
+	unsigned int crc;/*ary 2020-11-09 for sct */
 };
 
 /*que post afbc tabl end*/
@@ -1344,7 +1480,152 @@ struct dim_iat_s {
 };
 
 /*que loacal buffer exit data end*/
+/************************************************/
+/* que buf sct data */
+enum QBF_SCT_Q_TYPE {
+	QBF_SCT_Q_IDLE,
+	QBF_SCT_Q_READY, /* */
+	QBF_SCT_Q_REQ,
+	QBF_SCT_Q_USED,
+	QBF_SCT_Q_RECYCLE,
+	QBF_SCT_Q_KEEP,
+	QBF_SCT_Q_NUB,
+};
 
+#define DIM_SCT_NUB	(POST_BUF_NUM) /* buf number*/
+struct dim_sct_s {
+	struct qs_buf_s	header;
+
+	struct dim_pat_s *pat_buf;
+	unsigned long tab_addr;
+	unsigned int *tab_vaddr;
+	unsigned int tail_cnt;
+	union {
+		unsigned int d32;
+		struct {
+		unsigned int box	: 1,
+			pat	: 1,
+			vbit	: 1, /*vmap flg*/
+			tab	: 1,
+			tab_resize	: 1,
+			tab_keep	: 1,
+			flg_rev		: 26;
+		} b;
+	} flg_act;
+};
+
+/* < 33 for dim_mscttop_s flg_err*/
+enum EDIM_SCT_ERR {
+	EDIM_SCT_ERR_BOX,
+	EDIM_SCT_ERR_PAT,
+	EDIM_SCT_ERR_VMAP,
+	EDIM_SCT_ERR_ALLOC,
+	EDIM_SCT_ERR_RESIZE,
+	EDIM_SCT_ERR_FREE,
+	EDIM_SCT_ERR_QUE_2USED,
+	EDIM_SCT_ERR_QUE_2REQ
+};
+
+struct dim_msc_sum_s {
+	unsigned int curr_tt_size;
+	unsigned int max_size; /* max for one frame */
+//	unsigned int sum_max_tt_size;
+	unsigned int max_tt_size2;
+	unsigned char curr_nub;
+	unsigned char max_nub;
+
+	unsigned char mts_pst_ready;
+	unsigned char mts_pst_dispaly;
+	unsigned char mts_pst_back;
+	unsigned char mts_pst_free;
+	unsigned char mts_sct_rcc;
+	unsigned char mts_sct_ready;
+	unsigned char mts_sct_used;
+
+};
+
+struct dim_mscttop_s {
+	void *box;
+	unsigned int flg_err;
+	unsigned int max_nub;
+	unsigned int buffer_size;
+	unsigned int buffer_size_nub;
+	/*test*/
+	unsigned int cnt_alloc;
+	unsigned long jiff_no_buf; // for wait
+	bool	flg_support;
+	bool	flg_no_buf;
+	bool	flg_act_box;
+	bool	flg_trig_dis;
+	bool	flg_allocing;
+	struct mutex lock_ready; /* for sct ready */
+	struct dim_msc_sum_s sum;
+};
+
+/*que sct data end*/
+/************************************************/
+/* que buf for input data mng */
+enum QBF_NINS_Q_TYPE {
+	QBF_NINS_Q_IDLE,
+	QBF_NINS_Q_CHECK,
+	QBF_NINS_Q_USED,
+	QBF_NINS_Q_RECYCL,
+	/*for vfm clear, not back dec vf */
+	/* when reset, move used to usedb */
+	QBF_NINS_Q_USEDB,
+	QBF_NINS_Q_NUB,
+};
+
+#define DIM_NINS_NUB	(11) /* buf number*/
+
+struct dsub_nins_s {
+	void *ori;
+	struct vframe_s vfm_cp;
+	struct dim_wmode_s	wmode; /*tmp*/
+};
+
+struct dim_nins_s {
+	struct qs_buf_s	header;
+	enum EDIM_NIN_TYPE etype; /* this is same for one reg */
+	struct dsub_nins_s c;
+};
+
+/*que buf for input data mng end*/
+/************************************************/
+/* que buf for display data mng */
+enum QBF_NDIS_Q_TYPE {
+	QBF_NDIS_Q_IDLE,
+	QBF_NDIS_Q_USED,
+	QBF_NDIS_Q_DISPLAY,
+//	QBF_NDIS_Q_BACK,
+	QBF_NDIS_Q_KEEP,
+	QBF_NDIS_Q_NUB,
+};
+
+#define DIM_NDIS_NUB	(12) /* buf number*/
+
+struct dsub_ndis_s {
+	struct di_buf_s *di_buf;
+	struct dim_mm_blk_s *blk;
+
+	struct vframe_s vfm;/* this is for feature */
+	struct di_buffer dbuff;	/* @ary_note new interface 1 */
+	struct di_buffer *pbuff; /* @ary_note: new interface 2 */
+	/* maybe others */
+	/* @ary_note: mode1: vfm: used vfm	*/
+	/* @ary_note: mode2: di local buffer:	*/
+	/* @ary_note:	used dbuff + vfm	*/
+	/* @ary_note: mode3: di use out buffer	*/
+	/*		used pbuff		*/
+};
+
+struct dim_ndis_s {
+	struct qs_buf_s	header;
+	enum EDIM_NIN_TYPE etype; /* this is same for one reg */
+	struct dsub_ndis_s c;
+};
+
+/*que buf for display data mng end*/
 /************************************************/
 /* que buf mem config */
 enum QBF_MEM_Q_TYPE {
@@ -1361,6 +1642,7 @@ enum QBF_MEM_Q_TYPE {
  * 2020-06-16 test
  ************************************************/
 
+#ifdef MARK_HIS //move up
 struct dim_wmode_s {
 	//enum EDIM_TMODE		tmode;
 	unsigned int	buf_type;	/*add this to split kinds */
@@ -1402,6 +1684,7 @@ struct dim_wmode_s {
 	unsigned int seq;
 	unsigned int seq_sgn;
 };
+#endif
 
 enum EDIM_TMODE {
 	EDIM_TMODE_NONE,
@@ -1434,8 +1717,9 @@ struct di_ch_s {
 	unsigned int mp_uix[K_DI_MP_UIX_NUB];/*module para x*/
 
 	struct di_dbg_datax_s dbg_data;
-
-	struct dev_vfram_t vfm;
+	unsigned char cfg_cp[EDI_CFG_END];/*2020-12-15*/
+	//struct dev_vfram_t vfm;
+	enum vframe_source_type_e	src_type;
 	struct dentry *dbg_rootx;	/*dbg_fs*/
 
 	unsigned int ch_id;
@@ -1456,9 +1740,29 @@ struct di_ch_s {
 	unsigned int sum_reg_cnt;
 	unsigned int sum_pst_get;
 	unsigned int sum_pst_put;
+	unsigned int sum_ext_buf_in;
+	unsigned int sum_ext_buf_in2;
+	unsigned int sum_pre;
+	unsigned int sum_pst;
+	/*@ary_note:*/
+	unsigned int self_trig_mask;
+	unsigned int self_trig_need;
+	unsigned int sum_releas;
+	unsigned int disp_frame_count;
 	struct dim_sum_s	sumx;
 	struct dim_bypass_s	bypass; /*state only*/
 	enum EDPST_MODE mode;
+
+//	struct pre_ext_s pree;
+	union {
+		unsigned int d32;
+		struct {
+			unsigned int no_buf	: 1,
+				scr_err		: 1,
+				rev		: 30;
+		} b;
+	} rsc_bypass; /* 2020-11-03 for sct */
+	struct dim_mscttop_s	msct_top;
 
 	/* qb: blk */
 	struct buf_que_s blk_qb;
@@ -1481,6 +1785,24 @@ struct di_ch_s {
 	//0: unknown, 1: non tvp, 2: tvp
 	unsigned int		is_secure	:2;
 	//0: unknown, 1: non secure, 2: secure
+	/* qb: sct 2020-11-03 */
+	struct buf_que_s sct_qb;
+	struct qs_cls_s sct_q[QBF_SCT_Q_NUB];
+	struct dim_sct_s	sct_bf[DIM_SCT_NUB];
+
+	/* qb: in 2020-12-02 */
+	struct buf_que_s	nin_qb;
+	struct qs_cls_s		nin_q[QBF_NINS_Q_NUB];
+	struct dim_nins_s	nin_bf[DIM_NINS_NUB];
+	/* qb: in 2020-12-02 */
+	struct buf_que_s	ndis_qb;
+	struct qs_cls_s		ndis_q[QBF_NDIS_Q_NUB];
+	struct dim_ndis_s	ndis_bf[DIM_NDIS_NUB];
+
+	struct qs_cls_s		ndis_que_ready;
+	struct qs_cls_s		ndis_que_kback;
+	struct qs_cls_s		npst_que; /*new interface */
+	struct dim_itf_s itf;
 };
 
 struct dim_policy_s {
@@ -1528,6 +1850,7 @@ struct di_mng_s {
 	struct di_task		tsk;
 	struct di_mtask		mtsk;
 
+	enum EDIM_TMODE		tmode_pre[DI_CHANNEL_MAX];
 	/*channel state: use enum eDI_TOP_STATE */
 	atomic_t ch_state[DI_CHANNEL_NUB];
 
@@ -1658,6 +1981,18 @@ struct di_cvs_s {
 	unsigned int err_cnt;
 };
 
+struct db_save_s {
+	bool	support;
+	bool	en_db;
+	bool	en_pq;
+	bool	update;
+	int	mode;/*-1 : not set; 0: set from db, 1: set from pq*/
+	unsigned int addr;
+	unsigned int val_db;
+	unsigned int val_pq;
+	unsigned int mask;
+};
+
 struct di_data_l_s {
 	/*bool cfg_en[K_DI_CFG_NUB];*/	/*cfg_top*/
 	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
@@ -1671,6 +2006,7 @@ struct di_data_l_s {
 	struct di_mng_s mng;
 	struct di_hpre_s hw_pre;
 	struct di_hpst_s hw_pst;
+	struct db_save_s db_save[DIM_DB_SAVE_NUB];
 	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
 	struct afd_s di_afd;
 	const struct hw_ops_s *hop_l2;
@@ -1716,7 +2052,9 @@ struct di_data_l_s {
 #define DBG_M_PL		DI_BIT15
 #define DBG_M_AFBC		DI_BIT16
 #define DBG_M_COPY		DI_BIT17
-
+#define DBG_M_PQ		DI_BIT18
+#define DBG_M_SCT		DI_BIT19
+#define DBG_M_NQ		DI_BIT20
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
 
@@ -1752,6 +2090,9 @@ extern unsigned int di_dbg;
 #define dbg_mem2(fmt, args ...)		dbg_m(DBG_M_MEM2, fmt, ##args)
 #define dbg_afbc(fmt, args ...)		dbg_m(DBG_M_AFBC, fmt, ##args)
 #define dbg_copy(fmt, args ...)		dbg_m(DBG_M_COPY, fmt, ##args)
+#define dbg_pq(fmt, args ...)		dbg_m(DBG_M_PQ, fmt, ##args)
+#define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
+#define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
 
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
@@ -2101,7 +2442,17 @@ static inline void sum_pst_p_inc(unsigned int ch)
 
 static inline void sum_pst_p_clear(unsigned int ch)
 {
-	get_datal()->ch_data[ch].sum_pst_put = 0;
+	//get_datal()->ch_data[ch].sum_pst_put = 0;
+}
+
+static inline unsigned int get_sum_release(unsigned int ch)
+{
+	return get_datal()->ch_data[ch].sum_releas;
+}
+
+static inline void sum_release_inc(unsigned int ch)
+{
+	get_datal()->ch_data[ch].sum_releas++;
 }
 
 /*********************/

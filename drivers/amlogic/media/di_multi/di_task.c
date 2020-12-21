@@ -29,10 +29,12 @@
 #include "di_sys.h"
 #include "di_task.h"
 #include "di_vframe.h"
+#include "di_dbg.h"
 
 static void task_wakeup(struct di_task *tsk);
 
 unsigned int di_dbg_task_flg;	/*debug only*/
+module_param_named(di_dbg_task_flg, di_dbg_task_flg, uint, 0664);
 
 bool task_send_cmd(unsigned int cmd)
 {
@@ -65,6 +67,34 @@ void task_send_ready(void)
 	task_wakeup(tsk);
 }
 
+static void task_self_trig(void)
+{
+	int ch;
+	struct di_ch_s *pch;
+	bool ret = false;
+	struct di_hpre_s  *pre = get_hw_pre();
+
+	if (pre->self_trig_mask) {
+		//dim_tr_ops.self_trig(DI_BIT28 | pre->self_trig_mask);
+		return;
+	}
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		if (pch->self_trig_mask) {
+			//dim_tr_ops.self_trig(DI_BIT30 | pch->self_trig_mask);
+			continue;
+		}
+		if (pch->self_trig_need) {
+			ret = true;
+			break;
+		}
+		//dim_tr_ops.self_trig(DI_BIT29 | pch->self_trig_need);
+	}
+	if (ret) {
+		dbg_tsk("trig[0x%x]\n", pch->self_trig_need);
+		task_send_ready();
+	}
+}
 bool task_get_cmd(unsigned int *cmd)
 {
 	struct di_task *tsk = get_task();
@@ -142,25 +172,33 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 	union DI_L_CMD_BITS cmdbyte;
 //	struct di_mng_s *pbm = get_bufmng();
 	struct di_task *tsk = get_task();
-	ulong flags = 0;
+//ary 2020-12-09	ulong flags = 0;
 	struct di_ch_s *pch;
+	struct di_mng_s *pbm;// = get_bufmng();
 
 //	if (pbm->cma_flg_run)
 //		return;
 	if (top_sts == EDI_TOP_STATE_READY) {
 		pch = get_chdata(ch);
 		mem_cfg_realloc(pch);
-		mem_cfg_realloc_wait(pch);
+		mem_cfg_pst(pch);//2020-12-17
+		//mem_cfg_realloc_wait(pch);
+		pbm = get_bufmng();
+		if (!atomic_read(&pbm->trig_unreg[ch])) {
+			sct_mng_working(pch);
+			sct_mng_working_recycle(pch);
+			sct_alloc_in_poling(pch->ch_id);
+		}
 	}
 	if (top_sts != EDI_TOP_STATE_IDLE	&&
 	    top_sts != EDI_TOP_STATE_READY	&&
 	    top_sts != EDI_TOP_STATE_BYPASS)
 		return;
 
-	spin_lock_irqsave(&plist_lock, flags);
+//ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	dim_post_re_alloc(ch);
 	//dim_post_release(ch);
-	spin_unlock_irqrestore(&plist_lock, flags);
+//ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 
 	if (kfifo_is_empty(&tsk->fifo_cmd2[ch]))
 		return;
@@ -174,12 +212,6 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 		else
 			PR_ERR("%s\n", __func__);
 	}
-#ifdef MARK_HIS
-	spin_lock_irqsave(&plist_lock, flags);
-	dim_post_re_alloc(ch);
-	dim_post_release(ch);
-	spin_unlock_irqrestore(&plist_lock, flags);
-#endif
 }
 
 static int task_is_exiting(struct di_task *tsk)
@@ -268,6 +300,8 @@ restart:
 			dip_hw_process();
 
 		di_dbg_task_flg = 0;
+		dip_sum_post_ch();
+		task_self_trig();
 	}
 
 	tsk->thread = NULL;
@@ -622,11 +656,26 @@ static void mtask_polling_cmd(unsigned int ch)
 	}
 }
 
+void mtask_wake_m(void)
+{
+	struct di_mtask *tsk = get_mtask();
+
+	mtask_wakeup(tsk);
+}
+
+static void mtask_polling_sct(struct di_ch_s *pch)
+{
+	//sct_alloc_in_poling(ch);
+	if (pch->itf.op_ready_out)
+		pch->itf.op_ready_out(pch);
+}
+
 static int di_mem_thread(void *data)
 {
 	struct di_mtask *tsk = data;
 	bool semheld = false;
 	int i;
+	struct di_ch_s *pch;
 
 	tsk->delay = HZ;
 	tsk->status = 0;
@@ -659,8 +708,10 @@ mrestart:
 
 		/**/
 		for (i = 0; i < DI_CHANNEL_NUB; i++) {
+			pch = get_chdata(i);
 			mtask_polling_cmd(i);
 			//blk_polling(i);
+			mtask_polling_sct(pch);
 		}
 	}
 
