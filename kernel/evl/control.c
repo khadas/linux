@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/sched/isolation.h>
+#include <linux/bitmap.h>
 #include <evl/memory.h>
 #include <evl/thread.h>
 #include <evl/factory.h>
@@ -14,6 +15,8 @@
 #include <evl/tick.h>
 #include <evl/sched.h>
 #include <evl/control.h>
+#include <evl/net/input.h>
+#include <evl/net/skb.h>
 #include <evl/uaccess.h>
 #include <asm/evl/fptest.h>
 #include <uapi/evl/control.h>
@@ -462,6 +465,33 @@ static DEVICE_ATTR_RO(tp);
 
 #endif
 
+#ifdef CONFIG_EVL_NET
+
+static ssize_t net_vlans_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return evl_net_show_vlans(buf, PAGE_SIZE);
+}
+
+static ssize_t net_vlans_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return evl_net_store_vlans(buf, count);
+}
+static DEVICE_ATTR_RW(net_vlans);
+
+static ssize_t net_clones_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return evl_net_show_clones(buf, PAGE_SIZE);
+}
+static DEVICE_ATTR_RO(net_clones);
+
+#endif
+
 static struct attribute *control_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_abi.attr,
@@ -471,6 +501,10 @@ static struct attribute *control_attrs[] = {
 #endif
 #ifdef CONFIG_EVL_SCHED_TP
 	&dev_attr_tp.attr,
+#endif
+#ifdef CONFIG_EVL_NET
+	&dev_attr_net_vlans.attr,
+	&dev_attr_net_clones.attr,
 #endif
 	NULL,
 };

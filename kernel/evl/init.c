@@ -15,6 +15,7 @@
 #include <evl/file.h>
 #include <evl/factory.h>
 #include <evl/control.h>
+#include <evl/net.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/evl.h>
 
@@ -120,14 +121,24 @@ static __init int init_core(void)
 	/*
 	 * Other factories can clone elements, which would allow users
 	 * to issue Dovetail requests afterwards, so let's expose them
-	 * last.
+	 * once Dovetail is mindful.
 	 */
 	ret = evl_late_init_factories();
 	if (ret)
 		goto cleanup_dovetail;
 
+	/*
+	 * Eventually, bootstrap anything which may require factory
+	 * services.
+	 */
+	ret = evl_net_init();
+	if (ret)
+		goto cleanup_late_factories;
+
 	return 0;
 
+cleanup_late_factories:
+	evl_late_cleanup_factories();
 cleanup_dovetail:
 	dovetail_stop();
 cleanup_tick:
