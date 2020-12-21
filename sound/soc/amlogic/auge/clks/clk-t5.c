@@ -12,8 +12,8 @@
 #include "../regs.h"
 
 static const char *const mclk_parent_names[] = {
-	"t5_mpll0", "t5_mpll1", "t5_mpll2", "t5_mpll3", "t5_hifi_pll",
-	"t5_fclk_div3", "t5_fclk_div4", "t5_fclk_div5"};
+	"mpll0", "mpll1", "mpll2", "mpll3", "hifi_pll",
+	"fclk_div3", "fclk_div4", "fclk_div5"};
 
 static const char *const audioclk_parent_names[] = {
 	"mclk_a", "mclk_b", "mclk_c", "mclk_d", "mclk_e",
@@ -26,41 +26,41 @@ static const char *const mclk_pad_parent_names[] = {
 	"mclk_d", "mclk_e", "mclk_f"
 };
 
-CLOCK_GATE(audio_ddr_arb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 0, sys_clk);
-CLOCK_GATE(audio_pdm, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 1, sys_clk);
-CLOCK_GATE(audio_tdmina, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 2, sys_clk);
-CLOCK_GATE(audio_tdminb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 3, sys_clk);
-CLOCK_GATE(audio_tdminc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 4, sys_clk);
-CLOCK_GATE(audio_tdminlb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 5, sys_clk);
-CLOCK_GATE(audio_tdmouta, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 6, sys_clk);
-CLOCK_GATE(audio_tdmoutb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 7, sys_clk);
-CLOCK_GATE(audio_tdmoutc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 8, sys_clk);
-CLOCK_GATE(audio_frddra, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 9, sys_clk);
-CLOCK_GATE(audio_frddrb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 10, sys_clk);
-CLOCK_GATE(audio_frddrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 11, sys_clk);
-CLOCK_GATE(audio_toddra, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 12, sys_clk);
-CLOCK_GATE(audio_toddrb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 13, sys_clk);
-CLOCK_GATE(audio_toddrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 14, sys_clk);
-CLOCK_GATE(audio_loopbacka, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 15, sys_clk);
-CLOCK_GATE(audio_spdifin, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 16, sys_clk);
-CLOCK_GATE(audio_spdifout, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 17, sys_clk);
-CLOCK_GATE(audio_resamplea, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 18, sys_clk);
-CLOCK_GATE(audio_reserved0, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 19, sys_clk);
-CLOCK_GATE(audio_reserved1, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 20, sys_clk);
-CLOCK_GATE(audio_spdifoutb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 21, sys_clk);
-CLOCK_GATE(audio_eqdrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 22, sys_clk);
-CLOCK_GATE(audio_reserved2, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 23, sys_clk);
-CLOCK_GATE(audio_reserved3, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 24, sys_clk);
-CLOCK_GATE(audio_reserved4, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 25, sys_clk);
-CLOCK_GATE(audio_resampleb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 26, sys_clk);
-CLOCK_GATE(audio_tovad, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 27, sys_clk);
-CLOCK_GATE(audio_audiolocker, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 28, sys_clk);
-CLOCK_GATE(audio_spdifin_lb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 29, sys_clk);
-CLOCK_GATE(audio_fratv, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 30, sys_clk);
-CLOCK_GATE(audio_frhdmirx, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 31, sys_clk);
+CLOCK_GATE(audio_ddr_arb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 0, clk81);
+CLOCK_GATE(audio_pdm, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 1, clk81);
+CLOCK_GATE(audio_tdmina, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 2, clk81);
+CLOCK_GATE(audio_tdminb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 3, clk81);
+CLOCK_GATE(audio_tdminc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 4, clk81);
+CLOCK_GATE(audio_tdminlb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 5, clk81);
+CLOCK_GATE(audio_tdmouta, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 6, clk81);
+CLOCK_GATE(audio_tdmoutb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 7, clk81);
+CLOCK_GATE(audio_tdmoutc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 8, clk81);
+CLOCK_GATE(audio_frddra, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 9, clk81);
+CLOCK_GATE(audio_frddrb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 10, clk81);
+CLOCK_GATE(audio_frddrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 11, clk81);
+CLOCK_GATE(audio_toddra, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 12, clk81);
+CLOCK_GATE(audio_toddrb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 13, clk81);
+CLOCK_GATE(audio_toddrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 14, clk81);
+CLOCK_GATE(audio_loopbacka, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 15, clk81);
+CLOCK_GATE(audio_spdifin, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 16, clk81);
+CLOCK_GATE(audio_spdifout, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 17, clk81);
+CLOCK_GATE(audio_resamplea, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 18, clk81);
+CLOCK_GATE(audio_reserved0, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 19, clk81);
+CLOCK_GATE(audio_reserved1, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 20, clk81);
+CLOCK_GATE(audio_spdifoutb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 21, clk81);
+CLOCK_GATE(audio_eqdrc, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 22, clk81);
+CLOCK_GATE(audio_reserved2, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 23, clk81);
+CLOCK_GATE(audio_reserved3, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 24, clk81);
+CLOCK_GATE(audio_reserved4, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 25, clk81);
+CLOCK_GATE(audio_resampleb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 26, clk81);
+CLOCK_GATE(audio_tovad, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 27, clk81);
+CLOCK_GATE(audio_audiolocker, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 28, clk81);
+CLOCK_GATE(audio_spdifin_lb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 29, clk81);
+CLOCK_GATE(audio_fratv, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 30, clk81);
+CLOCK_GATE(audio_frhdmirx, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 31, clk81);
 
-CLOCK_GATE(audio_frddrd, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 0, sys_clk);
-CLOCK_GATE(audio_toddrd, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 1, sys_clk);
+CLOCK_GATE(audio_frddrd, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 0, clk81);
+CLOCK_GATE(audio_toddrd, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 1, clk81);
 
 static struct clk_gate *t5_audio_clk_gates[] = {
 	&audio_ddr_arb,

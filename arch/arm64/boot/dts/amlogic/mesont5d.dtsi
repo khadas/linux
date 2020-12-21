@@ -778,7 +778,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -1458,13 +1458,13 @@
 	dummy_codec:dummy {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_dummy_codec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	acodec:codec {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, tm2_revb_acodec";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xff632000 0x0 0x1c>;
 		tdmout_index = <1>;
 		tdmin_index = <1>;
@@ -1474,7 +1474,7 @@
 	audio_data: audio_data {
 		compatible = "amlogic, audio_data";
 		query_licence_cmd = <0x82000050>;
-		status = "disabled";
+		status = "okay";
 	}; /* Audio Related end */
 
 	defendkey: defendkey {

@@ -258,7 +258,7 @@
 
 	/* Audio Related start */
 	auge_sound {
-		compatible = "amlogic, tm2-sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio_ao GPIOD_6 GPIO_ACTIVE_HIGH>;
@@ -269,7 +269,7 @@
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
 			mclk-fs = <256>;
-			continuous-clock;
+			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -1187,13 +1187,10 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 
-		/*enable default mclk(12.288M), before extern codec start*/
-		start_clk_enable = <1>;
-
 		/* enable control gain */
 		ctrl_gain = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmb:tdm@1 {
@@ -1235,7 +1232,7 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
-		status = "disabled";
+		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
@@ -1259,56 +1256,7 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
-		status = "disabled";
-	};
-
-	tdmlb:tdm@3 {
-		compatible = "amlogic, tm2-snd-tdmlb";
-		#sound-dai-cells = <0>;
-
-		dai-tdm-lane-lb-slot-mask-in = <1 0 0 0>;
-		dai-tdm-clk-sel = <1>;
-
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
-
-		/*
-		 * select tdmin_lb src;
-		 * AXG
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA
-		 *  4: PAD_TDMINB
-		 *  5: PAD_TDMINC
-		 *
-		 * G12A/G12B
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*, oe pin
-		 *  7: PAD_TDMINB_D*, oe pin
-		 *
-		 * TL1/SM1
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*
-		 *  7: PAD_TDMINB_D*
-		 *  8: PAD_TDMINC_D*
-		 *  9: HDMIRX_I2S
-		 *  10: ACODEC_ADC
-		 */
-		lb-src-sel = <1>;
-
-		status = "disabled";
+		status = "okay";
 	};
 
 	pdm:pdm {
@@ -1332,11 +1280,11 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	spdifa:spdif@0 {
-		compatible = "amlogic, t5-snd-spdif-a";
+		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkc CLKID_MPLL0
@@ -1361,11 +1309,11 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	spdifb:spdif@1 {
-		compatible = "amlogic, t5-snd-spdif-b";
+		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
@@ -1378,7 +1326,7 @@
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	extn:extn {
@@ -1389,7 +1337,7 @@
 				<GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_frhdmirx";
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	aed:effect {
@@ -1414,7 +1362,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
@@ -1440,7 +1388,7 @@
 		 */
 		resample_module = <8>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrcb: resample@1 {
@@ -1488,7 +1436,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -1543,7 +1491,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbackb:loopback@1 {
@@ -1832,7 +1780,7 @@
 };
 
 &i2c1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins>;
 
@@ -1849,7 +1797,7 @@
 		codec_name = "tas5805";
 		reg = <0x2e>;
 		reset_pin = <&gpio_ao GPIOD_9 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 

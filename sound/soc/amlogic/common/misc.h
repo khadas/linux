@@ -12,7 +12,7 @@
 #include <sound/control.h>
 
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
-const struct soc_enum atv_audio_status_enum;
+extern const struct soc_enum atv_audio_status_enum;
 
 int aml_get_atv_audio_stable(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol);
@@ -21,7 +21,7 @@ int aml_get_atv_audio_stable(struct snd_kcontrol *kcontrol,
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 int tvin_get_av_status(void);
-const struct soc_enum av_audio_status_enum;
+extern const struct soc_enum av_audio_status_enum;
 
 int aml_get_av_audio_stable(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol);
@@ -30,7 +30,7 @@ int aml_get_av_audio_stable(struct snd_kcontrol *kcontrol,
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 int update_spdifin_audio_type(int audio_type);
 
-const struct soc_enum hdmi_in_status_enum[];
+extern const struct soc_enum hdmi_in_status_enum[];
 
 int get_hdmi_sample_rate_index(void);
 
