@@ -808,7 +808,7 @@ int __init codec_io_init(void)
 	ret = platform_driver_probe(&codec_io_platform_driver,
 				    codec_io_probe);
 	if (ret) {
-		pr_err("Unable to register canvas driver\n");
+		pr_err("Unable to register codec_io driver\n");
 		return ret;
 	}
 

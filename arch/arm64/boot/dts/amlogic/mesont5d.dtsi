@@ -1216,11 +1216,11 @@
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		status = "okay";
-		reg = <0x0 0xff638000 0x0 0x2000>;
+		reg = <0x0 0xff638048 0x0 0x2000>;
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-t5d, codec_io";
+		compatible = "amlogic, meson-t5d, codec-io";
 		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
