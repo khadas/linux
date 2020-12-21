@@ -368,21 +368,32 @@ err0:
 
 void crg_shutdown(struct platform_device *pdev)
 {
+	struct crg     *crg = platform_get_drvdata(pdev);
+
 	pm_runtime_get_sync(&pdev->dev);
+
+	crg_core_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	clk_disable_unprepare(crg->general_clk);
 }
 
 static int crg_remove(struct platform_device *pdev)
 {
+	struct crg	   *crg = platform_get_drvdata(pdev);
+
 	pm_runtime_get_sync(&pdev->dev);
+
+	crg_core_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	clk_disable_unprepare(crg->general_clk);
 	return 0;
 }
 
