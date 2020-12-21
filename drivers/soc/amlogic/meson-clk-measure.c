@@ -13,8 +13,6 @@
 #include <linux/amlogic/clk_measure.h>
 #include <linux/module.h>
 
-static DEFINE_MUTEX(measure_lock);
-
 #define MSR_DURATION		GENMASK(15, 0)
 #define MSR_ENABLE		BIT(16)
 #define MSR_CONT		BIT(17) /* continuous measurement */
@@ -57,6 +55,7 @@ struct meson_msr {
 #define CLK_MSR_ID(__id, __name) \
 	[__id] = {.id = __id, .name = __name,}
 
+static spinlock_t measure_lock;
 static struct meson_msr *glo_meson_msr;
 static unsigned int measure_num;
 
@@ -992,11 +991,10 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 {
 	struct meson_msr *priv = clk_msr_id->priv;
 	unsigned int val;
-	int ret;
+	unsigned long flags;
+	int cnt = 0;
 
-	ret = mutex_lock_interruptible(&measure_lock);
-	if (ret)
-		return ret;
+	spin_lock_irqsave(&measure_lock, flags);
 
 	regmap_write(priv->regmap, priv->data->reg0_offset, 0);
 
@@ -1013,12 +1011,13 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 			   MSR_RUN | MSR_ENABLE,
 			   MSR_RUN | MSR_ENABLE);
 
-	ret = regmap_read_poll_timeout(priv->regmap, priv->data->reg0_offset,
-				       val, !(val & MSR_BUSY), 10, 10000);
-	if (ret) {
-		mutex_unlock(&measure_lock);
-		return ret;
-	}
+	do {
+		regmap_read(priv->regmap, priv->data->reg0_offset, &val);
+		udelay(10);
+		cnt++;
+		if (cnt > 1000)
+			pr_err("measure timeout\n");
+	} while (val & MSR_BUSY);
 
 	/* Disable */
 	regmap_update_bits(priv->regmap, priv->data->reg0_offset,
@@ -1027,7 +1026,7 @@ static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 	/* Get the value in multiple of gate time counts */
 	regmap_read(priv->regmap, priv->data->reg2_offset, &val);
 
-	mutex_unlock(&measure_lock);
+	spin_unlock_irqrestore(&measure_lock, flags);
 
 	if (val > MSR_VAL_MASK) {
 		pr_err("measure val error\n");
@@ -1164,6 +1163,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	memcpy(msr_data, priv->data, sizeof(struct meson_msr_data));
 	priv->data = msr_data;
 
+	spin_lock_init(&measure_lock);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base)) {
