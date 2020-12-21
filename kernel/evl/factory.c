@@ -971,8 +971,7 @@ int __init evl_late_init_factories(void)
 	return create_core_factories(factories, ARRAY_SIZE(factories));
 }
 
-void __init evl_cleanup_factories(void)
+void __init evl_late_cleanup_factories(void)
 {
 	delete_core_factories(factories, ARRAY_SIZE(factories));
-	evl_early_cleanup_factories();
 }

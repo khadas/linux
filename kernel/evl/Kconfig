@@ -88,6 +88,21 @@ config EVL_RUNSTATS
 	per-thread runtime statistics, which are accessible via
 	the /sys interface.
 
+config EVL_NET
+        bool "Out-of-band networking (EXPERIMENTAL)"
+	default n
+	select NET_OOB
+	select NET_SCHED
+	select NET_SCH_OOB
+	select INET
+	select VLAN_8021Q
+	help
+	This option enables preliminary networking support for EVL.
+
+	CAUTION! This is WIP, experimental code with limited support
+	at the moment, which is still subject to significant UAPI and
+	kernel API changes all over the map.
+
 menu "Fixed sizes and limits"
 
 config EVL_COREMEM_SIZE
@@ -240,6 +255,12 @@ config EVL_DEBUG_WOLI
 	  opted-in programmatically on a per-thread basis when this
 	  option is off. This feature may induce overhead in some
 	  cases, so you should enable it for debugging purposes only.
+
+config EVL_DEBUG_NET
+	bool "Network stack debugging"
+	help
+	  This option activates various assertions inside the EVL
+	  network stack. This option has moderate overhead.
 
 config EVL_WATCHDOG
 	bool "Watchdog support"

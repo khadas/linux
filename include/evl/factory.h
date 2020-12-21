@@ -200,7 +200,7 @@ void evl_early_cleanup_factories(void);
 
 int evl_late_init_factories(void);
 
-void evl_cleanup_factories(void);
+void evl_late_cleanup_factories(void);
 
 extern struct evl_factory evl_clock_factory;
 extern struct evl_factory evl_control_factory;

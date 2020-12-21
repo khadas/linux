@@ -1,4 +1,4 @@
-obj-$(CONFIG_EVL) += evl.o sched/
+obj-$(CONFIG_EVL) += evl.o sched/ net/
 
 evl-y :=		\
 	clock.o		\
