@@ -962,10 +962,10 @@
 			rti: sys-ctrl@0 {
 				compatible = "amlogic,meson-gx-ao-sysctrl",
 						"simple-mfd", "syscon";
-				reg = <0x0 0x0 0x0 0x100>;
+				reg = <0x0 0x0 0x0 0x300>;
 				#address-cells = <2>;
 				#size-cells = <2>;
-				ranges = <0x0 0x0 0x0 0x0 0x0 0x100>;
+				ranges = <0x0 0x0 0x0 0x0 0x0 0x300>;
 
 				clkc_AO: clock-controller@2 {
 					compatible = "amlogic,t5d-aoclkc";

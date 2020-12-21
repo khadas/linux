@@ -34,9 +34,8 @@
 #define CLKID_CECB_32K_CLKIN			13
 #define CLKID_CECB_32K_DIV			14
 #define CLKID_CECB_32K_MUX_PRE			15
-#define CLKID_CECB_32K_MUX			16
-#define CLKID_CECB_32K_CLKOUT			17
+#define CLKID_CECB_32K_CLKOUT			16
 
-#define NR_AOCLKS				18
+#define NR_AOCLKS				17
 
 #endif /* __DT_BINDINGS_T5D_AOCLKC_H */
