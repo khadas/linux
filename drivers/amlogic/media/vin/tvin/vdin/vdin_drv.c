@@ -991,7 +991,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
-
+	pr_info("%s port: 0x%x\n", __func__, para->port);
 	fmt = devp->parm.info.fmt;
 	if (vdin_dbg_en) {
 		pr_info("**[%s]cfmt:%d;dfmt:%d;dest_hactive:%d;",
@@ -2317,7 +2317,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 {
 	ulong flags;
 	struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;
-
+	enum vdin_vf_put_md put_md = VDIN_VF_PUT;
 	struct vf_entry *next_wr_vfe = NULL, *curr_wr_vfe = NULL;
 	struct vframe_s *curr_wr_vf = NULL;
 	unsigned int last_field_type, stamp;
@@ -2394,7 +2394,16 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		wake_up_interruptible(&vframe_waitq);
 	}
 
+	next_wr_vfe = provider_vf_peek(devp->vfp);
+
 	if (devp->last_wr_vfe) {
+		/*add for force vdin buffer recycle*/
+		if (!next_wr_vfe &&
+		    (devp->flags & VDIN_FLAG_FORCE_RECYCLE))
+			put_md = VDIN_VF_RECYCLE;
+		else
+			put_md = VDIN_VF_PUT;
+
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe,
 					    VDIN_VF_PUT);
 		devp->last_wr_vfe = NULL;
@@ -2468,16 +2477,12 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			goto irq_handled;
 		}
 	}
-	next_wr_vfe = provider_vf_peek(devp->vfp);
 
+	/* no buffer */
 	if (!next_wr_vfe) {
-		/*add for force vdin buffer recycle*/
-		if (devp->flags & VDIN_FLAG_FORCE_RECYCLE) {
-			vdin_vframe_put_and_recycle(devp, next_wr_vfe,
-						    VDIN_VF_RECYCLE);
-		} else {
-			goto irq_handled;
-		}
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
+		vdin_drop_frame_info(devp, "no next fe");
+		goto irq_handled;
 	}
 
 	if (curr_wr_vfe) {

@@ -65,7 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1026: support secure mode for screen cap"
+#define VDIN_VER "ver:2020-1221: vdin1 force recycle case crash"
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
