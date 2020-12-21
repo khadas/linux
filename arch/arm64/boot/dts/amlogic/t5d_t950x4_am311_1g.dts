@@ -35,7 +35,8 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
-		spi0 = &spicc0;
+		spi0 = &spifc;
+		spi1 = &spicc0;
 	};
 
 	memory@00000000 {
@@ -1679,7 +1680,7 @@
 &spifc {
 	status = "disabled";
 	spi-nor@0 {
-		//cs_gpios = <&gpio BOOT_13 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
 	};
 };
 
