@@ -3153,7 +3153,7 @@ static struct clk_regmap t7_hdmitx_aud  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmitx_aud",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_aud.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_aud_sel.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3196,7 +3196,7 @@ static struct clk_regmap t7_hdmirx_5m  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_5m",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_5m.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_5m_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3239,7 +3239,7 @@ static struct clk_regmap t7_hdmirx_2m = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_2m",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_2m.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_2m_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3282,7 +3282,7 @@ static struct clk_regmap t7_hdmirx_cfg  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_cfg",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_cfg.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_cfg_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3325,7 +3325,7 @@ static struct clk_regmap t7_hdmirx_hdcp = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_hdcp",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_hdcp.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_hdcp_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3368,7 +3368,7 @@ static struct clk_regmap t7_hdmirx_aud_pll  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_aud_pll",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_aud_pll.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_aud_pll_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3411,7 +3411,7 @@ static struct clk_regmap t7_hdmirx_acr = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_acr",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_acr.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_acr_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -3454,7 +3454,7 @@ static struct clk_regmap t7_hdmirx_meter  = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmirx_meter",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_meter.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_meter_div.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
