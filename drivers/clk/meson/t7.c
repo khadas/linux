@@ -5218,7 +5218,7 @@ static struct clk_regmap t7_anakin_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t7_anakin_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5233,7 +5233,6 @@ static struct clk_regmap t7_anakin_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t7_anakin_parent_hws,
 		.num_parents = ARRAY_SIZE(t7_anakin_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -5266,7 +5265,7 @@ static struct clk_regmap t7_anakin_1 = {
 			&t7_anakin_1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5284,7 +5283,7 @@ static struct clk_regmap t7_anakin = {
 			&t7_anakin_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
@@ -5300,7 +5299,7 @@ static struct clk_regmap t7_anakin_clk = {
 			&t7_anakin.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
