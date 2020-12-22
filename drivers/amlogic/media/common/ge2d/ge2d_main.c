@@ -1255,6 +1255,17 @@ static struct ge2d_device_data_s ge2d_sc2 = {
 	.src2_repeat = 1,
 };
 
+static struct ge2d_device_data_s ge2d_t5 = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 0,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 0,
+	.chip_type = MESON_CPU_MAJOR_ID_T5,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1295,6 +1306,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-sc2",
 		.data = &ge2d_sc2,
+	},
+	{
+		.compatible = "amlogic, ge2d-t5",
+		.data = &ge2d_t5,
 	},
 	{},
 };
@@ -1440,7 +1455,9 @@ static int ge2d_probe(struct platform_device *pdev)
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
 	clk_disable_unprepare(clk_gate);
-	pm_runtime_enable(&pdev->dev);
+
+	if (ge2d_meson_dev.has_self_pwr)
+		pm_runtime_enable(&pdev->dev);
 failed1:
 	return ret;
 }

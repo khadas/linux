@@ -1302,7 +1302,7 @@
 
 	ge2d {
 		compatible = "amlogic, ge2d-t5";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 146 1>;
 		interrupt-names = "ge2d";
 		clocks = <&peripheral_clkc CLKID_VAPB_MUX>,
