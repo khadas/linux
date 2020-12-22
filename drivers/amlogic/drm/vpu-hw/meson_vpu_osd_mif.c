@@ -365,6 +365,30 @@ static void osd_fifo_hold_line_config(struct osd_mif_reg_s *reg,
 				 hold_line & 0x1f, 5, 5);
 }
 
+void osd_ctrl_init(struct osd_mif_reg_s *reg)
+{
+	meson_vpu_write_reg(reg->viu_osd_fifo_ctrl_stat,
+			    (1 << 31) | /*BURSET_LEN_SEL[2]*/
+			    (0 << 30) | /*no swap*/
+			    (0 << 29) | /*div swap*/
+			    (2 << 24) | /*Fifo_lim 5bits*/
+			    (2 << 22) | /*Fifo_ctrl 2bits*/
+			    (0x20 << 12) | /*FIFO_DEPATH_VAL 7bits*/
+			    (1 << 10) | /*BURSET_LEN_SEL[1:0]*/
+			    (4 << 5) | /*hold fifo lines 5bits*/
+			    (0 << 4) | /*CLEAR_ERR*/
+			    (0 << 3) | /*fifo_sync_rst*/
+			    (0 << 1) | /*ENDIAN:no conversion*/
+			    (1 << 0)/*urgent enable*/);
+	meson_vpu_write_reg(reg->viu_osd_ctrl_stat,
+			    (0 << 31) | /*osd_cfg_sync_en*/
+			    (0 << 30) | /*Enable free_clk*/
+			    (0x100 << 12) | /*global alpha*/
+			    (0 << 11) | /*TEST_RD_EN*/
+			    (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
+			    (0 << 1) | /*premult_en*/
+			    (0 << 0)/*OSD_BLK_ENABLE*/);
+}
 /*osd ctrl config*/
 void osd_ctrl_set(struct osd_mif_reg_s *reg)
 {
@@ -762,6 +786,8 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 		return;
 	}
 	osd->reg = &osd_mif_reg[vblk->index];
+	osd_ctrl_init(osd->reg);
+
 	DRM_DEBUG("%s hw_init done.\n", osd->base.name);
 }
 
