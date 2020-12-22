@@ -623,7 +623,7 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	for (i = 0; i < pvfm->plane_num; i++) {
 		pcvs = &pvfm->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
-		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
+		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
 			   pcvs->phy_addr);
 		seq_printf(seq, "\t%-15s:%d\n", "width",
 			   pcvs->width);

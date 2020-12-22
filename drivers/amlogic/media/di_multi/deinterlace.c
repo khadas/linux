@@ -6963,7 +6963,7 @@ void dbg_vfm(struct vframe_s *vf, unsigned int dbgpos)
 	for (i = 0; i < vf->plane_num; i++) {
 		PR_INF("%d:\n", i);
 		cvsp = &vf->canvas0_config[i];
-		PR_INF("\tph=0x%x\n", cvsp->phy_addr);
+		PR_INF("\tph=0x%lx\n", cvsp->phy_addr);
 		PR_INF("\tw=%d\n", cvsp->width);
 		PR_INF("\th=%d\n", cvsp->height);
 		PR_INF("\tb=%d\n", cvsp->block_mode);
