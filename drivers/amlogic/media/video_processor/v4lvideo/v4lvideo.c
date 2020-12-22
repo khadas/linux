@@ -1233,6 +1233,21 @@ static ssize_t vidioc_read(struct file *file, char __user *data,
 	return 0;
 }
 
+static unsigned int v4lvideo_poll(struct file *file,
+					struct poll_table_struct *wait)
+{
+	struct v4lvideo_dev *dev = video_drvdata(file);
+
+	if (dev->receiver_register) {
+		if (vf_peek(dev->vf_receiver_name))
+			return POLL_IN | POLLRDNORM;
+		else
+			return 0;
+	} else {
+			return 0;
+	}
+}
+
 static int vidioc_querycap(struct file *file,
 			   void *priv,
 			   struct v4l2_capability *cap)
@@ -1713,7 +1728,7 @@ static const struct v4l2_file_operations v4lvideo_v4l2_fops = {
 	.open = vidioc_open,
 	.release = vidioc_close,
 	.read = vidioc_read,
-	.poll = vb2_fop_poll,
+	.poll = v4lvideo_poll,
 	.unlocked_ioctl = video_ioctl2,/* V4L2 ioctl handler */
 	.mmap = vb2_fop_mmap,
 };
