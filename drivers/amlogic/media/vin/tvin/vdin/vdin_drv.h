@@ -65,11 +65,12 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1021: support loopback HDR signal"
+#define VDIN_VER "ver:2021-0113: bringup for t7 dv meta data"
 
-/*#define VDIN_BRINGUP_NO_VF*/
-/*#define VDIN_BRINGUP_NO_VLOCK*/
-/*#define VDIN_BRINGUP_NO_AMLVECM*/
+//#define VDIN_BRINGUP_NO_VF
+//#define VDIN_BRINGUP_NO_VLOCK
+//#define VDIN_BRINGUP_NO_AMLVECM
+//#define VDIN_BRINGUP_BYPASS_COLOR_CNVT
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -95,6 +96,10 @@ enum vdin_hw_ver_e {
 	VDIN_HW_SC2,
 	VDIN_HW_T5,
 	VDIN_HW_T5D,
+	/*
+	 * t7 removed canvas
+	 * no DV meta data slicer
+	 */
 	VDIN_HW_T7,
 };
 
@@ -381,6 +386,9 @@ struct vdin_dv_s {
 	dma_addr_t dv_dma_paddr;
 	void *dv_dma_vaddr;
 	void *temp_meta_data;
+	dma_addr_t meta_data_raw_pbuff0;/*for t7*/
+	void *meta_data_raw_vbuff0;/*for t7*/
+	void *meta_data_raw_buff1;/*for t7*/
 	unsigned int dv_flag_cnt;/*cnt for no dv input*/
 	bool dv_flag;
 	bool dv_config;
@@ -444,6 +452,7 @@ struct vdin_dev_s {
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
+	unsigned int mif_fmt;/*enum vdin_mif_fmt*/
 	enum vdin_color_deeps_e source_bitdepth;
 	enum vdin_matrix_csc_e csc_idx;
 	struct vf_entry *curr_wr_vfe;
@@ -493,13 +502,15 @@ struct vdin_dev_s {
 	 */
 	unsigned int canvas_align;
 
-	unsigned int irq;
+	int irq;
 	unsigned int rdma_irq;
-	unsigned int vpu_crash_irq;
-	unsigned int wr_done_irq;
+	int vpu_crash_irq;
+	int wr_done_irq;
+	int vdin2_meta_wr_done_irq;
 	char irq_name[12];
 	char vpu_crash_irq_name[20];
 	char wr_done_irq_name[20];
+	char vdin2_meta_wr_done_irq_name[20];
 	/* address offset(vdin0/vdin1/...) */
 	unsigned int addr_offset;
 
@@ -622,6 +633,7 @@ struct vdin_dev_s {
 	unsigned int puted_frame_cnt;
 	unsigned int rdma_irq_cnt;
 	unsigned int wr_done_irq_cnt;
+	unsigned int meta_wr_done_irq_cnt;
 	unsigned int vdin_irq_flag;
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;
@@ -686,7 +698,7 @@ extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
 extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
-extern unsigned int dv_de_scramble;
+extern unsigned int vdin_dv_de_scramble;
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;
@@ -751,6 +763,9 @@ void vdin_afbce_vpu_clk_mem_pd(struct vdin_dev_s *vdevp, unsigned int on);
 int vdin_v4l2_probe(struct platform_device *pdev,
 		    struct vdin_dev_s *vdindevp);
 int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp);
+void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
+				struct vf_entry *vfe, bool rdma_en);
+irqreturn_t vdin_write_done_isr(int irq, void *dev_id);
 
 #endif /* __TVIN_VDIN_DRV_H */
 

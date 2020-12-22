@@ -2086,9 +2086,12 @@
 		/*cma_size = <174>;*/
 		/*frame_buff_num = <6>;*/
 		interrupts = <0 210 1 /* vdin0 vsync */
+				0 214 1 /* vdin1 write down*/
 				/*0 206 1*/ /* vpu crash */
 				/*0 213 1*/>; /* vdin0 write down*/
-		interrupt-names = "vsync_int"/*, "vpu_crash_int",*/
+		interrupt-names = "vsync_int",
+				"mif2_meta_wr_done_int"
+				/*"vpu_crash_int",*/
 				/*"write_done_int"*/;
 		rdma-irq = <2>;
 		/*clocks = <&clkc CLKID_VPU_CLKB_GATE>,
@@ -2116,7 +2119,7 @@
 		 * bit6 -- afbce for 720p
 		 * bit7 -- afbce for smaller resolution
 		 */
-		afbce_bit_mode = <0x11>;
+		afbce_bit_mode = <0x31>;
 		/* urgent_en; */
 		double_write_en;
 	};

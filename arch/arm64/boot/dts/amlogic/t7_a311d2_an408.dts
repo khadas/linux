@@ -1322,7 +1322,7 @@
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	/*memory-region = <&vdin0_cma_reserved>;*/
-	status = "disabled";
+	status = "okay";
 	/*MByte, if 10bit disable: 64M(YUV422),
 	 *if 10bit enable: 64*1.5 = 96M(YUV422)
 	 *if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
@@ -1334,28 +1334,13 @@
 	 * dw:960x540x3 = 1.5M
 	 * total size:(27.5+1.5)x buffernumber
 	 */
-	cma_size = <174>;
-	frame_buff_num = <6>;
-	/*vdin write mem color depth support:
-	 *bit0:support 8bit
-	 *bit1:support 9bit
-	 *bit2:support 10bit
-	 *bit3:support 12bit
-	 *bit4:support yuv422 10bit full pack mode (from txl new add)
-	 */
-	tv_bit_mode = <0x1>;
+	cma_size = <300>;
+	frame_buff_num = <10>;
 };
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
-	status = "disabled";
-	/*vdin write mem color depth support:
-	 *bit0:support 8bit
-	 *bit1:support 9bit
-	 *bit2:support 10bit
-	 *bit3:support 12bit
-	 */
-	tv_bit_mode = <1>;
+	status = "okay";
 };
 
 &periphs_pinctrl {

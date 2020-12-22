@@ -204,7 +204,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	}
 	/*no need check here, will timeout sometimes*/
 	/*viuin_check_venc_line(devp);*/
-	if (port == TVIN_PORT_VIU1_VIDEO) {
+	if (port == TVIN_PORT_VIU1_VIDEO) {/*old chip*/
 		/* enable hsync for vdin loop */
 		wr_bits_viu(VIU_MISC_CTRL1, 1, 28, 1);
 		viu_mux = 0x4;
@@ -220,26 +220,31 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (port >= TVIN_PORT_VIU1_WB0_VD1 &&
 		    port <= TVIN_PORT_VIU1_WB0_POST_BLEND)
-			viu_mux = 8;
+			viu_mux = VIU_MUX_SEL_WB0;
 		else if ((port >= TVIN_PORT_VIU1_WB1_VD1) &&
 			 (port <= TVIN_PORT_VIU1_WB1_POST_BLEND))
-			viu_mux = 16;
+			viu_mux = VIU_MUX_SEL_WB1;
 		else if (port == TVIN_PORT_VIU2_ENCL)
-			viu_mux = 4;
+			viu_mux = VIU_MUX_SEL_ENCL;
 		else if (port == TVIN_PORT_VIU2_ENCI)
-			viu_mux = 1;
+			viu_mux = VIU_MUX_SEL_ENCI;
 		else if (port == TVIN_PORT_VIU2_ENCP)
-			viu_mux = 2;
+			viu_mux = VIU_MUX_SEL_ENCP;
 
-		switch (port & ~0xff) {
-		case TVIN_PORT_VIU1:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			viu_sel = 1;
-			break;
-		case TVIN_PORT_VIU2:
-			viu_sel = 2;
-			break;
-		default:
-			break;
+		} else {
+			/*old chip*/
+			switch (port & ~0xff) {
+			case TVIN_PORT_VIU1:
+				viu_sel = 1;
+				break;
+			case TVIN_PORT_VIU2:
+				viu_sel = 2;
+				break;
+			default:
+				break;
+			}
 		}
 
 		if (viu_sel == 1) {
@@ -262,19 +267,19 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		} else {
 			wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 		}
-
+		/*wrbak_chan0_sel wb_chan_sel */
 		if (port == TVIN_PORT_VIU1_WB0_VD1) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 1, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 1, 0, 4);
 		} else if (port == TVIN_PORT_VIU1_WB0_VD2) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 2, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 2, 0, 4);
 		} else if (port == TVIN_PORT_VIU1_WB0_OSD1) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 3, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 3, 0, 4);
 		} else if (port == TVIN_PORT_VIU1_WB0_OSD2) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 4, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 4, 0, 4);
 		} else if (port == TVIN_PORT_VIU1_WB0_POST_BLEND) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 5, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 5, 0, 4);
 		} else if (port == TVIN_PORT_VIU1_WB0_VPP) {
-			wr_bits_viu(VPP_WRBAK_CTRL, 6, 0, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 6, 0, 4);
 
 			/* increase h banking in case vdin afifo overflow
 			 * pre chip has 8bits
@@ -284,31 +289,31 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		} else {
 			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
 		}
-
+		/*wrbak_chan0_sel wb_chan_sel*/
 		if (port == TVIN_PORT_VIU1_WB1_VD1)
-			wr_bits_viu(VPP_WRBAK_CTRL, 1, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 1, 4, 4);
 		else if (port == TVIN_PORT_VIU1_WB1_VD2)
-			wr_bits_viu(VPP_WRBAK_CTRL, 2, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 2, 4, 4);
 		else if (port == TVIN_PORT_VIU1_WB1_OSD1)
-			wr_bits_viu(VPP_WRBAK_CTRL, 3, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 3, 4, 4);
 		else if (port == TVIN_PORT_VIU1_WB1_OSD2)
-			wr_bits_viu(VPP_WRBAK_CTRL, 4, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 4, 4, 4);
 		else if (port == TVIN_PORT_VIU1_WB1_POST_BLEND)
-			wr_bits_viu(VPP_WRBAK_CTRL, 5, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 5, 4, 4);
 		else if (port == TVIN_PORT_VIU1_WB1_VPP)
-			wr_bits_viu(VPP_WRBAK_CTRL, 6, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 6, 4, 4);
 		else
-			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
+			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 4);
 
 		/* wrback hsync en */
 		if (port >= TVIN_PORT_VIU1_WB0_VD1 &&
 		    port <= TVIN_PORT_VIU1_WB0_POST_BLEND) {
-			wr_bits_viu(WR_BACK_MISC_CTRL, 1, 0, 1);
-			wr_bits_viu(WR_BACK_MISC_CTRL, 0, 1, 1);
+			wr_bits_viu(WR_BACK_MISC_CTRL, 1, 0, 1);/*vd0 hsync*/
+			wr_bits_viu(WR_BACK_MISC_CTRL, 0, 1, 1);/*vd1 hsync*/
 		} else if ((port >= TVIN_PORT_VIU1_WB1_VD1) &&
 			(port <= TVIN_PORT_VIU1_WB1_POST_BLEND)) {
-			wr_bits_viu(WR_BACK_MISC_CTRL, 0, 0, 1);
-			wr_bits_viu(WR_BACK_MISC_CTRL, 1, 1, 1);
+			wr_bits_viu(WR_BACK_MISC_CTRL, 0, 0, 1);/*vd0 hsync*/
+			wr_bits_viu(WR_BACK_MISC_CTRL, 1, 1, 1);/*vd1 hsync*/
 		} else {
 			wr_bits_viu(WR_BACK_MISC_CTRL, 0, 0, 2);
 		}

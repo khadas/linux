@@ -393,8 +393,12 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 		);
 
 	//head addr of compressed data
-	W_VCBUS(AFBCE_HEAD_BADDR,
-		devp->afbce_info->fm_head_paddr[0]);
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7)
+		W_VCBUS(AFBCE_HEAD_BADDR,
+			devp->afbce_info->fm_head_paddr[0] >> 4);
+	else
+		W_VCBUS(AFBCE_HEAD_BADDR,
+			devp->afbce_info->fm_head_paddr[0]);
 
 	W_VCBUS_BIT(AFBCE_MIF_SIZE, (uncmp_size & 0x1fff), 16, 5);//uncmp_size
 
@@ -441,8 +445,13 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	W_VCBUS(AFBCE_DEFCOLOR_2,
 		(((def_color_2 << bit_mode_shift) & 0xfff) << 12) |
 		(((def_color_1 << bit_mode_shift) & 0xfff) << 0));
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7)
+		W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4,
+			    devp->afbce_info->table_paddr >> 4, 0, 32);
+	else
+		W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4,
+			    devp->afbce_info->table_paddr, 0, 32);
 
-	W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4, devp->afbce_info->table_paddr, 0, 32);
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, cur_mmu_used, 0, 12);
 	/*for almost uncompressed pattern,garbage at bottom
 	 *(h_active * v_active * bytes per pixel + 3M) / page_size - 1
@@ -540,10 +549,21 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
-		rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
-			       devp->afbce_info->fm_head_paddr[i]);
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
-			       devp->afbce_info->fm_table_paddr[i], 0, 32);
+		if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
+			rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
+				       devp->afbce_info->fm_head_paddr[i] >> 4);
+			rdma_write_reg_bits(devp->rdma_handle,
+					    AFBCE_MMU_RMIF_CTRL4,
+					    devp->afbce_info->fm_table_paddr[i] >> 4,
+					    0, 32);
+		} else {
+			rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
+				       devp->afbce_info->fm_head_paddr[i]);
+			rdma_write_reg_bits(devp->rdma_handle,
+					    AFBCE_MMU_RMIF_CTRL4,
+					    devp->afbce_info->fm_table_paddr[i],
+					    0, 32);
+		}
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
 				    AFBCE_START_PULSE_BIT, AFBCE_START_PULSE_WID);
 

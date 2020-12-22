@@ -36,6 +36,7 @@
 #include "vdin_drv.h"
 #include "vdin_canvas.h"
 #include "vdin_ctl.h"
+#include "vdin_dv.h"
 /*the value depending on dts config mem limit
  *for skip two vframe case,need +2
  */
@@ -44,7 +45,7 @@ static unsigned int min_buf_num = 4;
 static unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
 static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGH;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
-unsigned int dolby_size_byte = PAGE_SIZE;
+unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
 
 #ifdef DEBUG_SUPPORT
 module_param(max_buf_num, uint, 0664);
@@ -576,7 +577,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12 &&
 	    devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21)
 		mem_size = (mem_size * 3) / 2;
-	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
+	devp->vfmem_size = PAGE_ALIGN(mem_size)/* + dolby_size_byte*/;
 	devp->vfmem_size = roundup(devp->vfmem_size, PAGE_SIZE);
 
 	if (devp->double_wr || K_FORCE_HV_SHRINK) {
@@ -628,8 +629,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			 * block should align to,  H:2 blocks, V: 16 blocks
 			 */
 			devp->afbce_info->frame_head_size =
-				PAGE_ALIGN((roundup(devp->h_active, 64) *
-					    roundup(devp->v_active, 64)) / 32 + dolby_size_byte);
+			PAGE_ALIGN((roundup(devp->h_active, 64) *
+				    roundup(devp->v_active, 64)) / 32
+				    /* + dolby_size_byte*/);
 
 			/*((h * v * byte_per_pixel + dolby) / page_size) * 4(one address size)
 			 * total max_buffer_num

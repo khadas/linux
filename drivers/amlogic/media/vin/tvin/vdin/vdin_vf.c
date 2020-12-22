@@ -813,8 +813,8 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 	/*clean dv-buf-size*/
 	if (vf && (dv_dbg_mask & DV_CLEAN_UP_MEM)) {
 		p->dv_buf_size[vf->index] = 0;
-		if (p->dv_buf_ori[vf->index])
-			memset(p->dv_buf_ori[vf->index], 0, dolby_size_byte);
+		/*if (p->dv_buf_ori[vf->index])*/
+		/*	memset(p->dv_buf_ori[vf->index], 0, dolby_size_byte);*/
 	}
 }
 

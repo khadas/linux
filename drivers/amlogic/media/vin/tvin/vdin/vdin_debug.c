@@ -43,6 +43,7 @@
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include "vdin_dv.h"
 
 void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -274,7 +275,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		pr_info("%s:no cma alloc mem!!!\n", __func__);
 		return;
 	}
-
+	pr_info("cma_config_flag:0x%x\n", devp->cma_config_flag);
 	if (buf_num >= devp->canvas_max_num) {
 		vfs_fsync(filp, 0);
 		filp_close(filp, NULL);
@@ -294,14 +295,16 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		count = devp->canvas_h;
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area\n");
+		pr_info("low mem area: one line size (%d, active:%d)\n",
+			devp->canvas_w, devp->canvas_active_w);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vfmem_start[buf_num]);
 		else
 			buf = phys_to_virt(devp->vfmem_start[buf_num]);
-
 		/*only write active data*/
 		for (i = 0; i < count; i++) {
+			vdin_dma_flush(devp, buf, devp->canvas_w,
+				       DMA_FROM_DEVICE);
 			vfs_write(filp, buf, devp->canvas_active_w, &pos);
 			buf += devp->canvas_w;
 		}
@@ -309,7 +312,8 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		pr_info("write buffer %2d of %2u  to %s.\n",
 			buf_num, devp->canvas_max_num, path);
 	} else {
-		pr_info("high mem area\n");
+		pr_info("high mem area: one line size (%d, active:%d)\n",
+			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vfmem_start[buf_num];
 
@@ -378,10 +382,11 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		highmem_flag = PageHighMem(phys_to_page(devp->vfmem_start[0]));
 	else
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
-
+	pr_info("cma_config_flag:0x%x\n", devp->cma_config_flag);
 	if (highmem_flag == 0) {
 		/*low mem area*/
-		pr_info("low mem area\n");
+		pr_info("low mem area: one line size (%d, active:%d)\n",
+			devp->canvas_w, devp->canvas_active_w);
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			if (devp->cma_config_flag == 0x1)
@@ -395,6 +400,8 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 
 			/*only write active data*/
 			for (j = 0; j < count; j++) {
+				vdin_dma_flush(devp, buf, devp->canvas_w,
+					       DMA_FROM_DEVICE);
 				if (devp->cma_config_flag & 0x100) {
 					vfs_write(filp, vfbuf[i],
 						  devp->canvas_active_w, &pos);
@@ -410,13 +417,13 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		}
 	} else {
 		/*high mem area*/
-		pr_info("high mem area\n");
+		pr_info("high mem area: one line size (%d, active:%d)\n",
+			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			phys = devp->vfmem_start[i];
-
 			for (j = 0; j < count; j++) {
 				highaddr = phys + j * devp->canvas_w;
 				buf = vdin_vmap(highaddr, span);
@@ -838,6 +845,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	struct tvin_parm_s *curparm = &devp->parm;
 	struct vf_pool *vfp = devp->vfp;
 	unsigned int vframe_size;
+	unsigned int offset = devp->addr_offset;
 
 	if (devp->vfmem_size_small)
 		vframe_size = devp->vfmem_size_small;
@@ -895,6 +903,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.pre_he, devp->prop.he,
 		devp->prop.pre_vs, devp->prop.vs,
 		devp->prop.pre_ve, devp->prop.ve);
+	pr_info("report: hactive %d, vactive:%d, vtotal:%d\n",
+		vdin_get_active_h(offset), vdin_get_active_v(offset),
+		vdin_get_total_v(offset));
 	pr_info("frontend_fps:%d\n", devp->prop.fps);
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
@@ -958,6 +969,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_trans_irqflag_to_str(devp->vdin_irq_flag));
 	pr_info("vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
 	pr_info("write done: %d\n", devp->wr_done_irq_cnt);
+	pr_info("meta write done: %d\n", devp->meta_wr_done_irq_cnt);
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
@@ -988,21 +1000,21 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		}
 	}
 	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
-	if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))
-		pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",
-			(devp->mem_start +
-			devp->mem_size - devp->canvas_max_num * dolby_size_byte),
-			dolby_size_byte);
-	else
-		for (i = 0; i < devp->canvas_max_num; i++)
-			pr_info("dolby_mem_start[%d] = %ld, dolby_mem_size = %d\n",
-				i, (devp->vfmem_start[i] + devp->vfmem_size -
-				dolby_size_byte), dolby_size_byte);
-	for (i = 0; i < devp->canvas_max_num; i++) {
+	/*if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))*/
+	/*	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",*/
+	/*		(devp->mem_start +*/
+	/*		devp->mem_size - devp->canvas_max_num * dolby_size_byte),*/
+	/*		dolby_size_byte);*/
+	/*else*/
+	/*	for (i = 0; i < devp->canvas_max_num; i++)*/
+	/*		pr_info("dolby_mem_start[%d] = %ld, dolby_mem_size = %d\n",*/
+	/*			i, (devp->vfmem_start[i] + devp->vfmem_size -*/
+	/*			dolby_size_byte), dolby_size_byte);*/
+
+	for (i = 0; i < devp->canvas_max_num; i++)
 		pr_info("dv_mem(%d):0x%x\n",
-			devp->vfp->dv_buf_size[i],
-			devp->vfp->dv_buf_mem[i]);
-	}
+			devp->vfp->dv_buf_size[i], devp->vfp->dv_buf_mem[i]);
+
 	pr_info("dvEn:%d,dv_flag:%d;dv_config:%d,dolby_ver:%d,low_latency:(%d,%d,%d) allm:%d\n",
 		is_dolby_vision_enable(),
 		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision,
@@ -1440,11 +1452,11 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		}
 		index = devp->curr_wr_vfe->vf.index & 0xff;
 		if (index != 0xff && index >= 0 && index < p->size) {
-			u8 *c = devp->vfp->dv_buf_ori[index];
+			u8 *c = devp->vfp->dv_buf_vmem[index];
 
 			pos = 0;
 			size = (unsigned int)
-			vfs_read(md_flip, devp->vfp->dv_buf_ori[index],
+			vfs_read(md_flip, devp->vfp->dv_buf_vmem[index],
 				 4096, &pos);
 			p->dv_buf_size[index] = size;
 			devp->vfp->dv_buf[index] = &c[0];
@@ -1545,6 +1557,7 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 static void dump_dolby_metadata(struct vdin_dev_s *devp)
 {
 	unsigned int i, j;
+	char *p;
 
 	pr_info("*****dolby_metadata(%d byte):*****\n", dolby_size_byte);
 	for (i = 0; i < devp->canvas_max_num; i++) {
@@ -1553,17 +1566,20 @@ static void dump_dolby_metadata(struct vdin_dev_s *devp)
 		for (j = 0; j < dolby_size_byte; j++) {
 			if ((j % 16) == 0)
 				pr_info("\n");
-			pr_info("0x%02x\t", *(devp->vfp->dv_buf_ori[i] + j));
+			p = devp->vfp->dv_buf_vmem[i];
+			pr_info("0x%02x\t", *(p + j));
+			/*pr_info("0x%02x\t", *(devp->vfp->dv_buf_ori[i] + j));*/
+
 		}
 	}
 }
 
 static void dump_dolby_buf_clean(struct vdin_dev_s *devp)
 {
-	unsigned int i;
+	/*unsigned int i;*/
 
-	for (i = 0; i < devp->canvas_max_num; i++)
-		memset(devp->vfp->dv_buf_ori[i], 0, dolby_size_byte);
+	/*for (i = 0; i < devp->canvas_max_num; i++)*/
+	/*	memset(devp->vfp->dv_buf_ori[i], 0, dolby_size_byte);*/
 }
 
 #ifdef CONFIG_AML_LOCAL_DIMMING
@@ -1590,10 +1606,22 @@ static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
 }
 #endif
 
-static void vdin_dump_regs(struct vdin_dev_s *devp)
+static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 {
 	unsigned int reg;
 	unsigned int offset = devp->addr_offset;
+
+	if (size) {
+		pr_info("vdin dump reg value:%d\n", size);
+		if (size > 256)
+			size = 256;
+		for (reg = VDIN_SCALE_COEF_IDX;
+		     reg <= VDIN_SCALE_COEF_IDX + size; reg++)
+			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+
+		return;
+	}
 
 	pr_info("vdin%d regs start----\n", devp->index);
 	for (reg = VDIN_SCALE_COEF_IDX; reg <= VDIN_COM_STATUS3; reg++)
@@ -1622,10 +1650,19 @@ static void vdin_dump_regs(struct vdin_dev_s *devp)
 			pr_info("0x%04x = 0x%08x\n",
 				(reg + offset), rd(offset, reg));
 		}
+
 		pr_info("0x%04x = 0x%08x\n",
 			(VDIN_DOLBY_DSC_STATUS3 + offset),
 			rd(offset, VDIN_DOLBY_DSC_STATUS3));
-		pr_info("vdin%d DV regs end----\n\n", devp->index);
+		pr_info("vdin%d DV regs end----\n", devp->index);
+	}
+
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
+		for (reg = VDIN_WR_BADDR_LUMA;
+		     reg <= VDIN_WR_STRIDE_CHROMA; reg++) {
+			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+		}
 	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
@@ -1640,6 +1677,11 @@ static void vdin_dump_regs(struct vdin_dev_s *devp)
 
 		reg = VDIN_TOP_DOUBLE_CTRL;
 		pr_info("0x%04x = 0x%08x\n\n", (reg), R_VCBUS(reg));
+
+		for (reg = VDIN2_WR_CTRL; reg <= VDIN_TOP_MEAS_RO_PIXB; reg++) {
+			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+		}
 	}
 
 	if (devp->afbce_flag & VDIN_AFBCE_EN) {
@@ -1775,15 +1817,15 @@ static ssize_t attr_store(struct device *dev,
 
 		/* devp->flags |= VDIN_FLAG_FS_OPENED; */
 		/* request irq */
-		snprintf(devp->irq_name, sizeof(devp->irq_name),
-			 "vdin%d-irq", devp->index);
-		pr_info("vdin work in normal mode\n");
+		/*snprintf(devp->irq_name, sizeof(devp->irq_name),*/
+		/*	 "vdin%d-irq", devp->index);*/
+		/*pr_info("vdin work in normal mode\n");*/
 		/*ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,*/
 		/*		devp->irq_name, (void *)devp);*/
 
-		if (vdin_dbg_en)
-			pr_info("%s vdin.%d request_irq\n", __func__,
-				devp->index);
+		/*if (vdin_dbg_en)*/
+		/*	pr_info("%s vdin.%d request_irq\n", __func__,*/
+		/*		devp->index);*/
 
 		/*disable irq until vdin is configured completely*/
 		/*disable_irq_nosync(devp->irq);*/
@@ -1842,22 +1884,37 @@ start_chk:
 		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
 			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 					  devp->irq_name, (void *)devp);
-			devp->flags |= VDIN_FLAG_ISR_REQ;
 			disable_irq(devp->irq);
+			/* for t7 meta data */
+			if (devp->dtdata->hw_ver == VDIN_HW_T7) {
+				ret = request_irq(devp->vdin2_meta_wr_done_irq,
+						  vdin_wrmif2_dvmeta_wr_done_isr,
+						  IRQF_SHARED,
+						  devp->vdin2_meta_wr_done_irq_name,
+						  (void *)devp);
+				disable_irq(devp->vdin2_meta_wr_done_irq);
+				pr_info("vdin%d req meta_wr_done_irq",
+					devp->index);
+			}
+			devp->flags |= VDIN_FLAG_ISR_REQ;
 		}
 		vdin_start_dec(devp);
+		if (!(devp->flags & VDIN_FLAG_ISR_EN)) {
+			/*enable irq */
+			enable_irq(devp->irq);
 
-		/*enable irq */
-		enable_irq(devp->irq);
-		devp->flags |= VDIN_FLAG_ISR_EN;
-		/*if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&*/
-		/*    devp->index == 0 && devp->vpu_crash_irq > 0)*/
-		/*	enable_irq(devp->vpu_crash_irq);*/
-
-		pr_info("%s START_DEC vdin.%d enable_irq\n",
+			/* for t7 dv meta data */
+			if (devp->vdin2_meta_wr_done_irq > 0) {
+				enable_irq(devp->vdin2_meta_wr_done_irq);
+				pr_info("enable meta wt done irq %d\n",
+					devp->vdin2_meta_wr_done_irq);
+			}
+			devp->flags |= VDIN_FLAG_ISR_EN;
+		}
+		pr_info("%s vdin.%d enable_irq\n",
 			__func__, devp->index);
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
-		pr_info("TVIN_IOC_START_DEC port %s, decode started ok\n\n",
+		pr_info("START_DEC port %s, decode started ok\n\n",
 			tvin_port_str(devp->parm.port));
 	} else if (!strcmp(parm[0], "startdec")) {
 		temp = devp->parm.info.fmt;
@@ -1869,9 +1926,8 @@ start_chk:
 		vdin_start_dec(devp);
 		/*enable irq */
 		enable_irq(devp->irq);
-
-		pr_info("%s START_DEC vdin.%d enable_irq\n",
-			__func__, devp->index);
+		pr_info("%s START_DEC vdin.%d enable_irq %d\n",
+			__func__, devp->index, devp->irq);
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
 	} else if (!strcmp(parm[0], "tvstop")) {
 		vdin_stop_dec(devp);
@@ -2069,7 +2125,10 @@ start_chk:
 		else
 			pr_err("miss parameters .\n");
 	} else if (!strcmp(parm[0], "dump_reg")) {
-		vdin_dump_regs(devp);
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			vdin_dump_regs(devp, temp);
+		else
+			vdin_dump_regs(devp, 0);
 	} else if (!strcmp(parm[0], "prob_xy")) {
 		unsigned int x = 0, y = 0;
 
@@ -2500,7 +2559,7 @@ start_chk:
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &mode) == 0) {
 				pr_info("dv scramble %d\n", mode);
-				dv_de_scramble = mode;
+				vdin_dv_de_scramble = mode;
 				vdin_dolby_desc_sc_enable(devp, mode);
 			}
 		}
@@ -2542,7 +2601,7 @@ start_chk:
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->game_mode = temp;
-			force_game_mode = temp;
+			vdin_force_game_mode = temp;
 			pr_info("set game mode: 0x%x\n", temp);
 		}
 	} else if (!strcmp(parm[0], "matrix_pattern")) {

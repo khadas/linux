@@ -911,6 +911,22 @@
 
 #define VDIN_RO_CRC	0x12ca
 
+/* t7 add */
+#define VDIN_WR_BADDR_LUMA	0x12cc
+#define VDIN_WR_BADDR_CHROMA	0x12cd
+#define VDIN_WR_STRIDE_LUMA	0x12ce
+#define VDIN_WR_STRIDE_CHROMA	0x12cf
+
+/* dolby descramble and scramble register */
+#define VDIN_DSC_CTRL		0x12d0
+#define VDIN_CFMT_CTRL		0x12d1
+#define VDIN_CFMT_W		0x12d2
+#define VDIN_SCB_CTRL0		0x12d3
+#define VDIN_SCB_CTRL1		0x12d4
+#define VDIN_DSC_HSIZE		0x12d5
+#define VDIN_DSC_DETUNNEL_SEL	0x12d6
+#define VDIN_DSC_TUNNEL_SEL	0x12d7
+
 /*tm2 new add begin*/
 #define VDIN_VSHRK_SIZE_M1	0x12d9
 #define VSHRK_IN_HSIZE_BIT	0
@@ -941,18 +957,28 @@
 #define HSK_COEF_14	0x12fe
 #define HSK_COEF_15	0x12ff
 
-#define VDIN2_WR_CTRL	0x4101
+#define VDIN2_WR_CTRL			0x4101
 #define VDIN2_WR_CVS_ADDR_BIT	0
 #define VDIN2_WR_CVS_ADDR_WID	8
+#define VDIN2_WR_CTRL2			0x4102
+#define VDIN2_WR_H_START_END		0x4103
+#define VDIN2_WR_V_START_END		0x4104
+#define VDIN2_DBG_AXI_CMD_CNT		0x4105
+#define VDIN2_DBG_AXI_DAT_CNT		0x4106
+#define VDIN2_WR_URGENT_CTRL		0x4107
+#define VDIN2_RO_WRMIF_STATUS		0x4108
 
-#define VDIN2_WR_CTRL2	0x4102
-#define VDIN2_WR_H_START_END	0x4103
-#define VDIN2_WR_V_START_END	0x4104
+#define VDIN2_WR_BADDR_LUMA		0x4110
+#define VDIN2_WR_BADDR_CHROMA		0x4111
+#define VDIN2_WR_STRIDE_LUMA		0x4112
+#define VDIN2_WR_STRIDE_CHROMA		0x4113
 
+#define VDIN_TOP_SECURE0_ST_RO		0x4109
+#define VDIN_TOP_SECURE_DUMMY		0x410a
 /*[15:0] vdin reorder sel
  *0:disable, 1:vdin0 normal, 2:vdin0 small, 3:vdin1 normal, 4:vdin1 small
  */
-#define VDIN_TOP_DOUBLE_CTRL	0x410b
+#define VDIN_TOP_DOUBLE_CTRL		0x410b
 #define VDIN_REORDER_SEL_WID	4
 /* [3:0] afbce sel */
 #define AFBCE_OUT_SEL_BIT	0
@@ -962,20 +988,20 @@
 #define MIF1_OUT_SEL_BIT	8
 /* [15:12] wr mif 2 sel */
 #define MIF2_OUT_SEL_BIT	12
+/* vdin 0 wr interrupt mask*/
+#define VDIN0_INT_MASK_BIT	20
+/* vdin 1 wr interrupt mask*/
+#define VDIN1_INT_MASK_BIT	24
 
-/*tm2 new add end*/
+#define VDIN_TOP_SECURE1_ST_RO		0x410c
+#define VDIN_TOP_MISC			0x410d
+#define VDIN_TOP_SECURE_REG0		0x410e
+#define VDIN_TOP_SECURE_REG1		0x410f
 
-/* dolby de-scramble scramble register */
-#define VDIN_DSC_CTRL		0x12d0
-#define VDIN_CFMT_CTRL		0x12d1
-#define VDIN_CFMT_W		0x12d2
-#define VDIN_SCB_CTRL0		0x12d3
-#define VDIN_SCB_CTRL1		0x12d4
-#define VDIN_DSC_HSIZE		0x12d5
-#define VDIN_DSC_DETUNNEL_SEL	0x12d6
-#define VDIN_DSC_TUNNEL_SEL	0x12d7
-
-#define VDIN_TOP_MISC		0x410d
+#define VDIN_SECURE_RXIN_DW		0x4116
+#define VDIN_TOP_MEAS_RO_LINE		0x4117
+#define VDIN_TOP_MEAS_RO_PIXF		0x4118
+#define VDIN_TOP_MEAS_RO_PIXB		0x4119
 
 /* used by other modules,indicates that MPEG input.
  *0: mpeg source to NR directly,

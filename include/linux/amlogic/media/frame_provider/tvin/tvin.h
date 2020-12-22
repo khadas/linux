@@ -78,6 +78,28 @@ enum tvin_port_e {
 	TVIN_PORT_MAX = 0x80000000,
 };
 
+enum viu_mux_port {
+	VIU_MUX_SEL_ENCI = 1,
+	VIU_MUX_SEL_ENCP = 2,
+	VIU_MUX_SEL_ENCL = 4,
+	VIU_MUX_SEL_WB0 = 8,
+	VIU_MUX_SEL_WB1 = 16,
+	VIU_MUX_SEL_WB2 = 32,/*t7*/
+	VIU_MUX_SEL_WB3 = 64,/*t7*/
+};
+
+enum wb_chan_sel {
+	WB_CHAN_DISABLE = 0,
+	WB_CHAN_SEL_POST_BLD_VD1 = 1,
+	WB_CHAN_SEL_POST_BLD_VD2 = 2,
+	WB_CHAN_SEL_POST_OSD1 = 3,
+	WB_CHAN_SEL_POST_OSD2 = 4,
+	WB_CHAN_SEL_POST_DOUT = 5,
+	WB_CHAN_SEL_VPP_DOUT = 6,
+	WB_CHAN_SEL_PRE_BLD_VD1 = 7,/*t7*/
+	WB_CHAN_SEL_POST_VD3 = 8,/*t7*/
+};
+
 const char *tvin_port_str(enum tvin_port_e port);
 
 /* tvin signal format table */

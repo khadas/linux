@@ -149,8 +149,8 @@ struct dv_meta_pkt {
 };
 
 extern unsigned int game_mode;
-extern unsigned int force_game_mode;
-extern bool vdin_dbg_en;
+extern unsigned int vdin_force_game_mode;
+extern int vdin_dbg_en;
 extern unsigned int vdin_pc_mode;
 extern int irq_max_count;
 
@@ -303,6 +303,11 @@ bool for_dolby_vision_certification(void);
 void vdin_change_matrix0(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1(u32 offset, u32 matrix_csc);
 void vdin_change_matrixhdr(u32 offset, u32 matrix_csc);
+
+void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
+			unsigned int rdma_enable, struct vf_entry *vfe);
+void vdin_dolby_pr_meta_data(void *addr, unsigned int size);
+bool vdin_is_dv_meta_data_case(struct vdin_dev_s *devp);
 
 #endif
 
