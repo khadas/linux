@@ -37,6 +37,7 @@ obj-$(CONFIG_AMLOGIC_GX_SUSPEND)	+= pm/
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 obj-$(CONFIG_AMLOGIC_DEBUG)		+= debug/
 obj-$(CONFIG_PWM_MESON)			+= pwm/
+obj-$(CONFIG_AMLOGIC_LED)    		+= led/
 obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND)	+= memory_ext/
 obj-$(CONFIG_AMLOGIC_WIFI)		+= wifi/
 obj-$(CONFIG_AMLOGIC_UART)		+= uart/
