@@ -10,9 +10,8 @@ export PATH=/opt/clang-r377782b/bin/:$PATH
 clang_flags="ARCH=arm64 CC=clang HOSTCC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy"
 export INSTALL_MOD_PATH=./modules_install
 
-###################### USB and CLOCK configs keeping y for bringup ######################
 cp arch/arm64/configs/meson64_gki.fragment arch/arm64/configs/meson64_gki.fragment.m
-sed -i 's/CONFIG_MESON_CLKC_MODULE=m/CONFIG_MESON_CLKC_MODULE=y/' arch/arm64/configs/meson64_gki.fragment.m
+#### set usb configs to y for bringup ####
 sed -i 's/CONFIG_USB_DWC3=m/CONFIG_USB_DWC3=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB=m/CONFIG_AMLOGIC_USB=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB_DWC_OTG_HCD=m/CONFIG_AMLOGIC_USB_DWC_OTG_HCD=y/' arch/arm64/configs/meson64_gki.fragment.m
@@ -20,8 +19,13 @@ sed -i 's/CONFIG_AMLOGIC_USB_HOST_ELECT_TEST=m/CONFIG_AMLOGIC_USB_HOST_ELECT_TES
 sed -i 's/CONFIG_AMLOGIC_USBPHY=m/CONFIG_AMLOGIC_USBPHY=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB2PHY=m/CONFIG_AMLOGIC_USB2PHY=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_USB3PHY=m/CONFIG_AMLOGIC_USB3PHY=y/' arch/arm64/configs/meson64_gki.fragment.m
-sed -i 's/CONFIG_AMLOGIC_PINCTRL_MODULE=m/CONFIG_AMLOGIC_PINCTRL_MODULE=y/' arch/arm64/configs/meson64_gki.fragment.m
 sed -i 's/CONFIG_AMLOGIC_PCIE=m/CONFIG_AMLOGIC_PCIE=y/' arch/arm64/configs/meson64_gki.fragment.m
+#### usb depends on gx_pm.ko ####
+echo CONFIG_AMLOGIC_GX_SUSPEND=y >> arch/arm64/configs/meson64_gki.fragment.m
+echo CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND=y >> arch/arm64/configs/meson64_gki.fragment.m
+cp arch/arm64/configs/meson64_gki_module_config arch/arm64/configs/meson64_gki_module_config.tmp
+sed -i 's/.*CONFIG_AMLOGIC_GX_SUSPEND=.*//' arch/arm64/configs/meson64_gki_module_config.tmp
+sed -i 's/.*CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND=.*//' arch/arm64/configs/meson64_gki_module_config.tmp
 cat arch/arm64/configs/gki_defconfig arch/arm64/configs/meson64_gki.fragment.m > arch/arm64/configs/meson64_tmp_defconfig
 rm arch/arm64/configs/meson64_gki.fragment.m
 
@@ -42,7 +46,7 @@ set +ex
 
 
 ######################## build meson64_gki_module_config modules #########################
-GKI_EXT_MODULE_CFG=arch/arm64/configs/meson64_gki_module_config
+GKI_EXT_MODULE_CFG=arch/arm64/configs/meson64_gki_module_config.tmp
 
 function read_ext_module_config() {
 	ALL_LINE=""
@@ -76,6 +80,8 @@ export GKI_EXT_MODULE_CONFIG
 
 GKI_EXT_MODULE_PREDEFINE=$(read_ext_module_predefine $GKI_EXT_MODULE_CFG)
 export GKI_EXT_MODULE_PREDEFINE
+
+rm $GKI_EXT_MODULE_CFG
 
 # ----------- basic common modules build as extern --------------
 EXT_MODULES="drivers/amlogic
