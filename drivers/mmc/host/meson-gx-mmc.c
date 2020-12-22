@@ -1000,7 +1000,6 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.hs4;
 		break;
 	case MMC_TIMING_MMC_HS:
-	case MMC_TIMING_SD_HS:
 		val = readl(host->regs + host->data->adjust);
 		val |= CFG_ADJUST_ENABLE;
 		val &= ~CLK_ADJUST_DELAY;
@@ -1009,6 +1008,9 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	case MMC_TIMING_MMC_DDR52:
+		mmc_phase_set = &host->sdmmc.init;
+		break;
+	case MMC_TIMING_SD_HS:
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	default:
