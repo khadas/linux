@@ -154,6 +154,8 @@
 
 #define SD_EMMC_SRAM_DATA_BUF_LEN 1536
 #define SD_EMMC_SRAM_DATA_BUF_OFF 0x200
+#define SD_EMMC_MAX_SEGS 1024
+#define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
 
 #define SD_EMMC_CFG_BLK_SIZE 512 /* internal buffer max: 512 bytes */
 #define SD_EMMC_CFG_RESP_TIMEOUT 256 /* in clock cycles */
@@ -2697,10 +2699,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				     mmc->max_blk_size;
 	} else {
 		mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
-		mmc->max_segs = SD_EMMC_DESC_BUF_LEN /
-				sizeof(struct sd_emmc_desc);
+		mmc->max_segs = SD_EMMC_MAX_SEGS;
 	}
-	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
+	mmc->max_req_size = SD_EMMC_MAX_REQ_SIZE;
 	mmc->max_seg_size = mmc->max_req_size;
 	mmc->ocr_avail = 0x200080;
 
