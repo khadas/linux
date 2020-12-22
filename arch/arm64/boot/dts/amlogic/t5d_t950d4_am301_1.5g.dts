@@ -186,7 +186,7 @@
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		status = "disabled";
+		status = "okay";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 	};
 

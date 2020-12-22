@@ -1155,7 +1155,7 @@
 
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_PARSER0
 			&clkc CLKID_DEMUX
 			&clkc CLKID_AHB_ARB0
@@ -1174,12 +1174,12 @@
 
 	vcodec-dec {
 		compatible = "amlogic, vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vdec {
 		compatible = "amlogic, vdec-pm-pd-sec-api";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -1194,6 +1194,12 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
+		power-domains = <&pwrdm PDID_T5_DOS_VDEC>,
+			<&pwrdm PDID_T5_DOS_HCODEC>,
+			<&pwrdm PDID_T5_DOS_HEVC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hcodec",
+			"pwrc-hevc";
 	};
 
 
