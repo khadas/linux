@@ -367,7 +367,7 @@ static u32 core1_disp_hsize;
 static u32 core1_disp_vsize;
 static u32 vsync_count;
 #define FLAG_VSYNC_CNT 10
-#define MAX_TRANSITION_DELAY 15
+#define MAX_TRANSITION_DELAY 5
 #define MIN_TRANSITION_DELAY 2
 #define MAX_CORE3_MD_SIZE 128 /*512byte*/
 
