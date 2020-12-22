@@ -394,13 +394,12 @@ static int rtswitch_register_task(struct rtswitch_context *ctx,
 	return 0;
 }
 
-static void rtswitch_kthread(struct evl_kthread *kthread)
+static void rtswitch_kthread(void *arg)
 {
+	struct rtswitch_task *task = arg;
 	struct rtswitch_context *ctx;
-	struct rtswitch_task *task;
 	unsigned int to, i = 0;
 
-	task = container_of(kthread, struct rtswitch_task, kthread);
 	ctx = task->ctx;
 
 	to = task->base.index;
@@ -443,7 +442,7 @@ static int rtswitch_create_kthread(struct rtswitch_context *ctx,
 	task = &ctx->tasks[ptask->index];
 	task->ctx = ctx;
 	err = evl_run_kthread_on_cpu(&task->kthread, ctx->cpu,
-				rtswitch_kthread, 1,
+				rtswitch_kthread, task, 1,
 				EVL_CLONE_PUBLIC,
 				"rtk%d@%u:%d",
 				ptask->index, ctx->cpu,

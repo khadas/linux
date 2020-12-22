@@ -439,13 +439,11 @@ static struct latmus_runner *create_sirq_runner(int cpu)
 	return &sirq_runner->runner;
 }
 
-void kthread_handler(struct evl_kthread *kthread)
+void kthread_handler(void *arg)
 {
-	struct kthread_runner *k_runner;
+	struct kthread_runner *k_runner = arg;
 	ktime_t now;
 	int ret = 0;
-
-	k_runner = container_of(kthread, struct kthread_runner, kthread);
 
 	for (;;) {
 		if (evl_kthread_should_stop())
@@ -542,7 +540,7 @@ create_kthread_runner(int priority, int cpu)
 	evl_init_flag(&k_runner->barrier);
 
 	ret = evl_run_kthread_on_cpu(&k_runner->kthread, cpu,
-				kthread_handler,
+				kthread_handler, k_runner,
 				priority,
 				EVL_CLONE_PUBLIC,
 				"latmus-klat:%d",
