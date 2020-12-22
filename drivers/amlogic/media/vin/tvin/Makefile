@@ -9,3 +9,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN) += vin/tvin/tvin_global.o
 include drivers/amlogic/media/vin/tvin/vdin/Makefile
 include drivers/amlogic/media/vin/tvin/viu/Makefile
 include drivers/amlogic/media/vin/tvin/bt656/Makefile
+include drivers/amlogic/media/vin/tvin/hdmirx/Makefile

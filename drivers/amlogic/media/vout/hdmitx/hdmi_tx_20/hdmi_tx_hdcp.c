@@ -26,7 +26,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include "hw/common.h"

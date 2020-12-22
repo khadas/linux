@@ -79,6 +79,21 @@ static inline int esm_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+int hdmirx_init(void);
+int hld_init(void);
+#else
+static inline int hdmirx_init(void)
+{
+	return 0;
+}
+
+static inline int hld_init(void)
+{
+	return 0;
+}
+#endif
+
 static void esm_exit(void)
 {
 }

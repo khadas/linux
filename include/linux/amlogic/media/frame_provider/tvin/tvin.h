@@ -593,4 +593,7 @@ static inline void adc_set_ddemod_default(void)
 void rx_get_audio_status(struct rx_audio_stat_s *aud_sts);
 void rx_set_atmos_flag(bool en);
 bool rx_get_atmos_flag(void);
+u_char rx_edid_get_aud_sad(u_char *sad_data);
+bool rx_edid_set_aud_sad(u_char *sad, u_char len);
+int rx_set_audio_param(uint32_t param);
 #endif

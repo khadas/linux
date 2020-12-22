@@ -1,0 +1,152 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef _HDCP_MAIN_H_
+#define _HDCP_MAIN_H_
+
+#ifdef __KERNEL__
+#include <linux/ioctl.h>
+#else
+#include <sys/ioctl.h>
+#endif
+#include <linux/types.h>
+
+/* need update the version when update firmware */
+#define ESM_VERSION	"2.4.84.11.D3"
+#define HDCP_RX22_VER "HDCP2.2 RX0719"
+
+#define ESM_HL_DRIVER_SUCCESS                0
+#define ESM_HL_DRIVER_FAILED               (-1)
+#define ESM_HL_DRIVER_NO_MEMORY            (-2)
+#define ESM_HL_DRIVER_NO_ACCESS            (-3)
+#define ESM_HL_DRIVER_INVALID_PARAM        (-4)
+#define ESM_HL_DRIVER_TOO_MANY_ESM_DEVICES (-5)
+#define ESM_HL_DRIVER_USER_DEFINED_ERROR   (-6)
+
+/* ioctl numbers */
+enum {
+	ESM_NR_MIN = 0x10,
+	ESM_NR_INIT,
+	ESM_NR_MEMINFO,
+	ESM_NR_LOAD_CODE,
+	ESM_NR_READ_DATA,
+	ESM_NR_WRITE_DATA,
+	ESM_NR_MEMSET_DATA,
+	ESM_NR_READ_HPI,
+	ESM_NR_WRITE_HPI,
+	ESM_NR_GET_PARAM,
+	ESM_NR_SET_PARAM,
+	ESM_NR_MAX
+};
+
+/*
+ * ESM_IOC_INIT: associate file descriptor with the indicated memory.  This
+ * must be called before any other ioctl on the file descriptor.
+ *
+ *   - hpi_base = base address of ESM HPI registers.
+ *   - code_base = base address of firmware mem (0 to allocate internally)
+ *   - data_base = base address of data memory (0 to allocate internally)
+ *   - code_len, data_len = length of firmware and data mem, respectively.
+ */
+#define ESM_IOC_INIT    _IOW('E', ESM_NR_INIT, struct esm_ioc_meminfo)
+
+/*
+ * ESM_IOC_MEMINFO: retrieve memory information from file descriptor.
+ *
+ * Fills out the meminfo struct, returning the values passed to ESM_IOC_INIT
+ * except that the actual base addresses of internal allocations (if any) are
+ * reported.
+ */
+#define ESM_IOC_MEMINFO _IOR('E', ESM_NR_MEMINFO, struct esm_ioc_meminfo)
+
+struct esm_ioc_meminfo {
+	__u32 hpi_base;
+	__u32 code_base;
+	__u32 code_size;
+	__u32 data_base;
+	__u32 data_size;
+};
+
+/*
+ * ESM_IOC_LOAD_CODE: write the provided buffer to the firmware memory.
+ *
+ *   - len = number of bytes in data buffer
+ *   - data = data to write to firmware memory.
+ *
+ * This can only be done once (successfully).  Subsequent attempts will
+ * return -EBUSY.
+ */
+#define ESM_IOC_LOAD_CODE _IOW('E', ESM_NR_LOAD_CODE, struct esm_ioc_code)
+
+struct esm_ioc_code {
+	__u32 len;
+	__u8 data[];
+};
+
+/*
+ * ESM_IOC_READ_DATA: copy from data memory.
+ * ESM_IOC_WRITE_DATA: copy to data memory.
+ *
+ *   - offset = start copying at this byte offset into the data memory.
+ *   - len    = number of bytes to copy.
+ *   - data   = for write, buffer containing data to copy.
+ *              for read, buffer to which read data will be written.
+ *
+ */
+#define ESM_IOC_READ_DATA  _IOWR('E', ESM_NR_READ_DATA, struct esm_ioc_data)
+#define ESM_IOC_WRITE_DATA  _IOW('E', ESM_NR_WRITE_DATA, struct esm_ioc_data)
+
+/*
+ * ESM_IOC_MEMSET_DATA: initialize data memory.
+ *
+ *   - offset  = start initializatoin at this byte offset into the data memory.
+ *   - len     = number of bytes to set.
+ *   - data[0] = byte value to write to all indicated memory locations.
+ */
+#define ESM_IOC_MEMSET_DATA _IOW('E', ESM_NR_MEMSET_DATA, struct esm_ioc_data)
+
+struct esm_ioc_data {
+	__u32 offset;
+	__u32 len;
+	__u8 data[];
+};
+
+/*
+ * ESM_IOC_READ_HPI: read HPI register.
+ * ESM_IOC_WRITE_HPI: write HPI register.
+ *
+ *   - offset = byte offset of HPI register to access.
+ *   - value  = for write, value to write.
+ *              for read, location to which result is stored.
+ */
+#define ESM_IOC_READ_HPI _IOWR('E', ESM_NR_READ_HPI, struct esm_ioc_hpi_reg)
+#define ESM_IOC_WRITE_HPI _IOW('E', ESM_NR_WRITE_HPI, struct esm_ioc_hpi_reg)
+
+struct esm_ioc_hpi_reg {
+	__u32 offset;
+	__u32 value;
+};
+
+/*
+ * to reduce cpu occupancy rate,use ioctl instead of sysfs
+ * amlogic added
+ */
+#define ESM_IOC_GET_PARAM _IOR('E', ESM_NR_GET_PARAM, struct esm_ioc_param)
+#define ESM_IOC_SET_PARAM _IOW('E', ESM_NR_SET_PARAM, struct esm_ioc_param)
+
+struct esm_ioc_param {
+	bool hpd;
+	bool video_stable;
+	bool pwr_sts;
+	bool log;
+	bool esm_reset;
+	bool reauth;
+	bool esm_err;
+	bool auth_stop;
+	bool esm_reset2;
+	bool esm_kill;
+	__u32 reset_mode;
+};
+#endif
