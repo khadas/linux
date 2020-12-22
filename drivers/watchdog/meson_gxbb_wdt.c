@@ -24,6 +24,7 @@
 #endif
 
 #define GXBB_WDT_CTRL_REG			0x0
+#define GXBB_WDT_CTRL1_REG			0x4
 #define GXBB_WDT_TCNT_REG			0x8
 #define GXBB_WDT_RSET_REG			0xc
 
@@ -35,6 +36,7 @@
 
 #define GXBB_WDT_TCNT_SETUP_MASK		(BIT(16) - 1)
 #define GXBB_WDT_TCNT_CNT_SHIFT			16
+#define GXBB_WDT_RST_SIG_EN			BIT(17)
 
 struct meson_gxbb_wdt {
 	void __iomem *reg_base;
@@ -189,6 +191,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	int ret;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct wdt_params *wdt_params;
+	int reset_by_soc;
 #endif
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -230,9 +233,13 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 		data->reg_base + GXBB_WDT_CTRL_REG);
 #else
 	wdt_params = (struct wdt_params *)of_device_get_match_data(dev);
+
+	reset_by_soc = !(readl(data->reg_base + GXBB_WDT_CTRL1_REG) &
+			 GXBB_WDT_RST_SIG_EN);
+
 	/* Setup with 1ms timebase */
 	writel(((clk_get_rate(data->clk) / 1000) & GXBB_WDT_CTRL_DIV_MASK) |
-		BIT(wdt_params->rst_shift) |
+		(reset_by_soc << wdt_params->rst_shift) |
 		GXBB_WDT_CTRL_CLK_EN |
 		GXBB_WDT_CTRL_CLKDIV_EN,
 		data->reg_base + GXBB_WDT_CTRL_REG);
