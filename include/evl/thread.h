@@ -329,15 +329,16 @@ int activate_oob_mm_state(struct oob_mm_state *p);
 struct evl_kthread {
 	struct evl_thread thread;
 	struct completion done;
-	void (*threadfn)(struct evl_kthread *kthread);
+	void (*threadfn)(void *arg);
 	int status;
+	void *arg;
 	struct irq_work irq_work;
 };
 
 int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 
-#define _evl_run_kthread(__kthread, __affinity, __fn, __priority,	\
-			 __clone_flags, __fmt, __args...)		\
+#define _evl_run_kthread(__kthread, __affinity, __fn, __arg,		\
+			__priority, __clone_flags, __fmt, __args...)	\
 	({								\
 		int __ret;						\
 		struct evl_init_thread_attr __iattr = {			\
@@ -348,6 +349,7 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 			.sched_param.fifo.prio = __priority,		\
 		};							\
 		(__kthread)->threadfn = __fn;				\
+		(__kthread)->arg = __arg;				\
 		(__kthread)->status = 0;				\
 		init_completion(&(__kthread)->done);			\
 		__ret = evl_init_thread(&(__kthread)->thread, &__iattr,	\
@@ -357,15 +359,15 @@ int __evl_run_kthread(struct evl_kthread *kthread, int clone_flags);
 		__ret;							\
 	})
 
-#define evl_run_kthread(__kthread, __fn, __priority,			\
+#define evl_run_kthread(__kthread, __fn, __arg, __priority,		\
 			__clone_flags, __fmt, __args...)		\
-	_evl_run_kthread(__kthread, &evl_oob_cpus, __fn, __priority,	\
-			__clone_flags, __fmt, ##__args)
+	_evl_run_kthread(__kthread, &evl_oob_cpus, __fn, __arg,		\
+			__priority, __clone_flags, __fmt, ##__args)
 
-#define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __priority,	\
-			       __clone_flags, __fmt, __args...)		\
-	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
-			__clone_flags, __fmt, ##__args)
+#define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __arg,		\
+			__priority, __clone_flags, __fmt, __args...)	\
+	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __arg,	\
+			__priority, __clone_flags, __fmt, ##__args)
 
 void evl_set_kthread_priority(struct evl_kthread *kthread,
 			int priority);

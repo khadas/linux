@@ -428,7 +428,7 @@ static int kthread_trampoline(void *arg)
 	ret = map_kthread_self(kthread);
 	if (!ret) {
 		trace_evl_kthread_entry(curr);
-		kthread->threadfn(kthread);
+		kthread->threadfn(kthread->arg);
 	}
 
 	/* Handles nitty-gritty details like in-band switch. */
