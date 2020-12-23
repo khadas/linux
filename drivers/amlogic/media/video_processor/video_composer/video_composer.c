@@ -1711,6 +1711,14 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	u64 time_vsync;
 	int interval_time;
 
+	/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
+	/*apk queue 5 and wait 1, it will fence timeout*/
+	if (get_count[dev->index] == 2) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "has alredy get 2, can not get more\n");
+		return NULL;
+	}
+
 	time1 = dev->start_time;
 	time2 = vsync_time;
 	if (kfifo_peek(&dev->ready_q, &vf)) {
