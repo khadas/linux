@@ -14,6 +14,7 @@
  */
 
 #define ION_IOC_MESON_PHYS_ADDR             8
+#define ION_FLAG_EXTEND_MESON_HEAP          BIT(30)
 #define ION_FLAG_EXTEND_PROTECTED           BIT(31)
 
 struct ion_cma_heap {

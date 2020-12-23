@@ -20,6 +20,7 @@
 #include <linux/dma-buf.h>
 #include <linux/pagemap.h>
 #include <linux/ion.h>
+#include <linux/meson_ion.h>
 
 #include "meson_uvm_allocator.h"
 
@@ -116,7 +117,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
 		idmabuf = ion_alloc(buffer->size * scalar * scalar,
-				    (1 << ION_HEAP_TYPE_CUSTOM), 0);
+				    (1 << ION_HEAP_TYPE_CUSTOM), ION_FLAG_EXTEND_MESON_HEAP);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			return -ENOMEM;
@@ -203,6 +204,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	if (!buffer->ibuffer[0]) {
 		if (buffer->ion_flags & MUA_USAGE_PROTECTED)
 			ion_flags |= ION_FLAG_PROTECTED;
+		ion_flags |= ION_FLAG_EXTEND_MESON_HEAP;
 		idmabuf = ion_alloc(dmabuf->size,
 				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
 		if (IS_ERR(idmabuf)) {
@@ -282,6 +284,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 		ion_flags |= ION_FLAG_PROTECTED;
 
 	if (data->flags & MUA_IMM_ALLOC) {
+		ion_flags |= ION_FLAG_EXTEND_MESON_HEAP;
 		idmabuf = ion_alloc(data->size,
 				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
 		if (IS_ERR(idmabuf)) {

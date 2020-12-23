@@ -127,6 +127,9 @@ static int __meson_ion_add_heap(struct ion_heap *heap,
 	ret = ion_device_add_heap(heap);
 	if (ret)
 		DION_ERROR("%s fail\n", __func__);
+	else
+		DION_INFO("%s,heap->name=%s heap->id=%d\n",
+				  __func__, heap->name, heap->id);
 
 	return ret;
 }

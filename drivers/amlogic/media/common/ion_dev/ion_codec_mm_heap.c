@@ -73,6 +73,8 @@ static int ion_codec_mm_heap_allocate(struct ion_heap *heap,
 	phys_addr_t paddr;
 	int ret;
 
+	if (!(flags & ION_FLAG_EXTEND_MESON_HEAP))
+		return -ENOMEM;
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;

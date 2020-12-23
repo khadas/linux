@@ -34,6 +34,7 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/delay.h>
+#include <linux/meson_ion.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -652,7 +653,7 @@ static int malloc_fb_memory(struct fb_info *info)
 			fb_index);
 		dmabuf = ion_alloc(fb_memsize,
 				   (1 << ION_HEAP_TYPE_DMA),
-				   0);
+				   ION_FLAG_EXTEND_MESON_HEAP);
 		ion_fd = dma_buf_fd(dmabuf, O_CLOEXEC);
 		if (ion_fd < 0) {
 			osd_log_err("%s: size=0x%zx, FAILED.\n",

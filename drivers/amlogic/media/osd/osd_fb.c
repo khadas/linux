@@ -39,6 +39,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/meson_ion.h>
 
 /* Local Headers */
 #include "osd.h"
@@ -1239,7 +1240,7 @@ static int malloc_osd_memory(struct fb_info *info)
 				(ion_alloc(PAGE_ALIGN(fb_memsize[fb_index + 1] /
 					  OSD_MAX_BUF_NUM),
 					  (1 << meson_ion_cma_heap_id_get()),
-						     0), O_CLOEXEC);
+					  ION_FLAG_EXTEND_MESON_HEAP), O_CLOEXEC);
 				if (ion_fd[fb_index][j] < 0) {
 					osd_log_err("%s: size=%x, FAILED.\n",
 						    __func__,
@@ -1291,7 +1292,7 @@ static int malloc_osd_memory(struct fb_info *info)
 			ion_fd[fb_index][0] = dma_buf_fd
 				(ion_alloc(fb_memsize[fb_index + 1],
 					  (1 << meson_ion_cma_heap_id_get()),
-					  0), O_CLOEXEC);
+					  ION_FLAG_EXTEND_MESON_HEAP), O_CLOEXEC);
 			if (ion_fd[fb_index][0] < 0) {
 				osd_log_err("%s: size=%x, FAILED.\n",
 					    __func__, fb_memsize[fb_index + 1]);
