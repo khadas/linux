@@ -50,7 +50,7 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 				lane_i2s);
 
 	/* spdif to hdmitx */
-	enable_spdifout_to_hdmitx();
+	enable_spdifout_to_hdmitx(separated);
 	/* check and set channel status */
 	iec_get_channel_status_info(&chsts,
 				    type, runtime->rate);

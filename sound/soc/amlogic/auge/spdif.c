@@ -1242,7 +1242,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
 		separated = p_spdif->chipinfo->separate_tohdmitx_en;
-		enable_spdifout_to_hdmitx();
+		enable_spdifout_to_hdmitx(separated);
 		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);

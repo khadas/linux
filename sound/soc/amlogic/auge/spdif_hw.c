@@ -355,8 +355,17 @@ void aml_spdifout_get_aed_info(int spdifout_id,	int *bitwidth, int *frddrtype)
 		*frddrtype = (val >> 4) & 0x7;
 }
 
-void enable_spdifout_to_hdmitx(void)
+void enable_spdifout_to_hdmitx(int separated)
 {
+	/* if tohdmitx_en is separated, need do:
+	 * step1: enable/disable clk
+	 * step2: enable/disable dat
+	 */
+	if (separated) {
+		audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+				0x1 << 30, 0x1 << 30);
+	}
+
 	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
 			     1 << 31 | 1 << 3 | 1 << 2,
 			     1 << 31 | 1 << 3);
@@ -569,7 +578,7 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		/* spdif to hdmitx */
 		//spdifout_to_hdmitx_ctrl(separated, spdif_id);
 		set_spdif_to_hdmitx_id(spdif_id);
-		enable_spdifout_to_hdmitx();
+		enable_spdifout_to_hdmitx(separated);
 
 		/* spdif ctrl */
 		spdifout_fifo_ctrl(spdif_id,
