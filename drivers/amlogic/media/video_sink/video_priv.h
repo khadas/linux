@@ -496,7 +496,7 @@ extern atomic_t video_unreg_flag;
 extern atomic_t video_inirq_flag;
 extern uint load_pps_coef;
 extern struct video_recv_s *gvideo_recv[3];
-
+extern uint load_pps_coef;
 bool black_threshold_check(u8 id);
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);

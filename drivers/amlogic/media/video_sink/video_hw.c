@@ -3220,26 +3220,64 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 			(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
 			VPP_PHASECTL_DOUBLELINE_BIT,
 			VPP_PHASECTL_DOUBLELINE_WID);
-		VSYNC_WR_MPEG_REG
-			(vd_pps_reg->vd_scale_coef_idx,
-			VPP_COEF_VERT);
-		for (i = 0; i < vpp_filter->vpp_vert_coeff[1]; i++) {
+		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
+		if (bit9_mode) {
 			VSYNC_WR_MPEG_REG
-				(vd_pps_reg->vd_scale_coef,
-				vpp_filter->vpp_vert_coeff[i + 2]);
+				(vd_pps_reg->vd_scale_coef_idx,
+				VPP_COEF_VERT |
+				VPP_COEF_9BIT);
+			for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+				& 0xff); i++) {
+				VSYNC_WR_MPEG_REG
+					(vd_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2]);
+			}
+			for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+				VSYNC_WR_MPEG_REG
+					(vd_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM]);
+			}
+		} else {
+			VSYNC_WR_MPEG_REG
+				(vd_pps_reg->vd_scale_coef_idx,
+				VPP_COEF_VERT);
+			for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+				& 0xff); i++) {
+				VSYNC_WR_MPEG_REG
+					(vd_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2]);
+			}
 		}
 
 		/* vertical chroma filter settings */
 		if (vpp_filter->vpp_vert_chroma_filter_en) {
 			const u32 *pcoeff = vpp_filter->vpp_vert_chroma_coeff;
 
-			VSYNC_WR_MPEG_REG
-				(vd_pps_reg->vd_scale_coef_idx,
-				VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
-			for (i = 0; i < pcoeff[1]; i++)
+			bit9_mode = pcoeff[1] & 0x8000;
+			if (bit9_mode) {
 				VSYNC_WR_MPEG_REG
-					(vd_pps_reg->vd_scale_coef,
-					pcoeff[i + 2]);
+					(vd_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
+				for (i = 0; i < pcoeff[1]; i++)
+					VSYNC_WR_MPEG_REG
+						(vd_pps_reg->vd_scale_coef,
+						pcoeff[i + 2]);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					VSYNC_WR_MPEG_REG
+						(vd_pps_reg->vd_scale_coef,
+						pcoeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+				}
+			} else {
+				VSYNC_WR_MPEG_REG
+					(vd_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
+				for (i = 0; i < pcoeff[1]; i++)
+					VSYNC_WR_MPEG_REG
+						(vd_pps_reg->vd_scale_coef,
+						pcoeff[i + 2]);
+			}
 		}
 
 		r1 = frame_par->VPP_vsc_endp
@@ -6387,172 +6425,146 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 {
 	u32 pps_coef_idx_save;
 	int i;
+	struct hw_pps_reg_s *vd_pps_reg;
 
 	/* bit9_mode : 0 8bit, 1: 9bit*/
 	/* coef_type : 0 horz, 1: vert*/
-	if (layer_id == 0) {
-		pps_coef_idx_save = READ_VCBUS_REG(VPP_SCALE_COEF_IDX);
-		if (hscaler_8tap_enable[layer_id]) {
-			if (bit9_mode) {
-				if (coef_type == 0) {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004100 |
-						VPP_COEF_9BIT);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
+	vd_pps_reg = &vd_layer[layer_id].pps_reg;
+	pps_coef_idx_save = READ_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx);
+	if (hscaler_8tap_enable[layer_id]) {
+		if (bit9_mode) {
+			if (coef_type == 0) {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004100 |
+					VPP_COEF_9BIT);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
 
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004180 |
-						VPP_COEF_9BIT);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				} else {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004000 |
-						VPP_COEF_9BIT);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				}
-
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004180 |
+					VPP_COEF_9BIT);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8TAP 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
 			} else {
-				if (coef_type == 0) {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004100);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8TAP HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004180);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 8 TAP HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				} else {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004000);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				}
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004000 |
+					VPP_COEF_9BIT);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
 			}
 		} else {
-			if (bit9_mode) {
-				if (coef_type == 0) {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004100 |
-						VPP_COEF_9BIT);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				} else {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004000 |
-						VPP_COEF_9BIT);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 9bit VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				}
+			if (coef_type == 0) {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004100);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8TAP HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004180);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 8 TAP HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
 			} else {
-				if (coef_type == 0) {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004100);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 HORZ coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				} else {
-					WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX,
-						0x00004000);
-					READ_VCBUS_REG(VPP_SCALE_COEF);
-					for (i = 0;
-						i < VPP_FILER_COEFS_NUM; i++)
-						pr_info("VD1 VERT coef[%d]=%x\n",
-						i,
-						READ_VCBUS_REG(VPP_SCALE_COEF));
-				}
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004000);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
 			}
 		}
-		WRITE_VCBUS_REG(VPP_SCALE_COEF_IDX, pps_coef_idx_save);
-	} else if (layer_id == 1) {
-		pps_coef_idx_save = READ_VCBUS_REG(VD2_SCALE_COEF_IDX);
-		if (hscaler_8tap_enable[layer_id]) {
-			WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, 0x00004100);
-			for (i = 0; i < 34; i++)
-				pr_info("VD2 8TAP HORZ coef[%d]=%x\n",
-					i, READ_VCBUS_REG(VD2_SCALE_COEF));
-			WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, 0x00004180);
-			for (i = 0; i < 34; i++)
-				pr_info("VD2 8TAP HORZ coef[%d]=%x\n",
-					i, READ_VCBUS_REG(VD2_SCALE_COEF));
-			WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, 0x00004000);
-			for (i = 0; i < 34; i++)
-				pr_info("VD2 VERT coef[%d]=%x\n",
-					i, READ_VCBUS_REG(VD2_SCALE_COEF));
+	} else {
+		if (bit9_mode) {
+			if (coef_type == 0) {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004100 |
+					VPP_COEF_9BIT);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+			} else {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004000 |
+					VPP_COEF_9BIT);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 9bit VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+			}
 		} else {
-			WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, 0x00004100);
-			for (i = 0; i < 34; i++)
-				pr_info("VD2 HORZ coef[%d]=%x\n",
-					i, READ_VCBUS_REG(VD2_SCALE_COEF));
-			WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, 0x00004000);
-			for (i = 0; i < 34; i++)
-				pr_info("VD2 VERT coef[%d]=%x\n",
-					i, READ_VCBUS_REG(VD2_SCALE_COEF));
+			if (coef_type == 0) {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004100);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 HORZ coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+			} else {
+				WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+					0x00004000);
+				READ_VCBUS_REG(vd_pps_reg->vd_scale_coef);
+				for (i = 0;
+					i < VPP_FILER_COEFS_NUM; i++)
+					pr_info("VD1 VERT coef[%d]=%x\n",
+					i,
+					READ_VCBUS_REG(vd_pps_reg->vd_scale_coef));
+			}
 		}
-		WRITE_VCBUS_REG(VD2_SCALE_COEF_IDX, pps_coef_idx_save);
 	}
+	WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
+			pps_coef_idx_save);
 }
 
 /*********************************************************

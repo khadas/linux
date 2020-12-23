@@ -12795,7 +12795,7 @@ static ssize_t load_pps_coefs_store(struct class *cla,
 
 static ssize_t reg_dump_store(struct class *cla,
 				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
