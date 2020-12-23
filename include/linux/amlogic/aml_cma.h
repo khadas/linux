@@ -64,7 +64,7 @@ struct capture_control {
 
 static inline bool cma_forbidden_mask(gfp_t gfp_flags)
 {
-	if ((gfp_flags & __GFP_NO_CMA) || !(gfp_flags & __GFP_MOVABLE))
+	if ((gfp_flags & GFP_NO_CMA) || !(gfp_flags & __GFP_MOVABLE))
 		return true;
 	return false;
 }

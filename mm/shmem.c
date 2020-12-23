@@ -1457,7 +1457,11 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 	shmem_pseudo_vma_init(&pvma, info, index);
 	vmf.vma = &pvma;
 	vmf.address = 0;
+#ifdef CONFIG_AMLOGIC_CMA
+	page = swap_cluster_readahead(swap, gfp | __GFP_NO_CMA, &vmf);
+#else
 	page = swap_cluster_readahead(swap, gfp, &vmf);
+#endif
 	shmem_pseudo_vma_destroy(&pvma);
 
 	return page;
@@ -1495,7 +1499,11 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 	struct page *page;
 
 	shmem_pseudo_vma_init(&pvma, info, index);
+#ifdef CONFIG_AMLOGIC_CMA
+	page = alloc_page_vma(gfp | __GFP_NO_CMA, &pvma, 0);
+#else
 	page = alloc_page_vma(gfp, &pvma, 0);
+#endif
 	shmem_pseudo_vma_destroy(&pvma);
 
 	return page;
