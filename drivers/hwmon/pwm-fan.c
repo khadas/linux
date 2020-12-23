@@ -350,9 +350,9 @@ static void pwm_fan_work_func(struct work_struct *_work)
 		} else if (temp < ctx->trig_temp_level1) {
 			state = 1;
 		} else if (temp < ctx->trig_temp_level2) {
-			state = 3;
+			state = 2;
 		} else{
-			state = 5;
+			state = 4;
 		}
 
 		pwm_fan_set_cur_state(ctx->cdev, state);
